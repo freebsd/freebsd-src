@@ -57,6 +57,7 @@ vendor XIRCOM			0x0105	Xircom
 vendor SMC			0x0108	Standard Microsystems Corporation
 vendor MOTOROLA			0x0109	Motorola Corporation
 vendor NI			0x010b	National Instruments
+vendor QLOGIC			0x0114	QLogic
 vendor USROBOTICS		0x0115	US Robotics Corporation
 vendor OLICOM			0x0121	Olicom
 vendor PROXIM			0x0126	Proxim
@@ -112,6 +113,7 @@ vendor COREGA			0xc00f	Corega K.K.
 vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
+vendor WORKBIT			0xc024	WORKBIT
 vendor EMTAC			0xc250	EMTAC Technology Corporation
 vendor ELSA			0xd601  Elsa 
 
@@ -266,6 +268,7 @@ product LUCENT WAVELAN_IEEE	0x0002 WaveLAN/IEEE
 
 /* MACNICA */
 product MACNICA ME1_JEIDA	0x3300	MACNICA ME1 for JEIDA
+product MACNICA MPS110		0xa041	MACNICA Miracle SCSI-II mPS110
 
 /* Megahertz Products */
 product MEGAHERTZ XJEM3336 	0x0006 Megahertz X-JACK Ethernet Modem
@@ -320,6 +323,7 @@ product OSITECH TRUMPCARD_SOD	0x0008 Ositech Seven of Diamonds Ethernet Card
 /* Panasonic Products */
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
+product PANASONIC KXLC004	0x0604 Panasonic KXL-810AN Interface Card
 product PANASONIC KXLC005	0x2704 Panasonic 16X CD-ROM Interface Card
 product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
 
@@ -334,11 +338,14 @@ product PROXIM RANGELANDS_8430	0x8000 Proxim RangeLAN-DS 8430
 /* Psion */
 product PSION GOLDCARD		0x0020 Psion Gold Card
 
+/* QLogic */
+product QLOGIC PC05		0x0104 Qlogic Fast SCSI
+
 /* Quatech */
 product QUATECH DSP_225		0x0008 Quatech Dual Serial Port
 
 /* RATOC System Inc. Products */
-product RATOC REX_R280		0x0001	RATOC REX-R280
+product RATOC REX_R280		0x0001	RATOC REX-R280/REX-9530
 
 /* Raylink/WebGear */
 product RAYTHEON WLAN		0x0000 WLAN Adapter
@@ -385,6 +392,9 @@ product TELECOMDEVICE TCD_HPC100	0x0202 Telecom Device TCD-HPC100
 /* US Robotics Products */
 product USROBOTICS WORLDPORT144	0x3330 US Robotics WorldPort 14.4 Modem
 
+/* WORKBIT Products */
+product WORKBIT ULTRA_NINJA_16	0x8006 WORKBIT Ultra Ninja-16 (16bit mode)
+
 /* Xircom Products */
 product XIRCOM CE		0x0108 Xircom CreditCard Ethernet
 product XIRCOM CE3		0x010a Xircom CreditCard 10/100 Ethernet
@@ -418,12 +428,15 @@ vendor DYNALINK			-1	DynaLink
 vendor EIGERLABS		-1	Eiger labs,Inc.
 vendor EPSON			-1	Seiko Epson Corporation
 vendor EXP			-1	EXP Computer Inc
+vendor FUTUREDOMAIN		-1	FutureDomain
 vendor GEMTEK			-1	Gem Tek
 vendor ICOM			-1	ICOM Inc
 vendor INTERSIL			-1	Intersil
+vendor IODATA3			-1	I-O DATA
 vendor LANTECH			-1	Lantech Computer Company
 vendor NAKAGAWAMETAL		-1	NAKAGAWA METAL
 vendor NDC			-1	NDC
+vendor NEC			-1	NEC
 vendor PLANET			-1 	Planet
 vendor PLANEX			-1	Planex Communications Inc
 vendor PREMAX			-1 	Premax
@@ -431,6 +444,7 @@ vendor RPTI			-1 	RPTI
 vendor SVEC			-1	SVEC/Hawking Technology
 vendor SYNERGY21		-1	Synergy 21
 vendor TEAC			-1	TEAC
+vendor WORKBIT2			-1	WORKBIT
 vendor YEDATA			-1 	Y-E DATA
 vendor ZOOM			-1 	ZOOM
 
@@ -465,25 +479,32 @@ product	DYNALINK L10C		{ "DYNALINK", "L10C", NULL, NULL } Dynalink L10C
  */
 product EIGERLABS EPX_AA2000	{ "Eiger&splabs,Inc.", "EPX-AA2000&spPC&spSound&spCard", NULL, NULL } EPX-AA2000 PC Sound Card
 product EPSON EEN10B		{ "Seiko&spEpson&spCorp.", "Ethernet", "P/N:&spEEN10B&spRev.&sp00", NULL } Epson EEN10B
+product EPSON SC200		{ "EPSON", "SCSI-2&spPC&spCard&spSC200", NULL, NULL } Media Intelligent SCSI-2 PC Card MSC-200
 product EXP EXPMULTIMEDIA	{ "EXP&sp&sp&sp", "PnPIDE", "F1", NULL } EXP IDE/ATAPI DVD Card
 product FUJITSU FMV_J181	{ "PCMCIA&spMBH10302", "01", NULL, NULL } FUJITSU FMV-J181 PCMCIA Card
 product FUJITSU FMV_J182	{ "FUJITSU", "LAN&spCard(FMV-J182)", "Ver.01", NULL } FUJITSU FMV-J182 PCMCIA Card
 product FUJITSU FMV_J182A	{ "FUJITSU", "LAN&spCard(FMV-J182)", "Ver.02", NULL } FUJITSU FMV-J182A PCMCIA Card
 product FUJITSU ITCFJ182A	{ "FUJITSU", "LAN&spCard(ITCFJ182)", "Ver.01", NULL } FUJITSU ITCFJ182A CompactCard
+product FUTUREDOMAIN SCSI2GO	{ "Future&spDomain&spCorporation" "SCSI&spPCMCIA&spCredit&spCard&spController", NULL, NULL } Future Domain SCSI2GO
 product GEMTEK WLAN		{ "Intersil", "PRISM&sp2_5&spPCMCIA&spADAPTER", "ISL37300P", "Eval-RevA" } GEMTEK Prism2_5 WaveLAN Card
+product IBM SCSICARD		{ "IBM&spCorp.", "SCSI&spPCMCIA&spCard", NULL, NULL } IBM SCSI PCMCIA Card
 product ICOM SL200		{ "Icom", "SL-200", NULL, NULL } Icom SL-200
 product INTERSIL PRISM2		{ "INTERSIL", "HFA384x/IEEE", "Version&sp01.02", NULL } Intersil Prism II
 product IODATA CBIDE2		{ "IO&spDATA", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } IO-DATA CBIDE2/16-bit mode
+product IODATA3 CBSC16		{ "IO&spDATA", "CBSC16&sp&sp&sp&sp&sp&sp&sp", NULL, NULL } IO-DATA CBSC16
 product IODATA PCLAT		{ "I-O&spDATA", "PCLA", "ETHERNET", NULL } IO-DATA PCLA/T
 product LANTECH FASTNETTX	{ "ASIX", "AX88190", NULL, NULL } Lantech Fastnet/TX
 product LINKSYS ECARD_2		{ "LINKSYS", "E-CARD", NULL, NULL } Linksys E-Card
 product LINKSYS PCM100		{ "Linksys", "EtherFast&sp10/100&spIntegrated&spPC&spCard&sp(PCM100)", "Ver&sp1.0", NULL }
+product MACNICA MPS100		{ "MACNICA", "MIRACLE&spSCSI", "mPS100", "D.0" } Macnica Miracle SCSI mPS100
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
 product MELCO LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
 product NAKAGAWAMETAL LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } NAKAGAWA METAL LNT-10TN NE2000 Compatible Card 
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
 product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP
+product NEC PC9801N_J03R	{ "NEC", "PC-9801N-J03R", NULL, NULL } NEC PC-9801N-J03R
+product NEWMEDIA BASICS_SCSI	{ "BASICS&spby&spNew&spMedia&spCorporation" "SCSI&spSym53C500", NULL, NULL } New Media Corporation BASICS SCSI
 product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NULL } NTT-ME 11Mbps Wireless LAN PC Card
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 /*
@@ -495,6 +516,10 @@ product PLANEX FNW3700T		-1 Planex FNW-3700-T
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
 product RPTI EP401		{ "RPTI", "EP401&spEthernet&spNE2000&spCompatible", NULL, NULL } RPTI EP401
 product PREMAX PE200		{ "PMX&sp&sp&sp", "PE-200", NULL, NULL } PreMax PE-200
+product RATOC REX5536		{ "1195&spRATOC&spSystem&spInc.", "REX5536&spSCSI2&spCARD", NULL, NULL } RATOC REX-5536
+product RATOC REX5536AM		{ "PCMCIA&spSCSI&spMBH10404", "01", NULL, NULL } RATOC REX-5536AM
+product RATOC REX5536M		{ "PCMCIA&spSCSI2&spCARD", "01", NULL, NULL } RATOC REX-5536M
+product RATOC REX5572		{ "RATOC&spSystem&spInc.", "SOUND/SCSI2&spCARD", NULL, NULL } RATOC REX-5572
 product SIMPLETECH SPECTRUM24_ALT	{ "Symbol&spTechnologies", "LA4111&spSpectrum24&spWireless&spLAN&spPC&spCard", NULL, NULL } LA4111 Spectrum24 Wireless LAN PC Card
 product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Connect Wireless PC Card
 product SVEC COMBOCARD		{ "Ethernet", "Adapter", NULL, NULL } SVEC/Hawking Tech. Combo Card
@@ -506,6 +531,7 @@ product SVEC LANCARD		{ "SVEC", "FD605&spPCMCIA&spEtherNet&spCard", "V1-1", NULL
 product SVEC PN650TX		-1 SVEC PN650TX 10/100 Dual Speed Fast Ethernet PC Card
 product SYNERGY21 S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" } Synergy 21 S21810+ NE2000 Compatible Card
 product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
+product WORKBIT2 NINJA_SCSI3	{ "WBT", "NinjaSCSI-3", NULL, NULL } WORKBIT Ninja SCSI series
 product XIRCOM CFE_10		{ "Xircom", "CompactCard&spEthernet", "CFE-10", "1.00" } Xircom CompactCard CFE-10
 product YEDATA EXTERNAL_FDD	{ "Y-E&spDATA", "External&spFDD", NULL, NULL } Y-E DATA External FDD
 product ZOOM AIR_4000		{ "Zoom", "Air-4000", NULL, NULL } Zoom Air-4000
