@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.74 1995/03/28 10:51:59 ache Exp $
+ *	$Id: sio.c,v 1.75 1995/03/28 11:13:44 ache Exp $
  */
 
 #include "sio.h"
@@ -1525,8 +1525,7 @@ repeat:
 		}
 		if (com->state & CS_ODONE) {
 			comflush(com);
-			/* XXX - why isn't the table used for t_line == 0? */
-			if (tp->t_line != 0)
+			if (linesw[tp->t_line].l_start != ttstart)
 				(*linesw[tp->t_line].l_start)(tp);
 			else
 				comstart(tp);
