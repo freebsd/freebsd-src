@@ -55,7 +55,7 @@
  * in undefined behavior (but hopefully not fry the chip).
  * Reading in this manner has no side effects.
  *
- * [IBM-PC]
+ * [AMD64]
  * The outputs of the three timers are connected as follows:
  *
  *	 timer 0 -> irq 0
@@ -64,16 +64,6 @@
  *
  * Timer 0 is used to call hardclock.
  * Timer 2 is used to generate console beeps.
- *
- * [PC-9801]
- * The outputs of the three timers are connected as follows:
- *
- *	 timer 0 -> irq 0
- *	 timer 1 -> speaker (via keyboard controller)
- * 	 timer 2 -> RS232C
- *
- * Timer 0 is used to call hardclock.
- * Timer 1 is used to generate console beeps.
  */
 
 /*
