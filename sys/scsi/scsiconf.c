@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.68 1996/11/28 09:51:03 phk Exp $
+ *      $Id: scsiconf.c,v 1.69 1996/11/30 07:39:37 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -364,6 +364,10 @@ static struct scsidevs knowndevs[] =
 	 * Doobe-doo-be doooo
 	 * -Mary
 	 */
+	{
+		T_READONLY, T_READONLY, T_REMOV, "*", "*", "*",
+		"cd", SC_ONE_LU
+	},
 #endif /* !UKTEST */
 #endif	/* NCD */
 #if NWORM > 0
