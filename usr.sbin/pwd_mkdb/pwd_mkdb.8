@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm pwd_mkdb
 .Op Fl C
+.Op Fl N
 .Op Fl p
 .Op Fl d Ar directory
 .Op Fl s Ar cachesize
@@ -67,6 +68,12 @@ The options are as follows:
 .It Fl C
 Check if the password file is in the correct format. Do not
 change, add, or remove any files.
+.It Fl N
+Tell
+.Nm Pwd_mkdb
+to exit with an error if it cannot obtain a lock on the file.  By default,
+we block waiting for a lock on the source file.  The lock is held through
+the rebuilding of the database.
 .It Fl p
 Create a Version 7 style password file and install it into
 .Pa /etc/passwd .
