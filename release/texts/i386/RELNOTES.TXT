@@ -117,6 +117,17 @@ A vulnerability in named(8) that could cause it to crash when
 receiving certain requests has been closed by updating the BIND
 software (see security advisory FreeBSD-SA-01:10).
 
+A vulnerability in inetd(8) that could allow read-access to the
+initial 16 bytes of wheel-accessible files has been fixed (see
+security advisory FreeBSD-SA-01:11).
+
+A bug in sort(1) in which an attacker might be able to cause it to
+abort processing has been fixed (see security advisory
+FreeBSD-SA-01:13).
+
+To fix a remotely-exploitable buffer overflow, BIND has been updated
+to 8.2.3.
+
 Many other small but meaningful changes, too many to list.  See CVS
 repository for more details.  Suffice it to say from a user
 perspective that "various things were tightened up."
