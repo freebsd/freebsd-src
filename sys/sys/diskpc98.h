@@ -444,8 +444,8 @@ struct	buf_queue_head;
 
 int	bounds_check_with_label __P((struct buf *bp, struct disklabel *lp,
 				     int wlabel));
-void	diskerr __P((struct buf *bp, char *dname, char *what, int pri,
-		     int blkdone, struct disklabel *lp));
+void	diskerr __P((struct buf *bp, char *what, int pri, int blkdone,
+		     struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
 u_int	dkcksum __P((struct disklabel *lp));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
