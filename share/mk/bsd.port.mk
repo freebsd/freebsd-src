@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.44 1994/10/04 14:44:56 jkh Exp $
+# $Id: bsd.port.mk,v 1.45 1994/10/04 14:46:34 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -48,6 +48,7 @@
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
+# GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
 # DEPENDS		- A list of other ports this package depends on being
 #				  made first, relative to ${PORTSDIR} (e.g. x11/tk, lang/tcl,
@@ -141,6 +142,10 @@ DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
 PKGFILE?=		${PACKAGES}/${DISTNAME}${PKG_SUFX}
 .else
 PKGFILE?=		${DISTNAME}${PKG_SUFX}
+.endif
+
+.if defined(GNU_CONFIGURE)
+CONFIGURE_ARGS?=	--prefix=${PREFIX}
 .endif
 
 .MAIN: all
