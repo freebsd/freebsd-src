@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.45 1999/08/08 19:47:26 phk Exp $
+ * $Id: tty.h,v 1.46 1999/08/08 20:24:48 phk Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -44,6 +44,7 @@
 
 #include <sys/termios.h>
 #include <sys/select.h>		/* For struct selinfo. */
+#include <sys/queue.h>
 
 /*
  * Clists are character lists, which is a variable length linked list
