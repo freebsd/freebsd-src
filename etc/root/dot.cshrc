@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: dot.cshrc,v 1.22 1998/09/13 23:05:47 brian Exp $
 #
 #csh .cshrc file
 
@@ -8,7 +8,6 @@ alias la	ls -a
 alias lf	ls -FA
 alias ll	ls -lA
 
-setenv	EDITOR	/usr/bin/ee
 setenv	PAGER	more
 setenv	BLOCKSIZE	K
 
