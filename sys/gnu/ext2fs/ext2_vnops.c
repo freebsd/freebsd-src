@@ -1421,6 +1421,7 @@ ext2_strategy(ap)
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip;
+	struct bufobj *bo;
 	int32_t blkno;
 	int error;
 
@@ -1443,10 +1444,9 @@ ext2_strategy(ap)
 		bufdone(bp);
 		return (0);
 	}
-	vp = ip->i_devvp;
-	bp->b_dev = vp->v_rdev;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_SPECSTRATEGY(vp, bp);
+	bo = VFSTOEXT2(vp->v_mount)->um_bo;
+	bo->bo_ops->bop_strategy(bo, bp);
 	return (0);
 }
 
@@ -1634,7 +1634,7 @@ ext2_vinit(mntp, fifoops, vpp)
 	vp->v_type = IFTOVT(ip->i_mode);
 	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
-	
+
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 	ip->i_modrev = init_va_filerev();
