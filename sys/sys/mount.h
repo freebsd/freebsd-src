@@ -548,20 +548,20 @@ int	fhopen(const struct fhandle *, int);
 int	fhstat(const struct fhandle *, struct stat *);
 int	fhstatfs(const struct fhandle *, struct statfs *);
 int	fstatfs(int, struct statfs *);
-int	lgetfh(const char *, fhandle_t *);
 int	getfh(const char *, fhandle_t *);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
+int	lgetfh(const char *, fhandle_t *);
 int	mount(const char *, const char *, int, void *);
 int	nmount(struct iovec *, u_int, int);
 int	statfs(const char *, struct statfs *);
 int	unmount(const char *, int);
 
 /* C library stuff */
+int	getvfsbyname(const char *, struct xvfsconf *);
 void	endvfsent(void);
 struct	ovfsconf *getvfsbytype(int);
 struct	ovfsconf *getvfsent(void);
-int	getvfsbyname(const char *, struct xvfsconf *);
 void	setvfsent(int);
 int	vfsisloadable(const char *);
 int	vfsload(const char *);
