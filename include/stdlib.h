@@ -184,7 +184,7 @@ double	 erand48(unsigned short[3]);
 int	 getsubopt(char **, char *const *, char **);
 #define	_GETSUBOPT_DECLARED
 #endif
-/* int	 grantpt(int); */
+int	 grantpt(int);
 char	*initstate(unsigned long /* XSI requires u_int */, char *, long);
 long	 jrand48(unsigned short[3]);
 /* char	*l64a(long); */
@@ -200,8 +200,8 @@ char	*mktemp(char *);
 #endif
 long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
-/* int	 posix_openpt(int); */
-/* char	*ptsname(int); */
+int	 posix_openpt(int);
+char	*ptsname(int);
 int	 putenv(const char *);
 long	 random(void);
 char	*realpath(const char *, char resolved_path[]);
@@ -214,7 +214,7 @@ int	 setkey(const char *);
 char	*setstate(/* const */ char *);
 void	 srand48(long);
 void	 srandom(unsigned long);
-/* int	 unlockpt(int); */
+int	 unlockpt(int);
 #endif /* __XSI_VISIBLE */
 
 #if __BSD_VISIBLE
