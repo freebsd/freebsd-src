@@ -1240,7 +1240,7 @@ getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
 			v = FSMAXTYPES;
 		if ((unsigned)v >= FSMAXTYPES) {
 			fprintf(stderr,
-			    "line %d: Warning, unknown filesystem type %s\n",
+			    "line %d: Warning, unknown file system type %s\n",
 			    lineno, cp);
 			v = FS_UNUSED;
 		}
@@ -1614,7 +1614,7 @@ getvirginlabel(void)
 /*
  * If we are installing a boot program that doesn't fit in d_bbsize
  * we need to mark those partitions that the boot overflows into.
- * This allows newfs to prevent creation of a filesystem where it might
+ * This allows newfs to prevent creation of a file system where it might
  * clobber bootstrap code.
  */
 void

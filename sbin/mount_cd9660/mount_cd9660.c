@@ -143,7 +143,7 @@ main(int argc, char **argv)
 
 #define DEFAULT_ROOTUID	-2
 	/*
-	 * ISO 9660 filesystems are not writeable.
+	 * ISO 9660 file systems are not writeable.
 	 */
 	mntflags |= MNT_RDONLY;
 	args.export.ex_flags = MNT_EXRDONLY;

@@ -49,7 +49,7 @@ extern int alwaysyes;	/* assume "yes" for all questions */
 extern int preen;	/* we are preening */
 extern int rdonly;	/* device is opened read only (supersedes above) */
 
-extern char *fname;	/* filesystem currently checked */
+extern char *fname;	/* file system currently checked */
 
 extern struct dosDirEntry *rootDir;
 
@@ -59,7 +59,7 @@ extern struct dosDirEntry *rootDir;
 int ask(int, const char *, ...) __attribute__((__format__(__printf__,2,3)));
 
 /*
- * Check filesystem given as arg
+ * Check file system given as arg
  */
 int checkfilesys(const char *);
 
@@ -73,7 +73,7 @@ int checkfilesys(const char *);
 #define	FSERROR		8		/* Some unrecovered error remains */
 #define	FSFATAL		16		/* Some unrecoverable error occured */
 #define FSDIRTY		32		/* File system is dirty */
-#define FSFIXFAT	64		/* Fix filesystem FAT */
+#define FSFIXFAT	64		/* Fix file system FAT */
 
 /*
  * read a boot block in a machine independend fashion and translate

@@ -60,7 +60,7 @@ char *blockcheck(char *origname);
 struct part {
 	struct	part *next;		/* forward link of partitions on disk */
 	char	*name;			/* device name */
-	char	*fsname;		/* mounted filesystem name */
+	char	*fsname;		/* mounted file system name */
 	long	auxdata;		/* auxiliary data for application */
 } *badlist, **badnext = &badlist;
 

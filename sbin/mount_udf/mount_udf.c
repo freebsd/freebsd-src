@@ -106,7 +106,7 @@ main(int argc, char **argv)
 	(void)rmslashes(dev, dev);
 
 	/*
-	 * UDF filesystems are not writeable.
+	 * UDF file systems are not writeable.
 	 */
 	mntflags |= MNT_RDONLY;
 

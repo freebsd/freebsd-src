@@ -49,10 +49,10 @@
 /*
  * variables set up by front end.
  */
-extern int	Nflag;		/* run mkfs without writing filesystem */
-extern int	Oflag;		/* build UFS1 format filesystem */
+extern int	Nflag;		/* run mkfs without writing file system */
+extern int	Oflag;		/* build UFS1 format file system */
 extern int	Rflag;		/* regression test */
-extern int	Uflag;		/* enable soft updates for filesystem */
+extern int	Uflag;		/* enable soft updates for file system */
 extern quad_t	fssize;		/* file system size */
 extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/

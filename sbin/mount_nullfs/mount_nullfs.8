@@ -42,7 +42,7 @@
 .Os
 .Sh NAME
 .Nm mount_nullfs
-.Nd "mount a loopback filesystem sub-tree; demonstrate the use of a null filesystem layer"
+.Nd "mount a loopback file system sub-tree; demonstrate the use of a null file system layer"
 .Sh SYNOPSIS
 .Nm
 .Op Fl o Ar options
@@ -52,15 +52,15 @@
 The
 .Nm
 utility creates a
-null layer, duplicating a sub-tree of the filesystem
-name space under another part of the global filesystem namespace.
+null layer, duplicating a sub-tree of the file system
+name space under another part of the global file system namespace.
 This allows existing files and directories to be accessed
 using a different pathname.
 .Pp
-The primary differences between a virtual copy of the filesystem
+The primary differences between a virtual copy of the file system
 and a symbolic link are that the
 .Xr getcwd 3
-functions work correctly in the virtual copy, and that other filesystems
+functions work correctly in the virtual copy, and that other file systems
 may be mounted on the virtual copy without affecting the original.
 A different device number for the virtual copy is returned by
 .Xr stat 2 ,
@@ -68,8 +68,8 @@ but in other respects it is indistinguishable from the original.
 .Pp
 The
 .Nm
-filesystem differs from a traditional
-loopback filesystem in two respects: it is implemented using
+file system differs from a traditional
+loopback file system in two respects: it is implemented using
 a stackable layers techniques, and it's
 .Do null-node Dc Ns s
 stack above
@@ -89,11 +89,11 @@ man page for possible options and their meanings.
 The null layer has two purposes.
 First, it serves as a demonstration of layering by providing a layer
 which does nothing.
-(It actually does everything the loopback filesystem does,
+(It actually does everything the loopback file system does,
 which is slightly more than nothing.)
 Second, the null layer can serve as a prototype layer.
 Since it provides all necessary layer framework,
-new filesystem layers can be created very easily by starting
+new file system layers can be created very easily by starting
 with a null layer.
 .Pp
 The remainder of this man page examines the null layer as a basis
@@ -113,7 +113,7 @@ of target-pn subtree will be aliased under mount-point-pn.
 .\"
 .\"
 .Sh OPERATION OF A NULL LAYER
-The null layer is the minimum filesystem layer,
+The null layer is the minimum file system layer,
 simply bypassing all possible operations to the lower layer
 for processing there.  The majority of its activity centers
 on the bypass routine, through which nearly all vnode operations
@@ -187,7 +187,7 @@ process when constructing other vnode stacks.
 .\"
 .\"
 .Sh CREATING OTHER FILE SYSTEM LAYERS
-One of the easiest ways to construct new filesystem layers is to make
+One of the easiest ways to construct new file system layers is to make
 a copy of the null layer, rename all files and variables, and
 then begin modifying the copy.
 .Xr Sed 1

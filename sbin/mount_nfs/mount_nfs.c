@@ -550,7 +550,7 @@ getnfsargs(spec, nfsargsp)
 	}
 	freeaddrinfo(ai_nfs);
 	nfsargsp->hostname = nam;
-	/* Add mounted filesystem to PATH_MOUNTTAB */
+	/* Add mounted file system to PATH_MOUNTTAB */
 	if (!add_mtab(hostp, spec))
 		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, hostp, spec);
 	return (1);

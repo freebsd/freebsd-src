@@ -52,7 +52,7 @@
 The
 .Nm
 utility attaches an instance of the portal daemon
-to the global filesystem namespace.
+to the global file system namespace.
 The conventional mount point is
 .Pa /p .
 .\" .PA /dev .
@@ -78,7 +78,7 @@ Objects opened under the portal mount point are
 dynamically created by the portal daemon according
 to rules specified in the named configuration file.
 Using this mechanism allows descriptors such as sockets
-to be made available in the filesystem namespace.
+to be made available in the file system namespace.
 .Pp
 The portal daemon works by being passed the full pathname
 of the object being opened.
@@ -144,7 +144,7 @@ fs/		file fs/
 .Xr fstab 5 ,
 .Xr mount 8
 .Sh CAVEATS
-This filesystem may not be NFS-exported.
+This file system may not be NFS-exported.
 .Sh HISTORY
 The
 .Nm

@@ -37,34 +37,34 @@
 .Os
 .Sh NAME
 .Nm fsck_msdosfs
-.Nd DOS/Windows (FAT) filesystem consistency checker
+.Nd DOS/Windows (FAT) file system consistency checker
 .Sh SYNOPSIS
 .Nm
 .Fl p
 .Op Fl f
-.Ar filesystem ...
+.Ar file system ...
 .Nm
 .Op Fl fny
-.Ar filesystem ...
+.Ar file system ...
 .Sh DESCRIPTION
 The
 .Nm
 utility verifies and repairs
 .Tn FAT
-filesystems (more commonly known
+file systems (more commonly known
 as
 .Tn DOS
-filesystems).
+file systems).
 .Pp
 The first form of
 .Nm
-preens the specified filesystems.
+preens the specified file systems.
 It is normally started by
 .Xr fsck 8
 run from
 .Pa /etc/rc
-during automatic reboot, when a FAT filesystem is detected.
-When preening filesystems,
+during automatic reboot, when a FAT file system is detected.
+When preening file systems,
 .Nm
 will fix common inconsistencies non-interactively.
 If more serious problems are found,
@@ -74,7 +74,7 @@ successful, and exits.
 .Pp
 The second form of
 .Nm
-checks the specified filesystems and tries to repair all
+checks the specified file systems and tries to repair all
 detected inconsistencies, requesting confirmation before
 making any changes.
 .Pp
@@ -83,15 +83,15 @@ The options are as follows:
 .It Fl F
 Compatibility with the wrapper
 .Xr fsck 8
-which seeks to determine whether the filesystem needs to be cleaned
+which seeks to determine whether the file system needs to be cleaned
 immediately in foreground, or if its cleaning can be deferred to background.
-FAT (MS-DOS) filesystems must always be cleaned in the foreground.
+FAT (MS-DOS) file systems must always be cleaned in the foreground.
 A non-zero exit code is always returned for this option.
 .It Fl f
 This option is ignored by
 .Nm ,
 and is present only for compatibility with programs that
-check other filesystem types for consistency, such as
+check other file system types for consistency, such as
 .Xr fsck_ffs 8 .
 .It Fl n
 Causes
@@ -102,7 +102,7 @@ as the answer to all operator
 questions, except
 .Dq Li CONTINUE? .
 .It Fl p
-Preen the specified filesystems.
+Preen the specified file systems.
 .It Fl y
 Causes
 .Nm

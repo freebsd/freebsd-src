@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm newfs_msdos
-.Nd construct a new MS-DOS (FAT) filesystem
+.Nd construct a new MS-DOS (FAT) file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl N
@@ -59,7 +59,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility creates a FAT12, FAT16, or FAT32 filesystem on device
+utility creates a FAT12, FAT16, or FAT32 file system on device
 .Ar special ,
 using
 .Xr disktab 5
@@ -70,7 +70,7 @@ to determine geometry, if required.
 The options are as follow:
 .Bl -tag -width indent
 .It Fl N
-Don't create a filesystem: just print out parameters.
+Don't create a file system: just print out parameters.
 .It Fl B Ar boot
 Get bootstrap from file.
 .It Fl F Ar FAT-type
@@ -103,7 +103,7 @@ are (capacities in kilobytes): 160, 180, 320, 360, 640, 720, 1200,
 .It Fl h Ar heads
 Number of drive heads.
 .It Fl i Ar info
-Location of the filesystem info sector (FAT32 only).
+Location of the file system info sector (FAT32 only).
 A value of 0xffff signifies no info sector.
 .It Fl k Ar backup
 Location of the backup boot sector (FAT32 only).  A value
@@ -124,9 +124,9 @@ File system size.
 Number of sectors per track.
 .El
 .Sh NOTES
-FAT filesystem parameters occupy a "Boot Sector BPB (BIOS Parameter
+FAT file system parameters occupy a "Boot Sector BPB (BIOS Parameter
 Block)" in the first of the "reserved" sectors which precede the actual
-filesystem.  For reference purposes, this structure is presented
+file system.  For reference purposes, this structure is presented
 below.
 .Bd -literal
 struct bsbpb {
@@ -147,9 +147,9 @@ struct bsbpb {
 struct bsxbpb {
     u_int32_t	bspf;		/* [-a] big sectors per FAT */
     u_int16_t	xflg;		/* control flags */
-    u_int16_t	vers;		/* filesystem version */
+    u_int16_t	vers;		/* file system version */
     u_int32_t	rdcl;		/* root directory start cluster */
-    u_int16_t	infs;		/* [-i] filesystem info sector */
+    u_int16_t	infs;		/* [-i] file system info sector */
     u_int16_t	bkbs;		/* [-k] backup boot sector */
 };
 .Ed
@@ -158,13 +158,13 @@ struct bsxbpb {
 newfs_msdos /dev/ad0s1
 .Ed
 .Pp
-Create a filesystem, using default parameters, on
+Create a file system, using default parameters, on
 .Pa /dev/ad0s1 .
 .Bd -literal -offset indent
 newfs_msdos -f 1440 -L foo fd0
 .Ed
 .Pp
-Create a standard 1.44M filesystem, with volume label
+Create a standard 1.44M file system, with volume label
 .Ar foo ,
 on
 .Pa /dev/fd0 .

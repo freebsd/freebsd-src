@@ -204,7 +204,7 @@ main(int argc, char *argv[])
 			type = fs->fs_vfstype;
 			mntpt = fs->fs_file;
 			if (BADTYPE(fs->fs_type))
-				errx(1, "%s has unknown filesystem type.",
+				errx(1, "%s has unknown file system type.",
 				    spec);
 		}
 		if ((flags & CHECK_BACKGRD) &&
@@ -237,9 +237,9 @@ isok(struct fstab *fs)
 	/*
 	 * If the -B flag has been given, then process the needed
 	 * background checks. Background checks cannot be run on
-	 * filesystems that will be mounted read-only or that were
+	 * file systems that will be mounted read-only or that were
 	 * not mounted at boot time (typically those marked `noauto').
-	 * If these basic tests are passed, check with the filesystem
+	 * If these basic tests are passed, check with the file system
 	 * itself to see if it is willing to do background checking
 	 * by invoking its check program with the -F flag.
 	 */
@@ -255,9 +255,9 @@ isok(struct fstab *fs)
 	/*
 	 * If the -F flag has been given, then consider deferring the
 	 * check to background. Background checks cannot be run on
-	 * filesystems that will be mounted read-only or that will
+	 * file systems that will be mounted read-only or that will
 	 * not be mounted at boot time (e.g., marked `noauto'). If
-	 * these basic tests are passed, check with the filesystem
+	 * these basic tests are passed, check with the file system
 	 * itself to see if it is willing to defer to background
 	 * checking by invoking its check program with the -F flag.
 	 */
@@ -550,7 +550,7 @@ getfslab(const char *str)
 	const char *vfstype;
 	u_char t;
 
-	/* deduce the filesystem type from the disk label */
+	/* deduce the file system type from the disk label */
 	if ((fd = open(str, O_RDONLY)) == -1)
 		err(1, "cannot open `%s'", str);
 

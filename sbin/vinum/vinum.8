@@ -1662,7 +1662,7 @@ state.  Use the
 .Ic start
 command to first bring them to a consistent state.  In the case of striped and
 concatenated plexes, however, it does not normally cause problems to leave them
-inconsistent: when using a volume for a filesystem or a swap partition, the
+inconsistent: when using a volume for a file system or a swap partition, the
 previous contents of the disks are not of interest, so they may be ignored.
 If you want to take this risk, use the
 .Cm setupstate
@@ -1859,7 +1859,7 @@ and
 .Dq Li f
 may be used as
 .Em UFS
-filesystems or
+file systems or
 .Em ccd
 partitions.  Partition
 .Dq Li b
@@ -2015,8 +2015,8 @@ can access the complete address space of the volume even if a drive fails.
 .It
 You want to set up
 .Nm
-to allow more concurrent access to a filesystem.  In many cases, access to a
-filesystem is limited by the speed of the disk.  By spreading the volume across
+to allow more concurrent access to a file system.  In many cases, access to a
+file system is limited by the speed of the disk.  By spreading the volume across
 multiple disks, you can increase the throughput in multi-access environments.
 This technique shows little or no performance improvement in single-access
 environments.
@@ -2290,7 +2290,7 @@ reasonably small number of fragmented requests with a stripe size between 256 kB
 and 512 kB; with correct RAID implementations there is no obvious reason not to
 increase the size to 2 or 4 MB on a large disk.
 .Pp
-When choosing a stripe size, consider that most current UFS filesystems have
+When choosing a stripe size, consider that most current UFS file systems have
 cylinder groups 32 MB in size.  If you have a stripe size and number of disks
 both of which are a power of two, it is probable that all superblocks and inodes
 will be placed on the same subdisk, which will impact performance significantly.
@@ -2312,11 +2312,11 @@ speed, the transfer time depends only on the total size of the transfer.
 .Pp
 Consider a typical news article or web page of 24 kB, which will probably be
 read in a single I/O.  Take disks with a transfer rate of 6 MB/s and an average
-positioning time of 8 ms, and a filesystem with 4 kB blocks.  Since it's 24 kB,
+positioning time of 8 ms, and a file system with 4 kB blocks.  Since it's 24 kB,
 we don't have to worry about fragments, so the file will start on a 4 kB
 boundary.  The number of transfers required depends on where the block starts:
-it's (S + F - 1) / S, where S is the stripe size in filesystem blocks, and F is
-the file size in filesystem blocks.
+it's (S + F - 1) / S, where S is the stripe size in file system blocks, and F is
+the file size in file system blocks.
 .Bl -enum
 .It
 Stripe size of 4 kB.  You'll have 6 transfers.  Total subsystem load: 48 ms
@@ -2356,8 +2356,8 @@ volume:
 Striping improves performance for multiple access only, since it increases the
 chance of individual requests being on different drives.
 .It
-Concatenating UFS filesystems across multiple drives can also improve
-performance for multiple file access, since UFS divides a filesystem into
+Concatenating UFS file systems across multiple drives can also improve
+performance for multiple file access, since UFS divides a file system into
 cylinder groups and attempts to keep files in a single cylinder group.  In
 general, it is not as effective as striping.
 .It
@@ -2394,17 +2394,17 @@ state of one of the objects),
 writes up to 128 kB of updated configuration to each drive.  The larger the
 number of drives, the longer this takes.
 .El
-.Ss Creating filesystems on Vinum volumes
+.Ss Creating file systems on Vinum volumes
 You do not need to run
 .Xr disklabel 8
-before creating a filesystem on a
+before creating a file system on a
 .Nm
 volume.  Just run
 .Xr newfs 8 .
 Use the
 .Fl v
 option to state that the device is not divided into partitions.  For example, to
-create a filesystem on volume
+create a file system on volume
 .Pa mirror ,
 enter the following command:
 .Pp
@@ -2422,8 +2422,8 @@ will suffer when the configuration changes.  Use appropriately sized subdisks in
 It is possible to increase the size of a concatenated
 .Nm
 plex, but currently the size of striped and RAID-5 plexes cannot be increased.
-Currently the size of an existing UFS filesystem also cannot be increased, but
-it is planned to make both plexes and filesystems extensible.
+Currently the size of an existing UFS file system also cannot be increased, but
+it is planned to make both plexes and file systems extensible.
 .El
 .Sh STATE MANAGEMENT
 Vinum objects have the concept of
@@ -2484,7 +2484,7 @@ This behaviour of
 .Nm ccd
 is an invitation to shoot yourself in the foot: with
 .Nm ccd
-you can easily overwrite a filesystem.
+you can easily overwrite a file system.
 The
 .Nm
 utility will not permit this.

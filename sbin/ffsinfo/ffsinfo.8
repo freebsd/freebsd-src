@@ -42,7 +42,7 @@
 .Os
 .Sh NAME
 .Nm ffsinfo
-.Nd "dump all meta information of an existing ufs filesystem"
+.Nd "dump all meta information of an existing ufs file system"
 .Sh SYNOPSIS
 .Nm
 .Op Fl L
@@ -61,7 +61,7 @@ utility.
 The output is generated into the file
 .Pa outfile .
 Also expect the output file to be rather large.
-Up to 2 percent of the size of the specified filesystem is not uncommon.
+Up to 2 percent of the size of the specified file system is not uncommon.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -128,15 +128,15 @@ with all available information.
 .Sh BUGS
 Currently
 .Nm
-can only dump unmounted filesystems.
-Do not try dumping a mounted filesystem, your system may panic and you will
-not be able to use the filesystem any longer.
+can only dump unmounted file systems.
+Do not try dumping a mounted file system, your system may panic and you will
+not be able to use the file system any longer.
 .Pp
 Also snapshots are handled like plain files.
 They should get their own level to provide for independent control of the
 amount of what gets dumped.
 It probably also makes sense to some extend to dump the snapshot as a
-filesystem.
+file system.
 .Sh SEE ALSO
 .Xr disklabel 8 ,
 .Xr dumpfs 8 ,

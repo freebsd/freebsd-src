@@ -269,10 +269,10 @@ main(argc, argv)
 		rmslashes(*argv, *argv);
 		if ((fs = getfsfile(*argv)) == NULL &&
 		    (fs = getfsspec(*argv)) == NULL)
-			errx(1, "%s: unknown special file or filesystem",
+			errx(1, "%s: unknown special file or file system",
 			    *argv);
 		if (BADTYPE(fs->fs_type))
-			errx(1, "%s has unknown filesystem type",
+			errx(1, "%s has unknown file system type",
 			    *argv);
 		rval = mountfs(fs->fs_vfstype, fs->fs_spec, fs->fs_file,
 		    init_flags, options, fs->fs_mntops);
@@ -281,7 +281,7 @@ main(argc, argv)
 		/*
 		 * If -t flag has not been specified, the path cannot be
 		 * found, spec contains either a ':' or a '@', then assume
-		 * that an NFS filesystem is being specified ala Sun.
+		 * that an NFS file system is being specified ala Sun.
 		 * Check if the hostname contains only allowed characters
 		 * to reduce false positives.  IPv6 addresses containing
 		 * ':' will be correctly parsed only if the separator is '@'.
@@ -335,7 +335,7 @@ ismounted(fs, mntbuf, mntsize)
 	int i;
 
 	if (fs->fs_file[0] == '/' && fs->fs_file[1] == '\0')
-		/* the root filesystem can always be remounted */
+		/* the root file system can always be remounted */
 		return (0);
 
 	for (i = mntsize - 1; i >= 0; --i)
