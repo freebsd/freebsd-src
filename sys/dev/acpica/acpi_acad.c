@@ -116,11 +116,9 @@ acpi_acad_get_status(void *context)
 static void
 acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
-    device_t dev = context;
+    device_t dev;
 
-    ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		"Notify 0x%x\n", notify);
-
+    dev = (device_t)context;
     switch (notify) {
     case ACPI_DEVICE_CHECK_PNP:
     case ACPI_DEVICE_CHECK_EXISTENCE:
@@ -129,6 +127,7 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_get_status, context);
 	break;
     default:
+	device_printf(dev, "unknown notify %#x\n", notify);
 	break;
     }
 }
