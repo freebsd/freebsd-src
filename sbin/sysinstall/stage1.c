@@ -102,9 +102,8 @@ stage1()
 	    mvprintw(j++, 50, "|");
 	    mvprintw(j++, 50, "|Your old kernel, /etc/fstab");
 	    mvprintw(j++, 50, "|and /sbin/init files are");
-	    mvprintw(j++, 50, "|renamed since the kernel and);
-	    mvprintw(j++, 50, "|/etc/fstab are replaced from");
-	    mvprintw(j++, 50, "|this floppy.");
+	    mvprintw(j++, 50, "|renamed since they will be");
+	    mvprintw(j++, 50, "|replaced from this floppy.");
 	} else {
 	    mvprintw(j++, 50, "|You should now assign some");
 	    mvprintw(j++, 50, "|space to root, swap, and");
