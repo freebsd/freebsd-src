@@ -430,9 +430,9 @@ int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_long			comdefaultrclk = DEFAULT_RCLK;
 SYSCTL_ULONG(_machdep, OID_AUTO, conrclk, CTLFLAG_RW, &comdefaultrclk, 0, "");
-#ifdef __alpha__
-static	volatile speed_t	gdbdefaultrate = CONSPEED;
-#endif
+static	speed_t			gdbdefaultrate = GDBSPEED;
+SYSCTL_UINT(_machdep, OID_AUTO, gdbspeed, CTLFLAG_RW,
+	    &gdbdefaultrate, GDBSPEED, "");
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
 #ifndef __alpha__
@@ -4359,13 +4359,17 @@ siocncheckc(dev)
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
+	speed_t	speed;
 
-	if (minor(dev) == siogdbunit)
-		iobase = siogdbiobase;
-	else
+	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
 	s = spltty();
-	siocnopen(&sp, iobase, comdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	if (inb(iobase + com_lsr) & LSR_RXRDY)
 		c = inb(iobase + com_data);
 	else
@@ -4384,13 +4388,17 @@ siocngetc(dev)
 	Port_t	iobase;
 	int	s;
 	struct siocnstate	sp;
+	speed_t	speed;
 
-	if (minor(dev) == siogdbunit)
-		iobase = siogdbiobase;
-	else
+	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
 	s = spltty();
-	siocnopen(&sp, iobase, comdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	while (!(inb(iobase + com_lsr) & LSR_RXRDY))
 		;
 	c = inb(iobase + com_data);
@@ -4409,17 +4417,20 @@ siocnputc(dev, c)
 	struct siocnstate	sp;
 	Port_t	iobase;
 
-	if (minor(dev) == siogdbunit)
-		iobase = siogdbiobase;
-	else
+	if (minor(dev) == siocnunit) {
 		iobase = siocniobase;
+		speed = comdefaultrate;
+	} else {
+		iobase = siogdbiobase;
+		speed = gdbdefaultrate;
+	}
 	s = spltty();
 	need_unlock = 0;
 	if (sio_inited == 2 && !mtx_owned(&sio_lock)) {
 		mtx_lock_spin(&sio_lock);
 		need_unlock = 1;
 	}
-	siocnopen(&sp, iobase, comdefaultrate);
+	siocnopen(&sp, iobase, speed);
 	siocntxwait(iobase);
 	outb(iobase + com_data, c);
 	siocnclose(&sp, iobase);
