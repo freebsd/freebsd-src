@@ -39,8 +39,6 @@
  * $FreeBSD$
  */
 
-#include <stddef.h>
-
 #include "opt_param.h"
 
 #include <sys/param.h>
