@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.39 1994/03/19 23:58:58 wollman Exp $
+ *	$Id: machdep.c,v 1.40 1994/03/23 09:15:03 davidg Exp $
  */
 
 #include "npx.h"
@@ -806,26 +806,6 @@ microtime(tvp)
 	splx(s);
 }
 #endif /* HZ */
-
-void
-physstrat(bp, strat, prio)
-	struct buf *bp;
-	int (*strat)(), prio;
-{
-	register int s;
-	caddr_t baddr;
-
-	vmapbuf(bp);
-	(*strat)(bp);
-	/* pageout daemon doesn't wait for pushed pages */
-	if (bp->b_flags & B_DIRTY)
-		return;
-	s = splbio();
-	while ((bp->b_flags & B_DONE) == 0)
-	  tsleep((caddr_t)bp, prio, "physstr", 0);
-	splx(s);
-	vunmapbuf(bp);
-}
 
 static void
 initcpu()
