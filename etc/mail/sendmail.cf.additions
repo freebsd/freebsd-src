@@ -37,12 +37,12 @@ Scheck_relay
 R$* $| $*		$: <$1 $| $2> $1
 R<$*> $+.$+.$+		<$1> $3.$4
 R<$*> $+.$+		$: <$1> $(spamsites $2.$3 $)
-R<$*> $*.REJECT		$#error $: "521 blocked. contact postmaster@FreeBSD.ORG"
+R<$*> $*.REJECT		$#error $: 521 blocked. contact postmaster@$m
 R<$*> $*		$: $1
 # host must NOT be in the "spamsites" database--END
 # ip address must NOT be in the "denyip" database--BEGIN
 R$* $| $*		$: $1 $| $(denyip $2 $)
-R$* $| $*.REJECT	$#error $: "521 blocked. contact postmaster@FreeBSD.ORG"
+R$* $| $*.REJECT	$#error $: 521 blocked. contact postmaster@$m
 # ip address must NOT be in the "denyip" database--END
 R$*			$@ OK
 
