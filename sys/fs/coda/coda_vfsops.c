@@ -55,7 +55,6 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/socket.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>
