@@ -891,58 +891,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
     dynamic = FALSE;
     start = str;
 
-    if (str[1] != OPEN_PAREN && str[1] != OPEN_BRACE) {
-	/*
-	 * If it's not bounded by braces of some sort, life is much simpler.
-	 * We just need to check for the first character and return the
-	 * value if it exists.
-	 */
-	char	  name[2];
-
-	name[0] = str[1];
-	name[1] = '\0';
-
-	v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
-	if (v == (Var *)NULL) {
-	    if (str[1] != '\0')
-		*lengthPtr = 2;
-	    else
-		*lengthPtr = 1;
-
-	    if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
-		/*
-		 * If substituting a local variable in a non-local context,
-		 * assume it's for dynamic source stuff. We have to handle
-		 * this specially and return the longhand for the variable
-		 * with the dollar sign escaped so it makes it back to the
-		 * caller. Only four of the local variables are treated
-		 * specially as they are the only four that will be set
-		 * when dynamic sources are expanded.
-		 */
-		/* XXX: It looks like $% and $! are reversed here */
-		switch (str[1]) {
-		    case '@':
-			return ("$(.TARGET)");
-		    case '%':
-			return ("$(.ARCHIVE)");
-		    case '*':
-			return ("$(.PREFIX)");
-		    case '!':
-			return ("$(.MEMBER)");
-		    default:
-			break;
-		}
-	    }
-	    /*
-	     * Error
-	     */
-	    return (err ? var_Error : varNoError);
-	} else {
-	    haveModifier = FALSE;
-	    tstr = &str[1];
-	    endc = str[1];
-	}
-    } else {
+    if (str[1] == OPEN_PAREN || str[1] == OPEN_BRACE) {
 	/* build up expanded variable name in this buffer */
 	Buffer	*buf = Buf_Init(MAKE_BSIZE);
 
@@ -1089,7 +1038,13 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		}
 	    }
 
-	    if (!haveModifier) {
+	    if (haveModifier) {
+		/*
+		 * Still need to get to the end of the variable specification,
+		 * so kludge up a Var structure for the modifications
+		 */
+		v = VarCreate(str, NULL, VAR_JUNK);
+	    } else {
 		/*
 		 * No modifiers -- have specification length so we can return
 		 * now.
@@ -1107,15 +1062,60 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		    Buf_Destroy(buf, TRUE);
 		    return (err ? var_Error : varNoError);
 		}
-	    } else {
-		/*
-		 * Still need to get to the end of the variable specification,
-		 * so kludge up a Var structure for the modifications
-		 */
-		v = VarCreate(str, NULL, VAR_JUNK);
 	    }
 	}
 	Buf_Destroy(buf, TRUE);
+    } else {
+	/*
+	 * If it's not bounded by braces of some sort, life is much simpler.
+	 * We just need to check for the first character and return the
+	 * value if it exists.
+	 */
+	char	  name[2];
+
+	name[0] = str[1];
+	name[1] = '\0';
+
+	v = VarFind(name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	if (v == (Var *)NULL) {
+	    if (str[1] != '\0')
+		*lengthPtr = 2;
+	    else
+		*lengthPtr = 1;
+
+	    if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
+		/*
+		 * If substituting a local variable in a non-local context,
+		 * assume it's for dynamic source stuff. We have to handle
+		 * this specially and return the longhand for the variable
+		 * with the dollar sign escaped so it makes it back to the
+		 * caller. Only four of the local variables are treated
+		 * specially as they are the only four that will be set
+		 * when dynamic sources are expanded.
+		 */
+		/* XXX: It looks like $% and $! are reversed here */
+		switch (str[1]) {
+		    case '@':
+			return ("$(.TARGET)");
+		    case '%':
+			return ("$(.ARCHIVE)");
+		    case '*':
+			return ("$(.PREFIX)");
+		    case '!':
+			return ("$(.MEMBER)");
+		    default:
+			break;
+		}
+	    }
+	    /*
+	     * Error
+	     */
+	    return (err ? var_Error : varNoError);
+	} else {
+	    haveModifier = FALSE;
+	    tstr = &str[1];
+	    endc = str[1];
+	}
     }
 
     if (v->flags & VAR_IN_USE) {
@@ -1764,37 +1764,14 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 	    Buf_AddByte(buf, (Byte)str[0]);
 	    str += 2;
 
-	} else if (str[0] != '$') {
-	    /*
-	     * Skip as many characters as possible -- either to the end of
-	     * the string or to the next dollar sign (variable invocation).
-	     */
-	    const char *cp = str;
-
-	    do {
-		str++;
-	    } while (str[0] != '$' && str[0] != '\0');
-	    Buf_AppendRange(buf, cp, str);
-
-	} else {
+	} else if (str[0] == '$') {
 	    /*
 	     * Variable invocation.
 	     */
 	    if (var != NULL) {
 		int expand;
 		for (;;) {
-		    if (str[1] != OPEN_PAREN && str[1] != OPEN_BRACE) {
-			/*
-			 * Single letter variable name
-			 */
-			if (var[1] != '\0' || var[0] != str[1]) {
-			    Buf_AddBytes(buf, 2, (const Byte *)str);
-			    str += 2;
-			    expand = FALSE;
-			} else {
-			    expand = TRUE;
-			}
-		    } else {
+		    if (str[1] == OPEN_PAREN || str[1] == OPEN_BRACE) {
 			size_t		ln;
 			const char	*p = str + 2;
 
@@ -1821,7 +1798,9 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 			}
 
 			ln = p - (str + 2);
-			if (var[ln] != '\0' || strncmp(var, str + 2, ln) != 0) {
+			if (var[ln] == '\0' && strncmp(var, str + 2, ln) == 0) {
+			    expand = TRUE;
+			} else {
 			    /*
 			     * Not the variable we want to expand, scan
 			     * until the next variable
@@ -1832,8 +1811,17 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 			    Buf_AppendRange(buf, str, p);
 			    str = p;
 			    expand = FALSE;
-			} else {
+			}
+		    } else {
+			/*
+			 * Single letter variable name
+			 */
+			if (var[1] == '\0' && var[0] == str[1]) {
 			    expand = TRUE;
+			} else {
+			    Buf_AddBytes(buf, 2, (const Byte *)str);
+			    str += 2;
+			    expand = FALSE;
 			}
 		    }
 		    break;
@@ -1891,6 +1879,17 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 		    free(val);
 		}
 	    }
+	} else {
+	    /*
+	     * Skip as many characters as possible -- either to the end of
+	     * the string or to the next dollar sign (variable invocation).
+	     */
+	    const char *cp = str;
+
+	    do {
+		str++;
+	    } while (str[0] != '$' && str[0] != '\0');
+	    Buf_AppendRange(buf, cp, str);
 	}
     }
 
