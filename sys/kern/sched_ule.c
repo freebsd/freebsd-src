@@ -1311,6 +1311,8 @@ sched_pctcpu(struct thread *td)
 
 	pctcpu = 0;
 	ke = td->td_kse;
+	if (ke == NULL)
+		return (0);
 
 	mtx_lock_spin(&sched_lock);
 	if (ke->ke_ticks) {
