@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.97 1998/03/24 01:43:45 jb Exp $
+#	$Id: Makefile,v 1.98 1998/04/14 07:40:47 peter Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -8,20 +8,20 @@
 #
 SUBDIR=	apply at banner basename biff c89 calendar \
 	cap_mkdb chat checknr chflags chpass cksum cmp col colcrt colldef \
-	colrm column comm compile_et compress chkey cpp ctags cut dig \
-	dirname dnsquery du ee env error expand \
+	colrm column comm compile_et compress chkey cpp ctags cut \
+	dirname du ee env error expand \
 	f2c false fetch file file2c \
 	find finger fmt fold fpr from fsplit ftp gencat getopt \
-	global head hexdump host id indent \
+	global head hexdump id indent \
 	join jot key keyinfo keyinit keylogin keylogout killall kzip \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
 	logname look lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
-	mktemp mk_cmds more msgs ncal netstat newkey nfsstat nice \
+	mktemp mk_cmds more msgs ncal newkey nice \
 	nohup opieinfo opiekey opiepasswd pagesize passwd paste pr printenv \
 	printf quota rdist renice rev rlogin rpcgen \
 	rpcinfo rs rsh rup ruptime rusers rwall \
-	rwho script sed shar showmount size soelim split \
-	strings	su symorder tail talk tconv tcopy tee tftp time \
+	rwho script sed shar showmount soelim split \
+	su symorder tail talk tconv tcopy tee tftp time \
 	tip tn3270 touch tput tr true tset tsort tty ul uname \
 	unexpand unifdef uniq units unvis users uudecode uuencode vacation \
 	vgrind vi vis wall wc what whereis which who whois window \
@@ -34,15 +34,16 @@ SUBDIR+=telnet
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-# Things that don't compile on alpha:
-SUBDIR+=ar brandelf doscmd fstat gcore gprof gprof4 ipcrm ipcs kdump ktrace \
-	lorder modstat mt nm ranlib sasc strip systat top truss vmstat w
+# Things that don't compile on alpha or are aout specific:
+SUBDIR+=ar brandelf dig dnsquery doscmd fstat gcore gprof gprof4 host ipcrm \
+	ipcs kdump ktrace lorder modstat mt netstat nfsstat nm ranlib \
+	sasc size strings \
+	strip systat top truss vmstat w
+.endif
 
 .if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
 	exists(${.CURDIR}/tclsh) && exists (${.CURDIR}/../lib/libtcl)
 SUBDIR+=tclsh
-.endif
-
 .endif
 
 .include <bsd.subdir.mk>
