@@ -1840,14 +1840,6 @@ si_intr(void *arg)
 					     == -1) {
 						pp->sp_delta_overflows++;
 					}
-					/*
-					 * doesn't seem to be much point doing
-					 * this here.. this driver has no
-					 * softtty processing! ??
-					 */
-					if (pp->sp_hotchar && i == pp->sp_hotchar) {
-						setsofttty();
-					}
 				}
 			}
 			goto more_rx;	/* try for more until RXbuf is empty */
