@@ -21,6 +21,7 @@ LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR}
 SRCS+=	ls.c cmp.c print.c util.c lomac.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
+LDADD+=	-lm
 
 .if !defined(NOPAM)
 CFLAGS+=-DUSE_PAM
