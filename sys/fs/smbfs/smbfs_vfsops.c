@@ -243,8 +243,19 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	/* There is 1 extra root vnode reference from smbfs_mount(). */
-	error = vflush(mp, 1, flags);
+	/*
+	 * Keep trying to flush the vnode list for the mount while 
+	 * some are still busy and we are making progress towards
+	 * making them not busy. This is needed because smbfs vnodes
+	 * reference their parent directory but may appear after their
+	 * parent in the list; one pass over the vnode list is not
+	 * sufficient in this case.
+	 */
+	do {
+		smp->sm_didrele = 0;
+		/* There is 1 extra root vnode reference from smbfs_mount(). */
+		error = vflush(mp, 1, flags);
+	} while (error == EBUSY && smp->sm_didrele != 0);
 	if (error)
 		return error;
 	smb_makescred(&scred, td, td->td_ucred);
