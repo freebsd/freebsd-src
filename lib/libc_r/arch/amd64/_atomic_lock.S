@@ -35,8 +35,7 @@
  * eax will contain the return value (zero if lock obtained).
  */
 ENTRY(_atomic_lock)
-	movl	4(%esp), %ecx
 	movl	$1, %eax
-	xchg	%eax, (%ecx)
+	xchgq	%rax, (%rdi)
 	ret
 
