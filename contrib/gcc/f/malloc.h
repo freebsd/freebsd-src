@@ -1,6 +1,6 @@
 /* malloc.h -- Public #include File (module.h template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -109,14 +109,14 @@ void malloc_init (void);
 void malloc_kill_inpool_ (mallocPool pool, mallocType_ type, void *ptr,
 			  mallocSize size);
 void *malloc_new_ (mallocSize size);
-void *malloc_new_inpool_ (mallocPool pool, mallocType_ type, char *name,
+void *malloc_new_inpool_ (mallocPool pool, mallocType_ type, const char *name,
 			  mallocSize size);
-void *malloc_new_zinpool_ (mallocPool pool, mallocType_ type, char *name,
+void *malloc_new_zinpool_ (mallocPool pool, mallocType_ type, const char *name,
 			   mallocSize size, int z);
 void malloc_pool_display (mallocPool p);
 char malloc_pool_find_ (mallocPool p, mallocPool parent);
 void malloc_pool_kill (mallocPool p);
-mallocPool malloc_pool_new (char *name, mallocPool parent, unsigned long chunks);
+mallocPool malloc_pool_new (const char *name, mallocPool parent, unsigned long chunks);
 mallocPool malloc_pool_use (mallocPool p);
 void *malloc_resize_ (void *ptr, mallocSize new_size);
 void *malloc_resize_inpool_ (mallocPool pool, mallocType_ type, void *ptr,

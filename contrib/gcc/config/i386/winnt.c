@@ -1,6 +1,6 @@
 /* Subroutines for insn-output.c for Windows NT.
    Contributed by Douglas Rupp (drupp@cs.washington.edu)
-   Copyright (C) 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -493,7 +493,7 @@ i386_pe_unique_section (decl, reloc)
 }
 
 /* The Microsoft linker requires that every function be marked as
-   DT_FCN.  When using gas on cygwin32, we must emit appropriate .type
+   DT_FCN.  When using gas on cygwin, we must emit appropriate .type
    directives.  */
 
 #include "gsyms.h"
@@ -545,8 +545,29 @@ i386_pe_record_external_function (name)
   extern_head = p;
 }
 
+static struct extern_list *exports_head;
+
+/* Assemble an export symbol entry.  We need to keep a list of
+   these, so that we can output the export list at the end of the
+   assembly.  We used to output these export symbols in each function,
+   but that causes problems with GNU ld when the sections are 
+   linkonce.  */
+
+void
+i386_pe_record_exported_symbol (name)
+     char *name;
+{
+  struct extern_list *p;
+
+  p = (struct extern_list *) permalloc (sizeof *p);
+  p->next = exports_head;
+  p->name = name;
+  exports_head = p;
+}
+
 /* This is called at the end of assembly.  For each external function
-   which has not been defined, we output a declaration now.  */
+   which has not been defined, we output a declaration now.  We also
+   output the .drectve section.  */
 
 void
 i386_pe_asm_file_end (file)
@@ -567,4 +588,13 @@ i386_pe_asm_file_end (file)
 	  i386_pe_declare_function_type (file, p->name, TREE_PUBLIC (decl));
 	}
     }
+
+  if (exports_head)
+    drectve_section ();
+  for (p = exports_head; p != NULL; p = p->next)
+    {
+      fprintf (file, "\t.ascii \" -export:%s\"\n",
+               I386_PE_STRIP_ENCODING (p->name));
+    }
 }
+

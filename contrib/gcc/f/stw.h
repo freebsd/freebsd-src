@@ -1,6 +1,6 @@
 /* stw.h -- Private #include File (module.h template V1.0)
    Copyright (C) 1995 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -81,6 +81,7 @@ struct _ffestw_
     tree select_texpr_;		/* tree for end case. */
     bool select_break_;		/* TRUE when CASE should start with gen
 				   "break;". */
+    int ifthen_fake_else_;	/* Number of fake `else' introductions.  */
 #endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC*/
   };
 
@@ -118,11 +119,11 @@ extern ffestw ffestw_stack_top_;
 
 /* Declare functions with prototypes. */
 
-void ffestw_display_state ();
+void ffestw_display_state (void);
 void ffestw_kill (ffestw block);
 void ffestw_init_0 (void);
-ffestw ffestw_new ();
-ffestw ffestw_pop ();
+ffestw ffestw_new (void);
+ffestw ffestw_pop (void);
 ffestw ffestw_push (ffestw block);
 ffestw ffestw_update (ffestw block);
 ffestw ffestw_use (ffestw block);
@@ -137,6 +138,7 @@ ffestw ffestw_use (ffestw block);
 #define ffestw_do_iter_var(b) ((b)->do_iter_var_)
 #define ffestw_do_iter_var_t(b) ((b)->do_iter_var_t_)
 #define ffestw_do_tvar(b) ((b)->do_tvar_)
+#define ffestw_ifthen_fake_else(b) ((b)->ifthen_fake_else_)
 #define ffestw_init_1()
 #define ffestw_init_2()
 #define ffestw_init_3()
@@ -156,6 +158,7 @@ ffestw ffestw_use (ffestw block);
 #define ffestw_set_do_iter_var(b,v) ((b)->do_iter_var_ = (v))
 #define ffestw_set_do_iter_var_t(b,t) ((b)->do_iter_var_t_ = (t))
 #define ffestw_set_do_tvar(b,d) ((b)->do_tvar_ = (d))
+#define ffestw_set_ifthen_fake_else(b,e) ((b)->ifthen_fake_else_ = (e))
 #define ffestw_set_label(b,l) ((b)->label_ = (l))
 #define ffestw_set_line(b,l) ((b)->line_ = (l))
 #define ffestw_set_name(b,n) ((b)->name_ = (n))

@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for some
    generic System V Release 4 system.
-   Copyright (C) 1991, 94-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1991, 94-98, 1999 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
@@ -212,8 +212,9 @@ Boston, MA 02111-1307, USA.
 
 #define ASM_FILE_END(FILE)					\
 do {				 				\
-     fprintf ((FILE), "\t%s\t\"GCC: (GNU) %s\"\n",		\
-	      IDENT_ASM_OP, version_string);			\
+     if (!flag_no_ident)					\
+	fprintf ((FILE), "\t%s\t\"GCC: (GNU) %s\"\n",		\
+		 IDENT_ASM_OP, version_string);			\
    } while (0)
 
 /* Allow #sccs in preprocessor.  */
@@ -246,8 +247,9 @@ do {				 				\
 #define DWARF_DEBUGGING_INFO
 
 /* All ELF targets can support DWARF-2.  */
-
+#ifndef DWARF2_DEBUGGING_INFO
 #define DWARF2_DEBUGGING_INFO
+#endif
 
 /* The numbers used to denote specific machine registers in the System V
    Release 4 DWARF debugging information are quite likely to be totally
@@ -260,83 +262,14 @@ do {				 				\
 
 #undef DBX_REGISTER_NUMBER
 
-/* gas on SVR4 supports the use of .stabs.  Permit -gstabs to be used
-   in general, although it will only work when using gas.  */
-
-#define DBX_DEBUGGING_INFO
-
-/* When generating stabs debugging, use N_BINCL entries.  */
-
-#define DBX_USE_BINCL
-
 /* Use DWARF debugging info by default.  */
 
 #ifndef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF_DEBUG
 #endif
 
-/* Make LBRAC and RBRAC addresses relative to the start of the
-   function.  The native Solaris stabs debugging format works this
-   way, gdb expects it, and it reduces the number of relocation
-   entries.  */
-
-#define DBX_BLOCKS_FUNCTION_RELATIVE 1
-
-/* When using stabs, gcc2_compiled must be a stabs entry, not an
-   ordinary symbol, or gdb won't see it.  Furthermore, since gdb reads
-   the input piecemeal, starting with each N_SO, it's a lot easier if
-   the gcc2 flag symbol is *after* the N_SO rather than before it.  So
-   we emit an N_OPT stab there.  */
-
-#define ASM_IDENTIFY_GCC(FILE)						\
-do									\
-  {									\
-    if (write_symbols != DBX_DEBUG)					\
-      fputs ("gcc2_compiled.:\n", FILE);				\
-  }									\
-while (0)
-
-#define ASM_IDENTIFY_GCC_AFTER_SOURCE(FILE)				\
-do									\
-  {									\
-    if (write_symbols == DBX_DEBUG)					\
-      fputs ("\t.stabs\t\"gcc2_compiled.\", 0x3c, 0, 0, 0\n", FILE);	\
-  }									\
-while (0)
-
-/* Like block addresses, stabs line numbers are relative to the
-   current function.  */
-
-#define ASM_OUTPUT_SOURCE_LINE(file, line)				\
-do									\
-  {									\
-    static int sym_lineno = 1;						\
-    fprintf (file, ".stabn 68,0,%d,.LM%d-",				\
-	     line, sym_lineno);						\
-    assemble_name (file,						\
-		   XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));\
-    fprintf (file, "\n.LM%d:\n", sym_lineno);				\
-    sym_lineno += 1;							\
-  }									\
-while (0)
-
-/* In order for relative line numbers to work, we must output the
-   stabs entry for the function name first.  */
-
-#define DBX_FUNCTION_FIRST
-
-/* Generate a blank trailing N_SO to mark the end of the .o file, since
-   we can't depend upon the linker to mark .o file boundaries with
-   embedded stabs.  */
-
-#define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
-do									\
-  {									\
-    text_section ();							\
-    fprintf (FILE,							\
-	   "\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", N_SO);		\
-  }									\
-while (0)
+/* But allow STABS to be supoorted as well.  */
+#include "dbxelf.h"
 
 /* Define the actual types of some ANSI-mandated types.  (These
    definitions should work for most SVR4 systems).  */
@@ -655,7 +588,15 @@ do {								\
   name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (DECL));	\
 								\
   if (! DECL_ONE_ONLY (DECL))					\
-    prefix = ".";						\
+    {								\
+      prefix = ".";                                             \
+      if (TREE_CODE (DECL) == FUNCTION_DECL)			\
+	prefix = ".text.";					\
+      else if (DECL_READONLY_SECTION (DECL, RELOC))		\
+	prefix = ".rodata.";					\
+      else							\
+	prefix = ".data.";					\
+    }								\
   else if (TREE_CODE (DECL) == FUNCTION_DECL)			\
     prefix = ".gnu.linkonce.t.";				\
   else if (DECL_READONLY_SECTION (DECL, RELOC))			\
@@ -669,7 +610,6 @@ do {								\
 								\
   DECL_SECTION_NAME (DECL) = build_string (len, string);	\
 } while (0)
-
 /* A C statement (sans semicolon) to output an element in the table of
    global constructors.  */
 #define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
@@ -943,7 +883,7 @@ do {									 \
 	    }								\
 	  for (p = _ascii_bytes; p < limit && *p != '\0'; p++)		\
 	    continue;							\
-	  if (p < limit && (p - _ascii_bytes) <= STRING_LIMIT)		\
+	  if (p < limit && (p - _ascii_bytes) <= (long)STRING_LIMIT)	\
 	    {								\
 	      if (bytes_in_chunk > 0)					\
 		{							\

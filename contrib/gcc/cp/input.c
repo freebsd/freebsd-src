@@ -1,5 +1,5 @@
 /* Input handling for G++.
-   Copyright (C) 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93-98, 1999 Free Software Foundation, Inc.
    Written by Ken Raeburn (raeburn@cygnus.com) while at Watchmaker Computing.
 
 This file is part of GNU CC.
@@ -52,12 +52,6 @@ static struct input_source *input, *free_inputs;
 
 extern char *input_filename;
 extern int lineno;
-
-#ifdef __GNUC__
-#define inline __inline__
-#else
-#define inline
-#endif
 
 #if USE_CPPLIB
 extern unsigned char *yy_cur, *yy_lim;

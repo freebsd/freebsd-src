@@ -1,5 +1,5 @@
 /* Generate code from machine description to perform peephole optimizations.
-   Copyright (C) 1987, 1989, 1992, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 89, 92, 97, 98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,11 +20,6 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "hconfig.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include "rtl.h"
 #include "obstack.h"
@@ -51,9 +46,9 @@ struct link
   int vecelt;
 };
 
-char *xmalloc PROTO((unsigned));
-static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
-void fancy_abort PROTO((void));
+void fatal PVPROTO ((const char *, ...))
+  ATTRIBUTE_PRINTF_1 ATTRIBUTE_NORETURN;
+void fancy_abort PROTO((void)) ATTRIBUTE_NORETURN;
 
 static int max_opno;
 
@@ -389,40 +384,44 @@ print_code (code)
     }
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *val = (char *) malloc (size);
+  register PTR val = (PTR) malloc (size);
 
   if (val == 0)
     fatal ("virtual memory exhausted");
   return val;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  char *result = (char *) realloc (ptr, size);
-  if (!result)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (!ptr)
     fatal ("virtual memory exhausted");
-  return result;
+  return ptr;
 }
 
-static void
-fatal VPROTO ((char *format, ...))
+void
+fatal VPROTO ((const char *format, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *format;
 #endif
   va_list ap;
 
   VA_START (ap, format);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  format = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "genpeep: ");
@@ -471,10 +470,12 @@ from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
   printf ("#include \"system.h\"\n");
+  printf ("#include \"insn-config.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"regs.h\"\n");
   printf ("#include \"output.h\"\n");
   printf ("#include \"real.h\"\n");
+  printf ("#include \"recog.h\"\n");
   printf ("#include \"except.h\"\n\n");
 
   printf ("extern rtx peep_operand[];\n\n");

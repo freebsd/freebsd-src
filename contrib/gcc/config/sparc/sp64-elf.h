@@ -80,8 +80,8 @@ crtbegin.o%s \
 /* V9 chips can handle either endianness.  */
 #undef SUBTARGET_SWITCHES
 #define SUBTARGET_SWITCHES \
-{"big-endian", -MASK_LITTLE_ENDIAN}, \
-{"little-endian", MASK_LITTLE_ENDIAN},
+{"big-endian", -MASK_LITTLE_ENDIAN, "Generate code for big endian" }, \
+{"little-endian", MASK_LITTLE_ENDIAN, "Generate code for little endian" },
 
 #undef BYTES_BIG_ENDIAN
 #define BYTES_BIG_ENDIAN (! TARGET_LITTLE_ENDIAN)
@@ -102,9 +102,10 @@ crtbegin.o%s \
 /* The medium/anywhere code model practically requires us to put jump tables
    in the text section as gcc is unable to distinguish LABEL_REF's of jump
    tables from other label refs (when we need to).  */
-/* ??? Revisit this.  */
+/* But we now defer the tables to the end of the function, so we make
+   this 0 to not confuse the branch shortening code.  */
 #undef JUMP_TABLES_IN_TEXT_SECTION
-#define JUMP_TABLES_IN_TEXT_SECTION 1
+#define JUMP_TABLES_IN_TEXT_SECTION 0
 
 /* System V Release 4 uses DWARF debugging info.
    GDB doesn't support 64 bit stabs yet and the desired debug format is DWARF

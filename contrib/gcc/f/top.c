@@ -1,6 +1,6 @@
 /* top.c -- Implementation File (module.c template V1.0)
    Copyright (C) 1995-1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -65,7 +65,7 @@ bool ffe_is_do_internal_checks_ = FALSE;
 bool ffe_is_90_ = FFETARGET_defaultIS_90;
 bool ffe_is_automatic_ = FFETARGET_defaultIS_AUTOMATIC;
 bool ffe_is_backslash_ = FFETARGET_defaultIS_BACKSLASH;
-bool ffe_is_emulate_complex_ = TRUE;
+bool ffe_is_emulate_complex_ = FALSE;
 bool ffe_is_underscoring_ = FFETARGET_defaultEXTERNAL_UNDERSCORED
   || FFETARGET_defaultUNDERSCORED_EXTERNAL_UNDERSCORED;
 bool ffe_is_second_underscore_ = FFETARGET_defaultUNDERSCORED_EXTERNAL_UNDERSCORED;
@@ -74,15 +74,16 @@ bool ffe_is_dollar_ok_ = FFETARGET_defaultIS_DOLLAR_OK;
 bool ffe_is_f2c_ = FFETARGET_defaultIS_F2C;
 bool ffe_is_f2c_library_ = FFETARGET_defaultIS_F2C_LIBRARY;
 bool ffe_is_ffedebug_ = FALSE;
+bool ffe_is_flatten_arrays_ = FALSE;
 bool ffe_is_free_form_ = FFETARGET_defaultIS_FREE_FORM;
 bool ffe_is_globals_ = TRUE;
-bool ffe_is_ident_ = TRUE;
 bool ffe_is_init_local_zero_ = FFETARGET_defaultIS_INIT_LOCAL_ZERO;
 bool ffe_is_mainprog_;		/* TRUE if current prog unit known to be
 				   main. */
 bool ffe_is_null_version_ = FALSE;
 bool ffe_is_onetrip_ = FALSE;
 bool ffe_is_silent_ = TRUE;
+bool ffe_is_subscript_check_ = FALSE;
 bool ffe_is_typeless_boz_ = FALSE;
 bool ffe_is_pedantic_ = FFETARGET_defaultIS_PEDANTIC;
 bool ffe_is_saveall_;		/* TRUE if mainprog or SAVE (no args) seen. */
@@ -162,7 +163,7 @@ ffe_is_digit_string_ (char *s)
 
 int
 ffe_decode_option (argc, argv)
-     int argc;
+     int argc ATTRIBUTE_UNUSED;
      char **argv;
 {
   char *opt = argv[0];
@@ -177,10 +178,6 @@ ffe_decode_option (argc, argv)
 	}
       else if (strcmp (&opt[2], "null-version") == 0)
 	ffe_set_is_null_version (TRUE);
-      else if (strcmp (&opt[2], "ident") == 0)
-	ffe_set_is_ident (TRUE);
-      else if (strcmp (&opt[2], "no-ident") == 0)
-	ffe_set_is_ident (FALSE);
       else if (strcmp (&opt[2], "f66") == 0)
 	{
 	  ffe_set_is_onetrip (TRUE);
@@ -220,6 +217,10 @@ ffe_decode_option (argc, argv)
 	ffe_set_is_f2c_library (TRUE);
       else if (strcmp (&opt[2], "no-f2c-library") == 0)
 	ffe_set_is_f2c_library (FALSE);
+      else if (strcmp (&opt[2], "flatten-arrays") == 0)
+	ffe_set_is_flatten_arrays (TRUE);
+      else if (strcmp (&opt[2], "no-flatten-arrays") == 0)
+	ffe_set_is_flatten_arrays (FALSE);
       else if (strcmp (&opt[2], "free-form") == 0)
 	ffe_set_is_free_form (TRUE);
       else if (strcmp (&opt[2], "no-free-form") == 0)
@@ -240,18 +241,6 @@ ffe_decode_option (argc, argv)
 	warning ("%s no longer supported -- try -fvxt", opt);
       else if (strcmp (&opt[2], "f90-not-vxt") == 0)
 	warning ("%s no longer supported -- try -fno-vxt -ff90", opt);
-      else if (strcmp (&opt[2], "ugly") == 0)
-	{
-	  warning ("%s is overloaded with meanings and likely to be removed;", opt);
-	  warning ("use only the specific -fugly-* options you need");
-	  ffe_set_is_ugly_args (TRUE);
-	  ffe_set_is_ugly_assign (TRUE);
-	  ffe_set_is_ugly_assumed (TRUE);
-	  ffe_set_is_ugly_comma (TRUE);
-	  ffe_set_is_ugly_complex (TRUE);
-	  ffe_set_is_ugly_init (TRUE);
-	  ffe_set_is_ugly_logint (TRUE);
-	}
       else if (strcmp (&opt[2], "no-ugly") == 0)
 	{
 	  ffe_set_is_ugly_args (FALSE);
@@ -334,6 +323,14 @@ ffe_decode_option (argc, argv)
 	ffe_set_is_globals (TRUE);
       else if (strcmp (&opt[2], "no-globals") == 0)
 	ffe_set_is_globals (FALSE);
+      else if (strcmp (&opt[2], "bounds-check") == 0)
+	ffe_set_is_subscript_check (TRUE);
+      else if (strcmp (&opt[2], "no-bounds-check") == 0)
+	ffe_set_is_subscript_check (FALSE);
+      else if (strcmp (&opt[2], "fortran-bounds-check") == 0)
+	ffe_set_is_subscript_check (TRUE);
+      else if (strcmp (&opt[2], "no-fortran-bounds-check") == 0)
+	ffe_set_is_subscript_check (FALSE);
       else if (strcmp (&opt[2], "typeless-boz") == 0)
 	ffe_set_is_typeless_boz (TRUE);
       else if (strcmp (&opt[2], "no-typeless-boz") == 0)

@@ -1,5 +1,5 @@
 /* Code to maintain a C++ template repository.
-   Copyright (C) 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 96-97, 1998 Free Software Foundation, Inc.
    Contributed by Jason Merrill (jason@cygnus.com)
 
 This file is part of GNU CC.
@@ -37,8 +37,8 @@ extern char *getpwd PROTO((void));
 
 static tree repo_get_id PROTO((tree));
 static char *extract_string PROTO((char **));
-static char *get_base_filename PROTO((char *));
-static void open_repo_file PROTO((char *));
+static char *get_base_filename PROTO((const char *));
+static void open_repo_file PROTO((const char *));
 static char *afgets PROTO((FILE *));
 static void reopen_repo_file_for_write PROTO((void));
 
@@ -99,6 +99,12 @@ repo_get_id (t)
 {
   if (TREE_CODE_CLASS (TREE_CODE (t)) == 't')
     {
+      /* If we're not done setting up the class, we may not have set up
+	 the vtable, so going ahead would give the wrong answer.
+         See g++.pt/instantiate4.C.  */
+      if (TYPE_SIZE (t) == NULL_TREE || TYPE_BEING_DEFINED (t))
+	my_friendly_abort (981113);
+
       t = TYPE_BINFO_VTABLE (t);
       if (t == NULL_TREE)
 	return t;
@@ -233,7 +239,7 @@ extract_string (pp)
 
 static char *
 get_base_filename (filename)
-     char *filename;
+     const char *filename;
 {
   char *p = getenv ("COLLECT_GCC_OPTIONS");
   char *output = NULL;
@@ -264,10 +270,10 @@ get_base_filename (filename)
 
 static void
 open_repo_file (filename)
-     char *filename;
+     const char *filename;
 {
-  register char *p;
-  char *s = get_base_filename (filename);
+  register const char *p;
+  const char *s = get_base_filename (filename);
 
   if (s == NULL)
     return;
@@ -298,7 +304,7 @@ afgets (stream)
 
 void
 init_repo (filename)
-     char *filename;
+     const char *filename;
 {
   char *buf;
 

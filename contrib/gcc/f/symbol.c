@@ -1,6 +1,6 @@
 /* Implementation of Fortran symbol manager
    Copyright (C) 1995-1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -117,7 +117,7 @@ static ffesymbolRetract_ *ffesymbol_retract_list_;
 
 /* List of state names. */
 
-static char *ffesymbol_state_name_[] =
+static const char *ffesymbol_state_name_[] =
 {
   "?",
   "@",
@@ -127,7 +127,7 @@ static char *ffesymbol_state_name_[] =
 
 /* List of attribute names. */
 
-static char *ffesymbol_attr_name_[] =
+static const char *ffesymbol_attr_name_[] =
 {
 #define DEFATTR(ATTR,ATTRS,NAME) NAME,
 #include "symbol.def"
@@ -255,6 +255,7 @@ ffesymbol_new_ (ffename n)
   s->reported = FALSE;
   s->explicit_where = FALSE;
   s->namelisted = FALSE;
+  s->assigned = FALSE;
 
   ffename_set_symbol (n, s);
 
@@ -316,7 +317,7 @@ ffesymbol_whine_state_ (ffebad bad, ffelexToken t, char c)
 
 /* Returns a string representing the attributes set.  */
 
-char *
+const char *
 ffesymbol_attrs_string (ffesymbolAttrs attrs)
 {
   static char string[FFESYMBOL_attr * 12 + 20];
@@ -773,7 +774,7 @@ ffesymbol_declare_subrunit (ffelexToken t)
    ffesymbol_drive (fn);  */
 
 void
-ffesymbol_drive (ffesymbol (*fn) ())
+ffesymbol_drive (ffesymbol (*fn) (ffesymbol))
 {
   assert (ffesymbol_sfunc_ == NULL);	/* Might be ok, but not for current
 					   uses. */
@@ -787,7 +788,7 @@ ffesymbol_drive (ffesymbol (*fn) ())
    ffesymbol_drive_sfnames (fn);  */
 
 void
-ffesymbol_drive_sfnames (ffesymbol (*fn) ())
+ffesymbol_drive_sfnames (ffesymbol (*fn) (ffesymbol))
 {
   ffename_space_drive_symbol (ffesymbol_sfunc_, fn);
 }
@@ -1348,7 +1349,7 @@ ffesymbol_signal_change (ffesymbol s)
 
 /* Returns the string based on the state.  */
 
-char *
+const char *
 ffesymbol_state_string (ffesymbolState state)
 {
   if (state >= ARRAY_SIZE (ffesymbol_state_name_))

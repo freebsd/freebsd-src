@@ -1,5 +1,5 @@
 /* Compilation switch flag definitions for GNU CC.
-   Copyright (C) 1987, 88, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 94-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -276,9 +276,13 @@ extern int flag_no_peephole;
 
 extern int flag_volatile;
 
-/* Nonzero means treat all global and extern variables as global.  */
+/* Nonzero means treat all global and extern variables as volatile.  */
 
 extern int flag_volatile_global;
+
+/* Nonzero means treat all static variables as volatile.  */
+
+extern int flag_volatile_static;
 
 /* Nonzero allows GCC to violate some IEEE or ANSI rules regarding math
    operations in the interest of optimization.  For example it allows
@@ -287,14 +291,20 @@ extern int flag_volatile_global;
 
 extern int flag_fast_math;
 
+/* Nonzero means the front end generally wants `errno' maintained by math
+   operations, like built-in SQRT, unless overridden by flag_fast_math.  */
+
+extern int flag_errno_math;
+
+/* 0 means straightforward implementation of complex divide acceptable.
+   1 means wide ranges of inputs must work for complex divide.
+   2 means C9X-like requirements for complex divide (not yet implemented).  */
+
+extern int flag_complex_divide_method;
+
 /* Nonzero means to run loop optimizations twice.  */
 
 extern int flag_rerun_loop_opt;
-
-/* Nonzero means to assume that a structure or an array reference at
-   a varying address cannot alias a scalar at a fixed address. */
-
-extern int flag_structure_noalias;
 
 /* Nonzero means make functions that look like good inline candidates
    go inline.  */
@@ -350,16 +360,21 @@ extern int flag_schedule_interblock;
 extern int flag_schedule_speculative;
 extern int flag_schedule_speculative_load;
 extern int flag_schedule_speculative_load_dangerous;
+#endif  /* HAIFA */
 
 /* flag_on_branch_count_reg means try to replace add-1,compare,branch tupple
    by a cheaper branch, on a count register. */
 extern int flag_branch_on_count_reg;
-#endif  /* HAIFA */
 
 
 /* Nonzero means put things in delayed-branch slots if supported. */
 
 extern int flag_delayed_branch;
+
+/* Nonzero means suppress output of instruction numbers and line number
+   notes in debugging dumps.  */
+
+extern int flag_dump_unnumbered;
 
 /* Nonzero means pretend it is OK to examine bits of target floats,
    even if that isn't true.  The resulting code will have incorrect constants,
@@ -402,6 +417,10 @@ extern int flag_inhibit_size_directive;
    which support arbitrary section names and unlimited numbers of sections.  */
 
 extern int flag_function_sections;
+
+/* ... and similar for data.  */
+ 
+extern int flag_data_sections;
 
 /* -fverbose-asm causes extra commentary information to be produced in
    the generated assembly code (to make it more readable).  This option
@@ -449,6 +468,9 @@ extern int flag_stack_check;
 
 /* Do the full regmove optimization pass.  */
 extern int flag_regmove;
+
+/* Instrument functions with calls at entry and exit, for profiling.  */
+extern int flag_instrument_function_entry_exit;
 
 /* Other basic status info about current function.  */
 
@@ -495,3 +517,24 @@ extern int current_function_is_thunk;
 /* Value of the -G xx switch, and whether it was passed or not.  */
 extern int g_switch_value;
 extern int g_switch_set;
+
+/* Value of the -finline-limit flag.  */
+
+extern int inline_max_insns;
+
+/* Nonzero if we dump in VCG format, not plain text.  */
+extern int dump_for_graph;
+
+/* Selection of the graph form.  */
+enum graph_dump_types
+{
+  no_graph = 0,
+  vcg
+};
+extern enum graph_dump_types graph_dump_format;
+
+/* Nonzero means ignore `#ident' directives.  0 means handle them.
+   On SVR4 targets, it also controls whether or not to emit a
+   string identifying the compiler.  */
+
+extern int flag_no_ident;
