@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.57 1999/07/02 16:21:13 sheldonh Exp $";
+	"$Id: inetd.c,v 1.58 1999/07/09 11:18:59 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -275,6 +275,7 @@ char	       *sskip __P((char **));
 char	       *skip __P((char **));
 struct servtab *tcpmux __P((int));
 int		cpmip __P((struct servtab *, int));
+void		inetd_setproctitle __P((char *, int));
 
 void		unregisterrpc __P((register struct servtab *sep));
 
@@ -631,6 +632,7 @@ main(argc, argv, envp)
 				    }
 			    }
 			    if (ISWRAP(sep)) {
+				inetd_setproctitle("wrapping", ctrl);
 				service = sep->se_server_name ?
 				    sep->se_server_name : sep->se_service;
 				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
