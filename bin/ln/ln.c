@@ -50,6 +50,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,7 +65,7 @@ int	vflag;				/* Verbose output. */
 int (*linkf) __P((const char *, const char *));
 char	linkch;
 
-int	linkit __P((char *, char *, int));
+int	linkit __P((const char *, const char *, int));
 int	main __P((int, char *[]));
 void	usage __P((void));
 
@@ -74,8 +75,8 @@ main(argc, argv)
 	char *argv[];
 {
 	struct stat sb;
-	int ch, exitval;
 	char *p, *sourcedir;
+	int ch, exitval;
 
 	/*
 	 * Test for the special case where the utility is called as
@@ -155,12 +156,13 @@ main(argc, argv)
 
 int
 linkit(target, source, isdir)
-	char *target, *source;
+	const char *target, *source;
 	int isdir;
 {
 	struct stat sb;
+	const char *p;
 	int ch, exists, first;
-	char *p, path[MAXPATHLEN];
+	char path[PATH_MAX];
 
 	if (!sflag) {
 		/* If target doesn't exist, quit now. */
