@@ -971,32 +971,34 @@ sendit(struct printer *pp, char *file)
 static int
 sendfile(struct printer *pp, int type, char *file, char format)
 {
-	register int f, i, amt;
+	int i, amt;
 	struct stat stb;
 	char *av[15], *filtcmd;
 	char buf[BUFSIZ], opt_c[4], opt_h[4], opt_n[4];
-	int filtstat, narg, resp, sizerr, statrc;
+	int filtstat, narg, resp, sfd, sfres, sizerr, statrc;
 
 	statrc = lstat(file, &stb);
 	if (statrc < 0) {
 		syslog(LOG_ERR, "%s: error from lstat(%s): %m",
 		    pp->printer, file);
-		return(ERROR);
+		return (ERROR);
 	}
-	f = open(file, O_RDONLY);
-	if (f < 0) {
+	sfd = open(file, O_RDONLY);
+	if (sfd < 0) {
 		syslog(LOG_ERR, "%s: error from open(%s,O_RDONLY): %m",
 		    pp->printer, file);
-		return(ERROR);
+		return (ERROR);
 	}
 	/*
 	 * Check to see if data file is a symbolic link. If so, it should
 	 * still point to the same file or someone is trying to print something
 	 * he shouldn't.
 	 */
-	if ((stb.st_mode & S_IFMT) == S_IFLNK && fstat(f, &stb) == 0 &&
-	    (stb.st_dev != fdev || stb.st_ino != fino))
-		return(ACCESS);
+	if ((stb.st_mode & S_IFMT) == S_IFLNK && fstat(sfd, &stb) == 0 &&
+	    (stb.st_dev != fdev || stb.st_ino != fino)) {
+		close(sfd);
+		return (ACCESS);
+	}
 
 	/* Everything seems OK for reading the file, now to send it */
 	filtcmd = NULL;
@@ -1065,36 +1067,39 @@ sendfile(struct printer *pp, int type, char *file, char format)
 		if (tfd == -1) {
 			syslog(LOG_ERR, "%s: mkstemp(%s): %m", pp->printer,
 			    TFILENAME);
-			return (ERROR);
+			sfres = ERROR;
+			goto return_sfres;
 		}
-		filtstat = execfilter(pp, filtcmd, av, f, tfd);
+		filtstat = execfilter(pp, filtcmd, av, sfd, tfd);
 
 		/* process the return-code from the filter */
 		switch (filtstat) {
 		case 0:
 			break;
 		case 1:
-			unlink(tfile);
-			return (REPRINT);
+			sfres = REPRINT;
+			goto return_sfres;
 		case 2:
-			unlink(tfile);
-			return (ERROR);
+			sfres = ERROR;
+			goto return_sfres;
 		default:
 			syslog(LOG_WARNING,
 			    "%s: filter '%c' exited (retcode=%d)",
 			    pp->printer, format, filtstat);
-			unlink(tfile);
-			return (FILTERERR);
+			sfres = FILTERERR;
+			goto return_sfres;
 		}
 		statrc = fstat(tfd, &stb);   /* to find size of tfile */
 		if (statrc < 0)	{
 			syslog(LOG_ERR,
 			    "%s: error processing 'if', fstat(%s): %m",
 			    pp->printer, tfile);
-			return (ERROR);
+			sfres = ERROR;
+			goto return_sfres;
 		}
-		f = tfd;
-		lseek(f,0,SEEK_SET);
+		close(sfd);
+		sfd = tfd;
+		lseek(sfd, 0, SEEK_SET);
 	}
 
 	(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
@@ -1102,12 +1107,8 @@ sendfile(struct printer *pp, int type, char *file, char format)
 	for (i = 0;  ; i++) {
 		if (write(pfd, buf, amt) != amt ||
 		    (resp = response(pp)) < 0 || resp == '\1') {
-			(void) close(f);
-			if (tfd != -1 && type == '\3') {
-				tfd = -1;
-				unlink(tfile);
-			}
-			return(REPRINT);
+			sfres = REPRINT;
+			goto return_sfres;
 		} else if (resp == '\0')
 			break;
 		if (i == 0)
@@ -1126,41 +1127,49 @@ sendfile(struct printer *pp, int type, char *file, char format)
 		amt = BUFSIZ;
 		if (i + amt > stb.st_size)
 			amt = stb.st_size - i;
-		if (sizerr == 0 && read(f, buf, amt) != amt)
+		if (sizerr == 0 && read(sfd, buf, amt) != amt)
 			sizerr = 1;
 		if (write(pfd, buf, amt) != amt) {
-			(void) close(f);
-			if (tfd != -1 && type == '\3') {
-				tfd = -1;
-				unlink(tfile);
-			}
-			return(REPRINT);
+			sfres = REPRINT;
+			goto return_sfres;
 		}
 	}
 
-	(void) close(f);
-	if (tfd != -1 && type == '\3') {
-		tfd = -1;
-		unlink(tfile);
-	}
 	if (sizerr) {
 		syslog(LOG_INFO, "%s: %s: changed size", pp->printer, file);
 		/* tell recvjob to ignore this file */
 		(void) write(pfd, "\1", 1);
-		return(ERROR);
+		sfres = ERROR;
+		goto return_sfres;
 	}
 	if (write(pfd, "", 1) != 1 || response(pp)) {
-		return(REPRINT);
+		sfres = REPRINT;
+		goto return_sfres;
 	}
 	if (type == '\3')
 		trstat_write(pp, TR_SENDING, stb.st_size, logname,
 				 pp->remote_host, origin_host);
-	return(OK);
+	sfres = OK;
+
+return_sfres:
+	(void)close(sfd);
+	if (tfd != -1) {
+		/*
+		 * If tfd is set, then it is the same value as sfd, and
+		 * therefore it is already closed at this point.  All
+		 * we need to do is remove the temporary file.
+		 */
+		tfd = -1;
+		unlink(tfile);
+	}
+	return (sfres);
 }
 
 /*
  *  This routine is called to execute one of the filters as was
- *  specified in a printcap entry.
+ *  specified in a printcap entry.  While the child-process will read
+ *  all of 'infd', it is up to the caller to close that file descriptor
+ *  in the parent process.
  */
 static int
 execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
@@ -1177,7 +1186,6 @@ execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 		 * to complete and then returns the result.  Note that it is
 		 * the child process which reads the input stream.
 		 */
-		(void) close(infd);
 		if (fpid < 0)
 			status.w_retcode = 100;
 		else {
