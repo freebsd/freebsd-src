@@ -36,7 +36,7 @@
 .\" $Whistle: ng_vjc.8,v 1.4 1999/01/25 23:46:28 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_VJC 8
+.Dt NG_VJC 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_vjc
@@ -78,7 +78,7 @@ Other non-TCP IP packets are forwarded unchanged to
 .Dv vjip .
 .Pp
 When connecting to a
-.Xr ng_ppp 8
+.Xr ng_ppp 4
 node, the
 .Dv ip ,
 .Dv vjuncomp ,
@@ -86,7 +86,7 @@ node, the
 and
 .Dv vjip
 hooks should be connected to the
-.Xr ng_ppp 8
+.Xr ng_ppp 4
 node's
 .Dv vjc_ip ,
 .Dv vjc_vjcomp ,
@@ -201,9 +201,9 @@ copies of the file do not interfere.
 However, this may change in the future.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_ppp 8 ,
-.Xr ng_iface 8 ,
-.Xr ngctl 8 .
+.Xr ng_ppp 4 ,
+.Xr ng_iface 4 ,
+.Xr ngctl 8
 .Rs
 .%A V. Jacobsen
 .%T "Compressing TCP/IP Headers"

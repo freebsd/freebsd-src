@@ -3,6 +3,6 @@
 
 KMOD=		ng_hole
 SRCS= 		ng_hole.c
-MAN8=		ng_hole.8
+MAN4=		ng_hole.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

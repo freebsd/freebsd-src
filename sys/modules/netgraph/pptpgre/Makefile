@@ -3,6 +3,6 @@
 
 KMOD=		ng_pptpgre
 SRCS= 		ng_pptpgre.c
-MAN8=		ng_pptpgre.8
+MAN4=		ng_pptpgre.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

@@ -36,7 +36,7 @@
 .\" $Whistle: ng_async.8,v 1.6 1999/01/25 23:46:25 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_ASYNC 8
+.Dt NG_ASYNC 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_async
@@ -90,14 +90,14 @@ This node type supports the following hooks:
 .It Dv async
 Asynchronous connection.
 Typically this hook would be connected to a
-.Xr ng_tty 8
+.Xr ng_tty 4
 node, which handles transmission of serial data over a tty device.
 .It Dv sync
 Synchronous connection.  This hook sends and receives synchronous frames.
 For PPP, these frames should contain address, control, and protocol fields,
 but no checksum field.
 Typically this hook would be connected to an individual link hook of a
-.Xr ng_ppp 8
+.Xr ng_ppp 4
 type node.
 .El
 .Sh CONTROL MESSAGES
@@ -147,9 +147,9 @@ This node shuts down upon receipt of a
 control message, or when all hooks have been disconnected.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_ppp 8 ,
-.Xr ng_tty 8 ,
-.Xr ngctl 8 .
+.Xr ng_ppp 4 ,
+.Xr ng_tty 4 ,
+.Xr ngctl 8
 .Rs
 .%A W. Simpson
 .%T "PPP in HDLC-link Framing"

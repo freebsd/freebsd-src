@@ -36,7 +36,7 @@
 .\" $Whistle: ng_rfc1490.8,v 1.4 1999/01/25 23:46:27 archie Exp $
 .\"
 .Dd January 19, 1999
-.Dt NG_RFC1490 8
+.Dt NG_RFC1490 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_rfc1490
@@ -69,7 +69,7 @@ Typically the
 hook is connected to the
 .Dv inet
 hook of an
-.Xr ng_iface 8
+.Xr ng_iface 4
 node.
 .Sh HOOKS
 This node type supports the following hooks:
@@ -92,9 +92,9 @@ control message, or when all hooks have been disconnected.
 Not all of RFC 1490 is implemented.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_frame_relay 8 ,
-.Xr ng_iface 8 ,
-.Xr ngctl 8 .
+.Xr ng_frame_relay 4 ,
+.Xr ng_iface 4 ,
+.Xr ngctl 8
 .Rs
 .%A C. Brown, A. Malis
 .%T "Multiprotocol Interconnect over Frame Relay"
