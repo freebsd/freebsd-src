@@ -32,4 +32,4 @@ struct device;
 extern struct device *udp_Create(struct physical *);
 extern struct device *udp_iov2device(int, struct physical *,
                                      struct iovec *, int *, int, int *, int *);
-extern int udp_DeviceSize(void);
+extern unsigned udp_DeviceSize(void);

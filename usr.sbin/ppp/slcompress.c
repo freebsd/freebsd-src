@@ -436,7 +436,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type, struct slcompress *comp,
      * overflow the space we have available for it.
      */
     hlen = ip->ip_hl << 2;
-    if (hlen + sizeof(struct tcphdr) > len)
+    if ((int)(hlen + sizeof(struct tcphdr)) > len)
       goto bad;
     th = (struct tcphdr *) & ((char *) ip)[hlen];
     hlen += THOFFSET(th) << 2;

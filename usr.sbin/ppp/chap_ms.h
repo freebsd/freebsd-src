@@ -43,11 +43,10 @@
 
 extern void mschap_NT(char *, char *);
 extern void mschap_LANMan(char *, char *, char *);
-extern void GenerateNTResponse(char *, char *, char *, int, char *, int , char *);
+extern void GenerateNTResponse(char *, char *, char *, char *, int , char *);
 extern void HashNtPasswordHash(char *, char *);
 extern void NtPasswordHash(char *, int, char *);
-extern void ChallengeHash(char *, char *, char *UserName, int, char *);
-extern void GenerateAuthenticatorResponse(char *, int, char *, char *, char *, char *, int, char *);
+extern void GenerateAuthenticatorResponse(char *, int, char *, char *, char *, char *, char *);
 extern void GetAsymetricStartKey(char *, char *, int, int, int);
 extern void GetMasterKey(char *, char *, char *);
 extern void GetNewKeyFromSHA(char *, char *, long, char *);

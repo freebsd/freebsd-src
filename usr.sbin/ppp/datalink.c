@@ -79,7 +79,7 @@
 #include "datalink.h"
 
 static void datalink_LoginDone(struct datalink *);
-static void datalink_NewState(struct datalink *, int);
+static void datalink_NewState(struct datalink *, unsigned);
 
 static void
 datalink_OpenTimeout(void *v)
@@ -274,7 +274,7 @@ datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
       if (dl->dial.timer.state != TIMER_RUNNING) {
         if (--dl->dial.tries < 0)
           dl->dial.tries = 0;
-        if (physical_Open(dl->physical, dl->bundle) >= 0) {
+        if (physical_Open(dl->physical) >= 0) {
           log_WritePrompts(dl, "%s: Entering terminal mode on %s\r\n"
                            "Type `~?' for help\r\n", dl->name,
                            dl->physical->name.full);
@@ -1269,16 +1269,16 @@ static const char * const states[] = {
 const char *
 datalink_State(struct datalink *dl)
 {
-  if (dl->state < 0 || dl->state >= sizeof states / sizeof states[0])
+  if (dl->state >= sizeof states / sizeof states[0])
     return "unknown";
   return states[dl->state];
 }
 
 static void
-datalink_NewState(struct datalink *dl, int state)
+datalink_NewState(struct datalink *dl, unsigned state)
 {
   if (state != dl->state) {
-    if (state >= 0 && state < sizeof states / sizeof states[0]) {
+    if (state < sizeof states / sizeof states[0]) {
       log_Printf(LogPHASE, "%s: %s -> %s\n", dl->name, datalink_State(dl),
                  states[state]);
       dl->state = state;
