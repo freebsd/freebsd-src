@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#52 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#54 $"
 PATCH_ARG_LIST = "struct ahc_softc *ahc"
 PREFIX = "ahc_"
 
@@ -70,7 +70,7 @@ bus_free_sel:
 	 * Turn off the selection hardware.  We need to reset the
 	 * selection request in order to perform a new selection.
 	 */
-	and	SCSISEQ, TEMODE|ENSELI|ENRSELI|ENAUTOATNP, SCSISEQ;
+	and	SCSISEQ, TEMODE|ENSELI|ENRSELI|ENAUTOATNP;
 	and	SIMODE1, ~ENBUSFREE;
 poll_for_work:
 	call	clear_target_state;
@@ -193,7 +193,7 @@ select_in:
 		 * Setup the DMA for sending the identify and
 		 * command information.
 		 */
-		or	SEQ_FLAGS, CMDPHASE_PENDING;
+		mvi	SEQ_FLAGS, CMDPHASE_PENDING;
 
 		mov     A, TQINPOS;
 		if ((ahc->features & AHC_CMD_CHAN) != 0) {
@@ -306,7 +306,7 @@ ident_messages_done:
 		} else {
 			mvi	DFDAT, SCB_LIST_NULL;
 		}
-		mvi	SEQ_FLAGS, TARG_CMD_PENDING;
+		or	SEQ_FLAGS, TARG_CMD_PENDING;
 		test	SEQ_FLAGS2, TARGET_MSG_PENDING
 			jnz target_mesgout_pending;
 		test	SCSISIGI, ATNI jnz target_mesgout_continue;
@@ -512,6 +512,7 @@ target_mesgout:
 target_mesgout_continue:
 		call	target_inb;
 target_mesgout_pending:
+		and	SEQ_FLAGS2, ~TARGET_MSG_PENDING;
 		/* Local Processing goes here... */
 		jmp	host_target_message_loop;
 		
