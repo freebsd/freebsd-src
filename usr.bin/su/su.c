@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
-#include <libutil.h>
 #include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>
@@ -104,6 +103,7 @@ __FBSDID("$FreeBSD$");
 			pam_strerror(pamh, local_ret));			\
 		errx(1, "pam_set_item(" #what "): %s",			\
 			pam_strerror(pamh, local_ret));			\
+		/* NOTREACHED */					\
 	}								\
 } while (0)
 
@@ -113,9 +113,9 @@ static pam_handle_t *pamh = NULL;
 static char	**environ_pam;
 
 static char	*ontty(void);
-static int	chshell(char *);
-static void	usage(void);
-static int	export_pam_environment(void);
+static int	chshell(const char *);
+static void	usage(void) __dead2;
+static void	export_pam_environment(void);
 static int	ok_to_export(const char *);
 
 extern char	**environ;
@@ -123,6 +123,7 @@ extern char	**environ;
 int
 main(int argc, char *argv[])
 {
+	static char	*cleanenv;
 	struct passwd	*pwd;
 	struct pam_conv	conv = { openpam_ttyconv, NULL };
 	enum tristate	iscsh;
@@ -133,9 +134,10 @@ main(int argc, char *argv[])
 	}		np;
 	uid_t		ruid;
 	pid_t		child_pid, child_pgrp, pid;
-	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
+	int		asme, ch, asthem, fastlogin, prio, i, retcode,
 			statusp, setmaclabel;
-	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
+	u_int		setwhat;
+	char		*username, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 	struct sigaction sa, sa_int, sa_quit, sa_pipe;
 	int temp, fds[2];
@@ -169,6 +171,7 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			usage();
+		/* NOTREACHED */
 		}
 
 	if (optind < argc)
@@ -176,11 +179,12 @@ main(int argc, char *argv[])
 
 	if (user == NULL)
 		usage();
+	/* NOTREACHED */
 
 	if (strlen(user) > MAXLOGNAME - 1)
 		errx(1, "username too long");
 
-	nargv = malloc(sizeof(char *) * (argc + 4));
+	nargv = malloc(sizeof(char *) * (size_t)(argc + 4));
 	if (nargv == NULL)
 		errx(1, "malloc failure");
 
@@ -241,10 +245,6 @@ main(int argc, char *argv[])
 
 	retcode = pam_authenticate(pamh, 0);
 	if (retcode != PAM_SUCCESS) {
-#if 0
-		syslog(LOG_ERR, "pam_authenticate: %s",
-		    pam_strerror(pamh, retcode));
-#endif
 		syslog(LOG_AUTH|LOG_WARNING, "BAD SU %s to %s on %s",
 		    username, user, mytty);
 		errx(1, "Sorry");
@@ -290,6 +290,8 @@ main(int argc, char *argv[])
 	if (asme) {
 		if (ruid != 0 && !chshell(pwd->pw_shell))
 			errx(1, "permission denied (shell)");
+		shell = _PATH_BSHELL;
+		iscsh = NO;
 	}
 	else if (pwd->pw_shell && *pwd->pw_shell) {
 		shell = pwd->pw_shell;
@@ -353,9 +355,8 @@ main(int argc, char *argv[])
 	sigaction(SIGTSTP, &sa, NULL);
 	statusp = 1;
 	if (pipe(fds) == -1) {
-		err(1, "pipe");
 		PAM_END();
-		exit(1);
+		err(1, "pipe");
 	}
 	child_pid = fork();
 	switch (child_pid) {
@@ -382,11 +383,10 @@ main(int argc, char *argv[])
 		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
-		exit(statusp);
+		exit(WEXITSTATUS(statusp));
 	case -1:
-		err(1, "fork");
 		PAM_END();
-		exit(1);
+		err(1, "fork");
 	case 0:
 		close(fds[1]);
 		read(fds[0], &temp, 1);
@@ -464,7 +464,7 @@ main(int argc, char *argv[])
 	}
 }
 
-static int
+static void
 export_pam_environment(void)
 {
 	char	**pp;
@@ -474,7 +474,6 @@ export_pam_environment(void)
 			putenv(*pp);
 		free(*pp);
 	}
-	return PAM_SUCCESS;
 }
 
 /*
@@ -514,10 +513,11 @@ usage(void)
 
 	fprintf(stderr, "usage: su [-] [-flms] [-c class] [login [args]]\n");
 	exit(1);
+	/* NOTREACHED */
 }
 
 static int
-chshell(char *sh)
+chshell(const char *sh)
 {
 	int r;
 	char *cp;
