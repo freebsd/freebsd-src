@@ -500,7 +500,7 @@ snpioctl(dev, cmd, data, flags, td)
 	snp = dev->si_drv1;
 	switch (cmd) {
 	case SNPSTTY:
-		tdev = udev2dev(*((udev_t *)data), 0);
+		tdev = udev2dev(*((udev_t *)data));
 		if (tdev == NODEV)
 			return (snp_down(snp));
 

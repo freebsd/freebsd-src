@@ -68,6 +68,8 @@ static LIST_HEAD(, cdev) dev_free;
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
+static dev_t makedev(int x, int y);
+
 int
 nullop(void)
 {
@@ -244,7 +246,7 @@ allocdev(void)
 	return (si);
 }
 
-dev_t
+static dev_t
 makedev(int x, int y)
 {
 	struct cdev *si;
@@ -294,18 +296,19 @@ dev2udev(dev_t x)
 }
 
 dev_t
-udev2dev(udev_t x, int b)
+udev2dev(udev_t udev)
 {
+	struct cdev *si;
+	int hash;
 
-	if (x == NOUDEV)
+	if (udev == NOUDEV)
 		return (NODEV);
-	switch (b) {
-	case 0:
-		return (makedev(umajor(x), uminor(x)));
-	default:
-		Debugger("udev2dev(...,X)");
-		return (NODEV);
+	hash = udev % DEVT_HASH;
+	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
+		if (si->si_udev == udev)
+			return (si);
 	}
+	return (NODEV);
 }
 
 int
