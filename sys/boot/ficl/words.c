@@ -4156,6 +4156,24 @@ static void compareString(FICL_VM *pVM)
 
 
 /**************************************************************************
+                        s o u r c e - i d
+** CORE EXT, FILE   ( -- 0 | -1 | fileid )
+**    Identifies the input source as follows:
+**
+** SOURCE-ID       Input source
+** ---------       ------------
+** fileid          Text file fileid
+** -1              String (via EVALUATE)
+** 0               User input device
+**************************************************************************/
+static void sourceid(FICL_VM *pVM)
+{
+    stackPushINT(pVM->pStack, pVM->sourceID.i);
+    return;
+}
+
+
+/**************************************************************************
                         r e f i l l
 ** CORE EXT   ( -- flag )
 ** Attempt to fill the input buffer from the input source, returning a true
@@ -4170,10 +4188,16 @@ static void compareString(FICL_VM *pVM)
 **************************************************************************/
 static void refill(FICL_VM *pVM)
 {
+    static int tries = 0;
+
     FICL_INT ret = (pVM->sourceID.i == -1) ? FICL_FALSE : FICL_TRUE;
+    if (ret && tries == 0) {
+	tries = 1;
+        vmThrow(pVM, VM_RESTART);
+    }
+    if (tries == 1)
+	tries = 0;
     stackPushINT(pVM->pStack, ret);
-    if (ret)
-        vmThrow(pVM, VM_OUTOFTEXT);
     return;
 }
 
@@ -4775,6 +4799,7 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "pick",      pick,           FW_DEFAULT);
     dictAppendWord(dp, "roll",      roll,           FW_DEFAULT);
     dictAppendWord(dp, "refill",    refill,         FW_DEFAULT);
+    dictAppendWord(dp, "source-id", sourceid,	    FW_DEFAULT);
     dictAppendWord(dp, "to",        toValue,        FW_IMMEDIATE);
     dictAppendWord(dp, "value",     constant,       FW_DEFAULT);
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
