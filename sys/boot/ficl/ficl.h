@@ -316,7 +316,7 @@ typedef struct
 */
 typedef struct
 {
-    INT32 index;
+    FICL_INT index;
     char *end;
     char *cp;
 } TIB;
