@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.54 1995/03/15 14:22:10 dufault Exp $
+ *      $Id: sd.c,v 1.55 1995/03/16 18:15:52 bde Exp $
  */
 
 #define SPLSD splbio
@@ -46,7 +46,7 @@
 u_int32 sdstrats, sdqueues;
 
 #define SECSIZE 512
-#define	SDOUTSTANDING	2
+#define	SDOUTSTANDING	4
 #define	SD_RETRIES	4
 #define	MAXTRANSFER	8		/* 1 page at a time */
 
@@ -70,8 +70,6 @@ struct scsi_data {
 #define SDHAVELABEL	0x10	/* have read the label */
 #define SDDOSPART	0x20	/* Have read the DOS partition table */
 #define SDWRITEPROT	0x40	/* Device in readonly mode (S/W) */
-	u_int32 ad_info;	/* info about the adapter */
-	u_int32 cmdscount;	/* cmds allowed outstanding by board */
 	boolean wlabel;		/* label is writable */
 	struct disk_parms {
 		u_char  heads;	/* Number of heads */
@@ -187,20 +185,8 @@ sdattach(struct scsi_link *sc_link)
 
 	dp = &(sd->params);
 
-	printf("\n");
-	sc_print_addr(sc_link);
-
-	if (sc_link->adapter->adapter_info) {
-		sd->ad_info = ((*(sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
-		sd->cmdscount = sd->ad_info & AD_INF_MAX_CMDS;
-		if (sd->cmdscount > SDOUTSTANDING) {
-			sd->cmdscount = SDOUTSTANDING;
-		}
-	} else {
-		sd->ad_info = 1;
-		sd->cmdscount = 1;
-	} 
-	sc_link->opennings = sd->cmdscount;
+	if (sc_link->opennings > SDOUTSTANDING) 
+		sc_link->opennings = SDOUTSTANDING;
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -213,13 +199,19 @@ sdattach(struct scsi_link *sc_link)
 	 * -- this avoids the division below from falling over
 	 */
 	if(dp->secsiz == 0) dp->secsiz = 512;
-	printf("%ldMB (%ld sectors), %d C %d H %d S/T %d B/S",
+	printf("%ldMB (%ld %d byte sectors)",
 	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
 	    dp->disksize,
-	    dp->cyls,
-	    dp->heads,
-	    dp->sectors,
 	    dp->secsiz);
+
+	if ( (sc_link->flags & SDEV_BOOTVERBOSE) )
+	{
+		printf("\n");
+		sc_print_addr(sc_link);
+		printf("with %d cyls, %d heads, and an average %d sectors/track",
+	   	dp->cyls, dp->heads, dp->sectors);
+	}
+
 	sd->flags |= SDINIT;
 	sd_registerdev(unit);
 

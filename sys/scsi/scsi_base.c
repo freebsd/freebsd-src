@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.22 1995/03/15 14:22:05 dufault Exp $
+ *      $Id: scsi_base.c,v 1.23 1995/03/15 14:44:01 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -646,7 +646,7 @@ retry:
 /*
  * scsi_sense_print will decode the sense data into human
  * readable form.  Sense handlers can use this to generate
- * a report.  This DOES NOT send the closing "\n".
+ * a report.  This NOW DOES send the closing "\n".
  */
 void scsi_sense_print(xs)
 	struct scsi_xfer *xs;
@@ -727,7 +727,15 @@ void scsi_sense_print(xs)
 		ascq = (ext->extra_len >= 6) ? ext->add_sense_code_qual : 0;
 
 		if (asc || ascq)
-			printf(" asc:%x,%x %s", asc, ascq, scsi_sense_desc(asc, ascq));
+		{
+			char *desc = scsi_sense_desc(asc, ascq);
+			printf(" asc:%x,%x", asc, ascq);
+
+			if (strlen(desc) > 40)
+				sc_print_addr(xs->sc_link);;
+
+			printf("%s", desc);
+		}
 			
 		if (ext->extra_len >= 7 && ext->fru) {
 			printf(" fru:%x", ext->fru);
@@ -754,6 +762,8 @@ void scsi_sense_print(xs)
 			    ((unsigned long)sense->ext.unextended.blocklow));
 		}
 	}
+
+	printf("\n");
 }
 
 /*
@@ -840,7 +850,6 @@ scsi_interpret_sense(xs)
 
 	if (!silent) {
 		scsi_sense_print(xs);
-		printf("\n");
 	}
 
 	switch (sense->error_code & SSD_ERRCODE) {
@@ -849,7 +858,6 @@ scsi_interpret_sense(xs)
 		 */
 		if (silent) {
 			scsi_sense_print(xs);
-			printf("\n");
 		}
 
 		/* BUG:
@@ -999,6 +1007,21 @@ scsi_4btou(bytes)
 	return rc;
 }
 
+static sc_printing;
+
+void
+sc_print_start(sc_link)
+	struct scsi_link *sc_link;
+{
+	sc_print_addr(sc_link);
+	sc_printing = 1;
+}
+void
+sc_print_finish()
+{
+	sc_printing = 0;
+}
+
 /*
  * Print out the scsi_link structure's address info.
  */
@@ -1007,6 +1030,9 @@ void
 sc_print_addr(sc_link)
 	struct	scsi_link *sc_link;
 {
+	if (sc_printing)
+		printf("\n");
+
 	if (strcmp(sc_link->device->name, "probe") != 0)
 		printf("%s%d", sc_link->device->name, sc_link->dev_unit);
 
