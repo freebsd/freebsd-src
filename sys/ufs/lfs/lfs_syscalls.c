@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.6 1995/01/09 16:05:23 davidg Exp $
+ * $Id: lfs_syscalls.c,v 1.7 1995/03/28 07:58:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -527,6 +527,8 @@ lfs_fastvget(mp, ino, daddr, vpp, dinp)
 
 	/* Inode was just read from user space or disk, make sure it's locked */
 	ip->i_flag |= IN_LOCKED;
+	ip->i_lockholder = curproc->p_pid;
+	ip->i_lockcount = 1;
 
 	/*
 	 * Initialize the vnode from the inode, check for aliases.  In all

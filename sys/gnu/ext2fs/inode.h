@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.3 1994/08/21 07:16:15 paul Exp $
+ * $Id: inode.h,v 1.4 1994/12/27 13:59:14 bde Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -91,7 +91,8 @@ struct inode {
 	doff_t	i_offset;	/* Offset of free space in directory. */
 	ino_t	i_ino;		/* Inode number of found directory. */
 	u_long	i_reclen;	/* Size of found directory entry. */
-	long	i_spare[11];	/* Spares to round up to 128 bytes. */
+	int	i_lockcount;	/* Process lock count (recursion) */
+	long	i_spare[10];	/* Spares to round up to 128 bytes. */
 	/*
 	 * The on-disk dinode itself.
 	 */
@@ -125,6 +126,7 @@ struct inode {
 #define	IN_SHLOCK	0x0080		/* File has shared lock. */
 #define	IN_UPDATE	0x0100		/* Modification time update request. */
 #define	IN_WANTED	0x0200		/* Inode is wanted by a process. */
+#define	IN_RECURSE	0x0400		/* Recursion expected */
 
 #ifdef KERNEL
 /*
