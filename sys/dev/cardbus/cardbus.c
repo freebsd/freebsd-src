@@ -349,54 +349,23 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(device_probe,		cardbus_probe),
 	DEVMETHOD(device_attach,	cardbus_attach),
 	DEVMETHOD(device_detach,	cardbus_detach),
-	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	cardbus_suspend),
 	DEVMETHOD(device_resume,	cardbus_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	pci_print_child),
-	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	cardbus_write_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_get_resource_list,pci_get_resource_list),
-	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
-	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
-	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
-	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),
 	DEVMETHOD(card_detach_card,	cardbus_detach_card),
 
-	/* Cardbus/PCI interface */
-	DEVMETHOD(pci_read_config,	pci_read_config_method),
-	DEVMETHOD(pci_write_config,	pci_write_config_method),
-	DEVMETHOD(pci_enable_busmaster,	pci_enable_busmaster_method),
-	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
-	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
-	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
-	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
-	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
-	DEVMETHOD(pci_assign_interrupt, pci_assign_interrupt_method),
-
 	{0,0}
 };
 
-static driver_t cardbus_driver = {
-	"cardbus",
-	cardbus_methods,
-	0 /* no softc */
-};
+DECLARE_CLASS(pci_driver);
+DEFINE_CLASS_1(cardbus, cardbus_driver, cardbus_methods, 0, pci_driver);
 
 static devclass_t cardbus_devclass;
 
