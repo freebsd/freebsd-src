@@ -50,7 +50,6 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-#include <pci/pcib.h>
 
 #include "pcib_if.h"
 
@@ -111,7 +110,7 @@ static device_method_t apb_methods[] = {
 static driver_t apb_driver = {
 	"pcib",
 	apb_methods,
-	sizeof(struct pcib_softc),
+	sizeof(struct apb_softc),
 };
 
 static devclass_t apb_devclass;
