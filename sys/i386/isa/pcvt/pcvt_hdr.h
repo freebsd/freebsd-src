@@ -558,13 +558,19 @@
  *	variables
  *===========================================================================*/
 
-u_char	*more_chars;			/* response buffer via kbd */
-u_char	color;				/* color or mono display */
+#ifdef MAIN
+# define EXTERN	/* actually define variables when included from pcvt_drv.c */
+#else
+# define EXTERN extern			/* declare them only */
+#endif
 
-u_short	kern_attr;			/* kernel messages char attributes */
-u_short	user_attr;			/* character attributes */
+EXTERN u_char	*more_chars;		/* response buffer via kbd */
+EXTERN u_char	color;			/* color or mono display */
 
-struct tty pcvt_tty[PCVT_NSCREENS];
+EXTERN u_short	kern_attr;		/* kernel messages char attributes */
+EXTERN u_short	user_attr;		/* character attributes */
+
+EXTERN struct tty pcvt_tty[PCVT_NSCREENS];
 
 struct sixels {
 	u_char lower[MAXSIXEL];		/* lower half of char */
@@ -701,7 +707,7 @@ typedef struct video_state {
 #endif /* XSERVER */
 } video_state;
 
-video_state vs[PCVT_NSCREENS];		/* parameters for screens */
+EXTERN video_state vs[PCVT_NSCREENS];	/* parameters for screens */
 
 struct vga_char_state {
 	int	loaded;			/* Whether a font is loaded here */
@@ -712,9 +718,9 @@ struct vga_char_state {
 	int	screen_size;		/* Screen size in SIZ_YYROWS */
 };
 
-struct vga_char_state vgacs[NVGAFONTS];	/* Character set states */
+EXTERN struct vga_char_state vgacs[NVGAFONTS];	/* Character set states */
 
-u_short *Crtat;				/* screen start address */
+EXTERN u_short *Crtat;			/* screen start address */
 
 #ifdef MAIN
 
