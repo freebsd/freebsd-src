@@ -1,7 +1,7 @@
 $FreeBSD$
 
---- inc-hist.texi.orig	Wed Apr 11 08:20:01 2001
-+++ inc-hist.texi	Wed Apr 11 08:21:57 2001
+--- inc-hist.texinfo.orig	Wed Apr 11 08:20:01 2001
++++ inc-hist.texinfo	Wed Apr 11 08:21:57 2001
 @@ -26,9 +26,9 @@
  @node Using History Interactively
  @chapter Using History Interactively
