@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.12 1995/12/03 17:14:33 bde Exp $
+ * $Id: cd9660_node.c,v 1.13 1996/06/12 03:36:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -583,8 +583,8 @@ enum ISO_FTYPE ftype;
 		tz = 0;
 
 	if (y < 1970) {
-		pu->ts_sec  = 0;
-		pu->ts_nsec = 0;
+		pu->tv_sec  = 0;
+		pu->tv_nsec = 0;
 		return 0;
 	} else {
 #ifdef	ORIGINAL
@@ -604,8 +604,8 @@ enum ISO_FTYPE ftype;
 		if (-48 <= tz && tz <= 52)
 			crtime -= tz * 15 * 60;
 	}
-	pu->ts_sec  = crtime;
-	pu->ts_nsec = 0;
+	pu->tv_sec  = crtime;
+	pu->tv_nsec = 0;
 	return 1;
 }
 

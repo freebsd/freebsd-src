@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.24 1996/03/14 21:44:32 joerg Exp $
+ * $Id: cd9660_vnops.c,v 1.25 1996/05/02 10:43:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -158,8 +158,8 @@ cd9660_setattr(ap)
 	struct vattr *vap = ap->a_vap;
 
   	if (vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
-	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
-	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
+	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL)
 		return (EROFS);
 	if (vap->va_size != VNOVAL) {
  		switch (vp->v_type) {
