@@ -95,7 +95,6 @@ struct wi_softc	{
 	void *			wi_intrhand;
 	int			wi_io_addr;
 
-	struct ifmedia		sc_media;
 	struct bpf_if		*sc_drvbpf;
 	int			sc_flags;
 	int			sc_if_flags;
@@ -107,8 +106,6 @@ struct wi_softc	{
 
 	u_int16_t		sc_dbm_adjust;
 	u_int16_t		sc_max_datalen;
-	u_int16_t		sc_frag_thresh;
-	u_int16_t		sc_rts_thresh;
 	u_int16_t		sc_system_scale;
 	u_int16_t		sc_cnfauthmode;
 	u_int16_t		sc_roaming_mode;
