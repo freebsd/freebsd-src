@@ -753,7 +753,7 @@ ours:
 			    ip->ip_p == fp->ipq_p)
 				goto found;
 
-		fp = 0;
+		fp = NULL;
 
 		/*
 		 * Enforce upper bound on number of fragmented packets
@@ -977,7 +977,7 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 	/*
 	 * If first fragment to arrive, create a reassembly queue.
 	 */
-	if (fp == 0) {
+	if (fp == NULL) {
 		if ((t = m_get(M_DONTWAIT, MT_FTABLE)) == NULL)
 			goto dropfrag;
 		fp = mtod(t, struct ipq *);
@@ -1177,7 +1177,7 @@ dropfrag:
 	*divert_rule = 0;
 #endif
 	ipstat.ips_fragdropped++;
-	if (fp != 0)
+	if (fp != NULL)
 		fp->ipq_nfrags--;
 	m_freem(m);
 	return (0);
