@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.54 1996/11/07 08:03:18 jkh Exp $
+ * $Id: config.c,v 1.55 1996/11/07 15:35:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -357,9 +357,9 @@ configNTP(dialogMenuItem *self)
 int
 configXFree86(dialogMenuItem *self)
 {
-    if (file_executable("/usr/X11R6/bin/xf86config")) {
+    if (file_executable("/usr/X11R6/bin/XF86Setup")) {
 	dialog_clear();
-	systemExecute("/usr/X11R6/bin/xf86config");
+	systemExecute("/usr/X11R6/bin/XF86Setup");
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
