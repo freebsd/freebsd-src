@@ -66,7 +66,7 @@ struct timezone tz;
 
 static int	nanosleep1(struct thread *td, struct timespec *rqt,
 		    struct timespec *rmt);
-static int	settime(struct proc *, struct timeval *);
+static int	settime(struct thread *, struct timeval *);
 static void	timevalfix(struct timeval *);
 static void	no_lease_updatetime(int);
 
@@ -79,8 +79,8 @@ no_lease_updatetime(deltat)
 void (*lease_updatetime)(int)  = no_lease_updatetime;
 
 static int
-settime(p, tv)
-	struct proc *p;
+settime(td, tv)
+	struct thread *td;
 	struct timeval *tv;
 {
 	struct timeval delta, tv1, tv2;
@@ -104,7 +104,7 @@ settime(p, tv)
 	 * than one second, nor more than once per second. This allows
 	 * a miscreant to make the clock march double-time, but no worse.
 	 */
-	if (securelevel_gt(p->p_ucred, 1) != 0) {
+	if (securelevel_gt(td->td_ucred, 1) != 0) {
 		if (delta.tv_sec < 0 || delta.tv_usec < 0) {
 			/*
 			 * Update maxtime to latest time we've seen.
@@ -132,11 +132,13 @@ settime(p, tv)
 
 	ts.tv_sec = tv->tv_sec;
 	ts.tv_nsec = tv->tv_usec * 1000;
+	mtx_lock(&Giant);
 	tc_setclock(&ts);
 	(void) splsoftclock();
 	lease_updatetime(delta.tv_sec);
 	splx(s);
 	resettodr();
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -186,24 +188,17 @@ clock_settime(td, uap)
 	struct timespec ats;
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = suser(td)) != 0)
-		goto done2;
-	if (SCARG(uap, clock_id) != CLOCK_REALTIME) {
-		error = EINVAL;
-		goto done2;
-	}
+		return (error);
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
+		return (EINVAL);
 	if ((error = copyin(SCARG(uap, tp), &ats, sizeof(ats))) != 0)
-		goto done2;
-	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000) {
-		error = EINVAL;
-		goto done2;
-	}
+		return (error);
+	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000)
+		return (EINVAL);
 	/* XXX Don't convert nsec->usec and back */
 	TIMESPEC_TO_TIMEVAL(&atv, &ats);
-	error = settime(td->td_proc, &atv);
-done2:
-	mtx_unlock(&Giant);
+	error = settime(td, &atv);
 	return (error);
 }
 
@@ -368,31 +363,27 @@ settimeofday(td, uap)
 	struct timezone atz;
 	int error = 0;
 
-	mtx_lock(&Giant);
-
 	if ((error = suser(td)))
-		goto done2;
+		return (error);
 	/* Verify all parameters before changing time. */
 	if (uap->tv) {
 		if ((error = copyin((caddr_t)uap->tv, (caddr_t)&atv,
-		    sizeof(atv)))) {
-			goto done2;
-		}
-		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000) {
-			error = EINVAL;
-			goto done2;
-		}
+		    sizeof(atv))))
+			return (error);
+		if (atv.tv_usec < 0 || atv.tv_usec >= 1000000)
+			return (EINVAL);
 	}
 	if (uap->tzp &&
-	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz)))) {
-		goto done2;
-	}
-	if (uap->tv && (error = settime(td->td_proc, &atv)))
-		goto done2;
-	if (uap->tzp)
+	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
+		return (error);
+	
+	if (uap->tv && (error = settime(td, &atv)))
+		return (error);
+	if (uap->tzp) {
+		mtx_lock(&Giant);
 		tz = atz;
-done2:
-	mtx_unlock(&Giant);
+		mtx_unlock(&Giant);
+	}
 	return (error);
 }
 
