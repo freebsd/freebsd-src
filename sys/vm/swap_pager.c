@@ -312,10 +312,12 @@ swap_pager_swap_init()
 
 	nsw_cluster_max = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
 
+	mtx_lock(&pbuf_mtx);
 	nsw_rcount = (nswbuf + 1) / 2;
 	nsw_wcount_sync = (nswbuf + 3) / 4;
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
+	mtx_unlock(&pbuf_mtx);
 
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
@@ -1293,6 +1295,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	 * Do not let the sysop crash the machine with bogus numbers.
 	 */
 
+	mtx_lock(&pbuf_mtx);
 	if (swap_async_max != nsw_wcount_async_max) {
 		int n;
 		int s;
@@ -1312,18 +1315,15 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 * at this time.
 		 */
 		s = splvm();
-		mtx_unlock(&vm_mtx);
-		mtx_lock(&pbuf_mtx);
 		n -= nsw_wcount_async_max;
 		if (nsw_wcount_async + n >= 0) {
 			nsw_wcount_async += n;
 			nsw_wcount_async_max += n;
 			wakeup(&nsw_wcount_async);
 		}
-		mtx_unlock(&pbuf_mtx);
-		mtx_lock(&vm_mtx);
 		splx(s);
 	}
+	mtx_unlock(&pbuf_mtx);
 
 	/*
 	 * Step 3
