@@ -53,8 +53,8 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/signalvar.h>
 #include <sys/systm.h>
+#include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/sysent.h>
 #include <sys/reboot.h>
