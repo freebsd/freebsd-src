@@ -65,6 +65,19 @@ int	pencode __P((char *));
 static void	logmessage __P((int, char *, char *));
 static void	usage __P((void));
 
+struct socks {
+    int sock;
+    int addrlen;
+    struct sockaddr_storage addr;
+};
+
+#ifdef INET6
+int	family = PF_UNSPEC;	/* protocol family (IPv4, IPv6 or both) */
+#else
+int	family = PF_INET;	/* protocol family (IPv4 only) */
+#endif
+int	send_to_all = 0;	/* send message to all IPv4/IPv6 addresses */
+
 /*
  * logger -- read and log utility
  *
@@ -84,8 +97,19 @@ main(argc, argv)
 	pri = LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
-	while ((ch = getopt(argc, argv, "f:h:ip:st:")) != -1)
+	while ((ch = getopt(argc, argv, "46Af:h:ip:st:")) != -1)
 		switch((char)ch) {
+		case '4':
+			family = PF_INET;
+			break;
+#ifdef INET6
+		case '6':
+			family = PF_INET6;
+			break;
+#endif
+		case 'A':
+			send_to_all++;
+			break;
 		case 'f':		/* file to log */
 			if (freopen(optarg, "r", stdin) == NULL)
 				err(1, "%s", optarg);
@@ -150,43 +174,59 @@ main(argc, argv)
 void 
 logmessage(int pri, char *host, char *buf)
 {
-	static int sock = -1;
-	static struct sockaddr_in sin;
+	static struct socks *socks;
+	static int nsock = 0;
+	struct addrinfo hints, *res, *r;
 	char *line;
-	int len;
+	int maxs, len, sock, error, i, lsent;
 
 	if (host == NULL) {
 		syslog(pri, "%s", buf);
 		return;
 	}
 
-	if (sock == -1) {	/* set up socket stuff */
-		struct servent *sp;
-		struct hostent *hp = NULL;
-
-		sin.sin_family = AF_INET;
-
-		if ((sp = getservbyname("syslog", "udp")) == NULL)
-			warnx ("syslog/udp: unknown service");	/* not fatal */
-		sin.sin_port = (sp == NULL ? htons(514) : sp->s_port);
-
+	if (nsock <= 0) {	/* set up socket stuff */
 		/* resolve hostname */
-		if (!(inet_aton(host, &sin.sin_addr)) &&
-		    (hp = gethostbyname(host)) == NULL)
-			errx(1, "unknown host: %s", host);
-		if (hp != NULL)
-			memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-
-		sock = socket(PF_INET, SOCK_DGRAM, 0);
-		if (sock < 0)
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = family;
+		hints.ai_socktype = SOCK_DGRAM;
+		error = getaddrinfo(host, "syslog", &hints, &res);
+		if (error == EAI_SERVICE) {
+			warnx ("syslog/udp: unknown service");	/* not fatal */
+			error = getaddrinfo(host, "514", &hints, &res);
+		}
+		if (error)
+			errx(1, "%s: %s", gai_strerror(error), host);
+		/* count max number of sockets we may open */
+		for (maxs = 0, r = res; r; r = r->ai_next, maxs++);
+		socks = malloc(maxs * sizeof(struct socks));
+		if (!socks)
+			errx(1, "couldn't allocate memory for sockets");
+		for (r = res; r; r = r->ai_next) {
+			sock = socket(r->ai_family, r->ai_socktype,
+				      r->ai_protocol);
+			if (sock < 0)
+				continue;
+			memcpy(&socks[nsock].addr, r->ai_addr, r->ai_addrlen);
+			socks[nsock].addrlen = r->ai_addrlen;
+			socks[nsock++].sock = sock;
+		}
+		freeaddrinfo(res);
+		if (nsock <= 0)
 			errx(1, "socket");
 	}
 
 	if ((len = asprintf(&line, "<%d>%s", pri, buf)) == -1)
 		errx(1, "asprintf");
 
-	if (sendto(sock, line, len, 0, (struct sockaddr *)&sin, sizeof(sin))
-	    < len)
+	for (i = 0; i < nsock; ++i) {
+		lsent = sendto(socks[i].sock, line, len, 0,
+			       (struct sockaddr *)&socks[i].addr,
+			       socks[i].addrlen);
+		if (lsent == len && !send_to_all)
+			break;
+	}
+	if (lsent != len)
 		warnx ("sendmsg");
 
 	free(line);
@@ -241,7 +281,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage: %s\n",
-	    "logger [-is] [-f file] [-h host] [-p pri] [-t tag] [message ...]"
+	    "logger [-46Ais] [-f file] [-h host] [-p pri] [-t tag] [message ...]"
 	    );
 	exit(1);
 }
