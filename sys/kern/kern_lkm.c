@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 /*
@@ -179,7 +181,7 @@ lkmcioctl(dev, cmd, data, flag)
 	int flag;
 {
 	int err = 0;
-	int i, j;
+	int i;
 	struct lmc_resrv *resrvp;
 	struct lmc_loadbuf *loadbufp;
 	struct lmc_unload *unloadp;
@@ -296,7 +298,7 @@ lkmcioctl(dev, cmd, data, flag)
 		 * Check that this isn't a duplicate module (broken
 		 * modules are too stupid to check this for
 		 * themselves). We must do this *BEFORE* we call
-		 * the entry point of the module, since we might
+		 * the entry point of the module, since we might not
 		 * be able to unload the module aftwewards without
 		 * panicking the system. This defeats the purpose of
 		 * the lkmexists() checking that takes place for
@@ -305,11 +307,11 @@ lkmcioctl(dev, cmd, data, flag)
 		 * XXX FIXME: Name matching can easily be defeated if
 		 * the user renames the module. :(
 		 */
-		for (j = 0; j < MAXLKMS; j++) {
-			if (!lkmods[j].used || &lkmods[j] == curp)
+		for (i = 0; i < MAXLKMS; i++) {
+			if (!lkmods[i].used || &lkmods[i] == curp)
 				continue;
 			if (!strcmp(modname,
-			lkmods[j].private.lkm_any->lkm_name)) {
+			lkmods[i].private.lkm_any->lkm_name)) {
 				lkm_state = LKMS_UNLOADING;
 				lkmunreserve();
 				curp->used = 0;
