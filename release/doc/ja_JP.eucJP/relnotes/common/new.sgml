@@ -180,7 +180,7 @@
       これらのファイルを生成するために使用します.</para>
 
     <para>Linux エミュレーションは
-      <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+      <filename role="package">emulators/linux_base-7</filename> (RedHat 7.X emulation)
       で必要とされるカーネル機能に対応しました. &merged;</para>
 
     <para>Linux エミュレーションは, カーネル設定に
@@ -700,7 +700,7 @@
 	である Granch SBNI12 シリーズ用の sbni ドライバが
 	追加されました.
 	これらのデバイスを設定するのに, &os; Ports Collection の
-	<port>sysutils/sbniconfig</port> が利用できます. &merged;</para>
+	<filename role="package">sysutils/sbniconfig</filename> が利用できます. &merged;</para>
 
       <para>&man.sis.4; ドライバが
 	SiS 900, SiS 7016 ファストイーサネットコントローラチップ
@@ -1058,7 +1058,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         ただしこの変更はランダムアクセス可能な書き込みデバイスにのみに有効なもので,
         CD-R ドライブのようなシーケンシャルアクセス専用の書き込みデバイスには
         関係しません.  CD-R ドライブは &man.cdrecord.1;
-        (Ports Collection の <port>sysutils/cdrtools</port> に含まれています)
+        (Ports Collection の <filename role="package">sysutils/cdrtools</filename> に含まれています)
         が対応しています.
         &merged;</para>
 
@@ -1170,7 +1170,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>ISO-9660 ファイルシステムに対し, 新たに
         ロード可能なキャラクタ変換ルーチンに対応するためのフックが追加されました.
         良く使われる変換ルーチンは
-        <port>sysutils/cd9660_unicode</port>
+        <filename role="package">sysutils/cd9660_unicode</filename>
         の port に含まれています.</para>
 
       <para>&man.kernfs.5; は廃止され, 削除されました.</para>
@@ -2560,7 +2560,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.rdist.1; がベースシステムから削除され,
       &os; Ports Collection の
-      <port>net/44bsd-rdist</port> として用意されるようになりました.</para>
+      <filename role="package">net/44bsd-rdist</filename> として用意されるようになりました.</para>
 
     <para>&os; の &man.resolver.3; 実装が EDNS0 に対応しました.
       これは IPv6 対応の resolver, DNS サーバとの動作に必要となるものです.
@@ -2611,7 +2611,7 @@ hw.pcic.irq="0"</programlisting>
     <para>RSA Security 社が <application>RSA</application> アルゴリズムに関する特許権を放棄したため,
       <application>OpenSSL</application> に含まれる本来の RSA
       アルゴリズム実装が標準状態で有効化されるようになり,
-      合衆国在住であるかどうかに関わらず <port>rsaref</port> port および
+      合衆国在住であるかどうかに関わらず <filename role="package">rsaref</filename> port および
       <filename>librsaUSA</filename>, <filename>librsaINTL</filename>
       を使用する必要がなくなりました.
       &merged;</para>
@@ -2842,7 +2842,7 @@ hw.pcic.irq="0"</programlisting>
       <application>UUCP</application> は
       ベースシステムから削除されました.
       現在は Ports Collection の
-      <port>net/freebsd-uucp</port> にあります.</para>
+      <filename role="package">net/freebsd-uucp</filename> にあります.</para>
 
     <para>&man.units.1; に対していくつかの更新とバグ修正が加えられました.
       &merged;</para>
@@ -2869,7 +2869,7 @@ hw.pcic.irq="0"</programlisting>
       <option>-p</option> が追加されました.
       このオプションによるスナップショットは,
       Ports Collection に含まれる
-      <port>graphics/scr2png</port> ユーティリティで操作することができます.
+      <filename role="package">graphics/scr2png</filename> ユーティリティで操作することができます.
       &merged;</para>
 
     <para>&man.vidcontrol.1; に, 指定した tty の履歴バッファをクリアする新しいオプション
@@ -3146,10 +3146,10 @@ hw.pcic.irq="0"</programlisting>
         <para><application>CVSup</application> は
           &os; Ports Collection で良く使われるユーティリティの一つです.
           以前はこれをインストールする複数の port/package が存在しましたが,
-          <port>net/cvsup-bin</port> および <port>net/cvsupd-bin</port>
-          は廃止され, <port>net/cvsup</port> になりました. &merged;</para>
+          <filename role="package">net/cvsup-bin</filename> および <filename role="package">net/cvsupd-bin</filename>
+          は廃止され, <filename role="package">net/cvsup</filename> になりました. &merged;</para>
 
-        <para>&os; Ports Collection の <port>net/cvsup</port>
+        <para>&os; Ports Collection の <filename role="package">net/cvsup</filename>
           からインストールできる
           <application>CVSup</application> は 16.1_3 に更新されています. 
           この更新では 2001 年 9 月 9 日 01:46:40 UTC
@@ -3189,8 +3189,8 @@ hw.pcic.irq="0"</programlisting>
         <para>制限されたライセンス条件を持った
           &man.pim6dd.8; および &man.pim6sd.8; が削除されました.
           これらのプログラムは Ports Collection の一部として
-          <port>net/pim6dd</port>,
-          <port>net/pim6dd</port> から利用可能です.
+          <filename role="package">net/pim6dd</filename>,
+          <filename role="package">net/pim6dd</filename> から利用可能です.
           &merged;</para>
 
 	<para>&man.route6d.8; に新しいオプション
@@ -3373,7 +3373,7 @@ hw.pcic.irq="0"</programlisting>
 	  これ以前は, <username>mailnull</username> ユーザは
 	  存在せず, <username>daemon</username> ユーザが利用されて
 	  いました.
-	  この変更はファイルやプログラム (<port>majordomo</port> など)
+	  この変更はファイルやプログラム (<filename role="package">majordomo</filename> など)
 	  にメールを渡す際にパーミッションの問題を引き起こす可能性が
 	  あります. &merged;
 	  以前の挙動に戻すには, システムの

@@ -815,7 +815,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  and indicate that you're interested in joining this ongoing
 	  effort!</para>
 
-	  <para>The <port>emulators/pcemu</port> port/package in the
+	  <para>The <filename role="package">emulators/pcemu</filename> port/package in the
 	  &os; Ports Collection which emulates an 8088 and enough BIOS
 	  services to run DOS text mode applications.  It requires the
 	  X Window System (XFree86) to operate.</para>
@@ -863,7 +863,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>&os; can run Tru64 applications very well using the
-	  <port>emulators/osf1_base</port> port/package.</para>
+	  <filename role="package">emulators/osf1_base</filename> port/package.</para>
 	</answer>
       </qandaentry>
 
@@ -874,7 +874,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	<answer>
 	  <para>&os; can run AlphaLinux binaries with the assistance
-	  of the <port>emulators/linux_base</port>
+	  of the <filename role="package">emulators/linux_base</filename>
 	  port/package.</para>
 	</answer>
       </qandaentry>
