@@ -827,10 +827,15 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 		return EINVAL;
 	if (inp->inp_faddr.s_addr != INADDR_ANY)
 		return EISCONN;
+	error = 0;
 	s = splnet();
-	sin = (struct sockaddr_in *)nam;
-	prison_remote_ip(p, 0, &sin->sin_addr.s_addr);
-	error = in_pcbconnect(inp, nam, p);
+	if (inp->inp_laddr.s_addr == INADDR_ANY && p->p_prison != NULL)
+		error = in_pcbbind(inp, NULL, p);
+	if (error == 0) {
+		sin = (struct sockaddr_in *)nam;
+		prison_remote_ip(p, 0, &sin->sin_addr.s_addr);
+		error = in_pcbconnect(inp, nam, p);
+	}
 	splx(s);
 	if (error == 0)
 		soisconnected(so);
