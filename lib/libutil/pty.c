@@ -77,7 +77,7 @@ openpty(amaster, aslave, name, termp, winp)
 			line[9] = *cp2;
 			if ((master = open(line, O_RDWR, 0)) == -1) {
 				if (errno == ENOENT)
-					return (-1);	/* out of ptys */
+					break; /* try the next pty group */
 			} else {
 				line[5] = 't';
 				(void) chown(line, getuid(), ttygid);
