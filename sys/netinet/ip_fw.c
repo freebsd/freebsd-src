@@ -1720,7 +1720,9 @@ check_ipfw_struct(struct ip_fw *frwl)
 	}
 
 	if (frwl->fw_flg & (IP_FW_F_UID | IP_FW_F_GID)) {
-		if (frwl->fw_prot != (IPPROTO_TCP | IPPROTO_UDP | IPPROTO_IP)) {
+		if ((frwl->fw_prot != IPPROTO_TCP) &&
+		   (frwl->fw_prot != IPPROTO_UDP) &&
+		   (frwl->fw_prot != IPPROTO_IP)) {
 			dprintf(("%s cannot use uid/gid logic on non-TCP/UDP\n", err_prefix));
 			return (EINVAL);
 		}
