@@ -218,15 +218,44 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 }
 
 int
-elf_cpu_load_file(linker_file_t lf __unused)
+elf_cpu_load_file(linker_file_t lf)
 {
+	Elf_Ehdr *hdr;
+	Elf_Phdr *ph, *phlim;
+	Elf_Addr reloc, vaddr;
+
+	hdr = (Elf_Ehdr *)(lf->address);
+	if (!IS_ELF(*hdr)) {
+		printf("Missing or corrupted ELF header at %p\n", hdr);
+		return (EFTYPE);
+	}
+
+	/*
+	 * Iterate over the segments and register the unwind table if
+	 * we come across it.
+	 */
+	ph = (Elf_Phdr *)(lf->address + hdr->e_phoff);
+	phlim = ph + hdr->e_phnum;
+	reloc = ~0ULL;
+	while (ph < phlim) {
+		if (ph->p_type == PT_LOAD && reloc == ~0ULL)
+			reloc = (Elf_Addr)lf->address - ph->p_vaddr;
+
+		if (ph->p_type == PT_IA_64_UNWIND) {
+			vaddr = ph->p_vaddr + reloc;
+			ia64_add_unwind_table((vm_offset_t)lf->address, vaddr,
+			    vaddr + ph->p_memsz);
+		}
+		++ph;
+	}
 
 	return (0);
 }
 
 int
-elf_cpu_unload_file(linker_file_t lf __unused)
+elf_cpu_unload_file(linker_file_t lf)
 {
 
+	ia64_delete_unwind_table((vm_offset_t)lf->address);
 	return (0);
 }
