@@ -356,8 +356,12 @@ ad_start(struct ata_device *atadev)
 	    return;
     }
 
+    /* remove request from drive queue */
+    bioq_remove(&adp->queue, bp); 
+
     if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT|M_ZERO))) {
 	ata_prtdev(atadev, "out of memory in start\n");
+	biofinish(bp, NULL, ENOMEM);
 	return;
     }
 
@@ -376,9 +380,6 @@ ad_start(struct ata_device *atadev)
 
     /* insert in tag array */
     adp->tags[tag] = request;
-
-    /* remove from drive queue */
-    bioq_remove(&adp->queue, bp); 
 
     /* link onto controller queue */
     TAILQ_INSERT_TAIL(&atadev->channel->ata_queue, request, chain);
