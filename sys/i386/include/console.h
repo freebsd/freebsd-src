@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.34 1998/01/07 08:40:14 yokota Exp $
+ *	$Id: console.h,v 1.35 1998/02/03 19:57:45 bde Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -157,6 +157,7 @@ struct mouse_info {
 #define KD_EGA		4		/* enhanced graphics adapter 	*/
 #define KD_VGA		5		/* video graphics adapter    	*/
 #define KD_PC98		6		/* PC-98 display            	*/
+#define KD_PIXEL	7		/* Pixel based display		*/
 
 #define KD_TEXT		0		/* set text mode restore fonts  */
 #define KD_TEXT0	0		/* ditto			*/
