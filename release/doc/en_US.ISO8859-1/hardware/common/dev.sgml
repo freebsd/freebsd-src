@@ -1022,7 +1022,7 @@
   <sect2 id="bluetooth">
     <title>Bluetooth Devices</title>
 
-    &hwlist.ng_bt3c;
+    &hwlist.ng.bt3c;
 
     &hwlist.ng.ubt;
 
