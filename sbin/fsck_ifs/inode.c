@@ -500,6 +500,7 @@ pinode(ino)
 	register struct dinode *dp;
 	register char *p;
 	struct passwd *pw;
+	time_t t;
 
 	printf(" I=%lu ", ino);
 	if (ino < ROOTINO || ino > maxino)
@@ -514,7 +515,8 @@ pinode(ino)
 	if (preen)
 		printf("%s: ", cdevname);
 	printf("SIZE=%qu ", dp->di_size);
-	p = ctime(&dp->di_mtime);
+	t = dp->di_mtime;
+	p = ctime(&t);
 	printf("MTIME=%12.12s %4.4s ", &p[4], &p[20]);
 }
 
@@ -585,7 +587,7 @@ allocino(request, type)
 		return (0);
 	}
 	dp->di_mode = type;
-	(void)time(&dp->di_atime);
+	dp->di_atime = time(NULL);
 	dp->di_mtime = dp->di_ctime = dp->di_atime;
 	dp->di_size = sblock.fs_fsize;
 	dp->di_blocks = btodb(sblock.fs_fsize);
