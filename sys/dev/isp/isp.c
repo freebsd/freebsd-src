@@ -2282,7 +2282,7 @@ isp_scan_fabric(struct ispsoftc *isp)
 	for (first_portid_seen = hicap = 0; hicap < 65535; hicap++) {
 		mbreg_t mbs;
 		sns_screq_t *rq;
-		sns_scrsp_t *rs0, *rs1;
+		sns_ganrsp_t *rs0, *rs1;
 		u_int8_t sc[SNS_GAN_REQ_SIZE];
 
 		rq = (sns_screq_t *)sc;
@@ -2349,9 +2349,9 @@ isp_scan_fabric(struct ispsoftc *isp)
 			return (-1);
 		}
 		MEMORYBARRIER(isp, SYNC_SFORCPU, 0x100, SNS_GAN_RESP_SIZE);
-		rs1 = (sns_scrsp_t *) fcp->isp_scratch;
-		rs0 = (sns_scrsp_t *) ((u_int8_t *)fcp->isp_scratch + 0x100);
-		isp_get_sns_response(isp, rs0, rs1, SNS_GAN_RESP_SIZE >> 1);
+		rs1 = (sns_ganrsp_t *) fcp->isp_scratch;
+		rs0 = (sns_ganrsp_t *) ((u_int8_t *)fcp->isp_scratch + 0x100);
+		isp_get_gan_response(isp, rs0, rs1);
 		portid = (((u_int32_t) rs1->snscb_port_id[0]) << 16) |
 		    (((u_int32_t) rs1->snscb_port_id[1]) << 8) |
 		    (((u_int32_t) rs1->snscb_port_id[2]));
