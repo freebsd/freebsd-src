@@ -35,9 +35,9 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.4 1993/09/30 23:16:17 rgrimes Exp $
+ *	$Id: pmap.c,v 1.5 1993/10/12 13:53:25 rgrimes Exp $
  */
-static char rcsid[] = "$Id: pmap.c,v 1.4 1993/09/30 23:16:17 rgrimes Exp $";
+static char rcsid[] = "$Id: pmap.c,v 1.5 1993/10/12 13:53:25 rgrimes Exp $";
 
 /*
  * Derived from hp300 version by Mike Hibler, this version by William
@@ -453,7 +453,7 @@ pmap_pinit(pmap)
 	pmap->pm_pdir = (pd_entry_t *) kmem_alloc(kernel_map, NBPG);
 
 	/* wire in kernel global address entries */
-	bcopy(PTD+KPTDI_FIRST, pmap->pm_pdir+KPTDI_FIRST, NKPDE*4);
+	bcopy(PTD+KPTDI, pmap->pm_pdir+KPTDI, NKPDE*4);
 
 	/* install self-referential address mapping entry */
 	*(int *)(pmap->pm_pdir+PTDPTDI) =
