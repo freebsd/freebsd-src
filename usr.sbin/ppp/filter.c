@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.17 1997/11/09 14:18:38 brian Exp $
+ * $Id: filter.c,v 1.18 1997/11/12 18:47:30 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -62,31 +62,40 @@ static u_long netmasks[33] = {
 
 int
 ParseAddr(int argc,
-	  char **argv,
+	  char const *const *argv,
 	  struct in_addr * paddr,
 	  struct in_addr * pmask,
 	  int *pwidth)
 {
-  int bits;
-  char *cp, *wp;
+  int bits, len;
+  char *wp;
+  const char *cp;
 
   if (argc < 1) {
     LogPrintf(LogWARN, "ParseAddr: address/mask is expected.\n");
     return (0);
   }
   pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
+
   cp = strchr(*argv, '/');
-  if (cp)
-    *cp++ = '\0';
-  if (strcasecmp(*argv, "HISADDR") == 0)
+  len = cp ? cp - *argv : strlen(*argv);
+
+  if (strncasecmp(*argv, "HISADDR", len) == 0)
     *paddr = IpcpInfo.his_ipaddr;
-  else if (strcasecmp(*argv, "MYADDR") == 0)
+  else if (strncasecmp(*argv, "MYADDR", len) == 0)
     *paddr = IpcpInfo.want_ipaddr;
-  else if (inet_aton(*argv, paddr) == 0) {
+  else if (len > 15)
     LogPrintf(LogWARN, "ParseAddr: %s: Bad address\n", *argv);
-    return (0);
+  else {
+    char s[16];
+    strncpy(s, *argv, len);
+    s[len] = '\0';
+    if (inet_aton(s, paddr) == 0) {
+      LogPrintf(LogWARN, "ParseAddr: %s: Bad address\n", s);
+      return (0);
+    }
   }
-  if (cp && *cp) {
+  if (cp && *++cp) {
     bits = strtol(cp, &wp, 0);
     if (cp == wp || bits < 0 || bits > 32) {
       LogPrintf(LogWARN, "ParseAddr: bad mask width.\n");
@@ -104,7 +113,7 @@ ParseAddr(int argc,
 }
 
 static int
-ParseProto(int argc, char **argv)
+ParseProto(int argc, char const *const *argv)
 {
   int proto;
 
@@ -123,9 +132,10 @@ ParseProto(int argc, char **argv)
 }
 
 static int
-ParsePort(char *service, int proto)
+ParsePort(const char *service, int proto)
 {
-  char *protocol_name, *cp;
+  const char *protocol_name;
+  char *cp;
   struct servent *servent;
   int port;
 
@@ -157,7 +167,7 @@ ParsePort(char *service, int proto)
  *	ICMP Syntax:	src eq icmp_message_type
  */
 static int
-ParseIcmp(int argc, char **argv)
+ParseIcmp(int argc, char const *const *argv)
 {
   int type;
   char *cp;
@@ -186,7 +196,7 @@ ParseIcmp(int argc, char **argv)
 }
 
 static int
-ParseOp(char *cp)
+ParseOp(const char *cp)
 {
   int op = OP_NONE;
 
@@ -203,7 +213,7 @@ ParseOp(char *cp)
  *	UDP Syntax: [src op port] [dst op port]
  */
 static int
-ParseUdpOrTcp(int argc, char **argv, int proto)
+ParseUdpOrTcp(int argc, char const *const *argv, int proto)
 {
   filterdata.opt.srcop = filterdata.opt.dstop = OP_NONE;
   filterdata.opt.estab = 0;
@@ -254,10 +264,10 @@ ParseUdpOrTcp(int argc, char **argv, int proto)
   return (0);
 }
 
-char *opname[] = {"none", "eq", "gt", NULL, "lt"};
+const char *opname[] = {"none", "eq", "gt", NULL, "lt"};
 
 static int
-Parse(int argc, char **argv, struct filterent * ofp)
+Parse(int argc, char const *const *argv, struct filterent * ofp)
 {
   int action, proto;
   int val;
@@ -377,52 +387,47 @@ Parse(int argc, char **argv, struct filterent * ofp)
 }
 
 int
-SetIfilter(struct cmdtab *list, int argc, char **argv)
+SetIfilter(struct cmdargs const *arg)
 {
-  if (argc > 0) {
-    (void) Parse(argc, argv, ifilters);
+  if (arg->argc > 0) {
+    Parse(arg->argc, arg->argv, ifilters);
     return 0;
   }
   return -1;
 }
 
 int
-SetOfilter(struct cmdtab *list, int argc, char **argv)
+SetOfilter(struct cmdargs const *arg)
 {
-  if (argc > 0) {
-    (void) Parse(argc, argv, ofilters);
+  if (arg->argc > 0) {
+    (void) Parse(arg->argc, arg->argv, ofilters);
     return 0;
   }
   return -1;
 }
 
 int
-SetDfilter(struct cmdtab *list, int argc, char **argv)
+SetDfilter(struct cmdargs const *arg)
 {
-  if (argc > 0) {
-    (void) Parse(argc, argv, dfilters);
+  if (arg->argc > 0) {
+    (void) Parse(arg->argc, arg->argv, dfilters);
     return 0;
   }
   return -1;
 }
 
 int
-SetAfilter(struct cmdtab *list, int argc, char **argv)
+SetAfilter(struct cmdargs const *arg)
 {
-  if (argc > 0) {
-    (void) Parse(argc, argv, afilters);
+  if (arg->argc > 0) {
+    (void) Parse(arg->argc, arg->argv, afilters);
     return 0;
   }
   return -1;
 }
 
-static char *protoname[] = {
-  "none", "tcp", "udp", "icmp",
-};
-
-static char *actname[] = {
-  "none   ", "permit ", "deny   ",
-};
+static const char *protoname[] = { "none", "tcp", "udp", "icmp" };
+static const char *actname[] = { "none   ", "permit ", "deny   " };
 
 static void
 ShowFilter(struct filterent * fp)
@@ -462,28 +467,28 @@ ShowFilter(struct filterent * fp)
 }
 
 int
-ShowIfilter(struct cmdtab * list, int argc, char **argv)
+ShowIfilter(struct cmdargs const *arg)
 {
   ShowFilter(ifilters);
   return 0;
 }
 
 int
-ShowOfilter(struct cmdtab * list, int argc, char **argv)
+ShowOfilter(struct cmdargs const *arg)
 {
   ShowFilter(ofilters);
   return 0;
 }
 
 int
-ShowDfilter(struct cmdtab * list, int argc, char **argv)
+ShowDfilter(struct cmdargs const *arg)
 {
   ShowFilter(dfilters);
   return 0;
 }
 
 int
-ShowAfilter(struct cmdtab * list, int argc, char **argv)
+ShowAfilter(struct cmdargs const *arg)
 {
   ShowFilter(afilters);
   return 0;

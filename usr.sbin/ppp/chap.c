@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.24 1997/10/26 01:02:16 brian Exp $
+ * $Id: chap.c,v 1.25 1997/11/09 03:55:27 brian Exp $
  *
  *	TODO:
  */
@@ -41,6 +41,7 @@
 #endif
 #include <utmp.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -53,16 +54,15 @@
 #include "hdlc.h"
 #include "phase.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "auth.h"
 
-static char *chapcodes[] = {
+static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
 };
 
 static void
-ChapOutput(u_int code, u_int id, u_char * ptr, int count)
+ChapOutput(u_int code, u_int id, const u_char * ptr, int count)
 {
   int plen;
   struct fsmheader lh;

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: throughput.c,v 1.1 1997/11/18 14:52:07 brian Exp $
  */
 
 #include <sys/param.h>
@@ -8,14 +8,14 @@
 #include <time.h>
 #include <netinet/in.h>
 
+#include "command.h"
+#include "mbuf.h"
+#include "log.h"
 #include "timer.h"
 #include "throughput.h"
 #include "defs.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
-#include "mbuf.h"
-#include "log.h"
 
 void
 throughput_init(struct pppThroughput *t)
@@ -74,8 +74,9 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
 }
 
 static void
-throughput_sampler(struct pppThroughput *t)
+throughput_sampler(void *v)
 {
+  struct pppThroughput *t = (struct pppThroughput *)v;
   u_long old;
 
   StopTimer(&t->Timer);

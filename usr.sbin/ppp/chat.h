@@ -18,12 +18,12 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.h,v 1.7 1997/08/25 00:29:07 brian Exp $
+ * $Id: chat.h,v 1.8 1997/10/26 01:02:23 brian Exp $
  *
  */
 
 #define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
 
-extern char *ExpandString(char *, char *, int, int);
-extern int MakeArgs(char *, char **, int);
-extern int DoChat(char *);
+extern char *ExpandString(const char *, char *, int, int);
+extern int MakeArgs(char *, char **, int);  /* Mangles the first arg ! */
+extern int DoChat(char *);			/* passes arg to MakeArgs() */

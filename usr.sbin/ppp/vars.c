@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.34 1997/11/11 22:58:14 brian Exp $
+ * $Id: vars.c,v 1.35 1997/11/18 14:52:07 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -26,21 +26,20 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "command.h"
 #include "hdlc.h"
 #include "termios.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
-#include "defs.h"
 
 char VarVersion[] = "PPP Version 1.4";
-char VarLocalVersion[] = "$Date: 1997/11/11 22:58:14 $";
+char VarLocalVersion[] = "$Date: 1997/11/18 14:52:07 $";
 int Utmp = 0;
 int ipInOctets = 0;
 int ipOutOctets = 0;
@@ -77,7 +76,7 @@ struct pppvars pppVars = {
 };
 
 int
-DisplayCommand()
+DisplayCommand(struct cmdargs const *arg)
 {
   struct confdesc *vp;
 
@@ -98,18 +97,19 @@ DisplayCommand()
 }
 
 static int
-ConfigCommand(struct cmdtab * list, int argc, char **argv, int mine, int val)
+ConfigCommand(struct cmdargs const *arg, int mine, int val)
 {
   struct confdesc *vp;
   int err;
+  int narg = 0;
 
-  if (argc < 1)
+  if (arg->argc < 1)
     return -1;
 
   err = 0;
   do {
     for (vp = pppConfs; vp->name; vp++)
-      if (strcasecmp(vp->name, *argv) == 0) {
+      if (strcasecmp(vp->name, arg->argv[narg]) == 0) {
 	if (mine) {
           if (vp->myside == CONF_NONE) {
             LogPrintf(LogWARN, "Config: %s cannot be enabled or disabled\n",
@@ -128,50 +128,48 @@ ConfigCommand(struct cmdtab * list, int argc, char **argv, int mine, int val)
 	break;
       }
     if (!vp->name) {
-      LogPrintf(LogWARN, "Config: %s: No such key word\n", *argv);
+      LogPrintf(LogWARN, "Config: %s: No such key word\n", arg->argv[narg]);
       err++;
     }
-    argc--;
-    argv++;
-  } while (argc > 0);
+  } while (++narg < arg->argc);
 
   return err;
 }
 
 int
-EnableCommand(struct cmdtab * list, int argc, char **argv)
+EnableCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 1, CONF_ENABLE);
+  return ConfigCommand(arg, 1, CONF_ENABLE);
 }
 
 int
-DisableCommand(struct cmdtab * list, int argc, char **argv)
+DisableCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 1, CONF_DISABLE);
+  return ConfigCommand(arg, 1, CONF_DISABLE);
 }
 
 int
-AcceptCommand(struct cmdtab * list, int argc, char **argv)
+AcceptCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 0, CONF_ACCEPT);
+  return ConfigCommand(arg, 0, CONF_ACCEPT);
 }
 
 int
-DenyCommand(struct cmdtab * list, int argc, char **argv)
+DenyCommand(struct cmdargs const *arg)
 {
-  return ConfigCommand(list, argc, argv, 0, CONF_DENY);
+  return ConfigCommand(arg, 0, CONF_DENY);
 }
 
 int
-LocalAuthCommand(struct cmdtab * list, int argc, char **argv)
+LocalAuthCommand(struct cmdargs const *arg)
 {
-  char *pass;
-  if (argc == 0)
+  const char *pass;
+  if (arg->argc == 0)
     pass = "";
-  else if (argc > 1)
+  else if (arg->argc > 1)
     return -1;
   else
-    pass = *argv;
+    pass = *arg->argv;
 
   if (VarHaveLocalAuthKey)
     VarLocalAuth = strcmp(VarLocalAuthKey, pass) ? LOCAL_NO_AUTH : LOCAL_AUTH;

@@ -1,14 +1,15 @@
 /*
- * $Id: $
+ * $Id: sig.c,v 1.9 1997/10/26 01:03:42 brian Exp $
  */
 
 #include <sys/types.h>
 
 #include <signal.h>
 
-#include "sig.h"
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
+#include "sig.h"
 
 static caused[NSIG];		/* An array of pending signals */
 static sig_type handler[NSIG];	/* all start at SIG_DFL */

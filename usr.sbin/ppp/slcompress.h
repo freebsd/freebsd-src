@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.8 1997/10/07 00:56:58 brian Exp $
+ * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.9 1997/10/26 01:03:46 brian Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.8 1997/10/07 00:56:58 brian Exp $
+ * $Id: slcompress.h,v 1.9 1997/10/26 01:03:46 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -131,4 +131,4 @@ extern void sl_compress_init(struct slcompress *, int);
 extern u_char sl_compress_tcp
   (struct mbuf *, struct ip *, struct slcompress *, int);
 extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *);
-extern int ReportCompress(void);
+extern int ReportCompress(struct cmdargs const *);

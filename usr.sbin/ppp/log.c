@@ -1,5 +1,5 @@
 /*
- * $Id: log.c,v 1.20 1997/11/09 14:18:41 brian Exp $
+ * $Id: log.c,v 1.21 1997/11/11 12:26:34 brian Exp $
  */
 
 #include <sys/param.h>
@@ -10,14 +10,14 @@
 #include <stdio.h>
 #include <syslog.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
-#include "command.h"
 #include "defs.h"
 #include "vars.h"
 
-static char *LogNames[] = {
+static const char *LogNames[] = {
   "Async",
   "Carrier",
   "CCP",
@@ -138,7 +138,7 @@ LogClose()
 }
 
 void
-LogPrintf(int lev, char *fmt,...)
+LogPrintf(int lev, const char *fmt,...)
 {
   va_list ap;
 
@@ -169,7 +169,7 @@ LogPrintf(int lev, char *fmt,...)
 }
 
 void
-LogDumpBp(int lev, char *hdr, struct mbuf * bp)
+LogDumpBp(int lev, const char *hdr, const struct mbuf * bp)
 {
   if (LogIsKept(lev)) {
     char buf[50];
@@ -203,7 +203,7 @@ LogDumpBp(int lev, char *hdr, struct mbuf * bp)
 }
 
 void
-LogDumpBuff(int lev, char *hdr, u_char * ptr, int n)
+LogDumpBuff(int lev, const char *hdr, const u_char * ptr, int n)
 {
   if (LogIsKept(lev)) {
     char buf[50];

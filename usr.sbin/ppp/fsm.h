@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.10 1997/08/25 00:29:12 brian Exp $
+ * $Id: fsm.h,v 1.11 1997/10/26 01:02:39 brian Exp $
  *
  *	TODO:
  */
@@ -46,7 +46,7 @@
 #define	OPEN_PASSIVE	1
 
 struct fsm {
-  char *name;			/* Name of protocol */
+  const char *name;		/* Name of protocol */
   u_short proto;		/* Protocol number */
   u_short max_code;
   int open_mode;
@@ -105,7 +105,7 @@ struct fsmheader {
 
 struct fsmcodedesc {
   void (*action) (struct fsm *, struct fsmheader *, struct mbuf *);
-  char *name;
+  const char *name;
 };
 
 struct fsmconfig {

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.9 1997/08/25 00:29:11 brian Exp $
+ * $Id: filter.h,v 1.10 1997/10/26 01:02:35 brian Exp $
  *
  *	TODO:
  */
@@ -76,12 +76,12 @@ extern struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
 extern struct filterent dfilters[MAXFILTERS];	/* dial-out packet filter */
 extern struct filterent afilters[MAXFILTERS];	/* keep-alive packet filter */
 
-extern int ParseAddr(int, char **, struct in_addr *, struct in_addr *, int *);
-extern int ShowIfilter(struct cmdtab *, int, char **);
-extern int ShowOfilter(struct cmdtab *, int, char **);
-extern int ShowDfilter(struct cmdtab *, int, char **);
-extern int ShowAfilter(struct cmdtab *, int, char **);
-extern int SetIfilter(struct cmdtab *, int, char **);
-extern int SetOfilter(struct cmdtab *, int, char **);
-extern int SetDfilter(struct cmdtab *, int, char **);
-extern int SetAfilter(struct cmdtab *, int, char **);
+extern int ParseAddr(int, char const *const *, struct in_addr *, struct in_addr *, int *);
+extern int ShowIfilter(struct cmdargs const *);
+extern int ShowOfilter(struct cmdargs const *);
+extern int ShowDfilter(struct cmdargs const *);
+extern int ShowAfilter(struct cmdargs const *);
+extern int SetIfilter(struct cmdargs const *);
+extern int SetOfilter(struct cmdargs const *);
+extern int SetDfilter(struct cmdargs const *);
+extern int SetAfilter(struct cmdargs const *);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.30 1997/11/16 22:15:03 brian Exp $
+ * $Id: ip.c,v 1.31 1997/11/18 14:52:04 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -35,10 +35,14 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#ifdef __FreeBSD__
 #include <net/if_var.h>
+#endif
 #include <net/if_tun.h>
 
+#ifndef NOALIAS
 #include <alias.h>
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +50,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -54,10 +59,8 @@
 #include "lcpproto.h"
 #include "hdlc.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "filter.h"
-#include "log.h"
 #include "os.h"
 #include "ipcp.h"
 #include "vjcomp.h"
@@ -69,7 +72,7 @@
 static struct pppTimer IdleTimer;
 
 static void 
-IdleTimeout()
+IdleTimeout(void *v)
 {
   LogPrintf(LogPHASE, "Idle timer expired.\n");
   reconnect(RECON_FALSE);
@@ -109,7 +112,7 @@ StopIdleTimer()
  *  If any IP layer traffic is detected, refresh IdleTimer.
  */
 static void
-RestartIdleTimer()
+RestartIdleTimer(void)
 {
   if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && ipKeepAlive) {
     StartTimer(&IdleTimer);
@@ -117,18 +120,16 @@ RestartIdleTimer()
   }
 }
 
-static u_short interactive_ports[32] = {
+static const u_short interactive_ports[32] = {
   544, 513, 514, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 21, 22, 23, 0, 0, 0, 0, 0, 0, 0, 543,
 };
 
 #define	INTERACTIVE(p)	(interactive_ports[(p) & 0x1F] == (p))
 
-static char *TcpFlags[] = {
-  "FIN", "SYN", "RST", "PSH", "ACK", "URG",
-};
+static const char *TcpFlags[] = { "FIN", "SYN", "RST", "PSH", "ACK", "URG" };
 
-static char *Direction[] = {"INP", "OUT", "OUT", "IN/OUT"};
+static const char *Direction[] = {"INP", "OUT", "OUT", "IN/OUT"};
 static struct filterent *Filters[] = {ifilters, ofilters, dfilters, afilters};
 
 static int
@@ -376,7 +377,7 @@ IpInput(struct mbuf * bp)
   u_char *cp;
   struct mbuf *wp;
   int nb, nw;
-  struct tun_data tun, *frag;
+  struct tun_data tun;
 
   tun_fill_header(tun, AF_INET);
   cp = tun.data;
@@ -387,7 +388,9 @@ IpInput(struct mbuf * bp)
     nb += wp->cnt;
   }
 
+#ifndef NOALIAS
   if (mode & MODE_ALIAS) {
+    struct tun_data *frag;
     int iresult;
     char *fptr;
 
@@ -445,7 +448,9 @@ IpInput(struct mbuf * bp)
 	VarPacketAliasSaveFragment(frag->data);
       }
     }
-  } else {			/* no aliasing */
+  } else
+#endif /* #ifndef NOALIAS */
+  {			/* no aliasing */
     if (PacketCheck(tun.data, nb, FL_IN) < 0) {
       pfree(bp);
       return;
