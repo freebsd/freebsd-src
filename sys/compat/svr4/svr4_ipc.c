@@ -219,7 +219,7 @@ svr4_semctl(p, v, retval)
 	struct sys___semctl_args ap;
 	struct svr4_semid_ds ss;
 	struct semid_ds bs, *bsp;
-	caddr_t sg = stackgap_init(p->p_emul);
+	caddr_t sg = stackgap_init();
 
 	SCARG(&ap, semid) = SCARG(uap, semid);
 	SCARG(&ap, semnum) = SCARG(uap, semnum);
@@ -536,7 +536,7 @@ svr4_msgctl(p, v, retval)
 	struct sys_msgctl_args ap;
 	struct svr4_msqid_ds ss;
 	struct msqid_ds bs;
-	caddr_t sg = stackgap_init(p->p_emul);
+	caddr_t sg = stackgap_init();
 
 	SCARG(&ap, msqid) = SCARG(uap, msqid);
 	SCARG(&ap, cmd) = SCARG(uap, cmd);
@@ -724,7 +724,7 @@ svr4_shmctl(p, v, retval)
 {
 	struct svr4_sys_shmctl_args *uap = v;
 	int error;
-	caddr_t sg = stackgap_init(p->p_emul);
+	caddr_t sg = stackgap_init();
 	struct sys_shmctl_args ap;
 	struct shmid_ds bs;
 	struct svr4_shmid_ds ss;
