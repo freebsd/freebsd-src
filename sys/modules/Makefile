@@ -28,6 +28,7 @@ SUBDIR=	3dfx \
 	fdc \
 	fs \
 	fxp \
+	gx \
 	if_disc \
 	if_ef \
 	if_gif \
