@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.82 1997/11/21 18:27:08 bde Exp $
+ *	$Id: mountroot.c,v 1.1 1998/04/19 23:31:35 julian Exp $
  */
 
 /*
@@ -319,24 +319,6 @@ cpu_rootconf()
 		mountrootfsname = "ufs";
 		if (bootverbose)
 			printf("Considering FFS root f/s.\n");
-		/*
-		 * Ignore the -a flag if this kernel isn't compiled
-		 * with a generic root/swap configuration: if we skip
-		 * setroot() and we aren't a generic kernel, chaos
-		 * will ensue because setconf() will be a no-op.
-		 * (rootdev is always initialized to NODEV in a
-		 * generic configuration, so we test for that.)
-		 */
-		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
-			setroot();
-	}
-#endif
-
-#ifdef LFS
-	if (!mountrootfsname) {
-		if (bootverbose)
-			printf("Considering LFS root f/s.\n");
-		mountrootfsname = "lfs";
 		/*
 		 * Ignore the -a flag if this kernel isn't compiled
 		 * with a generic root/swap configuration: if we skip
