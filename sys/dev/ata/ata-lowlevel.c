@@ -262,6 +262,8 @@ ata_transaction(struct ata_request *request)
     }
 
     /* request finish here */
+    if (request->device->channel->dma->flags & ATA_DMA_ACTIVE)
+	request->device->channel->dma->unload(request->device->channel);
     request->device->channel->running = NULL;
     return ATA_OP_FINISHED;
 }
