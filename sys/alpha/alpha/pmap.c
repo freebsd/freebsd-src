@@ -3305,15 +3305,15 @@ pmap_pid_dump(int pid)
 			int i,j;
 			index = 0;
 			pmap = vmspace_pmap(p->p_vmspace);
-			for (i = 0; i < 1024; i++) {
+			for (i = 0; i < NPDEPG; i++) {
 				pd_entry_t *pde;
 				pt_entry_t *pte;
-				unsigned base = i << PDRSHIFT;
+				vm_offset_t base = i << PDRSHIFT;
 				
 				pde = &pmap->pm_pdir[i];
 				if (pde && pmap_pde_v(pde)) {
-					for (j = 0; j < 1024; j++) {
-						unsigned va = base + (j << PAGE_SHIFT);
+					for (j = 0; j < NPTEPG; j++) {
+						vm_offset_t va = base + (j << PAGE_SHIFT);
 						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
 							if (index) {
 								index = 0;
@@ -3352,22 +3352,22 @@ pmap_pid_dump(int pid)
 #if defined(DEBUG)
 
 static void	pads __P((pmap_t pm));
-static void	pmap_pvdump __P((vm_page_t m));
+void		pmap_pvdump __P((vm_offset_t pa));
 
 /* print address space of pmap*/
 static void
 pads(pm)
 	pmap_t pm;
 {
-        int i, j;
+	int i, j;
 	vm_offset_t va;
 	pt_entry_t *ptep;
 
 	if (pm == kernel_pmap)
 		return;
-	for (i = 0; i < 1024; i++)
+	for (i = 0; i < NPDEPG; i++)
 		if (pm->pm_pdir[i])
-			for (j = 0; j < 1024; j++) {
+			for (j = 0; j < NPTEPG; j++) {
 				va = (i << PDRSHIFT) + (j << PAGE_SHIFT);
 				if (pm == kernel_pmap && va < KERNBASE)
 					continue;
@@ -3380,23 +3380,19 @@ pads(pm)
 
 }
 
-static void
+void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {
 	pv_entry_t pv;
+	vm_page_t m;
 
 	printf("pa %x", pa);
 	m = PHYS_TO_VM_PAGE(pa);
 	for (pv = TAILQ_FIRST(&m->md.pv_list);
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
-#ifdef used_to_be
-		printf(" -> pmap %x, va %x, flags %x",
-		    pv->pv_pmap, pv->pv_va, pv->pv_flags);
-#endif
-		printf(" -> pmap %x, va %x",
-		    pv->pv_pmap, pv->pv_va);
+		printf(" -> pmap %p, va %x", (void *)pv->pv_pmap, pv->pv_va);
 		pads(pv->pv_pmap);
 	}
 	printf(" ");
