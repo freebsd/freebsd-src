@@ -154,7 +154,6 @@ i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
 i386/i386/io_apic.c		optional	apic
 i386/i386/k6_mem.c		standard
-i386/i386/legacy.c		standard
 i386/i386/local_apic.c		optional	apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/mem.c			standard
@@ -351,4 +350,3 @@ pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
 pci/agp_i810.c			optional	agp
 pci/agp_nvidia.c		optional	agp
-pci/cy_pci.c			optional	cy pci
