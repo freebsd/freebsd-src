@@ -189,6 +189,29 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 
 #ifdef _KERNEL
 
+/* Return nonzero if process p has an unmasked pending signal. */
+#define	SIGPENDING(p)							\
+	(!SIGISEMPTY((p)->p_siglist) &&					\
+	    (!sigsetmasked(&(p)->p_siglist, &(p)->p_sigmask) ||		\
+	    (p)->p_flag & P_TRACED))
+
+/*
+ * Return the value of the pseudo-expression ((*set & ~*mask) != 0).  This
+ * is an optimized version of SIGISEMPTY() on a temporary variable
+ * containing SIGSETNAND(*set, *mask).
+ */
+static __inline int
+sigsetmasked(sigset_t *set, sigset_t *mask)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++) {
+		if (set->__bits[i] & ~mask->__bits[i])
+			return (0);
+	}
+	return (1);
+}
+
 struct pgrp;
 struct thread;
 struct proc;
