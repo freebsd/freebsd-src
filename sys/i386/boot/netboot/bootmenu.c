@@ -40,7 +40,7 @@ struct bootcmds_t {
 	{"diskboot",	exit,		"          boot from disk"},
 	{"autoboot",	NULL,		"          continue"},
         {"trans",       cmd_aui,        "<on|off>     turn transceiver on|off"},
-	{"flags",	cmd_flags,	"[bcdhsv]  set boot flags"},
+	{"flags",       cmd_flags,      "[bcdghsv] set boot flags"},
 	{NULL,		NULL,		NULL}
 };
 
