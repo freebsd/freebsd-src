@@ -51,6 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/led/led.h>
 
+/* Methods */
+#define ACPI_ASUS_METHOD_BRN	1
+#define ACPI_ASUS_METHOD_DISP	2
+#define ACPI_ASUS_METHOD_LCD	3
+
 #define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASUS")
 
@@ -218,6 +223,30 @@ static struct acpi_asus_model acpi_samsung_models[] = {
 	{ .name = NULL }
 };
 
+static struct {
+	char	*name;
+	char	*description;
+	int	method;
+} acpi_asus_sysctls[] = {
+	{
+		.name		= "lcd_backlight",
+		.method		= ACPI_ASUS_METHOD_LCD,
+		.description	= "state of the lcd backlight"
+	},
+	{
+		.name		= "lcd_brightness",
+		.method		= ACPI_ASUS_METHOD_BRN,
+		.description	= "brightness of the lcd panel"
+	},
+	{
+		.name		= "video_output",
+		.method		= ACPI_ASUS_METHOD_DISP,
+		.description	= "display output state"
+	},
+
+	{ .name = NULL }
+};
+
 ACPI_SERIAL_DECL(asus, "ACPI ASUS extras");
 
 /* Function prototypes */
@@ -227,9 +256,10 @@ static int	acpi_asus_detach(device_t dev);
 
 static void	acpi_asus_led(struct acpi_asus_led *led, int state);
 
-static int	acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS);
-static int	acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS);
-static int	acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS);
+static int	acpi_asus_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method);
+static int	acpi_asus_sysctl_get(struct acpi_asus_softc *sc, int method);
+static int	acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int val);
 
 static void	acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 
@@ -356,6 +386,19 @@ acpi_asus_attach(device_t dev)
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
 	    OID_AUTO, "asus", CTLFLAG_RD, 0, "");
 
+	/* Hook up nodes */
+	for (int i = 0; acpi_asus_sysctls[i].name != NULL; i++) {
+		if (!acpi_asus_sysctl_init(sc, acpi_asus_sysctls[i].method))
+			continue;
+
+		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
+		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+		    acpi_asus_sysctls[i].name,
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+		    sc, i, acpi_asus_sysctl, "I",
+		    acpi_asus_sysctls[i].description);
+	}
+
 	/* Attach leds */
 	if (sc->model->mled_set) {
 		sc->s_mled.dev = dev;
@@ -376,71 +419,6 @@ acpi_asus_attach(device_t dev)
 		sc->s_wled.type = ACPI_ASUS_LED_WLED;
 		sc->s_wled.cdev =
 		    led_create((led_t *)acpi_asus_led, &sc->s_wled, "wled");
-	}
-
-	/* Attach brightness for GPLV/SPLV models */
-	if (sc->model->brn_get && ACPI_SUCCESS(acpi_GetInteger(sc->handle,
-	    sc->model->brn_get, &sc->s_brn)))
-		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    "lcd_brightness", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		    acpi_asus_sysctl_brn, "I", "brightness of the lcd panel");
-
-	/* Attach brightness for other models */
-	if (sc->model->brn_up &&
-	    ACPI_SUCCESS(AcpiEvaluateObject(sc->handle, sc->model->brn_up,
-	    NULL, NULL)) &&
-	    ACPI_SUCCESS(AcpiEvaluateObject(sc->handle, sc->model->brn_dn,
-	    NULL, NULL)))
-		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    "lcd_brightness", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		    acpi_asus_sysctl_brn, "I", "brightness of the lcd panel");
-
-	/* Attach display switching */
-	if (sc->model->disp_get && ACPI_SUCCESS(acpi_GetInteger(sc->handle,
-	    sc->model->disp_get, &sc->s_disp)))
-		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    "video_output", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		    acpi_asus_sysctl_disp, "I", "display output state");
-
-	/* Attach LCD state, easy for most models... */
-	if (sc->model->lcd_get && strncmp(sc->model->name, "L3H", 3) != 0 &&
-	    ACPI_SUCCESS(acpi_GetInteger(sc->handle, sc->model->lcd_get,
-	    &sc->s_lcd))) {
-		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    "lcd_backlight", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		    acpi_asus_sysctl_lcd, "I", "state of the lcd backlight");
-	} else if (sc->model->lcd_get) {
-		ACPI_BUFFER		Buf;
-		ACPI_OBJECT		Arg[2], Obj;
-		ACPI_OBJECT_LIST	Args;
-
-		/* ...a nightmare for the L3H */
-		Arg[0].Type = ACPI_TYPE_INTEGER;
-		Arg[0].Integer.Value = 0x02;
-		Arg[1].Type = ACPI_TYPE_INTEGER;
-		Arg[1].Integer.Value = 0x03;
-
-		Args.Count = 2;
-		Args.Pointer = Arg;
-
-		Buf.Length = sizeof(Obj);
-		Buf.Pointer = &Obj;
-
-		if (ACPI_SUCCESS(AcpiEvaluateObject(sc->handle,
-		    sc->model->lcd_get, &Args, &Buf)) &&
-		    Obj.Type == ACPI_TYPE_INTEGER) {
-			sc->s_lcd = Obj.Integer.Value >> 8;
-
-			SYSCTL_ADD_PROC(&sc->sysctl_ctx,
-			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-			    "lcd_backlight", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			    acpi_asus_sysctl_lcd, "I",
-			    "state of the lcd backlight");
-		}
 	}
 
 	/* Activate hotkeys */
@@ -493,138 +471,213 @@ acpi_asus_led(struct acpi_asus_led *led, int state)
 	sc = device_get_softc(led->dev);
 
 	switch (led->type) {
-		case ACPI_ASUS_LED_MLED:
-			method = sc->model->mled_set;
+	case ACPI_ASUS_LED_MLED:
+		method = sc->model->mled_set;
 
-			/* Note: inverted */
-			state = !state;
-			break;
-		case ACPI_ASUS_LED_TLED:
-			method = sc->model->tled_set;
-			break;
-		case ACPI_ASUS_LED_WLED:
-			method = sc->model->wled_set;
-			break;
-		default:
-			printf("acpi_asus_led: invalid LED type %d\n",
-			    (int)led->type);
-			return;
+		/* Note: inverted */
+		state = !state;
+		break;
+	case ACPI_ASUS_LED_TLED:
+		method = sc->model->tled_set;
+		break;
+	case ACPI_ASUS_LED_WLED:
+		method = sc->model->wled_set;
+		break;
+	default:
+		printf("acpi_asus_led: invalid LED type %d\n",
+		    (int)led->type);
+		return;
 	}
 
 	acpi_SetInteger(sc->handle, method, state);
 }
 
 static int
-acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
+acpi_asus_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct acpi_asus_softc	*sc;
-	int			brn, err;
-
+	int			arg;
+	int			error = 0;
+	int			function;
+	int			method;
+	
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
+	function = oidp->oid_arg2;
+	method = acpi_asus_sysctls[function].method;
+
 	ACPI_SERIAL_BEGIN(asus);
+	arg = acpi_asus_sysctl_get(sc, method);
+	error = sysctl_handle_int(oidp, &arg, 0, req);
 
 	/* Sanity check */
-	brn = sc->s_brn;
-	err = sysctl_handle_int(oidp, &brn, 0, req);
-
-	if (err != 0 || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		goto out;
 
-	if (brn < 0 || brn > 15) {
-		err = EINVAL;
-		goto out;
+	/* Update */
+	error = acpi_asus_sysctl_set(sc, method, arg);
+
+out:
+	ACPI_SERIAL_END(asus);
+	return (error);
+}
+
+static int
+acpi_asus_sysctl_get(struct acpi_asus_softc *sc, int method)
+{
+	int val = 0;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	ACPI_SERIAL_ASSERT(asus);
+
+	switch (method) {
+	case ACPI_ASUS_METHOD_BRN:
+		val = sc->s_brn;
+		break;
+	case ACPI_ASUS_METHOD_DISP:
+		val = sc->s_disp;
+		break;
+	case ACPI_ASUS_METHOD_LCD:
+		val = sc->s_lcd;
+		break;
 	}
 
-	/* Keep track and update */
-	sc->s_brn = brn;
+	return (val);
+}
 
-	if (sc->model->brn_set)
-		acpi_SetInteger(sc->handle, sc->model->brn_set, brn);
-	else {
-		brn -= sc->s_brn;
+static int
+acpi_asus_sysctl_set(struct acpi_asus_softc *sc, int method, int arg)
+{
+	ACPI_STATUS	status;
 
-		while (brn != 0) {
-			AcpiEvaluateObject(sc->handle, (brn > 0) ?
-			    sc->model->brn_up : sc->model->brn_dn,
-			    NULL, NULL);
-			(brn > 0) ? brn-- : brn++;
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	ACPI_SERIAL_ASSERT(asus);
+
+	switch (method) {
+	case ACPI_ASUS_METHOD_BRN:
+		if (arg < 0 || arg > 15)
+			return (EINVAL);
+
+		if (sc->model->brn_set)
+			status = acpi_SetInteger(sc->handle,
+			    sc->model->brn_set, arg);
+		else {
+			while (arg != 0) {
+				status = AcpiEvaluateObject(sc->handle,
+				    (arg > 0) ?  sc->model->brn_up :
+				    sc->model->brn_dn, NULL, NULL);
+				(arg > 0) ? arg-- : arg++;
+			}
 		}
+
+		if (ACPI_SUCCESS(status))
+			sc->s_brn = arg;
+
+		break;
+	case ACPI_ASUS_METHOD_DISP:
+		if (arg < 0 || arg > 7)
+			return (EINVAL);
+
+		status = acpi_SetInteger(sc->handle,
+		    sc->model->disp_set, arg);
+
+		if (ACPI_SUCCESS(status))
+			sc->s_disp = arg;
+
+		break;
+	case ACPI_ASUS_METHOD_LCD:
+		if (arg < 0 || arg > 1)
+			return (EINVAL);
+
+		if (strncmp(sc->model->name, "L3H", 3) != 0)
+			status = AcpiEvaluateObject(sc->handle,
+			    sc->model->lcd_set, NULL, NULL);
+		else
+			status = acpi_SetInteger(sc->handle,
+			    sc->model->lcd_set, 0x7);
+
+		if (ACPI_SUCCESS(status))
+			sc->s_lcd = arg;
+
+		break;
 	}
 
-out:
-	ACPI_SERIAL_END(asus);
-	return (err);
+	return (0);
 }
 
 static int
-acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
+acpi_asus_sysctl_init(struct acpi_asus_softc *sc, int method)
 {
-	struct acpi_asus_softc	*sc;
-	int			lcd, err;
+	ACPI_STATUS	status;
 
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	switch (method) {
+	case ACPI_ASUS_METHOD_BRN:
+		if (sc->model->brn_get) {
+			/* GPLV/SPLV models */
+			status = acpi_GetInteger(sc->handle,
+			    sc->model->brn_get, &sc->s_brn);
+			if (ACPI_SUCCESS(status))
+				return (TRUE);
+		} else if (sc->model->brn_up) {
+			/* Relative models */
+			status = AcpiEvaluateObject(sc->handle,
+			    sc->model->brn_up, NULL, NULL);
+			if (ACPI_FAILURE(status))
+				return (FALSE);
 
-	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
-	ACPI_SERIAL_BEGIN(asus);
+			status = AcpiEvaluateObject(sc->handle,
+			    sc->model->brn_dn, NULL, NULL);
+			if (ACPI_FAILURE(status))
+				return (FALSE);
 
-	/* Sanity check */
-	lcd = sc->s_lcd;
-	err = sysctl_handle_int(oidp, &lcd, 0, req);
+			return (TRUE);
+		}
+		return (FALSE);
+	case ACPI_ASUS_METHOD_DISP:
+		if (sc->model->disp_get) {
+			status = acpi_GetInteger(sc->handle,
+			    sc->model->disp_get, &sc->s_disp);
+			if (ACPI_SUCCESS(status))
+				return (TRUE);
+		}
+		return (FALSE);
+	case ACPI_ASUS_METHOD_LCD:
+		if (sc->model->lcd_get &&
+		    strncmp(sc->model->name, "L3H", 3) != 0) {
+			status = acpi_GetInteger(sc->handle,
+			    sc->model->lcd_get, &sc->s_lcd);
+			if (ACPI_SUCCESS(status))
+				return (TRUE);
+		}
+		else if (sc->model->lcd_get) {
+			ACPI_BUFFER		Buf;
+			ACPI_OBJECT		Arg[2], Obj;
+			ACPI_OBJECT_LIST	Args;
 
-	if (err != 0 || req->newptr == NULL)
-		goto out;
+			/* L3H is a bit special */
+			Arg[0].Type = ACPI_TYPE_INTEGER;
+			Arg[0].Integer.Value = 0x02;
+			Arg[1].Type = ACPI_TYPE_INTEGER;
+			Arg[1].Integer.Value = 0x03;
 
-	if (lcd < 0 || lcd > 1) {
-		err = EINVAL;
-		goto out;
+			Args.Count = 2;
+			Args.Pointer = Arg;
+
+			Buf.Length = sizeof(Obj);
+			Buf.Pointer = &Obj;
+
+			status = AcpiEvaluateObject(sc->handle,
+			    sc->model->lcd_get, &Args, &Buf);
+			if (ACPI_SUCCESS(status) &&
+			    Obj.Type == ACPI_TYPE_INTEGER) {
+				sc->s_lcd = Obj.Integer.Value >> 8;
+				return (TRUE);
+			}
+		}
+		return (FALSE);
 	}
-
-	/* Keep track and update */
-	sc->s_lcd = lcd;
-
-	/* Most models just need a lcd_set evaluated, the L3H is trickier */
-	if (strncmp(sc->model->name, "L3H", 3) != 0)
-		AcpiEvaluateObject(sc->handle, sc->model->lcd_set, NULL, NULL);
-	else
-		acpi_SetInteger(sc->handle, sc->model->lcd_set, 0x7);
-
-out:
-	ACPI_SERIAL_END(asus);
-	return (err);
-}
-
-static int
-acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
-{
-	struct acpi_asus_softc	*sc;
-	int			disp, err;
-
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-	sc = (struct acpi_asus_softc *)oidp->oid_arg1;
-
-	/* Sanity check */
-	ACPI_SERIAL_BEGIN(asus);
-	disp = sc->s_disp;
-	err = sysctl_handle_int(oidp, &disp, 0, req);
-
-	if (err != 0 || req->newptr == NULL)
-		goto out;
-
-	if (disp < 0 || disp > 7) {
-		err = EINVAL;
-		goto out;
-	}
-
-	/* Keep track and update */
-	sc->s_disp = disp;
-	acpi_SetInteger(sc->handle, sc->model->disp_set, disp);
-
-out:
-	ACPI_SERIAL_END(asus);
-	return (err);
+	return (FALSE);
 }
 
 static void
