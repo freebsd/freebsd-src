@@ -121,7 +121,7 @@ bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc;
 
 static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
-			       struct sockaddr *);
+		struct sockaddr *);
 u_char	etherbroadcastaddr[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 #define senderr(e) do { error = (e); goto bad;} while (0)
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
@@ -427,9 +427,9 @@ no_bridge:
 		} else {
 			M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
 			if (m == NULL) /* nope... */
-			    return ENOBUFS;
+				return ENOBUFS;
 			bcopy(&save_eh, mtod(m, struct ether_header *),
-				ETHER_HDR_LEN);
+			    ETHER_HDR_LEN);
 		}
 	}
 
@@ -446,47 +446,48 @@ no_bridge:
  * ipfw processing for ethernet packets (in and out).
  * The second parameter is NULL from ether_demux, and ifp from
  * ether_output_frame. This section of code could be used from
- * bridge.c as well as long as we put some extra field (e.g. shared)
+ * bridge.c as well as long as we use some extra info
  * to distinguish that case from ether_output_frame();
  */
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, struct ether_header *eh, int shared)
 {
-	struct ether_header save_eh = *eh;	/* could be a ptr in m */
+	struct ether_header save_eh = *eh;	/* might be a ptr in m */
 	int i;
 	struct ip_fw_args args;
 
-        if (*rule != NULL) /* dummynet packet, already partially processed */
-            return 1; /* HACK! I should obey the fw_one_pass */
-        /*
-         * i need some amt of data to be contiguous, and in case others need
-         * the packet (shared==1) also better be in the first mbuf.
-         */
-        i = min( (*m0)->m_pkthdr.len, max_protohdr) ;
-        if ( shared || (*m0)->m_len < i) {
+	if (*rule != NULL) /* dummynet packet, already partially processed */
+		return 1; /* HACK! I should obey the fw_one_pass */
+
+	/*
+	 * I need some amt of data to be contiguous, and in case others need
+	 * the packet (shared==1) also better be in the first mbuf.
+	 */
+	i = min( (*m0)->m_pkthdr.len, max_protohdr);
+	if ( shared || (*m0)->m_len < i) {
 		*m0 = m_pullup(*m0, i);
 		if (*m0 == NULL)
 			return 0;
-        }
+	}
 
 	args.m = *m0;		/* the packet we are looking at		*/
 	args.oif = dst;		/* destination, if any			*/
 	args.divert_rule = 0;	/* we do not support divert yet		*/
 	args.rule = *rule;	/* matching rule to restart		*/
-	args.next_hop = NULL;	/* we do not support forward yet 	*/
+	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
-        i = ip_fw_chk_ptr(&args);	
+	i = ip_fw_chk_ptr(&args);
 	*m0 = args.m;
 	*rule = args.rule;
 
-        if ( (i & IP_FW_PORT_DENY_FLAG) || *m0 == NULL) /* drop */
+	if ( (i & IP_FW_PORT_DENY_FLAG) || *m0 == NULL) /* drop */
 		return 0;
 
-        if (i == 0) /* a PASS rule.  */
+	if (i == 0) /* a PASS rule.  */
 		return 1;
 
-        if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG)) {
+	if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG)) {
 		/*
 		 * Pass the pkt to dummynet, which consumes it.
 		 * If shared, make a copy and keep the original.
@@ -519,13 +520,12 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 		ip_dn_io_ptr(m, (i & 0xffff),
 			dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
 		return 0;
-        }
-        /*
-         * XXX add divert/forward actions...
-         */
-        /* if none of the above matches, we have to drop the pkt */
-        printf("ether_ipfw: No rules match, so dropping packet!\n");
-        return 0;
+	}
+	/*
+	 * XXX at some point add support for divert/forward actions.
+	 * If none of the above matches, we have to drop the pkt.
+	 */
+	return 0;
 }
 
 /*
@@ -633,7 +633,6 @@ ether_demux(ifp, eh, m)
 #if defined(NETATALK)
 	register struct llc *l;
 #endif
-
 	struct ip_fw *rule = NULL;
 
 	/* Extract info from dummynet tag, ignore others */
@@ -674,16 +673,14 @@ ether_demux(ifp, eh, m)
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		ifp->if_imcasts++;
 
-#if 1	/* XXX ipfw */
 post_stats:
-	if ( IPFW_LOADED && ether_ipfw != 0) {
+	if (IPFW_LOADED && ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, NULL, &rule, eh, 0 ) == 0) {
 			if (m)
 				m_freem(m);
 			return;
 		}
 	}
-#endif /* XXX ipfw */
 
 	ether_type = ntohs(eh->ether_type);
 
@@ -873,7 +870,7 @@ ether_ifdetach(ifp, bpf)
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
-            &ether_ipfw,0,"Pass ether pkts through firewall");
+	    &ether_ipfw,0,"Pass ether pkts through firewall");
 
 int
 ether_ioctl(ifp, command, data)
