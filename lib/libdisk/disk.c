@@ -77,6 +77,7 @@ chunk_name(chunk_e type)
 struct disk *
 Open_Disk(const char *name)
 {
+	struct disk *d;
 	char *conftxt;
 	size_t txtsize;
 	int error;
@@ -98,8 +99,10 @@ Open_Disk(const char *name)
 		return (NULL);
 	}
 	conftxt[txtsize] = '\0';	/* in case kernel bug is still there */
+	d = Int_Open_Disk(name, conftxt);
+	free(conftxt);
 
-	return Int_Open_Disk(name, conftxt);
+	return (d);
 }
 
 void
