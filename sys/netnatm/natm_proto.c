@@ -114,8 +114,6 @@ u_int natm_sookcnt = 0;			/* # mbufs ok */
 u_int natm_sookbytes = 0;		/* # of bytes ok */
 #endif
 
-const int natmintrq_present = 1;
-
 
 void natm_init()
 
@@ -124,6 +122,7 @@ void natm_init()
   bzero(&natmintrq, sizeof(natmintrq));
   natmintrq.ifq_maxlen = natmqmaxlen;
   mtx_init(&natmintrq.ifq_mtx, "natm_inq", MTX_DEF);
+  natmintrq_present = 1;
 
 }
 

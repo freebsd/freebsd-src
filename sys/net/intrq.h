@@ -30,6 +30,15 @@
 #define	_NET_INTRQ_H_
 
 #ifdef _KERNEL
+extern int	atintrq1_present;
+extern int	atintrq2_present;
+extern int	atmintrq_present;
+extern int	ipintrq_present;
+extern int	ip6intrq_present;
+extern int	ipxintrq_present;
+extern int	natmintrq_present;
+extern int	nsintrq_present;
+
 extern int	family_enqueue __P((sa_family_t, struct mbuf *));
 #endif
 
