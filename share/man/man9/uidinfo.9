@@ -73,18 +73,20 @@ function looks up and returns the
 .Vt uidinfo
 structure for
 .Fa uid .
-If the no
+If no
 .Vt uidinfo
 structure exists for
 .Fa uid ,
 a new structure will be allocated and initialized.
-The uidinfo hash mutex is acquired and released.
+The
+.Nm
+hash mutex is acquired and released.
 .Pp
 The
 .Fn uihold
 function increases the reference count on
 .Fa uip .
-.Fa uip's
+.Fa uip Ns 's
 lock is acquired and released.
 .Pp
 The
@@ -94,7 +96,7 @@ function decreases the reference count on
 and if the count reaches 0
 .Fa uip
 is freed.
-.Fa uip's
+.Fa uip Ns 's
 lock is acquired and release and the uidinfo hash mutex may be
 acquired and released.
 .Sh RETURN VALUES
