@@ -90,7 +90,7 @@ struct devfs_rule {
 	 */
 	int	dr_iacts;
 #define	DRA_BACTS	0x001
-#define DRA_UID		0x002
+#define	DRA_UID		0x002
 #define	DRA_GID		0x004
 #define	DRA_MODE	0x008
 #define	DRA_INCSET	0x010
