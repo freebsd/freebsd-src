@@ -63,6 +63,11 @@
 				/* for some controllers 1MPBS instead */
 #endif /* FDC_500KBPS */
 
+/*
+ * this is the secret PIO data port (offset from base)
+ */
+#define FDC_YE_DATAPORT 6
+
 #define	FDIN	7	/* Digital Input Register (R) */
 #define	FDI_DCHG	0x80	/* diskette has been changed */
 				/* requires drive and motor being selected */

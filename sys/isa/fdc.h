@@ -55,10 +55,8 @@ struct fdc_data
 #define FDC_STAT_VALID	0x08
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
-#ifdef FDC_YE
-#define FDC_PCMCIA	0x40
+#define FDC_NODMA	0x40
 #define FDC_UNLOADED	0x80
-#endif
 #define FDC_ISPNP	0x100
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
