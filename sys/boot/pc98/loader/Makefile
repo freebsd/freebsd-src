@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.2.1 1999/02/06 07:37:15 kato Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -35,7 +35,7 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I. -I${.CURDIR}/../../i386
 CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-nostdlib -static -Ttext 0x1000
+LDFLAGS=	-nostdlib -static -Ttext 0x0
 
 # pc98 standalone support library
 LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
