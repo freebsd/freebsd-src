@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.94 1998/05/31 18:23:24 peter Exp $
+ * $Id: nfs_vnops.c,v 1.95 1998/05/31 18:25:32 peter Exp $
  */
 
 
@@ -1174,6 +1174,8 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 		if (wccflag)
 		    VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime.tv_sec;
 		m_freem(mrep);
+		if (error)
+			break;
 		tsiz -= len;
 	}
 nfsmout:
