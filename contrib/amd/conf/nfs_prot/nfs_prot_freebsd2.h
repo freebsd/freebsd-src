@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_prot_freebsd2.h,v 1.2 1999/01/10 21:54:14 ezk Exp $
+ * $Id: nfs_prot_freebsd2.h,v 1.3.2.1 2001/01/10 03:23:21 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -46,12 +46,9 @@
 #ifndef _AMU_NFS_PROT_H
 #define _AMU_NFS_PROT_H
 
-#ifdef COMMENT_OUT
 #ifdef HAVE_RPCSVC_NFS_PROT_H
 # include <rpcsvc/nfs_prot.h>
 #endif /* HAVE_RPCSVC_NFS_PROT_H */
-#endif	/* COMMENT_OUT */
-# include "nfs_prot.h"
 
 /*
  * MACROS:
