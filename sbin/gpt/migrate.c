@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define	LABELSECTOR	1
 #endif
 
-int keep, slice;
+static int keep, slice;
 
 static void
 usage_migrate(void)
