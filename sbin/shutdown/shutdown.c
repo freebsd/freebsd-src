@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: shutdown.c,v 1.11 1998/01/08 20:05:45 alex Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,6 +51,7 @@ static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 #include <sys/syslog.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -57,7 +60,6 @@ static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 
 #include "pathnames.h"
 
@@ -109,7 +111,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	register char *p, *endp;
 	struct passwd *pw;
 	int arglen, ch, len, readstdin;
@@ -148,7 +149,7 @@ main(argc, argv)
 		usage();
 
 	if (doreboot && dohalt) {
-		warnx("incompatible switches -h and -r.");
+		warnx("incompatible switches -h and -r");
 		usage();
 	}
 	getoffset(*argv++);
@@ -208,7 +209,7 @@ main(argc, argv)
 #endif
 	openlog("shutdown", LOG_CONS, LOG_AUTH);
 	loop();
-	/* NOTREACHED */
+	return(0);
 }
 
 void
@@ -301,7 +302,7 @@ timewarn(timeleft)
 
 	/*
 	 * play some games, just in case wall doesn't come back
-	 * probably unecessary, given that wall is careful.
+	 * probably unnecessary, given that wall is careful.
 	 */
 	if (!setjmp(alarmbuf)) {
 		(void)signal(SIGALRM, timeout);
@@ -474,7 +475,7 @@ finish(signo)
 void
 badtime()
 {
-	errx(1, "bad time format.");
+	errx(1, "bad time format");
 }
 
 void
