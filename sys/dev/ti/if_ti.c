@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.4 1999/04/29 16:27:51 wpaul Exp $
+ *	$Id: if_ti.c,v 1.5 1999/05/09 17:07:00 peter Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.4 1999/04/29 16:27:51 wpaul Exp $";
+	"$Id: if_ti.c,v 1.5 1999/05/09 17:07:00 peter Exp $";
 #endif
 
 /*
@@ -2061,7 +2061,7 @@ static int ti_encap(sc, m_head, txidx)
 		    TI_BDFLAG_END;
 	else
 		sc->ti_rdata->ti_tx_ring[cur].ti_flags |= TI_BDFLAG_END;
-	sc->ti_cdata.ti_tx_chain[*txidx] = m_head;
+	sc->ti_cdata.ti_tx_chain[cur] = m_head;
 
 	*txidx = frag;
 
