@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.6 1994/09/21 03:47:25 wollman Exp $
+ * $Id: nfs_vnops.c,v 1.7 1994/09/22 19:38:28 wollman Exp $
  */
 
 /*
@@ -365,11 +365,13 @@ nfs_open(ap)
 				return (error);
 			np->n_attrstamp = 0;
 			np->n_direofoffset = 0;
-			if (error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p))
+			error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p);
+			if (error)
 				return (error);
 			np->n_mtime = vattr.va_mtime.ts_sec;
 		} else {
-			if (error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p))
+			error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p);
+			if (error)
 				return (error);
 			if (np->n_mtime != vattr.va_mtime.ts_sec) {
 				np->n_direofoffset = 0;
@@ -698,13 +700,14 @@ nfsmout:
 			m_freem(mrep);
 			return (EISDIR);
 		}
-		if (error = nfs_nget(dvp->v_mount, fhp, &np)) {
+		error = nfs_nget(dvp->v_mount, fhp, &np);
+		if (error) {
 			m_freem(mrep);
 			return (error);
 		}
 		newvp = NFSTOV(np);
-		if (error =
-		    nfs_loadattrcache(&newvp, &md, &dpos, (struct vattr *)0)) {
+		error = nfs_loadattrcache(&newvp, &md, &dpos, (struct vattr*)0);
+		if (error) {
 			vrele(newvp);
 			m_freem(mrep);
 			return (error);
@@ -719,13 +722,15 @@ nfsmout:
 		VREF(dvp);
 		newvp = dvp;
 	} else {
-		if (error = nfs_nget(dvp->v_mount, fhp, &np)) {
+		error = nfs_nget(dvp->v_mount, fhp, &np);
+		if (error) {
 			m_freem(mrep);
 			return (error);
 		}
 		newvp = NFSTOV(np);
 	}
-	if (error = nfs_loadattrcache(&newvp, &md, &dpos, (struct vattr *)0)) {
+	error = nfs_loadattrcache(&newvp, &md, &dpos, (struct vattr *)0);
+	if (error) {
 		vrele(newvp);
 		m_freem(mrep);
 		return (error);
@@ -970,7 +975,8 @@ nfs_mknod(ap)
 		vput(dvp);
 		return (EOPNOTSUPP);
 	}
-	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
+	error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc);
+	if (error) {
 		VOP_ABORTOP(dvp, cnp);
 		vput(dvp);
 		return (error);
@@ -1030,7 +1036,8 @@ nfs_create(ap)
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	struct vattr vattr;
 
-	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
+	error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc);
+	if (error) {
 		VOP_ABORTOP(dvp, cnp);
 		vput(dvp);
 		return (error);
@@ -1415,7 +1422,8 @@ nfs_mkdir(ap)
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	struct vattr vattr;
 
-	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
+	error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc);
+	if (error) {
 		VOP_ABORTOP(dvp, cnp);
 		vput(dvp);
 		return (error);
@@ -1793,12 +1801,14 @@ nfs_readdirlookrpc(vp, uiop, cred)
 				newvp = vp;
 				np = VTONFS(vp);
 			} else {
-				if (error = nfs_nget(vp->v_mount, fhp, &np))
+				error = nfs_nget(vp->v_mount, fhp, &np);
+				if (error)
 					doit = 0;
 				newvp = NFSTOV(np);
 			}
-			if (error = nfs_loadattrcache(&newvp, &md, &dpos,
-				(struct vattr *)0))
+			error = nfs_loadattrcache(&newvp, &md, &dpos,
+				(struct vattr *)0);
+			if (error)
 				doit = 0;
 			nfsm_dissect(tl, u_long *, 2 * NFSX_UNSIGNED);
 			fileno = fxdr_unsigned(u_long, *tl++);
@@ -1941,7 +1951,8 @@ nfs_sillyrename(dvp, vp, cnp)
 			goto bad;
 		}
 	}
-	if (error = nfs_renameit(dvp, cnp, sp))
+	error = nfs_renameit(dvp, cnp, sp);
+	if (error)
 		goto bad;
 	nfs_lookitup(sp, &np->n_fh, cnp->cn_proc);
 	np->n_sillyrename = sp;
@@ -2222,7 +2233,7 @@ nfs_print(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
 
-	printf("tag VT_NFS, fileid %d fsid 0x%x",
+	printf("tag VT_NFS, fileid %ld fsid 0x%lx",
 		np->n_vattr.va_fileid, np->n_vattr.va_fsid);
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
@@ -2346,7 +2357,8 @@ nfsspec_access(ap)
 	if (cred->cr_uid == 0)
 		return (0);
 	vap = &vattr;
-	if (error = VOP_GETATTR(ap->a_vp, vap, cred, ap->a_p))
+	error = VOP_GETATTR(ap->a_vp, vap, cred, ap->a_p);
+	if (error)
 		return (error);
 	/*
 	 * Access check is based on only one of owner, group, public.
