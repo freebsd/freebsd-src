@@ -128,8 +128,11 @@ struct	linger {
 #define	AF_INET6	28		/* IPv6 */
 #define	AF_NATM		29		/* native ATM access */
 #define	AF_ATM		30		/* ATM */
+#define pseudo_AF_HDRCMPLT 31		/* Used by BPF to not rewrite headers
+					 * in interface output routine
+					 */
 
-#define	AF_MAX		31
+#define	AF_MAX		32
 
 /*
  * Structure used by kernel to store most
