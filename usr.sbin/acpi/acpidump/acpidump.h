@@ -265,6 +265,19 @@ struct MADTbody {
 	u_char		body[1];
 } __packed;
 
+struct HPETbody {
+	u_int32_t	block_hwrev:8,
+			block_comparitors:5,
+			block_counter_size:1,
+			:1,
+			block_legacy_capable:1,
+			block_pcivendor:16;
+	u_int32_t	base_addr;
+	u_int64_t	reserved1;
+	u_int8_t	hpet_number;
+	u_int16_t	clock_tick __packed;
+} __packed;
+
 void		*acpi_map_physical(vm_offset_t, size_t);
 struct ACPIrsdp	*acpi_find_rsd_ptr(void);
 int		 acpi_checksum(void *, size_t);
