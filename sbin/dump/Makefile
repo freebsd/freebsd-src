@@ -20,7 +20,7 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c
 BINGRP=	tty
 BINMODE=2555
-MAN8=	dump.8
+MAN=	dump.8
 MLINKS+=dump.8 rdump.8
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)

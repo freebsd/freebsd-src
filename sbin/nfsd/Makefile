@@ -3,7 +3,7 @@
 
 PROG=	nfsd
 CFLAGS+=-DNFS
-MAN8=	nfsd.8
+MAN=	nfsd.8
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DKERBEROS

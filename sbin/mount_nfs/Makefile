@@ -4,7 +4,7 @@
 
 PROG=	mount_nfs
 SRCS=	mount_nfs.c getmntopts.c mounttab.c
-MAN8=	mount_nfs.8
+MAN=	mount_nfs.8
 
 MOUNT=	${.CURDIR}/../mount
 UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall

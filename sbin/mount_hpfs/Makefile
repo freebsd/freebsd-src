@@ -4,7 +4,7 @@
 
 PROG=	mount_hpfs
 SRCS=	mount_hpfs.c getmntopts.c
-MAN8=	mount_hpfs.8
+MAN=	mount_hpfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT} -DHPFS

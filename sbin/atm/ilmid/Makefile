@@ -28,7 +28,7 @@
 #
 
 PROG=	ilmid
-MAN8=	ilmid.8
+MAN=	ilmid.8
 
 CFLAGS+=	-I${.CURDIR}/../../../sys
 LDADD+=		-latm
