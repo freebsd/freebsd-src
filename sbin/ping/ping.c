@@ -170,6 +170,7 @@ main(argc, argv)
 #ifdef IP_OPTIONS
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
+	struct sigaction si_sa;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -417,9 +418,34 @@ main(argc, argv)
 	else
 		(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 
-	(void)signal(SIGINT, stopit);
-	(void)signal(SIGALRM, catcher);
-	(void)signal(SIGINFO, status);
+	/*
+	 * Use sigaction() instead of signal() to get unambiguous semantics,
+	 * in particular with SA_RESTART not set.
+	 */
+
+	sigemptyset(&si_sa.sa_mask);
+	si_sa.sa_flags = 0;
+
+	si_sa.sa_handler = stopit;
+	if (sigaction(SIGINT, &si_sa, 0) == -1) {
+		(void)fprintf(stderr, "ping: sigaction SIGINT: %s\n",
+			strerror(errno));
+		exit(1);
+	}
+
+	si_sa.sa_handler = catcher;
+	if (sigaction(SIGALRM, &si_sa, 0) == -1) {
+		(void)fprintf(stderr, "ping: sigaction SIGALRM: %s\n",
+			strerror(errno));
+		exit(1);
+	}
+
+	si_sa.sa_handler = status;
+	if (sigaction(SIGINFO, &si_sa, 0) == -1) {
+		(void)fprintf(stderr, "ping: sigaction: %s\n",
+			strerror(errno));
+		exit(1);
+	}
 
 	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
 		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
@@ -490,6 +516,7 @@ void
 catcher()
 {
 	int waittime;
+	struct sigaction si_sa;
 
 	pinger();
 	(void)signal(SIGALRM, catcher);
@@ -502,7 +529,13 @@ catcher()
 				waittime = 1;
 		} else
 			waittime = MAXWAIT;
-		(void)signal(SIGALRM, stopit);
+
+		si_sa.sa_handler = stopit;
+		sigemptyset(&si_sa.sa_mask);
+		si_sa.sa_flags = 0;
+		if (sigaction(SIGALRM, &si_sa, 0) == -1) {
+			finish_up = 1;
+		}
 		(void)alarm((u_int)waittime);
 	}
 }
