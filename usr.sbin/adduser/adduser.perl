@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.27 1997/02/22 16:01:18 peter Exp $
+# $Id: adduser.perl,v 1.28 1997/03/09 12:21:45 wosch Exp $
 
 
 # read variables
@@ -33,7 +33,7 @@ sub variables {
     $defaultpasswd = "yes";	# use password for new users
     $dotdir = "/usr/share/skel"; # copy dotfiles from this dir
     $dotdir_bak = $dotdir;
-    $send_message = "no"; # send message to new user
+    $send_message = "/etc/adduser.message"; # send message to new user
     $send_message_bak = '/etc/adduser.message';
     $config = "/etc/adduser.conf"; # config file for adduser
     $config_read = 1;		# read config file
@@ -53,6 +53,7 @@ sub variables {
     $defaultshell = 'sh';	# defaultshell if not empty
     $group_uniq = 'USER';
     $defaultgroup = $group_uniq;# login groupname, $group_uniq means username
+    $defaultclass = '';
 
     $uid_start = 1000;		# new users get this uid
     $uid_end   = 32000;		# max. uid
@@ -391,6 +392,15 @@ sub new_users_id {
     return &next_id($name);
 }
 
+# return login class for user
+sub new_users_class {
+    local($def) = @_;
+    local($class);
+
+    $class = &confirm_list("Enter login class", 1, $def, "");
+    return $class;
+}
+
 # add user to group
 sub add_group {
     local($gid, $name) = @_;
@@ -532,6 +542,7 @@ Password: ****
 Fullname: $fullname
 Uid:	  $u_id
 Gid:	  $g_id ($group_login)
+Class:	  $class
 Groups:	  $group_login $new_groups
 HOME:	  $home/$name
 Shell:	  $sh
@@ -676,9 +687,10 @@ sub new_users {
     # sh: shell
     # u_id: user id
     # g_id: group id
+    # class: login class
     # group_login: groupname of g_id
     # new_groups: some other groups
-    local($name, $group_login, $fullname, $sh, $u_id, $g_id, $new_groups);
+    local($name, $group_login, $fullname, $sh, $u_id, $g_id, $class, $new_groups);
     local($groupmembers_bak, $cryptpwd);
     local($new_users_ok) = 1;
 
@@ -691,6 +703,7 @@ sub new_users {
 	$fullname = &new_users_fullname($name);
 	$sh = &new_users_shell;
 	($u_id, $g_id) = &new_users_id($name);
+	$class = &new_users_class($defaultclass);
 	($group_login, $defaultgroup) =
 	    &new_users_grplogin($name, $defaultgroup, $new_users_ok);
 	# do not use uniq username and login group
@@ -707,7 +720,7 @@ sub new_users {
 	    $cryptpwd = crypt($password, &salt) if $password ne "";
 	    # obscure perl bug
 	    $new_entry = "$name\:" . "$cryptpwd" .
-		"\:$u_id\:$g_id\::0:0:$fullname:$home/$name:$sh";
+		"\:$u_id\:$g_id\:$class\:0:0:$fullname:$home/$name:$sh";
 	    &append_file($etc_passwd, "$new_entry");
 	    &new_users_pwdmkdb("$new_entry");
 	    &new_users_group_update;
@@ -727,7 +740,7 @@ sub new_users {
 }
 
 sub batch {
-    local($name, $groups, $fullname, $password) = @_;
+    local($name, $groups, $class, $fullname, $password) = @_;
     local($sh);
 
     $defaultshell = &shell_default_valid($defaultshell);
@@ -744,11 +757,12 @@ sub batch {
     ($flag, $new_groups) = &new_users_groups_valid($groups);
     return 0 if $flag;
 
+    $class = $defaultclass if $class eq "";
     $cryptpwd = "";
     $cryptpwd = crypt($password, &salt) if $password ne "";
     # obscure perl bug
     $new_entry = "$name\:" . "$cryptpwd" .
-	"\:$u_id\:$g_id\::0:0:$fullname:$home/$name:$sh";
+	"\:$u_id\:$g_id\:$class\:0:0:$fullname:$home/$name:$sh";
     &append_file($etc_passwd, "$new_entry");
     &new_users_pwdmkdb("$new_entry");
     &new_users_group_update;
@@ -778,8 +792,9 @@ sub check_root {
 sub usage {
     warn <<USAGE;
 usage: adduser
-    [-batch username [group[,group]...] [fullname] [password]]
+    [-batch username [group[,group]...] [class] [fullname] [password]]
     [-check_only]
+    [-class login_class]
     [-config_create]
     [-dotdir dotdir]
     [-group login_group]
@@ -793,7 +808,7 @@ usage: adduser
     [-v|-verbose]
 
 home=$home shell=$defaultshell dotdir=$dotdir login_group=$defaultgroup
-message_file=$send_message uid_start=$uid_start
+login_class=$defaultclass message_file=$send_message uid_start=$uid_start
 USAGE
     exit 1;
 }
@@ -860,12 +875,13 @@ sub parse_arguments {
 	elsif (/^--?(shell)$/)	 { $defaultshell = $argv[0]; shift @argv }
 	elsif (/^--?(dotdir)$/)	 { $dotdir = $argv[0]; shift @argv }
 	elsif (/^--?(uid)$/)	 { $uid_start = $argv[0]; shift @argv }
+	elsif (/^--?(class)$/)   { $defaultclass = $argv[0]; shift @argv }
 	elsif (/^--?(group)$/)	 { $defaultgroup = $argv[0]; shift @argv }
 	elsif (/^--?(check_only)$/) { $check_only = 1 }
 	elsif (/^--?(message)$/) { $send_message = $argv[0]; shift @argv;
 				   $sendmessage = 1; }
 	elsif (/^--?(batch)$/)	 {
-	    @batch = splice(@argv, 0, 4); $verbose = 0;
+	    @batch = splice(@argv, 0, 5); $verbose = 0;
 	    die "batch: too few arguments\n" if $#batch < 0;
 	}
 	# see &config_read
@@ -1355,8 +1371,11 @@ shellpref = ($shpref)
 # defaultshell if not empty ("bash")
 defaultshell = "$defaultshell"
 
-# defaultgroup ('USER' for same as username or any other valid group
+# defaultgroup ('USER' for same as username or any other valid group)
 defaultgroup = $defaultgroup
+
+# defaultclass if not empty
+defaultclass = "$defaultclass"
 
 # new users get this uid (1000)
 uid_start = 1000
