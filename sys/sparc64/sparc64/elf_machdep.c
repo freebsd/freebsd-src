@@ -240,7 +240,6 @@ int
 elf_reloc(linker_file_t lf, const void *data, int type)
 {
 	const Elf_Rela *rela;
-	const Elf_Sym *sym;
 	Elf_Addr relocbase;
 	Elf_Half *where32;
 	Elf_Addr *where;
@@ -272,24 +271,10 @@ elf_reloc(linker_file_t lf, const void *data, int type)
 	value = rela->r_addend;
 
 	if (RELOC_RESOLVE_SYMBOL(rtype)) {
-		/*
-		 * Work around what appears to be confusion between binutils
-		 * and the v9 ABI.  LO10 and HI22 relocations are listed as
-		 * S + A, but for STB_LOCAL symbols it seems that the value
-		 * in the Elf_Sym refered to by the symbol index is wrong,
-		 * instead the value is in the addend field of the Elf_Rela
-		 * record.  So if the symbol is local don't look it up, just
-		 * use the addend as its value and add in the relocbase.
-		 */
-		sym = elf_get_sym(lf, symidx);
-		if (ELF_ST_BIND(sym->st_info) == STB_LOCAL)
-			value += relocbase;
-		else {
-			addr = elf_lookup(lf, symidx, 1);
-			if (addr == 0)
-				return (-1);
-			value += addr;
-		}
+		addr = elf_lookup(lf, symidx, 1);
+		if (addr == 0)
+			return (-1);
+		value += addr;
 	}
 
 	if (RELOC_PC_RELATIVE(rtype))
