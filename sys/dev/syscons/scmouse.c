@@ -482,6 +482,7 @@ mouse_cut_word(scr_stat *scp)
     int eol;
     int c;
     int j;
+    int len;
 
     /*
      * Because we don't have locale information in the kernel,
@@ -525,6 +526,9 @@ mouse_cut_word(scr_stat *scp)
 
 	/* copy the found word */
 	mouse_do_cut(scp, start, end);
+	len = strlen(cut_buffer);
+	if (cut_buffer[len - 1] == '\r')
+	    cut_buffer[len - 1] = '\0';
     }
 }
 
