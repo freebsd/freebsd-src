@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.59 1998/03/30 09:53:56 phk Exp $
+ * $Id: nfs_serv.c,v 1.60 1998/05/07 04:58:51 msmith Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ static int nfs_async;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
 
 static int nfsrv_access __P((struct vnode *,int,struct ucred *,int,
-		struct proc *));
+		struct proc *, int));
 static void nfsrvw_coalesce __P((struct nfsrv_descript *,
 		struct nfsrv_descript *));
 
@@ -148,7 +148,7 @@ nfsrv3_access(nfsd, slp, procp, mrq)
 	}
 	nfsmode = fxdr_unsigned(u_long, *tl);
 	if ((nfsmode & NFSV3ACCESS_READ) &&
-		nfsrv_access(vp, VREAD, cred, rdonly, procp))
+		nfsrv_access(vp, VREAD, cred, rdonly, procp, 0))
 		nfsmode &= ~NFSV3ACCESS_READ;
 	if (vp->v_type == VDIR)
 		testmode = (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
@@ -156,14 +156,14 @@ nfsrv3_access(nfsd, slp, procp, mrq)
 	else
 		testmode = (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
 	if ((nfsmode & testmode) &&
-		nfsrv_access(vp, VWRITE, cred, rdonly, procp))
+		nfsrv_access(vp, VWRITE, cred, rdonly, procp, 0))
 		nfsmode &= ~testmode;
 	if (vp->v_type == VDIR)
 		testmode = NFSV3ACCESS_LOOKUP;
 	else
 		testmode = NFSV3ACCESS_EXECUTE;
 	if ((nfsmode & testmode) &&
-		nfsrv_access(vp, VEXEC, cred, rdonly, procp))
+		nfsrv_access(vp, VEXEC, cred, rdonly, procp, 0))
 		nfsmode &= ~testmode;
 	getret = VOP_GETATTR(vp, vap, cred, procp);
 	vput(vp);
@@ -331,7 +331,7 @@ nfsrv_setattr(nfsd, slp, procp, mrq)
 			error = EISDIR;
 			goto out;
 		} else if (error = nfsrv_access(vp, VWRITE, cred, rdonly,
-			procp))
+			procp, 0))
 			goto out;
 	}
 	error = VOP_SETATTR(vp, vap, cred, procp);
@@ -634,8 +634,8 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	}
 	if (!error) {
 	    nqsrv_getl(vp, ND_READ);
-	    if (error = nfsrv_access(vp, VREAD, cred, rdonly, procp))
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp);
+	    if (error = nfsrv_access(vp, VREAD, cred, rdonly, procp, 1))
+		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp, 1);
 	}
 	getret = VOP_GETATTR(vp, vap, cred, procp);
 	if (!error)
@@ -850,7 +850,7 @@ nfsrv_write(nfsd, slp, procp, mrq)
 	}
 	if (!error) {
 		nqsrv_getl(vp, ND_WRITE);
-		error = nfsrv_access(vp, VWRITE, cred, rdonly, procp);
+		error = nfsrv_access(vp, VWRITE, cred, rdonly, procp, 1);
 	}
 	if (error) {
 		vput(vp);
@@ -1127,7 +1127,7 @@ loop1:
 		    vp = NULL;
 		if (!error) {
 		    nqsrv_getl(vp, ND_WRITE);
-		    error = nfsrv_access(vp, VWRITE, cred, rdonly, procp);
+		    error = nfsrv_access(vp, VWRITE, cred, rdonly, procp, 1);
 		}
     
 		if (nfsd->nd_stable == NFSV3WRITE_UNSTABLE)
@@ -1528,7 +1528,7 @@ nfsrv_create(nfsd, slp, procp, mrq)
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (vap->va_size != -1) {
 			error = nfsrv_access(vp, VWRITE, cred,
-			    (nd.ni_cnd.cn_flags & RDONLY), procp);
+			    (nd.ni_cnd.cn_flags & RDONLY), procp, 0);
 			if (!error) {
 				nqsrv_getl(vp, ND_WRITE);
 				tempsize = vap->va_size;
@@ -2590,7 +2590,7 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 			error = NFSERR_BAD_COOKIE;
 	}
 	if (!error)
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp);
+		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp, 0);
 	if (error) {
 		vput(vp);
 		nfsm_reply(NFSX_POSTOPATTR(v3));
@@ -2843,7 +2843,7 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 		error = NFSERR_BAD_COOKIE;
 	if (!error) {
 		nqsrv_getl(vp, ND_READ);
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp);
+		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp, 0);
 	}
 	if (error) {
 		vput(vp);
@@ -3427,18 +3427,23 @@ nfsrv_noop(nfsd, slp, procp, mrq)
  * refer to files already opened by a Unix client. You cannot just use
  * vn_writechk() and VOP_ACCESS() for two reasons.
  * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write case
- * 2 - The owner is to be given access irrespective of mode bits so that
- *     processes that chmod after opening a file don't break. I don't like
- *     this because it opens a security hole, but since the nfs server opens
- *     a security hole the size of a barn door anyhow, what the heck.
+ * 2 - The owner is to be given access irrespective of mode bits for some
+ *     operations, so that processes that chmod after opening a file don't
+ *     break. I don't like this because it opens a security hole, but since
+ *     the nfs server opens a security hole the size of a barn door anyhow,
+ *     what the heck.
+ *
+ * The exception to rule 2 is EPERM. If a file is IMMUTABLE, VOP_ACCESS()
+ * will return EPERM instead of EACCESS. EPERM is always an error.
  */
 static int
-nfsrv_access(vp, flags, cred, rdonly, p)
+nfsrv_access(vp, flags, cred, rdonly, p, override)
 	register struct vnode *vp;
 	int flags;
 	register struct ucred *cred;
 	int rdonly;
 	struct proc *p;
+	int override;
 {
 	struct vattr vattr;
 	int error;
@@ -3464,10 +3469,14 @@ nfsrv_access(vp, flags, cred, rdonly, p)
 	}
 	if (error = VOP_GETATTR(vp, &vattr, cred, p))
 		return (error);
-	if ((error = VOP_ACCESS(vp, flags, cred, p)) &&
-	    cred->cr_uid != vattr.va_uid)
-		return (error);
-	return (0);
+	error = VOP_ACCESS(vp, flags, cred, p);
+	/*
+	 * Allow certain operations for the owner (reads and writes
+	 * on files that are already open).
+	 */
+	if (override && error == EACCES && cred->cr_uid == vattr.va_uid)
+		error = 0;
+	return error;
 }
 #endif /* NFS_NOSERVER */
 
