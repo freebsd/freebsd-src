@@ -988,6 +988,7 @@ linux_waitpid(struct proc *p, struct linux_waitpid_args *args)
     if (args->status) {
 	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
 	    return error;
+	tmpstat &= 0xffff;
 	if (WIFSIGNALED(tmpstat))
 	    tmpstat = (tmpstat & 0xffffff80) |
 		      BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
@@ -1031,6 +1032,7 @@ linux_wait4(struct proc *p, struct linux_wait4_args *args)
     if (args->status) {
 	if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
 	    return error;
+	tmpstat &= 0xffff;
 	if (WIFSIGNALED(tmpstat))
 	    tmpstat = (tmpstat & 0xffffff80) |
 		  BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
