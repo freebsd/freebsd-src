@@ -56,7 +56,7 @@ Sobota
 #
 # x_fmt
 #
-%y.%m.%d
+%Y.%m.%d
 #
 # c_fmt
 #
