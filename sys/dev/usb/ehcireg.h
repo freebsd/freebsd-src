@@ -1,4 +1,4 @@
-/*	$NetBSD: ehcireg.h,v 1.13 2001/11/23 01:16:27 augustss Exp $	*/
+/*	$NetBSD: ehcireg.h,v 1.15 2004/06/12 16:02:42 mycroft Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -262,7 +262,7 @@ typedef struct {
 #define EHCI_QH_GET_MPL(x)	(((x) >> 16) & 0x7ff) /* max packet len */
 #define EHCI_QH_SET_MPL(x)	((x) << 16)
 #define EHCI_QG_MPLMASK		0x07ff0000
-#define EHCI_QH_GET_CTL(x)	(((x) >> 26) & 0x01) /* control endpoint */
+#define EHCI_QH_GET_CTL(x)	(((x) >> 27) & 0x01) /* control endpoint */
 #define EHCI_QH_CTL		0x08000000
 #define EHCI_QH_GET_NRL(x)	(((x) >> 28) & 0x0f) /* NAK reload */
 #define EHCI_QH_SET_NRL(x)	((x) << 28)
