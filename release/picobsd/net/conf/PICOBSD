@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.3 1998/09/19 21:45:04 abial Exp $
+#	$Id: PICOBSD,v 1.4 1998/10/25 15:31:20 abial Exp $
 #
 
 machine		"i386"
@@ -21,7 +21,7 @@ options		"CD9660"		#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options		USERCONFIG		#boot -c editor
-options		USERCONFIG_BOOT		#imply -c and parse info area
+options		INTRO_USERCONFIG		#imply -c and parse info area
 options		VISUAL_USERCONFIG	#visual boot -c editor
 options		IPFIREWALL
 options		IPFIREWALL_DEFAULT_TO_ACCEPT
