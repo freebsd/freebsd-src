@@ -322,8 +322,7 @@
 
     &hwlist.sf;
 
-    <para arch="i386,pc98,amd64">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
-    1 and Tigon 2 chipsets (&man.ti.4; driver)</para>
+    &hwlist.ti;
 
     <para arch="i386,pc98,alpha,amd64">AMD PCnet NICs (&man.lnc.4; and &man.pcn.4; drivers)
       <itemizedlist>
@@ -605,8 +604,7 @@
 
     &hwlist.rl;
 
-    <para arch="i386,pc98,alpha,amd64">Winbond W89C840F Fast Ethernet NICs (&man.wb.4; driver)
-    </para>
+    &hwlist.wb;
 
     &hwlist.vr;
 
@@ -618,17 +616,13 @@
     (&man.sis.4; driver)
     </para>
 
-    <para arch="i386,pc98,amd64">National Semiconductor DP83820 and DP83821 Gigabit Ethernet
-    NICs (&man.nge.4; driver)
-    </para>
+    &hwlist.nge;
 
-    <para arch="i386,pc98,alpha,amd64">Sundance Technologies ST201 PCI Fast Ethernet NICs
-    (&man.ste.4; driver)
-    </para>
+    &hwlist.ste;
 
     &hwlist.sk;
 
-    <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
+    &hwlist.tl;
 
     &hwlist.dc;
 
