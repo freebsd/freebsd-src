@@ -378,6 +378,9 @@
     <para>The uaudio driver, for USB audio devices, has been
       added. &merged;</para>
 
+    <para arch="i386">The ubsa driver has been added to support
+      the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
+
     <para arch="i386,pc98" role="historic">The &man.umodem.4; driver for USB modems
       has been added. Support is provided for the 3Com 5605 and
       Metricom Ricochet GS wireless USB modems. &merged;</para>
@@ -1289,7 +1292,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	2312 Optical Fibre Channel PCI cards. &merged;</para>
 
       <para arch="i386,pc98">The &man.matcd.4; driver has been removed
-        due to breakage and licensing issues.</para>
+        due to breakage and licensing issues. &merged;</para>
 
       <para>&man.md.4;, the memory disk device, has had the
 	functionality of &man.vn.4; incorporated into it.  &man.md.4;
@@ -1325,6 +1328,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The <varname>SCSI_DELAY</varname> configuration parameter
 	can now be set at boot time and runtime via the
 	<varname>kern.cam.scsi_delay</varname> tunable/sysctl.</para>
+
+      <para>The trm driver has been added to support SCSI adapters
+        using the Tekram TRM-S1040 SCSI chipset.</para>
 
       <para arch="i386" role="historic">The &man.twe.4; 3ware ATA RAID driver has
 	added. &merged;</para>
@@ -2179,6 +2185,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       selectable via the <option>-d</option> flag.</para>
 
     <para>&man.burncd.8; now has the ability to write VCDs/SVCDs.</para>
+
+    <para>&man.bzgrep.1;, &man.bzegrep.1;, and &man.bzfgrep.1;
+      have been added to perform &man.grep.1;-type operations on
+      &man.bzip2.1;-compressed files.</para>
 
     <para role="historic">&man.c89.1; has been converted from a shell script to a
       binary executable, fixing some minor bugs. &merged;</para>
@@ -3639,9 +3649,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<envar>GCC_OPTIONS</envar>, which can hold a set of default
 	options for <application>GCC</application>. &merged;</para>
 
-      <para><application>gdb</application> has been updated to a
-	snapshot of <application>gdb</application> 5.2 from 27 June
-	2002.</para>
+      <para><application>gdb</application> has been updated to version
+	5.2.1.</para>
 
       <para role="historic"><application>GNATS</application> has been updated to
 	3.113. &merged;</para>
@@ -3810,7 +3819,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>CVS</title>
 
 	<para><application>cvs</application> has been updated to
-	  1.11.2.</para>
+	  1.11.2. &merged;</para>
 
 	<para role="historic">The default value for &man.cvs.1;'s
 	  <envar>CVS_RSH</envar> variable is now
