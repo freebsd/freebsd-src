@@ -791,7 +791,7 @@ fwdev_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 
 	for (i = 0; i < NDEVTYPE; i++)
-		if (dev_stdclone(name, &subp, devnames[i], &unit) != 1)
+		if (dev_stdclone(name, &subp, devnames[i], &unit) == 2)
 			goto found;
 	/* not match */
 	return;
