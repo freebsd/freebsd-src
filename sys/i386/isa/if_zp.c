@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.26.2.2 1996/12/21 20:03:36 nate Exp $
+ *	$Id: if_zp.c,v 1.26.2.3 1996/12/23 01:28:54 jkh Exp $
  */
 /*-
  * TODO:
@@ -101,10 +101,10 @@
  */
 
 /* XXX - Don't mix different PCCARD support code */
-#include "pcic.h"
 #include "crd.h"
+#include "pcic.h"
 #if NCRD > 0 || NPCIC > 0
-#error "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed"
+#error "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed."
 #endif
 
 #include "zp.h"
