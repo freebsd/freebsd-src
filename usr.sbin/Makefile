@@ -50,15 +50,9 @@ SUBDIR=	IPXrouted \
 	mrouted \
 	mtest \
 	mtree \
-	named \
-	named.reload \
-	named.restart \
-	ndc \
 	newsyslog \
 	ngctl \
 	nghook \
-	nslookup \
-	nsupdate \
 	pccard \
 	pciconf \
 	periodic \
@@ -114,6 +108,15 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
+
+.if !defined(NO_BIND) && 0
+SUBDIR+=named \
+	named.reload \
+	named.restart \
+	ndc \
+	nslookup \
+	nsupdate
+.endif
 
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mailstats \
