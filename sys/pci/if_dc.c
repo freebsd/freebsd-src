@@ -43,7 +43,7 @@
  * ASIX Electronics AX88141 (www.asix.com.tw)
  * ADMtek AL981 (www.admtek.com.tw)
  * ADMtek AN985 (www.admtek.com.tw)
- * Davicom DM9100, DM9102 (www.davicom8.com)
+ * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -160,6 +160,8 @@ static struct dc_type dc_devs[] = {
 		"Davicom DM9100 10/100BaseTX" },
 	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102,
 		"Davicom DM9102 10/100BaseTX" },
+	{ DC_VENDORID_DAVICOM, DC_DEVICEID_DM9102,
+		"Davicom DM9102A 10/100BaseTX" },
 	{ DC_VENDORID_ADMTEK, DC_DEVICEID_AL981,
 		"ADMtek AL981 10/100BaseTX" },
 	{ DC_VENDORID_ADMTEK, DC_DEVICEID_AN985,
@@ -1168,7 +1170,8 @@ static void dc_setcfg(sc, media)
 			if (sc->dc_type == DC_TYPE_98713)
 				DC_SETBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
 				    DC_NETCFG_SCRAMBLER));
-			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+			if (!DC_IS_DAVICOM(sc))
+				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
 		} else {
 			if (DC_IS_PNIC(sc)) {
@@ -1190,7 +1193,8 @@ static void dc_setcfg(sc, media)
 			    DC_NETCFG_PORTSEL|DC_NETCFG_SCRAMBLER));
 			if (sc->dc_type == DC_TYPE_98713)
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
-			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+			if (!DC_IS_DAVICOM(sc))
+				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
 		} else {
 			if (DC_IS_PNIC(sc)) {
@@ -1288,6 +1292,9 @@ static struct dc_type *dc_devtype(dev)
 				t++;
 			if (t->dc_did == DC_DEVICEID_82C168 &&
 			    rev >= DC_REVISION_82C169)
+				t++;
+			if (t->dc_did == DC_DEVICEID_DM9102 &&
+			    rev >= DC_REVISION_DM9102A)
 				t++;
 			return(t);
 		}
@@ -1510,7 +1517,11 @@ static int dc_attach(dev)
 	}
 
 	/* Save the cache line size. */
-	sc->dc_cachesize = pci_read_config(dev, DC_PCI_CFLT, 4) & 0xFF;
+	if (DC_IS_DAVICOM(sc))
+		sc->dc_cachesize = 0;
+	else
+		sc->dc_cachesize = pci_read_config(dev,
+		    DC_PCI_CFLT, 4) & 0xFF;
 
 	/* Reset the adapter. */
 	dc_reset(sc);
@@ -2493,7 +2504,7 @@ static void dc_init(xsc)
 	/*
 	 * Set cache alignment and burst length.
 	 */
-	if (DC_IS_ASIX(sc))
+	if (DC_IS_ASIX(sc) || DC_IS_DAVICOM(sc))
 		CSR_WRITE_4(sc, DC_BUSCTL, 0);
 	else
 		CSR_WRITE_4(sc, DC_BUSCTL, DC_BUSCTL_MRME|DC_BUSCTL_MRLE);
