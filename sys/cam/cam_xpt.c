@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.37 1999/01/19 00:13:05 peter Exp $
+ *      $Id: cam_xpt.c,v 1.38 1999/01/19 01:02:47 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -236,6 +236,7 @@ struct xpt_softc {
 static const char quantum[] = "QUANTUM";
 static const char sony[] = "SONY";
 static const char west_digital[] = "WDIGTL";
+static const char samsung[] = "SAMSUNG";
 
 static struct xpt_quirk_entry xpt_quirk_table[] = 
 {
@@ -304,6 +305,16 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CFP*", "*" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
+	{
+		/*
+		 * Broken tagged queuing drive.
+		 * Submitted by:
+		 * NAKAJI Hiroyuki <nakaji@zeisei.dpri.kyoto-u.ac.jp>
+		 * in PR kern/9535
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, samsung, "WN34324U*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+	},
         {
 		/*
 		 * Slow when tagged queueing is enabled. (1.5MB/sec versus
@@ -328,7 +339,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		 * so we need to limit maxtags to what the device
 		 * can handle instead of determining this automatically.
 		 */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "WN321010S*", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, samsung, "WN321010S*", "*" },
 		/*quirks*/0, /*mintags*/2, /*maxtags*/32
 	},
 	{
