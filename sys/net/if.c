@@ -1056,6 +1056,7 @@ ifconf(cmd, data)
 		    "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifr.ifr_name) {
 			error = ENAMETOOLONG;
+			break;
 		} else {
 			strcpy(ifr.ifr_name, workbuf);
 		}
@@ -1085,6 +1086,8 @@ ifconf(cmd, data)
 						sizeof (ifr));
 				ifrp++;
 			} else {
+				if (space < sa->sa_len - sizeof(*sa))
+					break;
 				space -= sa->sa_len - sizeof(*sa);
 				if (space < sizeof (ifr))
 					break;
@@ -1100,15 +1103,20 @@ ifconf(cmd, data)
 				break;
 			space -= sizeof (ifr);
 		}
+		if (error)
+			break;
 		if (!addrs) {
 			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
 			error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
 			    sizeof (ifr));
 			if (error)
 				break;
-			space -= sizeof (ifr), ifrp++;
+			space -= sizeof (ifr);
+			ifrp++;
 		}
 	}
+	if (space < 0)
+		panic("ifconf: space < 0");
 	ifc->ifc_len -= space;
 	return (error);
 }
