@@ -313,7 +313,7 @@ this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
 # Call the build procedure
 # Install image
 do_install() {
-    dialog --title "Build ${TYPE} completed" --inputbox \
+    dialog --title "Build ${THETYPE} completed" --inputbox \
 "\nThe build process was completed successfuly.\n\
 `cat .build.reply` \n\n\
 Now we are going to install the image on the floppy.\n\
@@ -345,7 +345,8 @@ init_stage1() {
 	. ${MY_TREE}/config
     fi
 
-    PICO_OBJ=${OBJ}/picobsd/${TYPE}
+    PICO_OBJ=${OBJ}/picobsd/${THETYPE}
+    log "PICO_OBJ is ${PICO_OBJ}"
 
     if [ ! -d ${BUILDDIR} ]; then
 	log "Creating builddir"
@@ -387,7 +388,7 @@ do_kernel() {		# OK
 populate_floppy_fs() {		# OK
 
     dst=${BUILDDIR}/floppy.tree
-    log "---> Populating floppy filesystem..."
+    log "---> pwd=`pwd` Populating floppy filesystem..."
 
     # clean relics from old compilations. This is the destination.
     rm -rf $dst || true
@@ -462,8 +463,8 @@ create_mfs() {		# OK
 # Finally, if required, make a copy of the floppy.tree onto /fd
 
 populate_mfs() {
-    log "---> Populating MFS tree..."
-    cd ../${TYPE}
+    log "---> pwd=`pwd`, Populating MFS tree..."
+    # cd ${THETYPE}
 
     log "---> Running mtree ..."
     if [ -f ${MY_TREE}/mfs.mtree ] ; then
