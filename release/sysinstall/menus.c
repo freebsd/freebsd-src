@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180.2.27 1999/07/07 09:53:25 jkh Exp $
+ * $Id: menus.c,v 1.180.2.28 1999/07/19 11:49:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1527,6 +1527,8 @@ DMenu MenuSysconsFont = {
 	"font8x8=iso-8x8,font8x14=iso-8x14,font8x16=iso-8x16" },
       { "KOI8-R", "Russian, KOI8-R encoding",	dmenuVarCheck,	dmenuSetVariables, NULL,
 	"font8x8=koi8-r-8x8,font8x14=koi8-r-8x14,font8x16=koi8-r-8x16" },
+      { "SWISS", "English, better resolution",	dmenuVarCheck,	dmenuSetVariables, NULL,
+	"font8x8=swiss-8x8,font8x14=NO,font8x16=swiss-8x16" },
       { NULL } },
 };
 
