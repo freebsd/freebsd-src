@@ -18,40 +18,8 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id$
+	$Id: ypxfr.c,v 1.1 1995/01/31 09:28:47 wpaul Exp $
 */
-
-/*
- *	$Author: root $
- *	$Log: ypxfr.c,v $
- * Revision 2.0  1994/01/06  16:58:08  root
- * Version 2.0
- *
- * Revision 0.20  1994/01/02  21:59:08  root
- * Strict prototypes
- *
- * Revision 0.19  1994/01/02  20:10:08  root
- * Added GPL notice
- *
- * Revision 0.18  1994/01/02  18:00:38  root
- * New arguments for -C flag.
- *
- * Revision 0.17  1993/12/30  22:21:49  root
- * Switch to GDBM
- *
- * Revision 0.16  1993/12/27  23:43:26  root
- * Use dbm directly instead of makedbm
- *
- * Revision 0.15  1993/12/27  21:21:00  root
- * This host should be the default master
- *
- * Revision 0.14  1993/12/19  12:41:55  root
- * *** empty log message ***
- *
- * Revision 0.13  1993/06/12  10:49:35  root
- * Align with include-4.4
- *
- */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +34,10 @@
 #include <sys/stat.h>
 
 DB *db;
+
+#ifndef _PATH_YP
+#define _PATH_YP "/var/yp"
+#endif
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
 HASHINFO openinfo = {
@@ -108,7 +80,7 @@ extern char *optarg;
 static char *SourceHost=NULL, *TargetDomain=NULL, *SourceDomain=NULL;
 static struct in_addr IpAddress;
 static int Force=0, NoClear=0, TaskId=0, ProgramNumber=0,
-	PortNumber=0, Secure=0;
+	PortNumber=0;
 
 static char *
 ypxfr_err_string(enum ypxfrstat y) {
@@ -283,9 +255,24 @@ ypxfr(char *mapName) {
 	return y==0?YPXFR_SUCC:YPXFR_YPERR;
 }
 
+void usage(progname)
+char *progname;
+{
+	fprintf(stderr, "usage: %s [-f] [-c] [-d target domain] \
+[-h source host]\n	[-s source domain] \
+[-C taskid program-number ipaddr port] mapname\n", progname);
+}
+
 void
 main (int argc, char **argv)
 {
+
+	if (argc < 2)
+	{
+		usage(argv[0]);
+		exit(1);
+	}
+
 	while(1) {
 		int c=getopt(argc, argv, "fcd:h:s:C:S");
 		if (c==EOF) break;
@@ -311,9 +298,9 @@ main (int argc, char **argv)
 			IpAddress.s_addr=inet_addr(argv[optind++]);
 			PortNumber=atoi(argv[optind++]);
 			break;
-		case 'S':
-			Secure++;
-			break;
+		default:
+			usage(argv[0]);
+			exit(1);
 		}
 	}
 	argc-=optind;
