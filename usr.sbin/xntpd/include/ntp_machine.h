@@ -84,6 +84,7 @@ INFO ON NEW KERNEL PLL SYS CALLS
   NTP_SYSCALLS_STD  - use the "normal" ones
   NTP_SYSCALL_GET   - SYS_ntp_gettime id
   NTP_SYSCALL_ADJ   - SYS_ntp_adjtime id
+  NTP_SYSCALLS_LIBC - ntp_adjtime() and ntp_gettime() are in libc.
 
 HOW TO GET IP INTERFACE INFORMATION
 
@@ -393,6 +394,11 @@ in this file.
 #ifndef STR_SYSTEM
 #define STR_SYSTEM "UNIX/*BSD"
 #endif
+#endif
+#ifdef SYS_FREEBSD
+#define HAVE_TERMIOS
+#define HAVE_UNAME
+#define NTP_SYSCALLS_LIBC
 #endif
 
 /*
