@@ -37,17 +37,18 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
 #include <sys/vmmeter.h>
-#include <sys/ktr.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -196,6 +197,98 @@ propagate_priority(struct thread *td)
 	}
 }
 
+#ifdef MUTEX_PROFILING
+SYSCTL_NODE(_debug, OID_AUTO, mutex, CTLFLAG_RD, NULL, "mutex debugging");
+SYSCTL_NODE(_debug_mutex, OID_AUTO, prof, CTLFLAG_RD, NULL, "mutex profiling");
+static int mutex_prof_enable = 0;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, enable, CTLFLAG_RW,
+    &mutex_prof_enable, 0, "Enable tracing of mutex holdtime");
+
+struct mutex_prof {
+	const char *name;
+	const char *file;
+	int line;
+#define MPROF_MAX 0
+#define MPROF_TOT 1
+#define MPROF_CNT 2
+#define MPROF_AVG 3
+	u_int64_t cycles[4];
+};
+
+/*
+ * mprof_buf is a static pool of profiling records to avoid possible
+ * reentrance of the memory allocation functions.
+ *
+ * Note: NUM_MPROF_BUFFERS must be smaller than MPROF_HASH_SIZE.
+ */
+#define NUM_MPROF_BUFFERS 4096
+static struct mutex_prof mprof_buf[NUM_MPROF_BUFFERS];
+static int first_free_mprof_buf;
+#define MPROF_HASH_SIZE 32771
+static struct mutex_prof *mprof_hash[MPROF_HASH_SIZE];
+
+static int mutex_prof_acquisitions;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, acquisitions, CTLFLAG_RD,
+    &mutex_prof_acquisitions, 0, "Number of mutex acquistions recorded");
+static int mutex_prof_records;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, records, CTLFLAG_RD,
+    &mutex_prof_records, 0, "Number of profiling records");
+static int mutex_prof_maxrecords = NUM_MPROF_BUFFERS;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, maxrecords, CTLFLAG_RD,
+    &mutex_prof_maxrecords, 0, "Maximum number of profiling records");
+static int mutex_prof_rejected;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, rejected, CTLFLAG_RD,
+    &mutex_prof_rejected, 0, "Number of rejected profiling records");
+static int mutex_prof_hashsize = MPROF_HASH_SIZE;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, hashsize, CTLFLAG_RD,
+    &mutex_prof_hashsize, 0, "Hash size");
+static int mutex_prof_collisions = 0;
+SYSCTL_INT(_debug_mutex_prof, OID_AUTO, collisions, CTLFLAG_RD,
+    &mutex_prof_collisions, 0, "Number of hash collisions");
+
+/*
+ * mprof_mtx protects the profiling buffers and the hash.
+ */
+static struct mtx mprof_mtx;
+
+static void
+mprof_init(void *arg __unused)
+{
+	mtx_init(&mprof_mtx, "mutex profiling lock", MTX_SPIN | MTX_QUIET);
+}
+SYSINIT(mprofinit, SI_SUB_LOCK, SI_ORDER_ANY, mprof_init, NULL);
+
+static int
+dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *sb;
+	int error, i;
+
+	if (first_free_mprof_buf == 0)
+		return SYSCTL_OUT(req, "No locking recorded",
+		    sizeof("No locking recorded"));
+
+	sb = sbuf_new(NULL, NULL, 1024, SBUF_AUTOEXTEND);
+	sbuf_printf(sb, "%12s %12s %12s %12s %s\n",
+	    "max", "total", "count", "average", "name");
+	mtx_lock_spin(&mprof_mtx);
+	for (i = 0; i < first_free_mprof_buf; ++i)
+		sbuf_printf(sb, "%12llu %12llu %12llu %12llu %s:%d (%s)\n",
+		    mprof_buf[i].cycles[MPROF_MAX],
+		    mprof_buf[i].cycles[MPROF_TOT],
+		    mprof_buf[i].cycles[MPROF_CNT],
+		    mprof_buf[i].cycles[MPROF_AVG],
+		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
+	mtx_unlock_spin(&mprof_mtx);
+	sbuf_finish(sb);
+	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (error);
+}
+SYSCTL_PROC(_debug_mutex_prof, OID_AUTO, stats, CTLTYPE_STRING|CTLFLAG_RD,
+    NULL, 0, dump_mutex_prof_stats, "A", "Mutex profiling statistics");
+#endif
+
 /*
  * Function versions of the inlined __mtx_* macros.  These are used by
  * modules and can also be called from assembly language if needed.
@@ -209,6 +302,15 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+#ifdef MUTEX_PROFILING
+	/* don't reset the timer when/if recursing */
+	if (m->cycles == 0) {
+		m->file = file;
+		m->line = line;
+		m->cycles = mutex_prof_enable ? get_cyclecount() : 0;
+		++mutex_prof_acquisitions;
+	}
+#endif
 }
 
 void
@@ -217,6 +319,61 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 
 	MPASS(curthread != NULL);
 	mtx_assert(m, MA_OWNED);
+#ifdef MUTEX_PROFILING
+	if (m->cycles != 0) {
+		static const char *unknown = "(unknown)";
+		struct mutex_prof *mpp;
+		u_int64_t cycles, mcycles;
+		const char *p, *q;
+		volatile u_int hash, n;
+
+		cycles = get_cyclecount();
+		mcycles = m->cycles;
+		m->cycles = 0;
+		if (cycles <= mcycles)
+			goto out;
+		for (p = file; strncmp(p, "../", 3) == 0; p += 3)
+			/* nothing */ ;
+		if (p == NULL || *p == '\0')
+			p = unknown;
+		for (hash = line, q = p; *q != '\0'; ++q)
+			hash = (hash * 2 + *q) % MPROF_HASH_SIZE;
+		mtx_lock_spin(&mprof_mtx);
+		n = hash;
+		while ((mpp = mprof_hash[n]) != NULL) {
+			if (mpp->line == line && strcmp(mpp->file, p) == 0)
+				break;
+			n = (n + 1) % MPROF_HASH_SIZE;
+		}
+		if (mpp == NULL) {
+			/* Just exit if we cannot get a trace buffer */
+			if (first_free_mprof_buf >= NUM_MPROF_BUFFERS) {
+				++mutex_prof_rejected;
+				goto unlock;
+			}
+			mpp = &mprof_buf[first_free_mprof_buf++];
+			mpp->name = mtx_name(m);
+			mpp->file = p;
+			mpp->line = line;
+			mutex_prof_collisions += n - hash;
+			++mutex_prof_records;
+			mprof_hash[hash] = mpp;
+		}
+		/*
+		 * Record if the mutex has been held longer now than ever
+		 * before
+		 */
+		if ((cycles - mcycles) > mpp->cycles[MPROF_MAX])
+			mpp->cycles[MPROF_MAX] = cycles - mcycles;
+		mpp->cycles[MPROF_TOT] += cycles - mcycles;
+		mpp->cycles[MPROF_CNT] += 1;
+		mpp->cycles[MPROF_AVG] =
+		    mpp->cycles[MPROF_TOT] / mpp->cycles[MPROF_CNT];
+unlock:
+		mtx_unlock_spin(&mprof_mtx);
+	}
+out:
+#endif
  	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
