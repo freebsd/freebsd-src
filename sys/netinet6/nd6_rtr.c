@@ -574,14 +574,7 @@ defrouter_delreq(dr, dofree)
 		  RTF_GATEWAY, &oldrt);
 	if (oldrt) {
 		nd6_rtmsg(RTM_DELETE, oldrt);
-		if (oldrt->rt_refcnt <= 0) {
-			/*
-			 * XXX: borrowed from the RTM_DELETE case of
-			 * rtrequest().
-			 */
-			oldrt->rt_refcnt++;
-			rtfree(oldrt);
-		}
+		RTFREE(oldrt);
 	}
 
 	if (dofree)		/* XXX: necessary? */
@@ -1583,13 +1576,8 @@ nd6_prefix_offlink(pr)
 		    error));
 	}
 
-	if (rt != NULL) {
-		if (rt->rt_refcnt <= 0) {
-			/* XXX: we should free the entry ourselves. */
-			rt->rt_refcnt++;
-			rtfree(rt);
-		}
-	}
+	if (rt != NULL)
+		RTFREE(rt);
 
 	return(error);
 }

@@ -566,6 +566,8 @@ rtrequest1(req, info, ret_nrt)
 		if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic ("rtrequest delete");
 		rt = (struct rtentry *)rn;
+		rt->rt_refcnt++;
+		rt->rt_flags &= ~RTF_UP;
 
 		/*
 		 * Now search what's left of the subtree for any cloned
@@ -589,15 +591,6 @@ rtrequest1(req, info, ret_nrt)
 		}
 
 		/*
-		 * NB: RTF_UP must be set during the search above,
-		 * because we might delete the last ref, causing
-		 * rt to get freed prematurely.
-		 *  eh? then why not just add a reference?
-		 * I'm not sure how RTF_UP helps matters. (JRE)
-		 */
-		rt->rt_flags &= ~RTF_UP;
-
-		/*
 		 * give the protocol a chance to keep things in sync.
 		 */
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
@@ -616,10 +609,8 @@ rtrequest1(req, info, ret_nrt)
 		 */
 		if (ret_nrt)
 			*ret_nrt = rt;
-		else if (rt->rt_refcnt <= 0) {
-			rt->rt_refcnt++; /* make a 1->0 transition */
-			rtfree(rt);
-		}
+		else
+			RTFREE(rt);
 		break;
 
 	case RTM_RESOLVE:
@@ -1137,10 +1128,7 @@ bad:
 			 * If we are deleting, and we found an entry, then
 			 * it's been removed from the tree.. now throw it away.
 			 */
-			if (rt->rt_refcnt <= 0) {
-				rt->rt_refcnt++; /* make a 1->0 transition */
-				rtfree(rt);
-			}
+			RTFREE(rt);
 		} else if (cmd == RTM_ADD) {
 			/*
 			 * We just wanted to add it.. we don't actually
