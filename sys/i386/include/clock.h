@@ -33,9 +33,7 @@ extern int	apic_8254_intr;
  */
 struct clockframe;
 
-int	acquire_timer0(int rate, void (*function)(struct clockframe *frame));
 int	acquire_timer2(int mode);
-int	release_timer0(void);
 int	release_timer2(void);
 #ifndef PC98
 int	rtcin(int val);
