@@ -105,8 +105,9 @@ struct protosw inetsw[] = {
 },
 { SOCK_DGRAM,	&inetdomain,	IPPROTO_UDP,	PR_ATOMIC|PR_ADDR,
   udp_input,	0,		udp_ctlinput,	ip_ctloutput,
-  udp_usrreq,
-  udp_init
+  0,
+  udp_init,	0,		0,		0,
+  &udp_usrreqs
 },
 { SOCK_STREAM,	&inetdomain,	IPPROTO_TCP,
 	PR_CONNREQUIRED|PR_IMPLOPCL|PR_WANTRCVD,

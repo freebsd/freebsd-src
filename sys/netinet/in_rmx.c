@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: in_rmx.c,v 1.28 1997/02/13 19:46:41 wollman Exp $
  */
 
 /*
@@ -118,23 +118,6 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 #undef satosin
 		}
 	}
-
-	/*
-	 * We also specify a send and receive pipe size for every
-	 * route added, to help TCP a bit.  TCP doesn't actually
-	 * want a true pipe size, which would be prohibitive in memory
-	 * costs and is hard to compute anyway; it simply uses these
-	 * values to size its buffers.  So, we fill them in with the
-	 * same values that TCP would have used anyway, and allow the
-	 * installing program or the link layer to override these values
-	 * as it sees fit.  This will hopefully allow TCP more
-	 * opportunities to save its ssthresh value.
-	 */
-	if (!rt->rt_rmx.rmx_sendpipe && !(rt->rt_rmx.rmx_locks & RTV_SPIPE))
-		rt->rt_rmx.rmx_sendpipe = tcp_sendspace;
-
-	if (!rt->rt_rmx.rmx_recvpipe && !(rt->rt_rmx.rmx_locks & RTV_RPIPE))
-		rt->rt_rmx.rmx_recvpipe = tcp_recvspace;
 
 	if (!rt->rt_rmx.rmx_mtu && !(rt->rt_rmx.rmx_locks & RTV_MTU) 
 	    && rt->rt_ifp)
