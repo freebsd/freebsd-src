@@ -417,6 +417,20 @@ or
 .Xr sticky 8 . )
 .El
 .El
+.Pp
+The next field contains a
+plus
+.Pq Sq Li +
+character if the file has an ACL, or a
+space
+.Pq Sq Li " "
+if it does not.
+The
+.Nm
+utility does not show the actual ACL;
+use
+.Xr getfacl 1
+to do this.
 .Sh EXAMPLES
 The following is how to do an
 .Nm
@@ -618,21 +632,25 @@ The group field is now automatically included in the long listing for
 files in order to be compatible with the
 .St -p1003.2
 specification.
-KLD
-.El
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
+.Xr getfacl 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
 .Xr termcap 5 ,
 .Xr symlink 7 ,
+.Xr getfmac 8 ,
 .Xr sticky 8
 .Sh STANDARDS
 The
 .Nm
 utility conforms to
 .St -p1003.1-2001 .
+.Pp
+.No The ACL support is compatible with IEEE\ Std\ 1003.2c\ ( Ns Dq "POSIX.2c" Ns )
+Draft\ 17
+(withdrawn).
 .Sh HISTORY
 An
 .Nm

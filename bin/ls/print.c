@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/acl.h>
 
 #include <err.h>
 #include <errno.h>
@@ -73,6 +74,7 @@ static void	printsize(size_t, off_t);
 static void	endcolor(int);
 static int	colortype(mode_t);
 #endif
+static void	aclmode(char *, FTSENT *, int *);
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
 
@@ -162,10 +164,14 @@ printlong(DISPLAY *dp)
 #ifdef COLORLS
 	int color_printed = 0;
 #endif
+	int haveacls;
+	dev_t prevdev;
 
 	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
 
+	haveacls = 1;
+	prevdev = (dev_t)-1;
 	for (p = dp->list; p; p = p->fts_link) {
 		if (IS_NOPRINT(p))
 			continue;
@@ -176,6 +182,14 @@ printlong(DISPLAY *dp)
 			(void)printf("%*lld ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
 		strmode(sp->st_mode, buf);
+		/*
+		 * Cache whether or not the filesystem supports ACL's to
+		 * avoid expensive syscalls. Try again when we change devices.
+		 */
+		if (haveacls || sp->st_dev != prevdev) {
+			aclmode(buf, p, &haveacls);
+			prevdev = sp->st_dev;
+		}
 		np = p->fts_pointer;
 		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
@@ -643,4 +657,43 @@ unit_adjust(double *val)
 	}
 
 	return (unit);
+}
+
+static void
+aclmode(char *buf, FTSENT *p, int *haveacls)
+{
+	char name[MAXPATHLEN + 1];
+	int entries, ret;
+	acl_t facl;
+	acl_entry_t ae;
+
+	/*
+	 * Add a + after the standard rwxrwxrwx mode if the file has an
+	 * extended ACL. strmode() reserves space at the end of the string.
+	 */
+	if (p->fts_level == FTS_ROOTLEVEL)
+		snprintf(name, sizeof(name), "%s", p->fts_name);
+	else
+		snprintf(name, sizeof(name), "%s/%s",
+		    p->fts_parent->fts_accpath, p->fts_name);   
+	if ((ret = pathconf(name, _PC_ACL_EXTENDED)) <= 0) {
+		if (ret < 0 && errno != EINVAL)
+			warn("%s", name);
+		else
+			*haveacls = 0;
+		return;
+	}
+	*haveacls = 1;
+	if ((facl = acl_get_file(name, ACL_TYPE_ACCESS)) != NULL) {
+		if (acl_get_entry(facl, ACL_FIRST_ENTRY, &ae) == 1) {
+			entries = 0;
+			do
+				entries++;
+			while (acl_get_entry(facl, ACL_NEXT_ENTRY, &ae) == 1);
+			if (entries != 3)
+				buf[10] = '+';
+		}
+		acl_free(facl);
+	} else
+		warn("%s", name);
 }
