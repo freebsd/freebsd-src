@@ -383,12 +383,19 @@ ctl_readcf(const char *ptrname, const char *cfname)
 
 /*
  * This routine renames the temporary control file as received from some
- * other (remote) host.  That file will always start with 'tfA*', because
- * that's the name it is created with in recvjob.c.  This will rewrite
- * the file to 'tfB*' (correcting any lines which need correcting), rename
- * 'tfB*' to 'cfA*', and then remove the original 'tfA*' file.
+ * other (remote) host.  That file will almost always with `tfA*', because
+ * recvjob.c creates the file by changing `c' to `t' in the original name
+ * for the control file.  Now if you read the RFC, you would think that all
+ * control filenames start with `cfA*'.  However, it seems there are some
+ * implementations which send control filenames which start with `cf'
+ * followed by *any* letter, so this routine can not assume what the third
+ * letter will (or will not) be.  Sigh.
  *
- * The purpose of this routine is to be a little paranoid about the contents
+ * So this will rewrite the temporary file to `rf*' (correcting any lines
+ * which need correcting), rename that `rf*' file to `cf*', and then remove
+ * the original `tf*' temporary file.
+ *
+ * The *main* purpose of this routine is to be paranoid about the contents
  * of that control file.  It is partially meant to protect against people
  * TRYING to cause trouble (perhaps after breaking into root of some host
  * that this host will accept print jobs from).  The fact that we're willing
@@ -410,7 +417,7 @@ ctl_readcf(const char *ptrname, const char *cfname)
 char *
 ctl_renametf(const char *ptrname, const char *tfname)
 {
-	int res, newfd, nogood;
+	int chk3rd, newfd, nogood, res;
 	FILE *newcf;
 	struct cjobinfo *cjinf;
 	char *lbuff, *slash, *cp;
@@ -443,7 +450,8 @@ ctl_renametf(const char *ptrname, const char *tfname)
 	newcf = NULL;		/* in case of early jump to error_ret */
 	*errm = '\0';		/* in case of early jump to error_ret */
 
-	if (strncmp(tfname, "tfA", (size_t)3) != 0) {
+	chk3rd = tfname[2];
+	if ((tfname[0] != 't') || (tfname[1] != 'f') || (!isalpha(chk3rd))) {
 		snprintf(errm, sizeof(errm),
 		    "ctl_renametf invalid filename: %s", tfname);
 		goto error_ret;
@@ -461,7 +469,7 @@ ctl_renametf(const char *ptrname, const char *tfname)
 	 * gives us greater control over file-creation issues.
 	 */
 	strlcpy(tfname2, tfname, sizeof(tfname2));
-	tfname2[2] = 'B';		/* tfB<job><hostname> */
+	tfname2[0] = 'r';		/* rf<letter><job><hostname> */
 	newfd = open(tfname2, O_WRONLY|O_CREAT|O_TRUNC, 0660);
 	if (newfd == -1) {
 		snprintf(errm, sizeof(errm),
