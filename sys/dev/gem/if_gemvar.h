@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: NetBSD: gemvar.h,v 1.5 2001/10/18 15:19:22 thorpej Exp
+ *	from: NetBSD: gemvar.h,v 1.8 2002/05/15 02:36:12 matt Exp
  *
  * $FreeBSD$
  */
@@ -57,6 +57,7 @@
  */
 #define	GEM_NRXDESC		128
 #define	GEM_NRXDESC_MASK	(GEM_NRXDESC - 1)
+#define	GEM_PREVRX(x)		((x - 1) & GEM_NRXDESC_MASK)
 #define	GEM_NEXTRX(x)		((x + 1) & GEM_NRXDESC_MASK)
 
 /*
@@ -153,6 +154,13 @@ struct gem_softc {
 	int		sc_mif_config;	/* Selected MII reg setting */
 
 	int		sc_pci;		/* XXXXX -- PCI buses are LE. */
+	u_int		sc_variant;	/* which GEM are we dealing with? */
+#define	GEM_UNKNOWN		0	/* don't know */
+#define	GEM_SUN_GEM		1	/* Sun GEM variant */
+#define	GEM_APPLE_GMAC		2	/* Apple GMAC variant */
+
+	u_int		sc_flags;	/* */
+#define	GEM_GIGABIT		0x0001	/* has a gigabit PHY */
 
 	/*
 	 * Ring buffer DMA stuff.
@@ -177,16 +185,18 @@ struct gem_softc {
 
 	int		sc_txfree;		/* number of free Tx descriptors */
 	int		sc_txnext;		/* next ready Tx descriptor */
+	int		sc_txwin;		/* Tx descriptors since last Tx int */
 
 	struct gem_txsq	sc_txfreeq;	/* free Tx descsofts */
 	struct gem_txsq	sc_txdirtyq;	/* dirty Tx descsofts */
 
 	int		sc_rxptr;		/* next ready RX descriptor/descsoft */
+	int		sc_rxfifosize;		/* Rx FIFO size (bytes) */
 
 	/* ========== */
 	int		sc_inited;
 	int		sc_debug;
-	int		sc_flags;
+	int		sc_ifflags;
 
 	/* Special hardware hooks */
 	void	(*sc_hwreset)(struct gem_softc *);
