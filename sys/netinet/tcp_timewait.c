@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.39 1997/10/28 15:58:53 bde Exp $
+ *	$Id: tcp_subr.c,v 1.40 1997/12/19 03:36:14 julian Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
