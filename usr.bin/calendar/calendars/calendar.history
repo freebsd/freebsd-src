@@ -1,7 +1,7 @@
 /*
  * History
  *
- * $Id: calendar.history,v 1.6 1997/02/22 19:28:21 peter Exp $
+ * $Id: calendar.history,v 1.7 1997/02/25 01:20:25 mpp Exp $
  */
 
 #ifndef _calendar_history_
@@ -73,7 +73,6 @@
 02/24	Ents destroy Isengard (LOTR)
 02/24	Impeachment proceedings against Andrew Johnson begin, 1868
 02/26	Aragorn takes the Paths of the Dead (LOTR)
-02/27	The Lionheart crowned, 1189
 02/28	The "French Connection" drug bust occurs in Marseilles, 1972
 02/29	French and Indian raid on Deerfield MA, 1704
 03/01	Sarah Goode, Sarah Osborne, and Tituba arrested for witchcraft
@@ -302,6 +301,7 @@
 09/01	Joshua A. Norton proclaims himself 'Emperor Norton I', 1859
 09/02	Great Britain adopts Gregorian Calendar, 1752
 09/02	Japan signs unconditional surrender on US battleship `Missouri', 1945
+09/03	The Lionheart crowned, 1189
 09/03	Anniversary of the Founding of the Republic in San Marino
 09/05	Kennedy orders resumption of underground nuclear tests, 1961
 09/05	The first Continental Congress was convened in Philadelphia, 1774
