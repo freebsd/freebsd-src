@@ -1249,6 +1249,17 @@ isp_fibre_init(struct ispsoftc *isp)
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
 	icbp->icb_hardaddr = loopid;
+	if (icbp->icb_hardaddr >= 125) {
+		/*
+		 * We end up with a Loop ID of 255 for F-Port topologies
+		 */
+		if (icbp->icb_hardaddr != 255) {
+		    isp_prt(isp, ISP_LOGERR,
+			"bad hard address %u- resetting to zero",
+			icbp->icb_hardaddr); 
+		}
+		icbp->icb_hardaddr = 0;
+	}
 	/*
 	 * Right now we just set extended options to prefer point-to-point
 	 * over loop based upon some soft config options.
@@ -1371,7 +1382,13 @@ isp_fibre_init(struct ispsoftc *isp)
 		icbp->icb_fwoptions &= ~(ICBOPT_BOTH_WWNS|ICBOPT_FULL_LOGIN);
 	}
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN(isp);
+	if (icbp->icb_rqstqlen < 1) {
+		isp_prt(isp, ISP_LOGERR, "bad request queue length");
+	}
 	icbp->icb_rsltqlen = RESULT_QUEUE_LEN(isp);
+	if (icbp->icb_rsltqlen < 1) {
+		isp_prt(isp, ISP_LOGERR, "bad result queue length");
+	}
 	icbp->icb_rqstaddr[RQRSP_ADDR0015] = DMA_WD0(isp->isp_rquest_dma);
 	icbp->icb_rqstaddr[RQRSP_ADDR1631] = DMA_WD1(isp->isp_rquest_dma);
 	icbp->icb_rqstaddr[RQRSP_ADDR3247] = DMA_WD2(isp->isp_rquest_dma);
@@ -3859,7 +3876,7 @@ again:
 		}
 
 		/*
-		 * Free any dma resources. As a side effect, this may
+		 * Free any DMA resources. As a side effect, this may
 		 * also do any cache flushing necessary for data coherence.			 */
 		if (XS_XFRLEN(xs)) {
 			ISP_DMAFREE(isp, xs, sp->req_handle);
