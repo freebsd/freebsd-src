@@ -71,6 +71,20 @@ lot of different information fields at once for a package, but don't
 necessary want the output intermingled in such a way that they can't
 organize it.  This lets you add a special token to the start of
 each field.
+.BI "\-t\ " template
+Use
+.I template
+as the input to mktemp(3).  By default, this is the string
+.B /tmp/instmp.XXXXXX
+, but it may be necessary to override it in the situation where
+space in your
+.B /tmp
+directory is limited. Be sure to leave some number of `X' characters
+for mktemp(3) to fill in with a unique ID.
+Note:  This should really not be necessary with pkg_info,
+since very little information is extracted from each package
+and one would have to have a very small /tmp indeed to overflow
+it.
 .PP
 .SH "TECHNICAL DETAILS"
 Package info is either extracted from files supplied on the
