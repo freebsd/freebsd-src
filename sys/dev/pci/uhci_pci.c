@@ -81,9 +81,7 @@ struct cfattach uhci_pci_ca = {
 
 #elif defined(__FreeBSD__)
 
-#define PCI_INTERFACE_MASK	0x0000ff00
-#define PCI_INTERFACE_SHIFT	8
-#define PCI_INTERFACE(d)	(((d)>>8)&PCI_INTERFACE_MASK)
+#define PCI_INTERFACE(d)	(((d)>>8)&0xff)
 #define PCI_SUBCLASS(d)		((d)&PCI_SUBCLASS_MASK)
 #define PCI_CLASS(d)		((d)&PCI_CLASS_MASK)
 
