@@ -101,15 +101,13 @@ static struct nlist namelist[] = {
 #ifdef notyet
 #define	X_DEFICIT	10
 	{ "_deficit" },
-#define	X_FORKSTAT	11
-	{ "_forkstat" },
-#define X_REC		12
+#define X_REC		11
 	{ "_rectime" },
-#define X_PGIN		13
+#define X_PGIN		12
 	{ "_pgintime" },
-#define	X_XSTATS	14
+#define	X_XSTATS	13
 	{ "_xstats" },
-#define X_END		15
+#define X_END		14
 #else
 #define X_END		10
 #endif
@@ -149,6 +147,7 @@ static void	dosysctl(char *);
 static void	domem(void);
 static void	dointr(void);
 static void	dosum(void);
+static void	doforkst(void);
 static void	dovmstat(u_int, int);
 static void	dozmem(void);
 static void	kread(int, void *, size_t);
@@ -181,7 +180,7 @@ main(argc, argv)
 			reps = atoi(optarg);
 			break;
 		case 'f':
-			errx(EX_USAGE, "sorry, -f is not (re)implemented yet");
+			todo |= FORKSTAT;
 			break;
 		case 'i':
 			todo |= INTRSTAT;
@@ -295,10 +294,8 @@ main(argc, argv)
 	} else if (reps)
 		interval = 1;
 
-#ifdef notyet
 	if (todo & FORKSTAT)
 		doforkst();
-#endif
 	if (todo & MEMSTAT)
 		domem();
 	if (todo & ZMEMSTAT)
@@ -652,19 +649,24 @@ dosum()
 	    PCT(lnchstats.ncs_long, nchtotal));
 }
 
-#ifdef notyet
 void
 doforkst()
 {
-	struct forkstat fks;
 
-	kread(X_FORKSTAT, &fks, sizeof(struct forkstat));
+	kread(X_SUM, &sum, sizeof(sum));
 	(void)printf("%d forks, %d pages, average %.2f\n",
-	    fks.cntfork, fks.sizfork, (double)fks.sizfork / fks.cntfork);
+	    sum.v_forks, sum.v_forkpages,
+	    sum.v_forks == 0 ? 0.0 :
+	    (double)sum.v_forkpages / sum.v_forks);
 	(void)printf("%d vforks, %d pages, average %.2f\n",
-	    fks.cntvfork, fks.sizvfork, (double)fks.sizvfork / fks.cntvfork);
+	    sum.v_vforks, sum.v_vforkpages,
+	    sum.v_vforks == 0 ? 0.0 :
+	    (double)sum.v_vforkpages / sum.v_vforks);
+	(void)printf("%d rforks, %d pages, average %.2f\n",
+	    sum.v_rforks, sum.v_rforkpages,
+	    sum.v_rforks == 0 ? 0.0 :
+	    (double)sum.v_rforkpages / sum.v_rforks);
 }
-#endif
 
 static void
 devstats()
