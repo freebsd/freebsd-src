@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.16 1999/08/15 21:59:46 obrien Exp $ */
+/* $Id: freebsd.h,v 1.17 1999/08/15 22:02:47 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -82,6 +82,13 @@ Boston, MA 02111-1307, USA.  */
    believe the bugs will be worked out in EGCS 1.2.  */
 #undef DEFAULT_VTABLE_THUNKS
 #define DEFAULT_VTABLE_THUNKS 1
+
+/* This is BSD, so we want the DBX format.  */
+#define DBX_DEBUGGING_INFO
+
+/* Use stabs instead of DWARF debug format.  */
+#undef PREFERRED_DEBUGGING_TYPE
+#define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
 
 /* Miscellaneous parameters.  */
