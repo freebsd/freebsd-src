@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.169 1995/06/26 07:01:20 asami Exp $
+# $Id: bsd.port.mk,v 1.170 1995/06/26 07:06:59 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -127,6 +127,18 @@
 # NCFTPFLAGS    - Arguments to ${NCFTP} (default: -N).
 #
 #
+# Variables to change if you want a special behavior:
+#
+# ECHO_MSG		- Used to print all the '===>' style prompts - override this
+#				  to turn them off (default: /bin/echo).
+# IS_DEPENDED_TARGET -
+#				  The target to execute when a port is called as a
+#				  dependency (default: install).  E.g., "make fetch
+#				  IS_DEPENDED_TARGET=fetch" will fetch all the distfiles,
+#				  including those of dependencies, without actually building
+#				  any of them).
+#
+# 
 # Default targets and their behaviors:
 #
 # fetch			- Retrieves ${DISTFILES} (and ${PATCHFILES} if defined)
@@ -370,8 +382,12 @@ package:
 all: build
 .endif
 
+.if !defined(IS_DEPENDED_TARGET)
+IS_DEPENDED_TARGET=	install
+.endif
+
 .if !target(is_depended)
-is_depended:	install
+is_depended:	${IS_DEPENDED_TARGET}
 .endif
 
 ################################################################
