@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.19 1993/12/13 13:20:50 davidg Exp $
+ *	$Id: sio.c,v 1.20 1993/12/16 04:38:27 ache Exp $
  */
 
 #include "sio.h"
@@ -1034,6 +1034,16 @@ sioioctl(dev, cmd, data, flag, p)
 
 	iobase = com->iobase;
 	s = spltty();
+
+#ifdef COM_BIDIR
+	/* XXX: plug security hole while stucky bits not yet implemented */
+
+	if (com->bidir && com->active_in && p->p_ucred->cr_uid != 0) {
+		tp->t_cflag |= HUPCL;
+		tp->t_cflag &= ~CLOCAL;
+	}
+#endif
+
 	switch (cmd) {
 	case TIOCSBRK:
 		outb(iobase + com_cfcr, com->cfcr_image |= CFCR_SBREAK);
