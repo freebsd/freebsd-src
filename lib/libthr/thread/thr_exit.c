@@ -122,6 +122,12 @@ _pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
+	/*
+	 * Remove read-write lock list. It is allocated as-needed.
+	 * Therefore, it must be checked for validity before freeing.
+	 */
+	if (curthread->rwlockList != NULL)
+		free(curthread->rwlockList);
 retry:
 	/*
 	 * Proper lock order, to minimize deadlocks, between joining
