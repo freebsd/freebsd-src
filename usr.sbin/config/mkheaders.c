@@ -50,8 +50,8 @@ static const char rcsid[] =
 #include "config.h"
 #include "y.tab.h"
 
-static void do_header __P((char *, char *, int));
-static void do_count __P((char *, char *, int));
+static void do_header __P((char *, int));
+static void do_count __P((char *));
 static char *toheader __P((char *));
 static char *tomacro __P((char *));
 
@@ -61,9 +61,20 @@ headers()
 	register struct file_list *fl;
 	struct device *dp;
 
-	for (fl = ftab; fl != 0; fl = fl->f_next)
-		if (fl->f_needs != 0)
-			do_count(fl->f_needs, fl->f_needs, 1);
+	for (fl = ftab; fl != 0; fl = fl->f_next) {
+		if (fl->f_needs != 0) {
+			for (dp = dtab; dp != 0; dp = dp->d_next) {
+				if (eq(dp->d_name, fl->f_needs)) {
+					if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE)
+						dp->d_type |= DEVDONE;
+					else if ((dp->d_type & TYPEMASK) == DEVICE)
+						dp->d_type |= DEVDONE;
+				}
+			}
+			if (fl->f_flags & NEED_COUNT)
+				do_count(fl->f_needs);
+		}
+	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
 			if (!(dp->d_type & DEVDONE))
@@ -83,27 +94,17 @@ headers()
  * whatever the device is connected to
  */
 static void
-do_count(dev, hname, search)
-	register char *dev, *hname;
-	int search;
+do_count(dev)
+	register char *dev;
 {
 	register struct device *dp;
 	register int count, hicount;
-	char *mp;
 
 	/*
 	 * After this loop, "count" will be the actual number of units,
 	 * and "hicount" will be the highest unit declared.  do_header()
 	 * must use this higher of these values.
 	 */
-	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (eq(dp->d_name, dev)) {
-			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE)
-				dp->d_type |= DEVDONE;
-			else if ((dp->d_type & TYPEMASK) == DEVICE)
-				dp->d_type |= DEVDONE;
-		}
-	}
 	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
 		if (dp->d_unit != -1 && eq(dp->d_name, dev)) {
 			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
@@ -119,25 +120,14 @@ do_count(dev, hname, search)
 			 */
 			if (dp->d_unit + 1 > hicount)
 				hicount = dp->d_unit + 1;
-			if (search) {
-				mp = dp->d_conn;
-				if (mp != 0 && dp->d_connunit < 0)
-					mp = 0;
-				if (mp != 0 && eq(mp, "nexus"))
-					mp = 0;
-				if (mp != 0) {
-					do_count(mp, hname, 0);
-					search = 0;
-				}
-			}
 		}
 	}
-	do_header(dev, hname, count > hicount ? count : hicount);
+	do_header(dev, count > hicount ? count : hicount);
 }
 
 static void
-do_header(dev, hname, count)
-	char *dev, *hname;
+do_header(dev, count)
+	char *dev;
 	int count;
 {
 	char *file, *name, *inw;
@@ -145,7 +135,7 @@ do_header(dev, hname, count)
 	FILE *inf, *outf;
 	int inc, oldcount;
 
-	file = toheader(hname);
+	file = toheader(dev);
 	name = tomacro(dev);
 	inf = fopen(file, "r");
 	oldcount = -1;
