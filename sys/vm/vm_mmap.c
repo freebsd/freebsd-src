@@ -894,26 +894,28 @@ mlock(td, uap)
 	struct mlock_args *uap;
 {
 	struct proc *proc;
-	vm_offset_t addr, end, start;
-	vm_size_t size;
-	int error, npages;
+	vm_offset_t addr, end, last, start;
+	vm_size_t npages, size;
+	int error;
 
 	error = suser(td);
 	if (error)
 		return (error);
 	addr = (vm_offset_t)uap->addr;
 	size = uap->len;
+	last = addr + size;
 	start = trunc_page(addr);
-	end = round_page(addr + size);
-	if (end <= start)
+	end = round_page(last);
+	if (last < addr || end < addr)
 		return (EINVAL);
 	npages = atop(end - start);
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
 	proc = td->td_proc;
 	PROC_LOCK(proc);
-	if (npages + pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map)) >
-	    atop(lim_cur(proc, RLIMIT_MEMLOCK))) {
+	if (ptoa(npages +
+	    pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))) >
+	    lim_cur(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
 	}
@@ -1036,7 +1038,7 @@ munlock(td, uap)
 	struct thread *td;
 	struct munlock_args *uap;
 {
-	vm_offset_t addr, end, start;
+	vm_offset_t addr, end, last, start;
 	vm_size_t size;
 	int error;
 
@@ -1045,9 +1047,10 @@ munlock(td, uap)
 		return (error);
 	addr = (vm_offset_t)uap->addr;
 	size = uap->len;
+	last = addr + size;
 	start = trunc_page(addr);
-	end = round_page(addr + size);
-	if (end <= start)
+	end = round_page(last);
+	if (last < addr || end < addr)
 		return (EINVAL);
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
