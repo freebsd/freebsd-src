@@ -442,7 +442,7 @@ transmit_event(struct dn_pipe *pipe)
 	    /*
 	     * same as ether_input, make eh be a pointer into the mbuf
 	     */
-	    eh = (void *)pkt->dn_m->m_data ;
+	    eh = mtod(pkt->dn_m, struct ether_header *);
 	    m_adj(pkt->dn_m, ETHER_HDR_LEN);
 	    /*
 	     * bdg_forward() wants a pointer to the pseudo-mbuf-header, but
@@ -627,7 +627,6 @@ ready_event_wfq(struct dn_pipe *p)
 	if (blh->elements > 0)
 	    p->V = MAX64 ( p->V, blh->p[0].key );
 	/* move from not_eligible_heap to scheduler_heap */
-	neh = &(p->not_eligible_heap) ;
 	while (neh->elements > 0 && DN_KEY_LEQ(neh->p[0].key, p->V) ) {
 	    struct dn_flow_queue *q = neh->p[0].object ;
 	    heap_extract(neh, NULL);
@@ -655,7 +654,6 @@ ready_event_wfq(struct dn_pipe *p)
 	p->V = 0 ;
 	p->idle_heap.elements = 0 ;
     }
-
     /*
      * If we are getting clocks from dummynet (not a real interface) and
      * If we are under credit, schedule the next ready event.
@@ -1674,7 +1672,7 @@ delete_pipe(struct dn_pipe *p)
 	pipe_remove_from_heap(&wfq_ready_heap, b);
 	splx(s);
 	free(b, M_IPFW);
-    } else { /* this is a dummynet queue (dn_flow_set) */
+    } else { /* this is a WF2Q queue (dn_flow_set) */
 	struct dn_flow_set *a, *b;
 
 	/* locate set */
