@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.23 1995/11/06 12:49:27 jkh Exp $
+ * $Id: package.c,v 1.24 1995/11/10 06:49:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,13 +97,31 @@ package_extract(Device *dev, char *name)
 	if ((where = make_playpen(pen, 0)) != NULL) {
 	    if (mediaExtractDist(pen, fd)) {
 		if (file_readable("+CONTENTS")) {
-		    if (mediaDevice->type == DEVICE_TYPE_FTP && variable_get(VAR_FTP_PATH)) {
-			char ftppath[512];
+		    /* Set some hints for pkg_add so that it knows how we got here in case of any depends */
+		    switch (mediaDevice->type) {
+		    case DEVICE_TYPE_FTP:
+			if (variable_get(VAR_FTP_PATH)) {
+			    char ftppath[512];
+			    
+			    /* Special case to leave hint for pkg_add that this is an FTP install */
+			    sprintf(ftppath, "%spackages/All/", variable_get(VAR_FTP_PATH));
+			    variable_set2("PKG_ADD_BASE", ftppath);
+			}
+			break;
 
-			/* Special case to leave hint for pkg_add that this is an FTP install */
-			sprintf(ftppath, "%spackages/All/", variable_get(VAR_FTP_PATH));
-			variable_set2("PKG_ADD_BASE", ftppath);
+		    case DEVICE_TYPE_DOS:
+			variable_set2("PKG_PATH", "/dos/freebsd/packages/All:/dos/packages/All");
+			break;
+
+		    case DEVICE_TYPE_CDROM:
+			variable_set2("PKG_PATH", "/cdrom/packages/All:/cdrom/usr/ports/packages/All");
+			break;
+
+		    default:
+			variable_set2("PKG_PATH", "/dist/packages/All:/dist/freebsd/packages/All");
+			break;
 		    }
+
 		    if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
 				!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
 			dialog_clear();
