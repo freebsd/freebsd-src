@@ -33,22 +33,22 @@
  * Interface information structure.
  */
 struct u_businfo {
-    int	ub_version;		/* interface version */
+	int	ub_version;		/* interface version */
 #define BUS_USER_VERSION	1
-    int	ub_generation;		/* generation count */
+	int	ub_generation;		/* generation count */
 };
 
 /*
  * Device information exported to userspace.
  */
 struct u_device {
-    uintptr_t	dv_handle;
-    uintptr_t	dv_parent;
+	uintptr_t	dv_handle;
+	uintptr_t	dv_parent;
 
-    char	dv_name[32];
-    char	dv_desc[32];
-    char	dv_drivername[32];
-    /* XXX more driver info? */
+	char	dv_name[32];
+	char	dv_desc[32];
+	char	dv_drivername[32];
+	/* XXX more driver info? */
 };
 
 #ifdef _KERNEL
@@ -82,30 +82,30 @@ typedef void driver_intr_t(void*);
  * change their type to reflect what sort of devices are underneath.
  */
 enum intr_type {
-    INTR_TYPE_TTY = 1,
-    INTR_TYPE_BIO = 2,
-    INTR_TYPE_NET = 4,
-    INTR_TYPE_CAM = 8,
-    INTR_TYPE_MISC = 16,
-    INTR_TYPE_CLK = 32,
-    INTR_FAST = 128,
-    INTR_EXCL =	256,			/* exclusive interrupt */
-    INTR_MPSAFE = 512,			/* this interrupt is SMP safe */
-    INTR_ENTROPY = 1024			/* this interrupt provides entropy */
+	INTR_TYPE_TTY = 1,
+	INTR_TYPE_BIO = 2,
+	INTR_TYPE_NET = 4,
+	INTR_TYPE_CAM = 8,
+	INTR_TYPE_MISC = 16,
+	INTR_TYPE_CLK = 32,
+	INTR_FAST = 128,
+	INTR_EXCL = 256,		/* exclusive interrupt */
+	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
+	INTR_ENTROPY = 1024		/* this interrupt provides entropy */
 };
 
 typedef int (*devop_t)(void);
 
 struct driver {
-    KOBJ_CLASS_FIELDS;
-    void		*priv;		/* driver private data */
+	KOBJ_CLASS_FIELDS;
+	void	*priv;			/* driver private data */
 };
 
 typedef enum device_state {
-    DS_NOTPRESENT,			/* not probed or probe failed */
-    DS_ALIVE,				/* probe succeeded */
-    DS_ATTACHED,			/* attach method called */
-    DS_BUSY				/* device is open */
+	DS_NOTPRESENT,			/* not probed or probe failed */
+	DS_ALIVE,			/* probe succeeded */
+	DS_ATTACHED,			/* attach method called */
+	DS_BUSY				/* device is open */
 } device_state_t;
 
 /*
@@ -115,13 +115,13 @@ typedef enum device_state {
 struct	resource;
 
 struct resource_list_entry {
-    SLIST_ENTRY(resource_list_entry) link;
-    int			type;		/* type argument to alloc_resource */
-    int			rid;		/* resource identifier */
-    struct resource	*res;		/* the real resource when allocated */
-    u_long		start;		/* start of resource range */
-    u_long		end;		/* end of resource range */
-    u_long		count;		/* count within range */
+	SLIST_ENTRY(resource_list_entry) link;
+	int	type;			/* type argument to alloc_resource */
+	int	rid;			/* resource identifier */
+	struct	resource *res;		/* the real resource when allocated */
+	u_long	start;			/* start of resource range */
+	u_long	end;			/* end of resource range */
+	u_long	count;			/* count within range */
 };
 SLIST_HEAD(resource_list, resource_list_entry);
 
@@ -192,9 +192,8 @@ void	root_bus_configure(void);
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
 struct resource *
-	bus_generic_alloc_resource(device_t bus, device_t child,
-				   int type, int *rid,
-				   u_long start, u_long end,
+	bus_generic_alloc_resource(device_t bus, device_t child, int type,
+				   int *rid, u_long start, u_long end,
 				   u_long count, u_int flags);
 int	bus_generic_attach(device_t dev);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
@@ -284,7 +283,7 @@ const	char *device_get_nameunit(device_t dev);
 void	*device_get_softc(device_t dev);
 device_state_t	device_get_state(device_t dev);
 int	device_get_unit(device_t dev);
-int	device_is_alive(device_t dev); /* did probe succeed? */
+int	device_is_alive(device_t dev);	/* did probe succeed? */
 int	device_is_enabled(device_t dev);
 int	device_is_quiet(device_t dev);
 int	device_print_prettyname(device_t dev);
@@ -342,13 +341,13 @@ int	resource_count(void);
  * Functions for maintaining and checking consistency of
  * bus information exported to userspace.
  */
-extern int	bus_data_generation_check(int generation);
-extern void	bus_data_generation_update(void);
+int	bus_data_generation_check(int generation);
+void	bus_data_generation_update(void);
 
 /*
  * Shorthand for constructing method tables.
  */
-#define DEVMETHOD	KOBJMETHOD
+#define	DEVMETHOD	KOBJMETHOD
 
 /*
  * Some common device interfaces.
@@ -372,7 +371,7 @@ struct driver_module_data {
 	devclass_t	*dmd_devclass;
 };
 
-#define DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
+#define	DRIVER_MODULE(name, busname, driver, devclass, evh, arg)	\
 									\
 static driver_t *name##_##busname##_driver_list[] = { &driver };	\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
@@ -392,7 +391,7 @@ static moduledata_t name##_##busname##_mod = {				\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
-#define MULTI_DRIVER_MODULE(name, busname, drivers, devclass, evh, arg) \
+#define	MULTI_DRIVER_MODULE(name, busname, drivers, devclass, evh, arg) \
 									\
 static driver_t name##_##busname##_driver_list[] = drivers;		\
 static struct driver_module_data name##_##busname##_driver_mod = {	\
