@@ -1126,7 +1126,7 @@ free_cache(struct name_cache *cache)
 
 	if (cache != NULL) {
 		for(i = 0; i < cache->size; i++) {
-			if (cache->cache[i].name != NULL  &&
+			if (cache->cache[i].name != NULL &&
 			    cache->cache[i].name != NO_NAME)
 				free((void *)(uintptr_t)cache->cache[i].name);
 		}
@@ -1249,7 +1249,7 @@ new_enough(struct bsdtar *bsdtar, const char *path,
 	if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
 		path += 2;
 
-	if (bsdtar->archive_dir == NULL  ||
+	if (bsdtar->archive_dir == NULL ||
 	    bsdtar->archive_dir->head == NULL)
 		return (1);
 
