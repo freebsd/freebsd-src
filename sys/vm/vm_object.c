@@ -1529,8 +1529,8 @@ vm_object_collapse(vm_object_t object)
 			/*
 			 * Move the pager from backing_object to object.
 			 */
+			VM_OBJECT_LOCK(backing_object);
 			if (backing_object->type == OBJT_SWAP) {
-				VM_OBJECT_LOCK(backing_object);
 				vm_object_pip_add(backing_object, 1);
 				VM_OBJECT_UNLOCK(backing_object);
 				/*
@@ -1554,7 +1554,6 @@ vm_object_collapse(vm_object_t object)
 
 				VM_OBJECT_LOCK(backing_object);
 				vm_object_pip_wakeup(backing_object);
-				VM_OBJECT_UNLOCK(backing_object);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
@@ -1570,6 +1569,7 @@ vm_object_collapse(vm_object_t object)
 			backing_object->shadow_count--;
 			backing_object->generation++;
 			if (backing_object->backing_object) {
+				VM_OBJECT_LOCK(backing_object->backing_object);
 				TAILQ_REMOVE(
 				    &backing_object->backing_object->shadow_head,
 				    backing_object, 
@@ -1577,9 +1577,11 @@ vm_object_collapse(vm_object_t object)
 				);
 				backing_object->backing_object->shadow_count--;
 				backing_object->backing_object->generation++;
+				VM_OBJECT_UNLOCK(backing_object->backing_object);
 			}
 			object->backing_object = backing_object->backing_object;
 			if (object->backing_object) {
+				VM_OBJECT_LOCK(object->backing_object);
 				TAILQ_INSERT_TAIL(
 				    &object->backing_object->shadow_head,
 				    object, 
@@ -1587,6 +1589,7 @@ vm_object_collapse(vm_object_t object)
 				);
 				object->backing_object->shadow_count++;
 				object->backing_object->generation++;
+				VM_OBJECT_UNLOCK(object->backing_object);
 			}
 
 			object->backing_object_offset +=
@@ -1601,6 +1604,7 @@ vm_object_collapse(vm_object_t object)
 			 */
 			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
 			KASSERT(TAILQ_FIRST(&backing_object->memq) == NULL, ("backing_object %p somehow has left over pages during collapse!", backing_object));
+			VM_OBJECT_UNLOCK(backing_object);
 
 			mtx_lock(&vm_object_list_mtx);
 			TAILQ_REMOVE(
@@ -1629,6 +1633,7 @@ vm_object_collapse(vm_object_t object)
 			 * chain.  Deallocating backing_object will not remove
 			 * it, since its reference count is at least 2.
 			 */
+			VM_OBJECT_LOCK(backing_object);
 			TAILQ_REMOVE(
 			    &backing_object->shadow_head,
 			    object,
@@ -1636,10 +1641,12 @@ vm_object_collapse(vm_object_t object)
 			);
 			backing_object->shadow_count--;
 			backing_object->generation++;
+			VM_OBJECT_UNLOCK(backing_object);
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
 				vm_object_reference(new_backing_object);
+				VM_OBJECT_LOCK(new_backing_object);
 				TAILQ_INSERT_TAIL(
 				    &new_backing_object->shadow_head,
 				    object,
@@ -1647,6 +1654,7 @@ vm_object_collapse(vm_object_t object)
 				);
 				new_backing_object->shadow_count++;
 				new_backing_object->generation++;
+				VM_OBJECT_UNLOCK(new_backing_object);
 				object->backing_object_offset +=
 					backing_object->backing_object_offset;
 			}
