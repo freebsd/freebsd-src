@@ -128,7 +128,7 @@ static const struct ng_cmdlist ng_tee_cmds[] = {
 
 /* Netgraph type descriptor */
 static struct ng_type ng_tee_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_TEE_NODE_TYPE,
 	NULL,
 	ngt_constructor,

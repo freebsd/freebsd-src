@@ -172,7 +172,7 @@ struct ng_cmdlist {
  */
 struct ng_type {
 
-	u_int32_t	version; 	/* must equal NG_VERSION */
+	u_int32_t	version; 	/* must equal NG_API_VERSION */
 	const char	*name;		/* Unique type name */
 	modeventhand_t	mod_event;	/* Module event handler (optional) */
 	ng_constructor_t *constructor;	/* Node constructor */
@@ -190,6 +190,13 @@ struct ng_type {
 	LIST_ENTRY(ng_type) types;		/* linked list of all types */
 	int		    refs;		/* number of instances */
 };
+
+/*
+ * This defines the in-kernel binary interface version.
+ * It is possible to change this but leave the external message
+ * API the same. Each type also has it's own cookies for versioning as well.
+ */
+#define NG_ABI_VERSION	5
 
 /* Send data packet with meta-data */
 #define NG_SEND_DATA(err, hook, m, meta)				\

@@ -203,7 +203,7 @@ static const struct ng_cmdlist ng_ing_cmdlist[] = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_ING_NODE_TYPE,
 	NULL,
 	ng_ing_constructor,

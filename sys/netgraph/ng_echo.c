@@ -61,7 +61,7 @@ static ng_disconnect_t	nge_disconnect;
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_ECHO_NODE_TYPE,
 	NULL,
 	NULL,

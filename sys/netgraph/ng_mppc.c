@@ -143,7 +143,7 @@ static void	ng_mppc_reset_req(node_p node);
 
 /* Node type descriptor */
 static struct ng_type ng_mppc_typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_MPPC_NODE_TYPE,
 	NULL,
 	ng_mppc_constructor,
