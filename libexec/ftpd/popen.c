@@ -84,7 +84,7 @@ ftpd_popen(char *program, char *type)
 	if (!pids) {
 		if ((fds = getdtablesize()) <= 0)
 			return (NULL);
-		if ((pids = (int *)malloc((u_int)(fds * sizeof(int)))) == NULL)
+		if ((pids = malloc(fds * sizeof(int))) == NULL)
 			return (NULL);
 		memset(pids, 0, fds * sizeof(int));
 	}
