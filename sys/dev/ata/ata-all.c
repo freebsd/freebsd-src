@@ -921,15 +921,15 @@ ata_detach(device_t dev)
 
 #if NATADISK > 0
     if (scp->devices & ATA_ATA_MASTER)
-	ad_detach(scp, ATA_MASTER);
+	ad_detach((struct ad_softc *)scp->dev_softc[0]);
     if (scp->devices & ATA_ATA_SLAVE)
-	ad_detach(scp, ATA_SLAVE);
+	ad_detach((struct ad_softc *)scp->dev_softc[1]);
 #endif
 #if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
     if (scp->devices & ATA_ATAPI_MASTER)
-	atapi_detach(scp, ATA_MASTER);
+	atapi_detach((struct atapi_softc *)scp->dev_softc[0]);
     if (scp->devices & ATA_ATAPI_SLAVE)
-	atapi_detach(scp, ATA_SLAVE);
+	atapi_detach((struct atapi_softc *)scp->dev_softc[1]);
 #endif
     if (scp->dev_param[ATA_DEV(ATA_MASTER)]) {
 	free(scp->dev_param[ATA_DEV(ATA_MASTER)], M_ATA);
@@ -939,6 +939,8 @@ ata_detach(device_t dev)
 	free(scp->dev_param[ATA_DEV(ATA_SLAVE)], M_ATA);
 	scp->dev_param[ATA_DEV(ATA_SLAVE)] = NULL;
     }
+    scp->dev_softc[ATA_DEV(ATA_MASTER)] = NULL;
+    scp->dev_softc[ATA_DEV(ATA_SLAVE)] = NULL;
     scp->mode[ATA_DEV(ATA_MASTER)] = ATA_PIO;
     scp->mode[ATA_DEV(ATA_SLAVE)] = ATA_PIO;
     bus_teardown_intr(dev, scp->r_irq, scp->ih);
@@ -1171,6 +1173,12 @@ ata_start(struct ata_softc *scp)
 
 #if NATADISK > 0
     /* find & call the responsible driver if anything on the ATA queue */
+    if (TAILQ_EMPTY(&scp->ata_queue)) {
+	if (scp->devices & (ATA_ATA_MASTER) && scp->dev_softc[0])
+	    ad_start((struct ad_softc *)scp->dev_softc[0]);
+	if (scp->devices & (ATA_ATA_SLAVE) && scp->dev_softc[1])
+	    ad_start((struct ad_softc *)scp->dev_softc[1]);
+    }
     if ((ad_request = TAILQ_FIRST(&scp->ata_queue))) {
 	TAILQ_REMOVE(&scp->ata_queue, ad_request, chain);
 	scp->active = ATA_ACTIVE_ATA;
@@ -1187,6 +1195,12 @@ ata_start(struct ata_softc *scp)
      * if the other device is an ATA disk it already had its chance above.
      * if no request can be served, timeout a call to ata_start.
      */
+    if (TAILQ_EMPTY(&scp->atapi_queue)) {
+	if (scp->devices & (ATA_ATAPI_MASTER) && scp->dev_softc[0])
+	    atapi_start((struct atapi_softc *)scp->dev_softc[0]);
+	if (scp->devices & (ATA_ATAPI_SLAVE) && scp->dev_softc[1])
+	    atapi_start((struct atapi_softc *)scp->dev_softc[1]);
+    }
     if ((atapi_request = TAILQ_FIRST(&scp->atapi_queue))) {
 	struct atapi_softc *atp = atapi_request->device;
 	static int32_t interval = 1;
