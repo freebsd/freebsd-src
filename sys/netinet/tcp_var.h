@@ -66,7 +66,7 @@ struct tcptemp {
 struct tcpcb {
 	struct	tsegqe_head t_segq;
 	int	t_dupacks;		/* consecutive dup acks recd */
-	struct	tcptemp	*t_template;	/* skeletal packet for transmit */
+	struct	tcptemp	*unused;	/* unused */
 
 	struct	callout *tt_rexmt;	/* retransmit timer */
 	struct	callout *tt_persist;	/* retransmit persistence */
@@ -400,7 +400,8 @@ struct rtentry *
 void	 tcp_setpersist __P((struct tcpcb *));
 void	 tcp_slowtimo __P((void));
 struct tcptemp *
-	 tcp_template __P((struct tcpcb *));
+	 tcp_maketemplate __P((struct tcpcb *));
+void	 tcp_fillheaders __P((struct tcpcb *, void *, void *));
 struct tcpcb *
 	 tcp_timers __P((struct tcpcb *, int));
 void	 tcp_trace __P((int, int, struct tcpcb *, void *, struct tcphdr *,

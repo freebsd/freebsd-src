@@ -632,16 +632,11 @@ send:
 		m->m_len = hdrlen;
 	}
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
-	if (tp->t_template == 0)
-		panic("tcp_output");
 #ifdef INET6
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)(ip6 + 1);
-		bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip6,
-		      sizeof(struct ip6_hdr));
-		bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
-		      sizeof(struct tcphdr));
+		tcp_fillheaders(tp, ip6, th);
 	} else
 #endif /* INET6 */
       {
@@ -649,10 +644,7 @@ send:
 	ipov = (struct ipovly *)ip;
 	th = (struct tcphdr *)(ip + 1);
 	/* this picks up the pseudo header (w/o the length) */
-	bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip,
-	      sizeof(struct ip));
-	bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
-	      sizeof(struct tcphdr));
+	tcp_fillheaders(tp, ip, th);
       }
 
 	/*
