@@ -208,6 +208,11 @@ g_disk_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consu
 	struct disk *dp;
 
 	dp = gp->softc;
+	if (indent == NULL) {
+		sbuf_printf(sb, " hd %u", dp->d_fwheads);
+		sbuf_printf(sb, " sc %u", dp->d_fwsectors);
+		return;
+	}
 	if (pp != NULL) {
 		sbuf_printf(sb, "%s<fwheads>%u</fwheads>\n",
 		    indent, dp->d_fwheads);
