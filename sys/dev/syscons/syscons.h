@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.49 1999/06/24 13:04:33 yokota Exp $
+ *	$Id: syscons.h,v 1.50 1999/07/07 13:48:50 yokota Exp $
  */
 
 #ifndef _DEV_SYSCONS_SYSCONS_H_
@@ -207,7 +207,10 @@ typedef struct sc_softc {
 	struct scr_stat	*old_scp;
 	int     	delayed_next_scr;
 
-	void		**devfs_token;
+	/* uncontitional as you'd need to check opt_devfs in about 25 files */
+	void		*devfs_token[MAXCONS];
+	void		*mouse_devfs_token;
+	void		*console_devfs_token;
 
 	char        	font_loading_in_progress;
 	char        	switch_in_progress;

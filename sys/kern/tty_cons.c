@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: tty_cons.c,v 1.72 1999/08/09 11:02:43 phk Exp $
+ *	$Id: tty_cons.c,v 1.73 1999/08/13 10:52:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -99,8 +99,9 @@ static int openmode, openflag;		/* how /dev/console was openned */
 static u_char cn_phys_is_open;		/* nonzero if physical device is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;		/* physical device open function */
-struct consdev *cn_tab;		/* physical console device info */
+struct consdev *cn_tab;			/* physical console device info */
 static struct tty *cn_tp;		/* physical console tty struct */
+static dev_t condev_t;			/* represents the device private info */
 
 CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL);
 
@@ -432,7 +433,8 @@ cn_drvinit(void *unused)
 {
 
 	cdevsw_add(&cn_cdevsw);
-	make_dev (&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "console");
+	condev_t = make_dev (&cn_cdevsw, 0,
+			UID_ROOT, GID_WHEEL, 0600, "console");
 }
 
 SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)

@@ -30,8 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.57 1999/08/15 09:32:47 phk Exp $
+ * $Id: kern_conf.c,v 1.58 1999/08/17 20:25:50 billf Exp $
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -42,6 +44,10 @@
 #include <sys/vnode.h>
 #include <sys/queue.h>
 #include <machine/stdarg.h>
+#ifdef	DEVFS
+#include <sys/devfsext.h>
+#endif	/* DEVFS */
+
 
 #define cdevsw_ALLOCSTART	(NUMCDEVSW/2)
 
@@ -306,6 +312,18 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	dev->si_name[i] = '\0';
 	va_end(ap);
 	dev->si_devsw = devsw;
+
+#ifdef	DEVFS
+        dev->si_devfs = devfs_add_devswf(devsw, minor, DV_CHR,
+	    uid, gid, perms, dev->si_name);
+	/* XXX HACK .. name may not start in 'r' */
+	if ((devsw->d_bmaj != -1)
+	&& (*dev->si_name == 'r')
+	&& ((devsw->d_flags & D_TYPEMASK) == D_DISK))  {
+        	dev->si_devfs = devfs_add_devswf(devsw, minor, DV_BLK,
+	    				uid, gid, perms, dev->si_name + 1);
+	}
+#endif /* DEVFS */
 	return (dev);
 }
 
