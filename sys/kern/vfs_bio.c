@@ -2573,14 +2573,14 @@ allocbuf(struct buf *bp, int size)
 }
 
 /*
- *	biowait:
+ *	bufwait:
  *
  *	Wait for buffer I/O completion, returning error status.  The buffer
  *	is left locked and B_DONE on return.  B_EINTR is converted into a EINTR
  *	error and cleared.
  */
 int
-biowait(register struct buf * bp)
+bufwait(register struct buf * bp)
 {
 	int s;
 
