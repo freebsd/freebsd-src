@@ -450,7 +450,6 @@ devfs_init(void *junk)
 {
 	devfs_create_hook = devfs_create;
 	devfs_destroy_hook = devfs_destroy;
-	devfs_present = 1;
 	devfs_rules_init();
 }
 
