@@ -207,7 +207,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ng_node", &lock_class_mtx_spin },
 	{ "ng_worklist", &lock_class_mtx_spin },
 	{ "ithread table lock", &lock_class_mtx_spin },
-	{ "ithread list lock", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
 	{ "clk", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
@@ -485,7 +484,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	mtx_lock_spin(&w_mtx);
 	lock_list = PCPU_PTR(spinlocks);
 	if (class->lc_flags & LC_SLEEPLOCK) {
-		if (*lock_list != NULL) {
+		if (*lock_list != NULL && (flags & LOP_TRYLOCK) == 0) {
 			mtx_unlock_spin(&w_mtx);
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
@@ -494,6 +493,11 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	}
 	mtx_unlock_spin(&w_mtx);
 
+	/*
+	 * Try locks do not block if they fail to acquire the lock, thus
+	 * there is no danger of deadlocks or of switching while holding a
+	 * spin lock if we acquire a lock via a try operation.
+	 */
 	if (flags & LOP_TRYLOCK)
 		goto out;
 
