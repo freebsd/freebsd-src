@@ -101,7 +101,7 @@ If that pointer is
 .Dv NULL ,
 .Fn sbuf_new
 allocates a
-.Fa struct sbuf
+.Vt struct sbuf
 using
 .Xr malloc 9 .
 The
@@ -299,11 +299,11 @@ return
 .Dv NULL
 and \-1, respectively, if the buffer overflowed.
 .Sh SEE ALSO
-.Xr copyin 9 ,
-.Xr copyinstr 9 ,
 .Xr printf 3 ,
 .Xr strcat 3 ,
-.Xr strcpy 3
+.Xr strcpy 3 ,
+.Xr copyin 9 ,
+.Xr copyinstr 9
 .Sh HISTORY
 The
 .Nm sbuf
