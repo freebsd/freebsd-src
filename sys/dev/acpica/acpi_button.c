@@ -175,6 +175,8 @@ acpi_button_notify_pressed_for_sleep(void *arg)
     if (acpi_sc == NULL)
 	return_VOID;
 
+    acpi_UserNotify("Button", sc->button_handle, sc->button_type);
+
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
 	ACPI_VPRINT(sc->button_dev, acpi_sc, "power button pressed\n");
@@ -201,6 +203,8 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
     if (acpi_sc == NULL)
 	return_VOID;
+
+    acpi_UserNotify("Button", sc->button_handle, sc->button_type);
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:

@@ -51,6 +51,7 @@
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
+#include <contrib/dev/acpica/acnamesp.h>
 
 MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
@@ -2052,6 +2053,27 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
     }
 
     return (error);
+}
+
+/* Inform devctl(4) when we receive a Notify. */
+void
+acpi_UserNotify(const char *subsystem, ACPI_HANDLE h, uint8_t notify)
+{
+    char		notify_buf[16];
+    ACPI_BUFFER		handle_buf;
+    ACPI_STATUS		status;
+
+    if (subsystem == NULL)
+	return;
+
+    handle_buf.Pointer = NULL;
+    handle_buf.Length = ACPI_ALLOCATE_BUFFER;
+    status = AcpiNsHandleToPathname(h, &handle_buf);
+    if (ACPI_FAILURE(status))
+	return;
+    snprintf(notify_buf, sizeof(notify_buf), "notify=0x%02x", notify);
+    devctl_notify("ACPI", subsystem, handle_buf.Pointer, notify_buf);
+    AcpiOsFree(handle_buf.Pointer);
 }
 
 #ifdef ACPI_DEBUG
