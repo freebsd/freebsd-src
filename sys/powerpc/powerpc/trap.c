@@ -597,11 +597,3 @@ fix_unaligned(p, frame)
 	return -1;
 }
 #endif
-
-void
-userret(struct proc *p, struct trapframe *frame, u_quad_t oticks)
-{
-
-	/* XXX: Coming soon */
-	return;
-}

@@ -75,56 +75,6 @@ static int unaligned_fixup(struct trapframe *framep, struct proc *p);
 extern char *syscallnames[];
 #endif
 
-/*
- * Define the code needed before returning to user mode, for
- * trap and syscall.
- */
-void
-userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
-{
-	int sig;
-
-	/* take pending signals */
-	PROC_LOCK(p);
-	while ((sig = CURSIG(p)) != 0)
-		postsig(sig);
-
-	mtx_lock_spin(&sched_lock);
-	PROC_UNLOCK_NOSWITCH(p);
-	p->p_pri.pri_level = p->p_pri.pri_user;
-	if (resched_wanted(p)) {
-		/*
-		 * Since we are curproc, a clock interrupt could
-		 * change our priority without changing run queues
-		 * (the running process is not kept on a run queue).
-		 * If this happened after we setrunqueue ourselves but
-		 * before we switch()'ed, we might not be on the queue
-		 * indicated by our priority.
-		 */
-		DROP_GIANT_NOSWITCH();
-		setrunqueue(p);
-		p->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
-		mtx_unlock_spin(&sched_lock);
-		PICKUP_GIANT();
-		PROC_LOCK(p);
-		while ((sig = CURSIG(p)) != 0)
-			postsig(sig);
-		mtx_lock_spin(&sched_lock);
-		PROC_UNLOCK_NOSWITCH(p);
-	}
-
-	/*
-	 * If profiling, charge recent system time to the trapped pc.
-	 */
-	if (p->p_sflag & PS_PROFIL) {
-		mtx_unlock_spin(&sched_lock);
-		addupc_task(p, TRAPF_PC(frame),
-		    (int)(p->p_sticks - oticks) * psratio);
-	} else
-		mtx_unlock_spin(&sched_lock);
-}
-
 static const char *ia64_vector_names[] = {
 	"VHPT Translation",			/* 0 */
 	"Instruction TLB",			/* 1 */
@@ -606,68 +556,6 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 #endif
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
-}
-
-/*
- * Process an asynchronous software trap.
- * This is relatively easy.
- */
-void
-ast(framep)
-	struct trapframe *framep;
-{
-	register struct proc *p;
-	u_quad_t sticks;
-
-	p = curproc;
-
-	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
-
-	/*
-	 * We check for a pending AST here rather than in assembly as
-	 * acquiring and release mutexes in assembly is not fun.
-	 */
-	mtx_lock_spin(&sched_lock);
-	if (!(astpending(p) || resched_wanted(p))) {
-		mtx_unlock_spin(&sched_lock);
-		return;
-	}
-
-	sticks = p->p_sticks;
-	p->p_frame = framep;
-
-	astoff(p);
-	cnt.v_soft++;
-	mtx_intr_enable(&sched_lock);
-	if (p->p_sflag & PS_OWEUPC) {
-		p->p_sflag &= ~PS_OWEUPC;
-		mtx_unlock_spin(&sched_lock);
-		mtx_lock(&Giant);
-		addupc_task(p, p->p_stats->p_prof.pr_addr,
-			    p->p_stats->p_prof.pr_ticks);
-		mtx_lock_spin(&sched_lock);
-	}
-	if (p->p_sflag & PS_ALRMPEND) {
-		p->p_sflag &= ~PS_ALRMPEND;
-		mtx_unlock_spin(&sched_lock);
-		PROC_LOCK(p);
-		psignal(p, SIGVTALRM);
-		PROC_UNLOCK(p);
-		mtx_lock_spin(&sched_lock);
-	}
-	if (p->p_sflag & PS_PROFPEND) {
-		p->p_sflag &= ~PS_PROFPEND;
-		mtx_unlock_spin(&sched_lock);
-		PROC_LOCK(p);
-		psignal(p, SIGPROF);
-		PROC_UNLOCK(p);
-	} else
-		mtx_unlock_spin(&sched_lock);
-
-	userret(p, framep, sticks);
-
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
 }
 
 extern int	ia64_unaligned_print, ia64_unaligned_fix;

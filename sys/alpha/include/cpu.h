@@ -134,7 +134,6 @@ void	alpha_fpstate_check __P((struct proc *p));
 void	alpha_fpstate_save __P((struct proc *p, int write));
 void	alpha_fpstate_drop __P((struct proc *p));
 void	alpha_fpstate_switch __P((struct proc *p));
-void	ast __P((struct trapframe *));
 int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
 u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
