@@ -479,19 +479,12 @@ and
 .Sq Li \&:
 can be used in the identifier.
 If supported by an object format dependent routine,
-.No Xo
-.Op Em filename Ns Li \&:
-.Em func Ns Li \&: Ns Em lineno
-.Xc ,
-.No Xo
-.Op Em filename Ns Li \&:
-.Em variable
-.Xc ,
+.Sm off
+.Oo Em filename : Oc Em func : lineno ,
+.Sm on
+.Oo Em filename : Oc Ns Em variable ,
 and
-.No Xo
-.Op Em filename Ns Li \&:
-.Em lineno
-.Xc
+.Oo Em filename : Oc Ns Em lineno
 can be accepted as a symbol.
 .It Em Numbers
 Radix is determined by the first two letters:
