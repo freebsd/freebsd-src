@@ -38,6 +38,8 @@
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
+#include <semaphore.h>
+#include <pthread.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -47,8 +49,32 @@
 #include <unistd.h>
 
 #define LINELEN 2048
-static char Buffer[LINELEN], Command[LINELEN];
 
+/* Data passed to the threads we create */
+struct thread_data {
+    EditLine *edit;		/* libedit stuff */
+    History *hist;		/* libedit stuff */
+    pthread_t trm;		/* Terminal thread (for pthread_kill()) */
+    int ppp;			/* ppp descriptor */
+};
+
+/* Flags passed to Receive() */
+#define REC_PASSWD  (1)		/* Handle a password request from ppp */
+#define REC_SHOW    (2)		/* Show everything except prompts */
+#define REC_VERBOSE (4)		/* Show everything */
+
+static char *passwd;
+static char *prompt;		/* Tell libedit what the current prompt is */
+static int data = -1;		/* setjmp() has been done when data != -1 */
+static jmp_buf pppdead;		/* Jump the Terminal thread out of el_gets() */
+static int timetogo;		/* Tell the Monitor thread to exit */
+static sem_t sem_select;	/* select() co-ordination between threads */
+static int TimedOut;		/* Set if our connect() timed out */
+static int want_sem_post;	/* Need to let the Monitor thread in ? */
+
+/*
+ * How to use pppctl...
+ */
 static int
 usage()
 {
@@ -62,20 +88,19 @@ usage()
     exit(1);
 }
 
-static int TimedOut = 0;
+/*
+ * Handle the SIGALRM received due to a connect() timeout.
+ */
 static void
 Timeout(int Sig)
 {
     TimedOut = 1;
 }
 
-#define REC_PASSWD  (1)
-#define REC_SHOW    (2)
-#define REC_VERBOSE (4)
-
-static char *passwd;
-static char *prompt;
-
+/*
+ * A callback routine for libedit to find out what the current prompt is.
+ * All the work is done in Receive() below.
+ */
 static char *
 GetPrompt(EditLine *e)
 {
@@ -84,19 +109,32 @@ GetPrompt(EditLine *e)
     return prompt;
 }
 
+/*
+ * Receive data from the ppp descriptor.
+ * We also handle password prompts here (if asked via the `display' arg)
+ * and buffer what our prompt looks like (via the `prompt' global).
+ */
 static int
 Receive(int fd, int display)
 {
+    static char Buffer[LINELEN];
+    struct timeval t;
     int Result;
-    int len;
     char *last;
+    fd_set f;
+    int len;
 
+    FD_ZERO(&f);
+    FD_SET(fd, &f);
+    t.tv_sec = 0;
+    t.tv_usec = 100000;
     prompt = Buffer;
     len = 0;
+
     while (Result = read(fd, Buffer+len, sizeof(Buffer)-len-1), Result != -1) {
         if (Result == 0 && errno != EINTR) {
-          Result = -1;
-          break;
+            Result = -1;
+            break;
         }
         len += Result;
         Buffer[len] = '\0';
@@ -133,7 +171,8 @@ Receive(int fd, int display)
             } else
                 Result = 0;
             break;
-        }
+        } else
+            prompt = "";
         if (len == sizeof Buffer - 1) {
             int flush;
             if ((last = strrchr(Buffer, '\n')) == NULL)
@@ -145,52 +184,156 @@ Receive(int fd, int display)
             strcpy(Buffer, Buffer + flush);
             len -= flush;
         }
+        if ((Result = select(fd + 1, &f, NULL, NULL, &t)) <= 0) {
+            if (len)
+                write(1, Buffer, len);
+            break;
+        }
     }
 
     return Result;
 }
 
-static int data = -1;
-static jmp_buf pppdead;
-
+/*
+ * Handle being told by the Monitor thread that there's data to be read
+ * on the ppp descriptor.
+ *
+ * Note, this is a signal handler - be careful of what we do !
+ */
 static void
-check_fd(int sig)
+InputHandler(int sig)
 {
-  if (data != -1) {
-    struct timeval t;
-    fd_set f;
     static char buf[LINELEN];
+    struct timeval t;
+    int len;
+    fd_set f;
+
+    if (data != -1) {
+        FD_ZERO(&f);
+        FD_SET(data, &f);
+        t.tv_sec = t.tv_usec = 0;
+
+        if (select(data + 1, &f, NULL, NULL, &t) > 0) {
+            len = read(data, buf, sizeof buf);
+
+            if (len > 0)
+                write(1, buf, len);
+            else if (data != -1)
+                longjmp(pppdead, -1);
+        }
+
+        sem_post(&sem_select);
+    } else
+        /* Don't let the Monitor thread in 'till we've set ``data'' up again */
+        want_sem_post = 1;
+}
+
+/*
+ * This is a simple wrapper for el_gets(), allowing our SIGUSR1 signal
+ * handler (above) to take effect only after we've done a setjmp().
+ *
+ * We don't want it to do anything outside of here as we're going to
+ * service the ppp descriptor anyway.
+ */
+static const char *
+SmartGets(EditLine *e, int *count, int fd)
+{
+    const char *result;
+
+    if (setjmp(pppdead))
+        result = NULL;
+    else {
+        data = fd;
+        if (want_sem_post)
+            /* Let the Monitor thread in again */
+            sem_post(&sem_select);
+        result = el_gets(e, count);
+    }
+
+    data = -1;
+
+    return result;
+}
+
+/*
+ * The Terminal thread entry point.
+ *
+ * The bulk of the interactive work is done here.  We read the terminal,
+ * write the results to our ppp descriptor and read the results back.
+ *
+ * While reading the terminal (using el_gets()), it's possible to take
+ * a SIGUSR1 from the Monitor thread, telling us that the ppp descriptor
+ * has some data.  The data is read and displayed by the signal handler
+ * itself.
+ */
+static void *
+Terminal(void *v)
+{
+    struct sigaction act, oact;
+    struct thread_data *td;
+    const char *l;
     int len;
 
-    FD_ZERO(&f);
-    FD_SET(data, &f);
-    t.tv_sec = t.tv_usec = 0;
-    if (select(data+1, &f, NULL, NULL, &t) > 0) {
-      len = read(data, buf, sizeof buf);
-      if (len > 0)
-        write(1, buf, len);
-      else
-        longjmp(pppdead, -1);
+    act.sa_handler = InputHandler;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = SA_RESTART;
+    sigaction(SIGUSR1, &act, &oact);
+
+    td = (struct thread_data *)v;
+    want_sem_post = 1;
+
+    while ((l = SmartGets(td->edit, &len, td->ppp))) {
+        if (len > 1)
+#ifdef __NetBSD__
+            history(td->hist, NULL, H_ENTER, l);
+#else
+            history(td->hist, H_ENTER, l);
+#endif
+        write(td->ppp, l, len);
+        if (Receive(td->ppp, REC_SHOW) != 0)
+            break;
     }
-  }
+
+    return NULL;
 }
 
-static const char *
-smartgets(EditLine *e, int *count, int fd)
+/*
+ * The Monitor thread entry point.
+ *
+ * This thread simply monitors our ppp descriptor.  When there's something
+ * to read, a SIGUSR1 is sent to the Terminal thread.
+ *
+ * sem_select() is used by the Terminal thread to keep us from sending
+ * flurries of SIGUSR1s, and is used from the main thread to wake us up
+ * when it's time to exit.
+ */
+static void *
+Monitor(void *v)
 {
-  const char *result;
+    struct thread_data *td;
+    fd_set f;
+    int ret;
 
-  data = fd;
-  signal(SIGALRM, check_fd);
-  ualarm(500000, 500000);
-  result = setjmp(pppdead) ? NULL : el_gets(e, count);
-  ualarm(0,0);
-  signal(SIGALRM, SIG_DFL);
-  data = -1;
+    td = (struct thread_data *)v;
+    FD_ZERO(&f);
+    FD_SET(td->ppp, &f);
 
-  return result;
+    sem_wait(&sem_select);
+    while (!timetogo)
+        if ((ret = select(td->ppp + 1, &f, NULL, NULL, NULL)) > 0) {
+            pthread_kill(td->trm, SIGUSR1);
+            sem_wait(&sem_select);
+        }
+
+    return NULL;
 }
 
+/*
+ * Connect to ppp using either a local domain socket or a tcp socket.
+ *
+ * If we're given arguments, process them and quit, otherwise create two
+ * threads to handle interactive mode.
+ */
 int
 main(int argc, char **argv)
 {
@@ -203,6 +346,10 @@ main(int argc, char **argv)
     unsigned TimeoutVal;
     char *DoneWord = "x", *next, *start;
     struct sigaction act, oact;
+    void *thread_ret;
+    pthread_t mon;
+    char Command[LINELEN];
+    char Buffer[LINELEN];
 
     verbose = 0;
     TimeoutVal = 2;
@@ -377,20 +524,19 @@ main(int argc, char **argv)
         len += strlen(Command+len);
     }
 
-    switch (Receive(fd, verbose | REC_PASSWD))
-    {
+    switch (Receive(fd, verbose | REC_PASSWD)) {
         case 1:
             fprintf(stderr, "Password incorrect\n");
             break;
 
         case 0:
+            passwd = NULL;
             if (len == 0) {
-                EditLine *edit;
-                History *hist;
-                const char *l, *env;
+                struct thread_data td;
+                const char *env;
                 int size;
 
-                hist = history_init();
+                td.hist = history_init();
                 if ((env = getenv("EL_SIZE"))) {
                     size = atoi(env);
                     if (size < 0)
@@ -398,36 +544,57 @@ main(int argc, char **argv)
                 } else
                     size = 20;
 #ifdef __NetBSD__
-                history(hist, NULL, H_SETSIZE, size);
-                edit = el_init("pppctl", stdin, stdout, stderr);
+                history(td.hist, NULL, H_SETSIZE, size);
+                td.edit = el_init("pppctl", stdin, stdout, stderr);
 #else
-                history(hist, H_EVENT, size);
-                edit = el_init("pppctl", stdin, stdout);
+                history(td.hist, H_EVENT, size);
+                td.edit = el_init("pppctl", stdin, stdout);
 #endif
-                el_source(edit, NULL);
-                el_set(edit, EL_PROMPT, GetPrompt);
+                el_source(td.edit, NULL);
+                el_set(td.edit, EL_PROMPT, GetPrompt);
                 if ((env = getenv("EL_EDITOR"))) {
                     if (!strcmp(env, "vi"))
-                        el_set(edit, EL_EDITOR, "vi");
+                        el_set(td.edit, EL_EDITOR, "vi");
                     else if (!strcmp(env, "emacs"))
-                        el_set(edit, EL_EDITOR, "emacs");
+                        el_set(td.edit, EL_EDITOR, "emacs");
                 }
-                el_set(edit, EL_SIGNAL, 1);
-                el_set(edit, EL_HIST, history, (const char *)hist);
-                while ((l = smartgets(edit, &len, fd))) {
-                    if (len > 1)
-#ifdef __NetBSD__
-                        history(hist, NULL, H_ENTER, l);
-#else
-                        history(hist, H_ENTER, l);
-#endif
-                    write(fd, l, len);
-                    if (Receive(fd, REC_SHOW) != 0)
-                        break;
-                }
+                el_set(td.edit, EL_SIGNAL, 1);
+                el_set(td.edit, EL_HIST, history, (const char *)td.hist);
+
+                td.ppp = fd;
+                td.trm = NULL;
+
+                /*
+                 * We create two threads.  The Terminal thread does all the
+                 * work while the Monitor thread simply tells the Terminal
+                 * thread when ``fd'' becomes readable.  The telling is done
+                 * by sending a SIGUSR1 to the Terminal thread.  The
+                 * sem_select semaphore is used to prevent the monitor
+                 * thread from firing excessive signals at the Terminal
+                 * thread (it's abused for exit handling too - see below).
+                 *
+                 * The Terminal thread never uses td.trm !
+                 */
+                sem_init(&sem_select, 0, 0);
+
+                pthread_create(&td.trm, NULL, Terminal, &td);
+                pthread_create(&mon, NULL, Monitor, &td);
+
+                /* Wait for the terminal thread to finish */
+                pthread_join(td.trm, &thread_ret);
                 fprintf(stderr, "Connection closed\n");
-                el_end(edit);
-                history_end(hist);
+
+                /* Get rid of the monitor thread by abusing sem_select */
+                timetogo = 1;
+                close(fd);
+                fd = -1;
+                sem_post(&sem_select);
+                pthread_join(mon, &thread_ret);
+
+                /* Restore our terminal and release resources */
+                el_end(td.edit);
+                history_end(td.hist);
+                sem_destroy(&sem_select);
             } else {
                 start = Command;
                 do {
@@ -459,7 +626,8 @@ main(int argc, char **argv)
             break;
     }
 
-    close(fd);
+    if (fd != -1)
+        close(fd);
     
     return 0;
 }
