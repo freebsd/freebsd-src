@@ -37,6 +37,7 @@
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 int	more_than_one = 0;
@@ -48,46 +49,93 @@ usage(void)
 	fprintf(stderr, "getfacl [-d] [files ...]\n");
 }
 
+/*
+ * return an ACL corresponding to the permissions
+ * contained in struct stat
+ */
 static acl_t
 acl_from_stat(struct stat sb)
 {
 	acl_t acl;
+	acl_entry_t entry;
+	acl_permset_t perms;
 
+	/* create the ACL */
 	acl = acl_init(3);
 	if (!acl)
-		return(NULL);
+		return NULL;
 
-	acl->acl_entry[0].ae_tag = ACL_USER_OBJ;
-	acl->acl_entry[0].ae_id  = sb.st_uid;
-	acl->acl_entry[0].ae_perm = 0;
+	/* First entry: ACL_USER_OBJ */
+	if (acl_create_entry(&acl, &entry) == -1)
+		return NULL;
+	if (acl_set_tag_type(entry, ACL_USER_OBJ) == -1)
+		return NULL;
+
+	if (acl_get_permset(entry, &perms) == -1)
+		return NULL;
+	if (acl_clear_perms(perms) == -1)
+		return NULL;
+
+	/* calculate user mode */
 	if (sb.st_mode & S_IRUSR)
-		acl->acl_entry[0].ae_perm |= ACL_READ;
+		if (acl_add_perm(perms, ACL_READ) == -1)
+			return NULL;
 	if (sb.st_mode & S_IWUSR)
-		acl->acl_entry[0].ae_perm |= ACL_WRITE;
+		if (acl_add_perm(perms, ACL_WRITE) == -1)
+			return NULL;
 	if (sb.st_mode & S_IXUSR)
-		acl->acl_entry[0].ae_perm |= ACL_EXECUTE;
+		if (acl_add_perm(perms, ACL_EXECUTE) == -1)
+			return NULL;
+	if (acl_set_permset(entry, perms) == -1)
+		return NULL;
 
-	acl->acl_entry[1].ae_tag = ACL_GROUP_OBJ;
-	acl->acl_entry[1].ae_id  = sb.st_gid;
-	acl->acl_entry[1].ae_perm = 0;
+	/* Second entry: ACL_GROUP_OBJ */
+	if (acl_create_entry(&acl, &entry) == -1)
+		return NULL;
+	if (acl_set_tag_type(entry, ACL_GROUP_OBJ) == -1)
+		return NULL;
+
+	if (acl_get_permset(entry, &perms) == -1)
+		return NULL;
+	if (acl_clear_perms(perms) == -1)
+		return NULL;
+
+	/* calculate group mode */
 	if (sb.st_mode & S_IRGRP)
-		acl->acl_entry[1].ae_perm |= ACL_READ;
+		if (acl_add_perm(perms, ACL_READ) == -1)
+			return NULL;
 	if (sb.st_mode & S_IWGRP)
-		acl->acl_entry[1].ae_perm |= ACL_WRITE;
+		if (acl_add_perm(perms, ACL_WRITE) == -1)
+			return NULL;
 	if (sb.st_mode & S_IXGRP)
-		acl->acl_entry[1].ae_perm |= ACL_EXECUTE;
+		if (acl_add_perm(perms, ACL_EXECUTE) == -1)
+			return NULL;
+	if (acl_set_permset(entry, perms) == -1)
+		return NULL;
 
-	acl->acl_entry[2].ae_tag = ACL_OTHER_OBJ;
-	acl->acl_entry[2].ae_id  = 0;
-	acl->acl_entry[2].ae_perm = 0;
+	/* Third entry: ACL_OTHER */
+	if (acl_create_entry(&acl, &entry) == -1)
+		return NULL;
+	if (acl_set_tag_type(entry, ACL_OTHER) == -1)
+		return NULL;
+
+	if (acl_get_permset(entry, &perms) == -1)
+		return NULL;
+	if (acl_clear_perms(perms) == -1)
+		return NULL;
+
+	/* calculate other mode */
 	if (sb.st_mode & S_IROTH)
-		acl->acl_entry[2].ae_perm |= ACL_READ;
+		if (acl_add_perm(perms, ACL_READ) == -1)
+			return NULL;
 	if (sb.st_mode & S_IWOTH)
-		acl->acl_entry[2].ae_perm |= ACL_WRITE;
+		if (acl_add_perm(perms, ACL_WRITE) == -1)
+			return NULL;
 	if (sb.st_mode & S_IXOTH)
-		acl->acl_entry[2].ae_perm |= ACL_EXECUTE;
-
-	acl->acl_cnt = 3;
+		if (acl_add_perm(perms, ACL_EXECUTE) == -1)
+			return NULL;
+	if (acl_set_permset(entry, perms) == -1)
+		return NULL;
 
 	return(acl);
 }
