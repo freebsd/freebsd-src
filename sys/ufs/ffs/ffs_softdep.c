@@ -4250,7 +4250,7 @@ loop:
 			 * rather than panic, just flush it.
 			 */
 			nbp = WK_BMSAFEMAP(wk)->sm_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0)
+			if (getdirtybuf(&nbp, MNT_NOWAIT) == 0)
 				break;
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
