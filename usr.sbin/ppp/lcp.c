@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.20 1998/02/24 03:36:50 brian Exp $
+ * $Id: lcp.c,v 1.55.2.21 1998/02/27 01:22:30 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -184,6 +184,7 @@ lcp_Setup(struct lcp *lcp, int openmode)
   struct physical *p = link2physical(lcp->fsm.link);
 
   lcp->fsm.open_mode = openmode;
+  lcp->fsm.maxconfig = 10;
 
   hdlc_Init(&p->hdlc);
   async_Init(&p->async);

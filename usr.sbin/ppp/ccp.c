@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.14 1998/02/24 03:36:45 brian Exp $
+ * $Id: ccp.c,v 1.30.2.15 1998/02/27 01:22:18 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -148,6 +148,7 @@ ccp_Setup(struct ccp *ccp)
 {
   /* Set ourselves up for a startup */
   ccp->fsm.open_mode = 0;
+  ccp->fsm.maxconfig = 10;
   ccp->his_proto = ccp->my_proto = -1;
   ccp->reset_sent = ccp->last_reset = -1;
   ccp->in_algorithm = ccp->out_algorithm = -1;

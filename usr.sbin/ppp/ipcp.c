@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.16 1998/02/24 03:36:49 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.17 1998/02/27 01:22:25 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -242,6 +242,7 @@ ipcp_Setup(struct ipcp *ipcp)
   int pos;
 
   ipcp->fsm.open_mode = 0;
+  ipcp->fsm.maxconfig = 10;
 
   if (iplist_isvalid(&ipcp->cfg.peer_list)) {
     if (ipcp->my_ifip.s_addr != INADDR_ANY &&
