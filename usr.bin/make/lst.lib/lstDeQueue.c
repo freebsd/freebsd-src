@@ -75,9 +75,6 @@ Lst_DeQueue(Lst *l)
     }
 
     rd = tln->datum;
-    if (Lst_Remove(l, tln) == FAILURE) {
-	return (NULL);
-    } else {
-	return (rd);
-    }
+    Lst_Remove(l, tln);
+    return (rd);
 }
