@@ -36,8 +36,8 @@
 #include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
+#include "common.h"
 
-extern int line_no;
 extern FILE *yyin;
 void yyerror(char *fmt, ...) __printflike(1, 2);
 int yyparse(void);
@@ -47,7 +47,7 @@ static void usage __P((void));
 char map_name[FILENAME_MAX] = ".";
 
 char __collate_version[STR_LEN];
-u_char charmap_table[UCHAR_MAX + 1][STR_LEN];
+u_char charmap_table[UCHAR_MAX + 1][CHARMAP_SYMBOL_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
 struct __collate_st_char_pri __collate_char_pri_table[UCHAR_MAX + 1];
 struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
