@@ -104,6 +104,15 @@ The databases are used by the C library password routines (see
 .Pp
 .Nm Pwd_mkdb
 exits zero on success, non-zero on failure.
+.Sh ENVIRONMENT
+If the
+.Ev PW_SCAN_BIG_IDS
+environment variable is set,
+.Nm
+will suppress the warning messages that are
+normally generated for large user and group IDs.
+Such IDs can cause serious problems with software
+that makes assumptions about the values of IDs.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/pwd.db

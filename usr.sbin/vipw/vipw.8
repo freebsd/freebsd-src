@@ -86,12 +86,15 @@ and the new information is not available to programs.
 .Sh ENVIRONMENT
 If the following environment variable exists it will be utilized by
 .Nm Ns :
-.Bl -tag -width EDITOR
+.Bl -tag -width PW_SCAN_BIG_IDS
 .It Ev EDITOR
 The editor specified by the string
 .Ev EDITOR
 will be invoked instead of the default editor
 .Xr vi 1 .
+.It Ev PW_SCAN_BIG_IDS
+See
+.Xr pwd_mkdb 8 .
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,

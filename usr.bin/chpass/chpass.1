@@ -245,6 +245,12 @@ When the editor terminates, the information is re-read and used to
 update the user database itself.
 Only the user, or the super-user, may edit the information associated
 with the user.
+.Pp
+See
+.Xr pwd_mkdb 8
+for an explanation of the impact of setting the
+.Ev PW_SCAN_BIG_IDS
+environment variable.
 .Sh NIS INTERACTION
 .Nm Chpass
 can also be used in conjunction with NIS, however some restrictions
