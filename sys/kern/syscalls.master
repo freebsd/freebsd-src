@@ -494,8 +494,10 @@
 			    struct sigaction *oact); }
 343	MSTD	POSIX	{ int sigpending(sigset_t *set); }
 344	MCOMPAT4 BSD	{ int sigreturn(const struct ucontext4 *sigcntxp); }
-345	UNIMPL	NOHIDE	sigtimedwait
-346	UNIMPL	NOHIDE	sigwaitinfo
+345	MSTD	NOHIDE	{ int sigtimedwait(const sigset_t *set, \
+			    siginfo_t *info, const struct timespec *timeout); }
+346	MSTD	NOHIDE	{ int sigwaitinfo(const sigset_t *set, \
+			    siginfo_t *info); }
 347	MSTD	BSD	{ int __acl_get_file(const char *path, \
 			    acl_type_t type, struct acl *aclp); }
 348	MSTD	BSD	{ int __acl_set_file(const char *path, \
@@ -621,6 +623,7 @@
 			    acl_type_t type); }
 428	MSTD	BSD	{ int __acl_aclcheck_link(const char *path, \
 			    acl_type_t type, struct acl *aclp); }
+429	MSTD	NOHIDE	{ int sigwait(const sigset_t *set, int *sig); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)

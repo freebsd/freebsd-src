@@ -85,11 +85,11 @@ int	sigwait(const sigset_t * __restrict, int * __restrict);
  * in scope (in the current implementation), so we can't use it here.
  */
 int	sigqueue(__pid_t, int, const union sigval);
+#endif
 struct timespec;
 int	sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
 	    const struct timespec * __restrict);
 int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
-#endif
 #endif
 
 #if __XSI_VISIBLE
