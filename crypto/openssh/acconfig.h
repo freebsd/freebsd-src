@@ -1,4 +1,5 @@
 /* $Id: acconfig.h,v 1.138 2002/06/12 16:57:15 mouring Exp $ */
+/* $FreeBSD$ */
 
 #ifndef _CONFIG_H
 #define _CONFIG_H
@@ -212,6 +213,9 @@
 
 /* Define if you want S/Key support */
 #undef SKEY
+
+/* Define if you want OPIE support */
+#undef OPIE
 
 /* Define if you want TCP Wrappers support */
 #undef LIBWRAP
