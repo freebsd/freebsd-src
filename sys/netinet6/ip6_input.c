@@ -105,9 +105,7 @@
 #include <netinet6/nd6.h>
 #include <netinet6/in6_prefix.h>
 
-#ifdef IPV6FIREWALL
 #include <netinet6/ip6_fw.h>
-#endif
 
 #include <netinet6/ip6protosw.h>
 
@@ -130,11 +128,10 @@ int ip6_sourcecheck;			/* XXX */
 int ip6_sourcecheck_interval;		/* XXX */
 const int int6intrq_present = 1;
 
-#ifdef IPV6FIREWALL
 /* firewall hooks */
 ip6_fw_chk_t *ip6_fw_chk_ptr;
 ip6_fw_ctl_t *ip6_fw_ctl_ptr;
-#endif
+int ip6_fw_enable = 1;
 
 struct ip6stat ip6stat;
 
@@ -170,9 +167,6 @@ ip6_init()
 	register_netisr(NETISR_IPV6, ip6intr);
 	nd6_init();
 	frag6_init();
-#ifdef IPV6FIREWALL
-	ip6_fw_init();
-#endif
 	/*
 	 * in many cases, random() here does NOT return random number
 	 * as initialization during bootstrap time occur in fixed order.
@@ -293,11 +287,10 @@ ip6_input(m)
 
 	ip6stat.ip6s_nxthist[ip6->ip6_nxt]++;
 
-#ifdef IPV6FIREWALL
 	/*
 	 * Check with the firewall...
 	 */
-	if (ip6_fw_chk_ptr) {
+	if (ip6_fw_enable && ip6_fw_chk_ptr) {
 		u_short port = 0;
 		/* If ipfw says divert, we have to just drop packet */
 		/* use port as a dummy argument */
@@ -308,7 +301,6 @@ ip6_input(m)
 		if (!m)
 			return;
 	}
-#endif
 
 	/*
 	 * Scope check

@@ -62,9 +62,7 @@
 #include <netkey/key.h>
 #endif /* IPSEC */
 
-#ifdef IPV6FIREWALL
 #include <netinet6/ip6_fw.h>
-#endif
 
 #include <net/net_osdep.h>
 
@@ -415,11 +413,10 @@ ip6_forward(m, srcrt)
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0)
 		type = ND_REDIRECT;
 
-#ifdef IPV6FIREWALL
 	/*
 	 * Check with the firewall...
 	 */
-	if (ip6_fw_chk_ptr) {
+	if (ip6_fw_enable && ip6_fw_chk_ptr) {
 		u_short port = 0;
 		/* If ipfw says divert, we have to just drop packet */
 		if ((*ip6_fw_chk_ptr)(&ip6, rt->rt_ifp, &port, &m)) {
@@ -429,7 +426,6 @@ ip6_forward(m, srcrt)
 		if (!m)
 			goto freecopy;
 	}
-#endif
 
 	/*
 	 * Fake scoped addresses. Note that even link-local source or
