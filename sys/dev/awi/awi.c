@@ -2365,7 +2365,7 @@ awi_send_asreq(sc, reassoc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 	struct ieee80211_frame *wh;
-	u_int16_t lintval;
+	u_int16_t capinfo, lintval;
 	u_int8_t *asreq;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -2393,12 +2393,16 @@ awi_send_asreq(sc, reassoc)
 	asreq = (u_int8_t *)&wh[1];
 
 	/* capability info */
-	if (sc->sc_wep_algo == NULL)
-		LE_WRITE_2(asreq, IEEE80211_CAPINFO_CF_POLLABLE);
+	capinfo = IEEE80211_CAPINFO_CF_POLLABLE;
+	if (sc->sc_mib_local.Network_Mode)
+		capinfo |= IEEE80211_CAPINFO_ESS;
 	else
-		LE_WRITE_2(asreq,
-		    IEEE80211_CAPINFO_CF_POLLABLE | IEEE80211_CAPINFO_PRIVACY);
+		capinfo |= IEEE80211_CAPINFO_IBSS;
+	if (sc->sc_wep_algo != NULL)
+		capinfo |= IEEE80211_CAPINFO_PRIVACY;
+	LE_WRITE_2(asreq, capinfo);
 	asreq += 2;
+
 	/* listen interval */
 	lintval = LE_READ_2(&sc->sc_mib_mgt.aListen_Interval);
 	LE_WRITE_2(asreq, lintval);
