@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)main.c	8.1 (Berkeley) 6/20/93";*/
-static char rcsid[] = "$Id: main.c,v 1.10.2.3 1997/05/11 05:28:54 davidn Exp $";
+static char rcsid[] = "$Id: main.c,v 1.10.2.4 1997/06/03 13:01:44 davidn Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -183,7 +183,6 @@ main(argc, argv)
 {
 	extern	char **environ;
 	const char *tname;
-	int repcnt = 0, failopenlogged = 0;
 	int first_sleep = 1, first_time = 1;
 	struct rlimit limit;
 	int rval;
@@ -220,8 +219,6 @@ main(argc, argv)
 	if (argc <= 2 || strcmp(argv[2], "-") == 0)
 	    strcpy(ttyn, ttyname(STDIN_FILENO));
 	else {
-	    int i;
-
 	    strcpy(ttyn, dev);
 	    strncat(ttyn, argv[2], sizeof(ttyn)-sizeof(dev));
 	    if (strcmp(argv[0], "+") != 0) {

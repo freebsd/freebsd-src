@@ -33,7 +33,7 @@
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)subr.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$Id: subr.c,v 1.6 1996/05/05 19:01:11 joerg Exp $";
+static char rcsid[] = "$Id: subr.c,v 1.6.2.1 1997/05/11 05:28:54 davidn Exp $";
 #endif /* not lint */
 
 /*
@@ -46,6 +46,7 @@ static char rcsid[] = "$Id: subr.c,v 1.6 1996/05/05 19:01:11 joerg Exp $";
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/param.h>
+#include <syslog.h>
 #ifdef DEBUG
 #include <stdio.h>
 #endif
@@ -71,15 +72,83 @@ gettable(name, buf)
 	register struct gettynums *np;
 	register struct gettyflags *fp;
 	long n;
+	int l;
+	char *p;
+	const char *msg = NULL;
 	const char *dba[2];
+
+	static int firsttime = 1;
+
 	dba[0] = _PATH_GETTYTAB;
 	dba[1] = 0;
 
-	if (cgetent(&buf, (char**)dba, (char*)name) != 0)
-		return;
+	if (firsttime) {
+		/*
+		 * we need to strdup() anything in the strings array
+		 * initially in order to simplify things later
+		 */
+		for (sp = gettystrs; sp->field; sp++)
+			if (sp->value != NULL) {
+				/* handle these ones more carefully */
+				if (sp >= &gettystrs[4] && sp <= &gettystrs[6])
+					l = 2;
+				else
+					l = strlen(sp->value) + 1;
+				if ((p = malloc(l)) != NULL) {
+					strncpy(p, sp->value, l);
+					p[l-1] = '\0';
+				}
+				/*
+				 * replace, even if NULL, else we'll
+				 * have problems with free()ing static mem
+				 */
+				sp->value = p;
+			}
+		firsttime = 0;
+	}
 
-	for (sp = gettystrs; sp->field; sp++)
-		cgetstr(buf, (char*)sp->field, &sp->value);
+	switch (cgetent(&buf, (char **)dba, (char *)name)) {
+	case 1:
+		msg = "%s: couldn't resolve 'tc=' in gettytab '%s'";
+	case 0:
+		break;
+	case -1:
+		msg = "%s: unknown gettytab entry '%s'";
+		break;
+	case -2:
+		msg = "%s: retrieving gettytab entry '%s': %m";
+		break;
+	case -3:
+		msg = "%s: recursive 'tc=' reference gettytab entry '%s'";
+		break;
+	default:
+		msg = "%s: unexpected cgetent() error for entry '%s'";
+		break;
+	}
+
+	if (msg != NULL) {
+		syslog(LOG_ERR, msg, "getty", name);
+		return;
+	}
+
+	for (sp = gettystrs; sp->field; sp++) {
+		if ((l = cgetstr(buf, (char*)sp->field, &p)) >= 0) {
+			if (sp->value) {
+				/* prefer existing value */
+				if (strcmp(p, sp->value) != 0)
+					free(sp->value);
+				else {
+					free(p);
+					p = sp->value;
+				}
+			}
+			sp->value = p;
+		} else if (l == -1) {
+			free(sp->value);
+			sp->value = NULL;
+		}
+	}
+
 	for (np = gettynums; np->field; np++) {
 		if (cgetnum(buf, (char*)np->field, &n) == -1)
 			np->set = 0;
@@ -88,14 +157,16 @@ gettable(name, buf)
 			np->value = n;
 		}
 	}
+
 	for (fp = gettyflags; fp->field; fp++) {
-		if (cgetcap(buf, (char*)fp->field, ':') == NULL)
+		if (cgetcap(buf, (char *)fp->field, ':') == NULL)
 			fp->set = 0;
 		else {
 			fp->set = 1;
 			fp->value = 1 ^ fp->invrt;
 		}
 	}
+
 #ifdef DEBUG
 	printf("name=\"%s\", buf=\"%s\"\r\n", name, buf);
 	for (sp = gettystrs; sp->field; sp++)
@@ -117,7 +188,7 @@ gendefaults()
 
 	for (sp = gettystrs; sp->field; sp++)
 		if (sp->value)
-			sp->defalt = sp->value;
+			sp->defalt = strdup(sp->value);
 	for (np = gettynums; np->field; np++)
 		if (np->set)
 			np->defalt = np->value;
@@ -137,7 +208,8 @@ setdefaults()
 
 	for (sp = gettystrs; sp->field; sp++)
 		if (!sp->value)
-			sp->value = sp->defalt;
+			sp->value = !sp->defalt ? sp->defalt
+						: strdup(sp->defalt);
 	for (np = gettynums; np->field; np++)
 		if (!np->set)
 			np->value = np->defalt;
