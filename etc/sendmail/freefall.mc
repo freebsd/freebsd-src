@@ -42,7 +42,7 @@ divert(-1)
 divert(0)dnl
 VERSIONID(`$FreeBSD$')
 
-OSTYPE(freebsd4)
+OSTYPE(freebsd5)
 FEATURE(nullclient, hub.$m)
 FEATURE(`allmasquerade')
 FEATURE(`masquerade_envelope')
