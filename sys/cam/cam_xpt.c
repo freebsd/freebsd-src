@@ -5375,7 +5375,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		if (softc->action == PROBE_INQUIRY)
 			inquiry_len = SHORT_INQUIRY_LENGTH;
 		else
-			inquiry_len = inq_buf->additional_length + 4;
+			inquiry_len = inq_buf->additional_length + 5;
 	
 		scsi_inquiry(csio,
 			     /*retries*/4,
@@ -5533,7 +5533,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				 */
 				alen = inq_buf->additional_length;
 				if (softc->action == PROBE_INQUIRY
-				 && alen > (SHORT_INQUIRY_LENGTH - 4)) {
+				 && alen > (SHORT_INQUIRY_LENGTH - 5)) {
 					softc->action = PROBE_FULL_INQUIRY;
 					xpt_release_ccb(done_ccb);
 					xpt_schedule(periph, priority);
@@ -5832,14 +5832,25 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			/* Force async */
 			cts->sync_period = 0;
 			cts->sync_offset = 0;
-		} else if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
-			&& (inq_data->spi3data & SID_SPI_CLOCK_DT) == 0
-			&& cts->sync_period <= 0x9) {
-			/*
-			 * Don't allow DT transmission rates if the
-			 * device does not support it.
-			 */
-			cts->sync_period = 0xa;
+		} else if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0) {
+
+			if ((inq_data->spi3data & SID_SPI_CLOCK_DT) == 0
+			 && cts->sync_period <= 0x9) {
+				/*
+				 * Don't allow DT transmission rates if the
+				 * device does not support it.
+				 */
+				cts->sync_period = 0xa;
+			}
+			if ((inq_data->spi3data & SID_SPI_IUS) == 0
+			 && cts->sync_period <= 0x8) {
+				/*
+				 * Don't allow PACE transmission rates
+				 * if the device does support packetized
+				 * transfers.
+				 */
+				cts->sync_period = 0x9;
+			}
 		}
 
 		switch (cts->bus_width) {
