@@ -97,7 +97,7 @@ struct if_data {
 	u_char	ifi_hdrlen;		/* media header length */
 	u_char	ifi_recvquota;		/* polling quota for receive intrs */
 	u_char	ifi_xmitquota;		/* polling quota for xmit intrs */
-	u_char	ifi_do_no_use;		/* pad for ifi_datalen's position */
+	u_char	ifi_do_not_use;		/* pad for ifi_datalen's position */
 	u_char	ifi_datalen;		/* length of this data struct */
 	u_long	ifi_mtu;		/* maximum transmission unit */
 	u_long	ifi_metric;		/* routing metric (external only) */
