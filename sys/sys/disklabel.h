@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.4 1994/08/21 04:41:39 paul Exp $
+ * $Id: disklabel.h,v 1.5 1994/10/20 23:41:57 paul Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -54,6 +54,25 @@
 #ifdef i386
 #define LABELSECTOR	1			/* sector containing label */
 #define LABELOFFSET	0			/* offset of label in sector */
+#define	OURPART		2			/* partition is 'all BSD' */
+#define	RAWPART		3			/* partition is 'all device' */
+#define readMSPtolabel readMBRtolabel
+#endif
+
+#ifndef readMSPtolabel
+#define readMSPtolabel(a,b,c,d,e,)		/* zap calls if irrelevant */
+#endif
+
+#ifdef	tahoe
+#define RAWPART		0
+#endif
+
+#ifndef	RAWPART
+#define	RAWPART		2
+#endif
+
+#ifndef	OURPART
+#define	OURPART		RAWPART			/* by default it's all ours */
 #endif
 
 #ifndef	LABELSECTOR
@@ -358,6 +377,18 @@ extern struct dos_partition dos_partitions[NDOSPART];
 
 #endif /* LOCORE */
 
+#ifdef KERNEL
+u_int	 dkcksum __P((struct disklabel *));
+int	writedisklabel __P((dev_t dev, void (*strat)(), struct disklabel *lp));
+char *	readdisklabel __P((dev_t dev, void (*strat)(), struct disklabel *lp, struct dos_partition *dp, struct dkbad *bdp));
+int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp, u_long openmask));
+void	disksort __P((struct buf *ap, struct buf *bp));
+void	 diskerr __P((struct buf *, char *, char *, int, int, struct disklabel *));
+#ifdef __i386
+char *	readMBRtolabel __P(( dev_t dev , void (*strat)(), register struct disklabel *lp, struct dos_partition *dp, int *cyl));
+#endif
+#endif
+
 #if !defined(KERNEL) && !defined(LOCORE)
 
 #include <sys/cdefs.h>
@@ -368,4 +399,13 @@ __END_DECLS
 
 #endif
 
+#ifdef __i386
+/* encoding of disk minor numbers, should be elsewhere... */
+#define dkunit(dev)		(minor(dev) >> 3)
+#define dkpart(dev)		(minor(dev) & 07)
+#define dkminor(unit, part)	(((unit) << 3) | (part))
 #endif
+
+#endif
+
+

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.36 1994/10/20 00:08:31 phk Exp $
+ *      $Id: sd.c,v 1.37 1994/10/23 21:27:57 wollman Exp $
  */
 
 #define SPLSD splbio
@@ -67,7 +67,6 @@ int     Debugger(const char *);
 
 #define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAW_PART )
 
-extern char *readdisklabel();
 errval	sdgetdisklabel __P((unsigned char unit));
 errval	sd_get_parms __P((int unit, int flags));
 void	sdstrategy __P((struct buf *));
@@ -782,6 +781,10 @@ sdgetdisklabel(unsigned char unit)
 	/*
 	 * Call the generic disklabel extraction routine
 	 */
+	sd->flags |= SDHAVELABEL;	/* chicken and egg problem */
+					/* we need to pretend this disklabel */
+					/* is real before we can read */
+					/* real disklabel */
 	errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAW_PART),
 	    sdstrategy,
 	    &sd->disklabel
@@ -792,10 +795,10 @@ sdgetdisklabel(unsigned char unit)
 #endif
 	    ); 
 	if (errstring) {
+		sd->flags &= ~SDHAVELABEL;	/* not now we don't */
 		printf("sd%d: %s\n", unit, errstring);
 		return ENXIO;
 	}
-	sd->flags |= SDHAVELABEL;	/* WE HAVE IT ALL NOW */
 	return ESUCCESS;
 }
 

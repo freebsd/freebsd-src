@@ -36,17 +36,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.4 1994/10/08 06:57:23 phk Exp $
+ * $Id: ufs_disksubr.c,v 1.5 1994/10/17 02:31:33 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/syslog.h>
 #include <sys/dkbad.h>
 
-int	dkcksum __P((struct disklabel *));
 /*
  * Seek sort for disks.  We depend on the driver which calls us using b_resid
  * as the current cylinder number.
@@ -154,86 +154,53 @@ insert:	bp->b_actf = bq->b_actf;
  * anything required in the strategy routine (e.g., sector size) must be
  * filled in before calling us.  Returns NULL on success and an error
  * string on failure.
+ * If Machine Specific Partitions (MSP) are not found, then it will proceed
+ * as if the BSD partition starts at 0
+ * The MBR on an IBM PC is an example of an MSP.
  */
 char *
 readdisklabel(dev, strat, lp, dp, bdp)
 	dev_t dev;
-	int (*strat)();
+	void (*strat)();
 	register struct disklabel *lp;
 	struct dos_partition *dp;
 	struct dkbad *bdp;
 {
 	register struct buf *bp;
 	struct disklabel *dlp;
+	char *msgMSP = NULL;
 	char *msg = NULL;
-	int dospartoff;
 	int i;
-	int cyl;
+	int cyl = 0;
 
+	/*
+	 * Set up the disklabel as in case there is no MSP.
+	 * We set the BSD part, but don't need to set the
+	 * RAW part, because readMSPtolabel() will reset that
+	 * itself. On return however, if there was no MSP,
+	 * then we will be looking into OUR part to find the label
+	 * and we will want that to start at 0, and have at least SOME length.
+	 */
 	if (lp->d_secperunit == 0)
 		lp->d_secperunit = 0x1fffffff;
-	lp->d_npartitions = 1;
-	if (lp->d_partitions[0].p_size == 0)
-		lp->d_partitions[0].p_size = 0x1fffffff;
-	lp->d_partitions[0].p_offset = 0;
+	lp->d_npartitions = OURPART + 1;
+	if (lp->d_partitions[OURPART].p_size == 0)
+		lp->d_partitions[OURPART].p_size = 0x100; /*enough for a label*/
+	lp->d_partitions[OURPART].p_offset = 0;
 
-	bp = geteblk((int)lp->d_secsize);
-	/* do dos partitions in the process of getting disklabel? */
-	dospartoff = 0;
-	cyl = LABELSECTOR / lp->d_secpercyl;
-	if (dp) {
-		/* read master boot record */
-		bp->b_dev = dev; 
-		bp->b_blkno = DOSBBSECTOR;
-		bp->b_bcount = lp->d_secsize;
-		bp->b_flags = B_BUSY | B_READ;
-		bp->b_cylinder = DOSBBSECTOR / lp->d_secpercyl;
-		(*strat)(bp);
-
-		/* if successful, wander through dos partition table */
-		if (biowait(bp)) {
-			msg = "dos partition I/O error";
-			goto done;
-		} else {
-			/* XXX how do we check veracity/bounds of this? */
-			bcopy(bp->b_un.b_addr + DOSPARTOFF, dp,
-				NDOSPART * sizeof(*dp));
-			for (i = 0; i < NDOSPART; i++, dp++)
-				/* is this ours? */
-				if (dp->dp_size &&
-					dp->dp_typ == DOSPTYP_386BSD
-					&& dospartoff == 0) {
-
-					/* need sector address for SCSI/IDE,
-					   cylinder for ESDI/ST506/RLL */
-					dospartoff = dp->dp_start;
-					cyl = DPCYL(dp->dp_scyl, dp->dp_ssect);
-
-					/* update disklabel with details */
-					lp->d_partitions[0].p_size =
-						dp->dp_size;
-					lp->d_partitions[0].p_offset = 
-						dp->dp_start;
-					lp->d_ntracks = dp->dp_ehd + 1;
-					lp->d_nsectors = DPSECT(dp->dp_esect);
-#ifdef CC_WALL
-/* The next statement looks bogus... i runs int 0..3 ??? */
-					lp->d_subtype |= ((lp->d_subtype & 3)
-							+ i) | DSTYPE_INDOSPART;
-#else /* CC_WALL */
-					lp->d_subtype |= (lp->d_subtype & 3)
-							+ i | DSTYPE_INDOSPART;
-#endif /* CC_WALL */
-					lp->d_secpercyl = lp->d_ntracks *
-						lp->d_nsectors;
-				}
-		}
-			
-	}
+	/*
+	 * Dig out the Dos MSP.. If we get it, all remaining transfers
+	 * will be relative to the base of the BSD part.
+	 */
+	msgMSP = readMSPtolabel(dev, strat, lp, dp, &cyl );
 	
-	/* next, dig out disk label */
-	bp->b_blkno = dospartoff + LABELSECTOR;
-	bp->b_dev = dev; 
+	/*
+	 * next, dig out disk label, relative to either the base of the
+	 * BSD part, or block 0, depending on if an MSP was found.
+	 */
+	bp = geteblk((int)lp->d_secsize);
+	bp->b_blkno = LABELSECTOR;
+	bp->b_dev = makedev(major(dev), dkminor(dkunit(dev), OURPART));
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags = B_BUSY | B_READ;
 	bp->b_cylinder = cyl;
@@ -256,8 +223,19 @@ readdisklabel(dev, strat, lp, dp, bdp)
 			break;
 		}
 	}
-	if (msg)
+
+	if (msg && msgMSP) {
+		msg = msgMSP;
 		goto done;
+	}
+
+	/*
+	 * Since we had one of the two labels, either one made up from the
+	 * MSP, one found in the FreeBSD-MSP-partitions sector 2, or even
+	 * one in sector 2 absolute on the disk, there is not really an error.
+	 */
+
+	msg = NULL;
 
 	/* obtain bad sector table if requested and present */
 	if (bdp && (lp->d_flags & D_BADSECT)) {
@@ -312,11 +290,20 @@ setdisklabel(olp, nlp, openmask)
 	register i;
 	register struct partition *opp, *npp;
 
+	/*
+	 * Check it is actually a disklabel we are looking at.
+	 */
 	if (nlp->d_magic != DISKMAGIC || nlp->d_magic2 != DISKMAGIC ||
 	    dkcksum(nlp) != 0)
 		return (EINVAL);
+	/*
+	 * For each partition that we think is open,
+	 */
 	while ((i = ffs((long)openmask)) != 0) {
 		i--;
+		/*
+	 	 * Check it is not changing....
+	 	 */
 		openmask &= ~(1 << i);
 		if (nlp->d_npartitions <= i)
 			return (EBUSY);
@@ -327,6 +314,8 @@ setdisklabel(olp, nlp, openmask)
 		/*
 		 * Copy internally-set partition information
 		 * if new label doesn't include it.		XXX
+		 * (If we are using it then we had better stay the same type)
+		 * This is possibly dubious, as someone else noted (XXX)
 		 */
 		if (npp->p_fstype == FS_UNUSED && opp->p_fstype != FS_UNUSED) {
 			npp->p_fstype = opp->p_fstype;
@@ -341,38 +330,100 @@ setdisklabel(olp, nlp, openmask)
 	return (0);
 }
 
-/* encoding of disk minor numbers, should be elsewhere... */
-#define dkunit(dev)		(minor(dev) >> 3)
-#define dkpart(dev)		(minor(dev) & 07)
-#define dkminor(unit, part)	(((unit) << 3) | (part))
-
 /*
  * Write disk label back to device after modification.
+ * For FreeBSD 2.0(x86) this routine will refuse to install a label if
+ * there is no DOS MSP. (this can be changed)
+ *
+ * Assumptions for THIS VERSION:
+ * The given disklabel pointer is actually that which is controlling this
+ * Device, so that by fiddling it, readMSPtolabel() can ensure that
+ * it can read from the MSP if it exists,
+ * This assumption will cease as soon as ther is a better way of ensuring
+ * that a read is done to the whole raw device.
+ * MSP defines a BSD part, label is in block 1 (2nd block) of this
  */
 int
 writedisklabel(dev, strat, lp)
 	dev_t dev;
-	int (*strat)();
+	void (*strat)();
 	register struct disklabel *lp;
 {
-	struct buf *bp;
+	struct buf *bp = NULL;
 	struct disklabel *dlp;
-	int labelpart;
 	int error = 0;
+	struct disklabel label;
+	char *msg;
+	int BSDstart,BSDlen;
+	int cyl; /* dummy arg for readMSPtolabel() */
 
-	labelpart = dkpart(dev);
-	/* XXX this is wrong. But leaving it in is worse. */
-#ifndef __FREEBSD__
-	if (lp->d_partitions[labelpart].p_offset != 0) {
-		if (lp->d_partitions[0].p_offset != 0)
-			return (EXDEV);			/* not quite right */
-		labelpart = 0;
+	/*
+	 * Save the label (better be the real one)
+	 * because we are going to play funny games with the disklabel
+	 * controlling this device..
+	 */
+	bcopy(lp,&label,sizeof(label));
+	/*
+	 * Unlike the read, we will trust the parameters given to us
+	 * about the disk, in the new disklabel but will simply
+	 * force OURPART to start at block 0 as a default in case there is NO
+	 * MSP.
+	 * readMSPtolabel() will reset it to start at the start of the BSD
+	 * part if it exists 
+	 * At this time this is an error contition but I've left support for it
+	 */
+	lp->d_npartitions = OURPART + 1;
+	if (lp->d_partitions[OURPART].p_size == 0)
+		lp->d_partitions[OURPART].p_size = 0x1fffffff;
+	lp->d_partitions[OURPART].p_offset = 0;
+
+	msg = readMSPtolabel(dev, strat, lp, 0, &cyl );
+	/*
+	 * If we want to be able to install without an Machine Specific 
+	 * Partitioning , then
+	 * the failure of readMSPtolabel() should be made non fatal.
+	 */
+	if(msg) {
+		printf("writedisklabel:%s\n",msg);
+		error = ENXIO;
+		goto done;
 	}
-#endif
+	/*
+	 * If we had MSP (no message) but there
+	 * was no BSD part in it
+	 * then balk.. they should use fdisk to make one first or smash it..
+	 * This may just be me being paranoid, but it's my choice for now..
+	 * note we test for !msg, because the test above might be changed
+	 * as a valid option..
+	 */
+	if((!msg) && (!(lp->d_subtype & DSTYPE_INDOSPART))) {
+		printf("writedisklabel: MSP with no BSD part\n");
+	}
+
+	/*
+	 * get all the other bits back from the good new disklabel
+	 * (the user wouldn't try confuse us would he?)
+	 * With the exception of the OURPART which now points to the 
+	 * BSD partition.
+	 */
+	BSDstart = lp->d_partitions[OURPART].p_offset;
+	BSDlen = lp->d_partitions[OURPART].p_size;
+	bcopy(&label,lp,sizeof(label));
+	lp->d_partitions[OURPART].p_offset = BSDstart;
+	lp->d_partitions[OURPART].p_size = BSDlen;
+
 	bp = geteblk((int)lp->d_secsize);
-	bp->b_dev = makedev(major(dev), dkminor(dkunit(dev), labelpart));
+	bp->b_dev = makedev(major(dev), dkminor(dkunit(dev), OURPART));
 	bp->b_blkno = LABELSECTOR;
 	bp->b_bcount = lp->d_secsize;
+#ifdef STUPID
+	/*
+	 * We read the label first to see if it's there,
+	 * in which case we will put ours at the same offset into the block..
+	 * (I think this is stupid [Julian])
+	 * Note that you can't write a label out over a corrupted label!
+	 * (also stupid.. how do you write the first one? by raw writes?)
+	 */
 	bp->b_flags = B_READ;
 	(*strat)(bp);
 	error = biowait(bp);
@@ -384,7 +435,7 @@ writedisklabel(dev, strat, lp)
 	    dlp = (struct disklabel *)((char *)dlp + sizeof(long))) {
 		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
 		    dkcksum(dlp) == 0) {
-			*dlp = *lp;
+			bcopy(&label,dlp,sizeof(label));
 			bp->b_flags = B_WRITE;
 			(*strat)(bp);
 			error = biowait(bp);
@@ -392,15 +443,24 @@ writedisklabel(dev, strat, lp)
 		}
 	}
 	error = ESRCH;
+#else	/* Stupid */
+	dlp = (struct disklabel *)bp->b_data;
+	bcopy(&label,dlp,sizeof(label));
+	bp->b_flags = B_WRITE;
+	(*strat)(bp);
+	error = biowait(bp);
+#endif 	/* Stupid */
 done:
-	brelse(bp);
+	bcopy(&label,lp,sizeof(label)); /* start using the new label again */
+	if(bp)
+		brelse(bp);
 	return (error);
 }
 
 /*
  * Compute checksum for disk label.
  */
-int
+u_int
 dkcksum(lp)
 	register struct disklabel *lp;
 {
