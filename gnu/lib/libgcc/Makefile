@@ -35,7 +35,7 @@ XCC=	${CC}
 XCXX=	${CXX}
 
 
-CFLAGS+=	-fexceptions
+CFLAGS+=	-nostdlib -fexceptions
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DFINE_GRAINED_LIBRARIES
 .if ${OBJFORMAT} != aout
