@@ -441,7 +441,7 @@ element to its previous location. [MERGED]
 sed(1) now takes a -E option for extended regular expression
 support. [MERGED]
 
-ln(1) now takes an -i option to request user configuration before
+ln(1) now takes an -i option to request user confirmation before
 overwriting an existing file. [MERGED]
 
 Version numbers of installed packages have a new (backward-compatible)
