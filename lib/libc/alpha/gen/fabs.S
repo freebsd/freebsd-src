@@ -1,5 +1,4 @@
 /*	$NetBSD: fabs.S,v 1.2 1996/10/17 03:08:05 cgd Exp $	*/
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
@@ -29,6 +28,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 LEAF(fabs, 1)
 	cpys	fzero, fa0, fv0

@@ -32,6 +32,7 @@
  */
 
 #include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 LEAF(ffs, 1)
 	addl	a0, 0, t0

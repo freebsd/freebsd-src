@@ -1,5 +1,4 @@
-/* $FreeBSD$	*/
-/*	From: NetBSD: cerror.S,v 1.4 1996/11/08 00:52:46 cgd Exp 	*/
+/*	$NetBSD: cerror.S,v 1.4 1996/11/08 00:52:46 cgd Exp $ 	*/
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.
@@ -27,6 +26,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
