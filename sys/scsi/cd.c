@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.14 1993/12/19 00:54:44 wollman Exp $
+ *      $Id: cd.c,v 1.15 1994/01/29 10:30:32 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -698,25 +698,27 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		break;
 	case CDIOREADTOCENTRYS:
 		{
+			struct cd_toc {
+				struct ioc_toc_header header;
+				struct cd_toc_entry entries[65];
+			} data;
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
-			struct cd_toc_entry data[65];
 			struct ioc_toc_header *th;
 			u_int32 len = te->data_len;
-			th = (struct ioc_toc_header *) data;
+			th = &data.header;
 
-			if (len > sizeof(data) || len < sizeof(struct cd_toc_entry)) {
+			if (len > sizeof(data.entries) || len < sizeof(struct cd_toc_entry)) {
 				error = EINVAL;
 				break;
 			}
 			if (error = cd_read_toc(unit, te->address_format,
 				te->starting_track,
-				data,
-				len))
+				(struct cd_toc_entry *)&data,
+				len + sizeof(struct ioc_toc_header)))
 				break;
-			len = MIN(len, ((((th->len & 0xff) << 8) + ((th->len >> 8))) +
-				sizeof(*th)));
-			if (copyout(th, te->data, len) != 0) {
+			len = MIN(len, ((((th->len & 0xff) << 8) + ((th->len >> 8))) - (sizeof(th->starting_track) + sizeof(th->ending_track))));
+			if (copyout(data.entries, te->data, len) != 0) {
 				error = EFAULT;
 			}
 		}
