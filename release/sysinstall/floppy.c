@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.3 1995/06/01 23:08:34 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.4 1995/06/01 23:11:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -94,8 +94,10 @@ getRootFloppy(void)
 	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
 	    return -1;
 	}
-	else if (cnt == 1)
+	else if (cnt == 1) {
 	    floppyDev = devs[0];
+	    msgConfirm("Please insert the ROOT floppy in %s and press [RETURN]", floppyDev->description);
+	}
 	else  {
 	    DMenu *menu;
 
