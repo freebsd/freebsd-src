@@ -35,7 +35,7 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id: syscons.c,v 1.22 1993/12/21 02:49:13 rich Exp $
+ *	$Id: syscons.c,v 1.23 1993/12/21 03:27:26 rich Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
@@ -526,14 +526,8 @@ pcparam(struct tty *tp, struct termios *t)
 	return(0);
 }
 
-
-#if defined(NetBSD)
 #define	frametype	struct trapframe 
 #define eflags		tf_eflags
-#else
-#define	frametype	struct syscframe
-#define eflags		sf_eflags
-#endif
 
 int
 pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: exception.s,v 1.1 1993/11/13 02:24:57 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -181,7 +181,7 @@ calltrap:
 	 * Return through doreti to handle ASTs.  Have to change trap frame
 	 * to interrupt frame.
 	 */
-	movl	$T_ASTFLT,4+4+32(%esp)		/* new trap type (err code not used) */
+	movl	$T_ASTFLT,TF_TRAPNO(%esp)	/* new trap type (err code not used) */
 	pushl	_cpl
 	pushl	$0				/* dummy unit */
 	jmp	doreti
@@ -195,8 +195,8 @@ calltrap:
 bpttraps:
 	pushal
 	nop
-	pushl	%es
 	pushl	%ds
+	pushl	%es
 	movl	$KDSEL,%eax
 	movl	%ax,%ds
 	movl	%ax,%es
@@ -211,38 +211,24 @@ bpttraps:
  */
 	SUPERALIGN_TEXT
 IDTVEC(syscall)
-	pushfl	/* only for stupid carry bit and more stupid wait3 cc kludge */
-		/* XXX - also for direction flag (bzero, etc. clear it) */
-	pushal	/* only need eax,ecx,edx - trap resaves others */
+	pushfl					/* Room for tf_err */
+	pushfl					/* Room for tf_trapno */
+	pushal
 	nop
+	pushl	%ds
+	pushl	%es
 	movl	$KDSEL,%eax			/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
+	movl	TF_ERR(%esp),%eax		/* copy eflags from tf_err to fs_eflags */
+	movl	%eax,TF_EFLAGS(%esp)
+	movl	$0,TF_ERR(%esp)			/* zero tf_err */
 	incl	_cnt+V_SYSCALL
 	call	_syscall
 	/*
-	 * Return through doreti to handle ASTs.  Have to change syscall frame
-	 * to interrupt frame.
-	 *
-	 * XXX - we should have set up the frame earlier to avoid the
-	 * following popal/pushal (not much can be done to avoid shuffling
-	 * the flags).  Consistent frames would simplify things all over.
+	 * Return through doreti to handle ASTs.
 	 */
-	movl	32+0(%esp),%eax			/* old flags, shuffle to above cs:eip */
-	movl	32+4(%esp),%ebx			/* `int' frame should have been ef, eip, cs */
-	movl	32+8(%esp),%ecx
-	movl	%ebx,32+0(%esp)
-	movl	%ecx,32+4(%esp)
-	movl	%eax,32+8(%esp)
-	popal
-	nop
-	pushl	$0				/* dummy error code */
-	pushl	$T_ASTFLT
-	pushal
-	nop
-	movl	__udatasel,%eax			/* switch back to user segments */
-	pushl	%eax				/* XXX - better to preserve originals? */
-	pushl	%eax
+	movl	$T_ASTFLT,TF_TRAPNO(%esp)	/* new trap type (err code not used) */
 	pushl	_cpl
 	pushl	$0
 	jmp	doreti
