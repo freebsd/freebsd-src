@@ -765,6 +765,6 @@ Write(fd, bp, size)
 void
 usage()
 {
-	(void)syslog(LOG_ERR, "usage: savecore [-cfvz] [-N system] directory");
+	(void)syslog(LOG_ERR, "usage: savecore [-cfkvz] [-N system] directory");
 	exit(1);
 }
