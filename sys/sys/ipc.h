@@ -40,8 +40,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipc.h	8.3 (Berkeley) 1/21/94
- * $Id: ipc.h,v 1.5 1994/12/30 05:38:14 davidg Exp $
+ *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
+ * $Id: ipc.h,v 1.7 1996/02/24 06:08:46 hsu Exp $
  */
 
 /*
