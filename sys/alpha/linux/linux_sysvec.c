@@ -259,4 +259,7 @@ static moduledata_t linux_elf_mod = {
 	linux_elf_modevent,
 	0
 };
+
+DUMMY(rt_sigreturn);
+
 DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
