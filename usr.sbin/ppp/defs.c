@@ -35,11 +35,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-#ifdef __OpenBSD__
-#include <util.h>
-#else
-#include <libutil.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
