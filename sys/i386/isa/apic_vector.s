@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.32 1997/08/29 18:37:23 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.33 1997/08/30 01:23:40 smp Exp smp $
  */
 
 
@@ -75,9 +75,10 @@ IDTVEC(vec_name) ;							\
 	movl	%ax,%ds ;						\
 	MAYBE_MOVW_AX_ES ;						\
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ;			\
-	GET_FAST_INTR_LOCK ;						\
 	pushl	_intr_unit + (irq_num) * 4 ;				\
+	GET_FAST_INTR_LOCK ;						\
 	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
+	REL_FAST_INTR_LOCK ;						\
 	addl	$4, %esp ;						\
 	movl	$0, lapic_eoi ;						\
 	lock ; 								\
@@ -86,7 +87,6 @@ IDTVEC(vec_name) ;							\
 	lock ; 								\
 	incl	(%eax) ;						\
 	MEXITCOUNT ;							\
-	REL_FAST_INTR_LOCK ;						\
 	MAYBE_POPL_ES ;							\
 	popl	%ds ;							\
 	popl	%edx ;							\
