@@ -59,28 +59,32 @@ static const char rcsid[] =
   "@(#) $FreeBSD$";
 #endif
 
-static void an_getval		__P((char *, struct an_req *));
-static void an_setval		__P((char *, struct an_req *));
+static void an_getval		__P((const char *, struct an_req *));
+static void an_setval		__P((const char *, struct an_req *));
 static void an_printwords	__P((u_int16_t *, int));
 static void an_printspeeds	__P((u_int8_t*, int));
 static void an_printbool	__P((int));
 static void an_printhex		__P((char *, int));
 static void an_printstr		__P((char *, int));
-static void an_dumpstatus	__P((char *));
-static void an_dumpstats	__P((char *));
-static void an_dumpconfig	__P((char *));
-static void an_dumpcaps		__P((char *));
-static void an_dumpssid		__P((char *));
-static void an_dumpap		__P((char *));
-static void an_setconfig	__P((char *, int, void *));
-static void an_setssid		__P((char *, int, void *));
-static void an_setap		__P((char *, int, void *));
-static void an_setspeed		__P((char *, int, void *));
-static void an_readkeyinfo	__P((char *));
+static void an_dumpstatus	__P((const char *));
+static void an_dumpstats	__P((const char *));
+static void an_dumpconfig	__P((const char *));
+static void an_dumpcaps		__P((const char *));
+static void an_dumpssid		__P((const char *));
+static void an_dumpap		__P((const char *));
+static void an_setconfig	__P((const char *, int, void *));
+static void an_setssid		__P((const char *, int, void *));
+static void an_setap		__P((const char *, int, void *));
+static void an_setspeed		__P((const char *, int, void *));
+static void an_readkeyinfo	__P((const char *));
 #ifdef ANCACHE
-static void an_zerocache	__P((char *));
-static void an_readcache	__P((char *));
+static void an_zerocache	__P((const char *));
+static void an_readcache	__P((const char *));
 #endif
+static int an_hex2int		__P((char));
+static void an_str2key		__P((char *, struct an_ltv_key *));
+static void an_setkeys		__P((const char *, char *, int));
+static void an_enable_tx_key	__P((const char *, char *));
 static void usage		__P((char *));
 int main			__P((int, char **));
 
@@ -125,7 +129,7 @@ int main			__P((int, char **));
 #define ACT_ENABLE_TX_KEY 36
 
 static void an_getval(iface, areq)
-	char			*iface;
+	const char		*iface;
 	struct an_req		*areq;
 {
 	struct ifreq		ifr;
@@ -150,7 +154,7 @@ static void an_getval(iface, areq)
 }
 
 static void an_setval(iface, areq)
-	char			*iface;
+	const char		*iface;
 	struct an_req		*areq;
 {
 	struct ifreq		ifr;
@@ -249,7 +253,7 @@ static void an_printhex(ptr, len)
 
 
 static void an_dumpstatus(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_ltv_status	*sts;
 	struct an_req		areq;
@@ -323,7 +327,7 @@ static void an_dumpstatus(iface)
 }
 
 static void an_dumpcaps(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_ltv_caps	*caps;
 	struct an_req		areq;
@@ -404,7 +408,7 @@ static void an_dumpcaps(iface)
 }
 
 static void an_dumpstats(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_ltv_stats	*stats;
 	struct an_req		areq;
@@ -571,7 +575,7 @@ static void an_dumpstats(iface)
 }
 
 static void an_dumpap(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_ltv_aplist	*ap;
 	struct an_req		areq;
@@ -596,7 +600,7 @@ static void an_dumpap(iface)
 }
 
 static void an_dumpssid(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_ltv_ssidlist	*ssid;
 	struct an_req		areq;
@@ -615,11 +619,11 @@ static void an_dumpssid(iface)
 }
 
 static void an_dumpconfig(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_ltv_genconfig	*cfg;
 	struct an_req		areq;
-	unsigned char		div;
+	unsigned char		diversity;
 
 	areq.an_len = sizeof(areq);
 	areq.an_type = AN_RID_ACTUALCFG;
@@ -772,21 +776,21 @@ static void an_dumpconfig(iface)
 		printf("unknown (%x)", cfg->an_radiotype);
 	printf(" ]");
 	printf("\nRX Diversity:\t\t\t\t[ ");
-	div = cfg->an_diversity & 0xFF;
-	if (div == AN_DIVERSITY_ANTENNA_1_ONLY)
+	diversity = cfg->an_diversity & 0xFF;
+	if (diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
 		printf("antenna 1 only");
-	else if (div == AN_DIVERSITY_ANTENNA_2_ONLY)
+	else if (diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
 		printf("antenna 2 only");
-	else if (div == AN_DIVERSITY_ANTENNA_1_AND_2)
+	else if (diversity == AN_DIVERSITY_ANTENNA_1_AND_2)
 		printf("antenna 1 and 2");
 	printf(" ]");
 	printf("\nTX Diversity:\t\t\t\t[ ");
-	div = (cfg->an_diversity >> 8) & 0xFF;
-	if (div == AN_DIVERSITY_ANTENNA_1_ONLY)
+	diversity = (cfg->an_diversity >> 8) & 0xFF;
+	if (diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
 		printf("antenna 1 only");
-	else if (div == AN_DIVERSITY_ANTENNA_2_ONLY)
+	else if (diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
 		printf("antenna 2 only");
-	else if (div == AN_DIVERSITY_ANTENNA_1_AND_2)
+	else if (diversity == AN_DIVERSITY_ANTENNA_1_AND_2)
 		printf("antenna 1 and 2");
 	printf(" ]");
 	printf("\nTransmit power level:\t\t\t");
@@ -849,7 +853,7 @@ static void usage(p)
 }
 
 static void an_setconfig(iface, act, arg)
-	char			*iface;
+	const char		*iface;
 	int			act;
 	void			*arg;
 {
@@ -985,8 +989,8 @@ static void an_setconfig(iface, act, arg)
 }
 
 static void an_setspeed(iface, act, arg)
-	char			*iface;
-	int			act;
+	const char		*iface;
+	int			act __unused;
 	void			*arg;
 {
 	struct an_req		areq;
@@ -1033,7 +1037,7 @@ static void an_setspeed(iface, act, arg)
 }
 
 static void an_setap(iface, act, arg)
-	char			*iface;
+	const char		*iface;
 	int			act;
 	void			*arg;
 {
@@ -1079,7 +1083,7 @@ static void an_setap(iface, act, arg)
 }
 
 static void an_setssid(iface, act, arg)
-	char			*iface;
+	const char		*iface;
 	int			act;
 	void			*arg;
 {
@@ -1119,7 +1123,7 @@ static void an_setssid(iface, act, arg)
 
 #ifdef ANCACHE
 static void an_zerocache(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_req		areq;
 
@@ -1133,7 +1137,7 @@ static void an_zerocache(iface)
 }
 
 static void an_readcache(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_req		areq;
 	int 			*an_sigitems;
@@ -1204,10 +1208,12 @@ static void an_str2key(s, k)
 		/* Yes, convert to int. */
 		n = 0;
 		p = (char *)&k->key[0];
-		for (i = 2; i < strlen(s); i+= 2) {
+		for (i = 2; s[i] != '\0' && s[i + 1] != '\0'; i+= 2) {
 			*p++ = (an_hex2int(s[i]) << 4) + an_hex2int(s[i + 1]);
 			n++;
 		}
+		if (s[i] != '\0')
+			errx(1, "hex strings must be of even length");
 		k->klen = n;
 	} else {
 		/* No, just copy it in. */
@@ -1219,7 +1225,7 @@ static void an_str2key(s, k)
 }
 
 static void an_setkeys(iface, key, keytype)
-	char			*iface;
+	const char		*iface;
 	char			*key;
 	int			keytype;
 {
@@ -1267,7 +1273,7 @@ static void an_setkeys(iface, key, keytype)
 }
 
 static void an_readkeyinfo(iface)
-	char			*iface;
+	const char		*iface;
 {
 	struct an_req		areq;
 	struct an_ltv_key	*k;
@@ -1307,7 +1313,7 @@ static void an_readkeyinfo(iface)
 }
 
 static void an_enable_tx_key(iface, arg)
-	char			*iface;
+	const char		*iface;
 	char			*arg;
 {
 	struct an_req		areq;
@@ -1341,7 +1347,7 @@ int main(argc, argv)
 {
 	int			ch;
 	int			act = 0;
-	char			*iface = NULL;
+	const char		*iface = NULL;
 	int			modifier = 0;
 	char			*key = NULL;
 	void			*arg = NULL;
