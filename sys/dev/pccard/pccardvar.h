@@ -147,8 +147,8 @@ struct pccard_function {
 #define	pf_ccr_realsize	pf_pcmh.realsize
 	uint32_t	pf_ccr_offset;	/* Offset from ccr_base of CIS */
 	int		pf_ccr_window;
-	long		pf_mfc_iobase;	/* Right type? */
-	long		pf_mfc_iomax;
+	bus_addr_t	pf_mfc_iobase;
+	bus_addr_t	pf_mfc_iomax;
 	int		pf_flags;
 	driver_intr_t	*intr_handler;
 	void		*intr_handler_arg;
@@ -373,10 +373,8 @@ enum {
 #define PCMCIA_CARD2_D(v1, p1, p2, f) \
 		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
 		  f, PCMCIA_CIS_ ## p2}
-#if 1
 #define PCMCIA_CARD(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), f, PCCARD_C(v, p) }
 #define PCMCIA_CARD2(v1, p1, p2, f) \
 		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
 		  f, PCMCIA_CIS_ ## p2}
-#endif
