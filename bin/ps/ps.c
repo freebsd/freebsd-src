@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.21 1997/08/03 08:25:01 peter Exp $
+ *	$Id: ps.c,v 1.22 1997/12/05 07:33:40 dyson Exp $
  */
 
 #ifndef lint
@@ -143,7 +143,7 @@ main(argc, argv)
 	memf = nlistf = swapf = NULL;
 	while ((ch = getopt(argc, argv,
 #if defined(LAZY_PS)
-	    "aCcfeghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
 #else
 	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
 #endif
