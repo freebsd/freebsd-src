@@ -700,6 +700,14 @@ additional
 .\" at one time when in polled mode.
 .\" There is some controversy over
 .\" whether such a restriction makes any sense at all.
+.It Va ifi_datalen
+.Pq Vt u_char
+Length of the
+.Vt if_data
+structure.
+Allows some stabilization of the routing socket ABI in the face of
+increases in the length of
+.Vt struct ifdata .
 .It Va ifi_mtu
 .Pq Vt u_long
 The maximum transmission unit of the medium, exclusive of any
@@ -719,6 +727,16 @@ packets.
 The interface driver must keep this field in accord with
 the current value of
 .Va if_capenable .
+.It ifi_epoch
+.Pq Vt time_t
+The time the interface was attached or the last time the statistics
+below were reset.
+.Va ifi_epoch
+is intended to be used to set the SNMP variable
+.Va ifCounterDiscontinuityTime .
+It may also be used to determine if two successive queries for an
+interface of the same index have returned results for the same
+interface.
 .El
 .Pp
 The structure additionally contains generic statistics applicable to a
@@ -726,6 +744,12 @@ variety of different interface types (except as noted, all members are
 of type
 .Vt u_long ) :
 .Bl -tag -width ".Va ifi_lastchange" -offset indent
+.It Va ifi_link_state
+.Pq Vt u_char
+The current link state of Ethernet interfaces.
+See the 
+.Sx Interface Link States
+section for possible values.
 .It Va ifi_ipackets
 Number of packets received.
 .It Va ifi_ierrors
@@ -811,6 +835,17 @@ Parallel-port IP
 .Pq Dq Tn PLIP
 .It Dv IFT_ATM
 Asynchronous Transfer Mode
+.El
+.Ss Interface Link States
+The following link states are currently defined:
+.Pp
+.Bl -tag -offset indent -width ".Dv LINK_STATE_UNKNOWN" -compact
+.It Dv LINK_STATE_UNKNOWN
+The link is in an invalid or unknown state.
+.It Dv LINK_STATE_DOWN
+The link is down.
+.It Dv LINK_STATE_UP
+The link is up.
 .El
 .Ss The Vt ifaddr Ss Structure
 Every interface is associated with a list
