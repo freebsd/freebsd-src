@@ -7,7 +7,7 @@ SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c \
 	mode.c ip.c ip6.c tcp.c \
 	vmstat.c convtbl.c ifcmds.c ifstat.c
 CFLAGS+=-DINET6
-DPADD=	${LIBCURSES} ${LIBM} ${LIBKVM} ${LIBDEVSTAT}
-LDADD=	-lcurses -lm -lkvm -ldevstat
+DPADD=	${LIBCURSES} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
+LDADD=	-lcurses -lm -ldevstat -lkvm
 
 .include <bsd.prog.mk>
