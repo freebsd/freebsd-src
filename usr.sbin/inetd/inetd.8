@@ -319,7 +319,7 @@ before exiting.
 If a datagram server connects
 to its peer, freeing the socket so
 .Nm
-can received further messages on the socket, it is said to be
+can receive further messages on the socket, it is said to be
 a
 .Dq multi-threaded
 server;
@@ -436,11 +436,23 @@ Without options, the service will always return
 The available arguments to this service that alter its behavior are:
 .Bl -tag -width indent
 .It Fl d Ar fallback
-Instead of returning an error if getting the socket credentials or
-looking up the user name fails, return a default
+Provide a
 .Ar fallback
-user name to the requesting ident client.  This is primarily useful
-when running this service on a NAT machine.
+username.
+If the real
+.Dq auth
+service is enabled
+(with the
+.Fl r
+option discussed below),
+return this username instead of an error
+when look ups fail
+for either socket credentials or the username.
+If the real
+.Dq auth
+service is disabled,
+return this username for every request.
+This is primarily useful when running this service on a NAT machine.
 .It Fl t Ar sec[.usec]
 Specify a timeout for the service.
 The default timeout is 10.0 seconds.

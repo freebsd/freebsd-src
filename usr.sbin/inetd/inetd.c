@@ -1136,11 +1136,12 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 			(char *)&on, sizeof (on)) < 0))
 		syslog(LOG_ERR, "setsockopt (IPV6_RECVPKTINFO): %m");
 #ifdef IPV6_BINDV6ONLY
-	if ((sep->se_family == AF_INET6) &&
-	    (sep->se_nomapped != 0) &&
-	    (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_BINDV6ONLY,
-			(char *)&on, sizeof (on)) < 0))
-		syslog(LOG_ERR, "setsockopt (IPV6_BINDV6ONLY): %m");
+	if (sep->se_family == AF_INET6) {
+		int flag = sep->se_nomapped ? 1 : 0;
+		if (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_BINDV6ONLY,
+			       (char *)&flag, sizeof (flag)) < 0)
+			syslog(LOG_ERR, "setsockopt (IPV6_BINDV6ONLY): %m");
+	}
 #endif /* IPV6_BINDV6ONLY */
 #undef turnon
 	if (sep->se_type == TTCP_TYPE)

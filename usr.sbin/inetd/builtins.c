@@ -219,7 +219,7 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 	clock = time((time_t *) 0);
 
 	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
-	(void) write(s, buffer, strlen(buffer));
+	(void) send(s, buffer, strlen(buffer), MSG_EOF);
 }
 
 /*
@@ -320,7 +320,7 @@ iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
 		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
-	write(s, p, strlen(p));
+	send(s, p, strlen(p), MSG_EOF);
 	free(p);
 
 	exit(0);
@@ -343,13 +343,16 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	struct timeval tv = {
 		10,
 		0
-	};
+	}, to;
 	struct passwd *pw = NULL;
 	fd_set fdset;
-	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7];
+	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7], e;
 	char *fallback = NULL;
-	int len, c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
-	int gflag = 0, Rflag = 0, getcredfail = 0;
+	socklen_t socklen;
+	ssize_t ssize;
+	size_t size, bufsiz;
+	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
+	int gflag = 0, getcredfail = 0, onreadlen;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -410,9 +413,6 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			case 'o':
 				osname = optarg;
 				break;
-			case 'R':
-				Rflag = 2;
-				break;
 			case 'r':
 				rflag = 1;
 				break;
@@ -438,11 +438,11 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			iderror(0, 0, s, errno);
 		osname = un.sysname;
 	}
-	len = sizeof(ss[0]);
-	if (getsockname(s, (struct sockaddr *)&ss[0], &len) == -1)
+	socklen = sizeof(ss[0]);
+	if (getsockname(s, (struct sockaddr *)&ss[0], &socklen) == -1)
 		iderror(0, 0, s, errno);
-	len = sizeof(ss[1]);
-	if (getpeername(s, (struct sockaddr *)&ss[1], &len) == -1)
+	socklen = sizeof(ss[1]);
+	if (getpeername(s, (struct sockaddr *)&ss[1], &socklen) == -1)
 		iderror(0, 0, s, errno);
 	/*
 	 * We're going to prepare for and execute reception of a
@@ -450,27 +450,62 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 * "local_port , foreign_port\r\n" (with local being the
 	 * server's port and foreign being the client's.)
 	 */
+	gettimeofday(&to, NULL);
+	to.tv_sec += tv.tv_sec;
+	if ((to.tv_usec += tv.tv_usec) >= 1000000) {
+		to.tv_usec -= 1000000;
+		to.tv_sec++;
+	}
+
+	size = 0;
+	bufsiz = sizeof(buf) - 1;
 	FD_ZERO(&fdset);
-	FD_SET(s, &fdset);
-	if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
-		iderror(0, 0, s, errno);
-	if (ioctl(s, FIONREAD, &len) == -1)
-		iderror(0, 0, s, errno);
-	if (len >= sizeof(buf))
-		len = sizeof(buf) - 1;
-	len = read(s, buf, len);
-	if (len == -1)
-		iderror(0, 0, s, errno);
-	buf[len] = '\0';
-	if (sscanf(buf, "%hu , %hu", &lport, &fport) != 2)
+ 	while (bufsiz > 0 && (size == 0 || buf[size - 1] != '\n')) {
+		gettimeofday(&tv, NULL);
+		tv.tv_sec = to.tv_sec - tv.tv_sec;
+		tv.tv_usec = to.tv_usec - tv.tv_usec;
+		if (tv.tv_usec < 0) {
+			tv.tv_usec += 1000000;
+			tv.tv_sec--;
+		}
+		if (tv.tv_sec < 0)
+			break;
+		FD_SET(s, &fdset);
+		if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
+			iderror(0, 0, s, errno);
+		if (ioctl(s, FIONREAD, &onreadlen) == -1)
+			iderror(0, 0, s, errno);
+		if (onreadlen > bufsiz)
+			onreadlen = bufsiz;
+		ssize = read(s, &buf[size], (size_t)onreadlen);
+		if (ssize == -1)
+			iderror(0, 0, s, errno);
+		bufsiz -= ssize;
+		size += ssize;
+ 	}
+	buf[size] = '\0';
+	/* Read two characters, and check for a delimiting character */
+	if (sscanf(buf, "%hu , %hu%c", &lport, &fport, &e) != 3 || isdigit(e))
 		iderror(0, 0, s, 0);
 	if (gflag) {
 		cp = garbage;
 		goto printit;
 	}
 		
-	if (!rflag)	/* Send HIDDEN-USER immediately if not "real" */
-		iderror(lport, fport, s, -1);
+	/*
+	 * If not "real" (-r), send a HIDDEN-USER error for everything.
+	 * If -d is used to set a fallback username, this is used to
+	 * override it, and the fallback is returned instead.
+	 */
+	if (!rflag) {
+		if (fallback == NULL)
+			iderror(lport, fport, s, -1);
+		else {
+			cp = fallback;
+			goto printit;
+		}
+	}
+		
 	/*
 	 * We take the input and construct an array of two sockaddr_ins
 	 * which contain the local address information and foreign
@@ -482,14 +517,14 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 */
 	if (ss[0].ss_family != ss[1].ss_family)
 		iderror(lport, fport, s, errno);
-	len = sizeof(uc);
+	size = sizeof(uc);
 	switch (ss[0].ss_family) {
 	case AF_INET:
 		sin[0] = *(struct sockaddr_in *)&ss[0];
 		sin[0].sin_port = htons(lport);
 		sin[1] = *(struct sockaddr_in *)&ss[1];
 		sin[1].sin_port = htons(fport);
-		if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
+		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin,
 				 sizeof(sin)) == -1)
 			getcredfail = 1;
 		break;
@@ -499,7 +534,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		sin6[0].sin6_port = htons(lport);
 		sin6[1] = *(struct sockaddr_in6 *)&ss[1];
 		sin6[1].sin6_port = htons(fport);
-		if (sysctlbyname("net.inet6.tcp6.getcred", &uc, &len, sin6,
+		if (sysctlbyname("net.inet6.tcp6.getcred", &uc, &size, sin6,
 				 sizeof(sin6)) == -1)
 			getcredfail = 1;
 		break;
@@ -571,16 +606,16 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			 * in the form "identity\n", so we use strtok() to
 			 * end the string (which fgets() doesn't do.)
 			 */
-			strtok(buf, "\r\n");
-			/* User names of >16 characters are invalid */
-			if (strlen(buf) > 16)
-				buf[16] = '\0';
+			buf[strcspn(buf, "\r\n")] = '\0';
 			cp = buf;
 			/* Allow for beginning white space... */
 			while (isspace(*cp))
 				cp++;
 			/* ...and ending white space. */
-			strtok(cp, " \t");
+			cp[strcspn(cp, " \t")] = '\0';
+			/* User names of >16 characters are invalid */
+			if (strlen(cp) > 16)
+				cp[16] = '\0';
 			/*
 			 * If the name is a zero-length string or matches
 			 * the name of another user, it's invalid, so
@@ -602,7 +637,7 @@ printit:
 		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
-	write(s, p, strlen(p));
+	send(s, p, strlen(p), MSG_EOF);
 	free(p);
 	
 	exit(0);
@@ -664,7 +699,7 @@ machtime_stream(s, sep)
 	unsigned long result;
 
 	result = machtime();
-	(void) write(s, (char *) &result, sizeof(result));
+	(void) send(s, (char *) &result, sizeof(result), MSG_EOF);
 }
 
 /*
