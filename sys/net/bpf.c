@@ -578,10 +578,12 @@ bpfwrite(dev, uio, ioflag)
 	if (d->bd_hdrcmplt)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
 
-	mtx_lock(&Giant);
 #ifdef MAC
+	BPFD_LOCK(d);
 	mac_create_mbuf_from_bpfdesc(d, m);
+	BPFD_UNLOCK(d);
 #endif
+	mtx_lock(&Giant);
 	error = (*ifp->if_output)(ifp, m, &dst, (struct rtentry *)0);
 	mtx_unlock(&Giant);
 	/*
