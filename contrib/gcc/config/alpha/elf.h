@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.    */
 
 #undef OBJECT_FORMAT_COFF
 #undef EXTENDED_COFF
-#define OBJECT_FORMAT_ELF
+#define OBJECT_FORMAT_ELF	1
 
 /* ??? Move all SDB stuff from alpha.h to osf.h.  */
 #undef SDB_DEBUGGING_INFO
@@ -78,7 +78,7 @@ do {								\
 #define IDENT_ASM_OP "\t.ident\t"
 
 /* Allow #sccs in preprocessor.  */
-#define SCCS_DIRECTIVE
+#define SCCS_DIRECTIVE	1
 
 /* Output #ident as a .ident.  */
 #undef  ASM_OUTPUT_IDENT
