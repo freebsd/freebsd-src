@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2004, 2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
  *
@@ -43,7 +43,6 @@ static const char rcs_id[] =
 #include <arpa/inet.h>
 
 #include <err.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,19 +57,18 @@ static const char rcs_id[] =
 int main(int, char **);
 
 static int flow_cache_print(struct ngnf_flows *recs);
-static int ctl_show(int, int, char **);
+static int ctl_show(int, char **);
 static void help(void);
 static void execute_command(int, char **);
 
 struct ip_ctl_cmd {
 	char	*cmd_name;
-	int	cmd_code;
-	int	(*cmd_func)(int code, int argc, char **argv);
+	int	(*cmd_func)(int argc, char **argv);
 };
 
 struct ip_ctl_cmd cmds[] = {
-    {"show",		NGM_NETFLOW_SHOW,	ctl_show},
-    {NULL,		0,			NULL},
+    {"show",	ctl_show},
+    {NULL,	NULL},
 };
 
 int	cs;
@@ -79,7 +77,7 @@ char	ng_nodename[NG_PATHLEN + 1];
 int
 main(int argc, char **argv)
 {
-	int flags, c;
+	int c;
 	char sname[NG_NODESIZ];
 	int rcvbuf = SORCVBUF_SIZE;
 	char	*ng_name;
@@ -108,13 +106,6 @@ main(int argc, char **argv)
 
 	if (NgMkSockNode(sname, &cs, NULL) == -1)
 		err(1, "NgMkSockNode");
-
-	/* set control socket nonblocking */
-	if ((flags = fcntl(cs, F_GETFL, 0)) == -1)
-		err(1, "fcntl(F_GETFL)");
-	flags |= O_NONBLOCK;
-	if (fcntl(cs, F_SETFL, flags) == -1)
-		err(1, "fcntl(F_SETFL)");
 
 	/* set receive buffer size */
 	if (setsockopt(cs, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(int)) == -1)
@@ -146,11 +137,11 @@ execute_command(int argc, char **argv)
 		errx(1, "bad command: %s", argv[0]);
 	argc--;
 	argv++;
-	(*cmds[cindex].cmd_func)(cmds[cindex].cmd_code, argc, argv);
+	(*cmds[cindex].cmd_func)(argc, argv);
 }
 
 static int
-ctl_show(int code, int argc, char **argv)
+ctl_show(int argc, char **argv)
 {
 	struct ng_mesg *ng_mesg;
 	struct ngnf_flows *data;
