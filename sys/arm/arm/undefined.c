@@ -45,6 +45,8 @@
  */
 
 
+#include "opt_ddb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -263,21 +265,13 @@ undefinedinstruction(trapframe_t *frame)
 	if ((fault_code & FAULT_USER) == 0) {
 		if (fault_instruction == KERNEL_BREAKPOINT) {
 #ifdef KDB
-		kdb_trap(0, 0, frame);
+		kdb_trap(T_BREAKPOINT, 0, frame);
 #else
 		printf("No debugger in kernel.\n");
 #endif
-		frame->tf_pc += 4;
 		return;
-		} else {
-#ifdef KDB
-			printf("Undefined instruction in kernel.\n");
-			kdb_trap(0, 0, frame);
-#else
+		} else
 			panic("Undefined instruction in kernel.\n");
-#endif
-		}
-		
 	}		
 
 #ifdef FAST_FPE
