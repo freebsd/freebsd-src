@@ -64,7 +64,7 @@ do
 		mandir="$mandir $d/$db"
 	fi
 
-	# Check for locailzed manpage subdirectories
+	# Check for localized manpage subdirectories
 	if [ X"$man_locales" != X ]; then
 		for l in $man_locales
 		do
@@ -102,10 +102,10 @@ done |
 	done
 
 	# nothing found, exit
-	if test -z "$line" -a ! -z "$line2"; then
+	if [ -z "$line" -a ! -z "$line2"]; then
 		printf -- "$line2"
 		exit $exit_nomatch
 	else
-		( printf -- "$line2"; echo $line; cat ) | $PAGER
+		( printf -- "$line2"; echo "$line"; cat ) | $PAGER
 	fi
 )
