@@ -698,7 +698,6 @@ mi_switch()
 #if 0
 	register struct rlimit *rlim;
 #endif
-	critical_t sched_crit;
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
@@ -773,14 +772,12 @@ mi_switch()
 	PCPU_SET(switchtime, new_switchtime);
 	CTR3(KTR_PROC, "mi_switch: old proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
-	sched_crit = sched_lock.mtx_savecrit;
 	sched_nest = sched_lock.mtx_recurse;
 	td->td_lastcpu = td->td_kse->ke_oncpu;
 	td->td_kse->ke_oncpu = NOCPU;
 	td->td_kse->ke_flags &= ~KEF_NEEDRESCHED;
 	cpu_switch();
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
-	sched_lock.mtx_savecrit = sched_crit;
 	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)td;
 	CTR3(KTR_PROC, "mi_switch: new proc %p (pid %d, %s)", p, p->p_pid,

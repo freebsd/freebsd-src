@@ -47,8 +47,10 @@ idle_setup(void *dummy)
 		error = kthread_create(idle_proc, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, "idle: cpu%d", pc->pc_cpuid);
 		pc->pc_idlethread = &p->p_thread;
-		if (pc->pc_curthread == NULL)
+		if (pc->pc_curthread == NULL) {
 			pc->pc_curthread = pc->pc_idlethread;
+			pc->pc_idlethread->td_critnest = 0;
+		}
 #else
 		error = kthread_create(idle_proc, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, "idle");

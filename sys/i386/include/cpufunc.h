@@ -41,6 +41,7 @@
 #define	_MACHINE_CPUFUNC_H_
 
 #include <sys/cdefs.h>
+#include <machine/psl.h>
 
 __BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
@@ -50,6 +51,8 @@ __BEGIN_DECLS
 #define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
 #define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
+
+#define	CRITICAL_FORK	(read_eflags() | PSL_I)
 
 #ifdef	__GNUC__
 
@@ -548,7 +551,7 @@ load_dr7(u_int sel)
 }
 
 static __inline critical_t
-critical_enter(void)
+cpu_critical_enter(void)
 {
 	critical_t eflags;
 
@@ -558,7 +561,7 @@ critical_enter(void)
 }
 
 static __inline void
-critical_exit(critical_t eflags)
+cpu_critical_exit(critical_t eflags)
 {
 	write_eflags(eflags);
 }
@@ -597,8 +600,8 @@ u_int	rfs		__P((void));
 u_int	rgs		__P((void));
 void	load_fs		__P((u_int sel));
 void	load_gs		__P((u_int sel));
-critical_t critical_enter __P((void));
-void	critical_exit	__P((critical_t eflags));
+critical_t cpu_critical_enter __P((void));
+void	cpu_critical_exit __P((critical_t eflags));
 
 #endif	/* __GNUC__ */
 

@@ -252,7 +252,6 @@ static struct mtx all_mtx = {
 	  { NULL },			/* mtx_object.lo_list */
 	  NULL },			/* mtx_object.lo_witness */
 	MTX_UNOWNED, 0,			/* mtx_lock, mtx_recurse */
-	0,				/* mtx_savecrit */
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
 	{ NULL, NULL }			/* mtx_contested */
 };
@@ -836,7 +835,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					instance->li_flags--;
 					goto out;
 				}
-				s = critical_enter();
+				s = cpu_critical_enter();
 				CTR4(KTR_WITNESS,
 				    "%s: pid %d removed %s from lle[%d]", __func__,
 				    td->td_proc->p_pid,
@@ -846,7 +845,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				for (j = i; j < (*lock_list)->ll_count; j++)
 					(*lock_list)->ll_children[j] =
 					    (*lock_list)->ll_children[j + 1];
-				critical_exit(s);
+				cpu_critical_exit(s);
 				if ((*lock_list)->ll_count == 0) {
 					lle = *lock_list;
 					*lock_list = lle->ll_next;
@@ -896,7 +895,7 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	/*
 	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
 	 */
-	savecrit = critical_enter();	
+	savecrit = cpu_critical_enter();	
 	td = curthread;
 	lock_list = &td->td_sleeplocks;
 again:
@@ -931,7 +930,7 @@ again:
 	if (witness_ddb && n)
 		Debugger(__func__);
 #endif /* DDB */
-	critical_exit(savecrit);
+	cpu_critical_exit(savecrit);
 	return (n);
 }
 
@@ -1360,9 +1359,9 @@ witness_list(struct thread *td)
 		 * Preemption bad because we need PCPU_PTR(spinlocks) to not
 		 * change.
 		 */
-		savecrit = critical_enter();
+		savecrit = cpu_critical_enter();
 		nheld += witness_list_locks(PCPU_PTR(spinlocks));
-		critical_exit(savecrit);
+		cpu_critical_exit(savecrit);
 	}
 	return (nheld);
 }

@@ -193,7 +193,7 @@ enter_prom()
 	pt_entry_t *lev1map;
 	critical_t s;
 	
-	s = critical_enter();
+	s = cpu_critical_enter();
 
 	if (!prom_mapped) {
 #ifdef SIMOS
@@ -232,7 +232,7 @@ leave_prom(s)
 		lev1map[0] = saved_pte[0];	/* XXX */
 		prom_cache_sync();		/* XXX */
 	}
-	critical_exit(s);
+	cpu_critical_exit(s);
 }
 
 static void
@@ -272,7 +272,7 @@ prom_halt(halt)
 	/*
 	 * Turn off interrupts, for sanity.
 	 */
-	critical_enter();
+	cpu_critical_enter();
 
 	/*
 	 * Set "boot request" part of the CPU state depending on what

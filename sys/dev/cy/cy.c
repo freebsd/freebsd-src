@@ -356,7 +356,7 @@ static	int	cd_getreg	__P((struct com_s *com, int reg));
 static	void	cd_setreg	__P((struct com_s *com, int reg, int val));
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
-static	void	sioinput	__P((struct com_s *com, critical_t *savecrit));
+static	void	sioinput	__P((struct com_s *com));
 #if 0
 static	void	siointr1	__P((struct com_s *com));
 #endif
@@ -673,7 +673,6 @@ sioopen(dev, flag, mode, td)
 	int		s;
 	struct tty	*tp;
 	int		unit;
-	critical_t	savecrit;
 
 	mynor = minor(dev);
 	unit = MINOR_TO_UNIT(mynor);
@@ -775,7 +774,7 @@ open_top:
 			}
 		}
 
-		savecrit = critical_enter();
+		critical_enter();
 		COM_LOCK();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
@@ -784,7 +783,7 @@ open_top:
 		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
 				       | IER_EMSC);
 		COM_UNLOCK();
-		critical_exit(savecrit);
+		critical_exit();
 #else /* !0 */
 		/*
 		 * Flush fifos.  This requires a full channel reset which
@@ -795,7 +794,7 @@ open_top:
 				   CD1400_CCR_CMDRESET | CD1400_CCR_CHANRESET);
 		cd1400_channel_cmd(com, com->channel_control);
 
-		savecrit = critical_enter();
+		critical_enter();
 		COM_LOCK();
 		com->prev_modem_status = com->last_modem_status
 		    = cd_getreg(com, CD1400_MSVR2);
@@ -803,7 +802,7 @@ open_top:
 			  com->intr_enable
 			  = CD1400_SRER_MDMCH | CD1400_SRER_RXDATA);
 		COM_UNLOCK();
-		critical_exit(savecrit);
+		critical_exit();
 #endif /* 0 */
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
@@ -886,7 +885,6 @@ comhardclose(com)
 	int		s;
 	struct tty	*tp;
 	int		unit;
-	critical_t	savecrit;
 
 	unit = com->unit;
 	iobase = com->iobase;
@@ -900,12 +898,12 @@ comhardclose(com)
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #else
 	/* XXX */
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	com->etc = ETC_NONE;
 	cd_setreg(com, CD1400_COR2, com->cor[1] &= ~CD1400_COR2_ETC);
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	cd1400_channel_cmd(com, CD1400_CCR_CMDRESET | CD1400_CCR_FTF);
 #endif
 
@@ -913,11 +911,11 @@ comhardclose(com)
 #if 0
 		outb(iobase + com_ier, 0);
 #else
-		savecrit = critical_enter();
+		critical_enter();
 		COM_LOCK();
 		cd_setreg(com, CD1400_SRER, com->intr_enable = 0);
 		COM_UNLOCK();
-		critical_exit(savecrit);
+		critical_exit();
 #endif
 		tp = com->tp;
 		if ((tp->t_cflag & HUPCL)
@@ -1013,9 +1011,8 @@ siodtrwakeup(chan)
  *  b) needs to return with COM_LOCK() held.
  */
 static void
-sioinput(com, savecrit)
+sioinput(com)
 	struct com_s	*com;
-	critical_t	*savecrit;
 {
 	u_char		*buf;
 	int		incc;
@@ -1046,7 +1043,7 @@ sioinput(com, savecrit)
 			 * that are used everywhere else.
 			 */
 			COM_UNLOCK();
-			critical_exit(*savecrit);
+			critical_exit();
 			incc = com->iptr - buf;
 			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
 			    && (com->state & CS_RTS_IFLOW
@@ -1067,7 +1064,7 @@ sioinput(com, savecrit)
 				tp->t_lflag &= ~FLUSHO;
 				comstart(tp);
 			}
-			*savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 		} while (buf < com->iptr);
 	} else {
@@ -1078,7 +1075,7 @@ sioinput(com, savecrit)
 			 * that are used everywhere else.
 			 */
 			COM_UNLOCK();
-			critical_exit(*savecrit);
+			critical_exit();
 			line_status = buf[com->ierroff];
 			recv_data = *buf++;
 			if (line_status
@@ -1093,7 +1090,7 @@ sioinput(com, savecrit)
 					recv_data |= TTY_PE;
 			}
 			(*linesw[tp->t_line].l_rint)(recv_data, tp);
-			*savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 		} while (buf < com->iptr);
 	}
@@ -1767,7 +1764,6 @@ static void
 siopoll(void *arg)
 {
 	int		unit;
-	critical_t	savecrit;
 
 #ifdef CyDebug
 	++cy_timeouts;
@@ -1790,7 +1786,7 @@ repeat:
 			 * (actually never opened devices) so that we don't
 			 * loop.
 			 */
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			incc = com->iptr - com->ibuf;
 			com->iptr = com->ibuf;
@@ -1800,7 +1796,7 @@ repeat:
 			}
 			com_events -= incc;
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 			if (incc != 0)
 				log(LOG_DEBUG,
 				    "sio%d: %d events for device with no tp\n",
@@ -1808,36 +1804,36 @@ repeat:
 			continue;
 		}
 		if (com->iptr != com->ibuf) {
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
-			sioinput(com, &savecrit);
+			sioinput(com);
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 		}
 		if (com->state & CS_CHECKMSR) {
 			u_char	delta_modem_status;
 
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
-			sioinput(com, &savecrit);
+			sioinput(com);
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 			if (delta_modem_status & MSR_DCD)
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
 		}
 		if (com->extra_state & CSE_ODONE) {
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			com_events -= LOTS_OF_EVENTS;
 			com->extra_state &= ~CSE_ODONE;
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 			if (!(com->state & CS_BUSY)) {
 				tp->t_state &= ~TS_BUSY;
 				ttwwakeup(com->tp);
@@ -1849,12 +1845,12 @@ repeat:
 			}
 		}
 		if (com->state & CS_ODONE) {
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 			(*linesw[tp->t_line].l_start)(tp);
 		}
 		if (com_events == 0)
@@ -1883,7 +1879,6 @@ comparam(tp, t)
 	u_char		opt;
 	int		s;
 	int		unit;
-	critical_t	savecrit;
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
@@ -2031,14 +2026,14 @@ comparam(tp, t)
 	if (cflag & CCTS_OFLOW)
 		opt |= CD1400_COR2_CCTS_OFLOW;
 #endif
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	if (opt != com->cor[1]) {
 		cor_change |= CD1400_CCR_COR2;
 		cd_setreg(com, CD1400_COR2, com->cor[1] = opt);
 	}
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 
 	/*
 	 * set channel option register 3 -
@@ -2159,7 +2154,7 @@ comparam(tp, t)
 	 * XXX should have done this long ago, but there is too much state
 	 * to change all atomically.
 	 */
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 
 	com->state &= ~CS_TTGO;
@@ -2227,7 +2222,7 @@ comparam(tp, t)
 	}
 
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	splx(s);
 	comstart(tp);
 	if (com->ibufold != NULL) {
@@ -2246,7 +2241,6 @@ siosetwater(com, speed)
 	u_char		*ibuf;
 	int		ibufsize;
 	struct tty	*tp;
-	critical_t	savecrit;
 
 	/*
 	 * Make the buffer size large enough to handle a softtty interrupt
@@ -2284,10 +2278,10 @@ siosetwater(com, speed)
 	 * Read current input buffer, if any.  Continue with interrupts
 	 * disabled.
 	 */
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	if (com->iptr != com->ibuf)
-		sioinput(com, &savecrit);
+		sioinput(com);
 
 	/*-
 	 * Initialize critical variables, including input buffer watermarks.
@@ -2306,7 +2300,7 @@ siosetwater(com, speed)
 	com->ihighwater = ibuf + 3 * ibufsize / 4;
 
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	return (0);
 }
 
@@ -2320,7 +2314,6 @@ comstart(tp)
 	bool_t		started;
 #endif
 	int		unit;
-	critical_t	savecrit;
 
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
@@ -2331,7 +2324,7 @@ comstart(tp)
 	started = FALSE;
 #endif
 
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	if (tp->t_state & TS_TTSTOP) {
 		com->state &= ~CS_TTGO;
@@ -2369,7 +2362,7 @@ comstart(tp)
 #endif
 	}
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		ttwwakeup(tp);
 		splx(s);
@@ -2388,7 +2381,7 @@ comstart(tp)
 						  sizeof com->obuf1);
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
@@ -2409,7 +2402,7 @@ comstart(tp)
 						    | CD1400_SRER_TXRDY);
 			}
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 		}
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
 #ifdef CyDebug
@@ -2420,7 +2413,7 @@ comstart(tp)
 						  sizeof com->obuf2);
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
@@ -2441,7 +2434,7 @@ comstart(tp)
 						    | CD1400_SRER_TXRDY);
 			}
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 		}
 		tp->t_state |= TS_BUSY;
 	}
@@ -2450,12 +2443,12 @@ comstart(tp)
 		++com->start_real;
 #endif
 #if 0
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 #endif
 	ttwwakeup(tp);
 	splx(s);
@@ -2468,11 +2461,10 @@ comstop(tp, rw)
 {
 	struct com_s	*com;
 	bool_t		wakeup_etc;
-	critical_t	savecrit;
 
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	wakeup_etc = FALSE;
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	if (rw & FWRITE) {
 		com->obufs[0].l_queued = FALSE;
@@ -2497,7 +2489,7 @@ comstop(tp, rw)
 		com->iptr = com->ibuf;
 	}
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	if (wakeup_etc)
 		wakeup(&com->etc);
 	if (rw & FWRITE && com->etc == ETC_NONE)
@@ -2513,7 +2505,6 @@ commctl(com, bits, how)
 {
 	int	mcr;
 	int	msr;
-	critical_t	savecrit;
 
 	if (how == DMGET) {
 		if (com->channel_control & CD1400_CCR_RCVEN)
@@ -2551,7 +2542,7 @@ commctl(com, bits, how)
 		mcr |= com->mcr_dtr;
 	if (bits & TIOCM_RTS)
 		mcr |= com->mcr_rts;
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	switch (how) {
 	case DMSET:
@@ -2571,7 +2562,7 @@ commctl(com, bits, how)
 		break;
 	}
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	return (0);
 }
 
@@ -2633,13 +2624,11 @@ comwakeup(chan)
 		com = com_addr(unit);
 		if (com != NULL
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
-			critical_t	savecrit;
-
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			siointr1(com);
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 		}
 	}
 #endif
@@ -2659,14 +2648,13 @@ comwakeup(chan)
 		for (errnum = 0; errnum < CE_NTYPES; ++errnum) {
 			u_int	delta;
 			u_long	total;
-			critical_t	savecrit;
 
-			savecrit = critical_enter();
+			critical_enter();
 			COM_LOCK();
 			delta = com->delta_error_counts[errnum];
 			com->delta_error_counts[errnum] = 0;
 			COM_UNLOCK();
-			critical_exit(savecrit);
+			critical_exit();
 			if (delta == 0)
 				continue;
 			total = com->error_counts[errnum] += delta;
@@ -2818,7 +2806,6 @@ cd_etc(com, etc)
 	struct com_s	*com;
 	int		etc;
 {
-	critical_t	savecrit;
 
 	/*
 	 * We can't change the hardware's ETC state while there are any
@@ -2831,7 +2818,7 @@ cd_etc(com, etc)
 	 * for the tx to become empty so that the command is sure to be
 	 * executed soon after we issue it.
 	 */
-	savecrit = critical_enter();
+	critical_enter();
 	COM_LOCK();
 	if (com->etc == etc)
 		goto wait;
@@ -2842,7 +2829,7 @@ cd_etc(com, etc)
 	       && (com->etc == ETC_BREAK_ENDING || com->etc == ETC_BREAK_ENDED
 		   || com->etc == ETC_NONE))) {
 		COM_UNLOCK();
-		critical_exit(savecrit);
+		critical_exit();
 		return;
 	}
 	com->etc = etc;
@@ -2851,7 +2838,7 @@ cd_etc(com, etc)
 		  = (com->intr_enable & ~CD1400_SRER_TXRDY) | CD1400_SRER_TXMPTY);
 wait:
 	COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	while (com->etc == etc
 	       && tsleep(&com->etc, TTIPRI | PCATCH, "cyetc", 0) == 0)
 		continue;
@@ -2865,7 +2852,6 @@ cd_getreg(com, reg)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
-	critical_t	savecrit;
 	register_t	eflags;
 	cy_addr	iobase;
 	int	val;
@@ -2875,7 +2861,7 @@ cd_getreg(com, reg)
 	cy_align = com->cy_align;
 	iobase = com->iobase;
 	eflags = read_eflags();
-	savecrit = critical_enter();
+	critical_enter();
 	if (eflags & PSL_I)
 		COM_LOCK();
 	if (basecom->car != car)
@@ -2883,7 +2869,7 @@ cd_getreg(com, reg)
 	val = cd_inb(iobase, reg, cy_align);
 	if (eflags & PSL_I)
 		COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 	return (val);
 }
 
@@ -2896,7 +2882,6 @@ cd_setreg(com, reg, val)
 	struct com_s	*basecom;
 	u_char	car;
 	int	cy_align;
-	critical_t	savecrit;
 	register_t	eflags;
 	cy_addr	iobase;
 
@@ -2905,7 +2890,7 @@ cd_setreg(com, reg, val)
 	cy_align = com->cy_align;
 	iobase = com->iobase;
 	eflags = read_eflags();
-	savecrit = critical_enter();
+	critical_enter();
 	if (eflags & PSL_I)
 		COM_LOCK();
 	if (basecom->car != car)
@@ -2913,7 +2898,7 @@ cd_setreg(com, reg, val)
 	cd_outb(iobase, reg, cy_align, val);
 	if (eflags & PSL_I)
 		COM_UNLOCK();
-	critical_exit(savecrit);
+	critical_exit();
 }
 
 #ifdef CyDebug

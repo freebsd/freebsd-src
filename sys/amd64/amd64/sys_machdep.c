@@ -532,13 +532,13 @@ i386_set_ldt(td, args)
 	}
 
 	/* Fill in range */
-	savecrit = critical_enter();
+	savecrit = cpu_critical_enter();
 	error = copyin(uap->descs, 
 	    &((union descriptor *)(pldt->ldt_base))[uap->start],
 	    uap->num * sizeof(union descriptor));
 	if (!error)
 		td->td_retval[0] = uap->start;
-	critical_exit(savecrit);
+	cpu_critical_exit(savecrit);
 
 	return(error);
 }

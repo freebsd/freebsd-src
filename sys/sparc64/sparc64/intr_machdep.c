@@ -99,7 +99,7 @@ intr_dequeue(struct trapframe *tf)
 	u_long next;
 	u_long tail;
 
-	crit = critical_enter();
+	crit = cpu_critical_enter();
 	iq = PCPU_PTR(iq);
 	for (head = iq->iq_head;; head = next) {
 		for (tail = iq->iq_tail; tail != head;) {
@@ -115,7 +115,7 @@ intr_dequeue(struct trapframe *tf)
 		if (head == next)
 			break;
 	}
-	critical_exit(crit);
+	cpu_critical_exit(crit);
 }
 
 void

@@ -35,12 +35,9 @@
 #ifndef LOCORE
 
 #ifdef _KERNEL
-#include <machine/psl.h>
 
 /* Global locks */
 extern struct mtx	clock_lock;
-
-#define	mtx_intr_enable(mutex)	do (mutex)->mtx_savecrit |= PSL_I; while (0)
 
 /*
  * Assembly macros (for internal use only)
@@ -246,51 +243,20 @@ extern struct mtx	clock_lock;
  *	locks) in the near future, however.
  */
 #define MTX_LOCK_SPIN(lck, flags)					\
-	pushl %eax ;							\
-	pushl %ecx ;							\
-	pushl %ebx ;							\
-	movl $(MTX_UNOWNED) , %eax ;					\
-	movl PCPU(CURTHREAD), %ebx ;					\
-	pushfl ;							\
-	popl %ecx ;							\
-	cli ;								\
-	MPLOCKED cmpxchgl %ebx, lck+MTX_LOCK ;				\
-	jz 2f ;								\
-	cmpl lck+MTX_LOCK, %ebx ;					\
-	je 3f ;								\
 	pushl $0 ;							\
 	pushl $0 ;							\
-	pushl %ecx ;							\
 	pushl $flags ;							\
 	pushl $lck ;							\
-	call _mtx_lock_spin ;						\
-	addl $0x14, %esp ;						\
-	jmp 1f ;							\
-3:	movl lck+MTX_RECURSECNT, %ebx ;					\
-	incl %ebx ;							\
-	movl %ebx, lck+MTX_RECURSECNT ;					\
-	jmp 1f ;							\
-2:	movl %ecx, lck+MTX_SAVECRIT ;					\
-1:	popl %ebx ;							\
-	popl %ecx ;							\
-	popl %eax
+	call _mtx_lock_spin_flags ;					\
+	addl $0x10, %esp ;						\
 
 #define MTX_UNLOCK_SPIN(lck)						\
-	pushl %edx ;							\
-	pushl %eax ;							\
-	movl lck+MTX_SAVECRIT, %edx ;					\
-	movl lck+MTX_RECURSECNT, %eax ;					\
-	testl %eax, %eax ;						\
-	jne 2f ;							\
-	movl $(MTX_UNOWNED), %eax ;					\
-	xchgl %eax, lck+MTX_LOCK ;					\
-	pushl %edx ;							\
-	popfl ;								\
-	jmp 1f ;							\
-2:	decl %eax ;							\
-	movl %eax, lck+MTX_RECURSECNT ;					\
-1:	popl %eax ;							\
-	popl %edx
+	pushl $0 ;							\
+	pushl $0 ;							\
+	pushl $0 ;							\
+	pushl $lck ;							\
+	call _mtx_unlock_spin_flags ;					\
+	addl $0x10, %esp ;						\
 
 /*
  * XXX: These two are broken right now and need to be made to work for

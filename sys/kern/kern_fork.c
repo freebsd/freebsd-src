@@ -467,9 +467,6 @@ again:
 	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
 	mtx_unlock_spin(&sched_lock);
-	/*
-	 * We start off holding one spinlock after fork: sched_lock.
-	 */
 	PROC_LOCK(p1);
 	p2->p_ucred = crhold(p1->p_ucred);
 	p2->p_thread.td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
@@ -766,10 +763,8 @@ fork_exit(callout, arg, frame)
 	 */
 	sched_lock.mtx_lock = (uintptr_t)td;
 	sched_lock.mtx_recurse = 0;
-	/*
-	 * XXX: We really shouldn't have to do this.
-	 */
-	mtx_intr_enable(&sched_lock);
+	td->td_critnest = 1;
+	td->td_savecrit = CRITICAL_FORK;
 	CTR3(KTR_PROC, "fork_exit: new proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	if (PCPU_GET(switchtime.tv_sec) == 0)

@@ -192,7 +192,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	ddb_regs = *regs;
 
-	s = critical_enter();
+	s = cpu_critical_enter();
 
 #ifdef SMP
 #ifdef DIAGNOSTIC
@@ -219,7 +219,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	restart_cpus(stopped_cpus);
 #endif
 
-	critical_exit(s);
+	cpu_critical_exit(s);
 
 	*regs = ddb_regs;
 

@@ -133,9 +133,9 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	td = curthread;
 	if (td->td_inktr)
 		return;
-	savecrit = critical_enter();
+	savecrit = cpu_critical_enter();
 	if (((1 << KTR_CPU) & ktr_cpumask) == 0) {
-		critical_exit(savecrit);
+		cpu_critical_exit(savecrit);
 		return;
 	}
 	td->td_inktr++;
@@ -145,7 +145,7 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
 	entry->ktr_cpu = KTR_CPU;
-	critical_exit(savecrit);
+	cpu_critical_exit(savecrit);
 	nanotime(&entry->ktr_tv);
 #ifdef KTR_EXTEND
 	entry->ktr_filename = filename;
