@@ -1,12 +1,12 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
 #
-# All library objects contain sccsid strings by default; they may be
+# All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
-# not contain these strings, delete -DLIBC_SCCS and -DSYSLIBC_SCCS
+# not contain these strings, delete -DLIBC_RCS and -DSYSLIBC_RCS
 # from CFLAGS below.  To remove these strings from just the system call
-# stubs, remove just -DSYSLIBC_SCCS from CFLAGS.
+# stubs, remove just -DSYSLIBC_RCS from CFLAGS.
 LIB=c
-CFLAGS+=-DLIBC_SCCS -DSYSLIBC_SCCS
+CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS
 AINC=	-I${.CURDIR}/${MACHINE}
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
