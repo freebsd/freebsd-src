@@ -11,7 +11,7 @@ MAN=	a.out.5 acct.5 core.5 devfs.5 dir.5 disktab.5 drivers.conf.5 \
 	passwd.5 pbm.5 periodic.conf.5 \
 	phones.5 procfs.5 protocols.5 quota.user.5 \
 	rc.conf.5 remote.5 resolver.5 \
-	services.5 shells.5 stab.5 sysctl.conf.5 types.5 utmp.5
+	services.5 shells.5 stab.5 sysctl.conf.5 utmp.5
 
 MLINKS=	dir.5 dirent.5
 MLINKS+=fs.5 inode.5
