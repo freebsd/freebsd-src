@@ -132,7 +132,15 @@
 
 #define PPPNAME		"ppp"
 static MALLOC_DEFINE(M_PPP, PPPNAME, "PPP interface");
+
+static struct mtx ppp_softc_list_mtx;
 static LIST_HEAD(, ppp_softc) ppp_softc_list;
+
+#define	PPP_LIST_LOCK_INIT()	mtx_init(&ppp_softc_list_mtx,		\
+				    "ppp_softc_list_mtx", NULL, MTX_DEF)
+#define	PPP_LIST_LOCK_DESTROY()	mtx_destroy(&ppp_softc_list_mtx)
+#define	PPP_LIST_LOCK()		mtx_lock(&ppp_softc_list_mtx)
+#define	PPP_LIST_UNLOCK()	mtx_unlock(&ppp_softc_list_mtx)
 
 /* XXX layering violation */
 extern void	pppasyncattach(void *);
@@ -217,33 +225,48 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 	mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", NULL, MTX_DEF);
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
+
+	PPP_LIST_LOCK();
 	LIST_INSERT_HEAD(&ppp_softc_list, sc, sc_list);
+	PPP_LIST_UNLOCK();
 
 	return (0);
 }
 
 static void
-ppp_clone_destroy(struct ifnet *ifp)
+ppp_destroy(struct ppp_softc *sc)
 {
-	struct ppp_softc	*sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
-
-	LIST_REMOVE(sc, sc_list);
+	ifp = &sc->sc_if;
 	bpfdetach(ifp);
 	if_detach(ifp);
 	mtx_destroy(&sc->sc_rawq.ifq_mtx);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
 	mtx_destroy(&sc->sc_inq.ifq_mtx);
-
 	free(sc, M_PPP);
+}
+
+static void
+ppp_clone_destroy(struct ifnet *ifp)
+{
+	struct ppp_softc *sc;
+
+	sc = ifp->if_softc;
+	PPP_LIST_LOCK();
+	LIST_REMOVE(sc, sc_list);
+	PPP_LIST_UNLOCK();
+	ppp_destroy(sc);
 }
 
 static int
 ppp_modevent(module_t mod, int type, void *data) 
-{ 
+{
+	struct ppp_softc *sc;
+
 	switch (type) { 
 	case MOD_LOAD: 
+		PPP_LIST_LOCK_INIT();
 		LIST_INIT(&ppp_softc_list);
 		if_clone_attach(&ppp_cloner);
 
@@ -262,9 +285,14 @@ ppp_modevent(module_t mod, int type, void *data)
 
 		if_clone_detach(&ppp_cloner);
 
-		while (!LIST_EMPTY(&ppp_softc_list))
-			ppp_clone_destroy(
-			    &LIST_FIRST(&ppp_softc_list)->sc_if);
+		PPP_LIST_LOCK();
+		while ((sc = LIST_FIRST(&ppp_softc_list)) != NULL) {
+			LIST_REMOVE(sc, sc_list);
+			PPP_LIST_UNLOCK();
+			ppp_destroy(sc);
+			PPP_LIST_LOCK();
+		}
+		PPP_LIST_LOCK_DESTROY();
 		break; 
 	} 
 	return 0; 
@@ -290,9 +318,11 @@ pppalloc(pid)
     struct ifnet *ifp;
     struct ppp_softc *sc;
 
+    PPP_LIST_LOCK();
     LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	if (sc->sc_xfer == pid) {
 	    sc->sc_xfer = 0;
+	    PPP_LIST_UNLOCK();
 	    return sc;
 	}
     }
@@ -300,6 +330,7 @@ pppalloc(pid)
 	if (sc->sc_devp == NULL)
 	    break;
     }
+    PPP_LIST_UNLOCK();
     /* Try to clone an interface if we don't have a free one */
     if (sc == NULL) {
 	strcpy(tmpname, PPPNAME);
@@ -1135,6 +1166,7 @@ pppintr()
 
     GIANT_REQUIRED;
 
+    PPP_LIST_LOCK();
     LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	s = splimp();
 	if (!(sc->sc_flags & SC_TBUSY)
@@ -1156,6 +1188,7 @@ pppintr()
 	    ppp_inproc(sc, m);
 	}
     }
+    PPP_LIST_UNLOCK();
 }
 
 #ifdef PPP_COMPRESS
