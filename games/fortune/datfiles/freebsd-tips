@@ -500,3 +500,7 @@ of the man(1) utility: ``man -t <topic>''.  For example:
 	man -t grep > grep.ps	# Save the PostScript version to a file
 or
 	man -t printf | lp	# Send the PostScript directly to printer
+%
+If you receive email from the grim reaper, you can silence him and
+keep your bit for another year with a token commit to a fortune(6)
+or calendar(1) data file.
