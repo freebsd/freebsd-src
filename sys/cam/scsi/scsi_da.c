@@ -145,6 +145,7 @@ static const char microp[] = "MICROP";
 
 static struct da_quirk_entry da_quirk_table[] =
 {
+#ifdef DA_OLD_QUIRKS
 	/*
 	 * Logitec USB/Firewire LHD-P30FU
 	 */
@@ -158,6 +159,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, "LSILogic", "SYM13FW*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
+#endif /* DA_OLD_QUIRKS */
 	{
 		/*
 		 * Fujitsu M2513A MO drives.
@@ -241,6 +243,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 
+#ifdef DA_OLD_QUIRKS
 	/* Below a list of quirks for USB devices supported by umass. */
 	{
 		/*
@@ -250,12 +253,12 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * not support sync cache (0x35).
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Y-E DATA", "USB-FDU", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/* Another USB floppy */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MATSHITA", "FDD CF-VFDU*","*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -264,7 +267,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Make all sony MS* products use this quirk.
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "MS*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -272,22 +275,23 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * of PalmOS PDA's
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "CLIE*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
 		 * Intelligent Stick USB disk-on-key
 		 * PR: kern/53005
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB Card", "IntelligentStick*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB Card",
+		 "IntelligentStick*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
 		 * Sony DSC cameras (DSC-S30, DSC-S50, DSC-S70)
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -313,7 +317,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*",
 		 "Compact Flash*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -322,14 +326,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * spaces. The trailing wildcard character '*' is required.
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SMSC*", "USB FDC*","*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
 		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C-*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -343,14 +347,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Olympus digital cameras (E-100RS, E-10).
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "E-*", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
 		 * KingByte Pen Drives
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NO BRAND", "PEN DRIVE", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
  	},
  	{
 		/*
@@ -358,7 +362,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
  		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJIFILMUSB-DRIVEUNIT",
 		 "USB-DRIVEUNIT", "*"},
- 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+ 		/*quirks*/ DA_Q_NO_SYNC_CACHE
  	},
 	{
 		/*
@@ -393,7 +397,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Minolta Dimage E203
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MINOLTA", "DiMAGE E203", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -416,7 +420,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * PR: kern/43627
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Apacer", "HandyDrive", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -424,7 +428,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * PR: kern/43580
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ZORAN", "COACH", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -448,7 +452,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * PR: kern/46386
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Storage Media", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -507,7 +511,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * PR: kern/50226
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MITSUMI", "USB FDD", "*"},
-		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -517,6 +521,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OTi", "Flash Disk", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	}
+#endif /* DA_OLD_QUIRKS */
 };
 
 static	disk_strategy_t	dastrategy;
