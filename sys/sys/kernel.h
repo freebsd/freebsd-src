@@ -122,6 +122,8 @@ enum sysinit_sub_id {
 	SI_SUB_EVENTHANDLER	= 0x1C00000,	/* eventhandler init */
 	SI_SUB_KLD		= 0x2000000,	/* KLD and module setup */
 	SI_SUB_CPU		= 0x2100000,	/* CPU resource(s)*/
+	SI_SUB_MAC		= 0x2180000,	/* TrustedBSD MAC subsystem */
+	SI_SUB_MAC_POLICY	= 0x21C0000,	/* TrustedBSD MAC policies */
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
 	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
 	SI_SUB_RUN_QUEUE	= 0x2400000,	/* set up run queue*/
