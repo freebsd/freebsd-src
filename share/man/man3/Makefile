@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
 
-MAN3=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 queue.3 stdarg.3
+MAN3=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 queue.3 stdarg.3 \
+	sysexits.3
 MLINKS+=bitstring.3 bit_alloc.3 bitstring.3 bit_clear.3 \
 	bitstring.3 bit_decl.3 bitstring.3 bit_ffs.3 bitstring.3 bit_nclear.3 \
 	bitstring.3 bit_nset.3 bitstring.3 bit_set.3 \
