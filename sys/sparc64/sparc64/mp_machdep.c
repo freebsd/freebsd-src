@@ -80,6 +80,7 @@
 
 #include <machine/asi.h>
 #include <machine/atomic.h>
+#include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
