@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_map.c,v 1.3 1994/08/02 07:55:25 davidg Exp $
  */
 
 /*
@@ -190,6 +190,15 @@ vmspace_alloc(min, max, pageable)
 	int pageable;
 {
 	register struct vmspace *vm;
+	if (mapvmpgcnt == 0 && mapvm == 0) {
+		int s;
+		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
+		s = splhigh();
+		mapvm = kmem_alloc_pageable(kmem_map, mapvmpgcnt * PAGE_SIZE);
+		splx(s);
+		if (!mapvm)
+			mapvmpgcnt = 0;
+	}
 
 	MALLOC(vm, struct vmspace *, sizeof(struct vmspace), M_VMMAP, M_WAITOK);
 	bzero(vm, (caddr_t) &vm->vm_startcopy - (caddr_t) vm);
