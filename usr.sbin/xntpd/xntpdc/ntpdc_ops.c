@@ -2396,7 +2396,7 @@ kerninfo(pcmd, fp)
 	 * pll variables
 	 */
 	(void)fprintf(fp, "pll offset:           %ld us\n",
-	    (u_long)ntohl(ik->offset));
+	    (long)(int32_t)ntohl(ik->offset));
 	(void)fprintf(fp, "pll frequency:        %s ppm\n",
 	    fptoa((s_fp)ntohl(ik->freq), 3));
 	(void)fprintf(fp, "maximum error:        %ld us\n",
