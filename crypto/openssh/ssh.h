@@ -79,7 +79,7 @@
 #define SERVER_CONFIG_FILE	ETCDIR "/sshd_config"
 #define HOST_CONFIG_FILE	ETCDIR "/ssh_config"
 
-#define SSH_PROGRAM		"/usrn1G/bin/ssh"
+#define SSH_PROGRAM		"/usr/bin/ssh"
 
 /*
  * The process id of the daemon listening for connections is saved here to
