@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>		/* for hz */
 #include <sys/limits.h>
@@ -61,6 +62,150 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs_lock.h>
 #include <nfsclient/nlminfo.h>
 
+MALLOC_DEFINE(M_NFSLOCK, "NFS lock", "NFS lock request");
+
+static int nfslockdans(struct thread *td, struct lockd_ans *ansp);
+/*
+ * --------------------------------------------------------------------
+ * A miniature device driver which the userland uses to talk to us.
+ *
+ */
+
+static struct cdev *nfslock_dev;
+static struct mtx nfslock_mtx;
+static int nfslock_isopen;
+static TAILQ_HEAD(,__lock_msg)	nfslock_list;
+
+static int
+nfslock_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	int error;
+
+	mtx_lock(&nfslock_mtx);
+	if (!nfslock_isopen) {
+		error = 0;
+		nfslock_isopen = 1;
+	} else {
+		error = EOPNOTSUPP;
+	}
+	mtx_unlock(&nfslock_mtx);
+		
+	return (error);
+}
+
+static int
+nfslock_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+{
+	struct __lock_msg *lm;
+
+	mtx_lock(&nfslock_mtx);
+	nfslock_isopen = 0;
+	while (!TAILQ_EMPTY(&nfslock_list)) {
+		lm = TAILQ_FIRST(&nfslock_list);
+		/* XXX: answer request */
+		TAILQ_REMOVE(&nfslock_list, lm, lm_link);
+		free(lm, M_NFSLOCK);
+	}
+	mtx_unlock(&nfslock_mtx);
+	return (0);
+}
+
+static int
+nfslock_read(struct cdev *dev, struct uio *uio, int ioflag)
+{
+	int error;
+	struct __lock_msg *lm;
+
+	if (uio->uio_resid != sizeof *lm)
+		return (EOPNOTSUPP);
+	lm = NULL;
+	error = 0;
+	mtx_lock(&nfslock_mtx);
+	while (TAILQ_EMPTY(&nfslock_list)) {
+		error = msleep(&nfslock_list, &nfslock_mtx, PSOCK | PCATCH,
+		    "nfslockd", 0);
+		if (error)
+			break;
+	}
+	if (!error) {
+		lm = TAILQ_FIRST(&nfslock_list);
+		TAILQ_REMOVE(&nfslock_list, lm, lm_link);
+	}
+	mtx_unlock(&nfslock_mtx);
+	if (!error) {
+		error = uiomove(lm, sizeof *lm, uio);
+		free(lm, M_NFSLOCK);
+	}
+	return (error);
+}
+
+static int
+nfslock_write(struct cdev *dev, struct uio *uio, int ioflag)
+{
+	struct lockd_ans la;
+	int error;
+
+	if (uio->uio_resid != sizeof la)
+		return (EOPNOTSUPP);
+	error = uiomove(&la, sizeof la, uio);
+	if (!error)
+		error = nfslockdans(curthread, &la);
+	return (error);
+}
+
+static int
+nfslock_send(struct __lock_msg *lm)
+{
+	struct __lock_msg *lm2;
+	int error;
+
+	error = 0;
+	lm2 = malloc(sizeof *lm2, M_NFSLOCK, M_WAITOK);
+	mtx_lock(&nfslock_mtx);
+	if (nfslock_isopen) {
+		memcpy(lm2, lm, sizeof *lm2);
+		TAILQ_INSERT_TAIL(&nfslock_list, lm2, lm_link);
+		wakeup(&nfslock_list);
+	} else {
+		error = EOPNOTSUPP;
+	}
+	mtx_unlock(&nfslock_mtx);
+	if (error)
+		free(lm2, M_NFSLOCK);
+	return (error);
+}
+
+static struct cdevsw nfslock_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_open =	nfslock_open,
+	.d_close =	nfslock_close,
+	.d_read =	nfslock_read,
+	.d_write =	nfslock_write,
+	.d_name =	"nfslock"
+};
+
+static int
+nfslock_modevent(module_t mod __unused, int type, void *data __unused)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		if (bootverbose)
+			printf("nfslock: pseudo-device\n");
+		mtx_init(&nfslock_mtx, "nfslock", NULL, MTX_DEF);
+		TAILQ_INIT(&nfslock_list);
+		nfslock_dev = make_dev(&nfslock_cdevsw, 0,
+		    UID_ROOT, GID_KMEM, 0600, _PATH_NFSLCKDEV);
+		return (0);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+DEV_MODULE(nfslock, nfslock_modevent, NULL);
+MODULE_VERSION(nfslock, 1);
+
+
 /*
  * XXX
  * We have to let the process know if the call succeeded.  I'm using an extra
@@ -76,12 +221,11 @@ int
 nfs_dolock(struct vop_advlock_args *ap)
 {
 	LOCKD_MSG msg;
-	struct nameidata nd;
 	struct thread *td;
-	struct vnode *vp, *wvp;
-	int error, error1;
+	struct vnode *vp;
+	int error;
 	struct flock *fl;
-	int fmode, ioflg;
+	int ioflg;
 	struct proc *p;
 
 	td = curthread;
@@ -132,59 +276,14 @@ nfs_dolock(struct vop_advlock_args *ap)
 	msg.lm_nfsv3 = NFS_ISV3(vp);
 	cru2x(td->td_ucred, &msg.lm_cred);
 
-	/*
-	 * Open the lock fifo.  If for any reason we don't find the fifo, it
-	 * means that the lock daemon isn't running.  Translate any missing
-	 * file error message for the user, otherwise the application will
-	 * complain that the user's file is missing, which isn't the case.
-	 * Note that we use proc0's cred, so the fifo is opened as root.
-	 *
-	 * XXX: Note that this behavior is relative to the root directory
-	 * of the current process, and this may result in a variety of
-	 * {functional, security} problems in chroot() environments.
-	 */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
-
-	fmode = FFLAGS(O_WRONLY | O_NONBLOCK);
-	error = vn_open_cred(&nd, &fmode, 0, thread0.td_ucred, -1);
-	switch (error) {
-	case ENOENT:
-	case ENXIO:
-		/*
-		 * Map a failure to find the fifo or no listener on the
-		 * fifo to locking not being supported.
-		 */
-		return (EOPNOTSUPP);
-	case 0:
-		break;
-	default:
-		return (error);
-	}
-	wvp = nd.ni_vp;
-	VOP_UNLOCK(wvp, 0, td);		/* vn_open leaves it locked */
-
-
-	ioflg = IO_UNIT | IO_NOMACCHECK;
 	for (;;) {
-		VOP_LEASE(wvp, td, thread0.td_ucred, LEASE_WRITE);
+		error = nfslock_send(&msg);
+		if (error)
+			return (error);
 
-		error = vn_rdwr(UIO_WRITE, wvp, (caddr_t)&msg, sizeof(msg), 0,
-		    UIO_SYSSPACE, ioflg, thread0.td_ucred, NOCRED, NULL, td);
-
-		if (error && (((ioflg & IO_NDELAY) == 0) || error != EAGAIN)) {
-			break;
-		}
-		/*
-		 * If we're locking a file, wait for an answer.  Unlocks succeed
-		 * immediately.
-		 */
+		/* Unlocks succeed immediately.  */
 		if (fl->l_type == F_UNLCK)
-			/*
-			 * XXX this isn't exactly correct.  The client side
-			 * needs to continue sending it's unlock until
-			 * it gets a responce back.
-			 */
-			break;
+			return (error);
 
 		/*
 		 * retry after 20 seconds if we haven't gotten a responce yet.
@@ -227,16 +326,14 @@ nfs_dolock(struct vop_advlock_args *ap)
 		break;
 	}
 
-	error1 = vn_close(wvp, FWRITE, thread0.td_ucred, td);
-	/* prefer any previous 'error' to our vn_close 'error1'. */
-	return (error != 0 ? error : error1);
+	return (error);
 }
 
 /*
  * nfslockdans --
  *      NFS advisory byte-level locks answer from the lock daemon.
  */
-int
+static int
 nfslockdans(struct thread *td, struct lockd_ans *ansp)
 {
 	struct proc *targetp;
@@ -283,3 +380,4 @@ nfslockdans(struct thread *td, struct lockd_ans *ansp)
 	PROC_UNLOCK(targetp);
 	return (0);
 }
+

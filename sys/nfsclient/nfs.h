@@ -101,10 +101,6 @@
 #ifdef NFS_NPROCS
 #include <nfsclient/nfsstats.h>
 #endif
-/*
- * Flags for nfsclnt() system call.
- */
-#define	NFSCLNT_LOCKDANS 0x200
 
 /*
  * vfs.nfs sysctl(3) identifiers
