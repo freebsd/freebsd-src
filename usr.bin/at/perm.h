@@ -1,6 +1,6 @@
 /* 
- *  at.h -  header for at(1)
- *  Copyright (C) 1993  Thomas Koenig
+ *  perm.h -  header for at(1)
+ *  Copyright (C) 1994  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,9 +23,4 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-extern int fcreated;
-extern char *namep;
-extern char atfile[];
-extern char atverify;
-
-void *mymalloc(size_t n);
+int check_permission();

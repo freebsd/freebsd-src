@@ -1,7 +1,6 @@
-/*
- * privs.h - header for privileged operations
- * Copyright (c) 1993 by Thomas Koenig
- * All rights reserved.
+/* 
+ *  privs.h - header for privileged operations 
+ *  Copyright (C) 1993  Thomas Koenig
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,31 +21,44 @@
  * THEORY OF LIABILITY, WETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: privs.h,v 1.1 1993/12/05 11:37:29 cgd Exp $
  */
 
 #ifndef _PRIVS_H
 #define _PRIVS_H
 
+#ifndef _USE_BSD
+#define _USE_BSD 1
 #include <unistd.h>
+#undef _USE_BSD
+#else
+#include <unistd.h>
+#endif
 
-/* Relinquish privileges temporarily for a setuid program
+#ifdef __FreeBSD__
+/*
+ * setre[ug]id() not change r[ug]id for FreeBSD, but check it incorrectly
+ * for this program
+ */
+#define setreuid(r, e) seteuid(e)
+#define setregid(r, e) setegid(e)
+#endif
+
+/* Relinquish privileges temporarily for a setuid or setgid program
  * with the option of getting them back later.  This is done by swapping
  * the real and effective userid BSD style.  Call RELINQUISH_PRIVS once
  * at the beginning of the main program.  This will cause all operatons
  * to be executed with the real userid.  When you need the privileges
- * of the setuid invocation, call PRIV_START; when you no longer
+ * of the setuid/setgid invocation, call PRIV_START; when you no longer
  * need it, call PRIV_END.  Note that it is an error to call PRIV_START
  * and not PRIV_END within the same function.
  *
- * Use RELINQUISH_PRIVS_ROOT(a) if your program started out running
+ * Use RELINQUISH_PRIVS_ROOT(a,b) if your program started out running
  * as root, and you want to drop back the effective userid to a
  * and the effective group id to b, with the option to get them back
  * later.
  *
  * If you no longer need root privileges, but those of some other
- * userid/groupid, you can call REDUCE_PRIV(a) when your effective
+ * userid/groupid, you can call REDUCE_PRIV(a,b) when your effective
  * is the user's.
  *
  * Problems: Do not use return between PRIV_START and PRIV_END; this
@@ -65,28 +77,44 @@ extern
 #endif
 uid_t real_uid, effective_uid;
 
+#ifndef MAIN 
+extern
+#endif
+gid_t real_gid, effective_gid;
+
 #define RELINQUISH_PRIVS { \
-	real_uid = getuid(); \
-	effective_uid = geteuid(); \
-	setreuid(effective_uid,real_uid); \
-}
+			      real_uid = getuid(); \
+			      effective_uid = geteuid(); \
+			      real_gid = getgid(); \
+			      effective_gid = getegid(); \
+			      setregid(effective_gid, real_gid); \
+			      setreuid(effective_uid, real_uid); \
+		          }
 
-#define RELINQUISH_PRIVS_ROOT(a) { \
-	real_uid = (a); \
-	effective_uid = geteuid(); \
-	setreuid(effective_uid,real_uid); \
-}
+#define RELINQUISH_PRIVS_ROOT(a,b) { \
+			      real_uid = (a); \
+			      effective_uid = geteuid(); \
+			      real_gid = (b); \
+			      effective_gid = getegid(); \
+			      setregid(effective_gid, real_gid); \
+			      setreuid(effective_uid, real_uid); \
+		          }
 
-#define PRIV_START { \
-	setreuid(real_uid,effective_uid);
+#define PRIV_START {\
+		    setreuid(real_uid, effective_uid); \
+		    setregid(real_gid, effective_gid);
 
 #define PRIV_END \
-	setreuid(effective_uid,real_uid); \
-}
+		    setregid(effective_gid, real_gid); \
+		    setreuid(effective_uid, real_uid); \
+		    }
 
-#define REDUCE_PRIV(a) { \
-	setreuid(real_uid,effective_uid); \
-	effective_uid = (a); \
-	setreuid(effective_uid,real_uid); \
-}
+#define REDUCE_PRIV(a,b) {\
+			setreuid(real_uid, effective_uid); \
+			setregid(real_gid, effective_gid); \
+			effective_uid = (a); \
+			effective_gid = (b); \
+			setregid(effective_gid, real_gid); \
+			setreuid(effective_uid, real_uid); \
+		    }
 #endif
