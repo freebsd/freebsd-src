@@ -40,6 +40,22 @@ enum fdc_type
 	FDC_NE765, FDC_I82077, FDC_NE72065, FDC_UNKNOWN = -1
 };
 
+enum fdc_states {
+	DEVIDLE,
+	FINDWORK,
+	DOSEEK,
+	SEEKCOMPLETE ,
+	IOCOMPLETE,
+	RECALCOMPLETE,
+	STARTRECAL,
+	RESETCTLR,
+	SEEKWAIT,
+	RECALWAIT,
+	MOTORWAIT,
+	IOTIMEDOUT,
+	RESETCOMPLETE,
+	PIOREAD
+};
 
 /***********************************************************************\
 * Per controller structure.						*
@@ -58,7 +74,7 @@ struct fdc_data
 #define FDC_ISPCMCIA	0x100
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
-	int	state;
+	enum	fdc_states state;
 	int	retry;
 	int	fdout;		/* mirror of the w/o digital output reg */
 	u_int	status[7];	/* copy of the registers */
