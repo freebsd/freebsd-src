@@ -31,29 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)math.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef	_MATH_H_
 #define	_MATH_H_
 
-#if defined(vax) || defined(tahoe)		/* DBL_MAX from float.h */
-#define	HUGE_VAL	1.701411834604692294E+38
-#else
 #define	HUGE_VAL	1e500			/* IEEE: positive infinity */
-#endif
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-#if defined(vax) || defined(tahoe)
-/*
- * HUGE for the VAX and Tahoe converts to the largest possible F-float value.
- * This implies an understanding of the conversion behavior of atof(3).  It
- * was defined to be the largest float so that overflow didn't occur when it
- * was assigned to a single precision number.  HUGE_VAL is strongly preferred.
- */
-#define	HUGE	1.701411733192644270E+38
-#else
 #define	HUGE	HUGE_VAL
-#endif
 
 #define	M_E		2.7182818284590452354	/* e */
 #define	M_LOG2E		1.4426950408889634074	/* log 2e */
@@ -117,9 +104,6 @@ double	erfc __P((double)) __pure2;
 double	expm1 __P((double)) __pure2;
 int	finite __P((double)) __pure2;
 double	hypot __P((double, double));
-#if defined(vax) || defined(tahoe)
-double	infnan __P((int));
-#endif
 int	isinf __P((double)) __pure2;
 int	isnan __P((double)) __pure2;
 double	j0 __P((double));
