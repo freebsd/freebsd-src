@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.224 1999/01/19 00:21:41 peter Exp $
+ *	$Id: sio.c,v 1.225 1999/01/26 04:02:54 steve Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1154,7 +1154,8 @@ open_top:
 				goto open_top;
 			}
 		}
-		if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0) {
+		if (tp->t_state & TS_XCLUDE &&
+		    suser(p->p_ucred, &p->p_acflag)) {
 			error = EBUSY;
 			goto out;
 		}
