@@ -262,7 +262,7 @@ static struct _tc_string tc_strings[] =
   "im", &term_im,
   "kd", &term_kd,
   "kh", &term_kh,	/* home */
-  "kH", &term_kH,	/* end */
+  "@7", &term_kH,       /* end */
   "kl", &term_kl,
   "kr", &term_kr,
   "ku", &term_ku,
