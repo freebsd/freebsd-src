@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.13 1998/02/26 17:17:09 dima Exp $
+ * $Id: ip_input.c,v 1.50.2.14 1998/05/25 05:26:43 dg Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -335,8 +335,15 @@ tooshort:
 #ifdef IPDIVERT
 		u_short port;
 
+#ifndef IPFW_DIVERT_RESTART
 		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, ip_divert_ignore, &m);
 		ip_divert_ignore = 0;
+#else
+		ip_divert_in_cookie = 0;
+		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL,
+					ip_divert_out_cookie, &m);
+		ip_divert_out_cookie = 0;
+#endif /* IPFW_DIVERT_RESTART */
 		if (port) {			/* Divert packet */
 			frag_divert_port = port;
 			goto ours;
@@ -565,6 +572,12 @@ found:
 		ipstat.ips_noproto++;
 		goto bad;
 	}
+
+	/* Don't let packets divert themselves */
+	if (ip->ip_p == IPPROTO_DIVERT) {
+		ipstat.ips_noproto++;
+		goto bad;
+	}
 #endif
 
 	/*
@@ -640,6 +653,9 @@ ip_reass(ip, fp, where)
 		fp->ipq_dst = ((struct ip *)ip)->ip_dst;
 #ifdef IPDIVERT
 		fp->ipq_divert = 0;
+#ifdef IPFW_DIVERT_RESTART
+		fp->ipq_div_cookie = 0;
+#endif /* IPFW_DIVERT_RESTART */
 #endif
 		q = (struct ipasfrag *)fp;
 		goto insert;
@@ -694,8 +710,12 @@ insert:
 	/*
 	 * Any fragment diverting causes the whole packet to divert
 	 */
-	if (frag_divert_port != 0)
+	if (frag_divert_port != 0) {
 		fp->ipq_divert = frag_divert_port;
+#ifdef IPFW_DIVERT_RESTART
+		fp->ipq_div_cookie = ip_divert_in_cookie;
+#endif /* IPFW_DIVERT_RESTART */
+	}
 	frag_divert_port = 0;
 #endif
 
@@ -743,6 +763,9 @@ insert:
 	 * Record divert port for packet, if any
 	 */
 	frag_divert_port = fp->ipq_divert;
+#ifdef IPFW_DIVERT_RESTART
+	ip_divert_in_cookie = fp->ipq_div_cookie;
+#endif /* IPFW_DIVERT_RESTART */
 #endif
 
 	/*
