@@ -175,12 +175,14 @@ exec_osf1_imgact(struct image_params *imgp)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack).
 	 */
+	mtx_lock(&vm_mtx);
 	exec_new_vmspace(imgp);
 
 	/*
 	 * The vm space can now be changed.
 	 */
 	vmspace = imgp->proc->p_vmspace;
+	mtx_unlock(&vm_mtx);
 
 	imgp->interpreted = 0;
 	imgp->proc->p_sysent = &osf1_sysvec;
