@@ -61,6 +61,9 @@
 /* Define if you have the dcgettext function.  */
 /* #undef HAVE_DCGETTEXT */
 
+/* Define if you have the getc_unlocked function.  */
+/* #undef HAVE_GETC_UNLOCKED */
+
 /* Define if you have the getcwd function.  */
 #define HAVE_GETCWD 1
 
@@ -130,6 +133,12 @@
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
 
+/* Define if you have the <sys/stat.h> header file.  */
+#define HAVE_SYS_STAT_H 1
+
+/* Define if you have the <sys/types.h> header file.  */
+#define HAVE_SYS_TYPES_H 1
+
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
@@ -140,7 +149,7 @@
 #define PACKAGE "binutils"
 
 /* Version number of package */
-/* #define VERSION "2.11" */
+/* #define VERSION "2.11.93" */
 
 /* Define if you have the stpcpy function */
 /* #undef HAVE_STPCPY */
@@ -159,6 +168,12 @@
 
 /* Suffix used for executables, if any. */
 #define EXECUTABLE_SUFFIX ""
+
+/* Is fopen64 available? */
+/* #undef HAVE_FOPEN64 */
+
+/* Enable LFS */
+/* #undef _LARGEFILE64_SOURCE */
 
 /* Is the type time_t defined in <time.h>? */
 #define HAVE_TIME_T_IN_TIME_H 1
