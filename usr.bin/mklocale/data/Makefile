@@ -1,9 +1,10 @@
-# $Id$
+# $Id: Makefile,v 1.5 1997/02/22 19:56:11 peter Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        ja_JP.EUC ru_SU.KOI8-R lt_LN.ASCII lt_LN.ISO_8859-1 ru_SU.CP866
+LOCALES=        ja_JP.EUC ko_KR.EUC lt_LN.ASCII lt_LN.ISO_8859-1 \
+		ru_SU.KOI8-R ru_SU.CP866
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 .if exists(${.OBJDIR}/..)
