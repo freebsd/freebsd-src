@@ -1953,8 +1953,7 @@ PacketAliasPptp(struct in_addr src_addr)
 {
 
     pptpAliasAddr = src_addr; 		/* Address of the inside PPTP machine */
-    pptpAliasFlag = 1;
-
+    pptpAliasFlag = src_addr.s_addr != INADDR_NONE;
 
     return 1;
 }
