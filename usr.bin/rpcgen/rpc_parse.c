@@ -29,7 +29,7 @@
  */
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc_parse.c 1.4 87/04/28 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_parse.c,v 1.1 1993/09/13 23:20:16 jtc Exp $";
+static char rcsid[] = "$Id: rpc_parse.c,v 1.1 1994/08/07 18:01:32 wollman Exp $";
 #endif
 
 /*
@@ -165,6 +165,7 @@ def_program(defp)
 			ptailp = &plist->next;
 			peek(&tok);
 		} while (tok.kind != TOK_RBRACE);
+		*ptailp = NULL;
 		*vtailp = vlist;
 		vtailp = &vlist->next;
 		scan(TOK_RBRACE, &tok);
