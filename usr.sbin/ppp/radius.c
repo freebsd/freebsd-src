@@ -90,11 +90,19 @@
 #include "proto.h"
 
 #ifndef NODES
-struct mschap_request {
+struct mschap_response {
   u_char ident;
   u_char flags;
   u_char lm_response[24];
   u_char nt_response[24];
+};
+
+struct mschap2_response {
+  u_char ident;
+  u_char flags;
+  u_char pchallenge[16];
+  u_char reserved[8];
+  u_char response[24];
 };
 #endif
 
@@ -307,6 +315,18 @@ radius_Process(struct radius *r, int got)
                 }
                 log_Printf(LogPHASE, " MS-CHAP-Error \"%s\"\n", r->errstr);
                 break;
+
+              case RAD_MICROSOFT_MS_CHAP2_SUCCESS:
+                free(r->msrepstr);
+                if ((r->msrepstr = rad_cvt_string(data, len)) == NULL) {
+                  log_Printf(LogERROR, "rad_cvt_string: %s\n",
+                             rad_strerror(r->cx.rad));
+                  auth_Failure(r->cx.auth);
+                  rad_close(r->cx.rad);
+                  return;
+                }
+                log_Printf(LogPHASE, " MS-CHAP2-Success \"%s\"\n", r->msrepstr);
+                break;
  
               default:
                 log_Printf(LogDEBUG, "Dropping MICROSOFT vendor specific "
@@ -441,6 +461,7 @@ radius_Init(struct radius *r)
   r->mask.s_addr = INADDR_NONE;
   r->routes = NULL;
   r->mtu = DEF_MTU;
+  r->msrepstr = NULL;
   r->repstr = NULL;
   r->errstr = NULL;
   *r->cfg.file = '\0';;
@@ -459,6 +480,8 @@ radius_Destroy(struct radius *r)
   route_DeleteAll(&r->routes);
   free(r->filterid);
   r->filterid = NULL;
+  free(r->msrepstr);
+  r->msrepstr = NULL;
   free(r->repstr);
   r->repstr = NULL;
   free(r->errstr);
@@ -517,9 +540,10 @@ radius_put_physical_details(struct rad_handle *rad, struct physical *p)
 /*
  * Start an authentication request to the RADIUS server.
  */
-void
+int
 radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
-                    const char *key, int klen, const char *challenge, int clen)
+                    const char *key, int klen, const char *nchallenge,
+                    int nclen, const char *pchallenge, int pclen)
 {
   struct timeval tv;
   int got;
@@ -527,36 +551,37 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   struct hostent *hp;
   struct in_addr hostaddr;
 #ifndef NODES
-  struct mschap_request msreq;
+  struct mschap_response msresp;
+  struct mschap2_response msresp2;
 #endif
 
   if (!*r->cfg.file)
-    return;
+    return 0;
 
   if (r->cx.fd != -1)
     /*
      * We assume that our name/key/challenge is the same as last time,
      * and just continue to wait for the RADIUS server(s).
      */
-    return;
+    return 1;
 
   radius_Destroy(r);
 
   if ((r->cx.rad = rad_auth_open()) == NULL) {
     log_Printf(LogERROR, "rad_auth_open: %s\n", strerror(errno));
-    return;
+    return 0;
   }
 
   if (rad_config(r->cx.rad, r->cfg.file) != 0) {
     log_Printf(LogERROR, "rad_config: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
-    return;
+    return 0;
   }
 
   if (rad_create_request(r->cx.rad, RAD_ACCESS_REQUEST) != 0) {
     log_Printf(LogERROR, "rad_create_request: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
-    return;
+    return 0;
   }
 
   if (rad_put_string(r->cx.rad, RAD_USER_NAME, name) != 0 ||
@@ -564,7 +589,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
       rad_put_int(r->cx.rad, RAD_FRAMED_PROTOCOL, RAD_PPP) != 0) {
     log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
     rad_close(r->cx.rad);
-    return;
+    return 0;
   }
 
   switch (authp->physical->link.lcp.want_auth) {
@@ -574,7 +599,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
       log_Printf(LogERROR, "PAP: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
-      return;
+      return 0;
     }
     break;
 
@@ -582,38 +607,64 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     switch (authp->physical->link.lcp.want_authtype) {
     case 0x5:
       if (rad_put_attr(r->cx.rad, RAD_CHAP_PASSWORD, key, klen) != 0 ||
-          rad_put_attr(r->cx.rad, RAD_CHAP_CHALLENGE, challenge, clen) != 0) {
+          rad_put_attr(r->cx.rad, RAD_CHAP_CHALLENGE, nchallenge, nclen) != 0) {
         log_Printf(LogERROR, "CHAP: rad_put_string: %s\n",
                    rad_strerror(r->cx.rad));
         rad_close(r->cx.rad);
-        return;
+        return 0;
       }
       break;
 
 #ifndef NODES
     case 0x80:
       if (klen != 50) {
-        log_Printf(LogERROR, "CHAP80: Unrecognised length %d\n", klen);
+        log_Printf(LogERROR, "CHAP80: Unrecognised key length %d\n", klen);
         rad_close(r->cx.rad);
-        return;
+        return 0;
       }
+
       rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
-                          RAD_MICROSOFT_MS_CHAP_CHALLENGE, challenge, clen);
-      msreq.ident = *key;
-      msreq.flags = 0x01;
-      memcpy(msreq.lm_response, key + 1, 24);
-      memcpy(msreq.nt_response, key + 25, 24);
+                          RAD_MICROSOFT_MS_CHAP_CHALLENGE, nchallenge, nclen);
+      msresp.ident = *key;
+      msresp.flags = 0x01;
+      memcpy(msresp.lm_response, key + 1, 24);
+      memcpy(msresp.nt_response, key + 25, 24);
       rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
-                          RAD_MICROSOFT_MS_CHAP_RESPONSE, &msreq, 50);
+                          RAD_MICROSOFT_MS_CHAP_RESPONSE, &msresp,
+                          sizeof msresp);
       break;
 
     case 0x81:
+      if (klen != 50) {
+        log_Printf(LogERROR, "CHAP81: Unrecognised key length %d\n", klen);
+        rad_close(r->cx.rad);
+        return 0;
+      }
+
+      if (pclen != sizeof msresp2.pchallenge) {
+        log_Printf(LogERROR, "CHAP81: Unrecognised peer challenge length %d\n",
+                   pclen);
+        rad_close(r->cx.rad);
+        return 0;
+      }
+
+      rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
+                          RAD_MICROSOFT_MS_CHAP_CHALLENGE, nchallenge, nclen);
+      msresp2.ident = *key;
+      msresp2.flags = 0x00;
+      memcpy(msresp2.response, key + 25, 24);
+      memset(msresp2.reserved, '\0', sizeof msresp2.reserved);
+      memcpy(msresp2.pchallenge, pchallenge, pclen);
+      rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
+                          RAD_MICROSOFT_MS_CHAP2_RESPONSE, &msresp2,
+                          sizeof msresp2);
+      break;
 #endif
     default:
       log_Printf(LogERROR, "CHAP: Unrecognised type 0x%02x\n", 
                  authp->physical->link.lcp.want_authtype);
       rad_close(r->cx.rad);
-      return;
+      return 0;
     }
   }
 
@@ -626,14 +677,14 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
         log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                    rad_strerror(r->cx.rad));
         rad_close(r->cx.rad);
-        return;
+        return 0;
       }
     }
     if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
       log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
                  rad_strerror(r->cx.rad));
       rad_close(r->cx.rad);
-      return;
+      return 0;
     }
   }
 
@@ -651,6 +702,8 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     r->cx.timer.arg = r;
     timer_Start(&r->cx.timer);
   }
+
+  return 1;
 }
 
 /*
@@ -804,6 +857,8 @@ radius_Show(struct radius *r, struct prompt *p)
     prompt_Printf(p, "               MTU: %lu\n", r->mtu);
     prompt_Printf(p, "                VJ: %sabled\n", r->vj ? "en" : "dis");
     prompt_Printf(p, "           Message: %s\n", r->repstr ? r->repstr : "");
+    prompt_Printf(p, " MS-CHAP2-Response: %s\n",
+                  r->msrepstr ? r->msrepstr : "");
     prompt_Printf(p, "     Error Message: %s\n", r->errstr ? r->errstr : "");
     if (r->routes)
       route_ShowSticky(p, r->routes, "            Routes", 16);
