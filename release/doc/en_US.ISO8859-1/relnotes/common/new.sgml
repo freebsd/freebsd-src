@@ -194,6 +194,11 @@
 
     <para><application>sendmail</application> has been updated to
       version 8.12.9.</para>
+
+    <para>The timezone database has been updated from
+      <filename>tzdata2002d</filename> to
+      <filename>tzdata2003a</filename>.</para>
+
   </sect2>
 
   <sect2 id="ports">
