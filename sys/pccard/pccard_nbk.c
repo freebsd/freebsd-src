@@ -308,6 +308,15 @@ pccard_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case PCCARD_IVAR_ETHADDR:
 		bcopy(devi->misc, result, ETHER_ADDR_LEN);
 		return (0);
+	case PCCARD_IVAR_VENDOR:
+		*(u_int32_t *) result = devi->manufacturer;
+		return (0);
+	case PCCARD_IVAR_PRODUCT:
+		*(u_int32_t *) result = devi->product;
+		return (0);
+	case PCCARD_IVAR_PRODEXT:
+		*(u_int16_t *) result = devi->prodext;
+		return (0);
 	}
 	return (ENOENT);
 }
