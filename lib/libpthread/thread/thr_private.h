@@ -403,6 +403,7 @@ struct pthread_attr {
 enum pthread_susp {
 	SUSP_NO,	/* Not suspended. */
 	SUSP_YES,	/* Suspended. */
+	SUSP_JOIN,	/* Suspended, joining. */
 	SUSP_NOWAIT,	/* Suspended, was in a mutex or condition queue. */
 	SUSP_MUTEX_WAIT,/* Suspended, still in a mutex queue. */
 	SUSP_COND_WAIT	/* Suspended, still in a condition queue. */
@@ -573,7 +574,6 @@ union pthread_wait_data {
 	FILE		*fp;
 	struct pthread_poll_data *poll_data;
 	spinlock_t	*spinlock;
-	struct pthread	*thread;
 };
 
 /*
@@ -755,8 +755,8 @@ struct pthread {
 	 */
 	int	error;
 
-	/* Join queue head and link for waiting threads: */
-	TAILQ_HEAD(join_head, pthread)	join_queue;
+	/* Pointer to a thread that is waiting to join (NULL if no joiner). */
+	struct pthread *joiner;
 
 	/*
 	 * The current thread can belong to only one scheduling queue at
@@ -764,23 +764,24 @@ struct pthread {
 	 *
 	 *   o A queue of threads waiting for a mutex
 	 *   o A queue of threads waiting for a condition variable
-	 *   o A queue of threads waiting for another thread to terminate
-	 *     (the join queue above)
 	 *   o A queue of threads waiting for a file descriptor lock
 	 *   o A queue of threads needing work done by the kernel thread
 	 *     (waiting for a spinlock or file I/O)
 	 *
-	 * It is possible for a thread to belong to more than one of the
-	 * above queues if it is handling a signal.  A thread may only
-	 * enter a mutex, condition variable, or join queue when it is
-	 * not being called from a signal handler.  If a thread is a
+	 * A thread can also be joining a thread (the joiner field above).
+	 *
+	 * It must not be possible for a thread to belong to any of the
+	 * above queues while it is handling a signal.  Signal handlers
+	 * may longjmp back to previous stack frames circumventing normal
+	 * control flow.  This could corrupt queue integrity if the thread
+	 * retains membership in the queue.  Therefore, if a thread is a
 	 * member of one of these queues when a signal handler is invoked,
-	 * it must remain in the queue.  For this reason, the links for
-	 * these queues must not be (re)used for other queues.
+	 * it must remove itself from the queue before calling the signal
+	 * handler and reinsert itself after normal return of the handler.
 	 *
 	 * Use pqe for the scheduling queue link (both ready and waiting),
-	 * sqe for synchronization (mutex, condition variable, and join)
-	 * queue links, and qe for all other links.
+	 * sqe for synchronization (mutex and condition variable) queue
+	 * links, and qe for all other links.
 	 */
 	TAILQ_ENTRY(pthread)	pqe;	/* priority queue link */
 	TAILQ_ENTRY(pthread)	sqe;	/* synchronization queue link */
@@ -826,10 +827,9 @@ struct pthread {
 #define PTHREAD_FLAGS_IN_FDQ	0x0040	/* in fd lock queue using qe link */
 #define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
 #define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
-#define PTHREAD_FLAGS_IN_JOINQ	0x0200	/* in join queue using sqe link */
-#define PTHREAD_FLAGS_TRACE	0x0400	/* for debugging purposes */
+#define PTHREAD_FLAGS_TRACE	0x0200	/* for debugging purposes */
 #define PTHREAD_FLAGS_IN_SYNCQ	\
-    (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ | PTHREAD_FLAGS_IN_JOINQ)
+    (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ)
 
 	/*
 	 * Base priority is the user setable and retrievable priority
@@ -1211,7 +1211,6 @@ int     _find_dead_thread(pthread_t);
 int     _find_thread(pthread_t);
 struct pthread *_get_curthread(void);
 void	_set_curthread(struct pthread *);
-void	_join_backout(pthread_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *);
 int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);

@@ -195,29 +195,38 @@ _pthread_exit(void *status)
 
 	/* Unlock the garbage collector mutex: */
 	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
+		PANIC("Cannot unlock gc mutex");
 
-	/* Check if there are any threads joined to this one: */
-	while ((pthread = TAILQ_FIRST(&(curthread->join_queue))) != NULL) {
-		/* Remove the thread from the queue: */
-		TAILQ_REMOVE(&curthread->join_queue, pthread, sqe);
-		pthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+	/* Check if there is a thread joining this one: */
+	if (curthread->joiner != NULL) {
+		pthread = curthread->joiner;
+		curthread->joiner = NULL;
 
-		/*
-		 * Wake the joined thread and let it
-		 * detach this thread:
-		 */
-		PTHREAD_NEW_STATE(pthread, PS_RUNNING);
-
-		/*
-		 * Set the return value for the woken thread:
-		 */
-		if ((curthread->attr.flags & PTHREAD_DETACHED) != 0)
-			pthread->error = ESRCH;
-		else {
-			pthread->ret = curthread->ret;
-			pthread->error = 0;
+		switch (pthread->suspended) {
+		case SUSP_JOIN:
+			/*
+			 * The joining thread is suspended.  Change the
+			 * suspension state to make the thread runnable when it
+			 * is resumed:
+			 */
+			pthread->suspended = SUSP_NO;
+			break;
+		case SUSP_NO:
+			/* Make the joining thread runnable: */
+			PTHREAD_NEW_STATE(pthread, PS_RUNNING);
+			break;
+		default:
+			PANIC("Unreachable code reached");
 		}
+
+		/* Set the return value for the joining thread: */
+		pthread->ret = curthread->ret;
+		pthread->error = 0;
+
+		/* Make this thread collectable by the garbage collector. */
+		PTHREAD_ASSERT(((curthread->attr.flags & PTHREAD_DETACHED) ==
+		    0), "Cannot join a detached thread");
+		curthread->attr.flags |= PTHREAD_DETACHED;
 	}
 
 	/* Remove this thread from the thread list: */
