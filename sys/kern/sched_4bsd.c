@@ -102,7 +102,9 @@ static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
 static void	updatepri(struct ksegrp *kg);
 static void	resetpriority(struct ksegrp *kg);
+#ifdef SMP
 static int	forward_wakeup(int  cpunum);
+#endif
 
 static struct kproc_desc sched_kp = {
         "schedcpu",
