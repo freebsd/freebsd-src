@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.h,v 1.6 1999/05/08 21:59:26 dfr Exp $
+ *	$Id: isa_compat.h,v 1.7 1999/05/09 09:56:52 phk Exp $
  */
 
 #include "vt.h"
@@ -161,7 +161,6 @@ extern struct isa_driver pcfdriver;
 extern struct isa_driver isicdriver;
 extern struct isa_driver tinadriver;
 extern struct isa_driver ppcdriver;
-extern struct isa_driver fladriver;
 #ifdef PC98
 extern struct isa_driver bsdriver;
 #endif
@@ -259,9 +258,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NWT > 0
 	{ INTR_TYPE_BIO, &wtdriver },
-#endif
-#if NFLA > 0
-	{ INTR_TYPE_BIO, &fladriver },
 #endif
 
 /* NET */
