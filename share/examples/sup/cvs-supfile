@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.10 1997/02/22 13:56:00 peter Exp $
+# $Id: cvs-supfile,v 1.11 1997/03/06 06:18:50 asami Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # cvs development tree.  SUP (Software Update Protocol) allows you to
@@ -71,6 +71,7 @@ ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/
 #ports-cad release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-chinese release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-comms release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-converters release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-databases release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-devel release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-editors release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
@@ -92,6 +93,7 @@ ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/
 #ports-security release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-shells release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-sysutils release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-textproc release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-vietnamese release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-www release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-x11 release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
