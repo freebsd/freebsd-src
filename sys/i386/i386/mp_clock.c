@@ -58,8 +58,6 @@ static struct timecounter piix_timecounter = {
 	"PIIX"
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, piix_timecounter, CTLFLAG_RD,
-	&piix_timecounter, sizeof(piix_timecounter), "S,timecounter", "");
 
 static int
 sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)

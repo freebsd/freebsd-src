@@ -613,9 +613,6 @@ static struct timecounter loran_timecounter = {
 	"loran"			/* name */
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, loran_timecounter, CTLFLAG_RD, 
-	&loran_timecounter, sizeof(loran_timecounter), "S,timecounter", "");
-
 
 /**********************************************************************/
 
