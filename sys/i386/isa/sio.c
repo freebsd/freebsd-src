@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.231 1999/03/25 00:32:54 steve Exp $
+ *	$Id: sio.c,v 1.232 1999/03/30 09:02:38 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1593,14 +1593,15 @@ siointr1(com)
 	int_ctl_new = int_ctl;
 
 	while (!com->gone) {
-		modem_status = inb(com->modem_status_port);
-		if ((com->pps.ppsparam.mode & PPS_CAPTUREBOTH) &&
-		    ((modem_status ^ com->last_modem_status) & MSR_DCD)) {
-			tc = timecounter;
-			count = tc->tc_get_timecount(tc);
-			pps_event(&com->pps, tc, count, 
-			    (modem_status & MSR_DCD) ? 
-			    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+		if (com->pps.ppsparam.mode & PPS_CAPTUREBOTH) {
+			modem_status = inb(com->modem_status_port);
+		        if ((modem_status ^ com->last_modem_status) & MSR_DCD) {
+				tc = timecounter;
+				count = tc->tc_get_timecount(tc);
+				pps_event(&com->pps, tc, count, 
+				    (modem_status & MSR_DCD) ? 
+				    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
+			}
 		}
 		line_status = inb(com->line_status_port);
 
@@ -1678,6 +1679,7 @@ cont:
 		}
 
 		/* modem status change? (always check before doing output) */
+		modem_status = inb(com->modem_status_port);
 		if (modem_status != com->last_modem_status) {
 			if (com->do_dcd_timestamp
 			    && !(com->last_modem_status & MSR_DCD)
