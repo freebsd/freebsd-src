@@ -262,13 +262,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     argv0 = argv[0] != NULL ? argv[0] : "(null)";
     environ = env;
 
-    trust = geteuid() == getuid() && getegid() == getgid();
-
-    libmap_disable = getenv("LD_LIBMAP_DISABLE") != NULL;
+    trust = !issetugid();
 
     ld_bind_now = getenv("LD_BIND_NOW");
     if (trust) {
 	ld_debug = getenv("LD_DEBUG");
+	libmap_disable = getenv("LD_LIBMAP_DISABLE") != NULL;
 	ld_library_path = getenv("LD_LIBRARY_PATH");
 	ld_preload = getenv("LD_PRELOAD");
     }
