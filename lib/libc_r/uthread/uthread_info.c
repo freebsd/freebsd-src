@@ -103,9 +103,9 @@ _thread_dump_info(void)
 					continue;
 				/*
 				 * We only need to continue in case of
-				 * EEXIT error. Most other error
+				 * EEXIST error. Most other error
 				 * codes means that we will fail all
-				 * the times.
+				 * the time.
 				 */
 				return;
 		} else {
