@@ -102,13 +102,20 @@ extern unsigned long i386_mach PARAMS ((void));
 #define AOUT_TARGET_FORMAT	"a.out-i386"
 #endif
 
+#ifdef TE_FreeBSD
+#define ELF_TARGET_FORMAT	"elf32-i386-freebsd"
+#endif
+#ifndef ELF_TARGET_FORMAT
+#define ELF_TARGET_FORMAT	"elf32-i386"
+#endif
+
 #if ((defined (OBJ_MAYBE_COFF) && defined (OBJ_MAYBE_AOUT)) \
      || defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF))
 extern const char *i386_target_format PARAMS ((void));
 #define TARGET_FORMAT i386_target_format ()
 #else
 #ifdef OBJ_ELF
-#define TARGET_FORMAT		"elf32-i386"
+#define TARGET_FORMAT		ELF_TARGET_FORMAT
 #endif
 #ifdef OBJ_AOUT
 #define TARGET_FORMAT		AOUT_TARGET_FORMAT
@@ -119,6 +126,8 @@ extern const char *i386_target_format PARAMS ((void));
 #define md_end i386_elf_emit_arch_note
 extern void i386_elf_emit_arch_note PARAMS ((void));
 #endif
+
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 
 #else /* ! BFD_ASSEMBLER */
 
@@ -135,7 +144,7 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 
 #ifdef TE_GO32
 /* DJGPP now expects some sections to be 2**4 aligned.  */
-#define SUB_SEGMENT_ALIGN(SEG)						\
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)					\
   ((strcmp (obj_segment_name (SEG), ".text") == 0			\
     || strcmp (obj_segment_name (SEG), ".data") == 0			\
     || strcmp (obj_segment_name (SEG), ".bss") == 0			\
@@ -145,7 +154,7 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
    ? 4									\
    : 2)
 #else
-#define SUB_SEGMENT_ALIGN(SEG) 2
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 2
 #endif
 
 #define TC_RVA_RELOC 7
@@ -173,8 +182,15 @@ extern void x86_cons_fix_new
   PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
 #endif
 
-#define TC_FORCE_RELOCATION(fixp) tc_i386_force_relocation(fixp)
-extern int tc_i386_force_relocation PARAMS ((struct fix *));
+#ifdef BFD_ASSEMBLER
+#define TC_FORCE_RELOCATION(FIXP)			\
+  ((FIXP)->fx_r_type == BFD_RELOC_VTABLE_INHERIT	\
+   || (FIXP)->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
+#else
+/* For COFF.  */
+#define TC_FORCE_RELOCATION(FIXP)			\
+  ((FIXP)->fx_r_type == 7)
+#endif
 
 #ifdef BFD_ASSEMBLER
 #define NO_RELOC BFD_RELOC_NONE
