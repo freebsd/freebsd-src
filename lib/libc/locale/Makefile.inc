@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/locale ${.CURDIR}/../libc/locale
 
 SRCS+=	ansi.c big5.c collate.c collcmp.c euc.c frune.c isctype.c \
-	lconv.c localeconv.c mbrune.c mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
+	lconv.c localeconv.c mbrune.c mskanji.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
 	tolower.c toupper.c utf2.c
 
