@@ -190,14 +190,6 @@
     <para arch="i386,sparc64">Ultra-320 SCSI controllers based on the Adaptec
       AIC7901, AIC7901A, and AIC7902 Ultra320 controller chips
       (&man.ahd.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
-        </listitem>
-        <listitem>
-	  <para>Adaptec 39320, 39320D</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Adaptec FSA family RAID controllers (&man.aac.4; driver)</para>
@@ -363,7 +355,7 @@
       </note>
     </para>
 
-    <para arch="i386,alpha">Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x
+    <para arch="i386,alpha">Mylex DAC-family RAID controllers with 2.x, 3.x, 4.x
     and 5.x firmware (&man.mlx.4; driver)
 
       <note>
@@ -379,25 +371,8 @@
       </note>
     </para>
 
-    <para arch="i386">Mylex PCI to SCSI RAID controllers with 6.x firmware
+    <para arch="i386">Mylex AcceleRAID/eXtremeRAID family PCI to SCSI RAID controllers with 6.x firmware
     (&man.mly.4; driver)
-      <itemizedlist>
-        <listitem>
-          <para>AcceleRAID 160</para>
-        </listitem>
-	<listitem>
-	  <para>AcceleRAID 170</para>
-        </listitem>
-	<listitem>
-	  <para>AcceleRAID 352</para>
-        </listitem>
-	<listitem>
-	  <para>eXtremeRAID 2000</para>
-        </listitem>
-	<listitem>
-	  <para>eXtremeRAID 3000</para>
-        </listitem>
-      </itemizedlist>
 
       <note>
 	<para>Compatible Mylex controllers not listed should work, but
@@ -508,19 +483,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Parallel to SCSI interfaces (&man.vpo.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>AIC 7110 SCSI controller (built-in to Iomega ZIP drive)</para>
-        </listitem>
-        <listitem>
-	  <para>Iomega Jaz Traveller interface</para>
-        </listitem>
-        <listitem>
-	  <para>Iomega MatchMaker SCSI interface (built-in to Iomega
-	  ZIP+ drive)</para>
-        </listitem>
-      </itemizedlist>
+    <para arch="i386">Adaptec AIC-7110 Parallel to SCSI interfaces (&man.vpo.4; driver)
     </para>
 
     <para arch="i386">Compaq Intelligent Drive Array Controllers
@@ -911,48 +874,6 @@
     driver)</para>
 
     <para arch="i386,pc98,alpha,sparc64">RealTek 8129/8139 Fast Ethernet NICs (&man.rl.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Accton <quote>Cheetah</quote> EN1207D (MPX 5030/5038;
-	  RealTek 8139 clone)</para>
-        </listitem>
-        <listitem arch="i386,alpha,sparc64">
-          <para>Allied Telesyn AT2550</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>Allied Telesyn AT2500TX</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>D-Link DFE-530TX+, DFE-538TX</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-          <para>Farallon NetLINE 10/100 PCI</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>Genius GF100TXR (RTL8139)</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>KTX-9130TX 10/100 Fast Ethernet</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>NDC Communications NE100TX-E</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>Netronix Inc. EA-1210 NetEther 10/100</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>OvisLink LEF-8129TX</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>OvisLink LEF-8139TX</para>
-        </listitem>
-	<listitem arch="i386,alpha,sparc64">
-	  <para>SMC EZ Card 10/100 PCI 1211-TX</para>
-        </listitem>
-	<listitem arch="pc98">
-	  <para>SOHO(PRAGMATIC) UE-1211C (PCI)</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,alpha,sparc64">Lite-On 82c168/82c169 PNIC Fast Ethernet NICs (&man.dc.4; driver)
@@ -2090,29 +2011,6 @@
     <title>Camera and Video Capture Devices</title>
     <para arch="i386,pc98">Brooktree Bt848/849/878/879-based frame grabbers (&man.bktr.4;
     driver)
-      <itemizedlist>
-        <listitem>
-          <para>AverMedia cards</para>
-        </listitem>
-        <listitem>
-          <para>Hauppauge Wincast TV and WinTV boards (PCI)</para>
-	</listitem>
-        <listitem>
-          <para>Intel Smart Video Recorder III</para>
-	</listitem>
-        <listitem>
-          <para>Miro PC TV</para>
-	</listitem>
-        <listitem>
-          <para>STB TV PCI</para>
-        </listitem>
-        <listitem>
-          <para>Video Highway XTreme</para>
-        </listitem>
-        <listitem>
-          <para>VideoLogic Captivator PCI</para>
-        </listitem>
-      </itemizedlist>
     </para>      
     <para arch="i386">Connectix QuickCam</para>
     <para arch="i386">Cortex1 frame grabber (ctx driver)</para>
@@ -2211,42 +2109,8 @@
       interface (&man.ehci.4; driver)</para>
 
     <para arch="i386,pc98,alpha">Hubs
-      <itemizedlist>
-        <listitem>
-	  <para>Andromeda hub</para>
-	</listitem>
-        <listitem>
-	  <para>MacAlly self powered hub (4 ports)</para>
-	</listitem>
-        <listitem>
-	  <para>NEC hub</para>
-	</listitem>
-      </itemizedlist>
     </para>
     <para arch="i386,pc98,alpha">Keyboards (&man.ukbd.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Apple iMac keyboard</para>
-	</listitem>
-        <listitem>
-	  <para>BTC BTC7935 keyboard with PS/2 mouse port</para>
-	</listitem>
-        <listitem>
-	  <para>Cherry G81-3504 keyboard</para>
-	</listitem>
-        <listitem>
-	  <para>Logitech M2452 keyboard</para>
-	</listitem>
-        <listitem>
-	  <para>MacAlly iKey keyboard</para>
-	</listitem>
-        <listitem>
-	  <para>Microsoft keyboard</para>
-	</listitem>
-	<listitem>
-	  <para>Sun Microsystems Type 6 USB keyboard</para>
-	</listitem>
-      </itemizedlist>
     </para>
     <para arch="i386,pc98">Miscellaneous
       <itemizedlist>
@@ -2284,47 +2148,6 @@
       </itemizedlist>
     </para>
     <para arch="i386,pc98,alpha">Mice (&man.ums.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Agiler Mouse 29UO</para>
-	</listitem>
-        <listitem>
-	  <para>Apple iMac Mouse</para>
-	</listitem>
-        <listitem>
-	  <para>Belkin Mouse</para>
-	</listitem>
-        <listitem>
-	  <para>Chic mouse</para>
-	</listitem>
-        <listitem>
-	  <para>Cypress mouse</para>
-	</listitem>
-        <listitem>
-	  <para>Genius Niche mouse</para>
-	</listitem>
-        <listitem>
-	  <para>Kensington Mouse-in-a-Box</para>
-	</listitem>
-        <listitem>
-	  <para>Logitech wheel mouse (3 buttons)</para>
-	</listitem>
-        <listitem>
-	  <para>Logitech PS/2 / USB mouse (3 buttons)</para>
-	</listitem>
-        <listitem>
-	  <para>MacAlly mouse (3 buttons)</para>
-	</listitem>
-        <listitem>
-	  <para>Microsoft IntelliMouse (3 buttons)</para>
-	</listitem>
-        <listitem>
-	  <para>Sun Microsystems Type 6 USB Mouse</para>
-	</listitem>
-        <listitem>
-	  <para>Trust Ami Mouse (3 buttons)</para>
-	</listitem>
-      </itemizedlist>
     </para>
     <para arch="i386,pc98,alpha">Printers and parallel printer conversion cables (&man.ulpt.4; driver)
       <itemizedlist>
@@ -2386,17 +2209,6 @@
       </itemizedlist>
     </para>
     <para arch="i386,pc98">Scanners (through <application>SANE</application>) (&man.uscanner.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Perfection 636U</para>
-	</listitem>
-        <listitem>
-	  <para>Seiko Epson GT-7700U, 7600U</para>
-	</listitem>
-        <listitem>
-	  <para>HP ScanJet 4100C, 5200C, 6300C</para>
-	</listitem>
-      </itemizedlist>
     </para>
     <para arch="i386,pc98,alpha">Storage (&man.umass.4; driver)
       <itemizedlist>
