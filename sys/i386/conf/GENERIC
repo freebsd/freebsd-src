@@ -90,6 +90,9 @@ device		dpt		# DPT Smartcache - See LINT for options!
 device		isp		# Qlogic family
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
+options		SYM_SETUP_LP_PROBE_MAP=0x40
+				# Allow ncr to attach legacy NCR devices when 
+				# both sym and ncr are configured
 
 device		adv0	at isa?
 device		adw
