@@ -56,6 +56,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 	struct cdevsw *cdevsw;
 	dev_t dev;
 
+	bzero(&tbuf, sizeof(tbuf));
 	tbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
 	tbuf.st_ino = buf->st_ino;
 	tbuf.st_mode = buf->st_mode;
