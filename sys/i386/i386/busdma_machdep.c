@@ -406,125 +406,6 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	bus_dmamem_free_size(dmat, vaddr, map, dmat->maxsize);
 }
 
-#define BUS_DMAMAP_NSEGS ((64 * 1024) / PAGE_SIZE + 1)
-
-/*
- * Map the buffer buf into bus space using the dmamap map.
- */
-int
-bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-		bus_size_t buflen, bus_dmamap_callback_t *callback,
-		void *callback_arg, int flags)
-{
-	vm_offset_t		vaddr;
-	vm_paddr_t		paddr;
-#ifdef __GNUC__
-	bus_dma_segment_t	dm_segments[dmat->nsegments];
-#else
-	bus_dma_segment_t	dm_segments[BUS_DMAMAP_NSEGS];
-#endif
-	bus_dma_segment_t      *sg;
-	int			seg;
-	int			error;
-	vm_paddr_t		nextpaddr;
-
-	if (map == NULL)
-		map = &nobounce_dmamap;
-
-	error = 0;
-	/*
-	 * If we are being called during a callback, pagesneeded will
-	 * be non-zero, so we can avoid doing the work twice.
-	 */
-	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
-	    map->pagesneeded == 0) {
-		vm_offset_t	vendaddr;
-
-		/*
-		 * Count the number of bounce pages
-		 * needed in order to complete this transfer
-		 */
-		vaddr = trunc_page((vm_offset_t)buf);
-		vendaddr = (vm_offset_t)buf + buflen;
-
-		while (vaddr < vendaddr) {
-			paddr = pmap_kextract(vaddr);
-			if (run_filter(dmat, paddr) != 0) {
-
-				map->pagesneeded++;
-			}
-			vaddr += PAGE_SIZE;
-		}
-	}
-
-	/* Reserve Necessary Bounce Pages */
-	if (map->pagesneeded != 0) {
-		mtx_lock(&bounce_lock);
-	 	if (reserve_bounce_pages(dmat, map, 1) != 0) {
-
-			/* Queue us for resources */
-			map->dmat = dmat;
-			map->buf = buf;
-			map->buflen = buflen;
-			map->callback = callback;
-			map->callback_arg = callback_arg;
-
-			STAILQ_INSERT_TAIL(&bounce_map_waitinglist, map, links);
-			mtx_unlock(&bounce_lock);
-			return (EINPROGRESS);
-		}
-		mtx_unlock(&bounce_lock);
-	}
-
-	vaddr = (vm_offset_t)buf;
-	sg = &dm_segments[0];
-	seg = 1;
-	sg->ds_len = 0;
-
-	nextpaddr = 0;
-	do {
-		bus_size_t	size;
-
-		paddr = pmap_kextract(vaddr);
-		size = PAGE_SIZE - (paddr & PAGE_MASK);
-		if (size > buflen)
-			size = buflen;
-
-		if (map->pagesneeded != 0 && run_filter(dmat, paddr)) {
-			paddr = add_bounce_page(dmat, map, vaddr, size);
-		}
-
-		if (sg->ds_len == 0) {
-			sg->ds_addr = paddr;
-			sg->ds_len = size;
-		} else if (paddr == nextpaddr) {
-			sg->ds_len += size;
-		} else {
-			/* Go to the next segment */
-			sg++;
-			seg++;
-			if (seg > dmat->nsegments)
-				break;
-			sg->ds_addr = paddr;
-			sg->ds_len = size;
-		}
-		vaddr += size;
-		nextpaddr = paddr + size;
-		buflen -= size;
-
-	} while (buflen > 0);
-
-	if (buflen != 0) {
-		printf("bus_dmamap_load: Too many segs! buf_len = 0x%lx\n",
-		       (u_long)buflen);
-		error = EFBIG;
-	}
-
-	(*callback)(callback_arg, dm_segments, seg, error);
-
-	return (0);
-}
-
 /*
  * Utility function to load a linear buffer.  lastaddrp holds state
  * between invocations (for multiple-buffer loads).  segp contains
@@ -656,6 +537,36 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	 */
 	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
 }
+
+#define BUS_DMAMAP_NSEGS ((64 * 1024) / PAGE_SIZE + 1)
+
+/*
+ * Map the buffer buf into bus space using the dmamap map.
+ */
+int
+bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+		bus_size_t buflen, bus_dmamap_callback_t *callback,
+		void *callback_arg, int flags)
+{
+#ifdef __GNUC__
+	bus_dma_segment_t	dm_segments[dmat->nsegments];
+#else
+	bus_dma_segment_t	dm_segments[BUS_DMAMAP_NSEGS];
+#endif
+        bus_addr_t		lastaddr = 0;
+	int			error, nsegs = 0;
+
+	error = _bus_dmamap_load_buffer(dmat, map, dm_segments, buf, buflen,
+	    NULL, flags, &lastaddr, &nsegs, 1);
+
+	if (error)
+		(*callback)(callback_arg, dm_segments, 0, error);
+	else
+		(*callback)(callback_arg, dm_segments, nsegs + 1, 0);
+
+	return (0);
+}
+
 
 /*
  * Like _bus_dmamap_load(), but for mbufs.
