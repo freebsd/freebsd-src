@@ -187,19 +187,25 @@ Field(buf, out, len)
 	bp = clen + buf - 3;
 	hp = hb + i - 1;
 
-	while (hp >= hb) {
+	while (hp > hb) {
 		if (base16)
 			(void)sscanf(bp, "%3x", hp);
 		else if (base10)
 			(void)sscanf(bp, "%3d", hp);
 		else
 			(void)sscanf(bp, "%3o", hp);
-		if (hp > hb) {
-			bp[0] = 0;
-			hp--;
-			bp -= 3;
-		}
+
+		bp[0] = 0;
+		hp--;
+		bp -= 3;
 	}
+	if (base16)
+		(void)sscanf(buf, "%3x", hp);
+	else if (base10)
+		(void)sscanf(buf, "%3d", hp);
+	else
+		(void)sscanf(buf, "%3o", hp);
+
 	cvtbase((long)ibase, 256, hb, i, out, len);
 }
 
