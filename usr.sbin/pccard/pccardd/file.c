@@ -678,6 +678,8 @@ irq_tok(int force)
 
 	if (strcmp("?", next_tok()) == 0 && force)
 		return (0);
+	if (strcmp("any", next_tok()) == 0 && force)
+		return (0);
 	pusht = 1;
 	i = num_tok();
 	if (i > 0 && i < 16)
