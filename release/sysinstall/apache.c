@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.23 1996/06/08 12:01:23 jkh Exp $
+ * $Id: apache.c,v 1.24 1996/06/15 17:58:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -48,7 +48,7 @@
 
 
 #define APACHE_HELPFILE "apache"
-#define APACHE_PACKAGE  "apache-1.0.5"
+#define APACHE_PACKAGE  "apache-1.1.1"
 #define FREEBSD_GIF	"http://www.freebsd.org/gifs/powerlogo.gif"
 
 /* These change if the package uses different defaults */
