@@ -600,7 +600,6 @@ cbb_attach(device_t brdev)
 		 * does this, we allow CardBus bridges to work on more
 		 * machines.
 		 */
-		sockbase = pci_read_config(brdev, rid, 4);
 		pci_write_config(brdev, rid, 0xfffffffful, 4);
 		sockbase = pci_read_config(brdev, rid, 4);
 		sockbase = (sockbase & 0xfffffff0ul) &
@@ -608,7 +607,7 @@ cbb_attach(device_t brdev)
 		sc->base_res = bus_generic_alloc_resource(
 		    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
 		    &rid, cbb_start_mem, ~0, sockbase,
-		    RF_ACTIVE|rman_make_alignment_flags(sockbase));
+		    RF_ACTIVE | rman_make_alignment_flags(sockbase));
 		if (!sc->base_res) {
 			device_printf(brdev,
 			    "Could not grab register memory\n");
