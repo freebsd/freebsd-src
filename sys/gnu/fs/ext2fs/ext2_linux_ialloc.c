@@ -48,6 +48,8 @@
 
 #ifdef __i386__
 #include <gnu/ext2fs/i386-bitops.h>
+#elif  __alpha__
+#include <gnu/ext2fs/alpha-bitops.h>
 #else
 #error please provide bit operation functions
 #endif
