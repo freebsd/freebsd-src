@@ -30,6 +30,7 @@ SRCS+=		genget.c getent.c misc.c
 CFLAGS+=	-DHAS_CGETENT
 .endif
 
+.if !defined(RELEASE_CRUNCH)
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 DISTRIBUTION=	crypto
 SRCS+=		authenc.c 
@@ -40,6 +41,7 @@ LDADD+=		-lmp -lcrypto -lcrypt -lipsec ${MINUSLPAM}
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 DPADD+=		${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
 LDADD+=		-lkrb5 -lasn1 -lcom_err -lroken
+.endif
 .endif
 .endif
 

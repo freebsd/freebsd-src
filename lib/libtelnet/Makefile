@@ -13,6 +13,7 @@ CFLAGS+=	-I${TELNETDIR}
 
 WARNS?=		2
 
+.if !defined(RELEASE_CRUNCH)
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 DISTRIBUTION=	crypto
 SRCS+=		encrypt.c auth.c enc_des.c sra.c pk.c
@@ -21,6 +22,7 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
 SRCS+=		kerberos5.c
 CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
 CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
+.endif
 .endif
 .endif
 
