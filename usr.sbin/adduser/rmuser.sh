@@ -43,6 +43,13 @@ err() {
 	echo 1>&2 ${THISCMD}: $*
 }
 
+# verbose
+#	Returns 0 if verbose mode is set, 1 if it is not.
+#
+verbose() {
+	[ -n "$vflag" ] && return 0 || return 1
+}
+
 # rm_files login
 #	Removes files or empty directories belonging to $login from various
 #	temporary directories.
@@ -51,16 +58,20 @@ rm_files() {
 	# The argument is required
 	[ -n $1 ] && login=$1 || return
 	
+	totalcount=0
 	for _dir in ${TEMPDIRS} ; do
+		filecount=0
 		if [ ! -d $_dir ]; then
 			err "$_dir is not a valid directory."
 			continue
 		fi
-		echo -n "Removing files owned by ($login) in $_dir:"
+		verbose && echo -n "Removing files owned by ($login) in $_dir:"
 		filecount=`find 2>/dev/null "$_dir" -user "$login" -delete -print | \
 		    wc -l | sed 's/ *//'`
-		echo " $filecount removed."
+		verbose && echo " $filecount removed."
+		totalcount=$(($totalcount + $filecount))
 	done
+	! verbose && [ $totalcount -ne 0 ] && echo -n " files($totalcount)"
 }
 
 # rm_mail login
@@ -71,16 +82,18 @@ rm_mail() {
 	# The argument is required
 	[ -n $1 ] && login=$1 || return
 
-	echo -n "Removing mail spool(s) for ($login):"
+	verbose && echo -n "Removing mail spool(s) for ($login):"
 	if [ -f ${MAILSPOOL}/$login ]; then
-		echo -n " ${MAILSPOOL}/$login"
+		verbose && echo -n " ${MAILSPOOL}/$login" || \
+		    echo -n " mailspool"
 		rm ${MAILSPOOL}/$login
 	fi
 	if [ -f ${MAILSPOOL}/${login}.pop ]; then
-		echo -n " ${MAILSPOOL}/${login}.pop"
+		verbose && echo -n " ${MAILSPOOL}/${login}.pop" || \
+		    echo -n " pop3"
 		rm ${MAILSPOOL}/${login}.pop
 	fi
-	echo '.'
+	verbose && echo '.'
 }
 
 # kill_procs login
@@ -90,14 +103,15 @@ kill_procs() {
 	# The argument is required
 	[ -n $1 ] && login=$1 || return
 
-	echo -n "Terminating all processes owned by ($login):"
+	verbose && echo -n "Terminating all processes owned by ($login):"
 	killcount=0
 	proclist=`ps 2>/dev/null -U $login | grep -v '^\ *PID' | awk '{print $1}'`
 	for _pid in $proclist ; do
 		kill 2>/dev/null ${SIGKILL} $_pid
 		killcount=$(($killcount + 1))
 	done
-	echo " ${SIGKILL} signal sent to $killcount processes."
+	verbose && echo " ${SIGKILL} signal sent to $killcount processes."
+	! verbose && [ $killcount -ne 0 ] && echo -n " processes(${killcount})"
 }
 
 # rm_at_jobs login
@@ -109,12 +123,13 @@ rm_at_jobs() {
 
 	atjoblist=`find 2>/dev/null ${ATJOBDIR} -maxdepth 1 -user $login -print`
 	jobcount=0
-	echo -n "Removing at(1) jobs owned by ($login):"
+	verbose && echo -n "Removing at(1) jobs owned by ($login):"
 	for _atjob in $atjoblist ; do
 		rm -f $_atjob
 		jobcount=$(($jobcount + 1))
 	done
-	echo " $jobcount removed."
+	verbose && echo " $jobcount removed."
+	! verbose && [ $jobcount -ne 0 ] && echo -n " at($jobcount)"
 }
 
 # rm_crontab login
@@ -124,12 +139,12 @@ rm_crontab() {
 	# The argument is required
 	[ -n $1 ] && login=$1 || return
 
-	echo -n "Removing crontab for ($login):"
+	verbose && echo -n "Removing crontab for ($login):"
 	if [ -f ${CRONJOBDIR}/$login ]; then
-		echo -n " ${CRONJOBDIR}/$login"
+		verbose && echo -n " ${CRONJOBDIR}/$login" || echo -n " crontab"
 		rm -f ${CRONJOBDIR}/$login
 	fi
-	echo '.'
+	verbose && echo '.'
 }
 
 # rm_user login
@@ -145,11 +160,15 @@ rm_user() {
 	# The argument is required
 	[ -n $1 ] && login=$1 || return
 
-	echo -n "Removing user ($login)"
-	[ -n "$pw_rswitch" ] && echo -n " (including home directory)"
-	echo -n " from the system:"
+	verbose && echo -n "Removing user ($login)"
+	[ -n "$pw_rswitch" ] && {
+		verbose && echo -n " (including home directory)"
+		! verbose && echo -n " home"
+	}
+	! verbose && echo -n " passwd"
+	verbose && echo -n " from the system:"
 	pw userdel -n $login $pw_rswitch
-	echo ' Done.'
+	verbose && echo ' Done.'
 }
 
 # prompt_yesno msg
@@ -182,7 +201,7 @@ prompt_yesno() {
 #	Display usage message.
 #
 show_usage() {
-	echo "usage: ${THISCMD} [-y] [-f file] [user ...]"
+	echo "usage: ${THISCMD} [-yv] [-f file] [user ...]"
 	echo "       if the -y switch is used, either the -f switch or"
 	echo "       one or more user names must be given"
 }
@@ -195,6 +214,7 @@ procowner=
 pw_rswitch=
 userlist=
 yflag=
+vflag=
 
 procowner=`/usr/bin/id -u`
 if [ "$procowner" != "0" ]; then
@@ -202,7 +222,7 @@ if [ "$procowner" != "0" ]; then
 	exit 1
 fi
 
-args=`getopt 2>/dev/null yf: $*`
+args=`getopt 2>/dev/null yvf: $*`
 if [ "$?" != "0" ]; then
 	show_usage
 	exit 1
@@ -212,6 +232,10 @@ for _switch ; do
 	case $_switch in
 	-y)
 		yflag=1
+		shift
+		;;
+	-v)
+		vflag=1
 		shift
 		;;
 	-f)
@@ -312,10 +336,13 @@ for _user in $userlist ; do
 
 	# Remove crontab, mail spool, etc. Then obliterate the user from
 	# the passwd and group database.
+	#
+	! verbose && echo -n "Removing user ($_user):"
 	rm_crontab $_user
 	rm_at_jobs $_user
 	kill_procs $_user
-	rm_mail $_user
 	rm_files $_user
+	rm_mail $_user
 	rm_user $_user
+	! verbose && echo "."
 done

@@ -34,7 +34,7 @@
 .Nd remove users from the system
 .Sh SYNOPSIS
 .Nm
-.Op Fl y
+.Op Fl vy
 .Op Fl f Ar file
 .Op Ar username ...
 .Sh DESCRIPTION
@@ -129,6 +129,14 @@ If the file is owned by anyone other than a user with
 UID 0, or is writeable by anyone other than the owner,
 .Nm
 will refuse to continue.
+.It Fl v
+Enable verbose mode.
+Normally,
+the output inlcudes one line per removed user;
+however,
+with this option
+.Nm
+will be much more chatty about the steps taken.
 .It Fl y
 Implicitly answer
 .Dq Li yes
