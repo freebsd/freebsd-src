@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 85 $
+ *              $Revision: 87 $
  *
  ******************************************************************************/
 
@@ -124,9 +124,9 @@
 #include "acresrc.h"
 #include "acdisasm.h"
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbcmds")
 
 
@@ -861,7 +861,7 @@ AcpiDbDisplayObjects (
     }
 
     AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("Objects of type [%s] defined in the current ACPI Namespace: \n", 
+    AcpiOsPrintf ("Objects of type [%s] defined in the current ACPI Namespace: \n",
         AcpiUtGetTypeName (Type));
 
     AcpiDbSetOutputDestination (ACPI_DB_REDIRECTABLE_OUTPUT);
@@ -1177,9 +1177,7 @@ Cleanup:
 }
 
 
-
-
-typedef struct 
+typedef struct
 {
     UINT32              Nodes;
     UINT32              Objects;
@@ -1269,4 +1267,4 @@ AcpiDbCheckIntegrity (void)
 
 }
 
-#endif /* ENABLE_DEBUGGER */
+#endif /* ACPI_DEBUGGER */

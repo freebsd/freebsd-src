@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 35 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -146,12 +146,12 @@ AcpiSetFirmwareWakingVector (
 
     if (AcpiGbl_CommonFACS.VectorWidth == 32)
     {
-        *(ACPI_CAST_PTR (UINT32, AcpiGbl_CommonFACS.FirmwareWakingVector)) 
+        *(ACPI_CAST_PTR (UINT32, AcpiGbl_CommonFACS.FirmwareWakingVector))
                 = (UINT32) PhysicalAddress;
     }
     else
     {
-        *AcpiGbl_CommonFACS.FirmwareWakingVector 
+        *AcpiGbl_CommonFACS.FirmwareWakingVector
                 = PhysicalAddress;
     }
 
@@ -190,12 +190,12 @@ AcpiGetFirmwareWakingVector (
 
     if (AcpiGbl_CommonFACS.VectorWidth == 32)
     {
-        *PhysicalAddress = (ACPI_PHYSICAL_ADDRESS) 
+        *PhysicalAddress = (ACPI_PHYSICAL_ADDRESS)
             *(ACPI_CAST_PTR (UINT32, AcpiGbl_CommonFACS.FirmwareWakingVector));
     }
     else
     {
-        *PhysicalAddress = 
+        *PhysicalAddress =
             *AcpiGbl_CommonFACS.FirmwareWakingVector;
     }
 
@@ -412,7 +412,7 @@ AcpiEnterSleepState (
     /* Wait until we enter sleep state */
 
     Retry = 1000;
-    do 
+    do
     {
         Status = AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &InValue, ACPI_MTX_LOCK);
         if (ACPI_FAILURE (Status))

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 61 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -121,9 +121,9 @@
 #include "acdisasm.h"
 
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbxface")
 
 
@@ -158,7 +158,7 @@ AcpiDbSingleStep (
 
     /* Check for single-step breakpoint */
 
-    if (WalkState->MethodBreakpoint && 
+    if (WalkState->MethodBreakpoint &&
        (WalkState->MethodBreakpoint <= Op->Common.AmlOffset))
     {
         /* Check if the breakpoint has been reached or passed */
@@ -172,7 +172,7 @@ AcpiDbSingleStep (
 
     /* Check for user breakpoint (Must be on exact Aml offset) */
 
-    else if (WalkState->UserBreakpoint && 
+    else if (WalkState->UserBreakpoint &&
             (WalkState->UserBreakpoint == Op->Common.AmlOffset))
     {
         AcpiOsPrintf ("***UserBreakpoint*** at AML offset %X\n", Op->Common.AmlOffset);
@@ -294,7 +294,7 @@ AcpiDbSingleStep (
         /* Restore everything */
 
         Op->Common.Next = Next;
-        AcpiOsPrintf ("\n");
+        AcpiOsPrintf ("\n\n");
         AcpiDbgLevel = OriginalDebugLevel;
     }
 
@@ -518,4 +518,4 @@ AcpiDbTerminate (void)
 }
 
 
-#endif /* ENABLE_DEBUGGER */
+#endif /* ACPI_DEBUGGER */

@@ -208,7 +208,7 @@ acpi_identify(driver_t *driver, device_t parent)
 {
     device_t			child;
     int				error;
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     char			*debugpoint;
 #endif
 
@@ -238,7 +238,7 @@ acpi_identify(driver_t *driver, device_t parent)
     /*
      * Start up the ACPI CA subsystem.
      */
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
     if (debugpoint) {
 	if (!strcmp(debugpoint, "init"))
@@ -250,7 +250,7 @@ acpi_identify(driver_t *driver, device_t parent)
 	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
 	return_VOID;
     }
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
     if (debugpoint) {
 	if (!strcmp(debugpoint, "tables"))
@@ -314,7 +314,7 @@ acpi_attach(device_t dev)
     int			error;
     UINT32		flags;
     
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     char		*debugpoint;
 #endif
 
@@ -324,7 +324,7 @@ acpi_attach(device_t dev)
     bzero(sc, sizeof(*sc));
     sc->acpi_dev = dev;
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
     if (debugpoint) {
 	if (!strcmp(debugpoint, "spaces"))
@@ -371,7 +371,7 @@ acpi_attach(device_t dev)
      * XXX We should arrange for the object init pass after we have attached all our 
      *     child devices, but on many systems it works here.
      */
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
     if (debugpoint) {
 	if (!strcmp(debugpoint, "enable"))
@@ -445,7 +445,7 @@ acpi_attach(device_t dev)
     /*
      * Scan the namespace and attach/initialise children.
      */
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
     if (debugpoint) {
 	if (!strcmp(debugpoint, "probe"))
@@ -482,7 +482,7 @@ acpi_attach(device_t dev)
     sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, 0, 5, 0660, "acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
     if (debugpoint) {
 	if (!strcmp(debugpoint, "running"))
@@ -1939,8 +1939,9 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_DISPATCHER",		ACPI_DISPATCHER},
     {"ACPI_EXECUTER",		ACPI_EXECUTER},
     {"ACPI_RESOURCES",		ACPI_RESOURCES},
-    {"ACPI_DEBUGGER",		ACPI_DEBUGGER},
+    {"ACPI_CA_DEBUGGER",	ACPI_CA_DEBUGGER},
     {"ACPI_OS_SERVICES",	ACPI_OS_SERVICES},
+    {"ACPI_CA_DISASSEMBLER",	ACPI_CA_DISASSEMBLER},
 
     {"ACPI_BUS",		ACPI_BUS},
     {"ACPI_SYSTEM",		ACPI_SYSTEM},
@@ -1966,27 +1967,39 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_FATAL",		ACPI_LV_FATAL},
     {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
     {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
-    {"ACPI_LV_THREADS",		ACPI_LV_THREADS},
+
+    /* Trace verbosity level 1 [Standard Trace Level] */
     {"ACPI_LV_PARSE",		ACPI_LV_PARSE},
-    {"ACPI_LV_DISPATCH",	ACPI_LV_DISPATCH},
     {"ACPI_LV_LOAD",		ACPI_LV_LOAD},
+    {"ACPI_LV_DISPATCH",	ACPI_LV_DISPATCH},
     {"ACPI_LV_EXEC",		ACPI_LV_EXEC},
     {"ACPI_LV_NAMES",		ACPI_LV_NAMES},
     {"ACPI_LV_OPREGION",	ACPI_LV_OPREGION},
     {"ACPI_LV_BFIELD",		ACPI_LV_BFIELD},
     {"ACPI_LV_TABLES",		ACPI_LV_TABLES},
-    {"ACPI_LV_FUNCTIONS",	ACPI_LV_FUNCTIONS},
     {"ACPI_LV_VALUES",		ACPI_LV_VALUES},
     {"ACPI_LV_OBJECTS",		ACPI_LV_OBJECTS},
-    {"ACPI_LV_ALLOCATIONS",	ACPI_LV_ALLOCATIONS},
     {"ACPI_LV_RESOURCES",	ACPI_LV_RESOURCES},
-    {"ACPI_LV_IO",		ACPI_LV_IO},
-    {"ACPI_LV_INTERRUPTS",	ACPI_LV_INTERRUPTS},
     {"ACPI_LV_USER_REQUESTS",	ACPI_LV_USER_REQUESTS},
     {"ACPI_LV_PACKAGE",		ACPI_LV_PACKAGE},
-    {"ACPI_LV_MUTEX",		ACPI_LV_MUTEX},
     {"ACPI_LV_INIT",		ACPI_LV_INIT},
+    {"ACPI_LV_VERBOSITY1",	ACPI_LV_VERBOSITY1},
+
+    /* Trace verbosity level 2 [Function tracing and memory allocation] */
+    {"ACPI_LV_ALLOCATIONS",	ACPI_LV_ALLOCATIONS},
+    {"ACPI_LV_FUNCTIONS",	ACPI_LV_FUNCTIONS},
+    {"ACPI_LV_OPTIMIZATIONS",	ACPI_LV_OPTIMIZATIONS},
+    {"ACPI_LV_VERBOSITY2",	ACPI_LV_VERBOSITY2},
     {"ACPI_LV_ALL",		ACPI_LV_ALL},
+
+    /* Trace verbosity level 3 [Threading, I/O, and Interrupts] */
+    {"ACPI_LV_MUTEX",		ACPI_LV_MUTEX},
+    {"ACPI_LV_THREADS",		ACPI_LV_THREADS},
+    {"ACPI_LV_IO",		ACPI_LV_IO},
+    {"ACPI_LV_INTERRUPTS",	ACPI_LV_INTERRUPTS},
+    {"ACPI_LV_VERBOSITY3",	ACPI_LV_VERBOSITY3},
+
+    /* Exceptionally verbose output -- also used in the global "DebugLevel"  */
     {"ACPI_LV_AML_DISASSEMBLE",	ACPI_LV_AML_DISASSEMBLE},
     {"ACPI_LV_VERBOSE_INFO",	ACPI_LV_VERBOSE_INFO},
     {"ACPI_LV_FULL_TABLES",	ACPI_LV_FULL_TABLES},

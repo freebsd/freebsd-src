@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 7 $
+ *       $Revision: 10 $
  *
  *****************************************************************************/
 
@@ -128,6 +128,10 @@
 #include "acgcc.h"
 #include <machine/acpica_machdep.h>
 
+#ifdef ACPI_DEBUG
+#define ACPI_DEBUG_OUTPUT	/* for backward compatibility */
+#endif
+
 #ifdef _KERNEL
 #include "opt_acpi.h"
 
@@ -141,12 +145,12 @@
 #undef DEBUGGER_THREADING
 #endif /* DEBUGGER_THREADING */
 #define DEBUGGER_THREADING 0    /* integrated with DDB */
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
 #include "opt_ddb.h"
 #ifdef DDB
-#define ENABLE_DEBUGGER
+#define ACPI_DEBUGGER
 #endif /* DDB */
-#endif /* ACPI_DEBUG */
+#endif /* ACPI_DEBUG_OUTPUT */
 
 #else /* _KERNEL */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 63 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -164,7 +164,7 @@ AcpiTbGetTable (
     Status = AcpiTbGetTableBody (Address, &Header, TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        ACPI_REPORT_ERROR (("Could not get ACPI table (size %X), %s\n", 
+        ACPI_REPORT_ERROR (("Could not get ACPI table (size %X), %s\n",
             Header.Length, AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
@@ -185,7 +185,7 @@ AcpiTbGetTable (
  *
  * DESCRIPTION: Get an ACPI table header.  Works in both physical or virtual
  *              addressing mode.  Works with both physical or logical pointers.
- *              Table is either copied or mapped, depending on the pointer 
+ *              Table is either copied or mapped, depending on the pointer
  *              type and mode of the processor.
  *
  ******************************************************************************/
@@ -260,10 +260,10 @@ AcpiTbGetTableHeader (
  * RETURN:      Status
  *
  * DESCRIPTION: Get an entire ACPI table with support to allow the host OS to
- *              replace the table with a newer version (table override.)  
+ *              replace the table with a newer version (table override.)
  *              Works in both physical or virtual
  *              addressing mode.  Works with both physical or logical pointers.
- *              Table is either copied or mapped, depending on the pointer 
+ *              Table is either copied or mapped, depending on the pointer
  *              type and mode of the processor.
  *
  ******************************************************************************/
@@ -332,7 +332,7 @@ AcpiTbTableOverride (
 
     /*
      * The OSL will examine the header and decide whether to override this
-     * table.  If it decides to override, a table will be returned in NewTable, 
+     * table.  If it decides to override, a table will be returned in NewTable,
      * which we will then copy.
      */
     Status = AcpiOsTableOverride (Header, &NewTable);
@@ -340,7 +340,7 @@ AcpiTbTableOverride (
     {
         /* Some severe error from the OSL, but we basically ignore it */
 
-        ACPI_REPORT_ERROR (("Could not override ACPI table, %s\n", 
+        ACPI_REPORT_ERROR (("Could not override ACPI table, %s\n",
             AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
@@ -352,8 +352,8 @@ AcpiTbTableOverride (
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
-    /* 
-     * We have a new table to override the old one.  Get a copy of 
+    /*
+     * We have a new table to override the old one.  Get a copy of
      * the new one.  We know that the new table has a logical pointer.
      */
     Address.PointerType     = ACPI_LOGICAL_POINTER | ACPI_LOGICAL_ADDRESSING;
@@ -369,7 +369,7 @@ AcpiTbTableOverride (
 
     /* Copy the table info */
 
-    ACPI_REPORT_INFO (("Table [%4.4s] replaced by host OS\n", 
+    ACPI_REPORT_INFO (("Table [%4.4s] replaced by host OS\n",
         TableInfo->Pointer->Signature));
 
     return_ACPI_STATUS (AE_OK);
@@ -389,7 +389,7 @@ AcpiTbTableOverride (
  *
  * DESCRIPTION: Get an entire ACPI table.  Works in both physical or virtual
  *              addressing mode.  Works with both physical or logical pointers.
- *              Table is either copied or mapped, depending on the pointer 
+ *              Table is either copied or mapped, depending on the pointer
  *              type and mode of the processor.
  *
  ******************************************************************************/
@@ -404,7 +404,7 @@ AcpiTbGetThisTable (
     UINT8                   Allocation;
     ACPI_STATUS             Status = AE_OK;
 
-    
+
     ACPI_FUNCTION_TRACE ("TbGetThisTable");
 
 
@@ -443,7 +443,7 @@ AcpiTbGetThisTable (
          * Just map the table's physical memory
          * into our address space.
          */
-        Status = AcpiOsMapMemory (Address->Pointer.Physical, (ACPI_SIZE) Header->Length, 
+        Status = AcpiOsMapMemory (Address->Pointer.Physical, (ACPI_SIZE) Header->Length,
                                     (void **) &FullTable);
         if (ACPI_FAILURE (Status))
         {
@@ -490,9 +490,9 @@ AcpiTbGetThisTable (
     TableInfo->Allocation   = Allocation;
     TableInfo->BasePointer  = FullTable;
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, 
-        "Found table [%4.4s] at %8.8X%8.8X, mapped/copied to %p\n", 
-        FullTable->Signature, 
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "Found table [%4.4s] at %8.8X%8.8X, mapped/copied to %p\n",
+        FullTable->Signature,
         ACPI_HIDWORD (Address->Pointer.Physical),
         ACPI_LODWORD (Address->Pointer.Physical), FullTable));
 
