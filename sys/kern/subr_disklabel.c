@@ -219,6 +219,8 @@ readdisklabel(dev, lp)
 	DEV_STRATEGY(bp, 1);
 	if (bufwait(bp))
 		msg = "I/O error";
+	else if (bp->b_resid != 0)
+		msg = "disk too small for a label";
 	else for (dlp = (struct disklabel *)bp->b_data;
 	    dlp <= (struct disklabel *)((char *)bp->b_data +
 	    lp->d_secsize - sizeof(*dlp));
@@ -323,6 +325,10 @@ writedisklabel(dev, lp)
 	error = bufwait(bp);
 	if (error)
 		goto done;
+	if (bp->b_resid != 0) {
+		error = ENOSPC;
+		goto done;
+	}
 	for (dlp = (struct disklabel *)bp->b_data;
 	    dlp <= (struct disklabel *)
 	      ((char *)bp->b_data + lp->d_secsize - sizeof(*dlp));
