@@ -16,13 +16,16 @@ VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
 
 # If perl exists in none of these places, something is horribly wrong.
-.if exists(${.OBJDIR}/../perl/perl)
+.if !defined(PERL)
+.if exists(${.OBJDIR}/../../../../tmp/usr/bin/perl)
+PERL=${.OBJDIR}/../../../../tmp/usr/bin/perl
+.elif exists(${.OBJDIR}/../perl/perl)
 PERL=${.OBJDIR}/../perl/perl
-.endif
-.if !defined(PERL) && exists(${.CURDIR}/../perl/perl)
+.elif exists(${.CURDIR}/../perl/perl)
 PERL=${.CURDIR}/../perl/perl
 .else
-PERL=	/usr/bin/perl
+PERL=   ${DESTDIR}/usr/bin/perl
+.endif
 .endif
 
 curses.c: curses.mus
