@@ -121,6 +121,7 @@ static void	bpf_mcopy __P((const void *, void *, size_t));
 static int	bpf_movein __P((struct uio *, int,
 		    struct mbuf **, struct sockaddr *, int *));
 static int	bpf_setif __P((struct bpf_d *, struct ifreq *));
+static void	bpf_timed_out __P((void *));
 static inline void
 		bpf_wakeup __P((struct bpf_d *));
 static void	catchpacket __P((struct bpf_d *, u_char *, u_int,
@@ -363,7 +364,7 @@ bpfopen(dev, flags, fmt, p)
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
 	d->bd_seesent = 1;
-
+	callout_init(&d->bd_callout);
 	return (0);
 }
 
@@ -384,6 +385,9 @@ bpfclose(dev, flags, fmt, p)
 
 	funsetown(d->bd_sigio);
 	s = splimp();
+	if (d->bd_state == BPF_WAITING)
+		callout_stop(&d->bd_callout);
+	d->bd_state = BPF_IDLE;
 	if (d->bd_bif)
 		bpf_detachd(d);
 	splx(s);
@@ -454,6 +458,7 @@ bpfread(dev, uio, ioflag)
 	int ioflag;
 {
 	register struct bpf_d *d = dev->si_drv1;
+	int timed_out;
 	int error;
 	int s;
 
@@ -465,13 +470,17 @@ bpfread(dev, uio, ioflag)
 		return (EINVAL);
 
 	s = splimp();
+	if (d->bd_state == BPF_WAITING)
+		callout_stop(&d->bd_callout);
+	timed_out = (d->bd_state == BPF_TIMED_OUT);
+	d->bd_state = BPF_IDLE;
 	/*
 	 * If the hold buffer is empty, then do a timed sleep, which
 	 * ends when the timeout expires or when enough packets
 	 * have arrived to fill the store buffer.
 	 */
 	while (d->bd_hbuf == 0) {
-		if (d->bd_immediate && d->bd_slen != 0) {
+		if ((d->bd_immediate || timed_out) && d->bd_slen != 0) {
 			/*
 			 * A packet(s) either arrived since the previous
 			 * read or arrived while we were asleep.
@@ -553,6 +562,10 @@ static inline void
 bpf_wakeup(d)
 	register struct bpf_d *d;
 {
+	if (d->bd_state == BPF_WAITING) {
+		callout_stop(&d->bd_callout);
+		d->bd_state = BPF_IDLE;
+	}
 	wakeup((caddr_t)d);
 	if (d->bd_async && d->bd_sig && d->bd_sigio)
 		pgsigio(d->bd_sigio, d->bd_sig, 0);
@@ -568,6 +581,22 @@ bpf_wakeup(d)
 		d->bd_selproc = 0;
 	}
 #endif
+}
+
+static void
+bpf_timed_out(arg)
+	void *arg;
+{
+	struct bpf_d *d = (struct bpf_d *)arg;
+	int s;
+
+	s = splimp();
+	if (d->bd_state == BPF_WAITING) {
+		d->bd_state = BPF_TIMED_OUT;
+		if (d->bd_slen != 0)
+			bpf_wakeup(d);
+	}
+	splx(s);
 }
 
 static	int
@@ -664,6 +693,12 @@ bpfioctl(dev, cmd, addr, flags, p)
 {
 	register struct bpf_d *d = dev->si_drv1;
 	int s, error = 0;
+
+	s = splimp();
+	if (d->bd_state == BPF_WAITING)
+		callout_stop(&d->bd_callout);
+	d->bd_state = BPF_IDLE;
+	splx(s);
 
 	switch (cmd) {
 
@@ -1059,10 +1094,19 @@ bpfpoll(dev, events, p)
 		 *	if (d->b_slen != 0 ||
 		 *	    (d->bd_hbuf != NULL && d->bd_hlen != 0)
 		 */
-		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
+		if (d->bd_hlen != 0 ||
+		    ((d->bd_immediate || d->bd_state == BPF_TIMED_OUT) &&
+		    d->bd_slen != 0))
 			revents |= events & (POLLIN | POLLRDNORM);
-		else
+		else {
 			selrecord(p, &d->bd_sel);
+			/* Start the read timeout if necessary. */
+			if (d->bd_rtout > 0 && d->bd_state == BPF_IDLE) {
+				callout_reset(&d->bd_callout, d->bd_rtout,
+				    bpf_timed_out, d);
+				d->bd_state = BPF_WAITING;
+			}
+		}
 	}
 	splx(s);
 	return (revents);
@@ -1201,10 +1245,11 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 		bpf_wakeup(d);
 		curlen = 0;
 	}
-	else if (d->bd_immediate)
+	else if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT)
 		/*
-		 * Immediate mode is set.  A packet arrived so any
-		 * reads should be woken up.
+		 * Immediate mode is set, or the read timeout has
+		 * already expired during a select call.  A packet
+		 * arrived, so the reader should be woken up.
 		 */
 		bpf_wakeup(d);
 
