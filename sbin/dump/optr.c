@@ -233,10 +233,10 @@ msg(const char *fmt, ...)
 	(void) fprintf(stderr, "pid=%d ", getpid());
 #endif
 	va_start(ap, fmt);
-	(void) vfprintf(stderr, fmt, ap);
+	(void) vsnprintf(lastmsg, sizeof(lastmsg), fmt, ap);
+	(void) fprintf(stderr, lastmsg);
 	(void) fflush(stdout);
 	(void) fflush(stderr);
-	(void) vsnprintf(lastmsg, sizeof(lastmsg), fmt, ap);
 	va_end(ap);
 }
 
