@@ -75,16 +75,14 @@ main(int argc, char *argv[])
 #ifdef APPLE
 	extern void dropsuid();
 	extern int loadsmbvfs();
-#else
-	struct xvfsconf vfc;
-#endif /* APPLE */
+#endif
 	char *next;
 	int opt, error, mntflags, caseopt;
 
 
 #ifdef APPLE
 	dropsuid();
-#endif /* APPLE */
+#endif
 	if (argc == 2) {
 		if (strcmp(argv[1], "-h") == 0) {
 			usage();
@@ -99,17 +97,9 @@ main(int argc, char *argv[])
 
 #ifdef APPLE
 	error = loadsmbvfs();
-#else
-	error = getvfsbyname(SMBFS_VFSNAME, &vfc);
-	if (error && vfsisloadable(SMBFS_VFSNAME)) {
-		if(vfsload(SMBFS_VFSNAME))
-			err(EX_OSERR, "vfsload("SMBFS_VFSNAME")");
-		endvfsent();
-		error = getvfsbyname(SMBFS_VFSNAME, &vfc);
-	}
-#endif /* APPLE */
 	if (error)
 		errx(EX_OSERR, "SMB filesystem is not available");
+#endif
 
 	if (smb_lib_init() != 0)
 		exit(1);
