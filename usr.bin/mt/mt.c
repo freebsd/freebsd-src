@@ -55,10 +55,20 @@ static char sccsid[] = "@(#)mt.c	8.1 (Berkeley) 6/6/93";
 #include <ctype.h>
 #include <string.h>
 
+/* the appropriate sections of <sys/mtio.h> are also #ifdef'd for FreeBSD */
+#if defined(__FreeBSD__)
+/* c_flags */
+#define NEED_2ARGS	0x01
+#define ZERO_ALLOWED	0X02
+#endif /* defined(__FreeBSD__) */
+
 struct commands {
 	char *c_name;
 	int c_code;
 	int c_ronly;
+#if defined(__FreeBSD__)
+	int c_flags;
+#endif /* defined(__FreeBSD__) */
 } com[] = {
 	{ "bsf",	MTBSF,	1 },
 	{ "bsr",	MTBSR,	1 },
@@ -70,7 +80,13 @@ struct commands {
 	{ "rewoffl",	MTOFFL,	1 },
 	{ "status",	MTNOP,	1 },
 	{ "weof",	MTWEOF,	0 },
-	{ "erase",	MTERASE, 0 }, /* Andreas Klemm <andreas@knobel.gun.de */
+#if defined(__FreeBSD__)
+	{ "erase",	MTERASE, 0 },
+	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "eom",	MTEOD, 1 },
+	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED },
+#endif /* defined(__FreeBSD__) */
 	{ NULL }
 };
 
@@ -78,6 +94,9 @@ void err __P((const char *, ...));
 void printreg __P((char *, u_int, char *));
 void status __P((struct mtget *));
 void usage __P((void));
+#if defined (__FreeBSD__)
+void st_status (struct mtget *);
+#endif /* defined (__FreeBSD__) */
 
 int
 main(argc, argv)
@@ -116,13 +135,28 @@ main(argc, argv)
 		if (strncmp(p, comp->c_name, len) == 0)
 			break;
 	}
+#if defined(__FreeBSD__)
+	if((comp->c_flags & NEED_2ARGS) && argc != 2)
+		usage();
+#endif /* defined(__FreeBSD__) */
 	if ((mtfd = open(tape, comp->c_ronly ? O_RDONLY : O_RDWR)) < 0)
 		err("%s: %s", tape, strerror(errno));
 	if (comp->c_code != MTNOP) {
 		mt_com.mt_op = comp->c_code;
 		if (*argv) {
+#if defined (__FreeBSD__)
+			/* allow for hex numbers; useful for density */
+			mt_com.mt_count = strtol(*argv, &p, 0);
+#else
 			mt_com.mt_count = strtol(*argv, &p, 10);
-			if (mt_com.mt_count <= 0 || *p)
+#endif /* defined(__FreeBSD__) */
+			if (mt_com.mt_count <=
+#if defined (__FreeBSD__)
+			    ((comp->c_flags & ZERO_ALLOWED)? -1: 0)
+#else
+			    0
+#endif /* defined (__FreeBSD__) */
+			    || *p)
 				err("%s: illegal count", *argv);
 		}
 		else
@@ -177,6 +211,19 @@ struct tape_desc {
 #ifdef tahoe
 	{ MT_ISCY,	"cipher",	CYS_BITS,	CYCW_BITS },
 #endif
+#if defined (__FreeBSD__)
+	/*
+	 * XXX This is terrific.  The st driver reports the tape drive
+	 * as 0x7 (MT_ISAR - Sun/Archive compatible); the wt driver
+	 * either reports MT_ISVIPER1 for an Archive tape, or 0x11
+	 * (MT_ISMFOUR) for other tapes.
+	 * XXX for the wt driver, rely on it behaving like a "standard"
+	 * magtape driver.
+	 */
+	{ MT_ISAR,	"SCSI tape drive", 0,		0 },
+	{ MT_ISVIPER1,	"Archive Viper", 0,		0 },
+	{ MT_ISMFOUR,	"Wangtek",	0,		0 },
+#endif /* defined (__FreeBSD__) */
 	{ 0 }
 };
 
@@ -198,10 +245,18 @@ status(bp)
 		if (mt->t_type == bp->mt_type)
 			break;
 	}
+#if defined (__FreeBSD__)
+	if(mt->t_type == MT_ISAR)
+		st_status(bp);
+	else {
+#endif /* defined (__FreeBSD__) */
 	(void)printf("%s tape drive, residual=%d\n", mt->t_name, bp->mt_resid);
 	printreg("ds", bp->mt_dsreg, mt->t_dsbits);
 	printreg("\ner", bp->mt_erreg, mt->t_erbits);
 	(void)putchar('\n');
+#if defined (__FreeBSD__)
+	}
+#endif /* defined (__FreeBSD__) */
 }
 
 /*
@@ -273,3 +328,81 @@ err(fmt, va_alist)
 	exit(1);
 	/* NOTREACHED */
 }
+
+#if defined (__FreeBSD__)
+
+struct densities {
+	int dens;
+	const char *name;
+} dens [] = {
+	{ 0x1,  "X3.22-1983  " },
+	{ 0x2,  "X3.39-1986  " },
+	{ 0x3,  "X3.54-1986  " },
+	{ 0x5,  "X3.136-1986 " },
+	{ 0x6,  "X3.157-1987 " },
+	{ 0x7,  "X3.116-1986 " },
+	{ 0x8,  "X3.158-1986 " },
+	{ 0x9,  "X3B5/87-099 " },
+	{ 0xA,  "X3B5/86-199 " },
+	{ 0xB,  "X3.56-1986  " },
+	{ 0xC,  "HI-TC1      " },
+	{ 0xD,  "HI-TC2      " },
+	{ 0xF,  "QIC-120     " },
+	{ 0x10, "QIC-150     " },
+	{ 0x11, "QIC-320     " },
+	{ 0x12, "QIC-1350    " },
+	{ 0x13, "X3B5/88-185A" },
+	{ 0x14, "X3.202-1991 " },
+	{ 0x15, "ECMA TC17   " },
+	{ 0x16, "X3.193-1990 " },
+	{ 0x17, "X3B5/91-174 " },
+	{ 0, 0 }
+};
+
+const char *
+getdens(int d)
+{
+	static char buf[20];
+	struct densities *sd;
+
+	for (sd = dens; sd->dens; sd++)
+		if (sd->dens == d)
+			break;
+	if (sd->dens == 0) {
+		sprintf(buf, "0x%02x        ", d);
+		return buf;
+	}
+	else
+		return sd->name;
+}
+
+const char *
+getblksiz(int bs)
+{
+	static char buf[25];
+	if (bs == 0)
+		return "variable";
+	else {
+		sprintf(buf, "= %d bytes", bs);
+		return buf;
+	}
+}
+
+
+void
+st_status(struct mtget *bp)
+{
+	printf("Present Mode:   Density = %s Blocksize %s\n",
+	       getdens(bp->mt_density), getblksiz(bp->mt_blksiz));
+	printf("---------available modes---------\n");
+	printf("Mode 0:         Density = %s Blocksize %s\n",
+	       getdens(bp->mt_density0), getblksiz(bp->mt_blksiz0));
+	printf("Mode 1:         Density = %s Blocksize %s\n",
+	       getdens(bp->mt_density1), getblksiz(bp->mt_blksiz1));
+	printf("Mode 2:         Density = %s Blocksize %s\n",
+	       getdens(bp->mt_density2), getblksiz(bp->mt_blksiz2));
+	printf("Mode 3:         Density = %s Blocksize %s\n",
+	       getdens(bp->mt_density3), getblksiz(bp->mt_blksiz3));
+}
+
+#endif /* defined (__FreeBSD__) */
