@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.13 1997/06/22 09:48:06 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.14 1997/07/16 05:23:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,10 +49,8 @@ static struct _word {
     { "configNFSServer",	configNFSServer		},
     { "configNTP",		configNTP		},
     { "configPCNFSD",		configPCNFSD		},
-    { "configNFSServer",	configNFSServer		},
     { "configPackages",		configPackages		},
     { "configRegister",		configRegister		},
-    { "configRouter",		configRouter		},
     { "configUsers",		configUsers		},
     { "configXEnvironment",	configXEnvironment	},
     { "diskPartitionEditor",	diskPartitionEditor	},

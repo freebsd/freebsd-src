@@ -1,5 +1,5 @@
 PROG=	sysinstall
-NOMAN=	yes
+MAN8=	sysinstall.8
 BINDIR=/stand
 
 CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
