@@ -223,6 +223,9 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 void
 _thread_start(void)
 {
+	/* We just left the scheduler via longjmp: */
+	_thread_kern_in_sched = 0;
+
 	/* Run the current thread's start routine with argument: */
 	pthread_exit(_thread_run->start_routine(_thread_run->arg));
 
