@@ -44,13 +44,14 @@
  * *   without express or implied warranty.                        *
  * *                                                               *
  * *****************************************************************
- *
- * $FreeBSD$
  */
 
 /*
  * T2 CBUS to PCI bridge
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
