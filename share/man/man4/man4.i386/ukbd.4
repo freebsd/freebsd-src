@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: usb.4,v 1.1 1999/02/21 16:56:33 n_hibma Exp $
+.\"	$Id: ukbd.4,v 1.1 1999/04/11 00:15:40 n_hibma Exp $
 .\"
 .Dd April 11, 1999
 .Dt UKBD 4 i386
@@ -42,7 +42,6 @@
 The
 .Nm
 driver provides support for keyboards that attach to the USB port.
-.Nm atkbdc ,
 .Nm usb
 and one of
 .Nm uhci
@@ -63,7 +62,7 @@ sh MAKEDEV kbd0 kbd1
 .Ed
 .Pp
 If both an AT keyboard as well as USB keyboards are used at the same time, the
-AT keyboard will appear as kbd0 /dev. The USB keyboards will be kbd1, kbd2,
+AT keyboard will appear as kbd0 in /dev. The USB keyboards will be kbd1, kbd2,
 etc. You can see some information about the keyboard with the following command:
 .Bd -literal -offset indent
 kbdcontrol -i < /dev/kbd1 
@@ -71,7 +70,7 @@ kbdcontrol -i < /dev/kbd1
 .Pp
 or load a keymap with
 .Bd -literal -offset indent
-kbdcontrol -l /usr/share/syscons/keymaps/pt.iso.kbd < /dev/kbd1
+kbdcontrol -l keymaps/pt.iso < /dev/kbd1
 .Ed
 .Pp
 See
@@ -121,7 +120,7 @@ options "UKBD_DFLT_KEYMAP"
 makeoptions "UKBD_DFLT_KEYMAP=fr.iso"
 .Ed
 .Pp
-The above lines will put the French ISO keymap in the atkbd driver.
+The above lines will put the French ISO keymap in the ukbd driver.
 You can specify any keymap in /usr/share/syscons/keymaps with this
 option.
 .Bd -literal -offset indent
@@ -131,9 +130,9 @@ options "KBD_DISABLE_KEYMAP_LOADING"
 Don't allow the user to change the keymap.  Note that this options
 also has effect on the AT keyboard driver `atkbd'.
 .Sh FILES
-.Bl -tag -width /dev/ukbd0 -compact
-.It Pa /dev/ukbd0
-blocking device node
+.Bl -tag -width /dev/kbd0 -compact
+.It Pa /dev/kbd*
+blocking device nodes
 .Sh EXAMPLE
 .Bd -literal -offset indent
 device ukbd0
@@ -143,18 +142,19 @@ Add the
 .Nm ukbd
 driver to the kernel.
 .Sh SEE ALSO
-.Xr uhci 4 ,
+.Xr kbdcontrol 1 ,
 .Xr ohci 4 ,
+.Xr syscons 4
+.Xr uhci 4 ,
 .Xr usb 4 ,
 .Xr config 8 ,
-.Xr kbdcontrol 1 ,
-.Xr sysmouse 4
 .\".Sh HISTORY
 .Sh AUTHOR
 The
-.Nm ums
+.Nm ukbd
 driver was written by
-.An Kazutaka YOKOTA Aq yokota@zodiac.mech.utsunomiya-u.ac.jp .
+.An Lennart Augustsson Aq augustss@cs.chalmers.se
+for NetBSD and was substantially rewritten for FreeBSD by
 .Pp
 This manual page was written by
 .An Nick Hibma Aq hibma@skylink.it .
