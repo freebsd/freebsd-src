@@ -102,10 +102,10 @@ void timeout(int);
 void timewarn(int);
 void usage(const char *);
 
+extern const char **environ;
+
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	char *p, *endp;
 	struct passwd *pw;
@@ -276,7 +276,6 @@ timewarn(timeleft)
 	static char hostname[MAXHOSTNAMELEN + 1];
 	FILE *pf;
 	char wcmd[MAXPATHLEN + 4];
-	extern const char **environ;
 
 	if (!first++)
 		(void)gethostname(hostname, sizeof(hostname));
