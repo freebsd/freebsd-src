@@ -100,6 +100,10 @@ static int	tcp_tcbhashsize = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RD,
      &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
+static int	do_tcpdrain = 1;
+SYSCTL_INT(_debug, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
+     "Enable non Net3 compliant tcp_drain");
+
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
 
@@ -503,7 +507,32 @@ tcp_close(tp)
 void
 tcp_drain()
 {
+	if (do_tcpdrain)
+	{
+		struct inpcb *inpb;
+		struct tcpcb *tcpb;
+		struct mbuf *m, *mq;
 
+	/*
+	 * Walk the tcpbs, if existing, and flush the reassembly queue,
+	 * if there is one...
+	 * XXX: The "Net/3" implementation doesn't imply that the TCP
+	 *      reassembly queue should be flushed, but in a situation
+	 * 	where we're really low on mbufs, this is potentially
+	 *  	usefull.	
+	 */
+		for (inpb = tcbinfo.listhead->lh_first; inpb;
+	    		inpb = inpb->inp_list.le_next) {
+				if ((tcpb = intotcpcb(inpb))) {
+					for (mq = tcpb->t_segq; mq; mq = m) {
+					m = mq->m_nextpkt;
+					tcpb->t_segq = m;
+					m_freem(mq);
+				}
+			}
+		}
+
+	}
 }
 
 /*
