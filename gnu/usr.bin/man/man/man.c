@@ -539,7 +539,7 @@ is_section (name, path)
 
 	  x = 0;
 	  vs = glob_filename (temp);
-	  if ((int)vs == -1)
+	  if ((intptr_t)vs == -1)
 	    {
 	      free (temp);
 	      return NULL;
