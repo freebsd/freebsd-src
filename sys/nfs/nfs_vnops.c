@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.58 1997/09/10 20:22:32 phk Exp $
+ * $Id: nfs_vnops.c,v 1.59 1997/09/10 21:27:40 phk Exp $
  */
 
 
@@ -63,8 +63,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vnode_pager.h>
 
-#include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
+#include <miscfs/specfs/specdev.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -99,7 +99,7 @@ static int	nfsfifo_write __P((struct vop_write_args *));
 static int	nfsspec_close __P((struct vop_close_args *));
 static int	nfsfifo_close __P((struct vop_close_args *));
 static int	nfs_ioctl __P((struct vop_ioctl_args *));
-static int	nfs_select __P((struct vop_select_args *));
+#define nfs_poll vop_nopoll
 static int	nfs_flush __P((struct vnode *,struct ucred *,int,struct proc *,int));
 static int	nfs_setattrrpc __P((struct vnode *,struct vattr *,struct ucred *,struct proc *));
 static	int	nfs_lookup __P((struct vop_cachedlookup_args *));
@@ -144,6 +144,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_lookup_desc, (vop_t *)vfs_cache_lookup },	/* lookup */
 	{ &vop_cachedlookup_desc, (vop_t *)nfs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)nfs_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)nfs_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)nfs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)nfs_close },	/* close */
@@ -154,7 +155,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)nfs_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)nfs_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)nfs_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)nfs_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)nfs_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)nfs_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)nfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)nfs_fsync },	/* fsync */
@@ -184,8 +185,9 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_vfree_desc, (vop_t *)nfs_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)nfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
-	{ &vop_bwrite_desc, (vop_t *)nfs_bwrite },	/* bwrite */
 	{ &vop_getpages_desc, (vop_t *)nfs_getpages },	/* getpages */
+/* XXX: vop_putpages */
+	{ &vop_bwrite_desc, (vop_t *)nfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
@@ -199,7 +201,9 @@ vop_t **spec_nfsv2nodeop_p;
 static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
 	{ &vop_close_desc, (vop_t *)nfsspec_close },	/* close */
@@ -210,7 +214,7 @@ static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)nfsspec_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)nfs_fsync },	/* fsync */
@@ -240,6 +244,8 @@ static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_vfree_desc, (vop_t *)spec_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
+/* XXX: vop_getpages  - XXX: call spec_getpages here? */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -251,7 +257,9 @@ vop_t **fifo_nfsv2nodeop_p;
 static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
 	{ &vop_close_desc, (vop_t *)nfsfifo_close },	/* close */
@@ -262,7 +270,7 @@ static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)nfsfifo_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)nfs_fsync },	/* fsync */
@@ -281,7 +289,7 @@ static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_lock_desc, (vop_t *)nfs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)nfs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)fifo_bmap },		/* bmap */
-	{ &vop_strategy_desc, (vop_t *)fifo_badop },	/* strategy */
+	{ &vop_strategy_desc, (vop_t *)fifo_strategy },	/* strategy */
 	{ &vop_print_desc, (vop_t *)nfs_print },	/* print */
 	{ &vop_islocked_desc, (vop_t *)nfs_islocked },	/* islocked */
 	{ &vop_pathconf_desc, (vop_t *)fifo_pathconf },	/* pathconf */
@@ -292,6 +300,8 @@ static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_vfree_desc, (vop_t *)fifo_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)fifo_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)nfs_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
@@ -3431,15 +3441,4 @@ nfs_ioctl(ap)
 	 * Probably we should return ENODEV.
 	 */
 	return (ENOTTY);
-}
-
-static int
-nfs_select(ap)
-	struct vop_select_args *ap;
-{
-
-	/*
-	 * We were once bogusly seltrue() which returns 1.  Is this right?
-	 */
-	return (1);
 }
