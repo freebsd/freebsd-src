@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.149 1995/11/10 09:53:50 phk Exp $
+ *	$Id: machdep.c,v 1.150 1995/11/12 19:51:22 phk Exp $
  */
 
 #include "npx.h"
@@ -247,7 +247,7 @@ cpu_startup(dummy)
 		for (; phys_avail[indx + 1] != 0; indx += 2) {
 			int size = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n", phys_avail[indx],
+			printf("0x%08lx - 0x%08lx, %d bytes (%d pages)\n", phys_avail[indx],
 			    phys_avail[indx + 1] - 1, size, size / PAGE_SIZE);
 		}
 	}
@@ -426,7 +426,7 @@ again:
 			if (bios_geom == 0x4f010f)
 				continue;
 
-			printf(" %x:%08x ", i, bios_geom);
+			printf(" %x:%08lx ", i, bios_geom);
 			max_cylinder = bios_geom >> 16;
 			max_head = (bios_geom >> 8) & 0xff;
 			max_sector = bios_geom & 0xff;
