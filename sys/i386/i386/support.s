@@ -33,7 +33,6 @@
  * $FreeBSD$
  */
 
-#include "opt_smp.h"
 #include "npx.h"
 
 #include <machine/asmacros.h>

@@ -32,17 +32,6 @@
 
 #include <i386/isa/icu.h>
 
-/* number of busses */
-#if !defined(NBUS)
-# define NBUS		8
-#endif /* NBUS */
-
-/* total number of APIC INTs, including SHARED INTs */
-#if !defined(NINTR)
-#define NINTR		48
-#endif /* NINTR */
-
-
 /*
  * Size of APIC ID list.
  * Also used a MAX size of various other arrays.

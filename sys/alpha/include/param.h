@@ -70,7 +70,7 @@
 #define OBJFORMAT_NAMES		"elf"
 #define OBJFORMAT_DEFAULT	"elf"
 
-#define NCPUS		1
+#define MAXCPU		1
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
