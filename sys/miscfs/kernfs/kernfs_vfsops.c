@@ -58,6 +58,7 @@
 dev_t rrootdev = NODEV;
 
 static int	cdevvp __P((dev_t dev, struct vnode **vpp));
+static void	kernfs_get_rrootdev __P((void));
 static int	kernfs_init __P((struct vfsconf *vfsp));
 static int	kernfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
@@ -76,7 +77,7 @@ kernfs_init(vfsp)
 	return (0);
 }
 
-void
+static void
 kernfs_get_rrootdev()
 {
 	static int tried = 0;
