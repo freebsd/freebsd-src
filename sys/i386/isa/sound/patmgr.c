@@ -1,5 +1,5 @@
 /*
- * linux/kernel/chr_drv/sound/patmgr.c
+ * sound/patmgr.c
  * 
  * The patch maneger interface for the /dev/sequencer
  * 
@@ -58,6 +58,8 @@ pmgr_open (int dev)
     return RET_ERROR (EBUSY);
   pmgr_opened[dev] = 1;
 
+  RESET_WAIT_QUEUE (server_procs[dev], server_wait_flag[dev]);
+
   return 0;
 }
 
@@ -71,8 +73,8 @@ pmgr_release (int dev)
       mbox[dev]->key = PM_ERROR;
       mbox[dev]->parm1 = RET_ERROR (EIO);
 
-      if (appl_wait_flag)
-	WAKE_UP (appl_proc);
+      if (SOMEONE_WAITING (appl_proc, appl_wait_flag))
+	WAKE_UP (appl_proc, appl_wait_flag);
     }
 
   pmgr_opened[dev] = 0;
@@ -90,13 +92,14 @@ pmgr_read (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
       return RET_ERROR (EIO);
     }
 
-  while (!ok && !PROCESS_ABORTING)
+  while (!ok && !PROCESS_ABORTING (server_procs[dev], server_wait_flag[dev]))
     {
       DISABLE_INTR (flags);
 
-      while (!(mbox[dev] && msg_direction[dev] == A_TO_S) && !PROCESS_ABORTING)
+      while (!(mbox[dev] && msg_direction[dev] == A_TO_S) &&
+	     !PROCESS_ABORTING (server_procs[dev], server_wait_flag[dev]))
 	{
-	  INTERRUPTIBLE_SLEEP_ON (server_procs[dev], server_wait_flag[dev]);
+	  DO_SLEEP (server_procs[dev], server_wait_flag[dev], 0);
 	}
 
       if (mbox[dev] && msg_direction[dev] == A_TO_S)
@@ -158,9 +161,9 @@ pmgr_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
       COPY_FROM_USER (&((char *) mbox[dev])[4], buf, 4, count - 4);
       msg_direction[dev] = S_TO_A;
 
-      if (appl_wait_flag)
+      if (SOMEONE_WAITING (appl_proc, appl_wait_flag))
 	{
-	  WAKE_UP (appl_proc);
+	  WAKE_UP (appl_proc, appl_wait_flag);
 	}
     }
 
@@ -185,12 +188,12 @@ pmgr_access (int dev, struct patmgr_info *rec)
       mbox[dev] = rec;
       msg_direction[dev] = A_TO_S;
 
-      if (server_wait_flag[dev])
+      if (SOMEONE_WAITING (server_procs[dev], server_wait_flag[dev]))
 	{
-	  WAKE_UP (server_procs[dev]);
+	  WAKE_UP (server_procs[dev], server_wait_flag[dev]);
 	}
 
-      INTERRUPTIBLE_SLEEP_ON (appl_proc, appl_wait_flag);
+      DO_SLEEP (appl_proc, appl_wait_flag, 0);
 
       if (msg_direction[dev] != S_TO_A)
 	{
@@ -239,12 +242,12 @@ pmgr_inform (int dev, int event, unsigned long p1, unsigned long p2,
       mbox[dev]->parm3 = p3;
       msg_direction[dev] = A_TO_S;
 
-      if (server_wait_flag[dev])
+      if (SOMEONE_WAITING (server_procs[dev], server_wait_flag[dev]))
 	{
-	  WAKE_UP (server_procs[dev]);
+	  WAKE_UP (server_procs[dev], server_wait_flag[dev]);
 	}
 
-      INTERRUPTIBLE_SLEEP_ON (appl_proc, appl_wait_flag);
+      DO_SLEEP (appl_proc, appl_wait_flag, 0);
       if (mbox[dev])
 	KERNEL_FREE (mbox[dev]);
       mbox[dev] = NULL;

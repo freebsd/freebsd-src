@@ -1,4 +1,4 @@
-/*
+/* 
  * gus_vol.c - Compute volume for GUS.
  * 
  * Greg Lee 1993.
@@ -11,7 +11,7 @@
 
 extern int      gus_wave_volume;
 
-/*
+/* 
  * Calculate gus volume from note velocity, main volume, expression, and
  * intrinsic patch volume given in patch library.  Expression is multiplied
  * in, so it emphasizes differences in note velocity, while main volume is
@@ -31,35 +31,48 @@ gus_adagio_vol (int vel, int mainv, int xpn, int voicev)
   int             i, m, n, x;
 
 
-  /*
+  /* 
    * A voice volume of 64 is considered neutral, so adjust the main volume if
    * something other than this neutral value was assigned in the patch
    * library.
    */
   x = 256 + 6 * (voicev - 64);
 
-  /* Boost expression by voice volume above neutral. */
+  /* 
+   * Boost expression by voice volume above neutral. 
+   */
   if (voicev > 65)
     xpn += voicev - 64;
   xpn += (voicev - 64) / 2;
 
-  /* Combine multiplicative and level components. */
+  /* 
+   * Combine multiplicative and level components. 
+   */
   x = vel * xpn * 6 + (voicev / 4) * x;
 
 #ifdef GUS_VOLUME
-  /*
+  /* 
    * Further adjustment by installation-specific master volume control
-   * (default 50).
+   * (default 60).
    */
   x = (x * GUS_VOLUME * GUS_VOLUME) / 10000;
 #endif
 
-  if (x < (1 << 11))
-    return (11 << 8);
+#ifdef GUS_USE_CHN_MAIN_VOLUME
+  /*
+   * Experimental support for the channel main volume
+   */
+
+  mainv = (mainv / 2) + 64;	/* Scale to 64 to 127 */
+  x = (x * mainv * mainv) / 16384;
+#endif
+
+  if (x < 2)
+    return (0);
   else if (x >= 65535)
     return ((15 << 8) | 255);
 
-  /*
+  /* 
    * Convert to gus's logarithmic form with 4 bit exponent i and 8 bit
    * mantissa m.
    */
@@ -76,13 +89,15 @@ gus_adagio_vol (int vel, int mainv, int xpn, int voicev)
 	n >>= 1;
 	i++;
       }
-  /*
+  /* 
    * Mantissa is part of linear volume not expressed in exponent.  (This is
    * not quite like real logs -- I wonder if it's right.)
    */
   m = x - (1 << i);
 
-  /* Adjust mantissa to 8 bits. */
+  /* 
+   * Adjust mantissa to 8 bits. 
+   */
   if (m > 0)
     {
       if (i > 8)
@@ -90,10 +105,6 @@ gus_adagio_vol (int vel, int mainv, int xpn, int voicev)
       else if (i < 8)
 	m <<= 8 - i;
     }
-
-  /* low volumes give occasional sour notes */
-  if (i < 11)
-    return (11 << 8);
 
   return ((i << 8) + m);
 }

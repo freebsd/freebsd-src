@@ -1,7 +1,7 @@
 #define _PAS2_CARD_C_
 #define SND_SA_INTERRUPT
 /*
- * linux/kernel/chr_drv/sound/pas2_card.c
+ * sound/pas2_card.c
  * 
  * Detection routine for the Pro Audio Spectrum cards.
  * 
@@ -47,7 +47,7 @@ static int      pas_irq = 0;
 
 static char     pas_model;
 static char    *pas_model_names[] =
-{"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16"};
+{"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16", "Pro AudioSpectrum 16D"};
 
 /* pas_read() and pas_write() are equivalents of INB() and OUTB() */
 /* These routines perform the I/O address translation required */
@@ -79,7 +79,7 @@ pasintr (int unused)
   int             status;
 
   status = pas_read (INTERRUPT_STATUS);
-  pas_write (status, INTERRUPT_STATUS);	/* Clear interrupt */
+  pas_write (status, INTERRUPT_STATUS);		/* Clear interrupt */
 
   if (status & I_S_PCM_SAMPLE_BUFFER_IRQ)
     {
@@ -100,39 +100,6 @@ pasintr (int unused)
 
 }
 
-static int
-set_pas_irq (int interrupt_level)
-{
-#ifdef linux
-  int             retcode;
-  struct sigaction sa;
-
-  pas_write (0xff, INTERRUPT_STATUS);	/* Reset pending interrupts */
-
-  sa.sa_handler = pasintr;
-
-#ifdef SND_SA_INTERRUPT
-  sa.sa_flags = SA_INTERRUPT;
-#else
-  sa.sa_flags = 0;
-#endif
-
-  sa.sa_mask = 0;
-  sa.sa_restorer = NULL;
-
-  retcode = irqaction (interrupt_level, &sa);
-
-  if (retcode < 0)
-    {
-      printk ("ProAudioSpectrum: IRQ%d already in use\n", interrupt_level);
-    }
-  return retcode;
-#else
-  /* #  error This routine does not work with this OS	 */
-  return EINVAL;
-#endif
-}
-
 int
 pas_set_intr (int mask)
 {
@@ -143,7 +110,7 @@ pas_set_intr (int mask)
 
   if (!pas_intr_mask)
     {
-      if ((err = set_pas_irq (pas_irq)) < 0)
+      if ((err = snd_set_irq_handler (pas_irq, pasintr)) < 0)
 	return err;
     }
   pas_intr_mask |= mask;
@@ -163,7 +130,7 @@ pas_remove_intr (int mask)
 
   if (!pas_intr_mask)
     {
-      RELEASE_IRQ (pas_irq);
+      snd_release_irq (pas_irq);
     }
   return 0;
 }
@@ -230,20 +197,28 @@ config_pas_hw (struct address_info *hw_config)
 	}
     }
 
+/*
+ * This fixes the timing problems of the PAS due to the Symphony chipset
+ * as per Media Vision.  Only define this if your PAS doesn't work correctly.
+ */
+#ifdef SYMPHONY_PAS
+  OUTB (0x05, 0xa8);
+  OUTB (0x60, 0xa9);
+#endif
+
 #ifdef BROKEN_BUS_CLOCK
   pas_write (S_C_1_PCS_ENABLE | S_C_1_PCS_STEREO | S_C_1_PCS_REALSOUND | S_C_1_FM_EMULATE_CLOCK, SYSTEM_CONFIGURATION_1);
 #else
   /* pas_write(S_C_1_PCS_ENABLE, SYSTEM_CONFIGURATION_1);     */
   pas_write (S_C_1_PCS_ENABLE | S_C_1_PCS_STEREO | S_C_1_PCS_REALSOUND, SYSTEM_CONFIGURATION_1);
 #endif
-  /* pas_write(S_C_2_PCM_16_BIT, SYSTEM_CONFIGURATION_2);	Don't do this	 */
   pas_write (0x18, SYSTEM_CONFIGURATION_3);	/* ??? */
 
   pas_write (F_F_MIXER_UNMUTE | 0x01, FILTER_FREQUENCY);	/* Sets mute off and
 								 * selects filter rate
 								 * of 17.897 kHz */
 
-  if (pas_model == PAS_16)
+  if (pas_model == PAS_16 || pas_model == PAS_16D)
     pas_write (8, PRESCALE_DIVIDER);
   else
     pas_write (0, PRESCALE_DIVIDER);
@@ -253,13 +228,35 @@ config_pas_hw (struct address_info *hw_config)
 
 #if !defined(EXCLUDE_SB_EMULATION) || !defined(EXCLUDE_SB)
 
-  /* Turn on Sound Blaster compatibility */
-  /* bit 1 = SB emulation */
-  /* bit 0 = MPU401 emulation (CDPC only :-( ) */
-  pas_write (0x02, COMPATIBILITY_ENABLE);
+  {
+    struct address_info *sb_config;
 
-  /* "Emulation address"	 */
-  pas_write ((SBC_BASE >> 4) & 0x0f, EMULATION_ADDRESS);
+    if ((sb_config = sound_getconf (SNDCARD_SB)))
+      {
+	unsigned char   irq_dma;
+
+	/* Turn on Sound Blaster compatibility */
+	/* bit 1 = SB emulation */
+	/* bit 0 = MPU401 emulation (CDPC only :-( ) */
+	pas_write (0x02, COMPATIBILITY_ENABLE);
+
+	/* "Emulation address"         */
+	pas_write ((sb_config->io_base >> 4) & 0x0f, EMULATION_ADDRESS);
+
+	if (!E_C_SB_DMA_translate[sb_config->dma])
+	  printk ("\n\nPAS16 Warning: Invalid SB DMA %d\n\n",
+		  sb_config->dma);
+
+	if (!E_C_SB_IRQ_translate[sb_config->irq])
+	  printk ("\n\nPAS16 Warning: Invalid SB IRQ %d\n\n",
+		  sb_config->irq);
+
+	irq_dma = E_C_SB_DMA_translate[sb_config->dma] |
+	  E_C_SB_IRQ_translate[sb_config->irq];
+
+	pas_write (irq_dma, EMULATION_CONFIGURATION);
+      }
+  }
 #endif
 
   if (!ok)
@@ -305,7 +302,7 @@ detect_pas_hw (struct address_info *hw_config)
   if (board_id != foo)		/* Not a PAS2 */
     return 0;
 
-  if ((pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f]));
+  pas_model = O_M_1_to_card[pas_read (OPERATION_MODE_1) & 0x0f];
 
   return pas_model;
 }
@@ -330,11 +327,11 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
 	  mem_start = pas_pcm_init (mem_start, hw_config);
 #endif
 
-# if !defined(EXCLUDE_SB_EMULATION) && !defined(EXCLUDE_SB)
+#if !defined(EXCLUDE_SB_EMULATION) && !defined(EXCLUDE_SB)
 
 	  sb_dsp_disable_midi ();	/* The SB emulation don't support
 					 * midi */
-# endif
+#endif
 
 #ifndef EXCLUDE_YM3812
 	  enable_opl3_mode (0x388, 0x38a, 0);
@@ -350,7 +347,6 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
 	}
     }
 
-  printk ("\n");
   return mem_start;
 }
 

@@ -1,7 +1,7 @@
 #define _PAS2_MIXER_C_
 
 /*
- * linux/kernel/chr_drv/sound/pas2_mixer.c
+ * sound/pas2_mixer.c
  * 
  * Mixer routines for the Pro Audio Spectrum cards.
  * 
@@ -39,14 +39,14 @@
 
 extern int      translat_code;
 
-static int      rec_devices = (SOUND_MASK_MIC);	/* Default recording source */
+static int      rec_devices = (SOUND_MASK_MIC);		/* Default recording source */
 static int      mode_control = 0;
 
 #define POSSIBLE_RECORDING_DEVICES	(SOUND_MASK_SYNTH | SOUND_MASK_SPEAKER | SOUND_MASK_LINE | SOUND_MASK_MIC | \
 					 SOUND_MASK_CD | SOUND_MASK_ALTPCM)
 
 #define SUPPORTED_MIXER_DEVICES		(SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_SPEAKER | SOUND_MASK_LINE | SOUND_MASK_MIC | \
-					 SOUND_MASK_CD /*|SOUND_MASK_ALTPCM*/ | SOUND_MASK_IMIX | \
+					 SOUND_MASK_CD | SOUND_MASK_ALTPCM | SOUND_MASK_IMIX | \
 					 SOUND_MASK_VOLUME | SOUND_MASK_BASS | SOUND_MASK_TREBLE | SOUND_MASK_RECLEV | \
 					 SOUND_MASK_MUTE | SOUND_MASK_ENHANCE | SOUND_MASK_LOUD)
 
@@ -87,7 +87,7 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
     }
 
   if (bits == P_M_MV508_BASS || bits == P_M_MV508_TREBLE)
-    {				/* Bass and trebble are mono devices	 */
+    {				/* Bass and trebble are mono devices     */
       pas_write (P_M_MV508_ADDRESS | bits, PARALLEL_MIXER);
       pas_write (left, PARALLEL_MIXER);
       right_vol = left_vol;
@@ -331,7 +331,7 @@ mixer_get_levels (struct sb_mixer_levels *user_l)
   struct sb_mixer_levels l;
 
   l.master.r = ((((levels[SOUND_MIXER_VOLUME] >> 8) & 0x7f) * 15) + 50) / 100;	/* Master */
-  l.master.l = (((levels[SOUND_MIXER_VOLUME] & 0x7f) * 15) + 50) / 100;	/* Master */
+  l.master.l = (((levels[SOUND_MIXER_VOLUME] & 0x7f) * 15) + 50) / 100;		/* Master */
 
   l.line.r = ((getmixer (SOUND_MIXER_LINE, P_M_MV508_RIGHT) * 15) + 50) / 100;	/* Line */
   l.line.l = ((getmixer (SOUND_MIXER_LINE, P_M_MV508_LEFT) * 15) + 50) / 100;
