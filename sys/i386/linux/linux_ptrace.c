@@ -28,6 +28,8 @@
  * $FreeBSD$
  */
 
+#include "opt_cpu.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -45,6 +47,13 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
+
+#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+#if defined(CPU_DISABLE_SSE)
+#undef CPU_ENABLE_SSE
+#endif
 
 /*
  *   Linux ptrace requests numbers. Mostly identical to FreeBSD,
@@ -334,7 +343,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		}
 		break;
 	case PTRACE_SETFPXREGS:
-#ifdef CPU_ENABLE_SSA
+#ifdef CPU_ENABLE_SSE
 		error = copyin((caddr_t)uap->data, &r.fpxreg,
 		    sizeof(r.fpxreg));
 		if (error)

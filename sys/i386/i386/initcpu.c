@@ -40,6 +40,13 @@
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
+#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+#if defined(CPU_DISABLE_SSE)
+#undef CPU_ENABLE_SSE
+#endif
+
 void initializecpu(void);
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
 void	enable_K5_wt_alloc(void);
