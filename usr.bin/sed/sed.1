@@ -72,7 +72,8 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl E
 Interpret regular expressions as extended (modern) regular expressions
-rather than basic regular expressions (BRE's). The
+rather than basic regular expressions (BRE's).
+The
 .Xr re_format 7
 manual page fully describes both formats.
 .It Fl a
@@ -165,15 +166,16 @@ of the exclamation character
 .Pc
 function.
 .Sh "Sed Regular Expressions"
-The
-.Nm
-regular expressions are basic regular expressions (BRE's, see
-.Xr regex 3
-for more information) by default.
+The regular expressions used in
+.Nm sed ,
+by default, are basic regular expressions (BREs, see
+.Xr re_format 7
+for more information).
 .Nm
 can use extended (modern) regular expressions instead if the
 .Fl E
-flag is given.  In addition,
+flag is given.
+In addition,
 .Nm
 has the following two additions to regular expressions:
 .sp
