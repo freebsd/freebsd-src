@@ -205,8 +205,10 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 		      AcpiFormatException(status));
 	/* this is not fatal, since it may be hardwired */
     }
-    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %d bytes for %s._CRS\n", crsbuf.Length, acpi_name(lnkdev)));
-    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %d bytes for %s._PRS\n", prsbuf.Length, acpi_name(lnkdev)));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %ld bytes for %s._CRS\n",
+	(long)crsbuf.Length, acpi_name(lnkdev)));
+    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "got %ld bytes for %s._PRS\n",
+	(long)prsbuf.Length, acpi_name(lnkdev)));
 
     /*
      * The interrupt may already be routed, so check _CRS first.  We don't check the
