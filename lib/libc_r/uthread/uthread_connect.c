@@ -47,9 +47,9 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		if ((ret = _thread_sys_connect(fd, name, namelen)) < 0) {
-			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) &&
-			((errno == EWOULDBLOCK) || (errno == EINPROGRESS) ||
-			 (errno == EALREADY) || (errno == EAGAIN))) {
+			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0
+			    && ((errno == EWOULDBLOCK) || (errno == EINPROGRESS)
+			    || (errno == EALREADY) || (errno == EAGAIN))) {
 				_thread_run->data.fd.fd = fd;
 
 				/* Set the timeout: */

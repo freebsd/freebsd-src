@@ -55,7 +55,7 @@ _read(int fd, void *buf, size_t nbytes)
 	/* Lock the file descriptor for read: */
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		/* Get the read/write mode type: */
-		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+		type = _thread_fd_getflags(fd) & O_ACCMODE;
 
 		/* Check if the file is not open for read: */
 		if (type != O_RDONLY && type != O_RDWR) {
@@ -67,7 +67,7 @@ _read(int fd, void *buf, size_t nbytes)
 
 		/* Perform a non-blocking read syscall: */
 		while ((ret = _thread_sys_read(fd, buf, nbytes)) < 0) {
-			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
+			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);

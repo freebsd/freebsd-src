@@ -493,6 +493,22 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 	return (ret);
 }
 
+int
+_thread_fd_getflags(int fd)
+{
+	if (_thread_fd_table[fd] != NULL)
+		return (_thread_fd_table[fd]->flags);
+	else
+		return (0);
+}
+
+void
+_thread_fd_setflags(int fd, int flags)
+{
+	if (_thread_fd_table[fd] != NULL)
+		_thread_fd_table[fd]->flags = flags;
+}
+
 void
 _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 {
