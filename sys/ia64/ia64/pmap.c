@@ -984,10 +984,8 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
  *		Extract the physical page address associated
  *		with the given map/virtual_address pair.
  */
-vm_offset_t 
-pmap_extract(pmap, va)
-	register pmap_t pmap;
-	vm_offset_t va;
+vm_paddr_t
+pmap_extract(pmap_t pmap, vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
