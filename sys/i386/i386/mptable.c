@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.90 1999/02/19 14:25:32 luoqi Exp $
+ *	$Id: mp_machdep.c,v 1.91 1999/02/19 19:34:47 luoqi Exp $
  */
 
 #include "opt_smp.h"
@@ -1090,7 +1090,7 @@ setup_apic_irq_mapping(void)
 		int_to_apicintpin[x].redirindex = 0;
 	}
 	for (x = 0; x < nintrs; x++) {
-		if (io_apic_ints[x].dst_apic_int <= APIC_INTMAPSIZE &&
+		if (io_apic_ints[x].dst_apic_int < APIC_INTMAPSIZE &&
 		    io_apic_ints[x].dst_apic_id == IO_TO_ID(0) &&
 		    io_apic_ints[x].int_vector == 0xff && 
 		    (io_apic_ints[x].int_type == 0 ||
