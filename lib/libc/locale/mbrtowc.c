@@ -45,12 +45,6 @@ mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		n = 1;
 	}
 
-	if (*s == '\0') {
-		if (pwc != NULL)
-			*pwc = L'\0';
-		return (0);
-	}
-
 	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE) {
 		/*
 		 * The design of sgetrune() doesn't give us any way to tell
@@ -77,5 +71,5 @@ mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	if (pwc != NULL)
 		*pwc = (wchar_t)r;
 
-	return ((size_t)(e - s));
+	return (r != 0 ? (size_t)(e - s) : 0);
 }
