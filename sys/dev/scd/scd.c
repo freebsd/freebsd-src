@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.7 1995/02/09 11:30:07 jkh Exp $ */
+/* $Id: scd.c,v 1.1 1995/03/24 18:33:00 jkh Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -55,6 +55,7 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
@@ -63,11 +64,13 @@
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
 #include <machine/stdarg.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <gnu/i386/scdreg.h>
+#include <i386/isa/scdreg.h>
 
 #define scd_part(dev)	((minor(dev)) & 7)
 #define scd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
