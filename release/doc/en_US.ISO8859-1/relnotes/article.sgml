@@ -251,6 +251,10 @@
     can be used to reconfigure the size of the kernel virtual address
     space.</para>
 
+    <para>Coredumps of large processes (or of a large number of
+    processes) no longer lock up the machine for long periods of
+    time. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -598,6 +602,12 @@
       <para arch="i386">Support for the Adaptec FSA family of PCI-SCSI
       RAID controllers has been added, in the form of the &man.aac.4;
       driver. &merged;</para>
+
+      <para arch="i386">The &man.aac.4; driver has been updated to
+      include proper handling of commands initiated by the adapter,
+      addition/removal of disk devices, crashdump functionality, and
+      &man.ioctl.2; command necessary for the management
+      CLI. &merged;</para>
 
       <para>The &man.ahc.4; driver has received numerous updates,
       bugfixes, and enhancements.  Among various improvements are
@@ -1858,6 +1868,10 @@
     <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
     unnecessary; their functionality has been completely folded into
     &man.id.1;.</para>
+
+    <para>&man.touch.1; now takes a <option>-h</option> option to
+    operate on a symbolic link, rather than what the link points
+    to.</para>
 
     <sect3>
       <title>Contributed Software</title>
