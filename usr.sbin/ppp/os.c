@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.13 1997/02/22 16:10:38 peter Exp $
+ * $Id: os.c,v 1.14 1997/02/25 14:05:06 brian Exp $
  *
  */
 #include "fsm.h"
@@ -33,10 +33,7 @@
 #include <errno.h>
 
 #include <net/if.h>
-#include <osreldate.h>
-#if __FreeBSD_version >= 199702
 #include <net/if_var.h>
-#endif
 #include <net/if_tun.h>
 #include <net/route.h>
 #include <arpa/inet.h>
