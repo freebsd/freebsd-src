@@ -1,5 +1,6 @@
 /*
- * $Id$
+ * $Id: kdc.h,v 1.8 1997/04/01 03:59:05 assar Exp $
+ * $FreeBSD$
  *
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
  *
