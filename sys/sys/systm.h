@@ -89,7 +89,10 @@ struct timeval;
 struct tty;
 struct ucred;
 struct uio;
+struct _jmp_buf;
 
+int     setjmp __P((struct _jmp_buf *));
+void    longjmp __P((struct _jmp_buf *, int)) __dead2;
 void	Debugger __P((const char *msg));
 int	dumpstatus __P((vm_offset_t addr, long count));
 int	nullop __P((void));

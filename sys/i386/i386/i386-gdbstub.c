@@ -100,7 +100,7 @@
 
 #include <ddb/ddb.h>
 
-#include <setjmp.h>
+#include <machine/setjmp.h>
 
 #include "opt_ddb.h"
 

@@ -45,7 +45,7 @@
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
 
-#include <setjmp.h>
+#include <machine/setjmp.h>
 
 /*
  * Exported global variables
