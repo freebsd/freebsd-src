@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE
@@ -52,20 +53,19 @@ pthread_suspend_np(pthread_t thread)
 		}
 
 		/*
-		 * Guard against preemption by a scheduling signal.
-		 * A change of thread state modifies the waiting
-		 * and priority queues.
+		 * Defer signals to protect the scheduling queues from
+		 * access by the signal handler:
 		 */
-		_thread_kern_sched_defer();
+		_thread_kern_sig_defer();
 
 		/* Suspend the thread. */
 		PTHREAD_NEW_STATE(thread,PS_SUSPENDED);
 
 		/*
-		 * Reenable preemption and yield if a scheduling signal
-		 * occurred while in the critical region.
+		 * Undefer and handle pending signals, yielding if
+		 * necessary:
 		 */
-		_thread_kern_sched_undefer();
+		_thread_kern_sig_undefer();
 	}
 	return(ret);
 }

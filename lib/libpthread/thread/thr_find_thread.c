@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE
@@ -46,20 +47,20 @@ _find_thread(pthread_t pthread)
 		/* Invalid thread: */
 		return(EINVAL);
 
-	/* Lock the thread list: */
-	_lock_thread_list();
+	/*
+	 * Defer signals to protect the thread list from access
+	 * by the signal handler:
+	 */
+	_thread_kern_sig_defer();
 
-	/* Point to the first thread in the list: */
-	pthread1 = _thread_link_list;
-
-	/* Search for the thread to join to: */
-	while (pthread1 != NULL && pthread1 != pthread) {
-		/* Point to the next thread: */
-		pthread1 = pthread1->nxt;
+	/* Search for the specified thread: */
+	TAILQ_FOREACH(pthread1, &_thread_list, tle) {
+		if (pthread == pthread1)
+			break;
 	}
 
-	/* Unlock the thread list: */
-	_unlock_thread_list();
+	/* Undefer and handle pending signals, yielding if necessary: */
+	_thread_kern_sig_undefer();
 
 	/* Return zero if the thread exists: */
 	return ((pthread1 != NULL) ? 0:ESRCH);
@@ -83,13 +84,10 @@ _find_dead_thread(pthread_t pthread)
 	if (pthread_mutex_lock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
-	/* Point to the first thread in the list: */
-	pthread1 = _thread_dead;
-
-	/* Search for the thread to join to: */
-	while (pthread1 != NULL && pthread1 != pthread) {
-		/* Point to the next thread: */
-		pthread1 = pthread1->nxt_dead;
+	/* Search for the specified thread: */
+	TAILQ_FOREACH(pthread1, &_dead_list, dle) {
+		if (pthread1 == pthread)
+			break;
 	}
 
 	/* Unlock the garbage collector mutex: */

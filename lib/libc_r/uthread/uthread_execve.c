@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -91,6 +92,9 @@ execve(const char *name, char *const * argv, char *const * envp)
 			/* Copy the mask and flags for this signal: */
 			act.sa_mask = _thread_sigact[i - 1].sa_mask;
 			act.sa_flags = _thread_sigact[i - 1].sa_flags;
+
+			/* Ensure the scheduling signal is masked: */
+			sigaddset(&act.sa_mask, _SCHED_SIGNAL);
 
 			/* Change the signal action for the process: */
 			_thread_sys_sigaction(i, &act, &oact);
