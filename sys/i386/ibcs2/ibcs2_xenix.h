@@ -28,6 +28,10 @@ struct	xenix_nap_args {
 struct	xenix_scoinfo_args {
 	int dummy;
 };
+struct	xenix_eaccess_args {
+	char * path;
+	int flags;
+};
 struct	ibcs2_sigaction_args {
 	int sig;
 	struct ibcs2_sigaction * act;
@@ -75,6 +79,7 @@ int	xenix_chsize __P((struct proc *, struct xenix_chsize_args *, int []));
 int	xenix_ftime __P((struct proc *, struct xenix_ftime_args *, int []));
 int	xenix_nap __P((struct proc *, struct xenix_nap_args *, int []));
 int	xenix_scoinfo __P((struct proc *, struct xenix_scoinfo_args *, int []));
+int	xenix_eaccess __P((struct proc *, struct xenix_eaccess_args *, int []));
 int	ibcs2_sigaction __P((struct proc *, struct ibcs2_sigaction_args *, int []));
 int	ibcs2_sigprocmask __P((struct proc *, struct ibcs2_sigprocmask_args *, int []));
 int	ibcs2_sigpending __P((struct proc *, struct ibcs2_sigpending_args *, int []));
