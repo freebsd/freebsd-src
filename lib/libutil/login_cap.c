@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.13 1997/05/11 08:07:29 davidn Exp $
+ *	$Id: login_cap.c,v 1.14 1997/06/13 22:26:41 davidn Exp $
  */
 
 #include <stdio.h>
@@ -184,11 +184,22 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
   
     if ((lc = malloc(sizeof(login_cap_t))) != NULL) {
 	int	    r, i = 0;
+	uid_t euid = 0;
+	gid_t egid = 0;
 	const char  *msg = NULL;
 	const char  *dir = (pwd == NULL) ? NULL : pwd->pw_dir;
 	char	    userpath[MAXPATHLEN];
 
 	static char *login_dbarray[] = { NULL, NULL, NULL };
+
+	/* Switch to user mode before checking/reading its ~/.login_conf */
+	/* - some NFSes have root read access disabled.                  */
+	if (dir) {
+	    euid = geteuid();
+	    egid = getegid();
+	    (void)setegid(pwd->pw_gid);
+	    (void)seteuid(pwd->pw_uid);
+	}
 
 	if (dir && snprintf(userpath, MAXPATHLEN, "%s/%s", dir,
 			    _FILE_LOGIN_CONF) < MAXPATHLEN) {
@@ -229,6 +240,10 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	    /* Fallthru - just return system defaults */
 	case 0:		/* success! */
 	    if ((lc->lc_class = strdup(name)) != NULL) {
+		if (dir) {
+		    (void)seteuid(euid);
+		    (void)setegid(egid);
+		}
 		++lc_object_count;
 		return lc;
 	    }
@@ -246,6 +261,10 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	default:
 	    msg = "%s: unexpected cgetent() error '%s': %m";
 	    break;
+	}
+	if (dir) {
+	    (void)seteuid(euid);
+	    (void)setegid(egid);
 	}
 	if (msg != NULL)
 	    syslog(LOG_ERR, msg, "login_getclass", name);

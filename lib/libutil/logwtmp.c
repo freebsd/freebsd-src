@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id: logwtmp.c,v 1.7 1998/10/09 00:39:09 jkh Exp $";
+	"$Id: logwtmp.c,v 1.8 1998/10/09 11:24:19 jkh Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -55,33 +55,54 @@ static const char rcsid[] =
 #include <utmp.h>
 
 void
-trimdomain( char * fullhost, int hostsize )
+trimdomain(char *fullhost, int hostsize)
 {
-    static char domain[MAXHOSTNAMELEN + 1];
+    static char domain[MAXHOSTNAMELEN];
     static int first = 1;
-    char *s;
+    static size_t dlen;
+    char *s, *end;
+    int spn, ok;
 
     if (first) {
         first = 0;
-        if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
+        if (gethostname(domain, sizeof(domain) - 1) == 0 &&
             (s = strchr(domain, '.')))
-            (void) strcpy(domain, s + 1);
+            memmove(domain, s + 1, strlen(s + 1) + 1);
         else
-            domain[0] = 0;
+            domain[0] = '\0';
+        dlen = strlen(domain);
     }
 
-    if (domain[0]) {
-		s = fullhost;
-        while ((fullhost = strchr(fullhost, '.'))) {
-            if (!strcasecmp(fullhost + 1, domain)) {
-		if ( fullhost - s  < hostsize ) {
-               		*fullhost = '\0';    /* hit it and acceptable size*/
-		}
-                break;
-            } else {
-                fullhost++;
+    if (domain[0] != '\0') {
+	s = fullhost;
+        end = s + hostsize + 1;
+	for (; (s = memchr(s, '.', end - s)) != NULL; s++)
+            if (!strncasecmp(s + 1, domain, dlen)) {
+                if (s[dlen + 1] == '\0') {
+               	    *s = '\0';    /* Found - lose the domain */
+                    break;
+                } else if (s[dlen + 1] == ':') {	/* $DISPLAY ? */
+                    ok = dlen + 2;
+                    spn = strspn(s + ok, "0123456789");
+                    if (spn > 0 && ok + spn - dlen <= end - s) {
+                        ok += spn;
+                        if (s[ok] == '\0') {
+                            /* host.domain:nn */
+                            memmove(s, s + dlen + 1, ok - dlen);
+                            break;
+                        } else if (s[ok] == '.') {
+                            ok++;
+                            spn = strspn(s + ok, "0123456789");
+                            if (spn > 0 && s[ok + spn] == '\0' &&
+                                ok + spn - dlen <= end - s) {
+                                /* host.domain:nn.nn */
+                                memmove(s, s + dlen + 1, ok + spn - dlen);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
-        }
     }
 }
 
@@ -93,14 +114,13 @@ logwtmp(line, name, host)
 {
 	struct utmp ut;
 	struct stat buf;
-	char   fullhost[MAXHOSTNAMELEN + 1];
-	char   *whost = fullhost;
+	char   fullhost[MAXHOSTNAMELEN];
 	int fd;
 	
-	strncpy( whost, host, MAXHOSTNAMELEN );	
-fullhost[MAXHOSTNAMELEN] = '\0';
-	trimdomain( whost, UT_HOSTSIZE );
-	host = whost;
+	strncpy(fullhost, host, sizeof(fullhost) - 1);	
+	fullhost[sizeof(fullhost) - 1] = '\0';
+	trimdomain(fullhost, UT_HOSTSIZE);
+	host = fullhost;
 
 	if (strlen(host) > UT_HOSTSIZE) {
 		struct hostent *hp = gethostbyname(host);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: realhostname.c,v 1.1 1999/04/06 23:02:35 brian Exp $
+ *	$Id: realhostname.c,v 1.2 1999/04/07 08:26:50 brian Exp $
  */
 
 #include <sys/param.h>

@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login_cap.3,v 1.8 1997/11/05 04:03:05 steve Exp $
+.\" $Id: login_cap.3,v 1.9 1998/06/06 05:50:42 jkoshy Exp $
 .\"
 .Dd December 27, 1996
 .Os FreeBSD
@@ -362,7 +362,7 @@ these rules.
 .It
 If 'auth' is neither NULL nor an empty string, look for a tag of type
 "auth-<auth>" in the capability record.
-If not present, then look for the default default tag "auth=".
+If not present, then look for the default tag "auth=".
 .It
 If no valid authorisation list was found from the previous step, then
 default to "passwd" as the authorisation list.
