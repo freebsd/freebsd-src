@@ -1083,7 +1083,7 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 #endif
 	if (bootverbose) {
 		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d",
-		       reg, pci_maptype(base), ln2range,
+		       reg, pci_maptype(map), ln2range,
 		       (unsigned int) base, ln2size);
 		if (type == SYS_RES_IOPORT && !pci_porten(cfg))
 			printf(", port disabled\n");
