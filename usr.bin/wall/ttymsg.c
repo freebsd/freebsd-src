@@ -32,20 +32,24 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ttymsg.c	8.2 (Berkeley) 11/16/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <paths.h>
-#include <unistd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /*
  * Display the contents of a uio structure on a terminal.  Used by wall(1),
