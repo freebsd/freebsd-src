@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.16 1997/09/07 22:02:28 fsmp Exp $
+ *	$Id: apic_ipl.s,v 1.17 1997/12/15 02:18:33 tegge Exp $
  */
 
 
@@ -195,6 +195,7 @@ _vec8254:
 	lock				/* MP-safe */
 	andl	%eax, iactive
 	MEXITCOUNT
+	APIC_ITRACE(apic_itrace_splz, 0, APIC_ITRACE_SPLZ)
 	movl	_Xintr8254, %eax
 	jmp	%eax			/* XXX might need _Xfastintr# */
 
@@ -212,6 +213,7 @@ vec8:
 	lock				/* MP-safe */
 	andl	$~IRQ_BIT(8), iactive	/* lazy masking */
 	MEXITCOUNT
+	APIC_ITRACE(apic_itrace_splz, 8, APIC_ITRACE_SPLZ)
 	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
 
 /*
@@ -229,6 +231,7 @@ __CONCAT(vec,irq_num): ;						\
 	lock ;					/* MP-safe */		\
 	andl	$~IRQ_BIT(irq_num), iactive ;	/* lazy masking */	\
 	MEXITCOUNT ;							\
+	APIC_ITRACE(apic_itrace_splz, irq_num, APIC_ITRACE_SPLZ) ;	\
 	jmp	__CONCAT(_Xintr,irq_num)
 
 

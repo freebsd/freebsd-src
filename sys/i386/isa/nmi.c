@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.7 1997/09/28 15:48:34 mckay Exp $
+ *	$Id: intr_machdep.c,v 1.8 1998/02/09 06:08:30 eivind Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -444,19 +444,30 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 		vector = TPR_FAST_INTS + intr;
 		setidt(vector, fastintr[intr],
 		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-
-		/*
-		 * XXX MULTIPLE_IOAPICSXXX
-		 * Reprogram the vector in the IO APIC.
-		 */
-		select = (intr * 2) + IOAPIC_REDTBL0;
-		value = io_apic_read(0, select) & ~IOART_INTVEC;
-		io_apic_write(0, select, value | vector);
 	}
-	else
-		setidt(TPR_SLOW_INTS + intr, slowintr[intr],
+	else {
+		vector = TPR_SLOW_INTS + intr;
+#ifdef APIC_INTR_REORDER
+#ifdef APIC_INTR_HIGHPRI_CLOCK
+		/* XXX: Hack (kludge?) for more accurate clock. */
+		if (intr == 0 || intr == 8) {
+			vector = TPR_FAST_INTS + intr;
+		}
+#endif
+#endif
+		setidt(vector, slowintr[intr],
 		       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-
+	}
+#ifdef APIC_INTR_REORDER
+	set_lapic_isrloc(intr, vector);
+#endif
+	/*
+	 * XXX MULTIPLE_IOAPICSXXX
+	 * Reprogram the vector in the IO APIC.
+	 */
+	select = (intr * 2) + IOAPIC_REDTBL0;
+	value = io_apic_read(0, select) & ~IOART_INTVEC;
+	io_apic_write(0, select, value | vector);
 #else
 	setidt(ICU_OFFSET + intr,
 	       flags & INTR_FAST ? fastintr[intr] : slowintr[intr],
@@ -505,6 +516,9 @@ icu_unset(intr, handler)
 	setidt(flags & INTR_FAST ? TPR_FAST_INTS + intr : TPR_SLOW_INTS + intr,
 	    slowintr[intr], SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 #else /* FAST_HI */
+#ifdef APIC_INTR_REORDER
+	set_lapic_isrloc(intr, ICU_OFFSET + intr);
+#endif
 	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 #endif /* FAST_HI */

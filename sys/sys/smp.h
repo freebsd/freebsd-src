@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.36 1998/03/03 19:44:34 tegge Exp $
+ * $Id: smp.h,v 1.37 1998/03/03 20:55:23 tegge Exp $
  *
  */
 
@@ -137,6 +137,9 @@ void	forward_statclock	__P((int pscnt));
 void	forward_hardclock	__P((int pscnt));
 #endif /* BETTER_CLOCK */
 void	forward_signal		__P((struct proc *));
+#ifdef	APIC_INTR_REORDER
+void	set_lapic_isrloc	__P((int, int));
+#endif /* APIC_INTR_REORDER */
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;

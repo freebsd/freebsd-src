@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.27 1997/09/07 23:06:15 fsmp Exp $
+ *	$Id: smptests.h,v 1.28 1997/12/08 22:56:49 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -250,6 +250,37 @@
  */
 #define GIANT_LOCK
 
+#ifdef APIC_IO
+/*
+ * Enable extra counters for some selected locations in the interrupt handlers.
+ * Look in apic_vector.s, apic_ipl.s and ipl.s for APIC_ITRACE or 
+ * APIC_INTR_DIAGNOSTIC.
+ */
+#undef APIC_INTR_DIAGNOSTIC
+
+/*
+ * Add extra tracking of a specific interrupt. Look in apic_vector.s, 
+ * apic_ipl.s and ipl.s for APIC_ITRACE and log_intr_event.
+ * APIC_INTR_DIAGNOSTIC must be defined for this to work.
+ */
+#ifdef APIC_INTR_DIAGNOSTIC
+#define APIC_INTR_DIAGNOSTIC_IRQ 17
+#endif
+
+/*
+ * Don't assume that slow interrupt handler X is called from vector
+ * X + ICU_OFFSET.
+ */
+#define APIC_INTR_REORDER
+
+/*
+ * Redirect clock interrupts to a higher priority (fast intr) vector,
+ * while still using the slow interrupt handler. Only effective when 
+ * APIC_INTR_REORDER is defined.
+ */
+#define APIC_INTR_HIGHPRI_CLOCK
+
+#endif /* APIC_IO */
 
 /*
  * Misc. counters.
