@@ -106,8 +106,10 @@ int	nblank_lines;		/* # blanks after last flushed line */
 int	no_backspaces;		/* if not to output any backspaces */
 
 #define	PUTC(ch) \
-	if (putchar(ch) == EOF) \
-		wrerr();
+	do {				\
+		if (putchar(ch) == EOF) \
+			wrerr();	\
+	} while (0)
 
 int
 main(argc, argv)
@@ -432,12 +434,20 @@ flush_line(l)
 			int nspace = this_col - last_col;
 
 			if (compress_spaces && nspace > 1) {
-				int ntabs;
+				while (1) {
+					int tab_col, tab_size;;
 
-				ntabs = this_col / 8 - last_col / 8;
-				nspace -= ntabs * 8;
-				while (--ntabs >= 0)
-					PUTC('\t');
+					tab_col = (last_col + 8) & ~7;
+					if (tab_col > this_col)
+						break;
+					tab_size = tab_col - last_col;
+					if (tab_size == 1)
+						PUTC(' ');
+					else
+						PUTC('\t');
+					nspace -= tab_size;
+					last_col = tab_col;
+				}
 			}
 			while (--nspace >= 0)
 				PUTC(' ');
