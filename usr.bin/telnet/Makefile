@@ -42,7 +42,7 @@ CFLAGS+=-I${.CURDIR}/../../lib
 #CFLAGS+= -DKRB4
 
 LDADD=	-ltermcap -ltelnet
-#LDADD+=-lkrb -ldes
+#LDADD+=	-lkrb -ldes
 DPADD=	${LIBTERMCAP}
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
@@ -52,13 +52,6 @@ SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
 CRYPT_SRC= authenc.c commands.c externs.h main.c network.c
 CRYPT_SRC+= ring.c ring.h telnet.c terminal.c utilities.c Makefile
 NOCRYPT_DIR=${.CURDIR}/Nocrypt
-
-.if defined(SOCKS)
-CFLAGS+=-DSOCKS
-CFLAGS+=-Dconnect=Rconnect -Dgetsockname=Rgetsockname -Dlisten=Rlisten \
-	-Daccept=Raccept -Drcmd=Rrcmd -Dbind=Rbind -Dselect=Rselect
-LDADD+=	-lsocks
-.endif
 
 .include <bsd.prog.mk>
 
