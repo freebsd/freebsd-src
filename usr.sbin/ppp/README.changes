@@ -74,3 +74,5 @@ o Command line options only need enough characters to uniquely identify
 o If you don't like seeing additional interface aliases when running in
   -auto -alias mode, add ``iface clear'' to your ppp.linkdown file -
   check the sample file.
+o Ppp waits for 1 second before checking whether the device supports
+  carrier.  This is controllable with ``set cd''.
