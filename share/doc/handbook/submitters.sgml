@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.42 1997/04/09 10:34:31 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.43 1997/04/10 02:15:59 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -510,12 +510,16 @@ like to publically thank them here!
 	name="Hemisphere Online">, donated a <bf>Pentium Pro (P6) 200Mhz CPU
 	</bf>
 
+	<item><url url="http://www.asacomputers.com" name="ASA Computers">
+	donated a <bf>Tyan 1662 motherboard</bf>.
+
+	<item><url url="mailto:jack@diamond.xtalwind.net"
+	name="Jack O'Neill"> donated an <bf>NCR/Symbios 53C875 SCSI
+	controller.</bf>
+
 	<item><url url="mailto:ulf@Alameda.net" name="Ulf Zimmermann">
 	of <url url="http://www.Alameda.net" name="Alameda Networks">
 	donated <bf>128MB of memory</bf> and a <bf>4 Gb disk drive</bf>.
-
-	<item><url url="http://www.asacomputers.com" name="ASA Computers">
-	donated a <bf>Tyan 1662 motherboard</bf>.
    </itemize>
 
 <item><bf>Direct funding:</bf>
