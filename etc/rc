@@ -501,14 +501,6 @@ case ${lpd_enable} in
 	;;
 esac
 
-case ${sendmail_enable} in
-[Yy][Ee][Ss])
-	if [ -r /etc/mail/sendmail.cf ]; then
-		echo -n ' sendmail';	/usr/sbin/sendmail ${sendmail_flags}
-	fi
-	;;
-esac
-
 case ${sshd_enable} in
 [Yy][Ee][Ss])
 	if [ -x ${sshd_program:-/usr/sbin/sshd} ]; then
@@ -523,6 +515,23 @@ case ${usbd_enable} in
 	echo -n ' usbd';	/usr/sbin/usbd ${usbd_flags}
 	;;
 esac
+
+if [ -r /etc/mail/sendmail.cf ]; then
+	case ${sendmail_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' sendmail'
+		/usr/sbin/sendmail ${sendmail_flags}
+		;;
+	*)
+		case ${sendmail_outbound_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' sendmail'
+			/usr/sbin/sendmail ${sendmail_outbound_flags}
+			;;
+		esac
+		;;
+	esac
+fi
 
 echo '.'
 
