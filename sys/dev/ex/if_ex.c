@@ -55,13 +55,14 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_media.h> 
+#include <net/ethernet.h>
+#include <net/bpf.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-
-#include <net/bpf.h>
 
 #include <machine/clock.h>
 
@@ -82,15 +83,12 @@ static int exintr_count = 0;
 # define DODEBUG(level, action)
 #endif
 
-#define Conn_BNC 1
-#define Conn_TPE 2
-#define Conn_AUI 3
-
 #define CARD_TYPE_EX_10		1
 #define CARD_TYPE_EX_10_PLUS	2	
 
 struct ex_softc {
   	struct arpcom	arpcom;		/* Ethernet common data */
+	struct ifmedia	ifmedia;
 
 	device_t	dev;
 	struct resource *ioport;
@@ -101,8 +99,6 @@ struct ex_softc {
 
 	char *		irq2ee;		/* irq <-> internal		*/
 	u_char *	ee2irq;		/* representation conversion	*/
-
-	u_short		connector;	/* Connector type. */
 
 	u_int		mem_size;	/* Total memory size, in bytes. */
 	u_int		rx_mem_size;	/* Rx memory size (by default,	*/
@@ -145,6 +141,10 @@ static void	ex_init		__P((void *));
 static void	ex_start	__P((struct ifnet *));
 static int	ex_ioctl	__P((struct ifnet *, u_long, caddr_t));
 static void	ex_watchdog	__P((struct ifnet *));
+
+/* ifmedia Functions	*/
+static int	ex_ifmedia_upd	__P((struct ifnet *));
+static void	ex_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
 static void	ex_stop		__P((struct ex_softc *));
 static void	ex_reset	__P((struct ex_softc *));
@@ -208,11 +208,11 @@ ex_get_media (u_int32_t iobase)
 	outb(iobase + CMD_REG, Bank0_Sel);
 
 	if (tmp & TPE_bit)
-		return(Conn_TPE);
+		return(IFM_ETHER|IFM_10_T);
 	if (tmp & BNC_bit)
-		return(Conn_BNC);
+		return(IFM_ETHER|IFM_10_2);
 
-	return (Conn_AUI);
+	return (IFM_ETHER|IFM_10_5);
 }
 
 static void
@@ -374,10 +374,12 @@ ex_isa_attach(device_t dev)
 {
 	struct ex_softc *	sc = device_get_softc(dev);
 	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	struct ifmedia *	ifm;
 	int			unit = device_get_unit(dev);
 	int			error;
 	int			rid;
 	void *			ih;
+	u_int16_t		temp;
 
 	DODEBUG(Start_End, device_printf(dev, "start\n"););
 
@@ -429,7 +431,6 @@ ex_isa_attach(device_t dev)
 		sc->ee2irq = ee2irqmap;
 	}
 
-	sc->connector = ex_get_media(sc->iobase);
 	sc->mem_size = CARD_RAM_SIZE;	/* XXX This should be read from the card itself. */
 
 	/*
@@ -447,15 +448,40 @@ ex_isa_attach(device_t dev)
 	ifp->if_init = ex_init;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
+	ifmedia_init(&sc->ifmedia, 0, ex_ifmedia_upd, ex_ifmedia_sts);
+
+	temp = eeprom_read(sc->iobase, EE_W5);
+	if (temp & EE_W5_PORT_TPE)
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+	if (temp & EE_W5_PORT_BNC)
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_2, 0, NULL);
+	if (temp & EE_W5_PORT_AUI)
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+
+	ifmedia_set(&sc->ifmedia, ex_get_media(sc->iobase));
+
+	ifm = &sc->ifmedia;
+	ifm->ifm_media = ifm->ifm_cur->ifm_media;
+	ex_ifmedia_upd(ifp);
+
 	/*
 	 * Attach the interface.
 	 */
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
+	temp = eeprom_read(sc->iobase, EE_W0);
+	device_printf(sc->dev, "%s config, %s bus, ",
+		(temp & EE_W0_PNP) ? "PnP" : "Manual",
+		(temp & EE_W0_BUS16) ? "16-bit" : "8-bit");
+
+	temp = eeprom_read(sc->iobase, EE_W6);
+	printf("board id 0x%03x, stepping 0x%01x\n",
+			(temp & EE_W6_BOARD_MASK) >> EE_W6_BOARD_SHIFT,
+			temp & EE_W6_STEP_MASK);
+
 	device_printf(sc->dev, "Ethernet address %6D\n",
 			sc->arpcom.ac_enaddr, ":");
-
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
@@ -1000,6 +1026,7 @@ static int
 ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ex_softc *	sc = ifp->if_softc;
+	struct ifreq *		ifr = (struct ifreq *)data;
 	int			s;
 	int			error = 0;
 
@@ -1039,6 +1066,10 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* XXX Support not done yet. */
 			error = EINVAL;
 			break;
+		case SIOCSIFMEDIA:
+		case SIOCGIFMEDIA:
+			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, cmd);
+			break;
 		default:
 			DODEBUG(Start_End, printf("unknown"););
 			error = EINVAL;
@@ -1071,7 +1102,6 @@ ex_reset(struct ex_softc *sc)
 	return;
 }
 
-
 static void
 ex_watchdog(struct ifnet *ifp)
 {
@@ -1092,6 +1122,26 @@ ex_watchdog(struct ifnet *ifp)
 	return;
 }
 
+static int
+ex_ifmedia_upd (ifp)
+	struct ifnet *		ifp;
+{
+	struct ex_softc *	sc = ifp->if_softc;
+
+	return (0);
+}
+
+static void
+ex_ifmedia_sts(ifp, ifmr)
+	struct ifnet *          ifp;
+	struct ifmediareq *     ifmr;
+{
+	struct ex_softc *       sc = ifp->if_softc;
+
+	ifmr->ifm_active = ex_get_media(sc->iobase);
+
+	return;
+}
 
 static u_short
 eeprom_read(int iobase, int location)
