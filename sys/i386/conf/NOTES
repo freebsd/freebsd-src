@@ -935,6 +935,11 @@ device		"i4bcapi"
 #---------------------------------------------------------------------------
 
 #
+# SMB bus
+#
+options 	ENABLE_ALART		# Control alarm on Intel intpm driver
+
+#
 # Set the number of PV entries per process.  Increasing this can
 # stop panics related to heavy use of shared memory.  However, that can
 # (combined with large amounts of physical memory) cause panics at
@@ -1032,7 +1037,6 @@ options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 options 	PECOFF_SUPPORT
 options 	PECOFF_DEBUG
 
-options 	ENABLE_ALART		# Control alarm on Intel intpm driver
 options 	I4B_SMP_WORKAROUND
 options 	I586_PMC_GUPROF=0x70000
 options 	KBDIO_DEBUG=2
