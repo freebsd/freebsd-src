@@ -116,7 +116,7 @@ static struct fla_s {
 	int unit;
 	unsigned nsect;
 	struct doc2k_stat ds;
-	struct buf_queue_head buf_queue;
+	struct bio_queue_head bio_queue;
 	struct devstat stats;
 	struct disk disk;
 	dev_t dev;
@@ -184,7 +184,7 @@ flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 }
 
 static void
-flastrategy(struct buf *bp)
+flastrategy(struct bio *bp)
 {
 	int unit, error;
 	int s;
@@ -192,15 +192,15 @@ flastrategy(struct buf *bp)
 	enum doc2k_work what;
 
 	if (fla_debug > 1)
-		printf("flastrategy(%p) %s %lx, %d, %ld, %p)\n",
-		    bp, devtoname(bp->b_dev), bp->b_flags, bp->b_blkno, 
-		    bp->b_bcount / DEV_BSIZE, bp->b_data);
+		printf("flastrategy(%p) %s %x, %d, %ld, %p)\n",
+		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
-	sc = bp->b_dev->si_drv1;
+	sc = bp->bio_dev->si_drv1;
 
 	s = splbio();
 
-	bufqdisksort(&sc->buf_queue, bp);
+	bioqdisksort(&sc->bio_queue, bp);
 
 	if (sc->busy) {
 		splx(s);
@@ -210,43 +210,43 @@ flastrategy(struct buf *bp)
 	sc->busy++;
 	
 	while (1) {
-		bp = bufq_first(&sc->buf_queue);
+		bp = bioq_first(&sc->bio_queue);
 		if (bp)
-			bufq_remove(&sc->buf_queue, bp);
+			bioq_remove(&sc->bio_queue, bp);
 		splx(s);
 		if (!bp)
 			break;
 
 		devstat_start_transaction(&sc->stats);
-		bp->b_resid = bp->b_bcount;
-		unit = dkunit(bp->b_dev);
+		bp->bio_resid = bp->bio_bcount;
+		unit = dkunit(bp->bio_dev);
 
-		if (bp->b_iocmd == BIO_DELETE)
+		if (bp->bio_cmd == BIO_DELETE)
 			what = DOC2K_ERASE;
-		else if (bp->b_iocmd == BIO_READ)
+		else if (bp->bio_cmd == BIO_READ)
 			what = DOC2K_READ;
 		else 
 			what = DOC2K_WRITE;
 
 		LEAVE();
 
-		error = doc2k_rwe( unit, what, bp->b_pblkno,
-		    bp->b_bcount / DEV_BSIZE, bp->b_data);
+		error = doc2k_rwe( unit, what, bp->bio_pblkno,
+		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
 		ENTER();
 
 		if (fla_debug > 1 || error) {
 			printf("fla%d: %d = rwe(%p, %d, %d, %d, %ld, %p)\n",
-			    unit, error, bp, unit, what, bp->b_pblkno, 
-			    bp->b_bcount / DEV_BSIZE, bp->b_data);
+			    unit, error, bp, unit, what, bp->bio_pblkno, 
+			    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 		}
 		if (error) {
-			bp->b_error = EIO;
-			bp->b_ioflags |= BIO_ERROR;
+			bp->bio_error = EIO;
+			bp->bio_flags |= BIO_ERROR;
 		} else {
-			bp->b_resid = 0;
+			bp->bio_resid = 0;
 		}
-		devstat_end_transaction_buf(&sc->stats, bp);
+		devstat_end_transaction_bio(&sc->stats, bp);
 		biodone(bp);
 
 		s = splbio();
@@ -322,7 +322,7 @@ flaattach (device_t dev)
 		    unit, sc->ds.type, sc->ds.unitSize, sc->ds.mediaSize, 
 		    sc->ds.chipSize, sc->ds.interleaving, sc->ds.window);
 
-	bufq_init(&sc->buf_queue);
+	bioq_init(&sc->bio_queue);
 
 	devstat_add_entry(&softc[unit].stats, "fla", unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 

@@ -97,13 +97,14 @@ struct specinfo {
  * Definitions of device driver entry switches
  */
 
+struct bio;
 struct buf;
 struct proc;
 struct uio;
 
 typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
 typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
-typedef void d_strategy_t __P((struct buf *bp));
+typedef void d_strategy_t __P((struct bio *bp));
 typedef int d_parms_t __P((dev_t dev, struct specinfo *sinfo, int ctl));
 typedef int d_ioctl_t __P((dev_t dev, u_long cmd, caddr_t data,
 			   int fflag, struct proc *p));
@@ -141,7 +142,7 @@ typedef void devfs_remove_t __P((dev_t dev));
 	do {					\
 	if ((!(bp)->b_iocmd) || ((bp)->b_iocmd & ((bp)->b_iocmd - 1)))	\
 		Debugger("d_iocmd botch");	\
-	(*devsw((bp)->b_dev)->d_strategy)(bp);	\
+	(*devsw((bp)->b_dev)->d_strategy)(&(bp)->b_io);	\
 	} while (0)
 
 /*

@@ -365,12 +365,12 @@ nwfs_doio(bp, cr, p)
 		}
 	    } else {
 		bp->b_resid = 0;
-		biodone(bp);
+		bufdone(bp);
 		return (0);
 	    }
 	}
 	bp->b_resid = uiop->uio_resid;
-	biodone(bp);
+	bufdone(bp);
 	return (error);
 }
 

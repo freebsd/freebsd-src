@@ -506,15 +506,15 @@ wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
  * Strategy routine.
  */
 static void
-wtstrategy (struct buf *bp)
+wtstrategy (struct bio *bp)
 {
-	int u = minor (bp->b_dev) & T_UNIT;
+	int u = minor (bp->bio_dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
 	int s;
 
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 	if (u >= NWT || t->type == UNKNOWN) {
-		bp->b_error = ENXIO;
+		bp->bio_error = ENXIO;
 		goto err2xit;
 	}
 
@@ -522,12 +522,12 @@ wtstrategy (struct buf *bp)
 	if (t->flags & TPVOL)
 		goto xit;
 
-	if (bp->b_bcount % t->bsize != 0) {
-		bp->b_error = EINVAL;
+	if (bp->bio_bcount % t->bsize != 0) {
+		bp->bio_error = EINVAL;
 		goto err2xit;
 	}
 
-	if (bp->b_iocmd == BIO_READ) {
+	if (bp->bio_cmd == BIO_READ) {
 		/* Check read access and no previous write to this tape. */
 		if (! (t->flags & TPREAD) || (t->flags & TPWANY))
 			goto errxit;
@@ -561,21 +561,21 @@ wtstrategy (struct buf *bp)
 		}
 	}
 
-	if (! bp->b_bcount)
+	if (! bp->bio_bcount)
 		goto xit;
 
 	t->flags &= ~TPEXCEP;
 	s = splbio ();
-	if (wtstart (t, bp->b_iocmd == BIO_READ ? ISADMA_READ : ISADMA_WRITE, 
-	    bp->b_data, bp->b_bcount)) {
-		wtwait (t, 0, (bp->b_iocmd == BIO_READ) ? "wtread" : "wtwrite");
-		bp->b_resid -= t->dmacount;
+	if (wtstart (t, bp->bio_cmd == BIO_READ ? ISADMA_READ : ISADMA_WRITE, 
+	    bp->bio_data, bp->bio_bcount)) {
+		wtwait (t, 0, (bp->bio_cmd == BIO_READ) ? "wtread" : "wtwrite");
+		bp->bio_resid -= t->dmacount;
 	}
 	splx (s);
 
 	if (t->flags & TPEXCEP) {
-errxit:		bp->b_error = EIO;
-err2xit:	bp->b_ioflags |= BIO_ERROR;
+errxit:		bp->bio_error = EIO;
+err2xit:	bp->bio_flags |= BIO_ERROR;
 	}
 xit:    biodone (bp);
 	return;

@@ -489,7 +489,7 @@ cluster_callback(bp)
 			tbp->b_flags &= ~B_INVAL;
 			tbp->b_ioflags &= ~BIO_ERROR;
 		}
-		biodone(tbp);
+		bufdone(tbp);
 	}
 	relpbuf(bp, &cluster_pbuf_freecnt);
 }

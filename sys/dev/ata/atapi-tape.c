@@ -102,7 +102,7 @@ astattach(struct atapi_softc *atp)
 	return -1;
     }
     bzero(stp, sizeof(struct ast_softc));
-    bufq_init(&stp->buf_queue);
+    bioq_init(&stp->bio_queue);
     stp->atp = atp;
     stp->lun = ata_get_lun(&ast_lun_map);
     if (ast_sense(stp)) {
@@ -410,45 +410,45 @@ astioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 }
 
 static void 
-aststrategy(struct buf *bp)
+aststrategy(struct bio *bp)
 {
-    struct ast_softc *stp = bp->b_dev->si_drv1;
+    struct ast_softc *stp = bp->bio_dev->si_drv1;
     int32_t s;
 
     /* if it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-	bp->b_resid = 0;
+    if (bp->bio_bcount == 0) {
+	bp->bio_resid = 0;
 	biodone(bp);
 	return;
     }
-    if (!(bp->b_iocmd == BIO_READ) && stp->flags & F_WRITEPROTECT) {
-	bp->b_error = EPERM;
-	bp->b_ioflags |= BIO_ERROR;
+    if (!(bp->bio_cmd == BIO_READ) && stp->flags & F_WRITEPROTECT) {
+	bp->bio_error = EPERM;
+	bp->bio_flags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
 	
     /* check for != blocksize requests */
-    if (bp->b_bcount % stp->blksize) {
+    if (bp->bio_bcount % stp->blksize) {
 	printf("ast%d: bad request, must be multiple of %d\n",
 	       stp->lun, stp->blksize);
-	bp->b_error = EIO;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
 
     /* warn about transfers bigger than the device suggests */
-    if (bp->b_bcount > stp->blksize * stp->cap.ctl) {  
+    if (bp->bio_bcount > stp->blksize * stp->cap.ctl) {  
 	if ((stp->flags & F_CTL_WARN) == 0) {
 	    printf("ast%d: WARNING: CTL exceeded %ld>%d\n", 
-		    stp->lun, bp->b_bcount, stp->blksize * stp->cap.ctl);
+		    stp->lun, bp->bio_bcount, stp->blksize * stp->cap.ctl);
 	    stp->flags |= F_CTL_WARN;
 	}
     }
 
     s = splbio();
-    bufq_insert_tail(&stp->buf_queue, bp);
+    bioq_insert_tail(&stp->bio_queue, bp);
     ata_start(stp->atp->controller);
     splx(s);
 }
@@ -457,7 +457,7 @@ void
 ast_start(struct atapi_softc *atp)
 {
     struct ast_softc *stp = atp->driver;
-    struct buf *bp = bufq_first(&stp->buf_queue);
+    struct bio *bp = bioq_first(&stp->bio_queue);
     u_int32_t blkcount;
     int8_t ccb[16];
     
@@ -466,13 +466,13 @@ ast_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
 
-    if (bp->b_iocmd == BIO_READ)
+    if (bp->bio_cmd == BIO_READ)
 	ccb[0] = ATAPI_READ;
     else
 	ccb[0] = ATAPI_WRITE;
     
-    bufq_remove(&stp->buf_queue, bp);
-    blkcount = bp->b_bcount / stp->blksize;
+    bioq_remove(&stp->bio_queue, bp);
+    blkcount = bp->bio_bcount / stp->blksize;
 
     ccb[1] = 1;
     ccb[2] = blkcount>>16;
@@ -481,27 +481,27 @@ ast_start(struct atapi_softc *atp)
 
     devstat_start_transaction(&stp->stats);
 
-    atapi_queue_cmd(stp->atp, ccb, bp->b_data, blkcount * stp->blksize, 
-		    (bp->b_iocmd == BIO_READ) ? ATPR_F_READ : 0, 60, ast_done, bp);
+    atapi_queue_cmd(stp->atp, ccb, bp->bio_data, blkcount * stp->blksize, 
+		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0, 60, ast_done, bp);
 }
 
 static int32_t 
 ast_done(struct atapi_request *request)
 {
-    struct buf *bp = request->driver;
+    struct bio *bp = request->driver;
     struct ast_softc *stp = request->device->driver;
 
     if (request->error) {
-	bp->b_error = request->error;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = request->error;
+	bp->bio_flags |= BIO_ERROR;
     }
     else {
-	if (!(bp->b_iocmd == BIO_READ))
+	if (!(bp->bio_cmd == BIO_READ))
 	    stp->flags |= F_DATA_WRITTEN;
-	bp->b_resid = bp->b_bcount - request->donecount;
-        ast_total += (bp->b_bcount - bp->b_resid);
+	bp->bio_resid = bp->bio_bcount - request->donecount;
+        ast_total += (bp->bio_bcount - bp->bio_resid);
     }
-    devstat_end_transaction_buf(&stp->stats, bp);
+    devstat_end_transaction_bio(&stp->stats, bp);
     biodone(bp);
     return 0;
 }

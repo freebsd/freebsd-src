@@ -250,7 +250,7 @@ reread_mbr:
 #endif
 	DEV_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, "reading primary partition table: error",
+		diskerr(&bp->b_io, "reading primary partition table: error",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
 		error = EIO;

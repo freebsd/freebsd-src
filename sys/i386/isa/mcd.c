@@ -116,7 +116,7 @@ struct mcd_mbx {
 	short		nblk;
 	int		sz;
 	u_long		skip;
-	struct buf	*bp;
+	struct bio	*bp;
 	int		p_offset;
 	short		count;
 	short           mode;
@@ -141,7 +141,7 @@ static struct mcd_data {
 	short   curr_mode;
 	struct mcd_read2 lastpb;
 	short	debug;
-	struct buf_queue_head head;		/* head of buf queue */
+	struct bio_queue_head head;		/* head of bio queue */
 	struct mcd_mbx mbx;
 } mcd_data[NMCD];
 
@@ -250,7 +250,7 @@ int mcd_attach(struct isa_device *dev)
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
 	mcd_soft_reset(unit);
-	bufq_init(&cd->head);
+	bioq_init(&cd->head);
 
 #ifdef NOTYET
 	/* wire controller for interrupts and dma */
@@ -385,48 +385,48 @@ int mcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 void
-mcdstrategy(struct buf *bp)
+mcdstrategy(struct bio *bp)
 {
 	struct mcd_data *cd;
 	int s;
 
-	int unit = mcd_unit(bp->b_dev);
+	int unit = mcd_unit(bp->bio_dev);
 
 	cd = mcd_data + unit;
 
 	/* test validity */
 /*MCD_TRACE("strategy: buf=0x%lx, unit=%ld, block#=%ld bcount=%ld\n",
-	bp,unit,bp->b_blkno,bp->b_bcount);*/
-	if (unit >= NMCD || bp->b_blkno < 0) {
+	bp,unit,bp->bio_blkno,bp->bio_bcount);*/
+	if (unit >= NMCD || bp->bio_blkno < 0) {
 		printf("mcdstrategy: unit = %d, blkno = %ld, bcount = %ld\n",
-			unit, (long)bp->b_blkno, bp->b_bcount);
+			unit, (long)bp->bio_blkno, bp->bio_bcount);
 		printf("mcd: mcdstratregy failure");
-		bp->b_error = EINVAL;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->bio_error = EINVAL;
+		bp->bio_flags |= BIO_ERROR;
 		goto bad;
 	}
 
 	/* if device invalidated (e.g. media change, door open), error */
 	if (!(cd->flags & MCDVALID)) {
 MCD_TRACE("strategy: drive not valid\n");
-		bp->b_error = EIO;
+		bp->bio_error = EIO;
 		goto bad;
 	}
 
 	/* read only */
-	if (!(bp->b_iocmd == BIO_READ)) {
-		bp->b_error = EROFS;
+	if (!(bp->bio_cmd == BIO_READ)) {
+		bp->bio_error = EROFS;
 		goto bad;
 	}
 
 	/* no data to read */
-	if (bp->b_bcount == 0)
+	if (bp->bio_bcount == 0)
 		goto done;
 
 	/* for non raw access, check partition limits */
-	if (mcd_part(bp->b_dev) != RAW_PART) {
+	if (mcd_part(bp->bio_dev) != RAW_PART) {
 		if (!(cd->flags & MCDLABEL)) {
-			bp->b_error = EIO;
+			bp->bio_error = EIO;
 			goto bad;
 		}
 		/* adjust transfer if necessary */
@@ -434,13 +434,13 @@ MCD_TRACE("strategy: drive not valid\n");
 			goto done;
 		}
 	} else {
-		bp->b_pblkno = bp->b_blkno;
-		bp->b_resid = 0;
+		bp->bio_pblkno = bp->bio_blkno;
+		bp->bio_resid = 0;
 	}
 
 	/* queue it */
 	s = splbio();
-	bufqdisksort(&cd->head, bp);
+	bioqdisksort(&cd->head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -448,9 +448,9 @@ MCD_TRACE("strategy: drive not valid\n");
 	return;
 
 bad:
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_flags |= BIO_ERROR;
 done:
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 	return;
 }
@@ -459,7 +459,7 @@ static void mcd_start(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	struct partition *p;
-	struct buf *bp;
+	struct bio *bp;
 	int s = splbio();
 
 	if (cd->flags & MCDMBXBSY) {
@@ -467,11 +467,11 @@ static void mcd_start(int unit)
 		return;
 	}
 
-	bp = bufq_first(&cd->head);
+	bp = bioq_first(&cd->head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
 		/*MCD_TRACE("mcd_start: found block bp=0x%x\n",bp,0,0,0);*/
-		bufq_remove(&cd->head, bp);
+		bioq_remove(&cd->head, bp);
 		splx(s);
 	} else {
 		/* nothing to do */
@@ -485,10 +485,10 @@ static void mcd_start(int unit)
 		return;
 	}
 
-	p = cd->dlabel.d_partitions + mcd_part(bp->b_dev);
+	p = cd->dlabel.d_partitions + mcd_part(bp->bio_dev);
 
 	cd->flags |= MCDMBXBSY;
-	if (cd->partflags[mcd_part(bp->b_dev)] & MCDREADRAW)
+	if (cd->partflags[mcd_part(bp->bio_dev)] & MCDREADRAW)
 		cd->flags |= MCDREADRAW;
 	cd->mbx.unit = unit;
 	cd->mbx.port = cd->iobase;
@@ -993,7 +993,7 @@ mcd_doread(int state, struct mcd_mbx *mbxin)
 	int	port = mbx->port;
 	int     com_port = mbx->port + mcd_command;
 	int     data_port = mbx->port + mcd_rdata;
-	struct	buf *bp = mbx->bp;
+	struct	bio *bp = mbx->bp;
 	struct	mcd_data *cd = mcd_data + unit;
 
 	int	rm,i,k;
@@ -1086,11 +1086,11 @@ retry_mode:
 			RDELAY_WAITMODE-mbx->count);
 modedone:
 		/* for first block */
-		mbx->nblk = (bp->b_bcount + (mbx->sz-1)) / mbx->sz;
+		mbx->nblk = (bp->bio_bcount + (mbx->sz-1)) / mbx->sz;
 		mbx->skip = 0;
 
 nextblock:
-		blknum 	= (bp->b_blkno / (mbx->sz/DEV_BSIZE))
+		blknum 	= (bp->bio_blkno / (mbx->sz/DEV_BSIZE))
 			+ mbx->p_offset + mbx->skip/mbx->sz;
 
 		MCD_TRACE("mcd_doread: read blknum=%d for bp=%p\n",
@@ -1131,7 +1131,7 @@ retry_read:
 					RDELAY_WAITREAD-mbx->count);
 			got_it:
 				/* data is ready */
-				addr	= bp->b_data + mbx->skip;
+				addr	= bp->bio_data + mbx->skip;
 
 				outb(port+mcd_ctl2,0x04);	/* XXX */
 				for (i=0; i<mbx->sz; i++)
@@ -1153,7 +1153,7 @@ retry_read:
 				}
 
 				/* return buffer */
-				bp->b_resid = 0;
+				bp->bio_resid = 0;
 				biodone(bp);
 
 				cd->flags &= ~(MCDMBXBSY|MCDREADRAW);
@@ -1184,8 +1184,8 @@ readerr:
 	}
 harderr:
 	/* invalidate the buffer */
-	bp->b_ioflags |= BIO_ERROR;
-	bp->b_resid = bp->b_bcount;
+	bp->bio_flags |= BIO_ERROR;
+	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 
 	cd->flags &= ~(MCDMBXBSY|MCDREADRAW);

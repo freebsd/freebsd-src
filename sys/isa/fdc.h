@@ -64,8 +64,8 @@ struct fdc_data
 	u_int	status[7];	/* copy of the registers */
 	enum	fdc_type fdct;	/* chip version of FDC */
 	int	fdc_errs;	/* number of logged errors */
-	struct	buf_queue_head head;
-	struct	buf *bp;	/* active buffer */
+	struct	bio_queue_head head;
+	struct	bio *bp;	/* active buffer */
 	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
 	int	rid_ioport, rid_ctl, rid_irq, rid_drq;
 	int	port_off;

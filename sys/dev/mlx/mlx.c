@@ -289,7 +289,7 @@ mlx_attach(struct mlx_softc *sc)
      */
     TAILQ_INIT(&sc->mlx_work);
     TAILQ_INIT(&sc->mlx_freecmds);
-    bufq_init(&sc->mlx_bufq);
+    bioq_init(&sc->mlx_bioq);
 
     /* 
      * Select accessor methods based on controller interface type.
@@ -587,7 +587,7 @@ mlx_detach(device_t dev)
  * an operation which may add or delete system disks.  (Call mlx_startup to
  * resume normal operation.)
  *
- * Note that we can assume that the bufq on the controller is empty, as we won't
+ * Note that we can assume that the bioq on the controller is empty, as we won't
  * allow shutdown if any device is open.
  */
 int
@@ -686,14 +686,14 @@ mlx_intr(void *arg)
  * disk resource, then poke the disk resource to start as much work as it can.
  */
 int
-mlx_submit_buf(struct mlx_softc *sc, struct buf *bp)
+mlx_submit_buf(struct mlx_softc *sc, struct bio *bp)
 {
     int		s;
     
     debug_called(1);
 
     s = splbio();
-    bufq_insert_tail(&sc->mlx_bufq, bp);
+    bioq_insert_tail(&sc->mlx_bioq, bp);
     sc->mlx_waitbufs++;
     splx(s);
     mlx_startio(sc);
@@ -1701,14 +1701,14 @@ mlx_poll_command(struct mlx_command *mc)
  * controller.  Leave a couple of slots free for emergencies.
  *
  * Must be called at splbio or in an equivalent fashion that prevents 
- * reentry or activity on the bufq.
+ * reentry or activity on the bioq.
  */
 static void
 mlx_startio(struct mlx_softc *sc)
 {
     struct mlx_command	*mc;
     struct mlxd_softc	*mlxd;
-    struct buf		*bp;
+    struct bio		*bp;
     int			blkcount;
     int			driveno;
     int			cmd;
@@ -1723,7 +1723,7 @@ mlx_startio(struct mlx_softc *sc)
     for (;;) {
 
 	/* see if there's work to be done */
-	if ((bp = bufq_first(&sc->mlx_bufq)) == NULL)
+	if ((bp = bioq_first(&sc->mlx_bioq)) == NULL)
 	    break;
 	/* get a command */
 	if ((mc = mlx_alloccmd(sc)) == NULL)
@@ -1734,16 +1734,16 @@ mlx_startio(struct mlx_softc *sc)
 	    break;
 	}
 	/* get the buf containing our work */
-	bufq_remove(&sc->mlx_bufq, bp);
+	bioq_remove(&sc->mlx_bioq, bp);
 	sc->mlx_waitbufs--;
 	splx(s);
 	
 	/* connect the buf to the command */
 	mc->mc_complete = mlx_completeio;
 	mc->mc_private = bp;
-	mc->mc_data = bp->b_data;
-	mc->mc_length = bp->b_bcount;
-	if (bp->b_iocmd == BIO_READ) {
+	mc->mc_data = bp->bio_data;
+	mc->mc_length = bp->bio_bcount;
+	if (bp->bio_cmd == BIO_READ) {
 	    mc->mc_flags |= MLX_CMD_DATAIN;
 	    cmd = MLX_CMD_READSG;
 	} else {
@@ -1755,13 +1755,13 @@ mlx_startio(struct mlx_softc *sc)
 	mlx_mapcmd(mc);
 	
 	/* build a suitable I/O command (assumes 512-byte rounded transfers) */
-	mlxd = (struct mlxd_softc *)bp->b_dev->si_drv1;
+	mlxd = (struct mlxd_softc *)bp->bio_dev->si_drv1;
 	driveno = mlxd->mlxd_drive - sc->mlx_sysdrive;
-	blkcount = (bp->b_bcount + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
+	blkcount = (bp->bio_bcount + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
 
-	if ((bp->b_pblkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
+	if ((bp->bio_pblkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
 	    device_printf(sc->mlx_dev, "I/O beyond end of unit (%u,%d > %u)\n", 
-			  bp->b_pblkno, blkcount, sc->mlx_sysdrive[driveno].ms_size);
+			  bp->bio_pblkno, blkcount, sc->mlx_sysdrive[driveno].ms_size);
 
 	/*
 	 * Build the I/O command.  Note that the SG list type bits are set to zero,
@@ -1770,7 +1770,7 @@ mlx_startio(struct mlx_softc *sc)
 	if (sc->mlx_iftype == MLX_IFTYPE_2) {
 	    mlx_make_type1(mc, (cmd == MLX_CMD_WRITESG) ? MLX_CMD_WRITESG_OLD : MLX_CMD_READSG_OLD,
 			   blkcount & 0xff, 				/* xfer length low byte */
-			   bp->b_pblkno,				/* physical block number */
+			   bp->bio_pblkno,				/* physical block number */
 			   driveno,					/* target drive number */
 			   mc->mc_sgphys,				/* location of SG list */
 			   mc->mc_nsgent & 0x3f);			/* size of SG list (top 3 bits clear) */
@@ -1778,7 +1778,7 @@ mlx_startio(struct mlx_softc *sc)
 	    mlx_make_type5(mc, cmd, 
 			   blkcount & 0xff, 				/* xfer length low byte */
 			   (driveno << 3) | ((blkcount >> 8) & 0x07),	/* target and length high 3 bits */
-			   bp->b_pblkno,				/* physical block number */
+			   bp->bio_pblkno,				/* physical block number */
 			   mc->mc_sgphys,				/* location of SG list */
 			   mc->mc_nsgent & 0x3f);			/* size of SG list (top 3 bits clear) */
 	}
@@ -1802,12 +1802,12 @@ static void
 mlx_completeio(struct mlx_command *mc)
 {
     struct mlx_softc	*sc = mc->mc_sc;
-    struct buf		*bp = (struct buf *)mc->mc_private;
-    struct mlxd_softc	*mlxd = (struct mlxd_softc *)bp->b_dev->si_drv1;
+    struct bio		*bp = (struct bio *)mc->mc_private;
+    struct mlxd_softc	*mlxd = (struct mlxd_softc *)bp->bio_dev->si_drv1;
     
     if (mc->mc_status != MLX_STATUS_OK) {	/* could be more verbose here? */
-	bp->b_error = EIO;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
 
 	switch(mc->mc_status) {
 	case MLX_STATUS_RDWROFFLINE:		/* system drive has gone offline */
@@ -1820,7 +1820,7 @@ mlx_completeio(struct mlx_command *mc)
 	    device_printf(sc->mlx_dev, "I/O error - %s\n", mlx_diagnose_command(mc));
 #if 0
 	    device_printf(sc->mlx_dev, "  b_bcount %ld  blkcount %ld  b_pblkno %d\n", 
-			  bp->b_bcount, bp->b_bcount / MLX_BLKSIZE, bp->b_pblkno);
+			  bp->bio_bcount, bp->bio_bcount / MLX_BLKSIZE, bp->bio_pblkno);
 	    device_printf(sc->mlx_dev, "  %13D\n", mc->mc_mailbox, " ");
 #endif
 	    break;

@@ -172,29 +172,29 @@ amrd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-amrd_strategy(struct buf *bp)
+amrd_strategy(struct bio *bp)
 {
-    struct amrd_softc	*sc = (struct amrd_softc *)bp->b_dev->si_drv1;
+    struct amrd_softc	*sc = (struct amrd_softc *)bp->bio_dev->si_drv1;
 
     debug("called to %s %d bytes at b_blkno 0x%x  b_pblkno 0x%x", 
-	  (bp->b_flags & B_READ) ? "read" : "write", bp->b_bcount, bp->b_blkno, bp->b_pblkno);
+	  (bp->b_flags & B_READ) ? "read" : "write", bp->bio_bcount, bp->bio_blkno, bp->bio_pblkno);
 
     /* bogus disk? */
     if (sc == NULL) {
-	bp->b_error = EINVAL;
+	bp->bio_error = EINVAL;
 	goto bad;
     }
 
 #if 0
     /* XXX may only be temporarily offline - sleep? */
     if (sc->amrd_drive->ld_state == AMR_SYSD_OFFLINE) {
-	bp->b_error = ENXIO;
+	bp->bio_error = ENXIO;
 	goto bad;
     }
 #endif
 
     /* do-nothing operation */
-    if (bp->b_bcount == 0)
+    if (bp->bio_bcount == 0)
 	goto done;
 
     devstat_start_transaction(&sc->amrd_stats);
@@ -202,13 +202,13 @@ amrd_strategy(struct buf *bp)
     return;
 
  bad:
-    bp->b_ioflags |= BIO_ERROR;
+    bp->bio_flags |= BIO_ERROR;
 
  done:
     /*
      * Correctly set the buf to indicate a completed transfer
      */
-    bp->b_resid = bp->b_bcount;
+    bp->bio_resid = bp->bio_bcount;
     biodone(bp);
     return;
 }
@@ -216,24 +216,24 @@ amrd_strategy(struct buf *bp)
 void
 amrd_intr(void *data)
 {
-    struct buf *bp = (struct buf *)data;
-    struct amrd_softc *sc = (struct amrd_softc *)bp->b_dev->si_drv1;
+    struct bio *bp = (struct bio *)data;
+    struct amrd_softc *sc = (struct amrd_softc *)bp->bio_dev->si_drv1;
 
     debug("called");
 
-    if (bp->b_ioflags & BIO_ERROR) {
-	bp->b_error = EIO;
+    if (bp->bio_flags & BIO_ERROR) {
+	bp->bio_error = EIO;
 	debug("i/o error\n");
     } else {
 #if 0
 	int i;
 	for (i = 0; i < 512; i += 16)
-	    debug(" %04x  %16D", i, bp->b_data + i, " ");
+	    debug(" %04x  %16D", i, bp->bio_data + i, " ");
 #endif
-	bp->b_resid = 0;
+	bp->bio_resid = 0;
     }
 
-    devstat_end_transaction_buf(&sc->amrd_stats, bp);
+    devstat_end_transaction_bio(&sc->amrd_stats, bp);
     biodone(bp);
 }
 

@@ -124,13 +124,13 @@ struct targ_softc {
 	 * Userland buffers for SEND commands waiting for
 	 * SEND ATIOs to be queued by an initiator.
 	 */
-	struct		buf_queue_head snd_buf_queue;
+	struct		bio_queue_head snd_bio_queue;
 
 	/*
 	 * Userland buffers for RCV commands waiting for
 	 * RCV ATIOs to be queued by an initiator.
 	 */
-	struct		buf_queue_head rcv_buf_queue;
+	struct		bio_queue_head rcv_bio_queue;
 	struct		devstat device_stats;
 	dev_t		targ_dev;
 	struct		selinfo snd_select;
@@ -152,7 +152,7 @@ struct targ_cmd_desc {
 	u_int	  data_increment;/* Amount to send before next disconnect */
 	void*	  data;		/* The data. Can be from backing_store or not */
 	void*	  backing_store;/* Backing store allocated for this descriptor*/
-	struct	  buf *bp;	/* Buffer for this transfer */
+	struct	  bio *bp;	/* Buffer for this transfer */
 	u_int	  max_size;	/* Size of backing_store */
 	u_int32_t timeout;	
 	u_int8_t  status;	/* Status to return to initiator */
@@ -457,8 +457,8 @@ targctor(struct cam_periph *periph, void *arg)
 	TAILQ_INIT(&softc->snd_ccb_queue);
 	TAILQ_INIT(&softc->rcv_ccb_queue);
 	TAILQ_INIT(&softc->unknown_atio_queue);
-	bufq_init(&softc->snd_buf_queue);
-	bufq_init(&softc->rcv_buf_queue);
+	bioq_init(&softc->snd_bio_queue);
+	bioq_init(&softc->rcv_bio_queue);
 	softc->accept_tio_list = NULL;
 	SLIST_INIT(&softc->immed_notify_slist);
 	softc->state = TARG_STATE_NORMAL;
@@ -1029,12 +1029,12 @@ targpoll(dev_t dev, int poll_events, struct proc *p)
 	s = splcam();
 	if ((poll_events & (POLLOUT | POLLWRNORM)) != 0) {
 		if (TAILQ_FIRST(&softc->rcv_ccb_queue) != NULL
-		 && bufq_first(&softc->rcv_buf_queue) == NULL)
+		 && bioq_first(&softc->rcv_bio_queue) == NULL)
 			revents |= poll_events & (POLLOUT | POLLWRNORM);
 	}
 	if ((poll_events & (POLLIN | POLLRDNORM)) != 0) {
 		if (TAILQ_FIRST(&softc->snd_ccb_queue) != NULL
-		 && bufq_first(&softc->snd_buf_queue) == NULL)
+		 && bioq_first(&softc->snd_bio_queue) == NULL)
 			revents |= poll_events & (POLLIN | POLLRDNORM);
 	}
 
@@ -1117,24 +1117,24 @@ targwrite(dev_t dev, struct uio *uio, int ioflag)
  * only one physical transfer.
  */
 static void
-targstrategy(struct buf *bp)
+targstrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct targ_softc *softc;
 	u_int  unit;
 	int    s;
 	
-	unit = minor(bp->b_dev);
+	unit = minor(bp->bio_dev);
 
 	/* ioctl is the only supported operation of the control device */
 	if (TARG_IS_CONTROL_DEV(unit)) {
-		bp->b_error = EINVAL;
+		bp->bio_error = EINVAL;
 		goto bad;
 	}
 
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL) {
-		bp->b_error = ENXIO;
+		bp->bio_error = ENXIO;
 		goto bad;
 	}
 	softc = (struct targ_softc *)periph->softc;
@@ -1153,9 +1153,9 @@ targstrategy(struct buf *bp)
 		splx(s);
 		if (softc->state == TARG_STATE_EXCEPTION
 		 && (softc->exceptions & TARG_EXCEPT_DEVICE_INVALID) == 0)
-			bp->b_error = EBUSY;
+			bp->bio_error = EBUSY;
 		else
-			bp->b_error = ENXIO;
+			bp->bio_error = ENXIO;
 		goto bad;
 	}
 	
@@ -1164,15 +1164,15 @@ targstrategy(struct buf *bp)
 	 * SEND or RECEIVE commands.
 	 * 
 	 */
-	bp->b_resid = bp->b_bcount;
-	if (bp->b_iocmd == BIO_READ) {
+	bp->bio_resid = bp->bio_bcount;
+	if (bp->bio_cmd == BIO_READ) {
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Queued a SEND buffer\n"));
-		bufq_insert_tail(&softc->snd_buf_queue, bp);
+		bioq_insert_tail(&softc->snd_bio_queue, bp);
 	} else {
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Queued a RECEIVE buffer\n"));
-		bufq_insert_tail(&softc->rcv_buf_queue, bp);
+		bioq_insert_tail(&softc->rcv_bio_queue, bp);
 	}
 
 	splx(s);
@@ -1185,12 +1185,12 @@ targstrategy(struct buf *bp)
 
 	return;
 bad:
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_flags |= BIO_ERROR;
 
 	/*
 	 * Correctly set the buf to indicate a completed xfer
 	 */
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 }
 
@@ -1199,15 +1199,15 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 {
 	struct  ccb_queue *pending_queue;
 	struct	ccb_accept_tio *atio;
-	struct	buf_queue_head *bufq;
-	struct	buf *bp;
+	struct	bio_queue_head *bioq;
+	struct	bio *bp;
 	struct	targ_cmd_desc *desc;
 	struct	ccb_hdr *ccbh;
 	int	s;
 
 	s = splbio();
 	pending_queue = NULL;
-	bufq = NULL;
+	bioq = NULL;
 	ccbh = NULL;
 	/* Only run one request at a time to maintain data ordering. */
 	if (softc->state != TARG_STATE_NORMAL
@@ -1217,7 +1217,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		return;
 	}
 
-	if (((bp = bufq_first(&softc->snd_buf_queue)) != NULL
+	if (((bp = bioq_first(&softc->snd_bio_queue)) != NULL
 	  || (softc->flags & TARG_FLAG_SEND_EOF) != 0)
 	 && (ccbh = TAILQ_FIRST(&softc->snd_ccb_queue)) != NULL) {
 
@@ -1226,11 +1226,11 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		else {
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("De-Queued a SEND buffer %ld\n",
-				   bp->b_bcount));
+				   bp->bio_bcount));
 		}
-		bufq = &softc->snd_buf_queue;
+		bioq = &softc->snd_bio_queue;
 		pending_queue = &softc->snd_ccb_queue;
-	} else if (((bp = bufq_first(&softc->rcv_buf_queue)) != NULL
+	} else if (((bp = bioq_first(&softc->rcv_bio_queue)) != NULL
 	  	 || (softc->flags & TARG_FLAG_RECEIVE_EOF) != 0)
 		&& (ccbh = TAILQ_FIRST(&softc->rcv_ccb_queue)) != NULL) {
 		
@@ -1239,9 +1239,9 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		else {
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("De-Queued a RECEIVE buffer %ld\n",
-				   bp->b_bcount));
+				   bp->bio_bcount));
 		}
-		bufq = &softc->rcv_buf_queue;
+		bioq = &softc->rcv_bio_queue;
 		pending_queue = &softc->rcv_ccb_queue;
 	}
 
@@ -1259,10 +1259,10 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
 			atio->ccb_h.flags |= CAM_DIR_NONE;
 		} else {
-			bufq_remove(bufq, bp);
-			desc->data = &bp->b_data[bp->b_bcount - bp->b_resid];
+			bioq_remove(bioq, bp);
+			desc->data = &bp->bio_data[bp->bio_bcount - bp->bio_resid];
 			desc->data_increment =
-			    MIN(desc->data_resid, bp->b_resid);
+			    MIN(desc->data_resid, bp->bio_resid);
 			desc->data_increment =
 			    MIN(desc->data_increment, 32);
 		}
@@ -1634,7 +1634,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		struct ccb_scsiio *csio;
 		struct ccb_accept_tio *atio;
 		struct targ_cmd_desc *desc;
-		struct buf *bp;
+		struct bio *bp;
 		int    error;
 
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
@@ -1686,23 +1686,23 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 		desc->data_resid -= desc->data_increment;
 		if ((bp = desc->bp) != NULL) {
 
-			bp->b_resid -= desc->data_increment;
-			bp->b_error = error;
+			bp->bio_resid -= desc->data_increment;
+			bp->bio_error = error;
 
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("Buffer I/O Completed - Resid %ld:%d\n",
-				   bp->b_resid, desc->data_resid));
+				   bp->bio_resid, desc->data_resid));
 			/*
 			 * Send the buffer back to the client if
 			 * either the command has completed or all
 			 * buffer space has been consumed.
 			 */
 			if (desc->data_resid == 0
-			 || bp->b_resid == 0
+			 || bp->bio_resid == 0
 			 || error != 0) {
-				if (bp->b_resid != 0)
+				if (bp->bio_resid != 0)
 					/* Short transfer */
-					bp->b_ioflags |= BIO_ERROR;
+					bp->bio_flags |= BIO_ERROR;
 				
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Completing a buffer\n"));
@@ -1729,7 +1729,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			if (atio->cdb_io.cdb_bytes[0] == SEND) {
 				if (desc->bp != NULL)
 					TAILQ_INSERT_HEAD(
-						&softc->snd_buf_queue.queue,
+						&softc->snd_bio_queue.queue,
 						bp, b_act);
 				TAILQ_INSERT_HEAD(&softc->snd_ccb_queue,
 						  &atio->ccb_h,
@@ -1737,7 +1737,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			} else {
 				if (desc->bp != NULL)
 					TAILQ_INSERT_HEAD(
-						&softc->rcv_buf_queue.queue,
+						&softc->rcv_bio_queue.queue,
 						bp, b_act);
 				TAILQ_INSERT_HEAD(&softc->rcv_ccb_queue,
 						  &atio->ccb_h,
@@ -1747,8 +1747,8 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			targrunqueue(periph, softc);
 		} else {
 			if (desc->bp != NULL) {
-				bp->b_ioflags |= BIO_ERROR;
-				bp->b_error = ENXIO;
+				bp->bio_flags |= BIO_ERROR;
+				bp->bio_error = ENXIO;
 				biodone(bp);
 			}
 			freedescr(desc);
@@ -1807,7 +1807,7 @@ targfireexception(struct cam_periph *periph, struct targ_softc *softc)
 	 * the waking process will wakeup, call our poll routine again,
 	 * and pick up the exception.
 	 */
-	struct buf *bp;
+	struct bio *bp;
 
 	if (softc->state != TARG_STATE_NORMAL)
 		/* Already either tearing down or in exception state */
@@ -1815,15 +1815,15 @@ targfireexception(struct cam_periph *periph, struct targ_softc *softc)
 
 	softc->state = TARG_STATE_EXCEPTION;
 
-	while ((bp = bufq_first(&softc->snd_buf_queue)) != NULL) {
-		bufq_remove(&softc->snd_buf_queue, bp);
-		bp->b_ioflags |= BIO_ERROR;
+	while ((bp = bioq_first(&softc->snd_bio_queue)) != NULL) {
+		bioq_remove(&softc->snd_bio_queue, bp);
+		bp->bio_flags |= BIO_ERROR;
 		biodone(bp);
 	}
 
-	while ((bp = bufq_first(&softc->rcv_buf_queue)) != NULL) {
-		bufq_remove(&softc->snd_buf_queue, bp);
-		bp->b_ioflags |= BIO_ERROR;
+	while ((bp = bioq_first(&softc->rcv_bio_queue)) != NULL) {
+		bioq_remove(&softc->snd_bio_queue, bp);
+		bp->bio_flags |= BIO_ERROR;
 		biodone(bp);
 	}
 
@@ -2159,11 +2159,11 @@ abort_pending_transactions(struct cam_periph *periph, u_int initiator_id,
 			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("Aborting ATIO\n"));
 			if (desc->bp != NULL) {
-				desc->bp->b_ioflags |= BIO_ERROR;
+				desc->bp->bio_flags |= BIO_ERROR;
 				if (softc->state != TARG_STATE_TEARDOWN)
-					desc->bp->b_error = errno;
+					desc->bp->bio_error = errno;
 				else
-					desc->bp->b_error = ENXIO;
+					desc->bp->bio_error = ENXIO;
 				biodone(desc->bp);
 				desc->bp = NULL;
 			}

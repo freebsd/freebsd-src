@@ -703,7 +703,7 @@ vfs_backgroundwritedone(bp)
 	bp->b_iocmd = BIO_READ;
 	bp->b_flags &= ~(B_CACHE | B_DONE);
 	bp->b_iodone = 0;
-	biodone(bp);
+	bufdone(bp);
 }
 
 /*
@@ -2627,7 +2627,13 @@ biowait(register struct buf * bp)
  *	in the biodone routine.
  */
 void
-biodone(register struct buf * bp)
+biodone(struct bio * bip)
+{
+	bufdone((struct buf *)bip);
+}
+
+void
+bufdone(struct buf *bp)
 {
 	int s;
 	void    (*biodone) __P((struct buf *));

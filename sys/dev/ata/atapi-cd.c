@@ -231,7 +231,7 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
     if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT)))
 	return NULL;
     bzero(cdp, sizeof(struct acd_softc));
-    bufq_init(&cdp->buf_queue);
+    bioq_init(&cdp->bio_queue);
     cdp->atp = atp;
     cdp->lun = ata_get_lun(&acd_lun_map);
     cdp->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
@@ -1085,23 +1085,23 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 }
 
 static void 
-acdstrategy(struct buf *bp)
+acdstrategy(struct bio *bp)
 {
-    struct acd_softc *cdp = bp->b_dev->si_drv1;
+    struct acd_softc *cdp = bp->bio_dev->si_drv1;
     int32_t s;
 
     /* if it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-	bp->b_resid = 0;
+    if (bp->bio_bcount == 0) {
+	bp->bio_resid = 0;
 	biodone(bp);
 	return;
     }
     
-    bp->b_pblkno = bp->b_blkno;
-    bp->b_resid = bp->b_bcount;
+    bp->bio_pblkno = bp->bio_blkno;
+    bp->bio_resid = bp->bio_bcount;
 
     s = splbio();
-    bufqdisksort(&cdp->buf_queue, bp);
+    bioqdisksort(&cdp->bio_queue, bp);
     ata_start(cdp->atp->controller);
     splx(s);
 }
@@ -1110,7 +1110,7 @@ void
 acd_start(struct atapi_softc *atp)
 {
     struct acd_softc *cdp = atp->driver;
-    struct buf *bp = bufq_first(&cdp->buf_queue);
+    struct bio *bp = bioq_first(&cdp->bio_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
 
@@ -1118,13 +1118,13 @@ acd_start(struct atapi_softc *atp)
 	int i;
 
 	cdp = cdp->driver[cdp->changer_info->current_slot];
-	bp = bufq_first(&cdp->buf_queue);
+	bp = bioq_first(&cdp->bio_queue);
 
 	/* check for work pending on any other slot */
 	for (i = 0; i < cdp->changer_info->slots; i++) {
 	    if (i == cdp->changer_info->current_slot)
 		continue;
-	    if (bufq_first(&(cdp->driver[i]->buf_queue))) {
+	    if (bioq_first(&(cdp->driver[i]->bio_queue))) {
 	        if (!bp || time_second > (cdp->timestamp + 10)) {
 		    acd_select_slot(cdp->driver[i]);
 		    return;
@@ -1134,29 +1134,33 @@ acd_start(struct atapi_softc *atp)
     }
     if (!bp)
 	return;
-    bufq_remove(&cdp->buf_queue, bp);
+    bioq_remove(&cdp->bio_queue, bp);
 
     /* reject all queued entries if media changed */
     if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED) {
-	bp->b_error = EIO;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
 	biodone(bp);
 	return;
     }
 
     bzero(ccb, sizeof(ccb));
-    count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
-    if (bp->b_flags & B_PHYS)
-	lba = bp->b_offset / cdp->block_size;
+    count = (bp->bio_bcount + (cdp->block_size - 1)) / cdp->block_size;
+    {
+    /* XXX Hack until b_offset is always initialized */
+    struct buf *bup = (struct buf *)bp;
+    if (bup->b_flags & B_PHYS)
+	lba = bup->b_offset / cdp->block_size;
     else
-	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
+	lba = bp->bio_blkno / (cdp->block_size / DEV_BSIZE);
+    }
 
-    if (bp->b_iocmd == BIO_READ) {
+    if (bp->bio_cmd == BIO_READ) {
 	/* if transfer goes beyond EOM adjust it to be within limits */
 	if (lba + count > cdp->info.volsize) {
 	    /* if we are entirely beyond EOM return EOF */
 	    if ((count = cdp->info.volsize - lba) <= 0) {
-		bp->b_resid = bp->b_bcount;
+		bp->bio_resid = bp->bio_bcount;
 		biodone(bp);
 		return;
 	    }
@@ -1181,26 +1185,26 @@ acd_start(struct atapi_softc *atp)
 
     devstat_start_transaction(cdp->stats);
 
-    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, count * cdp->block_size,
-		    (bp->b_iocmd == BIO_READ)?ATPR_F_READ : 0, 30, acd_done, bp);
+    atapi_queue_cmd(cdp->atp, ccb, bp->bio_data, count * cdp->block_size,
+		    (bp->bio_cmd == BIO_READ)?ATPR_F_READ : 0, 30, acd_done, bp);
 }
 
 static int32_t 
 acd_done(struct atapi_request *request)
 {
-    struct buf *bp = request->driver;
+    struct bio *bp = request->driver;
     struct acd_softc *cdp = request->device->driver;
     
     if (request->error) {
-	bp->b_error = request->error;
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_error = request->error;
+	bp->bio_flags |= BIO_ERROR;
     }	
     else {
-	bp->b_resid = bp->b_bcount - request->donecount;
-	if (bp->b_iocmd == BIO_WRITE)
+	bp->bio_resid = bp->bio_bcount - request->donecount;
+	if (bp->bio_cmd == BIO_WRITE)
 	    cdp->flags |= F_WRITTEN;
     }
-    devstat_end_transaction_buf(cdp->stats, bp);
+    devstat_end_transaction_bio(cdp->stats, bp);
     biodone(bp);
     return 0;
 }

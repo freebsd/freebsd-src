@@ -403,7 +403,7 @@ struct	matcd_mbx {
 	short	nblk;
 	int	sz;
 	u_long	skip;
-	struct	buf	*bp;
+	struct	bio	*bp;
 	int	p_offset;
 	short	count;
 };
@@ -447,7 +447,7 @@ static	struct matcd_data {
 #define ERR_FATAL	3		/*This cannot be recovered from*/
 
 
-static	struct	buf_queue_head request_head[NUMCTRLRS];	/*<18>A queue for each host interface*/
+static	struct	bio_queue_head request_head[NUMCTRLRS];	/*<18>A queue for each host interface*/
 static	int	nextcontroller=0;	/*<18>Number of interface units found*/
 static	int	drivepresent=0; 	/*<18>Don't change this - see license*/
 static	int	iftype;			/*<20>Probe/Attach i.f. type relay*/
@@ -849,52 +849,52 @@ int matcdclose(dev_t dev, int flags, int fmt,
 	rely on the current request starting the next one before exiting.
 ---------------------------------------------------------------------------*/
 
-void matcdstrategy(struct buf *bp)
+void matcdstrategy(struct bio *bp)
 {
 	struct matcd_data *cd;
 	int s;
 	int ldrive,controller;
 
-	ldrive=matcd_ldrive(bp->b_dev);
-	controller=matcd_controller(bp->b_dev);
+	ldrive=matcd_ldrive(bp->bio_dev);
+	controller=matcd_controller(bp->bio_dev);
 	cd= &matcd_data[ldrive];
 
 #ifdef DEBUGIO
 	printf("matcd%d: Strategy: buf=0x%lx, block#=%ld bcount=%ld\n",
-		ldrive,(unsigned long)bp,bp->b_blkno,bp->b_bcount);
+		ldrive,(unsigned long)bp,bp->bio_blkno,bp->bio_bcount);
 #endif /*DEBUGIO*/
 
 
-	if (ldrive >= TOTALDRIVES || bp->b_blkno < 0) {
+	if (ldrive >= TOTALDRIVES || bp->bio_blkno < 0) {
 		printf("matcd%d: Bogus parameters received - kernel may be corrupted\n",ldrive);
-		bp->b_error=EINVAL;
+		bp->bio_error=EINVAL;
 		goto bad;
 	}
 
 	if (!(cd->flags & MATCDLABEL)) {
-		bp->b_error = EIO;
+		bp->bio_error = EIO;
 		goto bad;
 	}
 
-	if (!(bp->b_iocmd == BIO_READ)) {
-		bp->b_error = EROFS;
+	if (!(bp->bio_cmd == BIO_READ)) {
+		bp->bio_error = EROFS;
 		goto bad;
 	}
 
-	if (bp->b_bcount==0)		/*Request is zero-length - all done*/
+	if (bp->bio_bcount==0)		/*Request is zero-length - all done*/
 		goto done;
 
-	if (matcd_partition(bp->b_dev) != RAW_PART) {
+	if (matcd_partition(bp->bio_dev) != RAW_PART) {
 		if (bounds_check_with_label(bp,&cd->dlabel,1) <= 0) {
 			goto done;
 		}
 	} else {
-		bp->b_pblkno=bp->b_blkno;
-		bp->b_resid=0;
+		bp->bio_pblkno=bp->bio_blkno;
+		bp->bio_resid=0;
 	}
 
 	s=splbio();			/*Make sure we don't get intr'ed*/
-	bufqdisksort(&request_head[controller], bp);/*Add new request (bp) to queue (dp
+	bioqdisksort(&request_head[controller], bp);/*Add new request (bp) to queue (dp
 					  and sort the requests in a way that
 					  may not be ideal for CD-ROM media*/
 
@@ -905,8 +905,8 @@ void matcdstrategy(struct buf *bp)
 	splx(s);			/*Return priorities to normal*/
 	return;				/*All done*/
 
-bad:	bp->b_ioflags |= BIO_ERROR;		/*Request bad in some way*/
-done:	bp->b_resid = bp->b_bcount;	/*Show amount of data un read*/
+bad:	bp->bio_flags |= BIO_ERROR;		/*Request bad in some way*/
+done:	bp->bio_resid = bp->bio_bcount;	/*Show amount of data un read*/
 	biodone(bp);			/*Signal we have done all we plan to*/
 	return;
 }
@@ -919,17 +919,17 @@ done:	bp->b_resid = bp->b_bcount;	/*Show amount of data un read*/
 static void matcd_start(int controller)
 {
 	struct matcd_data *cd;
-	struct buf *bp;
+	struct bio *bp;
 	struct partition *p;
 	int part,ldrive;
 
-	bp = bufq_first(&request_head[controller]);
+	bp = bioq_first(&request_head[controller]);
 	if (bp == NULL) {	/*Nothing on read queue to do?*/
 		wakeup((caddr_t)&matcd_data->status);	/*Wakeup any blocked*/
 		return;					/* opens, ioctls, etc*/
 	}
 
-	ldrive=matcd_ldrive(bp->b_dev);	/*Get logical drive#*/
+	ldrive=matcd_ldrive(bp->bio_dev);	/*Get logical drive#*/
 	cd=&matcd_data[ldrive];		/*Get pointer to data for this drive*/
 #ifdef DEBUGIO
 	printf("matcd%d: In start controller %d\n",ldrive,controller);
@@ -947,9 +947,9 @@ static void matcd_start(int controller)
 	get the command to do and issue it
 */
 
-	bufq_remove(&request_head[controller], bp);
+	bioq_remove(&request_head[controller], bp);
 
-	part=matcd_partition(bp->b_dev);
+	part=matcd_partition(bp->bio_dev);
 	p=cd->dlabel.d_partitions + part;
 
 	if_state[controller] |= BUSBUSY;/*<18>Mark bus as busy*/
@@ -1351,7 +1351,7 @@ matcd_attach(struct isa_device *dev)
 #endif /*DEBUGPROBE*/
 	printf("matcdc%d Host interface type %d\n",
 		nextcontroller,iftype);
-	bufq_init(&request_head[nextcontroller]);
+	bioq_init(&request_head[nextcontroller]);
 	for (cdrive=0; cdrive<4; cdrive++) {	/*We're hunting drives...*/
 		zero_cmd(cmd);
 		cmd[0]=NOP;		/*A reasonably harmless command.
@@ -1836,7 +1836,7 @@ static void matcd_blockread(int state)
 	int	ldrive,cdrive;
 	int	port, controller;
 	short	iftype;
-	struct	buf *bp;
+	struct	bio *bp;
 	struct	matcd_data *cd;
 	int	i;
 	struct	matcd_read2 rbuf;
@@ -1888,17 +1888,17 @@ loop:
 #ifdef DEBUGIO
 		printf("matcd%d: A mbx %x bp %x b_bcount %x sz %x\n",
 		       ldrive,(unsigned int)mbx,(unsigned int)bp,
-		       (unsigned int)bp->b_bcount,mbx->sz);
+		       (unsigned int)bp->bio_bcount,mbx->sz);
 #endif /*DEBUGIO*/
-		mbx->nblk = (bp->b_bcount + (mbx->sz-1)) / mbx->sz;
+		mbx->nblk = (bp->bio_bcount + (mbx->sz-1)) / mbx->sz;
 		mbx->skip=0;
 nextblock:
 #ifdef DEBUGIO
 		printf("matcd%d: at Nextblock b_blkno %d\n",
-		       ldrive,(unsigned int)bp->b_blkno);
+		       ldrive,(unsigned int)bp->bio_blkno);
 #endif /*DEBUGIO*/
 
-		blknum=(bp->b_blkno / (mbx->sz/DEV_BSIZE))
+		blknum=(bp->bio_blkno / (mbx->sz/DEV_BSIZE))
 		       + mbx->p_offset + mbx->skip/mbx->sz;
 
 		blk_to_msf(blknum,rbuf.start_msf);
@@ -1940,7 +1940,7 @@ nextblock:
 #ifdef DEBUGIO
 			printf("matcd%d: Data Phase\n",ldrive);
 #endif /*DEBUGIO*/
-			addr=bp->b_data + mbx->skip;
+			addr=bp->bio_data + mbx->skip;
 #ifdef DEBUGIO
 			printf("matcd%d: Xfer Addr %x  size %x",
 			       ldrive,(unsigned int)addr,mbx->sz);
@@ -1982,7 +1982,7 @@ nextblock:
 			if (status & MATCD_ST_ERROR) {
 				i=get_error(port,ldrive,cdrive);
 				printf("matcd%d: %s while reading block %d [Soft]\n",
-				       ldrive,matcderrors[i],(int)bp->b_blkno);
+				       ldrive,matcderrors[i],(int)bp->bio_blkno);
 				media_chk(cd,i,ldrive,0);/*<14>was wrong place*/
 			}
 
@@ -1990,7 +1990,7 @@ nextblock:
 				mbx->skip += mbx->sz;
 				goto nextblock;	/*Oooooh, you flunk the course*/
 			}
-			bp->b_resid=0;
+			bp->bio_resid=0;
 			biodone(bp);	/*Signal transfer complete*/
 
 			unlockbus(ldrive>>2, ldrive);	/*Release bus lock*/
@@ -2014,7 +2014,7 @@ nextblock:
 
 			errtyp=get_error(port,ldrive,cdrive);
 			printf("matcd%d: %s while reading block %d\n",
-				ldrive,matcderrors[errtyp],(int)bp->b_blkno);
+				ldrive,matcderrors[errtyp],(int)bp->bio_blkno);
 
 			if (media_chk(cd,errtyp,ldrive,0)==0) {
 				errtyp=chk_error(errtyp);
@@ -2035,8 +2035,8 @@ nextblock:
 <14>	has been removed by the user.  In both cases there is no retry
 <14>	for this call.  We will invalidate the label in both cases.
 */
-			bp->b_ioflags |= BIO_ERROR;
-			bp->b_resid = bp->b_bcount;
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_resid = bp->bio_bcount;
 			biodone(bp);
 			unlockbus(ldrive>>2, ldrive);
 			matcd_start(controller);

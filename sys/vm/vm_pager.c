@@ -269,7 +269,7 @@ vm_pager_strategy(vm_object_t object, struct buf *bp)
 	} else {
 		bp->b_ioflags |= BIO_ERROR;
 		bp->b_error = ENXIO;
-		biodone(bp);
+		bufdone(bp);
 	}
 }
 
@@ -518,7 +518,7 @@ vm_pager_chain_iodone(struct buf *nbp)
 				bp->b_ioflags |= BIO_ERROR;
 				bp->b_error = EINVAL;
 			}
-			biodone(bp);
+			bufdone(bp);
 		}
 	}
 	nbp->b_flags |= B_DONE;
@@ -568,7 +568,7 @@ flushchainbuf(struct buf *nbp)
 		BUF_KERNPROC(nbp);
 		BUF_STRATEGY(nbp);
 	} else {
-		biodone(nbp);
+		bufdone(nbp);
 	}
 }
 
@@ -587,7 +587,7 @@ waitchainbuf(struct buf *bp, int count, int done)
 			bp->b_ioflags |= BIO_ERROR;
 			bp->b_error = EINVAL;
 		}
-		biodone(bp);
+		bufdone(bp);
 	}
 	splx(s);
 }
@@ -599,7 +599,7 @@ autochaindone(struct buf *bp)
 
 	s = splbio();
 	if (bp->b_chain.count == 0)
-		biodone(bp);
+		bufdone(bp);
 	else
 		bp->b_flags |= B_AUTOCHAINDONE;
 	splx(s);

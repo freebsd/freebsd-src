@@ -149,32 +149,32 @@ idclose(dev_t dev, int flags, int fmt, struct proc *p)
  * be a multiple of a sector in length.
  */
 static void
-idstrategy(struct buf *bp)
+idstrategy(struct bio *bp)
 {
 	struct id_softc *drv;
 	int s;
 
-	drv = idgetsoftc(bp->b_dev);
+	drv = idgetsoftc(bp->bio_dev);
 	if (drv == NULL) {
-    		bp->b_error = EINVAL;
+    		bp->bio_error = EINVAL;
 		goto bad;
 	}
 
 	/*
 	 * software write protect check
 	 */
-	if (drv->flags & DRV_WRITEPROT && (bp->b_iocmd == BIO_WRITE)) {
-		bp->b_error = EROFS;
+	if (drv->flags & DRV_WRITEPROT && (bp->bio_cmd == BIO_WRITE)) {
+		bp->bio_error = EROFS;
 		goto bad;
 	}
 
 	/*
 	 * If it's a null transfer, return immediately
 	 */
-	if (bp->b_bcount == 0)
+	if (bp->bio_bcount == 0)
 		goto done;
 
-	bp->b_driver1 = drv;
+	bp->bio_driver1 = drv;
 	s = splbio();
 	devstat_start_transaction(&drv->stats);
 	ida_submit_buf(drv->controller, bp);
@@ -182,28 +182,28 @@ idstrategy(struct buf *bp)
 	return;
 
 bad:
-	bp->b_ioflags |= BIO_ERROR;
+	bp->bio_flags |= BIO_ERROR;
 
 done:
 	/*
 	 * Correctly set the buf to indicate a completed transfer
 	 */
-	bp->b_resid = bp->b_bcount;
+	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 	return;
 }
 
 void
-id_intr(struct buf *bp)
+id_intr(struct bio *bp)
 {
-	struct id_softc *drv = (struct id_softc *)bp->b_driver1;
+	struct id_softc *drv = (struct id_softc *)bp->bio_driver1;
 
-	if (bp->b_ioflags & BIO_ERROR)
-		bp->b_error = EIO;
+	if (bp->bio_flags & BIO_ERROR)
+		bp->bio_error = EIO;
 	else
-		bp->b_resid = 0;
+		bp->bio_resid = 0;
 
-	devstat_end_transaction_buf(&drv->stats, bp);
+	devstat_end_transaction_bio(&drv->stats, bp);
 	biodone(bp);
 }
 
