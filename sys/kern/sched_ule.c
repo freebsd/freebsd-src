@@ -1438,8 +1438,8 @@ sched_class(struct ksegrp *kg, int class)
 	oclass = PRI_BASE(kg->kg_pri_class);
 	FOREACH_THREAD_IN_GROUP(kg, td) {
 		ke = td->td_kse;
-		if (ke->ke_state != KES_ONRUNQ &&
-		    ke->ke_state != KES_THREAD)
+		if ((ke->ke_state != KES_ONRUNQ &&
+		    ke->ke_state != KES_THREAD) || ke->ke_runq == NULL)
 			continue;
 		kseq = KSEQ_CPU(ke->ke_cpu);
 
