@@ -33,11 +33,13 @@
  *
  *	@(#)ipx_error.h
  *
- * $Id$
+ * $Id: ipx_error.h,v 1.7 1997/02/22 09:41:53 peter Exp $
  */
 
 #ifndef _NETIPX_IPX_ERROR_H_
 #define	_NETIPX_IPX_ERROR_H_
+
+#ifdef IPXERRORMSGS
 
 /*
  * IPX error messages
@@ -77,13 +79,13 @@ struct  ipx_epipx {
 struct	ipx_errstat {
 /* statistics related to ipx_err packets generated */
 	int	ipx_es_error;		/* # of calls to ipx_error */
-	int	ipx_es_oldshort;		/* no error 'cuz old ip too short */
+	int	ipx_es_oldshort;	/* no error 'cuz old ip too short */
 	int	ipx_es_oldipx_err;	/* no error 'cuz old was ipx_err */
 	int	ipx_es_outhist[IPX_ERR_MAX];
 /* statistics related to input messages processed */
 	int	ipx_es_badcode;		/* ipx_err_code out of range */
-	int	ipx_es_tooshort;		/* packet < IPX_MINLEN */
-	int	ipx_es_checksum;		/* bad checksum */
+	int	ipx_es_tooshort;	/* packet < IPX_MINLEN */
+	int	ipx_es_checksum;	/* bad checksum */
 	int	ipx_es_badlen;		/* calculated bound mismatch */
 	int	ipx_es_reflect;		/* number of responses */
 	int	ipx_es_inhist[IPX_ERR_MAX];
@@ -91,14 +93,22 @@ struct	ipx_errstat {
 					   since we might not know all */
 };
 
+#endif
+
 #ifdef KERNEL
+
+#ifdef IPXERRORMSGS
+
+extern u_char ipxctlerrmap[];
 extern struct ipx_errstat ipx_errstat;
 
 int	ipx_echo __P((struct mbuf *m));
 void	ipx_err_input __P((struct mbuf *m));
 int	ipx_err_x __P((int c));
 void	ipx_error __P((struct mbuf *om, int type, int param));
-void	ipx_printhost __P((struct ipx_addr *addr));
-#endif
 
-#endif /* !_NETIPX_IPX_ERROR_H_ */
+#endif
+void	ipx_printhost __P((struct ipx_addr *addr));
+#endif /* KERNEL */
+
+#endif /* _NETIPX_IPX_ERROR_H_ */
