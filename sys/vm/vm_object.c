@@ -109,7 +109,6 @@ SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags,
 
 static void	vm_object_qcollapse(vm_object_t object);
 static int	vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags);
-static void	vm_object_pip_sleep(vm_object_t object, char *waitid);
 
 /*
  *	Virtual memory objects maintain the actual data
@@ -310,20 +309,6 @@ vm_object_pip_wakeupn(vm_object_t object, short i)
 	}
 }
 
-static void
-vm_object_pip_sleep(vm_object_t object, char *waitid)
-{
-	GIANT_REQUIRED;
-	if (object->paging_in_progress) {
-		int s = splvm();
-		if (object->paging_in_progress) {
-			vm_object_set_flag(object, OBJ_PIPWNT);
-			tsleep(object, PVM, waitid, 0);
-		}
-		splx(s);
-	}
-}
-
 void
 vm_object_pip_wait(vm_object_t object, char *waitid)
 {
@@ -489,17 +474,22 @@ vm_object_deallocate(vm_object_t object)
 				     robject->type == OBJT_SWAP)) {
 
 					robject->ref_count++;
-
-					while (
-						robject->paging_in_progress ||
-						object->paging_in_progress
-					) {
-	/* XXX */				VM_OBJECT_UNLOCK(object);
-	/* XXX */				VM_OBJECT_UNLOCK(robject);
-						vm_object_pip_sleep(robject, "objde1");
-						vm_object_pip_sleep(object, "objde2");
-	/* XXX */				VM_OBJECT_LOCK(robject);
-	/* XXX */				VM_OBJECT_LOCK(object);
+retry:
+					if (robject->paging_in_progress) {
+						VM_OBJECT_UNLOCK(object);
+						vm_object_pip_wait(robject,
+						    "objde1");
+						VM_OBJECT_LOCK(object);
+						goto retry;
+					} else if (object->paging_in_progress) {
+						VM_OBJECT_UNLOCK(robject);
+						object->flags |= OBJ_PIPWNT;
+						msleep(object,
+						    VM_OBJECT_MTX(object),
+						    PDROP | PVM, "objde2", 0);
+						VM_OBJECT_LOCK(robject);
+						VM_OBJECT_LOCK(object);
+						goto retry;
 					}
 					VM_OBJECT_UNLOCK(object);
 					if (robject->ref_count == 1) {
