@@ -136,7 +136,13 @@ s_lock(struct simplelock *lkp)
 int
 s_lock_try(struct simplelock *lkp)
 {
-	return 0;		/* XXX needed? */
+	return 1;		/* XXX needed? */
+}
+
+void
+s_unlock(struct simplelock *lkp)
+{
+	ia64_st_rel_32(&lkp->lock_data, 0);
 }
 
 /* Other stuff */
