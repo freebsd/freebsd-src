@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.h,v 1.7 1995/05/30 03:47:21 rgrimes Exp $
+ * $Id: ctm.h,v 1.8 1996/02/05 16:06:47 phk Exp $
  *
  */
 
@@ -17,9 +17,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/time.h>
 
 #define VERSION "2.0"
 #define MAXSIZE (1024*1024*10)
@@ -104,6 +106,8 @@ EXTERN int Verbose;
 EXTERN int Exit;
 EXTERN int Force;
 EXTERN int CheckIt;
+EXTERN int SetTime;
+EXTERN struct timeval Times[2];
 
 #define Exit_OK		0
 #define Exit_Garbage	1
