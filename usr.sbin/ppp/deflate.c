@@ -551,9 +551,10 @@ DeflateTermOutput(void *v)
 }
 
 const struct ccp_algorithm PppdDeflateAlgorithm = {
-  TY_PPPD_DEFLATE,	/* pppd (wrongly) expects this ``type'' field */
+  TY_PPPD_DEFLATE,	/* Older versions of pppd expected this ``type'' */
   CCP_NEG_DEFLATE24,
   DeflateDispOpts,
+  ccp_IsUsable,
   {
     DeflateSetOptsInput,
     DeflateInitInput,
@@ -576,6 +577,7 @@ const struct ccp_algorithm DeflateAlgorithm = {
   TY_DEFLATE,		/* rfc 1979 */
   CCP_NEG_DEFLATE,
   DeflateDispOpts,
+  ccp_IsUsable,
   {
     DeflateSetOptsInput,
     DeflateInitInput,
