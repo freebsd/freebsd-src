@@ -21,6 +21,7 @@
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL?=	kernel
+KERNFORMAT?=	elf
 STD8X16FONT?=	iso
 
 .if !defined(S)
@@ -32,8 +33,7 @@ S=	../..
 .endif
 ALPHA=	${S}/alpha
 
-HCC?=${CC}
-SIZE?=size
+SIZE?=	size
 
 COPTFLAGS?=-O
 INCLUDES= -nostdinc -I- -I. -I$S
@@ -44,7 +44,19 @@ INCLUDES+= -I$S/../include
 INCLUDES+= -I/usr/include
 .endif
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h
+# KAME mandatory flags
+COPTS+=	-D_KERNEL
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+
+# XXX LOCORE means "don't declare C stuff" not "for locore.s".
+ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
+
+# Use the default object format for genassym, etc.
+GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -UKERNEL
+
+FMT=
+CFLAGS+=	${FMT}
+
 LOAD_ADDRESS?=	0xfffffc0000300000
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
@@ -55,27 +67,31 @@ PROF+=	-mprofiler-epilogue
 .endif
 .endif
 
+# Put configuration-specific C flags last (except for ${PROF}) so that they
+# can override the others.
+CFLAGS+=	${CONF_CFLAGS}
+
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
-NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
-# XXX LOCORE means "don't declare C stuff" not "for locore.s".
-NORMAL_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
-PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
+NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
+NORMAL_S= ${CC} -c ${ASM_CFLAGS} $<
+PROFILE_C= ${CC} -c ${CFLAGS} $<
 
-NORMAL_M= ${NORMAL_C}
-
-# ${ALPHA}/alpha/setdef0.c and ${ALPHA}/alpha/setdef1.c are intentionally
-# omitted from SYSTEM_CFILES.  They depend on setdefs.h, a header which
+GEN_CFILES= ${ALPHA}/alpha/genassym.c
+# setdef0.c and setdef1.c are intentionally
+# omitted from SYSTEM_CFILES.  They include setdefs.h, a header which
 # is generated from all of ${OBJS}.  We don't want to have to compile
 # everything just to do a make depend.
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
 SYSTEM_SFILES= ${ALPHA}/alpha/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
-	${OBJS} ioconf.o param.o config.o \
+SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
-SYSTEM_LD= @${LD} --export-dynamic -T$S/alpha/conf/kernel.script -e locorestart \
-	-o $@ -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
+SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/alpha/conf/kernel.script \
+	-e locorestart \
+	-export-dynamic -dynamic-linker /red/herring \
+	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
+SYSTEM_DEP+= $S/alpha/conf/kernel.script
 
 %BEFORE_DEPEND
 
@@ -99,23 +115,24 @@ ${KERNEL}:	${FULLKERNEL}
 	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
 .endif
 
-${FULLKERNEL}:	${SYSTEM_DEP} vers.o
+${FULLKERNEL}:	${BEFORE_DEPEND} ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
 	${SYSTEM_LD_TAIL}
 
 .if !exists(.depend)
-${SYSTEM_OBJS}: ${BEFORE_DEPEND:M*.h}
+${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
 .endif
 
 clean:
-	rm -f *.o *.s eddep errs genassym gensetdefs ${KERNEL} ${FULLKERNEL} \
-	      linterrs makelinks param.c setdefs.h \
-	      tags vers.c vnode_if.c vnode_if.h ${CLEAN}
+	rm -f *.o *.so *.So *.ko *.s eddep errs genassym gensetdefs \
+	      ${KERNEL} ${FULLKERNEL} linterrs makelinks param.c \
+	      setdef[01].c setdefs.h symbols.exclude symbols.sort tags \
+	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
 #lint: /tmp param.c
-#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
+#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
 #	  ${ALPHA}/alpha/Locore.c ${CFILES} ioconf.c param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
@@ -123,40 +140,24 @@ clean:
 locore.o: ${ALPHA}/alpha/locore.s assym.s
 	${NORMAL_S}
 
+# This is a hack.  BFD "optimizes" away dynamic mode if there are no
+# dynamic references.  We could probably do a '-Bforcedynamic' mode like
+# in the a.out ld.  For now, this works.
 hack.So: Makefile
-	echo "void __elf_kld_hack() {}" > hack.c
+	touch hack.c
 	${CC} -shared -nostdlib hack.c -o hack.So
 	rm -f hack.c
 
-setdef0.o: ${ALPHA}/alpha/setdef0.c setdefs.h
+.ORDER: setdefs.h setdef0.c setdef1.c
+
+setdef0.o: setdef0.c setdefs.h
 	${NORMAL_C}
 
-setdef1.o: ${ALPHA}/alpha/setdef1.c setdefs.h
+setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
-setdefs.h: gensetdefs ${OBJS}
-	@echo Generating kernel linker sets
-	@./gensetdefs ${OBJS} >setdefs.h
-
-gensetdefs: gensetdefs.o
-	${HCC} -static gensetdefs.o -o $@
-
-gensetdefs.o: ${ALPHA}/alpha/gensetdefs.c
-	${HCC} -c -I${INCLUDES} ${ALPHA}/alpha/gensetdefs.c
-
-# everything potentially depends on the Makefile since everything potentially
-# depends on the options.  Some things are more dependent on the Makefile for
-# historical reasons.
-machdep.o: Makefile
-
-# the following is necessary because autoconf.o depends on #if GENERIC
-autoconf.o: Makefile
-
-# XXX - may no longer be needed
-locore.o: Makefile
-
-# depends on KDB (cons.o also depends on GENERIC)
-trap.o cons.o: Makefile
+setdef0.c setdef1.c setdefs.h: ${OBJS}
+	@gensetdefs ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
@@ -164,13 +165,11 @@ trap.o cons.o: Makefile
 assym.s: genassym
 	./genassym >assym.s
 
-# Some of the defines that genassym outputs may well depend on the
-# value of kernel options.
-genassym.o: ${ALPHA}/alpha/genassym.c Makefile opt_global.h
-	${HCC} -c ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
+genassym.o: ${ALPHA}/alpha/genassym.c
+	${CC} -c ${GEN_CFLAGS} ${ALPHA}/alpha/genassym.c
 
 genassym: genassym.o
-	${HCC} -static ${COPTS} ${PARAM} genassym.o -o $@
+	${CC} ${GEN_CFLAGS} genassym.o -o ${.TARGET}
 
 SYSTEM_OBJS+=	__divqu.o __divq.o __divlu.o __divl.o
 SYSTEM_OBJS+=	__remqu.o __remq.o __remlu.o __reml.o
@@ -217,15 +216,14 @@ __reml.S: ${S}/alpha/alpha/divrem.m4
 	@(echo "define(NAME,\`__reml')define(OP,\`rem')define(S,\`true')"; \
 	 echo "define(WORDSIZE,32)"; cat ${.ALLSRC}) | m4 > ${.TARGET}
 
-
-${OBJS}: opt_global.h
+${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
-	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
-	mkdep -a -f .newdep ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
-	MKDEP_CPP="${CC} -E -x assembler-with-cpp" ; export MKDEP_CPP ; \
-	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
+	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES}
+	mkdep -a -f .newdep ${GEN_CFLAGS} ${GEN_CFILES}
+	env MKDEP_CPP="${CC} -E" \
+	    mkdep -a -f .newdep ${ASM_CFLAGS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
 	mv -f .newdep .depend
 
@@ -245,7 +243,7 @@ tags:
 	sh $S/conf/systags.sh
 	rm -f tags1
 	sed -e 's,      ../,    ,' tags > tags1
-  
+
 install install.debug:
 	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
 		echo "You must build a kernel first." ; \
@@ -269,24 +267,33 @@ reinstall reinstall.debug:
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/reinstall//} ${DESTDIR}/${KERNEL}
 
-ioconf.o: ioconf.c $S/sys/param.h $S/sys/buf.h
-	${CC} -c ${CFLAGS} ioconf.c
+config.o:
+	${NORMAL_C}
+
+ioconf.o:
+	${NORMAL_C}
 
 param.c: $S/conf/param.c
 	-rm -f param.c
 	cp $S/conf/param.c .
 
-param.o: param.c Makefile
-	${CC} -c ${CFLAGS} ${PARAM} param.c
+param.o:
+	${NORMAL_C}
 
-vers.o: ${SYSTEM_DEP} ${SYSTEM_SWAP_DEP}
+vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
-	${CC} ${CFLAGS} -c vers.c
 
-vnode_if.c: $S/kern/vnode_if.sh $S/kern/vnode_if.src
+# XXX strictly, everything depends on Makefile because changes to ${PROF}
+# only appear there, but we don't handle that.
+vers.o:
+	${NORMAL_C}
+
+.ORDER: vnode_if.c vnode_if.h
+vnode_if.c vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
-vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
-	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
+
+vnode_if.o:
+	${NORMAL_C}
 
 .if exists($S/../share/mk)
 .include "$S/../share/mk/bsd.kern.mk"
