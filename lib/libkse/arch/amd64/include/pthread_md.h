@@ -64,7 +64,6 @@ struct kcb {
 struct tcb {
 	struct tdv		*tcb_tdv;
 	struct pthread		*tcb_thread;
-	void			*tcb_spare[2];	/* align tcb_tmbx to 16 bytes */
 	struct kse_thr_mailbox	tcb_tmbx;
 };
 
