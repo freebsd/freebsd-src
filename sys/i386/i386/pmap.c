@@ -1196,10 +1196,6 @@ _pmap_allocpte(pmap, ptepindex)
 	pmap->pm_pdir[ptepindex] =
 		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
-	vm_page_lock_queues();
-	vm_page_wakeup(m);
-	vm_page_unlock_queues();
-
 	return m;
 }
 

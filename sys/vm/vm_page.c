@@ -844,6 +844,8 @@ loop:
 		if (req & VM_ALLOC_ZERO)
 			flags = PG_ZERO | PG_BUSY;
 	}
+	if (req & VM_ALLOC_NOOBJ)
+		flags &= ~PG_BUSY;
 	m->flags = flags;
 	if (req & VM_ALLOC_WIRED) {
 		atomic_add_int(&cnt.v_wire_count, 1);
