@@ -238,7 +238,8 @@
 
 /* 9346 EEPROM commands */
 #define RL_EECMD_WRITE		0x140
-#define RL_EECMD_READ		0x180
+#define RL_EECMD_READ_6BIT	0x180
+#define RL_EECMD_READ_8BIT	0x600
 #define RL_EECMD_ERASE		0x1c0
 
 #define RL_EE_ID		0x00
@@ -364,6 +365,7 @@ struct rl_softc {
 	device_t		rl_miibus;
 	u_int8_t		rl_unit;	/* interface number */
 	u_int8_t		rl_type;
+	int			rl_eecmd_read;
 	u_int8_t		rl_stats_no_timeout;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
