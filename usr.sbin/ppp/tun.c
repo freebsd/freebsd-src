@@ -27,10 +27,12 @@
  */
 
 #include <sys/param.h>
-#ifndef __FreeBSD__
+
 #include <sys/socket.h>		/* For IFF_ defines */
+#ifndef __FreeBSD__
 #include <net/if.h>		/* For IFF_ defines */
 #endif
+#include <net/route.h>
 #include <netinet/in.h>
 #include <net/if_types.h>
 #include <net/if_tun.h>
@@ -68,6 +70,7 @@
 #include "ccp.h"
 #include "link.h"
 #include "mp.h"
+#include "iface.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif
@@ -89,7 +92,7 @@ tun_configure(struct bundle *bundle)
   }
 
   sprintf(ifr.ifr_name, "tun%d", bundle->unit);
-  ifr.ifr_mtu = bundle->mtu;
+  ifr.ifr_mtu = bundle->iface->mtu;
   if (ioctl(s, SIOCSIFMTU, &ifr) < 0)
       log_Printf(LogERROR, "tun_configure: ioctl(SIOCSIFMTU): %s\n",
              strerror(errno));
@@ -100,7 +103,7 @@ tun_configure(struct bundle *bundle)
 
   memset(&info, '\0', sizeof info);
   info.type = IFT_PPP;
-  info.mtu = bundle->mtu;
+  info.mtu = bundle->iface->mtu;
   
   info.baudrate = bundle->bandwidth;
 #ifdef __OpenBSD__

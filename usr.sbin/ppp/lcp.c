@@ -177,7 +177,13 @@ lcp_ReportStatus(struct cmdargs const *arg)
                 (u_long)lcp->want_magic, lcp->want_mrru,
                 lcp->want_shortseq ? "on" : "off", lcp->my_reject);
 
-  prompt_Printf(arg->prompt, "\n Defaults: MRU = %d, ", lcp->cfg.mru);
+  prompt_Printf(arg->prompt, "\n Defaults: MRU = %d (max %d), ",
+                lcp->cfg.mru, lcp->cfg.max_mru);
+  if (lcp->cfg.mtu)
+    prompt_Printf(arg->prompt, "MTU = %d (max %d), ",
+                  lcp->cfg.mtu, lcp->cfg.max_mtu);
+  else
+    prompt_Printf(arg->prompt, "MTU = any (max %d), ", lcp->cfg.max_mtu);
   prompt_Printf(arg->prompt, "ACCMAP = %08lx\n", (u_long)lcp->cfg.accmap);
   prompt_Printf(arg->prompt, "           LQR period = %us, ",
                 lcp->cfg.lqrperiod);
@@ -241,6 +247,9 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
            bundle, l, parent, &lcp_Callbacks, lcp_TimerNames);
 
   lcp->cfg.mru = DEF_MRU;
+  lcp->cfg.max_mru = MAX_MRU;
+  lcp->cfg.mtu = 0;
+  lcp->cfg.max_mtu = MAX_MTU;
   lcp->cfg.accmap = 0;
   lcp->cfg.openmode = 1;
   lcp->cfg.lqrperiod = DEF_LQRPERIOD;
@@ -266,11 +275,12 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
 void
 lcp_Setup(struct lcp *lcp, int openmode)
 {
+  struct physical *p = link2physical(lcp->fsm.link);
+  int phmtu = p ? physical_DeviceMTU(p) : 0;
+
   lcp->fsm.open_mode = openmode;
 
-  lcp->his_mru = lcp->fsm.bundle->cfg.mtu;
-  if (!lcp->his_mru || lcp->his_mru > DEF_MRU)
-    lcp->his_mru = DEF_MRU;
+  lcp->his_mru = DEF_MRU;
   lcp->his_mrru = 0;
   lcp->his_magic = 0;
   lcp->his_lqrperiod = 0;
@@ -281,13 +291,13 @@ lcp_Setup(struct lcp *lcp, int openmode)
   lcp->his_shortseq = 0;
 
   lcp->want_mru = lcp->cfg.mru;
+  if (phmtu && lcp->want_mru > phmtu)
+    lcp->want_mru = phmtu;
   lcp->want_mrru = lcp->fsm.bundle->ncp.mp.cfg.mrru;
   lcp->want_shortseq = IsEnabled(lcp->fsm.bundle->ncp.mp.cfg.shortseq) ? 1 : 0;
   lcp->want_acfcomp = IsEnabled(lcp->cfg.acfcomp) ? 1 : 0;
 
   if (lcp->fsm.parent) {
-    struct physical *p = link2physical(lcp->fsm.link);
-
     lcp->his_accmap = 0xffffffff;
     lcp->want_accmap = lcp->cfg.accmap;
     lcp->his_protocomp = 0;
@@ -592,15 +602,15 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 {
   /* Deal with incoming PROTO_LCP */
   struct lcp *lcp = fsm2lcp(fp);
-  int type, length, sz, pos, op, callback_req;
+  int type, length, sz, pos, op, callback_req, mru_req;
   u_int32_t magic, accmap;
-  u_short mtu, mru, proto;
+  u_short mru, phmtu, proto;
   struct lqrreq *req;
   char request[20], desc[22];
   struct mp *mp;
   struct physical *p = link2physical(fp->link);
 
-  sz = op = callback_req = 0;
+  sz = op = callback_req = mru_req = 0;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -626,7 +636,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
             /* Ignore his previous reject so that we REQ next time */
 	    lcp->his_reject &= ~(1 << type);
 
-          if (mru < MIN_MRU) {
+          if (mru > MAX_MRU) {
+            /* Push him down to MAX_MRU */
+            lcp->his_mrru = MAX_MRU;
+	    memcpy(dec->nakend, cp, 2);
+            ua_htons(&lcp->his_mrru, dec->nakend + 2);
+	    dec->nakend += 4;
+          } else if (mru < MIN_MRU) {
             /* Push him up to MIN_MRU */
             lcp->his_mrru = MIN_MRU;
 	    memcpy(dec->nakend, cp, 2);
@@ -664,28 +680,41 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_MRU:
+      mru_req = 1;
       ua_ntohs(cp + 2, &mru);
       log_Printf(LogLCP, "%s %d\n", request, mru);
 
       switch (mode_type) {
       case MODE_REQ:
-        mtu = lcp->fsm.bundle->cfg.mtu;
-        if (mru < MIN_MRU || (!lcp->want_mrru && mru < mtu)) {
+        phmtu = p ? physical_DeviceMTU(p) : 0;
+        if (phmtu && mru > phmtu) {
+          lcp->his_mru = lcp->cfg.mtu ? lcp->cfg.mtu : phmtu;
+          memcpy(dec->nakend, cp, 2);
+          ua_htons(&lcp->his_mru, dec->nakend + 2);
+          dec->nakend += 4;
+        } if (mru > lcp->cfg.max_mtu) {
+          lcp->his_mru = lcp->cfg.mtu ? lcp->cfg.mtu : lcp->cfg.max_mtu;
+          memcpy(dec->nakend, cp, 2);
+          ua_htons(&lcp->his_mru, dec->nakend + 2);
+          dec->nakend += 4;
+        } else if (mru < MIN_MRU || mru < lcp->cfg.mtu) {
           /* Push him up to MTU or MIN_MRU */
-          lcp->his_mru = mru < mtu ? mtu : MIN_MRU;
+          lcp->his_mru = mru < lcp->cfg.mtu ? lcp->cfg.mtu : MIN_MRU;
           memcpy(dec->nakend, cp, 2);
           ua_htons(&lcp->his_mru, dec->nakend + 2);
           dec->nakend += 4;
         } else {
-          lcp->his_mru = mtu ? mtu : mru;
+          lcp->his_mru = lcp->cfg.mtu ? lcp->cfg.mtu : mru;
           memcpy(dec->ackend, cp, 4);
           dec->ackend += 4;
         }
 	break;
       case MODE_NAK:
-        if (mru > MAX_MRU)
-          lcp->want_mru = MAX_MRU;
-        else if (mru < MIN_MRU)
+        if (mru > lcp->cfg.max_mru) {
+          lcp->want_mru = lcp->cfg.max_mru;
+          if (p && lcp->want_mru > physical_DeviceMTU(p))
+            lcp->want_mru = physical_DeviceMTU(p);
+        } else if (mru < MIN_MRU)
           lcp->want_mru = MIN_MRU;
         else
           lcp->want_mru = mru;
@@ -1215,6 +1244,22 @@ reqreject:
         log_Printf(LogWARN, "Cannot insist on auth callback without"
                    " PAP or CHAP enabled !\n");
         dec->nakend[-1] = 2;	/* XXX: Silly ! */
+      }
+    }
+    if (mode_type == MODE_REQ && !mru_req) {
+      mru = DEF_MRU;
+      phmtu = p ? physical_DeviceMTU(p) : 0;
+      if (phmtu && mru > phmtu)
+        mru = phmtu;
+      if (mru > lcp->cfg.max_mtu)
+        mru = lcp->cfg.max_mtu;
+      if (mru < DEF_MRU) {
+        /* Don't let the peer use the default MRU */
+        lcp->his_mru = lcp->cfg.mtu && lcp->cfg.mtu < mru ? lcp->cfg.mtu : mru;
+        *dec->nakend++ = TY_MRU;
+        *dec->nakend++ = 4;
+        ua_htons(&lcp->his_mru, dec->nakend);
+        dec->nakend += 2;
       }
     }
     if (dec->rejend != dec->rej) {

@@ -285,6 +285,7 @@ ether_AwaitCarrier(struct physical *p)
 static const struct device baseetherdevice = {
   ETHER_DEVICE,
   "ether",
+  1492,
   { CD_REQUIRED, DEF_ETHERCDDELAY },
   ether_AwaitCarrier,
   ether_RemoveFromSet,
@@ -674,16 +675,6 @@ ether_Create(struct physical *p)
 
   if (dev) {
     physical_SetupStack(p, dev->dev.name, PHYSICAL_FORCE_SYNCNOACF);
-
-    /* Moan about (and fix) invalid LCP configurations */
-    if (p->link.lcp.cfg.mru > 1492) {
-      log_Printf(LogWARN, "%s: Reducing MRU to 1492\n", p->link.name);
-      p->link.lcp.cfg.mru = 1492;
-    }
-    if (p->dl->bundle->cfg.mtu > 1492) {
-      log_Printf(LogWARN, "%s: Reducing MTU to 1492\n", p->link.name);
-      p->dl->bundle->cfg.mtu = 1492;
-    }
 
     if (path != NULL) {
       /* Mark the interface as UP if it's not already */

@@ -82,6 +82,9 @@ struct lcp {
 
   struct {
     u_short mru;		/* Preferred MRU value */
+    u_short max_mru;		/* Preferred MRU value */
+    u_short mtu;		/* Preferred MTU */
+    u_short max_mtu;		/* Preferred MTU */
     u_int32_t accmap;		/* Initial ACCMAP value */
     int openmode;		/* when to start CFG REQs */
     u_int32_t lqrperiod;	/* LQR frequency (seconds) */

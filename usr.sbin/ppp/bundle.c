@@ -276,7 +276,8 @@ bundle_LayerUp(void *v, struct fsm *fp)
     bundle_StartIdleTimer(bundle, 0);
     bundle_Notify(bundle, EX_NORMAL);
     mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
-  }
+  } else if (fp->proto == PROTO_CCP)
+    bundle_CalculateBandwidth(fp->bundle);	/* Against ccp_MTUOverhead */
 }
 
 static void
@@ -802,7 +803,6 @@ bundle_Create(const char *prefix, int type, int unit)
   log_Printf(LogPHASE, "Using interface: %s\n", ifname);
 
   bundle.bandwidth = 0;
-  bundle.mtu = 1500;
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
   bundle.CleaningUp = 0;
@@ -821,7 +821,6 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.cfg.opt = OPT_SROUTES | OPT_IDCHECK | OPT_LOOPBACK | OPT_TCPMSSFIXUP |
                    OPT_THROUGHPUT | OPT_UTMP;
   *bundle.cfg.label = '\0';
-  bundle.cfg.mtu = DEF_MTU;
   bundle.cfg.ifqueue = DEF_IFQUEUE;
   bundle.cfg.choked.timeout = CHOKED_TIMEOUT;
   bundle.phys_type.all = type;
@@ -1096,11 +1095,6 @@ bundle_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\n");
   } else
     prompt_Printf(arg->prompt, "disabled\n");
-  prompt_Printf(arg->prompt, " MTU:               ");
-  if (arg->bundle->cfg.mtu)
-    prompt_Printf(arg->prompt, "%d\n", arg->bundle->cfg.mtu);
-  else
-    prompt_Printf(arg->prompt, "unspecified\n");
 
   prompt_Printf(arg->prompt, " sendpipe:          ");
   if (arg->bundle->ncp.ipcp.cfg.sendpipe > 0)
@@ -1823,11 +1817,16 @@ void
 bundle_CalculateBandwidth(struct bundle *bundle)
 {
   struct datalink *dl;
-  int sp;
+  int sp, overhead, maxoverhead;
 
   bundle->bandwidth = 0;
-  bundle->mtu = 0;
-  for (dl = bundle->links; dl; dl = dl->next)
+  bundle->iface->mtu = 0;
+  maxoverhead = 0;
+
+  for (dl = bundle->links; dl; dl = dl->next) {
+    overhead = ccp_MTUOverhead(&dl->physical->link.ccp);
+    if (maxoverhead < overhead)
+      maxoverhead = overhead;
     if (dl->state == DATALINK_OPEN) {
       if ((sp = dl->mp.bandwidth) == 0 &&
           (sp = physical_GetSpeed(dl->physical)) == 0)
@@ -1836,27 +1835,37 @@ bundle_CalculateBandwidth(struct bundle *bundle)
       else
         bundle->bandwidth += sp;
       if (!bundle->ncp.mp.active) {
-        bundle->mtu = dl->physical->link.lcp.his_mru;
+        bundle->iface->mtu = dl->physical->link.lcp.his_mru;
         break;
       }
     }
+  }
 
   if(bundle->bandwidth == 0)
     bundle->bandwidth = 115200;		/* Shrug */
 
-  if (bundle->ncp.mp.active)
-    bundle->mtu = bundle->ncp.mp.peer_mrru;
-  else if (!bundle->mtu)
-    bundle->mtu = 1500;
+  if (bundle->ncp.mp.active) {
+    bundle->iface->mtu = bundle->ncp.mp.peer_mrru;
+    overhead = ccp_MTUOverhead(&bundle->ncp.mp.link.ccp);
+    if (maxoverhead < overhead)
+      maxoverhead = overhead;
+  } else if (!bundle->iface->mtu)
+    bundle->iface->mtu = DEF_MRU;
 
 #ifndef NORADIUS
   if (bundle->radius.valid && bundle->radius.mtu &&
-      bundle->radius.mtu < bundle->mtu) {
+      bundle->radius.mtu < bundle->iface->mtu) {
     log_Printf(LogLCP, "Reducing MTU to radius value %lu\n",
                bundle->radius.mtu);
-    bundle->mtu = bundle->radius.mtu;
+    bundle->iface->mtu = bundle->radius.mtu;
   }
 #endif
+
+  if (maxoverhead) {
+    log_Printf(LogLCP, "Reducing MTU from %d to %d (CCP requirement)\n",
+               bundle->iface->mtu, bundle->iface->mtu - maxoverhead);
+    bundle->iface->mtu -= maxoverhead;
+  }
 
   tun_configure(bundle);
 

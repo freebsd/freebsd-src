@@ -382,9 +382,11 @@ It is possible to configure
 to open more than one physical connection to the peer, combining the
 bandwidth of all links for better throughput.
 .It Supports MPPE (draft-ietf-pppext-mppe)
-MPPE is Microsoft Point to Point Encryption scheme. It is possible to configure
+MPPE is Microsoft Point to Point Encryption scheme.
+It is possible to configure
 .Nm
-to participate in Microsoft's Windows VPN. For now, 
+to participate in Microsoft's Windows VPN.
+For now, 
 .Nm
 can only get encryption keys from CHAP 81 authentication.
 .Nm
@@ -2403,7 +2405,8 @@ to exit.
 This signal, tells
 .Nm
 to re-open any existing server socket, dropping all existing diagnostic
-connections.  Sockets that couldn't previously be opened will be retried.
+connections.
+Sockets that couldn't previously be opened will be retried.
 .It USR2
 This signal, tells
 .Nm
@@ -2796,8 +2799,10 @@ values are honoured as if the peer were responsible for dropping the
 connection.
 .It mppe
 Default: Enabled and Accepted.
-This is Microsoft Point to Point Encryption scheme. MPPE key size can be 
-40-, 56- and 128-bits. Refer to
+This is Microsoft Point to Point Encryption scheme.
+MPPE key size can be 
+40-, 56- and 128-bits.
+Refer to
 .Dq set mppe
 command.
 .It MSChapV2|chap81
@@ -4910,39 +4915,102 @@ This will allow
 to do the necessary address translations to enable the process that
 triggers the connection to connect once the link is up despite the
 peer assigning us a new (dynamic) IP address.
-.It set mppe {40|56|128}
-This option selects particular key length. Default is 128.
+.It set mppe Op 40|56|128|* Op stateless|stateful|*
+This option selects the encryption parameters used when negotiation
+MPPE.
+MPPE can be disabled entirely with the
+.Dq disable mppe
+command.
+If no arguments are given,
+.Nm
+will attempt to negotiate a stateful link with a 128 bit key, but
+will agree to whatever the peer requests (including no encryption
+at all).
+.Pp
+If any arguments are given,
+.Nm
+will
+.Em insist
+on using MPPE and will close the link if it's rejected by the peer.
+.Pp
+The first argument specifies the number of bits that
+.Nm
+should insist on during negotiations and the second specifies whether
+.Nm
+should insist on stateful or stateless mode.
+In stateless mode, the
+encryption dictionary is re-initialised with every packet according to
+an encryption key that is changed with every packet.
+In stateful mode,
+the encryption dictionary is re-initialised every 256 packets or after
+the loss of any data and the key is changed every 256 packets.
+Stateless mode is less efficient but is better for unreliable transport
+layers.
 .It set mrru Op Ar value
 Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.
 There is no default MRRU (Maximum Reconstructed Receive Unit) value.
 If no argument is given, multi-link mode is disabled.
-.It set mru Op Ar value
+.It set mru Xo
+.Op max Ns Op imum
+.Op Ar value
+.Xc
 The default MRU (Maximum Receive Unit) is 1500.
 If it is increased, the other side *may* increase its MTU.
-There is no point in decreasing the MRU to below the default as the
+In theory there is no point in decreasing the MRU to below the default as the
 .Em PPP
-protocol *must* be able to accept packets of at least 1500 octets.
+protocol says implementations *must* be able to accept packets of at
+least 1500 octets.
+.Pp
+If the
+.Dq maximum
+keyword is used,
+.Nm
+will refuse to negotiate a higher value.
+The maximum MRU can be set to 2048 at most.
+Setting a maximum of less than 1500 violates the
+.Em PPP
+rfc, but may sometimes be necessary.
+For example,
+.Em PPPoE
+imposes a maximum of 1492 due to hardware limitations.
+.Pp
 If no argument is given, 1500 is assumed.
-.It set mtu Op Ar value
+A value must be given when
+.Dq maximum
+is specified.
+.It set mtu Xo
+.Op max Ns Op imum
+.Op Ar value
+.Xc
 The default MTU is 1500.
 At negotiation time,
 .Nm
-will accept whatever MRU or MRRU that the peer wants (assuming it's
-not less than 296 bytes).
+will accept whatever MRU the peer requests (assuming it's
+not less than 296 bytes or greater than the assigned maximum).
 If the MTU is set,
 .Nm
-will not accept MRU/MRRU values less than
+will not accept MRU values less than
 .Ar value .
-When negotiations are complete, the MTU is assigned to the interface, even
-if the peer requested a higher value MRU/MRRU.
+When negotiations are complete, the MTU is used when writing to the
+interface, even if the peer requested a higher value MRU.
 This can be useful for
 limiting your packet size (giving better bandwidth sharing at the expense
 of more header data).
 .Pp
+If the
+.Dq maximum
+keyword is used,
+.Nm
+will refuse to negotiate a higher value.
+The maximum MTU can be set to 2048 at most.
+.Pp
 If no
 .Ar value
 is given, 1500, or whatever the peer asks for is used.
+A value must be given when
+.Dq maximum
+is specified.
 .It set nbns Op Ar x.x.x.x Op Ar y.y.y.y
 This option allows the setting of the Microsoft NetBIOS name server
 values to be returned at the peers request.
@@ -5574,6 +5642,7 @@ This socket is used to pass links between different instances of
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
 .Xr netgraph 4 ,
+.Xr ng_pppoe 4 ,
 .Xr crontab 5 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
@@ -5587,7 +5656,6 @@ This socket is used to pass links between different instances of
 .Xr init 8 ,
 .Xr isdn 8 ,
 .Xr named 8 ,
-.Xr ng_pppoe 4 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
