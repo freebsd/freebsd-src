@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.50 1998/07/20 13:39:44 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.51 1998/07/20 13:51:11 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -74,6 +74,7 @@ typedef	u_char	bool_t;
 
 static volatile bool_t ds_debug;
 
+static struct disklabel *clone_label __P((struct disklabel *lp));
 static void dsiodone __P((struct buf *bp));
 static char *fixlabel __P((char *sname, struct diskslice *sp,
 			   struct disklabel *lp, int writeflag));
@@ -95,6 +96,48 @@ static void set_ds_labeldevs_unaliased __P((char *dname, dev_t dev,
 #endif
 static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
 			       int wlabel));
+
+/*
+ * Duplicate a label for the whole disk, and initialize defaults in the
+ * copy for fields that are not already initialized.  The caller only
+ * needs to initialize d_secsize and d_secperunit, and zero the fields
+ * that are to be defaulted.
+ */
+static struct disklabel *
+clone_label(lp)
+	struct disklabel *lp;
+{
+	struct disklabel *lp1;
+
+	lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
+	*lp1 = *lp;
+	lp = NULL;
+	if (lp1->d_typename[0] == '\0')
+		strncpy(lp1->d_typename, "amnesiac", sizeof(lp1->d_typename));
+	if (lp1->d_packname[0] == '\0')
+		strncpy(lp1->d_packname, "fictitious", sizeof(lp1->d_packname));
+	if (lp1->d_nsectors == 0)
+		lp1->d_nsectors = 32;
+	if (lp1->d_ntracks == 0)
+		lp1->d_ntracks = 64;
+	lp1->d_secpercyl = lp1->d_nsectors * lp1->d_ntracks;
+	lp1->d_ncylinders = lp1->d_secperunit / lp1->d_secpercyl;
+	if (lp1->d_rpm == 0)
+		lp1->d_rpm = 3600;
+	if (lp1->d_interleave == 0)
+		lp1->d_interleave = 1;
+	if (lp1->d_npartitions < RAW_PART + 1)
+		lp1->d_npartitions = MAXPARTITIONS;
+	if (lp1->d_bbsize == 0)
+		lp1->d_bbsize = BBSIZE;
+	if (lp1->d_sbsize == 0)
+		lp1->d_sbsize = SBSIZE;
+	lp1->d_partitions[RAW_PART].p_size = lp1->d_secperunit;
+	lp1->d_magic = DISKMAGIC;
+	lp1->d_magic2 = DISKMAGIC;
+	lp1->d_checksum = dkcksum(lp1);
+	return (lp1);
+}
 
 /*
  * Determine the size of the transfer, and make sure it is
@@ -662,8 +705,6 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 			dsgone(sspp);
 			return (error);
 		}
-		lp->d_npartitions = MAXPARTITIONS;
-		lp->d_partitions[RAW_PART].p_size = lp->d_secperunit;
 		ssp = *sspp;
 #ifdef DEVFS
 		ssp->dss_bdevsw = bdevsw;
@@ -693,25 +734,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 			}
 		}
 
-		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
-		*lp1 = *lp;
-
-		/*
-		 * Initialize defaults for the label for the whole disk so
-		 * that it can be used as a template for disklabel(8).
-		 * d_rpm = 3600 is unlikely to be correct for a modern
-		 * disk, but d_rpm is normally irrelevant.
-		 */
-		if (lp1->d_rpm == 0)
-			lp1->d_rpm = 3600;
-		if (lp1->d_interleave == 0)
-			lp1->d_interleave = 1;
-		if (lp1->d_bbsize == 0)
-			lp1->d_bbsize = BBSIZE;
-		if (lp1->d_sbsize == 0)
-			lp1->d_sbsize = SBSIZE;
-
-		ssp->dss_slices[WHOLE_DISK_SLICE].ds_label = lp1;
+		ssp->dss_slices[WHOLE_DISK_SLICE].ds_label = clone_label(lp);
 		ssp->dss_slices[WHOLE_DISK_SLICE].ds_wlabel = TRUE;
 		if (setgeom != NULL) {
 			error = setgeom(lp);
@@ -753,8 +776,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 		 * case, but there may be a problem with DIOCSYNCSLICEINFO.
 		 */
 		set_ds_wlabel(ssp, slice, TRUE);	/* XXX invert */
-		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
-		*lp1 = *lp;
+		lp1 = clone_label(lp);
 		TRACE(("readdisklabel\n"));
 		msg = readdisklabel(dev1, strat, lp1);
 #if 0 /* XXX */
