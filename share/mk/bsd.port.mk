@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.94 1995/01/04 09:58:39 jkh Exp $
+# $Id: bsd.port.mk,v 1.95 1995/01/04 23:06:38 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -48,8 +48,8 @@
 #			  	  actually extract.
 # PATCHDIR 		- A directory containing any required patches
 #				  (default: ${.CURDIR}/patches)
-# SCRIPTDIR 	- A directory containing any auxilliary scripts
-#				  (default: ${.CURDIR}/scripes)
+# SCRIPTDIR 	- A directory containing any auxiliary scripts
+#				  (default: ${.CURDIR}/scripts)
 # FILESDIR 		- A directory containing any miscellaneous additional files.
 #				  (default: ${.CURDIR}/files)
 # PKGDIR 		- A direction containing any package creation files.
