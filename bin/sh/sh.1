@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.23 1998/12/18 03:51:18 jkoshy Exp $
+.\"	$Id: sh.1,v 1.24 1999/03/31 21:02:01 brian Exp $
 .\"
 .Dd May 5, 1995
 .Dt SH 1
@@ -202,12 +202,24 @@ after
 and ignores the contents of the
 .Ev ENV
 variable.
+
 .It Fl s Li stdin
 Read commands from standard input (set automatically
 if no file arguments are present).  This option has
 no effect when set after the shell has already started
 running (i.e. with
 .Xr set 1 Ns ).
+.It Fl T Li asynctraps
+When waiting for a child, execute traps immediately. If this option is
+not set, traps are executed after the child exits, as specified in
+.St -p1003.2
+This nonstandard option is useful to put guarding shells around childs
+that block signals. The surrounding shell may kill the child or it may
+just return control to the tty and leave the child alone, like this:
+.Bd -literal -offset indent
+sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
+.Ed
+.Pp
 .It Fl u Li nounset
 Write a message to standard error when attempting
 to expand a variable that is not set, and if the
