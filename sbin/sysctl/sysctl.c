@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: sysctl.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.19 1998/11/08 19:27:43 phk Exp $";
+	"$Id: sysctl.c,v 1.20 1999/01/10 02:10:08 des Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -477,11 +477,12 @@ sysctl_all (int *oid, int len)
 	while (1) {
 		l2 = sizeof name2;
 		j = sysctl(name1, l1, name2, &l2, 0, 0);
-		if (j < 0)
+		if (j < 0) {
 			if (errno == ENOENT)
 				return 0;
 			else
 				err(1, "sysctl(getnext) %d %d", j, l2);
+		}
 
 		l2 /= sizeof (int);
 
