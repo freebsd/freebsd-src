@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -337,7 +337,7 @@ AcpiTbGetAllTables (
 
     FUNCTION_TRACE ("TbGetAllTables");
 
-    DEBUG_PRINT (ACPI_INFO, ("Number of tables: %d\n", NumberOfTables));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Number of tables: %d\n", NumberOfTables));
 
 
     /*
@@ -462,13 +462,13 @@ AcpiTbGetAllTables (
 
     /* Dump the DSDT Header */
 
-    DEBUG_PRINT (TRACE_TABLES, ("Hex dump of DSDT Header:\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Hex dump of DSDT Header:\n"));
     DUMP_BUFFER ((UINT8 *) AcpiGbl_DSDT, sizeof (ACPI_TABLE_HEADER));
 
     /* Dump the entire DSDT */
 
-    DEBUG_PRINT (TRACE_TABLES,
-        ("Hex dump of DSDT (After header), size %d (%x)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
+        "Hex dump of DSDT (After header), size %d (%x)\n",
         AcpiGbl_DSDT->Length, AcpiGbl_DSDT->Length));
     DUMP_BUFFER ((UINT8 *) (AcpiGbl_DSDT + 1), AcpiGbl_DSDT->Length);
 
@@ -634,6 +634,8 @@ AcpiTbValidateRsdt (
 {
     UINT32                  NoMatch;
 
+    PROC_NAME ("TbValidateRsdt");
+
 
     /*
      * For RSDP revision 0 or 1, we use the RSDT.
@@ -659,8 +661,8 @@ AcpiTbValidateRsdt (
 
         DUMP_BUFFER (AcpiGbl_RSDP, 20);
 
-        DEBUG_PRINT_RAW (ACPI_ERROR,
-            ("RSDT/XSDT signature at %X is invalid\n",
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_ERROR,
+            "RSDT/XSDT signature at %X is invalid\n",
             AcpiGbl_RSDP->RsdtPhysicalAddress));
 
         return (AE_BAD_SIGNATURE);
@@ -742,8 +744,8 @@ AcpiTbGetTableRsdt (
      * Get the RSDT from the RSDP
      */
 
-    DEBUG_PRINTP (ACPI_INFO,
-        ("RSDP located at %p, RSDT physical=%8.8lX%8.8lX \n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "RSDP located at %p, RSDT physical=%8.8lX%8.8lX \n",
         AcpiGbl_RSDP, HIDWORD(AcpiGbl_RSDP->RsdtPhysicalAddress),
         LODWORD(AcpiGbl_RSDP->RsdtPhysicalAddress)));
 
@@ -756,7 +758,7 @@ AcpiTbGetTableRsdt (
     Status = AcpiTbGetTable (PhysicalAddress, NULL, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Could not get the RSDT, %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not get the RSDT, %s\n",
             AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
@@ -796,7 +798,7 @@ AcpiTbGetTableRsdt (
 
     AcpiGbl_XSDT = (XSDT_DESCRIPTOR *) TableInfo.Pointer;
 
-    DEBUG_PRINTP (ACPI_INFO, ("XSDT located at %p\n", AcpiGbl_XSDT));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "XSDT located at %p\n", AcpiGbl_XSDT));
 
     return_ACPI_STATUS (Status);
 }

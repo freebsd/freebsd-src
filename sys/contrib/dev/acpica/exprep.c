@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 91 $
+ *              $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -135,7 +135,7 @@
  * PARAMETERS:  Access          - Encoded field access bits
  *              Length          - Field length.
  *
- * RETURN:      Field granularity (8, 16, or 32)
+ * RETURN:      Field granularity (8, 16, 32 or 64)
  *
  * DESCRIPTION: Decode the AccessType bits of a field definition.
  *
@@ -147,6 +147,8 @@ AcpiExDecodeFieldAccessType (
     UINT16                  Length,
     UINT32                  *Alignment)
 {
+    PROC_NAME ("AcpiExDecodeFieldAccessType");
+
 
     switch (Access)
     {
@@ -201,8 +203,8 @@ AcpiExDecodeFieldAccessType (
     default:
         /* Invalid field access type */
 
-        DEBUG_PRINT (ACPI_ERROR,
-            ("ExDecodeFieldAccessType: Unknown field access type %x\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Unknown field access type %x\n",
             Access));
         return (0);
     }
@@ -376,14 +378,14 @@ AcpiExPrepRegionFieldValue (
 
     if (!RegionNode)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Null RegionNode\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null RegionNode\n"));
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
     Type = AcpiNsGetType (RegionNode);
     if (Type != ACPI_TYPE_REGION)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Needed Region, found type %X %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %X %s\n",
             Type, AcpiUtGetTypeName (Type)));
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
@@ -424,11 +426,11 @@ AcpiExPrepRegionFieldValue (
 
     /* Debug info */
 
-    DEBUG_PRINTP (ACPI_INFO, ("Bitoff=%X Off=%X Gran=%X Region %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Bitoff=%X Off=%X Gran=%X Region %p\n",
         ObjDesc->Field.StartFieldBitOffset, ObjDesc->Field.BaseByteOffset,
         ObjDesc->Field.AccessBitWidth, ObjDesc->Field.RegionObj));
 
-    DEBUG_PRINTP (ACPI_INFO, ("set NamedObj %p (%4.4s) val = %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "set NamedObj %p (%4.4s) val = %p\n",
         Node, &(Node->Name), ObjDesc));
 
 
@@ -482,14 +484,14 @@ AcpiExPrepBankFieldValue (
 
     if (!RegionNode)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Null RegionNode\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null RegionNode\n"));
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
     Type = AcpiNsGetType (RegionNode);
     if (Type != ACPI_TYPE_REGION)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Needed Region, found type %X %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %X %s\n",
             Type, AcpiUtGetTypeName (Type)));
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
@@ -531,12 +533,12 @@ AcpiExPrepBankFieldValue (
 
     /* Debug info */
 
-    DEBUG_PRINTP (ACPI_INFO, ("BitOff=%X Off=%X Gran=%X Region %p BankReg %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "BitOff=%X Off=%X Gran=%X Region %p BankReg %p\n",
         ObjDesc->BankField.StartFieldBitOffset, ObjDesc->BankField.BaseByteOffset,
         ObjDesc->Field.AccessBitWidth, ObjDesc->BankField.RegionObj,
         ObjDesc->BankField.BankRegisterObj));
 
-    DEBUG_PRINTP (ACPI_INFO, ("Set NamedObj %p (%4.4s) val=%p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Set NamedObj %p (%4.4s) val=%p\n",
         Node, &(Node->Name), ObjDesc));
 
 
@@ -587,7 +589,7 @@ AcpiExPrepIndexFieldValue (
 
     if (!IndexReg || !DataReg)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Null handle\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null handle\n"));
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
@@ -622,12 +624,12 @@ AcpiExPrepIndexFieldValue (
 
     /* Debug info */
 
-    DEBUG_PRINTP (ACPI_INFO, ("bitoff=%X off=%X gran=%X Index %p Data %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "bitoff=%X off=%X gran=%X Index %p Data %p\n",
         ObjDesc->IndexField.StartFieldBitOffset, ObjDesc->IndexField.BaseByteOffset,
         ObjDesc->Field.AccessBitWidth, ObjDesc->IndexField.IndexObj,
         ObjDesc->IndexField.DataObj));
 
-    DEBUG_PRINTP (ACPI_INFO, ("set NamedObj %p (%4.4s) val = %p\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "set NamedObj %p (%4.4s) val = %p\n",
         Node, &(Node->Name), ObjDesc));
 
 

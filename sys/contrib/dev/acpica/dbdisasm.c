@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisasm - parser op tree display routines
- *              $Revision: 40 $
+ *              $Revision: 43 $
  *
  ******************************************************************************/
 
@@ -330,7 +330,7 @@ AcpiDbDisplayOp (
                 VERBOSE_PRINT ((DB_NO_OP_INFO, LastDepth));
                 for (i = 0; i < LastDepth; i++)
                 {
-                    AcpiOsPrintf (INDENT_STRING);
+                    AcpiOsPrintf ("%s", INDENT_STRING);
                 }
 
                 if (AcpiDbBlockType (Op) == BLOCK_PAREN)
@@ -352,7 +352,7 @@ AcpiDbDisplayOp (
                     VERBOSE_PRINT ((DB_NO_OP_INFO, LastDepth - j));
                     for (i = 0; i < (LastDepth - j - 1); i++)
                     {
-                        AcpiOsPrintf (INDENT_STRING);
+                        AcpiOsPrintf ("%s", INDENT_STRING);
                     }
 
                     if (AcpiDbBlockType (Op) == BLOCK_PAREN)
@@ -375,7 +375,7 @@ AcpiDbDisplayOp (
 
             for (i = 0; i < DepthCount; i++)
             {
-                AcpiOsPrintf (INDENT_STRING);
+                AcpiOsPrintf ("%s", INDENT_STRING);
             }
 
 
@@ -414,7 +414,7 @@ AcpiDbDisplayOp (
             VERBOSE_PRINT ((DB_NO_OP_INFO, LastDepth - i));
             for (j = 0; j < DepthCount; j++)
             {
-                AcpiOsPrintf (INDENT_STRING);
+                AcpiOsPrintf ("%s", INDENT_STRING);
             }
             AcpiOsPrintf ("}\n");
             DepthCount--;
@@ -658,12 +658,12 @@ AcpiDbDisplayOpcode (
 
         if (opt_verbose)
         {
-            AcpiOsPrintf ("(UINT8)  0x%2.2X", Op->Value.Integer & ACPI_UINT8_MAX);
+            AcpiOsPrintf ("(UINT8)  0x%2.2X", Op->Value.Integer8);
         }
 
         else
         {
-            AcpiOsPrintf ("0x%2.2X", Op->Value.Integer & ACPI_UINT8_MAX);
+            AcpiOsPrintf ("0x%2.2X", Op->Value.Integer8);
         }
 
         break;
@@ -673,12 +673,12 @@ AcpiDbDisplayOpcode (
 
         if (opt_verbose)
         {
-            AcpiOsPrintf ("(UINT16) 0x%4.4X", Op->Value.Integer & ACPI_UINT16_MAX);
+            AcpiOsPrintf ("(UINT16) 0x%4.4X", Op->Value.Integer16);
         }
 
         else
         {
-            AcpiOsPrintf ("0x%4.4X", Op->Value.Integer & ACPI_UINT16_MAX);
+            AcpiOsPrintf ("0x%4.4X", Op->Value.Integer16);
         }
 
         break;
@@ -688,12 +688,29 @@ AcpiDbDisplayOpcode (
 
         if (opt_verbose)
         {
-            AcpiOsPrintf ("(UINT32) 0x%8.8X", Op->Value.Integer);
+            AcpiOsPrintf ("(UINT32) 0x%8.8X", Op->Value.Integer32);
         }
 
         else
         {
-            AcpiOsPrintf ("0x%8.8X", Op->Value.Integer);
+            AcpiOsPrintf ("0x%8.8X", Op->Value.Integer32);
+        }
+
+        break;
+
+
+    case AML_QWORD_OP:
+
+        if (opt_verbose)
+        {
+            AcpiOsPrintf ("(UINT64) 0x%8.8X%8.8X", Op->Value.Integer64.Hi, 
+                                                   Op->Value.Integer64.Lo);
+        }
+
+        else
+        {
+            AcpiOsPrintf ("0x%8.8X%8.8X", Op->Value.Integer64.Hi, 
+                                          Op->Value.Integer64.Lo);
         }
 
         break;
@@ -737,19 +754,19 @@ AcpiDbDisplayOpcode (
 
     case AML_INT_NAMEDFIELD_OP:
 
-        AcpiOsPrintf ("NamedField    (Length 0x%8.8X)  ", Op->Value.Integer);
+        AcpiOsPrintf ("NamedField    (Length 0x%8.8X)  ", Op->Value.Integer32);
         break;
 
 
     case AML_INT_RESERVEDFIELD_OP:
 
-        AcpiOsPrintf ("ReservedField (Length 0x%8.8X)  ", Op->Value.Integer);
+        AcpiOsPrintf ("ReservedField (Length 0x%8.8X)  ", Op->Value.Integer32);
         break;
 
 
     case AML_INT_ACCESSFIELD_OP:
 
-        AcpiOsPrintf ("AccessField   (Length 0x%8.8X)  ", Op->Value.Integer);
+        AcpiOsPrintf ("AccessField   (Length 0x%8.8X)  ", Op->Value.Integer32);
         break;
 
 
@@ -757,14 +774,14 @@ AcpiDbDisplayOpcode (
 
         if (opt_verbose)
         {
-            AcpiOsPrintf ("ByteList      (Length 0x%8.8X)  ", Op->Value.Integer);
+            AcpiOsPrintf ("ByteList      (Length 0x%8.8X)  ", Op->Value.Integer32);
         }
 
         else
         {
-            AcpiOsPrintf ("0x%2.2X", Op->Value.Integer);
+            AcpiOsPrintf ("0x%2.2X", Op->Value.Integer32);
 
-            ByteCount = Op->Value.Integer;
+            ByteCount = Op->Value.Integer32;
             ByteData = ((ACPI_PARSE2_OBJECT *) Op)->Data;
 
             for (i = 0; i < ByteCount; i++)

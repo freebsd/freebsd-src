@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
- *              $Revision: 42 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -154,7 +154,7 @@ AcpiHwInitialize (
     {
         AcpiGbl_RestoreAcpiChipset = FALSE;
 
-        DEBUG_PRINTP (ACPI_ERROR, ("No FADT!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No FADT!\n"));
 
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
@@ -165,8 +165,8 @@ AcpiHwInitialize (
     {
         RestoreAcpiChipset = FALSE;
 
-        DEBUG_PRINTP (ACPI_ERROR,
-            ("Supported modes uninitialized!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "Supported modes uninitialized!\n"));
         return_ACPI_STATUS (AE_ERROR);
     }
 
@@ -180,15 +180,15 @@ AcpiHwInitialize (
     case (SYS_MODE_ACPI):
 
         AcpiGbl_OriginalMode = SYS_MODE_ACPI;
-        DEBUG_PRINTP (ACPI_INFO, ("System supports ACPI mode only.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "System supports ACPI mode only.\n"));
         break;
 
 
     case (SYS_MODE_LEGACY):
 
         AcpiGbl_OriginalMode = SYS_MODE_LEGACY;
-        DEBUG_PRINTP (ACPI_INFO,
-            ("Tables loaded from buffer, hardware assumed to support LEGACY mode only.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "Tables loaded from buffer, hardware assumed to support LEGACY mode only.\n"));
         break;
 
 
@@ -203,11 +203,11 @@ AcpiHwInitialize (
             AcpiGbl_OriginalMode = SYS_MODE_LEGACY;
         }
 
-        DEBUG_PRINTP (ACPI_INFO,
-            ("System supports both ACPI and LEGACY modes.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "System supports both ACPI and LEGACY modes.\n"));
 
-        DEBUG_PRINTP (ACPI_INFO,
-            ("System is currently in %s mode.\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "System is currently in %s mode.\n",
             (AcpiGbl_OriginalMode == SYS_MODE_ACPI) ? "ACPI" : "LEGACY"));
         break;
     }
@@ -326,7 +326,7 @@ AcpiHwSetMode (
         /* BIOS should have disabled ALL fixed and GP events */
 
         AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiEnable, 8);
-        DEBUG_PRINTP (ACPI_INFO, ("Attempting to enable ACPI mode\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Attempting to enable ACPI mode\n"));
     }
 
     else if (Mode == SYS_MODE_LEGACY)
@@ -337,13 +337,13 @@ AcpiHwSetMode (
          */
 
         AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, AcpiGbl_FADT->AcpiDisable, 8);
-        DEBUG_PRINTP (ACPI_INFO,
-                    ("Attempting to enable Legacy (non-ACPI) mode\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+                    "Attempting to enable Legacy (non-ACPI) mode\n"));
     }
 
     if (AcpiHwGetMode () == Mode)
     {
-        DEBUG_PRINTP (ACPI_INFO, ("Mode %X successfully enabled\n", Mode));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n", Mode));
         Status = AE_OK;
     }
 

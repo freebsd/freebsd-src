@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 98 $
+ *              $Revision: 99 $
  *
  *****************************************************************************/
 
@@ -314,14 +314,14 @@ AcpiUtSubsystemShutdown (void)
 
     if (AcpiGbl_Shutdown)
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("ACPI Subsystem is already terminated\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "ACPI Subsystem is already terminated\n"));
         return_ACPI_STATUS (AE_OK);
     }
 
     /* Subsystem appears active, go ahead and shut it down */
 
     AcpiGbl_Shutdown = TRUE;
-    DEBUG_PRINTP (ACPI_INFO, ("Shutting down ACPI Subsystem...\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Shutting down ACPI Subsystem...\n"));
 
 
     /* Close the Namespace */
