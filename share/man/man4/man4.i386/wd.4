@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wd.4,v 1.9 1998/06/08 06:11:59 jkoshy Exp $
+.\"	$Id: wd.4,v 1.10 1998/10/22 14:12:55 bde Exp $
 .\"
 .Dd August 31, 1994
 .Dt WD 4 i386
@@ -34,9 +34,9 @@
 .Nd
 Generic WD100x/IDE diskcontroller driver
 .Sh SYNOPSIS
-.Cd "controller wdc0 at isa? port" \&"IO_WD1\&" bio irq 14
-.Cd "disk wd0 at wdc0 drive 0
-.Cd "disk wd1 at wdc0 drive 1
+.Cd "controller wdc0 at isa? port" \&"IO_WD1\&" bio irq 14 flags Ar flags
+.Cd "disk wd0 at wdc0 drive 0"
+.Cd "disk wd1 at wdc0 drive 1" flags Ar flags
 .Pp
 For the CMD640b IDE controller:
 .Cd "options"  \&"CMD640\&"
