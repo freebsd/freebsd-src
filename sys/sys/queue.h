@@ -97,6 +97,7 @@
  * _INSERT_BEFORE	-	+	-	+
  * _INSERT_AFTER	+	+	+	+
  * _INSERT_TAIL		-	-	+	+
+ * _CONCAT		-	-	+	+
  * _REMOVE_HEAD		+	-	+	-
  * _REMOVE		+	+	+	+
  *
@@ -183,6 +184,14 @@ struct {								\
 /*
  * Singly-linked Tail queue functions.
  */
+#define	STAILQ_CONCAT(head1, head2) do {				\
+	if (!STAILQ_EMPTY((head2))) {					\
+		*(head1)->stqh_last = (head2)->stqh_first;		\
+		(head1)->stqh_last = (head2)->stqh_last;		\
+		STAILQ_INIT((head2));					\
+	}								\
+} while (0)
+
 #define	STAILQ_EMPTY(head)	((head)->stqh_first == NULL)
 
 #define	STAILQ_FIRST(head)	((head)->stqh_first)
@@ -334,6 +343,15 @@ struct {								\
 /*
  * Tail queue functions.
  */
+#define	TAILQ_CONCAT(head1, head2, field) do {				\
+	if (!TAILQ_EMPTY(head2)) {					\
+		*(head1)->tqh_last = (head2)->tqh_first;		\
+		(head2)->tqh_first->field.tqe_prev = (head1)->tqh_last;	\
+		(head1)->tqh_last = (head2)->tqh_last;			\
+		TAILQ_INIT((head2));					\
+	}								\
+} while (0)
+
 #define	TAILQ_EMPTY(head)	((head)->tqh_first == NULL)
 
 #define	TAILQ_FIRST(head)	((head)->tqh_first)
