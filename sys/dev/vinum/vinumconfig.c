@@ -505,7 +505,7 @@ find_drive(const char *name, int create)
 /*
  * Find a drive given its device name.
  * devname must be valid.
- * Otherwise the same as find_drive above
+ * Otherwise the same as find_drive above.
  */
 int
 find_drive_by_name(const char *devname, int create)
@@ -1599,10 +1599,6 @@ parse_config(char *cptr, struct keywordset *keyset, int update)
 	return 0;
 
     switch (get_keyword(token[0], keyset)) {		    /* decide what to do */
-    case kw_read:					    /* read config from a specified drive */
-	status = vinum_scandisk(&token[1], tokens - 1);	    /* read the config from disk */
-	break;
-
     case kw_drive:
 	config_drive(update);
 	break;
@@ -1644,8 +1640,6 @@ parse_user_config(char *cptr, struct keywordset *keyset)
 
     ioctl_reply = (struct _ioctl_reply *) cptr;
     status = parse_config(cptr, keyset, 0);
-    if (status == ENOENT)				    /* from scandisk, but it can't tell us */
-	strcpy(ioctl_reply->msg, "no drives found");
     ioctl_reply = NULL;					    /* don't do this again */
     return status;
 }
