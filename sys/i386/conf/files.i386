@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.108 1995/09/08 03:20:10 julian Exp $
+#	$Id: files.i386,v 1.109 1995/09/16 17:03:23 bde Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -40,18 +40,24 @@ i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
 i386/i386/userconfig.c		standard
 i386/i386/vm_machdep.c		standard
-i386/ibcs2/ibcs2_dummy.c	optional 	ibcs2
-i386/ibcs2/ibcs2_file.c		optional 	ibcs2
-i386/ibcs2/ibcs2_ioctl.c	optional 	ibcs2
+i386/ibcs2/ibcs2_fcntl.c	optional 	ibcs2
+i386/ibcs2/ibcs2_stat.c		optional 	ibcs2
 i386/ibcs2/ibcs2_ipc.c		optional 	ibcs2
-i386/ibcs2/ibcs2_isc.c		optional 	ibcs2
+i386/ibcs2/ibcs2_msg.c		optional 	ibcs2
 i386/ibcs2/ibcs2_misc.c		optional 	ibcs2
+i386/ibcs2/ibcs2_other.c	optional 	ibcs2
 i386/ibcs2/ibcs2_signal.c	optional 	ibcs2
+i386/ibcs2/ibcs2_ioctl.c	optional 	ibcs2
 i386/ibcs2/ibcs2_socksys.c	optional 	ibcs2
-i386/ibcs2/ibcs2_stats.c	optional 	ibcs2
-i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysi86.c	optional 	ibcs2
+i386/ibcs2/ibcs2_util.c		optional 	ibcs2
+i386/ibcs2/ibcs2_isc.c		optional 	ibcs2
+i386/ibcs2/ibcs2_isc_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional 	ibcs2
+i386/ibcs2/ibcs2_xenix_sysent.c	optional 	ibcs2
+i386/ibcs2/ibcs2_errno.c	optional 	ibcs2
+i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
+i386/ibcs2/ibcs2_sysvec.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 #i386/ibcs2/imgact_elf.c	optional	svr4
 #i386/ibcs2/imgact_xout.c	optional	ibcs2
