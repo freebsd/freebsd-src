@@ -358,21 +358,6 @@ extern int	acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
 
 extern int	acpi_acad_get_acline(int *);
 
-/*
- * System power API.
- *
- * XXX should this be further generalised?
- *
- */
-#define POWERPROFILE_PERFORMANCE	0
-#define POWERPROFILE_ECONOMY		1
-
-extern int	powerprofile_get_state(void);
-extern void	powerprofile_set_state(int state);
-
-typedef void (*powerprofile_change_hook)(void *);
-EVENTHANDLER_DECLARE(powerprofile_change, powerprofile_change_hook);
-
 #if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
 /*
  * ACPI task kernel thread initialization.

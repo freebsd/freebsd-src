@@ -37,6 +37,7 @@
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/power.h>
 
 #include  "acpi.h"
 #include <dev/acpica/acpivar.h>
@@ -79,7 +80,7 @@ acpi_acad_get_status(void *context)
 	if (sc->status != newstatus) {
 		sc->status = newstatus;
 		/* set system power profile based on AC adapter status */
-		powerprofile_set_state(sc->status ? POWERPROFILE_PERFORMANCE : POWERPROFILE_ECONOMY);
+		power_profile_set_state(sc->status ? POWER_PROFILE_PERFORMANCE : POWER_PROFILE_ECONOMY);
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		    "%s Line\n",(sc->status) ? "On" : "Off");
 	}
