@@ -1876,14 +1876,14 @@ static ACPI_STATUS
 acpi_wake_limit(ACPI_HANDLE h, UINT32 level, void *context, void **status)
 {
     struct acpi_prw_data prw;
-    int sstate;
+    int *sstate;
 
     /* It's ok not to have _PRW if the device can't wake the system. */
     if (acpi_parse_prw(h, &prw) != 0)
 	return (AE_OK);
 
-    sstate = (int)(intptr_t)context;
-    if (sstate > prw.lowest_wake)
+    sstate = (int *)context;
+    if (*sstate > prw.lowest_wake)
 	AcpiDisableGpe(prw.gpe_handle, prw.gpe_bit, ACPI_NOT_ISR);
 
     return (AE_OK);
@@ -1897,7 +1897,7 @@ acpi_wake_limit_walk(int sstate)
 
     if (ACPI_SUCCESS(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle)))
 	AcpiWalkNamespace(ACPI_TYPE_ANY, sb_handle, 100,
-	    acpi_wake_limit, (void *)(intptr_t)sstate, NULL);
+	    acpi_wake_limit, &sstate, NULL);
     return (0);
 }
 
