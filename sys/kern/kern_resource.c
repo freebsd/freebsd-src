@@ -905,7 +905,7 @@ lim_cur(struct proc *p, int which)
 	struct rlimit rl;
 
 	lim_rlimit(p, which, &rl);
-	return (rl.rlim_max);
+	return (rl.rlim_cur);
 }
 
 /*
