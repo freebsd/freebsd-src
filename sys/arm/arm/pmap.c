@@ -275,6 +275,9 @@ struct msgbuf *msgbufp = 0;
 
 extern void bcopy_page(vm_offset_t, vm_offset_t);
 extern void bzero_page(vm_offset_t);
+
+char *_tmppt;
+
 /*
  * Metadata for L1 translation tables.
  */
@@ -2496,6 +2499,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	    round_page(size * sizeof(struct l2_dtable)) / PAGE_SIZE,
 	    &pmap_kernel_l2dtable_kva, NULL);
 
+	pmap_alloc_specials(&virtual_avail,
+	    1, (vm_offset_t*)&_tmppt, NULL);
 	SLIST_INIT(&l1_list);
 	TAILQ_INIT(&l1_lru_list);
 	mtx_init(&l1_lru_lock, "l1 list lock", NULL, MTX_DEF);
