@@ -33,6 +33,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #ifndef _KERNEL
 #include <signal.h>
 #include <stdio.h>
