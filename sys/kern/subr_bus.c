@@ -267,7 +267,6 @@ devclass_find_internal(const char *classname, int create)
 	strcpy(dc->name, classname);
 	dc->devices = NULL;
 	dc->maxunit = 0;
-	dc->nextunit = 0;
 	TAILQ_INIT(&dc->drivers);
 	TAILQ_INSERT_TAIL(&devclasses, dc, link);
     }
@@ -487,21 +486,28 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
      * device.
      */
     if (unit != -1) {
-	device_t dev;
-	dev = devclass_get_device(dc, unit);
-	if (dev) {
+	if (unit >= 0 && unit < dc->maxunit && dc->devices[unit] != NULL) {
 	    if (bootverbose)
-	        printf("devclass_alloc_unit: %s%d already exists, using next available unit number\n", dc->name, unit);
+		printf("%s-: %s%d exists, using next available unit number\n",
+		       dc->name, dc->name, unit);
 	    unit = -1;
 	}
     }
 
+    /*
+     * We ended up with an unwired device, so let's find the next available
+     * slot for it.
+     */
     if (unit == -1) {
-	unit = dc->nextunit;
-	dc->nextunit++;
-    } else if (dc->nextunit <= unit)
-	dc->nextunit = unit + 1;
+    	unit = 0;
+	while (unit < dc->maxunit && dc->devices[unit] != NULL)
+		unit++;
+    }
 
+    /*
+     * We've selected a unit beyond the length of the table, so let's extend
+     * the table to make room for all units up to and including this one.
+     */
     if (unit >= dc->maxunit) {
 	device_t *newlist;
 	int newsize;
@@ -571,8 +577,6 @@ devclass_delete_device(devclass_t dc, device_t dev)
     dev->devclass = NULL;
     free(dev->nameunit, M_BUS);
     dev->nameunit = NULL;
-    while (dc->nextunit > 0 && dc->devices[dc->nextunit - 1] == NULL)
-	dc->nextunit--;
 
 #ifdef DEVICE_SYSCTLS
     device_unregister_oids(dev);
@@ -1147,7 +1151,10 @@ device_probe_and_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 	    }
 	} else {
+	    if (!(dev->flags & DF_DONENOMATCH)) {
 		BUS_PROBE_NOMATCH(bus, dev);
+		dev->flags |= DF_DONENOMATCH;
+	    }
 	}
     } else {
 	if (bootverbose) {
@@ -2430,8 +2437,8 @@ print_devclass_short(devclass_t dc, int indent)
 	if ( !dc )
 		return;
 
-	indentprintf(("devclass %s: max units = %d, next unit = %d\n",
-		dc->name, dc->maxunit, dc->nextunit));
+	indentprintf(("devclass %s: max units = %d\n",
+		dc->name, dc->maxunit));
 }
 
 static void
