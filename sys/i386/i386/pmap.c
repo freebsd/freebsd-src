@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.189 1998/03/09 22:09:13 eivind Exp $
+ *	$Id: pmap.c,v 1.190 1998/03/16 01:55:08 dyson Exp $
  */
 
 /*
@@ -435,9 +435,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	}
 
 	/* BSP does this itself, AP's get it pre-set */
-	prv_CMAP1 = (pt_entry_t *)&SMP_prvpt[3 + UPAGES];
-	prv_CMAP2 = (pt_entry_t *)&SMP_prvpt[4 + UPAGES];
-	prv_CMAP3 = (pt_entry_t *)&SMP_prvpt[5 + UPAGES];
+	prv_CMAP1 = &SMP_prvpt[3 + UPAGES];
+	prv_CMAP2 = &SMP_prvpt[4 + UPAGES];
+	prv_CMAP3 = &SMP_prvpt[5 + UPAGES];
 #endif
 
 	invltlb();
