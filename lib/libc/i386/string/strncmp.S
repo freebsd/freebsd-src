@@ -27,11 +27,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: strncmp.S,v 1.3 1994/03/31 14:11:02 davidg Exp $
+ *	$Id: strncmp.S,v 1.1 1994/08/05 01:18:36 wollman Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-        .asciz "$Id: strncmp.S,v 1.3 1994/03/31 14:11:02 davidg Exp $"
+        .asciz "$Id: strncmp.S,v 1.1 1994/08/05 01:18:36 wollman Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -54,6 +54,8 @@
  * I've unrolled the loop eight times: large enough to make a
  * significant difference, and small enough not to totally trash the
  * cache.
+ *
+ * TODO: change all the jz's back to je for consistency.
  */
 
 ENTRY(strncmp)
@@ -75,6 +77,18 @@ L2:	jz	L4			/* strings are equal */
 	cmpb	%bl,(%ecx)
 	jne	L3
 
+/*
+ * XXX it might be best to move the next 4 instructions to the end of the
+ * unrolled part of the loop.  The unrolled part would then be
+ *	movb n(%eax),%bl; testb %bl, %bl; je L3; cmpb n(%ecx); jne L3
+ * or maybe better
+ *	movb n(%eax),%bl; cmpb n(%ecx); jne L3; testb %bl,%bl; je return_0
+ * for n = 0, 1, ..., 8.  The end of the loop would be
+ *	L1: addl $8,%eax; addl $8,%ecx; subl $8,%edx; cmpl $8,%edx; jae Lx
+ * where residual counts of 0 to 7 are handled at Lx.  However, this would
+ * be slower for short strings.  Cache effects are probably not so
+ * important because we are only handling a byte at a time.
+ */
 	incl	%eax
 	incl	%ecx
 	decl	%edx
@@ -146,7 +160,7 @@ L2:	jz	L4			/* strings are equal */
 	je	L1
 
 	.align 2,0x90
-L3:	movzbl	(%eax),%eax		/* unsigned comparision */
+L3:	movzbl	(%eax),%eax		/* unsigned comparison */
 	movzbl	(%ecx),%ecx
 	subl	%ecx,%eax
 	popl	%ebx
