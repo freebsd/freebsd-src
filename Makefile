@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.201 1998/06/09 07:19:13 bde Exp $
+#	$Id: Makefile,v 1.202 1998/06/13 02:03:36 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -497,6 +497,9 @@ bootstrap:
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/xinstall; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
+		${MAKE} ${MK_FLAGS} all; \
+		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/yacc; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex; ${MAKE} bootstrap; \
