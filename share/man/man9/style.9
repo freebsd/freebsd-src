@@ -530,7 +530,7 @@ placed in a single set of brackets.
 .Ed
 .Bd -literal -offset 0i
 	(void)fprintf(stderr, "usage: f [-ab]\en");
-	exit(1);
+	exit(EX_USAGE);
 }
 .Ed
 .Pp
