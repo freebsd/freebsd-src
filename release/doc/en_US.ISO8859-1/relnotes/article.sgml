@@ -1787,7 +1787,7 @@
       binaries. </para>
 
     <para>The supported release of <application>GNOME</application>
-      has been updated from 2.4 to 2.6.
+      has been updated from 2.4 to 2.6.2.
 
       <note>
 	<para>If you are using the older <application>GNOME</application>
@@ -1810,7 +1810,7 @@
     </para>
 
     <para>The supported release of <application>KDE</application>
-      has been updated from 3.1.4 to 3.2.3.</para>
+      has been updated from 3.1.4 to 3.3.0.</para>
 
     <para>The <filename role="package">security/portaudit</filename> utility
       has been added to the &os; Ports Collection.  This utility will read a database
