@@ -28,7 +28,11 @@
  * Mountain View, California  94043
  */
 #ifndef lint
+#if 0
 static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
@@ -49,6 +53,7 @@ static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif	/* YP */
 #include <pwd.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/resource.h>
 
 #ifdef YP
@@ -59,9 +64,6 @@ static	char sccsid[] = "@(#)update.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #define	YPOP_DELETE 3			/* delete this entry */
 #define	YPOP_STORE  4			/* add, or change */
 #endif
-
-extern char *getpass();
-extern char *malloc();
 
 #ifdef YP
 static char *basename();
