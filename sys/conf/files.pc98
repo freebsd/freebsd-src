@@ -401,24 +401,9 @@ i4b/layer1/i4b_tel_s0P.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/psm.c			optional	psm
 kern/subr_diskmbr.c		optional	compat_atdisk
-libkern/bcd.c			standard
 libkern/divdi3.c		standard
-libkern/index.c			standard
-libkern/inet_ntoa.c		standard
-libkern/mcount.c		optional	profiling-routine
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
-libkern/qsort.c			standard
-libkern/random.c		standard
-libkern/rindex.c		standard
-libkern/scanc.c			standard
-libkern/skpc.c			standard
-libkern/strcat.c		standard
-libkern/strcmp.c		standard
-libkern/strcpy.c		standard
-libkern/strlen.c		standard
-libkern/strncmp.c		standard
-libkern/strncpy.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 #pci/ide_pci.c			optional	wd
