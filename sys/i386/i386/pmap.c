@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.169 1997/10/28 15:58:11 bde Exp $
+ *	$Id: pmap.c,v 1.170 1997/11/07 08:52:29 phk Exp $
  */
 
 /*
@@ -2001,8 +2001,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				}
 			} else if (pbits & PG_RW) {
 				if (pbits & PG_M) {
-					vm_offset_t sva = i386_ptob(sindex);
-					if ((pbits & PG_MANAGED) && pmap_track_modified(sva)) {
+					vm_offset_t sva1 = i386_ptob(sindex);
+					if ((pbits & PG_MANAGED) && pmap_track_modified(sva1)) {
 						vm_page_t m = PHYS_TO_VM_PAGE(pbits);
 						m->dirty = VM_PAGE_BITS_ALL;
 					}
