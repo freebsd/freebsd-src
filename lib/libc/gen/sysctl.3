@@ -411,10 +411,8 @@ Structure giving the sizes of the above arrays.
 .El
 .ne 1i
 .It Li KERN_QUANTUM
-Reduce to gives interactive users better response at the expense of other
-long running heavy tasks such as big parallel makes. 
-.\" (this comment from something sent in german to
-.\"  de-bsd-chat@DE.FreeBSD.ORG from Bernd Walter <ticso@cicely.de> )
+The maximum period of time, in microseconds, for which a process is allowed
+to run without being preempted if other processes are in the run queue.
 .It Li KERN_SAVED_IDS
 Returns 1 if saved set-group and saved set-user ID is available.
 .It Li KERN_SECURELVL
