@@ -288,6 +288,7 @@ static void	ray_com_runq		(struct ray_softc *sc);
 static int	ray_com_runq_add	(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg);
 static void	ray_com_runq_done	(struct ray_softc *sc);
 static int	ray_detach		(device_t);
+static void	ray_init		(void *xsc);
 static int	ray_init_user		(struct ray_softc *sc);
 static void	ray_init_assoc		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_assoc_done	(struct ray_softc *sc, size_t ccs);
@@ -505,7 +506,7 @@ ray_attach(device_t dev)
 	ifp->if_start = ray_tx;
 	ifp->if_ioctl = ray_ioctl;
 	ifp->if_watchdog = ray_watchdog;
-	ifp->if_init = ray_init_user;
+	ifp->if_init = ray_init;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
@@ -733,6 +734,17 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	splx(s);
 
 	return (error);
+}
+
+/*
+ * Ethernet layer entry to ray_init - discard errors
+ */
+static void
+ray_init(void *xsc)
+{
+	struct ray_softc *sc = (struct ray_softc *)xsc;
+
+	ray_init_user(sc);
 }
 
 /*
