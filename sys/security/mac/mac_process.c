@@ -148,7 +148,7 @@ mac_destroy_proc(struct proc *p)
 
 int
 mac_externalize_cred_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen, int flags)
+    char *outbuf, size_t outbuflen)
 {
 	int error;
 
