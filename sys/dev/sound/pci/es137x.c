@@ -53,9 +53,9 @@
 #include "pci.h"
 #include "pcm.h"
 
-#include <dev/pcm/sound.h>
-#include <dev/pcm/ac97.h>
-#include <dev/pcm/pci/es137x.h>
+#include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/ac97.h>
+#include <dev/sound/pci/es137x.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>

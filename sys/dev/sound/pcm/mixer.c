@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_VOLUME]	= 75,

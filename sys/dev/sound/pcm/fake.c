@@ -28,7 +28,7 @@
 
 #include "pcm.h"
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 /* channel interface */
 static void *fkchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);

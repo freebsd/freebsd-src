@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 static int chn_addfeeder(pcm_channel *c, pcm_feeder *f);
 static int chn_removefeeder(pcm_channel *c);

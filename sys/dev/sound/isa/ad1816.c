@@ -28,11 +28,11 @@
  * $FreeBSD$
  */
 
-#include <dev/pcm/sound.h>
+#include <dev/sound/pcm/sound.h>
 
 #if NPCM > 0 && NPNP > 0
 
-#include <dev/pcm/isa/ad1816.h>
+#include <dev/sound/isa/ad1816.h>
 
 struct ad1816_info;
 
