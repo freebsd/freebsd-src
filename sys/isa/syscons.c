@@ -623,6 +623,10 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
  		return EINVAL;
 		/* NOT REACHED */
 
+	case VT_GETACTIVE:	/* return number of active virtual console */
+		*data = get_scr_num(scp) + 1;
+		return 0;
+
 	case VT_ACTIVATE:	/* switch to screen *data */
 		return switch_scr((*data) - 1);
 
