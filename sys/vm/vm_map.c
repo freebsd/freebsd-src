@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.125 1998/05/04 17:12:52 dyson Exp $
+ * $Id: vm_map.c,v 1.126 1998/05/16 23:03:20 dyson Exp $
  */
 
 /*
@@ -76,6 +76,7 @@
 #include <sys/mman.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1631,6 +1632,8 @@ vm_map_clean(map, start, end, syncio, invalidate)
 		}
 	}
 
+	if (invalidate)
+		pmap_remove(vm_map_pmap(map), start, end);
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
 	 * objects as we go.
@@ -1668,9 +1671,6 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			if (object->size < OFF_TO_IDX( offset + size))
 				size = IDX_TO_OFF(object->size) - offset;
 		}
-		if (invalidate)
-			pmap_remove(vm_map_pmap(map), current->start,
-				current->start + size);
 		if (object && (object->type == OBJT_VNODE)) {
 			/*
 			 * Flush pages if writing is allowed. XXX should we continue
@@ -1690,11 +1690,13 @@ vm_map_clean(map, start, end, syncio, invalidate)
 					OFF_TO_IDX(offset),
 					OFF_TO_IDX(offset + size + PAGE_MASK),
 					flags);
-				if (invalidate)
+				if (invalidate) {
+					vm_object_pip_wait(object, "objmcl");
 					vm_object_page_remove(object,
 						OFF_TO_IDX(offset),
 						OFF_TO_IDX(offset + size + PAGE_MASK),
 						FALSE);
+				}
 				if (object->type == OBJT_VNODE)
 					VOP_UNLOCK(object->handle, 0, curproc);
 			}

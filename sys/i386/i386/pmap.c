@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.200 1998/05/19 00:06:35 tegge Exp $
+ *	$Id: pmap.c,v 1.201 1998/05/19 08:58:48 phk Exp $
  */
 
 /*
@@ -2496,6 +2496,7 @@ retry:
 				continue;
 			}
 			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
@@ -2516,6 +2517,7 @@ retry:
 			p = vm_page_lookup(object, tmpidx + pindex);
 			if (p &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
@@ -2610,6 +2612,7 @@ pmap_prefault(pmap, addra, entry)
 			break;
 
 		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+			(m->busy == 0) &&
 		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 
 			if ((m->queue - m->pc) == PQ_CACHE) {
