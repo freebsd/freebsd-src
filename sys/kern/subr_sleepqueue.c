@@ -642,7 +642,7 @@ sleepq_resume_thread(struct thread *td, int pri)
 	/* Adjust priority if requested. */
 	MPASS(pri == -1 || (pri >= PRI_MIN && pri <= PRI_MAX));
 	if (pri != -1 && td->td_priority > pri)
-		td->td_priority = pri;
+		sched_prio(td, pri);
 	setrunnable(td);
 	mtx_unlock_spin(&sched_lock);
 }
