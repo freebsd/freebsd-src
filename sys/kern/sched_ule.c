@@ -209,11 +209,12 @@ struct kseq {
 	struct runq	ksq_timeshare[2];	/* Run queues for !IDLE. */
 	struct runq	*ksq_next;		/* Next timeshare queue. */
 	struct runq	*ksq_curr;		/* Current queue. */
-	int		ksq_loads[KSEQ_NCLASS];	/* Load for each class */
+	int		ksq_load_timeshare;	/* Load for timeshare. */
 	int		ksq_load;		/* Aggregate load. */
 	short		ksq_nice[SCHED_PRI_NRESV]; /* KSEs in each nice bin. */
 	short		ksq_nicemin;		/* Least nice. */
 #ifdef SMP
+	int		ksq_load_transferable;	/* kses that may be migrated. */
 	unsigned int	ksq_rslices;	/* Slices on run queue */
 	int		ksq_cpus;	/* Count of CPUs in this kseq. */
 	struct kse 	*ksq_assigned;	/* KSEs assigned by another CPU. */
@@ -262,6 +263,7 @@ static int kseq_find(void);
 static void kseq_notify(struct kse *ke, int cpu);
 static void kseq_assign(struct kseq *);
 static struct kse *kseq_steal(struct kseq *kseq);
+#define	KSE_CAN_MIGRATE(ke, class)	((class) != PRI_ITHD)
 #endif
 
 void
@@ -274,10 +276,10 @@ kseq_print(int cpu)
 
 	printf("kseq:\n");
 	printf("\tload:           %d\n", kseq->ksq_load);
-	printf("\tload ITHD:      %d\n", kseq->ksq_loads[PRI_ITHD]);
-	printf("\tload REALTIME:  %d\n", kseq->ksq_loads[PRI_REALTIME]);
-	printf("\tload TIMESHARE: %d\n", kseq->ksq_loads[PRI_TIMESHARE]);
-	printf("\tload IDLE:      %d\n", kseq->ksq_loads[PRI_IDLE]);
+	printf("\tload REALTIME:  %d\n", kseq->ksq_load_timeshare);
+#ifdef SMP
+	printf("\tload transferable: %d\n", kseq->ksq_load_transferable);
+#endif
 	printf("\tnicemin:\t%d\n", kseq->ksq_nicemin);
 	printf("\tnice counts:\n");
 	for (i = 0; i < SCHED_PRI_NRESV; i++)
@@ -289,8 +291,16 @@ kseq_print(int cpu)
 static void
 kseq_add(struct kseq *kseq, struct kse *ke)
 {
+	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
-	kseq->ksq_loads[PRI_BASE(ke->ke_ksegrp->kg_pri_class)]++;
+	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
+	if (class == PRI_TIMESHARE)
+		kseq->ksq_load_timeshare++;
+#ifdef SMP
+	if (KSE_CAN_MIGRATE(ke, class))
+		kseq->ksq_load_transferable++;
+	kseq->ksq_rslices += ke->ke_slice;
+#endif
 	kseq->ksq_load++;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 	CTR6(KTR_ULE, "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
@@ -298,23 +308,25 @@ kseq_add(struct kseq *kseq, struct kse *ke)
 	    ke->ke_ksegrp->kg_nice, kseq->ksq_nicemin);
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		kseq_nice_add(kseq, ke->ke_ksegrp->kg_nice);
-#ifdef SMP
-	kseq->ksq_rslices += ke->ke_slice;
-#endif
 }
 
 static void
 kseq_rem(struct kseq *kseq, struct kse *ke)
 {
+	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
-	kseq->ksq_loads[PRI_BASE(ke->ke_ksegrp->kg_pri_class)]--;
+	class = PRI_BASE(ke->ke_ksegrp->kg_pri_class);
+	if (class == PRI_TIMESHARE)
+		kseq->ksq_load_timeshare--;
+#ifdef SMP
+	if (KSE_CAN_MIGRATE(ke, class))
+		kseq->ksq_load_transferable--;
+	kseq->ksq_rslices -= ke->ke_slice;
+#endif
 	kseq->ksq_load--;
 	ke->ke_runq = NULL;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		kseq_nice_rem(kseq, ke->ke_ksegrp->kg_nice);
-#ifdef SMP
-	kseq->ksq_rslices -= ke->ke_slice;
-#endif
 }
 
 static void
@@ -323,7 +335,7 @@ kseq_nice_add(struct kseq *kseq, int nice)
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* Normalize to zero. */
 	kseq->ksq_nice[nice + SCHED_PRI_NHALF]++;
-	if (nice < kseq->ksq_nicemin || kseq->ksq_loads[PRI_TIMESHARE] == 1)
+	if (nice < kseq->ksq_nicemin || kseq->ksq_load_timeshare == 1)
 		kseq->ksq_nicemin = nice;
 }
 
@@ -345,7 +357,7 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 	 */
 	if (nice != kseq->ksq_nicemin ||
 	    kseq->ksq_nice[n] != 0 ||
-	    kseq->ksq_loads[PRI_TIMESHARE] == 0)
+	    kseq->ksq_load_timeshare == 0)
 		return;
 
 	for (; n < SCHED_PRI_NRESV; n++)
@@ -409,8 +421,7 @@ kseq_balance(void *arg)
 
 	kseq = KSEQ_CPU(high_cpu);
 
-	high_load = kseq->ksq_loads[PRI_IDLE] + kseq->ksq_loads[PRI_TIMESHARE] +
-	    kseq->ksq_loads[PRI_REALTIME];
+	high_load = kseq->ksq_load_transferable;
 	/*
 	 * Nothing to do.
 	 */
@@ -460,8 +471,7 @@ kseq_load_highest(void)
 	}
 	kseq = KSEQ_CPU(cpu);
 
-	if ((kseq->ksq_loads[PRI_IDLE] + kseq->ksq_loads[PRI_TIMESHARE] +
-	    kseq->ksq_loads[PRI_REALTIME]) > kseq->ksq_cpus)
+	if (kseq->ksq_load_transferable > kseq->ksq_cpus)
 		return (kseq);
 
 	return (NULL);
@@ -572,8 +582,8 @@ runq_steal(struct runq *rq)
 				continue;
 			rqh = &rq->rq_queues[bit + (word << RQB_L2BPW)];
 			TAILQ_FOREACH(ke, rqh, ke_procq) {
-				if (PRI_BASE(ke->ke_ksegrp->kg_pri_class) !=
-				    PRI_ITHD)
+				if (KSE_CAN_MIGRATE(ke,
+				    PRI_BASE(ke->ke_ksegrp->kg_pri_class)))
 					return (ke);
 			}
 		}
@@ -644,16 +654,12 @@ kseq_setup(struct kseq *kseq)
 	runq_init(&kseq->ksq_timeshare[0]);
 	runq_init(&kseq->ksq_timeshare[1]);
 	runq_init(&kseq->ksq_idle);
-
 	kseq->ksq_curr = &kseq->ksq_timeshare[0];
 	kseq->ksq_next = &kseq->ksq_timeshare[1];
-
-	kseq->ksq_loads[PRI_ITHD] = 0;
-	kseq->ksq_loads[PRI_REALTIME] = 0;
-	kseq->ksq_loads[PRI_TIMESHARE] = 0;
-	kseq->ksq_loads[PRI_IDLE] = 0;
 	kseq->ksq_load = 0;
+	kseq->ksq_load_timeshare = 0;
 #ifdef SMP
+	kseq->ksq_load_transferable = 0;
 	kseq->ksq_rslices = 0;
 	kseq->ksq_assigned = NULL;
 #endif
@@ -773,7 +779,7 @@ sched_slice(struct kse *ke)
 		int nice;
 
 		nice = kg->kg_nice + (0 - kseq->ksq_nicemin);
-		if (kseq->ksq_loads[PRI_TIMESHARE] == 0 ||
+		if (kseq->ksq_load_timeshare == 0 ||
 		    kg->kg_nice < kseq->ksq_nicemin)
 			ke->ke_slice = SCHED_SLICE_MAX;
 		else if (nice <= SCHED_SLICE_NTHRESH)
@@ -788,7 +794,7 @@ sched_slice(struct kse *ke)
 	CTR6(KTR_ULE,
 	    "Sliced %p(%d) (nice: %d, nicemin: %d, load: %d, interactive: %d)",
 	    ke, ke->ke_slice, kg->kg_nice, kseq->ksq_nicemin,
-	    kseq->ksq_loads[PRI_TIMESHARE], SCHED_INTERACTIVE(kg));
+	    kseq->ksq_load_timeshare, SCHED_INTERACTIVE(kg));
 
 	return;
 }
@@ -1125,19 +1131,31 @@ sched_class(struct ksegrp *kg, int class)
 {
 	struct kseq *kseq;
 	struct kse *ke;
+	int nclass;
+	int oclass;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (kg->kg_pri_class == class)
 		return;
 
+	nclass = PRI_BASE(class);
+	oclass = PRI_BASE(kg->kg_pri_class);
 	FOREACH_KSE_IN_GROUP(kg, ke) {
 		if (ke->ke_state != KES_ONRUNQ &&
 		    ke->ke_state != KES_THREAD)
 			continue;
 		kseq = KSEQ_CPU(ke->ke_cpu);
 
-		kseq->ksq_loads[PRI_BASE(kg->kg_pri_class)]--;
-		kseq->ksq_loads[PRI_BASE(class)]++;
+#ifdef SMP
+		if (KSE_CAN_MIGRATE(ke, oclass))
+			kseq->ksq_load_transferable--;
+		if (KSE_CAN_MIGRATE(ke, nclass))
+			kseq->ksq_load_transferable++;
+#endif
+		if (oclass == PRI_TIMESHARE)
+			kseq->ksq_load_timeshare--;
+		if (nclass == PRI_TIMESHARE)
+			kseq->ksq_load_timeshare++;
 
 		if (kg->kg_pri_class == PRI_TIMESHARE)
 			kseq_nice_rem(kseq, kg->kg_nice);
@@ -1405,8 +1423,7 @@ sched_add(struct thread *td)
 	 * If there are any idle processors, give them our extra load.
 	 */
 	if (kseq_idle && class != PRI_ITHD &&
-	    (kseq->ksq_loads[PRI_IDLE] + kseq->ksq_loads[PRI_TIMESHARE] +
-	    kseq->ksq_loads[PRI_REALTIME]) >= kseq->ksq_cpus) {
+	    kseq->ksq_load_transferable >= kseq->ksq_cpus) {
 		int cpu;
 
 		/*
