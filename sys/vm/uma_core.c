@@ -70,8 +70,6 @@
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 
-#include <machine/types.h>
-
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
