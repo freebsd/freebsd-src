@@ -263,10 +263,18 @@ void
 fmtstr(char *outbuf, int length, const char *fmt, ...)
 {
 	va_list ap;
+	struct output strout;
 
+	strout.nextc = outbuf;
+	strout.nleft = length;
+	strout.fd = BLOCK_OUT;
+	strout.flags = 0;
 	va_start(ap, fmt);
-	snprintf(outbuf, length, fmt, ap);
+	doformat(&strout, fmt, ap);
 	va_end(ap);
+	outc('\0', &strout);
+	if (strout.flags & OUTPUT_ERR)
+		outbuf[length - 1] = '\0';
 }
 
 static int
