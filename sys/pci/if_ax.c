@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.10 1999/07/02 04:17:12 peter Exp $
+ *	$Id: if_ax.c,v 1.11 1999/07/06 19:23:22 des Exp $
  */
 
 /*
@@ -75,6 +75,9 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -87,7 +90,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.10 1999/07/02 04:17:12 peter Exp $";
+	"$Id: if_ax.c,v 1.11 1999/07/06 19:23:22 des Exp $";
 #endif
 
 /*
@@ -117,12 +120,13 @@ static struct ax_type ax_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static unsigned long ax_count = 0;
-static const char *ax_probe	__P((pcici_t, pcidi_t));
-static void ax_attach		__P((pcici_t, int));
+static int ax_probe		__P((device_t));
+static int ax_attach		__P((device_t));
+static int ax_detach		__P((device_t));
 
 static int ax_newbuf		__P((struct ax_softc *,
-						struct ax_chain_onefrag *));
+					struct ax_chain_onefrag *,
+					struct mbuf *));
 static int ax_encap		__P((struct ax_softc *, struct ax_chain *,
 						struct mbuf *));
 
@@ -136,7 +140,7 @@ static int ax_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void ax_init		__P((void *));
 static void ax_stop		__P((struct ax_softc *));
 static void ax_watchdog		__P((struct ifnet *));
-static void ax_shutdown		__P((int, void *));
+static void ax_shutdown		__P((device_t));
 static int ax_ifmedia_upd	__P((struct ifnet *));
 static void ax_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -167,6 +171,33 @@ static void ax_setmulti		__P((struct ax_softc *));
 static void ax_reset		__P((struct ax_softc *));
 static int ax_list_rx_init	__P((struct ax_softc *));
 static int ax_list_tx_init	__P((struct ax_softc *));
+
+#ifdef AX_USEIOSPACE
+#define AX_RES			SYS_RES_IOPORT
+#define AX_RID			AX_PCI_LOIO
+#else
+#define AX_RES			SYS_RES_IOPORT
+#define AX_RID			AX_PCI_LOIO
+#endif
+
+static device_method_t ax_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ax_probe),
+	DEVMETHOD(device_attach,	ax_attach),
+	DEVMETHOD(device_detach,	ax_detach),
+	DEVMETHOD(device_shutdown,	ax_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t ax_driver = {
+	"ax",
+	ax_methods,
+	sizeof(struct ax_softc)
+};
+
+static devclass_t ax_devclass;
+
+DRIVER_MODULE(ax, pci, ax_driver, ax_devclass, 0, 0);
 
 #define AX_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -1044,10 +1075,8 @@ static void ax_reset(sc)
  * Probe for an ASIX chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *
-ax_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+int ax_probe(dev)
+	device_t		dev;
 {
 	struct ax_type		*t;
 	u_int32_t		rev;
@@ -1055,33 +1084,29 @@ ax_probe(config_id, device_id)
 	t = ax_devs;
 
 	while(t->ax_name != NULL) {
-		if ((device_id & 0xFFFF) == t->ax_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->ax_did) {
+		if ((pci_get_vendor(dev) == t->ax_vid) &&
+		    (pci_get_device(dev) == t->ax_did)) {
 			/* Check the PCI revision */
-			rev = pci_conf_read(config_id, AX_PCI_REVID) & 0xFF;
+			rev = pci_read_config(dev, AX_PCI_REVID, 4) & 0xFF;
 			if (rev >= AX_REVISION_88141)
 				t++;
-			return(t->ax_name);
+			device_set_desc(dev, t->ax_name);
+			return(0);
 		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-ax_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int ax_attach(dev)
+	device_t		dev;
 {
 	int			s, i;
-#ifndef AX_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct ax_softc		*sc;
@@ -1091,93 +1116,97 @@ ax_attach(config_id, unit)
 	caddr_t			roundptr;
 	struct ax_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct ax_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("ax%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ax_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
 
-	command = pci_conf_read(config_id, AX_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, AX_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, AX_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, AX_PCI_PWRMGMTCTRL, 4);
 		if (command & AX_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, AX_PCI_LOIO);
-			membase = pci_conf_read(config_id, AX_PCI_LOMEM);
-			irq = pci_conf_read(config_id, AX_PCI_INTLINE);
+			iobase = pci_read_config(dev, AX_PCI_LOIO, 4);
+			membase = pci_read_config(dev, AX_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, AX_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("ax%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & AX_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, AX_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, AX_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, AX_PCI_LOIO, iobase);
-			pci_conf_write(config_id, AX_PCI_LOMEM, membase);
-			pci_conf_write(config_id, AX_PCI_INTLINE, irq);
+			pci_write_config(dev, AX_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, AX_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, AX_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef AX_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("ax%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;;
 		goto fail;
 	}
-
-	if (!pci_map_port(config_id, AX_PCI_LOIO,
-					(pci_port_t *)&(sc->ax_bhandle))) {
-		printf ("ax%d: couldn't map ports\n", unit);
-		goto fail;
-        }
-#ifdef __i386__
-	sc->ax_btag = I386_BUS_SPACE_IO;
-#endif
-#ifdef __alpha__
-	sc->ax_btag = ALPHA_BUS_SPACE_IO;
-#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("ax%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;;
+		goto fail;
+	}
+#endif
+
+	rid = AX_RID;
+	sc->ax_res = bus_alloc_resource(dev, AX_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (sc->ax_res == NULL) {
+		printf("ax%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, AX_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("ax%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->ax_btag = I386_BUS_SPACE_MEM;
-#endif
-#ifdef __alpha__
-	sc->ax_btag = ALPHA_BUS_SPACE_MEM;
-#endif
-	sc->ax_bhandle = vbase;
-#endif
+	sc->ax_btag = rman_get_bustag(sc->ax_res);
+	sc->ax_bhandle = rman_get_bushandle(sc->ax_res);
 
 	/* Allocate interrupt */
-	if (!pci_map_int(config_id, ax_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->ax_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->ax_irq == NULL) {
 		printf("ax%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, AX_RES, AX_RID, sc->ax_res);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->ax_irq, INTR_TYPE_NET,
+	    ax_intr, sc, &sc->ax_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ax_res);
+		bus_release_resource(dev, AX_RES, AX_RID, sc->ax_res);
+		printf("ax%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1200,8 +1229,11 @@ ax_attach(config_id, unit)
 	sc->ax_ldata_ptr = malloc(sizeof(struct ax_list_data) + 8,
 				M_DEVBUF, M_NOWAIT);
 	if (sc->ax_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
 		printf("ax%d: no memory for list buffers!\n", unit);
+		bus_teardown_intr(dev, sc->ax_irq, sc->ax_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ax_res);
+		bus_release_resource(dev, AX_RES, AX_RID, sc->ax_res);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1282,7 +1314,13 @@ ax_attach(config_id, unit)
 
 	if (sc->ax_pinfo != NULL) {
 		ax_getmode_mii(sc);
-		ax_autoneg_mii(sc, AX_FLAG_FORCEDELAY, 1);
+		if (cold) {
+			ax_autoneg_mii(sc, AX_FLAG_FORCEDELAY, 1);
+			ax_stop(sc);
+		} else {
+			ax_init(sc);
+			ax_autoneg_mii(sc, AX_FLAG_SCHEDDELAY, 1);
+		}
 	} else {
 		ifmedia_add(&sc->ifmedia,
 			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
@@ -1298,8 +1336,6 @@ ax_attach(config_id, unit)
 	}
 
 	media = sc->ifmedia.ifm_media;
-	ax_stop(sc);
-
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -1311,11 +1347,37 @@ ax_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(ax_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return;
+	return(error);
+}
+
+static int ax_detach(dev)
+	device_t		dev;
+{
+	struct ax_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	ax_stop(sc);
+	if_detach(ifp);
+
+	bus_teardown_intr(dev, sc->ax_irq, sc->ax_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ax_res);
+	bus_release_resource(dev, AX_RES, AX_RID, sc->ax_res);
+
+	free(sc->ax_ldata_ptr, M_DEVBUF);
+	ifmedia_removeall(&sc->ifmedia);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -1365,18 +1427,18 @@ static int ax_list_rx_init(sc)
 	for (i = 0; i < AX_RX_LIST_CNT; i++) {
 		cd->ax_rx_chain[i].ax_ptr =
 			(volatile struct ax_desc *)&ld->ax_rx_list[i];
-		if (ax_newbuf(sc, &cd->ax_rx_chain[i]) == ENOBUFS)
+		if (ax_newbuf(sc, &cd->ax_rx_chain[i], NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (AX_RX_LIST_CNT - 1)) {
 			cd->ax_rx_chain[i].ax_nextdesc =
-						&cd->ax_rx_chain[0];
+			    &cd->ax_rx_chain[0];
 			ld->ax_rx_list[i].ax_next =
-					vtophys(&ld->ax_rx_list[0]);
+			    vtophys(&ld->ax_rx_list[0]);
 		} else {
 			cd->ax_rx_chain[i].ax_nextdesc =
-						&cd->ax_rx_chain[i + 1];
+			   &cd->ax_rx_chain[i + 1];
 			ld->ax_rx_list[i].ax_next =
-					vtophys(&ld->ax_rx_list[i + 1]);
+			    vtophys(&ld->ax_rx_list[i + 1]);
 		}
 	}
 
@@ -1392,27 +1454,36 @@ static int ax_list_rx_init(sc)
  * MCLBYTES is 2048, so we have to subtract one otherwise we'll
  * overflow the field and make a mess.
  */
-static int ax_newbuf(sc, c)
+static int ax_newbuf(sc, c, m)
 	struct ax_softc		*sc;
 	struct ax_chain_onefrag	*c;
+	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("ax%d: no memory for rx list -- packet dropped!\n",
-								sc->ax_unit);
-		return(ENOBUFS);
+	if (m == NULL) {
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		if (m_new == NULL) {
+			printf("ax%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->ax_unit);
+			return(ENOBUFS);
+		}
+
+		MCLGET(m_new, M_DONTWAIT);
+		if (!(m_new->m_flags & M_EXT)) {
+			printf("ax%d: no memory for rx list "
+			    "-- packet dropped!\n", sc->ax_unit);
+			m_freem(m_new);
+			return(ENOBUFS);
+		}
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+	} else {
+		m_new = m;
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	MCLGET(m_new, M_DONTWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
-		printf("ax%d: no memory for rx list -- packet dropped!\n",
-								sc->ax_unit);
-		m_freem(m_new);
-		return(ENOBUFS);
-	}
-
+	m_adj(m_new, sizeof(u_int64_t));
 	c->ax_mbuf = m_new;
 	c->ax_ptr->ax_status = AX_RXSTAT;
 	c->ax_ptr->ax_data = vtophys(mtod(m_new, caddr_t));
@@ -1439,11 +1510,11 @@ static void ax_rxeof(sc)
 
 	while(!((rxstat = sc->ax_cdata.ax_rx_head->ax_ptr->ax_status) &
 							AX_RXSTAT_OWN)) {
-#ifdef __alpha__
 		struct mbuf		*m0 = NULL;
-#endif
+
 		cur_rx = sc->ax_cdata.ax_rx_head;
 		sc->ax_cdata.ax_rx_head = cur_rx->ax_nextdesc;
+		m = cur_rx->ax_mbuf;
 
 		/*
 		 * If an error occurs, update stats, clear the
@@ -1455,90 +1526,24 @@ static void ax_rxeof(sc)
 			ifp->if_ierrors++;
 			if (rxstat & AX_RXSTAT_COLLSEEN)
 				ifp->if_collisions++;
-			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
-			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
+			ax_newbuf(sc, cur_rx, m);
 			continue;
 		}
 
 		/* No errors; receive the packet. */	
-		m = cur_rx->ax_mbuf;
 		total_len = AX_RXBYTES(cur_rx->ax_ptr->ax_status);
 
 		total_len -= ETHER_CRC_LEN;
 
-#ifdef __alpha__
-		/*
-		 * Try to conjure up a new mbuf cluster. If that
-		 * fails, it means we have an out of memory condition and
-		 * should leave the buffer in place and continue. This will
-		 * result in a lost packet, but there's little else we
-		 * can do in this situation.
-		 */
-		if (ax_newbuf(sc, cur_rx) == ENOBUFS) {
-			ifp->if_ierrors++;
-			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
-			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
-			continue;
-		}
-
-		/*
-		 * Sadly, the ASIX chip doesn't decode the last few
-		 * bits of the RX DMA buffer address, so we have to
-		 * cheat in order to obtain proper payload alignment
-		 * on the alpha.
-		 */
-		MGETHDR(m0, M_DONTWAIT, MT_DATA);
+		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+		    total_len + ETHER_ALIGN, 0, ifp, NULL);
+		ax_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
-			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
-			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
 			continue;
 		}
-
-		m0->m_data += 2;
-		if (total_len <= (MHLEN - 2)) {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);				m_freem(m);
-			m = m0;
-			m->m_pkthdr.len = m->m_len = total_len;
-		} else {
-			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), (MHLEN - 2));
-			m->m_len = total_len - (MHLEN - 2);
-			m->m_data += (MHLEN - 2);
-			m0->m_next = m;
-			m0->m_len = (MHLEN - 2);
-			m = m0;
-			m->m_pkthdr.len = total_len;
-		}
-		m->m_pkthdr.rcvif = ifp;
-#else
-		if (total_len < MINCLSIZE) {
-			m = m_devget(mtod(cur_rx->ax_mbuf, char *),
-				total_len, 0, ifp, NULL);
-			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
-			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
-			if (m == NULL) {
-				ifp->if_ierrors++;
-				continue;
-			}
-		} else {
-			m = cur_rx->ax_mbuf;
-		/*
-		 * Try to conjure up a new mbuf cluster. If that
-		 * fails, it means we have an out of memory condition and
-		 * should leave the buffer in place and continue. This will
-		 * result in a lost packet, but there's little else we
-		 * can do in this situation.
-		 */
-			if (ax_newbuf(sc, cur_rx) == ENOBUFS) {
-				ifp->if_ierrors++;
-				cur_rx->ax_ptr->ax_status = AX_RXSTAT;
-				cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
-				continue;
-			}
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = m->m_len = total_len;
-		}
-#endif
+		m_adj(m0, ETHER_ALIGN);
+		m = m0;
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
@@ -2146,6 +2151,8 @@ static void ax_watchdog(ifp)
 
 	if (sc->ax_autoneg) {
 		ax_autoneg_mii(sc, AX_FLAG_DELAYTIMEO, 1);
+		if (!(ifp->if_flags & IFF_UP))
+			ax_stop(sc);
 		return;
 	}
 
@@ -2220,22 +2227,14 @@ static void ax_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void ax_shutdown(howto, arg)
-	int			howto;
-	void			*arg;
+static void ax_shutdown(dev)
+	device_t		dev;
 {
-	struct ax_softc		*sc = (struct ax_softc *)arg;
+	struct ax_softc		*sc;
+
+	sc = device_get_softc(dev);
 
 	ax_stop(sc);
 
 	return;
 }
-
-static struct pci_device ax_device = {
-	"ax",
-	ax_probe,
-	ax_attach,
-	&ax_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(ax, ax_device);
