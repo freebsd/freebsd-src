@@ -1,9 +1,9 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.11 1995/04/20 21:35:51 ache Exp $
+# $Id: Makefile,v 1.12 1995/05/03 18:54:09 ache Exp $
 
 LIB=    ncurses
-SHLIB_MAJOR= 2
-SHLIB_MINOR= 1
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 SRCS=   lib_kernel.c lib_pad.c lib_bkgd.c \
 	lib_unctrl.c lib_raw.c lib_vidattr.c lib_trace.c lib_beep.c \
 	lib_doupdate.c lib_refresh.c lib_initscr.c lib_newwin.c lib_addch.c \
