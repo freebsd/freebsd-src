@@ -83,6 +83,10 @@ static const char *uhci_device_piix3	= "Intel 82371SB (PIIX3) USB controller";
 #define PCI_UHCI_DEVICEID_PIIX4         0x71128086
 #define PCI_UHCI_DEVICEID_PIIX4E        0x71128086    /* no separate stepping */
 static const char *uhci_device_piix4	= "Intel 82371AB/EB (PIIX4) USB controller";
+#define PCI_UHCI_DEVICEID_ICH		0x24128086
+static const char *uhci_device_ich	= "Intel 82801AA (ICH) USB controller";
+#define PCI_UHCI_DEVICEID_ICH0		0x24228086
+static const char *uhci_device_ich0 	= "Intel 82801AB (ICH0) USB controller";
 #define PCI_UHCI_DEVICEID_VT83C572	0x30381106
 static const char *uhci_device_vt83c572	= "VIA 83C572 USB controller";
 
@@ -124,6 +128,10 @@ uhci_pci_match(device_t self)
 		return (uhci_device_piix3);
 	} else if (device_id == PCI_UHCI_DEVICEID_PIIX4) {
 		return (uhci_device_piix4);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH) {
+		return (uhci_device_ich);
+	} else if (device_id == PCI_UHCI_DEVICEID_ICH0) {
+		return (uhci_device_ich0);
 	} else if (device_id == PCI_UHCI_DEVICEID_VT83C572) {
 		return (uhci_device_vt83c572);
 	} else {
@@ -198,6 +206,14 @@ uhci_pci_attach(device_t self)
 		break;
 	case PCI_UHCI_DEVICEID_PIIX4:
 		device_set_desc(sc->sc_bus.bdev, uhci_device_piix4);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_ICH:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich);
+		sprintf(sc->sc_vendor, "Intel");
+		break;
+	case PCI_UHCI_DEVICEID_ICH0:
+		device_set_desc(sc->sc_bus.bdev, uhci_device_ich0);
 		sprintf(sc->sc_vendor, "Intel");
 		break;
 	case PCI_UHCI_DEVICEID_VT83C572:
