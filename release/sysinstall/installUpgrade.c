@@ -79,6 +79,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"gnats",		TRUE, NULL },
    { JUST_COPY,		"group",		FALSE, NULL },
    { JUST_COPY,		"hosts",		TRUE, NULL },
+   { JUST_COPY,		"host.conf",		TRUE, NULL },
    { JUST_COPY,		"hosts.equiv",		TRUE, NULL },
    { JUST_COPY,		"hosts.lpd",		TRUE, NULL },
    { JUST_COPY,		"inetd.conf",		TRUE, NULL },
