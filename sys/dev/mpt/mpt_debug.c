@@ -31,6 +31,7 @@
  */
 
 #include <dev/mpt/mpt_freebsd.h>
+#include <machine/stdarg.h>	/* for use by mpt_prt below */
 
 struct Error_Map {
 	int 	 Error_Code;
@@ -591,4 +592,15 @@ mpt_dump_sgl(SGE_IO_UNION *su)
 		se++;
 		iCount -= 1;
 	} while ((flags & MPI_SGE_FLAGS_END_OF_LIST) == 0 && iCount != 0);
+}
+
+void
+mpt_prt(mpt_softc_t *mpt, const char *fmt, ...)
+{
+	va_list ap;
+	printf("%s: ", device_get_nameunit(mpt->dev));
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+	printf("\n");
 }

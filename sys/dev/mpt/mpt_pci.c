@@ -126,8 +126,7 @@ mpt_intr(void *dummy)
 				mpt_print_reply(MPT_REPLY_PTOV(mpt, reply));
 			} else {
 				/* Context reply ; all went well */
-				device_printf(mpt->dev,
-				    "context %u reply OK\n", reply);
+				mpt_prt(mpt, "context %u reply OK", reply);
 			}
 		}
 		mpt_done(mpt, reply);
@@ -235,7 +234,7 @@ mpt_link_peer(mpt_softc_t *mpt)
 	mpt->mpt2 = mpt2;
 	mpt2->mpt2 = mpt;
 	if (mpt->verbose) {
-		device_printf(mpt->dev, "linking with peer (mpt%d)\n",
+		mpt_prt(mpt, "linking with peer (mpt%d)",
 		    device_get_unit(mpt2->dev));
 	}
 }
@@ -418,7 +417,7 @@ mpt_detach(device_t dev)
 	mpt_softc_t *mpt;
 	mpt  = (mpt_softc_t*) device_get_softc(dev);
 
-	device_printf(mpt->dev,"mpt_detach!\n");
+	mpt_prt(mpt, "mpt_detach");
 
 	if (mpt) {
 		mpt_disable_ints(mpt);
@@ -671,7 +670,7 @@ mpt_set_config_regs(mpt_softc_t *mpt)
 #define MPT_CHECK(reg, offset, size)					\
 	val = pci_read_config(mpt->dev, offset, size);			\
 	if (mpt->pci_cfg.reg != val) {					\
-		device_printf(mpt->dev,					\
+		mpt_prt(mpt,						\
 		    "Restoring " #reg " to 0x%X from 0x%X\n",		\
 		    mpt->pci_cfg.reg, val);				\
 	}
