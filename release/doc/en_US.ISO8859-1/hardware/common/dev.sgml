@@ -618,7 +618,7 @@
 
     <para arch="i386">DTC 3290 EISA SCSI controller in 1542 emulation mode.</para>
 
-    <para>Tekram DC390 and DC390T controllers, maybe other cards based
+    <para arch="i386">Tekram DC390 and DC390T controllers, maybe other cards based
     on the AMD 53c974 as well (&man.amd.4; driver)</para>
 
     <para arch="i386">Workbit Ninja SCSI-3 based PC-Card SCSI host
@@ -2379,12 +2379,12 @@
     <para arch="i386,alpha">Floppy drives (&man.fd.4; driver)</para>
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
-    <para>Keyboards including:
+    <para arch="i386,alpha">Keyboards including:
       <itemizedlist>
         <listitem arch="i386,alpha">
 	  <para>AT-style keyboards</para>
 	</listitem>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha">
 	  <para>PS/2 keyboards</para>
 	</listitem>
         <listitem arch="i386,alpha">
@@ -2394,12 +2394,12 @@
       </itemizedlist>
     </para>
     <para arch="i386">Loran-C receiver (Dave Mills experimental hardware, loran driver).</para>
-    <para>Mice including:
+    <para arch="i386,alpha">Mice including:
       <itemizedlist>
         <listitem arch="i386">
 	  <para>Bus mice (&man.mse.4; driver)</para>
 	</listitem>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha">
 	  <para>PS/2 mice (&man.psm.4; driver)</para>
 	</listitem>
         <listitem>
@@ -2412,7 +2412,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Parallel ports (&man.ppc.4; driver)</para>
+    <para arch="i386,alpha"><quote>PC standard</quote>parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386">PC-compatible joysticks (&man.joy.4; driver)</para>
 
@@ -2430,7 +2430,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,alpha"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="i386">X-10 power controllers (&man.tw.4; driver)</para>
 
