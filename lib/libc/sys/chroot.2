@@ -60,7 +60,33 @@ It should be noted that
 has no effect on the process's current directory.
 .Pp
 This call is restricted to the super-user.
-.Sh RETURN VALUES
+.Pp
+Depending on the setting of the
+.Ql kern.chroot_allow_open_directories
+sysctl variable, open filedescriptors which reference directories
+will make the 
+.Fn chroot
+fail as follows:
+.Pp
+If 
+.Ql kern.chroot_allow_open_directories
+is set to zero, 
+.Fn chroot
+will always fail with EPERM if there are any directories open.
+.Pp
+If 
+.Ql kern.chroot_allow_open_directories
+is set to one (the default), 
+.Fn chroot
+will fail with EPERM if there are any directories open and the
+process is already subject to a 
+.Fn chroot
+call.
+.Pp
+Any other value for
+.Ql kern.chroot_allow_open_directories
+will bypass the check for open directories
+.Pp
 Upon successful completion, a value of 0 is returned.  Otherwise,
 a value of -1 is returned and
 .Va errno
@@ -72,7 +98,8 @@ will fail and the root directory will be unchanged if:
 .It Bq Er ENOTDIR
 A component of the path name is not a directory.
 .It Bq Er EPERM
-The effective user ID is not the super-user.
+The effective user ID is not the super-user, or one or more
+filedescriptors are open directories.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters,
 or an entire path name exceeded 1023 characters.

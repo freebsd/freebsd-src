@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.119 1999/02/27 07:06:05 julian Exp $
+ * $Id: vfs_syscalls.c,v 1.120 1999/03/03 02:35:51 julian Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -71,6 +71,7 @@
 
 static int change_dir __P((struct nameidata *ndp, struct proc *p));
 static void checkdirs __P((struct vnode *olddp));
+static int chroot_refuse_vdir_fds __P((struct filedesc *fdp));
 static int setfown __P((struct proc *, struct vnode *, uid_t, gid_t));
 static int setfmode __P((struct proc *, struct vnode *, int));
 static int setfflags __P((struct proc *, struct vnode *, int));
@@ -828,6 +829,44 @@ chdir(p, uap)
 }
 
 /*
+ * Helper function for raised chroot(2) security function:  Refuse if
+ * any filedescriptors are open directories.
+ */
+static int
+chroot_refuse_vdir_fds(fdp)
+	struct filedesc *fdp;
+{
+	struct vnode *vp;
+	struct file *fp;
+	int error;
+	int fd;
+
+	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
+		error = getvnode(fdp, fd, &fp);
+		if (error)
+			continue;
+		vp = (struct vnode *)fp->f_data;
+		if (vp->v_type != VDIR)
+			continue;
+		return(EPERM);
+	}
+	return (0);
+}
+
+/*
+ * This sysctl determines if we will allow a process to chroot(2) if it
+ * has a directory open:
+ *	0: disallowed for all processes.
+ *	1: allowed for processes that were not already chroot(2)'ed.
+ *	2: allowed for all processes.
+ */
+
+static int chroot_allow_open_directories = 1;
+
+SYSCTL_INT(_kern, OID_AUTO, chroot_allow_open_directories, CTLFLAG_RW,
+     &chroot_allow_open_directories, 0, "");
+
+/*
  * Change notion of root (``/'') directory.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -848,6 +887,11 @@ chroot(p, uap)
 	struct nameidata nd;
 
 	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
+		return (error);
+	if (chroot_allow_open_directories == 0 ||
+	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode))
+		error = chroot_refuse_vdir_fds(fdp);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
