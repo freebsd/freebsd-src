@@ -73,10 +73,6 @@ can be either segment_descriptor or gate_descriptor and are defined in
 .Aq Pa i386/segments.h .
 These structures are defined by the architecture
 as disjoint bit-fields, so care must be taken in constructing them.
-.Pp
-Note that you must have
-.Dq options USER_LDT
-in your kernel configuration file to use these functions.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn i386_get_ldt
