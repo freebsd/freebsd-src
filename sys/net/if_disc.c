@@ -83,6 +83,7 @@ discattach(dummy)
 	ifp->if_type = IFT_LOOP;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
+	ifp->if_snd.ifq_maxlen = 20;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
 }
