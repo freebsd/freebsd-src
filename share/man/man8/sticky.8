@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)sticky.8	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: sticky.8,v 1.2 1997/03/07 03:28:21 jmg Exp $
 .\"
 .Dd June 5, 1993
 .Dt STICKY 8
@@ -51,24 +51,8 @@ the file
 .Pa /usr/include/sys/stat.h
 for an explanation of file modes.
 .Sh STICKY TEXT EXECUTABLE FILES
-An executable shareable file whose sticky bit is set
-will not be immediately discarded from swap space after execution.
-The kernel will hoard the text segment of the file for future
-reuse and avoid having to reload the program.
-Shareable text segments are normally placed
-in a least-frequently-used cache after use,
-and thus the `sticky bit' has little effect on commonly-used text images.
-.Pp
-Sharable executable files are created with the
-.Fl n
-and
-.Fl z
-options of
-the loader
-.Xr ld 1 .
-.Pp
-Only the super-user can set the sticky bit
-on a sharable executable file.
+These are no longer supported and any attempt to create a sticky text
+executable will fail on UFS-based filesystems.
 .Sh STICKY DIRECTORIES
 A directory whose `sticky bit' is set
 becomes an append-only directory, or, more accurately,
@@ -88,9 +72,6 @@ See
 .Xr chmod 1
 for details about modifying file modes.
 .Sh BUGS
-Since the text areas of sticky text executables are stashed in the swap area,
-abuse of the feature can cause a system to run out of swap.
-.Pp
 Neither
 .Xr open 2
 nor
