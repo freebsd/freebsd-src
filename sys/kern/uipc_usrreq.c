@@ -369,7 +369,7 @@ uipc_rcvd(struct socket *so, int flags)
 
 static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	  struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	int error = 0;
 	struct unpcb *unp;
@@ -600,9 +600,7 @@ struct pr_usrreqs uipc_usrreqs = {
 };
 
 int
-uipc_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct unpcb *unp;
 	struct xucred xu;
@@ -677,10 +675,9 @@ SYSCTL_DECL(_net_local);
 SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
 
 static int
-unp_attach(so)
-	struct socket *so;
+unp_attach(struct socket *so)
 {
-	register struct unpcb *unp;
+	struct unpcb *unp;
 	int error;
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
@@ -718,8 +715,7 @@ unp_attach(so)
 }
 
 static void
-unp_detach(unp)
-	register struct unpcb *unp;
+unp_detach(struct unpcb *unp)
 {
 	struct vnode *vp;
 
@@ -768,10 +764,7 @@ unp_detach(unp)
 }
 
 static int
-unp_bind(unp, nam, td)
-	struct unpcb *unp;
-	struct sockaddr *nam;
-	struct thread *td;
+unp_bind(struct unpcb *unp, struct sockaddr *nam, struct thread *td)
 {
 	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	struct vnode *vp;
@@ -860,14 +853,11 @@ done:
 }
 
 static int
-unp_connect(so, nam, td)
-	struct socket *so;
-	struct sockaddr *nam;
-	struct thread *td;
+unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	register struct sockaddr_un *soun = (struct sockaddr_un *)nam;
-	register struct vnode *vp;
-	register struct socket *so2, *so3;
+	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
+	struct vnode *vp;
+	struct socket *so2, *so3;
 	struct unpcb *unp, *unp2, *unp3;
 	int error, len;
 	struct nameidata nd;
@@ -988,12 +978,10 @@ bad:
 }
 
 static int
-unp_connect2(so, so2)
-	register struct socket *so;
-	register struct socket *so2;
+unp_connect2(struct socket *so, struct socket *so2)
 {
-	register struct unpcb *unp = sotounpcb(so);
-	register struct unpcb *unp2;
+	struct unpcb *unp = sotounpcb(so);
+	struct unpcb *unp2;
 
 	UNP_LOCK_ASSERT();
 
@@ -1021,10 +1009,9 @@ unp_connect2(so, so2)
 }
 
 static void
-unp_disconnect(unp)
-	struct unpcb *unp;
+unp_disconnect(struct unpcb *unp)
 {
-	register struct unpcb *unp2 = unp->unp_conn;
+	struct unpcb *unp2 = unp->unp_conn;
 	struct socket *so;
 
 	UNP_LOCK_ASSERT();
@@ -1052,8 +1039,7 @@ unp_disconnect(unp)
 
 #ifdef notdef
 void
-unp_abort(unp)
-	struct unpcb *unp;
+unp_abort(struct unpcb *unp)
 {
 
 	unp_detach(unp);
@@ -1180,8 +1166,7 @@ SYSCTL_PROC(_net_local_stream, OID_AUTO, pcblist, CTLFLAG_RD,
 	    "List of active local stream sockets");
 
 static void
-unp_shutdown(unp)
-	struct unpcb *unp;
+unp_shutdown(struct unpcb *unp)
 {
 	struct socket *so;
 
@@ -1193,9 +1178,7 @@ unp_shutdown(unp)
 }
 
 static void
-unp_drop(unp, errno)
-	struct unpcb *unp;
-	int errno;
+unp_drop(struct unpcb *unp, int errno)
 {
 	struct socket *so = unp->unp_socket;
 
@@ -1207,16 +1190,14 @@ unp_drop(unp, errno)
 
 #ifdef notdef
 void
-unp_drain()
+unp_drain(void)
 {
 
 }
 #endif
 
 static void
-unp_freerights(rp, fdcount)
-	struct file **rp;
-	int fdcount;
+unp_freerights(struct file **rp, int fdcount)
 {
 	int i;
 	struct file *fp;
@@ -1234,8 +1215,7 @@ unp_freerights(rp, fdcount)
 }
 
 int
-unp_externalize(control, controlp)
-	struct mbuf *control, **controlp;
+unp_externalize(struct mbuf *control, struct mbuf **controlp)
 {
 	struct thread *td = curthread;		/* XXX */
 	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
@@ -1359,9 +1339,7 @@ unp_init(void)
 }
 
 static int
-unp_internalize(controlp, td)
-	struct mbuf **controlp;
-	struct thread *td;
+unp_internalize(struct mbuf **controlp, struct thread *td)
 {
 	struct mbuf *control = *controlp;
 	struct proc *p = td->td_proc;
@@ -1512,10 +1490,10 @@ out:
 static int	unp_defer, unp_gcing;
 
 static void
-unp_gc()
+unp_gc(void)
 {
-	register struct file *fp, *nextfp;
-	register struct socket *so;
+	struct file *fp, *nextfp;
+	struct socket *so;
 	struct file **extra_ref, **fpp;
 	int nunref, i;
 	int nfiles_snap;
@@ -1720,8 +1698,7 @@ again:
 }
 
 void
-unp_dispose(m)
-	struct mbuf *m;
+unp_dispose(struct mbuf *m)
 {
 
 	if (m)
@@ -1729,9 +1706,7 @@ unp_dispose(m)
 }
 
 static int
-unp_listen(unp, td)
-	struct unpcb *unp;
-	struct thread *td;
+unp_listen(struct unpcb *unp, struct thread *td)
 {
 	UNP_LOCK_ASSERT();
 
@@ -1744,9 +1719,7 @@ unp_listen(unp, td)
 }
 
 static void
-unp_scan(m0, op)
-	register struct mbuf *m0;
-	void (*op)(struct file *);
+unp_scan(struct mbuf *m0, void (*op)(struct file *))
 {
 	struct mbuf *m;
 	struct file **rp;
@@ -1795,8 +1768,7 @@ unp_scan(m0, op)
 }
 
 static void
-unp_mark(fp)
-	struct file *fp;
+unp_mark(struct file *fp)
 {
 	if (fp->f_gcflag & FMARK)
 		return;
@@ -1805,8 +1777,7 @@ unp_mark(fp)
 }
 
 static void
-unp_discard(fp)
-	struct file *fp;
+unp_discard(struct file *fp)
 {
 	FILE_LOCK(fp);
 	fp->f_msgcount--;
