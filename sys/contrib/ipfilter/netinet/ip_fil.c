@@ -23,7 +23,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
     defined(_KERNEL)
 # include "opt_ipfilter_log.h"
 #endif
-#ifdef	__FreeBSD__
+#if defined(__FreeBSD__) && !defined(__FreeBSD_version)
 # if !defined(_KERNEL) || defined(IPFILTER_LKM)
 #  include <osreldate.h>
 # endif
