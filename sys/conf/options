@@ -519,3 +519,6 @@ ED_NO_MIIBUS		opt_ed.h
 
 # Polling device handling
 DEVICE_POLLING		opt_global.h
+
+# Mutex profiling
+MUTEX_PROFILING		opt_global.h
