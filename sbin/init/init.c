@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
@@ -120,6 +121,8 @@ enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
 #define TRUE	1
 
 int Reboot = FALSE;
+
+int devfs;
 
 void transition __P((state_t));
 state_t requested_transition = runcom;
@@ -216,8 +219,11 @@ main(argc, argv)
 	 * This code assumes that we always get arguments through flags,
 	 * never through bits set in some random machine register.
 	 */
-	while ((c = getopt(argc, argv, "sf")) != -1)
+	while ((c = getopt(argc, argv, "dsf")) != -1)
 		switch (c) {
+		case 'd':
+			devfs = 1;
+			break;
 		case 's':
 			requested_transition = single_user;
 			break;
@@ -231,6 +237,11 @@ main(argc, argv)
 
 	if (optind != argc)
 		warning("ignoring excess arguments");
+
+	/* Mount devfs on /dev */
+	if (devfs) {
+		mount(MOUNT_DEVFS, "/dev", MNT_NOEXEC|MNT_RDONLY, 0);
+	}
 
 	/*
 	 * We catch or block signals rather than ignore them,
