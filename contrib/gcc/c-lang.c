@@ -1,6 +1,6 @@
 /* Language-specific hook definitions for C front end.
    Copyright (C) 1991, 1995, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,14 +22,20 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "c-tree.h"
 #include "c-common.h"
 #include "ggc.h"
 #include "langhooks.h"
 #include "langhooks-def.h"
+#include "diagnostic.h"
+#include "c-pretty-print.h"
 
-static void c_init_options PARAMS ((void));
+static void c_initialize_diagnostics (diagnostic_context *);
+
+enum c_language_kind c_language = clk_c;
 
 /* ### When changing hooks, consider if ObjC needs changing too!! ### */
 
@@ -40,9 +46,13 @@ static void c_init_options PARAMS ((void));
 #undef LANG_HOOKS_FINISH
 #define LANG_HOOKS_FINISH c_common_finish
 #undef LANG_HOOKS_INIT_OPTIONS
-#define LANG_HOOKS_INIT_OPTIONS c_init_options
-#undef LANG_HOOKS_DECODE_OPTION
-#define LANG_HOOKS_DECODE_OPTION c_common_decode_option
+#define LANG_HOOKS_INIT_OPTIONS c_common_init_options
+#undef LANG_HOOKS_INITIALIZE_DIAGNOSTICS
+#define LANG_HOOKS_INITIALIZE_DIAGNOSTICS c_initialize_diagnostics
+#undef LANG_HOOKS_HANDLE_OPTION
+#define LANG_HOOKS_HANDLE_OPTION c_common_handle_option
+#undef LANG_HOOKS_MISSING_ARGUMENT
+#define LANG_HOOKS_MISSING_ARGUMENT c_common_missing_argument
 #undef LANG_HOOKS_POST_OPTIONS
 #define LANG_HOOKS_POST_OPTIONS c_common_post_options
 #undef LANG_HOOKS_GET_ALIAS_SET
@@ -57,14 +67,16 @@ static void c_init_options PARAMS ((void));
 #define LANG_HOOKS_PARSE_FILE c_common_parse_file
 #undef LANG_HOOKS_TRUTHVALUE_CONVERSION
 #define LANG_HOOKS_TRUTHVALUE_CONVERSION c_common_truthvalue_conversion
-#undef LANG_HOOKS_INSERT_DEFAULT_ATTRIBUTES
-#define LANG_HOOKS_INSERT_DEFAULT_ATTRIBUTES c_insert_default_attributes
 #undef LANG_HOOKS_FINISH_INCOMPLETE_DECL
 #define LANG_HOOKS_FINISH_INCOMPLETE_DECL c_finish_incomplete_decl
 #undef LANG_HOOKS_UNSAFE_FOR_REEVAL
 #define LANG_HOOKS_UNSAFE_FOR_REEVAL c_common_unsafe_for_reeval
 #undef LANG_HOOKS_STATICP
 #define LANG_HOOKS_STATICP c_staticp
+#undef LANG_HOOKS_SET_DECL_ASSEMBLER_NAME
+#define LANG_HOOKS_SET_DECL_ASSEMBLER_NAME c_static_assembler_name
+#undef LANG_HOOKS_NO_BODY_BLOCKS
+#define LANG_HOOKS_NO_BODY_BLOCKS true
 #undef LANG_HOOKS_WARN_UNUSED_GLOBAL_DECL
 #define LANG_HOOKS_WARN_UNUSED_GLOBAL_DECL c_warn_unused_global_decl
 #undef LANG_HOOKS_PRINT_IDENTIFIER
@@ -75,6 +87,11 @@ static void c_init_options PARAMS ((void));
 #define LANG_HOOKS_FUNCTION_LEAVE_NESTED c_pop_function_context
 #undef LANG_HOOKS_DUP_LANG_SPECIFIC_DECL
 #define LANG_HOOKS_DUP_LANG_SPECIFIC_DECL c_dup_lang_specific_decl
+#undef LANG_HOOKS_DECL_UNINIT
+#define LANG_HOOKS_DECL_UNINIT c_decl_uninit
+
+#undef LANG_HOOKS_RTL_EXPAND_STMT
+#define LANG_HOOKS_RTL_EXPAND_STMT expand_stmt
 
 /* Attribute hooks.  */
 #undef LANG_HOOKS_COMMON_ATTRIBUTE_TABLE
@@ -94,8 +111,13 @@ static void c_init_options PARAMS ((void));
 #undef LANG_HOOKS_TREE_INLINING_CONVERT_PARM_FOR_INLINING
 #define LANG_HOOKS_TREE_INLINING_CONVERT_PARM_FOR_INLINING \
   c_convert_parm_for_inlining
+#undef LANG_HOOKS_TREE_INLINING_ESTIMATE_NUM_INSNS
+#define LANG_HOOKS_TREE_INLINING_ESTIMATE_NUM_INSNS c_estimate_num_insns
 #undef LANG_HOOKS_TREE_DUMP_DUMP_TREE_FN
 #define LANG_HOOKS_TREE_DUMP_DUMP_TREE_FN c_dump_tree
+
+#undef LANG_HOOKS_CALLGRAPH_EXPAND_FUNCTION
+#define LANG_HOOKS_CALLGRAPH_EXPAND_FUNCTION c_expand_body
 
 #undef LANG_HOOKS_TYPE_FOR_MODE
 #define LANG_HOOKS_TYPE_FOR_MODE c_common_type_for_mode
@@ -111,6 +133,11 @@ static void c_init_options PARAMS ((void));
 #define LANG_HOOKS_INCOMPLETE_TYPE_ERROR c_incomplete_type_error
 #undef LANG_HOOKS_TYPE_PROMOTES_TO
 #define LANG_HOOKS_TYPE_PROMOTES_TO c_type_promotes_to
+#undef LANG_HOOKS_REGISTER_BUILTIN_TYPE
+#define LANG_HOOKS_REGISTER_BUILTIN_TYPE c_register_builtin_type
+
+#undef LANG_HOOKS_WRITE_GLOBALS
+#define LANG_HOOKS_WRITE_GLOBALS c_write_global_declarations
 
 /* ### When changing hooks, consider if ObjC needs changing too!! ### */
 
@@ -152,69 +179,23 @@ const char *const tree_code_name[] = {
 };
 #undef DEFTREECODE
 
-static void
-c_init_options ()
-{
-  c_common_init_options (clk_c);
-}
-
-/* Used by c-lex.c, but only for objc.  */
-
-tree
-lookup_interface (arg)
-     tree arg ATTRIBUTE_UNUSED;
-{
-  return 0;
-}
-
-tree
-is_class_name (arg)
-    tree arg ATTRIBUTE_UNUSED;
-{
-  return 0;
-}
-
-tree
-objc_is_id (arg)
-    tree arg ATTRIBUTE_UNUSED;
-{
-  return 0;
-}
-
 void
-objc_check_decl (decl)
-     tree decl ATTRIBUTE_UNUSED;
-{
-}
-
-int
-objc_comptypes (lhs, rhs, reflexive)
-     tree lhs ATTRIBUTE_UNUSED;
-     tree rhs ATTRIBUTE_UNUSED;
-     int reflexive ATTRIBUTE_UNUSED;
-{
-  return -1;
-}
-
-tree
-objc_message_selector ()
-{
-  return 0;
-}
-
-/* Used by c-typeck.c (build_external_ref), but only for objc.  */
-
-tree
-lookup_objc_ivar (id)
-     tree id ATTRIBUTE_UNUSED;
-{
-  return 0;
-}
-
-void
-finish_file ()
+finish_file (void)
 {
   c_objc_common_finish_file ();
+}
+
+static void
+c_initialize_diagnostics (diagnostic_context *context)
+{
+  pretty_printer *base = context->printer;
+  c_pretty_printer *pp = xmalloc (sizeof (c_pretty_printer));
+  memcpy (pp_base (pp), base, sizeof (pretty_printer));
+  pp_c_pretty_printer_init (pp);
+  context->printer = (pretty_printer *) pp;
+
+  /* It is safe to free this object because it was previously malloc()'d.  */
+  free (base);
 }
 
 #include "gtype-c.h"

@@ -1,28 +1,30 @@
 /* Subroutines for the C front end on the POWER and PowerPC architectures.
-   Copyright (C) 2002
+   Copyright (C) 2002, 2003
    Free Software Foundation, Inc.
 
    Contributed by Zack Weinberg <zack@codesourcery.com>
 
-This file is part of GNU CC.
+   This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published
+   by the Free Software Foundation; either version 2, or (at your
+   option) any later version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GCC is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to the
+   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "cpplib.h"
 #include "tree.h"
 #include "c-pragma.h"
@@ -39,15 +41,14 @@ Boston, MA 02111-1307, USA.  */
    whether or not new function declarations receive a longcall
    attribute by default.  */
 
-#define SYNTAX_ERROR(msgid) do {					\
+#define SYNTAX_ERROR(msgid) do {			\
   warning (msgid);					\
   warning ("ignoring malformed #pragma longcall");	\
   return;						\
 } while (0)
 
 void
-rs6000_pragma_longcall (pfile)
-     cpp_reader *pfile ATTRIBUTE_UNUSED;
+rs6000_pragma_longcall (cpp_reader *pfile ATTRIBUTE_UNUSED)
 {
   tree x, n;
 
@@ -78,8 +79,7 @@ rs6000_pragma_longcall (pfile)
 #define builtin_assert(TXT) cpp_assert (pfile, TXT)
 
 void
-rs6000_cpu_cpp_builtins (pfile)
-     cpp_reader *pfile;
+rs6000_cpu_cpp_builtins (cpp_reader *pfile)
 {
   if (TARGET_POWER2)
     builtin_define ("_ARCH_PWR2");
@@ -111,9 +111,6 @@ rs6000_cpu_cpp_builtins (pfile)
     {
     case ABI_V4:
       builtin_define ("_CALL_SYSV");
-      break;
-    case ABI_AIX_NODESC:
-      builtin_define ("_CALL_AIX");
       break;
     case ABI_AIX:
       builtin_define ("_CALL_AIXDESC");

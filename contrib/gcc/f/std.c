@@ -1,5 +1,5 @@
 /* std.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2000, 2002, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -115,21 +115,7 @@ typedef enum
     FFESTD_stmtidR1225_,	/* END_SUBROUTINE */
     FFESTD_stmtidR1226_,	/* ENTRY */
     FFESTD_stmtidR1227_,	/* RETURN */
-#if FFESTR_VXT
-    FFESTD_stmtidV018_,		/* REWRITE */
-    FFESTD_stmtidV019_,		/* ACCEPT */
-#endif
     FFESTD_stmtidV020_,		/* TYPE */
-#if FFESTR_VXT
-    FFESTD_stmtidV021_,		/* DELETE */
-    FFESTD_stmtidV022_,		/* UNLOCK */
-    FFESTD_stmtidV023_,		/* ENCODE */
-    FFESTD_stmtidV024_,		/* DECODE */
-    FFESTD_stmtidV025start_,	/* DEFINEFILE (start) */
-    FFESTD_stmtidV025item_,	/* (DEFINEFILE item) */
-    FFESTD_stmtidV025finish_,	/* (DEFINEFILE finish) */
-    FFESTD_stmtidV026_,		/* FIND */
-#endif
     FFESTD_stmtid_,
   } ffestdStmtId_;
 
@@ -407,24 +393,6 @@ struct _ffestd_stmt_
 	    ffebld expr;
 	  }
 	R1227;
-#if FFESTR_VXT
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpRewriteStmt *params;
-	    ffestvFormat format;
-	    ffestdExprItem_ list;
-	  }
-	V018;
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpAcceptStmt *params;
-	    ffestvFormat format;
-	    ffestdExprItem_ list;
-	  }
-	V019;
-#endif
 	struct
 	  {
 	    mallocPool pool;
@@ -433,52 +401,6 @@ struct _ffestd_stmt_
 	    ffestdExprItem_ list;
 	  }
 	V020;
-#if FFESTR_VXT
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpDeleteStmt *params;
-	  }
-	V021;
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpBeruStmt *params;
-	  }
-	V022;
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpVxtcodeStmt *params;
-	    ffestdExprItem_ list;
-	  }
-	V023;
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpVxtcodeStmt *params;
-	    ffestdExprItem_ list;
-	  }
-	V024;
-	struct
-	  {
-	    ffebld u;
-	    ffebld m;
-	    ffebld n;
-	    ffebld asv;
-	  }
-	V025item;
-	struct
-	  {
-	    mallocPool pool;
-	  } V025finish;
-	struct
-	  {
-	    mallocPool pool;
-	    ffestpFindStmt *params;
-	  }
-	V026;
-#endif
       }
     u;
   };
@@ -513,9 +435,6 @@ static void ffestd_stmt_pass_ (void);
 static ffestpInquireStmt *ffestd_subr_copy_easy_ (ffestpInquireIx max);
 #endif
 static void ffestd_subr_vxt_ (void);
-#if FFESTR_F90
-static void ffestd_subr_f90_ (void);
-#endif
 static void ffestd_subr_labels_ (bool unexpected);
 static void ffestd_R1001dump_ (ffests s, ffesttFormatList list);
 static void ffestd_R1001dump_1005_1_ (ffests s, ffesttFormatList f,
@@ -531,8 +450,6 @@ static void ffestd_R1001dump_1005_5_ (ffests s, ffesttFormatList f,
 static void ffestd_R1001dump_1010_1_ (ffests s, ffesttFormatList f,
 				      const char *string);
 static void ffestd_R1001dump_1010_2_ (ffests s, ffesttFormatList f,
-				      const char *string);
-static void ffestd_R1001dump_1010_3_ (ffests s, ffesttFormatList f,
 				      const char *string);
 static void ffestd_R1001dump_1010_4_ (ffests s, ffesttFormatList f,
 				      const char *string);
@@ -638,7 +555,7 @@ ffestd_stmt_new_ (ffestdStmtId_ id)
    ffestd_stmt_pass_();	 */
 
 static void
-ffestd_stmt_pass_ ()
+ffestd_stmt_pass_ (void)
 {
   ffestdStmt_ stmt;
   ffestdExprItem_ expr;		/* For traversing lists. */
@@ -1028,36 +945,6 @@ ffestd_stmt_pass_ ()
 	  malloc_pool_kill (stmt->u.R1227.pool);
 	  break;
 
-#if FFESTR_VXT
-	case FFESTD_stmtidV018_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V018_start (stmt->u.V018.params, stmt->u.V018.format);
-	  for (expr = stmt->u.V018.list; expr != NULL; expr = expr->next)
-	    {
-	      if (okay)
-		ffeste_V018_item (expr->expr);
-	    }
-	  if (okay)
-	    ffeste_V018_finish ();
-	  malloc_pool_kill (stmt->u.V018.pool);
-	  break;
-
-	case FFESTD_stmtidV019_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V019_start (stmt->u.V019.params, stmt->u.V019.format);
-	  for (expr = stmt->u.V019.list; expr != NULL; expr = expr->next)
-	    {
-	      if (okay)
-		ffeste_V019_item (expr->expr);
-	    }
-	  if (okay)
-	    ffeste_V019_finish ();
-	  malloc_pool_kill (stmt->u.V019.pool);
-	  break;
-#endif
-
 	case FFESTD_stmtidV020_:
 	  ffestd_subr_line_restore_ (stmt);
 	  if (okay)
@@ -1071,68 +958,6 @@ ffestd_stmt_pass_ ()
 	    ffeste_V020_finish ();
 	  malloc_pool_kill (stmt->u.V020.pool);
 	  break;
-
-#if FFESTR_VXT
-	case FFESTD_stmtidV021_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V021 (stmt->u.V021.params);
-	  malloc_pool_kill (stmt->u.V021.pool);
-	  break;
-
-	case FFESTD_stmtidV023_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V023_start (stmt->u.V023.params);
-	  for (expr = stmt->u.V023.list; expr != NULL; expr = expr->next)
-	    {
-	      if (okay)
-		ffeste_V023_item (expr->expr);
-	    }
-	  if (okay)
-	    ffeste_V023_finish ();
-	  malloc_pool_kill (stmt->u.V023.pool);
-	  break;
-
-	case FFESTD_stmtidV024_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V024_start (stmt->u.V024.params);
-	  for (expr = stmt->u.V024.list; expr != NULL; expr = expr->next)
-	    {
-	      if (okay)
-		ffeste_V024_item (expr->expr);
-	    }
-	  if (okay)
-	    ffeste_V024_finish ();
-	  malloc_pool_kill (stmt->u.V024.pool);
-	  break;
-
-	case FFESTD_stmtidV025start_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V025_start ();
-	  break;
-
-	case FFESTD_stmtidV025item_:
-	  if (okay)
-	    ffeste_V025_item (stmt->u.V025item.u, stmt->u.V025item.m,
-			      stmt->u.V025item.n, stmt->u.V025item.asv);
-	  break;
-
-	case FFESTD_stmtidV025finish_:
-	  if (okay)
-	    ffeste_V025_finish ();
-	  malloc_pool_kill (stmt->u.V025finish.pool);
-	  break;
-
-	case FFESTD_stmtidV026_:
-	  ffestd_subr_line_restore_ (stmt);
-	  if (okay)
-	    ffeste_V026 (stmt->u.V026.params);
-	  malloc_pool_kill (stmt->u.V026.pool);
-	  break;
-#endif
 
 	default:
 	  assert ("bad stmt->id" == NULL);
@@ -1159,8 +984,8 @@ ffestd_subr_copy_easy_ (ffestpInquireIx max)
   ffestpInquireStmt *stmt;
   ffestpInquireIx ix;
 
-  stmt = (ffestpInquireStmt *) malloc_new_kp (ffesta_output_pool,
-				  "FFESTD easy", sizeof (ffestpFile) * max);
+  stmt = malloc_new_kp (ffesta_output_pool, "FFESTD easy",
+			sizeof (ffestpFile) * max);
 
   for (ix = 0; ix < max; ++ix)
     {
@@ -1272,27 +1097,12 @@ ffestd_subr_labels_ (bool unexpected)
   assert (undef == 0);
 }
 
-/* ffestd_subr_f90_ -- Report error about lack of full F90 support
-
-   ffestd_subr_f90_();	*/
-
-#if FFESTR_F90
-static void
-ffestd_subr_f90_ ()
-{
-  ffebad_start (FFEBAD_F90);
-  ffebad_here (0, ffelex_token_where_line (ffesta_tokens[0]),
-	       ffelex_token_where_column (ffesta_tokens[0]));
-  ffebad_finish ();
-}
-
-#endif
 /* ffestd_subr_vxt_ -- Report error about lack of full VXT support
 
    ffestd_subr_vxt_();	*/
 
 static void
-ffestd_subr_vxt_ ()
+ffestd_subr_vxt_ (void)
 {
   ffebad_start (FFEBAD_VXT_UNSUPPORTED);
   ffebad_here (0, ffelex_token_where_line (ffesta_tokens[0]),
@@ -1311,7 +1121,7 @@ ffestd_subr_vxt_ ()
    handling them as a single block rather than one statement at a time).  */
 
 void
-ffestd_begin_uses ()
+ffestd_begin_uses (void)
 {
 }
 
@@ -1339,30 +1149,6 @@ ffestd_do (bool ok UNUSED)
   assert (ffestd_block_level_ >= 0);
 }
 
-/* ffestd_end_uses -- End a bunch of USE statements
-
-   ffestd_end_uses(TRUE);
-
-   ok==TRUE means simply not popping due to ffestd_eof_()
-   being called, because there is no formal END USES statement in Fortran.  */
-
-#if FFESTR_F90
-void
-ffestd_end_uses (bool ok)
-{
-}
-
-/* ffestd_end_R740 -- End a WHERE(-THEN)
-
-   ffestd_end_R740(TRUE);  */
-
-void
-ffestd_end_R740 (bool ok)
-{
-  return;			/* F90. */
-}
-
-#endif
 /* ffestd_end_R807 -- End of statement following logical IF
 
    ffestd_end_R807(TRUE);
@@ -1391,7 +1177,7 @@ ffestd_end_R807 (bool ok UNUSED)
    ffestd_exec_begin();	 */
 
 void
-ffestd_exec_begin ()
+ffestd_exec_begin (void)
 {
   ffecom_exec_transition ();
 
@@ -1423,10 +1209,9 @@ ffestd_exec_begin ()
    ffestd_exec_end();  */
 
 void
-ffestd_exec_end ()
+ffestd_exec_end (void)
 {
-  int old_lineno = lineno;
-  const char *old_input_filename = input_filename;
+  location_t old_loc = input_location;
 
   ffecom_end_transition ();
 
@@ -1458,8 +1243,7 @@ ffestd_exec_end ()
   ffestd_stmt_list_.last = NULL;
   ffestd_2pass_entrypoints_ = 0;
 
-  lineno = old_lineno;
-  input_filename = old_input_filename;
+  input_location = old_loc;
 }
 
 /* ffestd_init_3 -- Initialize for any program unit
@@ -1467,7 +1251,7 @@ ffestd_exec_end ()
    ffestd_init_3();  */
 
 void
-ffestd_init_3 ()
+ffestd_init_3 (void)
 {
   ffestd_stmt_list_.first = (ffestdStmt_) &ffestd_stmt_list_.first;
   ffestd_stmt_list_.last = (ffestdStmt_) &ffestd_stmt_list_.first;
@@ -1521,353 +1305,6 @@ ffestd_labeldef_useless (ffelab label UNUSED)
 {
 }
 
-/* ffestd_R423A -- PRIVATE statement (in R422 derived-type statement)
-
-   ffestd_R423A();  */
-
-#if FFESTR_F90
-void
-ffestd_R423A ()
-{
-  ffestd_check_simple_ ();
-}
-
-/* ffestd_R423B -- SEQUENCE statement (in R422 derived-type-stmt)
-
-   ffestd_R423B();  */
-
-void
-ffestd_R423B ()
-{
-  ffestd_check_simple_ ();
-}
-
-/* ffestd_R424 -- derived-TYPE-def statement
-
-   ffestd_R424(access_token,access_kw,name_token);
-
-   Handle a derived-type definition.  */
-
-void
-ffestd_R424 (ffelexToken access, ffestrOther access_kw, ffelexToken name)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  char *a;
-
-  if (access == NULL)
-    fprintf (dmpout, "* TYPE %s\n", ffelex_token_text (name));
-  else
-    {
-      switch (access_kw)
-	{
-	case FFESTR_otherPUBLIC:
-	  a = "PUBLIC";
-	  break;
-
-	case FFESTR_otherPRIVATE:
-	  a = "PRIVATE";
-	  break;
-
-	default:
-	  assert (FALSE);
-	}
-      fprintf (dmpout, "* TYPE,%s: %s\n", a, ffelex_token_text (name));
-    }
-#endif
-}
-
-/* ffestd_R425 -- End a TYPE
-
-   ffestd_R425(TRUE);  */
-
-void
-ffestd_R425 (bool ok)
-{
-}
-
-/* ffestd_R519_start -- INTENT statement list begin
-
-   ffestd_R519_start();
-
-   Verify that INTENT is valid here, and begin accepting items in the list.  */
-
-void
-ffestd_R519_start (ffestrOther intent_kw)
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  char *a;
-
-  switch (intent_kw)
-    {
-    case FFESTR_otherIN:
-      a = "IN";
-      break;
-
-    case FFESTR_otherOUT:
-      a = "OUT";
-      break;
-
-    case FFESTR_otherINOUT:
-      a = "INOUT";
-      break;
-
-    default:
-      assert (FALSE);
-    }
-  fprintf (dmpout, "* INTENT (%s) ", a);
-#endif
-}
-
-/* ffestd_R519_item -- INTENT statement for name
-
-   ffestd_R519_item(name_token);
-
-   Make sure name_token identifies a valid object to be INTENTed.  */
-
-void
-ffestd_R519_item (ffelexToken name)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#endif
-}
-
-/* ffestd_R519_finish -- INTENT statement list complete
-
-   ffestd_R519_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R519_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-/* ffestd_R520_start -- OPTIONAL statement list begin
-
-   ffestd_R520_start();
-
-   Verify that OPTIONAL is valid here, and begin accepting items in the list.  */
-
-void
-ffestd_R520_start ()
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* OPTIONAL ", dmpout);
-#endif
-}
-
-/* ffestd_R520_item -- OPTIONAL statement for name
-
-   ffestd_R520_item(name_token);
-
-   Make sure name_token identifies a valid object to be OPTIONALed.  */
-
-void
-ffestd_R520_item (ffelexToken name)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#endif
-}
-
-/* ffestd_R520_finish -- OPTIONAL statement list complete
-
-   ffestd_R520_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R520_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-/* ffestd_R521A -- PUBLIC statement
-
-   ffestd_R521A();
-
-   Verify that PUBLIC is valid here.  */
-
-void
-ffestd_R521A ()
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* PUBLIC\n", dmpout);
-#endif
-}
-
-/* ffestd_R521Astart -- PUBLIC statement list begin
-
-   ffestd_R521Astart();
-
-   Verify that PUBLIC is valid here, and begin accepting items in the list.  */
-
-void
-ffestd_R521Astart ()
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* PUBLIC ", dmpout);
-#endif
-}
-
-/* ffestd_R521Aitem -- PUBLIC statement for name
-
-   ffestd_R521Aitem(name_token);
-
-   Make sure name_token identifies a valid object to be PUBLICed.  */
-
-void
-ffestd_R521Aitem (ffelexToken name)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#endif
-}
-
-/* ffestd_R521Afinish -- PUBLIC statement list complete
-
-   ffestd_R521Afinish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R521Afinish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-/* ffestd_R521B -- PRIVATE statement
-
-   ffestd_R521B();
-
-   Verify that PRIVATE is valid here (outside a derived-type statement).  */
-
-void
-ffestd_R521B ()
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* PRIVATE_outside_of_R422_derived_type_def\n", dmpout);
-#endif
-}
-
-/* ffestd_R521Bstart -- PRIVATE statement list begin
-
-   ffestd_R521Bstart();
-
-   Verify that PRIVATE is valid here, and begin accepting items in the list.  */
-
-void
-ffestd_R521Bstart ()
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* PRIVATE ", dmpout);
-#endif
-}
-
-/* ffestd_R521Bitem -- PRIVATE statement for name
-
-   ffestd_R521Bitem(name_token);
-
-   Make sure name_token identifies a valid object to be PRIVATEed.  */
-
-void
-ffestd_R521Bitem (ffelexToken name)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#endif
-}
-
-/* ffestd_R521Bfinish -- PRIVATE statement list complete
-
-   ffestd_R521Bfinish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R521Bfinish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-#endif
 /* ffestd_R522 -- SAVE statement with no list
 
    ffestd_R522();
@@ -1875,7 +1312,7 @@ ffestd_R521Bfinish ()
    Verify that SAVE is valid here, and flag everything as SAVEd.  */
 
 void
-ffestd_R522 ()
+ffestd_R522 (void)
 {
   ffestd_check_simple_ ();
 }
@@ -1887,7 +1324,7 @@ ffestd_R522 ()
    Verify that SAVE is valid here, and begin accepting items in the list.  */
 
 void
-ffestd_R522start ()
+ffestd_R522start (void)
 {
   ffestd_check_start_ ();
 }
@@ -1923,7 +1360,7 @@ ffestd_R522item_cblock (ffelexToken name UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_R522finish ()
+ffestd_R522finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -1959,202 +1396,11 @@ ffestd_R524_item (ffelexToken name UNUSED, ffesttDimList dims UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_R524_finish ()
+ffestd_R524_finish (void)
 {
   ffestd_check_finish_ ();
 }
 
-/* ffestd_R525_start -- ALLOCATABLE statement list begin
-
-   ffestd_R525_start();
-
-   Verify that ALLOCATABLE is valid here, and begin accepting items in the
-   list.  */
-
-#if FFESTR_F90
-void
-ffestd_R525_start ()
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* ALLOCATABLE ", dmpout);
-#endif
-}
-
-/* ffestd_R525_item -- ALLOCATABLE statement for object-name
-
-   ffestd_R525_item(name_token,dim_list);
-
-   Make sure name_token identifies a valid object to be ALLOCATABLEd.  */
-
-void
-ffestd_R525_item (ffelexToken name, ffesttDimList dims)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs (ffelex_token_text (name), dmpout);
-  if (dims != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_dimlist_dump (dims);
-      fputc (')', dmpout);
-    }
-  fputc (',', dmpout);
-#endif
-}
-
-/* ffestd_R525_finish -- ALLOCATABLE statement list complete
-
-   ffestd_R525_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R525_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-/* ffestd_R526_start -- POINTER statement list begin
-
-   ffestd_R526_start();
-
-   Verify that POINTER is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_R526_start ()
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* POINTER ", dmpout);
-#endif
-}
-
-/* ffestd_R526_item -- POINTER statement for object-name
-
-   ffestd_R526_item(name_token,dim_list);
-
-   Make sure name_token identifies a valid object to be POINTERd.  */
-
-void
-ffestd_R526_item (ffelexToken name, ffesttDimList dims)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs (ffelex_token_text (name), dmpout);
-  if (dims != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_dimlist_dump (dims);
-      fputc (')', dmpout);
-    }
-  fputc (',', dmpout);
-#endif
-}
-
-/* ffestd_R526_finish -- POINTER statement list complete
-
-   ffestd_R526_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R526_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-/* ffestd_R527_start -- TARGET statement list begin
-
-   ffestd_R527_start();
-
-   Verify that TARGET is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_R527_start ()
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("* TARGET ", dmpout);
-#endif
-}
-
-/* ffestd_R527_item -- TARGET statement for object-name
-
-   ffestd_R527_item(name_token,dim_list);
-
-   Make sure name_token identifies a valid object to be TARGETd.  */
-
-void
-ffestd_R527_item (ffelexToken name, ffesttDimList dims)
-{
-  ffestd_check_item_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs (ffelex_token_text (name), dmpout);
-  if (dims != NULL)
-    {
-      fputc ('(', dmpout);
-      ffestt_dimlist_dump (dims);
-      fputc (')', dmpout);
-    }
-  fputc (',', dmpout);
-#endif
-}
-
-/* ffestd_R527_finish -- TARGET statement list complete
-
-   ffestd_R527_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R527_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-#endif
 /* ffestd_R537_start -- PARAMETER statement list begin
 
    ffestd_R537_start();
@@ -2162,7 +1408,7 @@ ffestd_R527_finish ()
    Verify that PARAMETER is valid here, and begin accepting items in the list.	*/
 
 void
-ffestd_R537_start ()
+ffestd_R537_start (void)
 {
   ffestd_check_start_ ();
 }
@@ -2187,7 +1433,7 @@ ffestd_R537_item (ffebld dest UNUSED, ffebld source UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_R537_finish ()
+ffestd_R537_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -2199,7 +1445,7 @@ ffestd_R537_finish ()
    Verify that the IMPLICIT NONE statement is ok here and implement.  */
 
 void
-ffestd_R539 ()
+ffestd_R539 (void)
 {
   ffestd_check_simple_ ();
 }
@@ -2211,7 +1457,7 @@ ffestd_R539 ()
    Verify that the IMPLICIT statement is ok here and implement.	 */
 
 void
-ffestd_R539start ()
+ffestd_R539start (void)
 {
   ffestd_check_start_ ();
 }
@@ -2237,7 +1483,7 @@ ffestd_R539item (ffestpType type UNUSED, ffebld kind UNUSED,
    Finish up any local activities.  */
 
 void
-ffestd_R539finish ()
+ffestd_R539finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -2249,7 +1495,7 @@ ffestd_R539finish ()
    Verify that NAMELIST is valid here, and begin accepting items in the list.  */
 
 void
-ffestd_R542_start ()
+ffestd_R542_start (void)
 {
   ffestd_check_start_ ();
 }
@@ -2285,54 +1531,11 @@ ffestd_R542_item_nitem (ffelexToken name UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_R542_finish ()
+ffestd_R542_finish (void)
 {
   ffestd_check_finish_ ();
 }
 
-/* ffestd_R544_start -- EQUIVALENCE statement list begin
-
-   ffestd_R544_start();
-
-   Verify that EQUIVALENCE is valid here, and begin accepting items in the
-   list.  */
-
-#if 0
-void
-ffestd_R544_start ()
-{
-  ffestd_check_start_ ();
-}
-
-#endif
-/* ffestd_R544_item -- EQUIVALENCE statement assignment
-
-   ffestd_R544_item(exprlist);
-
-   Make sure the equivalence is valid, then implement it.  */
-
-#if 0
-void
-ffestd_R544_item (ffesttExprList exprlist)
-{
-  ffestd_check_item_ ();
-}
-
-#endif
-/* ffestd_R544_finish -- EQUIVALENCE statement list complete
-
-   ffestd_R544_finish();
-
-   Just wrap up any local activities.  */
-
-#if 0
-void
-ffestd_R544_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-#endif
 /* ffestd_R547_start -- COMMON statement list begin
 
    ffestd_R547_start();
@@ -2340,7 +1543,7 @@ ffestd_R544_finish ()
    Verify that COMMON is valid here, and begin accepting items in the list.  */
 
 void
-ffestd_R547_start ()
+ffestd_R547_start (void)
 {
   ffestd_check_start_ ();
 }
@@ -2377,63 +1580,11 @@ ffestd_R547_item_cblock (ffelexToken name UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_R547_finish ()
+ffestd_R547_finish (void)
 {
   ffestd_check_finish_ ();
 }
 
-/* ffestd_R620 -- ALLOCATE statement
-
-   ffestd_R620(exprlist,stat,stat_token);
-
-   Make sure the expression list is valid, then implement it.  */
-
-#if FFESTR_F90
-void
-ffestd_R620 (ffesttExprList exprlist, ffebld stat)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-}
-
-/* ffestd_R624 -- NULLIFY statement
-
-   ffestd_R624(pointer_name_list);
-
-   Make sure pointer_name_list identifies valid pointers for a NULLIFY.	 */
-
-void
-ffestd_R624 (ffesttExprList pointers)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("+ NULLIFY (", dmpout);
-  assert (pointers != NULL);
-  ffestt_exprlist_dump (pointers);
-  fputs (")\n", dmpout);
-#endif
-}
-
-/* ffestd_R625 -- DEALLOCATE statement
-
-   ffestd_R625(exprlist,stat,stat_token);
-
-   Make sure the equivalence is valid, then implement it.  */
-
-void
-ffestd_R625 (ffesttExprList exprlist, ffebld stat)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-}
-
-#endif
 /* ffestd_R737A -- Assignment statement outside of WHERE
 
    ffestd_R737A(dest_expr,source_expr);	 */
@@ -2454,94 +1605,6 @@ ffestd_R737A (ffebld dest, ffebld source)
   ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
-/* ffestd_R737B -- Assignment statement inside of WHERE
-
-   ffestd_R737B(dest_expr,source_expr);	 */
-
-#if FFESTR_F90
-void
-ffestd_R737B (ffebld dest, ffebld source)
-{
-  ffestd_check_simple_ ();
-}
-
-/* ffestd_R738 -- Pointer assignment statement
-
-   ffestd_R738(dest_expr,source_expr,source_token);
-
-   Make sure the assignment is valid.  */
-
-void
-ffestd_R738 (ffebld dest, ffebld source)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-}
-
-/* ffestd_R740 -- WHERE statement
-
-   ffestd_R740(expr,expr_token);
-
-   Make sure statement is valid here; implement.  */
-
-void
-ffestd_R740 (ffebld expr)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-}
-
-/* ffestd_R742 -- WHERE-construct statement
-
-   ffestd_R742(expr,expr_token);
-
-   Make sure statement is valid here; implement.  */
-
-void
-ffestd_R742 (ffebld expr)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-}
-
-/* ffestd_R744 -- ELSE WHERE statement
-
-   ffestd_R744();
-
-   Make sure ffestd_kind_ identifies a WHERE block.
-   Implement the ELSE of the current WHERE block.  */
-
-void
-ffestd_R744 ()
-{
-  ffestd_check_simple_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs ("+ ELSE_WHERE\n", dmpout);
-#endif
-}
-
-/* ffestd_R745 -- Implicit END WHERE statement.  */
-
-void
-ffestd_R745 (bool ok)
-{
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs ("+ END_WHERE\n", dmpout);	/* Also see ffestd_R745. */
-
-  --ffestd_block_level_;
-  assert (ffestd_block_level_ >= 0);
-#endif
-}
-
-#endif
 
 /* Block IF (IF-THEN) statement.  */
 
@@ -3033,7 +2096,7 @@ ffestd_R843 (ffebld expr)
    Make sure an OPEN is valid in the current context, and implement it.	 */
 
 void
-ffestd_R904 ()
+ffestd_R904 (void)
 {
   ffestdStmt_ stmt;
 
@@ -3088,7 +2151,7 @@ ffestd_R904 ()
    Make sure a CLOSE is valid in the current context, and implement it.	 */
 
 void
-ffestd_R907 ()
+ffestd_R907 (void)
 {
   ffestdStmt_ stmt;
 
@@ -3166,8 +2229,7 @@ ffestd_R909_item (ffebld expr, ffelexToken expr_token)
 
   ffestd_check_item_ ();
 
-  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
-					  "ffestdExprItem_", sizeof (*item));
+  item = malloc_new_kp (ffesta_output_pool, "ffestdExprItem_", sizeof (*item));
 
   item->next = NULL;
   item->expr = expr;
@@ -3183,7 +2245,7 @@ ffestd_R909_item (ffebld expr, ffelexToken expr_token)
    Just wrap up any local activities.  */
 
 void
-ffestd_R909_finish ()
+ffestd_R909_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -3243,8 +2305,7 @@ ffestd_R910_item (ffebld expr, ffelexToken expr_token)
 
   ffestd_check_item_ ();
 
-  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
-					  "ffestdExprItem_", sizeof (*item));
+  item = malloc_new_kp (ffesta_output_pool, "ffestdExprItem_", sizeof (*item));
 
   item->next = NULL;
   item->expr = expr;
@@ -3260,7 +2321,7 @@ ffestd_R910_item (ffebld expr, ffelexToken expr_token)
    Just wrap up any local activities.  */
 
 void
-ffestd_R910_finish ()
+ffestd_R910_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -3303,8 +2364,7 @@ ffestd_R911_item (ffebld expr, ffelexToken expr_token)
 
   ffestd_check_item_ ();
 
-  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
-					  "ffestdExprItem_", sizeof (*item));
+  item = malloc_new_kp (ffesta_output_pool, "ffestdExprItem_", sizeof (*item));
 
   item->next = NULL;
   item->expr = expr;
@@ -3320,7 +2380,7 @@ ffestd_R911_item (ffebld expr, ffelexToken expr_token)
    Just wrap up any local activities.  */
 
 void
-ffestd_R911_finish ()
+ffestd_R911_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -3332,7 +2392,7 @@ ffestd_R911_finish ()
    Make sure a BACKSPACE is valid in the current context, and implement it.  */
 
 void
-ffestd_R919 ()
+ffestd_R919 (void)
 {
   ffestdStmt_ stmt;
 
@@ -3353,7 +2413,7 @@ ffestd_R919 ()
    Make sure a ENDFILE is valid in the current context, and implement it.  */
 
 void
-ffestd_R920 ()
+ffestd_R920 (void)
 {
   ffestdStmt_ stmt;
 
@@ -3374,7 +2434,7 @@ ffestd_R920 ()
    Make sure a REWIND is valid in the current context, and implement it.  */
 
 void
-ffestd_R921 ()
+ffestd_R921 (void)
 {
   ffestdStmt_ stmt;
 
@@ -3443,7 +2503,7 @@ ffestd_R923A (bool by_file)
    list.  */
 
 void
-ffestd_R923B_start ()
+ffestd_R923B_start (void)
 {
   ffestdStmt_ stmt;
 
@@ -3472,8 +2532,7 @@ ffestd_R923B_item (ffebld expr)
 
   ffestd_check_item_ ();
 
-  item = (ffestdExprItem_) malloc_new_kp (ffesta_output_pool,
-					  "ffestdExprItem_", sizeof (*item));
+  item = malloc_new_kp (ffesta_output_pool, "ffestdExprItem_", sizeof (*item));
 
   item->next = NULL;
   item->expr = expr;
@@ -3488,7 +2547,7 @@ ffestd_R923B_item (ffebld expr)
    Just wrap up any local activities.  */
 
 void
-ffestd_R923B_finish ()
+ffestd_R923B_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -3608,7 +2667,7 @@ ffestd_R1001dump_ (ffests s, ffesttFormatList list)
 	  break;
 
 	case FFESTP_formattypeX:
-	  ffestd_R1001dump_1010_3_ (s, next, "X");
+	  ffestd_R1001dump_1010_2_ (s, next, "X");
 	  break;
 
 	case FFESTP_formattypeS:
@@ -3914,26 +2973,6 @@ ffestd_R1001dump_1010_2_ (ffests s, ffesttFormatList f, const char *string)
   ffests_puts (s, string);
 }
 
-/* ffestd_R1001dump_1010_3_ -- Dump a particular format
-
-   ffesttFormatList f;
-   ffestd_R1001dump_1010_3_(f,"I");
-
-   The format is dumped with form nX.  */
-
-static void
-ffestd_R1001dump_1010_3_ (ffests s, ffesttFormatList f, const char *string)
-{
-  assert (f->u.R1010.val.present);
-
-  if (f->u.R1010.val.rtexpr)
-    ffestd_R1001rtexpr_ (s, f, f->u.R1010.val.u.expr);
-  else
-    ffests_printf (s, "%lu", f->u.R1010.val.u.unsigned_val);
-
-  ffests_puts (s, string);
-}
-
 /* ffestd_R1001dump_1010_4_ -- Dump a particular format
 
    ffesttFormatList f;
@@ -4078,114 +3117,6 @@ ffestd_R1103 (bool ok UNUSED)
   ffestd_stmt_append_ (stmt);
 }
 
-/* ffestd_R1105 -- MODULE statement
-
-   ffestd_R1105(name_token);
-
-   Make sure ffestd_kind_ identifies an empty block.  Make sure name_token
-   gives a valid name.	Implement the beginning of a module.  */
-
-#if FFESTR_F90
-void
-ffestd_R1105 (ffelexToken name)
-{
-  assert (ffestd_block_level_ == 0);
-
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "* MODULE %s\n", ffelex_token_text (name));
-#endif
-}
-
-/* ffestd_R1106 -- End a MODULE
-
-   ffestd_R1106(TRUE);	*/
-
-void
-ffestd_R1106 (bool ok)
-{
-  assert (ffestd_block_level_ == 0);
-
-  /* Generate any wrap-up code here (unlikely in MODULE!). */
-
-  if (ffestw_state (ffestw_stack_top ()) != FFESTV_stateMODULE5)
-    ffestd_subr_labels_ (TRUE);	/* Handle any undefined labels (unlikely). */
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "< END_MODULE %s\n",
-	   ffelex_token_text (ffestw_name (ffestw_stack_top ())));
-#endif
-}
-
-/* ffestd_R1107_start -- USE statement list begin
-
-   ffestd_R1107_start();
-
-   Verify that USE is valid here, and begin accepting items in the list.  */
-
-void
-ffestd_R1107_start (ffelexToken name, bool only)
-{
-  ffestd_check_start_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "* USE %s,", ffelex_token_text (name));	/* NB
-								   _shriek_begin_uses_. */
-  if (only)
-    fputs ("only: ", dmpout);
-#endif
-}
-
-/* ffestd_R1107_item -- USE statement for name
-
-   ffestd_R1107_item(local_token,use_token);
-
-   Make sure name_token identifies a valid object to be USEed.	local_token
-   may be NULL if _start_ was called with only==TRUE.  */
-
-void
-ffestd_R1107_item (ffelexToken local, ffelexToken use)
-{
-  ffestd_check_item_ ();
-  assert (use != NULL);
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  if (local != NULL)
-    fprintf (dmpout, "%s=>", ffelex_token_text (local));
-  fprintf (dmpout, "%s,", ffelex_token_text (use));
-#endif
-}
-
-/* ffestd_R1107_finish -- USE statement list complete
-
-   ffestd_R1107_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R1107_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-#endif
 /* ffestd_R1111 -- BLOCK DATA statement
 
    ffestd_R1111(name_token);
@@ -4226,190 +3157,6 @@ ffestd_R1112 (bool ok UNUSED)
   ffestd_stmt_append_ (stmt);
 }
 
-/* ffestd_R1202 -- INTERFACE statement
-
-   ffestd_R1202(operator,defined_name);
-
-   Make sure ffestd_kind_ identifies an INTERFACE block.
-   Implement the end of the current interface.
-
-   06-Jun-90  JCB  1.1
-      Allow no operator or name to mean INTERFACE by itself; missed this
-      valid form when originally doing syntactic analysis code.	 */
-
-#if FFESTR_F90
-void
-ffestd_R1202 (ffestpDefinedOperator operator, ffelexToken name)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  switch (operator)
-    {
-    case FFESTP_definedoperatorNone:
-      if (name == NULL)
-	fputs ("* INTERFACE_unnamed\n", dmpout);
-      else
-	fprintf (dmpout, "* INTERFACE %s\n", ffelex_token_text (name));
-      break;
-
-    case FFESTP_definedoperatorOPERATOR:
-      fprintf (dmpout, "* INTERFACE_OPERATOR (.%s.)\n", ffelex_token_text (name));
-      break;
-
-    case FFESTP_definedoperatorASSIGNMENT:
-      fputs ("* INTERFACE_ASSIGNMENT (=)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorPOWER:
-      fputs ("* INTERFACE_OPERATOR (**)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorMULT:
-      fputs ("* INTERFACE_OPERATOR (*)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorADD:
-      fputs ("* INTERFACE_OPERATOR (+)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorCONCAT:
-      fputs ("* INTERFACE_OPERATOR (//)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorDIVIDE:
-      fputs ("* INTERFACE_OPERATOR (/)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorSUBTRACT:
-      fputs ("* INTERFACE_OPERATOR (-)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorNOT:
-      fputs ("* INTERFACE_OPERATOR (.not.)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorAND:
-      fputs ("* INTERFACE_OPERATOR (.and.)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorOR:
-      fputs ("* INTERFACE_OPERATOR (.or.)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorEQV:
-      fputs ("* INTERFACE_OPERATOR (.eqv.)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorNEQV:
-      fputs ("* INTERFACE_OPERATOR (.neqv.)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorEQ:
-      fputs ("* INTERFACE_OPERATOR (==)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorNE:
-      fputs ("* INTERFACE_OPERATOR (/=)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorLT:
-      fputs ("* INTERFACE_OPERATOR (<)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorLE:
-      fputs ("* INTERFACE_OPERATOR (<=)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorGT:
-      fputs ("* INTERFACE_OPERATOR (>)\n", dmpout);
-      break;
-
-    case FFESTP_definedoperatorGE:
-      fputs ("* INTERFACE_OPERATOR (>=)\n", dmpout);
-      break;
-
-    default:
-      assert (FALSE);
-      break;
-    }
-#endif
-}
-
-/* ffestd_R1203 -- End an INTERFACE
-
-   ffestd_R1203(TRUE);	*/
-
-void
-ffestd_R1203 (bool ok)
-{
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs ("* END_INTERFACE\n", dmpout);
-#endif
-}
-
-/* ffestd_R1205_start -- MODULE PROCEDURE statement list begin
-
-   ffestd_R1205_start();
-
-   Verify that MODULE PROCEDURE is valid here, and begin accepting items in
-   the list.  */
-
-void
-ffestd_R1205_start ()
-{
-  ffestd_check_start_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputs ("* MODULE_PROCEDURE ", dmpout);
-#endif
-}
-
-/* ffestd_R1205_item -- MODULE PROCEDURE statement for name
-
-   ffestd_R1205_item(name_token);
-
-   Make sure name_token identifies a valid object to be MODULE PROCEDUREed.  */
-
-void
-ffestd_R1205_item (ffelexToken name)
-{
-  ffestd_check_item_ ();
-  assert (name != NULL);
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fprintf (dmpout, "%s,", ffelex_token_text (name));
-#endif
-}
-
-/* ffestd_R1205_finish -- MODULE PROCEDURE statement list complete
-
-   ffestd_R1205_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_R1205_finish ()
-{
-  ffestd_check_finish_ ();
-
-  return;			/* F90. */
-
-#ifdef FFESTD_F90
-  fputc ('\n', dmpout);
-#endif
-}
-
-#endif
 /* ffestd_R1207_start -- EXTERNAL statement list begin
 
    ffestd_R1207_start();
@@ -4417,7 +3164,7 @@ ffestd_R1205_finish ()
    Verify that EXTERNAL is valid here, and begin accepting items in the list.  */
 
 void
-ffestd_R1207_start ()
+ffestd_R1207_start (void)
 {
   ffestd_check_start_ ();
 }
@@ -4442,7 +3189,7 @@ ffestd_R1207_item (ffelexToken name)
    Just wrap up any local activities.  */
 
 void
-ffestd_R1207_finish ()
+ffestd_R1207_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -4454,7 +3201,7 @@ ffestd_R1207_finish ()
    Verify that INTRINSIC is valid here, and begin accepting items in the list.	*/
 
 void
-ffestd_R1208_start ()
+ffestd_R1208_start (void)
 {
   ffestd_check_start_ ();
 }
@@ -4479,7 +3226,7 @@ ffestd_R1208_item (ffelexToken name)
    Just wrap up any local activities.  */
 
 void
-ffestd_R1208_finish ()
+ffestd_R1208_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -4505,22 +3252,6 @@ ffestd_R1212 (ffebld expr)
   ffesta_set_outpooldisp (FFESTA_pooldispPRESERVE);
 }
 
-/* ffestd_R1213 -- Defined assignment statement
-
-   ffestd_R1213(dest_expr,source_expr,source_token);
-
-   Make sure the assignment is valid.  */
-
-#if FFESTR_F90
-void
-ffestd_R1213 (ffebld dest, ffebld source)
-{
-  ffestd_check_simple_ ();
-
-  ffestd_subr_f90_ ();
-}
-
-#endif
 /* ffestd_R1219 -- FUNCTION statement
 
    ffestd_R1219(funcname,arglist,ending_token,kind,kindt,len,lent,
@@ -4667,33 +3398,6 @@ ffestd_R1227 (ffebld expr)
     ffestd_is_reachable_ = FALSE;
 }
 
-/* ffestd_R1228 -- CONTAINS statement
-
-   ffestd_R1228();  */
-
-#if FFESTR_F90
-void
-ffestd_R1228 ()
-{
-  assert (ffestd_block_level_ == 0);
-
-  ffestd_check_simple_ ();
-
-  /* Generate RETURN/STOP code here */
-
-  ffestd_subr_labels_ (ffestw_state (ffestw_stack_top ())
-		       == FFESTV_stateMODULE5);	/* Handle any undefined
-						   labels. */
-
-  ffestd_subr_f90_ ();
-  return;
-
-#ifdef FFESTD_F90
-  fputs ("- CONTAINS\n", dmpout);
-#endif
-}
-
-#endif
 /* ffestd_R1229_start -- STMTFUNCTION statement begin
 
    ffestd_R1229_start(func_name,func_arg_list,close_paren);
@@ -4780,92 +3484,6 @@ ffestd_S3P4 (ffebld filename)
     }
 }
 
-/* ffestd_V003_start -- STRUCTURE statement list begin
-
-   ffestd_V003_start(structure_name);
-
-   Verify that STRUCTURE is valid here, and begin accepting items in the list.	*/
-
-#if FFESTR_VXT
-void
-ffestd_V003_start (ffelexToken structure_name)
-{
-  ffestd_check_start_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V003_item -- STRUCTURE statement for object-name
-
-   ffestd_V003_item(name_token,dim_list);
-
-   Make sure name_token identifies a valid object to be STRUCTUREd.  */
-
-void
-ffestd_V003_item (ffelexToken name, ffesttDimList dims)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V003_finish -- STRUCTURE statement list complete
-
-   ffestd_V003_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V003_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-/* ffestd_V004 -- End a STRUCTURE
-
-   ffestd_V004(TRUE);  */
-
-void
-ffestd_V004 (bool ok)
-{
-}
-
-/* ffestd_V009 -- UNION statement
-
-   ffestd_V009();  */
-
-void
-ffestd_V009 ()
-{
-  ffestd_check_simple_ ();
-}
-
-/* ffestd_V010 -- End a UNION
-
-   ffestd_V010(TRUE);  */
-
-void
-ffestd_V010 (bool ok)
-{
-}
-
-/* ffestd_V012 -- MAP statement
-
-   ffestd_V012();  */
-
-void
-ffestd_V012 ()
-{
-  ffestd_check_simple_ ();
-}
-
-/* ffestd_V013 -- End a MAP
-
-   ffestd_V013(TRUE);  */
-
-void
-ffestd_V013 (bool ok)
-{
-}
-
-#endif
 /* ffestd_V014_start -- VOLATILE statement list begin
 
    ffestd_V014_start();
@@ -4873,7 +3491,7 @@ ffestd_V013 (bool ok)
    Verify that VOLATILE is valid here, and begin accepting items in the list.  */
 
 void
-ffestd_V014_start ()
+ffestd_V014_start (void)
 {
   ffestd_check_start_ ();
 }
@@ -4909,137 +3527,11 @@ ffestd_V014_item_cblock (ffelexToken name UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_V014_finish ()
+ffestd_V014_finish (void)
 {
   ffestd_check_finish_ ();
 }
 
-/* ffestd_V016_start -- RECORD statement list begin
-
-   ffestd_V016_start();
-
-   Verify that RECORD is valid here, and begin accepting items in the list.  */
-
-#if FFESTR_VXT
-void
-ffestd_V016_start ()
-{
-  ffestd_check_start_ ();
-}
-
-/* ffestd_V016_item_structure -- RECORD statement for common-block-name
-
-   ffestd_V016_item_structure(name_token);
-
-   Make sure name_token identifies a valid structure to be RECORDed.  */
-
-void
-ffestd_V016_item_structure (ffelexToken name)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V016_item_object -- RECORD statement for object-name
-
-   ffestd_V016_item_object(name_token,dim_list);
-
-   Make sure name_token identifies a valid object to be RECORDd.  */
-
-void
-ffestd_V016_item_object (ffelexToken name, ffesttDimList dims)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V016_finish -- RECORD statement list complete
-
-   ffestd_V016_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V016_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-/* ffestd_V018_start -- REWRITE(...) statement list begin
-
-   ffestd_V018_start();
-
-   Verify that REWRITE is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_V018_start (ffestvFormat format)
-{
-  ffestd_check_start_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V018_item -- REWRITE statement i/o item
-
-   ffestd_V018_item(expr,expr_token);
-
-   Implement output-list expression.  */
-
-void
-ffestd_V018_item (ffebld expr)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V018_finish -- REWRITE statement list complete
-
-   ffestd_V018_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V018_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-/* ffestd_V019_start -- ACCEPT statement list begin
-
-   ffestd_V019_start();
-
-   Verify that ACCEPT is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_V019_start (ffestvFormat format)
-{
-  ffestd_check_start_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V019_item -- ACCEPT statement i/o item
-
-   ffestd_V019_item(expr,expr_token);
-
-   Implement output-list expression.  */
-
-void
-ffestd_V019_item (ffebld expr)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V019_finish -- ACCEPT statement list complete
-
-   ffestd_V019_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V019_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-#endif
 /* ffestd_V020_start -- TYPE statement list begin
 
    ffestd_V020_start();
@@ -5073,167 +3565,11 @@ ffestd_V020_item (ffebld expr UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_V020_finish ()
+ffestd_V020_finish (void)
 {
   ffestd_check_finish_ ();
 }
 
-/* ffestd_V021 -- DELETE statement
-
-   ffestd_V021();
-
-   Make sure a DELETE is valid in the current context, and implement it.  */
-
-#if FFESTR_VXT
-void
-ffestd_V021 ()
-{
-  ffestd_check_simple_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V022 -- UNLOCK statement
-
-   ffestd_V022();
-
-   Make sure a UNLOCK is valid in the current context, and implement it.  */
-
-void
-ffestd_V022 ()
-{
-  ffestd_check_simple_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V023_start -- ENCODE(...) statement list begin
-
-   ffestd_V023_start();
-
-   Verify that ENCODE is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_V023_start ()
-{
-  ffestd_check_start_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V023_item -- ENCODE statement i/o item
-
-   ffestd_V023_item(expr,expr_token);
-
-   Implement output-list expression.  */
-
-void
-ffestd_V023_item (ffebld expr)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V023_finish -- ENCODE statement list complete
-
-   ffestd_V023_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V023_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-/* ffestd_V024_start -- DECODE(...) statement list begin
-
-   ffestd_V024_start();
-
-   Verify that DECODE is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_V024_start ()
-{
-  ffestd_check_start_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V024_item -- DECODE statement i/o item
-
-   ffestd_V024_item(expr,expr_token);
-
-   Implement output-list expression.  */
-
-void
-ffestd_V024_item (ffebld expr)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V024_finish -- DECODE statement list complete
-
-   ffestd_V024_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V024_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-/* ffestd_V025_start -- DEFINEFILE statement list begin
-
-   ffestd_V025_start();
-
-   Verify that DEFINEFILE is valid here, and begin accepting items in the
-   list.  */
-
-void
-ffestd_V025_start ()
-{
-  ffestd_check_start_ ();
-  ffestd_subr_vxt_ ();
-}
-
-/* ffestd_V025_item -- DEFINE FILE statement item
-
-   ffestd_V025_item(u,ut,m,mt,n,nt,asv,asvt);
-
-   Implement item.  Treat each item kind of like a separate statement,
-   since there's really no need to treat them as an aggregate.	*/
-
-void
-ffestd_V025_item (ffebld u, ffebld m, ffebld n, ffebld asv)
-{
-  ffestd_check_item_ ();
-}
-
-/* ffestd_V025_finish -- DEFINE FILE statement list complete
-
-   ffestd_V025_finish();
-
-   Just wrap up any local activities.  */
-
-void
-ffestd_V025_finish ()
-{
-  ffestd_check_finish_ ();
-}
-
-/* ffestd_V026 -- FIND statement
-
-   ffestd_V026();
-
-   Make sure a FIND is valid in the current context, and implement it.	*/
-
-void
-ffestd_V026 ()
-{
-  ffestd_check_simple_ ();
-  ffestd_subr_vxt_ ();
-}
-
-#endif
 /* ffestd_V027_start -- VXT PARAMETER statement list begin
 
    ffestd_V027_start();
@@ -5241,7 +3577,7 @@ ffestd_V026 ()
    Verify that PARAMETER is valid here, and begin accepting items in the list.	*/
 
 void
-ffestd_V027_start ()
+ffestd_V027_start (void)
 {
   ffestd_check_start_ ();
   ffestd_subr_vxt_ ();
@@ -5267,7 +3603,7 @@ ffestd_V027_item (ffelexToken dest_token UNUSED, ffebld source UNUSED)
    Just wrap up any local activities.  */
 
 void
-ffestd_V027_finish ()
+ffestd_V027_finish (void)
 {
   ffestd_check_finish_ ();
 }
@@ -5275,7 +3611,7 @@ ffestd_V027_finish ()
 /* Any executable statement.  */
 
 void
-ffestd_any ()
+ffestd_any (void)
 {
   ffestdStmt_ stmt;
 

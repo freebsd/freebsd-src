@@ -3,22 +3,22 @@
    Contributed by Hartmut Penner (hpenner@de.ibm.com) and
                   Ulrich Weigand (uweigand@de.ibm.com).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #ifndef _LINUX_H
 #define _LINUX_H
@@ -53,12 +53,7 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_OS_CPP_BUILTINS()		\
   do						\
     {						\
-      builtin_define_std ("linux");		\
-      builtin_define_std ("unix");		\
-      builtin_assert ("system=linux");		\
-      builtin_assert ("system=unix");		\
-      builtin_define ("__ELF__");		\
-      builtin_define ("__gnu_linux__");		\
+      LINUX_TARGET_OS_CPP_BUILTINS();		\
       if (flag_pic)				\
         {					\
           builtin_define ("__PIC__");		\
@@ -70,13 +65,8 @@ Boston, MA 02111-1307, USA.  */
 
 /* Target specific assembler settings.  */
 
-#ifdef DEFAULT_TARGET_64BIT
 #undef  ASM_SPEC
-#define ASM_SPEC "%{m31:-m31 -Aesa}"
-#else
-#undef  ASM_SPEC
-#define ASM_SPEC "%{m64:-m64 -Aesame}"
-#endif
+#define ASM_SPEC "%{m31&m64}%{mesa&mzarch}%{march=*}"
 
 
 /* Target specific linker settings.  */
@@ -87,41 +77,20 @@ Boston, MA 02111-1307, USA.  */
 #define MULTILIB_DEFAULTS { "m31" }
 #endif
 
-#define LINK_ARCH31_SPEC \
-  "-m elf_s390 \
+#undef  LINK_SPEC
+#define LINK_SPEC \
+  "%{m31:-m elf_s390}%{m64:-m elf64_s390} \
    %{shared:-shared} \
    %{!shared: \
       %{static:-static} \
       %{!static: \
 	%{rdynamic:-export-dynamic} \
-	%{!dynamic-linker:-dynamic-linker /lib/ld.so.1}}}"
-
-#define LINK_ARCH64_SPEC \
-  "-m elf64_s390 \
-   %{shared:-shared} \
-   %{!shared: \
-      %{static:-static} \
-      %{!static: \
-	%{rdynamic:-export-dynamic} \
-	%{!dynamic-linker:-dynamic-linker /lib/ld64.so.1}}}"
-
-#ifdef DEFAULT_TARGET_64BIT
-#undef  LINK_SPEC
-#define LINK_SPEC "%{m31:%(link_arch31)} %{!m31:%(link_arch64)}"
-#else
-#undef  LINK_SPEC
-#define LINK_SPEC "%{m64:%(link_arch64)} %{!m64:%(link_arch31)}"
-#endif
+	%{!dynamic-linker: \
+          %{m31:-dynamic-linker /lib/ld.so.1} \
+          %{m64:-dynamic-linker /lib/ld64.so.1}}}}"
 
 
-/* This macro defines names of additional specifications to put in the specs
-   that can be used in various specifications like CC1_SPEC.  Its definition
-   is an initializer with a subgrouping for each command option.  */
-
-#define EXTRA_SPECS \
-  { "link_arch31",	LINK_ARCH31_SPEC },	\
-  { "link_arch64",	LINK_ARCH64_SPEC },	\
-
+#define TARGET_ASM_FILE_END file_end_indicate_exec_stack
 
 /* Do code reading to identify a signal frame, and set the frame
    state data appropriately.  See unwind-dw2.c for the structs.  */

@@ -1,5 +1,6 @@
 /* intdoc.c
-   Copyright (C) 1997, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1997, 2000, 2001, 2003
+   Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -22,8 +23,10 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* From f/proj.h, which uses #error -- not all C compilers
    support that, and we want *this* program to be compilable
    by pretty much any C compiler.  */
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "assert.h"
 
 /* Pull in the intrinsics info, but only the doc parts.  */
@@ -235,13 +238,13 @@ dumpif (ffeintrinFamily fam)
 }
 
 static void
-dumpendif ()
+dumpendif (void)
 {
   in_ifset = 2;
 }
 
 static void
-dumpclearif ()
+dumpclearif (void)
 {
   if ((in_ifset == 2)
       || (latest_family != FFEINTRIN_familyNONE))
@@ -251,7 +254,7 @@ dumpclearif ()
 }
 
 static void
-dumpem ()
+dumpem (void)
 {
   int i;
 

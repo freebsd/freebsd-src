@@ -39,7 +39,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    These names are stored in rtx_name[].
    By convention these are the internal (field 1) names in lower_case.
 
-   3.  The print format, and type of each rtx->fld[] (field) in this rtx.
+   3.  The print format, and type of each rtx->u.fld[] (field) in this rtx.
    These formats are stored in rtx_format[].
    The meaning of the formats is documented in front of this array in rtl.c
    
@@ -358,9 +358,8 @@ DEF_RTL_EXPR(ADDRESS, "address", "e", 'm')
 DEF_RTL_EXPR(DEFINE_CPU_UNIT, "define_cpu_unit", "sS", 'x')
 
 /* (define_query_cpu_unit string [string]) describes cpu functional
-   units analogously to define_cpu_unit.  If we use automaton without
-   minimization, the reservation of such units can be queried for
-   automaton state.  */
+   units analogously to define_cpu_unit.  The reservation of such
+   units can be queried for automaton state.  */
 DEF_RTL_EXPR(DEFINE_QUERY_CPU_UNIT, "define_query_cpu_unit", "sS", 'x')
 
 /* (exclusion_set string string) means that each CPU functional unit
@@ -370,27 +369,79 @@ DEF_RTL_EXPR(DEFINE_QUERY_CPU_UNIT, "define_query_cpu_unit", "sS", 'x')
    for description CPU with fully pipelined floating point functional
    unit which can execute simultaneously only single floating point
    insns or only double floating point insns.  All CPU functional
-   units in a set should belong the same automaton.  */
+   units in a set should belong to the same automaton.  */
 DEF_RTL_EXPR(EXCLUSION_SET, "exclusion_set", "ss", 'x')
 
 /* (presence_set string string) means that each CPU functional unit in
-   the first string can not be reserved unless at least one of units
-   whose names are in the second string is reserved.  This is an
-   asymmetric relation.  CPU units in the string are separated by
-   commas.  For example, it is useful for description that slot1 is
-   reserved after slot0 reservation for VLIW processor.  All CPU
-   functional units in a set should belong the same automaton.  */
+   the first string can not be reserved unless at least one of pattern
+   of units whose names are in the second string is reserved.  This is
+   an asymmetric relation.  CPU units or unit patterns in the strings
+   are separated by commas.  Pattern is one unit name or unit names
+   separated by white-spaces.
+ 
+   For example, it is useful for description that slot1 is reserved
+   after slot0 reservation for a VLIW processor.  We could describe it
+   by the following construction
+
+      (presence_set "slot1" "slot0")
+
+   Or slot1 is reserved only after slot0 and unit b0 reservation.  In
+   this case we could write
+
+      (presence_set "slot1" "slot0 b0")
+
+   All CPU functional units in a set should belong to the same
+   automaton.  */
 DEF_RTL_EXPR(PRESENCE_SET, "presence_set", "ss", 'x')
 
+/* (final_presence_set string string) is analogous to `presence_set'.
+   The difference between them is when checking is done.  When an
+   instruction is issued in given automaton state reflecting all
+   current and planned unit reservations, the automaton state is
+   changed.  The first state is a source state, the second one is a
+   result state.  Checking for `presence_set' is done on the source
+   state reservation, checking for `final_presence_set' is done on the
+   result reservation.  This construction is useful to describe a
+   reservation which is actually two subsequent reservations.  For
+   example, if we use 
+
+      (presence_set "slot1" "slot0")
+
+   the following insn will be never issued (because slot1 requires
+   slot0 which is absent in the source state).
+
+      (define_reservation "insn_and_nop" "slot0 + slot1")
+
+   but it can be issued if we use analogous `final_presence_set'.  */
+DEF_RTL_EXPR(FINAL_PRESENCE_SET, "final_presence_set", "ss", 'x')
+
 /* (absence_set string string) means that each CPU functional unit in
-   the first string can not be reserved only if each unit whose name
-   is in the second string is not reserved.  This is an asymmetric
-   relation (actually exclusion set is analogous to this one but it is
-   symmetric).  CPU units in the string are separated by commas.  For
-   example, it is useful for description that slot0 can not be
-   reserved after slot1 or slot2 reservation for VLIW processor.  All
-   CPU functional units in a set should belong the same automaton.  */
+   the first string can be reserved only if each pattern of units
+   whose names are in the second string is not reserved.  This is an
+   asymmetric relation (actually exclusion set is analogous to this
+   one but it is symmetric).  CPU units or unit patterns in the string
+   are separated by commas.  Pattern is one unit name or unit names
+   separated by white-spaces.
+
+   For example, it is useful for description that slot0 can not be
+   reserved after slot1 or slot2 reservation for a VLIW processor.  We
+   could describe it by the following construction
+
+      (absence_set "slot2" "slot0, slot1")
+
+   Or slot2 can not be reserved if slot0 and unit b0 are reserved or
+   slot1 and unit b1 are reserved .  In this case we could write
+
+      (absence_set "slot2" "slot0 b0, slot1 b1")
+
+   All CPU functional units in a set should to belong the same
+   automaton.  */
 DEF_RTL_EXPR(ABSENCE_SET, "absence_set", "ss", 'x')
+
+/* (final_absence_set string string) is analogous to `absence_set' but
+   checking is done on the result (state) reservation.  See comments
+   for `final_presence_set'.  */
+DEF_RTL_EXPR(FINAL_ABSENCE_SET, "final_absence_set", "ss", 'x')
 
 /* (define_bypass number out_insn_names in_insn_names) names bypass
    with given latency (the first number) from insns given by the first
@@ -416,8 +467,8 @@ DEF_RTL_EXPR(DEFINE_AUTOMATON, "define_automaton", "s", 'x')
    automata.  Currently there are the following options:
 
    o "no-minimization" which makes no minimization of automata.  This
-     is only worth to do when we are going to query CPU functional
-     unit reservations in an automaton state.
+     is only worth to do when we are debugging the description and
+     need to look more accurately at reservations of states.
 
    o "time" which means printing additional time statistics about
       generation of automata.
@@ -429,7 +480,10 @@ DEF_RTL_EXPR(DEFINE_AUTOMATON, "define_automaton", "s", 'x')
    o "w" which means generation of warning instead of error for
      non-critical errors.
 
-   o "ndfa" which makes nondeterministic finite state automata.  */
+   o "ndfa" which makes nondeterministic finite state automata.
+
+   o "progress" which means output of a progress bar showing how many
+     states were generated so far for automaton being processed.  */
 DEF_RTL_EXPR(AUTOMATA_OPTION, "automata_option", "s", 'x')
 
 /* (define_reservation string string) names reservation (the first
@@ -477,7 +531,7 @@ DEF_RTL_EXPR(DEFINE_RESERVATION, "define_reservation", "ss", 'x')
        first regular expression *and* the reservation described by the
        second regular expression *and* etc.
 
-       4. "*" is used for convinience and simply means sequence in
+       4. "*" is used for convenience and simply means sequence in
        which the regular expression are repeated NUMBER times with
        cycle advancing (see ",").
 
@@ -531,6 +585,10 @@ DEF_RTL_EXPR(SET_ATTR_ALTERNATIVE, "set_attr_alternative", "sE", 'x')
    attribute name and the second is the comparison value.  */
 DEF_RTL_EXPR(EQ_ATTR, "eq_attr", "ss", 'x')
 
+/* A special case of the above representing a set of alternatives.  The first
+   operand is bitmap of the set, the second one is the default value.  */
+DEF_RTL_EXPR(EQ_ATTR_ALT, "eq_attr_alt", "ii", 'x')
+
 /* A conditional expression which is true if the specified flag is
    true for the insn being scheduled in reorg.
 
@@ -547,43 +605,41 @@ DEF_RTL_EXPR (ATTR_FLAG, "attr_flag", "s", 'x')
    All formats must start with "iuu" to handle the chain.
    Each insn expression holds an rtl instruction and its semantics
    during back-end processing.
-   See macros's in "rtl.h" for the meaning of each rtx->fld[].
+   See macros's in "rtl.h" for the meaning of each rtx->u.fld[].
 
    ---------------------------------------------------------------------- */
 
 /* An instruction that cannot jump.  */
-DEF_RTL_EXPR(INSN, "insn", "iuuBteiee", 'i')
+DEF_RTL_EXPR(INSN, "insn", "iuuBieiee", 'i')
 
 /* An instruction that can possibly jump.
-   Fields ( rtx->fld[] ) have exact same meaning as INSN's.  */
-DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "iuuBteiee0", 'i')
+   Fields ( rtx->u.fld[] ) have exact same meaning as INSN's.  */
+DEF_RTL_EXPR(JUMP_INSN, "jump_insn", "iuuBieiee0", 'i')
 
 /* An instruction that can possibly call a subroutine
    but which will not change which instruction comes next
    in the current function.
-   Field ( rtx->fld[9] ) is CALL_INSN_FUNCTION_USAGE.
-   All other fields ( rtx->fld[] ) have exact same meaning as INSN's.  */
-DEF_RTL_EXPR(CALL_INSN, "call_insn", "iuuBteieee", 'i')
+   Field ( rtx->u.fld[9] ) is CALL_INSN_FUNCTION_USAGE.
+   All other fields ( rtx->u.fld[] ) have exact same meaning as INSN's.  */
+DEF_RTL_EXPR(CALL_INSN, "call_insn", "iuuBieieee", 'i')
 
 /* A marker that indicates that control will not flow through.  */
 DEF_RTL_EXPR(BARRIER, "barrier", "iuu000000", 'x')
 
 /* Holds a label that is followed by instructions.
    Operand:
-   5: is used in jump.c for the use-count of the label.
-   6: is used in flow.c to point to the chain of label_ref's to this label.
-   7: is a number that is unique in the entire compilation.
-   8: is the user-given name of the label, if any.  */
+   4: is used in jump.c for the use-count of the label.
+   5: is used in flow.c to point to the chain of label_ref's to this label.
+   6: is a number that is unique in the entire compilation.
+   7: is the user-given name of the label, if any.  */
 DEF_RTL_EXPR(CODE_LABEL, "code_label", "iuuB00is", 'x')
 
 /* Say where in the code a source line starts, for symbol table's sake.
    Operand:
-   5: filename, if line number > 0, note-specific data otherwise.
-   6: line number if > 0, enum note_insn otherwise.
-   7: unique number if line number == note_insn_deleted_label.
-   8-9: padding so that notes and insns are the same size, and thus
-         allocated from the same page ordering.  */
-DEF_RTL_EXPR(NOTE, "note", "iuuB0ni00", 'x')
+   4: filename, if line number > 0, note-specific data otherwise.
+   5: line number if > 0, enum note_insn otherwise.
+   6: unique number if line number == note_insn_deleted_label.  */
+DEF_RTL_EXPR(NOTE, "note", "iuuB0ni", 'x')
 
 /* ----------------------------------------------------------------------
    Top level constituents of INSN, JUMP_INSN and CALL_INSN.
@@ -758,7 +814,7 @@ DEF_RTL_EXPR(VALUE, "value", "0", 'o')
    pseudo register that got turned into a hard register.
    This rtx needs to have as many (or more) fields as a MEM, since we
    can change REG rtx's into MEMs during reload.  */
-DEF_RTL_EXPR(REG, "reg", "i0", 'o')
+DEF_RTL_EXPR(REG, "reg", "i00", 'o')
 
 /* A scratch register.  This represents a register used only within a
    single insn.  It will be turned into a REG during register allocation
@@ -807,11 +863,12 @@ DEF_RTL_EXPR(MEM, "mem", "e0", 'o')
    LABEL_NEXTREF and CONTAINING_INSN.  */
 DEF_RTL_EXPR(LABEL_REF, "label_ref", "u00", 'o')
 
-/* Reference to a named label: the string that is the first operand,
-   with `_' added implicitly in front.
-   Exception: if the first character explicitly given is `*',
-   to give it to the assembler, remove the `*' and do not add `_'.  */
-DEF_RTL_EXPR(SYMBOL_REF, "symbol_ref", "s", 'o')
+/* Reference to a named label: 
+   Operand 0: label name
+   Operand 1: flags (see SYMBOL_FLAG_* in rtl.h)
+   Operand 2: tree from which this symbol is derived, or null.
+   This is either a DECL node, or some kind of constant.  */
+DEF_RTL_EXPR(SYMBOL_REF, "symbol_ref", "s00", 'o')
 
 /* The condition code register is represented, in our imagination,
    as a register holding a value that can be compared to zero.
@@ -958,7 +1015,7 @@ DEF_RTL_EXPR(GTU, "gtu", "ee", '<')
 DEF_RTL_EXPR(LEU, "leu", "ee", '<')
 DEF_RTL_EXPR(LTU, "ltu", "ee", '<')
 
-/* Additional floating point unordered comparision flavors.  */
+/* Additional floating point unordered comparison flavors.  */
 DEF_RTL_EXPR(UNORDERED, "unordered", "ee", '<')
 DEF_RTL_EXPR(ORDERED, "ordered", "ee", '<')
 
@@ -1016,6 +1073,18 @@ DEF_RTL_EXPR(SQRT, "sqrt", "e", '1')
    Value is 1 + number of trailing zeros in the arg.,
    or 0 if arg is 0.  */
 DEF_RTL_EXPR(FFS, "ffs", "e", '1')
+
+/* Count leading zeros.  */
+DEF_RTL_EXPR(CLZ, "clz", "e", '1')
+
+/* Count trailing zeros.  */
+DEF_RTL_EXPR(CTZ, "ctz", "e", '1')
+
+/* Population count (number of 1 bits).  */
+DEF_RTL_EXPR(POPCOUNT, "popcount", "e", '1')
+
+/* Population parity (number of 1 bits modulo 2).  */
+DEF_RTL_EXPR(PARITY, "parity", "e", '1')
 
 /* Reference to a signed bit-field of specified size and position.
    Operand 0 is the memory unit (usually SImode or QImode) which
@@ -1145,20 +1214,6 @@ DEF_RTL_EXPR(SS_TRUNCATE, "ss_truncate", "e", '1')
 
 /* Unsigned saturating truncate.  */
 DEF_RTL_EXPR(US_TRUNCATE, "us_truncate", "e", '1')
-
-/* The SSA phi operator. 
-
-   The argument is a vector of 2N rtxes.  Element 2N+1 is a CONST_INT
-   containing the block number of the predecessor through which control
-   has passed when the register at element 2N is used.
-
-   Note that PHI may only appear at the beginning of a basic block.
-
-   ??? There may be multiple PHI insns, but they are all evaluated
-   in parallel.  This probably ought to be changed to use a real
-   PARALLEL, as that would be less confusing and more in the spirit
-   of canonical RTL.  It is, however, easier to manipulate this way.  */
-DEF_RTL_EXPR(PHI, "phi", "E", 'x')
 
 
 /*

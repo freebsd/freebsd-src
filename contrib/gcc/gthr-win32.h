@@ -1,6 +1,6 @@
 /* Threads compatibility routines for libgcc2 and libobjc.  */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1999, 2000, 2002 Free Software Foundation, Inc.
+/* Copyright (C) 1999, 2000, 2002, 2003  Free Software Foundation, Inc.
    Contributed by Mumit Khan <khan@xraylith.wisc.edu>.
 
 This file is part of GCC.
@@ -365,7 +365,7 @@ __gthread_active_p (void)
 #endif
 }
 
-#ifdef __GTHREAD_HIDE_WIN32API
+#if __GTHREAD_HIDE_WIN32API
 
 /* The implementations are in config/i386/gthr-win32.c in libgcc.a.
    Only stubs are exposed to avoid polluting the C++ namespace with
@@ -394,13 +394,6 @@ static inline int
 __gthread_key_create (__gthread_key_t *key, void (*dtor) (void *))
 {
   return __gthr_win32_key_create (key, dtor);
-}
-
-static inline int
-__gthread_key_dtor (__gthread_key_t key, void *ptr)
-{
-  /* Nothing needed.  */
-  return 0;
 }
 
 static inline int
@@ -509,15 +502,6 @@ __gthread_key_create (__gthread_key_t *key, void (*dtor) (void *))
   else
     status = (int) GetLastError ();
   return status;
-}
-
-/* Currently, this routine is called only for Mingw runtime, and if
-   -mthreads option is chosen to link in the thread support DLL.  */
-static inline int
-__gthread_key_dtor (__gthread_key_t key, void *ptr)
-{
-  /* Nothing needed.  */
-  return 0;
 }
 
 static inline int

@@ -1,5 +1,5 @@
 /* Definitions of various defaults for tm.h macros.
-   Copyright (C) 1992, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright (C) 1992, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com)
 
@@ -27,8 +27,13 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #define GET_ENVIRONMENT(VALUE, NAME) do { (VALUE) = getenv (NAME); } while (0)
 #endif
 
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
+#define obstack_chunk_alloc	((void *(*) (long)) xmalloc)
+#define obstack_chunk_free	((void (*) (void *)) free)
+#define OBSTACK_CHUNK_SIZE	0
+#define gcc_obstack_init(OBSTACK)			\
+  _obstack_begin ((OBSTACK), OBSTACK_CHUNK_SIZE, 0,	\
+		  obstack_chunk_alloc,			\
+		  obstack_chunk_free)
 
 /* Define default standard character escape sequences.  */
 #ifndef TARGET_BELL
@@ -42,33 +47,27 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #  define TARGET_ESC 033
 #endif
 
-/* When removal of CPP_PREDEFINES is complete, TARGET_CPU_CPP_BULITINS
-   can also be removed from here.  */
-#ifndef TARGET_OS_CPP_BUILTINS
-# define TARGET_OS_CPP_BUILTINS()
-#endif
-#ifndef TARGET_CPU_CPP_BUILTINS
-# define TARGET_CPU_CPP_BUILTINS()
-#endif
-#ifndef CPP_PREDEFINES
-# define CPP_PREDEFINES ""
-#endif
-
-/* Store in OUTPUT a string (made with alloca) containing
-   an assembler-name for a local static variable or function named NAME.
+/* Store in OUTPUT a string (made with alloca) containing an
+   assembler-name for a local static variable or function named NAME.
    LABELNO is an integer which is different for each call.  */
 
+#ifndef ASM_PN_FORMAT
+# ifndef NO_DOT_IN_LABEL
+#  define ASM_PN_FORMAT "%s.%lu"
+# else
+#  ifndef NO_DOLLAR_IN_LABEL
+#   define ASM_PN_FORMAT "%s$%lu"
+#  else
+#   define ASM_PN_FORMAT "__%s_%lu"
+#  endif
+# endif
+#endif /* ! ASM_PN_FORMAT */
+
 #ifndef ASM_FORMAT_PRIVATE_NAME
-#define ASM_FORMAT_PRIVATE_NAME(OUTPUT, NAME, LABELNO)			\
-  do {									\
-    int len = strlen (NAME);						\
-    char *temp = (char *) alloca (len + 3);				\
-    temp[0] = 'L';							\
-    strcpy (&temp[1], (NAME));						\
-    temp[len + 1] = '.';						\
-    temp[len + 2] = 0;							\
-    (OUTPUT) = (char *) alloca (strlen (NAME) + 11);			\
-    ASM_GENERATE_INTERNAL_LABEL (OUTPUT, temp, LABELNO);		\
+# define ASM_FORMAT_PRIVATE_NAME(OUTPUT, NAME, LABELNO) \
+  do { const char *const name_ = (NAME); \
+       char *const output_ = (OUTPUT) = alloca (strlen (name_) + 32);\
+       sprintf (output_, ASM_PN_FORMAT, name_, (unsigned long)(LABELNO)); \
   } while (0)
 #endif
 
@@ -82,12 +81,12 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef ASM_OUTPUT_ADDR_VEC_ELT
 #define ASM_OUTPUT_ADDR_VEC_ELT(FILE, VALUE)  \
 do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
-     ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", (VALUE));			\
+     (*targetm.asm_out.internal_label) (FILE, "L", (VALUE));			\
      fputc ('\n', FILE);						\
    } while (0)
 #endif
 
-/* choose a reasonable default for ASM_OUTPUT_ASCII.  */
+/* Choose a reasonable default for ASM_OUTPUT_ASCII.  */
 
 #ifndef ASM_OUTPUT_ASCII
 #define ASM_OUTPUT_ASCII(MYFILE, MYSTRING, MYLENGTH) \
@@ -160,7 +159,7 @@ do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
 
 #ifndef ASM_OUTPUT_DEBUG_LABEL
 #define ASM_OUTPUT_DEBUG_LABEL(FILE, PREFIX, NUM) \
-  ASM_OUTPUT_INTERNAL_LABEL (FILE, PREFIX, NUM)
+  (*targetm.asm_out.internal_label) (FILE, PREFIX, NUM)
 #endif
 
 /* This is how we tell the assembler that a symbol is weak.  */
@@ -202,9 +201,7 @@ do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
       HOST_WIDE_INT size_ = (SIZE);			\
       fputs (SIZE_ASM_OP, STREAM);			\
       assemble_name (STREAM, NAME);			\
-      fputs (", ", STREAM);				\
-      fprintf (STREAM, HOST_WIDE_INT_PRINT_DEC, size_);	\
-      putc ('\n', STREAM);				\
+      fprintf (STREAM, ", " HOST_WIDE_INT_PRINT_DEC "\n", size_); \
     }							\
   while (0)
 
@@ -385,22 +382,9 @@ do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
 #define POINTER_SIZE BITS_PER_WORD
 #endif
 
-#ifndef BUILD_VA_LIST_TYPE
-#define BUILD_VA_LIST_TYPE(X) ((X) = ptr_type_node)
-#endif
-
 #ifndef PIC_OFFSET_TABLE_REGNUM
 #define PIC_OFFSET_TABLE_REGNUM INVALID_REGNUM
 #endif
-
-/* Type used by GCOV counters.  Use 64bit data type if target supports
-   it.  */
-#if LONG_TYPE_SIZE >= 64
-#define GCOV_TYPE_SIZE LONG_TYPE_SIZE
-#else
-#define GCOV_TYPE_SIZE LONG_LONG_TYPE_SIZE
-#endif
-
 
 /* By default, the preprocessor should be invoked the same way in C++
    as in C.  */
@@ -421,6 +405,26 @@ do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
 #else
 #define PUSH_ARGS	0
 #endif
+#endif
+
+/* Decide whether a function's arguments should be processed
+   from first to last or from last to first.
+
+   They should if the stack and args grow in opposite directions, but
+   only if we have push insns.  */
+
+#ifdef PUSH_ROUNDING
+
+#ifndef PUSH_ARGS_REVERSED
+#if defined (STACK_GROWS_DOWNWARD) != defined (ARGS_GROW_DOWNWARD)
+#define PUSH_ARGS_REVERSED  PUSH_ARGS
+#endif
+#endif
+
+#endif
+
+#ifndef PUSH_ARGS_REVERSED
+#define PUSH_ARGS_REVERSED 0
 #endif
 
 /* If PREFERRED_STACK_BOUNDARY is not defined, set it to STACK_BOUNDARY.
@@ -481,7 +485,7 @@ do { fputs (integer_asm_op (POINTER_SIZE / UNITS_PER_WORD, TRUE), FILE); \
    PREFERRED_DEBUGGING_TYPE to choose a format in a system-dependent way.
 
    This is one long line cause VAXC can't handle a \-newline.  */
-#if 1 < (defined (DBX_DEBUGGING_INFO) + defined (SDB_DEBUGGING_INFO) + defined (DWARF_DEBUGGING_INFO) + defined (DWARF2_DEBUGGING_INFO) + defined (XCOFF_DEBUGGING_INFO) + defined (VMS_DEBUGGING_INFO))
+#if 1 < (defined (DBX_DEBUGGING_INFO) + defined (SDB_DEBUGGING_INFO) + defined (DWARF2_DEBUGGING_INFO) + defined (XCOFF_DEBUGGING_INFO) + defined (VMS_DEBUGGING_INFO))
 #ifndef PREFERRED_DEBUGGING_TYPE
 You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 #endif /* no PREFERRED_DEBUGGING_TYPE */
@@ -566,9 +570,12 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
    && !ROUND_TOWARDS_ZERO)
 #endif
 
-/* If FLOAT_WORDS_BIG_ENDIAN and HOST_FLOAT_WORDS_BIG_ENDIAN are not defined
-   in the header files, then this implies the word-endianness is the same as
-   for integers.  */
+#ifndef FLOAT_LIB_COMPARE_RETURNS_BOOL
+#define FLOAT_LIB_COMPARE_RETURNS_BOOL(MODE, COMPARISON) false
+#endif
+
+/* If FLOAT_WORDS_BIG_ENDIAN is not defined in the header files,
+   then the word-endianness is the same as for integers.  */
 #ifndef FLOAT_WORDS_BIG_ENDIAN
 #define FLOAT_WORDS_BIG_ENDIAN WORDS_BIG_ENDIAN
 #endif
@@ -598,13 +605,89 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 /* Determine whether extra constraint letter should be handled
    via address reload (like 'o').  */
 #ifndef EXTRA_MEMORY_CONSTRAINT
-#define EXTRA_MEMORY_CONSTRAINT(C) 0
+#define EXTRA_MEMORY_CONSTRAINT(C,STR) 0
 #endif
 
 /* Determine whether extra constraint letter should be handled
    as an address (like 'p').  */
 #ifndef EXTRA_ADDRESS_CONSTRAINT
-#define EXTRA_ADDRESS_CONSTRAINT(C) 0
+#define EXTRA_ADDRESS_CONSTRAINT(C,STR) 0
+#endif
+
+/* When a port defines CONSTRAINT_LEN, it should use DEFAULT_CONSTRAINT_LEN
+   for all the characters that it does not want to change, so things like the
+  'length' of a digit in a matching constraint is an implementation detail,
+   and not part of the interface.  */
+#define DEFAULT_CONSTRAINT_LEN(C,STR) 1
+
+#ifndef CONSTRAINT_LEN
+#define CONSTRAINT_LEN(C,STR) DEFAULT_CONSTRAINT_LEN (C, STR)
+#endif
+
+#if defined (CONST_OK_FOR_LETTER_P) && ! defined (CONST_OK_FOR_CONSTRAINT_P)
+#define CONST_OK_FOR_CONSTRAINT_P(VAL,C,STR) CONST_OK_FOR_LETTER_P (VAL, C)
+#endif
+
+#if defined (CONST_DOUBLE_OK_FOR_LETTER_P) && ! defined (CONST_DOUBLE_OK_FOR_CONSTRAINT_P)
+#define CONST_DOUBLE_OK_FOR_CONSTRAINT_P(OP,C,STR) \
+  CONST_DOUBLE_OK_FOR_LETTER_P (OP, C)
+#endif
+
+#ifndef REG_CLASS_FROM_CONSTRAINT
+#define REG_CLASS_FROM_CONSTRAINT(C,STR) REG_CLASS_FROM_LETTER (C)
+#endif
+
+#if defined (EXTRA_CONSTRAINT) && ! defined (EXTRA_CONSTRAINT_STR)
+#define EXTRA_CONSTRAINT_STR(OP, C,STR) EXTRA_CONSTRAINT (OP, C)
+#endif
+
+#ifndef REGISTER_MOVE_COST
+#define REGISTER_MOVE_COST(m, x, y) 2
+#endif
+
+/* Determine whether the the entire c99 runtime
+   is present in the runtime library.  */
+#ifndef TARGET_C99_FUNCTIONS
+#define TARGET_C99_FUNCTIONS 0
+#endif
+
+/* Indicate that CLZ and CTZ are undefined at zero.  */
+#ifndef CLZ_DEFINED_VALUE_AT_ZERO 
+#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE)  0
+#endif
+#ifndef CTZ_DEFINED_VALUE_AT_ZERO 
+#define CTZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE)  0
+#endif
+
+/* Provide a default value for STORE_FLAG_VALUE.  */
+#ifndef STORE_FLAG_VALUE
+#define STORE_FLAG_VALUE  1
+#endif
+
+/* This macro is used to determine what the largest unit size that
+   move_by_pieces can use is.  */
+
+/* MOVE_MAX_PIECES is the number of bytes at a time which we can
+   move efficiently, as opposed to  MOVE_MAX which is the maximum
+   number of bytes we can move with a single instruction.  */
+
+#ifndef MOVE_MAX_PIECES
+#define MOVE_MAX_PIECES   MOVE_MAX
+#endif
+
+#ifndef STACK_POINTER_OFFSET
+#define STACK_POINTER_OFFSET    0
+#endif
+
+#ifndef LOCAL_REGNO
+#define LOCAL_REGNO(REGNO)  0
+#endif
+
+/* EXIT_IGNORE_STACK should be nonzero if, when returning from a function,
+   the stack pointer does not matter.  The value is tested only in
+   functions that have frame pointers.  */
+#ifndef EXIT_IGNORE_STACK
+#define EXIT_IGNORE_STACK 0
 #endif
 
 #endif  /* ! GCC_DEFAULTS_H */

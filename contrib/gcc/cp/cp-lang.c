@@ -2,40 +2,50 @@
    Copyright 2001, 2002 Free Software Foundation, Inc.
    Contributed by Alexandre Oliva  <aoliva@redhat.com>
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "cp-tree.h"
 #include "c-common.h"
 #include "toplev.h"
 #include "langhooks.h"
 #include "langhooks-def.h"
+#include "diagnostic.h"
+#include "cxx-pretty-print.h"
 
-static HOST_WIDE_INT cxx_get_alias_set PARAMS ((tree));
-static bool ok_to_generate_alias_set_for_type PARAMS ((tree));
-static bool cxx_warn_unused_global_decl PARAMS ((tree));
-static tree cp_expr_size PARAMS ((tree));
-static bool cp_var_mod_type_p PARAMS ((tree));
+enum c_language_kind c_language = clk_cxx;
+
+static HOST_WIDE_INT cxx_get_alias_set (tree);
+static bool ok_to_generate_alias_set_for_type (tree);
+static bool cxx_warn_unused_global_decl (tree);
+static tree cp_expr_size (tree);
+static size_t cp_tree_size (enum tree_code);
+static bool cp_var_mod_type_p (tree);
+static void cxx_initialize_diagnostics (diagnostic_context *);
 
 #undef LANG_HOOKS_NAME
 #define LANG_HOOKS_NAME "GNU C++"
+#undef LANG_HOOKS_TREE_SIZE
+#define LANG_HOOKS_TREE_SIZE cp_tree_size
 #undef LANG_HOOKS_INIT
 #define LANG_HOOKS_INIT cxx_init
 #undef LANG_HOOKS_FINISH
@@ -43,9 +53,15 @@ static bool cp_var_mod_type_p PARAMS ((tree));
 #undef LANG_HOOKS_CLEAR_BINDING_STACK
 #define LANG_HOOKS_CLEAR_BINDING_STACK pop_everything
 #undef LANG_HOOKS_INIT_OPTIONS
-#define LANG_HOOKS_INIT_OPTIONS cxx_init_options
-#undef LANG_HOOKS_DECODE_OPTION
-#define LANG_HOOKS_DECODE_OPTION c_common_decode_option
+#define LANG_HOOKS_INIT_OPTIONS c_common_init_options
+#undef LANG_HOOKS_INITIALIZE_DIAGNOSTICS
+#define LANG_HOOKS_INITIALIZE_DIAGNOSTICS cxx_initialize_diagnostics
+#undef LANG_HOOKS_HANDLE_OPTION
+#define LANG_HOOKS_HANDLE_OPTION c_common_handle_option
+#undef LANG_HOOKS_HANDLE_FILENAME
+#define LANG_HOOKS_HANDLE_FILENAME c_common_handle_filename
+#undef LANG_HOOKS_MISSING_ARGUMENT
+#define LANG_HOOKS_MISSING_ARGUMENT c_common_missing_argument
 #undef LANG_HOOKS_POST_OPTIONS
 #define LANG_HOOKS_POST_OPTIONS c_common_post_options
 #undef LANG_HOOKS_GET_ALIAS_SET
@@ -66,8 +82,6 @@ static bool cp_var_mod_type_p PARAMS ((tree));
 #define LANG_HOOKS_MAYBE_BUILD_CLEANUP cxx_maybe_build_cleanup
 #undef LANG_HOOKS_TRUTHVALUE_CONVERSION
 #define LANG_HOOKS_TRUTHVALUE_CONVERSION c_common_truthvalue_conversion
-#undef LANG_HOOKS_INSERT_DEFAULT_ATTRIBUTES
-#define LANG_HOOKS_INSERT_DEFAULT_ATTRIBUTES cxx_insert_default_attributes
 #undef LANG_HOOKS_UNSAFE_FOR_REEVAL
 #define LANG_HOOKS_UNSAFE_FOR_REEVAL c_common_unsafe_for_reeval
 #undef LANG_HOOKS_SET_DECL_ASSEMBLER_NAME
@@ -88,16 +102,29 @@ static bool cp_var_mod_type_p PARAMS ((tree));
 #define LANG_HOOKS_DECL_PRINTABLE_NAME	cxx_printable_name
 #undef LANG_HOOKS_PRINT_ERROR_FUNCTION
 #define LANG_HOOKS_PRINT_ERROR_FUNCTION	cxx_print_error_function
+#undef LANG_HOOKS_BUILTIN_TYPE_DECLS
+#define LANG_HOOKS_BUILTIN_TYPE_DECLS cxx_builtin_type_decls
+#undef LANG_HOOKS_PUSHLEVEL
+#define LANG_HOOKS_PUSHLEVEL lhd_do_nothing_i
+#undef LANG_HOOKS_POPLEVEL
+#define LANG_HOOKS_POPLEVEL lhd_do_nothing_iii_return_null_tree
 #undef LANG_HOOKS_WARN_UNUSED_GLOBAL_DECL
 #define LANG_HOOKS_WARN_UNUSED_GLOBAL_DECL cxx_warn_unused_global_decl
 #undef LANG_HOOKS_WRITE_GLOBALS
 #define LANG_HOOKS_WRITE_GLOBALS lhd_do_nothing
+#undef LANG_HOOKS_DECL_UNINIT
+#define LANG_HOOKS_DECL_UNINIT c_decl_uninit
 
 
 #undef LANG_HOOKS_FUNCTION_INIT
 #define LANG_HOOKS_FUNCTION_INIT cxx_push_function_context
 #undef LANG_HOOKS_FUNCTION_FINAL
 #define LANG_HOOKS_FUNCTION_FINAL cxx_pop_function_context
+
+#undef LANG_HOOKS_RTL_EXPAND_START
+#define LANG_HOOKS_RTL_EXPAND_START cxx_expand_function_start
+#undef LANG_HOOKS_RTL_EXPAND_STMT
+#define LANG_HOOKS_RTL_EXPAND_STMT expand_stmt
 
 /* Attribute hooks.  */
 #undef LANG_HOOKS_COMMON_ATTRIBUTE_TABLE
@@ -129,16 +156,19 @@ static bool cp_var_mod_type_p PARAMS ((tree));
 #define LANG_HOOKS_TREE_INLINING_ANON_AGGR_TYPE_P anon_aggr_type_p
 #undef LANG_HOOKS_TREE_INLINING_VAR_MOD_TYPE_P
 #define LANG_HOOKS_TREE_INLINING_VAR_MOD_TYPE_P cp_var_mod_type_p
-#undef LANG_HOOKS_TREE_INLINING_START_INLINING
-#define LANG_HOOKS_TREE_INLINING_START_INLINING cp_start_inlining
-#undef LANG_HOOKS_TREE_INLINING_END_INLINING
-#define LANG_HOOKS_TREE_INLINING_END_INLINING cp_end_inlining
+#undef LANG_HOOKS_TREE_INLINING_ESTIMATE_NUM_INSNS
+#define LANG_HOOKS_TREE_INLINING_ESTIMATE_NUM_INSNS c_estimate_num_insns
 #undef LANG_HOOKS_TREE_DUMP_DUMP_TREE_FN
 #define LANG_HOOKS_TREE_DUMP_DUMP_TREE_FN cp_dump_tree
 #undef LANG_HOOKS_TREE_DUMP_TYPE_QUALS_FN
 #define LANG_HOOKS_TREE_DUMP_TYPE_QUALS_FN cp_type_quals
 #undef LANG_HOOKS_EXPR_SIZE
 #define LANG_HOOKS_EXPR_SIZE cp_expr_size
+
+#undef LANG_HOOKS_CALLGRAPH_ANALYZE_EXPR
+#define LANG_HOOKS_CALLGRAPH_ANALYZE_EXPR cxx_callgraph_analyze_expr
+#undef LANG_HOOKS_CALLGRAPH_EXPAND_FUNCTION
+#define LANG_HOOKS_CALLGRAPH_EXPAND_FUNCTION expand_body
 
 #undef LANG_HOOKS_MAKE_TYPE
 #define LANG_HOOKS_MAKE_TYPE cxx_make_type
@@ -156,6 +186,8 @@ static bool cp_var_mod_type_p PARAMS ((tree));
 #define LANG_HOOKS_INCOMPLETE_TYPE_ERROR cxx_incomplete_type_error
 #undef LANG_HOOKS_TYPE_PROMOTES_TO
 #define LANG_HOOKS_TYPE_PROMOTES_TO cxx_type_promotes_to
+#undef LANG_HOOKS_REGISTER_BUILTIN_TYPE
+#define LANG_HOOKS_REGISTER_BUILTIN_TYPE c_register_builtin_type
 
 /* Each front end provides its own hooks, for toplev.c.  */
 const struct lang_hooks lang_hooks = LANG_HOOKS_INITIALIZER;
@@ -205,8 +237,7 @@ const char *const tree_code_name[] = {
    Return TRUE if T safe for aliasing FALSE otherwise.  */
 
 static bool
-ok_to_generate_alias_set_for_type (t)
-     tree t;
+ok_to_generate_alias_set_for_type (tree t)
 {
   if (TYPE_PTRMEMFUNC_P (t))
     return true;
@@ -259,9 +290,15 @@ ok_to_generate_alias_set_for_type (t)
 /* Special routine to get the alias set for C++.  */
 
 static HOST_WIDE_INT
-cxx_get_alias_set (t)
-     tree t;
+cxx_get_alias_set (tree t)
 {
+  if (TREE_CODE (t) == RECORD_TYPE
+      && TYPE_CONTEXT (t) && CLASS_TYPE_P (TYPE_CONTEXT (t))
+      && CLASSTYPE_AS_BASE (TYPE_CONTEXT (t)) == t)
+    /* The base variant of a type must be in the same alias set as the
+       complete type.  */
+    return get_alias_set (TYPE_CONTEXT (t));
+  
   if (/* It's not yet safe to use alias sets for some classes in C++.  */
       !ok_to_generate_alias_set_for_type (t)
       /* Nor is it safe to use alias sets for pointers-to-member
@@ -277,8 +314,7 @@ cxx_get_alias_set (t)
 /* Called from check_global_declarations.  */
 
 static bool
-cxx_warn_unused_global_decl (decl)
-     tree decl;
+cxx_warn_unused_global_decl (tree decl)
 {
   if (TREE_CODE (decl) == FUNCTION_DECL && DECL_DECLARED_INLINE_P (decl))
     return false;
@@ -297,8 +333,7 @@ cxx_warn_unused_global_decl (decl)
    might have allocated something there.  */
 
 static tree
-cp_expr_size (exp)
-     tree exp;
+cp_expr_size (tree exp)
 {
   if (CLASS_TYPE_P (TREE_TYPE (exp)))
     {
@@ -312,11 +347,31 @@ cp_expr_size (exp)
 	abort ();
       /* This would be wrong for a type with virtual bases, but they are
 	 caught by the abort above.  */
-      return CLASSTYPE_SIZE_UNIT (TREE_TYPE (exp));
+      return (is_empty_class (TREE_TYPE (exp))
+	      ? size_zero_node 
+	      : CLASSTYPE_SIZE_UNIT (TREE_TYPE (exp)));
     }
   else
     /* Use the default code.  */
     return lhd_expr_size (exp);
+}
+
+/* Langhook for tree_size: determine size of our 'x' and 'c' nodes.  */
+static size_t
+cp_tree_size (enum tree_code code)
+{
+  switch (code)
+    {
+    case PTRMEM_CST: 		return sizeof (struct ptrmem_cst);
+    case BASELINK:		return sizeof (struct tree_baselink);
+    case TEMPLATE_PARM_INDEX: 	return sizeof (template_parm_index);
+    case DEFAULT_ARG:		return sizeof (struct tree_default_arg);
+    case OVERLOAD:		return sizeof (struct tree_overload);
+    case WRAPPER:		return sizeof (struct tree_wrapper);
+    default:
+      abort ();
+    }
+  /* NOTREACHED */
 }
 
 /* Returns true if T is a variably modified type, in the sense of C99.
@@ -328,7 +383,7 @@ cp_var_mod_type_p (tree type)
 {
   /* If TYPE is a pointer-to-member, it is variably modified if either
      the class or the member are variably modified.  */
-  if (TYPE_PTRMEM_P (type) || TYPE_PTRMEMFUNC_P (type))
+  if (TYPE_PTR_TO_MEMBER_P (type))
     return (variably_modified_type_p (TYPE_PTRMEM_CLASS_TYPE (type))
 	    || variably_modified_type_p (TYPE_PTRMEM_POINTED_TO_TYPE (type)));
 
@@ -336,3 +391,24 @@ cp_var_mod_type_p (tree type)
   return false;
 }
 
+/* Stub routine to tell people that this doesn't work yet.  */
+void
+c_reset_state (void)
+{
+  sorry ("inter-module optimisations not implemented yet");
+}
+
+/* Construct a C++-aware pretty-printer for CONTEXT.  It is assumed
+   that CONTEXT->printer is an already constructed basic pretty_printer.  */
+static void
+cxx_initialize_diagnostics (diagnostic_context *context)
+{
+  pretty_printer *base = context->printer;
+  cxx_pretty_printer *pp = xmalloc (sizeof (cxx_pretty_printer));
+  memcpy (pp_base (pp), base, sizeof (pretty_printer));
+  pp_cxx_pretty_printer_init (pp);
+  context->printer = (pretty_printer *) pp;
+
+  /* It is safe to free this object because it was previously malloc()'d.  */
+  free (base);
+}

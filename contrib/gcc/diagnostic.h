@@ -1,5 +1,5 @@
 /* Various declarations for language-independent diagnostics subroutines.
-   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
    Contributed by Gabriel Dos Reis <gdr@codesourcery.com>
 
 This file is part of GCC.
@@ -22,21 +22,12 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef GCC_DIAGNOSTIC_H
 #define GCC_DIAGNOSTIC_H
 
-#include "obstack.h"
-#include "location.h"
+#include "pretty-print.h"
 
-/* The type of a text to be formatted according a format specification
-   along with a list of things.  */
-typedef struct
-{
-  const char *format_spec;
-  va_list *args_ptr;
-} text_info;
-
-/* Contants used to discreminate diagnostics.  */
+/* Constants used to discriminate diagnostics.  */
 typedef enum
 {
-#define DEFINE_DIAGNOSTIC_KIND(K, M) K,  
+#define DEFINE_DIAGNOSTIC_KIND(K, msgid) K,  
 #include "diagnostic.def"
 #undef DEFINE_DIAGNOSTIC_KIND
   DK_LAST_DIAGNOSTIC_KIND
@@ -55,133 +46,19 @@ typedef struct
 
 #define pedantic_error_kind() (flag_pedantic_errors ? DK_ERROR : DK_WARNING)
 
-/* How often diagnostics are prefixed by their locations:
-   o DIAGNOSTICS_SHOW_PREFIX_NEVER: never - not yet supported;
-   o DIAGNOSTICS_SHOW_PREFIX_ONCE: emit only once;
-   o DIAGNOSTICS_SHOW_PREFIX_EVERY_LINE: emit each time a physical
-   line is started.  */
-typedef enum
-{
-  DIAGNOSTICS_SHOW_PREFIX_ONCE       = 0x0,
-  DIAGNOSTICS_SHOW_PREFIX_NEVER      = 0x1,
-  DIAGNOSTICS_SHOW_PREFIX_EVERY_LINE = 0x2
-} diagnostic_prefixing_rule_t;
-
-/* This data structure encapsulates an output_buffer's state.  */
-typedef struct
-{
-  /* The prefix for each new line.  */
-  const char *prefix;
-
-  /* The real upper bound of number of characters per line, taking into
-     account the case of a very very looong prefix.  */  
-  int maximum_length;
-
-  /* The ideal upper bound of number of characters per line, as suggested
-     by front-end.  */  
-  int ideal_maximum_length;
-
-  /* Indentation count.  */
-  int indent_skip;
-
-  /* Nonzero if current PREFIX was emitted at least once.  */
-  bool emitted_prefix_p;
-
-  /* Nonzero means one should emit a newline before outputing anything.  */
-  bool need_newline_p;
-
-  /* Current prefixing rule.  */
-  diagnostic_prefixing_rule_t prefixing_rule;
-} output_state;
-
-/* The type of a hook that formats client-specific data (trees mostly) into
-   an output_buffer.  A client-supplied formatter returns true if everything
-   goes well.  */
-typedef struct output_buffer output_buffer;
-typedef bool (*printer_fn) PARAMS ((output_buffer *, text_info *));
-
-/* The output buffer datatype.  This is best seen as an abstract datatype
-   whose fields should not be accessed directly by clients.  */
-struct output_buffer
-{
-  /* The current state of the buffer.  */
-  output_state state;
-
-  /* Where to output formatted text.  */
-  FILE* stream;
-
-  /* The obstack where the text is built up.  */  
-  struct obstack obstack;
-
-  /* The amount of characters output so far.  */  
-  int line_length;
-
-  /* This must be large enough to hold any printed integer or
-     floating-point value.  */
-  char digit_buffer[128];
-
-  /* If non-NULL, this function formats a TEXT into the BUFFER. When called,
-     TEXT->format_spec points to a format code.  FORMAT_DECODER should call
-     output_add_string (and related functions) to add data to the BUFFER.
-     FORMAT_DECODER can read arguments from *TEXT->args_pts using VA_ARG.
-     If the BUFFER needs additional characters from the format string, it
-     should advance the TEXT->format_spec as it goes.  When FORMAT_DECODER
-     returns, TEXT->format_spec should point to the last character processed.
-  */
-  printer_fn format_decoder;
-} ;
-
-#define output_prefix(BUFFER) (BUFFER)->state.prefix
-
-/* The stream attached to the output_buffer, where the formatted
-   diagnostics will ultimately go.  Works only on `output_buffer *'.  */
-#define output_buffer_attached_stream(BUFFER) (BUFFER)->stream
-
-/* In line-wrapping mode, whether we should start a new line.  */
-#define output_needs_newline(BUFFER) (BUFFER)->state.need_newline_p
-
-/* The amount of whitespace to be emitted when starting a new line.  */
-#define output_indentation(BUFFER) (BUFFER)->state.indent_skip
-
-/* A pointer to the formatted diagnostic message.  */
-#define output_message_text(BUFFER) \
-   ((const char *) obstack_base (&(BUFFER)->obstack))
-
-/* Client supplied function used to decode formats.  */
-#define output_format_decoder(BUFFER)     (BUFFER)->format_decoder
-
-/* Prefixing rule used in formatting a diagnostic message.  */
-#define output_prefixing_rule(BUFFER)  (BUFFER)->state.prefixing_rule
-
-/* Maximum characters per line in automatic line wrapping mode.
-   Zero means don't wrap lines.  */
-#define output_line_cutoff(BUFFER)  (BUFFER)->state.ideal_maximum_length
-
-/* True if BUFFER is in line-wrapping mode.  */
-#define output_is_line_wrapping(BUFFER) (output_line_cutoff (BUFFER) > 0)
-
-#define output_formatted_scalar(BUFFER, FORMAT, INTEGER)	\
-  do								\
-    {								\
-      sprintf ((BUFFER)->digit_buffer, FORMAT, INTEGER);	\
-      output_add_string (BUFFER, (BUFFER)->digit_buffer);	\
-    }								\
-  while (0)
 
 /*  Forward declarations.  */
 typedef struct diagnostic_context diagnostic_context;
-typedef void (*diagnostic_starter_fn) PARAMS ((diagnostic_context *,
-                                               diagnostic_info *));
+typedef void (*diagnostic_starter_fn) (diagnostic_context *,
+				       diagnostic_info *);
 typedef diagnostic_starter_fn diagnostic_finalizer_fn;
 
 /* This data structure bundles altogether any information relevant to
    the context of a diagnostic message.  */
 struct diagnostic_context
 {
-  /* Where most of the diagnostic formatting work is done.  In Object
-     Oriented terms, we'll say that diagnostic_context is a sub-class of
-     output_buffer.  */
-  output_buffer buffer;
+  /* Where most of the diagnostic formatting work is done.  */
+  pretty_printer *printer;
 
   /* The number of times we have issued diagnostics.  */
   int diagnostic_count[DK_LAST_DIAGNOSTIC_KIND];
@@ -189,6 +66,9 @@ struct diagnostic_context
   /* True if we should display the "warnings are being tread as error"
      message, usually displayed once per compiler run.  */
   bool warnings_are_errors_message;
+
+  /* True if we should raise a SIGABRT on errors.  */
+  bool abort_on_error;
 
   /* This function is called before any message is printed out.  It is
      responsible for preparing message prefix and such.  For example, it
@@ -203,7 +83,7 @@ struct diagnostic_context
   diagnostic_finalizer_fn end_diagnostic;
 
   /* Client hook to report an internal error.  */
-  void (*internal_error) PARAMS ((const char *, va_list *));
+  void (*internal_error) (const char *, va_list *);
 
   /* Function of last diagnostic message; more generally, function such that
      if next diagnostic message is in it then we don't have to mention the
@@ -229,15 +109,17 @@ struct diagnostic_context
 /* Extension hook for client.  */
 #define diagnostic_auxiliary_data(DC) (DC)->x_data
 
-/* Same as output_format_decoder.  Works on 'diagnostic_context *'.  */
-#define diagnostic_format_decoder(DC) output_format_decoder (&(DC)->buffer)
+/* Same as pp_format_decoder.  Works on 'diagnostic_context *'.  */
+#define diagnostic_format_decoder(DC) ((DC)->printer->format_decoder)
 
 /* Same as output_prefixing_rule.  Works on 'diagnostic_context *'.  */
-#define diagnostic_prefixing_rule(DC) output_prefixing_rule (&(DC)->buffer)
+#define diagnostic_prefixing_rule(DC) ((DC)->printer->prefixing_rule)
 
 /* Maximum characters per line in automatic line wrapping mode.
    Zero means don't wrap lines.  */
-#define diagnostic_line_cutoff(DC) output_line_cutoff (&(DC)->buffer)
+#define diagnostic_line_cutoff(DC) ((DC)->printer->ideal_maximum_length)
+
+#define diagnostic_flush_buffer(DC) pp_base_flush ((DC)->printer)
 
 /* True if the last function in which a diagnostic was reported is
    different from the current one.  */
@@ -259,12 +141,16 @@ struct diagnostic_context
 #define diagnostic_set_last_module(DC) \
   (DC)->last_module = input_file_stack_tick
 
+/* Raise SIGABRT on any diagnostic of severity DK_ERROR or higher.  */
+#define diagnostic_abort_on_error(DC) \
+  (DC)->abort_on_error = true
+
 /* This diagnostic_context is used by front-ends that directly output
    diagnostic messages without going through `error', `warning',
    and similar functions.  */
 extern diagnostic_context *global_dc;
 
-/* The total count of a KIND of diagnostics meitted so far.  */
+/* The total count of a KIND of diagnostics emitted so far.  */
 #define diagnostic_kind_count(DC, DK) (DC)->diagnostic_count[(int) (DK)]
 
 /* The number of errors that have been issued so far.  Ideally, these
@@ -282,49 +168,18 @@ extern diagnostic_context *global_dc;
 
 #define report_diagnostic(D) diagnostic_report_diagnostic (global_dc, D)
 
-/* Dignostic related functions.  */
-extern void diagnostic_initialize	PARAMS ((diagnostic_context *));
-extern void diagnostic_report_current_module PARAMS ((diagnostic_context *));
-extern void diagnostic_report_current_function PARAMS ((diagnostic_context *));
-extern void diagnostic_flush_buffer	PARAMS ((diagnostic_context *));
-extern bool diagnostic_count_diagnostic PARAMS ((diagnostic_context *,
-                                                 diagnostic_t));
-extern void diagnostic_report_diagnostic PARAMS ((diagnostic_context *,
-                                                 diagnostic_info *));
-extern void diagnostic_set_info         PARAMS ((diagnostic_info *,
-                                                 const char *, va_list *,
-                                                 const char *, int,
-                                                 diagnostic_t));
-extern char *diagnostic_build_prefix    PARAMS ((diagnostic_info *));
+/* Diagnostic related functions.  */
+extern void diagnostic_initialize (diagnostic_context *);
+extern void diagnostic_report_current_module (diagnostic_context *);
+extern void diagnostic_report_current_function (diagnostic_context *);
+extern void diagnostic_report_diagnostic (diagnostic_context *,
+					  diagnostic_info *);
+extern void diagnostic_set_info (diagnostic_info *, const char *, va_list *,
+				 location_t, diagnostic_t);
+extern char *diagnostic_build_prefix (diagnostic_info *);
 
 /* Pure text formatting support functions.  */
-extern void init_output_buffer		PARAMS ((output_buffer *,
-						 const char *, int));
-extern void output_clear		PARAMS ((output_buffer *));
-extern const char *output_last_position PARAMS ((const output_buffer *));
-extern void output_set_prefix		PARAMS ((output_buffer *,
-						 const char *));
-extern void output_destroy_prefix	PARAMS ((output_buffer *));
-extern void output_set_maximum_length   PARAMS ((output_buffer *, int));
-extern void output_emit_prefix		PARAMS ((output_buffer *));
-extern void output_add_newline		PARAMS ((output_buffer *));
-extern void output_add_space		PARAMS ((output_buffer *));
-extern int output_space_left		PARAMS ((const output_buffer *));
-extern void output_append		PARAMS ((output_buffer *, const char *,
-						 const char *));
-extern void output_add_character	PARAMS ((output_buffer *, int));
-extern void output_decimal		PARAMS ((output_buffer *, int));
-extern void output_add_string		PARAMS ((output_buffer *,
-						 const char *));
-extern void output_add_identifier	PARAMS ((output_buffer *, tree));
-extern const char *output_finalize_message PARAMS ((output_buffer *));
-extern void output_clear_message_text	PARAMS ((output_buffer *));
-extern void output_printf		PARAMS ((output_buffer *, const char *,
-						 ...)) ATTRIBUTE_PRINTF_2;
-extern void output_verbatim		PARAMS ((output_buffer *, const char *,
-						 ...));
-extern void verbatim			PARAMS ((const char *, ...));
-extern char *file_name_as_prefix	PARAMS ((const char *));
-extern void inform                      PARAMS ((const char *, ...));
+extern void verbatim (const char *, ...);
+extern char *file_name_as_prefix (const char *);
 
 #endif /* ! GCC_DIAGNOSTIC_H */
