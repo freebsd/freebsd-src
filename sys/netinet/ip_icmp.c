@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.3 1994/10/02 17:48:38 phk Exp $
+ * $Id: ip_icmp.c,v 1.4 1994/10/08 22:39:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@
  * host table maintenance routines.
  */
 
+struct	icmpstat icmpstat;
 int	icmpmaskrepl = 0;
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
@@ -582,14 +583,16 @@ icmp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	void *newp;
 	size_t newlen;
 {
-
 	/* All sysctl names at this level are terminal. */
 	if (namelen != 1)
-		return (ENOTDIR);
+		return (ENOTDIR); /* XXX overloaded */
 
 	switch (name[0]) {
 	case ICMPCTL_MASKREPL:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &icmpmaskrepl));
+	case ICMPCTL_STATS:
+		return (sysctl_rdstruct(oldp, oldlenp, newp, &icmpstat,
+					sizeof icmpstat));
 	default:
 		return (ENOPROTOOPT);
 	}

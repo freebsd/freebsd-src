@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.3 1994/08/21 05:27:26 paul Exp $
+ * $Id: igmp_var.h,v 1.4 1994/09/06 22:42:17 wollman Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -73,6 +73,20 @@ void	igmp_joingroup __P((struct in_multi *));
 void	igmp_leavegroup __P((struct in_multi *));
 void	igmp_fasttimo __P((void));
 void	igmp_slowtimo __P((void));
+int	igmp_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 #endif
 
+/*
+ * Names for IGMP sysctl objects
+ */
+#define IGMPCTL_STATS		1	/* statistics (read-only) */
+#define IGMPCTL_MAXID		2
+
+#define IGMPCTL_NAMES { \
+	{ 0, 0 }, \
+	{ "stats", CTLTYPE_STRUCT }, \
+}
+
 #endif
+
+
