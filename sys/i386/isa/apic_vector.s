@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.24 1997/12/08 22:59:34 fsmp Exp $
+ *	$Id: apic_vector.s,v 1.25 1998/01/15 07:33:58 gibbs Exp $
  */
 
 
@@ -472,6 +472,8 @@ _Xcpucheckstate:
 	popl	%eax
 	iret
 
+#endif /* BETTER_CLOCK */
+
 /*
  * Executed by a CPU when it receives an Xcpuast IPI from another CPU,
  *
@@ -533,8 +535,6 @@ _Xcpuast:
 	/* We are already in the process of delivering an ast for this CPU */
 	POP_FRAME
 	iret			
-
-#endif /* BETTER_CLOCK */
 
 	
 /*
@@ -694,14 +694,14 @@ _started_cpus:
 
 #ifdef BETTER_CLOCK
 	.globl _checkstate_probed_cpus
-	.globl _checkstate_need_ast
 _checkstate_probed_cpus:
 	.long	0	
+#endif /* BETTER_CLOCK */
+	.globl _checkstate_need_ast
 _checkstate_need_ast:
 	.long	0
 _checkstate_pending_ast:
 	.long	0
-#endif
 
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:
