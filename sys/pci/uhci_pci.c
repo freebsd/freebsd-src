@@ -54,7 +54,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/device.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #if defined(__FreeBSD__)
@@ -158,6 +157,7 @@ uhci_pci_attach(device_t self)
 	struct resource *res;
 	device_t usbus;
 	char *typestr;
+	int intr;
 	int legsup;
 	int err;
 
@@ -225,6 +225,14 @@ uhci_pci_attach(device_t self)
 			      typestr, pci_get_revid(self));
 	}
 
+	intr = pci_read_config(self, PCIR_INTLINE, 1);
+	if (intr == 0 || intr == 255) {
+		device_printf(self, "Invalid irq %d\n", intr);
+		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
+		device_delete_child(self, usbus);
+		return ENXIO;
+	}
+
 	err = BUS_SETUP_INTR(parent, self, res, INTR_TYPE_BIO,
 			       (driver_intr_t *) uhci_intr, sc, &ih);
 	if (err) {
@@ -233,6 +241,7 @@ uhci_pci_attach(device_t self)
 		return err;
 	}
 
+	/* Verify that the PIRQD enable bit is set, some BIOS's don't do that */
 	legsup = pci_read_config(self, PCI_LEGSUP, 4);
 	if ( !(legsup & PCI_LEGSUP_USBPIRQDEN) ) {
 #ifndef USB_DEBUG
@@ -248,11 +257,13 @@ uhci_pci_attach(device_t self)
 
 	if (!err)
 		err = device_probe_and_attach(sc->sc_bus.bdev);
-		
+
 	if (err) {
 		device_printf(self, "init failed\n");
 
-		/* disable interrupts */
+		/* disable interrupts that might have been switched on
+		 * in uhci_init
+		 */
 		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 		err = BUS_TEARDOWN_INTR(parent, self, res, ih);

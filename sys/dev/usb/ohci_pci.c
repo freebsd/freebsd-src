@@ -56,7 +56,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/device.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <machine/bus.h>
@@ -145,6 +144,7 @@ ohci_pci_attach(device_t self)
 	int rid;
 	struct resource *res;
 	void *ih;
+	int intr;
 
 	rid = PCI_CBMEM;
 	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
@@ -198,6 +198,14 @@ ohci_pci_attach(device_t self)
 				      pci_get_devid(self));
 		device_set_desc(usbus, ohci_device_generic);
 		sprintf(sc->sc_vendor, "(unknown)");
+	}
+
+	intr = pci_read_config(self, PCIR_INTLINE, 1);
+	if (intr == 0 || intr == 255) {
+		device_printf(self, "Invalid irq %d\n", intr);
+		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
+		device_delete_child(self, usbus);
+		return ENXIO;
 	}
 
 	err = BUS_SETUP_INTR(parent, self, res, INTR_TYPE_BIO,
