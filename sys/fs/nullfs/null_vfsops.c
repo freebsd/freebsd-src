@@ -62,8 +62,8 @@ static int	nullfs_fhtovp(struct mount *mp, struct fid *fidp,
 				   struct vnode **vpp);
 static int	nullfs_checkexp(struct mount *mp, struct sockaddr *nam,
 				    int *extflagsp, struct ucred **credanonp);
-static int	nullfs_mount(struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td);
+static int	nullfs_mount(struct mount *mp, struct nameidata *ndp,
+				   struct thread *td);
 static int	nullfs_quotactl(struct mount *mp, int cmd, uid_t uid,
 				     caddr_t arg, struct thread *td);
 static int	nullfs_root(struct mount *mp, struct vnode **vpp);
@@ -85,20 +85,18 @@ static int	nullfs_extattrctl(struct mount *mp, int cmd,
  * Mount null layer
  */
 static int
-nullfs_mount(mp, path, data, ndp, td)
+nullfs_mount(mp, ndp, td)
 	struct mount *mp;
-	char *path;
-	caddr_t data;
 	struct nameidata *ndp;
 	struct thread *td;
 {
 	int error = 0;
-	struct null_args args;
 	struct vnode *lowerrootvp, *vp;
 	struct vnode *nullm_rootvp;
 	struct null_mount *xmp;
+	char *target;
 	size_t size;
-	int isvnunlocked = 0;
+	int isvnunlocked = 0, len;
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
@@ -113,9 +111,9 @@ nullfs_mount(mp, path, data, ndp, td)
 	/*
 	 * Get argument
 	 */
-	error = copyin(data, (caddr_t)&args, sizeof(struct null_args));
-	if (error)
-		return (error);
+	error = vfs_getopt(mp->mnt_optnew, "target", (void **)&target, &len);
+	if (error || target[len - 1] != '\0')
+		return (EINVAL);
 
 	/*
 	 * Unlock lower node to avoid deadlock.
@@ -130,7 +128,7 @@ nullfs_mount(mp, path, data, ndp, td)
 	 * Find lower node
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT|LOCKLEAF,
-		UIO_USERSPACE, args.target, td);
+		UIO_SYSSPACE, target, td);
 	error = namei(ndp);
 	/*
 	 * Re-lock vnode.
@@ -197,7 +195,7 @@ nullfs_mount(mp, path, data, ndp, td)
 	mp->mnt_data = (qaddr_t) xmp;
 	vfs_getnewfsid(mp);
 
-	(void) copyinstr(args.target, mp->mnt_stat.f_mntfromname,
+	(void) copystr(target, mp->mnt_stat.f_mntfromname,
 	    MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)nullfs_statfs(mp, &mp->mnt_stat, td);
@@ -408,7 +406,7 @@ nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 
 
 static struct vfsops null_vfsops = {
-	nullfs_mount,
+	NULL,
 	nullfs_start,
 	nullfs_unmount,
 	nullfs_root,
@@ -422,6 +420,7 @@ static struct vfsops null_vfsops = {
 	nullfs_init,
 	nullfs_uninit,
 	nullfs_extattrctl,
+	nullfs_mount,
 };
 
 VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK);
