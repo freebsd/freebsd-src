@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.60 1996/08/05 17:18:03 jraynard Exp $
+<date> $Id: freebsd-faq.sgml,v 1.61 1996/08/16 13:51:55 wosch Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -52,7 +52,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           <url url="http://www.freebsd.org/gallery.html" name="FreeBSD Gallery."> 
 
           For a more detailed description of FreeBSD, see the Introduction to
-          <url url="http://www.freebsd.org/handbook" name="FreeBSD Handbook.">
+          <url url="../handbook/handbook.html" name="FreeBSD Handbook.">
 
       <sect1>
         <heading>What are the goals of FreeBSD?</heading>
@@ -110,7 +110,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 	  only of interest to developers working on the system.  See the section
 	  ``Staying current with FreeBSD'' in the
 
-	  <url url="http://www.freebsd.org/handbook/" name="FreeBSD Handbook">
+	  <url url="../handbook/handbook.html" name="FreeBSD Handbook">
 
       <sect1>
         <heading> What are ``snapshots''?<label id="snapshots"></heading>
@@ -382,7 +382,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 
           A FreeBSD ``handbook'' is being created, and can be found as:
  
-          <url url="http://www.freebsd.org/How/handbook/" name="the FreeBSD Handbook"> 
+          <url url="../handbook/handbook.html" name="the FreeBSD Handbook"> 
           Note that this is a work in progress, and so parts may be incomplete.
 
           However, as FreeBSD 2.X is based upon Berkeley 4.4BSD-Lite, most
@@ -2969,7 +2969,7 @@ domain foo.bar.edu
         </verb>
 
           For further information on configuring a FreeBSD firewall,
-          see the <url url="http://www.freebsd.org/handbook/handbook.html" name="FreeBSD Handbook.">
+          see the <url url="../handbook/handbook.html" name="FreeBSD Handbook.">
 
       </sect1>
 
