@@ -36,28 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         5       00167
- * --------------------         -----   ----------------------
- * 
- * 28 Nov 92	Frank MacLachlan	Aligned addresses and data
- *					on 32bit boundaries.
- * 24 Mar 93	Rodney W. Grimes	Added interrupt counters for vmstat
- *					also stray and false intr counters added
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- * 25 Apr 93	Bruce Evans		Support new interrupt code (intr-0.1)
- *		Rodney W. Grimes	Reimplement above patches..
- * 17 May 93	Rodney W. Grimes	Redid the interrupt counter stuff
- *					moved the counters to vectors.s so
- *					they are next to the name tables.
- * 04 Jun 93	Bruce Evans		Fixed irq_num vs id_num for multiple
- *					devices configed on the same irq with
- *					respect to ipending.  Restructured
- *					not to use BUILD_VECTORS.
- *		Rodney W. Grimes	softsio1 only works if you have sio
- *					serial driver, added #include sio.h
- *					and #ifdef NSIO > 0 to protect it.
+ *	$Id$
  */
 
 /*
@@ -205,20 +184,28 @@ none_to_unpend:
 	je	test_ASTs		# no net stuff, just temporary AST's
 	FASTSPL_VARMASK(_netmask)
 	DONET(NETISR_RAW, _rawintr, 5)
-#ifdef INET
+
+#ifdef	INET
 	DONET(NETISR_IP, _ipintr, 6)
-#endif
-#ifdef IMP
+#endif	/* INET */
+
+#ifdef	IMP
 	DONET(NETISR_IMP, _impintr, 7)
-#endif
-#ifdef NS
+#endif	/* IMP */
+
+#ifdef	NS
 	DONET(NETISR_NS, _nsintr, 8)
-#endif
+#endif	/* NS */
+
+#ifdef	ISO
+	DONET(NETISR_ISO, _clnlintr, 9)
+#endif	/* ISO */
+
 	FASTSPL($0)
 test_ASTs:
 	btrl	$NETISR_SCLK,_netisr
 	jnc	test_resched
-	COUNT_EVENT(_intrcnt_spl, 9)
+	COUNT_EVENT(_intrcnt_spl, 10)
 	FASTSPL($SOFTCLOCKMASK)
 /*
  * Back to an interrupt frame for a moment.
@@ -242,11 +229,11 @@ test_resched:
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 					# to non-kernel (i.e., user)?
 	je	2f			# nope, leave
-	COUNT_EVENT(_intrcnt_spl, 10)
+	COUNT_EVENT(_intrcnt_spl, 11)
 	movl	$0,_astpending
 	call	_trap
 2:
-	COUNT_EVENT(_intrcnt_spl, 11)
+	COUNT_EVENT(_intrcnt_spl, 12)
 	popl	%es
 	popl	%ds
 	popal
@@ -260,20 +247,20 @@ test_resched:
  *	-- ipending = active interrupts currently masked by cpl
  */
 
-	GENSPL(bio, _biomask, 12)
-	GENSPL(clock, $HIGHMASK, 13)	/* splclock == splhigh ex for count */
-	GENSPL(high, $HIGHMASK, 14)
-	GENSPL(imp, _netmask, 15)	/* splimp == splnet except for count */
-	GENSPL(net, _netmask, 16)
-	GENSPL(softclock, $SOFTCLOCKMASK, 17)
-	GENSPL(tty, _ttymask, 18)
+	GENSPL(bio, _biomask, 13)
+	GENSPL(clock, $HIGHMASK, 14)	/* splclock == splhigh ex for count */
+	GENSPL(high, $HIGHMASK, 15)
+	GENSPL(imp, _netmask, 16)	/* splimp == splnet except for count */
+	GENSPL(net, _netmask, 17)
+	GENSPL(softclock, $SOFTCLOCKMASK, 18)
+	GENSPL(tty, _ttymask, 19)
 
 	.globl _splnone
 	.globl _spl0
 	ALIGN_TEXT
 _splnone:
 _spl0:
-	COUNT_EVENT(_intrcnt_spl, 19)
+	COUNT_EVENT(_intrcnt_spl, 20)
 in_spl0:
 	movl	_cpl,%eax
 	pushl	%eax			# save old priority
@@ -285,10 +272,24 @@ in_spl0:
 /*
  * XXX - what about other net intrs?
  */
-	DONET(NETISR_RAW, _rawintr, 20)
-#ifdef INET
-	DONET(NETISR_IP, _ipintr, 21)
-#endif
+	DONET(NETISR_RAW, _rawintr, 21)
+
+#ifdef	INET
+	DONET(NETISR_IP, _ipintr, 22)
+#endif	/* INET */
+
+#ifdef	IMP
+	DONET(NETISR_IMP, _impintr, 23)
+#endif	/* IMP */
+
+#ifdef	NS
+	DONET(NETISR_NS, _nsintr, 24)
+#endif	/* NS */
+
+#ifdef	ISO
+	DONET(NETISR_ISO, _clnlintr, 25)
+#endif	/* ISO */
+
 over_net_stuff_for_spl0:
 	movl	$0,_cpl			# set new priority
 	SHOW_CPL
@@ -301,11 +302,11 @@ over_net_stuff_for_spl0:
 	.globl _splx
 	ALIGN_TEXT
 _splx:
-	COUNT_EVENT(_intrcnt_spl, 22)
+	COUNT_EVENT(_intrcnt_spl, 26)
 	movl	4(%esp),%eax		# new priority
 	testl	%eax,%eax
 	je	in_spl0			# going to "zero level" is special
-	COUNT_EVENT(_intrcnt_spl, 23)
+	COUNT_EVENT(_intrcnt_spl, 27)
 	movl	_cpl,%edx		# save old priority
 	movl	%eax,_cpl		# set new priority
 	SHOW_CPL
@@ -319,7 +320,7 @@ _splx:
 unpend_V_result_edx:
 	pushl	%edx
 unpend_V:
-	COUNT_EVENT(_intrcnt_spl, 24)
+	COUNT_EVENT(_intrcnt_spl, 28)
 	bsfl	%eax,%eax
 	btrl	%eax,_ipending
 	jnc	unpend_V_next
