@@ -368,7 +368,11 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 static __inline void *
 atomic_load_acq_ptr(volatile void *p)
 {
-	return (void *)atomic_load_acq_int((volatile u_int *)p);
+	/*
+	 * The apparently-bogus cast to intptr_t in the following is to
+	 * avoid a warning from "gcc -Wbad-function-cast".
+	 */
+	return ((void *)(intptr_t)atomic_load_acq_int((volatile u_int *)p));
 }
 
 static __inline void
