@@ -43,22 +43,21 @@ int opienewseed FUNCTION((seed), char *seed)
 		return -1;
 
 	if (seed[0]) {
-		char *c, *end;
+		char *c;
 		unsigned int i, max;
 
 		if ((i = strlen(seed)) > OPIE_SEED_MAX)
 			i = OPIE_SEED_MAX;
 
-		for (c = end = seed + i - 1, max = 1;
-				(c > seed) && isdigit(*c); c--)
+		for (c = seed + i - 1, max = 1;
+				(c >= seed) && isdigit(*c); c--)
 			max *= 10;
 
 		if ((i = strtoul(++c, (char **)0, 10)) < max) {
 			if (++i >= max)
 				i = 1;
 
-			snprintf(c, end - c, "%d", i);
-			seed[OPIE_SEED_MAX] = 0;
+			sprintf(c, "%d", i);
 			return 0;
 		}
 	}
