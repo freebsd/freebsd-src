@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <search.h>
 #include <stdlib.h>
 #include <string.h>
-#include "namespace.h"
 
 /*
  * DO NOT MAKE THIS STRUCTURE LARGER THAN 32 BYTES (4 ptrs on 64-bit
