@@ -172,6 +172,7 @@ typedef void *malloc_type; /* type returned by malloc() */
 /* #define has_getwd ? */ /* Does getwd() work?  */
 #define needs_getabsname 0 /* Must we define getabsname?  */
 #define has_mktemp 1 /* Does mktemp() work?  */
+#define has_mkstemp 1 /* DOes mkstemp() work?  */
 #define has_NFS 1 /* Might NFS be used?  */
 #define has_psiginfo 0 /* Does psiginfo() work?  */
 #define has_psignal 1 /* Does psignal() work?  */
