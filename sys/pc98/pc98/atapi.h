@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.1, Mon Jul 10 21:55:11 MSD 1995
+ * Version 1.8, Thu Sep 28 20:24:38 MSK 1995
  */
 
 /*
@@ -90,7 +90,7 @@
 #define ATAPIC_PACKET           0xa0    /* execute packet command */
 
 /*
- * Packet commands
+ * Mandatory packet commands
  */
 #define ATAPI_TEST_UNIT_READY   0x00    /* check if the device is ready */
 #define ATAPI_REQUEST_SENSE     0x03    /* get sense data */
@@ -100,11 +100,20 @@
 #define ATAPI_READ_BIG          0x28    /* read data */
 #define ATAPI_READ_TOC          0x43    /* get table of contents */
 #define ATAPI_READ_SUBCHANNEL   0x42    /* get subchannel info */
-#define ATAPI_PLAY_MSF          0x47    /* play by MSF address */
-#define ATAPI_PLAY_TRACK        0x48    /* play by track number */
-#define ATAPI_PAUSE             0x4b    /* stop/start audio operation */
 #define ATAPI_MODE_SELECT_BIG   0x55    /* set device parameters */
 #define ATAPI_MODE_SENSE        0x5a    /* get device parameters */
+#define ATAPI_PLAY_CD           0xb4    /* universal play command */
+
+/*
+ * Optional packet commands
+ */
+#define ATAPI_PLAY_MSF          0x47    /* play by MSF address */
+#define ATAPI_PAUSE             0x4b    /* stop/start audio operation */
+
+/*
+ * Nonstandard packet commands
+ */
+#define ATAPI_PLAY_TRACK        0x48    /* play by track number */
 #define ATAPI_PLAY_BIG          0xa5    /* play by logical block address */
 
 /*
@@ -112,21 +121,21 @@
  */
 struct atapi_params {
 	unsigned        cmdsz : 2;      /* packet command size */
-#define AT_PSIZE_12     0
-#define AT_PSIZE_16     1
+#define AT_PSIZE_12     0               /* 12 bytes */
+#define AT_PSIZE_16     1               /* 16 bytes */
 	unsigned : 3;
 	unsigned        drqtype : 2;    /* DRQ type */
 #define AT_DRQT_MPROC   0               /* microprocessor DRQ - 3 msec delay */
 #define AT_DRQT_INTR    1               /* interrupt DRQ - 10 msec delay */
 #define AT_DRQT_ACCEL   2               /* accelerated DRQ - 50 usec delay */
 	unsigned        removable : 1;  /* device is removable */
-	unsigned        devtype : 5;    /* packet command size */
+	unsigned        devtype : 5;    /* device type */
 #define AT_TYPE_DIRECT  0               /* direct-access (magnetic disk) */
 #define AT_TYPE_TAPE    1               /* streaming tape (QIC-121 model) */
 #define AT_TYPE_CDROM   5               /* CD-ROM device */
 #define AT_TYPE_OPTICAL 7               /* optical disk */
 	unsigned : 1;
-	unsigned        proto : 2;      /* packet command size */
+	unsigned        proto : 2;      /* command protocol */
 #define AT_PROTO_ATAPI  2
 	short reserved1[9];
 	char            serial[20];     /* serial number - optional */
@@ -146,7 +155,7 @@ struct atapi_params {
 	short reserved4;
 	u_short         pio_timing;     /* PIO cycle timing */
 	u_short         dma_timing;     /* DMA cycle timing */
-	u_short         flags;          /* flags */
+	u_short         flags;
 #define AT_FLAG_54_58   1               /* words 54-58 valid */
 #define AT_FLAG_64_70   2               /* words 64-70 valid */
 	short reserved5[8];

@@ -12,12 +12,9 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.2, Mon Jul 24 17:21:25 MSD 1995
+ * Version 1.8, Thu Sep 28 21:04:16 MSK 1995
  */
 
-/*
- * The driver was tested on Toshiba XM-5302TA drive. (vak)
- */
 #include "wdc.h"
 #include "wcd.h"
 #if NWCD > 0 && NWDC > 0 && defined (ATAPI)
@@ -35,13 +32,14 @@
 #include <i386/include/cpufunc.h>
 #include <i386/isa/atapi.h>
 
-#define NUNIT   (NWDC*2)        /* Max. number of devices */
-#define UNIT(d) ((minor(d) >> 3) & 3)  /* Unit part of minor device number */
-#define SECSIZE 2048            /* CD-ROM sector size in bytes */
+#define NUNIT   (NWDC*2)                /* Max. number of devices */
+#define UNIT(d) ((minor(d) >> 3) & 3)   /* Unit part of minor device number */
+#define SECSIZE 2048                    /* CD-ROM sector size in bytes */
 
-#define F_OPEN          0x0001  /* The drive os opened */
-#define F_MEDIA_CHANGED 0x0002  /* The media have changed since open */
-#define F_DEBUG         0x0004  /* The media have changed since open */
+#define F_OPEN          0x0001          /* The drive os opened */
+#define F_MEDIA_CHANGED 0x0002          /* The media have changed since open */
+#define F_DEBUG         0x0004          /* The media have changed since open */
+#define F_NOPLAYCD      0x0008          /* The PLAY_CD op not supported */
 
 /*
  * Disc table of contents.
@@ -166,6 +164,19 @@ struct cappage {
 	u_short max_vol_levels;         /* number of discrete volume levels */
 	u_short buf_size;               /* internal buffer size in bytes/1024 */
 	u_short cur_speed;              /* current data rate in bytes/1000  */
+
+	/* Digital drive output format description (optional?) */
+	u_char  reserved3;
+	u_char  bckf : 1;               /* data valid on failing edge of BCK */
+	u_char  rch : 1;                /* high LRCK indicates left channel */
+	u_char  lsbf : 1;               /* set if LSB first */
+	u_char  dlen: 2;
+#define DLEN_32         0               /* 32 BCKs */
+#define DLEN_16         1               /* 16 BCKs */
+#define DLEN_24         2               /* 24 BCKs */
+#define DLEN_24_I2S     3               /* 24 BCKs (I2S) */
+	u_char  : 3;
+	u_char  reserved4[2];
 };
 
 struct wcd {
@@ -262,16 +273,22 @@ void wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	}
 
 	/* Get drive capabilities. */
-	/* Do it twice to avoid the stale media changed state. */
 	result = atapi_request_immediate (ata, unit, ATAPI_MODE_SENSE,
 		0, CAP_PAGE, 0, 0, 0, 0, sizeof (t->cap) >> 8, sizeof (t->cap),
 		0, 0, 0, 0, 0, 0, 0, (char*) &t->cap, sizeof (t->cap));
 
-	if (result.code == RES_ERR && result.error == AER_SK_UNIT_ATTENTION)
+	/* Do it twice to avoid the stale media changed state. */
+	if (result.code == RES_ERR &&
+	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION)
 		result = atapi_request_immediate (ata, unit, ATAPI_MODE_SENSE,
 			0, CAP_PAGE, 0, 0, 0, 0, sizeof (t->cap) >> 8,
 			sizeof (t->cap), 0, 0, 0, 0, 0, 0, 0,
 			(char*) &t->cap, sizeof (t->cap));
+
+	/* Some drives have shorter capabilities page. */
+	if (result.code == RES_UNDERRUN)
+		result.code = 0;
+
 	if (result.code == 0) {
 		wcd_describe (t);
 		if (t->flags & F_DEBUG)
@@ -302,7 +319,7 @@ void wcd_describe (struct wcd *t)
 	printf ("wcd%d: ", t->lun);
 	if (t->cap.cur_speed != t->cap.max_speed)
 		printf ("%d/", t->cap.cur_speed * 1000 / 1024);
-	printf ("%dKb/sec", t->cap.max_speed * 1000 / 1024, t->cap.buf_size);
+	printf ("%dKb/sec", t->cap.max_speed * 1000 / 1024);
 	if (t->cap.buf_size)
 		printf (", %dKb cache", t->cap.buf_size);
 
@@ -373,7 +390,8 @@ int wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
 	result = atapi_request_wait (t->ata, t->unit, ATAPI_TEST_UNIT_READY,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	if (result.code == RES_ERR && result.error == AER_SK_UNIT_ATTENTION) {
+	if (result.code == RES_ERR &&
+	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION) {
 		t->flags |= F_MEDIA_CHANGED;
 		result = atapi_request_wait (t->ata, t->unit,
 			ATAPI_TEST_UNIT_READY, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -386,15 +404,19 @@ int wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Read table of contents. */
 	if (wcd_read_toc (t) != 0)
-		return (EIO);
+		bzero (&t->toc, sizeof (t->toc));
 
 	/* Read disc capacity. */
 	if (wcd_request_wait (t, ATAPI_READ_CAPACITY, 0, 0, 0, 0, 0, 0,
 	    0, sizeof(t->info), 0, (char*)&t->info, sizeof(t->info)) != 0)
-		return (EIO);
+		bzero (&t->info, sizeof (t->info));
 	t->info.volsize = ntohl (t->info.volsize);
 	t->info.blksize = ntohl (t->info.blksize);
-	if (t->flags & (F_MEDIA_CHANGED | F_DEBUG)) {
+
+	/* Print the disc description string on every disc change.
+	 * It would help to track the history of disc changes. */
+	if (t->info.volsize && t->toc.hdr.ending_track &&
+	    (t->flags & F_MEDIA_CHANGED) && (t->flags & F_DEBUG)) {
 		printf ("wcd%d: ", t->lun);
 		if (t->toc.tab[0].control & 4)
 			printf ("%ldMB ", t->info.volsize / 512);
@@ -538,37 +560,34 @@ static void wcd_error (struct wcd *t, struct atapires result)
 {
 	if (result.code != RES_ERR)
 		return;
-	switch (result.error) {
+	switch (result.error & AER_SKEY) {
 	case AER_SK_NOT_READY:
+		if (result.error & ~AER_SKEY) {
+			/* Audio disc. */
+			printf ("wcd%d: cannot read audio disc\n", t->lun);
+			return;
+		}
 		/* Tray open. */
 		if (! (t->flags & F_MEDIA_CHANGED))
 			printf ("wcd%d: tray open\n", t->lun);
 		t->flags |= F_MEDIA_CHANGED;
-		break;
+		return;
 
 	case AER_SK_UNIT_ATTENTION:
 		/* Media changed. */
 		if (! (t->flags & F_MEDIA_CHANGED))
 			printf ("wcd%d: media changed\n", t->lun);
 		t->flags |= F_MEDIA_CHANGED;
-		break;
-
-	case AER_SK_NOT_READY | AER_ILI | AER_EOM:
-		/* Audio disc. */
-		printf ("wcd%d: cannot read audio disc\n", t->lun);
-		break;
+		return;
 
 	case AER_SK_ILLEGAL_REQUEST:
 		/* Unknown command or invalid command arguments. */
 		if (t->flags & F_DEBUG)
 			printf ("wcd%d: invalid command\n", t->lun);
-		break;
-
-	default:
-		printf ("wcd%d: i/o error, status=%b, error=%b\n", t->lun,
-			result.status, ARS_BITS, result.error, AER_BITS);
-		break;
+		return;
 	}
+	printf ("wcd%d: i/o error, status=%b, error=%b\n", t->lun,
+		result.status, ARS_BITS, result.error, AER_BITS);
 }
 
 static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
@@ -587,6 +606,34 @@ static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 		return (EIO);
 	}
 	return (0);
+}
+
+static int wcd_play (struct wcd *t, u_char cmd, u_char a1, u_char a2,
+	u_char a3, u_char a4, u_char a5, u_char a6, u_char a7, u_char a8,
+	u_char a9, char *addr, int count)
+{
+	struct atapires result;
+
+	if (! (t->flags & F_NOPLAYCD)) {
+		t->cf.kdc_state = DC_BUSY;
+		result = atapi_request_wait (t->ata, t->unit, ATAPI_PLAY_CD,
+			cmd == ATAPI_PLAY_MSF ? 2 : 0, a2, a3, a4, a5, a6,
+			a7, a8, a9, 0, 0, 0, 0, 0, 0, addr, count);
+		t->cf.kdc_state = DC_IDLE;
+		if (result.code == RES_ERR &&
+		    (result.error & AER_SKEY) == AER_SK_ILLEGAL_REQUEST) {
+			/* Some drives don't support a PLAY_CD command.
+			 * Remember this and use PLAY_MSF instead. */
+			t->flags |= F_NOPLAYCD;
+			result.code = 0;
+		}
+		if (result.code) {
+			wcd_error (t, result);
+			return (EIO);
+		}
+	}
+	return wcd_request_wait (t, cmd, a1, a2, a3, a4, a5, a6,
+		a7, a8, a9, addr, count);
 }
 
 static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
@@ -617,11 +664,15 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		return (ENOTTY);
 
 	case CDIOCSETDEBUG:
+		if (p->p_cred->pc_ucred->cr_uid)
+			return (EPERM);
 		t->flags |= F_DEBUG;
 		atapi_debug (t->ata, 1);
 		return 0;
 
 	case CDIOCCLRDEBUG:
+		if (p->p_cred->pc_ucred->cr_uid)
+			return (EPERM);
 		t->flags &= ~F_DEBUG;
 		atapi_debug (t->ata, 0);
 		return 0;
@@ -651,6 +702,8 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 
 	case CDIOCRESET:
+		if (p->p_cred->pc_ucred->cr_uid)
+			return (EPERM);
 		return wcd_request_wait (t, ATAPI_TEST_UNIT_READY,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
@@ -668,6 +721,8 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 			0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
 
 	case CDIOREADTOCHEADER:
+		if (! t->toc.hdr.ending_track)
+			return (ENODEV);
 		bcopy (&t->toc.hdr, addr, sizeof t->toc.hdr);
 		break;
 
@@ -678,6 +733,8 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		struct toc buf;
 		u_long len;
 
+		if (! t->toc.hdr.ending_track)
+			return (ENODEV);
 		if (te->starting_track < toc->hdr.starting_track ||
 		    te->starting_track > toc->hdr.ending_track)
 			return (EINVAL);
@@ -751,14 +808,14 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 	case CDIOCPLAYMSF: {
 		struct ioc_play_msf *args = (struct ioc_play_msf*) addr;
 
-		return wcd_request_wait (t, ATAPI_PLAY_MSF, 0, 0,
+		return wcd_play (t, ATAPI_PLAY_MSF, 0, 0,
 			args->start_m, args->start_s, args->start_f,
 			args->end_m, args->end_s, args->end_f, 0, 0, 0);
 	}
 	case CDIOCPLAYBLOCKS: {
 		struct ioc_play_blocks *args = (struct ioc_play_blocks*) addr;
 
-		return wcd_request_wait (t, ATAPI_PLAY_BIG, 0,
+		return wcd_play (t, ATAPI_PLAY_BIG, 0,
 			args->blk >> 24 & 0xff, args->blk >> 16 & 0xff,
 			args->blk >> 8 & 0xff, args->blk & 0xff,
 			args->len >> 24 & 0xff, args->len >> 16 & 0xff,
@@ -768,6 +825,9 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		struct ioc_play_track *args = (struct ioc_play_track*) addr;
 		u_long start, len;
 		int t1, t2;
+
+		if (! t->toc.hdr.ending_track)
+			return (ENODEV);
 
 		/* Ignore index fields,
 		 * play from start_track to end_track inclusive. */
@@ -782,7 +842,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		start = t->toc.tab[t1].addr.lba;
 		len = t->toc.tab[t2].addr.lba - start;
 
-		return wcd_request_wait (t, ATAPI_PLAY_BIG, 0,
+		return wcd_play (t, ATAPI_PLAY_BIG, 0,
 			start >> 24 & 0xff, start >> 16 & 0xff,
 			start >> 8 & 0xff, start & 0xff,
 			len >> 24 & 0xff, len >> 16 & 0xff,
