@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dump.8	8.1 (Berkeley) 6/16/93
-.\"	$Id: dump.8,v 1.12 1997/02/22 14:32:16 peter Exp $
+.\"	$Id: dump.8,v 1.5.2.3 1997/03/03 07:01:19 mpp Exp $
 .\"
 .Dd June 16, 1993
 .Dt DUMP 8
@@ -41,8 +41,23 @@
 .Nd filesystem backup
 .Sh SYNOPSIS
 .Nm dump
-.Op Cm 0123456789BTWabcdfhnsu Op Ar argument ...
-.Op Ar filesystem
+.Op Fl 0123456789acknu
+.Op Fl B Ar records
+.Op Fl b Ar blocksize
+.Op Fl d Ar density
+.Op Fl f Ar file
+.Op Fl h Ar level
+.Op Fl s Ar feet
+.Op Fl T Ar date
+.Ar filesystem
+.Nm dump
+.Op Fl W Li \&| Fl w
+.Pp
+.in -\\n(iSu
+(The
+.Bx 4.3
+option syntax is implemented for backward compatibility, but
+is not documented here.)
 .Sh DESCRIPTION
 .Nm Dump
 examines files
@@ -51,14 +66,14 @@ and determines which files
 need to be backed up. These files
 are copied to the given disk, tape or other
 storage medium for safe keeping (see the
-.Cm f
+.Fl f
 option below for doing remote backups).
 A dump that is larger than the output medium is broken into
 multiple volumes.
 On most media the size is determined by writing until an
 end-of-media indication is returned.  This can be enforced
 by using the
-.Cm a
+.Fl a
 option.
 .Pp
 On media that cannot reliably return an end-of-media indication
@@ -70,26 +85,26 @@ By default, the same output file name is used for each volume
 after prompting the operator to change media.
 .Pp
 The following options are supported by
-.Nm dump:
-.Bl -tag -width 4n
-.It Cm 0\-9
+.Nm dump :
+.Bl -tag -width Ds
+.It Fl 0\-9
 Dump levels.
 A level 0, full backup,
 guarantees the entire file system is copied
 (but see also the
-.Cm h
+.Fl h
 option below).
 A level number above 0,
 incremental backup,
 tells dump to
 copy all files new or modified since the
-last dump of the same or lower level. The default
-level is 9.
-.It Cm B Ar records
+last dump of the same or lower level.
+The default level is 9.
+.It Fl B Ar records
 The number of dump records per volume.
 This option overrides the calculation of tape size
 based on length and density.
-.It Cm a
+.It Fl a
 .Dq auto-size .
 Bypass all tape length considerations, and enforce writing
 until an end-of-media indication is returned.  This fits best
@@ -97,12 +112,12 @@ for most modern tape drives.  Use of this option is particularly
 recommended when appending to an existing tape, or using a tape
 drive with hardware compression (where you can never be sure about
 the compression ratio).
-.It Cm b Ar blocksize
+.It Fl b Ar blocksize
 The number of kilobytes per dump record.
-.It Cm c
+.It Fl c
 Change the defaults for use with a cartridge tape drive, with a density
 of 8000 bpi, and a length of 1700 feet.
-.It Cm h Ar level
+.It Fl h Ar level
 Honor the user
 .Dq nodump
 flag
@@ -112,7 +127,11 @@ only for dumps at or above the given
 The default honor level is 1,
 so that incremental backups omit such files
 but full backups retain them.
-.It Cm f Ar file
+.It Fl d Ar density
+Set tape density to
+.Ar density .
+The default is 1600BPI.
+.It Fl f Ar file
 Write the backup to
 .Ar file ;
 .Ar file
@@ -145,11 +164,12 @@ program is
 .Pa /etc/rmt ;
 this can be overridden by the environment variable
 .Ev RMT .
-.It Cm d Ar density
-Set tape density to
-.Ar density .
-The default is 1600BPI.
-.It Cm n
+.It Fl k
+Use Kerberos authentication to talk to remote tape servers.  (Only
+available if this option was enabled when
+.Nm dump
+was compiled.)
+.It Fl n
 Whenever
 .Nm dump
 requires operator attention,
@@ -157,7 +177,7 @@ notify all operators in the group
 .Dq operator
 by means similar to a
 .Xr wall 1 .
-.It Cm s Ar feet
+.It Fl s Ar feet
 Attempt to calculate the amount of tape needed
 at a particular density.
 If this amount is exceeded,
@@ -165,7 +185,21 @@ If this amount is exceeded,
 prompts for a new tape.
 It is recommended to be a bit conservative on this option.
 The default tape length is 2300 feet.
-.It Cm u
+.ne 1i
+.It Fl T Ar date
+Use the specified date as the starting time for the dump
+instead of the time determined from looking in
+.Pa /etc/dumpdates .
+The format of date is the same as that of
+.Xr ctime 3 .
+This option is useful for automated dump scripts that wish to
+dump over a specific period of time.
+The
+.Fl T
+option is mutually exclusive from the
+.Fl u
+option.
+.It Fl u
 Update the file
 .Pa /etc/dumpdates
 after a successful dump.
@@ -183,20 +217,7 @@ The file
 .Pa /etc/dumpdates
 may be edited to change any of the fields,
 if necessary.
-.It Cm T Ar date
-Use the specified date as the starting time for the dump
-instead of the time determined from looking in
-.Pa /etc/dumpdates .
-The format of date is the same as that of
-.Xr ctime 3 .
-This option is useful for automated dump scripts that wish to
-dump over a specific period of time.
-The
-.Cm T
-option is mutually exclusive from the
-.Cm u
-option.
-.It Cm W
+.It Fl W
 .Nm Dump
 tells the operator what file systems need to be dumped.
 This information is gleaned from the files
@@ -204,7 +225,7 @@ This information is gleaned from the files
 and
 .Pa /etc/fstab .
 The
-.Cm W
+.Fl W
 option causes
 .Nm dump
 to print out, for each file system in
@@ -212,11 +233,11 @@ to print out, for each file system in
 the most recent dump date and level,
 and highlights those file systems that should be dumped.
 If the
-.Cm W
+.Fl W
 option is set, all other options are ignored, and
 .Nm dump
 exits immediately.
-.It Cm w
+.It Fl w
 Is like W, but prints only those filesystems which need to be dumped.
 .El
 .Pp
@@ -228,7 +249,7 @@ tape write error,
 tape open error or
 disk read error (if there are more than a threshold of 32).
 In addition to alerting all operators implied by the
-.Cm n
+.Fl n
 key,
 .Nm dump
 interacts with the operator on
@@ -279,7 +300,7 @@ to minimize the number of tapes follows:
 .It
 Always start with a level 0 backup, for example:
 .Bd -literal -offset indent
-/sbin/dump 0uf /dev/nrst0 /usr/src
+/sbin/dump -0u -f /dev/nrst0 /usr/src
 .Ed
 .Pp
 This should be done at set intervals, say once a month or once every two months,
@@ -322,7 +343,6 @@ to find group
 .Em operator
 .El
 .Sh SEE ALSO
-.Xr dump 5 ,
 .Xr fstab 5 ,
 .Xr ft 8 ,
 .Xr restore 8 ,
@@ -334,8 +354,8 @@ Dump exits with zero status on success.
 Startup errors are indicated with an exit code of 1;
 abnormal termination is indicated with an exit code of 3.
 .Sh BUGS
-.Pp
 Fewer than 32 read errors on the filesystem are ignored.
+.Pp
 Each reel requires a new process, so parent processes for
 reels already written just hang around until the entire tape
 is written.
@@ -349,9 +369,9 @@ will prevent this from happening.
 .Pp
 .Nm Dump
 with the
-.Cm W
+.Fl W
 or
-.Cm w
+.Fl w
 options does not report filesystems that have never been recorded
 in
 .Pa /etc/dumpdates ,

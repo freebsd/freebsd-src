@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *		$Id$
  */
 
 #ifndef lint
@@ -38,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 4/15/94";
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,23 +51,22 @@ static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 4/15/94";
 #include <ufs/inode.h>
 #include <ufs/fs.h>
 #else
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 #endif
 
 #include <protocols/dumprestore.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <signal.h>
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#endif
 
 #include "dump.h"
 #include "pathnames.h"
@@ -80,24 +81,26 @@ int	tapeno = 0;	/* current tape number */
 int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
 int	ntrec = NTREC;	/* # tape blocks in each tape record */
 int	cartridge = 0;	/* Assume non-cartridge tape */
+int	dokerberos = 0;	/* Use Kerberos authentication */
 long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
 
-static long numarg __P((int, char *, long, long, int *, char ***));
-static void missingarg __P((int, char *)) __dead2;
+static long numarg __P((char *, long, long));
+static void obsolete __P((int *, char **[]));
+static void usage __P((void));
 
 int
 main(argc, argv)
 	int argc;
-	char **argv;
+	char *argv[];
 {
 	register ino_t ino;
 	register int dirty;
 	register struct dinode *dp;
 	register struct	fstab *dt;
 	register char *map;
-	register char *cp;
+	register int ch;
 	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	ino_t maxino;
 
@@ -112,62 +115,37 @@ main(argc, argv)
 	if (TP_BSIZE / DEV_BSIZE == 0 || TP_BSIZE % DEV_BSIZE != 0)
 		quit("TP_BSIZE must be a multiple of DEV_BSIZE\n");
 	level = '0';
-	if (argc == 1) {
-		(void) fprintf(stderr, "Must specify a key.\n");
-		Exit(X_ABORT);
-	}
-	argv++;
-	argc -= 2;
-	for (cp = *argv++; cp != NULL && *cp != '\0'; cp++) {
-		switch (*cp) {
-		case '-':
+
+	if (argc < 2)
+		usage();
+
+	obsolete(&argc, &argv);
+#ifdef KERBEROS
+#define optstring "0123456789aB:b:cd:f:h:kns:T:uWw"
+#else
+#define optstring "0123456789aB:b:cd:f:h:ns:T:uWw"
+#endif
+	while ((ch = getopt(argc, argv, optstring)) != -1)
+#undef optstring
+		switch (ch) {
+		/* dump level */
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			level = ch;
 			break;
 
-		case 'w':
-			lastdump('w');	/* tell us only what has to be done */
-			exit(0);
-
-		case 'W':		/* what to do */
-			lastdump('W');	/* tell us state of what is done */
-			exit(0);	/* do nothing else */
-
-		case 'f':		/* output file */
-			if (argc < 1)
-				missingarg('f', "output file");
-			tape = *argv++;
-			argc--;
+		case 'a':		/* `auto-size', Write to EOM. */
+			unlimited = 1;
 			break;
 
-		case 'd':		/* density, in bits per inch */
-			density = numarg('d', "density",
-			    10L, 327670L, &argc, &argv) / 10;
-			if (density >= 625 && !bflag)
-				ntrec = HIGHDENSITYTREC;
-			break;
-
-		case 's':		/* tape size, feet */
-			tsize = numarg('s', "size",
-			    1L, 0L, &argc, &argv) * 12 * 10;
-			break;
-
-		case 'T':		/* time of last dump */
-			if (argc < 1)
-				missingarg('T', "time of last dump");
-			spcl.c_ddate = unctime(*argv);
-			if (spcl.c_ddate < 0) {
-				(void)fprintf(stderr, "bad time \"%s\"\n",
-				    *argv);
-				exit(X_ABORT);
-			}
-			Tflag = 1;
-			lastlevel = '?';
-			argc--;
-			argv++;
+		case 'B':		/* blocks per output file */
+			blocksperfile = numarg("number of blocks per file",
+			    1L, 0L);
 			break;
 
 		case 'b':		/* blocks per tape write */
-			ntrec = numarg('b', "number of blocks per write",
-			    1L, 1000L, &argc, &argv);
+			ntrec = numarg("number of blocks per write",
+			    1L, 1000L);
 			/*
 			 * XXX
 			 * physio(9) currently slices all requests to
@@ -184,43 +162,66 @@ main(argc, argv)
 			}
 			break;
 
-		case 'B':		/* blocks per output file */
-			blocksperfile = numarg('B', "number of blocks per file",
-			    1L, 0L, &argc, &argv);
-			break;
-
 		case 'c':		/* Tape is cart. not 9-track */
 			cartridge = 1;
 			break;
 
-		case 'a':		/* `auto-size', Write to EOM. */
-			unlimited = 1;
+		case 'd':		/* density, in bits per inch */
+			density = numarg("density", 10L, 327670L) / 10;
+			if (density >= 625 && !bflag)
+				ntrec = HIGHDENSITYTREC;
 			break;
 
-		/* dump level */
-		case '0': case '1': case '2': case '3': case '4':
-		case '5': case '6': case '7': case '8': case '9':
-			level = *cp;
+		case 'f':		/* output file */
+			tape = optarg;
+			break;
+
+		case 'h':
+			honorlevel = numarg("honor level", 0L, 10L);
+			break;
+
+#ifdef KERBEROS
+		case 'k':
+			dokerberos = 1;
+			break;
+#endif
+
+		case 'n':		/* notify operators */
+			notify = 1;
+			break;
+
+		case 's':		/* tape size, feet */
+			tsize = numarg("tape size", 1L, 0L) * 12 * 10;
+			break;
+
+		case 'T':		/* time of last dump */
+			spcl.c_ddate = unctime(optarg);
+			if (spcl.c_ddate < 0) {
+				(void)fprintf(stderr, "bad time \"%s\"\n",
+				    optarg);
+				exit(X_ABORT);
+			}
+			Tflag = 1;
+			lastlevel = '?';
+			argc--;
+			argv++;
 			break;
 
 		case 'u':		/* update /etc/dumpdates */
 			uflag = 1;
 			break;
 
-		case 'n':		/* notify operators */
-			notify = 1;
-			break;
-
-		case 'h':
-			honorlevel = numarg('h', "honor level",
-			    0L, 10L, &argc, &argv);
-			break;
+		case 'W':		/* what to do */
+		case 'w':
+			lastdump(ch);
+			exit(0);	/* do nothing else */
 
 		default:
-			(void)fprintf(stderr, "bad key '%c'\n", *cp);
-			exit(X_ABORT);
+			usage();
 		}
-	}
+	argc -= optind;
+	argv += optind;
+
 	if (argc < 1) {
 		(void)fprintf(stderr, "Must specify disk or filesystem\n");
 		exit(X_ABORT);
@@ -263,9 +264,9 @@ main(argc, argv)
 			tsize = cartridge ? 1700L*120L : 2300L*120L;
 	}
 
-	if (index(tape, ':')) {
+	if (strchr(tape, ':')) {
 		host = tape;
-		tape = index(host, ':');
+		tape = strchr(host, ':');
 		*tape++ = '\0';
 #ifdef RDUMP
 		if (index(tape, '\n')) {
@@ -386,11 +387,11 @@ main(argc, argv)
 			   Assume no erroneous blocks; this can be compensated
 			   for with an artificially low tape size. */
 			fetapes =
-			(	  tapesize	/* blocks */
+			(	  (double) tapesize	/* blocks */
 				* TP_BSIZE	/* bytes/block */
 				* (1.0/density)	/* 0.1" / byte " */
 			  +
-				  tapesize	/* blocks */
+				  (double) tapesize	/* blocks */
 				* (1.0/ntrec)	/* streaming-stops per block */
 				* 15.48		/* 0.1" / streaming-stop " */
 			) * (1.0 / tsize );	/* tape / 0.1" " */
@@ -399,11 +400,11 @@ main(argc, argv)
 			   tape */
 			int tenthsperirg = (density == 625) ? 3 : 7;
 			fetapes =
-			(	  tapesize	/* blocks */
+			(	  (double) tapesize	/* blocks */
 				* TP_BSIZE	/* bytes / block */
 				* (1.0/density)	/* 0.1" / byte " */
 			  +
-				  tapesize	/* blocks */
+				  (double) tapesize	/* blocks */
 				* (1.0/ntrec)	/* IRG's / block */
 				* tenthsperirg	/* 0.1" / IRG " */
 			) * (1.0 / tsize );	/* tape / 0.1" " */
@@ -492,48 +493,38 @@ main(argc, argv)
 	/* NOTREACHED */
 }
 
+static void
+usage()
+{
+	fprintf(stderr,
+		"usage: dump [-0123456789ac"
+#ifdef KERBEROS
+		"k"
+#endif
+		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
+		"            [-h level] [-s feet] [-T date] filesystem\n"
+		"       dump [-W | -w]\n");
+	exit(1);
+}
+
 /*
  * Pick up a numeric argument.  It must be nonnegative and in the given
  * range (except that a vmax of 0 means unlimited).
  */
 static long
-numarg(letter, meaning, vmin, vmax, pargc, pargv)
-	int letter;
+numarg(meaning, vmin, vmax)
 	char *meaning;
 	long vmin, vmax;
-	int *pargc;
-	char ***pargv;
 {
-	register char *p;
+	char *p;
 	long val;
-	char *str;
 
-	if (--*pargc < 0)
-		missingarg(letter, meaning);
-	str = *(*pargv)++;
-	for (p = str; *p; p++)
-		if (!isdigit(*p))
-			goto bad;
-	val = atol(str);
+	val = strtol(optarg, &p, 10);
+	if (*p)
+		errx(1, "illegal %s -- %s", meaning, optarg);
 	if (val < vmin || (vmax && val > vmax))
-		goto bad;
+		errx(1, "%s must be between %ld and %ld", meaning, vmin, vmax);
 	return (val);
-
-bad:
-	(void)fprintf(stderr, "bad '%c' (%s) value \"%s\"\n",
-	    letter, meaning, str);
-	exit(X_ABORT);
-}
-
-static void
-missingarg(letter, meaning)
-	int letter;
-	char *meaning;
-{
-
-	(void)fprintf(stderr, "The '%c' flag (%s) requires an argument\n",
-	    letter, meaning);
-	exit(X_ABORT);
 }
 
 void
@@ -568,7 +559,7 @@ rawname(cp)
 	char *cp;
 {
 	static char rawbuf[MAXPATHLEN];
-	char *dp = rindex(cp, '/');
+	char *dp = strrchr(cp, '/');
 
 	if (dp == NULL)
 		return (NULL);
@@ -581,17 +572,76 @@ rawname(cp)
 	return (rawbuf);
 }
 
-#ifdef sunos
-const char *
-strerror(errnum)
-	int errnum;
+/*
+ * obsolete --
+ *	Change set of key letters and ordered arguments into something
+ *	getopt(3) will like.
+ */
+static void
+obsolete(argcp, argvp)
+	int *argcp;
+	char **argvp[];
 {
-	extern int sys_nerr;
-	extern const char *const sys_errlist[];
+	int argc, flags;
+	char *ap, **argv, *flagsp, **nargv, *p;
 
-	if (errnum < sys_nerr)
-		return (sys_errlist[errnum]);
-	else
-		return ("bogus errno in strerror");
+	/* Setup. */
+	argv = *argvp;
+	argc = *argcp;
+
+	/* Return if no arguments or first argument has leading dash. */
+	ap = argv[1];
+	if (argc == 1 || *ap == '-')
+		return;
+
+	/* Allocate space for new arguments. */
+	if ((*argvp = nargv = malloc((argc + 1) * sizeof(char *))) == NULL ||
+	    (p = flagsp = malloc(strlen(ap) + 2)) == NULL)
+		err(1, NULL);
+
+	*nargv++ = *argv;
+	argv += 2;
+
+	for (flags = 0; *ap; ++ap) {
+		switch (*ap) {
+		case 'B':
+		case 'b':
+		case 'd':
+		case 'f':
+		case 'h':
+		case 's':
+		case 'T':
+			if (*argv == NULL) {
+				warnx("option requires an argument -- %c", *ap);
+				usage();
+			}
+			if ((nargv[0] = malloc(strlen(*argv) + 2 + 1)) == NULL)
+				err(1, NULL);
+			nargv[0][0] = '-';
+			nargv[0][1] = *ap;
+			(void)strcpy(&nargv[0][2], *argv);
+			++argv;
+			++nargv;
+			break;
+		default:
+			if (!flags) {
+				*p++ = '-';
+				flags = 1;
+			}
+			*p++ = *ap;
+			break;
+		}
+	}
+
+	/* Terminate flags. */
+	if (flags) {
+		*p = '\0';
+		*nargv++ = flagsp;
+	}
+
+	/* Copy remaining arguments. */
+	while (*nargv++ = *argv++);
+
+	/* Update argument count. */
+	*argcp = nargv - *argvp - 1;
 }
-#endif
