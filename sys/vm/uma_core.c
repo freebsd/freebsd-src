@@ -1645,6 +1645,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 {
 	uma_cache_t cache;
 	uma_bucket_t bucket;
+	int bflags;
 	int cpu;
 
 	/* This is the fast path free */
@@ -1748,12 +1749,16 @@ zfree_start:
 #ifdef UMA_DEBUG_ALLOC
 	printf("uma_zfree: Allocating new free bucket.\n");
 #endif
-	bucket = uma_zalloc_internal(bucketzone,
-	    NULL, M_NOWAIT, NULL);
-	if (bucket) {
+	bflags = M_NOWAIT;
+
+	if (zone->uz_flags & UMA_ZFLAG_BUCKETCACHE)
+		bflags |= M_NOVM;
 #ifdef INVARIANTS
-		bzero(bucket, bucketzone->uz_size);
+	bflags |= M_ZERO;
 #endif
+	bucket = uma_zalloc_internal(bucketzone,
+	    NULL, bflags, NULL);
+	if (bucket) {
 		bucket->ub_ptr = -1;
 		ZONE_LOCK(zone);
 		LIST_INSERT_HEAD(&zone->uz_free_bucket,
