@@ -741,7 +741,6 @@ ntfs_vgetex(
 	}
 	dprintf(("ntfs_vget: vnode: %p for ntnode: %d\n", vp,ino));
 
-	lockinit(&fp->f_lock, PINOD, "fnode", VLKTIMEOUT, 0);
 	fp->f_vp = vp;
 	vp->v_data = fp;
 	vp->v_type = f_type;

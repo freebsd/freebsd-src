@@ -143,7 +143,7 @@ cd9660_ihashins(ip)
 	*ipp = ip;
 	mtx_unlock(&cd9660_ihash_mtx);
 
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, curthread);
+	vn_lock(ITOV(ip), LK_EXCLUSIVE | LK_RETRY, curthread);
 }
 
 /*
@@ -223,7 +223,6 @@ cd9660_reclaim(ap)
 		vrele(ip->i_devvp);
 		ip->i_devvp = 0;
 	}
-	lockdestroy(&ip->i_vnode->v_lock);
 	FREE(vp->v_data, M_ISOFSNODE);
 	vp->v_data = NULL;
 	return (0);

@@ -203,7 +203,7 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		return EFBIG;*/
 	td = uiop->uio_td;
 	if (vp->v_type == VDIR) {
-		lks = LK_EXCLUSIVE;/*lockstatus(&vp->v_lock, td);*/
+		lks = LK_EXCLUSIVE;/*lockstatus(vp->v_vnlock, td);*/
 		if (lks == LK_SHARED)
 			vn_lock(vp, LK_UPGRADE | LK_RETRY, td);
 		error = smbfs_readvdir(vp, uiop, cred);

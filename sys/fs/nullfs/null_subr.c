@@ -226,9 +226,6 @@ null_nodeget(mp, lowervp, vpp)
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 
-	/* Though v_lock is inited by getnewvnode(), we want our own wmesg */
-	lockinit(&vp->v_lock, PVFS, "nunode", VLKTIMEOUT, LK_NOPAUSE);
-
 	/*
 	 * From NetBSD:
 	 * Now lock the new node. We rely on the fact that we were passed

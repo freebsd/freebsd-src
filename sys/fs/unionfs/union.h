@@ -66,13 +66,8 @@ struct union_mount {
 
 /*
  * A cache of vnode references	(hangs off v_data)
- *
- * Placing un_lock as the first elements theoretically allows us to
- * use the vop_stdlock functions.  However, we need to make sure of
- * certain side effects so we will still punch in our own code.
  */
 struct union_node {
-	struct lock		un_lock;
 	LIST_ENTRY(union_node)	un_cache;	/* Hash chain */
 	struct vnode		*un_vnode;	/* Back pointer */
 	struct vnode	        *un_uppervp;	/* overlaying object */

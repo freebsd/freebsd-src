@@ -179,7 +179,6 @@ ufs_reclaim(ap)
 		}
 	}
 #endif
-	lockdestroy(&vp->v_lock);
 #ifdef UFS_DIRHASH
 	if (ip->i_dirhash != NULL)
 		ufsdirhash_free(ip);

@@ -778,7 +778,6 @@ ntfs_frele(
 		FREE(fp->f_attrname, M_TEMP);
 	if (fp->f_dirblbuf)
 		FREE(fp->f_dirblbuf, M_NTFSDIR);
-	lockdestroy(&fp->f_lock);
 	FREE(fp, M_NTFSFNODE);
 	ntfs_ntrele(ip);
 }

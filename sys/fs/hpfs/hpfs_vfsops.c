@@ -512,7 +512,6 @@ hpfs_vget(
 
 
 	mtx_init(&hp->h_interlock, "hpfsnode interlock", NULL, MTX_DEF);
-	lockinit(&hp->h_lock, PINOD, "hpnode", VLKTIMEOUT, 0);
 
 	hp->h_flag = H_INVAL;
 	hp->h_vp = vp;

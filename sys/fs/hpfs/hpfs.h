@@ -333,7 +333,6 @@ struct hpfsmount {
 #define	H_PARCHANGE	0x0008		/* parent node date was changed */
 #define	H_INVAL		0x0010		/* Invalid node */
 struct hpfsnode {
-	struct lock	h_lock;		/* Must be first, for std vops */
 	struct mtx h_interlock;
 
 	LIST_ENTRY(hpfsnode)	h_hash;

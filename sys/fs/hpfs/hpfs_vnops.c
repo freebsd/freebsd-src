@@ -643,7 +643,6 @@ hpfs_reclaim(ap)
 		hp->h_devvp = NULL;
 	}
 
-	lockdestroy(&hp->h_lock);
 	mtx_destroy(&hp->h_interlock);
 
 	vp->v_data = NULL;

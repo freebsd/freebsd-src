@@ -260,8 +260,6 @@ deget(pmp, dirclust, diroffset, depp)
 		return error;
 	}
 	bzero((caddr_t)ldep, sizeof *ldep);
-	lockinit(&nvp->v_lock, PINOD, "denode", VLKTIMEOUT, 0);
-	nvp->v_vnlock = &nvp->v_lock;
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;
 	ldep->de_flag = 0;
@@ -670,7 +668,6 @@ msdosfs_reclaim(ap)
 #if 0 /* XXX */
 	dep->de_flag = 0;
 #endif
-	lockdestroy(&vp->v_lock);
 	FREE(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
 

@@ -974,6 +974,8 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_cstart = 0;
 		vp->v_clen = 0;
 		vp->v_socket = 0;
+		lockdestroy(vp->v_vnlock);
+		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
 		KASSERT(vp->v_cleanblkroot == NULL, ("cleanblkroot not NULL"));
 		KASSERT(vp->v_dirtyblkroot == NULL, ("dirtyblkroot not NULL"));
 	} else {
@@ -984,6 +986,8 @@ getnewvnode(tag, mp, vops, vpp)
 		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
 		VI_LOCK(vp);
 		vp->v_dd = vp;
+		vp->v_vnlock = &vp->v_lock;
+		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
 		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
 		TAILQ_INIT(&vp->v_cache_dst);
@@ -994,7 +998,6 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
-	lockinit(&vp->v_lock, PVFS, "vnlock", VLKTIMEOUT, LK_NOPAUSE);
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
@@ -1994,10 +1997,9 @@ addaliasu(nvp, nvp_rdev)
 	ovp->v_data = nvp->v_data;
 	ovp->v_tag = nvp->v_tag;
 	nvp->v_data = NULL;
-	lockinit(&ovp->v_lock, PVFS, nvp->v_lock.lk_wmesg,
-	    nvp->v_lock.lk_timo, nvp->v_lock.lk_flags & LK_EXTFLG_MASK);
-	if (nvp->v_vnlock)
-		ovp->v_vnlock = &ovp->v_lock;
+	lockdestroy(ovp->v_vnlock);
+	lockinit(ovp->v_vnlock, PVFS, nvp->v_vnlock->lk_wmesg,
+	    nvp->v_vnlock->lk_timo, nvp->v_vnlock->lk_flags & LK_EXTFLG_MASK);
 	ops = ovp->v_op;
 	ovp->v_op = nvp->v_op;
 	if (VOP_ISLOCKED(nvp, curthread)) {
@@ -2538,9 +2540,6 @@ vclean(vp, flags, td)
 	}
 
 	cache_purge(vp);
-	vp->v_vnlock = NULL;
-	lockdestroy(&vp->v_lock);
-
 	VI_LOCK(vp);
 	if (VSHOULDFREE(vp))
 		vfree(vp);
@@ -2813,7 +2812,7 @@ vprint(label, vp)
 		strcat(buf, "|VV_OBJBUF");
 	if (buf[0] != '\0')
 		printf(" flags (%s),", &buf[1]);
-	lockmgr_printinfo(&vp->v_lock);
+	lockmgr_printinfo(vp->v_vnlock);
 	printf("\n");
 	if (vp->v_data != NULL) {
 		printf("\t");

@@ -205,7 +205,7 @@ lomacfs_lock(
 	 */
 	lvp = VTOLVP(vp);
 	if (lvp == NULL || flags & LK_THISLAYER)
-		return (lockmgr(&vp->v_lock, flags, &vp->v_interlock, td));
+		return (lockmgr(vp->v_vnlock, flags, &vp->v_interlock, td));
 	if (flags & LK_INTERLOCK) {
 		mtx_unlock(&vp->v_interlock);
 		flags &= ~LK_INTERLOCK;
@@ -218,7 +218,7 @@ lomacfs_lock(
 		error = vn_lock(lvp, lflags | LK_CANRECURSE, td);
 	if (error)
 		return (error);	
-	error = lockmgr(&vp->v_lock, flags, &vp->v_interlock, td);
+	error = lockmgr(vp->v_vnlock, flags, &vp->v_interlock, td);
 	if (error)
 		VOP_UNLOCK(lvp, 0, td);
 	return (error);
@@ -245,7 +245,7 @@ lomacfs_unlock(
 	struct vnode *lvp = VTOLVP(vp);
 	int error;
 
-	error = lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, td);
+	error = lockmgr(vp->v_vnlock, flags | LK_RELEASE, &vp->v_interlock, td);
 	if (lvp == NULL || flags & LK_THISLAYER || error)
 		return (error);
 	/*
@@ -269,7 +269,7 @@ lomacfs_islocked(
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
 
-	return (lockstatus(&vp->v_lock, td));
+	return (lockstatus(vp->v_vnlock, td));
 }
 
 static int
