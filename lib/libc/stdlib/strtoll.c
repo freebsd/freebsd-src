@@ -50,7 +50,7 @@ static const char rcsid[] =
 /*
  * Convert a string to a long long integer.
  *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
 long long
@@ -62,7 +62,7 @@ strtoll(nptr, endptr, base)
 	register const char *s;
 	register unsigned long long acc;
 	register unsigned char c;
-	register unsigned long long qbase, cutoff;
+	register unsigned long long cutoff;
 	register int neg, any, cutlim;
 
 	/*
@@ -90,6 +90,9 @@ strtoll(nptr, endptr, base)
 	}
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
+	any = 0;
+	if (base < 2 || base > 36)
+		goto noconv;
 
 	/*
 	 * Compute the cutoff value between legal numbers and illegal
@@ -106,15 +109,14 @@ strtoll(nptr, endptr, base)
 	 * next digit is > 7 (or 8), the number is too big, and we will
 	 * return a range error.
 	 *
-	 * Set any if any `digits' consumed; make it negative to indicate
+	 * Set 'any' if any `digits' consumed; make it negative to indicate
 	 * overflow.
 	 */
-	qbase = (unsigned)base;
 	cutoff = neg ? (unsigned long long)-(LLONG_MIN + LLONG_MAX) + LLONG_MAX
 	    : LLONG_MAX;
-	cutlim = cutoff % qbase;
-	cutoff /= qbase;
-	for (acc = 0, any = 0;; c = *s++) {
+	cutlim = cutoff % base;
+	cutoff /= base;
+	for (acc = 0; ; c = *s++) {
 		if (!isascii(c))
 			break;
 		if (isdigit(c))
@@ -129,16 +131,19 @@ strtoll(nptr, endptr, base)
 			any = -1;
 		else {
 			any = 1;
-			acc *= qbase;
+			acc *= base;
 			acc += c;
 		}
 	}
 	if (any < 0) {
 		acc = neg ? LLONG_MIN : LLONG_MAX;
 		errno = ERANGE;
+	} else if (!any) {
+noconv:
+		errno = EINVAL;
 	} else if (neg)
 		acc = -acc;
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
 }
