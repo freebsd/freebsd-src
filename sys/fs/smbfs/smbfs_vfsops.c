@@ -124,9 +124,6 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 	struct smb_share *ssp = NULL;
 	struct vnode *vp;
 	struct smb_cred scred;
-#ifndef	FB_CURRENT
-	size_t size;
-#endif
 	int error;
 	char *pc, *pe;
 
@@ -182,12 +179,6 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 			    (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
 
 /*	simple_lock_init(&smp->sm_npslock);*/
-#ifndef	FB_CURRENT
-	error = copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
-	if (error)
-		goto bad;
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-#endif
 	pc = mp->mnt_stat.f_mntfromname;
 	pe = pc + sizeof(mp->mnt_stat.f_mntfromname);
 	bzero(pc, MNAMELEN);
@@ -438,11 +429,7 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 		VI_LOCK(vp);
-#ifndef FB_RELENG3
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-#else
-		if (VOP_ISLOCKED(vp) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-#endif
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
 			continue;

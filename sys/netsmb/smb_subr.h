@@ -42,8 +42,6 @@
 MALLOC_DECLARE(M_SMBTEMP);
 #endif
 
-#define	FB_CURRENT
-
 #define SMBERROR(format, args...) printf("%s: "format, __func__ ,## args)
 #define SMBPANIC(format, args...) printf("%s: "format, __func__ ,## args)
 
