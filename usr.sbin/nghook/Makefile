@@ -6,6 +6,5 @@ SRCS=		main.c
 MAN=		nghook.8
 DPADD=		${LIBNETGRAPH}
 LDADD=		-lnetgraph
-COPTS+=		-Wall
 
 .include <bsd.prog.mk>
