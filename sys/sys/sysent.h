@@ -69,7 +69,7 @@ struct sysentvec {
 	void		(*sv_prepsyscall) __P((struct trapframe *, int *,
 					       u_int *, caddr_t *));
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump) __P((struct proc *p));
+	int		(*sv_coredump) __P((struct proc *p, struct vnode *, off_t));
 					/* function to dump core, or NULL */
 };
 
