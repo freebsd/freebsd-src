@@ -1921,7 +1921,7 @@
 	  <para>3C900/905/905B/905C PCI</para>
         </listitem>
         <listitem arch="i386,alpha">
-	  <para>3C556/556B MiniPCI</para>
+	  <para>3C555/556/556B MiniPCI</para>
         </listitem>
         <listitem arch="i386,alpha">
 	  <para>3C450-TX HomeConnect adapter</para>
@@ -2336,7 +2336,7 @@
         </listitem>
         <listitem>
 	  <para>Cisco Systems Aironet 340 and 350 series
-	  (PCMCIA, PCI, and ISA adapters are all supported)</para>
+	  (PCMCIA, PCI, Mini-PCI, and ISA adapters are all supported)</para>
         </listitem>
 	<listitem>
 	  <para>Xircom Wireless Ethernet adapter (rebadged Aironet)</para>
