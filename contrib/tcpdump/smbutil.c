@@ -14,7 +14,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.18 2002/01/17 04:38:29 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.18.2.3 2002/07/10 07:29:23 guy Exp $";
 #endif
 
 #include <sys/param.h>
@@ -28,7 +28,9 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef TIME_WITH_SYS_TIME
 #include <time.h>
+#endif
 
 #include "interface.h"
 #include "extract.h"
@@ -338,7 +340,7 @@ write_bits(unsigned int val, char *fmt)
 
 /* convert a UCS2 string into iso-8859-1 string */
 static const char *
-unistr(const char *s, int *len)
+unistr(const u_char *s, int *len)
 {
     static char buf[1000];
     int l=0;
@@ -354,8 +356,8 @@ unistr(const char *s, int *len)
 
     /* maybe it isn't unicode - a cheap trick */
     if (!use_unicode || (s[0] && s[1])) {
-	*len = strlen(s) + 1;
-	return s;
+	*len = strlen((const char *)s) + 1;
+	return (const char *)s;
     }
 
     *len = 0;
@@ -400,8 +402,11 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf)
 	case '{':
 	  {
 	    char bitfmt[128];
-	    char *p = strchr(++fmt, '}');
-	    int l = PTR_DIFF(p, fmt);
+	    char *p;
+	    int l;
+
+	    p = strchr(++fmt, '}');
+	    l = PTR_DIFF(p, fmt);
 	    strncpy(bitfmt, fmt, l);
 	    bitfmt[l] = 0;
 	    fmt = p + 1;
@@ -415,7 +420,7 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf)
 	    int l = atoi(fmt + 1);
 	    buf += l;
 	    fmt++;
-	    while (isdigit(*fmt))
+	    while (isdigit((unsigned char)*fmt))
 		fmt++;
 	    break;
 	  }
@@ -529,7 +534,7 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf)
 	    printf("%-*.*s", l, l, buf);
 	    buf += l;
 	    fmt++;
-	    while (isdigit(*fmt))
+	    while (isdigit((unsigned char)*fmt))
 		fmt++;
 	    break;
 	  }
@@ -539,7 +544,7 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf)
 	    while (l--)
 		printf("%02x", *buf++);
 	    fmt++;
-	    while (isdigit(*fmt))
+	    while (isdigit((unsigned char)*fmt))
 		fmt++;
 	    break;
 	  }
@@ -571,7 +576,7 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf)
 		break;
 	    }
 	    fmt++;
-	    while (isdigit(*fmt))
+	    while (isdigit((unsigned char)*fmt))
 		fmt++;
 	    break;
 	  }
@@ -603,7 +608,7 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf)
 	    }
 	    printf("%s", t ? asctime(localtime(&t)) : "NULL\n");
 	    fmt++;
-	    while (isdigit(*fmt))
+	    while (isdigit((unsigned char)*fmt))
 		fmt++;
 	    break;
 	  }

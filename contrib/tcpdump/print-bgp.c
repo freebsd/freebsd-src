@@ -35,7 +35,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-bgp.c,v 1.27 2001/10/18 09:52:17 itojun Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-bgp.c,v 1.27.2.1 2003/02/26 05:51:56 fenner Exp $";
 #endif
 
 #include <sys/param.h>
@@ -471,11 +471,19 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 			switch (af) {
 			case AFNUM_INET:
 				advance = decode_prefix4(p, buf, sizeof(buf));
+				if (advance < 0) {
+					p = dat + len;
+					break;
+				}
 				printf(" %s", buf);
 				break;
 #ifdef INET6
 			case AFNUM_INET6:
 				advance = decode_prefix6(p, buf, sizeof(buf));
+				if (advance < 0) {
+					p = dat + len;
+					break;
+				}
 				printf(" %s", buf);
 				break;
 #endif
@@ -507,11 +515,19 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 			switch (af) {
 			case AFNUM_INET:
 				advance = decode_prefix4(p, buf, sizeof(buf));
+				if (advance < 0) {
+					p = dat + len;
+					break;
+				}
 				printf(" %s", buf);
 				break;
 #ifdef INET6
 			case AFNUM_INET6:
 				advance = decode_prefix6(p, buf, sizeof(buf));
+				if (advance < 0) {
+					p = dat + len;
+					break;
+				}
 				printf(" %s", buf);
 				break;
 #endif
@@ -600,6 +616,7 @@ bgp_update_print(const u_char *dat, int length)
 		printf(" (Withdrawn routes: %d bytes)", len);
 #else	
 		char buf[MAXHOSTNAMELEN + 100];
+		int wpfx;
 
 		TCHECK2(p[2], len);
  		i = 2;
@@ -607,7 +624,10 @@ bgp_update_print(const u_char *dat, int length)
 		printf(" (Withdrawn routes:");
 			
 		while(i < 2 + len) {
-			i += decode_prefix4(&p[i], buf, sizeof(buf));
+			wpfx = decode_prefix4(&p[i], buf, sizeof(buf));
+			if (wpfx < 0)
+				break;
+			i += wpfx;
 			printf(" %s", buf);
 		}
 		printf(")\n");
@@ -668,9 +688,9 @@ bgp_update_print(const u_char *dat, int length)
 		while (dat + length > p) {
 			char buf[MAXHOSTNAMELEN + 100];
 			i = decode_prefix4(p, buf, sizeof(buf));
-			printf(" %s", buf);
 			if (i < 0)
 				break;
+			printf(" %s", buf);
 			p += i;
 		}
 

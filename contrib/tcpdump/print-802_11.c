@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.6 2001/09/17 21:57:53 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.6.4.1 2002/05/13 08:34:50 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -47,11 +47,16 @@ static const char rcsid[] =
 
 #include "ieee802_11.h"
 
-#define RATEStoBUF(p, buf) \
+#define PRINT_RATES(p) \
 do { \
-	int z = 0; \
-	for (z = 0 ; z < p.rates.length ; z++) \
-		snprintf(buf, sizeof(buf), "%s %2.1f", buf, (.5 * (p.rates.rate[z] & 0x7f))); \
+	int z; \
+	char *sep = " ["; \
+	for (z = 0; z < p.rates.length ; z++) { \
+		printf("%s%2.1f", sep, (.5 * (p.rates.rate[z] & 0x7f))); \
+		sep = " "; \
+	} \
+	if (p.rates.length != 0) \
+		printf(" Mbit]"); \
 } while (0)
 
 static const char *auth_alg_text[]={"Open System","Shared Key","EAP"};
@@ -131,9 +136,7 @@ static int parse_elements(struct mgmt_body_t *pbody,const u_char *p,int offset)
 {
 	for (;;) {
 		if (!TTEST2(*(p + offset), 1))
-			return 0;
-		if (*(p + offset) == 0xff)
-			break;
+			return 1;
 		switch (*(p + offset)) {
 		case E_SSID:
 			if (!TTEST2(*(p+offset), 2))
@@ -216,9 +219,7 @@ static int handle_beacon(u_int16_t fc, const struct mgmt_header_t *pmh,
 {
 	struct mgmt_body_t pbody;
 	int offset = 0;
-	char buf[128];
 
-	memset(buf, 0, sizeof(buf));
 	memset(&pbody, 0, sizeof(pbody));
 
 	if (!TTEST2(*p, 12))
@@ -233,10 +234,11 @@ static int handle_beacon(u_int16_t fc, const struct mgmt_header_t *pmh,
 	if (!parse_elements(&pbody,p,offset))
 		return 0;
 
-	RATEStoBUF(pbody, buf);
-
-	printf("%s (%s) [%s Mbit] %s CH: %x %s",
-	    subtype_text[FC_SUBTYPE(fc)], pbody.ssid.ssid, buf,
+	printf("%s (", subtype_text[FC_SUBTYPE(fc)]);
+	fn_print(pbody.ssid.ssid, NULL);
+	printf(")");
+	PRINT_RATES(pbody);
+	printf(" %s CH: %u %s",
 	    CAPABILITY_ESS(pbody.capability_info) ? "ESS" : "IBSS",
 	    pbody.ds.channel,
 	    CAPABILITY_PRIVACY(pbody.capability_info) ? ", PRIVACY" : "" );
@@ -249,9 +251,7 @@ static int handle_assoc_request(u_int16_t fc, const struct mgmt_header_t *pmh,
 {
 	struct mgmt_body_t pbody;
 	int offset = 0;
-	char buf[128];
 
-	memset(buf, 0, sizeof(buf));
 	memset(&pbody, 0, sizeof(pbody));
 
 	if (!TTEST2(*p, 4))
@@ -264,10 +264,10 @@ static int handle_assoc_request(u_int16_t fc, const struct mgmt_header_t *pmh,
 	if (!parse_elements(&pbody,p,offset))
 		return 0;
 
-	RATEStoBUF(pbody,buf);
-
-	printf("%s (%s) [%s Mbit] ",
-	    subtype_text[FC_SUBTYPE(fc)], pbody.ssid.ssid,buf);
+	printf("%s (", subtype_text[FC_SUBTYPE(fc)]);
+	fn_print(pbody.ssid.ssid, NULL);
+	printf(")");
+	PRINT_RATES(pbody);
 	return 1;
 }
 
@@ -291,7 +291,7 @@ static int handle_assoc_response(u_int16_t fc, const struct mgmt_header_t *pmh,
 	if (!parse_elements(&pbody,p,offset))
 		return 0;
 
-	printf("%s AID(%x) :%s: %s   ", subtype_text[FC_SUBTYPE(fc)],
+	printf("%s AID(%x) :%s: %s", subtype_text[FC_SUBTYPE(fc)],
 	    ((u_int16_t)(pbody.aid << 2 )) >> 2 ,
 	    CAPABILITY_PRIVACY(pbody.capability_info) ? " PRIVACY " : "",
 	    (pbody.status_code < 19 ? status_text[pbody.status_code] : "n/a"));
@@ -320,7 +320,9 @@ static int handle_reassoc_request(u_int16_t fc, const struct mgmt_header_t *pmh,
 	if (!parse_elements(&pbody,p,offset))
 		return 0;
 
-	printf("%s (%s) AP : %s",subtype_text[FC_SUBTYPE(fc)], pbody.ssid.ssid, etheraddr_string( pbody.ap ));
+	printf("%s (", subtype_text[FC_SUBTYPE(fc)]);
+	fn_print(pbody.ssid.ssid, NULL);
+	printf(") AP : %s", etheraddr_string( pbody.ap ));
 
 	return 1;
 }
@@ -337,19 +339,16 @@ static int handle_probe_request(u_int16_t fc, const struct mgmt_header_t *pmh,
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
-	char buf[128];
-
-	memset(buf, 0, sizeof(buf));
 
 	memset(&pbody, 0, sizeof(pbody));
 
 	if (!parse_elements(&pbody, p, offset))
 		return 0;
 
-	RATEStoBUF(pbody, buf);
-
-	printf("%s (%s) [%s Mbit] ", subtype_text[FC_SUBTYPE(fc)],
-	    pbody.ssid.ssid,buf);
+	printf("%s (", subtype_text[FC_SUBTYPE(fc)]);
+	fn_print(pbody.ssid.ssid, NULL);
+	printf(")");
+	PRINT_RATES(pbody);
 
 	return 1;
 }
@@ -359,9 +358,6 @@ static int handle_probe_response(u_int16_t fc, const struct mgmt_header_t *pmh,
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
-	char buf[128];
-
-	memset(buf, 0, sizeof(buf));
 
 	memset(&pbody, 0, sizeof(pbody));
 
@@ -377,8 +373,12 @@ static int handle_probe_response(u_int16_t fc, const struct mgmt_header_t *pmh,
 	if (!parse_elements(&pbody, p, offset))
 		return 0;
 
-	printf("%s (%s) CH: %x %s", subtype_text[FC_SUBTYPE(fc)], pbody.ssid.ssid,pbody.ds.channel,
-	    CAPABILITY_PRIVACY(pbody.capability_info) ? ",PRIVACY " : "" );
+	printf("%s (", subtype_text[FC_SUBTYPE(fc)]);
+	fn_print(pbody.ssid.ssid, NULL);
+	printf(") ");
+	PRINT_RATES(pbody);
+	printf(" CH: %u%s", pbody.ds.channel,
+	    CAPABILITY_PRIVACY(pbody.capability_info) ? ", PRIVACY" : "" );
 
 	return 1;
 }
@@ -404,7 +404,7 @@ static int handle_disassoc(u_int16_t fc, const struct mgmt_header_t *pmh,
 	pbody.reason_code = EXTRACT_LE_16BITS(p);
 	offset += 2;
 
-	printf("%s: %s ", subtype_text[FC_SUBTYPE(fc)],
+	printf("%s: %s", subtype_text[FC_SUBTYPE(fc)],
 	    pbody.reason_code < 10 ? reason_text[pbody.reason_code] : "Reserved" );
 
 	return 1;
