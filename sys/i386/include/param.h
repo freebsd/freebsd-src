@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.41 1997/08/30 08:07:50 fsmp Exp $
+ *	$Id: param.h,v 1.42 1998/01/24 02:01:09 dyson Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -45,14 +45,13 @@
  */
 
 #define MACHINE		"i386"
+#define MID_MACHINE	MID_I386
+
 #ifdef SMP
 #define NCPUS		2
 #else
 #define NCPUS		1
 #endif
-#define MID_MACHINE	MID_I386
-
-#ifndef LOCORE
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
@@ -76,7 +75,7 @@
 #define DEV_BSIZE	(1<<DEV_BSHIFT)
 
 #define BLKDEV_IOSIZE	2048
-#define DFLTPHYS	(64 * 1024)		/* default max raw I/O transfer size */
+#define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
 #define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
@@ -119,7 +118,7 @@
  */
 #define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
 	(sizeof (bytes) > sizeof(long) \
-	 ? (daddr_t)((unsigned long long)(bytes) >> DEV_BSHIFT) \
+	 ? (daddr_t)((uoff_t)(bytes) >> DEV_BSHIFT) \
 	 : (daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT))
 
 #define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
@@ -138,7 +137,5 @@
 
 #define i386_btop(x)		((unsigned)(x) >> PAGE_SHIFT)
 #define i386_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
-
-#endif /* !LOCORE */
 
 #endif /* !_MACHINE_PARAM_H_ */
