@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.5 1996/09/01 10:20:38 peter Exp $
+ *	$Id: main.c,v 1.6 1996/09/08 03:12:22 adam Exp $
  */
 
 #ifndef lint
@@ -339,13 +339,11 @@ exitcmd(argc, argv)
 	int argc;
 	char **argv; 
 {
-	extern int oexitstatus;
-
 	if (stoppedjobs())
 		return 0;
 	if (argc > 1)
 		exitstatus = number(argv[1]);
-	exitshell(oexitstatus);
+	exitshell(exitstatus);
 	/*NOTREACHED*/
 	return 0;
 }
