@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.85 1996/09/08 20:44:48 dyson Exp $
+ * $Id: vm_pageout.c,v 1.86 1996/09/28 03:33:40 dyson Exp $
  */
 
 /*
@@ -1012,6 +1012,15 @@ vm_pageout()
 		vm_pageout_scan();
 		vm_pager_sync();
 		wakeup(&cnt.v_free_count);
+	}
+}
+
+void
+pagedaemon_wakeup()
+{
+	if (!vm_pages_needed && curproc != pageproc) {
+		vm_pages_needed++;
+		wakeup(&vm_pages_needed);
 	}
 }
 
