@@ -12,260 +12,260 @@
 
 struct proc;
 
-#define PAD_(t) sizeof(register_t) <= sizeof(t) ? \
-		0 : sizeof(register_t) - sizeof(t)
+#define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
+		0 : sizeof(register_t) - sizeof(t))
 
 struct	ibcs2_read_args {
-	int fd;	char fd_[PAD_(int)];
-	char * buf;	char buf_[PAD_(char *)];
-	u_int nbytes;	char nbytes_[PAD_(u_int)];
+	int	fd;	char fd_[PAD_(int)];
+	char *	buf;	char buf_[PAD_(char *)];
+	u_int	nbytes;	char nbytes_[PAD_(u_int)];
 };
 struct	ibcs2_open_args {
-	char * path;	char path_[PAD_(char *)];
-	int flags;	char flags_[PAD_(int)];
-	int mode;	char mode_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	flags;	char flags_[PAD_(int)];
+	int	mode;	char mode_[PAD_(int)];
 };
 struct	ibcs2_wait_args {
-	int a1;	char a1_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int a3;	char a3_[PAD_(int)];
+	int	a1;	char a1_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	a3;	char a3_[PAD_(int)];
 };
 struct	ibcs2_creat_args {
-	char * path;	char path_[PAD_(char *)];
-	int mode;	char mode_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	mode;	char mode_[PAD_(int)];
 };
 struct	ibcs2_unlink_args {
-	char * path;	char path_[PAD_(char *)];
+	char *	path;	char path_[PAD_(char *)];
 };
 struct	ibcs2_execv_args {
-	char * path;	char path_[PAD_(char *)];
-	char ** argp;	char argp_[PAD_(char **)];
+	char *	path;	char path_[PAD_(char *)];
+	char **	argp;	char argp_[PAD_(char **)];
 };
 struct	ibcs2_chdir_args {
-	char * path;	char path_[PAD_(char *)];
+	char *	path;	char path_[PAD_(char *)];
 };
 struct	ibcs2_time_args {
-	ibcs2_time_t * tp;	char tp_[PAD_(ibcs2_time_t *)];
+	ibcs2_time_t *	tp;	char tp_[PAD_(ibcs2_time_t *)];
 };
 struct	ibcs2_mknod_args {
-	char * path;	char path_[PAD_(char *)];
-	int mode;	char mode_[PAD_(int)];
-	int dev;	char dev_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	mode;	char mode_[PAD_(int)];
+	int	dev;	char dev_[PAD_(int)];
 };
 struct	ibcs2_chmod_args {
-	char * path;	char path_[PAD_(char *)];
-	int mode;	char mode_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	mode;	char mode_[PAD_(int)];
 };
 struct	ibcs2_chown_args {
-	char * path;	char path_[PAD_(char *)];
-	int uid;	char uid_[PAD_(int)];
-	int gid;	char gid_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	uid;	char uid_[PAD_(int)];
+	int	gid;	char gid_[PAD_(int)];
 };
 struct	ibcs2_stat_args {
-	char * path;	char path_[PAD_(char *)];
-	struct ibcs2_stat * st;	char st_[PAD_(struct ibcs2_stat *)];
+	char *	path;	char path_[PAD_(char *)];
+	struct ibcs2_stat *	st;	char st_[PAD_(struct ibcs2_stat *)];
 };
 struct	ibcs2_lseek_args {
-	int fd;	char fd_[PAD_(int)];
-	long offset;	char offset_[PAD_(long)];
-	int whence;	char whence_[PAD_(int)];
+	int	fd;	char fd_[PAD_(int)];
+	long	offset;	char offset_[PAD_(long)];
+	int	whence;	char whence_[PAD_(int)];
 };
 struct	ibcs2_mount_args {
-	char * special;	char special_[PAD_(char *)];
-	char * dir;	char dir_[PAD_(char *)];
-	int flags;	char flags_[PAD_(int)];
-	int fstype;	char fstype_[PAD_(int)];
-	char * data;	char data_[PAD_(char *)];
-	int len;	char len_[PAD_(int)];
+	char *	special;	char special_[PAD_(char *)];
+	char *	dir;	char dir_[PAD_(char *)];
+	int	flags;	char flags_[PAD_(int)];
+	int	fstype;	char fstype_[PAD_(int)];
+	char *	data;	char data_[PAD_(char *)];
+	int	len;	char len_[PAD_(int)];
 };
 struct	ibcs2_umount_args {
-	char * name;	char name_[PAD_(char *)];
+	char *	name;	char name_[PAD_(char *)];
 };
 struct	ibcs2_setuid_args {
-	int uid;	char uid_[PAD_(int)];
+	int	uid;	char uid_[PAD_(int)];
 };
 struct	ibcs2_stime_args {
-	long * timep;	char timep_[PAD_(long *)];
+	long *	timep;	char timep_[PAD_(long *)];
 };
 struct	ibcs2_alarm_args {
-	unsigned sec;	char sec_[PAD_(unsigned)];
+	unsigned	sec;	char sec_[PAD_(unsigned)];
 };
 struct	ibcs2_fstat_args {
-	int fd;	char fd_[PAD_(int)];
-	struct ibcs2_stat * st;	char st_[PAD_(struct ibcs2_stat *)];
+	int	fd;	char fd_[PAD_(int)];
+	struct ibcs2_stat *	st;	char st_[PAD_(struct ibcs2_stat *)];
 };
 struct	ibcs2_pause_args {
 	register_t dummy;
 };
 struct	ibcs2_utime_args {
-	char * path;	char path_[PAD_(char *)];
-	struct ibcs2_utimbuf * buf;	char buf_[PAD_(struct ibcs2_utimbuf *)];
+	char *	path;	char path_[PAD_(char *)];
+	struct ibcs2_utimbuf *	buf;	char buf_[PAD_(struct ibcs2_utimbuf *)];
 };
 struct	ibcs2_stty_args {
-	int fd;	char fd_[PAD_(int)];
-	struct sgttyb * buf;	char buf_[PAD_(struct sgttyb *)];
+	int	fd;	char fd_[PAD_(int)];
+	struct sgttyb *	buf;	char buf_[PAD_(struct sgttyb *)];
 };
 struct	ibcs2_gtty_args {
-	int fd;	char fd_[PAD_(int)];
-	struct sgttyb * buf;	char buf_[PAD_(struct sgttyb *)];
+	int	fd;	char fd_[PAD_(int)];
+	struct sgttyb *	buf;	char buf_[PAD_(struct sgttyb *)];
 };
 struct	ibcs2_access_args {
-	char * path;	char path_[PAD_(char *)];
-	int flags;	char flags_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	flags;	char flags_[PAD_(int)];
 };
 struct	ibcs2_nice_args {
-	int incr;	char incr_[PAD_(int)];
+	int	incr;	char incr_[PAD_(int)];
 };
 struct	ibcs2_statfs_args {
-	char * path;	char path_[PAD_(char *)];
-	struct ibcs2_statfs * buf;	char buf_[PAD_(struct ibcs2_statfs *)];
-	int len;	char len_[PAD_(int)];
-	int fstype;	char fstype_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	struct ibcs2_statfs *	buf;	char buf_[PAD_(struct ibcs2_statfs *)];
+	int	len;	char len_[PAD_(int)];
+	int	fstype;	char fstype_[PAD_(int)];
 };
 struct	ibcs2_kill_args {
-	int pid;	char pid_[PAD_(int)];
-	int signo;	char signo_[PAD_(int)];
+	int	pid;	char pid_[PAD_(int)];
+	int	signo;	char signo_[PAD_(int)];
 };
 struct	ibcs2_fstatfs_args {
-	int fd;	char fd_[PAD_(int)];
-	struct ibcs2_statfs * buf;	char buf_[PAD_(struct ibcs2_statfs *)];
-	int len;	char len_[PAD_(int)];
-	int fstype;	char fstype_[PAD_(int)];
+	int	fd;	char fd_[PAD_(int)];
+	struct ibcs2_statfs *	buf;	char buf_[PAD_(struct ibcs2_statfs *)];
+	int	len;	char len_[PAD_(int)];
+	int	fstype;	char fstype_[PAD_(int)];
 };
 struct	ibcs2_pgrpsys_args {
-	int type;	char type_[PAD_(int)];
-	caddr_t dummy;	char dummy_[PAD_(caddr_t)];
-	int pid;	char pid_[PAD_(int)];
-	int pgid;	char pgid_[PAD_(int)];
+	int	type;	char type_[PAD_(int)];
+	caddr_t	dummy;	char dummy_[PAD_(caddr_t)];
+	int	pid;	char pid_[PAD_(int)];
+	int	pgid;	char pgid_[PAD_(int)];
 };
 struct	ibcs2_xenix_args {
-	int a1;	char a1_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int a3;	char a3_[PAD_(int)];
-	int a4;	char a4_[PAD_(int)];
-	int a5;	char a5_[PAD_(int)];
+	int	a1;	char a1_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	a3;	char a3_[PAD_(int)];
+	int	a4;	char a4_[PAD_(int)];
+	int	a5;	char a5_[PAD_(int)];
 };
 struct	ibcs2_times_args {
-	struct tms * tp;	char tp_[PAD_(struct tms *)];
+	struct tms *	tp;	char tp_[PAD_(struct tms *)];
 };
 struct	ibcs2_plock_args {
-	int cmd;	char cmd_[PAD_(int)];
+	int	cmd;	char cmd_[PAD_(int)];
 };
 struct	ibcs2_setgid_args {
-	int gid;	char gid_[PAD_(int)];
+	int	gid;	char gid_[PAD_(int)];
 };
 struct	ibcs2_sigsys_args {
-	int sig;	char sig_[PAD_(int)];
-	ibcs2_sig_t fp;	char fp_[PAD_(ibcs2_sig_t)];
+	int	sig;	char sig_[PAD_(int)];
+	ibcs2_sig_t	fp;	char fp_[PAD_(ibcs2_sig_t)];
 };
 struct	ibcs2_msgsys_args {
-	int which;	char which_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int a3;	char a3_[PAD_(int)];
-	int a4;	char a4_[PAD_(int)];
-	int a5;	char a5_[PAD_(int)];
-	int a6;	char a6_[PAD_(int)];
+	int	which;	char which_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	a3;	char a3_[PAD_(int)];
+	int	a4;	char a4_[PAD_(int)];
+	int	a5;	char a5_[PAD_(int)];
+	int	a6;	char a6_[PAD_(int)];
 };
 struct	ibcs2_sysi86_args {
-	int cmd;	char cmd_[PAD_(int)];
-	int * arg;	char arg_[PAD_(int *)];
+	int	cmd;	char cmd_[PAD_(int)];
+	int *	arg;	char arg_[PAD_(int *)];
 };
 struct	ibcs2_shmsys_args {
-	int which;	char which_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int a3;	char a3_[PAD_(int)];
-	int a4;	char a4_[PAD_(int)];
+	int	which;	char which_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	a3;	char a3_[PAD_(int)];
+	int	a4;	char a4_[PAD_(int)];
 };
 struct	ibcs2_semsys_args {
-	int which;	char which_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int a3;	char a3_[PAD_(int)];
-	int a4;	char a4_[PAD_(int)];
-	int a5;	char a5_[PAD_(int)];
+	int	which;	char which_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	a3;	char a3_[PAD_(int)];
+	int	a4;	char a4_[PAD_(int)];
+	int	a5;	char a5_[PAD_(int)];
 };
 struct	ibcs2_ioctl_args {
-	int fd;	char fd_[PAD_(int)];
-	int cmd;	char cmd_[PAD_(int)];
-	caddr_t data;	char data_[PAD_(caddr_t)];
+	int	fd;	char fd_[PAD_(int)];
+	int	cmd;	char cmd_[PAD_(int)];
+	caddr_t	data;	char data_[PAD_(caddr_t)];
 };
 struct	ibcs2_uadmin_args {
-	int cmd;	char cmd_[PAD_(int)];
-	int func;	char func_[PAD_(int)];
-	caddr_t data;	char data_[PAD_(caddr_t)];
+	int	cmd;	char cmd_[PAD_(int)];
+	int	func;	char func_[PAD_(int)];
+	caddr_t	data;	char data_[PAD_(caddr_t)];
 };
 struct	ibcs2_utssys_args {
-	int a1;	char a1_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int flag;	char flag_[PAD_(int)];
+	int	a1;	char a1_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	flag;	char flag_[PAD_(int)];
 };
 struct	ibcs2_execve_args {
-	char * path;	char path_[PAD_(char *)];
-	char ** argp;	char argp_[PAD_(char **)];
-	char ** envp;	char envp_[PAD_(char **)];
+	char *	path;	char path_[PAD_(char *)];
+	char **	argp;	char argp_[PAD_(char **)];
+	char **	envp;	char envp_[PAD_(char **)];
 };
 struct	ibcs2_fcntl_args {
-	int fd;	char fd_[PAD_(int)];
-	int cmd;	char cmd_[PAD_(int)];
-	char * arg;	char arg_[PAD_(char *)];
+	int	fd;	char fd_[PAD_(int)];
+	int	cmd;	char cmd_[PAD_(int)];
+	char *	arg;	char arg_[PAD_(char *)];
 };
 struct	ibcs2_ulimit_args {
-	int cmd;	char cmd_[PAD_(int)];
-	int newlimit;	char newlimit_[PAD_(int)];
+	int	cmd;	char cmd_[PAD_(int)];
+	int	newlimit;	char newlimit_[PAD_(int)];
 };
 struct	ibcs2_rmdir_args {
-	char * path;	char path_[PAD_(char *)];
+	char *	path;	char path_[PAD_(char *)];
 };
 struct	ibcs2_mkdir_args {
-	char * path;	char path_[PAD_(char *)];
-	int mode;	char mode_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	int	mode;	char mode_[PAD_(int)];
 };
 struct	ibcs2_getdents_args {
-	int fd;	char fd_[PAD_(int)];
-	char * buf;	char buf_[PAD_(char *)];
-	int nbytes;	char nbytes_[PAD_(int)];
+	int	fd;	char fd_[PAD_(int)];
+	char *	buf;	char buf_[PAD_(char *)];
+	int	nbytes;	char nbytes_[PAD_(int)];
 };
 struct	ibcs2_sysfs_args {
-	int cmd;	char cmd_[PAD_(int)];
-	caddr_t d1;	char d1_[PAD_(caddr_t)];
-	char * buf;	char buf_[PAD_(char *)];
+	int	cmd;	char cmd_[PAD_(int)];
+	caddr_t	d1;	char d1_[PAD_(caddr_t)];
+	char *	buf;	char buf_[PAD_(char *)];
 };
 struct	ibcs2_getmsg_args {
-	int fd;	char fd_[PAD_(int)];
-	struct ibcs2_stropts * ctl;	char ctl_[PAD_(struct ibcs2_stropts *)];
-	struct ibcs2_stropts * dat;	char dat_[PAD_(struct ibcs2_stropts *)];
-	int * flags;	char flags_[PAD_(int *)];
+	int	fd;	char fd_[PAD_(int)];
+	struct ibcs2_stropts *	ctl;	char ctl_[PAD_(struct ibcs2_stropts *)];
+	struct ibcs2_stropts *	dat;	char dat_[PAD_(struct ibcs2_stropts *)];
+	int *	flags;	char flags_[PAD_(int *)];
 };
 struct	ibcs2_putmsg_args {
-	int fd;	char fd_[PAD_(int)];
-	struct ibcs2_stropts * ctl;	char ctl_[PAD_(struct ibcs2_stropts *)];
-	struct ibcs2_stropts * dat;	char dat_[PAD_(struct ibcs2_stropts *)];
-	int flags;	char flags_[PAD_(int)];
+	int	fd;	char fd_[PAD_(int)];
+	struct ibcs2_stropts *	ctl;	char ctl_[PAD_(struct ibcs2_stropts *)];
+	struct ibcs2_stropts *	dat;	char dat_[PAD_(struct ibcs2_stropts *)];
+	int	flags;	char flags_[PAD_(int)];
 };
 struct	ibcs2_poll_args {
-	struct ibcs2_poll * fds;	char fds_[PAD_(struct ibcs2_poll *)];
-	long nfds;	char nfds_[PAD_(long)];
-	int timeout;	char timeout_[PAD_(int)];
+	struct ibcs2_poll *	fds;	char fds_[PAD_(struct ibcs2_poll *)];
+	long	nfds;	char nfds_[PAD_(long)];
+	int	timeout;	char timeout_[PAD_(int)];
 };
 struct	ibcs2_secure_args {
-	int cmd;	char cmd_[PAD_(int)];
-	int a1;	char a1_[PAD_(int)];
-	int a2;	char a2_[PAD_(int)];
-	int a3;	char a3_[PAD_(int)];
-	int a4;	char a4_[PAD_(int)];
-	int a5;	char a5_[PAD_(int)];
+	int	cmd;	char cmd_[PAD_(int)];
+	int	a1;	char a1_[PAD_(int)];
+	int	a2;	char a2_[PAD_(int)];
+	int	a3;	char a3_[PAD_(int)];
+	int	a4;	char a4_[PAD_(int)];
+	int	a5;	char a5_[PAD_(int)];
 };
 struct	ibcs2_symlink_args {
-	char * path;	char path_[PAD_(char *)];
-	char * link;	char link_[PAD_(char *)];
+	char *	path;	char path_[PAD_(char *)];
+	char *	link;	char link_[PAD_(char *)];
 };
 struct	ibcs2_lstat_args {
-	char * path;	char path_[PAD_(char *)];
-	struct ibcs2_stat * st;	char st_[PAD_(struct ibcs2_stat *)];
+	char *	path;	char path_[PAD_(char *)];
+	struct ibcs2_stat *	st;	char st_[PAD_(struct ibcs2_stat *)];
 };
 struct	ibcs2_readlink_args {
-	char * path;	char path_[PAD_(char *)];
-	char * buf;	char buf_[PAD_(char *)];
-	int count;	char count_[PAD_(int)];
+	char *	path;	char path_[PAD_(char *)];
+	char *	buf;	char buf_[PAD_(char *)];
+	int	count;	char count_[PAD_(int)];
 };
 struct	ibcs2_isc_args {
 	register_t dummy;
