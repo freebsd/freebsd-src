@@ -110,6 +110,7 @@ static void ndis_runq(void *);
 
 static uma_zone_t ndis_packet_zone, ndis_buffer_zone;
 struct mtx ndis_thr_mtx;
+struct mtx ndis_req_mtx;
 static STAILQ_HEAD(ndisqhead, ndis_req) ndis_ttodo;
 struct ndisqhead ndis_itodo;
 struct ndisqhead ndis_free;
@@ -259,6 +260,8 @@ ndis_create_kthreads()
 
 	mtx_init(&ndis_thr_mtx, "NDIS thread lock",
 	   MTX_NDIS_LOCK, MTX_DEF);
+	mtx_init(&ndis_req_mtx, "NDIS request lock",
+	   MTX_NDIS_LOCK, MTX_DEF);
 
 	STAILQ_INIT(&ndis_ttodo);
 	STAILQ_INIT(&ndis_itodo);
@@ -317,6 +320,7 @@ ndis_destroy_kthreads()
 		free(r, M_DEVBUF);
 	}
 
+	mtx_destroy(&ndis_req_mtx);
 	mtx_destroy(&ndis_thr_mtx);
 
 	return;
@@ -566,7 +570,7 @@ ndis_setdone_func(adapter, status)
 	block = adapter;
 
 	block->nmb_setstat = status;
-	wakeup(&block->nmb_wkupdpctimer);
+	wakeup(&block->nmb_setstat);
 	return;
 }
 
@@ -579,7 +583,7 @@ ndis_getdone_func(adapter, status)
 	block = adapter;
 
 	block->nmb_getstat = status;
-	wakeup(&block->nmb_wkupdpctimer);
+	wakeup(&block->nmb_getstat);
 	return;
 }
 
@@ -1132,15 +1136,15 @@ ndis_set_info(arg, oid, buf, buflen)
 	if (adapter == NULL || setfunc == NULL)
 		return(ENXIO);
 
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&sc->ndis_block.nmb_lock, &irql);
 	rval = setfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
-	ntoskrnl_lower_irql(irql);
+	ntoskrnl_release_spinlock(&sc->ndis_block.nmb_lock, irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
-		PROC_LOCK(curthread->td_proc);
-		error = msleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    &curthread->td_proc->p_mtx,
+		mtx_lock(&ndis_req_mtx);
+		error = msleep(&sc->ndis_block.nmb_setstat,
+		    &ndis_req_mtx,
 		    curthread->td_priority|PDROP,
 		    "ndisset", 5 * hz);
 		rval = sc->ndis_block.nmb_setstat;
@@ -1322,8 +1326,8 @@ ndis_reset_nic(arg)
 	ntoskrnl_lower_irql(irql);
 
 	if (rval == NDIS_STATUS_PENDING) {
-		PROC_LOCK(curthread->td_proc);
-		msleep(sc, &curthread->td_proc->p_mtx,
+		mtx_lock(&ndis_req_mtx);
+		msleep(sc, &ndis_req_mtx,
 		    curthread->td_priority|PDROP, "ndisrst", 0);
 	}
 
@@ -1550,17 +1554,17 @@ ndis_get_info(arg, oid, buf, buflen)
 	if (adapter == NULL || queryfunc == NULL)
 		return(ENXIO);
 
-	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&sc->ndis_block.nmb_lock, &irql);
 	rval = queryfunc(adapter, oid, buf, *buflen,
 	    &byteswritten, &bytesneeded);
-	ntoskrnl_lower_irql(irql);
+	ntoskrnl_release_spinlock(&sc->ndis_block.nmb_lock, irql);
 
 	/* Wait for requests that block. */
 
 	if (rval == NDIS_STATUS_PENDING) {
-		PROC_LOCK(curthread->td_proc);
-		error = msleep(&sc->ndis_block.nmb_wkupdpctimer,
-		    &curthread->td_proc->p_mtx,
+		mtx_lock(&ndis_req_mtx);
+		error = msleep(&sc->ndis_block.nmb_getstat,
+		    &ndis_req_mtx,
 		    curthread->td_priority|PDROP,
 		    "ndisget", 5 * hz);
 		rval = sc->ndis_block.nmb_getstat;
@@ -1707,6 +1711,7 @@ ndis_load_driver(img, arg)
 	ndis_enlarge_thrqueue(8);
 
 	TAILQ_INSERT_TAIL(&ndis_devhead, block, link);
+	ntoskrnl_init_lock(&block->nmb_lock);
 
 	return(0);
 }
