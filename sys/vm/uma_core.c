@@ -1957,8 +1957,6 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	int pages;
 	vm_offset_t kva;
 
-	mtx_lock(&Giant);
-
 	pages = count / zone->uz_ipers;
 
 	if (pages * zone->uz_ipers < count)
@@ -1966,10 +1964,8 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 
 	kva = kmem_alloc_pageable(kernel_map, pages * UMA_SLAB_SIZE);
 
-	if (kva == 0) {
-		mtx_unlock(&Giant);
+	if (kva == 0)
 		return (0);
-	}
 	if (obj == NULL) {
 		obj = vm_object_allocate(OBJT_DEFAULT,
 		    pages);
@@ -1985,8 +1981,6 @@ uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int count)
 	zone->uz_allocf = obj_alloc;
 	zone->uz_flags |= UMA_ZONE_NOFREE | UMA_ZFLAG_PRIVALLOC;
 	ZONE_UNLOCK(zone);
-	mtx_unlock(&Giant);
-
 	return (1);
 }
 
