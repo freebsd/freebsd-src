@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.28 1998/03/16 22:53:29 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.29 1998/03/18 23:15:29 brian Exp $
  */
 
 #include <sys/param.h>
@@ -794,7 +794,7 @@ bundle_IdleTimeout(void *v)
 void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
-  if (!(mode & (MODE_DEDICATED | MODE_DDIAL))) {
+  if (!(mode & (MODE_DEDICATED | MODE_DDIAL)) && bundle->cfg.idle_timeout) {
     StopTimer(&bundle->idle.timer);
     bundle->idle.timer.func = bundle_IdleTimeout;
     bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
