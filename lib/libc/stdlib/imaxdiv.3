@@ -34,8 +34,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In inttypes.h
-.Ft "imaxdiv_t"
-.Fn imaxabs "intmax_t numer" "intmax_t denom"
+.Ft imaxdiv_t
+.Fn imaxdiv "intmax_t numer" "intmax_t denom"
 .Sh DESCRIPTION
 The
 .Fn imaxdiv
@@ -43,17 +43,19 @@ function computes the value of
 .Fa numer
 divided by
 .Fa denom
-and returns the stored result in the form of the imaxdiv_t type.
+and returns the stored result in the form of the
+.Vt imaxdiv_t
+type.
 .Pp
-The imaxdiv_t type is defined as:
-.Pp
-.Bd -literal -offset indent -compact
+The
+.Vt imaxdiv_t
+type is defined as:
+.Bd -literal -offset indent
 typedef struct {
 	intmax_t quot; /* Quotient. */
 	intmax_t rem;  /* Remainder. */
 } imaxdiv_t;
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr div 3 ,
 .Xr ldiv 3 ,

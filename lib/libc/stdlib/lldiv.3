@@ -34,8 +34,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
-.Ft "lldiv_t"
-.Fn llabs "long long numer" "long long denom"
+.Ft lldiv_t
+.Fn lldiv "long long numer" "long long denom"
 .Sh DESCRIPTION
 The
 .Fn lldiv
@@ -43,17 +43,19 @@ function computes the value of
 .Fa numer
 divided by
 .Fa denom
-and returns the stored result in the form of the lldiv_t type.
+and returns the stored result in the form of the
+.Vt lldiv_t
+type.
 .Pp
-The lldiv_t type is defined as:
-.Pp
-.Bd -literal -offset indent -compact
+The
+.Vt lldiv_t
+type is defined as:
+.Bd -literal -offset indent
 typedef struct {
 	long long quot; /* Quotient. */
 	long long rem;  /* Remainder. */
 } lldiv_t;
 .Ed
-.Pp
 .Sh SEE ALSO
 .Xr div 3 ,
 .Xr imaxdiv 3 ,
