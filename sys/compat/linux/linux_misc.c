@@ -29,6 +29,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -37,6 +38,7 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -250,7 +252,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	vp = NULL;
 
 	/*
-	 * XXX This code should make use of vn_open(), rather than doing
+	 * XXX: This code should make use of vn_open(), rather than doing
 	 * all this stuff itself.
 	 */
 	NDINIT(&ni, LOOKUP, FOLLOW|LOCKLEAF, UIO_USERSPACE, args->library, td);
@@ -306,6 +308,11 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * XXX: This should use vn_open() so that it is properly authorized,
 	 * and to reduce code redundancy all over the place here.
 	 */
+#ifdef MAC
+	error = mac_check_vnode_open(td->td_ucred, vp, FREAD);
+	if (error)
+		goto cleanup;
+#endif
 	error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
 	if (error)
 		goto cleanup;
