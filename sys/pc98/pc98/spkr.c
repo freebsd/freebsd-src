@@ -86,7 +86,6 @@ static void tone(unsigned int thz, unsigned int ticks);
 static void rest(int ticks);
 static void playinit(void);
 static void playtone(int pitch, int value, int sustain);
-static int abs(int n);
 static void playstring(char *cp, size_t slen);
 
 /* emit tone of frequency thz for given number of ticks */
@@ -280,16 +279,6 @@ playtone(pitch, value, sustain)
 	if (fill != LEGATO)
 	    rest(silence);
     }
-}
-
-static int
-abs(n)
-	int n;
-{
-    if (n < 0)
-	return(-n);
-    else
-	return(n);
 }
 
 /* interpret and play an item from a notation string */

@@ -63,6 +63,10 @@ static __inline quad_t qmin(quad_t a, quad_t b) { return (a < b ? a : b); }
 static __inline u_long ulmax(u_long a, u_long b) { return (a > b ? a : b); }
 static __inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
+static __inline int abs(int a) { return (((a) < 0) ? -(a) : (a)); }
+static __inline long labs(long a) { return (((a) < 0) ? -(a) : (a)); }
+static __inline long long llabs(long a) { return (((a) < 0) ? -(a) : (a)); }
+
 /* Prototypes for non-quad routines. */
 uint32_t arc4random(void);
 void	 arc4rand(void *ptr, u_int len, int reseed);
