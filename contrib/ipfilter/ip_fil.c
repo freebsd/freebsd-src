@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.4.2.7 1999/10/15 13:49:43 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.4.2.14 1999/12/11 05:31:08 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -141,6 +141,7 @@ static	int	(*fr_savep) __P((ip_t *, int, void *, int, struct mbuf **));
 static	int	send_ip __P((struct mbuf *, ip_t *));
 # ifdef	__sgi
 extern  kmutex_t        ipf_rw;
+extern	KRWLOCK_T	ipf_mutex;
 # endif
 #else
 int	ipllog __P((void));
@@ -574,42 +575,6 @@ int mode;
 }
 
 
-void frsync()
-{
-#ifdef _KERNEL
-	register frentry_t *f;
-	register struct ifnet *ifp;
-
-# if defined(__OpenBSD__) || ((NetBSD >= 199511) && (NetBSD < 1991011)) || \
-     (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
-#  if (NetBSD >= 199905) || defined(__OpenBSD__)
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
-#  else
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
-#  endif
-# else
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
-# endif
-		ip_natsync(ifp);
-
-	WRITE_ENTER(&ipf_mutex);
-	for (f = ipacct[0][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == (void *)-1)
-			f->fr_ifa = GETUNIT(f->fr_ifname);
-	for (f = ipacct[1][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == (void *)-1)
-			f->fr_ifa = GETUNIT(f->fr_ifname);
-	for (f = ipfilter[0][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == (void *)-1)
-			f->fr_ifa = GETUNIT(f->fr_ifname);
-	for (f = ipfilter[1][fr_active]; (f != NULL); f = f->fr_next)
-		if (f->fr_ifa == (void *)-1)
-			f->fr_ifa = GETUNIT(f->fr_ifname);
-	RWLOCK_EXIT(&ipf_mutex);
-#endif
-}
-
-
 void fr_forgetifp(ifp)
 void *ifp;
 {
@@ -737,14 +702,15 @@ caddr_t data;
 	}
 
 	if (!f) {
-		ftail = fprev;
-		if (req != SIOCINAFR && req != SIOCINIFR)
+		if (req != SIOCINAFR || req != SIOCINIFR)
 			while ((f = *ftail))
 				ftail = &f->fr_next;
-		else if (fp->fr_hits)
-			while (--fp->fr_hits && (f = *ftail))
-				ftail = &f->fr_next;
-		f = NULL;
+		else {
+			if (fp->fr_hits)
+				while (--fp->fr_hits && (f = *ftail))
+					ftail = &f->fr_next;
+			f = NULL;
+		}
 	}
 
 	if (req == SIOCDELFR || req == SIOCRMIFR) {
@@ -769,7 +735,7 @@ caddr_t data;
 			error = EEXIST;
 		else {
 			if (unit == IPL_LOGAUTH)
-				return fr_auth_ioctl(data, req, f, ftail);
+				return fr_auth_ioctl(data, req, fp, ftail);
 			KMALLOC(f, frentry_t *);
 			if (f != NULL) {
 				if (fg && fg->fg_head)
@@ -958,6 +924,9 @@ ip_t *ip;
 	ip->ip_ttl = ip_defttl;
 # endif
 
+# ifdef	IPSEC
+	m->m_pkthdr.rcvif = NULL;
+# endif
 # if defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
 	{
 	int err;
@@ -985,7 +954,7 @@ int send_icmp_err(oip, type, code, ifp, dst)
 ip_t *oip;
 int type, code;
 void *ifp;
-struct in_addr	dst;
+struct in_addr dst;
 {
 	struct icmp *icmp;
 	struct mbuf *m;
@@ -1020,7 +989,6 @@ struct in_addr	dst;
 	if (dst.s_addr == 0) {
 		if (fr_ifpaddr(ifp, &dst) == -1)
 			return -1;
-		dst.s_addr = htonl(dst.s_addr);
 	}
 	nip->ip_src = dst;
 	nip->ip_dst = oip->ip_src;
@@ -1107,9 +1075,12 @@ frdest_t *fdp;
 	 * In case we're here due to "to <if>" being used with "keep state",
 	 * check that we're going in the correct direction.
 	 */
-	if ((fr != NULL) && (ifp != NULL) && (fin->fin_rev != 0) &&
-	    (fdp == &fr->fr_tif))
-		return -1;
+	if ((fr != NULL) && (fin->fin_rev != 0)) {
+		if ((ifp != NULL) && (fdp == &fr->fr_tif))
+			return -1;
+		dst->sin_addr = ip->ip_dst;
+	} else
+		dst->sin_addr = fdp->fd_ip.s_addr ? fdp->fd_ip : ip->ip_dst;
 # ifdef	__bsdi__
 	dst->sin_len = sizeof(*dst);
 # endif
@@ -1236,6 +1207,10 @@ frdest_t *fdp;
 			error = ENOBUFS;	/* ??? */
 			goto sendorfree;
 		}
+# if BSD >= 199306
+		m->m_pkthdr.len = mhlen + len;
+		m->m_pkthdr.rcvif = NULL;
+# endif
 # ifndef sparc
 		mhip->ip_off = htons((u_short)mhip->ip_off);
 # endif
@@ -1279,6 +1254,9 @@ done:
 		RTFREE(ro->ro_rt);
 	return 0;
 bad:
+	if (error == EMSGSIZE)
+		(void) send_icmp_err(ip, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
+				     ifp, ip->ip_dst);
 	m_freem(m);
 	goto done;
 }
@@ -1465,5 +1443,11 @@ struct ifnet *ifp;
 {
 	verbose("- TCP RST sent\n");
 	return 0;
+}
+
+
+void frsync()
+{
+	return;
 }
 #endif /* _KERNEL */

@@ -53,7 +53,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: natparse.c,v 1.2 1999/08/01 11:17:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.2.2.1 1999/11/20 22:50:30 darrenr Exp $";
 #endif
 
 
@@ -547,13 +547,14 @@ int linenum;
 				ipn.in_flags = IPN_TCPUDP;
 			else if (!strcasecmp(s, "tcpudp"))
 				ipn.in_flags = IPN_TCPUDP;
-			else if (!strcasecmp(s, "ip")) 
+			else if (!strcasecmp(s, "ip"))
 				ipn.in_flags = IPN_ANY;
 			else {
-				fprintf(stderr,
-					"%d: expected protocol - got \"%s\"\n",
-					linenum, s);
-				return NULL;
+				ipn.in_flags = IPN_ANY;
+				if ((pr = getprotobyname(s)))
+					ipn.in_p = pr->p_proto;
+				else
+					ipn.in_p = atoi(s);
 			}
 			proto = s;
 			if ((s = strtok(NULL, " \t"))) {
