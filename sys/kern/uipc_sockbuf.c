@@ -154,8 +154,12 @@ soisdisconnecting(so)
 
 	so->so_state &= ~SS_ISCONNECTING;
 	so->so_state |= SS_ISDISCONNECTING;
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_state |= SBS_CANTSENDMORE;
+	SOCKBUF_UNLOCK(&so->so_snd);
 	wakeup(&so->so_timeo);
 	sowwakeup(so);
 	sorwakeup(so);
@@ -168,8 +172,12 @@ soisdisconnected(so)
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 	so->so_state |= SS_ISDISCONNECTED;
+	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_state |= SBS_CANTSENDMORE;
+	SOCKBUF_UNLOCK(&so->so_snd);
 	wakeup(&so->so_timeo);
 	sbdrop(&so->so_snd, so->so_snd.sb_cc);
 	sowwakeup(so);
