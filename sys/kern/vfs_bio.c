@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.134 1997/11/07 08:53:04 phk Exp $
+ * $Id: vfs_bio.c,v 1.135 1997/11/24 06:18:27 dyson Exp $
  */
 
 /*
@@ -901,7 +901,7 @@ vfs_bio_awrite(struct buf * bp)
 static struct buf *
 getnewbuf(struct vnode *vp, int slpflag, int slptimeo, int size, int maxsize)
 {
-	struct buf *bp;
+	struct buf *bp, *bp1;
 	int nbyteswritten = 0;
 	vm_offset_t addr;
 	static int writerecursion = 0;
@@ -1059,11 +1059,20 @@ fillbuf:
 	if (maxsize != bp->b_kvasize) {
 		bfreekva(bp);
 		
+findkvaspace:
 		/*
 		 * See if we have buffer kva space
 		 */
 		if (vm_map_findspace(buffer_map,
 			vm_map_min(buffer_map), maxsize, &addr)) {
+			for (bp1 = TAILQ_FIRST(&bufqueues[QUEUE_EMPTY]);
+			    bp1 != NULL; bp1 = TAILQ_NEXT(bp1, b_freelist))
+				if (bp1->b_kvasize != 0) {
+					bremfree(bp1);
+					bfreekva(bp1);
+					brelse(bp1);
+					goto findkvaspace;
+				}
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto trytofreespace;
