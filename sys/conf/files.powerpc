@@ -10,7 +10,7 @@
 #
 kern/subr_disklabel.c		standard
 
-powerpc/powerpc/atomic.s	standard
+powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/busdma_machdep.c standard
@@ -26,7 +26,7 @@ powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/nexus.c		standard
-powerpc/powerpc/ofwmagic.s	standard
+powerpc/powerpc/ofwmagic.S	standard
 powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
@@ -36,7 +36,7 @@ powerpc/powerpc/sigcode.S	standard
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
-powerpc/powerpc/swtch.s		standard
+powerpc/powerpc/swtch.S		standard
 powerpc/powerpc/trap.c		standard
 powerpc/powerpc/vm_machdep.c	standard
 
