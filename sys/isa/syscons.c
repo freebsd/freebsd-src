@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.78 1994/11/19 23:17:48 ache Exp $
+ *	$Id: syscons.c,v 1.79 1994/11/21 14:36:02 ache Exp $
  */
 
 #include "sc.h"
@@ -1782,8 +1782,8 @@ scan_esc(scr_stat *scp, u_char c)
 
 		case 'S':	/* scroll up n lines */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
-			if (n > scp->ypos)
-				n = scp->ypos;
+			if (n > scp->ysize)
+				n = scp->ysize;
 			bcopy(scp->crt_base + (scp->xsize * n),
 			      scp->crt_base, 
 			      scp->xsize * (scp->ysize - n) * 
@@ -1796,8 +1796,8 @@ scan_esc(scr_stat *scp, u_char c)
 
 		case 'T':	/* scroll down n lines */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
-			if (n > scp->ysize - scp->ypos)
-				n = scp->ysize - scp->ypos;
+			if (n > scp->ysize)
+				n = scp->ysize;
 			bcopy(scp->crt_base, 
 			      scp->crt_base + (scp->xsize * n),
 			      scp->xsize * (scp->ysize - n) * 
