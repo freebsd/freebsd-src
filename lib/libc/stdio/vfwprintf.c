@@ -1317,7 +1317,8 @@ __find_arguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
 	tablesize = STATIC_ARG_TBL_SIZE;
 	tablemax = 0; 
 	nextarg = 1;
-	memset (typetable, T_UNUSED, STATIC_ARG_TBL_SIZE);
+	for (n = 0; n < STATIC_ARG_TBL_SIZE; n++)
+		typetable[n] = T_UNUSED;
 
 	/*
 	 * Scan the format for conversions (`%' character).
@@ -1586,19 +1587,21 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 	enum typeid *const oldtable = *typetable;
 	const int oldsize = *tablesize;
 	enum typeid *newtable;
-	int newsize = oldsize * 2;
+	int n, newsize = oldsize * 2;
 
 	if (newsize < nextarg + 1)
 		newsize = nextarg + 1;
 	if (oldsize == STATIC_ARG_TBL_SIZE) {
-		if ((newtable = malloc(newsize)) == NULL)
+		if ((newtable = malloc(newsize * sizeof(enum typeid))) == NULL)
 			abort();			/* XXX handle better */
-		bcopy(oldtable, newtable, oldsize);
+		bcopy(oldtable, newtable, oldsize * sizeof(enum typeid));
 	} else {
-		if ((newtable = reallocf(oldtable, newsize)) == NULL)
+		newtable = reallocf(oldtable, newsize * sizeof(enum typeid));
+		if (newtable == NULL)
 			abort();			/* XXX handle better */
 	}
-	memset(&newtable[oldsize], T_UNUSED, newsize - oldsize);
+	for (n = oldsize; n < newsize; n++)
+		newtable[n] = T_UNUSED;
 
 	*typetable = newtable;
 	*tablesize = newsize;
