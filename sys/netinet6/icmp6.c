@@ -158,6 +158,7 @@ static int icmp6_rip6_input __P((struct mbuf **, int));
 static int icmp6_ratelimit __P((const struct in6_addr *, const int, const int));
 static const char *icmp6_redirect_diag __P((struct in6_addr *,
 	struct in6_addr *, struct in6_addr *));
+#define	HAVE_PPSRATECHECK
 #ifndef HAVE_PPSRATECHECK
 static int ppsratecheck __P((struct timeval *, int *, int));
 #endif
