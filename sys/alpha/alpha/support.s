@@ -680,8 +680,10 @@ LEAF(longjmp, 1)
 
 longjmp_botch:
 	lda	a0, longjmp_botchmsg
-	mov	ra, a1
-	CALL(panic)
+	mov	0, a1
+	mov	0, a2
+	mov	ra, a3
+	CALL(__panic)
 	call_pal PAL_bugchk
 
 	.data

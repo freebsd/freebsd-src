@@ -476,7 +476,7 @@ static u_int panic_cpu = NOCPU;
  * MPSAFE
  */
 void
-panic(const char *fmt, ...)
+__panic(const char *file, int line, const char *fmt, ...)
 {
 	struct thread *td = curthread;
 	int bootopt, newpanic;
@@ -510,11 +510,11 @@ panic(const char *fmt, ...)
 	if (newpanic) {
 		(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 		panicstr = buf;
-		printf("panic: %s\n", buf);
+		printf("panic: %s\nat line %d in file %s\n", buf, line, file);
 	} else {
 		printf("panic: ");
 		vprintf(fmt, ap);
-		printf("\n");
+		printf("\nat line %d in file %s", line, file);
 	}
 	va_end(ap);
 #ifdef SMP
