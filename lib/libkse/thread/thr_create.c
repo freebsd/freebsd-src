@@ -49,7 +49,10 @@ int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
 int _thread_state_offset		= OFF(state);
 int _thread_name_offset			= OFF(name);
-int _thread_ctx_offset			= OFF(tmbx.tm_context);
+void *_thread_tcb_offset		= OFF(tcb);
+#undef OFF
+#define OFF(f)	offsetof(struct tcb, f)
+int _thread_ctx_offset			= OFF(tcb_tmbx.tm_context);
 #undef OFF
 
 int _thread_PS_RUNNING_value		= PS_RUNNING;
@@ -95,7 +98,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	struct pthread *curthread, *new_thread;
 	struct kse *kse = NULL;
 	struct kse_group *kseg = NULL;
-	void *p;
 	kse_critical_t crit;
 	int i;
 	int ret = 0;
@@ -121,11 +123,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		/* Insufficient memory to create a thread: */
 		ret = EAGAIN;
 	} else {
-		/* Initialize the thread structure: */
-		p = new_thread->alloc_addr;
-		memset(new_thread, 0, sizeof(struct pthread));
-		new_thread->alloc_addr = p;
-
 		/* Check if default thread attributes are required: */
 		if (attr == NULL || *attr == NULL)
 			/* Use the default thread attributes: */
@@ -146,7 +143,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Insufficient memory to create a new KSE/KSEG: */
 			ret = EAGAIN;
 			if (kse != NULL) {
-				kse->k_mbx.km_flags |= KMF_DONE;
+				kse->k_kcb->kcb_kmbx.km_flags |= KMF_DONE;
 				_kse_free(curthread, kse);
 			}
 			free_stack(&new_thread->attr);
@@ -183,18 +180,19 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 * Enter a critical region to get consistent context.
 			 */
 			crit = _kse_critical_enter();
-			THR_GETCONTEXT(&new_thread->tmbx.tm_context);
+			THR_GETCONTEXT(&new_thread->tcb->tcb_tmbx.tm_context);
 			/* Initialize the thread for signals: */
 			new_thread->sigmask = curthread->sigmask;
 			_kse_critical_leave(crit);
-			new_thread->tmbx.tm_udata = new_thread;
-			new_thread->tmbx.tm_context.uc_sigmask =
+
+			new_thread->tcb->tcb_tmbx.tm_udata = new_thread;
+			new_thread->tcb->tcb_tmbx.tm_context.uc_sigmask =
 			    new_thread->sigmask;
-			new_thread->tmbx.tm_context.uc_stack.ss_size =
+			new_thread->tcb->tcb_tmbx.tm_context.uc_stack.ss_size =
 			    new_thread->attr.stacksize_attr;
-			new_thread->tmbx.tm_context.uc_stack.ss_sp =
+			new_thread->tcb->tcb_tmbx.tm_context.uc_stack.ss_sp =
 			    new_thread->attr.stackaddr_attr;
-			makecontext(&new_thread->tmbx.tm_context,
+			makecontext(&new_thread->tcb->tcb_tmbx.tm_context,
 			    (void (*)(void))thread_start, 4, new_thread,
 			    start_routine, arg);
 			/*
@@ -274,8 +272,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				kse->k_kseg->kg_flags |= KGF_SINGLE_THREAD;
 				new_thread->kse = kse;
 				new_thread->kseg = kse->k_kseg;
-				kse->k_mbx.km_udata = kse;
-				kse->k_mbx.km_curthread = NULL;
+				kse->k_kcb->kcb_kmbx.km_udata = kse;
+				kse->k_kcb->kcb_kmbx.km_curthread = NULL;
 			}
 
 			/*

@@ -74,7 +74,7 @@ ENTRY(__thr_setcontext)
 	movl	72(%edx), %esp		/* switch to context defined stack */
 	pushl	60(%edx)		/* push return address on stack */
 	pushl	44(%edx)		/* push ecx on stack */
-	push	48(%edx)		/* push eax on stack */
+	pushl	48(%edx)		/* push eax on stack */
 	/*
 	 * if (mc_fpowned == MC_OWNEDFP_FPU || mc_fpowned == MC_OWNEDFP_PCB) {
 	 *    if (mc_fpformat == MC_FPFMT_387)

@@ -41,7 +41,6 @@
 #include <string.h>
 #include <pthread.h>
 #include "thr_private.h"
-#include "pthread_md.h"
 
 /* Prototypes: */
 static void	build_siginfo(siginfo_t *info, int signo);
@@ -212,11 +211,11 @@ sig_daemon(void *arg /* Unused */)
 		}
 		ts.tv_sec = 30;
 		ts.tv_nsec = 0;
-		curkse->k_mbx.km_flags =
+		curkse->k_kcb->kcb_kmbx.km_flags =
 		    KMF_NOUPCALL | KMF_NOCOMPLETED | KMF_WAITSIGEVENT;
 		kse_release(&ts);
-		curkse->k_mbx.km_flags = 0;
-		set = curkse->k_mbx.km_sigscaught;
+		curkse->k_kcb->kcb_kmbx.km_flags = 0;
+		set = curkse->k_kcb->kcb_kmbx.km_sigscaught;
 	}
 	return (0);
 }
@@ -355,7 +354,7 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 * so kse_release will return from kernel immediately.
 		 */
 		if (KSE_IS_IDLE(curkse))
-			kse_wakeup(&curkse->k_mbx);
+			kse_wakeup(&curkse->k_kcb->kcb_kmbx);
 		return;
 	}
 
@@ -377,7 +376,7 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		__sys_sigaction(sig, NULL, &_thread_sigact[sig - 1]);
 	}
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
-	_kse_critical_leave(&curthread->tmbx);
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 
 	/* Now invoke real handler */
 	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
@@ -403,7 +402,7 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	curthread->interrupted = intr_save;
 	_kse_critical_enter();
 	curthread->sigmask = ucp->uc_sigmask;
-	_kse_critical_leave(&curthread->tmbx);
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 	DBG_MSG("<<< _thr_sig_handler(%d)\n", sig);
 }
 
@@ -446,7 +445,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	}
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
-	_kse_critical_leave(&curthread->tmbx);
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 	/*
 	 * We are processing buffered signals, synchronize working
 	 * signal mask into kernel.
@@ -737,7 +736,7 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-	_kse_critical_leave(&curthread->tmbx);
+	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
 
 	curthread->interrupted = interrupted;
 	curthread->timeout = timeout;
@@ -860,7 +859,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			if (!(pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
 			    (pthread->blocked != 0) && 
 			    !THR_IN_CRITICAL(pthread))
-				kse_thr_interrupt(&pthread->tmbx,
+				kse_thr_interrupt(&pthread->tcb->tcb_tmbx,
 				    restart ? KSE_INTR_RESTART : KSE_INTR_INTERRUPT, 0);
 		}
 	}
@@ -983,7 +982,7 @@ _thr_sig_send(struct pthread *pthread, int sig)
 	struct kse_mailbox *kmbx;
 
 	if (pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
-		kse_thr_interrupt(&pthread->tmbx, KSE_INTR_SENDSIG, sig);
+		kse_thr_interrupt(&pthread->tcb->tcb_tmbx, KSE_INTR_SENDSIG, sig);
 		return;
 	}
 
