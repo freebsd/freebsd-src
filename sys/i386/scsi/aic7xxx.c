@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.33 1997/03/18 19:27:58 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.34 1997/03/24 05:17:38 gibbs Exp $
  */
 /*
  * TODO:
@@ -3185,7 +3185,7 @@ ahc_find_scb(ahc, scb)
 			break;
 	}
 	ahc_outb(ahc, SCBPTR, saved_scbptr);
-	if (curindex > ahc->scb_data->maxhscbs)
+	if (curindex >= ahc->scb_data->maxhscbs)
 		curindex = SCB_LIST_NULL;
 
 	return curindex;
