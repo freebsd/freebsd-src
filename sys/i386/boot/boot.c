@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.14 1994/06/16 03:53:27 adam Exp $
+ *	$Id: boot.c,v 1.15 1994/08/21 17:47:25 paul Exp $
  */
 
 
@@ -55,9 +55,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "boot.h"
 #include <a.out.h>
 #include <sys/reboot.h>
+#include <machine/bootinfo.h>
 
 struct exec head;
-int argv[10], esym;
+struct bootinfo_t bootinfo;
 char *name;
 char *names[] = {
 	"/kernel"
@@ -73,8 +74,8 @@ int drive;
 		
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n",
 		ouraddr,
-		argv[7] = memsize(0),
-		argv[8] = memsize(1));
+		memsize(0),
+		memsize(1));
 	printf("use hd(1,a)/kernel to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
@@ -106,13 +107,11 @@ loadprog(howto)
 {
 	long int startaddr;
 	long int addr;	/* physical address.. not directly useable */
-	long int addr0;
+	long int bootdev;
+	long int total;
 	int i;
-	static int (*x_entry)() = 0;
 	unsigned char	tmpbuf[4096]; /* we need to load the first 4k here */
 
-	argv[3] = 0;
-	argv[4] = 0;
 	read(&head, sizeof(head));
 	if ( N_BADMAG(head)) {
 		printf("Invalid format!\n");
@@ -123,9 +122,8 @@ loadprog(howto)
 	/*if(poff==0)
 		poff = 32;*/
 
-	startaddr = (int)head.a_entry;
-	addr = (startaddr & 0x00ffffff); /* some MEG boundary */
-	addr0 = addr;
+	startaddr = (int)head.a_entry & 0x00FFFFFF; /* some MEG boundary */
+	addr =  startaddr;
 	printf("Booting %s(%d,%c)%s @ 0x%x\n"
 			, devs[maj]
 			, unit
@@ -178,7 +176,7 @@ loadprog(howto)
 	{
 		pbzero(addr,head.a_bss);
 	}
-	argv[3] = (addr += head.a_bss);
+	addr += head.a_bss;
 
 #ifdef LOADSYMS /* not yet, haven't worked this out yet */
 	if (addr > 0x100000)
@@ -218,20 +216,12 @@ loadprog(howto)
 	/* and note the end address of all this			*/
 	/********************************************************/
 
-	argv[4] = ((addr+sizeof(int)-1))&~(sizeof(int)-1);
-	printf("total=0x%x ",argv[4]);
-
+	total = ((addr+sizeof(int)-1))&~(sizeof(int)-1);
+	printf("total=0x%x ", total);
 
 	/*
-	 *  We now pass the various bootstrap parameters to the loaded
-	 *  image via the argument list
-	 *  (THIS IS A BIT OF HISTORY FROM MACH.. LEAVE FOR NOW)
-	 *  arg1 = boot flags
-	 *  arg2 = boot device
-	 *  arg3 = start of symbol table (0 if not loaded)
-	 *  arg4 = end of symbol table (0 if not loaded)
-	 *  arg5 = transfer address from image
-	 *  arg6 = transfer address for next image pointer
+	 * If we are booting from floppy prompt for a filesystem floppy
+	 * before we call the kernel
 	 */
 	switch(maj)
 	{
@@ -249,19 +239,19 @@ loadprog(howto)
 	case 4:
 		break;
 	}
-	argv[1] = howto;
-	argv[2] = (MAKEBOOTDEV(maj, 0, 0, unit, part)) ;
-	argv[5] = (head.a_entry &= 0xfffffff);
-	argv[6] = (int) &x_entry;
-	argv[0] = 8;
+	bootdev = (MAKEBOOTDEV(maj, 0, 0, unit, part)) ;
 	/****************************************************************/
 	/* copy that first page and overwrite any BIOS variables	*/
 	/****************************************************************/
-	printf("entry point=0x%x\n" ,((int)startaddr) & 0xffffff);
+	printf("entry point=0x%x\n" ,(int)startaddr);
 	/* Under no circumstances overwrite precious BIOS variables! */
-	pcpy(tmpbuf, addr0, 0x400);
-	pcpy(tmpbuf + 0x500, addr0 + 0x500, 4096 - 0x500);
-	startprog(((int)startaddr & 0xffffff),argv);
+	pcpy(tmpbuf, startaddr, 0x400);
+	pcpy(tmpbuf + 0x500, startaddr + 0x500, 4096 - 0x500);
+	bootinfo.version=1;
+	bootinfo.kernelname=(char *)((int)name + (BOOTSEG<<4));
+	bootinfo.nfs_diskless=0;
+	startprog((int)startaddr, howto, bootdev, (int)&bootinfo+(BOOTSEG<<4));
+	return;
 }
 
 char namebuf[100];
