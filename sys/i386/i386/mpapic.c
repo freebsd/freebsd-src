@@ -508,7 +508,7 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 #endif  /* DETECT_DEADLOCK */
 
 	/* build IRC_LOW */
-	icr_lo = (lapic.icr_lo & APIC_RESV2_MASK)
+	icr_lo = (lapic.icr_lo & APIC_ICRLO_RESV_MASK)
 	    | dest_type | delivery_mode | vector;
 
 	/* write APIC ICR */
@@ -574,7 +574,7 @@ apic_ipi_singledest(int cpu, int vector, int delivery_mode)
 	lapic.icr_hi = icr_hi;
 
 	/* build IRC_LOW */
-	icr_lo = (lapic.icr_lo & APIC_RESV2_MASK)
+	icr_lo = (lapic.icr_lo & APIC_ICRLO_RESV_MASK)
 	    | APIC_DEST_DESTFLD | delivery_mode | vector;
 
 	/* write APIC ICR */
