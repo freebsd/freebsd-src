@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.100 1998/12/27 23:23:19 msmith Exp $
+#	$Id: options.i386,v 1.101 1999/01/01 08:09:58 peter Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -13,6 +13,8 @@ COMPAT_LINUX		opt_dontuse.h
 LINUX			opt_dontuse.h
 
 DEBUG_LINUX		opt_linux.h
+
+PPC_DEBUG		opt_ppc.h
 
 SHOW_BUSYBUFS
 TUNE_1542
