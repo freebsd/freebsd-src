@@ -1,38 +1,51 @@
 # $FreeBSD$
 
-MAINTAINER= wosch
-
-GREP_LIBZ= YES
-GREP_FTS=  YES
+GREP_LIBZ=YES
 
 PROG=	grep
-SRCS=	dfa.c grep.c getopt.c getopt1.c kwset.c obstack.c savedir.c search.c \
+SRCS=	dfa.c getopt.c getopt1.c grep.c kwset.c obstack.c savedir.c search.c \
 	stpcpy.c
-CFLAGS+=-DGREP -DHAVE_STRING_H=1 -DHAVE_SYS_PARAM_H=1 -DHAVE_UNISTD_H=1 \
-	-DHAVE_GETPAGESIZE=1 -DHAVE_MEMCHR=1 -DHAVE_STRERROR=1 \
-	-DHAVE_VALLOC=1 -DHAVE_WORKING_MMAP=1 -DVERSION=\"2.3\" -DHAVE_DIRENT_H
 
-LINKS+= ${BINDIR}/grep ${BINDIR}/egrep \
+CFLAGS+=-I${.CURDIR} -DHAVE_CONFIG_H
+
+LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep
-MLINKS= grep.1 egrep.1 grep.1 fgrep.1
+MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
 
-DPADD+= ${LIBGNUREGEX}
-LDADD+= -lgnuregex
+DPADD+=	${LIBGNUREGEX}
+LDADD+=	-lgnuregex
 
 .if defined(GREP_LIBZ) && !empty(GREP_LIBZ)
-LDADD+= -lz
-DPADD+= ${LIBZ}
-CFLAGS+= -DHAVE_LIBZ=1
-LINKS+= ${BINDIR}/grep ${BINDIR}/zgrep \
+LDADD+=	-lz
+DPADD+=	${LIBZ}
+CFLAGS+=-DHAVE_LIBZ=1
+LINKS+=	${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
-	${BINDIR}/grep ${BINDIR}/zfgrep 
-MLINKS+= grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
-.endif
-.if defined(GREP_FTS) && !empty(GREP_FTS)
-CFLAGS+= -DHAVE_FTS=1
+	${BINDIR}/grep ${BINDIR}/zfgrep
+MLINKS+=grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
 .endif
 
+SUBDIR+=doc
+
 check:	all
-	sh ${.CURDIR}/tests/check.sh ${.CURDIR}/tests
+	@failed=0; total=0; \
+	for tst in ${TESTS}; do \
+		total=$$(($$total+1)); \
+		if GREP=${.OBJDIR}/${PROG} srcdir=${GREPDIR}/tests \
+		   ${GREPDIR}/tests/$$tst; then \
+			echo "PASS: $$tst"; \
+		else \
+			failed=$$(($$failed+1)); \
+			echo "FAIL: $$tst"; \
+		fi; \
+	done; \
+	if [ "$$failed" -eq 0 ]; then \
+		echo "All $$total tests passed"; \
+	else \
+		echo "$$failed of $$total tests failed"; \
+	fi
+
+TESTS=	warning.sh khadafy.sh spencer1.sh bre.sh ere.sh status.sh empty.sh \
+	options.sh
 
 .include <bsd.prog.mk>
