@@ -29,8 +29,6 @@ if [ ${FSSIZE} -eq 0 -a ${FSLABEL} = "auto" ]; then
 	FSSIZE=$(roundup $(($sk*12/10)) 1024)
 fi
 
-deadlock=20
-
 dofs_vn () {
     if [ "x$VNDEVICE" = "x" ] ; then
 	VNDEVICE=vn0
