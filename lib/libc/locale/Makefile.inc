@@ -6,7 +6,7 @@
 SRCS+=	ansi.c ctype.c euc.c frune.c isctype.c lconv.c localeconv.c \
 	mbrune.c none.c rune.c common_setlocale.c \
 	startup_setlocale.c read_runemagi.c setlocale.c table.c utf2.c \
-	runetype.c tolower.c toupper.c nomacros.c
+	runetype.c tolower.c toupper.c nomacros.c collate.c
 
 MAN3+=	locale/ctype.3 locale/isalnum.3 locale/isalpha.3 locale/isascii.3 \
 	locale/isblank.3 locale/iscntrl.3 locale/isdigit.3 locale/isgraph.3 \
