@@ -284,15 +284,10 @@ static device_method_t uhci_methods[] = {
 	DEVMETHOD(device_attach,	uhci_pci_attach),
 	DEVMETHOD(device_suspend,	uhci_pci_suspend),
 	DEVMETHOD(device_resume,	uhci_pci_resume),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
-	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	{ 0, 0 }
 };
