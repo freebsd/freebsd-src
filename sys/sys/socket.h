@@ -168,7 +168,7 @@ struct sockproto {
 };
 
 /*
- * bsd-api-new-02a: protocol-independent placeholder for socket addresses
+ * RFC 2553: protocol-independent placeholder for socket addresses
  */
 #define	_SS_MAXSIZE	128
 #define	_SS_ALIGNSIZE	(sizeof(int64_t))
