@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
-.\"	$Id: ls.1,v 1.5 1996/08/29 18:05:56 wosch Exp $
+.\"	$Id: ls.1,v 1.6 1996/12/14 06:03:27 steve Exp $
 .\"
 .Dd July 29, 1994
 .Dt LS 1
@@ -194,6 +194,10 @@ number of 512-byte blocks used by the files in the directory is displayed
 on a line by itself immediately before the information for the files in the
 directory.
 .Pp
+If the modification time of the file is more than 6 months
+in the past or future, then the year of the last modification
+is displayed in place of the hour and minute fields.
+.Pp
 If the owner or group names are not a known user or group name
 the numeric ID's are displayed.
 .Pp
@@ -203,7 +207,9 @@ in the size field. If the file is a symbolic link the pathname of the
 linked-to file is preceded by
 .Dq \-> .
 .Pp
-The file mode printed under the -l option consists of the
+The file mode printed under the
+.Fl l
+option consists of the
 entry type, owner permissions, and group permissions.
 The entry type character describes the type of file, as
 follows:
