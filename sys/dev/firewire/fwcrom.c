@@ -38,6 +38,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+
+#ifdef _BOOT
+#include <stand.h>
+#include <bootstrap.h>
+#else
 #if defined(_KERNEL) || defined(TEST)
 #include <sys/queue.h>
 #endif
@@ -51,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 #endif
 
 #ifdef __DragonFly__
@@ -235,7 +241,7 @@ crom_crc(uint32_t *ptr, int len)
 	return((uint16_t) crc);
 }
 
-#ifndef _KERNEL
+#if !defined(_KERNEL) && !defined(_BOOT)
 static void
 crom_desc_specver(uint32_t spec, uint32_t ver, char *buf, int len)
 {
@@ -383,7 +389,7 @@ crom_desc(struct crom_context *cc, char *buf, int len)
 }
 #endif
 
-#if defined(_KERNEL) || defined(TEST)
+#if defined(_KERNEL) || defined(_BOOT) || defined(TEST)
 
 int
 crom_add_quad(struct crom_chunk *chunk, uint32_t entry)
@@ -483,7 +489,7 @@ crom_load(struct crom_src *src, uint32_t *buf, int maxlen)
 {
 	struct crom_chunk *chunk, *parent;
 	struct csrhdr *hdr;
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_BOOT)
 	uint32_t *ptr;
 	int i;
 #endif
@@ -524,7 +530,7 @@ crom_load(struct crom_src *src, uint32_t *buf, int maxlen)
 	hdr->crc_len = count - 1;
 	hdr->crc = crom_crc(&buf[1], hdr->crc_len);
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_BOOT)
 	/* byte swap */
 	ptr = buf;
 	for (i = 0; i < count; i ++) {
