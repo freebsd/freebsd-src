@@ -502,7 +502,6 @@ unionlookup:
 #endif
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
-	cnp->cn_flags &= ~PDIRUNLOCK;
 	ASSERT_VOP_LOCKED(dp, "lookup");
 #ifdef NAMEI_DIAGNOSTIC
 	vprint("lookup in", dp);
@@ -518,10 +517,7 @@ unionlookup:
 			tdp = dp;
 			tvfslocked = vfslocked;
 			dp = dp->v_mount->mnt_vnodecovered;
-			if (cnp->cn_flags & PDIRUNLOCK)
-				vrele(tdp);
-			else
-				vput(tdp);
+			vput(tdp);
 			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 			VFS_UNLOCK_GIANT(tvfslocked);
 			VREF(dp);
@@ -544,6 +540,14 @@ unionlookup:
 			error = ENOENT;
 			goto bad;
 		}
+		if ((cnp->cn_flags & LOCKPARENT) == 0)
+			VOP_UNLOCK(dp, 0, td);
+		/*
+		 * This is a temporary assert to make sure I know what the
+		 * behavior here was.
+		 */
+		KASSERT((cnp->cn_flags & (WANTPARENT|LOCKPARENT)) != 0,
+		   ("lookup: Unhandled case."));
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
@@ -558,8 +562,22 @@ unionlookup:
 #ifdef NAMEI_DIAGNOSTIC
 	printf("found\n");
 #endif
-
-	ASSERT_VOP_LOCKED(ndp->ni_vp, "lookup");
+	/*
+	 * In the DOTDOT case dp is unlocked, we may have to relock it if
+	 * this is the parent of the last component.  Otherwise, we have to
+	 * unlock if this is not the last component, or if it is and
+	 * LOCKPARENT is set.
+	 */
+	if (cnp->cn_flags & ISDOTDOT) {
+		if ((cnp->cn_flags & (ISLASTCN | LOCKPARENT)) ==
+		    (ISLASTCN | LOCKPARENT))
+			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+	} else if (dp != ndp->ni_vp) {
+		if ((cnp->cn_flags & (ISLASTCN | LOCKPARENT)) == ISLASTCN)
+			VOP_UNLOCK(dp, 0, td);
+		else if ((cnp->cn_flags & ISLASTCN) == 0)
+			VOP_UNLOCK(dp, 0, td);
+	}
 
 	/*
 	 * Take into account any additional components consumed by
@@ -630,6 +648,8 @@ nextname:
 	 * Not a symbolic link.  If more pathname,
 	 * continue at next component, else return.
 	 */
+	KASSERT((cnp->cn_flags & ISLASTCN) || *ndp->ni_next == '/',
+	    ("lookup: invalid path state."));
 	if (*ndp->ni_next == '/') {
 		cnp->cn_nameptr = ndp->ni_next;
 		while (*cnp->cn_nameptr == '/') {
@@ -664,10 +684,10 @@ success:
 	return (0);
 
 bad2:
-	if ((cnp->cn_flags & (LOCKPARENT | PDIRUNLOCK)) == LOCKPARENT &&
-	    *ndp->ni_next == '\0')
-		VOP_UNLOCK(ndp->ni_dvp, 0, td);
-	vrele(ndp->ni_dvp);
+	if ((cnp->cn_flags & LOCKPARENT) && *ndp->ni_next == '\0')
+		vput(ndp->ni_dvp);
+	else
+		vrele(ndp->ni_dvp);
 bad:
 	if (dpunlocked)
 		vrele(dp);
@@ -695,6 +715,8 @@ relookup(dvp, vpp, cnp)
 	int rdonly;			/* lookup read-only flag bit */
 	int error = 0;
 
+	KASSERT(cnp->cn_flags & ISLASTCN,
+	    ("relookup: Not given last component."));
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
@@ -708,7 +730,6 @@ relookup(dvp, vpp, cnp)
 	dp = dvp;
 	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
 
-/* dirloop: */
 	/*
 	 * Search a new directory.
 	 *
@@ -768,6 +789,14 @@ relookup(dvp, vpp, cnp)
 		/* ASSERT(dvp == ndp->ni_startdir) */
 		if (cnp->cn_flags & SAVESTART)
 			VREF(dvp);
+		if ((cnp->cn_flags & LOCKPARENT) == 0)
+			VOP_UNLOCK(dp, 0, td);
+		/*
+		 * This is a temporary assert to make sure I know what the
+		 * behavior here was.
+		 */
+		KASSERT((cnp->cn_flags & (WANTPARENT|LOCKPARENT)) != 0,
+		   ("relookup: Unhandled case."));
 		/*
 		 * We return with ni_vp NULL to indicate that the entry
 		 * doesn't currently exist, leaving a pointer to the
@@ -775,6 +804,15 @@ relookup(dvp, vpp, cnp)
 		 */
 		return (0);
 	}
+	/*
+	 * In the DOTDOT case dp is unlocked, we may have to relock it if
+	 * LOCKPARENT is set.  Otherwise, unlock the parent.
+	 */
+	if ((cnp->cn_flags & (ISDOTDOT | LOCKPARENT)) ==
+	    (ISDOTDOT | LOCKPARENT))
+		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+	else if ((cnp->cn_flags & (ISDOTDOT | LOCKPARENT)) == 0 && dp != *vpp)
+		VOP_UNLOCK(dp, 0, td);
 	dp = *vpp;
 
 	/*
@@ -803,7 +841,7 @@ relookup(dvp, vpp, cnp)
 	return (0);
 
 bad2:
-	if ((cnp->cn_flags & LOCKPARENT) && (cnp->cn_flags & ISLASTCN))
+	if (cnp->cn_flags & LOCKPARENT)
 		VOP_UNLOCK(dvp, 0, td);
 	vrele(dvp);
 bad:
