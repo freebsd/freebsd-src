@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.84 1998/05/24 14:59:57 dg Exp $
+ * $Id: ip_input.c,v 1.85 1998/05/25 10:37:45 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -362,7 +362,7 @@ tooshort:
 #ifdef IPDIVERT
 		u_short port;
 
-#ifndef IPFW_DIVERT_RESTART
+#ifdef IPFW_DIVERT_OLDRESTART
 		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL, ip_divert_ignore, &m);
 		ip_divert_ignore = 0;
 #else
@@ -370,7 +370,7 @@ tooshort:
 		port = (*ip_fw_chk_ptr)(&ip, hlen, NULL,
 					ip_divert_out_cookie, &m);
 		ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 		if (port) {			/* Divert packet */
 			frag_divert_port = port;
 			goto ours;
@@ -682,9 +682,9 @@ ip_reass(ip, fp, where)
 		fp->ipq_dst = ((struct ip *)ip)->ip_dst;
 #ifdef IPDIVERT
 		fp->ipq_divert = 0;
-#ifdef IPFW_DIVERT_RESTART
+#ifndef IPFW_DIVERT_OLDRESTART
 		fp->ipq_div_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 #endif
 		q = (struct ipasfrag *)fp;
 		goto insert;
@@ -741,9 +741,9 @@ insert:
 	 */
 	if (frag_divert_port != 0) {
 		fp->ipq_divert = frag_divert_port;
-#ifdef IPFW_DIVERT_RESTART
+#ifndef IPFW_DIVERT_OLDRESTART
 		fp->ipq_div_cookie = ip_divert_in_cookie;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 	}
 	frag_divert_port = 0;
 #endif
@@ -792,9 +792,9 @@ insert:
 	 * Record divert port for packet, if any
 	 */
 	frag_divert_port = fp->ipq_divert;
-#ifdef IPFW_DIVERT_RESTART
+#ifndef IPFW_DIVERT_OLDRESTART
 	ip_divert_in_cookie = fp->ipq_div_cookie;
-#endif /* IPFW_DIVERT_RESTART */
+#endif /* IPFW_DIVERT_OLDRESTART */
 #endif
 
 	/*
