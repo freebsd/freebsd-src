@@ -1679,6 +1679,10 @@ based on the Symbios chips that the sym driver supports will work as well.
 USB:
 Is disabled by the SRM console and has not (yet) been tested with FreeBSD.
 
+For the UP1000 the kernel config file must contain:
+	cpu		EV5
+	options         API_UP1000              # UP1000, UP1100 (Nautilus)
+
 *
 * Alpha Processor Inc. UP1100
 *
@@ -1735,6 +1739,11 @@ The embedded Ultra DMA EIDE ports are bootable by the SRM console.
 USB:
 The UP1100 has 3 USB ports, 2 going external and one connected to the 
 AGP port.
+
+For the UP1100 the kernel config file must contain:
+	cpu		EV5
+	options         API_UP1100              # UP1000, UP1100 (Nautilus)
+
 
 Supported hardware overview
 ---------------------------
