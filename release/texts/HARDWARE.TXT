@@ -561,6 +561,7 @@ chipsets, including the following:
     Netgear GA620 (Tigon 2)
     Netgear GA620T (Tigon 2, 1000baseT)
     Silicon Graphics Gigabit Ethernet
+    Asante PCI 1000BASE-SX Gigabit Ethernet Adapter
     Asante GigaNIX1000T Gigabit Ethernet Adapter
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)

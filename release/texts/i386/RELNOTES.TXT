@@ -1262,6 +1262,7 @@ chipsets, including the following:
   DEC/Compaq EtherWORKS 1000
   NEC Gigabit Ethernet
   Farallon PN9000SX
+  Asante PCI 1000BASE-SX Gigabit Ethernet Adapter
   Asante GigaNIX1000T Gigabit Ethernet Adapter
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
