@@ -23,6 +23,8 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <err.h>
 #include <md5.h>
 #include <stdio.h>
@@ -131,7 +133,9 @@ static void
 MDTimeTrial(void)
 {
 	MD5_CTX context;
-	time_t  endTime, startTime;
+	struct rusage before, after;
+	struct timeval total;
+	float seconds;
 	unsigned char block[TEST_BLOCK_LEN];
 	unsigned int i;
 	char   *p, buf[33];
@@ -146,7 +150,7 @@ MDTimeTrial(void)
 		block[i] = (unsigned char) (i & 0xff);
 
 	/* Start timer */
-	time(&startTime);
+	getrusage(0, &before);
 
 	/* Digest blocks */
 	MD5Init(&context);
@@ -155,16 +159,16 @@ MDTimeTrial(void)
 	p = MD5End(&context,buf);
 
 	/* Stop timer */
-	time(&endTime);
+	getrusage(0, &after);
+	timersub(&after.ru_utime, &before.ru_utime, &total);
+	seconds = total.tv_sec + (float) total.tv_usec / 1000000;
 
 	printf(" done\n");
 	printf("Digest = %s", p);
-	printf("\nTime = %ld seconds\n", (long) (endTime - startTime));
-	/* Be careful that endTime-startTime is not zero. (Bug fix from Ric
-	 * Anderson, ric@Artisoft.COM.) */
+	printf("\nTime = %f seconds\n", seconds);
 	printf
-	    ("Speed = %ld bytes/second\n",
-	    (long) TEST_BLOCK_LEN * (long) TEST_BLOCK_COUNT / ((endTime - startTime) != 0 ? (long)(endTime - startTime) : 1));
+	    ("Speed = %f bytes/second\n",
+	    (float) TEST_BLOCK_LEN * (float) TEST_BLOCK_COUNT / seconds);
 }
 /*
  * Digests a reference suite of strings and prints the results.
