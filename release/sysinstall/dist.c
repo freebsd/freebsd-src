@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.35 1997/09/16 10:12:51 jkh Exp $
+ * $Id: dist.c,v 1.73.2.36 1997/09/18 16:19:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,7 @@ static Distribution DistTable[] = {
 #ifdef USE_XIG_ENVIRONMENT
 { "accelx",	"/usr/X11R6/lib/X11",	&Dists,		DIST_XIG_SERVER,	NULL		},
 #else
-{ "XF8633",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF86331",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 #endif
 { NULL },
 };
