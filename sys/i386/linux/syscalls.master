@@ -271,7 +271,8 @@
 183	STD	LINUX	{ int linux_getcwd(char *buf, unsigned long bufsize); }
 184	STD	LINUX	{ int linux_capget(void); }
 185	STD	LINUX	{ int linux_capset(void); }
-186	STD	LINUX	{ int linux_sigaltstack(void); }
+186	STD	LINUX	{ int linux_sigaltstack(const linux_stack_t *uss, \
+				linux_stack_t *uoss); }
 187	STD	LINUX	{ int linux_sendfile(void); }
 188	STD	LINUX	{ int linux_getpmsg(void); }
 189	STD	LINUX	{ int linux_putpmsg(void); }
