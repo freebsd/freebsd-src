@@ -254,6 +254,7 @@ SYSCTL_INT(_vm, OID_AUTO, dmmax,
 static void	swp_sizecheck(void);
 static void	swp_pager_sync_iodone(struct buf *bp);
 static void	swp_pager_async_iodone(struct buf *bp);
+static int	swaponvp(struct thread *, struct vnode *, dev_t , u_long);
 
 /*
  * Swap bitmap functions
@@ -2142,7 +2143,7 @@ done2:
 	return (error);
 }
 
-int
+static int
 swaponvp(td, vp, dev, nblks)
 	struct thread *td;
 	struct vnode *vp;
