@@ -21,6 +21,10 @@ dev/pdq/pdq.c		optional fea device-driver
 dev/pdq/pdq_ifsubr.c	optional fea device-driver
 dev/pdq/pdq.c		optional fpa device-driver
 dev/pdq/pdq_ifsubr.c	optional fpa device-driver
+dev/ppbus/nlpt.c	optional nlpt
+dev/ppbus/ppbconf.c	optional ppbus
+dev/ppi.c		optional ppi
+dev/vpo.c		optional vpo
 dev/vn/vn.c		optional vn
 dev/vx/if_vx.c		optional vx  device-driver
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
