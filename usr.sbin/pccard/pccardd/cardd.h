@@ -125,6 +125,8 @@ struct slot {
 	u_int	product;
 	u_int	prodext;
 	unsigned char eaddr[6];		/* If any */
+	char	manufstr[DEV_MAX_CIS_LEN];
+	char	versstr[DEV_MAX_CIS_LEN];
 	struct allocblk io;		/* I/O block spec */
 	struct allocblk mem;		/* Memory block spec */
 	int     irq;			/* Irq value */
