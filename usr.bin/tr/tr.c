@@ -107,8 +107,8 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
-	static int collorder[NCHARS], tmpmap[NCHARS];
-	int ch, cnt, lastch, *p;
+	static int carray[NCHARS];
+	int ch, cnt, n, lastch, *p;
 	int Cflag, cflag, dflag, sflag, isstring2;
 
 	(void)setlocale(LC_ALL, "");
@@ -214,7 +214,8 @@ main(int argc, char **argv)
 		usage();
 
 	s1.str = argv[0];
-	s2.str = argv[1];
+	if ((s2.str = strdup(argv[1])) == NULL)
+		errx(2, "strdup(argv[1])");
 
 	if (cflag || Cflag)
 		for (cnt = NCHARS, p = string1; cnt--;)
@@ -273,28 +274,22 @@ main(int argc, char **argv)
 	}
 endloop:
 	if (cflag || Cflag) {
+		for (p = carray, cnt = 0; cnt < NCHARS; cnt++) {
+			if (string1[cnt] == OOBCH && (!Cflag || ISCHAR(cnt)))
+				*p++ = cnt;
+			else
+				string1[cnt] = cnt;
+		}
+		n = p - carray;
+		if (Cflag && n > 1)
+			(void)mergesort(carray, n, sizeof(*carray), charcoll);
+
 		s2.str = argv[1];
 		s2.state = NORMAL;
-		for (cnt = 0, p = string1; cnt < NCHARS; ++p, ++cnt) {
-			if (*p == OOBCH && (!Cflag || ISCHAR(cnt))) {
-				(void)next(&s2);
-				*p = s2.lastch;
-			} else
-				*p = cnt;
+		for (cnt = 0; cnt < n; cnt++) {
+			(void)next(&s2);
+			string1[carray[cnt]] = s2.lastch;
 		}
-	}
-	if (Cflag) {
-		/*
-		 * Generate a table for locale single-byte collating element
-		 * ordering and use it to reorder string1 as required by
-		 * IEEE Std. 1003.1-2001.
-		 */
-		for (ch = 0; ch < NCHARS; ch++)
-			collorder[ch] = ch;
-		mergesort(collorder, NCHARS, sizeof(*collorder), charcoll);
-		for (ch = 0; ch < NCHARS; ch++)
-			tmpmap[ch] = string1[collorder[ch]];
-		memcpy(string1, tmpmap, sizeof(tmpmap));
 	}
 
 	if (sflag)

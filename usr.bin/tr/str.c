@@ -101,10 +101,11 @@ next(s)
 	case SET:
 	case SET_UPPER:
 	case SET_LOWER:
-		if ((s->lastch = s->set[s->cnt++]) == OOBCH) {
+		if ((ch = s->set[s->cnt++]) == OOBCH) {
 			s->state = NORMAL;
 			return (next(s));
 		}
+		s->lastch = ch;
 		return (1);
 	default:
 		return (0);
