@@ -4,7 +4,7 @@
 #include "config.h"
 #ifndef HAVE_VPRINTF
 #ifndef HAVE_DOPRINT
-# error need vfprintf() or doprint()
+ #error need vfprintf() or doprint()
 #else
 
 #ifdef HAVE_LIB_H

@@ -2,11 +2,13 @@
 #
 # Time the functions.
 #
-BC=../bc/bc
 SYSBC=/usr/bin/bc
+if [ x$BC = x ] ; then
+  BC=../bc/bc
+fi
 for file in exp.b ln.b sine.b atan.b jn.b mul.b div.b raise.b sqrt.b
 do
-for prog in $BC $SYSBC
+for prog in $BC $SYSBC $OTHERBC
 do
 echo Timing $file with $prog
 time $prog -l $file

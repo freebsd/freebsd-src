@@ -1,7 +1,7 @@
 /* global.c:  This defines the global variables. */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991-1994, 1997, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -35,8 +37,6 @@
 /* Define all the global variables for bc. */
 #include "global.h"
 
-#ifndef BC_MATH_FILE
-CONST char libmath[] = 
+CONST char *libmath[] = 
 #include "libmath.h"
 ;
-#endif 
