@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD";
+  "$FreeBSD$";
 #endif
 
 #include "sysinstall.h"
