@@ -219,7 +219,7 @@ mly_probe(device_t dev)
 /********************************************************************************
  * Initialise the controller and softc
  */
-int
+static int
 mly_attach(device_t dev)
 {
     struct mly_softc	*sc = device_get_softc(dev);
@@ -679,7 +679,7 @@ mly_mmbox_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  *
  * Should not be called if the controller is active.
  */
-void
+static void
 mly_free(struct mly_softc *sc)
 {
     
@@ -1524,7 +1524,7 @@ mly_start(struct mly_command *mc)
 /********************************************************************************
  * Pick up command status from the controller, schedule a completion event
  */
-void
+static void
 mly_done(struct mly_softc *sc) 
 {
     struct mly_command		*mc;
@@ -1656,7 +1656,7 @@ mly_complete(void *context, int pending)
 /********************************************************************************
  * Allocate a command.
  */
-int
+static int
 mly_alloc_command(struct mly_softc *sc, struct mly_command **mcp)
 {
     struct mly_command	*mc;
@@ -1673,7 +1673,7 @@ mly_alloc_command(struct mly_softc *sc, struct mly_command **mcp)
 /********************************************************************************
  * Release a command back to the freelist.
  */
-void
+static void
 mly_release_command(struct mly_command *mc)
 {
     debug_called(3);
@@ -1907,7 +1907,7 @@ mly_unmap_command(struct mly_command *mc)
  * to keep things simple, we map these 1:1, so "bus" and "channel" may be used
  * interchangeably.
  */
-int
+static int
 mly_cam_attach(struct mly_softc *sc)
 {
     struct cam_devq	*devq;
@@ -1976,7 +1976,7 @@ mly_cam_attach(struct mly_softc *sc)
 /********************************************************************************
  * Detach from CAM
  */
-void
+static void
 mly_cam_detach(struct mly_softc *sc)
 {
     int		i;
@@ -2382,7 +2382,7 @@ mly_find_periph(struct mly_softc *sc, int bus, int target)
 /********************************************************************************
  * Name the device at (bus)(target)
  */
-int
+static int
 mly_name_device(struct mly_softc *sc, int bus, int target)
 {
     struct cam_periph	*periph;
