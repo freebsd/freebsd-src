@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.6 1994/10/23 00:41:17 martin Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.7 1994/10/27 18:44:31 pst Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1533,7 +1533,8 @@ msdosfs_readdir(ap)
 		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
 		diff = dep->de_FileSize - (uio->uio_offset - bias);
 		if (diff <= 0) {
-			*ap->a_eofflag = 1;
+			if(ap->a_eofflag)
+				*ap->a_eofflag = 1;
 			return 0;
 		}
 		if (diff < n)
