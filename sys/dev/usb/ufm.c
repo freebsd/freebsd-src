@@ -97,7 +97,7 @@ Static struct cdevsw ufm_cdevsw = {
  	ufmioctl,	nopoll,		nommap,		nostrategy,
  	"ufm",		UFM_CDEV_MAJOR,	nodump,		nopsize,
  	0,
-#if (__FreeBSD_version < 500000)
+#if (__FreeBSD_version < 500014)
  	-1
 #endif
 };
