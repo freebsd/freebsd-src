@@ -1302,9 +1302,7 @@ brelse(struct buf * bp)
 		off_t foff;
 		vm_pindex_t poff;
 		vm_object_t obj;
-		struct vnode *vp;
 
-		vp = bp->b_vp;
 		obj = bp->b_object;
 
 		/*
