@@ -245,17 +245,20 @@ fetch(char *URL, const char *path)
 {
 	struct url *url;
 	struct url_stat us;
-	struct stat sb;
+	struct stat sb, nsb;
 	struct xferstat xs;
 	FILE *f, *of;
 	size_t size, wr;
 	off_t count;
 	char flags[8];
+	const char *slash;
+	char *tmppath;
 	int r;
 	u_int timeout;
 	u_char *ptr;
 
 	f = of = NULL;
+	tmppath = NULL;
 
 	/* parse URL */
 	if ((url = fetchParseURL(URL)) == NULL) {
@@ -336,12 +339,13 @@ fetch(char *URL, const char *path)
 	 * file was a truncated copy of the remote file; we can drop
 	 * the connection later if we change our minds.
 	 */
-	if ((r_flag  || m_flag) && !o_stdout && stat(path, &sb) != -1) {
-		if (r_flag)
-			url->offset = sb.st_size;
-	} else {
-		sb.st_size = -1;
+	sb.st_size = -1;
+	if (!o_stdout && stat(path, &sb) == -1 && errno != ENOENT) {
+		warnx("%s: stat()", path);
+		goto failure;
 	}
+	if (!o_stdout && r_flag && S_ISREG(sb.st_mode))
+		url->offset = sb.st_size;
 
 	/* start the transfer */
 	if ((f = fetchXGet(url, &us, flags)) == NULL) {
@@ -387,7 +391,7 @@ fetch(char *URL, const char *path)
 	if (o_stdout) {
 		/* output to stdout */
 		of = stdout;
-	} else if (sb.st_size != -1) {
+	} else if (r_flag && sb.st_size != -1) {
 		/* resume mode, local file exists */
 		if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
 			/* no match! have to refetch */
@@ -398,13 +402,6 @@ fetch(char *URL, const char *path)
 				    "does not match remote", path);
 				goto failure_keep;
 			}
-			url->offset = 0;
-			if ((f = fetchXGet(url, &us, flags)) == NULL) {
-				warnx("%s: %s", path, fetchLastErrString);
-				goto failure;
-			}
-			if (sigint)
-				goto signal;
 		} else {
 			if (us.size == sb.st_size)
 				/* nothing to do */
@@ -416,34 +413,73 @@ fetch(char *URL, const char *path)
 				    (long long)sb.st_size, (long long)us.size);
 				goto failure;
 			}
-			/* we got it, open local file and seek to offset */
-			/*
-			 * XXX there's a race condition here - the
-			 * file we open is not necessarily the same as
-			 * the one we stat()'ed earlier...
-			 */
+			/* we got it, open local file */
 			if ((of = fopen(path, "a")) == NULL) {
 				warn("%s: fopen()", path);
 				goto failure;
 			}
-			if (fseek(of, url->offset, SEEK_SET) == -1) {
-				warn("%s: fseek()", path);
+			/* check that it didn't move under our feet */
+			if (fstat(fileno(of), &nsb) == -1) {
+				/* can't happen! */
+				warn("%s: fstat()", path);
 				goto failure;
 			}
+			if (nsb.st_dev != sb.st_dev ||
+			    nsb.st_ino != nsb.st_ino ||
+			    nsb.st_size != sb.st_size) {
+				warnx("%s: file has changed", path);
+				fclose(of);
+				of = NULL;
+				sb = nsb;
+			}
 		}
-	}
-	if (m_flag && sb.st_size != -1) {
+	} else if (m_flag && sb.st_size != -1) {
 		/* mirror mode, local file exists */
 		if (sb.st_size == us.size && sb.st_mtime == us.mtime)
 			goto success;
 	}
-	if (!of) {
+	
+	if (of == NULL) {
 		/*
 		 * We don't yet have an output file; either this is a
 		 * vanilla run with no special flags, or the local and
 		 * remote files didn't match.
 		 */
-		if ((of = fopen(path, "w")) == NULL) {
+		
+		if (url->offset != 0) {
+			/*
+			 * We tried to restart a transfer, but for
+			 * some reason gave up - so we have to restart
+			 * from scratch if we want the whole file
+			 */
+			url->offset = 0;
+			if ((f = fetchXGet(url, &us, flags)) == NULL) {
+				warnx("%s: %s", path, fetchLastErrString);
+				goto failure;
+			}
+			if (sigint)
+				goto signal;
+		}
+
+		/* construct a temp file name */
+		if (sb.st_size != -1 && S_ISREG(sb.st_mode)) {
+			if ((slash = strrchr(path, '/')) == NULL)
+				slash = path;
+			else
+				++slash;
+			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
+			    slash - path, path, slash);
+		}
+		
+		if (tmppath != NULL) {
+			mkstemps(tmppath, strlen(slash) + 1);
+			warnx("tmppath: %s", tmppath);
+			of = fopen(tmppath, "w");
+		} else {
+			of = fopen(path, "w");
+		}
+		
+		if (of == NULL) {
 			warn("%s: open()", path);
 			goto failure;
 		}
@@ -545,11 +581,17 @@ fetch(char *URL, const char *path)
 
  success:
 	r = 0;
+	if (tmppath != NULL && rename(tmppath, path) == -1) {
+		warn("%s: rename()", path);
+		goto failure_keep;
+	}
 	goto done;
  failure:
 	if (of && of != stdout && !R_flag && !r_flag)
 		if (stat(path, &sb) != -1 && (sb.st_mode & S_IFREG))
-			unlink(path);
+			unlink(tmppath ? tmppath : path);
+	if (R_flag && tmppath != NULL && sb.st_size == -1)
+		rename(tmppath, path); /* ignore errors here */
  failure_keep:
 	r = -1;
 	goto done;
@@ -560,6 +602,8 @@ fetch(char *URL, const char *path)
 		fclose(of);
 	if (url)
 		fetchFreeURL(url);
+	if (tmppath != NULL)
+		free(tmppath);
 	return r;
 }
 
