@@ -13,12 +13,9 @@
 
 name="named"
 rcvar=`set_rcvar`
-command="/usr/sbin/${name}"
 start_precmd="named_precmd"
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
-nuser=bind
-ngroup=bind
 
 # If running in a chroot cage, ensure that the appropriate files
 # exist inside the cage, as well as helper symlinks into the cage
@@ -64,28 +61,16 @@ make_symlinks()
 {
 	ln -fs "${named_chrootdir}${named_pidfile}" ${named_pidfile}
 	ln -fs "${named_chrootdir}/var/run/ndc" /var/run/ndc
-
 }
 
 named_precmd()
 {
-	! checkyesno named_rcng && return 0
 	# Is the user using a sandbox?
-	if [ -z "$named_chrootdir" ]; then
-		rc_flags="-u $nuser -g $ngroup $rc_flags"
-		return 0
+	if [ -n "$named_chrootdir" ]; then
+		rc_flags="$rc_flags -t $named_chrootdir"
+		checkyesno named_chroot_autoupdate && chroot_autoupdate
+		checkyesno named_symlink_enable && make_symlinks
 	fi
-
-	# Do the following checks only if the user wants them done
-	checkyesno named_chroot_autoupdate && chroot_autoupdate
-
-	# Make the symlinks only if the user wants them done.
-	checkyesno named_symlink_enable && make_symlinks
-
-	#       Change run_rc_commands()'s internal copy of $named_flags
-	#
-	! checkyesno named_rcng && return
-	rc_flags="-u $nuser -g $ngroup -t ${named_chrootdir} $rc_flags"
 }
 
 load_rc_config $name
