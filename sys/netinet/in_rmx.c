@@ -88,11 +88,7 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-#if 0
 #define RTQ_REALLYOLD	4*60*60	/* four hours is ``really old'' */
-#else
-#define RTQ_REALLYOLD	120	/* for testing, make these fire faster */
-#endif
 int rtq_reallyold = RTQ_REALLYOLD;
 
 /*
@@ -167,21 +163,15 @@ in_rtqtimo(void *rock)
 {
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
-	static int level;
 	struct timeval atv;
 
-	level++;
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time.tv_sec + 10*rtq_timeout;
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-	printf("in_rtqtimo: found %d, killed %d, level %d\n", arg.found,
-	       arg.killed, level);
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop;
-	printf("next timeout in %d seconds\n", arg.nextstop - time.tv_sec);
 	timeout(in_rtqtimo, rock, hzto(&atv));
-	level--;
 }
 
 void
@@ -200,6 +190,9 @@ in_inithead(void **head, int off)
 
 	if(!rn_inithead(head, off))
 		return 0;
+
+	if(head != (void **)&rt_tables[AF_INET]) /* BOGUS! */
+		return 1;	/* only do this for the real routing table */
 
 	rnh = *head;
 	rnh->rnh_addaddr = in_addroute;
