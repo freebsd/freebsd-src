@@ -94,9 +94,9 @@ __FBSDID("$FreeBSD$");
  * connected by ts_link entries is a per-thread list of all the turnstiles
  * attached to locks that we own.  This is used to fixup our priority when
  * a lock is released.  The other two lists use the ts_hash entries.  The
- * first of these two is turnstile chain list that a turnstile is on when
- * it is attached to a lock.  The second list to use ts_hash is the free
- * list hung off a turnstile that is attached to a lock.
+ * first of these two is the turnstile chain list that a turnstile is on
+ * when it is attached to a lock.  The second list to use ts_hash is the
+ * free list hung off of a turnstile that is attached to a lock.
  *
  * Each turnstile contains two lists of threads.  The ts_blocked list is
  * a linked list of threads blocked on the turnstile's lock.  The
