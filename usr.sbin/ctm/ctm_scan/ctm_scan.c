@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_scan.c,v 1.10 1995/03/24 21:36:32 phk Exp $
+ * $Id: ctm_scan.c,v 1.11 1995/05/30 03:47:31 rgrimes Exp $
  *
  */
 #include <stdio.h>
@@ -40,7 +40,7 @@ Do(char *path)
     int bufp;
     MD5_CTX ctx;
     int fd,i,j,k,l,npde,nde=0;
-    char **pde;
+    char **pde, md5[33];
 
     npde = 1;
     pde = malloc(sizeof *pde * (npde+1));
@@ -121,7 +121,7 @@ Do(char *path)
 			j=2;
 		    i = printf("f %s %o %lu %lu %u %lu %s\n",
 			buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid,
-			j,(u_long)st.st_size,MD5End(&ctx));
+			j,(u_long)st.st_size,MD5End(&ctx,md5));
 		    if(!i) exit(-1);
 		}
 		break;
