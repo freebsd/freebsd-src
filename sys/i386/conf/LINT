@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.51 1994/02/01 10:46:43 ache Exp $
+#	$Id: LINT,v 1.52 1994/02/07 05:55:48 alm Exp $
 #
 
 machine		"i386"
@@ -137,10 +137,14 @@ device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
 #special cased above:
 #controller	isa0
+# interruptless parallel printer port driver
 device		lpa0	at isa? port "IO_LPT1" tty
 device		lpa1	at isa? port "IO_LPT2" tty
+# interrupt driven parallel printer port driver
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
-device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
+# Driver for Mutsumi CD-ROM players
+device		mcd0	at isa? port 0x300 bio irq 10 vector mcdint
+# Driver for Logitech and ATI inport bus mice
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
