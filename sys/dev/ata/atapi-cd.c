@@ -500,8 +500,6 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
     if (!(cdp = dev->si_drv1))
 	return ENXIO;
 
-    acd_eject(cdp, 1);
-
     if (flags & FWRITE) {
 	if (count_dev(dev) > 1)
 	    return EBUSY;
@@ -1163,9 +1161,17 @@ acd_start(struct atapi_softc *atp)
 		return;
 	    }
 	}
-	if (blocksize == 2048)
+	switch (blocksize) {
+	case 2048:
 	    ccb[0] = ATAPI_READ_BIG;
-	else {
+	    break;
+
+	case 2352:
+	    ccb[0] = ATAPI_READ_CD;
+	    ccb[9] = 0xf8;
+	    break;
+
+	default:
 	    ccb[0] = ATAPI_READ_CD;
 	    ccb[9] = 0x10;
 	}
