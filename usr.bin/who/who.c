@@ -132,7 +132,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 usage(void)
 {
 
@@ -140,7 +140,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 heading(void)
 {
 
@@ -155,7 +155,7 @@ heading(void)
 	putchar('\n');
 }
 
-void
+static void
 row(struct utmp *ut)
 {
 	char buf[80], tty[sizeof(_PATH_DEV) + UT_LINESIZE];
@@ -201,7 +201,7 @@ row(struct utmp *ut)
 	putchar('\n');
 }
 
-void
+static void
 process_utmp(FILE *fp)
 {
 	struct utmp ut;
@@ -211,7 +211,7 @@ process_utmp(FILE *fp)
 			row(&ut);
 }
 
-void
+static void
 quick(FILE *fp)
 {
 	struct utmp ut;
@@ -237,7 +237,7 @@ quick(FILE *fp)
 	printf("# users = %d\n", num);
 }
 
-void
+static void
 whoami(FILE *fp)
 {
 	struct utmp ut;
@@ -269,7 +269,7 @@ whoami(FILE *fp)
 	row(&ut);
 }
 
-int
+static int
 ttywidth(void)
 {
 	struct winsize ws;
