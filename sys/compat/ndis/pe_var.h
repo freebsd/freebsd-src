@@ -418,8 +418,20 @@ typedef struct image_patch_table image_patch_table;
 
 #ifdef __amd64__
 #define	__stdcall
+#define __regcall
+#define __fastcall
+#define REGARGS1(decl1)		decl1
+#define REGARGS2(decl1, decl2)	decl1, decl2
+#define REGCALL1(arg1)		arg1
+#define REGCALL2(arg1, arg2)	arg1, arg2
 #else
 #define	__stdcall __attribute__((__stdcall__))
+#define __regcall __attribute__((__regparm__(3)))
+#define __fastcall __stdcall __regcall
+#define REGARGS1(decl1)		int dummy1, int dummy2, decl1
+#define REGARGS2(decl1, decl2)	int dummy1, decl2, decl1
+#define REGCALL1(arg1)		0, 0, arg1
+#define REGCALL2(arg1, arg2)	0, arg2, arg1
 #endif
 
 
@@ -430,37 +442,34 @@ typedef struct image_patch_table image_patch_table;
  */
 
 #ifdef __i386__
-typedef __stdcall int (*fcall)(void);
-typedef __stdcall int (*fcall2)(int);
+typedef __fastcall int (*fcall1)(REGARGS1(uint32_t));
+typedef __fastcall int (*fcall2)(REGARGS2(uint32_t, uint32_t));
+typedef __fastcall int (*fcall3)(REGARGS2(uint32_t, uint32_t), uint32_t);
+
 static __inline uint32_t 
-fastcall1(fcall f, uint32_t a)
+fastcall1(fcall1 f, uint32_t a)
 {
-	__asm__ __volatile__ ("movl %0,%%ecx" : : "r" (a));
-	return(f());
+	return(f(REGCALL1(a)));
 }
 
 static __inline uint32_t 
-fastcall2(fcall f, uint32_t a, uint32_t b)
+fastcall2(fcall2 f, uint32_t a, uint32_t b)
 {
-	__asm__ __volatile__ ("movl %0,%%ecx" : : "r" (a));
-	__asm__ __volatile__ ("movl %0,%%edx" : : "r" (b));
-	return(f());
+	return(f(REGCALL2(a, b)));
 }
 
 static __inline uint32_t 
-fastcall3(fcall2 f, uint32_t a, uint32_t b, uint32_t c)
+fastcall3(fcall3 f, uint32_t a, uint32_t b, uint32_t c)
 {
-	__asm__ __volatile__ ("movl %0,%%ecx" : : "r" (a));
-	__asm__ __volatile__ ("movl %0,%%edx" : : "r" (b));
-	return(f(c));
+	return(f(REGCALL2(a, b), c));
 }
 
 #define FASTCALL1(f, a)		\
-	fastcall1((fcall)(f), (uint32_t)(a))
+	fastcall1((fcall1)(f), (uint32_t)(a))
 #define FASTCALL2(f, a, b)	\
-	fastcall2((fcall)(f), (uint32_t)(a), (uint32_t)(b))
+	fastcall2((fcall2)(f), (uint32_t)(a), (uint32_t)(b))
 #define FASTCALL3(f, a, b, c)	\
-	fastcall3((fcall2)(f), (uint32_t)(a), (uint32_t)(b), (uint32_t)(c))
+	fastcall3((fcall3)(f), (uint32_t)(a), (uint32_t)(b), (uint32_t)(c))
 #else
 #define FASTCALL1(f, a) (f)((a))
 #define FASTCALL2(f, a, b) (f)((a), (b))
