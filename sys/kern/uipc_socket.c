@@ -1563,6 +1563,8 @@ filt_soread(struct knote *kn, long hint)
 		kn->kn_flags |= EV_EOF; 
 		return (1);
 	}
+	if (so->so_error)	/* temporary udp error */
+		return (1);
 	return (kn->kn_data >= so->so_rcv.sb_lowat);
 }
 
@@ -1601,6 +1603,8 @@ filt_sowrite(struct knote *kn, long hint)
 		kn->kn_flags |= EV_EOF; 
 		return (1);
 	}
+	if (so->so_error)	/* temporary udp error */
+		return (1);
 	if (((so->so_state & SS_ISCONNECTED) == 0) &&
 	    (so->so_proto->pr_flags & PR_CONNREQUIRED))
 		return (0);
