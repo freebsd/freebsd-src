@@ -28,30 +28,30 @@
 .\"
 .Dd August 30, 2001
 .Dt DAEMON 8
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm daemon
 .Nd run detached from the controlling terminal
 .Sh SYNOPSIS
-.Nm daemon
+.Nm
 .Op Fl cf
-.Ar "command arguments ..."
+.Ar command arguments ...
 .Sh DESCRIPTION
-.Pp
 The
 .Nm
-utility detaches itself from the controlling terminal and 
+utility detaches itself from the controlling terminal and
 executes the program specified by its arguments.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl c
-Change the current working directory to the root (``/'').
+Change the current working directory to the root
+.Pq Dq Pa / .
 .It Fl f
 Redirect standard input, standard output and standard error to
 .Pa /dev/null .
 .El
-.Sh DIAGNOSTICS 
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits 1 if an error is returned by the
