@@ -1,16 +1,15 @@
 --------------------------------------------------------------------------------
 
-                     ISDN cards supported by isdn4bsd
-                     ================================
+                 ISDN cards supported by isdn4bsd in FreeBSD
+                 ===========================================
 
-                 last edit-date: [Fri May 25 14:08:36 2001]
+                 last edit-date: [Sat Jun  2 14:03:57 2001]
 
  $FreeBSD$
 
 --------------------------------------------------------------------------------
 
   YES - card is generally supported for this OS
-  X.X - card is supported only for version X.X for this OS
   NO  - card is NOT supported for this OS
   EXP - card is in an experimental status for this OS
   DEV - card driver is under development
@@ -20,87 +19,89 @@
 1. Passive non-PnP ISA bus ISDN cards 
 =====================================
 
-  Type			FreeBSD	NetBSD	OpenBSD	BSD/OS	Notes
-  --------------------- -------	------	-------	------	-----------------------
-  AVM A1		YES	YES	???	???		
-  AVM Fritz!CardClassic YES	YES	???	???
-  Creatix ISDN-S0/8	YES	YES	???	???	( = Teles S0/8 )
-  Creatix ISDN-S0/16	YES	YES	???	???	( = Teles S0/16 )
-  Dr.Neuhaus Niccy 1008	YES	YES	???	???	( = Teles S0/8 )
-  Dr.Neuhaus Niccy 1016	YES	YES	???	???	( = Teles S0/16 )
-  ELSA PCC-16		YES	???	???	???
-  ELSA PCFpro		4.x	???	???	???
-  ITK ix1 micro		YES	YES	???	???	(Note 13)
-  Stollmann Tina-pp	YES	YES	???	???
-  Teles S0/8		YES	YES	???	???
-  Teles S0/16		YES	YES	???	???
-  Teles S0/16.3		YES	YES	YES	YES
-  3Com/USR SportsterInt	YES	YES	???	???	( = Stollmann Tina-pp )
-  TELEINT ISDN SPEED	4.x	NO	NO	NO	(Note 4)
+  Type			FreeBSD	Notes
+  --------------------- -------	-----------------------
+  AVM A1		YES	
+  AVM Fritz!CardClassic YES	
+  Creatix ISDN-S0/8	YES	(= Teles S0/8 )
+  Creatix ISDN-S0/16	YES	( = Teles S0/16 )
+  Dr.Neuhaus Niccy 1008	YES	( = Teles S0/8 )
+  Dr.Neuhaus Niccy 1016	YES	( = Teles S0/16 )
+  ELSA PCC-16		YES	
+  ELSA PCFpro		YES
+  ITK ix1 micro		YES	(Note 13)
+  Stollmann Tina-pp	YES	
+  Teles S0/8		YES	
+  Teles S0/16		YES	
+  Teles S0/16.3		YES	
+  3Com/USR SportsterInt	YES	( = Stollmann Tina-pp )
+  TELEINT ISDN SPEED	EXP	(Note 4)
 
 
 2. Passive PnP ISA bus ISDN cards 
 =================================
 
-  Type 			FreeBSD NetBSD OpenBSD BSD/OS	Notes
-  --------------------- -------	------ ------- ------	-----------------------
-  AVM Fritz!Card PnP	YES	NO	NO	NO	(Note 1)
-  Asuscom I-IN100-ST-DV ???	???	???	???	( = Dynalink IS64PH )
-  Asuscom ISDNlink 128K YES	???	???	???	(Note 16)
-  Creatix ISDN-S0 PnP	YES	YES	???	???	(Note 2)
-  Dr.Neuhaus Niccy GO@	YES	YES	???	???	(Note 2)
-  Dynalink IS64PH	YES	???	???	YES	(Note 11)
-  ELSA 1000pro ISA	YES	YES	???	???	(Note 3)
-  ITK ix1 micro V.3	3.x	???	???	???	(Note 13)
-  Sagem Cybermod	YES	YES	???	???	( = Niccy GO@ )
-  Sedlbauer Win Speed	YES	YES	???	???	(Note 9)
-  Siemens I-Surf 2.0	YES	NO	NO	NO	(Note 15)
-  Teles S0 PnP		4.x	???	???	???	(Note 5)
-  Teles 16.3c		4.x	NO	NO	NO	(Note 4)
-  AcerISDN P10		4.x	NO	NO	NO	(Note 4)
+  Type 			FreeBSD Notes
+  --------------------- -------	-----------------------
+  AVM Fritz!Card PnP	YES	(Note 1)
+  Asuscom I-IN100-ST-DV ???	( = Dynalink IS64PH )
+  Asuscom ISDNlink 128K YES	(Note 16)
+  Creatix ISDN-S0 PnP	YES	(Note 2)
+  Dr.Neuhaus Niccy GO@	YES	(Note 2)
+  Dynalink IS64PH	YES	(Note 11)
+  ELSA 1000pro ISA	YES	(Note 3)
+  ITK ix1 micro V.3	YES	(Note 13)
+  Sagem Cybermod	YES	(= Niccy GO@ )
+  Sedlbauer Win Speed	YES	(Note 9)
+  Siemens I-Surf 2.0	YES	(Note 15)
+  Teles S0 PnP		YES	(Note 5)
+  Teles 16.3c		EXP	(Note 4)
+  AcerISDN P10		EXP	(Note 4)
 
 3. Passive PCI bus ISDN cards 
 =============================
 
-  Type			FreeBSD NetBSD OpenBSD BSD/OS	Notes
-  --------------------- -------	------ ------- ------	-----------------------
-  ELSA 1000pro PCI	YES	YES	???	???	( = ELSA Microlink PCI )
-  AVM Fritz!Card PCI	YES	YES	???	???	(Note 14)
-  Dynalink IS64PPH	4.0	NO	NO	NO
-  ASUSCOM P-IN100-ST-D 	4.0	NO	NO	NO
-  Winbond W6692-based	4.0	NO	NO	NO
+  Type			FreeBSD Notes
+  --------------------- -------	-----------------------
+  ASUSCOM P-IN100-ST-D 	YES	
+  AVM Fritz!Card PCI	YES	(Note 14)
+  Dynalink IS64PPH	YES	
+  ELSA 1000pro PCI	YES	( = ELSA Microlink PCI )
+  Teles PCI-TJ 		YES	
+  NETJet-S		YES	
+  Winbond W6692-based	YES	
  
 
 4. Passive PCMCIA bus ISDN cards 
 ================================
 
-  Type			FreeBSD NetBSD OpenBSD BSD/OS	Notes
-  --------------------- -------	------ ------- ------	-----------------------
-  AVM Fritz!Card PCMCIA	3.x	YES	???	???	(Note 10)
-  ELSA ISDN/MC		NO	YES	???	???
-  ELSA MC/ALL		NO	DEV	???	???
+  Type			FreeBSD Notes
+  --------------------- -------	-----------------------
+  AVM Fritz!Card PCMCIA	NO	(Note 10)
+  ELSA ISDN/MC		NO
+  ELSA MC/ALL		NO
 
 
 5. Passive Zorro2 ISDN cards for the Amiga
 ==========================================
 
-  Type			FreeBSD NetBSD OpenBSD BSD/OS	Notes
-  --------------------- -------	------ ------- ------	-----------------------
-  ISDN Blaster		NO	YES	???	NO	(Note 12, Amiga/NetBSD)
-  ISDN Master		NO	YES	???	NO	(Note 12, Amiga/NetBSD)
-  ISDN Master II	NO	YES	???	NO	(Note 12, Amiga/NetBSD)
+  Type			FreeBSD Notes
+  --------------------- -------	-----------------------
+  ISDN Blaster		NO	(Note 12, Amiga/NetBSD)
+  ISDN Master		NO	(Note 12, Amiga/NetBSD)
+  ISDN Master II	NO	(Note 12, Amiga/NetBSD)
 
 
 6. Active ISDN cards
 ====================
 
-  Type (active, ISA)	FreeBSD NetBSD OpenBSD BSD/OS	Notes
-  --------------------- -------	------ ------- ------	-----------------------
-  AVM B1		YES	NO	NO	NO	(Note 17)
-  AVM T1		YES	NO	NO	NO	(Note 18)
-  DiehlS,SX,SCOM,QUATRO	NO	DEV	NO	NO	(Note 7)
-  Miro P1		DEV	NO	NO	NO	( = Tina-dd )
-  Stollmann Tina-dd	DEV	NO	NO	NO	(Note 8)
+  Type (active, ISA)	FreeBSD Notes
+  --------------------- -------	-----------------------
+  AVM B1		YES	(Note 17)
+  AVM T1		YES	(Note 18)
+  DiehlS,SX,SCOM,QUATRO	NO	(Note 7)
+  Miro P1		DEV	( = Tina-dd )
+  Stollmann Tina-dd	DEV	(Note 8)
 
 
 7. Notes
