@@ -90,9 +90,6 @@ static struct cdevsw nsmb_cdevsw = {
 	.d_ioctl =	nsmb_dev_ioctl,
 	.d_name =	NSMB_NAME,
 	.d_maj =	NSMB_MAJOR,
-#ifndef FB_CURRENT
-	/* bmaj */	-1
-#endif
 };
 
 static eventhandler_tag nsmb_dev_tag;
