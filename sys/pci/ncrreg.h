@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.1 1994/10/12 02:21:56 se Exp $
+**  $Id: ncrreg.h,v 1.2 1995/02/02 13:12:16 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -9,7 +9,7 @@
 **-------------------------------------------------------------------------
 **
 **  Written for 386bsd and FreeBSD by
-**	wolf@dentaro.gun.de	Wolfgang Stanglmeier
+**	wolf@cologne.de		Wolfgang Stanglmeier
 **	se@mi.Uni-Koeln.de	Stefan Esser
 **
 **  Ported to NetBSD by
@@ -47,7 +47,6 @@
 #ifndef __NCR_REG_H__
 #define __NCR_REG_H__
 
-
 /*-----------------------------------------------------------------
 **
 **	The ncr 53c810 register structure.
@@ -96,7 +95,7 @@ struct ncr_reg {
 /*0a*/  u_char    nc_ssid;
 
 /*0b*/  u_char    nc_sbcl;
-
+
 /*0c*/  u_char    nc_dstat;
         #define   DFE     0x80  /* sta: dma fifo empty              */
         #define   MDPE    0x40  /* int: master data parity error    */
@@ -151,7 +150,7 @@ struct ncr_reg {
 	#define   CLF	  0x04	/* clear scsi fifo		    */
 
 /*1c*/  u_long    nc_temp;	/* ### Temporary stack              */
-
+
 /*20*/	u_char	  nc_dfifo;
 /*21*/  u_char    nc_ctest4;
 /*22*/  u_char    nc_ctest5;
@@ -207,7 +206,7 @@ struct ncr_reg {
 /*4f*/  u_char    nc_stest3;
 	#define   TE     0x80	/* c: tolerAnt enable */
 	#define   CSF    0x02	/* c: clear scsi fifo */
-
+
 /*50*/  u_short   nc_sidl;	/* Lowlevel: latched from scsi data */
 /*52*/  u_short   nc_52_;
 /*54*/  u_short   nc_sodl;	/* Lowlevel: data out to scsi data  */
@@ -220,7 +219,7 @@ struct ncr_reg {
 /*5f*/  u_char    nc_scr3;	/*                                  */
 /*60*/
 };
-
+
 /*-----------------------------------------------------------
 **
 **	Utility macros for the script.
@@ -279,7 +278,7 @@ struct scr_tblmove {
         u_long  size;
         u_long  addr;
 };
-
+
 /*-----------------------------------------------------------
 **
 **	Selection
@@ -327,7 +326,7 @@ struct scr_tblsel {
 
 #define	SCR_WAIT_DISC	0x48000000
 #define SCR_WAIT_RESEL  0x50000000
-
+
 /*-----------------------------------------------------------
 **
 **	Bit Set / Reset
@@ -366,7 +365,7 @@ struct scr_tblsel {
 */
 
 #define SCR_COPY(n) (0xc0000000 | (n))
-
+
 /*-----------------------------------------------------------
 **
 **	Register move and binary operations
@@ -405,7 +404,7 @@ struct scr_tblsel {
 #define      SCR_SHR    0x05000000
 #define      SCR_ADD    0x06000000
 #define      SCR_ADDC   0x07000000
-
+
 /*-----------------------------------------------------------
 **
 **	FROM_REG (reg)		  reg  = SFBR
@@ -434,7 +433,7 @@ struct scr_tblsel {
 
 #define SCR_LOAD_SFBR(data) \
         (SCR_REG_SFBR (gpreg, SCR_LOAD, data))
-
+
 /*-----------------------------------------------------------
 **
 **	Waiting for Disconnect or Reselect
@@ -489,7 +488,7 @@ struct scr_tblsel {
 #define MASK(D,M)      (0x00040000 | (((M ^ 0xff) & 0xff) << 8ul)|((D) & 0xff))
 
 #define CARRYSET       (0x00200000)
-
+
 /*-----------------------------------------------------------
 **
 **	SCSI  constants.
