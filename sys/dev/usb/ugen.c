@@ -209,8 +209,12 @@ ugen_set_config(sc, configno)
 	 * control endpoint is open or not. It is always present.
 	 */
 	for (endptno = 1; endptno < USB_MAX_ENDPOINTS; endptno++)
-		if (sc->sc_is_open[endptno])
+		if (sc->sc_is_open[endptno]) {
+			DPRINTFN(1,
+			     ("ugen_set_config: %s - endpoint %d is open\n",
+			      USBDEVNAME(sc->sc_dev), endptno));
 			return (USBD_IN_USE);
+		}
 
 	if (usbd_get_config_descriptor(dev)->bConfigurationValue != configno) {
 		/* Avoid setting the current value. */
@@ -957,10 +961,14 @@ ugen_do_ioctl(sc, endpt, cmd, addr, flag, p)
 		if (!(flag & FWRITE))
 			return (EPERM);
 		err = ugen_set_config(sc, *(int *)addr);
-		if (err == USBD_IN_USE)
-			return(EBUSY);
-		else
+		switch (err) {
+		case USBD_NORMAL_COMPLETION:
+			break;
+		case USBD_IN_USE:
+			return (EBUSY);
+		default:
 			return (EIO);
+		}
 		break;
 	case USB_GET_ALTINTERFACE:
 		ai = (struct usb_alt_interface *)addr;
