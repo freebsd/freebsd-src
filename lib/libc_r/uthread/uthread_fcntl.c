@@ -31,6 +31,7 @@
  *
  */
 #include <stdarg.h>
+#include <unistd.h>
 #include <fcntl.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>

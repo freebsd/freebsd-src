@@ -59,6 +59,129 @@
 #define PANIC(string)   _thread_exit(__FILE__,__LINE__,string)
 
 /*
+ * Queue definitions.
+ */
+struct pthread_queue {
+	struct pthread	*q_next;
+	struct pthread	*q_last;
+	void		*q_data;
+};
+
+/*
+ * Static queue initialization values. 
+ */
+#define PTHREAD_QUEUE_INITIALIZER { NULL, NULL, NULL }
+
+/* 
+ * Mutex definitions.
+ */
+enum pthread_mutextype {
+	MUTEX_TYPE_FAST		= 1,
+	MUTEX_TYPE_COUNTING_FAST	= 2,	/* Recursive */
+	MUTEX_TYPE_MAX
+};
+
+union pthread_mutex_data {
+	void	*m_ptr;
+	int	m_count;
+};
+
+struct pthread_mutex {
+	enum pthread_mutextype		m_type;
+	struct pthread_queue		m_queue;
+	struct pthread			*m_owner;
+	union pthread_mutex_data	m_data;
+	long				m_flags;
+};
+
+/*
+ * Flags for mutexes. 
+ */
+#define MUTEX_FLAGS_PRIVATE	0x01
+#define MUTEX_FLAGS_INITED	0x02
+#define MUTEX_FLAGS_BUSY	0x04
+
+/*
+ * Static mutex initialization values. 
+ */
+#define PTHREAD_MUTEX_INITIALIZER   \
+	{ MUTEX_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, \
+	NULL, { NULL }, MUTEX_FLAGS_INITED }
+
+struct pthread_mutex_attr {
+	enum pthread_mutextype	m_type;
+	long			m_flags;
+};
+
+/* 
+ * Condition variable definitions.
+ */
+enum pthread_cond_type {
+	COND_TYPE_FAST,
+	COND_TYPE_MAX
+};
+
+struct pthread_cond {
+	enum pthread_cond_type	c_type;
+	struct pthread_queue	c_queue;
+	void			*c_data;
+	long			c_flags;
+};
+
+struct pthread_cond_attr {
+	enum pthread_cond_type	c_type;
+	long			c_flags;
+};
+
+/*
+ * Flags for condition variables.
+ */
+#define COND_FLAGS_PRIVATE	0x01
+#define COND_FLAGS_INITED	0x02
+#define COND_FLAGS_BUSY		0x04
+
+/*
+ * Static cond initialization values. 
+ */
+#define PTHREAD_COND_INITIALIZER    \
+	{ COND_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, NULL, COND_FLAGS_INITED }
+
+/*
+ * Cleanup definitions.
+ */
+struct pthread_cleanup {
+	struct pthread_cleanup	*next;
+	void			(*routine) ();
+	void			*routine_arg;
+};
+
+/*
+ * Scheduling definitions.
+ */
+enum schedparam_policy {
+	SCHED_RR,
+	SCHED_IO,
+	SCHED_FIFO,
+	SCHED_OTHER
+};
+
+struct pthread_attr {
+	enum schedparam_policy	schedparam_policy;
+	int			prio;
+	int			suspend;
+	int			flags;
+	void			*arg_attr;
+	void			(*cleanup_attr) ();
+	void			*stackaddr_attr;
+	size_t			stacksize_attr;
+};
+
+struct sched_param {
+	int	prio;
+	void	*no_data;
+};
+
+/*
  * Thread creation state attributes.
  */
 #define PTHREAD_CREATE_RUNNING			0
@@ -67,14 +190,11 @@
 /*
  * Miscellaneous definitions.
  */
-#define PTHREAD_STACK_MIN			1024
 #define PTHREAD_STACK_DEFAULT			65536
-#define PTHREAD_DATAKEYS_MAX			256
 #define PTHREAD_DEFAULT_PRIORITY		64
 #define PTHREAD_MAX_PRIORITY			126
 #define PTHREAD_MIN_PRIORITY			0
 #define _POSIX_THREAD_ATTR_STACKSIZE
-#define _POSIX_THREAD_DESTRUTOR_ITERATIONS	4
 
 /*
  * Clock resolution in nanoseconds.
@@ -190,10 +310,10 @@ struct pthread {
 	 * Thread start routine, argument, stack pointer and thread
 	 * attributes.
 	 */
-	void		*(*start_routine)(void *);
-	void		*arg;
-	void		*stack;
-	pthread_attr_t	attr;
+	void			*(*start_routine)(void *);
+	void			*arg;
+	void			*stack;
+	struct pthread_attr	attr;
 
 	/*
 	 * Thread-specific signal handler interface:
@@ -319,6 +439,17 @@ SCLASS struct pthread   *_thread_run
 ;
 #endif
 
+/*
+ * Ptr to the thread running in single-threaded mode or NULL if
+ * running multi-threaded (default POSIX behaviour).
+ */
+SCLASS struct pthread   *_thread_single
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= NULL;
+#else
+;
+#endif
+
 /* Ptr to the first thread in the thread linked list: */
 SCLASS struct pthread   *_thread_link_list
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -372,7 +503,7 @@ SCLASS struct pthread *_thread_initial
 #endif
 
 /* Default thread attributes: */
-SCLASS pthread_attr_t pthread_attr_default
+SCLASS struct pthread_attr pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = { SCHED_RR, PTHREAD_DEFAULT_PRIORITY, PTHREAD_CREATE_RUNNING,
 	PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL, PTHREAD_STACK_DEFAULT };
@@ -570,6 +701,7 @@ pid_t   _thread_sys_fork(void);
 pid_t   _thread_sys_tcgetpgrp(int);
 ssize_t _thread_sys_read(int, void *, size_t);
 ssize_t _thread_sys_write(int, const void *, size_t);
+void	_thread_sys__exit(int);
 #endif
 
 /* #include <fcntl.h> */

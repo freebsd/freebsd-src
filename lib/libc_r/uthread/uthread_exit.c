@@ -31,10 +31,48 @@
  *
  */
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+void _exit(int status)
+{
+	int		flags;
+	int             i;
+	struct itimerval itimer;
+
+	/* Disable the interval timer: */
+	itimer.it_interval.tv_sec  = 0;
+	itimer.it_interval.tv_usec = 0;
+	itimer.it_value.tv_sec     = 0;
+	itimer.it_value.tv_usec    = 0;
+	setitimer(ITIMER_VIRTUAL, &itimer, NULL);
+
+	/* Close the pthread kernel pipe: */
+	_thread_sys_close(_thread_kern_pipe[0]);
+	_thread_sys_close(_thread_kern_pipe[1]);
+
+	/*
+	 * Enter a loop to set all file descriptors to blocking
+	 * if they were not created as non-blocking:
+	 */
+	for (i = 0; i < _thread_dtablesize; i++) {
+		/* Check if this file descriptor is in use: */
+		if (_thread_fd_table[i] != NULL &&
+			!(_thread_fd_table[i]->flags & O_NONBLOCK)) {
+			/* Get the current flags: */
+			flags = _thread_sys_fcntl(i, F_GETFL, NULL);
+			/* Clear the nonblocking file descriptor flag: */
+			_thread_sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
+		}
+	}
+
+	/* Call the _exit syscall: */
+	_thread_sys__exit(status);
+}
 
 void
 _thread_exit(char *fname, int lineno, char *string)
