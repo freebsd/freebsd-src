@@ -336,7 +336,7 @@ nfssvc_nfsd(struct thread *td)
 					    break;
 				    }
 				}
-				if (slp == 0)
+				if (slp == NULL)
 					nfsd_head_flag &= ~NFSD_CHECKSLP;
 			}
 			if ((slp = nfsd->nfsd_slp) == NULL)
@@ -652,7 +652,8 @@ nfsrv_init(int terminating)
 		panic("nfsd init");
 	nfssvc_sockhead_flag |= SLP_INIT;
 	if (terminating) {
-		for (slp = TAILQ_FIRST(&nfssvc_sockhead); slp != 0; slp = nslp){
+		for (slp = TAILQ_FIRST(&nfssvc_sockhead); slp != NULL;
+		    slp = nslp) {
 			nslp = TAILQ_NEXT(slp, ns_chain);
 			if (slp->ns_flag & SLP_VALID)
 				nfsrv_zapsock(slp);

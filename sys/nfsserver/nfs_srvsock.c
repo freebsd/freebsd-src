@@ -434,7 +434,8 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 		 * to an nfsd so that there is feedback to the TCP layer that
 		 * the nfs servers are heavily loaded.
 		 */
-		if (STAILQ_FIRST(&slp->ns_rec) && waitflag == M_DONTWAIT) {
+		if (STAILQ_FIRST(&slp->ns_rec) != NULL &&
+		    waitflag == M_DONTWAIT) {
 			slp->ns_flag |= SLP_NEEDQ;
 			goto dorecs;
 		}
@@ -512,8 +513,8 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 	 */
 dorecs:
 	if (waitflag == M_DONTWAIT &&
-		(STAILQ_FIRST(&slp->ns_rec)
-		 || (slp->ns_flag & (SLP_NEEDQ | SLP_DISCONN))))
+		(STAILQ_FIRST(&slp->ns_rec) != NULL ||
+		 (slp->ns_flag & (SLP_NEEDQ | SLP_DISCONN))))
 		nfsrv_wakenfsd(slp);
 }
 
@@ -662,7 +663,8 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	int error;
 
 	*ndp = NULL;
-	if ((slp->ns_flag & SLP_VALID) == 0 || !STAILQ_FIRST(&slp->ns_rec))
+	if ((slp->ns_flag & SLP_VALID) == 0 ||
+	    STAILQ_FIRST(&slp->ns_rec) == NULL)
 		return (ENOBUFS);
 	rec = STAILQ_FIRST(&slp->ns_rec);
 	STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
