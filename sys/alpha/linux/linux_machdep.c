@@ -129,7 +129,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	struct proc *p2;
 	struct thread *td2;
 	int exit_signal;
-	vm_offset_t start;
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
@@ -158,10 +157,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (!(args->flags & CLONE_FILES))
 		ff |= RFFDG;
 
-	error = 0;
-	start = 0;
-
-	if ((error = fork1(td, ff, 0, &p2)) != 0)
+	error = fork1(td, ff, 0, &p2);
+	if (error)
 		return (error);
 
 	PROC_LOCK(p2);
@@ -181,7 +178,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
-	setrunqueue(FIRST_THREAD_IN_PROC(p2));
+	setrunqueue(td2);
 	mtx_unlock_spin(&sched_lock);
 
 	td->td_retval[0] = p2->p_pid;
