@@ -104,7 +104,7 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 CRUNCH_SRCDIRS+= sbin
 CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	camcontrol ccdconfig clri devfs dmesg dump			\
-	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
+	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde ifconfig init 				\
 	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
@@ -115,7 +115,7 @@ CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	slattach spppcontrol startslip swapon sysctl tunefs umount 
 
 .if !defined(NOATM)
-CRUNCH_PROGS_sbin+= atm atmconfig ilmid
+CRUNCH_PROGS_sbin+= atm atmconfig fore_dnld ilmid
 CRUNCH_LIBS+= -latm
 .endif
 
