@@ -69,6 +69,7 @@
 #define ID_81801AA			0x24138086
 #define ID_81801AB			0x24238086
 #define ID_82801BA			0x24438086
+#define ID_82801CA			0x24838086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -123,6 +124,9 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_82801BA:
 		device_set_desc(dev, "Intel 82801BA (ICH2) SMBus controller");
+		break;
+	case ID_82801CA:
+		device_set_desc(dev, "Intel 82801CA (ICH3) SMBus controller");
 		break;
 	default:
 		if (pci_get_class(dev) == PCIC_SERIALBUS
