@@ -33,8 +33,10 @@
 
 #include <ucontext.h>
 
-#define	THR_GETCONTEXT(ucp)	(void)_amd64_save_context(&(ucp)->uc_mcontext)
-#define	THR_SETCONTEXT(ucp)	(void)_amd64_restore_context(&(ucp)->uc_mcontext)
+#define	THR_GETCONTEXT(ucp)	\
+	(void)_amd64_save_context(&(ucp)->uc_mcontext)
+#define	THR_SETCONTEXT(ucp)	\
+	(void)_amd64_restore_context(&(ucp)->uc_mcontext, NULL, NULL)
 
 #define	THR_ALIGNBYTES	15
 #define	THR_ALIGN(td)	(((uintptr_t)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
