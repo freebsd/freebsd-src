@@ -179,33 +179,6 @@ sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
 		return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_kern_securelvl, "I", "Current secure level");
-
-int suser_permitted = 1;
- 
-static int
-sysctl_kern_suser_permitted SYSCTL_HANDLER_ARGS
-{
-	int error, flag;
-
-	flag = suser_permitted;
-
-	error = sysctl_handle_int(oidp, &flag, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	if (flag != 0 && flag != 1)
-		return(EPERM);
-	if (!suser_permitted)
-		return(EPERM);
-	suser_permitted = flag;
-	return (0);
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, suser_permitted,
-    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_kern_suser_permitted, "I",
-    "processes with uid 0 have privilege");
-
 char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
     &domainname, sizeof(domainname), "Name of the current YP/NIS domain");
