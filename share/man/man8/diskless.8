@@ -1,4 +1,4 @@
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1994 Gordon W. Ross, Theo de Raadt
 .\" Updated by Luigi Rizzo
@@ -49,7 +49,7 @@ phases of interaction between client and server:
 .Pp
 .Bl -enum -compact
 .It
-The stage-1 bootstrap loads a boot program, from 
+The stage-1 bootstrap loads a boot program, from
 .It
 The boot program loads a kernel.
 .It
@@ -87,16 +87,18 @@ of a diskless system are listed in
 .Pa /etc/rc.diskless1
 and
 .Pa /etc/rc.diskless2
-
 .Sh CONFIGURATION
 In order to run a diskless client, you need the following:
-.Pp
-.Bl -bullet -compact
+.Bl -bullet
 .It
 an NFS server which exports a root and /usr partition with
-appropriate permissions. The rc.diskless{1,2} scripts work with
-readonly partitions, as long as root is exported with -maproot=0
-so that some system files can be accessed. As an example,
+appropriate permissions.
+The
+.Pa rc.diskless{1,2}
+scripts work with readonly partitions, as long as root is exported with
+.Fl maproot Ns =0
+so that some system files can be accessed.
+As an example,
 .Pa /etc/exports
 can contain the following lines:
 .Bd -literal -offset indent
@@ -104,47 +106,69 @@ can contain the following lines:
 /usr -alldirs <list of diskless clients>
 .Ed
 .Pp
-where <ROOT> is the mountpoint on the server of the root partition.
+where
+.Aq ROOT
+is the mountpoint on the server of the root partition.
 The script
 .Pa /usr/share/examples/diskless/clone_root
 can be used to create a shared readonly root partition,
 but in same cases you can also decide to export
 (again as readonly) the root directory used by
 the server itself.
-.Pp
 .It
-a bootp or dhcp server. Bootpd can be enabled by
+a
+.Tn BOOTP
+or
+.Tn DHCP
+server.
+.Xr bootpd 8
+can be enabled by
 uncommenting the
-.Pa bootps
+.Em bootps
 line in
 .Pa /etc/inetd.conf .
 A sample
 .Pa /etc/bootptab
 can be the following:
 .Bd -literal -offset indent
- .default:\ 
-    hn:ht=1:vm=rfc1048:\ 
-    :sm=255.255.255.0:\ 
-    :sa=<SERVER>:\ 
-    :gw=<GATEWAY>:\ 
+ .default:\\
+    hn:ht=1:vm=rfc1048:\\
+    :sm=255.255.255.0:\\
+    :sa=<SERVER>:\\
+    :gw=<GATEWAY>:\\
     :rp="<SERVER>:<ROOT>":
 
 <CLIENT>:ha=0123456789ab:tc=.default
 .Ed
 .Pp
-where SERVER, GATEWAY, CLIENT have the obvious meanings.
-.Pp
+where
+.Aq SERVER ,
+.Aq GATEWAY
+and
+.Aq ROOT
+have the obvious meanings.
 .It
 On the root partition, create configuration files for
-the diskless clients. These reside in
+the diskless clients.
+These reside in
 .Pa /conf/${i}/etc ,
-where ${i} can be either "default", the subnet broadcast
+where
+.Va i
+can be either
+.Qq Li default ,
+the subnet broadcast
 address for the client, or the IP address of the client.
 .Pp
-Files are copied from the above directories into /etc
-(overriding the previous content of /etc)
-starting from the most generic one by /etc/rc.diskless1,
-before the main part of /etc/rc (including reading rc.conf)
+Files are copied from the above directories into
+.Pa /etc
+(overriding the previous content of
+.Pa /etc )
+starting from the most generic one by
+.Pa /etc/rc.diskless1 ,
+before the main part of
+.Pa /etc/rc
+(including reading
+.Pa rc.conf )
 is run.
 .Pp
 As a minimum, you normally need to have the following in
@@ -161,17 +185,25 @@ which should contain
 the startup options for the diskless client.
 .Pp
 Most likely
-you will not need to set hostname and ifconfig_* because these
-will be already set by the startup code. You will also
-probably need to set local_startup="" so that the server's
+you will not need to set
+.Va hostname
+and
+.Va ifconfig_*
+because these will be already set by the startup code.
+You will also probably need to set
+.Va local_startup Ns = Ns Qq
+so that the server's
 local startup files will not be used.
-Finally, it might be convenient to use a 'case' statement
-using `hostname` as the switch variable to do machine-specific configuration 
+Finally, it might be convenient to use a
+.Ic case
+statement using
+.Li `hostname`
+as the switch variable to do machine-specific configuration
 in case a number of diskless clients share the same configuration
 files.
-.Pp
 .It
-build a kernel whose config file (e.g. /sys/i386/conf/DISKLESS)
+build a kernel whose config file (e.g.\&
+.Pa /sys/i386/conf/DISKLESS )
 has at least the following options:
 .Bd -literal -offset indent
 options MFS
@@ -183,21 +215,23 @@ options BOOTP_COMPAT
 If you use the firewall, remember to default to open or your kernel
 will not be able to send/receive the bootp packets.
 .El
-.Pp
 .Sh SECURITY ISSUES
 Be warned that using unencrypted NFS to mount root and user
 partitions may expose information such as
 encryption keys.
-.Pp
 .Sh BUGS
 This manpage is probably incomplete.
 .Pp
-FreeBSD sometimes requires to write onto
+.Fx
+sometimes requires to write onto
 the root partition, so the startup scripts mount MFS
-filesystems on some locations (e.g. /etc and /var), while
-trying to preserve the original content. The process
-might not handle all cases.
-
+filesystems on some locations (e.g.\&
+.Pa /etc
+and
+.Pa /var ) ,
+while
+trying to preserve the original content.
+The process might not handle all cases.
 .Sh SEE ALSO
 .Xr ethers 5 ,
 .Xr exports 5 ,
@@ -207,4 +241,4 @@ might not handle all cases.
 .Xr pxeboot 8 ,
 .Xr reboot 8 ,
 .Xr tftpd 8 ,
-.Xr ports/net/etherboot .
+.Xr ports/net/etherboot
