@@ -265,12 +265,16 @@ DMenu MenuIndex = {
       { " Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router_enable" },
       { " Security",		"Configure system security options", NULL, dmenuSubmenu, NULL, &MenuSecurity },
       { " Syscons",		"The system console configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
+#ifndef PC98
       { " Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
+#endif
       { " Syscons, Keymap",	"The console keymap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
       { " Syscons, Keyrate",	"The console key rate configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { " Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
+#ifndef PC98
       { " Syscons, Screenmap",	"The console screenmap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
       { " Syscons, Ttys",       "The console terminal type menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsTtys },
+#endif
       { " Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "tzsetup" },
       { " TTYs",		"Configure system ttys.",		NULL, configEtcTtys, NULL, "ttys" },
       { " Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
@@ -337,6 +341,22 @@ DMenu MenuDocumentation = {
 
 DMenu MenuMouseType = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+#ifdef PC98
+    "Select a protocol type for your mouse",
+    "If your mouse is attached to the bus mouse port, you should always choose\n"
+    "\"Auto\", regardless of the model and the brand of the mouse.  All other\n"
+    "protocol types are for serial mice and should not be used with the bus\n"
+    "mouse.  If you have a serial mouse and are not sure about its protocol,\n"
+    "you should also try \"Auto\".  It may not work for the serial mouse if the\n"
+    "mouse does not support the PnP standard.  But, it won't hurt.  Many\n"
+    "2-button serial mice are compatible with \"Microsoft\" or \"MouseMan\".\n"
+    "3-button serial mice may be compatible with \"MouseSystems\" or \"MouseMan\".\n"
+    "If the serial mouse has a wheel, it may be compatible with \"IntelliMouse\".",
+    NULL,
+    NULL,
+    { { "1 Auto",	"Bus mouse or PnP serial mouse",	
+	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_TYPE "=auto" },
+#else
     "Select a protocol type for your mouse",
     "If your mouse is attached to the PS/2 mouse port or the bus mouse port,\n"
     "you should always choose \"Auto\", regardless of the model and the brand\n"
@@ -352,6 +372,7 @@ DMenu MenuMouseType = {
     NULL,
     { { "1 Auto",	"Bus mouse, PS/2 style mouse or PnP serial mouse",	
 	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_TYPE "=auto" },
+#endif /* PC98 */
       { "2 GlidePoint",	"ALPS GlidePoint pad (serial)",
 	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_TYPE "=glidepoint" },
       { "3 Hitachi","Hitachi tablet (serial)",
@@ -373,6 +394,24 @@ DMenu MenuMouseType = {
       { NULL } },
 };
 
+#ifdef PC98
+DMenu MenuMousePort = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Select your mouse port from the following menu",
+    "The built-in pointing device of laptop/notebook computers is usually\n"
+    "a BusMouse style device.",
+    NULL,
+    NULL,
+    {
+      { "1 BusMouse",	"PC-98x1 bus mouse (/dev/mse0)", 
+	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/mse0" },
+      { "2 COM1",	"Serial mouse on COM1 (/dev/cuaa0)",
+	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/cuaa0" },
+      { "3 COM2",	"Serial mouse on COM2 (/dev/cuaa1)",
+	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/cuaa1" },
+      { NULL } },
+};
+#else
 DMenu MenuMousePort = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Select your mouse port from the following menu",
@@ -394,6 +433,7 @@ DMenu MenuMousePort = {
 	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/mse0" },
       { NULL } },
 };
+#endif /* PC98 */
 
 DMenu MenuMouse = {
     DMENU_NORMAL_TYPE,
@@ -1199,6 +1239,22 @@ DMenu MenuInstallCustom = {
       { NULL } },
 };
 
+#ifdef PC98
+/* IPL type menu */
+DMenu MenuIPLType = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "overwrite me",		/* will be disk specific label */
+    "If you want a FreeBSD Boot Manager, select \"BootMgr\".  If you would\n"
+    "prefer your Boot Manager to remain untouched then select \"None\".\n\n",
+    "Press F1 to read about drive setup",
+    "drives",
+    { { "BootMgr",	"Install the FreeBSD Boot Manager",
+	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
+      { "None",		"Leave the IPL untouched",
+	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
+      { NULL } },
+};
+#else
 /* MBR type menu */
 DMenu MenuMBRType = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -1216,14 +1272,13 @@ DMenu MenuMBRType = {
     "drives",
     { { "BootMgr",	"Install the FreeBSD Boot Manager",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr },
-#ifndef PC98
       { "Standard",	"Install a standard MBR (no boot manager)",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
-#endif
       { "None",		"Leave the Master Boot Record untouched",
 	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
       { NULL } },
 };
+#endif /* PC98 */
 
 /* Final configuration menu */
 DMenu MenuConfigure = {
@@ -1861,12 +1916,18 @@ DMenu MenuSyscons = {
     "Configure your system console settings",
     NULL,
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
+#ifdef PC98
+      { "2 Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+      { "3 Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
+      { "4 Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
+#else
       { "2 Font",	"Choose an alternate screen font",	NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
       { "3 Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
       { "4 Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { "5 Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
       { "6 Screenmap",	"Choose an alternate screenmap",	NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
       { "7 Ttys",       "Choose console terminal type",         NULL, dmenuSubmenu, NULL, &MenuSysconsTtys },
+#endif
       { NULL } },
 };
 
@@ -1954,7 +2015,7 @@ DMenu MenuSysconsKeymap = {
       { " USA UNIX",	"US traditional UNIX-workstation",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.unix" },
       { NULL } },
 };
-#endif
+#endif /* PC98 */
 
 DMenu MenuSysconsKeyrate = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -2004,6 +2065,7 @@ DMenu MenuSysconsSaver = {
       { NULL } },
 };
 
+#ifndef PC98
 DMenu MenuSysconsScrnmap = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screenmap",
@@ -2094,6 +2156,7 @@ DMenu MenuSysconsFont = {
 	"font8x8=swiss-8x8,font8x14=NO,font8x16=swiss-8x16" },
       { NULL } },
 };
+#endif /* PC98 */
 
 DMenu MenuUsermgmt = {
     DMENU_NORMAL_TYPE,

@@ -379,7 +379,11 @@ extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuFixit;		/* Fixit repair menu				*/
+#ifdef PC98
+extern DMenu		MenuIPLType;		/* Type of IPL to write on the disk		*/
+#else
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
+#endif
 extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuFTPOptions;		/* FTP Installation options			*/
