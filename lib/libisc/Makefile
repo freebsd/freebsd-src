@@ -135,5 +135,6 @@ MLINKS+=	assertions.3 ENSURE.3 \
 		sed -e 's/@INDOT@//g' \
 		    -e 's/@SYSCALL_EXT@/2/g' \
 		    -e 's/@SYS_OPS_EXT@/8/g' \
+		    -e 's/^.Fd #include .*heap.h.*/.Fd #include <isc\/heap.h>/' \
 		    < ${.ALLSRC} > ${.TARGET}
 
