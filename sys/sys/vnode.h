@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.24 1995/11/09 08:17:13 bde Exp $
+ * $Id: vnode.h,v 1.25 1995/12/11 04:57:23 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -109,19 +109,19 @@ struct vnode {
 /*
  * Vnode flags.
  */
-#define VROOT		0x0001	/* root of its file system */
-#define VTEXT		0x0002	/* vnode is a pure text prototype */
-#define VSYSTEM		0x0004	/* vnode being used by kernel */
-#define VOLOCK		0x0008	/* vnode is locked waiting for an object */
-#define VOWANT		0x0010	/* a process is waiting for VOLOCK */
-#define VXLOCK		0x0100	/* vnode is locked to change underlying type */
-#define VXWANT		0x0200	/* process is waiting for vnode */
-#define VBWAIT		0x0400	/* waiting for output to complete */
-#define VALIASED	0x0800	/* vnode has an alias */
-#define VDIROP		0x1000	/* LFS: vnode is involved in a directory op */
-#define VVMIO		0x2000	/* VMIO flag */
-#define VNINACT		0x4000	/* LFS: skip ufs_inactive() in lfs_vunref */
-#define VAGE		0x8000	/* Insert vnode at head of free list */
+#define	VROOT		0x0001	/* root of its file system */
+#define	VTEXT		0x0002	/* vnode is a pure text prototype */
+#define	VSYSTEM		0x0004	/* vnode being used by kernel */
+#define	VOLOCK		0x0008	/* vnode is locked waiting for an object */
+#define	VOWANT		0x0010	/* a process is waiting for VOLOCK */
+#define	VXLOCK		0x0100	/* vnode is locked to change underlying type */
+#define	VXWANT		0x0200	/* process is waiting for vnode */
+#define	VBWAIT		0x0400	/* waiting for output to complete */
+#define	VALIASED	0x0800	/* vnode has an alias */
+#define	VDIROP		0x1000	/* LFS: vnode is involved in a directory op */
+#define	VVMIO		0x2000	/* VMIO flag */
+#define	VNINACT		0x4000	/* LFS: skip ufs_inactive() in lfs_vunref */
+#define	VAGE		0x8000	/* Insert vnode at head of free list */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -162,7 +162,7 @@ struct vattr {
 #define	IO_SYNC		0x04		/* do I/O synchronously */
 #define	IO_NODELOCKED	0x08		/* underlying node already locked */
 #define	IO_NDELAY	0x10		/* FNDELAY flag set in file table */
-#define IO_VMIO		0x20		/* data already in VMIO space */
+#define	IO_VMIO		0x20		/* data already in VMIO space */
 
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.
@@ -218,9 +218,9 @@ void	vhold __P((struct vnode *));
 #define	NULLVP	((struct vnode *)NULL)
 
 #ifdef VFS_LKM
-#define VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
+#define	VNODEOP_SET(f) DATA_SET(MODVNOPS,f)
 #else
-#define VNODEOP_SET(f) DATA_SET(vfs_opv_descs_,f)
+#define	VNODEOP_SET(f) DATA_SET(vfs_opv_descs_,f)
 #endif
 
 /*
@@ -246,13 +246,13 @@ extern void	(*lease_updatetime) __P((int deltat));
 #define	LEASE_CHECK(vp, p, cred, flag)	lease_check((vp), (p), (cred), (flag))
 #define	LEASE_UPDATETIME(dt)		lease_updatetime(dt)
 #else
-#define LEASE_CHECK(vp, p, cred, flag)
-#define LEASE_UPDATETIME(dt)
+#define	LEASE_CHECK(vp, p, cred, flag)
+#define	LEASE_UPDATETIME(dt)
 #endif /* NQNFS */
 #else
-#define LEASE_CHECK(vp, p, cred, flag) \
+#define	LEASE_CHECK(vp, p, cred, flag) \
 	do { if(lease_check) lease_check((vp), (p), (cred), (flag)); } while(0)
-#define LEASE_UPDATETIME(dt) \
+#define	LEASE_UPDATETIME(dt) \
 	do { if(lease_updatetime) lease_updatetime(dt); } while(0)
 #endif /* NFS */
 #endif /* KERNEL */
@@ -398,16 +398,20 @@ int	cache_lookup __P((struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp));
 void	cache_purge __P((struct vnode *vp));
 void	cache_purgevfs __P((struct mount *mp));
+struct vnode *
+	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 int 	getnewvnode __P((enum vtagtype tag,
-	    struct mount *mp, int (**vops)(), struct vnode **vpp));
-int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
-	    struct proc *p, int slpflag, int slptimeo));
+	    struct mount *mp, vop_t **vops, struct vnode **vpp));
+void	insmntque __P((struct vnode *vp, struct mount *mp));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
+void	vfs_opv_init __P((struct vnodeopv_desc **them));
 int 	vget __P((struct vnode *vp, int lockflag));
 void 	vgone __P((struct vnode *vp));
 void 	vgoneall __P((struct vnode *vp));
+int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
+	    struct proc *p, int slpflag, int slptimeo));
 int	vn_bwrite __P((struct vop_bwrite_args *ap));
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
@@ -420,19 +424,15 @@ int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 int	vn_read __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int	vn_select __P((struct file *fp, int which, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
-int	vn_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
-int	vn_vmio_open __P((struct vnode *vp, struct proc *p, struct ucred *cred));
 void	vn_vmio_close __P((struct vnode *vp));
-struct vnode *
-	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
-void	vprint __P((char *, struct vnode *));
+int	vn_vmio_open __P((struct vnode *vp, struct proc *p,
+	    struct ucred *cred));
+int	vn_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
+int 	vn_writechk __P((struct vnode *vp));
+void	vprint __P((char *label, struct vnode *vp));
 void 	vput __P((struct vnode *vp));
 void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
-int 	vn_writechk __P((struct vnode *vp));
-void 	insmntque __P((struct vnode *, struct mount *));
-
-void	vfs_opv_init __P((struct vnodeopv_desc **));
 #endif /* KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
