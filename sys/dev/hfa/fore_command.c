@@ -213,8 +213,9 @@ fore_cmd_drain(fup)
 
 	/*
 	 * Process each completed entry
+	 * ForeThought 4 may set QSTAT_ERROR without QSTAT_COMPLETED.
 	 */
-	while (*fup->fu_cmd_head->hcq_status & QSTAT_COMPLETED) {
+	while (*fup->fu_cmd_head->hcq_status & (QSTAT_COMPLETED | QSTAT_ERROR)) {
 
 		hcp = fup->fu_cmd_head;
 
@@ -314,6 +315,14 @@ fore_cmd_drain(fup)
 
 #ifdef FORE_PCI
 		case CMD_GET_PROM:
+			if (fup->fu_ft4)
+				goto unknown;
+			goto prom;
+
+		case CMD_GET_PROM4:
+			if (!fup->fu_ft4)
+				goto unknown;
+		prom:
 			if (*hcp->hcq_status & QSTAT_ERROR) {
 				/*
 				 * Couldn't get PROM data
@@ -356,6 +365,7 @@ fore_cmd_drain(fup)
 #endif	/* FORE_PCI */
 
 		default:
+		unknown:
 			log(LOG_ERR, "fore_cmd_drain: unknown command %ld\n",
 				hcp->hcq_code);
 		}

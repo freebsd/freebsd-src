@@ -331,6 +331,8 @@ typedef volatile unsigned long	Cmd_code;
 #define	CMD_SET_OC3_REG	0x07		/* Set SUNI OC3 registers */
 #define	CMD_GET_OC3_REG	0x08		/* Get SUNI OC3 registers */
 #define	CMD_GET_PROM	0x09		/* Get PROM data */
+#define	CMD_ZERO_STATS4	0x09		/* FT 4 Zero stats (unimpl) */
+#define	CMD_GET_PROM4	0x0a		/* FT 4 Get PROM data */
 #define	CMD_INTR_REQ	0x80		/* Request host interrupt */
 
 #endif	/* ATM_KERNEL */
