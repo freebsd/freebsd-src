@@ -51,8 +51,8 @@ struct sc_info;
 
 /* channel registers */
 struct sc_chinfo {
-	u_int32_t num, run;
-	u_int32_t blksz, blkcnt;
+	u_int32_t num:8, run:1, run_save:1;
+	u_int32_t blksz, blkcnt, spd;
 	u_int32_t regbase, spdreg;
 	u_int32_t imask;
 	u_int32_t civ;
@@ -294,11 +294,12 @@ ichchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		if (sc->ac97rate <= 32000 || sc->ac97rate >= 64000)
 			sc->ac97rate = 48000;
 		r = speed * 48000 / sc->ac97rate;
-		return ac97_setrate(sc->codec, ch->spdreg, r) * 
+		ch->spd = ac97_setrate(sc->codec, ch->spdreg, r) * 
 			sc->ac97rate / 48000;
 	} else {
-		return 48000;
+		ch->spd = 48000;
 	}
+	return ch->spd;
 }
 
 static int
@@ -679,9 +680,29 @@ ich_pci_detach(device_t dev)
 }
 
 static int
+ich_pci_suspend(device_t dev)
+{
+	struct sc_info *sc;
+	int i;
+
+	sc = pcm_getdevinfo(dev);	
+	for (i = 0 ; i < 3; i++) {
+		sc->ch[i].run_save = sc->ch[i].run;
+		if (sc->ch[i].run) {
+			ichchan_trigger(0, &sc->ch[i], PCMTRIG_ABORT);
+		}
+	}
+
+	/* ACLINK shut off */
+	ich_wr(sc,ICH_REG_GLOB_CNT, ICH_GLOB_CTL_SHUT, 4);
+	return 0;
+}
+
+static int
 ich_pci_resume(device_t dev)
 {
 	struct sc_info *sc;
+	int i;
 
 	sc = pcm_getdevinfo(dev);
 
@@ -695,6 +716,15 @@ ich_pci_resume(device_t dev)
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return ENXIO;
 	}
+	/* Re-start DMA engines */
+	for (i = 0 ; i < 3; i++) {
+		struct sc_chinfo *ch = &sc->ch[i];
+		if (sc->ch[i].run_save) {
+			ichchan_setblocksize(0, ch, ch->blksz);
+			ichchan_setspeed(0, ch, ch->spd);
+			ichchan_trigger(0, ch, PCMTRIG_START);
+		}
+	}
 	return 0;
 }
 
@@ -703,6 +733,7 @@ static device_method_t ich_methods[] = {
 	DEVMETHOD(device_probe,		ich_pci_probe),
 	DEVMETHOD(device_attach,	ich_pci_attach),
 	DEVMETHOD(device_detach,	ich_pci_detach),
+	DEVMETHOD(device_suspend, 	ich_pci_suspend),
 	DEVMETHOD(device_resume,	ich_pci_resume),
 	{ 0, 0 }
 };
