@@ -38,7 +38,6 @@
 #ifndef	_MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
-#include <machine/tte.h>
 #include <machine/utrap.h>
 
 struct md_utrap {
