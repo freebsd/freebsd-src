@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: ufs.c,v 1.20 1998/03/01 07:15:39 ross Exp $	*/
 
 /*-
@@ -83,9 +84,17 @@ static int	ufs_close(struct open_file *f);
 static int	ufs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	ufs_seek(struct open_file *f, off_t offset, int where);
 static int	ufs_stat(struct open_file *f, struct stat *sb);
+static int	ufs_readdir(struct open_file *f, struct dirent *d);
 
 struct fs_ops ufs_fsops = {
-	"ufs", ufs_open, ufs_close, ufs_read, null_write, ufs_seek, ufs_stat
+	"ufs",
+	ufs_open,
+	ufs_close,
+	ufs_read,
+	null_write,
+	ufs_seek,
+	ufs_stat,
+	ufs_readdir
 };
 
 /*
@@ -683,6 +692,33 @@ ufs_stat(f, sb)
 	sb->st_uid = fp->f_di.di_uid;
 	sb->st_gid = fp->f_di.di_gid;
 	sb->st_size = fp->f_di.di_size;
+	return (0);
+}
+
+static int
+ufs_readdir(struct open_file *f, struct dirent *d)
+{
+	struct file *fp = (struct file *)f->f_fsdata;
+	struct direct *dp;
+	char *buf;
+	size_t buf_size;
+	int error;
+
+	/*
+	 * assume that a directory entry will not be split across blocks
+	 */
+again:
+	if (fp->f_seekp >= fp->f_di.di_size)
+		return (ENOENT);
+	error = buf_read_file(f, &buf, &buf_size);
+	if (error)
+		return (error);
+	dp = (struct direct *)buf;
+	fp->f_seekp += dp->d_reclen;
+	if (dp->d_ino == (ino_t)0)
+		goto again;
+	d->d_type = dp->d_type;
+	strcpy(d->d_name, dp->d_name);
 	return (0);
 }
 

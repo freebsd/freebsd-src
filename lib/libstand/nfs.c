@@ -91,6 +91,23 @@ struct nfs_readlnk_repl {
 };
 #endif
 
+struct nfs_readdir_args {
+	u_char	fh[NFS_FHSIZE];
+	n_long	cookie;
+	n_long	count;
+};
+
+struct nfs_readdir_data {
+	n_long	fileid;
+	n_long	len;
+	char	name[0];
+};
+
+struct nfs_readdir_off {
+	n_long	cookie;
+	n_long	follows;
+};
+
 struct nfs_iodesc {
 	struct	iodesc	*iodesc;
 	off_t	off;
@@ -108,13 +125,20 @@ static int	nfs_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	nfs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	nfs_seek(struct open_file *f, off_t offset, int where);
 static int	nfs_stat(struct open_file *f, struct stat *sb);
+static int	nfs_readdir(struct open_file *f, struct dirent *d);
 
 static struct	nfs_iodesc nfs_root_node;
 
 struct fs_ops nfs_fsops = {
-	"nfs", nfs_open, nfs_close, nfs_read, nfs_write, nfs_seek, nfs_stat
+	"nfs",
+	nfs_open,
+	nfs_close,
+	nfs_read,
+	nfs_write,
+	nfs_seek,
+	nfs_stat,
+	nfs_readdir
 };
-
 
 /*
  * Fetch the root file handle (call mount daemon)
@@ -658,4 +682,65 @@ nfs_stat(f, sb)
 	sb->st_size  = ntohl(fp->fa.fa_size);
 
 	return (0);
+}
+
+static int
+nfs_readdir(struct open_file *f, struct dirent *d)
+{
+	register struct nfs_iodesc *fp = (struct nfs_iodesc *)f->f_fsdata;
+	struct nfs_readdir_args *args;
+	struct nfs_readdir_data *rd;
+	struct nfs_readdir_off  *roff = NULL;
+	static char *buf;
+	static n_long cookie = 0;
+	size_t cc;
+	n_long eof;
+	
+	struct {
+		n_long h[RPC_HEADER_WORDS];
+		struct nfs_readdir_args d;
+	} sdata;
+	static struct {
+		n_long h[RPC_HEADER_WORDS];
+		u_char d[NFS_READDIRSIZE];
+	} rdata;
+
+	if (cookie == 0) {
+	refill:
+		args = &sdata.d;
+		bzero(args, sizeof(*args));
+
+		bcopy(fp->fh, args->fh, NFS_FHSIZE);
+		args->cookie = htonl(cookie);
+		args->count  = htonl(NFS_READDIRSIZE);
+		
+		cc = rpc_call(fp->iodesc, NFS_PROG, NFS_VER2, NFSPROC_READDIR,
+			      args, sizeof(*args),
+			      rdata.d, sizeof(rdata.d));
+		buf  = rdata.d;
+		roff = (struct nfs_readdir_off *)buf;
+		if (ntohl(roff->cookie) != 0)
+			return 1;
+	}
+	roff = (struct nfs_readdir_off *)buf;
+
+	if (ntohl(roff->follows) == 0) {
+		eof = ntohl((roff+1)->cookie);
+		if (eof) {
+			cookie = 0;
+			return 1;
+		}
+		goto refill;
+	}
+
+	buf += sizeof(struct nfs_readdir_off);
+	rd = (struct nfs_readdir_data *)buf;
+	d->d_namlen = ntohl(rd->len);
+	bcopy(rd->name, d->d_name, d->d_namlen);
+	d->d_name[d->d_namlen] = '\0';
+
+	buf += (sizeof(struct nfs_readdir_data) + roundup(htonl(rd->len),4));
+	roff = (struct nfs_readdir_off *)buf;
+	cookie = ntohl(roff->cookie);
+	return 0;
 }

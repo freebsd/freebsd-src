@@ -104,3 +104,9 @@ int	null_stat (struct open_file *f, struct stat *sb)
 	errno = EIO;
 	return -1;
 }
+
+int	null_readdir(struct open_file *f, struct dirent *d)
+{
+	errno = EIO;
+	return -1;
+}
