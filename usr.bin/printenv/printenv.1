@@ -41,7 +41,7 @@
 .Nm printenv , env
 .Nd print out the environment, set and print environment
 .Sh SYNOPSIS
-.Nm printenv
+.Nm
 .Op Ar name
 .Nm env
 .Op Fl
@@ -59,7 +59,7 @@ its value is printed.
 If a
 .Ar name
 is specified and it is not defined in the environment,
-.Nm printenv
+.Nm
 returns exit status 1, else it returns status 0.
 .Pp
 Some shells may provide a builtin
@@ -108,7 +108,7 @@ of the variables in the environment, with one name/value pair per line.
 .Xr environ 7
 .Sh HISTORY
 The
-.Nm printenv
+.Nm
 command appeared in
 .Bx 3.0 .
 .Sh BUGS

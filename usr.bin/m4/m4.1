@@ -8,7 +8,7 @@
 .Nm m4
 .Nd macro language processor
 .Sh SYNOPSIS
-.Nm m4
+.Nm
 .Oo
 .Fl D Ns Ar name Ns Op Ar =value
 .Oc
@@ -17,7 +17,7 @@
 \|.\|.\|.
 .Sh DESCRIPTION
 The
-.Nm m4
+.Nm
 utility is a macro processor that can be used as a front end to any
 language (e.g., C, ratfor, fortran, lex, and yacc).
 Each of the argument files is processed in order.
@@ -52,7 +52,7 @@ Undefine the symbol
 .Ar name .
 .El
 .Sh SYNTAX
-.Nm m4
+.Nm
 provides the following built-in macros.  They may be
 redefined, losing their original meaning.
 Return values are NULL unless otherwise stated.
@@ -82,7 +82,7 @@ macro definitions (even for built-in macros).
 .It divert
 There are 10 output queues (numbered 0-9).
 At the end of processing
-.Nm m4
+.Nm
 concatenates all the queues in numerical order to produce the
 final output.  Initially the output queue is 0.  The divert
 macro allows you to select a new output queue (an invalid argument

@@ -39,14 +39,14 @@
 .Nm split
 .Nd split a file into pieces
 .Sh SYNOPSIS
-.Nm split
+.Nm
 .Op Fl b Ar byte_count[k|m]
 .Op Fl l Ar line_count
 .Op Fl p Ar pattern
 .Op Ar file Op Ar name
 .Sh DESCRIPTION
 The
-.Nm split
+.Nm
 utility reads the given
 .Ar file
 (or standard input if no file is specified)
@@ -100,7 +100,7 @@ files named in the range of
 .Sh BUGS
 For historical reasons, if you specify
 .Ar name ,
-.Nm split
+.Nm
 can only create 676 separate
 files.
 The default naming convention allows 2028 separate files.
@@ -110,6 +110,6 @@ The maximum line length for matching patterns is 65536.
 .Xr re_format 7
 .Sh HISTORY
 A
-.Nm split
+.Nm
 command appeared in
 .At v6 .

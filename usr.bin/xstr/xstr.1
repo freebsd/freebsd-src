@@ -39,7 +39,7 @@
 .Nm xstr
 .Nd "extract strings from C programs to implement shared strings"
 .Sh SYNOPSIS
-.Nm xstr
+.Nm
 .Op Fl c
 .Op Fl 
 .Op Fl v
@@ -85,7 +85,7 @@ Verbose mode.
 After all components of a large program have been compiled a file
 .Pa xs.c
 declaring the common
-.Nm xstr
+.Nm
 space can be created by a command of the form
 .Bd -literal -offset indent
 xstr
@@ -119,7 +119,7 @@ after the C preprocessor if any macro definitions yield strings
 or if there is conditional code which contains strings
 which may not, in fact, be needed.
 An appropriate command sequence for running
-.Nm xstr
+.Nm
 after the C preprocessor is:
 .Pp
 .Bd -literal -offset indent -compact

@@ -38,7 +38,7 @@
 .Nm lint
 .Nd a C program verifier.
 .Sh SYNOPSIS
-.Nm lint
+.Nm
 .Op Fl abceghprvxzHFV
 .Op Fl s Ns | Ns Fl t
 .Op Fl i Ns | Ns Fl nu
@@ -49,7 +49,7 @@
 .Op Fl l Ns Ar library
 .Op Fl o Ns Ar outputfile
 .Ar
-.Nm lint
+.Nm
 .Op Fl abceghprvzHFV
 .Op Fl s Ns | Ns Fl t
 .Fl C Ns Ar library
@@ -70,10 +70,10 @@ preprocessor symbol
 .Sy lint
 defined to allow certain questionable code to be altered
 or skipped by
-.Nm lint .
+.Nm .
 Therefore, this symbol should be thought of as a reserved
 word for all code that is to be checked by
-.Nm lint .
+.Nm .
 .Pp
 Among the possible problems that are currently noted are
 unreachable statements, loops not entered at the top,
@@ -95,7 +95,7 @@ Filename arguments with
 names ending with
 .Pa \&.ln
 are taken to be the result of an earlier invocation of
-.Nm lint ,
+.Nm ,
 with either the
 .Fl i ,
 .Fl o
@@ -217,7 +217,7 @@ file on the command line.
 These
 .Pa \&.ln
 files are the product of
-.Nm lint Ns 's
+.Nm Ns 's
 first pass only, and are not checked for compatibility
 between functions.
 .It Fl n
@@ -325,7 +325,7 @@ followed by a question mark.
 Name the output file
 .Ar outputfile .
 The output file produced is the input that is given to
-.Nm lint Ns 's
+.Nm Ns 's
 second pass.
 The
 .Fl o
@@ -349,13 +349,13 @@ for the preprocessor.
 .It Fl V
 Print the command lines constructed by the controller program to
 run the C preprocessor and
-.Nm lint Ns 's
+.Nm Ns 's
 first and second pass.
 .El
 .Pp
 .Sy Input Grammar
 .Pp
-.Nm lint Ns 's
+.Nm Ns 's
 first pass reads standard C source files.
 .Nm
 recognizes the following C comments as commands.
@@ -474,7 +474,7 @@ file, and prints all messages that are about just that
 source file.
 After all the source files have been separately
 run through
-.Nm lint ,
+.Nm ,
 it is invoked once more (without the
 .Fl i
 option), listing all the
@@ -491,7 +491,7 @@ to be used to
 .Nm
 only the source files that have been modified since the last
 time the set of source files were
-.Nm lint Ns No ed .
+.Nm Ns No ed .
 .Sh ENVIRONMENT
 .Bl -tag -width Fl
 .It Ev LIBDIR

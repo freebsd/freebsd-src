@@ -39,18 +39,18 @@
 .Nm mail
 .Nd send and receive mail
 .Sh SYNOPSIS
-.Nm mail
+.Nm
 .Op Fl iInv
 .Op Fl s Ar subject
 .Op Fl c Ar cc-addr
 .Op Fl b Ar bcc-addr
 .Ar to-addr ...
 .Op \&- Ar sendmail-option ...
-.Nm mail
+.Nm
 .Op Fl iInNv
 .Fl f
 .Op Ar name
-.Nm mail
+.Nm
 .Op Fl iInNv
 .Op Fl u Ar user
 .Sh INTRODUCTION
@@ -69,7 +69,7 @@ delivery are displayed on the user's terminal.
 Ignore tty interrupt signals.
 This is
 particularly useful when using
-.Nm mail
+.Nm
 on noisy phone lines.
 .It Fl I
 Forces mail to run in interactive mode even when
@@ -105,7 +105,7 @@ Read in the contents of your
 (or the specified file)
 for processing; when you
 .Ar quit  ,
-.Nm mail
+.Nm
 writes undeleted messages back to this file.
 .It Fl u
 Is equivalent to:
@@ -132,7 +132,7 @@ new message is to be sent, or whether an existing mailbox is to
 be read.
 .Ss Sending mail
 To send a message to one or more people,
-.Nm mail
+.Nm
 can be invoked with arguments which are the names of people to
 whom the mail will be sent.
 You are then expected to type in
@@ -143,12 +143,12 @@ at the beginning of a line.
 The section below
 .Ar Replying to or originating mail ,
 describes some features of
-.Nm mail
+.Nm
 available to help you compose your letter.
 .Pp
 .Ss Reading mail
 In normal usage
-.Nm mail
+.Nm
 is given no arguments and checks your mail out of the
 post office, then
 prints out a one line header of each message found.
@@ -175,13 +175,13 @@ the message or
 .Pq Ic r
 to it.
 Deletion causes the
-.Nm mail
+.Nm
 program to forget about the message.
 This is not irreversible; the message can be
 .Ic undeleted
 .Pq Ic u
 by giving its number, or the
-.Nm mail
+.Nm
 session can be aborted by giving the
 .Ic exit
 .Pq Ic x
@@ -220,7 +220,7 @@ person who it was from.
 Text you then type in, up to an end-of-file,
 defines the contents of the message.
 While you are composing a message,
-.Nm mail
+.Nm
 treats lines beginning with the character
 .Ql Ic \&~
 specially.
@@ -239,7 +239,7 @@ are given in the summary below.)
 .Pp
 .Ss Ending a mail processing session.
 You can end a
-.Nm mail
+.Nm
 session with the
 .Ic quit
 .Pq Ic q
@@ -268,7 +268,7 @@ in your home directory.
 The current list of such aliases can be displayed with the
 .Ic alias
 command in
-.Nm mail  .
+.Nm .
 System wide distribution lists can be created by editing
 .Pa /etc/mail/aliases ,
 see
@@ -314,7 +314,7 @@ command's requirements is used.
 If there are no messages forward of
 the current message, the search proceeds backwards, and if there are no
 good messages at all,
-.Nm mail
+.Nm
 types
 .Dq Li No applicable messages
 and
@@ -372,12 +372,12 @@ The
 .Ic alternates
 command is useful if you have accounts on several machines.
 It can be used to inform
-.Nm mail
+.Nm
 that the listed addresses are really you.
 When you
 .Ic reply
 to messages,
-.Nm mail
+.Nm
 will not send a copy of the message to any of the addresses
 listed on the
 .Ic alternates
@@ -410,7 +410,7 @@ nor will they be available for most other commands.
 .Ic dt )
 Deletes the current message and prints the next message.
 If there is no next message,
-.Nm mail
+.Nm
 says
 .Dq Li "at EOF" .
 .It Ic edit
@@ -693,7 +693,7 @@ presents message headers in windowfuls as described under the
 .Ic headers
 command.
 You can move
-.Nm mail Ns 's
+.Nm Ns 's
 attention forward to the next window with the
 .Ic \&z
 command.
@@ -829,7 +829,7 @@ This should always be set (preferably in one of the system-wide
 files).
 .It Ar ask
 Causes
-.Nm mail
+.Nm
 to prompt you for the subject of each message you send.
 If
 you respond with simply a newline, no subject field will be sent.
@@ -851,14 +851,14 @@ Setting the binary option
 is the same as specifying
 .Fl d
 on the command line and causes
-.Nm mail
+.Nm
 to output all sorts of information useful for debugging
-.Nm mail  .
+.Nm .
 .It Ar dot
 The binary option
 .Ar dot
 causes
-.Nm mail
+.Nm
 to interpret a period alone on a line as the terminator
 of a message you are sending.
 .It Ar hold
@@ -873,11 +873,11 @@ An option related to
 is
 .Ar ignoreeof
 which makes
-.Nm mail
+.Nm
 refuse to accept a control-d as the end of a message.
 .Ar Ignoreeof
 also applies to
-.Nm mail
+.Nm
 command mode.
 .It Ar metoo
 Usually, when a group is expanded that contains the sender, the sender
@@ -894,7 +894,7 @@ flag on the command line.
 Normally, when you abort a message with two
 .Tn RUBOUT
 (erase or delete)
-.Nm mail
+.Nm
 copies the partial letter to the file
 .Dq Pa dead.letter
 in your home directory.
@@ -984,7 +984,7 @@ use in the place of ~ to denote escapes.
 The name of the directory to use for storing folders of
 messages.
 If this name begins with a `/',
-.Nm mail
+.Nm
 considers it to be an absolute pathname; otherwise, the
 folder directory is found relative to your home directory.
 .It Ev MBOX
@@ -1067,7 +1067,7 @@ Most are
 not useful to the general user.
 .Pp
 Usually,
-.Nm mail
+.Nm
 is just a link to
 .Nm Mail  ,
 which can be confusing.

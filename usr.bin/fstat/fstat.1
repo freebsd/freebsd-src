@@ -39,7 +39,7 @@
 .Nm fstat
 .Nd file status
 .Sh SYNOPSIS
-.Nm fstat
+.Nm
 .Op Fl fmnv
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -53,7 +53,7 @@ A file is considered open by a process if it was explicitly opened,
 is the working directory, root directory, active executable text, or kernel
 trace file for that process.
 If no options are specified,
-.Nm fstat
+.Nm
 reports on all open files in the system.
 .Pp
 Options:
@@ -94,10 +94,10 @@ Verbose mode.  Print error messages upon failures to locate particular
 system data structures rather than silently ignoring them.  Most of
 these data structures are dynamically created or deleted and it is
 possible for them to disappear while
-.Nm fstat
+.Nm
 is running.  This
 is normal and  unavoidable since the rest of the system is running while
-.Nm fstat
+.Nm
 itself is running.
 .It Ar filename ...
 Restrict reports to the specified files.
@@ -206,7 +206,7 @@ an arrow (``<-'' or ``->''), and a full duplex socket shows a double arrow
 (``<->'').
 .Sh BUGS
 Since
-.Nm fstat
+.Nm
 takes a snapshot of the system, it is only correct for a very short period
 of time.
 .Sh SEE ALSO

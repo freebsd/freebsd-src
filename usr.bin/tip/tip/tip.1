@@ -39,11 +39,11 @@
 .Nm tip
 .Nd connect to a remote system
 .Sh SYNOPSIS
-.Nm tip
+.Nm
 .Op Fl v
 .Fl Ns Ns Ar speed 
 .Ar system\-name
-.Nm tip
+.Nm
 .Op Fl v
 .Fl Ns Ns Ar speed 
 .Ar phone\-number
@@ -92,7 +92,7 @@ Send a file to a remote
 host.  The put command causes the remote
 .Ux
 system to run the command string ``cat > 'to''', while
-.Nm tip
+.Nm
 sends it the ``from''
 file.  If the ``to'' file isn't specified the ``from'' file name is used.
 This command is actually a
@@ -106,7 +106,7 @@ As in the put command the ``to'' file
 defaults to the ``from'' file name if it isn't specified.
 The remote host
 executes the command string ``cat 'from';echo ^A'' to send the file to
-.Nm tip  .
+.Nm .
 .It Ic \&~|
 Pipe the output from a remote command to a local
 .Ux
@@ -147,14 +147,14 @@ characters.
 Set a variable (see the discussion below).
 .It Ic \&~^Z
 Stop
-.Nm tip
+.Nm
 (only available with job control).
 .It Ic \&~^Y
 Stop only the ``local side'' of
-.Nm tip
+.Nm
 (only available with job control);
 the ``remote side'' of
-.Nm tip  ,
+.Nm ,
 the side that displays output from the remote host, is left running.
 .It Ic \&~?
 Get a summary of the tilde escapes
@@ -175,7 +175,7 @@ to be used may be specified on the command line, e.g.
 .Ql "tip -300 mds" .
 .Pp
 When
-.Nm tip
+.Nm
 establishes a connection it sends out a
 connection message to the remote system; the default value, if any,
 is defined in
@@ -184,7 +184,7 @@ is defined in
 .Xr remote 5 ) .
 .Pp
 When
-.Nm tip
+.Nm
 prompts for an argument (e.g. during setup of
 a file transfer) the line typed may be edited with the standard
 erase and kill characters.  A null line in response to a prompt,
@@ -198,7 +198,7 @@ and by honoring the locking protocol used by
 .Xr uucico 8 .
 .Pp
 During file transfers
-.Nm tip
+.Nm
 provides a running count of the number of lines transferred.
 When using the ~> and ~< commands, the ``eofread'' and ``eofwrite''
 variables are used to recognize end-of-file when reading, and
@@ -206,12 +206,12 @@ specify end-of-file when writing (see below).  File transfers
 normally depend on tandem mode for flow control.  If the remote
 system does not support tandem mode, ``echocheck'' may be set
 to indicate
-.Nm tip
+.Nm
 should synchronize with the remote system on the echo of each
 transmitted character.
 .Pp
 When
-.Nm tip
+.Nm
 must dial a phone number to connect to a system it will print
 various messages indicating its actions.
 .Nm Tip
@@ -253,7 +253,7 @@ Variables may be initialized at run time by placing set commands
 in one's home directory).  The
 .Fl v
 option causes
-.Nm tip
+.Nm
 to display the sets as they are made.
 Certain common variables have abbreviations.
 The following is a list of common variables,
@@ -344,7 +344,7 @@ default value is
 .Ar off  .
 When this mode is enabled, all lower case letters will be mapped to
 upper case by
-.Nm tip
+.Nm
 for transmission to the remote machine.
 .It Ar raisechar
 (char) The input character used to toggle upper case mapping mode;
@@ -365,7 +365,7 @@ When
 .Ar script
 is
 .Li true  ,
-.Nm tip
+.Nm
 will record everything transmitted by the remote machine in
 the script record file specified in
 .Ar record  .
@@ -391,7 +391,7 @@ Each tab is expanded to 8 spaces.
 default is
 .Ar true  .
 When verbose mode is enabled,
-.Nm tip
+.Nm
 prints messages while dialing, shows the current number
 of lines transferred during a file transfer operations,
 and more.
@@ -445,7 +445,7 @@ Diagnostics are, hopefully, self explanatory.
 .Xr remote 5
 .Sh HISTORY
 The
-.Nm tip
+.Nm
 appeared command in
 .Bx 4.2 .
 .Sh BUGS
