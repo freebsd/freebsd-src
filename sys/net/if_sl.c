@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.11 1994/11/27 15:29:57 bde Exp $
+ * $Id: if_sl.c,v 1.12 1995/02/13 02:09:14 ache Exp $
  */
 
 /*
@@ -80,6 +80,7 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/tty.h>
+#include <sys/clist.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 
@@ -439,7 +440,6 @@ slstart(tp)
 	u_char bpfbuf[SLTMAX + SLIP_HDRLEN];
 	register int len = 0;
 #endif
-	extern int cfreecount;
 
 	for (;;) {
 		/*

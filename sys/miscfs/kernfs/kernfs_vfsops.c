@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.5 1994/09/22 19:38:11 wollman Exp $
+ * $Id: kernfs_vfsops.c,v 1.6 1994/10/02 17:48:08 phk Exp $
  */
 
 /*
@@ -183,7 +183,6 @@ kernfs_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
-	extern int doforce;
 	struct vnode *rootvp = VFSTOKERNFS(mp)->kf_root;
 
 #ifdef KERNFS_DIAGNOSTIC

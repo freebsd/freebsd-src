@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.18 1995/03/01 22:24:44 dufault Exp $
+ *	$Id: scsiconf.h,v 1.19 1995/03/04 20:51:00 dufault Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -440,6 +440,7 @@ struct scsi_xfer
 #define	XS_LENGTH 0x09	/* Illegal length (over/under run)	*/
 
 #ifdef KERNEL
+void *extend_get(struct extend_array *ea, int index);
 char * scsi_type_long_name(int type);
 char * scsi_type_name(int type);
 void scsi_attachdevs __P((struct scsi_link *sc_link_proto));
@@ -454,7 +455,9 @@ errval scsi_inquire( struct scsi_link *sc_link,
 errval scsi_prevent( struct scsi_link *sc_link, u_int32 type,u_int32 flags);
 errval scsi_probe_busses __P(( int, int, int));
 errval scsi_start_unit( struct scsi_link *sc_link, u_int32 flags);
+errval scsi_stop_unit(struct scsi_link *sc_link, u_int32 eject, u_int32 flags);
 void scsi_done(struct scsi_xfer *xs);
+void scsi_user_done(struct scsi_xfer *xs);
 errval scsi_scsi_cmd( struct scsi_link *sc_link, struct scsi_generic *scsi_cmd,
 			u_int32 cmdlen, u_char *data_addr,
 			u_int32 datalen, u_int32 retries,
@@ -469,6 +472,7 @@ struct proc *p)));
 
 int scsi_opened_ok __P((dev_t dev, int flag, int type, struct scsi_link *sc_link));
 
+char *scsi_sense_desc(int asc, int ascq);
 void scsi_sense_print(struct scsi_xfer *xs);
 void show_scsi_xs(struct scsi_xfer *xs);
 void show_scsi_cmd(struct scsi_xfer *xs);

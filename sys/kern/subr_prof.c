@@ -31,14 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.4 1994/09/21 21:58:39 bde Exp $
+ * $Id: subr_prof.c,v 1.5 1995/01/29 03:03:23 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <vm/vm.h>
+#include <sys/sysctl.h>
 #include <sys/user.h>
+
 #include <machine/cpu.h>
 
 #ifdef GPROF

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.7 1995/02/16 00:55:41 wollman Exp $
+ * $Id: tcp_subr.c,v 1.8 1995/03/06 02:49:24 nate Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
@@ -427,8 +428,6 @@ tcp_ctlinput(cmd, sa, ip)
 	register struct ip *ip;
 {
 	register struct tcphdr *th;
-	extern struct in_addr zeroin_addr;
-	extern u_char inetctlerrmap[];
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
 
 	if (cmd == PRC_QUENCH)

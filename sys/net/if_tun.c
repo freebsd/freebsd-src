@@ -29,6 +29,7 @@
 #include <sys/syslog.h>
 #include <sys/select.h>
 #include <sys/file.h>
+#include <sys/signalvar.h>
 #ifdef __FreeBSD__
 #include <sys/kernel.h>
 #endif

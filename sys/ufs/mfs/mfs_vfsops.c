@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.4 1994/08/18 22:35:55 wollman Exp $
+ * $Id: mfs_vfsops.c,v 1.5 1994/09/21 03:47:42 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -157,7 +157,6 @@ mfs_initminiroot(base)
 	caddr_t base;
 {
 	struct fs *fs = (struct fs *)(base + SBOFF);
-	extern int (*mountroot)();
 
 	/* check for valid super block */
 	if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.29 1994/10/23 21:27:10 wollman Exp $
+ *      $Id: bt742a.c,v 1.30 1994/11/08 02:53:42 jkh Exp $
  */
 
 /*
@@ -47,6 +47,8 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #endif /* KERNEL */
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <scsi/scsi_all.h>
@@ -395,7 +397,9 @@ int     btprobe();
 int     btattach();
 int     btintr();
 int32   bt_scsi_cmd();
+int	bt_poll __P((int unit, struct scsi_xfer *xs, struct bt_ccb *ccb));
 void	bt_timeout(void *);
+int	bt_init __P((int unit));
 void	bt_inquire_setup_information();
 void    bt_done();
 void    btminphys();

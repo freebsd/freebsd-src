@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.8 1994/11/06 11:13:02 ache Exp $
+ * $Id: kern_sig.c,v 1.9 1995/01/29 01:19:12 ats Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -65,7 +65,6 @@
 
 void setsigvec	__P((struct proc *, int, struct sigaction *));
 void stop	__P((struct proc *));
-void sigexit	__P((struct proc *, int));
 
 /*
  * Can process p, with pcred pc, send the signal signum to process q?

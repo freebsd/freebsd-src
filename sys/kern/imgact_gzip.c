@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.11 1995/02/13 07:40:33 phk Exp $
+ * $Id: imgact_gzip.c,v 1.12 1995/02/20 22:23:07 davidg Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -51,8 +51,6 @@ struct imgact_gzip {
 static int NextByte __P((void *vp));
 static int do_aout_hdr __P((struct imgact_gzip *));
 static int Flush __P((void *vp, u_char *, u_long siz));
-
-extern struct sysentvec aout_sysvec;
 
 int
 exec_gzip_imgact(iparams)

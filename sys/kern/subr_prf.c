@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.9 1994/12/30 12:17:42 bde Exp $
+ * $Id: subr_prf.c,v 1.10 1995/02/19 15:02:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -491,7 +491,6 @@ putchar(c, flags, tp)
 	int flags;
 	struct tty *tp;
 {
-	extern int msgbufmapped;
 	register struct msgbuf *mbp;
 
 	if (panicstr)

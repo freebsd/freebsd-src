@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.8 1995/02/09 13:51:25 davidg Exp $
+ * $Id: conf.h,v 1.9 1995/02/25 20:09:36 pst Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -120,6 +120,7 @@ struct linesw {
 
 #ifdef KERNEL
 extern struct linesw linesw[];
+extern int nlinesw;
 #endif
 
 struct swdevt {

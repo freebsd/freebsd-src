@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.12 1995/03/07 17:27:49 davidg Exp $
+ * $Id: vm_mmap.c,v 1.13 1995/03/12 08:11:34 davidg Exp $
  */
 
 /*
@@ -59,6 +59,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_prot.h>
 
 #ifdef DEBUG
@@ -528,7 +529,6 @@ mlock(p, uap, retval)
 	vm_offset_t addr;
 	vm_size_t size;
 	int error;
-	extern int vm_page_max_wired;
 
 #ifdef DEBUG
 	if (mmapdebug & MDB_FOLLOW)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.10 1995/02/15 03:40:00 davidg Exp $
+ * $Id: nfs_subs.c,v 1.11 1995/02/15 04:21:32 phk Exp $
  */
 
 /*
@@ -690,7 +690,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	register struct vnode *vp = *vpp;
 	register struct vattr *vap;
 	register struct nfsv2_fattr *fp;
-	extern int (**spec_nfsv2nodeop_p)();
 	register struct nfsnode *np;
 	register struct nfsnodehashhead *nhpp;
 	register long t1;
@@ -736,7 +735,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		else
 			vp->v_type = vtyp;
 		if (vp->v_type == VFIFO) {
-			extern int (**fifo_nfsv2nodeop_p)();
 			vp->v_op = fifo_nfsv2nodeop_p;
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.30 1995/03/12 07:58:28 davidg Exp $
+ * $Id: vm_object.c,v 1.31 1995/03/12 08:08:06 davidg Exp $
  */
 
 /*
@@ -1694,7 +1694,6 @@ vm_object_print(object, full)
 	boolean_t full;
 {
 	register vm_page_t p;
-	extern indent;
 
 	register int count;
 

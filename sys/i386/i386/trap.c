@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.47 1995/02/10 06:43:47 davidg Exp $
+ *	$Id: trap.c,v 1.48 1995/02/14 19:20:31 sos Exp $
  */
 
 /*
@@ -56,10 +56,12 @@
 
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
@@ -302,8 +304,6 @@ trap(frame)
 			 */
 #define	MAYBE_DORETI_FAULT(where, whereto)				\
 	do {								\
-		extern void where(void) __asm(__STRING(where));		\
-		extern void whereto(void) __asm(__STRING(whereto));	\
 		if (frame.tf_eip == (int)where) {			\
 			frame.tf_eip = (int)whereto;			\
 			return;						\
@@ -398,7 +398,6 @@ trap_pfault(frame, usermode)
 	vm_map_t map = 0;
 	int rv = 0;
 	vm_prot_t ftype;
-	extern vm_map_t kernel_map;
 	int eva;
 	struct proc *p = curproc;
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.21 1995/03/10 21:18:24 davidg Exp $
+ * $Id: vfs_subr.c,v 1.22 1995/03/11 22:29:07 davidg Exp $
  */
 
 /*
@@ -96,8 +96,6 @@ int desiredvnodes;
 void
 vntblinit()
 {
-	extern int vm_object_cache_max;
-
 	desiredvnodes = maxproc + vm_object_cache_max;
 
 	TAILQ_INIT(&vnode_free_list);

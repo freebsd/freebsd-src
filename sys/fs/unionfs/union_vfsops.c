@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.6 1994/10/10 07:55:47 phk Exp $
+ * $Id: union_vfsops.c,v 1.7 1994/11/04 14:41:43 davidg Exp $
  */
 
 /*
@@ -55,6 +55,9 @@
 #include <sys/filedesc.h>
 #include <sys/queue.h>
 #include <miscfs/union/union.h>
+
+int	union_root __P((struct mount *, struct vnode **));
+int	union_statfs __P((struct mount *, struct statfs *, struct proc *));
 
 /*
  * Mount union filesystem
@@ -303,7 +306,6 @@ union_unmount(mp, mntflags, p)
 	struct vnode *um_rootvp;
 	int error;
 	int flags = 0;
-	extern int doforce;
 
 #ifdef UNION_DIAGNOSTIC
 	printf("union_unmount(mp = %x)\n", mp);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.9 1994/12/08 20:59:33 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.10 1995/01/03 07:44:10 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,8 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
+
+#include <vm/vm.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -579,7 +581,6 @@ nfs_unmount(mp, mntflags, p)
 	struct nfsnode *np;
 	struct vnode *vp;
 	int error, flags = 0;
-	extern int doforce;
 
 	if (mntflags & MNT_FORCE) {
 		if (!doforce)

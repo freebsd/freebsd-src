@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.1.1.1 1994/05/24 10:05:07 rgrimes Exp $
+ *	$Id: procfs.h,v 1.2 1994/08/02 07:45:08 davidg Exp $
  */
 
 /*
@@ -138,6 +138,8 @@ extern int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pf
 
 extern int (**procfs_vnodeop_p)();
 extern struct vfsops procfs_vfsops;
+
+int	procfs_root __P((struct mount *, struct vnode **));
 
 /*
  * Prototypes for procfs vnode ops

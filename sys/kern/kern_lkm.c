@@ -496,7 +496,6 @@ _lkm_syscall(lkmtp, cmd)
 	struct lkm_syscall *args = lkmtp->private.lkm_syscall;
 	int i;
 	int err = 0;
-	extern struct sysentvec aout_sysvec;
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -566,7 +565,6 @@ _lkm_vfs(lkmtp, cmd)
 {
 	struct lkm_vfs *args = lkmtp->private.lkm_vfs;
 	struct vfsconf *vfc = args->lkm_vfsconf;
-	extern struct vfsconf void_vfsconf;
 	int i;
 	int err = 0;
 
@@ -791,7 +789,6 @@ _lkm_exec(lkmtp, cmd)
 	struct lkm_exec *args = lkmtp->private.lkm_exec;
 	int i;
 	int err = 0;
-	extern const struct linker_set execsw_set;
 	const struct execsw **execsw = 
 		(const struct execsw **)&execsw_set.ls_items[0];
 

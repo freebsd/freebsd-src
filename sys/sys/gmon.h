@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.2 1994/08/02 07:53:02 davidg Exp $
+ * $Id: gmon.h,v 1.3 1995/01/29 06:23:34 bde Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -153,6 +153,10 @@ extern struct gmonparam _gmonparam;
 #define	GMON_PROF_BUSY	1
 #define	GMON_PROF_ERROR	2
 #define	GMON_PROF_OFF	3
+
+#ifdef KERNEL
+void	kmstartup __P((void));
+#endif
 
 /*
  * Sysctl definitions for extracting profiling information from the kernel.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.8 1994/12/22 21:56:22 wollman Exp $
+ * $Id: in.c,v 1.9 1995/02/14 06:28:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -154,7 +154,6 @@ struct sockaddr_in *ap;
 }
 
 int	in_interfaces;		/* number of external internet interfaces */
-extern	struct ifnet loif;
 
 /*
  * Generic internet control operations (ioctl's).

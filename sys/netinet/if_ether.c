@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.11 1995/02/20 15:48:40 davidg Exp $
+ * $Id: if_ether.c,v 1.12 1995/03/16 17:32:26 wollman Exp $
  */
 
 /*
@@ -84,7 +84,6 @@ static	void arptimer __P((void *));
 static	struct llinfo_arp *arplookup __P((u_long, int, int));
 static	void in_arpinput __P((struct mbuf *));
 
-extern	struct ifnet loif;
 struct	llinfo_arp llinfo_arp = {&llinfo_arp, &llinfo_arp};
 struct	ifqueue arpintrq = {0, 0, 0, 50};
 int	arp_inuse, arp_allocated, arp_intimer;
