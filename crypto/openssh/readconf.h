@@ -1,20 +1,18 @@
 /*
- *
- * readconf.h
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- *
- * Created: Sat Apr 22 00:25:29 1995 ylo
- *
  * Functions for reading the configuration file.
  *
- * $FreeBSD$
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$Id: readconf.h,v 1.18 2000/05/08 17:12:15 markus Exp $"); */
+/* RCSID("$OpenBSD: readconf.h,v 1.21 2000/09/07 20:27:53 deraadt Exp $"); */
+/* $FreeBSD$ */
 
 #ifndef READCONF_H
 #define READCONF_H
@@ -31,6 +29,7 @@ typedef struct {
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
 	int     forward_x11;	/* Forward X11 display. */
+	char   *xauth_location;	/* Location for xauth program */
 	int     gateway_ports;	/* Allow remote connects to forwarded ports. */
 	int     use_privileged_port;	/* Don't use privileged port if false. */
 	int     rhosts_authentication;	/* Try rhosts authentication. */

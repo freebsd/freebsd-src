@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Markus Friedl.  All rights reserved.
+ * Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,11 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Markus Friedl.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -28,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: compat.c,v 1.14 2000/05/22 18:42:01 markus Exp $");
+RCSID("$OpenBSD: compat.c,v 1.23 2000/09/07 21:13:37 markus Exp $");
 
 #include "ssh.h"
 #include "packet.h"
@@ -63,8 +58,10 @@ compat_datafellows(const char *version)
 	} check[] = {
 		{"2.1.0",	SSH_BUG_SIGBLOB|SSH_BUG_HMAC},
 		{"2.0.1",	SSH_BUG_SIGBLOB|SSH_BUG_HMAC|SSH_BUG_PUBKEYAUTH|SSH_BUG_X11FWD},
+		{"2.",		SSH_BUG_HMAC|SSH_COMPAT_SESSIONID_ENCODING},
 		{NULL,		0}
 	};
+	/* process table, return first match */
 	for (i = 0; check[i].version; i++) {
 		len = strlen(check[i].version);
 		if (strlen(version) >= len &&
@@ -80,13 +77,13 @@ compat_datafellows(const char *version)
 int
 proto_spec(const char *spec)
 {
-	char *s, *p;
+	char *s, *p, *q;
 	int ret = SSH_PROTO_UNKNOWN;
 
 	if (spec == NULL)
 		return ret;
-	s = xstrdup(spec);
-	for ((p = strtok(s, SEP)); p; (p = strtok(NULL, SEP))) {
+	q = s = xstrdup(spec);
+	for ((p = strsep(&q, SEP)); p && *p != '\0'; (p = strsep(&q, SEP))) {
 		switch(atoi(p)) {
 		case 1:
 			if (ret == SSH_PROTO_UNKNOWN)

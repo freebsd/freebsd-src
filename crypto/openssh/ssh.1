@@ -1,15 +1,39 @@
 .\"  -*- nroff -*-
 .\"
-.\" ssh.1.in
-.\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
-.\"
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
 .\"                    All rights reserved
 .\"
-.\" Created: Sat Apr 22 21:55:14 1995 ylo
+.\" As far as I am concerned, the code I have written for this software
+.\" can be used freely for any purpose.  Any derived versions of this
+.\" software must be clearly marked as such, and if the derived work is
+.\" incompatible with the protocol description in the RFC file, it must be
+.\" called by a name other than "ssh" or "Secure Shell".
 .\"
-.\" $Id: ssh.1,v 1.54 2000/05/29 20:20:46 markus Exp $
+.\" Copyright (c) 1999,2000 Markus Friedl. All rights reserved.
+.\" Copyright (c) 1999 Aaron Campbell. All rights reserved.
+.\" Copyright (c) 1999 Theo de Raadt. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
 .\"
 .Dd September 25, 1999
@@ -942,6 +966,13 @@ The argument must be
 .Dq yes
 or
 .Dq no .
+.It Cm XAuthLocation
+Specifies the location of the
+.Xr xauth 1
+program.
+The default is
+.Pa /usr/X11R6/bin/xauth .
+.El
 .Sh ENVIRONMENT
 .Nm
 will normally set the following environment variables:
@@ -1186,6 +1217,7 @@ above.
 .It Pa libcrypto.so.X.1
 A version of this library which includes support for the RSA algorithm
 is required for proper operation.
+.El
 .Sh AUTHOR
 OpenSSH
 is a derivative of the original (free) ssh 1.2.12 release by Tatu Ylonen,
@@ -1213,10 +1245,6 @@ authentication and ticket passing.
 supports one-time password authentication with
 .Xr skey 1 .
 .El
-.Pp
-The libraries described in
-.Xr ssl 8
-are required for proper operation.
 .Pp
 OpenSSH has been created by Aaron Campbell, Bob Beck, Markus Friedl,
 Niels Provos, Theo de Raadt, and Dug Song.

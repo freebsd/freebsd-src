@@ -1,18 +1,17 @@
 /*
- *
- * ttymodes.h
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * 	SGTTY stuff contributed by Janne Snabb <snabb@niksula.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
  *
- * Created: Tue Mar 21 15:42:09 1995 ylo
- *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$Id: ttymodes.h,v 1.7 2000/04/14 10:30:34 markus Exp $"); */
+/* RCSID("$OpenBSD: ttymodes.h,v 1.9 2000/09/07 20:27:55 deraadt Exp $"); */
 
 /* The tty mode description is a stream of bytes.  The stream consists of
  * opcode-arguments pairs.  It is terminated by opcode TTY_OP_END (0).

@@ -11,9 +11,9 @@ MAN8=	sshd.8
 
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	pty.c log-server.c login.c servconf.c serverloop.c \
-	auth.c auth1.c auth2.c session.c login_access.c
+	auth.c auth1.c auth2.c auth-options.c session.c login_access.c
 
-CFLAGS+= -DLIBWRAP -DLOGIN_ACCESS -DLOGIN_CAP -I${LOGINSRC}
+CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DLOGIN_ACCESS -I${LOGINSRC}
 
 .include <bsd.own.mk>
 
@@ -42,6 +42,10 @@ LDADD+=	-lopie -lmd
 DPADD+=	${LIBOPIE} ${LIBMD}
 
 .include <bsd.prog.mk>
+
+.if defined(X11BASE)
+CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
+.endif
 
 LDADD+=	-L${.OBJDIR}/../../lib/libssh -lssh -lcrypt -lcrypto -lutil -lz -lwrap
 DPADD+=	${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ} ${LIBWRAP}

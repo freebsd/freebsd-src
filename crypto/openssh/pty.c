@@ -1,21 +1,19 @@
 /*
- *
- * pty.c
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- *
- * Created: Fri Mar 17 04:37:25 1995 ylo
- *
  * Allocating a pseudo-terminal, and making it the controlling tty.
  *
- * $FreeBSD$
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
  */
 
 #include "includes.h"
-RCSID("$Id: pty.c,v 1.13 2000/04/14 10:30:32 markus Exp $");
+RCSID("$OpenBSD: pty.c,v 1.16 2000/09/07 21:13:37 markus Exp $");
+RCSID("$FreeBSD$");
 
 #ifdef __FreeBSD__
 #include <libutil.h>
