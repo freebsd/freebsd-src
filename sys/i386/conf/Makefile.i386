@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.96 1997/05/07 16:05:23 dfr Exp $
+#	$Id: Makefile.i386,v 1.97 1997/05/21 23:21:15 jdp Exp $
 #
 # Makefile for FreeBSD
 #
@@ -150,6 +150,10 @@ locore.o: Makefile
 
 # depends on KDB (cons.o also depends on GENERIC)
 trap.o cons.o: Makefile
+
+# compiled with special flags
+ipl_funcs.o: ${I386}/isa/ipl_funcs.c
+	${CC} -c ${CFLAGS} ${PROF} -fomit-frame-pointer $<
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
