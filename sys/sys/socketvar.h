@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.21 1997/08/16 19:16:14 wollman Exp $
+ * $Id: socketvar.h,v 1.22 1997/09/14 02:25:41 peter Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -198,6 +198,13 @@ struct socket {
 #define	sowwakeup(so)	sowakeup((so), &(so)->so_snd)
 
 #ifdef KERNEL
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_PCB);
+MALLOC_DECLARE(M_SOCKET);
+MALLOC_DECLARE(M_SONAME);
+#endif
+
 extern u_long	sb_max;
 
 struct filedesc;
@@ -277,6 +284,7 @@ int	sosetopt __P((struct socket *so, int level, int optname,
 	    struct mbuf *m0, struct proc *p));
 int	soshutdown __P((struct socket *so, int how));
 void	sowakeup __P((struct socket *so, struct sockbuf *sb));
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_SOCKETVAR_H_ */

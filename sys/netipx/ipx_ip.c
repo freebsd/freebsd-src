@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.16 1997/06/26 19:35:47 jhay Exp $
+ * $Id: ipx_ip.c,v 1.17 1997/12/15 20:31:13 eivind Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sockio.h>
 
 #include <net/if.h>
