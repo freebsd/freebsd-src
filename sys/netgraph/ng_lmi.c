@@ -333,6 +333,7 @@ nglmi_inquire(sc_p sc, int full)
 		log(LOG_ERR, "nglmi: unable to start up LMI processing\n");
 		return;
 	}
+	m->m_pkthdr.rcvif = NULL;
 	/* Allocate a meta struct (and leave some slop for options to be
 	 * added by other modules). */
 	/* MALLOC(meta, meta_p, sizeof( struct ng_meta) + META_PAD,
