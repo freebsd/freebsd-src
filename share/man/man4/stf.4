@@ -34,7 +34,8 @@
 .Sh NAME
 .Nm stf
 .Nd
-.Tn 6to4 tunnel interface
+.Tn 6to4
+tunnel interface
 .Sh SYNOPSIS
 .Cd "pseudo-device stf"
 .Sh DESCRIPTION
@@ -52,17 +53,15 @@ interface.
 The
 .Nm
 interface is necessary for site border router
-.Po
-called
+(called
 .Dq 6to4 router
-in the specification
-.Pc .
+in the specification).
 .Pp
 Due to the way 6to4 protocol is specified,
 .Nm
 interface requires certain configuration to work properly.
 Single
-.Pq no more than 1
+(no more than 1)
 valid 6to4 address needs to be configured to the interface.
 .Dq A valid 6to4 address
 is an address which has the following properties.
@@ -82,9 +81,9 @@ Since the specification forbids the use of IPv4 private address,
 the address needs to be a global IPv4 address.
 .It
 Subnet identifier portion
-.Pq 48th to 63rd bit
+(48th to 63rd bit)
 and interface identifier portion
-.Pq lower 64 bits
+(lower 64 bits)
 are properly filled to avoid address collisions.
 .El
 .Pp
@@ -181,7 +180,8 @@ The following configuration accepts packets from IPv4 source
 .Li 9.1.0.0/16
 only.
 It emits 6to4 packet only for IPv6 destination 2002:0901::/32
-.Pq IPv4 destination will match Li 9.1.0.0/16 .
+(IPv4 destination will match
+.Li 9.1.0.0/16 ) .
 .Bd -literal
 # ifconfig ne0 inet 9.1.2.3 netmask 0xffff0000
 # ifconfig stf0 inet6 2002:0901:0203:0000:a00:5aff:fe38:6f86 \\
@@ -192,12 +192,12 @@ The following configuration uses the
 .Nm
 interface as an output-only device.
 You need to have alternative IPv6 connectivity
-.Pq other than 6to4
+(other than 6to4)
 to use this configuration.
 For outbound traffic, you can reach other 6to4 networks efficiently via
 .Nm stf .
 For inbound traffic, you will not receive any 6to4-tunneled packets
-.Pq less security drawbacks .
+(less security drawbacks).
 Be careful not to advertise your 6to4 prefix to others
 .Pq Li 2002:8504:0506::/48 ,
 and not to use your 6to4 prefix as a source.

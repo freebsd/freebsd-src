@@ -106,7 +106,8 @@ is returned if the current system call should be restarted if
 possible, and
 .Er EINTR
 is returned if the system call should be interrupted by the signal
-.Pq return Er EINTR .
+(return
+.Er EINTR ) .
 .Pp
 .Nm Asleep
 implements the new asynchronous sleep function.  It takes the same arguments
@@ -223,7 +224,7 @@ and is designed to shift the burden of blocking
 away from extremely low level routines and push it up to their callers.
 .Pp
 .Nm Sleep
-used to be the traditional form.  It doesn't let you specify a timeout nor a
+used to be the traditional form.  It doesn't let you specify a timeout or a
 .Ar wmesg ,
 hence it has been discontinued.
 .Sh AUTHORS
@@ -233,5 +234,5 @@ This man page was written by
 .Nm Asleep
 and
 .Nm await
-designed and written by
+were designed and written by
 .An Matthew Dillon .

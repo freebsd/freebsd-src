@@ -28,7 +28,7 @@
 .\"
 .Dd December 8, 1994
 .Dt MCD 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm mcd
 .Nd Mitsumi CD-ROM driver
@@ -122,7 +122,9 @@ and may be supported by future versions of the driver.
 .Sh FILES
 .Bl -tag -width /dev/(r)mcd0a -compact
 .It Pa /dev/(r)mcd0a
-accesses BSD partition on the disc.
+accesses
+.Bx
+partition on the disc.
 Normally, there is only
 one file system on a CD-ROM disc.
 .It Pa /dev/(r)mcd0c

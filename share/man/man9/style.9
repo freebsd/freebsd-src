@@ -25,7 +25,7 @@
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm style
 .Nd "kernel source file style guide"
@@ -64,7 +64,9 @@ All VCS (version control system) revision identification from files obtained
 from elsewhere should be maintained, including if there are multiple IDs
 showing a file's history.
 In general, keep the IDs in tact, including any `$'s.
-Most non-FreeBSD VCS IDs should be indented by a tab if in a comment.
+Most
+.No non- Ns Fx
+VCS IDs should be indented by a tab if in a comment.
 .Bd -literal
 #ifndef lint
 #if 0
@@ -131,11 +133,9 @@ all in lowercase and the macro has the same name all in uppercase.
 .\" functions are used.
 If a
 macro needs more than a single line, use braces
-.Po
-.Sq \&{
+.Sq ( \&{
 and
-.Sq \&}
-.Pc .
+.Sq \&} ) .
 Right-justify the
 backslashes; it makes it easier to read.
 If the macro encapsulates a compound statement, enclose it in a
@@ -204,7 +204,7 @@ except as specified in Standard C or by
 .Tn POSIX .
 .Bd -literal
 /* Make the structure name match the typedef. */
-typedef struct _bar {
+typedef struct bar {
 	int	level;
 } BAR;
 .Ed
@@ -220,7 +220,7 @@ Functions used from other parts of the kernel are prototyped in the
 relevant include file.
 .Pp
 Functions that are used locally in more than one module go into a
-separate header file, e.g.
+separate header file, e.g.\&
 .Pa extern.h .
 .Pp
 Only use the __P macro from the include file <sys/cdefs.h> if the source
@@ -242,7 +242,7 @@ void	function(int fd);
 In header files visible to userland applications, prototypes that are
 visible must use either protected names or no names with the types.  It
 is preferable to use protected names.
-e.g., use:
+E.g., use:
 .Bd -literal
 void	function(int);
 .Ed
@@ -526,18 +526,16 @@ The usage statement should be structured in the following order:
 Options without operands come first,
 in alphabetical order,
 inside a single set of brackets
-.Po
-.Sq \&[
+.Sq ( \&[
 and
-.Sq \&]
-.Pc .
+.Sq \&] ) .
 .It
 Options with operands come next,
 also in alphabetical order,
 with each option and its argument inside its own pair of brackets.
 .It
 Required arguments
-.Pq if any
+(if any)
 are next,
 listed in the order they should be specified in the command line.
 .It
@@ -570,6 +568,8 @@ relaxed but at a minimum should be internally consistent with their style.
 Stylistic changes (including whitespace changes) are hard on the source
 repository and are to be avoided without good reason.  Code that is
 approximately
+.Fx
+KNF
 .Xr style 9
 compliant in the repository must not diverge from compliance.
 .Pp
@@ -587,8 +587,8 @@ or
 .Sh HISTORY
 This man page is largely based on the src/admin/style/style file from
 the
-.Tn BSD
-4.4-Lite2 release, with updates to reflect the current practice and
+.Bx 4.4 Lite2
+release, with updates to reflect the current practice and
 desire of the
 .Fx
 project.

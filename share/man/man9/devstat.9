@@ -29,7 +29,7 @@
 .\"
 .Dd May 22, 1998
 .Dt DEVSTAT 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm devstat ,
 .Nm devstat_add_entry ,
@@ -176,7 +176,7 @@ number is currently only a 32-bit integer, but it could be enlarged if
 someone has a system with more than four billion device arrival events.
 .It device_name
 The device name is a text string given by the registering driver to
-identify itself.  (e.g.
+identify itself.  (e.g.\&
 .Dq da ,
 .Dq cd ,
 .Dq sa ,

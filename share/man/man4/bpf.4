@@ -24,7 +24,7 @@
 .\"
 .Dd January 16, 1996
 .Dt BPF 4
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm bpf
 .Nd Berkeley Packet Filter
@@ -522,11 +522,9 @@ M[k] <- X
 The alu instructions perform operations between the accumulator and
 index register or constant, and store the result back in the accumulator.
 For binary operations, a source mode is required
-.Po
-.Dv BPF_K
+.Dv ( BPF_K
 or
-.Dv BPF_X
-.Pc .
+.Dv BPF_X ) .
 .Pp
 .Bl -tag -width "BPF_ALU+BPF_MUL+BPF_K" -compact
 .It Li BPF_ALU+BPF_ADD+BPF_K
@@ -723,7 +721,9 @@ Data link protocols with variable length headers are not currently supported.
 .Sh HISTORY
 The Enet packet filter was created in 1980 by Mike Accetta and
 Rick Rashid at Carnegie-Mellon University.  Jeffrey Mogul, at
-Stanford, ported the code to BSD and continued its development from
+Stanford, ported the code to
+.Bx
+and continued its development from
 1983 on.  Since then, it has evolved into the Ultrix Packet Filter
 at
 .Tn DEC ,

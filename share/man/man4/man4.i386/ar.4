@@ -29,11 +29,10 @@
 .\"
 .Dd November 19, 1995
 .Dt AR 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ar
-.Nd
-synchronous Digi/Arnet device driver.
+.Nd synchronous Digi/Arnet device driver
 .Sh SYNOPSIS
 .Cd "device ar0 at isa? port 0x300 irq 10 iomem 0xd0000"
 .Cd "device ar1 at isa? port 0x310 irq 11 iomem 0xd0000"
@@ -107,9 +106,9 @@ Please report bugs to
 .Aq jhay@FreeBSD.org .
 .Sh SEE ALSO
 .Xr cx 4 ,
-.Xr sr 4 ,
-.Xr netintro 4 ,
 .Xr netgraph 4 ,
+.Xr netintro 4 ,
+.Xr sr 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The

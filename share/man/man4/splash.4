@@ -84,11 +84,12 @@ If the standard VGA video mode is used,
 the size of the bitmap must be 320x200 or less.
 If you enable the VESA mode support in the kernel,
 either by statically linking the VESA module or by loading the VESA module
-.Pq see Xr vga 4 ,
+(see
+.Xr vga 4 ) ,
 you can load bitmaps up to a resolution of 1024x768, depending on the VESA
 BIOS and the amount of video memory on the video card.
 .Ss Screen saver
-The screen saver will activate when the system is considered idle: i.e.
+The screen saver will activate when the system is considered idle: i.e.\&
 when the user has not typed a key or moved the mouse for a specified period
 of time.
 As the screen saver is an optional module,
@@ -99,13 +100,17 @@ Currently the following screen saver modules are available:
 .It Pa blank_saver.ko
 This screen saver simply blanks the screen.
 .It Pa daemon_saver.ko
-Animated BSD Daemon screen saver.
+Animated
+.Bx
+Daemon screen saver.
 .It Pa fade_saver.ko
 The screen will gradually fade away.
 .It Pa green_saver.ko
 If the monitor supports power saving mode, it will be turned off.
 .It Pa logo_saver.ko
-Animated graphical BSD Daemon.
+Animated graphical
+.Bx
+Daemon.
 .It Pa rain_saver.ko
 Draws a shower on the screen.
 .It Pa snake_saver.ko
@@ -145,7 +150,9 @@ on the AT 84 keyboard.
 You can change the
 .Ar saver
 key by modifying the keymap
-.Pq see Xr kbdcontrol 1 , Xr keymap 5 ,
+(see
+.Xr kbdcontrol 1 ,
+.Xr keymap 5 ) ,
 and assign the
 .Ar saver
 function to a key of your preference.
@@ -179,7 +186,8 @@ have the following line in the kernel configuration file.
 .Pp
 Next, edit
 .Pa /boot/loader.conf
-.Pq see Xr loader.conf 5
+(see
+.Xr loader.conf 5 )
 and include the following lines:
 .Bd -literal -offset indent
 splash_bmp_load="YES"

@@ -28,7 +28,7 @@
 .\"
 .Dd May 21, 1999
 .Dt ATKBD 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm atkbd
 .Nd the AT keyboard interface
@@ -140,9 +140,11 @@ The
 .Nm
 driver accepts the following driver flags.  They can be set either in the
 kernel configuration file
-.Pq see Xr config 8 ,
+(see
+.Xr config 8 ) ,
 or else in the User Configuration Menu at boot time
-.Pq see Xr boot 8 .
+(see
+.Xr boot 8 ) .
 .Bl -tag -width FAIL
 .It bit 0 (FAIL_IF_NO_KBD)
 By default the

@@ -14,7 +14,7 @@
 .\"
 .Dd December 3, 1997
 .Dt MSE 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm mse
 .Nd bus and InPort mice driver
@@ -133,10 +133,12 @@ The
 driver accepts the following driver flag.
 Set it in the
 kernel configuration file
-.Pq see Xr config 8
+(see
+.Xr config 8 )
 or in the User Configuration Menu at
 the boot time
-.Pq see Xr boot 8 .
+(see
+.Xr boot 8 ) .
 .Pp
 .Bl -tag -width MOUSE
 .It bit 4..7 ACCELERATION
@@ -260,7 +262,8 @@ is always set to -1.
 The
 .Dv accelfactor
 field holds a value to control acceleration feature
-.Pq see Sx Acceleration .
+(see
+.Sx Acceleration ) .
 It is zero or greater.
 If it is zero, acceleration is disabled.
 .Pp

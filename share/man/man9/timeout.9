@@ -38,7 +38,7 @@
 .\"
 .Dd September 10, 1996
 .Dt TIMEOUT 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm timeout
 .Nd execute a function after a specified length of time
@@ -196,6 +196,8 @@ in the paper
 .%T "Hashed and Hierarchical Timing Wheels: Data Structures for the Efficient Implementation of a Timer Facility"
 in the
 .%B "Proceedings of the 11th ACM Annual Symposium on Operating Systems Principles" .
-The current implementation replaces the long standing BSD linked list
+The current implementation replaces the long standing
+.Bx
+linked list
 callout mechanism which offered O(n) insertion and removal running time
 but did not generate or require handles for untimeout operations.

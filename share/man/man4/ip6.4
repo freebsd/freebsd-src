@@ -62,7 +62,7 @@
 .\"
 .Dd March 13, 2000
 .Dt IP6 4
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm ip6
@@ -96,9 +96,9 @@ There are several
 .Xr setsockopt 2 Ns / Ns Xr getsockopt 2
 options.
 They are separated into the basic IPv6 sockets API
-.Pq defined in RFC2553 ,
+(defined in RFC2553),
 and the advanced API
-.Pq defined in RFC2292 .
+(defined in RFC2292).
 The basic API looks very similar to the API presented in
 .Xr ip 4 .
 Advanced API uses ancillary data and can handle more complex cases.
@@ -386,8 +386,8 @@ will be the first byte of the socket address structure.
 .Pp
 If the socket address structure contains an IPv6 address (e.g., the
 sin6_family member is
-.Dv AF_INET6
-), then the node identified by that
+.Dv AF_INET6 ) ,
+then the node identified by that
 address must be a neighbor of the sending host.
 If that address
 equals the destination IPv6 address of the datagram, then this is
@@ -648,14 +648,14 @@ The ancillary data items were improperly formed, or option name was unknown.
 .\"
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
+.Xr recv 2 ,
 .Xr send 2 ,
 .Xr setsockopt 2 ,
-.Xr recv 2 ,
 .Xr inet6_option_space 3 ,
 .Xr inet6_rthdr_space 3 ,
-.Xr intro 4 ,
 .Xr icmp6 4 ,
-.Xr inet6 4
+.Xr inet6 4 ,
+.Xr intro 4
 .Rs
 .%A W. Stevens
 .%A M. Thomas
@@ -697,9 +697,7 @@ are not defined in the RFCs and should be considered implementation dependent.
 .\"
 .Sh HISTORY
 The implementation is based on KAME stack
-.Po
-which is decendant of WIDE hydrangea IPv6 stack kit
-.Pc .
+(which is descendant of WIDE hydrangea IPv6 stack kit).
 .Pp
 Part of the document was shamelessly copied from RFC2553 and RFC2292.
 .\"

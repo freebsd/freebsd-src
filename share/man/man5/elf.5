@@ -26,7 +26,7 @@
 .\"
 .Dd July 31, 1999
 .Dt ELF 5
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm elf
 .Nd format of ELF executable binary files
@@ -232,7 +232,8 @@ UNIX System V ABI.
 .It Dv ELFOSABI_HPUX
 HP-UX operating system ABI.
 .It Dv ELFOSABI_NETBSD
-NetBSD operating system ABI.
+.Nx
+operating system ABI.
 .It Dv ELFOSABI_LINUX
 GNU/Linux operating system ABI.
 .It Dv ELFOSABI_HURD
@@ -246,7 +247,8 @@ Monterey project ABI.
 .It Dv ELFOSABI_IRIX
 IRIX operating system ABI.
 .It Dv ELFOSABI_FREEBSD
-FreeBSD operating system ABI.
+.Fx
+operating system ABI.
 .It Dv ELFOSABI_TRU64
 TRU64 UNIX operating system ABI.
 .It Dv ELFOSABI_ARM
@@ -552,7 +554,9 @@ segment resides in memory.
 .It Dv p_paddr
 On systems for which physical addressing is relevant, this member is
 reserved for the segment's physical address.
-Under BSD this member is
+Under
+.Bx
+this member is
 not used and must be zero.
 .It Dv p_filesz
 This member holds the number of bytes in the file image of the segment.
@@ -1319,6 +1323,7 @@ The ELF format is an adopted standard.
 This manual page was written by
 .An Jeroen Ruigrok van der Werven
 .Aq asmodai@FreeBSD.org
-with inspiration from BSDi's BSD/OS
+with inspiration from BSDi's
+.Bsx
 .Xr elf 5
 manpage.

@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm rc.conf
-.Nd system configuration information.
+.Nd system configuration information
 .Sh DESCRIPTION
 The file
 .Nm
@@ -111,9 +111,11 @@ enable PCCARD support at boot time.
 Set to PCCARD controller memory address or
 .Dq DEFAULT
 for the default value.
-.It Ar pccard_ifconfig
+.It Va pccard_ifconfig
 .Pq Vt str
-List of arguments to be passed to ifconfig(8) at boot time or on
+List of arguments to be passed to
+.Xr ifconfig 8
+at boot time or on
 insertion of the card (e.g. "inet 192.168.1.1 netmask 255.255.255.0"
 for a fixed address or "DHCP" for a DHCP client).
 .It Va pccard_beep
@@ -128,7 +130,7 @@ set it to melody mode.
 .Pq Vt str
 Path to the configuration file for the
 .Xr pccardd 8
-daemon (e.g.
+daemon (e.g.\&
 .Pa /etc/pccard.conf.sample ) .
 .It Va pccardd_flags
 .Pq Vt str
@@ -139,7 +141,7 @@ is set to
 these are the flags to pass to the
 .Xr pccardd 8
 daemon.
-.It Ar local_startup
+.It Va local_startup
 .Pq Vt str
 List of directories to search for startup script files.
 .It Va script_name_sep
@@ -149,7 +151,7 @@ into individual filenames.
 The default is a space.
 You do not need to change this unless you have startup scripts with names
 containing spaces.
-.It Ar hostname
+.It Va hostname
 .Pq Vt str
 The Fully Qualified Domain Name of your host on the network.
 This should almost certainly be set to something meaningful, even if
@@ -164,11 +166,9 @@ if you are not running NIS.
 .It Va dhcp_program
 .Pq Vt str
 Path to the DHCP client program
-.Po
-.Pa /sbin/dhclient ,
+.Pa ( /sbin/dhclient ,
 the ISC DHCP client,
-is the default
-.Pc .
+is the default).
 .It Va dhcp_flags
 .Pq Vt str
 Additional flags to pass to the DHCP client program.
@@ -239,6 +239,7 @@ and
 .Xr divert 4
 sockets must be enabled in your kernel.
 .It Va natd_interface
+.Pq Vt str
 This is the name of the public interface on which natd should run.  It
 is mandatory if
 .Va natd_enable
@@ -246,6 +247,7 @@ is set to
 .Dq YES .
 The interface may be given as an interface name or as an IP address.
 .It Va natd_flags
+.Pq Vt str
 Additional natd flags should be placed here.  The
 .Fl n
 or
@@ -476,8 +478,8 @@ See
 .Va ipfilter_enable
 for a detailled discussion.
 .\" ----- end of added ipf hook ---------------------------------
-.It Ar tcp_extensions
-.Pt Vt bool
+.It Va tcp_extensions
+.Pq Vt bool
 Set to
 .Dq YES
 by default.
@@ -613,9 +615,10 @@ this host as a network address translating router.
 .Pq Vt str
 The name of the profile to use from
 .Pa /etc/ppp/ppp.conf .
-.It Ar ppp_user
+.It Va ppp_user
 .Pq Vt str
-The name of the user under which ppp should be started. By
+The name of the user under which ppp should be started.
+By
 default, ppp is started as
 .Dq root .
 .It Va rc_conf_files
@@ -713,7 +716,7 @@ the Kerberos Administration Daemon); set to
 .Dq NO
 on a slave server.
 .It Va kerberos_stash
-(str)
+.Pq Vt str
 If
 .Dq YES ,
 instruct the Kerberos servers to use the stashed master key instead of
@@ -782,14 +785,17 @@ these are the flags to pass to the
 .Xr nfsiod 8
 daemon.
 .It Va nfs_access_cache
-if
+.Pq Vt integer
+If
 .Va nfs_client_enable
 is set to
 .Dq YES ,
 this can be set to
 .Dq 0
-to disable NFS ACCESS RPC caching, or to the number of seconds for which NFS ACCESS
-results should be cached.  A value of 2-10 seconds will substantially reduce network
+to disable NFS ACCESS RPC caching, or to the number of seconds for which
+NFS ACCESS
+results should be cached.
+A value of 2-10 seconds will substantially reduce network
 traffic for many NFS operations.
 .It Va nfs_server_enable
 .Pq Vt bool
@@ -852,7 +858,7 @@ and also an NFS server, run
 at boot time.
 .It Va portmap_program
 .Pq Vt str
-path to
+Path to
 .Xr portmap 8
 (default
 .Pa /usr/sbin/portmap ) .
@@ -896,6 +902,7 @@ then run the
 .Xr pppoed 8
 daemon at boot time to provide PPP over Ethernet services.
 .It Va pppoed_ Ns Ar provider
+.Pq Vt str
 .Xr pppoed 8
 listens to requests to this
 .Ar provider
@@ -905,9 +912,11 @@ with a
 .Ar system
 argument of the same name.
 .It Va pppoed_flags
+.Pq Vt str
 Additional flags to pass to
 .Xr pppoed 8 .
 .It Va pppoed_interface
+.Pq Vt str
 The network interface to run pppoed on.  This is mandatory when
 .Va pppoed_enable
 is set to
@@ -966,16 +975,16 @@ If set to
 then run the
 .Xr ntpd 8
 command at boot time.
-.It Ar xntpd_program
+.It Va xntpd_program
 .Pq Vt str
 Path to
 .Xr ntpd 8
 (default
 .Pa /usr/sbin/ntpd ) .
-.It Ar xntpd_flags
+.It Va xntpd_flags
 .Pq Vt str
 If
-.Ar xntpd_enable
+.Va xntpd_enable
 is set to
 .Dq YES ,
 these are the flags to pass to the
@@ -1145,10 +1154,12 @@ these are the flags to pass to the
 .Xr IPXrouted 8
 daemon.
 .It Va arpproxy_all
+.Pq Vt bool
 If set to
 .Dq YES
 then enable global proxy ARP.
 .It Va forward_sourceroute
+.Pq Vt bool
 If set to
 .Dq YES
 then when
@@ -1157,6 +1168,7 @@ is also set to
 .Dq YES ,
 source routed packets are forwarded.
 .It Va accept_sourceroute
+.Pq Vt bool
 If set to
 .Dq YES
 then the system will accept source routed packets directed at it.
@@ -1599,8 +1611,9 @@ boot time.
 Set to
 .Dq YES
 if you wish to enable OSF/1 (Digital UNIX) binary emulation at system
-initial boot time. (alpha)
-.It Ar rand_irqs
+initial boot time.
+(alpha)
+.It Va rand_irqs
 .Pq Vt str
 Set to the list of IRQs to monitor for random number creation
 (see the man page for
@@ -1653,10 +1666,8 @@ at system boot time.
 .It Va sshd_program
 .Pq Vt str
 Path to the SSH server program
-.Po
-.Pa /usr/sbin/sshd
-is the default
-.Pc .
+.Pa ( /usr/sbin/sshd
+is the default).
 .It Va sshd_enable
 .Pq Vt bool
 Set to
@@ -1677,9 +1688,10 @@ daemon.
 .Pq Vt bool
 If set to
 .Dq NO
-then unaligned access warnings will not be printed. (alpha)
+then unaligned access warnings will not be printed.
+(alpha)
 .\" ----- isdn settings ---------------------------------
-.It Ar isdn_enable
+.It Va isdn_enable
 .Pq Vt bool
 Set to
 .Dq NO
@@ -1695,7 +1707,7 @@ Set to
 .Dq -dn -d0x1f9
 by default.
 Additional flags to pass to
-.Xr isndn 8
+.Xr isdnd 8
 (but see
 .Va isdn_fsdev
 and
@@ -1707,15 +1719,25 @@ Set to
 .Dq cons25
 by default.
 The terminal type of the output device when
-.Xr idsnd 8
+.Xr isdnd 8
 operates in fullscreen mode.
+.It Va isdn_screenflags
+.Pq Vt str
+Set to
+.Dq NO
+by default.
+The video mode for fullscreen mode (only for
+.Xr syscons 4
+console driver, see
+.Xr vidcontrol 1
+for valid modes).
 .It Va isdn_fsdev
 .Pq Vt str
 Set to
 .Dq /dev/ttyv4
 by default.
 The output device for
-.Xr idsnd 8
+.Xr isdnd 8
 in fullscreen mode (or
 .Dq NO
 for daemon mode).
@@ -1736,16 +1758,6 @@ Set to
 by default.
 Flags for
 .Pa /usr/sbin/isdntrace .
-.It Va isdn_screenflags
-.Pq Vt str
-Set to
-.Ar NO
-by default.
-The video mode for fullscreen mode (only for
-.Xr syscons 4
-console driver, see
-.Xr vidcontrol 1
-for valid modes).
 .\" -----------------------------------------------------
 .El
 .Sh FILES

@@ -23,9 +23,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" Note: All FreeBSD man pages should have a FreeBSD revision
-.\" control id to make it easier for translation teams to track
-.\" changes.
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -34,9 +31,10 @@
 .Os
 .Sh NAME
 .Nm example
-.Nd example device driver manual page
+.Nd "example device driver manual page"
 .Sh SYNOPSIS
-.Cd pseudo-device example
+.Cd "pseudo-device example"
+.Cd "options EXAMPLE_DEBUG"
 .Sh DESCRIPTION
 This is an example device driver manual page for the
 .Nm
@@ -47,14 +45,18 @@ when writing a new manual page.
 The
 .Nm
 driver supports the following ioctls:
-.Bl -tag -width XXXXXXXXXXX
+.Bl -tag -width ".Dv EIOCNULL"
 .It Dv EIOCEX
 Example ioctl.
 .It Dv EIOCNULL
 Example ioctl.
 .El
+.Pp
+If the kernel is compiled with the
+.Dv EXAMPLE_DEBUG
+option, then additional debugging messages will be displayed.
 .Sh FILES
-.Bl -tag -width /dev/null -compact
+.Bl -tag -width ".Pa /dev/null" -compact
 .It Pa /dev/null
 Example of a file in the
 .Sx FILES
@@ -62,9 +64,9 @@ section.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
-.It example%d: example diagnostic message.
+.It "example%d: example diagnostic message."
 An example of a diagnostic message.
-.It example%d: another example diagnostic message.
+.It "example%d: another example diagnostic message."
 Self explanatory.
 .El
 .Sh SEE ALSO

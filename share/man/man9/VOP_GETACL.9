@@ -23,14 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd December 23, 1999
 .Os
 .Dt VOP_GETACL 9
 .Sh NAME
 .Nm VOP_GETACL
-.Nd Retrieve access control list for a vnode
+.Nd retrieve access control list for a vnode
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
@@ -43,24 +43,25 @@ file or directory.
 .Pp
 Its arguments are:
 .Bl -tag -width type
-.It Ar vp
+.It Fa vp
 the vnode of the file or directory
-.It Ar type
+.It Fa type
 the type of ACL to retrieve
-.It Ar aclp
+.It Fa aclp
 a pointer to an ACL structure to receive the ACL data
-.It Ar cred
+.It Fa cred
 the user credentials to use in authorizing the request
-.It Ar p
+.It Fa p
 the process requesting the ACL
 .El
 .Pp
 The
 .Fa cred
-pointer may be NULL to indicate that access control checks are not to be
-performed, of possible.  This cred setting might be used to allow the
-kernel to authorize ACL retrieval that the active process might not be
-permitted to do.
+pointer may be
+.Dv NULL
+to indicate that access control checks are not to be performed, if possible.
+This cred setting might be used to allow the kernel to authorize ACL
+retrieval that the active process might not be permitted to do.
 .Pp
 The vnode ACL interface defines the syntax, and not semantics, of file and
 directory ACL interfaces.  More information about ACL management in kernel
@@ -83,7 +84,8 @@ Permission denied
 .It Bq Er ENOMEM
 Insufficient memory available to fulfill request
 .It Bq Er EOPNOTSUPP
-The file system does not support VOP_GETACL
+The file system does not support
+.Fn VOP_GETACL
 .El
 .Sh SEE ALSO
 .Xr acl 9 ,

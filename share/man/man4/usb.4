@@ -32,7 +32,7 @@
 .\"
 .Dd February 21, 1999
 .Dt USB 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm usb
 .Nd Universal Serial Bus
@@ -88,7 +88,7 @@ such as descriptors, from the device.
 Each endpoint, except the control endpoint, is unidirectional.
 .Pp
 The endpoints in a device are grouped into interfaces.
-An interface is a logical unit within a device; e.g.
+An interface is a logical unit within a device; e.g.\&
 a compound device with both a keyboard and a trackball would present
 one interface for each.
 An interface can sometimes be set into different modes,
@@ -245,7 +245,7 @@ struct usb_device_stats {
 .Pp
 The
 .Va requests
-field is indexed by the transfer kind, i.e.
+field is indexed by the transfer kind, i.e.\&
 .Va UE_* ,
 and indicates how many transfers of each kind that has been completed
 by the controller.
@@ -285,12 +285,11 @@ The
 specifications can be found at
 .Dv http://www.usb.org/developers/docs.htm .
 .Pp
-.Xr pci 4 ,
 .Xr ohci 4 ,
+.Xr pci 4 ,
 .Xr uhci 4 ,
 .Xr uhid 4 ,
 .Xr ukbd 4 ,
-.Xr ulpt 4 ,
 .Xr ums 4 ,
 .Xr usbd 8 ,
 .Xr usbdevs 8

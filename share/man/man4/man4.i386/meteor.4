@@ -3,7 +3,7 @@
 .\"
 .Dd August 15, 1995
 .Dt METEOR 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm meteor
 .Nd "video capture driver"
@@ -760,7 +760,7 @@ will be set to:
 invalid capture command value
 .It Bq Er ENXIO
 there is not internal buffer to hold the frame.
-this indicates the previous set geometry
+This indicates the previous set geometry
 .Xr ioctl 2
 failed.
 .It Bq Er EIO
@@ -832,7 +832,7 @@ will be set to:
 invalid meteor_geomet structure pointer or bad command.
 .It Bq Er ENXIO
 there is not internal buffer to hold the frame.
-this indicates the previous set geometry
+This indicates the previous set geometry
 .Xr ioctl 2
 failed.
 .It Bq Er EIO

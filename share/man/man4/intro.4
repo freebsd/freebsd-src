@@ -27,7 +27,7 @@
 .\"
 .Dd January 20, 1996
 .Dt INTRO 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm intro
 .Nd introduction to devices and device drivers
@@ -70,7 +70,8 @@ sometimes also called
 They are usually located under the directory
 .Pa /dev
 in the file system hierarchy
-.Pq see also Xr hier 7 .
+(see also
+.Xr hier 7 ) .
 .Pp
 Each device node must be created statically and
 independently of the existence of the associated device driver,
@@ -93,7 +94,7 @@ Some devices come in two flavors:
 and
 .Em character
 devices, or by a better name, buffered and unbuffered
-.Pq raw
+(raw)
 devices.  The traditional names are reflected by the letters
 .Ql b
 and
@@ -121,7 +122,7 @@ device.  This includes making backups of entire disk partitions, or
 to
 .Em raw
 floppy disks
-.Pq i.e. those used like tapes .
+(i.e. those used like tapes).
 .Pp
 Access restrictions to device nodes are usually subject of the regular
 file permissions of the device node entry, instead of being implied
@@ -144,11 +145,9 @@ manual pages in this section provide a sample line for the
 configuration file in their synopsis portion.  See also the sample
 config file
 .Pa /sys/i386/conf/LINT
-.Po
-for the
+(for the
 .Em i386
-architecture
-.Pc .
+architecture).
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr ioctl 2 ,

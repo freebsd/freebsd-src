@@ -5,17 +5,18 @@
 .Os
 .Sh NAME
 .Nm natm
-.Nd Native Mode ATM Protocol Layer
+.Nd Native Mode ATM protocol layer
 .Sh DESCRIPTION
-The BSD ATM software comes with a
+The
+.Bx
+ATM software comes with a
 .Em native mode ATM protocol layer
 which provides socket level access to AAL0 and AAL5 virtual circuits.
 To enable this protocol layer, add
 .Dl options NATM
 to your kernel configuration file and re-make the kernel (don't forget
 to do
-.Dq make clean
-).
+.Dq make clean ) .
 .Sh NATM API
 The NATM layer uses a
 .Dv struct sockaddr_natm

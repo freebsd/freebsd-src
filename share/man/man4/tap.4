@@ -56,7 +56,7 @@ the control device
 there);
 writing an Ethernet frame to the control device generates an input frame on
 the network interface, as if the
-.Pq non-existent
+(non-existent)
 hardware had just received it.
 .Pp
 The Ethernet tunnel device, normally
@@ -91,14 +91,15 @@ amount of data provided to
 .Fn write .
 Writes will not block; if the frame cannot be accepted
 for a transient reason
-.Pq e.g., no buffer space available ,
+(e.g., no buffer space available),
 it is silently dropped; if the reason is not transient
-.Pq e.g., frame too large ,
+(e.g., frame too large),
 an error is returned.
 The following
 .Xr ioctl 2
 calls are supported
-.Pq defined in Aq Pa net/if_tap.h Ns :
+(defined in
+.Aq Pa net/if_tap.h ) :
 .Bl -tag -width VMIO_SIOCSETMACADDR
 .It Dv TAPSDEBUG
 The argument should be a pointer to an
@@ -114,7 +115,7 @@ this stores the internal debugging variable's value into it.
 Turn non-blocking I/O for reads off or on, according as the argument
 .Va int Ns 's
 value is or isn't zero
-.Pq Writes are always nonblocking .
+(Writes are always nonblocking).
 .It Dv FIOASYNC
 Turn asynchronous I/O for reads
 (i.e., generation of
@@ -171,7 +172,8 @@ address of the
 .Dq remote
 side. This command is used by VMware port and expected to be executed on
 a descriptor, associated with control device
-.Pq usually Pa /dev/vmnet Ns Sy N .
+(usually
+.Pa /dev/vmnet Ns Sy N ) .
 .El
 .Pp
 The control device also supports

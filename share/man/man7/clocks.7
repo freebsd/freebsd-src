@@ -37,7 +37,8 @@
 .Fd #include <time.h>
 .Sh DESCRIPTION
 .Ql HZ
-is not part of the application interface in BSD.
+is not part of the application interface in
+.Bx .
 .Pp
 There are many different real and virtual (timekeeping) clocks with
 different frequencies:
@@ -107,14 +108,18 @@ The mc14618a clock.  This is a real clock with a nominal frequency of
 clock.  It isn't available to applications.
 .It
 The microseconds clock.  This is a virtual clock with frequency
-1000000.  It is used for most timekeeping in BSD and is exported
+1000000.  It is used for most timekeeping in
+.Bx
+and is exported
 to applications in
 .Xr getrusage 2 ,
 .Xr gettimeofday 2 ,
 .Xr select 2 ,
 .Xr getitimer 2 ,
 etc...  This is the clock that should normally be used
-by BSD applications.
+by
+.Bx
+applications.
 .It
 The i8254 clock.  This is a real clock/timer with a nominal frequency of
 1193182.  It is divided down to give the scheduling clock.  It isn't
@@ -126,7 +131,7 @@ cycles per second of the CPU(s).
 Its frequency can be found using the sysctl
 .Sy machdep.tsc_freq .
 It is used to interpolate between values of the scheduling clock.
-It is only available to applications in a purely machine-dependant manner.
+It is only available to applications in a purely machine-dependent manner.
 .El
 .Pp
 Summary: if

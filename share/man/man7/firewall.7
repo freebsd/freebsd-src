@@ -6,7 +6,7 @@
 .\"
 .Dd May 26, 2001
 .Dt FIREWALL 7
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm firewall
 .Nd simple firewalls under FreeBSD
@@ -152,7 +152,7 @@ firewall_type="/etc/ipfw.conf"
 # might be a better choice.
 ip_portrange_first=4000
 ip_portrange_last=5000
-...
+\&...
 .Ed
 .Pp
 .Bd -literal
@@ -346,17 +346,17 @@ can use a light
 .Xr jail 8
 to indirectly bind services that do not otherwise give you the option.
 .Sh SEE ALSO
-.Xr config 8 ,
-.Xr dummynet 4 ,
-.Xr ipfw 8 ,
 .Xr ipnat 1 ,
+.Xr dummynet 4 ,
 .Xr ipnat 5 ,
+.Xr rc.conf 5 ,
+.Xr smb.conf 5 [ /usr/ports/net/samba ] ,
+.Xr samba 7 [ /usr/ports/net/samba ] ,
+.Xr config 8 ,
+.Xr ipfw 8 ,
 .Xr jail 8 ,
 .Xr natd 8 ,
-.Xr nfsd 8 ,
-.Xr rc.conf 5 ,
-.Xr samba 7 [ /usr/ports/net/samba ]
-.Xr smb.conf 5 [ /usr/ports/net/samba ]
+.Xr nfsd 8
 .Sh ADDITIONAL READING
 .Xr ipf 5 ,
 .Xr ipf 8 ,

@@ -28,11 +28,10 @@
 .\"
 .Dd February 9, 1999
 .Dt ATKBDC 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm atkbdc
-.Nd
-the AT keyboard controller interface
+.Nd the AT keyboard controller interface
 .Sh SYNOPSIS
 .Cd "options KBD_RESETDELAY=N"
 .Cd "options KBD_MAXWAIT=N"
@@ -57,7 +56,8 @@ The following kernel configuration options can be used to control the
 .Nm
 driver.
 They may be set in the kernel configuration file
-.Pq see Xr config 8 .
+(see
+.Xr config 8 ) .
 .Bl -tag -width MOUSE
 .It Em KBD_RESETDELAY=X , KBD_MAXWAIT=Y
 The keyboard driver

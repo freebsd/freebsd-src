@@ -28,11 +28,10 @@
 .\"
 .Dd April 1, 2000
 .Dt PSM 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm psm
-.Nd
-PS/2 mouse style pointing device driver
+.Nd PS/2 mouse style pointing device driver
 .Sh SYNOPSIS
 .Cd "options KBD_RESETDELAY=N"
 .Cd "options KBD_MAXWAIT=N"
@@ -68,12 +67,14 @@ The
 .Nm
 driver allows the user to initially set the resolution
 via the driver flag
-.Pq see Sx DRIVER CONFIGURATION
+(see
+.Sx "DRIVER CONFIGURATION" )
 or change it later via the
 .Xr ioctl 2
 command
 .Dv MOUSE_SETMODE
-.Pq see Sx IOCTLS .
+(see
+.Sx IOCTLS ) .
 .Ss Report Rate
 Frequency, or report rate, at which the device sends movement
 and button state reports to the host system is also configurable.
@@ -93,7 +94,8 @@ At the level zero the basic support is provided; the device driver will report
 horizontal and vertical movement of the attached device
 and state of up to three buttons.
 The movement and status are encoded in a series of fixed-length data packets
-.Pq see Sx Data Packet Format .
+(see
+.Sx "Data Packet Format" ) .
 This is the default level of operation and the driver is initially
 at this level when opened by the user program.
 .Pp
@@ -192,7 +194,8 @@ There are following kernel configuration options to control the
 .Nm
 driver.
 They may be set in the kernel configuration file
-.Pq see Xr config 8 .
+(see
+.Xr config 8 ) .
 .Bl -tag -width MOUSE
 .It Em KBD_RESETDELAY=X , KBD_MAXWAIT=Y
 The
@@ -230,7 +233,8 @@ driver accepts the following driver flags.
 Set them in the
 kernel configuration file or in the User Configuration Menu at
 the boot time
-.Pq see Xr boot 8 .
+(see
+.Xr boot 8 ) .
 .Pp
 .Bl -tag -width MOUSE
 .It bit 0..3 RESOLUTION
@@ -485,7 +489,8 @@ Typical resolutions are:
 The
 .Dv accelfactor
 field holds a value to control acceleration feature
-.Pq see Sx Acceleration .
+(see
+.Sx Acceleration ) .
 It must be zero or greater.  If it is zero, acceleration is disabled.
 .Pp
 The
@@ -648,7 +653,8 @@ for known IDs.
 At debug level 1 more information will be logged
 while the driver probes the auxiliary port (mouse port).
 Messages are logged with the LOG_KERN facility at the LOG_DEBUG level
-.Pq see Xr syslogd 8 .
+(see
+.Xr syslogd 8 ) .
 .Bd -literal -offset indent
 psm0: current command byte:xxxx
 kbdio: TEST_AUX_PORT status:0000

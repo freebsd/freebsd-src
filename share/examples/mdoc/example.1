@@ -23,9 +23,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" Note: All FreeBSD man pages should have a FreeBSD revision
-.\" control id to make it easier for translation teams to track
-.\" changes.
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -34,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm example
-.Nd example command manual page
+.Nd "example command manual page"
 .Sh SYNOPSIS
 .Nm
 .Op Fl abc
@@ -48,7 +45,7 @@ It is intended that this example can be used as a template
 when writing a new manual page.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl d Ar argument"
 .It Fl a
 Example optional
 .Fl a
@@ -57,7 +54,7 @@ option.
 Example optional
 .Fl b
 option.
-.It Fl c 
+.It Fl c
 Example optional
 .Fl c
 option.
@@ -71,13 +68,13 @@ Required argument
 .Ar file .
 .El
 .Sh ENVIRONMENT
-The 
+The
 .Nm
 command ignores the
 .Ev EXAMPLE
 environment variable.
 .Sh FILES
-.Bl -tag -width /dev/null -compact
+.Bl -tag -width ".Pa /dev/null" -compact
 .It Pa /dev/null
 Example of a file in the
 .Sx FILES
@@ -89,14 +86,14 @@ of the
 .Nm
 command:
 .Pp
-.Dl % example -abc -d xyzzy /dev/null
+.Dl "example -abc -d xyzzy /dev/null"
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command
-fails for one of the following reasons
+fails for one of the following reasons:
 .Bl -diag
-.It example error message
+.It "example error message"
 An example of an error message.
-.It another example error message.
+.It "another example error message."
 Self explanatory.
 .El
 .Sh COMPATIBILITY
@@ -108,20 +105,20 @@ command has no known compatibility issues.
 .Xr example 4 ,
 .Xr mdoc 7
 .Rs
-.%A A. B. Author
-.%T Example RFC Title
+.%A "A. B. Author"
+.%T "Example RFC Title"
 .%O RFC0000
 .Re
 .Rs
-.%A A. B. Author
-.%B Example Book Title
+.%A "A. B. Author"
+.%B "Example Book Title"
 .%O ISBN-0-000-00000-0
 .Re
 .Rs
-.%A A. B. Author
-.%D January 1997
-.%J Example Journal Name
-.%T Example Article Title
+.%A "A. B. Author"
+.%D "January 1997"
+.%J "Example Journal Name"
+.%T "Example Article Title"
 .Re
 .Sh STANDARDS
 If the command conforms to some standard, such as

@@ -27,7 +27,7 @@
 .\"
 .Dd October 10, 1998
 .Dt CD 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm cd
 .Nd SCSI CD-ROM driver
@@ -410,12 +410,8 @@ probe messages for the various LUNs of the changer will continue to appear
 while the boot process is going on.  This is normal, and is caused by the
 changer scheduling code.
 .Sh FILES
-.Bl -tag -width /dev/rcd[0-9][a-h] -compact
+.Bl -tag -width /dev/cd[0-9][a-h] -compact
 .It Pa /dev/cd[0-9][a-h]
-block mode
-.Tn CD-ROM
-devices
-.It Pa /dev/rcd[0-9][a-h]
 raw mode
 .Tn CD-ROM
 devices
@@ -455,7 +451,9 @@ This
 .Nm
 driver is based upon the
 .Nm
-driver written by Julian Elischer, which appeared in 386BSD 0.1.  The
+driver written by Julian Elischer, which appeared in
+.Bx 386 0.1 .
+The
 CAM version of the
 .Nm
 driver was written by Kenneth Merry and first appeared in

@@ -23,14 +23,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"       $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd December 23, 1999
 .Os
 .Dt VOP_SETEXTATTR 9
 .Sh NAME
 .Nm VOP_SETEXTATTR
-.Nd Set named extended attribute for a vnode
+.Nd set named extended attribute for a vnode
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
@@ -43,15 +43,15 @@ file or directory.
 .Pp
 Its arguments are:
 .Bl -tag -width type
-.It Ar vp
+.It Fa vp
 the vnode of the file or directory
-.It Ar name
+.It Fa name
 pointer to a null-terminated character string containing the attribute name
-.It Ar uio
+.It Fa uio
 the location of the data to be read or written
-.It Ar cred
+.It Fa cred
 the user credentials to use in authorizing the request
-.It Ar p
+.It Fa p
 the process setting the extended attribute
 .El
 .Pp
@@ -63,15 +63,19 @@ non-zero offsets will be rejected.
 .Pp
 The
 .Fa uio
-pointer may be NULL to indicate that the specified extended attribute
-should be deleted.
+pointer may be
+.Dv NULL
+to indicate that the specified extended attribute should be deleted.
 .Pp
 The
 .Fa cred
-pointer may be NULL to indicate that access control checks are not to be
-performed, of possible.  This cred setting might be used to allow the
-kernel to authorize extended attribute changes that the active process might
-not be permitted to make.
+pointer may be
+.Dv NULL
+to indicate that access control checks are not to be performed, if possible.
+This
+.Fa cred
+setting might be used to allow the kernel to authorize extended attribute
+changes that the active process might not be permitted to make.
 .Pp
 Extended attribute semantics may vary by file system implementing the call.
 More information on extended attributes may be found in
@@ -95,7 +99,8 @@ The uio structure refers to an invalid userspace address
 .It Bq Er EINVAL
 The name or uio argument is invalid
 .It Bq Er EOPNOTSUPP
-The file system does not support VOP_GETEXTATTR
+The file system does not support
+.Fn VOP_SETEXTATTR
 .It Bq Er ENOSPC
 The file system is out of space
 .It Bq Er EROFS

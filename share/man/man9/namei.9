@@ -38,15 +38,16 @@
 .Sh NAME
 .Nm namei ,
 .Nm NDINIT
-.Nd convert pathname to a pointer to a locked vnode.
+.Nd convert pathname to a pointer to a locked vnode
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/namei.h>
 .Ft int
 .Fn namei "struct nameidata *ndp"
 .Ft void
-.Fn NDINIT "struct nameidata *ndp" "int operation" "int operflags" "int segflag" "const char *path" "struct proc *proc"
-.Fn NDFREE "struct nameidata *ndp" "int operflags"
+.Fn NDINIT "struct nameidata *ndp" "u_long operation" "u_long operflags" "enum uio_seg segflag" "const char *path" "struct proc *proc"
+.Ft void
+.Fn NDFREE "struct nameidata *ndp" "u_int operflags"
 .Sh DESCRIPTION
 .Fn namei
 is used to get from a pathname to a vnode for the object.
@@ -201,7 +202,8 @@ In order to solve this for the cases that include both LOCKPARENT and LOCKLEAF,
 it will be necessary to go to recursive locking.
 .Sh SEE ALSO
 .Xr VFS 9 ,
-.Xr vnode 9 ,
+.Xr vnode 9
+.Pp
 .Pa src/sys/kern/vfs_lookup.c
 .Sh AUTHORS
 This man page was written by

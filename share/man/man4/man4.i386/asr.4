@@ -7,7 +7,7 @@
 .\"
 .Dd October 27, 2000
 .Dt ASR 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm asr
 .Nd driver for Adaptec I2O based SCSI/ATA host bus adapters
@@ -59,7 +59,9 @@ Please contact Adaptec directly to obtain the latest information
 on configuration utilities for the adapters.
 Currently there are both a GUI Motif based configuration utility
 and a CLI based configuration utility available from the Adaptec Web site.
-Note that in the absence of a native FreeBSD version
+Note that in the absence of a native
+.Fx
+version
 of the configuration utilities
 does not mean one cannot configure the devices via the BIOS
 based configuration tool Storage Manager on ROM (SMOR).
@@ -78,7 +80,8 @@ and mode pages are understood via translation performed in the card's firmware.
 The
 .Nm
 (Adaptec SCSI RAID)
-driver first appeared as the dpti2o driver under BSDi BSD/OS 3.2,
+driver first appeared as the dpti2o driver under BSDi
+.Bsx 3.2 ,
 then under
 .Fx 2.2.8
 and was ported over to the CAM layer represented in 4.0.

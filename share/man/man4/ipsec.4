@@ -43,17 +43,15 @@
 is a security protocol in Internet Protocol layer.
 .Nm
 is defined for both IPv4 and IPv6
-.Po
-.Xr inet 4
+.Xr ( inet 4
 and
-.Xr inet6 4
-.Pc .
+.Xr inet6 4 ) .
 .Nm
 consists of two sub-protocols, namely
 ESP
-.Pq encapsulated security payload
+(encapsulated security payload)
 and AH
-.Pq authentication header .
+(authentication header).
 ESP protects IP payload from wire-tapping by encrypting it by
 secret key cryptography algorithms.
 AH guarantees integrity of IP packet
@@ -95,9 +93,9 @@ interface is used to define host-wide default behavior.
 .Pp
 The kernel code does not implement dynamic encryption key exchange protocol
 like IKE
-.Pq Internet Key Exchange .
+(Internet Key Exchange).
 That should be implemented as userland programs
-.Pq usually as daemons ,
+(usually as daemons),
 by using the above described APIs.
 .\"
 .Ss Policy management
@@ -196,17 +194,17 @@ during AH authentication data computation.
 The variable is for tweaking AH behavior to interoperate with devices that
 implement RFC1826 AH.
 It should be set to non-zero
-.Pq clear the type-of-service field
+(clear the type-of-service field)
 for RFC2402 conformance.
 .It Li ipsec.ah_offsetmask
 During AH authentication data computation, the kernel will include
 16bit fragment offset field
-.Pq including flag bits
+(including flag bits)
 in IPv4 header, after computing logical AND with the variable.
 The variable is for tweaking AH behavior to interoperate with devices that
 implement RFC1826 AH.
 It should be set to zero
-.Pq clear the fragment offset field during computation
+(clear the fragment offset field during computation)
 for RFC2402 conformance.
 .It Li ipsec.dfbit
 The variable configures the kernel behavior on IPv4 IPsec tunnel encapsulation.
@@ -217,7 +215,7 @@ The variable is supplied to conform to RFC2401 chapter 6.1.
 .It Li ipsec.ecn
 If set to non-zero, IPv4 IPsec tunnel encapsulation/decapsulation behavior will
 be friendly to ECN
-.Pq explicit congestion notification ,
+(explicit congestion notification),
 as documented in
 .Li draft-ietf-ipsec-ecn-02.txt .
 .Xr gif 4
@@ -297,20 +295,16 @@ AH and tunnel mode encapsulation may not work as you might expect.
 If you configure inbound
 .Dq require
 policy against AH tunnel or any IPsec encapsulating policy with AH
-.Po
-like
-.Dq Li esp/tunnel/A-B/use ah/transport/A-B/require
-.Pc ,
+(like
+.Dq Li esp/tunnel/A-B/use ah/transport/A-B/require ) ,
 tunnelled packets will be rejected.
 This is because we enforce policy check on inner packet on reception,
 and AH authenticates encapsulating
-.Pq outer
+(outer)
 packet, not the encapsulated
-.Pq inner
+(inner)
 packet
-.Po
-so for the receiving kernel there's no sign of authenticity
-.Pc .
+(so for the receiving kernel there's no sign of authenticity).
 The issue will be solved when we revamp our policy engine to keep all the
 packet decapsulation history.
 .Pp

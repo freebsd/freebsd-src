@@ -26,10 +26,10 @@
 .\"
 .Dd December 30, 1999
 .Dt SYSCTL.CONF 5
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm sysctl.conf
-.Nd Kernel state defaults
+.Nd kernel state defaults
 .Sh DESCRIPTION
 The
 .Pa /etc/sysctl.conf
@@ -38,7 +38,7 @@ settings for the kernel.  The
 .Pa /etc/sysctl.conf
 is in the format of the
 .Xr sysctl 8
-command, i.e.
+command, i.e.\&
 .Bd -literal -offset indent
 sysctl_mib=value
 .Ed
@@ -70,7 +70,7 @@ compat.linux.osrelease=3.4-STABLE
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
 .Xr rc 8 ,
-.Xr sysctl 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm

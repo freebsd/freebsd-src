@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .Dd January 16, 1996
 .Dt DDB 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ddb
 .Nd interactive kernel debugger
@@ -85,8 +85,7 @@ action.
 The debugger is also invoked on kernel
 .Xr panic 9
 if the
-.\" XXX sysctl markup?
-.Li debug.debugger_on_panic
+.Va debug.debugger_on_panic
 .Xr sysctl 8
 MIB variable is set non-zero,
 which is the default
@@ -545,7 +544,8 @@ and modifiers as described above.
 .Sh HISTORY
 The
 .Nm
-debugger was developed for Mach, and ported to 386BSD 0.1.
+debugger was developed for Mach, and ported to
+.Bx 386 0.1 .
 This manual page translated from
 .Fl man
 macros by Garrett Wollman.

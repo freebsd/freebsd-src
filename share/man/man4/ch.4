@@ -26,7 +26,7 @@
 .\"
 .Dd May 14, 1998
 .Dt CH 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ch
 .Nd SCSI media-changer (juke box) driver
@@ -185,8 +185,8 @@ changer and converts it to an array of \fBchanger_element_status\fR
 structures.
 .Pp
 With each call to
-.Dv CHIOGSTATUS
-, the status of one or more elements of one type may be queried.
+.Dv CHIOGSTATUS ,
+the status of one or more elements of one type may be queried.
 .Pp
 The application passes a changer_element_status_request structure to the
 .Nm
@@ -304,4 +304,5 @@ codes to the ioctls described here.
 .Sh HISTORY
 The
 .Nm
-driver appeared in 386BSD 0.1.
+driver appeared in
+.Bx 386 0.1 .

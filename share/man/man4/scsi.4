@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .Dd October 15, 1998
 .Dt SCSI 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm SCSI ,
 .Nm CAM
@@ -204,7 +204,7 @@ There are currently four debugging flags that may be turned on:
 This debugging flag enables general informational printfs for the device
 or devices in question.
 .It Dv CAM_DEBUG_TRACE
-This debugging flag enables function-level command flow tracing.  i.e.
+This debugging flag enables function-level command flow tracing.  i.e.\&
 kernel printfs will happen at the entrance and exit of various functions.
 .It Dv CAM_DEBUG_SUBTRACE
 This debugging flag enables debugging output internal to various functions.
