@@ -10,7 +10,6 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	time.c vidconsole.c amd64_tramp.S
 
-CFLAGS+=	-ffreestanding
 BOOT_COMCONSOLE_PORT?= 0x3f8
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
 
