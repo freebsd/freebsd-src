@@ -631,8 +631,8 @@ setdirmodes(flags)
 			cp = myname(ep);
 			(void) chown(cp, node.uid, node.gid);
 			(void) chmod(cp, node.mode);
-			(void) chflags(cp, node.flags);
 			utimes(cp, node.timep);
+			(void) chflags(cp, node.flags);
 			ep->e_flags &= ~NEW;
 		}
 	}
