@@ -527,6 +527,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		  /*quirks*/0, /*mintags*/55, /*maxtags*/255
 	},
 	{
+		/* Veritas Storage Appliance */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "VERITAS", "*", "*" },
+		  CAM_QUIRK_HILUNS, /*mintags*/2, /*maxtags*/1024
+	},
+	{
 		/*
 		 * Would respond to all LUNs.  Device type and removable
 		 * flag are jumper-selectable.
