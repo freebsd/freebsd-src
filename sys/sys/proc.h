@@ -161,7 +161,7 @@ struct turnstile;
 /*
  * Here we define the four structures used for process information.
  *
- * The first is the thread. It might be though of as a "Kernel
+ * The first is the thread. It might be thought of as a "Kernel
  * Schedulable Entity Context".
  * This structure contains all the information as to where a thread of
  * execution is now, or was when it was suspended, why it was suspended,
