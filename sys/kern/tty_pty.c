@@ -150,9 +150,9 @@ ptyinit(n)
 	pt = malloc(sizeof(*pt), M_PTY, M_WAITOK);
 	bzero(pt, sizeof(*pt));
 	pt->devs = devs = make_dev(&pts_cdevsw, n,
-	    0, 0, 0666, "tty%c%r", names[n / 32], n % 32);
+	    UID_ROOT, GID_WHEEL, 0666, "tty%c%r", names[n / 32], n % 32);
 	pt->devc = devc = make_dev(&ptc_cdevsw, n,
-	    0, 0, 0666, "pty%c%r", names[n / 32], n % 32);
+	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[n / 32], n % 32);
 
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = &pt->pt_tty;

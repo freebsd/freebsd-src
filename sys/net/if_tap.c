@@ -211,12 +211,12 @@ tapcreate(dev)
 	/* select device: tap or vmnet */
 	if (minor(dev) & VMNET_DEV_MASK) {
 		name = VMNET;
-		unit = lminor(dev) & 0xff;
+		unit = dev2unit(dev) & 0xff;
 		tp->tap_flags |= TAP_VMNET;
 	}
 	else {
 		name = TAP;
-		unit = lminor(dev);
+		unit = dev2unit(dev);
 	}
 
 	tp->tap_dev = make_dev(&tap_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 

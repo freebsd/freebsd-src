@@ -363,7 +363,8 @@ bpfopen(dev, flags, fmt, p)
 	 */
 	if (d)
 		return (EBUSY);
-	make_dev(&bpf_cdevsw, minor(dev), 0, 0, 0600, "bpf%d", lminor(dev));
+	make_dev(&bpf_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 0600,
+	    "bpf%d", dev2unit(dev));
 	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK);
 	bzero(d, sizeof(*d));
 	dev->si_drv1 = d;
@@ -1377,8 +1378,9 @@ bpf_clone(arg, name, namelen, dev)
 		return;
 	if (dev_stdclone(name, NULL, "bpf", &u) != 1)
 		return;
-	/* XXX: minor encoding if u > 255 */
-	*dev = make_dev(&bpf_cdevsw, u, 0, 0, 0600, "bpf%d", u);
+	*dev = make_dev(&bpf_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
+	    "bpf%d", u);
+	(*dev)->si_flags |= SI_CHEAPCLONE;
 	return;
 }
 
