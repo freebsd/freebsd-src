@@ -875,10 +875,8 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 	bytes_read = read(fd, buff, sizeof(buff));
 	while (bytes_read > 0) {
 		bytes_written = archive_write_data(a, buff, bytes_read);
-
-		if (bytes_written == 0 && errno) {
-			return -1; /* Write failed; this is bad */
-		}
+		if (bytes_written <= 0)
+			return (-1); /* Write failed; this is bad */
 		bytes_read = read(fd, buff, sizeof(buff));
 	}
 	return 0;
