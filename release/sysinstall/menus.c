@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.7 1995/09/23 22:03:13 jkh Exp $
+ * $Id: menus.c,v 1.42.2.8 1995/09/25 00:52:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -71,7 +71,7 @@ option by pressing [ENTER].",		/* prompt */
       { "Express",		"Begin a quick installation",			/* E */
 	DMENU_CALL,		&installExpress, 0, 0		},
       { "Fixit",		"Mount fixit floppy and go into repair mode",
-	DMENU_CALL,		&installFixitMode, 0, 0		},
+	DMENU_CALL,		&installFixit, 0, 0		},
       { "Quit",			"Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL,		NULL, 0, 0			},
       { NULL } },

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.4 1995/09/23 22:20:12 jkh Exp $
+ * $Id: install.c,v 1.71.2.5 1995/09/25 00:52:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,8 @@
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -208,8 +210,6 @@ installFixit(char *str)
     args.fspec = "/dev/fd0";
 
     while (1) {
-	int status;
-
 	msgConfirm("Please insert the fixit disk and press return");
 	if (mount(MOUNT_UFS, "/mnt", MNT_RDONLY, (caddr_t)&args) != -1)
 	    break;
