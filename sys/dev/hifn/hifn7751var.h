@@ -133,8 +133,6 @@ struct hifn_session {
 #define	HS_STATE_USED	1		/* allocated, but key not on card */
 #define	HS_STATE_KEY	2		/* allocated and key is on card */
 
-struct rndstate_test;
-
 /*
  * Holds data specific to a single HIFN board.
  */
