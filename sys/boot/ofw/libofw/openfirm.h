@@ -104,6 +104,7 @@ int		OF_seek(ihandle_t, u_quad_t);
 
 /* Memory functions */
 void 		*OF_claim(void *, u_int, u_int);
+void		*OF_alloc_phys(size_t, int);
 void		OF_release(void *, u_int);
 
 /* Control transfer functions */
