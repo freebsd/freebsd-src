@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.17 1997/02/22 13:58:19 peter Exp $
+#	$Id: Makefile,v 1.18 1997/04/28 03:03:23 steve Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -9,8 +9,8 @@ SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
 GENSRCS= arith.c arith_lex.c builtins.c init.c nodes.c syntax.c
 SRCS= ${SHSRCS} ${GENSRCS}
 
-LDADD+= -ll -ledit -ltermcap
 DPADD+= ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
+LDADD+= -ll -ledit -ltermcap
 
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
@@ -24,15 +24,13 @@ CLEANFILES+= builtins.h mkinit mkinit.o mknodes mknodes.o \
 	nodes.h syntax.h token.h y.tab.h
 CLEANFILES+= ${GENSRCS}
 
-beforedepend: token.h
+beforedepend: builtins.h nodes.h syntax.h token.h
 
-token.h: mktokens
-	sh ${.CURDIR}/mktokens
-
-builtins.h builtins.c: mkbuiltins builtins.def
+builtins.c builtins.h: mkbuiltins builtins.def
 	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
 
-init.c: mkinit ${SHSRCS}
+init.c: mkinit alias.c eval.c exec.c input.c jobs.c options.c parser.c \
+	redir.c trap.c var.c
 	./mkinit ${.ALLSRC:S/^mkinit$//}
 
 nodes.c nodes.h: mknodes nodetypes nodes.c.pat
@@ -41,8 +39,24 @@ nodes.c nodes.h: mknodes nodetypes nodes.c.pat
 syntax.c syntax.h: mksyntax
 	./mksyntax
 
-parser.o: token.h
+token.h: mktokens
+	sh ${.CURDIR}/mktokens
+
+# Rules for object files that rely on generated headers.
+cd.o: nodes.h
+eval.o: builtins.h nodes.h syntax.h
+exec.o: builtins.h nodes.h syntax.h
+expand.o: nodes.h syntax.h
+input.o: syntax.h
+jobs.o: nodes.h syntax.h
+main.o: nodes.h
+mystring.o: syntax.h
+options.o: nodes.h
+output.o: syntax.h
+parser.o: nodes.h syntax.h token.h
+redir.o: nodes.h
+show.o: nodes.h
+trap.o: nodes.h syntax.h
+var.o: nodes.h syntax.h
 
 .include <bsd.prog.mk>
-
-${OBJS}: builtins.h nodes.h syntax.h
