@@ -41,6 +41,7 @@ DECL(dumpcis_main);
 DECL(enabler_main);
 DECL(help_main);
 DECL(pccardmem_main);
+DECL(power_main);
 DECL(rdattr_main);
 DECL(rdmap_main);
 DECL(rdreg_main);
@@ -57,6 +58,7 @@ struct {
 	{ "enabler", enabler_main, "Device driver enabler" },
 	{ "help", help_main, "Prints command summary" },
 	{ "pccardmem", pccardmem_main, "Allocate memory for pccard driver" },
+	{ "power", power_main, "Power on/off slots" },
 	{ "rdattr", rdattr_main, "Read attribute memory" },
 	{ "rdmap", rdmap_main, "Read pcic mappings" },
 	{ "rdreg", rdreg_main, "Read pcic register" },
