@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.13 1998/06/08 09:47:46 bde Exp $
+ *	$Id: if_fxpreg.h,v 1.14 1999/02/11 21:47:10 julian Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -331,13 +331,15 @@ struct fxp_stats {
 
 /*
  * PHY BMCR Basic Mode Control Register
- * Should probably be in i82555.h.
+ * Should probably be in i82555.h or dp83840.h (Intel/National names).
  * (Called "Management Data Interface Control Reg" in some Intel data books).
  * (*) indicates bit ignored in auto negotiation mode.
  */
 #define FXP_PHY_BMCR			0x0 
+#define FXP_PHY_BMCR_COLTEST		0x0080 /* not on Intel parts */
 #define FXP_PHY_BMCR_FULLDUPLEX		0x0100 /* 1 = Fullduplex (*) */
 #define FXP_PHY_BMCR_RESTART_NEG	0x0200 /* ==> 1 to restart autoneg */
+#define FXP_PHY_BMCR_ISOLATE		0x0400 /* not on Intel parts */
 #define FXP_PHY_BMCR_POWERDOWN		0x0800 /* 1 = low power mode */
 #define FXP_PHY_BMCR_AUTOEN		0x1000 /* 1 = for auto mode */
 #define FXP_PHY_BMCR_SPEED_100M		0x2000 /* 1 = for 100Mb/sec (*) */
@@ -345,7 +347,9 @@ struct fxp_stats {
 #define FXP_PHY_BMCR_RESET		0x8000 /* ==> 1 sets to defaults */
 
 /*
- * Management Data Interface Status reg.
+ * Basic Mode Status Register (National name)
+ * Management Data Interface Status reg. (Intel name)
+ * in both Intel and National parts.
  */
 #define FXP_PHY_STS			0x1
 #define FXP_PHY_STS_EXND		0x0001 /* Extended regs enabled */
@@ -355,10 +359,11 @@ struct fxp_stats {
 #define FXP_PHY_STS_REMT_FAULT		0x0010 /* remote fault detected */
 #define FXP_PHY_STS_AUTO_DONE		0x0020 /* auto negotiation completed */
 #define FXP_PHY_STS_MGMT_PREAMBLE	0x0040 /* real complicated */
-#define FXP_PHY_STS_10HDX_OK		0x1000 /* can do 10Mb HDX */
-#define FXP_PHY_STS_10FDX_OK		0x2000 /* can do 10Mb FDX */
-#define FXP_PHY_STS_100HDX_OK		0x4000 /* can do 100Mb HDX */
-#define FXP_PHY_STS_100FDX_OK		0x8000 /* can do 100Mb FDX */
+#define FXP_PHY_STS_10HDX_OK		0x0800 /* can do 10Mb HDX */
+#define FXP_PHY_STS_10FDX_OK		0x1000 /* can do 10Mb FDX */
+#define FXP_PHY_STS_100HDX_OK		0x2000 /* can do 100Mb HDX */
+#define FXP_PHY_STS_100FDX_OK		0x4000 /* can do 100Mb FDX */
+#define FXP_PHY_STS_100T4_OK		0x8000 /* can do 100bT4 -not Intel */
 
 /*
  * More Phy regs
@@ -381,6 +386,7 @@ struct fxp_stats {
 
 /*
  * Phy Unit Status and Control Register (another one)
+ * This is not in the National part!
  */
 #define FXP_PHY_USC			0x10
 #define FXP_PHY_USC_DUPLEX		0x0001 /* in FDX mode */
@@ -394,10 +400,23 @@ struct fxp_stats {
 
 
 /*
- * DP84830 PHY, PCS Configuration Register
+ * DP83830 PHY, PCS Configuration Register
+ * NOT compatible with Intel parts,
+ * (where it is the 100BTX premature eof counter).
  */
 #define FXP_DP83840_PCR			0x17
-#define FXP_DP83840_PCR_LED4_MODE	0x0002	/* 1 = LED4 always indicates full duplex */
-#define FXP_DP83840_PCR_F_CONNECT	0x0020	/* 1 = force link disconnect function bypass */
+#define FXP_DP83840_PCR_LED4_MODE	0x0002	/* 1 = LED4 always = FDX */
+#define FXP_DP83840_PCR_F_CONNECT	0x0020	/* 1 = link disconnect bypass */
 #define FXP_DP83840_PCR_BIT8		0x0100
 #define FXP_DP83840_PCR_BIT10		0x0400
+
+/*
+ * DP83830 PHY, Address/status Register
+ * NOT compatible with Intel parts,
+ * (where it is the 10BT jabber detect counter).
+ */
+#define FXP_DP83840_PAR			0x19
+#define FXP_DP83840_PAR_PHYADDR		0x1F
+#define FXP_DP83840_PAR_CON_STATUS	0x20	
+#define FXP_DP83840_PAR_SPEED_10	0x40	/* 1 == running at 10 Mb/Sec */
+
