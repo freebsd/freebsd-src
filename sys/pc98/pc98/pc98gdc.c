@@ -2,7 +2,7 @@
 #define	ROW		25
 #define	COL		80
 /*-
- * $Id$
+ * $Id: pc98gdc.c,v 1.1 1999/01/18 08:38:07 kato Exp $
  */
 
 #include "gdc.h"
@@ -316,7 +316,8 @@ probe_adapters(void)
 
     biosadapter[0] = adapter_init_value[0];
     biosadapter[0].va_flags |= V_ADP_PROBED;
-    biosadapter[0].va_initial_mode = biosadapter[0].va_initial_bios_mode;
+    biosadapter[0].va_mode = 
+	biosadapter[0].va_initial_mode = biosadapter[0].va_initial_bios_mode;
 
     master_gdc_wait_vsync();
     master_gdc_cmd(_GDC_START);	/* text ON */
