@@ -1031,7 +1031,7 @@ Winbond W6692 based PCI cards
 Toshiba Mobile HDD MEHDD20A (Type II)
 
 FAX-Modem/PC-Card
-Melco IGM-PCM56K
+Melco IGM-PCM56K/IGM-PCM56KH
 
 Digital Cellular/PC-Card
 Panasonic KX-PH405
