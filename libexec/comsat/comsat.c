@@ -161,8 +161,8 @@ onalrm(signo)
 				exit(1);
 			}
 		}
-		(void)lseek(uf, (off_t)0, L_SET);
-		nutmp = read(uf, utmp, (int)statbf.st_size)/sizeof(struct utmp);
+		(void)lseek(uf, (off_t)0, SEEK_SET);
+		nutmp = read(uf, utmp, (size_t)statbf.st_size)/sizeof(struct utmp);
 	}
 }
 
@@ -181,7 +181,7 @@ mailfor(name)
 	if (!(cp = strchr(name, '@')))
 		return;
 	*cp = '\0';
-	offset = atoi(cp + 1);
+	offset = strtoll(cp + 1, NULL, 10);
 	if (!(cp = strchr(cp + 1, ':')))
 		file = name;
 	else
@@ -266,7 +266,7 @@ jkfprintf(tp, user, file, offset)
 	if ((fi = fopen(file, "r")) == NULL)
 		return;
 
-	(void)fseek(fi, offset, L_SET);
+	(void)fseeko(fi, offset, SEEK_CUR);
 	/*
 	 * Print the first 7 lines or 560 characters of the new mail
 	 * (whichever comes first).  Skip header crap other than
