@@ -563,19 +563,17 @@ ad_interrupt(struct ad_request *request)
 
     /* do we have a corrected soft error ? */
     if (adp->device->channel->status & ATA_S_CORR)
-	diskerr(request->bp, "soft error (ECC corrected)",
-		request->blockaddr + (request->donecount / DEV_BSIZE),
-		&adp->disk.d_label);
+	disk_err(request->bp, "soft error (ECC corrected)",
+		request->blockaddr + (request->donecount / DEV_BSIZE), 1);
 
     /* did any real errors happen ? */
     if ((adp->device->channel->status & ATA_S_ERROR) ||
 	(request->flags & ADR_F_DMA_USED && dma_stat & ATA_BMSTAT_ERROR)) {
 	adp->device->channel->error =
 	    ATA_INB(adp->device->channel->r_io, ATA_ERROR);
-	diskerr(request->bp, (adp->device->channel->error & ATA_E_ICRC) ?
+	disk_err(request->bp, (adp->device->channel->error & ATA_E_ICRC) ?
 		"UDMA ICRC error" : "hard error",
-		request->blockaddr + (request->donecount / DEV_BSIZE),
-		&adp->disk.d_label);
+		request->blockaddr + (request->donecount / DEV_BSIZE), 1);
 
 	/* if this is a UDMA CRC error, reinject request */
 	if (request->flags & ADR_F_DMA_USED &&
