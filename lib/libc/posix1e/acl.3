@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000, 2001 Robert N. M. Watson
+.\" Copyright (c) 2000, 2001, 2002 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -179,11 +179,9 @@ The syscalls between the internal interfaces and the public library
 routines may change over time, and as such are not documented.
 They are not intended to be called directly without going through the
 library.
-.Sh IMPLEMENTATION NOTES
-.Fx Ns 's
-support for POSIX.1e interfaces and features is still under
-development at this time.
 .Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr setfacl 1 ,
 .Xr acl_add_perm 3 ,
 .Xr acl_calc_mask 3 ,
 .Xr acl_clear_perms 3 ,
@@ -227,6 +225,12 @@ POSIX.1e support was introduced in
 .Fx 4.0 ;
 .Fx 5.0
 was the first version to include a complete ACL implementation based
-on extended attributes.
+on extended attributes for the UFS and UFS2 file systems.
+.Pp
+.Xr getfacl 1
+and
+.Xr setfacl 1
+describe the user tools that permit direct manipulation of complete file
+ACLs.
 .Sh AUTHORS
 .An Robert N M Watson
