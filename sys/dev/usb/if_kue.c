@@ -592,7 +592,6 @@ static int kue_rx_list_init(sc)
 		c = &cd->kue_rx_chain[i];
 		c->kue_sc = sc;
 		c->kue_idx = i;
-		c->kue_accum = 0;
 		if (kue_newbuf(sc, c, NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (c->kue_xfer == NULL) {
@@ -634,15 +633,6 @@ static int kue_tx_list_init(sc)
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
- *
- * Grrr. Receiving transfers larger than about 1152 bytes sometimes
- * doesn't work. We get an incomplete frame. In order to avoid
- * this, we queue up RX transfers that are shorter than a full sized
- * frame. If the received frame is larger than our transfer size,
- * we snag the rest of the data using a second transfer. Does this
- * hurt performance? Yes. But after fighting with this stupid thing
- * for three days, I'm willing to settle. I'd rather have reliable
- * receive performance that fast but spotty performance.
  */
 static void kue_rxeof(xfer, priv, status)
 	usbd_xfer_handle	xfer;
@@ -810,12 +800,7 @@ static int kue_encap(sc, m, idx)
 	total_len = m->m_pkthdr.len + 2;
 	total_len += 64 - (total_len % 64);
 
-	/*
-	 * The ADMtek documentation says that the packet length is
-	 * supposed to be specified in the first two bytes of the
-	 * transfer, however it actually seems to ignore this info
-	 * and base the frame size on the bulk transfer length.
-	 */
+	/* Frame length is specified in the first 2 bytes of the buffer. */
 	c->kue_buf[0] = (u_int8_t)m->m_pkthdr.len;
 	c->kue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 8);
 
