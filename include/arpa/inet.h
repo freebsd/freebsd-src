@@ -33,8 +33,8 @@
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _INET_H_
-#define	_INET_H_
+#ifndef _ARPA_INET_H_
+#define	_ARPA_INET_H_
 
 /* External definitions for functions in inet(3) */
 

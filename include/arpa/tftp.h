@@ -33,8 +33,8 @@
  *	@(#)tftp.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _TFTP_H_
-#define	_TFTP_H_
+#ifndef _ARPA_TFTP_H_
+#define	_ARPA_TFTP_H_
 
 /*
  * Trivial File Transfer Protocol (IEN-133)

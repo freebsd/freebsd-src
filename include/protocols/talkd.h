@@ -33,8 +33,8 @@
  *	@(#)talkd.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _TALKD_H_
-#define	_TALKD_H_
+#ifndef _PROTOCOLS_TALKD_H_
+#define	_PROTOCOLS_TALKD_H_
 
 /*
  * This describes the protocol used by the talk server and clients.
