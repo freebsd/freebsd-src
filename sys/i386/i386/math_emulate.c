@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.23 1997/05/09 09:46:50 peter Exp $
+ *	$Id: math_emulate.c,v 1.24 1997/07/20 08:37:20 bde Exp $
  */
 
 /*
@@ -1563,9 +1563,9 @@ fpu_unload(struct lkm_table *lkmtp, int cmd)
 }
 
 int
-fpu(struct lkm_table *lkmtp, int cmd, int ver)
+fpu_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, fpu_load, fpu_unload, lkm_nullcmd);
+	MOD_DISPATCH(fpu, lkmtp, cmd, ver, fpu_load, fpu_unload, lkm_nullcmd);
 }
 #else /* !LKM */
 
