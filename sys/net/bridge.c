@@ -928,7 +928,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 		    }
 		    ip = mtod(m0, struct ip *);
 		}
-	    } while (pfh = TAILQ_NEXT(pfh, pfil_link));
+	    } while ((pfh = TAILQ_NEXT(pfh, pfil_link)) != NULL);
 	    /*
 	     * If we get here, the firewall has passed the pkt, but the mbuf
 	     * pointer might have changed. Restore ip and the fields ntohs()'d.
