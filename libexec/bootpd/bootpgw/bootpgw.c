@@ -90,17 +90,9 @@ SOFTWARE.
  * Externals, forward declarations, and global variables
  */
 
-#ifdef	__STDC__
-#define P(args) args
-#else
-#define P(args) ()
-#endif
-
-static void usage P((void));
-static void handle_reply P((void));
-static void handle_request P((void));
-
-#undef	P
+static void usage(void);
+static void handle_reply(void);
+static void handle_request(void);
 
 /*
  * IP port numbers for client and server obtained from /etc/services
