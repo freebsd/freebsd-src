@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.21 1997/08/16 19:16:23 wollman Exp $
+ * $Id: lfs_vfsops.c,v 1.22 1997/09/07 16:21:05 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -380,6 +380,8 @@ lfs_mountfs(devvp, mp, p)
 
 	/* Allocate the mount structure, copy the superblock into it. */
 	ump = (struct ufsmount *)malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
+	bzero(ump, sizeof *ump);
+	ump->um_malloctype = M_LFSNODE;
 	fs = ump->um_lfs = malloc(sizeof(struct lfs), M_UFSMNT, M_WAITOK);
 	bcopy(bp->b_data, fs, sizeof(struct lfs));
 	if (sizeof(struct lfs) < LFS_SBPAD)			/* XXX why? */
