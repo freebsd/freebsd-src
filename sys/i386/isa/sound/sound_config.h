@@ -106,7 +106,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 #ifdef PC98
 #define SB16_DMA	3
 #else
-#define SB16_DMA	6
+#define SB16_DMA	5
 #endif
 #endif
 
