@@ -220,7 +220,9 @@ static const int maxsize[] = {
 };
 
 static int ipsec_esp_keymin = 256;
+#ifdef IPSEC_ESP
 static int ipsec_esp_auth = 0;
+#endif
 static int ipsec_ah_keymin = 128;
 
 SYSCTL_DECL(_net_key);
