@@ -256,7 +256,7 @@ nat_t *nat;
 	off = fin->fin_off;
 	off <<= 3;
 	if ((off + fin->fin_dlen) > 0xffff || (fin->fin_dlen == 0))
-		return NULL;
+		return -1;
 
 	WRITE_ENTER(&ipf_natfrag);
 	ipf = ipfr_new(ip, fin, pass, ipfr_nattab);
