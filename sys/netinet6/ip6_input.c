@@ -272,6 +272,8 @@ ip6_input(m)
 		struct mbuf *n;
 
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		if (n)
+			M_COPY_PKTHDR(n, m);
 		if (n && m->m_pkthdr.len > MHLEN) {
 			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
@@ -279,14 +281,13 @@ ip6_input(m)
 				n = NULL;
 			}
 		}
-		if (!n)
+		if (!n) {
+			m_freem(m);
 			return;	/*ENOBUFS*/
+		}
 
 		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
-		n->m_pkthdr = m->m_pkthdr;
 		n->m_len = m->m_pkthdr.len;
-		n->m_pkthdr.aux = m->m_pkthdr.aux;
-		m->m_pkthdr.aux = (struct mbuf *)NULL;
 		m_freem(m);
 		m = n;
 	}
