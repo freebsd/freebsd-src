@@ -2,8 +2,7 @@
 
 PROG=	mount_smbfs
 SRCS=	mount_smbfs.c getmntopts.c
-WARNS?=	2
-NO_WERROR=	yes
+WARNS?=	0
 MAN=	mount_smbfs.8
 
 MOUNTDIR=	${.CURDIR}/../mount
