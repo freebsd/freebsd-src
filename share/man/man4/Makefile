@@ -174,6 +174,7 @@ MAN=	aac.4 \
 	oldcard.4 \
 	orm.4 \
 	pass.4 \
+	patm.4 \
 	pci.4 \
 	pccard.4 \
 	pccbb.4 \
@@ -318,6 +319,7 @@ MLINKS+=mem.4 kmem.4
 MLINKS+=netintro.4 networking.4
 MLINKS+=nge.4 if_nge.4
 MLINKS+=oldcard.4 card.4
+MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4
 MLINKS+=pcn.4 if_pcn.4
