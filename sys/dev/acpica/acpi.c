@@ -86,7 +86,7 @@ static struct cdevsw acpi_cdevsw = {
 };
 
 static const char* sleep_state_names[] = {
-    "S0", "S1", "S2", "S3", "S4", "S4B", "S5" };
+    "S0", "S1", "S2", "S3", "S4", "S5", "S4B" };
 
 /* this has to be static, as the softc is gone when we need it */
 static int acpi_off_state = ACPI_STATE_S5;
@@ -1008,7 +1008,7 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 {
     FUNCTION_TRACE_U32(__func__, state);
 
-    if (state >= ACPI_STATE_S0 && state <= ACPI_STATE_S5)
+    if (state >= ACPI_STATE_S0 && state <= ACPI_S_STATES_MAX)
 	acpi_SetSleepState((struct acpi_softc *)arg, state);
     return_VOID;
 }
@@ -1287,7 +1287,7 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	    break;
 	}
 	state = *(int *)addr;
-	if (state >= ACPI_STATE_S0  && state <= ACPI_STATE_S5) {
+	if (state >= ACPI_STATE_S0  && state <= ACPI_S_STATES_MAX) {
 	    acpi_SetSleepState(sc, state);
 	} else {
 	    error = EINVAL;
@@ -1312,18 +1312,18 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
     u_int new_state, old_state;
 
     old_state = *(u_int *)oidp->oid_arg1;
-    if (old_state > ACPI_STATE_S5)
+    if (old_state > ACPI_S_STATES_MAX)
 	strcpy(sleep_state, "unknown");
     else
 	strncpy(sleep_state, sleep_state_names[old_state],
 	    sizeof(sleep_state_names[old_state]));
     error = sysctl_handle_string(oidp, sleep_state, sizeof(sleep_state), req);
     if (error == 0 && req->newptr != NULL) {
-	for (new_state = ACPI_STATE_S0; new_state <= ACPI_STATE_S5; new_state++)
+	for (new_state = ACPI_STATE_S0; new_state <= ACPI_S_STATES_MAX; new_state++)
 	    if (strncmp(sleep_state, sleep_state_names[new_state],
 		sizeof(sleep_state)) == 0)
 		break;
-	if (new_state != old_state && new_state <= ACPI_STATE_S5)
+	if (new_state != old_state && new_state <= ACPI_S_STATES_MAX)
 	    *(u_int *)oidp->oid_arg1 = new_state;
 	else
 	    error = EINVAL;
