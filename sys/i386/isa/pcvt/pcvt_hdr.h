@@ -39,7 +39,7 @@
  *	pcvt_hdr.h	VT220 Driver Global Include File
  *	------------------------------------------------
  *
- *	Last Edit-Date: [Mon Mar 27 16:10:50 2000]
+ *	Last Edit-Date: [Wed Apr  5 18:21:32 2000]
  *
  * $FreeBSD$
  *
@@ -78,9 +78,6 @@
 #include <dev/kbd/atkbdcreg.h>
 
 #include <i386/isa/pcvt/pcvt_conf.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-#include <i386/isa/isa.h>
 
 /*===========================================================================*
  *	definitions
@@ -564,7 +561,7 @@ u_char	color;				/* color or mono display */
 u_short	kern_attr;			/* kernel messages char attributes */
 u_short	user_attr;			/* character attributes */
 
-struct tty pccons[PCVT_NSCREENS];
+struct tty pcvt_tty[PCVT_NSCREENS];
 
 struct sixels {
 	u_char lower[MAXSIXEL];		/* lower half of char */
@@ -728,7 +725,7 @@ u_char bgansitopc[] = {			/* background ANSI color -> pc */
 	BG_MAGENTA, BG_CYAN, BG_LIGHTGREY
 };
 
-struct tty *pcconsp = &pccons[0];	/* ptr to current device */
+struct tty *pcvt_ttyp = &pcvt_tty[0];	/* ptr to current device */
 video_state *vsp = &vs[0];		/* ptr to current screen parms */
 
 #ifdef XSERVER
@@ -864,7 +861,7 @@ extern int		pcvt_kbd_rptr;
 extern int		pcvt_kbd_count;
 
 extern u_char		vga_type;
-extern struct tty	*pcconsp;
+extern struct tty	*pcvt_ttyp;
 extern video_state	*vsp;
 
 #ifdef XSERVER
@@ -951,7 +948,7 @@ void	kbd_emulate_pc(int do_emulation);
 
 void	loadchar ( int fontset, int character, int char_scanlines, u_char *char_table );
 void	mda2egaorvga ( void );
-ointhand2_t	pcrint;
+void	pcvt_rint(int unit);
 
 #if PCVT_SCREENSAVER
 void 	pcvt_scrnsv_reset ( void );
