@@ -173,6 +173,21 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
       for more details.</para>
 
+    <para>A buffer overflow in &man.tcpdump.1;, which could be triggered by
+      badly-formed NFS packets, has been fixed.  See security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      for more details.</para>
+
+    <para>&man.ktrace.1; can no longer trace the operation of formerly
+      privileged processes; this prevents the leakage of sensitive
+      information that the process could have obtained before
+      abandoning its privileges.  For a discussion of this issue, see
+      security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      for more details.</para>
+
   </sect2>
 
   <sect2 id="userland">
