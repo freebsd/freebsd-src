@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_CONN_H_
-#define _NCP_CONN_H_
+#ifndef _NETNCP_NCP_CONN_H_
+#define _NETNCP_NCP_CONN_H_
 
 #ifdef INET
 #ifndef _NETINET_IN_H_

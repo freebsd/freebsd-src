@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_NCP_H_
-#define _NCP_NCP_H_
+#ifndef _NETNCP_NCP_NCP_H_
+#define _NETNCP_NCP_NCP_H_
 
 #define NCP_ALLOC_SLOT		0x1111
 #define NCP_REQUEST		0x2222
