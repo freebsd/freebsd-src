@@ -36,6 +36,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -73,13 +74,8 @@
 #define DCONS_FORCE_CONSOLE	0	/* mostly for FreeBSD-4 */
 #endif
 
-#ifndef DCONS_FORCE_GDB
-#define DCONS_FORCE_GDB	1
-#endif
-
 #if __FreeBSD_version >= 500101
 #define CONS_NODEV	1	/* for latest current */
-static struct consdev gdbconsdev;
 #endif
 
 
@@ -132,7 +128,6 @@ static struct dcons_softc {
 	struct cdev *dev;
 	struct dcons_ch	o, i;
 	int brk_state;
-#define DC_GDB	1
 	int flags;
 } sc[DCONS_NPORT];
 static void	dcons_tty_start(struct tty *);
@@ -373,26 +368,9 @@ dcons_checkc(struct dcons_softc *dc)
 		ch->pos = 0;
 	}
 
-#if DDB && ALT_BREAK_TO_DEBUGGER
-	switch (dc->brk_state) {
-	case STATE1:
-		if (c == KEY_TILDE)
-			dc->brk_state = STATE2;
-		else
-			dc->brk_state = STATE0;
-		break;
-	case STATE2:
-		dc->brk_state = STATE0;
-		if (c == KEY_CTRLB) {
-#if DCONS_FORCE_GDB
-			if (dc->flags & DC_GDB)
-				boothowto |= RB_GDB;
-#endif
-			breakpoint();
-		}
-	}
-	if (c == KEY_CR)
-		dc->brk_state = STATE1;
+#if KDB && ALT_BREAK_TO_DEBUGGER
+	if (kdb_alt_break(c, &dc->brk_state))
+		breakpoint();
 #endif
 	return (c);
 }
@@ -486,20 +464,6 @@ dcons_drv_init(int stage)
 	dcons_init_port(1, offset, size - size0);
 	dg.buf->version = htonl(DCONS_VERSION);
 	dg.buf->magic = ntohl(DCONS_MAGIC);
-
-#if DDB && DCONS_FORCE_GDB
-#if CONS_NODEV
-	gdbconsdev.cn_arg = (void *)&sc[DCONS_GDB];
-#if __FreeBSD_version >= 501109
-	sprintf(gdbconsdev.cn_name, "dgdb");
-#endif
-	gdb_arg = &gdbconsdev;
-#else
-	gdbdev = makedev(CDEV_MAJOR, DCONS_GDB);
-#endif
-	gdb_getc = dcons_cngetc;
-	gdb_putc = dcons_cnputc;
-#endif
 	drv_init = 1;
 
 	return 0;
@@ -535,7 +499,6 @@ dcons_attach(void)
 	int polltime;
 
 	dcons_attach_port(DCONS_CON, "dcons", 0);
-	dcons_attach_port(DCONS_GDB, "dgdb", DC_GDB);
 #if __FreeBSD_version < 500000
 	callout_init(&dcons_callout);
 #else
@@ -594,18 +557,10 @@ dcons_modevent(module_t mode, int type, void *data)
 	case MOD_UNLOAD:
 		printf("dcons: unload\n");
 		callout_stop(&dcons_callout);
-#if DDB && DCONS_FORCE_GDB
-#if CONS_NODEV
-		gdb_arg = NULL;
-#else
-		gdbdev = NULL;
-#endif
-#endif
 #if __FreeBSD_version >= 500000
 		cnremove(&dcons_consdev);
 #endif
 		dcons_detach(DCONS_CON);
-		dcons_detach(DCONS_GDB);
 		dg.buf->magic = 0;
 
 		contigfree(dg.buf, DCONS_BUF_SIZE, M_DEVBUF);
