@@ -72,9 +72,6 @@ CFLAGS+=	-I${.CURDIR}/../btx/lib
 # BTX is expecting ELF components
 CFLAGS+=	-elf
 
-# New linker set code
-CFLAGS+=	-DNEW_LINKER_SET
-
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
