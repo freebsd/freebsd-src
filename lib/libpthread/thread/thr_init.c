@@ -391,6 +391,7 @@ init_main_thread(struct pthread *thread)
 	thread->specific = NULL;
 	thread->cleanup = NULL;
 	thread->flags = 0;
+	thread->sigbackout = NULL;
 	thread->continuation = NULL;
 
 	thread->state = PS_RUNNING;

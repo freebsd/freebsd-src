@@ -123,7 +123,7 @@ _sem_init(sem_t *sem, int pshared, unsigned int value)
 {
 	semid_t semid;
 
-	semid = SEM_USER;
+	semid = (semid_t)SEM_USER;
 	if ((pshared != 0) && (ksem_init(&semid, value) != 0))
 		return (-1);
 
@@ -145,8 +145,8 @@ _sem_wait(sem_t *sem)
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
+	curthread = _get_curthread();
 	if ((*sem)->syssem != 0) {
-		curthread = _get_curthread();
 		_thr_cancel_enter(curthread);
 		retval = ksem_wait((*sem)->semid);
 		_thr_cancel_leave(curthread, retval != 0);
@@ -157,9 +157,9 @@ _sem_wait(sem_t *sem)
 
 		while ((*sem)->count <= 0) {
 			(*sem)->nwaiters++;
-			pthread_cleanup_push(decrease_nwaiters, sem);
+			THR_CLEANUP_PUSH(curthread, decrease_nwaiters, sem);
 			pthread_cond_wait(&(*sem)->gtzero, &(*sem)->lock);
-			pthread_cleanup_pop(0);
+			THR_CLEANUP_POP(curthread, 0);
 			(*sem)->nwaiters--;
 		}
 		(*sem)->count--;
