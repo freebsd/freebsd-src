@@ -3322,6 +3322,8 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("vfs_busy_pages: no buffer offset"));
 		vfs_setdirty(bp);
+		if (obj != NULL)
+			VM_OBJECT_LOCK(obj);
 retry:
 		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
@@ -3365,6 +3367,8 @@ retry:
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
 		vm_page_unlock_queues();
+		if (obj != NULL)
+			VM_OBJECT_UNLOCK(obj);
 		if (bogus)
 			pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 	}
