@@ -5,6 +5,7 @@
 
 SUBDIR=	adjkerntz \
 	atacontrol \
+	${_atm} \
 	badsect \
 	bsdlabel \
 	camcontrol \
@@ -12,12 +13,15 @@ SUBDIR=	adjkerntz \
 	clri \
 	comcontrol \
 	conscontrol \
+	${_devd} \
 	devfs \
 	dhclient \
 	dmesg \
 	dump \
 	dumpfs \
 	dumpon \
+	${_fdisk} \
+	${_fdisk_pc98} \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
@@ -25,15 +29,23 @@ SUBDIR=	adjkerntz \
 	fsdb \
 	fsirand \
 	gbde \
+	${_gpt} \
 	growfs \
 	ifconfig \
 	init \
+	${_ip6fw} \
+	${_ipf} \
+	${_ipfs} \
+	${_ipfstat} \
 	ipfw \
+	${_ipmon} \
+	${_ipnat} \
 	kldconfig \
 	kldload \
 	kldstat \
 	kldunload \
 	ldconfig \
+	${_mca} \
 	md5 \
 	mdconfig \
 	mdmfs \
@@ -58,6 +70,7 @@ SUBDIR=	adjkerntz \
 	nologin \
 	nos-tun \
 	ping \
+	${_ping6} \
 	quotacheck \
 	raidctl \
 	rcorder \
@@ -67,6 +80,7 @@ SUBDIR=	adjkerntz \
 	routed \
 	rtsol \
 	savecore \
+	${_sconfig} \
 	shutdown \
 	slattach \
 	spppcontrol \
@@ -75,51 +89,52 @@ SUBDIR=	adjkerntz \
 	swapon \
 	sysctl \
 	tunefs \
-	umount
+	umount \
+	${_vinum}
 
 .if !defined(NOATM)
-SUBDIR+=atm
+_atm=		atm
 .endif
 
 .if !defined(NO_CXX)
-SUBDIR+=devd
+_devd=		devd
 .endif
 
 .if !defined(NO_IPFILTER)
-SUBDIR+=ipf \
-	ipfs \
-	ipfstat \
-	ipmon \
-	ipnat
+_ipf=		ipf
+_ipfs=		ipfs
+_ipfstat=		ipfstat
+_ipmon=		ipmon
+_ipnat=		ipnat
 .endif
 
 .if !defined(NOINET6)
-SUBDIR+=ip6fw \
-	ping6
+_ip6fw=		ip6fw
+_ping6=		ping6
 .endif
 
 .if !defined(NO_VINUM)
-SUBDIR+=vinum
+_vinum=		vinum
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=sconfig
-.if ${MACHINE} == "pc98"
-SUBDIR+=fdisk_pc98
-.else
-SUBDIR+=fdisk
+.if ${MACHINE} == "i386"
+_fdisk=		fdisk
+.elif ${MACHINE} == "pc98"
+_fdisk_pc98=	fdisk_pc98
 .endif
-.endif
-
-.if ${MACHINE_ARCH} == "ia64"
-SUBDIR+=fdisk \
-	gpt \
-	mca
+_sconfig=	sconfig
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
-SUBDIR+=fdisk \
-	gpt
+_fdisk=		fdisk
+_gpt=		gpt
+.endif
+
+.if ${MACHINE_ARCH} == "ia64"
+_fdisk=		fdisk
+_gpt=		gpt
+_mca=		mca
 .endif
 
 .include <bsd.subdir.mk>

@@ -1,20 +1,25 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} != "powerpc"
-_sysinstall=sysinstall
-.endif
-
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
 	ac \
 	accton \
+	${_acpi} \
 	adduser \
 	amd \
 	ancontrol \
+	${_apm} \
+	${_apmd} \
 	arp \
+	${_asf} \
+	${_atm} \
+	${_bluetooth} \
+	${_boot0cfg} \
+	${_boot98cfg} \
 	bootparamd \
 	bsnmpd \
+	${_btxld} \
 	burncd \
 	cdcontrol \
 	chkgrp \
@@ -30,7 +35,9 @@ SUBDIR=	IPXrouted \
 	devinfo \
 	digictl \
 	diskinfo \
+	${_editmap} \
 	edquota \
+	${_elf2exe} \
 	extattr \
 	extattrctl \
 	faithd \
@@ -42,42 +49,72 @@ SUBDIR=	IPXrouted \
 	getfmac \
 	getpmac \
 	gstat \
+	${_i4b} \
 	ifmcstat \
 	inetd \
 	iostat \
 	ip6addrctl \
+	${_ipftest} \
+	${_ipresend} \
+	${_ipsend} \
+	${_iptest} \
 	jail \
 	jexec \
 	jls \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
+	${_keyserv} \
+	${_kgmon} \
+	${_kgzip} \
 	kldxref \
 	lastlogin \
+	${_lpr} \
+	${_lptcontrol} \
+	${_mailstats} \
 	mailwrapper \
+	${_makemap} \
 	manctl \
 	memcontrol \
 	mergemaster \
 	mixer \
+	${_mld6query} \
 	mlxcontrol \
-	mount_portalfs \
 	mountd \
+	${_mount_nwfs} \
+	mount_portalfs \
+	${_mount_smbfs} \
 	moused \
+	${_mptable} \
 	mrouted \
 	mtest \
 	mtree \
+	${_named} \
+	${_named.reload} \
+	${_named.restart} \
+	${_ndc} \
+	${_ndiscvt} \
 	ndp \
 	newsyslog \
 	nfsd \
 	ngctl \
-	ntp \
 	nghook \
+	${_nslookup} \
+	${_nsupdate} \
+	ntp \
+	${_ofwdump} \
+	${_pccard} \
 	pciconf \
+	${_pcvt/ispcvt} \
+	${_pcvt} \
 	periodic \
 	pkg_install \
+	${_pnpinfo} \
 	ppp \
+	${_pppctl} \
 	pppd \
 	pppstats \
+	${_praliases} \
 	procctl \
 	pstat \
 	pw \
@@ -87,7 +124,9 @@ SUBDIR=	IPXrouted \
 	rarpd \
 	raycontrol \
 	repquota \
+	${_rip6query} \
 	rmt \
+	${_route6d} \
 	rpcbind \
 	rpc.lockd \
 	rpc.statd \
@@ -101,12 +140,17 @@ SUBDIR=	IPXrouted \
 	rtsold \
 	rwhod \
 	sa \
+	${_sendmail} \
 	setfmac \
 	setkey \
 	setpmac \
+	${_sgsc} \
+	${_sicontrol} \
 	sliplogin \
 	slstat \
+	${_spkrtest} \
 	spray \
+	${_stallion} \
 	${_sysinstall} \
 	syslogd \
 	tcpdchk \
@@ -114,111 +158,123 @@ SUBDIR=	IPXrouted \
 	tcpdump \
 	timed \
 	traceroute \
+	${_traceroute6} \
 	trpt \
 	tzsetup \
 	ugidfw \
+	${_usbd} \
+	${_usbdevs} \
 	vidcontrol \
 	vipw \
 	vnconfig \
 	watch \
 	watchdogd \
 	wicontrol \
-	yp_mkdb \
+	${_wlconfig} \
 	ypbind \
+	yp_mkdb \
 	yppoll \
 	yppush \
 	ypserv \
 	ypset \
-	zic
+	zic \
+	${_zzz}
+
+.if ${MACHINE_ARCH} != "powerpc"
+_sysinstall=	sysinstall
+.endif
 
 .if !defined(NOATM)
-SUBDIR+=atm
-.endif
-
-.if !defined(NOINET6)
-SUBDIR+=mld6query \
-	rip6query \
-	route6d \
-	traceroute6 
-.endif
-
-.if !defined(NO_IPFILTER)
-SUBDIR+=ipftest \
-	ipresend \
-	ipsend \
-	iptest
-.endif
-
-.if !defined(NO_USB)
-SUBDIR+=usbd \
-	usbdevs
-.endif
-.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "powerpc"
-SUBDIR+=pppctl
+_atm=		atm
 .endif
 
 .if !defined(NO_BIND)
-SUBDIR+=named \
-	named.reload \
-	named.restart \
-	ndc \
-	nslookup \
-	nsupdate
+_named=		named
+_named.reload=	named.reload
+_named.restart=	named.restart
+_ndc=		ndc
+_nslookup=	nslookup
+_nsupdate=	nsupdate
+.endif
+
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+_keyserv=	keyserv
+.endif
+
+.if !defined(NOINET6)
+_mld6query=	mld6query
+_rip6query=	rip6query
+_route6d=	route6d
+_traceroute6=	traceroute6
+.endif
+
+.if !defined(NO_IPFILTER)
+_ipftest=	ipftest
+_ipresend=	ipresend
+_ipsend=	ipsend
+_iptest=	iptest
+.endif
+
+.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "powerpc"
+_pppctl=	pppctl
 .endif
 
 .if !defined(NO_LPR)
-SUBDIR+=lpr
+_lpr=		lpr
 .endif
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=editmap \
-	mailstats \
-	makemap \
-	praliases \
-	sendmail
+_editmap=	editmap
+_mailstats=	mailstats
+_makemap=	makemap
+_praliases=	praliases
+_sendmail=	sendmail
 .endif
 
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=elf2exe \
-	pnpinfo
+.if !defined(NO_USB)
+_usbd=		usbd
+_usbdevs=	usbdevs
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=apm \
-	apmd \
-	asf \
-	bluetooth \
-	btxld \
-	kgmon \
-	kgzip \
-	lptcontrol \
-	mount_nwfs \
-	mount_smbfs \
-	mptable \
-	ndiscvt \
-	pccard \
-	pcvt \
-	pnpinfo \
-	sgsc \
-	sicontrol \
-	spkrtest \
-	stallion \
-	wlconfig \
-	zzz
-
 .if !defined(NO_ACPI)
-SUBDIR+=acpi
+_acpi=		acpi
 .endif
-
+_apm=		apm
+_apmd=		apmd
+_asf=		asf
+_bluetooth=	bluetooth
+.if ${MACHINE} == "i386"
+_boot0cfg=	boot0cfg
+.endif
+.if ${MACHINE} == "pc98"
+_boot98cfg=	boot98cfg
+.endif
+_btxld=		btxld
 .if !defined(NO_I4B)
-SUBDIR+=i4b
+_i4b=		i4b
+.endif
+_kgmon=		kgmon
+_kgzip=		kgzip
+_lptcontrol=	lptcontrol
+_mount_nwfs=	mount_nwfs
+_mount_smbfs=	mount_smbfs
+_mptable=	mptable
+_ndiscvt=	ndiscvt
+_pccard=	pccard
+_pcvt=		pcvt
+_pnpinfo=	pnpinfo
+_sgsc=		sgsc
+_sicontrol=	sicontrol
+_spkrtest=	spkrtest
+_stallion=	stallion
+_wlconfig=	wlconfig
+_zzz=		zzz
 .endif
 
-.endif
-
-.if ${MACHINE_ARCH} == "ia64"
-SUBDIR+=acpi \
-	zzz
+.if ${MACHINE_ARCH} == "alpha"
+_elf2exe=	elf2exe
+_pnpinfo=	pnpinfo
 .endif
 
 # kgmon: builds, but no kernel profiling
@@ -226,34 +282,31 @@ SUBDIR+=acpi \
 # mptable: broken (not 64 bit clean)
 # pnpinfo: crashes (not really useful anyway)
 .if ${MACHINE_ARCH} == "amd64"
-SUBDIR+=acpi \
-	asf \
-	boot0cfg \
-	btxld \
-	lptcontrol \
-	mount_nwfs \
-	mount_smbfs \
-	mptable \
-	pcvt/ispcvt \
-	sicontrol \
-	spkrtest \
-	zzz
+.if !defined(NO_ACPI)
+_acpi=		acpi
+.endif
+_asf=		asf
+_boot0cfg=	boot0cfg
+_btxld=		btxld
+_lptcontrol=	lptcontrol
+_mount_nwfs=	mount_nwfs
+_mount_smbfs=	mount_smbfs
+_mptable=	mptable
+_pcvt/ispcvt=	pcvt/ispcvt
+_sicontrol=	sicontrol
+_spkrtest=	spkrtest
+_zzz=		zzz
 .endif
 
-.if ${MACHINE} == "i386"
-SUBDIR+=boot0cfg
+.if ${MACHINE_ARCH} == "ia64"
+.if !defined(NO_ACPI)
+_acpi=		acpi
 .endif
-
-.if ${MACHINE} == "pc98"
-SUBDIR+=boot98cfg
+_zzz=		zzz
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=ofwdump
-.endif
-
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
-SUBDIR+=keyserv
+_ofwdump=	ofwdump
 .endif
 
 .include <bsd.subdir.mk>
