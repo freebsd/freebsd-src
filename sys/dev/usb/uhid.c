@@ -70,6 +70,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -86,6 +87,8 @@
 #define DPRINTF(x)	if (uhiddebug) logprintf x
 #define DPRINTFN(n,x)	if (uhiddebug>(n)) logprintf x
 int	uhiddebug = 0;
+SYSCTL_INT(_debug_usb, OID_AUTO, uhid, CTLFLAG_RW,
+	   &uhiddebug, 0, "uhid debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

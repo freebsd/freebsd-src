@@ -55,6 +55,7 @@
 #endif
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -67,6 +68,8 @@
 #define DPRINTF(x)	if (ufmdebug) logprintf x
 #define DPRINTFN(n,x)	if (ufmdebug>(n)) logprintf x
 int	ufmdebug = 100;
+SYSCTL_INT(_debug_usb, OID_AUTO, ufm, CTLFLAG_RW,
+	   &ufmdebug, 0, "ufm debug level");
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

@@ -70,6 +70,7 @@
 #endif
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -91,10 +92,17 @@ MALLOC_DEFINE(M_USBHC, "USBHC", "USB host controller");
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_quirks.h>
 
+/* Define this unconditionally in case a kernel module is loaded that
+ * has been compiled with debugging options.
+ */
+SYSCTL_NODE(_debug, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
+
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) logprintf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 int	usbdebug = 0;
+SYSCTL_INT(_debug_usb, OID_AUTO, usb, CTLFLAG_RW,
+	   &usbdebug, 0, "usb debug level");
 #ifdef UHCI_DEBUG
 extern int uhcidebug;
 #endif
