@@ -29,13 +29,13 @@ makedefs: makedefs.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 beforeinstall:
-	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
-	${INSTALL} -c -o bin -g ${BINGRP} -m 460 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 460 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
-	${INSTALL} -c -o bin -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
 	    ${DESTDIR}/var/games/hackdir/rumors
-	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
 	    ${DESTDIR}/var/games/hackdir
 	rm -f ${DESTDIR}/var/games/hackdir/bones* \
