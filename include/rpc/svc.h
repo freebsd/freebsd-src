@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.4 1995/05/30 04:55:28 rgrimes Exp $
+ *	$Id: svc.h,v 1.5 1996/01/30 23:32:29 mpp Exp $
  */
 
 /*
@@ -72,16 +72,26 @@ enum xprt_stat {
 /*
  * Server side transport handle
  */
-typedef struct {
+typedef struct __rpc_svcxprt {
 	int		xp_sock;
 	u_short		xp_port;	 /* associated port number */
 	struct xp_ops {
-	    bool_t	(*xp_recv)();	 /* receive incoming requests */
-	    enum xprt_stat (*xp_stat)(); /* get transport status */
-	    bool_t	(*xp_getargs)(); /* get arguments */
-	    bool_t	(*xp_reply)();	 /* send reply */
-	    bool_t	(*xp_freeargs)();/* free mem allocated for args */
-	    void	(*xp_destroy)(); /* destroy this struct */
+	    /* receive incoming requests */
+	    bool_t	(*xp_recv) __P((struct __rpc_svcxprt *,
+				struct rpc_msg *));
+	    /* get transport status */
+	    enum xprt_stat (*xp_stat) __P((struct __rpc_svcxprt *));
+	    /* get arguments */
+	    bool_t	(*xp_getargs) __P((struct __rpc_svcxprt *, xdrproc_t,
+				caddr_t));
+	    /* send reply */
+	    bool_t	(*xp_reply) __P((struct __rpc_svcxprt *,
+				struct rpc_msg *));
+	    /* free mem allocated for args */
+	    bool_t	(*xp_freeargs) __P((struct __rpc_svcxprt *, xdrproc_t,
+				caddr_t));
+	    /* destroy this struct */
+	    void	(*xp_destroy) __P((struct __rpc_svcxprt *));
 	} *xp_ops;
 	int		xp_addrlen;	 /* length of remote address */
 	struct sockaddr_in xp_raddr;	 /* remote address */
@@ -138,9 +148,9 @@ typedef struct {
  * Service request
  */
 struct svc_req {
-	u_long		rq_prog;	/* service program number */
-	u_long		rq_vers;	/* service protocol version */
-	u_long		rq_proc;	/* the desired procedure */
+	u_int32_t	rq_prog;	/* service program number */
+	u_int32_t	rq_vers;	/* service protocol version */
+	u_int32_t	rq_proc;	/* the desired procedure */
 	struct opaque_auth rq_cred;	/* raw creds from the wire */
 	caddr_t		rq_clntcred;	/* read only cooked cred */
 	SVCXPRT	*rq_xprt;		/* associated transport */
@@ -155,10 +165,11 @@ struct svc_req {
  *	u_long prog;
  *	u_long vers;
  *	void (*dispatch)();
- *	int protocol;        // like TCP or UDP, zero means do not register
+ *	int protocol;        (like TCP or UDP, zero means do not register)
  */
 __BEGIN_DECLS
-extern bool_t	svc_register __P((SVCXPRT *, u_long, u_long, void (*)(), int));
+extern bool_t	svc_register __P((SVCXPRT *, u_long, u_long,
+			void (*) __P((struct svc_req *, SVCXPRT *)), int));
 __END_DECLS
 
 /*
@@ -247,12 +258,9 @@ __END_DECLS
  * Global keeper of rpc service descriptors in use
  * dynamic; must be inspected before each call to select
  */
-#ifdef FD_SETSIZE
+extern int svc_maxfd;
 extern fd_set svc_fdset;
 #define svc_fds svc_fdset.fds_bits[0]	/* compatibility */
-#else
-extern int svc_fds;
-#endif /* def FD_SETSIZE */
 
 /*
  * a small program implemented by the svc_rpc implementation itself;
@@ -297,6 +305,13 @@ __END_DECLS
  */
 __BEGIN_DECLS
 extern SVCXPRT *svctcp_create __P((int, u_int, u_int));
+__END_DECLS
+
+/*
+ * Fd based rpc.
+ */
+__BEGIN_DECLS
+extern SVCXPRT *svcfd_create __P((int, u_int, u_int));
 __END_DECLS
 
 #endif /* !_RPC_SVC_H */

@@ -28,7 +28,7 @@
  *
  *	from: @(#)types.h 1.18 87/07/24 SMI
  *	from: @(#)types.h	2.3 88/08/15 4.0 RPCSRC
- *	$Id: types.h,v 1.3 1995/05/30 04:55:35 rgrimes Exp $
+ *	$Id: types.h,v 1.4 1996/01/30 23:32:39 mpp Exp $
  */
 
 /*
@@ -37,8 +37,8 @@
 #ifndef _RPC_TYPES_H
 #define _RPC_TYPES_H
 
-#define	bool_t	int
-#define	enum_t	int
+#define	bool_t	int32_t
+#define	enum_t	int32_t
 #define __dontcare__	-1
 
 #ifndef FALSE
@@ -58,9 +58,5 @@
 #include <sys/types.h>
 #endif
 #include <sys/time.h>
-
-#ifndef INADDR_LOOPBACK
-#define	INADDR_LOOPBACK		(u_long)0x7F000001
-#endif
 
 #endif /* !_RPC_TYPES_H */

@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.4 1996/01/30 23:31:35 mpp Exp $
+ *	$Id: auth.h,v 1.5 1996/01/31 08:02:11 hsu Exp $
  */
 
 /*
@@ -88,21 +88,29 @@ struct opaque_auth {
 	caddr_t	oa_base;		/* address of more auth stuff */
 	u_int	oa_length;		/* not to exceed MAX_AUTH_BYTES */
 };
+__BEGIN_DECLS
+bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *ap);
+__END_DECLS
 
 
 /*
  * Auth handle, interface to client side authenticators.
  */
-typedef struct {
+typedef struct __rpc_auth {
 	struct	opaque_auth	ah_cred;
 	struct	opaque_auth	ah_verf;
 	union	des_block	ah_key;
 	struct auth_ops {
-		void	(*ah_nextverf)();
-		int	(*ah_marshal)();	/* nextverf & serialize */
-		int	(*ah_validate)();	/* validate verifier */
-		int	(*ah_refresh)();	/* refresh credentials */
-		void	(*ah_destroy)();	/* destroy this structure */
+		void	(*ah_nextverf) __P((struct __rpc_auth *));
+		/* nextverf & serialize */
+		int	(*ah_marshal) __P((struct __rpc_auth *, XDR *));
+		/* validate verifier */
+		int	(*ah_validate) __P((struct __rpc_auth *,
+				struct opaque_auth *));
+		/* refresh credentials */
+		int	(*ah_refresh) __P((struct __rpc_auth *));
+		/* destroy this structure */
+		void	(*ah_destroy) __P((struct __rpc_auth *));
 	} *ah_ops;
 	caddr_t ah_private;
 } AUTH;
@@ -144,7 +152,6 @@ typedef struct {
 
 extern struct opaque_auth _null_auth;
 
-
 /*
  * These are the various implementations of client side authenticators.
  */
@@ -159,10 +166,12 @@ extern struct opaque_auth _null_auth;
  *	int *aup_gids;
  */
 __BEGIN_DECLS
+struct sockaddr_in;
 extern AUTH *authunix_create		__P((char *, int, int, int, int *));
 extern AUTH *authunix_create_default	__P((void));
 extern AUTH *authnone_create		__P((void));
-extern AUTH *authdes_create();
+extern AUTH *authdes_create		__P((char *, u_int,
+					    struct sockaddr_in *, des_block *));
 __END_DECLS
 
 #define AUTH_NONE	0		/* no authentication */
