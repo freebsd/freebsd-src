@@ -241,6 +241,7 @@ dev/acpica/acpi_button.c	optional acpi
 dev/acpica/acpi_cmbat.c		optional acpi
 dev/acpica/acpi_cpu.c		optional acpi
 dev/acpica/acpi_ec.c		optional acpi
+dev/acpica/acpi_isab.c		optional acpi
 dev/acpica/acpi_lid.c		optional acpi
 dev/acpica/acpi_pci.c		optional acpi pci
 dev/acpica/acpi_pci_link.c	optional acpi pci
