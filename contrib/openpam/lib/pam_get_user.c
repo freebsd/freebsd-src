@@ -31,15 +31,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_user.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_get_user.c#11 $
  */
 
 #include <sys/param.h>
+
+#include <stdlib.h>
 
 #include <security/pam_appl.h>
 #include <security/openpam.h>
 
 #include "openpam_impl.h"
+
+const char user_prompt[] = "Login:";
 
 /*
  * XSSO 4.2.1
@@ -53,7 +57,7 @@ pam_get_user(pam_handle_t *pamh,
 	const char **user,
 	const char *prompt)
 {
-	char *p, *resp;
+	char *resp;
 	int r;
 
 	if (pamh == NULL || user == NULL)
@@ -63,16 +67,18 @@ pam_get_user(pam_handle_t *pamh,
 	if (r == PAM_SUCCESS)
 		return (PAM_SUCCESS);
 	if (prompt == NULL) {
-		if (pam_get_item(pamh, PAM_USER_PROMPT,
-		    (const void **)&p) != PAM_SUCCESS || p == NULL)
-			prompt = "Login: ";
+		r = pam_get_item(pamh, PAM_USER_PROMPT, (const void **)&prompt);
+		if (r != PAM_SUCCESS || prompt == NULL)
+			prompt = user_prompt;
 	}
-	r = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &resp,
-	    "%s", prompt ? prompt : p);
+	r = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &resp, "%s", prompt);
 	if (r != PAM_SUCCESS)
 		return (r);
-	*user = resp;
-	return (pam_set_item(pamh, PAM_USER, *user));
+	r = pam_set_item(pamh, PAM_USER, resp);
+	free(resp);
+	if (r != PAM_SUCCESS)
+		return (r);
+	return (pam_get_item(pamh, PAM_USER, (const void **)user));
 }
 
 /*
@@ -82,4 +88,19 @@ pam_get_user(pam_handle_t *pamh,
  *	=pam_prompt
  *	=pam_set_item
  *	!PAM_SYMBOL_ERR
+ */
+
+/**
+ * The =pam_get_user function returns the name of the target user, as
+ * specified to =pam_start.  If no user was specified, nor set using
+ * =pam_set_item, =pam_get_user will prompt for a user name.  Either way,
+ * a pointer to the user name is stored in the location pointed to by the
+ * =user argument.
+
+ * The =prompt argument specifies a prompt to use if no user name is
+ * cached.  If it is =NULL, the =PAM_USER_PROMPT will be used.  If that
+ * item is also =NULL, a hardcoded default prompt will be used.
+ *
+ * >pam_get_item
+ * >pam_get_authtok
  */
