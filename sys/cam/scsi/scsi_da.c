@@ -29,6 +29,7 @@
  */
 
 #ifdef _KERNEL
+#include "opt_da.h"
 #include "opt_hw_wdog.h"
 #endif /* _KERNEL */
 
@@ -222,7 +223,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
-
+#ifdef DA_OLD_QUIRKS
 	/* Below a list of quirks for USB devices supported by umass. */
 	{
 		/*
@@ -491,6 +492,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OTi", "Flash Disk", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	}
+#endif /* DA_OLD_QUIRKS */
 };
 
 static	d_open_t	daopen;
