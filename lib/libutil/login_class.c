@@ -112,17 +112,18 @@ static struct login_vars {
     const char *tag;
     const char *var;
     const char *def;
+    int overwrite;
 } pathvars[] = {
-    { "path",		"PATH",	      NULL    },
-    { "cdpath",		"CDPATH",     NULL    },
-    { "manpath",	"MANPATH",    NULL    },
-    { NULL,		NULL,	      NULL    }
+    { "path",           "PATH",       NULL, 1},
+    { "cdpath",         "CDPATH",     NULL, 1},
+    { "manpath",        "MANPATH",    NULL, 1},
+    { NULL,             NULL,         NULL, 0}
 }, envars[] = {
-    { "lang",		"LANG",	      NULL    },
-    { "charset",	"MM_CHARSET", NULL    },
-    { "timezone",	"TZ",	      NULL    },
-    { "term",		"TERM",       NULL    },
-    { NULL,		NULL,	      NULL    }
+    { "lang",           "LANG",       NULL, 1},
+    { "charset",        "MM_CHARSET", NULL, 1},
+    { "timezone",       "TZ",         NULL, 1},
+    { "term",           "TERM",       NULL, 0},
+    { NULL,             NULL,         NULL, 0}
 };
 
 static char *
@@ -203,7 +204,7 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
 	char * np  = substvar(var, pwd, hlen, pch, nlen);
 
 	if (np != NULL) {
-	    setenv(vars->var, np, 1);
+	    setenv(vars->var, np, vars->overwrite);
 	    free(np);
 	} else if (vars->def != NULL) {
 	    setenv(vars->var, vars->def, 0);
