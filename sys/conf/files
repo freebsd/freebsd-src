@@ -437,9 +437,8 @@ dev/sound/isa/gusmidi.c	optional midi isa
 dev/sound/isa/mpu.c	optional midi isa
 dev/sound/isa/mss.c	optional pcm isa
 dev/sound/isa/opl.c	optional midi isa
-#dev/sound/isa/sb16.c	optional pcm isa
-#dev/sound/isa/sb8.c	optional pcm isa
-dev/sound/isa/sb.c	optional pcm isa
+dev/sound/isa/sb16.c	optional pcm isa
+dev/sound/isa/sb8.c	optional pcm isa
 dev/sound/isa/sbc.c	optional pcm isa
 dev/sound/isa/sbc.c	optional sbc isa
 dev/sound/isa/uartsio.c	optional midi isa
