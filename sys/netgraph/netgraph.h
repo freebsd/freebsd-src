@@ -62,7 +62,7 @@
  * Change it for NETGRAPH_DEBUG version so we cannot mix debug and non debug
  * modules.
  */
-#define _NG_ABI_VERSION 8
+#define _NG_ABI_VERSION 9
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 #define NG_ABI_VERSION	(_NG_ABI_VERSION + 0x10000)
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -554,42 +554,6 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
 /***********************************************************************
- ***************** Meta Data Structures and Methods ********************
- ***********************************************************************
- *
- * The structure that holds meta_data about a data packet (e.g. priority)
- * Nodes might add or subtract options as needed if there is room.
- * They might reallocate the struct to make more room if they need to.
- * Meta-data is still experimental.
- */
-struct meta_field_header {
-	u_long	cookie;		/* cookie for the field. Skip fields you don't
-				 * know about (same cookie as in messgaes) */
-	u_short type;		/* field ID */
-	u_short len;		/* total len of this field including extra
-				 * data */
-	char	data[0];	/* data starts here */
-};
-
-/* To zero out an option 'in place' set it's cookie to this */
-#define NGM_INVALID_COOKIE	865455152
-
-/* This part of the metadata is always present if the pointer is non NULL */
-struct ng_meta {
-	char	priority;	/* -ve is less priority,  0 is default */
-	char	discardability; /* higher is less valuable.. discard first */
-	u_short allocated_len;	/* amount malloc'd */
-	u_short used_len;	/* sum of all fields, options etc. */
-	u_short flags;		/* see below.. generic flags */
-	struct meta_field_header options[0];	/* add as (if) needed */
-};
-typedef struct ng_meta *meta_p;
-
-/* Flags for meta-data */
-#define NGMF_TEST	0x01	/* discard at the last moment before sending */
-#define NGMF_TRACE	0x02	/* trace when handing this data to a node */
-
-/***********************************************************************
  ************* Node Queue and Item Structures and Methods **************
  ***********************************************************************
  *
@@ -601,10 +565,7 @@ struct ng_item {
 	node_p	el_dest; /* The node it will be applied against (or NULL) */
 	hook_p	el_hook; /* Entering hook. Optional in Control messages */
 	union {
-		struct {
-			struct mbuf	*da_m;
-			meta_p		da_meta;
-		} data;
+		struct mbuf	*da_m;
 		struct {
 			struct ng_mesg	*msg_msg;
 			ng_ID_t		msg_retaddr;
@@ -644,8 +605,7 @@ struct ng_item {
  * The debug versions must be either all used everywhere or not at all.
  */
 
-#define _NGI_M(i) ((i)->body.data.da_m)
-#define _NGI_META(i) ((i)->body.data.da_meta)
+#define _NGI_M(i) ((i)->body.da_m)
 #define _NGI_MSG(i) ((i)->body.msg.msg_msg)
 #define _NGI_RETADDR(i) ((i)->body.msg.msg_retaddr)
 #define	_NGI_FN(i) ((i)->body.fn.fn_fn)
@@ -674,7 +634,6 @@ struct ng_item {
 void				dumpitem(item_p item, char *file, int line);
 static __inline void		_ngi_check(item_p item, char *file, int line) ;
 static __inline struct mbuf **	_ngi_m(item_p item, char *file, int line) ;
-static __inline meta_p *	_ngi_meta(item_p item, char *file, int line) ;
 static __inline ng_ID_t *	_ngi_retaddr(item_p item, char *file, int line);
 static __inline struct ng_mesg ** _ngi_msg(item_p item, char *file, int line) ;
 static __inline ng_item_fn **	_ngi_fn(item_p item, char *file, int line) ;
@@ -699,13 +658,6 @@ _ngi_m(item_p item, char *file, int line)
 {
 	_ngi_check(item, file, line);
 	return (&_NGI_M(item));
-}
-
-static __inline meta_p *
-_ngi_meta(item_p item, char *file, int line) 
-{
-	_ngi_check(item, file, line);
-	return (&_NGI_META(item));
 }
 
 static __inline struct ng_mesg **
@@ -758,7 +710,6 @@ _ngi_hook(item_p item, char *file, int line)
 }
 
 #define NGI_M(i)	(*_ngi_m(i, _NN_))
-#define NGI_META(i)	(*_ngi_meta(i, _NN_))
 #define NGI_MSG(i)	(*_ngi_msg(i, _NN_))
 #define NGI_RETADDR(i)	(*_ngi_retaddr(i, _NN_))
 #define NGI_FN(i)	(*_ngi_fn(i, _NN_))
@@ -790,7 +741,6 @@ _ngi_hook(item_p item, char *file, int line)
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
 #define NGI_M(i)	_NGI_M(i)
-#define NGI_META(i)	_NGI_META(i)
 #define NGI_MSG(i)	_NGI_MSG(i)
 #define NGI_RETADDR(i)	_NGI_RETADDR(i)
 #define NGI_FN(i)	_NGI_FN(i)
@@ -812,12 +762,6 @@ _ngi_hook(item_p item, char *file, int line)
 	do {								\
 		(m) = NGI_M(i);						\
 		_NGI_M(i) = NULL;					\
-	} while (0)
-
-#define NGI_GET_META(i,m)						\
-	do {								\
-		(m) = NGI_META(i);					\
-		_NGI_META(i) = NULL;					\
 	} while (0)
 
 #define NGI_GET_MSG(i,m)						\
@@ -857,12 +801,11 @@ _ngi_hook(item_p item, char *file, int line)
 	} while (0)
 
 /*
- * Forward a data packet with no new meta-data.
- * old metadata is passed along without change.
- * Mbuf pointer is updated to new value. We presume you dealt with the
- * old one when you update it to the new one (or it maybe the old one).
- * We got a packet and possibly had to modify the mbuf.
- * You should probably use NGI_GET_M() if you are going to use this too
+ * Forward a data packet. Mbuf pointer is updated to new value. We
+ * presume you dealt with the old one when you update it to the new one
+ * (or it maybe the old one). We got a packet and possibly had to modify
+ * the mbuf. You should probably use NGI_GET_M() if you are going to use
+ * this too.
  */
 #define NG_FWD_NEW_DATA(error, item, hook, m)				\
 	do {								\
@@ -871,7 +814,10 @@ _ngi_hook(item_p item, char *file, int line)
 		NG_FWD_ITEM_HOOK(error, item, hook);			\
 	} while (0)
 
-/* Send a previously unpackaged mbuf when we have no metadata to send */
+/* Send a previously unpackaged mbuf. XXX: This should be called
+ * NG_SEND_DATA in future, but this name is kept for compatibility
+ * reasons.
+ */
 #define NG_SEND_DATA_ONLY(error, hook, m)				\
 	do {								\
 		item_p _item;						\
@@ -883,32 +829,13 @@ _ngi_hook(item_p item, char *file, int line)
 		(m) = NULL;						\
 	} while (0)
 
-/* Send previously unpackeged data and metadata. */
-#define NG_SEND_DATA(error, hook, m, meta)				\
-	do {								\
-		item_p _item;						\
-		if ((_item = ng_package_data((m), (meta)))) {		\
-			NG_FWD_ITEM_HOOK(error, _item, hook);		\
-		} else {						\
-			(error) = ENOMEM;				\
-		}							\
-		(m) = NULL;						\
-		(meta) = NULL;						\
-	} while (0)
+#define NG_SEND_DATA(error, hook, m, x) NG_SEND_DATA_ONLY(error, hook, m)
 
 #define NG_FREE_MSG(msg)						\
 	do {								\
 		if ((msg)) {						\
 			FREE((msg), M_NETGRAPH_MSG);			\
 			(msg) = NULL;					\
-		}	 						\
-	} while (0)
-
-#define NG_FREE_META(meta)						\
-	do {								\
-		if ((meta)) {						\
-			FREE((meta), M_NETGRAPH_META);			\
-			(meta) = NULL;					\
 		}	 						\
 	} while (0)
 
@@ -1098,7 +1025,6 @@ MODULE_DEPEND(ng_##typename, netgraph,	NG_ABI_VERSION,			\
 /* Only these two types should be visible to nodes */ 
 MALLOC_DECLARE(M_NETGRAPH);
 MALLOC_DECLARE(M_NETGRAPH_MSG);
-MALLOC_DECLARE(M_NETGRAPH_META);
 
 /* declare the base of the netgraph sysclt hierarchy */
 /* but only if this file cares about sysctls */
@@ -1115,13 +1041,12 @@ int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
 int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
 int	ng_address_path(node_p here, item_p item, char *address, ng_ID_t raddr);
 int	ng_bypass(hook_p hook1, hook_p hook2);
-meta_p	ng_copy_meta(meta_p meta);
 hook_p	ng_findhook(node_p node, const char *name);
 int	ng_make_node_common(struct ng_type *typep, node_p *nodep);
 int	ng_name_node(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
 ng_ID_t ng_node2ID(node_p node);
-item_p	ng_package_data(struct mbuf *m, meta_p meta);
+item_p	ng_package_data(struct mbuf *m, void *dummy);
 item_p	ng_package_msg(struct ng_mesg *msg);
 item_p	ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg);
 void	ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr);
@@ -1156,5 +1081,15 @@ struct ng_tag_prio {
 
 #define	NG_PRIO_CUTOFF		32
 #define	NG_PRIO_LINKSTATE	64
+
+/* Macros and declarations to keep compatibility with metadata, which
+ * is obsoleted now. To be deleted.
+ */
+typedef void *meta_p;
+#define _NGI_META(i)	NULL
+#define NGI_META(i)	NULL
+#define NG_FREE_META(meta)
+#define NGI_GET_META(i,m)
+#define	ng_copy_meta(meta) NULL
 
 #endif /* _NETGRAPH_NETGRAPH_H_ */
