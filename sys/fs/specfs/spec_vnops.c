@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.16 1995/10/23 02:22:47 dyson Exp $
+ * $Id: spec_vnops.c,v 1.17 1995/11/09 08:16:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,11 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/disklabel.h>
+
+#include <vm/vm.h>
+#include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
+
 #include <miscfs/specfs/specdev.h>
 
 struct vnode *speclisth[SPECHSZ];
@@ -102,9 +107,7 @@ struct vnodeopv_desc spec_vnodeop_opv_desc =
 
 VNODEOP_SET(spec_vnodeop_opv_desc);
 
-#include <vm/vm.h>
-#include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
+static void spec_getpages_iodone __P((struct buf *bp));
 
 /*
  * Trivial lookup routine that always fails.
@@ -223,7 +226,8 @@ spec_read(ap)
 	daddr_t bn, nextbn;
 	long bsize, bscale;
 	struct partinfo dpart;
-	int n, on, majordev, (*ioctl)();
+	int n, on, majordev;
+	d_ioctl_t *ioctl;
 	int error = 0;
 	dev_t dev;
 
@@ -559,7 +563,7 @@ spec_close(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	dev_t dev = vp->v_rdev;
-	int (*devclose) __P((dev_t, int, int, struct proc *));
+	d_close_t *devclose;
 	int mode, error;
 
 	switch (vp->v_type) {
@@ -712,49 +716,51 @@ spec_badop()
 	/* NOTREACHED */
 }
 
-static void spec_getpages_iodone(struct buf *bp) {
+static void
+spec_getpages_iodone(bp)
+	struct buf *bp;
+{
+
 	bp->b_flags |= B_DONE;
 	wakeup(bp);
 }
 
-/*
- * get page routine
- */
 int
 spec_getpages(ap)
 	struct vop_getpages_args *ap;
 {
 	vm_offset_t kva;
-	int i, size;
+	int error;
+	int i, pcount, size, s;
 	daddr_t blkno;
 	struct buf *bp;
-	int s;
-	int error = 0;
-	int pcount;
 
+	error = 0;
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
+
 	/*
-	 * calculate the size of the transfer
+	 * Calculate the size of the transfer.
 	 */
 	blkno = (ap->a_m[0]->offset + ap->a_offset) / DEV_BSIZE;
 
 	/*
-	 * round up physical size for real devices
+	 * Round up physical size for real devices.
 	 */
 	size = (ap->a_count + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 
 	bp = getpbuf();
-	kva = (vm_offset_t) bp->b_data;
+	kva = (vm_offset_t)bp->b_data;
 
 	/*
-	 * and map the pages to be read into the kva
+	 * Map the pages to be read into the kva.
 	 */
 	pmap_qenter(kva, ap->a_m, pcount);
 
-	/* build a minimal buffer header */
+	/* Build a minimal buffer header. */
 	bp->b_flags = B_BUSY | B_READ | B_CALL;
 	bp->b_iodone = spec_getpages_iodone;
-	/* B_PHYS is not set, but it is nice to fill this in */
+
+	/* B_PHYS is not set, but it is nice to fill this in. */
 	bp->b_proc = curproc;
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
 	if (bp->b_rcred != NOCRED)
@@ -770,32 +776,29 @@ spec_getpages(ap)
 	cnt.v_vnodein++;
 	cnt.v_vnodepgsin += pcount;
 
-	/* do the input */
+	/* Do the input. */
 	VOP_STRATEGY(bp);
-	if (bp->b_flags & B_ASYNC) {
-		return VM_PAGER_PEND;
-	}
+	if (bp->b_flags & B_ASYNC)
+		return (VM_PAGER_PEND);
 
 	s = splbio();
-	/* we definitely need to be at splbio here */
 
-	while ((bp->b_flags & B_DONE) == 0) {
+	/* We definitely need to be at splbio here. */
+	while ((bp->b_flags & B_DONE) == 0)
 		tsleep(bp, PVM, "vnread", 0);
-	}
+
 	splx(s);
+
 	if ((bp->b_flags & B_ERROR) != 0)
 		error = EIO;
 
-	if (!error) {
-		if (ap->a_count != pcount * PAGE_SIZE) {
-			bzero((caddr_t) kva + ap->a_count,
-				PAGE_SIZE * pcount - ap->a_count);
-		}
-	}
+	if (!error && ap->a_count != pcount * PAGE_SIZE)
+		bzero((caddr_t)kva + ap->a_count,
+		      PAGE_SIZE * pcount - ap->a_count);
 	pmap_qremove(kva, pcount);
 
 	/*
-	 * free the buffer header back to the swap buffer pool
+	 * Free the buffer header back to the swap buffer pool.
 	 */
 	relpbuf(bp);
 
@@ -804,29 +807,26 @@ spec_getpages(ap)
 		ap->a_m[i]->dirty = 0;
 		ap->a_m[i]->valid = VM_PAGE_BITS_ALL;
 		if (i != ap->a_reqpage) {
-
 			/*
-			 * whether or not to leave the page activated is up in
+			 * Whether or not to leave the page activated is up in
 			 * the air, but we should put the page on a page queue
-			 * somewhere. (it already is in the object). Result:
+			 * somewhere (it already is in the object).  Result:
 			 * It appears that emperical results show that
 			 * deactivating pages is best.
 			 */
 
 			/*
-			 * just in case someone was asking for this page we
-			 * now tell them that it is ok to use
+			 * Just in case someone was asking for this page we
+			 * now tell them that it is ok to use.
 			 */
 			if (!error) {
 				vm_page_deactivate(ap->a_m[i]);
 				PAGE_WAKEUP(ap->a_m[i]);
-			} else {
+			} else
 				vnode_pager_freepage(ap->a_m[i]);
-			}
 		}
 	}
-	if (error) {
+	if (error)
 		printf("spec_getpages: I/O read error\n");
-	}
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
