@@ -92,7 +92,8 @@ static device_method_t gbus_methods[] = {
 	DEVMETHOD(bus_print_child,	gbus_print_child),
 	DEVMETHOD(bus_read_ivar,	gbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_map_intr,		bus_generic_map_intr),
+	DEVMETHOD(bus_create_intr,	bus_generic_create_intr),
+	DEVMETHOD(bus_connect_intr,	bus_generic_connect_intr),
 
 	{ 0, 0 }
 };
