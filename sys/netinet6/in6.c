@@ -1564,9 +1564,9 @@ in6_ifawithscope(ifp, dst)
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = NULL, *ia;
-	struct in6_ifaddr *dep[2];	/*last-resort: deprecated*/
+	struct in6_ifaddr *dep[3];	/*last-resort: deprecated*/
 
-	dep[0] = dep[1] = NULL;
+	dep[0] = dep[1] = dep[2] = NULL;
 
 	/*
 	 * We first look for addresses in the same scope.
@@ -1628,11 +1628,32 @@ in6_ifawithscope(ifp, dst)
 		return ia;
 	}
 
+	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
+                if (IPV6_ADDR_SCOPE_SITELOCAL !=
+                    in6_addrscope(&(ia->ia_addr.sin6_addr)))
+                        continue;
+		/* XXX: is there any case to allow anycast? */
+		if ((ia->ia6_flags & IN6_IFF_ANYCAST) != 0)
+			continue;
+		if ((ia->ia6_flags & IN6_IFF_NOTREADY) != 0)
+			continue;
+		if ((ia->ia6_flags & IN6_IFF_DETACHED) != 0)
+			continue;
+		if ((ia->ia6_flags & IN6_IFF_DEPRECATED) != 0) {
+			if (ip6_use_deprecated)
+				dep[2] = (struct in6_ifaddr *)ifa;
+			continue;
+		}
+		return ia;
+	}
+
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])
 		return dep[0];
 	if (dep[1])
 		return dep[1];
+	if (dep[2])
+		return dep[2];
 
 	return NULL;
 }
