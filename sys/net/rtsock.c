@@ -133,6 +133,9 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 	case AF_INET:
 		route_cb.ip_count++;
 		break;
+	case AF_INET6:
+		route_cb.ip6_count++;
+		break;
 	case AF_IPX:
 		route_cb.ipx_count++;
 		break;
@@ -185,6 +188,9 @@ rts_detach(struct socket *so)
 		switch(rp->rcb_proto.sp_protocol) {
 		case AF_INET:
 			route_cb.ip_count--;
+			break;
+		case AF_INET6:
+			route_cb.ip6_count--;
 			break;
 		case AF_IPX:
 			route_cb.ipx_count--;
