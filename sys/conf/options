@@ -1,4 +1,4 @@
-#	$Id: options,v 1.61 1998/02/16 23:57:33 eivind Exp $
+#	$Id: options,v 1.62 1998/02/23 07:42:43 dyson Exp $
 
 # Format:
 # Option name	filename
@@ -180,3 +180,7 @@ SIMPLELOCK_DEBUG	opt_global.h
 VM_KMEM_SIZE	opt_vm.h
 VM_KMEM_SIZE_SCALE opt_vm.h
 VM_KMEM_SIZE_MAX	opt_vm.h
+
+# sys/netkey
+KEY
+KEY_DEBUG		opt_key.h
