@@ -36,7 +36,10 @@ __FBSDID("$FreeBSD$");
 extern int __mlocale_changed;
 extern const char * __fix_locale_grouping_str(const char *);
 
-#define LCMONETARY_SIZE (sizeof(struct lc_monetary_T) / sizeof(char *))
+#define LCMONETARY_SIZE_FULL (sizeof(struct lc_monetary_T) / sizeof(char *))
+#define LCMONETARY_SIZE_MIN \
+		(offsetof(struct lc_monetary_T, int_p_cs_precedes) / \
+		    sizeof(char *))
 
 static char	empty[] = "";
 static char	numempty[] = { CHAR_MAX, '\0'};
@@ -86,9 +89,7 @@ __monetary_load_locale(const char *name)
 
 	ret = __part_load_locale(name, &_monetary_using_locale,
 		_monetary_locale_buf, "LC_MONETARY",
-		LCMONETARY_SIZE,
-		offsetof(struct lc_monetary_T, int_p_cs_precedes) /
-		    sizeof(char *),
+		LCMONETARY_SIZE_FULL, LCMONETARY_SIZE_MIN,
 		(const char **)&_monetary_locale);
 	if (ret != _LDP_ERROR)
 		__mlocale_changed = 1;
