@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.36 1994/02/08 12:58:44 davidg Exp $
+ *	$Id: machdep.c,v 1.37 1994/02/24 00:18:04 hsu Exp $
  */
 
 #include "npx.h"
@@ -709,7 +709,7 @@ die:
 	DELAY (100000);	/* wait 100ms for printf's to complete */
 	cpu_reset();
 	for(;;) ;
-	/*NOTREACHED*/
+	/* NOTREACHED */
 }
 
 unsigned long	dumpmag = 0x8fca0101UL;	/* magic number for savecore */
@@ -1133,7 +1133,7 @@ init386(first)
 #ifndef LARGEMEM
 	if (biosextmem > 65536) {
 		panic("extended memory beyond limit of 64MB");
-		/* NOT REACHED */
+		/* NOTREACHED */
 	}
 #endif
 
