@@ -60,16 +60,14 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static void	usage __P((void));
-int 		main __P((int argc, char *argv[]));
+static void	usage(void);
+int 		main(int argc, char *argv[]);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	register DIR *dirp;
-	register struct dirent *dp;
+	DIR *dirp;
+	struct dirent *dp;
 	struct stat sb;
 	struct {
 		mode_t type;
@@ -79,7 +77,7 @@ main(argc, argv)
 	DBT data, key;
 	int ch, fflag;
 	u_char buf[MAXNAMLEN + 1];
-	char dbtmp[MAXPATHLEN + 1], dbname[MAXPATHLEN + 1];
+	char dbtmp[MAXPATHLEN], dbname[MAXPATHLEN];
 	const char *dirname;
 
 	fflag = 0;
@@ -161,7 +159,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: dev_mkdb [-f file] [directory]\n");
 	exit(1);
