@@ -588,4 +588,4 @@ link_aout_lookup_set(linker_file_t lf, const char *name,
 	return 0;
 }
 
-#endif /* !__alpha__ */
+#endif /* __i386__ */
