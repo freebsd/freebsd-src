@@ -1079,6 +1079,8 @@ options 	KSTACK_PAGES=3
 # More undocumented options for linting.
 # Note that documenting these are not considered an affront.
 
+options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
+
 # PECOFF module (Win32 Execution Format)
 options 	PECOFF_SUPPORT
 options 	PECOFF_DEBUG
