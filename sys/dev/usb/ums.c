@@ -421,7 +421,8 @@ ums_intr(xfer, addr, status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("ums_intr: status=%d\n", status));
-		usbd_clear_endpoint_stall_async(sc->sc_intrpipe);
+		if (status == USBD_STALLED)
+		    usbd_clear_endpoint_stall_async(sc->sc_intrpipe);
 		return;
 	}
 

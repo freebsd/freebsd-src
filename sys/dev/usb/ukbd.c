@@ -700,7 +700,8 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("ukbd_intr: status=%d\n", status));
-		usbd_clear_endpoint_stall_async(state->ks_intrpipe);
+		if (status == USBD_STALLED)
+		    usbd_clear_endpoint_stall_async(state->ks_intrpipe);
 		return 0;
 	}
 
