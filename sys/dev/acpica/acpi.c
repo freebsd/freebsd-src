@@ -600,6 +600,8 @@ acpi_suspend(device_t dev)
     device_t child, *devlist;
     int error, i, numdevs, pstate;
 
+    GIANT_REQUIRED;
+
     /* First give child devices a chance to suspend. */
     error = bus_generic_suspend(dev);
     if (error)
@@ -641,6 +643,8 @@ acpi_resume(device_t dev)
     int i, numdevs;
     device_t child, *devlist;
 
+    GIANT_REQUIRED;
+
     /*
      * Put all devices in D0 before resuming them.  Call _S0D on each one
      * since some systems expect this.
@@ -662,6 +666,8 @@ acpi_resume(device_t dev)
 static int
 acpi_shutdown(device_t dev)
 {
+
+    GIANT_REQUIRED;
 
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);
@@ -2039,6 +2045,11 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     sc->acpi_sleep_disabled = 1;
     ACPI_UNLOCK(acpi);
 
+    /*
+     * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
+     * drivers need this.
+     */
+    mtx_lock(&Giant);
     slp_state = ACPI_SS_NONE;
     switch (state) {
     case ACPI_STATE_S1:
@@ -2136,6 +2147,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     if (state != ACPI_STATE_S5)
 	timeout(acpi_sleep_enable, (caddr_t)sc, hz * ACPI_MINIMUM_AWAKETIME);
 
+    mtx_unlock(&Giant);
     return_ACPI_STATUS (status);
 }
 
