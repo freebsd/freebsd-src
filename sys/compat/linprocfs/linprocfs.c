@@ -408,7 +408,7 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    "swap %u %u\n"
 	    "intr %u\n"
 	    "ctxt %u\n"
-	    "btime %ld\n",
+	    "btime %lld\n",
 	    T2J(cp_time[CP_USER]),
 	    T2J(cp_time[CP_NICE]),
 	    T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
@@ -419,7 +419,7 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    cnt.v_swappgsout,
 	    cnt.v_intr,
 	    cnt.v_swtch,
-	    boottime.tv_sec);
+	    (quad_t)boottime.tv_sec);
 	return (0);
 }
 
@@ -432,8 +432,8 @@ linprocfs_douptime(PFS_FILL_ARGS)
 	struct timeval tv;
 
 	getmicrouptime(&tv);
-	sbuf_printf(sb, "%ld.%02ld %ld.%02ld\n",
-	    tv.tv_sec, tv.tv_usec / 10000,
+	sbuf_printf(sb, "%lld.%02ld %ld.%02ld\n",
+	    (quad_t)tv.tv_sec, tv.tv_usec / 10000,
 	    T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
 	return (0);
 }
