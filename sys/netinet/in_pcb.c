@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.34 1997/08/16 19:15:36 wollman Exp $
+ *	$Id: in_pcb.c,v 1.35 1997/10/28 15:58:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,7 @@ in_pcbbind(inp, nam, p)
 
 			/* GROSS */
 			if (ntohs(lport) < IPPORT_RESERVED && p &&
-			    (error = suser(p->p_ucred, &p->p_acflag)))
+			    suser(p->p_ucred, &p->p_acflag))
 				return (EACCES);
 			t = in_pcblookup(inp->inp_pcbinfo, zeroin_addr, 0,
 			    sin->sin_addr, lport, wild);
