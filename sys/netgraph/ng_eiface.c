@@ -57,20 +57,12 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-static const struct ng_parse_struct_field ng_eiface_par_fields[]
-	= NG_EIFACE_PAR_FIELDS;
-
-static const struct ng_parse_type ng_eiface_par_type = {
-	&ng_parse_struct_type,
-	&ng_eiface_par_fields
-};
-
 static const struct ng_cmdlist ng_eiface_cmdlist[] = {
 	{
 	  NGM_EIFACE_COOKIE,
 	  NGM_EIFACE_SET,
 	  "set",
-	  &ng_eiface_par_type,
+	  &ng_parse_enaddr_type,
 	  NULL
 	},
 	{ 0 }
@@ -496,22 +488,16 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		switch (msg->header.cmd) {
 		case NGM_EIFACE_SET:
 		{
-			struct ng_eiface_par *eaddr;
+			struct ether_addr *eaddr;
 			struct ifaddr *ifa;
 			struct sockaddr_dl *sdl;
 
-			if (msg->header.arglen != sizeof(struct ng_eiface_par)){
+			if (msg->header.arglen != sizeof(struct ether_addr)){
 				error = EINVAL;
 				break;
 			}
-			eaddr = (struct ng_eiface_par *)(msg->data);
-
-			priv->arpcom.ac_enaddr[0] = eaddr->oct0;
-			priv->arpcom.ac_enaddr[1] = eaddr->oct1;
-			priv->arpcom.ac_enaddr[2] = eaddr->oct2;
-			priv->arpcom.ac_enaddr[3] = eaddr->oct3;
-			priv->arpcom.ac_enaddr[4] = eaddr->oct4;
-			priv->arpcom.ac_enaddr[5] = eaddr->oct5;
+			eaddr = (struct ether_addr *)(msg->data);
+			bcopy(eaddr, priv->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 			/* And put it in the ifaddr list */
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
