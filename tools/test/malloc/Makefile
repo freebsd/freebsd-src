@@ -1,5 +1,6 @@
+# $FreeBSD$
 PROG=	malloc
-SRCS=	main.c malloc.c
+SRCS=	main.c
 .PATH:	${.CURDIR}/../../../lib/libc/stdlib
 
 NOMAN=	sorry
