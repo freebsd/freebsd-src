@@ -1,11 +1,12 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.52 -->
+<!-- Original revision: 1.55 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
 Use these entities when referencing people.  Please note the use of single
 and double quotes.  
+Please keep this list in alphabetical order by entity names.
 -->
 
 <!ENTITY a.ache "Andrey A. Chernov
@@ -67,6 +68,10 @@ and double quotes.
 <!ENTITY a.csgr  "Geoff Rehmet 
   <tt><htmlurl url='mailto:csgr@FreeBSD.ORG'
   name='&lt;csgr@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.darrenr "Darren Reed 
+  <tt><htmlurl url='mailto:darrenr@FreeBSD.ORG' 
+  name='&lt;darrenr@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.dave "Dave Cornejo 
   <tt><htmlurl url='mailto:dave@FreeBSD.ORG' 
@@ -380,6 +385,10 @@ and double quotes.
   <tt><htmlurl url='mailto:swallace@FreeBSD.ORG'
   name='&lt;swallace@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.tegge "Tor Egge 
+  <tt><htmlurl url='mailto:tegge@FreeBSD.ORG' 
+  name='&lt;tegge@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.tg  "Thomas Gellekum 
   <tt><htmlurl url='mailto:tg@FreeBSD.ORG'
   name='&lt;tg@FreeBSD.ORG&gt;'></tt>">
@@ -423,3 +432,7 @@ and double quotes.
 <!ENTITY a.wpaul  "Bill Paul
   <tt><htmlurl url='mailto:wpaul@FreeBSD.ORG'
   name='&lt;wpaul@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.yokota  "Kazutaka YOKOTA
+  <tt><htmlurl url='mailto:yokota@FreeBSD.ORG'
+  name='&lt;yokota@FreeBSD.ORG&gt;'></tt>">
