@@ -1728,9 +1728,6 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 			return;
 	}
 #ifdef DIAGNOSTIC
-	if (dev->si_mountpoint &&
-	    (dev->si_mountpoint->mnt_kern_flag & MNTK_SUSPENDED))
-		panic("ffs_blkfree: deallocation on suspended filesystem");
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
 		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",

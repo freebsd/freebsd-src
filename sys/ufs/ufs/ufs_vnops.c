@@ -1927,6 +1927,7 @@ ufs_strategy(ap)
 {
 	struct buf *bp = ap->a_bp;
 	struct vnode *vp = ap->a_vp;
+	struct bufobj *bo;
 	struct inode *ip;
 	ufs2_daddr_t blkno;
 	int error;
@@ -1948,14 +1949,9 @@ ufs_strategy(ap)
 		bufdone(bp);
 		return (0);
 	}
-	vp = ip->i_devvp;
-	bp->b_dev = vp->v_rdev;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-#ifdef SOFTUPDATES
-	if (bp->b_iocmd == BIO_WRITE && softdep_disk_prewrite(vp, bp))
-		return (0);
-#endif
-	VOP_SPECSTRATEGY(vp, bp);
+	bo = ip->i_umbufobj;
+	bo->bo_ops->bop_strategy(bo, bp);
 	return (0);
 }
 

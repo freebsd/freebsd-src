@@ -3416,9 +3416,10 @@ handle_workitem_freefile(freefile)
 }
 
 int
-softdep_disk_prewrite(struct vnode *vp, struct buf *bp)
+softdep_disk_prewrite(struct buf *bp)
 {
 	int error;
+	struct vnode *vp = bp->b_vp;
 
 	KASSERT(bp->b_iocmd == BIO_WRITE,
 	    ("softdep_disk_prewrite on non-BIO_WRITE buffer"));
@@ -4983,17 +4984,8 @@ softdep_sync_metadata(ap)
 	struct worklist *wk;
 	int i, error, waitfor;
 
-	/*
-	 * Check whether this vnode is involved in a filesystem
-	 * that is doing soft dependency processing.
-	 */
-	if (!vn_isdisk(vp, NULL)) {
-		if (!DOINGSOFTDEP(vp))
-			return (0);
-	} else
-		if (vp->v_rdev->si_mountpoint == NULL ||
-		    (vp->v_rdev->si_mountpoint->mnt_flag & MNT_SOFTDEP) == 0)
-			return (0);
+	if (!DOINGSOFTDEP(vp))
+		return (0);
 	/*
 	 * Ensure that any direct block dependencies have been cleared.
 	 */
@@ -5222,18 +5214,6 @@ loop:
 	VI_UNLOCK(vp);
 
 	FREE_LOCK(&lk);
-	/*
-	 * If we are trying to sync a block device, some of its buffers may
-	 * contain metadata that cannot be written until the contents of some
-	 * partially written files have been written to disk. The only easy
-	 * way to accomplish this is to sync the entire filesystem (luckily
-	 * this happens rarely).
-	 */
-	if (vn_isdisk(vp, NULL) && 
-	    vp->v_rdev->si_mountpoint && !VOP_ISLOCKED(vp, NULL) &&
-	    (error = VFS_SYNC(vp->v_rdev->si_mountpoint, MNT_WAIT, ap->a_cred,
-	     ap->a_td)) != 0)
-		return (error);
 	return (0);
 }
 
@@ -5912,6 +5892,8 @@ getdirtybuf(bpp, mtx, waitfor)
 /*
  * Wait for pending output on a vnode to complete.
  * Must be called with vnode lock and interlock locked.
+ *
+ * XXX: Should just be a call to bufobj_wwait().
  */
 static void
 drain_output(vp, islocked)

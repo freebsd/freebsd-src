@@ -248,15 +248,11 @@ ffs_rawread_readahead(struct vnode *vp,
 	if (bp->b_bcount + blockoff * DEV_BSIZE > bsize * (1 + bforwards))
 		bp->b_bcount = bsize * (1 + bforwards) - blockoff * DEV_BSIZE;
 	bp->b_bufsize = bp->b_bcount;
-	bp->b_dev = dp->v_rdev;
 	
 	if (vmapbuf(bp) < 0)
 		return EFAULT;
 	
-	if (dp->v_type == VCHR)
-		(void) VOP_SPECSTRATEGY(dp, bp);
-	else
-		(void) VOP_STRATEGY(dp, bp);
+	dp->v_bufobj.bo_ops->bop_strategy(&dp->v_bufobj, bp);
 	return 0;
 }
 
