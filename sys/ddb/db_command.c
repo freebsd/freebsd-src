@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/watchdog.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
@@ -69,6 +70,7 @@ static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_kill;
 static db_cmdfcn_t	db_reset;
+static db_cmdfcn_t	db_watchdog;
 
 /* XXX this is actually forward-static. */
 extern struct command	db_show_cmds[];
@@ -422,6 +424,7 @@ static struct command db_command_table[] = {
 	{ "gdb",	db_gdb,			0,	0 },
 	{ "reset",	db_reset,		0,	0 },
 	{ "kill",	db_kill,		CS_OWN,	0 },
+	{ "watchdog",	db_watchdog,		0,	0 },
 	{ (char *)0, }
 };
 
@@ -638,4 +641,22 @@ db_reset(dummy1, dummy2, dummy3, dummy4)
 {
 
 	cpu_reset();
+}
+
+static void
+db_watchdog(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
+{
+	int i;
+
+	/*
+	 * XXX: It might make sense to be able to set the watchdog to a
+	 * XXX: timeout here so that failure or hang as a result of subsequent
+	 * XXX: ddb commands could be recovered by a reset.
+	 */
+
+	EVENTHANDLER_INVOKE(watchdog_list, 0, &i);
 }
