@@ -14,7 +14,7 @@
 <!-- Architecture-specific customization -->
 
 <!ENTITY arch "i386">
-<!ENTITY arch.print "IA-32">
+<!ENTITY arch.print "i386">
 
 ]>
 
