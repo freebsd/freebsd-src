@@ -112,7 +112,6 @@ typedef int ofw_vec_t(void *);
 struct tlb_entry *kernel_tlbs;
 int kernel_tlb_slots;
 
-long physmem;
 int cold = 1;
 long Maxmem;
 
