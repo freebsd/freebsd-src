@@ -674,6 +674,9 @@ options 	BRIDGE
 # The `hfa' driver provides support for the FORE Systems, Inc.
 # PCA-200E ATM PCI Adapter.
 #
+# The `proatm' driver provides support for cards based on the IDT77252 chip
+# like ProSum's ProATM cards.
+#
 options 	ATM_CORE		#core ATM protocol family
 options 	ATM_IP			#IP over ATM support
 options 	ATM_SIGPVC		#SIGPVC signalling manager
@@ -681,6 +684,7 @@ options 	ATM_SPANS		#SPANS signalling manager
 options 	ATM_UNI			#UNI signalling manager
 device		hea			#Efficient ENI-155p ATM PCI
 device		hfa			#FORE PCA-200E ATM PCI
+device		proatm			#ProSum's ProATM-155
 
 # DEVICE_POLLING adds support for mixed interrupt-polling handling
 # of network device drivers, which has significant benefits in terms

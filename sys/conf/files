@@ -407,6 +407,7 @@ dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
+dev/proatm/proatm.c	optional proatm pci
 dev/ray/if_ray.c        optional ray card
 dev/ray/if_ray.c        optional ray pccard
 dev/rndtest/rndtest.c	optional rndtest
