@@ -173,7 +173,7 @@ static struct nlist namelist[] = {
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 30 cols */
 #define GENSTATCOL	20
-#define VMSTATROW	 7	/* uses 17 rows and 12 cols */
+#define VMSTATROW	 6	/* uses 17 rows and 12 cols */
 #define VMSTATCOL	48
 #define GRAPHROW	10	/* uses 3 rows and 51 cols */
 #define GRAPHCOL	 0
