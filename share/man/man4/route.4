@@ -141,14 +141,14 @@ by filling in the
 .Ar rtm_errno
 field.
 The routing code returns
-.Dv EEXIST
+.Er EEXIST
 if
 requested to duplicate an existing entry,
-.Dv ESRCH
+.Er ESRCH
 if
 requested to delete a non-existent entry,
 or
-.Dv ENOBUFS
+.Er ENOBUFS
 if insufficient resources were available
 to install a new route.
 In the current implementation, all routing processes run locally,

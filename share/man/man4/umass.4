@@ -62,14 +62,14 @@ must be configured in the kernel as well.
 Last but not least, support for
 SCSI drives,
 .Nm da
-.Sh EXAMPLE
+.Sh EXAMPLES
 .Dl device umass
 .Dl device scbus
 .Dl device da
 .Dl device pass
 .Pp
 Add the
-.Nm umass
+.Nm
 driver to the kernel.
 .Pp
 .Dl camcontrol rescan 0
@@ -101,8 +101,9 @@ Create a new FAT type filesystem.
 .Xr disklabel 8
 .\".Sh HISTORY
 .Sh AUTHORS
+.An -nosplit
 The
-.Nm umass
+.Nm
 driver was written by
 .An MAEKAWA Masahide Aq bishop@rr.iij4u.or.jp
 and

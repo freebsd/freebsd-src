@@ -37,19 +37,19 @@
 None.
 .Sh DESCRIPTION
 The
-.Nm xpt
+.Nm
 driver provides a way for userland applications to issue certain CAM CCBs
 to the kernel. 
 .Pp
 Since the
-.Nm xpt
+.Nm
 driver allows direct access to the CAM subsystem, system administrators
 should exercise caution when granting access to this driver.  If used
 improperly, this driver can allow userland applications to crash a machine
 or cause data loss.
 .Sh KERNEL CONFIGURATION
 There is no kernel configuration required for the
-.Nm xpt
+.Nm
 driver.  It is enabled when
 .Tn SCSI
 support is enabled in the kernel.  There is one instance of the xpt driver
@@ -86,7 +86,7 @@ corresponding to the device in question.
 .Bl -tag -width 01234567890 -compact
 .It Pa /dev/xpt0
 Character device node for the
-.Nm xpt
+.Nm
 driver. 
 .El
 .Sh DIAGNOSTICS

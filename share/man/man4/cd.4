@@ -38,7 +38,7 @@
 .Cd options	"CHANGER_MAX_BUSY_SECONDS=11"
 .Sh DESCRIPTION
 The
-.Nm cd
+.Nm
 driver provides support for a 
 .Tn SCSI
 .Tn CD-ROM
@@ -388,7 +388,7 @@ player mechanism.  Each CD in the drive shows up as a seperate logical unit
 on the
 .Tn SCSI
 bus.  The
-.Nm cd
+.Nm
 driver automatically recognizes LUN-based changers, and routes commands for
 changers through an internal scheduler.  The scheduler prevents changer
 "thrashing", which is caused by sending commands to different LUNs in the
@@ -465,15 +465,15 @@ timeouts for different CD devices in the kernel config file would likely
 require modification of
 .Xr config 8
 to support the two timeouts when hardwiring
-.Nm cd
+.Nm
 devices.
 .Sh HISTORY
 This
-.Nm cd
+.Nm
 driver is based upon the
-.Nm cd
+.Nm
 driver written by Julian Elischer, which appeared in 386BSD 0.1.  The
 CAM version of the
-.Nm cd
+.Nm
 driver was written by Kenneth Merry and first appeared in
 .Fx 3.0 .

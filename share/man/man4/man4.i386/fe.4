@@ -31,7 +31,7 @@
 .Cd "device fe0 at isa? port 0x300 irq ?"
 .Sh DESCRIPTION
 The
-.Nm fe
+.Nm
 is a network device driver
 for Ethernet adapters based on Fujitsu MB86960A, MB86965A,
 or other compatible chips.
@@ -119,7 +119,7 @@ on DLCR6 settings.
 .El
 .Sh OPTIONS
 The
-.Nm fe
+.Nm
 driver has some private options,
 which can be specified with an
 .Dq option
@@ -173,7 +173,7 @@ are logged under this setting.
 .El
 .Sh FEATURES SPECIFIC TO HARDWARE MODELS
 The
-.Nm fe
+.Nm
 driver has some features and limitations
 which depend on adapter hardware models.
 The following is a summary of such dependency.
@@ -182,7 +182,7 @@ Both automatic IRQ detection and automatic I/O port address detection
 is available with these adapters.
 .Pp
 Automatic I/O port address detection feature of
-.Nm fe
+.Nm
 works mostly fine for FMV-180 series.
 It works even if there are two or more FMV-180s in a system.
 However, some combination of other adapters may confuse the driver.
@@ -191,7 +191,7 @@ It is recommended not to use
 when you experience some difficulties with hardware probe.
 .Pp
 Automatic IRQ detection feature of
-.Nm fe
+.Nm
 works reliably for FMV-180 series.
 It is recommended to use
 .Em "irq ?"
@@ -213,7 +213,7 @@ is not recommended.
 .Pp
 Automatic IRQ detection is also available with some limitation.
 The
-.Nm fe
+.Nm
 driver
 tries to get IRQ setting from the configuration EEPROM on the board,
 if
@@ -232,7 +232,7 @@ Differences between AT1700 series and RE2000 series
 or minor models in those series are not recognized.
 .Ss Fujitsu MBH10302 PC card
 The
-.Nm fe
+.Nm
 driver supports Fujitsu MBH10302 and compatible PC cards.
 It requires the PC card (PCMCIA) support package.
 .Sh SEE ALSO
@@ -247,7 +247,7 @@ It requires the PC card (PCMCIA) support package.
 Following are major known bugs:
 .Pp
 Statistics on the number of collisions maintained by the
-.Nm fe
+.Nm
 driver is not accurate;
 the
 .Fi i
@@ -266,7 +266,7 @@ they are never be tested and must have a lot of bugs.
 .Sh AUTHORS, COPYRIGHT AND DISCLAIMER
 .Pp
 The
-.Nm fe
+.Nm
 driver was originally written and contributed by
 .An M. Sekiguchi Aq seki@sysrap.cs.fujitsu.co.jp ,
 following the
@@ -274,7 +274,7 @@ following the
 driver written by
 .An David Greenman .
 PC card support in
-.Nm fe
+.Nm
 is written by
 .An Hidetoshi Kimura Aq h-kimura@tokyo.se.fujitsu.co.jp .
 This manual page was written by

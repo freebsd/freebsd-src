@@ -334,9 +334,8 @@ see
 .Pp
 .It Li local/
 local executables, libraries, etc.
-.br
 Also used as the default destination for the
-.Tn FreeBSD
+.Fx
 ports framework.
 Within local/, the general layout sketched out by
 .Xr hier 7
@@ -347,7 +346,7 @@ rather than under local/share/.  Ports documentation is in share/doc/<port>/
 architecture-specific target tree produced by building the /usr/src tree
 .It Li ports
 The
-.Tn FreeBSD
+.Fx
 ports collection (optional).
 .It Li sbin/
 system daemons & system utilities (executed by users)
@@ -391,7 +390,7 @@ association)
 .It Li FAQ/
 Frequently Asked Questions
 .It Li handbook/
-.Tn FreeBSD
+.Fx
 Handbook
 .It Li papers/
 UNIX Papers
@@ -520,7 +519,7 @@ src for files in /usr/lib
 src for files in /usr/libexec
 .It Li release/
 files required to produce a
-.Tn FreeBSD 
+.Fx 
 release
 .It Li sbin/
 src for files in /sbin
@@ -531,7 +530,8 @@ src for files in /usr/share
 .It Li sys/
 kernel src files
 .It Li tools/
-tools used for maintaince and testing of FreeBSD
+tools used for maintenance and testing of
+.Fx
 .It Li usr.bin/
 src for files in /usr/bin
 .It Li usr.sbin/
@@ -688,6 +688,6 @@ the NIS maps
 .Xr fsck 8
 .Sh HISTORY
 A
-.Nm hier
+.Nm
 manual page appeared in
 .At v7 .

@@ -20,33 +20,33 @@
 .Sh SYNOPSIS
 .Cd device apm0 at nexus?
 .Sh DESCRIPTION
-.Nm apm
+.Nm
 is an interface to the Intel / Microsoft APM (Advanced Power Management) BIOS
 on laptop PCs.
 .Pp
-.Nm apm
+.Nm
 provides the following power management functions.
 .Bl -enum -offset indent
 .It
 When the system wakes up from suspended mode, 
-.Nm apm
+.Nm
 adjusts the system clock to RTC.
 .It 
 When the system wakes up from suspended mode, 
-.Nm apm
+.Nm
 passes a message to 
 .Xr syslogd 8
 comprising of system wakeup time and elapsed time during suspended mode.
 .It
-.Nm apm
+.Nm
 slows CPU clock when there are no system activities (runnable processes, 
 interrupts, etc.).  This function is available only on systems whose APM 
 supports CPU idling.
 .It
-.Nm apm
+.Nm
 exports an application interface as a character device.  Applications
 can control APM, or retrieve APM status information via this interface.
-.Nm apm
+.Nm
 exports the following interfaces.  These symbols are defined in
 .Dq Pa /usr/include/machine/apm_bios.h.
 .Bl -tag -width 4n -offset indent
@@ -79,13 +79,13 @@ does not execute HLT in
 .Dq Pa Idle CPU.
 On some implementations that do not support CPU clock slowdown, APM 
 might not execute HLT.
-.Nm apm
+.Nm
 disables
 .Sy APMIO_NOTHALTCPU
 operation on such machines. 
 .Pp
 The current version of
-.Nm apm
+.Nm
 does not call
 .Dq Pa Idle CPU
 from the kernel context switch routine if clock slowdown is not supported, 
@@ -96,7 +96,7 @@ no need to use these two operations in most cases.
 These interfaces are used by
 .Xr apm 8 .
 .It
-.Nm apm
+.Nm
 polls APM events and handles the following events.
 .Bl -column PMEV_POWERSTATECHANGEXXX "suspend system xxxxx" 
 .It Sy "Name                  " "Action          " "Description"
@@ -123,7 +123,7 @@ We are very interested in getting this code working, so please send you
 observations of any anomalous behavior to us.
 .Pp
 When 
-.Nm apm
+.Nm
 is active, calling the BIOS setup routine by using hot-keys, 
 may cause serious trouble when resuming the system.
 BIOS setup programs should be called during bootstrap, or from DOS.

@@ -36,7 +36,7 @@
 .Cd device sa1 at scbus0 target 4 unit 0
 .Sh DESCRIPTION
 The
-.Nm sa
+.Nm
 driver provides support for all
 .Tn SCSI
 devices of the sequential access class that are attached to the system
@@ -168,7 +168,7 @@ block devices.  This has not been determined yet, and they are treated
 as separate behaviors by the driver at this time.)
 .Sh IOCTLS
 The
-.Nm sa
+.Nm
 driver supports all of the ioctls of
 .Xr mtio 4 .
 .Sh FILES
@@ -191,10 +191,14 @@ Many older
 devices may not work properly with this driver yet.
 .Pp
 Additionally, certain 
-tapes (QIC tapes mostly) that were written under FreeBSD 2.X
+tapes (QIC tapes mostly) that were written under
+.Fx
+2.X
 aren't automatically read correctly with this driver: you may need to
 explicitly set variable block mode or set to the blocksize that works best
-for your device in order to read tapes written under FreeBSD 2.X.
+for your device in order to read tapes written under
+.Fx
+2.X.
 .Pp
 Fine grained density and compression mode support that is bound to specific
 device names needs to be added.
@@ -207,7 +211,7 @@ None.
 .Xr scsi 4
 .Sh HISTORY
 The
-.Nm sa
+.Nm
 driver was written for the
 .Tn CAM
 .Tn SCSI
@@ -218,6 +222,6 @@ device driver written and ported from
 .Tn Mach
 2.5
 by Julian Elischer.
-.sp
+.Pp
 The current owner of record is Matthew Jacob who has suffered too many
 years of breaking tape drivers.

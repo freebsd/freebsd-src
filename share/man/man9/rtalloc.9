@@ -60,7 +60,7 @@ When a route with the flag
 or
 .Dv RTF_PRCLONING
 is retrieved, and the action of those flags is not masked, the
-.Nm rtalloc
+.Nm
 facility automatically generates a new route using information in the
 old route as a template, and in the case of
 .Dv RTF_CLONING ,
@@ -179,7 +179,7 @@ value
 .Xr rtentry 9
 .Sh HISTORY
 The
-.Nm rtalloc
+.Nm
 facility first appeared in
 .Bx 4.2 ,
 although with much different internals.  The

@@ -59,7 +59,7 @@ how to properly configure disks and pseudo-devices in a kernel
 configuration file.
 .Pp
 In order to compile in support for the
-.Nm vn ,
+.Nm ,
 you must add a line similar
 to the following to your kernel configuration file:
 .Bd -unfilled -offset indent
@@ -71,7 +71,7 @@ may also exist as a kernel module to be automatically loaded into the
 system when you run the vnconfig command for the first time.
 .Pp
 There is a run-time utility that is used for configuring
-.Nm vn Ns 's .
+.Nm Ns 's .
 See
 .Xr vnconfig 8
 for more information.
@@ -84,7 +84,9 @@ driver does not work if the file does not reside in a local filesystem.
 .Pp
 .Sh HISTORY
 The vnode disk driver was originally written at the University of
-Utah and was substantially modified by FreeBSD developers to add 
+Utah and was substantially modified by
+.Fx
+developers to add 
 swap-backed support.
 .Sh SEE ALSO
 .Xr config 8 ,

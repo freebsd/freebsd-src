@@ -43,8 +43,9 @@
 .Sh DESCRIPTION
 .Pp
 This device method should probe to see if the device is present.
-It should return 0 if the device exists, ENXIO if it cannot be
-found.
+It should return 0 if the device exists,
+.Er ENXIO
+if it cannot be found.
 If some other error happens during the probe (such as a memory
 allocation failure), an appropriate error code should be returned.
 For

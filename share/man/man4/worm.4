@@ -44,11 +44,14 @@
 None.
 .Sh DESCRIPTION
 The
-.Nm worm
-driver was provided under FreeBSD releases prior to
+.Nm
+driver was provided under
+.Fx
+releases prior to
 .Fx 3.0 .
 .Pp
-The FreeBSD
+The
+.Fx
 .Tn SCSI
 layer was replaced for
 .Fx 3.0
@@ -65,7 +68,9 @@ driver.  Users who wish
 to write CDs on a WORM, CD-R, or CD-RW drive
 should use
 .Nm cdrecord ,
-which is in the FreeBSD ports collection.
+which is in the
+.Fx
+ports collection.
 .Pp
 The
 .Xr cd 4 
@@ -83,14 +88,14 @@ driver instead.
 .Xr pass 4 ,
 .Xr xpt 4
 .Sh AUTHORS
+.An -nosplit
 The first skeleton for a
 .Nm
 driver has been written by
 .An Peter Dufault
 in May, 1995.  The driver has
 then been improved and made actually usable at all by
-.ie t J\(:org Wunsch
-.el Joerg Wunsch
+.An J\(:org Wunsch
 in January, 1996.
 .Sh HISTORY
 The

@@ -41,7 +41,7 @@ it is not a good practice to call
 .Xr exit 3
 with arbitrary values to indicate a failure condition when ending
 a program.  Instead, the pre-defined exit codes from
-.Nm sysexits
+.Nm
 should be used, so the caller of the process can get a rough
 estimation about the failure class without looking up the source code.
 .Pp
@@ -120,13 +120,12 @@ parenthesis for easy reference.
 .Xr style 9
 .Sh HISTORY
 The
-.Nm sysexits
+.Nm
 file appeared somewhere after
 .Bx 4.3 .
 .Sh AUTHORS
 This man page has been written by
-.ie t J\(:org Wunsch
-.el Joerg Wunsch
+.An J\(:org Wunsch
 after the comments in
 .Pa <sysexits.h> .
 .Sh BUGS

@@ -43,12 +43,12 @@
 .Cd "pseudo-device sppp"
 .Sh DESCRIPTION
 The
-.Nm sr
+.Nm
 driver supports the RISCom/N2 ISA cards and the WANic 400/405 PCI cards
 that is based on the HD64570 chip.
 .Pp
 The standard
-.Tn FreeBSD
+.Fx
 sppp code is used for the link level layer.
 The
 default protocol used is PPP.
@@ -139,9 +139,11 @@ The code can probably stand some optimizing.
 .Xr ifconfig 8 ,
 .Xr lsdev 8
 .Sh AUTHORS
+.An -nosplit
 The
-.Nm sr
+.Nm
 device driver was written by
-.An John Hay Aq jhay@FreeBSD.org
+.An John Hay Aq jhay@FreeBSD.org .
+.Pp
 Netgraph support was added by
 .An Julian Elischer Aq julian@FreeBSD.org .
