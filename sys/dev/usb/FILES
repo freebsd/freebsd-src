@@ -8,6 +8,9 @@ Makefile.usbdevs	to run devlist2h.awk
 TODO			just a list of things to do
 devlist2h.awk		script to generate usbdevs*.h
 dsbr100io.h		API for ufm.c
+ehci.c			Host controller driver for EHCI
+ehcireg.h		Hardware definitions for EHCI
+ehcivar.h		API for ehci.c
 files.usb		config include file
 hid.c			subroutines to parse and access HID data
 hid.h			API for hid.c

@@ -755,6 +755,8 @@ dev/usb/hid.c		optional usb
 dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
+dev/usb/ehci.c		optional ehci
+dev/usb/ehci_pci.c	optional ehci
 dev/usb/ohci.c		optional ohci
 dev/usb/ohci_pci.c	optional ohci
 dev/usb/ubsa.c		optional ubsa ucom

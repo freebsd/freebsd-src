@@ -2074,6 +2074,8 @@ options 	DEBUG_LOCKS
 device		uhci
 # OHCI controller
 device		ohci
+# EHCI controller
+device		ehci
 # General USB code (mandatory for USB)
 device		usb
 #
