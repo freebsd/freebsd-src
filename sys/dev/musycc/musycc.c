@@ -446,11 +446,12 @@ status_chans(struct softc *sc, char *s)
 		sprintf(s + strlen(s), "c%2d:", i);
 		sprintf(s + strlen(s), " ts %08x", scp->ts);
 		sprintf(s + strlen(s), " RX %lus/%lus",
-		    time_second - scp->last_recv, time_second - scp->last_rxerr);
+		    (long)(time_second - scp->last_recv),
+		    (long)(time_second - scp->last_rxerr));
 		sprintf(s + strlen(s), " TX %lus/%lus/%lus",
-		    time_second - scp->last_xmit,
-		    time_second - scp->last_txerr,
-		    time_second - scp->last_txdrop);
+		    (long)(time_second - scp->last_xmit),
+		    (long)(time_second - scp->last_txerr),
+		    (long)(time_second - scp->last_txdrop));
 		sprintf(s + strlen(s), " TXdrop %lu Pend %lu",
 		    scp->tx_drop,
 		    scp->tx_pending);
