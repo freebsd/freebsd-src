@@ -252,15 +252,26 @@ ip_output(m0, opt, ro, flags, imo)
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
+	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
+	    (imo != NULL) &&
+	    (imo->imo_multicast_ifp != NULL)) {
+		/*
+		 * bypass the normal routing lookup for
+		 * multicast packets if the interface is
+		 * specified
+		 */
+		/* No Operation */
 	} else {
 		/*
-		 * If this is the case, we probably don't want to allocate
-		 * a protocol-cloned route since we didn't get one from the
-		 * ULP.  This lets TCP do its thing, while not burdening
-		 * forwarding or ICMP with the overhead of cloning a route.
-		 * Of course, we still want to do any cloning requested by
-		 * the link layer, as this is probably required in all cases
-		 * for correct operation (as it is for ARP).
+		 * If this is the case, we probably don't want
+		 * to allocate a protocol-cloned route since we
+		 * didn't get one from the ULP.  This lets TCP
+		 * do its thing, while not burdening forwarding
+		 * or ICMP with the overhead of cloning a route.
+		 * Of course, we still want to do any cloning
+		 * requested by the link layer, as this is
+		 * probably required in all cases for correct
+		 * operation (as it is for ARP).
 		 */
 		if (ro->ro_rt == 0)
 			rtalloc_ign(ro, RTF_PRCLONING);
@@ -273,9 +284,11 @@ ip_output(m0, opt, ro, flags, imo)
 		ifp = ro->ro_rt->rt_ifp;
 		ro->ro_rt->rt_use++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
+			dst = (struct sockaddr_in *)
+			    ro->ro_rt->rt_gateway;
 		if (ro->ro_rt->rt_flags & RTF_HOST)
-			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
+			isbroadcast = (ro->ro_rt->rt_flags &
+			    RTF_BROADCAST);
 		else
 			isbroadcast = in_broadcast(dst->sin_addr, ifp);
 	}
