@@ -117,9 +117,6 @@
 /* IPI to generate an additional software trap at the target CPU */
 #define XCPUAST_OFFSET		(ICU_OFFSET +  48)
 
-/* IPI to signal the CPU holding the ISR lock that another IRQ has appeared */
-#define XFORWARD_IRQ_OFFSET	(ICU_OFFSET +  49)
-
 /* IPI to signal CPUs to stop and wait for another CPU to restart them */
 #define XCPUSTOP_OFFSET		(ICU_OFFSET + 128)
 
@@ -185,7 +182,6 @@ inthand_t
 	Xcpucheckstate,	/* Check cpu state */
 #endif
 	Xcpuast,	/* Additional software trap on other cpu */ 
-	Xforward_irq,	/* Forward irq to cpu holding ISR lock */
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
 	Xspuriousint,	/* handle APIC "spurious INTs" */
 	Xrendezvous;	/* handle CPU rendezvous */
