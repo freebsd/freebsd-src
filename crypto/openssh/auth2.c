@@ -120,9 +120,9 @@ do_authentication2()
 	authctxt->success = 0;
 	x_authctxt = authctxt;		/*XXX*/
 
-#ifdef KRB4
+#if defined(KRB4) || defined(KRB5)
 	/* turn off kerberos, not supported by SSH2 */
-	options.krb4_authentication = 0;
+	options.kerberos_authentication = 0;
 #endif
 	dispatch_init(&protocol_error);
 	dispatch_set(SSH2_MSG_SERVICE_REQUEST, &input_service_request);
