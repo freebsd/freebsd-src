@@ -92,7 +92,7 @@ sio_pci_attach(dev)
 	if (id->desc == NULL)
 		return (ENXIO);
 	sio_pci_kludge_unit(dev);
-	return (sioattach(dev, id->rid));
+	return (sioattach(dev, id->rid, 0UL));
 }
 
 /*
@@ -138,7 +138,7 @@ sio_pci_probe(dev)
 	if (id->desc == NULL)
 		return (ENXIO);
 	device_set_desc(dev, id->desc);
-	return (sioprobe(dev, id->rid, 0));
+	return (sioprobe(dev, id->rid, 0UL, 0));
 }
 
 DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);

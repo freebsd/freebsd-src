@@ -34,10 +34,12 @@
  * $FreeBSD$
  */
 
+/* Receiver clock frequency for "standard" pc serial ports. */
+#define	DEFAULT_RCLK	1843200
 
+#ifdef PC98
 /* 16 bit baud rate divisor (lower byte in dca_data, upper in dca_ier) */
 #define	COMBRD(x)	(1843200 / (16*(x)))
-#ifdef PC98
 #define	COMBRD_RSA(x)	(14745600 / (16*(x)))
 #endif
 
