@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _spinlock_stub.c,v 1.1 1998/03/09 06:46:21 jb Exp $
+ * $Id: _spinlock_stub.c,v 1.2 1998/04/29 09:02:16 jb Exp $
  *
  */
 
@@ -44,21 +44,21 @@
  * with libpthread.
  */
 #pragma weak _spinlock=_spinlock_stub
-#pragma weak _atomic_unlock=_atomic_unlock_stub
+#pragma weak _spinlock_debug=_spinlock_debug_stub
 
 /*
  * This function is a stub for the spinlock function in libpthread.
  */
 void
-_spinlock_stub(long *lck)
+_spinlock_stub(spinlock_t *lck)
 {
 }
 
 /*
- * This function is a stub for the _atomic_unlock function in libpthread.
+ * This function is a stub for the debug spinlock function in libpthread.
  */
 void
-_atomic_unlock_stub(long *lck)
+_spinlock_debug_stub(spinlock_t *lck, char *fname, int lineno)
 {
 }
 #endif
