@@ -1011,8 +1011,8 @@ WORDKIND   ficlWordClassify(FICL_WORD *pFW);
 /*
 ** Dictionary on-demand resizing
 */
-extern unsigned int dictThreshold;
-extern unsigned int dictIncrease;
+extern CELL dictThreshold;
+extern CELL dictIncrease;
 
 /*
 ** Various FreeBSD goodies
