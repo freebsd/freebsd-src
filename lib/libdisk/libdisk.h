@@ -56,9 +56,7 @@ struct chunk {
 	long		offset;
 	u_long		size;
 	u_long		end;
-#ifdef PC98
-	char		*sname;
-#endif
+	char		*sname;		/* PC98 field */
 	char		*name;
 	char		*oname;
 	/* Used during Fixup_Names() to avoid renaming more than
@@ -158,13 +156,8 @@ Collapse_Chunk(struct disk *disk, struct chunk *chunk);
  */
 
 int
-#ifdef PC98
 Create_Chunk(struct disk *disk, u_long offset, u_long size, chunk_e type,
 	int subtype, u_long flags, const char *);
-#else
-Create_Chunk(struct disk *disk, u_long offset, u_long size, chunk_e type,
-	int subtype, u_long flags);
-#endif
 /* Create a chunk with the specified paramters
  */
 
@@ -263,11 +256,7 @@ ShowChunkFlags(struct chunk *c);
 void Debug_Chunk(struct chunk *);
 void Free_Chunk(struct chunk *);
 struct chunk * Clone_Chunk(const struct chunk *);
-#ifdef PC98
 int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long, const char *);
-#else
-int Add_Chunk(struct disk *, long, u_long, const char *, chunk_e, int, u_long);
-#endif
 void * read_block(int, daddr_t, u_long);
 int write_block(int, daddr_t, const void *, u_long);
 struct disklabel * read_disklabel(int, daddr_t, u_long);

@@ -91,19 +91,10 @@ All_FreeBSD(struct disk *d, int force_all)
 	c = d->chunks;
 	if (force_all) {
 		Sanitize_Bios_Geom(d);
-#ifdef PC98
 		Create_Chunk(d, c->offset, c->size, freebsd, 0x494,
 		    CHUNK_FORCE_ALL, "FreeBSD");
-#else
-		Create_Chunk(d, c->offset, c->size, freebsd, 0xa5,
-		    CHUNK_FORCE_ALL);
-#endif
 	} else {
-#ifdef PC98
 		Create_Chunk(d, c->offset, c->size, freebsd, 0x494, 0,
 		    "FreeBSD");
-#else
-		Create_Chunk(d, c->offset, c->size, freebsd, 0xa5, 0);
-#endif
 	}
 }
