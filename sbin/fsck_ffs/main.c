@@ -38,7 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
+#if 0
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
+#endif
+static const char rcsid[] =
+	"$Id: main.c,v 1.15 1998/11/05 03:26:36 mjacob Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,7 +56,6 @@ static const char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 
 #include <err.h>
 #include <fstab.h>
-#include <string.h>
 
 #include "fsck.h"
 
@@ -209,10 +212,16 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	case 0:
 		if (preen)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
-		/* fall through */
+		return (0);
 	case -1:
+		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
+		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
+		printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
+		    sblock.fs_cstotal.cs_nffree, sblock.fs_cstotal.cs_nbfree,
+		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
+
 	/*
 	 * Cleared if any questions answered no. Used to decide if
 	 * the superblock should be marked clean.

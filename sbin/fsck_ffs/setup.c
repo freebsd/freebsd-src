@@ -32,13 +32,16 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
+#endif
+static const char rcsid[] =
+	"$Id: setup.c,v 1.12 1998/06/28 19:23:03 bde Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/file.h>
 
