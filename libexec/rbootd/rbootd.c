@@ -151,7 +151,8 @@ main(int argc, char *argv[])
 		char *errmsg;
 
 		if ((IntfName = BpfGetIntfName(&errmsg)) == NULL) {
-			syslog(LOG_NOTICE, "restarted (??)");
+			/* Backslash to avoid trigraph '??)'. */
+			syslog(LOG_NOTICE, "restarted (?\?)");
 			/* BpfGetIntfName() returns safe names, using %m */
 			syslog(LOG_ERR, "%s", errmsg);
 			Exit(0);
