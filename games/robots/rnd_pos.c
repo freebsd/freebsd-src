@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)rnd_pos.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+# include       <stdlib.h>
 # include	"robots.h"
 
 # define	IS_SAME(p,y,x)	((p).y != -1 && (p).y == y && (p).x == x)
@@ -62,7 +63,5 @@ rnd_pos()
 rnd(range)
 int	range;
 {
-	unsigned int	rand();
-
-	return rand() % range;
+	return random() % range;
 }

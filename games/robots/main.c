@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 
 # include	"robots.h"
 # include	<signal.h>
+# include       <stdlib.h>
 # include	<ctype.h>
 
 main(ac, av)
@@ -128,7 +129,7 @@ char	**av;
 		stdscr = newwin(Y_SIZE, X_SIZE, 0, 0);
 	}
 
-	srand(getpid());
+	srandomdev();
 	if (Real_time)
 		signal(SIGALRM, move_robots);
 	do {
