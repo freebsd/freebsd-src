@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.36 1998/07/16 10:27:49 kato Exp $
+ *	$Id: fd.c,v 1.37 1998/07/19 15:03:49 kato Exp $
  *
  */
 
@@ -335,7 +335,7 @@ static void fd_turnon(fdu_t);
 static void fdc_reset(fdc_p);
 static int fd_in(fdcu_t, int *);
 static void fdstart(fdcu_t);
-static timeout_t fd_timeout;
+static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
 static int fdstate(fdcu_t, fdc_p);
 static int retrier(fdcu_t);
@@ -360,6 +360,7 @@ static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 #define	RECALWAIT	9
 #define	MOTORWAIT	10
 #define	IOTIMEDOUT	11
+#define	RESETCOMPLETE	12
 
 #ifdef	FDC_DEBUG
 static char const * const fdstates[] =
@@ -375,7 +376,8 @@ static char const * const fdstates[] =
 "SEEKWAIT",
 "RECALWAIT",
 "MOTORWAIT",
-"IOTIMEDOUT"
+"IOTIMEDOUT",
+"RESETCOMPLETE",
 };
 
 /* CAUTION: fd_debug causes huge amounts of logging output */
@@ -1711,15 +1713,15 @@ fdstart(fdcu_t fdcu)
 }
 
 static void
-fd_timeout(void *arg1)
+fd_iotimeout(void *arg1)
 {
-	fdcu_t fdcu = (fdcu_t)arg1;
-	fdu_t fdu = fdc_data[fdcu].fdu;
-	int baseport = fdc_data[fdcu].baseport;
-	struct buf *bp;
+ 	fdc_p fdc;
+	fdcu_t fdcu;
 	int s;
 
-	bp = bufq_first(&fdc_data[fdcu].head);
+	fdcu = (fdcu_t)arg1;
+	fdc = fdc_data + fdcu;
+	TRACE1("fd%d[fd_iotimeout()]", fdc->fdu);
 
 	/*
 	 * Due to IBM's brain-dead design, the FDC has a faked ready
@@ -1727,35 +1729,15 @@ fd_timeout(void *arg1)
 	 * issued if there's no diskette in the drive will _never_
 	 * complete, and must be aborted by resetting the FDC.
 	 * Many thanks, Big Blue!
+	 * The FDC must not be reset directly, since that would
+	 * interfere with the state machine.  Instead, pretend that
+	 * the command completed but was invalid.  The state machine
+	 * will reset the FDC and retry once.
 	 */
-
 	s = splbio();
-
-	TRACE1("fd%d[fd_timeout()]", fdu);
-	/* See if the controller is still busy (patiently awaiting data) */
-	if(((inb(baseport + FDSTS)) & (NE7_CB|NE7_RQM)) == NE7_CB)
-	{
-		DELAY(5);
-		TRACE1("[FDSTS->0x%x]", inb(baseport + FDSTS));
-		/* yup, it is; kill it now */
-		fdc_reset(&fdc_data[fdcu]);
-		printf("fd%d: Operation timeout\n", fdu);
-	}
-
-	if (bp)
-	{
-		retrier(fdcu);
-		fdc_data[fdcu].status[0] = NE7_ST0_IC_RC;
-		fdc_data[fdcu].state = IOTIMEDOUT;
-		if( fdc_data[fdcu].retry < 6)
-			fdc_data[fdcu].retry = 6;
-	}
-	else
-	{
-		fdc_data[fdcu].fd = (fd_p) 0;
-		fdc_data[fdcu].fdu = -1;
-		fdc_data[fdcu].state = DEVIDLE;
-	}
+	fdc->status[0] = NE7_ST0_IC_IV;
+	fdc->flags &= ~FDC_STAT_VALID;
+	fdc->state = IOTIMEDOUT;
 	fdintr(fdcu);
 	splx(s);
 }
@@ -1800,7 +1782,7 @@ static int
 fdstate(fdcu_t fdcu, fdc_p fdc)
 {
 	struct subdev *sd;
-	int read, format, head, sec = 0, sectrac, st0, cyl, st3;
+	int read, format, head, i, sec = 0, sectrac, st0, cyl, st3;
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
 	fd_p fd;
@@ -1924,7 +1906,11 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			set_motor(fdcu, fd->fdsu, TURNON);
 		}
 #endif
-		fdc->state = DOSEEK;
+		if (fdc->flags & FDC_NEEDS_RESET) {
+			fdc->state = RESETCTLR;
+			fdc->flags &= ~FDC_NEEDS_RESET;
+		} else
+			fdc->state = DOSEEK;
 		break;
 	case DOSEEK:
 		if (b_cylinder == (unsigned)fd->track)
@@ -2047,6 +2033,9 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			if(fd_sense_drive_status(fdc, &st3) != 0)
 			{
 				/* stuck controller? */
+				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+					    format ? bp->b_bcount : fdblk,
+					    fdc->dmachan);
 				fdc->retry = 6;	/* reset the beast */
 				return(retrier(fdcu));
 			}
@@ -2084,6 +2073,9 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 				  0))
 			{
 				/* controller fell over */
+				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+					    format ? bp->b_bcount : fdblk,
+					    fdc->dmachan);
 				fdc->retry = 6;
 				return(retrier(fdcu));
 			}
@@ -2103,12 +2095,15 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 				   0))
 			{
 				/* the beast is sleeping again */
+				isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+					    format ? bp->b_bcount : fdblk,
+					    fdc->dmachan);
 				fdc->retry = 6;
 				return(retrier(fdcu));
 			}
 		}
 		fdc->state = IOCOMPLETE;
-		fd->tohandle = timeout(fd_timeout, (caddr_t)fdcu, hz);
+		fd->tohandle = timeout(fd_iotimeout, (caddr_t)fdcu, hz);
 		return(0);	/* will return later */
 #ifdef EPSON_NRDISK
 		}
@@ -2143,13 +2138,16 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) 
-			untimeout(fd_timeout, (caddr_t)fdcu, fd->tohandle);
+			untimeout(fd_iotimeout, (caddr_t)fdcu, fd->tohandle);
 #else
-		untimeout(fd_timeout, (caddr_t)fdcu, fd->tohandle);
+		untimeout(fd_iotimeout, (caddr_t)fdcu, fd->tohandle);
 #endif
 
 		if (fd_read_status(fdc, fd->fdsu))
 		{
+			isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
+				    format ? bp->b_bcount : fdblk,
+				    fdc->dmachan);
 			if (fdc->retry < 6)
 				fdc->retry = 6;	/* force a reset */
 			return retrier(fdcu);
@@ -2163,7 +2161,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-		isa_dmadone(bp->b_flags, bp->b_data+fd->skip,
+		isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
 			    format ? bp->b_bcount : fdblk, fdc->dmachan);
 #ifdef EPSON_NRDISK
 		}
@@ -2213,16 +2211,18 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	case RESETCTLR:
 		fdc_reset(fdc);
 		fdc->retry++;
+		fdc->state = RESETCOMPLETE;
+		return (0);
+	case RESETCOMPLETE:
+		/*
+		 * Discard all the results from the reset so that they
+		 * can't cause an unexpected interrupt later.
+		 */
+		for (i = 0; i < 4; i++)
+			(void)fd_sense_int(fdc, &st0, &cyl);
 		fdc->state = STARTRECAL;
-		break;
+		/* Fall through. */
 	case STARTRECAL:
-		/* XXX clear the fdc results from the last reset, if any. */
-		{
-			int i;
-			for (i = 0; i < 4; i++)
-				(void)fd_sense_int(fdc, &st0, &cyl);
-		}
-
 #ifdef PC98
 		pc98_fd_check_ready(fdu);
 #endif
@@ -2283,12 +2283,17 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		{
 			return(0); /* time's not up yet */
 		}
-		/*
-		 * since the controller was off, it has lost its
-		 * idea about the current track it were; thus,
-		 * recalibrate the bastard
-		 */
-		fdc->state = STARTRECAL;
+		if (fdc->flags & FDC_NEEDS_RESET) {
+			fdc->state = RESETCTLR;
+			fdc->flags &= ~FDC_NEEDS_RESET;
+		} else {
+			/*
+			 * If all motors were off, then the controller was
+			 * reset, so it has lost track of the current
+			 * cylinder.  Recalibrate to handle this case.
+			 */
+			fdc->state = STARTRECAL;
+		}
 		return(1);	/* will return immediatly */
 	default:
 		printf("fdc%d: Unexpected FD int->", fdcu);
@@ -2388,9 +2393,9 @@ retrier(fdcu)
 		fdc->fd->skip = 0;
 		biodone(bp);
 		fdc->state = FINDWORK;
+		fdc->flags |= FDC_NEEDS_RESET;
 		fdc->fd = (fd_p) 0;
 		fdc->fdu = -1;
-		/* XXX abort current command, if any.  */
 		return(1);
 	}
 	fdc->retry++;
