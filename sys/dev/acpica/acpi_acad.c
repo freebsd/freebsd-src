@@ -151,15 +151,10 @@ acpi_acad_attach(device_t dev)
     ACPI_HANDLE	handle;
     int		error;
 
-    handle = acpi_get_handle(dev);
-    AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
-			     acpi_acad_notify_handler, dev);
-    /* XXX Installing system notify is not so good */
-    AcpiInstallNotifyHandler(handle, ACPI_SYSTEM_NOTIFY,
-			     acpi_acad_notify_handler, dev);
-
-    if ((sc = device_get_softc(dev)) == NULL)
+    sc = device_get_softc(dev);
+    if (sc == NULL)
 	return (ENXIO);
+    handle = acpi_get_handle(dev);
 
     error = acpi_register_ioctl(ACPIIO_ACAD_GET_STATUS, acpi_acad_ioctl, dev);
     if (error != 0)
@@ -177,6 +172,8 @@ acpi_acad_attach(device_t dev)
     sc->status = -1;
     sc->initializing = 0;
 
+    AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
+			     acpi_acad_notify_handler, dev);
     AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_acad_init_acline, dev);
 
     return (0);
@@ -189,8 +186,9 @@ acpi_acad_ioctl(u_long cmd, caddr_t addr, void *arg)
     device_t dev;
 
     dev = (device_t)arg;
-    if ((sc = device_get_softc(dev)) == NULL)
-	return(ENXIO);
+    sc = device_get_softc(dev);
+    if (sc == NULL)
+	return (ENXIO);
 
     /*
      * No security check required: information retrieval only.  If
@@ -238,15 +236,16 @@ acpi_acad_init_acline(void *arg)
 		"acline initialization start\n");
 
     status = 0;
-    for (retry = 0; retry < ACPI_ACAD_RETRY_MAX; retry++, AcpiOsSleep(10, 0)) {
+    for (retry = 0; retry < ACPI_ACAD_RETRY_MAX; retry++) {
 	acpi_acad_get_status(dev);
 	if (status != sc->status)
 	    break;
+	AcpiOsSleep(10, 0);
     }
 
     sc->initializing = 0;
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		"acline initialization done, tried %d times\n", retry+1);
+		"acline initialization done, tried %d times\n", retry + 1);
 }
 
 /*
