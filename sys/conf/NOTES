@@ -1349,7 +1349,8 @@ options		ACPI_DEBUG
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
-#      Qlogic ISP 2100 and ISP 2200 Fibre Channel host adapters.
+#      Qlogic ISP 2100 and ISP 2200 1Gb Fibre Channel host adapters.
+#      Qlogic ISP 2300 and ISP 2312 2Gb Fibre Channel host adapters.
 # ispfw: Firmware module for Qlogic host adapters
 # ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
 # ncv: NCR 53C500 based SCSI host adapters.
