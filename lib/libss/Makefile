@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1998/03/06 08:26:00 bde Exp $
+#	$Id: Makefile,v 1.19 1998/03/06 13:44:12 bde Exp $
 
 LIB=	ss
 SRCS=	data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -14,6 +14,8 @@ LIBDESTDIR=	${.CURDIR}/../libcom_err
 DPADD=	${LIBDESTDIR}/libcom_err.a
 LDADD=	-L${LIBDESTDIR} -lcom_err
 
+hdrs: ss_err.h
+
 .ORDER: ss_err.c ss_err.h
 ss_err.c ss_err.h:	${.CURDIR}/ss_err.et
 	test -e ss_err.et || ln -s ${.CURDIR}/ss_err.et .
@@ -27,12 +29,8 @@ std_rqs.c:		${.CURDIR}/std_rqs.ct
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/ss.h \
-		${DESTDIR}/usr/include/ss
+		ss_err.h ${DESTDIR}/usr/include/ss
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/copyright.h \
 		${DESTDIR}/usr/include/ss/mit-sipb-copyright.h
-.if exists(${.OBJDIR}/ss_err.h)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
-		${DESTDIR}/usr/include/ss
-.endif
 
 .include <bsd.lib.mk>
