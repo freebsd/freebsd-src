@@ -1038,12 +1038,22 @@ installFilesystems(dialogMenuItem *self)
 		    }
 		}
 	    }
-	    else if ((c1->type == fat || c1->type == efi) && c1->private_data && (root->newfs || upgrade)) {
+	    else if (c1->type == fat && c1->private_data && (root->newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
 		sprintf(name, "%s/%s", RunningAsInit ? "/mnt" : "", ((PartInfo *)c1->private_data)->mountpoint);
 		Mkdir(name);
 	    }
+#if defined(__ia64__)
+	    else if (c1->type == efi && c1->private_data) {
+		PartInfo *pi = (PartInfo *)c1->private_data;
+
+		if (pi->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c1->name)))
+		    command_shell_add(pi->mountpoint, "%s %s/dev/%s", pi->newfs_cmd, RunningAsInit ? "/mnt" : "", c1->name);
+
+		command_func_add(pi->mountpoint, Mount, c1->name);
+	    }
+#endif
 	}
     }
 
