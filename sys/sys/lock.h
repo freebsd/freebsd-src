@@ -32,14 +32,10 @@
 #ifndef _SYS_LOCK_H_
 #define _SYS_LOCK_H_
 
-/*
- * XXX - compatability until lockmgr() goes away or all the #includes are
- * updated.
- */
-#include <sys/lockmgr.h>
-
 #include <sys/queue.h>
 #include <sys/_lock.h>
+
+struct thread;
 
 /*
  * Lock classes.  Each lock has a class which describes characteristics
