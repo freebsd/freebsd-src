@@ -1965,6 +1965,7 @@ restart:
 		int flags;
 		char *waitmsg;
 
+		mtx_unlock(&bqlock);
 		if (defrag) {
 			flags = VFS_BIO_NEED_BUFSPACE;
 			waitmsg = "nbufkv";
