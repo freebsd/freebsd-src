@@ -74,17 +74,17 @@ struct turnstile;
 
 void	init_turnstiles(void);
 struct turnstile *turnstile_alloc(void);
+void	turnstile_broadcast(struct turnstile *);
 void	turnstile_claim(struct turnstile *);
+int	turnstile_empty(struct turnstile *);
 void	turnstile_free(struct turnstile *);
+struct thread *turnstile_head(struct turnstile *);
 struct turnstile *turnstile_lookup(struct lock_object *);
 void	turnstile_release(struct lock_object *);
 int	turnstile_signal(struct turnstile *);
 void	turnstile_unpend(struct turnstile *);
 void	turnstile_wait(struct turnstile *, struct lock_object *,
 	    struct thread *);
-void	turnstile_broadcast(struct turnstile *);
-struct thread *turnstile_head(struct turnstile *);
-int	turnstile_empty(struct turnstile *);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */
