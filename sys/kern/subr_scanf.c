@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: subr_scanf.c,v 1.4 1999/01/29 08:09:32 dillon Exp $
+ * $Id: subr_scanf.c,v 1.5 1999/02/14 20:58:21 dillon Exp $
  * From: Id: vfscanf.c,v 1.13 1998/09/25 12:20:27 obrien Exp 
  */
 
@@ -517,7 +517,7 @@ literal:
 				res = (*ccfn)(buf, (const char **)NULL, base);
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
-						(void *)(u_long)res;
+						(void *)(uintptr_t)res;
 				else if (flags & SHORT)
 					*va_arg(ap, short *) = res;
 				else if (flags & LONG)

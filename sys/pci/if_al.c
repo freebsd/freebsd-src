@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.7 1999/08/21 06:24:32 msmith Exp $
+ *	$Id: if_al.c,v 1.8 1999/08/21 22:10:48 msmith Exp $
  */
 
 /*
@@ -91,7 +91,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.7 1999/08/21 06:24:32 msmith Exp $";
+	"$Id: if_al.c,v 1.8 1999/08/21 22:10:48 msmith Exp $";
 #endif
 
 /*
@@ -965,7 +965,7 @@ al_attach(config_id, unit)
 	}
 
 	sc->al_ldata = (struct al_list_data *)sc->al_ldata_ptr;
-	round = (unsigned long)sc->al_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->al_ldata_ptr & 0xF;
 	roundptr = sc->al_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {
