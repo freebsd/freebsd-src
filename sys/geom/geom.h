@@ -35,6 +35,9 @@
  * $FreeBSD$
  */
 
+#ifndef _GEOM_GEOM_H_
+#define _GEOM_GEOM_H_
+
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
@@ -272,3 +275,4 @@ extern struct sx topology_lock;
 
 #endif
 
+#endif /* _GEOM_GEOM_H_ */
