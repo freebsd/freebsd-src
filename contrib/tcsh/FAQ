@@ -1,6 +1,6 @@
 
 Last Updated: 
-Fri Mar 12 12:53:43 EST 1999
+Fri Aug 25 13:27:45 EDT 2000
 
 This is for people who do not read the manual!
 
@@ -33,6 +33,10 @@ be able to get ftp it... :-)
 	stty -parenb -istrip cs8 
     
     would work..
+
+    Finally, tcsh will bind all printable meta characters to the self
+    insert command. If you don't want that to happen (i.e. use the printable
+    meta characters for commands) setenv NOREBIND.
 
 2.  I ran 'dbxtool &' and 'shelltool &' from tcsh, and they end up in cbreak 
     and no echo mode?
