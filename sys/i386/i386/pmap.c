@@ -807,7 +807,7 @@ pmap_pte_quick(pmap_t pmap, vm_offset_t va)
 		if (pmap_is_current(pmap))
 			return (vtopte(va));
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-		KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
+		KASSERT(sched_ispinned(), ("curthread not pinned"));
 		newpf = *pde & PG_FRAME;
 		if ((*PMAP1 & PG_FRAME) != newpf) {
 			*PMAP1 = newpf | PG_RW | PG_V | PG_A | PG_M;
@@ -1622,7 +1622,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 	pt_entry_t *pte;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
+	KASSERT(sched_ispinned(), ("curthread not pinned"));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((pte = pmap_pte_quick(pmap, va)) == NULL || *pte == 0)
 		return;
