@@ -38,14 +38,14 @@
 #define	PCIC_VLSI	2		/* VLSI chip */
 #define	PCIC_PD672X	3		/* Cirrus logic 627x */
 #define	PCIC_PD6710	4		/* Cirrus logic 6710 */
-#define	PCIC_CL6729	5
-#define	PCIC_VG468	6
-#define	PCIC_VG469	7
+#define	PCIC_CL6729	5		/* Cirrus logic 6729 */
+#define	PCIC_VG468	6		/* Vadem 468 */
+#define	PCIC_VG469	7		/* Vadem 469 */
 #define	PCIC_RF5C396	8		/* Ricoh RF5C396 */
 #define	PCIC_IBM_KING	9		/* IBM KING PCMCIA Controller */
-#ifdef	PC98
-#define	PCIC_PC98	10
-#endif
+#define	PCIC_PC98	10		/* NEC PC98 PCMCIA Controller */
+#define	PCIC_TI1130	11		/* TI PCI1130 CardBus */
+
 /*
  *	Address of the controllers. Each controller can manage
  *	two PCMCIA slots. Up to 8 slots are supported in total.
@@ -57,10 +57,10 @@
  *	identify the port number, and the lower 6 bits
  *	select one of the 64 possible data registers.
  */
-#define PCIC_INDEX_0	0x3E0	/* index reg, chips 0 and 1 */
-#define PCIC_DATA_0	0x3E1	/* data register, chips 0 and 1 */
-#define PCIC_INDEX_1	0x3E2	/* index reg, chips 2 and 3 */
-#define PCIC_DATA_1	0x3E3	/* data register, chips 2 and 3 */
+#define PCIC_INDEX_0	0x3E0			/* index reg, chips 0 and 1 */
+#define PCIC_DATA_0	(PCIC_INDEX_0 + 1)	/* data reg, chips 0 and 1 */
+#define PCIC_INDEX_1	(PCIC_INDEX_0 + 2)	/* index reg, chips 2 and 3 */
+#define PCIC_DATA_1	(PCIC_INDEX_1 + 1)	/* data reg, chips 2 and 3 */
 /*
  *	Register index addresses.
  */
@@ -76,7 +76,9 @@
 #define PCIC_IO1	0x0c	/* I/O Address 1 */
 #define	PCIC_MEMBASE	0x10	/* Base of memory window registers */
 #define PCIC_CDGC	0x16	/* Card Detect and General Control */
+#define PCIC_MISC1	0x16	/* PD672x: Misc control register 1 per slot */
 #define PCIC_GLO_CTRL	0x1e	/* Global Control Register */
+#define PCIC_MISC2	0x1e	/* PD672x: Misc control register 2 per chip */
 
 #define	PCIC_TIME_SETUP0	0x3a
 #define	PCIC_TIME_CMD0		0x3b
@@ -197,12 +199,18 @@
 #define PCIC_CDRES_EN	0x10	/* card detect resume enable */
 #define PCIC_SW_CD_INT	0x20	/* s/w card detect interrupt */
 
+/* For Misc. Control Register 1 */
+#define PCIC_SPKR_EN	0x10	/* Cirrus PD672x: speaker enable */
+
 /* For Global Control register (PCIC_GLO_CTRL) */
 #define PCIC_PWR_DOWN	0x01	/* power down */
 #define PCIC_LVL_MODE	0x02	/* level mode interrupt enable */
 #define PCIC_WB_CSCINT	0x04	/* explicit write-back csc intr */
 #define PCIC_IRQ0_LEVEL 0x08	/* irq 14 pulse mode enable */
 #define PCIC_IRQ1_LEVEL 0x10
+
+/* For Misc. Control Register 2 */
+#define PCIC_LPDM_EN	0x02	/* Cirrus PD672x: low power dynamic mode */
 
 /*
  *	Mask of allowable interrupts.
