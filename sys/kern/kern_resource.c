@@ -49,9 +49,9 @@
 #include <sys/kernel.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
-#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -701,7 +701,8 @@ uicreate(uid)
 	struct	uidinfo *uip;
 
 	mtx_assert(&uihashtbl_mtx, MA_OWNED);
-	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO, M_WAITOK|M_ZERO);
+	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO,
+	    M_WAITOK | M_ZERO);
 	LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 	uip->ui_uid = uid;
 	mtx_init(&uip->ui_mtx, "uidinfo struct", MTX_DEF);
@@ -709,8 +710,8 @@ uicreate(uid)
 }
 
 /*
- * find or allocate a struct uidinfo for a particular uid
- * increases refcount on uidinfo struct returned.
+ * Find or allocate a struct uidinfo for a particular uid.
+ * Increase refcount on uidinfo struct returned.
  * uifree() should be called on a struct uidinfo when released.
  */
 struct uidinfo *
@@ -729,11 +730,11 @@ uifind(uid)
 }
 
 /*
- * place another refcount on a uidinfo struct
+ * Place another refcount on a uidinfo struct.
  */
 void
 uihold(uip)
-struct uidinfo *uip;
+	struct uidinfo *uip;
 {
 
 	mtx_enter(&uip->ui_mtx, MTX_DEF);
@@ -741,52 +742,45 @@ struct uidinfo *uip;
 	mtx_exit(&uip->ui_mtx, MTX_DEF);
 }
 
-/*
- * subtract one from the refcount in the struct uidinfo, if 0 free it
- * since uidinfo structs have a long lifetime we use a
+/*-
+ * Since uidinfo structs have a long lifetime, we use an
  * opportunistic refcounting scheme to avoid locking the lookup hash
  * for each release.
  *
- * if the refcount hits 0 we need to free the structure
+ * If the refcount hits 0, we need to free the structure,
  * which means we need to lock the hash.
- * optimal case:
- *   After locking the struct and lowering the refcount, we find
- *   that we don't need to free, simply unlock and return
- * suboptimal case:
- *   refcount lowering results in need to free, bump the count
+ * Optimal case:
+ *   After locking the struct and lowering the refcount, if we find
+ *   that we don't need to free, simply unlock and return.
+ * Suboptimal case:
+ *   If refcount lowering results in need to free, bump the count
  *   back up, loose the lock and aquire the locks in the proper
- *	 order to try again.
+ *   order to try again.
  */
 void
 uifree(uip)
-	struct	uidinfo *uip;
+	struct uidinfo *uip;
 {
 
-	/*
-	 * try for optimal, recucing the refcount doesn't make us free it.
-	 */
+	/* Prepare for optimal case. */
 	mtx_enter(&uip->ui_mtx, MTX_DEF);
+
 	if (--uip->ui_ref != 0) {
 		mtx_exit(&uip->ui_mtx, MTX_DEF);
 		return;
 	}
-	/*
-	 * ok, we need to free, before we release the mutex to get
-	 * the lock ordering correct we need to
-	 * backout our change to the refcount so that no one else
-	 * races to free it.
-	 */
+
+	/* Prepare for suboptimal case. */
 	uip->ui_ref++;
 	mtx_exit(&uip->ui_mtx, MTX_DEF);
-
-	/* get the locks in order */
 	mtx_enter(&uihashtbl_mtx, MTX_DEF);
 	mtx_enter(&uip->ui_mtx, MTX_DEF);
+
 	/*
-	 * it's possible that someone has referenced it after we dropped the
-	 * initial lock, if so it's thier responsiblity to free it, but
-	 * we still must remove one from the count because we backed out
-	 * our change above.
+	 * We must subtract one from the count again because we backed out
+	 * our initial subtraction before dropping the lock.
+	 * Since another thread may have added a reference after we dropped the
+	 * initial lock we have to test for zero again.
 	 */
 	if (--uip->ui_ref == 0) {
 		LIST_REMOVE(uip, ui_hash);
@@ -802,9 +796,9 @@ uifree(uip)
 		FREE(uip, M_UIDINFO);
 		return;
 	}
+
 	mtx_exit(&uihashtbl_mtx, MTX_DEF);
 	mtx_exit(&uip->ui_mtx, MTX_DEF);
-	return;
 }
 
 /*
