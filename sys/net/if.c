@@ -1291,6 +1291,12 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		}
 		ifp->if_flags = (ifp->if_flags & IFF_CANTCHANGE) |
 			(new_flags &~ IFF_CANTCHANGE);
+		if (new_flags & IFF_PPROMISC) {
+			/* Permanently promiscuous mode requested */
+			ifp->if_flags |= IFF_PROMISC;
+		} else if (ifp->if_pcount == 0) {
+			ifp->if_flags &= ~IFF_PROMISC;
+		}
 		if (ifp->if_ioctl)
 			(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		getmicrotime(&ifp->if_lastchange);
@@ -1561,6 +1567,11 @@ ifpromisc(ifp, pswitch)
 
 	oldpcount = ifp->if_pcount;
 	oldflags = ifp->if_flags;
+	if (ifp->if_flags & IFF_PPROMISC) {
+		/* Do nothing if device is in permanently promiscuous mode */
+		ifp->if_pcount += pswitch ? 1 : -1;
+		return (0);
+	}
 	if (pswitch) {
 		/*
 		 * If the device is not configured up, we cannot put it in
