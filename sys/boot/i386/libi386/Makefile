@@ -47,6 +47,6 @@ machine:
 
 OBJS+=	pxetramp.o
 pxetramp.o: pxetramp.s
-	as -o ${.TARGET} ${.ALLSRC:M*pxetramp*}
+	${AS} ${AFLAGS} -o ${.TARGET} ${.ALLSRC:M*pxetramp*}
 
 .include <bsd.lib.mk>
