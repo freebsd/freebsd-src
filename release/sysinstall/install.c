@@ -571,14 +571,12 @@ nodisks:
 	    "response to the CRYPTO distribution dialog.  Do you want to try and\n"
 	    "load the rsaref package from the current media?  Some restrictions on\n"
 	    "usage may apply, so be sure to read the package installation output!")) {
-	    PkgInteractive = TRUE;
 	    dialog_clear();
 	    if (DITEM_STATUS(package_add("rsaref")) != DITEM_SUCCESS) {
 		msgConfirm("Unable to find an rsaref package on the current intallation media.\n"
 		    	   "You may wish to switch media types and try again, perhaps\n"
 			   "from an FTP server which carries this package.");
 	    }
-	    PkgInteractive = FALSE;
 	    dialog_clear();
 	}
     }
