@@ -62,19 +62,27 @@ the thread
 Attributes which are not being modified by
 .Xr VOP_SETATTR 9
 should be set to the value
-.Dv VNOVAL .
+.Dv VNOVAL ;
+.Fn VOP_NULL ""
+may be used to clear all the values, and should generally be used to reset
+the contents of
+.Ar *vap
+prior to setting specific values.
 .Sh LOCKS
 .Xr VOP_GETATTR 9
 expects the vnode to be locked on entry and will leave the vnode locked on
 return.
+The lock type can be either shared or exclusive.
 .Pp
 .Xr VOP_SETATTR 9
 expects the vnode to be locked on entry and will leave the vnode locked on
 return.
+The lock type must be exclusive.
 .Sh RETURN VALUES
 .Xr VOP_GETATTR 9
-returns information about the file in
-.Fa *vap .
+returns 0 if it was able to retrieve the attribute data via
+.Fa *vap ,
+otherwise an appropriate error is returned.
 .Xr VOP_SETATTR 9
 returns zero if the attributes were changed successfully, otherwise an
 appropriate error is returned.
@@ -151,7 +159,8 @@ The filesystem is read-only
 .El
 .Sh SEE ALSO
 .Xr vnode 9 ,
-.Xr VOP_ACCESS 9
+.Xr VOP_ACCESS 9 ,
+.Xr VFS 9
 .Sh AUTHORS
 This man page was written by
 .An Doug Rabson .
