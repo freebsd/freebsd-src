@@ -457,7 +457,7 @@ userauth_passwd(Authctxt *authctxt)
 	packet_put_cstring(authctxt->service);
 	packet_put_cstring(authctxt->method->name);
 	packet_put_char(0);
-	ssh_put_password(password);
+	packet_put_cstring(password);
 	memset(password, 0, strlen(password));
 	xfree(password);
 	packet_add_padding(64);
@@ -810,7 +810,7 @@ input_userauth_info_req(int type, u_int32_t seq, void *ctxt)
 
 		response = read_passphrase(prompt, echo ? RP_ECHO : 0);
 
-		ssh_put_password(response);
+		packet_put_cstring(response);
 		memset(response, 0, strlen(response));
 		xfree(response);
 		xfree(prompt);
