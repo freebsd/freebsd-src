@@ -46,8 +46,9 @@
 .Op Ar user ...\&
 .Op Ar terminal ...\&
 .Sh DESCRIPTION
-.Nm Lastcomm
-gives information on previously executed commands.
+The
+.Nm
+utility gives information on previously executed commands.
 With no arguments,
 .Nm
 prints information about all the commands recorded
@@ -133,7 +134,7 @@ or exited
 The flags are encoded as follows: ``S'' indicates the command was
 executed by the super-user, ``F'' indicates the command ran after
 a fork, but without a following
-.Xr exec ,
+.Xr exec 3 ,
 .\" ``C'' indicates the command was run in PDP-11 compatibility mode
 .\" (VAX only),
 ``D'' indicates the command terminated with the generation of a
