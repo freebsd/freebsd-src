@@ -1,11 +1,10 @@
-#	$Id: Makefile,v 1.58 1994/11/22 05:21:06 phk Exp $
+#	$Id: Makefile,v 1.59 1994/11/24 22:30:02 phk Exp $
 #
 
-# Evil floppies are, of course, 1.2MB floppies.
 FLOPPY=		fd0
-#EVIL_FLOPPY=	yes
 
 
+# Evil floppies are, of course, 1.2MB floppies.
 .if defined(EVIL_FLOPPY)
 FDLABEL=	fd1200
 DDBS=		15k
@@ -57,6 +56,14 @@ kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; )
 
+boot_12.flp: 
+	(cd ${.CURDIR}; EVIL_FLOPPY=yes ${MAKE} boot.flp)
+	mv boot.flp boot_12.flp
+
+boot_144.flp:
+	(cd ${.CURDIR}; ${MAKE} boot.flp)
+	mv boot.flp boot_144.flp
+
 boot.flp: 
 	crunchgen ${.CURDIR}/boot_flp.conf
 	${MAKE} -f boot_flp.mk objs exe
@@ -83,14 +90,16 @@ boot.flp:
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/gzip
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/fsck
+.if !defined(EVIL_FLOPPY)
 	install -m 400 -c ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
-	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
-	install -m 400 -c ${.CURDIR}/../share/FAQ/TROUBLESHOOTING \
-		${MNT}/TROUBLESHOOTING
 	install -m 400 -c ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
 		${MNT}/DISKSPACE.FAQ
 	install -m 400 -c ${.CURDIR}/../share/FAQ/RELNOTES.FreeBSD \
 		${MNT}/RELNOTES.FreeBSD
+.endif
+	install -m 400 -c ${.CURDIR}/../share/FAQ/TROUBLESHOOTING \
+		${MNT}/TROUBLESHOOTING
+	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
@@ -117,7 +126,7 @@ crunch:
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
 	${MAKE} -f cpio_flp_1.mk objs exe
 
-floppies: crunch boot.flp cpio.flp
+floppies: crunch boot_144.flp boot_12.flp cpio.flp
 
 release20: 
 	( cd ${.CURDIR} ; ${MAKE} clean)
