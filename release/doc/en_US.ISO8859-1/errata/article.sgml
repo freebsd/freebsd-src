@@ -118,7 +118,10 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No active security advisories.</para>
+    <para>Support for per-user <filename>~/.login_conf</filename>
+    files (as documented in &man.login.conf.5;) has been disabled due
+    to incorect merging of local and global settings.  This problem
+    will be fixed in future releases.</para>
 ]]>
   </sect1>
 
