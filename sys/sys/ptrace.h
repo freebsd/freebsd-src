@@ -47,6 +47,7 @@
 #define	PT_ATTACH	10	/* trace some running process */
 #define	PT_DETACH	11	/* stop tracing a process */
 #define PT_IO		12	/* do I/O to/from stopped process. */
+#define	PT_LWPINFO	13	/* Info about the LWP that stopped. */
 
 #define	PT_TO_SCE	20
 #define	PT_TO_SCX	21
@@ -76,6 +77,14 @@ struct ptrace_io_desc {
 #define PIOD_WRITE_D	2	/* Write to D space */
 #define PIOD_READ_I	3	/* Read from I space */
 #define PIOD_WRITE_I	4	/* Write to I space */
+
+/* Argument structure for PT_LWPINFO. */
+struct ptrace_lwpinfo {
+	lwpid_t	pl_lwpid;	/* LWP described. */
+	int	pl_event;	/* Event that stopped the LWP. */
+#define	PL_EVENT_NONE	0
+#define	PL_EVENT_SIGNAL	1
+};
 
 #ifdef _KERNEL
 

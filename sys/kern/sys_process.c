@@ -305,6 +305,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	 */
 	union {
 		struct ptrace_io_desc piod;
+		struct ptrace_lwpinfo pl;
 		struct dbreg dbreg;
 		struct fpreg fpreg;
 		struct reg reg;
@@ -317,6 +318,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETREGS:
 	case PT_GETFPREGS:
 	case PT_GETDBREGS:
+	case PT_LWPINFO:
 		break;
 	case PT_SETREGS:
 		error = copyin(uap->addr, &r.reg, sizeof r.reg);
@@ -354,6 +356,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GETDBREGS:
 		error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
 		break;
+	case PT_LWPINFO:
+		error = copyout(&r.pl, uap->addr, uap->data);
+		break;
 	}
 
 	return (error);
@@ -367,6 +372,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct proc *curp, *p, *pp;
 	struct thread *td2 = NULL;
 	struct ptrace_io_desc *piod;
+	struct ptrace_lwpinfo *pl;
 	int error, write, tmp;
 	int proctree_locked = 0;
 	lwpid_t tid = 0;
@@ -606,6 +612,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* deliver or queue signal */
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = data;
+			p->p_xlwpid = 0;
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
@@ -727,6 +734,17 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		PROC_UNLOCK(p);
 		return (error);
 
+	case PT_LWPINFO:
+		if (data == 0 || data > sizeof(*pl))
+			return (EINVAL);
+		pl = addr;
+		_PHOLD(p);
+		pl->pl_lwpid = p->p_xlwpid;
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		pl->pl_event = PL_EVENT_SIGNAL;
+		return (0);
+
 	default:
 #ifdef __HAVE_PTRACE_MACHDEP
 		if (req >= PT_FIRSTMACH) {
@@ -764,6 +782,7 @@ stopevent(struct proc *p, unsigned int event, unsigned int val)
 	p->p_step = 1;
 	do {
 		p->p_xstat = val;
+		p->p_xlwpid = 0;
 		p->p_stype = event;	/* Which event caused the stop? */
 		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
 		msleep(&p->p_step, &p->p_mtx, PWAIT, "stopevent", 0);
