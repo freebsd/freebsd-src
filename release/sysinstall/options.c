@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.7 1995/10/11 00:54:01 jkh Exp $
+ * $Id: options.c,v 1.8 1995/10/14 09:30:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,44 +45,22 @@
 #include <ctype.h>
 
 static char *
-userPassCheck(Option opt)
-{
-    char *cp = variable_get(FTP_USER);
-
-    return cp ? cp : "ftp";
-}
-
-static char *
 ftpFlagCheck(Option opt)
 {
     /* Verify that everything's sane */
-    if (opt.aux == OPT_FTP_ABORT && optionIsSet(OPT_FTP_RESELECT))
+    if ((int)opt.aux == OPT_FTP_ABORT && optionIsSet(OPT_FTP_RESELECT))
         OptFlags &= ~OPT_FTP_RESELECT;
-    else if (opt.aux == OPT_FTP_RESELECT && optionIsSet(OPT_FTP_ABORT))
+    else if ((int)opt.aux == OPT_FTP_RESELECT && optionIsSet(OPT_FTP_ABORT))
         OptFlags &= ~OPT_FTP_ABORT;
     return NULL;
 }
 
 static char *
-blockSizeCheck(Option opt)
+varCheck(Option opt)
 {
-    char *cp = variable_get(TAPE_BLOCKSIZE);
-
-    return cp ? cp : DEFAULT_TAPE_BLOCKSIZE;
-}
-
-static char *
-releaseCheck(Option opt)
-{
-    /* This one is always defined */
-    return variable_get(RELNAME);
-}
-
-static char *
-checkCpioVerbosity(Option opt)
-{
-    /* This one is always defined */
-    return getenv(CPIO_VERBOSITY_LEVEL);
+    if (opt.aux)
+	return variable_get((char *)opt.aux);
+    return NULL;
 }
 
 /* Nuke all the flags */
@@ -102,25 +80,29 @@ resetLogo(char *str)
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
-      OPT_IS_FLAG,	&OptFlags,	OPT_NFS_SECURE,		NULL		},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NFS_SECURE,		NULL		},
 { "NFS Slow",		"User is using a slow PC or ethernet card",
-      OPT_IS_FLAG,	&OptFlags,	OPT_SLOW_ETHER,		NULL		},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_SLOW_ETHER,		NULL		},
 { "Debugging",		"Emit extra debugging output on VTY1 (ALT-F2)",
-      OPT_IS_FLAG,	&OptFlags,	OPT_DEBUG,		NULL		},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_DEBUG,		NULL		},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
-      OPT_IS_FLAG,	&OptFlags,	OPT_NO_CONFIRM,		NULL		},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NO_CONFIRM,		NULL		},
 { "FTP Abort",		"On transfer failure, abort the installation of a distribution",
-      OPT_IS_FLAG,	&OptFlags,	OPT_FTP_ABORT,		ftpFlagCheck	},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_FTP_ABORT,		ftpFlagCheck	},
 { "FTP Reselect",	"On transfer failure, ask for another host and try to resume",
-      OPT_IS_FLAG,	&OptFlags,	OPT_FTP_RESELECT,	ftpFlagCheck	},
+      OPT_IS_FLAG,	&OptFlags,	(void *)OPT_FTP_RESELECT,	ftpFlagCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
-      OPT_IS_FUNC,	mediaSetFtpUserPass,	0,		userPassCheck	},
+      OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,	varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_FUNC,	mediaSetTapeBlocksize,	0,		blockSizeCheck	},
+      OPT_IS_FUNC,	mediaSetTapeBlocksize,	TAPE_BLOCKSIZE,	varCheck	},
 { "Detail Level",	"How to display filenames on debug screen as CPIO extracts them",
-      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	0,		checkCpioVerbosity },
+      OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL, varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
-      OPT_IS_FUNC,	installSelectRelease,	0,		releaseCheck	},
+      OPT_IS_FUNC,	installSelectRelease,	RELNAME,	varCheck	},
+{ "Browser Package",	"This is the browser package you wish to use for viewing HTML",
+      OPT_IS_FUNC,	docSelectBrowserPkg,	BROWSER_PACKAGE, varCheck	},
+{ "Browser Binary",	"This is the path to the main binary from the broswer package",
+      OPT_IS_FUNC,	docSelectBrowserBin,	BROWSER_BINARY,	varCheck	},
 { "Reset Flags",	"Reset all flag values to defaults",
       OPT_IS_FUNC,	resetFlags,	0,			resetLogo	},
 { NULL },
@@ -152,7 +134,7 @@ value_of(Option opt)
 	return ival;
 
     case OPT_IS_FLAG:
-	return (*(int *)opt.data) & opt.aux ? "ON" : "OFF";
+	return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
 
     case OPT_IS_FUNC:
 	if (opt.check)
@@ -168,10 +150,10 @@ fire(Option opt)
 {
     if (opt.type == OPT_IS_FLAG) {
 	/* Toggle a flag */
-	if (*((int *)opt.data) & opt.aux)
-	    *((int *)opt.data) &= ~opt.aux;
+	if (*((int *)opt.data) & (int)opt.aux)
+	    *((int *)opt.data) &= ~(int)opt.aux;
 	else
-	    *((int *)opt.data) |= opt.aux;
+	    *((int *)opt.data) |= (int)opt.aux;
     }
     else if (opt.type == OPT_IS_FUNC) {
 	int (*cp)(char *) = opt.data;
