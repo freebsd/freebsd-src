@@ -277,8 +277,6 @@ vnstrategy(struct bio *bp)
 	struct vn_softc *vn;
 	int error;
 	int isvplocked = 0;
-	struct uio auio;
-	struct iovec aiov;
 
 	unit = dkunit(bp->bio_dev);
 	vn = bp->bio_dev->si_drv1;
@@ -360,6 +358,11 @@ vnstrategy(struct bio *bp)
 		 * B_INVAL because (for a write anyway), the buffer is 
 		 * still valid.
 		 */
+		struct uio auio;
+		struct iovec aiov;
+
+		bzero(&auio, sizeof(auio));
+
 		aiov.iov_base = bp->bio_data;
 		aiov.iov_len = bp->bio_bcount;
 		auio.uio_iov = &aiov;
@@ -672,8 +675,6 @@ vniocattach_swap(vn, vio, dev, flag, p)
 int
 vnsetcred(struct vn_softc *vn, struct ucred *cred)
 {
-	struct uio auio;
-	struct iovec aiov;
 	char *tmpbuf;
 	int error = 0;
 
@@ -690,7 +691,11 @@ vnsetcred(struct vn_softc *vn, struct ucred *cred)
 	 */
 
 	if (vn->sc_vp) {
+		struct uio auio;
+		struct iovec aiov;
+
 		tmpbuf = malloc(vn->sc_secsize, M_TEMP, M_WAITOK);
+		bzero(&auio, sizeof(auio));
 
 		aiov.iov_base = tmpbuf;
 		aiov.iov_len = vn->sc_secsize;
