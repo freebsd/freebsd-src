@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mkdir.2	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: mkdir.2,v 1.6 1997/02/22 15:04:07 peter Exp $
 .\"
 .Dd December 11, 1993
 .Dt MKDIR 2
@@ -39,6 +39,7 @@
 .Nm mkdir
 .Nd make a directory file
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/stat.h>
 .Ft int
 .Fn mkdir "const char *path" "mode_t mode"
