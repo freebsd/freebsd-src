@@ -1,11 +1,11 @@
                                  RELEASE NOTES
-                              FreeBSD 4.0-RELEASE
+                          FreeBSD snapshot of 4.0-STABLE
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 4.0-RELEASE
+For information about FreeBSD and the layout of the 4.0-STABLE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
