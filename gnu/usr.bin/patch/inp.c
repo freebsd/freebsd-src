@@ -1,6 +1,19 @@
-/* $Header: /usr/cvs/src/gnu/usr.bin/patch/inp.c,v 1.3 1995/05/30 05:02:31 rgrimes Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.4 1997/02/13 21:10:39 jmg Exp $
  *
  * $Log: inp.c,v $
+ * Revision 1.4  1997/02/13 21:10:39  jmg
+ * Fix a problem with patch in that is will always default, even when the
+ * controlling terminal is closed.  Now the function ask() will return 1 when th
+ * input is known to come from a file or terminal, or it will return 0 when ther
+ * was a read error.
+ *
+ * Modified the question "Skip patch?" so that on an error from ask it will skip
+ * the patch instead of looping.
+ *
+ * Closes PR#777
+ *
+ * 2.2 candidate
+ *
  * Revision 1.3  1995/05/30 05:02:31  rgrimes
  * Remove trailing whitespace.
  *
@@ -129,7 +142,7 @@ char *filename;
 
 #define try(f,a1,a2) (Sprintf(s + pathlen, f, a1, a2), stat(s, &cstat) == 0)
 	if ((   try("RCS/%s%s", filebase, RCSSUFFIX)
-	     || try("RCS/%s"  , filebase,         0)
+	     || try("RCS/%s%s", filebase,        "")
 	     || try(    "%s%s", filebase, RCSSUFFIX))
 	    &&
 	    /* Check that RCS file is not working file.

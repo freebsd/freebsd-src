@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /usr/cvs/src/gnu/usr.bin/patch/patch.c,v 1.6 1995/05/30 05:02:34 rgrimes Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.7 1997/02/13 21:10:41 jmg Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,19 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.7  1997/02/13 21:10:41  jmg
+ * Fix a problem with patch in that is will always default, even when the
+ * controlling terminal is closed.  Now the function ask() will return 1 when th
+ * input is known to come from a file or terminal, or it will return 0 when ther
+ * was a read error.
+ *
+ * Modified the question "Skip patch?" so that on an error from ask it will skip
+ * the patch instead of looping.
+ *
+ * Closes PR#777
+ *
+ * 2.2 candidate
+ *
  * Revision 1.6  1995/05/30 05:02:34  rgrimes
  * Remove trailing whitespace.
  *
@@ -417,6 +430,7 @@ char **argv;
 	set_signals(1);
     }
     my_exit(failtotal);
+    return (failtotal);
 }
 
 /* Prepare to find the next patch to do in the patch file. */

@@ -169,7 +169,7 @@ Reg1 char *s;
     }
     else {
 	t = rv;
-	while (*t++ = *s++);
+	while ((*t++ = *s++));
     }
     return rv;
 }
@@ -417,7 +417,7 @@ int assume_exists;
 
 #define try(f, a1, a2) (Sprintf(tmpbuf + pathlen, f, a1, a2), stat(tmpbuf, &filestat) == 0)
 	if (   try("RCS/%s%s", filebase, RCSSUFFIX)
-	    || try("RCS/%s"  , filebase,         0)
+	    || try("RCS/%s%s", filebase,        "")
 	    || try(    "%s%s", filebase, RCSSUFFIX)
 	    || try("SCCS/%s%s", SCCSPREFIX, filebase)
 	    || try(     "%s%s", SCCSPREFIX, filebase))
