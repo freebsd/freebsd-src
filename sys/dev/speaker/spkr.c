@@ -637,5 +637,6 @@ static driver_t atspeaker_driver = {
 static devclass_t atspeaker_devclass;
 
 DRIVER_MODULE(atspeaker, isa, atspeaker_driver, atspeaker_devclass, 0, 0);
+DRIVER_MODULE(atspeaker, acpi, atspeaker_driver, atspeaker_devclass, 0, 0);
 
 /* spkr.c ends here */

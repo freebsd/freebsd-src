@@ -1004,7 +1004,7 @@ static devclass_t npx_devclass;
 DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
 
 /*
- * This sucks up the legacy ISA support assignments from PNPBIOS.
+ * This sucks up the legacy ISA support assignments from PNPBIOS/ACPI.
  */
 static struct isa_pnp_id npxisa_ids[] = {
 	{ 0x040cd041, "Legacy ISA coprocessor support" }, /* PNP0C04 */
@@ -1048,4 +1048,5 @@ static driver_t npxisa_driver = {
 static devclass_t npxisa_devclass;
 
 DRIVER_MODULE(npxisa, isa, npxisa_driver, npxisa_devclass, 0, 0);
+DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
 
