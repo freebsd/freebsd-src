@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.73 1998/10/31 10:35:24 dfr Exp $
+**  $Id: pcisupport.c,v 1.74 1998/11/26 21:57:52 n_hibma Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -870,7 +870,7 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 		vendor = "NeoMagic";
 		switch (id >> 16) {
 		case 0x0004:
-			chip = "NM3160 laptop";	break;
+			chip = "NM2160 laptop";	break;
 		}
 		break;
 	case 0x102b:
