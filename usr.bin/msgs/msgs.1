@@ -117,7 +117,16 @@ is incorrect it can be fixed by removing it;
 .Nm
 will make a new
 .Pa bounds
-file the next time it is run.
+file the next time it is run with the
+.Fl s
+option.
+If
+.Nm
+is run with any option other than
+.Fl s ,
+an error will be displayed if
+.Pa /var/msgs/bounds
+does not exist.
 .Pp
 The
 .Fl s
