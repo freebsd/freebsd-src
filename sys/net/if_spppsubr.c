@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.33 1998/02/28 21:01:09 phk Exp $
+ * $Id: if_spppsubr.c,v 1.34 1998/03/01 06:01:33 bde Exp $
  */
 
 #include "opt_inet.h"
@@ -29,6 +29,7 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <machine/random.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/md5.h>
@@ -989,7 +990,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 			++sp->pp_loopcnt;
 
 			/* Generate new local sequence number */
-			sp->pp_seq ^= time.tv_sec ^ time.tv_usec;
+			read_random((char*)&sp->pp_seq, sizeof sp->pp_seq);
 			break;
 		}
 		sp->pp_loopcnt = 0;
@@ -1017,7 +1018,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	struct ppp_header *h;
 	struct cisco_packet *ch;
 	struct mbuf *m;
-	u_long t = (time.tv_sec - boottime.tv_sec) * 1000;
+	u_long t = (time_second - boottime.tv_sec) * 1000;
 
 	MGETHDR (m, M_DONTWAIT, MT_DATA);
 	if (! m)
@@ -2114,7 +2115,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (magic == ~sp->lcp.magic) {
 					if (debug)
 						addlog("magic glitch ");
-					sp->lcp.magic += time.tv_sec + time.tv_usec;
+					read_random((char*)&sp->lcp.magic, sizeof sp->lcp.magic);
 				} else {
 					sp->lcp.magic = magic;
 					if (debug)
@@ -2274,7 +2275,7 @@ sppp_lcp_scr(struct sppp *sp)
 
 	if (sp->lcp.opts & (1 << LCP_OPT_MAGIC)) {
 		if (! sp->lcp.magic)
-			sp->lcp.magic = time.tv_sec + time.tv_usec;
+			read_random((char*)&sp->lcp.magic, sizeof sp->lcp.magic);
 		opt[i++] = LCP_OPT_MAGIC;
 		opt[i++] = 6;
 		opt[i++] = sp->lcp.magic >> 24;

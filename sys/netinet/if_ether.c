@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.42 1997/12/20 00:07:11 bde Exp $
+ * $Id: if_ether.c,v 1.43 1998/01/08 23:41:43 eivind Exp $
  */
 
 /*
@@ -130,7 +130,7 @@ arptimer(ignored_arg)
 	while ((ola = la) != 0) {
 		register struct rtentry *rt = la->la_rt;
 		la = la->la_le.le_next;
-		if (rt->rt_expire && rt->rt_expire <= time.tv_sec)
+		if (rt->rt_expire && rt->rt_expire <= time_second)
 			arptfree(ola); /* timer has expired, clear */
 	}
 	splx(s);
@@ -177,7 +177,7 @@ arp_rtrequest(req, rt, sa)
 			gate = rt->rt_gateway;
 			SDL(gate)->sdl_type = rt->rt_ifp->if_type;
 			SDL(gate)->sdl_index = rt->rt_ifp->if_index;
-			rt->rt_expire = time.tv_sec;
+			rt->rt_expire = time_second;
 			break;
 		}
 		/* Announce a new entry if requested. */
@@ -354,7 +354,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	 * Check the address family and length is valid, the address
 	 * is resolved; otherwise, try to resolve.
 	 */
-	if ((rt->rt_expire == 0 || rt->rt_expire > time.tv_sec) &&
+	if ((rt->rt_expire == 0 || rt->rt_expire > time_second) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 		return 1;
@@ -369,8 +369,8 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	la->la_hold = m;
 	if (rt->rt_expire) {
 		rt->rt_flags &= ~RTF_REJECT;
-		if (la->la_asked == 0 || rt->rt_expire != time.tv_sec) {
-			rt->rt_expire = time.tv_sec;
+		if (la->la_asked == 0 || rt->rt_expire != time_second) {
+			rt->rt_expire = time_second;
 			if (la->la_asked++ < arp_maxtries)
 			    arprequest(ac,
 			        &(SIN(rt->rt_ifa->ifa_addr)->sin_addr.s_addr),
@@ -501,7 +501,7 @@ in_arpinput(m)
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
 		if (rt->rt_expire)
-			rt->rt_expire = time.tv_sec + arpt_keep;
+			rt->rt_expire = time_second + arpt_keep;
 		rt->rt_flags &= ~RTF_REJECT;
 		la->la_asked = 0;
 		if (la->la_hold) {

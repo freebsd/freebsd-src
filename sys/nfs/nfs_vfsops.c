@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.55 1998/03/01 22:46:30 msmith Exp $
+ * $Id: nfs_vfsops.c,v 1.56 1998/03/14 03:25:18 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -399,8 +399,8 @@ nfs_mountroot(mp)
 	 * XXX time must be non-zero when we init the interface or else
 	 * the arp code will wedge...
 	 */
-	while (time.tv_sec == 0)
-		tsleep(&time, PZERO+8, "arpkludge", 10);
+	while (time_second == 0)
+		tsleep(&time_second, PZERO+8, "arpkludge", 10);
 
 	if (nfs_diskless_valid==1) 
 	  nfs_convert_diskless();

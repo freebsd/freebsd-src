@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.30 1998/02/13 12:46:15 phk Exp $ */
+/* $Id: ppp_tty.c,v 1.31 1998/03/28 10:33:12 bde Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -618,7 +618,7 @@ pppasyncstart(sc)
 
 	    /* Calculate the FCS for the first mbuf's worth. */
 	    sc->sc_outfcs = pppfcs(PPP_INITFCS, mtod(m, u_char *), m->m_len);
-	    gettime(&sc->sc_if.if_lastchange);
+	    getmicrotime(&sc->sc_if.if_lastchange);
 	}
 
 	for (;;) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.45 1998/03/08 09:59:39 julian Exp $
+ * $Id: ufs_readwrite.c,v 1.46 1998/03/09 22:12:52 dyson Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -390,7 +390,7 @@ WRITE(ap)
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-		gettime(&tv);
+		getmicrotime(&tv);
 		error = UFS_UPDATE(vp, &tv, &tv, 1);
 	}
 	if (!error)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.57 1998/02/06 12:13:56 eivind Exp $
+ * $Id: nfs_serv.c,v 1.58 1998/02/09 06:10:35 eivind Exp $
  */
 
 /*
@@ -979,7 +979,7 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 	    LIST_INIT(&nfsd->nd_coalesce);
 	    nfsd->nd_mreq = NULL;
 	    nfsd->nd_stable = NFSV3WRITE_FILESYNC;
-	    cur_usec = (u_quad_t)time.tv_sec * 1000000 + (u_quad_t)time.tv_usec;
+	    cur_usec = nfs_curusec();
 	    nfsd->nd_time = cur_usec +
 		(v3 ? nfsrvw_procrastinate_v3 : nfsrvw_procrastinate);
     
@@ -1095,7 +1095,7 @@ nfsmout:
 	 * and generate the associated reply mbuf list(s).
 	 */
 loop1:
-	cur_usec = (u_quad_t)time.tv_sec * 1000000 + (u_quad_t)time.tv_usec;
+	cur_usec = nfs_curusec();
 	s = splsoftclock();
 	for (nfsd = slp->ns_tq.lh_first; nfsd; nfsd = owp) {
 		owp = nfsd->nd_tq.le_next;

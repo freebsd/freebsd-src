@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.66 1998/02/09 06:09:54 eivind Exp $
+ * $Id: if_sl.c,v 1.67 1998/02/13 12:46:14 phk Exp $
  */
 
 /*
@@ -792,15 +792,15 @@ slinput(c, tp)
 			 * this one is within the time limit.
 			 */
 			if (sc->sc_abortcount &&
-			    time.tv_sec >= sc->sc_starttime + ABT_WINDOW)
+			    time_second >= sc->sc_starttime + ABT_WINDOW)
 				sc->sc_abortcount = 0;
 			/*
 			 * If we see an abort after "idle" time, count it;
 			 * record when the first abort escape arrived.
 			 */
-			if (time.tv_sec >= sc->sc_lasttime + ABT_IDLE) {
+			if (time_second >= sc->sc_lasttime + ABT_IDLE) {
 				if (++sc->sc_abortcount == 1)
-					sc->sc_starttime = time.tv_sec;
+					sc->sc_starttime = time_second;
 				if (sc->sc_abortcount >= ABT_COUNT) {
 					slclose(tp,0);
 					return 0;
@@ -808,7 +808,7 @@ slinput(c, tp)
 			}
 		} else
 			sc->sc_abortcount = 0;
-		sc->sc_lasttime = time.tv_sec;
+		sc->sc_lasttime = time_second;
 	}
 
 	switch (c) {

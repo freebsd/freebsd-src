@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.23 1997/11/24 15:15:33 bde Exp $
+ * $Id: vm_meter.c,v 1.24 1998/03/28 10:33:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,7 @@ void
 vmmeter()
 {
 
-	if (time.tv_sec % 5 == 0)
+	if (time_second % 5 == 0)
 		loadav(&averunnable);
 	if (proc0.p_slptime > maxslp / 2)
 		wakeup(&proc0);

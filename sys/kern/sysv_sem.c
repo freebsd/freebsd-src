@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.19 1997/08/02 14:31:38 bde Exp $ */
+/*	$Id: sysv_sem.c,v 1.20 1997/11/06 19:29:24 phk Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -388,7 +388,7 @@ __semctl(p, uap)
 		semaptr->sem_perm.gid = sbuf.sem_perm.gid;
 		semaptr->sem_perm.mode = (semaptr->sem_perm.mode & ~0777) |
 		    (sbuf.sem_perm.mode & 0777);
-		semaptr->sem_ctime = time.tv_sec;
+		semaptr->sem_ctime = time_second;
 		break;
 
 	case IPC_STAT:
@@ -575,7 +575,7 @@ semget(p, uap)
 		    (sema[semid].sem_perm.seq + 1) & 0x7fff;
 		sema[semid].sem_nsems = nsems;
 		sema[semid].sem_otime = 0;
-		sema[semid].sem_ctime = time.tv_sec;
+		sema[semid].sem_ctime = time_second;
 		sema[semid].sem_base = &sem[semtot];
 		semtot += nsems;
 		bzero(sema[semid].sem_base,

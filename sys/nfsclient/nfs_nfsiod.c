@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.35 1998/02/06 12:13:57 eivind Exp $
+ * $Id: nfs_syscalls.c,v 1.36 1998/02/09 06:10:37 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -300,7 +300,7 @@ nfssvc(p, uap)
 				    nuidp->nu_cr.cr_ngroups = NGROUPS;
 				nuidp->nu_cr.cr_ref = 1;
 				nuidp->nu_timestamp = nsd->nsd_timestamp;
-				nuidp->nu_expire = time.tv_sec + nsd->nsd_ttl;
+				nuidp->nu_expire = time_second + nsd->nsd_ttl;
 				/*
 				 * and save the session key in nu_key.
 				 */
@@ -520,8 +520,7 @@ nfssvc_nfsd(nsd, argp, p)
 					nfs_sndunlock(&slp->ns_solock);
 				}
 				error = nfsrv_dorec(slp, nfsd, &nd);
-				cur_usec = (u_quad_t)time.tv_sec * 1000000 +
-					(u_quad_t)time.tv_usec;
+				cur_usec = nfs_curusec();
 				if (error && slp->ns_tq.lh_first &&
 				    slp->ns_tq.lh_first->nd_time <= cur_usec) {
 					error = 0;
@@ -553,7 +552,7 @@ nfssvc_nfsd(nsd, argp, p)
 		else
 			solockp = (int *)0;
 		if (nd) {
-		    gettime(&nd->nd_starttime);
+		    getmicrotime(&nd->nd_starttime);
 		    if (nd->nd_nam2)
 			nd->nd_nam = nd->nd_nam2;
 		    else
@@ -583,9 +582,9 @@ nfssvc_nfsd(nsd, argp, p)
 		     * Check for just starting up for NQNFS and send
 		     * fake "try again later" replies to the NQNFS clients.
 		     */
-		    if (notstarted && nqnfsstarttime <= time.tv_sec) {
+		    if (notstarted && nqnfsstarttime <= time_second) {
 			if (modify_flag) {
-				nqnfsstarttime = time.tv_sec + nqsrv_writeslack;
+				nqnfsstarttime = time_second + nqsrv_writeslack;
 				modify_flag = 0;
 			} else
 				notstarted = 0;
@@ -718,8 +717,7 @@ nfssvc_nfsd(nsd, argp, p)
 		     * Check to see if there are outstanding writes that
 		     * need to be serviced.
 		     */
-		    cur_usec = (u_quad_t)time.tv_sec * 1000000 +
-			(u_quad_t)time.tv_usec;
+		    cur_usec = nfs_curusec();
 		    s = splsoftclock();
 		    if (slp->ns_tq.lh_first &&
 			slp->ns_tq.lh_first->nd_time <= cur_usec) {
@@ -972,7 +970,7 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 		if (nuidp->nu_cr.cr_uid == cred->cr_uid)
 			break;
 	}
-	if (!nuidp || nuidp->nu_expire < time.tv_sec)
+	if (!nuidp || nuidp->nu_expire < time_second)
 		return (EACCES);
 
 	/*
@@ -992,10 +990,10 @@ nfs_getnickauth(nmp, cred, auth_str, auth_len, verf_str, verf_len)
 	 */
 	verfp = (u_long *)verf_str;
 	*verfp++ = txdr_unsigned(RPCAKN_NICKNAME);
-	if (time.tv_sec > nuidp->nu_timestamp.tv_sec ||
-	    (time.tv_sec == nuidp->nu_timestamp.tv_sec &&
-	     time.tv_usec > nuidp->nu_timestamp.tv_usec))
-		gettime(&nuidp->nu_timestamp);
+	if (time_second > nuidp->nu_timestamp.tv_sec ||
+	    (time_second == nuidp->nu_timestamp.tv_sec &&
+	     time_second > nuidp->nu_timestamp.tv_usec))
+		getmicrotime(&nuidp->nu_timestamp);
 	else
 		nuidp->nu_timestamp.tv_usec++;
 	ktvin.tv_sec = txdr_unsigned(nuidp->nu_timestamp.tv_sec);
@@ -1051,7 +1049,7 @@ nfs_savenickauth(nmp, cred, len, key, mdp, dposp, mrep)
 #endif
 		ktvout.tv_sec = fxdr_unsigned(long, ktvout.tv_sec);
 		ktvout.tv_usec = fxdr_unsigned(long, ktvout.tv_usec);
-		deltasec = time.tv_sec - ktvout.tv_sec;
+		deltasec = time_second - ktvout.tv_sec;
 		if (deltasec < 0)
 			deltasec = -deltasec;
 		/*
@@ -1071,7 +1069,7 @@ nfs_savenickauth(nmp, cred, len, key, mdp, dposp, mrep)
 			}
 			nuidp->nu_flag = 0;
 			nuidp->nu_cr.cr_uid = cred->cr_uid;
-			nuidp->nu_expire = time.tv_sec + NFS_KERBTTL;
+			nuidp->nu_expire = time_second + NFS_KERBTTL;
 			nuidp->nu_timestamp = ktvout;
 			nuidp->nu_nickname = nick;
 			bcopy(key, nuidp->nu_key, sizeof (key));
@@ -1184,9 +1182,8 @@ nfsd_rt(sotype, nd, cacherep)
 	    rt->ipadr = ((struct sockaddr_in *)nd->nd_nam)->sin_addr.s_addr;
 	else
 	    rt->ipadr = INADDR_ANY;
-	rt->resptime = ((time.tv_sec - nd->nd_starttime.tv_sec) * 1000000) +
-		(time.tv_usec - nd->nd_starttime.tv_usec);
-	gettime(&rt->tstamp);
+	rt->resptime = nfs_curusec() - (nd->nd_starttime.tv_sec * 1000000 + nd->nd_starttime.tv_usec);
+	getmicrotime(&rt->tstamp);
 	nfsdrt.pos = (nfsdrt.pos + 1) % NFSRTTLOGSIZ;
 }
 #endif /* NFS_NOSERVER */

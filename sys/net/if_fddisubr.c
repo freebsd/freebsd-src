@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.25 1998/01/09 00:51:55 eivind Exp $
+ * $Id: if_fddisubr.c,v 1.26 1998/02/20 13:11:49 bde Exp $
  */
 
 #include "opt_atalk.h"
@@ -149,7 +149,7 @@ fddi_output(ifp, m0, dst, rt0)
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
-	gettime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 #if !defined(__bsdi__) || _BSDI_VERSION >= 199401
 	if (rt = rt0) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
@@ -170,7 +170,7 @@ fddi_output(ifp, m0, dst, rt0)
 		}
 		if (rt->rt_flags & RTF_REJECT)
 			if (rt->rt_rmx.rmx_expire == 0 ||
-			    time.tv_sec < rt->rt_rmx.rmx_expire)
+			    time_second < rt->rt_rmx.rmx_expire)
 				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
 #endif
@@ -474,7 +474,7 @@ fddi_input(ifp, fh, m)
 		m_freem(m);
 		return;
 	}
-	gettime(&ifp->if_lastchange);
+	getmicrotime(&ifp->if_lastchange);
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*fh);
 	if (fh->fddi_dhost[0] & 1) {
 		if (bcmp((caddr_t)fddibroadcastaddr, (caddr_t)fh->fddi_dhost,

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.31 1997/10/28 15:59:03 bde Exp $
+ * $Id: nfs_nqlease.c,v 1.32 1997/11/07 08:53:23 phk Exp $
  */
 
 
@@ -407,7 +407,7 @@ nqsrv_instimeq(lp, duration)
 	register struct nqlease *tlp;
 	time_t newexpiry;
 
-	newexpiry = time.tv_sec + duration + nqsrv_clockskew;
+	newexpiry = time_second + duration + nqsrv_clockskew;
 	if (lp->lc_expiry == newexpiry)
 		return;
 	if (lp->lc_timer.cqe_next != 0) {
@@ -602,7 +602,7 @@ nqsrv_waitfor_expiry(lp)
 	int len, ok;
 
 tryagain:
-	if (time.tv_sec > lp->lc_expiry)
+	if (time_second > lp->lc_expiry)
 		return;
 	lph = &lp->lc_host;
 	lphnext = lp->lc_morehosts;
@@ -648,7 +648,7 @@ nqnfs_serverd()
 
 	for (lp = nqtimerhead.cqh_first; lp != (void *)&nqtimerhead;
 	    lp = nextlp) {
-		if (lp->lc_expiry >= time.tv_sec)
+		if (lp->lc_expiry >= time_second)
 			break;
 		nextlp = lp->lc_timer.cqe_next;
 		if (lp->lc_flag & LC_EXPIREDWANTED) {
@@ -883,13 +883,13 @@ nqnfs_getlease(vp, rwflag, cred, p)
 	nfsm_build(tl, u_long *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(rwflag);
 	*tl = txdr_unsigned(nmp->nm_leaseterm);
-	reqtime = time.tv_sec;
+	reqtime = time_second;
 	nfsm_request(vp, NQNFSPROC_GETLEASE, p, cred);
 	np = VTONFS(vp);
 	nfsm_dissect(tl, u_long *, 4 * NFSX_UNSIGNED);
 	cachable = fxdr_unsigned(int, *tl++);
 	reqtime += fxdr_unsigned(int, *tl++);
-	if (reqtime > time.tv_sec) {
+	if (reqtime > time_second) {
 		fxdr_hyper(tl, &frev);
 		nqnfs_clientlease(nmp, np, rwflag, cachable, reqtime, frev);
 		nfsm_loadattr(vp, (struct vattr *)0);
@@ -1089,7 +1089,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 		       (nmp->nm_flag & NFSMNT_DISMINPROG) == 0) {
 			vp = NFSTOV(np);
 			vpid = vp->v_id;
-			if (np->n_expiry < time.tv_sec) {
+			if (np->n_expiry < time_second) {
 			   if (vget(vp, LK_EXCLUSIVE, p) == 0) {
 			     nmp->nm_inprog = vp;
 			     if (vpid == vp->v_id) {
@@ -1114,7 +1114,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			      vrele(vp);
 			      nmp->nm_inprog = NULLVP;
 			    }
-			} else if ((np->n_expiry - NQ_RENEWAL) < time.tv_sec) {
+			} else if ((np->n_expiry - NQ_RENEWAL) < time_second) {
 			    if ((np->n_flag & (NQNFSWRITE | NQNFSNONCACHE))
 				 == NQNFSWRITE && vp->v_dirtyblkhd.lh_first &&
 				 vget(vp, LK_EXCLUSIVE, p) == 0) {

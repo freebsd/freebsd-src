@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.29 1997/10/12 20:25:44 phk Exp $
+ * $Id: nfs_socket.c,v 1.30 1997/10/28 15:59:07 bde Exp $
  */
 
 /*
@@ -769,7 +769,7 @@ nfsmout:
 					rt->srtt = nmp->nm_srtt[proct[rep->r_procnum] - 1];
 					rt->sdrtt = nmp->nm_sdrtt[proct[rep->r_procnum] - 1];
 					rt->fsid = nmp->nm_mountp->mnt_stat.f_fsid;
-					gettime(&rt->tstamp);
+					getmicrotime(&rt->tstamp);
 					if (rep->r_flags & R_TIMING)
 						rt->rtt = rep->r_rtt;
 					else
@@ -952,7 +952,7 @@ tryagain:
 	TAILQ_INSERT_TAIL(&nfs_reqq, rep, r_chain);
 
 	/* Get send time for nqnfs */
-	reqtime = time.tv_sec;
+	reqtime = time_second;
 
 	/*
 	 * If backing off another request or avoiding congestion, don't
@@ -1062,8 +1062,8 @@ tryagain:
 				error == NFSERR_TRYLATER) {
 				m_freem(mrep);
 				error = 0;
-				waituntil = time.tv_sec + trylater_delay;
-				while (time.tv_sec < waituntil)
+				waituntil = time_second + trylater_delay;
+				while (time_second < waituntil)
 					(void) tsleep((caddr_t)&lbolt,
 						PSOCK, "nqnfstry", 0);
 				trylater_delay *= nfs_backoff[trylater_cnt];
@@ -1101,7 +1101,7 @@ tryagain:
 				nfsm_dissect(tl, u_long *, 4*NFSX_UNSIGNED);
 				cachable = fxdr_unsigned(int, *tl++);
 				reqtime += fxdr_unsigned(int, *tl++);
-				if (reqtime > time.tv_sec) {
+				if (reqtime > time_second) {
 				    fxdr_hyper(tl, &frev);
 				    nqnfs_clientlease(nmp, np, nqlflag,
 					cachable, reqtime, frev);
@@ -1395,8 +1395,8 @@ nfs_timer(arg)
 	/*
 	 * Call the nqnfs server timer once a second to handle leases.
 	 */
-	if (lasttime != time.tv_sec) {
-		lasttime = time.tv_sec;
+	if (lasttime != time_second) {
+		lasttime = time_second;
 		nqnfs_serverd();
 	}
 
@@ -1404,7 +1404,7 @@ nfs_timer(arg)
 	 * Scan the write gathering queues for writes that need to be
 	 * completed now.
 	 */
-	cur_usec = (u_quad_t)time.tv_sec * 1000000 + (u_quad_t)time.tv_usec;
+	cur_usec = nfs_curusec();
 	for (slp = nfssvc_sockhead.tqh_first; slp != 0;
 	    slp = slp->ns_chain.tqe_next) {
 	    if (slp->ns_tq.lh_first && slp->ns_tq.lh_first->nd_time<=cur_usec)
@@ -2125,7 +2125,7 @@ nfs_getreq(nd, nfsd, has_header)
 
 			tvout.tv_sec = fxdr_unsigned(long, tvout.tv_sec);
 			tvout.tv_usec = fxdr_unsigned(long, tvout.tv_usec);
-			if (nuidp->nu_expire < time.tv_sec ||
+			if (nuidp->nu_expire < time_second ||
 			    nuidp->nu_timestamp.tv_sec > tvout.tv_sec ||
 			    (nuidp->nu_timestamp.tv_sec == tvout.tv_sec &&
 			     nuidp->nu_timestamp.tv_usec > tvout.tv_usec)) {

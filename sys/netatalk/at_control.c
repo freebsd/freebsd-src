@@ -446,7 +446,7 @@ at_ifinit( ifp, aa, sat )
 		 * XXX use /dev/random?
 		 */
 		if ( nnets != 1 ) {
-		    net = ntohs( nr.nr_firstnet ) + time.tv_sec % ( nnets - 1 );
+		    net = ntohs( nr.nr_firstnet ) + time_second % ( nnets - 1 );
 		} else {
 		    net = ntohs( nr.nr_firstnet );
 		}
@@ -483,7 +483,7 @@ at_ifinit( ifp, aa, sat )
 	 * XXX use /dev/random?
 	 */
 	if ( sat->sat_addr.s_node == ATADDR_ANYNODE ) {
-	    AA_SAT( aa )->sat_addr.s_node = time.tv_sec;
+	    AA_SAT( aa )->sat_addr.s_node = time_second;
 	} else {
 	    AA_SAT( aa )->sat_addr.s_node = sat->sat_addr.s_node;
 	}
@@ -508,7 +508,7 @@ at_ifinit( ifp, aa, sat )
 	     * Once again, starting at the (possibly random)
 	     * initial node address.
 	     */
-	    for ( j = 0, nodeinc = time.tv_sec | 1; j < 256;
+	    for ( j = 0, nodeinc = time_second | 1; j < 256;
 		    j++, AA_SAT( aa )->sat_addr.s_node += nodeinc ) {
 		if ( AA_SAT( aa )->sat_addr.s_node > 253 ||
 			AA_SAT( aa )->sat_addr.s_node < 1 ) {
@@ -552,7 +552,7 @@ at_ifinit( ifp, aa, sat )
 		break;
 	    }
 	    /* reset node for next network */
-	    AA_SAT( aa )->sat_addr.s_node = time.tv_sec;
+	    AA_SAT( aa )->sat_addr.s_node = time_second;
 	}
 
 	/*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.81 1998/03/08 09:57:57 julian Exp $
+ * $Id: nfs_vnops.c,v 1.82 1998/03/28 12:04:40 bde Exp $
  */
 
 
@@ -694,7 +694,7 @@ nfs_setattrrpc(vp, vap, cred, procp)
 			*tl = nfs_false;
 		}
 		if (vap->va_atime.tv_sec != VNOVAL) {
-			if (vap->va_atime.tv_sec != time.tv_sec) {
+			if (vap->va_atime.tv_sec != time_second) {
 				nfsm_build(tl, u_long *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_atime, tl);
@@ -707,7 +707,7 @@ nfs_setattrrpc(vp, vap, cred, procp)
 			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 		}
 		if (vap->va_mtime.tv_sec != VNOVAL) {
-			if (vap->va_mtime.tv_sec != time.tv_sec) {
+			if (vap->va_mtime.tv_sec != time_second) {
 				nfsm_build(tl, u_long *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_mtime, tl);
@@ -3146,7 +3146,7 @@ nfsspec_read(ap)
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	gettime(&tv);
+	getmicrotime(&tv);
 	np->n_atim.tv_sec = tv.tv_sec;
 	np->n_atim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap));
@@ -3171,7 +3171,7 @@ nfsspec_write(ap)
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	gettime(&tv);
+	getmicrotime(&tv);
 	np->n_mtim.tv_sec = tv.tv_sec;
 	np->n_mtim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap));
@@ -3229,7 +3229,7 @@ nfsfifo_read(ap)
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	gettime(&tv);
+	getmicrotime(&tv);
 	np->n_atim.tv_sec = tv.tv_sec;
 	np->n_atim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap));
@@ -3254,7 +3254,7 @@ nfsfifo_write(ap)
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	gettime(&tv);
+	getmicrotime(&tv);
 	np->n_mtim.tv_sec = tv.tv_sec;
 	np->n_mtim.tv_nsec = tv.tv_usec * 1000;
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap));
@@ -3280,7 +3280,7 @@ nfsfifo_close(ap)
 	struct vattr vattr;
 
 	if (np->n_flag & (NACC | NUPD)) {
-		gettime(&tv);
+		getmicrotime(&tv);
 		if (np->n_flag & NACC) {
 			np->n_atim.tv_sec = tv.tv_sec;
 			np->n_atim.tv_nsec = tv.tv_usec * 1000;

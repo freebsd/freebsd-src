@@ -38,7 +38,7 @@ static volatile int ttyverbose = 0;
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.100 1997/12/16 17:40:24 eivind Exp $
+ * $Id: tty.c,v 1.101 1998/03/07 15:36:21 bde Exp $
  */
 
 /*-
@@ -1499,7 +1499,7 @@ loop:
 				goto sleep;
 			if (qp->c_cc >= m)
 				goto read;
-			gettime(&timecopy);
+			getmicrotime(&timecopy);
 			if (!has_stime) {
 				/* first character, start timer */
 				has_stime = 1;
@@ -1519,7 +1519,7 @@ loop:
 		} else {	/* m == 0 */
 			if (qp->c_cc > 0)
 				goto read;
-			gettime(&timecopy);
+			getmicrotime(&timecopy);
 			if (!has_stime) {
 				has_stime = 1;
 				stime = timecopy;

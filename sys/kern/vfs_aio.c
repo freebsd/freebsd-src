@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.25 1998/03/28 10:33:09 bde Exp $
+ * $Id: vfs_aio.c,v 1.26 1998/03/28 11:50:04 dufault Exp $
  */
 
 /*
@@ -1484,10 +1484,7 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 		TIMESPEC_TO_TIMEVAL(&atv, &ts)
 		if (itimerfix(&atv))
 			return (EINVAL);
-		s = splclock();
-		timevaladd(&atv, &time);
-		timo = hzto(&atv);
-		splx(s);
+		timo = tvtohz(&atv);
 	}
 
 	ki = p->p_aioinfo;
