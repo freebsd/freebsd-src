@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.66 1997/02/22 09:48:15 peter Exp $
+ * $Id: vm_fault.c,v 1.67 1997/04/06 02:29:41 dyson Exp $
  */
 
 /*
@@ -378,7 +378,7 @@ readrest:
 						2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1);
 
 				for(tmppindex = first_pindex - 1;
-					tmppindex >= first_pindex;
+					tmppindex >= firstpindex;
 					--tmppindex) {
 					vm_page_t mt;
 					mt = vm_page_lookup( first_object, tmppindex);
