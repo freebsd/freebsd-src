@@ -1,5 +1,5 @@
 /*	
- * $Id: dev_net.c,v 1.2 1998/08/22 10:31:01 dfr Exp $
+ * $Id: dev_net.c,v 1.3 1998/09/20 21:46:19 dfr Exp $
  * From: $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
  */
 
@@ -65,6 +65,7 @@
 #include <netinet/in_systm.h>
 
 #include <stand.h>
+#include <string.h>
 #include <net.h>
 #include <netif.h>
 #include <bootparam.h>
@@ -206,6 +207,8 @@ net_getparams(sock)
     int sock;
 {
     char buf[MAXHOSTNAMELEN];
+    char temp[FNAME_SIZE];
+    int i;
     n_long smask;
 
 #ifdef	SUPPORT_BOOTP
@@ -218,7 +221,7 @@ net_getparams(sock)
     if (try_bootp)
 	bootp(sock);
     if (myip.s_addr != 0)
-	return (0);
+	goto exit;
     if (debug)
 	printf("net_open: BOOTP failed, trying RARP/RPC...\n");
 #endif
@@ -262,9 +265,23 @@ net_getparams(sock)
 	printf("net_open: bootparam/getfile RPC failed\n");
 	return (EIO);
     }
-
+ exit:
     printf("net_open: server addr: %s\n", inet_ntoa(rootip));
-    printf("net_open: server path: %s\n", rootpath);
 
+    /*  
+     * If present, strip the server's address off of the rootpath
+     * before passing it along.  This allows us to be compatible with
+     * the kernel's diskless (BOOTP_NFSROOT) booting conventions
+     */
+
+    for(i=0; i<FNAME_SIZE; i++)
+	    if(rootpath[i] == ':')
+		    break;
+    if(i && i != FNAME_SIZE) {
+	    i++;
+	    bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
+	    bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);	    
+    }
+    printf("net_open: server path: %s\n", rootpath);	    
     return (0);
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.15 1999/03/28 17:33:38 dfr Exp $
+ *	$Id: autoconf.c,v 1.16 1999/04/16 21:21:25 peter Exp $
  */
 
 #include "opt_bootp.h"
@@ -67,6 +67,8 @@ static int      setdumpdev __P((dev_t dev));
 
 device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
+extern int nfs_diskless_valid;
+
 
 static void
 configure_start()
@@ -226,6 +228,23 @@ cpu_rootconf()
 			printf("No MFS image available as root f/s.\n");
 	}
 #endif
+
+#ifdef BOOTP_NFSROOT
+        if (!strcmp(bootdev_protocol(), "BOOTP")
+	    && !mountrootfsname && !nfs_diskless_valid) {
+                if (bootverbose)
+                        printf("Considering BOOTP NFS root f/s.\n");
+                mountrootfsname = "nfs";
+        }
+#endif /* BOOTP_NFSROOT */
+#if defined(NFS) || defined(NFS_ROOT)
+        if (!mountrootfsname && nfs_diskless_valid) {
+                if (bootverbose)
+                        printf("Considering NFS root f/s.\n");
+                mountrootfsname = "nfs";
+        }
+#endif /* NFS */
+
 
 #if defined(FFS) || defined(FFS_ROOT)
 	if (!mountrootfsname) {
