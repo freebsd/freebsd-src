@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.4 1995/02/20 22:23:13 davidg Exp $ */
+/*	$Id: sysv_shm.c,v 1.5 1995/05/30 08:06:04 rgrimes Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -173,6 +173,8 @@ shmdt(p, uap, retval)
 	int i;
 
 	shmmap_s = (struct shmmap_state *)p->p_vmspace->vm_shm;
+ 	if (shmmap_s == NULL)
+ 	    return EINVAL;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
 		if (shmmap_s->shmid != -1 &&
 		    shmmap_s->va == (vm_offset_t)uap->shmaddr)
