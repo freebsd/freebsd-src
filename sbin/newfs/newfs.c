@@ -408,7 +408,7 @@ main(argc, argv)
 		/*
 		 * No path prefix; try /dev/%s.
 		 */
-		(void)sprintf(device, "%s%s", _PATH_DEV, special);
+		(void)snprintf(device, sizeof(device), "%s%s", _PATH_DEV, special);
 		special = device;
 	}
 	if (Nflag) {
@@ -619,7 +619,7 @@ havelabel:
 	if (mfs) {
 		struct mfs_args args;
 
-		sprintf(buf, "mfs:%d", getpid());
+		snprintf(buf, sizeof(buf), "mfs:%d", getpid());
 		args.fspec = buf;
 		args.export.ex_root = -2;
 		if (mntflags & MNT_RDONLY)
