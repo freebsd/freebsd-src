@@ -2123,6 +2123,7 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 # alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
 # viapm		VIA VT82C586B,596,686A and VT8233 SMBus controllers
+# amdpm		AMD 756 Power Management Unit
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -2130,6 +2131,7 @@ device		intpm
 device		alpm
 device		ichsmb
 device		viapm
+device		amdpm
 
 device		smb
 
