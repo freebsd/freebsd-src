@@ -146,14 +146,7 @@ wait_for_more:
 static void
 hci_inquiry_response(int n, uint8_t **b)
 {
-	struct inquiry_response {
-		bdaddr_t	bdaddr;
-		uint8_t		page_scan_rep_mode;
-		uint8_t		page_scan_period_mode;
-		uint8_t		page_scan_mode;
-		uint8_t		class[NG_HCI_CLASS_SIZE];
-		uint16_t	clock_offset;
-	}			*ir = (struct inquiry_response *)(*b);
+	ng_hci_inquiry_response	*ir = (ng_hci_inquiry_response *)(*b);
 
 	fprintf(stdout, "Inquiry result #%d\n", n);
 	fprintf(stdout, "\tBD_ADDR: %s\n", hci_bdaddr2str(&ir->bdaddr));
