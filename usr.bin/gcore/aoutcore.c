@@ -80,15 +80,13 @@ static const char rcsid[] =
 #include "extern.h"
 
 static void	core __P((int, int, struct kinfo_proc *));
-static void	datadump __P((int, int, struct proc *, u_long, int));
+static void	datadump __P((int, int, struct kinfo_proc *, u_long, int));
 static void	killed __P((int));
 static void	restart_target __P((void));
 static void	usage __P((void)) __dead2;
-static void	userdump __P((int, struct proc *, u_long, int));
+static void	userdump __P((int, struct kinfo_proc *, u_long, int));
 
 kvm_t *kd;
-/* XXX undocumented routine, should be in kvm.h? */
-ssize_t kvm_uread __P((kvm_t *, const struct proc *, u_long, char *, size_t));
 
 static int data_offset;
 static pid_t pid;
@@ -98,7 +96,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register struct proc *p;
 	struct kinfo_proc *ki = NULL;
 	struct exec exec;
 	int ch, cnt, efd, fd, sflag, uid;
@@ -164,23 +161,22 @@ main(argc, argv)
 		if (ki == NULL || cnt != 1)
 			errx(1, "%d: not found", pid);
 
-		p = &ki->kp_proc;
-		if (ki->kp_eproc.e_pcred.p_ruid != uid && uid != 0)
+		if (ki->ki_ruid != uid && uid != 0)
 			errx(1, "%d: not owner", pid);
 
-		if (p->p_stat == SZOMB)
+		if (ki->ki_stat == SZOMB)
 			errx(1, "%d: zombie", pid);
 
-		if (p->p_flag & P_WEXIT)
+		if (ki->ki_flag & P_WEXIT)
 			errx(1, "%d: process exiting", pid);
-		if (p->p_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
+		if (ki->ki_flag & P_SYSTEM)	/* Swapper or pagedaemon. */
 			errx(1, "%d: system process", pid);
-		if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
+		if (exec.a_text != ptoa(ki->ki_tsize))
 			errx(1, "The executable %s does not belong to"
 			    " process %d!\n"
 			    "Text segment size (in bytes): executable %ld,"
 			    " process %d", binfile, pid, exec.a_text, 
-			     ptoa(ki->kp_eproc.e_vm.vm_tsize));
+			     ptoa(ki->ki_tsize));
 		data_offset = N_DATOFF(exec);
 	} else if (IS_ELF(*(Elf_Ehdr *)&exec)) {
 		is_aout = 0;
@@ -228,14 +224,13 @@ core(efd, fd, ki)
 		struct user user;
 		char ubytes[ctob(UPAGES)];
 	} uarea;
-	struct proc *p = &ki->kp_proc;
-	int tsize = ki->kp_eproc.e_vm.vm_tsize;
-	int dsize = ki->kp_eproc.e_vm.vm_dsize;
-	int ssize = ki->kp_eproc.e_vm.vm_ssize;
+	int tsize = ki->ki_tsize;
+	int dsize = ki->ki_dsize;
+	int ssize = ki->ki_ssize;
 	int cnt;
 
 	/* Read in user struct */
-	cnt = kvm_read(kd, (u_long)p->p_addr, &uarea, sizeof(uarea));
+	cnt = kvm_read(kd, (u_long)ki->ki_addr, &uarea, sizeof(uarea));
 	if (cnt != sizeof(uarea))
 		errx(1, "read user structure: %s",
 		    cnt > 0 ? strerror(EIO) : strerror(errno));
@@ -253,20 +248,20 @@ core(efd, fd, ki)
 		    cnt > 0 ? strerror(EIO) : strerror(errno));
 
 	/* Dump data segment */
-	datadump(efd, fd, p, USRTEXT + ctob(tsize), dsize);
+	datadump(efd, fd, ki, USRTEXT + ctob(tsize), dsize);
 
 	/* Dump stack segment */
-	userdump(fd, p, USRSTACK - ctob(ssize), ssize);
+	userdump(fd, ki, USRSTACK - ctob(ssize), ssize);
 
 	/* Dump machine dependent portions of the core. */
 	md_core(kd, fd, ki);
 }
 
 void
-datadump(efd, fd, p, addr, npage)
+datadump(efd, fd, kp, addr, npage)
 	register int efd;
 	register int fd;
-	struct proc *p;
+	struct kinfo_proc *kp;
 	register u_long addr;
 	register int npage;
 {
@@ -275,7 +270,7 @@ datadump(efd, fd, p, addr, npage)
 
 	delta = data_offset - addr;
 	while (--npage >= 0) {
-		cc = kvm_uread(kd, p, addr, buffer, PAGE_SIZE);
+		cc = kvm_uread(kd, kp, addr, buffer, PAGE_SIZE);
 		if (cc != PAGE_SIZE) {
 			/* Try to read the page from the executable. */
 			if (lseek(efd, (off_t)addr + delta, SEEK_SET) == -1)
@@ -312,9 +307,9 @@ restart_target()
 }
 
 void
-userdump(fd, p, addr, npage)
+userdump(fd, kp, addr, npage)
 	register int fd;
-	struct proc *p;
+	struct kinfo_proc *kp;
 	register u_long addr;
 	register int npage;
 {
@@ -322,7 +317,7 @@ userdump(fd, p, addr, npage)
 	char buffer[PAGE_SIZE];
 
 	while (--npage >= 0) {
-		cc = kvm_uread(kd, p, addr, buffer, PAGE_SIZE);
+		cc = kvm_uread(kd, kp, addr, buffer, PAGE_SIZE);
 		if (cc != PAGE_SIZE)
 			/* Could be an untouched fill-with-zero page. */
 			bzero(buffer, PAGE_SIZE);

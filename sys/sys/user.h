@@ -60,41 +60,93 @@
 #endif
 
 /*
- * KERN_PROC subtype ops return arrays of augmented proc structures:
+ * KERN_PROC subtype ops return arrays of selected proc structure entries:
+ *
+ * When adding new fields to this structure, ALWAYS add them at the end
+ * and decrease the size of the spare field by the amount of space that
+ * you are adding.  Byte aligned data should be added to the ki_sparestring
+ * space; other entries should be added to the ki_spare space. Always
+ * verify that sizeof(struct kinfo_proc) == KINFO_PROC_SIZE when you are
+ * done. If you change the size of this structure, many programs will stop
+ * working! Once you have added the new field, you will need to add code
+ * to initialize it in two places: kern/kern_proc.c in the function
+ * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
  */
-struct kinfo_proc {
-	struct	proc kp_proc;			/* proc structure */
-	struct	eproc {
-		struct	proc *e_paddr;		/* address of proc */
-		struct	session *e_sess;	/* session pointer */
-		struct	pcred e_pcred;		/* process credentials */
-		struct	ucred e_ucred;		/* current credentials */
-		struct  procsig e_procsig;	/* shared signal structure */
-		struct	vmspace e_vm;		/* address space */
-		struct	pstats e_stats;		/* process stats */
-		pid_t	e_ppid;			/* parent process id */
-		pid_t	e_pgid;			/* process group id */
-		short	e_jobc;			/* job control counter */
-		udev_t	e_tdev;			/* controlling tty dev */
-		pid_t	e_tpgid;		/* tty process group id */
-		struct	session *e_tsess;	/* tty session pointer */
-#define	WMESGLEN	7
-		char	e_wmesg[WMESGLEN+1];	/* wchan message */
-#define MTXNAMELEN	7
-		char	e_mtxname[MTXNAMELEN+1];/* blocked mutex */
-		segsz_t e_xsize;		/* text size */
-		short	e_xrssize;		/* text rss */
-		short	e_xccount;		/* text references */
-		short	e_xswrss;
-		long	e_flag;
-#define	EPROC_CTTY	0x01	/* controlling tty vnode active */
-#define	EPROC_SLEADER	0x02	/* session leader */
-		char	e_login[roundup(MAXLOGNAME, sizeof(long))];	/* setlogin() name */
-		long	e_spare[2];
-	} kp_eproc;
-};
-void fill_eproc __P((struct proc *, struct eproc *));
+#define	KINFO_PROC_SIZE	640		/* the correct size for kinfo_proc */
+#define	WMESGLEN	8		/* size of returned wchan message */
+#define	MTXNAMELEN	8		/* size of returned mutex name */
 
+struct kinfo_proc {
+	int	ki_structsize;		/* size of this structure */
+	struct	pargs *ki_args;		/* address of command arguments */
+	struct	proc *ki_paddr;		/* address of proc */
+	struct	user *ki_addr;		/* kernel virtual addr of u-area */
+	struct	vnode *ki_tracep;	/* pointer to trace file */
+	struct	vnode *ki_textvp;	/* pointer to executable file */
+	struct	filedesc *ki_fd;	/* pointer to open file info */
+	struct	vmspace *ki_vmspace;	/* pointer to kernel vmspace struct */
+	void	*ki_wchan;		/* sleep address */
+	pid_t	ki_pid;			/* Process identifier */
+	pid_t	ki_ppid;		/* parent process id */
+	pid_t	ki_pgid;		/* process group id */
+	pid_t	ki_tpgid;		/* tty process group id */
+	pid_t	ki_sid;			/* Process session ID */
+	pid_t	ki_tsid;		/* Terminal session ID */
+	short	ki_jobc;		/* job control counter */
+	udev_t	ki_tdev;		/* controlling tty dev */
+	sigset_t ki_siglist;		/* Signals arrived but not delivered */
+	sigset_t ki_sigmask;		/* Current signal mask */
+	sigset_t ki_sigignore;		/* Signals being ignored */
+	sigset_t ki_sigcatch;		/* Signals being caught by user */
+	uid_t	ki_uid;			/* effective user id */
+	uid_t	ki_ruid;		/* Real user id */
+	uid_t	ki_svuid;		/* Saved effective user id */
+	gid_t	ki_rgid;		/* Real group id */
+	gid_t	ki_svgid;		/* Saved effective group id */
+	short	ki_ngroups;		/* number of groups */
+	gid_t	ki_groups[NGROUPS];	/* groups */
+	vm_size_t ki_size;		/* virtual size */
+	segsz_t ki_rssize;		/* current resident set size in pages */
+	segsz_t ki_swrss;		/* resident set size before last swap */
+	segsz_t ki_tsize;		/* text size (pages) XXX */
+	segsz_t ki_dsize;		/* data size (pages) XXX */
+	segsz_t ki_ssize;		/* stack size (pages) */
+	u_short	ki_xstat;		/* Exit status for wait & stop signal */
+	u_short	ki_acflag;		/* Accounting flags */
+	fixpt_t	ki_pctcpu;	 	/* %cpu for process during ki_swtime */
+	u_int	ki_estcpu;	 	/* Time averaged value of ki_cpticks */
+	u_int	ki_slptime;	 	/* Time since last blocked */
+	u_int	ki_swtime;	 	/* Time swapped in or out */
+	u_int64_t ki_runtime;		/* Real time in microsec */
+	struct	timeval ki_start;	/* starting time */
+	struct	timeval ki_childtime;	/* time used by process children */
+	long	ki_flag;		/* P_* flags */
+	long	ki_kiflag;		/* KI_* flags (below) */
+	int	ki_traceflag;		/* Kernel trace points */
+	u_char	ki_priority;		/* Process priority */
+	u_char	ki_usrpri;		/* User-priority based on p_cpu */
+	u_char	ki_nativepri;		/* Priority before propogation */
+	char	ki_stat;		/* S* process status */
+	char	ki_nice;		/* Process "nice" value */
+	char	ki_lock;		/* Process lock (prevent swap) count */
+	char	ki_rqindex;		/* Run queue index */
+	u_char	ki_oncpu;		/* Which cpu we are on */
+	u_char	ki_lastcpu;		/* Last cpu we were on */
+	char	ki_comm[MAXCOMLEN+1];	/* command name */
+	char	ki_wmesg[WMESGLEN+1];	/* wchan message */
+	char	ki_login[MAXLOGNAME+1];	/* setlogin name */
+	char	ki_mtxname[MTXNAMELEN+1]; /* mutex name */
+	char	ki_sparestrings[102];	/* spare string space */
+	struct	rtprio ki_rtprio;	/* Realtime priority */
+	struct	rusage ki_rusage;	/* process rusage statistics */
+	long	ki_spare[25];		/* spare constants */
+};
+void fill_kinfo_proc __P((struct proc *, struct kinfo_proc *));
+
+/* ki_sessflag values */
+#define	KI_CTTY		0x00000001	/* controlling tty vnode active */
+#define	KI_SLEADER	0x00000002	/* session leader */
+#define	KI_MTXBLOCK	0x00000004	/* proc blocked on mutex ki_mtxname */
 
 /*
  * Per process structure containing data that isn't needed in core
