@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.34 1999/05/09 08:10:17 peter Exp $
+ * $Id: kern_conf.c,v 1.35 1999/05/09 08:18:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -123,12 +123,21 @@ devsw_module_handler(module_t mod, int what, void* arg)
 	struct devsw_module_data* data = (struct devsw_module_data*) arg;
 	int error;
 
+	if (data->cmaj == NOMAJ) 
+		data->cdev = NODEV;
+	else
+		data->cdev = makedev(data->cmaj, 0);
 	switch (what) {
 	case MOD_LOAD:
 		error = cdevsw_add(&data->cdev, data->cdevsw, NULL);
 		if (!error && data->cdevsw->d_strategy != nostrategy) {
-			if (data->bdev == NODEV)
+			if (data->bmaj == NOMAJ) {
 				data->bdev = data->cdev;
+				data->bmaj = data->cmaj;
+			} else {
+				data->bdev = makedev(data->bmaj, 0);
+			}
+			data->cdevsw->d_maj = data->bmaj;
 			bmaj2cmaj[major(data->bdev)] = major(data->cdev);
 		}
 		if (!error && data->chainevh)
