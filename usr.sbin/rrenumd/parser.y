@@ -47,6 +47,7 @@
 #include <netinet/in_var.h>
 #include <netinet/icmp6.h>
 
+#include <limits.h>
 #include <netdb.h>
 #include <string.h>
 #include <stdio.h>
