@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.56 1996/10/06 16:30:15 bde Exp $
+ **      $Id: userconfig.c,v 1.57 1996/10/09 18:31:20 jkh Exp $
  **/
 
 /**
@@ -2212,7 +2212,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.56 1996/10/06 16:30:15 bde Exp $
+ *      $Id: userconfig.c,v 1.57 1996/10/09 18:31:20 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2580,15 +2580,16 @@ introfunc(CmdParm *parms)
     putxy(2, y++, "which this kernel is capable of supporting.");
     ++y;
     putxy(2, y++, "You should go through each device category and delete all entries");
-    putxy(2, y++, "(using the DELETE key) for devices that you do not have.  This is an");
-    putxy(2, y++, "important step since it minimizes the chance of conflicts and also");
-    putxy(2, y++, "makes the kernel boot faster since there's no time wasted in trying to");
-    putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which you");
+    putxy(2, y++, "(using the DELETE key) for devices which you are sure that you do");
+    puyxy(2, y++, "not have (if you're not sure, or don't know what it is, leave it in!)");
+    putyx(2, y++, "This will minimize the chances for driver conflict and also make");
+    putxy(2, y++, "the kernel boot faster since no time will be wasted in trying to");
+    putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which");
     putxy(2, y++, "you !ido!n have and it's not a PCI device (which will be auto-configured),");
     putxy(2, y++, "be sure that its configuration parameters match your actual hardware.");
     putxy(2, y++, "To edit a device's configuration, simply press ENTER while over it.");
     putxy(2, y++, "Once you are satisfied with your device configuration, press Q to");
-    putxy(2, y++, "proceed with the booting process.");
+    putxy(2, y++, "proceed with the booting process.  To skip configuration, hit ESC now.");
     ++y;
     center(y, "!iPress a key to continue!n");
     y = cngetc();
