@@ -1,4 +1,3 @@
-#define DEBUG 1
 /*
  * Copyright (c) 2000
  *	Poul-Henning Kamp.  All rights reserved.
@@ -443,13 +442,3 @@ devfs_destroy(dev_t dev)
 			atomic_cmpset_int(&devfs_nextino, i, ino);
 	}
 }
-
-static void
-devfs_init(void *junk)
-{
-
-	devfs_rules_init();
-}
-
-SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_init, NULL);
-
