@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1 1995/06/04 02:33:02 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.2 1995/06/04 07:07:25 jkh Exp $
 
 Table of Contents
 -----------------
@@ -11,8 +11,8 @@ Table of Contents
 =========================================================================
 
 
-1.	Using UserConfig to change FreeBSD kernel settings
---	--------------------------------------------------
+1.      Using UserConfig to change FreeBSD kernel settings
+--      --------------------------------------------------
 
 The UserConfig utility allows you to override various settings of
 the FreeBSD kernel when the system is booting.  This allows you to
@@ -22,13 +22,13 @@ recompile the kernel.
 UserConfig is activated by including the '-c' flag at the initial
 boot prompt.  For example:
 
-	>> FreeBSD BOOT @ 0x10000: 640/7168 k of memory
-	Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.
-	Usage: [[wd(0,a)]/kernel][-abcCdhrsv]
-	Use ? for file list or press Enter for defaults
+        >> FreeBSD BOOT @ 0x10000: 640/7168 k of memory
+        Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.
+        Usage: [[wd(0,a)]/kernel][-abcCdhrsv]
+        Use ? for file list or press Enter for defaults
 
-	Boot: -c
-	      --
+        Boot: -c
+              --
 
 This command causes the system to boot the default kernel ("/kernel") and
 the UserConfig utility will be started once the kernel is loaded into memory.
@@ -37,14 +37,14 @@ The '-c' flag follows any other parameters that you may need to provide
 for the system to boot properly.   For example, to boot off the second of
 two SCSI drives installed and run UserConfig, you would type:
 
-	Boot: sd(1,a)/kernel -c
-	      -----------------
+        Boot: sd(1,a)/kernel -c
+              -----------------
 
 As always, the kernel will report some information on your processor
 and how much memory your system has.  Then UserConfig will be invoked
 and you will see the prompt:
 
-	config>
+        config>
 
 To see the list of commands that UserConfig accepts, you may type '?' and
 press [ENTER].  The help message looks something like this:
@@ -80,15 +80,15 @@ Once you have located the entry in question, you will use the device
 name to change settings or even disable the driver completely.
 For example, to change the address of network adapter 'ed0' to the
 address 0xd4000, you would type
-	
-	config> iomem ed0 0xd4000
-		-----------------
+        
+        config> iomem ed0 0xd4000
+                -----------------
 
 You might also want to disable a driver you are not using.  In this
 example, you might want to disable device 'ie0', so you would type:
 
-	config> disable ie0
-		-----------
+        config> disable ie0
+                -----------
 
 You can use the 'ls' command to verify your changes and you can correct
 any mistyped commands at any time.  
@@ -132,7 +132,7 @@ this is the option we recommend.
 
 
 
-2.	Default (GENERIC) Configuration
+2.      Default (GENERIC) Configuration
 --      -------------------------------
 
 The following table contains a list of all of the devices that are present
@@ -148,13 +148,13 @@ table, but not all are used by each device.  They are:
    Port   the starting I/O port used by the device, shown in hexadecimal.
 
    IOMem  the lowest (or starting) memory address used by the device,
-	  also shown in hexadecimal.
+          also shown in hexadecimal.
 
    IRQ    the interrupt the device uses to alert the driver to an event,
-	  given in decimal.
+          given in decimal.
 
    DRQ    the DMA (direct memory access) channel the device uses to move
-	  data to and from main memory, also given in decimal.
+          data to and from main memory, also given in decimal.
 
 If an entry in the table has `n/a' for the value, it means that the
 parameter does not apply to that device.  A value of `dyn' means that the
@@ -165,13 +165,13 @@ boots.
 FreeBSD GENERIC kernel:
 
         Port    IRQ     DRQ     IOMem   Description
-	----	---	---	-----	---------------------------------
+        ----    ---     ---     -----   ---------------------------------
 fdc0    3f0     6       2       n/a     Floppy disk controller
 wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
 wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 
-ncr0	n/a	n/a	n/a	n/a	NCR PCI SCSI controller
-ahc0	n/a	n/a	n/a	n/a	Adaptec 294x PCI SCSI controller
+ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
+ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
 uha0    330     dyn     6       dyn     Ultrastore 14f
 ahc1    dyn     dyn     dyn     dyn     Adaptec 274x/284x SCSI controller
@@ -234,8 +234,8 @@ or reliably access the devices in your system.
 
 
 
-3.	LINT - other possible configurations
---	------------------------------------
+3.      LINT - other possible configurations
+--      ------------------------------------
 
 The following drivers are not in the GENERIC kernel but remain
 available to those who do not mind compiling a custom kernel (see
@@ -251,42 +251,42 @@ The LINT file contains prototype entries for all of the below which you
 can easily cut-and-paste into your own file (or simply copy LINT and edit
 it to taste):
 
-apm:	Laptop Advanced Power Management (experimental)
-ctx:	Cortex-I frame grabber
-cx:	Cronyx/Sigma multiport sync/async
-cy:	Cyclades high-speed serial driver
-el:	3Com 3C501
-fe:	Fujitsu MB86960A/MB86965A Ethernet cards
-fea:	DEV DEFEA EISA FDDI adater
-fpa:	DEC DEFPA PCI FDDI adapter
-gp:	National Instruments AT-GPIB and AT-GPIB/TNT board
-gsc:	Genius GS-4500 hand scanner
-gus:	Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
+apm:    Laptop Advanced Power Management (experimental)
+ctx:    Cortex-I frame grabber
+cx:     Cronyx/Sigma multiport sync/async
+cy:     Cyclades high-speed serial driver
+el:     3Com 3C501
+fe:     Fujitsu MB86960A/MB86965A Ethernet cards
+fea:    DEV DEFEA EISA FDDI adater
+fpa:    DEC DEFPA PCI FDDI adapter
+gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
+gsc:    Genius GS-4500 hand scanner
+gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusmax: Gravis Ultrasound MAX (currently broken)
 gusxvi: Gravis Ultrasound 16-bit PCM
-joy:	Joystick
-labpc:	National Instrument's Lab-PC and Lab-PC+
-mpu:	Roland MPU-401 stand-alone card
-mse:	Logitech & ATI InPort bus mouse ports
-mss:	Microsoft Sound System
-nic:	Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
-opl:	Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
-pas:	ProAudioSpectrum PCM and MIDI
-pca:	PCM audio through your PC speaker
-psm:	PS/2 mouse port
-rc:	RISCom/8 multiport card
-sb:	SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
-sbmidi:	SoundBlaster 16 MIDI interface
-sbxvi:	SoundBlaster 16
-spigot:	Create Labs Video Spigot video-acquisition board
-uart:	Stand-alone 6850 UART for MIDI
-wds:	Western Digital WD7000 IDE
+joy:    Joystick
+labpc:  National Instrument's Lab-PC and Lab-PC+
+mpu:    Roland MPU-401 stand-alone card
+mse:    Logitech & ATI InPort bus mouse ports
+mss:    Microsoft Sound System
+nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
+opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
+pas:    ProAudioSpectrum PCM and MIDI
+pca:    PCM audio through your PC speaker
+psm:    PS/2 mouse port
+rc:     RISCom/8 multiport card
+sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
+sbmidi: SoundBlaster 16 MIDI interface
+sbxvi:  SoundBlaster 16
+spigot: Create Labs Video Spigot video-acquisition board
+uart:   Stand-alone 6850 UART for MIDI
+wds:    Western Digital WD7000 IDE
 
 --- end of list ---
 
 
-4.0	Known Hardware Problems, Q & A:
----	-------------------------------
+4.0     Known Hardware Problems, Q & A:
+---     -------------------------------
 
 Q: mcd0 keeps thinking that it has found a device and this stops my Intel
    EtherExpress card from working.
