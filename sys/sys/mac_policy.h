@@ -328,7 +328,7 @@ struct mac_policy_ops {
 		    struct label *mntlabel);
 	int	(*mpo_check_pipe_ioctl)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pipelabel,
-		    unsigned long cmd, void *data); 
+		    unsigned long cmd, void *data);
 	int	(*mpo_check_pipe_poll)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pipelabel);
 	int	(*mpo_check_pipe_read)(struct ucred *cred,
