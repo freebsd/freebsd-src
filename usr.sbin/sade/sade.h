@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.147 1998/07/18 09:42:01 jkh Exp $
+ * $Id: sysinstall.h,v 1.148 1998/09/30 11:49:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -223,16 +223,6 @@ typedef struct _layout {
     void        *obj;           /* The obj pointer returned by libdialog */
 } Layout;
 
-/* For attribs */
-#define MAX_ATTRIBS	200
-#define MAX_NAME	64
-#define MAX_VALUE	256
-
-typedef struct _attribs {
-    char name[MAX_NAME];
-    char value[MAX_VALUE];
-} Attribs;
-
 typedef enum {
     DEVICE_TYPE_NONE,
     DEVICE_TYPE_DISK,
@@ -403,11 +393,6 @@ extern void display_helpline(WINDOW *w, int y, int width);
 
 /* anonFTP.c */
 extern int	configAnonFTP(dialogMenuItem *self);
-
-/* attrs.c */
-extern char	*attr_match(Attribs *attr, char *name);
-extern int	attr_parse_file(Attribs *attr, char *file);
-extern int	attr_parse(Attribs *attr, FILE *fp);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);
