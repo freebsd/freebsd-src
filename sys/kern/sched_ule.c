@@ -215,6 +215,7 @@ struct kseq {
 	short		ksq_nicemin;		/* Least nice. */
 #ifdef SMP
 	int		ksq_load_transferable;	/* kses that may be migrated. */
+	int		ksq_idled;
 	unsigned int	ksq_rslices;	/* Slices on run queue */
 	int		ksq_cpus;	/* Count of CPUs in this kseq. */
 	struct kse 	*ksq_assigned;	/* KSEs assigned by another CPU. */
@@ -256,10 +257,9 @@ void kseq_print(int cpu);
 static int sched_pickcpu(void);
 #endif
 static struct kse *runq_steal(struct runq *rq);
-static struct kseq *kseq_load_highest(void);
 static void kseq_balance(void *arg);
 static void kseq_move(struct kseq *from, int cpu);
-static int kseq_find(void);
+static __inline void kseq_setidle(struct kseq *kseq);
 static void kseq_notify(struct kse *ke, int cpu);
 static void kseq_assign(struct kseq *);
 static struct kse *kseq_steal(struct kseq *kseq);
@@ -448,35 +448,6 @@ out:
 	return;
 }
 
-static struct kseq *
-kseq_load_highest(void)
-{
-	struct kseq *kseq;
-	int load;
-	int cpu;
-	int i;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	cpu = 0;
-	load = 0;
-
-	for (i = 0; i < mp_maxid; i++) {
-		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
-			continue;
-		kseq = KSEQ_CPU(i);
-		if (kseq->ksq_load > load) {
-			load = kseq->ksq_load;
-			cpu = i;
-		}
-	}
-	kseq = KSEQ_CPU(cpu);
-
-	if (kseq->ksq_load_transferable > kseq->ksq_cpus)
-		return (kseq);
-
-	return (NULL);
-}
-
 static void
 kseq_move(struct kseq *from, int cpu)
 {
@@ -488,37 +459,17 @@ kseq_move(struct kseq *from, int cpu)
 	kseq_rem(from, ke);
 
 	ke->ke_cpu = cpu;
-	sched_add(ke->ke_thread);
+	kseq_notify(ke, cpu);
 }
 
-static int
-kseq_find(void)
+static __inline void
+kseq_setidle(struct kseq *kseq)
 {
-	struct kseq *high;
-
-	if (!smp_started)
-		return (0);
-	if (kseq_idle & PCPU_GET(cpumask))
-		return (0);
-	/*
-	 * Find the cpu with the highest load and steal one proc.
-	 */
-	if ((high = kseq_load_highest()) == NULL ||
-	    high == KSEQ_SELF()) {
-		/*
-		 * If we couldn't find one, set ourselves in the
-		 * idle map.
-		 */
-		atomic_set_int(&kseq_idle, PCPU_GET(cpumask));
-		return (0);
-	}
-	/*
-	 * Remove this kse from this kseq and runq and then requeue
-	 * on the current processor.  We now have a load of one!
-	 */
-	kseq_move(high, PCPU_GET(cpuid));
-
-	return (1);
+	if (kseq->ksq_idled)
+		return;
+	kseq->ksq_idled = 1;
+	atomic_set_int(&kseq_idle, PCPU_GET(cpumask));
+	return;
 }
 
 static void
@@ -661,6 +612,7 @@ kseq_setup(struct kseq *kseq)
 #ifdef SMP
 	kseq->ksq_load_transferable = 0;
 	kseq->ksq_rslices = 0;
+	kseq->ksq_idled = 0;
 	kseq->ksq_assigned = NULL;
 #endif
 }
@@ -1324,7 +1276,6 @@ sched_choose(void)
 	mtx_assert(&sched_lock, MA_OWNED);
 	kseq = KSEQ_SELF();
 #ifdef SMP
-retry:
 	if (kseq->ksq_assigned)
 		kseq_assign(kseq);
 #endif
@@ -1332,8 +1283,7 @@ retry:
 	if (ke) {
 #ifdef SMP
 		if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE)
-			if (kseq_find())
-				goto retry;
+			kseq_setidle(kseq);
 #endif
 		runq_remove(ke->ke_runq, ke);
 		ke->ke_state = KES_THREAD;
@@ -1346,10 +1296,8 @@ retry:
 		return (ke);
 	}
 #ifdef SMP
-	if (kseq_find())
-		goto retry;
+	kseq_setidle(kseq);
 #endif
-
 	return (NULL);
 }
 
@@ -1440,8 +1388,11 @@ sched_add(struct thread *td)
 			return;
 		}
 	}
-	if (class == PRI_TIMESHARE || class == PRI_REALTIME)
+	if (kseq->ksq_idled &&
+	    (class == PRI_TIMESHARE || class == PRI_REALTIME)) {
 		atomic_clear_int(&kseq_idle, PCPU_GET(cpumask));
+		kseq->ksq_idled = 0;
+	}
 #endif
         if (td->td_priority < curthread->td_priority)
                 curthread->td_flags |= TDF_NEEDRESCHED;
