@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.90 1997/09/02 20:06:35 bde Exp $
+ *      $Id: scsiconf.c,v 1.91 1997/09/05 10:16:03 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -384,6 +384,10 @@ static struct scsidevs knowndevs[] =
 	{
 		T_READONLY, T_READONLY, T_REMOV, "NEC",  "CD-ROM DRIVE:210","*",
 		"cd", SC_ONE_LU
+	},
+	{
+		T_READONLY, T_READONLY, T_REMOV, "MEDIAVIS",  "RENO CD-ROMX2A","*",
+		"cd", SC_ONE_LU, CD_Q_NO_START
 	},
 	/*
 	 * Doobe-doo-be doooo
