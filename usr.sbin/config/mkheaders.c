@@ -51,7 +51,7 @@ static const char rcsid[] =
 #include "config.h"
 #include "y.tab.h"
 
-static void do_header(char *, int);
+static int do_header(char *, int);
 static void nocount(char *);
 static char *toheader(char *);
 static char *tomacro(char *);
@@ -75,7 +75,7 @@ headers(void)
 				}
 			}
 			if (fl->f_flags & NEED_COUNT)
-				do_header(fl->f_needs, match);
+				errors += do_header(fl->f_needs, match);
 		}
 	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
@@ -107,7 +107,7 @@ headers(void)
 		errx(1, "%d errors", errors);
 }
 
-static void
+static int
 do_header(char *dev, int match)
 {
 	char *file, *name, *inw;
@@ -116,16 +116,21 @@ do_header(char *dev, int match)
 	FILE *inf, *outf;
 	int inc, oldcount;
 	int count, hicount;
+	int errors;
 
 	/*
 	 * After this loop, "count" will be the actual number of units,
 	 * and "hicount" will be the highest unit declared.  do_header()
 	 * must use this higher of these values.
 	 */
+	errors = 0;
 	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
 		if (eq(dp->d_name, dev)) {
-			count =
-			    dp->d_count != UNKNOWN ? dp->d_count : 1;
+			if (dp->d_count == UNKNOWN) {
+				warnx("Device \"%s\" requires a count", dev);
+				return 1;
+			}
+			count = dp->d_count;
 			break;
 		}
 	}
@@ -142,7 +147,7 @@ do_header(char *dev, int match)
 			err(1, "%s", file);
 		fprintf(outf, "#define %s %d\n", name, count);
 		(void) fclose(outf);
-		return;
+		return 0;
 	}
 	fl_head = NULL;
 	for (;;) {
@@ -177,7 +182,7 @@ do_header(char *dev, int match)
 			free(fl->f_fn);
 			free(fl);
 		}
-		return;
+		return 0;
 	}
 	if (oldcount == -1) {
 		fl = (struct file_list *) malloc(sizeof *fl);
@@ -198,6 +203,7 @@ do_header(char *dev, int match)
 		free(fl);
 	}
 	(void) fclose(outf);
+	return 0;
 }
 
 /*
