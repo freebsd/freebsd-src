@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.25 1997/10/12 20:26:00 phk Exp $
+ * $Id: mbuf.h,v 1.26 1997/12/28 01:04:47 bde Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -59,9 +59,10 @@
  * cltom(x) -	convert cluster # to ptr to beginning of cluster
  */
 #define	mtod(m,t)	((t)((m)->m_data))
-#define	dtom(x)		((struct mbuf *)((long)(x) & ~(MSIZE-1)))
-#define	mtocl(x)	(((u_long)(x) - (u_long)mbutl) >> MCLSHIFT)
-#define	cltom(x)	((caddr_t)((u_long)mbutl + ((u_long)(x) << MCLSHIFT)))
+#define	dtom(x)		((struct mbuf *)((intptr_t)(x) & ~(MSIZE-1)))
+#define	mtocl(x)	(((uintptr_t)(x) - (uintptr_t)mbutl) >> MCLSHIFT)
+#define	cltom(x)	((caddr_t)((uintptr_t)mbutl + \
+			    ((uintptr_t)(x) << MCLSHIFT)))
 
 /* header at beginning of each mbuf: */
 struct m_hdr {
