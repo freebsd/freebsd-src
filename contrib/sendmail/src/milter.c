@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: milter.c,v 8.50.4.33 2000/09/19 19:40:15 gshapiro Exp $";
+static char id[] = "@(#)$Id: milter.c,v 8.50.4.41 2000/12/27 21:35:32 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -22,6 +22,9 @@ static char id[] = "@(#)$Id: milter.c,v 8.50.4.33 2000/09/19 19:40:15 gshapiro E
 #  include <arpa/inet.h>
 # endif /* NETINET || NETINET6 */
 
+#  define SM_FD_SET	FD_SET
+#  define SM_FD_ISSET	FD_ISSET
+#  define SM_FD_SETSIZE	FD_SETSIZE
 
 static void	milter_error __P((struct milter *));
 static int	milter_open __P((struct milter *, bool, ENVELOPE *));
@@ -113,29 +116,28 @@ static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
 **	Assumes 'm' is a milter structure for the current socket.
 */
 
-
-#  define MILTER_TIMEOUT(routine, secs, write) \
+# define MILTER_TIMEOUT(routine, secs, write) \
 { \
 	int ret; \
 	int save_errno; \
 	fd_set fds; \
 	struct timeval tv; \
  \
-	if (m->mf_sock >= FD_SETSIZE) \
+	if (SM_FD_SETSIZE != 0 && m->mf_sock >= SM_FD_SETSIZE) \
 	{ \
 		if (tTd(64, 5)) \
 			dprintf("%s(%s): socket %d is larger than FD_SETSIZE %d\n", \
-				routine, m->mf_name, m->mf_sock, FD_SETSIZE); \
+				routine, m->mf_name, m->mf_sock, SM_FD_SETSIZE); \
 		if (LogLevel > 0) \
 			sm_syslog(LOG_ERR, e->e_id, \
 				  "%s(%s): socket %d is larger than FD_SETSIZE %d\n", \
-				  routine, m->mf_name, m->mf_sock, FD_SETSIZE); \
+				  routine, m->mf_name, m->mf_sock, SM_FD_SETSIZE); \
 		milter_error(m); \
 		return NULL; \
 	} \
  \
 	FD_ZERO(&fds); \
-	FD_SET(m->mf_sock, &fds); \
+	SM_FD_SET(m->mf_sock, &fds); \
 	tv.tv_sec = secs; \
 	tv.tv_usec = 0; \
 	ret = select(m->mf_sock + 1, \
@@ -167,7 +169,7 @@ static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
 		return NULL; \
  \
 	  default: \
-		if (FD_ISSET(m->mf_sock, &fds)) \
+		if (SM_FD_ISSET(m->mf_sock, &fds)) \
 			break; \
 		if (tTd(64, 5)) \
 			dprintf("%s(%s): socket not ready\n", \
@@ -180,7 +182,6 @@ static char *MilterEnvRcptMacros[MAXFILTERMACROS + 1];
 		return NULL; \
 	} \
 }
-
 
 /*
 **  Low level functions
@@ -879,6 +880,9 @@ milter_open(m, parseonly, e)
 						  m->mf_name, at,
 						  hp->h_addrtype);
 				milter_error(m);
+#  if _FFR_FREEHOSTENT && NETINET6
+				freehostent(hp);
+#  endif /* _FFR_FREEHOSTENT && NETINET6 */
 				return -1;
 			}
 		}
@@ -901,6 +905,10 @@ milter_open(m, parseonly, e)
 	if (parseonly)
 	{
 		m->mf_state = SMFS_READY;
+# if _FFR_FREEHOSTENT && NETINET6
+		if (hp != NULL)
+			freehostent(hp);
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 		return 0;
 	}
 
@@ -913,6 +921,10 @@ milter_open(m, parseonly, e)
 			dprintf("milter_open(%s): Trying to open filter in state %c\n",
 				m->mf_name, (char) m->mf_state);
 		milter_error(m);
+# if _FFR_FREEHOSTENT && NETINET6
+		if (hp != NULL)
+			freehostent(hp);
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 		return -1;
 	}
 
@@ -931,6 +943,10 @@ milter_open(m, parseonly, e)
 					  "X%s: error creating socket: %s",
 					  m->mf_name, errstring(save_errno));
 			milter_error(m);
+# if _FFR_FREEHOSTENT && NETINET6
+			if (hp != NULL)
+				freehostent(hp);
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 			return -1;
 		}
 
@@ -983,6 +999,9 @@ milter_open(m, parseonly, e)
 						  m->mf_name, at,
 						  hp->h_addrtype);
 				milter_error(m);
+# if _FFR_FREEHOSTENT && NETINET6
+				freehostent(hp);
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 				return -1;
 			}
 			continue;
@@ -995,9 +1014,20 @@ milter_open(m, parseonly, e)
 				  "X%s: error connecting to filter",
 				  m->mf_name);
 		milter_error(m);
+# if _FFR_FREEHOSTENT && NETINET6
+		if (hp != NULL)
+			freehostent(hp);
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 		return -1;
 	}
 	m->mf_state = SMFS_OPEN;
+# if _FFR_FREEHOSTENT && NETINET6
+	if (hp != NULL)
+	{
+		freehostent(hp);
+		hp = NULL;
+	}
+# endif /* _FFR_FREEHOSTENT && NETINET6 */
 	return sock;
 }
 /*
@@ -1078,7 +1108,7 @@ milter_setup(line)
 			for (; *p != '\0'; p++)
 			{
 				if (!(isascii(*p) && isspace(*p)))
-					setbitn(*p, m->mf_flags);
+					setbitn(bitidx(*p), m->mf_flags);
 			}
 			break;
 
@@ -1549,8 +1579,11 @@ milter_quit_filter(m, e)
 
 	(void) milter_write(m, SMFIC_QUIT, (char *) NULL, 0,
 			    m->mf_timeout[SMFTO_WRITE], e);
-	(void) close(m->mf_sock);
-	m->mf_sock = -1;
+	if (m->mf_sock >= 0)
+	{
+		(void) close(m->mf_sock);
+		m->mf_sock = -1;
+	}
 	if (m->mf_state != SMFS_ERROR)
 		m->mf_state = SMFS_CLOSED;
 }
@@ -1617,7 +1650,7 @@ milter_send_macros(m, macros, cmd, e)
 	for (i = 0; macros[i] != NULL; i++)
 	{
 		mid = macid(macros[i], NULL);
-		if (mid == '\0')
+		if (mid == 0)
 			continue;
 		v = macvalue(mid, e);
 		if (v == NULL)
@@ -1631,7 +1664,7 @@ milter_send_macros(m, macros, cmd, e)
 	for (i = 0; macros[i] != NULL; i++)
 	{
 		mid = macid(macros[i], NULL);
-		if (mid == '\0')
+		if (mid == 0)
 			continue;
 		v = macvalue(mid, e);
 		if (v == NULL)
@@ -1840,6 +1873,13 @@ milter_command(command, data, sz, macros, e, state)
 	for (i = 0; InputFilters[i] != NULL; i++)
 	{
 		struct milter *m = InputFilters[i];
+
+		/* previous problem? */
+		if (m->mf_state == SMFS_ERROR)
+		{
+			MILTER_CHECK_ERROR(continue);
+			break;
+		}
 
 		/* sanity check */
 		if (m->mf_sock < 0 ||
@@ -2282,6 +2322,7 @@ milter_addheader(response, rlen, e)
 	ENVELOPE *e;
 {
 	char *val;
+	HDR *h;
 
 	if (tTd(64, 10))
 		dprintf("milter_addheader: ");
@@ -2319,13 +2360,31 @@ milter_addheader(response, rlen, e)
 		return;
 	}
 
+	for (h = e->e_header; h != NULL; h = h->h_link)
+	{
+		if (strcasecmp(h->h_field, response) == 0 &&
+		    !bitset(H_USER, h->h_flags) &&
+		    !bitset(H_TRACE, h->h_flags))
+			break;
+	}
+
 	/* add to e_msgsize */
 	e->e_msgsize += strlen(response) + 2 + strlen(val);
 
-	if (tTd(64, 10))
-		dprintf("Add %s: %s\n", response, val);
-
-	addheader(newstr(response), val, H_USER, &e->e_header);
+	if (h != NULL)
+	{
+		if (tTd(64, 10))
+			dprintf("Replace default header %s value with %s\n",
+				h->h_field, val);
+		h->h_value = newstr(val);
+		h->h_flags |= H_USER;
+	}
+	else
+	{
+		if (tTd(64, 10))
+			dprintf("Add %s: %s\n", response, val);
+		addheader(newstr(response), val, H_USER, &e->e_header);
+	}
 }
 /*
 **  MILTER_CHANGEHEADER -- Change the supplied header in the message
@@ -2347,7 +2406,7 @@ milter_changeheader(response, rlen, e)
 {
 	mi_int32 i, index;
 	char *field, *val;
-	HDR *h;
+	HDR *h, *sysheader;
 
 	if (tTd(64, 10))
 		dprintf("milter_changeheader: ");
@@ -2389,13 +2448,35 @@ milter_changeheader(response, rlen, e)
 		return;
 	}
 
+	sysheader = NULL;
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
-		if (bitset(H_USER, h->h_flags) &&
-		    strcasecmp(h->h_field, field) == 0 &&
-		    --index <= 0)
-			break;
+		if (strcasecmp(h->h_field, field) == 0)
+		{
+			if (bitset(H_USER, h->h_flags) &&
+			    --index <= 0)
+			{
+				sysheader = NULL;
+				break;
+			}
+			else if (!bitset(H_USER, h->h_flags) &&
+				 !bitset(H_TRACE, h->h_flags))
+			{
+				/*
+				**  DRUMS msg-fmt draft says can only have
+				**  multiple occurences of trace fields,
+				**  so make sure we replace any non-trace,
+				**  non-user field.
+				*/
+
+				sysheader = h;
+			}
+		}
 	}
+
+	/* if not found as user-provided header at index, use sysheader */
+	if (h == NULL)
+		h = sysheader;
 
 	if (h == NULL)
 	{
@@ -2419,19 +2500,22 @@ milter_changeheader(response, rlen, e)
 	{
 		if (*val == '\0')
 		{
-			dprintf("Delete %s: %s\n", field,
+			dprintf("Delete%s %s: %s\n",
+				h == sysheader ? " (default header)" : "",
+				field,
 				h->h_value == NULL ? "<NULL>" : h->h_value);
 		}
 		else
 		{
-			dprintf("Change %s: from %s to %s\n",
+			dprintf("Change%s %s: from %s to %s\n",
+				h == sysheader ? " (default header)" : "",
 				field,
 				h->h_value == NULL ? "<NULL>" : h->h_value,
 				val);
 		}
 	}
 
-	if (h->h_value != NULL)
+	if (h != sysheader && h->h_value != NULL)
 	{
 		e->e_msgsize -= strlen(h->h_value);
 		free(h->h_value);
@@ -2440,12 +2524,14 @@ milter_changeheader(response, rlen, e)
 	if (*val == '\0')
 	{
 		/* Remove "Field: " from message size */
-		e->e_msgsize -= strlen(h->h_field) + 2;
+		if (h != sysheader)
+			e->e_msgsize -= strlen(h->h_field) + 2;
 		h->h_value = NULL;
 	}
 	else
 	{
 		h->h_value = newstr(val);
+		h->h_flags |= H_USER;
 		e->e_msgsize += strlen(h->h_value);
 	}
 }
@@ -2693,17 +2779,8 @@ milter_init(e, state)
 					m->mf_sock < 0 ? "open" : "negotiate");
 
 			/* if negotation failure, close socket */
-			if (m->mf_sock >= 0)
-			{
-				(void) close(m->mf_sock);
-				m->mf_sock = -1;
-			}
 			milter_error(m);
-			if (m->mf_state == SMFS_ERROR)
-			{
-				MILTER_CHECK_ERROR(continue);
-				break;
-			}
+			MILTER_CHECK_ERROR(continue);
 		}
 	}
 
@@ -3086,6 +3163,13 @@ milter_data(e, state)
 		/* Now reset state for later evaluation */
 		*state = SMFIR_CONTINUE;
 		newfilter = TRUE;
+
+		/* previous problem? */
+		if (m->mf_state == SMFS_ERROR)
+		{
+			MILTER_CHECK_ERROR(continue);
+			break;
+		}
 
 		/* sanity checks */
 		if (m->mf_sock < 0 ||

@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.263.2.1.2.21 2000/09/27 16:36:26 ca Exp $
+#	$Id: README,v 8.263.2.1.2.27 2000/12/16 16:46:02 gshapiro Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -593,9 +593,8 @@ SFIO		Uses sfio instead of stdio. sfio is available from AT&T
 		stdio.h must be installed in a subdirectory called sfio,
 		i.e., if you install sfio in /usr/local, stdio.h should
 		be in /usr/local/include/sfio, and libsfio.a should be in
-		/usr/local/lib.  Notice: you may run into problems if
-		you use sfio2000 (the body of a message is lost).  Use
-		sfio1999 instead.
+		/usr/local/lib.  Notice: read the sfio section in
+		OPERATING SYSTEM AND COMPILE QUIRKS.
 
 
 +---------------------+
@@ -629,6 +628,12 @@ different version of the database internally that does not include
 wildcard MX records that match your domain.  ANYTHING ELSE WILL GIVE
 YOU HEADACHES!
 
+When attempting to canonify a hostname, some broken name servers will
+return SERVFAIL (a temporary failure) on T_AAAA (IPv6) lookups.  If you
+want to excuse this behavior, compile sendmail with
+-D_FFR_WORKAROUND_BROKEN_NAMESERVERS.  However, instead, we recommend catching
+the problem and reporting it to the name server administrator so we can rid
+the world of broken name servers.
 
 +----------------------------------------+
 | STARTTLS COMPILATION AND CONFIGURATION |
@@ -917,6 +922,25 @@ Solaris 7 (SunOS 5.7)
 	Also, Sun's patch 107555 is needed to prevent a crash in the call
 	to ldap_set_option for LDAP_OPT_REFERRALS in ldapmap_setopts if
 	LDAP support is compiled in sendmail.
+
+Solaris
+	If you are using dns for hostname resolution on Solaris, make sure
+	that the 'dns' entry is last on the hosts line in
+	'/etc/nsswitch.conf'.  For example, use:
+
+		hosts:	nisplus files dns
+
+	Do not use:
+
+		host:  nisplus dns [NOTFOUND=return] files
+
+	Note that 'nisplus' above is an illustration.  The same comment
+	applies no matter what naming services you are using.  If you have
+	anything other than dns last, even after "[NOTFOUND=return]",
+	sendmail may not be able to determine whether an error was
+	temporary or permanent.  The error returned by the solaris
+	gethostbyname() is the error for the last lookup used, and other
+	naming services do not have the same concept of temporary failure.
 
 Ultrix
 	By default, the IDENT protocol is turned off on Ultrix.  If you
@@ -1247,7 +1271,7 @@ AIX 4.3.3
 	2) Build against a real Bind 8.2.2 include/lib tree
 	3) Wait for IBM to fix it
 
-AIX 4.2
+AIX 4.X
 	The AIX m4 implements a different mechanism for ifdef which is
 	inconsistent with other versions of m4.  Therefore, it will not
 	work properly with the sendmail Build architecture or m4
@@ -1470,9 +1494,30 @@ OpenSSL
 	Do not use 0.9.3, but OpenSSL 0.9.5a or later if compatible with
 	0.9.5a.
 
+sfio
+	You may run into problems if you use sfio2000 (the body of a
+	message is lost).  Use sfio1999 instead; however, it also has
+	a bug that can cause sendmail to fail.  A patch has been provided
+	by Petr Lampa of Brno University of Technology, which is given here:
+
+diff -rc ../../../../sfio/src/lib/sfio/sfputr.c ./sfputr.c
+*** ../../../../sfio/src/lib/sfio/sfputr.c      Tue May 16 18:25:49 2000
+--- ./sfputr.c  Wed Sep 20 09:06:01 2000
+***************
+*** 24,29 ****
+--- 24,30 ----
+        for(w = 0; (*s || rc >= 0); )
+        {       SFWPEEK(f,ps,p);
+
++               if(p == -1) return -1;  /* PL */
+                if(p == 0 || (f->flags&SF_WHOLE) )
+                {       n = strlen(s);
+                        if(p >= (n + (rc < 0 ? 0 : 1)) )
+
+
 PH
 	PH support is provided by Mark Roth <roth@uiuc.edu>.  The map is
-	described at http://www-wsg.cso.uiuc.edu/sendmail/patches/ .
+	described at http://www-dev.cso.uiuc.edu/sendmail/ .
 	Please contact Mark Roth for support and questions regarding the
 	map.
 
@@ -1623,4 +1668,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.263.2.1.2.21 $, last update $Date: 2000/09/27 16:36:26 $ )
+(Version $Revision: 8.263.2.1.2.27 $, last update $Date: 2000/12/16 16:46:02 $ )

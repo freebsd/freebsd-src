@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: main.c,v 8.485.4.27 2000/09/26 01:30:38 gshapiro Exp $";
+static char id[] = "@(#)$Id: main.c,v 8.485.4.38 2000/12/19 02:50:33 gshapiro Exp $";
 #endif /* ! lint */
 
 #define	_DEFINE
@@ -624,6 +624,10 @@ main(argc, argv, envp)
 			setclass('w', ipbuf);
 		}
 #endif /* NETINET || NETINET6 */
+#if _FFR_FREEHOSTENT && NETINET6
+		freehostent(hp);
+		hp = NULL;
+#endif /* _FFR_FREEHOSTENT && NETINET6 */
 	}
 
 	/* current time */
@@ -1540,6 +1544,15 @@ main(argc, argv, envp)
 	{
 		char buf[MAXLINE];
 
+#if _FFR_TESTMODE_DROP_PRIVS
+		dp = drop_privileges(TRUE);
+		if (dp != EX_OK)
+		{
+			CurEnv->e_id = NULL;
+			finis(TRUE, dp);
+		}
+#endif /* _FFR_TESTMODE_DROP_PRIVS */
+
 		if (isatty(fileno(stdin)))
 			Verbose = 2;
 
@@ -1607,6 +1620,16 @@ main(argc, argv, envp)
 		finis(TRUE, ExitStat);
 	}
 #endif /* QUEUE */
+
+# if SASL
+	if (OpMode == MD_SMTP || OpMode == MD_DAEMON)
+	{
+		/* give a syserr or just disable AUTH ? */
+		if ((i = sasl_server_init(srvcallbacks, "Sendmail")) != SASL_OK)
+			syserr("!sasl_server_init failed! [%s]",
+			       sasl_errstring(i, NULL, NULL));
+	}
+# endif /* SASL */
 
 	/*
 	**  If a daemon, wait for a request.
@@ -1760,13 +1783,6 @@ main(argc, argv, envp)
 		define(macid("{client_port}", NULL),
 		       newstr(pbuf), &BlankEnvelope);
 
-#if SASL
-		/* give a syserr or just disable AUTH ? */
-		if ((i = sasl_server_init(srvcallbacks, "Sendmail")) != SASL_OK)
-			syserr("!sasl_server_init failed! [%s]",
-			       sasl_errstring(i, NULL, NULL));
-#endif /* SASL */
-
 		if (OpMode == MD_DAEMON)
 		{
 			/* validate the connection */
@@ -1784,6 +1800,8 @@ main(argc, argv, envp)
 		if (OpMode == MD_SMTP)
 			(void) initsrvtls();
 # endif /* STARTTLS */
+
+
 		smtp(nullserver, *p_flags, CurEnv);
 	}
 #endif /* SMTP */
@@ -2167,7 +2185,7 @@ struct metamac	MetaMacros[] =
 	/* miscellaneous control characters */
 	{ '&', MACRODEXPAND },
 
-	{ '\0' }
+	{ '\0', '\0' }
 };
 
 #define MACBINDING(name, mid) \
@@ -2181,7 +2199,7 @@ initmacros(e)
 	register struct metamac *m;
 	register int c;
 	char buf[5];
-	extern char *MacroName[256];
+	extern char *MacroName[MAXMACROID + 1];
 
 	for (m = MetaMacros; m->metaname != '\0'; m++)
 	{
@@ -2388,7 +2406,18 @@ auth_warning(e, msg, va_alist)
 		static char hostbuf[48];
 
 		if (hostbuf[0] == '\0')
-			(void) myhostname(hostbuf, sizeof hostbuf);
+		{
+			struct hostent *hp;
+
+			hp = myhostname(hostbuf, sizeof hostbuf);
+#if _FFR_FREEHOSTENT && NETINET6
+			if (hp != NULL)
+			{
+				freehostent(hp);
+				hp = NULL;
+			}
+#endif /* _FFR_FREEHOSTENT && NETINET6 */
+		}
 
 		(void) snprintf(buf, sizeof buf, "%s: ", hostbuf);
 		p = &buf[strlen(buf)];
@@ -2782,7 +2811,7 @@ testmodeline(line, e)
 		{
 		  case 'D':
 			mid = macid(&line[2], &delimptr);
-			if (mid == '\0')
+			if (mid == 0)
 				return;
 			translate_dollars(delimptr);
 			define(mid, newstr(delimptr), e);
@@ -2793,7 +2822,7 @@ testmodeline(line, e)
 				return;
 
 			mid = macid(&line[2], &delimptr);
-			if (mid == '\0')
+			if (mid == 0)
 				return;
 			translate_dollars(delimptr);
 			expand(delimptr, exbuf, sizeof exbuf, e);
@@ -2899,12 +2928,12 @@ testmodeline(line, e)
 		if (line[1] == '=')
 		{
 			mid = macid(&line[2], NULL);
-			if (mid != '\0')
+			if (mid != 0)
 				stabapply(dump_class, mid);
 			return;
 		}
 		mid = macid(&line[1], NULL);
-		if (mid == '\0')
+		if (mid == 0)
 			return;
 		p = macvalue(mid, e);
 		if (p == NULL)
@@ -3169,6 +3198,6 @@ dump_class(s, id)
 {
 	if (s->s_type != ST_CLASS)
 		return;
-	if (bitnset(id & 0xff, s->s_class))
+	if (bitnset(bitidx(id), s->s_class))
 		printf("%s\n", s->s_name);
 }

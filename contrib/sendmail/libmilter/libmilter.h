@@ -17,7 +17,7 @@
 # define EXTERN
 # define INIT(x)	= x
 # ifndef lint
-static char MilterlId[] = "@(#)$Id: libmilter.h,v 8.3.6.9 2000/09/01 00:49:04 ca Exp $";
+static char MilterlId[] = "@(#)$Id: libmilter.h,v 8.3.6.10 2000/11/20 21:15:36 ca Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -43,6 +43,13 @@ static char MilterlId[] = "@(#)$Id: libmilter.h,v 8.3.6.9 2000/09/01 00:49:04 ca
 
 # define thread_create(ptid,wr,arg) pthread_create(ptid, NULL, wr, arg)
 # define sthread_get_id()	pthread_self()
+
+typedef pthread_mutex_t smutex_t;
+# define smutex_init(mp)	(pthread_mutex_init(mp, NULL) == 0)
+# define smutex_destroy(mp)	(pthread_mutex_destroy(mp) == 0)
+# define smutex_lock(mp)	(pthread_mutex_lock(mp) == 0)
+# define smutex_unlock(mp)	(pthread_mutex_unlock(mp) == 0)
+# define smutex_trylock(mp)	(pthread_mutex_trylock(mp) == 0)
 
 #include <sys/time.h>
 

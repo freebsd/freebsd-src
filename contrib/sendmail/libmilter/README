@@ -178,6 +178,10 @@ See the sendmail(8) manual page for more information.
 | SOURCE FOR SAMPLE FILTER |
 +--------------------------+
 
+Note that the filter below may not be thread safe on some operating
+systems.  You should check your system man pages for the functions used
+below to verify the functions are thread safe.
+
 /* A trivial filter that logs all email to a file. */
 
 #include <sys/types.h>
@@ -412,4 +416,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.9.2.1.2.12 $, Last updated $Date: 2000/09/19 19:40:13 $
+$Revision: 8.9.2.1.2.13 $, Last updated $Date: 2000/12/29 18:55:23 $

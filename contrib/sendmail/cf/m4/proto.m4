@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.29 2000/09/15 04:45:14 gshapiro Exp $')
+VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.38 2000/12/28 03:37:28 ca Exp $')
 
 MAILER(local)dnl
 
@@ -409,7 +409,7 @@ _OPTION(RefuseLA, `confREFUSE_LA', `12')
 _OPTION(MaxDaemonChildren, `confMAX_DAEMON_CHILDREN', `12')
 
 # maximum number of new connections per second
-_OPTION(ConnectionRateThrottle, `confCONNECTION_RATE_THROTTLE', `3')
+_OPTION(ConnectionRateThrottle, `confCONNECTION_RATE_THROTTLE', `0')
 
 # work recipient factor
 _OPTION(RecipientFactor, `confWORK_RECIPIENT_FACTOR', `30000')
@@ -635,6 +635,7 @@ R$* : $* [ $* ]		$: $1 : $2 [ $3 ] <@>		remark if leading colon
 R$* : $* <@>		$: $2				strip colon if marked
 R$* <@>			$: $1				unmark
 R$* ;			   $1				strip trailing semi
+R$* < $+ :; > $*	$@ $2 :; <@>			catch <list:;>
 R$* < $* ; >		   $1 < $2 >			bogus bracketed semi
 
 # null input now results from list:; syntax
@@ -779,6 +780,9 @@ dnl then $- does not work.
 R$* $| $* < @ $* > $*	$: $2 < @ $[ $3 $] > $4', `dnl')', `dnl
 dnl _NO_CANONIFY_ is not set: canonify unless:
 dnl {daemon_flags} contains CC (do not canonify)
+dnl but add a trailing dot to qualified hostnames so other rules will work
+dnl should we do this for every hostname: even unqualified?
+R$* CC $* $| $* < @ $+.$+ > $*	$: $3 < @ $4.$5 . > $6
 R$* CC $* $| $*			$: $3
 # pass to name server to make hostname canonical
 R$* $| $* < @ $* > $*		$: $2 < @ $[ $3 $] > $4')
@@ -806,6 +810,7 @@ R$* < @ $* . . > $*		$1 < @ $2 . > $3
 ##################################################
 Sfinal=4
 
+R$+ :; <@>		$@ $1 :				handle <list:;>
 R$* <@>			$@				handle <> and list:;
 
 # strip trailing dot off possibly canonical name
@@ -1286,6 +1291,7 @@ R<?> <$+.$+> <$+> <$*> <+ $*>	$: < $(access .$2 $: ? $) > <$1.$2> <$3> <$4> <+ $
 dnl lookup IP address (no check is done whether it is an IP number!)
 R<?> <[$+.$-]> <$+> <$*> <$*>	$@ $>LookUpDomain <[$1]> <$3> <$4> <$5>
 dnl lookup IPv6 address
+R<?> <[$+::$-]> <$+> <$*> <$*>	$: $>LookUpDomain <[$1]> <$3> <$4> <$5>
 R<?> <[$+:$-]> <$+> <$*> <$*>	$: $>LookUpDomain <[$1]> <$3> <$4> <$5>
 dnl not found, but subdomain: try again
 R<?> <$+.$+> <$+> <$*> <$*>	$@ $>LookUpDomain <$2> <$3> <$4> <$5>
@@ -1315,6 +1321,7 @@ R<$+> <$+> <$*> <$- $+>		$: < $(access $5`'_TAG_DELIM_`'$1 $: ? $) > <$1> <$2> <
 dnl lookup without tag
 R<?> <$+> <$+> <$*> <+ $+>	$: < $(access $1 $: ? $) > <$1> <$2> <$3> <+ $4>
 dnl no match; IPv6: remove last part
+R<?> <$+::$-> <$+> <$*> <$*>	$@ $>LookUpAddress <$1> <$3> <$4> <$5>
 R<?> <$+:$-> <$+> <$*> <$*>	$@ $>LookUpAddress <$1> <$3> <$4> <$5>
 dnl no match; IPv4: remove last part
 R<?> <$+.$-> <$+> <$*> <$*>	$@ $>LookUpAddress <$1> <$3> <$4> <$5>
@@ -1682,9 +1689,10 @@ dnl use $# to override further tests (delay_checks): see check_rcpt below
 R$* $| $={TrustAuthMech}	$# RELAYAUTH
 dnl undo addition of ${auth_type}
 R$* $| $*		$: $1
-dnl workspace: localpart<@domain>
+dnl workspace: localpart<@domain> | localpart
 ifelse(defn(`_NO_UUCP_'), `r',
-`R$* ! $* < @ $* >	$: <REMOTE> $2 < @ BANG_PATH >', `dnl')
+`R$* ! $* < @ $* >	$: <REMOTE> $2 < @ BANG_PATH >
+R$* ! $* 		$: <REMOTE> $2 < @ BANG_PATH >', `dnl')
 # anything terminating locally is ok
 ifdef(`_RELAY_ENTIRE_DOMAIN_', `dnl
 R$+ < @ $* $=m >	$@ RELAYTO', `dnl')
@@ -1957,7 +1965,7 @@ R$*		$: $>LookUpDomain <$&{server_name}> <?> <> <! TLS_TRY_TAG>
 R<?>$*		$: $>LookUpAddress <$&{server_addr}> <?> <> <! TLS_TRY_TAG>
 R<?>$*		$: <$(access TLS_TRY_TAG: $: ? $)>
 R<?>$*		$@ OK
-R<NO> <>	$#error $@ 5.7.1 $: "550 do not try TLS with " $&{server_name} " ["$&{server_addr}"]"
+R<NO>$*		$#error $@ 5.7.1 $: "550 do not try TLS with " $&{server_name} " ["$&{server_addr}"]"
 ')dnl
 
 # is connection with client "good" enough? (done in server)
