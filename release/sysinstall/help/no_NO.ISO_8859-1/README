@@ -4,11 +4,11 @@
                                                       \ \___   / |
 Velkommen til 2.0.5 versonen av FreeBSD!  2.0.5 er    /- _  `-/  '
 en midlertidig utgave av FreeBSD som er ment til     (/\/ \ \   /\
-å fylle gapet mellom 2.0R (som var                / /   | `    \
+å fylle gapet mellom 2.0R (som var                   / /   | `    \
 utgitt i Nov 94) og 2.1R, som kommer til             O O   ) /    |
-å bli utgitt sent i Juli d.å..  FreeBSD 2.0.5  `-^--'`<     '
+å bli utgitt sent i Juli d.å..  FreeBSD 2.0.5        `-^--'`<     '
 inneholder mange vesentlige forbedringer til 2.0R,  (_.)  _  )   /
-ikke minst av dem er større stabilitet (med       `.___/`    /
+ikke minst av dem er større stabilitet (med          `.___/`    /
 en betraktelig margin), dusinvis av nye                `-----' /
 momenter og et mye forbedret installasjons<----.     __ / __   \
 program.  Se utgivelse-notatene for mere  <----|====O)))==) \) /====
