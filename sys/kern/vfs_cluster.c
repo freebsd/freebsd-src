@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.26 1995/11/19 20:42:25 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.27 1995/11/20 03:55:48 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -366,7 +366,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 				m = bogus_page;
 			}
 			if ((bp->b_npages == 0) ||
-				(bp->b_pages[bp->b_npages] != m)) {
+				(bp->b_pages[bp->b_npages-1] != m)) {
 				bp->b_pages[bp->b_npages] = m;
 				bp->b_npages++;
 			}
