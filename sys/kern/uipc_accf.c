@@ -65,10 +65,9 @@ SYSCTL_INT(_net_inet_accf, OID_AUTO, unloadable, CTLFLAG_RW, &unloadable, 0,
 	"Allow unload of accept filters (not recommended)");
 
 /*
- * must be passed a malloc'd structure so we don't explode if the kld
- * is unloaded, we leak the struct on deallocation to deal with this,
- * but if a filter is loaded with the same name as a leaked one we re-use
- * the entry.
+ * Must be passed a malloc'd structure so we don't explode if the kld is
+ * unloaded, we leak the struct on deallocation to deal with this, but if a
+ * filter is loaded with the same name as a leaked one we re-use the entry.
  */
 int
 accept_filt_add(struct accept_filter *filt)
@@ -131,17 +130,18 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		MALLOC(p, struct accept_filter *, sizeof(*p), M_ACCF, M_WAITOK);
+		MALLOC(p, struct accept_filter *, sizeof(*p), M_ACCF,
+		    M_WAITOK);
 		bcopy(accfp, p, sizeof(*p));
 		error = accept_filt_add(p);
 		break;
 
 	case MOD_UNLOAD:
 		/*
-		 * Do not support unloading yet. we don't keep track of refcounts
-		 * and unloading an accept filter callback and then having it called
-		 * is a bad thing.  A simple fix would be to track the refcount
-		 * in the struct accept_filter.
+		 * Do not support unloading yet. we don't keep track of
+		 * refcounts and unloading an accept filter callback and then
+		 * having it called is a bad thing.  A simple fix would be to
+		 * track the refcount in the struct accept_filter.
 		 */
 		if (unloadable != 0) {
 			error = accept_filt_del(accfp->accf_name);
