@@ -2135,6 +2135,8 @@ device		usb
 #
 # USB Double Bulk Pipe devices
 device		udbp
+# USB Fm Radio
+device		ufm
 # Generic USB device driver
 device		ugen
 # Human Interface Device (anything with buttons and dials)
@@ -2155,23 +2157,21 @@ device		ums
 device		urio
 # USB scanners
 device		uscanner
+#
 # USB serial support
 device		ucom
+# USB support for Belkin F5U103 and compatible serial adapters
+device		ubsa
+# USB support for BWCT console serial adapters
+device		ubser
 # USB support for serial adapters based on the FT8U100AX and FT8U232AM
 device		uftdi
 # USB support for Prolific PL-2303 serial adapters
 device		uplcom
-# USB support for Belkin F5U103 and compatible serial adapters
-device		ubsa
-# USB serial support for DDI pocket's PHS
-device		uvscom
 # USB Visor and Palm devices
 device		uvisor
-# USB support for BWCT console serial adapters
-device		ubser
-
-# USB Fm Radio
-device		ufm
+# USB serial support for DDI pocket's PHS
+device		uvscom
 #
 # ADMtek USB ethernet. Supports the LinkSys USB100TX,
 # the Billionton USB100, the Melco LU-ATX, the D-Link DSB-650TX
