@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.36 1995/11/03 12:02:30 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.37 1995/11/04 11:08:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -234,16 +234,14 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
     fp = file;
     nretries = 0;
 
-    /* Kludge for init - the FTP get method is the only one that also needs to init.  Grrr! */
     lastRequest = file;
-    if (!dev->init(dev))
-	return -2;
-
     while ((fd = FtpGet(ftp, fp)) < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
-	if (fd == -2) {
+	if (fd == -2 && ++nretries < atoi(variable_get(VAR_FTP_RETRIES))) {
 	    dev->shutdown(dev);
-	    return -2;
+	    /* If we can't re-initialize, just forget it */
+	    if (!dev->init(dev))
+		return -2;
 	}
 	else if (tentative || ftpShouldAbort(dev, ++nretries))
 	    return -1;
