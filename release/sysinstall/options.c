@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.10 1995/10/16 23:02:28 jkh Exp $
+ * $Id: options.c,v 1.11 1995/10/17 02:57:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,19 +63,11 @@ varCheck(Option opt)
     return NULL;
 }
 
-/* Nuke all the flags */
-static int
-resetFlags(char *str)
-{
-    OptFlags = OPT_DEFAULT_FLAGS;
-    return 0;
-}
-
 /* Show our little logo */
 static char *
 resetLogo(char *str)
 {
-    return "[whap!]";
+    return "[WHAP!]";
 }
 
 static Option Options[] = {
@@ -83,7 +75,7 @@ static Option Options[] = {
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NFS_SECURE,		NULL		},
 { "NFS Slow",		"User is using a slow PC or ethernet card",
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_SLOW_ETHER,		NULL		},
-{ "Debugging",		"Emit extra debugging output on VTY1 (ALT-F2)",
+{ "Debugging",		"Emit extra debugging output on VTY2 (ALT-F2)",
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_DEBUG,		NULL		},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_FLAG,	&OptFlags,	(void *)OPT_NO_CONFIRM,		NULL		},
@@ -94,17 +86,19 @@ static Option Options[] = {
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_FUNC,	mediaSetTapeBlocksize,	TAPE_BLOCKSIZE,		varCheck	},
-{ "Detail Level",	"How to display filenames on debug screen as CPIO extracts them",
+      OPT_IS_VAR,	"Please enter the tape block size in 512 byte blocks", TAPE_BLOCKSIZE,		varCheck },
+{ "Extract Detail",	"How verbosely to display file name information during extractions",
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
-      OPT_IS_FUNC,	installSelectRelease,	RELNAME,		varCheck	},
+      OPT_IS_VAR,	"Please specify the release you wish to load", RELNAME,		varCheck },
 { "Browser Pkg",	"This is the browser package that will be used for viewing HTML",
-      OPT_IS_FUNC,	docSelectBrowserPkg,	BROWSER_PACKAGE,	varCheck	},
+      OPT_IS_VAR,	"Please specify the name of the HTML browser package:",	BROWSER_PACKAGE,	varCheck },
 { "Browser Exec",	"This is the path to the main binary of the browser package",
-      OPT_IS_FUNC,	docSelectBrowserBin,	BROWSER_BINARY,		varCheck	},
+      OPT_IS_VAR,	"Please specify a full pathname to the HTML browser binary:", BROWSER_BINARY,	varCheck },
+{ "Config File",	"Name of default configuration file for Load command (top menu)",
+      OPT_IS_VAR,	"Please specify the name of a configuration file", CONFIG_FILE,	varCheck },
 { "Reset Flags",	"Reset all flag values to defaults",
-      OPT_IS_FUNC,	resetFlags,	0,				resetLogo	},
+      OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
 { NULL },
 };
 
@@ -137,6 +131,7 @@ value_of(Option opt)
 	return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
 
     case OPT_IS_FUNC:
+    case OPT_IS_VAR:
 	if (opt.check)
 	    return opt.check(opt);
 	else
@@ -159,6 +154,11 @@ fire(Option opt)
 	int (*cp)(char *) = opt.data;
 
 	cp(NULL);
+    }
+    else if (opt.type == OPT_IS_VAR) {
+	dialog_clear();
+	(void)variable_get_value(opt.aux, opt.data);
+	dialog_clear();
     }
     if (opt.check)
 	opt.check(opt);
@@ -193,7 +193,9 @@ optionsEditor(char *str)
 	    /* Names are painted somewhat gratuitously each time, but it's easier this way */
 	    mvprintw(optrow, OPT_NAME_COL + optcol, Options[i].name);
 	    if (currOpt == i) standout();
+	    attron(A_UNDERLINE);
 	    mvprintw(optrow++, OPT_VALUE_COL + optcol, value_of(Options[i]));
+	    attroff(A_UNDERLINE);
 	    if (currOpt == i) standend();
 	    if (optrow == OPT_END_ROW) {
 		optrow = OPT_START_ROW;
