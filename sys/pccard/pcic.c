@@ -48,7 +48,6 @@
 
 /* Get pnp IDs */
 #include <isa/isavar.h>
-#include <dev/pcic/i82365reg.h>
 
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
