@@ -16,6 +16,9 @@ DPADD+=	${.CURDIR}/../lib/libcron.a
 
 LDADD+=	-lcron
 
+LDADD+= -lutil
+DPADD+= ${LIBUTIL}
+
 BINOWN= root
 BINMODE=4555
 INSTALLFLAGS=-fschg
