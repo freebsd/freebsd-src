@@ -266,6 +266,8 @@ dev/cardbus/cardbus.c	optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/ccd/ccd.c		count ccd
 dev/cs/if_cs.c		optional cs
+dev/dgb/dgb.c		count		dgb
+dev/dgb/dgm.c		count		dgm
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_eisa.c	optional dpt eisa
 dev/dpt/dpt_pci.c	optional dpt pci

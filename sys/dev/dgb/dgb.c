@@ -92,11 +92,11 @@
 #error "The dgb device requires the old isa compatibility shims"
 #endif
 
-#include <gnu/i386/isa/dgbios.h>
-#include <gnu/i386/isa/dgfep.h>
+#include <dev/dgb/dgbios.h>
+#include <dev/dgb/dgfep.h>
 
 #define DGB_DEBUG		/* Enable debugging info via sysctl */
-#include <gnu/i386/isa/dgreg.h>
+#include <dev/dgb/dgreg.h>
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
