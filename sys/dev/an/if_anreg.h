@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 
-#define AN_TIMEOUT	600000
+#define AN_TIMEOUT	65536
 
 /* Default network name: <empty string> */
 #define AN_DEFAULT_NETNAME	""
@@ -460,8 +460,7 @@ struct an_softc	{
 	struct an_ltv_caps	an_caps;
 	struct an_ltv_ssidlist	an_ssidlist;
 	struct an_ltv_aplist	an_aplist;
-        struct an_ltv_key	an_temp_keys;
-        struct an_ltv_key	an_perm_keys;
+        struct an_ltv_key	an_temp_keys[4];
 	int			an_tx_rate;
 	int			an_rxmode;
 	int			an_gone;
@@ -497,8 +496,9 @@ int	an_alloc_port		__P((device_t, int, int));
 int	an_alloc_memory		__P((device_t, int, int));
 int	an_alloc_aux_memory	__P((device_t, int, int));
 int	an_alloc_irq		__P((device_t, int, int));
-int	an_probe	        __P((device_t));
-void	an_shutdown	        __P((device_t));
+int	an_probe		__P((device_t));
+void	an_shutdown		__P((device_t));
+void	an_resume		__P((device_t));
 int	an_attach		__P((struct an_softc *, int, int));
 void    an_stop		        __P((struct an_softc *));
 
