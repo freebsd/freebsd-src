@@ -374,6 +374,7 @@ _sppp=		sppp
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
+_aac=		aac
 _agp=		agp
 _ciss=		ciss
 _drm=		drm
