@@ -44,7 +44,7 @@ stop_cmd=":"
 # Initial interface configuration.
 # N.B. /usr is not mounted.
 #
-start_cmd()
+atm_start()
 {
 	# Locate all probed ATM adapters
 	atmdev=`atm sh stat int | while read dev junk; do
@@ -53,6 +53,9 @@ start_cmd()
 			echo "${dev} "
 			;;
 		hfa[0-9] | hfa[0-9][0-9])
+			echo "${dev} "
+			;;
+		idt[0-9] | idt[0-9][0-9])
 			echo "${dev} "
 			;;
 		*)
