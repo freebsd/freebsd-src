@@ -138,18 +138,20 @@ minor glitch that is generated during program startup.
 speaker device file
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width LC_CTYPE -compact
-.It Ev LC_ALL
-.It Ev LC_CTYPE
-.It Ev LANG
-If one of these variables (in this priority) is set to a locale ending in
+If you
+.Ev LC_CTYPE
+locale codeset is
 .Ql KOI8-R ,
-characters with the high-order bit set are being interpreted as
-Cyrillic characters.  In all other cases, they are being interpreted
+characters with the high-order bit set are interpreted as
+Cyrillic characters.  If you
+.Ev LC_CTYPE
+locale codeset is
+.Ql ISO8859-1
+compatible,
+they are interpreted
 as belonging to the
 .Ql ISO8859-1
 character set.
-.El
 .Sh SEE ALSO
 .Xr speaker 4
 .Sh HISTORY
