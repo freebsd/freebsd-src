@@ -975,7 +975,7 @@ isa_pnp_probe(device_t dev, device_t child, struct isa_pnp_id *ids)
 	if (!idev->id_vendorid)
 		return ENOENT;
 
-	while (ids->ip_id) {
+	while (ids && ids->ip_id) {
 		/*
 		 * Really ought to support >1 compat id per device.
 		 */
