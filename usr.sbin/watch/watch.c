@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/select.h>
 #include <sys/fcntl.h>
@@ -27,12 +28,12 @@
 
 
 #define MSG_INIT	"Snoop started."
-#define MSG_OFLOW	"Snoop stopped due to overflow.Reconnecting."
-#define MSG_CLOSED	"Snoop stopped due to tty close.Reconnecting."
+#define MSG_OFLOW	"Snoop stopped due to overflow. Reconnecting."
+#define MSG_CLOSED	"Snoop stopped due to tty close. Reconnecting."
 #define MSG_CHANGE	"Snoop device change by user request."
 
 
-#define DEV_NAME_LEN	12	/* for /dev/ttyXX++ */
+#define DEV_NAME_LEN	1024	/* for /dev/ttyXX++ */
 #define MIN_SIZE	256
 
 #define CHR_SWITCH	24	/* Ctrl+X	 */
@@ -46,7 +47,7 @@ int             opt_timestamp = 0;
 
 char            dev_name[DEV_NAME_LEN];
 int             snp_io;
-struct snptty   snp_tty;
+dev_t		snp_tty;
 int             std_in = 0, std_out = 1;
 
 
@@ -111,7 +112,7 @@ fatal(buf)
 int
 open_snp()
 {
-	char            snp[DEV_NAME_LEN] = "/dev/snpX";
+	char            *snp = "/dev/snpX";
 	char            c;
 	int             f;
 	for (c = '0'; c <= '9'; c++) {
@@ -174,10 +175,10 @@ ctoh(c)
 void
 detach_snp()
 {
-	struct snptty   st;
-	st.st_type = -1;
-	st.st_unit = -1;
-	ioctl(snp_io, SNPSTTY, &st);
+	dev_t		dev;
+
+	dev = -1;
+	ioctl(snp_io, SNPSTTY, &dev);
 }
 
 void
@@ -194,62 +195,19 @@ void
 set_dev(name)
 	char           *name;
 {
-	char            buf[DEV_NAME_LEN], num[DEV_NAME_LEN];
-	int             unitbase = 0;
+	char            buf[DEV_NAME_LEN];
+	struct stat	sb;
 
 	if (strlen(name) > 5 && !strncmp(name, "/dev/", 5))
 		strcpy(buf, &(name[5]));
 	else
 		strcpy(buf, name);
 
-	if (strlen(buf) < 4)
-		fatal("Bad tty name.");
 
-	if (!strncmp(buf, "tty", 3))
-		switch (buf[3]) {
-		case 'v':
-			snp_tty.st_unit = ctoh(buf[4]);
-			snp_tty.st_type = ST_VTY;
-			goto got_num;
-		case 'r':
-			unitbase += 16;
-		case 'q':
-			unitbase += 16;
-		case 'p':
-			snp_tty.st_unit = ctoh(buf[4]) + unitbase;
-			snp_tty.st_type = ST_PTY;
-			goto got_num;
-		case '0':
-		case 'd':
-			snp_tty.st_unit = ctoh(buf[4]);
-			snp_tty.st_type = ST_SIO;
-			goto got_num;
-		default:
-			fatal("Bad tty name.");
+	if (stat(buf, &sb) < 0)
+		fatal("Bad device name.");
 
-		}
-
-
-	if (!strncmp(buf, "vty", 3)) {
-		strcpy(num, &(buf[3]));
-		snp_tty.st_unit = atoi(num);
-		snp_tty.st_type = ST_VTY;
-		goto got_num;
-	}
-	if (!strncmp(buf, "pty", 3)) {
-		strcpy(num, &(buf[3]));
-		snp_tty.st_unit = atoi(num);
-		snp_tty.st_type = ST_PTY;
-		goto got_num;
-	}
-	if (!strncmp(buf, "sio", 3) || !strncmp(buf, "cua", 3)) {
-		strcpy(num, &(buf[3]));
-		snp_tty.st_unit = atoi(num);
-		snp_tty.st_type = ST_SIO;
-		goto got_num;
-	}
-	fatal("Bad tty name.");
-got_num:
+	snp_tty = sb.st_rdev;
 	attach_snp();
 }
 
