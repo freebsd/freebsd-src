@@ -171,13 +171,6 @@ acd_attach(struct ata_device *atadev)
     else 
 	g_post_event(acd_geom_create, cdp, M_WAITOK, NULL);
 
-    /* use DMA if allowed and if drive/controller supports it */
-    if (atapi_dma && atadev->channel->dma &&
-	(atadev->param->config & ATA_DRQ_MASK) != ATA_DRQ_INTR)
-	atadev->setmode(atadev, ATA_DMA_MAX);
-    else
-	atadev->setmode(atadev, ATA_PIO_MAX);
-
     /* setup the function ptrs */
     atadev->detach = acd_detach;
     atadev->start = acd_start;
