@@ -811,7 +811,6 @@ nd6_lookup(addr6, create, ifp)
 			RTFREE_LOCKED(rt);
 			rt = 0;
 		}
-		RT_UNLOCK(rt);
 	}
 	if (!rt) {
 		if (create && ifp) {
@@ -846,6 +845,7 @@ nd6_lookup(addr6, create, ifp)
 			}
 			if (rt == NULL)
 				return (NULL);
+			RT_LOCK(rt);
 			if (rt->rt_llinfo) {
 				struct llinfo_nd6 *ln =
 				    (struct llinfo_nd6 *)rt->rt_llinfo;
@@ -854,6 +854,7 @@ nd6_lookup(addr6, create, ifp)
 		} else
 			return (NULL);
 	}
+	RT_LOCK_ASSERT(rt);
 	rt->rt_refcnt--;
 	/*
 	 * Validation for the entry.
@@ -877,8 +878,10 @@ nd6_lookup(addr6, create, ifp)
 			    ifp ? if_name(ifp) : "unspec");
 			/* xxx more logs... kazu */
 		}
+		RT_UNLOCK(rt);
 		return (NULL);
 	}
+	RT_UNLOCK(rt);		/* XXX not ready to return rt locked */
 	return (rt);
 }
 
