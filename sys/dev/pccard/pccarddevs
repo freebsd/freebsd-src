@@ -101,7 +101,7 @@ vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
 vendor EMTAC			0xc250	EMTAC Technology Corporation
-vector LINKSYS2			0x0274	The Linksys Group
+vendor LINKSYS2			0x0274  The Linksys Group
 vendor ELSA			0xd601  Elsa 
 
 /*
@@ -344,7 +344,6 @@ product XIRCOM CEM56		0x110b Xircom CreditCard Ethernet + Modem 56
 
 /* ZONET */
 product ZONET ZEN		0x0100	Zonet Zen 10/10
-
 
 /*
  * Cards we know only by their cis, sorted by name.
