@@ -88,12 +88,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_VMPGDATA, "VM pgdata", "XXX: VM pager private data");
 
-extern struct pagerops defaultpagerops;
-extern struct pagerops swappagerops;
-extern struct pagerops vnodepagerops;
-extern struct pagerops devicepagerops;
-extern struct pagerops physpagerops;
-
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int);

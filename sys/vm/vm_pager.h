@@ -63,6 +63,12 @@ struct pagerops {
 	void (*pgo_strategy)(vm_object_t, struct bio *);
 };
 
+extern struct pagerops defaultpagerops;
+extern struct pagerops swappagerops;
+extern struct pagerops vnodepagerops;
+extern struct pagerops devicepagerops;
+extern struct pagerops physpagerops;
+
 /*
  * get/put return values
  * OK	 operation was successful
