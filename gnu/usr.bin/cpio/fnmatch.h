@@ -24,11 +24,11 @@ extern "C" {
 #endif
 
 #if defined (__cplusplus) || (defined (__STDC__) && __STDC__)
-#undef	__P
-#define	__P(args)	args
+#undef	__GNU_P
+#define	__GNU_P(args)	args
 #else /* Not C++ or ANSI C.  */
-#undef	__P
-#define	__P(args)	()
+#undef	__GNU_P
+#define	__GNU_P(args)	()
 /* We can get away without defining `const' here only because in this file
    it is used only inside the prototype for `fnmatch', which is elided in
    non-ANSI C where `const' is problematical.  */
@@ -50,7 +50,7 @@ extern "C" {
 
 /* Match STRING against the filename pattern PATTERN,
    returning zero if it matches, FNM_NOMATCH if not.  */
-extern int fnmatch __P ((const char *__pattern, const char *__string,
+extern int fnmatch __GNU_P ((const char *__pattern, const char *__string,
 			 int __flags));
 
 #ifdef	__cplusplus
