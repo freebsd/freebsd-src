@@ -104,6 +104,9 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 	case 0x71248086:
 		s = "Intel 82810E (i810E GMCH) Host To Hub bridge";
 		break;
+	case 0x11308086:
+		s = "Intel 82815 (i815 GMCH) Host To Hub bridge";
+		break;
 	case 0x71808086:
 		s = "Intel 82443LX (440 LX) host to PCI bridge";
 		break;
