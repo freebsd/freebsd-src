@@ -207,6 +207,7 @@ struct devstat {
 
 #ifdef _KERNEL
 struct buf;
+struct bio;
 void devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		       int unit_number, u_int32_t block_size,
 		       devstat_support_flags flags,
