@@ -50,48 +50,58 @@ void	sx_init(struct sx *sx, const char *description);
 void	sx_destroy(struct sx *sx);
 void	_sx_slock(struct sx *sx, const char *file, int line);
 void	_sx_xlock(struct sx *sx, const char *file, int line);
+int	_sx_try_slock(struct sx *sx, const char *file, int line);
+int	_sx_try_xlock(struct sx *sx, const char *file, int line);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
 
-#define	sx_slock(sx)	_sx_slock((sx), __FILE__, __LINE__)
-#define	sx_xlock(sx)	_sx_xlock((sx), __FILE__, __LINE__)
-#define	sx_sunlock(sx)	_sx_sunlock((sx), __FILE__, __LINE__)
-#define	sx_xunlock(sx)	_sx_xunlock((sx), __FILE__, __LINE__)
+#define	sx_slock(sx)		_sx_slock((sx), __FILE__, __LINE__)
+#define	sx_xlock(sx)		_sx_xlock((sx), __FILE__, __LINE__)
+#define	sx_try_slock(sx)	_sx_try_slock((sx), __FILE__, __LINE__)
+#define	sx_try_xlock(sx)	_sx_try_xlock((sx), __FILE__, __LINE__)
+#define	sx_sunlock(sx)		_sx_sunlock((sx), __FILE__, __LINE__)
+#define	sx_xunlock(sx)		_sx_xunlock((sx), __FILE__, __LINE__)
 
 #ifdef INVARIANTS
 /*
- * SX_ASSERT_SLOCKED() can only detect that at least *some* thread owns an
- * slock, but it cannot guarantee that *this* thread owns an slock.
+ * In the non-WITNESS case, SX_ASSERT_LOCKED() and SX_ASSERT_SLOCKED()
+ * can only detect that at least *some* thread owns an slock, but it cannot
+ * guarantee that *this* thread owns an slock.
  */
-#define	SX_ASSERT_SLOCKED(sx) do {					\
-	mtx_lock(&(sx)->sx_lock);					\
-	_SX_ASSERT_SLOCKED((sx));					\
-	mtx_unlock(&(sx)->sx_lock);					\
+#ifdef WITNESS
+#define	_SX_ASSERT_LOCKED(sx, file, line)				\
+	witness_assert(&(sx)->sx_object, LA_LOCKED, file, line)
+#define _SX_ASSERT_SLOCKED(sx, file, line)				\
+	witness_assert(&(sx)->sx_object, LA_SLOCKED, file, line)
+#else
+#define	_SX_ASSERT_LOCKED(sx, file, line) do {				\
+	KASSERT(((sx)->sx_cnt > 0 || (sx)->sx_xholder == curproc),	\
+	    ("Lock %s not locked @ %s:%d", (sx)->sx_object.lo_name,	\
+	    file, line));						\
 } while (0)
-#define	_SX_ASSERT_SLOCKED(sx) do {					\
-	KASSERT(((sx)->sx_cnt > 0), ("%s: lacking slock %s\n",		\
-	    __FUNCTION__, (sx)->sx_object.lo_name));			\
+#define	_SX_ASSERT_SLOCKED(sx, file, line) do {				\
+	KASSERT(((sx)->sx_cnt > 0), ("Lock %s not share locked @ %s:%d",\
+	    (sx)->sx_object.lo_name, file, line));			\
 } while (0)
+#endif
+#define	SX_ASSERT_LOCKED(sx)	_SX_ASSERT_LOCKED((sx), __FILE__, __LINE__)
+#define	SX_ASSERT_SLOCKED(sx)	_SX_ASSERT_SLOCKED((sx), __FILE__, __LINE__)
 
 /*
  * SX_ASSERT_XLOCKED() detects and guarantees that *we* own the xlock.
  */
-#define	SX_ASSERT_XLOCKED(sx) do {					\
-	mtx_lock(&(sx)->sx_lock);					\
-	_SX_ASSERT_XLOCKED((sx));					\
-	mtx_unlock(&(sx)->sx_lock);					\
-} while (0)
-#define	_SX_ASSERT_XLOCKED(sx) do {					\
+#define	_SX_ASSERT_XLOCKED(sx, file, line) do {				\
 	KASSERT(((sx)->sx_xholder == curproc),				\
-	    ("%s: thread %p lacking xlock %s\n", __FUNCTION__,		\
-	    curproc, (sx)->sx_object.lo_name));				\
+	    ("Lock %s not exclusively locked @ %s:%d",			\
+	    (sx)->sx_object.lo_name, file, line));			\
 } while (0)
+#define SX_ASSERT_XLOCKED(sx)	_SX_ASSERT_XLOCKED((sx), __FILE__, __LINE__)
 
 #else	/* INVARIANTS */
 #define	SX_ASSERT_SLOCKED(sx)
 #define	SX_ASSERT_XLOCKED(sx)
-#define	_SX_ASSERT_SLOCKED(sx)
-#define	_SX_ASSERT_XLOCKED(sx)
+#define	_SX_ASSERT_SLOCKED(sx, file, line)
+#define	_SX_ASSERT_XLOCKED(sx, file, line)
 #endif	/* INVARIANTS */
 
 #endif	/* _KERNEL */
