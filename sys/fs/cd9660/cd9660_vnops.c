@@ -272,7 +272,7 @@ cd9660_read(ap)
 	int seqcount;
 	long size, n, on;
 
-	seqcount = ap->a_ioflag >> 16;
+	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 
 	if (uio->uio_resid == 0)
 		return (0);
