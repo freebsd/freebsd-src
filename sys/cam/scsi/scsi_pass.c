@@ -368,7 +368,7 @@ passopen(dev_t dev, int flags, int fmt, struct thread *td)
 	}
 
 	/*
-	 * Don't allow access when we're running at a high securelvel.
+	 * Don't allow access when we're running at a high securelevel.
 	 */
 	if (securelevel > 1) {
 		splx(s);
