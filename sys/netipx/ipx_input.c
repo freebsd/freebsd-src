@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.15 1998/02/09 06:10:19 eivind Exp $
+ * $Id: ipx_input.c,v 1.16 1998/03/30 09:53:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -107,7 +107,7 @@ ipx_init()
 	ipx_broadnet = *(union ipx_net *)allones;
 	ipx_broadhost = *(union ipx_host *)allones;
 
-	read_random((char *)&ipx_pexseq, sizeof ipx_pexseq);
+	read_random(&ipx_pexseq, sizeof ipx_pexseq);
 	ipxintrq.ifq_maxlen = ipxqmaxlen;
 	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;
 	ipxrawpcb.ipxp_next = ipxrawpcb.ipxp_prev = &ipxrawpcb;

@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.35 1998/03/30 09:52:06 phk Exp $
+ * $Id: if_spppsubr.c,v 1.36 1998/04/04 13:26:03 phk Exp $
  */
 
 #include "opt_inet.h"
@@ -990,7 +990,7 @@ sppp_cisco_input(struct sppp *sp, struct mbuf *m)
 			++sp->pp_loopcnt;
 
 			/* Generate new local sequence number */
-			read_random((char*)&sp->pp_seq, sizeof sp->pp_seq);
+			read_random(&sp->pp_seq, sizeof sp->pp_seq);
 			break;
 		}
 		sp->pp_loopcnt = 0;
@@ -2117,7 +2117,7 @@ sppp_lcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (magic == ~sp->lcp.magic) {
 					if (debug)
 						addlog("magic glitch ");
-					read_random((char*)&sp->lcp.magic, sizeof sp->lcp.magic);
+					read_random(&sp->lcp.magic, sizeof sp->lcp.magic);
 				} else {
 					sp->lcp.magic = magic;
 					if (debug)
@@ -2277,7 +2277,7 @@ sppp_lcp_scr(struct sppp *sp)
 
 	if (sp->lcp.opts & (1 << LCP_OPT_MAGIC)) {
 		if (! sp->lcp.magic)
-			read_random((char*)&sp->lcp.magic, sizeof sp->lcp.magic);
+			read_random(&sp->lcp.magic, sizeof sp->lcp.magic);
 		opt[i++] = LCP_OPT_MAGIC;
 		opt[i++] = 6;
 		opt[i++] = sp->lcp.magic >> 24;
