@@ -1,7 +1,7 @@
 /*-
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.22 1997/10/12 20:24:35 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.23 1997/10/16 06:29:27 julian Exp $
  *
  *
  */
@@ -36,7 +36,6 @@ devfs_init(struct vfsconf *vfsp)
 	 * we could almost use vfs_rootmountalloc() to do this.
 	 */
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
-	(void)vfs_busy(mp, LK_NOWAIT, 0, NULL);
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
@@ -46,7 +45,7 @@ devfs_init(struct vfsconf *vfsp)
 
 	/* Mark a reference for the "invisible" blueprint mount */
 	mp->mnt_vfc->vfc_refcount++;
-	/*CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);*/
+	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 
 	printf("DEVFS: ready to run\n");
 	return 0; /*XXX*/
@@ -95,7 +94,7 @@ DBPRINT(("mount "));
 		return (ENOMEM);
 	bzero(devfs_mp_p,sizeof(*devfs_mp_p));
 	devfs_mp_p->mount = mp;
-	mp->mnt_data = devfs_mp_p;
+	mp->mnt_data = (void *)devfs_mp_p;
 
 	/*-
 	 *  Fill out some fields

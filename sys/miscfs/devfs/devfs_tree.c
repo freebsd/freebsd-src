@@ -1,8 +1,8 @@
-#define SPLIT_DEVS 1
+/*#define SPLIT_DEVS 1*/
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.45 1997/10/12 22:27:11 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.46 1997/10/16 06:29:27 julian Exp $
  */
 
 #include "opt_devfs.h"
