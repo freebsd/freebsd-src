@@ -30,7 +30,6 @@
 #include <dev/ppbus/ppbconf.h>
 #include "ppbus_if.h"
 #include <dev/ppbus/ppbio.h>
-#include "pps.h"
 
 #define PPS_NAME	"pps"		/* our official name */
 
