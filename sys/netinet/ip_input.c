@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.36 1996/02/23 15:47:53 phk Exp $
+ * $Id: ip_input.c,v 1.37 1996/02/24 00:17:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ dummy_ip_fw_chk(m, ip, rif, dir)
 int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, int dir) = 
 	dummy_ip_fw_chk;
 
-int (*ip_fw_ctl_ptr)(int, struct mbuf *);
+int (*ip_fw_ctl_ptr)(int, struct mbuf **);
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -190,7 +190,7 @@ ip_input(struct mbuf *m)
 	register struct ip *ip;
 	register struct ipq *fp;
 	register struct in_ifaddr *ia;
-	int hlen, s;
+	int hlen;
 
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)

@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.30 1996/02/23 20:11:37 phk Exp $
+ *	$Id: ip_fw.c,v 1.31 1996/02/24 00:17:32 phk Exp $
  */
 
 /*
@@ -42,7 +42,6 @@ static int fw_verbose = 1;
 static int fw_verbose = 0;
 #endif
 
-u_short ip_fw_policy = IP_FW_P_DENY;
 
 LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain;
 
@@ -70,6 +69,9 @@ static int	port_match __P((u_short *portptr, int nports, u_short port,
 				int range_flag));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static void	ipfw_report __P((char *txt, int rule, struct ip *ip));
+
+static int (*old_chk_ptr)(struct mbuf *, struct ip *,struct ifnet *, int dir);
+static int (*old_ctl_ptr)(int,struct mbuf **);
 
 /*
  * Returns 1 if the port is matched by the vector, 0 otherwise
@@ -140,7 +142,7 @@ ipopts_match(ip, f)
 		else {
 			optlen = cp[IPOPT_OLEN];
 			if (optlen <= 0 || optlen > cnt) {
-				goto bad;
+				return 0; /*XXX*/
 			}
 		}
 		switch (opt) {
@@ -174,12 +176,6 @@ ipopts_match(ip, f)
 		return 1;
 	else
 		return 0;
-bad:
-	if (ip_fw_policy & IP_FW_P_MBIPO)
-		return 1;
-	else
-		return 0;
-
 }
 
 static void
@@ -570,10 +566,26 @@ check_ipfw_struct(m)
 }
 
 int
-ip_fw_ctl(stage, m)
+ip_fw_ctl(stage, mm)
 	int stage;
-	struct mbuf *m;
+	struct mbuf **mm;
 {
+	int error;
+	struct mbuf *m;
+
+	if (stage == IP_FW_GET) {
+		struct ip_fw_chain *fcp = ip_fw_chain.lh_first;
+		*mm = m = m_get(M_WAIT, MT_SOOPTS);
+		for (; fcp; fcp = fcp->chain.le_next) {
+			memcpy(m->m_data, fcp->rule, sizeof *(fcp->rule));
+			m->m_len = sizeof *(fcp->rule);
+			m->m_next = m_get(M_WAIT, MT_SOOPTS);
+			m = m->m_next;
+			m->m_len = 0;
+		}
+		return (0);
+	}
+	m = *mm;
 	if (stage == IP_FW_FLUSH) {
 		while (ip_fw_chain.lh_first != NULL && 
 		    ip_fw_chain.lh_first->rule->fw_number != (u_short)-1) {
@@ -582,12 +594,14 @@ ip_fw_ctl(stage, m)
 			free(fcp->rule, M_IPFW);
 			free(fcp, M_IPFW);
 		}
+		if (m) (void)m_free(m);
 		return (0);
 	}
 	if (stage == IP_FW_ZERO) {
 		struct ip_fw_chain *fcp;
 		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
+		if (m) (void)m_free(m);
 		return (0);
 	}
 	if (m == NULL) {
@@ -598,15 +612,20 @@ ip_fw_ctl(stage, m)
 	if (stage == IP_FW_ADD || stage == IP_FW_DEL) {
 		struct ip_fw *frwl = check_ipfw_struct(m);
 
-		if (!frwl)
+		if (!frwl) {
+			if (m) (void)m_free(m);
 			return (EINVAL);
+		}
 
 		if (stage == IP_FW_ADD)
-			return (add_entry(&ip_fw_chain, frwl));
+			error = add_entry(&ip_fw_chain, frwl);
 		else
-			return (del_entry(&ip_fw_chain, frwl));
+			error = del_entry(&ip_fw_chain, frwl);
+		if (m) (void)m_free(m);
+		return error;
 	}
 	dprintf(("ip_fw_ctl:  unknown request %d\n", stage));
+	if (m) (void)m_free(m);
 	return (EINVAL);
 }
 
@@ -615,15 +634,71 @@ ip_fw_init(void)
 {
 	struct ip_fw deny;
 
-	ip_fw_chk_ptr=&ip_fw_chk;
-	ip_fw_ctl_ptr=&ip_fw_ctl;
+	ip_fw_chk_ptr = ip_fw_chk;
+	ip_fw_ctl_ptr = ip_fw_ctl;
 	LIST_INIT(&ip_fw_chain);
 
 	bzero(&deny, sizeof deny);
 	deny.fw_flg = IP_FW_F_ALL;
 	deny.fw_number = (u_short)-1;
-
 	add_entry(&ip_fw_chain, &deny);
 	
 	printf("IP firewall initialized\n");
 }
+
+#ifdef ACTUALLY_LKM_NOT_KERNEL
+
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+MOD_MISC(ipfw);
+
+static int
+ipfw_load(struct lkm_table *lkmtp, int cmd)
+{
+	int s=splnet();
+	struct ip_fw deny;
+
+        old_chk_ptr = ip_fw_chk_ptr;
+        old_ctl_ptr = ip_fw_ctl_ptr;
+	ip_fw_chk_ptr = ip_fw_chk;
+	ip_fw_ctl_ptr = ip_fw_ctl;
+
+	LIST_INIT(&ip_fw_chain);
+	bzero(&deny, sizeof deny);
+	deny.fw_flg = IP_FW_F_ALL;
+	deny.fw_number = (u_short)-1;
+	add_entry(&ip_fw_chain, &deny);
+
+	splx(s);
+	printf("IP firewall loaded\n");
+	return 0;
+}
+
+static int
+ipfw_unload(struct lkm_table *lkmtp, int cmd)
+{
+	int s=splnet();
+
+	ip_fw_chk_ptr =  old_chk_ptr;
+	ip_fw_ctl_ptr =  old_ctl_ptr;
+
+	while (ip_fw_chain.lh_first != NULL) {
+		struct ip_fw_chain *fcp = ip_fw_chain.lh_first;
+		LIST_REMOVE(ip_fw_chain.lh_first, chain);
+		free(fcp->rule, M_IPFW);
+		free(fcp, M_IPFW);
+	}
+	
+	splx(s);
+	printf("IP firewall unloaded\n");
+	return 0;
+}
+
+int
+ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, lkm_nullcmd);
+}
+#endif

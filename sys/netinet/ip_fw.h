@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.15 1996/02/23 15:47:52 phk Exp $
+ *	$Id: ip_fw.h,v 1.16 1996/02/24 00:17:33 phk Exp $
  */
 
 /*
@@ -115,15 +115,7 @@ struct ip_fw_chain {
 #define IP_FW_DEL     (IP_FW_BASE_CTL+1)
 #define IP_FW_FLUSH   (IP_FW_BASE_CTL+2)
 #define IP_FW_ZERO    (IP_FW_BASE_CTL+3)
-
-/*
- * Policy flags...
- */
-#define IP_FW_P_DENY		0x01
-#define IP_FW_P_ICMP		0x02
-#define IP_FW_P_MBIPO		0x04
-#define IP_FW_P_MASK		0x07
-
+#define IP_FW_GET     (IP_FW_BASE_CTL+4)
 
 /*
  * Main firewall chains definitions and global var's definitions.
@@ -134,7 +126,7 @@ struct ip_fw_chain {
  * Function pointers.
  */
 extern int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *,struct ifnet *, int dir);
-extern int (*ip_fw_ctl_ptr)(int,struct mbuf *);
+extern int (*ip_fw_ctl_ptr)(int,struct mbuf **);
 
 /*
  * Function definitions.
