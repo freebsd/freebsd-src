@@ -33,7 +33,7 @@ static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro
 static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id: rstat_proc.c,v 1.8 1997/11/26 07:34:55 charnier Exp $";
+	"$Id: rstat_proc.c,v 1.9 1998/01/07 07:50:59 charnier Exp $";
 #endif
 
 /*
@@ -122,7 +122,9 @@ stat_init()
 }
 
 statstime *
-rstatproc_stats_3()
+rstatproc_stats_3_svc(argp, rqstp)
+    void			*argp;
+    struct svc_req		*rqstp;
 {
     if (! stat_is_init)
         stat_init();
@@ -131,7 +133,9 @@ rstatproc_stats_3()
 }
 
 statsswtch *
-rstatproc_stats_2()
+rstatproc_stats_2_svc(argp, rqstp)
+    void			*argp;
+    struct svc_req		*rqstp;
 {
     if (! stat_is_init)
         stat_init();
@@ -140,7 +144,9 @@ rstatproc_stats_2()
 }
 
 stats *
-rstatproc_stats_1()
+rstatproc_stats_1_svc(argp, rqstp)
+    void			*argp;
+    struct svc_req		*rqstp;
 {
     if (! stat_is_init)
         stat_init();
@@ -149,7 +155,9 @@ rstatproc_stats_1()
 }
 
 u_int *
-rstatproc_havedisk_3()
+rstatproc_havedisk_3_svc(argp, rqstp)
+    void			*argp;
+    struct svc_req		*rqstp;
 {
     static u_int have;
 
@@ -161,15 +169,19 @@ rstatproc_havedisk_3()
 }
 
 u_int *
-rstatproc_havedisk_2()
+rstatproc_havedisk_2_svc(argp, rqstp)
+    void			*argp;
+    struct svc_req		*rqstp;
 {
-    return(rstatproc_havedisk_3());
+    return(rstatproc_havedisk_3_svc(argp, rqstp));
 }
 
 u_int *
-rstatproc_havedisk_1()
+rstatproc_havedisk_1_svc(argp, rqstp)
+    void			*argp;
+    struct svc_req		*rqstp;
 {
-    return(rstatproc_havedisk_3());
+    return(rstatproc_havedisk_3_svc(argp, rqstp));
 }
 
 void
@@ -362,13 +374,13 @@ rstat_service(rqstp, transp)
 		xdr_result = xdr_statstime;
                 switch (rqstp->rq_vers) {
                 case RSTATVERS_ORIG:
-                        local = (char *(*)()) rstatproc_stats_1;
+                        local = (char *(*)()) rstatproc_stats_1_svc;
                         break;
                 case RSTATVERS_SWTCH:
-                        local = (char *(*)()) rstatproc_stats_2;
+                        local = (char *(*)()) rstatproc_stats_2_svc;
                         break;
                 case RSTATVERS_TIME:
-                        local = (char *(*)()) rstatproc_stats_3;
+                        local = (char *(*)()) rstatproc_stats_3_svc;
                         break;
                 default:
                         svcerr_progvers(transp, RSTATVERS_ORIG, RSTATVERS_TIME);
@@ -382,13 +394,13 @@ rstat_service(rqstp, transp)
 		xdr_result = xdr_u_int;
                 switch (rqstp->rq_vers) {
                 case RSTATVERS_ORIG:
-                        local = (char *(*)()) rstatproc_havedisk_1;
+                        local = (char *(*)()) rstatproc_havedisk_1_svc;
                         break;
                 case RSTATVERS_SWTCH:
-                        local = (char *(*)()) rstatproc_havedisk_2;
+                        local = (char *(*)()) rstatproc_havedisk_2_svc;
                         break;
                 case RSTATVERS_TIME:
-                        local = (char *(*)()) rstatproc_havedisk_3;
+                        local = (char *(*)()) rstatproc_havedisk_3_svc;
                         break;
                 default:
                         svcerr_progvers(transp, RSTATVERS_ORIG, RSTATVERS_TIME);
@@ -402,7 +414,7 @@ rstat_service(rqstp, transp)
 		goto leave;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
 		svcerr_decode(transp);
 		goto leave;
 	}
@@ -410,7 +422,7 @@ rstat_service(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument))
+	if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument))
 		errx(1, "unable to free arguments");
 leave:
         if (from_inetd)
