@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.25.2.2 1999/05/10 13:27:37 peter Exp $
+ * $Id: pcivar.h,v 1.25.2.3 1999/06/01 06:52:21 roger Exp $
  *
  */
 
@@ -235,8 +235,8 @@ int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
-pcici_t pci_get_parent_bridge(pcici_t tag);
-int     pci_get_bus(pcici_t tag);
+pcici_t pci_get_parent_from_tag(pcici_t tag);
+int     pci_get_bus_from_tag(pcici_t tag);
 
 
 #ifndef COMPAT_PCI_DRIVER	/* 4.0 compat */
