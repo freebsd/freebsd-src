@@ -334,8 +334,10 @@ ${1}_isa_identify (driver_t *driver, device_t parent)
 /* XXX look at dev/acpica/acpi_isa.c for use of ISA_ADD_CONFIG() macro */
 /* XXX What is ISA_SET_CONFIG_CALLBACK(parent, child, pnpbios_set_config, 0) ?*/
 	for (i = 0; i < MAXHINTS; i++) {
-		if (((ioport = res[i].ioport) == 0)
-		&&  ((irq = res[i].irq) == 0)) {
+
+		ioport = res[i].ioport;
+		irq = res[i].irq;
+		if ((ioport == 0) &&  (irq == 0)) {
 			return; /* we've added all our local hints */
 		}
 
@@ -393,6 +395,14 @@ ${1}_isa_probe (device_t device)
 	 * error == ENXIO,	It is a PNP device but not in out table.
 	 * error == ENOENT,	I is not a PNP device.. try heuristic probes.
 	 *    -- logic from if_ed_isa.c, added info from isa/isa_if.m:
+	 *
+	 * If we had a list of devices that we could handle really well,
+	 * and a list which we could handle only basic functions, then
+	 * we would call this twice, once for each list,
+	 * and return a value of '-2' or something if we could
+	 * only handle basic functions. This would allow a specific
+	 * Widgetplus driver to make a better offer if it knows how to
+	 * do all the extended functions. (see non-pnp part for more info)
 	 */
 	error = ISA_PNP_PROBE(parent, device, ${1}_ids);
 	switch (error) {
@@ -409,29 +419,42 @@ ${1}_isa_probe (device_t device)
 		 * in case we are looking for an old pre-PNP card.
 		 * 
 		 * Hopefully the  'identify' routine will have picked these
-		 * up for us first.
+		 * up for us first if they use some proprietary detection
+		 * method.
 		 *
-		 * The ports etc should come from a 'hints' section
+		 * The ports, irqs etc should come from a 'hints' section
 		 * which is read in by code in isa/isahint.c
 		 * and kern/subr_bus.c to create resource entries,
 		 * or have been added by the 'identify routine above.
-		 *
-		 * First make a temporary resource reservation.
+		 * Note that HINTS based resourse requests have NO
+		 * SIZE for the memory or ports requests  (just a base)
+		 * so we may need to 'correct' this before we
+		 * do any probing.
+		 */
+		/*
+		 * find out the values of any resources we
+		 * need for our dumb probe. Also check we have enough ports 
+		 * in the request. (could be hints based). 
+		 * Should probably do the same for memory regions too.
+		 */
+		error = bus_get_resource(device, SYS_RES_IOPORT, 0,
+			&port_start, &port_count);
+		if (port_count != NUMPORTS) {
+			bus_set_resource(device, SYS_RES_IOPORT, 0,
+			port_start, NUMPORTS);
+		}
+
+		/*
+		 * Make a temporary resource reservation.
 		 * If we can't get the resources we need then
 		 * we need to abort.  Possibly this indicates
-		 * the resources were used by another device.
+		 * the resources were used by another device
+		 * in which case the probe would have failed anyhow.
 		 */
 		if ((error = (${1}_allocate_resources(device)))) {
 			error = ENXIO;
 			goto errexit;
 		}
-
-		/*
-		 * find out the values of any resources we
-		 * need for our dumb probe.
-		 */
-		error = bus_get_resource(device, SYS_RES_IOPORT, 0,
-			&port_start, &port_count);
 
 		/* dummy heuristic type probe */
 		if ( inb(port_start) != EXPECTED_VALUE) {
@@ -452,14 +475,16 @@ ${1}_isa_probe (device_t device)
 			error = bus_set_resource(device, SYS_RES_MEMORY,
 				/*rid*/0, membase, memsize);
 			/*
-			 * We found one..
+			 * We found one, return non-positive numbers..
+			 * Return -N if we cant handle it, but not well.
 			 * Return -2 if we would LIKE the device
 			 * Return -1 if we want it a lot
 			 * Return 0 if we MUST get the device
 			 * This allows drivers to 'bid' for a device.
 			 */
 			device_set_desc(device, "ACME Widget model 1234");
-			error = 0; /* we really want it */
+			error = -1; /* we want it but someone else
+					may be even better */
 		}
 		/*
 		 * Unreserve the resources for now because
@@ -551,6 +576,16 @@ static struct _pcsid
 	{ 0x00000000,	NULL					}
 };
 
+/*
+ * See if this card is specifically mentionned in our list of known devices.
+ * Theoretically we might also put in a weak bid for some devices that
+ * report themselves o be some generic type of device if we can handle
+ * that generic type. (other PCI_XXX calls give that info).
+ * This would allow a specific driver to over-ride us.
+ *
+ * See the comments in the ISA section regarding returning non-positive
+ * values from probe routines.
+ */
 static int
 ${1}_pci_probe (device_t device)
 {
@@ -561,7 +596,7 @@ ${1}_pci_probe (device_t device)
 		++ep;
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
-		return 0;
+		return 0; /* If there may be a better driver, return -2 */
 	} else {
 		return ENXIO;
 	}
@@ -738,12 +773,12 @@ ${1}_deallocate_resources(device_t device)
 			scp->rid_ioport, scp->res_ioport);
 		scp->res_ioport = 0;
 	}
-	if (scp->res_ioport != 0) {
+	if (scp->res_memory != 0) {
 		bus_deactivate_resource(device, SYS_RES_MEMORY,
 			scp->rid_memory, scp->res_memory);
 		bus_release_resource(device, SYS_RES_MEMORY,
 			scp->rid_memory, scp->res_memory);
-		scp->res_ioport = 0;
+		scp->res_memory = 0;
 	}
 	if (scp->res_drq != 0) {
 		bus_deactivate_resource(device, SYS_RES_DRQ,
