@@ -198,9 +198,10 @@ _fetch_default_proxy_port(const char *scheme)
 /*
  * Establish a TCP connection to the specified port on the specified host.
  */
-int
+conn_t *
 _fetch_connect(const char *host, int port, int af, int verbose)
 {
+	conn_t *conn;
 	char pbuf[10];
 	struct addrinfo hints, *res, *res0;
 	int sd, err;
@@ -218,7 +219,7 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 	hints.ai_protocol = 0;
 	if ((err = getaddrinfo(host, pbuf, &hints, &res0)) != 0) {
 		_netdb_seterr(err);
-		return (-1);
+		return (NULL);
 	}
 
 	if (verbose)
@@ -237,10 +238,23 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 	freeaddrinfo(res0);
 	if (sd == -1) {
 		_fetch_syserr();
-		return (-1);
+		return (NULL);
 	}
 
-	return (sd);
+	/* allocate and fill connection structure */
+	if ((conn = calloc(1, sizeof *conn)) == NULL) {
+		close(sd);
+		return (NULL);
+	}
+	if ((conn->host = strdup(host)) == NULL) {
+		free(conn);
+		close(sd);
+		return (NULL);
+	}
+	conn->port = port;
+	conn->af = af;
+	conn->sd = sd;
+	return (conn);
 }
 
 
@@ -250,23 +264,23 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 #define MIN_BUF_SIZE 1024
 
 int
-_fetch_getln(int fd, char **buf, size_t *size, size_t *len)
+_fetch_getln(conn_t *conn)
 {
 	struct timeval now, timeout, wait;
 	fd_set readfds;
 	int r;
 	char c;
 
-	if (*buf == NULL) {
-		if ((*buf = malloc(MIN_BUF_SIZE)) == NULL) {
+	if (conn->buf == NULL) {
+		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
 			errno = ENOMEM;
 			return (-1);
 		}
-		*size = MIN_BUF_SIZE;
+		conn->bufsize = MIN_BUF_SIZE;
 	}
 
-	**buf = '\0';
-	*len = 0;
+	conn->buf[0] = '\0';
+	conn->buflen = 0;
 
 	if (fetchTimeout) {
 		gettimeofday(&timeout, NULL);
@@ -276,7 +290,7 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 
 	do {
 		if (fetchTimeout) {
-			FD_SET(fd, &readfds);
+			FD_SET(conn->sd, &readfds);
 			gettimeofday(&now, NULL);
 			wait.tv_sec = timeout.tv_sec - now.tv_sec;
 			wait.tv_usec = timeout.tv_usec - now.tv_usec;
@@ -288,17 +302,17 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 				errno = ETIMEDOUT;
 				return (-1);
 			}
-			r = select(fd+1, &readfds, NULL, NULL, &wait);
+			r = select(conn->sd + 1, &readfds, NULL, NULL, &wait);
 			if (r == -1) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
 				/* EBADF or EINVAL: shouldn't happen */
 				return (-1);
 			}
-			if (!FD_ISSET(fd, &readfds))
+			if (!FD_ISSET(conn->sd, &readfds))
 				continue;
 		}
-		r = read(fd, &c, 1);
+		r = read(conn->sd, &c, 1);
 		if (r == 0)
 			break;
 		if (r == -1) {
@@ -307,21 +321,24 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
 			/* any other error is bad news */
 			return (-1);
 		}
-		(*buf)[*len] = c;
-		*len += 1;
-		if (*len == *size) {
+		conn->buf[conn->buflen++] = c;
+		if (conn->buflen == conn->bufsize) {
 			char *tmp;
+			size_t tmpsize;
 
-			if ((tmp = realloc(*buf, *size * 2 + 1)) == NULL) {
+			tmp = conn->buf;
+			tmpsize = conn->bufsize * 2 + 1;
+			if ((tmp = realloc(tmp, tmpsize)) == NULL) {
 				errno = ENOMEM;
 				return (-1);
 			}
-			*buf = tmp;
-			*size = *size * 2 + 1;
+			conn->buf = tmp;
+			conn->bufsize = tmpsize;
 		}
 	} while (c != '\n');
 
-	DEBUG(fprintf(stderr, "<<< %.*s", (int)*len, *buf));
+	conn->buf[conn->buflen] = '\0';
+	DEBUG(fprintf(stderr, "<<< %s", conn->buf));
 	return (0);
 }
 
@@ -331,7 +348,7 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
  * XXX currently does not enforce timeout
  */
 int
-_fetch_putln(int fd, const char *str, size_t len)
+_fetch_putln(conn_t *conn, const char *str, size_t len)
 {
 	struct iovec iov[2];
 	ssize_t wlen;
@@ -342,11 +359,26 @@ _fetch_putln(int fd, const char *str, size_t len)
 	iov[1].iov_base = (char *)ENDL;
 	iov[1].iov_len = sizeof ENDL;
 	len += sizeof ENDL;
-	wlen = writev(fd, iov, 2);
+	wlen = writev(conn->sd, iov, 2);
 	if (wlen < 0 || (size_t)wlen != len)
 		return (-1);
-	DEBUG(fprintf(stderr, ">>> %s\n", str));
+	DEBUG(fprintf(stderr, ">>> %.*s\n", (int)len, str));
 	return (0);
+}
+
+
+/*
+ * Close connection
+ */
+int
+_fetch_close(conn_t *conn)
+{
+	int ret;
+
+	ret = close(conn->sd);
+	free(conn->host);
+	free(conn);
+	return (ret);
 }
 
 

@@ -36,6 +36,28 @@
 #define FTP_DEFAULT_PROXY_PORT	21
 #define HTTP_DEFAULT_PROXY_PORT	3128
 
+#include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+/* Connection */
+typedef struct fetchconn conn_t;
+struct fetchconn {
+	char		*host;		/* host name */
+	int		 port;		/* port */
+	int		 af;		/* address family */
+	int		 sd;		/* socket descriptor */
+	char		*buf;		/* buffer */
+	size_t		 bufsize;	/* buffer size */
+	size_t		 buflen;	/* length of buffer contents */
+	int		 err;		/* last protocol reply code */
+	SSL		*ssl_ctx;	/* SSL context if needed */
+	X509		*ssl_cert;	/* server certificate */
+	SSL_METHOD	*ssl_meth;	/* SSL method */
+};
+
 /* Structure used for error message lists */
 struct fetcherr {  
 	const int	 num;
@@ -48,9 +70,10 @@ void		 _fetch_syserr(void);
 void		 _fetch_info(const char *, ...);
 int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
-int		 _fetch_connect(const char *, int, int, int);
-int		 _fetch_getln(int, char **, size_t *, size_t *);
-int		 _fetch_putln(int, const char *, size_t);
+conn_t		*_fetch_connect(const char *, int, int, int);
+int		 _fetch_getln(conn_t *);
+int		 _fetch_putln(conn_t *, const char *, size_t);
+int		 _fetch_close(conn_t *);
 int		 _fetch_add_entry(struct url_ent **, int *, int *,
 		     const char *, struct url_stat *);
 
