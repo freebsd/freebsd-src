@@ -34,14 +34,14 @@
         ..
     ..
 /set gname=games
-    games
+    games	mode=0775
         hackdir         mode=0770
             save            mode=0770
             ..
         ..
-        larn
+        larn	mode=0775
         ..
-        phantasia
+        phantasia	mode=0775
         ..
     ..
 /set gname=wheel
