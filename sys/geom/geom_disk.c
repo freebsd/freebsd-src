@@ -36,7 +36,6 @@
  */
 
 #include "opt_geom.h"
-#ifndef NO_GEOM
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -67,6 +66,20 @@ struct g_class g_disk_class = {
 
 DECLARE_GEOM_CLASS(g_disk_class, g_disk);
 
+static void __inline
+g_disk_lock_giant(struct disk *dp)
+{
+	if (!(dp->d_devsw->d_flags & D_NOGIANT))
+		mtx_lock(&Giant);
+}
+
+static void __inline
+g_disk_unlock_giant(struct disk *dp)
+{
+	if (!(dp->d_devsw->d_flags & D_NOGIANT))
+		mtx_unlock(&Giant);
+}
+
 static int
 g_disk_access(struct g_provider *pp, int r, int w, int e)
 {
@@ -83,19 +96,19 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	dp = pp->geom->softc;
 	dev = dp->d_dev;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
-		mtx_lock(&Giant);
+		g_disk_lock_giant(dp);
 		error = devsw(dev)->d_open(dev, 3, 0, NULL);
 		if (error != 0)
 			printf("Opened disk %s -> %d\n", pp->name, error);
-		mtx_unlock(&Giant);
+		g_disk_unlock_giant(dp);
 		pp->mediasize = dp->d_mediasize;
 		pp->sectorsize = dp->d_sectorsize;
 	} else if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0) {
-		mtx_lock(&Giant);
+		g_disk_lock_giant(dp);
 		error = devsw(dev)->d_close(dev, 3, 0, NULL);
 		if (error != 0)
 			printf("Closed disk %s -> %d\n", pp->name, error);
-		mtx_unlock(&Giant);
+		g_disk_unlock_giant(dp);
 	} else {
 		error = 0;
 	}
@@ -126,11 +139,17 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 static void
 g_disk_done(struct bio *bp)
 {
+	struct disk *dp;
 
-	mtx_unlock(&Giant);
+	dp = bp->bio_caller1;
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
-	g_std_done(bp);
-	mtx_lock(&Giant);
+	if (!(dp->d_devsw->d_flags & D_NOGIANT)) {
+		DROP_GIANT();
+		g_std_done(bp);
+		PICKUP_GIANT();
+	} else {
+		g_std_done(bp);
+	}
 }
 
 static void
@@ -160,9 +179,10 @@ g_disk_start(struct bio *bp)
 		bp2->bio_pblkno = bp2->bio_offset / dp->d_sectorsize;
 		bp2->bio_bcount = bp2->bio_length;
 		bp2->bio_dev = dev;
-		mtx_lock(&Giant);
+		bp2->bio_caller1 = dp;
+		g_disk_lock_giant(dp);
 		devsw(dev)->d_strategy(bp2);
-		mtx_unlock(&Giant);
+		g_disk_unlock_giant(dp);
 		break;
 	case BIO_GETATTR:
 		if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
@@ -317,4 +337,3 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NOLOCK, 0, 0, 
     sysctl_disks, "A", "names of available disks");
 
-#endif
