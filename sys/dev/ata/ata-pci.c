@@ -225,6 +225,9 @@ ata_pci_match(device_t dev)
     case 0x74111022:
 	return "AMD 766 ATA100 controller";
 
+    case 0x74411022:
+	return "AMD 768 ATA100 controller";
+
     case 0x02111166:
 	return "ServerWorks ROSB4 ATA33 controller";
 
@@ -438,7 +441,7 @@ ata_pci_attach(device_t dev)
 
     case 0x74091022: /* AMD 756 default setup */
     case 0x74111022: /* AMD 766 default setup */
-
+    case 0x74411022: /* AMD 768 default setup */
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 

@@ -371,6 +371,7 @@ ata_dmainit(struct ata_channel *ch, int device,
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0x74411022:	/* AMD 768 */
     case 0x74111022:	/* AMD 766 */
 	if (udmamode >= 5) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
