@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.26 1995/05/21 15:40:53 jkh Exp $
+ * $Id: sysinstall.h,v 1.27 1995/05/23 02:41:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,6 +83,7 @@
 /* Internal flag variables */
 #define DISK_PARTITIONED	"_diskPartitioned"
 #define DISK_LABELLED		"_diskLabelled"
+#define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
 #define NO_CONFIRMATION		"_noConfirmation"
 
@@ -388,6 +389,7 @@ extern int	vsystem(char *fmt, ...);
 /* tcpip.c */
 extern int	tcpOpenDialog(char *);
 extern Device	*tcpDeviceSelect(void);
+extern Boolean	tcpStartPPP(void);
 
 /* termcap.c */
 extern int	set_termcap(void);

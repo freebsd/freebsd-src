@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.47 1995/05/22 14:10:17 jkh Exp $
+ * $Id: install.c,v 1.48 1995/05/23 02:41:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -196,6 +196,7 @@ installInitial(void)
     dialog_clear();
     chroot("/mnt");
     chdir("/");
+    variable_set2(RUNNING_ON_ROOT, "yes");
     cpio_extract();
     alreadyDone = TRUE;
 }
@@ -212,6 +213,7 @@ installFinal(void)
     config_resolv();
     do_final_setup();
     alreadyDone = TRUE;
+    SystemWasInstalled = TRUE;
 }
 
 /*
