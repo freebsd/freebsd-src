@@ -2,7 +2,7 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/article.sgml,v 1.1 2004/05/27 06:09:43 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/article.sgml,v 1.2 2004/08/03 13:27:41 den Exp $
 
      Original revision: 1.3
 -->
@@ -24,7 +24,7 @@
 <!ENTITY arch.print "UltraSPARC">
 ]>
 
-<article>
+<article lang="ru">
   &artheader;
   &sect.intro;
   &sect.proc.sparc64;
