@@ -456,6 +456,8 @@ dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
 #dev/nsp/nsp_pccard.c	optional nsp pccard
 dev/mca/mca_bus.c	optional mca
+dev/mcd/mcd.c		optional mcd isa
+dev/mcd/mcd_isa.c	optional mcd isa
 dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
 dev/mii/bmtphy.c	optional miibus
