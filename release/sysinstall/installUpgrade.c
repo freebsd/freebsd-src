@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.13 1997/09/08 11:16:11 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.14 1997/09/09 09:19:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -252,20 +252,6 @@ installUpgrade(dialogMenuItem *self)
 	systemCreateHoloshell();
     }
 
-media:
-    if (!mediaVerify())
-	return DITEM_FAILURE | DITEM_RESTORE;
-
-    if (!mediaDevice->init(mediaDevice)) {
-	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
-		   "to adjust your media selection and try again?")) {
-	    mediaDevice = NULL;
-	    goto media;
-	}
-	else
-	    return DITEM_FAILURE | DITEM_REDRAW;
-    }
-    
     saved_etc = NULL;
     if (extractingBin) {
 	while (!saved_etc) {
@@ -281,7 +267,7 @@ media:
 
 	if (saved_etc) {
 	    msgNotify("Preserving /etc directory..");
-	    if (vsystem("tar -cBpf - -C /etc . | tar -xBpf - -C %s", saved_etc))
+	    if (vsystem("tar -cBpf - -C /etc . | tar --unlink -xBpf - -C %s", saved_etc))
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
 			     "Do you want to continue anyway?", saved_etc) != 0)
 		    return DITEM_FAILURE | DITEM_RESTORE;
@@ -300,6 +286,20 @@ media:
 	}
     }
 
+media:
+    if (!mediaVerify())
+	return DITEM_FAILURE | DITEM_RESTORE;
+
+    if (!mediaDevice->init(mediaDevice)) {
+	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
+		   "to adjust your media selection and try again?")) {
+	    mediaDevice = NULL;
+	    goto media;
+	}
+	else
+	    return DITEM_FAILURE | DITEM_REDRAW;
+    }
+    
     msgNotify("Beginning extraction of distributions..");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
 	msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
