@@ -2083,7 +2083,10 @@ scsi_low_synch(ti)
 {
 	struct scsi_low_softc *slp = ti->ti_sc;
 	struct lun_info *li = ti->ti_li;
-	u_int period = 0, offset = 0, speed;
+	u_int period = 0, offset = 0;
+#ifdef SCSI_LOW_INFORM
+	u_int speed;
+#endif
 	u_char *s;
 	int error;
 
