@@ -1,13 +1,12 @@
-#
 # $FreeBSD$
-#
 
-SRCS+=		coff-rs6000.c	\
-		cofflink.c	\
-		cpu-rs6000.c	\
-		xcofflink.c
-VECS+=		rs6000coff_vec
+SRCS+=	coff-rs6000.c	\
+	cofflink.c	\
+	cpu-rs6000.c	\
+	xcofflink.c
+VECS+=	rs6000coff_vec
+
 .if ${TARGET_ARCH} == "rs6000"
-CFLAGS+=	-DDEFAULT_VECTOR=rs6000coff_vec
+CFLAGS+= -DDEFAULT_VECTOR=rs6000coff_vec
 .endif
-CFLAGS+=	-DHAVE_rs6000coff_vec
+CFLAGS+= -DHAVE_rs6000coff_vec
