@@ -177,7 +177,7 @@ socreate(dom, aso, type, proto, cred, td)
 	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
 		return (EPROTONOSUPPORT);
 
-	if (jailed(td->td_ucred) && jail_socket_unixiproute_only &&
+	if (jailed(cred) && jail_socket_unixiproute_only &&
 	    prp->pr_domain->dom_family != PF_LOCAL &&
 	    prp->pr_domain->dom_family != PF_INET &&
 	    prp->pr_domain->dom_family != PF_ROUTE) {
@@ -196,7 +196,7 @@ socreate(dom, aso, type, proto, cred, td)
 	so->so_cred = crhold(cred);
 	so->so_proto = prp;
 #ifdef MAC
-	mac_create_socket(td->td_ucred, so);
+	mac_create_socket(cred, so);
 #endif
 	soref(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
