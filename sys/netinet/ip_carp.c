@@ -1614,7 +1614,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		CARP_LOCK(cif);
 		cif->vhif_ifp = ifp;
 		TAILQ_INIT(&cif->vhif_vrs);
-		callout_init(&cif->cif_tmp, NET_CALLOUT_MPSAFE);
+		callout_init(&cif->cif_tmo, NET_CALLOUT_MPSAFE);
 		ifp->if_carp = cif;
 
 	} else {
