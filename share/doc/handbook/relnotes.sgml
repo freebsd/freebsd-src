@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.5 1995/10/07 04:31:38 jfieber Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.4.2.2 1995/10/22 00:50:33 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -7,6 +7,95 @@
 -->
       <sect><heading>About this release<label id="relnotes"></heading>
 
+	<p>FreeBSD is a freely available, full source 4.4 BSD
+	  Lite based release for Intel i386/i486/Pentium (or
+	  compatible) based PC's.  It is based primarily on
+	  software from U.C. Berkeley's CSRG group, with some
+	  enhancements from NetBSD, 386BSD, and the Free Software
+	  Foundation.
+
+	  Since our release of FreeBSD 2.0 one year ago, the
+	  performance, feature set, and stability of FreeBSD has
+	  improved dramatically.  The largest change is a
+	  revamped VM system with a merged VM/file buffer cache
+	  that not only increases performance, but reduces
+	  FreeBSD's memory footprint, making a 5MB configuration
+	  a more acceptable minimum.  Other enhancements include
+	  full NIS client and server support, transaction TCP
+	  support, dial-on-demand PPP, an improved SCSI
+	  subsystem, early ISDN support, support for FDDI and
+	  Fast Ethernet (100Mbit) adapters, improved support for
+	  the Adaptec 2940 (WIDE and narrow) and many hundreds of
+	  bug fixes.
+
+	  We've also taken the comments and suggestions of many
+	  of our users to heart and have attempted to provide
+	  what we hope is a more sane and easily understood
+	  installation process.  Your feedback on this
+	  (constantly evolving) process is especially welcome!
+
+	  In addition to the base distributions, FreeBSD offers a
+	  new ported software collection with some 350 commonly
+	  sought-after programs.  The list of ports ranges from
+	  http (WWW) servers, to games, languages, editors and
+	  almost everything in between.  The entire ports
+	  collection requires only 10MB of storage, all ports
+	  being expressed as ``deltas'' to their original sources.
+	  This makes it much easier for us to update ports, and
+	  greatly reduces the disk space demands made by the
+	  older 1.0 ports collection.  To compile a port, you
+	  simply change to the directory of the program you wish
+	  to install, type make and let the system do the rest.
+	  The full original distribution for each port you build
+	  is retrieved dynamically off of CDROM or a local ftp
+	  site, so you need only enough disk space to build the
+	  ports you want.  (Almost) every port is also provided
+	  as a pre-compiled "package" which can be installed with
+	  a simple command (pkg_add) by those who do not wish to
+	  compile their own ports from source.
+
+	  A number of additional documents which you may find
+	  very helpful in the process of installing and using
+	  FreeBSD may now also be found in the
+	  <bf>/usr/share/doc</bf> directory.  You may view the
+	  manuals with any HTML capable browser with the
+	  following URLs:
+
+	  <descrip>
+	    <tag>The FreeBSD handbook</tag>
+	      <htmlurl url="file:/usr/share/doc/handbook/handbook.html">
+
+	    <tag>The FreeBSD FAQ</tag>
+	      <htmlurl url="file:/usr/share/doc/FAQ/freebsd-faq.html">
+	  </descrip>
+
+	  You can also visit the master (and most frequently
+	    updated) copies at <htmlurl
+	    url="http://www.freebsd.org"
+	    name="http://www.freebsd.org">.
+
+	  The core of FreeBSD does not contain DES code which
+	  would inhibit its being exported outside the United
+	  States.  There is an add-on package to the core
+	  distribution, for use only in the United States, that
+	  contains the programs that normally use DES.  The
+	  auxiliary packages provided separately can be used by
+	  anyone.  A freely (from outside the U.S.) exportable
+	  European distribution of DES for our non-U.S. users
+	  also exists and is described in the <htmlurl
+	  url="../FAQ/freebsd-faq.html" name="FreeBSD FAQ">.
+
+	  If password security for FreeBSD is all you need, and
+	  you have no requirement for copying encrypted passwords
+	  from different hosts (Suns, DEC machines, etc) into
+	  FreeBSD password entries, then FreeBSD's MD5 based
+	  security may be all you require!  We feel that our
+	  default security model is more than a match for DES,
+	  and without any messy export issues to deal with.  If
+	  you're outside (or even inside) the U.S., give it a
+	  try!
+
+<![ IGNORE [
 	<p>Since our first release of FreeBSD 1.0 nearly two
 	  years ago, FreeBSD has changed dramatically.  Since
 	  release 2.0, FreeBSD has been based on the Berkeley BSD
@@ -501,3 +590,4 @@
 	ask about them!
 
 -->
+]]>
