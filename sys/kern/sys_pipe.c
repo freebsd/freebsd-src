@@ -1400,7 +1400,6 @@ pipe_free_kmem(cpipe)
 	struct pipe *cpipe;
 {
 
-	GIANT_REQUIRED;
 	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
 	       ("pipespace: pipe mutex locked"));
 
@@ -1487,10 +1486,8 @@ pipeclose(cpipe)
 			free(PIPE_MTX(cpipe), M_TEMP);
 		}
 	}
-	mtx_lock(&Giant);
 	pipe_free_kmem(cpipe);
 	uma_zfree(pipe_zone, cpipe);
-	mtx_unlock(&Giant);
 }
 
 /*ARGSUSED*/
