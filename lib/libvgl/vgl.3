@@ -43,6 +43,7 @@
 .Nm VGLEnd ,
 .Nm VGLFilledBox ,
 .Nm VGLFilledEllipse ,
+.Nm VGLGetXY ,
 .Nm VGLInit ,
 .Nm VGLLine ,
 .Nm VGLKeyboardInit ,
@@ -58,6 +59,7 @@
 .Nm VGLSetPalette ,
 .Nm VGLSetPaletteIndex ,
 .Nm VGLSetVScreenSize ,
+.Nm VGLSetXY ,
 .Nm VGLTextSetFontFile
 .Nd Video Graphics Library functions (libvgl)
 .Sh SYNOPSIS
@@ -86,6 +88,10 @@
 .Fn VGLMouseSetImage "VGLBitmap *AndMask" "VGLBitmap *OrMask"
 .Ft void 
 .Fn VGLMouseSetStdImage "void"
+.Ft byte 
+.Fn VGLGetXY "VGLBitmap *object" "int x" "int y"
+.Ft void 
+.Fn VGLSetXY "VGLBitmap *object" "int x" "int y" "byte color"
 .Ft void 
 .Fn VGLLine "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
 .Ft void 
@@ -211,6 +217,22 @@ on screen.
 .Pp
 .Fn VGLMouseSetStdImage
 this function restores the mouse pointer to the standard arrow.
+.Pp
+.Fn VGLGetXY
+retrieves the color of the pixel located at
+.Em x , y ,
+coordinates of the
+.Em object
+argument, and returns it as a byte value.
+.Pp
+.Fn VGLSetXY
+sets the color of the pixel located at
+.Em x , y ,
+coordinates of the
+.Em object
+argument to
+.Em color
+byte value.
 .Pp
 .Fn VGLLine 
 draw a line from
