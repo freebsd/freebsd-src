@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 MKINIT
 struct redirtab {
 	struct redirtab *next;
-	short renamed[10];
+	int renamed[10];
 };
 
 
