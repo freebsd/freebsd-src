@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Daniel Eischen <deischen@freebsd.org>.
  * All rights reserved.
  *

@@ -40,8 +40,9 @@ __weak_reference(_pthread_join, pthread_join);
 int
 _pthread_join(pthread_t pthread, void **thread_return)
 {
-	struct pthread	*curthread = _get_curthread();
-	int		ret = 0;
+	struct pthread *curthread = _get_curthread();
+	kse_critical_t crit;
+	int ret = 0;
  
 	_thr_enter_cancellation_point(curthread);
 
@@ -83,8 +84,24 @@ _pthread_join(pthread_t pthread, void **thread_return)
 				/* Return the thread's return value: */
 				*thread_return = pthread->ret;
 
-			/* Unlock the thread and remove the reference. */
+			/* Detach the thread. */
+			pthread->attr.flags |= PTHREAD_DETACHED;
+
+			/* Unlock the thread. */
 			THR_SCHED_UNLOCK(curthread, pthread);
+
+			/*
+			 * Remove the thread from the list of active
+			 * threads and add it to the GC list.
+			 */
+			crit = _kse_critical_enter();
+			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+			THR_LIST_REMOVE(pthread);
+			THR_GCLIST_ADD(pthread);
+			KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+			_kse_critical_leave(crit);
+
+			/* Remove the reference. */
 			_thr_ref_delete(curthread, pthread);
 		}
 		else if (pthread->joiner != NULL) {
