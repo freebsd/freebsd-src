@@ -33,7 +33,7 @@ char *copyright =
 #endif /* not lint */
 
 #ifndef lint
-static char *rcsid = "@(#)$Id: main.c,v 1.5 1993/12/15 15:22:02 alm Exp alm $";
+static char *rcsid = "@(#)main.c,v 1.1 1994/02/01 00:34:42 alm Exp";
 #endif /* not lint */
 
 /*
