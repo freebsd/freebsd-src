@@ -83,9 +83,8 @@ interpretation to be (the default) process ID's.
 .El
 .Pp
 For example,
-.Bd -literal -offset
-renice +1 987 -u daemon root -p 32
-.Ed
+.Pp
+.Dl "renice +1 987 -u daemon root -p 32"
 .Pp
 would change the priority of process ID's 987 and 32, and
 all processes owned by users daemon and root.
@@ -119,11 +118,11 @@ to map user names to user ID's
 .Xr rtprio 1 ,
 .Xr getpriority 2 ,
 .Xr setpriority 2
-.Sh BUGS
-Non super-users cannot increase scheduling priorities of their own processes,
-even if they were the ones that decreased the priorities in the first place.
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Bx 4.0 .
+.Sh BUGS
+Non super-users cannot increase scheduling priorities of their own processes,
+even if they were the ones that decreased the priorities in the first place.
