@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.2 1996/06/17 12:42:33 jkh Exp $
+ * $Id: ftpio.c,v 1.3 1996/06/17 15:28:00 jkh Exp $
  *
  */
 
@@ -122,11 +122,8 @@ ftpLogin(char *host, char *user, char *passwd, int port)
     fp = NULL;
     if (n && ftp_login_session(n, host, user, passwd, port) == SUCCESS) {
 	fp = funopen(n, ftp_read_method, ftp_write_method, NULL, ftp_close_method);	/* BSD 4.4 function! */
-	/* Yuck, but can't use fdopen() because that also allocates an fp.  Sigh! */
 	fp->_file = n->fd_ctrl;
     }
-    if (n && !fp)
-	free(n);
     return fp;
 }
 
@@ -138,7 +135,7 @@ ftpChdir(FILE *fp, char *dir)
 
     i = cmd(ftp, "CWD %s", dir);
     if (i < 0 || check_code(ftp, i, FTP_CHDIR_HAPPY))
-	return -1;
+	return i;
     return SUCCESS;
 }
 
@@ -347,7 +344,11 @@ ftp_write_method(void *vp, const char *buf, int nbytes)
 static int
 ftp_close_method(void *n)
 {
-    return ftp_close((FTP_t)n);
+    int i;
+
+    i = ftp_close((FTP_t)n);
+    free(n);
+    return i;
 }
 
 static void
@@ -411,8 +412,10 @@ get_a_number(FTP_t ftp, char **q)
 
     while(1) {
 	p = get_a_line(ftp);
-	if (!p)
+	if (!p) {
+	    ftp_close(ftp);
 	    return FAILURE;
+	}
 	if (!(isdigit(p[0]) && isdigit(p[1]) && isdigit(p[2])))
 	    continue;
 	if (i == -1 && p[3] == '-') {
@@ -497,8 +500,10 @@ ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, int port)
     if (networkInit() != SUCCESS)
 	return FAILURE;
 
-    if (ftp->con_state != init)
+    if (ftp->con_state != init) {
 	ftp_close(ftp);
+	return FAILURE;
+    }
 
     if (!user)
 	user = "ftp";
@@ -578,8 +583,10 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 	    return FAILURE;
 	}
 	i = get_a_number(ftp, &q);
-	if (check_code(ftp, i, FTP_PASSIVE_HAPPY))
+	if (check_code(ftp, i, FTP_PASSIVE_HAPPY)) {
+	    ftp_close(ftp);
 	    return i;
+	}
 	while (*q && !isdigit(*q))
 	    q++;
 	if (!*q) {
