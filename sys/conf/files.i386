@@ -66,6 +66,7 @@ compat/linux/linux_signal.c	optional	compat_linux
 compat/linux/linux_socket.c	optional	compat_linux
 compat/linux/linux_stats.c	optional	compat_linux
 compat/linux/linux_sysctl.c	optional	compat_linux
+compat/linux/linux_uid16.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
 compat/pecoff/imgact_pecoff.c		optional	pecoff_support
 compat/svr4/imgact_svr4.c		optional	compat_svr4
@@ -283,7 +284,6 @@ i386/linux/linux_locore.s	optional	compat_linux		\
 i386/linux/linux_machdep.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
-i386/linux/linux_uid16.c	optional	compat_linux
 i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_bus.c		optional	pci
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
