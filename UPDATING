@@ -322,7 +322,7 @@ ITEMS:'
 	Modules have been disconnected from the buildworld tree and 
 	connected to the kernel building instead.
 
-2000427:
+20000427:
 	You may need to build gperf
 		cd /usr/src/gnu/usr.bin/gperf && make depend all install
 	when upgrading from 4.0 -> current.  The build system now uses
