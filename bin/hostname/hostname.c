@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hostname.c,v 1.5 1997/02/22 14:03:42 peter Exp $
+ *	$Id: hostname.c,v 1.6 1997/03/28 15:24:20 imp Exp $
  */
 
 #ifndef lint
@@ -50,6 +50,8 @@ static char const sccsid[] = "@(#)hostname.c	8.1 (Berkeley) 5/31/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+extern char *__progname;
 
 void usage __P((void));
 
@@ -94,6 +96,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: hostname [-s] [hostname]\n");
+	(void)fprintf(stderr, "usage: %s [-s] [name-of-host]\n", __progname);
 	exit(1);
 }
