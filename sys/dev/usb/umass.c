@@ -336,6 +336,10 @@ Static struct umass_devdescr_t umass_devdescrs[] = {
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_CBI,
 	  NO_TEST_UNIT_READY | NO_START_STOP | ALT_IFACE_1
 	},
+	{ USB_VENDOR_IODATA, USB_PRODUCT_IODATA_IU_CD2, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  NO_QUIRKS
+	},
 	{ USB_VENDOR_IOMEGA, USB_PRODUCT_IOMEGA_ZIP100, RID_WILDCARD,
 	  /* XXX This is not correct as there are Zip drives that use ATAPI.
 	   */
