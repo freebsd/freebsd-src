@@ -77,7 +77,7 @@ main(argc, argv)
 	keys = KEYDEFAULT;
 	init_excludes();
 
-	while ((ch = getopt(argc, argv, "cdef:iK:k:Lnp:qrs:UuxX:")) != -1)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:LnPp:qrs:UuxX:")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -112,6 +112,10 @@ main(argc, argv)
 			break;
 		case 'n':
 			nflag = 1;
+			break;
+		case 'P':
+			ftsoptions &= ~FTS_LOGICAL;
+			ftsoptions |= FTS_PHYSICAL;
 			break;
 		case 'p':
 			dir = optarg;
@@ -170,7 +174,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: mtree [-LUcdeinqrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
+"usage: mtree [-LPUcdeinqrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
 "\t[-X excludes]\n");
 	exit(1);
 }
