@@ -6,7 +6,7 @@
 ---------------------
 
 FreeBSD is a freely available, full source 4.4 BSD Lite based release
-for Intel i386/i486/Pentium (or compatable) based PC's.  It is based
+for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
@@ -60,7 +60,7 @@ to deal with.  If you're outside (or even inside) the U.S., give it a try!
 4.4 Lite
 --------
 As previously stated, this release is based entirely on CSRG's
-latest (and last) BSD release - 4.4 Lite.  This features as number
+latest (and last) BSD release - 4.4 Lite.  This features a number
 of improvements over 4.2BSD (Net/2), not least of which are:
 
 o	Legal approval of Novell & U.C. Berkeley.  After the settlement
@@ -147,7 +147,7 @@ Sources involved:	lib/libskey, usr.bin/key* (plus patches to others)
 TCP/IP over parallel (printer) port
 -----------------------------------
 You can now run TCP/IP over a standard LapLink(tm) cable, if both ends
-have a interrupt-driven printerport.  The interface is named "lp0"
+have an interrupt-driven printerport.  The interface is named "lp0"
 where '0' is the same as the lpt# unit number.  This is not compatible
 with PLIP.  If you run NFS, try setting MTU to 9180, otherwise leave
 it at 1500 unless you have a good reason to change it.  Speed varies
@@ -185,8 +185,8 @@ Sources involved:	kern/imgact_gzip.c kern/inflate.c
 
 Diskless booting
 ----------------
-Diskless booting it in 2.0 and much improved since 1.1.5.  The boot-program
-is in src/sys/i386/boot/netboot, and can be run from a MSDOS system or 
+Diskless booting in 2.0 and much improved since 1.1.5.  The boot-program
+is in src/sys/i386/boot/netboot, and can be run from an MSDOS system or 
 burned into an EPROM.  Local swapping is possible.  Presently WD, SMC and
 Novell cards are supported.
 
@@ -233,7 +233,7 @@ FreeBSD now supports running iBCS2 compatible binaries (currently
 SCO UNIX 3.2.2 & 3.2.4 and ISC 2.2 COFF format are supported).
 The iBCS2 emulator is in its early stages, but it is functional, we
 havn't been able to do exhaustive testing (lack of commercial apps),
-but allmost all of SCO's 3.2.2 binaries are working, so is an old
+but almost all of SCO's 3.2.2 binaries are working, so is an old
 INFORMIX-2.10 for SCO. Further testing is nessesary to complete this
 project. There is also work under way for ELF & XOUT loaders, and
 most of the svr4 syscall wrappers have been written.
@@ -285,8 +285,8 @@ With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT) and CD ROM drives.  Note: This and the mcd driver (Mitsumi CDROM
 interface card) is the only way a CD ROM drive may be currently
-attached to a FreeBSD system; we do not support SoundBlaster CDROM
-interface, or other "non-SCSI" adapters.  The ProAudio Spectrum
+attached to a FreeBSD system; we do not support SoundBlaster (non-SCSI)
+CDROM interface, or other "non-SCSI" adapters.  The ProAudio Spectrum
 SCSI and SoundBlaster SCSI controllers are supported.
 
 Some controllers have limitations with the way they deal with >16MB of
@@ -298,7 +298,7 @@ they're configured to emulate an ISA card, which they then do in *all*
 respects.  This problem is avoided entirely by IDE controllers (which
 do not use DMA), true EISA controllers (like the UltraStor or Adaptec
 1742A) and most VLB (local bus) controllers.  In the cases where it's
-necessary, the system will use "bounce buffers" to to talk to the
+necessary, the system will use "bounce buffers" to talk to the
 controller so that you can still use more than 16Mb of memory without
 difficulty.
 
@@ -400,7 +400,7 @@ Your suggestions, bug reports and contributions of code are always
 valued - please do not hesitate to report any problems you may find
 (preferably with a fix attached if you can!).
 
-The prefered method to submit bug reports from a machine with internet
+The preferred method to submit bug reports from a machine with internet
 mail connectivity is to use the sendbug command.  Bug reports will be
 dutifully filed by our faithful bugfiler program and you can be sure
 that we'll do our best to respond to all reported bugs as soon as
@@ -505,4 +505,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.7 1994/11/10 03:51:18 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.8 1994/11/10 04:11:58 jkh Exp $
