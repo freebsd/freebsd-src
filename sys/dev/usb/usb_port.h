@@ -492,13 +492,7 @@ __CONCAT(dname,_detach)(device_t self)
 	(device_probe_and_attach((bdev)) == 0 ? (bdev) : 0)
 
 /* conversion from one type of queue to the other */
-/* XXX In FreeBSD SIMPLEQ_REMOVE_HEAD only removes the head element.
- */
-#define SIMPLEQ_REMOVE_HEAD(h, e, f)	do {				\
-		if ( (e) != SIMPLEQ_FIRST((h)) )			\
-			panic("Removing other than first element");	\
-		STAILQ_REMOVE_HEAD(h, f);				\
-} while (0)
+#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD
 #define SIMPLEQ_INSERT_HEAD	STAILQ_INSERT_HEAD
 #define SIMPLEQ_INSERT_TAIL	STAILQ_INSERT_TAIL
 #define SIMPLEQ_NEXT		STAILQ_NEXT

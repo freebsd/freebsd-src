@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.125 2002/05/28 12:42:38 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.126 2002/06/01 23:51:03 lukem Exp $	*/
 
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
@@ -965,7 +965,7 @@ ohci_allocx(struct usbd_bus *bus)
 
 	xfer = SIMPLEQ_FIRST(&sc->sc_free_xfers);
 	if (xfer != NULL) {
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, xfer, next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
 #ifdef DIAGNOSTIC
 		if (xfer->busy_free != XFER_FREE) {
 			printf("ohci_allocx: xfer=%p not free, 0x%08x\n", xfer,
