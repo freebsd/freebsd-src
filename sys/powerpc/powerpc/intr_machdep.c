@@ -108,7 +108,6 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(int),
 {
 	int		i;
 	u_int32_t	msr;
-	u_long		offset;
 
 	if (intr_initialized != 0)
 		panic("intr_init: interrupts intialized twice\n");
@@ -129,6 +128,7 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(int),
 		intr_handlers[i].ih_func = intr_stray_handler;
 		intr_handlers[i].ih_arg = &intr_handlers[i];
 		intr_handlers[i].ih_irq = i;
+		intr_handlers[i].ih_flags = 0;
 	}
 
 	msr = mfmsr();
@@ -145,7 +145,7 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(int),
 }
 
 void
-intr_setup(u_int irq, ih_func_t *ihf, void *iha)
+intr_setup(u_int irq, ih_func_t *ihf, void *iha, u_int flags)
 {
 	u_int32_t	msr;
 
@@ -155,6 +155,7 @@ intr_setup(u_int irq, ih_func_t *ihf, void *iha)
 	intr_handlers[irq].ih_func = ihf;
 	intr_handlers[irq].ih_arg = iha;
 	intr_handlers[irq].ih_irq = irq;
+	intr_handlers[irq].ih_flags = flags;
 
 	mtmsr(msr);
 }
@@ -200,7 +201,7 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 	    ithread_priority(flags), flags, cookiep);
 
 	if ((flags & INTR_FAST) == 0 || error) {
-		intr_setup(irq, sched_ithd, ih);
+		intr_setup(irq, sched_ithd, ih, flags);
 		error = 0;
 	}
 
@@ -208,7 +209,7 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 		return (error);
 
 	if (flags & INTR_FAST)
-		intr_setup(irq, handler, arg);
+		intr_setup(irq, handler, arg, flags);
 
 	intr_stray_count[irq] = 0;
 
@@ -229,9 +230,9 @@ inthand_remove(u_int irq, void *cookie)
 		mtx_lock_spin(&intr_table_lock);
 
 		if (ih->ih_ithd == NULL) {
-			intr_setup(irq, intr_stray_handler, ih);
+			intr_setup(irq, intr_stray_handler, ih, 0);
 		} else {
-			intr_setup(irq, sched_ithd, ih);
+			intr_setup(irq, sched_ithd, ih, 0);
 		}
 
 		mtx_unlock_spin(&intr_table_lock);
@@ -245,6 +246,8 @@ intr_handle(u_int irq)
 {
 
 	intr_handlers[irq].ih_func(intr_handlers[irq].ih_arg);
+	if ((intr_handlers[irq].ih_flags & INTR_FAST) != 0)
+		irq_enable(irq);
 }
 
 static void
