@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.73 1998/03/20 18:07:02 jkh Exp $
+ * $Id: devices.c,v 1.74 1998/03/20 18:26:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,7 +76,7 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 32, 'c'	},
     { DEVICE_TYPE_DISK, 	"od%d",		"SCSI optical disk device",	20, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rod%d",	"SCSI optical disk device",	70, 65538, 8, 4, 'c'		},
-    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI FLOPPY (LS-120) device",	24, 65538, 8, 4, 'b'		},
+    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI FLOPPY (LS-120) device",	1, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI FLOPPY (LS-120) device",	87, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
@@ -301,6 +301,7 @@ skipif:
 		fd = deviceTry(device_names[i], try, j);
 		if (fd >= 0 && RunningAsInit) {
 		    dev_t d;
+		    mode_t m;
 		    int s, fail;
 		    char unit[80], slice[80];
 
@@ -311,7 +312,12 @@ skipif:
 			snprintf(slice, sizeof slice, "/dev/%ss%d", unit, s);
 			d = makedev(device_names[i].major, device_names[i].minor +
 				    (j * device_names[i].delta) + (s * SLICE_DELTA));
-			fail = mknod(slice, 0640 | S_IFBLK, d);
+			m = 0640;
+			if (device_names[i].dev_type == 'c')
+			    m |= S_IFCHR;
+			else
+			    m |= S_IFBLK;
+			fail = mknod(slice, m, d);
 			fd = open(slice, O_RDONLY);
 			if (fd >= 0)
 			    close(fd);
