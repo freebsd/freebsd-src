@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.76 1998/02/05 03:32:04 dyson Exp $
+ *	$Id: kern_exec.c,v 1.77 1998/02/06 12:13:23 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,6 @@
 #include <sys/wait.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
-#include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
@@ -61,7 +60,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_zone.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_pageout.h>
 
 #include <machine/reg.h>
 
