@@ -78,6 +78,8 @@ struct rpb {
 #define	ST_DEC_EV56_PBP		32		/* "Takara" (?) */
 #define	ST_DEC_ALPHAVME_320	33		/* "Yukon" (VME?) */
 #define	ST_DEC_6600		34		/* "Monet/Goldrush" */
+#define	ST_DEC_CUSCO		36		/* "CUSCO" */
+#define	ST_DEC_EIGER		37		/* "Eiger" */
 
 /*
  * System types for Alpha Processor Inc. machines
@@ -283,6 +285,11 @@ struct pcs {
 #define	PCS_PROC_EV56		7			/* EV56: 21164A */
 #define	PCS_PROC_EV6		8			/* EV6: 21264 */
 #define	PCS_PROC_PCA56		9			/* PCA256: 21164PC */
+#define	PCS_PROC_PCA57		10			/* PCA257: 21164PC */
+#define	PCS_PROC_EV67		11			/* EV67: 21264A */
+#define	PCS_PROC_EV68CB		12			/* EV68CB: 21264C */
+#define	PCS_PROC_EV68AL		13			/* EV6AL: 21264B */
+#define	PCS_PROC_EV68CX		14			/* EV6CX: 21264D */
 
 #define	PCS_PROC_MINOR		0xffffffff00000000
 #define	PCS_PROC_MINORSHIFT	32
