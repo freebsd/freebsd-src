@@ -1,9 +1,14 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technology, Inc.
- * All rights reserved.
+ * Copyright (c) 2001 Networks Associates Technologies, Inc.
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
+
+ * This software was developed for the FreeBSD Project by NAI Labs, the
+ * Security Research Division of Network Associates, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
+ *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
  * Co. or Unix System Laboratories, Inc. and are reproduced herein with
@@ -17,6 +22,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -30,7 +38,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_util.c,v 1.22 2001/11/15 20:51:13 bfeldman Exp $
+ * $Id$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -61,7 +70,7 @@
 #include "kernel_monitor.h"
 #include "lomacfs.h"
 
-#include "syscall_gate/syscall_gate.h"
+#include "syscall_gate.h"
 
 #define	AS(name) (sizeof(struct name) / sizeof(register_t))
 
