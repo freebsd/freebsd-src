@@ -29,9 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/ioctl.h>
+#include <sys/ttycom.h>
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,10 +46,11 @@ static void __dead2
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	    "usage: conscontrol [list]",
 	    "       conscontrol mute on | off",
-	    "       conscontrol add | delete console");
+	    "       conscontrol add | delete console",
+	    "       conscontrol set console | unset");
 	exit(1);
 }
 
@@ -148,6 +152,32 @@ consdel(char *devnam)
 	free(buf);
 }
 
+static void
+consset(char *devnam)
+{
+	int ttyfd, flag = 1;
+
+	ttyfd = open(devnam, O_RDONLY);
+	if (ttyfd == -1)
+		err(1, "opening %s", devnam);
+	if (ioctl(ttyfd, TIOCCONS, &flag) == -1)
+		err(1, "could not set %s as virtual console", devnam);
+	close(ttyfd);
+}
+
+static void
+consunset(void)
+{
+	int ttyfd, flag = 0;
+
+	ttyfd = open(DEVDIR "console", O_RDONLY);
+	if (ttyfd == -1)
+		err(1, "opening virtual console");
+	if (ioctl(ttyfd, TIOCCONS, &flag) == -1)
+		err(1, "could not unset virtual console");
+	close(ttyfd);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -158,14 +188,18 @@ main(int argc, char **argv)
 	argv += optind;
 
 	if (argc > 0 && strcmp(argv[0], "list") != 0) {
-		if (argc != 2)
+		if (argc == 1 && strcmp(argv[0], "unset") == 0)
+			consunset();
+		else if (argc != 2)
 			usage();
-		if (strcmp(argv[0], "mute") == 0)
+		else if (strcmp(argv[0], "mute") == 0)
 			consmute(argv[1]);
 		else if (strcmp(argv[0], "add") == 0)
 			consadd(argv[1]);
 		else if (strcmp(argv[0], "delete") == 0)
 			consdel(argv[1]);
+		else if (strcmp(argv[0], "set") == 0)
+			consset(argv[1]);
 		else
 			usage();
 	}
