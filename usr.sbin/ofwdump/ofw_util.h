@@ -30,22 +30,21 @@
 
 #include <dev/ofw/openfirm.h>
 
-int		ofw_open(void);
+int		ofw_open(int);
 void		ofw_close(int);
 
 phandle_t	ofw_root(int);
+phandle_t	ofw_optnode(int);
 phandle_t	ofw_peer(int, phandle_t);
 phandle_t	ofw_child(int, phandle_t);
-phandle_t	ofw_finddevice(int, char *);
+phandle_t	ofw_finddevice(int, const char *);
 
 int		ofw_firstprop(int, phandle_t, char *, int);
-int		ofw_nextprop(int, phandle_t, char *, char *, int);
+int		ofw_nextprop(int, phandle_t, const char *, char *, int);
 int		ofw_getprop(int, phandle_t, const char *, void *, int);
+int		ofw_setprop(int, phandle_t, const char *, const void *, int);
 int		ofw_getproplen(int, phandle_t, const char *);
 int		ofw_getprop_alloc(int, phandle_t, const char *, void **, int *,
     int);
 
-void		ofw_dump(int, char *, int, int, char *, int, int);
-
 #endif /* OFW_UTIL_H */
-

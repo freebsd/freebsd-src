@@ -37,34 +37,24 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
-#include <vis.h>
 
 #include "pathnames.h"
 #include "ofw_util.h"
 
-/* Constants controlling the layout of the output. */
-#define	LVLINDENT	2
-#define	NAMEINDENT	2
-#define	DUMPINDENT	4
-#define	CHARSPERLINE	60
-#define	BYTESPERLINE	(CHARSPERLINE / 3)
-
-/* Default space reserved for properties. */
-#define	PROPBUFLEN	8192
-
 #define	OFW_IOCTL(fd, cmd, val)	do {					\
 	if (ioctl(fd, cmd, val) == -1)					\
-		err(1, "ioctl(..., " #cmd ", ...) failed");		\
+		err(EX_IOERR, "ioctl(..., " #cmd ", ...) failed");	\
 } while (0)
 
 int
-ofw_open(void)
+ofw_open(int mode)
 {
 	int fd;
 
-	if ((fd = open(PATH_DEV_OPENFIRM, O_RDONLY)) == -1)
-		err(1, "could not open " PATH_DEV_OPENFIRM);
+	if ((fd = open(PATH_DEV_OPENFIRM, mode)) == -1)
+		err(EX_UNAVAILABLE, "could not open " PATH_DEV_OPENFIRM);
 	return (fd);
 }
 
@@ -80,6 +70,15 @@ ofw_root(int fd)
 {
 
 	return (ofw_peer(fd, 0));
+}
+
+phandle_t
+ofw_optnode(int fd)
+{
+	phandle_t rv;
+
+	OFW_IOCTL(fd, OFIOCGETOPTNODE, &rv);
+	return (rv);
 }
 
 phandle_t
@@ -103,7 +102,7 @@ ofw_child(int fd, phandle_t node)
 }
 
 phandle_t
-ofw_finddevice(int fd, char *name)
+ofw_finddevice(int fd, const char *name)
 {
 	struct ofiocdesc d;
 
@@ -114,9 +113,10 @@ ofw_finddevice(int fd, char *name)
 	d.of_buf = NULL;
 	if (ioctl(fd, OFIOCFINDDEVICE, &d) == -1) {
 		if (errno == ENOENT)
-			err(2, "Node '%s' not found", name);
+			err(EX_UNAVAILABLE, "Node '%s' not found", name);
 		else
-			err(1, "ioctl(..., OFIOCFINDDEVICE, ...) failed");
+			err(EX_IOERR,
+			    "ioctl(..., OFIOCFINDDEVICE, ...) failed");
 	}
 	return (d.of_nodeid);
 }
@@ -129,7 +129,7 @@ ofw_firstprop(int fd, phandle_t node, char *buf, int buflen)
 }
 
 int
-ofw_nextprop(int fd, phandle_t node, char *prev, char *buf, int buflen)
+ofw_nextprop(int fd, phandle_t node, const char *prev, char *buf, int buflen)
 {
 	struct ofiocdesc d;
 
@@ -142,7 +142,7 @@ ofw_nextprop(int fd, phandle_t node, char *prev, char *buf, int buflen)
 		if (errno == ENOENT)
 			return (0);
 		else
-			err(1, "ioctl(..., OFIOCNEXTPROP, ...) failed");
+			err(EX_IOERR, "ioctl(..., OFIOCNEXTPROP, ...) failed");
 	}
 	return (d.of_buflen);
 }
@@ -153,7 +153,7 @@ ofw_malloc(int size)
 	void *p;
 
 	if ((p = malloc(size)) == NULL)
-		err(1, "malloc() failed");
+		err(EX_OSERR, "malloc() failed");
 	return (p);
 }
 
@@ -168,6 +168,23 @@ ofw_getprop(int fd, phandle_t node, const char *name, void *buf, int buflen)
 	d.of_buflen = buflen;
 	d.of_buf = buf;
 	OFW_IOCTL(fd, OFIOCGET, &d);
+	return (d.of_buflen);
+}
+
+int
+ofw_setprop(int fd, phandle_t node, const char *name, const void *buf,
+    int buflen)
+{
+	struct ofiocdesc d;
+
+	d.of_nodeid = node;
+	d.of_namelen = strlen(name);
+	d.of_name = name;
+	d.of_buflen = buflen;
+	d.of_buf = ofw_malloc(buflen);
+	memcpy(d.of_buf, buf, buflen);
+	OFW_IOCTL(fd, OFIOCSET, &d);
+	free(d.of_buf);
 	return (d.of_buflen);
 }
 
@@ -197,7 +214,7 @@ ofw_getprop_alloc(int fd, phandle_t node, const char *name, void **buf,
 		if (*buflen < len + reserve) {
 			if (*buf != NULL)
 				free(*buf);
-			*buflen = len + reserve + PROPBUFLEN;
+			*buflen = len + reserve + OFIOCMAXVALUE;
 			*buf = ofw_malloc(*buflen);
 		}
 		d.of_nodeid = node;
@@ -208,113 +225,6 @@ ofw_getprop_alloc(int fd, phandle_t node, const char *name, void **buf,
 		rv = ioctl(fd, OFIOCGET, &d);
 	} while (rv == -1 && errno == ENOMEM);
 	if (rv == -1)
-		err(1, "ioctl(..., OFIOCGET, ...) failed");
+		err(EX_IOERR, "ioctl(..., OFIOCGET, ...) failed");
 	return (d.of_buflen);
 }
-
-static void
-ofw_indent(int level)
-{
-	int i;
-
-	for (i = 0; i < level; i++)
-		putchar(' ');
-}
-
-static void
-ofw_dump_properties(int fd, phandle_t n, int level, char *pmatch, int raw,
-    int str)
-{
-	static void *pbuf;
-	static char *visbuf;
-	static char printbuf[CHARSPERLINE + 1];
-	static int pblen, vblen;
-	char prop[32];
-	int nlen, len, i, j, max, vlen;
-
-	for (nlen = ofw_firstprop(fd, n, prop, sizeof(prop)); nlen != 0;
-	     nlen = ofw_nextprop(fd, n, prop, prop, sizeof(prop))) {
-		if (pmatch != NULL && strcmp(pmatch, prop) != 0)
-			continue;
-		len = ofw_getprop_alloc(fd, n, prop, &pbuf, &pblen, 1);
-		if (len < 0)
-			continue;
-		if (raw)
-			write(STDOUT_FILENO, pbuf, len);
-		else if (str) {
-			printf("%.*s\n", (int)len, (char *)pbuf);
-		} else {
-			ofw_indent(level * LVLINDENT + NAMEINDENT);
-			printf("%s:\n", prop);
-			/* Print in hex. */
-			for (i = 0; i < len; i += BYTESPERLINE) {
-				max = len - i;
-				max = max > BYTESPERLINE ? BYTESPERLINE : max;
-				ofw_indent(level * LVLINDENT + DUMPINDENT);
-				for (j = 0; j < max; j++)
-					printf("%02x ",
-					    ((unsigned char *)pbuf)[i + j]);
-				printf("\n");
-			}
-			/*
-			 * strvis() and print if it looks like it is
-			 * zero-terminated.
-			 */
-			if (((char *)pbuf)[len - 1] == '\0' &&
-			    strlen(pbuf) == (unsigned)len - 1) {
-				if (vblen < (len - 1) * 4 + 1) {
-					if (visbuf != NULL)
-						free(visbuf);
-					vblen = (PROPBUFLEN + len) * 4 + 1;
-					visbuf = ofw_malloc(vblen);
-				}
-				vlen = strvis(visbuf, pbuf, VIS_TAB | VIS_NL);
-				for (i = 0; i < vlen; i += CHARSPERLINE) {
-					ofw_indent(level * LVLINDENT +
-					    DUMPINDENT);
-					strlcpy(printbuf, &visbuf[i],
-					    sizeof(printbuf));
-					printf("'%s'\n", printbuf);
-				}
-			}
-		}
-	}
-}
-
-static void
-ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop, char *pmatch,
-    int raw, int str)
-{
-	static void *nbuf;
-	static int nblen = 0;
-	int plen;
-	phandle_t c;
-
-	if (!(raw || str)) {
-		ofw_indent(level * LVLINDENT);
-		printf("Node %#lx", (unsigned long)n);
-		plen = ofw_getprop_alloc(fd, n, "name", &nbuf, &nblen, 1);
-		if (plen > 0)
-			printf(": %.*s\n", (int)plen, (char *)nbuf);
-		else
-			putchar('\n');
-	}
-	if (prop)
-		ofw_dump_properties(fd, n, level, pmatch, raw, str);
-	if (rec) {
-		for (c = ofw_child(fd, n); c != 0; c = ofw_peer(fd, c)) {
-			ofw_dump_node(fd, c, level + 1, rec, prop, pmatch,
-			    raw, str);
-		}
-	}
-}
-
-void
-ofw_dump(int fd, char *start, int rec, int prop, char *pmatch, int raw, int str)
-{
-	phandle_t n;
-
-	n = start == NULL ? ofw_root(fd) : ofw_finddevice(fd, start);
-	ofw_dump_node(fd, n, 0, rec, prop, pmatch, raw, str);
-}
-
