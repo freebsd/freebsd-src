@@ -40,6 +40,6 @@ _start:		cld				# String ops inc
 		rep				# Clear
 		stosb				#  bss
 		pushl 0x4(%esp)			# Pass howto flags
-		call boot			# Call C code
+		call _(boot)			# Call C code
 		popl %ecx			# Clear stack
-		jmp *kgz+entry			# To loaded code
+		jmp *_(kgz)+entry		# To loaded code
