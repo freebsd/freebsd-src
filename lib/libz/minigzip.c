@@ -271,7 +271,8 @@ void file_uncompress(file)
 
 
 /* ===========================================================================
- * Usage:  minigzip [-d] [-f] [-h] [-1 to -9] [files...]
+ * Usage:  minigzip [-c ] [-d] [-f] [-h] [-1 to -9] [files...]
+ *   -c : write to standard output
  *   -d : decompress
  *   -f : compress with Z_FILTERED
  *   -h : compress with Z_HUFFMAN_ONLY
@@ -282,6 +283,7 @@ int main(argc, argv)
     int argc;
     char *argv[];
 {
+    int copyout = 0;
     int uncompr = 0;
     gzFile file;
     char *bname, outmode[20];
@@ -296,12 +298,14 @@ int main(argc, argv)
       bname = argv[0];
     argc--, argv++;
 
-    if (!strcmp(bname, "gunzip") || !strcmp(bname, "zcat"))
+    if (!strcmp(bname, "gunzip"))
       uncompr = 1;
+    else if (!strcmp(bname, "zcat"))
+      copyout = uncompr = 1;
 
     while (argc > 0) {
       if (strcmp(*argv, "-c") == 0)
-	; /* Just for compatibility with gzip */
+	copyout = 1;
       else if (strcmp(*argv, "-d") == 0)
 	uncompr = 1;
       else if (strcmp(*argv, "-f") == 0)
@@ -328,11 +332,36 @@ int main(argc, argv)
             gz_compress(stdin, file);
         }
     } else {
+	if (copyout) {
+	    SET_BINARY_MODE(stdout);
+	}
         do {
             if (uncompr) {
-                file_uncompress(*argv);
+	    	if (copyout) {
+		    file = gzopen(*argv, "rb");
+		    if (file == NULL)
+			fprintf(stderr, "%s: can't gzopen %s\n", prog, *argv);
+		    else
+			gz_uncompress(file, stdout);
+		} else {
+		    file_uncompress(*argv);
+		}
             } else {
-                file_compress(*argv, outmode);
+		if (copyout) {
+		    FILE * in = fopen(*argv, "rb");
+
+		    if (in == NULL) {
+			perror(*argv);
+		    } else {
+		        file = gzdopen(fileno(stdout), outmode);
+			if (file == NULL) error("can't gzdopen stdout");
+
+			gz_compress(in, file);
+		    }
+		
+		} else {
+		    file_compress(*argv, outmode);
+		}
             }
         } while (argv++, --argc);
     }
