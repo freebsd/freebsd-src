@@ -40,6 +40,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <pwd.h>
 #include <signal.h>
@@ -465,6 +466,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 */
 	if (fflag) {
 		FILE *fakeid = NULL;
+		int fakeid_fd;
 
 		if (asprintf(&p, "%s/.fakeid", pw->pw_dir) == -1)
 			iderror(lport, fport, s, errno);
@@ -473,8 +475,9 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		 * open any files we have no permission to open, especially
 		 * symbolic links to sensitive root-owned files or devices.
 		 */
+		if (initgroups(pw->pw_name, pw->pw_gid) == -1)
+			iderror(lport, fport, s, errno);
 		seteuid(pw->pw_uid);
-		setegid(pw->pw_gid);
 		/*
 		 * If we were to lstat() here, it would do no good, since it
 		 * would introduce a race condition and could be defeated.
@@ -482,9 +485,9 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		 * and if it's not a regular file, we close it and end up
 		 * returning the user's real username.
 		 */
-		fakeid = fopen(p, "r");
+		fakeid_fd = open(p, O_RDONLY | O_NONBLOCK);
 		free(p);
-		if (fakeid != NULL &&
+		if ((fakeid = fdopen(fakeid_fd, "r")) != NULL &&
 		    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
 			buf[sizeof(buf) - 1] = '\0';
 			if (fgets(buf, sizeof(buf), fakeid) == NULL) {
@@ -514,10 +517,16 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			 * we will return their real identity instead.
 			 */
 			
-			if (!*cp || getpwnam(cp))
-				cp = getpwuid(uc.cr_uid)->pw_name;
+			if (!*cp || getpwnam(cp)) {
+				pw = getpwuid(uc.cr_uid);
+				if (pw == NULL)
+					iderror(lport, fport, s, errno);
+				cp = pw->pw_name;
+			}
 		} else
 			cp = pw->pw_name;
+		if (fakeid_fd != -1)
+			close(fakeid_fd);
 	} else
 		cp = pw->pw_name;
 printit:
