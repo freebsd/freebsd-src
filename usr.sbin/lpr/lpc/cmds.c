@@ -166,7 +166,7 @@ looperr:
 				case PCAPERR_SUCCESS:
 					break;
 				default:
-					fatal(pp, pcaperr(cmdstatus));
+					fatal(pp, "%s", pcaperr(cmdstatus));
 				}
 			} while (more && cmdstatus);
 		}
@@ -182,7 +182,7 @@ looperr:
 		cmdstatus = getprintcap(*argv, pp);
 		switch (cmdstatus) {
 		default:
-			fatal(pp, pcaperr(cmdstatus));
+			fatal(pp, "%s", pcaperr(cmdstatus));
 		case PCAPERR_NOTFOUND:
 			printf("unknown printer %s\n", *argv);
 			continue;
@@ -700,7 +700,7 @@ looperr:
 				case PCAPERR_SUCCESS:
 					break;
 				default:
-					fatal(pp, pcaperr(cmdstatus));
+					fatal(pp, "%s", pcaperr(cmdstatus));
 				}
 			} while (more && cmdstatus);
 		}
@@ -710,7 +710,7 @@ looperr:
 	cmdstatus = getprintcap(argv[1], pp);
 	switch (cmdstatus) {
 	default:
-		fatal(pp, pcaperr(cmdstatus));
+		fatal(pp, "%s", pcaperr(cmdstatus));
 	case PCAPERR_NOTFOUND:
 		printf("unknown printer %s\n", argv[1]);
 		return;
@@ -974,7 +974,7 @@ topq(int argc, char *argv[])
 	cmdstatus = getprintcap(*argv, pp);
 	switch(cmdstatus) {
 	default:
-		fatal(pp, pcaperr(cmdstatus));
+		fatal(pp, "%s", pcaperr(cmdstatus));
 	case PCAPERR_NOTFOUND:
 		printf("unknown printer %s\n", *argv);
 		return;

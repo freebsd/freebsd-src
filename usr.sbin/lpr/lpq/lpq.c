@@ -152,7 +152,7 @@ looperr:
 				case PCAPERR_SUCCESS:
 					break;
 				default:
-					fatal(pp, pcaperr(status));
+					fatal(pp, "%s", pcaperr(status));
 				}
 			} while (more && status);
 		}
@@ -162,7 +162,7 @@ looperr:
 		init_printer(pp);
 		status = getprintcap(printer, pp);
 		if (status < 0)
-			fatal(pp, pcaperr(status));
+			fatal(pp, "%s", pcaperr(status));
 
 		displayq(pp, lflag);
 	}
