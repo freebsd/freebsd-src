@@ -349,6 +349,9 @@ fdesc_open(ap)
 	case Fctty:
 		error = (*ctty_cdevsw.d_open)(devctty, ap->a_mode, 0, ap->a_p);
 		break;
+
+	default:	/* nothing special */
+		break;
 	}
 
 	return (error);
