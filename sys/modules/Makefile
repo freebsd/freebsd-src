@@ -75,6 +75,7 @@ SUBDIR=	3dfx \
 	md \
 	mii \
 	mlx \
+	mpt \
 	msdosfs \
 	nfsclient \
 	nfsserver \
