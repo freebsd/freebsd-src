@@ -1,16 +1,18 @@
 /* ns_func.h - declarations for ns_*.c's externally visible functions
  *
- * $Id: ns_func.h,v 1.12 1994/07/22 08:42:39 vixie Exp $
+ * $Id: ns_func.h,v 8.3 1995/06/29 09:26:17 vixie Exp $
  */
 
 /* ++from ns_resp.c++ */
 extern void		ns_resp __P((u_char *, int)),
 			prime_cache __P((void)),
 			delete_all __P((struct namebuf *, int, int));
-extern struct qinfo	*sysquery __P((char *, int, int,
-				       struct in_addr *, int));
-extern int
-			doupdate __P((u_char *, int, u_char *, int,
+extern struct qinfo	*sysquery __P((const char *, int, int,
+				       struct in_addr *, int, int));
+extern struct notify	*findNotifyPeer __P((const struct zoneinfo *,
+					   struct in_addr));
+extern void		sysnotify __P((const char *, int, int));
+extern int		doupdate __P((u_char *, int, u_char *, int,
 				      struct databuf **, int, u_int)),
 			send_msg __P((u_char *, int, struct qinfo *)),
 			findns __P((struct namebuf **, int,
@@ -27,14 +29,20 @@ extern int
 extern void		ns_req __P((u_char *, int, int,
 				    struct qstream *,
 				    struct sockaddr_in *,
-				    int));
+				    int)),
+			free_addinfo __P((void)),
+			free_nsp __P((struct databuf **));
 extern int		stale __P((struct databuf *)),
-			make_rr __P((char *, struct databuf *,
+			make_rr __P((const char *, struct databuf *,
 				     u_char *, int, int)),
 			doaddinfo __P((HEADER *, u_char *, int)),
 			doaddauth __P((HEADER *, u_char *, int,
 				       struct namebuf *,
 				       struct databuf *));
+#ifdef BIND_NOTIFY
+extern int		findZonePri __P((const struct zoneinfo *,
+					 const struct sockaddr_in *));
+#endif
 /* --from ns_req.c-- */
 
 /* ++from ns_forw.c++ */
@@ -48,15 +56,16 @@ extern int		ns_forw __P((struct databuf *nsp[],
 				     struct qinfo **qpp,
 				     char *dname,
 				     struct namebuf *np)),
-			haveComplained __P((char *, char *)),
+			haveComplained __P((const char *, const char *)),
 			nslookup __P((struct databuf *nsp[],
 				      struct qinfo *qp,
-				      char *syslogdname,
-				      char *sysloginfo)),
+				      const char *syslogdname,
+				      const char *sysloginfo)),
 			qcomp __P((struct qserv *, struct qserv *));
 extern struct qdatagram	*aIsUs __P((struct in_addr));
-extern void		nslookupComplain __P((char *, char *, char *, char *,
-					      struct databuf *)),
+extern void		nslookupComplain __P((const char *, const char *,
+					      const char *, const char *,
+					      const struct databuf *)),
 			schedretry __P((struct qinfo *, time_t)),
 			unsched __P((struct qinfo *)),
 			retry __P((struct qinfo *)),
@@ -79,7 +88,9 @@ extern void		sqrm __P((struct qstream *)),
 			dqflush __P((time_t gen)),
 			sq_done __P((struct qstream *)),
 			ns_setproctitle __P((char *, int)),
-			getnetconf __P((void));
+			getnetconf __P((void)),
+			nsid_init __P((void));
+extern u_int16_t	nsid_next __P((void));
 extern struct netinfo	*findnetinfo __P((struct in_addr));
 /* --from ns_main.c-- */
 
@@ -91,9 +102,14 @@ extern void		ns_maint __P((void)),
 #else
 			remove_zone __P((struct hashbuf *, int)),
 #endif
+#ifdef PURGE_ZONE
+			purge_zone __P((const char *, struct hashbuf *, int)),
+#endif
 			loadxfer __P((void)),
+			qserial_query __P((struct zoneinfo *)),
 			qserial_answer __P((struct qinfo *, u_int32_t));
-extern SIG_FN		endxfer __P((void));
+extern SIG_FN		endxfer __P(());
+extern const char *	zoneTypeString __P((const struct zoneinfo *));
 #ifdef DEBUG
 extern void		printzoneinfo __P((int));
 #endif
@@ -107,7 +123,9 @@ extern void		sort_response __P((u_char *, int,
 /* --from ns_sort.c-- */
 
 /* ++from ns_init.c++ */
-extern void		ns_init __P((char *));
+extern void		ns_refreshtime __P((struct zoneinfo *, time_t)),
+			ns_retrytime __P((struct zoneinfo *, time_t)),
+			ns_init __P((char *));
 /* --from ns_init.c-- */
 
 /* ++from ns_ncache.c++ */
@@ -116,6 +134,9 @@ extern void		cache_n_resp __P((u_char *, int));
 
 /* ++from ns_stats.c++ */
 extern void		ns_stats __P((void));
+#ifdef XSTATS
+extern void		ns_logstats __P((void));
+#endif
 extern void		qtypeIncr __P((int qtype));
 extern struct nameser	*nameserFind __P((struct in_addr addr, int flags));
 #define NS_F_INSERT	0x0001
@@ -135,6 +156,6 @@ extern int
 			dovalidate __P((u_char *, int, u_char *, int, int,
 					struct sockaddr_in *, int *)),
 			update_msg __P((u_char *, int *, int Vlist[], int));
-extern void		store_name_addr __P((char *, struct in_addr *,
+extern void		store_name_addr __P((char *, struct in_addr,
 					     char *, char *));
 /* --from ns_validate.c-- */
