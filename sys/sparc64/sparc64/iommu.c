@@ -190,7 +190,7 @@ struct mtx iommu_mtx;
  * the IOTSBs are divorced.
  * LRU queue handling for lazy resource allocation.
  */
-static TAILQ_HEAD(, bus_dmamap) iommu_maplruq =
+static TAILQ_HEAD(iommu_maplruq_head, bus_dmamap) iommu_maplruq =
    TAILQ_HEAD_INITIALIZER(iommu_maplruq);
 
 /* DVMA space rman. */
@@ -746,7 +746,7 @@ static int
 iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
     vm_offset_t voffs, bus_size_t size, bus_addr_t amask, bus_addr_t *addr)
 {
-	bus_dmamap_t tm;
+	bus_dmamap_t tm, last;
 	bus_addr_t dvmaddr, freed;
 	int error, complete = 0;
 
@@ -757,7 +757,7 @@ iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
 		while ((error = iommu_dvma_valloc(dt, is, map,
 			voffs + size)) == ENOMEM && !complete) {
 			/*
-			 * Free the allocated DVMA of a few tags until
+			 * Free the allocated DVMA of a few maps until
 			 * the required size is reached. This is an
 			 * approximation to not have to call the allocation
 			 * function too often; most likely one free run
@@ -766,16 +766,16 @@ iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
 			 */
 			IS_LOCK(is);
 			freed = 0;
+			last = TAILQ_LAST(&iommu_maplruq, iommu_maplruq_head);
 			do {
 				tm = TAILQ_FIRST(&iommu_maplruq);
-				if (tm == NULL) {
-					complete = 1;
+				complete = tm == last;
+				if (tm == NULL)
 					break;
-				}
 				freed += iommu_dvma_vprune(is, tm);
 				/* Move to the end. */
 				iommu_map_insq(is, tm);
-			} while (freed < size);
+			} while (freed < size && !complete);
 			IS_UNLOCK(is);
 		}
 		if (error != 0)
