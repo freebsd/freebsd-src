@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.12 1996/06/09 17:29:12 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.12.2.2 1996/10/06 01:24:13 gibbs Exp $
  */
 
 /*
@@ -408,6 +408,7 @@
 #define			NO_IDENT	0x21	/* no IDENTIFY after reconnect*/
 #define			NO_MATCH	0x31	/* no cmd match for reconnect */
 #define			EXTENDED_MSG	0x41	/* Extended message received */
+#define			DMA_UP_SCB	0x51
 #define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
@@ -529,6 +530,7 @@
 #define		MK_MESSAGE      0x80
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
+#define		ABORT_SCB	0x08
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
 #define	SCB_TCL			0x0a1
@@ -553,7 +555,7 @@
 #define		SCB_DATACNT0	0x0b0
 #define		SCB_DATACNT1	0x0b1
 #define		SCB_DATACNT2	0x0b2
-/* UNUSED - QUAD PADDING	0x0b3 */
+#define	SCB_LINKED_NEXT		0x0b3
 #define SCB_CMDPTR		0x0b4
 #define		SCB_CMDPTR0	0x0b4
 #define		SCB_CMDPTR1	0x0b5
@@ -563,6 +565,10 @@
 #define SCB_TAG			0x0b9
 #define	SCB_NEXT		0x0ba
 #define	SCB_PREV		0x0bb
+#define	SCB_ACTIVE0		0x0bc
+#define	SCB_ACTIVE1		0x0bd
+#define	SCB_ACTIVE2		0x0be
+#define	SCB_ACTIVE3		0x0bf
 
 #ifdef __linux__
 #define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
@@ -644,11 +650,10 @@
 
 /*
  * The sequencer will stick the frist byte of any rejected message here so
- * we can see what is getting thrown away.  Extended messages put the
- * extended message type in REJBYTE_EXT.
+ * we can see what is getting thrown away.
  */
 #define REJBYTE			0x030
-#define REJBYTE_EXT		0x031
+#define	TARGID_MASK		0x031
 
 /*
  * Bit vector of targets that have disconnection disabled.
@@ -662,7 +667,7 @@
  */
 #define MSG_LEN			0x034
 
-/* We reserve 8bytes to store outgoing messages */
+/* We reserve 6bytes to store outgoing messages */
 #define MSG0			0x035
 #define		COMP_MSG0	0xcb      /* 2's complement of MSG0 */
 #define MSG1			0x036
@@ -670,92 +675,104 @@
 #define MSG3			0x038
 #define MSG4			0x039
 #define MSG5			0x03a
-#define MSG6			0x03b
-#define MSG7			0x03c
+
+#define LASTPHASE		0x03b
+#define ARG_1			0x03c
+#define RETURN_1		0x03c
+#define		SEND_MSG	0x80
+#define		SEND_SENSE	0x40
+#define		SEND_REJ	0x20
+#define		SCB_PAGEDIN	0x10
+
+#define DMAPARAMS		0x03d	/* Parameters for DMA Logic */
+
+#define	SCBCOUNT		0x03e	/*
+					 * Number of SCBs supported by
+					 * this card.
+					 */
+#define	COMP_SCBCOUNT		0x03f	/*
+					 * Two's compliment of SCBCOUNT
+					 */
+#define QCNTMASK		0x040	/*
+					 * Mask of bits to test against
+					 * when looking at the Queue Count
+					 * registers.  Works around a bug
+					 * on aic7850 chips. 
+					 */
+#define FLAGS			0x041
+#define		SINGLE_BUS	0x00
+#define		TWIN_BUS	0x01
+#define		WIDE_BUS	0x02
+#define		PAGESCBS	0x04
+#define		SCB_LISTED	0x08
+#define		DPHASE		0x10
+#define		IDENTIFY_SEEN	0x40
+#define		RESELECTED	0x80
+
+#define	SAVED_TCL		0x042	/*
+					 * Temporary storage for the
+					 * target/channel/lun of a
+					 * reconnecting target
+					 */
+#define	SG_COUNT		0x043
+#define	SG_NEXT			0x044	/* working value of SG pointer */
+#define		SG_NEXT0	0x044
+#define		SG_NEXT1	0x045
+#define		SG_NEXT2	0x046
+#define		SG_NEXT3	0x047
+
+#define WAITING_SCBH		0x048	/*
+					 * head of list of SCBs awaiting
+					 * selection
+					 */
+#define SAVED_LINKPTR		0x049
+#define SAVED_SCBPTR		0x04a
+#define ULTRA_ENB		0x04b
+#define ULTRA_ENB_B		0x04c
+
+#define MSGIN_EXT_LEN		0x04d
+#define MSGIN_EXT_OPCODE	0x04e
+#define MSGIN_EXT_BYTE0		0x04f
+#define MSGIN_EXT_BYTE1		0x050
+#define MSGIN_EXT_BYTE2		0x051	/*
+					 * This location, stores the last
+					 * byte of an extended message if
+					 * it passes the two bytes of space
+					 * we allow now.  This byte isn't
+					 * used for anything, it just makes
+					 * the code shorter for tossing
+					 * extra bytes.
+					 */
+#define	MSGIN_EXT_LASTBYTE	0x052	/* Used as the address for range
+					 * checking, not used for storage.
+					 */
+
+#define DISCONNECTED_SCBH	0x052	/*
+					 * head of list of SCBs that are
+					 * disconnected.  Used for SCB
+					 * paging.
+					 */
+#define FREE_SCBH		0x053	/*
+					 * head of list of SCBs that are
+					 * not in use.  Used for SCB paging.
+					 */
+
+
+#define HSCB_ADDR0		0x054
+#define HSCB_ADDR1		0x055
+#define HSCB_ADDR2		0x056
+#define HSCB_ADDR3		0x057
+
+#define	CUR_SCBID		0x058
+#define QFULLCNT		0x059
+
+#define		SCB_LIST_NULL	0xff
 
 /*
  * These are offsets into the card's scratch ram.  Some of the values are
  * specified in the AHA2742 technical reference manual and are initialized
  * by the BIOS at boot time.
  */
-#define LASTPHASE		0x03d
-#define ARG_1			0x03e
-#define RETURN_1		0x03f
-#define		SEND_MSG	0x80
-#define		SEND_SENSE	0x40
-#define		SEND_REJ	0x20
-#define		SCB_PAGEDIN	0x10
-
-#define SIGSTATE		0x040
-
-#define DMAPARAMS		0x041	/* Parameters for DMA Logic */
-
-#define	SG_COUNT		0x042
-#define	SG_NEXT			0x043	/* working value of SG pointer */
-#define		SG_NEXT0	0x043
-#define		SG_NEXT1	0x044
-#define		SG_NEXT2	0x045
-#define		SG_NEXT3	0x046
-
-#define	SCBCOUNT		0x047	/*
-					 * Number of SCBs supported by
-					 * this card.
-					 */
-#define	COMP_SCBCOUNT		0x048	/*
-					 * Two's compliment of SCBCOUNT
-					 */
-#define QCNTMASK		0x049	/*
-					 * Mask of bits to test against
-					 * when looking at the Queue Count
-					 * registers.  Works around a bug
-					 * on aic7850 chips. 
-					 */
-#define FLAGS			0x04a
-#define		SINGLE_BUS	0x00
-#define		TWIN_BUS	0x01
-#define		WIDE_BUS	0x02
-#define		PAGESCBS	0x04
-#define		DPHASE		0x10
-#define		SELECTED	0x20
-#define		IDENTIFY_SEEN	0x40
-#define		RESELECTED	0x80
-
-#define	SAVED_TCL		0x04b	/*
-					 * Temporary storage for the
-					 * target/channel/lun of a
-					 * reconnecting target
-					 */
-#define	ACTIVE_A		0x04c
-#define	ACTIVE_B		0x04d
-#define WAITING_SCBH		0x04e	/*
-					 * head of list of SCBs awaiting
-					 * selection
-					 */
-#define DISCONNECTED_SCBH	0x04f	/*
-					 * head of list of SCBs that are
-					 * disconnected.  Used for SCB
-					 * paging.
-					 */
-#define		SCB_LIST_NULL	0xff
-
-#define SAVED_LINKPTR		0x050
-#define SAVED_SCBPTR		0x051
-#define ULTRA_ENB		0x052
-#define ULTRA_ENB_B		0x053
-
-#define MSGIN_EXT_LEN		0x054
-#define MSGIN_EXT_OPCODE	0x055
-#define MSGIN_EXT_BYTE0		0x056
-#define MSGIN_EXT_BYTE1		0x057
-#define	MSGIN_EXT_LASTBYTE	0x058	/*
-					 * We don't use this location, but
-					 * continue to store bytes until
-					 * we reach this address (avoids
-					 * a more complicated compare).
-					 * So, we can store at most 2
-					 * bytes for now.
-					 */
-
 #define SCSICONF		0x05a
 #define		RESET_SCSI	0x40
 
