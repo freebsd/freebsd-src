@@ -344,12 +344,6 @@ literal:
 		}
 
 		/*
-		 * We have a conversion that requires input.
-		 */
-		if (fp->_r <= 0 && __srefill(fp))
-			goto input_failure;
-
-		/*
 		 * Consume leading white space, except for formats
 		 * that suppress this.
 		 */
