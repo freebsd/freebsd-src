@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-BIN=	100.chksetuid \
+FILES=	100.chksetuid \
 	200.chkmounts \
 	300.chkuid0 \
 	400.passwdless \
