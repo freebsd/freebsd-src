@@ -209,8 +209,18 @@ lexi()
 	    }
 	}
 	else
-	    while (chartype[*buf_ptr] == alphanum) {	/* copy it over */
+	    while (chartype[*buf_ptr] == alphanum || *buf_ptr == BACKSLASH) {
+		/* fill_buffer() terminates buffer with newline */
+		if (*buf_ptr == BACKSLASH) {
+		    if (*(buf_ptr + 1) == '\n') {
+			buf_ptr += 2;
+			if (buf_ptr >= buf_end)
+			    fill_buffer();
+			} else
+			    break;
+		}
 		CHECK_SIZE_TOKEN;
+		/* copy it over */
 		*e_token++ = *buf_ptr++;
 		if (buf_ptr >= buf_end)
 		    fill_buffer();
