@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.18 1997/12/30 08:46:41 bde Exp $
+ *	$Id: procfs.h,v 1.19 1998/05/19 00:00:13 tegge Exp $
  */
 
 /*
@@ -103,10 +103,10 @@ struct pfsnode {
  */
 #define PROCFS_NAMELEN 8
 struct pfsdent {
-	u_long	d_fileno;
-	u_short	d_reclen;
-	u_char	d_type;
-	u_char	d_namlen;
+	u_int32_t d_fileno;
+	u_int16_t d_reclen;
+	u_int8_t  d_type;
+	u_int8_t  d_namlen;
 	char	d_name[PROCFS_NAMELEN];
 };
 #define UIO_MX sizeof(struct pfsdent)
