@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.27 1995/04/11 01:22:15 rgrimes Exp $
+#	$Id: netstart,v 1.28 1995/04/12 16:58:06 ache Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # If there is a global system configuration file, suck it in.
@@ -14,9 +14,8 @@ if [ -z "`hostname -s`" ] ; then
 fi
 
 # Set the domainname if we're using NIS
-if [ -z "`domainname`" -a -e "/etc/defaultdomain" ] ; then
-	domainname=`cat /etc/defaultdomain`
-	domainname $domainname
+if [ -n "$defaultdomainname" -a "x$defaultdomainname" != "xNO" ] ; then
+	domainname $defaultdomainname
 fi
 
 # Set up all the network interfaces, calling startup scripts if needed
