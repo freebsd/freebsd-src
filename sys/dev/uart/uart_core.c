@@ -200,17 +200,21 @@ uart_intr(void *arg)
 	if (sc->sc_leaving)
 		return;
 
-	ipend = UART_IPEND(sc);
-	if (ipend & UART_IPEND_OVERRUN)
-		uart_intr_overrun(sc);
-	if (ipend & UART_IPEND_BREAK)
-		uart_intr_break(sc);
-	if (ipend & UART_IPEND_RXREADY)
-		uart_intr_rxready(sc);
-	if (ipend & UART_IPEND_SIGCHG)
-		uart_intr_sigchg(sc);
-	if (ipend & UART_IPEND_TXIDLE)
-		uart_intr_txidle(sc);
+	do {
+		ipend = UART_IPEND(sc);
+		if (ipend == 0)
+			break;
+		if (ipend & UART_IPEND_OVERRUN)
+			uart_intr_overrun(sc);
+		if (ipend & UART_IPEND_BREAK)
+			uart_intr_break(sc);
+		if (ipend & UART_IPEND_RXREADY)
+			uart_intr_rxready(sc);
+		if (ipend & UART_IPEND_SIGCHG)
+			uart_intr_sigchg(sc);
+		if (ipend & UART_IPEND_TXIDLE)
+			uart_intr_txidle(sc);
+	} while (1);
 
 	if (sc->sc_opened && sc->sc_ttypend != 0)
 		swi_sched(sc->sc_softih, 0);
