@@ -96,7 +96,6 @@
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
   092   nscr   nop    debug  nop    nop    nop    nop    nop     O
-# 093   meta   meta   meta   meta   meta   meta   meta   meta    O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey69 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey70 fkey50 fkey50 fkey50 fkey50 fkey50  O
@@ -107,11 +106,11 @@
   100   fkey58 fkey58 fkey78 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey79 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey80 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  103	del    del    fkey81 del    fkey61 fkey61 boot   boot    O
+  103   del    del    fkey81 del    fkey61 fkey61 boot   boot    O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
-  105	meta   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
-  106	meta   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
-  107	meta   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  105   meta   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  106   meta   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  107   meta   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
   109   nop    nop    nop    nop    nop    nop    nop    nop     O
   110   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -236,8 +235,8 @@
   228   fkey58 fkey58 fkey78 fkey58 fkey58 fkey58 fkey58 fkey58  O
   229   fkey59 fkey59 fkey79 fkey59 fkey59 fkey59 fkey59 fkey59  O
   230   fkey60 fkey60 fkey80 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  231	del    del    fkey81 del    fkey61 fkey61 boot   boot    O
+  231   del    del    fkey81 del    fkey61 fkey61 boot   boot    O
   232   slock  slock  slock  slock  slock  slock  slock  slock   O
-  233	meta   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
-  234	meta   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
-  235	meta   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
+  233   meta   fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  234   meta   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
+  235   meta   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
