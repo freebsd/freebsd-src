@@ -545,7 +545,7 @@ ndis_mtop(m0, p)
         priv->npp_packetooboffset = offsetof(ndis_packet, np_oob);
 
 	for (m = m0; m != NULL; m = m->m_next) {
-		if (m->m_len == NULL)
+		if (m->m_len == 0)
 			continue;
 		buf = malloc(sizeof(ndis_buffer), M_DEVBUF, M_NOWAIT|M_ZERO);
 		if (buf == NULL) {
