@@ -52,8 +52,8 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 
 	np = nprocs;
 
-	if (allproc.lh_first != NULL)
-		p = allproc.lh_first;
+	if (!LIST_EMPTY(&allproc))
+		p = LIST_FIRST(&allproc);
 	else
 		p = &proc0;
 
@@ -102,8 +102,8 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		}
 		db_printf(" %s\n", p->p_comm ? p->p_comm : "");
 
-		p = p->p_list.le_next;
+		p = LIST_NEXT(p, p_list);
 		if (p == NULL && np > 0)
-			p = zombproc.lh_first;
+			p = LIST_FIRST(&zombproc);
     	}
 }
