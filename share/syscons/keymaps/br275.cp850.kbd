@@ -120,4 +120,12 @@
   115   '/'    '?'    nop    nop    248    '?'    nop    nop     O
   116   nop    nop    nop    nop    nop    nop    nop    nop     O
   117   nop    nop    nop    nop    nop    nop    nop    nop     O
-  118   nop    nop    nop 
+  118   nop    nop    nop    nop    nop    nop    nop    nop     O
+  119   nop    nop    nop    nop    nop    nop    nop    nop     O
+  120   nop    nop    nop    nop    nop    nop    nop    nop     O
+  121   nop    nop    nop    nop    nop    nop    nop    nop     O
+  122   nop    nop    nop    nop    nop    nop    nop    nop     O
+  123   nop    nop    nop    nop    nop    nop    nop    nop     O
+  124   nop    nop    nop    nop    nop    nop    nop    nop     O
+  125   nop    nop    nop    nop    nop    nop    nop    nop     O
+  126   '.'    '.'    '.'    '.'    '.'    '.'    '.'    '.'     N
