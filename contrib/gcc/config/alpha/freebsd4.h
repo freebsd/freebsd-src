@@ -21,7 +21,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* This is used on Alpha platforms that use the ELF format.
    This was taken from the NetBSD configuration, and modified
    for FreeBSD/alpha by Hidetoshi Shimokawa <simokawa@FreeBSD.ORG> */
-
+/* $FreeBSD$
+ */
 
 /* Get generic FreeBSD definitions.  */
 #include <freebsd.h>
@@ -67,6 +68,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
+
+/*
+ * Handle cross-compilation on 32-bits machines (such as i386)
+ * for 64-bits machines (Alpha in this case).
+ */
+#if defined(__i386__)
+#undef	HOST_BITS_PER_LONG
+#define	HOST_BITS_PER_LONG 32
+#undef	HOST_WIDE_INT
+#define	HOST_WIDE_INT long long
+#undef	HOST_BITS_PER_WIDE_INT
+#define	HOST_BITS_PER_WIDE_INT 64
+#endif
 
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  Under FreeBSD/Alpha, the assembler does
