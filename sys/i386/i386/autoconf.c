@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.56.2.12 1998/03/24 02:38:00 jkh Exp $
+ *	$Id: autoconf.c,v 1.56.2.13 1998/03/31 02:09:29 msmith Exp $
  */
 
 /*
@@ -208,8 +208,20 @@ configure(dummy)
 	int i;
 
 	configure_start();
-
 	/* Allow all routines to decide for themselves if they want intrs */
+	/*
+	 * XXX Since this cannot be achieved on all architectures, we should
+	 * XXX go back to disabling all interrupts until configuration is
+	 * XXX completed and switch any devices that rely on the current
+	 * XXX behavior to no longer rely on interrupts or to register an
+	 * XXX interrupt_driven_config_hook for the task.
+	 */
+	/*
+	 * XXX The above is wrong, because we're implicitly at splhigh(),
+	 * XXX and should stay there, so enabling interrupts in the CPU
+	 * XXX and the ICU at most gives pending interrupts which just get
+	 * XXX in the way.
+	 */
         enable_intr();
         INTREN(IRQ_SLAVE);
 
@@ -233,9 +245,6 @@ configure(dummy)
 	/* After everyone else has a chance at grabbing resources */
 	pccard_configure();
 #endif
-
-	if (setdumpdev(dumpdev) != 0)
-		dumpdev = NODEV;
 
 	configure_finish();
 
@@ -274,9 +283,18 @@ configure(dummy)
 
 		printf("Device configuration finished.\n");
 	}
+	cold = 0;
+}
 
+void
+cpu_rootconf()
+{
+	/*
+	 * XXX NetBSD has a much cleaner approach to finding root.
+	 * XXX We should adopt their code.
+	 */
 #ifdef CD9660
-	if ((boothowto & RB_CDROM) && !mountroot) {
+	if ((boothowto & RB_CDROM) != 0) {
 		if (bootverbose)
 			printf("Considering CD-ROM root f/s.\n");
 		/* NB: find_cdrom_root() sets rootdev if successful. */
@@ -293,6 +311,16 @@ configure(dummy)
 			printf("Considering MFS root f/s.\n");
 		mountroot = vfs_mountroot;	/* XXX goes away*/
 		mountrootvfsops = &mfs_vfsops;
+		/*
+		 * Ignore the -a flag if this kernel isn't compiled
+		 * with a generic root/swap configuration: if we skip
+		 * setroot() and we aren't a generic kernel, chaos
+		 * will ensue because setconf() will be a no-op.
+		 * (rootdev is always initialized to NODEV in a
+		 * generic configuration, so we test for that.)
+		 */
+		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
+			setroot();
 	}
 #endif
 
@@ -305,7 +333,7 @@ configure(dummy)
 #endif /* BOOTP_NFSROOT */
 
 #ifdef NFS
-	if (!mountroot && nfs_diskless_valid) {
+	if (!mountroot == NULL && nfs_diskless_valid) {
 		if (bootverbose)
 			printf("Considering NFS root f/s.\n");
 		mountroot = nfs_mountroot;
@@ -352,11 +380,14 @@ configure(dummy)
 	if (!mountroot) {
 		panic("Nobody wants to mount my root for me");
 	}
-
 	setconf();
-	cold = 0;
-	if (bootverbose)
-		printf("configure() finished.\n");
+}
+
+void
+cpu_dumpconf()
+{
+	if (setdumpdev(dumpdev) != 0)
+		dumpdev = NODEV;
 }
 
 static int
@@ -380,6 +411,13 @@ setdumpdev(dev)
 	psize = bdevsw[maj]->d_psize(dev);
 	if (psize == -1)
 		return (ENXIO);		/* XXX should be ENODEV ? */
+	/*
+	 * XXX should clean up checking in dumpsys() to be more like this,
+	 * and nuke dodump sysctl (too many knobs), and move this to
+	 * kern_shutdown.c...
+	 */
+	if (dkpart(dev) != SWAP_PART)
+		return (ENODEV);
 	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
 	if (newdumplo < 0)
 		return (ENOSPC);
