@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.15 2000/03/21 14:39:36 dmlb Exp $
+ * $Id: if_ray.c,v 1.16 2000/03/31 20:12:30 dmlb Exp $
  *
  */
 
@@ -189,11 +189,13 @@
  *	antenna not used yet
  * antenna tx side - done
  *	not tested!
+ * shutdown - done
+ *	the driver seems to do the right thing for plugging and unplugging
+ *	cards
+ * apm/resume - ignore
+ *	apm+pccard is borken for 3.x - no one knows how to do it anymore
  *
- * shutdown
  * _reset - check where needed
- * apm
- * resume
  * faster TX routine
  * more translations
  * infrastructure mode - maybe need some of the old stuff for checking?
@@ -1579,7 +1581,8 @@ ray_start_sc(sc)
 	    		sc->unit, sc->translation);
 	    RAY_CCS_FREE(sc, ccs);
 	    ifp->if_oerrors++;
-	    m0 = m_free(m0);
+	    m_freem(m0);
+	    m0 = NULL;
 	    return;
 
     }
@@ -1635,7 +1638,7 @@ ray_start_sc(sc)
     ifp->if_opackets++;
     ifp->if_flags |= IFF_OACTIVE;
     RAY_ECF_START_CMD(sc);
-    m_free(m0);
+    m_freem(m0);
 
     return;
 }
