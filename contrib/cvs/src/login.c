@@ -293,6 +293,9 @@ get_cvs_password ()
     FILE *fp;
     char *passfile;
     int line_length;
+    int anoncvs;
+
+    anoncvs = (strcmp(CVSroot_username, "anoncvs") == 0);
 
     /* If someone (i.e., login()) is calling connect_to_pserver() out of
        context, then assume they have supplied the correct, scrambled
@@ -333,6 +336,10 @@ get_cvs_password ()
     fp = CVS_FOPEN (passfile, "r");
     if (fp == NULL)
     {
+	if (anoncvs) {
+	    free (passfile);
+	    return strdup("Ay=0=h<Z");	/* scrambled "anoncvs" */
+	}
 	error (0, errno, "could not open %s", passfile);
 	free (passfile);
 	error (1, 0, "use \"cvs login\" to log in first");
@@ -354,6 +361,7 @@ get_cvs_password ()
 	error (0, errno, "cannot read %s", passfile);
     if (fclose (fp) < 0)
 	error (0, errno, "cannot close %s", passfile);
+    free (passfile);
 
     if (found_it)
     {
@@ -373,6 +381,8 @@ get_cvs_password ()
     {
         if (linebuf)
             free (linebuf);
+	if (anoncvs)
+	    return strdup("Ay=0=h<Z");	/* scrambled "anoncvs" */
 	error (0, 0, "cannot find password");
 	error (1, 0, "use \"cvs login\" to log in first");
     }
