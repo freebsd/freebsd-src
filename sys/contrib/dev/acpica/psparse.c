@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 85 $
+ *              $Revision: 87 $
  *
  *****************************************************************************/
 
@@ -249,7 +249,7 @@ AcpiPsCreateState (
     FUNCTION_TRACE ("PsCreateState");
 
 
-    ParserState = AcpiUtCallocate (sizeof (ACPI_PARSE_STATE));
+    ParserState = ACPI_MEM_CALLOCATE (sizeof (ACPI_PARSE_STATE));
     if (!ParserState)
     {
         return_PTR (NULL);
@@ -666,11 +666,11 @@ AcpiPsParseLoop (
                     {
                         DEBUG_PRINTP (ACPI_ERROR,
                             ("Invoked method did not return a value, %s\n",
-                            AcpiUtFormatException (Status)));
+                            AcpiFormatException (Status)));
 
                     }
                     DEBUG_PRINTP (ACPI_ERROR, ("GetPredicate Failed, %s\n",
-                        AcpiUtFormatException (Status)));
+                        AcpiFormatException (Status)));
                     return_ACPI_STATUS (Status);
                 }
 
@@ -1407,7 +1407,7 @@ AcpiPsParseAml (
          /* Delete this walk state and all linked control states */
 
         AcpiPsCleanupScope (WalkState->ParserState);
-        AcpiUtFree (WalkState->ParserState);
+        ACPI_MEM_FREE (WalkState->ParserState);
         AcpiDsDeleteWalkState (WalkState);
 
        /* Check if we have restarted a preempted walk */
@@ -1469,7 +1469,7 @@ Cleanup:
 
     AcpiDsDeleteWalkState (WalkState);
     AcpiPsCleanupScope (ParserState);
-    AcpiUtFree (ParserState);
+    ACPI_MEM_FREE (ParserState);
 
     AcpiExReleaseAllMutexes ((ACPI_OPERAND_OBJECT *)&WalkList.AcquiredMutexList);
     AcpiGbl_CurrentWalkList = PrevWalkList;
