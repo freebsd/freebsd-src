@@ -61,20 +61,20 @@
  *
  *	Here's a state diagram of all the possible states:
  *
- *			      power x 1
- *			 -------------------
- *			/		    \
- *		       /       		     v
- *    resume  	+----------+   power x 0   +----------+
- *	------->| inactive |<--------------| filled   |
- *     /       	+----------+         	   +----------+
- *    /	    	  / 	\    	      	    ^  	|
- *  nil <---------  	 \   	  insert or |  	| suspend or
- *	     suspend	  \   	  power x 1 |  	| eject
- *			   \   	       	    |  	v
- *	    		    \	    	   +----------+
- *     	       	       	     ------------->|  empty   |
- *     	       	       	       eject	   +----------+
+ *                             power x 1
+ *                       -------------------
+ *                      /                   \
+ *                     /                     v
+ *    resume    +----------+   power x 0   +----------+
+ *      ------->| inactive |<--------------| filled   |
+ *     /        +----------+               +----------+
+ *    /           /     \                   ^   |
+ *  nil <---------       \        insert or |   | suspend or
+ *        suspend         \       power x 1 |   | eject
+ *                         \                |   v
+ *                          \            +----------+
+ *                           ----------->|  empty   |
+ *                             eject     +----------+
  *
  *	Note, the above diagram is for the state.  On suspend, the laststate
  * gets set to suspend to tell pccardd what happened.  Also the nil state
