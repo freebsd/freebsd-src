@@ -188,6 +188,8 @@ int	munmap(void *, size_t);
 int	posix_madvise(void *, size_t, int);
 #endif
 #if __POSIX_VISIBLE >= 199309
+int	mlockall(int);
+int	munlockall(void);
 int	shm_open(const char *, int, mode_t);
 int	shm_unlink(const char *);
 #endif

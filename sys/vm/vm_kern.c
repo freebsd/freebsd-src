@@ -216,7 +216,8 @@ kmem_alloc(map, size)
 	/*
 	 * And finally, mark the data as non-pageable.
 	 */
-	(void) vm_map_wire(map, addr, addr + size, FALSE);
+	(void) vm_map_wire(map, addr, addr + size,
+	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 
 	return (addr);
 }

@@ -266,7 +266,8 @@ again1:
 			tmp_addr += PAGE_SIZE;
 		}
 		VM_OBJECT_UNLOCK(kernel_object);
-		vm_map_wire(map, addr, addr + size, FALSE);
+		vm_map_wire(map, addr, addr + size,
+		    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
 
 		splx(s);
 		return ((void *)addr);
