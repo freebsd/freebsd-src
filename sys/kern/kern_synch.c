@@ -171,13 +171,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	sq = sleepq_lookup(ident);
 	mtx_lock_spin(&sched_lock);
 
-	/*
-	 * If we are capable of async syscalls and there isn't already
-	 * another one ready to return, start a new thread
-	 * and queue it as ready to run. Note that there is danger here
-	 * because we need to make sure that we don't sleep allocating
-	 * the thread (recursion here might be bad).
-	 */
 	if (p->p_flag & P_SA || p->p_numthreads > 1) {
 		/*
 		 * Just don't bother if we are exiting
