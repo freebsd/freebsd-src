@@ -124,8 +124,11 @@ sc_mouse_move(scr_stat *scp, int x, int y)
     s = spltty();
     scp->mouse_xpos = x;
     scp->mouse_ypos = y;
-    scp->mouse_pos = scp->mouse_oldpos = 
-	(y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
+    if (ISGRAPHSC(scp))
+	scp->mouse_pos = scp->mouse_oldpos = 0;
+    else
+	scp->mouse_pos = scp->mouse_oldpos = 
+	    (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
     splx(s);
 }
 
