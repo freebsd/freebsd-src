@@ -711,13 +711,13 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
  *	This routine may not block.
  */
 static vm_page_t
-vm_page_select_cache(vm_pindex_t color)
+vm_page_select_cache(int color)
 {
 	vm_page_t m;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while (TRUE) {
-		m = vm_pageq_find(PQ_CACHE, color & PQ_L2_MASK, FALSE);
+		m = vm_pageq_find(PQ_CACHE, color, FALSE);
 		if (m && ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
 			       m->hold_count || m->wire_count ||
 			  !VM_OBJECT_TRYLOCK(m->object))) {
@@ -726,23 +726,6 @@ vm_page_select_cache(vm_pindex_t color)
 		}
 		return m;
 	}
-}
-
-/*
- *	vm_page_select_free:
- *
- *	Find a free or zero page, with specified preference. 
- *
- *	This routine must be called at splvm().
- *	This routine may not block.
- */
-static __inline vm_page_t
-vm_page_select_free(vm_pindex_t color, boolean_t prefer_zero)
-{
-	vm_page_t m;
-
-	m = vm_pageq_find(PQ_FREE, color & PQ_L2_MASK, prefer_zero);
-	return (m);
 }
 
 /*
@@ -768,8 +751,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
 	vm_object_t m_object;
 	vm_page_t m = NULL;
-	vm_pindex_t color;
-	int flags, page_req, s;
+	int color, flags, page_req, s;
 
 	page_req = req & VM_ALLOC_CLASS_MASK;
 
@@ -778,9 +760,9 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    ("vm_page_alloc: NULL object."));
 		KASSERT(!vm_page_lookup(object, pindex),
 		    ("vm_page_alloc: page already allocated"));
-		color = pindex + object->pg_color;
+		color = (pindex + object->pg_color) & PQ_L2_MASK;
 	} else
-		color = pindex;
+		color = pindex & PQ_L2_MASK;
 
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
@@ -801,7 +783,7 @@ loop:
 		 * Allocate from the free queue if the number of free pages
 		 * exceeds the minimum for the request class.
 		 */
-		m = vm_page_select_free(color, (req & VM_ALLOC_ZERO) != 0);
+		m = vm_pageq_find(PQ_FREE, color, (req & VM_ALLOC_ZERO) != 0);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
 		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		/*
