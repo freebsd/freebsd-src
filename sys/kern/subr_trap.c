@@ -102,16 +102,20 @@ userret(td, frame, oticks)
 			postsig(sig);
 		mtx_unlock(&Giant);
 		PROC_UNLOCK(p);
-	} else
-		mtx_unlock_spin(&sched_lock);
+		mtx_lock_spin(&sched_lock);
+	}
 
 	/*
 	 * Charge system time if profiling.
 	 */
 	if (p->p_sflag & PS_PROFIL) {
-		addupc_task(ke, TRAPF_PC(frame),
-			    (u_int)(ke->ke_sticks - oticks) * psratio);
-	}
+		quad_t ticks;
+
+		ticks = ke->ke_sticks - oticks;
+		mtx_unlock_spin(&sched_lock);
+		addupc_task(ke, TRAPF_PC(frame), (u_int)ticks * psratio);
+	} else
+		mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -141,6 +145,7 @@ ast(framep)
 		panic("Returning to user mode with mutex(s) held");
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
+	prticks = 0;		/* XXX: Quiet warning. */
 	s = cpu_critical_enter();
 	while ((ke->ke_flags & (KEF_ASTPENDING | KEF_NEEDRESCHED)) != 0) {
 		cpu_critical_exit(s);
@@ -159,7 +164,7 @@ ast(framep)
 		p->p_sflag &= ~(PS_PROFPEND | PS_ALRMPEND);
 		ke->ke_flags &= ~(KEF_OWEUPC | KEF_ASTPENDING);
 		cnt.v_soft++;
-		if (flags & KEF_OWEUPC) {
+		if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
 			prticks = p->p_stats->p_prof.pr_ticks;
 			p->p_stats->p_prof.pr_ticks = 0;
 		}
@@ -167,7 +172,7 @@ ast(framep)
 		PROC_LOCK(p);
 		td->td_ucred = crhold(p->p_ucred);
 		PROC_UNLOCK(p);
-		if (flags & KEF_OWEUPC)
+		if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
 			addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
 		if (sflag & PS_ALRMPEND) {
 			PROC_LOCK(p);

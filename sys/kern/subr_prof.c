@@ -513,8 +513,7 @@ addupc_task(ke, pc, ticks)
 	register u_int i;
 	u_short v;
 
-	/* Testing PS_PROFIL may be unnecessary, but is certainly safe. */
-	if ((p->p_sflag & PS_PROFIL) == 0 || ticks == 0)
+	if (ticks == 0)
 		return;
 
 	prof = &p->p_stats->p_prof;
