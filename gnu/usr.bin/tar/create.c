@@ -873,6 +873,8 @@ dump_file (p, curdev, toplevel)
 #if defined(S_IFBLK) || defined(S_IFCHR)
   if (type != LF_FIFO)
     {
+      char minorbuf[8 + 1];
+
       if (checked_to_oct ((long) major (hstat.st_rdev), 8,
 			  header->header.devmajor))
 	{
@@ -880,13 +882,24 @@ dump_file (p, curdev, toplevel)
 	  critical_error = 1;
 	  goto badfile;
 	}
-      if (checked_to_oct ((long) minor (hstat.st_rdev), 8,
-			  header->header.devminor))
+
+      /*
+       * Try harder than usual to fit the minor number.  to_oct() wastes
+       * one byte by adding 2 terminating bytes (a space and a NUL) where
+       * only 1 (either a space or a NUL) is required by POSIX.1.  We
+       * will discard the NUL if that is necessary and sufficient for the
+       * minor number to fit.  This is compatible with tar-1.13.
+       */
+      if (checked_to_oct ((long) minor (hstat.st_rdev), 8 + 1, minorbuf))
 	{
 	  msg ("%s: minor number too large; not dumped", p);
 	  critical_error = 1;
 	  goto badfile;
 	}
+      if (minorbuf[0] == ' ')
+	bcopy(minorbuf + 1, header->header.devminor, 8);
+      else
+	bcopy(minorbuf, header->header.devminor, 8);
     }
 #endif
 
