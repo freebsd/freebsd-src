@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)expr.c	8.2 (Berkeley) 4/29/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -50,15 +50,14 @@ static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
  *      query   :       lor
  *              |       lor "?" query ":" query
  *      lor     :       land { "||" land }
- *      land    :       bor { "&&" bor }
- *      bor     :       bxor { "|" bxor }
- *      bxor    :       band { "^" band }
- *      band    :       eql { "&" eql }
- *      eql     :       relat { eqrel relat }
- *      relat   :       shift { rel shift }
+ *      land    :       not { "&&" not }
+ *	not	:	eqrel
+ *		|	'!' not
+ *      eqrel   :       shift { eqrelop shift }
  *      shift   :       primary { shop primary }
  *      primary :       term { addop term }
- *      term    :       unary { mulop unary }
+ *      term    :       exp { mulop exp }
+ *	exp	:	unary { expop unary }
  *      unary   :       factor
  *              |       unop unary
  *      factor  :       constant
@@ -69,10 +68,10 @@ static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
  *              |       DIGIT num
  *      shop    :       "<<"
  *              |       ">>"
- *      eqlrel  :       "="
+ *      eqrel   :       "="
  *              |       "=="
  *              |       "!="
- *      rel     :       "<"
+ *      	|       "<"
  *              |       ">"
  *              |       "<="
  *              |       ">="
@@ -103,20 +102,17 @@ static char *nxtch;		       /* Parser scan pointer */
 static int query __P((void));
 static int lor __P((void));
 static int land __P((void));
-static int bor __P((void));
-static int bxor __P((void));
-static int band __P((void));
-static int eql __P((void));
-static int relat __P((void));
+static int not __P((void));
+static int eqrel __P((void));
 static int shift __P((void));
 static int primary __P((void));
 static int term __P((void));
+static int exp __P((void));
 static int unary __P((void));
 static int factor __P((void));
 static int constant __P((void));
 static int num __P((void));
-static int geteql __P((void));
-static int getrel __P((void));
+static int geteqrel __P((void));
 static int skipws __P((void));
 static void experr __P((char *));
 
@@ -183,110 +179,70 @@ lor()
 	register int c, vl, vr;
 
 	vl = land();
-	while ((c = skipws()) == '|' && getch() == '|') {
+	while ((c = skipws()) == '|') {
+		if (getch() != '|')
+			ungetch();
 		vr = land();
 		vl = vl || vr;
 	}
 
-	if (c == '|')
-		ungetch();
 	ungetch();
 	return vl;
 }
 
 /*
- * land : bor { '&&' bor }
+ * land : not { '&&' not }
  */
 static int
 land()
 {
 	register int c, vl, vr;
 
-	vl = bor();
-	while ((c = skipws()) == '&' && getch() == '&') {
-		vr = bor();
+	vl = not();
+	while ((c = skipws()) == '&') {
+		if (getch() != '&')
+			ungetch();
+		vr = not();
 		vl = vl && vr;
 	}
 
-	if (c == '&')
-		ungetch();
 	ungetch();
 	return vl;
 }
 
 /*
- * bor : bxor { '|' bxor }
+ * not : eqrel | '!' not
  */
 static int
-bor()
+not()
 {
-	register int vl, vr, c;
+	register int val, c;
 
-	vl = bxor();
-	while ((c = skipws()) == '|' && getch() != '|') {
+	if ((c = skipws()) == '!' && getch() != '=') {
 		ungetch();
-		vr = bxor();
-		vl |= vr;
+		val = not();
+		return !val;
 	}
 
-	if (c == '|')
+	if (c == '!')
 		ungetch();
 	ungetch();
-	return vl;
+	return eqrel();
 }
 
 /*
- * bxor : band { '^' band }
+ * eqrel : shift { eqrelop shift }
  */
 static int
-bxor()
+eqrel()
 {
-	register int vl, vr;
+	register int vl, vr, eqrel;
 
-	vl = band();
-	while (skipws() == '^') {
-		vr = band();
-		vl ^= vr;
-	}
+	vl = shift();
+	while ((eqrel = geteqrel()) != -1) {
+		vr = shift();
 
-	ungetch();
-	return vl;
-}
-
-/*
- * band : eql { '&' eql }
- */
-static int
-band()
-{
-	register int vl, vr, c;
-
-	vl = eql();
-	while ((c = skipws()) == '&' && getch() != '&') {
-		ungetch();
-		vr = eql();
-		vl &= vr;
-	}
-
-	if (c == '&')
-		ungetch();
-	ungetch();
-	return vl;
-}
-
-/*
- * eql : relat { eqrel relat }
- */
-static int
-eql()
-{
-	register int vl, vr, rel;
-
-	vl = relat();
-	while ((rel = geteql()) != -1) {
-		vr = relat();
-
-		switch (rel) {
+		switch (eqrel) {
 
 		case EQL:
 			vl = (vl == vr);
@@ -294,24 +250,6 @@ eql()
 		case NEQ:
 			vl = (vl != vr);
 			break;
-		}
-	}
-	return vl;
-}
-
-/*
- * relat : shift { rel shift }
- */
-static int
-relat()
-{
-	register int vl, vr, rel;
-
-	vl = shift();
-	while ((rel = getrel()) != -1) {
-
-		vr = shift();
-		switch (rel) {
 
 		case LEQ:
 			vl = (vl <= vr);
@@ -339,7 +277,7 @@ shift()
 	register int vl, vr, c;
 
 	vl = primary();
-	while (((c = skipws()) == '<' || c == '>') && c == getch()) {
+	while (((c = skipws()) == '<' || c == '>') && getch() == c) {
 		vr = primary();
 
 		if (c == '<')
@@ -365,6 +303,7 @@ primary()
 	vl = term();
 	while ((c = skipws()) == '+' || c == '-') {
 		vr = term();
+
 		if (c == '+')
 			vl += vr;
 		else
@@ -376,16 +315,16 @@ primary()
 }
 
 /*
- * <term> := <unary> { <mulop> <unary> }
+ * <term> := <exp> { <mulop> <exp> }
  */
 static int
 term()
 {
 	register int c, vl, vr;
 
-	vl = unary();
+	vl = exp();
 	while ((c = skipws()) == '*' || c == '/' || c == '%') {
-		vr = unary();
+		vr = exp();
 
 		switch (c) {
 		case '*':
@@ -404,6 +343,35 @@ term()
 }
 
 /*
+ * <term> := <unary> { <expop> <unary> }
+ */
+static int
+exp()
+{
+	register c, vl, vr, n;
+
+	vl = unary();
+	switch (c = skipws()) {
+
+	case '*':
+		if (getch() != '*') {
+			ungetch();
+			break;
+		}
+
+	case '^':
+		vr = exp();
+		n = 1;
+		while (vr-- > 0)
+			n *= vl;
+		return n;
+	}
+
+	ungetch();
+	return vl;
+}
+
+/*
  * unary : factor | unop unary
  */
 static int
@@ -411,16 +379,16 @@ unary()
 {
 	register int val, c;
 
-	if ((c = skipws()) == '!' || c == '~' || c == '-') {
+	if ((c = skipws()) == '+' || c == '-' || c == '~') {
 		val = unary();
 
 		switch (c) {
-		case '!':
-			return !val;
-		case '~':
-			return ~val;
+		case '+':
+			return val;
 		case '-':
 			return -val;
+		case '~':
+			return ~val;
 		}
 	}
 
@@ -537,10 +505,10 @@ num()
 }
 
 /*
- * eqlrel : '=' | '==' | '!='
+ * eqrel : '=' | '==' | '!=' | '<' | '>' | '<=' | '>='
  */
 static int
-geteql()
+geteqrel()
 {
 	register int c1, c2;
 
@@ -560,26 +528,6 @@ geteql()
 		ungetch();
 		ungetch();
 		return -1;
-
-	default:
-		ungetch();
-		ungetch();
-		return -1;
-	}
-}
-
-/*
- * rel : '<' | '>' | '<=' | '>='
- */
-static int
-getrel()
-{
-	register int c1, c2;
-
-	c1 = skipws();
-	c2 = getch();
-
-	switch (c1) {
 
 	case '<':
 		if (c2 == '=')
