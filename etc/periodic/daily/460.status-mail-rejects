@@ -32,7 +32,7 @@ case "$daily_status_mail_rejects_enable" in
 	    echo
 	    echo Checking for rejected mail hosts:
 
-	    start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
+	    start=`date -v-1d '+%b %e'`
 	    n=$(($daily_status_mail_rejects_logs - 2))
 	    rc=$({
 		while [ $n -ge 0 ]

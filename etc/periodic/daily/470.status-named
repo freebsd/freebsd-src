@@ -29,7 +29,7 @@ case "$daily_status_named_enable" in
 	echo
 	echo 'Checking for denied zone transfers (AXFR and IXFR):'
 
-	start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
+	start=`date -v-1d '+%b %e'`
 	rc=$(catmsgs |
 	    fgrep '^'"$start"'.*named\[[[:digit:]]\+\]: denied [AI]XFR from \[.*\]\.[[:digit:]]\+ for' | \
 	    sed -e 's/.*: denied [AI]XFR from \[\(.*\)\]\.[[:digit:]]* for "\(.*\)".*$/\2 from \1/'
