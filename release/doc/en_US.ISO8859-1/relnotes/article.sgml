@@ -194,6 +194,8 @@
       kernel locking continues, the scheduler will be able to make
       more efficient use of the available parallel resources.</para>
 
+    <!-- Above this line, sort kernel changes by manpage/keyword-->
+
     <para>The device driver infrastructure (as well as many drivers)
       have been updated.  Among the changes: Many more drivers now use
       automatically-assigned major numbers (instead of the old static
@@ -206,16 +208,16 @@
     <para>The kernel's file descriptor allocation code has been
       updated, and is now derived from similar code in OpenBSD.</para>
 
-    <para arch="sparc64">On &os;/sparc64 <varname>time_t</varname>
+    <para arch="sparc64">On &os;/sparc64, <varname>time_t</varname>
       has been changed from a 32-bit value to a 64-bit value.
 
       <note>
 	<para>Since this change is not backward-compatible,
-	  any programs which are built on the older system using
-	  the 32-bit <varname>time_t</varname> as well as
-	  call system-routines for handling
+	  any programs which were built on an older system using
+	  a 32-bit <varname>time_t</varname> and
+	  call system routines for handling
 	  <varname>time_t</varname> values, will have to be recompiled.
-	  More detail information and notice on upgrading from
+	  More detailed information and notice on upgrading from
 	  the source can be found in
 	  <filename>/usr/src/UPDATING.64BTT</filename>.</para>
       </note>
@@ -224,8 +226,6 @@
     <para arch="i386">It is now possible to compile the &os;/i386
       kernel with the Intel C/C++ Compiler (as in the <filename
       role="package">lang/icc</filename> port).</para>
-
-    <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
@@ -589,14 +589,14 @@
       </para>
 
     <para><application>pf</application>, OpenBSD's packet filter as of
-      OpenBSD 3.4 has been imported into &os; source tree and installed
+      OpenBSD 3.4, has been imported into &os; source tree and is now installed
       by default.  A new user <username>proxy</username>, and two new
       groups <username>authpf</username> and <username>proxy</username>,
-      which <application>pf</application> needs are added as well.
+      which <application>pf</application> needs, are added as well.
 
       <note>
 	<para>On upgrading from the source, these user accounts must be
-	  added in advance.  And, the <varname>NO_PF</varname> variable
+	  added in advance.  The <varname>NO_PF</varname> variable
 	  in <filename>make.conf</filename> can be used to prevent
 	  <application>pf</application> from building.</para>
       </note>
@@ -628,14 +628,14 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The <literal>SIZE</literal> attribute for distfiles
-      which can be used for checking file size before fetching,
+    <para>The <literal>SIZE</literal> attribute for distfiles,
+      which can be used for checking file sizes before fetching,
       has been added and enabled by default.
       <varname>DISABLE_SIZE</varname> is a user control knob
       to disable the distfile size checking.  This is especially
       useful on old &os; versions which didn't have &man.fetch.1;
       support for this, and for some FTP proxies which always
-      report incorrect or bogus size.</para>
+      report incorrect or bogus sizes.</para>
   </sect2>
 
   <sect2 id="releng">
