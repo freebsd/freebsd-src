@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.70 1999/06/26 02:45:37 mckusick Exp $
+ * $Id: buf.h,v 1.71 1999/06/26 14:25:03 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -255,6 +255,7 @@ BUF_LOCK (struct buf *bp, int locktype)
 {
 
 	simple_lock(&buftimelock);
+	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = buf_wmesg;
 	bp->b_lock.lk_prio = PRIBIO + 4;
 	bp->b_lock.lk_timo = 0;
@@ -269,6 +270,7 @@ BUF_TIMELOCK(struct buf *bp, int locktype, char *wmesg, int catch, int timo)
 {
 
 	simple_lock(&buftimelock);
+	locktype |= LK_INTERLOCK;
 	bp->b_lock.lk_wmesg = wmesg;
 	bp->b_lock.lk_prio = (PRIBIO + 4) | catch;
 	bp->b_lock.lk_timo = timo;
