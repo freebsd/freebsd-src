@@ -190,7 +190,7 @@
 #define SAFE_STRCPY(to, from)	sstrncpy((to), (from), sizeof (to) - 1)
 
 /*** Types ***/
-typedef unsigned int Boolean;
+typedef int Boolean;
 typedef struct disk Disk;
 typedef struct chunk Chunk;
 
