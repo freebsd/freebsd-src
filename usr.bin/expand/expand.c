@@ -162,6 +162,8 @@ getstops(cp)
 			errx(1, "bad tab stop spec");
 		if (nstops > 0 && i <= tabstops[nstops-1])
 			errx(1, "bad tab stop spec");
+		if (nstops == sizeof(tabstops) / sizeof(*tabstops))
+			errx(1, "too many tab stops");
 		tabstops[nstops++] = i;
 		if (*cp == 0)
 			break;
