@@ -184,6 +184,7 @@
 #define	COM_DEBUGGER(flags)	((flags) & 0x80)
 #define	COM_LOSESOUTINTS(flags)	((flags) & 0x08)
 #define	COM_NOFIFO(flags)		((flags) & 0x02)
+#define	COM_PPSCTS(flags)	((flags) & 0x10000)
 #define COM_ST16650A(flags)	((flags) & 0x20000)
 #define COM_C_NOPROBE		(0x40000)
 #define COM_NOPROBE(flags)	((flags) & COM_C_NOPROBE)
@@ -341,6 +342,7 @@ struct com_s {
 	struct timeval	timestamp;
 	struct timeval	dcd_timestamp;
 	struct	pps_state pps;
+	int	pps_bit;
 
 	u_long	bytes_in;	/* statistics */
 	u_long	bytes_out;
@@ -1800,6 +1802,11 @@ determined_type: ;
 		com->devs[rid]->si_drv1 = com;
 	com->flags = flags;
 	com->pps.ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
+
+	if (COM_PPSCTS(flags))
+		com->pps_bit = MSR_CTS;
+	else
+		com->pps_bit = MSR_DCD;
 	pps_init(&com->pps);
 
 	rid = 0;
@@ -2601,9 +2608,11 @@ more_intr:
 #endif /* PC98 */
 		if (com->pps.ppsparam.mode & PPS_CAPTUREBOTH) {
 			modem_status = inb(com->modem_status_port);
-		        if ((modem_status ^ com->last_modem_status) & MSR_DCD) {
+		        if ((modem_status ^ com->last_modem_status) &
+			    com->pps_bit) {
 				pps_capture(&com->pps);
-				pps_event(&com->pps, (modem_status & MSR_DCD) ? 
+				pps_event(&com->pps,
+				    (modem_status & com->pps_bit) ? 
 				    PPS_CAPTUREASSERT : PPS_CAPTURECLEAR);
 			}
 		}
