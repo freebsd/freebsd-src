@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.27 1998/04/27 15:08:07 bde Exp $
+#	$Id: bsd.man.mk,v 1.28 1998/08/08 07:02:08 peter Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links.
@@ -69,7 +69,7 @@ MROFF_CMD?=	groff -Tascii -man
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
-SECTIONS=	1 2 3 4 5 6 7 8 9 n
+SECTIONS=	1 1aout 2 3 4 5 6 7 8 9 n
 
 .undef _MANPAGES
 .for sect in ${SECTIONS}
