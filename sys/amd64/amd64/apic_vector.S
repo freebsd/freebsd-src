@@ -253,20 +253,19 @@ IDTVEC(vec_name) ;							\
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl Xspuriousint
-Xspuriousint:
+IDTVEC(spuriousint)
 
 	/* No EOI cycle used here */
 
 	iret
 
+#ifdef SMP
 /*
  * Global address space TLB shootdown.
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	Xinvltlb
-Xinvltlb:
+IDTVEC(invltlb)
 	pushl	%eax
 	pushl	%ds
 	movl	$KDSEL, %eax		/* Kernel data selector */
@@ -298,8 +297,7 @@ Xinvltlb:
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	Xinvlpg
-Xinvlpg:
+IDTVEC(invlpg)
 	pushl	%eax
 	pushl	%ds
 	movl	$KDSEL, %eax		/* Kernel data selector */
@@ -331,8 +329,7 @@ Xinvlpg:
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	Xinvlrng
-Xinvlrng:
+IDTVEC(invlrng)
 	pushl	%eax
 	pushl	%edx
 	pushl	%ds
@@ -371,8 +368,7 @@ Xinvlrng:
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl Xhardclock
-Xhardclock:
+IDTVEC(hardclock)
 	PUSH_FRAME
 	movl	$KDSEL, %eax	/* reload with kernel's data segment */
 	mov	%ax, %ds
@@ -404,8 +400,7 @@ Xhardclock:
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl Xstatclock
-Xstatclock:
+IDTVEC(statclock)
 	PUSH_FRAME
 	movl	$KDSEL, %eax	/* reload with kernel's data segment */
 	mov	%ax, %ds
@@ -443,8 +438,7 @@ Xstatclock:
 
 	.text
 	SUPERALIGN_TEXT
-	.globl Xcpuast
-Xcpuast:
+IDTVEC(cpuast)
 	PUSH_FRAME
 	movl	$KDSEL, %eax
 	mov	%ax, %ds		/* use KERNEL data segment */
@@ -468,8 +462,7 @@ Xcpuast:
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl Xcpustop
-Xcpustop:
+IDTVEC(cpustop)
 	pushl	%ebp
 	movl	%esp, %ebp
 	pushl	%eax
@@ -524,6 +517,7 @@ Xcpustop:
 	popl	%ebp
 	iret
 
+#endif /* SMP */
 
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0)
@@ -627,6 +621,7 @@ MCOUNT_LABEL(bintr)
 	FAST_UNPEND(31,fastunpend31)
 MCOUNT_LABEL(eintr)
 
+#ifdef SMP
 /*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
  *
@@ -634,8 +629,7 @@ MCOUNT_LABEL(eintr)
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	Xrendezvous
-Xrendezvous:
+IDTVEC(rendezvous)
 	PUSH_FRAME
 	movl	$KDSEL, %eax
 	mov	%ax, %ds		/* use KERNEL data segment */
@@ -655,8 +649,7 @@ Xrendezvous:
  * ie: when we are about to release a PTD but a cpu is still borrowing it.
  */
 	SUPERALIGN_TEXT
-	.globl	Xlazypmap
-Xlazypmap:
+IDTVEC(lazypmap)
 	PUSH_FRAME
 	movl	$KDSEL, %eax
 	mov	%ax, %ds		/* use KERNEL data segment */
@@ -670,6 +663,7 @@ Xlazypmap:
 	POP_FRAME
 	iret
 #endif
+#endif /* SMP */
 
 	.data
 
