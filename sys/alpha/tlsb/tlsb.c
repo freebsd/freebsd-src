@@ -2,7 +2,7 @@
 /* $NetBSD: tlsb.c,v 1.10 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.
  *
@@ -18,8 +18,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -54,52 +52,35 @@
 #include <alpha/tlsb/tlsbreg.h>
 #include <alpha/tlsb/tlsbvar.h>
 
-/* #include "locators.h" */
-
-extern int	cputype;
+struct tlsb_device *tlsb_primary_cpu = NULL;
 
 #define KV(_addr)	((caddr_t)ALPHA_PHYS_TO_K0SEG((_addr)))
 
-/*
- * The structure used to attach devices to the TurboLaser.
- */
-struct tlsb_device {
-	int		td_node;	/* node number */
-	u_int16_t	td_dtype;	/* device type */
-	u_int8_t	td_swrev;	/* software revision */
-	u_int8_t	td_hwrev;	/* hardware revision */
-};
-#define DEVTOTLSB(dev)	((struct tlsb_device*) device_get_ivars(dev))
-
-struct intr_mapping {
-	STAILQ_ENTRY(intr_mapping) queue;
-	driver_intr_t*	intr;
-	void*		arg;
-};
-
 struct tlsb_softc {
-	STAILQ_HEAD(, intr_mapping) intr_handlers;
+	driver_intr_t * zsc_intr;
+	void *		zsc_arg;
+	driver_intr_t * sub_intr;
+	device_t	tlsb_dev;
+	int		tlsb_map;
 };
 
-static char	*tlsb_node_type_str(u_int32_t);
-static void	tlsb_intr(void* frame, u_long vector);
+static void tlsb_add_child(struct tlsb_softc *, struct tlsb_device *);
+static char *tlsb_node_type_str(u_int32_t);
+static void tlsb_intr(void *, u_long);
 
-/* There can be only one. */
-static int			tlsb_found;
-static struct tlsb_softc*	tlsb0_softc;
+static struct tlsb_softc *	tlsb0_softc = NULL;
 static devclass_t		tlsb_devclass;
 
 /*
  * Device methods
  */
-static int tlsb_probe(device_t dev);
-static int tlsb_print_child(device_t dev, device_t child);
-static int tlsb_read_ivar(device_t dev, device_t child, int which, u_long* result);
-static int tlsb_setup_intr(device_t dev, device_t child,
-			   struct resource *irq, int flags,
-			   driver_intr_t *intr, void *arg, void **cookiep);
-static int tlsb_teardown_intr(device_t dev, device_t child,
-			      struct resource *irq, void *cookie);
+static int tlsb_probe(device_t);
+static int tlsb_print_child(device_t, device_t);
+static int tlsb_read_ivar(device_t, device_t, int, u_long *);
+static int tlsb_setup_intr(device_t, device_t, struct resource *, int,
+    driver_intr_t *, void *, void **);
+static int
+tlsb_teardown_intr(device_t, device_t, struct resource *, void *);
 
 static device_method_t tlsb_methods[] = {
 	/* Device interface */
@@ -119,9 +100,7 @@ static device_method_t tlsb_methods[] = {
 };
 
 static driver_t tlsb_driver = {
-	"tlsb",
-	tlsb_methods,
-	sizeof(struct tlsb_softc),
+	"tlsb", tlsb_methods, sizeof (struct tlsb_softc),
 };
 
 /*
@@ -132,103 +111,57 @@ static driver_t tlsb_driver = {
 static int
 tlsb_probe(device_t dev)
 {
-	struct tlsb_softc* sc = device_get_softc(dev);
+	struct tlsb_softc *sc = device_get_softc(dev);
 	struct tlsb_device *tdev;
 	u_int32_t tldev;
-	u_int8_t vid;
 	int node;
-	device_t child;
 
-	device_set_desc(dev, "TurboLaser bus");
+	device_set_desc(dev, "TurboLaser Backplane Bus");
 
-	STAILQ_INIT(&sc->intr_handlers);
+	sc->tlsb_dev = dev;
 	tlsb0_softc = sc;
-
 	set_iointr(tlsb_intr);
-
-	printf("Probing for devices on the TurboLaser bus:\n");
-
-	tlsb_found = 1;
 
 	/*
 	 * Attempt to find all devices on the bus, including
 	 * CPUs, memory modules, and I/O modules.
 	 */
 
-	/*
-	 * Sigh. I would like to just start off nicely,
-	 * but I need to treat I/O modules differently-
-	 * The highest priority I/O node has to be in
-	 * node #8, and I want to find it *first*, since
-	 * it will have the primary disks (most likely)
-	 * on it.
-	 */
-	/*
-	 * XXX dfr: I don't see why I need to do this
-	 */
 	for (node = 0; node <= TLSB_NODE_MAX; ++node) {
 		/*
-		 * Check for invalid address.  This may not really
-		 * be necessary, but what the heck...
+		 * Check for invalid address.
 		 */
+#ifdef SIMOS
+		if (node != 0 && node != 8) {
+			continue;
+		} else if (node == 0) {
+			tldev = TLDEV_DTYPE_SCPU4;
+		} else {
+			tldev = TLDEV_DTYPE_KFTIA;
+		}
+#else
 		if (badaddr(TLSB_NODE_REG_ADDR(node, TLDEV), sizeof(u_int32_t)))
 			continue;
 		tldev = TLSB_GET_NODEREG(node, TLDEV);
-#ifdef SIMOS
-		if (node != 0 && node != 8)
-			continue;
 #endif
 		if (tldev == 0) {
 			/* Nothing at this node. */
 			continue;
 		}
-#if 0
-		if (TLDEV_ISIOPORT(tldev))
-			continue;	/* not interested right now */
-#endif
+		tdev = (struct tlsb_device *)
+		    malloc(sizeof (struct tlsb_device), M_DEVBUF, M_NOWAIT);
 
-		tdev = (struct tlsb_device*)
-			malloc(sizeof(struct tlsb_device),
-			       M_DEVBUF, M_NOWAIT);
-
-		if (!tdev)
+		if (!tdev) {
+			printf("tlsb_probe: unable to malloc softc\n");
 			continue;
-
-		tdev->td_node = node;
-#ifdef SIMOS
-		if (node == 0)
-			tdev->td_dtype = TLDEV_DTYPE_SCPU4;
-		else if (node == 8)
-			tdev->td_dtype = TLDEV_DTYPE_KFTIA;
-#else
-		tdev->td_dtype = TLDEV_DTYPE(tldev);
-#endif
-		tdev->td_swrev = TLDEV_SWREV(tldev);
-		tdev->td_hwrev = TLDEV_HWREV(tldev);
-
-		child = device_add_child(dev, NULL, -1);
-		device_set_ivars(child, tdev);
-		device_set_desc(child, tlsb_node_type_str(tdev->td_dtype));
-
-		/*
-		 * Deal with hooking CPU instances to TurboLaser nodes.
-		 */
-		if (TLDEV_ISCPU(tldev)) {
-			printf("%s%d node %d: %s",
-			       device_get_name(dev), device_get_unit(dev),
-			       node, tlsb_node_type_str(tldev));
-
-			/*
-			 * Hook in the first CPU unit.
-			 */
-			vid = (TLSB_GET_NODEREG(node, TLVID) &
-			    TLVID_VIDA_MASK) >> TLVID_VIDA_SHIFT;
-			printf(", VID %d\n", vid);
-			TLSB_PUT_NODEREG(node, TLCPUMASK, (1<<vid));
 		}
-	}
 
-	return 0;
+		sc->tlsb_map |= (1 << node);
+		tdev->td_node = node;
+		tdev->td_tldev = tldev;
+		tlsb_add_child(sc, tdev);
+	}
+	return (0);
 }
 
 static int
@@ -238,17 +171,15 @@ tlsb_print_child(device_t dev, device_t child)
 	int retval = 0;
 
 	retval += bus_print_child_header(dev, child);
-	retval += printf(" at %s node %d\n", device_get_nameunit(dev),
-			 tdev->td_node);
-
+	retval += printf(" at %s node %d\n",
+	    device_get_nameunit(dev), tdev->td_node);
 	return (retval);
 }
 
 static int
-tlsb_read_ivar(device_t dev, device_t child,
-	       int index, u_long* result)
+tlsb_read_ivar(device_t dev, device_t child, int index, u_long *result)
 {
-	struct tlsb_device* tdev = DEVTOTLSB(child);
+	struct tlsb_device *tdev = DEVTOTLSB(child);
 
 	switch (index) {
 	case TLSB_IVAR_NODE:
@@ -256,70 +187,118 @@ tlsb_read_ivar(device_t dev, device_t child,
 		break;
 
 	case TLSB_IVAR_DTYPE:
-		*result = tdev->td_dtype;
+		*result = TLDEV_DTYPE(tdev->td_tldev);
 		break;
 
 	case TLSB_IVAR_SWREV:
-		*result = tdev->td_swrev;
+		*result = TLDEV_SWREV(tdev->td_tldev);
 		break;
 
 	case TLSB_IVAR_HWREV:
-		*result = tdev->td_hwrev;
+		*result = TLDEV_HWREV(tdev->td_tldev);
 		break;
 	}
-	return ENOENT;
+	return (ENOENT);
 }
 
 static int
-tlsb_setup_intr(device_t dev, device_t child,
-		struct resource *irq, int flags,
-		driver_intr_t *intr, void *arg, void **cookiep)
+tlsb_setup_intr(device_t dev, device_t child, struct resource *i, int f,
+		driver_intr_t *intr, void *arg, void **c)
 {
-	struct tlsb_softc* sc = device_get_softc(dev);
-	struct intr_mapping* i;
-	i = malloc(sizeof(struct intr_mapping), M_DEVBUF, M_NOWAIT);
-	if (!i)
-		return ENOMEM;
-	i->intr = intr;
-	i->arg = arg;
-	STAILQ_INSERT_TAIL(&sc->intr_handlers, i, queue);
-	*cookiep = i;
-	return 0;
+	if (strncmp(device_get_name(child), "zsc", 3) == 0) {
+		if (tlsb0_softc->zsc_intr)
+			return (EBUSY);
+		tlsb0_softc->zsc_intr = intr;
+		tlsb0_softc->zsc_arg = arg;
+		return (0);
+	} else if (strncmp(device_get_name(child), "dwlpx", 5) == 0) {
+		if (tlsb0_softc->sub_intr == NULL)
+			tlsb0_softc->sub_intr = intr;
+		return (0);
+	} else {
+		return (ENXIO);
+	}
 }
 
 static int
-tlsb_teardown_intr(device_t dev, device_t child,
-		   struct resource *irq, void *cookie)
+tlsb_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 {
-	struct tlsb_softc* sc = device_get_softc(dev);
-	struct intr_mapping* i = cookie;
-
-	STAILQ_REMOVE(&sc->intr_handlers, i, intr_mapping, queue); 
-	free(i, M_DEVBUF);
-	return 0;
+	if (strncmp(device_get_name(child), "zsc", 3) == 0) {
+		tlsb0_softc->zsc_intr = NULL;
+		return (0);
+	} else if (strncmp(device_get_name(dev), "dwlpx", 5) == 0) {
+		tlsb0_softc->sub_intr = NULL;
+		return (0);
+	} else {
+		return (ENXIO);
+	}
 }
 
 static void
-tlsb_intr(void* frame, u_long vector)
+tlsb_intr(void *frame, u_long vector)
 {
-	struct tlsb_softc* sc = tlsb0_softc;
-	struct intr_mapping* i;
-
-	/*
-	 * XXX for SimOS, broadcast the interrupt.  A real implementation
-	 * will decode the vector to extract node and host etc.
-	 */
-	for (i = STAILQ_FIRST(&sc->intr_handlers);
-	     i; i = STAILQ_NEXT(i, queue))
-		i->intr(i->arg);
+	if (vector && tlsb0_softc->sub_intr)
+		(*tlsb0_softc->sub_intr)((void *)vector);
 }
 
-DRIVER_MODULE(tlsb, root, tlsb_driver, tlsb_devclass, 0, 0);
+static void
+tlsb_add_child(struct tlsb_softc *tlsb, struct tlsb_device *tdev)
+{
+	static int kftproto, memproto, cpuproto;
+	u_int32_t dtype = tdev->td_tldev & TLDEV_DTYPE_MASK;
+	int i, unit, ordr, units = 1;
+	char *dn;
+	device_t cd;
+
+	/*
+	 * We want CPU and Memory boards to configure first, and we want the
+	 * I/O boards to configure in reverse slot number order. This is
+	 * further complicated by the possibility of dual CPU nodes.
+	 */
+	ordr = tdev->td_node << 1;
+
+	switch (dtype) {
+	case TLDEV_DTYPE_KFTHA:
+	case TLDEV_DTYPE_KFTIA:
+		ordr = 16 + (TLSB_NODE_MAX - tdev->td_node);
+		dn = "kft";
+		unit = kftproto++;
+		break;
+	case TLDEV_DTYPE_MS7CC:
+		dn = "tlsbmem";
+		unit = memproto++;
+		break;
+	case TLDEV_DTYPE_SCPU4:
+	case TLDEV_DTYPE_SCPU16:
+		dn = "tlsbcpu";
+		unit = cpuproto++;
+		break;
+	case TLDEV_DTYPE_DCPU4:
+	case TLDEV_DTYPE_DCPU16:
+		units = 2;
+		dn = "tlsbcpu";
+		unit = cpuproto;
+		cpuproto += 2;
+		break;
+	default:
+		printf("tlsb_add_child: unknown TLSB node type 0x%x\n", dtype);
+		return;
+	}
+
+	for (i = 0; i < units; i++, unit++) {
+		cd = device_add_child_ordered(tlsb->tlsb_dev, ordr, dn, unit);
+		if (cd == NULL) {
+			return;
+		}
+		device_set_ivars(cd, tdev);
+		device_set_desc(cd, tlsb_node_type_str(dtype));
+	}
+}
 
 static char *
 tlsb_node_type_str(u_int32_t dtype)
 {
-	static char	tlsb_line[64];
+	static char	tmp[64];
 
 	switch (dtype & TLDEV_DTYPE_MASK) {
 	case TLDEV_DTYPE_KFTHA:
@@ -344,10 +323,10 @@ tlsb_node_type_str(u_int32_t dtype)
 		return ("Dual CPU, 16MB cache");
 
 	default:
-		bzero(tlsb_line, sizeof(tlsb_line));
-		snprintf(tlsb_line, sizeof(tlsb_line),
-			"unknown, dtype 0x%x", dtype);
-		return (tlsb_line);
+		bzero(tmp, sizeof(tmp));
+		snprintf(tmp, sizeof(tmp), "unknown, type 0x%x", dtype);
+		return (tmp);
 	}
 	/* NOTREACHED */
 }
+DRIVER_MODULE(tlsb, root, tlsb_driver, tlsb_devclass, 0, 0);

@@ -2,7 +2,7 @@
 /* $NetBSD: gbus.c,v 1.8 1998/05/13 22:13:35 thorpej Exp $ */
 
 /*
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.
  *
@@ -15,8 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -67,7 +65,6 @@ struct gbus_device {
 
 struct gbus_device gbus_children[] = {
 	{ "zsc",	GBUS_DUART0_OFFSET },
-/* 	{ "zsc",	GBUS_DUART1_OFFSET },*/
 	{ "mcclock",	GBUS_CLOCK_OFFSET },
 	{ NULL,		0 },
 };
@@ -77,9 +74,9 @@ static devclass_t gbus_devclass;
 /*
  * Device methods
  */
-static int gbus_probe(device_t dev);
-static int gbus_print_child(device_t dev, device_t child);
-static int gbus_read_ivar(device_t dev, device_t child, int which, u_long *result);;
+static int gbus_probe(device_t);
+static int gbus_print_child(device_t, device_t);
+static int gbus_read_ivar(device_t, device_t, int, u_long *);
 
 static device_method_t gbus_methods[] = {
 	/* Device interface */
@@ -99,9 +96,7 @@ static device_method_t gbus_methods[] = {
 };
 
 static driver_t gbus_driver = {
-	"gbus",
-	gbus_methods,
-	1,			/* no softc */
+	"gbus", gbus_methods, 1
 };
 
 /*
@@ -117,18 +112,18 @@ gbus_probe(device_t dev)
 
 	/*
 	 * Make sure we're looking for a Gbus.
-	 * Right now, only Gbus could be a
-	 * child of a TLSB CPU Node.
+	 * A Gbus can only be a child of a TLSB CPU Node.
 	 */
-	if (!TLDEV_ISCPU(tlsb_get_dtype(dev)))
+	if (!TLDEV_ISCPU(tlsb_get_dtype(device_get_parent(dev)))) {
 		return ENXIO;
+	}
 
 	for (gdev = gbus_children; gdev->gd_name; gdev++) {
 		child = device_add_child(dev, gdev->gd_name, -1);
 		device_set_ivars(child, gdev);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -157,5 +152,4 @@ gbus_read_ivar(device_t bus, device_t dev,
 	}
 	return ENOENT;
 }
-
-DRIVER_MODULE(gbus, tlsb, gbus_driver, gbus_devclass, 0, 0);
+DRIVER_MODULE(gbus, tlsbcpu, gbus_driver, gbus_devclass, 0, 0);
