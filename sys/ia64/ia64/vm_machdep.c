@@ -301,6 +301,15 @@ cpu_wait(p)
 {
 }
 
+/* Temporary helper */
+void
+cpu_throw(void)
+{
+
+	cpu_switch();
+	panic("cpu_throw() didn't");
+}
+
 /*
  * Dump the machine specific header information at the start of a core dump.
  */
