@@ -1,5 +1,4 @@
 .\"	$NetBSD: editline.3,v 1.20 2000/02/28 17:41:05 chopps Exp $
-.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1997-1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -34,6 +33,8 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd November 12, 1999
 .Os
 .Dt EDITLINE 3
@@ -59,7 +60,7 @@
 .Sh LIBRARY
 .Lb libedit
 .Sh SYNOPSIS
-.Fd #include <histedit.h>
+.In histedit.h
 .Ft EditLine *
 .Fn el_init "const char *prog" "FILE *fin" "FILE *fout" "FILE *ferr"
 .Ft void
@@ -337,7 +338,7 @@ Refresh display.
 Refresh display, and beep.
 .It Dv CC_CURSOR
 Cursor moved, so update and perform
-.Dv CC_REFRESH.
+.Dv CC_REFRESH .
 .It Dv CC_REDISPLAY
 Redisplay entire input line.
 This is useful if a key binding outputs extra information.
@@ -363,7 +364,7 @@ is non-zero,
 editing is enabled (the default).
 Note that this is only an indication, and does not
 affect the operation of
-.Nm "" .
+.Nm .
 At this time, it is the caller's responsibility to
 check this
 (using
@@ -559,17 +560,18 @@ Save the history list to
 .Fn history
 returns 0 if the operation
 .Fa op
-succeeds. Otherwise, -1 is returned and
+succeeds.
+Otherwise, \-1 is returned and
 .Fa ev
 is updated to contain more details about the error.
 .El
 .\"XXX.Sh EXAMPLES
 .\"XXX: provide some examples
 .Sh SEE ALSO
-.Xr editrc 5 ,
 .Xr sh 1 ,
 .Xr signal 3 ,
-.Xr termcap 3
+.Xr termcap 3 ,
+.Xr editrc 5
 .Sh HISTORY
 The
 .Nm
@@ -586,19 +588,23 @@ and the readline emulation appeared in
 appeared in
 .Nx 1.5 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
-library was written by Christos Zoulas.
-Luke Mewburn wrote this manual and implemented
+library was written by
+.An Christos Zoulas .
+.An Luke Mewburn
+wrote this manual and implemented
 .Dv CC_REDISPLAY ,
 .Dv CC_REFRESH_BEEP ,
 .Dv EL_EDITMODE ,
 and
 .Dv EL_RPROMPT .
-Jaromir Dolecek implemented the readline emulation.
+.An Jaromir Dolecek
+implemented the readline emulation.
 .Sh BUGS
 The tokenization functions are not publically defined in
-.Fd <histedit.h>.
+.Aq Pa histedit.h .
 .Pp
 At this time, it is the responsibility of the caller to
 check the result of the
