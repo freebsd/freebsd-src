@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.127 1995/05/25 07:41:20 davidg Exp $
+ *	$Id: machdep.c,v 1.128 1995/05/30 07:59:33 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -821,11 +821,7 @@ boot(arghowto)
 
 		waittime = 0;
 		printf("\nsyncing disks... ");
-		/*
-		 * Release inodes held by texts before update.
-		 */
-		if (panicstr == 0)
-			vnode_pager_umount(NULL);
+
 		sync(&proc0, NULL, NULL);
 
 		for (iter = 0; iter < 20; iter++) {
@@ -998,6 +994,7 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	size_t newlen;
 	struct proc *p;
 {
+	dev_t consdev;
 	int error;
 
 	/* all sysctl names at this level are terminal */
@@ -1006,8 +1003,9 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 
 	switch (name[0]) {
 	case CPU_CONSDEV:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &cn_tty->t_dev,
-		   sizeof cn_tty->t_dev));
+		consdev = (cn_tty == NULL ? NODEV : cn_tty->t_dev);
+		return (sysctl_rdstruct(oldp, oldlenp, newp, &consdev,
+					sizeof consdev));
 	case CPU_ADJKERNTZ:
 		error = sysctl_int(oldp, oldlenp, newp, newlen, &adjkerntz);
 		if (!error && newp)
