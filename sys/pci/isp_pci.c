@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.17 1999/03/25 22:53:56 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.18 1999/04/04 01:14:02 mjacob Exp $ */
 /* release_4_3_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
@@ -264,7 +264,7 @@ struct isp_pcisoftc {
 
 static u_long ispunit;
 
-struct pci_device isp_pci_driver = {
+static struct pci_device isp_pci_driver = {
 	"isp",
 	isp_pci_probe,
 	isp_pci_attach,
