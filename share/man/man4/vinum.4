@@ -1,5 +1,4 @@
 .\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
-.\"	$NetBSD: ccd.4,v 1.5 1995/10/09 06:09:09 thorpej Exp $
 .\"-
 .\" Copyright (c) 1997, 1998
 .\"	Nan Yang Computer Services Limited.  All rights reserved.
@@ -35,7 +34,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.8 1999/01/15 03:54:40 grog Exp grog $
+.\" $Id: vinum.4,v 1.10 1999/02/04 05:01:14 grog Exp $
 .\"
 .Dd 22 July 1998
 .Dt vinum 4
@@ -161,7 +160,7 @@ Inc. (http://www.cybernet.com\fR).
 Normally, you start a configured version of
 .Nm
 at boot time.  Set the variable
-.Ar vinum_slices
+.Ar vinum_drives
 in
 .Ar /etc/rc.conf
 to indicate the slices on which 
@@ -177,7 +176,7 @@ and
 .Ar /dev/da5h ,
 you would set the variable to:
 .Bd -literal
-vinum_slices="/dev/da1h /dev/da2h /dev/da3h /dev/da4h /dev/da5h"
+vinum_drives="/dev/da1 /dev/da2 /dev/da3 /dev/da4 /dev/da5"
 .Ed
 .Pp
 .Sh VINUM INSTALLATION
@@ -201,7 +200,7 @@ After loading
 it must be confiugred.  In an existing installation, the following command reads
 the configuration an existing set of disks:
 .Bd -unfilled -offset indent
-# vinum read /dev/da1h /dev/da2h /dev/da3h /dev/da4h /dev/da5h /dev/da6h
+# vinum read /dev/da1 /dev/da2 /dev/da3 /dev/da4 /dev/da5 /dev/da6
 .Ed
 .sp
 This command must specify all of the devices used by
@@ -804,7 +803,7 @@ issue the following commands:
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
-echo add-symbol-file /usr/src/sys/modules/vinum/vinum.ko \e
+echo add-symbol-file /modules/vinum.ko \e
   0x`objdump --section-headers /modules/vinum.ko \e
   | grep ' .text' \e
   | awk '{print $4}'`\+`kldstat \e
@@ -818,7 +817,7 @@ output will be something like:
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
-add-symbol-file /usr/src/sys/modules/vinum/vinum.ko 0x00005e24+0xf0f4e000
+add-symbol-file /modules/vinum.ko 0x00005e24+0xf0f4e000
 .Ed
 .if t .vs
 .if t .ps
@@ -829,11 +828,36 @@ to the directory in which you will be performing the analysis, typically
 .Pa /var/crash ,
 and call it
 .Pa .gdbinit .
-If you have built the module elsewhere than
-.Pa /usr/src/sys/modules/vinum,
-you will need to modify
-.Pa .gdbinit 
-accordingly.  If you have not named your debug kernel
+.It
+If the version of
+.Nm
+in
+.Pa /modules
+does not contain symbols, you will not get an error message, but the stack trace
+will not show the symbols.  Check the module before starting
+.Nm gdb :
+.Bd -literal
+$ file /modules/vinum.ko 
+/modules/vinum.ko: ELF 32-bit LSB shared object, Intel 80386, 
+  version 1 (FreeBSD), not stripped
+.Ed
+.Pp
+If the output shows that
+.Pa /modules/vinum.ko
+is stripped, you will have to find a version which is not.  Usually this will be
+either in
+.Pa /usr/obj/sys/modules/vinum/vinum.ko
+(if you have built
+.Nm
+with a
+.Ar make world )
+or
+.Pa /usr/src/sys/modules/vinum/vinum.ko
+(if you have built
+.Nm
+in this directory).
+.It
+If you have not named your debug kernel
 .Pa /var/crash/kernel.gdb,
 edit
 .Pa .gdbinit
