@@ -191,6 +191,24 @@ static void pmap_context_destroy(u_int i);
 static vm_offset_t pmap_bootstrap_alloc(vm_size_t size);
 
 /*
+ * If user pmap is processed with pmap_remove and with pmap_remove and the
+ * resident count drops to 0, there are no more pages to remove, so we
+ * need not continue.
+ */
+#define	PMAP_REMOVE_DONE(pm) \
+	((pm) != kernel_pmap && (pm)->pm_stats.resident_count == 0)
+
+/*
+ * The threshold (in bytes) above which tsb_foreach() is used in pmap_remove()
+ * and pmap_protect() instead of trying each virtual address.
+ */
+#define	PMAP_TSB_THRESH	((TSB_SIZE / 2) * PAGE_SIZE)
+
+/* Callbacks for tsb_foreach. */
+tsb_callback_t pmap_remove_tte;
+tsb_callback_t pmap_protect_tte;
+
+/*
  * Quick sort callout for comparing memory regions.
  */
 static int mr_cmp(const void *a, const void *b);
@@ -563,6 +581,8 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
  * Map a wired page into kernel virtual address space. This additionally
  * takes a flag argument wich is or'ed to the TTE data. This is used by
  * bus_space_map().
+ * NOTE: if the mapping is non-cacheable, it's the caller's responsibility
+ * to flush entries that might still be in the cache, if applicable.
  */
 void
 pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
@@ -644,6 +664,19 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 
 	for (i = 0; i < count; i++, va += PAGE_SIZE)
 		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
+}
+
+/*
+ * As above, but take an additional flags argument and call
+ * pmap_kenter_flags().
+ */
+void
+pmap_qenter_flags(vm_offset_t va, vm_page_t *m, int count, u_long fl)
+{
+	int i;
+
+	for (i = 0; i < count; i++, va += PAGE_SIZE)
+		pmap_kenter_flags(va, VM_PAGE_TO_PHYS(m[i]), fl);
 }
 
 /*
@@ -1096,6 +1129,31 @@ pmap_collect(void)
 	pmap_pagedaemon_waken = 0;
 }
 
+int
+pmap_remove_tte(struct pmap *pm, struct tte *tp, vm_offset_t va)
+{
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
+	if ((tp->tte_data & TD_PV) != 0) {
+		if ((tp->tte_data & TD_W) != 0 &&
+		    pmap_track_modified(pm, va))
+			vm_page_dirty(m);
+		if ((tp->tte_data & TD_REF) != 0)
+			vm_page_flag_set(m, PG_REFERENCED);
+		pv_remove(pm, m, va);
+		pmap_cache_remove(m, va);
+	}
+	atomic_clear_long(&tp->tte_data, TD_V);
+	tp->tte_tag = 0;
+	tp->tte_data = 0;
+	tlb_page_demap(TLB_ITLB | TLB_DTLB,
+	    pm->pm_context, va);
+	if (PMAP_REMOVE_DONE(pm))
+		return (0);
+	return (1);
+}
+
 /*
  * Remove the given range of addresses from the specified map.
  */
@@ -1103,29 +1161,54 @@ void
 pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 {
 	struct tte *tp;
-	vm_page_t m;
 
 	CTR3(KTR_PMAP, "pmap_remove: ctx=%#lx start=%#lx end=%#lx",
 	    pm->pm_context, start, end);
-	for (; start < end; start += PAGE_SIZE) {
-		if ((tp = tsb_tte_lookup(pm, start)) != NULL) {
-			m = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
-			if ((tp->tte_data & TD_PV) != 0) {
-				if ((tp->tte_data & TD_W) != 0 &&
-				    pmap_track_modified(pm, start))
-					vm_page_dirty(m);
-				if ((tp->tte_data & TD_REF) != 0)
-					vm_page_flag_set(m, PG_REFERENCED);
-				pv_remove(pm, m, start);
-				pmap_cache_remove(m, start);
+	if (PMAP_REMOVE_DONE(pm))
+		return;
+	if (end - start > PMAP_TSB_THRESH)
+		tsb_foreach(pm, start, end, pmap_remove_tte);
+	else {
+		for (; start < end; start += PAGE_SIZE) {
+			if ((tp = tsb_tte_lookup(pm, start)) != NULL) {
+				if (!pmap_remove_tte(pm, tp, start))
+					break;
 			}
-			atomic_clear_long(&tp->tte_data, TD_V);
-			tp->tte_tag = 0;
-			tp->tte_data = 0;
-			tlb_page_demap(TLB_ITLB | TLB_DTLB,
-			    pm->pm_context, start);
 		}
 	}
+}
+
+int
+pmap_protect_tte(struct pmap *pm, struct tte *tp, vm_offset_t va)
+{
+	vm_page_t m;
+	u_long data;
+
+	data = tp->tte_data;
+	if ((data & TD_PV) != 0) {
+		m = PHYS_TO_VM_PAGE(TD_GET_PA(data));
+		if ((data & TD_REF) != 0) {
+			vm_page_flag_set(m, PG_REFERENCED);
+			data &= ~TD_REF;
+		}
+		if ((data & TD_W) != 0 &&
+		    pmap_track_modified(pm, va)) {
+			vm_page_dirty(m);
+		}
+	}
+
+	data &= ~(TD_W | TD_SW);
+
+	CTR2(KTR_PMAP, "pmap_protect: new=%#lx old=%#lx",
+	    data, tp->tte_data);
+
+	if (data != tp->tte_data) {
+		CTR0(KTR_PMAP, "pmap_protect: demap");
+		tlb_page_demap(TLB_DTLB | TLB_ITLB,
+		    pm->pm_context, va);
+		tp->tte_data = data;
+	}
+	return (0);
 }
 
 /*
@@ -1135,8 +1218,6 @@ void
 pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	struct tte *tp;
-	vm_page_t m;
-	u_long data;
 
 	CTR4(KTR_PMAP, "pmap_protect: ctx=%#lx sva=%#lx eva=%#lx prot=%#lx",
 	    pm->pm_context, sva, eva, prot);
@@ -1152,32 +1233,12 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	for (; sva < eva; sva += PAGE_SIZE) {
-		if ((tp = tsb_tte_lookup(pm, sva)) != NULL) {
-			data = tp->tte_data;
-			if ((data & TD_PV) != 0) {
-				m = PHYS_TO_VM_PAGE(TD_GET_PA(data));
-				if ((data & TD_REF) != 0) {
-					vm_page_flag_set(m, PG_REFERENCED);
-					data &= ~TD_REF;
-				}
-				if ((data & TD_W) != 0 &&
-				    pmap_track_modified(pm, sva)) {
-					vm_page_dirty(m);
-				}
-			}
-	
-			data &= ~(TD_W | TD_SW);
-
-			CTR2(KTR_PMAP, "pmap_protect: new=%#lx old=%#lx",
-			    data, tp->tte_data);
-	
-			if (data != tp->tte_data) {
-				CTR0(KTR_PMAP, "pmap_protect: demap");
-				tlb_page_demap(TLB_DTLB | TLB_ITLB,
-				    pm->pm_context, sva);
-				tp->tte_data = data;
-			}
+	if (eva - sva > PMAP_TSB_THRESH)
+		tsb_foreach(pm, sva, eva, pmap_protect_tte);
+	else {
+		for (; sva < eva; sva += PAGE_SIZE) {
+			if ((tp = tsb_tte_lookup(pm, sva)) != NULL)
+				pmap_protect_tte(pm, tp, sva);
 		}
 	}
 }
@@ -1317,9 +1378,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		tte.tte_data |= TD_SW;
 	if (prot & VM_PROT_EXECUTE) {
 		tte.tte_data |= TD_EXEC;
-#if 0
 		icache_inval_phys(pa, pa + PAGE_SIZE - 1);
-#endif
 	}
 
 	if (tp != NULL)
