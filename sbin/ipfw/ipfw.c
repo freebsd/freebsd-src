@@ -714,14 +714,14 @@ print_flowset_parms(struct dn_flow_set *fs, char *prefix)
 		sprintf(plr, "plr %f", 1.0 * fs->plr / (double)(0x7fffffff));
 	else
 		plr[0] = '\0';
-	if (fs->flags_fs & DN_IS_RED)	 /* RED parameters */
+	if (fs->flags_fs & DN_IS_RED)	/* RED parameters */
 		sprintf(red,
-		    "\n	  %cRED w_q %f min_th %d max_th %d max_p %f",
+		    "\n\t  %cRED w_q %f min_th %d max_th %d max_p %f",
 		    (fs->flags_fs & DN_IS_GENTLE_RED) ? 'G' : ' ',
-		    1.0*fs->w_q / (double)(1 << SCALE_RED),
+		    1.0 * fs->w_q / (double)(1 << SCALE_RED),
 		    SCALE_VAL(fs->min_th),
 		    SCALE_VAL(fs->max_th),
-		    1.0*fs->max_p / (double)(1 << SCALE_RED));
+		    1.0 * fs->max_p / (double)(1 << SCALE_RED));
 	else
 		sprintf(red, "droptail");
 
@@ -1200,7 +1200,7 @@ fill_tcpopts(u_char *set, u_char *reset, char **vp)
 			u_char value;
 		} opts[] = {
 			{ "mss", IP_FW_TCPOPT_MSS },
-			{ "window", IP_FW_TCPOPT_WINDOW	 },
+			{ "window", IP_FW_TCPOPT_WINDOW },
 			{ "sack", IP_FW_TCPOPT_SACK },
 			{ "ts", IP_FW_TCPOPT_TS },
 			{ "cc", IP_FW_TCPOPT_CC },
@@ -1330,13 +1330,13 @@ delete(int ac, char *av[])
 				pipe.pipe_nr = i;
 			else
 				pipe.fs.fs_nr = i;
-				i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_DEL,
-				    &pipe, sizeof pipe);
+			i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_DEL,
+			    &pipe, sizeof pipe);
 			if (i) {
 				exitval = 1;
-				warn("rule %u: setsockopt(%s)",
-				do_pipe == 1 ? pipe.pipe_nr: pipe.fs.fs_nr,
-				    "IP_DUMMYNET_DEL");
+				warn("rule %u: setsockopt(IP_DUMMYNET_DEL)",
+				    do_pipe == 1 ? pipe.pipe_nr :
+				    pipe.fs.fs_nr);
 			}
 		} else {
 			rule.fw_number = i;
@@ -1587,10 +1587,12 @@ config_pipe(int ac, char **av)
 						    || !strncmp(end, "by", 2))
 							pipe.bandwidth *= 8;
 					}
-					av += 2; ac -= 2;
+					av += 2;
+					ac -= 2;
 				} else if (!strncmp(*av, "delay", len)) {
 					pipe.delay = strtoul(av[1], NULL, 0);
-					av += 2; ac -= 2;
+					av += 2;
+					ac -= 2;
 				} else {
 					errx(EX_DATAERR, "unrecognised pipe"
 					    " option ``%s''", *av);
@@ -1616,14 +1618,14 @@ config_pipe(int ac, char **av)
 	if (do_pipe == 1) {
 		if (pipe.pipe_nr == 0)
 			errx(EX_DATAERR, "pipe_nr %d must be > 0",
-			     pipe.pipe_nr);
+			    pipe.pipe_nr);
 		if (pipe.delay > 10000)
 			errx(EX_DATAERR, "delay %d must be < 10000",
-			     pipe.delay);
+			    pipe.delay);
 	} else { /* do_pipe == 2, queue */
 		if (pipe.fs.parent_nr == 0)
 			errx(EX_DATAERR, "pipe %d must be > 0",
-			     pipe.fs.parent_nr);
+			    pipe.fs.parent_nr);
 		if (pipe.fs.weight >100)
 			errx(EX_DATAERR, "weight %d must be <= 100",
 			    pipe.fs.weight);
@@ -1635,7 +1637,7 @@ config_pipe(int ac, char **av)
 	} else {
 		if (pipe.fs.qsize > 100)
 			errx(EX_DATAERR, "queue size %d, must be"
-			     " 2 <= x <= 100", pipe.fs.qsize);
+			    " 2 <= x <= 100", pipe.fs.qsize);
 	}
 	if (pipe.fs.flags_fs & DN_IS_RED) {
 		if (pipe.fs.min_th >= pipe.fs.max_th)
@@ -1658,7 +1660,7 @@ config_pipe(int ac, char **av)
 				    "net.inet.ip.dummynet.red_lookup_depth");
 			if (lookup_depth == 0)
 				errx(EX_DATAERR, "net.inet.ip.dummynet.red_lookup_depth"
-				     " must greater than zero");
+				     " must be greater than zero");
 
 			len = sizeof(int);
 			if (sysctlbyname("net.inet.ip.dummynet.red_avg_pkt_size",
@@ -1668,7 +1670,7 @@ config_pipe(int ac, char **av)
 				    "net.inet.ip.dummynet.red_avg_pkt_size");
 			if (avg_pkt_size == 0)
 				errx(EX_DATAERR, "net.inet.ip.dummynet.red_avg_pkt_size must"
-				    "greater than zero");
+				    " be greater than zero");
 
 			len = sizeof(struct clockinfo);
 			if (sysctlbyname("kern.clockrate",
@@ -2291,8 +2293,7 @@ zero (int ac, char *av[])
 				warn("rule %u: setsockopt(IP_FW_ZERO)",
 				    rule.fw_number);
 				failed = EX_UNAVAILABLE;
-			}
-			else if (!do_quiet)
+			} else if (!do_quiet)
 				printf("Entry %d cleared\n",
 				    rule.fw_number);
 		} else {
