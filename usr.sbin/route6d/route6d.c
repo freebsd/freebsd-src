@@ -50,6 +50,9 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.64 2001/05/08 04:36:37 itojun Exp $
 #include <stddef.h>
 #include <errno.h>
 #include <err.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -138,10 +141,14 @@ int	nifc;		/* number of valid ifc's */
 struct	ifc **index2ifc;
 int	nindex2ifc;
 struct	ifc *loopifcp = NULL;	/* pointing to loopback */
+#ifdef HAVE_POLL_H
+struct	pollfd set[2];
+#else
 fd_set	*sockvecp;	/* vector to select() for receiving */
 fd_set	*recvecp;
 int	fdmasks;
 int	maxfd;		/* maximum fd for select() */
+#endif
 int	rtsock;		/* the routing socket */
 int	ripsock;	/* socket to send/receive RIP datagram */
 
@@ -458,8 +465,13 @@ main(argc, argv)
 		}
 
 		signo = 0;
+#ifdef HAVE_POLL_H
+		switch (poll(set, 2, INFTIM))
+#else
 		memcpy(recvecp, sockvecp, fdmasks);
-		switch (select(maxfd + 1, recvecp, 0, 0, 0)) {
+		switch (select(maxfd + 1, recvecp, 0, 0, 0))
+#endif
+		{
 		case -1:
 			if (errno != EINTR) {
 				fatal("select");
@@ -469,12 +481,22 @@ main(argc, argv)
 		case 0:
 			continue;
 		default:
-			if (FD_ISSET(ripsock, recvecp)) {
+#ifdef HAVE_POLL_H
+			if (set[0].revents & POLLIN)
+#else
+			if (FD_ISSET(ripsock, recvecp))
+#endif
+			{
 				sigprocmask(SIG_BLOCK, &mask, &omask);
 				riprecv();
 				sigprocmask(SIG_SETMASK, &omask, NULL);
 			}
-			if (FD_ISSET(rtsock, recvecp)) {
+#ifdef HAVE_POLL_H
+			if (set[1].revents & POLLIN)
+#else
+			if (FD_ISSET(rtsock, recvecp))
+#endif
+			{
 				sigprocmask(SIG_BLOCK, &mask, &omask);
 				rtrecv();
 				sigprocmask(SIG_SETMASK, &omask, NULL);
@@ -659,18 +681,34 @@ init()
 	}
 	memcpy(&ripsin, res->ai_addr, res->ai_addrlen);
 
+#ifdef HAVE_POLL_H
+	set[0].fd = ripsock;
+	set[0].events = POLLIN;
+#else
 	maxfd = ripsock;
+#endif
 
 	if (nflag == 0) {
 		if ((rtsock = socket(PF_ROUTE, SOCK_RAW, 0)) < 0) {
 			fatal("route socket");
 			/*NOTREACHED*/
 		}
+#ifdef HAVE_POLL_H
+		set[1].fd = rtsock;
+		set[1].events = POLLIN;
+#else
 		if (rtsock > maxfd)
 			maxfd = rtsock;
-	} else
+#endif
+	} else {
+#ifdef HAVE_POLL_H
+		set[1].fd = -1;
+#else
 		rtsock = -1;	/*just for safety */
+#endif
+	}
 
+#ifndef HAVE_POLL_H
 	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
 	if ((sockvecp = malloc(fdmasks)) == NULL) {
 		fatal("malloc");
@@ -684,6 +722,7 @@ init()
 	FD_SET(ripsock, sockvecp);
 	if (rtsock >= 0)
 		FD_SET(rtsock, sockvecp);
+#endif
 }
 
 #define	RIPSIZE(n) \
