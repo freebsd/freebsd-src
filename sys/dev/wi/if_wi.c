@@ -2618,11 +2618,11 @@ wi_alloc_fid(struct wi_softc *sc, int len, int *idp)
 	for (i = 0; i < WI_TIMEOUT; i++) {
 		if (CSR_READ_2(sc, WI_EVENT_STAT) & WI_EV_ALLOC)
 			break;
-		if (i == WI_TIMEOUT) {
-			device_printf(sc->sc_dev, "timeout in alloc\n");
-			return ETIMEDOUT;
-		}
 		DELAY(1);
+	}
+	if (i == WI_TIMEOUT) {
+		device_printf(sc->sc_dev, "timeout in alloc\n");
+		return ETIMEDOUT;
 	}
 	*idp = CSR_READ_2(sc, WI_ALLOC_FID);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_ALLOC);
