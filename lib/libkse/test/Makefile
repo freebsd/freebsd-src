@@ -32,7 +32,7 @@ CFLAGS := -Wall -pipe -g3
 LDFLAGS_A := -static
 LDFLAGS_P := -pg
 LDFLAGS_S :=
-LIBS := -pthread
+LIBS := -lc_r
 
 # Flags passed to verify.  "-v" or "-u" may be useful.
 VFLAGS :=
