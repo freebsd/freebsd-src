@@ -22,7 +22,7 @@ COPTFLAGS?=-O
 . if ${MACHINE_ARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
 . else
-COPTFLAGS?=-O2 -pipe
+COPTFLAGS?=-O -pipe
 . endif
 . if ${COPTFLAGS:M-O[23s]} != ""
 COPTFLAGS+= -fno-strict-aliasing
