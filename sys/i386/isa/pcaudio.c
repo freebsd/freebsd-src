@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.29 1996/07/17 20:18:56 joerg Exp $
+ *	$Id: pcaudio.c,v 1.30 1996/09/06 23:07:54 phk Exp $
  */
 
 #include "pca.h"
@@ -47,6 +47,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 
+#define	DSP_ULAW_NOT_WANTED
 #include <i386/isa/sound/ulaw.h>
 
 #ifdef DEVFS
