@@ -60,6 +60,8 @@
 .Op Fl f Ar file
 .Op Fl S Ar sectorsize
 .Op Fl u Ar unit
+.Op Fl x Ar sectors/track
+.Op Fl y Ar heads/cyl
 .Nm
 .Fl d
 .Fl u Ar unit
@@ -119,6 +121,18 @@ which
 denotes kilobyte, megabyte and gigabyte respectively.
 .It Fl S Ar sectorsize
 Sectorsize to use for malloc backed device.
+.It Fl x Ar sectors/track
+See description of
+.Fl y 
+below.
+.It Fl y Ar heads/cylinder
+For malloc backed devices, the
+.Fl x
+and
+.Fl y
+options can be used to specify a synthetic geometry.
+This is useful for constructing bootable images for later download to
+other devices.
 .It Fl o Oo Cm no Oc Ns Ar option
 Set or reset options.
 .Bl -tag -width indent
