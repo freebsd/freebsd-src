@@ -49,7 +49,7 @@
  * Port ftp by default.
  */
 #ifndef	dPASSIVE
-#define	dPASSIVE 1				/* Works for most folks... */
+#define	dPASSIVE 0				/* Use PORT for more portability... */
 #endif
 
 #ifndef dVERBOSE				/* V_QUIET, V_ERRS, V_TERSE, V_VERBOSE */
