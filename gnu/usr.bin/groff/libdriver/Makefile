@@ -1,11 +1,10 @@
-# Makefile for libdriver
+# $FreeBSD$
 
 LIB=		driver
 SRCS=		input.cc printer.cc
-CFLAGS+=	-I$(DIST_DIR)/../include
 
-NOMAN=		noman
-NOPROFILE=	noprofile
+NOMAN=		YES
+NOPROFILE=	YES
 
 install:
 

@@ -1,7 +1,6 @@
-# Makefile for devascii
+# $FreeBSD$
 
 DEV=		ascii
 
-.include "../Makefile.inc"
 .include "../Makefile.tty"
 .include "../Makefile.dev"

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG=		tfmtodit
-SRCS=		tfmtodit.cc
+PROG=		hpftodit
+SRCS=		hpftodit.cc
 LDADD+=		${LIBGROFF} -lm
 DPADD+=		${LIBGROFF} ${LIBM}
 
