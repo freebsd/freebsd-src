@@ -218,8 +218,8 @@ main(int argc, char **argv)
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
 			break;
-		case 'h': /* Linux LSB for 'tar'; synonym for -H */
-			bsdtar->symlink_mode = 'H';
+		case 'h': /* Linux Standards Base, gtar; synonym for -L */
+			bsdtar->symlink_mode = 'L';
 			break;
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_HELP:
