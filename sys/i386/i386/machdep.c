@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.272 1997/11/20 19:30:29 bde Exp $
+ *	$Id: machdep.c,v 1.273 1997/11/21 18:27:10 bde Exp $
  */
 
 #include "apm.h"
@@ -174,7 +174,7 @@ sysctl_hw_usermem SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "I", "");
 
-int boothowto = 0, bootverbose = 0, Maxmem = 0;
+int bootverbose = 0, Maxmem = 0;
 long dumplo;
 
 vm_offset_t phys_avail[10];
