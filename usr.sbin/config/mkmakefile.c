@@ -480,8 +480,7 @@ nextparam:
 		goto invis;
 	for (dp = dtab; dp != 0; save_dp = dp, dp = dp->d_next)
 		if (eq(dp->d_name, wd)) {
-			if (std && dp->d_type == DEVICE &&
-			    dp->d_count <= 0)
+			if (std && dp->d_count <= 0)
 				dp->d_count = 1;
 			goto nextparam;
 		}
@@ -493,7 +492,6 @@ nextparam:
 	if (std) {
 		dp = (struct device *) malloc(sizeof *dp);
 		bzero(dp, sizeof *dp);
-		dp->d_type = DEVICE;
 		dp->d_name = ns(wd);
 		dp->d_count = 1;
 		save_dp->d_next = dp;
