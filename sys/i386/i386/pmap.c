@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.226 1999/04/02 17:59:38 alc Exp $
+ *	$Id: pmap.c,v 1.227 1999/04/05 19:38:28 julian Exp $
  */
 
 /*
@@ -1964,10 +1964,8 @@ pmap_remove_all(pa)
 	register pv_entry_t pv;
 	pv_table_t *ppv;
 	register unsigned *pte, tpte;
-	int update_needed;
 	int s;
 
-	update_needed = 0;
 #if defined(PMAP_DIAGNOSTIC)
 	/*
 	 * XXX this makes pmap_page_protect(NONE) illegal for non-managed
@@ -1981,12 +1979,11 @@ pmap_remove_all(pa)
 	s = splvm();
 	ppv = pa_to_pvh(pa);
 	while ((pv = TAILQ_FIRST(&ppv->pv_list)) != NULL) {
-		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-
 		pv->pv_pmap->pm_stats.resident_count--;
 
-		tpte = *pte;
-		*pte = 0;
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
+
+		tpte = loadandclear(pte);
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
 
@@ -2007,15 +2004,7 @@ pmap_remove_all(pa)
 			if (pmap_track_modified(pv->pv_va))
 				vm_page_dirty(ppv->pv_vm_page);
 		}
-#ifdef SMP
-		update_needed = 1;
-#else
-		if (!update_needed &&
-			((!curproc || (vmspace_pmap(curproc->p_vmspace) == pv->pv_pmap)) ||
-			(pv->pv_pmap == kernel_pmap))) {
-			update_needed = 1;
-		}
-#endif
+		pmap_TLB_invalidate(pv->pv_pmap, pv->pv_va);
 
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
@@ -2026,11 +2015,7 @@ pmap_remove_all(pa)
 
 	vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
-	if (update_needed)
-		invltlb();
-
 	splx(s);
-	return;
 }
 
 /*
