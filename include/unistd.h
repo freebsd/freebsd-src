@@ -177,7 +177,7 @@ int	 readlink __P((const char *, char *, int));
 int	 reboot __P((int));
 int	 revoke __P((const char *));
 pid_t	 rfork __P((int));
-pid_t	 rfork_thread __P((int, void *, int (*) __P((void *)), void *));
+pid_t	 rfork_thread __P((int, void *, int (*)(void *), void *));
 int	 rresvport __P((int *));
 int	 rresvport_af __P((int *, int));
 int	 ruserok __P((const char *, int, const char *, const char *));
