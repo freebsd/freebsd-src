@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.25 1997/08/25 00:29:31 brian Exp $
+ * $Id: vars.h,v 1.26 1997/09/04 00:38:22 brian Exp $
  *
  *	TODO:
  */
@@ -83,6 +83,7 @@ struct pppvars {
   char login_script[200];	/* Login script */
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
+  int enc_MD4;			/* Use MD4 for CHAP encryption */
   char phone_numbers[200];	/* Telephone Numbers */
   char phone_copy[200];		/* copy for strsep() */
   char *next_phone;		/* Next phone from the list */
@@ -110,6 +111,7 @@ struct pppvars {
 #define	VarRetryTimeout	pppVars.retry_timeout
 #define	VarAuthKey	pppVars.auth_key
 #define	VarAuthName	pppVars.auth_name
+#define	VarEncMD4	pppVars.enc_MD4
 #define VarPhoneList    pppVars.phone_numbers
 #define VarPhoneCopy    pppVars.phone_copy
 #define VarNextPhone    pppVars.next_phone

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.80 1997/09/09 23:56:29 brian Exp $
+ * $Id: command.c,v 1.81 1997/09/16 23:15:11 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -467,6 +467,7 @@ ShowAuthKey()
     return 0;
   fprintf(VarTerm, "AuthName = %s\n", VarAuthName);
   fprintf(VarTerm, "AuthKey  = %s\n", VarAuthKey);
+  fprintf(VarTerm, "Encrypt  = %s\n", VarEncMD4 ? "MD4" : "MD5" );
   return 1;
 }
 
@@ -564,7 +565,7 @@ struct cmdtab const ShowCommands[] = {
   {"afilter", NULL, ShowAfilter, LOCAL_AUTH,
   "Show keep Alive filters", "show afilter option .."},
   {"auth", NULL, ShowAuthKey, LOCAL_AUTH,
-  "Show auth name/key", "show auth"},
+  "Show auth name, key and algorithm", "show auth"},
   {"ccp", NULL, ReportCcpStatus, LOCAL_AUTH,
   "Show CCP status", "show cpp"},
   {"compress", NULL, ReportCompress, LOCAL_AUTH,
@@ -1199,6 +1200,7 @@ SetNBNS(struct cmdtab const * list, int argc, char **argv)
 #define	VAR_ACCMAP	5
 #define	VAR_PHONE	6
 #define	VAR_HANGUP	7
+#define	VAR_ENC		8
 
 static int
 SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
@@ -1248,6 +1250,9 @@ SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
   case VAR_HANGUP:
     strncpy(VarHangupScript, arg, sizeof(VarHangupScript) - 1);
     VarHangupScript[sizeof(VarHangupScript) - 1] = '\0';
+    break;
+  case VAR_ENC:
+    VarEncMD4 = !strcasecmp(arg, "md4");
     break;
   }
   return 0;
@@ -1303,6 +1308,8 @@ struct cmdtab const SetCommands[] = {
   "Set demand filter", "set dfilter ..."},
   {"dial", NULL, SetVariable, LOCAL_AUTH,
   "Set dialing script", "set dial chat-script", (void *) VAR_DIAL},
+  {"encrypt", NULL, SetVariable, LOCAL_AUTH,
+  "Set CHAP encryption algorithm", "set encrypt MD4|MD5", (void *) VAR_ENC},
   {"escape", NULL, SetEscape, LOCAL_AUTH,
   "Set escape characters", "set escape hex-digit ..."},
   {"hangup", NULL, SetVariable, LOCAL_AUTH,
