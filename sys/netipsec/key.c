@@ -512,6 +512,18 @@ static struct mbuf *key_alloc_mbuf __P((int));
 	IPSEC_ASSERT((p)->refcnt > 0, ("SP refcnt underflow"));		\
 	(p)->refcnt--;							\
 } while (0)
+ 
+
+/*
+ * Update the refcnt while holding the SPTREE lock.
+ */
+void
+key_addref(struct secpolicy *sp)
+{
+	SPTREE_LOCK();
+	SP_ADDREF(sp);
+	SPTREE_UNLOCK();
+}
 
 /*
  * Return 0 when there are known to be no SP's for the specified
