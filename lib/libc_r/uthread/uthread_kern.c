@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.20 1999/08/12 19:34:39 deischen Exp $
+ * $Id: uthread_kern.c,v 1.15.2.4 1999/08/15 02:02:41 deischen Exp $
  *
  */
 #include <errno.h>
@@ -458,7 +458,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				/*
 				 * Check for underflow of the nanosecond field:
 				 */
-				if (ts1.tv_nsec < 0) {
+				while (ts1.tv_nsec < 0) {
 					/*
 					 * Allow for the underflow of the
 					 * nanosecond field: 
@@ -469,7 +469,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				/*
 				 * Check for overflow of the nanosecond field: 
 				 */
-				if (ts1.tv_nsec >= 1000000000) {
+				while (ts1.tv_nsec >= 1000000000) {
 					/*
 					 * Allow for the overflow of the
 					 * nanosecond field: 
