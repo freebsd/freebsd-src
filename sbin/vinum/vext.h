@@ -32,13 +32,16 @@
  * in contract, strict liability, or tort (including negligence or
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
- *
  */
 
-/* $FreeBSD$ */
+/*
+ * $Id: vext.h,v 1.13 1999/10/12 05:41:36 grog Exp grog $
+ * $FreeBSD$
+ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
-#define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
+#define PLEXINITSIZE 65536				    /* init in this size chunks */
+#define MAXPLEXINITSIZE 65536				    /* max chunk size to use for init */
 #define MAXDATETEXT 128					    /* date text in history (far too much) */
 
 enum {
@@ -135,10 +138,11 @@ u_int64_t sizespec(char *spec);
 void timestamp();
 
 extern int force;					    /* set to 1 to force some dangerous ops */
-extern int verbose;					    /* set verbose operation */
+extern int vflag;					    /* set verbose operation or verify */
 extern int Verbose;					    /* very verbose operation */
 extern int recurse;					    /* set recursion */
 extern int sflag;					    /* show statistics */
+extern int SSize;					    /* sector size for revive */
 extern int dowait;					    /* wait for children to exit */
 extern char *objectname;				    /* name for some functions */
 
