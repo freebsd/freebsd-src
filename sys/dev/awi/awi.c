@@ -1420,8 +1420,11 @@ awi_devget(sc, off, len)
 	if (top != NULL) {
 		sc->sc_rxpend = NULL;
 		top->m_pkthdr.len += len;
-		while ((m = *mp) != NULL)
+		m = top;
+		while (*mp != NULL) {
+			m = *mp;
 			mp = &m->m_next;
+		}
 		if (m->m_flags & M_EXT)
 			tlen = m->m_ext.ext_size;
 		else if (m->m_flags & M_PKTHDR)
