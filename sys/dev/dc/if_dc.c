@@ -166,8 +166,8 @@ static struct dc_type dc_devs[] = {
 		"ADMtek ADM9511 10/100BaseTX" },
 	{ DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513,
 		"ADMtek ADM9513 10/100BaseTX" },
- 	{ DC_VENDORID_ADMTEK, DC_DEVICEID_FA511,
- 		"Netgear FA511 10/100BaseTX" },
+	{ DC_VENDORID_ADMTEK, DC_DEVICEID_FA511,
+		"Netgear FA511 10/100BaseTX" },
 	{ DC_VENDORID_ASIX, DC_DEVICEID_AX88140A,
 		"ASIX AX88140A 10/100BaseTX" },
 	{ DC_VENDORID_ASIX, DC_DEVICEID_AX88140A,
@@ -2162,7 +2162,7 @@ dc_attach(device_t dev)
 
 	/* Create the TX/RX busdma maps. */
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
-		error = bus_dmamap_create(sc->dc_mtag, 0, 
+		error = bus_dmamap_create(sc->dc_mtag, 0,
 		    &sc->dc_cdata.dc_tx_map[i]);
 		if (error) {
 			printf("dc%d: failed to init TX ring\n", unit);
@@ -2171,7 +2171,7 @@ dc_attach(device_t dev)
 		}
 	}
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
-		error = bus_dmamap_create(sc->dc_mtag, 0, 
+		error = bus_dmamap_create(sc->dc_mtag, 0,
 		    &sc->dc_cdata.dc_rx_map[i]);
 		if (error) {
 			printf("dc%d: failed to init RX ring\n", unit);
@@ -2511,7 +2511,7 @@ dc_newbuf(struct dc_softc *sc, int i, int alloc)
 		}
 		if (sc->dc_cdata.dc_rx_err != 0) {
 			m_freem(m_new);
-			return (sc->dc_cdata.dc_rx_err); 
+			return (sc->dc_cdata.dc_rx_err);
 		}
 		bus_dmamap_unload(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i]);
 		tmp = sc->dc_cdata.dc_rx_map[i];
@@ -3283,7 +3283,7 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	if (error)
 		return (error);
 	if (sc->dc_cdata.dc_tx_err != 0)
-		return (sc->dc_cdata.dc_tx_err); 
+		return (sc->dc_cdata.dc_tx_err);
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
 	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
