@@ -418,11 +418,11 @@ kmeminit(dummy)
 	 * so make sure that there is enough space.
 	 */
 	vm_kmem_size = VM_KMEM_SIZE;
-	mem_size = cnt.v_page_count * PAGE_SIZE;
+	mem_size = cnt.v_page_count;
 
 #if defined(VM_KMEM_SIZE_SCALE)
-	if ((mem_size / VM_KMEM_SIZE_SCALE) > vm_kmem_size)
-		vm_kmem_size = mem_size / VM_KMEM_SIZE_SCALE;
+	if ((mem_size / VM_KMEM_SIZE_SCALE) > (vm_kmem_size / PAGE_SIZE))
+		vm_kmem_size = (mem_size / VM_KMEM_SIZE_SCALE) * PAGE_SIZE;
 #endif
 
 #if defined(VM_KMEM_SIZE_MAX)
@@ -439,7 +439,7 @@ kmeminit(dummy)
 	 * to something sane. Be careful to not overflow the 32bit
 	 * ints while doing the check.
 	 */
-	if ((vm_kmem_size / 2) > (cnt.v_page_count * PAGE_SIZE))
+	if (((vm_kmem_size / 2) / PAGE_SIZE) > cnt.v_page_count)
 		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
 	/*
