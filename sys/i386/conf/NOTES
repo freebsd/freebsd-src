@@ -2159,16 +2159,15 @@ options 	PLIP_DEBUG	# Parallel network IP interface debug
 options		PCFCLOCK_VERBOSE         # Verbose pcfclock driver
 options		PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
 
-device		ppbus
-device		vpo0	at ppbus?
-device		lpt0	at ppbus?
-device		plip0	at ppbus?
-device		ppi0	at ppbus?
-device		pps0	at ppbus?
-device		lpbb0	at ppbus?
-device		pcfclock0 at ppbus?
-
 device		ppc0	at isa? port? irq 7
+device		ppbus
+device		vpo
+device		lpt
+device		plip
+device		ppi
+device		pps
+device		lpbb
+device		pcfclock
 
 # Kernel BOOTP support
 
