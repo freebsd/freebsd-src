@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 52 $
+ *              $Revision: 54 $
  *
  *****************************************************************************/
 
@@ -170,7 +170,7 @@ AcpiUtOsiImplementation (
 
     for (i = 0; i < ACPI_NUM_OSI_STRINGS; i++)
     {
-        if (!ACPI_STRCMP (StringDesc->String.Pointer, 
+        if (!ACPI_STRCMP (StringDesc->String.Pointer,
                             (char *) (uintptr_t) AcpiGbl_ValidOsiStrings[i]))
         {
             /* This string is supported */
@@ -211,7 +211,7 @@ AcpiUtEvaluateObject (
     UINT32                  ExpectedReturnBtypes,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_PARAMETER_INFO     Info;
     ACPI_STATUS             Status;
     UINT32                  ReturnBtype;
 
@@ -219,9 +219,13 @@ AcpiUtEvaluateObject (
     ACPI_FUNCTION_TRACE ("UtEvaluateObject");
 
 
+    Info.Node = PrefixNode;
+    Info.Parameters = NULL;
+    Info.ParameterType = ACPI_PARAM_ARGS;
+
     /* Evaluate the object/method */
 
-    Status = AcpiNsEvaluateRelative (PrefixNode, Path, NULL, &ObjDesc);
+    Status = AcpiNsEvaluateRelative (Path, &Info);
     if (ACPI_FAILURE (Status))
     {
         if (Status == AE_NOT_FOUND)
@@ -240,7 +244,7 @@ AcpiUtEvaluateObject (
 
     /* Did we get a return object? */
 
-    if (!ObjDesc)
+    if (!Info.ReturnObject)
     {
         if (ExpectedReturnBtypes)
         {
@@ -255,7 +259,7 @@ AcpiUtEvaluateObject (
 
     /* Map the return object type to the bitmapped type */
 
-    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
+    switch (ACPI_GET_OBJECT_TYPE (Info.ReturnObject))
     {
     case ACPI_TYPE_INTEGER:
         ReturnBtype = ACPI_BTYPE_INTEGER;
@@ -287,17 +291,17 @@ AcpiUtEvaluateObject (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from %s was incorrect: %X\n",
-            Path, ACPI_GET_OBJECT_TYPE (ObjDesc)));
+            Path, ACPI_GET_OBJECT_TYPE (Info.ReturnObject)));
 
         /* On error exit, we must delete the return object */
 
-        AcpiUtRemoveReference (ObjDesc);
+        AcpiUtRemoveReference (Info.ReturnObject);
         return_ACPI_STATUS (AE_TYPE);
     }
 
     /* Object type is OK, return it */
 
-    *ReturnDesc = ObjDesc;
+    *ReturnDesc = Info.ReturnObject;
     return_ACPI_STATUS (AE_OK);
 }
 
