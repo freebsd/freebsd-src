@@ -133,7 +133,7 @@ convert(line)
 	int flen, len, rval;
 	char *p, *fraction;
 
-	flen = NULL;
+	flen = 0;
 	fraction = NULL;
 	for (p = line; *p != '\0' && *p != '\n'; ++p) {
 		if (isblank(*p)) {
