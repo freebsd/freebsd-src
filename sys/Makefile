@@ -1,10 +1,7 @@
 # $FreeBSD$
 
-SUBDIR=
 # The boot loader
-.if ${MACHINE_ARCH} != "amd64"
-SUBDIR+=boot
-.endif
+SUBDIR=	boot
 
 # KLD modules build for both a.out and ELF
 .if defined(MODULES_WITH_WORLD)
