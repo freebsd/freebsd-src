@@ -315,9 +315,10 @@ pci_pir_initial_irqs(struct PIR_entry *entry, struct PIR_intpin *intpin,
 	if (irq == PCI_INVALID_IRQ)
 		return;
 	if (pci_pir_valid_irq(pci_link, irq)) {
-		if (pci_link->pl_irq == PCI_INVALID_IRQ)
+		if (pci_link->pl_irq == PCI_INVALID_IRQ) {
 			pci_link->pl_irq = irq;
-		else if (pci_link->pl_irq != irq)
+			pci_link->pl_routed = 1;
+		} else if (pci_link->pl_irq != irq)
 			printf(
 	"$PIR: BIOS IRQ %d for %d.%d.INT%c does not match link %#x irq %d\n",
 			    irq, entry->pe_bus, entry->pe_device, pin + 'A',
