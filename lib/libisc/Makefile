@@ -22,6 +22,7 @@ INCS=		${BIND_DIR}/include/isc/assertions.h \
 		${BIND_DIR}/include/isc/eventlib.h \
 		${BIND_DIR}/include/isc/heap.h \
 		${BIND_DIR}/include/isc/irpmarshall.h \
+		${BIND_DIR}/include/isc/list.h \
 		${BIND_DIR}/include/isc/logging.h \
 		${BIND_DIR}/include/isc/memcluster.h \
 		${BIND_DIR}/include/isc/misc.h \
