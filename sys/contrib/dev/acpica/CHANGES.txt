@@ -1,4 +1,175 @@
 ----------------------------------------
+14 May 2004.  Summary of changes for version 20040514:
+
+1) ACPI CA Core Subsystem:
+
+Fixed a problem where hardware GPE enable bits sometimes not set
+properly during and after GPE method execution.  Result of 04/27
+changes.
+
+Removed extra "clear all GPEs" when sleeping/waking.
+
+Removed AcpiHwEnableGpe and AcpiHwDisableGpe, replaced by the
+single AcpiHwWriteGpeEnableReg. Changed a couple of calls to the
+functions above to the new AcpiEv* calls as appropriate.
+
+ACPI_OS_NAME was removed from the OS-specific headers.  The
+default name is now "Microsoft Windows NT" for maximum
+compatibility.  However this can be changed by modifying the
+acconfig.h file.
+
+Allow a single invocation of AcpiInstallNotifyHandler for a
+handler that traps both types of notifies (System, Device).  Use
+ACPI_ALL_NOTIFY flag.
+
+Run _INI methods on ThermalZone objects.  This is against the
+ACPI specification, but there is apparently ASL code in the field
+that has these _INI methods, and apparently "other" AML
+interpreters execute them.
+
+Performed a full 16/32/64 bit lint that resulted in some small
+changes.
+
+Added a sleep simulation command to the AML debugger to test
+sleep code.
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.6K Code,  11.5K Data,   89.1K Total
+    Debug Version:     162.9K Code,  67.0K Data,  229.9K Total
+  Current Release:
+    Non-Debug Version:  77.6K Code,  11.5K Data,   89.1K Total
+    Debug Version:     163.2K Code,  67.2K Data,  230.4K Total
+
+----------------------------------------
+27 April 2004.  Summary of changes for version 20040427:
+
+1) ACPI CA Core Subsystem:
+
+Completed a major overhaul of the GPE handling within ACPI CA.
+There are now three types of GPEs:  wake-only, runtime-only, and
+combination wake/run.  The only GPEs allowed to be combination
+wake/run are for button-style devices such as a control-method
+power button, control-method sleep button, or a notebook lid
+switch.  GPEs that have an _Lxx or _Exx method and are not
+referenced by any _PRW methods are marked for "runtime" and
+hardware enabled.  Any GPE that is referenced by a _PRW method is
+marked for "wake" (and disabled at runtime).  However, at sleep
+time, only those GPEs that have been specifically enabled for
+wake via the AcpiEnableGpe interface will actually be hardware
+enabled.
+
+A new external interface has been added, AcpiSetGpeType(), that
+is meant to be used by device drivers to force a GPE to a
+particular type.  It will be especially useful for the drivers
+for the button devices mentioned above.
+
+Completed restructuring of the ACPI CA initialization sequence so
+that default operation region handlers are installed before GPEs
+are initialized and the _PRW methods are executed.  This will
+prevent errors when the _PRW methods attempt to access system
+memory or I/O space.
+
+GPE enable/disable no longer reads the GPE enable register.  We
+now keep the enable info for runtime and wake separate and in the
+GPE_EVENT_INFO.  We thus no longer depend on the hardware to
+maintain these bits.
+
+Always clear the wake status and fixed/GPE status bits before
+sleep, even for state S5.
+
+Improved the AML debugger output for displaying the GPE blocks
+and their current status.
+
+Added new strings for the _OSI method, of the form "Windows 2001
+SPx" where x = 0,1,2,3,4.
+
+Fixed a problem where the physical address was incorrectly
+calculated when the Load() operator was used to directly load
+from an Operation Region (vs. loading from a Field object.)  Also
+added check for minimum table length for this case.
+
+Fix for multiple mutex acquisition.  Restore original thread
+SyncLevel on mutex release.
+
+Added ACPI_VALID_SXDS flag to the AcpiGetObjectInfo interface for
+consistency with the other fields returned.
+
+Shrunk the ACPI_GPE_EVENT_INFO structure by 40%.  There is one
+such structure for each GPE in the system, so the size of this
+structure is important.
+
+CPU stack requirement reduction:  Cleaned up the method execution
+and object evaluation paths so that now a parameter structure is
+passed, instead of copying the various method parameters over and
+over again.
+
+In evregion.c:  Correctly exit and reenter the interpreter region
+if and only if dispatching an operation region request to a user-
+installed handler.  Do not exit/reenter when dispatching to a
+default handler (e.g., default system memory or I/O handlers)
+
+
+Notes for updating drivers for the new GPE support.  The
+following changes must be made to ACPI-related device drivers
+that are attached to one or more GPEs: (This information will be
+added to the ACPI CA Programmer Reference.)
+
+1) AcpiInstallGpeHandler no longer automatically enables the GPE,
+you must explicitly call AcpiEnableGpe.
+2) There is a new interface called AcpiSetGpeType. This should be
+called before enabling the GPE.  Also, this interface will
+automatically disable the GPE if it is currently enabled.
+3) AcpiEnableGpe no longer supports a GPE type flag.
+
+Specific drivers that must be changed:
+1) EC driver:
+    AcpiInstallGpeHandler (NULL, GpeNum, ACPI_GPE_EDGE_TRIGGERED,
+AeGpeHandler, NULL);
+    AcpiSetGpeType (NULL, GpeNum, ACPI_GPE_TYPE_RUNTIME);
+    AcpiEnableGpe (NULL, GpeNum, ACPI_NOT_ISR);
+
+2) Button Drivers (Power, Lid, Sleep):
+Run _PRW method under parent device
+If _PRW exists: /* This is a control-method button */
+    Extract GPE number and possibly GpeDevice
+    AcpiSetGpeType (GpeDevice, GpeNum, ACPI_GPE_TYPE_WAKE_RUN);
+    AcpiEnableGpe (GpeDevice, GpeNum, ACPI_NOT_ISR);
+
+For all other devices that have _PRWs, we automatically set the
+GPE type to ACPI_GPE_TYPE_WAKE, but the GPE is NOT automatically
+(wake) enabled.  This must be done on a selective basis, usually
+requiring some kind of user app to allow the user to pick the
+wake devices.
+
+
+Code and Data Size: Current and previous core subsystem library
+sizes are shown below.  These are the code and data sizes for the
+acpica.lib produced by the Microsoft Visual C++ 6.0 compiler, and
+these values do not include any ACPI driver or OSPM code.  The
+debug version of the code includes the debug output trace
+mechanism and has a much larger code and data size.  Note that
+these values will vary depending on the efficiency of the
+compiler and the compiler options used during generation.
+
+  Previous Release:
+    Non-Debug Version:  77.0K Code,  11.4K Data,   88.4K Total
+    Debug Version:     161.0K Code,  66.3K Data,  227.3K Total
+  Current Release:
+    Non-Debug Version:  77.6K Code,  11.5K Data,   89.1K Total
+    Debug Version:     162.9K Code,  67.0K Data,  229.9K Total
+
+
+
+----------------------------------------
 02 April 2004.  Summary of changes for version 20040402:
 
 1) ACPI CA Core Subsystem:

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 124 $
+ *       $Revision: 125 $
  *
  *****************************************************************************/
 
@@ -284,13 +284,14 @@ typedef struct acpi_object_method
 typedef struct acpi_object_mutex
 {
     ACPI_OBJECT_COMMON_HEADER
-    UINT16                          SyncLevel;
-    UINT16                          AcquisitionDepth;
-    struct acpi_thread_state        *OwnerThread;
-    void                            *Semaphore;
+    UINT8                           SyncLevel;          /* 0-15, specified in Mutex() call */
+    UINT16                          AcquisitionDepth;   /* Allow multiple Acquires, same thread */
+    struct acpi_thread_state        *OwnerThread;       /* Current owner of the mutex */
+    void                            *Semaphore;         /* Actual OS synchronization object */
     union acpi_operand_object       *Prev;              /* Link for list of acquired mutexes */
     union acpi_operand_object       *Next;              /* Link for list of acquired mutexes */
-    ACPI_NAMESPACE_NODE             *Node;              /* containing object */
+    ACPI_NAMESPACE_NODE             *Node;              /* Containing namespace node */
+    UINT8                           OriginalSyncLevel;  /* Owner's original sync level (0-15) */
 
 } ACPI_OBJECT_MUTEX;
 
@@ -301,7 +302,7 @@ typedef struct acpi_object_region
 
     UINT8                           SpaceId;
     union acpi_operand_object       *Handler;           /* Handler for region access */
-    ACPI_NAMESPACE_NODE             *Node;              /* containing object */
+    ACPI_NAMESPACE_NODE             *Node;              /* Containing namespace node */
     union acpi_operand_object       *Next;
     UINT32                          Length;
     ACPI_PHYSICAL_ADDRESS           Address;

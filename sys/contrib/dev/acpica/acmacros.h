@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 149 $
+ *       $Revision: 150 $
  *
  *****************************************************************************/
 
@@ -170,7 +170,7 @@
  * printf() format helpers
  */
 
-/* Split 64-bit integer into two 32-bit values. Use with %8,8X%8.8X */
+/* Split 64-bit integer into two 32-bit values. Use with %8.8X%8.8X */
 
 #define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i),ACPI_LODWORD(i)
 

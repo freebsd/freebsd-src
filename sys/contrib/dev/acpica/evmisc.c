@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evmisc - Miscellaneous event manager support functions
- *              $Revision: 72 $
+ *              $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -210,7 +210,7 @@ AcpiEvQueueNotifyRequest (
 
     if (NotifyValue <= 7)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Notify value: %s\n", 
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Notify value: %s\n",
                 AcpiNotifyValueNames[NotifyValue]));
     }
     else
@@ -280,8 +280,8 @@ AcpiEvQueueNotifyRequest (
         /* There is no per-device notify handler for this device */
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "No notify handler for [%4.4s] node %p\n",
-            AcpiUtGetNodeName (Node), Node));
+            "No notify handler for Notify(%4.4s, %X) node %p\n",
+            AcpiUtGetNodeName (Node), NotifyValue, Node));
     }
 
     return (Status);
@@ -661,6 +661,10 @@ AcpiEvTerminate (void)
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not remove SCI handler\n"));
         }
     }
+
+    /* Deallocate all handler objects installed within GPE info structs */
+
+    Status = AcpiEvWalkGpeList (AcpiEvDeleteGpeHandlers);
 
     /* Return to original mode if necessary */
 

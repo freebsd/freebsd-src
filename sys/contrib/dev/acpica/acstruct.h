@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 27 $
+ *       $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -142,13 +142,14 @@
 typedef struct acpi_walk_state
 {
     UINT8                       DataType;                           /* To differentiate various internal objs MUST BE FIRST!*/\
+    UINT8                       WalkType;
     ACPI_OWNER_ID               OwnerId;                            /* Owner of objects created during the walk */
     BOOLEAN                     LastPredicate;                      /* Result of last predicate */
+    UINT8                       Reserved;                           /* For alignment */
     UINT8                       CurrentResult;                      /* */
     UINT8                       NextOpInfo;                         /* Info about NextOp */
     UINT8                       NumOperands;                        /* Stack pointer for Operands[] array */
     UINT8                       ReturnUsed;
-    UINT8                       WalkType;
     UINT16                      Opcode;                             /* Current AML opcode */
     UINT8                       ScopeDepth;
     UINT8                       Reserved1;
@@ -164,7 +165,8 @@ typedef struct acpi_walk_state
     struct acpi_namespace_node  Arguments[ACPI_METHOD_NUM_ARGS];    /* Control method arguments */
     union acpi_operand_object   **CallerReturnDesc;
     ACPI_GENERIC_STATE          *ControlState;                      /* List of control states (nested IFs) */
-    struct acpi_namespace_node  *DeferredNode;                       /* Used when executing deferred opcodes */
+    struct acpi_namespace_node  *DeferredNode;                      /* Used when executing deferred opcodes */
+    struct acpi_gpe_event_info  *GpeEventInfo;                      /* Info for GPE (_Lxx/_Exx methods only */
     struct acpi_namespace_node  LocalVariables[ACPI_METHOD_NUM_LOCALS];     /* Control method locals */
     struct acpi_namespace_node  *MethodCallNode;                    /* Called method Node*/
     ACPI_PARSE_OBJECT           *MethodCallOp;                      /* MethodCall Op if running a method */
@@ -277,6 +279,24 @@ typedef union acpi_aml_operands
     } Mid;
 
 } ACPI_AML_OPERANDS;
+
+
+/* Internal method parameter list */
+
+typedef struct acpi_parameter_info
+{
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     **Parameters;
+    ACPI_OPERAND_OBJECT     *ReturnObject;
+    UINT8                   ParameterType;
+    UINT8                   ReturnObjectType;
+
+} ACPI_PARAMETER_INFO;
+
+/* Types for ParameterType above */
+
+#define ACPI_PARAM_ARGS                 0
+#define ACPI_PARAM_GPE                  1
 
 
 #endif

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 105 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -237,9 +237,8 @@ AcpiEnableSubsystem (
         }
     }
 
-    /*
-     * Enable ACPI mode
-     */
+    /* Enable ACPI mode */
+
     if (!(Flags & ACPI_NO_ACPI_ENABLE))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Going into ACPI mode\n"));
@@ -255,7 +254,23 @@ AcpiEnableSubsystem (
     }
 
     /*
-     * Initialize ACPI Event handling
+     * Install the default OpRegion handlers.  These are installed unless
+     * other handlers have already been installed via the
+     * InstallAddressSpaceHandler interface.
+     */
+    if (!(Flags & ACPI_NO_ADDRESS_SPACE_INIT))
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing default address space handlers\n"));
+
+        Status = AcpiEvInstallRegionHandlers ();
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
+
+    /*
+     * Initialize ACPI Event handling (Fixed and General Purpose)
      *
      * NOTE: We must have the hardware AND events initialized before we can execute
      * ANY control methods SAFELY.  Any control method can require ACPI hardware
@@ -265,20 +280,20 @@ AcpiEnableSubsystem (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI events\n"));
 
-        Status = AcpiEvInitialize ();
+        Status = AcpiEvInitializeEvents ();
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
         }
     }
 
-    /* Install the SCI handler, Global Lock handler, and GPE handlers */
+    /* Install the SCI handler and Global Lock handler */
 
     if (!(Flags & ACPI_NO_HANDLER_INIT))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing SCI/GL/GPE handlers\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing SCI/GL handlers\n"));
 
-        Status = AcpiEvHandlerInitialize ();
+        Status = AcpiEvInstallXruptHandlers ();
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -312,19 +327,17 @@ AcpiInitializeObjects (
 
 
     /*
-     * Install the default OpRegion handlers.  These are installed unless
-     * other handlers have already been installed via the
-     * InstallAddressSpaceHandler interface.
+     * Run all _REG methods
      *
-     * NOTE: This will cause _REG methods to be run.  Any objects accessed
+     * NOTE: Any objects accessed
      * by the _REG methods will be automatically initialized, even if they
      * contain executable AML (see call to AcpiNsInitializeObjects below).
      */
     if (!(Flags & ACPI_NO_ADDRESS_SPACE_INIT))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing default address space handlers\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Executing _REG OpRegion methods\n"));
 
-        Status = AcpiEvInitAddressSpaces ();
+        Status = AcpiEvInitializeOpRegions ();
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -338,7 +351,7 @@ AcpiInitializeObjects (
      */
     if (!(Flags & ACPI_NO_OBJECT_INIT))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI Objects\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Completing Initialization of ACPI Objects\n"));
 
         Status = AcpiNsInitializeObjects ();
         if (ACPI_FAILURE (Status))

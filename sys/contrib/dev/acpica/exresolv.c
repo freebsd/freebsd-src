@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 123 $
+ *              $Revision: 124 $
  *
  *****************************************************************************/
 
@@ -269,15 +269,15 @@ AcpiExResolveObjectToValue (
                 return_ACPI_STATUS (Status);
             }
 
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Arg/Local %X] ValueObj is %p\n",
+                StackDesc->Reference.Offset, ObjDesc));
+
             /*
              * Now we can delete the original Reference Object and
-             * replace it with the resolve value
+             * replace it with the resolved value
              */
             AcpiUtRemoveReference (StackDesc);
             *StackPtr = ObjDesc;
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Arg/Local %d] ValueObj is %p\n",
-                StackDesc->Reference.Offset, ObjDesc));
             break;
 
 
