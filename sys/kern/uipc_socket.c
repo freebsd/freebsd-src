@@ -1050,8 +1050,6 @@ sosetopt(so, sopt)
 		case SO_REUSEPORT:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
-		case SO_DELAYACCEPT:
-		case SO_HTTPACCEPT:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1217,8 +1215,6 @@ sogetopt(so, sopt)
 		case SO_BROADCAST:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
-		case SO_DELAYACCEPT:
-		case SO_HTTPACCEPT:
 			optval = so->so_options & sopt->sopt_name;
 integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
