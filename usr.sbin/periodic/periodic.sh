@@ -27,7 +27,7 @@ fi
 
 host=`hostname`
 export host
-tmp_output=/var/run/periodic.$$
+tmp_output=${TMPDIR:-/tmp}/periodic.$$
 
 # Execute each executable file in the directory list.  If the x bit is not
 # set, assume the user didn't really want us to muck with it (it's a
@@ -39,7 +39,8 @@ do
     eval output=\$${arg##*/}_output
     case "$output" in
     /*) pipe="cat >>$output";;
-    *)  pipe="mail -s '$host ${arg##*/} run output' ${output:-root}";;
+    "") pipe=cat;;
+    *)  pipe="mail -s '$host ${arg##*/} run output' $output";;
     esac
 
     success=YES info=YES badconfig=NO	# Defaults when ${run}_* aren't YES/NO
@@ -78,9 +79,10 @@ do
                     output=TRUE
                     processed=$(($processed + 1))
                     $file </dev/null >$tmp_output 2>&1
+                    rc=$?
                     if [ -s $tmp_output ]
                     then
-                      case $? in
+                      case $rc in
                       0)  [ $success = NO ] && output=FALSE;;
                       1)  [ $info = NO ] && output=FALSE;;
                       2)  [ $badconfig = NO ] && output=FALSE;;
