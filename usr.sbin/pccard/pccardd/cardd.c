@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.26 1998/02/27 08:40:53 hosokawa Exp $";
+	"$Id: cardd.c,v 1.27 1998/02/27 09:47:36 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -435,7 +435,8 @@ assign_io(struct slot *sp)
 				return (-1);
 			sp->io.addr = i;
 		}
-		bit_nclear(io_avail, sp->io.addr, sp->io.size);
+		bit_nclear(io_avail, sp->io.addr,
+			   sp->io.addr + sp->io.size - 1);
 
 		/* Set up the size to take into account the decode lines. */
 		sp->io.cardaddr = cp->io_addr;
