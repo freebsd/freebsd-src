@@ -261,5 +261,11 @@
       passwords containing special shell characters.  This problem has
       been corrected in &release.current;.</para>
 
+    <bridgehead renderas="sect3">&man.xl.4;</bridgehead>
+
+    <para>The &man.xl.4; driver has a timing bug that may cause a
+      kernel panic (or other problems) when attempting to configure an
+      interface.  This bug has been fixed in &release.current;.</para>
+
   </sect1>
 </article>
