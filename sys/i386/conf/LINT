@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.278 1996/09/11 19:53:29 phk Exp $
+#	$Id: LINT,v 1.279 1996/09/13 05:54:39 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -802,6 +802,8 @@ device pca0 at isa? port IO_TIMER1 tty
 #  However, this is not true for all laptops.  Try removing the option
 #  APM_BROKEN_STATCLOCK and see if suspend/resume work
 #
+
+options	APM_IDLE_CPU	# Tell APM to idle rather than halt'ing the cpu
 
 #
 # Notes on the spigot:
