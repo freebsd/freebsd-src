@@ -99,18 +99,22 @@ static struct nlist namelist[] = {
 	{ "_intrcnt" },
 #define	X_EINTRCNT	9
 	{ "_eintrcnt" },
+#define	X_KMEMSTATS	10
+	{ "_kmemstatistics" },
+#define	X_KMEMZONES	11
+	{ "_kmemzones" },
 #ifdef notyet
-#define	X_DEFICIT	10
+#define	X_DEFICIT	XXX
 	{ "_deficit" },
-#define X_REC		11
+#define X_REC		XXX
 	{ "_rectime" },
-#define X_PGIN		12
+#define X_PGIN		XXX
 	{ "_pgintime" },
-#define	X_XSTATS	13
+#define	X_XSTATS	XXX
 	{ "_xstats" },
-#define X_END		14
+#define X_END		XXX
 #else
-#define X_END		10
+#define X_END		12
 #endif
 	{ "" },
 };
@@ -153,6 +157,8 @@ static void	dosysctl(const char *);
 static void	dovmstat(unsigned int, int);
 static void	dozmem(void);
 static void	kread(int, void *, size_t);
+static void	kreado(int, void *, size_t, size_t);
+static char    *kgetstr(const char *);
 static void	needhdr(int);
 static void	printhdr(void);
 static void	usage(void);
@@ -894,9 +900,59 @@ dointr(void)
 static void
 domem(void)
 {
-	if (kd != NULL)
-		errx(1, "not implemented");
-	dosysctl("kern.malloc");
+	struct malloc_type type;
+	
+	if (kd == NULL) {
+		dosysctl("kern.malloc");
+		return;
+	}
+	kread(X_KMEMSTATS, &type.ks_next, sizeof(type.ks_next));
+	(void)printf("\n        Type  InUse MemUse HighUse Requests"
+	    "  Size(s)\n");
+	do { 
+		/* XXX this should be exported in sys/malloc.h */
+		struct {
+			int kz_size;
+			char *kz_name;
+			/* uma_zone_t */ void *kz_zone;
+		} kz;
+		size_t kmemzonenum;
+		char *str;
+		int first;
+
+		if (kvm_read(kd, (u_long)type.ks_next, &type, sizeof(type)) !=
+		    sizeof(type))
+			errx(1, "%s: %p: %s", __func__, type.ks_next,
+			    kvm_geterr(kd));
+		if (type.ks_calls == 0)
+			continue;
+		str = kgetstr(type.ks_shortdesc);
+		(void)printf("%13s%6lu%6luK%7luK%9llu",
+		    str,
+		    type.ks_inuse,
+		    (type.ks_memuse + 1023) / 1024,
+		    (type.ks_maxused + 1023) / 1024,
+		    (long long unsigned)type.ks_calls);
+		free(str);
+		for (kmemzonenum = 0, first = 1; ; kmemzonenum++) {
+			kreado(X_KMEMZONES, &kz, sizeof(kz),
+			    kmemzonenum * sizeof(kz));
+			if (kz.kz_name == NULL) {
+				(void)printf("\n");
+				break;
+			}
+			if (!(type.ks_size & (1 << kmemzonenum)))
+				continue;
+			if (first)
+				(void)printf("  ");
+			else
+				(void)printf(",");
+			first = 0;
+			str = kgetstr(kz.kz_name);
+			(void)printf("%s", str);
+			free(str);
+		}
+	} while (type.ks_next != NULL);
 }
 
 static void
@@ -929,7 +985,7 @@ dosysctl(const char *name)
  * kread reads something from the kernel, given its nlist index.
  */
 static void
-kread(int nlx, void *addr, size_t size)
+kreado(int nlx, void *addr, size_t size, size_t offset)
 {
 	const char *sym;
 
@@ -939,12 +995,38 @@ kread(int nlx, void *addr, size_t size)
 			++sym;
 		errx(1, "symbol %s not defined", sym);
 	}
-	if ((size_t)kvm_read(kd, namelist[nlx].n_value, addr, size) != size) {
+	if ((size_t)kvm_read(kd, namelist[nlx].n_value + offset, addr,
+	    size) != size) {
 		sym = namelist[nlx].n_name;
 		if (*sym == '_')
 			++sym;
 		errx(1, "%s: %s", sym, kvm_geterr(kd));
 	}
+}
+
+static void
+kread(int nlx, void *addr, size_t size)
+{
+	kreado(nlx, addr, size, 0);
+}
+
+static char *
+kgetstr(const char *strp)
+{
+	int n = 0, size = 1;
+	char *ret = NULL;
+
+	do {
+		if (size == n + 1) {
+			ret = realloc(ret, size);
+			if (ret == NULL)
+				err(1, "%s: realloc", __func__);
+			size *= 2;
+		}
+		if (kvm_read(kd, (u_long)strp + n, &ret[n], 1) != 1)
+			errx(1, "%s: %s", __func__, kvm_geterr(kd));
+	} while (ret[n++] != '\0');
+	return (ret);
 }
 
 static void
