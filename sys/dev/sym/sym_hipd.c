@@ -56,6 +56,8 @@
  * SUCH DAMAGE.
  */
 
+/* $FreeBSD$ */
+
 #define SYM_DRIVER_NAME	"sym-1.0.0-19991205"
 
 #include <pci.h>
