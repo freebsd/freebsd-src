@@ -205,7 +205,7 @@ fp_query(const u_char *msg, FILE *file) {
 void
 fp_nquery(const u_char *msg, int len, FILE *file) {
 	ns_msg handle;
-	int n, qdcount, ancount, nscount, arcount;
+	int qdcount, ancount, nscount, arcount;
 	u_int opcode, rcode, id;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
