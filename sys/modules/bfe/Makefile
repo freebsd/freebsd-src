@@ -1,5 +1,11 @@
 # $FreeBSD$
 
+all:	warn
+depend: warn
+warn:	
+	echo " driver doesn't work yet.. don't use"
+	exit 1
+
 .PATH: ${.CURDIR}/../../dev/bfe
 
 KMOD=	if_bfe
