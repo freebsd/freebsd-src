@@ -88,6 +88,7 @@ dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
 dev/dgb/dgm.c			optional	dgm
+dev/cm/if_cm_isa.c		optional	cm isa
 dev/ed/if_ed.c			optional	ed
 dev/ed/if_ed_cbus.c		optional	ed isa
 dev/ed/if_ed_pccard.c		optional	ed card
