@@ -499,7 +499,7 @@ ip6_input(m)
 		dst6->sin6_family = AF_INET6;
 		dst6->sin6_addr = ip6->ip6_dst;
 
-		rtalloc_ign((struct route *)&ip6_forward_rt, RTF_PRCLONING);
+		rtalloc((struct route *)&ip6_forward_rt);
 	}
 
 #define rt6_key(r) ((struct sockaddr_in6 *)((r)->rt_nodes->rn_key))

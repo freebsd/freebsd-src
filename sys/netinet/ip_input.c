@@ -1621,7 +1621,7 @@ ip_rtaddr(dst)
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = dst;
-	rtalloc_ign(&ro, (RTF_PRCLONING | RTF_CLONING));
+	rtalloc_ign(&ro, RTF_CLONING);
 
 	if (ro.ro_rt == 0)
 		return ((struct in_ifaddr *)0);
@@ -1884,7 +1884,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = pkt_dst;
-		rtalloc_ign(&ro, (RTF_PRCLONING | RTF_CLONING));
+		rtalloc_ign(&ro, RTF_CLONING);
 
 		rt = ro.ro_rt;
 

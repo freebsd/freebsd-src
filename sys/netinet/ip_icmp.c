@@ -415,7 +415,7 @@ icmp_input(m, off)
 			int mtu;
 
 			rt = rtalloc1((struct sockaddr *)&icmpsrc, 0,
-				      RTF_CLONING | RTF_PRCLONING);
+				      RTF_CLONING);
 			if (rt && (rt->rt_flags & RTF_HOST)
 			    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
 				mtu = ntohs(icp->icmp_nextmtu);
