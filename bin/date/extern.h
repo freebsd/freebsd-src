@@ -34,4 +34,4 @@
  * $FreeBSD$
  */
 
-int	netsettime __P((time_t));
+int	netsettime(time_t);

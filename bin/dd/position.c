@@ -60,7 +60,7 @@ static const char rcsid[] =
  * output.
  */
 void
-pos_in()
+pos_in(void)
 {
 	off_t cnt;
 	int warned;
@@ -123,7 +123,7 @@ pos_in()
 }
 
 void
-pos_out()
+pos_out(void)
 {
 	struct mtop t_op;
 	off_t cnt;

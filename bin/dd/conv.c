@@ -58,7 +58,7 @@ static const char rcsid[] =
  * Worst case buffer calculation is (ibs + obs - 1).
  */
 void
-def()
+def(void)
 {
 	u_char *inp;
 	const u_char *t;
@@ -87,7 +87,7 @@ def()
 }
 
 void
-def_close()
+def_close(void)
 {
 	/* Just update the count, everything is already in the buffer. */
 	if (in.dbcnt)
@@ -102,7 +102,7 @@ def_close()
  * max out buffer: obs + cbsz
  */
 void
-block()
+block(void)
 {
 	u_char *inp, *outp;
 	const u_char *t;
@@ -188,7 +188,7 @@ block()
 }
 
 void
-block_close()
+block_close(void)
 {
 	/*
 	 * Copy any remaining data into the output buffer and pad to a record.
@@ -215,7 +215,7 @@ block_close()
  * max out buffer: obs + cbsz
  */
 void
-unblock()
+unblock(void)
 {
 	u_char *inp;
 	const u_char *t;
@@ -249,7 +249,7 @@ unblock()
 }
 
 void
-unblock_close()
+unblock_close(void)
 {
 	u_char *t;
 	size_t cnt;
