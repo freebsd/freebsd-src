@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.86 1998/05/17 10:16:14 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.87 1998/05/19 21:51:19 brian Exp $
  */
 
 #include <sys/types.h>
@@ -898,12 +898,13 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
       other_links++;
 
   if (!other_links) {
+    if (dl->physical->type != PHYS_DEMAND)	/* Not in -auto mode */
+      bundle_DownInterface(bundle);
     if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
         bundle->ncp.ipcp.fsm.state == ST_STARTING) {
       fsm_Down(&bundle->ncp.ipcp.fsm);
       fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
     }
-    bundle_DownInterface(bundle);
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
   }
