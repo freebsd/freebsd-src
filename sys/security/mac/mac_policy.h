@@ -220,6 +220,7 @@ struct mac_policy_ops {
 	void	(*mpo_create_proc1)(struct ucred *cred);
 	void	(*mpo_relabel_cred)(struct ucred *cred,
 		    struct label *newlabel);
+	void	(*mpo_thread_userret)(struct thread *thread);
 
 	/*
 	 * Access control checks.
@@ -419,6 +420,7 @@ enum mac_op_constant {
 	MAC_CREATE_PROC0,
 	MAC_CREATE_PROC1,
 	MAC_RELABEL_CRED,
+	MAC_THREAD_USERRET,
 	MAC_CHECK_BPFDESC_RECEIVE,
 	MAC_CHECK_CRED_RELABEL,
 	MAC_CHECK_CRED_VISIBLE,

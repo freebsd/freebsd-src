@@ -652,6 +652,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_relabel_cred =
 			    mpe->mpe_function;
 			break;
+		case MAC_THREAD_USERRET:
+			mpc->mpc_ops->mpo_thread_userret =
+			    mpe->mpe_function;
+			break;
 		case MAC_CHECK_BPFDESC_RECEIVE:
 			mpc->mpc_ops->mpo_check_bpfdesc_receive =
 			    mpe->mpe_function;
@@ -1579,6 +1583,13 @@ mac_create_proc1(struct ucred *cred)
 {
 
 	MAC_PERFORM(create_proc1, cred);
+}
+
+void
+mac_thread_userret(struct thread *td)
+{
+
+	MAC_PERFORM(thread_userret, td);
 }
 
 /*

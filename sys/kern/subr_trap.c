@@ -38,6 +38,7 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #ifdef __i386__
 #include "opt_npx.h"
 #endif
@@ -46,6 +47,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/kse.h>
@@ -86,6 +88,10 @@ userret(td, frame, oticks)
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
+#endif
+
+#ifdef MAC
+	mac_thread_userret(td);
 #endif
 
 	/*
