@@ -242,7 +242,7 @@ configFstab(dialogMenuItem *self)
 	if (Mkdir(cdname))
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	else
-	    fprintf(fstab, "/dev/%s\t\t%s\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
+	    fprintf(fstab, "/dev/%s\t\t%s\t\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
     
     /* And finally, a /proc. */
@@ -387,6 +387,11 @@ configRC_conf(void)
     if (write_header) {
 	fprintf(rcSite, "# This file now contains just the overrides from /etc/defaults/rc.conf\n");
 	fprintf(rcSite, "# please make all changes to this file.\n\n");
+	fprintf(rcSite, "# Enable network daemons for user convenience.\n");
+	fprintf(rcSite, "inetd_enable=\"YES\"\n");
+	fprintf(rcSite, "portmap_enable=\"YES\"\n");
+	fprintf(rcSite, "sendmail_enable=\"YES\"\n");
+	fprintf(rcSite, "sshd_enable=\"YES\"\n");
     }
 
     /* Now do variable substitutions */
