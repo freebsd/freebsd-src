@@ -701,9 +701,6 @@ options 	MD_ROOT_SIZE=10
 # images of type mfs_root or md_root.
 options 	MD_ROOT
 
-# Specify double the default maximum size for malloc(9)-backed md devices.
-options 	MD_NSECT=40000
-
 # Allow this many swap-devices.
 #
 # In order to manage swap, the system must reserve bitmap space that
@@ -970,7 +967,6 @@ options		SES_ENABLE_PASSTHROUGH
 device		pty		#Pseudo ttys
 device		speaker		#Play IBM BASIC-style noises out your speaker
 device		gzip		#Exec gzipped a.out's
-device		vn		#Vnode driver (turns a file into a device)
 device		md		#Memory/malloc disk
 device		snp		#Snoop device - to look at pty/vty/etc..
 device		ccd	4	#Concatenated disk driver
