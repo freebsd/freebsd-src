@@ -432,9 +432,6 @@ struct bktr_softc {
 #define	TUNER_INITALIZED	0x00000001
 #define	TUNER_OPEN		0x00000002 
     u_short	fps;		/* frames per second */
-#ifdef DEVFS
-    void	*devfs_token;
-#endif
     struct meteor_video video;
     struct TVTUNER	tuner;
     struct CARDTYPE	card;
