@@ -79,17 +79,17 @@ extern void __syncicache(void *, int);
 static __inline u_int64_t
 get_cyclecount(void)
 {
-	u_int32_t upper, lower;
-	u_int64_t time;
+	u_int32_t _upper, _lower;
+	u_int64_t _time;
 
 	__asm __volatile(
 		"mftb %0\n"
 		"mftbu %1"
-		: "=r" (lower), "=r" (upper));
+		: "=r" (_lower), "=r" (_upper));
 
-	time = (u_int64_t)upper;
-	time = (time << 32) + lower;
-	return (time);
+	_time = (u_int64_t)_upper;
+	_time = (_time << 32) + _lower;
+	return (_time);
 }
 
 #define	cpu_getstack(td)	((td)->td_frame->fixreg[1])
