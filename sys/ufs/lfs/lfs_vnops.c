@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.13 (Berkeley) 6/10/95
- * $Id: lfs_vnops.c,v 1.22 1997/09/02 20:06:49 bde Exp $
+ * $Id: lfs_vnops.c,v 1.23 1997/09/14 02:58:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -102,7 +102,7 @@ static struct vnodeopv_entry_desc lfs_vnodeop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)ufs_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)ufs_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ufs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)lfs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)ufs_bmap },		/* bmap */
@@ -157,7 +157,7 @@ static struct vnodeopv_entry_desc lfs_specop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)spec_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)spec_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ufs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)lfs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)spec_bmap },		/* bmap */
@@ -212,7 +212,7 @@ static struct vnodeopv_entry_desc lfs_fifoop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)fifo_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)fifo_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ufs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)lfs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)fifo_bmap },		/* bmap */
@@ -361,25 +361,5 @@ lfs_close(ap)
 			ip->i_lfs->lfs_uinodes++;
 	}
 	simple_unlock(&vp->v_interlock);
-	return (0);
-}
-
-/*
- * Reclaim an inode so that it can be used for other purposes.
- */
-int
-lfs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-		struct proc *a_p;
-	} */ *ap;
-{
-	register struct vnode *vp = ap->a_vp;
-	int error;
-
-	if (error = ufs_reclaim(vp, ap->a_p))
-		return (error);
-	FREE(vp->v_data, M_LFSNODE);
-	vp->v_data = NULL;
 	return (0);
 }

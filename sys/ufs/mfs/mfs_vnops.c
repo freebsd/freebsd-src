@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.19 1997/09/14 02:58:08 peter Exp $
+ * $Id: mfs_vnops.c,v 1.20 1997/09/21 22:10:02 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -41,11 +41,16 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 
 #include <miscfs/specfs/specdev.h>
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 
 static int	mfs_badop __P((void));
 static int	mfs_bmap __P((struct vop_bmap_args *));
@@ -54,7 +59,6 @@ static int	mfs_ioctl __P((struct vop_ioctl_args *));
 static int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
 static int	mfs_open __P((struct vop_open_args *));
 static int	mfs_print __P((struct vop_print_args *)); /* XXX */
-static int	mfs_reclaim __P((struct vop_reclaim_args *)); /* XXX */
 static int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
 /*
  * mfs vnode operations.
@@ -91,7 +95,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)mfs_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)mfs_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)mfs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)mfs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)mfs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)mfs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)mfs_bmap },		/* bmap */
@@ -307,22 +311,6 @@ mfs_inactive(ap)
 		panic("mfs_inactive: not inactive (next buffer %p)",
 			bufq_first(&mfsp->buf_queue));
 	VOP_UNLOCK(vp, 0, ap->a_p);
-	return (0);
-}
-
-/*
- * Reclaim a memory filesystem devvp so that it can be reused.
- */
-static int
-mfs_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-	register struct vnode *vp = ap->a_vp;
-
-	FREE(vp->v_data, M_MFSNODE);
-	vp->v_data = NULL;
 	return (0);
 }
 
