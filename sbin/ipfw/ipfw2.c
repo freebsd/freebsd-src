@@ -315,6 +315,7 @@ struct _s_x rule_options[] = {
 	{ "tcpseq",		TOK_TCPSEQ },
 	{ "tcpack",		TOK_TCPACK },
 	{ "tcpwin",		TOK_TCPWIN },
+	{ "icmptype",		TOK_ICMPTYPES },
 	{ "icmptypes",		TOK_ICMPTYPES },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
@@ -850,9 +851,9 @@ show_ipfw(struct ip_fw *rule)
 	}
 	if (logptr) {
 		if (logptr->max_log > 0)
-			printf(" log logamount %d ", logptr->max_log);
+			printf(" log logamount %d", logptr->max_log);
 		else
-			printf(" log ");
+			printf(" log");
 	}
 	/*
 	 * then print the body
@@ -1066,7 +1067,7 @@ show_ipfw(struct ip_fw *rule)
 
 				printf(" limit");
 				for ( ; p->x != 0 ; p++) 
-					if (x & p->x) {
+					if ((x & p->x) == p->x) {
 						x &= ~p->x;
 						printf("%s%s", comma, p->s);
 						comma = ",";
@@ -1841,7 +1842,7 @@ config_pipe(int ac, char **av)
 				    a = strtoul(av[0]+1, &end, 0);
 				    a = (a == 32) ? ~0 : (1 << a) - 1;
 			    } else 
-				    a = strtoul(av[1], &end, 0);
+				    a = strtoul(av[0], &end, 0);
 			    if (p32 != NULL)
 				    *p32 = a;
 			    else if (p16 != NULL) {
@@ -2695,12 +2696,18 @@ read_options:
 			break;
 
 		case TOK_KEEPSTATE:
+			if (have_state)
+				errx(EX_USAGE, "only one of check-state "
+					"and limit is allowed");
 			have_state = 1;
 			fill_cmd(cmd, O_KEEP_STATE, 0, 0);
 			break;
 
 		case TOK_LIMIT:
 			NEED1("limit needs mask and # of connections");
+			if (have_state)
+				errx(EX_USAGE, "only one of check-state "
+					"and limit is allowed");
 		    {
 			ipfw_insn_limit *c = (ipfw_insn_limit *)cmd;
 
@@ -2790,8 +2797,6 @@ done:
 
 	rule->cmd_len = (u_int32_t *)dst - (u_int32_t *)(rule->cmd);
 	i = (void *)dst - (void *)rule;
-	if (!do_quiet)
-		show_ipfw(rule);
 	if (getsockopt(s, IPPROTO_IP, IP_FW_ADD, rule, &i) == -1)
 		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
 	if (!do_quiet)
@@ -3147,8 +3152,6 @@ main(int ac, char *av[])
 	s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 	if (s < 0)
 		err(EX_UNAVAILABLE, "socket");
-
-	setbuf(stdout, 0);
 
 	/*
 	 * If the last argument is an absolute pathname, interpret it
