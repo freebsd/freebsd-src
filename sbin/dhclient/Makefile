@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1999/02/18 18:56:58 obrien Exp $
+#	$Id: Makefile,v 1.3.2.1 1999/02/19 10:32:57 obrien Exp $
 
 DIST_DIR= ${.CURDIR}/../../contrib/isc-dhcp
 
@@ -17,6 +17,7 @@ MAN8=	dhclient.8 dhclient-script.8
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${DIST_DIR}/client/scripts/freebsd ${BINDIR}/dhclient-script
+	    ${DIST_DIR}/client/scripts/freebsd \
+	    ${DESTDIR}${BINDIR}/dhclient-script
 
 .include <bsd.prog.mk>
