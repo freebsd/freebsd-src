@@ -140,7 +140,7 @@ typedef	__fflags_t	fflags_t;	/* file flags */
 #define	_FFLAGS_T_DECLARED
 #endif
 
-typedef	__uint32_t	fixpt_t;	/* fixed point number */
+typedef	__fixpt_t	fixpt_t;	/* fixed point number */
 
 #ifndef _FSBLKCNT_T_DECLARED		/* for statvfs() */
 typedef	__fsblkcnt_t	fsblkcnt_t;
