@@ -141,25 +141,23 @@ acpi_short_name(ACPI_HANDLE handle, char *buffer, size_t buflen)
 static int
 acpi_pci_link_probe(device_t dev)
 {
-	char descr[64], name[10];
+	char descr[28], name[12];
 
 	/*
 	 * We explicitly do not check _STA since not all systems set it to
 	 * sensible values.
 	 */
-	if (!acpi_disabled("pci_link") &&
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, pci_link_ids) != NULL) {
-		if (ACPI_FAILURE(acpi_short_name(acpi_get_handle(dev), name,
-			    sizeof(name))))
-			device_set_desc(dev, "ACPI PCI Link");
-		else {
-			snprintf(descr, sizeof(descr), "ACPI PCI Link %s",
-			    name);
-			device_set_desc_copy(dev, descr);
-		}
-		return (0);
-	}
-	return (ENXIO);
+	if (acpi_disabled("pci_link") ||
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, pci_link_ids) == NULL)
+		return (ENXIO);
+
+	if (ACPI_SUCCESS(acpi_short_name(acpi_get_handle(dev), name,
+	    sizeof(name)))) {
+		snprintf(descr, sizeof(descr), "ACPI PCI Link %s", name);
+		device_set_desc_copy(dev, descr);
+	} else
+		device_set_desc(dev, "ACPI PCI Link");
+	return (0);
 }
 
 static ACPI_STATUS
@@ -300,7 +298,7 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		 */
 		if (req->in_dpf == DPF_IGNORE)
 			break;
-		
+
 		KASSERT(req->link_index < req->sc->pl_num_links,
 		    ("%s: array boundary violation", __func__));
 		link = &req->sc->pl_links[req->link_index];
@@ -327,13 +325,13 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		 * valid IRQs are ISA IRQs, then mark this link as
 		 * routed via an ISA interrupt.
 		 */
-		link->l_isa_irq = 1;
+		link->l_isa_irq = TRUE;
 		link->l_irqs = malloc(sizeof(int) * link->l_num_irqs,
 		    M_PCI_LINK, M_WAITOK | M_ZERO);
 		for (i = 0; i < link->l_num_irqs; i++) {
 			link->l_irqs[i] = irqs[i];
 			if (irqs[i] >= NUM_ISA_INTERRUPTS)
-				link->l_isa_irq = 0;
+				link->l_isa_irq = FALSE;
 		}
 		break;
 	}
@@ -349,12 +347,12 @@ link_valid_irq(struct link *link, int irq)
 
 	/* Invalid interrupts are never valid. */
 	if (!PCI_INTERRUPT_VALID(irq))
-		return (0);
+		return (FALSE);
 
 	/* Any interrupt in the list of possible interrupts is valid. */
 	for (i = 0; i < link->l_num_irqs; i++)
 		if (link->l_irqs[i] == irq)
-			 return (1);
+			 return (TRUE);
 
 	/*
 	 * For links routed via an ISA interrupt, if the SCI is routed via
@@ -362,10 +360,10 @@ link_valid_irq(struct link *link, int irq)
 	 */
 	if (link->l_isa_irq && AcpiGbl_FADT->SciInt == irq &&
 	    irq < NUM_ISA_INTERRUPTS)
-		return (1);
+		return (TRUE);
 
 	/* If the interrupt wasn't found in the list it is not valid. */
-	return (0);
+	return (FALSE);
 }
 
 static void
@@ -409,7 +407,7 @@ acpi_pci_link_attach(device_t dev)
 	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
 	    acpi_count_irq_resources, &creq);
 	if (ACPI_FAILURE(status))
-		return (ENXIO);	
+		return (ENXIO);
 	if (creq.count == 0)
 		return (0);
 	sc->pl_num_links = creq.count;
@@ -421,7 +419,7 @@ acpi_pci_link_attach(device_t dev)
 		sc->pl_links[i].l_irq = PCI_INVALID_IRQ;
 		sc->pl_links[i].l_bios_irq = PCI_INVALID_IRQ;
 		sc->pl_links[i].l_sc = sc;
-		sc->pl_links[i].l_isa_irq = 0;
+		sc->pl_links[i].l_isa_irq = FALSE;
 	}
 	rreq.in_dpf = DPF_OUTSIDE;
 	rreq.link_index = 0;
@@ -465,13 +463,13 @@ acpi_pci_link_attach(device_t dev)
 	 * IRQ was routed by the BIOS.
 	 */
 	if (ACPI_SUCCESS(AcpiEvaluateObject(acpi_get_handle(dev), "_DIS", NULL,
-		    NULL)))
+	    NULL)))
 		for (i = 0; i < sc->pl_num_links; i++)
 			sc->pl_links[i].l_irq = PCI_INVALID_IRQ;
 	else
 		for (i = 0; i < sc->pl_num_links; i++)
 			if (PCI_INTERRUPT_VALID(sc->pl_links[i].l_irq))
-				sc->pl_links[i].l_routed = 1;
+				sc->pl_links[i].l_routed = TRUE;
 	if (bootverbose) {
 		device_printf(dev, "Links after disable:\n");
 		acpi_pci_link_dump(sc);
@@ -486,7 +484,6 @@ fail:
 	free(sc->pl_links, M_PCI_LINK);
 	return (ENXIO);
 }
-
 
 /* XXX: Note that this is identical to pci_pir_search_irq(). */
 static uint8_t
@@ -549,7 +546,7 @@ acpi_pci_link_lookup(device_t dev, int source_index)
 
 void
 acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
-	int pin)
+    int pin)
 {
 	struct link *link;
 	uint8_t bios_irq;
@@ -733,7 +730,7 @@ acpi_pci_link_route_irqs(device_t dev)
 			 */
 			if (!link->l_routed &&
 			    PCI_INTERRUPT_VALID(link->l_irq)) {
-				link->l_routed = 1;
+				link->l_routed = TRUE;
 				acpi_config_intr(dev, resource);
 				pci_link_interrupt_weights[link->l_irq] +=
 				    link->l_references;
@@ -774,23 +771,23 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 	u_int8_t best_irq, pos_irq;
 	int best_weight, pos_weight, i;
 
-	KASSERT(link->l_routed == 0, ("%s: link already routed", __func__));
+	KASSERT(!link->l_routed, ("%s: link already routed", __func__));
 	KASSERT(!PCI_INTERRUPT_VALID(link->l_irq),
 	    ("%s: link already has an IRQ", __func__));
 
 	/* Check for a tunable override and use it if it is valid. */
 	if (ACPI_SUCCESS(acpi_short_name(acpi_get_handle(dev), link_name,
 	    sizeof(link_name)))) {
-		    snprintf(tunable_buffer, sizeof(tunable_buffer),
-			"hw.pci.link.%s.%d.irq", link_name, link->l_res_index);
-		    if (getenv_int(tunable_buffer, &i) &&
-			PCI_INTERRUPT_VALID(i) && link_valid_irq(link, i))
-			    return (i);
-		    snprintf(tunable_buffer, sizeof(tunable_buffer),
-			"hw.pci.link.%s.irq", link_name);
-		    if (getenv_int(tunable_buffer, &i) &&
-			PCI_INTERRUPT_VALID(i) && link_valid_irq(link, i))
-			    return (i);
+		snprintf(tunable_buffer, sizeof(tunable_buffer),
+		    "hw.pci.link.%s.%d.irq", link_name, link->l_res_index);
+		if (getenv_int(tunable_buffer, &i) &&
+		    PCI_INTERRUPT_VALID(i) && link_valid_irq(link, i))
+			return (i);
+		snprintf(tunable_buffer, sizeof(tunable_buffer),
+		    "hw.pci.link.%s.irq", link_name);
+		if (getenv_int(tunable_buffer, &i) &&
+		    PCI_INTERRUPT_VALID(i) && link_valid_irq(link, i))
+			return (i);
 	}
 
 	/*
@@ -838,7 +835,7 @@ acpi_pci_link_choose_irq(device_t dev, struct link *link)
 			best_irq = pos_irq;
 		}
 	}
-		    
+
 	if (bootverbose) {
 		if (PCI_INTERRUPT_VALID(best_irq))
 			device_printf(dev, "Picked IRQ %u with weight %d\n",
@@ -853,7 +850,7 @@ acpi_pci_link_route_interrupt(device_t dev, int index)
 {
 	struct link *link;
 
-	ACPI_SERIAL_BEGIN(pci_link);	
+	ACPI_SERIAL_BEGIN(pci_link);
 	link = acpi_pci_link_lookup(dev, index);
 	if (link == NULL)
 		panic("%s: apparently invalid index %d", __func__, index);
