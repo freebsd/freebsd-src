@@ -178,8 +178,12 @@ where the filesystem mount is not critical to multiuser operation.
 .It Fl c
 For UDP mount points, do not do a
 .Xr connect 2 .
-This must be used for servers that do not reply to requests from the
-standard NFS port number 2049.
+This must be used if the server does not reply to requests from the standard
+NFS port number 2049 or replies to requests using a different IP address
+(which can occur if the server is multi-homed).
+Setting the
+.Va vfs.nfs.nfs_ip_paranoia
+sysctl to 0 will make this option the default.
 .It Fl d
 Turn off the dynamic retransmit timeout estimator.
 This may be useful for UDP mounts that exhibit high retry rates,
