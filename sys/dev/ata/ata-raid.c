@@ -96,6 +96,7 @@ ata_raiddisk_attach(struct ad_softc *adp)
     case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
     case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
     case 0x00041103: case 0x00051103: case 0x00081103:
+	break;
     }
     if (ar_table) {
 	for (array = 0; array < MAX_ARRAYS; array++) {
@@ -148,6 +149,7 @@ ata_raiddisk_detach(struct ad_softc *adp)
     case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
     case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
     case 0x00041103: case 0x00051103: case 0x00081103:
+	break;
     }
     if (ar_table) {
 	for (array = 0; array < MAX_ARRAYS; array++) {
