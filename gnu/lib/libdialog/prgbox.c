@@ -39,6 +39,8 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
     fprintf(stderr, "\nAutosizing is impossible in dialog_prgbox().\n");
     exit(-1);
   }
+  width = MAX(width,10);
+
   if (width > COLS)
 	width = COLS;
   if (height > LINES)
