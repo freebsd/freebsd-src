@@ -40,7 +40,6 @@
 #define COMPAT_43 1
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
@@ -52,7 +51,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/un.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
