@@ -876,12 +876,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (wired)
 		pvo_flags |= PVO_WIRED;
 
-	critical_enter();
-
 	error = pmap_pvo_enter(pmap, zone, pvo_head, va, m->phys_addr, pte_lo,
 	    pvo_flags);
-
-	critical_exit();
 
 	if (error == ENOENT) {
 		/*
@@ -971,12 +967,8 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 		}
 	}
 
-	critical_enter();
-
 	error = pmap_pvo_enter(kernel_pmap, pmap_upvo_zone,
 	    &pmap_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
-
-	critical_exit();
 
 	if (error != 0 && error != ENOENT)
 		panic("pmap_kenter: failed to enter va %#x pa %#x: %d", va,
