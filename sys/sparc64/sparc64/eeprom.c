@@ -54,7 +54,6 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/resource.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -67,13 +66,13 @@
 
 #include <machine/eeprom.h>
 
-#include <dev/mk48txx/mk48txxreg.h>
+#include <dev/mk48txx/mk48txxvar.h>
 
 #include "clock_if.h"
 
 devclass_t eeprom_devclass;
 
-#define IDPROM_OFFSET (8 * 1024 - 40)	/* XXX - get nvram size from driver */
+#define	IDPROM_OFFSET	40
 
 int
 eeprom_probe(device_t dev)
@@ -87,34 +86,45 @@ eeprom_probe(device_t dev)
 }
 
 int
-eeprom_attach(device_t dev, bus_space_tag_t bt, bus_space_handle_t bh)
+eeprom_attach(device_t dev)
 {
+	struct mk48txx_softc *sc;
 	struct timespec ts;
-	struct idprom *idp;
-	const char *model;
-	int error, i;
 	u_int32_t h;
+	int error, i;
 
-	if ((model = ofw_bus_get_model(dev)) == NULL)
+	sc = device_get_softc(dev);
+
+	if ((sc->sc_model = ofw_bus_get_model(dev)) == NULL)
 		panic("eeprom_attach: no model property");
 
 	/* Our TOD clock year 0 is 1968 */
-	if ((error = mk48txx_attach(dev, bt, bh, model, 1968)) != 0) {
-		device_printf(dev, "Can't attach %s tod clock", model);
+	sc->sc_year0 = 1968;
+	sc->sc_flag = 0;
+	/* Default register read/write functions are used. */
+	if ((error = mk48txx_attach(dev)) != 0) {
+		device_printf(dev, "cannot attach time of day clock\n");
 		return (error);
 	}
-	/* XXX: register clock device */
 
-	/* Get the host ID from the prom. */
-	idp = (struct idprom *)((u_long)bh + IDPROM_OFFSET);
-	h = bus_space_read_1(bt, bh, IDPROM_OFFSET +
-	    offsetof(struct idprom, id_machine)) << 24;
+	/*
+	 * Get the hostid from the NVRAM. This serves no real purpose other
+	 * than being able to display it below as not all sparc64 models
+	 * have an `eeprom' device and even some that do store the hostid
+	 * elsewhere. The hostid in the NVRAM of the MK48Txx reads all zero
+	 * on the latter models. A generic way to retrieve the hostid is to
+	 * use the `idprom' node.
+	 */
+	h = bus_space_read_1(sc->sc_bst, sc->sc_bsh, sc->sc_nvramsz -
+	    IDPROM_OFFSET + offsetof(struct idprom, id_machine)) << 24;
 	for (i = 0; i < 3; i++) {
-		h |= bus_space_read_1(bt, bh, IDPROM_OFFSET +
-		    offsetof(struct idprom, id_hostid[i])) << ((2 - i) * 8);
+		h |= bus_space_read_1(sc->sc_bst, sc->sc_bsh, sc->sc_nvramsz -
+		    IDPROM_OFFSET + offsetof(struct idprom, id_hostid[i])) <<
+		    ((2 - i) * 8);
 	}
-	/* XXX: register host id */
-	device_printf(dev, "hostid %x\n", (u_int)h);
+	if (h != 0)
+		device_printf(dev, "hostid %x\n", (u_int)h);
+
 	if (bootverbose) {
 		mk48txx_gettime(dev, &ts);
 		device_printf(dev, "current time: %ld.%09ld\n", (long)ts.tv_sec,
