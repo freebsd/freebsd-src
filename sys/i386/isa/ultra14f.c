@@ -19,7 +19,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.14 1993/12/19 00:50:46 wollman Exp $
+ *      $Id: ultra14f.c,v 1.15 1994/01/29 10:29:14 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -675,7 +675,8 @@ uha_get_mscp(unit, flags)
 			goto gottit;
 		} else {
 			if (!(flags & SCSI_NOSLEEP)) {
-				sleep(&uha->free_mscp, PRIBIO);
+				tsleep((caddr_t)&uha->free_mscp, PRIBIO,
+				       "uhamscp", 0);
 			}
 		}
 	}
