@@ -427,11 +427,20 @@ vm_page_free_zero(vm_page_t m)
 int
 vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
+	int is_object_locked;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
 		vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+		/*
+		 * Remove mtx_owned() after vm_object locking is finished.
+		 */
+		if ((is_object_locked = m->object != NULL &&
+		     mtx_owned(&m->object->mtx)))
+			mtx_unlock(&m->object->mtx);
 		msleep(m, &vm_page_queue_mtx, PDROP | PVM, msg, 0);
+		if (is_object_locked)
+			mtx_lock(&m->object->mtx);
 		return (TRUE);
 	}
 	return (FALSE);
