@@ -3,8 +3,28 @@
  * 
  * The sequencer personality manager.
  * 
- * (C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi) See COPYING for further
- * details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
  */
 
 #define SEQUENCER_C
@@ -80,7 +100,7 @@ sequencer_read (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
   return count - c;
 }
 
-void
+static void
 sequencer_midi_output (int dev)
 {
   /* Currently NOP */
@@ -106,7 +126,7 @@ copy_to_input (unsigned char *event)
   RESTORE_INTR (flags);
 }
 
-void
+static void
 sequencer_midi_input (int dev, unsigned char data)
 {
   int             tstamp;
@@ -205,7 +225,8 @@ sequencer_write (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
 
 	      mode = file->mode & O_ACCMODE;
 
-	      if ((err = midi_devs[dev]->open (dev, mode)) < 0)
+	      if ((err = midi_devs[dev]->open (dev, mode,
+			  sequencer_midi_input, sequencer_midi_output)) < 0)
 		{
 		  seq_reset ();
 		  printk ("Sequencer Error: Unable to open Midi #%d\n", dev);
@@ -504,7 +525,8 @@ sequencer_open (int dev, struct fileinfo *file)
 
 	for (i = 0; i < num_midis; i++)
 	  {
-	    if ((retval = midi_devs[i]->open (i, mode)) >= 0)
+	    if ((retval = midi_devs[i]->open (i, mode,
+			 sequencer_midi_input, sequencer_midi_output)) >= 0)
 	      midi_opened[i] = 1;
 	  }
       }
@@ -724,7 +746,9 @@ sequencer_ioctl (int dev, struct fileinfo *file,
 	  int             err, mode;
 
 	  mode = file->mode & O_ACCMODE;
-	  if ((err = midi_devs[midi_dev]->open (midi_dev, mode)) < 0)
+	  if ((err = midi_devs[midi_dev]->open (midi_dev, mode,
+						sequencer_midi_input,
+						sequencer_midi_output)) < 0)
 	    return err;
 	}
 
@@ -1112,18 +1136,6 @@ long
 sequencer_init (long mem_start)
 {
   return mem_start;
-}
-
-void
-sequencer_midi_input (int dev, unsigned char data)
-{
-  return;
-}
-
-void
-sequencer_midi_output (int dev)
-{
-  return;
 }
 
 int
