@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.20 1998/02/20 06:35:33 eivind Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.21 1998/02/25 04:18:09 hanai Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -66,6 +66,8 @@
                 ..
                 12.make
                 ..
+                13.rcs
+                ..
                 18.gprof
                 ..
                 19.curses
@@ -85,6 +87,8 @@
                 26.rpcrfc
                 ..
                 27.nfsrfc
+                ..
+                28.cvs
                 ..
             ..
             smm
@@ -301,11 +305,15 @@
             ..
 	    no_NO.ISO_8859-1
             ..
+	    pl_PL.ISO_8859-2
+            ..
 	    pt_PT.ISO_8859-1
             ..
             ru_SU.CP866
             ..
             ru_SU.KOI8-R
+            ..
+	    sl_SI.ISO_8859-2
             ..
 	    sv_SE.ISO_8859-1
             ..
@@ -461,6 +469,8 @@
             ..
             ja_JP.EUC
             ..
+            ja_JP.SJIS
+            ..
 	    ko_KR.EUC
             ..
 	    lt_LN.ASCII
@@ -475,11 +485,15 @@
             ..
 	    no_NO.ISO_8859-1
             ..
+	    pl_PL.ISO_8859-2
+	    ..
 	    pt_PT.ISO_8859-1
             ..
 	    ru_SU.CP866
             ..
             ru_SU.KOI8-R
+            ..
+	    sl_SI.ISO_8859-2
             ..
 	    sv_SE.ISO_8859-1
             ..
