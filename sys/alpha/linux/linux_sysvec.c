@@ -200,7 +200,8 @@ struct sysentvec elf_linux_sysvec = {
 	PS_STRINGS,
 	VM_PROT_ALL,
 	exec_copyout_strings,
-	exec_setregs
+	exec_setregs,
+	NULL
 };
 
 static Elf64_Brandinfo linux_brand = {

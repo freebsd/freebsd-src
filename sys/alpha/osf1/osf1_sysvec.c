@@ -87,7 +87,8 @@ struct sysentvec osf1_sysvec = {
 	PS_STRINGS,
 	VM_PROT_ALL,
 	exec_copyout_strings,
-	exec_setregs
+	exec_setregs,
+	NULL
 };
 
 /*

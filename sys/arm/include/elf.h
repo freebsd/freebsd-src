@@ -91,16 +91,4 @@
 #define	ELF_TARG_MACH	EM_ARM
 #define	ELF_TARG_VER	1
 
-#ifdef _KERNEL
-
-/*
- * On the StrongARM we load the dynamic linker where a userland call
- * to mmap(0, ...) would put it.  The rationale behind this
- * calculation is that it leaves room for the heap to grow to
- * its maximum allowed size.
- */
-#define	ELF_RTLD_ADDR(vmspace) \
-    (round_page((vm_offset_t)(vmspace)->vm_daddr + maxdsiz))
-
-#endif /* _KERNEL */
 #endif /* !_MACHINE_ELF_H_ */

@@ -806,7 +806,14 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
 	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr;
 
-	addr = ELF_RTLD_ADDR(vmspace);
+	/*
+	 * We load the dynamic linker where a userland call
+	 * to mmap(0, ...) would put it.  The rationale behind this
+	 * calculation is that it leaves room for the heap to grow to
+	 * its maximum allowed size.
+	 */
+	addr = round_page((vm_offset_t)imgp->proc->p_vmspace->vm_daddr +
+	    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_max);
 
 	imgp->entry_addr = entry;
 
