@@ -291,7 +291,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 		       "Aladdin: two atapi devices on this channel, no DMA\n");
 	    break;
 	}
-	if (udmamode >= 2 && pci_get_revid(parent) > 0x20) {
+	if (udmamode >= 2 && pci_get_revid(parent) >= 0x20) {
 	    int32_t word54 = pci_read_config(parent, 0x54, 4);
 	
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
