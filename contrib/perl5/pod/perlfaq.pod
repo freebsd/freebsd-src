@@ -1,0 +1,172 @@
+=head1 NAME
+
+perlfaq - frequently asked questions about Perl ($Date: 1998/08/05 12:09:32 $)
+
+=head1 DESCRIPTION
+
+This document is structured into the following sections:
+
+=over
+
+=item perlfaq: Structural overview of the FAQ.
+
+This document.
+
+=item L<perlfaq1>: General Questions About Perl
+
+Very general, high-level information about Perl.
+
+=item L<perlfaq2>: Obtaining and Learning about Perl
+
+Where to find source and documentation to Perl, support,
+and related matters.
+
+=item L<perlfaq3>: Programming Tools
+
+Programmer tools and programming support.
+
+=item L<perlfaq4>: Data Manipulation
+
+Manipulating numbers, dates, strings, arrays, hashes, and
+miscellaneous data issues.
+
+=item L<perlfaq5>: Files and Formats
+
+I/O and the "f" issues: filehandles, flushing, formats and footers.
+
+=item L<perlfaq6>: Regexps
+
+Pattern matching and regular expressions.
+
+=item L<perlfaq7>: General Perl Language Issues
+
+General Perl language issues that don't clearly fit into any of the
+other sections.
+
+=item L<perlfaq8>: System Interaction
+
+Interprocess communication (IPC), control over the user-interface
+(keyboard, screen and pointing devices).
+
+=item L<perlfaq9>: Networking
+
+Networking, the Internet, and a few on the web.
+
+=back
+
+=head2 Where to get this document
+
+This document is posted regularly to comp.lang.perl.announce and
+several other related newsgroups.  It is available in a variety of
+formats from CPAN in the /CPAN/doc/FAQs/FAQ/ directory, or on the web
+at http://www.perl.com/perl/faq/ .
+
+=head2 How to contribute to this document
+
+You may mail corrections, additions, and suggestions to
+perlfaq-suggestions@perl.com .  This alias should not be 
+used to I<ask> FAQs.  It's for fixing the current FAQ.
+
+=head2 What will happen if you mail your Perl programming problems to the authors
+
+Your questions will probably go unread, unless they're suggestions of
+new questions to add to the FAQ, in which case they should have gone
+to the perlfaq-suggestions@perl.com instead.
+
+You should have read section 2 of this faq.  There you would have
+learned that comp.lang.perl.misc is the appropriate place to go for
+free advice.  If your question is really important and you require a
+prompt and correct answer, you should hire a consultant.
+
+=head1 Credits
+
+When I first began the Perl FAQ in the late 80s, I never realized it
+would have grown to over a hundred pages, nor that Perl would ever become
+so popular and widespread.  This document could not have been written
+without the tremendous help provided by Larry Wall and the rest of the
+Perl Porters.
+
+=head1 Author and Copyright Information
+
+Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+All rights reserved.
+
+=head2 Bundled Distributions
+
+When included as part of the Standard Version of Perl, or as part of
+its complete documentation whether printed or otherwise, this work
+may be distributed only under the terms of Perl's Artistic License.
+Any distribution of this file or derivatives thereof I<outside>
+of that package require that special arrangements be made with
+copyright holder.
+
+Irrespective of its distribution, all code examples in these files
+are hereby placed into the public domain.  You are permitted and
+encouraged to use this code in your own programs for fun
+or for profit as you see fit.  A simple comment in the code giving
+credit would be courteous but is not required.
+
+=head2 Disclaimer
+
+This information is offered in good faith and in the hope that it may
+be of use, but is not guaranteed to be correct, up to date, or suitable
+for any particular purpose whatsoever.  The authors accept no liability
+in respect of this information or its use.
+
+=head1 Changes
+
+=over 4
+
+=item 22/June/98
+
+Significant changes throughout in preparation for the 5.005
+release.
+
+=item 24/April/97
+
+Style and whitespace changes from Chip, new question on reading one
+character at a time from a terminal using POSIX from Tom.
+
+=item 23/April/97
+
+Added http://www.oasis.leo.org/perl/ to L<perlfaq2>.  Style fix to
+L<perlfaq3>.  Added floating point precision, fixed complex number
+arithmetic, cross-references, caveat for Text::Wrap, alternative
+answer for initial capitalizing, fixed incorrect regexp, added example
+of Tie::IxHash to L<perlfaq4>.  Added example of passing and storing
+filehandles, added commify to L<perlfaq5>.  Restored variable suicide,
+and added mass commenting to L<perlfaq7>.  Added Net::Telnet, fixed
+backticks, added reader/writer pair to telnet question, added FindBin,
+grouped module questions together in L<perlfaq8>.  Expanded caveats
+for the simple URL extractor, gave LWP example, added CGI security
+question, expanded on the mail address answer in L<perlfaq9>.
+
+=item 25/March/97
+
+Added more info to the binary distribution section of L<perlfaq2>.
+Added Net::Telnet to L<perlfaq6>.  Fixed typos in L<perlfaq8>.  Added
+mail sending example to L<perlfaq9>.  Added Merlyn's columns to
+L<perlfaq2>.
+
+=item 18/March/97
+
+Added the DATE to the NAME section, indicating which sections have
+changed.
+
+Mentioned SIGPIPE and L<perlipc> in the forking open answer in
+L<perlfaq8>.
+
+Fixed description of a regular expression in L<perlfaq4>.
+
+=item 17/March/97 Version
+
+Various typos fixed throughout.
+
+Added new question on Perl BNF on L<perlfaq7>.
+
+=item Initial Release: 11/March/97
+
+This is the initial release of version 3 of the FAQ; consequently there
+have been no changes since its initial release.
+
+=back
