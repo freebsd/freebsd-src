@@ -54,6 +54,8 @@ extern int tabstop;
 extern int screen_trashed;
 extern int any_display;
 extern char *line;
+extern int mode_flags;
+static int last_pos_highlighted = 0;
 
 /* display the line which is in the line buffer. */
 put_line()
@@ -75,14 +77,19 @@ put_line()
 	if (line == NULL)
 		line = "";
 
+	if (last_pos_highlighted)
+	{
+		clear_eol();
+		last_pos_highlighted = 0;
+	}
 	column = 0;
 	for (p = line;  *p != '\0';  p++)
 	{
-		switch (c = *p)
+		switch ((char)(c = *p & 0xff))
 		{
 		case UL_CHAR:
 			ul_enter();
-			column += ul_width +1;
+			column += ul_width;
 			break;
 		case UE_CHAR:
 			ul_exit();
@@ -90,7 +97,7 @@ put_line()
 			break;
 		case BO_CHAR:
 			bo_enter();
-			column += bo_width +1;
+			column += bo_width;
 			break;
 		case BE_CHAR:
 			bo_exit();
@@ -108,15 +115,11 @@ put_line()
 			column--;
 			break;
 		default:
-			if (c & 0200)
+			if (c == 0200 || CONTROL_CHAR(c))
 			{
-				/*
-				 * Control characters arrive here as the
-				 * normal character [CARAT_CHAR(c)] with
-				 * the 0200 bit set.  See pappend().
-				 */
+				c &= ~0200;
 				putchr('^');
-				putchr(c & 0177);
+				putchr(CARAT_CHAR(c));
 				column += 2;
 			} else
 			{
@@ -124,6 +127,8 @@ put_line()
 				column++;
 			}
 		}
+		if (column == sc_width && mode_flags)
+			last_pos_highlighted = 1;
 	}
 	if (column < sc_width || !auto_wrap || ignaw)
 		putchr('\n');
