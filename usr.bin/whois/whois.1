@@ -40,7 +40,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAdgiIlmQrR6
+.Op Fl aAbdgiIlmQrR6
 .Op Fl c Ar country-code | Fl h Ar host
 .Op Fl p Ar port
 .Ar name ...
@@ -73,6 +73,10 @@ Use the Asia/Pacific Network Information Center
 database.
 It contains network numbers used in East Asia, Australia,
 New Zealand, and the Pacific islands.
+.It Fl b
+Use the Network Abuse Clearinghouse database.
+It contains addresses to which network abuse should be reported,
+indexed by domain name.
 .It Fl c Ar country-code
 This is the equivalent of using the
 .Fl h
