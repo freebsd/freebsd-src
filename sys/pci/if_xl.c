@@ -220,9 +220,6 @@ static int xl_newbuf		(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update	(void *);
 static int xl_encap		(struct xl_softc *, struct xl_chain *,
 						struct mbuf *);
-static int xl_encap_90xB	(struct xl_softc *, struct xl_chain *,
-						struct mbuf *);
-
 static void xl_rxeof		(struct xl_softc *);
 static int xl_rx_resync		(struct xl_softc *);
 static void xl_txeof		(struct xl_softc *);
@@ -2435,6 +2432,19 @@ xl_encap(sc, c, m_head)
 		c->xl_ptr->xl_next = 0;
 	}
 
+	if (sc->xl_type == XL_TYPE_905B) {
+		c->xl_ptr->xl_status = XL_TXSTAT_RND_DEFEAT;
+
+		if (m_head->m_pkthdr.csum_flags) {
+			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+				c->xl_ptr->xl_status |= XL_TXSTAT_IPCKSUM;
+			if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+				c->xl_ptr->xl_status |= XL_TXSTAT_TCPCKSUM;
+			if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+				c->xl_ptr->xl_status |= XL_TXSTAT_UDPCKSUM;
+		}
+	}
+
 	c->xl_mbuf = m_head;
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return(0);
@@ -2568,41 +2578,6 @@ xl_start(ifp)
 	return;
 }
 
-static int
-xl_encap_90xB(sc, c, m_head)
-	struct xl_softc		*sc;
-	struct xl_chain		*c;
-	struct mbuf		*m_head;
-{
-	int error;
-
-	/*
- 	 * Start packing the mbufs in this chain into
-	 * the fragment pointers.
-	 */
-	error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map, m_head,
-	    xl_dma_map_txbuf, c->xl_ptr, 0);
-	if (error) {
-		m_freem(m_head);
-		printf("xl%d: can't map mbuf\n", sc->xl_unit);
-		return(1);
-	}
-
-	c->xl_mbuf = m_head;
-	c->xl_ptr->xl_status = XL_TXSTAT_RND_DEFEAT;
-
-	if (m_head->m_pkthdr.csum_flags) {
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			c->xl_ptr->xl_status |= XL_TXSTAT_IPCKSUM;
-		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-			c->xl_ptr->xl_status |= XL_TXSTAT_TCPCKSUM;
-		if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-			c->xl_ptr->xl_status |= XL_TXSTAT_UDPCKSUM;
-	}
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
-	return(0);
-}
-
 static void
 xl_start_90xB(ifp)
 	struct ifnet		*ifp;
@@ -2637,7 +2612,7 @@ xl_start_90xB(ifp)
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
-		xl_encap_90xB(sc, cur_tx, m_head);
+		xl_encap(sc, cur_tx, m_head);
 
 		/* Chain it together. */
 		if (prev != NULL)
