@@ -1000,6 +1000,7 @@ in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 				 */
 				if ((inp->inp_vflag & INP_TIMEWAIT) != 0) {
 					if (tcp_twrecycleable((struct tcptw *)inp->inp_ppcb)) {
+						INP_LOCK(inp);
 						tcp_twclose((struct tcptw *)inp->inp_ppcb, 0);
 						match = NULL;
 						goto retrylookup;
