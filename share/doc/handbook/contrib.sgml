@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.132 1996/09/12 09:53:53 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.133 1996/09/13 08:11:51 tg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -113,6 +113,7 @@
         <item>&a.smace;
         <item>&a.amurai;
         <item>&a.markm;
+	<item>&a.max;
         <item>&a.alex;
         <item>&a.wpaul; 
 	<item>&a.smpatel;
@@ -260,7 +261,6 @@
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
 	  <item>Masachika ISHIZUKA &lt;ishizuka@isis.min.ntt.jp&gt;
-	  <item>Masafumi Nakane &lt;max@sfc.wide.ad.jp&gt;
 	  <item>Matt Bartley &lt;mbartley@lear35.cytex.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Matt White &lt;mwhite+@CMU.EDU&gt;
