@@ -37,11 +37,19 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-passwd.c,v 1.27 2002/05/24 16:45:16 stevesk Exp $");
+RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "log.h"
 #include "servconf.h"
 #include "auth.h"
+
+/*
+ * Do not try to use PAM for password authentication, as it is
+ * already (and far better) supported by the challenge/response
+ * authentication mechanism.
+ */
+#undef USE_PAM
 
 #if !defined(USE_PAM) && !defined(HAVE_OSF_SIA)
 /* Don't need any of these headers for the PAM or SIA cases */
