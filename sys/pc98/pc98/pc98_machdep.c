@@ -29,6 +29,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_pc98.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 

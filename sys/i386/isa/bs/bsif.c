@@ -36,6 +36,7 @@
 #include <i386/Cbus/dev/bs/bsif.h>
 #endif	/* __NetBSD__ */
 #ifdef __FreeBSD__
+#include "opt_bs.h"
 #include "bs.h"
 #include <i386/isa/bs/bsif.h>
 #endif	/* __FreeBSD__ */

@@ -35,12 +35,14 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.10 1997/09/28 05:52:51 kato Exp $
+ *	$Id: diskslice_machdep.c,v 1.11 1997/12/02 21:06:50 phk Exp $
  */
 
 /*
  * PC9801 port by KATO Takenor <kato@eclogite.eps.nagoya-u.ac.jp>
  */
+
+#include "opt_pc98.h"
 
 #include <stddef.h>
 #include <sys/param.h>
