@@ -94,7 +94,7 @@ main(argc, argv)
 	argc -= optind;
 
 	if ((buf = malloc(BSIZE)) == NULL)
-		errx(1, "malloc");
+		err(1, "malloc");
 
 	add(STDOUT_FILENO, "stdout");
 
@@ -139,7 +139,7 @@ add(fd, name)
 	LIST *p;
 
 	if ((p = malloc(sizeof(LIST))) == NULL)
-		errx(1, "malloc");
+		err(1, "malloc");
 	p->fd = fd;
 	p->name = name;
 	p->next = head;
