@@ -32,6 +32,7 @@
 %token	PORT
 %token	PSEUDO_DEVICE
 %token	SEMICOLON
+%token	TAPE
 %token	TARGET
 %token	TTY
 %token	UNIT
@@ -309,7 +310,15 @@ Device_spec:
 	DEVICE Dev_name Dev_info
 	      = { cur.d_type = DEVICE; } |
 	DISK Dev_name Dev_info
-	      = { cur.d_dk = 1; cur.d_type = DEVICE; } |
+	      = {
+		warnx("line %d: Obsolete keyword 'disk' found - use 'device'", yyline);
+		cur.d_type = DEVICE;
+		} |
+	TAPE Dev_name Dev_info
+	      = {
+		warnx("line %d: Obsolete keyword 'tape' found - use 'device'", yyline);
+		cur.d_type = DEVICE;
+		} |
 	CONTROLLER Dev_name Dev_info
 	      = { cur.d_type = CONTROLLER; } |
 	PSEUDO_DEVICE Init_dev Dev
@@ -536,7 +545,7 @@ init_dev(dp)
 	dp->d_conn = 0;
 	dp->d_conflicts = 0;
 	dp->d_disabled = 0;
-	dp->d_flags = dp->d_dk = 0;
+	dp->d_flags = 0;
 	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = \
 		dp->d_count = UNKNOWN;
 	dp->d_port = (char *)0;

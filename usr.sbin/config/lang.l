@@ -74,6 +74,7 @@ struct kt {
 	{ "options",	OPTIONS },
 	{ "port",	PORT },
 	{ "pseudo-device",PSEUDO_DEVICE },
+	{ "tape",	TAPE },
 	{ "target",	TARGET },
 	{ "unit",	UNIT },
 	{ 0, 0 },
@@ -105,7 +106,7 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 
 			if ((i = kw_lookup(yytext)) == -1)
 				REJECT;
-			if (i == CONTROLLER || i == DEVICE || i == DISK ||
+			if (i == CONTROLLER || i == DEVICE || i == DISK || i == TAPE ||
 			    i == PSEUDO_DEVICE || i == AT)
 				BEGIN NONUM;
 			return i;
