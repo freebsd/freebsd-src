@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Tue Oct 10 17:18:21 2000]
+ *	last edit-date: [Thu Nov  9 11:29:12 2000]
  *
  *---------------------------------------------------------------------------*/ 
 
@@ -218,7 +218,7 @@ static struct ng_type typestruct = {
 	ng_ing_cmdlist
 };
 
-NETGRAPH_INIT(ing, &typestruct);
+NETGRAPH_INIT_ORDERED(ing, &typestruct, SI_SUB_DRIVERS, SI_ORDER_ANY);
 
 /*===========================================================================*
  *			DEVICE DRIVER ROUTINES
@@ -630,9 +630,15 @@ ng_ing_newhook(node_p node, hook_p hook, const char *name)
  * The response should be in a malloc'd region that the caller can 'free'.
  * A response is not required.
  *---------------------------------------------------------------------------*/
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 static int
 ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		struct ng_mesg **rptr, hook_p lasthook)
+#else
+static int
+ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
+		struct ng_mesg **rptr)
+#endif
 {
 	struct ing_softc *sc = node->private;
 
@@ -746,9 +752,14 @@ ng_ing_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 /*---------------------------------------------------------------------------*
  * get data from another node and transmit it out on a B-channel
  *---------------------------------------------------------------------------*/
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 500000
 static int
 ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
                 struct mbuf **ret_m, meta_p *ret_meta)
+#else
+static int
+ng_ing_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+#endif
 {
 	struct ing_softc *sc = hook->node->private;
 	struct ifqueue  *xmitq_p;
