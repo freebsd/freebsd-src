@@ -115,7 +115,7 @@
 #define ISDIGIT(a) (((a) >= '0') && ((a) <= '9'))
 
 static int
-search_string(char *data, int dlen, char *search_str)
+search_string(char *data, int dlen, const char *search_str)
 {
     int i, j, k;
     int search_str_len;
@@ -139,7 +139,7 @@ static int
 alias_rtsp_out(struct ip *pip,
 		   struct alias_link *link,
 		   char *data,
-		   char *port_str)
+		   const char *port_str)
 {
     int     hlen, tlen, dlen;
     struct tcphdr *tc;
@@ -147,7 +147,7 @@ alias_rtsp_out(struct ip *pip,
     u_short p[2], new_len;
     u_short sport, eport, base_port;
     u_short salias = 0, ealias = 0, base_alias = 0;
-    char    *transport_str = "transport:";
+    const char *transport_str = "transport:";
     char    newdata[2048], *port_data, *port_newdata, stemp[80];
     int     links_created = 0, pkt_updated = 0;
     struct alias_link *rtsp_link = NULL;
@@ -341,7 +341,7 @@ alias_pna_out(struct ip *pip,
 	    return 0;
 	}
 	if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
-	    memcpy((char*)&port, (char*)work, 2);
+	    memcpy(&port, work, 2);
 	    pna_links = FindUdpTcpOut(pip->ip_src, GetDestAddress(link),
 				      port, 0, IPPROTO_UDP, 1);
 	    if (pna_links != NULL) {
@@ -351,7 +351,7 @@ alias_pna_out(struct ip *pip,
 #endif
 		tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));
 		alias_port = GetAliasPort(pna_links);
-		memcpy((char*)work, (char*)&alias_port, 2);
+		memcpy(work, &alias_port, 2);
 
 		/* Compute TCP checksum for revised packet */
 		tc->th_sum = 0;
@@ -369,8 +369,10 @@ AliasHandleRtspOut(struct ip *pip, struct alias_link *link, int maxpacketsize)
 {
     int    hlen, tlen, dlen;
     struct tcphdr *tc;
-    char   *data, *setup = "SETUP", *pna = "PNA", *str200 = "200", *okstr = "OK";
-    char   *client_port_str = "client_port", *server_port_str = "server_port";
+    char   *data;
+    const  char *setup = "SETUP", *pna = "PNA", *str200 = "200";
+    const  char *okstr = "OK", *client_port_str = "client_port";
+    const  char *server_port_str = "server_port";
     int    i, parseOk;
 
     tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
