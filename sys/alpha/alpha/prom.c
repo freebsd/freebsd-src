@@ -51,7 +51,7 @@
 
 /* XXX this is to fake out the console routines, while booting. */
 struct consdev promcons = { NULL, NULL, promcngetc, NULL, promcnputc,
-			    NULL, NODEV, CN_NORMAL };
+			    NULL, makedev(97,0), CN_NORMAL };
 
 struct rpb	*hwrpb;
 int		alpha_console;

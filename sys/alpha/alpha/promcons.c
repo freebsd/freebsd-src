@@ -1,3 +1,4 @@
+/* $Id$ */
 /* $NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $ */
 
 /*
@@ -27,34 +28,57 @@
  * rights to redistribute these changes.
  */
 
-#include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
-
-__KERNEL_RCSID(0, "$NetBSD: promcons.c,v 1.13 1998/03/21 22:52:59 mycroft Exp $");
-
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-#include <sys/user.h>
-#include <sys/file.h>
-#include <sys/uio.h>
-#include <sys/kernel.h>
-#include <sys/syslog.h>
-#include <sys/types.h>
-#include <sys/device.h>
-#include <vm/vm.h>		/* XXX for _PMAP_MAY_USE_PROM_CONSOLE */
+#include <sys/ucred.h>
 
-#include <machine/conf.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_prot.h>
+#include <sys/lock.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
+
 #include <machine/prom.h>
+
+#define _PMAP_MAY_USE_PROM_CONSOLE /* XXX for now */
 
 #ifdef _PMAP_MAY_USE_PROM_CONSOLE
 
 #define	PROM_POLL_HZ	50
 
-static struct  tty *prom_tty[1];
+static	d_open_t	promopen;
+static	d_close_t	promclose;
+static	d_read_t	promread;
+static	d_write_t	promwrite;
+static	d_ioctl_t	promioctl;
+static	d_stop_t	promstop;
+static	d_devtotty_t	promdevtotty;
+
+#define CDEV_MAJOR 97
+static struct cdevsw prom_cdevsw = {
+	promopen,	promclose,	promread,	promwrite,
+	promioctl,	promstop,	noreset,	promdevtotty,
+	ttpoll,		nommap,		NULL,		"prom",
+	NULL,		-1,
+};
+
+static struct  tty prom_tty[1];
 static int polltime;
+static struct callout_handle promtimeouthandle
+	= CALLOUT_HANDLE_INITIALIZER(&promtimeouthandle);
 
 void	promstart __P((struct tty *));
 void	promtimeout __P((void *));
@@ -76,11 +100,7 @@ promopen(dev, flag, mode, p)
 
 	s = spltty();
 
-	if (!prom_tty[unit]) {
-		tp = prom_tty[unit] = ttymalloc();
-		tty_attach(tp);
-	} else
-		tp = prom_tty[unit];
+	tp = &prom_tty[unit];
 
 	tp->t_oproc = promstart;
 	tp->t_param = promparam;
@@ -108,7 +128,7 @@ promopen(dev, flag, mode, p)
 		polltime = hz / PROM_POLL_HZ;
 		if (polltime < 1)
 			polltime = 1;
-		timeout(promtimeout, tp, polltime);
+		promtimeouthandle = timeout(promtimeout, tp, polltime);
 	}
 	return error;
 }
@@ -120,9 +140,9 @@ promclose(dev, flag, mode, p)
 	struct proc *p;
 {
 	int unit = minor(dev);
-	struct tty *tp = prom_tty[unit];
+	struct tty *tp = &prom_tty[unit];
 
-	untimeout(promtimeout, tp);
+	untimeout(promtimeout, tp, promtimeouthandle);
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	ttyclose(tp);
 	return 0;
@@ -134,7 +154,7 @@ promread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	struct tty *tp = prom_tty[minor(dev)];
+	struct tty *tp = &prom_tty[minor(dev)];
 
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
@@ -145,7 +165,7 @@ promwrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	struct tty *tp = prom_tty[minor(dev)];
+	struct tty *tp = &prom_tty[minor(dev)];
  
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
@@ -159,14 +179,14 @@ promioctl(dev, cmd, data, flag, p)
 	struct proc *p;
 {
 	int unit = minor(dev);
-	struct tty *tp = prom_tty[unit];
+	struct tty *tp = &prom_tty[unit];
 	int error;
 
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-	if (error >= 0)
+	if (error != ENOIOCTL)
 		return error;
-	error = ttioctl(tp, cmd, data, flag, p);
-	if (error >= 0)
+	error = ttioctl(tp, cmd, data, flag);
+	if (error != ENOIOCTL)
 		return error;
 
 	return ENOTTY;
@@ -188,20 +208,19 @@ promstart(tp)
 	int s;
 
 	s = spltty();
-	if (tp->t_state & (TS_TTSTOP | TS_BUSY))
-		goto out;
-	if (tp->t_outq.c_cc <= tp->t_lowat) {
-		if (tp->t_state & TS_ASLEEP) {
-			tp->t_state &= ~TS_ASLEEP;
-			wakeup((caddr_t)&tp->t_outq);
-		}
-		selwakeup(&tp->t_wsel);
+
+	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
+		ttwwakeup(tp);
+		splx(s);
+		return;
 	}
+
 	tp->t_state |= TS_BUSY;
 	while (tp->t_outq.c_cc != 0)
 		promcnputc(tp->t_dev, getc(&tp->t_outq));
 	tp->t_state &= ~TS_BUSY;
-out:
+
+	ttwwakeup(tp);
 	splx(s);
 }
 
@@ -232,18 +251,20 @@ promtimeout(v)
 		if (tp->t_state & TS_ISOPEN)
 			(*linesw[tp->t_line].l_rint)(c, tp);
 	}
-	timeout(promtimeout, tp, polltime);
+	promtimeouthandle = timeout(promtimeout, tp, polltime);
 }
 
 struct tty *
-promtty(dev)
+promdevtotty(dev)
 	dev_t dev;
 {
 
 	if (minor(dev) != 0)
 		panic("promtty: bogus");
 
-	return prom_tty[0];
+	return &prom_tty[0];
 }
+
+CDEV_MODULE(prom, CDEV_MAJOR, prom_cdevsw, 0, 0);
 
 #endif /* _PMAP_MAY_USE_PROM_CONSOLE */
