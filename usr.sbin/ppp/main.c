@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.86 1997/10/29 01:19:42 brian Exp $
+ * $Id: main.c,v 1.87 1997/11/04 01:17:02 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -501,7 +501,7 @@ main(int argc, char **argv)
 void
 PacketMode()
 {
-  if (RawModem(modem) < 0) {
+  if (RawModem() < 0) {
     LogPrintf(LogWARN, "PacketMode: Not connected.\n");
     return;
   }
@@ -713,13 +713,13 @@ DoLoop()
 
   if (mode & MODE_DIRECT) {
     LogPrintf(LogDEBUG, "Opening modem\n");
-    if (OpenModem(mode) < 0)
+    if (OpenModem() < 0)
       return;
     LogPrintf(LogPHASE, "Packet mode enabled\n");
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
     if (modem < 0)
-      while (OpenModem(mode) < 0)
+      while (OpenModem() < 0)
 	nointr_sleep(VarReconnectTimer);
   }
   fflush(VarTerm);
@@ -773,7 +773,7 @@ DoLoop()
      */
     if (dial_up && RedialTimer.state != TIMER_RUNNING) {
       LogPrintf(LogDEBUG, "going to dial: modem = %d\n", modem);
-      if (OpenModem(mode) < 0) {
+      if (OpenModem() < 0) {
 	tries++;
 	if (!(mode & MODE_DDIAL) && VarDialTries)
 	  LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",

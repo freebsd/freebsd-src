@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.60 1997/10/26 01:03:24 brian Exp $
+ * $Id: modem.c,v 1.61 1997/10/29 01:19:44 brian Exp $
  *
  *  TODO:
  */
@@ -487,7 +487,7 @@ HaveModem()
 static struct termios modemios;
 
 int
-OpenModem(int mode)
+OpenModem()
 {
   struct termios rstio;
   int oldflag;
@@ -633,7 +633,7 @@ ModemSpeed()
  * Put modem tty line into raw mode which is necessary in packet mode operation
  */
 int
-RawModem(int modem)
+RawModem()
 {
   struct termios rstio;
   int oldflag;
@@ -661,7 +661,7 @@ RawModem(int modem)
 }
 
 static void
-UnrawModem(int modem)
+UnrawModem()
 {
   int oldflag;
 
@@ -742,7 +742,7 @@ HangupModem(int flag)
       strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
       DoChat(ScriptBuffer);
       tcflush(modem, TCIOFLUSH);
-      UnrawModem(modem);
+      UnrawModem();
       CloseLogicalModem();
     }
   } else if (modem >= 0) {
