@@ -11,6 +11,8 @@ Kernel features:
 o Add support for >8G IDE drives.
 o Add support for 3Com 3c905B ethernet adapters
 o Add support for PCI ThunderLAN-based ethernet adapters (Compaq/Olicom)
+o Significantly improve Linux emulator again.  Things like QuakeII should
+  just run out-of-the-box now (given the rest of their requirements).
 
 Userland features:
 ------------------
