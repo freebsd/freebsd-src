@@ -87,7 +87,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.100 1995/08/01 13:15:52 jkh Exp $
+#	$Id: MAKEDEV,v 1.101 1995/08/13 22:05:51 peter Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -609,6 +609,26 @@ matcd*)
 		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130`
 		chgrp operator ${name}${unit}l[a-h] r${name}${unit}l[a-h]
 		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+wcd*)
+	umask 2 ;
+	unit=`expr $i : '...\(.*\)'`
+	blk=19
+	chr=69
+	rm -f wcd$unit? rwcd$unit?
+	case $unit in
+	0|1|2|3)
+		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 0`
+		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 0`
+		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
+		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i
