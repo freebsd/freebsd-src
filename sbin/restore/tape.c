@@ -37,7 +37,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)tape.c	8.3 (Berkeley) 4/1/94";
+static char sccsid[] = "@(#)tape.c	8.9 (Berkeley) 5/1/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -119,9 +119,9 @@ setinput(source)
 	terminal = stdin;
 
 #ifdef RRESTORE
-	if (index(source, ':')) {
+	if (strchr(source, ':')) {
 		host = source;
-		source = index(host, ':');
+		source = strchr(host, ':');
 		*source++ = '\0';
 		if (rmthost(host) == 0)
 			done(1);
@@ -254,8 +254,8 @@ setup()
 	dprintf(stdout, "maxino = %d\n", maxino);
 	map = calloc((unsigned)1, (unsigned)howmany(maxino, NBBY));
 	if (map == NULL)
-		panic("no memory for file removal list\n");
-	clrimap = map;
+		panic("no memory for active inode map\n");
+	usedinomap = map;
 	curfile.action = USING;
 	getfile(xtrmap, xtrmapskip);
 	if (spcl.c_type != TS_BITS) {
@@ -268,6 +268,13 @@ setup()
 	dumpmap = map;
 	curfile.action = USING;
 	getfile(xtrmap, xtrmapskip);
+	/*
+	 * If there may be whiteout entries on the tape, pretend that the
+	 * whiteout inode exists, so that the whiteout entries can be
+	 * extracted.
+	 */
+	if (oldinofmt == 0)
+		SETINO(WINO, dumpmap);
 }
 
 /*
@@ -504,17 +511,19 @@ int
 extractfile(name)
 	char *name;
 {
-	int mode;
+	int flags;
+	mode_t mode;
 	struct timeval timep[2];
 	struct entry *ep;
 
 	curfile.name = name;
 	curfile.action = USING;
-	timep[0].tv_sec = curfile.dip->di_atime.tv_sec;
-	timep[0].tv_usec = curfile.dip->di_atime.tv_nsec / 1000;
-	timep[1].tv_sec = curfile.dip->di_mtime.tv_sec;
-	timep[1].tv_usec = curfile.dip->di_mtime.tv_nsec / 1000;
+	timep[0].tv_sec = curfile.dip->di_atime;
+	timep[0].tv_usec = curfile.dip->di_atimensec / 1000;
+	timep[1].tv_sec = curfile.dip->di_mtime;
+	timep[1].tv_usec = curfile.dip->di_mtimensec / 1000;
 	mode = curfile.dip->di_mode;
+	flags = curfile.dip->di_flags;
 	switch (mode & IFMT) {
 
 	default:
@@ -550,14 +559,20 @@ extractfile(name)
 		return (linkit(lnkbuf, name, SYMLINK));
 
 	case IFIFO:
+		vprintf(stdout, "extract fifo %s\n", name);
+		if (Nflag) {
+			skipfile();
+			return (GOOD);
+		}
 		if (mkfifo(name, mode) < 0) {
-			fprintf(stderr, "%s: cannot create FIFO: %s\n",
-				name, strerror(errno));
+			fprintf(stderr, "%s: cannot create fifo: %s\n",
+			    name, strerror(errno));
 			skipfile();
 			return (FAIL);
 		}
 		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
 		(void) chmod(name, mode);
+		(void) chflags(name, flags);
 		skipfile();
 		utimes(name, timep);
 		return (GOOD);
@@ -577,6 +592,7 @@ extractfile(name)
 		}
 		(void) chown(name, curfile.dip->di_uid, curfile.dip->di_gid);
 		(void) chmod(name, mode);
+		(void) chflags(name, flags);
 		skipfile();
 		utimes(name, timep);
 		return (GOOD);
@@ -596,6 +612,7 @@ extractfile(name)
 		}
 		(void) fchown(ofile, curfile.dip->di_uid, curfile.dip->di_gid);
 		(void) fchmod(ofile, mode);
+		(void) fchflags(ofile, flags);
 		getfile(xtrfile, xtrskip);
 		(void) close(ofile);
 		utimes(name, timep);
@@ -639,7 +656,7 @@ getfile(fill, skip)
 {
 	register int i;
 	int curblk = 0;
-	long size = spcl.c_dinode.di_size;
+	quad_t size = spcl.c_dinode.di_size;
 	static char clearedbuf[MAXBSIZE];
 	char buf[MAXBSIZE / TP_BSIZE][TP_BSIZE];
 	char junk[TP_BSIZE];
@@ -656,20 +673,19 @@ loop:
 		if (spcl.c_addr[i]) {
 			readtape(&buf[curblk++][0]);
 			if (curblk == fssize / TP_BSIZE) {
-				(*fill)((char *)buf, size > TP_BSIZE ?
-				     (long) (fssize) :
-				     (curblk - 1) * TP_BSIZE + size);
+				(*fill)((char *)buf, (long)(size > TP_BSIZE ?
+				     fssize : (curblk - 1) * TP_BSIZE + size));
 				curblk = 0;
 			}
 		} else {
 			if (curblk > 0) {
-				(*fill)((char *)buf, size > TP_BSIZE ?
-				     (long) (curblk * TP_BSIZE) :
-				     (curblk - 1) * TP_BSIZE + size);
+				(*fill)((char *)buf, (long)(size > TP_BSIZE ?
+				     curblk * TP_BSIZE :
+				     (curblk - 1) * TP_BSIZE + size));
 				curblk = 0;
 			}
-			(*skip)(clearedbuf, size > TP_BSIZE ?
-				(long) TP_BSIZE : size);
+			(*skip)(clearedbuf, (long)(size > TP_BSIZE ?
+				TP_BSIZE : size));
 		}
 		if ((size -= TP_BSIZE) <= 0) {
 			for (i++; i < spcl.c_count; i++)
@@ -686,7 +702,7 @@ loop:
 			curfile.name, blksread);
 	}
 	if (curblk > 0)
-		(*fill)((char *)buf, (curblk * TP_BSIZE) + size);
+		(*fill)((char *)buf, (long)((curblk * TP_BSIZE) + size));
 	findinode(&spcl);
 	gettingfile = 0;
 }
@@ -770,7 +786,7 @@ xtrmap(buf, size)
 	long	size;
 {
 
-	bcopy(buf, map, size);
+	memmove(map, buf, size);
 	map += size;
 }
 
@@ -813,7 +829,7 @@ readtape(buf)
 	int cnt, seek_failed;
 
 	if (blkcnt < numtrec) {
-		bcopy(&tapebuf[(blkcnt++ * TP_BSIZE)], buf, (long)TP_BSIZE);
+		memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
 		blksread++;
 		tpblksread++;
 		return;
@@ -885,7 +901,7 @@ getmore:
 		if (!yflag && !reply("continue"))
 			done(1);
 		i = ntrec * TP_BSIZE;
-		bzero(tapebuf, i);
+		memset(tapebuf, 0, i);
 #ifdef RRESTORE
 		if (host)
 			seek_failed = (rmtseek(i, 1) < 0);
@@ -916,10 +932,10 @@ getmore:
 			panic("partial block read: %d should be %d\n",
 				rd, ntrec * TP_BSIZE);
 		terminateinput();
-		bcopy((char *)&endoftapemark, &tapebuf[rd], (long)TP_BSIZE);
+		memmove(&tapebuf[rd], &endoftapemark, (long)TP_BSIZE);
 	}
 	blkcnt = 0;
-	bcopy(&tapebuf[(blkcnt++ * TP_BSIZE)], buf, (long)TP_BSIZE);
+	memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
 	blksread++;
 	tpblksread++;
 }
@@ -1030,7 +1046,7 @@ gethead(buf)
 		goto good;
 	}
 	readtape((char *)(&u_ospcl.s_ospcl));
-	bzero((char *)buf, (long)TP_BSIZE);
+	memset(buf, 0, (long)TP_BSIZE);
 	buf->c_type = u_ospcl.s_ospcl.c_type;
 	buf->c_date = u_ospcl.s_ospcl.c_date;
 	buf->c_ddate = u_ospcl.s_ospcl.c_ddate;
@@ -1045,11 +1061,11 @@ gethead(buf)
 	buf->c_dinode.di_gid = u_ospcl.s_ospcl.c_dinode.odi_gid;
 	buf->c_dinode.di_size = u_ospcl.s_ospcl.c_dinode.odi_size;
 	buf->c_dinode.di_rdev = u_ospcl.s_ospcl.c_dinode.odi_rdev;
-	buf->c_dinode.di_atime.tv_sec = u_ospcl.s_ospcl.c_dinode.odi_atime;
-	buf->c_dinode.di_mtime.tv_sec = u_ospcl.s_ospcl.c_dinode.odi_mtime;
-	buf->c_dinode.di_ctime.tv_sec = u_ospcl.s_ospcl.c_dinode.odi_ctime;
+	buf->c_dinode.di_atime = u_ospcl.s_ospcl.c_dinode.odi_atime;
+	buf->c_dinode.di_mtime = u_ospcl.s_ospcl.c_dinode.odi_mtime;
+	buf->c_dinode.di_ctime = u_ospcl.s_ospcl.c_dinode.odi_ctime;
 	buf->c_count = u_ospcl.s_ospcl.c_count;
-	bcopy(u_ospcl.s_ospcl.c_addr, buf->c_addr, (long)256);
+	memmove(buf->c_addr, u_ospcl.s_ospcl.c_addr, (long)256);
 	if (u_ospcl.s_ospcl.c_magic != OFS_MAGIC ||
 	    checksum((int *)(&u_ospcl.s_ospcl)) == FAIL)
 		return(FAIL);
@@ -1140,10 +1156,10 @@ accthdr(header)
 		goto newcalc;
 	switch (prevtype) {
 	case TS_BITS:
-		fprintf(stderr, "Dump mask header");
+		fprintf(stderr, "Dumped inodes map header");
 		break;
 	case TS_CLRI:
-		fprintf(stderr, "Remove mask header");
+		fprintf(stderr, "Used inodes map header");
 		break;
 	case TS_INODE:
 		fprintf(stderr, "File header, ino %d", previno);

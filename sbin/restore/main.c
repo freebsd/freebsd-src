@@ -38,14 +38,14 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/7/94";
+static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
 
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 #include <protocols/dumprestore.h>
 
 #include <err.h>
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/7/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "pathnames.h"
 #include "restore.h"
@@ -66,7 +67,7 @@ long	dumpnum = 1;
 long	volno = 0;
 long	ntrec;
 char	*dumpmap;
-char	*clrimap;
+char	*usedinomap;
 ino_t	maxino;
 time_t	dumptime;
 time_t	dumpdate;
@@ -276,12 +277,12 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage:\t%s%s%s%s%s",
-	    "restore tfhsvy [file ...]\n",
-	    "\trestore xfhmsvy [file ...]\n",
-	    "\trestore ifhmsvy\n",
-	    "\trestore rfsvy\n",
-	    "\trestore Rfsvy\n");
+	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
+	  "restore -i [-chmvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -r [-cvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -R [-cvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -x [-chmvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
+	  "restore -t [-chvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
 	done(1);
 }
 
@@ -316,19 +317,20 @@ obsolete(argcp, argvp)
 	argv += 2, argc -= 2;
 
 	for (flags = 0; *ap; ++ap) {
-		switch(*ap) {
+		switch (*ap) {
 		case 'b':
 		case 'f':
 		case 's':
-                      if (argc < 1)
-                              usage();
+			if (*argv == NULL) {
+				warnx("option requires an argument -- %c", *ap);
+				usage();
+			}
 			if ((nargv[0] = malloc(strlen(*argv) + 2 + 1)) == NULL)
 				err(1, NULL);
 			nargv[0][0] = '-';
 			nargv[0][1] = *ap;
 			(void)strcpy(&nargv[0][2], *argv);
-			if (*argv != NULL)
-				++argv;
+			++argv;
 			++nargv;
 			break;
 		default:
@@ -349,4 +351,7 @@ obsolete(argcp, argvp)
 
 	/* Copy remaining arguments. */
 	while (*nargv++ = *argv++);
+
+	/* Update argument count. */
+	*argcp = nargv - *argvp - 1;
 }
