@@ -73,11 +73,11 @@ TCL_RANLIB=':'
 
 # String to pass to linker to pick up the Tcl library from its
 # build directory.
-#XXX not available# TCL_BUILD_LIB_SPEC='-L/home/src/contrib/tcl/unix -ltcl75'
+TCL_BUILD_LIB_SPEC='-ltcl75'
 
 # String to pass to linker to pick up the Tcl library from its
 # installed directory.
-TCL_LIB_SPEC='-L/usr/lib -ltcl75'
+TCL_LIB_SPEC='-ltcl75'
 
 # Indicates whether a version numbers should be used in -l switches
 # ("ok" means it's safe to use switches like -ltcl7.5;  "nodots" means
