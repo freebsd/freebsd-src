@@ -130,7 +130,7 @@ IDTVEC(prot)
 	TRAP_ERR(T_PROTFLT)
 IDTVEC(align)
 	TRAP_ERR(T_ALIGNFLT)
-	
+
 	/*
 	 * alltraps entry point.  Use swapgs if this is the first time in the
 	 * kernel from userland.  Reenable interrupts if they were enabled
