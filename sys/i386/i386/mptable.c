@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.56 1997/10/06 02:11:32 dyson Exp $
+ *	$Id: mp_machdep.c,v 1.57 1997/10/10 09:44:03 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -239,12 +239,11 @@ int     io_num_to_apic_id[NAPICID];
 int     apic_id_to_logical[NAPICID];
 
 
-#define NPPROVMTRR	8
-#define	PPRO_VMTRRphysBase0 0x200
-#define	PPRO_VMTRRphysMask0 0x201
+#define NPPROVMTRR		8
+#define PPRO_VMTRRphysBase0	0x200
+#define PPRO_VMTRRphysMask0	0x201
 static struct {
-	u_int64_t base,
-			  mask;
+	u_int64_t base, mask;
 } PPro_vmtrr[NPPROVMTRR];
 
 /* Bitmap of all available CPUs */
@@ -296,9 +295,9 @@ static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
 static int	start_ap(int logicalCpu, u_int boot_addr);
-static void getmtrr(void) ;
-static void putmtrr(void) ;
-static void putfmtrr(void) ;
+static void	getmtrr(void);
+static void	putmtrr(void);
+static void	putfmtrr(void);
 
 
 /*
@@ -2011,10 +2010,12 @@ ap_init()
 }
 
 void
-getmtrr() {
+getmtrr()
+{
 	int i;
+
 	if (cpu_class == CPUCLASS_686) {
-		for(i=0;i<NPPROVMTRR;i++) {
+		for(i = 0; i < NPPROVMTRR; i++) {
 			PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
 			PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
 		}
@@ -2022,11 +2023,13 @@ getmtrr() {
 }
 
 void
-putmtrr() {
+putmtrr()
+{
 	int i;
+
 	if (cpu_class == CPUCLASS_686) {
 		wbinvd();
-		for(i=0;i<NPPROVMTRR;i++) {
+		for(i = 0; i < NPPROVMTRR; i++) {
 			wrmsr(PPRO_VMTRRphysBase0 + i * 2, PPro_vmtrr[i].base);
 			wrmsr(PPRO_VMTRRphysMask0 + i * 2, PPro_vmtrr[i].mask);
 		}
@@ -2034,7 +2037,8 @@ putmtrr() {
 }
 
 void
-putfmtrr() {
+putfmtrr()
+{
 	if (cpu_class == CPUCLASS_686) {
 		wbinvd();
 		/*
@@ -2048,4 +2052,3 @@ putfmtrr() {
 		wrmsr(0x259, 0x0101010101010101LL);
 	}
 }
-
