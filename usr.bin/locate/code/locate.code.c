@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id$
+ * 	$Id: locate.code.c,v 1.4 1996/08/22 18:46:13 wosch Exp $
  */
 
 #ifndef lint
@@ -149,7 +149,7 @@ main(argc, argv)
 	    	for (j = 0; j < UCHAR_MAX; j++) 
 			big[i][j] = (bg_t)-1;
 
-	for (cp = bigrams, i = 0; *cp != NULL; i += 2, cp += 2)
+	for (cp = bigrams, i = 0; *cp != '\0'; i += 2, cp += 2)
 	        big[(int)*cp][(int)*(cp + 1)] = (bg_t)i;
 #endif /* LOOKUP */
 
@@ -164,17 +164,17 @@ main(argc, argv)
 			continue;
 
 		/* Squelch characters that would botch the decoding. */
-		for (cp = path; *cp != NULL; cp++) {
+		for (cp = path; *cp != '\0'; cp++) {
 			/* chop newline */
 			if (*cp == '\n')
-				*cp = NULL;
+				*cp = '\0';
 			/* range */
 			else if (*cp < ASCII_MIN || *cp > ASCII_MAX)
 				*cp = '?';
 		}
 
 		/* Skip longest common prefix. */
-		for (cp = path; *cp == *oldpath && *cp != NULL; cp++, oldpath++);
+		for (cp = path; *cp == *oldpath && *cp != '\0'; cp++, oldpath++);
 
 		count = cp - path;
 		diffcount = count - oldcount + OFFSET;
@@ -187,8 +187,8 @@ main(argc, argv)
 			if (putchar(diffcount) == EOF)
 				err(1, "stdout");
 
-		while (*cp != NULL) {
-			if (*(cp + 1) == NULL) {
+		while (*cp != '\0') {
+			if (*(cp + 1) == '\0') {
 				if (putchar(*cp) == EOF)
 					err(1, "stdout");
 				break;
