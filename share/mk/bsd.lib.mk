@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.22 1995/02/08 21:35:28 bde Exp $
+#	$Id: bsd.lib.mk,v 1.23 1995/02/25 20:51:12 phk Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -56,7 +56,7 @@ BINMODE?=	555
 
 .c.so:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -X -r ${.TARGET}
+	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
 .cc.o .cxx.o .C.o:
@@ -71,7 +71,7 @@ BINMODE?=	555
 
 .cc.so .C.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -X -r ${.TARGET}
+	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
 .f.o:
@@ -86,7 +86,7 @@ BINMODE?=	555
 
 .f.so:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@${LD} -X -r ${.TARGET}
+	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
 .s.o:
@@ -104,7 +104,7 @@ BINMODE?=	555
 .s.so:
 	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	   ${AS} -k -o ${.TARGET}
-	@${LD} -X -r ${.TARGET}
+	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
 .S.o:
@@ -118,7 +118,7 @@ BINMODE?=	555
 .S.so:
 	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	   ${AS} -k -o ${.TARGET}
-	@${LD} -X -r ${.TARGET}
+	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
 .m.po:
