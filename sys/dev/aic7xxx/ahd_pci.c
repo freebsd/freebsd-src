@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#6 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#7 $
  *
  * $FreeBSD$
  */
@@ -156,7 +156,9 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 	regs2 = NULL;
 	regs_type = 0;
 	regs_id = 0;
-	if ((command & PCIM_CMD_MEMEN) != 0) {
+	if ((command & PCIM_CMD_MEMEN) != 0
+	 && ((ahd->chip & AHD_BUS_MASK) != AHD_PCIX
+	  || (ahd->bugs & AHD_PCIX_MMAPIO_BUG) == 0)) {
 
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHD_PCI_MEMADDR;
