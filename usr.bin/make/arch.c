@@ -807,7 +807,7 @@ ArchFindMember (archive, member, arhPtr, mode)
      * the comparisons easier...
      */
     cp = strrchr (member, '/');
-    if (cp != (char *) NULL) {
+    if ((cp != NULL) && (strcmp(member, RANLIBMAG) != 0)) {
 	member = cp + 1;
     }
     len = tlen = strlen (member);
