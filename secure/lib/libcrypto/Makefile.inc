@@ -13,10 +13,13 @@ CFLAGS+= -DDEVRANDOM=\"/dev/urandom\"
 .endif
 .endif
 
-.if !defined(RSA_NONCOMMERCIAL) || ${RSA_NONCOMMERCIAL} != YES
+LOCALBASE?=	/usr/local
+
+.if !exists(${LOCALBASE}/lib/librsaref.a)
 CFLAGS+= -DNO_RSA -DNO_SSL2
 WITH_RSA= NO
 .else
 CFLAGS+= -DRSAref
 RSAREF= YES
+WITH_RSA= YES
 .endif
