@@ -153,18 +153,16 @@ struct isa_driver epdriver = {
 /*
  * PC-Card (PCMCIA) specific code.
  */
-static int ep_pccard_init __P((struct pccard_devinfo *, int));
+static int ep_pccard_init __P((struct pccard_devinfo *));
 static int ep_pccard_attach  __P((struct pccard_devinfo *));
 static void ep_unload __P((struct pccard_devinfo *));
 static int card_intr __P((struct pccard_devinfo *));
-static void ep_suspend __P((struct pccard_devinfo *));
 
 static struct pccard_device ep_info = {
     "ep",
     ep_pccard_init,
     ep_unload,
     card_intr,
-    ep_suspend,
     0,                      /* Attributes - presently unused */
     &net_imask
 };
@@ -173,9 +171,8 @@ static struct pccard_device ep_info = {
  * Initialize the device - called from Slot manager.
  */
 static int
-ep_pccard_init(devi, first)
+ep_pccard_init(devi)
     struct pccard_devinfo *devi;
-    int first;
 {
     struct isa_device *is = &devi->isahd;
     struct ep_softc *sc = ep_softc[is->id_unit];
@@ -201,10 +198,7 @@ ep_pccard_init(devi, first)
 
     /* 3C589's product id? */
     if (epb->prod_id != 0x9058) {
-	if (first)
-	    printf("ep%d: failed to come ready.\n", is->id_unit);
-	else
-	    printf("ep%d: failed to resume.\n", is->id_unit);
+	printf("ep%d: failed to come ready.\n", is->id_unit);
 	return (ENXIO);
     }
 
@@ -212,15 +206,10 @@ ep_pccard_init(devi, first)
     for (i = 0; i < 3; i++)
 	sc->epb->eth_addr[i] = get_e(sc, EEPROM_NODE_ADDR_0 + i);
 
-    if (first) {
-	if (ep_pccard_attach(devi) == 0)
-	    return (ENXIO);
-	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
-    } else {
-	sc->gone = 0;
-	printf("ep%d: resumed.\n", is->id_unit);
-	epinit(sc);
-    }
+    if (ep_pccard_attach(devi) == 0)
+	return (ENXIO);
+
+    sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
     return (0);
 }
 
@@ -283,17 +272,6 @@ card_intr(devi)
 {
     epintr(devi->isahd.id_unit);
     return(1);
-}
-
-/* Resume is done by executing ep_pccard_init(devi, 0). */
-static void
-ep_suspend(devi)
-    struct pccard_devinfo *devi;
-{
-    struct ep_softc *sc = ep_softc[devi->isahd.id_unit];
-
-    printf("ep%d: suspending\n", devi->isahd.id_unit);
-    sc->gone = 1;
 }
 #endif /* NCARD > 0 */
 

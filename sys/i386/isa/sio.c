@@ -474,17 +474,15 @@ SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int sioinit(struct pccard_devinfo *, int);	/* init device */
+static int sioinit(struct pccard_devinfo *);		/* init device */
 static void siounload(struct pccard_devinfo *);		/* Disable driver */
 static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
-static void siosuspend(struct pccard_devinfo *);	/* Suspend driver */
 
 static struct pccard_device sio_info = {
 	driver_name,
 	sioinit,
 	siounload,
 	card_intr,
-	siosuspend,
 	0,			/* Attributes - presently unused */
 	&tty_imask		/* Interrupt mask for device */
 				/* XXX - Should this also include net_imask? */
@@ -492,37 +490,26 @@ static struct pccard_device sio_info = {
 
 /*
  *	Initialize the device - called from Slot manager.
- *
- *	If first is set, then check for the device's existence
- *	before initializing it.  Once initialized, the device table may
- *	be set up.
  */
 int
-sioinit(struct pccard_devinfo *devi, int first)
+sioinit(struct pccard_devinfo *devi)
 {
+
 	/* validate unit number. */
-	if (first) {
-		if (devi->isahd.id_unit >= (NSIOTOT))
-			return(ENODEV);
-		/* Make sure it isn't already probed. */
-		if (com_addr(devi->isahd.id_unit))
-			return(EBUSY);
-		/*
-		 * Probe the device. If a value is returned, the
-		 * device was found at the location.
-		 */
-		if (sioprobe(&devi->isahd) == 0)
-			return(ENXIO);
-		if (sioattach(&devi->isahd) == 0)
-			return(ENXIO);
-	}
+	if (devi->isahd.id_unit >= (NSIOTOT))
+		return(ENODEV);
+	/* Make sure it isn't already probed. */
+	if (com_addr(devi->isahd.id_unit))
+		return(EBUSY);
 	/*
-	 * XXX TODO:
-	 * If it was initialized before, the device structure
-	 * should also be initialized.  We should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned, the
+	 * device was found at the location.
 	 */
+	if (sioprobe(&devi->isahd) == 0)
+		return(ENXIO);
+	if (sioattach(&devi->isahd) == 0)
+		return(ENXIO);
+
 	return(0);
 }
 
@@ -574,19 +561,6 @@ card_intr(struct pccard_devinfo *devi)
 		siointr1(com_addr(devi->isahd.id_unit));
 	COM_UNLOCK();
 	return(1);
-}
-
-/*
- *	Called when a power down is requested. Shuts down the
- *	device and configures the device as unavailable (but
- *	still loaded...). A resume is done by calling
- *	sioinit with first=0. This is called when the user suspends
- *	the system, or the APM code suspends the system.
- */
-static void
-siosuspend(struct pccard_devinfo *devi)
-{
-	printf("sio%d: suspending\n", devi->isahd.id_unit);
 }
 #endif /* NCARD > 0 */
 

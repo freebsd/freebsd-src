@@ -705,60 +705,45 @@ static struct scsi_device aic_dev = {
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
-static int aicinit(struct pccard_devinfo *, int);	/* init device */
+static int aicinit(struct pccard_devinfo *);		/* init device */
 void aicunload(struct pccard_devinfo *);		/* Disable driver */
 static int aic_card_intr(struct pccard_devinfo *);	/* Interrupt handler */
-void aicsuspend(struct pccard_devinfo *);		/* Suspend driver */
 
 static struct pccard_device aic_info = {
 	"aic",
 	aicinit,
 	aicunload,
 	aic_card_intr,
-	aicsuspend,
 	0,			/* Attributes - presently unused */
 	&bio_imask		/* Interrupt mask for device */
 };
 
 /*
  * Initialize the device - called from Slot manager.
- *
- * if first is set, then initially check for
- * the device's existence before initialising it.
- * Once initialised, the device table may be set up.
  */
 int
-aicinit(struct pccard_devinfo *devi, int first)
+aicinit(struct pccard_devinfo *devi)
 {
 	static int already_aicinit[NAIC];
 
 	/* validate unit number */
-	if (first) {
-		if (devi->isahd.id_unit >= NAIC)
-			return(ENODEV);
-		/* Make sure it isn't already initialised */
-		if (already_aicinit[devi->isahd.id_unit] == 1) {
-			if (aicattach(&devi->isahd) == 0)
-				return(ENXIO);
-			return(0);
-		}
-		/*
-		 * Probe the device. If a value is returned, the
-		 * device was found at the location.
-		 */
-		if (aicprobe(&devi->isahd) == 0)
-			return(ENXIO);
-
+	if (devi->isahd.id_unit >= NAIC)
+		return(ENODEV);
+	/* Make sure it isn't already initialised */
+	if (already_aicinit[devi->isahd.id_unit] == 1) {
 		if (aicattach(&devi->isahd) == 0)
 			return(ENXIO);
+		return(0);
 	}
 	/*
-	 * XXX TODO:
-	 * If it was already inited before, the device structure
-	 * should be already initialised. Here we should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned, the
+	 * device was found at the location.
 	 */
+	if (aicprobe(&devi->isahd) == 0)
+		return(ENXIO);
+
+	if (aicattach(&devi->isahd) == 0)
+		return(ENXIO);
 	already_aicinit[devi->isahd.id_unit] = 1;
 	return(0);
 }
@@ -792,19 +777,6 @@ aic_card_intr(struct pccard_devinfo *devi)
 {
 	aicintr(devi->isahd.id_unit);
 	return(1);
-}
-
-/*
- * Called when a power down is wanted. Shuts down the
- * device and configures the device as unavailable (but
- * still loaded...). A resume is done by calling
- * feinit with first=0. This is called when the user suspends
- * the system, or the APM code suspends the system.
- */
-void
-aicsuspend(struct pccard_devinfo *devi)
-{
-	printf("aic%d: suspending\n", devi->isahd.id_unit);
 }
 #endif /* NCARD > 0 */ 
 

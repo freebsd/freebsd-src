@@ -322,17 +322,15 @@ outblk ( struct fe_softc * sc, int offs, u_char const * mem, int len )
 /*
  *      PC-Card (PCMCIA) specific code.
  */
-static int feinit(struct pccard_devinfo *, int);	/* init device */
+static int feinit(struct pccard_devinfo *);		/* init device */
 static void feunload(struct pccard_devinfo *);		/* Disable driver */
 static int fe_card_intr(struct pccard_devinfo *);	/* Interrupt handler */
-static void fesuspend(struct pccard_devinfo *);		/* Suspend driver */
 
 static struct pccard_device fe_info = {
 	"fe",
 	feinit,
 	feunload,
 	fe_card_intr,
-	fesuspend,
 	0,			/* Attributes - presently unused */
 	&net_imask		/* Interrupt mask for device */
 				/* XXX - Should this also include net_imask? */
@@ -340,59 +338,47 @@ static struct pccard_device fe_info = {
 
 /*
  *	Initialize the device - called from Slot manager.
- *
- *      if first is set, then initially check for
- *      the device's existence before initializing it.
- *      Once initialized, the device table may be set up.
  */
 static int
-feinit(struct pccard_devinfo *devi, int first)
+feinit(struct pccard_devinfo *devi)
 {
         struct fe_softc *sc;
 
 	/* validate unit number. */
-	if (first) {
-		if (devi->isahd.id_unit >= NFE)
-			return (ENODEV);
-		/*
-		 * Probe the device. If a value is returned,
-		 * the device was found at the location.
-		 */
-#if FE_DEBUG >= 2
-		printf("Start Probe\n");
-#endif
-		/* Initialize "minimum" parts of our softc.  */
-		sc = &fe_softc[devi->isahd.id_unit];
-		sc->sc_unit = devi->isahd.id_unit;
-		sc->iobase = devi->isahd.id_iobase;
-
-		/* Use Ethernet address got from CIS, if one is available.  */
-		if ((devi->misc[0] & 0x03) == 0x00
-		    && (devi->misc[0] | devi->misc[1] | devi->misc[2]) != 0) {
-		       /* Yes, it looks like a valid Ether address.  */
-			bcopy(devi->misc, sc->sc_enaddr, ETHER_ADDR_LEN);
-		} else {
-			/* Indicate we have no Ether address in CIS.  */
-			bzero(sc->sc_enaddr, ETHER_ADDR_LEN);
-		}
-
-		/* Probe supported PC card models.  */
-		if (fe_probe_tdk(&devi->isahd, sc) == 0 &&
-		    fe_probe_mbh(&devi->isahd, sc) == 0)
-			return (ENXIO);
-#if FE_DEBUG >= 2
-		printf("Start attach\n");
-#endif
-		if (fe_attach(&devi->isahd) == 0)
-			return (ENXIO);
-	}
+	if (devi->isahd.id_unit >= NFE)
+		return (ENODEV);
 	/*
-	 * XXX TODO:
-	 * If it was initialized before, the device structure
-	 * should also be initialized.  We should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned,
+	 * the device was found at the location.
 	 */
+#if FE_DEBUG >= 2
+	printf("Start Probe\n");
+#endif
+	/* Initialize "minimum" parts of our softc.  */
+	sc = &fe_softc[devi->isahd.id_unit];
+	sc->sc_unit = devi->isahd.id_unit;
+	sc->iobase = devi->isahd.id_iobase;
+
+	/* Use Ethernet address got from CIS, if one is available.  */
+	if ((devi->misc[0] & 0x03) == 0x00
+	    && (devi->misc[0] | devi->misc[1] | devi->misc[2]) != 0) {
+	       /* Yes, it looks like a valid Ether address.  */
+		bcopy(devi->misc, sc->sc_enaddr, ETHER_ADDR_LEN);
+	} else {
+		/* Indicate we have no Ether address in CIS.  */
+		bzero(sc->sc_enaddr, ETHER_ADDR_LEN);
+	}
+
+	/* Probe supported PC card models.  */
+	if (fe_probe_tdk(&devi->isahd, sc) == 0 &&
+	    fe_probe_mbh(&devi->isahd, sc) == 0)
+		return (ENXIO);
+#if FE_DEBUG >= 2
+	printf("Start attach\n");
+#endif
+	if (fe_attach(&devi->isahd) == 0)
+		return (ENXIO);
+
 	return (0);
 }
 
@@ -422,19 +408,6 @@ fe_card_intr(struct pccard_devinfo *devi)
 {
 	feintr(devi->isahd.id_unit);
 	return (1);
-}
-
-/*
- *	Called when a power down is requested. Shuts down the
- *	device and configures the device as unavailable (but
- *	still loaded...). A resume is done by calling
- *	feinit with first=0. This is called when the user suspends
- *	the system, or the APM code suspends the system.
- */
-static void
-fesuspend(struct pccard_devinfo *devi)
-{
-	printf("fe%d: suspending\n", devi->isahd.id_unit);
 }
 #endif /* NCARD > 0 */
 
