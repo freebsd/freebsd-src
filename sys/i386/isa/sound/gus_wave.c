@@ -37,7 +37,7 @@
 #define GUS_PNP_ID 0x100561e
 
 #define MAX_CARDS 8
-#define MAX_GUS_PNP 8
+#define MAX_GUS_PNP 12
 
 
 /* Static ports */
@@ -61,7 +61,7 @@ IWAVE           iw;
 #define MAX_SAMPLE	150
 #define MAX_PATCH	256
 
-#define MAX_GUS_PNP     12
+
 u_int    gus_pnp_found[MAX_GUS_PNP] =
     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 

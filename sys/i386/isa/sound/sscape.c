@@ -33,6 +33,8 @@
 
 #include <i386/isa/sound/coproc.h>
 
+#define EXCLUDE_NATIVE_PCM
+
 /*
  * I/O ports
  */
@@ -292,7 +294,7 @@ sscapeintr(int irq)
     u_char   bits, tmp;
     static int      debug = 0;
 
-    printf("sscapeintr(0x%02x)\n", (bits = sscape_read(devc, GA_INTSTAT_REG)));
+    DEB(printf("sscapeintr(0x%02x)\n", (bits = sscape_read(devc, GA_INTSTAT_REG))));
     if ((sscape_sleep_flag.mode & WK_SLEEP)) {
 	sscape_sleep_flag.mode = WK_WAKEUP;
 	wakeup(sscape_sleeper);

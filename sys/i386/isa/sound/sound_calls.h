@@ -17,7 +17,7 @@ void DMAbuf_reset_dma (int dev);
 void DMAbuf_inputintr(int dev);
 void DMAbuf_outputintr(int dev, int underflow_flag);
 void DMAbuf_start_devices(u_int devmask);
-#ifdef ALLOW_SELECT
+#ifdef ALLOW_POLL
 int DMAbuf_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
 #endif
 

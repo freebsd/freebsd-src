@@ -37,7 +37,8 @@
 #include <i386/isa/sound/midi_ctrl.h>
 
 void            seq_drain_midi_queues(void);
-
+int
+sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait);
 static int      sequencer_ok = 0;
 static struct sound_timer_operations *tmr;
 static int      tmr_no = -1;	/* Currently selected timer */
@@ -1676,6 +1677,40 @@ sequencer_ioctl(int dev, struct fileinfo * file,
 
     return -(EINVAL);
 }
+
+#ifdef ALLOW_POLL
+int
+sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait)
+{
+  unsigned long   flags;
+  int revents = 0;
+
+  dev = dev >> 4;
+  flags = splhigh();
+
+
+  if (events & (POLLIN | POLLRDNORM))
+    if (!iqlen)
+      selrecord(wait, &selinfo[dev]);
+    else {
+      revents |= events & (POLLIN | POLLRDNORM);
+      midi_sleep_flag.mode &= ~WK_SLEEP;
+    }
+
+  if (events & (POLLOUT | POLLWRNORM))
+    if (qlen >= SEQ_MAX_QUEUE)
+      selrecord(wait, &selinfo[dev]);
+    else {
+      revents |= events & (POLLOUT | POLLWRNORM);
+      seq_sleep_flag.mode &= ~WK_SLEEP;
+    }
+
+  splx(flags);
+
+  return (revents);
+}
+
+#endif
 
 
 void
