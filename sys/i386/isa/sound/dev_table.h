@@ -177,7 +177,7 @@ struct generic_midi_operations {
 			{SBC_BASE, SBC_IRQ, SBC_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
-#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)
 #ifndef EXCLUDE_AUDIO
 		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect,
 			{SBC_BASE, SBC_IRQ, SB16_DMA}, SND_DEFAULT_ENABLE},
