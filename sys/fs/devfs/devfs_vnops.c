@@ -87,28 +87,28 @@ struct fileops devfs_ops_f = {
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
-static int	devfs_access(struct vop_access_args *ap);
-static int	devfs_advlock(struct vop_advlock_args *ap);
-static int	devfs_close(struct vop_close_args *ap);
-static int	devfs_fsync(struct vop_fsync_args *ap);
-static int	devfs_getattr(struct vop_getattr_args *ap);
-static int	devfs_lookupx(struct vop_lookup_args *ap);
-static int	devfs_mknod(struct vop_mknod_args *ap);
-static int	devfs_open(struct vop_open_args *ap);
-static int	devfs_pathconf(struct vop_pathconf_args *ap);
-static int	devfs_print(struct vop_print_args *ap);
-static int	devfs_readdir(struct vop_readdir_args *ap);
-static int	devfs_readlink(struct vop_readlink_args *ap);
-static int	devfs_reclaim(struct vop_reclaim_args *ap);
-static int	devfs_remove(struct vop_remove_args *ap);
-static int	devfs_revoke(struct vop_revoke_args *ap);
-static int	devfs_rioctl(struct vop_ioctl_args *ap);
-static int	devfs_rread(struct vop_read_args *ap);
-static int	devfs_setattr(struct vop_setattr_args *ap);
+static vop_access_t	devfs_access;
+static vop_advlock_t	devfs_advlock;
+static vop_close_t	devfs_close;
+static vop_fsync_t	devfs_fsync;
+static vop_getattr_t	devfs_getattr;
+static vop_lookup_t	devfs_lookupx;
+static vop_mknod_t	devfs_mknod;
+static vop_open_t	devfs_open;
+static vop_pathconf_t	devfs_pathconf;
+static vop_print_t	devfs_print;
+static vop_readdir_t	devfs_readdir;
+static vop_readlink_t	devfs_readlink;
+static vop_reclaim_t	devfs_reclaim;
+static vop_remove_t	devfs_remove;
+static vop_revoke_t	devfs_revoke;
+static vop_ioctl_t	devfs_rioctl;
+static vop_read_t	devfs_rread;
+static vop_setattr_t	devfs_setattr;
 #ifdef MAC
-static int	devfs_setlabel(struct vop_setlabel_args *ap);
+static vop_setlabel_t	devfs_setlabel;
 #endif
-static int	devfs_symlink(struct vop_symlink_args *ap);
+static vop_symlink_t	devfs_symlink;
 
 static vop_t **devfs_vnodeop_p;
 vop_t **devfs_specop_p;

@@ -60,18 +60,18 @@ __FBSDID("$FreeBSD$");
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
 
-static int cd9660_setattr(struct vop_setattr_args *);
-static int cd9660_access(struct vop_access_args *);
-static int cd9660_getattr(struct vop_getattr_args *);
-static int cd9660_ioctl(struct vop_ioctl_args *);
-static int cd9660_pathconf(struct vop_pathconf_args *);
-static int cd9660_read(struct vop_read_args *);
+static vop_setattr_t	cd9660_setattr;
+static vop_access_t	cd9660_access;
+static vop_getattr_t	cd9660_getattr;
+static vop_ioctl_t	cd9660_ioctl;
+static vop_pathconf_t	cd9660_pathconf;
+static vop_read_t	cd9660_read;
 struct isoreaddir;
 static int iso_uiodir(struct isoreaddir *idp, struct dirent *dp, off_t off);
 static int iso_shipdir(struct isoreaddir *idp);
-static int cd9660_readdir(struct vop_readdir_args *);
-static int cd9660_readlink(struct vop_readlink_args *ap);
-static int cd9660_strategy(struct vop_strategy_args *);
+static vop_readdir_t	cd9660_readdir;
+static vop_readlink_t	cd9660_readlink;
+static vop_strategy_t	cd9660_strategy;
 
 /*
  * Setattr call. Only allowed for block and character special devices.

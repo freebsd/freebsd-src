@@ -84,27 +84,27 @@
 /*
  * Prototypes for MSDOSFS vnode operations
  */
-static int msdosfs_advlock(struct vop_advlock_args *);
-static int msdosfs_create(struct vop_create_args *);
-static int msdosfs_mknod(struct vop_mknod_args *);
-static int msdosfs_close(struct vop_close_args *);
-static int msdosfs_access(struct vop_access_args *);
-static int msdosfs_getattr(struct vop_getattr_args *);
-static int msdosfs_setattr(struct vop_setattr_args *);
-static int msdosfs_read(struct vop_read_args *);
-static int msdosfs_write(struct vop_write_args *);
-static int msdosfs_fsync(struct vop_fsync_args *);
-static int msdosfs_remove(struct vop_remove_args *);
-static int msdosfs_link(struct vop_link_args *);
-static int msdosfs_rename(struct vop_rename_args *);
-static int msdosfs_mkdir(struct vop_mkdir_args *);
-static int msdosfs_rmdir(struct vop_rmdir_args *);
-static int msdosfs_symlink(struct vop_symlink_args *);
-static int msdosfs_readdir(struct vop_readdir_args *);
-static int msdosfs_bmap(struct vop_bmap_args *);
-static int msdosfs_strategy(struct vop_strategy_args *);
-static int msdosfs_print(struct vop_print_args *);
-static int msdosfs_pathconf(struct vop_pathconf_args *ap);
+static vop_advlock_t	msdosfs_advlock;
+static vop_create_t	msdosfs_create;
+static vop_mknod_t	msdosfs_mknod;
+static vop_close_t	msdosfs_close;
+static vop_access_t	msdosfs_access;
+static vop_getattr_t	msdosfs_getattr;
+static vop_setattr_t	msdosfs_setattr;
+static vop_read_t	msdosfs_read;
+static vop_write_t	msdosfs_write;
+static vop_fsync_t	msdosfs_fsync;
+static vop_remove_t	msdosfs_remove;
+static vop_link_t	msdosfs_link;
+static vop_rename_t	msdosfs_rename;
+static vop_mkdir_t	msdosfs_mkdir;
+static vop_rmdir_t	msdosfs_rmdir;
+static vop_symlink_t	msdosfs_symlink;
+static vop_readdir_t	msdosfs_readdir;
+static vop_bmap_t	msdosfs_bmap;
+static vop_strategy_t	msdosfs_strategy;
+static vop_print_t	msdosfs_print;
+static vop_pathconf_t	msdosfs_pathconf;
 
 /*
  * Some general notes:

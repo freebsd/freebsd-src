@@ -84,38 +84,38 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ffs/ffs_extern.h>
 
-static int ufs_access(struct vop_access_args *);
-static int ufs_advlock(struct vop_advlock_args *);
+static vop_access_t	ufs_access;
+static vop_advlock_t	ufs_advlock;
 static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
 static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
-static int ufs_close(struct vop_close_args *);
-static int ufs_create(struct vop_create_args *);
-static int ufs_getattr(struct vop_getattr_args *);
-static int ufs_link(struct vop_link_args *);
+static vop_close_t	ufs_close;
+static vop_create_t	ufs_create;
+static vop_getattr_t	ufs_getattr;
+static vop_link_t	ufs_link;
 static int ufs_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
-static int ufs_mkdir(struct vop_mkdir_args *);
-static int ufs_mknod(struct vop_mknod_args *);
-static int ufs_open(struct vop_open_args *);
-static int ufs_pathconf(struct vop_pathconf_args *);
-static int ufs_lock(struct vop_lock_args *);
-static int ufs_print(struct vop_print_args *);
-static int ufs_readlink(struct vop_readlink_args *);
-static int ufs_remove(struct vop_remove_args *);
-static int ufs_rename(struct vop_rename_args *);
-static int ufs_rmdir(struct vop_rmdir_args *);
-static int ufs_setattr(struct vop_setattr_args *);
-static int ufs_strategy(struct vop_strategy_args *);
-static int ufs_symlink(struct vop_symlink_args *);
-static int ufs_whiteout(struct vop_whiteout_args *);
-static int ufsfifo_close(struct vop_close_args *);
-static int ufsfifo_kqfilter(struct vop_kqfilter_args *);
-static int ufsfifo_read(struct vop_read_args *);
-static int ufsfifo_write(struct vop_write_args *);
+static vop_mkdir_t	ufs_mkdir;
+static vop_mknod_t	ufs_mknod;
+static vop_open_t	ufs_open;
+static vop_pathconf_t	ufs_pathconf;
+static vop_lock_t	ufs_lock;
+static vop_print_t	ufs_print;
+static vop_readlink_t	ufs_readlink;
+static vop_remove_t	ufs_remove;
+static vop_rename_t	ufs_rename;
+static vop_rmdir_t	ufs_rmdir;
+static vop_setattr_t	ufs_setattr;
+static vop_strategy_t	ufs_strategy;
+static vop_symlink_t	ufs_symlink;
+static vop_whiteout_t	ufs_whiteout;
+static vop_close_t	ufsfifo_close;
+static vop_kqfilter_t	ufsfifo_kqfilter;
+static vop_read_t	ufsfifo_read;
+static vop_write_t	ufsfifo_write;
 static int filt_ufsread(struct knote *kn, long hint);
 static int filt_ufswrite(struct knote *kn, long hint);
 static int filt_ufsvnode(struct knote *kn, long hint);
 static void filt_ufsdetach(struct knote *kn);
-static int ufs_kqfilter(struct vop_kqfilter_args *ap);
+static vop_kqfilter_t	ufs_kqfilter;
 
 /*
  * A virgin directory (no blushing please).
