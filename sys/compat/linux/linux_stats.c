@@ -45,8 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
+#include "opt_compat.h"
+
+#if !COMPAT_LINUX32
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#else
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#endif
 
 #include <compat/linux/linux_util.h>
 
@@ -392,7 +399,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	return (copyout(&lu, args->ubuf, sizeof(lu)));
 }
 
-#if defined(__i386__)
+#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
 
 static int
 stat64_copyout(struct stat *buf, void *ubuf)
@@ -531,4 +538,4 @@ linux_fstat64(struct thread *td, struct linux_fstat64_args *args)
 	return (error);
 }
 
-#endif /* __i386__ */
+#endif /* __i386__ || __amd64__ */

@@ -54,8 +54,15 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 
+#include "opt_compat.h"
+
+#if !COMPAT_LINUX32
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#else
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#endif
 #include <compat/linux/linux_util.h>
 
 #ifndef __alpha__
@@ -827,7 +834,11 @@ struct l_flock {
 	l_off_t		l_start;
 	l_off_t		l_len;
 	l_pid_t		l_pid;
-};
+}
+#if __amd64__ && COMPAT_LINUX32
+__packed
+#endif
+;
 
 static void
 linux_to_bsd_flock(struct l_flock *linux_flock, struct flock *bsd_flock)
@@ -872,14 +883,18 @@ bsd_to_linux_flock(struct flock *bsd_flock, struct l_flock *linux_flock)
 	linux_flock->l_pid = (l_pid_t)bsd_flock->l_pid;
 }
 
-#if defined(__i386__)
+#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
 struct l_flock64 {
 	l_short		l_type;
 	l_short		l_whence;
 	l_loff_t	l_start;
 	l_loff_t	l_len;
 	l_pid_t		l_pid;
-};
+}
+#if __amd64__ && COMPAT_LINUX32
+__packed
+#endif
+;
 
 static void
 linux_to_bsd_flock64(struct l_flock64 *linux_flock, struct flock *bsd_flock)
@@ -923,7 +938,7 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 	linux_flock->l_len = (l_loff_t)bsd_flock->l_len;
 	linux_flock->l_pid = (l_pid_t)bsd_flock->l_pid;
 }
-#endif /* __i386__ */
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #if defined(__alpha__)
 #define	linux_fcntl64_args	linux_fcntl_args
@@ -1051,7 +1066,7 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 	return (fcntl_common(td, &args64));
 }
 
-#if defined(__i386__)
+#if defined(__i386__) || (defined(__amd64__) && COMPAT_LINUX32)
 int
 linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 {
@@ -1099,7 +1114,7 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 
 	return (fcntl_common(td, args));
 }
-#endif /* __i386__ */
+#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_chown(struct thread *td, struct linux_chown_args *args)
