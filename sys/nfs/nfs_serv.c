@@ -115,6 +115,18 @@
 
 #define MAX_COMMIT_COUNT	(1024 * 1024)
 
+#define NUM_HEURISTIC		64
+#define NHUSE_INIT		64
+#define NHUSE_INC		16
+#define NHUSE_MAX		2048
+
+static struct nfsheur {
+    struct vnode *nh_vp;	/* vp to match (unreferenced pointer) */
+    off_t nh_nextr;		/* next offset for sequential detection */
+    int nh_use;			/* use count for selection */
+    int nh_seqcount;		/* heuristic */
+} nfsheur[NUM_HEURISTIC];
+
 nfstype nfsv3_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK,
 		      NFFIFO, NFNON };
 #ifndef NFS_NOSERVER 
@@ -780,7 +792,9 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	fhandle_t *fhp;
 	struct uio io, *uiop = &io;
 	struct vattr va, *vap = &va;
+	struct nfsheur *nh;
 	off_t off;
+	int ioflag = 0;
 	u_quad_t frev;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
@@ -833,12 +847,73 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		error = 0;
 		goto nfsmout;
 	}
+
+	/*
+	 * Calculate byte count to read
+	 */
+
 	if (off >= vap->va_size)
 		cnt = 0;
 	else if ((off + reqlen) > vap->va_size)
 		cnt = vap->va_size - off;
 	else
 		cnt = reqlen;
+
+	/*
+	 * Calculate seqcount for heuristic
+	 */
+
+	{
+		int hi;
+		int try = 4;
+
+		/*
+		 * Locate best candidate
+		 */
+
+		hi = ((int)vp / sizeof(struct vnode)) & (NUM_HEURISTIC - 1);
+		nh = &nfsheur[hi];
+
+		while (try--) {
+			if (nfsheur[hi].nh_vp == vp) {
+				nh = &nfsheur[hi];
+				break;
+			}
+			if (nfsheur[hi].nh_use > 0)
+				--nfsheur[hi].nh_use;
+			hi = (hi + 1) & (NUM_HEURISTIC - 1);
+			if (nfsheur[hi].nh_use < nh->nh_use)
+				nh = &nfsheur[hi];
+		}
+
+		if (nh->nh_vp != vp) {
+			nh->nh_vp = vp;
+			nh->nh_nextr = off;
+			nh->nh_use = NHUSE_INIT;
+			if (off == 0)
+				nh->nh_seqcount = 4;
+			else
+				nh->nh_seqcount = 1;
+		}
+
+		/*
+		 * Calculate heuristic
+		 */
+
+		if ((off == 0 && nh->nh_seqcount > 0) || off == nh->nh_nextr) {
+			if (++nh->nh_seqcount > 127)
+				nh->nh_seqcount = 127;
+		} else if (nh->nh_seqcount > 1) {
+			nh->nh_seqcount = 1;
+		} else {
+			nh->nh_seqcount = 0;
+		}
+		nh->nh_use += NHUSE_INC;
+		if (nh->nh_use > NHUSE_MAX)
+			nh->nh_use = NHUSE_MAX;
+		ioflag |= nh->nh_seqcount << 16;
+        }
+
 	nfsm_reply(NFSX_POSTOPORFATTR(v3) + 3 * NFSX_UNSIGNED+nfsm_rndup(cnt));
 	if (v3) {
 		nfsm_build(tl, u_int32_t *, NFSX_V3FATTR + 4 * NFSX_UNSIGNED);
@@ -896,8 +971,9 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		uiop->uio_resid = len;
 		uiop->uio_rw = UIO_READ;
 		uiop->uio_segflg = UIO_SYSSPACE;
-		error = VOP_READ(vp, uiop, IO_NODELOCKED, cred);
+		error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
 		off = uiop->uio_offset;
+		nh->nh_nextr = off;
 		FREE((caddr_t)iv2, M_TEMP);
 		if (error || (getret = VOP_GETATTR(vp, vap, cred, procp))) {
 			if (!error)
