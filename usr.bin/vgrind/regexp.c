@@ -461,6 +461,8 @@ expmatch (s, re, mstring)
 		    if (!(isalnum(*s1) || *s1 == '_' ||
 			  /* C++ destructor */
 			  *s1 == '~' ||
+			  /* Tcl procedure */
+			  *s1 == '.' ||
 			  /* C++ scope operator */
 			  (strlen(s1) > 1 && *s1 == ':' && s1[1] == ':' &&
 			   (s1++, TRUE))))
