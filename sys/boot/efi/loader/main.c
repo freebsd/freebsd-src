@@ -106,12 +106,12 @@ efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	bootfile = GetEnvironmentVariable(ARCENV_BOOTFILE);
 	if (bootfile)
 		setenv("bootfile", bootfile, 1);
-
-	env_setenv("currdev", EV_VOLATILE, arc_fmtdev(&currdev),
-	    arc_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, arc_fmtdev(&currdev), env_noset,
-	    env_nounset);
 #endif
+
+	env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
+	    efi_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+	    env_nounset);
 
 	setenv("LINES", "24", 1);	/* optional */
     
