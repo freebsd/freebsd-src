@@ -311,10 +311,16 @@ _http_connect(struct url *URL, char *flags)
     if (!URL->port) {
 	struct servent *se;
 
-	if ((se = getservbyname("http", "tcp")) != NULL)
-	    URL->port = ntohs(se->s_port);
+	if (strcasecmp(URL->scheme, "ftp") == 0)
+	    if ((se = getservbyname("ftp", "tcp")) != NULL)
+		URL->port = ntohs(se->s_port);
+	    else
+		URL->port = 21;
 	else
-	    URL->port = 80;
+	    if ((se = getservbyname("http", "tcp")) != NULL)
+		URL->port = ntohs(se->s_port);
+	    else
+		URL->port = 80;
     }
     
     /* attempt to connect to proxy server */
@@ -363,6 +369,8 @@ _http_connect(struct url *URL, char *flags)
 
     /* if no proxy is configured or could be contacted, try direct */
     if (sd == -1) {
+	if (strcasecmp(URL->scheme, "ftp") == 0)
+	    goto ouch;
 	if ((sd = _fetch_connect(URL->host, URL->port, verbose)) == -1)
 	    goto ouch;
     }
@@ -394,8 +402,8 @@ _http_request(FILE *f, char *op, struct url *URL, char *flags)
     
     /* send request (proxies require absolute form, so use that) */
     if (verbose)
-	_fetch_info("requesting http://%s:%d%s",
-		    URL->host, URL->port, URL->doc);
+	_fetch_info("requesting %s://%s:%d%s",
+		    URL->scheme, URL->host, URL->port, URL->doc);
     _http_cmd(f, "%s %s://%s:%d%s HTTP/1.1" ENDL,
 	      op, URL->scheme, URL->host, URL->port, URL->doc);
 
