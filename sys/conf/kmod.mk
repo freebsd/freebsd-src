@@ -127,6 +127,10 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc"
+CFLAGS+=	-mlongcall
+.endif
+
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
 .if !defined(PROG)
