@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <pam_mod_misc.h>
 
-extern int login_access(const char *, const char *);
+#include "pam_login_access.h"
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
