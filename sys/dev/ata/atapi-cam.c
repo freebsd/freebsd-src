@@ -286,21 +286,20 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
     case XPT_SET_TRAN_SETTINGS:
 	/* ignore these, we're not doing SCSI here */
-	ccb->ccb_h.status = CAM_REQ_CMP;
+	ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 	xpt_done(ccb);
 	return;
 
     case XPT_GET_TRAN_SETTINGS: {
 	struct ccb_trans_settings *cts = &ccb->cts;
 
-	cts->flags |=
-	    (CCB_TRANS_SYNC_RATE_VALID | CCB_TRANS_SYNC_OFFSET_VALID |
-	     CCB_TRANS_BUS_WIDTH_VALID | CCB_TRANS_DISC_VALID |
-	     CCB_TRANS_TQ_VALID);
+	/*
+	 * XXX The default CAM transport code is very scsi specific and
+	 * doesn't understand IDE speeds very well.  Be silent about it
+	 * here and let it default to what is set in XPT_PATH_INQ
+	 */
+	cts->valid = (CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID);
 	cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-	cts->sync_period = 0;
-	cts->sync_offset = 0;
-	cts->bus_width = 16;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
