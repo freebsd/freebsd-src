@@ -46,13 +46,12 @@
 .Sh DESCRIPTION
 The
 .Nm
-displays information about the system users.
+utility displays information about the system users.
 .Pp
 Options are:
 .Bl -tag -width flag
 .It Fl s
-.Nm Finger
-displays the user's login name, real name, terminal name and write
+Display the user's login name, real name, terminal name and write
 status (as a ``*'' before the terminal name if write permission is
 denied), idle time, login time, and either office location and office
 phone number, or the remote host.
@@ -89,7 +88,7 @@ option, the office location and office phone information is displayed
 instead of the name of the remote host.
 .Pp
 .It Fl l
-Produces a multi-line format displaying all of the information
+Produce a multi-line format displaying all of the information
 described for the
 .Fl s
 option as well as the user's home directory, home phone number, login
@@ -124,7 +123,7 @@ mailbox since new mail arriving, or ``New mail received ...'', ``Unread
 since ...'' if they have new mail.
 .Pp
 .It Fl p
-Prevents
+Prevent
 the
 .Fl l
 option of
@@ -168,8 +167,9 @@ If no arguments are specified,
 .Nm
 will print an entry for each user currently logged into the system.
 .Pp
-.Nm Finger
-may be used to look up users on a remote machine.
+The
+.Nm
+utility may be used to look up users on a remote machine.
 The format is to specify a
 .Ar user
 as
@@ -201,8 +201,9 @@ is invoked by
 .Xr fingerd 8 ,
 aliases will work for both local and network queries.
 .Sh ENVIRONMENT
-.Nm Finger
-utilizes the following environment variable, if it exists:
+The
+.Nm
+utility utilizes the following environment variable, if it exists:
 .Bl -tag -width Fl
 .It Ev FINGER
 This variable may be set with favored options to
