@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id: param.h,v 1.5 1994/09/01 05:12:51 davidg Exp $
+ * $Id: param.h,v 1.6 1995/01/09 16:05:13 davidg Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -168,7 +168,7 @@
  * infinite loops reasonably quickly.
  */
 #define	MAXPATHLEN	PATH_MAX
-#define MAXSYMLINKS	8
+#define MAXSYMLINKS	32
 
 /* Bit map related macros. */
 #define	setbit(a,i)	((a)[(i)/NBBY] |= 1<<((i)%NBBY))
