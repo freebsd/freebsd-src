@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.52 1999/07/26 15:17:23 brian Exp $
+#	$Id: rc.network,v 1.53 1999/08/10 09:45:31 des Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -110,7 +110,7 @@ network_pass1() {
 		ppp_command="${ppp_command} -alias";
 	    fi
 
-	    echo -n 'Starting ppp: '; ppp ${ppp_command} ${ppp_profile}
+	    echo -n 'Starting ppp: '; ppp ${ppp_command} -quiet ${ppp_profile}
     fi
 
     # Initialize IP filtering using ipfw
