@@ -52,6 +52,7 @@ dial		-D	1600	init	4096	32768
 router		-R	820	oinit	3072	32768
 net		-N	2200	init	4096	32768
 isp		-I	2400	init	4096	32768
+install		-S	2400	init	4096	4096
 custom		-C	2400	init	8192	32768
 __eof__
 }
