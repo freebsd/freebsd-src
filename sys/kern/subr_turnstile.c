@@ -129,6 +129,7 @@ propagate_priority(struct thread *td)
 			MPASS(m->mtx_lock == MTX_CONTESTED);
 			return;
 		}
+		kg = td->td_ksegrp;
 
 		MPASS(td->td_proc->p_magic == P_MAGIC);
 		KASSERT(td->td_proc->p_stat != SSLEEP, ("sleeping thread owns a mutex"));
