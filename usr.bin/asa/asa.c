@@ -38,15 +38,15 @@ __RCSID("$NetBSD: asa.c,v 1.11 1997/09/20 14:55:00 lukem Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <err.h>
 
 static void asa __P((FILE *));
 int main __P((int, char *[]));
 
 int
-main (argc, argv)
+main(argc, argv)
 	int argc;
 	char **argv;
 {
@@ -57,43 +57,42 @@ main (argc, argv)
 
         fp = stdin;
         do {
-                if (*argv) {
-                        if (!(fp = fopen(*argv, "r"))) {
-				warn ("%s", *argv);
+                if (*argv != NULL) {
+                        if ((fp = fopen(*argv, "r")) == NULL) {
+				warn("%s", *argv);
 				continue;
                         }
                 }
-                asa (fp);
+                asa(fp);
                 if (fp != stdin)
                         (void)fclose(fp);
-        } while (*argv++);
+        } while (*argv++ != NULL);
 
-	exit (0);
+	exit(0);
 }
 
 static void
 asa(f)
 	FILE *f;
 {
-	char *buf;
 	size_t len;
+	char *buf;
 
-	if ((buf = fgetln (f, &len)) != NULL) {
+	if ((buf = fgetln(f, &len)) != NULL) {
 		if (buf[len - 1] == '\n')
 			buf[--len] = '\0';
-		/* special case the first line  */
+		/* special case the first line */
 		switch (buf[0]) {
 		case '0':
-			putchar ('\n');
+			putchar('\n');
 			break;
 		case '1':
-			putchar ('\f');
+			putchar('\f');
 			break;
 		}
 
-		if (len > 1 && buf[0] && buf[1]) {
+		if (len > 1 && buf[0] && buf[1])
 			printf("%.*s", (int)(len - 1), buf + 1);
-		}
 
 		while ((buf = fgetln(f, &len)) != NULL) {
 			if (buf[len - 1] == '\n')
@@ -101,25 +100,24 @@ asa(f)
 			switch (buf[0]) {
 			default:
 			case ' ':
-				putchar ('\n');
+				putchar('\n');
 				break;
 			case '0':
-				putchar ('\n');
-				putchar ('\n');
+				putchar('\n');
+				putchar('\n');
 				break;
 			case '1':
-				putchar ('\f');
+				putchar('\f');
 				break;
 			case '+':
-				putchar ('\r');
+				putchar('\r');
 				break;
 			}
 
-			if (len > 1 && buf[0] && buf[1]) {
+			if (len > 1 && buf[0] && buf[1])
 				printf("%.*s", (int)(len - 1), buf + 1);
-			}
 		}
 
-		putchar ('\n');
+		putchar('\n');
 	}
 }
