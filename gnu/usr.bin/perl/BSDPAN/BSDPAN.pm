@@ -39,17 +39,17 @@ sub perl_version {
 
 sub perl_ver {
 	require Config;
-	# pre-5.6.0 perls
+	# pre-5.6.1 perls
 	return $Config::Config{apiversion} if exists $Config::Config{apiversion};
-	# post-5.6.0 perls
+	# post-5.6.1 perls
 	return $Config::Config{version};
 }
 
 sub perl_arch {
 	require Config;
-	# pre-5.6.0 perls
+	# pre-5.6.1 perls
 	return $Config::Config{archname} if exists $Config::Config{apiversion};
-	# post-5.6.0 perls
+	# post-5.6.1 perls
 	return 'mach';
 }
 
