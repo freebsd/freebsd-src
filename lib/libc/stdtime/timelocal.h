@@ -37,7 +37,7 @@ struct lc_time_T {
 	const char *	weekday[7];
 	const char *	X_fmt;
 	const char *	x_fmt;
-	const char *	c_fmt;
+	const char *    c_fmt;  /* not used, just compatibility placeholder */
 	const char *	am;
 	const char *	pm;
 	const char *	date_fmt;
