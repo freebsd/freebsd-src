@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.32 1995/05/24 23:43:59 jkh Exp $
+ * $Id: system.c,v 1.33 1995/05/25 01:52:03 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -60,7 +60,7 @@ systemInitialize(int argc, char **argv)
 	    close(0); open("/bootcd/dev/console", O_RDWR);
 	    close(1); dup(0);
 	    close(2); dup(0);
-	    CpioFD = open("/floppies/cpio.flp", O_RDONLY);
+	    RootFD = open("/floppies/root.flp", O_RDONLY);
 	    OnCDROM = TRUE;
 	    chroot("/bootcd");
 	} else {
@@ -83,20 +83,6 @@ systemInitialize(int argc, char **argv)
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
 	exit(-1);
-    }
-
-    /* If we're running as init, stick a shell over on the 4th VTY */
-    if (RunningAsInit && !fork()) {
-	int i;
-	    
-	for (i = 0; i < 64; i++)
-	    close(i);
-	open("/dev/ttyv3", O_RDWR);
-	ioctl(0, TIOCSCTTY, (char *)NULL);
-	dup2(0, 1);
-	dup2(0, 2);
-	execlp("sh", "-sh", 0);
-	exit(1);
     }
 
     /* XXX - libdialog has particularly bad return value checking */

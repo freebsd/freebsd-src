@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.26 1995/05/21 06:12:42 phk Exp $
+ * $Id: disks.c,v 1.27 1995/05/22 14:10:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,7 +111,7 @@ print_command_summary()
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
     mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Exit this screen");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
-    attrset(A_REVERSE); addstr("reverse video."); attrset(A_NORMAL);
+    attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
 }
@@ -142,6 +142,11 @@ diskPartition(Disk *d)
 
 	key = toupper(getch());
 	switch (key) {
+
+	case '\014':	/* ^L */
+	    clear();
+	    continue;
+
 	case KEY_UP:
 	case '-':
 	    if (current_chunk != 0)

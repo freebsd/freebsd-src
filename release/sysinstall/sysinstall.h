@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.31 1995/05/24 22:37:43 jkh Exp $
+ * $Id: sysinstall.h,v 1.32 1995/05/25 01:22:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -187,7 +187,7 @@ typedef int (*commandFunc)(char *key, void *data);
 
 
 /*** Externs ***/
-extern int		CpioFD;			/* The file descriptor for our CPIO floppy	*/
+extern int		RootFD;			/* The file descriptor for our root floppy	*/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
 extern Boolean		OnSerial;		/* Are we on a serial console?			*/
@@ -268,6 +268,7 @@ extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType 
 extern int	diskPartitionEditor(char *unused);
 
 /* dist.c */
+extern int	distReset(char *str);
 extern int	distSetDeveloper(char *str);
 extern int	distSetXDeveloper(char *str);
 extern int	distSetUser(char *str);

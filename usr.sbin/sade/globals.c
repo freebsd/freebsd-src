@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.6 1995/05/20 00:13:09 jkh Exp $
+ * $Id: globals.c,v 1.7 1995/05/24 22:37:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,7 +48,7 @@
  * whatever values we feel are appropriate.
  */
 
-int		CpioFD;	  /* The file descriptor for our CPIO floppy */
+int		RootFD;	  /* The file descriptor for our ROOT floppy */
 int		DebugFD;  /* Where diagnostic output goes */
 Boolean		OnCDROM;  /* Are we running off of a CDROM? */
 Boolean		OnSerial; /* Are we on a serial console? */
@@ -66,7 +66,7 @@ Device		*mediaDevice;	/* Where we're installing from */
 void
 globalsInit(void)
 {
-    CpioFD = -1;
+    RootFD = -1;
     DebugFD = -1;
     OnCDROM = FALSE;
     OnSerial = FALSE;
