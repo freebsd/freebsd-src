@@ -229,7 +229,7 @@
     <para>&man.ipfw.8; <literal>list</literal> and <literal>show</literal>
       command now support ranges of rule numbers.</para>
 
-    <para>&man.ipfw.8; now supports <option>-n</option> flag
+    <para>&man.ipfw.8; now supports a <option>-n</option> flag
       to test the syntax of commands without actually changing anything.</para>
 
     <para>&man.uudecode.1; and &man.b64decode.1; now support a
