@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.52 1998/05/23 22:24:39 brian Exp $
+ * $Id: ipcp.c,v 1.53 1998/05/29 18:32:11 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -685,7 +685,7 @@ IpcpLayerDown(struct fsm *fp)
       system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
   }
 
-  if (!(ipcp->fsm.bundle->phys_type & PHYS_AUTO))
+  if (!(ipcp->fsm.bundle->phys_type.all & PHYS_AUTO))
     ipcp_CleanInterface(ipcp);
 }
 
