@@ -62,7 +62,7 @@ where the macro SRCS is the list of C source files and the macro
 CFLAGS is the list of flags for the C compiler.
 .Pp
 The user has the ability to change the preprocessor and preprocessor options
-used.  For instance, to use Gcc as the preprocessor and to ignore system
+used.  For instance, to use gcc as the preprocessor and to ignore system
 headers, one would use
 .Bd -literal -offset indent
 depend:
@@ -100,7 +100,7 @@ module.
 .Bl -tag -width MKDEP_CPP_OPTS
 .It Ev CC
 Specifies the C compiler to use.  The specified compiler is expected to have
-options consistant with the Gnu C compiler.
+options consistent with the GNU C compiler.
 .It Ev MKDEP_CPP
 Specifies the preprocessor to use.  The default is "${CC} -E".
 .It Ev MKDEP_CPP_OPTS
