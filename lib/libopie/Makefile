@@ -1,12 +1,11 @@
 # Makefile for libopie
 #
-# $Id: Makefile,v 1.3 1997/03/08 19:42:41 pst Exp $
+# $Id: Makefile,v 1.4 1997/09/29 10:49:21 ache Exp $
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}
 
 KEYFILE?=	\"/etc/opiekeys\"
-EXTFILE?=	\"/etc/opiekeys.ext\"
 
 .PATH: ${DIST_DIR} ${OPIE_DIST}/libmissing
 
@@ -19,7 +18,7 @@ SRCS=	atob8.c btoa8.c btoh.c challenge.c getsequence.c hash.c hashlen.c \
 	getutline.c pututline.c endutent.c 	# from libmissing
 
 CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
-	-DSTD_KEY_FILE=${KEYFILE} -DEXT_KEY_FILE=${EXTFILE}
+	-DKEY_FILE=${KEYFILE}
 
 MAN4=	${OPIE_DIST}/opie.4
 MAN5=	${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
