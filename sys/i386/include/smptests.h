@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.22 1997/08/29 17:58:30 fsmp Exp $
+ *	$Id: smptests.h,v 1.27 1997/08/31 03:02:19 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -32,6 +32,16 @@
 /*
  * Various 'tests in progress' and configuration parameters.
  */
+
+
+/*
+ * Debug version of simple_lock.  This will store the CPU id of the
+ * holding CPU along with the lock.  When a CPU fails to get the lock
+ * it compares its own id to the holder id.  If they are the same it
+ * panic()s, as simple locks are binary, and this would cause a deadlock.
+ *
+ */
+#define SL_DEBUG
 
 
 /*
@@ -57,6 +67,10 @@
 #define RECURSIVE_MPINTRLOCK
  */
 #define SIMPLE_MPINTRLOCK
+
+
+/*  */
+#define USE_COMLOCK
 
 
 /*
