@@ -37,11 +37,7 @@
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
-#if defined(__FreeBSD__)
 typedef pci_port_t tulip_csrptr_t;
-#else
-typedef u_int16_t tulip_csrptr_t;
-#endif
 
 #define	TULIP_CSR_READ(sc, csr)			(inl((sc)->tulip_csrs.csr))
 #define	TULIP_CSR_WRITE(sc, csr, val)   	outl((sc)->tulip_csrs.csr, val)
@@ -54,7 +50,7 @@ typedef u_int16_t tulip_csrptr_t;
 #define	TULIP_PCI_CSRSIZE	8
 #define	TULIP_PCI_CSROFFSET	0
 
-#if defined (__FreeBSD__) && defined(__alpha__)
+#if defined(__alpha__)
 
 typedef u_int32_t tulip_csrptr_t;
 
@@ -64,7 +60,7 @@ typedef u_int32_t tulip_csrptr_t;
 #define	TULIP_CSR_READBYTE(sc, csr)		(readb((sc)->tulip_csrs.csr))
 #define	TULIP_CSR_WRITEBYTE(sc, csr, val)	writeb((sc)->tulip_csrs.csr, val)
 
-#else /* __FreeBSD__ && __alpha__ */
+#else /* __alpha__ */
 
 typedef volatile u_int32_t *tulip_csrptr_t;
 
@@ -76,7 +72,7 @@ typedef volatile u_int32_t *tulip_csrptr_t;
 #define	TULIP_CSR_READ(sc, csr)		(0 + *(sc)->tulip_csrs.csr)
 #define	TULIP_CSR_WRITE(sc, csr, val)	((void)(*(sc)->tulip_csrs.csr = (val)))
 
-#endif /* __FreeBSD__ && __alpha__ */
+#endif /* __alpha__ */
 
 #endif /* TULIP_IOMAPPED */
 
@@ -877,7 +873,6 @@ static void tulip_softintr(void);
 #define	SIOCGCHIPID		_IOWR('i', 241, struct ifreq)	/* get chipid */
 #endif
 
-#if defined(__FreeBSD__)
 typedef void ifnet_ret_t;
 typedef u_long ioctl_cmd_t;
 #if defined(TULIP_HDR_DATA)
@@ -911,7 +906,6 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 #define	TULIP_UNIT_TO_SOFTC(unit)	(tulips[unit])
 #define	TULIP_BURSTSIZE(unit)		pci_max_burst_len
 #define	loudprintf			if (bootverbose) printf
-#endif
 
 #ifndef TULIP_PRINTF_FMT
 #define	TULIP_PRINTF_FMT		"%s%d"
