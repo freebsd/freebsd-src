@@ -373,3 +373,45 @@ ingroup(const char *grname)
 			return(1);
 	return(0);
 }
+
+/*
+ * Routine to get the information for a single printer (which will be
+ * called by the routines which implement individual commands).
+ * Note: This is for commands operating on a *single* printer.
+ */
+struct printer *
+setup_myprinter(char *pwanted, struct printer *pp, int sump_opts)
+{
+	int cdres, cmdstatus;
+
+	init_printer(pp);
+	cmdstatus = getprintcap(pwanted, pp);
+	switch (cmdstatus) {
+	default:
+		fatal(pp, "%s", pcaperr(cmdstatus));
+		/* NOTREACHED */
+	case PCAPERR_NOTFOUND:
+		printf("unknown printer %s\n", pwanted);
+		return (NULL);
+	case PCAPERR_TCOPEN:
+		printf("warning: %s: unresolved tc= reference(s)", pwanted);
+		break;
+	case PCAPERR_SUCCESS:
+		break;
+	}
+	if ((sump_opts & SUMP_NOHEADER) == 0)
+		printf("%s:\n", pp->printer);
+
+	if (sump_opts & SUMP_CHDIR_SD) {
+		seteuid(euid);
+		cdres = chdir(pp->spool_dir);
+		seteuid(uid);
+		if (cdres < 0) {
+			printf("\tcannot chdir to %s\n", pp->spool_dir);
+			free_printer(pp);
+			return (NULL);
+		}
+	}
+
+	return (pp);
+}
