@@ -155,11 +155,11 @@ The mbuf flag bits are defined as follows:
 #define	M_PROTO5	0x0100	/* protocol-specific */
 
 /* mbuf pkthdr flags, also in m_flags */
-#define	M_BCAST		0x0200	/* send/received as link-level broadcast */
-#define	M_MCAST		0x0400	/* send/received as link-level multicast */
-#define	M_FRAG		0x0800	/* packet is fragment of larger packet */
-#define	M_FIRSTFRAG	0x1000	/* packet is first fragment */
-#define	M_LASTFRAG	0x2000	/* packet is last fragment */
+#define	M_BCAST		0x0100	/* send/received as link-level broadcast */
+#define	M_MCAST		0x0200	/* send/received as link-level multicast */
+#define	M_FRAG		0x0400	/* packet is fragment of larger packet */
+#define	M_FIRSTFRAG	0x0800	/* packet is first fragment */
+#define	M_LASTFRAG	0x1000	/* packet is last fragment */
 .Ed
 .Pp
 The available mbuf types are defined as follows:
