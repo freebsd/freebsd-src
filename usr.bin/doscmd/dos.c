@@ -569,7 +569,7 @@ int21_0a(regcontext_t *REGS)
     int			n;
     
     /* pointer to buffer */
-    addr = (unsigned char *)MAKEPTR(R_DS, R_DL);
+    addr = (unsigned char *)MAKEPTR(R_DS, R_DX);
 
     /* capacity of buffer */
     avail = addr[0];
