@@ -278,7 +278,7 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_set_upcall(struct thread *td, void *pcb)
+cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 
 	return;

@@ -1373,8 +1373,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ku->ku_ksegrp);
 	/* inherit blocked thread's context */
-	bcopy(td->td_frame, td2->td_frame, sizeof(struct trapframe));
-	cpu_set_upcall(td2, td->td_pcb);
+	cpu_set_upcall(td2, td);
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
