@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * This file contains the I/O handling and the exchange of
@@ -45,12 +45,14 @@ static const char rcsid[] =
  * ctl.c
  */
 
+#include <sys/filio.h>
+
 #include <errno.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/filio.h>
 #include <unistd.h>
+
 #include "talk.h"
 #include "talk_ctl.h"
 
@@ -146,7 +148,7 @@ talk()
  */
 void
 p_error(string)
-	char *string;
+	const char *string;
 {
 	wmove(my_win.x_win, current_line, 0);
 	wprintw(my_win.x_win, "[%s : %s (%d)]\n",
@@ -162,7 +164,7 @@ p_error(string)
  */
 void
 message(string)
-	char *string;
+	const char *string;
 {
 	wmove(my_win.x_win, current_line, 0);
 	wprintw(my_win.x_win, "[%s]\n", string);

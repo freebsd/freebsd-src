@@ -31,21 +31,23 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <protocols/talkd.h>
 
 #include <err.h>
 #include <errno.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <protocols/talkd.h>
+
 #include "talk_ctl.h"
 #include "talk.h"
 
@@ -67,7 +69,7 @@ jmp_buf invitebuf;
 void
 invite_remote()
 {
-	int nfd, read_mask, template, new_sockt;
+	int new_sockt;
 	struct itimerval itimer;
 	CTL_RESPONSE response;
 
@@ -123,7 +125,7 @@ invite_remote()
 /* ARGSUSED */
 void
 re_invite(signo)
-	int signo;
+	int signo __unused;
 {
 
 	message("Ringing your party again");
@@ -136,7 +138,7 @@ re_invite(signo)
 	longjmp(invitebuf, 1);
 }
 
-static	char *answers[] = {
+static	const char *answers[] = {
 	"answer #0",					/* SUCCESS */
 	"Your party is not logged on",			/* NOT_HERE */
 	"Target machine is too confused to talk to us",	/* FAILED */

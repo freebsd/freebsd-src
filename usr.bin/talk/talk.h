@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)talk.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -47,7 +48,7 @@ extern	int sockt;
 extern	int curses_initialized;
 extern	int invitation_waiting;
 
-extern	char *current_state;
+extern	const char *current_state;
 extern	int current_line;
 
 typedef struct xwin {
@@ -79,10 +80,10 @@ extern	void	init_display __P((void));
 extern	void	invite_remote __P((void));
 extern	int	look_for_invite __P((CTL_RESPONSE *));
 extern	int	max __P((int, int));
-extern	void	message __P((char *));
+extern	void	message __P((const char *));
 extern	void	open_ctl __P((void));
 extern	void	open_sockt __P((void));
-extern	void	p_error __P((char *));
+extern	void	p_error __P((const char *));
 extern	void	print_addr __P((struct sockaddr_in));
 extern	void	quit __P((void));
 extern	int	readwin __P((WINDOW *, int, int));
