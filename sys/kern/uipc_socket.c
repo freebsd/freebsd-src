@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -58,7 +60,9 @@
 
 #include <machine/limits.h>
 
+#ifdef INET
 static int	 do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
+#endif /* INET */
 
 static int 	filt_sorattach(struct knote *kn);
 static void 	filt_sordetach(struct knote *kn);
@@ -195,6 +199,7 @@ sodealloc(so)
 	if (so->so_snd.sb_hiwat)
 		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
+#ifdef INET
 	if (so->so_accf != NULL) {
 		if (so->so_accf->so_accept_filter != NULL && 
 			so->so_accf->so_accept_filter->accf_destroy != NULL) {
@@ -203,6 +208,7 @@ sodealloc(so)
 		if (so->so_accf->so_accept_filter_str != NULL)
 			FREE(so->so_accf->so_accept_filter_str, M_ACCF);
 		FREE(so->so_accf, M_ACCF);
+#endif /* INET */
 	}
 	crfree(so->so_cred);
 	zfreei(so->so_zone, so);
@@ -992,6 +998,7 @@ sorflush(so)
 	sbrelease(&asb, so);
 }
 
+#ifdef INET
 static int
 do_setopt_accept_filter(so, sopt)
 	struct	socket *so;
@@ -1068,6 +1075,7 @@ out:
 		FREE(afap, M_TEMP);
 	return (error);
 }
+#endif /* INET */
 
 /*
  * Perhaps this routine, and sooptcopyout(), below, ought to come in
@@ -1121,6 +1129,13 @@ sosetopt(so, sopt)
 		error = ENOPROTOOPT;
 	} else {
 		switch (sopt->sopt_name) {
+#ifdef INET
+		case SO_ACCEPTFILTER:
+			error = do_setopt_accept_filter(so, sopt);
+			if (error)
+				goto bad;
+			break;
+#endif /* INET */
 		case SO_LINGER:
 			error = sooptcopyin(sopt, &l, sizeof l, sizeof l);
 			if (error)
@@ -1228,12 +1243,6 @@ sosetopt(so, sopt)
 				break;
 			}
 			break;
-
-		case SO_ACCEPTFILTER:
-			error = do_setopt_accept_filter(so, sopt);
-			if (error)
-				goto bad;
-			break;
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -1298,6 +1307,7 @@ sogetopt(so, sopt)
 			return (ENOPROTOOPT);
 	} else {
 		switch (sopt->sopt_name) {
+#ifdef INET
 		case SO_ACCEPTFILTER:
 			if ((so->so_options & SO_ACCEPTCONN) == 0)
 				return (EINVAL);
@@ -1312,6 +1322,7 @@ sogetopt(so, sopt)
 			error = sooptcopyout(sopt, afap, sizeof(*afap));
 			FREE(afap, M_TEMP);
 			break;
+#endif /* INET */
 			
 		case SO_LINGER:
 			l.l_onoff = so->so_options & SO_LINGER;
