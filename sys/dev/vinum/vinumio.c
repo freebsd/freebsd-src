@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.27 1999/12/31 02:49:14 grog Exp grog $
+ * $Id: vinumio.c,v 1.30 2000/05/10 23:23:30 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -780,6 +780,7 @@ write_volume_label(int volno)
     error = bufwait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
     bp->b_ioflags &= ~BIO_ERROR;
+
     brelse(bp);
     return error;
 }
@@ -794,7 +795,6 @@ vinum_scandisk(char *devicename[], int drives)
     volatile int gooddrives;				    /* number of usable drives found */
     int firsttime;					    /* set if we have never configured before */
     int error;
-    struct nameidata nd;				    /* mount point credentials */
     char *config_text;					    /* read the config info from disk into here */
     char *volatile cptr;				    /* pointer into config information */
     char *eptr;						    /* end pointer into config information */
@@ -936,7 +936,7 @@ vinum_scandisk(char *devicename[], int drives)
 			 */
 			log(LOG_ERR,
 			    "vinum: Config error on %s, aborting integration\n",
-			    nd.ni_dirp);
+			    drive->devicename);
 			free_drive(drive);		    /* give it back */
 			status = EINVAL;
 		    }
