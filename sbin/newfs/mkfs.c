@@ -130,6 +130,7 @@ long	calcipg();
 static int charsperline();
 void clrblock (struct fs *, unsigned char *, int);
 void fsinit (time_t);
+static int ilog2(int);
 void initcg (int, time_t);
 int isblock (struct fs *, unsigned char *, int);
 void iput (struct dinode *, ino_t);
@@ -232,13 +233,10 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	sblock.fs_fmask = ~(sblock.fs_fsize - 1);
 	sblock.fs_qbmask = ~sblock.fs_bmask;
 	sblock.fs_qfmask = ~sblock.fs_fmask;
-	for (sblock.fs_bshift = 0, i = sblock.fs_bsize; i > 1; i >>= 1)
-		sblock.fs_bshift++;
-	for (sblock.fs_fshift = 0, i = sblock.fs_fsize; i > 1; i >>= 1)
-		sblock.fs_fshift++;
+	sblock.fs_bshift = ilog2(sblock.fs_bsize);
+	sblock.fs_fshift = ilog2(sblock.fs_fsize);
 	sblock.fs_frag = numfrags(&sblock, sblock.fs_bsize);
-	for (sblock.fs_fragshift = 0, i = sblock.fs_frag; i > 1; i >>= 1)
-		sblock.fs_fragshift++;
+	sblock.fs_fragshift = ilog2(sblock.fs_frag);
 	if (sblock.fs_frag > MAXFRAG) {
 		printf(
 	"fragment size %d is too small, minimum with block size %d is %d\n",
@@ -250,8 +248,7 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	sblock.fs_nindir = sblock.fs_bsize / sizeof(daddr_t);
 	sblock.fs_inopb = sblock.fs_bsize / sizeof(struct dinode);
 	sblock.fs_nspf = sblock.fs_fsize / sectorsize;
-	for (sblock.fs_fsbtodb = 0, i = NSPF(&sblock); i > 1; i >>= 1)
-		sblock.fs_fsbtodb++;
+	sblock.fs_fsbtodb = ilog2(NSPF(&sblock));
 	sblock.fs_sblkno =
 	    roundup(howmany(bbsize + sbsize, sblock.fs_fsize), sblock.fs_frag);
 	sblock.fs_cblkno = (daddr_t)(sblock.fs_sblkno +
@@ -568,8 +565,7 @@ next:
 	 */
 	i = sblock.fs_bsize / sizeof(struct csum);
 	sblock.fs_csmask = ~(i - 1);
-	for (sblock.fs_csshift = 0; i > 1; i >>= 1)
-		sblock.fs_csshift++;
+	sblock.fs_csshift = ilog2(i);
 	fscs = (struct csum *)calloc(1, sblock.fs_cssize);
 	if (fscs == NULL)
 		errx(31, "calloc failed");
@@ -1234,4 +1230,15 @@ charsperline()
 	if (columns == 0)
 		columns = 80;	/* last resort */
 	return (columns);
+}
+
+static int
+ilog2(int val)
+{
+	int n;
+
+	for (n = 0; n < sizeof(n) * NBBY; n++)
+		if (1 << n == val)
+			return (n);
+	errx(1, "ilog2: %d is not a power of 2\n", val);
 }
