@@ -506,6 +506,16 @@ wait channel (as a symbolic name)
 .It xstat
 exit or stop status (valid only for stopped or zombie process)
 .El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev COLUMNS"
+.It Ev COLUMNS
+If set, specifies the user's preferred output width in column positions.
+By default,
+.Nm
+attempts to automatically determine the terminal width.
+.El
 .Sh FILES
 .Bl -tag -width /var/db/kvm_kernel.db -compact
 .It Pa /dev/kmem
