@@ -75,23 +75,26 @@ with the
 option gives a verbose listing of the compile-time options.
 .El
 .Sh DIAGNOSTICS
-.Bl -tag -width Ds -compact
+The
+.Nm
+utility exits with one of the following values:
 .Pp
-.It Sy 0
+.Bl -tag -width indent -compact
+.It 0
 driver is pcvt and major and minor numbers match
-.It Sy 1
-open or ioctl system call failed
-.It Sy 2
+.It 1
+.Xr open 2
+or
+.Xr ioctl 2
+system call failed
+.It 2
 driver name mismatch
-.It Sy 3
+.It 3
 name matched, release major number mismatch
-.It Sy 4
-name & major number matched, release minor number mismatch
-.It Sy 5
+.It 4
+name and major number matched, release minor number mismatch
+.It 5
 usage error
 .El
-.Pp
-.Sh BUGS
-No known bugs
 .Sh SEE ALSO
 .Xr pcvt 4
