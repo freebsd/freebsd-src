@@ -1,4 +1,4 @@
-/*	$Id: cmds.c,v 1.13 1998/01/09 13:45:11 msmith Exp $	*/
+/*	$Id: cmds.c,v 1.14 1998/02/14 15:38:29 steve Exp $	*/
 /*	$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $	*/
 
 /*
@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-__RCSID("$Id: cmds.c,v 1.13 1998/01/09 13:45:11 msmith Exp $");
+__RCSID("$Id: cmds.c,v 1.14 1998/02/14 15:38:29 steve Exp $");
 __RCSID_SOURCE("$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $");
 #endif
 #endif /* not lint */
@@ -922,7 +922,7 @@ setglob(argc, argv)
 }
 
 /*
- * Toggle preserving modification times on retreived files.
+ * Toggle preserving modification times on retrieved files.
  */
 /*VARARGS*/
 void
