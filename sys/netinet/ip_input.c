@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.92 1998/07/06 03:20:16 julian Exp $
+ * $Id: ip_input.c,v 1.93 1998/07/06 05:00:52 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -607,6 +607,8 @@ found:
 #ifdef IPDIVERT
 	/*
 	 * Divert reassembled packets to the divert protocol if required
+	 *  If divert port is null then cookie should be too,
+	 * so we shouldn't need to clear them here. Assume ip_divert does so.
 	 */
 	if (frag_divert_port) {
 		ipstat.ips_delivered++;
@@ -736,7 +738,8 @@ ip_reass(ip, fp, where)
 	 * While we overlap succeeding segments trim them or,
 	 * if they are completely covered, dequeue them.
 	 */
-	while (q != (struct ipasfrag *)fp && ip->ip_off + ip->ip_len > q->ip_off) {
+	while (q != (struct ipasfrag *)fp &&
+	    ip->ip_off + ip->ip_len > q->ip_off) {
 		struct mbuf *m0;
 
 		i = (ip->ip_off + ip->ip_len) - q->ip_off;
@@ -758,7 +761,7 @@ insert:
 	/*
 	 * Any fragment diverting causes the whole packet to divert
 	 */
-	if (frag_divert_port != 0) {
+	if (frag_divert_port) {
 		fp->ipq_divert = frag_divert_port;
 		fp->ipq_div_cookie = ip_divert_cookie;
 	}
@@ -840,6 +843,10 @@ insert:
 	return ((struct ip *)ip);
 
 dropfrag:
+#ifdef IPDIVERT
+	frag_divert_port = 0;
+	ip_divert_cookie = 0;
+#endif
 	ipstat.ips_fragdropped++;
 	m_freem(m);
 	return (0);
