@@ -15,10 +15,10 @@
 # files rather then being hard coded here.
 #
 Spool=/usr/spool/uucp
-Lib=/usr/lib/uucp
+Lib=/usr/local/lib/uucp
 Status=$Spool/.Status
 Debug=$Spool/Debug
-Uucico=$lib/uucico
+Uucico=$Lib/uucico
 #
 # Default option values
 #
@@ -32,7 +32,7 @@ for i in $* ; do
     esac
 done
 
-if [ $s != "" ]; then
+if [ x$s != x ]; then
     rm -f $Status/$s
     $Uucico -r1 $x -s$s &
     >$Debug

@@ -2,7 +2,7 @@
    Header file for system dependent stuff in the Taylor UUCP package.
    This file is not itself system dependent.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -18,10 +18,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #ifndef SYSTEM_H
@@ -343,6 +343,12 @@ extern const char *zsysdep_save_temp_file P((pointer pseq));
    the move failed (in which the original file should remain).  */
 extern char *zsysdep_save_corrupt_file P((const char *zfile));
 
+/* Save a file in a location used to hold failed execution files.
+   This is called if a uuxqt execution fails.  This should return the
+   new name of the file (allocated by zbufalc), or NULL if the move
+   failed (in which case the original file should remain).  */
+extern char *zsysdep_save_failed_file P((const char *zfile));
+
 /* Cleanup anything left over by fsysdep_get_work_init and
    fsysdep_get_work.  This may be called even though
    fsysdep_get_work_init has not been.  */
@@ -461,6 +467,11 @@ extern boolean fsysdep_change_mode P((const char *zfile,
    closing the original file, removing it and reopening it.  This
    should return FALSE on error.  */
 extern openfile_t esysdep_truncate P((openfile_t e, const char *zname));
+
+/* Sync a file to disk.  If this fails it should log an error using
+   the zmsg parameter, and return FALSE.  This is controlled by the
+   FSYNC_ON_CLOSE macro in policy.h.  */
+extern boolean fsysdep_sync P((openfile_t e, const char *zmsg));
 
 /* It is possible for the acknowledgement of a received file to be
    lost.  The sending system will then now know that the file was
@@ -557,19 +568,25 @@ extern char *zsysdep_xqt_file_name P((void));
 /* Beginning getting execute files.  To get a list of execute files,
    first fsysdep_get_xqt_init is called, then zsysdep_get_xqt is
    called several times until it returns NULL, then finally
-   usysdep_get_xqt_free is called.  */
-extern boolean fsysdep_get_xqt_init P((void));
+   usysdep_get_xqt_free is called.  If the zsystem argument is not
+   NULL, it is the name of a system for which execution files are
+   desired.  */
+extern boolean fsysdep_get_xqt_init P((const char *zsystem));
 
 /* Get the next execute file.  This should return NULL when finished
-   (with *pferr set to FALSE).  On an error this should return NULL
-   with *pferr set to TRUE.  This should set *pzsystem to the name of
-   the system for which the execute file was created.  Both the return
-   value and *pzsystem should be freed using ubuffree.  */
-extern char *zsysdep_get_xqt P((char **pzsystem,
+   (with *pferr set to FALSE).  The zsystem argument should be the
+   same string as that passed to fsysdep_get_xqt_init.  On an error
+   this should return NULL with *pferr set to TRUE.  This should set
+   *pzsystem to the name of the system for which the execute file was
+   created; this is not guaranteed to match the zsystem argument--that
+   must be double checked by the caller.  Both the return value and
+   *pzsystem should be freed using ubuffree.  */
+extern char *zsysdep_get_xqt P((const char *zsystem, char **pzsystem,
 				boolean *pferr));
 
-/* Clean up after getting execute files.  */
-extern void usysdep_get_xqt_free P((void));
+/* Clean up after getting execute files.  The zsystem argument should
+   be the same string as that passed to fsysdep_get_xqt_init.  */
+extern void usysdep_get_xqt_free P((const char *zsystem));
 
 /* Get the absolute pathname of a command to execute.  This is given
    the legal list of commands (which may be the special case "ALL")

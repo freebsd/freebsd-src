@@ -21,3 +21,5 @@ find $(spooldir) -ctime +8 -name '[CDX].*' -print -exec rm -f \{\} \;
 find $(spooldir) -atime +1 -ctime +1 -name 'TM.*' -print -exec rm -f \{\} \;
 # Delete any old preserved files
 find $(spooldir)/.Preserve -atime +14 -ctime +14 -print -exec rm -f \{\} \;
+# Delete any old failed execution files
+find $(spooldir)/.Failed -atime +14 -ctime +14 -print -exec rm -f \{\} \;

@@ -387,11 +387,6 @@ fancy.
 Nickolay Saukh: use a default port for cu, you can just do ``cu
 number''.
 
-178.
-
-Don Phillips: should there be some way to restrict of grade of
-transfers even when the other system places the call?
-
 180.
 
 Nickolay Saukh: if we have received a partial file, request the remote
@@ -740,3 +735,43 @@ parameters, but it would be nice if this were dealt with somehow.
 Andrew A. Chernov: Perhaps uuxqt should log when it terminates.
 
 237.
+
+dialer-sequence doesn't really do the right thing.  There is no way to
+specify both the TCP address and a phone number.
+
+238.
+
+cu -t doesn't work at all.  It does nothing.
+
+239.
+
+Paul Pryor: Perhaps a service command should be added to the sys and
+port files.  This command would be used as ``service cu'' to indicate
+that the system or port was only available to cu, not to UUCP.
+
+240.
+
+Tim Iverson: The 'g' and 'i' protocol code tends to parse data packet
+headers twice.  It processes them once to find out how large the
+packet is, waits for that data to arrive, and then processes the
+header again the second time around.  It would be possible to avoid
+this by changing the code to be a simple state machine which
+remembered where it was in the process of parsing the packet.
+
+241.
+
+Klaus Dahlenburg: Log a more precise reason for failure in the .Status
+file: e.g., all ports in use, no matching ports, etc.
+
+242.
+
+Steven S. Dick: It would be helpful if there was a way to get uuchk to
+dump the data from ports/dialers/etc that was NOT picked up from the
+sys file.  In other words, add some option to scan the port file and
+the dial file, presumably using uuconf_find_port for the former and
+uuconf_dialer_names for the latter.
+
+243.
+
+Kai Michael Kretschmann: Add a configure option to drop the connection
+if jobs are coming in too slowly, indicating a bad connection.

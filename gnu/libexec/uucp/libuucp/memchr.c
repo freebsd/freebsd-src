@@ -17,8 +17,8 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with the GNU C Library; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 675 Mass Ave,
-Cambridge, MA 02139, USA.
+not, write to the Free Software Foundation, Inc., 59 Temple Place -
+Suite 330, Boston, MA 02111-1307, USA.
 
 This file was modified slightly by Ian Lance Taylor, May 1992, for
 Taylor UUCP.  It assumes 32 bit longs.  I'm willing to trust that any
@@ -53,9 +53,9 @@ memchr (s, c, n)
   /* Bits 31, 24, 16, and 8 of this number are zero.  Call these bits
      the "holes."  Note that there is a hole just to the left of
      each byte, with an extra at the end:
-
+     
      bits:  01111110 11111110 11111110 11111111
-     bytes: AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD
+     bytes: AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD 
 
      The 1-bits make sure that carries propagate to the next 0-bit.
      The 0-bits provide holes for carries to fall into.  */
@@ -108,10 +108,10 @@ memchr (s, c, n)
 
       /* Add MAGIC_BITS to LONGWORD.  */
       if ((((longword + magic_bits)
-
+	
 	    /* Set those bits that were unchanged by the addition.  */
 	    ^ ~longword)
-
+	       
 	   /* Look at only the hole bits.  If any of the hole bits
 	      are unchanged, most likely one of the bytes was a
 	      zero.  */

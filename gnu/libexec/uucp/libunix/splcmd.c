@@ -1,7 +1,7 @@
 /* splcmd.c
    Spool a command.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
@@ -104,6 +104,14 @@ zsysdep_spool_commands (qsys, bgrade, ccmds, pascmds)
 	}
     }
 
+  if (! fstdiosync (e, ztemp))
+    {
+      (void) fclose (e);
+      (void) remove (ztemp);
+      ubuffree (ztemp);
+      return NULL;
+    }
+
   if (fclose (e) != 0)
     {
       ulog (LOG_ERROR, "fclose: %s", strerror (errno));
@@ -112,23 +120,37 @@ zsysdep_spool_commands (qsys, bgrade, ccmds, pascmds)
       return NULL;
     }
 
-  z = zscmd_file (qsys, bgrade);
-  if (z == NULL)
+  /* The filename returned by zscmd_file is subject to some unlikely
+     race conditions, so keep trying the link until the destination
+     file does not already exist.  Each call to zscmd_file should
+     return a file name which does not already exist, so we don't have
+     to do anything special before calling it again.  */
+  while (TRUE)
     {
-      (void) remove (ztemp);
-      ubuffree (ztemp);
-      return NULL;
-    }
+      z = zscmd_file (qsys, bgrade);
+      if (z == NULL)
+	{
+	  (void) remove (ztemp);
+	  ubuffree (ztemp);
+	  return NULL;
+	}
 
-  if (! fsysdep_move_file (ztemp, z, FALSE, FALSE, FALSE,
-			   (const char *) NULL))
-    {
-      (void) remove (ztemp);
-      ubuffree (ztemp);
+      if (link (ztemp, z) >= 0)
+	break;
+
+      if (errno != EEXIST)
+	{
+	  ulog (LOG_ERROR, "link (%s, %s): %s", ztemp, z, strerror (errno));
+	  (void) remove (ztemp);
+	  ubuffree (ztemp);
+	  ubuffree (z);
+	  return NULL;
+	}
+
       ubuffree (z);
-      return NULL;
     }
 
+  (void) remove (ztemp);
   ubuffree (ztemp);
 
   zjobid = zsfile_to_jobid (qsys, z, bgrade);
