@@ -421,7 +421,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * pcb2->pcb_gs:	cloned above.  XXXKSE ???
 	 * pcb2->pcb_ext:	cleared below.
 	 */
-	 pcb2->pcb_ext = NULL;
+	pcb2->pcb_ext = NULL;
 }
 
 /*
