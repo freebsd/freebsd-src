@@ -81,6 +81,8 @@
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
 
+#include <machine/vmparam.h>
+
 /*
  * This is the zone from which all zones are spawned.  The idea is that even 
  * the zone heads are allocated from the allocator, so we use the bss section
@@ -633,10 +635,17 @@ finished:
 
 		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE)
 			uma_zfree_internal(slabzone, slab, NULL, 0);
-		if (zone->uz_flags & UMA_ZFLAG_MALLOC)
+		if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+			vm_object_t obj;
+
+			if (flags & UMA_SLAB_KMEM)
+				obj = kmem_object;
+			else
+				obj = NULL;
 			for (i = 0; i < zone->uz_ppera; i++)
 				vsetobj((vm_offset_t)mem + (i * PAGE_SIZE),
-				    kmem_object);
+				    obj);
+		}
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
 		    zone->uz_name, UMA_SLAB_SIZE * zone->uz_ppera);
@@ -1005,6 +1014,12 @@ zone_ctor(void *mem, int size, void *udata)
 		zone_large_init(zone);
 	else
 		zone_small_init(zone);
+#ifdef UMA_MD_SMALL_ALLOC
+	if (zone->uz_ppera == 1) {
+		zone->uz_allocf = uma_small_alloc;
+		zone->uz_freef = uma_small_free;
+	}
+#endif	/* UMA_MD_SMALL_ALLOC */
 
 	if (arg->flags & UMA_ZONE_MTXCLASS)
 		privlc = 1;
@@ -1228,6 +1243,9 @@ uma_startup(void *bootmem)
 	    NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_INTERNAL);
 
+#ifdef UMA_MD_SMALL_ALLOC
+	booted = 1;
+#endif
 
 #ifdef UMA_DEBUG
 	printf("UMA startup complete.\n");
