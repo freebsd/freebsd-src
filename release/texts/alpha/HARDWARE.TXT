@@ -126,9 +126,9 @@ confusing.
 Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
 enough smarts to make that work. It does not, however, mean that each and
 every PCI VGA card out on the street will work in an Alpha machine. Things
-like S3 Trio64, Mach64 generally work. Old ET4000 based ISA cards have also
-worked for me. But ask around first before buying. Please note that TGA
-cards are not supported as FreeBSD console display cards. 
+like S3 Trio64, Mach64, and Matrox Millenium generally work. Old ET4000 
+based ISA cards have also worked for me. But ask around first before buying. 
+Please note that TGA cards are not supported as FreeBSD console display cards. 
 
 Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
@@ -425,8 +425,8 @@ bug. The SRM does not know about the ECO and will complain about unknown cards
 as before. So does the FreeBSD kernel by the way.
 
 EIDE:
-The Miata SRM can boot from IDE CDROM drives. Hard disk boot is known to work for
-both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
+The Miata SRM can boot from IDE CDROM drives. Hard disk boot is known to work 
+for both MiataGL and MX5 disks, so you can root FreeBSD from an IDE disk. Speeds
 on MX5 are around 14 Mbytes/sec assuming a suitable drive. The CMD646 chip will
 support up to WDMA2 mode as the silicon is too buggy for use with UDMA.
 
@@ -457,8 +457,7 @@ from 149 Mbytes/sec to 115 Mbytes/sec. Something to keep in mind when doing
 really high speed things with 64 bit PCI adapters.
 
 USB:
-Does not currently seem to work on FreeBSD/alpha judging from the kernel
-probe messages.
+Supported by FreeBSD 4.1 and later.
 
 Power:
 disconnect the power cord before dismantling the machine, the soft-power
@@ -702,8 +701,8 @@ over 2 banks does not work.
 SCSI:
 The SRM can boot from Qlogic 10xx boards or the NCR/Symbios 53C810. 
 53C825[a] will also work as boot adapter. Diamond FirePort, although 
-based on Symbios chips, are not bootable by the PC164SX SRM. 
-PC164SX is reported to boot fine with an NCR875 based card.
+based on Symbios chips, is not bootable by the PC164SX SRM. 
+PC164SX is reported to boot fine with NCR825, NCR875 and NCR876 based cards.
 
 SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
@@ -736,8 +735,8 @@ For the EB164 class machines the kernel config file must contain:
 *
 
 The Digital AlphaStation 200 and 400 series systems are early PCI based
-workstations for the lower end. The 200 series is a desktop box, the 400
-series is a desk-side mini-tower.
+workstations for the lower end. The 200 and 250 series is a desktop box, the 
+400 series is a desk-side mini-tower.
 
 Features:
 - 21064 or 21064A CPU
@@ -745,24 +744,26 @@ Features:
     Cache/memory controller (one 21071-CA chip)
     PCI interface (one 21071-DA chip)
     Data path (two 21071-BA chips)
-- Bcache / L2 cache: 512 Kbytes
+- Bcache / L2 cache: 512 Kbytes (200 and 400 series)
+		     2048KBytes (250 series)
 - memory bus: 64 bit
 - memory: 8 to 384 MBytes of RAM,
 	  70 ns or better Fast Page DRAM,
-          in three pairs
+          in three pairs (200 and 400 series)
+	  in two quads, so banks of four. (250 series)
 	  uses parity 
 - PS/2 keyboard and mouse port
 - two 16550 serial ports
 - parallel port
 - floppy disk interface
-- 32 bit PCI expansion slots (3 for 400 series, 2 for 200 series)
-- ISA expansion slots (4 for 400 series, 2 for 200 series) 
+- 32 bit PCI expansion slots (3 for 400 series, 2 for 200 & 250 series)
+- ISA expansion slots (4 for 400 series, 2 for 200 & 250 series) 
   (some ISA/PCI slots are physically shared)
-- embedded 21040-based Ethernet (200 series only)
+- embedded 21040-based Ethernet (200 & 250 series)
 - embedded NCR/Symbios 53c810 Fast SCSI-2 chip
 - Intel 82378IB ("Saturn") PCI-ISA bridge chip
 - graphics is embedded TGA or PCI VGA (model dependent)
-- 16 bit sound (on 200 series)
+- 16 bit sound (on 200 & 250 series)
 
 Memory:
 the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
@@ -770,14 +771,14 @@ the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
 bit SIMMs will not work. 4, 8, 16, 32 and 64 Mbyte SIMMs are supported.
 
 Sound:
-The AS200 sound hardware is reported to work OK assuming you have the following
-line in your kernel config file:
+The AS200 & AS250 sound hardware is reported to work OK assuming you have 
+the following line in your kernel config file:
 
 	device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
 
 SCSI:
-AlphaStation 200 series has an automatic SCSI terminator. This means that as
-soon as you plug a cable onto the external SCSI connector the internal
+AlphaStation 200 & 250 series has an automatic SCSI terminator. This means that 
+as soon as you plug a cable onto the external SCSI connector the internal
 terminator of the system is disabled. It also means that you should not
 leave unterminated cables plugged into the machine.
 
@@ -786,7 +787,7 @@ case you have external SCSI devices connected you must set this SRM
 variable using: "set control_scsi_term external". If only internal SCSI devices
 are present use: "set control_scsi_term internal"
 
-For the AlphaStation-[24]00 machines the kernel config file must contain:
+For the AlphaStation-[24][05]00 machines the kernel config file must contain:
         options         DEC_2100_A50
 	cpu		EV4
 
@@ -999,7 +1000,7 @@ Expansion:
 On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 5V variants.
 
 USB:
-whether this works on FreeBSD on DS10 is as yet unknown.
+Is supported in FreeBSD 4.1 and later.
 
 The kernel config file must contain:
 	options         DEC_ST6600    
@@ -1106,7 +1107,7 @@ Features:
 	     1 ISA slot
 
 Case:
-DS20 is housed in a fat minitower-like enclosure. The enclosure also
+DS20 is housed in a fat cube-like enclosure. The enclosure also
 contains a StorageWorks SCSI hot-swap shelf for a maximum of 7 3.5" SCSI
 devices. DS20E is a sleeker case, without the StorageWorks shelf.
 
@@ -1136,7 +1137,8 @@ The kernel config file must contain:
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
-** AlphaPC 264DP <need more info on this one; please check for correctness>
+** AlphaPC 264DP / UP2000
+	<need more info on this one; please check for correctness>
 
 Features:
 - 21264 EV6 CPU at 670 MHz
@@ -1176,6 +1178,117 @@ The kernel config file must contain:
 
 Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
 kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
+
+*
+* AlphaServer 2000 ("DemiSable"), 2100 ("Sable"), 2100A ("Lynx")
+*
+	<need more info on this one; please check for correctness>
+
+The AlphaServer 2[01]00 machines are aimed as departmental servers.
+This is medium iron, not a hobbyist system. These are multi-CPU machines, 
+up to 2 CPUs (AS2000) or 4 CPUs (2100[A]) can be in a single machine. 
+Both floorstanding and 19" rackmount boxes exist. Rackmount variations have
+different numbers of I/O expansion slots, different max number of CPUs and
+different maximum memory size. Some of the boxes come with an integral
+StorageWorks shelf to house hotswap SCSI disks. 
+
+Features:
+- 21064 EV4 CPU[s] at 200, 233, 275 MHz
+- 21164 EV5 CPU[s]s at 250, 300, 375 MHz
+- cache: varies in size with the CPU model; 1, 4 or 8Mbyte per CPU
+- embedded floppy controller
+- embedded 10Mbit 21040 ethernet
+- 2 serial ports
+- 1 parallel port
+- PS/2 style keyboard & mouse port
+
+NOTE: Lynx support is currently flagged as experimental due to lack of
+      testing / test hardware.
+
+Memory:
+The machines use dedicated memory boards. These boards live on a 128 bit 
+C-bus shared with the CPU boards. DemiSable supports up to 1Gb, Sable up 
+to 2Gb. One of the memory bus slots can either hold a CPU or a memory card.
+Some memory board modules house SIMMs. There are also memory modules that
+have soldered-on memory chips instead of SIMMs. SIMM boards are used in sets 
+of eight 72-pin 36 bit FPM memory of 70ns or faster. SIMM types supported 
+are 1Mb x36 bit (4 Mbyte) and 4Mb x36 bit (16 Mbyte). Each memory board 
+can house 4 banks of SIMMs. SIMM sizes can not be mixed on a single memory
+board.
+
+Embedded SCSI:
+Both Sable, DemiSable and Lynx have NCR810 based Fast SCSI onboard.
+
+Expansion:
+DemiSable has 7 EISA slots and 3 PCI slots. Sable has 8 EISA and 3 PCI
+slots. Lynx, being newer, has 8 PCI and 3 EISA slots. Make sure you run the
+EISA Configuration Utility (from floppy) when adding/change expansion cards
+in EISA slots.
+
+	NOTE: EISA slots are currently unsupported.
+
+Power:
+The machines can be equipped with redundant power supplies.
+
+The kernel config file must contain:
+       options         DEC_2100_A500
+       cpu             EV4
+       cpu	       EV5
+
+*
+* AlphaServer 4100 ("Rawhide")
+*
+	<need more info on this one; please check for correctness>
+
+The AlphaServer 4100 machine is aimed as an enterprise server.
+Expect a 30" high pedestal cabinet or alternatively the same system box in a
+19" rack. This is medium iron, not a hobbyist system. 
+These are multi-CPU machines, up to 4 CPUs can be in a single
+machine.  Basic disk storage is housed in one or two StorageWorks shelves
+at the bottom of the pedestal. The Rawhides intended for the NT market are
+designated DIGITAL Server 7300 (5/400 CPU), DIGITAL Server 7305 (5/533 CPU).
+A trailing R on the partnumber means a rackmount variant.
+
+Features:
+- 21164 EV5 CPUs at 266, 300 MHz
+  21164A EV56 CPUs at 400, 466, 533 and 600 Mhz
+- cache: 4 Mbytes per CPU (EV5 300 MHz was also available cache-less)
+	 8 Mbytes (EV5 600Mhz only)
+- memory bus: 128 bit with ECC
+- embedded floppy controller
+- 2 serial ports
+- 1 parallel port
+- PS/2 style keyboard & mouse port
+
+Memory:
+Rawhide uses a maximum of 8 RAM modules. These modules are used in pairs
+and supply 72 bits to the bus (this includes ECC bits). Memory can be EDO
+RAM or synchronous DRAM. A fully populated Rawhide has 4 pairs of memory
+modules. Given the choice use SDRAM for best performance. The highest 
+capacity memory board must be in memory slot 0. A mix of memory board sizes
+is allowed. A mix of EDO and SDRAM is also reported as working (assuming you
+don't try to mix EDO and SDRAM in one module pair).
+
+Embedded SCSI:
+Rawhide has a embedded NCR810 Fast SCSI bus.
+
+Expansion:
+Rawhides are available with a 8 64-bit PCI / 3 EISA slot expansion backplanes
+(called 'Saddle' modules). There are 2 seperate PCI buses, PCI0 and PCI1.
+PCI0 has 1 dedicated PCI slot and (shared) 3 PCI/EISA slots. PCI0 also has a
+PCI/EISA bridge that drives things like the serial and parallel ports,
+keyboard/mouse etc. PCI1 has 4 PCI slots and an NCR810 SCSI chip.
+
+	NOTE: EISA slots are currently unsupported.
+
+Power:
+The system employs an I2C based power controller system. If you want to be
+sure all power is removed from the system pull the mains cables from the
+system.
+
+The kernel config file must contain:
+       options         DEC_KN300
+       cpu             EV5
 
 *
 * AlphaServer 8200 and 8400 ("TurboLaser")
@@ -1301,19 +1414,13 @@ a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed
 to work by Compaq/DEC for each and every card type out there. When the SRM 
 thinks the VGA is acceptable FreeBSD will be able to use it. The console driver
 works just like on a FreeBSD/intel machine. The TGA video graphics which 
-is built-in on for example Multia is reported to be not usable with FreeBSD.
+is embedded on for example Multia does *not* work with FreeBSD. TGA based
+PCI cards are also *not* supported.
 
 - serial ports: the 'PC standard' serial ports found on most Alphas are 
 supported. For TurboChannel machines the serial ports are also supported.
 
 - ISDN (i4b): is not supported on FreeBSD/alpha
-
-- multimedia: is not really supported on FreeBSD/alpha but work is underway
-
-Hardware support due soon
--------------------------
-
-- Support for the AlphaServer 4100 ("Rawhide") machines (post-4.0)
 
 Acknowledgments
 ----------------
@@ -1329,7 +1436,7 @@ People who kindly helped me with creating this document:
 - Andrew Gallatin <gallatin@cs.duke.edu>
 - Christian Weisgerber <naddy@mips.rhein-neckar.de>
 - David O'Brien <obrien@NUXI.com>
-- Wim Lemmers
+- Wim Lemmers, Compaq
 - Matthew Jacob <mjacob@feral.com>
 - Eric Schnoebelen <eric@cirr.com>
 - Chuck Robey <chuckr@picnic.mat.net>
