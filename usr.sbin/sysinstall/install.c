@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.109 1996/07/08 08:54:27 jkh Exp $
+ * $Id: install.c,v 1.110 1996/07/08 10:08:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,6 +66,11 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 
     status = TRUE;
     *rdev = *sdev = *udev = rootdev = swapdev = usrdev = NULL;
+
+    /* We don't need to worry about root/usr/swap if we already have it */
+    if (!RunningAsInit)
+	return status;
+
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     /* First verify that we have a root device */
     for (i = 0; devs[i]; i++) {
@@ -85,9 +90,11 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 					   "Using the first one found.");
 				continue;
 			    }
-			    rootdev = c2;
-			    if (isDebug())
-				msgDebug("Found rootdev at %s!\n", rootdev->name);
+			    else {
+				rootdev = c2;
+				if (isDebug())
+				    msgDebug("Found rootdev at %s!\n", rootdev->name);
+			    }
 			}
 			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/usr")) {
 			    if (usrdev) {
@@ -95,9 +102,11 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 					   "Using the first one found.");
 				continue;
 			    }
-			    usrdev = c2;
-			    if (isDebug())
-				msgDebug("Found usrdev at %s!\n", usrdev->name);
+			    else {
+				usrdev = c2;
+				if (isDebug())
+				    msgDebug("Found usrdev at %s!\n", usrdev->name);
+			    }
 			}
 		    }
 		}
@@ -105,7 +114,6 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 	}
     }
 
-    swapdev = NULL;
     /* Now check for swap devices */
     for (i = 0; devs[i]; i++) {
 	if (!devs[i]->enabled)
@@ -128,21 +136,21 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 	}
     }
 
+    /* Copy our values over */
     *rdev = rootdev;
+    *sdev = swapdev;
+    *udev = usrdev;
+
     if (!rootdev) {
 	msgConfirm("No root device found - you must label a partition as /\n"
 		   "in the label editor.");
 	status = FALSE;
     }
-
-    *sdev = swapdev;
     if (!swapdev) {
 	msgConfirm("No swap devices found - you must create at least one\n"
 		   "swap partition.");
 	status = FALSE;
     }
-
-    *udev = usrdev;
     if (!usrdev) {
 	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
@@ -652,62 +660,73 @@ installFilesystems(dialogMenuItem *self)
     if (!checkLabels(&rootdev, &swapdev, &usrdev))
 	return DITEM_FAILURE;
 
-    root = (PartInfo *)rootdev->private_data;
+    if (rootdev)
+	root = (PartInfo *)rootdev->private_data;
+    else
+	root = NULL;
+
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
-    /* As the very first thing, try to get ourselves some swap space */
-    sprintf(dname, "/dev/%s", swapdev->name);
-    if (!Fake && (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname))) {
-	msgConfirm("Unable to make device node for %s in /dev!\n"
-		   "The creation of filesystems will be aborted.", dname);
-	return DITEM_FAILURE;
-    }
-    if (!Fake && !swapon(dname))
-	msgNotify("Added %s as initial swap device", dname);
-    else if (!Fake)
-	msgConfirm("WARNING!  Unable to swap to %s: %s\n"
-		   "This may cause the installation to fail at some point\n"
-		   "if you don't have a lot of memory.", dname, strerror(errno));
-
-    /* Next, create and/or mount the root device */
-    sprintf(dname, "/dev/r%sa", rootdev->disk->name);
-    if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
-	msgConfirm("Unable to make device node for %s in /dev!\n"
-		   "The creation of filesystems will be aborted.", dname);
-	return DITEM_FAILURE;
-    }
-
-    if (strcmp(root->mountpoint, "/"))
-	msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
-
-    if (root->newfs) {
-	int i;
-
-	msgNotify("Making a new root filesystem on %s", dname);
-	i = vsystem("%s %s", root->newfs_cmd, dname);
-	if (i) {
-	    msgConfirm("Unable to make new root filesystem on %s!\n"
-		       "Command returned status %d", dname, i);
+    if (swapdev) {
+	/* As the very first thing, try to get ourselves some swap space */
+	sprintf(dname, "/dev/%s", swapdev->name);
+	if (!Fake && (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname))) {
+	    msgConfirm("Unable to make device node for %s in /dev!\n"
+		       "The creation of filesystems will be aborted.", dname);
 	    return DITEM_FAILURE;
 	}
-    }
-    else {
-	if (!upgrade) {
-	    msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
-		       "that you have the appropriate device entries already in /dev.");
+
+	if (!Fake) {
+	    if (!swapon(dname))
+		msgNotify("Added %s as initial swap device", dname);
+	    else
+		msgConfirm("WARNING!  Unable to swap to %s: %s\n"
+			   "This may cause the installation to fail at some point\n"
+			   "if you don't have a lot of memory.", dname, strerror(errno));
 	}
-	msgNotify("Checking integrity of existing %s filesystem.", dname);
-	i = vsystem("fsck -y %s", dname);
-	if (i)
-	    msgConfirm("Warning: fsck returned status of %d for %s.\n"
-		       "This partition may be unsafe to use.", i, dname);
     }
-    /* Switch to block device */
-    sprintf(dname, "/dev/%sa", rootdev->disk->name);
-    if (Mount("/mnt", dname)) {
-	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
-	return DITEM_FAILURE;
+
+    if (rootdev) {
+	/* Next, create and/or mount the root device */
+	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
+	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
+	    msgConfirm("Unable to make device node for %s in /dev!\n"
+		       "The creation of filesystems will be aborted.", dname);
+	    return DITEM_FAILURE;
+	}
+	if (strcmp(root->mountpoint, "/"))
+	    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", rootdev->name, root->mountpoint);
+
+	if (root->newfs) {
+	    int i;
+
+	    msgNotify("Making a new root filesystem on %s", dname);
+	    i = vsystem("%s %s", root->newfs_cmd, dname);
+	    if (i) {
+		msgConfirm("Unable to make new root filesystem on %s!\n"
+			   "Command returned status %d", dname, i);
+		return DITEM_FAILURE;
+	    }
+	}
+	else {
+	    if (!upgrade) {
+		msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
+			   "that you have the appropriate device entries already in /dev.");
+	    }
+	    msgNotify("Checking integrity of existing %s filesystem.", dname);
+	    i = vsystem("fsck -y %s", dname);
+	    if (i)
+		msgConfirm("Warning: fsck returned status of %d for %s.\n"
+			   "This partition may be unsafe to use.", i, dname);
+	}
+
+	/* Switch to block device */
+	sprintf(dname, "/dev/%sa", rootdev->disk->name);
+	if (Mount("/mnt", dname)) {
+	    msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
+	    return DITEM_FAILURE;
+	}
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -721,7 +740,7 @@ installFilesystems(dialogMenuItem *self)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return DITEM_FAILURE;
 	}
-	if (root->newfs || upgrade) {
+	if (root && (root->newfs || upgrade)) {
 	    Mkdir("/mnt/dev");
 	    if (!Fake)
 		MakeDevDisk(disk, "/mnt/dev");
