@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.6 1997/02/12 13:41:21 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.7 1997/06/16 09:56:02 kato Exp $
  */
 
 /*
@@ -2256,7 +2256,7 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	sc->asic_addr = isa_dev->id_iobase + ED_NOVELL_ASIC_OFFSET;
 	sc->nic_addr  = isa_dev->id_iobase + ED_NOVELL_NIC_OFFSET;
 
-	/* Choice initial register address */
+	/* Choose initial register address */
 	if (ED_TYPE98SUB(isa_dev->id_flags) != 0) {
 		init_addr = ED_CNET98EL_INIT2;
 	}
@@ -2285,9 +2285,8 @@ static int ed_probe_CNET98EL(struct isa_device* isa_dev)
 	tmp = (sc->nic_addr & (u_short) 0xf000) >> 8;
 	tmp |= (0x08 | 0x01);
 	/*
-	 * bit0 is 1:above 80286 or 0:not.
-	 * But FreeBSD runs under i386 or higher.
-	 * Therefore bit0 must be 1.
+	 * bit0 is 1:80286 or higher, 0:not.
+	 * But FreeBSD runs under i386 or higher, thus bit0 must be 1.
 	 */
 #ifdef ED_DEBUG
 	printf("ed%d: outb(%x, %x)\n", isa_dev->id_unit, init_addr + 2, tmp);
