@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)args.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: args.c,v 1.12 1998/05/06 06:51:29 charnier Exp $";
+	"$Id: args.c,v 1.13 1998/05/13 07:33:36 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -328,7 +328,7 @@ c_conv(a, b)
  *	4) A positive decimal number followed by a m (mult by 512).
  *	5) A positive decimal number followed by a w (mult by sizeof int)
  *	6) Two or more positive decimal numbers (with/without k,b or w).
- *	   seperated by x (also * for backwards compatibility), specifying
+ *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  */
 static u_long

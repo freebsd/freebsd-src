@@ -46,7 +46,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)pax.c	8.2 (Berkeley) 4/18/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pax.c,v 1.11 1998/05/15 06:27:45 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -143,14 +143,14 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  *	-U options.
  * 1.10	Files can be selected based on group (group name or gid) via one o
  *	more -G options.
- * 1.11	File modification time can be checked against exisiting file after
+ * 1.11	File modification time can be checked against existing file after
  *	name modification (-Z)
  *
  * 2	WRITE ENHANCEMENTS
  * 2.1	Write operation will stop instead of allowing a user to create a flawed
  *	flawed archive (due to any problem).
- * 2.2	Archives writtens by pax are forced to strictly conform to both the
- *	archive and pax the spceific format specifications.
+ * 2.2	Archives written by pax are forced to strictly conform to both the
+ *	archive and pax the specific format specifications.
  * 2.3	Blocking size and format is rigidly enforced on writes.
  * 2.4	Formats which may exhibit header overflow problems (they have fields
  *	too small for large file systems, such as inode number storage), use
@@ -163,7 +163,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  * 2.6	A archive volume record limit allows the user to specify the number
  *	of bytes stored on an archive volume. When reached the user is
  *	prompted for the next archive volume. This is specified with the
- *	non-standard -B flag. THe limit is rounded up to the next blocksize.
+ *	non-standard -B flag. The limit is rounded up to the next blocksize.
  * 2.7	All archive padding during write use zero filled sections. This makes
  *	it much easier to pull data out of flawed archive during read
  *	operations.
@@ -198,11 +198,11 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  *	more -G options.
  * 3.8	Symlinks which appear on the command line can be followed (without
  *	following other symlinks; -H flag)
- * 3.9  File inode change time can be checked against exisiting file before
+ * 3.9  File inode change time can be checked against existing file before
  *	name modification (-D)
- * 3.10 File inode change time can be checked against exisiting file after
+ * 3.10 File inode change time can be checked against existing file after
  *	name modification (-Y)
- * 3.11	File modification time can be checked against exisiting file after
+ * 3.11	File modification time can be checked against existing file after
  *	name modification (-Z)
  *
  * 4	GENERAL ENHANCEMENTS

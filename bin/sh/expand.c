@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif
 static const char rcsid[] =
-	"$Id: expand.c,v 1.25 1999/04/09 15:23:48 tegge Exp $";
+	"$Id: expand.c,v 1.24.2.1 1999/04/12 15:46:01 cracauer Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -382,10 +382,10 @@ expari(flag)
 
 
 	/*
-	 * This routine is slightly over-compilcated for
+	 * This routine is slightly over-complicated for
 	 * efficiency.  First we make sure there is
 	 * enough space for the result, which may be bigger
-	 * than the expression if we add exponentation.  Next we
+	 * than the expression if we add exponentiation.  Next we
 	 * scan backwards looking for the start of arithmetic.  If the
 	 * next previous character is a CTLESC character, then we
 	 * have to rescan starting from the beginning since CTLESC

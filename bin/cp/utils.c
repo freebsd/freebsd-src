@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: utils.c,v 1.20 1998/06/10 06:29:23 peter Exp $";
+	"$Id: utils.c,v 1.21 1998/11/18 11:47:45 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -171,7 +171,7 @@ copy_file(entp, dne)
 	/*
 	 * Don't remove the target even after an error.  The target might
 	 * not be a regular file, or its attributes might be important,
-	 * or its contents might be irreplacable.  It would only be safe
+	 * or its contents might be irreplaceable.  It would only be safe
 	 * to remove it if we created it and its length is 0.
 	 */
 

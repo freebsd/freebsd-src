@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: cp.c,v 1.16 1998/05/13 07:25:14 charnier Exp $";
+	"$Id: cp.c,v 1.17 1998/06/09 13:42:51 dt Exp $";
 #endif /* not lint */
 
 /*
@@ -286,7 +286,7 @@ copy(argv, type, fts_options)
 			 * is the case where the target exists.
 			 *
 			 * Also, check for "..".  This is for correct path
-			 * concatentation for paths ending in "..", e.g.
+			 * concatenation for paths ending in "..", e.g.
 			 *	cp -R .. /tmp
 			 * Paths ending in ".." are changed to ".".  This is
 			 * tricky, but seems the easiest way to fix the problem.

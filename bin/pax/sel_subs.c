@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)sel_subs.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sel_subs.c,v 1.9 1998/05/15 06:27:46 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -73,7 +73,7 @@ static GRPT **grptb = NULL;		/* group selection table */
 
 /*
  * sel_chk()
- *	check if this file matches a specfied uid, gid or time range
+ *	check if this file matches a specified uid, gid or time range
  * Return:
  *	0 if this archive member should be processed, 1 if it should be skipped
  */
@@ -99,7 +99,7 @@ sel_chk(arcn)
  *
  * Routines to handle user selection of files based on the file uid/gid. To
  * add an entry, the user supplies either then name or the uid/gid starting with
- * a # on the command line. A \# will eascape the #.
+ * a # on the command line. A \# will escape the #.
  */
 
 /*

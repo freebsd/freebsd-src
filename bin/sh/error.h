@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
- *	$Id: error.h,v 1.8 1998/08/24 10:20:36 cracauer Exp $
+ *	$Id: error.h,v 1.9 1998/08/24 19:15:48 cracauer Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
  * We enclose jmp_buf in a structure so that we can declare pointers to
  * jump locations.  The global variable handler contains the location to
  * jump to when an exception occurs, and the global variable exception
- * contains a code identifying the exeception.  To implement nested
+ * contains a code identifying the exception.  To implement nested
  * exception handlers, the user should save the value of handler on entry
  * to an inner scope, set handler to point to a jmploc structure for the
  * inner scope, and restore handler on exit from the scope.

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pax.h	8.2 (Berkeley) 4/18/94
- *	$Id$
+ *	$Id: pax.h,v 1.6 1997/02/22 14:04:40 peter Exp $
  */
 
 /*
@@ -49,7 +49,7 @@
 				/* Don't even think of changing this */
 #define DEVBLK		8192	/* default read blksize for devices */
 #define FILEBLK		10240	/* default read blksize for files */
-#define PAXPATHLEN	3072	/* maximium path length for pax. MUST be */
+#define PAXPATHLEN	3072	/* maximum path length for pax. MUST be */
 				/* longer than the system MAXPATHLEN */
 
 /*
@@ -77,7 +77,7 @@
  * The format specific routine table allows new archive formats to be quickly
  * added. Overall pax operation is independent of the actual format used to
  * form the archive. Only those routines which deal directly with the archive
- * are tailored to the oddities of the specifc format. All other routines are
+ * are tailored to the oddities of the specific format. All other routines are
  * independent of the archive format. Data flow in and out of the format
  * dependent routines pass pointers to ARCHD structure (described below).
  */
@@ -103,7 +103,7 @@ typedef struct {
 	int hlk;		/* does archive store hard links info? if */
 				/* not, we do not bother to look for them */
 				/* during archive write operations */
-	int blkalgn;		/* writes must be aligned to blkalgn boundry */
+	int blkalgn;		/* writes must be aligned to blkalgn boundary */
 	int inhead;		/* is the trailer encoded in a valid header? */
 				/* if not, trailers are assumed to be found */
 				/* in invalid headers (i.e like tar) */
@@ -141,7 +141,7 @@ typedef struct {
 				/* a flawed archive header. */
 	int (*end_wr)();	/* end write. write the trailer and do any */
 				/* other format specific functions needed */
-				/* at the ecnd of a archive write */
+				/* at the end of a archive write */
 	int (*trail)();		/* returns 0 if a valid trailer, -1 if not */
 				/* For formats which encode the trailer */
 				/* outside of a valid header, a return value */

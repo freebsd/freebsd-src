@@ -42,7 +42,7 @@
 static char * const rcsid = "@(#)cbc.c,v 1.2 1994/02/01 00:34:36 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: cbc.c,v 1.9 1997/02/22 14:03:12 peter Exp $";
+	"$Id: cbc.c,v 1.10 1997/08/07 21:33:40 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -124,7 +124,7 @@ init_des_cipher()
 	/* initialize the initialization vector */
 	MEMZERO(ivec, 8);
 
-	/* intialize the padding vector */
+	/* initialize the padding vector */
 	srand((unsigned) time((time_t *) 0));
 	for (i = 0; i < 8; i++)
 		CHAR(pvec, i) = (char) (rand()/RAND_DIV);
