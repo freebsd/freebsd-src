@@ -559,7 +559,6 @@ vendor INTERSIL2		-1	Intersil
 vendor IODATA3			-1	I-O DATA
 vendor LANTECH			-1	Lantech Computer Company
 vendor MELCO2			-1	Melco Corporation
-vendor NAKAGAWAMETAL		-1	NAKAGAWA METAL
 vendor NDC			-1	NDC
 vendor NEC			-1	NEC
 vendor OEM2			-1	Generic OEM
@@ -567,7 +566,7 @@ vendor PLANET			-1 	Planet
 vendor PREMAX			-1 	Premax
 vendor RPTI			-1 	RPTI
 vendor SVEC			-1	SVEC/Hawking Technology
-vendor SYNERGY21		-1	Synergy 21
+vendor TAMARACK			-1	Tamarack
 vendor TEAC			-1	TEAC
 vendor TOSHIBA			-1	TOSHIBA
 vendor WORKBIT2			-1	WORKBIT
@@ -631,7 +630,6 @@ product LINKSYS ECARD_2		{ "LINKSYS", "E-CARD", NULL, NULL } Linksys E-Card
 product MACNICA MPS100		{ "MACNICA", "MIRACLE&spSCSI", "mPS100", "D.0" } Macnica Miracle SCSI mPS100
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
 product MELCO2 LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
-product NAKAGAWAMETAL LNT10TN	{ "PCMCIA", "LNT-10TN", NULL, NULL } NAKAGAWA METAL LNT-10TN NE2000 Compatible Card 
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
 product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP
@@ -640,6 +638,7 @@ product NEWMEDIA BASICS_SCSI	{ "BASICS&spby&spNew&spMedia&spCorporation" "SCSI&s
 product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NULL } NTT-ME 11Mbps Wireless LAN PC Card
 product OEM2 CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL } Generic PCMCIA CD-ROM
 product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
+product OEM2 ETHERNET		{ "PCMCIA", "Ethernet", NULL, NULL } NE2000 PC Card
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
 product RPTI EP401		{ "RPTI", "EP401&spEthernet&spNE2000&spCompatible", NULL, NULL } RPTI EP401
@@ -655,7 +654,7 @@ product SMC 2632W		{ "SMC", "SMC2632W", "Version&sp01.02", NULL } SMC 2632 EZ Co
 product SMC 8041		{ "SMC", "8041TX-10/100-PC-Card-V2", NULL, NULL } SMC 8041TX 10/100 PC Card
 product SVEC COMBOCARD		{ "Ethernet", "Adapter", NULL, NULL } SVEC/Hawking Tech. Combo Card
 product SVEC LANCARD		{ "SVEC", "FD605&spPCMCIA&spEtherNet&spCard", "V1-1", NULL } SVEC PCMCIA Lan Card
-product SYNERGY21 S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" } Synergy 21 S21810+ NE2000 Compatible Card
+product TAMARACK ETHERNET	{ "TAMARACK", "Ethernet", NULL, NULL } TAMARACK NE2000 PC Card
 product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
 product TOSHIBA CBIDE2         { "LOOKMEET", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } TOSHIBA PA2673U CBIDE2/16-bit mode (IO-DATA OEM)
 product WORKBIT2 NINJA_SCSI3	{ "WBT", "NinjaSCSI-3", NULL, NULL } WORKBIT Ninja SCSI series
