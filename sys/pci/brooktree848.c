@@ -374,8 +374,6 @@ static struct {
  * i2c things:
  */
 
-#define TEST_PAL
-
 /* PLL on a Temic NTSC tuner: 4032FY5 */
 #define TEMIC_NTSC_WADDR	0xc0
 #define TEMIC_NTSC_RADDR	0xc1
@@ -3246,6 +3244,13 @@ const struct CARDTYPE cards[] = {
 
 /*
  * the data for each type of tuner
+ *
+ * if probeCard() fails to detect the proper tuner on boot you can
+ * override it by setting the following define to the tuner present:
+ *
+#define OVERRIDE_TUNER	<tuner type>
+ *
+ * where <tuner type> is one of the following tuner defines.
  */
 
 /* indexes into tuners[] */
@@ -3402,6 +3407,11 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	bktr->card = cards[ (card = CARD_MIRO) ];
 
 checkTuner:
+#if defined( OVERRIDE_TUNER )
+	bktr->card.tuner = &tuners[ OVERRIDE_TUNER ];
+	goto checkDBX;
+#endif
+
 	/* differentiate type of tuner */
 	if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
 		bktr->card.tuner = &tuners[ TEMIC_NTSC ];
@@ -3412,20 +3422,23 @@ checkTuner:
 		bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
 		goto checkDBX;
 	}
-#if defined( TEST_PAL )
-/** WARNING: this is a test */
+
 	if ( card == CARD_HAUPPAUGE ) {
 		if ( i2cRead( bktr, TEMIC_PALI_RADDR ) != ABSENT ) {
 			bktr->card.tuner = &tuners[ TEMIC_PAL ];
 			goto checkDBX;
 		}
 	}
-#endif /* TEST_PAL */
 
 	/* no tuner found */
 	bktr->card.tuner = &tuners[ NO_TUNER ];
 
 checkDBX:
+#if defined( OVERRIDE_DBX )
+	bktr->card.dbx = OVERRIDE_DBX;
+	goto end;
+#endif
+
 	/* probe for BTSC (dbx) chips */
 	if ( i2cRead( bktr, TDA9850_RADDR ) != ABSENT )
 		bktr->card.dbx = 1;
