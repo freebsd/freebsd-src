@@ -80,9 +80,10 @@ int	intdata;
 int	chardata;
 int	nosign;
 int	nofinalnl;
-char	*sepstring = "\n";
+const	char *sepstring = "\n";
 char	format[BUFSIZ];
 
+int		main __P((int, char *[]));
 void		getformat __P((void));
 int		getprec __P((char *));
 int		putdata __P((double, long));
@@ -276,7 +277,7 @@ main(argc, argv)
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = (double) arc4random() / ULONG_MAX;
+			*y = arc4random() / ULONG_MAX;
 			if (putdata(*y * *x + begin, reps - *i))
 				errx(1, "range error in conversion");
 		}
@@ -336,13 +337,13 @@ usage()
 }
 
 int
-getprec(s)
-	char *s;
+getprec(str)
+	char *str;
 {
 	char	*p;
 	char	*q;
 
-	for (p = s; *p; p++)
+	for (p = str; *p; p++)
 		if (*p == '.')
 			break;
 	if (!*p)
@@ -356,10 +357,9 @@ getprec(s)
 void
 getformat()
 {
-	char	*p;
+	char	*p, *p2;
 	int dot, hash, space, sign, numbers = 0;
 	size_t sz;
-	char *s;
 
 	if (boring)				/* no need to bother */
 		return;
@@ -384,7 +384,7 @@ getformat()
 		 * %[#][ ][{+,-}][0-9]*[.[0-9]*]? where ? must be one of
 		 * [l]{d,i,o,u,x} or {f,e,g,E,G,d,o,x,D,O,U,X,c,u}
 		 */
-		s = p++;
+		p2 = p++;
 		dot = hash = space = sign = numbers = 0;
 		while (!isalpha(*p)) {
 			if (isdigit(*p)) {
@@ -439,7 +439,7 @@ getformat()
 		default:
 fmt_broken:
 			*++p = '\0';
-			errx(1, "illegal or unsupported format '%s'", s);
+			errx(1, "illegal or unsupported format '%s'", p2);
 			/* NOTREACHED */
 		}
 		while (*++p)
