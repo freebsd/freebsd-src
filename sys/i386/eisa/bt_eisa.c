@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_eisa.c,v 1.1 1998/09/15 07:32:52 gibbs Exp $
+ *	$Id: bt_eisa.c,v 1.1.2.1 1999/03/08 21:38:03 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -232,7 +232,7 @@ bt_eisa_probe(void)
 		}
 
 		if (bt_port_probe(bt, &info) != 0) {
-			printf("bt_eisa_probe: Probe failled for "
+			printf("bt_eisa_probe: Probe failed for "
 			       "card at slot 0x%x\n", e_dev->ioconf.slot);
 		} else {
 			eisa_add_iospace(e_dev, iobase, iosize, RESVADDR_NONE);
