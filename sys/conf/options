@@ -1,4 +1,4 @@
-#	$Id: options,v 1.143 1999/06/27 19:28:26 mjacob Exp $
+#	$Id: options,v 1.144 1999/07/05 20:19:34 mjacob Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -207,6 +207,8 @@ MROUTING		opt_mrouting.h
 INET			opt_inet.h
 IPDIVERT
 DUMMYNET		opt_ipdn.h
+IPFILTER		opt_ipfilter.h
+IPFILTER_LOG		opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
@@ -220,11 +222,9 @@ NETATALK		opt_atalk.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
+SLIP_IFF_OPTS		opt_slip.h
 TCP_COMPAT_42		opt_compat.h
 TCPDEBUG
-IPFILTER		opt_ipfilter.h
-IPFILTER_LOG		opt_ipfilter.h
-SLIP_IFF_OPTS		opt_slip.h
 
 # ATM (HARP version)
 ATM_CORE		opt_atm.h
