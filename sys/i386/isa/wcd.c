@@ -356,20 +356,22 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	dev_attach (&t->cf);
 
 #ifdef DEVFS
-#define WDC_UID 0
-#define WDC_GID 13
 	t->ra_devfs_token = 
-		devfs_add_devswf(&wcd_cdevsw, (lun * 8), DV_CHR, WDC_UID, 
-				 WDC_GID, 0600, "rwcd%da", lun);
+		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, 0),
+				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
+				 "rwcd%da", lun);
 	t->rc_devfs_token = 
-		devfs_add_devswf(&wcd_cdevsw, (lun * 8) + RAW_PART, DV_CHR,
-				 WDC_UID,  WDC_GID, 0600, "rwcd%dc", lun);
+		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
+				 "rwcd%dc", lun);
 	t->a_devfs_token = 
-		devfs_add_devswf(&wcd_bdevsw, (lun * 8), DV_BLK, WDC_UID,
-				 WDC_GID, 0600, "wcd%da", lun);
+		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, 0),
+				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
+				 "wcd%da", lun);
 	t->c_devfs_token = 
-		devfs_add_devswf(&wcd_bdevsw, (lun * 8) + RAW_PART, DV_BLK,
-				 WDC_UID,  WDC_GID, 0600, "wcd%dc", lun);
+		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, RAW_PART),
+				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
+				 "wcd%dc", lun);
 #endif
 	return (1);
 }
