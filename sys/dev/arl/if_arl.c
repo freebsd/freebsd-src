@@ -69,6 +69,9 @@ __FBSDID("$FreeBSD$");
  */
 #define ARL_CHECKREG(sc) (ar->registrationMode && ar->registrationStatus == 0)
 
+#define GET_ARL_PARAM(name) (arcfg.name = ar->name)
+#define SET_ARL_PARAM(name) (ar->name = arcfg.name)
+
 #ifndef BPF_MTAP
 #define BPF_MTAP(_ifp,_m)					\
 	do {							\
@@ -113,6 +116,13 @@ static void arl_media_status	(struct ifnet *, struct ifmediareq *);
 static void arl_read_config	(struct arl_softc *);
 
 devclass_t	arl_devclass;
+
+u_int8_t rate2media[4] = {
+	IFM_IEEE80211_DS354k,
+	IFM_IEEE80211_DS512k,
+	IFM_IEEE80211_DS1,
+	IFM_IEEE80211_DS2
+};
 
 /*
  * Copy config values to local cache
@@ -194,13 +204,16 @@ arl_attach(dev)
 	ifmedia_init(&sc->arl_ifmedia, 0, arl_media_change, arl_media_status);
 #define ADD(s, o)	ifmedia_add(&sc->arl_ifmedia, \
 	IFM_MAKEWORD(IFM_IEEE80211, (s), (o), 0), 0, NULL)
+	ADD(IFM_IEEE80211_DS354k, 0);
+	ADD(IFM_IEEE80211_DS354k, IFM_IEEE80211_ADHOC);
+	ADD(IFM_IEEE80211_DS512k, 0);
+	ADD(IFM_IEEE80211_DS512k, IFM_IEEE80211_ADHOC);
 	ADD(IFM_IEEE80211_DS1, 0);
 	ADD(IFM_IEEE80211_DS1, IFM_IEEE80211_ADHOC);
 	ADD(IFM_IEEE80211_DS2, 0);
 	ADD(IFM_IEEE80211_DS2, IFM_IEEE80211_ADHOC);
 	ifmedia_set(&sc->arl_ifmedia, IFM_MAKEWORD(IFM_IEEE80211,
-		arcfg.spreadingCode == 4 ? IFM_IEEE80211_DS2 : IFM_IEEE80211_DS1
-		, 0, 0)); 
+		rate2media[arcfg.spreadingCode - 1], 0, 0));
 #undef ADD
 
 	/*
@@ -1152,16 +1165,19 @@ arl_cache_store(sc, eh, level, quality, dir)
 	int i;
 	static int cache_slot = 0;
 	static int wrapindex = 0;
+	u_int8_t zero[6] = {0, 0, 0, 0, 0, 0};
+	u_char *mac;
 
 	if ((ntohs(eh->ether_type) != ETHERTYPE_IP)) {
 		return;
 	}
 
+	mac = (dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost);
+
 	for (i = 0; i < MAXARLCACHE; i++) {
-		if (!bcmp(dir == ARLCACHE_RX ? eh->ether_shost : eh->ether_dhost,
-				sc->arl_sigcache[i].macsrc, 6)) {
+		if (!bcmp(zero, sc->arl_sigcache[i].macsrc, 6) ||
+		    !bcmp(mac, sc->arl_sigcache[i].macsrc, 6))
 			break;
-		}
 	}
 
 	if (i < MAXARLCACHE)
@@ -1187,12 +1203,19 @@ arl_media_change(ifp)
 	struct arl_softc *sc = ifp->if_softc;
 	int otype = arcfg.registrationMode;
 	int orate = arcfg.spreadingCode;
+	int nrate, i;
 
-	arcfg.spreadingCode = ieee80211_media2rate(
-		IFM_SUBTYPE(sc->arl_ifmedia.ifm_cur->ifm_media));
+	nrate = IFM_SUBTYPE(sc->arl_ifmedia.ifm_cur->ifm_media);
 
-	if (arcfg.spreadingCode == 2)
-		arcfg.spreadingCode = 3;
+	for(i = 1; i <= 4; i++) {
+		if (rate2media[i - 1] == nrate)
+			break;
+	}
+
+	if (i == 5)
+		return (EINVAL);
+
+	arcfg.spreadingCode = i;
 
 	/* XXX Need fix for PSP mode */
 	if ((sc->arl_ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_ADHOC) != 0)
@@ -1213,14 +1236,14 @@ arl_media_status(ifp, imr)
 	struct ifmediareq	*imr;
 {
 	struct arl_softc	*sc = ifp->if_softc;
-	int rate = (arcfg.spreadingCode == 4 ?  4 : 2);
 
 	imr->ifm_active = IFM_IEEE80211;
 
 	if (arcfg.registrationMode == 0)
 		imr->ifm_active |= IFM_IEEE80211_ADHOC;
 
-	imr->ifm_active |= ieee80211_rate2media(NULL, rate, IEEE80211_T_DS);
+	imr->ifm_active |= IFM_MAKEWORD(IFM_IEEE80211,
+				rate2media[arcfg.spreadingCode - 1], 0, 0);
 	imr->ifm_status = IFM_AVALID;
 	if (!ARL_CHECKREG(sc))
 		imr->ifm_status |= IFM_ACTIVE;

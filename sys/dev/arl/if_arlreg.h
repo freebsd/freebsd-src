@@ -299,9 +299,6 @@ struct arl_softc {
 		} \
 	} while (0);
 
-#define GET_ARL_PARAM(name)	(arcfg.name = ar->name)
-#define SET_ARL_PARAM(name)	(ar->name = arcfg.name)
-
 #ifdef _KERNEL
 void	arl_release_resources	(device_t);
 int	arl_alloc_memory	(device_t, int, int);
