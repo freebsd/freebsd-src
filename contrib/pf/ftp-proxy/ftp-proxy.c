@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$OpenBSD: ftp-proxy.c,v 1.33 2003/08/22 21:50:34 david Exp $ */
 
 /*
@@ -30,6 +29,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * ftp proxy, Originally based on juniper_ftp_proxy from the Obtuse

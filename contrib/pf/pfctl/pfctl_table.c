@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl_table.c,v 1.50 2003/08/29 21:47:36 cedric Exp $ */
 
 /*
@@ -30,6 +29,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl_parser.h,v 1.67 2003/08/21 19:12:09 frantzen Exp $ */
 
 /*
@@ -29,6 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #ifndef _PFCTL_PARSER_H_
