@@ -68,6 +68,8 @@ options		ICMP_BANDLIM		#Rate limit bad replies
 
 device		isa
 device		pci
+options 	COMPAT_OLDISA		# Old ISA driver shims
+options 	COMPAT_OLDPCI		# Old PCI driver shims
 
 # Floppy drives
 device		fdc0	at isa? port IO_FD1 irq 11 drq 2
