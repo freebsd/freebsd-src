@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.11 1999/04/16 21:22:54 peter Exp $
+ *	$Id: bus.h,v 1.12 1999/05/07 10:11:22 phk Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -208,9 +208,9 @@ int	resource_query_string(int i, char *resname, char *value);
 char	*resource_query_name(int i);
 int	resource_query_unit(int i);
 int	resource_locate(int i, char *resname);
-int	resource_set_int(int i, char *resname, int value);
-int	resource_set_long(int i, char *resname, long value);
-int	resource_set_string(int i, char *resname, char *value);
+int	resource_set_int(char *name, int unit, char *resname, int value);
+int	resource_set_long(char *name, int unit, char *resname, long value);
+int	resource_set_string(char *name, int unit, char *resname, char *value);
 int	resource_count(void);
 
 /*
