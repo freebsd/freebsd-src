@@ -159,4 +159,4 @@ smbus_read_ivar(device_t bus, device_t dev, int index, u_long* result)
 DRIVER_MODULE(smbus, iicsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, bti2c, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
-DRIVER_MODULE(smbus, smbv, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, alsmb, smbus_driver, smbus_devclass, 0, 0);

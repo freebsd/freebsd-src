@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,34 @@ smbus_intr(device_t bus, u_char devaddr, char low, char high, int error)
 		SMBUS_INTR(sc->owner, devaddr, low, high, error);
 
 	return;
+}
+
+/*
+ * smbus_error()
+ *
+ * Converts an smbus error to a unix error.
+ */
+int
+smbus_error(int smb_error)
+{
+	int error = 0;
+
+	if (smb_error == SMB_ENOERR)
+		return (0);
+	
+	if (smb_error & (SMB_ENOTSUPP)) {
+		error = ENODEV;
+	} else if (smb_error & (SMB_ENOACK)) {
+		error = ENXIO;
+	} else if (smb_error & (SMB_ETIMEOUT)) {
+		error = EWOULDBLOCK;
+	} else if (smb_error & (SMB_EBUSY)) {
+		error = EBUSY;
+	} else {
+		error = EINVAL;
+	}
+
+	return (error);
 }
 
 /*
@@ -109,11 +137,11 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 						SMB_REQUEST_BUS, (caddr_t)&how);
 		if (error)
 			error = smbus_poll(sc, how);
-	} while (error);
+	} while (error != EWOULDBLOCK);
 
 	while (!error) {
 		s = splhigh();	
-		if (sc->owner) {
+		if (sc->owner && sc->owner != dev) {
 			splx(s);
 
 			error = smbus_poll(sc, how);
@@ -123,6 +151,11 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 			splx(s);
 			return (0);
 		}
+
+		/* free any allocated resource */
+		if (error)
+			SMBUS_CALLBACK(device_get_parent(bus), SMB_RELEASE_BUS,
+					(caddr_t)&how);
 	}
 
 	return (error);

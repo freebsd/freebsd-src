@@ -592,6 +592,7 @@ dev/bktr/bktr_card.c	optional bktr device-driver
 dev/bktr/bktr_tuner.c	optional bktr device-driver
 dev/bktr/bktr_audio.c	optional bktr device-driver
 dev/bktr/bktr_os.c	optional bktr device-driver
+pci/alpm.c		optional alpm device-driver
 pci/bt_pci.c		optional bt device-driver
 pci/dpt_pci.c		optional pci dpt device-driver
 pci/cy_pci.c		optional cy device-driver
@@ -618,6 +619,7 @@ pci/if_vr.c		optional vr device-driver
 pci/if_vx_pci.c		optional vx device-driver
 pci/if_wb.c		optional wb device-driver
 pci/if_xl.c		optional xl device-driver
+pci/intpm.c		optional intpm device-driver
 pci/isp_pci.c		optional isp device-driver
 pci/meteor.c		optional meteor device-driver
 pci/ncr.c		optional ncr device-driver

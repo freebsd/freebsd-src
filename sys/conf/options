@@ -277,6 +277,8 @@ NETATALKDEBUG		opt_atalk.h
 NULLFS_DIAGNOSTIC	opt_debug_nullfs.h
 SI_DEBUG		opt_debug_si.h
 
+# smbus related options
+ENABLE_ALART		opt_intpm.h
 
 # These cause changes all over the kernel
 DEBUG			opt_global.h

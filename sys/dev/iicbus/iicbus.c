@@ -76,7 +76,7 @@ struct iicbus_device {
  *
  * XXX only one smb driver should exist for each I2C interface
  */
-struct iicbus_device iicbus_children[] = {
+static struct iicbus_device iicbus_children[] = {
 	{ "iicsmb", IICBUS_DRIVER_CLASS, "I2C to SMB bridge" },
 	{ "iic", IICBUS_DRIVER_CLASS, "I2C general purpose I/O" },
 #if 0

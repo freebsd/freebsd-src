@@ -1788,8 +1788,12 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 # Supported interfaces:
 # iicsmb I2C to SMB bridge with any iicbus interface
 # bktr	brooktree848 I2C hardware interface
+# intpm	Intel PIIX4 Power Management Unit
+# alpm	Acer Aladdin-IV/V/Pro2 Power Management Unit
 #
 controller smbus0
+controller intpm0
+controller alpm0
 
 device smb0	at smbus?
 
