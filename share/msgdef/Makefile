@@ -29,6 +29,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		hy_AM.ARMSCII-8 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
+		kk_KZ.PT154 \
 		lt_LT.ISO8859-13 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
