@@ -39,8 +39,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)fpu_emu.h	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_emu.h,v 1.4 2000/08/03 18:32:07 eeh
+ *	@(#)fpu_emu.h	8.1 (Berkeley) 6/11/93
+ *	$NetBSD: fpu_emu.h,v 1.4 2000/08/03 18:32:07 eeh Exp $
  * $FreeBSD$
  */
 

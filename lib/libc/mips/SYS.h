@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *      $OpenBSD: SYS.h,v 1.3 1996/07/30 20:27:48 pefo Exp $ 
+ * $FreeBSD$
  */
 
 #include <sys/syscall.h>

@@ -39,9 +39,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)fpu_arith.h	8.1 (Berkeley) 6/11/93
- *	from: NetBSD: fpu_arith.h,v 1.3 2000/07/24 04:11:03 mycroft
- *
+ *	@(#)fpu_arith.h	8.1 (Berkeley) 6/11/93
+ *	$NetBSD: fpu_arith.h,v 1.3 2000/07/24 04:11:03 mycroft Exp $
  * $FreeBSD$
  */
 
