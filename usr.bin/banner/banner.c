@@ -1072,7 +1072,7 @@ main(int argc, char *argv[])
 		}
 		nchars = strlen(message);
 	} else {
-		if ((message = malloc(MAXMSG)) == NULL)
+		if ((message = malloc((size_t)MAXMSG)) == NULL)
 			err(1, "malloc");
 		fprintf(stderr,"Message: ");
 		(void)fgets(message, MAXMSG, stdin);
