@@ -22,13 +22,13 @@ clean:
 		*.gz
 
 install: 
-	cp crunch1 /mnt/stand/crunch
-	chmod 555 /mnt/stand/crunch
+	cp crunch1 ${MFS_MOUNTPOINT}/stand/crunch
+	chmod 555 ${MFS_MOUNTPOINT}/stand/crunch
 	for i in `crunchgen -l crunch1.conf` ; \
 	do \
-		ln /mnt/stand/crunch /mnt/stand/$${i}; \
+		ln ${MFS_MOUNTPOINT}/stand/crunch ${MFS_MOUNTPOINT}/stand/$${i}; \
 	done
-	rm /mnt/stand/crunch
+	rm ${MFS_MOUNTPOINT}/stand/crunch
 
 
 .include <bsd.prog.mk>

@@ -8,8 +8,12 @@
 
 set -e	# abort in case of untested errors
 
+# By default, /tmp should exist.
+#
 MFS_NAME=fs.PICOBSD
-MFS_MOUNTPOINT=/mnt
+MFS_MOUNTPOINT=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
+export MFS_MOUNTPOINT
+
 # fail errno errcode
 # This function is used to trap errors and print msgs
 #
@@ -19,14 +23,14 @@ fail() {
     echo "--> Error $errno code $errcode"
     case $errcode in
     no_vnconfig)
-	echo "Error while doing vnconfig of ${MFS_NAME} on /dev/rvn0..."
+	echo "Error while doing vnconfig of ${MFS_NAME} on /dev/rvn${VNUM}..."
 	echo "   Most probably your running kernel doesn't have the vn(4) device."
 	;;
     disklabel)
 	echo "Error while labeling ${MFS_NAME} size ${MFS_SIZE}"
 	;;
     no_mount)
-	echo "Error while mounting ${MFS_NAME} (/dev/vn0c) on ${MFS_MOUNTPOINT}"
+	echo "Error while mounting ${MFS_NAME} (/dev/vn${VNUM}c) on ${MFS_MOUNTPOINT}"
 	;;
     mtree)
 	echo "Error while making hierarchy in ${MFS_MOUNTPOINT}"
@@ -38,7 +42,7 @@ fail() {
 	echo "Error while building ../${TYPE}/crunch1..."
 	;;
     vnconfig2)
-	echo "Error while doing vnconfig of floppy.img on /dev/rvn0..."
+	echo "Error while doing vnconfig of floppy.img on /dev/rvn${VNUM}..."
 	;;
     disklabel)
 	echo "Error while doing disklabel on of floppy.img size $FLOPPY_SIZE"
@@ -54,6 +58,8 @@ fail() {
 	;;
     esac
     echo "-> Aborting $0"
+    umount ${MFS_MOUNTPOINT} 2> /dev/null || true
+    rm -rf ${MFS_MOUNTPOINT} 2> /dev/null || true
     exit 10
 }
 
@@ -61,16 +67,20 @@ rm -f kernel.gz ${MFS_NAME}    # cleanup...
 
 create_mfs() {
     echo "-> Preparing MFS filesystem..."
-    umount /dev/vn0 2> /dev/null || true
+    VNUM=`mount | awk "/vn/ { num++ } END { printf \"%d\", num }"`
+    export VNUM
+    echo "-> Using vn${VNUM}..."
+
+    umount /dev/vn${VNUM} 2> /dev/null || true
     umount ${MFS_MOUNTPOINT} 2> /dev/null || true
-    vnconfig -u /dev/rvn0 2> /dev/null || true
+    vnconfig -u /dev/rvn${VNUM} 2> /dev/null || true
 
     dd of=${MFS_NAME} if=/dev/zero count=${MFS_SIZE} bs=1k 2> /dev/null
 
     awk 'BEGIN {printf "%c%c", 85, 170}' | \
 	dd of=${MFS_NAME} obs=1 seek=510 conv=notrunc  2> /dev/null
 
-    vnconfig -s labels -c /dev/rvn0 ${MFS_NAME} 2>/dev/null || \
+    vnconfig -s labels -c /dev/rvn${VNUM} ${MFS_NAME} 2>/dev/null || \
 	    fail $? no_vnconfig
 
     dd if=/boot/boot1 of=${MFS_NAME} conv=notrunc 2> /dev/null
@@ -78,13 +88,13 @@ create_mfs() {
     # This command does weird things on 2.2.x systems.
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw /dev/rvn0 fd${MFS_SIZE} || fail $? disklabel
+	disklabel -rw /dev/rvn${VNUM} fd${MFS_SIZE} || fail $? disklabel
     else
-	disklabel -rw vn0 auto || fail $? disklabel
+	disklabel -rw vn${VNUM} auto || fail $? disklabel
     fi
 
-    newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/rvn0c
-    mount /dev/vn0c ${MFS_MOUNTPOINT} || fail $? no_mount
+    newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c
+    mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT} || fail $? no_mount
 
     pwd=`pwd`
 }
@@ -146,8 +156,8 @@ populate_mfs() {
     (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
     df -ik ${MFS_MOUNTPOINT}
     umount ${MFS_MOUNTPOINT}
-    fsck -p /dev/rvn0c
-    vnconfig -u /dev/rvn0
+    fsck -p /dev/rvn${VNUM}c
+    vnconfig -u /dev/rvn${VNUM}
 }
 
 # stage2
@@ -172,17 +182,17 @@ do_floppy() {
     awk 'BEGIN {printf "%c%c", 85, 170}' | \
                 dd of=picobsd.bin obs=1 seek=510 conv=notrunc  2> /dev/null
 
-    vnconfig -c /dev/rvn0 picobsd.bin || fail $? vnconfig2
+    vnconfig -c /dev/rvn${VNUM} picobsd.bin || fail $? vnconfig2
 
     dd if=/boot/boot1 of=picobsd.bin conv=notrunc 2> /dev/null
 
     # XXX todo: use a type matching floppy size.
-    disklabel -Brw -b /boot/boot1 -s /boot/boot2 /dev/rvn0 fd1440 || \
+    disklabel -Brw -b /boot/boot1 -s /boot/boot2 /dev/vn${VNUM}c fd1440 || \
 	fail $?  disklabel
 
-    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/rvn0c
+    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c
 
-    mount /dev/vn0c ${MFS_MOUNTPOINT}
+    mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT}
 
     echo "==> Populating floppy filesystem..."
 
@@ -215,7 +225,7 @@ do_floppy() {
     fi
     rm -f floppy.tree/etc/mfs\.*  # mfs.rc, mfs.login.conf
     files="motd"
-    echo "-> Copying language dependent files: ${files} -> /mnt/etc ..."
+    echo "-> Copying language dependent files: ${files} -> ${MFS_MOUNTPOINT}/etc ..."
     for i in ${files} ; do
 	cat ${BUILDDIR}/../${TYPE}/lang/${i}.${LANGUAGE} | \
 		sed -e "s/@VER@/${VER}/g" > floppy.tree/etc/${i}
@@ -263,7 +273,8 @@ __EOF
 
     df -ik ${MFS_MOUNTPOINT} > .build.reply
     umount ${MFS_MOUNTPOINT}
-    vnconfig -u /dev/rvn0
+    rm -rf ${MFS_MOUNTPOINT}
+    vnconfig -u /dev/rvn${VNUM}
     # rm kernel.gz ${MFS_NAME}
 }
 

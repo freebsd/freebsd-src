@@ -28,5 +28,8 @@ cd /etc
 umount /start_floppy
 echo "Ok. (Now you can remove floppy if you like)"
 echo ""
+
+gzip -d -f *.gz
 . rc
+
 exit 0
