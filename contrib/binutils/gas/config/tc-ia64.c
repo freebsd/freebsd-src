@@ -2709,7 +2709,11 @@ fixup_unw_records (list)
 	    size = (slot_index (last_addr, last_frag, first_addr, first_frag)
 		    + dir_len);
 	    rlen = ptr->r.record.r.rlen = size;
-	    region = ptr;
+	    if (ptr->r.type == body)
+	      /* End of region.  */
+	      region = 0;
+	    else
+	      region = ptr;
 	    break;
 	  }
 	case epilogue:
@@ -3250,7 +3254,7 @@ generate_unwind_image (text_name)
   size = output_unw_records (unwind.list, (void **) &unw_rec);
   if (size % md.pointer_size != 0)
     as_bad ("Unwind record is not a multiple of %d bytes.", md.pointer_size);
-                      
+
   /* If there are unwind records, switch sections, and output the info.  */
   if (size != 0)
     {
@@ -9982,11 +9986,26 @@ ia64_cons_fix_new (f, where, nbytes, exp)
       break;
 
     case 8:
-      if (target_big_endian)
-	code = BFD_RELOC_IA64_DIR64MSB;
-      else
-	code = BFD_RELOC_IA64_DIR64LSB;
-      break;
+      /* In 32-bit mode, data8 could mean function descriptors too. */
+      if (exp->X_op == O_pseudo_fixup
+          && exp->X_op_symbol
+          && S_GET_VALUE (exp->X_op_symbol) == FUNC_IPLT_RELOC
+          && !(md.flags & EF_IA_64_ABI64))
+        {
+          if (target_big_endian)
+            code = BFD_RELOC_IA64_IPLTMSB;
+          else
+            code = BFD_RELOC_IA64_IPLTLSB;
+          exp->X_op = O_symbol;
+          break;
+        }
+       else {
+         if (target_big_endian)
+	   code = BFD_RELOC_IA64_DIR64MSB;
+         else
+	   code = BFD_RELOC_IA64_DIR64LSB;
+         break;
+       }
 
     case 16:
       if (exp->X_op == O_pseudo_fixup

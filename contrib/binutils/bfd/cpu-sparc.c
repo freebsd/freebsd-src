@@ -1,5 +1,6 @@
 /* BFD support for the SPARC architecture.
-   Copyright 1992, 1995, 1996, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1992, 1995, 1996, 1998, 2000, 2002
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -21,22 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sysdep.h"
 #include "libbfd.h"
 
-/* Don't mix 32 bit and 64 bit files.  */
-
-static const bfd_arch_info_type *sparc_compatible
-  PARAMS ((const bfd_arch_info_type *, const bfd_arch_info_type *));
-
-static const bfd_arch_info_type *
-sparc_compatible (a, b)
-     const bfd_arch_info_type *a;
-     const bfd_arch_info_type *b;
-{
-  if (a->bits_per_word != b->bits_per_word)
-    return NULL;
-
-  return bfd_default_compatible (a, b);
-}
-
 static const bfd_arch_info_type arch_info_struct[] =
 {
   {
@@ -49,7 +34,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:sparclet",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[1],
   },
@@ -63,7 +48,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:sparclite",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[2],
   },
@@ -77,7 +62,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:v8plus",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[3],
   },
@@ -91,7 +76,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:v8plusa",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[4],
   },
@@ -105,7 +90,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:sparclite_le",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[5],
   },
@@ -119,7 +104,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:v9",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[6],
   },
@@ -133,7 +118,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:v9a",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[7],
   },
@@ -147,7 +132,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:v8plusb",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[8],
   },
@@ -161,7 +146,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "sparc:v9b",
     3,
     false,
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     0,
   }
@@ -178,7 +163,7 @@ const bfd_arch_info_type bfd_sparc_arch =
     "sparc",
     3,
     true, /* the default */
-    sparc_compatible,
+    bfd_default_compatible,
     bfd_default_scan,
     &arch_info_struct[0],
   };

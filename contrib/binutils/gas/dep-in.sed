@@ -4,9 +4,12 @@
 
 s! \.\./! !g
 s!@INCDIR@!$(INCDIR)!g
+s!@TOPDIR@/include!$(INCDIR)!g
 s!@BFDDIR@!$(BFDDIR)!g
+s!@TOPDIR@/bfd!$(BFDDIR)!g
 s!@SRCDIR@/config!$(srcdir)/config!g
 s!@SRCDIR@/\.\./opcodes!$(srcdir)/../opcodes!g
+s!@TOPDIR@/opcodes!$(srcdir)/../opcodes!g
 s!@SRCDIR@/!!g
 s! \$(INCDIR)/ansidecl\.h!!g
 s! \$(INCDIR)/fopen-same\.h!!g

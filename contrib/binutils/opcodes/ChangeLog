@@ -1,3 +1,37 @@
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	Merge from mainline
+	2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* s390-dis.c (init_disasm): Use renamed architecture defines.
+
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	Merge from mainline.
+	2002-03-23  matthew green  <mrg@redhat.com>
+	* ppc-opc.c (vmaddfp): Fix operand order.
+
+	2002-03-21  Anton Blanchard  <anton@samba.org>
+	* ppc-opc.c: Add optional field to mtmsrd.
+	(MTMSRD_L, XRLARB_MASK): Define.
+
+	2002-03-13  Alan Modra  <amodra@bigpond.net.au>
+	* ppc-opc.c: Add optional `L' field to tlbie.
+	(XRTLRA_MASK): Define.
+
+	2002-02-20  Tom Rix  <trix@redhat.com>
+	* ppc-opc.c (powerpc_operands): Add WS feild.  Use for tlbre, tlbwe.
+
 2002-02-26  Nick Clifton  <nickc@cambridge.redhat.com>
 
 	* configure.in (LINGUAS): Add de.po.
