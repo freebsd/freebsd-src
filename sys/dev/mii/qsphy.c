@@ -119,9 +119,9 @@ static driver_t qsphy_driver = {
 
 DRIVER_MODULE(qsphy, miibus, qsphy_driver, qsphy_devclass, 0, 0);
 
-int	qsphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	qsphy_reset __P((struct mii_softc *));
-void	qsphy_status __P((struct mii_softc *));
+static int	qsphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void	qsphy_reset __P((struct mii_softc *));
+static void	qsphy_status __P((struct mii_softc *));
 
 static int qsphy_probe(dev)
 	device_t		dev;
@@ -188,7 +188,7 @@ static int qsphy_detach(dev)
 	return(0);
 }
 
-int
+static int
 qsphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -252,26 +252,24 @@ qsphy_service(sc, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
 		/*
-		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
+		 * Only used for autonegotiation.
 		 */
-		reg = PHY_READ(sc, MII_BMSR) |
-		    PHY_READ(sc, MII_BMSR);
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
+
+		/*
+		 * check for link.
+		 * Read the status register twice; BMSR_LINK is latch-low.
+		 */
+		reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
 		if (reg & BMSR_LINK)
-			return (0);
+			break;
 
 		/*
 		 * Only retry autonegotiation every 5 seconds.
@@ -280,7 +278,7 @@ qsphy_service(sc, mii, cmd)
 			return (0);
 
 		sc->mii_ticks = 0;
-		mii_phy_reset(sc);
+		qsphy_reset(sc);
 		if (mii_phy_auto(sc, 0) == EJUSTRETURN)
 			return (0);
 		break;
@@ -290,14 +288,11 @@ qsphy_service(sc, mii, cmd)
 	qsphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 qsphy_status(sc)
 	struct mii_softc *sc;
 {
@@ -356,7 +351,7 @@ qsphy_status(sc)
 		mii->mii_media_active = ife->ifm_media;
 }
 
-void
+static void
 qsphy_reset(sc)
 	struct mii_softc *sc;
 {

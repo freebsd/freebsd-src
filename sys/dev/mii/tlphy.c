@@ -125,10 +125,10 @@ static driver_t tlphy_driver = {
 
 DRIVER_MODULE(tlphy, miibus, tlphy_driver, tlphy_devclass, 0, 0);
 
-int	tlphy_service __P((struct mii_softc *, struct mii_data *, int));
-int	tlphy_auto __P((struct tlphy_softc *, int));
-void	tlphy_acomp __P((struct tlphy_softc *));
-void	tlphy_status __P((struct tlphy_softc *));
+static int	tlphy_service __P((struct mii_softc *, struct mii_data *, int));
+static int	tlphy_auto __P((struct tlphy_softc *, int));
+static void	tlphy_acomp __P((struct tlphy_softc *));
+static void	tlphy_status __P((struct tlphy_softc *));
 
 static int tlphy_probe(dev)
 	device_t		dev;
@@ -241,7 +241,7 @@ static int tlphy_detach(dev)
 	return(0);
 }
 
-int
+static int
 tlphy_service(self, mii, cmd)
 	struct mii_softc *self;
 	struct mii_data *mii;
@@ -312,16 +312,16 @@ tlphy_service(self, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
@@ -333,7 +333,7 @@ tlphy_service(self, mii, cmd)
 		reg = PHY_READ(&sc->sc_mii, MII_BMSR) |
 		    PHY_READ(&sc->sc_mii, MII_BMSR);
 		if (reg & BMSR_LINK)
-			return (0);
+			break;
 
 		/*
 		 * Only retry autonegotiation every 5 seconds.
@@ -352,15 +352,11 @@ tlphy_service(self, mii, cmd)
 	tlphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->sc_mii.mii_active != mii->mii_media_active ||
-	    cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->sc_mii.mii_dev);
-		sc->sc_mii.mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(&sc->sc_mii, cmd);
 	return (0);
 }
 
-void
+static void
 tlphy_status(sc)
 	struct tlphy_softc *sc;
 {
@@ -403,7 +399,7 @@ tlphy_status(sc)
 	mii->mii_media_active |= IFM_10_T;
 }
 
-int
+static int
 tlphy_auto(sc, waitfor)
 	struct tlphy_softc *sc;
 	int waitfor;
@@ -431,7 +427,7 @@ tlphy_auto(sc, waitfor)
 	return (error);
 }
 
-void
+static void
 tlphy_acomp(sc)
 	struct tlphy_softc *sc;
 {

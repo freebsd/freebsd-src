@@ -116,10 +116,10 @@ static driver_t dcphy_driver = {
 
 DRIVER_MODULE(dcphy, miibus, dcphy_driver, dcphy_devclass, 0, 0);
 
-int	dcphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	dcphy_status __P((struct mii_softc *));
-static int dcphy_auto		__P((struct mii_softc *, int));
-static void dcphy_reset		__P((struct mii_softc *));
+static int	dcphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void	dcphy_status __P((struct mii_softc *));
+static void	dcphy_reset __P((struct mii_softc *));
+static int	dcphy_auto __P((struct mii_softc *, int));
 
 static int dcphy_probe(dev)
 	device_t		dev;
@@ -221,7 +221,7 @@ static int dcphy_detach(dev)
 	return(0);
 }
 
-int
+static int
 dcphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -318,22 +318,22 @@ dcphy_service(sc, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
+
 		reg = CSR_READ_4(dc_sc, DC_10BTSTAT) &
 		    (DC_TSTAT_LS10|DC_TSTAT_LS100);
 
 		if (!(reg & DC_TSTAT_LS10) || !(reg & DC_TSTAT_LS100))
-			return(0);
+			break;
 
                 /*
                  * Only retry autonegotiation every 5 seconds.
@@ -353,14 +353,11 @@ dcphy_service(sc, mii, cmd)
 	dcphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 dcphy_status(sc)
 	struct mii_softc *sc;
 {

@@ -73,12 +73,12 @@ static driver_t e1000phy_driver = {
 };
 DRIVER_MODULE(e1000phy, miibus, e1000phy_driver, e1000phy_devclass, 0, 0);
 
-int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
-void	e1000phy_status(struct mii_softc *);
-
+static int	e1000phy_service(struct mii_softc *, struct mii_data *, int);
+static void	e1000phy_status(struct mii_softc *);
+static void	e1000phy_reset(struct mii_softc *);
 static int	e1000phy_mii_phy_auto(struct mii_softc *, int);
+
 extern void	mii_phy_auto_timeout(void *);
-static void e1000phy_reset(struct mii_softc *);
 
 static int e1000phy_debug = 0;
 
@@ -216,7 +216,7 @@ e1000phy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, 30, 0x00);
 }
 
-int
+static int
 e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
@@ -313,43 +313,35 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		}
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
-			return (0);
-		}
-
-		/*
 		 * Is the interface even up?
 		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0) {
+		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
-		}
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
+
+		/*
+		 * check for link.
+		 * Read the status register twice; BMSR_LINK is latch-low.
+		 */
+		reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
+		if (reg & BMSR_LINK)
+			break;
 
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++(sc->mii_ticks) != 5) {
+		if (++sc->mii_ticks != 5)
 			return (0);
-		}
+
 		sc->mii_ticks = 0;
-
-		/*
-		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
-		 */
-		reg = PHY_READ(sc, E1000_SR) | PHY_READ(sc, E1000_SR);
-
-		if (reg & E1000_SR_LINK_STATUS)
-			break;
-
 		e1000phy_reset(sc);
-
-		if (e1000phy_mii_phy_auto(sc, 0) == EJUSTRETURN) {
-			return(0);
-		}
-
+		if (e1000phy_mii_phy_auto(sc, 0) == EJUSTRETURN)
+			return (0);
 		break;
 	}
 
@@ -357,15 +349,11 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	e1000phy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
-
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 e1000phy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;

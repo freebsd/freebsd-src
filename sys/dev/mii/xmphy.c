@@ -85,9 +85,8 @@ static driver_t xmphy_driver = {
 
 DRIVER_MODULE(xmphy, miibus, xmphy_driver, xmphy_devclass, 0, 0);
 
-int	xmphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	xmphy_status __P((struct mii_softc *));
-
+static int	xmphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void	xmphy_status __P((struct mii_softc *));
 static int	xmphy_mii_phy_auto __P((struct mii_softc *, int));
 extern void	mii_phy_auto_timeout __P((void *));
 
@@ -179,7 +178,8 @@ static int xmphy_detach(dev)
 
 	return(0);
 }
-int
+
+static int
 xmphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -251,16 +251,25 @@ xmphy_service(sc, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
+
+		/*
+		 * Check to see if we have link.  If we do, we don't
+		 * need to restart the autonegotiation process.  Read
+		 * the BMSR twice in case it's latched.
+		 */
+		reg = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
+		if (reg & BMSR_LINK)
+			break;
 
 		/*
 		 * Only retry autonegotiation every 5 seconds.
@@ -269,16 +278,6 @@ xmphy_service(sc, mii, cmd)
 			return (0);
 		
 		sc->mii_ticks = 0;
-
-		/*
-		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
-		 */
-		reg = PHY_READ(sc, XMPHY_MII_BMSR) |
-		    PHY_READ(sc, XMPHY_MII_BMSR);
-		if (reg & XMPHY_BMSR_LINK)
-			break;
 
 		mii_phy_reset(sc);
 		if (xmphy_mii_phy_auto(sc, 0) == EJUSTRETURN)
@@ -290,14 +289,11 @@ xmphy_service(sc, mii, cmd)
 	xmphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 xmphy_status(sc)
 	struct mii_softc *sc;
 {
