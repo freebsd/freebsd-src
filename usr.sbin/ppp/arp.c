@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.25 1998/01/23 21:37:27 brian Exp $
+ * $Id: arp.c,v 1.26 1998/01/23 22:29:16 brian Exp $
  *
  */
 
@@ -55,15 +55,9 @@
 
 #ifdef DEBUG
 /*
- * To test the proxy arp stuff, put the following in your Makefile:
+ * To test the proxy arp stuff, just
  * 
- * arp-test: arp.c
- * 	cp ${.CURDIR}/arp.c arp-test.c
- * 	echo 'const char *' >>arp-test.c
- * 	awk '/^Index2Nam/,/^}/' ${.CURDIR}/route.c >>arp-test.c
- * 	cc -I${.CURDIR} -DDEBUG arp-test.c -o arp-test
- *
- * and type ``make arp-test''.
+ * cc -o arp-test -DDEBUG arp.c
  *
  */
 #define LogIsKept(x) 1
@@ -262,7 +256,8 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
   mib[5] = 0;
 
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
+    LogPrintf(LogERROR, "get_ether_addr: sysctl: estimate: %s\n",
+              strerror(errno));
     return 0;
   }
 
