@@ -172,9 +172,18 @@ To attach an encrypted device:
 .Pp
 .Dl "gbde attach ad0s1f -l /etc/ad0s1f.lock"
 .Pp
+The encrypted device has the suffix ``.bde'' so a typical
+command to create and mount a filesystem would be:
+.Pp
+.Dl "newfs /dev/ad0s1f.bde"
+.Dl "mount /dev/ad0s1f.bde /secret"
+.Pp
 To detach an encrypted device:
 .Pp
 .Dl "gbde detach ad0s1f"
+.Pp
+Please notice that detaching an encrypted device corresponds to
+physically removing it, do not forget to unmount the filesystem first.
 .Pp
 To initialize the second key using a detached lockfile and a trivial
 pass-phrase:
