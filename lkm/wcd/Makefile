@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/09/06 23:32:55 pst Exp $
+#	$Id: Makefile,v 1.5 1996/10/06 22:17:16 wosch Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = wcd_mod
@@ -25,7 +25,7 @@ opt_atapi.h:
 		echo "#define ATAPI 1"> opt_atapi.h
 
 .c.o:
-		-@$(LN) /sys/i386/include machine
+		-@$(LN) ${.CURDIR}/../../sys/i386/include machine
 		$(CC) $(CFLAGS) -c $<
 		-@rm -f machine
 
