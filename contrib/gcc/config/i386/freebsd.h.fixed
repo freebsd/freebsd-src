@@ -4,6 +4,7 @@
    Modified for stabs-in-ELF by H.J. Lu.
    Adapted from GNU/Linux version by John Polstra.
    Added support for generating "old a.out gas" on the fly by Peter Wemm.
+   Continued development by David O'Brien <obrien@freebsd.org>
 
 This file is part of GNU CC.
 
@@ -38,12 +39,12 @@ Boston, MA 02111-1307, USA.  */
 #define TARGET_UNDERSCORES		((target_flags & MASK_UNDERSCORES) != 0)
 
 #undef	SUBTARGET_SWITCHES
-#define SUBTARGET_SWITCHES					\
-     { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE},	\
-     { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE},	\
-     { "aout",			 MASK_AOUT},			\
-     { "no-aout",		-MASK_AOUT},			\
-     { "underscores",		 MASK_UNDERSCORES},		\
+#define SUBTARGET_SWITCHES						\
+     { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE},		\
+     { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE},		\
+     { "aout",			 MASK_AOUT},				\
+     { "no-aout",		-MASK_AOUT},				\
+     { "underscores",		 MASK_UNDERSCORES},			\
      { "no-underscores",	-MASK_UNDERSCORES},
 
 /* Prefix for internally generated assembler labels.  If we aren't using 
@@ -62,6 +63,7 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_APP_OFF
 #define ASM_APP_OFF "#NO_APP\n" 
 
+#undef SET_ASM_OP
 #define SET_ASM_OP	".set"
 
 /* Output at beginning of assembler file.  */
@@ -70,9 +72,9 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_FILE_START
 #define ASM_FILE_START(FILE)						\
   do {									\
-        output_file_directive (FILE, main_input_filename);		\
+        output_file_directive ((FILE), main_input_filename);		\
 	if (TARGET_ELF)							\
-          fprintf (FILE, "\t.version\t\"01.01\"\n");			\
+          fprintf ((FILE), "\t.version\t\"01.01\"\n");			\
   } while (0)
 
 /* Identify the front-end which produced this file.  To keep symbol
@@ -98,13 +100,13 @@ Boston, MA 02111-1307, USA.  */
    PREFIX is the class of label and NUM is the number within the class.  */
 #undef	ASM_OUTPUT_INTERNAL_LABEL
 #define	ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)			\
-  fprintf (FILE, "%s%s%d:\n", (TARGET_UNDERSCORES) ? "" : ".",		\
-	   PREFIX, NUM)
+  fprintf ((FILE), "%s%s%d:\n", (TARGET_UNDERSCORES) ? "" : ".",	\
+	   (PREFIX), (NUM))
 
 /* This is how to output a reference to a user-level label named NAME.  */
 #undef  ASM_OUTPUT_LABELREF
-#define ASM_OUTPUT_LABELREF(FILE,NAME)					\
-  fprintf (FILE, "%s%s", (TARGET_UNDERSCORES) ? "_" : "", NAME)
+#define ASM_OUTPUT_LABELREF(FILE, NAME)					\
+  fprintf ((FILE), "%s%s", (TARGET_UNDERSCORES) ? "_" : "", (NAME))
 
 
 /* This is how to output an element of a case-vector that is relative.
@@ -112,10 +114,10 @@ Boston, MA 02111-1307, USA.  */
    i386.md for an explanation of the expression this outputs. */
 #undef ASM_OUTPUT_ADDR_DIFF_ELT
 #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
-  fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
+  fprintf ((FILE), "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, (VALUE))
 
 #undef ASM_OUTPUT_ALIGN
-#define ASM_OUTPUT_ALIGN(FILE,LOG)      				\
+#define ASM_OUTPUT_ALIGN(FILE, LOG)      				\
   if ((LOG)!=0) {							\
     if (in_text_section())						\
       fprintf ((FILE), "\t.p2align %d,0x90\n", (LOG));			\
@@ -128,21 +130,23 @@ Boston, MA 02111-1307, USA.  */
 #define USE_CONST_SECTION	TARGET_ELF
 
 /* The a.out tools do not support "linkonce" sections. */
+#undef SUPPORTS_ONE_ONLY
 #define SUPPORTS_ONE_ONLY	TARGET_ELF
 
 /* The a.out tools do not support "Lscope" .stabs symbols. */
+#undef NO_DBX_FUNCTION_END
 #define NO_DBX_FUNCTION_END	TARGET_AOUT
 
 /* A C statement (sans semicolon) to output an element in the table of
    global constructors.  */
 #undef ASM_OUTPUT_CONSTRUCTOR
-#define ASM_OUTPUT_CONSTRUCTOR(FILE,NAME)				\
+#define ASM_OUTPUT_CONSTRUCTOR(FILE, NAME)				\
   do {									\
     if (TARGET_ELF) {							\
       ctors_section ();							\
-      fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-      assemble_name (FILE, NAME);					\
-      fprintf (FILE, "\n");						\
+      fprintf ((FILE), "\t%s\t ", INT_ASM_OP);				\
+      assemble_name ((FILE), (NAME));					\
+      fprintf ((FILE), "\n");						\
     } else {								\
       fprintf (asm_out_file, "%s \"%s__CTOR_LIST__\",22,0,0,", ASM_STABS_OP, \
 	       (TARGET_UNDERSCORES) ? "_" : "");			\
@@ -154,13 +158,13 @@ Boston, MA 02111-1307, USA.  */
 /* A C statement (sans semicolon) to output an element in the table of
    global destructors.  */
 #undef ASM_OUTPUT_DESTRUCTOR
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)				\
+#define ASM_OUTPUT_DESTRUCTOR(FILE, NAME)				\
   do {									\
     if (TARGET_ELF) {							\
       dtors_section ();							\
-      fprintf (FILE, "\t%s\t ", INT_ASM_OP);				\
-      assemble_name (FILE, NAME);					\
-      fprintf (FILE, "\n");						\
+      fprintf ((FILE), "\t%s\t ", INT_ASM_OP);				\
+      assemble_name ((FILE), (NAME));					\
+      fprintf ((FILE), "\n");						\
     } else {								\
       fprintf (asm_out_file, "%s \"%s__DTOR_LIST__\",22,0,0,", ASM_STABS_OP, \
 	       (TARGET_UNDERSCORES) ? "_" : "");			\
@@ -181,7 +185,7 @@ do {									\
     fprintf ((FILE), "\t%s\t", LOCAL_ASM_OP);				\
     assemble_name ((FILE), (NAME));					\
     fprintf ((FILE), "\n");						\
-    ASM_OUTPUT_ALIGNED_COMMON (FILE, NAME, SIZE, ALIGN);		\
+    ASM_OUTPUT_ALIGNED_COMMON ((FILE), (NAME), (SIZE), (ALIGN));	\
   } else {								\
     int rounded = (SIZE);						\
     if (rounded == 0) rounded = 1;					\
@@ -219,26 +223,27 @@ do {									\
 
 /* How to output some space */
 #undef ASM_OUTPUT_SKIP
-#define ASM_OUTPUT_SKIP(FILE,SIZE) 					\
+#define ASM_OUTPUT_SKIP(FILE, SIZE) 					\
 do {									\
   if (TARGET_ELF) {							\
-    fprintf (FILE, "\t%s\t%u\n", SKIP_ASM_OP, (SIZE));			\
+    fprintf ((FILE), "\t%s\t%u\n", SKIP_ASM_OP, (SIZE));		\
   } else {								\
-    fprintf (FILE, "\t.space %u\n", (SIZE));				\
+    fprintf ((FILE), "\t.space %u\n", (SIZE));				\
   }									\
 } while (0)
 
 #undef ASM_OUTPUT_SOURCE_LINE
-#define ASM_OUTPUT_SOURCE_LINE(file, line)				\
+#define ASM_OUTPUT_SOURCE_LINE(FILE, LINE)				\
 do {									\
   static int sym_lineno = 1;						\
   if (TARGET_ELF) {							\
-    fprintf (file, ".stabn 68,0,%d,.LM%d-", line, sym_lineno);		\
-    assemble_name (file, XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));\
-    fprintf (file, "\n.LM%d:\n", sym_lineno);				\
+    fprintf ((FILE), ".stabn 68,0,%d,.LM%d-", (LINE), sym_lineno);	\
+    assemble_name ((FILE), XSTR (XEXP (DECL_RTL (current_function_decl),\
+                   0), 0));						\
+    fprintf ((FILE), "\n.LM%d:\n", sym_lineno);				\
     sym_lineno += 1;							\
   } else {								\
-    fprintf (file, "\t%s %d,0,%d\n", ASM_STABD_OP, N_SLINE, lineno);	\
+    fprintf ((FILE), "\t%s %d,0,%d\n", ASM_STABD_OP, N_SLINE, lineno);	\
   }									\
 } while (0)
 
@@ -251,31 +256,34 @@ do {									\
 #define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
 do {									\
   if (TARGET_ELF) {							\
-    fprintf (FILE, "\t.text\n\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", N_SO); \
+    fprintf ((FILE), "\t.text\n\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", \
+             N_SO);							\
   }									\
 } while (0)
 
 /* stabs-in-elf has offsets relative to function beginning */
 #undef DBX_OUTPUT_LBRAC
-#define DBX_OUTPUT_LBRAC(file,name)					\
+#define DBX_OUTPUT_LBRAC(FILE, NAME)					\
 do {									\
   fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_LBRAC);		\
   assemble_name (asmfile, buf);						\
   if (TARGET_ELF) {							\
     fputc ('-', asmfile);						\
-    assemble_name (asmfile, XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0)); \
+    assemble_name (asmfile, XSTR (XEXP (DECL_RTL (current_function_decl),\
+                   0), 0));						\
   }									\
   fprintf (asmfile, "\n");						\
 } while (0)
 
 #undef DBX_OUTPUT_RBRAC
-#define DBX_OUTPUT_RBRAC(file,name)					\
+#define DBX_OUTPUT_RBRAC(FILE, NAME)					\
 do {									\
   fprintf (asmfile, "%s %d,0,0,", ASM_STABN_OP, N_RBRAC);		\
   assemble_name (asmfile, buf);						\
   if (TARGET_ELF) {							\
     fputc ('-', asmfile);						\
-    assemble_name (asmfile, XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0)); \
+    assemble_name (asmfile, XSTR (XEXP (DECL_RTL (current_function_decl),\
+                   0), 0));						\
   }									\
   fprintf (asmfile, "\n");						\
 } while (0)
@@ -292,9 +300,11 @@ do {									\
 
 /* Indicate that jump tables go in the text section.  This is
    necessary when compiling PIC code.  */
+#undef JUMP_TABLES_IN_TEXT_SECTION
 #define JUMP_TABLES_IN_TEXT_SECTION (flag_pic)
 
 /* override the exception table positioning */
+#undef EXCEPTION_SECTION
 #define EXCEPTION_SECTION() \
 do {									\
   if (TARGET_ELF) {							\
@@ -308,6 +318,7 @@ do {									\
 } while (0);
 
 /* supply our own hook for calling __main() from main() */
+#undef GEN_CALL__MAIN
 #define GEN_CALL__MAIN \
   do {									\
     if (!(TARGET_ELF))							\
@@ -384,6 +395,7 @@ do {									\
  : (-1))
 
 /* Now what stabs expects in the register.  */
+#undef STABS_DBX_REGISTER_NUMBER
 #define STABS_DBX_REGISTER_NUMBER(n) \
 ((n) == 0 ? 0 : \
  (n) == 1 ? 2 : \
@@ -412,24 +424,25 @@ do {									\
 {									\
   if (flag_pic)								\
     {									\
-      fprintf (FILE, "\tcall *%s@GOT(%%ebx)\n",				\
+      fprintf ((FILE), "\tcall *%s@GOT(%%ebx)\n",			\
       TARGET_AOUT ? "mcount" : ".mcount");				\
     }									\
   else									\
     {									\
-      fprintf (FILE, "\tcall %s\n", TARGET_AOUT ? "mcount" : ".mcount");	\
+      fprintf ((FILE), "\tcall %s\n", TARGET_AOUT ? "mcount" : ".mcount"); \
     }									\
 }
 
+#undef FUNCTION_PROFILER_EPILOGUE
 #define FUNCTION_PROFILER_EPILOGUE(FILE)  \
 {									\
   if (TARGET_PROFILER_EPILOGUE)						\
     {									\
       if (flag_pic)							\
-	fprintf (FILE, "\tcall *%s@GOT(%%ebx)\n",			\
+	fprintf ((FILE), "\tcall *%s@GOT(%%ebx)\n",			\
 	  TARGET_AOUT ? "mexitcount" : ".mexitcount");			\
       else								\
-	fprintf (FILE, "\tcall %s\n",					\
+	fprintf ((FILE), "\tcall %s\n",					\
 	  TARGET_AOUT ? "mexitcount" : ".mexitcount");			\
     }									\
 }
@@ -439,15 +452,16 @@ do {									\
  
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "int"
-  
+
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "int"
  
+#undef WCHAR_UNSIGNED
 #define WCHAR_UNSIGNED 0
 
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
-    
+
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Di386 -Acpu(i386) -Amachine(i386)" CPP_FBSD_PREDEFINES
 
@@ -515,9 +529,9 @@ do {									\
 
 #ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
 #error "we don't have this for the aout gas"
-#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP) \
-  if ((LOG)!=0) \
-    if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
+#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE, LOG, MAX_SKIP) 			\
+  if ((LOG)!=0)								\
+    if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG));	\
     else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP))
 #endif
 
