@@ -78,7 +78,6 @@ static struct cdevsw amr_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	0,
-		/* bmaj */	254	/* XXX magic no-bdev */
 };
 
 /*

@@ -199,8 +199,6 @@ struct cdevsw {
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
 	u_int		d_flags;
-	/* This following field is deprecated.  Please don't initialize */
-	int		d_XXXbmaj;
 	/* additions below are not binary compatible with 4.2 and below */
 	d_kqfilter_t	*d_kqfilter;
 };

@@ -59,7 +59,6 @@ enum constants {
     MINVINUMSLICE = 1048576,				    /* minimum size of a slice */
 
     VINUM_CDEV_MAJOR = 91,				    /* major number for character device */
-    VINUM_BDEV_MAJOR = 25,				    /* and legacy major number for block device */
 
     ROUND_ROBIN_READPOL = -1,				    /* round robin read policy */
 
@@ -130,8 +129,6 @@ enum constants {
 			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
 			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH))		\
 			  | (t << VINUM_TYPE_SHIFT) )
-
-#define VINUMRBDEV(d,t)	makedev (VINUM_BDEV_MAJOR, VINUMRMINOR (d, t))
 
     /* extract device type */
 #define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)

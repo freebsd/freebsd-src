@@ -516,7 +516,6 @@ static d_psize_t	matcdsize;
 static d_strategy_t	matcdstrategy;
 
 #define CDEV_MAJOR 46
-#define BDEV_MAJOR 17
 
 static struct cdevsw matcd_cdevsw = {
 	/* open */	matcdopen,
@@ -532,7 +531,6 @@ static struct cdevsw matcd_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* bmaj */	BDEV_MAJOR
 };
 
 /*---------------------------------------------------------------------------

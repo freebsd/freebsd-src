@@ -80,7 +80,6 @@ SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &ssc_debug, 0, "");
 static int sscrootready;
 
 #define CDEV_MAJOR	157
-#define BDEV_MAJOR	157
 
 static d_strategy_t sscstrategy;
 static d_open_t sscopen;
@@ -100,7 +99,6 @@ static struct cdevsw ssc_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     D_DISK | D_CANFREE,
-        /* bmaj */      BDEV_MAJOR
 };
 
 static struct cdevsw sscdisk_cdevsw;

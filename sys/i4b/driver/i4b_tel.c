@@ -207,7 +207,6 @@ static struct cdevsw i4btel_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
-	/* bmaj */      -1
 };
 
 PDEVSTATIC void i4btelinit(void *unused);

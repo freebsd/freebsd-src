@@ -82,7 +82,6 @@ static struct cdevsw agp_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* bmaj */	-1
 };
 
 static devclass_t agp_devclass;

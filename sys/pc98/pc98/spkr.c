@@ -51,7 +51,6 @@ static struct cdevsw spkr_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");

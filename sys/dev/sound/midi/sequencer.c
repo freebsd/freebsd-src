@@ -158,7 +158,6 @@ static struct cdevsw seq_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static TAILQ_HEAD(,_seqdev_info) seq_info;

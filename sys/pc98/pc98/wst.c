@@ -63,7 +63,6 @@ static struct cdevsw wst_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static unsigned int wst_total = 0;

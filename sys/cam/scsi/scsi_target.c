@@ -180,7 +180,6 @@ static struct cdevsw targ_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static int		targsendccb(struct cam_periph *periph, union ccb *ccb,

@@ -211,7 +211,6 @@ static struct cdevsw asc_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 #define STATIC static

@@ -76,7 +76,6 @@ static struct cdevsw amrd_cdevsw = {
 		/* dump */	nodump,
 		/* psize */ 	nopsize,
 		/* flags */	D_DISK,
-		/* bmaj */	254
 };
 
 static devclass_t	amrd_devclass;

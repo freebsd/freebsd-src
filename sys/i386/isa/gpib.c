@@ -91,7 +91,6 @@ static struct cdevsw gp_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 #define   BUFSIZE      1024

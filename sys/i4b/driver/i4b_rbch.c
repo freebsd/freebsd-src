@@ -203,7 +203,6 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
-	/* bmaj */      -1
 };
 
 static void i4brbchattach(void *);

@@ -81,7 +81,6 @@ static struct cdevsw pcfclock_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 #ifndef PCFCLOCK_MAX_RETRIES

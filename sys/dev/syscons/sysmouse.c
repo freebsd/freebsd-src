@@ -61,7 +61,6 @@ static struct cdevsw sm_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* bmaj */	-1
 };
 
 /* local variables */

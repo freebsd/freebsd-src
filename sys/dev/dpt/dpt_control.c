@@ -106,7 +106,6 @@ static struct cdevsw dpt_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static struct buf *dpt_inbuf[DPT_MAX_ADAPTERS];

@@ -117,7 +117,6 @@ static struct cdevsw spigot_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 static ointhand2_t	spigintr;

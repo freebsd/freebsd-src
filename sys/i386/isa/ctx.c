@@ -164,7 +164,6 @@ static struct cdevsw ctx_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 

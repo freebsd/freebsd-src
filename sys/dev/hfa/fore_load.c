@@ -550,7 +550,6 @@ static struct cdevsw fore_cdev = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* bmaj */	-1
 };
 
 
