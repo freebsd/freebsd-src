@@ -6,9 +6,11 @@ SRCS=	scsi.c
 
 MAN3=	scsi.3
 
-#MLINKS+=kvm_getprocs.3 kvm_getargv.3 kvm_getprocs.3 kvm_getenvv.3
-#MLINKS+=kvm_open.3 kvm_openfiles.3 kvm_open.3 kvm_close.3
-#MLINKS+=kvm_read.3 kvm_write.3
+MLINKS+=scsi.3 scsireq_buff_decode.3 scsi.3 scsireq_build.3 \
+	scsi.3 scsireq_decode.3 scsi.3 scsireq_encode.3 \
+	scsi.3 scsireg_enter.3 scsi.3 SCSIREQ_ERROR.3 \
+	scsi.3 scsi_open.3 scsi.3 scsi_debug.3 \
+	scsi.3 scsi_debug_output.3
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s scsi.h ${DESTDIR}/usr/include/scsi.h || \
