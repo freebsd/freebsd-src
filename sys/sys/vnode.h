@@ -676,7 +676,6 @@ int	vop_einval(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
-int	vop_stdcreatevobject(struct vop_createvobject_args *ap);
 int	vop_stddestroyvobject(struct vop_destroyvobject_args *ap);
 int	vop_stdgetvobject(struct vop_getvobject_args *ap);
 

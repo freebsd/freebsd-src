@@ -77,7 +77,6 @@ struct vop_vector default_vnodeops = {
 	.vop_advlock =		VOP_EINVAL,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
-	.vop_createvobject =	vop_stdcreatevobject,
 	.vop_destroyvobject =	vop_stddestroyvobject,
 	.vop_fsync =		VOP_NULL,
 	.vop_getpages =		vop_stdgetpages,
@@ -359,19 +358,6 @@ vop_stdgetwritemount(ap)
 
 	*(ap->a_mpp) = ap->a_vp->v_mount;
 	return (0);
-}
-
-/* Create the VM system backing object for this vnode */
-int
-vop_stdcreatevobject(ap)
-	struct vop_createvobject_args /* {
-		struct vnode *vp;
-		struct ucred *cred;
-		struct thread *td;
-	} */ *ap;
-{
-
-	return (vnode_create_vobject(ap->a_vp, 0, ap->a_td));
 }
 
 /* Destroy the VM system object associated with this vnode */
