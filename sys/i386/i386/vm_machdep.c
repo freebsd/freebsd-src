@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.9 1994/01/14 16:23:42 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.10 1994/01/21 17:11:38 davidg Exp $
  */
 
 #include "npx.h"
@@ -337,4 +337,58 @@ cpu_reset() {
 	tlbflush(); 
 	/* NOTREACHED */
 	while(1);
+}
+
+/*
+ * Grow the user stack to allow for 'sp'. This version grows the stack in
+ *	chunks of DFLSSIZ. It is expected (required) that there is an
+ *	integer number of DFLSSIZ chunks in MAXSSIZ.
+ */
+int
+grow(p, sp)
+	struct proc *p;
+	int sp;
+{
+	unsigned int nss;
+	caddr_t v;
+	struct vmspace *vm = p->p_vmspace;
+
+	if ((caddr_t)sp <= vm->vm_maxsaddr || (unsigned)sp >= (unsigned)USRSTACK)
+	    return (1);
+
+	nss = roundup(USRSTACK - (unsigned)sp, PAGE_SIZE);
+
+	if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
+		return (0);
+
+	if (vm->vm_ssize && roundup(vm->vm_ssize << PAGE_SHIFT,
+	    DFLSSIZ) < nss) {
+		int grow_amount;
+		/*
+		 * If necessary, grow the VM that the stack occupies
+		 * to allow for the rlimit. This allows us to not have
+		 * to allocate all of the VM up-front in execve (which
+		 * is expensive).
+		 * Grow the VM by the amount requested rounded up to
+		 * the nearest DFLSSIZ to provide for some hysteresis.
+		 */
+		grow_amount = roundup((nss - (vm->vm_ssize << PAGE_SHIFT)), DFLSSIZ);
+		v = (char *)USRSTACK - roundup(vm->vm_ssize << PAGE_SHIFT,
+		    DFLSSIZ) - grow_amount;
+		/*
+		 * If there isn't enough room to extend by DFLSSIZ, then
+		 * just extend to the maximum size
+		 */
+		if (v < vm->vm_maxsaddr) {
+			v = vm->vm_maxsaddr;
+			grow_amount = MAXSSIZ - (vm->vm_ssize << PAGE_SHIFT);
+		}
+		if (vm_allocate(&vm->vm_map, (vm_offset_t *)&v,
+		    grow_amount, FALSE) != KERN_SUCCESS) {
+			return (0);
+		}
+		vm->vm_ssize += grow_amount >> PAGE_SHIFT;
+	}
+
+	return (1);
 }
