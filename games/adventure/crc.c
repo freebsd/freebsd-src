@@ -44,6 +44,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+#include "hdr.h"
 
 const u_long crctab[] = {
 	0x7fffffff,
@@ -111,6 +112,7 @@ const u_long crctab[] = {
 u_long crcval;
 u_int step;
 
+void 
 crc_start()
 {
 	crcval = step = 0;
