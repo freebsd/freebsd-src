@@ -76,7 +76,7 @@ OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 	int cs, i, rsz, type;
 
 	bus = OF_parent(node);
-	if (bus == NULL)
+	if (bus == 0)
 		return (ENXIO);
 	if (OF_getprop(bus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
@@ -102,7 +102,7 @@ OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
 		/* Find the topmost PCI node (the host bridge) */
 		while (1) {
 			pbus = OF_parent(bus);
-			if (pbus == NULL)
+			if (pbus == 0)
 				return (ENXIO);
 			if (OF_getprop(pbus, "name", name, sizeof(name)) == -1)
 				return (ENXIO);
