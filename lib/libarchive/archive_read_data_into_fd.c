@@ -33,36 +33,49 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_private.h"
 
+/* Maximum amount of data to write at one time. */
+#define	MAX_WRITE	(1024 * 1024)
+
 /*
- * This implementation minimizes copying of data.
+ * This implementation minimizes copying of data and is sparse-file aware.
  */
 ssize_t
 archive_read_data_into_fd(struct archive *a, int fd)
 {
-	ssize_t bytes_read, bytes_written, total_written;
+	int r;
 	const void *buff;
+	ssize_t size, bytes_to_write;
+	ssize_t bytes_written, total_written;
+	off_t offset;
+	off_t output_offset;
+
+	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA);
 
 	total_written = 0;
-	while (a->entry_bytes_remaining > 0) {
-		/* Remember: '1' here is minimum, not maximum. */
-		/* Read-ahead function will return as much as is convenient. */
-		bytes_read = (a->compression_read_ahead)(a, &buff, 1);
-		if (bytes_read < 0)
-			return (-1);
-		if (bytes_read > a->entry_bytes_remaining)
-			bytes_read = (ssize_t)a->entry_bytes_remaining;
-		/* Don't copy more than 1 megabyte at a time. */
-		if (bytes_read > (1024*1024))
-			bytes_read = 1024*1024;
+	output_offset = 0;
 
-		bytes_written = write(fd, buff, bytes_read);
-		if (bytes_written < 0)
-			return (-1);
-		(a->compression_read_consume)(a, bytes_written);
-		total_written += bytes_written;
-		a->entry_bytes_remaining -= bytes_written;
-		if (a->extract_progress != NULL)
-			(*a->extract_progress)(a->extract_progress_user_data);
+	while ((r = archive_read_data_block(a, &buff, &size, &offset)) ==
+	    ARCHIVE_OK) {
+		if (offset > output_offset) {
+			lseek(fd, offset - output_offset, SEEK_CUR);
+			output_offset = offset;
+		}
+		while (size > 0) {
+			bytes_to_write = size;
+			if (bytes_to_write > MAX_WRITE)
+				bytes_to_write = MAX_WRITE;
+			bytes_written = write(fd, buff, bytes_to_write);
+			if (bytes_written < 0)
+				return (-1);
+			output_offset += bytes_written;
+			total_written += bytes_written;
+			size -= bytes_written;
+			if (a->extract_progress != NULL)
+				(*a->extract_progress)(a->extract_progress_user_data);
+		}
 	}
+
+	if (r != ARCHIVE_EOF)
+		return (-1);
 	return (total_written);
 }
