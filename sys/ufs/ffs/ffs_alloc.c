@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.47 1998/02/06 12:14:13 eivind Exp $
+ * $Id: ffs_alloc.c,v 1.48 1998/03/08 09:58:42 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -837,7 +837,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		brelse(bp);
 		return (0);
 	}
-	cgp->cg_time = time.tv_sec;
+	cgp->cg_time = time_second;
 	bno = dtogd(fs, bprev);
 	for (i = numfrags(fs, osize); i < frags; i++)
 		if (isclr(cg_blksfree(cgp), bno + i)) {
@@ -904,7 +904,7 @@ ffs_alloccg(ip, cg, bpref, size)
 		brelse(bp);
 		return (0);
 	}
-	cgp->cg_time = time.tv_sec;
+	cgp->cg_time = time_second;
 	if (size == fs->fs_bsize) {
 		bno = ffs_alloccgblk(ip, bp, bpref);
 		bdwrite(bp);
@@ -1230,7 +1230,7 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 		brelse(bp);
 		return (0);
 	}
-	cgp->cg_time = time.tv_sec;
+	cgp->cg_time = time_second;
 	if (ipref) {
 		ipref %= fs->fs_ipg;
 		if (isclr(cg_inosused(cgp), ipref))
@@ -1322,7 +1322,7 @@ ffs_blkfree(ip, bno, size)
 		brelse(bp);
 		return;
 	}
-	cgp->cg_time = time.tv_sec;
+	cgp->cg_time = time_second;
 	bno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
 		blkno = fragstoblks(fs, bno);
@@ -1483,7 +1483,7 @@ ffs_vfree( pvp, ino, mode)
 		brelse(bp);
 		return (0);
 	}
-	cgp->cg_time = time.tv_sec;
+	cgp->cg_time = time_second;
 	ino %= fs->fs_ipg;
 	if (isclr(cg_inosused(cgp), ino)) {
 		printf("dev = 0x%lx, ino = %ld, fs = %s\n",

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.76 1998/03/08 09:59:06 julian Exp $
+ * $Id: ffs_vfsops.c,v 1.77 1998/03/27 14:20:57 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -967,7 +967,7 @@ loop:
 		} else {
 			simple_unlock(&mntvnode_slock);
 			simple_unlock(&vp->v_interlock);
-			gettime(&tv);
+			getmicrotime(&tv);
 			/* UFS_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT); */
 			UFS_UPDATE(vp, &tv, &tv, 0);
 			simple_lock(&mntvnode_slock);
@@ -1247,7 +1247,7 @@ ffs_sbupdate(mp, waitfor)
 		return (allerror);
 	bp = getblk(mp->um_devvp, SBLOCK, (int)fs->fs_sbsize, 0, 0);
 	fs->fs_fmod = 0;
-	fs->fs_time = time.tv_sec;
+	fs->fs_time = time_second;
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
 	/* Restore compatibility to old file systems.		   XXX */
 	dfs = (struct fs *)bp->b_data;				/* XXX */

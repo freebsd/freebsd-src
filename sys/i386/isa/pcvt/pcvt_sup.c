@@ -1923,7 +1923,7 @@ getrand(void)
 #endif
 	static unsigned long seed = 1;
 	register u_short res = (u_short)seed;
-	seed = seed * 1103515245L + time.tv_sec;
+	seed = seed * 1103515245L + time_second;
 	return res;
 }
 
@@ -2082,9 +2082,9 @@ pcvt_scrnsv_reset(void)
 	int reschedule = 0;
 
 	if((scrnsv_active == 1 || scrnsv_timeout) &&
-	   last_schedule != time.tv_sec)
+	   last_schedule != time_second)
 	{
-		last_schedule = time.tv_sec;
+		last_schedule = time_second;
 		reschedule = 1;
 		untimeout(scrnsv_timedout, NULL, scrnsv_timeout_ch);
 	}

@@ -1,6 +1,6 @@
 #	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
 #
-#	$Id: symbols.raw,v 1.10 1997/04/16 15:09:37 ache Exp $
+#	$Id: symbols.raw,v 1.11 1997/04/26 11:45:26 peter Exp $
 #
 
 
@@ -72,8 +72,8 @@
 #savecore
 	_dumpdev
 	_dumplo
+	_time_second
 	_version
-	_time
 	_dumpsize
 	_panicstr
 	_dumpmag

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.50 1998/02/04 22:33:15 eivind Exp $
+ * $Id: nfs_subs.c,v 1.51 1998/02/06 12:13:57 eivind Exp $
  */
 
 /*
@@ -557,6 +557,15 @@ extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
 LIST_HEAD(nfsnodehashhead, nfsnode);
 
 int nfs_webnamei __P((struct nameidata *, struct vnode *, struct proc *));
+
+u_quad_t
+nfs_curusec() 
+{
+	struct timeval tv;
+	
+	getmicrotime(&tv);
+	return ((u_quad_t)tv.tv_sec * 1000000 + (u_quad_t)tv.tv_usec);
+}
 
 /*
  * Create the header for an rpc request packet
@@ -1348,7 +1357,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		} else
 			np->n_size = vap->va_size;
 	}
-	np->n_attrstamp = time.tv_sec;
+	np->n_attrstamp = time_second;
 	if (vaper != NULL) {
 		bcopy((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
@@ -1374,7 +1383,7 @@ nfs_getattrcache(vp, vaper)
 	register struct nfsnode *np = VTONFS(vp);
 	register struct vattr *vap;
 
-	if ((time.tv_sec - np->n_attrstamp) >= NFS_ATTRTIMEO(np)) {
+	if ((time_second - np->n_attrstamp) >= NFS_ATTRTIMEO(np)) {
 		nfsstats.attrcache_misses++;
 		return (ENOENT);
 	}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.46 1998/03/21 05:16:09 dyson Exp $
+ * $Id: ffs_vnops.c,v 1.47 1998/03/28 10:33:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -253,7 +253,7 @@ loop2:
 #endif
 		}
 	}
-	gettime(&tv);
+	getmicrotime(&tv);
 	error = UFS_UPDATE(ap->a_vp, &tv, &tv, (ap->a_waitfor == MNT_WAIT));
 	if (error)
 		return (error);

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.119 1998/03/08 18:19:17 dyson Exp $
+ * $Id: vm_pageout.c,v 1.120 1998/03/16 01:55:58 dyson Exp $
  */
 
 /*
@@ -963,10 +963,10 @@ rescan0:
 	 */
 	if (vm_swap_idle_enabled) {
 		static long lsec;
-		if (time.tv_sec != lsec) {
+		if (time_second != lsec) {
 			vm_pageout_req_swapout |= VM_SWAP_IDLE;
 			vm_req_vmdaemon();
-			lsec = time.tv_sec;
+			lsec = time_second;
 		}
 	}
 #endif

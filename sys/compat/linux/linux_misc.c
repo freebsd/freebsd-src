@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.33 1997/11/06 19:28:58 phk Exp $
+ *  $Id: linux_misc.c,v 1.34 1998/02/25 05:33:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,9 +73,9 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args)
     it.it_value.tv_usec = 0;
     it.it_interval.tv_sec = 0;
     it.it_interval.tv_usec = 0;
-    s = splclock();
+    s = splclock(); /* XXX Still needed ? */
     old_it = p->p_realtimer;
-    tv = time;
+    getmicrotime(&tv);
     if (timerisset(&old_it.it_value))
 	if (timercmp(&old_it.it_value, &tv, <))
 	    timerclear(&old_it.it_value);
@@ -84,10 +84,10 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args)
     splx(s);
     if (itimerfix(&it.it_value) || itimerfix(&it.it_interval))
 	return EINVAL;
-    s = splclock();
+    s = splclock(); /* XXX Still needed ? */
     if (timerisset(&p->p_realtimer.it_value))
 	    untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
-    tv = time;
+    getmicrotime(&tv);
     if (timerisset(&it.it_value)) {
 	timevaladd(&it.it_value, &tv);
 	p->p_ithandle = timeout(realitexpire, (caddr_t)p, hzto(&it.it_value));

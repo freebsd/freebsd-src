@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.45 1998/02/20 13:11:49 bde Exp $
+ * $Id: if_ethersubr.c,v 1.46 1998/03/18 01:40:11 wollman Exp $
  */
 
 #include "opt_atalk.h"
@@ -162,7 +162,7 @@ ether_output(ifp, m0, dst, rt0)
 		}
 		if (rt->rt_flags & RTF_REJECT)
 			if (rt->rt_rmx.rmx_expire == 0 ||
-			    time.tv_sec < rt->rt_rmx.rmx_expire)
+			    time_second < rt->rt_rmx.rmx_expire)
 				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
 	switch (dst->sa_family) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.79 1998/02/26 08:31:53 dima Exp $
+ * $Id: ip_input.c,v 1.80 1998/03/21 11:34:11 peter Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -219,7 +219,7 @@ ip_init()
 
 	maxnipq = nmbclusters/4;
 
-	ip_id = time.tv_sec & 0xffff;
+	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
 #ifdef IPFIREWALL
 	ip_fw_init();

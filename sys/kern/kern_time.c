@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.42 1998/02/25 04:10:32 bde Exp $
+ * $Id: kern_time.c,v 1.43 1998/03/26 20:51:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -229,10 +229,7 @@ nanosleep1(p, rqt, rmt)
 				atv.tv_usec = 0;
 			}
 		}
-		s = splclock();
-		timevaladd(&atv, &time);
-		timo = hzto(&atv);
-		splx(s);
+		timo = tvtohz(&atv);
 
 		p->p_sleepend = &atv;
 		error = tsleep(&nanowait, PWAIT | PCATCH, "nanslp", timo);
@@ -257,9 +254,7 @@ nanosleep1(p, rqt, rmt)
 			 *     problem for small timeouts, but the absolute error may
 			 *     be large for large timeouts.
 			 */
-			s = splclock();
-			utv = time;
-			splx(s);
+			getmicrotime(&utv);
 			if (i != n) {
 				atv.tv_sec += (n - i - 1) * 100000000;
 				timevaladd(&atv, &rtv);
@@ -504,12 +499,13 @@ getitimer(p, uap)
 	struct proc *p;
 	register struct getitimer_args *uap;
 {
+	struct timeval ctv;
 	struct itimerval aitv;
 	int s;
 
 	if (uap->which > ITIMER_PROF)
 		return (EINVAL);
-	s = splclock();
+	s = splclock(); /* XXX still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		/*
 		 * Convert from absoulte to relative time in .it_value
@@ -518,11 +514,13 @@ getitimer(p, uap)
 		 * current time and time for the timer to go off.
 		 */
 		aitv = p->p_realtimer;
-		if (timerisset(&aitv.it_value))
-			if (timercmp(&aitv.it_value, &time, <))
+		if (timerisset(&aitv.it_value)) {
+			getmicrotime(&ctv);
+			if (timercmp(&aitv.it_value, &ctv, <))
 				timerclear(&aitv.it_value);
 			else
-				timevalsub(&aitv.it_value, &time);
+				timevalsub(&aitv.it_value, &ctv);
+		}
 	} else
 		aitv = p->p_stats->p_timer[uap->which];
 	splx(s);
@@ -543,6 +541,7 @@ setitimer(p, uap)
 	register struct setitimer_args *uap;
 {
 	struct itimerval aitv;
+	struct timeval ctv;
 	register struct itimerval *itvp;
 	int s, error;
 
@@ -563,12 +562,13 @@ setitimer(p, uap)
 		timerclear(&aitv.it_interval);
 	else if (itimerfix(&aitv.it_interval))
 		return (EINVAL);
-	s = splclock();
+	s = splclock(); /* XXX: still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		if (timerisset(&p->p_realtimer.it_value))
 			untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
 		if (timerisset(&aitv.it_value)) {
-			timevaladd(&aitv.it_value, &time);
+			getmicrotime(&ctv);
+			timevaladd(&aitv.it_value, &ctv);
 			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
 						hzto(&aitv.it_value));
 		}
@@ -596,6 +596,7 @@ realitexpire(arg)
 	void *arg;
 {
 	register struct proc *p;
+	struct timeval ctv;
 	int s;
 
 	p = (struct proc *)arg;
@@ -605,10 +606,11 @@ realitexpire(arg)
 		return;
 	}
 	for (;;) {
-		s = splclock();
+		s = splclock(); /* XXX: still neeeded ? */
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
-		if (timercmp(&p->p_realtimer.it_value, &time, >)) {
+		getmicrotime(&ctv);
+		if (timercmp(&p->p_realtimer.it_value, &ctv, >)) {
 			p->p_ithandle =
 			    timeout(realitexpire, (caddr_t)p,
 				    hzto(&p->p_realtimer.it_value) - 1);

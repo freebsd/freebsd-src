@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.53 1998/01/08 23:41:28 eivind Exp $ */
+/* $Id: if_ppp.c,v 1.54 1998/03/22 06:51:54 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -275,7 +275,7 @@ pppalloc(pid)
 	sc->sc_npmode[i] = NPMODE_ERROR;
     sc->sc_npqueue = NULL;
     sc->sc_npqtail = &sc->sc_npqueue;
-    sc->sc_last_sent = sc->sc_last_recv = time.tv_sec;
+    sc->sc_last_sent = sc->sc_last_recv = time_second;
 
     return sc;
 }
@@ -511,7 +511,7 @@ pppioctl(sc, cmd, data, flag, p)
 
     case PPPIOCGIDLE:
 	s = splsoftnet();
-	t = time.tv_sec;
+	t = time_second;
 	((struct ppp_idle *)data)->xmit_idle = t - sc->sc_last_sent;
 	((struct ppp_idle *)data)->recv_idle = t - sc->sc_last_recv;
 	splx(s);
@@ -820,14 +820,14 @@ pppoutput(ifp, m0, dst, rtp)
 	 */
 	if (sc->sc_active_filt.bf_insns == 0
 	    || bpf_filter(sc->sc_active_filt.bf_insns, (u_char *) m0, len, 0))
-	    sc->sc_last_sent = time.tv_sec;
+	    sc->sc_last_sent = time_second;
 
 	*mtod(m0, u_char *) = address;
 #else
 	/*
 	 * Update the time we sent the most recent data packet.
 	 */
-	sc->sc_last_sent = time.tv_sec;
+	sc->sc_last_sent = time_second;
 #endif /* PPP_FILTER */
     }
 
@@ -862,7 +862,7 @@ pppoutput(ifp, m0, dst, rtp)
 	IF_ENQUEUE(ifq, m0);
 	(*sc->sc_start)(sc);
     }
-    gettime(&ifp->if_lastchange);
+    getmicrotime(&ifp->if_lastchange);
     ifp->if_opackets++;
     ifp->if_obytes += len;
 
@@ -1455,14 +1455,14 @@ ppp_inproc(sc, m)
 	}
 	if (sc->sc_active_filt.bf_insns == 0
 	    || bpf_filter(sc->sc_active_filt.bf_insns, (u_char *) m, ilen, 0))
-	    sc->sc_last_recv = time.tv_sec;
+	    sc->sc_last_recv = time_second;
 
 	*mtod(m, u_char *) = adrs;
 #else
 	/*
 	 * Record the time that we received this packet.
 	 */
-	sc->sc_last_recv = time.tv_sec;
+	sc->sc_last_recv = time_second;
 #endif /* PPP_FILTER */
     }
 
@@ -1490,7 +1490,7 @@ ppp_inproc(sc, m)
 	m->m_len -= PPP_HDRLEN;
 	schednetisr(NETISR_IP);
 	inq = &ipintrq;
-	sc->sc_last_recv = time.tv_sec;	/* update time of last pkt rcvd */
+	sc->sc_last_recv = time_second;	/* update time of last pkt rcvd */
 	break;
 #endif
 #ifdef IPX
@@ -1509,7 +1509,7 @@ ppp_inproc(sc, m)
 	m->m_len -= PPP_HDRLEN;
 	schednetisr(NETISR_IPX);
 	inq = &ipxintrq;
-	sc->sc_last_recv = time.tv_sec;	/* update time of last pkt rcvd */
+	sc->sc_last_recv = time_second;	/* update time of last pkt rcvd */
 	break;
 #endif
 
@@ -1538,7 +1538,7 @@ ppp_inproc(sc, m)
     splx(s);
     ifp->if_ipackets++;
     ifp->if_ibytes += ilen;
-    gettime(&ifp->if_lastchange);
+    getmicrotime(&ifp->if_lastchange);
 
     if (rv)
 	(*sc->sc_ctlp)(sc);

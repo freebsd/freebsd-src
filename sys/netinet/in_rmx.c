@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_rmx.c,v 1.32 1998/02/06 12:13:50 eivind Exp $
+ *	$Id: in_rmx.c,v 1.33 1998/03/27 14:30:18 peter Exp $
  */
 
 /*
@@ -202,7 +202,7 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	 */
 	if(rtq_reallyold != 0) {
 		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time.tv_sec + rtq_reallyold;
+		rt->rt_rmx.rmx_expire = time_second + rtq_reallyold;
 	} else {
 		rtrequest(RTM_DELETE,
 			  (struct sockaddr *)rt_key(rt),
@@ -235,7 +235,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	if(rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
-		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec) {
+		if(ap->draining || rt->rt_rmx.rmx_expire <= time_second) {
 			if(rt->rt_refcnt > 0)
 				panic("rtqkill route really not free");
 
@@ -250,9 +250,9 @@ in_rtqkill(struct radix_node *rn, void *rock)
 			}
 		} else {
 			if(ap->updating
-			   && (rt->rt_rmx.rmx_expire - time.tv_sec
+			   && (rt->rt_rmx.rmx_expire - time_second
 			       > rtq_reallyold)) {
-				rt->rt_rmx.rmx_expire = time.tv_sec
+				rt->rt_rmx.rmx_expire = time_second
 					+ rtq_reallyold;
 			}
 			ap->nextstop = lmin(ap->nextstop,
@@ -277,7 +277,7 @@ in_rtqtimo(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time.tv_sec + rtq_timeout;
+	arg.nextstop = time_second + rtq_timeout;
 	arg.draining = arg.updating = 0;
 	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
@@ -292,14 +292,14 @@ in_rtqtimo(void *rock)
 	 * hard.
 	 */
 	if((arg.found - arg.killed > rtq_toomany)
-	   && (time.tv_sec - last_adjusted_timeout >= rtq_timeout)
+	   && (time_second - last_adjusted_timeout >= rtq_timeout)
 	   && rtq_reallyold > rtq_minreallyold) {
 		rtq_reallyold = 2*rtq_reallyold / 3;
 		if(rtq_reallyold < rtq_minreallyold) {
 			rtq_reallyold = rtq_minreallyold;
 		}
 
-		last_adjusted_timeout = time.tv_sec;
+		last_adjusted_timeout = time_second;
 #ifdef DIAGNOSTIC
 		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d\n",
 		    rtq_reallyold);

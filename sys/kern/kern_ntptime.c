@@ -255,9 +255,9 @@ hardupdate(offset)
 	 * multiply/divide should be replaced someday.
 	 */
 	if (time_status & STA_FREQHOLD || time_reftime == 0)
-		time_reftime = time.tv_sec;
-	mtemp = time.tv_sec - time_reftime;
-	time_reftime = time.tv_sec;
+		time_reftime = time_second;
+	mtemp = time_second - time_reftime;
+	time_reftime = time_second;
 	if (time_status & STA_FLL) {
 		if (mtemp >= MINSEC) {
 			ltemp = ((time_offset / mtemp) << (SHIFT_USEC -
