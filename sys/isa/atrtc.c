@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.126 1998/09/20 03:47:54 bde Exp $
+ *	$Id: clock.c,v 1.127 1998/09/20 19:56:28 bde Exp $
  */
 
 /*
@@ -173,7 +173,7 @@ static	unsigned i8254_get_timecount __P((struct timecounter *tc));
 static	unsigned tsc_get_timecount __P((struct timecounter *tc));
 static	void	set_timer_freq(u_int freq, int intr_freq);
 
-static struct timecounter tsc_timecounter[3] = {
+static struct timecounter tsc_timecounter = {
 	tsc_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
@@ -182,9 +182,9 @@ static struct timecounter tsc_timecounter[3] = {
 };
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, tsc_timecounter, CTLFLAG_RD, 
-	tsc_timecounter, sizeof(tsc_timecounter), "S,timecounter", "");
+	&tsc_timecounter, sizeof(tsc_timecounter), "S,timecounter", "");
 
-static struct timecounter i8254_timecounter[3] = {
+static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
@@ -193,7 +193,7 @@ static struct timecounter i8254_timecounter[3] = {
 };
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD, 
-	i8254_timecounter, sizeof(i8254_timecounter), "S,timecounter", "");
+	&i8254_timecounter, sizeof(i8254_timecounter), "S,timecounter", "");
 
 static void
 clkintr(struct clockframe frame)
@@ -751,8 +751,8 @@ startrtclock()
 	}
 
 	set_timer_freq(timer_freq, hz);
-	i8254_timecounter[0].tc_frequency = timer_freq;
-	init_timecounter(i8254_timecounter);
+	i8254_timecounter.tc_frequency = timer_freq;
+	init_timecounter(&i8254_timecounter);
 
 #ifndef CLK_USE_TSC_CALIBRATION
 	if (tsc_freq != 0) {
@@ -801,8 +801,8 @@ startrtclock()
 #endif /* NAPM > 0 */
 
 	if (tsc_present && tsc_freq != 0) {
-		tsc_timecounter[0].tc_frequency = tsc_freq;
-		init_timecounter(tsc_timecounter);
+		tsc_timecounter.tc_frequency = tsc_freq;
+		init_timecounter(&tsc_timecounter);
 	}
 
 #endif /* !defined(SMP) */
@@ -1118,7 +1118,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 		if (timer0_state != RELEASED)
 			return (EBUSY);	/* too much trouble to handle */
 		set_timer_freq(freq, hz);
-		i8254_timecounter[0].tc_frequency = freq;
+		i8254_timecounter.tc_frequency = freq;
 	}
 	return (error);
 }
@@ -1138,7 +1138,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
-		tsc_timecounter[0].tc_frequency = tsc_freq;
+		tsc_timecounter.tc_frequency = tsc_freq;
 	}
 	return (error);
 }

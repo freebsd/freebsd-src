@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.8 1998/08/17 19:09:36 bde Exp $
+ * $Id: loran.c,v 1.9 1998/10/22 05:58:39 bde Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -270,7 +270,7 @@ loranattach(struct isa_device *isdp)
 	 
 	init_tgc();
 
-	init_timecounter(loran_timecounter);
+	init_timecounter(&loran_timecounter);
 
 	TAILQ_INIT(&qdone);
 	TAILQ_INIT(&qready);
@@ -560,7 +560,7 @@ loran_get_timecount(struct timecounter *tc)
 	return (count);
 }
 
-static struct timecounter loran_timecounter[3] = {
+static struct timecounter loran_timecounter = {
 	loran_get_timecount,	/* get_timecount */
 	0,			/* no pps_poll */
 	0xffff,			/* counter_mask */
