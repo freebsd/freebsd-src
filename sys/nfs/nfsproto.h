@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsproto.h	8.1 (Berkeley) 6/10/93
- * $Id: nfsproto.h,v 1.4 1994/08/21 06:50:13 paul Exp $
+ * $Id: nfsproto.h,v 1.1 1995/06/27 11:06:58 dfr Exp $
  */
 
 #ifndef _NFS_NFSPROTO_H_
@@ -250,7 +250,7 @@ typedef enum { NFNON=0, NFREG=1, NFDIR=2, NFBLK=3, NFCHR=4, NFLNK=5,
  * NFS_SMALLFH should be in the range of 32 to 64 and be divisible by 4.
  */
 #ifndef NFS_SMALLFH
-#define NFS_SMALLFH	64
+#define NFS_SMALLFH	52
 #endif
 union nfsfh {
 	fhandle_t	fh_generic;
