@@ -156,7 +156,7 @@ struct isposinfo {
 
 #define	INLINE			__inline
 
-#define	ISP2100_SCRLEN		0x400
+#define	ISP2100_SCRLEN		0x800
 
 #define	MEMZERO			bzero
 #define	MEMCPY(dst, src, amt)	bcopy((src), (dst), (amt))
