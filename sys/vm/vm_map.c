@@ -1606,8 +1606,6 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	vm_map_unwire:
  *
  *	Implements both kernel and user unwiring.
- *
- *	Ignores MAP_NOFAULT (wired_count == 0 is okay) for kernel unwiring.
  */
 int
 vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
@@ -1700,9 +1698,8 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		/*
 		 * If system unwiring, require that the entry is system wired.
 		 */
-		if (user_unwire ? vm_map_entry_user_wired_count(entry) == 0 :
-		    (vm_map_entry_system_wired_count(entry) == 0 &&
-		    (entry->eflags & MAP_ENTRY_NOFAULT) == 0)) {
+		if (!user_unwire &&
+		    vm_map_entry_system_wired_count(entry) == 0) {
 			end = entry->end;
 			rv = KERN_INVALID_ARGUMENT;
 			goto done;
@@ -1725,11 +1722,8 @@ done:
 		    (entry->eflags & MAP_ENTRY_USER_WIRED))) {
 			if (user_unwire)
 				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
-			if (user_unwire ||
-			    (entry->eflags & MAP_ENTRY_NOFAULT) == 0)
-				entry->wired_count--;
-			if (entry->wired_count == 0 &&
-			    (entry->eflags & MAP_ENTRY_NOFAULT) == 0) {
+			entry->wired_count--;
+			if (entry->wired_count == 0) {
 				/*
 				 * Retain the map lock.
 				 */
@@ -1837,14 +1831,10 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 */
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
 		/*
-		 * The wired_count keeps track of zero or one user
-		 * wirings.  It also keeps track of system wirings if
-		 * MAP_ENTRY_NOFAULT is not set.
+		 *
 		 */
-		if ((user_wire ? vm_map_entry_user_wired_count(entry) == 0 :
-		    (entry->eflags & MAP_ENTRY_NOFAULT) == 0) &&
-		    entry->wired_count++ == 0 &&
-		    (entry->eflags & MAP_ENTRY_NOFAULT) == 0) {
+		if (entry->wired_count == 0) {
+			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
 			fictitious = entry->object.vm_object != NULL &&
@@ -1893,6 +1883,9 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				end = entry->end;
 				goto done;
 			}
+		} else if (!user_wire ||
+			   (entry->eflags & MAP_ENTRY_USER_WIRED) == 0) {
+			entry->wired_count++;
 		}
 		/*
 		 * Check the map for holes in the specified region.
@@ -1920,11 +1913,6 @@ done:
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
 		if (rv == KERN_SUCCESS) {
-			/*
-			 * The MAP_ENTRY_USER_WIRED may already have been
-			 * set.  If so, this statement has no effect
-			 * (and wired_count will not have changed).
-			 */
 			if (user_wire)
 				entry->eflags |= MAP_ENTRY_USER_WIRED;
 		} else if (entry->wired_count == -1) {
@@ -1934,11 +1922,10 @@ done:
 			 */
 			entry->wired_count = 0;
 		} else {
-			if (user_wire ||
-			    (entry->eflags & MAP_ENTRY_NOFAULT) == 0)
+			if (!user_wire ||
+			    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0)
 				entry->wired_count--;
-			if (entry->wired_count == 0 &&
-			    (entry->eflags & MAP_ENTRY_NOFAULT) == 0) {
+			if (entry->wired_count == 0) {
 				/*
 				 * Retain the map lock.
 				 */
@@ -2066,9 +2053,6 @@ vm_map_sync(
 static void
 vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
-	KASSERT(vm_map_entry_user_wired_count(entry) == 1 &&
-	    vm_map_entry_system_wired_count(entry) == 0,
-	    ("system/user wiring mistake"));
 	vm_fault_unwire(map, entry->start, entry->end,
 	    entry->object.vm_object != NULL &&
 	    entry->object.vm_object->type == OBJT_DEVICE);
@@ -2153,10 +2137,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 
 		/*
 		 * Wait for wiring or unwiring of an entry to complete.
-		 * Also wait for any system wirings to disappear.
 		 */
-		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0 ||
-		    vm_map_entry_system_wired_count(entry) != 0) {
+		if ((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0) {
 			unsigned int last_timestamp;
 			vm_offset_t saved_start;
 			vm_map_entry_t tmp_entry;
@@ -3039,6 +3021,9 @@ RetryLookup:;
 	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
+	/*
+	 * Return whether this is the only map sharing this data.
+	 */
 	*out_prot = prot;
 	return (KERN_SUCCESS);
 
