@@ -152,7 +152,7 @@ system call uses a
 .Fa msghdr
 structure to minimize the number of directly supplied arguments.
 This structure has the following form, as defined in
-.Ao Pa sys/socket.h Ac :
+.In sys/socket.h :
 .Pp
 .Bd -literal
 struct msghdr {
@@ -226,7 +226,7 @@ In this case,
 should be a structure of type
 .Fa cmsgcred ,
 which is defined in
-.Ao Pa sys/socket.h Ac
+.In sys/socket.h
 as follows:
 .Pp
 .Bd -literal
