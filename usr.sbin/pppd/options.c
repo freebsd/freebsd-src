@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.39 1997/07/14 03:53:34 paulus Exp $";
+static char rcsid[] = "$Id: options.c,v 1.40 1997/11/27 06:09:34 paulus Exp $";
 #endif
 
 #include <ctype.h>
@@ -159,7 +159,7 @@ static int setescape __P((char **));
 static int setmru __P((char **));
 static int setmtu __P((char **));
 #ifdef CBCP_SUPPORT
-static int setcbcp __P((char *));
+static int setcbcp __P((char **));
 #endif
 static int nomru __P((char **));
 static int nopcomp __P((char **));
@@ -250,7 +250,7 @@ static int setipxcpfails __P((char **));
 #endif /* IPX_CHANGE */
 
 #ifdef MSLANMAN
-static int setmslanman __P((void));
+static int setmslanman __P((char **));
 #endif
 
 static int number_option __P((char *, u_int32_t *, int));
@@ -2544,7 +2544,8 @@ resetipxproto(argv)
 
 #ifdef MSLANMAN
 static int
-setmslanman()
+setmslanman(argv)
+    char **argv;
 {
     ms_lanman = 1;
     return (1);

@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: main.c,v 1.42 1997/07/14 03:53:25 paulus Exp $";
+static char rcsid[] = "$Id: main.c,v 1.43 1997/11/27 06:09:20 paulus Exp $";
 #endif
 
 #include <stdio.h>
@@ -40,7 +40,6 @@ static char rcsid[] = "$Id: main.c,v 1.42 1997/07/14 03:53:25 paulus Exp $";
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <net/if.h>
 
 #include "pppd.h"
 #include "magic.h"
@@ -69,7 +68,7 @@ extern char *strerror();
 #endif
 
 /* interface vars */
-char ifname[IFNAMSIZ];		/* Interface name */
+char ifname[32];		/* Interface name */
 int ifunit;			/* Interface unit number */
 
 char *progname;			/* Name of this program */
@@ -161,7 +160,7 @@ main(argc, argv)
     int argc;
     char *argv[];
 {
-    int i, nonblock, fdflags;
+    int i, fdflags;
     struct sigaction sa;
     FILE *pidfile;
     char *p;
@@ -449,17 +448,20 @@ main(argc, argv)
 	} else
 	    tty_mode = statbuf.st_mode;
 
-	/*
-	 * Set line speed, flow control, etc.
-	 * Previously, if we had a connection script, we would set CLOCAL
-	 * while the script was running.  But then, if CD was negated
-	 * before the script finished, we would miss it.
-	 */
-	set_up_tty(ttyfd, 0);
-
 	/* run connection script */
 	if (connector && connector[0]) {
 	    MAINDEBUG((LOG_INFO, "Connecting with <%s>", connector));
+
+	    /*
+	     * Set line speed, flow control, etc.
+	     * On most systems we set CLOCAL for now so that we can talk
+	     * to the modem before carrier comes up.  But this has the
+	     * side effect that we might miss it if CD drops before we
+	     * get to clear CLOCAL below.  On systems where we can talk
+	     * successfully to the modem with CLOCAL clear and CD down,
+	     * we can clear CLOCAL at this point.
+	     */
+	    set_up_tty(ttyfd, 1);
 
 	    /* drop dtr to hang up in case modem is off hook */
 	    if (!default_device && modem) {
@@ -474,9 +476,13 @@ main(argc, argv)
 		goto fail;
 	    }
 
+
 	    syslog(LOG_INFO, "Serial connection established.");
 	    sleep(1);		/* give it time to set up its terminal */
 	}
+
+	/* set line speed, flow control, etc.; clear CLOCAL if modem option */
+	set_up_tty(ttyfd, 0);
 
 	/* reopen tty if necessary to wait for carrier */
 	if (connector == NULL && modem) {
@@ -579,7 +585,7 @@ main(argc, argv)
 	}
 
 	if (!persist)
-	    break;
+	    die(1);
 
 	if (demand)
 	    demand_discard();
