@@ -253,7 +253,7 @@ main(argc, argv)
 		putchar('\n');
 
 	for (plast = &p[cnt]; p < plast; ++p) {
-		if (p->kp_proc.p_stat == SZOMB)
+		if (p->ki_stat == SZOMB)
 			continue;
 		dofiles(p);
 		if (mflg)
@@ -298,18 +298,16 @@ dofiles(kp)
 	struct file file;
 	struct filedesc0 filed0;
 #define	filed	filed0.fd_fd
-	struct proc *p = &kp->kp_proc;
-	struct eproc *ep = &kp->kp_eproc;
 
-	Uname = user_from_uid(ep->e_ucred.cr_uid, 0);
-	Pid = p->p_pid;
-	Comm = p->p_comm;
+	Uname = user_from_uid(kp->ki_uid, 0);
+	Pid = kp->ki_pid;
+	Comm = kp->ki_comm;
 
-	if (p->p_fd == NULL)
+	if (kp->ki_fd == NULL)
 		return;
-	if (!KVM_READ(p->p_fd, &filed0, sizeof (filed0))) {
+	if (!KVM_READ(kp->ki_fd, &filed0, sizeof (filed0))) {
 		dprintf(stderr, "can't read filedesc at %p for pid %d\n",
-		    (void *)p->p_fd, Pid);
+		    (void *)kp->ki_fd, Pid);
 		return;
 	}
 	/*
@@ -324,13 +322,13 @@ dofiles(kp)
 	/*
 	 * ktrace vnode, if one
 	 */
-	if (p->p_tracep)
-		vtrans(p->p_tracep, TRACE, FREAD|FWRITE);
+	if (kp->ki_tracep)
+		vtrans(kp->ki_tracep, TRACE, FREAD|FWRITE);
 	/*
 	 * text vnode, if one
 	 */
-	if (p->p_textvp)
-		vtrans(p->p_textvp, TEXT, FREAD);
+	if (kp->ki_textvp)
+		vtrans(kp->ki_textvp, TEXT, FREAD);
 	/*
 	 * open files
 	 */
@@ -379,24 +377,23 @@ void
 dommap(kp)
 	struct kinfo_proc *kp;
 {
-	struct proc *p = &kp->kp_proc;
-	struct vmspace vmspace;
 	vm_map_t map;
+	struct vmspace vmspace;
 	struct vm_map_entry entry;
 	vm_map_entry_t entryp;
 	struct vm_object object;
 	vm_object_t objp;
 	int prot, fflags;
 
-	if (!KVM_READ(p->p_vmspace, &vmspace, sizeof(vmspace))) {
-		dprintf(stderr, "can't read vmspace at %p for pid %d\n",
-		    (void *)p->p_vmspace, Pid);
+	if (!KVM_READ(kp->ki_vmspace, &vmspace, sizeof(vmspace))) {
+		dprintf(stderr,
+		    "can't read vmspace at %p for pid %d\n",
+		    (void *)kp->ki_vmspace, Pid);
 		return;
 	}
-
 	map = &vmspace.vm_map;
 
-	for (entryp = map->header.next; entryp != &p->p_vmspace->vm_map.header;
+	for (entryp = map->header.next; entryp != &vmspace.vm_map.header;
 	    entryp = entry.next) {
 		if (!KVM_READ(entryp, &entry, sizeof(entry))) {
 			dprintf(stderr,

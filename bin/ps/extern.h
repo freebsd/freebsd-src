@@ -49,10 +49,10 @@ __BEGIN_DECLS
 void	 command __P((KINFO *, VARENT *));
 void	 cputime __P((KINFO *, VARENT *));
 int	 donlist __P((void));
-void	 evar __P((KINFO *, VARENT *));
 char	*fmt_argv __P((char **, char *, int));
 double	 getpcpu __P((KINFO *));
 double	 getpmem __P((KINFO *));
+void	 kvar __P((KINFO *, VARENT *));
 void	 logname __P((KINFO *, VARENT *));
 void	 longtname __P((KINFO *, VARENT *));
 void	 lstarted __P((KINFO *, VARENT *));
@@ -67,7 +67,6 @@ void	 pmem __P((KINFO *, VARENT *));
 void	 pri __P((KINFO *, VARENT *));
 void	 rtprior __P((KINFO *, VARENT *));
 void	 printheader __P((void));
-void	 pvar __P((KINFO *, VARENT *));
 void	 rssize __P((KINFO *, VARENT *));
 void	 runame __P((KINFO *, VARENT *));
 int	 s_runame __P((KINFO *));
@@ -81,7 +80,6 @@ void	 tsize __P((KINFO *, VARENT *));
 void	 ucomm __P((KINFO *, VARENT *));
 void	 uname __P((KINFO *, VARENT *));
 int	 s_uname __P((KINFO *));
-void	 uvar __P((KINFO *, VARENT *));
 void	 vsize __P((KINFO *, VARENT *));
 void	 wchan __P((KINFO *, VARENT *));
 __END_DECLS

@@ -44,7 +44,6 @@ static char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
 #include <sys/param.h>
 #include <sys/dkstat.h>
 #include <sys/time.h>
-#include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
 
@@ -91,7 +90,6 @@ void
 showpigs()
 {
 	register int i, j, y, k;
-	struct	eproc *ep;
 	float total;
 	int factor;
 	char *uname, *pname, pidname[30];
@@ -120,9 +118,9 @@ showpigs()
 			pname = "<idle>";
 		}
 		else {
-			ep = &pt[k].pt_kp->kp_eproc;
-			uname = (char *)user_from_uid(ep->e_ucred.cr_uid, 0);
-			pname = pt[k].pt_kp->kp_proc.p_comm;
+			uname = (char *)
+			    user_from_uid(pt[k].pt_kp->ki_uid, 0);
+			pname = pt[k].pt_kp->ki_comm;
 		}
 		wmove(wnd, y, 0);
 		wclrtoeol(wnd);
@@ -174,7 +172,6 @@ fetchpigs()
 {
 	register int i;
 	register float time;
-	register struct proc *pp;
 	register float *pctp;
 	struct kinfo_proc *kpp;
 	long ctime[CPUSTATES];
@@ -203,13 +200,12 @@ fetchpigs()
 	 */
 	for (i = 0; i < nproc; i++) {
 		pt[i].pt_kp = &kpp[i];
-		pp = &kpp[i].kp_proc;
 		pctp = &pt[i].pt_pctcpu;
-		time = pp->p_swtime;
-		if (time == 0 || (pp->p_flag & P_INMEM) == 0)
+		time = kpp[i].ki_swtime;
+		if (time == 0 || (kpp[i].ki_flag & P_INMEM) == 0)
 			*pctp = 0;
 		else
-			*pctp = ((double) pp->p_pctcpu /
+			*pctp = ((double) kpp[i].ki_pctcpu /
 					fscale) / (1.0 - exp(time * lccpu));
 	}
 	/*

@@ -89,7 +89,7 @@ kvm_t	 *kvm_openfiles
 	    __P((const char *, const char *, const char *, int, char *));
 ssize_t	  kvm_read __P((kvm_t *, unsigned long, void *, size_t));
 ssize_t	  kvm_uread
-	    __P((kvm_t *, const struct proc *, unsigned long, char *, size_t));
+	    __P((kvm_t *, struct kinfo_proc *, unsigned long, char *, size_t));
 ssize_t	  kvm_write __P((kvm_t *, unsigned long, const void *, size_t));
 __END_DECLS
 

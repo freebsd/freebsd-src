@@ -339,7 +339,7 @@ ptrace(curp, uap)
 		}
 
 		if (uap->addr != (caddr_t)1) {
-			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			if ((error = ptrace_set_pc (p,
 			    (u_long)(uintfptr_t)uap->addr))) {
 				PRELE(p);
@@ -428,8 +428,7 @@ ptrace(curp, uap)
 		error = 0;
 		PHOLD(p);	/* user had damn well better be incore! */
 		if (p->p_flag & P_INMEM) {
-			p->p_addr->u_kproc.kp_proc = *p;
-			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			curp->p_retval[0] = *(int *)
 			    ((uintptr_t)p->p_addr + (uintptr_t)uap->addr);
 		} else {
@@ -442,8 +441,7 @@ ptrace(curp, uap)
 	case PT_WRITE_U:
 		PHOLD(p);	/* user had damn well better be incore! */
 		if (p->p_flag & P_INMEM) {
-			p->p_addr->u_kproc.kp_proc = *p;
-			fill_eproc (p, &p->p_addr->u_kproc.kp_eproc);
+			fill_kinfo_proc (p, &p->p_addr->u_kproc);
 			error = ptrace_write_u(p, (vm_offset_t)uap->addr, uap->data);
 		} else {
 			error = EFAULT;

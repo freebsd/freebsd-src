@@ -37,22 +37,11 @@
 #define	UNLIMITED	0	/* unlimited terminal width */
 enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR };
 
-struct usave {
-	struct	timeval u_start;
-	struct	rusage u_ru;
-	struct	rusage u_cru;
-	char	u_acflag;
-	char	u_valid;
-};
-
-#define KI_PROC(ki) (&(ki)->ki_p->kp_proc)
-#define KI_EPROC(ki) (&(ki)->ki_p->kp_eproc)
-
 typedef struct kinfo {
-	struct kinfo_proc *ki_p;	/* proc structure */
-	struct usave ki_u;	/* interesting parts of user */
+	struct kinfo_proc *ki_p;	/* kinfo_proc structure */
 	char *ki_args;		/* exec args */
 	char *ki_env;		/* environment */
+	int ki_valid;		/* 1 => uarea stuff valid */
 } KINFO;
 
 /* Variables. */
@@ -77,8 +66,8 @@ typedef struct var {
 	short	width;		/* printing width */
 	/*
 	 * The following (optional) elements are hooks for passing information
-	 * to the generic output routines: pvar, evar, uvar (those which print
-	 * simple elements from well known structures: proc, eproc, usave)
+	 * to the generic output routine pvar (which prints simple elements
+	 * from the well known kinfo_proc structure).
 	 */
 	int	off;		/* offset in structure */
 	enum	type type;	/* type of element */

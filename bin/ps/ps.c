@@ -368,13 +368,12 @@ main(argc, argv)
 	 * for each proc, call each variable output function.
 	 */
 	for (i = lineno = 0; i < nentries; i++) {
-		if (xflg == 0 && (KI_EPROC(&kinfo[i])->e_tdev == NODEV ||
-		    (KI_PROC(&kinfo[i])->p_flag & P_CONTROLT ) == 0))
+		if (xflg == 0 && ((&kinfo[i])->ki_p->ki_tdev == NODEV ||
+		    ((&kinfo[i])->ki_p->ki_flag & P_CONTROLT ) == 0))
 			continue;
 		if (nuids > 1) {
 			for (uid = 0; uid < nuids; uid++)
-				if (KI_EPROC(&kinfo[i])->e_ucred.cr_uid ==
-				    uids[uid])
+				if ((&kinfo[i])->ki_p->ki_uid == uids[uid])
 					break;
 			if (uid == nuids)
 				continue;
@@ -509,38 +508,32 @@ fmt(fn, ki, comm, maxlen)
 	return (s);
 }
 
-#define UREADOK(ki)	(forceuread || (KI_PROC(ki)->p_flag & P_INMEM))
+#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_flag & P_INMEM))
 
 static void
 saveuser(ki)
 	KINFO *ki;
 {
-	struct usave *usp;
 
-	usp = &ki->ki_u;
-
-	if (KI_PROC(ki)->p_flag & P_INMEM) {
+	if (ki->ki_p->ki_flag & P_INMEM) {
 		/*
 		 * The u-area might be swapped out, and we can't get
 		 * at it because we have a crashdump and no swap.
 		 * If it's here fill in these fields, otherwise, just
 		 * leave them 0.
 		 */
-		usp->u_start = KI_EPROC(ki)->e_stats.p_start;
-		usp->u_ru = KI_EPROC(ki)->e_stats.p_ru;
-		usp->u_cru = KI_EPROC(ki)->e_stats.p_cru;
-		usp->u_valid = 1;
+		ki->ki_valid = 1;
 	} else
-		usp->u_valid = 0;
+		ki->ki_valid = 0;
 	/*
 	 * save arguments if needed
 	 */
-	if (needcomm && (UREADOK(ki) || (KI_PROC(ki)->p_args != NULL))) {
-		ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
+	if (needcomm && (UREADOK(ki) || (ki->ki_p->ki_args != NULL))) {
+		ki->ki_args = fmt(kvm_getargv, ki, ki->ki_p->ki_comm,
 		    MAXCOMLEN);
 	} else if (needcomm) {
-		ki->ki_args = malloc(strlen(KI_PROC(ki)->p_comm) + 3);
-		sprintf(ki->ki_args, "(%s)", KI_PROC(ki)->p_comm);
+		ki->ki_args = malloc(strlen(ki->ki_p->ki_comm) + 3);
+		sprintf(ki->ki_args, "(%s)", ki->ki_p->ki_comm);
 	} else {
 		ki->ki_args = NULL;
 	}
@@ -559,16 +552,16 @@ pscomp(a, b)
 	const void *a, *b;
 {
 	int i;
-#define VSIZE(k) (KI_EPROC(k)->e_vm.vm_dsize + KI_EPROC(k)->e_vm.vm_ssize + \
-		  KI_EPROC(k)->e_vm.vm_tsize)
+#define VSIZE(k) ((k)->ki_p->ki_dsize + (k)->ki_p->ki_ssize + \
+		  (k)->ki_p->ki_tsize)
 
 	if (sortby == SORTCPU)
 		return (getpcpu((KINFO *)b) - getpcpu((KINFO *)a));
 	if (sortby == SORTMEM)
 		return (VSIZE((KINFO *)b) - VSIZE((KINFO *)a));
-	i =  KI_EPROC((KINFO *)a)->e_tdev - KI_EPROC((KINFO *)b)->e_tdev;
+	i =  ((KINFO *)a)->ki_p->ki_tdev - ((KINFO *)b)->ki_p->ki_tdev;
 	if (i == 0)
-		i = KI_PROC((KINFO *)a)->p_pid - KI_PROC((KINFO *)b)->p_pid;
+		i = ((KINFO *)a)->ki_p->ki_pid - ((KINFO *)b)->ki_p->ki_pid;
 	return (i);
 }
 
