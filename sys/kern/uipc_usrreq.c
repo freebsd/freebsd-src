@@ -168,15 +168,19 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct unpcb *unp = sotounpcb(so);
+	struct unpcb *unp;
 	int error;
 
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
 
-	if (unp == NULL)
-		return (EINVAL);
 	UNP_LOCK();
+	unp = sotounpcb(so);
+	if (unp == NULL) {
+		error = EINVAL;
+		goto out;
+	}
 	error = unp_connect(so, nam, td);
+out:
 	UNP_UNLOCK();
 	return (error);
 }
@@ -762,14 +766,14 @@ unp_connect(so, nam, td)
 	register struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	register struct vnode *vp;
 	register struct socket *so2, *so3;
-	struct unpcb *unp = sotounpcb(so);
-	struct unpcb *unp2, *unp3;
+	struct unpcb *unp, *unp2, *unp3;
 	int error, len;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
 
 	UNP_LOCK_ASSERT();
+	unp = sotounpcb(so);
 
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
 	if (len <= 0)
@@ -798,6 +802,15 @@ unp_connect(so, nam, td)
 		goto bad;
 	mtx_unlock(&Giant);
 	UNP_LOCK();
+	unp = sotounpcb(so);
+	if (unp == NULL) {
+		/*
+		 * XXXRW: Temporary debugging printf.
+		 */
+		printf("unp_connect(): lost race to another thread\n");
+		error = EINVAL;
+		goto bad2;
+	}
 	so2 = vp->v_socket;
 	if (so2 == NULL) {
 		error = ECONNREFUSED;
