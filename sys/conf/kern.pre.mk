@@ -51,7 +51,7 @@ CFLAGS+=	${FMT}
 
 DEFINED_PROF=	${PROF}
 .if defined(PROF)
-CFLAGS+=	-malign-functions=4
+CFLAGS+=	-falign-functions=16
 .if ${PROFLEVEL} >= 2
 IDENT+=	-DGPROF4 -DGUPROF
 PROF+=	-mprofiler-epilogue
