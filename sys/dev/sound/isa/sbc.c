@@ -132,6 +132,12 @@ sbc_lock(struct sbc_softc *scp)
 }
 
 void
+sbc_lockassert(struct sbc_softc *scp)
+{
+	snd_mtxassert(scp->lock);
+}
+
+void
 sbc_unlock(struct sbc_softc *scp)
 {
 	snd_mtxunlock(scp->lock);
