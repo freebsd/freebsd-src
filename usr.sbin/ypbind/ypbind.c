@@ -149,17 +149,17 @@ CLIENT *clnt;
 			break;
 
 	if(ypdb==NULL) {
-		if (domains > MAX_DOMAINS) {
+		if (domains == MAX_DOMAINS) {
 			syslog(LOG_WARNING, "domain limit (%d) exceeded",
 							MAX_DOMAINS);
 			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
-			return;
+			return &res;
 		}
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
 		if (ypdb == NULL) {	
 			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
 			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
-			return;
+			return &res;
 		}
 		bzero((char *)ypdb, sizeof *ypdb);
 		strncpy(ypdb->dom_domain, argp, sizeof ypdb->dom_domain);
