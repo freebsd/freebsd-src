@@ -31,8 +31,8 @@ SHLIB_NAME=	pam_cleartext_pass_ok.so
 SRCS=		pam_cleartext_pass_ok.c
 CFLAGS+=	-I${PAMDIR}/libpam/include
 CFLAGS+=	-Wall
-DPADD+=		${LIBSKEY}
-LDADD+=		-lskey -lgcc_pic
+DPADD=		${LIBSKEY} ${LIBGCC_PIC}
+LDADD=		-lskey -lgcc_pic
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
 
