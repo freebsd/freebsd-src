@@ -271,7 +271,7 @@ TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, 0,
 
 TASKQUEUE_DEFINE(thread, taskqueue_thread_enqueue, 0,
 		 kthread_create(taskqueue_kthread, NULL,
-		 &taskqueue_thread_proc, RFNOWAIT, 0, "taskqueue"));
+		 &taskqueue_thread_proc, 0, 0, "taskqueue"));
 
 int
 taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task)
