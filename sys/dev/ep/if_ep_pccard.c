@@ -63,7 +63,7 @@
  * PC-Card (PCMCIA) specific code.
  */
 static int	ep_pccard_init		(struct pccard_devinfo *);
-static int	ep_pccard_attach	((struct pccard_devinfo *);
+static int	ep_pccard_attach	(struct pccard_devinfo *);
 static void	ep_pccard_unload	(struct pccard_devinfo *);
 static int	ep_pccard_intr		(struct pccard_devinfo *);
 static int	ep_pccard_identify	(struct ep_board *epb, int unit); 
