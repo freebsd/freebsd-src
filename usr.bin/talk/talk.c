@@ -59,6 +59,9 @@ static char sccsid[] = "@(#)talk.c	8.1 (Berkeley) 6/6/93";
  *		Fixed to not run with unwriteable terminals MRVM 28/12/94
  */
 
+int main __P((int, char **));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -76,4 +79,5 @@ main(argc, argv)
 	end_msgs();
 	set_edit_chars();
 	talk();
+	return 0;
 }
