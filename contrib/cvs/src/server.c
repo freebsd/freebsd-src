@@ -4727,7 +4727,7 @@ check_repository_password (username, password, repository, host_user_ptr)
 	if (host_user_tmp == NULL)
             host_user_tmp = username;
 
-	if (found_passwd == NULL || *found_passwd == '\0' ||
+	if (found_password == NULL || *found_password == '\0' ||
 	    strcmp (found_password, crypt (password, found_password)) == 0)
         {
             /* Give host_user_ptr permanent storage. */
