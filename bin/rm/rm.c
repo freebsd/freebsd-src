@@ -29,16 +29,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)rm.c	8.5 (Berkeley) 4/18/94
  */
 
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
+#else
 static const char rcsid[] =
-	"$Id: rm.c,v 1.16 1997/04/29 10:03:10 dfr Exp $";
+	"$Id: rm.c,v 1.17 1997/08/07 15:37:47 steve Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
