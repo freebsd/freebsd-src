@@ -1776,7 +1776,7 @@ cmd_success:
 				skip_or = 1;
 		}	/* end of inner for, scan opcodes */
 
-next_rule:		/* try next rule		*/
+next_rule:;		/* try next rule		*/
 	    
 	}		/* end of outer for, scan rules */
 
