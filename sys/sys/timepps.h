@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: timepps.h,v 1.1 1998/06/07 19:44:16 phk Exp $
+ * $Id: timepps.h,v 1.2 1998/06/12 23:15:40 phk Exp $
  *
  * The is a FreeBSD protype version of the "draft-mogul-pps-api-02.txt" 
  * specification for Pulse Per Second timing interfaces.  
@@ -91,4 +91,9 @@ struct pps_wait_args {
 #define PPS_IOC_FETCH		_IOWR('1', 6, pps_info_t)
 #define PPS_IOC_WAIT		_IOWR('1', 6, struct pps_wait_args)
 
+#ifdef KERNEL
+int std_pps_ioctl __P((u_long cmd, caddr_t data, pps_params_t *pp, 
+	pps_info_t *pi, int ppscap));
+
+#endif /* KERNEL */
 #endif /* _SYS_TIMEPPS_H_ */
