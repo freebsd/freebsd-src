@@ -32,7 +32,7 @@
 .\"	@(#)fold.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd April 17, 2002
 .Dt FOLD 1
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Nd "fold long lines for finite width output device"
 .Sh SYNOPSIS
 .Nm
+.Op Fl bs
 .Op Fl w Ar width
 .Op Ar
 .Sh DESCRIPTION
@@ -50,6 +51,14 @@ breaking the lines to have a maximum of 80 characters.
 .Pp
 The following option is available:
 .Bl -tag -width indent
+.It Fl b
+Count
+.Ar width
+in bytes rather than column positions.
+.It Fl s
+Fold line after the last blank character within the first
+.Ar width
+column positions (or bytes).
 .It Fl w Ar width
 Specify a line width to use instead of the default 80 characters.
 .Ar Width
@@ -61,5 +70,10 @@ before using
 .El
 .Sh SEE ALSO
 .Xr expand 1
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
 .Sh BUGS
 If underlining is present it may be messed up by folding.
