@@ -1,0 +1,73 @@
+This is the top level of the FreeBSD source directory.  This file
+was last revised on: $Id$
+
+For copyright information, please see the file COPYRIGHT in this
+directory (additional copyright information also exists for some
+sources in this tree - please see the specific source directories for
+more information).
+
+The Makefile in this directory supports a number of targets for
+building components (or all) of the FreeBSD source tree, the most
+commonly used one being ``world'', which rebuilds and installs
+everything in the FreeBSD system from the source tree except the
+kernel.  Please see the top of the Makefile for more information on
+the standard build targets and compile-time flags.
+
+Building a kernel with config(1) is a somewhat more involved process,
+documentation for which can be found at:
+   http://www.freebsd.org/handbook/kernelconfig.html
+And in the config(1) man page.
+
+The sample kernel configuration files reside in the sys/i386/conf
+sub-directory (assuming that you've installed the kernel sources), the
+file named GENERIC being the one used to build your initial installation
+kernel.  The file LINT contains entries for all possible devices, not
+just those commonly used, and is meant more as a general reference
+than an actual kernel configuration file (a kernel built from it
+wouldn't even run).
+
+
+Source Roadmap:
+---------------
+bin		System/User commands.
+
+contrib		Packages contributed by 3rd parties.
+
+eBones		Kerberos package - NOT FOR EXPORT!
+
+etc		Template files for /etc
+
+games		Amusements.
+
+gnu		Various commands and libraries under the GNU Public License.
+		Please see gnu/COPYING* for more information.
+
+include		System include files.
+
+lib		System libraries.
+
+libexec		System daemons.
+
+lkm		Loadable Kernel Modules.
+
+release		Release building Makefile & associated tools.
+
+sbin		System commands.
+
+secure		DES and DES-related utilities - NOT FOR EXPORT!
+
+share		Shared resources.
+
+sys		Kernel sources.
+
+tools		Utilities for regression testing and miscellaneous tasks.
+
+usr.bin		User commands.
+
+usr.sbin	System administration commands.
+
+
+For information on synchronizing your source tree with one or more of
+the FreeBSD Project's development branches, please see:
+
+  http://www.freebsd.org/handbook/synching.html
