@@ -60,7 +60,6 @@ height			{ return HEIGHT; }
 width			{ return WIDTH; }
 start			{ return STARTFIELD; }
 text			{ return TEXT; }
-Field			{ return FIELD; }
 attributes		{ return ATTR; }
 highlight		{ return SELATTR; }
 label			{ return LABEL; }
@@ -70,7 +69,6 @@ selected		{ return SELECTED; }
 options			{ return OPTIONS; }
 action			{ return ACTION; }
 function		{ return FUNC; }
-Link			{ return LINK; }
 up				{ return UP; }
 down			{ return DOWN; }
 left			{ return LEFT; }

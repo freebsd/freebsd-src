@@ -35,11 +35,24 @@
 
 main(int argc, char **argv)
 {
+	FILE *outf;
+
 	if (argc != 1)
 		if (!(freopen(*++argv, "r", stdin))) {
 			perror(*argv);
 			exit(1);
 		}
 	if (yyparse())
-		exit(2);
+		exit(1);
+
+	outf = fopen("frm.tab.h", "w");
+	if (!outf) {
+		perror("Couldn't open output file:");
+		exit(1);
+	}
+	output_forms(outf);
+	if (fclose(outf) == EOF) {
+		perror("Error closing output file:");
+		exit (1);
+	}
 }

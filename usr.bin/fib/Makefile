@@ -6,6 +6,6 @@ LDADD = -ll
 DPADD = ${LIBL} ${LIBFORMS}
 CLEANFILES= parser.c lex.c y.tab.h
 
-CFLAGS +=  -I${.CURDIR} -I.
+CFLAGS +=  -I${.CURDIR} -I. -g
 
 .include <bsd.prog.mk>
