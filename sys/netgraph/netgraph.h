@@ -357,7 +357,7 @@ struct ng_node {
  * Public methods for nodes.
  * If you can't do it with these you probably shouldn't be doing it.
  */
-void	ng_unref_node(node_p node); /* don't move this */
+int	ng_unref_node(node_p node); /* don't move this */
 #define _NG_NODE_NAME(node)	((node)->nd_name + 0)
 #define _NG_NODE_HAS_NAME(node)	((node)->nd_name[0] + 0)
 #define _NG_NODE_ID(node)	((node)->nd_ID + 0)
@@ -396,8 +396,9 @@ static void __inline _chknode(node_p node, char *file, int line);
 static __inline char * _ng_node_name(node_p node, char *file, int line);
 static __inline int _ng_node_has_name(node_p node, char *file, int line);
 static __inline ng_ID_t _ng_node_id(node_p node, char *file, int line);
+void ng_ref_node(node_p node);
 static __inline void _ng_node_ref(node_p node, char *file, int line);
-static __inline void _ng_node_unref(node_p node, char *file, int line);
+static __inline int _ng_node_unref(node_p node, char *file, int line);
 static __inline void _ng_node_set_private(node_p node, void * val,
 							char *file, int line);
 static __inline void * _ng_node_private(node_p node, char *file, int line);
@@ -444,14 +445,15 @@ static __inline void
 _ng_node_ref(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
-	_NG_NODE_REF(node);
+	/*_NG_NODE_REF(node);*/
+	ng_ref_node(node);
 }
 
-static __inline void
+static __inline int
 _ng_node_unref(node_p node, char *file, int line)
 {
 	_chknode(node, file, line);
-	_NG_NODE_UNREF(node);
+	return (_NG_NODE_UNREF(node));
 }
 
 static __inline void
