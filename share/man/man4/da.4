@@ -164,13 +164,15 @@ drives incorporate their own bad-block mapping so this command is not
 implemented.
 .It Dv DIOCGDINFO
 Read, from the kernel, the in-core copy of the disklabel for the
-drive. This may be a fictitious disklabel if the drive has never
+drive.
+This may be a fictitious disklabel if the drive has never
 been initialized, in which case it will contain information read
 from the
 .Tn SCSI
 inquiry commands.
 .It Dv DIOCSDINFO
-Give the driver a new disklabel to use. The driver
+Give the driver a new disklabel to use.
+The driver
 .Em will not
 write the new
 disklabel to the disk.
@@ -178,7 +180,8 @@ disklabel to the disk.
 Enable or disable the driver's software
 write protect of the disklabel on the disk.
 .It Dv DIOCWDINFO
-Give the driver a new disklabel to use. The driver
+Give the driver a new disklabel to use.
+The driver
 .Em will
 write the new disklabel to the disk.
 .El

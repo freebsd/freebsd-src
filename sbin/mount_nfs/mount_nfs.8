@@ -92,7 +92,8 @@ Values may be set in the range of 1 - 9, with 9 referring to an
 This option is not generally recommended and is really an experimental
 feature.
 .It Fl I
-Set the readdir read size to the specified value. The value should normally
+Set the readdir read size to the specified value.
+The value should normally
 be a multiple of DIRBLKSIZ that is <= the read size for the mount.
 .It Fl K
 Pass Kerberos authenticators to the server for client-to-server
@@ -115,7 +116,8 @@ This flag is obsolete, and only retained for compatibility reasons.
 Reserved port numbers are used by default now.
 This is useful for mounting servers that require clients to use a
 reserved port number on the mistaken belief that this makes NFS
-more secure. (For the rare case where the client has a trusted root account
+more secure.
+(For the rare case where the client has a trusted root account
 but untrustworthy users and the network cables are in secure areas this does
 help, but for normal desktop clients this does not apply.)
 .It Fl R
@@ -167,7 +169,8 @@ be used.
 This option reduces RPC traffic for cases such as
 .Dq "ls -l" ,
 but tends to flood the attribute and name caches with prefetched entries.
-Try this option and see whether performance improves or degrades. Probably
+Try this option and see whether performance improves or degrades.
+Probably
 most useful for client to server network interconnects with a large bandwidth
 times delay product.
 .It Fl m
@@ -255,7 +258,8 @@ to maintain cache consistency.
 This protocol Version 2, referred to as Not Quite Nfs (NQNFS),
 is only supported by this updated release of NFS code.
 (It is not backwards compatible with the release of NQNFS that went out on
-4.4BSD-Lite. To interoperate with a 4.4BSD-Lite NFS system you will have to
+4.4BSD-Lite.
+To interoperate with a 4.4BSD-Lite NFS system you will have to
 avoid this option until you have had an opportunity to upgrade the NFS code
 on all your 4.4BSD-Lite based systems.)
 .It Fl r

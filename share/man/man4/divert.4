@@ -19,7 +19,8 @@ can be bound to a specific
 .Nm
 port via the
 .Xr bind 2
-system call. The IP address in the bind is ignored; only the port
+system call.
+The IP address in the bind is ignored; only the port
 number is significant.
 A divert socket bound to a divert port will receive all packets diverted
 to that port by some (here unspecified) kernel mechanism(s).
@@ -29,7 +30,8 @@ re-enter kernel IP packet processing.
 Divert sockets are normally used in conjunction with 
 FreeBSD's packet filtering implementation and the
 .Xr ipfw 8
-program. By reading from and writing to a divert socket, matching packets
+program.
+By reading from and writing to a divert socket, matching packets
 can be passed through an arbitrary ``filter'' as they travel through
 the host machine, special routing tricks can be done, etc.
 .Sh READING PACKETS
@@ -71,7 +73,8 @@ incoming and full packet routing is done.
 In the latter case, the
 IP address specified must match the address of some local interface,
 or an interface name
-must be found after the IP address. If an interface name is found,
+must be found after the IP address.
+If an interface name is found,
 that interface will be used and the value of the IP address will be
 ignored (other than the fact that it is not
 .Dv INADDR_ANY
@@ -88,7 +91,8 @@ simplifies things (see below).
 .Pp
 The port part of the socket address passed to the
 .Xr sendto 2 
-contains a tag that should be meaningful to the diversion module. In the
+contains a tag that should be meaningful to the diversion module.
+In the
 case of
 .Xr Ipfw 8
 the tag is interpretted as the rule number
@@ -155,9 +159,11 @@ could be cleaner, and it's too dependent on
 .Xr ipfw 8 .
 .Pp
 It's questionable whether incoming fragments should be reassembled
-before being diverted. For example, if only some fragments of a
+before being diverted.
+For example, if only some fragments of a
 packet destined for another machine don't get routed through the
-local machine, the packet is lost. This should probably be
+local machine, the packet is lost.
+This should probably be
 a settable socket option in any case.
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@whistle.com ,

@@ -67,24 +67,31 @@ are a bit field, and are summarized as follows:
 .Pp
 .Bl -hang -offset indent
 .It Em 0x01
-Disable tranceiver. On those cards which support it, this flag causes the tranceiver to
+Disable tranceiver.
+On those cards which support it, this flag causes the tranceiver to
 be disabled and the AUI connection to be used by default.
 .It Em 0x02
-Force 8bit mode. This flag forces the card to 8bit mode regardless of how the
-card identifies itself. This may be needed for some clones which incorrectly
+Force 8bit mode.
+This flag forces the card to 8bit mode regardless of how the
+card identifies itself.
+This may be needed for some clones which incorrectly
 identify themselves as 16bit, even though they only have an 8bit interface.
 .It Em 0x04
-Force 16bit mode. This flag forces the card to 16bit mode regardless of how the
-card identifies itself. This may be needed for some clones which incorrectly
+Force 16bit mode.
+This flag forces the card to 16bit mode regardless of how the
+card identifies itself.
+This may be needed for some clones which incorrectly
 identify themselves as 8bit, even though they have a 16bit ISA interface.
 .It Em 0x08
-Disable transmitter multi-buffering. This flag disables the use of multiple
+Disable transmitter multi-buffering.
+This flag disables the use of multiple
 transmit buffers and may be necessary in rare cases where packets are sent out
 faster than a machine on the other end can handle (as evidenced by severe packet
 lossage). Some
 .Pf ( No non- Ns Tn FreeBSD
 :-)) machines have terrible ethernet performance
-and simply can't cope with 1100K+ data rates. Use of this flag also provides
+and simply can't cope with 1100K+ data rates.
+Use of this flag also provides
 one more packet worth of receiver buffering, and on 8bit cards, this may help
 reduce receiver lossage.
 .El
@@ -102,61 +109,75 @@ into the kernel) differs from the irq that has been set on the interface card.
 .It "ed%d: failed to clear shared memory at %x - check configuration."
 When the card was probed at system boot time, the
 .Nm ed
-driver found that it could not clear the card's shared memory. This is most commonly
+driver found that it could not clear the card's shared memory.
+This is most commonly
 caused by a BIOS extension ROM being configured in the same address space as the
-ethernet card's shared memory. Either find the offending card and change its BIOS
+ethernet card's shared memory.
+Either find the offending card and change its BIOS
 ROM to be at an address that doesn't conflict, or change the
 .Em iomem
 option in the kernel config file so that the card's shared memory is mapped at a
 non-conflicting address.
 .It "ed%d: Invalid irq configuration (%d) must be 2-5 for 3c503."
 The irq number that was specified in the kernel config file is not valid for
-the 3Com 3c503 card. The 3c503 can only be assigned to irqs 2 through 5.
+the 3Com 3c503 card.
+The 3c503 can only be assigned to irqs 2 through 5.
 .It "ed%d: Cannot find start of RAM."
 .It "ed%d: Cannot find any RAM, start : %d, x = %d."
 The probe of a Gateway card was unsuccessful in configuring the card's packet memory.
 This likely indicates that the card was improperly recognized as a Gateway or that
 the card is defective.
 .It "ed: packets buffered, but transmitter idle."
-Indicates a logic problem in the driver. Should never happen.
+Indicates a logic problem in the driver.
+Should never happen.
 .It "ed%d: device timeout"
-Indicates that an expected transmitter interrupt didn't occur. Usually caused by an
+Indicates that an expected transmitter interrupt didn't occur.
+Usually caused by an
 interrupt conflict with another card on the ISA bus.
 .It "ed%d: NIC memory corrupt - invalid packet length %d."
 Indicates that a packet was received with a packet length that was either larger than
-the maximum size or smaller than the minimum size allowed by the IEEE 802.3 standard. Usually
+the maximum size or smaller than the minimum size allowed by the IEEE 802.3 standard.
+Usually
 caused by a conflict with another card on the ISA bus, but in some cases may also
 indicate faulty cabling.
 .It "ed%d: remote transmit DMA failed to complete."
 This indicates that a programmed I/O transfer to an NE1000 or NE2000 style card
-has failed to properly complete. Usually caused by the ISA bus speed being set
+has failed to properly complete.
+Usually caused by the ISA bus speed being set
 too fast.
 .El
 .Sh CAVEATS
-Early revision DS8390 chips have problems. They lock up whenever the receive
-ring-buffer overflows. They occasionally switch the byte order
+Early revision DS8390 chips have problems.
+They lock up whenever the receive
+ring-buffer overflows.
+They occasionally switch the byte order
 of the length field in the packet ring header (several different causes
 of this related to an off-by-one byte alignment) - resulting in "NIC
-memory corrupt - invalid packet length" messages. The card is reset
+memory corrupt - invalid packet length" messages.
+The card is reset
 whenever these problems occur, but otherwise there is no problem with
 recovering from these conditions.
 .Pp
 The NIC memory access to 3Com and Novell cards is much slower than it is on
 WD/SMC cards; it's less than 1MB/second on 8bit boards and less than 2MB/second
-on the 16bit cards. This can lead to ring-buffer overruns resulting in
+on the 16bit cards.
+This can lead to ring-buffer overruns resulting in
 dropped packets during heavy network traffic.
 .Pp
-16bit Compex cards identify themselves as being 8bit. While these cards will
+16bit Compex cards identify themselves as being 8bit.
+While these cards will
 work in 8bit mode, much higher performance can be achieved by specifying
 .Em "flags 0x04"
-(force 16bit mode) in your kernel config file. In addition, you should also specify
+(force 16bit mode) in your kernel config file.
+In addition, you should also specify
 .Em "iosize 16384"
 to take advantage of the extra 8k of shared memory that 16bit mode provides.
 .Sh BUGS
 The
 .Nm ed
 driver is a bit too aggressive about resetting the card whenever any bad
-packets are received. As a result, it may throw out some good packets which
+packets are received.
+As a result, it may throw out some good packets which
 have been received but not yet transfered from the card to main memory.
 .Sh SEE ALSO
 .Xr arp 4 ,

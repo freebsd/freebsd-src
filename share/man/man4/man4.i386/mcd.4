@@ -38,8 +38,10 @@
 The
 .Nm mcd
 driver provides a data and audio interface to the Mitsumi-brand CD-ROM
-player. The CD-ROM player must be interfaced to the ISA bus through
-one of the Mitsumi proprietary controller boards. The controller
+player.
+The CD-ROM player must be interfaced to the ISA bus through
+one of the Mitsumi proprietary controller boards.
+The controller
 boards supported are the LU002S, LU005S, the FX001 and the quite
 common FX001D.
 .Pp
@@ -62,7 +64,8 @@ The
 .Nm mcd
 driver also responds to special CD-ROM
 .Fn ioctl
-commands. These commands
+commands.
+These commands
 control the CD-ROM player's audio features.
 The commands are:
 .Pp
@@ -107,7 +110,8 @@ The
 .Fn ioctl
 commands defined above are the only ones that the
 .Nm mcd
-driver supports. There are other CD-ROM related
+driver supports.
+There are other CD-ROM related
 .Fn ioctl
 commands (such as
 .Dv CDIOCSETVOL
@@ -132,7 +136,8 @@ CD-ROM player as the performance on data is abysmal.
 .Pp
 The current version of the driver uses neither the DMA or IRQ
 features of the interface board, although it has an interrupt handler
-for any IRQ requests that are generated. Until the DMA features are
+for any IRQ requests that are generated.
+Until the DMA features are
 supported, the only interrupts that the board generates are those that
 aren't supported by the driver anyway.
 .Sh SEE ALSO

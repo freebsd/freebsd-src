@@ -61,9 +61,12 @@ Basic PS/2 style pointing device has two or three buttons.
 Some devices may have a roller or a wheel and/or additional buttons.
 .Ss Device Resolution
 The PS/2 style pointing device usually has several grades of resolution,
-that is, sensitivity of movement. They are typically 25, 50, 100 and 200
-pulse per inch. Some devices may have finer resolution. 
-The current resolution can be changed at runtime. The
+that is, sensitivity of movement.
+They are typically 25, 50, 100 and 200
+pulse per inch.
+Some devices may have finer resolution. 
+The current resolution can be changed at runtime.
+The
 .Nm
 driver allows the user to initially set the resolution
 via the driver flag 
@@ -133,7 +136,8 @@ Always one.
 .\" the pad, otherwise the bit is set.
 .\" Most, if not all, other devices always set this bit.
 .It bit 2
-Middle button status; set if pressed. For devices without the middle
+Middle button status; set if pressed.
+For devices without the middle
 button, this bit is always zero.
 .It bit 1
 Right button status; set if pressed.
@@ -165,7 +169,8 @@ driver can somewhat `accelerate' the movement of the pointing device.
 The faster you move the device, the further the pointer 
 travels on the screen. 
 The driver has an internal variable which governs the effect of 
-the acceleration. Its value can be modified via the driver flag 
+the acceleration.
+Its value can be modified via the driver flag 
 or via an ioctl call.
 .Ss Device Number
 The minor device number of the
@@ -198,7 +203,8 @@ the power saving mode,
 though it will eventually become available. 
 There are reports that
 stimulating the device by performing I/O will help
-waking up the device quickly. This option will add a piece of code 
+waking up the device quickly.
+This option will add a piece of code 
 to the 
 .Nm
 driver to hook
@@ -217,13 +223,17 @@ The
 .Nm
 driver will attempt to reset the pointing device during the boot process.
 It sometimes takes a long while before the device will respond after
-reset. These options control how long the driver should wait before
-it eventually gives up waiting. The driver will wait
+reset.
+These options control how long the driver should wait before
+it eventually gives up waiting.
+The driver will wait
 .Fa X
 *
 .Fa Y
-msecs at most. If the driver seems unable to detect your pointing
-device, you may want to increase these values. The default values are
+msecs at most.
+If the driver seems unable to detect your pointing
+device, you may want to increase these values.
+The default values are
 200 msec for 
 .Fa X
 and 5
@@ -232,14 +242,16 @@ for
 .It Em PSM_DEBUG=N, KBDIO_DEBUG=N
 Sets the debug level to 
 .Fa N .
-The default debug level is zero. See
+The default debug level is zero.
+See
 .Sx DIAGNOSTICS
 for debug logging.
 .El
 .Ss Driver Flags
 The
 .Nm
-driver accepts the following driver flags. Set them in the 
+driver accepts the following driver flags.
+Set them in the 
 kernel configuration file or in the User Configuration Menu at
 the boot time 
 .Pq see Xr boot 8 .
@@ -247,10 +259,12 @@ the boot time
 .Bl -tag -width MOUSE
 .It bit 0..3 RESOLUTION
 This flag specifies the resolution of the pointing device. 
-It must be zero through four. The greater the value
+It must be zero through four.
+The greater the value
 is, the finer resolution the device will select. 
 Actual resolution selected by this field varies according to the model 
-of the device. Typical resolutions are:
+of the device.
+Typical resolutions are:
 .Pp
 .Bl -tag -width 0_(medium_high)__ -compact
 .It Em 1 (low)
@@ -269,13 +283,15 @@ device (whatever it is).
 This flag controls the amount of acceleration effect.
 The smaller the value of this flag is, more sensitive the movement becomes. 
 The minimum value allowed, thus the value for the most sensitive setting, 
-is one. Setting this flag to zero will completely disables the
+is one.
+Setting this flag to zero will completely disables the
 acceleration effect. 
 .It bit 8 NOCHECKSYNC
 The
 .Nm
 driver tries to detect the first byte of the data packet by checking
-the bit pattern of that byte. Although this method should work with most
+the bit pattern of that byte.
+Although this method should work with most
 PS/2 pointing devices, it may interfere with some devices which are not
 so compatible with known devices.
 If you think your pointing device is not functioning as expected, 
@@ -363,7 +379,8 @@ The
 driver currently can detect the 3 button mouse from Logitech and report
 accordingly.
 The 3 button mouse from the other manufacturer may or may not be 
-reported correctly. However, it will not affect the operation of
+reported correctly.
+However, it will not affect the operation of
 the driver.
 .Pp
 The
@@ -446,11 +463,13 @@ The
 .Dv resolution
 of the pointing device must be one of 
 .Dv MOUSE_RES_XXX 
-constants or a positive value. The greater the value
+constants or a positive value.
+The greater the value
 is, the finer resolution the mouse will select. 
 Actual resolution selected by the 
 .Dv MOUSE_RES_XXX 
-constant varies according to the model of mouse. Typical resolutions are:
+constant varies according to the model of mouse.
+Typical resolutions are:
 .Pp
 .Bl -tag -width MOUSE_RES_MEDIUMHIGH__ -compact
 .It Dv MOUSE_RES_LOW
@@ -471,7 +490,8 @@ It must be zero or greater.  If it is zero, acceleration is disabled.
 .Pp
 The
 .Dv packetsize
-field specifies the length of the data packet. It depends on the
+field specifies the length of the data packet.
+It depends on the
 operation level and the model of the pointing device.
 .Pp
 .Bl -tag -width level_0__ -compact
@@ -488,7 +508,8 @@ The array
 holds a bit mask and pattern to detect the first byte of the
 data packet.
 .Dv syncmask[0]
-is the bit mask to be ANDed with a byte. If the result is equal to
+is the bit mask to be ANDed with a byte.
+If the result is equal to
 .Dv syncmask[1] ,
 the byte is likely to be the first byte of the data packet.
 Note that this detection method is not 100% reliable,
@@ -504,7 +525,8 @@ Only
 .Dv level 
 and 
 .Dv accelfactor
-may be modifiable. Setting values in the other field does not generate
+may be modifiable.
+Setting values in the other field does not generate
 error and has no effect.
 .Pp
 If you do not want to change the current setting of a field, put -1
@@ -672,13 +694,15 @@ Reserved.
 .It bit 6
 0 - stream mode, 1 - remote mode. 
 In the stream mode, the pointing device sends the device status
-whenever its state changes. In the remote mode, the host computer
+whenever its state changes.
+In the remote mode, the host computer
 must request the status to be sent.
 The 
 .Nm
 driver puts the device in the stream mode.
 .It bit 5
-Set if the pointing device is currently enabled. Otherwise zero.
+Set if the pointing device is currently enabled.
+Otherwise zero.
 .It bit 4
 0 - 1:1 scaling, 1 - 2:1 scaling.
 1:1 scaling is the default.
@@ -696,7 +720,8 @@ Right button status; set if pressed.
 .It bit 7
 Reserved.
 .It bit 6..0
-Resolution code: zero through three. Actual resolution for
+Resolution code: zero through three.
+Actual resolution for
 the resolution code varies from one device to another.
 .El
 .It Byte 3
@@ -728,12 +753,14 @@ Add these options to your kernel configuration file if the device
 does not seem to work properly after the system is resumed.
 .Pp
 Some PS/2 mouse models from MouseSystems require to be put in the
-high resolution mode to work properly. Use the driver flag to
+high resolution mode to work properly.
+Use the driver flag to
 set resolution.
 .Pp
 There is not a guaranteed way to re-synchronize with the first byte
 of the packet once we are out of synchronization with the data
-stream. However, if you are using the \fIXFree86\fP server and experiencing
+stream.
+However, if you are using the \fIXFree86\fP server and experiencing
 the problem, you may be able to make the X server synchronize with the mouse 
 by switching away to a virtual terminal and getting back to the X server,
 unless the X server is accessing the mouse via
@@ -742,7 +769,8 @@ Clicking any button without moving the mouse may also work.
 .Sh BUGS
 The ioctl command
 .Dv MOUSEIOCREAD
-has been removed. It was never functional anyway.
+has been removed.
+It was never functional anyway.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr syslog 3 ,

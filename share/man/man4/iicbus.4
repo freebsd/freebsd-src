@@ -45,25 +45,33 @@ system provides a uniform, modular and architecture-independent
 system for the implementation of drivers to control various I2C devices
 and to utilize different I2C controllers.
 .Sh I2C
-I2C is an acronym for Inter Integrated Circuit bus. The I2C bus was developed
-in the early 1980's by Philips semiconductors. It's purpose was to provide an
+I2C is an acronym for Inter Integrated Circuit bus.
+The I2C bus was developed
+in the early 1980's by Philips semiconductors.
+It's purpose was to provide an
 easy way to connect a CPU to peripheral chips in a TV-set.
 .Pp
 The BUS physically consists of 2 active wires and a ground connection.
-The active wires, SDA and SCL, are both bidirectional. Where SDA is the
+The active wires, SDA and SCL, are both bidirectional.
+Where SDA is the
 Serial DAta line and SCL is the Serial CLock line.
 
 Every component hooked up to the bus has its own unique address whether it
-is a CPU, LCD driver, memory, or complex function chip. Each of these chips
+is a CPU, LCD driver, memory, or complex function chip.
+Each of these chips
 can act as a receiver and/or transmitter depending on it's functionality.
 Obviously an LCD driver is only a receiver, while a memory or I/O chip can
-both be transmitter and receiver. Furthermore there may be one or
+both be transmitter and receiver.
+Furthermore there may be one or
 more BUS MASTER's.
 
-The BUS MASTER is the chip issuing the commands on the BUS. In the I2C protocol
+The BUS MASTER is the chip issuing the commands on the BUS.
+In the I2C protocol
 specification it is stated that the IC that initiates a data transfer on the
-bus is considered the BUS MASTER. At that time all the others are regarded to
-as the BUS SLAVEs. As mentioned before, the IC bus is a Multi-MASTER BUS.
+bus is considered the BUS MASTER.
+At that time all the others are regarded to
+as the BUS SLAVEs.
+As mentioned before, the IC bus is a Multi-MASTER BUS.
 This means that more than one IC capable of initiating data transfer can be
 connected to it.
 .Sh DEVICES
@@ -76,9 +84,11 @@ Some I2C device drivers are available:
 .It Sy iicsmb Ta "I2C to SMB software bridge"
 .El
 .Sh INTERFACES
-The I2C protocol may be implemented by hardware or software. Software
+The I2C protocol may be implemented by hardware or software.
+Software
 interfaces rely on very simple hardware, usually two lines
-twiddled by 2 registers. Hardware interfaces are more intelligent and receive
+twiddled by 2 registers.
+Hardware interfaces are more intelligent and receive
 8-bit characters they write to the bus according to the I2C protocol.
 
 I2C interfaces may act on the bus as slave devices, allowing spontaneous

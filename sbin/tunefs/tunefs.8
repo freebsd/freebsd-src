@@ -98,18 +98,21 @@ from normal users; the minimum free space threshold.
 The default value used is 8%.
 This value can be set to zero, however up to a factor of three
 in throughput will be lost over the performance obtained at a 10%
-threshold. Settings of 5% and less force space optimization to
+threshold.
+Settings of 5% and less force space optimization to
 always be used which will greatly increase the overhead for file
 writes.
 Note that if the value is raised above the current usage level,
 users will be unable to allocate files until enough files have
 been deleted to get under the higher threshold.
 .It Fl n Ar enable | disable
-Turn on/off soft updates. An unmounted filesystem is required.
+Turn on/off soft updates.
+An unmounted filesystem is required.
 .It Fl o Ar optimize_preference
 The file system can either try to minimize the time spent
 allocating blocks, or it can attempt to minimize the space
-fragmentation on the disk. Optimization for space has much
+fragmentation on the disk.
+Optimization for space has much
 higher overhead for file writes.
 The kernel normally changes the preference automatically as
 the percent fragmentation changes on the file system.
@@ -131,11 +134,13 @@ will output the warning
 .Pp
 reload\&: Invalid argument
 .Pp
-preceded by the raw device name. This occurs because the filesystem
+preceded by the raw device name.
+This occurs because the filesystem
 is not currently mounted read-only.
 .Nm
 is trying to reload the incore (r*) device, but it was never loaded
-to begin with. When you boot single user, only
+to begin with.
+When you boot single user, only
 .Dq /
 is mounted, so all other filesystems will give you that warning.
 It is completely harmless.
