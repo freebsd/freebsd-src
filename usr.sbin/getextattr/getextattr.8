@@ -33,9 +33,9 @@
 .Nd retrieve a named extended attribute
 .Sh SYNOPSIS
 .Nm getextattr
-.Op Fl s
+.Op Fl ls
 .Ar attrname
-.Ar filename Op ...
+.Ar filename ...
 .Sh DESCRIPTION
 .Nm
 is a user tool to retrieve a named extended attribute on a file or
@@ -45,11 +45,16 @@ The
 argument should be the name of the attribute, and
 .Ar filename
 a list of files and directories from which to retrieve attribute data.
-If the
-.Op Fl s
-flag is specified,
-.Nm
-will attempt to display the attribute data as a string, although the
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl l
+Print attributes in the first column and file names in the second.
+Can be used only in conjunction with the
+.Fl s
+option.
+.It Fl s
+Attempt to display the attribute data as a string, although the
 results may not look pretty if the data is binary data.
 The
 .Xr strvisx 3
@@ -57,6 +62,8 @@ function is used to generate the string, so control sequences should
 be safely escaped.
 Otherwise, the attribute data will be represented as a series of two-digit
 hex numbers.
+.El
+.Sh IMPLEMENTATION NOTES
 In order for
 .Nm
 to succeed, the attribute service must be available on the file system,

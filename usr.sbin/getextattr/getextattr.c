@@ -60,9 +60,12 @@ main(int argc, char *argv[])
 	int	ch;
 
 	int	flag_as_string = 0;
+	int	flag_reverse = 0;
 
-	while ((ch = getopt(argc, argv, "s")) != -1) {
+	while ((ch = getopt(argc, argv, "ls")) != -1) {
 		switch (ch) {
+		case 'l':
+			flag_reverse = 1;
 		case 's':
 			flag_as_string = 1;
 			break;
@@ -93,12 +96,18 @@ main(int argc, char *argv[])
 		if (error == -1)
 			perror(argv[arg_counter]);
 		else {
-			printf("%s:", argv[arg_counter]);
 			if (flag_as_string) {
 				strvisx(visbuf, buf, error, VIS_SAFE
 				    | VIS_WHITE);
-				printf(" \"%s\"\n", visbuf);
+				if (flag_reverse) {
+					printf("%s ", visbuf);
+					printf("%s\n", argv[arg_counter]);
+				} else {
+					printf("%s:", argv[arg_counter]);
+					printf(" \"%s\"\n", visbuf);
+				}
 			} else {
+				printf("%s:", argv[arg_counter]);
 				for (i = 0; i < error; i++)
 					if (i % 16 == 0)
 						printf("\n  %02x ", buf[i]);
