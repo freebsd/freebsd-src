@@ -129,7 +129,8 @@ struct pnp_device {
 The probe routine must check that the vendor_id passed is a
 recognized one, that any necessary devices on the card are enabled,
 and return a NULL value in case of failure or a non-NULL value
-(generally a pointer to the device name) upon success.  In the probe
+(generally a pointer to the device name) upon success.
+In the probe
 routine, the function
 .Fn read_pnp_parms
 can be used to check that the logical devices are enabled.
