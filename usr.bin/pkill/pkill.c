@@ -292,7 +292,7 @@ main(int argc, char **argv)
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
 			if ((kp->ki_flag & P_SYSTEM) != 0) {
 				if (debug_opt > 0)
-				    printf("* Skipped %5d %3d %s\n",
+				    fprintf(stderr, "* Skipped %5d %3d %s\n",
 					kp->ki_pid, kp->ki_uid, kp->ki_comm);
 				continue;
 			}
@@ -331,7 +331,7 @@ main(int argc, char **argv)
 				const char *rv_res = "NoMatch";
 				if (selected[i])
 					rv_res = "Matched";
-				printf("* %s %5d %3d %s\n", rv_res,
+				fprintf(stderr, "* %s %5d %3d %s\n", rv_res,
 				    kp->ki_pid, kp->ki_uid, mstr);
 			}
 		}
