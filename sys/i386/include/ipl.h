@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.5 1997/04/26 11:45:37 peter Exp $
+ *	$Id: ipl.h,v 1.6 1997/04/26 20:04:21 peter Exp $
  */
 
 #ifndef _ISA_IPL_H_
@@ -42,14 +42,8 @@
 
 #if defined(APIC_IO)
 
-#include <machine/apic.h>
-#if defined(IPI_INTS)
-#define	NHWI		28		/* number of h/w interrupts */
-#define	HWI_MASK	0x0fffffff	/* bits for h/w interrupts */
-#else
 #define	NHWI		24		/* number of h/w interrupts */
 #define	HWI_MASK	0x00ffffff	/* bits for h/w interrupts */
-#endif /* IPI_INTS */
 
 #else
 
