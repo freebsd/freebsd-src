@@ -640,3 +640,16 @@ g_insert_geom(char *class, struct g_consumer *cp)
 	return (gp);
 }
 
+int
+g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
+{
+	int error, i;
+
+	i = len;
+	error = g_io_getattr(attr, cp, &i, var);
+	if (error)
+		return (error);
+	if (i != len)
+		return (EINVAL);
+	return (0);
+}

@@ -193,6 +193,8 @@ void g_destroy_geom(struct g_geom *pp);
 void g_destroy_provider(struct g_provider *pp);
 void g_dettach(struct g_consumer *cp);
 void g_error_provider(struct g_provider *pp, int error);
+int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
+#define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
 int g_haveattr(struct bio *bp, char *attribute, void *val, int len);
 int g_haveattr_int(struct bio *bp, char *attribute, int val);
 int g_haveattr_off_t(struct bio *bp, char *attribute, off_t val);
