@@ -33,17 +33,25 @@
  * Atomic swap:
  *   Atomic (tmp = *dst, *dst = val), then *res = tmp
  *
- * void atomic_swap_long(long *dst, long val, long *res);
+ * void atomic_swap64(intptr_t *dst, intptr_t val, intptr_t *res);
  */
 static inline void
-atomic_swap_long(long *dst, long val, long *res)
+atomic_swap64(intptr_t *dst, intptr_t val, intptr_t *res)
 {
 	__asm __volatile(
 	"xchgq %2, %1; movq %2, %0"
 	 : "=m" (*res) : "m" (*dst), "r" (val) : "memory");
 }
 
+static inline void
+atomic_swap_int(int *dst, int val, int *res)
+{
+	__asm __volatile(
+	"xchgl %2, %1; movl %2, %0"
+	 : "=m" (*res) : "m" (*dst), "r" (val) : "memory");
+}
+
 #define	atomic_swap_ptr(d, v, r) \
-	atomic_swap_long((long *)(d), (long)(v), (long *)(r))
+	atomic_swap64((intptr_t *)(d), (intptr_t)(v), (intptr_t *)(r))
 
 #endif

@@ -33,6 +33,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+extern int __tcdrain(int);
+
 __weak_reference(_tcdrain, tcdrain);
 
 int
