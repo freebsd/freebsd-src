@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.27 1997/02/22 09:39:20 peter Exp $
+ *	$Id: sys_process.c,v 1.28 1997/04/27 19:02:34 alex Exp $
  */
 
 #include <sys/param.h>
@@ -39,7 +39,6 @@
 #include <sys/ptrace.h>
 #include <sys/errno.h>
 #include <sys/queue.h>
-#include <sys/systm.h>
 
 #include <machine/reg.h>
 #include <machine/psl.h>
