@@ -74,6 +74,8 @@ struct syscall syscalls[] = {
 	  { { Int, 0 }, {Quad, 2 }, { Int, 4 }}},
 	{ "mmap", 2, 6,
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 6}}},
+	{ "mprotect", 1, 3,
+	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}}},
 	{ "open", 1, 3,
 	  { { String | IN, 0} , { Hex, 1}, {Octal, 2}}},
 	{ "linux_open", 1, 3,
