@@ -48,7 +48,6 @@
 #	md*	Memory (or malloc) disk
 #	mlxd*   Mylex DAC960 RAID
 #	scd*	Sony CD-ROM disks
-#	sd*	SCSI disk, antiquated, use da* instead
 #	vn*	vnode disks
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	wfd*	IDE floppy disk drives (LS-120)
@@ -313,7 +312,7 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; chr=116;;
@@ -324,7 +323,6 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|ida*s*|md*s*|mlxd*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	ida*s*) name=ida; chr=109;;
 	md*s*) name=md;  chr=95;;
 	mlxd*s*) name=mlxd; chr=131;;
-	sd*s*) name=sd;  chr=13;;
 	vn*s*) name=vn; chr=43;;
 	wd*s*) name=wd;  chr=3;;
 	wfd*s*) name=wfd; chr=87;;
@@ -494,7 +492,7 @@ ft*)
 	umask 77
 	;;
 
-ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|sd*|vn*|wd*|wfd*)
+ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; chr=116;;
@@ -505,7 +503,6 @@ ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|sd*|vn*|wd*|wfd*)
 	ida*) name=ida; chr=109;;
 	md*) name=md; chr=95;;
 	mlxd*) name=mlxd; chr=131;;
-	sd*) name=sd; chr=13;;
 	vn*) name=vn; chr=43;;
 	wd*) name=wd;  chr=3;;
 	wfd*) name=wfd; chr=87;;
