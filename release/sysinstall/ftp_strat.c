@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.6 1995/06/02 19:29:15 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.7 1995/06/02 19:33:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -201,6 +201,7 @@ Boolean
 mediaCloseFTP(Device *dev, int fd)
 {
     FtpEOF(ftp);
+    close(fd);
     return (TRUE);
 }
 
