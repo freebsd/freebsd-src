@@ -11,7 +11,7 @@
 .TL
 Jails: Confining the omnipotent root.
 .FS
-This paper was presented at the 2nd International System Administration and Networking Conference "SANE 2000" May 22-25, 2000 in Maastricht, The Netherlands and is published in the in the proceedings.
+This paper was presented at the 2nd International System Administration and Networking Conference "SANE 2000" May 22-25, 2000 in Maastricht, The Netherlands and is published in the proceedings.
 .FE
 .AU
 Poul-Henning Kamp <phk@FreeBSD.org>
