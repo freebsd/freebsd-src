@@ -34,6 +34,7 @@
 .Nd mark an ELF binary for a specific ABI
 .Sh SYNOPSIS
 .Nm brandelf
+.Op Fl f
 .Op Fl v
 .Op Fl t Ar string
 .Ar file ...
@@ -43,6 +44,9 @@ This command marks an ELF binary to be run under a certain ABI for
 .Pp
 The options are as follows:
 .Bl -tag -width Fl
+.It Fl f
+forces branding even if the brand requested is unknown, and disables
+warnings for unknown brands.
 .It Fl v
 turns on verbose reporting
 .It Fl t Ar string
@@ -72,7 +76,10 @@ command:
 .Dl % brandelf -t Linux file
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command
-fails if a file doesn't exist, is too short, or fails to brand properly.
+fails if a file doesn't exist, is too short, fails to brand properly,
+or the brand requested is not 'Linux' or 'FreeBSD' and the
+.Fl f
+option is not set.
 .Sh HISTORY
 The
 .Nm
