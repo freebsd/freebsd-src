@@ -64,6 +64,21 @@
 #if NPCI > 0
 #include <pci/pcivar.h>
 
+static char *pcic_pci_probe(pcici_t tag, pcidi_t type);
+static void  pcic_pci_attach(pcici_t tag, int unit);
+
+static u_long pcic_pci_count;
+
+static struct pci_device pcic_pci_device = {
+	"pcic",
+	pcic_pci_probe,
+	pcic_pci_attach,
+	&pcic_pci_count,
+	NULL
+};
+
+DATA_SET(pcidevice_set, pcic_pci_device);
+
 #define	 PCI_DEVICE_ID_PCIC_TI1130	0xAC12104Cul
 #define	 PCI_DEVICE_ID_PCIC_TI1131	0xAC15104Cul
 #define	 PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul
@@ -88,7 +103,7 @@ pcic_pci_probe(pcici_t tag, pcidi_t type)
 static void
 pcic_pci_attach(pcici_t tag, int unit)
 {
-	int i,j;
+	int i, j;
 	u_char *p;
 	u_long *pl;
 
@@ -96,9 +111,9 @@ pcic_pci_attach(pcici_t tag, int unit)
 		return;
 
 	printf ("PCI Config space:\n");
-	for (j=0;j<0x98;j+=16) {
+	for (j = 0; j < 0x98; j += 16) {
 		printf("%02x: ", j);
-		for (i=0;i<16;i+=4) {
+		for (i = 0; i < 16; i += 4) {
 			printf(" %08x", pci_conf_read(tag, i+j));
 		}
 		printf("\n");
@@ -108,27 +123,16 @@ pcic_pci_attach(pcici_t tag, int unit)
 	pl = (u_long *)p;
 	printf ("Cardbus Socket registers:\n");
 	printf("00: ");
-	for (i=0;i<4;i+=1) printf(" %08x:",pl[i]);
+	for (i = 0; i < 4; i += 1)
+		 printf(" %08x:", pl[i]);
 	printf("\n10: ");
-	for (i=4;i<8;i+=1) printf(" %08x:",pl[i]);
+	for (i =4 ; i < 8; i += 1)
+		printf(" %08x:", pl[i]);
 	printf ("\nExCa registers:\n");
-	for (i=0;i<0x40;i+=16)
-		printf("%02x: %16D\n",i, p+0x800+i," ");
+	for (i = 0; i < 0x40; i += 16)
+		printf("%02x: %16D\n", i, p + 0x800 + i, " ");
 	return;
 }
-
-static u_long pcic_pci_count;
-
-static struct pci_device pcic_pci_device = {
-	"pcic",
-	pcic_pci_probe,
-	pcic_pci_attach,
-	&pcic_pci_count,
-	NULL
-};
-
-DATA_SET(pcidevice_set, pcic_pci_device);
-
 #endif /* NPCI > 0 */
 /*
  *	Prototypes for interrupt handler.
