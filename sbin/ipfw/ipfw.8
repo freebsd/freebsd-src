@@ -771,6 +771,20 @@ This format is particularly useful to handle sparse address sets
 within a single rule. Because the matching occurs using a
 bitmask, it takes constant time and dramatically reduces
 the complexity of rulesets.
+.It Ar addr Ns : Ns Ar mask
+Matches all addresses with base
+.Ar addr
+(specified as a dotted quad or a hostname)
+and the mask of
+.Ar mask ,
+specified as a dotted quad.
+As an example, 1.2.3.4/255.0.255.0 will match
+1.*.3.*.
+We suggest to use this form only for non-contiguous
+masks, and resort to the
+.Ar addr Ns / Ns Ar masklen
+format for contiguous masks, which is more compact and less
+error-prone.
 .El
 .It Ar ports : Oo Cm not Oc Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ...
 For protocols which support port numbers (such as TCP and UDP), optional
@@ -1646,17 +1660,6 @@ does not supports address sets (those in the form
 .Ar addr/masklen{num,num,...}
 ).
 .Pp
-A minor difference between
-.Nm ipfw1
-and
-.Nm ipfw2
-is that the former allows addresses to be specified as
-.Ar ipno:mask
-where the mask can be an arbitrary bitmask instead of
-a countiguous set of bits.
-.Nm ipfw2
-no longer supports this syntax though it would be trivial
-to reintroduce it as it is supported on the kernel side.
 .It Port specifications
 .Nm ipfw1
 only allows one port range when specifying TCP and UDP ports, and
