@@ -776,6 +776,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			return (error);
 		}
 
+		vhold(*vpp);
 		newvp = *vpp;
 		vpid = newvp->v_id;
 		/*
@@ -809,6 +810,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 				if (cnp->cn_nameiop != LOOKUP &&
 				    (flags & ISLASTCN))
 					cnp->cn_flags |= SAVENAME;
+				vdrop(newvp);
 				return (0);
 			   }
 			   cache_purge(newvp);
@@ -817,6 +819,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			if (lockparent && dvp != newvp && (flags & ISLASTCN))
 				VOP_UNLOCK(dvp, 0, td);
 		}
+		vdrop(newvp);
 		error = vn_lock(dvp, LK_EXCLUSIVE, td);
 		*vpp = NULLVP;
 		if (error) {
