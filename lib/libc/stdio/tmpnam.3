@@ -187,15 +187,43 @@ The
 .Fn tmpnam
 and
 .Fn tempnam
-functions are susceptible to a race condition,
+functions are susceptible to a race condition
+occuring between the selection of the file name
+and the creation of the file,
 which allows malicious users
 to potentially overwrite arbitrary files in the system,
 depending on the level of privilege of the running program.
+Additionally, there is no means by which
+file permissions may be specified.
 It is strongly suggested that
 .Xr mkstemp 3
 be used in place of these functions.
 (See
 the FSA.)
+.Sh COMPATIBILITY
+These interfaces are provided from System V and
+.Tn ANSI
+compatibility only.
+.Pp
+Most historic implementations of these functions provide
+only a limited number of possible temporary file names
+(usually 26)
+before file names will start being recycled.
+System V implementations of these functions
+(and of
+.Xr mktemp 3 )
+use the
+.Xr access 2
+system call to determine whether or not the temporary file
+may be created.
+This has obvious ramifications for setuid or setgid programs,
+complicating the portable use of these interfaces in such programs.
+.Pp
+The
+.Fn tmpfile
+interface should not be used in software expected to be used on other systems
+if there is any possibility that the user does not wish the temporary file to
+be publicly readable and writable.
 .Sh SEE ALSO
 .Xr mkstemp 3 ,
 .Xr mktemp 3
@@ -211,37 +239,3 @@ and
 functions
 conform to
 .St -isoC .
-.Sh BUGS
-These interfaces are provided for System V and
-.Tn ANSI
-compatibility only.
-The
-.Xr mkstemp 3
-interface is strongly preferred.
-.Pp
-There are four important problems with these interfaces (as well as
-with the historic
-.Xr mktemp 3
-interface).
-First, there is an obvious race between file name selection and file
-creation and deletion.
-Second, most historic implementations provide only a limited number
-of possible temporary file names (usually 26) before file names will
-start being recycled.
-Third, the System V implementations of these functions (and of
-.Xr mktemp 3 )
-use the
-.Xr access 2
-function to determine whether or not the temporary file may be created.
-This has obvious ramifications for setuid or setgid programs, complicating
-the portable use of these interfaces in such programs.
-Finally, there is no specification of the permissions with which the
-temporary files are created.
-.Pp
-This implementation does not have these flaws, but portable software
-cannot depend on that.
-In particular, the
-.Fn tmpfile
-interface should not be used in software expected to be used on other systems
-if there is any possibility that the user does not wish the temporary file to
-be publicly readable and writable.
