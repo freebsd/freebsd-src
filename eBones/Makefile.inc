@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $
+#	$Id: Makefile.inc,v 1.2 1994/11/20 23:16:51 wollman Exp $
 
 BINDIR?=	/usr/sbin
 SHLIB_MAJOR?=	2
@@ -30,9 +30,4 @@ ACLOBJDIR=	${.CURDIR}/../acl/obj
 ACLOBJDIR=	${.CURDIR}/../acl
 .endif
 
-.if exists(${.CURDIR}/../compile_et/obj)
-COMPILE_ET=     ${.CURDIR}/../compile_et/obj/compile_et
-.else
-COMPILE_ET=     ${.CURDIR}/../compile_et/compile_et
-.endif
-
+COMPILE_ET=     compile_et
