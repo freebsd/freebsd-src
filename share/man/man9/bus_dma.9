@@ -299,7 +299,7 @@ Releases and/or unlocks the client locking primitive.
 .Bl -tag -width compact
 .It Fn bus_dma_tag_create "parent" "alignment" "boundary" "lowaddr" \
 "highaddr" "*filtfunc" "*filtfuncarg" "maxsize" "nsegments" "maxsegsz" \
-"flags" "*dmat"
+"flags" "lockfunc" "lockfuncarg" "*dmat"
 Allocates a device specific DMA tag, and initializes it according to
 the arguments provided:
 .Bl -tag -width *filtfuncarg -compact
@@ -388,6 +388,14 @@ If sufficient resources are not available,
 .Er ENOMEM
 is returned.
 .El
+.It Fa lockfunc
+Optional lock manipulation function (may be NULL) to be called when busdma
+needs to manipulate a lock on behalf of the client.  If NULL is specified,
+.Fn dflt_lock
+is used.
+.It Fa lockfuncarg
+Optional argument to be passed to the function specified by
+.Fa lockfunc .
 .It Fa dmat
 Pointer to a bus_dma_tag_t where the resulting DMA tag will 
 be stored.
