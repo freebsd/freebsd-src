@@ -29,7 +29,7 @@ tcpdump \- dump traffic on a network
 .na
 .B tcpdump
 [
-.B \-adeflnNOpqRStuvxX
+.B \-adeflLnNOpqRStuvxX
 ] [
 .B \-c
 .I count
@@ -78,6 +78,11 @@ tcpdump \- dump traffic on a network
 .I algo:secret
 ]
 [
+.B \-y
+.I datalinktype
+]
+.ti +8
+[
 .I expression
 ]
 .br
@@ -89,7 +94,7 @@ that match the boolean \fIexpression\fP.  It can also be run with the
 .B \-w
 flag, which causes it to save the packet data to a file for later
 analysis, and/or with the
-.B \-b
+.B \-r
 flag, which causes it to read from a saved packet file rather than to
 read packets from a network interface.  In all cases, only packets that
 match
@@ -238,9 +243,9 @@ you make it visible to others, via
 and other occasions.
 .TP
 .B \-f
-Print `foreign' internet addresses numerically rather than symbolically
+Print `foreign' IPv4 addresses numerically rather than symbolically
 (this option is intended to get around serious brain damage in
-Sun's yp server \(em usually it hangs forever translating non-local
+Sun's NIS server \(em usually it hangs forever translating non-local
 internet numbers).
 .TP
 .B \-F
@@ -267,6 +272,9 @@ E.g.,
 .br
 ``tcpdump\ \ \-l\ \ |\ \ tee dat'' or
 ``tcpdump\ \ \-l \ \ > dat\ \ &\ \ tail\ \ \-f\ \ dat''.
+.TP
+.B \-L
+List the known data link types for the interface and exit.
 .TP
 .B \-m
 Load SMI MIB module definitions from file \fImodule\fR.
@@ -306,7 +314,9 @@ Since there is no protocol version field in ESP/AH specification,
 \fItcpdump\fP cannot deduce the version of ESP/AH protocol.
 .TP
 .B \-r
-Read packets from \fIfile\fR (which was created with the -w option).
+Read packets from \fIfile\fR (which was created with the
+.B \-w
+option).
 Standard input is used if \fIfile\fR is ``-''.
 .TP
 .B \-S
@@ -356,6 +366,7 @@ on each dump line.
 .TP
 .B \-tttt
 Print a timestamp in default format proceeded by date on each dump line.
+.TP
 .B \-u
 Print undecoded NFS handles.
 .TP
@@ -378,7 +389,7 @@ telnet \fBSB\fP ... \fBSE\fP options
 are printed in full.
 With
 .B \-X
-telnet options are printed in hex as well.
+Telnet options are printed in hex as well.
 .TP
 .B \-w
 Write the raw packets to \fIfile\fR rather than parsing and printing
@@ -402,6 +413,9 @@ Even if
 .B \-x
 is not also set, some parts of some packets may be printed
 in hex/ascii.
+.TP
+.B \-y
+Set the data link type to use while capturing packets to \fIdatalinktype\fP.
 .IP "\fI expression\fP"
 .RS
 selects which packets will be dumped.
