@@ -73,6 +73,7 @@ mediaInitNetwork(Device *dev)
 	dev->private = NULL;
     }
     if (!strncmp("cuaa", dev->name, 4)) {
+	dialog_clear();
 	if (!msgYesNo("You have selected a serial-line network interface.\n"
 		      "Do you want to use PPP with it?")) {
 	    if (!(dev->private = (void *)startPPP(dev))) {
@@ -165,8 +166,10 @@ mediaShutdownNetwork(Device *dev)
 	    return;
 	msgNotify("Shutting interface %s down.", dev->name);
 	i = vsystem("ifconfig %s down", dev->name);
-	if (i)
+	if (i) {
+	    dialog_clear();
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
+	}
 	cp = variable_get(VAR_GATEWAY);
 	if (cp) {
 	    msgNotify("Deleting default route.");

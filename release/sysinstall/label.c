@@ -881,10 +881,11 @@ diskLabel(char *str)
 				   "size for your root partition and try again!");
 			break;
 		    }
-		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) 
+		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) {
 			msgConfirm("Warning: This is smaller than the recommended size for a\n"
 				   "root partition.  For a variety of reasons, root\n"
 				   "partitions should usually be at least %dMB in size", ROOT_MIN_SIZE);
+		    }
 		}
 		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 					label_chunk_info[here].c,
@@ -986,6 +987,7 @@ diskLabel(char *str)
 	    break;
 
 	case 'U':
+	    clear();
 	    if (msgYesNo("Are you SURE you want to Undo everything?"))
 		break;
 	    variable_unset(DISK_PARTITIONED);

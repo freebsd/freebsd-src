@@ -180,6 +180,7 @@ installInitial(void)
 	variable_set2(DISK_PARTITIONED, "yes");
 
     /* If we refuse to proceed, bail. */
+    dialog_clear();
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
 		 "If you're running this on a disk with data you wish to save\n"
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
@@ -260,6 +261,7 @@ installFixit(char *str)
 	msgConfirm("Please insert a writable fixit floppy and press return");
 	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
 	    break;
+	dialog_clear();
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
 	    return RET_FAIL;
     }
@@ -425,6 +427,7 @@ installCommit(char *str)
 
     if (i != RET_FAIL && str && !strcmp(str, "express")) {
 	/* Ask this now, before installFinal() tries do actually do any of it */
+	dialog_clear();
 	if (!msgYesNo("Since you're running the express installation, a few post-configuration\n"
 		      "questions will be asked at this point.\n\n"
 		      "The FreeBSD package collection is a collection of over 300 ready-to-run\n"
@@ -432,13 +435,15 @@ installCommit(char *str)
 		      "done so, it's definitely worth browsing through.\n\n"
 		      "Would you like to do so now?"))
 	    configPackages(NULL);
-	
+
+	dialog_clear();
 	if (!msgYesNo("Would you like to configure any additional network devices or services?"))
 	    dmenuOpenSimple(&MenuNetworking);
 	
 	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 	
 	/* Final menu of last resort */
+	dialog_clear();
 	if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
 		      "additional configuration options?"))
 	    dmenuOpenSimple(&MenuConfigure);
