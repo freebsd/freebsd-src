@@ -884,8 +884,8 @@ ffs_valloc(pvp, mode, cred, vpp)
 	DIP(ip, i_gen) = ip->i_gen;
 	if (fs->fs_magic == FS_UFS2_MAGIC) {
 		vfs_timestamp(&ts);
-		ip->i_din2->di_createtime = ts.tv_sec;
-		ip->i_din2->di_creatensec = ts.tv_nsec;
+		ip->i_din2->di_birthtime = ts.tv_sec;
+		ip->i_din2->di_birthnsec = ts.tv_nsec;
 	}
 	return (0);
 noinodes:

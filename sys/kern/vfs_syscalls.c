@@ -1573,7 +1573,7 @@ cvtnstat(sb, nsb)
 	nsb->st_blksize = sb->st_blksize;
 	nsb->st_flags = sb->st_flags;
 	nsb->st_gen = sb->st_gen;
-	nsb->st_createtimespec = sb->st_createtimespec;
+	nsb->st_birthtimespec = sb->st_birthtimespec;
 }
 
 #ifndef _SYS_SYSPROTO_H_
