@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.111 1998/10/28 13:37:02 dg Exp $
+ *	$Id: vm_page.c,v 1.112 1998/10/28 13:41:43 dg Exp $
  */
 
 /*
@@ -1230,16 +1230,16 @@ vm_page_wire(m)
 {
 	int s;
 
+	s = splvm();
 	if (m->wire_count == 0) {
-		s = splvm();
 		vm_page_unqueue(m);
-		splx(s);
 		cnt.v_wire_count++;
 		if (m->object)
 			m->object->wire_count++;
 	}
-	(*vm_page_queues[PQ_NONE].lcnt)++;
 	m->wire_count++;
+	splx(s);
+	(*vm_page_queues[PQ_NONE].lcnt)++;
 	vm_page_flag_set(m, PG_MAPPED);
 }
 
