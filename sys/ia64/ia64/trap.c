@@ -683,6 +683,8 @@ trap(int vector, struct trapframe *framep)
 	case IA64_VEC_DEBUG:
 	case IA64_VEC_SINGLE_STEP_TRAP:
 	case IA64_VEC_TAKEN_BRANCH_TRAP: {
+		framep->tf_special.psr &= ~IA64_PSR_SS;
+
 		/*
 		 * These are always fatal in kernel, and should never happen.
 		 */
