@@ -117,7 +117,6 @@ svr4_getcontext(p, uc, mask, oonstack)
 	/*
 	 * Set the general purpose registers
 	 */
-#ifdef VM86
 	if (tf->tf_eflags & PSL_VM) {
 		r[SVR4_X86_GS] = tf->tf_vm86_gs;
 		r[SVR4_X86_FS] = tf->tf_vm86_fs;
@@ -125,7 +124,6 @@ svr4_getcontext(p, uc, mask, oonstack)
 		r[SVR4_X86_DS] = tf->tf_vm86_ds;
 		r[SVR4_X86_EFL] = get_vflags(p);
 	} else
-#endif
 	{
 #if defined(__NetBSD__)
 	        __asm("movl %%gs,%w0" : "=r" (r[SVR4_X86_GS]));
@@ -215,7 +213,6 @@ svr4_setcontext(p, uc)
 	/*
 	 * Restore register context.
 	 */
-#ifdef VM86
 	if (r[SVR4_X86_EFL] & PSL_VM) {
 		tf->tf_vm86_gs = r[SVR4_X86_GS];
 		tf->tf_vm86_fs = r[SVR4_X86_FS];
@@ -223,7 +220,6 @@ svr4_setcontext(p, uc)
 		tf->tf_vm86_ds = r[SVR4_X86_DS];
 		set_vflags(p, r[SVR4_X86_EFL]);
 	} else
-#endif
 	{
 		/*
 		 * Check for security violations.  If we're returning to

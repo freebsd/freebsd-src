@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.37 1999/04/28 01:04:12 luoqi Exp $
+ *	$Id: apic_vector.s,v 1.38 1999/05/28 14:08:57 bde Exp $
  */
 
 
@@ -628,10 +628,8 @@ _Xcpucheckstate:
 	andl	$3, %eax
 	cmpl	$3, %eax
 	je	1f
-#ifdef VM86
 	testl	$PSL_VM, 24(%esp)
 	jne	1f
-#endif
 	incl	%ebx			/* system or interrupt */
 #ifdef CPL_AND_CML	
 	cmpl	$0, _inside_intr

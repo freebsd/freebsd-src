@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.121 1999/04/28 01:03:20 luoqi Exp $
+ *	$Id: locore.s,v 1.122 1999/05/09 19:01:49 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -48,7 +48,6 @@
 #include "opt_ddb.h"
 #include "opt_nfsroot.h"
 #include "opt_userconfig.h"
-#include "opt_vm86.h"
 
 #include <sys/syscall.h>
 #include <sys/reboot.h>
@@ -134,13 +133,11 @@ _KPTphys:	.long	0			/* phys addr of kernel page tables */
 _proc0paddr:	.long	0			/* address of proc 0 address space */
 p0upa:		.long	0			/* phys addr of proc0's UPAGES */
 
-#ifdef VM86
 vm86phystk:	.long	0			/* PA of vm86/bios stack */
 
 	.globl	_vm86paddr, _vm86pa
 _vm86paddr:	.long	0			/* address of vm86 region */
 _vm86pa:	.long	0			/* phys addr of vm86 region */
-#endif
 
 #ifdef BDE_DEBUGGER
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is present */
@@ -311,18 +308,10 @@ NON_GPROF_ENTRY(btext)
 	stosb
 
 #if NAPM > 0
-#ifndef VM86
-/*
- * XXX it's not clear that APM can live in the current environonment.
- * Only pc-relative addressing works.
- */
-	call	_apm_setup
-#endif
 #endif
 
 	call	create_pagetables
 
-#ifdef VM86
 /*
  * If the CPU has support for VME, turn it on.
  */ 
@@ -332,7 +321,6 @@ NON_GPROF_ENTRY(btext)
 	orl	$CR4_VME, %eax
 	movl	%eax, %cr4
 1:
-#endif /* VM86 */
 
 #ifdef BDE_DEBUGGER
 /*
@@ -786,7 +774,6 @@ no_kernend:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
-#ifdef VM86
 	ALLOCPAGES(1)			/* vm86/bios stack */
 	movl	%esi,R(vm86phystk)
 
@@ -794,7 +781,6 @@ no_kernend:
 	movl	%esi,R(_vm86pa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_vm86paddr)
-#endif /* VM86 */
 
 #ifdef SMP
 /* Allocate cpu0's private data page */
@@ -862,7 +848,6 @@ map_read_write:
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkptphys($PG_RW)
 
-#ifdef VM86
 /* Map space for the vm86 region */
 	movl	R(vm86phystk), %eax
 	movl	$4, %ecx
@@ -879,7 +864,6 @@ map_read_write:
 	movl	$ISA_HOLE_START>>PAGE_SHIFT, %ebx
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkpt(R(_vm86pa), $PG_RW|PG_U)
-#endif /* VM86 */
 
 #ifdef SMP
 /* Map cpu0's private page into global kmem (4K @ cpu0prvpage) */

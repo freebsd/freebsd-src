@@ -38,12 +38,11 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.120 1999/02/19 14:25:33 luoqi Exp $
+ *	$Id: vm_machdep.c,v 1.121 1999/04/19 14:14:13 peter Exp $
  */
 
 #include "npx.h"
 #include "opt_user_ldt.h"
-#include "opt_vm86.h"
 #ifdef PC98
 #include "opt_pc98.h"
 #endif
@@ -64,10 +63,8 @@
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-#ifdef VM86
 #include <machine/pcb_ext.h>
 #include <machine/vm86.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -133,11 +130,7 @@ cpu_fork(p1, p2)
 	 * syscall.  This copies the user mode register values.
 	 */
 	p2->p_md.md_regs = (struct trapframe *)
-#ifdef VM86
 			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
-#else
-			   ((int)p2->p_addr + UPAGES * PAGE_SIZE) - 1;
-#endif /* VM86 */
 	*p2->p_md.md_regs = *p1->p_md.md_regs;
 
 	/*
@@ -162,12 +155,10 @@ cpu_fork(p1, p2)
 #ifdef SMP
 	pcb2->pcb_mpnest = 1;
 #endif
-#ifdef VM86
 	/*
 	 * XXX don't copy the i/o pages.  this should probably be fixed.
 	 */
 	pcb2->pcb_ext = 0;
-#endif
 
 #ifdef USER_LDT
         /* Copy the LDT, if necessary. */
@@ -216,14 +207,11 @@ void
 cpu_exit(p)
 	register struct proc *p;
 {
-#if defined(USER_LDT) || defined(VM86)
 	struct pcb *pcb = &p->p_addr->u_pcb; 
-#endif
 
 #if NNPX > 0
 	npxexit(p);
 #endif	/* NNPX */
-#ifdef VM86
 	if (pcb->pcb_ext != 0) {
 	        /* 
 		 * XXX do we need to move the TSS off the allocated pages 
@@ -233,7 +221,6 @@ cpu_exit(p)
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = 0;
 	}
-#endif
 #ifdef USER_LDT
 	if (pcb->pcb_ldt != 0) {
 		if (pcb == curpcb) {
