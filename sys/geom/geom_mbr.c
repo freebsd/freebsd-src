@@ -247,6 +247,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		/* XXX: phk think about this! */
 		if (gp->rank != 2 &&
 		    strcmp(pp->geom->class->name, "LABEL") != 0 &&
+		    strcmp(pp->geom->class->name, "MIRROR") != 0 &&
 		    strcmp(pp->geom->class->name, "NOP") != 0) {
 			break;
 		}
