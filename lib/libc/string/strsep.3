@@ -43,7 +43,7 @@
 .Sh SYNOPSIS
 .Fd #include <string.h>
 .Ft char *
-.Fn strsep "char **stringp" "char *delim"
+.Fn strsep "char **stringp" "const char *delim"
 .Sh DESCRIPTION
 The
 .Fn strsep
@@ -86,7 +86,8 @@ char **ap, *argv[10], *inputstring;
 
 for (ap = argv; (*ap = strsep(&inputstring, " \et")) != NULL;)
 	if (**ap != '\e0')
-		++ap;
+		if (++ap >= &argv[10])
+			break;
 .Ed
 .Sh HISTORY
 The
