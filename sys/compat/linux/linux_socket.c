@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -551,7 +551,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	    /*
 	     * XXX: Avoid undefined symbol error with an IPv4 only
 	     * kernel.
-	     */ 
+	     */
 	    && ip6_v6only
 #endif
 	    ) {

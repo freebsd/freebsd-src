@@ -566,20 +566,20 @@ select_out:
 	return error;
 }
 
-int     
+int
 linux_mremap(struct thread *td, struct linux_mremap_args *args)
 {
 	struct munmap_args /* {
 		void *addr;
 		size_t len;
-	} */ bsd_args; 
+	} */ bsd_args;
 	int error = 0;
- 
+
 #ifdef DEBUG
 	if (ldebug(mremap))
 		printf(ARGS(mremap, "%p, %08lx, %08lx, %08lx"),
-		    (void *)args->addr, 
-		    (unsigned long)args->old_len, 
+		    (void *)args->addr,
+		    (unsigned long)args->old_len,
 		    (unsigned long)args->new_len,
 		    (unsigned long)args->flags);
 #endif
@@ -913,9 +913,9 @@ linux_setitimer(struct thread *td, struct linux_setitimer_args *args)
 		return error;
 #ifdef DEBUG
 	    if (ldebug(setitimer)) {
-	        printf("setitimer: value: sec: %ld, usec: %ld\n",
+		printf("setitimer: value: sec: %ld, usec: %ld\n",
 		    foo.it_value.tv_sec, foo.it_value.tv_usec);
-	        printf("setitimer: interval: sec: %ld, usec: %ld\n",
+		printf("setitimer: interval: sec: %ld, usec: %ld\n",
 		    foo.it_interval.tv_sec, foo.it_interval.tv_usec);
 	    }
 #endif

@@ -133,7 +133,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
-		printf(ARGS(clone, "flags %x, stack %x"), 
+		printf(ARGS(clone, "flags %x, stack %x"),
 		    (unsigned int)args->flags, (unsigned int)args->stack);
 		if (args->flags & CLONE_PID)
 		    printf(LMSG("CLONE_PID not yet supported"));

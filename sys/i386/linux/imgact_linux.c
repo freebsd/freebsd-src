@@ -9,7 +9,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -137,7 +137,7 @@ exec_linux_imgact(struct image_params *imgp)
 	 */
 	vmaddr = virtual_offset;
 	error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    a_out->a_text + a_out->a_data + bss_size, FALSE,
+			    a_out->a_text + a_out->a_data + bss_size, FALSE,
 			    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
 	    goto fail;
@@ -150,7 +150,7 @@ exec_linux_imgact(struct image_params *imgp)
 	    goto fail;
 
 	error = copyout((void *)(buffer + file_offset),
-	                (void *)vmaddr, a_out->a_text + a_out->a_data);
+			(void *)vmaddr, a_out->a_text + a_out->a_data);
 
 	vm_map_remove(kernel_map, buffer,
 		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
@@ -163,9 +163,9 @@ exec_linux_imgact(struct image_params *imgp)
 	 */
 	error = vm_map_protect(&vmspace->vm_map,
 			       vmaddr,
-		   	       vmaddr + a_out->a_text,
-		   	       VM_PROT_EXECUTE|VM_PROT_READ,
-		   	       TRUE);
+			       vmaddr + a_out->a_text,
+			       VM_PROT_EXECUTE|VM_PROT_READ,
+			       TRUE);
 	if (error)
 	    goto fail;
     }
@@ -179,13 +179,13 @@ exec_linux_imgact(struct image_params *imgp)
 	vmaddr = virtual_offset;
 	error = vm_mmap(&vmspace->vm_map, &vmaddr,
 			a_out->a_text + a_out->a_data,
-	    		VM_PROT_READ | VM_PROT_EXECUTE,
-	    		VM_PROT_ALL,
-	    		MAP_PRIVATE | MAP_FIXED,
-	    		(caddr_t)imgp->vp, file_offset);
+			VM_PROT_READ | VM_PROT_EXECUTE,
+			VM_PROT_ALL,
+			MAP_PRIVATE | MAP_FIXED,
+			(caddr_t)imgp->vp, file_offset);
 	if (error)
 	    goto fail;
-    
+
 #ifdef DEBUG
 	printf("imgact: startaddr=%08lx, length=%08lx\n",
 	    (u_long)vmaddr, a_out->a_text + a_out->a_data);
@@ -200,13 +200,13 @@ exec_linux_imgact(struct image_params *imgp)
 			       FALSE);
 	if (error)
 	    goto fail;
-    
+
 	/*
 	 * Allocate anon demand-zeroed area for uninitialized data
 	 */
 	if (bss_size != 0) {
 	    vmaddr = virtual_offset + a_out->a_text + a_out->a_data;
-	    error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, 
+	    error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr,
 				bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	    if (error)
 		goto fail;
@@ -229,7 +229,7 @@ exec_linux_imgact(struct image_params *imgp)
     /* Fill in image_params */
     imgp->interpreted = 0;
     imgp->entry_addr = a_out->a_entry;
-    
+
     imgp->proc->p_sysent = &linux_sysvec;
 
 fail:
