@@ -40,7 +40,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm mtree
-.Op Fl PUcdeinrux
+.Op Fl PUcdeinqrux
 .Bk -words
 .Op Fl f Ar spec
 .Ek
@@ -100,6 +100,11 @@ a comment is emitted before each directory and before the close of that
 directory when using the 
 .Fl c
 option.
+.It Fl q
+Quiet mode.  Do not complain when a
+.Dq missing
+directory can not be created because it is already exists.
+This occurs when the directory is a symbolic link.
 .It Fl r
 Remove any files in the file hierarchy that are not described in the
 specification.
