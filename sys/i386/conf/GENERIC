@@ -219,7 +219,7 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
-# USB Ethernet
+# USB Ethernet, requires mii
 #device		aue		# ADMtek USB ethernet
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
