@@ -211,9 +211,13 @@ jp.pc98.kbd:en:Japanese PC-98x1
 
 jp.pc98.iso.kbd:en:Japanese PC-98x1 (ISO)
 
-lat-amer.kbd:en:Latin American
-lat-amer.kbd:de:Latein Amerikanisch
-lat-amer.kbd:pt,es:América Latina
+latinamerican.kbd:en:Latin American
+latinamerican.kbd:de:Latein Amerikanisch
+latinamerican.kbd:pt,es:América Latina
+
+latinamerican.iso.acc.kbd:en:Latin American (accent keys)
+latinamerican.iso.acc.kbd:de:Latein Amerikanisch (mit Akzenten)
+latinamerican.iso.acc.kbd:pt,es:América Latina (com acentos)
 
 lt.iso4.kbd:en:Lithuanian ISO-8859-4
 lt.iso4.kbd:es:Lituano ISO-8859-4
