@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.6 1995/04/30 06:09:26 phk Exp $
+ * $Id: disk.c,v 1.7 1995/04/30 07:30:43 phk Exp $
  *
  */
 
@@ -65,6 +65,12 @@ Int_Open_Disk(char *name, u_long size)
 		return 0;
 	}
 
+	for(i=0;i<ds.dss_nslices;i++)
+		if(ds.dss_slices[i].ds_openmask)
+			printf("  open(%d)=0x%2x",
+				i,ds.dss_slices[i].ds_openmask);
+	printf("\n");
+
 	if (!size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 
@@ -97,7 +103,7 @@ Int_Open_Disk(char *name, u_long size)
 		if (Add_Chunk(d, 0, 1, "-",reserved,0,0))
 			warn("Failed to add MBR chunk");
 	
-	for(i=BASE_SLICE;i < 12 &&  i<ds.dss_nslices;i++) {
+	for(i=BASE_SLICE;i<ds.dss_nslices;i++) {
 		char sname[20];
 		chunk_e ce;
 		u_long flags=0;
@@ -105,12 +111,13 @@ Int_Open_Disk(char *name, u_long size)
 		if (! ds.dss_slices[i].ds_size)
 			continue;
 		sprintf(sname,"%ss%d",name,i-1);
+		subtype = ds.dss_slices[i].ds_type;
 		switch (ds.dss_slices[i].ds_type) {
 			case 0xa5:
 				ce = freebsd;
 				break;
 			case 0x1:
-			case 0x6:
+			case 0x4:
 				ce = fat;
 				break;
 			case DOSPTYP_EXTENDED:
@@ -118,7 +125,6 @@ Int_Open_Disk(char *name, u_long size)
 				break;
 			default:
 				ce = foo;
-				subtype = -ds.dss_slices[i].ds_type;
 				break;
 		}	
 		flags |= CHUNK_ALIGN;
@@ -129,45 +135,56 @@ Int_Open_Disk(char *name, u_long size)
 			if (Add_Chunk(d,ds.dss_slices[i].ds_offset,
 				1, "-",reserved, subtype, flags))
 				warn("failed to add MBR chunk for slice %d",i - 1);
-		if (ds.dss_slices[i].ds_type == 0xa5) {
-			struct disklabel *dl;
+		if (ds.dss_slices[i].ds_type != 0xa5)
+			continue;
+		{
+		struct disklabel dl;
+		char pname[20];
+		int j,k;
 
-			dl = read_disklabel(fd,
-				ds.dss_slices[i].ds_offset + LABELSECTOR);
-			if(dl) {
-				char pname[20];
-				int j;
-				u_long l;
-				if (dl->d_partitions[RAW_PART].p_offset == 0 &&
-				    dl->d_partitions[RAW_PART].p_size ==
-					ds.dss_slices[i].ds_size)
-					l = ds.dss_slices[i].ds_offset;
-				else
-					l = 0;
-				for(j=0; j < dl->d_npartitions; j++) {
-					sprintf(pname,"%s%c",sname,j+'a');
-					if (j == RAW_PART || j == 3)
-						continue;
-					if (!dl->d_partitions[j].p_size)
-						continue;
-					if (Add_Chunk(d,
-						dl->d_partitions[j].p_offset +
-						l,
-						dl->d_partitions[j].p_size,
-						pname,part,0,0))
-						warn(
-	"Failed to add chunk for partition %c [%lu,%lu]",
-		j + 'a',dl->d_partitions[j].p_offset,dl->d_partitions[j].p_size);
-				}
-				sprintf(pname,"%sd",sname);
-				if (dl->d_partitions[3].p_size)
-					Add_Chunk(d,
-						dl->d_partitions[3].p_offset +
-						l,
-						dl->d_partitions[3].p_size,
-						pname,part,0,0);
-				free(dl);
+		strcpy(pname,"/dev/r");
+		strcat(pname,sname);
+		j = open(pname,O_RDONLY);
+		if (j < 0) {
+			warn("open(%s)",pname);
+			continue;
+		}
+		k = ioctl(j,DIOCGDINFO,&dl);
+		if (k < 0) {
+			warn("ioctl(%s,DIOCGDINFO)",pname);
+			close(j);
+			continue;
+		}
+		close(j);
+		
+		for(j=0; j <= dl.d_npartitions; j++) {
+			if (j == RAW_PART)
+				continue;
+			if (j == 3)
+				continue;
+			if (j == dl.d_npartitions) {
+				j = 3;
+				dl.d_npartitions=0;
 			}
+			if (!dl.d_partitions[j].p_size)
+				continue;
+			if (dl.d_partitions[j].p_size +
+			    dl.d_partitions[j].p_offset >
+			    ds.dss_slices[i].ds_size)
+				continue;
+			sprintf(pname,"%s%c",sname,j+'a');
+			if (Add_Chunk(d,
+				dl.d_partitions[j].p_offset +
+				ds.dss_slices[i].ds_offset,
+				dl.d_partitions[j].p_size,
+				pname,part,
+				dl.d_partitions[j].p_fstype,
+				0) && j != 3)
+				warn(
+			"Failed to add chunk for partition %c [%lu,%lu]",
+			j + 'a',dl.d_partitions[j].p_offset,
+			dl.d_partitions[j].p_size);
+		}
 		}
 	}
 	close(fd);
@@ -216,8 +233,8 @@ Clone_Disk(struct disk *d)
 		memcpy(d2->boot1,d->boot1,512);
 	}
 	if(d2->boot2) {
-		d2->boot2 = malloc(512*7);
-		memcpy(d2->boot2,d->boot2,512*7);
+		d2->boot2 = malloc(512*15);
+		memcpy(d2->boot2,d->boot2,512*15);
 	}
 	return d2;
 }
@@ -284,7 +301,7 @@ Set_Boot_Blocks(struct disk *d, u_char *b1, u_char *b2)
 	if(!d->boot1) err(1,"malloc failed");
 	memcpy(d->boot1,b1,512);
 	if (d->boot2) free(d->boot2);	
-	d->boot2 = malloc(7*512);
+	d->boot2 = malloc(15*512);
 	if(!d->boot2) err(1,"malloc failed");
-	memcpy(d->boot2,b2,7*512);
+	memcpy(d->boot2,b2,15*512);
 }
