@@ -84,6 +84,7 @@ ports-all
 #ports-databases
 #ports-deskutils
 #ports-devel
+#ports-dns
 #ports-editors
 #ports-emulators
 #ports-finance
@@ -108,6 +109,7 @@ ports-all
 #ports-news
 #ports-palm
 #ports-picobsd
+#ports-polish
 #ports-portuguese
 #ports-print
 #ports-russian
