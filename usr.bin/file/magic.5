@@ -79,10 +79,13 @@ value,
 .BR & ,
 to specify that the value from the file must have set all of the bits 
 that are set in the specified value,
-or
 .BR ^ ,
 to specify that the value from the file must have clear any of the bits 
-that are set in the specified value.
+that are set in the specified value, or
+.BR x ,
+to specify that any value will match. If the character is omitted,
+it is assumed to be
+.BR = .
 .IP
 Numeric values are specified in C form; e.g.
 .B 13
@@ -91,9 +94,6 @@ is decimal,
 is octal, and
 .B 0x13
 is hexadecimal.
-to specify that any value will match.  If the character
-is omitted, it is assumed to be
-.BR = .
 .IP
 For string values, the byte string from the
 file must match the specified byte string. 
@@ -143,7 +143,7 @@ If the first character following the last
 is a
 .B (
 then the string after the parenthesis is interpreted as an indirect offset.
-That means that the number after the parenthesis is used as a offset in
+That means that the number after the parenthesis is used as an offset in
 the file. The value at that offset is read, and is used again as an offset
 in the file. Indirect offsets are of the form:
 .BI (( x [.[bsl]][+-][ y ]).
@@ -168,7 +168,7 @@ The formats
 .IR bedate ,
 and
 .I ledate
-are system-dependant; perhaps they should be specified as a number
+are system-dependent; perhaps they should be specified as a number
 of bytes (2B, 4B, etc), 
 since the files being recognized typically come from
 a system on which the lengths are invariant.
@@ -191,4 +191,4 @@ indirect offsets.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
-.\" @(#)$Id: magic.man,v 1.11 1994/05/03 17:58:23 christos Exp $
+.\" @(#)$Id: magic.5,v 1.2 1994/09/03 19:31:16 csgr Exp $
