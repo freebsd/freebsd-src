@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.31 1997/05/04 02:39:04 ache Exp $
+.\" $Id: ppp.8,v 1.32 1997/05/12 11:54:12 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1119,15 +1119,19 @@ tty port locking file.
 .Pa /var/run/PPP.system
 Holds the pid for ppp -auto system.
 
-.Pa /var/run/ppp.tun0.pid
-The process id (pid) of the ppp program connected to the ppp0 device.
+.Pa /var/run/tun0.pid
+The process id (pid) of the ppp program connected to the tun0 device.
+
+.Pa /var/run/ttyXX.pid
+The tun interface used by this port.
 
 .Pa /etc/services
 Get port number if port number is using service name.
 .El
 .Sh SEE ALSO
 .Xr chat 8 ,
-.Xr pppd 8
+.Xr pppd 8 ,
+.Xr uucplock 3
 .Sh HISTORY
 This program was submitted in FreeBSD-2.0.5 Atsushi Murai (amurai@spec.co.jp).
 
