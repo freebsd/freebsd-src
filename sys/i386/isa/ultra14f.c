@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.60 1998/06/08 09:47:37 bde Exp $
+ *      $Id: ultra14f.c,v 1.61 1998/06/21 15:49:39 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -271,6 +271,8 @@ static struct mscp *
 		uha_get_mscp __P((struct uha_data *uha, int flags));
 static int	uha_init __P((struct uha_data *uha));
 static int	uha24_init __P((struct uha_data *uha));
+static ointhand2_t
+		uhaintr;
 static void	uhaminphys __P((struct buf *bp));
 static struct mscp *
 		uha_mscp_phys_kv __P((struct uha_data *uha, long mscp_phys));
@@ -520,6 +522,8 @@ uha_attach(dev)
 	struct uha_data *uha = uhadata[unit];
 	struct scsibus_data *scbus;
 
+	dev->id_ointr = uhaintr;
+
 	/*
 	 * fill in the prototype scsi_link.
 	 */
@@ -561,7 +565,7 @@ uha_adapter_info(unit)
 /*
  * Catch an interrupt from the adaptor
  */
-void
+static void
 uhaintr(unit)
 	int unit;
 {

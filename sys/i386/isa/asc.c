@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.30 1998/06/07 17:10:13 dfr Exp $
+ * $Id: asc.c,v 1.31 1998/08/12 18:16:38 bde Exp $
  */
 
 #include "asc.h"
@@ -187,6 +187,8 @@ static struct asc_unit unittab[NASC];
 static int ascprobe (struct isa_device *isdp);
 static int ascattach(struct isa_device *isdp);
 struct isa_driver ascdriver = { ascprobe, ascattach, "asc" };
+
+static ointhand2_t	ascintr;
 
 static d_open_t		ascopen;
 static d_close_t	ascclose;
@@ -448,6 +450,7 @@ ascattach(struct isa_device *isdp)
   int unit = isdp->id_unit;
   struct asc_unit *scu = unittab + unit;
 
+  isdp->id_ointr = ascintr;
   scu->flags |= FLAG_DEBUG;
   printf("asc%d: [GI1904/Trust Ami-Scan Grey/Color]\n", unit);
 
@@ -497,7 +500,7 @@ ascattach(struct isa_device *isdp)
  *** ascintr
  ***	the interrupt routine, at the end of DMA...
  ***/
-void
+static void
 ascintr(int unit)
 {
     struct asc_unit *scu = unittab + unit;

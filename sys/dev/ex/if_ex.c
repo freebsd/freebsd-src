@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.11 1998/03/28 13:24:06 bde Exp $
+ *	$Id: if_ex.c,v 1.12 1998/06/07 17:10:30 dfr Exp $
  */
 
 /*
@@ -119,6 +119,7 @@ static int ex_attach __P((struct isa_device *));
 static void ex_init __P((void *));
 static void ex_start __P((struct ifnet *));
 static void ex_stop __P((int));
+static ointhand2_t exintr;
 static int ex_ioctl __P((struct ifnet *, u_long, caddr_t));
 static void ex_reset __P((int));
 static void ex_watchdog __P((struct ifnet *));
@@ -253,6 +254,8 @@ int ex_attach(struct isa_device *dev)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	DODEBUG(Start_End, printf("ex_attach%d: start\n", unit););
+
+	dev->id_ointr = exintr;
 
 	/*
 	 * Initialize the ifnet structure.
@@ -565,7 +568,7 @@ void ex_stop(int unit)
 }
 
 
-void exintr(int unit)
+static void exintr(int unit)
 {
   struct ex_softc *sc = &ex_sc[unit];
   struct ifnet *ifp = &sc->arpcom.ac_if;

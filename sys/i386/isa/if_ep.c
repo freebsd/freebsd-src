@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.75 1998/06/07 17:10:28 dfr Exp $
+ *  $Id: if_ep.c,v 1.76 1998/06/21 18:02:38 bde Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -118,6 +118,7 @@ static	int ep_isa_attach __P((struct isa_device *));
 static	int epioctl __P((struct ifnet * ifp, u_long, caddr_t));
 
 static	void epinit __P((struct ep_softc *));
+static	ointhand2_t epintr;
 static	void epread __P((struct ep_softc *));
 void	epreset __P((int));
 static	void epstart __P((struct ifnet *));
@@ -538,6 +539,7 @@ ep_isa_attach(is)
     u_short config;
     int irq;
 
+    is->id_ointr = epintr;
     sc->ep_connectors = 0;
     config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
     if (config & IS_AUI) {
@@ -900,7 +902,7 @@ readcheck:
     goto startagain;
 }
 
-void
+static void
 epintr(unit)
     int unit;
 {

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.14 1998/06/17 13:54:56 bde Exp $
+ * $Id: if_sr.c,v 1.15 1998/06/21 14:53:12 bde Exp $
  */
 
 /*
@@ -270,6 +270,7 @@ struct	sr_hardc *srattach_pci(int unit, vm_offset_t plx_vaddr,
 void	srintr_hc(struct sr_hardc *hc);
 
 static int	srattach(struct sr_hardc *hc);
+static ointhand2_t	srintr;
 static void	sr_xmit(struct sr_softc *sc);
 static void	srstart(struct ifnet *ifp);
 static int	srioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
@@ -864,7 +865,7 @@ srattach(struct sr_hardc *hc)
  * See if there is other interrupts pending.
  * Repeat until there no interrupts remain.
  */
-void
+static void
 srintr(int unit)
 {
 	struct sr_hardc *hc;

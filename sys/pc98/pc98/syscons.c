@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.100 1998/08/28 12:45:43 kato Exp $
+ *  $Id: syscons.c,v 1.101 1998/09/14 11:37:58 kato Exp $
  */
 
 #include "sc.h"
@@ -287,6 +287,7 @@ static const int	nsccons = MAXCONS+2;
 
 /* prototypes */
 static int scattach(struct isa_device *dev);
+static ointhand2_t scintr;
 static int scparam(struct tty *tp, struct termios *t);
 static int scprobe(struct isa_device *dev);
 static int scvidprobe(int unit, int flags);
@@ -831,6 +832,7 @@ scattach(struct isa_device *dev)
     int vc;
 #endif
 
+    dev->id_ointr = scintr;
     scinit();
     flags = dev->id_flags;
     if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
@@ -1096,7 +1098,7 @@ scwrite(dev_t dev, struct uio *uio, int flag)
     return((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
 
-void
+static void
 scintr(int unit)
 {
     static struct tty *cur_tty;

@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.4 1998/08/27 22:41:18 msmith Exp $
+ * $Id: if_cs.c,v 1.5 1998/10/04 02:11:15 msmith Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -108,6 +108,7 @@ SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "")
 static int	cs_attach		__P((struct cs_softc *, int, int));
 static int	cs_attach_isa		__P((struct isa_device *));
 static void	cs_init			__P((void *));
+static ointhand2_t	csintr;
 static int	cs_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static int	cs_probe		__P((struct isa_device *));
 static int	cs_cs89x0_probe		__P((struct cs_softc *,
@@ -633,6 +634,7 @@ cs_attach_isa(struct isa_device *dev)
         struct cs_softc *sc=&cs_softc[unit];
         int flags=dev->id_flags;
 
+	dev->id_ointr = csintr;
         return cs_attach(sc, unit, flags);
 }
 
@@ -871,7 +873,7 @@ csintr_sc(struct cs_softc *sc, int unit)
 /*
  * Handle interrupts
  */
-void
+static void
 csintr(int unit)
 {
 	struct cs_softc *sc = &cs_softc[unit];

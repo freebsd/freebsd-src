@@ -274,6 +274,7 @@ static void twdelayn(int n);
 static void twsetuptimes(int *a);
 static int wait_for_zero(struct tw_sc *sc);
 static int twputpkt(struct tw_sc *sc, u_char *p);
+static ointhand2_t twintr;
 static int twgetbytes(struct tw_sc *sc, u_char *p, int cnt);
 static timeout_t twabortrcv;
 static int twsend(struct tw_sc *sc, int h, int k, int cnt);
@@ -391,6 +392,7 @@ static int twattach(idp)
   struct tw_sc *sc;
   int	unit;
 
+  idp->id_ointr = twintr;
   sc = &tw_sc[unit = idp->id_unit];
   sc->sc_port = idp->id_iobase;
   sc->sc_state = 0;
@@ -918,7 +920,7 @@ tw_is_within(int value, int expected, int tolerance)
  * reconstruct the transmission without having to poll.
  */
 
-void twintr(unit)
+static void twintr(unit)
 int unit;
 {
   struct tw_sc *sc = &tw_sc[unit];
