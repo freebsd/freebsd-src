@@ -280,20 +280,21 @@ kvm_openfiles(uf, mf, sf, flag, errout)
 }
 
 kvm_t *
-kvm_open(uf, mf, sf, flag, program)
+kvm_open(uf, mf, sf, flag, errstr)
 	const char *uf;
 	const char *mf;
 	const char *sf;
 	int flag;
-	const char *program;
+	const char *errstr;
 {
 	register kvm_t *kd;
 
-	if ((kd = malloc(sizeof(*kd))) == NULL && program != NULL) {
-		(void)fprintf(stderr, "%s: %s\n", strerror(errno));
+	if ((kd = malloc(sizeof(*kd))) == NULL) {
+		(void)fprintf(stderr, "%s: %s\n", 
+			errstr ? errstr : "kvm_open" , strerror(errno));
 		return (0);
 	}
-	kd->program = program;
+	kd->program = errstr;
 	return (_kvm_open(kd, uf, mf, sf, flag, NULL));
 }
 
