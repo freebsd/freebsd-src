@@ -471,6 +471,9 @@ struct fw_crom_buf {
 #define	FW_GTPMAP	_IOR('S', 5, struct fw_topology_map)
 #define	FW_GCROM	_IOWR('S', 7, struct fw_crom_buf)
 
+#define	FW_SDEUI64	_IOW('S', 20, struct fw_eui64)
+#define	FW_GDEUI64	_IOR('S', 21, struct fw_eui64)
+
 #define FWOHCI_RDREG	_IOWR('S', 80, struct fw_reg_req_t)
 #define FWOHCI_WRREG	_IOWR('S', 81, struct fw_reg_req_t)
 
