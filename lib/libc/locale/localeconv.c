@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)localeconv.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <locale.h>
+
 #include "lmonetary.h"
 #include "lnumeric.h"
 
