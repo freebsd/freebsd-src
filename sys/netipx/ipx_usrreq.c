@@ -153,16 +153,6 @@ bad:
 	m_freem(m);
 }
 
-void
-ipx_abort(ipxp)
-	struct ipxpcb *ipxp;
-{
-	struct socket *so = ipxp->ipxp_socket;
-
-	ipx_pcbdisconnect(ipxp);
-	soisdisconnected(so);
-}
-
 /*
  * Drop connection, reporting
  * the specified error.
