@@ -43,6 +43,7 @@ extern	int	(*copyout_vector)(const void *kaddr, void *udaddr, size_t len);
 
 extern	long	Maxmem;
 extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
+extern	u_int	basemem;	/* PA of original top of base memory */
 extern	int	busdma_swi_pending;
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
@@ -96,6 +97,7 @@ void	i686_pagezero(void *addr);
 void	sse2_pagezero(void *addr);
 void	init_AMD_Elan_sc520(void);
 int	is_physical_memory(vm_offset_t addr);
+int	isa_nmi(int cd);
 vm_paddr_t kvtop(void *addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
 int     user_dbreg_trap(void);

@@ -91,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_rdpreg.h>
-#include <i386/isa/intr_machdep.h>
 
 #ifndef COMPAT_OLDISA
 #error "The rdp device requires the old isa compatibility shims"
