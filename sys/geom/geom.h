@@ -48,7 +48,7 @@
 #include <geom_sim.h>
 #endif
 
-struct g_method;
+struct g_class;
 struct g_geom;
 struct g_consumer;
 struct g_provider;
@@ -57,7 +57,7 @@ struct thread;
 struct bio;
 struct sbuf;
 
-LIST_HEAD(method_list_head, g_method);
+LIST_HEAD(class_list_head, g_class);
 TAILQ_HEAD(g_tailq_head, g_geom);
 TAILQ_HEAD(event_tailq_head, g_event);
 
@@ -66,11 +66,11 @@ extern struct event_tailq_head events;
 extern int g_debugflags;
 
 
-#define G_METHOD_INITSTUFF { 0, 0 }, { 0 }, 0
+#define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0
 
-typedef struct g_geom * g_create_geom_t (struct g_method *mp,
+typedef struct g_geom * g_create_geom_t (struct g_class *mp,
     struct g_provider *pp, char *name);
-typedef struct g_geom * g_taste_t (struct g_method *, struct g_provider *,
+typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
     struct thread *tp, int flags);
 #define G_TF_NORMAL		0
 #define G_TF_INSIST		1
@@ -85,31 +85,31 @@ typedef void g_dumpconf_t (struct sbuf *, char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
 
 /*
- * The g_method structure describes a transformation method.  In other words
- * all BSD disklabel handlers share one g_method, all MBR handlers share
- * one common g_method and so on.
- * Certain operations are instantiated on the method, most notably the
+ * The g_class structure describes a transformation class.  In other words
+ * all BSD disklabel handlers share one g_class, all MBR handlers share
+ * one common g_class and so on.
+ * Certain operations are instantiated on the class, most notably the
  * taste and create_geom functions.
  * XXX: should access and orphan go into g_geom ?
  * XXX: would g_class be a better and less confusing name ?
  */
-struct g_method {
+struct g_class {
 	char			*name;
 	g_taste_t		*taste;
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_create_geom_t		*create_geom;
-	LIST_ENTRY(g_method)	method;
+	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
 	struct g_event		*event;
 };
 
 /*
- * The g_geom is an instance of a g_method.
+ * The g_geom is an instance of a g_class.
  */
 struct g_geom {
 	char			*name;
-	struct g_method		*method;
+	struct g_class		*class;
 	LIST_ENTRY(g_geom)	geom;
 	LIST_HEAD(,g_consumer)	consumer;
 	LIST_HEAD(,g_provider)	provider;
@@ -173,7 +173,7 @@ struct g_provider {
  * an internal eventqueue.
  */
 enum g_events {
-	EV_NEW_METHOD,		/* method */
+	EV_NEW_CLASS,		/* class */
 	EV_NEW_PROVIDER,	/* provider */
 	EV_SPOILED,		/* provider, consumer */
 	EV_LAST
@@ -182,7 +182,7 @@ enum g_events {
 struct g_event {
 	enum g_events 		event;
 	TAILQ_ENTRY(g_event)	events;
-	struct g_method		*method;
+	struct g_class		*class;
 	struct g_geom		*geom;
 	struct g_provider	*provider;
 	struct g_consumer	*consumer;
@@ -190,7 +190,7 @@ struct g_event {
 
 /* geom_dump.c */
 struct sbuf * g_conf(void);
-struct sbuf * g_conf_specific(struct g_method *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+struct sbuf * g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
 struct sbuf * g_confdot(void);
 void g_hexdump(void *ptr, int length);
 void g_trace(int level, char *, ...);
@@ -208,7 +208,7 @@ void g_enc_le4(u_char *p, uint32_t u);
 /* geom_event.c */
 void g_event_init(void);
 void g_orphan_provider(struct g_provider *pp, int error);
-void g_post_event(enum g_events ev, struct g_method *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+void g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
 void g_rattle(void);
 void g_run_events(struct thread *tp);
 void g_silence(void);
@@ -216,9 +216,9 @@ void g_silence(void);
 /* geom_subr.c */
 int g_access_abs(struct g_consumer *cp, int read, int write, int exclusive);
 int g_access_rel(struct g_consumer *cp, int read, int write, int exclusive);
-void g_add_method(struct g_method *mp);
+void g_add_class(struct g_class *mp);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
-struct g_geom *g_create_geomf(char *method, struct g_provider *, char *fmt, ...);
+struct g_geom *g_create_geomf(char *class, struct g_provider *, char *fmt, ...);
 void g_destroy_consumer(struct g_consumer *cp);
 void g_destroy_geom(struct g_geom *pp);
 void g_destroy_provider(struct g_provider *pp);
@@ -227,10 +227,10 @@ void g_error_provider(struct g_provider *pp, int error);
 int g_haveattr(struct bio *bp, char *attribute, void *val, int len);
 int g_haveattr_int(struct bio *bp, char *attribute, int val);
 int g_haveattr_off_t(struct bio *bp, char *attribute, off_t val);
-struct g_geom * g_insert_geom(char *method, struct g_consumer *cp);
-extern struct method_list_head g_methods;
+struct g_geom * g_insert_geom(char *class, struct g_consumer *cp);
+extern struct class_list_head g_classs;
 struct g_consumer * g_new_consumer(struct g_geom *gp);
-struct g_geom * g_new_geomf(struct g_method *mp, char *fmt, ...);
+struct g_geom * g_new_geomf(struct g_class *mp, char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, char *fmt, ...);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
@@ -289,12 +289,12 @@ extern struct sx topology_lock;
 #define g_topology_unlock() sx_xunlock(&topology_lock)
 #define g_topology_assert() sx_assert(&topology_lock, SX_XLOCKED)
 
-#define DECLARE_GEOM_METHOD(method, name) 	\
+#define DECLARE_GEOM_CLASS(class, name) 	\
 	static void				\
 	name##init(void)			\
 	{					\
 		mtx_unlock(&Giant);		\
-		g_add_method(&method);		\
+		g_add_class(&class);		\
 		mtx_lock(&Giant);		\
 	}					\
 	SYSINIT(name, SI_SUB_PSEUDO, SI_ORDER_FIRST, name##init, NULL);
