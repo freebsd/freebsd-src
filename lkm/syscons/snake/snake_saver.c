@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.9 1995/11/29 20:10:31 wollman Exp $
+ *	$Id: snake_saver.c,v 1.10 1996/07/01 20:28:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,7 @@ void (*old_saver)(int blank);
 static void
 snake_saver(int blank)
 {
-	const char	saves[] = {"FreeBSD-2.2-CURRENT"};
+	const char	saves[] = {"FreeBSD-2.2"};
 	static u_char	*savs[sizeof(saves)-1];
 	static int	dirx, diry;
 	int		f;
