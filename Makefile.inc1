@@ -412,6 +412,13 @@ installkernel:
 		${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel install
 
 #
+# kernel
+#
+# Short hand for `make buildkernel installkernel'
+#
+kernel: buildkernel installkernel
+
+#
 # update
 #
 # Update the source tree, by running sup and/or running cvs to update to the
