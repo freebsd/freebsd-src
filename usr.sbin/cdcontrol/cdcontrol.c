@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/cdio.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
 
 #define VERSION "2.0"
 
@@ -1000,17 +1001,18 @@ char *parse (char *buf, int *cmd)
 
 int open_cd ()
 {
-	char devbuf[80];
+	char devbuf[MAXPATHLEN];
 
 	if (fd > -1)
 		return (1);
 
-	if (*cdname == '/')
-		strcpy (devbuf, cdname);
-	else if (*cdname == 'r')
-		sprintf (devbuf, "/dev/%s", cdname);
-	else
-		sprintf (devbuf, "/dev/r%s", cdname);
+	if (*cdname == '/') {
+		snprintf (devbuf, MAXPATHLEN, "%s", cdname);
+	} else if (*cdname == 'r') {
+		snprintf (devbuf, MAXPATHLEN, "/dev/%s", cdname);
+	} else {
+		snprintf (devbuf, MAXPATHLEN, "/dev/r%s", cdname);
+	}
 
 	fd = open (devbuf, O_RDONLY);
 
