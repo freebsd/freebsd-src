@@ -71,9 +71,10 @@ int
 _pthread_mutexattr_settype(pthread_mutexattr_t *attr, int type)
 {
 	int	ret;
-	if (attr == NULL || *attr == NULL || type >= MUTEX_TYPE_MAX) {
+	if (*attr == NULL || type < PTHREAD_MUTEX_ERRORCHECK ||
+	    type >= MUTEX_TYPE_MAX) {
 		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		(*attr)->m_type = type;
 		ret = 0;
