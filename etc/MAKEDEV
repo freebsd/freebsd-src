@@ -93,7 +93,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.107 1995/10/17 16:26:54 bde Exp $
+#	$Id: MAKEDEV,v 1.108 1995/10/29 15:52:31 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -172,13 +172,15 @@ all)
 	sh MAKEDEV tun0						# cdev
 	;;
 std)
-	rm -f console drum mem kmem null zero io tty klog stdin stdout stderr
-	rm -f lkm
+	rm -f console drum mem kmem null random urandom zero io tty klog
+	rm -f stdin stdout stderr lkm
 	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
 	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
 	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
 	mknod mem	c 2 0;	chmod 640 mem;		chown root.kmem mem
 	mknod null	c 2 2;	chmod 666 null;		chown root.wheel null
+	mknod random	c 2 3;	chmod 644 random;	chown root.wheel random
+	mknod urandom	c 2 4;	chmod 644 urandom;	chown root.wheel urandom
 	mknod zero	c 2 12;	chmod 666 zero;		chown root.wheel zero
 	mknod io	c 2 14;	chmod 640 io;		chown root.kmem io
 	mknod tty	c 1 0;	chmod 666 tty;		chown root.wheel tty
@@ -870,16 +872,6 @@ pcaudio)
 	mknod pcaudio c 24 0
 	mknod pcaudioctl c 24 128
 	chown root.wheel pcaudio pcaudioctl
-	;;
-
-random)
-	rm -f random
-	mknod random	c 2 3;	chmod 660 random;	chown root.kmem random
-	;;
-
-urandom)
-	rm -f urandom
-	mknod urandom	c 2 4;	chmod 660 urandom;	chown root.kmem urandom
 	;;
 
 socksys)
