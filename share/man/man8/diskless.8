@@ -24,7 +24,7 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-,\"
+.\"
 .\" $FreeBSD$
 .\"
 .Dd October 2, 1994
@@ -35,16 +35,15 @@
 .Nd booting a system over the network
 .Sh DESCRIPTION
 The ability to boot a machine over the network is useful for
-.Xr diskless
+.Em diskless
 or
-.Xr dataless
+.Em dataless
 machines, or as a temporary measure while repairing or
 re-installing filesystems on a local disk.
 This file provides a general description of the interactions between
 a client and its server when a client is booting over the network.
 The general description is followed by specific instructions for
 configuring a server for diskless Sun clients.
-.Pp
 .Sh OPERATION
 When booting a system over the network, there are three
 phases of interaction between client and server:
@@ -325,7 +324,7 @@ location of boot programs loaded by the Sun PROM
 .It Pa /usr/mdec/rbootd
 location of boot programs loaded by the HP Boot ROM
 .El
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr bootparams 5 ,
 .Xr ethers 5 ,
 .Xr exports 5 ,
