@@ -1,5 +1,5 @@
-/*	$NetBSD: if_devar.h,v 1.31 1998/09/29 22:40:52 matt Exp $	*/
-/*	$Id: if_devar.h,v 1.13 1999/05/26 23:05:23 gallatin Exp $ */
+/*	$NetBSD: if_devar.h,v 1.32 1999/04/01 14:55:25 tsubai Exp $	*/
+/*	$Id: if_devar.h,v 1.14 1999/07/06 19:23:25 des Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -1107,7 +1107,7 @@ extern struct cfdriver de_cd;
 #ifndef TULIP_RAISESOFTSPL
 #define	TULIP_RAISESOFTSPL()		splnet()
 #endif
-#ifndef TULUP_RESTORESPL
+#ifndef TULIP_RESTORESPL
 #define	TULIP_RESTORESPL(s)		splx(s)
 #endif
 
