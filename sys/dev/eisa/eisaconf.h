@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.h,v 1.17 1997/09/21 21:35:23 gibbs Exp $
+ *	$Id: eisaconf.h,v 1.18 1999/04/18 15:50:33 peter Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -53,6 +53,9 @@ enum eisa_device_ivars {
     EISA_IVAR_IRQ
 };
 
+#define EISA_TRIGGER_EDGE       0x0
+#define EISA_TRIGGER_LEVEL      0x1
+
 /*
  * Simplified accessors for isa devices
  */
@@ -75,7 +78,7 @@ EISA_ACCESSOR(slot, SLOT, int)
 EISA_ACCESSOR(id, ID, eisa_id_t)
 EISA_ACCESSOR(irq, IRQ, eisa_id_t)
 
-int eisa_add_intr __P((device_t, int));
+int eisa_add_intr __P((device_t, int, int));
 
 #define		RESVADDR_NONE		0x00
 #define		RESVADDR_BITMASK	0x01	/* size is a mask of reserved 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.48 1999/07/29 01:02:51 mdodd Exp $
+ *	$Id: eisaconf.c,v 1.49 1999/07/30 13:54:00 mdodd Exp $
  */
 
 #include "opt_eisa.h"
@@ -62,6 +62,7 @@ LIST_HEAD(resvlist, resvaddr);
 
 struct irq_node {
 	int	irq_no;
+	int	irq_trigger;
 	void	*idesc;
 	TAILQ_ENTRY(irq_node) links;
 };
@@ -92,7 +93,7 @@ int num_eisa_slots = EISA_SLOTS;
 static devclass_t eisa_devclass;
 
 static void eisa_reg_print (device_t, char *, char *, int *);
-static int eisa_find_irq(struct eisa_device *e_dev, int rid);
+static struct irq_node * eisa_find_irq(struct eisa_device *e_dev, int rid);
 static struct resvaddr * eisa_find_maddr(struct eisa_device *e_dev, int rid);
 static struct resvaddr * eisa_find_ioaddr(struct eisa_device *e_dev, int rid);
 
@@ -302,8 +303,9 @@ eisa_print_child(device_t dev, device_t child)
 	}
 
 	rid = 0;
-	while ((irq = eisa_find_irq(e_dev, rid++)) != -1) {
-		snprintf(buf, sizeof(buf), "irq %d", irq);
+	while ((irq = eisa_find_irq(e_dev, rid++)) != NULL) {
+		snprintf(buf, sizeof(buf), "irq %d (%s)", irq->irq_no,
+			 (irq->irq_trigger ? "level" : "edge"));
 		eisa_reg_print(child, buf, 
 			((rid == 1) ? &separator : NULL), &column);
 	}
@@ -315,7 +317,7 @@ eisa_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-static int
+static struct irq_node *
 eisa_find_irq(struct eisa_device *e_dev, int rid)
 {
 	int i;
@@ -327,9 +329,9 @@ eisa_find_irq(struct eisa_device *e_dev, int rid)
 		;
 	
 	if (irq)
-		return irq->irq_no;
+		return (irq);
 	else
-		return -1;
+		return (NULL);
 }
 
 static struct resvaddr *
@@ -364,6 +366,7 @@ static int
 eisa_read_ivar(device_t dev, device_t child, int which, u_long *result)
 {
 	struct eisa_device *e_dev = device_get_ivars(child);
+	struct irq_node *irq;
 
 	switch (which) {
 	case EISA_IVAR_SLOT:
@@ -376,7 +379,11 @@ eisa_read_ivar(device_t dev, device_t child, int which, u_long *result)
 
 	case EISA_IVAR_IRQ:
 		/* XXX only first irq */
-		*result = eisa_find_irq(e_dev, 0);
+		if ((irq = eisa_find_irq(e_dev, 0)) != NULL) {
+			*result = irq->irq_no;
+		} else {
+			*result = -1;
+		}
 		break;
 
 	default:
@@ -406,11 +413,16 @@ eisa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IRQ:
 		if (isdefault) {
-			int irq = eisa_find_irq(e_dev, *rid);
-			if (irq == -1)
+			struct irq_node * irq = eisa_find_irq(e_dev, *rid);
+			if (irq == NULL)
 				return 0;
-			start = end = irq;
+			start = end = irq->irq_no;
 			count = 1;
+			if (irq->irq_trigger == EISA_TRIGGER_LEVEL) {
+				flags |= RF_SHAREABLE;
+			} else {
+				flags &= ~RF_SHAREABLE;
+			}
 		}
 		break;
 
@@ -466,7 +478,7 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-		if (eisa_find_irq(e_dev, rid) == -1)
+		if (eisa_find_irq(e_dev, rid) == NULL)
 			return EINVAL;
 		break;
 
@@ -496,10 +508,10 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 int
-eisa_add_intr(device_t dev, int irq)
+eisa_add_intr(device_t dev, int irq, int trigger)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
-	struct	irq_node *irq_info;
+	struct irq_node *irq_info;
  
 	irq_info = (struct irq_node *)malloc(sizeof(*irq_info), M_DEVBUF,
 					     M_NOWAIT);
@@ -507,6 +519,7 @@ eisa_add_intr(device_t dev, int irq)
 		return (1);
 
 	irq_info->irq_no = irq;
+	irq_info->irq_trigger = trigger;
 	irq_info->idesc = NULL;
 	TAILQ_INSERT_TAIL(&e_dev->ioconf.irqs, irq_info, links);
 	return 0;
