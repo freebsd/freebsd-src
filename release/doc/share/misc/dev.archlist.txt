@@ -105,6 +105,7 @@ snd_emu10k1	i386,amd64
 snd_es137x	i386,amd64
 snd_ess	i386,amd64
 snd_gusc	i386,amd64
+snd_ich	i386,amd64
 snd_solo	i386,amd64
 ste	i386,pc98,alpha,amd64
 stg	i386,pc98
