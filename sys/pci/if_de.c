@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.54.2.1 1996/11/12 09:09:59 phk Exp $
+ * $Id: if_de.c,v 1.54.2.2 1996/12/03 10:52:49 phk Exp $
  *
  */
 
@@ -346,6 +346,7 @@ typedef enum {
     TULIP_21140_DEC_EB,			/* Digital Semicondutor 21140 Evaluation Board */
     TULIP_21140_DEC_DE500,		/* Digital DE500-?? 10/100 */
     TULIP_21140_SMC_9332,		/* SMC 9332 */
+    TULIP_21140A_SMC_9332BDT,		/* SMC 9332BDT with 21140A */
     TULIP_21140_COGENT_EM100,		/* Cogent EM100 100 only */
     TULIP_21140_ZNYX_ZX34X,		/* ZNYX ZX342 10/100 */
     TULIP_21041_GENERIC,		/* Generic 21041 card */
@@ -1551,6 +1552,15 @@ static const tulip_boardsw_t tulip_21140_smc9332_boardsw = {
     tulip_21140_smc9332_media_select,
     tulip_21140_nomii_media_preset,
 };
+
+static const tulip_boardsw_t tulip_21140A_smc9332bdt_boardsw = {
+    TULIP_21140A_SMC_9332BDT,
+    "SMC 9332BDT ",
+    tulip_21140_smc9332_media_probe,
+    tulip_21140_mii_media_preset,
+    tulip_21140_mii_probe,
+};
+
 
 static int
 tulip_21140_cogent_em100_media_probe(
@@ -3014,6 +3024,10 @@ tulip_identify_smc_nic(
 	return;
     if (sc->tulip_chipid == TULIP_21140) {
 	sc->tulip_boardsw = &tulip_21140_smc9332_boardsw;
+	return;
+    }
+    if (sc->tulip_chipid == TULIP_21140A) {
+	sc->tulip_boardsw = &tulip_21140A_smc9332bdt_boardsw;
 	return;
     }
     id1 = sc->tulip_rombuf[0x60] | (sc->tulip_rombuf[0x61] << 8);
