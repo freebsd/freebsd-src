@@ -183,6 +183,7 @@ NE1000/2000 definitions
 /**************************************************************************
 8390 Register Definitions
 **************************************************************************/
+#if	!defined(PC98) || defined(INCLUDE_LGY)
 #define D8390_P0_COMMAND	0x00
 #define D8390_P0_PSTART		0x01
 #define D8390_P0_PSTOP		0x02
@@ -210,6 +211,41 @@ NE1000/2000 definitions
 #define D8390_P1_PAR5		0x06
 #define D8390_P1_CURR		0x07
 #define D8390_P1_MAR0		0x08
+#endif
+#ifdef	PC98
+#define TYPE98_LGY	0x10
+#define TYPE98_EGY	0x11
+#define TYPE98_ICM	0x12
+#endif
+#ifdef	INCLUDE_EGY
+#define D8390_P0_COMMAND	0x00
+#define D8390_P0_PSTART		0x02
+#define D8390_P0_PSTOP		0x04
+#define D8390_P0_BOUND		0x06
+#define D8390_P0_TSR		0x08
+#define	D8390_P0_TPSR		0x08
+#define D8390_P0_TBCR0		0x0a
+#define D8390_P0_TBCR1		0x0c
+#define D8390_P0_ISR		0x0e
+#define D8390_P0_RSAR0		0x100
+#define D8390_P0_RSAR1		0x102
+#define D8390_P0_RBCR0		0x104
+#define D8390_P0_RBCR1		0x106
+#define D8390_P0_RSR		0x108
+#define D8390_P0_RCR		0x108
+#define D8390_P0_TCR		0x10a
+#define D8390_P0_DCR		0x10c
+#define D8390_P0_IMR		0x10e
+#define D8390_P1_COMMAND	0x00
+#define D8390_P1_PAR0		0x02
+#define D8390_P1_PAR1		0x04
+#define D8390_P1_PAR2		0x06
+#define D8390_P1_PAR3		0x08
+#define D8390_P1_PAR4		0x0a
+#define D8390_P1_PAR5		0x0c
+#define D8390_P1_CURR		0x0e
+#define D8390_P1_MAR0		0x100
+#endif
 
 #define D8390_COMMAND_PS0	0x0		/* Page 0 select */
 #define D8390_COMMAND_PS1	0x40		/* Page 1 select */

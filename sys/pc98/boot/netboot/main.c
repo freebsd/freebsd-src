@@ -37,12 +37,11 @@ MAIN - Kick off routine
 main()
 {
 	int c;
-	char *p;
 	extern char edata[], end[];
-	for (p=edata; p<end; p++) *p = 0;	/* Zero BSS */
+	bzero(edata,end-edata);		/* Zero BSS */
 #ifdef ASK_BOOT
 	while (1) {
-		printf("\n\rBoot from Network (Y/N) ? ");
+		printf("\nBoot from Network (Y/N) ? ");
 		c = getchar();
 		if ((c >= 'a') && (c <= 'z')) c &= 0x5F;
 		if (c == '\r') break;
@@ -51,18 +50,31 @@ main()
 			exit(0);
 		if (c == 'Y')
 			break;
-		printf(" - bad response\n\r");
+		printf(" - bad response\n");
 	}
 #endif
+
+	/* get the bios's idea about the disks geometry */
+#ifdef PC98
+	for(c = 0; c < 2; c ++) {
+		if (*(unsigned char*)0xa155d & (1 << c)) { /* check DISK_EQUIP */
+			bootinfo.bi_bios_geom[c] = get_diskinfo(c + 0x80);
+		}
+	}
+#else /* IBM-PC */
+	for(c = 0; c < N_BIOS_GEOM; c ++)
+		bootinfo.bi_bios_geom[c] = get_diskinfo(c + 0x80);
+#endif /* PC98 */
+
 	gateA20();
 #ifdef PC98
 	/* set machine type to PC98_SYSTEM_PARAMETER */
-	/* machine_check(); */
+	machine_check();
 #endif
-	printf("\r\nBOOTP/TFTP/NFS bootstrap loader    ESC for menu\n\r");
-	printf("\r\nSearching for adapter...");
+	printf("\nBOOTP/TFTP/NFS bootstrap loader    ESC for menu\n"
+		"\nSearching for adapter...");
 	if (!eth_probe()) {
-		printf("No adapter found.\r\n");
+		printf("No adapter found.\n");
 		exit(0);
 	}
 	kernel = DEFAULT_BOOTFILE;
@@ -110,8 +122,10 @@ load()
 	char	cmd_line[80];
 	int	err, read_size, i;
 	long	addr, broadcast;
+	int	swsize;
 	unsigned long pad;
 
+	config_buffer[0]='\0'; /* clear; bootp might fill this up */
 /* Initialize this early on */
 
         nfsdiskless.root_args.rsize = 8192;
@@ -119,20 +133,22 @@ load()
         nfsdiskless.swap_args.rsize = 8192;
         nfsdiskless.swap_args.wsize = 8192;
         nfsdiskless.root_args.sotype = SOCK_DGRAM;
-        nfsdiskless.root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
+        nfsdiskless.root_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | 
+				       NFSMNT_RESVPORT);
         nfsdiskless.swap_args.sotype = SOCK_DGRAM;
-        nfsdiskless.swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE);
+        nfsdiskless.swap_args.flags = (NFSMNT_WSIZE | NFSMNT_RSIZE | 
+				       NFSMNT_RESVPORT);
 
 
 		/* Find a server to get BOOTP reply from */
 	if (!arptable[ARP_CLIENT].ipaddr || !arptable[ARP_SERVER].ipaddr) {
-		printf("\r\nSearching for server...\r\n");
+		printf("\nSearching for server...\n");
 		if (!bootp()) {
-			printf("No Server found.\r\n");
+			printf("No Server found.\n");
 			longjmp(jmp_bootmenu,1);
 		}
 	}
-	printf("My IP %I, Server IP %I, GW IP %I\r\n",
+	printf("My IP %I, Server IP %I, GW IP %I\n",
 		arptable[ARP_CLIENT].ipaddr,
 		arptable[ARP_SERVER].ipaddr,
 		arptable[ARP_GATEWAY].ipaddr);
@@ -141,6 +157,10 @@ load()
 	printf("\n=>>"); getchar();
 #endif
 
+	/*** check if have got info from bootp ***/
+	if (config_buffer[0])
+		goto cfg_done;
+#ifndef NO_TFTP
 	/* Now use TFTP to load configuration file */
 	sprintf(cfg,"/tftpboot/freebsd.%I",arptable[ARP_CLIENT].ipaddr);
 	if (tftp(cfg) || tftp(cfg+10))
@@ -151,9 +171,11 @@ load()
 	sprintf(cfg,"/tftpboot/cfg.%I",arptable[ARP_CLIENT].ipaddr);
 	if (tftp(cfg) || tftp(cfg+10))
 		goto cfg_done;
+#endif
+	/* not found; using default values... */
 	sprintf(config_buffer,"rootfs %I:/usr/diskless_root",
 		arptable[ARP_SERVER].ipaddr);
-	printf("Unable to load config file, guessing:\r\n\t%s\r\n",
+	printf("Unable to load config file, guessing:\n\t%s\n",
 		config_buffer);
 
 cfg_done:
@@ -166,7 +188,7 @@ cfg_done:
 		q = cmd_line;
 		while ((*p != '\n') && (*p)) *(q++) = *(p++);
 		*q = 0;
-		printf("%s\r\n",cmd_line);
+		printf("%s\n",cmd_line);
 		execute(cmd_line);
 		if (*p) p++;
 	}
@@ -177,7 +199,7 @@ cfg_done:
 
 		/* Check to make sure we've got a rootfs */
 	if (!arptable[ARP_ROOTSERVER].ipaddr) {
-		printf("No ROOT filesystem server!\r\n");
+		printf("No ROOT filesystem server!\n");
 		longjmp(jmp_bootmenu,1);
 	}
 
@@ -211,7 +233,7 @@ cfg_done:
 		swap_nfs_port = rpclookup(ARP_SWAPSERVER, PROG_NFS, 2);
 		swap_mount_port = rpclookup(ARP_SWAPSERVER, PROG_MOUNT, 1);
 		if ((swap_nfs_port == -1) || (swap_mount_port == -1)) {
-			printf("Unable to get SWAP NFS/MOUNT ports\r\n");
+			printf("Unable to get SWAP NFS/MOUNT ports\n");
 			longjmp(jmp_bootmenu,1);
 		}
 		if (err = nfs_mount(ARP_SWAPSERVER, swap_mount_port,
@@ -222,10 +244,14 @@ cfg_done:
 		}
 		sprintf(swapfile,"swap.%I",arptable[ARP_CLIENT].ipaddr);
 		if (err = nfs_lookup(ARP_SWAPSERVER, swap_nfs_port,
-			&swapfs_fh, swapfile, &nfsdiskless.swap_fh)) {
+			&swapfs_fh, swapfile, &nfsdiskless.swap_fh, &swsize)) {
 			printf("Unable to open %s: ",swapfile);
 			nfs_err(err);
 			longjmp(jmp_bootmenu,1);
+		}
+		if (!nfsdiskless.swap_nblks) {
+		  nfsdiskless.swap_nblks = swsize / 1024;
+		  printf("Swap size is: %d blocks\n",nfsdiskless.swap_nblks);
 		}
 		nfsdiskless.swap_saddr.sin_len = sizeof(struct sockaddr_in);
 		nfsdiskless.swap_saddr.sin_family = AF_INET;
@@ -240,7 +266,7 @@ cfg_done:
 	root_nfs_port = rpclookup(ARP_ROOTSERVER, PROG_NFS, 2);
 	root_mount_port = rpclookup(ARP_ROOTSERVER, PROG_MOUNT, 1);
 	if ((root_nfs_port == -1) || (root_mount_port == -1)) {
-		printf("Unable to get ROOT NFS/MOUNT ports\r\n");
+		printf("Unable to get ROOT NFS/MOUNT ports\n");
 		longjmp(jmp_bootmenu,1);
 	}
 	if (err = nfs_mount(ARP_ROOTSERVER, root_mount_port,
@@ -260,14 +286,14 @@ cfg_done:
 
 	if (err = nfs_lookup(ARP_ROOTSERVER, root_nfs_port,
 		&nfsdiskless.root_fh, *kernel == '/' ? kernel+1 : kernel,
-		&kernel_handle)) {
+		&kernel_handle, NULL)) {
 		printf("Unable to open %s: ",kernel);
 		nfs_err(err);
 		longjmp(jmp_bootmenu,1);
 	}
 
 		/* Load the kernel using NFS */
-	printf("Loading %s...\r\n",kernel);
+	printf("Loading %s...\n",kernel);
 	if ((err = nfs_read(ARP_ROOTSERVER, root_nfs_port, &kernel_handle, 0,
 		sizeof(struct exec), &head)) < 0) {
 		printf("Unable to read %s: ",kernel);
@@ -275,12 +301,15 @@ cfg_done:
 		longjmp(jmp_bootmenu,1);
 	}
 	if (N_BADMAG(head)) {
-		printf("Bad executable format!\r\n");
+		printf("Bad executable format!\n");
 		longjmp(jmp_bootmenu, 1);
 	}
 	loadpoint = (char *)0x100000;
 	offset = N_TXTOFF(head);
 	printf("text=0x%X, ",head.a_text);
+#ifdef	PC98
+	set_twiddle_max(8);
+#endif
 	nfsload(head.a_text);
 	while (((int)loadpoint) & PAGE_MASK)
 		*(loadpoint++) = 0;
@@ -312,7 +341,7 @@ cfg_done:
 	nfsload(i);
 	bootinfo.bi_esymtab = (int) loadpoint;
 
-	printf("entry=0x%X.\n\r",head.a_entry);
+	printf("entry=0x%X.\n",head.a_entry);
 
 		/* Jump to kernel */
 	bootinfo.bi_version = BOOTINFO_VERSION;
@@ -393,19 +422,19 @@ udp_transmit(destip, srcsock, destsock, len, buf)
 			printf("%I is not in my arp table!\n");
 			return(0);
 		}
-		for (i = 0; i<ETHER_ADDR_SIZE; i++)
+		for (i = 0; i<ETHER_ADDR_LEN; i++)
 			if (arptable[arpentry].node[i]) break;
-		if (i == ETHER_ADDR_SIZE) {	/* Need to do arp request */
+		if (i == ETHER_ADDR_LEN) {	/* Need to do arp request */
 			arpreq.hwtype = htons(1);
 			arpreq.protocol = htons(IP);
-			arpreq.hwlen = ETHER_ADDR_SIZE;
+			arpreq.hwlen = ETHER_ADDR_LEN;
 			arpreq.protolen = 4;
 			arpreq.opcode = htons(ARP_REQUEST);
 			bcopy(arptable[ARP_CLIENT].node, arpreq.shwaddr,
-				ETHER_ADDR_SIZE);
+				ETHER_ADDR_LEN);
 			convert_ipaddr(arpreq.sipaddr,
 				&arptable[ARP_CLIENT].ipaddr);
-			bzero(arpreq.thwaddr, ETHER_ADDR_SIZE);
+			bzero(arpreq.thwaddr, ETHER_ADDR_LEN);
 			convert_ipaddr(arpreq.tipaddr, &destip);
 			while (retry--) {
 				eth_transmit(broadcast, ARP, sizeof(arpreq),
@@ -433,7 +462,7 @@ tftp(name)
 	unsigned short len, block=1;
 	struct tftp_t tp;
 	int code;
-	printf("Loading %s...\r\n",name);
+	printf("Loading %s...\n",name);
 	isocket++;
 	tp.opcode = htons(TFTP_RRQ);
 	len = (sprintf((char *)tp.u.rrq,"%s%c%s",name,0,"octet")
@@ -442,9 +471,9 @@ tftp(name)
 		if (!udp_transmit(arptable[ARP_SERVER].ipaddr, isocket, osocket,
 			len, &tp)) return(0);
 		if (await_reply(AWAIT_TFTP, isocket, NULL)) {
-			tr = (struct tftp_t *)&packet[ETHER_HDR_SIZE];
+			tr = (struct tftp_t *)&packet[ETHER_HDR_LEN];
 			if (tr->opcode == ntohs(TFTP_ERROR)) {
-				printf("TFTP error %d (%s)\r\n",
+				printf("TFTP error %d (%s)\n",
 					ntohs(tr->u.err.errcode),
 					tr->u.err.errmsg);
 				return(0);
@@ -456,7 +485,7 @@ tftp(name)
 				osocket, TFTP_MIN_PACKET_SIZE, &tp);
 			len = ntohs(tr->udp.len) - sizeof(struct udphdr) - 4;
 			if (len >= 512) {
-				printf("Config file too large.\r\n");
+				printf("Config file too large.\n");
 				config_buffer[0] = 0;
 				return(0);
 			} else {
@@ -480,9 +509,9 @@ bootp()
 	bzero(&bp, sizeof(struct bootp_t));
 	bp.bp_op = BOOTP_REQUEST;
 	bp.bp_htype = 1;
-	bp.bp_hlen = ETHER_ADDR_SIZE;
+	bp.bp_hlen = ETHER_ADDR_LEN;
 	bp.bp_xid = starttime = currticks();
-	bcopy(arptable[ARP_CLIENT].node, bp.bp_hwaddr, ETHER_ADDR_SIZE);
+	bcopy(arptable[ARP_CLIENT].node, bp.bp_hwaddr, ETHER_ADDR_LEN);
 	while(retry--) {
 		udp_transmit(IP_BROADCAST, 0, BOOTP_SERVER,
 			sizeof(struct bootp_t), &bp);
@@ -508,7 +537,7 @@ await_reply(type, ival, ptr)
 	struct	bootp_t *bootpreply;
 	struct	rpc_t *rpc;
 
-	int	protohdrlen = ETHER_HDR_SIZE + sizeof(struct iphdr) +
+	int	protohdrlen = ETHER_HDR_LEN + sizeof(struct iphdr) +
 				sizeof(struct udphdr);
 	time = currticks() + TIMEOUT;
 	while(time > currticks()) {
@@ -516,16 +545,16 @@ await_reply(type, ival, ptr)
 		if (eth_poll()) {	/* We have something! */
 					/* Check for ARP - No IP hdr */
 			if ((type == AWAIT_ARP) &&
-			   (packetlen >= ETHER_HDR_SIZE +
+			   (packetlen >= ETHER_HDR_LEN +
 				sizeof(struct arprequest)) &&
 			   (((packet[12] << 8) | packet[13]) == ARP)) {
 				arpreply = (struct arprequest *)
-					&packet[ETHER_HDR_SIZE];
+					&packet[ETHER_HDR_LEN];
 				if ((arpreply->opcode == ntohs(ARP_REPLY)) &&
 				   bcompare(arpreply->sipaddr, ptr, 4)) {
 					bcopy(arpreply->shwaddr,
 						arptable[ival].node,
-						ETHER_ADDR_SIZE);
+						ETHER_ADDR_LEN);
 					return(1);
 				}
 				continue;
@@ -534,17 +563,17 @@ await_reply(type, ival, ptr)
 					/* Anything else has IP header */
 			if ((packetlen < protohdrlen) ||
 			   (((packet[12] << 8) | packet[13]) != IP)) continue;
-			ip = (struct iphdr *)&packet[ETHER_HDR_SIZE];
+			ip = (struct iphdr *)&packet[ETHER_HDR_LEN];
 			if ((ip->verhdrlen != 0x45) ||
 				ipchksum(ip, sizeof(struct iphdr)) ||
 				(ip->protocol != IP_UDP)) continue;
-			udp = (struct udphdr *)&packet[ETHER_HDR_SIZE +
+			udp = (struct udphdr *)&packet[ETHER_HDR_LEN +
 				sizeof(struct iphdr)];
 
 					/* BOOTP ? */
-			bootpreply = (struct bootp_t *)&packet[ETHER_HDR_SIZE];
+			bootpreply = (struct bootp_t *)&packet[ETHER_HDR_LEN];
 			if ((type == AWAIT_BOOTP) &&
-			   (packetlen >= (ETHER_HDR_SIZE +
+			   (packetlen >= (ETHER_HDR_LEN +
 			     sizeof(struct bootp_t))) &&
 			   (ntohs(udp->dest) == BOOTP_CLIENT) &&
 			   (bootpreply->bp_op == BOOTP_REPLY)) {
@@ -554,11 +583,11 @@ await_reply(type, ival, ptr)
 				convert_ipaddr(&arptable[ARP_SERVER].ipaddr,
 					bootpreply->bp_siaddr);
 				bzero(arptable[ARP_SERVER].node,
-					ETHER_ADDR_SIZE);  /* Kill arp */
+					ETHER_ADDR_LEN);  /* Kill arp */
 				convert_ipaddr(&arptable[ARP_GATEWAY].ipaddr,
 					bootpreply->bp_giaddr);
 				bzero(arptable[ARP_GATEWAY].node,
-					ETHER_ADDR_SIZE);  /* Kill arp */
+					ETHER_ADDR_LEN);  /* Kill arp */
 				if (bootpreply->bp_file[0]) {
 					bcopy(bootpreply->bp_file,
 						kernel_buf, 128);
@@ -573,7 +602,7 @@ await_reply(type, ival, ptr)
 				(ntohs(udp->dest) == ival)) return(1);
 
 					/* RPC */
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if ((type == AWAIT_RPC) &&
 			   (ntohs(udp->dest) == RPC_SOCKET) &&
 			   (ntohl(rpc->u.reply.id) == ival) &&
@@ -585,6 +614,17 @@ await_reply(type, ival, ptr)
 	}
 	return(0);
 }
+
+void
+bootp_string(char *name, char *bootp_ptr)
+{       
+	char tmp_buf[512]; /* oversized, but who cares ! */
+	bzero(tmp_buf, sizeof(tmp_buf));
+	bcopy(bootp_ptr+2, tmp_buf, TAG_LEN(bootp_ptr));
+	sprintf(config_buffer+strlen(config_buffer),
+	    "%s %s\n", name, tmp_buf);
+}
+
 
 /**************************************************************************
 DECODE_RFC1048 - Decodes RFC1048 header
@@ -615,11 +655,27 @@ decode_rfc1048(p)
 				bcopy(p+2, &nfsdiskless.my_hostnam, TAG_LEN(p));
 				hostnamelen = (TAG_LEN(p) + 3) & ~3;
 				break;
+			case RFC1048_ROOT_PATH: /* XXX check len */
+				bootp_string("rootfs", p);
+				break;
+			case RFC1048_SWAP_PATH:
+				bootp_string("swapfs", p);
+				break;
+			case RFC1048_SWAP_LEN: /* T129 */
+				sprintf(config_buffer+strlen(config_buffer),
+				    "swapsize %d\n", ntohl(*(long *)(p+2)) );
+				break;
+			case 130:       /* root mount options */
+				bootp_string("rootopts", p);
+				break;
+			case 131:       /* swap mount options */
+				bootp_string("swapopts", p);
+				break;
 			default:
 				printf("Unknown RFC1048-tag ");
 				for(q=p;q<p+2+TAG_LEN(p);q++)
 					printf("%x ",*q);
-				printf("\n\r");
+				printf("\n");
 			}
 			p += TAG_LEN(p) + 2;
 		}
