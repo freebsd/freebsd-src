@@ -1471,7 +1471,7 @@ fxp_stop(struct fxp_softc *sc)
 	 * Issue software reset, which also unloads the microcode.
 	 */
 	sc->flags &= ~FXP_FLAG_UCODE;
-	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
+	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
 	DELAY(50);
 
 	/*
