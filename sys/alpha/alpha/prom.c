@@ -112,7 +112,7 @@ init_bootstrap_console()
 	promcnattach(alpha_console);
 }
 
-static critical_t  enter_prom(void);
+static register_t  enter_prom(void);
 static void leave_prom(critical_t);
 
 
@@ -133,7 +133,7 @@ promcnputc(dev, c)
 {
         prom_return_t ret;
 	unsigned char *to = (unsigned char *)0x20000000;
-	critical_t s;
+	register_t s;
 
 	s = enter_prom();	/* critical_enter() and map prom */
 	*to = c;
@@ -155,7 +155,7 @@ promcngetc(dev)
 	dev_t dev;
 {
         prom_return_t ret;
-	int s;
+	register_t s;
 
         for (;;) {
 		s = enter_prom();
@@ -176,7 +176,7 @@ promcncheckc(dev)
 	dev_t dev;
 {
         prom_return_t ret;
-	int s;
+	register_t s;
 
 	s = enter_prom();
 	ret.bits = prom_getc(alpha_console);
@@ -187,13 +187,13 @@ promcncheckc(dev)
 		return (-1);
 }
 
-static critical_t
+static register_t
 enter_prom()
 {
 	pt_entry_t *lev1map;
-	critical_t s;
+	register_t s;
 	
-	s = cpu_critical_enter();
+	s = intr_disable();
 
 	if (!prom_mapped) {
 #ifdef SIMOS
@@ -220,7 +220,7 @@ enter_prom()
 
 static void
 leave_prom(s)
-	critical_t s;
+	register_t s;
 {
 
 	pt_entry_t *lev1map;
@@ -232,7 +232,7 @@ leave_prom(s)
 		lev1map[0] = saved_pte[0];	/* XXX */
 		prom_cache_sync();		/* XXX */
 	}
-	cpu_critical_exit(s);
+	intr_restore(s);
 }
 
 static void
@@ -249,7 +249,7 @@ prom_getenv(id, buf, len)
 {
 	unsigned char *to = (unsigned char *)0x20000000;
 	prom_return_t ret;
-	int s;
+	register_t s;
 
 	s = enter_prom();
 	ret.bits = prom_getenv_disp(id, to, len);
@@ -272,7 +272,7 @@ prom_halt(halt)
 	/*
 	 * Turn off interrupts, for sanity.
 	 */
-	cpu_critical_enter();
+	intr_disable();
 
 	/*
 	 * Set "boot request" part of the CPU state depending on what
