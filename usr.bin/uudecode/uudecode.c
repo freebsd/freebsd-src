@@ -156,14 +156,14 @@ decode2(int flag)
 	struct passwd *pw;
 	register int n;
 	register char ch, *p;
-	int base64, ignore, n1;
+	int base64, n1;
 	char buf[MAXPATHLEN+1];
 	char buffn[MAXPATHLEN+1]; /* file name buffer */
 	char *mode, *s;
 	void *mode_handle;
 	struct stat st;
 
-	base64 = ignore = 0;
+	base64 = 0;
 	/* search for header line */
 	do {
 		if (!fgets(buf, sizeof(buf), stdin)) {
@@ -239,8 +239,8 @@ decode2(int flag)
 		if (mode_handle == NULL)
 			err(1, "setmode()");
 		if (iflag && !access(buf, F_OK)) {
-			(void)fprintf(stderr, "not overwritten: %s\n", buf);
-			ignore++;
+			warnx("not overwritten: %s", buf);
+			return(0);
 		} else if (freopen(buf, "w", stdout) == NULL ||
 		    stat(buf, &st) < 0 || (S_ISREG(st.st_mode) &&
 		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666))) {
@@ -276,10 +276,6 @@ next:
  	filename, buffn, 1 + ' ', 077 + ' ' + 1); \
         return(1); \
 }
-#define PUTCHAR(c) \
-if (!ignore) \
-	putchar(c)
-
 
 		/*
 		 * `n' is used to avoid writing out all the characters
@@ -294,18 +290,18 @@ if (!ignore) \
                                 	OUT_OF_RANGE
 
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-				PUTCHAR(ch);
+				putchar(ch);
 				ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-				PUTCHAR(ch);
+				putchar(ch);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
-				PUTCHAR(ch);
+				putchar(ch);
 			}
 			else {
 				if (n >= 1) {
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
 	                                	OUT_OF_RANGE
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-					PUTCHAR(ch);
+					putchar(ch);
 				}
 				if (n >= 2) {
 					if (!(IS_DEC(*(p + 1)) &&
@@ -313,14 +309,14 @@ if (!ignore) \
 		                                OUT_OF_RANGE
 
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-					PUTCHAR(ch);
+					putchar(ch);
 				}
 				if (n >= 3) {
 					if (!(IS_DEC(*(p + 2)) &&
 						IS_DEC(*(p + 3))))
 		                                OUT_OF_RANGE
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
-					PUTCHAR(ch);
+					putchar(ch);
 				}
 			}
 	}
