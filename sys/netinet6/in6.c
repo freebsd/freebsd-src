@@ -1087,16 +1087,18 @@ in6_update_ifa(ifp, ifra, ia)
 		 *      some interface-boundary restriction.
 		 */
 		if (ifp->if_flags & IFF_LOOPBACK) {
+			struct in6_ifaddr *ia_loop;
+
 			struct in6_addr loop6 = in6addr_loopback;
-			ia = in6ifa_ifpwithaddr(ifp, &loop6);
+			ia_loop = in6ifa_ifpwithaddr(ifp, &loop6);
 
 			mltaddr.sin6_addr = in6addr_nodelocal_allnodes;
 
 			IN6_LOOKUP_MULTI(mltaddr.sin6_addr, ifp, in6m);
-			if (in6m == NULL && ia != NULL) {
+			if (in6m == NULL && ia_loop != NULL) {
 				rtrequest(RTM_ADD,
 					  (struct sockaddr *)&mltaddr,
-					  (struct sockaddr *)&ia->ia_addr,
+					  (struct sockaddr *)&ia_loop->ia_addr,
 					  (struct sockaddr *)&mltmask,
 					  RTF_UP,
 					  (struct rtentry **)0);
