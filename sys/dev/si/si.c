@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.63 1997/12/16 17:40:03 eivind Exp $
+ *	$Id: si.c,v 1.64 1998/01/24 02:54:24 eivind Exp $
  */
 
 #ifndef lint
@@ -40,6 +40,7 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 #endif	/* not lint */
 
 #include "opt_compat.h"
+#include "opt_debug_si.h"
 #include "opt_devfs.h"
 
 #include <sys/param.h>

@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.24 1997/10/15 10:04:31 phk Exp $
+ *	$Id: null_vnops.c,v 1.25 1997/10/21 21:01:34 roberto Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.24 1997/10/15 10:04:31 phk Exp $
+ * $Id: null_vnops.c,v 1.25 1997/10/21 21:01:34 roberto Exp $
  */
 
 /*
@@ -173,6 +173,8 @@
  * is that vnode arguments must be manualy mapped.
  *
  */
+
+#include "opt_debug_nullfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
