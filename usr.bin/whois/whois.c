@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: whois.c,v 1.6 1998/06/12 12:55:46 peter Exp $";
+	"$Id: whois.c,v 1.7 1999/02/01 19:22:27 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -62,6 +62,7 @@ static const char rcsid[] =
 #define	ANICHOST	"whois.arin.net"
 #define	RNICHOST	"whois.ripe.net"
 #define	PNICHOST	"whois.apnic.net"
+#define RUNICHOST       "whois.ripn.net"
 #define	WHOIS_PORT	43
 
 static void usage __P((void));
@@ -84,7 +85,7 @@ main(argc, argv)
 #endif
 
 	host = NICHOST;
-	while ((ch = getopt(argc, argv, "adgh:pr")) != -1)
+	while ((ch = getopt(argc, argv, "adgh:prR")) != -1)
 		switch((char)ch) {
 		case 'a':
 			host = ANICHOST;
@@ -103,6 +104,9 @@ main(argc, argv)
 			break;
 		case 'r':
 			host = RNICHOST;
+			break;
+		case 'R':
+			host = RUNICHOST;
 			break;
 		case '?':
 		default:
@@ -155,6 +159,6 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: whois [-adgpr] [-h hostname] name ...\n");
+	fprintf(stderr, "usage: whois [-adgprR] [-h hostname] name ...\n");
 	exit(EX_USAGE);
 }
