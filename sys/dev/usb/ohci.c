@@ -1,5 +1,5 @@
 /*	$NetBSD: ohci.c,v 1.23 1999/01/07 02:06:05 augustss Exp $	*/
-/*	FreeBSD $Id: ohci.c,v 1.7 1999/01/07 23:31:29 n_hibma Exp $ */
+/*	FreeBSD $Id: ohci.c,v 1.8 1999/01/10 18:42:51 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1217,7 +1217,7 @@ ohci_dump_td(std)
 	printf("TD(%p) at %08lx: %b delay=%d ec=%d cc=%d\ncbp=0x%08lx "
 	       "nexttd=0x%08lx be=0x%08lx\n", 
 	       std, (u_long)std->physaddr,
-	       (u_long)LE(std->td->td_flags),
+	       (int)LE(std->td->td_flags),
 	       "\20\23R\24OUT\25IN\31TOG1\32SETTOGGLE",
 	       OHCI_TD_GET_DI(LE(std->td->td_flags)),
 	       OHCI_TD_GET_EC(LE(std->td->td_flags)),
@@ -1236,10 +1236,10 @@ ohci_dump_ed(sed)
 	       OHCI_ED_GET_FA(LE(sed->ed->ed_flags)),
 	       OHCI_ED_GET_EN(LE(sed->ed->ed_flags)),
 	       OHCI_ED_GET_MAXP(LE(sed->ed->ed_flags)),
-	       (u_long)LE(sed->ed->ed_flags),
+	       (int)LE(sed->ed->ed_flags),
 	       "\20\14OUT\15IN\16LOWSPEED\17SKIP\18ISO",
 	       (u_long)LE(sed->ed->ed_tailp),
-	       (u_long)LE(sed->ed->ed_headp), "\20\1HALT\2CARRY",
+	       (int)LE(sed->ed->ed_headp), "\20\1HALT\2CARRY",
 	       (u_long)LE(sed->ed->ed_nexted));
 }
 #endif
