@@ -704,7 +704,7 @@ main(argc, argv)
 	(void)strcpy(tbuf + 1,
 	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell);
 
-	execlp(shell, tbuf, 0);
+	execlp(shell, tbuf, (char *)0);
 	err(1, "%s", shell);
 }
 

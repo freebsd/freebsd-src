@@ -248,7 +248,7 @@ main(int argc, char *argv[])
 			warn("fork()");
 		else if (pid == 0) {
 			/* Is make anywhere else? */
-			execlp("/usr/bin/make", "make", NULL);
+			execlp("/usr/bin/make", "make", (char *)NULL);
 			_exit(1);
 		} else {
 			int   i;

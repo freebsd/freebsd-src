@@ -547,7 +547,7 @@ const char *shell;
 	if (!fork()) {
 		/* revoke */
 		setgid(getgid());
-		execl(shell, shell, 0);
+		execl(shell, shell, (char *)0);
 	}
 	wait(w);
 }

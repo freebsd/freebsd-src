@@ -185,7 +185,7 @@ run_sendmail(int ifd)
 
     case 0:	/* Child */
 	dup2(ifd, 0);
-	execl(_PATH_SENDMAIL, _PATH_SENDMAIL, "-odq", "-t", NULL);
+	execl(_PATH_SENDMAIL, _PATH_SENDMAIL, "-odq", "-t", (char *)NULL);
 	err("*exec: %s", _PATH_SENDMAIL);
 	_exit(1);
 

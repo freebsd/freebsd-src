@@ -74,7 +74,7 @@ yylex()
 				{
 				/* revoke */
 				setgid(getgid());
-				execl("/bin/csh",0);    exit(1);
+				execl("/bin/csh",(char *)0);    exit(1);
 				}
 			wait(0);
 			if (ic<0) /* error */

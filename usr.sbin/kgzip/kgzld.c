@@ -85,10 +85,10 @@ kgzld(struct kgz_hdr * kh, const char *f1, const char *f2)
     case 0:
 	if (format == F_AOUT)
 	    execlp("ld", "ld", "-aout", "-Z", "-T", addr, "-o", f2,
-		   loader, f1, NULL);
+		   loader, f1, (char *)NULL);
 	else
 	    execlp("ld", "ld", "-Ttext", addr, "-o", f2, loader, f1,
-		   NULL);
+		   (char *)NULL);
 	warn(NULL);
 	_exit(1);
     default:

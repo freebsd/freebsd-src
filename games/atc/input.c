@@ -339,10 +339,10 @@ gettoken()
 						base = shell;
 					else
 						base++;
-					execl(shell, base, 0);
+					execl(shell, base, (char *)0);
 				}
 				else
-					execl(_PATH_BSHELL, "sh", 0);
+					execl(_PATH_BSHELL, "sh", (char *)0);
 
 				exit(0);	/* oops */
 			}

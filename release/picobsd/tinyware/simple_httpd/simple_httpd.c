@@ -258,7 +258,7 @@ http_request()
                /* Plug in environment variable, others in log_line */
 	       putenv("SERVER_SOFTWARE=FreeBSD/PicoBSD");
 
-	       execlp (filename,filename,par,0);
+	       execlp (filename,filename,par,(char *)0);
               } 
             wait(&i);
             return(0);
