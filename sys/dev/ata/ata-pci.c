@@ -57,13 +57,11 @@ struct ata_pci_softc {
     int irqcnt;
 };
 
-/* prototypes */
-void ata_via686b(device_t);
-
 /* misc defines */
-#define IOMASK	0xfffffffc
-#define ATA_MASTERDEV(dev)		((pci_get_progif(dev) & 0x80) && \
-					 (pci_get_progif(dev) & 0x05) != 0x05)
+#define IOMASK			0xfffffffc
+#define GRANDPARENT(dev)	device_get_parent(device_get_parent(dev))
+#define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
+				 (pci_get_progif(dev) & 0x05) != 0x05)
 
 int
 ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
@@ -85,7 +83,7 @@ ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
     return 0;
 }
 
-void
+static void
 ata_via686b(device_t dev)
 {
     device_t *children, child;
@@ -174,17 +172,23 @@ ata_pci_match(device_t dev)
 	if (ata_find_dev(dev, 0x06301039, 0x30) ||
 	    ata_find_dev(dev, 0x06331039, 0x00) ||
 	    ata_find_dev(dev, 0x06351039, 0x00) ||
+	    ata_find_dev(dev, 0x06401039, 0x00) ||
 	    ata_find_dev(dev, 0x06451039, 0x00) ||
+	    ata_find_dev(dev, 0x06501039, 0x00) ||
 	    ata_find_dev(dev, 0x07301039, 0x00) ||
 	    ata_find_dev(dev, 0x07331039, 0x00) ||
-	    ata_find_dev(dev, 0x07351039, 0x00))
+	    ata_find_dev(dev, 0x07351039, 0x00) ||
+	    ata_find_dev(dev, 0x07401039, 0x00) ||
+	    ata_find_dev(dev, 0x07451039, 0x00) ||
+	    ata_find_dev(dev, 0x07501039, 0x00))
 	    return "SiS 5591 ATA100 controller";
-	if (ata_find_dev(dev, 0x05301039, 0x00) ||
+	else if (ata_find_dev(dev, 0x05301039, 0x00) ||
 	    ata_find_dev(dev, 0x05401039, 0x00) ||
 	    ata_find_dev(dev, 0x06201039, 0x00) ||
 	    ata_find_dev(dev, 0x06301039, 0x00))
 	    return "SiS 5591 ATA66 controller";
-	return "SiS 5591 ATA33 controller";
+	else
+	    return "SiS 5591 ATA33 controller";
 
     case 0x06491095:
 	return "CMD 649 ATA100 controller";
@@ -198,7 +202,7 @@ ata_pci_match(device_t dev)
     case 0xc6931080:
 	if (pci_get_subclass(dev) == PCIS_STORAGE_IDE)
 	    return "Cypress 82C693 ATA controller";
-	break;
+	return NULL;
 
     case 0x01021078:
 	return "Cyrix 5530 ATA33 controller";
@@ -223,11 +227,11 @@ ata_pci_match(device_t dev)
 	return "Promise ATA100 controller";
 
     case 0x4d68105a:
-    case 0x6268105a:
+    case 0x6268105a: 
 	return "Promise TX2 ATA100 controller";
 
     case 0x4d69105a:
-	return "Promise ATA133 controller";
+	return "Promise TX2 ATA133 controller";
 
     case 0x00041103:
 	switch (pci_get_revid(dev)) {
@@ -241,9 +245,8 @@ ata_pci_match(device_t dev)
 	    return "HighPoint HPT370 ATA100 controller";
 	case 0x05:
 	    return "HighPoint HPT372 ATA133 controller";
-	default:
-	    return "Unknown revision HighPoint ATA controller";
 	}
+	return NULL;
 
    /* unsupported but known chipsets, generic DMA only */
     case 0x10001042:
@@ -343,7 +346,7 @@ ata_pci_attach(device_t dev)
 	ATA_OUTB(sc->bmio, 0x1f, ATA_INB(sc->bmio, 0x1f) | 0x01);
 	break;
 
-    case 0x00041103: /* HighPoint */
+    case 0x00041103: /* HighPoint HPT 366/368/370/372 */
 	switch (pci_get_revid(dev)) {
 	case 0x00:	/* HPT 366 */
 	case 0x01:
@@ -358,9 +361,9 @@ ata_pci_attach(device_t dev)
 	case 0x05:	/* HPT 372 */
 	    /* turn off interrupt prediction */
 	    pci_write_config(dev, 0x51, 
-	    		     (pci_read_config(dev, 0x51, 1) & ~0x02), 1);
+	    		     (pci_read_config(dev, 0x51, 1) & ~0x03), 1);
 	    pci_write_config(dev, 0x55, 
-	    		     (pci_read_config(dev, 0x55, 1) & ~0x02), 1);
+	    		     (pci_read_config(dev, 0x55, 1) & ~0x03), 1);
 	    /* turn on interrupts */
 	    pci_write_config(dev, 0x5a, 
 	    		     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
@@ -471,8 +474,8 @@ ata_pci_intr(struct ata_softc *scp)
     	break;
 
     case 0x4d68105a:	/* Promise TX2 ATA100 */
-    case 0x6268105a:	/* Promise TX2v2 ATA100 */
-    case 0x4d69105a:	/* Promise ATA133 */
+    case 0x6268105a:	/* Promise TX2 ATA100 */
+    case 0x4d69105a:	/* Promise TX2 ATA133 */
 	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (!(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
 	    return 1;
