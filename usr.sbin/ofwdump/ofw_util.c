@@ -225,26 +225,24 @@ static void
 ofw_dump_properties(int fd, phandle_t n, int level, char *pmatch, int raw,
     int str)
 {
-	static char *pbuf;
+	static void *pbuf;
 	static char *visbuf;
 	static char printbuf[CHARSPERLINE + 1];
 	static int pblen, vblen;
 	char prop[32];
 	int nlen, len, i, j, max, vlen;
-	unsigned int b;
 
 	for (nlen = ofw_firstprop(fd, n, prop, sizeof(prop)); nlen != 0;
 	     nlen = ofw_nextprop(fd, n, prop, prop, sizeof(prop))) {
 		if (pmatch != NULL && strcmp(pmatch, prop) != 0)
 			continue;
-		len = ofw_getprop_alloc(fd, n, prop, (void **)&pbuf, &pblen, 1);
+		len = ofw_getprop_alloc(fd, n, prop, &pbuf, &pblen, 1);
 		if (len < 0)
 			continue;
 		if (raw)
 			write(STDOUT_FILENO, pbuf, len);
 		else if (str) {
-			pbuf[len] = '\0';
-			printf("%s\n", pbuf);
+			printf("%.*s\n", (int)len, (char *)pbuf);
 		} else {
 			ofw_indent(level * LVLINDENT + NAMEINDENT);
 			printf("%s:\n", prop);
@@ -253,17 +251,16 @@ ofw_dump_properties(int fd, phandle_t n, int level, char *pmatch, int raw,
 				max = len - i;
 				max = max > BYTESPERLINE ? BYTESPERLINE : max;
 				ofw_indent(level * LVLINDENT + DUMPINDENT);
-				for (j = 0; j < max; j++) {
-					b = (unsigned char)pbuf[i + j];
-					printf("%02x ", b);
-				}
+				for (j = 0; j < max; j++)
+					printf("%02x ",
+					    ((unsigned char *)pbuf)[i + j]);
 				printf("\n");
 			}
 			/*
 			 * strvis() and print if it looks like it is
 			 * zero-terminated.
 			 */
-			if (pbuf[len - 1] == '\0' &&
+			if (((char *)pbuf)[len - 1] == '\0' &&
 			    strlen(pbuf) == (unsigned)len - 1) {
 				if (vblen < (len - 1) * 4 + 1) {
 					if (visbuf != NULL)
@@ -288,7 +285,7 @@ static void
 ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop, char *pmatch,
     int raw, int str)
 {
-	static char *nbuf;
+	static void *nbuf;
 	static int nblen = 0;
 	int plen;
 	phandle_t c;
@@ -296,12 +293,10 @@ ofw_dump_node(int fd, phandle_t n, int level, int rec, int prop, char *pmatch,
 	if (!(raw || str)) {
 		ofw_indent(level * LVLINDENT);
 		printf("Node %#lx", (unsigned long)n);
-		plen = ofw_getprop_alloc(fd, n, "name", (void **)&nbuf,
-		    &nblen, 1);
-		if (plen > 0) {
-			nbuf[plen] = '\0';
-			printf(": %s\n", nbuf);
-		} else
+		plen = ofw_getprop_alloc(fd, n, "name", &nbuf, &nblen, 1);
+		if (plen > 0)
+			printf(": %.*s\n", (int)plen, (char *)nbuf);
+		else
 			putchar('\n');
 	}
 	if (prop)
