@@ -490,3 +490,13 @@ try the following pkg_info command.
 
 	pkg_info | sort | sed -e 's/-[0-9].*$//' | \
 	uniq -c | grep -v '^[[:space:]]*1'
+%
+Want to use sed(1) to edit a file in place?  Well, to replace every 'e' with
+an 'o', in a file named 'foo', you can do:
+
+	sed -i.bak s/e/o/g foo
+
+And you'll get a backup of the original in a file named 'foo.bak', but if you
+want no backup:
+
+	sed -i '' s/e/o/g foo
