@@ -53,7 +53,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)skip.c	5.12 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: skip.c,v 8.5 1999/10/13 16:39:20 vixie Exp $";
+static const char rcsid[] = "$Id: skip.c,v 8.7 2001/06/20 12:30:35 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -84,8 +84,9 @@ static const char rcsid[] = "$Id: skip.c,v 8.5 1999/10/13 16:39:20 vixie Exp $";
 #include <stdio.h>
 
 #include "port_after.h"
+#include "res.h"
 
-char *res_skip_rr();
+static unsigned char *res_skip_rr(unsigned char *cp, unsigned char *eom);
 
 
 /*
@@ -109,13 +110,13 @@ char *res_skip_rr();
  *******************************************************************************
  */
 
-char *
+unsigned char *
 res_skip(msg, numFieldsToSkip, eom)
-	char *msg;
+	unsigned char *msg;
 	int numFieldsToSkip;
-	char *eom;
+	unsigned char *eom;
 {
-	register char *cp;
+	register unsigned char *cp;
 	register HEADER *hp;
 	register int tmp;
 	register int n;
@@ -132,7 +133,7 @@ res_skip(msg, numFieldsToSkip, eom)
 	n = ntohs(hp->qdcount);
 	if (n > 0) {
 		while (--n >= 0 && cp < eom) {
-			tmp = dn_skipname((u_char *)cp, (u_char *)eom);
+			tmp = dn_skipname(cp, eom);
 			if (tmp == -1) return(NULL);
 			cp += tmp;
 			cp += INT16SZ;	/* type 	*/
@@ -193,15 +194,15 @@ res_skip(msg, numFieldsToSkip, eom)
  *******************************************************************************
  */
 
-char *
+static unsigned char *
 res_skip_rr(cp, eom)
-	char *cp;
-	char *eom;
+	unsigned char *cp;
+	unsigned char *eom;
 {
 	int tmp;
 	int dlen;
 
-	if ((tmp = dn_skipname((u_char *)cp, (u_char *)eom)) == -1)
+	if ((tmp = dn_skipname(cp, eom)) == -1)
 		return (NULL);			/* compression error */
 	cp += tmp;
 	if ((cp + RRFIXEDSZ) > eom)
@@ -209,7 +210,7 @@ res_skip_rr(cp, eom)
 	cp += INT16SZ;	/* 	type 	*/
 	cp += INT16SZ;	/* 	class 	*/
 	cp += INT32SZ;	/* 	ttl 	*/
-	dlen = ns_get16((u_char*)cp);
+	dlen = ns_get16(cp);
 	cp += INT16SZ;	/* 	dlen 	*/
 	cp += dlen;
 	if (cp > eom)

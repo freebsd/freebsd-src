@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_ng.c,v 1.16 1999/01/18 07:46:58 vixie Exp $";
+static const char rcsid[] = "$Id: nis_ng.c,v 1.17 2001/05/29 05:49:14 marka Exp $";
 #endif
 
 /* Imports */
@@ -78,7 +78,8 @@ static /*const*/ char netgroup_map[]	= "netgroup";
 /* Forward */
 
 static void 		ng_close(struct irs_ng *);
-static int		ng_next(struct irs_ng *, char **, char **, char **);
+static int		ng_next(struct irs_ng *, const char **,
+				const char **, const char **);
 static int		ng_test(struct irs_ng *,
  				const char *, const char *,
 				const char *, const char *);
@@ -129,14 +130,14 @@ ng_close(struct irs_ng *this) {
 }
 
 static int
-ng_next(struct irs_ng *this, char **host, char **user, char **domain) {
+ng_next(struct irs_ng *this, const char **host, const char **user, const char **domain) {
 	struct pvt *pvt = (struct pvt *)this->private;
 
 	if (!pvt->cur)
 		return (0);
-	*host = (/*const*/ char *)pvt->cur->host;
-	*user = (/*const*/ char *)pvt->cur->user;
-	*domain = (/*const*/ char *)pvt->cur->domain;
+	*host = pvt->cur->host;
+	*user = pvt->cur->user;
+	*domain = pvt->cur->domain;
 	pvt->cur = pvt->cur->next;
 	return (1);
 }
@@ -178,6 +179,7 @@ ng_rewind(struct irs_ng *this, const char *name) {
 
 static void
 ng_minimize(struct irs_ng *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -188,13 +190,15 @@ add_group_to_list(struct pvt *pvt, const char *name, int len) {
 	char *vdata, *cp, *np;
 	struct tmpgrp *tmp;
 	int vlen, r;
+	char *nametmp;
 
 	/* Don't add the same group to the list more than once. */
 	for (tmp = pvt->tmp; tmp; tmp = tmp->next)
 		if (!strcmp(tmp->name, name))
 			return;
 
-	r = yp_match(pvt->nis_domain, netgroup_map, (char *)name, len,
+	DE_CONST(name, nametmp);
+	r = yp_match(pvt->nis_domain, netgroup_map, nametmp, len,
 		     &vdata, &vlen);
 	if (r == 0) {
 		cp = vdata;

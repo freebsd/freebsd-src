@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_sv.c,v 1.19 2000/03/30 22:53:56 vixie Exp $";
+static const char rcsid[] = "$Id: dns_sv.c,v 1.20 2001/05/29 05:48:33 marka Exp $";
 #endif
 
 /* Imports */
@@ -66,10 +66,12 @@ static struct servent *		sv_byport(struct irs_sv *, int, const char *);
 static struct servent *		sv_next(struct irs_sv *);
 static void			sv_rewind(struct irs_sv *);
 static void			sv_minimize(struct irs_sv *);
+#ifdef SV_RES_SETGET
 static struct __res_state *	sv_res_get(struct irs_sv *);
 static void			sv_res_set(struct irs_sv *,
 					   struct __res_state *,
 					   void (*)(void *));
+#endif
 
 static struct servent *		parse_hes_list(struct irs_sv *,
 					       char **, const char *);
@@ -105,8 +107,13 @@ irs_dns_sv(struct irs_acc *this) {
 	sv->rewind = sv_rewind;
 	sv->close = sv_close;
 	sv->minimize = sv_minimize;
+#ifdef SV_RES_SETGET
+	sv->res_get = sv_res_get;
+	sv->res_set = sv_res_set;
+#else
 	sv->res_get = NULL; /* sv_res_get; */
 	sv->res_set = NULL; /* sv_res_set; */
+#endif
 	return (sv);
 }
 
@@ -161,12 +168,14 @@ sv_byport(struct irs_sv *this, int port, const char *proto) {
 
 static struct servent *
 sv_next(struct irs_sv *this) {
+	UNUSED(this);
 	errno = ENODEV;
 	return (NULL);
 }
 
 static void
 sv_rewind(struct irs_sv *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
@@ -189,7 +198,7 @@ parse_hes_list(struct irs_sv *this, char **hes_list, const char *proto) {
 
 		/* Check to make sure the protocol matches. */
 		p = cp;
-		while (*p && !isspace(*p))
+		while (*p && !isspace((unsigned char)*p))
 			p++;
 		if (!*p)
 			continue;
@@ -197,7 +206,7 @@ parse_hes_list(struct irs_sv *this, char **hes_list, const char *proto) {
 		     proto_len = strlen(proto);
 		     if (strncasecmp(++p, proto, proto_len) != 0)
 			  continue;
-		     if (p[proto_len] && !isspace(p[proto_len]))
+		     if (p[proto_len] && !isspace(p[proto_len]&0xff))
 			  continue;
 		}
 		/* OK, we've got a live one.  Let's parse it for real. */
@@ -207,21 +216,21 @@ parse_hes_list(struct irs_sv *this, char **hes_list, const char *proto) {
 
 		p = pvt->svbuf;
 		pvt->serv.s_name = p;
-		while (*p && !isspace(*p))
+		while (*p && !isspace(*p&0xff))
 			p++;
 		if (!*p)
 			continue;
 		*p++ = '\0';
 
 		pvt->serv.s_proto = p;
-		while (*p && !isspace(*p))
+		while (*p && !isspace(*p&0xff))
 			p++;
 		if (!*p)
 			continue;
 		*p++ = '\0';
 
 		pvt->serv.s_port = htons((u_short) atoi(p));
-		while (*p && !isspace(*p))
+		while (*p && !isspace(*p&0xff))
 			p++;
 		if (*p)
 			*p++ = '\0';
@@ -238,7 +247,7 @@ parse_hes_list(struct irs_sv *this, char **hes_list, const char *proto) {
 				pvt->serv.s_aliases = new;
 			}
 			pvt->serv.s_aliases[num++] = p;
-			while (*p && !isspace(*p))
+			while (*p && !isspace(*p&0xff))
 				p++;
 			if (*p)
 				*p++ = '\0';
@@ -265,9 +274,11 @@ parse_hes_list(struct irs_sv *this, char **hes_list, const char *proto) {
 
 static void
 sv_minimize(struct irs_sv *this) {
+	UNUSED(this);
 	/* NOOP */
 }
 
+#ifdef SV_RES_SETGET
 static struct __res_state *
 sv_res_get(struct irs_sv *this) {
 	struct pvt *pvt = (struct pvt *)this->private;
@@ -284,3 +295,4 @@ sv_res_set(struct irs_sv *this, struct __res_state * res,
 
 	__hesiod_res_set(dns->hes_ctx, res, free_res);
 }
+#endif

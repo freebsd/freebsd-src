@@ -1,6 +1,6 @@
 %{
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_parser.y,v 8.63.2.4 2001/04/30 08:03:02 marka Exp $";
+static char rcsid[] = "$Id: ns_parser.y,v 8.78 2001/12/28 04:07:48 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -65,6 +65,7 @@ static symbol_table symtab;
 
 #define AUTH_TABLE_SIZE 397		/* should always be prime */
 static symbol_table authtab = NULL;
+static symbol_table channeltab = NULL;
 
 static zone_config current_zone;
 static int should_install;
@@ -94,7 +95,7 @@ static int chan_versions;
 static u_long chan_max_size;
 
 static log_channel lookup_channel(char *);
-static void define_channel(char *, log_channel);
+static void define_channel(const char *, log_channel);
 static char *canonical_name(char *);
 
 int yyparse();
@@ -132,7 +133,7 @@ int yyparse();
 %token			T_DIRECTORY T_PIDFILE T_NAMED_XFER
 %token			T_DUMP_FILE T_STATS_FILE T_MEMSTATS_FILE
 %token			T_FAKE_IQUERY T_RECURSION T_FETCH_GLUE 
-%token			T_HITCOUNT
+%token			T_HITCOUNT T_PREFERRED_GLUE
 %token			T_QUERY_SOURCE T_LISTEN_ON T_PORT T_ADDRESS
 %token			T_RRSET_ORDER T_ORDER T_NAME T_CLASS
 %token			T_CONTROLS T_INET T_UNIX T_PERM T_OWNER T_GROUP T_ALLOW
@@ -143,14 +144,16 @@ int yyparse();
 %type	<ip_addr>	maybe_wild_addr
 %token			T_DATASIZE T_STACKSIZE T_CORESIZE
 %token			T_DEFAULT T_UNLIMITED
-%token			T_FILES T_VERSION
+%token			T_FILES T_VERSION T_HOSTNAME
 %token			T_HOSTSTATS T_HOSTSTATSMAX T_DEALLOC_ON_EXIT
 %token			T_TRANSFERS_IN T_TRANSFERS_OUT T_TRANSFERS_PER_NS
 %token			T_TRANSFER_FORMAT T_MAX_TRANSFER_TIME_IN
 %token			T_SERIAL_QUERIES T_ONE_ANSWER T_MANY_ANSWERS
 %type	<axfr_fmt>	transfer_format
-%token			T_NOTIFY T_AUTH_NXDOMAIN T_MULTIPLE_CNAMES T_USE_IXFR T_MAINTAIN_IXFR_BASE
-%token			T_CLEAN_INTERVAL T_INTERFACE_INTERVAL T_STATS_INTERVAL T_MAX_LOG_SIZE_IXFR
+%token			T_NOTIFY T_NOTIFY_INITIAL T_AUTH_NXDOMAIN
+%token			T_MULTIPLE_CNAMES T_USE_IXFR T_MAINTAIN_IXFR_BASE
+%token			T_CLEAN_INTERVAL T_INTERFACE_INTERVAL T_STATS_INTERVAL
+%token			T_MAX_LOG_SIZE_IXFR
 %token			T_HEARTBEAT T_USE_ID_POOL
 %token			T_MAX_NCACHE_TTL T_HAS_OLD_CLIENTS T_RFC2308_TYPE1
 %token			T_LAME_TTL T_MIN_ROOTS
@@ -268,7 +271,7 @@ statement: include_stmt
 include_stmt: T_INCLUDE L_QSTRING L_EOS
 	{
 		lexer_begin_file($2, NULL);
-		freestr($2);
+		(void)freestr($2);
 	}
 	;
 
@@ -298,47 +301,58 @@ options: option L_EOS
 	;
 
 option: /* Empty */
+	| T_HOSTNAME L_QSTRING
+	{
+		if (current_options->hostname != NULL)
+			(void)freestr(current_options->hostname);
+		current_options->hostname = $2;
+	}
 	| T_VERSION L_QSTRING
 	{
 		if (current_options->version != NULL)
-			freestr(current_options->version);
+			(void)freestr(current_options->version);
 		current_options->version = $2;
 	}
 	| T_DIRECTORY L_QSTRING
 	{
 		if (current_options->directory != NULL)
-			freestr(current_options->directory);
+			(void)freestr(current_options->directory);
 		current_options->directory = $2;
 	}
 	| T_NAMED_XFER L_QSTRING
 	{
 		if (current_options->named_xfer != NULL)
-			freestr(current_options->named_xfer);
+			(void)freestr(current_options->named_xfer);
 		current_options->named_xfer = $2;
 	}
 	| T_PIDFILE L_QSTRING
 	{
 		if (current_options->pid_filename != NULL)
-			freestr(current_options->pid_filename);
+			(void)freestr(current_options->pid_filename);
 		current_options->pid_filename = $2;
 	}
 	| T_STATS_FILE L_QSTRING
 	{
 		if (current_options->stats_filename != NULL)
-			freestr(current_options->stats_filename);
+			(void)freestr(current_options->stats_filename);
 		current_options->stats_filename = $2;
 	}
 	| T_MEMSTATS_FILE L_QSTRING
 	{
 		if (current_options->memstats_filename != NULL)
-			freestr(current_options->memstats_filename);
+			(void)freestr(current_options->memstats_filename);
 		current_options->memstats_filename = $2;
 	}
 	| T_DUMP_FILE L_QSTRING
 	{
 		if (current_options->dump_filename != NULL)
-			freestr(current_options->dump_filename);
+			(void)freestr(current_options->dump_filename);
 		current_options->dump_filename = $2;
+	}
+	| T_PREFERRED_GLUE L_STRING
+	{
+		current_options->preferred_glue =
+			strcasecmp($2, "aaaa") ? T_A : T_AAAA;
 	}
 	| T_FAKE_IQUERY yea_or_nay
 	{
@@ -364,6 +378,14 @@ option: /* Empty */
 	{
 		set_global_boolean_option(current_options, 
 			OPTION_NONOTIFY, !$2);
+	}
+	| T_NOTIFY_INITIAL yea_or_nay
+	{
+		if (initial_configuration && $2)
+			ns_notice(ns_log_default,
+				  "suppressing initial notifies");
+		set_global_boolean_option(current_options, 
+			OPTION_SUPNOTIFY_INITIAL, $2);
 	}
 	| T_HOSTSTATS yea_or_nay
 	{
@@ -428,8 +450,7 @@ option: /* Empty */
 		else {
 			add_listen_on(current_options, $2, $4);
 			value.pointer = NULL;
-			define_symbol(symtab, savestr(port_string, 1),
-				      SYM_PORT, value, SYMBOL_FREE_KEY);
+			define_symbol(symtab, port_string, SYM_PORT, value, 0);
 		}
 
 	}
@@ -600,6 +621,20 @@ control: /* Empty */
 	{
 		ns_ctl_add(&current_controls, ns_ctl_new_inet($2, $4, $7));
 	}
+	| T_INET maybe_wild_addr
+	  T_ALLOW '{' address_match_list '}'
+	  T_KEYS '{' dummy_key_list '}'
+	{
+		parser_warning(0, "Ignoring BIND 9 inet control clause");
+		free_ip_match_list($5);
+	}
+	| T_INET maybe_wild_addr T_PORT in_port
+	  T_ALLOW '{' address_match_list '}'
+	  T_KEYS '{' dummy_key_list '}'
+	{
+		parser_warning(0, "Ignoring BIND 9 inet control clause");
+		free_ip_match_list($7);
+	}
 	| T_UNIX L_QSTRING T_PERM L_NUMBER T_OWNER L_NUMBER T_GROUP L_NUMBER
 	{
 #ifndef NO_SOCKADDR_UN
@@ -644,7 +679,7 @@ ordering_class: /* nothing */
 			parser_error(0, "unknown class '%s'; using ANY", $2);
 			$$ = C_ANY;
 		}
-		freestr($2);
+		(void)freestr($2);
 	}
 	;
 
@@ -667,7 +702,7 @@ ordering_type: /* nothing */
 					     $2);
 			}
 		}
-		freestr($2);
+		(void)freestr($2);
 	}
 
 ordering_name: /* nothing */
@@ -678,7 +713,7 @@ ordering_name: /* nothing */
 	{
 		if (strcmp(".",$2) == 0 || strcmp("*.",$2) == 0) {
 			$$ = savestr("*", 1);
-			freestr($2);
+			(void)freestr($2);
 		} else {
 			$$ = $2 ;
 		}
@@ -702,7 +737,7 @@ rrset_ordering_element: ordering_class ordering_type ordering_name T_ORDER L_STR
 					     $5, p_order(o));
 			}
 			
-			freestr($5);
+			(void)freestr($5);
 			
 			$$ = new_rrset_order_element($1, $2, $3, o);
 		}
@@ -859,7 +894,7 @@ size_spec: any_string
 			/* 0 means "use default" */
 			$$ = 0;
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	| L_NUMBER
 	{	
@@ -966,7 +1001,6 @@ logging_opt: T_CATEGORY category
 
 		if (lookup_channel($2) != NULL) {
 			parser_error(0, "can't redefine channel '%s'", $2);
-			freestr($2);
 		} else {
 			switch (chan_type) {
 			case log_file:
@@ -978,8 +1012,7 @@ logging_opt: T_CATEGORY category
 							     chan_max_size);
 				log_set_file_owner(current_channel,
 						   user_id, group_id);
-				freestr(chan_name);
-				chan_name = NULL;
+				chan_name = freestr(chan_name);
 				break;
 			case log_syslog:
 				current_channel =
@@ -1000,6 +1033,7 @@ logging_opt: T_CATEGORY category
 					 "couldn't create channel");
 			define_channel($2, current_channel);
 		}
+		(void)freestr($2);
 	}
 	;
 
@@ -1013,7 +1047,7 @@ channel_severity: any_string
 			parser_error(0, "unknown severity '%s'", $1);
 			chan_level = log_debug(99);
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	| T_DEBUG
 	{
@@ -1087,7 +1121,7 @@ maybe_syslog_facility: /* nothing */ { $$ = LOG_DAEMON; }
 			parser_error(0, "unknown facility '%s'", $1);
 			$$ = LOG_DAEMON;
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	;
 
@@ -1149,7 +1183,7 @@ channel: channel_name
 			} else
 				parser_error(0, "unknown channel '%s'", $1);
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	;
 
@@ -1174,7 +1208,7 @@ category: category_name
 				     $1);
 			$$ = -1;
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	;
 
@@ -1197,9 +1231,8 @@ server_stmt: T_SERVER L_IPADDR
 			parser_error(0, "cannot redefine server '%s'", 
 				     ip_printable);
 		else
-			define_symbol(symtab, savestr(ip_printable, 1),
-				      SYM_SERVER, value,
-				      SYMBOL_FREE_KEY);
+			define_symbol(symtab, ip_printable, SYM_SERVER, value,
+				      0);
 		current_server = begin_server($2);
 	}
 	'{' server_info_list '}'
@@ -1279,6 +1312,7 @@ address_match_element: address_match_simple
 		else
 			$$ = new_ip_match_key(dst_key);
 	        (void)freestr(key_name);
+		freestr($2);
 	}
 	;
 
@@ -1329,7 +1363,7 @@ address_match_simple: L_IPADDR
 		 * we give it a name and treat it like any other acl.
 		 */
 		sprintf(name, "__internal_%p", $2);
-		define_acl(savestr(name, 1), $2);
+		define_acl(name, $2);
   		$$ = new_ip_match_indirect($2);
 	}
 	;
@@ -1344,7 +1378,7 @@ address_name: any_string
 			$$ = NULL;
 		} else
 			$$ = new_ip_match_indirect(iml);
-		freestr($1);
+		(void)freestr($1);
 	}
 	;
 
@@ -1369,9 +1403,9 @@ key_ref: any_string
 				$$ = NULL;
 			} else
 				$$ = dst_key;
-			freestr(key_name);
+			key_name = freestr(key_name);
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	;
 
@@ -1386,6 +1420,13 @@ key_list_element: key_ref
 
 key_list: key_list_element L_EOS
 	| key_list key_list_element L_EOS
+	| error
+	;
+
+dummy_key_list_element: key_ref;
+
+dummy_key_list: dummy_key_list_element L_EOS
+	| dummy_key_list dummy_key_list_element L_EOS
 	| error
 	;
 
@@ -1425,15 +1466,12 @@ key_stmt: T_SEC_KEY
 			}
 		}
 		if (key_name != NULL)
-			freestr(key_name);
-		key_name = NULL;
+			key_name = freestr(key_name);
 		if (current_algorithm != NULL)
-			freestr(current_algorithm);
-		current_algorithm = NULL;
+			current_algorithm = freestr(current_algorithm);
 		if (current_secret != NULL)
-			freestr(current_secret);
-		current_secret = NULL;
-		freestr($3);
+			current_secret = freestr(current_secret);
+		(void)freestr($3);
 	}
 	;
 	
@@ -1468,9 +1506,9 @@ acl_stmt: T_ACL any_string '{' address_match_list '}'
 	{
 		if (lookup_acl($2) != NULL) {
 			parser_error(0, "can't redefine ACL '%s'", $2);
-			freestr($2);
 		} else
 			define_acl($2, $4);
+		(void)freestr($2);
 	}
 	;
 
@@ -1506,12 +1544,11 @@ zone_stmt: T_ZONE L_QSTRING optional_class
 					     p_class($3));
 			} else {
 				should_install = 1;
-				define_symbol(symtab, savestr(zone_name, 1),
-					      sym_type, value,
-					      SYMBOL_FREE_KEY);
+				define_symbol(symtab, zone_name, sym_type,
+					      value, 0);
 			}
 		}
-		freestr($2);
+		(void)freestr($2);
 		current_zone = begin_zone(zone_name, $3); 
 	}
 	optional_zone_options_list
@@ -1538,7 +1575,7 @@ optional_class: /* Empty */
 			/* the zone validator will give the error */
 			$$ = C_NONE;
 		}
-		freestr($1);
+		(void)freestr($1);
 	}
 	;
 
@@ -1688,7 +1725,11 @@ master_in_addr_list: master_in_addr L_EOS
 
 master_in_addr: L_IPADDR
 	{
-	  	add_zone_master(current_zone, $1);
+	  	add_zone_master(current_zone, $1, NULL);
+	}
+	| L_IPADDR T_SEC_KEY key_ref
+	{
+		add_zone_master(current_zone, $1, $3);
 	}
 	;
 
@@ -1788,7 +1829,7 @@ in_port: L_NUMBER
 		if ($1 < 0 || $1 > 65535) {
 		  	parser_warning(0, 
 			  "invalid IP port number '%d'; setting port to 0",
-			               $1);
+			               (int)$1);
 			$1 = 0;
 		} else
 			$$ = htons($1);
@@ -1827,26 +1868,26 @@ init_acls() {
 	ime = new_ip_match_pattern(address, 0);
 	iml = new_ip_match_list();
 	add_to_ip_match_list(iml, ime);
-	define_acl(savestr("any", 1), iml);
+	define_acl("any", iml);
 
 	/* ACL "none" */
 	ime = new_ip_match_pattern(address, 0);
 	ip_match_negate(ime);
 	iml = new_ip_match_list();
 	add_to_ip_match_list(iml, ime);
-	define_acl(savestr("none", 1), iml);
+	define_acl("none", iml);
 
 	/* ACL "localhost" */
 	ime = new_ip_match_localhost();
 	iml = new_ip_match_list();
 	add_to_ip_match_list(iml, ime);
-	define_acl(savestr("localhost", 1), iml);
+	define_acl("localhost", iml);
 
 	/* ACL "localnets" */
 	ime = new_ip_match_localnets();
 	iml = new_ip_match_list();
 	add_to_ip_match_list(iml, ime);
-	define_acl(savestr("localnets", 1), iml);
+	define_acl("localnets", iml);
 }
 
 static void
@@ -1861,6 +1902,9 @@ free_sym_value(int type, void *value) {
 	case SYM_KEY:
 		free_key_info(value);
 		break;
+	case SYM_CHANNEL:
+		INSIST(log_free_channel(value) == 0);
+		break;
 	default:
 		ns_panic(ns_log_parser, 1,
 			 "unhandled case in free_sym_value()");
@@ -1873,25 +1917,26 @@ static log_channel
 lookup_channel(char *name) {
 	symbol_value value;
 
-	if (lookup_symbol(symtab, name, SYM_CHANNEL, &value))
+	if (lookup_symbol(channeltab, name, SYM_CHANNEL, &value))
 		return ((log_channel)(value.pointer));
 	return (NULL);
 }
 
 static void
-define_channel(char *name, log_channel channel) {
+define_channel(const char *name, log_channel channel) {
 	symbol_value value;
 
 	value.pointer = channel;  
-	define_symbol(symtab, name, SYM_CHANNEL, value, SYMBOL_FREE_KEY);
+	INSIST(log_inc_references(channel) == 0);
+	define_symbol(channeltab, name, SYM_CHANNEL, value, SYMBOL_FREE_VALUE);
 }
 
 static void
 define_builtin_channels() {
-	define_channel(savestr("default_syslog", 1), syslog_channel);
-	define_channel(savestr("default_debug", 1), debug_channel);
-	define_channel(savestr("default_stderr", 1), stderr_channel);
-	define_channel(savestr("null", 1), null_channel);
+	define_channel("default_syslog", syslog_channel);
+	define_channel("default_debug", debug_channel);
+	define_channel("default_stderr", stderr_channel);
+	define_channel("null", null_channel);
 }
 
 static void
@@ -1903,6 +1948,9 @@ parser_setup() {
 	if (authtab != NULL)
 		free_symbol_table(authtab);
 	authtab = new_symbol_table(AUTH_TABLE_SIZE, free_sym_value);
+	if (channeltab != NULL)
+		free_symbol_table(channeltab);
+	channeltab = new_symbol_table(AUTH_TABLE_SIZE, free_sym_value);
 	init_acls();
 	define_builtin_channels();
 	INIT_LIST(current_controls);
@@ -1924,7 +1972,7 @@ parser_cleanup() {
  */
 
 ip_match_list
-lookup_acl(char *name) {
+lookup_acl(const char *name) {
 	symbol_value value;
 
 	if (lookup_symbol(authtab, name, SYM_ACL, &value))
@@ -1933,15 +1981,14 @@ lookup_acl(char *name) {
 }
 
 void
-define_acl(char *name, ip_match_list iml) {
+define_acl(const char *name, ip_match_list iml) {
 	symbol_value value;
 
 	INSIST(name != NULL);
 	INSIST(iml != NULL);
 
 	value.pointer = iml;
-	define_symbol(authtab, name, SYM_ACL, value,
-		      SYMBOL_FREE_KEY|SYMBOL_FREE_VALUE);
+	define_symbol(authtab, name, SYM_ACL, value, SYMBOL_FREE_VALUE);
 	ns_debug(ns_log_parser, 7, "acl %s", name);
 	dprint_ip_match_list(ns_log_parser, iml, 2, "allow ", "deny ");
 }
@@ -1956,7 +2003,7 @@ lookup_key(char *name) {
 }
 
 void
-define_key(char *name, struct dst_key *dst_key) {
+define_key(const char *name, struct dst_key *dst_key) {
 	symbol_value value;
 
 	INSIST(name != NULL);
@@ -1996,5 +2043,7 @@ void
 parser_shutdown(void) {
 	if (authtab != NULL)
 		free_symbol_table(authtab);
+	if (channeltab != NULL)
+		free_symbol_table(channeltab);
 	lexer_shutdown();
 }
