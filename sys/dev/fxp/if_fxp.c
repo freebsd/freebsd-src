@@ -187,10 +187,14 @@ static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
 static void		fxp_intr(void *xsc);
+static void		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
+			    u_int8_t statack, int count);
 static void 		fxp_init(void *xsc);
+static void 		fxp_init_body(struct fxp_softc *sc);
 static void 		fxp_tick(void *xsc);
 static void		fxp_powerstate_d0(device_t dev);
 static void 		fxp_start(struct ifnet *ifp);
+static void 		fxp_start_body(struct ifnet *ifp);
 static void		fxp_stop(struct fxp_softc *sc);
 static void 		fxp_release(struct fxp_softc *sc);
 static int		fxp_ioctl(struct ifnet *ifp, u_long command,
@@ -377,14 +381,15 @@ fxp_attach(device_t dev)
 	int i, rid, m1, m2, prefer_iomap, maxtxseg;
 	int s;
 
-	bzero(sc, sizeof(*sc));
 	sc->dev = dev;
 	callout_handle_init(&sc->stat_ch);
 	sysctl_ctx_init(&sc->sysctl_ctx);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
+	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
+	    fxp_serial_ifmedia_sts);
 
-	s = splimp(); 
+	s = splimp();
 
 	/*
 	 * Enable bus mastering.
@@ -469,8 +474,10 @@ fxp_attach(device_t dev)
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
 	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO,
 	    device_get_nameunit(dev), CTLFLAG_RD, 0, "");
-	if (sc->sysctl_tree == NULL)
+	if (sc->sysctl_tree == NULL) {
+		error = ENXIO;
 		goto fail;
+	}
 	SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "int_delay", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON,
 	    &sc->tunable_int_delay, 0, sysctl_hw_fxp_int_delay, "I",
@@ -605,7 +612,7 @@ fxp_attach(device_t dev)
 	error = bus_dmamem_alloc(sc->fxp_stag, (void **)&sc->fxp_stats,
 	    BUS_DMA_NOWAIT, &sc->fxp_smap);
 	if (error)
-		goto failmem;
+		goto fail;
 	error = bus_dmamap_load(sc->fxp_stag, sc->fxp_smap, sc->fxp_stats,
 	    sizeof(struct fxp_stats), fxp_dma_map_addr, &sc->stats_addr, 0);
 	if (error) {
@@ -625,7 +632,7 @@ fxp_attach(device_t dev)
 	error = bus_dmamem_alloc(sc->cbl_tag, (void **)&sc->fxp_desc.cbl_list,
 	    BUS_DMA_NOWAIT, &sc->cbl_map);
 	if (error)
-		goto failmem;
+		goto fail;
 	bzero(sc->fxp_desc.cbl_list, FXP_TXCB_SZ);
 
 	error = bus_dmamap_load(sc->cbl_tag, sc->cbl_map,
@@ -647,7 +654,7 @@ fxp_attach(device_t dev)
 	error = bus_dmamem_alloc(sc->mcs_tag, (void **)&sc->mcsp,
 	    BUS_DMA_NOWAIT, &sc->mcs_map);
 	if (error)
-		goto failmem;
+		goto fail;
 	error = bus_dmamap_load(sc->mcs_tag, sc->mcs_map, sc->mcsp,
 	    sizeof(struct fxp_cb_mcs), fxp_dma_map_addr, &sc->mcs_addr, 0);
 	if (error) {
@@ -683,8 +690,10 @@ fxp_attach(device_t dev)
 			device_printf(dev, "can't create DMA map for RX\n");
 			goto fail;
 		}
-		if (fxp_add_rfabuf(sc, rxp) != 0)
-			goto failmem;
+		if (fxp_add_rfabuf(sc, rxp) != 0) {
+			error = ENOMEM;
+			goto fail;
+		}
 	}
 
 	/*
@@ -720,8 +729,6 @@ fxp_attach(device_t dev)
 	 * is configured.  This is, in essence, manual configuration.
 	 */
 	if (sc->flags & FXP_FLAG_SERIAL_MEDIA) {
-		ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
-		    fxp_serial_ifmedia_sts);
 		ifmedia_add(&sc->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 		ifmedia_set(&sc->sc_media, IFM_ETHER|IFM_MANUAL);
 	} else {
@@ -746,12 +753,16 @@ fxp_attach(device_t dev)
 	ifp->if_watchdog = fxp_watchdog;
 
 	/* Enable checksum offload for 82550 or better chips */
-
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
 		ifp->if_hwassist = FXP_CSUM_FEATURES;
 		ifp->if_capabilities = IFCAP_HWCSUM;
 		ifp->if_capenable = ifp->if_capabilities;
 	}
+
+	/*
+	 * Attach the interface.
+	 */
+	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -765,32 +776,30 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 
-	/*
-	 * Attach the interface.
+	/* 
+	 * Hook our interrupt after all initialization is complete.
+	 * XXX This driver has been tested with the INTR_MPSAFFE flag set
+	 * however, ifp and its functions are not fully locked so MPSAFE
+	 * should not be used unless you can handle potential data loss.
 	 */
-	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-	    fxp_intr, sc, &sc->ih);
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET /*|INTR_MPSAFE*/,
+			       fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
+		ether_ifdetach(&sc->arpcom.ac_if);
 		goto fail;
 	}
 
-	splx(s);
-	return (0);
-
-failmem:
-	device_printf(dev, "Failed to malloc memory\n");
-	error = ENOMEM;
 fail:
 	splx(s);
-	fxp_release(sc);
+	if (error)
+		fxp_release(sc);
 	return (error);
 }
 
 /*
- * release all resources
+ * Release all resources.  The softc lock should not be held and the
+ * interrupt should already be torn down.
  */
 static void
 fxp_release(struct fxp_softc *sc)
@@ -799,8 +808,13 @@ fxp_release(struct fxp_softc *sc)
 	struct fxp_tx *txp;
 	int i;
 
+	mtx_assert(&sc->sc_mtx, MA_NOTOWNED);
 	if (sc->ih)
-		bus_teardown_intr(sc->dev, sc->irq, sc->ih);
+		panic("fxp_release() called with intr handle still active");
+	if (sc->miibus)
+		device_delete_child(sc->dev, sc->miibus);
+	bus_generic_detach(sc->dev);
+	ifmedia_removeall(&sc->sc_media);
 	if (sc->fxp_desc.cbl_list) {
 		bus_dmamap_unload(sc->cbl_tag, sc->cbl_map);
 		bus_dmamem_free(sc->cbl_tag, sc->fxp_desc.cbl_list,
@@ -864,6 +878,7 @@ fxp_detach(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 	int s;
 
+	FXP_LOCK(sc);
 	s = splimp();
 	/*
 	 * Close down routes etc.
@@ -879,13 +894,14 @@ fxp_detach(device_t dev)
 		fxp_stop(sc);
 	}
 
-	device_delete_child(dev, sc->miibus);
-	bus_generic_detach(dev);
 	/*
-	 * Free all media structures.
+	 * Unhook interrupt before dropping lock. This is to prevent
+	 * races with fxp_intr().
 	 */
-	ifmedia_removeall(&sc->sc_media);
+	bus_teardown_intr(sc->dev, sc->irq, sc->ih);
+	sc->ih = NULL;
 
+	FXP_UNLOCK(sc);
 	splx(s);
 
 	/* Release our allocated resources. */
@@ -921,6 +937,7 @@ fxp_suspend(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 	int i, s;
 
+	FXP_LOCK(sc);
 	s = splimp();
 
 	fxp_stop(sc);
@@ -934,6 +951,7 @@ fxp_suspend(device_t dev)
 
 	sc->suspended = 1;
 
+	FXP_UNLOCK(sc);
 	splx(s);
 	return (0);
 }
@@ -951,6 +969,7 @@ fxp_resume(device_t dev)
 	u_int16_t pci_command;
 	int i, s;
 
+	FXP_LOCK(sc);
 	s = splimp();
 
 	fxp_powerstate_d0(dev);
@@ -973,10 +992,11 @@ fxp_resume(device_t dev)
 
 	/* reinitialize interface if necessary */
 	if (ifp->if_flags & IFF_UP)
-		fxp_init(sc);
+		fxp_init_body(sc);
 
 	sc->suspended = 0;
 
+	FXP_UNLOCK(sc);
 	splx(s);
 	return (0);
 }
@@ -1198,16 +1218,32 @@ fxp_dma_map_txbuf(void *arg, bus_dma_segment_t *segs, int nseg,
 }
 
 /*
- * Start packet transmission on the interface.
+ * Grab the softc lock and call the real fxp_start_body() routine
  */
 static void
 fxp_start(struct ifnet *ifp)
+{
+	struct fxp_softc *sc = ifp->if_softc;
+
+	FXP_LOCK(sc);
+	fxp_start_body(ifp);
+	FXP_UNLOCK(sc);
+}
+
+/*
+ * Start packet transmission on the interface.  
+ * This routine must be called with the softc lock held, and is an
+ * internal entry point only.
+ */
+static void
+fxp_start_body(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_tx *txp;
 	struct mbuf *mb_head;
 	int error;
 
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	/*
 	 * See if we need to suspend xmit until the multicast filter
 	 * has been reprogrammed (which can only be done at the head
@@ -1418,8 +1454,6 @@ fxp_start(struct ifnet *ifp)
 	}
 }
 
-static void fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count);
-
 #ifdef DEVICE_POLLING
 static poll_handler_t fxp_poll;
 
@@ -1429,8 +1463,10 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct fxp_softc *sc = ifp->if_softc;
 	u_int8_t statack;
 
+	FXP_LOCK(sc);
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
+		FXP_UNLOCK(sc);
 		return;
 	}
 	statack = FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA |
@@ -1439,15 +1475,18 @@ fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		u_int8_t tmp;
 
 		tmp = CSR_READ_1(sc, FXP_CSR_SCB_STATACK);
-		if (tmp == 0xff || tmp == 0)
+		if (tmp == 0xff || tmp == 0) {
+			FXP_UNLOCK(sc);
 			return; /* nothing to do */
+		}
 		tmp &= ~statack;
 		/* ack what we can */
 		if (tmp != 0)
 			CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, tmp);
 		statack |= tmp;
 	}
-	fxp_intr_body(sc, statack, count);
+	fxp_intr_body(sc, ifp, statack, count);
+	FXP_UNLOCK(sc);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1458,22 +1497,26 @@ static void
 fxp_intr(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
+	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
 
+	FXP_LOCK(sc);
 #ifdef DEVICE_POLLING
-	struct ifnet *ifp = &sc->sc_if;
-
-	if (ifp->if_flags & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING) {
+		FXP_UNLOCK(sc);
 		return;
+	}
 	if (ether_poll_register(fxp_poll, ifp)) {
 		/* disable interrupts */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 		fxp_poll(ifp, 0, 1);
+		FXP_UNLOCK(sc);
 		return;
 	}
 #endif
 
 	if (sc->suspended) {
+		FXP_UNLOCK(sc);
 		return;
 	}
 
@@ -1484,15 +1527,18 @@ fxp_intr(void *xsc)
 		 * all bits are set, this may indicate that the card has
 		 * been physically ejected, so ignore it.
 		 */  
-		if (statack == 0xff) 
+		if (statack == 0xff) {
+			FXP_UNLOCK(sc);
 			return;
+		}
 
 		/*
 		 * First ACK all the interrupts in this pass.
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
-		fxp_intr_body(sc, statack, -1);
+		fxp_intr_body(sc, ifp, statack, -1);
 	}
+	FXP_UNLOCK(sc);
 }
 
 static void
@@ -1520,14 +1566,15 @@ fxp_txeof(struct fxp_softc *sc)
 }
 
 static void
-fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
+fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, u_int8_t statack,
+    int count)
 {
-	struct ifnet *ifp = &sc->sc_if;
 	struct mbuf *m;
 	struct fxp_rx *rxp;
 	struct fxp_rfa *rfa;
 	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
 
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	if (rnr)
 		fxp_rnr++;
 #ifdef DEVICE_POLLING
@@ -1563,7 +1610,7 @@ fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
 		 * Try to start more packets transmitting.
 		 */
 		if (ifp->if_snd.ifq_head != NULL)
-			fxp_start(ifp);
+			fxp_start_body(ifp);
 	}
 
 	/*
@@ -1687,6 +1734,8 @@ fxp_tick(void *xsc)
 	struct fxp_stats *sp = sc->fxp_stats;
 	int s;
 
+	FXP_LOCK(sc);
+	s = splimp();
 	bus_dmamap_sync(sc->fxp_stag, sc->fxp_smap, BUS_DMASYNC_POSTREAD);
 	ifp->if_opackets += le32toh(sp->tx_good);
 	ifp->if_collisions += le32toh(sp->tx_total_collisions);
@@ -1713,7 +1762,7 @@ fxp_tick(void *xsc)
 		if (tx_threshold < 192)
 			tx_threshold += 64;
 	}
-	s = splimp();
+
 	/*
 	 * Release any xmit buffers that have completed DMA. This isn't
 	 * strictly necessary to do here, but it's advantagous for mbufs
@@ -1766,11 +1815,13 @@ fxp_tick(void *xsc)
 	}
 	if (sc->miibus != NULL)
 		mii_tick(device_get_softc(sc->miibus));
-	splx(s);
+
 	/*
 	 * Schedule another timeout one second from now.
 	 */
 	sc->stat_ch = timeout(fxp_tick, sc, hz);
+	FXP_UNLOCK(sc);
+	splx(s);
 }
 
 /*
@@ -1834,16 +1885,36 @@ fxp_watchdog(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 
+	FXP_LOCK(sc);
 	device_printf(sc->dev, "device timeout\n");
 	ifp->if_oerrors++;
 
-	fxp_init(sc);
+	fxp_init_body(sc);
+	FXP_UNLOCK(sc);
 }
 
+/*
+ * Acquire locks and then call the real initialization function.  This
+ * is necessary because ether_ioctl() calls if_init() and this would
+ * result in mutex recursion if the mutex was held.
+ */
 static void
 fxp_init(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
+
+	FXP_LOCK(sc);
+	fxp_init_body(sc);
+	FXP_UNLOCK(sc);
+}
+
+/*
+ * Perform device initialization. This routine must be called with the
+ * softc lock held.
+ */
+static void
+fxp_init_body(struct fxp_softc *sc)
+{
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
@@ -1852,6 +1923,7 @@ fxp_init(void *xsc)
 	struct fxp_cb_mcs *mcsp;
 	int i, prm, s;
 
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 	s = splimp();
 	/*
 	 * Cancel any pending I/O
@@ -2099,12 +2171,12 @@ fxp_init(void *xsc)
 	else
 #endif /* DEVICE_POLLING */
 	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
-	splx(s);
 
 	/*
 	 * Start stats updater.
 	 */
 	sc->stat_ch = timeout(fxp_tick, sc, hz);
+	splx(s);
 }
 
 static int
@@ -2288,6 +2360,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int s, error = 0;
 
+	FXP_LOCK(sc);
 	s = splimp();
 
 	switch (command) {
@@ -2304,7 +2377,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * such as IFF_PROMISC are handled.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			fxp_init(sc);
+			fxp_init_body(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				fxp_stop(sc);
@@ -2328,7 +2401,7 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * again rather than else {}.
 		 */
 		if (sc->flags & FXP_FLAG_ALL_MCAST)
-			fxp_init(sc);
+			fxp_init_body(sc);
 		error = 0;
 		break;
 
@@ -2344,8 +2417,15 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	default:
+		/* 
+		 * ether_ioctl() will eventually call fxp_start() which
+		 * will result in mutex recursion so drop it first.
+		 */
+		FXP_UNLOCK(sc);
 		error = ether_ioctl(ifp, command, data);
 	}
+	if (mtx_owned(&sc->sc_mtx))
+		FXP_UNLOCK(sc);
 	splx(s);
 	return (error);
 }

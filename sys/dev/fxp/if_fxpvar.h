@@ -104,6 +104,9 @@
 #if __FreeBSD_version < 500000
 #define	FXP_LOCK(_sc)
 #define	FXP_UNLOCK(_sc)
+#define	INTR_MPSAFE		0
+#define mtx_owned(a)		0
+#define mtx_assert(a, b)
 #define mtx_init(a, b, c, d)
 #define mtx_destroy(a)
 struct mtx { int dummy; };
