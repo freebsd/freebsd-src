@@ -71,7 +71,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			_thr_ref_delete(curthread, pthread);
 			return (ESRCH);
 		}
-		in_syncq = pthread->flags & THR_FLAGS_IN_SYNCQ;
+		in_syncq = pthread->sflags & THR_FLAGS_IN_SYNCQ;
 
 		/* Set the scheduling policy: */
 		pthread->attr.sched_policy = policy;
