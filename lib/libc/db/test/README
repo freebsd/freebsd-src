@@ -1,0 +1,55 @@
+#	@(#)README	8.2 (Berkeley) 2/21/94
+
+To build this portably, try something like:
+
+    make INC="-I../PORT/MACH/ -I../PORT/MACH/include" LIB=../PORT/MACH/libdb.a
+
+where MACH is the machine, i.e. "sunos.4.1.1".
+
+To run the tests, enter "sh run.test".  If your system dictionary isn't
+in /usr/share/dict/words, edit run.test to reflect the correct place.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+The script file consists of lines with a initial character which is
+the "command" for that line.  Legal characters are as follows:
+
+c: compare a record
+	+ must be followed by [kK][dD]; the data value in the database
+	  associated with the specified key is compared to the specified
+	  data value.
+e: echo a string
+	+ writes out the rest of the line into the output file; if the
+	  last character is not a carriage-return, a newline is appended.
+g: do a get command
+	+ must be followed by [kK]
+	+ writes out the retrieved data DBT.
+p: do a put command
+	+ must be followed by [kK][dD]
+r: do a del command
+	+ must be followed by [kK]
+s: do a seq command
+	+ writes out the retrieved data DBT.
+f: set the flags for the next command
+	+ no value zero's the flags
+D [file]: data file
+	+ set the current data value to the contents of the file
+d [data]:
+	+ set the current key value to the contents of the line.
+K [file]: key file
+	+ set the current key value to the contents of the file
+k [data]:
+	+ set the current key value to the contents of the line.
+o [r]: dump [reverse]
+	+ dump the database out, if 'r' is set, in reverse order.
+
+Options to dbtest are as follows:
+
+	-f: Use the file argument as the database file.
+	-i: Use the rest of the argument to set elements in the info
+	    structure.  If the type is btree, then "-i cachesize=10240"
+	    will set BTREEINFO.cachesize to 10240.
+	-o: The rest of the argument is the output file instead of
+	    using stdout.
+
+Dbtest requires two arguments, the type of access "hash", "recno" or
+"btree", and the script name.

@@ -1,0 +1,83 @@
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)sleep.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd June 4, 1993
+.Dt SLEEP 3
+.Os
+.Sh NAME
+.Nm sleep
+.Nd suspend process execution for interval of seconds
+.Sh SYNOPSIS
+.Fd #include <unistd.h>
+.Ft u_int
+.Fn sleep "u_int seconds"
+.Sh DESCRIPTION
+The
+.Fn sleep
+function
+suspends execution of the calling process
+for
+.Fa seconds
+of time.
+System activity or time spent in processing the
+call may lengthen the sleep by a second.
+.Pp
+If a timer is already running on the process its state is saved.
+If the value
+.Fa seconds
+is more than or equal to the remaining clock time for the saved timer,
+the sleep time is set to
+the remaining clock time.
+The state of the previous timer
+is restored after
+.Fa seconds
+has passed.
+.Pp
+This function is implemented using
+.Xr setitimer 2 ;
+it requires eight system calls each time it is invoked.
+A similar but less compatible function can be obtained with a single
+.Xr select 2 ;
+such a function would not restart after signals, but would not interfere
+with other uses of
+.Xr setitimer .
+.Sh RETURN VALUES
+.Sh SEE ALSO
+.Xr setitimer 2 ,
+.Xr sigpause 2 ,
+.Xr usleep 3
+.Sh HISTORY
+A
+.Fn sleep
+function appeared in
+.At v7 .
