@@ -331,6 +331,16 @@ putdir(char *buf, long size)
 		dp = (struct direct *)(buf + loc);
 		if (Bcvt)
 			swabst((u_char *)"ls", (u_char *) dp);
+		if (oldinofmt && dp->d_ino != 0) {
+#if BYTE_ORDER == BIG_ENDIAN
+			if (Bcvt)
+				dp->d_namlen = dp->d_type;
+#else
+			if (!Bcvt && dp->d_namlen == 0)
+				dp->d_namlen = dp->d_type;
+#endif
+			dp->d_type = DT_UNKNOWN;
+		}
 		i = DIRBLKSIZ - (loc & (DIRBLKSIZ - 1));
 		if ((dp->d_reclen & 0x3) != 0 ||
 		    dp->d_reclen > i ||
