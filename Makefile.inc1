@@ -20,6 +20,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	TARGET_ARCH="machine arch" to crossbuild world to a different arch
 
 #
 # The intended user-driven targets are:
