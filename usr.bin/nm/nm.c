@@ -79,7 +79,6 @@ int (*sfunc)() = fname;
 #define	SYMBOL_TYPE(x)		((x) & (N_TYPE | N_STAB))
 #define SYMBOL_BIND(x)		(((x) >> 4) & 0xf)
 
-void *emalloc();
 static void usage __P(( void ));
 int process_file __P(( char * ));
 int show_archive __P(( char *, FILE * ));
@@ -232,7 +231,8 @@ show_archive(fname, fp)
 	char *p, *name, *ar_name;
 	int extra = strlen(fname) + 3;
 
-	name = emalloc(MAXNAMLEN + extra);
+	if ((name = malloc(MAXNAMLEN + extra)) == NULL)
+		err(1, NULL);
 	ar_name = name + extra;
 
 	rval = 0;
@@ -381,7 +381,8 @@ show_objfile(objname, fp)
 	}
 
 	/* get memory for the symbol table */
-	names = emalloc((size_t)head.a_syms);
+	if ((names = malloc((size_t)head.a_syms)) == NULL)
+		err(1, NULL);
 	nrawnames = head.a_syms / sizeof(*names);
 	if (fread((char *)names, (size_t)head.a_syms, (size_t)1, fp) != 1) {
 		warnx("%s: cannot read symbol table", objname);
@@ -399,7 +400,8 @@ show_objfile(objname, fp)
 		(void)free((char *)names);
 		return(1);
 	}
-	stab = emalloc((size_t)stabsize);
+	if ((stab = malloc((size_t)stabsize)) == NULL)
+		err(1, NULL);
 
 	/*
 	 * read the string table offset by 4 - all indices into the string
@@ -652,18 +654,6 @@ value(a0, b0)
 			return(fname(a0, b0));
 		return(a->n_value > b->n_value ? 1 : -1);
 	}
-}
-
-void *
-emalloc(size)
-	size_t size;
-{
-	char *p;
-
-	/* NOSTRICT */
-	if ( (p = malloc(size)) )
-		return(p);
-	err(1, NULL);
 }
 
 static void
