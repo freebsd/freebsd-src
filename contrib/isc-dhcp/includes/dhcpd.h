@@ -106,6 +106,8 @@ struct packet {
 					   of local sender (maybe gateway). */
 	struct shared_network *shared_network;
 	struct option_data options [256];
+	int got_requested_address;	/* True if client sent the
+					   dhcp-requested-address option. */
 };
 
 struct hardware {
@@ -163,6 +165,12 @@ struct lease_state {
 	int max_message_size;
 	u_int8_t *prl;
 	int prl_len;
+	int got_requested_address;	/* True if client sent the
+					   dhcp-requested-address option. */
+	int got_server_identifier;	/* True if client sent the
+					   dhcp-server-identifier option. */
+	struct shared_network *shared_network;	/* Shared network of interface
+						   on which request arrived. */
 
 	u_int32_t xid;
 	u_int16_t secs;
@@ -920,6 +928,20 @@ ssize_t decode_hw_header PROTO ((struct interface_info *, unsigned char *,
 ssize_t decode_udp_ip_header PROTO ((struct interface_info *, unsigned char *,
 				     int, struct sockaddr_in *,
 				     unsigned char *, int));
+
+/* ethernet.c */
+void assemble_ethernet_header PROTO ((struct interface_info *, unsigned char *,
+				      int *, struct hardware *));
+ssize_t decode_ethernet_header PROTO ((struct interface_info *,
+				       unsigned char *,
+				       int, struct hardware *));
+
+/* tr.c */
+void assemble_tr_header PROTO ((struct interface_info *, unsigned char *,
+				int *, struct hardware *));
+ssize_t decode_tr_header PROTO ((struct interface_info *,
+				 unsigned char *,
+				 int, struct hardware *));
 
 /* dhxpxlt.c */
 void convert_statement PROTO ((FILE *));
