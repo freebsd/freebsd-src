@@ -29,6 +29,8 @@
  *	$FreeBSD$
  */
 
+#include "opt_aac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

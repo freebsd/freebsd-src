@@ -33,6 +33,9 @@
  * Driver for the Adaptec 'FSA' family of PCI/SCSI RAID adapters.
  */
 
+#include "opt_aac.h"
+
+/* include <stddef.h> */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -95,7 +98,7 @@ static int	aac_sync_fib(struct aac_softc *sc, u_int32_t command,
 			     u_int16_t datasize, void *result,
 			     u_int16_t *resultsize);
 static int	aac_enqueue_fib(struct aac_softc *sc, int queue,
-				u_int32_t fib_size, u_int32_t fib_addr);
+				struct aac_command *cm);
 static int	aac_dequeue_fib(struct aac_softc *sc, int queue,
 				u_int32_t *fib_size, struct aac_fib **fib_addr);
 
@@ -283,6 +286,7 @@ aac_startup(void *arg)
     for (i = 0; i < AAC_MAX_CONTAINERS; i++) {
 	/* request information on this container */
 	mi.MntCount = i;
+	rsize = sizeof(mir);
 	if (aac_sync_fib(sc, ContainerCommand, 0, &mi,
 			 sizeof(struct aac_mntinfo), &mir, &rsize)) {
 	    debug(2, "error probing container %d", i);
@@ -591,13 +595,7 @@ aac_start(struct aac_command *cm)
 							 * address issue */
 
     /* put the FIB on the outbound queue */
-    if (aac_enqueue_fib(sc, AAC_ADAP_NORM_CMD_QUEUE, cm->cm_fib->Header.Size, 
-			cm->cm_fib->Header.ReceiverFibAddress)) {
-	error = EBUSY;
-    } else {
-	aac_enqueue_busy(cm);
-	error = 0;
-    }
+    error = aac_enqueue_fib(sc, AAC_ADAP_NORM_CMD_QUEUE, cm);
     return(error);
 }
 
@@ -837,7 +835,7 @@ aac_wait_command(struct aac_command *cm, int timeout)
     aac_startio(cm->cm_sc);
     s = splbio();
     while(!(cm->cm_flags & AAC_CMD_COMPLETED) && (error != EWOULDBLOCK)) {
-        error = tsleep(cm, PRIBIO, "aacwait", timeout * hz);
+        error = tsleep(cm, PRIBIO, "aacwait", 0);
     }
     splx(s);
     return(error);
@@ -1301,6 +1299,8 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
      * Copy in data.
      */
     if (data != NULL) {
+	KASSERT(datasize <= sizeof(fib->data),
+		"aac_sync_fib: datasize to large");
 	bcopy(data, fib->data, datasize);
 	fib->Header.XferState |= AAC_FIBSTATE_FROMHOST | AAC_FIBSTATE_NORM;
     }
@@ -1318,8 +1318,13 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
      * Copy out the result
      */
     if (result != NULL) {
+	u_int copysize;
+
+	copysize = fib->Header.Size - sizeof(struct aac_fib_header);
+	if (copysize > *resultsize)
+		copysize = *resultsize;
 	*resultsize = fib->Header.Size - sizeof(struct aac_fib_header);
-	bcopy(fib->data, result, *resultsize);
+	bcopy(fib->data, result, copysize);
     }
     return(0);
 }
@@ -1354,11 +1359,15 @@ static struct {
  *       separate queue/notify interface).
  */
 static int
-aac_enqueue_fib(struct aac_softc *sc, int queue, u_int32_t fib_size,
-		u_int32_t fib_addr)
+aac_enqueue_fib(struct aac_softc *sc, int queue, struct aac_command *cm)
 {
     u_int32_t	pi, ci;
     int		s, error;
+    u_int32_t	fib_size;
+    u_int32_t	fib_addr;
+
+    fib_size = cm->cm_fib->Header.Size;
+    fib_addr = cm->cm_fib->Header.ReceiverFibAddress;
 
     debug_called(3);
 
@@ -1385,6 +1394,12 @@ aac_enqueue_fib(struct aac_softc *sc, int queue, u_int32_t fib_size,
     /* update producer index */
     sc->aac_queues->qt_qindex[queue][AAC_PRODUCER_INDEX] = pi + 1;
 
+    /*
+     * To avoid a race with its completion interrupt, place this command on the
+     * busy queue prior to advertising it to the controller.
+     */
+    aac_enqueue_busy(cm);
+
     /* notify the adapter if we know how */
     if (aac_qinfo[queue].notify != 0)
 	AAC_QNOTIFY(sc, aac_qinfo[queue].notify);
@@ -1406,6 +1421,7 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 {
     u_int32_t	pi, ci;
     int		s, error;
+    int		notify;
 
     debug_called(3);
 
@@ -1421,6 +1437,10 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 	goto out;
     }
     
+    notify = 0;
+    if (ci == pi + 1)
+	notify++;
+
     /* wrap the queue? */
     if (ci >= aac_qinfo[queue].size)
 	ci = 0;
@@ -1433,7 +1453,7 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
     sc->aac_queues->qt_qindex[queue][AAC_CONSUMER_INDEX] = ci + 1;
 
     /* if we have made the queue un-full, notify the adapter */
-    if (((pi + 1) == ci) && (aac_qinfo[queue].notify != 0))
+    if (notify && (aac_qinfo[queue].notify != 0))
 	AAC_QNOTIFY(sc, aac_qinfo[queue].notify);
     error = 0;
 
@@ -1453,8 +1473,18 @@ aac_timeout(struct aac_softc *sc)
     struct	aac_command *cm;
     time_t	deadline;
 
+#if 0
     /* simulate an interrupt to handle possibly-missed interrupts */
+    /*
+     * XXX This was done to work around another bug which has since been
+     * fixed.  It is dangerous anyways because you don't want multiple
+     * threads in the interrupt handler at the same time!  If calling
+     * is deamed neccesary in the future, proper mutexes must be used.
+     */
+    s = splbio();
     aac_intr(sc);
+    splx(s);
+#endif
 
     /* kick the I/O queue to restart it in the case of deadlock */
     aac_startio(sc);
@@ -1463,11 +1493,11 @@ aac_timeout(struct aac_softc *sc)
     deadline = time_second - AAC_CMD_TIMEOUT;
     s = splbio();
     TAILQ_FOREACH(cm, &sc->aac_busy, cm_link) {
-	if ((cm->cm_timestamp < deadline) &&
-	    !(cm->cm_flags & AAC_CMD_TIMEDOUT)) {
+	if ((cm->cm_timestamp < deadline)
+	    /*  && !(cm->cm_flags & AAC_CMD_TIMEDOUT) */) {
 	    cm->cm_flags |= AAC_CMD_TIMEDOUT;
-	    device_printf(sc->aac_dev, "COMMAND TIMED OUT AFTER %d SECONDS\n", 
-			  (int)(time_second - cm->cm_timestamp));
+	    device_printf(sc->aac_dev, "COMMAND %p TIMEOUT AFTER %d SECONDS\n",
+			  cm, (int)(time_second - cm->cm_timestamp));
 	    AAC_PRINT_FIB(sc, cm->cm_fib);
 	}
     }
@@ -1657,6 +1687,7 @@ aac_describe_controller(struct aac_softc *sc)
     debug_called(2);
 
     arg = 0;
+    bufsize = sizeof(buf);
     if (aac_sync_fib(sc, RequestAdapterInfo, 0, &arg, sizeof(arg), &buf,
 		     &bufsize)) {
 	device_printf(sc->aac_dev, "RequestAdapterInfo failed\n");
@@ -1843,6 +1874,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
     if ((error = copyin(ufib, cm->cm_fib, size)) != 0)
 	goto out;
     cm->cm_fib->Header.Size = size;
+    cm->cm_timestamp = time_second;
 
     /*
      * Pass the FIB to the controller, wait for it to complete.
@@ -1862,8 +1894,9 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
     error = copyout(cm->cm_fib, ufib, size);
 
 out:
-    if (cm != NULL)
+    if (cm != NULL) {
 	aac_release_command(cm);
+    }
     return(error);
 }
 
