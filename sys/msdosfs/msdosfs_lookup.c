@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.10 1997/02/22 09:40:47 peter Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.11 1997/02/26 14:23:13 bde Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -82,7 +82,7 @@ static int	markdeleted __P((struct msdosfsmount *pmp, u_long dirclust,
  */
 int
 msdosfs_lookup(ap)
-	struct vop_lookup_args /* {
+	struct vop_cachedlookup_args /* {
 		struct vnode *a_dvp;
 		struct vnode **a_vpp;
 		struct componentname *a_cnp;
@@ -139,61 +139,6 @@ msdosfs_lookup(ap)
 	 */
 	if ((dp->de_Attributes & ATTR_DIRECTORY) == 0)
 		return ENOTDIR;
-
-	/*
-	 * See if the component of the pathname we are looking for is in
-	 * the directory cache.  If so then do a few things and return.
-	 */
-	error = cache_lookup(vdp, vpp, cnp);
-	if (error) {
-		int vpid;
-
-		if (error == ENOENT)
-			return error;
-		pdp = vdp;
-		vdp = *vpp;
-		dp = VTODE(vdp);
-		vpid = vdp->v_id;
-		if (pdp == vdp) {
-			VREF(vdp);
-			error = 0;
-		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(pdp, 0, p);
-			error = vget(vdp, LK_EXCLUSIVE, p);
-			if (!error && lockparent && (flags & ISLASTCN))
-				error = vn_lock(pdp, LK_EXCLUSIVE, p);
-		} else {
-			error = vget(vdp, LK_EXCLUSIVE, p);
-			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(pdp, 0, p);
-		}
-
-		if (!error) {
-			if (vpid == vdp->v_id) {
-#ifdef MSDOSFS_DEBUG
-				printf("msdosfs_lookup(): cache hit, vnode %08x, file %s\n",
-				       vdp, dp->de_Name);
-#endif
-#ifdef	PC98
-			/*
-			 * 1024 byte/sector support
-			 */
-			if (pmp->pm_BytesPerSec == 1024)
-					vdp->v_flag |= 0x10000;
-#endif
-				return 0;
-			}
-			vput(vdp);
-			if (lockparent && pdp != vdp && (flags & ISLASTCN))
-				VOP_UNLOCK(pdp, 0, p);
-		}
-		error = vn_lock(pdp, LK_EXCLUSIVE, p);
-		if (error)
-			return error;
-		vdp = pdp;
-		dp = VTODE(vdp);
-		*vpp = NULL;
-	}
 
 	/*
 	 * If they are going after the . or .. entry in the root directory,

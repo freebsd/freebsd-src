@@ -78,7 +78,7 @@ int	ext2_truncate __P((struct vop_truncate_args *));
 int	ext2_update __P((struct vop_update_args *));
 int	ext2_valloc __P((struct vop_valloc_args *));
 int	ext2_vfree __P((struct vop_vfree_args *));
-int 	ext2_lookup __P((struct vop_lookup_args *));
+int 	ext2_lookup __P((struct vop_cachedlookup_args *));
 int 	ext2_readdir __P((struct vop_readdir_args *));
 void	ext2_print_dinode __P((struct dinode *));
 void	ext2_print_inode __P((struct inode *));

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.25 1997/05/04 09:17:28 phk Exp $
+ * $Id: vfs_cache.c,v 1.26 1997/08/04 07:31:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -335,4 +335,87 @@ cache_purgevfs(mp)
 			}
 		}
 	}
+}
+
+/*
+ * Perform canonical checks and cache lookup and pass on to filesystem
+ * through the vop_cachedlookup only if needed.
+ */
+
+int
+vfs_cache_lookup(ap)
+	struct vop_lookup_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+	struct vnode *vdp;
+	struct vnode *pdp;
+	int lockparent;	
+	int error;
+	struct vnode **vpp = ap->a_vpp;
+	struct componentname *cnp = ap->a_cnp;
+	struct ucred *cred = cnp->cn_cred;
+	int flags = cnp->cn_flags;
+	struct proc *p = cnp->cn_proc;
+	u_long vpid;	/* capability number of vnode */
+
+	*vpp = NULL;
+	vdp = ap->a_dvp;
+	lockparent = flags & LOCKPARENT;
+
+	if (vdp->v_type != VDIR)
+                return (ENOTDIR);
+
+	if ((flags & ISLASTCN) && (vdp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
+
+	error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc);
+
+	if (error)
+		return (error);
+
+	error = cache_lookup(vdp, vpp, cnp);
+
+	if (!error) 
+		return (VCALL(vdp, VOFFSET(vop_cachedlookup), 
+		    (struct vop_cachedlookup_args *)ap));
+
+	if (error == ENOENT)
+		return (error);
+
+	pdp = vdp;
+	vdp = *vpp;
+	vpid = vdp->v_id;
+	if (pdp == vdp) {   /* lookup on "." */
+		VREF(vdp);
+		error = 0;
+	} else if (flags & ISDOTDOT) {
+		VOP_UNLOCK(pdp, 0, p);
+		error = vget(vdp, LK_EXCLUSIVE, p);
+		if (!error && lockparent && (flags & ISLASTCN))
+			error = vn_lock(pdp, LK_EXCLUSIVE, p);
+	} else {
+		error = vget(vdp, LK_EXCLUSIVE, p);
+		if (!lockparent || error || !(flags & ISLASTCN))
+			VOP_UNLOCK(pdp, 0, p);
+	}
+	/*
+	 * Check that the capability number did not change
+	 * while we were waiting for the lock.
+	 */
+	if (!error) {
+		if (vpid == vdp->v_id)
+			return (0);
+		vput(vdp);
+		if (lockparent && pdp != vdp && (flags & ISLASTCN))
+			VOP_UNLOCK(pdp, 0, p);
+	}
+	error = vn_lock(pdp, LK_EXCLUSIVE, p);
+	if (error)
+		return (error);
+	return (VCALL(vdp, VOFFSET(vop_cachedlookup), 
+	    (struct vop_cachedlookup_args *)ap));
 }

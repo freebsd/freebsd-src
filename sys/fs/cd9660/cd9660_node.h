@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.10 1997/02/22 09:38:49 peter Exp $
+ * $Id: cd9660_node.h,v 1.11 1997/04/14 18:15:45 phk Exp $
  */
 
 /*
@@ -95,7 +95,7 @@ struct iso_node {
 /*
  * Prototypes for ISOFS vnode operations
  */
-int cd9660_lookup __P((struct vop_lookup_args *));
+int cd9660_lookup __P((struct vop_cachedlookup_args *));
 int cd9660_inactive __P((struct vop_inactive_args *));
 int cd9660_reclaim __P((struct vop_reclaim_args *));
 int cd9660_bmap __P((struct vop_bmap_args *));

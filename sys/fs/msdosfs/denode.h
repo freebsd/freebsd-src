@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.11 1997/02/22 09:40:44 peter Exp $ */
+/*	$Id: denode.h,v 1.12 1997/02/26 14:23:09 bde Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -226,7 +226,7 @@ struct defid {
 
 extern vop_t **msdosfs_vnodeop_p;
 
-int msdosfs_lookup __P((struct vop_lookup_args *));
+int msdosfs_lookup __P((struct vop_cachedlookup_args *));
 int msdosfs_inactive __P((struct vop_inactive_args *));
 int msdosfs_reclaim __P((struct vop_reclaim_args *));
 
