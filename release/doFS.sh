@@ -38,7 +38,7 @@ do
 	disklabel -w -r -B \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		${VNDEVICE} minimum
+		${VNDEVICE} ${FSLABEL}
 
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
@@ -53,11 +53,6 @@ do
 	fsck -p /dev/r${VNDEVICE} < /dev/null
 
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
-
-	if [ $FSLABEL != "minimum" ] ; then
-		echo ${FSSIZE} > fs-image.size
-		break
-	fi
 
 	echo ">>> Filesystem is ${FSSIZE} K, $4 left"
 	echo ">>>     ${FSINODE} bytes/inode, $7 left"
