@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)debug.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: debug.c,v 8.16 2000/07/11 05:59:32 vixie Exp $";
+static const char rcsid[] = "$Id: debug.c,v 8.17 2000/11/08 06:47:31 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -90,7 +90,9 @@ static const char rcsid[] = "$Id: debug.c,v 8.16 2000/07/11 05:59:32 vixie Exp $
 /*
  *  Imported from res_debug.c
  */
+#ifndef HAVE_DECL_RES_OPCODES
 extern char *_res_opcodes[];
+#endif
 
 /*
  *  Used to highlight the start of a record when printing it.
