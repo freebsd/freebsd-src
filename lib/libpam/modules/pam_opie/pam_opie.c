@@ -108,7 +108,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 */
 	opiedisableaeh();
 
-	pwok = 0;
 	if (opiechallenge(&opie, (char *)user, challenge) == 0) {
 		rhost = NULL;
 		(void) pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
@@ -116,7 +115,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		       (rhost != NULL) && (*rhost != '\0') &&
 		       opieaccessfile((char *)rhost) &&
 		       opiealways(pwd->pw_dir);
-	}
+	} else
+		pwok = 1;
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
 		retval = pam_get_pass(pamh, &response, prompt, &options);
