@@ -74,7 +74,7 @@
 #	gsc	Genius GS-4500 hand scanner
 #	joy	pc joystick
 #
-#	$Id: MAKEDEV,v 1.62 1995/01/07 14:49:59 jkh Exp $
+#	$Id: MAKEDEV,v 1.63 1995/01/25 21:21:28 jmz Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -691,6 +691,13 @@ joy)
 	mknod joy0 c 51 0
 	mknod joy1 c 51 1
 	chmod 444 joy0 joy1
+	;;
+
+tun?)
+	unit=`expr $i : 'tun\(.*\)'`
+	rm -f tun$unit
+	mknod tun$unit c 52 $unit
+	chown uucp.dialer tun$unit
 	;;
 
 local)
