@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.223 1999/01/20 12:31:42 jkh Exp $
+ * $Id: install.c,v 1.224 1999/01/27 02:32:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -758,11 +758,13 @@ installFixupBin(dialogMenuItem *self)
 		    msgConfirm("Unable to copy /kernel into place!");
 		    return DITEM_FAILURE;
 		}
+#ifndef __alpha__
                 /* Snapshot any boot -c changes back to the new kernel */
                 if (kget("/kernel.config")) {
 		    msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
 			       "to it.  See the debug screen (ALT-F2) for details.");
 		}
+#endif
 	    }
 	    else {
 		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
