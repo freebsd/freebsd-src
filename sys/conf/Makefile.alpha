@@ -83,12 +83,12 @@ SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
-SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/$M/conf/kernel.script \
+SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-e locorestart \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
-SYSTEM_DEP+= $S/$M/conf/kernel.script
+SYSTEM_DEP+= $S/conf/ldscript.$M
 
 %BEFORE_DEPEND
 
