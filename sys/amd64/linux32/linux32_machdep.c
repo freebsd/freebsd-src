@@ -399,7 +399,7 @@ linux_ipc(struct thread *td, struct linux_ipc_args *args)
 		a.shmid = args->arg1;
 		a.shmaddr = args->ptr;
 		a.shmflg = args->arg2;
-		a.raddr = PTRIN(args->arg3);
+		a.raddr = PTRIN((l_uint)args->arg3);
 		return (linux_shmat(td, &a));
 	}
 	case LINUX_SHMDT: {
@@ -565,11 +565,11 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 /* XXX move */
 struct l_mmap_argv {
 	l_ulong		addr;
-	l_int		len;
-	l_int		prot;
-	l_int		flags;
-	l_int		fd;
-	l_int		pos;
+	l_ulong		len;
+	l_ulong		prot;
+	l_ulong		flags;
+	l_ulong		fd;
+	l_ulong		pgoff;
 };
 
 #define STACK_SIZE  (2 * 1024 * 1024)
@@ -594,7 +594,7 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 	linux_args.prot = args->prot;
 	linux_args.flags = args->flags;
 	linux_args.fd = args->fd;
-	linux_args.pos = args->pgoff * PAGE_SIZE;
+	linux_args.pgoff = args->pgoff;
 
 	return (linux_mmap_common(td, &linux_args));
 }
@@ -616,6 +616,9 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		    linux_args.prot, linux_args.flags, linux_args.fd,
 		    linux_args.pos);
 #endif
+	if ((linux_args.pgoff % PAGE_SIZE) != 0)
+		return (EINVAL);
+	linux_args.pgoff /= PAGE_SIZE;
 
 	return (linux_mmap_common(td, &linux_args));
 }
@@ -727,7 +730,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.fd = -1;
 	else
 		bsd_args.fd = linux_args->fd;
-	bsd_args.pos = linux_args->pos;
+	bsd_args.pos = (off_t)linux_args->pgoff * PAGE_SIZE;
 	bsd_args.pad = 0;
 
 #ifdef DEBUG
