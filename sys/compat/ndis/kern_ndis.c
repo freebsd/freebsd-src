@@ -605,6 +605,8 @@ ndis_create_sysctls(arg)
 	struct ndis_softc	*sc;
 	ndis_cfg		*vals;
 	char			buf[256];
+	struct sysctl_oid	*oidp;
+	struct sysctl_ctx_entry	*e;
 
 	if (arg == NULL)
 		return(EINVAL);
@@ -633,6 +635,27 @@ ndis_create_sysctls(arg)
 			vals++;
 			continue;
 		}
+
+		/* See if we already have a sysctl with this name */
+
+		oidp = NULL;
+#if __FreeBSD_version < 502113
+		TAILQ_FOREACH(e, &sc->ndis_ctx, link) {
+#else
+		TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
+#endif
+                	oidp = e->entry;
+			if (ndis_strcasecmp(oidp->oid_name,
+			    vals->nc_cfgkey) == 0)
+				break;
+			oidp = NULL;
+		}
+
+		if (oidp != NULL) {
+			vals++;
+			continue;
+		}
+
 #if __FreeBSD_version < 502113
 		SYSCTL_ADD_STRING(&sc->ndis_ctx,
 		    SYSCTL_CHILDREN(sc->ndis_tree),
