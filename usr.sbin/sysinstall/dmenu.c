@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.37 1998/03/15 19:30:46 jkh Exp $
+ * $Id: dmenu.c,v 1.38 1999/02/05 22:15:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,7 +88,7 @@ dmenuExit(dialogMenuItem *tmp)
 int
 dmenuSetVariable(dialogMenuItem *tmp)
 {
-    variable_set((char *)tmp->data, 1);
+    variable_set((char *)tmp->data, *tmp != '_');
     return DITEM_SUCCESS;
 }
 
@@ -101,7 +101,7 @@ dmenuSetVariables(dialogMenuItem *tmp)
     for (cp1 = copy; cp1 != NULL;) {
 	cp2 = index(cp1, ',');
 	if (cp2 != NULL) *cp2++ = '\0';
-	variable_set(cp1, 1);
+	variable_set(cp1, *cp1 != '_');
 	cp1 = cp2;
     }
     free(copy);
@@ -137,7 +137,7 @@ dmenuToggleVariable(dialogMenuItem *tmp)
 	return DITEM_FAILURE;
     }
     if (!variable_check(var))
-	variable_set(var, 1);
+	variable_set(var, *var != '_');
     else
 	variable_unset(var);
     return DITEM_SUCCESS;
@@ -161,7 +161,7 @@ dmenuISetVariable(dialogMenuItem *tmp)
     else if (!*ans)
 	variable_unset(var);
     else
-	variable_set2(var, ans, 1);
+	variable_set2(var, ans, *var != '_');
     return DITEM_SUCCESS;
 }
 
