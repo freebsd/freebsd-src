@@ -35,10 +35,21 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: s_log1p.S,v 1.1.1.1 1994/08/19 09:40:01 jkh Exp $")
+RCSID("$Id: s_log1p.S,v 1.4 1994/08/19 03:55:57 jtc Exp $")
 
+/*
+ * The fyl2xp1 instruction has such a limited range:
+ *	-(1 - (sqrt(2) / 2)) <= x <= sqrt(2) - 1
+ * it's not worth trying to use it.  
+ *
+ * Also, I'm not sure fyl2xp1's extra precision will
+ * matter once the result is converted from extended
+ * real (80 bits) back to double real (64 bits).
+ */
 ENTRY(log1p)
 	fldln2
 	fldl 4(%esp)
-	fyl2xp1
+	fld1
+	faddp
+	fyl2x
 	ret
