@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.46 1998/08/24 07:47:39 dfr Exp $
+ *	$Id: tcp_subr.c,v 1.47 1998/09/06 08:17:35 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -209,7 +209,8 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 	struct route sro;
 
 	if (tp) {
-		win = sbspace(&tp->t_inpcb->inp_socket->so_rcv);
+		if (!(flags & TH_RST))
+			win = sbspace(&tp->t_inpcb->inp_socket->so_rcv);
 		ro = &tp->t_inpcb->inp_route;
 	} else {
 		ro = &sro;
