@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: libutil.h,v 1.18 1998/10/08 23:10:41 jkh Exp $
+ * $Id: libutil.h,v 1.19 1998/10/09 07:28:14 jkh Exp $
  */
 
 #ifndef _LIBUTIL_H_
@@ -54,7 +54,7 @@ int	uu_lock __P((const char *_ttyname));
 int	uu_unlock __P((const char *_ttyname));
 int	uu_lock_txfr __P((const char *_ttyname, pid_t _pid));
 int	_secure_path __P((const char *_path, uid_t _uid, gid_t _gid));
-properties properties_read __P((FILE *fp));
+properties properties_read __P((int fd));
 void	properties_free __P((properties list));
 char	*property_find __P((properties list, const char *name));
 char	*auth_getval __P((const char *name));
