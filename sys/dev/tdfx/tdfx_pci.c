@@ -202,7 +202,7 @@ tdfx_attach(device_t dev) {
 
 	/* Notify the VM that we will be mapping some memory later */
 	tdfx_info->memrange = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1,
-			RF_ACTIVE);
+			RF_ACTIVE | RF_SHAREABLE);
 	if(tdfx_info->memrange == NULL) {
 #ifdef DEBUG
 		device_printf(dev, "Error mapping mem, won't be able to use mmap()\n");
