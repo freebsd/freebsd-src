@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_targetio.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_targetio.h,v 1.2 1999/03/05 23:25:11 gibbs Exp $
  */
 
 #ifndef _CAM_SCSI_SCSI_TARGETIO_H_
@@ -38,13 +38,17 @@
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
+TAILQ_HEAD(ccb_queue, ccb_hdr);
+
 /* Determine and clear exception state in the driver */
 typedef enum {
 	TARG_EXCEPT_NONE	   = 0x00,
 	TARG_EXCEPT_DEVICE_INVALID = 0x01,
 	TARG_EXCEPT_BDR_RECEIVED   = 0x02,
 	TARG_EXCEPT_BUS_RESET_SEEN = 0x04,
-	TARG_EXCEPT_UNKNOWN_ATIO   = 0x08,
+	TARG_EXCEPT_ABORT_SEEN	   = 0x08,
+	TARG_EXCEPT_ABORT_TAG_SEEN = 0x10,
+	TARG_EXCEPT_UNKNOWN_ATIO   = 0x80
 } targ_exception;
 
 #define TARGIOCFETCHEXCEPTION	_IOR('C', 1, targ_exception)
@@ -68,7 +72,8 @@ typedef enum {
 typedef enum {
 	UA_NONE		= 0x00,
 	UA_POWER_ON	= 0x01,
-	UA_BUS_RESET	= 0x02
+	UA_BUS_RESET	= 0x02,
+	UA_BDR		= 0x04
 } ua_types;
 
 typedef enum {
@@ -81,6 +86,7 @@ struct initiator_state {
 	ua_types   pending_ua;
 	ca_types   pending_ca;
 	struct	   scsi_sense_data sense_data;
+	struct	   ccb_queue held_queue;
 };
 
 struct ioc_initiator_state {
