@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins
+ * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,7 @@ main(int argc, char *argv[])
 
 	/* Invalid code. */
 	assert(wctomb(buf, UCHAR_MAX + 1) == -1);
+	assert(wctomb(NULL, 0) == 0);
 
 	/*
 	 * Japanese (EUC) locale.
