@@ -610,7 +610,7 @@ p_status:
 	mvi	0xc0		call scsisig	# CDO|IOO|!MSGO
 
 	mvi	SCBARRAY+14	call inb_first
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 #  Message out phase.  If there is no active message, but the target
 #  took us into this phase anyway, build a no-op message and send it.
@@ -698,8 +698,34 @@ p_mesgin:
 	mvi	A		call inb_first	# read the 1st message byte
 	mvi	REJBYTE,A			# save it for the driver
 
-	cmp	ALLZEROS,A	jne p_mesgin1
+	test	A,0x80		jnz mesgin_identify	# identify message?
+	cmp	A,4		je mesgin_disconnect	# disconnect?
+	cmp	A,2		je mesgin_sdptrs	# save data pointers?
+	cmp	ALLZEROS,A	je mesgin_complete	# command complete?
+	cmp	A,3		je mesgin_rdptrs	# restore pointers code?
+	cmp	A,1		je mesgin_extended	# extended message?
+	cmp	A,7		je mesgin_reject	# message reject code?
 
+rej_mesgin:
+#  We have no idea what this message in is, and there's no way
+#  to pass it up to the kernel, so we issue a message reject and
+#  hope for the best.  Since we're now using manual PIO mode to
+#  read in the message, there should no longer be a race condition
+#  present when we assert ATN.  In any case, rejection should be a
+#  rare occurrence - signal the driver when it happens.
+#
+	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
+	call	scsisig
+	mvi	INTSTAT,SEND_REJECT		# let driver know
+
+	mvi	0x7		call mk_mesg	# MESSAGE REJECT message
+
+mesgin_done:
+	call	inb_last			# ack & turn auto PIO back on
+	jmp	ITloop
+
+
+mesgin_complete:
 #  We got a "command complete" message, so put the SCB pointer
 #  into the Queue Out, and trigger a completion interrupt.
 #  Check status for non zero return and interrupt driver if needed
@@ -722,7 +748,7 @@ check_status:
 	test	SCBARRAY+14,0xff	jz status_ok	# 0 Status?
 	mvi	INTSTAT,BAD_STATUS			# let driver know
 	test	RETURN_1, 0x80	jz status_ok
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 status_ok:
 #  First, mark this target as free.
@@ -745,7 +771,7 @@ clear_a:
 complete:
 	mov	QOUTFIFO,SCBPTR
 	mvi	INTSTAT,CMDCMPLT
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 # If we have a residual count, interrupt and tell the host.  Other
 # alternatives are to pause the sequencer on all command completes (yuck),
@@ -764,21 +790,19 @@ resid:
 #  apparently this can be done after any message in byte, according
 #  to the SCSI-2 spec.
 #
-p_mesgin1:
-	cmp	A,1		jne p_mesgin2	# extended message code?
-	
+mesgin_extended:
 	mvi	ARG_1		call inb_next	# extended message length
 	mvi	A		call inb_next	# extended message code
 
 	cmp	A,1		je p_mesginSDTR	# Syncronous negotiation message
 	cmp	A,3		je p_mesginWDTR # Wide negotiation message
-	jmp	p_mesginN
+	jmp	rej_mesgin
 
 p_mesginWDTR:
-	cmp	ARG_1,2		jne p_mesginN	# extended mesg length = 2
+	cmp	ARG_1,2		jne rej_mesgin	# extended mesg length=2
 	mvi	A		call inb_next	# Width of bus
 	mvi	INTSTAT,MSG_WDTR		# let driver know
-	test	RETURN_1,0x80	jz p_mesgin_done# Do we need to send WDTR?
+	test	RETURN_1,0x80	jz mesgin_done# Do we need to send WDTR?
 
 # We didn't initiate the wide negotiation, so we must respond to the request
 	and	RETURN_1,0x7f			# Clear the SEND_WDTR Flag
@@ -787,61 +811,53 @@ p_mesginWDTR:
 	mvi	MSG_START+0	call mk_wdtr	# build WDTR message	
 	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
 	call	scsisig
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 p_mesginSDTR:
-	cmp	ARG_1,3		jne p_mesginN	# extended mesg length = 3
+	cmp	ARG_1,3		jne rej_mesgin	# extended mesg length=3
 	mvi	ARG_1		call inb_next	# xfer period
 	mvi	A		call inb_next	# REQ/ACK offset
 	mvi	INTSTAT,MSG_SDTR		# call driver to convert
 
-	test	RETURN_1,0xc0	jz p_mesgin_done# Do we need to mk_sdtr or rej?
-	test	RETURN_1,0x40	jnz p_mesginN	# Requested SDTR too small - rej
+	test	RETURN_1,0xc0	jz mesgin_done# Do we need to mk_sdtr or rej?
+	test	RETURN_1,0x40	jnz rej_mesgin	# Requested SDTR too small - rej
 	or	FLAGS,ACTIVE_MSG
 	mvi	DINDEX, MSG_START+0
 	mvi     MSG_START+0     call mk_sdtr
 	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
 	call	scsisig
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 #  Is it a disconnect message?  Set a flag in the SCB to remind us
 #  and await the bus going free.
 #
-p_mesgin2:
-	cmp	A,4		jne p_mesgin3	# disconnect code?
-
+mesgin_disconnect:
 	or	SCBARRAY+0,DISCONNECTED
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 #  Save data pointers message?  Copy working values into the SCB,
 #  usually in preparation for a disconnect.
 #
-p_mesgin3:
-	cmp	A,2		jne p_mesgin4	# save data pointers code?
-
+mesgin_sdptrs:
 	call	sg_ram2scb
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 #  Restore pointers message?  Data pointers are recopied from the
 #  SCB anytime we enter a data phase for the first time, so all
 #  we need to do is clear the DPHASE flag and let the data phase
 #  code do the rest.
 #
-p_mesgin4:
-	cmp	A,3		jne p_mesgin5	# restore pointers code?
-
+mesgin_rdptrs:
 	and	FLAGS,0xfb			# !DPHASE we'll reload them
 						#   the next time through
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 #  Identify message?  For a reconnecting target, this tells us the lun
 #  that the reconnection is for - find the correct SCB and switch to it,
 #  clearing the "disconnected" bit so we don't "find" it by accident later.
 #
-p_mesgin5:
-	test	A,0x80		jz p_mesgin6	# identify message?
-
-	test	A,0x78		jnz p_mesginN	# !DiscPriv|!LUNTAR|!Reserved
+mesgin_identify:
+	test	A,0x78		jnz rej_mesgin	# !DiscPriv|!LUNTAR|!Reserved
 
 	and	A,0x07				# lun in lower three bits
 	or      SAVED_TCL,A,SELID          
@@ -878,34 +894,12 @@ abort_tag:
 #  the target selecting 8bit or asynchronous transfer, otherwise just ignore 
 #  it since we have no clue what it pertains to.
 #
-p_mesgin6:
-	cmp	A,7		jne p_mesgin7	# message reject code?
-
+mesgin_reject:
 	mvi	INTSTAT, MSG_REJECT
-	jmp	p_mesgin_done
+	jmp	mesgin_done
 
 #  [ ADD MORE MESSAGE HANDLING HERE ]
 #
-p_mesgin7:
-
-#  We have no idea what this message in is, and there's no way
-#  to pass it up to the kernel, so we issue a message reject and
-#  hope for the best.  Since we're now using manual PIO mode to
-#  read in the message, there should no longer be a race condition
-#  present when we assert ATN.  In any case, rejection should be a
-#  rare occurrence - signal the driver when it happens.
-#
-p_mesginN:
-	or	SINDEX,0x10,SIGSTATE		# turn on ATNO
-	call	scsisig
-	mvi	INTSTAT,SEND_REJECT		# let driver know
-
-	mvi	0x7		call mk_mesg	# MESSAGE REJECT message
-
-p_mesgin_done:
-	call	inb_last			# ack & turn auto PIO back on
-	jmp	ITloop
-
 
 #  Bus free phase.  It might be useful to interrupt the device
 #  driver if we aren't expecting this.  For now, make sure that
