@@ -160,6 +160,9 @@ True if the difference between the file last access time and the time
 was started, rounded up to the next full minute, is
 .Ar n
 minutes.
+.It Ic -anewer Ar file
+Same as
+.Ic -neweram  .
 .It Ic -atime Ar n 
 True if the difference between the file last access time and the time
 .Nm
@@ -173,6 +176,9 @@ information and the time
 was started, rounded up to the next full minute, is
 .Ar n
 minutes.
+.It Ic -cnewer Ar file
+Same as
+.Ic -newercm  .
 .It Ic -ctime Ar n 
 True if the difference between the time of last change of file status
 information and the time
@@ -256,6 +262,9 @@ will be displayed instead of the size in bytes.
 If the file is a symbolic link, the pathname of the linked\-to file will be
 displayed preceded by ``\->''.
 The format is identical to that produced by ``ls \-dgils''.
+.It Ic -mnewer Ar file
+Same as
+.Ic -newer  .
 .It Ic -maxdepth Ar n
 True if the depth of the current file into the tree is less than or equal to
 .Ar n .
@@ -287,6 +296,14 @@ If the response is other than ``y'' the command is not executed and the
 value of the
 .Ar \&ok
 expression is false.
+.It Ic \&-okdir Ar utility Op argument ... ;
+The
+.Ic \&-okdir
+primary is identical to the
+.Ic -execdir
+primary with the same exception as described for the
+.Ic \&-ok
+primary.
 .It Ic -name Ar pattern 
 True if the last component of the pathname being examined matches
 .Ar pattern  .
@@ -312,6 +329,46 @@ but the match is case insensitive.
 .It Ic -newer Ar file 
 True if the current file has a more recent last modification time than
 .Ar file  .
+.It Ic -newerXY Ar file
+True if the current file has a more recent last access time (
+.Ic X
+=
+.Ic a
+), change time (
+.Ic X
+=
+.Ic c
+), or modification time (
+.Ic X
+=
+.Ic m
+) than the last access time (
+.Ic Y
+=
+.Ic a
+), change time (
+.Ic Y
+=
+.Ic c
+), or modification time (
+.Ic Y
+=
+.Ic m
+) of
+.Ar file  .
+In addition, if
+.Ic Y
+=
+.Ic t  ,
+then
+.Ar file
+is instead interpreted as a direct date specification of the form
+understood by
+.Xr cvs 1  .
+Note that
+.Ic -newermm
+is equivalent to
+.Ic -newer  .
 .It Ic -nouser
 True if the file belongs to an unknown user.
 .It Ic -nogroup
@@ -512,10 +569,14 @@ and owned by ``wnj''.
 .It Li "find  /  \e(  -newer  ttt  -or  -user wnj  \e)  -print"
 Print out a list of all the files that are either owned by ``wnj'' or
 that are newer than ``ttt''.
+.It Li "find  .  -newerct '1 minute ago'  -print"
+Print out a list of all the files whose inode change time is more
+recent than the current time minus one minute.
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
+.Xr cvs 1 ,
 .Xr locate 1 ,
 .Xr whereis 1 ,
 .Xr which 1 ,
