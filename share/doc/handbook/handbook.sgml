@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: handbook.sgml,v 1.68 1997/02/22 12:58:34 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -20,7 +20,7 @@
 %sections;
 
 <!-- The currently released version of FreeBSD -->
-<!ENTITY rel.current CDATA "2.1.7">
+<!ENTITY rel.current CDATA "2.2.1">
 
 ]>
 
@@ -31,7 +31,7 @@
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>February 1997</date>
+      <date>April 1997</date>
 
 <abstract>Welcome to FreeBSD!  This handbook covers the
 installation and day to day use of <bf>FreeBSD Release
