@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"      $FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd August 7, 2003
 .Dt IASL 8
@@ -62,80 +62,98 @@
 The
 .Nm
 utility is a compiler/decompiler for ACPI Source Language (ASL)
-and ACPI Machine Language (AML).  Major features of
+and ACPI Machine Language (AML).
+Major features of
 .Nm
 include:
-.Pp
-.Bl -bullet -compact -offset indent
+.Bl -bullet -offset indent
 .It
 Full support for the ACPI 2.0b Specification including ASL grammar
 elements and operators.
 .It
 Extensive compiler syntax and semantic error checking, especially in
-the area of control methods. This reduces the number of errors that are
+the area of control methods.
+This reduces the number of errors that are
 not discovered until the AML code is actually interpreted (i.e., the
-compile-time error checking reduces the number of run-time errors.)
+compile-time error checking reduces the number of run-time errors).
 .It
 Multiple types of output files, including formatted listing files with
 intermixed source, several types of AML files, and error messages.
 .El
 .Sh OPTIONS
 .Bl -tag -width indent
-.It Fl b Ar p|t|b
-Create compiler debug/trace file (*.txt). Types: Parse/Tree/Both
+.It Fl b Sm Cm p | t | b Sm
+Create compiler debug/trace file
+.Pq Pa *.txt .
+Types: Parse/Tree/Both.
 .It Fl c
-Parse only, no output generation
+Parse only, no output generation.
 .It Fl d Ar file
-Disassemble AML to ASL source code file (*.dsl)
+Disassemble AML to ASL source code file
+.Pq Pa *.dsl .
 .It Fl dc Ar file
-Disassemble AML and immediately compile it
-(Obtain DSDT from current system if no input file)
+Disassemble AML and immediately compile it.
+(Obtain DSDT from current system if no input file.)
 .It Fl e
-Generate External() statements for unresolved symbols
+Generate
+.Fn External
+statements for unresolved symbols.
 .It Fl f
-Ignore errors, force creation of AML output file(s)
+Ignore errors, force creation of AML output file(s).
 .It Fl g
-Get ACPI tables and write to files (*.dat)
+Get ACPI tables and write to files
+.Pq Pa *.dat .
 .It Fl h
-Additional help and compiler debug options
+Additional help and compiler debug options.
 .It Fl hc
-Display operators allowed in constant expressions
+Display operators allowed in constant expressions.
 .It Fl hr
-Display ACPI reserved method names
-.It Fl i Ar a|c
-Create assembler or C include file (*.inc or *.h)
+Display ACPI reserved method names.
+.It Fl i Sm Cm a | c Sm
+Create assembler or C include file
+.Pa ( *.inc
+or
+.Pa *.h ) .
 .It Fl l
-Create mixed listing file (ASL source and AML) (*.lst)
+Create mixed listing file (ASL source and AML)
+.Pq Pa *.lst .
 .It Fl ln
-Create namespace file (*.nsp)
+Create namespace file
+.Pq Pa *.nsp .
 .It Fl ls
-Create combined source file (expanded includes) (*.src)
+Create combined source file (expanded includes)
+.Pq Pa *.src .
 .It Fl oa
-Disable all optimizations (compatibility mode)
+Disable all optimizations (compatibility mode).
 .It Fl of
-Disable constant folding
+Disable constant folding.
 .It Fl oi
-Disable integer optimization to Zero/One/Ones
+Disable integer optimization to Zero/One/Ones.
 .It Fl on
-Disable named reference string optimization
+Disable named reference string optimization.
 .It Fl ot
-Display compile times
+Display compile times.
 .It Fl p Ar prefix
-Specify filename prefix for all output files (including .aml)
-.It Fl s Ar a|c
-Create AML in assembler or C source file (*.asm or *.c)
+Specify filename prefix for all output files (including
+.Pa .aml ) .
+.It Fl s Sm Cm a | c Sm
+Create AML in assembler or C source file
+.Pa ( *.asm
+or
+.Pa *.c ) .
 .It Fl t Ar a|c
-Create AML in assembler or C hex table (*.hex)
+Create AML in assembler or C hex table
+.Pq Pa *.hex .
 .It Fl vi
-Less verbose errors and warnings for use with IDEs
+Less verbose errors and warnings for use with IDEs.
 .It Fl vo
-Enable optimization comments
+Enable optimization comments.
 .It Fl vr
-Disable remarks
+Disable remarks.
 .It Fl vs
-Disable signon
+Disable signon.
 .It Fl x Ar level
-Set debug level for trace output
+Set debug level for trace output.
 .El
 .Sh SEE ALSO
 .Xr acpi 4 ,
@@ -143,7 +161,8 @@ Set debug level for trace output
 .Sh HISTORY
 The
 .Nm
-utility is provided with Intel ACPI-CA.  It first appeared in
+utility is provided with Intel ACPI-CA.
+It first appeared in
 .Fx 5.2 .
 .Sh AUTHORS
 .An -nosplit

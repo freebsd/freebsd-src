@@ -35,22 +35,34 @@
 .Os
 .Sh NAME
 .Nm ndiscvt
-.Nd Convert Windows(r) NDIS drivers for use with FreeBSD
+.Nd convert
+.Tn Windows\[rg]
+NDIS drivers for use with
+.Fx
 .Sh SYNOPSIS
 .Nm
-.Op Fl i Ar <inffile>
-.Fl s Ar <sysfile>
+.Op Fl i Ar inffile
+.Fl s Ar sysfile
 .Op Fl n Ar devname
-.Op Fl o Ar <outfile>
+.Op Fl o Ar outfile
 .Sh DESCRIPTION
 The
 .Nm
-utility transforms a Windows(r) NDIS driver into a data file which
+utility transforms a
+.Tn Windows\[rg]
+NDIS driver into a data file which
 is used to build an
 .Xr ndis 4
-compatibility driver module. Windows(r) drivers consist of two main
-parts: a .SYS file, which contains the actual driver executable code,
-and a .INF file, which provides the Windows(r) installer with device
+compatibility driver module.
+.Tn Windows\[rg]
+drivers consist of two main parts: a
+.Pa .SYS
+file, which contains the actual driver executable code,
+and an
+.Pa .INF
+file, which provides the
+.Tn Windows\[rg]
+installer with device
 identifier information and a list of driver-specific registry keys.
 The
 .Nm
@@ -62,19 +74,27 @@ the
 .Fx
 kernel.
 .Pp
-The .INF file is typically required since only it contains device
+The
+.Pa .INF
+file is typically required since only it contains device
 identification data such as PCI vendor and device IDs or PCMCIA
-indentifier strings. The .INF file may be optionally omitted however,
+indentifier strings.
+The
+.Pa .INF
+file may be optionally omitted however,
 in which case the
 .Nm
-utility will only perform the conversion of the .SYS file. This is
-useful for debugging purposes only.
-.Pp
+utility will only perform the conversion of the
+.Pa .SYS
+file.
+This is useful for debugging purposes only.
 .Sh OPTIONS
 The options are as follows:
 .Bl -tag -width indent
-.It Op Fl i Ar <inffile>
-Open and parse the specified .INF file when performing conversion.
+.It Fl i Ar inffile
+Open and parse the specified
+.Pa .INF
+file when performing conversion.
 The
 .Nm
 utility will parse this file and emit a device identification
@@ -87,26 +107,38 @@ kernel subsystem.
 If this is omitted,
 .Nm
 will emit a dummy configuration structure only.
-.It Fl s Ar <sysfile>
-Open and parse the specified .SYS file. This file must contain
-a Windows(r) driver image. The
+.It Fl s Ar sysfile
+Open and parse the specified
+.Pa .SYS
+file.
+This file must contain a
+.Tn Windows\[rg]
+driver image.
+The
 .Nm
 utility will perform some manipulation of the sections within the
 executable file to make runtime linking within the kernel a little
 easier and then convert the image into a data array.
-.It Op Fl n Ar devname
+.It Fl n Ar devname
 Specify an alternate name for the network device/interface which will
-be created when the driver is instantiated. If you need to load more
-than one NDIS driver into your system (i.e. if you have two different
+be created when the driver is instantiated.
+If you need to load more
+than one NDIS driver into your system (i.e., if you have two different
 network cards in your system which require NDIS driver support), each
-module you create must have a unique name. Device can not be larger
-than IFNAMSIZ. If no name is specified, the driver will use the
-default a default name (``ndis'').
-.It Op Fl o Ar <outfile>
-Specify the output file in which to place the resulting data. This
-can be any file pathname. If
-.Ar <outfile>
-is a single dash, the data will be written to the standard output.
+module you create must have a unique name.
+Device can not be larger than
+.Dv IFNAMSIZ .
+If no name is specified, the driver will use the
+default a default name
+.Pq Dq Li ndis .
+.It Fl o Ar outfile
+Specify the output file in which to place the resulting data.
+This can be any file pathname.
+If
+.Ar outfile
+is a single dash
+.Pq Sq Fl ,
+the data will be written to the standard output.
 The
 .Pa if_ndis.c
 module expects to find the driver data in a file called
@@ -120,8 +152,9 @@ so it is recommended that this name be used.
 The
 .Nm
 utility first appeared in
-.Fx 5.3.
+.Fx 5.3 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 utility was written by
@@ -130,5 +163,6 @@ The
 .Xr lex 1
 and
 .Xr yacc 1
-INF file parser was written by
-.An Matthew Dodd Aq mdodd@freebsd.org .
+.Pa INF
+file parser was written by
+.An Matthew Dodd Aq mdodd@FreeBSD.org .

@@ -42,14 +42,16 @@ Bluetooth link keys/PIN codes management daemon.
 .Pp
 The
 .Nm
-file is a free-form ASCII text file.
+file is a free-form
+.Tn ASCII
+text file.
 It is parsed by the recursive-descent parser built into
 .Xr hcsecd 8 .
 The file may contain extra tabs and newlines for formatting purposes.
 Keywords in the file are case-sensitive.
 Comments may be placed anywhere within the file (except within quotes).
 Comments begin with the
-.Dq #
+.Ql #
 character and end at the end of the line.
 .Sh FILE FORMAT
 The
@@ -74,29 +76,29 @@ entry
 .Oc
 }
 .Pp
-The following section describes all supported options and arguments
+The following section describes all supported options and arguments.
 .Bl -tag -width indent
 .It Cm bdaddr Ar BD_ADDR
 Specify remote device BD_ADDR for the entry.
 .It Cm name Ar device_name
 Specify user friendly name for the entry.
-Name is a string in a straight double quotes.
+Name is a string in straight double quotes.
 .It Cm key Ar link_key
 Specify link key for the entry.
-Link key is hexadecimal string upto 32 characters in length starting with
-.Dq 0x .
+Link key is hexadecimal string up to 32 characters in length starting with
+.Ql 0x .
 .It Cm key nokey
 Specify no link key for the entry.
 .It Cm pin Ar PIN_code
 Specify PIN code for the entry.
-PIN code is a string upto 16 characters in length in a straight double quotes.
+PIN code is a string up to 16 characters in length in straight double quotes.
 .It Cm pin nopin
 Specify no PIN code for the entry.
 .El
 .Sh EXAMPLES
 A sample
 .Nm
-file
+file:
 .Bd -literal
 # Default entry is applied if no better match found
 # It MUST have 00:00:00:00:00:00 as bdaddr
