@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.15 1995/10/20 07:02:32 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.16 1995/10/20 07:37:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,8 +88,6 @@ get_new_host(Device *dev)
 	dev->shutdown(dev);
 	i = dev->init(dev);
     }
-    else
-	dev->shutdown(dev);
     return i ? RET_SUCCESS : RET_FAIL;
 }
 
