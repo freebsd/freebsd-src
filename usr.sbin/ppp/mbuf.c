@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.18 1998/06/27 23:48:50 brian Exp $
+ * $Id: mbuf.c,v 1.19 1998/08/07 18:42:50 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -38,7 +38,7 @@
 
 static struct memmap {
   struct mbuf *queue;
-  int count;
+  int fragments, octets;
 } MemMap[MB_MAX + 2];
 
 static int totalalloced;
@@ -73,7 +73,8 @@ mbuf_Alloc(int cnt, int type)
     log_Printf(LogALERT, "failed to allocate memory: %d\n", cnt);
     AbortProgram(EX_OSERR);
   }
-  MemMap[type].count += cnt;
+  MemMap[type].fragments++;
+  MemMap[type].octets += cnt;
   totalalloced += cnt;
   bp->base = p;
   bp->size = bp->cnt = cnt;
@@ -89,7 +90,8 @@ mbuf_FreeSeg(struct mbuf * bp)
 
   if (bp) {
     nbp = bp->next;
-    MemMap[bp->type].count -= bp->size;
+    MemMap[bp->type].fragments--;
+    MemMap[bp->type].octets -= bp->size;
     totalalloced -= bp->size;
     free(bp->base);
     free(bp);
@@ -157,13 +159,15 @@ mbuf_Show(struct cmdargs const *arg)
     "async", "fsm", "cbcp", "hdlcout", "ipin", "echo", "lqr", "link",
     "vjcomp", "ipq", "mp" };
 
+  prompt_Printf(arg->prompt, "Fragments (octets) in use:\n");
   for (i = 1; i < MB_MAX; i += 2)
-    prompt_Printf(arg->prompt, "%10.10s: %04d\t%10.10s: %04d\n",
-	    mbuftype[i-1], MemMap[i].count, mbuftype[i], MemMap[i+1].count);
+    prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\t%10.10s: %04d (%06d)\n",
+	    mbuftype[i-1], MemMap[i].fragments, MemMap[i].octets, mbuftype[i],
+            MemMap[i+1].fragments, MemMap[i+1].octets);
 
   if (i == MB_MAX)
-    prompt_Printf(arg->prompt, "%10.10s: %04d\n",
-                  mbuftype[i-1], MemMap[i].count);
+    prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\n",
+                  mbuftype[i-1], MemMap[i].fragments, MemMap[i].octets);
 
   return 0;
 }
@@ -173,11 +177,11 @@ mbuf_Log()
 {
   log_Printf(LogDEBUG, "mbuf_Log: mem alloced: %d\n", totalalloced);
   log_Printf(LogDEBUG, "mbuf_Log:  1: %d  2: %d   3: %d   4: %d\n",
-	MemMap[1].count, MemMap[2].count, MemMap[3].count, MemMap[4].count);
+	MemMap[1].octets, MemMap[2].octets, MemMap[3].octets, MemMap[4].octets);
   log_Printf(LogDEBUG, "mbuf_Log:  5: %d  6: %d   7: %d   8: %d\n",
-	MemMap[5].count, MemMap[6].count, MemMap[7].count, MemMap[8].count);
+	MemMap[5].octets, MemMap[6].octets, MemMap[7].octets, MemMap[8].octets);
   log_Printf(LogDEBUG, "mbuf_Log:  9: %d 10: %d  11: %d\n",
-	MemMap[9].count, MemMap[10].count, MemMap[11].count);
+	MemMap[9].octets, MemMap[10].octets, MemMap[11].octets);
 }
 
 struct mbuf *
