@@ -286,6 +286,17 @@ intrcnt_register(struct intsrc *is)
 	is->is_straycount = &intrcnt[is->is_index + 1];
 }
 
+void
+intrcnt_add(const char *name, u_long **countp)
+{
+
+	mtx_lock_spin(&intr_table_lock);
+	*countp = &intrcnt[intrcnt_index];
+	intrcnt_setname(name, intrcnt_index);
+	intrcnt_index++;
+	mtx_unlock_spin(&intr_table_lock);
+}
+
 static void
 intr_init(void *dummy __unused)
 {
