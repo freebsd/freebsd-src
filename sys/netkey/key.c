@@ -6952,11 +6952,6 @@ key_parse(m, so)
 	if (error)
 		return error;
 
-	if (m->m_next) {	/*XXX*/
-		m_freem(m);
-		return ENOBUFS;
-	}
-
 	msg = mh.msg;
 
 	/* check SA type */
