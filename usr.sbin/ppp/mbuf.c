@@ -165,7 +165,7 @@ mbuf_Prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
       return bp;
     }
     len -= bp->offset;
-    memcpy(bp + sizeof *bp, (const char *)ptr + len, bp->offset);
+    memcpy(bp + 1, (const char *)ptr + len, bp->offset);
     bp->cnt += bp->offset;
     bp->offset = 0;
   }
