@@ -88,9 +88,11 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # I/O device(s).
 #
 # CPU_DISABLE_CMPXCHG disables the CMPXCHG instruction on > i386 IA32
-# machines.  VmWare seems to emulate this instruction poorly, causing
-# the guest OS to run very slowly.  Enabling this with an SMP kernel
-# will cause the kernel to be unusable.
+# machines.  VmWare 3.x seems to emulate this instruction poorly, causing
+# the guest OS to run very slowly.  This problem appears to be fixed in
+# VmWare 4.x, at least in version 4.5.2, so that enabling this option with
+# VmWare 4.x will result in locking operations to be 20-30 times slower.
+# Enabling this with an SMP kernel will cause the kernel to be unusable.
 #
 # CPU_DISABLE_SSE explicitly prevents I686_CPU from turning on SSE.
 #
