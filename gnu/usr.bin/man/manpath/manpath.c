@@ -423,6 +423,14 @@ get_manpath (perrs, path)
       if (debug)
 	fprintf (stderr, "\npath directory %s ", p);
 
+      if (*p != '/')
+	{
+	  if (debug)
+	    fprintf (stderr, "is not an absolute pathname\n");
+
+	  goto found;	/* skip. */
+	}
+
       /*
        * The directory we're working on is in the config file.
        * If we haven't added it to the list yet, do.
