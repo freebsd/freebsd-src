@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
 
@@ -32,10 +30,11 @@ up-to-date.  Many thanks.
 
 ******************************************************************/
 
-#include <sys/types.h>
-#include <sys/file.h>
-#include <err.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <ctype.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -112,6 +111,7 @@ getline(int fd)
 	}
 	if (cptr == cend) {
 	    cptr = curline = (char *) realloc(curline, curlen *= 2);
+	    if (!curline) nomem();
 	    cend = curline + curlen;
 	}
     }
@@ -169,6 +169,7 @@ getmsg(int fd, char *cptr, char quote)
     if (clen > msglen) {
 	if (msglen) msg = (char *) realloc(msg, clen);
 	else msg = (char *) malloc(clen);
+	if (!msg) nomem();
 	msglen = clen;
     }
     tptr = msg;
@@ -192,6 +193,7 @@ getmsg(int fd, char *cptr, char quote)
 		msglen += strlen(cptr);
 		i = tptr - msg;
 		msg = (char *) realloc(msg, msglen);
+		if (!msg) nomem();
 		tptr = msg + i;
 		break;
 

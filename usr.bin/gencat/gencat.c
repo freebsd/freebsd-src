@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
 
@@ -32,7 +30,9 @@ up-to-date.  Many thanks.
 
 ******************************************************************/
 
-#include <sys/types.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -46,7 +46,7 @@ up-to-date.  Many thanks.
  * The spec says the syntax is "gencat catfile msgfile...".
  * We extend it to:
  * 	gencat [-lang C|C++|ANSIC] catfile msgfile [-h <header-file>]...
- * Flags are order dependant, we'll take whatever lang was most recently chosen
+ * Flags are order dependent, we'll take whatever lang was most recently chosen
  * and use it to generate the next header file.  The header files are generated
  * at the point in the command line they are listed.  Thus the sequence:
  *	gencat -lang C foo.cat foo.mcs -h foo.h -lang C++ bar.mcs -h bar.H
