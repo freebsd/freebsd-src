@@ -657,6 +657,18 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Intel Integrated RAID Controllers (iir driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Intel RAID Controller SRCMR</para>
+        </listitem>
+        <listitem>
+	  <para>ICP Vortex SCSI RAID controllers (all Wide/Ultra160,
+	  32-bit/64-bit PCI models)</para>
+        </listitem>
+      </itemizedlist>
+    </para>
+
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
     hard disks, optical disks, tape drives (including DAT, 8mm
