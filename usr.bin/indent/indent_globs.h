@@ -303,6 +303,7 @@ struct parser_state {
     int         else_if;	/* True iff else if pairs should be handled
 				 * specially */
     int         decl_indent;	/* column to indent declared identifiers to */
+    int         local_decl_indent;	/* like decl_indent but for locals */
     int         its_a_keyword;
     int         sizeof_keyword;
     int         dumped_decl_indent;
