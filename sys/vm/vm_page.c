@@ -720,7 +720,8 @@ vm_page_select_cache(int color)
 		m = vm_pageq_find(PQ_CACHE, color, FALSE);
 		if (m && ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
 			       m->hold_count || m->wire_count ||
-			  !VM_OBJECT_TRYLOCK(m->object))) {
+			  (!VM_OBJECT_TRYLOCK(m->object) &&
+			   !VM_OBJECT_LOCKED(m->object)))) {
 			vm_page_deactivate(m);
 			continue;
 		}
@@ -810,7 +811,8 @@ loop:
 		pmap_remove_all(m);
 		vm_page_free(m);
 		vm_page_unlock_queues();
-		VM_OBJECT_UNLOCK(m_object);
+		if (m_object != object)
+			VM_OBJECT_UNLOCK(m_object);
 		goto loop;
 	} else {
 		/*
