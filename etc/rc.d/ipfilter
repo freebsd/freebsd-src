@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: ipfilter
-# REQUIRE: root beforenetlkm mountcritlocal tty ipmon
+# REQUIRE: root beforenetlkm mountcritlocal ipmon
 # BEFORE:  netif
 # KEYWORD: FreeBSD NetBSD
 
