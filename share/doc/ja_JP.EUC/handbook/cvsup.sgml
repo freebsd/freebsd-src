@@ -1,11 +1,11 @@
-<!-- $Id$ -->
+<!-- $Id: cvsup.sgml,v 1.7 1997/02/22 13:00:48 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.5 -->
+<!-- Original revision: 1.6 -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
 
 <p><em>原作: &a.jdp;</em>.
-<p><em>訳: &a.iwasaki;.<newline>14 February 1997.</em>
+<p><em>訳: &a.iwasaki;.<newline>22 February 1997.</em>
 
 <sect1><heading>CVSup の紹介<label id="cvsup:intro"></heading>
 
@@ -80,7 +80,7 @@ port や package をインストールする際に, これらのライブラリも自動的に
   (サーバ).
 </itemize>
 
-また、ドイツのミラーサイトは以下の通りです:
+また, ドイツのミラーサイトは以下の通りです:
 
 <itemize>
   <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz"
@@ -173,20 +173,19 @@ supfile の途中からデフォルト値の変更や追加が可能になります.
 
 <p>sup の場合と同様に, CVSup を通して入手できるファイルは
 「コレクション」と呼ばれる名前の付けられたグループにまとめられています. 
-FreeBSD のソースツリーを構成しているコレクションについては <ref id="sup:dists"
-name="SUP 配布ファイル"> の節で説明しています. ここでは, 
-FreeBSD システムのメインのソースツリー全体を受け取るための設定例を紹介します. 
+利用可能なコレクションについては<ref id="cvsup:collec" name="ここ">
+で説明しています. ここでは, FreeBSD システムのメインのソースツリー全体
+を受け取るための設定例を紹介します. 
 輸出規制されている暗号化サポートのコード以外のすべてを含む "src-all" という
 単一の大きなコレクションがあります. この例では私たちがアメリカ合衆国か
-カナダにいるものと仮定します. その場合, "src-eBones" および "src-secure" 
-の二つの付化的なコレクションで暗号化コードを入手することができます. supfile 
+カナダにいるものと仮定します. その場合, "cvs-crypto" という一つの付化的な
+コレクションで暗号化コードを入手することができます. supfile 
 を組み立てる最初のステップとして, これらのコレクションを一行に一つづつ
 記述します:
 
 <verb>
   src-all
-  src-eBones
-  src-secure
+  cvs-crypto
 </verb>
 
 <p><item>どのバージョンのものが欲しいのか?<label id="cvsup:config:vers">
@@ -333,8 +332,7 @@ status ファイルを維持しています. すでに受け取った更新情報を追従し続け
   *default base=/usr/local/etc/cvsup
   *default release=cvs delete use-rel-suffix compress
   src-all
-  src-eBones
-  src-secure
+  cvs-crypto
 </verb>
 </itemize>
 
@@ -397,6 +395,104 @@ status ファイルを維持しています. すでに受け取った更新情報を追従し続け
 <p>動作している更新の方法に満足したら, cron(8) を使って cvsup を定期的に
 実行させる準備をすることができます. cron から起動する際には, 明示的に 
 cvsup が GUI を使わないようにする必要があります. 
+
+<sect1><heading>CVSup ファイルコレクション<label id="cvsup:collec"></heading>
+
+<p>CVSup 経由で入手できるファイルコレクションは階層的に組織化されています. 
+いくつか大きなコレクションがあり, それらは小さなサブコレクションに
+分割されています. 大きなコレクションは, そのサブコレクション毎に
+受信することと同じことになります. 下の一覧ではコレクション間の階層関係を
+字下げして表現します. 
+
+<p> 最も一般的に使用するコレクションは <tt/src-all/, <tt/cvs-crypto/, 
+そして <tt/ports-all/ です. 他のコレクションは特別な目的を持つ人達だけが
+使用しており, ミラーサイトはそれらのすべてを持っていないかもしれません. 
+
+<descrip>
+<tag><tt>cvs-all release=cvs</tt></tag>
+メインの FreeBSD CVS リポジトリであり, 輸出規制された暗号化コードは含まれていません. 
+  <p>
+  <descrip>
+  <tag><tt>distrib release=cvs</tt></tag>
+  FreeBSD の配布とミラーに関連するファイルです. 
+  <tag><tt>ports-all release=cvs</tt></tag>
+  FreeBSD の ports コレクションです. 
+    <p>
+    <descrip>
+    <tag><tt>ports-archivers release=cvs</tt></tag><p>
+    <tag><tt>ports-astro release=cvs</tt></tag><p>
+    <tag><tt>ports-audio release=cvs</tt></tag><p>
+    <tag><tt>ports-base release=cvs</tt></tag><p>
+    <tag><tt>ports-benchmarks release=cvs</tt></tag><p>
+    <tag><tt>ports-cad release=cvs</tt></tag><p>
+    <tag><tt>ports-chinese release=cvs</tt></tag><p>
+    <tag><tt>ports-comms release=cvs</tt></tag><p>
+    <tag><tt>ports-databases release=cvs</tt></tag><p>
+    <tag><tt>ports-devel release=cvs</tt></tag><p>
+    <tag><tt>ports-editors release=cvs</tt></tag><p>
+    <tag><tt>ports-emulators release=cvs</tt></tag><p>
+    <tag><tt>ports-games release=cvs</tt></tag><p>
+    <tag><tt>ports-graphics release=cvs</tt></tag><p>
+    <tag><tt>ports-japanese release=cvs</tt></tag><p>
+    <tag><tt>ports-lang release=cvs</tt></tag><p>
+    <tag><tt>ports-mail release=cvs</tt></tag><p>
+    <tag><tt>ports-math release=cvs</tt></tag><p>
+    <tag><tt>ports-mbone release=cvs</tt></tag><p>
+    <tag><tt>ports-misc release=cvs</tt></tag><p>
+    <tag><tt>ports-net release=cvs</tt></tag><p>
+    <tag><tt>ports-news release=cvs</tt></tag><p>
+    <tag><tt>ports-plan9 release=cvs</tt></tag><p>
+    <tag><tt>ports-print release=cvs</tt></tag><p>
+    <tag><tt>ports-russian release=cvs</tt></tag><p>
+    <tag><tt>ports-security release=cvs</tt></tag><p>
+    <tag><tt>ports-shells release=cvs</tt></tag><p>
+    <tag><tt>ports-sysutils release=cvs</tt></tag><p>
+    <tag><tt>ports-vietnamese release=cvs</tt></tag><p>
+    <tag><tt>ports-www release=cvs</tt></tag><p>
+    <tag><tt>ports-x11 release=cvs</tt></tag><p>
+    </descrip>
+  <tag><tt>src-all release=cvs</tt></tag>
+  メインの FreeBSD ソース群であり, 輸出規制された暗号化コードは含まれていません. 
+    <p>
+    <descrip>
+    <tag><tt>src-base/cvs</tt></tag><p>
+    <tag><tt>src-bin/cvs</tt></tag><p>
+    <tag><tt>src-contrib/cvs</tt></tag><p>
+    <tag><tt>src-etc/cvs</tt></tag><p>
+    <tag><tt>src-games/cvs</tt></tag><p>
+    <tag><tt>src-gnu/cvs</tt></tag><p>
+    <tag><tt>src-include/cvs</tt></tag><p>
+    <tag><tt>src-lib/cvs</tt></tag><p>
+    <tag><tt>src-libexec/cvs</tt></tag><p>
+    <tag><tt>src-release/cvs</tt></tag><p>
+    <tag><tt>src-sbin/cvs</tt></tag><p>
+    <tag><tt>src-share/cvs</tt></tag><p>
+    <tag><tt>src-sys/cvs</tt></tag><p>
+    <tag><tt>src-tools/cvs</tt></tag><p>
+    <tag><tt>src-usrbin/cvs</tt></tag><p>
+    <tag><tt>src-usrsbin/cvs</tt></tag><p>
+    </descrip>
+  <tag><tt>www release=cvs</tt></tag>
+  World Wide Web のデータ用のソースです. 
+  </descrip>
+<tag><tt>cvs-crypto release=cvs</tt></tag>
+輸出規制された暗号化コードです. 
+<p>
+  <descrip>
+  <tag><tt>src-eBones release=cvs</tt></tag><p>
+  <tag><tt>src-secure release=cvs</tt></tag><p>
+  </descrip>
+<tag><tt>distrib release=self</tt></tag>
+CVSup サーバ自身のコンフィグレーションファイルです. 
+<tag><tt>gnats release=current</tt></tag>
+GNATS バグトラッキングデータベースです. 
+<tag><tt>src-sys release=lite2</tt></tag>
+lite2 kernel のマージ用の CVS リポジトリです. 
+<tag><tt>src-sys release=smp</tt></tag>
+SMP プロジェクト用の CVS リポジトリです. 
+<tag><tt>www release=current</tt></tag>
+インストールされた World Wide Web のデータです. 
+</descrip>
 
 <sect1><heading>CVSup のアナウンス, 質問およびバグ報告</heading>
 
