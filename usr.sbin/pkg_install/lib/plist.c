@@ -428,9 +428,9 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	case PLIST_UNEXEC:
 	    format_cmd(tmp, p->name, Where, last_file);
 	    if (Verbose)
-		printf("Execute `%s'\n", tmp);
+		printf("Execute '%s'\n", tmp);
 	    if (!Fake && system(tmp)) {
-		warnx("unexec command for `%s' failed", tmp);
+		warnx("unexec command for '%s' failed", tmp);
 		fail = FAIL;
 	    }
 	    break;
@@ -439,7 +439,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    last_file = p->name;
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (isdir(tmp) && fexists(tmp) && !issymlink(tmp)) {
-		warnx("cannot delete specified file `%s' - it is a directory!\n"
+		warnx("cannot delete specified file '%s' - it is a directory!\n"
 	   "this packing list is incorrect - ignoring delete request", tmp);
 	    }
 	    else {
@@ -463,7 +463,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 		    if (cp != NULL) {
 			/* Mismatch? */
 			if (strcmp(cp, p->next->name + 4)) {
-			    warnx("`%s' fails original MD5 checksum - %s",
+			    warnx("'%s' fails original MD5 checksum - %s",
 				       tmp, Force ? "deleted anyway." : "not deleted.");
 			    if (!Force) {
 				fail = FAIL;
@@ -495,7 +495,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	case PLIST_DIR_RM:
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (!isdir(tmp) && fexists(tmp)) {
-		warnx("cannot delete specified directory `%s' - it is a file!\n"
+		warnx("cannot delete specified directory '%s' - it is a file!\n"
 	"this packing list is incorrect - ignoring delete request", tmp);
 	    }
 	    else {
@@ -533,7 +533,7 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
     cp1 = cp2 = strdup(dir);
     if (!fexists(dir)) {
 	if (!ign_err)
-	    warnx("%s `%s' doesn't really exist",
+	    warnx("%s '%s' doesn't really exist",
 		isdir(dir) ? "directory" : "file", dir);
 	return !ign_err;
     }
@@ -559,7 +559,7 @@ delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 	    return 0;
 	if (RMDIR(dir) && !ign_err) {
 	    if (!fexists(dir))
-		warnx("directory `%s' doesn't really exist", dir);
+		warnx("directory '%s' doesn't really exist", dir);
 	    else
 		return 1;
 	}
