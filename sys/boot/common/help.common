@@ -105,7 +105,7 @@
 	The set command is used to set variables.
 
 ################################################################################
-# Tset Sautboot_delay DSet the default autoboot delay
+# Tset Sauotboot_delay DSet the default autoboot delay
 
 	set autoboot_delay=<value>
 
@@ -153,6 +153,15 @@
 	prompt can be set with:
 
 		set prompt=\$currdev>
+
+################################################################################
+# Tset Srootdev DSet the root filesystem
+
+	set rootdev=<path>
+
+	By default the value of $currdev is used to set the root filesystem
+	when the kernel is booted.  This can be overridden by setting
+	$rootdev explicitly.
 
 ################################################################################
 # Tshow DShow the values of variables
