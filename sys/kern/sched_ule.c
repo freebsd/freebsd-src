@@ -462,7 +462,7 @@ kseq_move(struct kseq *from, int cpu)
 	kseq_rem(from, ke);
 
 	ke->ke_cpu = cpu;
-	sched_add(ke);
+	sched_add(ke->ke_thread);
 }
 #endif
 
