@@ -23,7 +23,7 @@
  *
  */
 
-#include "SYS.h"
+#include <machine/asm.h>
 
 /*
  * Atomicly lock a location with an identifier provided the location
