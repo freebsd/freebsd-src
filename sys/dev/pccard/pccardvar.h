@@ -323,3 +323,4 @@ enum {
 };
 
 #define PCCARD_SOFTC(d) (struct pccard_softc *) device_get_softc(d)
+#define PCCARD_IVAR(d) (struct pccard_ivar *) device_get_ivars(d)
