@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.6 1995/05/30 07:57:45 rgrimes Exp $
+ *  $Id: fpu_entry.c,v 1.7 1995/12/14 08:21:17 phk Exp $
  *
  */
 
@@ -520,7 +520,7 @@ gnufpu(struct lkm_table *lkmtp, int cmd, int ver)
 #else /* !LKM */
 
 static void
-gnufpu_init(void)
+gnufpu_init(void *unused)
 {
 	if (pmath_emulate)
 		printf("Another Math emulator already present\n");
