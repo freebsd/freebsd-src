@@ -72,6 +72,8 @@
 #include <sys/rman.h>
 #include <sys/timepps.h>
 
+#include <machine/limits.h>
+
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #if NPCI > 0
@@ -275,6 +277,8 @@ struct com_s {
 	u_int	delta_error_counts[CE_NTYPES];
 	u_long	error_counts[CE_NTYPES];
 
+	u_long	rclk;
+
 	struct resource *irqres;
 	struct resource *ioportres;
 	void *cookie;
@@ -290,10 +294,11 @@ struct com_s {
 #ifdef COM_ESP
 static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
-static	int	sioattach	__P((device_t dev, int rid));
+static	int	sioattach	__P((device_t dev, int rid, u_long rclk));
 static	int	sio_isa_attach	__P((device_t dev));
 
 static	timeout_t siobusycheck;
+static	u_int	siodivisor	__P((u_long rclk, speed_t speed));
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
 static	void	sioinput	__P((struct com_s *com));
@@ -302,7 +307,7 @@ static	void	siointr		__P((void *arg));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	swihand_t siopoll;
-static	int	sioprobe	__P((device_t dev, int xrid));
+static	int	sioprobe	__P((device_t dev, int xrid, u_long rclk));
 static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
@@ -405,6 +410,8 @@ static struct cdevsw sio_cdevsw = {
 
 int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
+static	u_long			comdefaultrclk = DEFAULT_RCLK;
+SYSCTL_ULONG(_machdep, OID_AUTO, conrclk, CTLFLAG_RW, &comdefaultrclk, 0, "");
 #ifdef __alpha__
 static	volatile speed_t	gdbdefaultrate = CONSPEED;
 #endif
@@ -419,29 +426,6 @@ static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
     = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
 static	int	sio_numunits;
-
-static	struct speedtab comspeedtab[] = {
-	{ 0,		0 },
-	{ 50,		COMBRD(50) },
-	{ 75,		COMBRD(75) },
-	{ 110,		COMBRD(110) },
-	{ 134,		COMBRD(134) },
-	{ 150,		COMBRD(150) },
-	{ 200,		COMBRD(200) },
-	{ 300,		COMBRD(300) },
-	{ 600,		COMBRD(600) },
-	{ 1200,		COMBRD(1200) },
-	{ 1800,		COMBRD(1800) },
-	{ 2400,		COMBRD(2400) },
-	{ 4800,		COMBRD(4800) },
-	{ 9600,		COMBRD(9600) },
-	{ 19200,	COMBRD(19200) },
-	{ 28800,	COMBRD(28800) },
-	{ 38400,	COMBRD(38400) },
-	{ 57600,	COMBRD(57600) },
-	{ 115200,	COMBRD(115200) },
-	{ -1,		-1 }
-};
 
 #ifdef COM_ESP
 /* XXX configure this properly. */
@@ -521,14 +505,14 @@ sio_pccard_probe(dev)
 	/* until bus_setup_intr */
 	SET_FLAG(dev, COM_C_NOPROBE);
 
-	return (sioprobe(dev, 0));
+	return (sioprobe(dev, 0, 0UL));
 }
 
 static int
 sio_pccard_attach(dev)
 	device_t	dev;
 {
-	return (sioattach(dev, 0));
+	return (sioattach(dev, 0, 0UL));
 }
 
 /*
@@ -603,7 +587,7 @@ sio_pci_attach(dev)
 	if (id->desc == NULL)
 		return (ENXIO);
 	sio_pci_kludge_unit(dev);
-	return (sioattach(dev, id->rid));
+	return (sioattach(dev, id->rid, 0UL));
 }
 
 /*
@@ -649,7 +633,7 @@ sio_pci_probe(dev)
 	if (id->desc == NULL)
 		return (ENXIO);
 	device_set_desc(dev, id->desc);
-	return (sioprobe(dev, id->rid));
+	return (sioprobe(dev, id->rid, 0UL));
 }
 #endif /* NPCI > 0 */
 
@@ -744,19 +728,21 @@ sio_isa_probe(dev)
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
 		return (ENXIO);
-	return (sioprobe(dev, 0));
+	return (sioprobe(dev, 0, 0UL));
 }
 
 static int
-sioprobe(dev, xrid)
+sioprobe(dev, xrid, rclk)
 	device_t	dev;
 	int		xrid;
+	u_long		rclk;
 {
 #if 0
 	static bool_t	already_init;
 	device_t	xdev;
 #endif
 	struct com_s	*com;
+	u_int		divisor;
 	bool_t		failures[10];
 	int		fn;
 	device_t	idev;
@@ -779,6 +765,9 @@ sioprobe(dev, xrid)
 	com = device_get_softc(dev);
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
+	if (rclk == 0)
+		rclk = DEFAULT_RCLK;
+	com->rclk = rclk;
 
 #if 0
 	/*
@@ -882,8 +871,9 @@ sioprobe(dev, xrid)
 		DELAY((16 + 1) * 1000000 / (comdefaultrate / 10));
 	else {
 		sio_setreg(com, com_cfcr, CFCR_DLAB | CFCR_8BITS);
-		sio_setreg(com, com_dlbl, COMBRD(SIO_TEST_SPEED) & 0xff);
-		sio_setreg(com, com_dlbh, (u_int) COMBRD(SIO_TEST_SPEED) >> 8);
+		divisor = siodivisor(rclk, SIO_TEST_SPEED);
+		sio_setreg(com, com_dlbl, divisor & 0xff);
+		sio_setreg(com, com_dlbh, divisor >> 8);
 		sio_setreg(com, com_cfcr, CFCR_8BITS);
 		DELAY((16 + 1) * 1000000 / (SIO_TEST_SPEED / 10));
 	}
@@ -1105,13 +1095,14 @@ static int
 sio_isa_attach(dev)
 	device_t	dev;
 {
-	return (sioattach(dev, 0));
+	return (sioattach(dev, 0, 0UL));
 }
 
 static int
-sioattach(dev, xrid)
+sioattach(dev, xrid, rclk)
 	device_t	dev;
 	int		xrid;
+	u_long		rclk;
 {
 	struct com_s	*com;
 #ifdef COM_ESP
@@ -1169,6 +1160,10 @@ sioattach(dev, xrid)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 	com->intr_ctl_port = iobase + com_ier;
+
+	if (rclk == 0)
+		rclk = DEFAULT_RCLK;
+	com->rclk = rclk;
 
 	/*
 	 * We don't use all the flags from <sys/ttydefaults.h> since they
@@ -1732,6 +1727,32 @@ siobusycheck(chan)
 	} else
 		timeout(siobusycheck, com, hz / 100);
 	splx(s);
+}
+
+static u_int
+siodivisor(rclk, speed)
+	u_long	rclk;
+	speed_t	speed;
+{
+	long	actual_speed;
+	u_int	divisor;
+	int	error;
+
+	if (speed == 0 || speed > (ULONG_MAX - 1) / 8)
+		return (0);
+	divisor = (rclk / (8UL * speed) + 1) / 2;
+	if (divisor == 0 || divisor >= 65536)
+		return (0);
+	actual_speed = rclk / (16UL * divisor);
+
+	/* 10 times error in percent: */
+	error = ((actual_speed - (long)speed) * 2000 / (long)speed + 1) / 2;
+
+	/* 3.0% maximum error tolerance: */
+	if (error < -30 || error > 30)
+		return (0);
+
+	return (divisor);
 }
 
 static void
@@ -2325,26 +2346,33 @@ comparam(tp, t)
 	u_int		cfcr;
 	int		cflag;
 	struct com_s	*com;
-	int		divisor;
+	u_int		divisor;
 	u_char		dlbh;
 	u_char		dlbl;
 	int		s;
 	int		unit;
+
+	unit = DEV_TO_UNIT(tp->t_dev);
+	com = com_addr(unit);
+	if (com == NULL)
+		return (ENODEV);
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
 		t->c_ispeed = t->c_ospeed;
 
 	/* check requested parameters */
-	divisor = ttspeedtab(t->c_ospeed, comspeedtab);
-	if (divisor < 0 || (divisor > 0 && t->c_ispeed != t->c_ospeed))
-		return (EINVAL);
+	if (t->c_ospeed == 0)
+		divisor = 0;
+	else {
+		if (t->c_ispeed != t->c_ospeed)
+			return (EINVAL);
+		divisor = siodivisor(com->rclk, t->c_ispeed);
+		if (divisor == 0)
+			return (EINVAL);
+	}
 
 	/* parameters are OK, convert them to the com struct and the device */
-	unit = DEV_TO_UNIT(tp->t_dev);
-	com = com_addr(unit);
-	if (com == NULL)
-		return (ENODEV);
 	s = spltty();
 	if (divisor == 0)
 		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
@@ -2421,7 +2449,7 @@ comparam(tp, t)
 		dlbl = divisor & 0xFF;
 		if (sio_getreg(com, com_dlbl) != dlbl)
 			sio_setreg(com, com_dlbl, dlbl);
-		dlbh = (u_int) divisor >> 8;
+		dlbh = divisor >> 8;
 		if (sio_getreg(com, com_dlbh) != dlbh)
 			sio_setreg(com, com_dlbh, dlbh);
 	}
@@ -2882,7 +2910,7 @@ struct siocnstate {
 	u_char	mcr;
 };
 
-static speed_t siocngetspeed __P((Port_t, struct speedtab *));
+static speed_t siocngetspeed __P((Port_t, u_long rclk));
 static void siocnclose	__P((struct siocnstate *sp, Port_t iobase));
 static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
 static void siocntxwait	__P((Port_t iobase));
@@ -2930,11 +2958,11 @@ siocntxwait(iobase)
  */
 
 static speed_t
-siocngetspeed(iobase, table)
-	Port_t iobase;
-	struct speedtab *table;
+siocngetspeed(iobase, rclk)
+	Port_t	iobase;
+	u_long	rclk;
 {
-	int	code;
+	u_int	divisor;
 	u_char	dlbh;
 	u_char	dlbl;
 	u_char  cfcr;
@@ -2947,13 +2975,12 @@ siocngetspeed(iobase, table)
 
 	outb(iobase + com_cfcr, cfcr);
 
-	code = dlbh << 8 | dlbl;
+	divisor = dlbh << 8 | dlbl;
 
-	for (; table->sp_speed != -1; table++)
-		if (table->sp_code == code)
-			return (table->sp_speed);
-
-	return (0);	/* didn't match anything sane */
+	/* XXX there should be more sanity checking. */
+	if (divisor == 0)
+		return (CONSPEED);
+	return (rclk / (16UL * divisor));
 }
 
 static void
@@ -2962,7 +2989,7 @@ siocnopen(sp, iobase, speed)
 	Port_t			iobase;
 	int			speed;
 {
-	int	divisor;
+	u_int	divisor;
 	u_char	dlbh;
 	u_char	dlbl;
 
@@ -2984,11 +3011,11 @@ siocnopen(sp, iobase, speed)
 	 * data input register.  This also reduces the effects of the
 	 * UMC8669F bug.
 	 */
-	divisor = ttspeedtab(speed, comspeedtab);
+	divisor = siodivisor(comdefaultrclk, speed);
 	dlbl = divisor & 0xFF;
 	if (sp->dlbl != dlbl)
 		outb(iobase + com_dlbl, dlbl);
-	dlbh = (u_int) divisor >> 8;
+	dlbh = divisor >> 8;
 	if (sp->dlbh != dlbh)
 		outb(iobase + com_dlbh, dlbh);
 	outb(iobase + com_cfcr, CFCR_8BITS);
@@ -3029,6 +3056,7 @@ siocnprobe(cp)
 {
 	speed_t			boot_speed;
 	u_char			cfcr;
+	u_int			divisor;
 	int			s, unit;
 	struct siocnstate	sp;
 
@@ -3066,7 +3094,8 @@ siocnprobe(cp)
 			iobase = port;
 			s = spltty();
 			if (boothowto & RB_SERIAL) {
-				boot_speed = siocngetspeed(iobase, comspeedtab);
+				boot_speed =
+				    siocngetspeed(iobase, comdefaultrclk);
 				if (boot_speed)
 					comdefaultrate = boot_speed;
 			}
@@ -3082,10 +3111,9 @@ siocnprobe(cp)
 			 */
 			cfcr = inb(iobase + com_cfcr);
 			outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
-			outb(iobase + com_dlbl,
-			     COMBRD(comdefaultrate) & 0xff);
-			outb(iobase + com_dlbh,
-			     (u_int) COMBRD(comdefaultrate) >> 8);
+			divisor = siodivisor(comdefaultrclk, comdefaultrate);
+			outb(iobase + com_dlbl, divisor & 0xff);
+			outb(iobase + com_dlbh, divisor >> 8);
 			outb(iobase + com_cfcr, cfcr);
 
 			siocnopen(&sp, iobase, comdefaultrate);
@@ -3144,6 +3172,7 @@ siocnattach(port, speed)
 {
 	int			s;
 	u_char			cfcr;
+	u_int			divisor;
 	struct siocnstate	sp;
 
 	siocniobase = port;
@@ -3164,10 +3193,9 @@ siocnattach(port, speed)
 	 */
 	cfcr = inb(siocniobase + com_cfcr);
 	outb(siocniobase + com_cfcr, CFCR_DLAB | cfcr);
-	outb(siocniobase + com_dlbl,
-	     COMBRD(comdefaultrate) & 0xff);
-	outb(siocniobase + com_dlbh,
-	     (u_int) COMBRD(comdefaultrate) >> 8);
+	divisor = siodivisor(comdefaultrclk, comdefaultrate);
+	outb(siocniobase + com_dlbl, divisor & 0xff);
+	outb(siocniobase + com_dlbh, divisor >> 8);
 	outb(siocniobase + com_cfcr, cfcr);
 
 	siocnopen(&sp, siocniobase, comdefaultrate);
@@ -3184,6 +3212,7 @@ siogdbattach(port, speed)
 {
 	int			s;
 	u_char			cfcr;
+	u_int			divisor;
 	struct siocnstate	sp;
 
 	siogdbiobase = port;
@@ -3202,10 +3231,9 @@ siogdbattach(port, speed)
 	 */
 	cfcr = inb(siogdbiobase + com_cfcr);
 	outb(siogdbiobase + com_cfcr, CFCR_DLAB | cfcr);
-	outb(siogdbiobase + com_dlbl,
-	     COMBRD(gdbdefaultrate) & 0xff);
-	outb(siogdbiobase + com_dlbh,
-	     (u_int) COMBRD(gdbdefaultrate) >> 8);
+	divisor = siodivisor(comdefaultrclk, gdbdefaultrate);
+	outb(siogdbiobase + com_dlbl, divisor & 0xff);
+	outb(siogdbiobase + com_dlbh, divisor >> 8);
 	outb(siogdbiobase + com_cfcr, cfcr);
 
 	siocnopen(&sp, siogdbiobase, gdbdefaultrate);
