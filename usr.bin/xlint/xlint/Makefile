@@ -9,6 +9,7 @@ SRCS=	xlint.c mem.c
 MAN=	lint.1
 
 CFLAGS+=-I${.CURDIR}/../lint1
+CFLAGS+= -DPREFIX=\"${TOOLS_PREFIX}\"
 
 .include "${.CURDIR}/../../Makefile.inc"
 .include <bsd.prog.mk>

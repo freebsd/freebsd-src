@@ -3,6 +3,4 @@
 
 SUBDIR=	lint1 lint2 xlint llib
 
-build-tools:	lint1 lint2 xlint
-
 .include <bsd.subdir.mk>
