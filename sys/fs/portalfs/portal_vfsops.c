@@ -99,10 +99,13 @@ portal_mount(mp, path, data, ndp, td)
 	if (error)
 		return (error);
 
-	error = holdsock(td->td_proc->p_fd, args.pa_socket, &fp);
-	if (error)
+	if ((error = fget(td, args.pa_socket, &fp)) != 0)
 		return (error);
-	so = (struct socket *) fp->f_data;
+        if (fp->f_type != DTYPE_SOCKET) {
+		fdrop(fp, td);
+                return(ENOTSOCK);
+	}
+	so = (struct socket *) fp->f_data;	/* XXX race against userland */
 	if (so->so_proto->pr_domain->dom_family != AF_UNIX) {
 		fdrop(fp, td);
 		return (ESOCKTNOSUPPORT);
