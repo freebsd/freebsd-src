@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
+#include <compat/ndis/hal_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -371,8 +372,10 @@ ndis_attach(dev)
 
 	sc = device_get_softc(dev);
 
-	sc->ndis_mtx = mtx_pool_alloc(ndis_mtxpool);
-	sc->ndis_intrmtx = mtx_pool_alloc(ndis_mtxpool);
+	mtx_init(&sc->ndis_mtx, "ndis softc lock",
+	    MTX_NETWORK_LOCK, MTX_DEF);
+	mtx_init(&sc->ndis_intrmtx,
+	    "ndis irq lock", MTX_NETWORK_LOCK, MTX_DEF);
 
         /*
 	 * Hook interrupt early, since calling the driver's
@@ -492,7 +495,6 @@ ndis_attach(dev)
 	/* Do media setup */
 	if (sc->ndis_80211) {
 		struct ieee80211com	*ic = (void *)ifp;
-		ndis_80211_config	config;
 		ndis_80211_rates_ex	rates;
 		struct ndis_80211_nettype_list *ntl;
 		uint32_t		arg;
@@ -650,27 +652,11 @@ nonettypes:
 		r = ndis_get_info(sc, OID_802_11_POWER_MODE, &arg, &i);
 		if (r == 0)
 			ic->ic_caps |= IEEE80211_C_PMGT;
-		i = sizeof(config);
-		bzero((char *)&config, sizeof(config));
-		config.nc_length = i;
-		config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
-		r = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &i);
-		if (r == 0) {
-			int chan;
-			chan = ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0);
-			if (chan < 0 || chan >= IEEE80211_CHAN_MAX) {
-				ic->ic_ibss_chan = &ic->ic_channels[1];
-			} else
-				ic->ic_ibss_chan = &ic->ic_channels[chan];
-		} else {
-			device_printf(sc->ndis_dev, "couldn't retrieve "
-			    "channel info: %d\n", r);
-			ic->ic_ibss_chan = &ic->ic_channels[1];
-		}
 		bcopy(eaddr, &ic->ic_myaddr, sizeof(eaddr));
 		ieee80211_ifattach(ifp);
 		ieee80211_media_init(ifp, ieee80211_media_change,
 		    ndis_media_status);
+		ic->ic_ibss_chan = IEEE80211_CHAN_ANYC;
 		ic->ic_bss->ni_chan = ic->ic_ibss_chan;
 	} else {
 		ifmedia_init(&sc->ifmedia, IFM_IMASK, ndis_ifmedia_upd,
@@ -756,6 +742,9 @@ ndis_detach(dev)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
 	sysctl_ctx_free(&sc->ndis_ctx);
+
+	mtx_destroy(&sc->ndis_mtx);
+	mtx_destroy(&sc->ndis_intrmtx);
 
 	return(0);
 }
@@ -1073,8 +1062,6 @@ ndis_linksts_done(adapter)
 		ndis_sched(ndis_starttask, ifp, NDIS_TASKQUEUE);
 		break;
 	case NDIS_STATUS_MEDIA_DISCONNECT:
-		if (sc->ndis_80211)
-			ndis_getstate_80211(sc);
 		if (sc->ndis_link)
 			ndis_sched(ndis_ticktask, sc, NDIS_TASKQUEUE);
 		break;
@@ -1091,14 +1078,17 @@ ndis_intrtask(arg)
 {
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
+	uint8_t			irql;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	ndis_intrhand(sc);
-	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
+	FASTCALL1(hal_lower_irql, irql);
+	mtx_lock(&sc->ndis_intrmtx);
 	ndis_enable_intr(sc);
-	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
+	mtx_unlock(&sc->ndis_intrmtx);
 
 	return;
 }
@@ -1118,14 +1108,14 @@ ndis_intr(arg)
 	if (sc->ndis_block.nmb_miniportadapterctx == NULL)
 		return;
 
-	mtx_pool_lock(ndis_mtxpool, sc->ndis_intrmtx);
+	mtx_lock(&sc->ndis_intrmtx);
 	if (sc->ndis_block.nmb_interrupt->ni_isrreq == TRUE)
 		ndis_isr(sc, &is_our_intr, &call_isr);
 	else {
 		ndis_disable_intr(sc);
 		call_isr = 1;
 	}
-	mtx_pool_unlock(ndis_mtxpool, sc->ndis_intrmtx);
+	mtx_unlock(&sc->ndis_intrmtx);
 
 	if ((is_our_intr || call_isr))
 		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
@@ -1617,7 +1607,38 @@ ndis_setstate_80211(sc)
 		device_printf (sc->ndis_dev, "set auth failed: %d\n", rval);
 #endif
 
-	/* Set SSID. */
+	len = sizeof(config);
+	bzero((char *)&config, len);
+	config.nc_length = len;
+	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
+	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len); 
+
+	if (rval == 0 && ic->ic_ibss_chan != IEEE80211_CHAN_ANYC) { 
+		int chan, chanflag;
+
+		chan = ieee80211_chan2ieee(ic, ic->ic_ibss_chan);
+		chanflag = config.nc_dsconfig > 2500000 ? IEEE80211_CHAN_2GHZ :
+		    IEEE80211_CHAN_5GHZ;
+		if (chan != ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0)) {
+			config.nc_dsconfig =
+			    ic->ic_ibss_chan->ic_freq * 1000;
+			ic->ic_bss->ni_chan = ic->ic_ibss_chan;
+			len = sizeof(config);
+			config.nc_length = len;
+			config.nc_fhconfig.ncf_length =
+			    sizeof(ndis_80211_config_fh);
+			rval = ndis_set_info(sc, OID_802_11_CONFIGURATION,
+			    &config, &len);
+			if (rval)
+				device_printf(sc->ndis_dev, "couldn't change "
+				    "DS config to %ukHz: %d\n",
+				    config.nc_dsconfig, rval);
+		}
+	} else if (rval)
+		device_printf(sc->ndis_dev, "couldn't retrieve "
+		    "channel info: %d\n", rval);
+
+	/* Set SSID -- always do this last. */
 
 	len = sizeof(ssid);
 	bzero((char *)&ssid, len);
@@ -1630,33 +1651,6 @@ ndis_setstate_80211(sc)
 
 	if (rval)
 		device_printf (sc->ndis_dev, "set ssid failed: %d\n", rval);
-
-	len = sizeof(config);
-	bzero((char *)&config, len);
-	config.nc_length = len;
-	config.nc_fhconfig.ncf_length = sizeof(ndis_80211_config_fh);
-	rval = ndis_get_info(sc, OID_802_11_CONFIGURATION, &config, &len);   
-	if (rval == 0) { 
-		int chan;
-
-		chan = ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan);
-		if (chan != ieee80211_mhz2ieee(config.nc_dsconfig / 1000, 0)) {
-			config.nc_dsconfig =
-			    ic->ic_bss->ni_chan->ic_freq * 1000;
-			len = sizeof(config);
-			config.nc_length = len;
-			config.nc_fhconfig.ncf_length =
-			    sizeof(ndis_80211_config_fh);
-			rval = ndis_set_info(sc, OID_802_11_CONFIGURATION,
-			    &config, &len);
-			if (rval)
-				device_printf(sc->ndis_dev, "couldn't change "
-				    "DS config to %ukHz: %d\n",
-				    config.nc_dsconfig, rval);
-		}
-	} else
-		device_printf(sc->ndis_dev, "couldn't retrieve "
-		    "channel info: %d\n", rval);
 
 	return;
 }

@@ -32,6 +32,9 @@
  * $FreeBSD$
  */
 
+#define NDIS_DEFAULT_NODENAME	"FreeBSD NDIS node"
+#define NDIS_NODENAME_LEN	32
+
 struct ndis_pci_type {
 	uint16_t		ndis_vid;
 	uint16_t		ndis_did;
@@ -87,8 +90,8 @@ struct ndis_softc {
 	struct resource		*ndis_res_am;	/* attribute mem (pccard) */
 	struct resource		*ndis_res_cm;	/* common mem (pccard) */
 	int			ndis_rescnt;
-	struct mtx		*ndis_mtx;
-	struct mtx		*ndis_intrmtx;
+	struct mtx		ndis_mtx;
+	struct mtx		ndis_intrmtx;
 	device_t		ndis_dev;
 	int			ndis_unit;
 	ndis_miniport_block	ndis_block;
@@ -124,6 +127,6 @@ struct ndis_softc {
 	int			ndis_mmapcnt;
 };
 
-#define NDIS_LOCK(_sc)		mtx_pool_lock(ndis_mtxpool, (_sc)->ndis_mtx)
-#define NDIS_UNLOCK(_sc)	mtx_pool_unlock(ndis_mtxpool, (_sc)->ndis_mtx)
+#define NDIS_LOCK(_sc)		mtx_lock(&(_sc)->ndis_mtx)
+#define NDIS_UNLOCK(_sc)	mtx_unlock(&(_sc)->ndis_mtx)
 

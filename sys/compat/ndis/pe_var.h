@@ -422,6 +422,51 @@ typedef struct image_patch_table image_patch_table;
 #define	__stdcall __attribute__((__stdcall__))
 #endif
 
+
+/*
+ * This mess allows us to call a _fastcall style routine with our
+ * version of gcc, which lacks __attribute__((__fastcall__)). Only
+ * has meaning on x86; everywhere else, it's a no-op.
+ */
+
+#ifdef __i386__
+typedef __stdcall int (*fcall)(void);
+typedef __stdcall int (*fcall2)(int);
+static __inline uint32_t 
+fastcall1(fcall f, uint32_t a)
+{
+	__asm__ __volatile__ ("movl %0,%%ecx" : : "r" (a));
+	return(f());
+}
+
+static __inline uint32_t 
+fastcall2(fcall f, uint32_t a, uint32_t b)
+{
+	__asm__ __volatile__ ("movl %0,%%ecx" : : "r" (a));
+	__asm__ __volatile__ ("movl %0,%%edx" : : "r" (b));
+	return(f());
+}
+
+static __inline uint32_t 
+fastcall3(fcall2 f, uint32_t a, uint32_t b, uint32_t c)
+{
+	__asm__ __volatile__ ("movl %0,%%ecx" : : "r" (a));
+	__asm__ __volatile__ ("movl %0,%%edx" : : "r" (b));
+	return(f(c));
+}
+
+#define FASTCALL1(f, a)		\
+	fastcall1((fcall)(f), (uint32_t)(a))
+#define FASTCALL2(f, a, b)	\
+	fastcall2((fcall)(f), (uint32_t)(a), (uint32_t)(b))
+#define FASTCALL3(f, a, b, c)	\
+	fastcall3((fcall2)(f), (uint32_t)(a), (uint32_t)(b), (uint32_t)(c))
+#else
+#define FASTCALL1(f, a) (f)((a))
+#define FASTCALL2(f, a, b) (f)((a), (b))
+#define FASTCALL3(f, a, b, c) (f)((a), (b), (c))
+#endif /* __i386__ */
+
 __BEGIN_DECLS
 extern int pe_get_dos_header(vm_offset_t, image_dos_header *);
 extern int pe_is_nt_image(vm_offset_t);
