@@ -108,6 +108,3 @@ PC98			opt_global.h
 DEV_APIC		opt_apic.h
 DEV_MECIA		opt_mecia.h
 DEV_NPX			opt_npx.h
-
-# agp options
-AGP_AMD64_GART		opt_agp.h
