@@ -218,7 +218,7 @@ struct ld_entry {
  * `nz_list' type of symbols.
  */
 
-struct	_dynamic {
+struct _dynamic {
 	int		d_version;	/* version # of this interface */
 	struct so_debug	*d_debug;
 	union {
