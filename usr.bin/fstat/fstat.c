@@ -73,6 +73,7 @@ static const char rcsid[] =
 #include <nfs/nfs.h>
 #include <nfs/nfsnode.h>
 
+
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -93,26 +94,14 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <netdb.h>
 
+#include "fstat.h"
+
 #define	TEXT	-1
 #define	CDIR	-2
 #define	RDIR	-3
 #define	TRACE	-4
 
-typedef struct devs {
-	struct	devs *next;
-	long	fsid;
-	ino_t	ino;
-	char	*name;
-} DEVS;
 DEVS *devs;
-
-struct  filestat {
-	long	fsid;
-	long	fileid;
-	mode_t	mode;
-	u_long	size;
-	dev_t	rdev;
-};
 
 #ifdef notdef
 struct nlist nl[] = {
@@ -127,7 +116,6 @@ int 	checkfile; /* true if restricting to particular files or filesystems */
 int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
 int	vflg;	/* display errors in locating kernel data objects etc... */
 
-#define dprintf	if (vflg) fprintf
 
 struct file **ofiles;	/* buffer of pointers to file structures */
 int maxfiles;
@@ -141,12 +129,6 @@ int maxfiles;
 		maxfiles = (d); \
 	}
 
-/*
- * a kvm_read that returns true if everything is read
- */
-#define KVM_READ(kaddr, paddr, len) \
-	(kvm_read(kd, (u_long)(kaddr), (char *)(paddr), (len)) == (len))
-
 kvm_t *kd;
 
 void dofiles __P((struct kinfo_proc *kp));
@@ -158,7 +140,6 @@ void pipetrans __P((struct pipe *pi, int i, int flag));
 void socktrans __P((struct socket *sock, int i));
 void getinetproto __P((int number));
 int  getfname __P((char *filename));
-udev_t dev2udev __P((dev_t dev));
 void usage __P((void));
 
 
@@ -414,6 +395,17 @@ vtrans(vp, i, flag)
 			if (!nfs_filestat(&vn, &fst))
 				badtype = "error";
 			break;
+
+		case VT_MSDOSFS:
+			if (!msdosfs_filestat(&vn, &fst))
+				badtype = "error";
+			break;
+
+		case VT_ISOFS:
+			if (!isofs_filestat(&vn, &fst))
+				badtype = "error";
+			break;
+			
 		default: {
 			static char unknown[10];
 			sprintf(badtype = unknown, "?(%x)", vn.v_tag);

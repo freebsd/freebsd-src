@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	fstat
+SRCS=	cd9660.c fstat.c msdosfs.c
 CFLAGS+=-Wall
 CFLAGS+=-I${.CURDIR}/../../sys
 DPADD=	${LIBKVM}
