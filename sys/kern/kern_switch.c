@@ -356,11 +356,11 @@ setrunqueue(struct thread *td)
 			 * None free, but there is one we can commandeer.
 			 */
 			ke = tda->td_kse;
+			sched_rem(tda);
 			tda->td_kse = NULL;
 			ke->ke_thread = NULL;
 			tda = kg->kg_last_assigned =
 		    	    TAILQ_PREV(tda, threadqueue, td_runq);
-			sched_rem(td);
 		}
 	} else {
 		/* 
