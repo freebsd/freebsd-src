@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.defns.c,v 3.33 1998/11/24 18:17:18 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.defns.c,v 3.36 2000/11/11 23:03:33 christos Exp $ */
 /*
  * ed.defns.c: Editor function definitions and initialization
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.defns.c,v 3.33 1998/11/24 18:17:18 christos Exp $")
+RCSID("$Id: ed.defns.c,v 3.36 2000/11/11 23:03:33 christos Exp $")
 
 #include "ed.h"
 
@@ -277,8 +277,12 @@ PFCmd   CcFuncTbl[] = {		/* table of available commands */
 #define		F_DOSIFY_NEXT	115
 	e_dosify_prev,
 #define		F_DOSIFY_PREV	116
+	e_page_up,
+#define		F_PAGE_UP		117
+	e_page_down,
+#define		F_PAGE_DOWN		118
     0				/* DUMMY VALUE */
-#define		F_NUM_FNS	117
+#define		F_NUM_FNS	119
 
 };
 
@@ -289,11 +293,11 @@ KEYCMD  CcAltMap[NT_NUM_KEYS];		/* the alternative key map */
 #define	F_NUM_FUNCNAMES	(F_NUM_FNS + 2)
 struct KeyFuncs FuncNames[F_NUM_FUNCNAMES];
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 extern KEYCMD CcEmacsMap[];
 extern KEYCMD CcViMap[];
 extern KEYCMD  CcViCmdMap[];
-#else /* !WINNT*/
+#else /* !WINNT_NATIVE*/
 KEYCMD  CcEmacsMap[] = {
 /* keymap table, each index into above tbl; should be 256*sizeof(KEYCMD)
    bytes long */
@@ -1114,7 +1118,7 @@ KEYCMD  CcViCmdMap[] = {
     F_UNASSIGNED,		/* M-~ */
     F_UNASSIGNED		/* M-^? */
 };
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
 
 void
@@ -1122,7 +1126,7 @@ editinit()
 {
     struct KeyFuncs *f;
 
-#if defined(NLS_CATALOGS) || defined(WINNT)
+#if defined(NLS_CATALOGS) || defined(WINNT_NATIVE)
     int i;
 
     for (i = 0; i < F_NUM_FUNCNAMES; i++)
@@ -1747,6 +1751,15 @@ editinit()
     f->name = "e_dosify_prev";
     f->func = F_DOSIFY_PREV;
     f->desc = CSAVS(3, 118, "(win32 only)Convert each '/' in previous word to '\\\\'");
+    f++;
+    f->name = "e_page_up";
+    f->func = F_PAGE_UP;
+    f->desc = CSAVS(3, 118, "(win32 only)Page visible console window up");
+    f++;
+    f->name = "e_page_down";
+    f->func = F_PAGE_DOWN;
+    f->desc = CSAVS(3, 118, "(win32 only)Page visible console window down");
+
 
     f++;
     f->name = NULL;
@@ -1837,7 +1850,7 @@ ed_InitMetaBindings()
     cstr.len = 2;
     for (i = 0200; i <= 0377; i++) {
 	if (map[i] != F_INSERT && map[i] != F_UNASSIGNED && map[i] != F_XKEY) {
-#ifndef _OSD_POSIX
+#ifdef IS_ASCII
 	    buf[1] = i & ASCII;
 #else
 	    buf[1] = _toebcdic[_toascii[i] & ASCII];
@@ -1913,7 +1926,7 @@ ed_InitMaps()
 {
     if (MapsAreInited)
 	return;
-#ifdef _OSD_POSIX
+#ifndef IS_ASCII
     /* This machine has an EBCDIC charset. The assumptions made for the
      * initialized keymaps therefore don't hold, since they are based on
      * ASCII (or ISO8859-1).
@@ -1937,7 +1950,7 @@ ed_InitMaps()
 	    }
 	}
     }
-#endif /* _OSD_POSIX */
+#endif /* !IS_ASCII */
 
 #ifdef VIDEFAULT
     ed_InitVIMaps();

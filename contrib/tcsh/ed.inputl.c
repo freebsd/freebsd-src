@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.inputl.c,v 3.48 2000/06/10 20:14:57 kim Exp $ */
+/* $Header: /src/pub/tcsh/ed.inputl.c,v 3.49 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.inputl.c: Input line handling.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.inputl.c,v 3.48 2000/06/10 20:14:57 kim Exp $")
+RCSID("$Id: ed.inputl.c,v 3.49 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -737,9 +737,9 @@ GetNextChar(cp)
     if (Rawmode() < 0)		/* make sure the tty is set up correctly */
 	return 0;		/* oops: SHIN was closed */
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     __nt_want_vcode = 1;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     while ((num_read = read(SHIN, (char *) &tcp, 1)) == -1) {
 	if (errno == EINTR)
 	    continue;
@@ -751,14 +751,14 @@ GetNextChar(cp)
             if (errno != EINTR)
                 stderror(ERR_SYSTEM, progname, strerror(errno));
 #endif  /* convex */
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	    __nt_want_vcode = 0;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    *cp = '\0';
 	    return -1;
 	}
     }
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     if (__nt_want_vcode == 2)
 	*cp = __nt_vcode;
     else
@@ -766,7 +766,7 @@ GetNextChar(cp)
     __nt_want_vcode = 0;
 #else
     *cp = tcp;
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     return num_read;
 }
 
@@ -810,12 +810,12 @@ SpellLine(cmdonly)
 	mismatch[1] = HISTSUB;
 	if (!Strchr(mismatch, *argptr) &&
 	    (!cmdonly || starting_a_command(argptr, InputBuf))) {
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	    /*
 	     * This hack avoids correcting drive letter changes
 	     */
 	    if((Cursor - InputBuf) != 2 || (char)InputBuf[1] != ':')
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 	    {
 #ifdef HASH_SPELL_CHECK
 		Char save;

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.who.c,v 3.29 2000/06/09 18:33:25 kim Exp $ */
+/* $Header: /src/pub/tcsh/tc.who.c,v 3.32 2000/11/12 02:18:07 christos Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.who.c,v 3.29 2000/06/09 18:33:25 kim Exp $")
+RCSID("$Id: tc.who.c,v 3.32 2000/11/12 02:18:07 christos Exp $")
 
 #include "tc.h"
 
@@ -54,14 +54,23 @@ RCSID("$Id: tc.who.c,v 3.29 2000/06/09 18:33:25 kim Exp $")
  * Kimmo Suominen, Oct 14 1991
  */
 # ifndef _PATH_UTMP
-#  define _PATH_UTMP UTMPX_FILE
+#  if defined(__UTMPX_FILE) && !defined(UTMPX_FILE)
+#   define _PATH_UTMP __UTMPX_FILE
+#  else
+#   define _PATH_UTMP UTMPX_FILE
+#  endif /* __UTMPX_FILE && !UTMPX_FILE */
 # endif /* _PATH_UTMP */
 # define utmp utmpx
-# define ut_time ut_xtime
+# ifdef __MVS__
+#  define ut_time ut_tv.tv_sec
+#  define ut_name ut_user
+# else
+#  define ut_time ut_xtime
+# endif /* __MVS__ */
 #else /* !HAVEUTMPX */
-# ifndef WINNT
+# ifndef WINNT_NATIVE
 #  include <utmp.h>
-# endif /* WINNT */
+# endif /* WINNT_NATIVE */
 #endif /* HAVEUTMPX */
 
 #ifndef BROKEN_CC
@@ -172,13 +181,13 @@ watch_login(force)
 #if defined(UTHOST) && defined(_SEQUENT_)
     char   *host, *ut_find_host();
 #endif
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     static int ncbs_posted = 0;
     USE(utmp);
     USE(utmpfd);
     USE(sta);
     USE(wpnew);
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 
     /* stop SIGINT, lest our login list get trashed. */
 #ifdef BSDSIGS
@@ -205,7 +214,7 @@ watch_login(force)
 	interval = 0;
 	
     (void) time(&t);
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 	/*
 	 * Since NCB_ASTATs take time, start em async at least 90 secs
 	 * before we are due -amol 6/5/97
@@ -217,7 +226,7 @@ watch_login(force)
  		ncbs_posted = 1;
 	    }
 	}
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
     if (t - watch_period < interval) {
 #ifdef BSDSIGS
 	(void) sigsetmask(omask);
@@ -227,9 +236,9 @@ watch_login(force)
 	return;			/* not long enough yet... */
     }
     watch_period = t;
-#ifdef WINNT
+#ifdef WINNT_NATIVE
     ncbs_posted = 0;
-#else /* !WINNT */
+#else /* !WINNT_NATIVE */
 
     /*
      * From: Michael Schroeder <mlschroe@immd4.informatik.uni-erlangen.de>
@@ -382,7 +391,7 @@ watch_login(force)
 # if defined(UTHOST) && defined(_SEQUENT_)
     endutent();
 # endif
-#endif /* !WINNT */
+#endif /* !WINNT_NATIVE */
 
     if (force || vp == NULL)
 	return;
@@ -607,6 +616,12 @@ struct command *c;
 }
 
 # ifdef UTHOST
+size_t
+utmphostsize()
+{
+    return UTHOSTLEN;
+}
+
 char *
 utmphost()
 {
@@ -626,7 +641,7 @@ utmphost()
 }
 # endif /* UTHOST */
 
-#ifdef WINNT
+#ifdef WINNT_NATIVE
 void add_to_who_list(name, mach_nm)
     char *name;
     char *mach_nm;
@@ -679,5 +694,5 @@ void add_to_who_list(name, mach_nm)
 	wp->who_prev = wpnew;	/* linked in now */
     }
 }
-#endif /* WINNT */
+#endif /* WINNT_NATIVE */
 #endif /* HAVENOUTMP */
