@@ -28,10 +28,12 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: decode.c,v 1.3.6.1 1997/11/18 07:14:13 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <string.h>
+#include "decode.h"
 
 int decode(FILE *fd, char *buffer)
 {

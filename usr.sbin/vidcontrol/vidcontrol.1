@@ -11,6 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"     @(#)vidcontrol.1
+.\"	$Id$
 .\"
 .Dd May 22, 1994
 .Dt VIDCONTROL 1
@@ -28,6 +29,7 @@
 .Op Fl L
 .Op Fl m Ar on|off
 .Op Fl f Ar size Ar file
+.Op Fl s Ar number
 .Op Fl t Ar N|off
 .Op Fl x
 .Op mode
@@ -96,6 +98,9 @@ for
 .Ar size
 (currently, only 8x8, 8x14 or 8x16).
 The font file can be either uuencoded or in raw binary format.
+.It Fl s Ar number
+Set the current vty to
+.Ar number .
 .It Fl t Ar N|off
 Set the screensaver timeout to
 .Ar N
@@ -112,6 +117,7 @@ Use hexadecimal digits for output.
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr keyboard 4 ,
-.Xr screen 4
+.Xr screen 4 ,
+.Xr moused 8
 .Sh AUTHORS
 .An Søren Schmidt Aq sos@FreeBSD.org
