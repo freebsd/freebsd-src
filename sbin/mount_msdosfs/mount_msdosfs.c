@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.13 1998/02/23 09:41:02 ache Exp $";
+	"$Id: mount_msdos.c,v 1.14 1998/02/23 16:49:16 ache Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -240,7 +240,9 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_msdos [-o options] [-u user] [-g group] [-m mask] [-s] [-l] [-9] [-L locale] [-W table] bdev dir\n");
+	fprintf(stderr, "%s\n%s\n", 
+	"usage: mount_msdos [-o options] [-u user] [-g group] [-m mask]",
+	"                   [-s] [-l] [-9] [-L locale] [-W table] bdev dir");
 	exit(EX_USAGE);
 }
 
