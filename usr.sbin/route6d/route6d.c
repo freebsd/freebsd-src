@@ -1457,7 +1457,7 @@ ifconfig1(name, sa, ifcp, s)
 
 	sin6 = (const struct sockaddr_in6 *)sa;
 	ifr.ifr_addr = *sin6;
-	strcpy(ifr.ifr_name, name);
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 	if (ioctl(s, SIOCGIFNETMASK_IN6, (char *)&ifr) < 0) {
 		fatal("ioctl: SIOCGIFNETMASK_IN6");
 		/*NOTREACHED*/
