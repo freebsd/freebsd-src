@@ -2,6 +2,8 @@
 \ ** F I C L   2 . 0   C L A S S E S
 \ john sadler  1 sep 98
 \ Needs oop.fr
+\
+\ $FreeBSD$
 
 .( loading ficl utility classes ) cr
 also oop definitions
@@ -67,6 +69,16 @@ object subclass c-ptr
         c-ptr   => .addr  
         c-4byte => set  
     ;
+
+    \ force the pointer to be null
+	: clr-ptr
+	    0 -rot  c-ptr => .addr  c-4byte => set
+	;
+
+    \ return flag indicating null-ness
+	: ?null     ( inst class -- flag )
+	    c-ptr => get-ptr 0= 
+	;
 
     \ increment the pointer in place
     : inc-ptr   ( inst class -- )

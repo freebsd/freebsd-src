@@ -517,11 +517,17 @@ STRINGINFO  vmGetWord(FICL_VM *pVM);
 STRINGINFO  vmGetWord0(FICL_VM *pVM);
 int         vmGetWordToPad(FICL_VM *pVM);
 STRINGINFO  vmParseString(FICL_VM *pVM, char delimiter);
+STRINGINFO  vmParseStringEx(FICL_VM *pVM, char delimiter, char fSkipLeading);
+CELL        vmPop(FICL_VM *pVM);
+void        vmPush(FICL_VM *pVM, CELL c);
 void        vmPopIP  (FICL_VM *pVM);
 void        vmPushIP (FICL_VM *pVM, IPTYPE newIP);
 void        vmQuit   (FICL_VM *pVM);
 void        vmReset  (FICL_VM *pVM);
 void        vmSetTextOut(FICL_VM *pVM, OUTFUNC textOut);
+#if FICL_WANT_DEBUGGER
+void        vmStep(FICL_VM *pVM);
+#endif
 void        vmTextOut(FICL_VM *pVM, char *text, int fNewline);
 void        vmThrow  (FICL_VM *pVM, int except);
 void        vmThrowErr(FICL_VM *pVM, char *fmt, ...);
@@ -533,13 +539,13 @@ void        vmThrowErr(FICL_VM *pVM, char *fmt, ...);
 ** The inner interpreter - coded as a macro (see note for 
 ** INLINE_INNER_LOOP in sysdep.h for complaints about VC++ 5
 */
-#define M_INNER_LOOP(pVM) \
-    for (;;) \
-    {  \
+#define M_VM_STEP(pVM) \
         FICL_WORD *tempFW = *(pVM)->ip++; \
         (pVM)->runningWord = tempFW; \
         tempFW->code(pVM); \
-    }
+
+#define M_INNER_LOOP(pVM) \
+    for (;;)  { M_VM_STEP(pVM) }
 
 
 #if INLINE_INNER_LOOP != 0
@@ -770,6 +776,16 @@ int        ficlExecFD(FICL_VM *pVM, int fd);
 ** Precondition: successful execution of ficlInitSystem
 */
 FICL_VM   *ficlNewVM(void);
+
+/*
+** Force deletion of a VM. You do not need to do this 
+** unless you're creating and discarding a lot of VMs.
+** For systems that use a constant pool of VMs for the life
+** of the system, ficltermSystem takes care of VM cleanup
+** automatically.
+*/
+void ficlFreeVM(FICL_VM *pVM);
+
 
 /*
 ** Set the stack sizes (return and parameter) to be used for all
