@@ -8,6 +8,6 @@ NOMAN= yet
 SRCS = sysinstall.c dkcksum.c
 
 CFLAGS += -Wall
-LDADD =  -ldialog
+LDADD =  -ldialog -lncurses -lmytinfo
 
 .include <bsd.prog.mk>
