@@ -636,10 +636,10 @@ bre(struct request *rq,
 			    (u_int) sd->sectors,
 			    bp->b_blkno);
 			log(LOG_DEBUG,
-			    "vinum: stripebase %x, stripeoffset %x, blockoffset %x\n",
-			    stripebase,
-			    stripeoffset,
-			    blockoffset);
+			    "vinum: stripebase %#llx, stripeoffset %#llxx, blockoffset %#llx\n",
+			    (unsigned long long)stripebase,
+			    (unsigned long long)stripeoffset,
+			    (unsigned long long)blockoffset);
 		    }
 #endif
 		}
