@@ -33,21 +33,26 @@
 .Nm ihfc
 .Nd isdn4bsd Cologne Chip Designs HFC[-S][-SP] 2B[DS0] driver
 .Sh SYNOPSIS
-.Pp
-All PnP cards (AcerISDN P10, Teles 16.3c PnP):
-.Pp
-.Cd "device ihfc                (FreeBSD 4.x/5.x)"
+All PnP cards (AcerISDN P10, Teles 16.3c PnP),
+.Fx
+4.x/5.x:
+.Cd "device ihfc"
 .Pp
 Non-PnP cards (TELEINT ISDN SPEED No.1):
 .Pp
-.Cd "device ihfc0 at isa?       (FreeBSD 4.x)"
+.Fx
+4.x:
+.Cd "device ihfc0 at isa?"
 .Pp
-.Cd "device ihfc                (FreeBSD 5.x)"
-NOTE: hint.ihfc.0.at="isa" must be added to /boot/device.hints
-.Pp
+.Fx
+5.x:
+.Cd "device ihfc"
+NOTE:
+.Li hint.ihfc.0.at="isa"
+must be added to
+.Pa /boot/device.hints
 .Pp
 NOTE: The driver will automatically probe for io-base and irq.
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
