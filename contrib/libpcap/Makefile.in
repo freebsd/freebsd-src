@@ -1,0 +1,148 @@
+#  Copyright (c) 1993, 1994, 1995, 1996
+# 	The Regents of the University of California.  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that: (1) source code distributions
+#  retain the above copyright notice and this paragraph in its entirety, (2)
+#  distributions including binary code include the above copyright notice and
+#  this paragraph in its entirety in the documentation or other materials
+#  provided with the distribution, and (3) all advertising materials mentioning
+#  features or use of this software display the following acknowledgement:
+#  ``This product includes software developed by the University of California,
+#  Lawrence Berkeley Laboratory and its contributors.'' Neither the name of
+#  the University nor the names of its contributors may be used to endorse
+#  or promote products derived from this software without specific prior
+#  written permission.
+#  THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+#  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+# @(#) $Header: Makefile.in,v 1.67 96/07/23 22:59:40 leres Exp $ (LBL)
+
+#
+# Various configurable paths (remember to edit Makefile.in, not Makefile)
+#
+
+# Top level hierarchy
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+# Pathname of directory to install the include files
+INCLDEST = @includedir@
+# Pathname of directory to install the library
+LIBDEST =  @libdir@
+# Pathname of directory to install the man page
+MANDEST = @mandir@
+
+#
+# You shouldn't need to edit anything below.
+#
+
+CC = @CC@
+CCOPT = @V_CCOPT@
+INCLS = -I. @V_INCLS@
+DEFS = @DEFS@
+
+# Standard CFLAGS
+CFLAGS = $(CCOPT) $(INCLS) $(DEFS)
+
+INSTALL = @INSTALL@
+RANLIB = @V_RANLIB@
+
+#
+# Flex and bison allow you to specify the prefixes of the global symbols
+# used by the generated parser.  This allows programs to use lex/yacc
+# and link against libpcap.  If you don't have flex or bison, get them.
+#
+LEX = @V_LEX@
+YACC = @V_YACC@
+
+# Explicitly define compilation rule since SunOS 4's make doesn't like gcc.
+# Also, gcc does not remove the .o before forking 'as', which can be a
+# problem if you don't own the file but can write to the directory.
+.c.o:
+	@rm -f $@
+	$(CC) $(CFLAGS) -c $*.c
+
+PSRC =	pcap-@V_PCAP@.c
+CSRC =	pcap.c inet.c gencode.c optimize.c nametoaddr.c \
+	etherent.c savefile.c bpf_filter.c bpf_image.c
+GENSRC = scanner.c grammar.c
+
+SRC =	$(PSRC) $(CSRC) $(GENSRC)
+
+# We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
+# hack the extra indirection
+OBJ =	$(PSRC:.c=.o) $(CSRC:.c=.o) $(GENSRC:.c=.o)
+HDR =	pcap.h pcap-int.h pcap-namedb.h pcap-nit.h pcap-pf.h \
+	ethertype.h gencode.h gnuc.h
+GENHDR = \
+	tokdefs.h
+
+TAGHDR = \
+	bpf/net/bpf.h
+
+TAGFILES = \
+	$(SRC) $(HDR) $(TAGHDR)
+
+CLEANFILES = $(OBJ) libpcap.a $(GENSRC) $(GENHDR) lex.yy.c
+
+libpcap.a: $(OBJ)
+	rm -f libpcap.a
+	ar rc $@ $(OBJ)
+	$(RANLIB) $@
+
+scanner.c: scanner.l
+	rm -f $@; $(LEX) -t $< > $$$$.$@; mv $$$$.$@ $@
+
+scanner.o: scanner.c tokdefs.h
+	rm -f $@; $(CC) $(CFLAGS) -c $*.c
+
+tokdefs.h: grammar.c
+grammar.c: grammar.y
+	rm -f grammar.c tokdefs.h
+	$(YACC) -d $<
+	mv y.tab.c grammar.c
+	mv y.tab.h tokdefs.h
+
+grammar.o: grammar.c
+	$(CC) -c $(CFLAGS) -Dyylval=pcap_lval grammar.c
+
+install: force
+	$(INSTALL) -m 444 -o bin -g bin libpcap.a $(DESTDIR)$(LIBDEST)
+	$(RANLIB) $(DESTDIR)$(LIBDEST)/libpcap.a
+
+install-incl: force
+	$(INSTALL) -m 444 -o bin -g bin pcap.h $(DESTDIR)$(INCLDEST)
+	$(INSTALL) -m 444 -o bin -g bin pcap-namedb.h $(DESTDIR)$(INCLDEST)
+	$(INSTALL) -m 444 -o bin -g bin net/bpf.h $(DESTDIR)$(INCLDEST)/net
+
+install-man: force
+	$(INSTALL) -m 444 -o bin -g bin pcap.3 $(DESTDIR)$(MANDEST)/man3
+
+clean:
+	rm -f $(CLEANFILES)
+
+distclean:
+	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
+	    gnuc.h os-proto.h bpf_filter.c net
+
+tags: $(TAGFILES)
+	ctags -wtd $(TAGFILES)
+
+tar:	force
+	@cwd=`pwd` ; dir=`basename $$cwd` ; name=libpcap-`cat VERSION` ; \
+	    list="" ; tar="tar chFFf" ; \
+	    for i in `cat FILES` ; do list="$$list $$name/$$i" ; done; \
+	    echo \
+	    "rm -f ../$$name; ln -s $$dir ../$$name" ; \
+	     rm -f ../$$name; ln -s $$dir ../$$name ; \
+	    echo \
+	    "(cd .. ; $$tar - [lots of files]) | compress > /tmp/$$name.tar.Z" ; \
+	     (cd .. ; $$tar - $$list) | compress > /tmp/$$name.tar.Z ; \
+	    echo \
+	    "rm -f ../$$name" ; \
+	     rm -f ../$$name
+
+force:	/tmp
+depend:	$(GENSRC) force
+	./mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)
