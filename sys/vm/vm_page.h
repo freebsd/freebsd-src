@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.10 1994/11/14 08:19:08 bde Exp $
+ * $Id: vm_page.h,v 1.11 1995/01/09 16:05:52 davidg Exp $
  */
 
 /*
@@ -124,18 +124,14 @@ struct vm_page {
  */
 #define	PG_INACTIVE	0x0001		/* page is in inactive list (P) */
 #define	PG_ACTIVE	0x0002		/* page is in active list (P) */
-#define	PG_LAUNDRY	0x0004		/* page is being cleaned now (P) */
 #define	PG_CLEAN	0x0008		/* page has not been modified */
 #define	PG_BUSY		0x0010		/* page is in transit (O) */
 #define	PG_WANTED	0x0020		/* someone is waiting for page (O) */
 #define	PG_TABLED	0x0040		/* page is in VP table (O) */
 #define	PG_COPYONWRITE	0x0080		/* must copy page before changing (O) */
 #define	PG_FICTITIOUS	0x0100		/* physical page doesn't exist (O) */
-#define	PG_FAKE		0x0200		/* page is placeholder for pagein (O) */
-#define	PG_FILLED	0x0400		/* client flag to set when filled */
 #define	PG_DIRTY	0x0800		/* client flag to set when dirty */
 #define PG_REFERENCED	0x1000		/* page has been referenced */
-#define PG_VMIO		0x2000		/* VMIO flag */
 #define	PG_CACHE	0x4000		/* On VMIO cache */
 #define	PG_FREE		0x8000		/* page is in free list */
 
@@ -215,20 +211,6 @@ extern simple_lock_data_t vm_page_queue_free_lock; /* lock on free page queue */
 
 #define	vm_page_lock_queues()	simple_lock(&vm_page_queue_lock)
 #define	vm_page_unlock_queues()	simple_unlock(&vm_page_queue_lock)
-
-#define vm_page_set_modified(m)	{ (m)->flags &= ~PG_CLEAN; }
-
-#define	VM_PAGE_INIT(mem, object, offset) { \
-	(mem)->flags = PG_BUSY | PG_CLEAN | PG_FAKE; \
-	vm_page_insert((mem), (object), (offset)); \
-	(mem)->wire_count = 0; \
-	(mem)->hold_count = 0; \
-	(mem)->act_count = 0; \
-	(mem)->busy = 0; \
-	(mem)->valid = 0; \
-	(mem)->dirty = 0; \
-	(mem)->bmapped = 0; \
-}
 
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xff
