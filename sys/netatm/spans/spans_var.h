@@ -160,7 +160,7 @@ struct spans_vccb {
  * Macro to copy a SPANS address from a to b.  
  */
 #define spans_addr_copy(a, b)	\
-	(KM_COPY((caddr_t)a, (caddr_t)b, sizeof(struct spans_addr)))
+	(bcopy((caddr_t)a, (caddr_t)b, sizeof(struct spans_addr)))
 
 
 /*

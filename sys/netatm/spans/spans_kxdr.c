@@ -612,7 +612,7 @@ xdrmbuf_getbytes(xdrs, addr, len)
 		 * Copy from buffer to user's space
 		 */
 		copy = MIN(len, xdrs->x_handy);
-		KM_COPY(xdrs->x_private, addr, copy);
+		bcopy(xdrs->x_private, addr, copy);
 
 		/*
 		 * Update data stream controls
@@ -663,7 +663,7 @@ xdrmbuf_putbytes(xdrs, addr, len)
 		 * Copy from user's space into buffer
 		 */
 		copy = MIN(len, xdrs->x_handy);
-		KM_COPY(addr, xdrs->x_private, copy);
+		bcopy(addr, xdrs->x_private, copy);
 
 		/*
 		 * Update data stream controls

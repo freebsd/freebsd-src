@@ -419,7 +419,7 @@ spans_vctimer(tip)
 					T_ATM_LOC_USER;
 			svp->sv_connvc->cvc_attr.cause.v.cause_value =
 					T_ATM_CAUSE_NO_USER_RESPONDING;
-			KM_ZERO(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
+			bzero(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
 					sizeof(svp->sv_connvc->cvc_attr.cause.v.diagnostics));
 			atm_cm_cleared(svp->sv_connvc);
 		}
@@ -448,7 +448,7 @@ spans_vctimer(tip)
 					T_ATM_LOC_USER;
 			svp->sv_connvc->cvc_attr.cause.v.cause_value =
 					T_ATM_CAUSE_NO_USER_RESPONDING;
-			KM_ZERO(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
+			bzero(svp->sv_connvc->cvc_attr.cause.v.diagnostics,
 					sizeof(svp->sv_connvc->cvc_attr.cause.v.diagnostics));
 			atm_cm_cleared(svp->sv_connvc);
 		}

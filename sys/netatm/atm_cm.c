@@ -877,7 +877,7 @@ atm_cm_addllc(epp, token, llc, ecop, copp)
 	while (cop2) {
 		int	i = MIN(llc->v.llc_len, cop2->co_llc.v.llc_len);
 
-		if (KM_CMP(llc->v.llc_info, cop2->co_llc.v.llc_info, i) == 0) {
+		if (bcmp(llc->v.llc_info, cop2->co_llc.v.llc_info, i) == 0) {
 			err = EINVAL;
 			goto done;
 		}
@@ -2007,7 +2007,7 @@ atm_cm_match(ap, pcop)
 			if (ap->bhli.tag == T_ATM_ABSENT)
 				continue;
 			if (ap->bhli.tag == T_ATM_PRESENT)
-				if (KM_CMP(&lap->bhli.v, &ap->bhli.v, 
+				if (bcmp(&lap->bhli.v, &ap->bhli.v, 
 						sizeof(struct t_atm_bhli)))
 					continue;
 		}
@@ -2022,7 +2022,7 @@ atm_cm_match(ap, pcop)
 			if (ap->blli.tag_l2 == T_ATM_ABSENT)
 				continue;
 			if (ap->blli.tag_l2 == T_ATM_PRESENT) {
-				if (KM_CMP(&lap->blli.v.layer_2_protocol.ID,
+				if (bcmp(&lap->blli.v.layer_2_protocol.ID,
 					   &ap->blli.v.layer_2_protocol.ID, 
 					   sizeof(
 					      ap->blli.v.layer_2_protocol.ID)))
@@ -2040,7 +2040,7 @@ atm_cm_match(ap, pcop)
 			if (ap->blli.tag_l3 == T_ATM_ABSENT)
 				continue;
 			if (ap->blli.tag_l3 == T_ATM_PRESENT) {
-				if (KM_CMP(&lap->blli.v.layer_3_protocol.ID,
+				if (bcmp(&lap->blli.v.layer_3_protocol.ID,
 					   &ap->blli.v.layer_3_protocol.ID, 
 					   sizeof(
 					      ap->blli.v.layer_3_protocol.ID)))
@@ -2061,7 +2061,7 @@ atm_cm_match(ap, pcop)
 				int	i = MIN(lap->llc.v.llc_len,
 							ap->llc.v.llc_len);
 
-				if (KM_CMP(lap->llc.v.llc_info,
+				if (bcmp(lap->llc.v.llc_info,
 							ap->llc.v.llc_info, i))
 					continue;
 			}
@@ -2288,7 +2288,7 @@ atm_cm_share_llc(ap)
 			int	i = MIN(ap->llc.v.llc_len,
 					cop->co_llc.v.llc_len);
 
-			if (KM_CMP(ap->llc.v.llc_info, 
+			if (bcmp(ap->llc.v.llc_info, 
 				   cop->co_llc.v.llc_info, i) == 0)
 				break;
 		}
@@ -2804,7 +2804,7 @@ atm_cm_cpcs_data(cop, m)
 		 * Add the LLC header
 		 */
 		KB_DATASTART(m, bp, void *);
-		KM_COPY(llcp->v.llc_info, bp, llcp->v.llc_len);
+		bcopy(llcp->v.llc_info, bp, llcp->v.llc_len);
 		KB_PLENADJ(m, llcp->v.llc_len);
 		break;
 
@@ -2920,7 +2920,7 @@ atm_cm_cpcs_upper(cmd, tok, arg1, arg2)
 			s = splnet();
 
 			while (cop) {
-				if (KM_CMP(bp, cop->co_llc.v.llc_info,
+				if (bcmp(bp, cop->co_llc.v.llc_info,
 						cop->co_llc.v.llc_len) == 0)
 					break;
 				cop = cop->co_next;

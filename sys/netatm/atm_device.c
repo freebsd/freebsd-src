@@ -452,14 +452,12 @@ atm_dev_alloc(size, align, flags)
 	 * and link it into the chain
 	 */
 	if (mep == NULL) {
-		mbp = (Mem_blk *) KM_ALLOC(sizeof(Mem_blk), M_DEVBUF, M_NOWAIT);
+		mbp = malloc(sizeof(Mem_blk), M_DEVBUF, M_NOWAIT|M_ZERO);
 		if (mbp == NULL) {
 			log(LOG_ERR, "atm_dev_alloc: Mem_blk failure\n");
 			(void) splx(s);
 			return (NULL);
 		}
-		KM_ZERO(mbp, sizeof(Mem_blk));
-
 		mbp->mb_next = atm_mem_head;
 		atm_mem_head = mbp;
 		mep = mbp->mb_mement;
@@ -485,9 +483,9 @@ atm_dev_alloc(size, align, flags)
 	 * Finally, go get the memory
 	 */
 	if (flags & ATM_DEV_NONCACHE) {
-		mep->me_kaddr = KM_ALLOC(ksize, M_DEVBUF, M_NOWAIT);
+		mep->me_kaddr = malloc(ksize, M_DEVBUF, M_NOWAIT);
 	} else {
-		mep->me_kaddr = KM_ALLOC(ksize, M_DEVBUF, M_NOWAIT);
+		mep->me_kaddr = malloc(ksize, M_DEVBUF, M_NOWAIT);
 	}
 
 	if (mep->me_kaddr == NULL) {
@@ -507,7 +505,7 @@ atm_dev_alloc(size, align, flags)
 	/*
 	 * Clear memory for user
 	 */
-	KM_ZERO(mep->me_uaddr, size);
+	bzero(mep->me_uaddr, size);
 
 	ATM_DEBUG4("atm_dev_alloc: size=%d, align=%d, flags=%d, uaddr=%p\n", 
 		size, align, flags, mep->me_uaddr);
@@ -575,9 +573,9 @@ atm_dev_free(uaddr)
 	 * Give the memory space back to the kernel
 	 */
 	if (mep->me_flags & ATM_DEV_NONCACHE) {
-		KM_FREE(mep->me_kaddr, mep->me_ksize, M_DEVBUF);
+		free(mep->me_kaddr, M_DEVBUF);
 	} else {
-		KM_FREE(mep->me_kaddr, mep->me_ksize, M_DEVBUF);
+		free(mep->me_kaddr, M_DEVBUF);
 	}
 
 	/*
@@ -726,7 +724,7 @@ atm_dev_compress(m)
 		 */
 		len = MIN(space, KB_LEN(m));
 		KB_DATASTART(m, src, caddr_t);
-		KM_COPY(src, dst, len);
+		bcopy(src, dst, len);
 
 		/*
 		 * Adjust for copied data
@@ -839,7 +837,7 @@ atm_unload()
 		/*
 		 * Hand this block back to the kernel
 		 */
-		KM_FREE((caddr_t) mbp, sizeof(Mem_blk), M_DEVBUF);
+		free((caddr_t)mbp, M_DEVBUF);
 	}
 
 	(void) splx(s);

@@ -965,14 +965,14 @@ uniarp_ioctl(code, data, arg1)
 				break;
 			}
 			buf_len = i * sizeof(struct uniarp_prf);
-			buf_addr = KM_ALLOC(buf_len, M_DEVBUF, M_NOWAIT);
+			buf_addr = malloc(buf_len, M_DEVBUF, M_NOWAIT);
 			if (buf_addr == NULL) {
 				err = ENOMEM;
 				break;
 			}
 			err = copyin(asp->asr_arp_pbuf, buf_addr, buf_len);
 			if (err) {
-				KM_FREE(buf_addr, buf_len, M_DEVBUF);
+				free(buf_addr, M_DEVBUF);
 				break;
 			}
 		} else {
@@ -985,9 +985,7 @@ uniarp_ioctl(code, data, arg1)
 		 * Free any existing prefix address list
 		 */
 		if (uip->uip_prefix != NULL) {
-			KM_FREE(uip->uip_prefix, 
-				uip->uip_nprefix * sizeof(struct uniarp_prf),
-				M_DEVBUF);
+			free(uip->uip_prefix, M_DEVBUF);
 			uip->uip_prefix = NULL;
 			uip->uip_nprefix = 0;
 		}

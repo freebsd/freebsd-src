@@ -282,26 +282,26 @@ atm_sock_bind(so, addr)
 	 */
 	attr = atp->atp_attr;
 	attr.called.tag = sapadr->SVE_tag_addr;
-	KM_COPY(&sapadr->address_format, &attr.called.addr, sizeof(Atm_addr));
+	bcopy(&sapadr->address_format, &attr.called.addr, sizeof(Atm_addr));
 
 	attr.blli.tag_l2 = sapl2->SVE_tag;
 	if (sapl2->SVE_tag == T_ATM_PRESENT) {
 		attr.blli.v.layer_2_protocol.ID_type = sapl2->ID_type;
-		KM_COPY(&sapl2->ID, &attr.blli.v.layer_2_protocol.ID,
+		bcopy(&sapl2->ID, &attr.blli.v.layer_2_protocol.ID,
 			sizeof(attr.blli.v.layer_2_protocol.ID));
 	}
 
 	attr.blli.tag_l3 = sapl3->SVE_tag;
 	if (sapl3->SVE_tag == T_ATM_PRESENT) {
 		attr.blli.v.layer_3_protocol.ID_type = sapl3->ID_type;
-		KM_COPY(&sapl3->ID, &attr.blli.v.layer_3_protocol.ID,
+		bcopy(&sapl3->ID, &attr.blli.v.layer_3_protocol.ID,
 			sizeof(attr.blli.v.layer_3_protocol.ID));
 	}
 
 	attr.bhli.tag = sapapl->SVE_tag;
 	if (sapapl->SVE_tag == T_ATM_PRESENT) {
 		attr.bhli.v.ID_type = sapapl->ID_type;
-		KM_COPY(&sapapl->ID, &attr.bhli.v.ID,
+		bcopy(&sapapl->ID, &attr.bhli.v.ID,
 			sizeof(attr.bhli.v.ID));
 	}
 
@@ -461,27 +461,27 @@ atm_sock_connect(so, addr, epp)
 	 * Set supplied connection attributes
 	 */
 	atp->atp_attr.called.tag = T_ATM_PRESENT;
-	KM_COPY(&sapadr->address_format, &atp->atp_attr.called.addr,
+	bcopy(&sapadr->address_format, &atp->atp_attr.called.addr,
 			sizeof(Atm_addr));
 
 	atp->atp_attr.blli.tag_l2 = sapl2->SVE_tag;
 	if (sapl2->SVE_tag == T_ATM_PRESENT) {
 		atp->atp_attr.blli.v.layer_2_protocol.ID_type = sapl2->ID_type;
-		KM_COPY(&sapl2->ID, &atp->atp_attr.blli.v.layer_2_protocol.ID,
+		bcopy(&sapl2->ID, &atp->atp_attr.blli.v.layer_2_protocol.ID,
 			sizeof(atp->atp_attr.blli.v.layer_2_protocol.ID));
 	}
 
 	atp->atp_attr.blli.tag_l3 = sapl3->SVE_tag;
 	if (sapl3->SVE_tag == T_ATM_PRESENT) {
 		atp->atp_attr.blli.v.layer_3_protocol.ID_type = sapl3->ID_type;
-		KM_COPY(&sapl3->ID, &atp->atp_attr.blli.v.layer_3_protocol.ID,
+		bcopy(&sapl3->ID, &atp->atp_attr.blli.v.layer_3_protocol.ID,
 			sizeof(atp->atp_attr.blli.v.layer_3_protocol.ID));
 	}
 
 	atp->atp_attr.bhli.tag = sapapl->SVE_tag;
 	if (sapapl->SVE_tag == T_ATM_PRESENT) {
 		atp->atp_attr.bhli.v.ID_type = sapapl->ID_type;
-		KM_COPY(&sapapl->ID, &atp->atp_attr.bhli.v.ID,
+		bcopy(&sapapl->ID, &atp->atp_attr.bhli.v.ID,
 			sizeof(atp->atp_attr.bhli.v.ID));
 	}
 
@@ -591,15 +591,12 @@ atm_sock_sockaddr(so, addr)
 	/*
 	 * Return local interface address, if known
 	 */
-	satm = KM_ALLOC(sizeof *satm, M_SONAME, M_WAITOK);
+	satm = malloc(sizeof(*satm), M_SONAME, M_WAITOK | M_ZERO);
 	if (satm == NULL)
 		return (ENOMEM);
 
-	KM_ZERO(satm, sizeof(*satm));
 	satm->satm_family = AF_ATM;
-#if (defined(BSD) && (BSD >= 199103))
 	satm->satm_len = sizeof(*satm);
-#endif
 
 	saddr = &satm->satm_addr.t_atm_sap_addr;
 	if (atp->atp_attr.nif && atp->atp_attr.nif->nif_pif->pif_siginst) {
@@ -652,16 +649,12 @@ atm_sock_peeraddr(so, addr)
 	/*
 	 * Return remote address, if known
 	 */
-	satm = KM_ALLOC(sizeof *satm, M_SONAME, M_WAITOK);
+	satm = malloc(sizeof(*satm), M_SONAME, M_WAITOK | M_ZERO);
 	if (satm == NULL)
 		return (ENOMEM);
 
-	KM_ZERO(satm, sizeof(*satm));
 	satm->satm_family = AF_ATM;
-#if (defined(BSD) && (BSD >= 199103))
 	satm->satm_len = sizeof(*satm);
-#endif
-
 	saddr = &satm->satm_addr.t_atm_sap_addr;
 	if (so->so_state & SS_ISCONNECTED) {
 		cvp = atp->atp_conn->co_connvc;

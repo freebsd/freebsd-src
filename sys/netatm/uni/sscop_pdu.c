@@ -1208,7 +1208,7 @@ sscop_send_ud(sop, m)
 	KB_DATAEND(ml, cp, u_char *);
 	cp += pad;
 	*cp++ = (pad << PT_PAD_SHIFT) | PT_UD;
-	KM_ZERO(cp, 3);
+	bzero(cp, 3);
 	KB_LEN(ml) += trlen;
 
 	/*

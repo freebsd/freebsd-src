@@ -104,7 +104,7 @@ sscop_stat_getelem(m, pelem)
 		 * Get element from this buffer
 		 */
 		if ((int)cp & (sizeof(sscop_seq) - 1))
-			KM_COPY(cp, (caddr_t)pelem, sizeof(sscop_seq));
+			bcopy(cp, (caddr_t)pelem, sizeof(sscop_seq));
 		else
 			*pelem = *(sscop_seq *)cp;
 
@@ -122,7 +122,7 @@ sscop_stat_getelem(m, pelem)
 		 * Copy what's in this buffer
 		 */
 		i = KB_LEN(m);
-		KM_COPY(cp, (caddr_t)pelem, i);
+		bcopy(cp, (caddr_t)pelem, i);
 		KB_LEN(m) = 0;
 
 		/*
@@ -136,7 +136,7 @@ sscop_stat_getelem(m, pelem)
 		 */
 		j = sizeof(sscop_seq) - i;
 		KB_DATASTART(m, cp, caddr_t);
-		KM_COPY(cp, (caddr_t)pelem + i, j);
+		bcopy(cp, (caddr_t)pelem + i, j);
 
 		/*
 		 * Update buffer controls

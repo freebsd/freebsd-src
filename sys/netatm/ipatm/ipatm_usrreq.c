@@ -347,7 +347,7 @@ ipatm_ioctl(code, data, arg1)
 				/*
 				 * Fill in info to be returned
 				 */
-				KM_ZERO((caddr_t)&aivr, sizeof(aivr));
+				bzero((caddr_t)&aivr, sizeof(aivr));
 				SATOSIN(&aivr.aip_dst_addr)->sin_family = 
 					AF_INET;
 				SATOSIN(&aivr.aip_dst_addr)->sin_addr.s_addr = 
