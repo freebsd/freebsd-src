@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.24 1996/08/06 21:14:12 phk Exp $
+ *	$Id: if_zp.c,v 1.25 1996/09/07 17:52:56 nate Exp $
  */
 /*-
  * TODO:
@@ -1056,8 +1056,7 @@ zpioctl(ifp, cmd, data)
 			zpmbufempty(sc);
 			break;
 		}
-		if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
-			zpinit(ifp->if_unit);
+		zpinit(ifp->if_unit);
 		break;
 	default:
 		error = EINVAL;
