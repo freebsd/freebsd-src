@@ -1,4 +1,45 @@
-@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.56 2001/10/23 04:37:31 mcr Exp $ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/CHANGES,v 1.56.4.3 2004/03/30 14:29:16 mcr Exp $ (LBL)
+
+Tue.   March 30, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.3 release
+
+	Fixed minor problem in gencode.c that would appear on 64-bit
+	platforms.
+	Version number is now sane.
+	
+Mon.   March 29, 2004. mcr@sandelman.ottawa.on.ca. Summary for 3.8.2 release
+
+	updates for autoconf 2.5
+	fixes for ppp interfaces for freebsd 4.1
+	pcap gencode can generate code for 802.11, IEEE1394, and pflog.
+
+Wed.   November 12, 2003. mcr@sandelman.ottawa.on.ca. Summary for 0.8 release
+
+	added pcap_findalldevs()
+	Win32 patches from NetGroup, Politecnico di Torino (Italy)
+	OpenBSD pf, DLT_PFLOG added
+	Many changes to ATM support.
+	lookup pcap_lookupnet()	
+	Added DLT_ARCNET_LINUX, DLT_ENC, DLT_IEEE802_11_RADIO, DLT_SUNATM,
+		DLT_IP_OVER_FC, DLT_FRELAY, others.
+	Sigh.  More AIX wonderfulness.
+	Document updates. 
+	Changes to API: pcap_next_ex(), pcap_breakloop(), pcap_dump_flush(),
+			pcap_list_datalinks(), pcap_set_datalink(), 
+			pcap_lib_version(), pcap_datalink_val_to_name(),
+			pcap_datalink_name_to_val(), new error returns.
+
+Tuesday, February 25, 2003. fenner@research.att.com.  0.7.2 release
+
+ 	Support link types that use 802.2 always, never, and sometimes.
+ 	Don't decrease the size of the BPF buffer from the default.
+ 	Support frame relay.
+ 	Handle 32-bit timestamps in DLPI, and pass the right buffer size.
+ 	Handle Linux systems with modern kernel but without
+ 	 SOL_PACKET in the userland headers.
+ 	Linux support for ARPHRD_RAWHDLC.
+ 	Handle 32-bit timestamps in snoop.
+ 	Support eg (Octane/O2xxx/O3xxx Gigabit) devices.
+ 	Add new reserved DLT types.
 
 Monday October 23, 2001. mcr@sandelman.ottawa.on.ca. Summary for 0.7 release
 
