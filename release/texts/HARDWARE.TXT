@@ -854,6 +854,10 @@ Printer Adapters:
    Belkin F5U002 parallel printer adapter.
    Entrega USB-to-parallel printer adapter.
 
+Modems:
+   3Com 5605 
+   Metricom Ricochet GS USB wireless modem
+
 Scanners (through SANE):
    Perfection 636U
    HP ScanJet 4100C, 5200C, 6300C
