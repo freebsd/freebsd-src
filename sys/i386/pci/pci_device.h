@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_device.h,v 2.0.0.1 94/08/18 23:06:43 wolf Exp $
+**  $Id: pci_device.h,v 1.2 1994/09/01 02:01:41 se Exp $
 **
 **  #define   for pci based device drivers
 **
@@ -34,7 +34,12 @@
 **
 **-------------------------------------------------------------------------
 **
-**  $Log:	pci_device.h,v $
+**  $Log: pci_device.h,v $
+ * Revision 1.2  1994/09/01  02:01:41  se
+ * Submitted by:	Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
+ * Merged in changes required for NetBSD support (by mycroft@gnu.ai.mit.edu)
+ * and support for multiple NCR chips.
+ *
 **  Revision 2.0.0.1  94/08/18  23:06:43  wolf
 **  Copyright message.
 **  
@@ -81,7 +86,12 @@ struct pci_driver {
 
 struct pci_device {
 	struct pci_driver * pd_driver;
+	pcidi_t pd_device_id;			    /* device pci id */
+	const char *pd_name;	/* for future loadable drivers */
+	int pd_flags;
 };
+#define PDF_LOADABLE	0x01
+#define PDF_COVERED	0x02
 
 /*-----------------------------------------------------------
 **

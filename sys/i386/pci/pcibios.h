@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibios.h,v 2.0.0.1 94/08/18 23:05:36 wolf Exp $
+**  $Id: pcibios.h,v 1.2 1994/09/01 02:01:45 se Exp $
 **
 **  #define   for pci-bus bios functions.
 **
@@ -34,7 +34,12 @@
 **
 **-------------------------------------------------------------------------
 **
-**  $Log:	pcibios.h,v $
+**  $Log: pcibios.h,v $
+ * Revision 1.2  1994/09/01  02:01:45  se
+ * Submitted by:	Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
+ * Merged in changes required for NetBSD support (by mycroft@gnu.ai.mit.edu)
+ * and support for multiple NCR chips.
+ *
 **  Revision 2.0.0.1  94/08/18  23:05:36  wolf
 **  
 **  Copyright message.
@@ -93,6 +98,26 @@ void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
 
 #define	PCI_COMMAND_STATUS_REG		0x04
 #define	PCI_COMMAND_MEM_ENABLE		0x00000002
+
+#define PCI_CLASS_REV_REG		0x08
+#define PCI_MAJCLASS_OF(x)		(((x) >> 24) & 0xff)
+#define PCI_MINCLASS_OF(x)		(((x) >> 16) & 0xff)
+#define PCI_PROGINT_OF(x)		(((x) >>  8) & 0xff)
+#define PCI_REV_OF(x)			((x) & 0xff)
+enum pci_majclass { PCI_MJC_OLD = 0, PCI_MJC_STOR, PCI_MJC_NET,
+		      PCI_MJC_DISPLAY, PCI_MJC_MEDIA, PCI_MJC_MEM,
+		      PCI_MJC_BRIDGE };
+enum pci_old_minclass { PCI_MIN_OLD = 0, PCI_MIN_OVGA };
+enum pci_stor_minclass { PCI_MIN_SCSI = 0, PCI_MIN_IDE, PCI_MIN_FLOP,
+			   PCI_MIN_IPI, PCI_MIN_OSTOR };
+enum pci_net_minclass { PCI_MIN_ETHER = 0, PCI_MIN_TOKEN, PCI_MIN_FDDI,
+			  PCI_MIN_ONET };
+enum pci_disp_minclass { PCI_MIN_VGA = 0, PCI_MIN_XGA, PCI_MIN_ODISP };
+enum pci_media_minclass { PCI_MIN_VIDEO = 0, PCI_MIN_AUDIO, PCI_MIN_OMEDIA };
+enum pci_mem_minclass { PCI_MIN_RAM = 0, PCI_MIN_FLASH, PCI_MIN_OMEM };
+enum pci_bridge_minclass { PCI_MIN_HOST = 0, PCI_MIN_ISA, PCI_MIN_EISA,
+			     PCI_MIN_MC, PCI_MIN_PCI, PCI_MIN_PCMCIA,
+			     PCI_MIN_OBRIDGE };
 
 #define	PCI_MAP_REG_START		0x10
 #define	PCI_MAP_REG_END			0x28
