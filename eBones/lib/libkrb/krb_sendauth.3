@@ -1,5 +1,5 @@
 .\" from: krb_sendauth.3,v 4.1 89/01/23 11:10:58 jtkohl Exp $
-.\" $Id: krb_sendauth.3,v 1.3 1995/07/18 16:41:03 mark Exp $
+.\" $Id: krb_sendauth.3,v 1.3 1995/09/13 17:23:57 markm Exp $
 .\" Copyright 1988 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -81,6 +81,13 @@ The
 .I krb_recvauth
 function receives the ticket from the client by
 reading from a network socket.
+
+To ensure proper behavior on multi-homed systems (machines with more
+than one network interface) all sockets used with these routines should
+be bound to the same address as that used by the Kerberos library via
+.I krb_get_local_addr
+or
+.I krb_bind_local_addr.
 
 .SH KRB_SENDAUTH
 .PP
@@ -338,7 +345,8 @@ will not work properly on sockets set to non-blocking I/O mode.
 
 .SH SEE ALSO
 
-krb_mk_req(3), krb_rd_req(3), krb_get_phost(3)
+krb_mk_req(3), krb_rd_req(3), krb_get_phost(3), krb_get_local_addr(3),
+krb_bind_local_addr(3)
 
 .SH AUTHOR
 John T. Kohl, MIT Project Athena

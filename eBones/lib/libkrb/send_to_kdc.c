@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.8 1995/09/14 20:58:35 gibbs Exp $
+ *	$Id: send_to_kdc.c,v 1.9 1995/09/16 23:11:25 gibbs Exp $
  */
 
 #if 0
@@ -22,11 +22,15 @@ static char rcsid_send_to_kdc_c[] =
 #include <stdio.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #ifdef lint
 #include <sys/uio.h>            /* struct iovec to make lint happy */
 #endif /* lint */
+#include <sys/sysctl.h>
 #include <sys/socket.h>
+#include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -34,12 +38,21 @@ static char rcsid_send_to_kdc_c[] =
 
 #define S_AD_SZ sizeof(struct sockaddr_in)
 
+/* Used for extracting addresses from routing messages */
+#define ROUNDUP(a) \
+        ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sin_len))
+
 extern int errno;
 extern int krb_debug;
 
 extern char *malloc(), *calloc(), *realloc();
 
 int krb_udp_port = 0;
+
+static struct sockaddr_in local_addr = { S_AD_SZ,
+					 AF_INET
+					};
 
 /* CLIENT_KRB_TIMEOUT indicates the time to wait before
  * retrying a server.  It's defined in "krb.h".
@@ -222,6 +235,11 @@ send_to_kdc(pkt,rpkt,realm)
         bcopy(host->h_addr, (char *)&to.sin_addr,
               host->h_length);
         to.sin_port = krb_udp_port;
+	if ((retval = krb_bind_local_addr(f)) != KSUCCESS) {
+	    fprintf(stderr, "krb_bind_local_addr: %s", krb_err_txt[retval]);
+	    retval = SKDC_CANT;
+	    goto rtn;
+	}
         if (send_recv(pkt, rpkt, f, &to, hostlist)) {
             retval = KSUCCESS;
             goto rtn;
@@ -388,4 +406,124 @@ send_recv(pkt,rpkt,f,_to,addrs)
 	fprintf(stderr, "%s: received packet from wrong host! (%s)\n",
 		"send_to_kdc(send_rcv)", inet_ntoa(from.sin_addr));
     return 0;
+}
+
+
+static int
+setfixedaddr(s)
+	int s;
+{
+    struct ifa_msghdr *ifa, *ifa0, *ifa_end;
+    struct sockaddr_in *cur_addr;
+    int tries;
+    int i;
+    u_long loopback;
+    int mib[6] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_IFLIST, 0 };
+    size_t len;
+
+    /* Get information about our interfaces */
+#define NUMTRIES 10
+    tries = 0;
+
+retry:
+    len = 0;
+    if (sysctl(mib, 6, NULL, &len, NULL, 0) < 0) {
+	perror("setfixedaddr: Can't get size of interface table: sysctl");
+	return GT_LADDR_IFLIST;
+    }
+    ifa = (struct ifa_msghdr *)malloc(len);
+    if (!ifa) {
+	fprintf(stderr, "setfixedaddr: Cannot malloc\n");
+	return (KFAILURE);
+    }
+    if (sysctl(mib, 6, ifa, &len, NULL, 0) < 0) {
+	free(ifa);
+	if (errno == ENOMEM && tries < NUMTRIES) {
+	    /* Table grew between calls */
+	    tries++;
+	    goto retry;
+	}
+	else {
+	    perror("setfixedaddr: Can't get interface table: sysctl");
+	    return GT_LADDR_IFLIST;
+	}
+    }
+    loopback = inet_addr("127.0.0.1");
+
+    ifa0 = ifa;
+    for(ifa_end = (struct ifa_msghdr *)((caddr_t)ifa + len);
+	ifa < ifa_end;
+	(caddr_t)ifa += ifa->ifam_msglen) {
+	/* Ignore interface name messages and ensure we have an address */
+	if (ifa->ifam_type == RTM_IFINFO || !(ifa->ifam_addrs & RTAX_IFA))
+		continue;
+	cur_addr = (struct sockaddr_in *)(ifa + 1);
+	for (i = 0; i < RTAX_IFA; i++) {
+		if (ifa->ifam_addrs & (1 << i))
+			ADVANCE((caddr_t)cur_addr, cur_addr);
+	}
+	if (cur_addr->sin_addr.s_addr != loopback) {
+	    local_addr.sin_addr.s_addr = cur_addr->sin_addr.s_addr;
+	    break;
+	}
+    }
+    free(ifa0);
+    if (ifa >= ifa_end) {
+	return GT_LADDR_NVI;
+    }
+    if (krb_debug) {
+	fprintf(stderr, "setfixedaddr: using local address %s\n",
+		inet_ntoa(local_addr.sin_addr));
+    }
+    return (KSUCCESS);
+}
+
+int
+krb_bind_local_addr(s)
+	int s;
+{
+    int retval;
+    if (local_addr.sin_addr.s_addr == INADDR_ANY) {
+	/*
+	 * We haven't determined the local interface to use
+	 * for kerberos server interactions.  Do so now.
+	 */
+	if ((retval = setfixedaddr(s)) != KSUCCESS)
+	    return (retval);
+    }
+    if (bind(s, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
+	perror("krb_bind_local_addr: bind");
+	return BND_LADDR_BIND;
+    }
+    if (krb_debug)
+	printf("local_addr = %s\n", inet_ntoa(local_addr.sin_addr));
+    return(KSUCCESS);
+}
+
+int
+krb_get_local_addr(returned_addr)
+	struct sockaddr_in *returned_addr;
+{
+    int retval;
+    if (local_addr.sin_addr.s_addr == INADDR_ANY) {
+	/*
+	 * We haven't determined the local interface to use
+	 * for kerberos server interactions.  Do so now.
+	 */
+	int s;
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	    return GT_LADDR_NOSOCK; 
+	}
+	if ((retval = setfixedaddr(s)) != KSUCCESS) {
+	    close(s);
+	    return (retval);
+	}
+	close(s);
+    }
+    if (!returned_addr)
+	return(KFAILURE);
+    *returned_addr = local_addr;
+    if (krb_debug)
+	printf("local_addr = %s\n", inet_ntoa(local_addr.sin_addr));
+    return (KSUCCESS);
 }

@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 static char rcsid[] =
-	"$Id: rsh.c,v 1.3 1995/01/14 20:36:22 wollman Exp $";
+	"$Id: rsh.c,v 1.4 1995/05/30 06:33:24 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -233,7 +233,7 @@ try_connect:
 		if (doencrypt) {
 			rem = krcmd_mutual(&host, sp->s_port, user, args,
 			    &rfd2, dest_realm, &cred, schedule);
-			des_set_key(cred.session, schedule);
+			des_set_key(&cred.session, schedule);
 		} else
 #endif
 			rem = krcmd(&host, sp->s_port, user, args, &rfd2,
