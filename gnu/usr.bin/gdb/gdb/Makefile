@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.37 1998/09/14 22:49:01 jdp Exp $
+#	$Id: Makefile,v 1.38 1998/10/15 14:15:09 bde Exp $
 
 PROG = gdb
 
@@ -98,7 +98,7 @@ LDADD+=	${LIBIBERTY}
 # object files that will be linked into gdb.
 
 init.c: ${XSRCS}
-	@echo Making ${.TARGET}
+	@${ECHO} Making ${.TARGET}
 	@rm -f init.c-tmp
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp
