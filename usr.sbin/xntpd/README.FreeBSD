@@ -7,3 +7,4 @@ in order to make this code exportable.  If you have a legal copy of
 `authdes.c', you can just add it to the lib/ directory and add `-DDES'
 to the AUTHDEFS in Makefile.inc.
 
+You can change CLOCKDEFS in the same file to add other reference clocks.
