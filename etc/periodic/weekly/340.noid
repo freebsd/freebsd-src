@@ -1,14 +1,21 @@
 #!/bin/sh -
 #
 # $FreeBSD$
+#
 
-exit 0		# do not run by default
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
 
-echo ""
-echo "Check for files belongs to an unknown user or unknown group:"
+case "$weekly_noid_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Check for files with an unknown user or group:"
 
-# directories to be verified
-: ${NOIDSEARCHPATHS="/"}
-
-find -H $NOIDSEARCHPATHS -fstype local \( -nogroup -or -nouser \) -print
-
+	find -H ${weekly_noid_dirs:-/} -fstype local \
+	    \( -nogroup -o -nouser \) -print | sed 's/^/  /';;
+esac

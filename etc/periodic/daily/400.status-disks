@@ -3,12 +3,23 @@
 # $FreeBSD$
 #
 
-echo ""
-echo "Disk status:"
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
 
-df -k -t nonfs
+case "$daily_status_disks_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Disk status:"
 
-# display which filesystems need backing up
+	df -k -t nonfs
 
-echo ""
-dump W
+	# display which filesystems need backing up
+
+	echo ""
+	dump W;;
+esac

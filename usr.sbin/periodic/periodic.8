@@ -86,9 +86,9 @@ The top level directory containing
 and
 .Pa monthly
 subdirectories which contain standard system periodic executables.
-.It Pa /etc/defaults/rc.conf
+.It Pa /etc/defaults/periodic.conf
 The
-.Pa rc.conf
+.Pa periodic.conf
 system registry contains a variable
 .Va local_periodic
 which may be configured to specify additional top level standard
@@ -107,14 +107,17 @@ similar to the following example:
 .Dl 0      3       *       *       6       root    periodic weekly  2>&1
 .Dl 0      5       1       *       *       root    periodic monthly 2>&1
 .Pp
-Additionally, the system registry will typically have a
+Additionally, the
+.Pa /etc/defaults/periodic.conf
+system registry will typically have a
 .Va local_periodic
 variable reading:
-.Dl local_periodic="/usr/local/etc/periodic /usr/X11R6/etc/periodic" # periodic script dirs
+.Pp
+.Dl local_periodic="/usr/local/etc/periodic /usr/X11R6/etc/periodic"
 .Sh SEE ALSO
 .Xr sh 1 ,
 .Xr crontab 5 ,
-.Xr rc.conf 5 ,
+.Xr periodic.conf 5 ,
 .Xr cron 8
 .Rs
 .Sh DIAGNOSTICS

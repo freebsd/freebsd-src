@@ -63,6 +63,7 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/make.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/pccard.conf ${DESTDIR}/etc/defaults/; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/periodic.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
@@ -178,6 +179,8 @@ etc-examples:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/make.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/pccard.conf \
+	    ${DESTDIR}/usr/share/examples/etc/defaults); \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/periodic.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults)
 
 .include <bsd.prog.mk>
