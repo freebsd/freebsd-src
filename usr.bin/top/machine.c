@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.22 1999/03/05 16:38:13 bde Exp $
+ * $Id: machine.c,v 1.23 1999/03/07 06:55:47 bde Exp $
  */
 
 
@@ -620,7 +620,7 @@ char *(*get_userid)();
 	     */
 	    (PP(pp, p_rtprio.type) ==  RTP_PRIO_NORMAL ? 
 	    	PP(pp, p_nice) - NZERO : 
-	    	(PP(pp, p_rtprio.type) ==  RTP_PRIO_REALTIME ?
+	    	(RTP_PRIO_IS_REALTIME(PP(pp, p_rtprio.type)) ?
 		    (PRIO_MIN - 1 - RTP_PRIO_MAX + PP(pp, p_rtprio.prio)) : 
 		    (PRIO_MAX + 1 + PP(pp, p_rtprio.prio)))), 
 	    format_k2(PROCSIZE(pp)),
