@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#3 $
+ * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#4 $
  */
 
 #include <sys/param.h>
@@ -57,9 +57,18 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	struct pam_saved_cred *scred;
 	int r;
 
-	ENTER();
-	if (geteuid() != 0)
+	ENTERI(pwd->pw_uid);
+	r = pam_get_data(pamh, PAM_SAVED_CRED, (const void **)&scred);
+	if (r == PAM_SUCCESS && scred != NULL) {
+		openpam_log(PAM_LOG_DEBUG,
+		    "already operating under borrowed credentials");
+		RETURNC(PAM_SYSTEM_ERR);
+	}
+	if (geteuid() != 0 && geteuid() != pwd->pw_uid) {
+		openpam_log(PAM_LOG_DEBUG, "called with non-zero euid: %d",
+		    (int)geteuid());
 		RETURNC(PAM_PERM_DENIED);
+	}
 	scred = calloc(1, sizeof *scred);
 	if (scred == NULL)
 		RETURNC(PAM_BUF_ERR);
@@ -76,6 +85,8 @@ openpam_borrow_cred(pam_handle_t *pamh,
 		free(scred);
 		RETURNC(r);
 	}
+	if (geteuid() == pwd->pw_uid)
+		RETURNC(PAM_SUCCESS);
 	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1 ||
 	      setegid(pwd->pw_gid) == -1 || seteuid(pwd->pw_uid) == -1) {
 		openpam_restore_cred(pamh);

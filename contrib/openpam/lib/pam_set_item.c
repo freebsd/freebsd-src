@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_item.c#16 $
+ * $P4: //depot/projects/openpam/lib/pam_set_item.c#17 $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@ pam_set_item(pam_handle_t *pamh,
 	void **slot, *tmp;
 	size_t nsize, osize;
 
-	ENTER();
+	ENTERI(item_type);
 	if (pamh == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
 	slot = &pamh->item[item_type];
