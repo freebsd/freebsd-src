@@ -156,7 +156,7 @@ static const char *const usg[] =
        putting metavariables in uppercase.  I don't know whether that
        is a good convention or not, but if it changes it would have to
        change in all the usage messages.  For now, they consistently
-       use lowercase, as far as I know.  Puncutation is pretty funky,
+       use lowercase, as far as I know.  Punctuation is pretty funky,
        though.  Sometimes they use none, as here.  Sometimes they use
        single quotes (not the TeX-ish `' stuff), as in --help-options.
        Sometimes they use double quotes, as in cvs -H add.
@@ -338,6 +338,8 @@ lookup_command_attribute (cmd_name)
 	if (strcmp (cmd_name, cm->fullname) == 0)
 	    break;
     }
+    if (!cm->fullname)
+	error (1, 0, "unknown command: %s", cmd_name);
     return cm->attr;
 }
 
@@ -868,7 +870,7 @@ Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
 		error (0, 0,
 		       "CVSROOT is set but empty!  Make sure that the");
 		error (0, 0,
-		       "specification of CVSROOT is legal, either via the");
+		       "specification of CVSROOT is valid, either via the");
 		error (0, 0,
 		       "`-d' option, the %s environment variable, or the",
 		       CVSROOT_ENV);
@@ -928,7 +930,7 @@ Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
 		if (current_parsed_root != NULL)
 		    free_cvsroot_t (current_parsed_root);
 		if ((current_parsed_root = parse_cvsroot (current_root)) == NULL)
-		    error (1, 0, "Bad CVSROOT.");
+		    error (1, 0, "Bad CVSROOT: `%s'.", current_root);
 
 		if (trace)
 		    fprintf (stderr, "%s-> main loop with CVSROOT=%s\n",

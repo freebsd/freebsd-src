@@ -64,24 +64,71 @@ static size_t opts_allocated = 1;
 static int diff_errors;
 static int empty_files = 0;
 
-/* FIXME: should be documenting all the options here.  They don't
-   perfectly match rcsdiff options (for example, we always support
-   --ifdef and --context, but rcsdiff only does if diff does).  */
 static const char *const diff_usage[] =
 {
-    "Usage: %s %s [-lNR] [rcsdiff-options]\n",
+    "Usage: %s %s [-lR] [-k kopt] [format_options]\n",
     "    [[-r rev1 | -D date1] [-r rev2 | -D date2]] [files...] \n",
     "\t-l\tLocal directory only, not recursive\n",
     "\t-R\tProcess directories recursively.\n",
+    "\t-k kopt\tSpecify keyword expansion mode.\n",
     "\t-D d1\tDiff revision for date against working file.\n",
     "\t-D d2\tDiff rev1/date1 against date2.\n",
-    "\t-N\tinclude diffs for added and removed files.\n",
     "\t-r rev1\tDiff revision for rev1 against working file.\n",
     "\t-r rev2\tDiff rev1/date1 against rev2.\n",
-    "\t--ifdef=arg\tOutput diffs in ifdef format.\n",
-    "(consult the documentation for your diff program for rcsdiff-options.\n",
-    "The most popular is -c for context diffs but there are many more).\n",
-    "(Specify the --help global option for a list of other help options)\n",
+    "\nformat_options:\n",
+    "  -i  --ignore-case  Consider upper- and lower-case to be the same.\n",
+    "  -w  --ignore-all-space  Ignore all white space.\n",
+    "  -b  --ignore-space-change  Ignore changes in the amount of white space.\n",
+    "  -B  --ignore-blank-lines  Ignore changes whose lines are all blank.\n",
+    "  -I RE  --ignore-matching-lines=RE  Ignore changes whose lines all match RE.\n",
+    "  --binary  Read and write data in binary mode.\n",
+    "  -a  --text  Treat all files as text.\n\n",
+    "  -c  -C NUM  --context[=NUM]  Output NUM (default 2) lines of copied context.\n",
+    "  -u  -U NUM  --unified[=NUM]  Output NUM (default 2) lines of unified context.\n",
+    "    -NUM  Use NUM context lines.\n",
+    "    -L LABEL  --label LABEL  Use LABEL instead of file name.\n",
+    "    -p  --show-c-function  Show which C function each change is in.\n",
+    "    -F RE  --show-function-line=RE  Show the most recent line matching RE.\n",
+    "  --brief  Output only whether files differ.\n",
+    "  -e  --ed  Output an ed script.\n",
+    "  -f  --forward-ed  Output something like an ed script in forward order.\n",
+    "  -n  --rcs  Output an RCS format diff.\n",
+    "  -y  --side-by-side  Output in two columns.\n",
+    "    -W NUM  --width=NUM  Output at most NUM (default 130) characters per line.\n",
+    "    --left-column  Output only the left column of common lines.\n",
+    "    --suppress-common-lines  Do not output common lines.\n",
+    "  --ifdef=NAME  Output merged file to show `#ifdef NAME' diffs.\n",
+    "  --GTYPE-group-format=GFMT  Similar, but format GTYPE input groups with GFMT.\n",
+    "  --line-format=LFMT  Similar, but format all input lines with LFMT.\n",
+    "  --LTYPE-line-format=LFMT  Similar, but format LTYPE input lines with LFMT.\n",
+    "    LTYPE is `old', `new', or `unchanged'.  GTYPE is LTYPE or `changed'.\n",
+    "    GFMT may contain:\n",
+    "      %%<  lines from FILE1\n",
+    "      %%>  lines from FILE2\n",
+    "      %%=  lines common to FILE1 and FILE2\n",
+    "      %%[-][WIDTH][.[PREC]]{doxX}LETTER  printf-style spec for LETTER\n",
+    "        LETTERs are as follows for new group, lower case for old group:\n",
+    "          F  first line number\n",
+    "          L  last line number\n",
+    "          N  number of lines = L-F+1\n",
+    "          E  F-1\n",
+    "          M  L+1\n",
+    "    LFMT may contain:\n",
+    "      %%L  contents of line\n",
+    "      %%l  contents of line, excluding any trailing newline\n",
+    "      %%[-][WIDTH][.[PREC]]{doxX}n  printf-style spec for input line number\n",
+    "    Either GFMT or LFMT may contain:\n",
+    "      %%%%  %%\n",
+    "      %%c'C'  the single character C\n",
+    "      %%c'\\OOO'  the character with octal code OOO\n\n",
+    "  -t  --expand-tabs  Expand tabs to spaces in output.\n",
+    "  -T  --initial-tab  Make tabs line up by prepending a tab.\n\n",
+    "  -N  --new-file  Treat absent files as empty.\n",
+    "  -s  --report-identical-files  Report when two files are the same.\n",
+    "  --horizon-lines=NUM  Keep NUM lines of the common prefix and suffix.\n",
+    "  -d  --minimal  Try hard to find a smaller set of changes.\n",
+    "  -H  --speed-large-files  Assume large files and many scattered small changes.\n",
+    "\n(Specify the --help global option for a list of other help options)\n",
     NULL
 };
 
@@ -89,19 +136,20 @@ static const char *const diff_usage[] =
    removing the following entries, none of which seem relevant to use
    with CVS:
      --help
-     --version
-     --recursive
-     --unidirectional-new-file
-     --starting-file
-     --exclude
-     --exclude-from
+     --version (-v)
+     --recursive (-r)
+     --unidirectional-new-file (-P)
+     --starting-file (-S)
+     --exclude (-x)
+     --exclude-from (-X)
      --sdiff-merge-assist
+     --paginate (-l)  (doesn't work with library callbacks)
 
    I changed the options which take optional arguments (--context and
    --unified) to return a number rather than a letter, so that the
    optional argument could be handled more easily.  I changed the
-   --paginate and --brief options to return a number, since -l and -q
-   mean something else to cvs diff.
+   --brief and --ifdef options to return numbers, since -q  and -D mean
+   something else to cvs diff.
 
    The numbers 129- that appear in the fourth element of some entries
    tell the big switch in `diff' how to process those options. -- Ian
@@ -128,7 +176,6 @@ static struct option const longopts[] =
     {"ed", 0, 0, 'e'},
     {"forward-ed", 0, 0, 'f'},
     {"ignore-case", 0, 0, 'i'},
-    {"paginate", 0, 0, 144},
     {"rcs", 0, 0, 'n'},
     {"show-c-function", 0, 0, 'p'},
 
@@ -229,19 +276,22 @@ diff (argc, argv)
 
     optind = 0;
     while ((c = getopt_long (argc, argv,
-	       "+abcdefhilnpstuwy0123456789BHNRTC:D:F:I:L:U:V:W:k:r:j:",
+	       "+abcdefhilnpstuwy0123456789BHNRTC:D:F:I:L:U:W:k:r:j:",
 			     longopts, &option_index)) != -1)
     {
 	switch (c)
 	{
+	    case 'y':
+		xrealloc_and_strcat (&opts, &opts_allocated, " --side-by-side");
+		break;
 	    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
 	    case 'h': case 'i': case 'n': case 'p': case 's': case 't':
-	    case 'u': case 'w': case 'y':
+	    case 'u': case 'w':
             case '0': case '1': case '2': case '3': case '4': case '5':
             case '6': case '7': case '8': case '9':
 	    case 'B': case 'H': case 'T':
 		(void) sprintf (tmp, " -%c", (char) c);
-		allocate_and_strcat (&opts, &opts_allocated, tmp);
+		xrealloc_and_strcat (&opts, &opts_allocated, tmp);
 		break;
 	    case 'L':
 		if (have_rev1_label++)
@@ -251,31 +301,31 @@ diff (argc, argv)
 			break;
 		    }
 
-	        allocate_and_strcat (&opts, &opts_allocated, " -L");
-	        allocate_and_strcat (&opts, &opts_allocated, optarg);
+	        xrealloc_and_strcat (&opts, &opts_allocated, " -L");
+	        xrealloc_and_strcat (&opts, &opts_allocated, optarg);
 		break;
-	    case 'C': case 'F': case 'I': case 'U': case 'V': case 'W':
+	    case 'C': case 'F': case 'I': case 'U': case 'W':
 		(void) sprintf (tmp, " -%c", (char) c);
-		allocate_and_strcat (&opts, &opts_allocated, tmp);
-		allocate_and_strcat (&opts, &opts_allocated, optarg);
+		xrealloc_and_strcat (&opts, &opts_allocated, tmp);
+		xrealloc_and_strcat (&opts, &opts_allocated, optarg);
 		break;
 	    case 131:
 		/* --ifdef.  */
-		allocate_and_strcat (&opts, &opts_allocated, " --ifdef=");
-		allocate_and_strcat (&opts, &opts_allocated, optarg);
+		xrealloc_and_strcat (&opts, &opts_allocated, " --ifdef=");
+		xrealloc_and_strcat (&opts, &opts_allocated, optarg);
 		break;
 	    case 129: case 130:           case 132: case 133: case 134:
 	    case 135: case 136: case 137: case 138: case 139: case 140:
-	    case 141: case 142: case 143: case 144: case 145: case 146:
-		allocate_and_strcat (&opts, &opts_allocated, " --");
-		allocate_and_strcat (&opts, &opts_allocated,
+	    case 141: case 142: case 143: case 145: case 146:
+		xrealloc_and_strcat (&opts, &opts_allocated, " --");
+		xrealloc_and_strcat (&opts, &opts_allocated,
 				     longopts[option_index].name);
 		if (longopts[option_index].has_arg == 1
 		    || (longopts[option_index].has_arg == 2
 			&& optarg != NULL))
 		{
-		    allocate_and_strcat (&opts, &opts_allocated, "=");
-		    allocate_and_strcat (&opts, &opts_allocated, optarg);
+		    xrealloc_and_strcat (&opts, &opts_allocated, "=");
+		    xrealloc_and_strcat (&opts, &opts_allocated, optarg);
 		}
 		break;
 	    case 'R':
@@ -470,8 +520,7 @@ diff_fileproc (callerdat, finfo)
 			(vers->vn_rcs == NULL
 			 ? NULL
 			 : RCS_branch_head (vers->srcfile, vers->vn_rcs));
-		    exists = (head != NULL
-			      && !RCS_isdead (vers->srcfile, head));
+		    exists = head != NULL && !RCS_isdead(vers->srcfile, head);
 		    if (head != NULL)
 			free (head);
 		}
@@ -481,8 +530,7 @@ diff_fileproc (callerdat, finfo)
 
 		    xvers = Version_TS (finfo, NULL, diff_rev1, diff_date1,
 					1, 0);
-		    exists = (xvers->vn_rcs != NULL
-			      && !RCS_isdead (xvers->srcfile, xvers->vn_rcs));
+		    exists = xvers->vn_rcs != NULL && !RCS_isdead(xvers->srcfile, xvers->vn_rcs);
 		    freevers_ts (&xvers);
 		}
 		if (exists)
