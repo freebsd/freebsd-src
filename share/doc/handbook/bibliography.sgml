@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.20 1997/03/19 03:45:13 obrien Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.21 1997/03/19 03:54:15 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -265,7 +265,7 @@
 
 	<p><itemize>
 
-	    <item>Saulus, Peter H. <em>A quarter century of UNIX</em>.
+	    <item>Salus, Peter H. <em>A quarter century of UNIX</em>.
 	      Addison-Wesley Publishing Company, Inc., 1994.
 	      <newline>ISBN 0-201-54777-5</item>
           
