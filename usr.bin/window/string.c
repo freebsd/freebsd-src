@@ -43,8 +43,6 @@ static char rcsid[] =
 #include <string.h> /* System string definitions. */
 #include "mystring.h" /* Local string definitions. */
 
-char *malloc();
-
 char *
 str_cpy(s)
 register char *s;
