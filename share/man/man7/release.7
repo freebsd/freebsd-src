@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2002
+.Dd August 2, 2004
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -247,9 +247,12 @@ then the associated release version is used as the default instead.
 The directory that will be copied to
 .Pa ${CHROOTDIR}/usr/local .
 .It Va EXTSRCDIR
-The directory that will be used as the
-.Pa src/
-tree instead of a CVS checkout.
+The directory specified by this variable will be copied into
+.Pa ${CHROOTDIR}/usr/src
+instead of that directory being populated by a CVS checkout.
+For
+.Dq Li "rerelease" ,
+this will NOT be copied; cvs update will be used instead.
 .It Va KERNEL_FLAGS
 The contents of this variable are passed to
 .Xr make 1
@@ -414,16 +417,16 @@ to execute up to four processes at a time.
 .El
 .Sh EXAMPLES
 The following sequence of commands was used to build the
-.Fx 4.5
+.Fx 4.9
 release:
 .Bd -literal -offset indent
 cd /usr
-cvs co -rRELENG_4_5_0_RELEASE src
+cvs co -rRELENG_4_9_0_RELEASE src
 cd src
 make buildworld
 cd release
-make release CHROOTDIR=/local3/release BUILDNAME=4.5-RELEASE \\
-  CVSROOT=/host/cvs/usr/home/ncvs RELEASETAG=RELENG_4_5_0_RELEASE
+make release CHROOTDIR=/local3/release BUILDNAME=4.9-RELEASE \\
+  CVSROOT=/host/cvs/usr/home/ncvs RELEASETAG=RELENG_4_9_0_RELEASE
 .Ed
 .Pp
 After running these commands, a complete system suitable for FTP or
@@ -514,4 +517,4 @@ documentation from the last fully supported release of
 .Fx .
 For example:
 .Pp
-.Dl "make release RELEASETAG=RELENG_4_5 DOCRELEASETAG=RELEASE_4_5_0 ..."
+.Dl "make release RELEASETAG=RELENG_4_9 DOCRELEASETAG=RELEASE_4_9_0 ..."
