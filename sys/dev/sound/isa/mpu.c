@@ -43,7 +43,7 @@
 
 #include <isa/isavar.h>
 #include <isa/sioreg.h>
-#include <isa/ic/ns16550.h>
+#include <dev/ic/ns16550.h>
 
 static devclass_t midi_devclass;
 
