@@ -373,7 +373,6 @@ static driver_t ua_pcm_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-static devclass_t pcm_devclass;
 
 DRIVER_MODULE(ua_pcm, uaudio, ua_pcm_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(ua_pcm, uaudio, 1, 1, 1);
