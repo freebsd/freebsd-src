@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	exec.h - supplemental program/script execution
  *	----------------------------------------------
  *
- *	$Id: exec.c,v 1.23 2000/10/09 12:53:29 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Sep 27 09:39:22 2000]
+ *      last edit-date: [Mon Nov 19 15:21:38 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -147,11 +145,12 @@ exec_prog(char *prog, char **arglist)
 	 * 3. /var/log/isdnd.log (or similar, when used)
 	 */
 	close(isdnfd);
-	if(useacctfile)
+
+	if(useacctfile && acctfp)
 		fclose(acctfp);
-	if(uselogfile)
+
+	if(uselogfile && logfp)
 		fclose(logfp);
-	
 
 	if(execvp(path,arglist) < 0 )
 		_exit(127);
