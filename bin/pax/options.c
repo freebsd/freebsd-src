@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.4 1995/10/23 21:23:16 ache Exp $
+ *	$Id: options.c,v 1.4.2.1 1997/08/25 08:37:01 jkh Exp $
  */
 
 #ifndef lint
@@ -209,7 +209,7 @@ pax_options(argc, argv)
 			 */
 			flg |= BF;
 			if ((wrblksz = (int)str_offt(optarg)) <= 0) {
-				warn(1, "Invalid block size %s", optarg);
+				pax_warn(1, "Invalid block size %s", optarg);
 				pax_usage();
 			}
 			break;
@@ -311,7 +311,7 @@ pax_options(argc, argv)
 					pmode = 1;
 					break;
 				default:
-					warn(1, "Invalid -p string: %c", *pt);
+					pax_warn(1, "Invalid -p string: %c", *pt);
 					pax_usage();
 					break;
 				}
@@ -371,7 +371,7 @@ pax_options(argc, argv)
 				flg |= XF;
 				break;
 			}
-			warn(1, "Unknown -x format: %s", optarg);
+			pax_warn(1, "Unknown -x format: %s", optarg);
 			(void)fputs("pax: Known -x formats are:", stderr);
 			for (i = 0; i < (sizeof(fsub)/sizeof(FSUB)); ++i)
 				(void)fprintf(stderr, " %s", fsub[i].name);
@@ -384,11 +384,11 @@ pax_options(argc, argv)
 			 * single archive volume.
 			 */
 			if ((wrlimit = str_offt(optarg)) <= 0) {
-				warn(1, "Invalid write limit %s", optarg);
+				pax_warn(1, "Invalid write limit %s", optarg);
 				pax_usage();
 			}
 			if (wrlimit % BLKMULT) {
-				warn(1, "Write limit is not a %d byte multiple",
+				pax_warn(1, "Write limit is not a %d byte multiple",
 				    BLKMULT);
 				pax_usage();
 			}
@@ -412,7 +412,7 @@ pax_options(argc, argv)
 			if (strcmp(NONE, optarg) == 0)
 				maxflt = -1;
 			else if ((maxflt = atoi(optarg)) < 0) {
-				warn(1, "Error count value must be positive");
+				pax_warn(1, "Error count value must be positive");
 				pax_usage();
 			}
 			break;
@@ -547,7 +547,7 @@ pax_options(argc, argv)
 		break;
 	case COPY:
 		if (optind >= argc) {
-			warn(0, "Destination directory was not supplied");
+			pax_warn(0, "Destination directory was not supplied");
 			pax_usage();
 		}
 		--argc;
@@ -604,11 +604,11 @@ tar_options(argc, argv)
 			 * specify blocksize
 			 */
 			if (*argv == (char *)NULL) {
-				warn(1,"blocksize must be specified with 'b'");
+				pax_warn(1,"blocksize must be specified with 'b'");
 				tar_usage();
 			}
 			if ((wrblksz = (int)str_offt(*argv)) <= 0) {
-				warn(1, "Invalid block size %s", *argv);
+				pax_warn(1, "Invalid block size %s", *argv);
 				tar_usage();
 			}
 			++argv;
@@ -630,7 +630,7 @@ tar_options(argc, argv)
 			 * filename where the archive is stored
 			 */
 			if (*argv == (char *)NULL) {
-				warn(1, "filename must be specified with 'f'");
+				pax_warn(1, "filename must be specified with 'f'");
 				tar_usage();
 			}
 			if ((argv[0][0] == '-') && (argv[0][1]== '\0')) {
@@ -893,7 +893,7 @@ bad_opt()
 	/*
 	 * print all we were given
 	 */
-	warn(1,"These format options are not supported");
+	pax_warn(1,"These format options are not supported");
 	while ((opt = opt_next()) != NULL)
 		(void)fprintf(stderr, "\t%s = %s\n", opt->name, opt->value);
 	pax_usage();
@@ -924,7 +924,7 @@ opt_add(str)
 	register char *endpt;
 
 	if ((str == NULL) || (*str == '\0')) {
-		warn(0, "Invalid option name");
+		pax_warn(0, "Invalid option name");
 		return(-1);
 	}
 	frpt = endpt = str;
@@ -938,11 +938,11 @@ opt_add(str)
 		if ((endpt = strchr(frpt, ',')) != NULL)
 			*endpt = '\0';
 		if ((pt = strchr(frpt, '=')) == NULL) {
-			warn(0, "Invalid options format");
+			pax_warn(0, "Invalid options format");
 			return(-1);
 		}
 		if ((opt = (OPLIST *)malloc(sizeof(OPLIST))) == NULL) {
-			warn(0, "Unable to allocate space for option list");
+			pax_warn(0, "Unable to allocate space for option list");
 			return(-1);
 		}
 		*pt++ = '\0';

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpio.c,v 1.4 1995/10/23 21:23:04 ache Exp $
+ *	$Id: cpio.c,v 1.4.2.1 1997/08/25 08:36:55 jkh Exp $
  */
 
 #ifndef lint
@@ -216,7 +216,7 @@ rd_nm(arcn, nsz)
 	 * do not even try bogus values
 	 */
 	if ((nsz == 0) || (nsz > sizeof(arcn->name))) {
-		warn(1, "Cpio file name length %d is out of range", nsz);
+		pax_warn(1, "Cpio file name length %d is out of range", nsz);
 		return(-1);
 	}
 
@@ -225,7 +225,7 @@ rd_nm(arcn, nsz)
 	 */
 	if ((rd_wrbuf(arcn->name,nsz) != nsz) || (arcn->name[nsz-1] != '\0') ||
 	    (arcn->name[0] == '\0')) {
-		warn(1, "Cpio file name in header is corrupted");
+		pax_warn(1, "Cpio file name in header is corrupted");
 		return(-1);
 	}
 	return(0);
@@ -254,10 +254,10 @@ rd_ln_nm(arcn)
 	if ((arcn->sb.st_size == 0) ||
 	    (arcn->sb.st_size >= sizeof(arcn->ln_name))) {
 #		ifdef NET2_STAT
-		warn(1, "Cpio link name length is invalid: %lu",
+		pax_warn(1, "Cpio link name length is invalid: %lu",
 		    arcn->sb.st_size);
 #		else
-		warn(1, "Cpio link name length is invalid: %qu",
+		pax_warn(1, "Cpio link name length is invalid: %qu",
 		    arcn->sb.st_size);
 #		endif
 		return(-1);
@@ -268,7 +268,7 @@ rd_ln_nm(arcn)
 	 */
 	if (rd_wrbuf(arcn->ln_name, (int)arcn->sb.st_size) !=
 	    (int)arcn->sb.st_size) {
-		warn(1, "Cpio link name read error");
+		pax_warn(1, "Cpio link name read error");
 		return(-1);
 	}
 	arcn->ln_nlen = arcn->sb.st_size;
@@ -278,7 +278,7 @@ rd_ln_nm(arcn)
 	 * watch out for those empty link names
 	 */
 	if (arcn->ln_name[0] == '\0') {
-		warn(1, "Cpio link name is corrupt");
+		pax_warn(1, "Cpio link name is corrupt");
 		return(-1);
 	}
 	return(0);
@@ -480,7 +480,7 @@ cpio_wr(arcn)
 		if (uqd_asc((u_quad_t)arcn->sb.st_size, hd->c_filesize,
 		    sizeof(hd->c_filesize), OCT)) {
 #		endif
-			warn(1,"File is too large for cpio format %s",
+			pax_warn(1,"File is too large for cpio format %s",
 			    arcn->org_name);
 			return(1);
 		}
@@ -531,7 +531,7 @@ cpio_wr(arcn)
 	 */
 	if ((wr_rdbuf(hdblk, (int)sizeof(HD_CPIO)) < 0) ||
 	    (wr_rdbuf(arcn->name, nsz) < 0)) {
-		warn(1, "Unable to write cpio header for %s", arcn->org_name);
+		pax_warn(1, "Unable to write cpio header for %s", arcn->org_name);
 		return(-1);
 	}
 
@@ -550,7 +550,7 @@ cpio_wr(arcn)
 	 * next file as we are done.
 	 */
 	if (wr_rdbuf(arcn->ln_name, arcn->ln_nlen) < 0) {
-		warn(1,"Unable to write cpio link name for %s",arcn->org_name);
+		pax_warn(1,"Unable to write cpio link name for %s",arcn->org_name);
 		return(-1);
 	}
 	return(1);
@@ -559,7 +559,7 @@ cpio_wr(arcn)
 	/*
 	 * header field is out of range
 	 */
-	warn(1, "Cpio header field is too small to store file %s",
+	pax_warn(1, "Cpio header field is too small to store file %s",
 	    arcn->org_name);
 	return(1);
 }
@@ -847,7 +847,7 @@ vcpio_wr(arcn)
 		if (uqd_asc((u_quad_t)arcn->sb.st_size, hd->c_filesize,
 		    sizeof(hd->c_filesize), HEX)) {
 #		endif
-			warn(1,"File is too large for sv4cpio format %s",
+			pax_warn(1,"File is too large for sv4cpio format %s",
 			    arcn->org_name);
 			return(1);
 		}
@@ -905,7 +905,7 @@ vcpio_wr(arcn)
 	if ((wr_rdbuf(hdblk, (int)sizeof(HD_VCPIO)) < 0) ||
 	    (wr_rdbuf(arcn->name, (int)nsz) < 0)  ||
 	    (wr_skip((off_t)(VCPIO_PAD(sizeof(HD_VCPIO) + nsz))) < 0)) {
-		warn(1,"Could not write sv4cpio header for %s",arcn->org_name);
+		pax_warn(1,"Could not write sv4cpio header for %s",arcn->org_name);
 		return(-1);
 	}
 
@@ -927,7 +927,7 @@ vcpio_wr(arcn)
 	 */
 	if ((wr_rdbuf(arcn->ln_name, arcn->ln_nlen) < 0) ||
 	    (wr_skip((off_t)(VCPIO_PAD(arcn->ln_nlen))) < 0)) {
-		warn(1,"Could not write sv4cpio link name for %s",
+		pax_warn(1,"Could not write sv4cpio link name for %s",
 		    arcn->org_name);
 		return(-1);
 	}
@@ -937,7 +937,7 @@ vcpio_wr(arcn)
 	/*
 	 * header field is out of range
 	 */
-	warn(1,"Sv4cpio header field is too small for file %s",arcn->org_name);
+	pax_warn(1,"Sv4cpio header field is too small for file %s",arcn->org_name);
 	return(1);
 }
 
@@ -1158,7 +1158,7 @@ bcpio_wr(arcn)
 		t_offt = (off_t)(SHRT_EXT(hd->h_filesize_1));
 		t_offt = (t_offt<<16) | ((off_t)(SHRT_EXT(hd->h_filesize_2)));
 		if (arcn->sb.st_size != t_offt) {
-			warn(1,"File is too large for bcpio format %s",
+			pax_warn(1,"File is too large for bcpio format %s",
 			    arcn->org_name);
 			return(1);
 		}
@@ -1243,7 +1243,7 @@ bcpio_wr(arcn)
 	if ((wr_rdbuf(hdblk, (int)sizeof(HD_BCPIO)) < 0) ||
 	    (wr_rdbuf(arcn->name, nsz) < 0) ||
 	    (wr_skip((off_t)(BCPIO_PAD(sizeof(HD_BCPIO) + nsz))) < 0)) {
-		warn(1, "Could not write bcpio header for %s", arcn->org_name);
+		pax_warn(1, "Could not write bcpio header for %s", arcn->org_name);
 		return(-1);
 	}
 
@@ -1265,7 +1265,7 @@ bcpio_wr(arcn)
 	 */
 	if ((wr_rdbuf(arcn->ln_name, arcn->ln_nlen) < 0) ||
 	    (wr_skip((off_t)(BCPIO_PAD(arcn->ln_nlen))) < 0)) {
-		warn(1,"Could not write bcpio link name for %s",arcn->org_name);
+		pax_warn(1,"Could not write bcpio link name for %s",arcn->org_name);
 		return(-1);
 	}
 	return(1);
@@ -1274,6 +1274,6 @@ bcpio_wr(arcn)
 	/*
 	 * header field is out of range
 	 */
-	warn(1,"Bcpio header field is too small for file %s", arcn->org_name);
+	pax_warn(1,"Bcpio header field is too small for file %s", arcn->org_name);
 	return(1);
 }
