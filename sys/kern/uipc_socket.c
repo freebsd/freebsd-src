@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.6 1995/02/02 08:49:08 davidg Exp $
+ * $Id: uipc_socket.c,v 1.7 1995/02/06 02:22:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -364,12 +364,20 @@ restart:
 		if (so->so_error)
 			snderr(so->so_error);
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
-			if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
+			/*
+			 * `sendto' and `sendmsg' is allowed on a connection-
+			 * based socket if it supports implied connect.
+			 * Return ENOTCONN if not connected and no address is
+			 * supplied.
+			 */
+			if ((so->so_proto->pr_flags & PR_CONNREQUIRED) &&
+			    (so->so_proto->pr_flags & PR_IMPLOPCL) == 0) {
 				if ((so->so_state & SS_ISCONFIRMING) == 0 &&
 				    !(resid == 0 && clen != 0))
 					snderr(ENOTCONN);
 			} else if (addr == 0)
-				snderr(EDESTADDRREQ);
+			    snderr(so->so_proto->pr_flags & PR_CONNREQUIRED ?
+				   ENOTCONN : EDESTADDRREQ);
 		}
 		space = sbspace(&so->so_snd);
 		if (flags & MSG_OOB)
@@ -444,7 +452,16 @@ nopages:
 			    so->so_options |= SO_DONTROUTE;
 		    s = splnet();				/* XXX */
 		    error = (*so->so_proto->pr_usrreq)(so,
-			(flags & MSG_OOB) ? PRU_SENDOOB : PRU_SEND,
+			(flags & MSG_OOB) ? PRU_SENDOOB :
+			/*
+			 * If the user set MSG_EOF, the protocol
+			 * understands this flag and nothing left to
+			 * send then use PRU_SEND_EOF instead of PRU_SEND.
+			 */
+			((flags & MSG_EOF) &&
+			 (so->so_proto->pr_flags & PR_IMPLOPCL) &&
+			 (resid <= 0)) ?
+				PRU_SEND_EOF : PRU_SEND,
 			top, addr, control);
 		    splx(s);
 		    if (dontroute)

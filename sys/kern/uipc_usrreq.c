@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $Id: uipc_usrreq.c,v 1.4 1994/09/28 19:55:10 phk Exp $
+ * $Id: uipc_usrreq.c,v 1.5 1994/10/02 17:35:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -172,6 +172,7 @@ uipc_usrreq(so, req, m, nam, control)
 		break;
 
 	case PRU_SEND:
+	case PRU_SEND_EOF:
 		if (control && (error = unp_internalize(control, p)))
 			break;
 		switch (so->so_type) {
@@ -212,6 +213,15 @@ uipc_usrreq(so, req, m, nam, control)
 		case SOCK_STREAM:
 #define	rcv (&so2->so_rcv)
 #define	snd (&so->so_snd)
+			/* Connect if not connected yet. */
+			/*
+			 * Note: A better implementation would complain
+			 * if already connected, nam non-zero and not
+			 * equal to the peer's address.
+			 */
+			if ((so->so_state & SS_ISCONNECTED) == 0 &&
+			    (error = unp_connect(so, nam, p)) != 0)
+				break;	/* XXX */
 			if (so->so_state & SS_CANTSENDMORE) {
 				error = EPIPE;
 				break;
@@ -242,6 +252,14 @@ uipc_usrreq(so, req, m, nam, control)
 
 		default:
 			panic("uipc 4");
+		}
+		/*
+		 * SEND_EOF is equivalent to a SEND followed by
+		 * a SHUTDOWN.
+		 */
+		if (req == PRU_SEND_EOF) {
+			socantsendmore(so);
+			unp_shutdown(unp);
 		}
 		break;
 
