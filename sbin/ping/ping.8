@@ -77,7 +77,8 @@ header, followed by a
 .Dq struct timeval
 and then an arbitrary number of
 .Dq pad
-bytes used to fill out the packet.  The options are as follows:
+bytes used to fill out the packet.
+The options are as follows:
 .Bl -tag -width indent
 .It Fl A
 Audible.
@@ -183,8 +184,10 @@ Originally, the
 .Fl v
 flag was required to display such errors, but
 .Fl v
-displays all ICMP error messages.  On a busy machine, this output can
-be overbearing.  Without the
+displays all ICMP error messages.
+On a busy machine, this output can
+be overbearing.
+Without the
 .Fl Q
 flag,
 .Nm
@@ -234,9 +237,9 @@ Only the super-user may use this option.
 Use the following IP address as the source address in outgoing packets.
 On hosts with more than one IP address, this option can be used to
 force the source address to be something other than the IP address
-of the interface the probe packet is sent on.  If the IP address
-is not one of this machine's interface addresses, an error is
-returned and nothing is sent.
+of the interface the probe packet is sent on.
+If the IP address is not one of this machine's interface addresses,
+an error is returned and nothing is sent.
 .It Fl t Ar timeout
 Specify a timeout, in seconds, before ping exits regardless of how
 many packets have been received.
