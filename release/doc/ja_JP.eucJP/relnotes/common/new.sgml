@@ -128,13 +128,18 @@
       &man.agp.4; が追加されました。
       &merged;</para>
 
-    <para>A new in-kernel cryptographic framework (see &man.crypto.4;
-      and &man.crypto.9;) has been imported from OpenBSD.  It provides
-      a consistent interface to hardware and software implementations
-      of cryptographic algorithms for use by the kernel and access to
-      cryptographic hardware for user-mode applications.
-      Hardware device drivers are provided to support hifn-based cards
-      (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;).</para>
+    <para>OpenBSD 由来の新しいカーネル暗号化フレームワークが
+      統合されました
+      (詳細は &man.crypto.4; と &man.crypto.9; をご覧ください)。
+      これは、ソフトウェアで実装された暗号アルゴリズムと
+      ハードウェアで実装された暗号アルゴリズムの両方を、
+      カーネルから共通の方法で利用できるインターフェースを提供し、
+      ユーザアプリケーションから暗号化ハードウェアへアクセスできるように
+      するためのものです。
+      ハードウェア用デバイスドライバとして、
+      hifn ベースのカードに対応した &man.hifn.4; ドライバと
+      Broadcom ベースのカードに対応した &man.ubsec.4; ドライバが
+      追加されています。</para>
 
     <para>&man.ddb.4; に新たなコマンド
       <command>show pcpu</command> が追加されました。
@@ -149,10 +154,11 @@
       のようにハードウェアウォッチポイントを設定するためのものです。
       &merged;</para>
 
-    <para>A <filename>devctl</filename> device has been added to allow
-      userland programs to learn when devices come and go in the device
-      tree.  This facility is primarily used
-      by the &man.devd.8; utility.</para>
+    <para><filename>devctl</filename> デバイスが追加されました。
+      これにより、ユーザランドプログラムは
+      いつデバイスがデバイスツリー上で用意されて利用可能になるかを
+      知ることができます。
+      この機能は主に &man.devd.8; ユーティリティで利用されます。</para>
 
     <para>&man.devfs.5; の大部分が書き直されました。
       これは <filename>/dev</filename>
@@ -186,8 +192,9 @@
 
     <para arch="sparc64">EBus ベースのデバイスがサポートされました。</para>
 
-    <para arch="i386,pc98,powerpc">Initial support has been added for
-      Firewire devices (see &man.firewire.4;). &merged;</para>
+    <para arch="i386,pc98,powerpc">Firewire デバイスへに対する
+      初期的な対応が追加されました
+      (詳細は &man.firewire.4; をご覧ください)。&merged;</para>
 
     <para arch="i386" role="historic">Intel 82801AA (ICH) SMBus
       コントローラおよびその互換品に対応した
@@ -359,8 +366,8 @@
       ISA メモリ I/O 空間内のオプション ROM を取得するためのものです。
       &merged;</para>
 
-    <para>The <literal>P1003_1B</literal> kernel option is no longer
-      used and has been removed.</para>
+    <para>カーネルオプション <literal>P1003_1B</literal> が
+      すでに使われなくなっているために削除されました。
 
     <para arch="i386,pc98">PECOFF (Win32 実行ファイルフォーマット)
       に対応しました。</para>
@@ -416,9 +423,9 @@
 
     <para arch="sparc64">SBus ベースのデバイスがサポートされました。</para>
 
-    <para arch="sparc64">The sab driver, which supports the Siemens
-      SAB82532 serial chip found on many newer Sparc Ultra machines,
-      has been added.</para>
+    <para arch="sparc64">最近の Sparc Ultra マシンの多くに搭載されている
+      Siemens SAB82532 シリアルチップに対応した
+      sab ドライバが追加されました。</para>
 
     <para>&man.sendfile.2; システムコールにおいて、
       送信ファイルサイズの計算でヘッダサイズを
@@ -448,8 +455,8 @@
     <para>USB オーディオデバイス用の
       uaudio ドライバが追加されました。&merged;</para>
 
-    <para arch="i386,pc98">The ubsa driver has been added to support
-      the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
+    <para arch="i386,pc98">Belkin F5U103 USB-シリアル変換アダプタ
+      (およびその互換製品) に対応する ubsa ドライバが追加されました。</para>
 
     <para arch="i386,pc98" role="historic">USB モデムに対応した
       &man.umodem.4; ドライバが追加されました。このドライバは
@@ -728,14 +735,14 @@
 	<literal>CPU_ELAN</literal> オプションを追加する必要があります。
 	&merged;</para>
 
-      <para arch="i386,pc98">The <literal>CPU_DISABLE_CMPXCHG</literal>
-        kernel configuration option has been added.  Enabling this
-        option has been shown to dramatically improve performance on
-        VMWare client OS installs.
+      <para arch="i386,pc98">カーネルオプション
+        <literal>CPU_DISABLE_CMPXCHG</literal> が追加されました。
+        このオプションを有効にすると、
+        VMWare 上のクライアント OS の性能が劇的に向上します。
 
 	<note>
-	  <para>This option is not compatible with
-	    <literal>SMP</literal> kernels.</para>
+	  <para>このオプションは
+	    <literal>SMP</literal> 機能と共存できません。</para>
 	</note>
 
 	</para>
@@ -1176,26 +1183,26 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	対応し、動的な追加・削除に関してもより安定しました。
 	VLAN 機能にも完全に対応しています。&merged;</para>
 
-      <para>A <literal>FAST_IPSEC</literal> kernel option now allows
-        the IPsec implementation to use the kernel &man.crypto.4; framework,
-        along with its support for hardware cryptographic
-        acceleration.
+      <para>IPsec 実装でハードウェア暗号化アクセラレータに対応した
+        カーネル &man.crypto.4; フレームワークが使えるようになりました。
+        有効にするには、<literal>FAST_IPSEC</literal>
+        カーネルオプションを指定します。
+
         <note>
-          <para>The <literal>FAST_IPSEC</literal> and
-            <literal>IPSEC</literal> options are mutually
-            exclusive.</para>
+          <para><literal>FAST_IPSEC</literal> オプションと
+            <literal>IPSEC</literal> オプションを同時に指定することはできません。</para>
 	</note>
 
         <note>
-          <para>The <literal>FAST_IPSEC</literal> option is, at the
-            moment, not compatible with IPv6 or the
-            <literal>INET6</literal> option.</para>
+          <para>現時点では、<literal>FAST_IPSEC</literal> オプションは
+            IPv6 または <literal>INET6</literal> オプションと共存できません。
+            </para>
 	</note>
 
 	</para>
 
       <para>&man.gre.4; ドライバが追加されました。
-        IP パケットを GRE (RFC 1701) や
+        これは IP パケットを GRE (RFC 1701) や
         minimal IP encapsulation for Mobile IP (RFC 2004)
         を利用してカプセル化を行います。
         &merged;</para>
@@ -1517,8 +1524,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<literal>device atapicam</literal> を追加する必要があります。
 	詳細は &man.atapicam.4; をご覧ください。</para>
 
-      <para>The &man.ata.4; driver now has support for the Sil 0680
-        and VIA 8233/8235 controllers. &merged;</para>
+      <para>&man.ata.4; ドライバが新しく
+        Sil 0680 と VIA 8233/8235 コントローラに対応しました。
+        &merged;</para>
 
       <para>The &man.ata.4; driver now has support for the Acard
 	ATP850, ATP860, and ATP865 controllers.</para>
@@ -1538,11 +1546,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         が対応しています。
         &merged;</para>
 
-      <para>The &man.cd.4; driver now supports the same
-        <literal>CDRIOCREADSPEED</literal> and
-        <literal>CDRIOCWRITESPEED</literal> ioctls that the
-        &man.acd.4; driver uses for setting the speed of CDROM
-        access.</para>
+      <para>&man.cd.4; ドライバが、
+        &man.acd.4; ドライバが CDROM のアクセス速度を設定するのに使用している
+        <literal>CDRIOCREADSPEED</literal>, 
+        <literal>CDRIOCWRITESPEED</literal> ioctl に対応しました。</para>
 
       <para>The &man.targ.4; driver has been rewritten and a new
 	usermode has been added to <filename>/usr/share/examples/scsi_target</filename> that
@@ -1562,33 +1569,39 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         これは、カーネルの上位からのデバイスドライバに対する I/O 要求に、
         さまざまな操作を加えられるように設計された、
 	拡張可能なフレームワークです。
+
 	<note>
-	  <para>GEOM-enabled kernels no longer support
-	    <quote>compatability slices</quote>.  This feature
-	    (supported on the i386 and pc98 only) allowed a user to
-	    refer to a disk partition without specifying an MBR slice
-	    (e.g. <filename>/dev/ad0a</filename>); the kernel would
-	    automatically find the first applicable &os; slice and use
-	    it.  On GEOM-enabled kernels (the default), only the full partition names
-	    (e.g. <filename>/dev/ad0s1a</filename>) are allowed when
-	    referring to partitions within MBR slices.  This
-	    change should affect very few users.</para>
+	  <para>GEOM を有効にしたカーネルは
+	    <quote>互換スライス</quote> に対応していません。
+	    (i386 と pc98 のみが対応していた) この機能は、
+	    (たとえば <filename>/dev/ad0a</filename> のように)
+	    ユーザが MBR スライスを指定していない場合に、
+            カーネルが自動的に先頭にある有効な &os; スライスを探し出して、
+            そのディスクパーティションにアクセスすることができるというものです。
+	    GEOM が有効になっているカーネル (デフォルトで有効)
+            で MBR スライス中のパーティションを参照するには、
+	    完全なパーティション名
+	    (たとえば <filename>/dev/ad0s1a</filename>)
+	    を指定する必要があります。
+	    この変更はごく限られたユーザにしか影響をおよぼさないでしょう。</para>
 	</note>
 
 	</para>
 
-      <para>A GEOM Based Disk Encryption module has been added.  It
-        provides denial of access to <quote>cold disks</quote>, with
-        four different cryptographic barriers and up to four
-        changeable pass-phrases.  Much more information can be found
-        in the &man.gbde.4; manual page.  The &man.gbde.8; userland
-        utility provides an operation and management interface to this
-        module.  This feature is not enabled by default; it requires
-        <literal>options GEOM_BDE</literal> to be added to a kernel
-        configuration file.
+      <para>GEOM ベースのディスク暗号化モジュール (GEOM Based Disk Encryption)
+        が追加されました。
+        これは、四個の暗号保護層と
+        最大で四個設定できる変更可能なパスフレーズを利用して、
+        <quote>非動作中のディスク (cold disk)</quote> に対するアクセスを排除します。
+        より詳細な情報は &man.gbde.4; のマニュアルページをご覧ください。
+        このモジュールの操作および管理用に、&man.gbde.8;
+        ユーザランドユーティリティが提供されています。
+        この機能はデフォルトでは有効にされていません。利用するには
+        カーネルコンフィグファイルに
+        <literal>options GEOM_BDE</literal> を追加してください。
 
 	<note>
-	  <para>This feature should be considered experimental.</para>
+	  <para>この機能は実験的なものと考えられています。</para>
 	</note>
 
 	</para>
@@ -1618,8 +1631,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">&man.isp.4; ドライバが Qlogic 2300/2312 Optical
 	Fibre Channel PCI カードをサポートしました。&merged;</para>
 
-      <para arch="i386,pc98">The &man.matcd.4; driver has been removed
-        due to breakage and licensing issues. &merged;</para>
+      <para arch="i386,pc98">&man.matcd.4; ドライバは、
+        構築上の不具合とライセンス上の問題があるため、削除されました。&merged;</para>
 
       <para>メモリディスクデバイス &man.md.4; に
         &man.vn.4; の機能が統合されました。
@@ -1652,17 +1665,19 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	これは Promise SuperTrak ATA RAID コントローラに対応しています。
 	&merged;</para>
 
-      <para>The RAIDframe disk driver has been imported from NetBSD.
-        This driver provides software-based RAID 0, 1, 4, and 5
-        capabilities, as well as other functionality.  More
-        information can be found in the &man.raid.4; driver manual
-        page.  The &man.raidctl.8; utility is used to configure and
-        unconfigure disk arrays.  This feature is not enabled by
-        default, and requires <literal>device raidframe</literal> to
-        be configured into a kernel.
+      <para>NetBSD 由来の RAIDframe ディスクドライバが統合されました。
+        このドライバは、ソフトウェアによる RAID 0, 1, 4, 5 機能や、
+        (訳注: 循環スペア RAID 5 やインターリーブデクラスタリングなどの)
+        その他の RAID 機能を提供します。
+        詳細は &man.raid.4; ドライバのマニュアルページをご覧ください。
+        &man.raidctl.8; ユーティリティは
+        ディスクアレイの設定や設定解除に利用されます。
+        この機能はデフォルトでは無効にされており、
+        有効にするにはカーネルコンフィグファイルに
+        <literal>device raidframe</literal> を追加する必要があります。
 
 	<note>
-	  <para>This feature should be considered experimental.</para>
+	  <para>この機能は実験的なものと考えられています。</para>
 	</note>
 
 	</para>
@@ -1677,8 +1692,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<varname>kern.cam.scsi_delay</varname> sysctl 変数を利用して
         起動時および実行時に変更できるようになりました。</para>
 
-      <para>The trm driver has been added to support SCSI adapters
-        using the Tekram TRM-S1040 SCSI chipset. &merged;</para>
+      <para>Tekram TRM-S1040 SCSI チップセットが搭載された
+        SCSI アダプタに対応する trm ドライバが追加されました。
+        &merged;</para>
 
       <para arch="i386" role="historic">3ware ATA RAID に対応する
         &man.twe.4; ドライバが追加されました。&merged;</para>
@@ -2634,8 +2650,8 @@ hw.pcic.irq="0"</programlisting>
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
-    <para>Support for &man.a.out.5; format executables in the compiler
-      toolchain has been largely removed.
+    <para>コンパイラツールチェーンから
+      &man.a.out.5; 形式の実行ファイルへの対応の大部分が削除されました。
         <note>
 	  <para>This is a work in progress.  Eventually, &man.a.out.5;
 	    support will resurface in a series of ports/packages.</para>
@@ -2720,13 +2736,14 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.burncd.8; は VCD や SVCD に書き込めるように
       なりました。&merged;</para>
 
-    <para>&man.burncd.8; now accepts a value of <literal>max</literal>
-      for its <option>-s</option> option to set the drive's maximum
-      write speed.</para>
+    <para>&man.burncd.8; が、
+      <option>-s</option> オプションの値に
+      <literal>max</literal> を指定すると、
+      そのドライブの最大書き込み速度を設定するようになりました。</para>
 
-    <para>&man.bzgrep.1;, &man.bzegrep.1;, and &man.bzfgrep.1;
-      have been added to perform &man.grep.1;-type operations on
-      &man.bzip2.1;-compressed files.</para>
+    <para>&man.bzgrep.1;、&man.bzegrep.1;、&man.bzfgrep.1; が追加され、
+      &man.bzip2.1; で圧縮されたファイルを
+      &man.grep.1; することができるようになりました。</para>
 
     <para role="historic">&man.c89.1;
       がシェルスクリプトからバイナリ実行ファイルに置き換えられ、
@@ -2769,13 +2786,8 @@ hw.pcic.irq="0"</programlisting>
       に対応しました。
       &merged;</para>
 
-    <para>&man.cdcontrol.1; now supports a
-      <literal>speed</literal> command to set the maximum speed to be
-      used by the drive (the maximum possible speed can be selected
-      setting the speed to <literal>max</literal>).</para>
-
     <para>&man.cdcontrol.1; が
-      ATAPI CDROM ドライブの最大速度を設定する
+      CDROM ドライブの最大速度を設定する
       <literal>speed</literal> コマンドに対応しました
       (速度に <literal>max</literal> と指定することで、
       ドライブの最大速度と同じ値に設定することも可能)。&merged;</para>
@@ -2870,13 +2882,13 @@ hw.pcic.irq="0"</programlisting>
       &merged;
     </para>
 
-    <para>The &man.devd.8; utility, a userland daemon that can run
-      arbitrary commands when devices come and go in the device tree,
-      has been added.  This program is a generalization of some of the
-      functionality of &man.pccardd.8;.
+    <para>&man.devd.8; ユーティリティが追加されました。
+      これは、デバイスがデバイスツリー上に現われ利用可能になった際に
+      任意のコマンドを実行することのできるユーザランドデーモンです。
+      このプログラムは &man.pccardd.8; のいくつかの機能の汎用化したものです。
 
       <note>
-        <para>&man.devd.8; is work-in-progress.</para>
+        <para>&man.devd.8; は、現在も作業が続けられている機能の一つです。</para>
       </note>
 
       </para>
@@ -3189,10 +3201,10 @@ hw.pcic.irq="0"</programlisting>
       これは、新しく追加された <option>promisc</option> フラグを使います。
       &merged;</para>
 
-    <para>&man.ifconfig.8; now supports a <literal>monitor</literal>
-      interface flag, which blocks transmission of packets on that
-      interface.  This feature is useful for monitoring network traffic
-      without interacting with the network in question.</para>
+    <para>&man.ifconfig.8; に、パケットの送出を遮断する
+      <literal>monitor</literal> フラグが追加されました。
+      この機能は、他ネットワークへ影響をおよぼさずに、
+      そのネットワークのトラフィックを監視するのに役立ちます。</para>
 
     <para role="historic">&man.faithd.8;
       に対応するための &man.inetd.8; 文法が、
@@ -3432,14 +3444,14 @@ hw.pcic.irq="0"</programlisting>
       新しく導入された <command>lpc tclean</command> コマンドにより、
       <command>lpc clean</command>
       コマンドで削除されるファイルをチェックすることができます。
-      <command>lpc
-      topq</command> has been reimplemented, and now allows for a much
-      more flexible specification of which jobs should be moved (such
-      as a range of job numbers, or a hostname).  An <command>lpc
-      bottomq</command> command has been added to move jobs to the
-      bottom of a print queue, and a new <command>lpc
-      setstatus</command> command can be used to set a printer's
-      status message. &merged;</para>
+      <command>lpc topq</command> が再実装され、
+      移動するジョブを
+      (ジョブ番号の範囲やホスト名などを使って)
+      より柔軟に指定できるようになりました。
+      また、印刷キューの最後にジョブを移動する
+      <command>lpc bottomq</command> コマンドと、
+      プリンタの状態メッセージを設定できる
+      <command>lpc setstatus</command> コマンドが追加されました。&merged;</para>
 
     <para role="historic">&man.lpd.8; に新しいオプションが 2 つ追加されました。
       <option>-c</option> オプションフラグは
@@ -3748,8 +3760,8 @@ hw.pcic.irq="0"</programlisting>
       出力形式を指定する <option>-t</option> オプションが追加されました。
       &merged;</para>
 
-    <para arch="sparc64">The &man.ofwdump.8; utility has been added to
-      examine the OpenFirmware device tree.</para>
+    <para arch="sparc64">OpenFirmware デバイスツリーを調べるための
+      &man.ofwdump.8; ユーティリティが追加されました。</para>
 
     <para><application>PAM</application>
       のアカウント管理、セション管理に対応しました。</para>
@@ -3865,8 +3877,8 @@ hw.pcic.irq="0"</programlisting>
       <option>-A</option> オプションが追加されました。&merged;
     </para>
 
-    <para>&man.ping.8; now supports a <option>-o</option> flag to exit
-      after receiving a reply.</para>
+    <para>&man.ping.8; に、応答を一回受け取った後に終了する
+      <option>-o</option> フラグが追加されました。</para>
 
     <para role="historic">Userland &man.ppp.8;
       has received a number of updates and
@@ -3916,8 +3928,9 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.pwd.1; に、論理カレントディレクトリを表示する
       <option>-L</option> フラグが追加されました。&merged;</para>
 
-    <para>&man.quota.1; now takes a <option>-l</option> flag to
-      suppress quote checks on NFS filesystems.</para>
+    <para>&man.quota.1; に
+      NFS ファイルシステムのクォータチェックを抑制する
+      <option>-l</option> フラグが追加されました。</para>
 
     <para>&man.rand.3; の疑似乱数生成器実装に対して、
       結果の乱雑さをより向上させるための改良が加えられました。</para>
@@ -4317,14 +4330,17 @@ hw.pcic.irq="0"</programlisting>
       ユーティリティが新たに追加されました。
       &merged;</para>
 
-    <para>&man.tunefs.8; now supports the <option>-a</option> and
-      <option>-l</option> flags to enable and disable the
-      <literal>FS_ACLS</literal> and <literal>FS_MULTILABEL</literal>
-      administrative flags on UFS file system.</para>
+    <para>&man.tunefs.8; に、UFS ファイルシステムの
+      <literal>FS_ACLS</literal> 管理フラグおよび
+      <literal>FS_MULTILABEL</literal> 管理フラグの有効化・無効化を指定する
+      <option>-a</option> フラグと
+      <option>-l</option> フラグがそれぞれ追加されました。</para>
 
-    <para>A &man.ugidfw.8; utility has been added to manage the
-      rulesets provided by the <literal>mac_bsdextended</literal>
-      Mandatory Access Control policy, similar to &man.ipfw.8;.</para>
+    <para>&man.ipfw.8; と類似した
+      &man.ugidfw.8; ユーティリティが追加されました。
+      これは <literal>mac_bsdextended</literal>
+      MAC (Mandatory Access Control)
+      ポリシのルールセットを管理するためのものです。</para>
 
     <para role="historic">&os; コンソールがウクライナ語に対応しました。
       &merged;</para>
@@ -4500,12 +4516,12 @@ hw.pcic.irq="0"</programlisting>
       これに対する後方互換性は <filename>/etc/locale.alias</filename>
       に含まれるエントリによって提供されています。&merged;</para>
 
-    <para>Various routines in the C library now have support for
-      <quote>wide</quote> characters.  Among these are
-      character class functions such as &man.wctype.3;, wide character
-      I/O functions such as &man.getwc.3;, formatted I/O functions
-      such as &man.wprintf.3; and &man.wscanf.3;.  Conversion
-      functions to &man.multibyte.3; characters are also supported.</para>
+    <para>C ライブラリ中のさまざまなルーチンが
+      <quote>ワイド</quote> 文字に対応しました。
+      この対応は &man.wctype.3; のような文字クラス関数、
+      &man.getwc.3; のようなワイド文字入出力関数、
+      &man.wprintf.3;, &man.wscanf.3; のような書式入出力関数にわたります。
+      &man.multibyte.3; 文字への変換関数にも対応しています。</para>
 
     <para role="historic">
       <filename>/usr/src/share/examples/BSD_daemon/</filename> に
@@ -4532,16 +4548,17 @@ hw.pcic.irq="0"</programlisting>
       個々のユーティリティやライブラリ関数の標準への適合性は
       そのマニュアルページに記載されています。</para>
 
-    <para>A number of games have been removed from the base system.
-      These include: adventure(6), arithmetic(6), atc(6),
+    <para>ベースシステムから数々のゲームが削除されました。
+      これには adventure(6), arithmetic(6), atc(6),
       backgammon(6), battlestar(6), bs(6), canfield(6), cribbage(6),
       fish(6), hack(6), hangman(6), larn(6), mille(6), phantasia(6),
       piano(6), pig(6), quiz(6), rain(6), robots(6), rogue(6),
       sail(6), snake(6), trek(6), wargames(6), worm(6), worms(6),
-      wump(6).  dm(8), which was used to control access to games, is
-      no longer necessary, and has also been removed.  The
-      <quote>utility-like</quote> games, as well as &man.fortune.6;,
-      remain.
+      wump(6) が含まれます。
+      各ゲームへのアクセスを制限するのに利用されていた
+      dm(8) は必要がなくなったため、削除されました。
+      &man.fortune.6; のように
+      <quote>ユーティリティともみなせる</quote> ゲームは残っています。
 
       <note>
         <para>The affected programs will reappear as a port in the
@@ -4654,8 +4671,7 @@ hw.pcic.irq="0"</programlisting>
 	できます。&merged;</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
-        3.0.1RC9 に更新されました。
-        &merged;</para>
+        3.0.1RC9 に更新されました。</para>
 
       <para role="historic"><application>Kerberos IV</application> がバージョン
         1.0.5 に更新されました。
@@ -4667,14 +4683,15 @@ hw.pcic.irq="0"</programlisting>
         <application>less</application> のバージョン 371 が import されました。
       </para>
 
-      <para>An XML processing library, named
-        <filename>libbsdxml</filename>, has been added for the benefit
-        of XML-using utilities in the base system.  It is based almost
-        entirely on an import of <application>expat</application>
-        1.95.5, but is installed under a different name to avoid
-        conflicts with any versions of
-        <application>expat</application> installed from the Ports
-        Collection.</para>
+      <para>ベースシステムにおける
+        XML を使用するユーティリティの利便性を向上するために、
+        <filename>libbsdxml</filename> という名前の
+        XML 処理ライブラリが追加されました。
+        このライブラリの大部分は基本的に <application>expat</application>
+        1.95.5 を統合したものですが、
+        Ports Collection を利用してインストールした
+        <application>expat</application> と衝突するのを避けるために
+        異なる名前でインストールされています。</para>
 
       <para><application>libpcap</application> がバージョン
         0.7.1 に更新されました。&merged;</para>
@@ -5434,15 +5451,17 @@ hw.pcic.irq="0"</programlisting>
 <sect1>
   <title>前のリリースの &os; からのアップグレード</title>
 
-  <para>Users with existing &os; systems are
-    <emphasis>highly</emphasis> encouraged to read the <quote>Early
-    Adopter's Guide to &os; 5.0</quote>.  This document generally has
-    the filename <filename>EARLY.TXT</filename> on the distribution
-    media, or any other place that the release notes can be found.  It
-    offers some notes on upgrading, but more importantly, also
-    discusses some of the relative merits of upgrading to &os;
-    5.<replaceable>X</replaceable> versus running &os;
-    4.<replaceable>X</replaceable>.</para>
+  <para>現存する &os; システムからアップグレードするユーザは
+    <quote>&os; 5.0-RELEASE 初期利用者のための手引き</quote>
+    を読むことを <emphasis>強く</emphasis> 推奨します。
+    この文書は、通常 <filename>EARLY.TXT</filename> という名前で
+    配布物に収録されており、
+    また、他のリリースノートが置かれているところにも一緒に置かれています。
+    この手引にはアップグレード時に注意を払うべき点に加え、
+    さらに重要な情報として、
+    &os; 4.<replaceable>X</replaceable> システムを使い続ける場合と
+    &os; 5.<replaceable>X</replaceable> へのアップグレードした場合の、
+    それぞれの利点についてのまとめが書かれています。</para>
 
   <important>
     <para>&os; のアップグレードは、もちろん、
