@@ -1060,7 +1060,7 @@ pci_add_children(device_t dev, int busno)
 static int
 pci_probe(device_t dev)
 {
-	static int once;
+	static int once, busno;
 
 	device_set_desc(dev, "PCI bus");
 
@@ -1073,7 +1073,10 @@ pci_probe(device_t dev)
 	 * number to decide what bus we are probing. We ask the parent 
 	 * pcib what our bus number is.
 	 */
-	pci_add_children(dev, pcib_get_bus(dev));
+	busno = pcib_get_bus(dev);
+	if (busno < 0)
+		return ENXIO;
+	pci_add_children(dev, busno);
 
 	if (!once) {
 		make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644, "pci");
