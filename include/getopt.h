@@ -44,7 +44,7 @@
 #include <unistd.h>
 
 /*
- * Gnu like getopt_long() and BSD4.4 getsubopt()/optreset extensions
+ * GNU-like getopt_long()
  */
 #if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
 #define no_argument        0
