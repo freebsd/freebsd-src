@@ -217,7 +217,9 @@ int
 wcwidth(wc)
         wchar_t wc;
 {
-	int width = (unsigned)__maskrune((wc), _CTYPE_SWM) >> _CTYPE_SWS;
-	return width ? width : iswprint(wc);
+	int width = __maskrune(wc, _CTYPE_SWM);
+
+	return (width ? (unsigned)width >> _CTYPE_SWS
+		      : iswprint(wc) != 0);
 }
 
