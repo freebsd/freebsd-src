@@ -25,44 +25,10 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/reboot.h>
+#include <sys/dkbad.h>
+#include <sys/disklabel.h>
 
 #include "sysinstall.h"
-
-void
-strip_trailing_newlines(char *p)
-{
-	int len = strlen(p);
-	while (len > 0 && p[len-1] == '\n')
-		p[--len] = '\0';
-}
-
-int strwidth(char *p)
-{
-	int i = 0, len;
-	char *start, *s;
-
-	for (start = s = p; (s = strchr(s, '\n')) != NULL; start = ++s) {
-		*s = '\0';
-		len = strlen(start);
-		*s = '\n';
-		if (len > i)
-			i = len;
-	}
-	len = strlen(start);
-	if (len > i)
-		i = len;
-	return i;
-}
-
-int strheight(char *p)
-{
-	int i = 1;
-	char *s;
-
-	for (s = p; (s = strchr(s, '\n')) != NULL; s++)
-		i++;
-	return i;
-}
 
 void
 Debug(char *fmt, ...)
@@ -84,19 +50,14 @@ TellEm(char *fmt, ...)
 {
 	char *p;
 	va_list ap;
-	int width, height;
-
 	p = Malloc(2048);
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
-	strip_trailing_newlines(p);
 	write(debug_fd,"Progress <",10);
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
-	width = strwidth(p);
-	height = strheight(p);
-	dialog_msgbox("Progress", p, height+2, width+4, 0);
+	dialog_msgbox("Progress", p, 3, 75, 0);
 	free(p);
 }
 
@@ -105,19 +66,14 @@ Fatal(char *fmt, ...)
 {
 	char *p;
 	va_list ap;
-	int width, height;
-
 	p = Malloc(2048);
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
-	strip_trailing_newlines(p);
-	width = strwidth(p);
-	height = strheight(p);
 	if (dialog_active)
-		dialog_msgbox("Fatal", p, height+4, width+4, 1);
+		dialog_msgbox("Fatal", p, 12, 75, 1);
 	else
-		fprintf(stderr, "Fatal -- %s\n", p);
+		fprintf(stderr, "Fatal -- %s", p);
 	free(p);
 	ExitSysinstall();
 }
@@ -258,4 +214,12 @@ CopyFile(char *p1, char *p2)
 	fchown(fd2,st.st_uid,st.st_gid);
 	close(fd1);
 	close(fd2);
+}
+
+u_long
+PartMb(struct disklabel *lbl,int part)
+{
+	u_long l;
+	l = 1024*1024/lbl->d_secsize;
+	return (lbl->d_partitions[part].p_size + l/2)/l;
 }
