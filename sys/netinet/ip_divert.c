@@ -291,8 +291,8 @@ div_output(so, m, addr, control)
 		}
 
 		/* Convert fields to host order for ip_output() */
-		NTOHS(ip->ip_len);
-		NTOHS(ip->ip_off);
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
 
 		/* Send packet to output processing */
 		ipstat.ips_rawout++;			/* XXX */

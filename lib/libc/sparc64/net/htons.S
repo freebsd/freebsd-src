@@ -53,9 +53,11 @@
 #endif /* SYSLIBC_RCS and not lint */
 
 /* netorder = htons(hostorder) */
-ENTRY(htons)
+        .weak CNAME(htons)
+        .set CNAME(htons),CNAME(__htons)
+ENTRY(__htons)
 	sethi	%hi(0xffff0000), %o1
 	signx	%o1, %o1
 	retl
 	 andn	%o0, %o1, %o0
-END(htons)
+END(__htons)

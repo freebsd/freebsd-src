@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <arpa/inet.h>
 #include <net/route.h>
 #include <netipx/ipx.h>
 #if defined(vax) || defined(pdp11)

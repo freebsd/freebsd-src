@@ -867,8 +867,8 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	 * here we assume the pkt is an IP one and the header is contiguous
 	 */
 	ip = mtod(m0, struct ip *);
-	NTOHS(ip->ip_len);
-	NTOHS(ip->ip_off);
+	ip->ip_len = ntohs(ip->ip_len);
+	ip->ip_off = ntohs(ip->ip_off);
 
 	/*
 	 * The third parameter to the firewall code is the dst. interface.
@@ -881,11 +881,11 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    return m0 ;
 	/*
 	 * If we get here, the firewall has passed the pkt, but the mbuf
-	 * pointer might have changed. Restore ip and the fields NTOHS()'d.
+	 * pointer might have changed. Restore ip and the fields ntohs()'d.
 	 */
 	ip = mtod(m0, struct ip *);
-	HTONS(ip->ip_len);
-	HTONS(ip->ip_off);
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
 
 	if (i == 0) /* a PASS rule.  */
 	    goto forward ;

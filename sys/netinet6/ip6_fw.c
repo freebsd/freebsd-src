@@ -756,8 +756,8 @@ got_match:
 
 			ti.ip6 = *ip6;
 			ti.th = *tcp;
-			NTOHL(ti.th.th_seq);
-			NTOHL(ti.th.th_ack);
+			ti.th.th_seq = ntohl(ti.th.th_seq);
+			ti.th.th_ack = ntohl(ti.th.th_ack);
 			ti.ip6.ip6_nxt = IPPROTO_TCP;
 			if (ti.th.th_flags & TH_ACK) {
 				ack = 0;

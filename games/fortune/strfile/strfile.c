@@ -50,6 +50,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 # include	<sys/param.h>
+# include	<arpa/inet.h>
 # include	<stdio.h>
 # include       <stdlib.h>
 # include	<ctype.h>

@@ -277,7 +277,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		clr_ws_buf(&v12buf, ap);
 
 		do {
-			NTOHL(n->n_metric);
+			n->n_metric = ntohl(n->n_metric);
 
 			/* A single entry with family RIP_AF_UNSPEC and
 			 * metric HOPCNT_INFINITY means "all routes".
@@ -413,7 +413,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 					    v12buf.n->n_nhop = rt->rt_gate;
 				}
 			}
-			HTONL(v12buf.n->n_metric);
+			v12buf.n->n_metric = htonl(v12buf.n->n_metric);
 
 			/* Stop paying attention if we fill the output buffer.
 			 */
@@ -582,7 +582,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			if (n->n_family == RIP_AF_AUTH)
 				continue;
 
-			NTOHL(n->n_metric);
+			n->n_metric = ntohl(n->n_metric);
 			dst = n->n_dst;
 			if (n->n_family != RIP_AF_INET
 			    && (n->n_family != RIP_AF_UNSPEC

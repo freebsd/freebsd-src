@@ -48,7 +48,6 @@
 #include <rpc/auth_des.h>
 #include <rpc/clnt.h>
 #include <rpc/xdr.h>
-#include <netinet/in.h>	/* XXX: just to get htonl() and ntohl() */
 #include <sys/socket.h>
 #undef NIS
 #include <rpcsvc/nis.h>

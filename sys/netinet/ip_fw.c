@@ -1575,8 +1575,8 @@ got_match:
 			ti.ti_i = *((struct ipovly *) ip);
 			ti.ti_t = *tcp;
 			bcopy(&ti, ip, sizeof(ti));
-			NTOHL(tip->ti_seq);
-			NTOHL(tip->ti_ack);
+			tip->ti_seq = ntohl(tip->ti_seq);
+			tip->ti_ack = ntohl(tip->ti_ack);
 			tip->ti_len = ip_len - hlen - (tip->ti_off << 2);
 			if (tcp->th_flags & TH_ACK) {
 				tcp_respond(NULL, (void *)ip, tcp, *m,

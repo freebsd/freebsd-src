@@ -193,8 +193,8 @@ icmp_error(n, type, code, dest, destifp)
 	/*
 	 * Convert fields to network representation.
 	 */
-	HTONS(nip->ip_len);
-	HTONS(nip->ip_off);
+	nip->ip_len = htons(nip->ip_len);
+	nip->ip_off = htons(nip->ip_off);
 
 	/*
 	 * Now, copy old ip header (without options)
@@ -363,7 +363,7 @@ icmp_input(m, off)
 			icmpstat.icps_badlen++;
 			goto freeit;
 		}
-		NTOHS(icp->icmp_ip.ip_len);
+		icp->icmp_ip.ip_len = ntohs(icp->icmp_ip.ip_len);
 		/* Discard ICMP's in response to multicast packets */
 		if (IN_MULTICAST(ntohl(icp->icmp_ip.ip_dst.s_addr)))
 			goto badcode;

@@ -58,6 +58,8 @@ static const char rcsid[] =
 #include <sys/mount.h>
 #include <sys/../isofs/cd9660/cd9660_mount.h>
 
+#include <arpa/inet.h>
+
 #include <err.h>
 #include <errno.h>
 #include <stdlib.h>

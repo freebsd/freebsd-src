@@ -189,6 +189,30 @@
 #endif
 
 /*
+ * Kernel exposed versions of byteorder(3) functions.
+ *
+ * XXX this section should only be defined in the kernel, but some userland
+ * software utilizes it.
+ */
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif
+
+/*
+ * XXX deprecated uppercase variants for byteorder(3) functions.
+ */
+#ifndef _POSIX_SOURCE
+#define	NTOHL(x)	((x) = __ntohl(x))
+#define	NTOHS(x)	((x) = __ntohs(x))
+#define	HTONL(x)	((x) = __htonl(x))
+#define	HTONS(x)	((x) = __htons(x))
+#endif /* _POSIX_SOURCE */
+
+/*
  * Constants for setting the parameters of the kernel memory allocator.
  *
  * 2 ** MINBUCKET is the smallest unit of memory that will be

@@ -782,7 +782,7 @@ rip_input(struct sockaddr_in *from,
 static u_int
 std_mask(u_int addr)			/* in network order */
 {
-	NTOHL(addr);			/* was a host, not a network */
+	addr = ntohl(addr);		/* was a host, not a network */
 
 	if (addr == 0)			/* default route has mask 0 */
 		return 0;
@@ -825,7 +825,7 @@ getnet(char *name,
 	if (nentp != 0) {
 		in.s_addr = nentp->n_net;
 	} else if (inet_aton(name, &in) == 1) {
-		NTOHL(in.s_addr);
+		in.s_addr = ntohl(in.s_addr);
 	} else {
 		return 0;
 	}

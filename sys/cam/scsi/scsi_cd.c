@@ -1991,7 +1991,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 					bcd2bin(th->starting_track);
 				th->ending_track = bcd2bin(th->ending_track);
 			}
-			NTOHS(th->len);
+			th->len = ntohs(th->len);
 			bcopy(th, addr, sizeof(*th));
 			free(th, M_TEMP);
 		}
