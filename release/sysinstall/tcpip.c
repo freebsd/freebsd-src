@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.74 1998/11/15 09:06:20 jkh Exp $
+ * $Id: tcpip.c,v 1.74.2.1 1999/02/05 22:20:17 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -151,7 +151,7 @@ tcpOpenDialog(Device *devp)
 {
     WINDOW              *ds_win, *save = NULL;
     ComposeObj          *obj = NULL;
-    int                 n = 0, cancel = FALSE;
+    int                 n = 0, filled = 0, cancel = FALSE;
     int			max, ret = DITEM_SUCCESS;
     char                *tmp;
     char		title[80];
@@ -246,24 +246,27 @@ tcpOpenDialog(Device *devp)
 reenter:
     cancelbutton = okbutton = 0;
     while (layoutDialogLoop(ds_win, layout, &obj, &n, max, &cancelbutton, &cancel)) {
-	/* Insert a default value for the netmask, 0xffffff00 is
-	   the most appropriate one (entire class C, or subnetted
-	   class A/B network). */
-	if (netmask[0] == '\0') {
-	    strcpy(netmask, "255.255.255.0");
-	    RefreshStringObj(layout[LAYOUT_NETMASK].obj);
-	}
-	if (!index(hostname, '.') && domainname[0]) {
-	    strcat(hostname, ".");
-	    strcat(hostname, domainname);
-	    RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
-	}
-	else if (((tmp = index(hostname, '.')) != NULL) && !domainname[0]) {
-	    SAFE_STRCPY(domainname, tmp + 1);
-	    RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
+	/* Prevent this from being irritating if user really means NO */
+	if (!filled) {
+	    filled = 1;
+	    /* Insert a default value for the netmask, 0xffffff00 is
+	       the most appropriate one (entire class C, or subnetted
+	       class A/B network). */
+	    if (netmask[0] == '\0') {
+		strcpy(netmask, "255.255.255.0");
+		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
+	    }
+	    if (!index(hostname, '.') && domainname[0]) {
+		strcat(hostname, ".");
+		strcat(hostname, domainname);
+		RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
+	    }
+	    else if (((tmp = index(hostname, '.')) != NULL) && !domainname[0]) {
+		    SAFE_STRCPY(domainname, tmp + 1);
+		    RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
+	    }
 	}
     }
-    
     if (!cancel && !verifySettings())
 	goto reenter;
 

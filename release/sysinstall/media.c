@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.94.2.2 1999/02/15 00:49:58 jkh Exp $
+ * $Id: media.c,v 1.94.2.3 1999/03/10 21:59:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,6 +39,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
@@ -440,6 +441,7 @@ int
 mediaSetUFS(dialogMenuItem *self)
 {
     static Device ufsDevice;
+    struct statfs st;
     char *cp;
 
     mediaClose();
@@ -448,7 +450,13 @@ mediaSetUFS(dialogMenuItem *self)
 			    "containing the FreeBSD distribution files:", 0);
     if (!cp)
 	return DITEM_FAILURE;
-    strcpy(ufsDevice.name, "ufs");
+
+    /* If they gave us a CDROM or something, try and pick a better name */
+    if (statfs(cp, &st))
+	strcpy(ufsDevice.name, "ufs");
+    else
+	strcpy(ufsDevice.name, st.f_fstypename);
+
     ufsDevice.type = DEVICE_TYPE_UFS;
     ufsDevice.init = dummyInit;
     ufsDevice.get = mediaGetUFS;
