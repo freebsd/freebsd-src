@@ -220,8 +220,15 @@
 
     <para>The &man.getvfsent.3; API has been removed.</para>
 
+    <para>&man.jail.8; now supports use of raw sockets from within a jail.
+      This feature is disabled by default, and controlled using the
+      <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
+
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
+
+    <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
+      may become readable under certain circumstances, has been fixed.  &merged;</para>
 
     <para>The raid(4), RAIDframe disk driver from NetBSD has been removed.
       This is currently non-functional, and would require some amount of work
@@ -466,6 +473,10 @@
 	for authenticating TCP sessions.  &man.setkey.8; now includes
 	support for the TCP-MD5 class of security associations.
 	&merged;</para>
+
+      <para>The TCP connection reset handling has been improved to
+        make several reset attacks as difficult as possible while
+	maintaining compatibility with the widest range of TCP stacks.</para>
 
       <para>The implementation of RFC 1948 has been improved.
 	The time offset component of an ISN now includes random positive
@@ -720,7 +731,8 @@
       accepts an encrypted password on a file descriptor. &merged;</para>
 
     <para>A bug in &man.rarpd.8; that prevents it from working properly
-      when a interface has more than one IP address has been fixed.</para>
+      when a interface has more than one IP address has been fixed.
+      &merged;</para>
 
     <para>The configuration files used by the &man.resolver.3; now
       support the <literal>timeout:</literal> and
@@ -827,6 +839,10 @@
 
     <para><application>libpcap</application> has been updated from
       version 0.7.1 to version 0.8.3.</para>
+
+    <para><application>lukemftp</application>
+      has been updated from a snapshot as of
+      November 3, 2003 to one as of April 26, 2004.</para>
 
     <para><application>OpenPAM</application> has been updated from the
       Dogwood release to the Eelgrass release.</para>
