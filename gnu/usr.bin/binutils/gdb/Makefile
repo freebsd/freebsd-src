@@ -1,48 +1,62 @@
-#	$Id: Makefile,v 1.38 1998/10/15 14:15:09 bde Exp $
+#
+# $Id: Makefile,v 1.3 1998/06/03 18:00:57 peter Exp $
+#
 
+.include "../Makefile.inc0"
+
+.PATH: ${SRCDIR}/binutils
+
+PROG=		nm
 PROG = gdb
-
-GDBDIR=	${.CURDIR}/../../../../contrib/gdb
-.if ${OBJFORMAT} == elf
-BFDDIR= ${.CURDIR}/../../binutils/libbfd/${MACHINE_ARCH}
-BINDIR=	/usr/libexec/elf
-.else
-BFDDIR= ${.CURDIR}/../bfd
-BINDIR=	/usr/libexec/aout
-.endif
-.PATH:	${GDBDIR}/gdb
-.PATH:	${GDBDIR}/opcodes
-
-.if ${OBJFORMAT} == elf
-CFLAGS+=	-DFREEBSD_ELF
-.endif
-
-XSRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
-	c-typeprint.c c-valprint.c ch-lang.c ch-typeprint.c \
-	ch-valprint.c coffread.c command.c complaints.c copying.c \
-	core-regset.c corelow.c cp-valprint.c \
-	dcache.c dbxread.c demangle.c dwarfread.c \
-	elfread.c environ.c eval.c exec.c expprint.c \
-	findvar.c fork-child.c freebsd-nat.c gdbtypes.c \
-	i386-tdep.c infcmd.c inflow.c infptrace.c \
-	infrun.c inftarg.c language.c \
-	m2-lang.c m2-typeprint.c m2-valprint.c main.c maint.c \
-	mem-break.c minsyms.c objfiles.c parse.c \
-	printcmd.c remote.c remote-utils.c solib.c source.c \
-	stabsread.c stack.c symfile.c symmisc.c \
-	symtab.c target.c thread.c top.c \
-	typeprint.c utils.c valarith.c valops.c \
-	valprint.c values.c version.c \
-	serial.c ser-unix.c ser-tcp.c mdebugread.c \
-	c-exp.y f-exp.y m2-exp.y i387-tdep.c \
-	kvm-fbsd.c bcache.c \
-	corefile.c ch-exp.c f-lang.c scm-exp.c scm-lang.c \
-	scm-valprint.c f-typeprint.c f-valprint.c nlmread.c \
-	callback.c
-XSRCS+= i386-dis.c dis-buf.c disassemble.c
+XSRCS = annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
+	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
+	c-valprint.c ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c	\
+	coffread.c command.c complaints.c copying.c corefile.c		\
+	corelow.c cp-valprint.c dcache.c dbxread.c demangle.c		\
+	dwarfread.c dwarf2read.c elfread.c environ.c eval.c exec.c	\
+	expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c		\
+	findvar.c fork-child.c gdbarch.c gdbtypes.c infcmd.c inflow.c	\
+	infptrace.c infrun.c inftarg.c language.c jv-exp.y jv-lang.c	\
+	jv-valprint.c jv-typeprint.c nlmread.c m2-lang.c m2-exp.y	\
+	m2-typeprint.c m2-valprint.c main.c maint.c mdebugread.c	\
+	mem-break.c minsyms.c objfiles.c parse.c printcmd.c remote.c	\
+	remote-utils.c scm-exp.c scm-lang.c scm-valprint.c solib.c	\
+	source.c stabsread.c stack.c symfile.c symmisc.c symtab.c	\
+	target.c thread.c top.c tracepoint.c typeprint.c utils.c	\
+	valarith.c valops.c valprint.c values.c version.c serial.c	\
+	ser-unix.c ser-tcp.c callback.c
 SRCS=	init.c ${XSRCS}
 
-CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline -I${BFDDIR}
+.if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
+.include "${.CURDIR}/Makefile.${MACHINE_ARCH}"
+.endif
+
+#CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
+CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
+CFLAGS+=	-I${SRCDIR}/binutils
+CFLAGS+=	-I${SRCDIR}/bfd
+CFLAGS+=	-I${GDBDIR}/gdb
+CFLAGS+=	-I${GDBDIR}/gdb/config
+LDADD+=		-L${RELTOP}/libbfd -lbfd
+LDADD+=		-L${RELTOP}/libopcodes -lopcodes
+LDADD+=		-lreadline
+LDADD+=		-lgnuregex
+LDADD+=		-L${RELTOP}/libiberty -liberty
+LDADD+=		-ltermcap
+DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD+=		${RELTOP}/libopcodes/libopcodes.a
+DPADD+=		${LIBREADLINE}
+DPADD+=		${LIBGNUREGEX}
+DPADD+=		${RELTOP}/libiberty/libiberty.a
+DPADD+=		${LIBTERMCAP}
+
+GDBDIR=	${.CURDIR}/../../../../contrib/gdb
+.PATH:	${GDBDIR}/gdb
+.PATH:	${SRCDIR}/opcodes
+
+CFLAGS+=	-DFREEBSD_ELF
+
+CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline
 # use phkmalloc
 CFLAGS+= -DNO_MMALLOC
 # uncomment the next line if you want to debug gdb
@@ -50,41 +64,6 @@ CFLAGS+= -DNO_MMALLOC
 YFLAGS=
 
 CLEANFILES=	init.c init.c-tmp
-
-.if ${OBJFORMAT} == elf
-
-.if exists(${.OBJDIR}/../../binutils/libbfd)
-LIBBFD=	${.OBJDIR}/../../binutils/libbfd/libbfd.a
-.else
-LIBBFD=	${.CURDIR}/../../binutils/libbfd/libbfd.a
-.endif
-
-.if exists(${.OBJDIR}/../../binutils/libiberty)
-LIBIBERTY=	${.OBJDIR}/../../binutils/libiberty/libiberty.a
-.else
-LIBIBERTY=	${.CURDIR}/../../binutils/libiberty/libiberty.a
-.endif
-
-.else
-
-.if exists(${.OBJDIR}/../bfd)
-LIBBFD=	${.OBJDIR}/../bfd/libbfd.a
-.else
-LIBBFD=	${.CURDIR}/../bfd/libbfd.a
-.endif
-
-.if exists(${.OBJDIR}/../libiberty)
-LIBIBERTY= ${.OBJDIR}/../libiberty/libiberty.a
-.else
-LIBIBERTY= ${.CURDIR}/../libiberty/libiberty.a
-.endif
-
-.endif # OBJFORMAT
-
-DPADD=	${LIBBFD} ${LIBREADLINE} ${LIBGNUREGEX} ${LIBIBERTY} ${LIBTERMCAP}
-LDADD=	${LIBBFD} -lreadline     -lgnuregex     ${LIBIBERTY} -ltermcap
-DPADD+=	${LIBIBERTY}
-LDADD+=	${LIBIBERTY}
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
@@ -98,7 +77,7 @@ LDADD+=	${LIBIBERTY}
 # object files that will be linked into gdb.
 
 init.c: ${XSRCS}
-	@${ECHO} Making ${.TARGET}
+	@echo Making ${.TARGET}
 	@rm -f init.c-tmp
 	@echo '/* Do not modify this file.  */' >init.c-tmp
 	@echo '/* It is created automatically by the Makefile.  */'>>init.c-tmp

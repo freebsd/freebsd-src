@@ -1,0 +1,7 @@
+#
+# $Id$
+#
+
+XSRCS+= freebsd-nat.c alpha-tdep.c
+
+.PATH: ${.CURDIR}/alpha
