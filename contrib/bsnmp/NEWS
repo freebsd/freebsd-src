@@ -1,3 +1,13 @@
+1.7
+	snmpd: Move event library initialisation before reading of
+	config file (thanks to phk).
+
+	gensnmptree: can now read more than one tree and merge them.
+
+	some support for compilation on older systems
+
+	use standard C fixed width integer types [u]intNN_t
+
 1.6
 	New gensnmpdef tool. Needs libsmi.
 
