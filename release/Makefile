@@ -415,12 +415,10 @@ release.7:
 		fi && shift && shift ; \
 	done
 .endif
-.if exists(${RD}/dists/des)
-	( cd ${RD}/dists/src && \
+	if [ -d ${RD}/dists/des ] ; then ( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../des ; fi && \
-		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; )
-.endif
+		if [ -f skerbero.aa ] ; then mv skerbero.* ../des ; fi ; ) ; fi
 	@echo "src distribution is finished."
 .endif
 	touch release.7
