@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.25 1996/05/08 04:29:08 gpalmer Exp $
+ * $Id: ufs_disksubr.c,v 1.26 1996/09/20 17:39:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,17 +50,88 @@
 /*
  * Seek sort for disks.
  *
- * The argument ap structure holds a b_actf activity chain pointer on which we
- * keep two queues, sorted in ascending block order.  The first queue holds
- * those requests which are positioned after the current block (in the first
- * request); the second holds requests which came in after their block number
- * was passed.  Thus we implement a one way scan, retracting after reaching the
- * end of the drive to the first request on the second queue, at which time it
- * becomes the first queue.
+ * The buf_queue keep two queues, sorted in ascending block order.  The first
+ * queue holds those requests which are positioned after the current block
+ * (in the first request); the second, which starts at queue->switch_point,
+ * holds requests which came in after their block number was passed.  Thus
+ * we implement a one way scan, retracting after reaching the end of the drive
+ * to the first request on the second queue, at which time it becomes the
+ * first queue.
  *
  * A one-way scan is natural because of the way UNIX read-ahead blocks are
  * allocated.
  */
+
+void
+bufqdisksort(bufq, bp)
+	struct buf_queue_head *bufq;
+	struct buf *bp;
+{
+	struct buf *bq;
+	struct buf *bn;
+	
+	/*
+	 * If the queue is empty or we are an
+	 * ordered transaction, then it's easy.
+	 */
+	if ((bq = bufq_first(bufq)) == NULL
+	 || (bp->b_flags & B_ORDERED) != 0) {
+		bufq_insert_tail(bufq, bp);
+		return;
+	} else if (bufq->insert_point != NULL) {
+
+		/*
+		 * A certain portion of the list is
+		 * "locked" to preserve ordering, so
+		 * we can only insert after the insert
+		 * point.
+		 */
+		bq = TAILQ_NEXT(bufq->insert_point, b_act);
+		if (bq == NULL) {
+			bufq_insert_tail(bufq, bp);
+			return;
+		}
+	}
+
+	/*
+	 * If we lie before the first (currently active) request, then we
+	 * must add ourselves to the second request list.
+	 */
+	if (bp->b_pblkno < bq->b_pblkno) {
+
+		bq = bufq->switch_point;
+		/*
+		 * If we are starting a new secondary list, then it's easy.
+		 */
+		if (bq == NULL) {
+			bufq->switch_point = bp;
+			bufq_insert_tail(bufq, bp);
+			return;
+		}
+		if (bp->b_pblkno < bq->b_pblkno) {
+			bufq->switch_point = bp;
+			TAILQ_INSERT_BEFORE(bq, bp, b_act);
+			return;
+		}
+	}
+	/*
+	 * Request is at/after the current request...
+	 * sort in the first request list.
+	 */
+	while ((bn = TAILQ_NEXT(bq, b_act)) != NULL) {
+		
+		/*
+		 * We want to go after the current request if it is the end
+		 * of the first request list, or if the next request is a
+		 * larger cylinder than our request.
+		 */
+		if (bn == bufq->switch_point
+		 || bp->b_pblkno < bn->b_pblkno)
+			break;
+		bq = bn;
+	}
+	TAILQ_INSERT_AFTER(&bufq->queue, bq, bp, b_act);
+}
 
 /*
  * For portability with historic industry practice, the
@@ -68,100 +139,6 @@
  * field.
  */
 #define	b_cylinder	b_resid
-
-void
-tqdisksort(ap, bp)
-	struct buf_queue_head *ap;
-	register struct buf *bp;
-{
-	register struct buf *bq;
-	struct buf *bn;
-
-	/* If the queue is empty, then it's easy. */
-	if ((bq = ap->tqh_first) == NULL) {
-		TAILQ_INSERT_HEAD(ap, bp, b_act);
-		return;
-	}
-
-#if 1
-	/* Put new writes after all reads */
-	if ((bp->b_flags & B_READ) == 0) {
-		while (bn = bq->b_act.tqe_next) {
-			if ((bq->b_flags & B_READ) == 0)
-				break;
-			bq = bn;
-		}
-	} else {
-		while (bn = bq->b_act.tqe_next) {
-			if ((bq->b_flags & B_READ) == 0) {
-				if (ap->tqh_first != bq) {
-					bq = *bq->b_act.tqe_prev;
-				} 
-				break;
-			}
-			bq = bn;
-		}
-		goto insert;
-	}
-#endif
-
-	/*
-	 * If we lie after the first (currently active) request, then we
-	 * must locate the second request list and add ourselves to it.
-	 */
-	if (bp->b_pblkno < bq->b_pblkno) {
-		while (bn = bq->b_act.tqe_next) {
-			/*
-			 * Check for an ``inversion'' in the normally ascending
-			 * cylinder numbers, indicating the start of the second
-			 * request list.
-			 */
-			if (bn->b_pblkno < bq->b_pblkno) {
-				/*
-				 * Search the second request list for the first
-				 * request at a larger cylinder number.  We go
-				 * before that; if there is no such request, we
-				 * go at end.
-				 */
-				do {
-					if (bp->b_pblkno < bn->b_pblkno)
-						goto insert;
-					bq = bn;
-				} while (bn = bq->b_act.tqe_next);
-				goto insert;		/* after last */
-			}
-			bq = bn;
-		}
-		/*
-		 * No inversions... we will go after the last, and
-		 * be the first request in the second request list.
-		 */
-		goto insert;
-	}
-	/*
-	 * Request is at/after the current request...
-	 * sort in the first request list.
-	 */
-	while (bn = bq->b_act.tqe_next) {
-		/*
-		 * We want to go after the current request if there is an
-		 * inversion after it (i.e. it is the end of the first
-		 * request list), or if the next request is a larger cylinder
-		 * than our request.
-		 */
-		if (bn->b_pblkno < bq->b_pblkno ||
-		    bp->b_pblkno < bn->b_pblkno)
-			goto insert;
-		bq = bn;
-	}
-	/*
-	 * Neither a second list nor a larger request... we go at the end of
-	 * the first list, which is the same as the end of the whole schebang.
-	 */
-insert:
-	TAILQ_INSERT_AFTER(ap, bq, bp, b_act);
-}
-
 
 /*
  * Attempt to read a disk label from a device using the indicated strategy
