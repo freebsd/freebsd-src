@@ -1830,7 +1830,8 @@ static void ti_rxeof(sc)
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (have_tag) {
-			vlan_input_tag(eh, m, vlan_tag);
+			if (vlan_input_tag(eh, m, vlan_tag) < 0)
+				ifp->if_data.ifi_noproto++;
 			have_tag = vlan_tag = 0;
 			continue;
 		}

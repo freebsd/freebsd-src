@@ -8,6 +8,10 @@ SRCS=	ifconfig.c
 SRCS+=	ifmedia.c
 CFLAGS+=-DUSE_IF_MEDIA
 
+#comment out to exclude SIOC[GS]ETVLAN support
+SRCS+=	ifvlan.c
+CFLAGS+=-DUSE_VLANS
+
 MAN8=	ifconfig.8
 DPADD=	${LIBIPX}
 LDADD=	-lipx

@@ -33,6 +33,12 @@
 #define	_NET_IF_VLAN_VAR_H_	1
 
 #ifdef KERNEL
+
+struct vlan_mc_entry {
+        struct ether_addr               mc_addr;
+        SLIST_ENTRY(vlan_mc_entry)      mc_entries;
+};
+
 struct	ifvlan {
 	struct	arpcom ifv_ac;	/* make this an interface */
 	struct	ifnet *ifv_p;	/* parent inteface of this vlan */
@@ -41,6 +47,7 @@ struct	ifvlan {
 		u_int16_t ifvm_proto; /* encapsulation ethertype */
 		u_int16_t ifvm_tag; /* tag to apply on packets leaving if */
 	}	ifv_mib;
+	SLIST_HEAD(__vlan_mchead, vlan_mc_entry)	vlan_mc_listhead;
 };
 #define	ifv_if	ifv_ac.ac_if
 #define	ifv_tag	ifv_mib.ifvm_tag
@@ -79,6 +86,8 @@ struct	vlanreq {
 /* shared with if_ethersubr.c: */
 extern	u_int vlan_proto;
 extern	int vlan_input(struct ether_header *eh, struct mbuf *m);
+extern  int vlan_input_tag(struct ether_header *eh,
+                        struct mbuf *m, u_int16_t t);
 #endif
 
 #endif /* _NET_IF_VLAN_VAR_H_ */
