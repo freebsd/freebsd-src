@@ -1664,7 +1664,11 @@ sbp_timeout(void *arg)
 	/* XXX need reset? */
 
 	s = splfw();
+#if 1
+	sbp_abort_all_ocbs(sdev, CAM_CMD_TIMEOUT);
+#else
 	sbp_abort_ocb(ocb, CAM_CMD_TIMEOUT);
+#endif
 	splx(s);
 	return;
 }
@@ -1974,6 +1978,7 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 	struct sbp_ocb *ocb;
 	struct sbp_ocb *prev;
 	union ccb *ccb;
+	bus_dma_segment_t *s;
 
 	if (error)
 		printf("sbp_execute_ocb: error=%d\n", error);
@@ -1993,11 +1998,15 @@ SBP_DEBUG(1)
 		printf("\n");
 END_DEBUG
 		for (i = 0; i < seg; i++) {
-			if (segments[i].ds_len < 16)
-				printf("sbp_execute_ocb: segment length is "
-						"less than 16.\n");
-			ocb->ind_ptr[i].hi = htonl(segments[i].ds_len << 16);
-			ocb->ind_ptr[i].lo = htonl(segments[i].ds_addr);
+			s = &segments[i];
+#if 1			/* XXX LSI Logic "< 16 byte" bug might be hit */
+			if (s->ds_len < 16)
+				printf("sbp_execute_ocb: warning, "
+					"segment length(%d) is less than 16."
+					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
+#endif
+			ocb->ind_ptr[i].hi = htonl(s->ds_len << 16);
+			ocb->ind_ptr[i].lo = htonl(s->ds_addr);
 		}
 		ocb->orb[4] |= htonl(ORB_CMD_PTBL | seg);
 	}
