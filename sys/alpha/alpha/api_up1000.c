@@ -45,7 +45,6 @@
 #include <alpha/pci/irongatereg.h>
 #include <alpha/pci/irongatevar.h>
 
-#include "sio.h"
 #include "sc.h"
 
 #ifndef CONSPEED
