@@ -173,7 +173,9 @@ fw_close (dev_t dev, int flags, int fmt, fw_proc *td)
 		sc->fc->it[sub]->buf = NULL;
 		free(sc->fc->it[sub]->bulkxfer, M_DEVBUF);
 		sc->fc->it[sub]->bulkxfer = NULL;
+#ifdef FWXFERQ_DV
 		sc->fc->it[sub]->dvbuf = NULL;
+#endif
 		sc->fc->it[sub]->flag &= ~FWXFERQ_EXTBUF;
 		sc->fc->it[sub]->psize = 0;
 		sc->fc->it[sub]->maxq = FWMAXQUEUE;
@@ -284,24 +286,12 @@ readloop:
 		ir->queued ++;
 		if(ir->queued >= ir->bnpacket){
 			s = splfw();
-			ir->stproc->flag = 0;
 			STAILQ_INSERT_TAIL(&ir->stfree, ir->stproc, link);
 			splx(s);
+			sc->fc->irx_enable(sc->fc, sub);
 			ir->stproc = NULL;
 		}
 	}
-#if 0
-	if(STAILQ_FIRST(&ir->q) == NULL &&
-		(ir->flag & FWXFERQ_RUNNING) && (ir->flag & FWXFERQ_PACKET)){
-		err = sc->fc->irx_enable(sc->fc, sub);
-	}
-#endif
-#if 0
-	if(STAILQ_FIRST(&ir->stvalid) == NULL &&
-		(ir->flag & FWXFERQ_RUNNING) && !(ir->flag & FWXFERQ_PACKET)){
-		err = sc->fc->irx_enable(sc->fc, sub);
-	}
-#endif
 	return err;
 }
 
@@ -357,7 +347,6 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 	/* Discard unsent buffered stream packet, when sending Asyrequrst */
 	if(xferq != NULL && it->stproc != NULL){
 		s = splfw();
-		it->stproc->flag = 0;
 		STAILQ_INSERT_TAIL(&it->stfree, it->stproc, link);
 		splx(s);
 		it->stproc = NULL;
@@ -368,14 +357,14 @@ fw_write (dev_t dev, struct uio *uio, int ioflag)
 	if (xferq == NULL) {
 #endif
 isoloop:
-		if(it->stproc == NULL){
+		if (it->stproc == NULL) {
 			it->stproc = STAILQ_FIRST(&it->stfree);
-			if(it->stproc != NULL){
+			if (it->stproc != NULL) {
 				s = splfw();
 				STAILQ_REMOVE_HEAD(&it->stfree, link);
 				splx(s);
 				it->queued = 0;
-			}else if(slept == 0){
+			} else if (slept == 0) {
 				slept = 1;
 				err = sc->fc->itx_enable(sc->fc, sub);
 				if(err){
@@ -391,10 +380,6 @@ isoloop:
 				return err;
 			}
 		}
-#if 0 /* What's this for? (overwritten by the following uiomove)*/
-		fp = (struct fw_pkt *)(it->stproc->buf + it->queued * it->psize);
-		fp->mode.stream.len = htons(uio->uio_resid - sizeof(u_int32_t));
-#endif
 		err = uiomove(it->stproc->buf + it->queued * it->psize,
 							uio->uio_resid, uio);
 		it->queued ++;
@@ -403,7 +388,6 @@ isoloop:
 			STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
 			splx(s);
 			it->stproc = NULL;
-			fw_tbuf_update(sc->fc, sub, 0);
 			err = sc->fc->itx_enable(sc->fc, sub);
 		}
 		return err;
@@ -684,22 +668,23 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 		it->bnpacket = ibufreq->tx.npacket;
 		it->btpacket = ibufreq->tx.npacket;
 		it->psize = (ibufreq->tx.psize + 3) & ~3;
-		ir->queued = 0;
+		it->queued = 0;
+
+#ifdef FWXFERQ_DV
 		it->dvdbc = 0;
 		it->dvdiff = 0;
 		it->dvsync = 0;
 		it->dvoffset = 0;
+#endif
 
 		STAILQ_INIT(&ir->stvalid);
 		STAILQ_INIT(&ir->stfree);
-		ir->stdma = NULL;
-		ir->stdma2 = NULL;
+		STAILQ_INIT(&ir->stdma);
 		ir->stproc = NULL;
 
 		STAILQ_INIT(&it->stvalid);
 		STAILQ_INIT(&it->stfree);
-		it->stdma = NULL;
-		it->stdma2 = NULL;
+		STAILQ_INIT(&it->stdma);
 		it->stproc = NULL;
 
 		for(i = 0 ; i < sc->fc->ir[sub]->bnchunk; i++){
@@ -707,7 +692,6 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				ir->buf +
 				i * sc->fc->ir[sub]->bnpacket *
 			  	sc->fc->ir[sub]->psize;
-			ir->bulkxfer[i].flag = 0;
 			STAILQ_INSERT_TAIL(&ir->stfree,
 					&ir->bulkxfer[i], link);
 			ir->bulkxfer[i].npacket = ir->bnpacket;
@@ -717,7 +701,6 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 				it->buf +
 				i * sc->fc->it[sub]->bnpacket *
 			  	sc->fc->it[sub]->psize;
-			it->bulkxfer[i].flag = 0;
 			STAILQ_INSERT_TAIL(&it->stfree,
 					&it->bulkxfer[i], link);
 			it->bulkxfer[i].npacket = it->bnpacket;
