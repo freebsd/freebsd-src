@@ -661,15 +661,18 @@ main(argc, argv)
 			cw = _PATH_MOTDFILE;
 		motd(cw);
 
-		cw = getenv("MAIL");	/* $MAIL may have been set by class */
-		if (cw != NULL)
-			strlcpy(tbuf, cw, sizeof(tbuf));
-		else
-			snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_MAILDIR,
-			    pwd->pw_name);
-		if (stat(tbuf, &st) == 0 && st.st_size != 0)
-			(void)printf("You have %smail.\n",
-			    (st.st_mtime > st.st_atime) ? "new " : "");
+		if (login_getcapbool(lc, "nocheckmail", 0) == 0) {
+			/* $MAIL may have been set by class. */
+			cw = getenv("MAIL");
+			if (cw != NULL)
+				strlcpy(tbuf, cw, sizeof(tbuf));
+			else
+				snprintf(tbuf, sizeof(tbuf), "%s/%s",
+				    _PATH_MAILDIR, pwd->pw_name);
+			if (stat(tbuf, &st) == 0 && st.st_size != 0)
+				(void)printf("You have %smail.\n",
+				    (st.st_mtime > st.st_atime) ? "new " : "");
+		}
 	}
 
 	login_close(lc);
