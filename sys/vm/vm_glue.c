@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.84 1999/02/19 14:25:36 luoqi Exp $
+ * $Id: vm_glue.c,v 1.85 1999/04/06 03:11:34 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -111,10 +111,6 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 
 
 static void swapout __P((struct proc *));
-
-extern char kstack[];
-
-/* vm_map_t upages_map; */
 
 int
 kernacc(addr, len, rw)

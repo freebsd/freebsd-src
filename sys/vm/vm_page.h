@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.59 1999/04/05 19:38:29 julian Exp $
+ * $Id: vm_page.h,v 1.60 1999/05/02 23:57:14 alc Exp $
  */
 
 /*
@@ -279,15 +279,7 @@ extern long first_page;			/* first physical page number */
  /* ... represented in vm_page_array */
 extern long last_page;			/* last physical page number */
 
- /* ... represented in vm_page_array */
- /* [INCLUSIVE] */
-extern vm_offset_t first_phys_addr;	/* physical address for first_page */
-extern vm_offset_t last_phys_addr;	/* physical address for last_page */
-
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
-
-#define IS_VM_PHYSADDR(pa) \
-		((pa) >= first_phys_addr && (pa) <= last_phys_addr)
 
 #define PHYS_TO_VM_PAGE(pa) \
 		(&vm_page_array[atop(pa) - first_page ])
@@ -396,7 +388,6 @@ void vm_page_cache __P((register vm_page_t));
 static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
 static __inline void vm_page_free __P((vm_page_t));
 static __inline void vm_page_free_zero __P((vm_page_t));
-void vm_page_destroy __P((vm_page_t));
 void vm_page_deactivate __P((vm_page_t));
 void vm_page_insert __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_page_t vm_page_lookup __P((vm_object_t, vm_pindex_t));
@@ -416,7 +407,6 @@ int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
 int vm_page_bits __P((int, int));
 vm_page_t _vm_page_list_find __P((int, int));
-int vm_page_queue_index __P((vm_offset_t, int));
 #if 0
 int vm_page_sleep(vm_page_t m, char *msg, char *busy);
 int vm_page_asleep(vm_page_t m, char *msg, char *busy);
