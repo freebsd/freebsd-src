@@ -44,7 +44,7 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl Sfilnvx
+.Op Fl Sfilnovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -60,7 +60,7 @@
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl finvx
+.Op Fl finovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -146,8 +146,10 @@ print the process ID and the full argument list for each matching process.
 This option can only be used with the
 .Nm pgrep
 command.
-.It Fl n
-Match only the most recently created process, if any.
+.It Fl n 
+Select only the newest (most recently started) of the matching processes.
+.It Fl o
+Select only the oldest (least recently started) of the matching processes.
 .It Fl s Ar sid
 Restrict matches to processes with a session ID in the comma-separated
 list
