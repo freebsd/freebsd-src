@@ -112,6 +112,10 @@ es1888_set_port(u_int32_t port)
 static void
 es1888_identify(driver_t *driver, device_t parent)
 {
+/*
+ * Only use this on alpha since PNPBIOS is a better solution on x86.
+ */
+#ifdef __alpha__
 	u_int32_t lo, hi;
 	device_t dev;
 
@@ -148,6 +152,7 @@ es1888_identify(driver_t *driver, device_t parent)
 	bus_set_resource(dev, SYS_RES_DRQ, 0, 1, 1);
 	isa_set_vendorid(dev, PNP_EISAID("ESS1888"));
 	isa_set_logicalid(dev, PNP_EISAID("ESS1888"));
+#endif
 }
 
 static device_method_t es1888_methods[] = {
