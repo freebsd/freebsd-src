@@ -884,7 +884,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	}
 
-	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */

@@ -189,12 +189,19 @@ cursig(struct thread *td)
 void
 signotify(struct proc *p)
 {
+	struct kse *ke;
+	struct ksegrp *kg;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p)) {
 		p->p_sflag |= PS_NEEDSIGCHK;
-		p->p_kse.ke_flags |= KEF_ASTPENDING;	/* XXXKSE */  
+		/* XXXKSE for now punish all KSEs */
+		FOREACH_KSEGRP_IN_PROC(p, kg) {
+			FOREACH_KSE_IN_GROUP(kg, ke) {
+				ke->ke_flags |= KEF_ASTPENDING;	
+			}
+		}
 	}
 	mtx_unlock_spin(&sched_lock);
 }

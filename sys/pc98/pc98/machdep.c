@@ -1704,7 +1704,7 @@ init386(first)
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
 	 */
-	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
 
 #ifdef PC98
 	/*

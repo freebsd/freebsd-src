@@ -98,10 +98,6 @@ struct mtx pargs_ref_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
 
-static int active_procs;
-static int cached_procs;
-static int allocated_procs;
-
 int kstack_pages = KSTACK_PAGES;
 int uarea_pages = UAREA_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
@@ -142,8 +138,6 @@ proc_ctor(void *mem, int size, void *arg)
 	KASSERT((size == sizeof(struct proc)),
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
-	cached_procs--;
-	active_procs++;
 }
 
 /*
@@ -176,10 +170,6 @@ proc_dtor(void *mem, int size, void *arg)
 	 * on the state coming in here from wait4().
 	 */
 	proc_linkup(p, kg, ke, td);
-
-	/* Stats only */
-	active_procs--;
-	cached_procs++;
 }
 
 /*
@@ -198,11 +188,9 @@ proc_init(void *mem, int size)
 	p = (struct proc *)mem;
 	vm_proc_new(p);
 	td = thread_alloc();
-	ke = &p->p_kse;
-	kg = &p->p_ksegrp;
+	ke = kse_alloc();
+	kg = ksegrp_alloc();
 	proc_linkup(p, kg, ke, td);
-	cached_procs++;
-	allocated_procs++;
 }
 
 /*
@@ -212,14 +200,25 @@ static void
 proc_fini(void *mem, int size)
 {
 	struct proc *p;
+	struct thread *td;
+	struct ksegrp *kg;
+	struct kse *ke;
 
 	KASSERT((size == sizeof(struct proc)),
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
+	KASSERT((p->p_numthreads == 1),
+	    ("bad number of threads in freeing process"));
+        td = FIRST_THREAD_IN_PROC(p);
+	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
+        kg = FIRST_KSEGRP_IN_PROC(p);
+	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
+        ke = FIRST_KSE_IN_KSEGRP(kg);
+	KASSERT((ke != NULL), ("proc_dtor: bad ke pointer"));
 	vm_proc_dispose(p);
-	cached_procs--;
-	allocated_procs--;
-	thread_free(FIRST_THREAD_IN_PROC(p));
+	thread_free(td);
+	ksegrp_free(kg);
+	kse_free(ke);
 }
 
 /* 
@@ -787,6 +786,8 @@ fill_kinfo_proc(p, kp)
 	struct kinfo_proc *kp;
 {
 	struct thread *td;
+	struct kse *ke;
+	struct ksegrp *kg;
 	struct tty *tp;
 	struct session *sp;
 	struct timeval tv;
@@ -862,13 +863,14 @@ fill_kinfo_proc(p, kp)
 		}
 
 		if (p->p_state == PRS_NORMAL) { /*  XXXKSE very approximate */
-			if ((TD_ON_RUNQ(td)) ||
-			    (TD_IS_RUNNING(td))) {
+			if (TD_ON_RUNQ(td) ||
+			    TD_CAN_RUN(td) ||
+			    TD_IS_RUNNING(td)) {
 				kp->ki_stat = SRUN;
-			} else if (TD_IS_SLEEPING(td)) {
-				kp->ki_stat = SSLEEP;
 			} else if (P_SHOULDSTOP(p)) {
 				kp->ki_stat = SSTOP;
+			} else if (TD_IS_SLEEPING(td)) {
+				kp->ki_stat = SSLEEP;
 			} else if (TD_ON_MUTEX(td)) {
 				kp->ki_stat = SMTX;
 			} else {
@@ -883,33 +885,43 @@ fill_kinfo_proc(p, kp)
 		kp->ki_pid = p->p_pid;
 		/* vvv XXXKSE */
 		if (!(p->p_flag & P_KSES)) {
+			kg = td->td_ksegrp;
+			ke = td->td_kse;
+			KASSERT((ke != NULL), ("fill_kinfo_proc: Null KSE"));
 			bintime2timeval(&p->p_runtime, &tv);
-			kp->ki_runtime = tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
-			kp->ki_pctcpu = p->p_kse.ke_pctcpu;
-			kp->ki_estcpu = p->p_ksegrp.kg_estcpu;
-			kp->ki_slptime = p->p_ksegrp.kg_slptime;
+			kp->ki_runtime =
+			    tv.tv_sec * (u_int64_t)1000000 + tv.tv_usec;
+
+			/* things in the KSE GROUP */
+			kp->ki_estcpu = kg->kg_estcpu;
+			kp->ki_slptime = kg->kg_slptime;
+			kp->ki_pri.pri_user = kg->kg_user_pri;
+			kp->ki_pri.pri_class = kg->kg_pri_class;
+			kp->ki_nice = kg->kg_nice;
+
+			/* Things in the thread */
 			kp->ki_wchan = td->td_wchan;
 			kp->ki_pri.pri_level = td->td_priority;
-			kp->ki_pri.pri_user = p->p_ksegrp.kg_user_pri;
-			kp->ki_pri.pri_class = p->p_ksegrp.kg_pri_class;
 			kp->ki_pri.pri_native = td->td_base_pri;
-			kp->ki_nice = p->p_ksegrp.kg_nice;
-			kp->ki_rqindex = p->p_kse.ke_rqindex;
-			kp->ki_oncpu = p->p_kse.ke_oncpu;
 			kp->ki_lastcpu = td->td_lastcpu;
 			kp->ki_tdflags = td->td_flags;
 			kp->ki_pcb = td->td_pcb;
 			kp->ki_kstack = (void *)td->td_kstack;
+
+			/* Things in the kse */
+			kp->ki_rqindex = ke->ke_rqindex;
+			kp->ki_oncpu = ke->ke_oncpu;
+			kp->ki_pctcpu = ke->ke_pctcpu;
 		} else {
 			kp->ki_oncpu = -1;
 			kp->ki_lastcpu = -1;
 			kp->ki_tdflags = -1;
-			/* All the reast are 0 */
+			/* All the rest are 0 for now */
 		}
+		/* ^^^ XXXKSE */
 	} else {
 		kp->ki_stat = SZOMB;
 	}
-	/* ^^^ XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 	sp = NULL;
 	tp = NULL;
@@ -1255,11 +1267,3 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD,
 SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
 	sysctl_kern_proc_args, "Process argument list");
 
-SYSCTL_INT(_kern_proc, OID_AUTO, active, CTLFLAG_RD,
-	&active_procs, 0, "Number of active procs in system.");
-
-SYSCTL_INT(_kern_proc, OID_AUTO, cached, CTLFLAG_RD,
-	&cached_procs, 0, "Number of procs in proc cache.");
-
-SYSCTL_INT(_kern_proc, OID_AUTO, allocated, CTLFLAG_RD,
-	&allocated_procs, 0, "Number of procs in zone.");

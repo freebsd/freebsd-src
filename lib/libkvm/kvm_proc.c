@@ -120,6 +120,8 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct pstats pstats;
 	struct ucred ucred;
 	struct thread mtd;
+	struct kse mke;
+	struct ksegrp mkg;
 	struct proc proc;
 	struct proc pproc;
 	struct timeval tv;
@@ -139,6 +141,23 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				    "can't read thread at %x",
 				    TAILQ_FIRST(&proc.p_threads));
 				return (-1);
+			}
+			if (proc.p_flag & P_KSES == 0) {
+				if (KREAD(kd,
+				    (u_long)TAILQ_FIRST(&proc.p_ksegrps),
+				    &mkg)) {
+					_kvm_err(kd, kd->program,
+					    "can't read ksegrp at %x",
+					    TAILQ_FIRST(&proc.p_ksegrps));
+					return (-1);
+				}
+				if (KREAD(kd,
+				    (u_long)TAILQ_FIRST(&mkg.kg_kseq), &mke)) {
+					_kvm_err(kd, kd->program,
+					    "can't read kse at %x",
+					    TAILQ_FIRST(&mkg.kg_kseq));
+					return (-1);
+				}
 			}
 		}
 		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
@@ -328,24 +347,23 @@ nopgrp:
 		kp->ki_sigmask = proc.p_sigmask;
 		kp->ki_xstat = proc.p_xstat;
 		kp->ki_acflag = proc.p_acflag;
+		kp->ki_lock = proc.p_lock;
 		if (proc.p_state != PRS_ZOMBIE) {
-			kp->ki_pctcpu = proc.p_kse.ke_pctcpu;
-			kp->ki_estcpu = proc.p_ksegrp.kg_estcpu;
-			kp->ki_slptime = proc.p_ksegrp.kg_slptime;
 			kp->ki_swtime = proc.p_swtime;
 			kp->ki_flag = proc.p_flag;
 			kp->ki_sflag = proc.p_sflag;
-			kp->ki_wchan = mtd.td_wchan;
 			kp->ki_traceflag = proc.p_traceflag;
 			if (proc.p_state == PRS_NORMAL) { 
 				if (TD_ON_RUNQ(&mtd) ||
 				    TD_CAN_RUN(&mtd) ||
 				    TD_IS_RUNNING(&mtd)) {
 					kp->ki_stat = SRUN;
-				} else if (mtd.td_state == TDS_INHIBITED) {
+				} else if (mtd.td_state == 
+				    TDS_INHIBITED) {
 					if (P_SHOULDSTOP(&proc)) {
 						kp->ki_stat = SSTOP;
-					} else if (TD_IS_SLEEPING(&mtd)) {
+					} else if (
+					    TD_IS_SLEEPING(&mtd)) {
 						kp->ki_stat = SSLEEP;
 					} else if (TD_ON_MUTEX(&mtd)) {
 						kp->ki_stat = SMTX;
@@ -356,15 +374,30 @@ nopgrp:
 			} else {
 				kp->ki_stat = SIDL;
 			}
-			kp->ki_pri.pri_class = proc.p_ksegrp.kg_pri_class;
-			kp->ki_pri.pri_user = proc.p_ksegrp.kg_user_pri;
+			/* Stuff from the thread */
 			kp->ki_pri.pri_level = mtd.td_priority;
 			kp->ki_pri.pri_native = mtd.td_base_pri;
-			kp->ki_nice = proc.p_ksegrp.kg_nice;
-			kp->ki_lock = proc.p_lock;
-			kp->ki_rqindex = proc.p_kse.ke_rqindex;
-			kp->ki_oncpu = proc.p_kse.ke_oncpu;
 			kp->ki_lastcpu = mtd.td_lastcpu;
+			kp->ki_wchan = mtd.td_wchan;
+
+			if (!(proc.p_flag & P_KSES)) {
+				/* stuff from the ksegrp */
+				kp->ki_slptime = mkg.kg_slptime;
+				kp->ki_pri.pri_class = mkg.kg_pri_class;
+				kp->ki_pri.pri_user = mkg.kg_user_pri;
+				kp->ki_nice = mkg.kg_nice;
+				kp->ki_estcpu = mkg.kg_estcpu;
+
+				/* Stuff from the kse */
+				kp->ki_pctcpu = mke.ke_pctcpu;
+				kp->ki_rqindex = mke.ke_rqindex;
+				kp->ki_oncpu = mke.ke_oncpu;
+			} else {
+				kp->ki_oncpu = -1;
+				kp->ki_lastcpu = -1;
+				kp->ki_tdflags = -1;
+				/* All the rest are 0 for now */
+			}
 		} else {
 			kp->ki_stat = SZOMB;
 		}
