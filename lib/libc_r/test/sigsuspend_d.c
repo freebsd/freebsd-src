@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if defined(__FreeBSD__)
+#if defined(_LIBC_R_)
 #include <pthread_np.h>
 #endif
 
@@ -75,13 +75,13 @@ sigsuspender (void *arg)
 
 		status = sigsuspend (&suspender_mask);
 		if ((status == 0) || (errno != EINTR)) {
-			printf ("Unable to suspend for signals, "
+			fprintf (stderr, "Unable to suspend for signals, "
 				"errno %d, return value %d\n",
 				errno, status);
 			exit (1);
 		}
 		for (i = 0; i < fifo_depth; i++)
-			printf ("Sigsuspend woke up by signal %d\n",
+			fprintf (stderr, "Sigsuspend woke up by signal %d\n",
 				sigfifo[i]);
 		fifo_depth = 0;
 	}
@@ -108,8 +108,9 @@ sighandler (int signo)
 	if (self == suspender_tid) {
 		sigfifo[fifo_depth] = signo;
 		fifo_depth++;
-		printf ("  -> Suspender thread signal handler caught signal %d\n",
-			signo);
+		fprintf (stderr,
+		    "  -> Suspender thread signal handler caught signal %d\n",
+		    signo);
 
 		/* Get the current signal mask. */
 		sigprocmask (SIG_SETMASK, NULL, &set);
@@ -119,12 +120,14 @@ sighandler (int signo)
 		sigaddset(&suspend_set, signo);
 
 		if (memcmp(&set, &suspend_set, sizeof(set)))
-			printf ("  >>> FAIL: sigsuspender signal handler running "
-				"with incorrect mask.\n");
+			fprintf (stderr,
+			    "  >>> FAIL: sigsuspender signal handler running "
+			    "with incorrect mask.\n");
 	}
 	else
-		printf ("  -> Main thread signal handler caught signal %d\n",
-			signo);
+		fprintf (stderr,
+		    "  -> Main thread signal handler caught signal %d\n",
+		    signo);
 }
 
 
@@ -132,7 +135,8 @@ static void
 send_thread_signal (pthread_t tid, int signo)
 {
 	if (pthread_kill (tid, signo) != 0) {
-		printf ("Unable to send thread signal, errno %d.\n", errno);
+		fprintf (stderr, "Unable to send thread signal, errno %d.\n",
+		    errno);
 		exit (1);
 	}
 }
@@ -142,7 +146,8 @@ static void
 send_process_signal (int signo)
 {
 	if (kill (getpid (), signo) != 0) {
-		printf ("Unable to send process signal, errno %d.\n", errno);
+		fprintf (stderr, "Unable to send process signal, errno %d.\n",
+		    errno);
 		exit (1);
 	}
 }
@@ -203,7 +208,7 @@ int main (int argc, char *argv[])
 	if ((pthread_attr_init (&pattr) != 0) ||
 	    (pthread_attr_setdetachstate (&pattr,
 	    PTHREAD_CREATE_JOINABLE) != 0)) {
-		printf ("Unable to initialize thread attributes.\n");
+		fprintf (stderr, "Unable to initialize thread attributes.\n");
 		exit (1);
 	}
 
@@ -211,10 +216,10 @@ int main (int argc, char *argv[])
 	 * Create the sigsuspender thread.
 	 */
 	if (pthread_create (&suspender_tid, &pattr, sigsuspender, NULL) != 0) {
-		printf ("Unable to create thread, errno %d.\n", errno);
+		fprintf (stderr, "Unable to create thread, errno %d.\n", errno);
 		exit (1);
 	}
-#if defined(__FreeBSD__)
+#if defined(_LIBC_R)
 	pthread_set_name_np (suspender_tid, "sigsuspender");
 #endif
 
@@ -227,7 +232,7 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGIO);
 	sleep (1);
 	if (sigcounts[SIGIO] != 0)
-		printf ("FAIL: sigsuspend wakes up for ignored signal "
+		fprintf (stderr, "FAIL: sigsuspend wakes up for ignored signal "
 			"SIGIO.\n");
 
 	/*
@@ -240,7 +245,8 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGURG);
 	sleep (1);
 	if (sigcounts[SIGURG] != 2)
-		printf ("FAIL: sigsuspend doesn't wake up for SIGURG.\n");
+		fprintf (stderr,
+		    "FAIL: sigsuspend doesn't wake up for SIGURG.\n");
 
 	/*
 	 * Verify that a SIGUSR2 signal will release a sigsuspended
@@ -251,7 +257,8 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGUSR2);
 	sleep (1);
 	if (sigcounts[SIGUSR2] != 2)
-		printf ("FAIL: sigsuspend doesn't wake up for SIGUSR2.\n");
+		fprintf (stderr,
+		    "FAIL: sigsuspend doesn't wake up for SIGUSR2.\n");
 
 	/*
 	 * Verify that a signal, blocked in both the main and
@@ -263,14 +270,14 @@ int main (int argc, char *argv[])
 	send_process_signal (SIGUSR1);
 	sleep (1);
 	if (sigcounts[SIGUSR1] != 0)
-		printf ("FAIL: signal hander called for SIGUSR1.\n");
+		fprintf (stderr, "FAIL: signal hander called for SIGUSR1.\n");
 
 	/*
 	 * Verify that we can still kill the process for a signal
 	 * not being waited on by sigwait.
 	 */
 	send_process_signal (SIGPIPE);
-	printf ("FAIL: SIGPIPE did not terminate process.\n");
+	fprintf (stderr, "FAIL: SIGPIPE did not terminate process.\n");
 
 	/*
 	 * Wait for the thread to finish.
@@ -279,4 +286,3 @@ int main (int argc, char *argv[])
 
 	return (0);
 }
-

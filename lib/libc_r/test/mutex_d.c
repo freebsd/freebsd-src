@@ -45,7 +45,7 @@
 #include <string.h>
 #include <sysexits.h>
 
-#if defined(__FreeBSD__)
+#if defined(_LIBC_R_)
 #include <pthread_np.h>
 #endif
 
@@ -1492,7 +1492,7 @@ int main (int argc, char *argv[])
 		states[i].priority = param.sched_priority;
 		assert (pthread_setschedparam (states[i].tid, SCHED_OTHER,
 		    &param) == 0);
-#if defined(__FreeBSD__)
+#if defined(_LIBC_R_)
 		{
 			char buf[30];
 
