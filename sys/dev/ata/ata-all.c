@@ -686,7 +686,7 @@ static driver_t ata_pci_driver = {
     sizeof(struct ata_pci_softc),
 };
 
-DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_devclass, 0, 0);
+DRIVER_MODULE(atapci, pci, ata_pci_driver, ata_pci_devclass, 0, 0);
 
 static int
 ata_pcisub_probe(device_t dev)
@@ -723,7 +723,7 @@ static driver_t ata_pcisub_driver = {
     sizeof(struct ata_softc),
 };
 
-DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_pci_devclass, 0, 0);
+DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_devclass, 0, 0);
 #endif
 
 static int
