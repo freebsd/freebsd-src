@@ -1864,7 +1864,7 @@ mac_execve_will_transition(struct ucred *old, struct vnode *vp)
 }
 
 int
-mac_check_vnode_access(struct ucred *cred, struct vnode *vp, int flags)
+mac_check_vnode_access(struct ucred *cred, struct vnode *vp, int acc_mode)
 {
 	int error;
 
@@ -1873,7 +1873,7 @@ mac_check_vnode_access(struct ucred *cred, struct vnode *vp, int flags)
 	if (!mac_enforce_fs)
 		return (0);
 
-	MAC_CHECK(check_vnode_access, cred, vp, &vp->v_label, flags);
+	MAC_CHECK(check_vnode_access, cred, vp, &vp->v_label, acc_mode);
 	return (error);
 }
 
@@ -2074,7 +2074,7 @@ mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp, int prot)
 }
 
 int
-mac_check_vnode_open(struct ucred *cred, struct vnode *vp, mode_t acc_mode)
+mac_check_vnode_open(struct ucred *cred, struct vnode *vp, int acc_mode)
 {
 	int error;
 

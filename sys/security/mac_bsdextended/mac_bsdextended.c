@@ -204,7 +204,7 @@ mac_bsdextended_destroy(struct mac_policy_conf *mpc)
 
 static int
 mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
-    struct ucred *cred, uid_t object_uid, gid_t object_gid, mode_t acc_mode)
+    struct ucred *cred, uid_t object_uid, gid_t object_gid, int acc_mode)
 {
 	int match;
 
@@ -274,7 +274,7 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 
 static int
 mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
-    mode_t acc_mode)
+    int acc_mode)
 {
 	int error, i;
 
@@ -293,7 +293,7 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 
 static int
 mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
-    struct label *label, mode_t flags)
+    struct label *label, int acc_mode)
 {
 	struct vattr vap;
 	int error;
@@ -304,7 +304,7 @@ mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
 	error = VOP_GETATTR(vp, &vap, cred, curthread);
 	if (error)
 		return (error);
-	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, flags));
+	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, acc_mode));
 }
 
 static int
@@ -489,7 +489,7 @@ mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 
 static int
 mac_bsdextended_check_vnode_open(struct ucred *cred, struct vnode *vp,
-    struct label *filelabel, mode_t acc_mode)
+    struct label *filelabel, int acc_mode)
 {
 	struct vattr vap;
 	int error;

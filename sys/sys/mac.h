@@ -256,7 +256,7 @@ int	mac_check_system_sysctl(struct ucred *cred, int *name,
 	    u_int namelen, void *old, size_t *oldlenp, int inkernel,
 	    void *new, size_t newlen);
 int	mac_check_vnode_access(struct ucred *cred, struct vnode *vp,
-	    int flags);
+	    int acc_mode);
 int	mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp);
 int	mac_check_vnode_chroot(struct ucred *cred, struct vnode *dvp);
 int	mac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
@@ -279,7 +279,7 @@ int	mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 int	mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
 int	mac_check_vnode_open(struct ucred *cred, struct vnode *vp,
-	    mode_t acc_mode);
+	    int acc_mode);
 int	mac_check_vnode_poll(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_check_vnode_read(struct ucred *active_cred,
