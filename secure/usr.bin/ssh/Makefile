@@ -2,6 +2,7 @@
 #
 
 PROG=	ssh
+CFLAGS+=-I${SSHDIR}
 .if defined(ENABLE_SUID_SSH)
 BINMODE=4555
 .endif
@@ -21,7 +22,7 @@ DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
 
 .if defined(MAKE_KERBEROS5)
 DISTRIBUTION=krb5
-CFLAGS+= -DKRB5
+CFLAGS+= -DKRB5 -DHEIMDAL
 LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken -lcrypt
 DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD} ${LIBCRYPT}
 .endif

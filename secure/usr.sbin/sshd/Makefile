@@ -9,10 +9,11 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth-skey.c auth-bsdauth.c monitor_mm.c monitor.c \
 	auth2-none.c auth2-passwd.c auth2-pubkey.c \
 	auth2-hostbased.c auth2-kbdint.c \
-	auth-pam.c auth2-pam.c
+	auth-pam.c auth2-pam.c auth2-pam-freebsd.c
+# Portability layer
+SRCS+=	loginrec.c
 MAN=	sshd.8 sshd_config.5
-
-CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DUSE_PAM -DHAVE_PAM_GETENVLIST
+CFLAGS+=-I${SSHDIR}
 
 .if defined(MAKE_KERBEROS4)
 DISTRIBUTION=krb4
@@ -24,13 +25,12 @@ DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
 
 .if defined(MAKE_KERBEROS5)
 DISTRIBUTION=krb5
-CFLAGS+= -DKRB5
+CFLAGS+= -DKRB5 -DHEIMDAL
 SRCS+=	auth-krb5.c
 LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
 DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD}
 .endif
 
-CFLAGS+= -DSKEY
 LDADD+=	-lopie -lmd
 DPADD+=	${LIBOPIE} ${LIBMD}
 
