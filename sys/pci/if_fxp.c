@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.2 1995/12/01 22:41:56 davidg Exp $
+ *	$Id: if_fxp.c,v 1.3 1995/12/05 02:01:51 davidg Exp $
  */
 
 /*
@@ -171,9 +171,14 @@ DATA_SET(pcidevice_set, fxp_device);
 
 /*
  * Number of DMA segments in a TxCB. Note that this is carefully
- * chosen to make the total struct size an even power of two.
+ * chosen to make the total struct size an even power of two. It's
+ * critical that no TxCB be split across a page boundry since
+ * no attempt is made to allocate physically contiguous memory.
+ * 
+ * XXX - don't forget to change the hard-coded constant in the
+ * fxp_cb_tx struct (defined in if_fxpreg.h), too!
  */
-#define FXP_NTXSEG	13
+#define FXP_NTXSEG	29
 
 /*
  * Number of receive frame area buffers. These are large so chose
@@ -449,6 +454,7 @@ txloop:
 	 * the transmit buffers descriptors with the physical address
 	 * and size of the mbuf.
 	 */
+tbdinit:
 	for (m = mb_head, segment = 0; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
 			if (segment == FXP_NTXSEG)
@@ -460,14 +466,34 @@ txloop:
 		}
 	}
 	if (m != NULL && segment == FXP_NTXSEG) {
+		struct mbuf *mn;
+
 		/*
 		 * We ran out of segments. We have to recopy this mbuf
 		 * chain first.
 		 */
-		panic("fxp%d: ran out of segments", ifp->if_unit);
-	} else {
-		txp->tbd_number = segment;
+		MGETHDR(mn, M_DONTWAIT, MT_DATA);
+		if (mn == NULL) {
+			m_freem(mb_head);
+			return;
+		}
+		if (mb_head->m_pkthdr.len > MHLEN) {
+			MCLGET(mn, M_DONTWAIT);
+			if ((mn->m_flags & M_EXT) == 0) {
+				m_freem(mn);
+				m_freem(mb_head);
+				return;
+			}
+		}
+		m_copydata(mb_head, 0, mb_head->m_pkthdr.len, mtod(mn, caddr_t));
+		mn->m_pkthdr.len = mn->m_len = mb_head->m_pkthdr.len;
+		m_freem(mb_head);
+		mb_head = mn;
+		goto tbdinit;
 	}
+
+	txp->tbd_number = segment;
+
 	/*
 	 * Finish the initialization of this TxCB.
 	 */
