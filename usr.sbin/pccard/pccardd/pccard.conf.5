@@ -54,6 +54,17 @@ and
 The latter two may appear in any order, and may be
 interspersed as desired.
 .Pp
+The
+.Pa /etc/pccard.conf
+file is included from the file
+.Pa /etc/defaults/pccard.conf ,
+which contains the default resource pool settings and
+pccard identifiers database.
+The user specific configuration can be specified in 
+.Pa /etc/rc.conf
+when the user wishes to override these defaults and/or
+add additional entries.
+.Pp
 Each PC-CARD card contains configuration tuples that provide
 the manufacturer and card version; these are used
 to identify the card specification in the configuration
@@ -213,11 +224,14 @@ card "XYZZY" "FAX/1.0"
 
 .Ed
 .Sh FILES
-.Bl -tag -width /etc/pccard.conf -compact
-.It Pa /etc/pccard.conf
+.Bl -tag -width /etc/defaults/pccard.conf -compact
+.It Pa /etc/defaults/pccard.conf
 The
 .Xr pccardd 8
-configuration file.
+default configuration file.
+.It Pa /etc/pccard.conf
+The
+user configuration file.
 .El
 .Sh SEE ALSO
 .Xr pccardd 8
