@@ -150,17 +150,10 @@ strcpy (char *dst, const char *src)
   return retval;
 }
 
-/*
- * These are set up by the serial card that is configured to be the gdb port.
- */
-dev_t gdbdev = -1;
-cn_getc_t *gdb_getc;
-cn_putc_t *gdb_putc;
-
 static int
 putDebugChar (int c)		/* write a single character      */
 {
-  if (gdbdev == -1)
+  if (gdbdev == NODEV)
 	return 0;
   (*gdb_putc)(gdbdev, c);
   return 1;
@@ -169,7 +162,7 @@ putDebugChar (int c)		/* write a single character      */
 static int
 getDebugChar (void)		/* read and return a single char */
 {
-  if (gdbdev == -1)
+  if (gdbdev == NODEV)
 	return -1;
   return (*gdb_getc)(gdbdev);
 }
