@@ -58,6 +58,7 @@
 
 #include "card_if.h"
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
 
 static const char *ep_pccard_identify(u_short id);
 
@@ -239,9 +240,30 @@ ep_pccard_detach(device_t dev)
 	return (0);
 }
 
+static const struct pccard_product ep_pccard_products[] = {
+	{ PCCARD_STR_3COM_3C574,		PCCARD_VENDOR_3COM,
+	  PCCARD_PRODUCT_3COM_3C574,		0, NULL, NULL },
+	{ PCCARD_STR_3COM_3C589,		PCCARD_VENDOR_3COM,
+	  PCCARD_PRODUCT_3COM_3C589,		0, NULL, NULL },
+	{ PCCARD_STR_3COM_3CXEM556,		PCCARD_VENDOR_3COM,
+	  PCCARD_PRODUCT_3COM_3CXEM556,		0, NULL, NULL },
+	{ PCCARD_STR_3COM_3CXEM556INT,		PCCARD_VENDOR_3COM,
+	  PCCARD_PRODUCT_3COM_3CXEM556INT,	0, NULL, NULL },
+	{ PCCARD_STR_3COM_3CCFEM556BI,		PCCARD_VENDOR_3COM,
+	  PCCARD_PRODUCT_3COM_3CCFEM556BI,	0, NULL, NULL },
+	{ NULL }
+};
+
 static int
 ep_pccard_match(device_t dev)
 {
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, ep_pccard_products,
+	    sizeof(ep_pccard_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return 0;
+	}
 	return EIO;
 }
 
