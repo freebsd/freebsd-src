@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.36 1995/02/20 23:35:45 davidg Exp $
+ * $Id: vm_pageout.c,v 1.37 1995/02/22 09:15:32 davidg Exp $
  */
 
 /*
@@ -496,7 +496,6 @@ vm_pageout_scan()
 	vm_page_t m;
 	int page_shortage, maxscan, maxlaunder;
 	int pages_freed;
-	int desired_free;
 	vm_page_t next;
 	struct proc *p, *bigproc;
 	vm_offset_t size, bigsize;
@@ -518,7 +517,6 @@ vm_pageout_scan()
 		vm_req_vmdaemon();
 	}
 	pages_freed = 0;
-	desired_free = cnt.v_free_target;
 
 	/*
 	 * Start scanning the inactive queue for pages we can free. We keep
@@ -534,7 +532,7 @@ rescan1:
 	maxscan = min(cnt.v_inactive_count, MAXSCAN);
 	m = vm_page_queue_inactive.tqh_first;
 	while (m && (maxscan-- > 0) &&
-	    ((cnt.v_free_count + cnt.v_cache_count) < desired_free)) {
+	    (cnt.v_cache_count < (cnt.v_cache_min + cnt.v_free_target))) {
 		vm_page_t next;
 
 		cnt.v_pdpages++;
@@ -580,8 +578,7 @@ rescan1:
 			if (m->valid == 0) {
 				pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
 				vm_page_free(m);
-			} else if (((cnt.v_free_count + cnt.v_cache_count) < desired_free) ||
-			    (cnt.v_cache_count < cnt.v_cache_min)) {
+			} else {
 				vm_page_cache(m);
 			}
 		} else if (maxlaunder > 0) {
@@ -626,13 +623,8 @@ rescan1:
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
 	if (page_shortage <= 0) {
 		if (pages_freed == 0) {
-			if ((cnt.v_free_count + cnt.v_cache_count) < desired_free) {
-				page_shortage =
-				    desired_free - (cnt.v_free_count + cnt.v_cache_count);
-			}
+			page_shortage = cnt.v_free_min - cnt.v_inactive_count;
 		}
-		if( (page_shortage <= 0) && (cnt.v_free_count < cnt.v_free_min))
-			page_shortage = 1;
 	}
 	maxscan = min(cnt.v_active_count, MAXSCAN);
 	m = vm_page_queue_active.tqh_first;
@@ -781,21 +773,23 @@ vm_pageout()
 	cnt.v_pageout_free_min = 6 + cnt.v_page_count / 1024;
 	cnt.v_free_reserved = cnt.v_pageout_free_min + 2;
 	cnt.v_free_target = 3 * cnt.v_free_min + cnt.v_free_reserved;
-	cnt.v_inactive_target = cnt.v_free_count / 4;
-	if (cnt.v_inactive_target > 512)
-		cnt.v_inactive_target = 512;
 	cnt.v_free_min += cnt.v_free_reserved;
+
 	if (cnt.v_page_count > 1024) {
 		cnt.v_cache_max = (cnt.v_free_count - 1024) / 2;
-		cnt.v_cache_min = (cnt.v_free_count - 1024) / 20;
+		cnt.v_cache_min = (cnt.v_free_count - 1024) / 8;
+		cnt.v_inactive_target = 2*cnt.v_cache_min + 192;
 	} else {
 		cnt.v_cache_min = 0;
 		cnt.v_cache_max = 0;
+		cnt.v_inactive_target = cnt.v_free_count / 4;
 	}
 
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
 		vm_page_max_wired = cnt.v_free_count / 3;
+
+	cnt.v_interrupt_free_min = 2;
 
 
 	(void) swap_pager_alloc(0, 0, 0, 0);
