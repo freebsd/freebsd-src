@@ -17,7 +17,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
@@ -54,6 +53,8 @@ static struct cdevsw spkr_cdevsw = {
 	/* flags */	0,
 	/* bmaj */	-1
 };
+
+MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
@@ -491,7 +492,7 @@ playstring(cp, slen)
  */
 
 static int spkr_active = FALSE; /* exclusion flag */
-static struct buf *spkr_inbuf;  /* incoming buf */
+static char *spkr_inbuf;  /* incoming buf */
 
 int
 spkropen(dev, flags, fmt, p)
@@ -514,7 +515,7 @@ spkropen(dev, flags, fmt, p)
 	(void) printf("spkropen: about to perform play initialization\n");
 #endif /* DEBUG */
 	playinit();
-	spkr_inbuf = geteblk(DEV_BSIZE);
+	spkr_inbuf = malloc(DEV_BSIZE, M_SPKR, M_WAITOK);
 	spkr_active = TRUE;
 	return(0);
     }
@@ -542,7 +543,7 @@ spkrwrite(dev, uio, ioflag)
 	int error;
 
 	n = uio->uio_resid;
-	cp = spkr_inbuf->b_data;
+	cp = spkr_inbuf;
 	error = uiomove(cp, n, uio);
 	if (!error) {
 		cp[n] = '\0';
@@ -569,7 +570,7 @@ spkrclose(dev, flags, fmt, p)
     {
 	wakeup((caddr_t)&endtone);
 	wakeup((caddr_t)&endrest);
-	brelse(spkr_inbuf);
+	free(spkr_inbuf, M_SPKR);
 	spkr_active = FALSE;
 	return(0);
     }
