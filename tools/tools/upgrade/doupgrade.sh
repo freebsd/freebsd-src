@@ -25,16 +25,18 @@ if [ $PASS -eq 1 ]; then
 	if [ ! -f ${KERN} ]; then
 		KERN=GENERIC
 	fi
-	if [ ! -f ${KERN}.bkup ]; then
-		cp ${KERN} ${KERN}.bkup
-	fi
-	sed -e 's/^device.*sc0.*$/ \
+	if ! grep -q atkbdc0 ${KERN}; then
+		if [ ! -f ${KERN}.bkup ]; then
+			cp ${KERN} ${KERN}.bkup
+		fi
+		sed -e 's/^device.*sc0.*$/ \
 controller      atkbdc0 at isa? port IO_KBD tty \
 device          atkbd0  at isa? tty irq 1 \
 device          vga0    at isa? port ? conflicts \
 device          sc0     at isa? tty \
 pseudo-device   splash \
 /' -e 's/sd\([0-9]\)/da\1/' -e 's/st\([0-9]\)/sa\1/' < ${KERN}.bkup > ${KERN}
+	fi
 
 	if [ -r /dev/wd0a ]; then
 		ROOTDEV=wd0
@@ -70,9 +72,11 @@ if [ $PASS -eq 2 -a -f ${CONF} ]; then
 		exit 1
 	   fi
 	fi
-	echo "--------------------------------------------------------------"
-	echo " Building an elf kernel for ${KERNEL} using the new tools"
-	echo "--------------------------------------------------------------"
-	config -r ${KERNEL}
-	cd ${CURDIR}/sys/compile/${KERNEL} && make -B depend -DFORCE all install
+	if ! file /kernel | grep -q ELF; then
+		echo "--------------------------------------------------------------"
+		echo " Building an elf kernel for ${KERNEL} using the new tools"
+		echo "--------------------------------------------------------------"
+		config -r ${KERNEL}
+		cd ${CURDIR}/sys/compile/${KERNEL} && make -B depend -DFORCE all install
+	fi
 fi
