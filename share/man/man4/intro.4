@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: intro.4,v 1.9 1997/09/29 10:10:14 wosch Exp $
+.\" $Id: intro.4,v 1.10 1998/03/12 07:30:17 charnier Exp $
 .\"
 .Dd January 20, 1996
 .Dt INTRO 4
@@ -112,9 +112,9 @@ implement a buffered device.  For the latter group of devices, the
 differentiation is conventionally done by prepending the latter
 .Ql r
 to the path name of the device node, for example
-.Pa /dev/rsd0
+.Pa /dev/rda0
 denotes the raw device for the first SCSI disk, while
-.Pa /dev/sd0
+.Pa /dev/da0
 is the corresponding device node for the buffered device.
 .Pp
 Unbuffered devices should be used for all actions that are not related
