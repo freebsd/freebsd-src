@@ -41,6 +41,9 @@ dhclient - Dynamic Host Configuration Protocol Client
 .B -q
 ]
 [
+.B -v
+]
+[
 .B -1
 ]
 [
@@ -204,6 +207,10 @@ facility.   The
 .B -q
 flag prevents any messages other than errors from being printed to the
 standard error descriptor.
+.B -v
+flag turns on all messages.
+Opposite of
+.B -q .
 .PP
 The client normally doesn't release the current lease as it is not
 required by the DHCP protocol.  Some cable ISPs require their clients
