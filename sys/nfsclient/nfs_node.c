@@ -64,6 +64,9 @@ static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 static u_long nfsnodehash;
 static int nfs_node_hash_lock;
 
+#define	NFSNOHASH(fhsum) \
+	(&nfsnodehashtbl[(fhsum) & nfsnodehash])
+
 #define TRUE	1
 #define	FALSE	0
 

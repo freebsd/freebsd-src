@@ -200,12 +200,6 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	R_MUSTRESEND	0x40		/* Must resend request */
 #define	R_GETONEREP	0x80		/* Probe for one reply only */
 
-extern struct nfsnodehashhead *nfsnodehashtbl;
-extern u_long	nfsnodehash;
-
-#define	NFSNOHASH(fhsum) \
-	(&nfsnodehashtbl[(fhsum) & nfsnodehash])
-
 /*
  * Defines for WebNFS
  */
