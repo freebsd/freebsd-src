@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.136 1996/03/27 20:03:24 bde Exp $
+ *	$Id: sio.c,v 1.137 1996/04/10 04:18:36 scrappy Exp $
  */
 
 #include "sio.h"
@@ -85,9 +85,7 @@
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
-#ifndef RS_IBUFSIZE
 #define	RS_IBUFSIZE	256
-#endif
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
