@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_subr.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_subr.c,v 1.3 1998/10/31 20:07:01 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/uni/unisig_msg.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_subr.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+__RCSID("@(#) $Id: unisig_subr.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
 #endif
 
 
@@ -1048,6 +1048,8 @@ unisig_set_attrs(usp, msg, ap)
 						ap->blli.v.layer_2_protocol.ID.simple_ID;
 				break;
 			case T_ATM_USER_ID:
+				msg->msg_ie_blli->ie_blli_l2_id =
+						UNI_IE_BLLI_L2P_USER;
 				msg->msg_ie_blli->ie_blli_l2_user_proto =
 						ap->blli.v.layer_2_protocol.ID.user_defined_ID;
 				break;
