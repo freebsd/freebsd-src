@@ -19,7 +19,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.h,v 1.2 1997/08/05 22:24:31 dyson Exp $
+ * $Id: vm_zone.h,v 1.3 1997/08/06 04:58:05 dyson Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -38,6 +38,7 @@ typedef struct vm_zone {
 	void					*zitems;		/* linked list of items */
 	int						zfreecnt;		/* free entries */
 	int						zfreemin;		/* minimum number of free entries */
+	int						znalloc;		/* number of allocations */
 	vm_offset_t				zkva;			/* Base kva of zone */
 	int						zpagecount;		/* Total # of allocated pages */
 	int						zpagemax;		/* Max address space */
@@ -81,6 +82,7 @@ _zalloc(vm_zone_t z) {
 	item = z->zitems;
 	z->zitems = *(void **) item;
 	z->zfreecnt--;
+	z->znalloc++;
 	return item;
 }
 
