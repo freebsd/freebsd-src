@@ -113,9 +113,9 @@ __makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	memset(&ucp->uc_mcontext, 0, sizeof(ucp->uc_mcontext));
 	ucp->uc_mcontext.mc_special.sp = (intptr_t)args - 16;
 	ucp->uc_mcontext.mc_special.bspstore = (intptr_t)bsp;
-	ucp->uc_mcontext.mc_special.pfs = 3;
+	ucp->uc_mcontext.mc_special.pfs = (3 << 7) | 3;
 	ucp->uc_mcontext.mc_special.rsc = 0xf;
 	ucp->uc_mcontext.mc_special.rp = ((struct fdesc*)ctx_wrapper)->ip;
-	ucp->uc_mcontext.mc_special.rp = ((struct fdesc*)ctx_wrapper)->gp;
+	ucp->uc_mcontext.mc_special.gp = ((struct fdesc*)ctx_wrapper)->gp;
 	ucp->uc_mcontext.mc_special.fpsr = IA64_FPSR_DEFAULT;
 }
