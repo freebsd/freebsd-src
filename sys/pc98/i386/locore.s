@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.5.2.3 1997/01/11 07:34:22 kato Exp $
+ *	$Id: locore.s,v 1.5.2.4 1997/01/11 09:03:39 kato Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -443,8 +443,6 @@ begin:
 #endif
 #ifdef CX586_IO
 	orb	$CX586_IO, %al
-#else
-	orb	$0x02, %al		# 4-clock I/O delay
 #endif
 	outb	%al,$0x23
 	movb	$0x020,%al		# PCR0
