@@ -166,7 +166,7 @@ int	mii_mediachg(struct mii_data *);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
 int	mii_phy_probe(device_t, device_t *, ifm_change_cb_t, ifm_stat_cb_t);
-void	mii_add_media(struct mii_data *, int, int);
+void	mii_add_media(struct mii_softc *);
 
 int	mii_media_from_bmcr(int);
 

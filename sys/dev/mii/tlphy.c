@@ -216,8 +216,7 @@ static int tlphy_attach(dev)
 
 	if (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) {
 		printf("%s", sep);
-		mii_add_media(mii, sc->sc_mii.mii_capabilities,
-		    sc->sc_mii.mii_inst);
+		mii_add_media(&sc->sc_mii);
 	}
 
 	printf("\n");

@@ -290,12 +290,15 @@ mii_media_from_bmcr(bmcr)
  * of media names.  Does not print a newline.
  */
 void
-mii_add_media(mii, bmsr, instance)
-	struct mii_data *mii;
-	int bmsr, instance;
+mii_add_media(struct mii_softc *sc)
 {
 	const char *sep = "";
+	int bmsr, instance;
+	struct mii_data *mii;
 
+	bmsr = sc->mii_capabilities;
+	instance = sc->mii_inst;
+	mii = device_get_softc(sc->mii_dev);
 	if ((bmsr & BMSR_MEDIAMASK) == 0) {
 		printf("no media present");
 		return;
@@ -339,6 +342,9 @@ mii_add_media(mii, bmsr, instance)
 		    BMCR_AUTOEN);
 		PRINT("auto");
 	}
+
+
+
 #undef ADD
 #undef PRINT
 }

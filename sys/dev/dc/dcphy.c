@@ -196,7 +196,7 @@ static int dcphy_attach(dev)
 
 	sc->mii_capabilities &= ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+	mii_add_media(sc);
 	printf("\n");
 #undef ADD
 
