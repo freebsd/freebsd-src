@@ -964,7 +964,8 @@ sigreturn(struct thread *td,
 		ucontext_t *sigcntxp;
 	} */ *uap)
 {
-	ucontext_t uc, *ucp;
+	ucontext_t uc;
+	const ucontext_t *ucp;
 	struct pcb *pcb;
 	struct trapframe *frame = td->td_frame;
 	struct __mcontext *mcp;
