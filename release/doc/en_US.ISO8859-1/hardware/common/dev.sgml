@@ -770,6 +770,27 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Promise SuperTrak ATA RAID controllers (pst
+    driver)
+      <itemizedlist>
+	<listitem>
+	  <para>Promise SuperTrak SX6000 ATA RAID controller</para>
+	</listitem>
+      </itemizedlist>
+    <para>
+
+    <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
+	architecture Fiber Channel controllers (mpt driver)
+      <itemizedlist>
+	<listitem>
+	  <para>LSI FC909, FC929</para>
+	</listitem>
+	<listitem>
+	  <para>LSI 53c1020, 53c1030</para>
+	</listitem>
+      </itemizedlist>
+    <para>
+
     <para>With all supported SCSI controllers, full support is
     provided for SCSI-I, SCSI-II, and SCSI-III peripherals, including
     hard disks, optical disks, tape drives (including DAT, 8mm
