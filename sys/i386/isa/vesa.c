@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.3 1998/09/25 11:55:46 yokota Exp $
+ * $Id: vesa.c,v 1.6 1998/09/29 20:38:54 ache Exp $
  */
 
 #include "sc.h"
@@ -110,6 +110,10 @@ static int vesa_init_done = FALSE;
 static int has_vesa_bios = FALSE;
 static struct vesa_info *vesa_adp_info = NULL;
 static u_int16_t *vesa_vmodetab = NULL;
+static char *vesa_oemstr = NULL;
+static char *vesa_venderstr = NULL;
+static char *vesa_prodstr = NULL;
+static char *vesa_revstr = NULL;
 
 /* local macros and functions */
 #define BIOS_SADDRTOLADDR(p) ((((p) & 0xffff0000) >> 12) + ((p) & 0x0000ffff))
@@ -132,6 +136,8 @@ static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
 static int vesa_map_gen_mode_num(int type, int color, int mode);
 static int vesa_translate_flags(u_int16_t vflags);
+static void *vesa_fix_ptr(u_int32_t p, u_int16_t seg, u_int16_t off, 
+			  u_char *buf);
 static int vesa_bios_init(void);
 static void vesa_clear_modes(video_info_t *info, int color);
 
@@ -324,6 +330,19 @@ vesa_translate_flags(u_int16_t vflags)
 	return flags;
 }
 
+static void
+*vesa_fix_ptr(u_int32_t p, u_int16_t seg, u_int16_t off, u_char *buf)
+{
+	if (p == 0)
+		return NULL;
+	if (((p >> 16) == seg) && ((p & 0xffff) >= off))
+		return (void *)(buf + ((p & 0xffff) - off));
+	else {
+		p = BIOS_SADDRTOLADDR(p);
+		return (void *)BIOS_PADDRTOVADDR(p);
+	}
+}
+
 static int
 vesa_bios_init(void)
 {
@@ -356,10 +375,30 @@ vesa_bios_init(void)
 	if (vesa_adp_info->v_flags & V_NONVGA)
 		return 1;
 
+	/* fix string ptrs */
+	vesa_oemstr = (char *)vesa_fix_ptr(vesa_adp_info->v_oemstr,
+					   vmf.vmf_es, vmf.vmf_di, buf);
+	if (vesa_adp_info->v_version >= 0x0200) {
+		vesa_venderstr = 
+		    (char *)vesa_fix_ptr(vesa_adp_info->v_venderstr,
+					 vmf.vmf_es, vmf.vmf_di, buf);
+		vesa_prodstr = 
+		    (char *)vesa_fix_ptr(vesa_adp_info->v_prodstr,
+					 vmf.vmf_es, vmf.vmf_di, buf);
+		vesa_revstr = 
+		    (char *)vesa_fix_ptr(vesa_adp_info->v_revstr,
+					 vmf.vmf_es, vmf.vmf_di, buf);
+	}
+
 	/* obtain video mode information */
-	p = BIOS_SADDRTOLADDR(vesa_adp_info->v_modetable);
-	vesa_vmodetab = (u_int16_t *)BIOS_PADDRTOVADDR(p);
-	for (i = 0, modes = 0; vesa_vmodetab[i] != 0xffff; ++i) {
+	vesa_vmode[0].vi_mode = EOT;
+	vesa_vmodetab = (u_int16_t *)vesa_fix_ptr(vesa_adp_info->v_modetable,
+						  vmf.vmf_es, vmf.vmf_di, buf);
+	if (vesa_vmodetab == NULL)
+		return 1;
+	for (i = 0, modes = 0; 
+		(i < (M_VESA_MODE_MAX - M_VESA_BASE + 1))
+		&& (vesa_vmodetab[i] != 0xffff); ++i) {
 		if (modes >= VESA_MAXMODES)
 			break;
 		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
@@ -388,10 +427,10 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_cheight = vmode.v_cheight;
 		vesa_vmode[modes].vi_window = (u_int)vmode.v_waseg << 4;
 		/* XXX window B */
-		vesa_vmode[modes].vi_window_size = vmode.v_wsize;
-		vesa_vmode[modes].vi_window_gran = vmode.v_wgran;
+		vesa_vmode[modes].vi_window_size = vmode.v_wsize*1024;
+		vesa_vmode[modes].vi_window_gran = vmode.v_wgran*1024;
 		vesa_vmode[modes].vi_buffer = vmode.v_lfb;
-		vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen;
+		vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen*1024;
 		/* pixel format, memory model... */
 		vesa_vmode[modes].vi_flags 
 			= vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
@@ -401,8 +440,8 @@ vesa_bios_init(void)
 	if (bootverbose)
 		printf("VESA: %d mode(s) found\n", modes);
 
-	has_vesa_bios = TRUE;
-	return 0;
+	has_vesa_bios = (modes > 0);
+	return (has_vesa_bios ? 0 : 1);
 }
 
 static void
@@ -736,30 +775,28 @@ vesa_diag(int level)
 	       vesa_adp_info->v_memsize * 64, vesa_adp_info->v_flags,
 	       vesa_vmodetab, vesa_adp_info->v_modetable);
 	/* OEM string */
-	p = BIOS_SADDRTOLADDR(vesa_adp_info->v_oemstr);
-	if (p != 0)
-		printf("VESA: %s\n", (char *)BIOS_PADDRTOVADDR(p));
+	if (vesa_oemstr != NULL)
+		printf("VESA: %s\n", vesa_oemstr);
 
 	if (level <= 0)
 		return 0;
 
 	if (vesa_adp_info->v_version >= 0x0200) {
 		/* vendor name */
-		p = BIOS_SADDRTOLADDR(vesa_adp_info->v_venderstr);
-		if (p != 0)
-			printf("VESA: %s, ", (char *)BIOS_PADDRTOVADDR(p));
+		if (vesa_venderstr != NULL)
+			printf("VESA: %s\n", vesa_venderstr);
 		/* product name */
-		p = BIOS_SADDRTOLADDR(vesa_adp_info->v_prodstr);
-		if (p != 0)
-			printf("%s, ", (char *)BIOS_PADDRTOVADDR(p));
+		if (vesa_prodstr != NULL)
+			printf("VESA: %s\n", vesa_prodstr);
 		/* product revision */
-		p = BIOS_SADDRTOLADDR(vesa_adp_info->v_revstr);
-		if (p != 0)
-			printf("%s\n", (char *)BIOS_PADDRTOVADDR(p));
+		if (vesa_revstr != NULL)
+			printf("VESA: %s\n", vesa_revstr);
 	}
 
 	/* mode information */
-	for (i = 0; vesa_vmodetab[i] != 0xffff; ++i) {
+	for (i = 0;
+		(i < (M_VESA_MODE_MAX - M_VESA_BASE + 1))
+		&& (vesa_vmodetab[i] != 0xffff); ++i) {
 		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
 			continue;
 

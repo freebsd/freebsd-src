@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvesactl.c,v 1.4 1998/09/26 03:34:10 yokota Exp $
+ * $Id: scvesactl.c,v 1.5 1998/09/26 03:38:40 yokota Exp $
  */
 
 #include "sc.h"
@@ -64,15 +64,6 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	scp = sc_get_scr_stat(tp->t_dev);
 
 	switch (cmd) {
-	case SW_VESA_USER:
-
-		mode = (int)data;
-		if ((*biosvidsw.get_info)(scp->adp, mode, &info))
-			return ENODEV;
-		if (info.vi_flags & V_INFO_GRAPHICS)
-			goto vesa_graphics;
-		else
-			goto vesa_text;
 
 	/* generic text modes */
 	case SW_TEXT_132x25: case SW_TEXT_132x30:
