@@ -1138,7 +1138,7 @@ struct issetugid_args {
 };
 #endif
 /*
- * NOT MPSAFE?
+ * MPSAFE
  */
 /* ARGSUSED */
 int
