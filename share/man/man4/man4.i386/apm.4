@@ -9,7 +9,7 @@
 .\" the author assume any responsibility for damages incurred with its 
 .\" use.
 .\"
-.\"	$Id: apm.4,v 1.7 1998/02/20 07:19:51 hosokawa Exp $
+.\"	$Id: apm.4,v 1.8 1998/06/08 06:11:58 jkoshy Exp $
 .\"
 .Dd November 1, 1994
 .Dt APM 4 i386
@@ -116,15 +116,15 @@ WARNING!  Many, if not most, of the implementations of APM-bios in laptops
 today are buggy.  You may be putting your LCD-display and batteries at
 a risk by using this interface.  (The reason this isn't a problem for
 MS-windows is that they use the real-mode interface.)  If you see any
-weird behaviour from your system with this code in use, unplug the
+weird behavior from your system with this code in use, unplug the
 power and batteries ASAP, if not immediately, and disable this code.
 .Pp
 We are very interested in getting this code working, so please send you
-observations of any anormalous behaviour to us.
+observations of any anomalous behavior to us.
 .Pp
 When 
 .Nm apm
-is active, calling the BIOS setup routine by using hotkeys, 
+is active, calling the BIOS setup routine by using hot-keys, 
 may cause serious trouble when resuming the system.
 BIOS setup programs should be called during bootstrap, or from DOS.
 .Pp
@@ -138,7 +138,7 @@ by using
 or 
 .Xr zzz 8 .
 .Pp
-Disk spindown, LCD backlight control, and power on demand have not 
+Disk spin-down, LCD backlight control, and power on demand have not 
 been supported on the current version.
 .Sh SEE ALSO
 .Xr apm 8 ,
