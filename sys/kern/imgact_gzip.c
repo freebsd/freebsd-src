@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.31 1997/09/02 20:05:34 bde Exp $
+ * $Id: imgact_gzip.c,v 1.32 1997/12/14 19:36:24 jdp Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -341,12 +341,13 @@ Flush(void *vp, u_char * ptr, u_long siz)
 			}
 			if (gz->file_offset == 0) {
 				q = (u_char *) gz->virtual_offset;
-				bcopy(&gz->a_out, q, sizeof gz->a_out);
+				copyout(&gz->a_out, q, sizeof gz->a_out);
 			}
 		}
 	}
 	/* Skip over zero-padded first PAGE if needed */
-	if (gz->output < gz->file_offset && (gz->output + siz) > gz->file_offset) {
+	if (gz->output < gz->file_offset &&
+	    gz->output + siz > gz->file_offset) {
 		i = min(siz, gz->file_offset - gz->output);
 		gz->output += i;
 		p += i;
@@ -354,8 +355,9 @@ Flush(void *vp, u_char * ptr, u_long siz)
 	}
 	if (gz->output >= gz->file_offset && gz->output < gz->file_end) {
 		i = min(siz, gz->file_end - gz->output);
-		q = (u_char *) gz->virtual_offset + gz->output - gz->file_offset;
-		bcopy(p, q, i);
+		q = (u_char *) gz->virtual_offset +
+		    gz->output - gz->file_offset;
+		copyout(p, q, i);
 		gz->output += i;
 		p += i;
 		siz -= i;
