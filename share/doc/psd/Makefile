@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id$
+#	$Id: Makefile,v 1.2 1995/01/11 01:51:56 wollman Exp $
 
 # The following modules do not build/install:
 # 10.gdb, 13.rcs
@@ -17,8 +17,10 @@
 # The following modules use -me macros (which don't work):
 # 20.ipctut 19.curses 18.gprof
 
+# 05.sysman sends nroff into an infinite loop.
+
 BINDIR=	/usr/share/doc/psd
-SUBDIR=	title contents 05.sysman 12.make 21.ipc \
+SUBDIR=	title contents 12.make 21.ipc \
 	22.rpcgen 23.rpc 24.xdr 25.xdrrfc 26.rpcrfc 27.nfsrpc
 
 .include <bsd.subdir.mk>
