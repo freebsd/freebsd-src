@@ -6,7 +6,7 @@
 # +++ variables +++
 #
 # GENCAT	A program for converting .msg files into compiled NLS
-#		.cat files. [gencat -new]
+#		.cat files. [gencat]
 #
 # NLS		Source or intermediate .msg files. [set in Makefile]
 #
