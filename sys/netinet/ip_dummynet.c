@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 1998-2002 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved
  *
@@ -61,7 +61,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/queue.h>			/* XXX */
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/proc.h>
@@ -165,12 +164,6 @@ static ip_dn_io_t dummynet_io;
 static void dn_rule_delete(void *);
 
 int if_tx_rdy(struct ifnet *ifp);
-
-/*
- * ip_fw_chain_head is used when deleting a pipe, because ipfw rules can
- * hold references to the pipe.
- */
-extern LIST_HEAD (ip_fw_head, ip_fw) ip_fw_chain_head;
 
 static void
 rt_unref(struct rtentry *rt)
@@ -1023,9 +1016,13 @@ static __inline
 struct dn_flow_set *
 locate_flowset(int pipe_nr, struct ip_fw *rule)
 {
-    struct dn_flow_set *fs = NULL ;
+    ipfw_insn_pipe *cmd = (ipfw_insn_pipe *)(rule->cmd + rule->act_ofs);
+    struct dn_flow_set *fs = (struct dn_flow_set *)(cmd->pipe_ptr);
 
-    if ( (rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_QUEUE )
+    if (fs != NULL)
+	return fs;
+
+    if ( cmd->o.opcode == O_QUEUE )
 	for (fs=all_flow_sets; fs && fs->fs_nr != pipe_nr; fs=fs->next)
 	    ;
     else {
@@ -1035,8 +1032,7 @@ locate_flowset(int pipe_nr, struct ip_fw *rule)
 	if (p1 != NULL)
 	    fs = &(p1->fs) ;
     }
-    if (fs != NULL)
-	rule->pipe_ptr = fs ; /* record for the future */
+    (struct dn_flow_set *)(cmd->pipe_ptr) = fs; /* record for the future */
     return fs ;
 }
 
@@ -1065,16 +1061,18 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
     u_int64_t len = m->m_pkthdr.len ;
     struct dn_flow_queue *q = NULL ;
     int s ;
+    int action = fwa->rule->cmd[fwa->rule->act_ofs].opcode;
 
     s = splimp();
 
     pipe_nr &= 0xffff ;
 
-    if ( (fs = fwa->rule->pipe_ptr) == NULL ) {
-	fs = locate_flowset(pipe_nr, fwa->rule);
-	if (fs == NULL)
-	    goto dropit ;	/* this queue/pipe does not exist! */
-    }
+    /*
+     * this is a dummynet rule, so we expect a O_PIPE or O_QUEUE rule
+     */
+    fs = locate_flowset(pipe_nr, fwa->rule);
+    if (fs == NULL)
+	goto dropit ;	/* this queue/pipe does not exist! */
     pipe = fs->pipe ;
     if (pipe == NULL) { /* must be a queue, try find a matching pipe */
 	for (pipe = all_pipes; pipe && pipe->pipe_nr != fs->parent_nr;
@@ -1152,7 +1150,7 @@ dummynet_io(struct mbuf *m, int pipe_nr, int dir, struct ip_fw_args *fwa)
      * to schedule it. This involves different actions for fixed-rate or
      * WF2Q queues.
      */
-    if ( (fwa->rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_PIPE ) {
+    if ( action == O_PIPE ) {
 	/*
 	 * Fixed-rate queue: just insert into the ready_heap.
 	 */
@@ -1302,15 +1300,13 @@ static void
 dummynet_flush()
 {
     struct dn_pipe *curr_p, *p ;
-    struct ip_fw *rule ;
     struct dn_flow_set *fs, *curr_fs;
     int s ;
 
     s = splimp() ;
 
     /* remove all references to pipes ...*/
-    LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	rule->pipe_ptr = NULL ;
+    flush_pipe_ptrs(NULL);
     /* prevent future matches... */
     p = all_pipes ;
     all_pipes = NULL ; 
@@ -1375,8 +1371,8 @@ dn_rule_delete(void *r)
 	fs = &(p->fs) ;
 	dn_rule_delete_fs(fs, r);
 	for (pkt = p->head ; pkt ; pkt = DN_NEXT(pkt) )
-	    if (pkt->rule == r)
-		pkt->rule = ip_fw_default_rule ;
+	    if (pkt->hdr.mh_data == r)
+		pkt->hdr.mh_data = (void *)ip_fw_default_rule ;
     }
 }
 
@@ -1663,7 +1659,6 @@ static int
 delete_pipe(struct dn_pipe *p)
 {
     int s ;
-    struct ip_fw *rule ;
 
     if (p->pipe_nr == 0 && p->fs.fs_nr == 0)
 	return EINVAL ;
@@ -1687,9 +1682,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this pipe from the ip_fw rules. */
-	LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	    if (rule->pipe_ptr == &(b->fs))
-		rule->pipe_ptr = NULL ;
+	flush_pipe_ptrs(&(b->fs));
 
 	/* remove all references to this pipe from flow_sets */
 	for (fs = all_flow_sets; fs; fs= fs->next )
@@ -1721,9 +1714,7 @@ delete_pipe(struct dn_pipe *p)
 	else
 	    a->next = b->next ;
 	/* remove references to this flow_set from the ip_fw rules. */
-	LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	    if (rule->pipe_ptr == b)
-		rule->pipe_ptr = NULL ;
+	flush_pipe_ptrs(b);
 
 	if (b->pipe != NULL) {
 	    /* Update total weight on parent pipe and cleanup parent heaps */
@@ -1847,9 +1838,14 @@ ip_dn_ctl(struct sockopt *sopt)
 
     /* Disallow sets in really-really secure mode. */
     if (sopt->sopt_dir == SOPT_SET) {
+#if __FreeBSD_version >= 500034
 	error =  securelevel_ge(sopt->sopt_td->td_ucred, 3);
 	if (error)
 	    return (error);
+#else
+	if (securelevel >= 3)
+	    return (EPERM);
+#endif
     }
 
     switch (sopt->sopt_name) {
