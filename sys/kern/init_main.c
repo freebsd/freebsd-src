@@ -629,14 +629,21 @@ start_init(void *dummy)
 static void
 create_init(const void *udata __unused)
 {
+	struct ucred *newcred, *oldcred;
 	int error;
 
 	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
+	/* divorce init's credentials from the kernel's */
+	newcred = crget();
 	PROC_LOCK(initproc);
 	initproc->p_flag |= P_SYSTEM;
+	oldcred = initproc->p_ucred;
+	crcopy(newcred, oldcred);
+	initproc->p_ucred = newcred;
 	PROC_UNLOCK(initproc);
+	crfree(oldcred);
 	mtx_lock_spin(&sched_lock);
 	initproc->p_sflag |= PS_INMEM;
 	mtx_unlock_spin(&sched_lock);
