@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.181 1998/12/10 05:34:11 jb Exp $
+#	$Id: Makefile,v 1.182 1998/12/11 00:09:39 jb Exp $
 
 SUBDIR=	sendmail
 
@@ -148,28 +148,5 @@ distrib-dirs:
 	done; \
 	rm -rf POSIX; \
 	ln -s C POSIX
-
-#
-# Check for missing files in ${DESTDIR}/etc.
-#
-_etc_missing=
-.for _f in ${BIN1}
-_g=${_f:T}
-.if	!exists(${DESTDIR}/etc/$(_g))
-_etc_missing+=$(_f)
-.endif
-.endfor
-
-#
-# Install only those files which don't exist in the destination
-# directory. This will install new files, but not update existing
-# (possibly customized) files.
-#
-install:
-.if (${_etc_missing} != "")
-	cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${_etc_missing} \
-	    ${DESTDIR}/etc
-.endif
 
 .include <bsd.prog.mk>
