@@ -28,13 +28,13 @@ in the server, it can be extremely useful to developers to
 test their code without having to reinstall the system.
 .Pp
 The boot media (typically a floppy disk) contains a boot loader and a
-compressed kernel which includes a memory file system.
+compressed kernel which includes a memory filesystem.
 Depending on the media, it might also contain a number of
 additional files, which can be updated at run time, and are
-used to override/update those in the memory file system.
+used to override/update those in the memory filesystem.
 .Pp
 The system loads the kernel in the normal way, uncompresses
-the memory file system and mounts it as root.
+the memory filesystem and mounts it as root.
 It then updates the memory
 filesystem with files from the boot media (if present),
 and executes a specialized version of
@@ -493,7 +493,7 @@ ethernet.
 .Pp
 After booting,
 .Nm
-loads the root filesystem from the memory file system, starts
+loads the root filesystem from the memory filesystem, starts
 .Pa /sbin/init ,
 and passes control to a first startup script,
 .Pa /etc/rc .
