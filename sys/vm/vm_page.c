@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.4 1994/08/07 13:10:41 davidg Exp $
+ *	$Id: vm_page.c,v 1.5 1994/08/10 03:09:37 davidg Exp $
  */
 
 /*
@@ -320,7 +320,7 @@ vm_page_startup(starta, enda, vaddr)
 			++cnt.v_page_count;
 			++cnt.v_free_count;
 			m = PHYS_TO_VM_PAGE(pa);
-			m->flags = 0;
+			m->flags = PG_CLEAN | PG_FREE;
 			m->object = 0;
 			m->phys_addr = pa;
 			m->hold_count = 0;
@@ -584,6 +584,75 @@ vm_page_alloc(object, offset)
 	return(mem);
 }
 
+vm_offset_t
+vm_page_alloc_contig(size, low, high, alignment)
+	vm_offset_t	size;
+	vm_offset_t	low;
+	vm_offset_t	high;
+	vm_offset_t	alignment;
+{
+	int i, s, start = 0;
+	vm_offset_t addr, phys;
+	vm_page_t *pga = (vm_page_t *)vm_page_array;
+	extern vm_map_t kernel_map;
+
+	if ((alignment & (alignment - 1)) != 0)
+		panic("vm_page_alloc_contig: alignment must be a power of 2");
+
+	s = splhigh();
+again:
+	/*
+	 * Find first page in array that is free, within range, and aligned.
+	 */
+	for (i = start; i < cnt.v_page_count; i++) {
+		phys = VM_PAGE_TO_PHYS(pga[i]);
+		if ((pga[i]->flags & PG_FREE == PG_FREE) &&
+		    (phys >= low) && (phys < high) &&
+		    ((phys & (alignment - 1)) == 0))
+			break;
+	}
+
+	/*
+	 * If the above failed or we will exceed the upper bound, fail.
+	 */
+	if ((i == cnt.v_page_count) || ((VM_PAGE_TO_PHYS(pga[i]) + size) > high)) {
+		splx(s);
+		return (NULL);
+	}
+
+	start = i;
+
+	/*
+	 * Check successive pages for contiguous and free.
+	 */
+	for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
+		if ((VM_PAGE_TO_PHYS(pga[i]) !=
+		    (VM_PAGE_TO_PHYS(pga[i - 1]) + PAGE_SIZE)) ||
+		    ((pga[i]->flags & PG_FREE) != PG_FREE)) {
+			start++;
+			goto again;
+		}
+	}
+
+	/*
+	 * We've found a contiguous chunk that meets are requirements.
+	 * Allocate kernel VM, unfree and assign the physical pages to it
+	 * and return kernel VM pointer.
+	 */
+	addr = kmem_alloc_pageable(kernel_map, size);
+
+	for (i = start; i < (start + size / PAGE_SIZE); i++) {
+		TAILQ_REMOVE(&vm_page_queue_free, pga[i], pageq);
+		cnt.v_free_count--;
+		vm_page_wire(pga[i]);
+		pga[i]->flags = PG_CLEAN; /* shut off PG_FREE and any other flags */
+	}
+	pmap_qenter(addr, &pga[start], size / PAGE_SIZE);
+	
+	splx(s);
+	return (addr);
+}
+
 /*
  *	vm_page_free:
  *
@@ -609,14 +678,22 @@ void vm_page_free(mem)
 		mem->flags &= ~PG_INACTIVE;
 		cnt.v_inactive_count--;
 	}
+	if (mem->flags & PG_FREE)
+		panic("vm_page_free: freeing free page");
 
 	if (!(mem->flags & PG_FICTITIOUS)) {
 
 		simple_lock(&vm_page_queue_free_lock);
 		if (mem->wire_count) {
+			if (mem->wire_count > 1) {
+				printf("vm_page_free: wire count > 1 (%d)", mem->wire_count);
+				panic("vm_page_free: invalid wire count");
+			}
 			cnt.v_wire_count--;
 			mem->wire_count = 0;
 		}
+
+		mem->flags |= PG_FREE;
 		TAILQ_INSERT_TAIL(&vm_page_queue_free, mem, pageq);
 
 		cnt.v_free_count++;
