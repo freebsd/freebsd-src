@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.19 1995/06/05 09:52:11 jkh Exp $
+ * $Id: menus.c,v 1.41.2.20 1995/06/05 10:43:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -845,7 +845,7 @@ the other keymaps below.",
       { "Swedish ISO", "Swedish ISO keymap",
 	DMENU_SET_VARIABLE, "keymap=swedish.iso", 0, 0		},
       { "U.K. CP850", "United Kingdom Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=uk.cp850.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=uk.cp850", 0, 0		},
       { "U.K. ISO", "United Kingdom ISO keymap",
 	DMENU_SET_VARIABLE, "keymap=uk.iso", 0, 0		},
       { "U.S. ISO", "United States ISO keymap",
