@@ -13,10 +13,10 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.50 1994/11/21 09:50:02 jkh Exp $
+# $Id: bininst,v 1.51 1994/11/28 22:13:03 jkh Exp $
 
 if [ "${_BININST_LOADED_}" = "yes" ]; then
-	echo "Error, $0 loaded more than once!"
+	error "Error, $0 loaded more than once!"
 	return 1
 else
 	_BININST_LOADED_=yes
