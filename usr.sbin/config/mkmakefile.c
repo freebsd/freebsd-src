@@ -381,7 +381,6 @@ next:
 	 */
 	} else if (eq(wd, "mandatory")) {
 		mandatory = 1;
-		needcount = 1;
 	} else if (eq(wd, "count")) {
 		needcount = 1;
 	} else if (!eq(wd, "optional")) {
