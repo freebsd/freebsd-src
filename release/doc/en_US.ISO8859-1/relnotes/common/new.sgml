@@ -352,6 +352,9 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.ata.4; driver now supports cardbus ATA/SATA
+        controllers.</para>
+
       <para>A number of bugs in the &man.ata.4; driver have been
 	fixed.  Most notably, master/slave device detection should
 	work better, and some problems with timeouts should be
@@ -423,6 +426,9 @@
 
     <para>&man.ifconfig.8; now supports renaming of network interfaces
       at run-time using the <option>name</option> parameter.</para>
+
+    <para>&man.ifconfig.8; now prints the &man.polling.4; status
+      on the interface.  &merged;</para>
 
     <para>&man.ip6fw.8; now supports a <option>-n</option> flag to
       stop it from making any changes to the rules in the kernel</para>
