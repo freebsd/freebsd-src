@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2000,2001 Jonathan Chen.
- * All rights reserved.
+ * Copyright (c) 2003 M. Warner Losh.  All Rights Reserved.
+ * Copyright (c) 2000,2001 Jonathan Chen.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,15 +26,6 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- */
-
-/*
- * Cardbus Bus Driver
- *
- * much of the bus code was stolen directly from sys/pci/pci.c
- *   (Copyright (c) 1997, Stefan Esser <se@freebsd.org>)
- *
- * Written by Jonathan Chen <jon@freebsd.org>
  */
 
 #include <sys/param.h>
@@ -85,10 +76,6 @@ static struct resource	*cardbus_alloc_resource(device_t cbdev, device_t child,
 		    u_int flags);
 static int	cardbus_attach(device_t cbdev);
 static int	cardbus_attach_card(device_t cbdev);
-static int	cardbus_child_location_str(device_t cbdev, device_t child,
-		    char *, size_t len);
-static int	cardbus_child_pnpinfo_str(device_t cbdev, device_t child,
-		    char *, size_t len);
 static void	cardbus_delete_resource(device_t cbdev, device_t child,
 		    int type, int rid);
 static void	cardbus_delete_resource_method(device_t cbdev, device_t child,
@@ -631,35 +618,6 @@ cardbus_teardown_intr(device_t cbdev, device_t child, struct resource *irq,
 /************************************************************************/
 
 static int
-cardbus_child_location_str(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
-{
-	struct cardbus_devinfo *dinfo;
-	pcicfgregs *cfg;
-
-	dinfo = device_get_ivars(child);
-	cfg = &dinfo->pci.cfg;
-	snprintf(buf, buflen, "slot=%d function=%d", pci_get_slot(child),
-	    pci_get_function(child));
-	return (0);
-}
-
-static int
-cardbus_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
-    size_t buflen)
-{
-	struct cardbus_devinfo *dinfo;
-	pcicfgregs *cfg;
-
-	dinfo = device_get_ivars(child);
-	cfg = &dinfo->pci.cfg;
-	snprintf(buf, buflen, "vendor=0x%04x device=0x%04x subvendor=0x%04x "
-	    "subdevice=0x%04x", cfg->vendor, cfg->device, cfg->subvendor,
-	    cfg->subdevice);
-	return (0);
-}
-
-static int
 cardbus_read_ivar(device_t cbdev, device_t child, int which, uintptr_t *result)
 {
 	struct cardbus_devinfo *dinfo;
@@ -717,8 +675,8 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(bus_set_resource,	cardbus_set_resource_method),
 	DEVMETHOD(bus_get_resource,	cardbus_get_resource_method),
 	DEVMETHOD(bus_delete_resource,	cardbus_delete_resource_method),
-	DEVMETHOD(bus_child_pnpinfo_str, cardbus_child_pnpinfo_str),
-	DEVMETHOD(bus_child_location_str, cardbus_child_location_str),
+	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
+	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 
 	/* Card Interface */
 	DEVMETHOD(card_attach_card,	cardbus_attach_card),

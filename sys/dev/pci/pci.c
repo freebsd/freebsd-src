@@ -107,6 +107,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
+	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
@@ -1388,6 +1390,35 @@ pci_write_config_method(device_t dev, device_t child, int reg,
 
 	PCIB_WRITE_CONFIG(device_get_parent(dev),
 	    cfg->bus, cfg->slot, cfg->func, reg, val, width);
+}
+
+int
+pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+	snprintf(buf, buflen, "slot=%d function=%d", pci_get_slot(child),
+	    pci_get_function(child));
+	return (0);
+}
+
+int
+pci_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+	snprintf(buf, buflen, "vendor=0x%04x device=0x%04x subvendor=0x%04x "
+	    "subdevice=0x%04x", cfg->vendor, cfg->device, cfg->subvendor,
+	    cfg->subdevice);
+	return (0);
 }
 
 static int
