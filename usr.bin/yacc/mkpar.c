@@ -39,13 +39,14 @@
 static char const sccsid[] = "@(#)mkpar.c	5.3 (Berkeley) 1/20/91";
 #endif
 static const char rcsid[] =
-	"$Id: mkpar.c,v 1.7 1997/08/28 06:33:53 charnier Exp $";
+	"$Id: mkpar.c,v 1.8 1999/07/04 17:26:16 billf Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
 #include "defs.h"
 
 action **parser;
+int SRexpect;
 int SRtotal;
 int RRtotal;
 short *SRconflicts;
@@ -333,10 +334,14 @@ remove_conflicts()
 static void
 total_conflicts()
 {
-    if (SRtotal == 1)
-	warnx("1 shift/reduce conflict");
-    else if (SRtotal > 1)
-	warnx("%d shift/reduce conflicts", SRtotal);
+    /* Warn if s/r != expect or if any r/r */
+    if ((SRtotal != SRexpect) || RRtotal)
+    {
+	    if (SRtotal == 1)
+	    warnx("1 shift/reduce conflict");
+	    else if (SRtotal > 1)
+	    warnx("%d shift/reduce conflicts", SRtotal);
+    }
 
     if (RRtotal == 1)
 	warnx("1 reduce/reduce conflict");

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	5.6 (Berkeley) 5/24/93
- *	$Id: defs.h,v 1.5 1997/02/22 19:57:58 peter Exp $
+ *	$Id: defs.h,v 1.6 1997/08/28 06:33:52 charnier Exp $
  */
 
 #include <sys/cdefs.h>	/* for __P macro */
@@ -104,6 +104,7 @@
 #define START 7
 #define UNION 8
 #define IDENT 9
+#define EXPECT 10
 
 
 /*  symbol classes  */
@@ -300,6 +301,7 @@ extern short *from_state;
 extern short *to_state;
 
 extern action **parser;
+extern int SRexpect;
 extern int SRtotal;
 extern int RRtotal;
 extern short *SRconflicts;
