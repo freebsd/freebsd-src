@@ -72,10 +72,10 @@ static driver_t sr_pci_driver = {
 DRIVER_MODULE(sr, pci, sr_pci_driver, sr_devclass, 0, 0);
 MODULE_DEPEND(sr, pci, 1, 1, 1);
 
-static u_int	src_get8_mem(u_int base, u_int off);
-static u_int	src_get16_mem(u_int base, u_int off);
-static void	src_put8_mem(u_int base, u_int off, u_int val);
-static void	src_put16_mem(u_int base, u_int off, u_int val);
+static u_int	src_get8_mem(struct sr_hardc *hc, u_int off);
+static u_int	src_get16_mem(struct sr_hardc *hc, u_int off);
+static void	src_put8_mem(struct sr_hardc *hc, u_int off, u_int val);
+static void	src_put16_mem(struct sr_hardc *hc, u_int off, u_int val);
 
 static int
 sr_pci_probe(device_t device)
@@ -105,14 +105,18 @@ static int
 sr_pci_attach(device_t device)
 {
 	int numports;
-	u_int fecr, *fecrp;
+	u_int fecr;
 	struct sr_hardc *hc;
+	bus_space_tag_t bt_plx;
+	bus_space_handle_t bh_plx;
 
 	hc = (struct sr_hardc *)device_get_softc(device);
 	bzero(hc, sizeof(struct sr_hardc));
 
 	if (sr_allocate_plx_memory(device, 0x10, 1))
 		goto errexit;
+	bt_plx = rman_get_bustag(hc->res_plx_memory);
+	bh_plx = rman_get_bushandle(hc->res_plx_memory);
 
 	if (sr_allocate_memory(device, 0x18, 1))
 		goto errexit;
@@ -120,11 +124,7 @@ sr_pci_attach(device_t device)
 	if (sr_allocate_irq(device, 0, 1))
 		goto errexit;
 
-	hc->plx_base = rman_get_virtual(hc->res_plx_memory);
-	hc->sca_base = (vm_offset_t)rman_get_virtual(hc->res_memory);
-
 	hc->cunit = device_get_unit(device);
-
 
 	/*
 	 * Configure the PLX. This is magic. I'm doing it just like I'm told
@@ -141,13 +141,13 @@ sr_pci_attach(device_t device)
 	 * 
 	 * Note: This is "cargo cult" stuff.  - jrc
 	 */
-	*((u_int *)(hc->plx_base + 0x00)) = 0xfffff000;
-	*((u_int *)(hc->plx_base + 0x04)) = 1;
-	*((u_int *)(hc->plx_base + 0x18)) = 0x40030043;
-	*((u_int *)(hc->plx_base + 0x1c)) = 0xff000000;
-	*((u_int *)(hc->plx_base + 0x20)) = 0;
-	*((u_int *)(hc->plx_base + 0x28)) = 0xe9;
-	*((u_int *)(hc->plx_base + 0x68)) = 0x10900;
+	bus_space_write_4(bt_plx, bh_plx, 0x00, 0xfffff000);
+	bus_space_write_4(bt_plx, bh_plx, 0x04, 0x00000001);
+	bus_space_write_4(bt_plx, bh_plx, 0x18, 0x40030043);
+	bus_space_write_4(bt_plx, bh_plx, 0x1c, 0xff000000);
+	bus_space_write_4(bt_plx, bh_plx, 0x20, 0x00000000);
+	bus_space_write_4(bt_plx, bh_plx, 0x28, 0x000000e9);
+	bus_space_write_4(bt_plx, bh_plx, 0x68, 0x00010900);
 
 	/*
 	 * Get info from card.
@@ -155,8 +155,7 @@ sr_pci_attach(device_t device)
 	 * Only look for the second port if the first exists. Too many things
 	 * will break if we have only a second port.
 	 */
-	fecrp = (u_int *)(hc->sca_base + SR_FECR);
-	fecr = *fecrp;
+	fecr = sr_read_fecr(hc);
 	numports = 0;
 
 	if (((fecr & SR_FECR_ID0) >> SR_FE_ID0_SHFT) != SR_FE_ID_NONE) {
@@ -205,10 +204,8 @@ sr_pci_attach(device_t device)
 	hc->mem_pstart = kvtop(hc->mem_start);
 	bzero(hc->mem_start, hc->memsize);
 
-	*fecrp = SR_FECR_DTR0
-	    | SR_FECR_DTR1
-	    | SR_FECR_TE0
-	    | SR_FECR_TE1;
+	sr_write_fecr(hc,
+	    SR_FECR_DTR0 | SR_FECR_DTR1 | SR_FECR_TE0 | SR_FECR_TE1);
 
 	if (sr_attach(device))
 		goto errexit;
@@ -225,25 +222,29 @@ errexit:
 #define SRC_PCI_SCA_REG(y)	((y & 2) ? ((y & 0xfd) + 0x100) : y)
 
 static u_int
-src_get8_mem(u_int base, u_int off)
+src_get8_mem(struct sr_hardc *hc, u_int off)
 {
-	return *((u_char *)(base + SRC_PCI_SCA_REG(off)));
+	return bus_space_read_1(hc->bt_memory, hc->bh_memory,
+	    SRC_PCI_SCA_REG(off));
 }
 
 static u_int
-src_get16_mem(u_int base, u_int off)
+src_get16_mem(struct sr_hardc *hc, u_int off)
 {
-	return *((u_short *)(base + SRC_PCI_SCA_REG(off)));
+	return bus_space_read_2(hc->bt_memory, hc->bh_memory,
+	    SRC_PCI_SCA_REG(off));
 }
 
 static void
-src_put8_mem(u_int base, u_int off, u_int val)
+src_put8_mem(struct sr_hardc *hc, u_int off, u_int val)
 {
-	*((u_char *)(base + SRC_PCI_SCA_REG(off))) = (u_char)val;
+	bus_space_write_1(hc->bt_memory, hc->bh_memory,
+	    SRC_PCI_SCA_REG(off), val);
 }
 
 static void
-src_put16_mem(u_int base, u_int off, u_int val)
+src_put16_mem(struct sr_hardc *hc, u_int off, u_int val)
 {
-	*((u_short *)(base + SRC_PCI_SCA_REG(off))) = (u_short)val;
+	bus_space_write_2(hc->bt_memory, hc->bh_memory,
+	    SRC_PCI_SCA_REG(off), val);
 }
