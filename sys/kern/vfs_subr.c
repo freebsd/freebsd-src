@@ -2398,6 +2398,17 @@ loop:
 		mtx_unlock(&mntvnode_mtx);
 		vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY, td);
 		/*
+		 * This vnode could have been reclaimed while we were
+		 * waiting for the lock since we are not holding a
+		 * reference.
+		 * Start over if the vnode was reclaimed.
+		 */
+		if (vp->v_mount != mp) {
+			VOP_UNLOCK(vp, 0, td);
+			mtx_lock(&mntvnode_mtx);
+			goto loop;
+		}
+		/*
 		 * Skip over a vnodes marked VV_SYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
