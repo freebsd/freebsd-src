@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.8 1996/03/11 15:13:48 davidg Exp $
+ * $Id: ipx_input.c,v 1.9 1996/08/18 08:38:15 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -512,8 +512,8 @@ struct ifnet *ifp;
 			ipx->ipx_sna.x_net = ipx_zeronet;
 			ipx->ipx_sna.x_host = ipx_thishost;
 			if (ifp && (ifp->if_flags & IFF_POINTOPOINT))
-			    for(ifa = ifp->if_addrlist; ifa;
-						ifa = ifa->ifa_next) {
+			    for(ifa = ifp->if_addrhead.tqh_first; ifa;
+						ifa = ifa->ifa_link.tqe_next) {
 				if (ifa->ifa_addr->sa_family==AF_IPX) {
 				    ipx->ipx_sna = IA_SIPX(ifa)->sipx_addr;
 				    break;

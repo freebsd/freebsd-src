@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.24 1996/04/07 06:59:52 davidg Exp $
+ *	$Id: in.c,v 1.25 1996/09/09 20:17:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -89,11 +89,13 @@ in_localaddr(in)
 	register struct in_ifaddr *ia;
 
 	if (subnetsarelocal) {
-		for (ia = in_ifaddr; ia; ia = ia->ia_next)
+		for (ia = in_ifaddrhead.tqh_first; ia; 
+		     ia = ia->ia_link.tqe_next)
 			if ((i & ia->ia_netmask) == ia->ia_net)
 				return (1);
 	} else {
-		for (ia = in_ifaddr; ia; ia = ia->ia_next)
+		for (ia = in_ifaddrhead.tqh_first; ia;
+		     ia = ia->ia_link.tqe_next)
 			if ((i & ia->ia_subnetmask) == ia->ia_subnet)
 				return (1);
 	}
@@ -171,7 +173,8 @@ in_control(so, cmd, data, ifp)
 	 * the first one on the interface.
 	 */
 	if (ifp)
-		for (iap = in_ifaddr; iap; iap = iap->ia_next)
+		for (iap = in_ifaddrhead.tqh_first; iap; 
+		     iap = iap->ia_link.tqe_next)
 			if (iap->ia_ifp == ifp) {
 				if (((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr.s_addr ==
 				    iap->ia_addr.sin_addr.s_addr) {
@@ -214,37 +217,24 @@ in_control(so, cmd, data, ifp)
 		if (ifp == 0)
 			panic("in_control");
 		if (ia == (struct in_ifaddr *)0) {
-			oia = (struct in_ifaddr *)
-				malloc(sizeof *oia, M_IFADDR, M_WAITOK);
-			if (oia == (struct in_ifaddr *)NULL)
+			ia = (struct in_ifaddr *)
+				malloc(sizeof *ia, M_IFADDR, M_WAITOK);
+			if (ia == (struct in_ifaddr *)NULL)
 				return (ENOBUFS);
-			bzero((caddr_t)oia, sizeof *oia);
-			ia = in_ifaddr;
+			bzero((caddr_t)ia, sizeof *ia);
 			/*
 			 * Protect from ipintr() traversing address list
 			 * while we're modifying it.
 			 */
 			s = splnet();
+			
+			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
+			ifa = &ia->ia_ifa;
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 
-			if (ia) {
-				for ( ; ia->ia_next; ia = ia->ia_next)
-					continue;
-				ia->ia_next = oia;
-			} else
-				in_ifaddr = oia;
-			ia = oia;
-			ifa = ifp->if_addrlist;
-			if (ifa) {
-				for ( ; ifa->ifa_next; ifa = ifa->ifa_next)
-					continue;
-				ifa->ifa_next = (struct ifaddr *) ia;
-			} else
-				ifp->if_addrlist = (struct ifaddr *) ia;
-			ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
-			ia->ia_ifa.ifa_dstaddr
-					= (struct sockaddr *)&ia->ia_dstaddr;
-			ia->ia_ifa.ifa_netmask
-					= (struct sockaddr *)&ia->ia_sockmask;
+			ifa->ifa_addr = (struct sockaddr *)&ia->ia_addr;
+			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
+			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
 			ia->ia_sockmask.sin_len = 8;
 			if (ifp->if_flags & IFF_BROADCAST) {
 				ia->ia_broadaddr.sin_len = sizeof(ia->ia_addr);
@@ -371,29 +361,10 @@ in_control(so, cmd, data, ifp)
 		 */
 		s = splnet();
 
-		if ((ifa = ifp->if_addrlist) == (struct ifaddr *)ia)
-			ifp->if_addrlist = ifa->ifa_next;
-		else {
-			while (ifa->ifa_next &&
-			       (ifa->ifa_next != (struct ifaddr *)ia))
-				    ifa = ifa->ifa_next;
-			if (ifa->ifa_next)
-				ifa->ifa_next = ((struct ifaddr *)ia)->ifa_next;
-			else
-				printf("Couldn't unlink inifaddr from ifp\n");
-		}
+		ifa = &ia->ia_ifa;
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		oia = ia;
-		if (oia == (ia = in_ifaddr))
-			in_ifaddr = ia->ia_next;
-		else {
-			while (ia->ia_next && (ia->ia_next != oia))
-				ia = ia->ia_next;
-			if (ia->ia_next)
-				ia->ia_next = oia->ia_next;
-			else
-				printf("Didn't unlink inifadr from list\n");
-		}
-
+		TAILQ_REMOVE(&in_ifaddrhead, oia, ia_link);
 		if (!oia->ia_multiaddrs.lh_first) {
 			IFAFREE(&oia->ia_ifa);
 			FREE(mk, M_IPMADDR);
@@ -603,7 +574,8 @@ in_broadcast(in, ifp)
 	 * with a broadcast address.
 	 */
 #define ia ((struct in_ifaddr *)ifa)
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
+	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	     ifa = ifa->ifa_link.tqe_next)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (in.s_addr == ia->ia_broadaddr.sin_addr.s_addr ||
 		     in.s_addr == ia->ia_netbroadcast.s_addr ||

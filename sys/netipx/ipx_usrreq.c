@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.7 1996/05/08 19:31:48 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.8 1996/11/24 08:25:48 jhay Exp $
  */
 
 #include <sys/param.h>
@@ -100,7 +100,8 @@ ipx_input(m, ipxp)
 	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp) {
 		register struct ifaddr *ifa;
 
-		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+		     ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr->sa_family == AF_IPX) {
 				ipx_ipx.sipx_addr.x_net =
 					IA_SIPX(ifa)->sipx_addr.x_net;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.16 1996/02/05 20:35:59 wollman Exp $
+ *	$Id: in_var.h,v 1.17 1996/03/14 16:59:19 fenner Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -55,6 +55,7 @@ struct in_ifaddr {
 	u_long	ia_subnet;		/* subnet number, including net */
 	u_long	ia_subnetmask;		/* mask of subnet part */
 	struct	in_addr ia_netbroadcast; /* to recognize net broadcasts */
+	TAILQ_ENTRY(in_ifaddr) ia_link;	/* tailq macro glue */
 	struct	in_ifaddr *ia_next;	/* next in list of internet addresses */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
@@ -83,7 +84,7 @@ struct	in_aliasreq {
 
 
 #ifdef	KERNEL
-extern	struct	in_ifaddr *in_ifaddr;
+extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 extern	struct	in_addr zeroin_addr;
 extern	u_char	inetctlerrmap[];
@@ -101,15 +102,15 @@ extern	int rtq_toomany;	/* XXX */
 { \
 	register struct in_ifaddr *ia; \
 \
-	for (ia = in_ifaddr; \
+	for (ia = in_ifaddrhead.tqh_first; \
 	    ia != NULL && ((ia->ia_ifp->if_flags & IFF_POINTOPOINT)? \
 		IA_DSTSIN(ia):IA_SIN(ia))->sin_addr.s_addr != (addr).s_addr; \
-	    ia = ia->ia_next) \
+	    ia = ia->ia_link.tqe_next) \
 		 continue; \
 	if (ia == NULL) \
-	    for (ia = in_ifaddr; \
+	    for (ia = in_ifaddrhead.tqh_first; \
 		ia != NULL; \
-		ia = ia->ia_next) \
+		ia = ia->ia_link.tqe_next) \
 		    if (ia->ia_ifp->if_flags & IFF_POINTOPOINT && \
 			IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
 			    break; \
@@ -124,9 +125,9 @@ extern	int rtq_toomany;	/* XXX */
 	/* struct ifnet *ifp; */ \
 	/* struct in_ifaddr *ia; */ \
 { \
-	for ((ia) = in_ifaddr; \
+	for ((ia) = in_ifaddrhead.tqh_first; \
 	    (ia) != NULL && (ia)->ia_ifp != (ifp); \
-	    (ia) = (ia)->ia_next) \
+	    (ia) = (ia)->ia_link.tqe_next) \
 		continue; \
 }
 #endif
@@ -178,7 +179,7 @@ struct in_multistep {
 	/* struct in_addr addr; */ \
 	/* struct ifnet *ifp; */ \
 	/* struct in_multi *inm; */ \
-{ \
+do { \
 	register struct in_ifaddr *ia; \
 \
 	IFP_TO_IA((ifp), ia); \
@@ -189,7 +190,7 @@ struct in_multistep {
 		    (inm) != NULL && (inm)->inm_addr.s_addr != (addr).s_addr; \
 		     (inm) = inm->inm_entry.le_next) \
 			 continue; \
-}
+} while(0)
 
 /*
  * Macro to step through all of the in_multi records, one at a time.
@@ -201,28 +202,28 @@ struct in_multistep {
 #define IN_NEXT_MULTI(step, inm) \
 	/* struct in_multistep  step; */ \
 	/* struct in_multi *inm; */ \
-{ \
+do { \
 	if (((inm) = (step).i_inm) != NULL) \
 		(step).i_inm = (inm)->inm_entry.le_next; \
 	else \
 		while ((step).i_ia != NULL) { \
 			(inm) = (step).i_ia->ia_multiaddrs.lh_first; \
-			(step).i_ia = (step).i_ia->ia_next; \
+			(step).i_ia = (step).i_ia->ia_link.tqe_next; \
 			if ((inm) != NULL) { \
 				(step).i_inm = (inm)->inm_entry.le_next; \
 				break; \
 			} \
 		} \
-}
+} while(0)
 
 #define IN_FIRST_MULTI(step, inm) \
 	/* struct in_multistep step; */ \
 	/* struct in_multi *inm; */ \
-{ \
-	(step).i_ia = in_ifaddr; \
+do { \
+	(step).i_ia = in_ifaddrhead.tqh_first; \
 	(step).i_inm = NULL; \
 	IN_NEXT_MULTI((step), (inm)); \
-}
+} while(0)
 
 struct	in_multi *in_addmulti __P((struct in_addr *, struct ifnet *));
 void	in_delmulti __P((struct in_multi *));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.9 1996/06/10 23:07:31 gpalmer Exp $
+ * $Id: if_fddisubr.c,v 1.10 1996/11/12 08:43:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -567,13 +567,9 @@ fddi_ifattach(ifp)
 	ifp->if_hdrlen = 21;
 	ifp->if_mtu = FDDIMTU;
 	ifp->if_baudrate = 100000000;
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
-		if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr) &&
-		    sdl->sdl_family == AF_LINK) {
-			sdl->sdl_type = IFT_FDDI;
-			sdl->sdl_alen = ifp->if_addrlen;
-			bcopy((caddr_t)((struct arpcom *)ifp)->ac_enaddr,
-			      LLADDR(sdl), ifp->if_addrlen);
-			break;
-		}
+	ifa = ifnet_addrs[ifp->if_index - 1];
+	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+	sdl->sdl_type = IFT_FDDI;
+	sdl->sdl_alen = ifp->if_addrlen;
+	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 }

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.2 1996/06/14 00:28:38 archie Exp $
+ *	$Id: ip_divert.c,v 1.1 1996/07/10 19:44:22 julian Exp $
  */
 
 #include <sys/param.h>
@@ -148,8 +148,8 @@ div_input(struct mbuf *m, int hlen)
 		HTONS(ip->ip_id);
 
 		/* Find IP address for recieve interface */
-		for (ifa = m->m_pkthdr.rcvif->if_addrlist;
-		    ifa != NULL; ifa = ifa->ifa_next) {
+		for (ifa = m->m_pkthdr.rcvif->if_addrhead.tqh_first;
+		    ifa != NULL; ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr == NULL)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)

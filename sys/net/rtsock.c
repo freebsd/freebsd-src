@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.20 1996/07/10 01:34:36 fenner Exp $
+ *	$Id: rtsock.c,v 1.21 1996/12/11 20:38:16 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -235,7 +235,7 @@ route_output(m, so)
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 				ifp = rt->rt_ifp;
 				if (ifp) {
-					ifpaddr = ifp->if_addrlist->ifa_addr;
+					ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
 					ifaaddr = rt->rt_ifa->ifa_addr;
 					rtm->rtm_index = ifp->if_index;
 				} else {
@@ -604,7 +604,7 @@ rt_newaddrmsg(cmd, ifa, error, rt)
 			int ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
 
 			ifaaddr = sa = ifa->ifa_addr;
-			ifpaddr = ifp->if_addrlist->ifa_addr;
+			ifpaddr = ifp->if_addrhead.tqh_first->ifa_addr;
 			netmask = ifa->ifa_netmask;
 			brdaddr = ifa->ifa_dstaddr;
 			if ((m = rt_msg1(ncmd, &info)) == NULL)
@@ -688,7 +688,7 @@ sysctl_iflist(af, w)
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		ifa = ifp->if_addrlist;
+		ifa = ifp->if_addrhead.tqh_first;
 		ifpaddr = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, (caddr_t)0, w);
 		ifpaddr = 0;
@@ -704,7 +704,7 @@ sysctl_iflist(af, w)
 			if (error)
 				return (error);
 		}
-		while ((ifa = ifa->ifa_next) != 0) {
+		while ((ifa = ifa->ifa_link.tqe_next) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
 			ifaaddr = ifa->ifa_addr;
