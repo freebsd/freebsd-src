@@ -36,7 +36,7 @@
 #ifndef _LIMITS_H_
 #define	_LIMITS_H_
 
-#if !defined(_ANSI_SOURCE)
+#ifndef _ANSI_SOURCE
 #define	_POSIX_ARG_MAX		4096
 #define	_POSIX_CHILD_MAX	6
 #define	_POSIX_LINK_MAX		8
@@ -61,7 +61,7 @@
 #define	_POSIX2_RE_DUP_MAX	255
 #endif /* !_ANSI_SOURCE */
 
-#if (!defined(_ANSI_SOURCE)&&!defined(_POSIX_SOURCE)) || defined(_XOPEN_SOURCE)
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE) || defined(_XOPEN_SOURCE)
 #define PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
 
 #define NL_ARGMAX		99	/* max # of position args for printf */
