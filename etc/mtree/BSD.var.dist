@@ -60,6 +60,8 @@
     rwho            gname=daemon mode=0775
     ..
     spool
+        clientmqueue    uname=smmsp gname=smmsp mode=0770
+        ..
         lock            uname=uucp gname=dialer mode=0775
         ..
 /set gname=daemon
