@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * $Id : /b/source/CVS/src/bin/expr/expr.y,v 1.11 1993/08/17 16:01:23 jtc Exp $
+ * $Id$
  */
 
 #include <stdio.h>

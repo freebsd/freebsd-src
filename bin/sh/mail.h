@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mail.h	8.1 (Berkeley) 5/31/93
+ *	$Id$
  */
 
 #ifdef __STDC__

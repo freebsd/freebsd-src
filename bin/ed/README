@@ -1,3 +1,5 @@
+$Id$
+
 ed is an 8-bit-clean, POSIX-compliant line editor.  It should work with
 any regular expression package that conforms to the POSIX interface
 standard, such as GNU regex(3).

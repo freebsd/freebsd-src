@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
+ *	$Id$
  */
 
 #include <sys/types.h>

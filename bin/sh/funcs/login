@@ -33,6 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)login	8.1 (Berkeley) 5/31/93
+#	$Id$
 
 # replaces the login builtin in the BSD shell
 login () exec login "$@"
