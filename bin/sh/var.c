@@ -33,12 +33,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: var.c,v 1.4 1996/08/11 22:51:00 ache Exp $
+ *	$Id: var.c,v 1.5 1996/08/12 22:14:50 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)var.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
+
+#include <unistd.h>
+#include <stdlib.h>
 
 /*
  * Shell variables.
@@ -60,6 +63,9 @@ static char sccsid[] = "@(#)var.c	8.1 (Berkeley) 5/31/93";
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
+#ifndef NO_HISTORY
+#include "myhistedit.h"
+#endif
 
 
 #define VTABSIZE 39
@@ -75,7 +81,9 @@ struct varinit {
 #if ATTY
 struct var vatty;
 #endif
+#ifndef NO_HISTORY
 struct var vhistsize;
+#endif
 struct var vifs;
 struct var vmail;
 struct var vmpath;
@@ -91,11 +99,13 @@ const struct varinit varinit[] = {
 #if ATTY
 	{&vatty,	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY="},
 #endif
+#ifndef NO_HISTORY
 	{&vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE="},
+#endif
 	{&vifs,	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n"},
 	{&vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL="},
 	{&vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH="},
-	{&vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=:/bin:/usr/bin"},
+	{&vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=/bin:/usr/bin"},
 	/*
 	 * vps1 depends on uid
 	 */
@@ -173,7 +183,8 @@ initvar() {
 void
 setvar(name, val, flags)
 	char *name, *val;
-	{
+	int flags;
+{
 	char *p, *q;
 	int len;
 	int namelen;
@@ -245,7 +256,8 @@ localevar(s)
 void
 setvareq(s, flags)
 	char *s;
-	{
+	int flags;
+{
 	struct var *vp, **vpp;
 
 	vpp = hashvar(s);
@@ -265,8 +277,10 @@ setvareq(s, flags)
 			vp->text = s;
 			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
 				chkmail(1);
+#ifndef NO_HISTORY
 			if (vp == &vhistsize)
 				sethistsize();
+#endif
 			if ((vp->flags & VEXPORT) && localevar(s)) {
 				putenv(s);
 				(void) setlocale(LC_ALL, "");
@@ -341,7 +355,8 @@ lookupvar(name)
 char *
 bltinlookup(name, doall)
 	char *name;
-	{
+	int doall;
+{
 	struct strlist *sp;
 	struct var *v;
 
@@ -351,8 +366,8 @@ bltinlookup(name, doall)
 	}
 	for (v = *hashvar(name) ; v ; v = v->next) {
 		if (varequal(v->text, name)) {
-			if (v->flags & VUNSET
-			 || ! doall && (v->flags & VEXPORT) == 0)
+			if ((v->flags & VUNSET)
+			 || (!doall && (v->flags & VEXPORT) == 0))
 				return NULL;
 			return strchr(v->text, '=') + 1;
 		}
@@ -439,7 +454,10 @@ shprocvar() {
  */
 
 int
-showvarscmd(argc, argv)  char **argv; {
+showvarscmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	struct var **vpp;
 	struct var *vp;
 
@@ -459,7 +477,10 @@ showvarscmd(argc, argv)  char **argv; {
  */
 
 int
-exportcmd(argc, argv)  char **argv; {
+exportcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	struct var **vpp;
 	struct var *vp;
 	char *name;
@@ -506,7 +527,11 @@ found:;
  * The "local" command.
  */
 
-localcmd(argc, argv)  char **argv; {
+int
+localcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	char *name;
 
 	if (! in_function())
@@ -537,7 +562,7 @@ mklocal(name)
 	lvp = ckmalloc(sizeof (struct localvar));
 	if (name[0] == '-' && name[1] == '\0') {
 		lvp->text = ckmalloc(sizeof optlist);
-		bcopy(optlist, lvp->text, sizeof optlist);
+		memcpy(lvp->text, optlist, sizeof optlist);
 		vp = NULL;
 	} else {
 		vpp = hashvar(name);
@@ -578,7 +603,7 @@ poplocalvars() {
 		localvars = lvp->next;
 		vp = lvp->vp;
 		if (vp == NULL) {	/* $- saved */
-			bcopy(lvp->text, optlist, sizeof optlist);
+			memcpy(optlist, lvp->text, sizeof optlist);
 			ckfree(lvp->text);
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
 			(void)unsetvar(vp->text);
@@ -593,7 +618,11 @@ poplocalvars() {
 }
 
 
-setvarcmd(argc, argv)  char **argv; {
+int
+setvarcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	if (argc <= 2)
 		return unsetcmd(argc, argv);
 	else if (argc == 3)
@@ -610,7 +639,11 @@ setvarcmd(argc, argv)  char **argv; {
  * with the same name.
  */
 
-unsetcmd(argc, argv)  char **argv; {
+int
+unsetcmd(argc, argv)
+	int argc;
+	char **argv; 
+{
 	char **ap;
 	int i;
 	int flg_func = 0;

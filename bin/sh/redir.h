@@ -33,25 +33,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)redir.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)redir.h	8.2 (Berkeley) 5/4/95
+ *	$Id: redir.h,v 1.2 1994/09/24 02:58:11 davidg Exp $
  */
 
 /* flags passed to redirect */
 #define REDIR_PUSH 01		/* save previous values of file descriptors */
 #define REDIR_BACKQ 02		/* save the command output in memory */
 
-#ifdef __STDC__
 union node;
-void redirect(union node *, int);
-void popredir(void);
-void clearredir(void);
-int copyfd(int, int);
-int fd0_redirected_p(void);
-#else
-void redirect();
-void popredir();
-void clearredir();
-int copyfd();
-int fd0_redirected_p();
-#endif
+void redirect __P((union node *, int));
+void popredir __P((void));
+int fd0_redirected_p __P((void));
+void clearredir __P((void)); 
+int copyfd __P((int, int));
+

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mail.c,v 1.2 1994/09/24 02:57:44 davidg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -69,7 +69,9 @@ STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
  */
 
 void
-chkmail(silent) {
+chkmail(silent)
+	int silent;
+{
 	register int i;
 	char *mpath;
 	char *p;

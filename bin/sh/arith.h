@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)arith.h	1.1 (Berkeley) 5/4/95
+ *	$Id$
  */
 
 int arith __P((char *));

@@ -1,5 +1,5 @@
 #	@(#)TOUR	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: TOUR,v 1.2 1994/09/24 02:57:19 davidg Exp $
 
 NOTE -- This is the original TOUR paper distributed with ash and
 does not represent the current state of the shell.  It is provided anyway
@@ -29,7 +29,7 @@ programs is:
         mknodes         nodetypes           nodes.h nodes.c
         mksignames          -               signames.h signames.c
         mksyntax            -               syntax.h syntax.c
-        mktokens            -               token.def
+        mktokens            -               token.h
         bltin/mkexpr    unary_op binary_op  operators.h operators.c
 
 There are undoubtedly too many of these.  Mkinit searches all the

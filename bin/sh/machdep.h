@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)machdep.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)machdep.h	8.2 (Berkeley) 5/4/95
+ *	$Id: machdep.h,v 1.2 1994/09/24 02:57:43 davidg Exp $
  */
 
 /*
@@ -48,5 +48,5 @@ union align {
 	char *cp;
 };
 
-#define ALIGN(nbytes)	((nbytes) + sizeof(union align) - 1 &~ (sizeof(union align) - 1))
+#define ALIGN(nbytes)	(((nbytes) + sizeof(union align) - 1) & ~(sizeof(union align) - 1))
 #endif

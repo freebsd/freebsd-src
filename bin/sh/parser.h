@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)parser.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	@(#)parser.h	8.3 (Berkeley) 5/4/95
+ *	$Id: parser.h,v 1.2 1994/09/24 02:58:09 davidg Exp $
  */
 
 /* control characters in argument strings */
@@ -48,16 +48,21 @@
 #define	CTLENDARI '\207'
 
 /* variable substitution byte (follows CTLVAR) */
-#define VSTYPE 07		/* type of variable substitution */
-#define VSNUL 040		/* colon--treat the empty string as unset */
-#define VSQUOTE 0100		/* inside double quotes--suppress splitting */
+#define VSTYPE	0x0f		/* type of variable substitution */
+#define VSNUL	0x10		/* colon--treat the empty string as unset */
+#define VSQUOTE 0x80		/* inside double quotes--suppress splitting */
 
 /* values of VSTYPE field */
-#define VSNORMAL 1		/* normal variable:  $var or ${var} */
-#define VSMINUS 2		/* ${var-text} */
-#define VSPLUS 3		/* ${var+text} */
-#define VSQUESTION 4		/* ${var?message} */
-#define VSASSIGN 5		/* ${var=text} */
+#define VSNORMAL	0x1		/* normal variable:  $var or ${var} */
+#define VSMINUS		0x2		/* ${var-text} */
+#define VSPLUS		0x3		/* ${var+text} */
+#define VSQUESTION	0x4		/* ${var?message} */
+#define VSASSIGN	0x5		/* ${var=text} */
+#define VSTRIMLEFT	0x6		/* ${var#pattern} */
+#define VSTRIMLEFTMAX	0x7		/* ${var##pattern} */
+#define VSTRIMRIGHT	0x8		/* ${var%pattern} */
+#define VSTRIMRIGHTMAX 	0x9		/* ${var%%pattern} */
+#define VSLENGTH	0xa		/* ${#var} */
 
 
 /*
@@ -70,12 +75,7 @@ extern int tokpushback;
 extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 
-#ifdef __STDC__
-union node *parsecmd(int);
-int goodname(char *);
-char *getprompt(void *);
-#else
-union node *parsecmd();
-int goodname();
-char *getprompt();
-#endif
+union node *parsecmd __P((int));
+void fixredir __P((union node *, const char *, int));
+int goodname __P((char *));
+char *getprompt __P((void *));  

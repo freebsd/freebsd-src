@@ -33,12 +33,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.5 1996/08/11 22:50:58 ache Exp $
+ *	$Id: expand.c,v 1.6 1996/08/12 19:31:11 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)expand.c	8.2 (Berkeley) 10/22/93";
+static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <locale.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -60,13 +70,8 @@ static char sccsid[] = "@(#)expand.c	8.2 (Berkeley) 10/22/93";
 #include "memalloc.h"
 #include "error.h"
 #include "mystring.h"
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <locale.h>
-#include <errno.h>
-#include <dirent.h>
-#include <pwd.h>
+#include "arith.h"
+#include "show.h"
 
 /*
  * Structure specifying which parts of the string should be searched
@@ -87,39 +92,22 @@ struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
 struct ifsregion *ifslastp;	/* last struct in list */
 struct arglist exparg;		/* holds expanded arg list */
 
-#ifdef __STDC__
-STATIC void argstr(char *, int);
-STATIC void expbackq(union node *, int, int);
-STATIC char *evalvar(char *, int);
-STATIC int varisset(int);
-STATIC void varvalue(int, int, int);
-STATIC void recordregion(int, int, int);
-STATIC void ifsbreakup(char *, struct arglist *);
-STATIC void expandmeta(struct strlist *, int);
-STATIC void expmeta(char *, char *);
-STATIC void expari(int);
-STATIC void addfname(char *);
-STATIC struct strlist *expsort(struct strlist *);
-STATIC struct strlist *msort(struct strlist *, int);
-STATIC int pmatch(char *, char *);
-STATIC char *exptilde(char *, int);
-#else
-STATIC void argstr();
-STATIC void expbackq();
-STATIC char *evalvar();
-STATIC int varisset();
-STATIC void varvalue();
-STATIC void recordregion();
-STATIC void ifsbreakup();
-STATIC void expandmeta();
-STATIC void expmeta();
-STATIC void expari();
-STATIC void addfname();
-STATIC struct strlist *expsort();
-STATIC struct strlist *msort();
-STATIC int pmatch();
-STATIC char *exptilde();
-#endif
+STATIC void argstr __P((char *, int));
+STATIC char *exptilde __P((char *, int));
+STATIC void expbackq __P((union node *, int, int));
+STATIC int subevalvar __P((char *, char *, int, int, int));
+STATIC char *evalvar __P((char *, int));
+STATIC int varisset __P((int));
+STATIC void varvalue __P((int, int, int));
+STATIC void recordregion __P((int, int, int));
+STATIC void ifsbreakup __P((char *, struct arglist *));
+STATIC void expandmeta __P((struct strlist *, int));
+STATIC void expmeta __P((char *, char *));
+STATIC void addfname __P((char *));
+STATIC struct strlist *expsort __P((struct strlist *));
+STATIC struct strlist *msort __P((struct strlist *, int));
+STATIC int pmatch __P((char *, char *));
+STATIC char *cvtnum __P((int, char *));
 
 /*
  * Expand shell variables and backquotes inside a here document.
@@ -147,7 +135,8 @@ void
 expandarg(arg, arglist, flag)
 	union node *arg;
 	struct arglist *arglist;
-	{
+	int flag;
+{
 	struct strlist *sp;
 	char *p;
 
@@ -204,7 +193,8 @@ expandarg(arg, arglist, flag)
 STATIC void
 argstr(p, flag)
 	register char *p;
-	{
+	int flag;
+{
 	register char c;
 	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
 	int firsteq = 1;
@@ -260,13 +250,14 @@ breakloop:;
 STATIC char *
 exptilde(p, flag)
 	char *p;
-	{
+	int flag;
+{
 	char c, *startp = p;
 	struct passwd *pw;
 	char *home;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
 
-	while (c = *p) {
+	while ((c = *p) != '\0') {
 		switch(c) {
 		case CTLESC:
 			return (startp);
@@ -292,7 +283,7 @@ done:
 	if (*home == '\0')
 		goto lose;
 	*p = c;
-	while (c = *home++) {
+	while ((c = *home++) != '\0') {
 		if (quotes && SQSYNTAX[c] == CCTL)
 			STPUTC(CTLESC, expdest);
 		STPUTC(c, expdest);
@@ -310,7 +301,8 @@ lose:
  */
 void
 expari(flag)
-	{
+	int flag;
+{
 	char *p, *start;
 	int result;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
@@ -355,7 +347,9 @@ expari(flag)
 STATIC void
 expbackq(cmd, quoted, flag)
 	union node *cmd;
-	{
+	int quoted;
+	int flag;
+{
 	struct backcmd in;
 	int i;
 	char buf[128];
@@ -403,11 +397,11 @@ expbackq(cmd, quoted, flag)
 			STPUTC(lastc, dest);
 		}
 	}
-	p--;
-	while (lastc == '\n') {
+
+	/* Eat all trailing newlines */
+	for (p--; lastc == '\n'; lastc = *--p)
 		STUNPUTC(dest);
-		lastc = *--p;
-	}
+
 	if (in.fd >= 0)
 		close(in.fd);
 	if (in.buf)
@@ -426,6 +420,101 @@ expbackq(cmd, quoted, flag)
 
 
 
+STATIC int
+subevalvar(p, str, subtype, startloc, varflags)
+	char *p;
+	char *str;
+	int subtype;
+	int startloc;
+	int varflags;
+{
+
+	char *startp;
+	char *loc = NULL;
+	int c = 0;
+	int saveherefd = herefd;
+	struct nodelist *saveargbackq = argbackq;
+	herefd = -1;
+	argstr(p, 0);
+	STACKSTRNUL(expdest);
+	herefd = saveherefd;
+	argbackq = saveargbackq;
+	startp = stackblock() + startloc;
+
+	switch (subtype) {
+	case VSASSIGN:
+		setvar(str, startp, 0);
+		STADJUST(startp - expdest, expdest);
+		varflags &= ~VSNUL;
+		if (c != 0)
+			*loc = c;
+		return 1;
+
+	case VSQUESTION:
+		if (*p != CTLENDVAR) {
+			outfmt(&errout, "%s\n", startp);
+			error((char *)NULL);
+		}
+		error("%.*s: parameter %snot set", p - str - 1,
+		      str, (varflags & VSNUL) ? "null or "
+					      : nullstr);
+		return 0;
+
+	case VSTRIMLEFT:
+		for (loc = startp; loc < str - 1; loc++) {
+			c = *loc;
+			*loc = '\0';
+			if (patmatch(str, startp)) {
+				*loc = c;
+				goto recordleft;
+			}
+			*loc = c;
+		}
+		return 0;
+
+	case VSTRIMLEFTMAX:
+		for (loc = str - 1; loc >= startp; loc--) {
+			c = *loc;
+			*loc = '\0';
+			if (patmatch(str, startp)) {
+				*loc = c;
+				goto recordleft;
+			}
+			*loc = c;
+		}
+		return 0;
+
+	case VSTRIMRIGHT:
+		for (loc = str - 1; loc >= startp; loc--) {
+			if (patmatch(str, loc)) {
+				expdest = loc;
+				return 1;
+			}
+		}
+		return 0;
+
+	case VSTRIMRIGHTMAX:
+		for (loc = startp; loc < str - 1; loc++) {
+			if (patmatch(str, loc)) {
+				expdest = loc;
+				return 1;
+			}
+		}
+		return 0;
+
+
+	default:
+		abort();
+	}
+
+recordleft:
+	expdest = (str - 1) - (loc - startp);
+	while (loc != str - 1)
+		*startp++ = *loc++;
+	return 1;
+}
+
+
 /*
  * Expand a variable, and return a pointer to the next character in the
  * input string.
@@ -434,15 +523,19 @@ expbackq(cmd, quoted, flag)
 STATIC char *
 evalvar(p, flag)
 	char *p;
-	{
+	int flag;
+{
 	int subtype;
 	int varflags;
 	char *var;
 	char *val;
+	char *pat;
 	int c;
 	int set;
 	int special;
 	int startloc;
+	int varlen;
+	int easy;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
 
 	varflags = *p++;
@@ -458,60 +551,104 @@ again: /* jump here after setting a variable with ${var=text} */
 		val = NULL;
 	} else {
 		val = lookupvar(var);
-		if (val == NULL || (varflags & VSNUL) && val[0] == '\0') {
+		if (val == NULL || ((varflags & VSNUL) && val[0] == '\0')) {
 			val = NULL;
 			set = 0;
 		} else
 			set = 1;
 	}
+	varlen = 0;
 	startloc = expdest - stackblock();
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
+			char *exp, *oexpdest = expdest;
 			varvalue(*var, varflags & VSQUOTE, flag & EXP_FULL);
+			if (subtype == VSLENGTH) {
+				for (exp = oexpdest;exp != expdest; exp++)
+					varlen++;
+				expdest = oexpdest;
+			}
 		} else {
-			char const *syntax = (varflags & VSQUOTE)? DQSYNTAX : BASESYNTAX;
+			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX 
+								  : BASESYNTAX;
 
-			while (*val) {
-				if (quotes && syntax[*val] == CCTL)
-					STPUTC(CTLESC, expdest);
-				STPUTC(*val++, expdest);
+			if (subtype == VSLENGTH) {
+				for (;*val; val++)
+					varlen++;
+			}
+			else {
+				while (*val) {
+					if (quotes && syntax[*val] == CCTL)
+						STPUTC(CTLESC, expdest);
+					STPUTC(*val++, expdest);
+				}
+
 			}
 		}
 	}
+		
 	if (subtype == VSPLUS)
 		set = ! set;
-	if (((varflags & VSQUOTE) == 0 || (*var == '@' && shellparam.nparam != 1))
-	 && (set || subtype == VSNORMAL))
-		recordregion(startloc, expdest - stackblock(), varflags & VSQUOTE);
-	if (! set && subtype != VSNORMAL) {
-		if (subtype == VSPLUS || subtype == VSMINUS) {
+
+	easy = ((varflags & VSQUOTE) == 0 || 
+		(*var == '@' && shellparam.nparam != 1));
+
+
+	switch (subtype) {
+	case VSLENGTH:
+		expdest = cvtnum(varlen, expdest);
+		goto record;
+
+	case VSNORMAL:
+		if (!easy)
+			break;
+record:
+		recordregion(startloc, expdest - stackblock(), 
+			     varflags & VSQUOTE);
+		break;
+
+	case VSPLUS:
+	case VSMINUS:
+		if (!set) {
 			argstr(p, flag);
-		} else {
-			char *startp;
-			int saveherefd = herefd;
-			struct nodelist *saveargbackq = argbackq;
-			herefd = -1;
-			argstr(p, 0);
-			STACKSTRNUL(expdest);
-			herefd = saveherefd;
-			argbackq = saveargbackq;
-			startp = stackblock() + startloc;
-			if (subtype == VSASSIGN) {
-				setvar(var, startp, 0);
-				STADJUST(startp - expdest, expdest);
-				varflags &=~ VSNUL;
-				goto again;
-			}
-			/* subtype == VSQUESTION */
-			if (*p != CTLENDVAR) {
-				outfmt(&errout, "%s\n", startp);
-				error((char *)NULL);
-			}
-			error("%.*s: parameter %snot set", p - var - 1,
-				var, (varflags & VSNUL)? "null or " : nullstr);
+			break;
 		}
+		if (easy)
+			goto record;
+		break;
+
+	case VSTRIMLEFT:
+	case VSTRIMLEFTMAX:
+	case VSTRIMRIGHT:
+	case VSTRIMRIGHTMAX:
+		if (!set)
+			break;
+		/*
+		 * Terminate the string and start recording the pattern
+		 * right after it
+		 */
+		STPUTC('\0', expdest);
+		pat = expdest;
+		if (subevalvar(p, pat, subtype, startloc, varflags))
+			goto record;
+		break;
+
+	case VSASSIGN:
+	case VSQUESTION:
+		if (!set) {
+			if (subevalvar(p, var, subtype, startloc, varflags))
+				goto again;
+			break;
+		}
+		if (easy)
+			goto record;
+		break;
+
+	default:
+		abort();
 	}
+
 	if (subtype != VSNORMAL) {	/* skip to end of alternative */
 		int nesting = 1;
 		for (;;) {
@@ -569,12 +706,13 @@ varisset(name)
 STATIC void
 varvalue(name, quoted, allow_split)
 	char name;
-	{
+	int quoted;
+	int allow_split;
+{
 	int num;
-	char temp[32];
 	char *p;
 	int i;
-	extern int exitstatus;
+	extern int oexitstatus;
 	char sep;
 	char **ap;
 	char const *syntax;
@@ -599,7 +737,7 @@ varvalue(name, quoted, allow_split)
 		num = rootpid;
 		goto numvar;
 	case '?':
-		num = exitstatus;
+		num = oexitstatus;
 		goto numvar;
 	case '#':
 		num = shellparam.nparam;
@@ -607,13 +745,7 @@ varvalue(name, quoted, allow_split)
 	case '!':
 		num = backgndpid;
 numvar:
-		p = temp + 31;
-		temp[31] = '\0';
-		do {
-			*--p = num % 10 + '0';
-		} while ((num /= 10) != 0);
-		while (*p)
-			STPUTC(*p++, expdest);
+		expdest = cvtnum(num, expdest);
 		break;
 	case '-':
 		for (i = 0 ; i < NOPTS ; i++) {
@@ -657,7 +789,11 @@ allargs:
  */
 
 STATIC void
-recordregion(start, end, nulonly) {
+recordregion(start, end, nulonly) 
+	int start;
+	int end;
+	int nulonly;
+{
 	register struct ifsregion *ifsp;
 
 	if (ifslastp == NULL) {
@@ -680,7 +816,6 @@ recordregion(start, end, nulonly) {
  * strings to the argument list.  The regions of the string to be
  * searched for IFS characters have been stored by recordregion.
  */
-
 STATIC void
 ifsbreakup(string, arglist)
 	char *string;
@@ -692,6 +827,8 @@ ifsbreakup(string, arglist)
 	register char *p;
 	char *q;
 	char *ifs;
+	int ifsspc;
+
 
 	start = string;
 	if (ifslastp != NULL) {
@@ -699,19 +836,20 @@ ifsbreakup(string, arglist)
 		do {
 			p = string + ifsp->begoff;
 			ifs = ifsp->nulonly? nullstr : ifsval();
+			ifsspc = strchr(ifs, ' ') != NULL;
 			while (p < string + ifsp->endoff) {
 				q = p;
 				if (*p == CTLESC)
 					p++;
 				if (strchr(ifs, *p++)) {
-					if (q > start || *ifs != ' ') {
+					if (q > start || !ifsspc) {
 						*q = '\0';
 						sp = (struct strlist *)stalloc(sizeof *sp);
 						sp->text = start;
 						*arglist->lastp = sp;
 						arglist->lastp = &sp->next;
 					}
-					if (*ifs == ' ') {
+					if (ifsspc) {
 						for (;;) {
 							if (p >= string + ifsp->endoff)
 								break;
@@ -728,7 +866,7 @@ ifsbreakup(string, arglist)
 				}
 			}
 		} while ((ifsp = ifsp->next) != NULL);
-		if (*start || (*ifs != ' ' && start > string)) {
+		if (*start || (!ifsspc && start > string)) {
 			sp = (struct strlist *)stalloc(sizeof *sp);
 			sp->text = start;
 			*arglist->lastp = sp;
@@ -755,7 +893,8 @@ char *expdir;
 STATIC void
 expandmeta(str, flag)
 	struct strlist *str;
-	{
+	int flag;
+{
 	char *p;
 	struct strlist **savelastp;
 	struct strlist *sp;
@@ -896,7 +1035,7 @@ expmeta(enddir, name)
 		*endname++ = '\0';
 	}
 	matchdot = 0;
-	if (start[0] == '.' || start[0] == CTLESC && start[1] == '.')
+	if (start[0] == '.' || (start[0] == CTLESC && start[1] == '.'))
 		matchdot++;
 	while (! int_pending() && (dp = readdir(dirp)) != NULL) {
 		if (dp->d_name[0] == '.' && ! matchdot)
@@ -907,7 +1046,9 @@ expmeta(enddir, name)
 				addfname(expdir);
 			} else {
 				char *q;
-				for (p = enddir, q = dp->d_name ; *p++ = *q++ ;);
+				for (p = enddir, q = dp->d_name;
+				     (*p++ = *q++) != '\0';)
+					continue;
 				p[-1] = '/';
 				expmeta(p, endname);
 			}
@@ -962,8 +1103,9 @@ expsort(str)
 STATIC struct strlist *
 msort(list, len)
 	struct strlist *list;
-	{
-	struct strlist *p, *q;
+	int len;
+{
+	struct strlist *p, *q = NULL;
 	struct strlist **lpp;
 	int half;
 	int n;
@@ -1018,6 +1160,7 @@ patmatch(pattern, string)
 #endif
 		return pmatch(pattern, string);
 }
+
 
 STATIC int
 pmatch(pattern, string)
@@ -1078,6 +1221,8 @@ pmatch(pattern, string)
 			}
 			found = 0;
 			chr = *q++;
+			if (chr == '\0')
+				return 0;
 			c = *p++;
 			do {
 				if (c == CTLESC)
@@ -1163,4 +1308,31 @@ casematch(pattern, val)
 	result = patmatch(p, val);
 	popstackmark(&smark);
 	return result;
+}
+
+/*
+ * Our own itoa().
+ */
+
+STATIC char *
+cvtnum(num, buf)
+	int num;
+	char *buf;
+	{
+	char temp[32];
+	int neg = num < 0;
+	char *p = temp + 31;
+
+	temp[31] = '\0';
+
+	do {
+		*--p = num % 10 + '0';
+	} while ((num /= 10) != 0);
+
+	if (neg)
+		*--p = '-';
+
+	while (*p)
+		STPUTC(*p++, buf);
+	return buf;
 }

@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)shell.h	8.1 (Berkeley) 5/31/93
- *	$Id: shell.h,v 1.2 1994/09/24 02:58:15 davidg Exp $
+ *	@(#)shell.h	8.2 (Berkeley) 5/4/95
+ *	$Id: shell.h,v 1.3 1995/08/27 20:26:44 joerg Exp $
  */
 
 /*
@@ -57,7 +57,9 @@
 #ifndef BSD
 #define BSD 1
 #endif
-/* #define DEBUG 1 */
+#ifndef DEBUG
+#define DEBUG 1
+#endif
 
 #ifdef __STDC__
 typedef void *pointer;
@@ -79,7 +81,7 @@ extern char nullstr[1];		/* null string */
 
 
 #ifdef DEBUG
-#define TRACE(param)	trace param
+#define TRACE(param)	shtrace param
 #else
 #define TRACE(param)
 #endif

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mystring.c,v 1.2 1994/09/24 02:57:59 davidg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mystring.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)mystring.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 /*
@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)mystring.c	8.1 (Berkeley) 5/31/93";
  *	is_number(s)		Return true if s is a string of digits.
  */
 
+#include <stdlib.h>
 #include "shell.h"
 #include "syntax.h"
 #include "error.h"

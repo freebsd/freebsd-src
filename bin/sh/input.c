@@ -33,21 +33,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: input.c,v 1.3 1995/05/30 00:07:15 rgrimes Exp $
+ *	$Id: input.c,v 1.4 1995/11/03 18:50:14 peter Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 5/31/93";
+static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
 #endif /* not lint */
+
+#include <stdio.h>	/* defines BUFSIZ */
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 
 /*
  * This file implements the input routines used by the parser.
  */
 
-#include <stdio.h>	/* defines BUFSIZ */
 #include "shell.h"
-#include <fcntl.h>
-#include <errno.h>
+#include "redir.h"
 #include "syntax.h"
 #include "input.h"
 #include "output.h"
@@ -100,13 +105,7 @@ int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 EditLine *el;			/* cookie for editline package */
 
-#ifdef __STDC__
-STATIC void pushfile(void);
-#else
-STATIC void pushfile();
-#endif
-
-
+STATIC void pushfile __P((void));
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -137,7 +136,8 @@ SHELLPROC {
 char *
 pfgets(line, len)
 	char *line;
-	{
+	int len;
+{
 	register char *p = line;
 	int nleft = len;
 	int c;
@@ -346,6 +346,7 @@ pushstring(s, len, ap)
 	INTON;
 }
 
+void
 popstring()
 {
 	struct strpush *sp = parsefile->strpush;
@@ -371,7 +372,8 @@ popstring()
 void
 setinputfile(fname, push)
 	char *fname;
-	{
+	int push;
+{
 	int fd;
 	int fd2;
 
@@ -396,7 +398,9 @@ setinputfile(fname, push)
  */
 
 void
-setinputfd(fd, push) {
+setinputfd(fd, push)
+	int fd, push;
+{
 	if (push) {
 		pushfile();
 		parsefile->buf = ckmalloc(BUFSIZ);
@@ -418,6 +422,7 @@ setinputfd(fd, push) {
 void
 setinputstring(string, push)
 	char *string;
+	int push;
 	{
 	INTOFF;
 	if (push)
