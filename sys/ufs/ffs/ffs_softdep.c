@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.40 (McKusick) 6/15/99
- *	$Id: ffs_softdep.c,v 1.32 1999/06/26 02:46:35 mckusick Exp $
+ *	$Id: ffs_softdep.c,v 1.33 1999/06/27 13:26:23 peter Exp $
  */
 
 /*
@@ -1530,7 +1530,6 @@ setup_allocindir_phase2(bp, ip, aip)
 		}
 		newindirdep->ir_savebp =
 		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0);
-		newindirdep->ir_savebp->b_flags |= B_ASYNC;
 		BUF_KERNPROC(newindirdep->ir_savebp);
 		bcopy(bp->b_data, newindirdep->ir_savebp->b_data, bp->b_bcount);
 	}
