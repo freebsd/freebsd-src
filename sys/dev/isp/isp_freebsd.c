@@ -1681,7 +1681,8 @@ isp_watchdog(void *arg)
 	ISP_UNLOCK(isp);
 }
 
-#ifdef	ISP_SMPLOCK
+static int isp_ktmature = 0;
+
 static void
 isp_kthread(void *arg)
 {
@@ -1692,14 +1693,22 @@ isp_kthread(void *arg)
 	for (;;) {
 		isp_prt(isp, ISP_LOGDEBUG0, "kthread checking FC state");
 		while (isp_fc_runstate(isp, 2 * 1000000) != 0) {
-#if	0
-			msleep(&lbolt, &isp->isp_lock,
-			    PRIBIO, "isp_fcthrd", 0);
-#else
+			if (FCPARAM(isp)->isp_fwstate != FW_READY ||
+			    FCPARAM(isp)->isp_loopstate < LOOP_PDB_RCVD) {
+				if (FCPARAM(isp)->loop_seen_once == 0 ||
+				    isp_ktmature == 0) {
+					break;
+				}
+			}
 			msleep(isp_kthread, &isp->isp_lock,
 			    PRIBIO, "isp_fcthrd", hz);
-#endif
 		}
+		/*
+		 * Even if we didn't get good loop state we may be
+		 * unfreezing the SIMQ so that we can kill off
+		 * commands (if we've never seen loop before, e.g.)
+		 */
+		isp_ktmature = 1;
 		wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
 		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
 		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
@@ -1711,31 +1720,7 @@ isp_kthread(void *arg)
 		cv_wait(&isp->isp_osinfo.kthread_cv, &isp->isp_lock);
 	}
 }
-#else
-static void
-isp_kthread(void *arg)
-{
-	int wasfrozen;
-	struct ispsoftc *isp = arg;
 
-	mtx_lock(&Giant);
-	for (;;) {
-		isp_prt(isp, ISP_LOGDEBUG0, "kthread checking FC state");
-		while (isp_fc_runstate(isp, 2 * 1000000) != 0) {
-			tsleep(isp_kthread, PRIBIO, "isp_fcthrd", hz);
-		}
-		wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
-		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
-		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
-			isp_prt(isp, ISP_LOGDEBUG0, "kthread up release simq");
-			ISPLOCK_2_CAMLOCK(isp);
-			xpt_release_simq(isp->isp_sim, 1);
-			CAMLOCK_2_ISPLOCK(isp);
-		}
-		tsleep(&isp->isp_osinfo.kthread_cv, PRIBIO, "isp_fc_worker", 0);
-	}
-}
-#endif
 static void
 isp_action(struct cam_sim *sim, union ccb *ccb)
 {
@@ -1820,20 +1805,21 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ISPLOCK_2_CAMLOCK(isp);
 			break;
 		case CMD_RQLATER:
-#ifdef	ISP_SMPLOCK
+			/*
+			 * This can only happen for Fibre Channel
+			 */
+			KASSERT((IS_FC(isp)), ("CMD_RQLATER for FC only"));
+			if (FCPARAM(isp)->loop_seen_once == 0 && isp_ktmature) {
+				ISPLOCK_2_CAMLOCK(isp);
+				XS_SETERR(ccb, CAM_SEL_TIMEOUT);
+				xpt_done(ccb);
+				break;
+			}
 			cv_signal(&isp->isp_osinfo.kthread_cv);
-#else
-			wakeup(&isp->isp_osinfo.kthread_cv);
-#endif
 			if (isp->isp_osinfo.simqfrozen == 0) {
 				isp_prt(isp, ISP_LOGDEBUG2,
 				    "RQLATER freeze simq");
-#if	0
-				isp->isp_osinfo.simqfrozen |= SIMQFRZ_TIMED;
-				timeout(isp_relsim, isp, 500);
-#else
 				isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
-#endif
 				ISPLOCK_2_CAMLOCK(isp);
 				xpt_freeze_simq(sim, 1);
 			} else {
@@ -2534,8 +2520,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		xpt_setup_ccb(&cts.ccb_h, tmppath, 1);
 		ISPLOCK_2_CAMLOCK(isp);
 		xpt_async(AC_TRANSFER_NEG, tmppath, &cts);
-		CAMLOCK_2_ISPLOCK(isp);
 		xpt_free_path(tmppath);
+		CAMLOCK_2_ISPLOCK(isp);
 		break;
 	}
 	case ISPASYNC_BUS_RESET:
@@ -2609,6 +2595,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		};
 		fcparam *fcp = isp->isp_param;
 		int tgt = *((int *) arg);
+		int is_tgt_mask = (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT);
 		struct lportdb *lp = &fcp->portdb[tgt]; 
 
 		isp_prt(isp, ISP_LOGINFO, fmt, tgt, lp->loopid, lp->portid,
@@ -2625,29 +2612,29 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			CAMLOCK_2_ISPLOCK(isp);
                         break;
                 }
-		if (lp->valid && (lp->roles &
-		    (SVC3_INI_ROLE >> SVC3_ROLE_SHIFT))) {
-			xpt_async(AC_FOUND_DEVICE, tmppath, NULL);
-		} else {
-			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+		/*
+		 * Policy: only announce targets.
+		 */
+		if (lp->roles & is_tgt_mask) {
+			if (lp->valid) {
+				xpt_async(AC_FOUND_DEVICE, tmppath, NULL);
+			} else {
+				xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+			}
 		}
-		CAMLOCK_2_ISPLOCK(isp);
 		xpt_free_path(tmppath);
+		CAMLOCK_2_ISPLOCK(isp);
 		break;
 	}
 	case ISPASYNC_CHANGE_NOTIFY:
-		if (arg == (void *) 1) {
+		if (arg == ISPASYNC_CHANGE_PDB) {
 			isp_prt(isp, ISP_LOGINFO,
-			    "Name Server Database Changed");
-		} else {
+			    "Port Database Changed");
+		} else if (arg == ISPASYNC_CHANGE_SNS) {
 			isp_prt(isp, ISP_LOGINFO,
 			    "Name Server Database Changed");
 		}
-#ifdef	ISP_SMPLOCK
 		cv_signal(&isp->isp_osinfo.kthread_cv);
-#else
-		wakeup(&isp->isp_osinfo.kthread_cv);
-#endif
 		break;
 	case ISPASYNC_FABRIC_DEV:
 	{
