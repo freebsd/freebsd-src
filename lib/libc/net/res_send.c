@@ -848,7 +848,7 @@ read_len:
 		       (stdout, ";; got answer:\n"));
 		DprintQ((_res.options & RES_DEBUG) ||
 			(_res.pfcode & RES_PRF_REPLY),
-			(stdout, ""),
+			(stdout, "%.*s", 0, ""),
 			ans, (resplen>anssiz)?anssiz:resplen);
 		/*
 		 * If using virtual circuits, we assume that the first server
