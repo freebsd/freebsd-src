@@ -59,6 +59,13 @@ struct procfs_status {
 # define	PIOCSTATUS	_IOR('p', 6, struct procfs_status)
 # define	PIOCGFL	_IOR('p', 7, unsigned int)	/* Get flags */
 
+# define	S_EXEC	0x00000001	/* stop-on-exec */
+# define	S_SIG	0x00000002	/* stop-on-signal */
+# define	S_SCE	0x00000004	/* stop on syscall entry */
+# define	S_SCX	0x00000008	/* stop on syscall exit */
+# define	S_CORE	0x00000010	/* stop on coredump */
+# define	S_EXIT	0x00000020	/* stop on exit */
+
 /*
  * If PF_LINGER is set in procp->p_pfsflags, then the last close
  * of a /proc/<pid>/mem file will nto clear out the stops and continue
