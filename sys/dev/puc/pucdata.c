@@ -823,6 +823,18 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* NetMos 4S0P PCI: 4S, 0P */
+	{   "NetMos NM9845 Quad UART",
+	    {	0x9710,	0x9845,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x00, COM_FREQ },
+	    },
+	},
+
 	/*
 	 * This is the Middle Digital, Inc. PCI-Weasel, which
 	 * uses a PCI interface implemented in FPGA.
