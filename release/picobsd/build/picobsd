@@ -536,7 +536,7 @@ create_mfs() {		# OK
     else
 	disklabel -rw ${l_vndev} auto || fail $? mfs_disklabel
     fi
-    newfs -i ${mfs_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
+    newfs -i ${mfs_inodes} -m 0 -o space -f 512 -b 4096 \
 	/dev/${l_vndev}c > /dev/null
     mount /dev/${l_vndev}c ${c_mnt} || fail $? no_mount
     log "`df /dev/${l_vndev}c`"
@@ -608,7 +608,7 @@ populate_mfs_tree() {
 	    log "Using existing host key"
 	else
 	    log "Generating new host key" 
-	    ssh-keygen -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
+	    ssh-keygen -t rsa1 -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
 		 -N "" -C "root@picobsd"
 	    gzip -9 ${BUILDDIR}/floppy.tree/etc/ssh_host_key* || true
 	fi
@@ -791,7 +791,11 @@ fill_floppy_image() {
 
     log "Labeling floppy image"
     b2=${BUILDDIR}/boot2 # modified boot2
-    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${c_boot2} > ${b2}
+    cp ${c_boot2} ${b2}
+    chmod 0644 ${b2}
+    set `strings -at d ${b2} | grep "/boot/loader"`
+    echo -e "/kernel\0\0\0\0\0" | dd of=${b2} obs=$1 oseek=1 conv=notrunc
+    chmod 0444 ${b2}
 
     # create a disklabel ...
     disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} auto || \
@@ -802,7 +806,7 @@ fill_floppy_image() {
 	disklabel -R ${l_vndev} /dev/stdin
 
     log "Newfs floppy image"
-    newfs -i ${fd_inodes} -m 0 -p 0 -o space -f 512 -b 4096 \
+    newfs -i ${fd_inodes} -m 0 -o space -f 512 -b 4096 \
 	     /dev/${l_vndev}a > /dev/null
 
     log "Mounting floppy image"
