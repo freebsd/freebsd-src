@@ -1278,16 +1278,16 @@ ata_promise_chipinit(device_t dev)
 	break;
 
     case PRMIO:
-	if (ctlr->r_res1)
-	    bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,ctlr->r_res1);
+//	if (ctlr->r_res1)
+//	    bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1,ctlr->r_res1);
 	ctlr->r_type1 = SYS_RES_MEMORY;
-	ctlr->r_rid1 = 0x20;
+	ctlr->r_rid1 = PCIR_BAR(4);
 	if (!(ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1,
 						    &ctlr->r_rid1, RF_ACTIVE)))
 	    return ENXIO;
 
 	ctlr->r_type2 = SYS_RES_MEMORY;
-	ctlr->r_rid2 = 0x1c;
+	ctlr->r_rid2 = PCIR_BAR(3);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						    &ctlr->r_rid2, RF_ACTIVE)))
 	    return ENXIO;
@@ -1433,12 +1433,14 @@ ata_promise_sx4_intr(void *data)
 static int
 ata_promise_mio_dmastart(struct ata_channel *ch)
 {
+    ch->flags |= ATA_DMA_ACTIVE;
     return 0;
 }
 
 static int
 ata_promise_mio_dmastop(struct ata_channel *ch)
 {
+    ch->flags &= ~ATA_DMA_ACTIVE;
     /* get status XXX SOS */
     return 0;
 }
@@ -1777,6 +1779,7 @@ ata_promise_new_dmastart(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ((ch->dma->flags & ATA_DMA_READ) ? ATA_BMCMD_WRITE_READ : 0) |
 		 ATA_BMCMD_START_STOP);
+    ch->flags |= ATA_DMA_ACTIVE;
     return 0;
 }
 
@@ -1795,6 +1798,7 @@ ata_promise_new_dmastop(struct ata_channel *ch)
     error = ATA_IDX_INB(ch, ATA_BMSTAT_PORT);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
+    ch->flags &= ~ATA_DMA_ACTIVE;
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
     return error;
 }
@@ -2057,7 +2061,7 @@ ata_sii_chipinit(device_t dev)
 	}
 
 	ctlr->r_type2 = SYS_RES_MEMORY;
-	ctlr->r_rid2 = 0x24;
+	ctlr->r_rid2 = PCIR_BAR(5);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						    &ctlr->r_rid2, RF_ACTIVE)))
 	    return ENXIO;

@@ -231,7 +231,6 @@ ata_detach(device_t dev)
 int
 ata_reinit(struct ata_channel *ch)
 {
-    struct ata_request *request = ch->running;
     int devices, misdev, newdev;
 
     if (!ch->r_irq)
@@ -242,10 +241,8 @@ ata_reinit(struct ata_channel *ch)
 	ata_printf(ch, -1, "reiniting channel ..\n");
     ATA_FORCELOCK_CH(ch);
     ch->flags |= ATA_IMMEDIATE_MODE;
-    ch->running = NULL;
     devices = ch->devices;
     ch->hw.reset(ch);
-    ATA_UNLOCK_CH(ch);
 
     if (bootverbose)
 	ata_printf(ch, -1, "resetting done ..\n");
@@ -254,10 +251,6 @@ ata_reinit(struct ata_channel *ch)
     if ((misdev = devices & ~ch->devices)) {
 	if ((misdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
 	    ch->device[MASTER].detach) {
-	    if (request && (request->device == &ch->device[MASTER])) {
-		request->result = ENXIO;
-		request->retries = 0;
-	    }
 	    ch->device[MASTER].detach(&ch->device[MASTER]);
 	    ata_fail_requests(ch, &ch->device[MASTER]);
 	    free(ch->device[MASTER].param, M_ATA);
@@ -265,16 +258,15 @@ ata_reinit(struct ata_channel *ch)
 	}
 	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
 	    ch->device[SLAVE].detach) {
-	    if (request && (request->device == &ch->device[SLAVE])) {
-		request->result = ENXIO;
-		request->retries = 0;
-	    }
 	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
 	    ata_fail_requests(ch, &ch->device[SLAVE]);
 	    free(ch->device[SLAVE].param, M_ATA);
 	    ch->device[SLAVE].param = NULL;
 	}
     }
+
+    ch->running = NULL;
+    ATA_UNLOCK_CH(ch);
 
     /* identify what is present on the channel now */
     ata_identify_devices(ch);
