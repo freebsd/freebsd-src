@@ -56,8 +56,6 @@
         ..
         ssl
         ..
-        uucp            uname=uucp gname=uucp mode=0770
-        ..
     ..
     mnt
     ..
