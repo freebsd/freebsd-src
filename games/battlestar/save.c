@@ -91,7 +91,7 @@ restore()
 	fread(&meetgirl, sizeof meetgirl, 1, fp);
 	fread(&followgod, sizeof followgod, 1, fp);
 	fread(&godready, sizeof godready, 1, fp);
-	fread(&win, sizeof win, 1, fp);
+	fread(&bs_win, sizeof bs_win, 1, fp);
 	fread(&wintime, sizeof wintime, 1, fp);
 	fread(&matchlight, sizeof matchlight, 1, fp);
 	fread(&matchcount, sizeof matchcount, 1, fp);
@@ -172,7 +172,7 @@ save()
 	fwrite(&meetgirl, sizeof meetgirl, 1, fp);
 	fwrite(&followgod, sizeof followgod, 1, fp);
 	fwrite(&godready, sizeof godready, 1, fp);
-	fwrite(&win, sizeof win, 1, fp);
+	fwrite(&bs_win, sizeof bs_win, 1, fp);
 	fwrite(&wintime, sizeof wintime, 1, fp);
 	fwrite(&matchlight, sizeof matchlight, 1, fp);
 	fwrite(&matchcount, sizeof matchcount, 1, fp);

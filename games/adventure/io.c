@@ -116,6 +116,7 @@ yes(x,y,z)                              /* confirm with rspeak          */
 int x,y,z;
 {       int result;
 	int ch;
+
 	result = FALSE;
 	for (;;)
 	{       rspeak(x);                     /* tell him what we want*/
@@ -140,6 +141,7 @@ yesm(x,y,z)                             /* confirm with mspeak          */
 int x,y,z;
 {       int result;
 	int ch;
+
 	result = FALSE;
 	for (;;)
 	{       mspeak(x);                     /* tell him what we want*/
@@ -342,6 +344,7 @@ rtrav()                                 /* read travel table            */
 	char *s;
 	char buf[12];
 	int len,m,n,entries;
+
 	entries = 0;
 	t = NULL;
 	for (oldloc= -1;;)              /* get another line             */
@@ -412,16 +415,16 @@ int loq;
 	}
 }
 
-#endif DEBUG
+#endif /* DEBUG */
 
 static void
 rvoc()
 {       char *s;               /* read the vocabulary          */
-	int index;
+	int rv_index;
 	char buf[6];
 	for (;;)
-	{       index=rnum();
-		if (index<0) break;
+	{       rv_index=rnum();
+		if (rv_index<0) break;
 		for (s=buf,*s=0;; s++)  /* get the word                 */
 			if ((*s=next())==TAB || *s=='\n' || *s==LF
 				|| *s==' ') break;
@@ -429,7 +432,7 @@ rvoc()
 		if (*s!='\n' && *s!=LF) FLUSHLF;  /* can be comments    */
 		*s=0;
 	/*      printf("\"%s\"=%d\n",buf,index);*/
-		vocab(buf,-2,index);
+		vocab(buf,-2,rv_index);
 	}
 }
 
@@ -523,14 +526,14 @@ int m;         /* msg is the number of all the p msgs for this place  */
 int skip;       /* assumes object 1 doesn't have prop 1, obj 2 no prop 2 &c*/
 {
 	char *s,nonfirst;
-	char *numst, save;
+	char *numst, ps_save;
 	struct text *msg;
 	char *tbuf;
 
 	msg = &ptext[m];
 	if ((tbuf=(char *) malloc(msg->txtlen + 1)) == 0)
 		errx(1, "Out of memory!");
-	memcpy(tbuf, msg->seekadr, msg->txtlen + 1);   /* Room to null */
+	memcpy(tbuf, msg->seekadr, (u_int)msg->txtlen + 1);   /* Room to null */
 	s = tbuf;
 
 	nonfirst=0;
@@ -538,7 +541,7 @@ int skip;       /* assumes object 1 doesn't have prop 1, obj 2 no prop 2 &c*/
 	{       tape=iotape;            /* restart decryption tape      */
 		for (numst=s; (*s^= *tape++)!=TAB; s++); /* get number  */
 
-		save = *s; /* Temporarily trash the string (cringe) */
+		ps_save = *s; /* Temporarily trash the string (cringe) */
 		*s++ = 0; /* decrypting number within the string          */
 
 		if (atoi(numst) != 100 * skip && skip >= 0)

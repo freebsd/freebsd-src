@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+int
 fight(enemy,strength)
 int enemy,strength;
 {
@@ -49,7 +50,7 @@ int enemy,strength;
 	char auxbuf[LINELENGTH];
 	char *next;
 	int i;
-	int exhaustion;
+	int exhaustion = 0;
 
 fighton:
 	gtime++;
@@ -58,7 +59,7 @@ fighton:
 		exhaustion = CYCLE/(snooze - gtime);
 	else {
 		puts("You collapse exhausted, and he pulverizes your skull.");
-		die();
+		die(0);
 	}
 	if (snooze - gtime < 20)
 		puts("You look tired! I hope you're able to fight.");
@@ -178,7 +179,7 @@ fighton:
 						puts("his power grows and the walls of\nthe earth tremble.");
 						puts("When he touches the medallion, your chest explodes and the foundations of the\nearth collapse.");
 						puts("The planet is consumed by darkness.");
-						die();
+						die(0);
 					}
 					if (testbit(inven,AMULET)){
 						clearbit(inven,AMULET);
@@ -195,22 +196,23 @@ fighton:
 				}
 				else{
 					puts("I'm afraid you have been killed.");
-					die();
+					die(0);
 				}
 			}
 			else{
 				puts("You escape stunned and disoriented from the fight.");
 				puts("A victorious bellow echoes from the battlescene.");
 				if (back && position != back)
-					move(back,BACK);
+					battlestar_move(back,BACK);
 				else if (ahead &&position != ahead)
-					move(ahead,AHEAD);
+					battlestar_move(ahead,AHEAD);
 				else if (left && position != left)
-					move(left,LEFT);
+					battlestar_move(left,LEFT);
 				else if (right && position != right)
-					move(right,RIGHT);
+					battlestar_move(right,RIGHT);
 				else
-					move(location[position].down,AHEAD);
+					battlestar_move(location[position].down,
+							AHEAD);
 				return(0);
 			}
 
@@ -266,7 +268,7 @@ fighton:
 		puts("You emerge unscathed.");
 	if (injuries[SKULL] && injuries[INCISE] && injuries[NECK]){
 		puts("I'm afraid you have suffered fatal injuries.");
-		die();
+		die(0);
 	}
 	goto fighton;
 }

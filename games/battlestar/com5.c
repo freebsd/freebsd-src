@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+void
 kiss()
 {
 	while (wordtype[++wordnumber] != NOUNS && wordnumber <= wordcount);
@@ -80,6 +81,7 @@ kiss()
 	else	puts("I'd prefer not to.");
 }
 
+void
 love()
 {
 	int n;
@@ -125,6 +127,7 @@ love()
 	else puts("I't doesn't seem to work.");
 }
 
+int
 zzz()
 {
 	int oldtime;
@@ -180,6 +183,7 @@ zzz()
 	return(1);
 }
 
+void
 chime()
 {
 	if ((gtime / CYCLE + 1) % 2 && OUTSIDE)
@@ -234,9 +238,11 @@ chime()
 		puts("I can't tell the time in here.");
 }
 
+int
 give()
 {
-	int obj = -1, result = -1, person = 0, firstnumber, last1, last2;
+	int obj = -1, result = -1, person = 0, firstnumber;
+	int last1 = 0, last2 = 0;
 
 	firstnumber = wordnumber;
 	while (wordtype[++wordnumber] != OBJECT  && wordvalue[wordnumber] != AMULET && wordvalue[wordnumber] != MEDALION && wordvalue[wordnumber] != TALISMAN && wordnumber <= wordcount);
@@ -293,10 +299,10 @@ give()
 					godready += 3;
 				}
 				if (obj == AMULET || obj == MEDALION || obj == TALISMAN){
-					win++;
+					bs_win++;
 					ego += 5;
 					power -= 5;
-					if (win >= 3){
+					if (bs_win >= 3){
 						puts("The powers of the earth are now legitimate.  You have destroyed the Darkness");
 						puts("and restored the goddess to her thrown.  The entire island celebrates with");
 						puts("dancing and spring feasts.  As a measure of her gratitude, the goddess weds you");

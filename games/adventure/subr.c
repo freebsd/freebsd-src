@@ -48,7 +48,7 @@ static const char rcsid[] =
 
 #include <stdio.h>
 #include <string.h>
-# include "hdr.h"
+#include "hdr.h"
 
 static void badmove (void);
 static int bitset (int,int);

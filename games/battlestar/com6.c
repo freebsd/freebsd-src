@@ -39,9 +39,13 @@ static const char rcsid[] =
  "$FreeBSD$";
 #endif /* not lint */
 
+#include <signal.h>
 #include "externs.h"
 #include "pathnames.h"
 
+static void post __P((unsigned int ch));
+
+int
 launch()
 {
 	if (testbit(location[position].objects,VIPER) && !notes[CANTLAUNCH]){
@@ -63,6 +67,7 @@ launch()
 	 return(0);
 }
 
+int
 land()
 {
 	if (notes[LAUNCHED] && testbit(location[position].objects,LAND) && location[position].down){
@@ -79,13 +84,17 @@ land()
 	return(0);
 }
 
-die() 		/* endgame */
+void
+die(sig)	/* endgame */
+	int sig;
 {
+	sig = 0;
 	printf("bye.\nYour rating was %s.\n", rate());
 	post(' ');
 	exit(0);
 }
 
+void
 live()
 {
 	puts("\nYou win!");
@@ -97,14 +106,16 @@ live()
 
 static FILE *score_fp;
 
+void
 open_score_file()
 {
 	if ((score_fp = fopen(_PATH_SCORE,"a")) == NULL)
 		perror(_PATH_SCORE);
 }
 
+static void
 post(ch)
-char ch;
+unsigned int ch;
 {
 	struct timeval tv;
 	char *date;
@@ -169,6 +180,7 @@ rate()
 	}
 }
 
+int
 drive()
 {
 	if (testbit(location[position].objects,CAR)){
@@ -186,6 +198,7 @@ drive()
 	return(-1);
 }
 
+int
 ride()
 {
 	if (testbit(location[position].objects,HORSE)){
@@ -208,6 +221,7 @@ ride()
 	return(-1);
 }
 
+void
 light()		/* synonyms = {strike, smoke} */
 {		/* for matches, cigars */
 	if (testbit(inven,MATCHES) && matchcount){
@@ -217,7 +231,7 @@ light()		/* synonyms = {strike, smoke} */
 		matchcount--;
 		if (position == 217){
 			puts("The whole bungalow explodes with an intense blast.");
-			die();
+			die(0);
 		}
 	}
 	else puts("You're out of matches.");
