@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.55 1995/03/24 00:16:24 jkh Exp $
+#	$Id: rc,v 1.56 1995/03/26 18:18:58 wpaul Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -127,54 +127,54 @@ vidadjust=NO
 [ "X${kbdadjust}" != X"NO" -o "X${vidadjust}" != X"NO" -o \
 	"X${saver}" != X"NO" ] && echo "starting syscons:"
 
-[ "X${kbdadjust}" != X"NO" ] && echo "kbdcontrol: "
+[ "X${kbdadjust}" != X"NO" ] && echo -n " kbdcontrol:"
 
 # keymap
 if [ "X${keymap}" != X"NO" ]; then
-	echo -n "keymap "
+	echo -n " keymap"
 	kbdcontrol -l ${keymap}
 fi
 
 # keyrate
 if [ "X${keyrate}" != X"NO" ]; then
-	echo -n "keyrate "
+	echo -n " keyrate"
 	kbdcontrol -r ${keyrate}
 fi
 
 [ "X${kbdadjust}" != X"NO" ] && echo
-[ "X${vidadjust}" != X"NO" ] && echo "vidcontrol: "
+[ "X${vidadjust}" != X"NO" ] && echo -n " vidcontrol:"
 
 # screen mapping
 if [ "X${scrnmap}" != X"NO" ]; then
-	echo -n "screen_map "
+	echo -n " screen_map"
 	vidcontrol -l ${scrnmap}
 fi
 
 # font 8x16
 if [ "X${font8x16}" != X"NO" ]; then
-	echo -n "font8x16 "
+	echo -n " font8x16"
 	vidcontrol -f 8x16 ${font8x16}
 fi
 
 # font 8x14
 if [ "X${font8x14}" != X"NO" ]; then
-	echo -n "font8x14 "
+	echo -n " font8x14"
 	vidcontrol -f 8x14 ${font8x14}
 fi
 
 # font 8x8
 if [ "X${font8x8}" != X"NO" ]; then
-	echo -n "font8x8 "
+	echo -n " font8x8"
 	vidcontrol -f 8x8 ${font8x8}
 fi
 
 # blank time
 if [ "X${blanktime}" != X"NO" ]; then
-	echo -n "blank_time "
+	echo -n " blank_time"
 	vidcontrol -t ${blanktime}
 fi
 
-[ "X${vidadjust}" != X"NO" ] && echo
+[ "X${vidadjust}" != X"NO" ] && echo "."
 
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
@@ -187,6 +187,7 @@ fi
 
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
+	echo "Enabling ibcs2 emulation."
 	ibcs2
 fi
 
