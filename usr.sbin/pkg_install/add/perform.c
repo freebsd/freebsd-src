@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26.2.6 1995/10/31 20:35:16 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.7 1995/11/03 02:54:57 jkh Exp $";
 #endif
 
 /*
@@ -223,7 +223,7 @@ pkg_do(char *pkg)
 	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
-	    if (!Fake && !isURL(pkg)) {
+	    if (!Fake && !isURL(pkg) && !getenv("PKG_ADD_BASE")) {
 		snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
 		if (fexists(path))
 		    cp = path;
@@ -242,14 +242,19 @@ pkg_do(char *pkg)
 	    else if (!Fake && (cp = fileGetURL(pkg, p->name)) != NULL) {
 		if (Verbose)
 		    printf("Finished loading %s over FTP.\n", p->name);
-		if (!Fake && (!fexists("+CONTENTS") || vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S"),
-			      Verbose ? "-v " : "")) {
-		    whinge("Autoload of dependency `%s' failed%s", p->name, Force ? " (proceeding anyway)" : "!");
-		    if (!Force)
-			++code;
+		if (!Fake) {
+		    if (!fexists("+CONTENTS"))
+			whinge("Autoloaded package %s has no +CONTENTS file?", p->name);
+		    else
+			if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S", Verbose ? "-v " : "")) {
+			    whinge("pkg_add of dependency `%s' failed%s",
+				   p->name, Force ? " (proceeding anyway)" : "!");
+			    if (!Force)
+				++code;
+			}
+			else if (Verbose)
+			    printf("\t`%s' loaded successfully.\n", p->name);
 		}
-		else if (Verbose)
-		    printf("\t`%s' loaded successfully.\n", p->name);
 		/* Nuke the temporary playpen */
 		leave_playpen(cp);
 	    }

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.14 1995/07/28 01:50:35 ache Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.13.4.1 1995/08/30 07:50:02 jkh Exp $";
 #endif
 
 /*
@@ -287,18 +287,15 @@ write_plist(Package *pkg, FILE *fp)
 	    break;
 
 	case PLIST_CHMOD:
-	    fprintf(fp, "%cmode %s\n", CMD_CHAR,
-		    plist->name ? plist->name : "");
+	    fprintf(fp, "%cmode %s\n", CMD_CHAR, plist->name ? plist->name : "");
 	    break;
 
 	case PLIST_CHOWN:
-	    fprintf(fp, "%cowner %s\n", CMD_CHAR,
-		    plist->name ? plist->name : "");
+	    fprintf(fp, "%cowner %s\n", CMD_CHAR, plist->name ? plist->name : "");
 	    break;
 
 	case PLIST_CHGRP:
-	    fprintf(fp, "%cgroup %s\n", CMD_CHAR,
-		    plist->name ? plist->name : "");
+	    fprintf(fp, "%cgroup %s\n", CMD_CHAR, plist->name ? plist->name : "");
 	    break;
 
 	case PLIST_COMMENT:
@@ -355,6 +352,8 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
     char *Where = ".", *last_file = "";
     Boolean fail = SUCCESS;
 
+    if (!p)
+	return FAIL;
     while (p) {
 	if (p->type == PLIST_CWD) {
 	    Where = p->name;
@@ -378,14 +377,18 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    char full_name[FILENAME_MAX];
 
 	    sprintf(full_name, "%s/%s", Where, p->name);
-	    if (Verbose)
-		printf("Delete%s %s\n",
-		       p->type == PLIST_FILE ? "" : " directory", full_name);
+	    if (isdir(full_name) && p->type == PLIST_FILE) {
+		warn("Attempting to delete directory `%s' as a file\n"
+		     "This packing list is incorrect - ignoring delete request.\n", full_name);
+	    }
+	    else {
+		if (Verbose)
+		    printf("Delete %s %s\n", !isdir(full_name) ? "file" : " directory", full_name);
 
-	    if (!Fake && delete_hierarchy(full_name, ign_err,
-					  p->type == PLIST_DIR_RM ? FALSE : nukedirs)) {
-		whinge("Unable to completely remove file '%s'", full_name);
-		fail = FAIL;
+		if (!Fake && delete_hierarchy(full_name, ign_err, p->type == PLIST_DIR_RM ? FALSE : nukedirs)) {
+		    whinge("Unable to completely remove file '%s'", full_name);
+		    fail = FAIL;
+		}
 	    }
 	    last_file = p->name;
 	}
@@ -411,8 +414,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
     cp1 = cp2 = dir;
     if (!fexists(dir)) {
 	if (!ign_err)
-	    whinge("%s `%s' doesn't really exist.",
-		   isdir(dir) ? "Directory" : "File", dir);
+	    whinge("%s `%s' doesn't really exist.", isdir(dir) ? "Directory" : "File", dir);
     } else if (nukedirs) {
 	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
 	    return 1;

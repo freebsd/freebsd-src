@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.10.4.6 1995/10/15 14:08:40 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10.4.7 1995/10/31 20:35:20 jkh Exp $";
 #endif
 
 /*
@@ -174,7 +174,7 @@ fileGetURL(char *base, char *spec)
 {
     char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
     char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp, *tmp;
-    char fname[511];
+    char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
     struct passwd *pw;
     FTP_t ftp;
@@ -182,39 +182,40 @@ fileGetURL(char *base, char *spec)
     int fd, fd2, i, len = 0;
     char ch;
     time_t start, stop;
+    char *hint;
 
     rp = NULL;
+    /* Special tip that sysinstall left for us */
+    hint = getenv("PKG_ADD_BASE");
     if (!isURL(spec)) {
 	int len;
 
-	if (!base)
+	if (!base && !hint)
 	    return NULL;
 	/* We've been given an existing URL (that's known-good) and now we need
 	   to construct a composite one out of that and the basename we were
 	   handed as a dependency. */
-	strncpy(fname, base, 511);
-	fname[511] = '\0';
-	cp = strrchr(fname, '/');
-	if (cp) {
-	    *cp = '\0';	/* Eliminate the filename portion */
-	    len = strlen(fname);
-	    /* Special case for the all category */
-	    if (len > 3 && !strcmp(cp - 3, "All"))
-		sprintf(cp, "/%s", spec);
-	    else {
-		/* Replace category with All */
-		if ((cp = strrchr(fname, '/')) != NULL) {
-		    strcat(cp + 1, "All/");
-		    strcat(cp + 4, spec);
-		}
-		else {
-		    strcat(fname, "All/");
-		    strcat(fname, spec);
-		}
+	if (base) {
+	    strcpy(fname, base);
+	    /* Advance back two slashes to get to the root of the package hierarchy */
+	    cp = strrchr(fname, '/');
+	    if (cp) {
+		*cp = '\0';	/* chop name */
+		cp = strrchr(fname, '/');
 	    }
+	    if (cp) {
+		*(cp + 1) = '\0';
+		strcat(cp, "All/");
+		strcat(cp, spec);
+	    }
+	    else
+		return NULL;
 	}
-	else
-	    return NULL;
+	else {
+	    /* Otherwise, we've been given an environment variable hinting at the right location from sysinstall */
+	    strcpy(fname, hint);
+	    strcat(fname, spec);
+	}
     }
     else
 	strcpy(fname, spec);
@@ -298,7 +299,6 @@ fileFindByPath(char *base, char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
-    int len;
 
     if (fexists(fname) && isfile(fname)) {
 	strcpy(tmp, fname);
@@ -306,28 +306,19 @@ fileFindByPath(char *base, char *fname)
     }
     if (base) {
 	strcpy(tmp, base);
-	cp = strchr(tmp, '/');
-	len = strlen(tmp);
 
+	cp = strrchr(fname, '/');
 	if (cp) {
-	    /* Special case for the all category */
-	    if (len > 3 && !strncmp(cp - 3, "All/", 4))
-		strcat(cp + 1, fname);
-	    else {
-		*cp = '\0';
-		/* Replace category with All */
-		if ((cp = strrchr(tmp, '/')) != NULL) {
-		    strcat(cp + 1, "All/");
-		    strcat(cp, fname);
-		}
-		else {
-		    strcat(tmp, "All/");
-		    strcat(tmp, fname);
-		}
-	    }
+	    *cp = '\0';	/* chop name */
+	    cp = strrchr(fname, '/');
 	}
-	if (fexists(tmp))
-	    return tmp;
+	if (cp) {
+	    *(cp + 1) = '\0';
+	    strcat(cp, "All/");
+	    strcat(cp, fname);
+	    if (fexists(tmp))
+		return tmp;
+	}
     }
 
     cp = getenv("PKG_PATH");
