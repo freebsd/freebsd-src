@@ -144,6 +144,8 @@
 #define	IA64_ID_PAGE_SIZE	(1<<(LOG2_ID_PAGE_SIZE))
 #define	IA64_ID_PAGE_MASK	(IA64_ID_PAGE_SIZE-1)
 
+#define	IA64_BACKINGSTORE	IA64_RR_BASE(4)
+
 /*
  * Mach derived constants
  */
