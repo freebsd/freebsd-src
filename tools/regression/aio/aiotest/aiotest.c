@@ -689,5 +689,9 @@ main(int argc, char *argv[])
 	aio_unix_socketpair_test();
 	aio_pty_test();
 	aio_pipe_test();
-	aio_md_test();
+	if (geteuid() == 0)
+		aio_md_test();
+	else
+		fprintf(stderr, "WARNING: aio_md_test: skipped as euid "
+		    "!= 0\n");
 }
