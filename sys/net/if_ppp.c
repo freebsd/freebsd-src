@@ -1472,13 +1472,10 @@ ppp_inproc(sc, m)
 	m->m_pkthdr.len -= PPP_HDRLEN;
 	m->m_data += PPP_HDRLEN;
 	m->m_len -= PPP_HDRLEN;
-	if (ipflow_fastforward(m)) {
-	    sc->sc_last_recv = time_second;
+	if (ipflow_fastforward(m))
 	    return;
-	}
 	schednetisr(NETISR_IP);
 	inq = &ipintrq;
-	sc->sc_last_recv = time_second;	/* update time of last pkt rcvd */
 	break;
 #endif
 #ifdef IPX
