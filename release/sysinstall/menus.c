@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.9 1995/09/25 01:20:48 jkh Exp $
+ * $Id: menus.c,v 1.42.2.10 1995/09/29 05:17:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,8 @@ option by pressing [ENTER].",		/* prompt */
 	DMENU_CALL,		&installExpress, 0, 0		},
       { "Fixit",		"Mount fixit floppy and go into repair mode",
 	DMENU_CALL,		&installFixit, 0, 0		},
+      { "Configure",		"Do post-install configuration of FreeBSD",
+	DMENU_SUBMENU,		&MenuConfigure, 0, 0		},
       { "Quit",			"Exit this menu (and the installation)",	/* Q */
 	DMENU_CANCEL,		NULL, 0, 0			},
       { NULL } },
@@ -89,7 +91,7 @@ consult the README file.",
     "Confused?  Press F1 for help.",
     "usage",
     { { "README",		"Read this for a general description of FreeBSD",
-	DMENU_DISPLAY_FILE,	"README", 0, 0		},
+	DMENU_DISPLAY_FILE,	"readme", 0, 0		},
       { "Hardware",		"The FreeBSD survival guide for PC hardware.",
 	DMENU_DISPLAY_FILE,	"hardware", 0, 0	},
       { "Install",		"A step-by-step guide to installing FreeBSD.",
@@ -97,7 +99,7 @@ consult the README file.",
       { "Copyright",		"The FreeBSD Copyright notices.",
 	DMENU_DISPLAY_FILE,	"COPYRIGHT", 0, 0	},
       { "Release",		"The release notes for this version of FreeBSD.",
-	DMENU_DISPLAY_FILE,	"RELNOTES", 0, 0	},
+	DMENU_DISPLAY_FILE,	"relnotes", 0, 0	},
       { "Exit",			"Exit this menu (returning to previous)",
 	DMENU_CANCEL,		NULL, 0, 0		},
       { NULL } },
@@ -362,7 +364,7 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
 	DMENU_SET_FLAG,	&Dists, DIST_PROFLIBS, 0, dmenuFlagCheck	},
       { "src",		"Sources for everything but DES [120MB]",
 	DMENU_CALL,	distSetSrc, 0, 0, srcFlagCheck			},
-      { "XFree86",	"The XFree86 3.1.1u1 distribution [?]",
+      { "XFree86",	"The XFree86 3.2 distribution [?]",
 	DMENU_CALL,	distSetXF86, 0, 0, x11FlagCheck			},
       { "Experimental",	"Work in progress!",
 	DMENU_SET_FLAG,	&Dists, DIST_EXPERIMENTAL, 0, dmenuFlagCheck	},
@@ -442,8 +444,8 @@ clearx11(char *str)
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.1.1u1 Distribution",
-    "Please select the components you need from the XFree86 3.1.1u1\n\
+    "XFree86 3.2 Distribution",
+    "Please select the components you need from the XFree86 3.2\n\
 distribution.  We recommend that you select what you need from the basic\n\
 components set and at least one entry from the Server and Font set menus.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
@@ -485,7 +487,7 @@ DMenu MenuXF86SelectCore = {
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0, dmenuFlagCheck		},
       { "pex",		"PEX fonts and libs needed by PEX apps [500K]",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0, dmenuFlagCheck		},
-      { "sources",	"XFree86 3.1.1u1 standard + contrib sources [200MB]",
+      { "sources",	"XFree86 3.2 standard + contrib sources [200MB]",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_SRC, 0, dmenuFlagCheck		},
       { NULL } },
 };
@@ -659,8 +661,6 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
 	DMENU_SUBMENU, &MenuOptions, 0, 0			},
       { "Commit",	"Perform any pending Partition/Label/Extract actions",
 	DMENU_CALL,	installCommit, 0, 0			},
-      { "Configure",	"Do post-install configuration of FreeBSD",
-	DMENU_SUBMENU,	&MenuConfigure, 0, 0			},
       { "Exit",		"Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
