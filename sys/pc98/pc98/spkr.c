@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.15 1999/05/30 16:53:23 phk Exp $
+ *    $Id: spkr.c,v 1.16 1999/05/31 11:28:40 phk Exp $
  */
 
 /*
@@ -513,7 +513,7 @@ spkropen(dev, flags, fmt, p)
 	struct proc	*p;
 {
 #ifdef DEBUG
-    (void) printf("spkropen: entering with dev = %x\n", dev);
+    (void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
@@ -539,8 +539,8 @@ spkrwrite(dev, uio, ioflag)
 	int		ioflag;
 {
 #ifdef DEBUG
-    printf("spkrwrite: entering with dev = %x, count = %d\n",
-		dev, uio->uio_resid);
+    printf("spkrwrite: entering with dev = %s, count = %d\n",
+		devtoname(dev), uio->uio_resid);
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
@@ -572,7 +572,7 @@ spkrclose(dev, flags, fmt, p)
 	struct proc	*p;
 {
 #ifdef DEBUG
-    (void) printf("spkrclose: entering with dev = %x\n", dev);
+    (void) printf("spkrclose: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
     if (minor(dev) != 0)
