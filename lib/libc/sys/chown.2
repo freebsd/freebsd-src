@@ -68,7 +68,9 @@ but the change
 .Fa owner
 capability is restricted to the super-user.
 .Pp
-.Fn Chown
+The
+.Fn chown
+function
 clears the set-user-id and set-group-id bits
 on the file
 to prevent accidental or mischievous creation of
@@ -78,13 +80,16 @@ by the super-user.
 follows symbolic links to operate on the target of the link
 rather than the link itself.
 .Pp
-.Fn Fchown
+The
+.Fn fchown
+function
 is particularly useful when used in conjunction
 with the file locking primitives (see
 .Xr flock 2 ) .
 .Pp
-.Fn Lchown
-is similar to
+The
+.Fn lchown
+function is similar to
 .Fn chown
 but does not follow symbolic links.
 .Pp
@@ -93,7 +98,8 @@ may be left unchanged by specifying it as -1.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Chown
+The
+.Fn chown
 and
 .Fn lchown
 will fail and the file will be unchanged if:
@@ -120,8 +126,9 @@ points outside the process's allocated address space.
 An I/O error occurred while reading from or writing to the file system.
 .El
 .Pp
-.Fn Fchown
-will fail if:
+The
+.Fn fchown
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa fd
