@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.214 1999/07/26 06:25:17 alc Exp $
+ * $Id: vfs_subr.c,v 1.215 1999/08/08 18:42:49 phk Exp $
  */
 
 /*
@@ -1331,7 +1331,7 @@ loop:
 		 */
 		nvp->v_specnext = *vpp;
 		*vpp = nvp;
-		nvp->v_specinfo = sinfo = dev;
+		nvp->v_rdev = sinfo = dev;
 
 		simple_unlock(&spechash_slock);
 		if (vp != NULLVP) {
@@ -1888,7 +1888,7 @@ vgonel(vp, p)
 	 * If special device, remove it from special device alias list
 	 * if it is on one.
 	 */
-	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_specinfo != 0) {
+	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != 0) {
 		simple_lock(&spechash_slock);
 		if (vp->v_hashchain == vp) {
 			vp->v_hashchain = vp->v_specnext;
@@ -1918,7 +1918,7 @@ vgonel(vp, p)
 			vp->v_flag &= ~VALIASED;
 		}
 		simple_unlock(&spechash_slock);
-		vp->v_specinfo = NULL;
+		vp->v_rdev = NULL;
 	}
 
 	/*
