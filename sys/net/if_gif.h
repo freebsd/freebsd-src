@@ -69,7 +69,7 @@ struct gif_softc {
 	const struct encaptab *encap_cookie4;
 	const struct encaptab *encap_cookie6;
 	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */
-	LIST_ENTRY(gif_softc) gif_link; /* all gif's are linked */
+	LIST_ENTRY(gif_softc) gif_list; /* all gif's are linked */
 };
 
 #define gif_ro gifsc_gifscr.gifscr_ro
@@ -82,10 +82,14 @@ struct gif_softc {
 #define	GIF_MTU_MAX	(8192)	/* Maximum MTU */
 
 /* Prototypes */
+void gifattach0(struct gif_softc *);
 void gif_input(struct mbuf *, int, struct ifnet *);
 int gif_output(struct ifnet *, struct mbuf *, struct sockaddr *,
 	       struct rtentry *);
 int gif_ioctl(struct ifnet *, u_long, caddr_t);
+int gif_set_tunnel(struct ifnet *, struct sockaddr *, struct sockaddr *);
+void gif_delete_tunnel(struct ifnet *);
+int gif_encapcheck(const struct mbuf *, int, int, void *);
 
 #endif /* _KERNEL */
 

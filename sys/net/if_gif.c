@@ -98,29 +98,6 @@ struct if_clone gif_cloner = IF_CLONE_INITIALIZER("gif",
     gif_clone_create, gif_clone_destroy, 0, IF_MAXUNIT);
 
 static int gifmodevent(module_t, int, void *);
-void gif_delete_tunnel(struct gif_softc *);
-static int gif_encapcheck(const struct mbuf *, int, int, void *);
-
-#ifdef INET
-extern  struct domain inetdomain;
-struct protosw in_gif_protosw =
-{ SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
-  in_gif_input,	(pr_output_t*)rip_output, 0,		rip_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
-};
-#endif
-#ifdef INET6
-extern  struct domain inet6domain;
-struct ip6protosw in6_gif_protosw =
-{ SOCK_RAW,	&inet6domain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
-  in6_gif_input, rip6_output,	0,		rip6_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &rip6_usrreqs
-};
-#endif
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
@@ -167,30 +144,20 @@ gif_clone_create(ifc, unit)
 	sc->gif_if.if_name = GIFNAME;
 	sc->gif_if.if_unit = unit;
 
-	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
-#ifdef INET
-	sc->encap_cookie4 = encap_attach_func(AF_INET, -1,
-	    gif_encapcheck, (struct protosw*)&in_gif_protosw, sc);
-	if (sc->encap_cookie4 == NULL) {
-		printf("%s: unable to attach encap4\n", if_name(&sc->gif_if));
-		free(sc, M_GIF);
-		return (EIO);	/* XXX */
-	}
-#endif
-#ifdef INET6
-	sc->encap_cookie6 = encap_attach_func(AF_INET6, -1,
-	    gif_encapcheck, (struct protosw *)&in6_gif_protosw, sc);
-	if (sc->encap_cookie6 == NULL) {
-		if (sc->encap_cookie4) {
-			encap_detach(sc->encap_cookie4);
-			sc->encap_cookie4 = NULL;
-		}
-		printf("%s: unable to attach encap6\n", if_name(&sc->gif_if));
-		free(sc, M_GIF);
-		return (EIO);	/* XXX */
-	}
-#endif
+	gifattach0(sc);
 
+	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_list);
+	return (0);
+}
+
+void
+gifattach0(sc)
+	struct gif_softc *sc;
+{
+
+	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
+
+	sc->gif_if.if_addrlen = 0;
 	sc->gif_if.if_mtu    = GIF_MTU;
 	sc->gif_if.if_flags  = IFF_POINTOPOINT | IFF_MULTICAST;
 #if 0
@@ -205,8 +172,6 @@ gif_clone_create(ifc, unit)
 	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
 	if (ng_gif_attach_p != NULL)
 		(*ng_gif_attach_p)(&sc->gif_if);
-	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_link);
-	return (0);
 }
 
 void
@@ -216,16 +181,20 @@ gif_clone_destroy(ifp)
 	int err;
 	struct gif_softc *sc = ifp->if_softc;
 
-	gif_delete_tunnel(sc);
-	LIST_REMOVE(sc, gif_link);
-	if (sc->encap_cookie4 != NULL) {
-		err = encap_detach(sc->encap_cookie4);
-		KASSERT(err == 0, ("Unexpected error detaching encap_cookie4"));
-	}
+	gif_delete_tunnel(&sc->gif_if);
+	LIST_REMOVE(sc, gif_list);
+#ifdef INET6
 	if (sc->encap_cookie6 != NULL) {
 		err = encap_detach(sc->encap_cookie6);
 		KASSERT(err == 0, ("Unexpected error detaching encap_cookie6"));
 	}
+#endif
+#ifdef INET
+	if (sc->encap_cookie4 != NULL) {
+		err = encap_detach(sc->encap_cookie4);
+		KASSERT(err == 0, ("Unexpected error detaching encap_cookie4"));
+	}
+#endif
 
 	if (ng_gif_detach_p != NULL)
 		(*ng_gif_detach_p)(ifp);
@@ -275,7 +244,7 @@ static moduledata_t gif_mod = {
 DECLARE_MODULE(if_gif, gif_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_gif, 1);
 
-static int
+int
 gif_encapcheck(m, off, proto, arg)
 	const struct mbuf *m;
 	int off;
@@ -321,6 +290,8 @@ gif_encapcheck(m, off, proto, arg)
 #endif
 #ifdef INET6
 	case 6:
+		if (m->m_pkthdr.len < sizeof(struct ip6_hdr))
+			return 0;
 		if (sc->gif_psrc->sa_family != AF_INET6 ||
 		    sc->gif_pdst->sa_family != AF_INET6)
 			return 0;
@@ -520,12 +491,10 @@ gif_ioctl(ifp, cmd, data)
 	struct ifreq     *ifr = (struct ifreq*)data;
 	int error = 0, size;
 	struct sockaddr *dst, *src;
-	struct sockaddr *sa;
-	struct ifnet *ifp2;
-	struct gif_softc *sc2;
 		
 	switch (cmd) {
 	case SIOCSIFADDR:
+		ifp->if_flags |= IFF_UP;
 		break;
 		
 	case SIOCSIFDSTADDR:
@@ -578,9 +547,9 @@ gif_ioctl(ifp, cmd, data)
 				&(((struct if_laddrreq *)data)->addr);
 			dst = (struct sockaddr *)
 				&(((struct if_laddrreq *)data)->dstaddr);
+			break;
 		default:
-			error = EADDRNOTAVAIL;
-			goto bad;
+			return EINVAL;
 		}
 
 		/* sa_family must be equal */
@@ -638,80 +607,12 @@ gif_ioctl(ifp, cmd, data)
 			break;
 		}
 
-		TAILQ_FOREACH(ifp2, &ifnet, if_link) {
-			if (strcmp(ifp2->if_name, GIFNAME) != 0)
-				continue;
-			sc2 = ifp2->if_softc;
-			if (sc2 == sc)
-				continue;
-			if (!sc2->gif_pdst || !sc2->gif_psrc)
-				continue;
-			if (sc2->gif_pdst->sa_family != dst->sa_family ||
-			    sc2->gif_pdst->sa_len != dst->sa_len ||
-			    sc2->gif_psrc->sa_family != src->sa_family ||
-			    sc2->gif_psrc->sa_len != src->sa_len)
-				continue;
-
-			/*
-			 * Disallow parallel tunnels unless instructed
-			 * otherwise.
-			 */
-			if (!parallel_tunnels &&
-			    bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
-			    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
-				error = EADDRNOTAVAIL;
-				goto bad;
-			}
-
-			/* can't configure multiple multi-dest interfaces */
-#define multidest(x) \
-	(((struct sockaddr_in *)(x))->sin_addr.s_addr == INADDR_ANY)
-#ifdef INET6
-#define multidest6(x) \
-	(IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)(x))->sin6_addr))
-#endif
-			if (dst->sa_family == AF_INET &&
-			    multidest(dst) && multidest(sc2->gif_pdst)) {
-				error = EADDRNOTAVAIL;
-				goto bad;
-			}
-#ifdef INET6
-			if (dst->sa_family == AF_INET6 &&
-			    multidest6(dst) && multidest6(sc2->gif_pdst)) {
-				error = EADDRNOTAVAIL;
-				goto bad;
-			}
-#endif
-		}
-
-		if (sc->gif_psrc)
-			free((caddr_t)sc->gif_psrc, M_IFADDR);
-		sa = (struct sockaddr *)malloc(src->sa_len, M_IFADDR, M_WAITOK);
-		bcopy((caddr_t)src, (caddr_t)sa, src->sa_len);
-		sc->gif_psrc = sa;
-
-		if (sc->gif_pdst)
-			free((caddr_t)sc->gif_pdst, M_IFADDR);
-		sa = (struct sockaddr *)malloc(dst->sa_len, M_IFADDR, M_WAITOK);
-		bcopy((caddr_t)dst, (caddr_t)sa, dst->sa_len);
-		sc->gif_pdst = sa;
-
-		ifp->if_flags |= IFF_RUNNING;
-
-		error = 0;
+		error = gif_set_tunnel(&sc->gif_if, src, dst);
 		break;
 
 #ifdef SIOCDIFPHYADDR
 	case SIOCDIFPHYADDR:
-		if (sc->gif_psrc) {
-			free((caddr_t)sc->gif_psrc, M_IFADDR);
-			sc->gif_psrc = NULL;
-		}
-		if (sc->gif_pdst) {
-			free((caddr_t)sc->gif_pdst, M_IFADDR);
-			sc->gif_pdst = NULL;
-		}
-		/* change the IFF_{UP, RUNNING} flag as well? */
+		gif_delete_tunnel(&sc->gif_if);
 		break;
 #endif
 			
@@ -816,11 +717,122 @@ gif_ioctl(ifp, cmd, data)
 	return error;
 }
 
-void
-gif_delete_tunnel(sc)
-	struct gif_softc *sc;
+int
+gif_set_tunnel(ifp, src, dst)
+	struct ifnet *ifp;
+	struct sockaddr *src;
+	struct sockaddr *dst;
 {
-	/* XXX: NetBSD protects this function with splsoftnet() */
+	struct gif_softc *sc = (struct gif_softc *)ifp;
+	struct gif_softc *sc2;
+	struct sockaddr *osrc, *odst, *sa;
+	int s;
+	int error = 0; 
+
+	s = splnet();
+
+	LIST_FOREACH(sc2, &gif_softc_list, gif_list) {
+		if (sc2 == sc)
+			continue;
+		if (!sc2->gif_pdst || !sc2->gif_psrc)
+			continue;
+		if (sc2->gif_pdst->sa_family != dst->sa_family ||
+		    sc2->gif_pdst->sa_len != dst->sa_len ||
+		    sc2->gif_psrc->sa_family != src->sa_family ||
+		    sc2->gif_psrc->sa_len != src->sa_len)
+			continue;
+
+		/*
+		 * Disallow parallel tunnels unless instructed
+		 * otherwise.
+		 */
+		if (!parallel_tunnels &&
+		    bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
+		    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
+			error = EADDRNOTAVAIL;
+			goto bad;
+		}
+
+		/* XXX both end must be valid? (I mean, not 0.0.0.0) */
+	}
+
+	/* XXX we can detach from both, but be polite just in case */
+	if (sc->gif_psrc)
+		switch (sc->gif_psrc->sa_family) {
+#ifdef INET
+		case AF_INET:
+			(void)in_gif_detach(sc);
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			(void)in6_gif_detach(sc);
+			break;
+#endif
+		}
+
+	osrc = sc->gif_psrc;
+	sa = (struct sockaddr *)malloc(src->sa_len, M_IFADDR, M_WAITOK);
+	bcopy((caddr_t)src, (caddr_t)sa, src->sa_len);
+	sc->gif_psrc = sa;
+
+	odst = sc->gif_pdst;
+	sa = (struct sockaddr *)malloc(dst->sa_len, M_IFADDR, M_WAITOK);
+	bcopy((caddr_t)dst, (caddr_t)sa, dst->sa_len);
+	sc->gif_pdst = sa;
+
+	switch (sc->gif_psrc->sa_family) {
+#ifdef INET
+	case AF_INET:
+		error = in_gif_attach(sc);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		error = in6_gif_attach(sc);
+		break;
+#endif
+	}
+	if (error) {
+		/* rollback */
+		free((caddr_t)sc->gif_psrc, M_IFADDR);
+		free((caddr_t)sc->gif_pdst, M_IFADDR);
+		sc->gif_psrc = osrc;
+		sc->gif_pdst = odst;
+		goto bad;
+	}
+
+	if (osrc)
+		free((caddr_t)osrc, M_IFADDR);
+	if (odst)
+		free((caddr_t)odst, M_IFADDR);
+
+	if (sc->gif_psrc && sc->gif_pdst)
+		ifp->if_flags |= IFF_RUNNING;
+	else
+		ifp->if_flags &= ~IFF_RUNNING;
+	splx(s);
+
+	return 0;
+
+ bad:
+	if (sc->gif_psrc && sc->gif_pdst)
+		ifp->if_flags |= IFF_RUNNING;
+	else
+		ifp->if_flags &= ~IFF_RUNNING;
+	splx(s);
+
+	return error;
+}
+
+void
+gif_delete_tunnel(ifp)
+	struct ifnet *ifp;
+{
+	struct gif_softc *sc = (struct gif_softc *)ifp;
+	int s;
+
+	s = splnet();
 
 	if (sc->gif_psrc) {
 		free((caddr_t)sc->gif_psrc, M_IFADDR);
@@ -830,5 +842,17 @@ gif_delete_tunnel(sc)
 		free((caddr_t)sc->gif_pdst, M_IFADDR);
 		sc->gif_pdst = NULL;
 	}
-	/* change the IFF_UP flag as well? */
+	/* it is safe to detach from both */
+#ifdef INET
+	(void)in_gif_detach(sc);
+#endif
+#ifdef INET6
+	(void)in6_gif_detach(sc);
+#endif
+
+	if (sc->gif_psrc && sc->gif_pdst)
+		ifp->if_flags |= IFF_RUNNING;
+	else
+		ifp->if_flags &= ~IFF_RUNNING;
+	splx(s);
 }
