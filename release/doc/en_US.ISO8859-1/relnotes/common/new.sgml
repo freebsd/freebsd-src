@@ -103,6 +103,10 @@
       been removed.  Similar functionality can be achieved with the
       <varname>net.inet.tcp.blackhole</varname> sysctl
       variable.</para>
+
+      <para>The IPv6 code is now based on a snapshot based on the KAME
+      Project's IPv6 stack as of 28 May, 2001.</para>
+
     </sect3>
 
     <sect3>
