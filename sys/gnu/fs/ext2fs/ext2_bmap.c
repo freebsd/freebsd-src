@@ -198,7 +198,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 			vfs_busy_pages(bp, 0);
 			BUF_STRATEGY(bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
-			error = biowait(bp);
+			error = bufwait(bp);
 			if (error) {
 				brelse(bp);
 				return (error);

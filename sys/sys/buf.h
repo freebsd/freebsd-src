@@ -579,7 +579,7 @@ struct buf *gbincore __P((struct vnode *, daddr_t));
 int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
-int	biowait __P((struct buf *));
+int	bufwait __P((struct buf *));
 void	bufdone __P((struct buf *));
 void	biodone __P((struct bio *));
 

@@ -292,7 +292,7 @@ single_block_read:
 		}
 	}
 	if (reqbp)
-		return (biowait(reqbp));
+		return (bufwait(reqbp));
 	else
 		return (error);
 }
