@@ -235,6 +235,7 @@ x509_sign_ok(arg)
 		break;
 
 	    default:
+		break;
 	    }
 
 	    status = EVP_VerifyFinal(md_ctx,
@@ -282,7 +283,7 @@ retrieve_x509_marker(filename, sign, userid)
 	int sig_len = 4096;
 	unsigned char * sig_buf;
 	EVP_MD_CTX md_ctx;
-	EVP_MD * md_type;
+	const EVP_MD * md_type;
 	EVP_PKEY * pkey;
 
 	char keyfile[PATH_MAX + 1] = KEYFILE;
