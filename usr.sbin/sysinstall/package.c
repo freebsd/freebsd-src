@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.75 1999/05/15 14:34:22 jkh Exp $
+ * $Id: package.c,v 1.76 1999/05/18 00:44:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -218,12 +218,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    i = waitpid(pid, &tot, 0);
 	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
 		ret = DITEM_FAILURE | DITEM_RESTORE;
-		if (variable_get(VAR_NO_CONFIRM))
-		    msgNotify("Add of package %s aborted, error code %d -\n"
-			      "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
-		else
-		    msgConfirm("Add of package %s aborted, error code %d -\n"
-			       "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
+		msgCNotify("Add of package %s aborted, error code %d -\n"
+			   "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
 	    }
 	    else
 		msgNotify("Package %s was added successfully", name);
@@ -237,12 +233,8 @@ package_extract(Device *dev, char *name, Boolean depended)
     }
     else {
 	dialog_clear_norefresh();
-	if (variable_get(VAR_NO_CONFIRM))
-	    msgNotify("Unable to fetch package %s from selected media.\n"
-		      "No package add will be done.", name);
-	else
-	    msgConfirm("Unable to fetch package %s from selected media.\n"
-		       "No package add will be done.", name);
+	msgCNotify("Unable to fetch package %s from selected media.\n"
+		   "No package add will be done.", name);
 	ret = DITEM_FAILURE | DITEM_RESTORE;
     }
     signal(SIGPIPE, SIG_IGN);
