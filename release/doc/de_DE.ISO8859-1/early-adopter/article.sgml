@@ -2,7 +2,7 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.4 2002/11/02 02:12:07 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.5 2002/11/02 12:28:56 mheinen Exp $
   basiert auf: 1.4
 -->
 
@@ -190,7 +190,7 @@
       </listitem>
 
       <listitem>
-	<para>GCC:  Der Compiler und die dazugeh&ouml;irgen Werkzeuge
+	<para>GCC:  Der Compiler und die dazugeh&ouml;rigen Werkzeuge
 	  basieren jetzt auf GCC 3.<replaceable>X</replaceable> und
 	  nicht mehr auf GCC
 	  2.95.<replaceable>X</replaceable>.</para>
@@ -379,7 +379,7 @@
 	von der Verwendung dieser Funktion ab.</para>
 
       <para>Auf i386 und pc98 Systemen kann die Konfiguration von ISA
-	Ger&auml;ten beim Start System mit Werkzeug UserConfig
+	Ger&auml;ten beim Systemstart mit dem Werkzeug UserConfig
 	eingestellt werden, dies gilt auch beim Start von einem
 	Installations-Medium.  Dieses Programm wurde in &os; 5.0 durch
 	&man.device.hints.5; ersetzt; dieses stellt zwar die gleiche
