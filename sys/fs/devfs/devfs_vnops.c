@@ -499,13 +499,13 @@ devfs_readdir(ap)
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
-	off_t off;
+	off_t off, oldoff;
+	int ncookies = 0;
+	u_long *cookiebuf, *cookiep;
+	struct dirent *dps, *dpe;
 
 	if (ap->a_vp->v_type != VDIR)
 		return (ENOTDIR);
-
-	if (ap->a_ncookies)
-		return (EOPNOTSUPP);
 
 	uio = ap->a_uio;
 	if (uio->uio_offset < 0)
@@ -517,6 +517,7 @@ devfs_readdir(ap)
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
+	oldoff = uio->uio_offset;
 	TAILQ_FOREACH(dd, &de->de_dlist, de_list) {
 		if (dd->de_flags & DE_WHITEOUT) 
 			continue;
@@ -529,12 +530,29 @@ devfs_readdir(ap)
 			break;
 		dp->d_fileno = de->de_inode;
 		if (off >= uio->uio_offset) {
+			ncookies++;
 			error = uiomove((caddr_t)dp, dp->d_reclen, uio);
 			if (error)
 				break;
 		}
 		off += dp->d_reclen;
 	}
+	if( !error && ap->a_ncookies != NULL && ap->a_cookies != NULL ) {
+		MALLOC(cookiebuf, u_long *, ncookies * sizeof(u_long),
+                       M_TEMP, M_WAITOK);
+		cookiep = cookiebuf;
+		dps = (struct dirent *) 
+			(uio->uio_iov->iov_base - (uio->uio_offset - oldoff));
+		dpe = (struct dirent *) uio->uio_iov->iov_base;
+		for( dp = dps; 
+			dp < dpe; 
+			dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
+				oldoff += dp->d_reclen;
+				*cookiep++ = (u_long) oldoff;
+		}
+		*ap->a_ncookies = ncookies;
+		*ap->a_cookies = cookiebuf;
+    }
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	uio->uio_offset = off;
 	return (error);
