@@ -8,7 +8,7 @@ SRCS=	cmd_args.c	map_vme.c	ntp_config.c \
 	ntp_control.c	ntp_crypto.c	ntp_filegen.c \
 	ntp_intres.c	ntp_io.c	ntp_loopfilter.c \
 	ntp_monitor.c	ntp_peer.c	ntp_proto.c \
-	ntp_refclock.c	ntp_request.c	ntp_resolver.c \
+	ntp_refclock.c	ntp_request.c \
 	ntp_restrict.c	ntp_timer.c	ntp_util.c \
 	ntpd.c	refclock_acts.c	refclock_arbiter.c \
 	refclock_arc.c	refclock_as2201.c	refclock_atom.c \

@@ -2,7 +2,7 @@
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 /* $FreeBSD$ */
 /* debugging code */
-#define DEBUG 1
+/* #undef DEBUG */
 
 /* Minutes per DST adjustment */
 #define DSTMINUTES 60
@@ -84,6 +84,9 @@
 
 /* Sun IRIG audio decoder */
 /* #undef CLOCK_IRIG */
+
+/* JJY receiver */
+/* #undef CLOCK_JJY */
 
 /* Rockwell Jupiter GPS clock */
 /* #undef CLOCK_JUPITER */
@@ -197,10 +200,14 @@
 /* #undef NEED_HPUX_FINDCONFIG */
 
 /* canonical system (cpu-vendor-os) string */
-#ifdef __alpha__
-#define STR_SYSTEM "alpha-unknown-freebsd"
+#if defined(__alpha__)
+#define STR_SYSTEM "alpha-undermydesk-freebsd"
+#elif defined(__sparc64__)
+#define STR_SYSTEM "sparc64-undermydesk-freebsd"
+#elif defined(__ia64__)
+#define STR_SYSTEM "ia64-undermydesk-freebsd"
 #else
-#define STR_SYSTEM "i386-unknown-freebsd"
+#define STR_SYSTEM "i386-undermydesk-freebsd"
 #endif
 
 /* define if NetInfo support is available */
@@ -219,7 +226,7 @@
 #define HAVE_SA_SIGACTION_IN_STRUCT_SIGACTION 1
 
 /* define if struct clockinfo has tickadj */
-#define HAVE_TICKADJ_IN_STRUCT_CLOCKINFO 1
+/* #undef HAVE_TICKADJ_IN_STRUCT_CLOCKINFO */
 
 /* define if struct ntptimeval uses time.tv_nsec instead of time.tv_usec */
 /* #undef HAVE_TV_NSEC_IN_NTPTIMEVAL */
@@ -409,6 +416,9 @@
 /* hstrerror()? */
 /* #undef DECL_HSTRERROR_0 */
 
+/* inet_ntoa()? */
+/* #undef DECL_INET_NTOA_0 */
+
 /* ioctl()? */
 /* #undef DECL_IOCTL_0 */
 
@@ -488,6 +498,12 @@
 /* Autokey? */
 #define AUTOKEY 
 
+/* TrueTime 560 IRIG-B decoder? */
+/* #undef CLOCK_TT560 */
+
+/* Zyfer GPStarplus */
+/* #undef CLOCK_ZYFER */
+
 /* Define if you have the <arpa/nameser.h> header file. */
 #define HAVE_ARPA_NAMESER_H 1
 
@@ -496,6 +512,9 @@
 
 /* Define if you have the <bstring.h> header file. */
 /* #undef HAVE_BSTRING_H */
+
+/* Define if you have the `clock_gettime' function. */
+#define HAVE_CLOCK_GETTIME 1
 
 /* Define if you have the `clock_settime' function. */
 #define HAVE_CLOCK_SETTIME 1
@@ -523,9 +542,6 @@
 
 /* Define if you have the `getrusage' function. */
 #define HAVE_GETRUSAGE 1
-
-/* Define if you have the `gettimeofday' function. */
-#define HAVE_GETTIMEOFDAY 1
 
 /* Define if you have the `getuid' function. */
 #define HAVE_GETUID 1
@@ -581,6 +597,9 @@
 /* Define if you have the `socket' library (-lsocket). */
 /* #undef HAVE_LIBSOCKET */
 
+/* Define if you have the `syslog' library (-lsyslog). */
+/* #undef HAVE_LIBSYSLOG */
+
 /* Define if you have the <machine/inline.h> header file. */
 /* #undef HAVE_MACHINE_INLINE_H */
 
@@ -620,8 +639,14 @@
 /* Define if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
 
+/* Define if you have the <netinet/in_system.h> header file. */
+/* #undef HAVE_NETINET_IN_SYSTEM_H */
+
 /* Define if you have the <netinet/in_systm.h> header file. */
 #define HAVE_NETINET_IN_SYSTM_H 1
+
+/* Define if you have the <netinet/ip.h> header file. */
+#define HAVE_NETINET_IP_H 1
 
 /* Define if you have the <netinfo/ni.h> header file. */
 /* #undef HAVE_NETINFO_NI_H */
@@ -710,6 +735,9 @@
 /* Define if you have the `srand48' function. */
 #define HAVE_SRAND48 1
 
+/* Define if you have the <stdint.h> header file. */
+#define HAVE_STDINT_H 1
+
 /* Define if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
@@ -765,7 +793,7 @@
 #define HAVE_SYS_IOCTL_H 1
 
 /* Define if you have the <sys/lock.h> header file. */
-#define HAVE_SYS_LOCK_H 1
+/* #undef HAVE_SYS_LOCK_H */
 
 /* Define if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
@@ -796,6 +824,9 @@
 
 /* Define if you have the <sys/select.h> header file. */
 #define HAVE_SYS_SELECT_H 1
+
+/* Define if you have the <sys/signal.h> header file. */
+#define HAVE_SYS_SIGNAL_H 1
 
 /* Define if you have the <sys/sio.h> header file. */
 /* #undef HAVE_SYS_SIO_H */
@@ -924,7 +955,7 @@
 #define SIZEOF_INT 4
 
 /* The size of a `long', as computed by sizeof. */
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
 #define SIZEOF_LONG 8
 #else
 #define SIZEOF_LONG 4
@@ -943,11 +974,13 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "4.1.0"
+#define VERSION "4.1.1a"
 
 /* Define if your processor stores words with the most significant byte first
    (like Motorola and SPARC, unlike Intel and VAX). */
-/* #undef WORDS_BIGENDIAN */
+#if defined(__sparc64__)
+#define WORDS_BIGENDIAN 1
+#endif
 
 /* Define if on AIX 3.
    System headers sometimes define this.
