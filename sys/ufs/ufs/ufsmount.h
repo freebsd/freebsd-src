@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.2 (Berkeley) 1/12/94
- * $Id$
+ * $Id: ufsmount.h,v 1.2 1994/08/02 07:55:04 davidg Exp $
  */
+
+#ifndef _UFS_UFS_UFSMOUNT_H_
+#define _UFS_UFS_UFSMOUNT_H_
 
 struct buf;
 struct inode;
@@ -81,4 +84,4 @@ struct ufsmount {
 #define	is_sequential(ump, a, b) ((b) == (a) + ump->um_seqinc)
 #define MNINDIR(ump)	((ump)->um_nindir)
 
-
+#endif

@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: inode.h,v 1.2 1994/08/02 07:54:49 davidg Exp $
  */
+
+#ifndef _UFS_UFS_INODE_H_
+#define _UFS_UFS_INODE_H_
 
 #include <ufs/ufs/dinode.h>
 
@@ -160,4 +163,6 @@ struct ufid {
 	ino_t	ufid_ino;	/* File number (ino). */
 	long	ufid_gen;	/* Generation number. */
 };
+
+#endif
 #endif /* KERNEL */

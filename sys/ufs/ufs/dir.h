@@ -36,11 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: dir.h,v 1.2 1994/08/02 07:54:48 davidg Exp $
  */
 
-#ifndef _DIR_H_
-#define	_DIR_H_
+#ifndef _UFS_UFS_DIR_H_
+#define	_UFS_UFS_DIR_H_
 
 /*
  * A directory consists of some number of blocks of DIRBLKSIZ
