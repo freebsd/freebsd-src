@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993 Paul Kranenburg
+ * Copyright (c) 1993,1995 Paul Kranenburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.9.4.1 1995/08/13 13:26:25 jkh Exp $
+ *	$Id: ldconfig.c,v 1.12 1996/02/26 02:22:33 pst Exp $
  */
 
 #include <sys/param.h>
@@ -139,7 +139,7 @@ int	silent;
 {
 	DIR		*dd;
 	struct dirent	*dp;
-	char		name[MAXPATHLEN], rest[MAXPATHLEN];
+	char		name[MAXPATHLEN];
 	int		dewey[MAXDEWEY], ndewey;
 
 	if ((dd = opendir(dir)) == NULL) {
@@ -149,17 +149,38 @@ int	silent;
 	}
 
 	while ((dp = readdir(dd)) != NULL) {
-		int	n;
+		register int n;
+		register char *cp;
 
-		name[0] = rest[0] = '\0';
-
-		n = sscanf(dp->d_name, "lib%[^.].so.%s",
-					name, rest);
-
-		if (n < 2 || rest[0] == '\0')
+		/* Check for `lib' prefix */
+		if (dp->d_name[0] != 'l' ||
+		    dp->d_name[1] != 'i' ||
+		    dp->d_name[2] != 'b')
 			continue;
 
-		ndewey = getdewey(dewey, rest);
+		/* Copy the entry minus prefix */
+		(void)strcpy(name, dp->d_name + 3);
+		n = strlen(name);
+		if (n < 4)
+			continue;
+
+		/* Find ".so." in name */
+		for (cp = name + n - 4; cp > name; --cp) {
+			if (cp[0] == '.' &&
+			    cp[1] == 's' &&
+			    cp[2] == 'o' &&
+			    cp[3] == '.')
+				break;
+		}
+		if (cp <= name)
+			continue;
+
+		*cp = '\0';
+		if (!isdigit(*(cp+4)))
+			continue;
+
+		bzero((caddr_t)dewey, sizeof(dewey));
+		ndewey = getdewey(dewey, cp + 4);
 		enter(dir, dp->d_name, name, dewey, ndewey);
 	}
 
@@ -450,4 +471,3 @@ listhints()
 
 	return;
 }
-
