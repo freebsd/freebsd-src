@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.3 1994/08/02 07:43:27 davidg Exp $
+ * $Id: vfs_subr.c,v 1.4 1994/08/18 22:35:09 wollman Exp $
  */
 
 /*
@@ -166,6 +166,70 @@ vfs_unbusy(mp)
 	if (mp->mnt_flag & MNT_MPWANT) {
 		mp->mnt_flag &= ~MNT_MPWANT;
 		wakeup((caddr_t)&mp->mnt_flag);
+	}
+}
+
+void
+vfs_unmountroot(rootfs)
+	struct mount *rootfs;
+{
+	struct	mount *mp = rootfs;
+	int	error;
+
+	if (vfs_busy(mp)) {
+		printf("failed to unmount root\n");
+		return;
+	}
+
+	mp->mnt_flag |= MNT_UNMOUNT;
+	if (error = vfs_lock(mp)) {
+		printf("lock of root filesystem failed (%d)\n", error);
+		return;
+	}
+
+	vnode_pager_umount(mp);	/* release cached vnodes */
+	cache_purgevfs(mp);	/* remove cache entries for this file sys */
+
+	if (error = VFS_SYNC(mp, MNT_WAIT, initproc->p_ucred, initproc))
+		printf("sync of root filesystem failed (%d)\n", error);
+
+	if (error = VFS_UNMOUNT(mp, MNT_FORCE, initproc))
+		printf("unmount of root filesystem failed (%d)\n", error);
+
+	mp->mnt_flag &= ~MNT_UNMOUNT;
+	vfs_unbusy(mp);
+}
+
+/*
+ * Unmount all filesystems.  Should only be called by halt().
+ */
+void
+vfs_unmountall()
+{
+	struct mount *mp, *mp_next, *rootfs = NULL;
+	int error;
+
+	/* unmount all but rootfs */
+	for (mp = mountlist.tqh_first; mp != NULL; mp = mp_next) {
+		mp_next = mp->mnt_list.tqe_next;
+
+		if (mp->mnt_flag & MNT_ROOTFS) {
+			rootfs = mp;
+			continue;
+		}
+
+		error = dounmount(mp, MNT_FORCE, initproc);
+		if (error) {
+			printf("unmount of %s failed (%d)\n",
+			    mp->mnt_stat.f_mntonname, error);
+		}
+	}
+
+	/* and finally... */
+	if (rootfs) {
+		vfs_unmountroot(rootfs);
+	} else {
+		printf("no root filesystem\n");
 	}
 }
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.3 1994/08/02 07:41:33 davidg Exp $
+ * $Id: cd9660_vfsops.c,v 1.4 1994/08/20 03:48:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -403,7 +403,7 @@ cd9660_unmount(mp, mntflags, p)
 	int i, error, ronly, flags = 0;
 	
 	if (mntflags & MNT_FORCE) {
-		if (!iso_doforce || (mp->mnt_flag & MNT_ROOTFS))
+		if (!iso_doforce)
 			return (EINVAL);
 		flags |= FORCECLOSE;
 	}

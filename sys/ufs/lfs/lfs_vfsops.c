@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.3 1994/08/02 07:54:38 davidg Exp $
+ * $Id: lfs_vfsops.c,v 1.4 1994/08/20 03:49:02 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -326,7 +326,7 @@ lfs_unmount(mp, mntflags, p)
 
 	flags = 0;
 	if (mntflags & MNT_FORCE) {
-		if (!doforce || (mp->mnt_flag & MNT_ROOTFS))
+		if (!doforce)
 			return (EINVAL);
 		flags |= FORCECLOSE;
 	}
@@ -358,7 +358,7 @@ lfs_unmount(mp, mntflags, p)
 	vrele(fs->lfs_ivnode);
 	vgone(fs->lfs_ivnode);
 
-	ronly = !fs->lfs_ronly;
+	ronly = fs->lfs_ronly;
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
 	error = VOP_CLOSE(ump->um_devvp,
 	    ronly ? FREAD : FREAD|FWRITE, NOCRED, p);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id$
+ * $Id: vfs_conf.c,v 1.2 1994/08/02 07:43:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -48,10 +48,6 @@
 int (*mountroot)() = ffs_mountroot;
 #endif
 
-/*
- * These define the root filesystem and device.
- */
-struct mount *rootfs;
 struct vnode *rootvnode;
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.3 1994/08/02 07:54:24 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.4 1994/08/18 22:35:54 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -177,6 +177,10 @@ ffs_mount(mp, path, data, ndp, p)
 			return (error);
 		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR))
 			fs->fs_ronly = 0;
+		if (fs->fs_ronly == 0) {
+			fs->fs_clean = 0;
+			ffs_sbupdate(ump, MNT_WAIT);
+		}
 		if (args.fspec == 0) {
 			/*
 			 * Process export requests.
@@ -394,8 +398,13 @@ ffs_mountfs(devvp, mp, p)
 	bp = NULL;
 	fs = ump->um_fs;
 	fs->fs_ronly = ronly;
-	if (ronly == 0)
+	if (!fs->fs_clean) {
+		printf("WARNING: %s was not properly dismounted\n",fs->fs_fsmnt);
+	}
+	if (ronly == 0) {
 		fs->fs_fmod = 1;
+		fs->fs_clean = 0;
+	}
 	blks = howmany(fs->fs_cssize, fs->fs_fsize);
 	base = space = malloc((u_long)fs->fs_cssize, M_UFSMNT,
 	    M_WAITOK);
@@ -430,6 +439,8 @@ ffs_mountfs(devvp, mp, p)
 		ump->um_quotas[i] = NULLVP;
 	devvp->v_specflags |= SI_MOUNTEDON;
 	ffs_oldfscompat(fs);
+	if (ronly == 0)
+		ffs_sbupdate(ump, MNT_WAIT);
 	return (0);
 out:
 	if (bp)
@@ -487,15 +498,17 @@ ffs_unmount(mp, mntflags, p)
 
 	flags = 0;
 	if (mntflags & MNT_FORCE) {
-		if (mp->mnt_flag & MNT_ROOTFS)
-			return (EINVAL);
 		flags |= FORCECLOSE;
 	}
 	if (error = ffs_flushfiles(mp, flags, p))
 		return (error);
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
-	ronly = !fs->fs_ronly;
+	ronly = fs->fs_ronly;
+	if (!ronly) {
+		fs->fs_clean = 1;
+		ffs_sbupdate(ump, MNT_WAIT);
+	}
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);
