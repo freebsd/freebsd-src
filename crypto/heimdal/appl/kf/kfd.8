@@ -8,33 +8,31 @@
 .Os Heimdal
 .Sh NAME
 .Nm kfd
-.Nd
-receive forwarded tickets
+.Nd receive forwarded tickets
 .Sh SYNOPSIS
 .Nm
-.Oo Fl p Ar port \*(Ba Xo
-.Fl -port= Ns Ar port Oc
-.Xc
-.Op Fl i | Fl -inetd
-.Oo Fl R Ar regpag \*(Ba Xo
-.Fl -regpag= Ns Ar regpag Oc
-.Xc
-.Op Fl h | Fl -help
+.Oo
+.Fl p Ar port |
+.Fl -port Ns = Ns Ar port
+.Oc
+.Op Fl i | -inetd
+.Oo
+.Fl R Ar regpag |
+.Fl -regpag Ns = Ns Ar regpag
+.Oc
+.Op Fl h | -help
 .Op Fl -version
 .Sh DESCRIPTION
 This is the daemon for
-.Nm kf .
+.Xr kf 1 .
 Supported options:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Xo
-.Fl p Ar port Ns ,
-.Fl -port= Ns Ar port
+.Fl p Ar port ,
+.Fl -port Ns = Ns Ar port
 .Xc
 port to listen to
-.It Xo
-.Fl i Ns ,
-.Fl -inetd
-.Xc
+.It Fl i , -inetd
 not started from inetd
 .It Xo
 .Fl R Ar regpag Ns ,

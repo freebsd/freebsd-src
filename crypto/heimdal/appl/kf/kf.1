@@ -8,62 +8,54 @@
 .Os Heimdal
 .Sh NAME
 .Nm kf
-.Nd
-securly forward tickets
+.Nd securly forward tickets
 .Sh SYNOPSIS
 .Nm
-.Oo Fl p Ar port \*(Ba Xo
-.Fl -port= Ns Ar port Oc
-.Xc
-.Oo Fl l Ar login \*(Ba Xo
-.Fl -login= Ns Ar login Oc
-.Xc
-.Oo Fl c Ar ccache \*(Ba Xo
-.Fl -ccache= Ns Ar ccache Oc
-.Xc
-.Op Fl F | Fl -forwardable
-.Op Fl G | Fl -no-forwardable
-.Op Fl h | Fl -help
+.Oo
+.Fl p Ar port |
+.Fl -port Ns = Ns Ar port
+.Oc
+.Oo
+.Fl l Ar login |
+.Fl -login Ns = Ns Ar login
+.Oc
+.Oo
+.Fl c Ar ccache |
+.Fl -ccache Ns = Ns Ar ccache
+.Oc
+.Op Fl F | -forwardable
+.Op Fl G | -no-forwardable
+.Op Fl h | -help
 .Op Fl -version
 .Ar host ...
 .Sh DESCRIPTION
 The
 .Nm
 program forwards tickets to a remove host through an authenticated
-and encrypted stream. Options supported are:
-.Bl -tag -width Ds
+and encrypted stream.
+Options supported are:
+.Bl -tag -width indent
 .It Xo
-.Fl p Ar port Ns ,
-.Fl -port= Ns Ar port
+.Fl p Ar port ,
+.Fl -port Ns = Ns Ar port
 .Xc
 port to connect to
 .It Xo
-.Fl l Ar login Ns ,
-.Fl -login= Ns Ar login
+.Fl l Ar login ,
+.Fl -login Ns = Ns Ar login
 .Xc
 remote login name
 .It Xo
-.Fl c Ar ccache Ns ,
-.Fl -ccache= Ns Ar ccache
+.Fl c Ar ccache ,
+.Fl -ccache Ns = Ns Ar ccache
 .Xc
 remote cred cache
-.It Xo
-.Fl F Ns ,
-.Fl -forwardable
-.Xc
+.It Fl F , -forwardable
 forward forwardable credentials
-.It Xo
-.Fl G Ns ,
-.Fl -no-forwardable
-.Xc
+.It Fl G , -no-forwardable
 do not forward forwardable credentials
-.It Xo
-.Fl h Ns ,
-.Fl -help
-.Xc
-.It Xo
-.Fl -version
-.Xc
+.It Fl h , -help
+.It Fl -version
 .El
 .Pp
 .Nm
@@ -83,9 +75,9 @@ is able to forward ticket by itself.
 .\".Sh EXAMPLES
 .\".Sh DIAGNOSTICS
 .Sh SEE ALSO
-.Xr kfd 8 ,
 .Xr kinit 1 ,
-.Xr telnet 1
+.Xr telnet 1 ,
+.Xr kfd 8
 .\".Sh STANDARDS
 .\".Sh HISTORY
 .\".Sh AUTHORS

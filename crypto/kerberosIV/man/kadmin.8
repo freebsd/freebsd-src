@@ -4,14 +4,12 @@
 .\" For copying and distribution information,
 .\" please see the file <mit-copyright.h>.
 .\"
-
 .Dd February  3, 1998
 .Dt KADMIN 8
 .Os "KTH-KRB"
 .Sh NAME
 .Nm kadmin
-.Nd
-network utility for Kerberos database administration
+.Nd "network utility for Kerberos database administration"
 .Sh SYNOPSIS
 .Nm
 .Op Fl p Ar principal
@@ -23,7 +21,7 @@ network utility for Kerberos database administration
 .Op Fl -version
 .Op Fl h
 .Op Fl -help
-.Ar [command]
+.Op Ar command
 .Sh DESCRIPTION
 This utility provides a unified administration interface to the
 Kerberos master database.  Kerberos administrators use
@@ -64,7 +62,7 @@ for
 .It Fl t
 Use existing tickets (if any are available), this also disbles
 timeout, and doesn't destroy any tickets upon exit.
-
+.Pp
 These tickets have to be for the changepw.kerberos service.  Use
 .Nm kinit -p
 to acquire them.

@@ -9,13 +9,10 @@
 .Nd collect command line options
 .Sh SYNOPSIS
 .Fd #include <getarg.h>
-
 .Ft int
 .Fn getarg "struct getargs *args" "size_t num_args" "int argc" "char **argv" "int *optind"
-
 .Ft void
 .Fn arg_printusage "struct getargs *args" "size_t num_args" "const char *progname" "const char *extra_string"
-
 .Sh DESCRIPTION
 .Fn getarg
 collects any command line options given to a program in an easily used way. 
@@ -45,7 +42,8 @@ take the same
 and
 .Fa num_args
 as getarg;
-.Fa progname is the name of the program (to be used in the help text), and 
+.Fa progname
+is the name of the program (to be used in the help text), and 
 .Fa extra_string
 is a string to print after the actual options to indicate more
 arguments. The usefulness of this function is realised only be people
@@ -55,7 +53,6 @@ the code does.
 The
 .Fa getargs
 struct has the following elements.
-
 .Bd -literal
 struct getargs{
     const char *long_name;
@@ -176,7 +173,7 @@ and
 .Fa *optarg ,
 but to do this correct you (more or less) have to know about the inner
 workings of getarg.
- 
+.Pp 
 You can skip parts of arguments by increasing
 .Fa *optarg
 (you could
@@ -233,8 +230,6 @@ and if you're really confused you can do it multiple times
 .Pf ( Fl -no-no-help= Ns Ar false ,
 or even 
 .Fl -no-no-help= Ns Ar maybe ) .
-
-.Pp
 .Sh EXAMPLE
 .Bd -literal
 #include <stdio.h>
@@ -276,11 +271,11 @@ main(int argc, char **argv)
 	exit (0);
     }
     if (destination == NULL) {
-	fprintf(stderr, "%s: must specify destination\n", progname);
+	fprintf(stderr, "%s: must specify destination\en", progname);
 	exit(1);
     }
     if (strcmp(source, destination) == 0) {
-	fprintf(stderr, "%s: destination must be different from source\n");
+	fprintf(stderr, "%s: destination must be different from source\en");
 	exit(1);
     }
     /* include more stuff here ... */
@@ -298,7 +293,6 @@ Usage: ship++ [--source=city] [-s city] [--destination=city] [-d city]
 -w tons, --weight=tons      weight of shippment
 -c, --no-catalog            include product catalog
 .Ed
-
 .Sh BUGS
 It should be more flexible, so it would be possible to use other more
 complicated option syntaxes, such as what
