@@ -86,22 +86,14 @@ struct cdev {
 	u_long		si_usecount;
 	u_long		si_threadcount;
 	union {
-		struct {
-			struct tty *__sit_tty;
-		} __si_tty;
-		struct {
-			struct mount *__sid_mountpoint;
-			int __sid_bsize_phys; /* min physical block size */
-			struct snapdata *__sid_snapdata;
-		} __si_disk;
+		struct tty *__sit_tty;
+		struct snapdata *__sid_snapdata;
 	} __si_u;
 	char		__si_namebuf[SPECNAMELEN + 1];
 };
 
-#define si_tty		__si_u.__si_tty.__sit_tty
-#define si_mountpoint	__si_u.__si_disk.__sid_mountpoint
-#define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
-#define si_snapdata	__si_u.__si_disk.__sid_snapdata
+#define si_tty		__si_u.__sit_tty
+#define si_snapdata	__si_u.__sid_snapdata
 
 #ifdef _KERNEL
 
