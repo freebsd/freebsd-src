@@ -62,7 +62,8 @@ typedef enum {
 typedef enum {
 	DEVSTAT_NO_DATA	= 0x00,
 	DEVSTAT_READ	= 0x01,
-	DEVSTAT_WRITE	= 0x02
+	DEVSTAT_WRITE	= 0x02,
+	DEVSTAT_FREE	= 0x03
 } devstat_trans_flags;
 
 typedef enum {
@@ -130,12 +131,16 @@ struct devstat {
 						      */
 	char			device_name[DEVSTAT_NAME_LEN];
 	int			unit_number;
+	u_int64_t		bytes_read;	     /*
+						      * Total bytes read
+						      * from a device.
+						      */
 	u_int64_t		bytes_written;	     /*
 						      * Total bytes written
 						      * to a device.
 						      */
-	u_int64_t		bytes_read;	     /*
-						      * Total bytes read
+	u_int64_t		bytes_freed;	     /*
+						      * Total bytes freed
 						      * from a device.
 						      */
 	u_int64_t		num_reads;	     /*
@@ -146,6 +151,11 @@ struct devstat {
 	u_int64_t		num_writes;	     /*
 						      * Total number of
 						      * write requests to 
+						      * the device.
+						      */
+	u_int64_t		num_frees;	     /*
+						      * Total number of
+						      * free requests to 
 						      * the device.
 						      */
 	u_int64_t		num_other;	     /*
@@ -199,6 +209,7 @@ struct devstat {
 };
 
 #ifdef KERNEL
+struct buf;
 void devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		       int unit_number, u_int32_t block_size,
 		       devstat_support_flags flags,
@@ -209,6 +220,7 @@ void devstat_start_transaction(struct devstat *ds);
 void devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
 			     devstat_tag_type tag_type,
 			     devstat_trans_flags flags);
+void devstat_end_transaction_buf(struct devstat *ds, struct buf *);
 #endif
 
 #endif /* _DEVICESTAT_H */
