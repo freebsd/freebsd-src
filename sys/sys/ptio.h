@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ptio.h,v 1.1 1999/08/20 03:48:11 ken Exp $
+ *	$Id: ptio.h,v 1.2 1999/08/20 19:42:01 ken Exp $
  */
 
 #ifndef _SYS_PTIO_H_
