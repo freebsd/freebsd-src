@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.32 1998/10/13 08:24:42 dg Exp $
+ * $Id: device_pager.c,v 1.33 1998/10/21 23:06:50 dg Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_zone.h>
 
 static void dev_pager_init __P((void));
 static vm_object_t dev_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
@@ -64,8 +65,8 @@ static boolean_t dev_pager_haspage __P((vm_object_t, vm_pindex_t, int *,
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
 
-/* list of available vm_page_t's */
-static TAILQ_HEAD(, vm_page) dev_pager_fakelist;
+static vm_zone_t fakepg_zone;
+static struct vm_zone fakepg_zone_store;
 
 static vm_page_t dev_pager_getfake __P((vm_offset_t));
 static void dev_pager_putfake __P((vm_page_t));
@@ -86,7 +87,8 @@ static void
 dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
-	TAILQ_INIT(&dev_pager_fakelist);
+	fakepg_zone = &fakepg_zone_store;
+	zinitna(fakepg_zone, NULL, "DP fakepg", sizeof(struct vm_page), 0, 0, 2);
 }
 
 static vm_object_t
@@ -257,15 +259,7 @@ dev_pager_getfake(paddr)
 	vm_page_t m;
 	int i;
 
-	if (TAILQ_FIRST(&dev_pager_fakelist) == NULL) {
-		m = (vm_page_t) malloc(PAGE_SIZE * 2, M_VMPGDATA, M_WAITOK);
-		for (i = (PAGE_SIZE * 2) / sizeof(*m); i > 0; i--) {
-			TAILQ_INSERT_TAIL(&dev_pager_fakelist, m, pageq);
-			m++;
-		}
-	}
-	m = TAILQ_FIRST(&dev_pager_fakelist);
-	TAILQ_REMOVE(&dev_pager_fakelist, m, pageq);
+	m = zalloc(fakepg_zone);
 
 	m->flags = PG_BUSY | PG_FICTITIOUS;
 	m->valid = VM_PAGE_BITS_ALL;
@@ -287,5 +281,5 @@ dev_pager_putfake(m)
 {
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_putfake: bad page");
-	TAILQ_INSERT_TAIL(&dev_pager_fakelist, m, pageq);
+	zfree(fakepg_zone, m);
 }
