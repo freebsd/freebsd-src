@@ -266,13 +266,12 @@ interpret:
 	 * mark as execed, wakeup the process that vforked (if any) and tell
 	 * it that it now has its own resources back
 	 */
+	PROC_LOCK(p);
 	p->p_flag |= P_EXEC;
-	PROCTREE_LOCK(PT_SHARED);
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
 		p->p_flag &= ~P_PPWAIT;
 		wakeup((caddr_t)p->p_pptr);
 	}
-	PROCTREE_LOCK(PT_RELEASE);
 
 	/*
 	 * Implement image setuid/setgid.
@@ -284,6 +283,7 @@ interpret:
 	     ((attr.va_mode & VSGID) && p->p_ucred->cr_gid != attr.va_gid)) &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
+		PROC_UNLOCK(p);
 		/*
 		 * Turn off syscall tracing for set-id programs, except for
 		 * root.
@@ -307,6 +307,7 @@ interpret:
 		if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
 		    p->p_ucred->cr_gid == p->p_cred->p_rgid)
 			p->p_flag &= ~P_SUGID;
+		PROC_UNLOCK(p);
 	}
 
 	/*
@@ -326,13 +327,14 @@ interpret:
 	/*
 	 * notify others that we exec'd
 	 */
+	PROC_LOCK(p);
 	KNOTE(&p->p_klist, NOTE_EXEC);
 
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
 	 * 	can be set before the program executes.
 	 */
-	STOPEVENT(p, S_EXEC, 0);
+	_STOPEVENT(p, S_EXEC, 0);
 
 	if (p->p_flag & P_TRACED)
 		psignal(p, SIGTRAP);
@@ -352,12 +354,16 @@ interpret:
 	/* Cache arguments if they fit inside our allowance */
 	i = imgp->endargs - imgp->stringbase;
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
+		PROC_UNLOCK(p);
 		MALLOC(p->p_args, struct pargs *, sizeof(struct pargs) + i, 
 		    M_PARGS, M_WAITOK);
+		KASSERT(p->p_args != NULL, ("malloc of p_args failed"));
+		PROC_LOCK(p);
 		p->p_args->ar_ref = 1;
 		p->p_args->ar_length = i;
 		bcopy(imgp->stringbase, p->p_args->ar_args, i);
 	}
+	PROC_UNLOCK(p);
 
 exec_fail_dealloc:
 
