@@ -61,13 +61,17 @@ static driver_t sio_isa_driver = {
 
 static struct isa_pnp_id sio_ids[] = {
 	{0x0100e4a5, "RSA-98III"},
-	{0x11802fbf, NULL},	/* OYO8011 - PC-9801-12X */
 	{0x4180a3b8, NULL},	/* NEC8041 - PC-9821CB-B04 */
-	{0x4182a3b8, NULL},	/* NEC8241 - (Nw150) */
-	{0x5181a3b8, NULL},	/* NEC8151 - PC-9821CB2-B04 */
-	{0x5182a3b8, NULL},	/* NEC8251 - PC-9801-12X */
-	{0x7182a3b8, NULL},	/* NEC8271 - PC-9801-12X */
-	{0x9181a3b8, NULL},	/* NEC8191 - PC-9801-120 */
+	{0x0181a3b8, NULL},	/* NEC8101 - PC-9821CB2-B04 */
+	{0x5181a3b8, NULL},	/* NEC8151 - Internal FAX/Modem for Cx3, Cb3 */
+	{0x9181a3b8, NULL},	/* NEC8191 - NEC PC-9801-120 */
+	{0xe181a3b8, NULL},	/* NEC81E1 - Internal FAX/Modem */
+	{0x1182a3b8, NULL},	/* NEC8211 - PC-9801-123 */
+	{0x3182a3b8, NULL},	/* NEC8231 - Internal FAX/Modem(Voice) */
+	{0x4182a3b8, NULL},	/* NEC8241 - NEC PC-9821NR-B05 */
+	{0x5182a3b8, NULL},	/* NEC8251 - Internel FAX/Modem */
+	{0x7182a3b8, NULL},	/* NEC8271 - NEC PC-9801-125 */
+	{0x11802fbf, NULL},	/* OYO8011 - Internal FAX/Modem for ValueStar(Ring) */
 	{0}
 };
 
@@ -86,13 +90,17 @@ sio_isa_probe(dev)
 	case 0x0100e4a5:	/* RSA-98III */
 		SET_FLAG(dev, SET_IFTYPE(COM_IF_RSA98III));
 		break;
-	case 0x11802fbf:	/* PC-9801-12X */
 	case 0x4180a3b8:	/* PC-9821CB-B04 */
-	case 0x4182a3b8:	/* (Nw150) */
-	case 0x5181a3b8:	/* PC-9821CB2-B04 */
-	case 0x5182a3b8:	/* PC-9801-12X */
-	case 0x7182a3b8:	/* PC-9801-12X */
+	case 0x0181a3b8:	/* PC-9821CB2-B04 */
+	case 0x5181a3b8:	/* for Cx3, Cb3 internal */
 	case 0x9181a3b8:	/* PC-9801-120 */
+	case 0xe181a3b8:	/* Internal FAX/Modem */
+	case 0x1182a3b8:	/* PC-9801-123 */
+	case 0x3182a3b8:	/* FAX/Voice/Modem internal */
+	case 0x4182a3b8:	/* PC-9821NR-B05 */
+	case 0x5182a3b8:	/* FAX/Modem internal */
+	case 0x7182a3b8:	/* PC-9801-125 */
+	case 0x11802fbf:	/* for ValueStar internal */
 		SET_FLAG(dev, SET_IFTYPE(COM_IF_NS16550));
 		break;
 	}
