@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.70 1997/02/22 09:39:34 peter Exp $
+ * $Id: vfs_subr.c,v 1.71 1997/02/25 19:33:23 bde Exp $
  */
 
 /*
@@ -78,7 +78,6 @@ extern void	printlockedvnodes __P((void));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 extern void	vgonel __P((struct vnode *vp, struct proc *p));
 unsigned long	numvnodes;
-extern void	vfs_unmountroot __P((struct mount *rootfs));
 
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
@@ -322,35 +321,6 @@ vattr_null(vap)
 	    vap->va_ctime.tv_sec = vap->va_ctime.tv_nsec =
 	    vap->va_flags = vap->va_gen = VNOVAL;
 	vap->va_vaflags = 0;
-}
-
-void
-vfs_unmountroot(struct mount *rootfs)
-{
-	struct proc *p = curproc;	/* XXX */
-	struct mount *mp = rootfs;
-	int error;
-
-	if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
-		printf("failed to unmount root\n");
-		return;
-	}
-	mp->mnt_flag |= MNT_UNMOUNT;
-	vnode_pager_umount(mp);	/* release cached vnodes */
-	cache_purgevfs(mp);	/* remove cache entries for this file sys */
-
-	if ((error = VFS_SYNC(mp, MNT_WAIT, initproc->p_ucred, initproc)))
-		printf("sync of root filesystem failed (%d)\n", error);
-
-	if ((error = VFS_UNMOUNT(mp, MNT_FORCE, initproc))) {
-		printf("unmount of root filesystem failed (");
-		if (error == EBUSY)
-			printf("BUSY)\n");
-		else
-			printf("%d)\n", error);
-	}
-	mp->mnt_flag &= ~MNT_UNMOUNT;
-	vfs_unbusy(mp, p);
 }
 
 /*
@@ -1735,38 +1705,30 @@ vfs_mountedon(vp)
 }
 
 /*
- * Unmount all filesystems.  The list is traversed in reverse order
- * of mounting to avoid dependencies.  Should only be called by halt().
+ * Unmount all filesystems. The list is traversed in reverse order
+ * of mounting to avoid dependencies.
  */
 void
 vfs_unmountall()
 {
-	struct mount *mp, *nmp, *rootfs = NULL;
+	struct mount *mp, *nmp;
+	struct proc *p = initproc;	/* XXX XXX should this be proc0? */
 	int error;
 
-	/* unmount all but rootfs */
+	/*
+	 * Since this only runs when rebooting, it is not interlocked.
+	 */
 	for (mp = mountlist.cqh_last; mp != (void *)&mountlist; mp = nmp) {
 		nmp = mp->mnt_list.cqe_prev;
-
-		if (mp->mnt_flag & MNT_ROOTFS) {
-			rootfs = mp;
-			continue;
-		}
-		error = dounmount(mp, MNT_FORCE, initproc);
+		error = dounmount(mp, MNT_FORCE, p);
 		if (error) {
-			printf("unmount of %s failed (", mp->mnt_stat.f_mntonname);
+			printf("unmount of %s failed (",
+			    mp->mnt_stat.f_mntonname);
 			if (error == EBUSY)
 				printf("BUSY)\n");
 			else
 				printf("%d)\n", error);
 		}
-	}
-
-	/* and finally... */
-	if (rootfs) {
-		vfs_unmountroot(rootfs);
-	} else {
-		printf("no root filesystem\n");
 	}
 }
 
