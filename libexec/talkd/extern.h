@@ -26,14 +26,14 @@
  */
 
 int	announce(CTL_MSG *, const char *);
-int	delete_invite(int);
+int	delete_invite(u_int32_t);
 void	do_announce(CTL_MSG *, CTL_RESPONSE *);
 CTL_MSG	*find_match(CTL_MSG *request);
 CTL_MSG	*find_request(CTL_MSG *request);
 int	find_user(const char *name, char *tty);
 void	insert_table(CTL_MSG *, CTL_RESPONSE *);
 int	new_id(void);
-int	print_mesg(const char *, FILE *, CTL_MSG *, const char *);
+int	print_mesg(const char *, CTL_MSG *, const char *);
 void	print_request(const char *, CTL_MSG *);
 void	print_response(const char *, CTL_RESPONSE *);
 void	process_request(CTL_MSG *mp, CTL_RESPONSE *rp);
