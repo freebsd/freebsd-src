@@ -466,17 +466,7 @@ inetname(inp)
 	static char line[50];
 	struct hostent *hp;
 	struct netent *np;
-	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1;
 
-	if (first && !nflag) {
-		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
-			(void) strcpy(domain, cp + 1);
-		else
-			domain[0] = 0;
-	}
 	cp = 0;
 	if (!nflag && inp->s_addr != INADDR_ANY) {
 		int net = inet_netof(*inp);
@@ -490,10 +480,8 @@ inetname(inp)
 		if (cp == 0) {
 			hp = gethostbyaddr((char *)inp, sizeof (*inp), AF_INET);
 			if (hp) {
-				if ((cp = index(hp->h_name, '.')) &&
-				    !strcmp(cp + 1, domain))
-					*cp = 0;
 				cp = hp->h_name;
+				trimdomain(cp);
 			}
 		}
 	}
