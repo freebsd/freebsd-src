@@ -74,7 +74,7 @@
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
 .Fn TAILQ_INSERT_AFTER "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
-.Fn TAILQ_INSERT_BEFORE "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_HEAD "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_TAIL "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
@@ -371,7 +371,7 @@ n2 = malloc(sizeof(struct entry));	/* Insert after. */
 TAILQ_INSERT_AFTER(&head, n1, n2, entries);
 
 n3 = malloc(sizeof(struct entry));	/* Insert before. */
-TAILQ_INSERT_BEFORE(&head, n2, n3, entries);
+TAILQ_INSERT_BEFORE(n2, n3, entries);
 
 TAILQ_REMOVE(&head, n2, entries);	/* Deletion. */
 free(n2);
