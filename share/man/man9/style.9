@@ -22,21 +22,23 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
 .Os FreeBSD
 .Sh NAME
 .Nm style
-.Nd "Kernel source file style guide"
+.Nd "kernel source file style guide"
 .Sh DESCRIPTION
 This file specifies the preferred style for kernel source files in the
 .Fx
 source tree.  It is also a guide for preferred userland code style.
 .Bd -literal
 /*
- * Style guide for the FreeBSD.  Based on KNF (Kernel Normal Form).
+ * Style guide for FreeBSD.  Based on the CSRG's KNF (Kernel Normal Form).
+ *
+ *	@(#)style	1.14 (Berkeley) 4/28/95
+ * $FreeBSD$
  */
 
 /*
@@ -50,6 +52,29 @@ source tree.  It is also a guide for preferred userland code style.
  * them so they look like real paragraphs.
  */
 .Ed
+.Pp
+After any copyright header, there is a blank line, and the
+.Va rcsid
+for source files.
+Version control system ID tags should only exist once in a file
+(unlike this one).
+Non-C/C++ source files follow the above example, while C/C++ source files
+follow the below one.
+All CVS revision identification from files obtained from elsewhere should be
+maintained, including if there are multiple IDs showing a file's history.
+In general, keep the IDs in tact, including any `$'s.
+Most non-FreeBSD CVS IDs should be indented by a tab if in a comment.
+.Bd -literal
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+.Ed
+.Pp
+Followed by another blank line.
 .Pp
 Kernel include files (i.e. sys/*.h) come first; normally, you'll need
 <sys/types.h>
@@ -230,7 +255,7 @@ Prototypes may have an extra space after a tab to enable function names
 to line up:
 .Bd -literal
 static char	*function(int _arg, const char *_arg2, struct foo *_arg3,
-			  struct bar *_arg4);
+		    struct bar *_arg4);
 static void	 usage(void);
 
 /*
@@ -348,7 +373,8 @@ or
 .Sq \&)
 characters.
 .Bd -literal
-	if (error = function(a1, a2))
+	error = function(a1, a2);
+	if (error != 0)
 		exit(error);
 .Ed
 .Pp
@@ -382,9 +408,7 @@ function(int a1, int a2, float fl, int a4)
 .Pp
 When declaring variables in functions declare them sorted by size,
 then in alphabetical order; multiple ones per line are okay.
-Declaring functions inside functions is not recommended, since their
-linkage scope is always global.  If a line overflows reuse the type
-keyword.
+If a line overflows reuse the type keyword.
 .Pp
 Be careful to not obfuscate the code by initializing variables in
 the declarations.  Use this feature only thoughtfully.
@@ -462,6 +486,7 @@ function(a1, a2, fl, a4)
 .Ed
 .Pp
 Use ANSI function declarations unless you explicitly need K&R compatibility.
+Long parameter lists are wrapped with a normal four space indent.
 .Pp
 Variable numbers of arguments should look like this.
 .Bd -literal
