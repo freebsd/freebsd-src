@@ -77,7 +77,11 @@
 # DIRECT ACCESS DEVICES
 # Caching page:
 0x08 {
-	{Reserved} *t5
+	{IC} t1
+	{ABPF} t1
+	{CAP} t1
+	{DISC} t1
+	{SIZE} t1
 	{WCE} t1
 	{MF} t1
 	{RCD} t1
