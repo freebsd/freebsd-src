@@ -178,7 +178,7 @@ all: objwarn ${_LIBS} all-man _SUBDIR # llib-l${LIB}.ln
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
 lib${LIB}.a:: ${OBJS} ${STATICOBJS}
-	@${ECHO} building standard ${LIB} library
+	@${ECHO} building static ${LIB} library
 	@rm -f lib${LIB}.a
 	@${AR} cq lib${LIB}.a `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} lib${LIB}.a
