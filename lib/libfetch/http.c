@@ -1038,6 +1038,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				conn->err = HTTP_OK;
 				break;
 			} else {
+				_http_seterr(conn->err);
 				goto ouch;
 			}
 		}
