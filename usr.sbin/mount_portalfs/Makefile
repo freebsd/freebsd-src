@@ -6,7 +6,7 @@ SRCS=	mount_portal.c activate.c conf.c getmntopts.c pt_conf.c \
 MAN8=	mount_portal.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -I/sys -I${MOUNT}
+CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
 .PATH:	${MOUNT}
 
 DPADD=	$(LIBCOMPAT)
