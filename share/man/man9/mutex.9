@@ -38,7 +38,8 @@
 .Nm mtx_exit,
 .Nm mtx_destroy,
 .Nm mtx_owned,
-.Nm mtx_assert
+.Nm mtx_assert,
+.Nm MUTEX_DECLARE
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
 .Fd #include <machine/mutex.h>
@@ -56,6 +57,7 @@
 .Fn mtx_owned "struct mtx *mutex"
 .Ft void
 .Fn mtx_assert "struct mtx *mutex" "int what"
+.Fn MUTEX_DECLARE "modifiers" "name"
 .Sh DESCRIPTION
 Mutexes are the most basic and primary method of process synchronization.
 The major design considerations for mutexes are:
@@ -154,7 +156,7 @@ The
 .Ar flag
 argument is used to specify various options,
 typically
-.Dv M_DEF
+.Dv MTX_DEF
 is supplied.
 If the mutex can not be immediately acquired
 .Fn mtx_try_enter
@@ -197,8 +199,9 @@ The
 .Fn mtx_assert
 function  allows assertions to be made about
 .Ar mutex .
-If the assertions are not true the kernel
-will panic.
+If the assertions are not true and the kernel is compiled with
+.Dv INVARIANTS
+then the kernel will panic.
 Currently the following assertions are supported:
 .Bl -enum
 .It
@@ -212,6 +215,32 @@ Assert that the current thread
 does not hold the mutex
 pointed to by the first argument.
 .El
+.Pp
+The
+.Fn MUTEX_DECLARE
+macro is used to declare a mutex that is initialized before
+.Xr malloc 9
+is operating.  Unfortunately, mutex initialization may require
+.Xr malloc 9 .
+However, some mutexes are intialized and used before
+.Xr malloc 9
+can be used.  Declaring these mutexes with the
+.Fn MUTEX_DECLARE
+macro and then using the
+.Dv MTX_COLD
+flag when calling 
+.Fn mtx_init
+allows these early mutexes to be initialized and used before
+.Xr malloc 9
+is available.
+The
+.Ar modifiers
+argument is a list of attributes to be applied to the mutex structure being
+declared such as
+.Dq static .
+The
+.Ar name
+argument is the name of the mutex structure to declare.
 .Pp
 The type of a mutex is not an attribute of the mutex,
 but instead a function of the
@@ -299,7 +328,7 @@ then this flag should be specified.
 .Pp
 If the lock is already held by the current thread,
 then a kernel with
-.Dv SMP_DEBUG
+.Dv MUTEX_DEBUG
 defined will panic;
 without debugging enabled,
 the thread may deadlock against itself
@@ -357,6 +386,14 @@ This should be specified when it is known
 that the lock will usually remain unavailable for some time
 when it is not immediately available
 (i.e.: coarse grained locks protecting large subsystems).
+.It Dv MTX_COLD
+This option is only used in
+.Fn mtx_init
+and is used in conjunction with mutexes declared with
+.Fn MUTEX_DECLARE
+to initialize mutexes that are needed before
+.Xr malloc 9
+is available for use.
 .El
 .Sh HISTORY
 These
