@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: cmds.c,v 1.7 1997/06/25 08:56:34 msmith Exp $ */
 /*	$NetBSD: cmds.c,v 1.24 1997/05/17 19:44:36 pk Exp $	*/
 
 /*
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: cmds.c,v 1.7 1997/06/25 08:56:34 msmith Exp $";
 #endif
 #endif /* not lint */
 
@@ -334,14 +334,14 @@ mput(argc, argv)
 			if (mflag && confirm(argv[0], cp)) {
 				tp = cp;
 				if (mcase) {
-					while (*tp && !islower(*tp)) {
+					while (*tp && !islower((unsigned char)*tp)) {
 						tp++;
 					}
 					if (!*tp) {
 						tp = cp;
 						tp2 = tmpbuf;
 						while ((*tp2 = *tp) != '\0') {
-						     if (isupper(*tp2)) {
+						     if (isupper((unsigned char)*tp2)) {
 						        *tp2 = 'a' + *tp2 - 'A';
 						     }
 						     tp++;
@@ -477,14 +477,14 @@ usage:
 	if (loc && mcase) {
 		char *tp = argv[1], *tp2, tmpbuf[MAXPATHLEN];
 
-		while (*tp && !islower(*tp)) {
+		while (*tp && !islower((unsigned char)*tp)) {
 			tp++;
 		}
 		if (!*tp) {
 			tp = argv[2];
 			tp2 = tmpbuf;
 			while ((*tp2 = *tp) != '\0') {
-				if (isupper(*tp2)) {
+				if (isupper((unsigned char)*tp2)) {
 					*tp2 = 'a' + *tp2 - 'A';
 				}
 				tp++;
@@ -583,7 +583,7 @@ mget(argc, argv)
 		if (mflag && confirm(argv[0], cp)) {
 			tp = cp;
 			if (mcase) {
-				for (tp2 = tmpbuf; (ch = *tp++) != 0; )
+				for (tp2 = tmpbuf; (ch = (unsigned char)*tp++) != 0; )
 					*tp2++ = isupper(ch) ? tolower(ch) : ch;
 				*tp2 = '\0';
 				tp = tmpbuf;
@@ -1754,7 +1754,7 @@ domap(name)
 				break;
 			case '[':
 LOOP:
-				if (*++cp2 == '$' && isdigit(*(cp2+1))) {
+				if (*++cp2 == '$' && isdigit((unsigned char)*(cp2+1))) {
 					if (*++cp2 == '0') {
 						char *cp3 = name;
 
@@ -1779,7 +1779,7 @@ LOOP:
 							cp2++;
 						}
 						else if (*cp2 == '$' &&
-   						        isdigit(*(cp2+1))) {
+							isdigit((unsigned char)*(cp2+1))) {
 							if (*++cp2 == '0') {
 							   char *cp3 = name;
 
@@ -1833,7 +1833,7 @@ LOOP:
 				}
 				break;
 			case '$':
-				if (isdigit(*(cp2 + 1))) {
+				if (isdigit((unsigned char)*(cp2 + 1))) {
 					if (*++cp2 == '0') {
 						char *cp3 = name;
 
