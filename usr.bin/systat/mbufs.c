@@ -34,7 +34,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id: mbufs.c,v 1.5 1997/02/24 20:59:03 wollman Exp $";
+	"$Id: mbufs.c,v 1.6 1997/09/24 02:43:40 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ showmbufs()
 			mvwprintw(wnd, 1+j, 0, "%-10.10s", mtnames[index]);
 		wmove(wnd, 1 + j, 10);
 		if (max > 60) {
-			sprintf(buf, " %d", max);
+			snprintf(buf, sizeof(buf), " %d", max);
 			max = 60;
 			while (max--)
 				waddch(wnd, 'X');
@@ -136,7 +136,7 @@ showmbufs()
 	if (mb->m_mbufs) {
 		mvwprintw(wnd, 1+j, 0, "%-10.10s", "free");
 		if (mb->m_mbufs > 60) {
-			sprintf(buf, " %d", mb->m_mbufs);
+			snprintf(buf, sizeof(buf), " %d", mb->m_mbufs);
 			mb->m_mbufs = 60;
 			while (mb->m_mbufs--)
 				waddch(wnd, 'X');
