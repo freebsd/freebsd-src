@@ -117,6 +117,17 @@ __ElfType(Hashelt);
 #define	EF_IA_64_ARCH		0xff000000
 
 /*
+ * Segment types.
+ */
+#define	PT_IA_64_ARCHEXT	0x70000000
+#define	PT_IA_64_UNWIND		0x70000001
+
+/*
+ * Segment attributes.
+ */
+#define	PF_IA_64_NORECOV	0x80000000
+
+/*
  * Section types.
  */
 #define	SHT_IA_64_EXT		0x70000000
