@@ -133,7 +133,6 @@ extern int union_cn_close __P((struct vnode *, int, struct ucred *,
 extern void union_removed_upper __P((struct union_node *un));
 extern struct vnode *union_lowervp __P((struct vnode *));
 extern void union_newsize __P((struct vnode *, off_t, off_t));
-extern void union_vm_coherency __P((struct vnode *, struct uio *, int));
 
 extern int (*union_dircheckp) __P((struct proc *, struct vnode **,
 				 struct file *));
