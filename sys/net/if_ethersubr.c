@@ -607,9 +607,6 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 #endif
 	struct ip_fw *rule = ip_dn_claim_rule(m);
 
-	if (rule != NULL)
-		ifp = m->m_pkthdr.rcvif;
-
 	KASSERT(ifp != NULL, ("ether_demux: NULL interface pointer"));
 
 	eh = mtod(m, struct ether_header *);
