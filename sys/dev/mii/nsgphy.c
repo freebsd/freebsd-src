@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
  * access to its internal RAM via indirect register access.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

@@ -38,9 +38,6 @@ __FBSDID("$FreeBSD$");
  * 1000mbps; all we need to negotiate here is full or half duplex.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
