@@ -639,6 +639,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	mouse_info_t buf;
 	scr_stat *cur_scp;
 	struct tty *mtty;
+	int f;
 
 	if (scp == NULL)
 	    return ENOTTY;
@@ -752,6 +753,19 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    if (SC_VTY(tp->t_dev) != SC_CONSOLECTL)
 		return ENOTTY;
 #endif
+	    s = spltty();
+	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0) {
+		cur_scp->mouse_xpos += mouse->u.data.x;
+		cur_scp->mouse_ypos += mouse->u.data.y;
+		set_mouse_pos(cur_scp);
+	    }
+	    f = 0;
+	    if (mouse->operation == MOUSE_ACTION) {
+		f = cur_scp->mouse_buttons ^ mouse->u.data.buttons;
+		cur_scp->mouse_buttons = mouse->u.data.buttons;
+	    }
+	    splx(s);
+
 	    mouse_status.dx += mouse->u.data.x;
 	    mouse_status.dy += mouse->u.data.y;
 	    mouse_status.dz += mouse->u.data.z;
@@ -792,7 +806,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    }
 
 	    if (cur_scp->mouse_signal) {
-		cur_scp->mouse_buttons = mouse->u.data.buttons;
     		/* has controlling process died? */
 		if (cur_scp->mouse_proc && 
 		    (cur_scp->mouse_proc != pfind(cur_scp->mouse_pid))){
@@ -823,31 +836,17 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	    if (cur_scp->sc->flags & SC_MOUSE_ENABLED)
 	    	cur_scp->status |= MOUSE_VISIBLE;
 
-	    if (mouse->operation == MOUSE_ACTION) {
+	    if ((mouse->operation == MOUSE_ACTION) && f) {
 		/* process button presses */
-		if (cur_scp->mouse_buttons ^ mouse->u.data.buttons) {
-		    cur_scp->mouse_buttons = mouse->u.data.buttons;
-		    if (cur_scp->mouse_buttons & MOUSE_BUTTON1DOWN)
-			mouse_cut_start(cur_scp);
-		    else
-			mouse_cut_end(cur_scp);
-		    if (cur_scp->mouse_buttons & MOUSE_BUTTON2DOWN ||
-			cur_scp->mouse_buttons & MOUSE_BUTTON3DOWN)
-			mouse_paste(cur_scp);
-		}
+		if (cur_scp->mouse_buttons & MOUSE_BUTTON1DOWN)
+		    mouse_cut_start(cur_scp);
+		else
+		    mouse_cut_end(cur_scp);
+		if (cur_scp->mouse_buttons & MOUSE_BUTTON2DOWN ||
+		    cur_scp->mouse_buttons & MOUSE_BUTTON3DOWN)
+		    mouse_paste(cur_scp);
 	    }
-#else /* SC_NO_CUTPASTE */
-	    if (mouse->operation == MOUSE_ACTION)
-		cur_scp->mouse_buttons = mouse->u.data.buttons;
 #endif /* SC_NO_CUTPASTE */
-
-	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0) {
-		s = spltty();
-		cur_scp->mouse_xpos += mouse->u.data.x;
-		cur_scp->mouse_ypos += mouse->u.data.y;
-		set_mouse_pos(cur_scp);
-		splx(s);
-	    }
 	    break;
 
 	case MOUSE_BUTTON_EVENT:
