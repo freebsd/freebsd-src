@@ -120,6 +120,8 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 				mtx_unlock(&pfs_vncache_mutex);
 				/* XXX see comment at top of pfs_lookup() */
 				cache_purge(*vpp);
+				vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE,
+				    curthread);
 				return (0);
 			}
 			/* XXX if this can happen, we're in trouble */
@@ -171,6 +173,9 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		pvd->pvd_next->pvd_prev = pvd;
 	pfs_vncache = pvd;
 	mtx_unlock(&pfs_vncache_mutex);
+        (*vpp)->v_vnlock = &(*vpp)->v_lock;
+        lockinit((*vpp)->v_vnlock, PINOD, "pfsnod", VLKTIMEOUT, LK_CANRECURSE);
+	vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
 	return (0);
 }
 
