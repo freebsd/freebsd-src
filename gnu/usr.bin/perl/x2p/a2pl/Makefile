@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/09/12 19:16:33 markm Exp $
+# $Id: Makefile,v 1.5 1998/09/16 17:25:52 markm Exp $
 #
 
 PROG=	a2p
@@ -26,10 +26,10 @@ config.h: config_h.sh config.sh
 	sh config_h.sh
 
 config.sh: ${.CURDIR}/../../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH}
-	@ln -sf ${.OODATE} ${.TARGET}
+	ln -sf ${.OODATE} ${.TARGET}
 
 config_h.sh: ${PERL5SRC}/config_h.SH
-	@ln -sf ${.OODATE} ${.TARGET}
+	ln -sf ${.OODATE} ${.TARGET}
 
 ${PROG}.1: ${PROG}.pod
 	miniperl ${MINIPERLOPT} ${.OBJDIR}/../../pod/pod2man/pod2man ${.OODATE} > ${.TARGET}
