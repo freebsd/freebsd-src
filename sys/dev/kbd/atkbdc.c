@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: atkbdc.c,v 1.1 1999/01/09 02:44:50 yokota Exp $
+ * $Id: atkbdc.c,v 1.2 1999/05/18 11:33:04 yokota Exp $
  * from kbdio.c,v 1.13 1998/09/25 11:55:46 yokota Exp
  */
 
@@ -44,11 +44,7 @@
 
 #include <dev/kbd/atkbdcreg.h>
 
-#ifndef __i386__
 #include <isa/isareg.h>
-#else
-#include <i386/isa/isa.h>
-#endif
 
 /* constants */
 
