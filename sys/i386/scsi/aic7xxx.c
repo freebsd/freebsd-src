@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.15 1995/02/22 01:43:24 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.16 1995/03/07 08:59:28 gibbs Exp $
  */
 /*
  * TODO:
@@ -78,7 +78,7 @@ int  ahc_unit = 0;
 #define AHC_SHOWCMDS 0x0002
 #define AHC_SHOWSCBS 0x0004
 /*#define AHC_DEBUG*/
-int     ahc_debug = AHC_SHOWCMDS;
+int     ahc_debug = AHC_SHOWMISC;
 
 /**** bit definitions for SCSIDEF ****/
 #define	HSCSIID		0x07		/* our SCSI ID */
@@ -543,7 +543,7 @@ ahc_print_active_scb(ahc)
 	int cur_scb_offset;
 	u_long iobase = ahc->baseport;
         PAUSE_SEQUENCER(ahc);
-        cur_scb_offset = inb(SCBPTR + port);
+        cur_scb_offset = inb(SCBPTR + iobase);
 	UNPAUSE_SEQUENCER(ahc);
 	ahc_print_scb(ahc->scbarray[cur_scb_offset]);
 }
@@ -694,6 +694,7 @@ ahc_attach(unit)
         ahc->sc_link.adapter_unit = unit;
         ahc->sc_link.adapter_targ = ahc->our_id;
         ahc->sc_link.adapter = &ahc_switch;
+	ahc->sc_link.opennings = 2;
         ahc->sc_link.device = &ahc_dev;
 	ahc->sc_link.flags = DEBUGLEVEL;
 	ahc->sc_link.fordriver = 0;
@@ -859,22 +860,27 @@ ahcintr(unit)
 				/* See if we initiated Sync Negotiation */
 				if(ahc->sdtrpending & (0x01 << scsi_id))
 				{
-					/* 
-					 * Negate the flag and don't send
-					 * an SDTR back to the target
+					/*
+					 * Don't send an SDTR back to
+					 * the target
 					 */
-					ahc->needsdtr &= ~(0x01 << scsi_id);
-					ahc->sdtrpending &= ~(0x01 << scsi_id);
-
 					outb(HA_RETURN_1 + iobase, 0);
 				}
 				else{
 					/*
 					 * Send our own SDTR in reply
 					 */
-					printf("Sending SDTR!!\n");
+#ifdef AHC_DEBUG
+					if(ahc_debug & AHC_SHOWMISC)
+						printf("Sending SDTR!!\n");
+#endif
 					outb(HA_RETURN_1 + iobase, SEND_SDTR);
 				}
+				/* 
+				 * Negate the flags
+				 */
+				ahc->needsdtr &= ~(0x01 << scsi_id);
+				ahc->sdtrpending &= ~(0x01 << scsi_id);
 	                        break;
 			}
                     case MSG_WDTR:
@@ -894,12 +900,9 @@ ahcintr(unit)
 				if(ahc->wdtrpending & (0x01 << scsi_id))
 				{
 					/* 
-					 * Negate the flag and don't 
-					 * send a WDTR back to the 
+					 * Don't send a WDTR back to the 
 					 * target, since we asked first.
 					 */
-					ahc->needwdtr &= ~(0x01 << scsi_id);
-					ahc->wdtrpending &= ~(0x01 << scsi_id);
 					outb(HA_RETURN_1 + iobase, 0);
 					switch(bus_width)
 					{
@@ -941,8 +944,10 @@ ahcintr(unit)
 					outb(HA_RETURN_1 + iobase, 
 						bus_width | SEND_WDTR);
 				}
+				ahc->needwdtr &= ~(0x01 << scsi_id);
+				ahc->wdtrpending &= ~(0x01 << scsi_id);
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, scratch);
-				outb(SCSIRATE + iobase, scratch);
+				outb(SCSIRATE + iobase, scratch); 
 	                        break;
 			}
 		    case MSG_REJECT:
@@ -970,6 +975,7 @@ ahcintr(unit)
 					/* note 8bit xfers and clear flag */
 					targ_scratch &= 0x7f;
 					ahc->needwdtr &= ~mask;
+					ahc->wdtrpending &= ~mask;
         				printf("ahc%d: target %d refusing "
 					       "WIDE negotiation.  Using "
 					       "8bit transfers\n",
@@ -979,16 +985,23 @@ ahcintr(unit)
 					/* note asynch xfers and clear flag */
 					targ_scratch &= 0xf0;
 					ahc->needsdtr &= ~mask;
+					ahc->sdtrpending &= ~mask;
         				printf("ahc%d: target %d refusing "
 					       "syncronous negotiation.  Using "
 					       "asyncronous transfers\n",
 						unit, scsi_id);
 				}
-				else
+				else {
 					/*
 					 * Otherwise, we ignore it.
 					 */
+#ifdef AHC_DEBUG
+					if(ahc_debug & AHC_SHOWMISC)
+						printf("Ignored message "
+							"reject!!\n");
+#endif
 					break;
+				}
 				outb(HA_TARG_SCRATCH + iobase + scsi_id,
 				     targ_scratch);
 				outb(SCSIRATE + iobase, targ_scratch);
@@ -1058,8 +1071,7 @@ ahcintr(unit)
 #endif
 					bzero(scb, SCB_DOWN_SIZE);
 					scb->flags |= SCB_SENSE;
-					scb->control = SCB_NEEDDMA | 
-						(control & SCB_TE);
+					scb->control = control & SCB_TE;
 					sc->op_code = REQUEST_SENSE;
 					sc->byte2 =  xs->sc_link->lun << 5;
 					sc->length = sizeof(struct scsi_sense_data);
@@ -1124,22 +1136,22 @@ ahcintr(unit)
                         break;
                 }             
 clear:                              
-                /*            
-                 * Clear the upper byte that holds SEQINT status
-                 * codes and clear the SEQINT bit.
-                 */               
-                outb(CLRINT + iobase, CLRSEQINT);
-                                 
-                /*            
-                 *  The sequencer is paused immediately on
-                 *  a SEQINT, so we should restart it when
-                 *  we leave this section. 
-                 */                        
-                 UNPAUSE_SEQUENCER(ahc);
+		/*            
+		 * Clear the upper byte that holds SEQINT status
+		 * codes and clear the SEQINT bit.
+		 */               
+		outb(CLRINT + iobase, CLRSEQINT);
+
+		/*            
+		 *  The sequencer is paused immediately on
+		 *  a SEQINT, so we should restart it when
+		 *  we leave this section. 
+		 */                        
+		UNPAUSE_SEQUENCER(ahc);
            }                
 
 
-        if (intstat & SCSIINT) { 
+	   if (intstat & SCSIINT) { 
 
                 int scb_index = inb(SCBPTR + iobase);
                 status = inb(SSTAT1 + iobase);
@@ -1211,7 +1223,6 @@ clear:
                       outb(CLRSINT1 + iobase, BUSFREE);    /* CLRBUSFREE */
 #endif
 		}
-
 		else {
                       printf("ahc%d: Unknown SCSIINT. Status = 0x%x\n", 
 			     unit, status);
@@ -1297,6 +1308,9 @@ ahc_done(unit, scb)
 		        printf("ahc%d: target %d Tagged Queuing Device\n",
 				unit, xs->sc_link->target);
 			ahc->tagenable |= mask;
+#ifdef QUEUE_FULL_SUPPORTED
+			xs->sc_link->opennings += 2; */
+#endif
 		}
 	}
         ahc_free_scb(unit, scb, xs->flags);
@@ -1312,7 +1326,7 @@ ahc_init(unit)
 {
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
-	u_char	scsi_conf;
+	u_char	scsi_conf, sblkctl;
 	int     intdef, i;
 
 	/*
@@ -1354,21 +1368,18 @@ ahc_init(unit)
 	};
 
         /* Determine channel configuration and who we are on the scsi bus. */
-        switch ( inb(SBLKCTL + iobase) ) {
+        switch ( (sblkctl = inb(SBLKCTL + iobase) & 0x0f) ) {
             case 0:
-	    case 0xc0: 	/* 294x Adaptors have the top two bits set */
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
                 printf("Single Channel, SCSI Id=%d, ", ahc->our_id);
                 break;
             case 2:
-	    case 0xc2:
 		ahc->our_id = (inb(HA_SCSICONF + 1 + iobase) & HWSCSIID);
                 printf("Wide Channel, SCSI Id=%d, ", ahc->our_id);
 		ahc->type |= AHC_WIDE;
 		outb(HA_FLAGS + iobase, WIDE_BUS);
                 break;
             case 8:
-	    case 0xc8:
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
 		ahc->our_id_b = (inb(HA_SCSICONF + 1 + iobase) & HSCSIID);
                 printf("Twin Channel, A SCSI Id=%d, B SCSI Id=%d, ",
@@ -1380,7 +1391,10 @@ ahc_init(unit)
                 printf(" Unsupported adapter type.  Ignoring\n");
                 return(-1);
         }
-
+	/*
+	 * Take the bus led out of diagnostic mode
+	 */
+	outb(SBLKCTL + iobase, sblkctl);
 	/* 
 	 * Number of SCBs that will be used. Rev E aic7770s and
 	 * aic7870s have 16.  The rest have 4.
@@ -1393,7 +1407,7 @@ ahc_init(unit)
 		 * Anything below a Rev E will have a
 		 * R/O autoflush diable configuration bit.
 		 */
-		u_char sblkctl, sblkctl_orig;
+		u_char sblkctl_orig;
 		sblkctl_orig = inb(SBLKCTL + iobase);
 		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
 		outb(SBLKCTL + iobase, sblkctl);
@@ -1415,9 +1429,9 @@ ahc_init(unit)
 		printf("aic7870, ");
 	printf("%d SCBs\n", ahc->maxscbs);
 	if(!(ahc->type & AHC_294)){
-	/* The 294x cards are PCI, so we get their interrupt from the PCI
-	 * BIOS.  It doesn't look like the ISA mapped interrupt is reported
-	 * correctly this way either.
+	/* 
+	 * The 294x cards are PCI, so we get their interrupt from the PCI
+	 * BIOS. 
 	 */
 
 		intdef = inb(INTDEF + iobase);
@@ -1508,6 +1522,11 @@ ahc_init(unit)
 	ahc->sdtrpending = 0;
 	ahc->wdtrpending = 0;
 	ahc->tagenable = 0;
+
+#ifdef AHC_DEBUG
+	printf("NEEDSDTR == 0x%x\nNEEDWDTR == 0x%x\n", ahc->needsdtr,
+		ahc->needwdtr);
+#endif
 	/*
 	 * Set the number of availible SCBs
 	 */
@@ -1533,7 +1552,7 @@ ahc_init(unit)
 
 	/* Reset the bus */
 	outb(SCSISEQ + iobase, SCSIRSTO); 
-	DELAY(500);
+	DELAY(1000);
 	outb(SCSISEQ + iobase, 0);
 
         UNPAUSE_SEQUENCER(ahc);
@@ -1615,7 +1634,6 @@ ahc_scsi_cmd(xs)
         }
         SC_DEBUG(xs->sc_link, SDEV_DB3, ("start scb(%x)\n", scb));
         scb->xs = xs;
-
         if (flags & SCSI_RESET) {
 		/* XXX: Needs Implementation */
 		printf("ahc0: SCSI_RESET called.\n");
@@ -1901,9 +1919,9 @@ ahc_poll(int unit, int wait)
         u_long	stport = INTSTAT + iobase;  
 
         while (--wait) {
+                DELAY(10000);
                 if (inb(stport) & INT_PEND)
                         break;
-                DELAY(1000);  
         } if (wait == 0) {
                 printf("ahc%d: board not responding\n", unit);
                 return (EIO);
@@ -1996,7 +2014,7 @@ ahc_abort_scb( unit, ahc, scb )
 
 		/* Reset the bus */
 		outb(SCSISEQ + iobase, SCSIRSTO); 
-		DELAY(100);
+		DELAY(1000);
 		outb(SCSISEQ + iobase, 0);
 		goto done;
         }        
@@ -2034,9 +2052,11 @@ ahc_timeout(void *arg1)
             ,scb->xs->sc_link->device->name
             ,scb->xs->sc_link->dev_unit);
 #ifdef  AHC_DEBUG
+#ifdef	SCSIDEBUG
 	if (ahc_debug & AHC_SHOWCMDS) {
-		show_scsi_cmd(ecb->xs); 
+		show_scsi_cmd(scb->xs); 
 	}
+#endif
         if (ahc_debug & AHC_SHOWSCBS)
                 ahc_print_active_scb(unit);
 #endif /*AHC_DEBUG */
