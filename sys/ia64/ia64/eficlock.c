@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -46,17 +47,17 @@ eficlock_init(kobj_t dev)
 static void
 eficlock_get(kobj_t dev, time_t base, struct clocktime *ct)
 {
-	EFI_TIME time;
+	struct efi_tm tm;
 
-	ia64_efi_runtime->GetTime(&time, 0);
+	efi_get_time(&tm);
 
-	ct->sec = time.Second;
-	ct->min = time.Minute;
-	ct->hour = time.Hour;
+	ct->sec = tm.tm_sec;
+	ct->min = tm.tm_min;
+	ct->hour = tm.tm_hour;
 	ct->dow = 0;		/* XXX not used */
-	ct->day = time.Day;
-	ct->mon = time.Month;
-	ct->year = time.Year - 1900;
+	ct->day = tm.tm_mday;
+	ct->mon = tm.tm_mon;
+	ct->year = tm.tm_year - 1900;
 }
 
 /*
@@ -65,18 +66,18 @@ eficlock_get(kobj_t dev, time_t base, struct clocktime *ct)
 static void
 eficlock_set(kobj_t dev, struct clocktime *ct)
 {
-	EFI_TIME time;
-	EFI_STATUS status;
+	struct efi_tm tm;
+	efi_status status;
 
-	ia64_efi_runtime->GetTime(&time, 0);
-	time.Second = ct->sec;
-	time.Minute = ct->min;
-	time.Hour = ct->hour;
-	time.Day = ct->day;
-	time.Month = ct->mon;
-	time.Year = ct->year + 1900;
-	status = ia64_efi_runtime->SetTime(&time);
-	if (status != EFI_SUCCESS)
+	efi_get_time(&tm);
+	tm.tm_sec = ct->sec;
+	tm.tm_min = ct->min;
+	tm.tm_hour = ct->hour;
+	tm.tm_mday = ct->day;
+	tm.tm_mon = ct->mon;
+	tm.tm_year = ct->year + 1900;
+	status = efi_set_time(&tm);
+	if (status)
 		printf("eficlock_set: could not set TODR\n");
 }
 

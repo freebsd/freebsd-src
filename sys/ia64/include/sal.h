@@ -137,6 +137,6 @@ typedef struct ia64_sal_result sal_entry_t
 
 extern sal_entry_t *ia64_sal_entry;
 
-extern void ia64_sal_init(struct sal_system_table *saltab);
+extern void ia64_sal_init(void);
 
 #endif /* _MACHINE_SAL_H_ */
