@@ -2404,7 +2404,6 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	 */
 	gp = g_new_geomf(mp, "%s.sync", md->md_name);
 	gp->softc = sc;
-	gp->spoiled = g_mirror_spoiled;
 	gp->orphan = g_mirror_orphan;
 	sc->sc_sync.ds_geom = gp;
 	sc->sc_sync.ds_ndisks = 0;
