@@ -146,6 +146,11 @@ network_start()
 
 	dhcp_interfaces=""
 	for ifn in ${network_interfaces}; do
+		if ifconfig ${ifn} | grep -s UP, > /dev/null 2>&1; then
+			# Interface is already up, so ignore it.
+			continue;
+		fi
+
 		if [ -r /etc/start_if.${ifn} ]; then
 			. /etc/start_if.${ifn}
 			eval showstat_$ifn=1
