@@ -35,11 +35,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -73,152 +74,187 @@ __FBSDID("$FreeBSD$");
 %left ARITH_UNARYMINUS ARITH_UNARYPLUS ARITH_NOT ARITH_BNOT
 %%
 
-exp:	expr = {
-			return ($1);
-		}
+exp:
+	expr
+		{ return ($1); }
 	;
 
-expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
-	| expr ARITH_OR expr	= { $$ = $1 ? $1 : $3 ? $3 : 0; }
-	| expr ARITH_AND expr	= { $$ = $1 ? ( $3 ? $3 : 0 ) : 0; }
-	| expr ARITH_BOR expr	= { $$ = $1 | $3; }
-	| expr ARITH_BXOR expr	= { $$ = $1 ^ $3; }
-	| expr ARITH_BAND expr	= { $$ = $1 & $3; }
-	| expr ARITH_EQ expr	= { $$ = $1 == $3; }
-	| expr ARITH_GT expr	= { $$ = $1 > $3; }
-	| expr ARITH_GE expr	= { $$ = $1 >= $3; }
-	| expr ARITH_LT expr	= { $$ = $1 < $3; }
-	| expr ARITH_LE expr	= { $$ = $1 <= $3; }
-	| expr ARITH_NE expr	= { $$ = $1 != $3; }
-	| expr ARITH_LSHIFT expr = { $$ = $1 << $3; }
-	| expr ARITH_RSHIFT expr = { $$ = $1 >> $3; }
-	| expr ARITH_ADD expr	= { $$ = $1 + $3; }
-	| expr ARITH_SUB expr	= { $$ = $1 - $3; }
-	| expr ARITH_MUL expr	= { $$ = $1 * $3; }
-	| expr ARITH_DIV expr	= {
-			if ($3 == 0)
-				yyerror("division by zero");
-			$$ = $1 / $3;
-			}
-	| expr ARITH_REM expr   = {
-			if ($3 == 0)
-				yyerror("division by zero");
-			$$ = $1 % $3;
-			}
-	| ARITH_NOT expr	= { $$ = !($2); }
-	| ARITH_BNOT expr	= { $$ = ~($2); }
-	| ARITH_SUB expr %prec ARITH_UNARYMINUS = { $$ = -($2); }
-	| ARITH_ADD expr %prec ARITH_UNARYPLUS = { $$ = $2; }
-	| ARITH_NUM
-	| ARITH_VAR 	{
-				char *p;
-				arith_t arith_val;
-				char *str_val;
+expr:
+	ARITH_LPAREN expr ARITH_RPAREN
+		{ $$ = $2; } |
+	expr ARITH_OR expr
+		{ $$ = $1 ? $1 : $3 ? $3 : 0; } |
+	expr ARITH_AND expr
+		{ $$ = $1 ? ( $3 ? $3 : 0 ) : 0; } |
+	expr ARITH_BOR expr
+		{ $$ = $1 | $3; } |
+	expr ARITH_BXOR expr
+		{ $$ = $1 ^ $3; } |
+	expr ARITH_BAND expr
+		{ $$ = $1 & $3; } |
+	expr ARITH_EQ expr
+		{ $$ = $1 == $3; } |
+	expr ARITH_GT expr
+		{ $$ = $1 > $3; } |
+	expr ARITH_GE expr
+		{ $$ = $1 >= $3; } |
+	expr ARITH_LT expr
+		{ $$ = $1 < $3; } |
+	expr ARITH_LE expr
+		{ $$ = $1 <= $3; } |
+	expr ARITH_NE expr
+		{ $$ = $1 != $3; } |
+	expr ARITH_LSHIFT expr
+		{ $$ = $1 << $3; } |
+	expr ARITH_RSHIFT expr
+		{ $$ = $1 >> $3; } |
+	expr ARITH_ADD expr
+		{ $$ = $1 + $3; } |
+	expr ARITH_SUB expr
+		{ $$ = $1 - $3; } |
+	expr ARITH_MUL expr
+		{ $$ = $1 * $3; } |
+	expr ARITH_DIV expr
+		{
+		if ($3 == 0)
+			yyerror("division by zero");
+		$$ = $1 / $3;
+		} |
+	expr ARITH_REM expr
+		{
+		if ($3 == 0)
+			yyerror("division by zero");
+		$$ = $1 % $3;
+		} |
+	ARITH_NOT expr
+		{ $$ = !($2); } |
+	ARITH_BNOT expr
+		{ $$ = ~($2); } |
+	ARITH_SUB expr %prec ARITH_UNARYMINUS
+		{ $$ = -($2); } |
+	ARITH_ADD expr %prec ARITH_UNARYPLUS
+		{ $$ = $2; } |
+	ARITH_NUM |
+	ARITH_VAR
+		{
+		char *p;
+		arith_t arith_val;
+		char *str_val;
 
-				if (lookupvar($1) == NULL)
-					setvarsafe($1, "0", 0);
-				str_val = lookupvar($1);
-				arith_val = strtoarith_t(str_val, &p, 0);
-				/*
-				 * Conversion is successful only in case
-				 * we've converted _all_ characters.
-				 */
-				if (*p != '\0')
-					yyerror("variable conversion error");
-				$$ = arith_val;
-			}
-	| ARITH_VAR ARITH_ASSIGN expr {
-						if (arith_assign($1, $3) != 1)
-							yyerror("variable assignment error");
-						$$ = $3;
-					}
-	| ARITH_VAR ARITH_ADDASSIGN expr {
-						arith_t value;
+		if (lookupvar($1) == NULL)
+			setvarsafe($1, "0", 0);
+		str_val = lookupvar($1);
+		arith_val = strtoarith_t(str_val, &p, 0);
+		/*
+		 * Conversion is successful only in case
+		 * we've converted _all_ characters.
+		 */
+		if (*p != '\0')
+			yyerror("variable conversion error");
+		$$ = arith_val;
+		} |
+	ARITH_VAR ARITH_ASSIGN expr
+		{
+		if (arith_assign($1, $3) != 1)
+			yyerror("variable assignment error");
+		$$ = $3;
+		} |
+	ARITH_VAR ARITH_ADDASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) + $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_SUBASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) + $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_SUBASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) - $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_MULASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) - $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_MULASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) * $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_DIVASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) * $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_DIVASSIGN expr
+		{
+		arith_t value;
 
-						if ($3 == 0)
-							yyerror("division by zero");
+		if ($3 == 0)
+			yyerror("division by zero");
 
-						value = atoarith_t(lookupvar($1)) / $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_REMASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) / $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_REMASSIGN expr
+		{
+		arith_t value;
 
-						if ($3 == 0)
-							yyerror("division by zero");
+		if ($3 == 0)
+			yyerror("division by zero");
 
-						value = atoarith_t(lookupvar($1)) % $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_RSHASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) % $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_RSHASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) >> $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_LSHASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) >> $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_LSHASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) << $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_BANDASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) << $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_BANDASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) & $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_BXORASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) & $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_BXORASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) ^ $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	| ARITH_VAR ARITH_BORASSIGN expr {
-						arith_t value;
+		value = atoarith_t(lookupvar($1)) ^ $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} |
+	ARITH_VAR ARITH_BORASSIGN expr
+		{
+		arith_t value;
 
-						value = atoarith_t(lookupvar($1)) | $3;
-						if (arith_assign($1, value) != 0)
-							yyerror("variable assignment error");
-						$$ = value;
-					}
-	;
+		value = atoarith_t(lookupvar($1)) | $3;
+		if (arith_assign($1, value) != 0)
+			yyerror("variable assignment error");
+		$$ = value;
+		} ;
 %%
 #include "error.h"
 #include "output.h"
@@ -233,7 +269,8 @@ int yylex(void);
 int yyparse(void);
 
 int
-arith_assign(char *name, arith_t value) {
+arith_assign(char *name, arith_t value)
+{
 	char *str;
 	int ret;
 
@@ -253,10 +290,10 @@ arith(char *s)
 
 	INTOFF;
 	result = yyparse();
-	arith_lex_reset();	/* reprime lex */
+	arith_lex_reset();	/* Reprime lex. */
 	INTON;
 
-	return (result);
+	return result;
 }
 
 void
@@ -265,7 +302,7 @@ yyerror(char *s)
 
 	yyerrok;
 	yyclearin;
-	arith_lex_reset();	/* reprime lex */
+	arith_lex_reset();	/* Reprime lex. */
 	error("arithmetic expression: %s: \"%s\"", s, arith_startbuf);
 }
 
@@ -284,7 +321,7 @@ expcmd(int argc, char **argv)
 		p = argv[1];
 		if (argc > 2) {
 			/*
-			 * concatenate arguments
+			 * Concatenate arguments.
 			 */
 			STARTSTACKSTR(concat);
 			ap = argv + 2;
@@ -304,7 +341,7 @@ expcmd(int argc, char **argv)
 	i = arith(p);
 
 	out1fmt("%ld\n", i);
-	return (! i);
+	return !i;
 }
 
 /*************************/
