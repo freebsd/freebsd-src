@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.37 2000/01/14 22:57:29 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.38 2000/04/18 19:40:46 christos Exp $ */
 /*
  * tc.prompt.c: Prompt printing stuff
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.prompt.c,v 3.37 2000/01/14 22:57:29 christos Exp $")
+RCSID("$Id: tc.prompt.c,v 3.38 2000/04/18 19:40:46 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -186,9 +186,10 @@ tprintf(what, buf, fmt, siz, str, tim, info)
     Char   *z, *q;
     Char    attributes = 0;
     static int print_prompt_did_ding = 0;
-    const char   *cz;
     Char    buff[BUFSIZE];
-    char    cbuff[BUFSIZE];
+    /* Need to be unsigned to avoid sign extension */
+    const unsigned char   *cz;
+    unsigned char    cbuff[BUFSIZE];
 
     Char *p  = buf;
     Char *ep = &p[siz];
@@ -218,9 +219,11 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    switch (*cp) {
 	    case 'R':
 		if (what == FMT_HISTORY)
-		    fmthist('R', info, str = cbuff, sizeof(cbuff));
+		    fmthist('R', info, (char *) (cz = cbuff), sizeof(cbuff));
+		else
+		    cz = (unsigned char *) str;
 		if (str != NULL)
-		    for (; *str; *p++ = attributes | *str++)
+		    for (; *cz; *p++ = attributes | *cz++)
 			if (p >= ep) break;
 		break;
 	    case '#':
@@ -233,10 +236,12 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 		    fmthist('h', info, (char *) cbuff, sizeof(cbuff));
 		    break;
 		case FMT_SCHED:
-		    (void) xsnprintf((char *) cbuff, sizeof(cbuff), "%d", *(int *)info);
+		    (void) xsnprintf((char *) cbuff, sizeof(cbuff), "%d", 
+			*(int *)info);
 		    break;
 		default:
-		    (void) xsnprintf((char *) cbuff, sizeof(cbuff), "%d", eventno + 1);
+		    (void) xsnprintf((char *) cbuff, sizeof(cbuff), "%d",
+			eventno + 1);
 		    break;
 		}
 		for (cz = cbuff; *cz; *p++ = attributes | *cz++)
@@ -297,10 +302,11 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    case 'M':
 #ifndef HAVENOUTMP
 		if (what == FMT_WHO)
-		    cz = who_info(info, 'M', (char *) cbuff, sizeof(cbuff));
+		    cz = (unsigned char *) who_info(info, 'M',
+			(char *) cbuff, sizeof(cbuff));
 		else 
 #endif /* HAVENOUTMP */
-		    cz = getenv("HOST");
+		    cz = (unsigned char *) getenv("HOST");
 		/*
 		 * Bug pointed out by Laurent Dami <dami@cui.unige.ch>: don't
 		 * derefrence that NULL (if HOST is not set)...
@@ -313,10 +319,11 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    case 'm':
 #ifndef HAVENOUTMP
 		if (what == FMT_WHO)
-		    cz = who_info(info, 'm', (char *) cbuff, sizeof(cbuff));
+		    cz = (unsigned char *) who_info(info, 'm', (char *) cbuff,
+			sizeof(cbuff));
 		else 
 #endif /* HAVENOUTMP */
-		    cz = getenv("HOST");
+		    cz = (unsigned char *) getenv("HOST");
 
 		if (cz != NULL)
 		    for ( ; *cz && (what == FMT_WHO || *cz != '.')
@@ -429,7 +436,8 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    case 'n':
 #ifndef HAVENOUTMP
 		if (what == FMT_WHO) {
-		    cz = who_info(info, 'n', (char *) cbuff, sizeof(cbuff));
+		    cz = (unsigned char *) who_info(info, 'n',
+			(char *) cbuff, sizeof(cbuff));
 		    for (; cz && *cz ; *p++ = attributes | *cz++)
 			if (p >= ep) break;
 		}
@@ -444,7 +452,8 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 	    case 'l':
 #ifndef HAVENOUTMP
 		if (what == FMT_WHO) {
-		    cz = who_info(info, 'l', (char *) cbuff, sizeof(cbuff));
+		    cz = (unsigned char *) who_info(info, 'l',
+			(char *) cbuff, sizeof(cbuff));
 		    for (; cz && *cz ; *p++ = attributes | *cz++)
 			if (p >= ep) break;
 		}
@@ -457,7 +466,8 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 		}
 		break;
 	    case 'd':
-		for (cz = day_list[t->tm_wday]; *cz; *p++ = attributes | *cz++)
+		for (cz = (unsigned char *) day_list[t->tm_wday]; *cz;
+		    *p++ = attributes | *cz++)
 		    if (p >= ep) break;
 		break;
 	    case 'D':
@@ -466,8 +476,9 @@ tprintf(what, buf, fmt, siz, str, tim, info)
 		break;
 	    case 'w':
 		if (p >= ep - 5) break;
-		for (cz = month_list[t->tm_mon]; *cz;)
-		    *p++ = attributes | *cz++;
+		for (cz = (unsigned char *) month_list[t->tm_mon]; *cz;
+		    *p++ = attributes | *cz++);
+		    if (p >= ep) break;
 		break;
 	    case 'W':
 		if (p >= ep - 3) break;
