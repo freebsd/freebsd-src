@@ -32,6 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fnmatch.3	8.3 (Berkeley) 4/28/95
+.\" $FreeBSD$
 .\"
 .Dd April 28, 1995
 .Dt FNMATCH 3
@@ -91,14 +92,20 @@ must be explicitly matched by periods in
 .Fa pattern .
 If this flag is not set, then leading periods are treated as regular
 characters.
-The definition of ``leading'' is related to the specification of
-.Dv FNM_PATHNAME.
-A period is always ``leading'' if it is the first character in
+The definition of
+.Dq leading
+is related to the specification of
+.Dv FNM_PATHNAME .
+A period is always
+.Dq leading
+if it is the first character in
 .Ar string .
 Additionally, if
 .Dv FNM_PATHNAME
 is set,
-a period is ``leading'' if it immediately follows a slash.
+a period is
+leading
+if it immediately follows a slash.
 .It Dv FNM_LEADING_DIR
 Ignore
 .Nm /*

@@ -63,7 +63,9 @@ The super-user is allowed to directly supply a user database
 entry, in the format specified by
 .Xr passwd 5 ,
 as an argument.
-This argument must be a colon (``:'') separated list of all the
+This argument must be a colon
+.Pq Dq :
+separated list of all the
 user database fields, although they may be empty.
 .It Fl p
 The super-user is allowed to directly supply an encrypted password field,
@@ -163,7 +165,9 @@ Both the
 .Ar change
 and
 .Ar expire
-fields should be entered in the form ``month day year'' where
+fields should be entered in the form
+.Dq month day year
+where
 .Ar month
 is the month name (the first three characters are sufficient),
 .Ar day
@@ -250,14 +254,15 @@ updates to the NIS maps, but editing the map source files by hand can
 be cumbersome.
 .Pp
 Note: these exceptions only apply when the NIS master server is a
-FreeBSD system.)
+.Fx
+system).
 .Pp
 Consequently, except where noted, the following restrictions apply when
 .Nm chpass
 is used with NIS:
 .Bl -enum -offset indent
 .It
-.Pa Only the shell and GECOS information may be changed.
+.Em "Only the shell and GECOS information may be changed" .
 All other
 fields are restricted, even when
 .Nm chpass
@@ -273,7 +278,7 @@ Exception: the super-user on the NIS master server is permitted to
 change any field.
 .Pp
 .It
-.Pa Password authentication is required.
+.Em "Password authentication is required" .
 .Nm Chpass
 will prompt for the user's NIS password before effecting
 any changes. If the password is invalid, all changes will be
@@ -285,8 +290,7 @@ choose to turn off this feature using the
 .Fl o
 flag, described below.)
 .It
-.Pa Adding new records to the local
-.Pa password database is discouraged.
+.Em "Adding new records to the local password database is discouraged" .
 .Nm Chpass
 will allow the administrator to add new records to the
 local password database while NIS is enabled, but this can lead to
@@ -309,13 +313,15 @@ NIS maps instead, invoke chpass with the
 .Fl y
 flag.
 .It
-.Pa Password changes are not permitted.
+.Em "Password changes are not permitted".
 Users should use
 .Xr passwd 1
 or
 .Xr yppasswd 1
 to change their NIS passwords. The super-user is allowed to specify
-a new password (even though the ``Password:'' field does not show
+a new password (even though the
+.Dq Password:
+field does not show
 up in the editor template, the super-user may add it back by hand),
 but even the super-user must supply the user's original password
 otherwise
@@ -369,7 +375,9 @@ slave, in a given NIS domain will do.
 .Pp
 When using the
 .Fl d
-option, the hostname defaults to ``localhost.'' The
+option, the hostname defaults to 
+.Dq localhost .
+The
 .Fl h
 option can be used in conjunction with the
 .Fl d
@@ -379,7 +387,7 @@ the default.
 .It Fl o
 Force the use of RPC-based updates when communicating with
 .Xr rpc.yppasswdd 8
-(``old-mode'').
+.Pq Dq old-mode .
 When invoked by the super-user on the NIS master server,
 .Nm chpass
 allows unrestricted changes to the NIS passwd maps using dedicated,
@@ -431,6 +439,6 @@ commands are really only links to
 User information should (and eventually will) be stored elsewhere.
 .Sh HISTORY
 The
-.Nm
+.Nm chpass
 command appeared in 
 .Bx 4.3 Reno .
