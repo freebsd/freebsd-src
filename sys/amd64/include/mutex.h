@@ -744,45 +744,59 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 #if defined(I386_CPU)
 
 #define	MTX_EXIT(lck, reg)						\
-	movl	$ MTX_UNOWNED,lck+MTX_LOCK;
+	pushl	lck+MTX_SAVEFL;						\
+	movl	$ MTX_UNOWNED,lck+MTX_LOCK;				\
+	popf
 
 #else	/* I386_CPU */
 
 #define MTX_ENTER(reg, lck)						\
+	pushf								\
+	cli								\
 9:	movl	$ MTX_UNOWNED,%eax;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
-	jnz	9b	
+	jnz	9b;							\
+	popl	lck+MTX_SAVEFL;
 
 /* Must use locked bus op (cmpxchg) when setting to unowned (barrier) */
 #define	MTX_EXIT(lck,reg)						\
+	pushl	lck+MTX_SAVEFL;						\
 	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
+	popf
 
 #define MTX_ENTER_WITH_RECURSION(reg, lck)				\
+	pushf								\
+	cli								\
 	movl	lck+MTX_LOCK,%eax;					\
-	cmpl	PCPU_CURPROC,%eax;					\
+	cmpl	_curproc,%eax;						\
 	jne	9f;							\
-	incw	lck+MTX_RECURSECNT;					\
+	incw	lck+MTX_RECURS;						\
 	jmp	8f;							\
 9:	movl	$ MTX_UNOWNED,%eax;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;      				\
 	jnz	9b;							\
-8:
+	popl	lck+MTX_SAVEFL;						\
+	jmp	10f;							\
+8:	add	$4,%esp;						\
+10:
 
 #define	MTX_EXIT_WITH_RECURSION(lck,reg)				\
-	movl	lck+MTX_RECURSECNT,%eax;				\
+	movl	lck+MTX_RECURSE,%eax;					\
 	decl	%eax;							\
 	js	9f;							\
-	movl	%eax,lck+MTX_RECURSECNT;				\
+	movl	%eax,lck+MTX_RECURSE;					\
 	jmp	8f;							\
+	pushl	lck+MTX_SAVEFL;						\
 9:	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
+	popf								\
 8:
 
 #endif	/* I386_CPU */
