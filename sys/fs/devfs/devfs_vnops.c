@@ -72,9 +72,6 @@ static int	devfs_read(struct vop_read_args *ap);
 static int	devfs_readdir(struct vop_readdir_args *ap);
 static int	devfs_readlink(struct vop_readlink_args *ap);
 static int	devfs_reclaim(struct vop_reclaim_args *ap);
-#ifdef MAC
-static int	devfs_refreshlabel(struct vop_refreshlabel_args *ap);
-#endif
 static int	devfs_remove(struct vop_remove_args *ap);
 static int	devfs_revoke(struct vop_revoke_args *ap);
 static int	devfs_setattr(struct vop_setattr_args *ap);
@@ -658,20 +655,6 @@ devfs_reclaim(ap)
 	return (0);
 }
 
-#ifdef MAC
-static int
-devfs_refreshlabel(ap)
-	struct vop_refreshlabel_args /* {
-		struct vnode *a_vp;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-
-	/* Labels are always in sync. */
-	return (0);
-}
-#endif
-
 static int
 devfs_remove(ap)
 	struct vop_remove_args /* {
@@ -893,9 +876,6 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_readlink_desc,		(vop_t *) devfs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
-#ifdef MAC
-	{ &vop_refreshlabel_desc,	(vop_t *) devfs_refreshlabel },
-#endif
 	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
 #ifdef MAC
@@ -919,9 +899,6 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
 	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
-#ifdef MAC
-	{ &vop_refreshlabel_desc,	(vop_t *) devfs_refreshlabel },
-#endif
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
 	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
