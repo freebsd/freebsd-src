@@ -21,11 +21,8 @@ LDADD=	-lncurses
 DPADD=	${LIBNCURSES}
 
 .if !defined(NOHTML)
-afterinstall:
-.for file in ${EXAMPLES}
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	      ${.CURDIR}/TESTS/${file} ${DESTDIR}/usr/share/examples/libdialog
-.endfor
+FILES=	${EXAMPLES:C;^;${.CURDIR}/TESTS/;}
+FILESDIR= ${SHAREDIR}/examples/libdialog
 .endif
 
 MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
