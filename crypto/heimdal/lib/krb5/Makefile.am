@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.97 2000/02/13 20:35:49 assar Exp $
+# $Id: Makefile.am,v 1.98 2000/02/19 18:53:56 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -119,7 +119,7 @@ libkrb5_la_SOURCES = \
 
 EXTRA_libkrb5_la_SOURCES = keytab_krb4.c
 
-libkrb5_la_LDFLAGS = -version-info 9:0:0
+libkrb5_la_LDFLAGS = -version-info 9:1:0
 
 $(libkrb5_la_OBJECTS): $(srcdir)/krb5-protos.h $(srcdir)/krb5-private.h
 

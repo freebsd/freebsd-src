@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.69 2000/02/11 17:45:45 assar Exp $");
+RCSID("$Id: connect.c,v 1.70 2000/02/19 18:41:24 assar Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -193,6 +193,10 @@ struct descr {
     size_t size;
     size_t len;
     time_t timeout;
+    struct sockaddr_storage __ss;
+    struct sockaddr *sa;
+    int sock_len;
+    char addr_string[128];
 };
 
 /*
@@ -208,6 +212,7 @@ init_socket(struct descr *d, krb5_address *a, int family, int type, int port)
     int sa_size;
 
     memset(d, 0, sizeof(*d));
+    d->sa = (struct sockaddr *)&d->__ss;
     d->s = -1;
 
     ret = krb5_addr2sockaddr (a, sa, &sa_size, port);
@@ -375,34 +380,36 @@ addr_to_string(struct sockaddr *addr, size_t addr_len, char *str, size_t len)
     snprintf(str, len, "<family=%d>", addr->sa_family);
 }
 
+/*
+ * Handle the request in `buf, len' to socket `d'
+ */
+
 static void
 do_request(void *buf, size_t len, int sendlength,
-	   int socket, struct sockaddr *from, size_t from_len)
+	   struct descr *d)
 {
     krb5_error_code ret;
     krb5_data reply;
-    char addr[128];
-    
-    addr_to_string(from, from_len, addr, sizeof(addr));
     
     reply.length = 0;
-    ret = process_request(buf, len, &reply, &sendlength, addr, from);
+    ret = process_request(buf, len, &reply, &sendlength,
+			  d->addr_string, d->sa);
     if(reply.length){
-	kdc_log(5, "sending %d bytes to %s", reply.length, addr);
+	kdc_log(5, "sending %d bytes to %s", reply.length, d->addr_string);
 	if(sendlength){
 	    unsigned char len[4];
 	    len[0] = (reply.length >> 24) & 0xff;
 	    len[1] = (reply.length >> 16) & 0xff;
 	    len[2] = (reply.length >> 8) & 0xff;
 	    len[3] = reply.length & 0xff;
-	    if(sendto(socket, len, sizeof(len), 0, from, from_len) < 0) {
-		kdc_log (0, "sendto(%s): %s", addr, strerror(errno));
+	    if(sendto(d->s, len, sizeof(len), 0, d->sa, d->sock_len) < 0) {
+		kdc_log (0, "sendto(%s): %s", d->addr_string, strerror(errno));
 		krb5_data_free(&reply);
 		return;
 	    }
 	}
-	if(sendto(socket, reply.data, reply.length, 0, from, from_len) < 0) {
-	    kdc_log (0, "sendto(%s): %s", addr, strerror(errno));
+	if(sendto(d->s, reply.data, reply.length, 0, d->sa, d->sock_len) < 0) {
+	    kdc_log (0, "sendto(%s): %s", d->addr_string, strerror(errno));
 	    krb5_data_free(&reply);
 	    return;
 	}
@@ -410,16 +417,17 @@ do_request(void *buf, size_t len, int sendlength,
     }
     if(ret)
 	kdc_log(0, "Failed processing %lu byte request from %s", 
-		(unsigned long)len, addr);
+		(unsigned long)len, d->addr_string);
 }
+
+/*
+ * Handle incoming data to the UDP socket in `d'
+ */
 
 static void
 handle_udp(struct descr *d)
 {
     unsigned char *buf;
-    struct sockaddr_storage __ss;
-    struct sockaddr *sa = (struct sockaddr *)&__ss;
-    int from_len;
     int n;
 
     buf = malloc(max_request);
@@ -428,18 +436,15 @@ handle_udp(struct descr *d)
 	return;
     }
 
-    from_len = sizeof(__ss);
-    n = recvfrom(d->s, buf, max_request, 0, 
-		 sa, &from_len);
-    if(n < 0){
+    d->sock_len = sizeof(d->__ss);
+    n = recvfrom(d->s, buf, max_request, 0, d->sa, &d->sock_len);
+    if(n < 0)
 	krb5_warn(context, errno, "recvfrom");
-	goto out;
+    else {
+	addr_to_string (d->sa, d->sock_len,
+			d->addr_string, sizeof(d->addr_string));
+	do_request(buf, n, 0, d);
     }
-    if(n == 0) {
-	goto out;
-    }
-    do_request(buf, n, 0, d->s, sa, from_len);
-out:
     free (buf);
 }
 
@@ -483,14 +488,11 @@ de_http(char *buf)
 static void
 add_new_tcp (struct descr *d, int index, int min_free)
 {
-    struct sockaddr_storage __ss;
-    struct sockaddr *sa = (struct sockaddr *)&__ss;
     int s;
-    int from_len;
 
-    from_len = sizeof(__ss);
-    s = accept(d[index].s, sa, &from_len);
-    if(s < 0){
+    d->sock_len = sizeof(d->__ss);
+    s = accept(d[index].s, d->sa, &d->sock_len);
+    if(s < 0) {
 	krb5_warn(context, errno, "accept");
 	return;
     }
@@ -502,6 +504,8 @@ add_new_tcp (struct descr *d, int index, int min_free)
     d[min_free].s = s;
     d[min_free].timeout = time(NULL) + TCP_TIMEOUT;
     d[min_free].type = SOCK_STREAM;
+    addr_to_string (d[min_free].sa, d[min_free].sock_len,
+		    d[min_free].addr_string, sizeof(d[min_free].addr_string));
 }
 
 /*
@@ -564,7 +568,7 @@ handle_vanilla_tcp (struct descr *d)
  */
 
 static int
-handle_http_tcp (struct descr *d, const char *addr)
+handle_http_tcp (struct descr *d)
 {
     char *s, *p, *t;
     void *data;
@@ -575,7 +579,7 @@ handle_http_tcp (struct descr *d, const char *addr)
 
     p = strstr(s, "\r\n");
     if (p == NULL) {
-	kdc_log(0, "Malformed HTTP request from %s", addr);
+	kdc_log(0, "Malformed HTTP request from %s", d->addr_string);
 	return -1;
     }
     *p = 0;
@@ -583,12 +587,12 @@ handle_http_tcp (struct descr *d, const char *addr)
     p = NULL;
     t = strtok_r(s, " \t", &p);
     if (t == NULL) {
-	kdc_log(0, "Malformed HTTP request from %s", addr);
+	kdc_log(0, "Malformed HTTP request from %s", d->addr_string);
 	return -1;
     }
     t = strtok_r(NULL, " \t", &p);
     if(t == NULL) {
-	kdc_log(0, "Malformed HTTP request from %s", addr);
+	kdc_log(0, "Malformed HTTP request from %s", d->addr_string);
 	return -1;
     }
     data = malloc(strlen(t));
@@ -599,14 +603,14 @@ handle_http_tcp (struct descr *d, const char *addr)
     if(*t == '/')
 	t++;
     if(de_http(t) != 0) {
-	kdc_log(0, "Malformed HTTP request from %s", addr);
+	kdc_log(0, "Malformed HTTP request from %s", d->addr_string);
 	kdc_log(5, "Request: %s", t);
 	free(data);
 	return -1;
     }
     proto = strtok_r(NULL, " \t", &p);
     if (proto == NULL) {
-	kdc_log(0, "Malformed HTTP request from %s", addr);
+	kdc_log(0, "Malformed HTTP request from %s", d->addr_string);
 	free(data);
 	return -1;
     }
@@ -623,7 +627,7 @@ handle_http_tcp (struct descr *d, const char *addr)
 	    "<A HREF=\"http://www.pdc.kth.se/heimdal\">Heimdal</A>?\r\n";
 	write(d->s, proto, strlen(proto));
 	write(d->s, msg, strlen(msg));
-	kdc_log(0, "HTTP request from %s is non KDC request", addr);
+	kdc_log(0, "HTTP request from %s is non KDC request", d->addr_string);
 	kdc_log(5, "Request: %s", t);
 	free(data);
 	return -1;
@@ -651,10 +655,6 @@ static void
 handle_tcp(struct descr *d, int index, int min_free)
 {
     unsigned char buf[1024];
-    char addr[32];
-    struct sockaddr_storage __ss;
-    struct sockaddr *sa = (struct sockaddr *)&__ss;
-    int from_len;
     int n;
     int ret = 0;
 
@@ -663,22 +663,11 @@ handle_tcp(struct descr *d, int index, int min_free)
 	return;
     }
 
-    /*
-     * We can't trust recvfrom to return an address so we always call
-     * getpeername.
-     */
-
     n = recvfrom(d[index].s, buf, sizeof(buf), 0, NULL, NULL);
     if(n < 0){
 	krb5_warn(context, errno, "recvfrom");
 	return;
     }
-    from_len = sizeof(__ss);
-    if (getpeername(d[index].s, sa, &from_len) < 0) {
-	krb5_warn(context, errno, "getpeername");
-	return;
-    }
-    addr_to_string(sa, from_len, addr, sizeof(addr));
     if (grow_descr (&d[index], n))
 	return;
     memcpy(d[index].buf + d[index].len, buf, n);
@@ -690,18 +679,17 @@ handle_tcp(struct descr *d, int index, int min_free)
 	      strncmp((char *)d[index].buf, "GET ", 4) == 0 && 
 	      strncmp((char *)d[index].buf + d[index].len - 4,
 		      "\r\n\r\n", 4) == 0) {
-	ret = handle_http_tcp (&d[index], addr);
+	ret = handle_http_tcp (&d[index]);
 	if (ret < 0)
 	    clear_descr (d + index);
     } else if (d[index].len > 4) {
-	kdc_log (0, "TCP data of strange type from %s", addr);
+	kdc_log (0, "TCP data of strange type from %s", d[index].addr_string);
 	return;
     }
     if (ret < 0)
 	return;
     else if (ret == 1) {
-	do_request(d[index].buf, d[index].len, 1,
-		   d[index].s, sa, from_len);
+	do_request(d[index].buf, d[index].len, 1, &d[index]);
 	clear_descr(d + index);
     }
 }
@@ -725,15 +713,9 @@ loop(void)
 	for(i = 0; i < ndescr; i++){
 	    if(d[i].s >= 0){
 		if(d[i].type == SOCK_STREAM && 
-		   d[i].timeout && d[i].timeout < time(NULL)){
-		    struct sockaddr sa;
-		    int salen = sizeof(sa);
-		    char addr[32];
-
-		    getpeername(d[i].s, &sa, &salen);
-		    addr_to_string(&sa, salen, addr, sizeof(addr));
+		   d[i].timeout && d[i].timeout < time(NULL)) {
 		    kdc_log(1, "TCP-connection from %s expired after %u bytes",
-			    addr, d[i].len);
+			    d[i].addr_string, d[i].len);
 		    clear_descr(&d[i]);
 		    continue;
 		}

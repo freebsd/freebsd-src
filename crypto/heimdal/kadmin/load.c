@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <kadm5/private.h>
 
-RCSID("$Id: load.c,v 1.35 2000/01/25 22:59:27 assar Exp $");
+RCSID("$Id: load.c,v 1.36 2000/02/16 16:05:28 assar Exp $");
 
 struct entry {
     char *principal;
@@ -439,7 +439,7 @@ doit(const char *filename, int merge)
 	    continue;
 	}
 
-	if (parse_hdbflags2int (&ent.flags, e.flags) != 0) {
+	if (parse_hdbflags2int (&ent.flags, e.flags) != 1) {
 	    fprintf (stderr, "%s:%d:error parsing flags (%s)\n",
 		     filename, line, e.flags);
 	    hdb_free_entry (context, &ent);
