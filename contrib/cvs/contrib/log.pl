@@ -7,9 +7,10 @@
 #
 # $FreeBSD$
 
-# Usage:  log.pl [[-m user] ...] [-s] -f logfile 'dirname file ...'
+# Usage:  log.pl [-u user] [[-m mailto] ...] [-s] -f logfile 'dirname file ...'
 #
-#	-m user		- for each user to receive cvs log reports
+#	-u user		- $USER passed from loginfo
+#	-m mailto	- for each user to receive cvs log reports
 #			(multiple -m's permitted)
 #	-s		- to prevent "cvs status -v" messages
 #	-f logfile	- for the logfile to append to (mandatory,
@@ -67,6 +68,8 @@ while (@ARGV) {
 
 	if ($arg eq '-m') {
                 $users = "$users " . shift @ARGV;
+	} elsif ($arg eq '-u') {
+		$login = shift @ARGV;
 	} elsif ($arg eq '-f') {
 		($logfile) && die "Too many '-f' args";
 		$logfile = shift @ARGV;
@@ -96,7 +99,9 @@ $year += 1900;
 
 # get a login name for the guy doing the commit....
 #
-$login = getlogin || (getpwuid($<))[0] || "nobody";
+if ($login eq '') {
+	$login = getlogin || (getpwuid($<))[0] || "nobody";
+}
 
 # open log file for appending
 #
