@@ -461,7 +461,6 @@ icmp_input(m, off)
 			goto reflect;
 
 	case ICMP_MASKREQ:
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
 		if (icmpmaskrepl == 0)
 			break;
 		/*
@@ -584,8 +583,9 @@ static void
 icmp_reflect(m)
 	struct mbuf *m;
 {
-	register struct ip *ip = mtod(m, struct ip *);
-	register struct in_ifaddr *ia;
+	struct ip *ip = mtod(m, struct ip *);
+	struct ifaddr *ifa;
+	struct in_ifaddr *ia;
 	struct in_addr t;
 	struct mbuf *opts = 0;
 	int optlen = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof(struct ip);
@@ -604,23 +604,30 @@ icmp_reflect(m)
 	 * or anonymous), use the address which corresponds
 	 * to the incoming interface.
 	 */
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash)
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
-			break;
-		if (ia->ia_ifp && (ia->ia_ifp->if_flags & IFF_BROADCAST) &&
-		    t.s_addr == satosin(&ia->ia_broadaddr)->sin_addr.s_addr)
-			break;
-	}
+			goto match;
+	if (m->m_pkthdr.rcvif->if_flags & IFF_BROADCAST) {
+		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {
+			if (ifa->ifa_addr->sa_family != AF_INET)
+				continue;
+                        ia = ifatoia(ifa);
+                        if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
+                            t.s_addr)
+                                goto match;
+        	}
+        }
+	KASSERT(m->m_pkthdr.rcvif != NULL, ("icmp_reflect: NULL rcvif"));
 	icmpdst.sin_addr = t;
-	if ((ia == (struct in_ifaddr *)0) && m->m_pkthdr.rcvif)
-		ia = (struct in_ifaddr *)ifaof_ifpforaddr(
-			(struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
+	ia = (struct in_ifaddr *)ifaof_ifpforaddr(
+	    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
 	/*
 	 * The following happens if the packet was not addressed to us,
 	 * and was received on an interface with no IP address.
 	 */
-	if (ia == (struct in_ifaddr *)0)
+	if (ia == NULL)
 		ia = TAILQ_FIRST(&in_ifaddrhead);
+match:
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = ip_defttl;
