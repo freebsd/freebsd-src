@@ -29,7 +29,7 @@
 FOUND=`kldstat -v | egrep 'osf1_ecoff'`
 
 if [ "x$FOUND" != x ] ; then
-	echo Osf1 driver already loaded
+	echo "OSF/1 driver already loaded"
 	exit 1
 else
 	kldload osf1
