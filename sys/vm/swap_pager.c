@@ -1666,13 +1666,12 @@ static void
 swap_pager_swapoff(struct swdevt *sp)
 {
 	struct swblock *swap;
-	vm_object_t waitobj;
-	int i, j;
+	int i, j, retries;
 
 	GIANT_REQUIRED;
 
+	retries = 0;
 full_rescan:
-	waitobj = NULL;
 	mtx_lock(&swhash_mtx);
 	for (i = 0; i <= swhash_mask; i++) { /* '<=' is correct here */
 restart:
@@ -1683,7 +1682,6 @@ restart:
                                 if (swp_pager_isondev(swap->swb_pages[j], sp)) {
 					/* avoid deadlock */
 					if (!VM_OBJECT_TRYLOCK(object)) {
-						waitobj = object;
 						break;
 					} else {
 						mtx_unlock(&swhash_mtx);
@@ -1695,30 +1693,25 @@ restart:
 					}
 				}
                         }
-			if (object->paging_in_progress)
-				waitobj = object;
 		}
 	}
 	mtx_unlock(&swhash_mtx);
-	if (waitobj && sp->sw_used) {
+	if (sp->sw_used) {
+		int dummy;
 		/*
-		 * The most likely reason we will have to do another pass is
-		 * that something is being paged out to the device being
-		 * removed.  This can't happen forever because new allocations
-		 * will not be made on this device, but we still need to wait
-		 * for the activity to finish.  We have no way of knowing
-		 * which objects we need to wait for, so we pick an arbitrary
-		 * object that is paging and hope that it finishes paging at
-		 * about the same time as one of the objects we care about.
-		 *
-		 * XXX Unfortunately, our waitobj reference might not be valid
-		 * anymore, so we also retry after 50 ms.
+		 * Objects may be locked or paging to the device being
+		 * removed, so we will miss their pages and need to
+		 * make another pass.  We have marked this device as
+		 * SW_CLOSING, so the activity should finish soon.
 		 */
-		tsleep(waitobj, PVM, "swpoff", hz / 20);
+		retries++;
+		if (retries > 100) {
+			panic("swapoff: failed to locate %d swap blocks",
+			    sp->sw_used);
+		}
+		tsleep(&dummy, PVM, "swpoff", hz / 20);
 		goto full_rescan;
 	}
-	if (sp->sw_used)
-		panic("swapoff: failed to locate %d swap blocks", sp->sw_used);
 }
 
 /************************************************************************
