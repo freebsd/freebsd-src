@@ -2975,7 +2975,7 @@ nfs_writebp(struct buf *bp, int force, struct thread *td)
 	if (force)
 		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
-	bp->b_offset = dbtob(bp->b_blkno);
+	bp->b_iooffset = dbtob(bp->b_blkno);
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
