@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: lockfile.c,v 8.3 1999/08/31 15:38:27 ca Exp $";
+static char id[] = "@(#)$Id: lockfile.c,v 8.3.16.11 2000/11/16 02:54:28 geir Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -27,6 +27,7 @@ static char id[] = "@(#)$Id: lockfile.c,v 8.3 1999/08/31 15:38:27 ca Exp $";
 **		type -- type of the lock.  Bits can be:
 **			LOCK_EX -- exclusive lock.
 **			LOCK_NB -- non-blocking.
+**			LOCK_UN -- unlock.
 **
 **	Returns:
 **		TRUE if the lock was acquired.

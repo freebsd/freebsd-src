@@ -15,9 +15,9 @@
 
 #ifndef lint
 # if SMTP
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.13 2000/09/26 00:46:21 gshapiro Exp $ (with SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.18 2000/12/20 16:36:11 ca Exp $ (with SMTP)";
 # else /* SMTP */
-static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.13 2000/09/26 00:46:21 gshapiro Exp $ (without SMTP)";
+static char id[] = "@(#)$Id: usersmtp.c,v 8.245.4.18 2000/12/20 16:36:11 ca Exp $ (without SMTP)";
 # endif /* SMTP */
 #endif /* ! lint */
 
@@ -1187,7 +1187,7 @@ attemptauth(m, mci, e, mechused)
 			return EX_TEMPFAIL;
 		addrsize = sizeof(struct sockaddr_in);
 		if (getsockname(fileno(mci->mci_out),
-				(struct sockaddr *) &saddr_l, &addrsize) != 0)
+				(struct sockaddr *) &saddr_l, &addrsize) == 0)
 		{
 			if (sasl_setprop(mci->mci_conn, SASL_IP_LOCAL,
 					 &saddr_l) != SASL_OK)
@@ -1298,7 +1298,7 @@ attemptauth(m, mci, e, mechused)
 		}
 		else
 			in64[0] = '\0';
-		smtpmessage(in64, m, mci);
+		smtpmessage("%s", m, mci, in64);
 		smtpresult = reply(m, mci, e, TimeOuts.to_datafinal,
 				   getsasldata, NULL);
 		/* which timeout? XXX */
@@ -1542,7 +1542,7 @@ smtpmailfrom(m, mci, e)
 		smtpquit(m, mci, e);
 		return EX_TEMPFAIL;
 	}
-	else if (r == 421)
+	else if (r == SMTPCLOSING)
 	{
 		/* service shutting down */
 		mci_setstat(mci, EX_TEMPFAIL, ENHSCN(enhsc, "4.5.0"),
@@ -2106,7 +2106,7 @@ smtpquit(m, mci, e)
 
 		/* look for naughty mailers */
 		sm_syslog(LOG_ERR, e->e_id,
-			  "smtpquit: mailer%s%s exited with exit value %d\n",
+			  "smtpquit: mailer%s%s exited with exit value %d",
 			  mailer == NULL ? "" : " ",
 			  mailer == NULL ? "" : mailer,
 			  rcode);
@@ -2141,9 +2141,13 @@ smtprset(m, mci, e)
 		**  Any response is deemed to be acceptable.
 		**  The standard does not state the proper action
 		**  to take when a value other than 250 is received.
+		**
+		**  However, if 421 is returned for the RSET, leave
+		**  mci_state as MCIS_SSD (set in reply()).
 		*/
 
-		mci->mci_state = MCIS_OPEN;
+		if (mci->mci_state != MCIS_SSD)
+			mci->mci_state = MCIS_OPEN;
 		return;
 	}
 	smtpquit(m, mci, e);

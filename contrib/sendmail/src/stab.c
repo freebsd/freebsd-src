@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: stab.c,v 8.40.16.2 2000/06/05 21:46:59 gshapiro Exp $";
+static char id[] = "@(#)$Id: stab.c,v 8.40.16.3 2000/10/09 02:46:12 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -268,6 +268,7 @@ queueup_macros(class, qfp, e)
 	if (e == NULL)
 		return;
 
+	class = bitidx(class);
 	for (shead = SymTab; shead < &SymTab[STABSIZE]; shead++)
 	{
 		for (s = *shead; s != NULL; s = s->s_next)
@@ -276,7 +277,7 @@ queueup_macros(class, qfp, e)
 			char *p;
 
 			if (s->s_type == ST_CLASS &&
-			    bitnset(class & 0xff, s->s_class) &&
+			    bitnset(class, s->s_class) &&
 			    (m = macid(s->s_name, NULL)) != '\0' &&
 			    (p = macvalue(m, e)) != NULL)
 			{
@@ -326,12 +327,14 @@ copy_class(src, dst)
 	register STAB **shead;
 	register STAB *s;
 
+	src = bitidx(src);
+	dst = bitidx(dst);
 	for (shead = SymTab; shead < &SymTab[STABSIZE]; shead++)
 	{
 		for (s = *shead; s != NULL; s = s->s_next)
 		{
 			if (s->s_type == ST_CLASS &&
-			    bitnset(src & 0xff, s->s_class))
+			    bitnset(src, s->s_class))
 				setbitn(dst, s->s_class);
 		}
 	}

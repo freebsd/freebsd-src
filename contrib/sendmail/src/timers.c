@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: timers.c,v 8.13 1999/11/23 07:22:28 gshapiro Exp $";
+static char id[] = "@(#)$Id: timers.c,v 8.13.16.1 2000/10/09 01:06:45 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_TIMERS
@@ -204,8 +204,11 @@ poptimer(ptimer)
 
 	/* pop back to this timer */
 	for (i = 0; i < NTimers; i++)
+	{
 		if (TimerStack[i] == ptimer)
 			break;
+	}
+
 	if (i != NTimers - 1)
 		warntimer("poptimer: odd pop (timer=0x%lx, index=%d, NTimers=%d)",
 			  (u_long) ptimer, i, NTimers);

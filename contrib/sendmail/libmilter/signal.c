@@ -9,18 +9,11 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: signal.c,v 8.10.4.7 2000/09/01 00:49:04 ca Exp $";
+static char id[] = "@(#)$Id: signal.c,v 8.10.4.8 2000/11/20 21:15:37 ca Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
 #include "libmilter.h"
-
-typedef pthread_mutex_t smutex_t;
-# define smutex_init(mp)	(pthread_mutex_init(mp, NULL) == 0)
-# define smutex_destroy(mp)	(pthread_mutex_destroy(mp) == 0)
-# define smutex_lock(mp)	(pthread_mutex_lock(mp) == 0)
-# define smutex_unlock(mp)	(pthread_mutex_unlock(mp) == 0)
-# define smutex_trylock(mp)	(pthread_mutex_trylock(mp) == 0)
 
 /*
 **  thread to handle signals
