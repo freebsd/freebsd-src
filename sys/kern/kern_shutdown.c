@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.18 1997/08/09 01:25:53 julian Exp $
+ * $Id: kern_shutdown.c,v 1.19 1997/08/09 01:44:19 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -78,17 +78,15 @@
  */
 #include <machine/stdarg.h>
 
-#if defined(DDB)
+#ifdef DDB
 #ifdef DDB_UNATTENDED
-	static int debugger_on_panic = 0;
+static int debugger_on_panic = 0;
 #else
-	static int debugger_on_panic = 1;
+static int debugger_on_panic = 1;
 #endif
-
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "");
 #endif
-
 
 #ifdef	HW_WDOG
 /*
@@ -155,7 +153,7 @@ reboot(p, uap, retval)
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
  */
 void
-shutdown_nice(void)
+shutdown_nice()
 {
 	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
