@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.66 1995/02/24 00:11:01 ache Exp $
+ *	$Id: sio.c,v 1.67 1995/02/25 20:09:14 pst Exp $
  */
 
 #include "sio.h"
@@ -298,9 +298,10 @@ struct isa_driver	siodriver = {
 };
 
 #ifdef COMCONSOLE
-#define COMCONSOLE 1
+#undef COMCONSOLE
+#define	COMCONSOLE	1
 #else
-#define COMCONSOLE 0
+#define	COMCONSOLE	0
 #endif
 
 static	int	comconsole = CONUNIT;
@@ -414,6 +415,7 @@ sioprobe(dev)
 	 * (misconfigured) shared interrupts.
 	 */
 	disable_intr();
+/* EXTRA DELAY? */
 
 	/*
 	 * XXX DELAY() reenables CPU interrupts.  This is a problem for
@@ -437,13 +439,14 @@ sioprobe(dev)
 	outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
 	outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
 	outb(iobase + com_cfcr, CFCR_8BITS);
-	DELAY((16 + 1) * 9600 / 10);
+	DELAY((16 + 1) * 1000000 / (9600 / 10));
 
 	/*
 	 * Enable the interrupt gate and disable device interupts.  This
 	 * should leave the device driving the interrupt line low and
 	 * guarantee an edge trigger if an interrupt can be generated.
 	 */
+/* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 	outb(iobase + com_ier, 0);
 
@@ -451,6 +454,7 @@ sioprobe(dev)
 	 * Attempt to set loopback mode so that we can send a null byte
 	 * without annoying any external device.
 	 */
+/* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image | MCR_LOOPBACK);
 
 	/*
@@ -470,7 +474,7 @@ sioprobe(dev)
 	 * it's unlikely to do more than allow the null byte out.
 	 */
 	outb(iobase + com_data, 0);
-	DELAY((1 + 2) * 9600 / 10);
+	DELAY((1 + 2) * 1000000 / (9600 / 10));
 
 	/*
 	 * Turn off loopback mode so that the interrupt gate works again
@@ -479,6 +483,7 @@ sioprobe(dev)
 	 * line oscillates while we are not looking at it, since interrupts
 	 * are disabled.
 	 */
+/* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 
 	/*
@@ -489,6 +494,7 @@ sioprobe(dev)
 	 *	o an output interrupt is generated and its vector is correct.
 	 *	o the interrupt goes away when the IIR in the UART is read.
 	 */
+/* EXTRA DELAY? */
 	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
@@ -611,7 +617,7 @@ sioattach(isdp)
 	com->it_in.c_oflag = 0;
 	com->it_in.c_cflag = TTYDEF_CFLAG;
 	com->it_in.c_lflag = 0;
-	if (unit == comconsole && ((boothowto & RB_SERIAL) || COMCONSOLE)) {
+	if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)) {
 		com->it_in.c_iflag = TTYDEF_IFLAG;
 		com->it_in.c_oflag = TTYDEF_OFLAG;
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
@@ -694,8 +700,7 @@ determined_type: ;
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
-		if (unit == comconsole && ((boothowto & RB_SERIAL)
-						|| COMCONSOLE))
+		if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL))
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
 			int	divisor;
@@ -1006,8 +1011,8 @@ siowrite(dev, uio, flag)
 	 * is not the console.  In that situation we don't need/want the X
 	 * server taking over the console.
 	 */
-	if (constty && unit == comconsole && ((boothowto & RB_SERIAL)
-						|| COMCONSOLE))
+	if (constty && unit == comconsole
+	    && (COMCONSOLE || boothowto & RB_SERIAL))
 		constty = NULL;
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
@@ -1821,24 +1826,18 @@ siostop(tp, rw)
 
 struct tty *
 siodevtotty(dev)
-	dev_t		dev;
+	dev_t	dev;
 {
-	register int mynor, unit;
-	struct com_s *com;
+	int	mynor;
+	int	unit;
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
-		return NULL;
-
+		return (NULL);
 	unit = MINOR_TO_UNIT(mynor);
-	if (unit >= NSIO)
-		return NULL;
-
-	com = com_addr(unit);
-	if (com == NULL)
-		return NULL;
-
-	return com->tp;
+	if ((u_int) unit >= NSIO)
+		return (NULL);
+	return (&sio_tty[unit]);
 }
 
 int
@@ -1847,22 +1846,7 @@ sioselect(dev, rw, p)
 	int		rw;
 	struct proc	*p;
 {
-	register int mynor, unit;
-	struct com_s *com;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-
-	unit = MINOR_TO_UNIT(mynor);
-	if (unit >= NSIO)
-		return (ENXIO);
-
-	com = com_addr(unit);
-	if (com == NULL)
-		return (ENXIO);
-
-	return (ttyselect(com->tp, rw, p));
+	return (ttyselect(siodevtotty(dev), rw, p));
 }
 
 static void
@@ -2084,7 +2068,7 @@ siocnprobe(cp)
 	/* initialize required fields */
 	cp->cn_dev = makedev(commajor, unit);
 
-	if (boothowto & RB_SERIAL || COMCONSOLE)
+	if (COMCONSOLE || boothowto & RB_SERIAL)
 		cp->cn_pri = CN_REMOTE;	/* Force a serial port console */
 	else
 		cp->cn_pri = CN_NORMAL;
