@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.100 1996/09/10 04:21:36 jfieber Exp $
+#	$Id: Makefile,v 1.101 1996/09/18 18:14:37 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -184,7 +184,7 @@ world:
 	cd ${.CURDIR} && ${MAKE} libraries
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding C compiler, make, symorder, sgmlfmt and zic(8)"
+	@echo " Rebuilding sgml tools, symorder, groff and zic(8)"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} build-tools
 	@echo
@@ -447,6 +447,12 @@ lib-tools:
 		rm -f /usr/sbin/compile_et
 	cd ${.CURDIR}/usr.bin/mk_cmds && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/bison && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/gperf && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/cc && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
 #
 # libraries - build and install the libraries
@@ -470,8 +476,6 @@ libraries:
 .endif
 .if exists(gnu)
 	cd ${.CURDIR}/gnu/lib && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
@@ -500,8 +504,6 @@ libraries:
 # compile and install.
 #
 build-tools:
-	cd ${.CURDIR}/gnu/usr.bin/cc && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/symorder && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/sgmls && ${MAKE} depend && \
