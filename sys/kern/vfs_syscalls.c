@@ -88,6 +88,9 @@ static int setutimes(struct thread *td, struct vnode *,
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
 
+static int extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
+    size_t nbytes, struct thread *td);
+
 int (*union_dircheckp)(struct thread *td, struct vnode **, struct file *);
 int (*softdep_fsync_hook)(struct vnode *);
 
@@ -4052,6 +4055,15 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	size_t size, *sizep;
 	int error;
 
+	/*
+	 * XXX: Temporary API compatibility for applications that know
+	 * about this hack ("" means list), but haven't been updated
+	 * for the extattr_list_*() system calls yet.  This will go
+	 * away for FreeBSD 5.3.
+	 */
+	if (strlen(attrname) == 0)
+		return (extattr_list_vp(vp, attrnamespace, data, nbytes, td));
+
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
@@ -4371,7 +4383,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		goto done;
 #endif
 
-	error = VOP_GETEXTATTR(vp, attrnamespace, "", auiop, sizep,
+	error = VOP_LISTEXTATTR(vp, attrnamespace, auiop, sizep,
 	    td->td_ucred, td);
 
 	if (auiop != NULL) {
