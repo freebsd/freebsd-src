@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 BASE= 		loader
 PROG= 		${BASE}
