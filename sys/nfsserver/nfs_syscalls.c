@@ -40,6 +40,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -64,6 +66,10 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#ifdef INET6
+#include <net/if.h>
+#include <netinet6/in6_var.h>
+#endif
 #include <nfs/xdr_subs.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -109,6 +115,10 @@ static int	nfssvc_nfsd(struct nfsd_srvargs *, caddr_t, struct thread *);
  * - adds a socket to the selection list
  * - remains in the kernel as an nfsd
  * - remains in the kernel as an nfsiod
+ * For INET6 we suppose that nfsd provides only IN6P_BINDV6ONLY sockets
+ * and that mountd provides
+ *  - sockaddr with no IPv4-mapped addresses
+ *  - mask for both INET and INET6 families if there is IPv4-mapped overlap
  */
 #ifndef _SYS_SYSPROTO_H_
 struct nfssvc_args {
@@ -230,8 +240,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 		val = 1;
 		sosetopt(so, &sopt);
 	}
-	if (so->so_proto->pr_domain->dom_family == AF_INET &&
-	    so->so_proto->pr_protocol == IPPROTO_TCP) {
+	if (so->so_proto->pr_protocol == IPPROTO_TCP) {
 		struct sockopt sopt;
 		int val;
 
@@ -385,13 +394,33 @@ nfssvc_nfsd(struct nfsd_srvargs *nsd, caddr_t argp, struct thread *td)
 			struct sockaddr_in *sin;
 
 			sin = (struct sockaddr_in *)nam;
+			/*
+			 * INET/INET6 - same code:
+			 *    sin_port and sin6_port are at same offset
+			 */
 			port = ntohs(sin->sin_port);
 			if (port >= IPPORT_RESERVED &&
 			    nd->nd_procnum != NFSPROC_NULL) {
+#if defined(INET6) && defined(KLD_MODULE)
+	/* do not use ip6_sprintf: the nfs module should work without INET6 */
+	char b6[INET6_ADDRSTRLEN];
+#define ip6_sprintf(a) \
+	 (sprintf(b6, "%x:%x:%x:%x:%x:%x:%x:%x", \
+		  (a)->s6_addr16[0], (a)->s6_addr16[1], \
+		  (a)->s6_addr16[2], (a)->s6_addr16[3], \
+		  (a)->s6_addr16[4], (a)->s6_addr16[5], \
+		  (a)->s6_addr16[6], (a)->s6_addr16[7]), \
+	  b6)
+#endif
 			    nd->nd_procnum = NFSPROC_NOOP;
 			    nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
 			    cacherep = RC_DOIT;
 			    printf("NFS request from unprivileged port (%s:%d)\n",
+#ifdef INET6
+				   sin->sin_family == AF_INET6 ?
+					ip6_sprintf(&satosin6(sin)->sin6_addr) :
+#undef ip6_sprintf
+#endif
 				   inet_ntoa(sin->sin_addr), port);
 			}
 		    }

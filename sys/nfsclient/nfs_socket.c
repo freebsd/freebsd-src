@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -157,7 +159,6 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	int s, error, rcvreserve, sndreserve;
 	int pktscale;
 	struct sockaddr *saddr;
-	struct sockaddr_in *sin;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
 	nmp->nm_so = NULL;
@@ -172,42 +173,51 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	/*
 	 * Some servers require that the client port be a reserved port number.
 	 */
-	if (saddr->sa_family == AF_INET && (nmp->nm_flag & NFSMNT_RESVPORT)) {
+	if (nmp->nm_flag & NFSMNT_RESVPORT) {
 		struct sockopt sopt;
-		int ip;
-		struct sockaddr_in ssin;
+		int ip, ip2, len;
+		struct sockaddr_in6 ssin;
+		struct sockaddr *sa;
 
 		bzero(&sopt, sizeof sopt);
-		ip = IP_PORTRANGE_LOW;
+		switch(saddr->sa_family) {
+		case AF_INET:
+			sopt.sopt_level = IPPROTO_IP;
+			sopt.sopt_name = IP_PORTRANGE;
+			ip = IP_PORTRANGE_LOW;
+			ip2 = IP_PORTRANGE_DEFAULT;
+			len = sizeof (struct sockaddr_in);
+			break;
+#ifdef INET6
+		case AF_INET6:
+			sopt.sopt_level = IPPROTO_IPV6;
+			sopt.sopt_name = IPV6_PORTRANGE;
+			ip = IPV6_PORTRANGE_LOW;
+			ip2 = IPV6_PORTRANGE_DEFAULT;
+			len = sizeof (struct sockaddr_in6);
+			break;
+#endif
+		default:
+			goto noresvport;
+		}
+		sa = (struct sockaddr *)&ssin;
+		bzero(sa, len);
+		sa->sa_len = len;
+		sa->sa_family = saddr->sa_family;
 		sopt.sopt_dir = SOPT_SET;
-		sopt.sopt_level = IPPROTO_IP;
-		sopt.sopt_name = IP_PORTRANGE;
 		sopt.sopt_val = (void *)&ip;
 		sopt.sopt_valsize = sizeof(ip);
-		sopt.sopt_td = NULL;
 		error = sosetopt(so, &sopt);
 		if (error)
 			goto bad;
-		bzero(&ssin, sizeof ssin);
-		sin = &ssin;
-		sin->sin_len = sizeof (struct sockaddr_in);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = INADDR_ANY;
-		sin->sin_port = htons(0);
-		error = sobind(so, (struct sockaddr *)sin, td);
+		error = sobind(so, sa, td);
 		if (error)
 			goto bad;
-		bzero(&sopt, sizeof sopt);
-		ip = IP_PORTRANGE_DEFAULT;
-		sopt.sopt_dir = SOPT_SET;
-		sopt.sopt_level = IPPROTO_IP;
-		sopt.sopt_name = IP_PORTRANGE;
-		sopt.sopt_val = (void *)&ip;
-		sopt.sopt_valsize = sizeof(ip);
-		sopt.sopt_td = NULL;
+		ip = ip2;
 		error = sosetopt(so, &sopt);
 		if (error)
 			goto bad;
+	noresvport: ;
 	}
 
 	/*
