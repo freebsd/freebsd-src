@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1995/12/11 02:22:30 peter Exp $
+#	$Id: Makefile,v 1.8.6.1 1996/02/23 12:18:37 peter Exp $
 
 LIB = cvs
 NOPROFILE= yes

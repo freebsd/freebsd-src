@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.4.4.1 1995/10/06 11:24:37 davidg Exp $
+ * $Id: ip.c,v 1.4.4.2 1996/02/05 17:03:02 dfr Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet

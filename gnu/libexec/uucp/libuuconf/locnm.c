@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_locnm_rcsid[] = "$Id: locnm.c,v 1.3 1995/08/19 21:27:39 ache Exp $";
+const char _uuconf_locnm_rcsid[] = "$Id: locnm.c,v 1.2.6.1 1995/09/01 06:04:05 davidg Exp $";
 #endif
 
 /* Get the local node name.  */

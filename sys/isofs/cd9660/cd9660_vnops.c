@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.14.4.1 1995/11/12 10:40:36 davidg Exp $
+ * $Id: cd9660_vnops.c,v 1.14.4.2 1996/06/25 18:30:21 joerg Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1995/08/29 19:48:10 wollman Exp $
+#	$Id: Makefile,v 1.9.4.1 1995/10/06 11:53:41 davidg Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DCSLIP -DPPP -DFDDI

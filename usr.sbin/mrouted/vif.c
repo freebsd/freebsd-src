@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 1.7 1995/10/07 03:47:44 davidg Exp $
+ * $Id: vif.c,v 1.4.4.2 1995/10/09 08:43:09 davidg Exp $
  */
 
 

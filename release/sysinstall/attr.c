@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.3.2.12 1996/05/24 06:08:11 jkh Exp $
+ * $Id: attr.c,v 1.3.2.13 1996/06/11 10:00:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

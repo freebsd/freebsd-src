@@ -1,6 +1,6 @@
 # Really quick and evil Makefile for building all the tests.  I wish that bmake was friendlier to
 # the concept of multiple progs/libs in the same directory.
-# $Id: Makefile,v 1.1.2.1 1996/01/02 06:42:45 jkh Exp $
+# $Id: Makefile,v 1.1.2.2 1996/05/03 23:32:24 jkh Exp $
 
 PROGS=	msg yesno prgbox gauge dselect fselect text menu1 menu2 menu3 \
 	input1 check1 check2 check3 radio1 radio2 radio3

@@ -1,5 +1,5 @@
 # Makefile for libgmp
-# $Id: Makefile,v 1.3.2.2 1996/06/05 02:38:30 jkh Exp $
+# $Id: Makefile,v 1.3.2.3 1996/06/24 02:40:08 jkh Exp $
 
 LIB=    gmp
 SRCS=	$(GMP_SRCS)

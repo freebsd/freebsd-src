@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.53 1996/07/14 01:54:39 jkh Exp $
+ * $Id: label.c,v 1.32.2.40 1996/07/14 01:57:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

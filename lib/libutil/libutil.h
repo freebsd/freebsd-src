@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id$
+ * $Id: libutil.h,v 1.1 1996/01/01 08:27:37 peter Exp $
  */
 
 #ifndef _LIBUTIL_H_

@@ -1,6 +1,6 @@
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 1.2 1995/05/30 03:48:36 rgrimes Exp $
+ * $Id: db_func.h,v 1.2.4.1 1995/08/30 04:07:11 davidg Exp $
  */
 
 /* ++from db_update.c++ */

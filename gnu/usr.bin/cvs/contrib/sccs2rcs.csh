@@ -43,7 +43,7 @@
 #
 # Various hacks made by Brian Berliner before inclusion in CVS contrib area.
 #
-# $Id: sccs2rcs.csh,v 1.1 1995/07/10 02:26:48 kfogel Exp $
+# $Id: sccs2rcs.csh,v 1.2 1995/12/10 23:00:01 peter Exp $
 
 
 #we'll assume the user set up the path correctly

@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.h,v 1.8 1996/01/30 22:53:51 mpp Exp $
+ *	$Id: eisaconf.h,v 1.2.4.2 1996/04/01 00:14:16 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_

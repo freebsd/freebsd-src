@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.7 1994/11/05 23:53:46 bde Exp $
+ *	$Id: microtime.s,v 1.7.8.1 1996/07/02 12:46:28 davidg Exp $
  */
 
 #include <machine/asmacros.h>

@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: TEST,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:01 $
+# $RCSfile: TEST,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:38 $
 
 # This is written in a peculiar style, since we're trying to avoid
 # most of the constructs we'll be testing for.

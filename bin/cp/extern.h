@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/1/94
- *	$Id: extern.h,v 1.2 1994/09/24 02:53:41 davidg Exp $
+ *	$Id: extern.h,v 1.2.6.2 1996/06/05 02:35:10 jkh Exp $
  */
 
 typedef struct {

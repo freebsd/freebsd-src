@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.1.2.2 1996/06/26 09:31:48 jkh Exp $
+ * $Id: dispatch.c,v 1.1.2.3 1996/07/03 01:31:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.16 1996/06/08 07:10:18 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.17 1996/06/09 17:33:06 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"

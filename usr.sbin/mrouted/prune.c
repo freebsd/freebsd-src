@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 1.9 1995/07/10 16:13:05 wollman Exp $
+ * $Id: prune.c,v 1.5.4.1 1995/09/06 10:33:59 davidg Exp $
  */
 
 

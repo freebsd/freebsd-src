@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.6 1995/07/12 09:14:46 phk Exp $
+ * $Id: md5.c,v 1.5.4.1 1995/09/06 14:19:17 davidg Exp $
  *
  * Derived from:
  */

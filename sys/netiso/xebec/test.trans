@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/test.trans,v 1.1.1.1 1994/05/24 10:07:51 rgrimes Exp $
+/* $Header: /home/ncvs/src/sys/netiso/xebec/Attic/test.trans,v 1.1.1.1.8.1 1996/06/05 02:56:12 jkh Exp $
  */
 *PROTOCOL test
 

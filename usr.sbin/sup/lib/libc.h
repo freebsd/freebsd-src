@@ -26,6 +26,9 @@
  **********************************************************************
  * HISTORY
  * $Log: libc.h,v $
+ * Revision 1.3  1995/12/26 22:32:22  peter
+ * get rid of non-applicable files...
+ *
  * Revision 1.2  1995/12/26 05:02:45  peter
  * Apply ports/net/sup/patches/patch-aa...
  *

@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id: easy-import.pl,v 1.5.2.2 1996/06/05 02:39:41 jkh Exp $
+# $Id: easy-import.pl,v 1.5.2.3 1996/06/25 14:45:10 joerg Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.5.2.2 $' . "\n"; # 'emacs kludge
+	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.5.2.3 $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .

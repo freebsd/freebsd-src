@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.1.1.1.2.3 1996/06/25 22:19:08 jkh Exp $ */
+/* $Id: main.c,v 1.1.1.1.2.4 1996/07/05 00:25:31 jmz Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vsys_rcsid[] = "$Id: vsys.c,v 1.3 1995/08/19 21:28:49 ache Exp $";
+const char _uuconf_vsys_rcsid[] = "$Id: vsys.c,v 1.2.6.1 1995/09/01 06:04:47 davidg Exp $";
 #endif
 
 /* Get system information from the V2 configuration files.  This is a

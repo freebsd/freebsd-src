@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.9 1995/05/25 07:36:24 davidg Exp $
+ * $Id: param.c,v 1.9.4.1 1995/08/23 04:22:29 davidg Exp $
  */
 
 #include <sys/param.h>

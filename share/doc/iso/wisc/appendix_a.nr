@@ -1,4 +1,4 @@
-.\" $Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/appendix_a.nr,v 1.1.1.1 1994/05/30 19:08:06 rgrimes Exp $
+.\" $Header: /home/ncvs/src/share/doc/iso/wisc/appendix_a.nr,v 1.1.1.1.6.1 1996/06/05 02:53:30 jkh Exp $
 .(x
 Appendix A
 .)x

@@ -1,0 +1,92 @@
+
+Commands:
+
+Enter word:                 <return> or <linefeed> or <space>
+Delete previous character:  <delete> or <backspace>
+Delete line:                <^u> or <^w>
+Redraw screen:              <^l> or <^r>
+Pause game:                 <^s>
+Resume game:                <^q> or <^s>
+Suspend game (BSD only):    <^z>
+Give up on current cube:    <^d>
+Show remaining time:        <space> first thing on a line
+Show help:                  ? (Suspends timer until done)
+Exit game:                  <^c>
+
+(^u means "control u", etc.)
+
+[Note for users of versions of this program that do not display a timer:
+The first word entered after the timer has run out causes a list of all the
+words you found, the words you missed, and your running statistics to be
+displayed.]
+
+Any time you are prompted while the board is displayed you can type:
+                           <esc>word
+to see where "word" is on the board.
+
+Usage:
+    bog [-b] [-d] [-s#] [-t#] [-w#] [+[+]] [boardspec]
+
+    -b: batch mode (boardspec must be present); dictionary read from stdin
+    -d: debug mode
+    -s#: use # as the random number seed
+    -t#: time limit is # seconds instead of default 180
+    -w#: minimum word length is # letters instead of default 3
+    +: can reuse a cube, but not twice in succession
+    ++: can reuse cubes arbitrarily
+    boardspec: the first board to use (use 'q' for 'qu'); e.g.:
+          bog nolezeebnqieegei
+.
+                            Default Rules
+
+A Boggle board is a four by four arrangement of Boggle cubes.
+You have 3 minutes to find as many words as possible in the Boggle board.
+Words are formed by finding a sequence of cubes (letters) that are in the
+game's dictionary.  The (N+1)th cube in the word must be horizontally,
+vertically, or diagonally adjacent to the Nth cube.  Cubes cannot be reused.
+Words consist solely of lower case letters and must be at least 3 letters long.
+.
+                           Options
+
+Command line flags can be given to change the rules of the game.
+The '+' flag allows a cube to be used multiple times, but not in succession.
+The '++' flag makes each cube adjacent to itself.
+The time limit can be changed from the default 3 minutes by using the flag
+'-t#', where # is the duration (in seconds) of each game.
+The minimum word length can be changed from 3 letters by specifying 'w#',
+where # is the minimum number of letters to use.
+.
+                           Bugs and Limitations
+
+The following bugs and problems are known to exist:
+
+- If there are a great many words in the cube the final display of the words
+  may scroll off of the screen.  (On a 25 line screen about 130 words can be
+  displayed.)
+
+- Computing the complete word list can be too slow on small machines.
+
+- No word can contain a 'q' that is not immediately followed by a 'u'.
+
+- When using the '+' or '++' options the display of words found in the board
+  doesn't indicate reused cubes.
+.
+                           About This Program
+
+Permission is given to freely copy and distribute this software providing:
+
+1) You do not sell it,
+2) You do not use it for commercial advantage,
+3) If you pass the program on you must make the source code available, and
+4) This notice must accompany the distribution
+
+Please notify the author of any bugs or if you have any suggestions.
+
+Copyright (c) 1988
+Barry Brachman           | UUCP:    {alberta,uw-beaver,uunet}!
+Dept. of Computer Science|           ubc-vision!ubc-csgrads!brachman
+Univ. of British Columbia| Internet: brachman@cs.ubc.ca
+Vancouver, B.C. V6T 1W5  |           brachman%ubc.csnet@csnet-relay.arpa
+(604) 228-5010           | brachman@ubc.csnet
+
+Boggle is a trademark of Parker Brothers.

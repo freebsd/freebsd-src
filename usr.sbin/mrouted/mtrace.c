@@ -47,7 +47,7 @@
  * have been derived from mrouted programs sources covered by the
  * license in the accompanying file named "LICENSE".
  *
- * $Id: mtrace.c,v 1.6 1995/06/28 17:58:40 wollman Exp $
+ * $Id: mtrace.c,v 1.4.4.1 1995/09/06 10:33:58 davidg Exp $
  */
 
 #include <netdb.h>

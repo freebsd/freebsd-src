@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 1.6 1995/06/28 17:58:27 wollman Exp $
+ * $Id: config.c,v 1.4.4.1 1995/09/06 10:33:43 davidg Exp $
  */
 
 

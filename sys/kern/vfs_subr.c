@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.30.4.1 1995/08/24 05:21:05 davidg Exp $
+ * $Id: vfs_subr.c,v 1.30.4.2 1995/10/28 10:11:40 davidg Exp $
  */
 
 /*

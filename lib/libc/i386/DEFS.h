@@ -35,7 +35,7 @@
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
  *
- *	$Id: DEFS.h,v 1.2 1994/08/05 01:17:56 wollman Exp $
+ *	$Id: DEFS.h,v 1.2.6.2 1996/06/05 02:47:24 jkh Exp $
  */
 
 /* XXX should use align 4,0x90 for -m486. */

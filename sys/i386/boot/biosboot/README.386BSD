@@ -148,4 +148,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id: README.386BSD,v 1.3 1995/02/16 12:02:08 jkh Exp $
+$Id: README.386BSD,v 1.3.4.1 1996/07/01 16:35:38 bde Exp $

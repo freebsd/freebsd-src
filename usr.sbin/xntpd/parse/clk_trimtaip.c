@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTAIP)
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/xntpd/parse/clk_trimtaip.c,v 1.1.1.1 1994/09/29 23:01:31 wollman Exp $
+ * $Header: /home/ncvs/src/usr.sbin/xntpd/parse/clk_trimtaip.c,v 1.1.1.1.6.1 1996/06/05 02:58:59 jkh Exp $
  *
  * Trimble SV6 clock support
  */
@@ -109,6 +109,10 @@ cvt_trimtaip(buffer, size, format, clock)
  * History:
  *
  * $Log: clk_trimtaip.c,v $
+ * Revision 1.1.1.1.6.1  1996/06/05 02:58:59  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.1.1.1  1994/09/29  23:01:31  wollman
  * xntp 3.4e from Dave Mills @ UDel
  *

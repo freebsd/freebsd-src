@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.14.2.2 1995/09/08 13:25:45 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.14.2.3 1996/04/08 01:28:06 davidg Exp $
  */
 
 #include <sys/param.h>

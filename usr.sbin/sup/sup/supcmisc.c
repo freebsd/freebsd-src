@@ -27,6 +27,11 @@
  **********************************************************************
  * HISTORY
  * $Log: supcmisc.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:46  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.2  1994/06/20  06:04:11  rgrimes
  * Humm.. they did a lot of #if __STDC__ but failed to properly prototype
  * the code.  Also fixed one bad argument to a wait3 call.

@@ -69,6 +69,9 @@
  *	since Tahoe version of <netinet/in.h> does not define them.
  *
  * $Log: scm.c,v $
+ * Revision 1.2  1995/12/26 05:02:49  peter
+ * Apply ports/net/sup/patches/patch-aa...
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:47  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD

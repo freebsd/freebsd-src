@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.4 1995/07/30 08:04:33 bde Exp $
+#	$Id: Makefile,v 1.2.4.1 1995/09/17 11:19:50 davidg Exp $
 
 VOLUME=	usd/10.exref
 SRCS=	ex.rm

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.23.4.1 1996/05/31 07:58:47 peter Exp $
+ * $Id: sysctl.h,v 1.23.4.4 1996/06/05 19:49:29 nate Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/06/25 17:29:46 sos Exp $
+#	$Id: Makefile,v 1.1.2.1 1996/01/28 00:00:10 rgrimes Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod

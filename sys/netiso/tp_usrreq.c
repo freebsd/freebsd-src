@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_usrreq.c,v 1.4 1995/05/30 08:11:44 rgrimes Exp $
+ * $Id: tp_usrreq.c,v 1.4.4.1 1996/06/05 02:55:46 jkh Exp $
  */
 
 /***********************************************************
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_usrreq.c,v 1.4 1995/05/30 08:11:44 rgrimes Exp $
- * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_usrreq.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/Attic/tp_usrreq.c,v 1.4.4.1 1996/06/05 02:55:46 jkh Exp $
+ * $Source: /home/ncvs/src/sys/netiso/Attic/tp_usrreq.c,v $
  *
  * tp_usrreq(), the fellow that gets called from most of the socket code.
  * Pretty straighforward.

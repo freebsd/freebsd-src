@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.7 1995/10/18 05:07:43 jfieber Exp $
+#	$Id: Makefile,v 1.4.4.3 1995/10/18 05:08:52 jfieber Exp $
 
 SUBDIR=	FAQ handbook psd smm usd papers
 

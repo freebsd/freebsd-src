@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.16 1996/05/24 06:09:06 jkh Exp $
+ * $Id: tape.c,v 1.6.2.17 1996/07/08 09:07:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

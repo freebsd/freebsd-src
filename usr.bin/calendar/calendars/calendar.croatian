@@ -1,7 +1,7 @@
 /*
  * Croatian calendar files
  *
- * $Id: calendar.croatian,v 1.2 1996/01/30 23:35:08 wosch Exp $
+ * $Id: calendar.croatian,v 1.1 1996/02/09 14:34:49 wosch Exp $
  */
 
 #ifndef _calendar_croatian_

@@ -1,6 +1,6 @@
 /* cre-conv-tab.c -- Create conversion table in a wordsize-dependent way.
 
- $Id$
+ $Id: cre-conv-tab.c,v 1.2 1995/11/12 14:55:47 markm Exp $
 
 Copyright (C) 1991 Free Software Foundation, Inc.
 

@@ -1,6 +1,9 @@
-/* $RCSfile: usersub.c,v $$Revision: 1.1 $$Date: 1995/03/24 04:33:54 $
+/* $RCSfile: usersub.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:33 $
  *
  * $Log: usersub.c,v $
+ * Revision 1.2  1995/05/30 05:03:33  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1  1995/03/24  04:33:54  jkh
  * Bring back perl/usub as usub/, this time containing an updated curseperl
  * which is also installed by default (the reason for which should also be

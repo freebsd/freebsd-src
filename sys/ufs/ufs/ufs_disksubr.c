@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.15 1995/05/30 08:15:33 rgrimes Exp $
+ * $Id: ufs_disksubr.c,v 1.15.4.1 1995/09/18 06:15:15 davidg Exp $
  */
 
 #include <sys/param.h>

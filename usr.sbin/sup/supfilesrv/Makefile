@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1995/12/26 05:15:19 peter Exp $
 
 PROG=	supfilesrv
 SRCS=	supfilesrv.c

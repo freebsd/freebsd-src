@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.2 1994/09/13 21:26:01 wollman Exp $
+#	$Id: Makefile.inc,v 1.2.6.2 1996/06/05 02:50:23 jkh Exp $
 
 .PATH:	${.CURDIR}/stdtime
 

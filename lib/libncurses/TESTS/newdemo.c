@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libncurses/TESTS/newdemo.c,v 1.2 1995/05/30 05:47:07 rgrimes Exp $
+/* $Header: /home/ncvs/src/lib/libncurses/TESTS/newdemo.c,v 1.2.4.1 1996/06/05 02:52:40 jkh Exp $
  *
  *  newdemo.c	-	A demo program using PDCurses. The program illustrate
  *  	 		the use of colours for text output.

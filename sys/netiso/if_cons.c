@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_cons.c	8.1 (Berkeley) 6/10/93
- * $Id: if_cons.c,v 1.4 1995/05/30 08:10:39 rgrimes Exp $
+ * $Id: if_cons.c,v 1.4.4.1 1996/06/05 02:55:06 jkh Exp $
  */
 
 /***********************************************************
@@ -61,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/if_cons.c,v 1.4 1995/05/30 08:10:39 rgrimes Exp $
- * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/if_cons.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/Attic/if_cons.c,v 1.4.4.1 1996/06/05 02:55:06 jkh Exp $
+ * $Source: /home/ncvs/src/sys/netiso/Attic/if_cons.c,v $
  *
  * cons.c - Connection Oriented Network Service:
  * including support for a) user transport-level service,

@@ -1,5 +1,5 @@
 #
-# $Id: commitinfo,v 1.1.1.2 1995/03/31 07:44:32 nate Exp $
+# $Id: commitinfo,v 1.1.1.2.6.1 1996/02/23 12:18:33 peter Exp $
 #
 # The "commitinfo" file is used to control pre-commit checks.
 # The filter on the right is invoked with the repository and a list 

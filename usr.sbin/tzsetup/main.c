@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: main.c,v 1.8 1996/07/03 01:17:34 jkh Exp $";
+	"$Id: main.c,v 1.3.2.5 1996/07/03 01:19:11 jkh Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>

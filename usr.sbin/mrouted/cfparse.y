@@ -4,7 +4,7 @@
  *
  * Written by Bill Fenner, NRL, 1994
  *
- * $Id: cfparse.y,v 3.6 1995/06/25 18:49:46 fenner Exp $
+ * $Id: cfparse.y,v 1.2 1995/06/28 17:58:26 wollman Exp $
  */
 #include <stdio.h>
 #ifdef __STDC__

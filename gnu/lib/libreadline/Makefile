@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.20 1995/05/08 08:43:06 ache Exp $
+#       $Id: Makefile,v 1.20.4.2 1996/06/05 02:38:34 jkh Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H

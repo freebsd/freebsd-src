@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.10 1995/05/30 07:58:29 rgrimes Exp $
+ *	$Id: boot.h,v 1.10.4.1 1995/08/23 04:32:44 davidg Exp $
  */
 
 #include <sys/types.h>

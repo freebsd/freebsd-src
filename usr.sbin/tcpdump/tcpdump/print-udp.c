@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "$Id: print-udp.c,v 1.4 1995/08/29 19:48:11 wollman Exp $";
+    "$Id: print-udp.c,v 1.3.4.1 1995/10/06 11:53:49 davidg Exp $";
 #endif
 
 #include <sys/param.h>

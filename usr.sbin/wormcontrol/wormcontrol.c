@@ -32,7 +32,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $Id$
+ * $Id: wormcontrol.c,v 1.1.1.1 1996/01/27 17:52:20 joerg Exp $
  *
  */
 

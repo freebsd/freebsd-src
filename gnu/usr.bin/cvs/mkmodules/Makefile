@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1995/12/10 23:10:38 peter Exp $
+#	$Id: Makefile,v 1.5.6.1 1996/02/23 12:18:51 peter Exp $
 
 PROG = mkmodules
 SRCS = mkmodules.c

@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libc/stdlib/strhash.c,v 1.4.4.1 1996/02/11 09:05:56 jkh Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.4.4.3 1996/06/05 02:50:21 jkh Exp $";
 #endif
 
 /*
@@ -37,6 +37,10 @@ static char *rcsid = "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libc/stdlib/strh
 
 /*
  * $Log: strhash.c,v $
+ * Revision 1.4.4.3  1996/06/05 02:50:21  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.4.4.1  1996/02/11  09:05:56  jkh
  * Sync with HEAD
  *

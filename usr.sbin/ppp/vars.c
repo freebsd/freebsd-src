@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.3.4.2 1995/10/06 11:24:47 davidg Exp $
+ * $Id: vars.c,v 1.3.4.3 1996/02/05 17:03:24 dfr Exp $
  *
  */
 #include "fsm.h"
@@ -29,7 +29,7 @@
 #include "defs.h"
 
 char VarVersion[] = "Version 0.94";
-char VarLocalVersion[] = "$Date: 1995/10/06 11:24:47 $";
+char VarLocalVersion[] = "$Date: 1996/02/05 17:03:24 $";
 
 /*
  * Order of conf option is important. See vars.h.

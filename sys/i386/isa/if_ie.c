@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.25 1995/08/16 16:12:32 bde Exp $
+ *	$Id: if_ie.c,v 1.24.4.1 1995/09/12 06:17:26 davidg Exp $
  */
 
 /*

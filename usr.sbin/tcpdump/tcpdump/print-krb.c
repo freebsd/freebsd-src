@@ -23,7 +23,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id$";
+	"$Id: print-krb.c,v 1.1 1995/08/29 19:50:18 wollman Exp $";
 /*
     "@(#) Header: /afs/sipb/project/tcpdump/src/tcpdump-3.0.2/RCS/print-krb.c,v 1.3 1995/08/16 05:33:27 jhawk Exp ";
 */

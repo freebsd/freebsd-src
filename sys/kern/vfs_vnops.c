@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.11.4.3 1995/08/24 05:29:36 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.11.4.4 1995/10/26 09:17:22 davidg Exp $
  */
 
 #include <sys/param.h>

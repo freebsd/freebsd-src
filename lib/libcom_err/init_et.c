@@ -1,6 +1,6 @@
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $
- * $Source: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/init_et.c,v $
+ * $Header: /home/ncvs/src/lib/libcom_err/init_et.c,v 1.1.1.1.4.1 1996/06/05 02:52:19 jkh Exp $
+ * $Source: /home/ncvs/src/lib/libcom_err/init_et.c,v $
  * $Locker:  $
  *
  * Copyright 1986, 1987, 1988 by MIT Information Systems and
@@ -19,7 +19,7 @@
 
 #ifndef	lint
 static const char rcsid_init_et_c[] =
-    "$Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
+    "$Header: /home/ncvs/src/lib/libcom_err/init_et.c,v 1.1.1.1.4.1 1996/06/05 02:52:19 jkh Exp $";
 #endif
 
 extern char *malloc(), *realloc();

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.62.4.7 1996/06/23 23:41:39 peter Exp $
+#	$Id: Makefile,v 1.62.4.8 1996/06/25 20:39:37 markm Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot cron \

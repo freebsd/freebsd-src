@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/substr.t,v 1.1.1.1 1994/09/10 06:27:46 gclarkii Exp $
+# $Header: /home/ncvs/src/gnu/usr.bin/perl/perl/t/op/substr.t,v 1.1.1.1.6.1 1996/06/05 02:43:15 jkh Exp $
 
 print "1..22\n";
 

@@ -33,7 +33,7 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-VERSIONID(`@(#)freefall.mc	$Revision: 1.1.6.1 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.1.6.2 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

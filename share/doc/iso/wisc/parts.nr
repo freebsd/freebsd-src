@@ -1,5 +1,5 @@
-.\"$Header: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/parts.nr,v 1.1.1.1 1994/05/30 19:08:06 rgrimes Exp $
-.\"$Source: /pub/FreeBSD/FreeBSD-CVS/src/share/doc/iso/wisc/parts.nr,v $
+.\"$Header: /home/ncvs/src/share/doc/iso/wisc/parts.nr,v 1.1.1.1.6.1 1996/06/05 02:53:33 jkh Exp $
+.\"$Source: /home/ncvs/src/share/doc/iso/wisc/parts.nr,v $
 .\"
 .\"
 .\" LOOK FOR ALL CASES OF 'writing' (as in, "at this writing")

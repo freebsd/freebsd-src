@@ -28,6 +28,9 @@
  **********************************************************************
  * HISTORY
  * $Log: scan.c,v $
+ * Revision 1.3  1995/12/26 05:10:59  peter
+ * Apply ports/net/sup/patches/patch-ab
+ *
  * Revision 1.2  1995/12/26 05:02:48  peter
  * Apply ports/net/sup/patches/patch-aa...
  *

@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: pathnames.h,v 1.1.1.1 1994/08/27 13:43:04 jkh Exp $
+ * $Id: pathnames.h,v 1.1.1.1.6.1 1995/08/26 11:35:17 davidg Exp $
  */
 
 #if (defined(BSD)) && (BSD >= 199103) || defined(__linux) || defined(AIX)

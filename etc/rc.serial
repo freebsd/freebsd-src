@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $Id: rc.serial,v 1.4.4.3 1996/07/02 14:39:34 bde Exp $
 
 # Change some defaults for serial devices.
 # Standard defaults are:

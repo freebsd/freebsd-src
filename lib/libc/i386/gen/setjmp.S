@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: setjmp.S,v 1.3 1995/01/23 01:27:08 davidg Exp $
+ *	$Id: setjmp.S,v 1.3.4.2 1996/06/05 02:47:30 jkh Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: setjmp.S,v 1.3 1995/01/23 01:27:08 davidg Exp $"
+	.asciz "$Id: setjmp.S,v 1.3.4.2 1996/06/05 02:47:30 jkh Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*

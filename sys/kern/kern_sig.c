@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.11 1995/05/30 08:05:40 rgrimes Exp $
+ * $Id: kern_sig.c,v 1.11.4.1 1996/01/31 13:12:27 davidg Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */

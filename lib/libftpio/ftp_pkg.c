@@ -11,7 +11,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: ftp_pkg.c,v 1.1.1.1 1996/06/17 12:26:06 jkh Exp $
+ * $Id: ftp_pkg.c,v 1.1.1.1.2.1 1996/06/24 02:30:32 jkh Exp $
  *
  * TCL Interface code for functions provided by the ftp library.
  *

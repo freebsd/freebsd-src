@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.3.4.1 1995/07/22 04:25:09 davidg Exp $
+ *      $Id: sctarg.c,v 1.3.4.2 1996/04/01 00:26:13 gibbs Exp $
  */
 
 /*

@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: null_subr.c,v 1.3 1994/10/02 17:48:14 phk Exp $
+ * $Id: null_subr.c,v 1.3.8.1 1996/06/12 03:42:10 davidg Exp $
  */
 
 #include <sys/param.h>

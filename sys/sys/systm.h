@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.23 1995/07/05 12:04:51 davidg Exp $
+ * $Id: systm.h,v 1.22.4.1 1995/09/15 10:18:05 davidg Exp $
  */
 
 #ifndef _SYS_SYSTM_H_

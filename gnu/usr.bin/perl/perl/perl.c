@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.4.4.1 $$Date: 1996/06/08 20:18:56 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.4.4.3 $$Date: 1996/06/30 09:52:45 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,10 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.4.4.1 $$Date: 1996/06/08 20:18:
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.4.4.3  1996/06/30 09:52:45  joerg
+ * Back out the change from rev 1.4.4.2: it was unnecessary and broke
+ * setuid scripts.
+ *
  * Revision 1.4.4.1  1996/06/08 20:18:56  pst
  * Bring in changes from head
  *

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12.2.13 1996/07/05 08:44:03 jkh Exp $
+ * $Id: dmenu.c,v 1.12.2.14 1996/07/11 20:06:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
