@@ -86,7 +86,7 @@ k6_mrmake(struct mem_range_desc *desc, u_int32_t *mtrr) {
 		return EINVAL;
 	if (desc->mr_len < 131072 || !powerof2(desc->mr_len))
 		return EINVAL;
-	if (desc->mr_flags &~ (MDF_WRITECOMBINE|MDF_UNCACHEABLE))
+	if (desc->mr_flags &~ (MDF_WRITECOMBINE|MDF_UNCACHEABLE|MDF_FORCE))
 		return EOPNOTSUPP;
 
 	for (bit = ffs(desc->mr_len >> 17) - 1; bit < 15; bit++)
