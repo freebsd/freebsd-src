@@ -34,12 +34,12 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.100 (Berkeley) 12/3/95')
+VERSIONID(`@(#)proto.m4	8.134 (Berkeley) 10/13/96')
 
 MAILER(local)dnl
 
-# level 6 config file format
-V6/Berkeley
+# level 7 config file format
+V7/Berkeley
 divert(-1)
 
 # do some sanity checking
@@ -47,7 +47,7 @@ ifdef(`__OSTYPE__',,
 	`errprint(`*** ERROR: No system type defined (use OSTYPE macro)')')
 
 # pick our default mailers
-ifdef(`confSMTP_MAILER',, `define(`confSMTP_MAILER', `smtp')')
+ifdef(`confSMTP_MAILER',, `define(`confSMTP_MAILER', `esmtp')')
 ifdef(`confLOCAL_MAILER',, `define(`confLOCAL_MAILER', `local')')
 ifdef(`confRELAY_MAILER',,
 	`define(`confRELAY_MAILER',
@@ -94,7 +94,7 @@ Fw`'confCW_FILE',
 	`dnl')
 
 # my official domain name
-# ... define this only if sendmail cannot automatically determine your domain
+# ... `define' this only if sendmail cannot automatically determine your domain
 ifdef(`confDOMAIN_NAME', `Dj`'confDOMAIN_NAME', `#Dj$w.Foo.COM')
 
 ifdef(`_NULL_CLIENT_ONLY_', `divert(-1)')dnl
@@ -142,6 +142,9 @@ CO @ % ifdef(`_NO_UUCP_', `', `!')
 # a class with just dot (for identifying canonical names)
 C..
 
+# a class with just a left bracket (for identifying domain literals)
+C[[
+
 # Mailer table (overriding domains)
 ifdef(`MAILER_TABLE',
 	`Kmailertable MAILER_TABLE',
@@ -151,6 +154,16 @@ ifdef(`MAILER_TABLE',
 ifdef(`DOMAIN_TABLE',
 	`Kdomaintable DOMAIN_TABLE',
 	`#Kdomaintable dbm /etc/domaintable')
+
+# Generics table (mapping outgoing addresses)
+ifdef(`GENERICS_TABLE',
+	`Kgenerics GENERICS_TABLE',
+	`#Kgenerics dbm /etc/genericstable')
+
+# Virtual user table (maps incoming users)
+ifdef(`VIRTUSER_TABLE',
+	`Kvirtuser VIRTUSER_TABLE',
+	`#Kvirtuser dbm /etc/virtusertable')
 
 # who I send unqualified names to (null means deliver locally)
 DR`'ifdef(`LOCAL_RELAY', LOCAL_RELAY)
@@ -193,7 +206,7 @@ ifdef(`_NULL_CLIENT_ONLY_', `dnl', `
 _OPTION(AliasWait, `confALIAS_WAIT', 5m)
 
 # location of alias file
-O AliasFile=ifdef(`ALIAS_FILE', `ALIAS_FILE', /etc/aliases)
+_OPTION(AliasFile, `ALIAS_FILE', /etc/aliases)
 ')
 # minimum number of free blocks on filesystem
 _OPTION(MinFreeBlocks, `confMIN_FREE_BLOCKS', 100)
@@ -255,6 +268,12 @@ _OPTION(ConnectionCacheSize, `confMCI_CACHE_SIZE', 2)
 # open connection cache timeout
 _OPTION(ConnectionCacheTimeout, `confMCI_CACHE_TIMEOUT', 5m)
 
+# persistent host status directory
+_OPTION(HostStatusDirectory, `confHOST_STATUS_DIRECTORY', .hoststat)
+
+# single thread deliveries (requires HostStatusDirectory)?
+_OPTION(SingleThreadDelivery, `confSINGLE_THREAD_DELIVERY')
+
 # use Errors-To: header?
 _OPTION(UseErrorsTo, `confUSE_ERRORS_TO')
 
@@ -287,6 +306,8 @@ O QueueDirectory=ifdef(`QUEUE_DIR', QUEUE_DIR, /var/spool/mqueue)
 
 # timeouts (many of these)
 _OPTION(Timeout.initial, `confTO_INITIAL', 5m)
+_OPTION(Timeout.connect, `confTO_CONNECT', 5m)
+_OPTION(Timeout.iconnect, `confTO_ICONNECT', 5m)
 _OPTION(Timeout.helo, `confTO_HELO', 5m)
 _OPTION(Timeout.mail, `confTO_MAIL', 10m)
 _OPTION(Timeout.rcpt, `confTO_RCPT', 1h)
@@ -307,6 +328,7 @@ _OPTION(Timeout.queuewarn, `confTO_QUEUEWARN', 4h)
 _OPTION(Timeout.queuewarn.normal, `confTO_QUEUEWARN_NORMAL', 4h)
 _OPTION(Timeout.queuewarn.urgent, `confTO_QUEUEWARN_URGENT', 1h)
 _OPTION(Timeout.queuewarn.non-urgent, `confTO_QUEUEWARN_NONURGENT', 12h)
+_OPTION(Timeout.hoststatus, `confTO_HOSTSTATUS', 30m)
 
 # should we not prune routes in route-addr syntax addresses?
 _OPTION(DontPruneRoutes, `confDONT_PRUNE_ROUTES')
@@ -342,6 +364,12 @@ _OPTION(QueueLA, `confQUEUE_LA', 8)
 
 # load average at which we refuse connections
 _OPTION(RefuseLA, `confREFUSE_LA', 12)
+
+# maximum number of children we allow at one time
+_OPTION(MaxDaemonChildren, `confMAX_DAEMON_CHILDREN', 12)
+
+# maximum number of new connections per second
+_OPTION(ConnectionRateThrottle, `confCONNECTION_RATE_THROTTLE', 3)
 
 # work recipient factor
 _OPTION(RecipientFactor, `confWORK_RECIPIENT_FACTOR', 30000)
@@ -400,6 +428,15 @@ _OPTION(OperatorChars, `confOPERATORS')
 # shall I avoid calling initgroups(3) because of high NIS costs?
 _OPTION(DontInitGroups, `confDONT_INIT_GROUPS')
 
+# are group-writable :include: and .forward files (un)trustworthy?
+_OPTION(UnsafeGroupWrites, `confUNSAFE_GROUP_WRITES')
+
+# where do errors that occur when sending errors get sent?
+_OPTION(DoubleBounceAddress, `confDOUBLE_BOUNCE_ADDRESS')
+
+# what user id do we assume for the majority of the processing?
+_OPTION(RunAsUser, `confRUN_AS_USER', sendmail)
+
 ###########################
 #   Message precedences   #
 ###########################
@@ -418,7 +455,7 @@ Pjunk=-100
 ifdef(`_USE_CT_FILE_', `', `#')Ft`'ifdef(`confCT_FILE', confCT_FILE, `/etc/sendmail.ct')
 Troot
 Tdaemon
-Tuucp
+ifdef(`_NO_UUCP_', `dnl', `Tuucp')
 ifdef(`confTRUSTED_USERS', `T`'confTRUSTED_USERS', `dnl')
 
 #########################
@@ -426,14 +463,13 @@ ifdef(`confTRUSTED_USERS', `T`'confTRUSTED_USERS', `dnl')
 #########################
 
 ifdef(`confFROM_HEADER',, `define(`confFROM_HEADER', `$?x$x <$g>$|$g$.')')dnl
-H?P?Return-Path: $g
+H?P?Return-Path: <$g>
 HReceived: confRECEIVED_HEADER
 H?D?Resent-Date: $a
 H?D?Date: $a
 H?F?Resent-From: confFROM_HEADER
 H?F?From: confFROM_HEADER
 H?x?Full-Name: $x
-HSubject:
 # HPosted-Date: $a
 # H?l?Received-Date: $b
 H?M?Resent-Message-Id: <$t.$i@$j>
@@ -450,11 +486,9 @@ ifdef(`_NULL_CLIENT_ONLY_',
 ######################################################################
 ######################################################################
 
-undivert(9)dnl
-
-###########################################
-###  Rulset 3 -- Name Canonicalization  ###
-###########################################
+############################################
+###  Ruleset 3 -- Name Canonicalization  ###
+############################################
 S3
 
 # handle null input (translate to <@> special case)
@@ -463,8 +497,11 @@ R$@			$@ <@>
 # strip group: syntax (not inside angle brackets!) and trailing semicolon
 R$*			$: $1 <@>			mark addresses
 R$* < $* > $* <@>	$: $1 < $2 > $3			unmark <addr>
+R@ $* <@>		$: @ $1				unmark @host:...
 R$* :: $* <@>		$: $1 :: $2			unmark node::addr
 R:`include': $* <@>	$: :`include': $1			unmark :`include':...
+R$* [ $* : $* ] <@>	$: $1 [ $2 : $3 ]		unmark IPv6 addrs
+R$* : $* [ $* ]		$: $1 : $2 [ $3 ] <@>		remark if leading colon
 R$* : $* <@>		$: $2				strip colon if marked
 R$* <@>			$: $1				unmark
 R$* ;			$: $1				strip trailing semi
@@ -559,17 +596,16 @@ ifdef(`_CLASS_Y_',
 R$* < @ $+ . UUCP > $*		$: $1 < @ $[ $2 $] . UUCP . > $3
 R$* < @ $+ . . UUCP . > $*		$@ $1 < @ $2 . > $3')
 ')
-ifdef(`_NO_CANONIFY_', `dnl',
-`# pass to name server to make hostname canonical
-R$* < @ $* $~P > $*		$: $1 < @ $[ $2 $3 $] > $4')
+# pass to name server to make hostname canonical
+ifdef(`_NO_CANONIFY_', `#')dnl
+R$* < @ $* $~P > $*		$: $1 < @ $[ $2 $3 $] > $4
 
 # local host aliases and pseudo-domains are always canonical
 R$* < @ $=w > $*		$: $1 < @ $2 . > $3
+R$* < @ $j > $*			$: $1 < @ $j . > $2
+R$* < @ $* $=M > $*		$: $1 < @ $2 $3 . > $4
 R$* < @ $* $=P > $*		$: $1 < @ $2 $3 . > $4
 R$* < @ $* . . > $*		$1 < @ $2 . > $3
-
-# if this is the local hostname, make sure we treat is as canonical
-R$* < @ $j > $*			$: $1 < @ $j . > $2
 
 
 ##################################################
@@ -622,7 +658,10 @@ S0
 R<@>			$#_LOCAL_ $: <@>		special case error msgs
 R$* : $* ; <@>		$#error $@ 5.1.3 $: "list:; syntax illegal for recipient addresses"
 R<@ $+>			$#error $@ 5.1.1 $: "user address required"
-R$* <$* : $* > $*	$#error $@ 5.1.1 $: "colon illegal in host name part"
+R$*			$: <> $1
+R<> $* < @ [ $+ ] > $*	$1 < @ [ $2 ] > $3
+R<> $* <$* : $* > $*	$#error $@ 5.1.1 $: "colon illegal in host name part"
+R<> $*			$1
 R$* < @ . > $*		$#error $@ 5.1.2 $: "invalid host name"
 
 ifdef(`_MAILER_smtp_',
@@ -635,15 +674,24 @@ R$* < @ [ $+ ] > $*	$#_SMTP_ $@ [$2] $: $1 < @ [$2] > $3	still numeric: send',
 R$* < @ > $*		$@ $>97 $1		user@ => user
 R< @ $=w . > : $*	$@ $>97 $2		@here:... -> ...
 R$- < @ $=w . >		$: $(dequote $1 $) < @ $2 . >	dequote "foo"@here
+R< @ $+ >		$#error $@ 5.1.1 $: "user address required"
 R$* $=O $* < @ $=w . >	$@ $>97 $1 $2 $3		...@here -> ...
 
 # handle local hacks
 R$*			$: $>98 $1
 
+# handle virtual users
+define(`X', ifdef(`VIRTUSER_TABLE', `', `#'))dnl
+X`'R$+ < @ $=w . > 	$: < $(virtuser $1 @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
+X`'R< @ > $+ < @ $+ . >	$: < $(virtuser @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
+X`'R< @ > $+		$: $1
+X`'R< error : $- $+ > $* 	$#error $@ $1 $: $2
+X`'R< $+ > $+ < @ $+ >	$: $>97 $1
+undefine(`X')dnl
+
 # short circuit local delivery so forwarded email works
-ifdef(`_MAILER_usenet_',
-`R$+ . USENET < @ $=w . >	$#usenet $: $1		handle usenet specially',
-	`dnl')
+ifdef(`_MAILER_usenet_', `', `#')dnl
+R$+ . USENET < @ $=w . >	$#usenet $: $1		handle usenet specially
 ifdef(`_STICKY_LOCAL_DOMAIN_',
 `R$+ < @ $=w . >		$: < $H > $1 < @ $2 . >		first try hub
 R< $+ > $+ < $+ >	$>95 < $1 > $2 < $3 >		yep ....
@@ -657,8 +705,7 @@ define(`X', ifdef(`MAILER_TABLE', `', `#'))dnl
 X`'R$* <@ $+ > $*		$: < $2 > $1 < @ $2 > $3	extract host name
 X`'R< $+ . > $*		$: < $1 > $2			strip trailing dot
 X`'R< $+ > $*		$: < $(mailertable $1 $) > $2	lookup
-X`'R< error : $- $+ > $*	$#error $@ $1 $: $2		check -- error?
-X`'R< $- : $+ > $* 	$# $1 $@ $2 $: $3		check -- resolved?
+X`'R< $~[ : $+ > $* 	$>95 < $1 : $2 > $3		check -- resolved?
 X`'R< $+ > $*		$: $>90 <$1> $2			try domain
 undefine(`X')dnl
 undivert(4)dnl
@@ -759,40 +806,63 @@ R< $+ > $+		$@ $>95 < $1 > $2 < @ $1 >
 ###################################################################
 
 define(`X', ifdef(`MAILER_TABLE', `', `#'))dnl
-X`'S90
+S90
 X`'R$* <$- . $+ > $*	$: $1$2 < $(mailertable .$3 $@ $1$2 $@ $2 $) > $4
-X`'R$* <$- : $+ > $*	$# $2 $@ $3 $: $4		check -- resolved?
-X`'R$* < . $+ > $* 	$@ $>90 $1 . <$2> $3		no -- strip & try again
+X`'R$* <$~[ : $+ > $*		$>95 < $2 : $3 > $4	check -- resolved?
+X`'R$* < . $+ > $* 		$@ $>90 $1 . <$2> $3	no -- strip & try again
 X`'R$* < $* > $*		$: < $(mailertable . $@ $1$2 $) > $3	try "."
-X`'R<$- : $+ > $*		$# $1 $@ $2 $: $3		"." found?
-X`'R< $* > $*		$@ $2				no mailertable match
+X`'R< $~[ : $+ > $*		$>95 < $1 : $2 > $3	"." found?
+X`'R< $* > $*			$@ $2			no mailertable match
 undefine(`X')dnl
 
 ###################################################################
-###  Ruleset 95 -- canonify mailer:host syntax to triple	###
+###  Ruleset 95 -- canonify mailer:[user@]host syntax to triple	###
 ###################################################################
 
 S95
-R< > $*			$@ $1				strip off null relay
-R< $- : $+ > $*		$# $1 $@ $2 $: $3		try qualified mailer
-R< $=w > $*		$@ $2				delete local host
-R< $+ > $*		$#_RELAY_ $@ $1 $: $2		use unqualified mailer
+R< > $*				$@ $1			strip off null relay
+R< error : $- $+ > $*		$#error $@ $1 $: $2	special case errors
+R< local : > $* < @ $* >	$#local $@ $1@$2 $: $1	no host: use old user
+R< local : $+ > $* <@ $* . > $*	$#local $@ $2@$3 $: $1	special case local
+R< $- : $+ @ $+ > $*<$*>$*	$# $1 $@ $3 $: $2<@$3>	use literal user
+R< $- : $+ > $*			$# $1 $@ $2 $: $3	try qualified mailer
+R< $=w > $*			$@ $2			delete local host
+R< $+ > $*			$#_RELAY_ $@ $1 $: $2	use unqualified mailer
 
 ###################################################################
 ###  Ruleset 93 -- convert header names to masqueraded form	###
 ###################################################################
 
 S93
+
+# handle generics database
+define(`X', ifdef(`GENERICS_TABLE', `', `#'))dnl
+X`'R$+ < @ $=G . > 	$: < $1@$2 > $1 < @ $2 . > @	mark
+X`'R$+ < @ *LOCAL* >	$: < $1@$j > $1 < @ *LOCAL* > @	mark
+X`'R< $+ > $+ < $* > @	$: < $(generics $1 $: $) > $2 < $3 >
+X`'R< > $+ < @ $+ > 	$: < $(generics $1 $: $) > $1 < @ $2 >
+X`'R< $* @ $* > $* < $* >	$@ $>3 $1 @ $2			found qualified
+X`'R< $+ > $* < $* >	$: $>3 $1 @ *LOCAL*		found unqualified
+X`'R< > $*			$: $1				not found
+undefine(`X')dnl
+
+# special case the users that should be exposed
 R$=E < @ *LOCAL* >	$@ $1 < @ $j . >		leave exposed
-R$=E < @ $=M . >	$@ $1 < @ $2 . >
+ifdef(`_MASQUERADE_ENTIRE_DOMAIN_',
+`R$=E < @ $* $=M . >	$@ $1 < @ $2 $3 . >',
+`R$=E < @ $=M . >	$@ $1 < @ $2 . >')
 ifdef(`_LIMITED_MASQUERADE_', `#')dnl
 R$=E < @ $=w . >	$@ $1 < @ $2 . >
-R$* < @ $=M . > $*	$: $1 < @ $2 . @ $M > $3	convert masqueraded doms
+
+# handle domain-specific masquerading
+ifdef(`_MASQUERADE_ENTIRE_DOMAIN_',
+`R$* < @ $* $=M . > $*	$: $1 < @ $2 $3 . @ $M > $4	convert masqueraded doms',
+`R$* < @ $=M . > $*	$: $1 < @ $2 . @ $M > $3	convert masqueraded doms')
 ifdef(`_LIMITED_MASQUERADE_', `#')dnl
 R$* < @ $=w . > $*	$: $1 < @ $2 . @ $M > $3
 R$* < @ *LOCAL* > $*	$: $1 < @ $j . @ $M > $2
-R$* < @ $+ @ > $*	$@ $1 < @ $2 > $3		$M is null
-R$* < @ $+ @ $+ > $*	$@ $1 < @ $3 . > $4		$M is not null
+R$* < @ $+ @ > $*	$: $1 < @ $2 > $3		$M is null
+R$* < @ $+ @ $+ > $*	$: $1 < @ $3 . > $4		$M is not null
 
 ###################################################################
 ###  Ruleset 94 -- convert envelope names to masqueraded form	###
@@ -810,6 +880,7 @@ R$* < @ *LOCAL* > $*	$: $1 < @ $j . > $2
 
 S98
 undivert(3)dnl
+undivert(9)dnl
 #
 ######################################################################
 ######################################################################

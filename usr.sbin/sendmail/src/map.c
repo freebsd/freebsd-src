@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1995 Eric P. Allman.
+ * Copyright (c) 1992, 1995, 1996 Eric P. Allman.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,25 +33,29 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.108.1.2 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)map.c	8.140 (Berkeley) 10/12/96";
 #endif /* not lint */
 
 #include "sendmail.h"
 
 #ifdef NDBM
 # include <ndbm.h>
-#endif
-#ifdef NEWDB
 # ifdef R_FIRST
   ERROR README:	You are running the Berkeley DB version of ndbm.h.  See
   ERROR README:	the READ_ME file about tweaking Berkeley DB so it can
-  ERROR README:	coexist with NDBM, or delete -DNDBM from the Makefile.
+  ERROR README:	coexist with NDBM, or delete -DNDBM from the Makefile
+  ERROR README: and use -DNEWDB instead.
 # endif
+#endif
+#ifdef NEWDB
 # include <db.h>
 #endif
 #ifdef NIS
   struct dom_binding;	/* forward reference needed on IRIX */
 # include <rpcsvc/ypclnt.h>
+# ifdef NDBM
+#  define NDBM_YP_COMPAT	/* create YP-compatible NDBM files */
+# endif
 #endif
 
 /*
@@ -96,7 +100,9 @@ static char sccsid[] = "@(#)map.c	8.108.1.2 (Berkeley) 9/16/96";
 
 #define DBMMODE		0644
 
-#define EX_NOTFOUND	EX_NOHOST
+#ifndef EX_NOTFOUND
+# define EX_NOTFOUND	EX_NOHOST
+#endif
 
 extern bool	aliaswait __P((MAP *, char *, int));
 extern bool	extract_canonname __P((char *, char *, char[], int));
@@ -204,6 +210,11 @@ map_parseargs(map, ap)
 				}
 			}
 			break;
+
+		  case 't':
+			map->map_mflags |= MF_NODEFER;
+			break;
+
 #ifdef RESERVED_FOR_SUN
 		  case 'd':
 			map->map_mflags |= MF_DOMAIN_WIDE;
@@ -632,10 +643,10 @@ getcanonname(host, hbsize, trymx)
 		printf("getcanonname(%s), failed, stat=%d\n", host, stat);
 
 #if NAMED_BIND
-	if (stat == EX_NOHOST && !got_tempfail)
-		h_errno = HOST_NOT_FOUND;
-	else
+	if (got_tempfail)
 		h_errno = TRY_AGAIN;
+	else
+		h_errno = HOST_NOT_FOUND;
 #endif
 
 	return FALSE;
@@ -724,6 +735,7 @@ ndbm_map_open(map, mode)
 	if (tTd(38, 2))
 		printf("ndbm_map_open(%s, %s, %d)\n",
 			map->map_mname, map->map_file, mode);
+	map->map_lockfd = -1;
 
 #if LOCK_ON_OPEN
 	if (mode == O_RDONLY)
@@ -733,7 +745,7 @@ ndbm_map_open(map, mode)
 #else
 	if (mode == O_RDWR)
 	{
-# ifdef NOFTRUNCATE
+# if NOFTRUNCATE
 		/*
 		**  Warning: race condition.  Try to lock the file as
 		**  quickly as possible after opening it.
@@ -768,15 +780,15 @@ ndbm_map_open(map, mode)
 		if (!lockfile(dirfd, map->map_file, ".dir", LOCK_EX))
 			syserr("ndbm_map_open: cannot lock %s.dir",
 				map->map_file);
-		if (ftruncate(dirfd, 0) < 0)
+		if (ftruncate(dirfd, (off_t) 0) < 0)
 			syserr("ndbm_map_open: cannot truncate %s.dir",
 				map->map_file);
-		if (ftruncate(pagfd, 0) < 0)
+		if (ftruncate(pagfd, (off_t) 0) < 0)
 			syserr("ndbm_map_open: cannot truncate %s.pag",
 				map->map_file);
 
-		/* we can safely unlock because others will wait for @:@ */
-		close(dirfd);
+		/* have to save the lock for the duration (bletch) */
+		map->map_lockfd = dirfd;
 		close(pagfd);
 # endif
 	}
@@ -807,12 +819,7 @@ ndbm_map_open(map, mode)
 	}
 	else
 	{
-		/* exclusive lock for duration of rebuild */
-#if !LOCK_ON_OPEN
-		if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags) &&
-		    lockfile(fd, map->map_file, ".dir", LOCK_EX))
-#endif
-			map->map_mflags |= MF_LOCKED;
+		map->map_mflags |= MF_LOCKED;
 	}
 	if (fstat(dbm_dirfno((DBM *) map->map_db1), &st) >= 0)
 		map->map_mtime = st.st_mtime;
@@ -845,7 +852,8 @@ ndbm_map_lookup(map, name, av, statp)
 	{
 		if (key.dsize > sizeof keybuf - 1)
 			key.dsize = sizeof keybuf - 1;
-		bcopy(key.dptr, keybuf, key.dsize + 1);
+		bcopy(key.dptr, keybuf, key.dsize);
+		keybuf[key.dsize] = '\0';
 		makelower(keybuf);
 		key.dptr = keybuf;
 	}
@@ -890,6 +898,7 @@ ndbm_map_store(map, lhs, rhs)
 	datum key;
 	datum data;
 	int stat;
+	char keybuf[MAXNAME + 1];
 
 	if (tTd(38, 12))
 		printf("ndbm_map_store(%s, %s, %s)\n",
@@ -897,6 +906,15 @@ ndbm_map_store(map, lhs, rhs)
 
 	key.dsize = strlen(lhs);
 	key.dptr = lhs;
+	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
+	{
+		if (key.dsize > sizeof keybuf - 1)
+			key.dsize = sizeof keybuf - 1;
+		bcopy(key.dptr, keybuf, key.dsize);
+		keybuf[key.dsize] = '\0';
+		makelower(keybuf);
+		key.dptr = keybuf;
+	}
 
 	data.dsize = strlen(rhs);
 	data.dptr = rhs;
@@ -920,7 +938,7 @@ ndbm_map_store(map, lhs, rhs)
 			datum old;
 
 			old.dptr = ndbm_map_lookup(map, key.dptr, NULL, &xstat);
-			if (old.dptr != NULL && *old.dptr != '\0')
+			if (old.dptr != NULL && *(char *) old.dptr != '\0')
 			{
 				old.dsize = strlen(old.dptr);
 				if (data.dsize + old.dsize + 2 > bufsiz)
@@ -959,7 +977,7 @@ ndbm_map_close(map)
 
 	if (bitset(MF_WRITABLE, map->map_mflags))
 	{
-#ifdef NIS
+#ifdef NDBM_YP_COMPAT
 		bool inclnull;
 		char buf[200];
 
@@ -968,11 +986,17 @@ ndbm_map_close(map)
 
 		if (strstr(map->map_file, "/yp/") != NULL)
 		{
+			long save_mflags = map->map_mflags;
+
+			map->map_mflags |= MF_NOFOLDCASE;
+
 			(void) snprintf(buf, sizeof buf, "%010ld", curtime());
 			ndbm_map_store(map, "YP_LAST_MODIFIED", buf);
 
 			(void) gethostname(buf, sizeof buf);
 			ndbm_map_store(map, "YP_MASTER_NAME", buf);
+
+			map->map_mflags = save_mflags;
 		}
 
 		if (inclnull)
@@ -983,6 +1007,12 @@ ndbm_map_close(map)
 		ndbm_map_store(map, "@", "@");
 	}
 	dbm_close((DBM *) map->map_db1);
+
+	/* release lock (if needed) */
+#if !LOCK_ON_OPEN
+	if (map->map_lockfd >= 0)
+		(void) close(map->map_lockfd);
+#endif
 }
 
 #endif
@@ -1003,6 +1033,8 @@ ndbm_map_close(map)
 **	We really ought to hold the lock, but guarantee that we won't
 **	be pokey about it.  That's hard to do.
 */
+
+extern bool	db_map_open __P((MAP *, int, DBTYPE));
 
 bool
 bt_map_open(map, mode)
@@ -1044,6 +1076,7 @@ db_map_open(map, mode, dbtype)
 	i = strlen(buf);
 	if (i < 3 || strcmp(&buf[i - 3], ".db") != 0)
 		(void) strcat(buf, ".db");
+	map->map_lockfd = -1;
 
 	omode = mode;
 
@@ -1068,8 +1101,8 @@ db_map_open(map, mode, dbtype)
 
 	if (fd < 0)
 	{
-		syserr("db_map_open: cannot pre-open database %s",
-			buf);
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("db_map_open: cannot pre-open database %s", buf);
 		close(fd);
 		return FALSE;
 	}
@@ -1084,8 +1117,10 @@ db_map_open(map, mode, dbtype)
 	saveerrno = errno;
 
 #if !LOCK_ON_OPEN
-	/* we can safely unlock now because others will wait for @:@ */
-	close(fd);
+	if (mode == O_RDWR)
+		map->map_lockfd = fd;
+	else
+		(void) close(fd);
 #endif
 
 	if (db == NULL)
@@ -1098,21 +1133,15 @@ db_map_open(map, mode, dbtype)
 			syserr("Cannot open DB database %s", map->map_file);
 		return FALSE;
 	}
+
+	if (mode == O_RDWR)
+		map->map_mflags |= MF_LOCKED;
 #if !OLD_NEWDB
 	fd = db->fd(db);
 # if LOCK_ON_OPEN
-	if (fd >= 0)
+	if (fd >= 0 && mode == O_RDONLY)
 	{
-		if (mode == O_RDONLY)
-			(void) lockfile(fd, map->map_file, ".db", LOCK_UN);
-		else
-			map->map_mflags |= MF_LOCKED;
-	}
-# else
-	if (mode == O_RDWR && fd >= 0)
-	{
-		if (lockfile(fd, map->map_file, ".db", LOCK_EX))
-			map->map_mflags |= MF_LOCKED;
+		(void) lockfile(fd, map->map_file, ".db", LOCK_UN);
 	}
 # endif
 #endif
@@ -1162,7 +1191,8 @@ db_map_lookup(map, name, av, statp)
 	if (key.size > sizeof keybuf - 1)
 		key.size = sizeof keybuf - 1;
 	key.data = keybuf;
-	bcopy(name, keybuf, key.size + 1);
+	bcopy(name, keybuf, key.size);
+	keybuf[key.size] = '\0';
 	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
 		makelower(keybuf);
 #if !OLD_NEWDB
@@ -1217,6 +1247,7 @@ db_map_store(map, lhs, rhs)
 	DBT key;
 	DBT data;
 	register DB *db = map->map_db2;
+	char keybuf[MAXNAME + 1];
 
 	if (tTd(38, 12))
 		printf("db_map_store(%s, %s, %s)\n",
@@ -1224,6 +1255,15 @@ db_map_store(map, lhs, rhs)
 
 	key.size = strlen(lhs);
 	key.data = lhs;
+	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
+	{
+		if (key.size > sizeof keybuf - 1)
+			key.size = sizeof keybuf - 1;
+		bcopy(key.data, keybuf, key.size);
+		keybuf[key.size] = '\0';
+		makelower(keybuf);
+		key.data = keybuf;
+	}
 
 	data.size = strlen(rhs);
 	data.data = rhs;
@@ -1293,6 +1333,11 @@ db_map_close(map)
 
 	if (db->close(db) != 0)
 		syserr("readaliases: db close failure");
+
+#if !LOCK_ON_OPEN
+	if (map->map_lockfd >= 0)
+		(void) close(map->map_lockfd);
+#endif
 }
 
 #endif
@@ -1356,7 +1401,7 @@ nis_map_open(map, mode)
 		if (yperr != 0)
 		{
 			if (!bitset(MF_OPTIONAL, map->map_mflags))
-				syserr("421 NIS map %s specified, but NIS not running\n",
+				syserr("421 NIS map %s specified, but NIS not running",
 					map->map_file);
 			return FALSE;
 		}
@@ -1418,7 +1463,8 @@ nis_map_lookup(map, name, av, statp)
 	buflen = strlen(name);
 	if (buflen > sizeof keybuf - 1)
 		buflen = sizeof keybuf - 1;
-	bcopy(name, keybuf, buflen + 1);
+	bcopy(name, keybuf, buflen);
+	keybuf[buflen] = '\0';
 	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
 		makelower(keybuf);
 	yperr = YPERR_KEY;
@@ -1559,12 +1605,9 @@ nisplus_map_open(map, mode)
 	MAP *map;
 	int mode;
 {
-	register char *p;
-	char qbuf[MAXLINE + NIS_MAXNAMELEN];
 	nis_result *res = NULL;
-	u_int objs_len;
-	nis_object *obj_ptr;
 	int retry_cnt, max_col, i;
+	char qbuf[MAXLINE + NIS_MAXNAMELEN];
 
 	if (tTd(38, 2))
 		printf("nisplus_map_open(%s, %s, %d)\n",
@@ -1727,7 +1770,8 @@ nisplus_map_lookup(map, name, av, statp)
 	buflen = strlen(name);
 	if (buflen > sizeof search_key - 1)
 		buflen = sizeof search_key - 1;
-	bcopy(name, search_key, buflen + 1);
+	bcopy(name, search_key, buflen);
+	search_key[buflen] = '\0';
 	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
 		makelower(search_key);
 
@@ -1851,7 +1895,6 @@ nisplus_getcanonname(name, hbsize, statp)
 	if (result->status == NIS_SUCCESS)
 	{
 		int count;
-		char *str;
 		char *domain;
 
 		if ((count = NIS_RES_NUMOBJ(result)) != 1)
@@ -1865,7 +1908,8 @@ nisplus_getcanonname(name, hbsize, statp)
 
 			/* ignore second entry */
 			if (tTd(38, 20))
-				printf("nisplus_getcanoname(%s), got %d entries, all but first ignored\n", name);
+				printf("nisplus_getcanoname(%s), got %d entries, all but first ignored\n",
+					name, count);
 		}
 
 		if (tTd(38, 20))
@@ -1933,6 +1977,559 @@ nisplus_default_domain()
 }
 
 #endif /* NISPLUS */
+/*
+**  LDAP Modules
+**
+**	Contributed by Booker C. Bense <bbense@networking.stanford.edu>.
+**	Get your support from him.
+*/
+
+#ifdef LDAPMAP
+
+# undef NEEDGETOPT		/* used for something else in LDAP */
+
+# include <lber.h>
+# include <ldap.h>
+# include "ldap_map.h"
+
+/*
+**  LDAP_MAP_OPEN -- open LDAP map
+**
+**	Since LDAP is TCP-based there is not much we can or should do
+**	here.  It might be a good idea to attempt an open/close here.
+*/
+
+bool
+ldap_map_open(map, mode)
+	MAP *map;
+	int mode;
+{
+	if (tTd(38, 2))
+		printf("ldap_map_open(%s, %d)\n", map->map_mname, mode);
+
+	if (mode != O_RDONLY)
+	{
+		/* issue a pseudo-error message */
+#ifdef ENOSYS
+		errno = ENOSYS;
+#else
+# ifdef EFTYPE
+		errno = EFTYPE;
+# else
+		errno = ENXIO;
+# endif
+#endif
+		return FALSE;
+	}
+	return TRUE;
+}
+
+
+/*
+**  LDAP_MAP_START -- actually open LDAP map
+**
+**	Caching should be investigated.
+*/
+
+bool
+ldap_map_start(map)
+	MAP *map;
+{
+	LDAP_MAP_STRUCT *lmap;
+	LDAP *ld;
+
+	if (tTd(38, 2))
+		printf("ldap_map_start(%s)\n", map->map_mname);
+
+	lmap = (LDAP_MAP_STRUCT *) map->map_db1;
+
+	if (tTd(38,9))
+		printf("ldap_open(%s, %d)\n", lmap->ldaphost, lmap->ldapport);
+
+	if ((ld = ldap_open(lmap->ldaphost,lmap->ldapport)) == NULL)
+	{
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+		{
+			syserr("ldapopen failed to %s in map %s",
+				lmap->ldaphost, map->map_mname);
+		}
+		return FALSE;
+	}
+
+	ld->ld_deref = lmap->deref;
+	ld->ld_timelimit = lmap->timelimit;
+	ld->ld_sizelimit = lmap->sizelimit;
+	ld->ld_options = lmap->ldap_options;
+
+	if (ldap_bind_s(ld, lmap->binddn,lmap->passwd,lmap->method) != LDAP_SUCCESS)
+	{
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+		{
+			syserr("421 Cannot bind to map %s in ldap server %s",
+				map->map_mname, lmap->ldaphost);
+		}
+	}
+	else
+	{
+		/* We need to cast ld into the map structure */
+		lmap->ld = ld;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+
+/*
+** LDAP_MAP_CLOSE -- close ldap map
+*/
+
+void
+ldap_map_close(map)
+	MAP *map;
+{
+	LDAP_MAP_STRUCT *lmap ;
+	lmap = (LDAP_MAP_STRUCT *) map->map_db1;
+	if (lmap->ld != NULL)
+		ldap_unbind(lmap->ld);
+}
+
+
+#ifdef SUNET_ID
+/*
+** SUNET_ID_HASH -- Convert a string to it's Sunet_id canonical form
+** This only makes sense at Stanford University.
+*/
+
+char *
+sunet_id_hash(str)
+	char *str;
+{
+	char *p, *p_last;
+
+	p = str;
+	p_last = p;
+	while (*p != '\0')
+	{
+		if (islower(*p) || isdigit(*p))
+		{
+			*p_last = *p;
+			p_last++;
+		}
+		else if (isupper(*p))
+		{
+			*p_last = tolower(*p);
+			p_last++;
+		}
+		++p;
+	}
+	if (*p_last != '\0')
+		*p_last = '\0';
+	return (str);
+}
+
+
+
+#endif /* SUNET_ID */
+/*
+** LDAP_MAP_LOOKUP -- look up a datum in a LDAP map
+*/
+
+char *
+ldap_map_lookup(map, name, av, statp)
+	MAP *map;
+	char *name;
+	char **av;
+	int *statp;
+{
+	LDAP_MAP_STRUCT *lmap = NULL;
+	LDAPMessage *entry;
+	char *vp;
+	auto int vsize;
+	char keybuf[MAXNAME + 1];
+	char filter[LDAP_MAP_MAX_FILTER + 1];
+	char **attr_values = NULL;
+	char *result;
+	int name_len;
+
+	if (tTd(38, 20))
+		printf("ldap_map_lookup(%s, %s)\n", map->map_mname, name);
+
+	/* actually open the map */
+	if (!ldap_map_start(map))
+	{
+		result = NULL;
+		*statp = EX_TEMPFAIL;
+		goto quick_exit;
+	}
+
+	/* Get ldap struct pointer from map */
+	lmap = (LDAP_MAP_STRUCT *) map->map_db1;
+
+	name_len = strlen(name);
+	if (name_len > MAXNAME)
+		name_len = MAXNAME;
+	strncpy(keybuf, name, name_len);
+	keybuf[name_len] = '\0';
+
+	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
+#ifdef SUNET_ID
+		sunet_id_hash(keybuf);
+#else
+		makelower(keybuf);
+#endif /*SUNET_ID */
+
+	/* sprintf keybuf into filter */
+	snprintf(filter, sizeof filter, lmap->filter, keybuf);
+
+	if (ldap_search_st(lmap->ld, lmap->base,lmap->scope,filter,
+			   &(lmap->attr), lmap->attrsonly, &(lmap->timeout),
+			   &(lmap->res)) != LDAP_SUCCESS)
+	{
+		/* try close/opening map */
+		ldap_map_close(map);
+		if (!ldap_map_start(map))
+		{
+			result = NULL;
+			*statp = EX_TEMPFAIL;
+			goto quick_exit;
+		}
+		if (ldap_search_st(lmap->ld, lmap->base, lmap->scope, filter,
+				   &(lmap->attr), lmap->attrsonly,
+				   &(lmap->timeout), &(lmap->res))
+			!= LDAP_SUCCESS)
+		{
+			if (!bitset(MF_OPTIONAL, map->map_mflags))
+			{
+				syserr("Error in ldap_search_st using %s in map %s",
+					filter, map->map_mname);
+			}
+			result = NULL;
+			*statp = EX_UNAVAILABLE;
+			goto quick_exit;
+		}
+	}
+
+	entry = ldap_first_entry(lmap->ld,lmap->res);
+	if (entry == NULL)
+	{
+	        result = NULL;
+		*statp = EX_NOTFOUND;
+		goto quick_exit;
+	}
+
+	/* Need to build the args for map_rewrite here */
+	attr_values = ldap_get_values(lmap->ld,entry,lmap->attr);
+	if (attr_values == NULL)
+	{
+		/* bad things happened */
+		result = NULL;
+		*statp = EX_NOTFOUND;
+		goto quick_exit;
+	}
+
+	*statp = EX_OK;
+
+	/* If there is more that one use the first */
+	vp = attr_values[0];
+	vsize = strlen(vp);
+
+# ifdef LOG
+	if (LogLevel > 9)
+		syslog(LOG_INFO, "%s: ldap %.100s => %s",
+			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
+			name, vp);
+# endif
+	if (bitset(MF_MATCHONLY, map->map_mflags))
+		result = map_rewrite(map, name, strlen(name), NULL);
+	else
+		result = map_rewrite(map, vp, vsize, av);
+
+  quick_exit:
+	if (attr_values != NULL)
+		ldap_value_free(attr_values);
+	if (lmap != NULL)
+		ldap_msgfree(lmap->res);
+	ldap_map_close(map);
+	return result ;
+}
+
+
+/*
+** LDAP_MAP_DEQUOTE - helper routine for ldap_map_parseargs
+*/
+
+char *
+ldap_map_dequote(str)
+	char *str;
+{
+	char *p;
+	char *start;
+	p = str;
+
+	if (*p == '"')
+	{
+		start = ++p;
+		/* Should probably swallow initial whitespace here */
+	}
+	else
+	{
+		return(str);
+	}
+	while (*p != '"' && *p != '\0')
+	{
+		p++;
+	}
+	if (*p != '\0')
+		*p = '\0';
+	return start;
+}
+
+/*
+** LDAP_MAP_PARSEARGS -- parse ldap map definition args.
+*/
+
+bool
+ldap_map_parseargs(map,args)
+	MAP *map;
+	char *args;
+{
+	register char *p = args;
+	register int done;
+	LDAP_MAP_STRUCT *lmap;
+
+	/* We need to alloc an LDAP_MAP_STRUCT struct */
+	lmap  = (LDAP_MAP_STRUCT *) xalloc(sizeof(LDAP_MAP_STRUCT));
+
+	/* Set default int's here , default strings below */
+	lmap->ldapport =  DEFAULT_LDAP_MAP_PORT;
+	lmap->deref = DEFAULT_LDAP_MAP_DEREF;
+	lmap->timelimit = DEFAULT_LDAP_MAP_TIMELIMIT;
+	lmap->sizelimit = DEFAULT_LDAP_MAP_SIZELIMIT;
+	lmap->ldap_options = DEFAULT_LDAP_MAP_LDAP_OPTIONS;
+	lmap->method = DEFAULT_LDAP_MAP_METHOD;
+	lmap->scope = DEFAULT_LDAP_MAP_SCOPE;
+	lmap->attrsonly = DEFAULT_LDAP_MAP_ATTRSONLY;
+	lmap->timeout.tv_sec = DEFAULT_LDAP_MAP_TIMELIMIT;
+	lmap->timeout.tv_usec = 0;
+
+	/* Default char ptrs to NULL */
+	lmap->binddn = NULL;
+	lmap->passwd = NULL;
+	lmap->base   = NULL;
+	lmap->ldaphost = NULL;
+	map->map_mflags |= MF_TRY0NULL | MF_TRY1NULL;
+	for (;;)
+	{
+		while (isascii(*p) && isspace(*p))
+			p++;
+		if (*p != '-')
+			break;
+		switch (*++p)
+		{
+		  case 'N':
+			map->map_mflags |= MF_INCLNULL;
+			map->map_mflags &= ~MF_TRY0NULL;
+			break;
+
+		  case 'O':
+			map->map_mflags &= ~MF_TRY1NULL;
+			break;
+
+		  case 'o':
+			map->map_mflags |= MF_OPTIONAL;
+			break;
+
+		  case 'f':
+			map->map_mflags |= MF_NOFOLDCASE;
+			break;
+
+		  case 'm':
+			map->map_mflags |= MF_MATCHONLY;
+			break;
+
+		  case 'A':
+			map->map_mflags |= MF_APPEND;
+			break;
+
+		  case 'q':
+			map->map_mflags |= MF_KEEPQUOTES;
+			break;
+
+		  case 't':
+			map->map_mflags |= MF_NODEFER;
+			break;
+
+		  case 'a':
+			map->map_app = ++p;
+			break;
+
+			/* Start of ldap_map specific args */
+		  case 'k':		/* search field */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->filter = p;
+			break;
+
+		  case 'v':		/* attr to return */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->attr = p;
+			break;
+
+			/* args stolen from ldapsearch.c */
+		  case 'R':		/* don't auto chase referrals */
+#ifdef LDAP_REFERRALS
+			lmap->ldap_options &= ~LDAP_OPT_REFERRALS;
+#else  /* LDAP_REFERRALS */
+			syserr("compile with -DLDAP_REFERRALS for referral support\n");
+#endif /* LDAP_REFERRALS */
+			break;
+
+		  case 'n':		/* retrieve attribute names only -- no values */
+			lmap->attrsonly += 1;
+			break;
+
+		  case 's':		/* search scope */
+			if (strncasecmp(p, "base", 4) == 0)
+			{
+				lmap->scope = LDAP_SCOPE_BASE;
+			}
+			else if (strncasecmp(p, "one", 3) == 0)
+			{
+				lmap->scope = LDAP_SCOPE_ONELEVEL;
+			}
+			else if (strncasecmp(p, "sub", 3) == 0)
+			{
+				lmap->scope = LDAP_SCOPE_SUBTREE;
+			}
+			else
+			{		/* bad config line */
+				if (!bitset(MCF_OPTFILE, map->map_class->map_cflags))
+				{
+					syserr("Scope must be [base|one|sub] not %s in map %s",
+						p, map->map_mname);
+					return FALSE;
+				}
+			}
+			break;
+
+		  case 'h':		/* ldap host */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			map->map_domain = p;
+			lmap->ldaphost = p;
+			break;
+
+		  case 'b':		/* search base */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->base = p;
+			break;
+
+		  case 'p':		/* ldap port */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->ldapport = atoi(p);
+			break;
+
+		  case 'l':		/* time limit */
+			while (isascii(*++p) && isspace(*p))
+				continue;
+			lmap->timelimit = atoi(p);
+			break;
+
+		}
+
+		/* need to account for quoted strings here arggg... */
+		done =  isascii(*p) && isspace(*p);
+		while (*p != '\0' && !done)
+		{
+			if (*p == '"')
+			{
+				while (*++p != '"' && *p != '\0')
+				{
+					continue;
+				}
+				if (*p != '\0')
+					p++;
+			}
+			else
+			{
+				p++;
+			}
+			done = isascii(*p) && isspace(*p);
+		}
+
+		if (*p != '\0')
+			*p++ = '\0';
+	}
+
+	if (map->map_app != NULL)
+		map->map_app = newstr(ldap_map_dequote(map->map_app));
+
+	if (map->map_domain != NULL)
+		map->map_domain = newstr(ldap_map_dequote(map->map_domain));
+
+	/*
+	** We need to swallow up all the stuff into a struct
+	** and dump it into map->map_dbptr1
+	*/
+
+	if (lmap->ldaphost != NULL)
+		lmap->ldaphost = newstr(ldap_map_dequote(lmap->ldaphost));
+	else
+	{
+		syserr("LDAP map: -h flag is required");
+		return FALSE;
+	}
+
+	if (lmap->binddn != NULL)
+		lmap->binddn = newstr(ldap_map_dequote(lmap->binddn));
+	else
+		lmap->binddn = DEFAULT_LDAP_MAP_BINDDN;
+
+
+	if (lmap->passwd != NULL)
+		lmap->passwd = newstr(ldap_map_dequote(lmap->passwd));
+	else
+		lmap->passwd = DEFAULT_LDAP_MAP_PASSWD;
+
+	if (lmap->base != NULL)
+		lmap->base = newstr(ldap_map_dequote(lmap->base));
+	else
+	{
+		syserr("LDAP map: -b flag is required");
+		return FALSE;
+	}
+
+
+	if (lmap->filter != NULL)
+		lmap->filter = newstr(ldap_map_dequote(lmap->filter));
+	else
+	{
+		if (!bitset(MCF_OPTFILE, map->map_class->map_cflags))
+		{
+			syserr("No filter given in map %s", map->map_mname);
+			return FALSE;
+		}
+	}
+	if (lmap->attr != NULL)
+		lmap->attr = newstr(ldap_map_dequote(lmap->attr));
+	else
+	{
+		if (!bitset(MCF_OPTFILE, map->map_class->map_cflags))
+		{
+			syserr("No return attribute in %s", map->map_mname);
+			return FALSE;
+		}
+	}
+
+	map->map_db1 = (ARBPTR_T) lmap;
+	return TRUE;
+}
+
+#endif /* LDAP Modules */
 /*
 **  HESIOD Modules
 */
@@ -2066,7 +2663,7 @@ ni_map_open(map, mode)
 {
 	char *p;
 
-	if (tTd(38, 20))
+	if (tTd(38, 2))
 		printf("ni_map_open(%s, %s, %d)\n",
 			map->map_mname, map->map_file, mode);
 
@@ -2240,6 +2837,9 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 	}
 	strcat(keybuf, keyval);
 
+	if (tTd(38, 21))
+		printf("ni_propval(%s, %s, %s, %s, %d) keybuf='%s'\n",
+			keydir, keyprop, keyval, valprop, sepchar, keybuf);
 	/*
 	**  If the passed directory and property name are found
 	**  in one of netinfo domains we need to search (starting
@@ -2248,11 +2848,13 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 	**  and return it.
 	*/
 
-	for (i = 0; i < MAX_NI_LEVELS; ++i)
+	for (i = 0; i < MAX_NI_LEVELS && propval == NULL; i++)
 	{
 		if (i == 0)
 		{
 			nis = ni_open(NULL, LOCAL_NETINFO_DOMAIN, &ni);
+			if (tTd(38, 20))
+				printf("ni_open(LOCAL) = %d\n", nis);
 		}
 		else
 		{
@@ -2260,6 +2862,8 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 				ni_free(lastni);
 			lastni = ni;
 			nis = ni_open(lastni, PARENT_NETINFO_DOMAIN, &ni);
+			if (tTd(38, 20))
+				printf("ni_open(PARENT) = %d\n", nis);
 		}
 
 		/*
@@ -2287,6 +2891,8 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 		if (ni_lookupprop(ni, &nid, valprop, &ninl) != 0)
 			continue;
 
+		if (tTd(38, 20))
+			printf("ni_lookupprop: len=%d\n", ninl.ni_namelist_len);
 		/*
 		**  See if we have an acceptable number of values.
 		*/
@@ -2327,6 +2933,8 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 		ni_free(ni);
 	if (lastni != NULL && ni != lastni)
 		ni_free(lastni);
+	if (tTd(38, 20))
+		printf("ni_propval returns: '%s'\n", propval);
 
 	return propval;
 }
@@ -2362,37 +2970,41 @@ text_map_open(map, mode)
 
 	if (*map->map_file == '\0')
 	{
-		if (tTd(38, 2))
-			printf("text_map_open(%s): file name required\n",
-				map->map_mname);
+		syserr("text map \"%s\": file name required",
+			map->map_mname);
 		return FALSE;
 	}
 
 	if (map->map_file[0] != '/')
 	{
-		if (tTd(38, 2))
-			printf("text_map_open(%s, %s): file name must be fully qualified\n",
-				map->map_mname, map->map_file);
+		syserr("text map \"%s\": file name must be fully qualified",
+			map->map_mname);
 		return FALSE;
 	}
 	/* check to see if this map actually accessable */
 	if (access(map->map_file, R_OK) <0)
+	{
+		if (tTd(38, 2))
+			printf("text_map_open(%s, %s): cannot access: %s\n",
+				map->map_mname, map->map_file, errstring(errno));
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
+			syserr("text map \"%s\": cannot access file %s",
+				map->map_mname, map->map_file);
 		return FALSE;
+	}
 
 	/* check to see if this map actually exist */
 	if (stat(map->map_file, &sbuf) <0)
 	{
-		if (tTd(38, 2))
-			printf("text_map_open(%s, %s): cannot stat\n",
-				map->map_mname, map->map_file);
+		syserr("text_map_open(%s, %s): cannot stat",
+			map->map_mname, map->map_file);
 		return FALSE;
 	}
 
 	if (!S_ISREG(sbuf.st_mode))
 	{
-		if (tTd(38, 2))
-			printf("text_map_open(%s): %s is not a regular file\n",
-				map->map_mname, map->map_file);
+		syserr("text map \"%s\": %s is not a regular file",
+			map->map_mname, map->map_file);
 		return FALSE;
 	}
 
@@ -2402,10 +3014,9 @@ text_map_open(map, mode)
 	{
 		if (!isdigit(*map->map_keycolnm))
 		{
-			if (tTd(38, 2))
-				printf("text_map_open(%s, %s): -k should specify a number, not %s\n",
-					map->map_mname, map->map_file,
-					map->map_keycolnm);
+			syserr("text map \"%s\", file %s: -k should specify a number, not %s",
+				map->map_mname, map->map_file,
+				map->map_keycolnm);
 			return FALSE;
 		}
 		map->map_keycolno = atoi(map->map_keycolnm);
@@ -2417,8 +3028,7 @@ text_map_open(map, mode)
 	{
 		if (!isdigit(*map->map_valcolnm))
 		{
-			if (tTd(38, 2))
-				printf("text_map_open(%s, %s): -v should specify a number, not %s\n",
+			syserr("text map \"%s\", file %s: -v should specify a number, not %s",
 					map->map_mname, map->map_file,
 					map->map_valcolnm);
 			return FALSE;
@@ -2470,7 +3080,8 @@ text_map_lookup(map, name, av, statp)
 	buflen = strlen(name);
 	if (buflen > sizeof search_key - 1)
 		buflen = sizeof search_key - 1;
-	bcopy(name, search_key, buflen + 1);
+	bcopy(name, search_key, buflen);
+	search_key[buflen] = '\0';
 	if (!bitset(MF_NOFOLDCASE, map->map_mflags))
 		makelower(search_key);
 
@@ -2526,19 +3137,17 @@ text_getcanonname(name, hbsize, statp)
 	int hbsize;
 	int *statp;
 {
-	int key_idx;
 	bool found;
 	FILE *f;
 	char linebuf[MAXLINE];
 	char cbuf[MAXNAME + 1];
-	char fbuf[MAXNAME + 1];
 	char nbuf[MAXNAME + 1];
 	extern char *get_column __P((char *, int, char, char *, int));
 
 	if (tTd(38, 20))
 		printf("text_getcanonname(%s)\n", name);
 
-	if (strlen(name) >= sizeof nbuf)
+	if (strlen(name) >= (SIZE_T) sizeof nbuf)
 	{
 		*statp = EX_UNAVAILABLE;
 		return FALSE;
@@ -2569,7 +3178,7 @@ text_getcanonname(name, hbsize, statp)
 		return FALSE;
 	}
 
-	if (hbsize >= strlen(cbuf))
+	if ((SIZE_T) hbsize >= strlen(cbuf))
 	{
 		strcpy(name, cbuf);
 		*statp = EX_OK;
@@ -2736,9 +3345,9 @@ impl_map_open(map, mode)
 	map->map_mflags |= MF_IMPL_HASH;
 	if (hash_map_open(map, mode))
 	{
-#if defined(NDBM) && defined(NIS)
+# ifdef NDBM_YP_COMPAT
 		if (mode == O_RDONLY || strstr(map->map_file, "/yp/") == NULL)
-#endif
+# endif
 			return TRUE;
 	}
 	else
@@ -2866,12 +3475,13 @@ user_map_lookup(map, key, av, statp)
 	int *statp;
 {
 	struct passwd *pw;
+	auto bool fuzzy;
 
 	if (tTd(38, 20))
 		printf("user_map_lookup(%s, %s)\n",
 			map->map_mname, key);
 
-	pw = sm_getpwnam(key);
+	pw = finduser(key, &fuzzy);
 	if (pw == NULL)
 		return NULL;
 	if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -2986,13 +3596,14 @@ prog_map_lookup(map, name, av, statp)
 			map->map_mname, errstring(errno));
 		rval = NULL;
 	}
-	else if (i == 0 && tTd(38, 20))
+	else if (i == 0)
 	{
-		printf("prog_map_lookup(%s): empty answer\n",
-			map->map_mname);
+		if (tTd(38, 20))
+			printf("prog_map_lookup(%s): empty answer\n",
+				map->map_mname);
 		rval = NULL;
 	}
-	if (i > 0)
+	else
 	{
 		buf[i] = '\0';
 		p = strchr(buf, '\n');

@@ -44,7 +44,8 @@ divert(-1)
 #  will be forwarded to that machine.
 #
 
-VERSIONID(`@(#)chez.cs.mc	8.5 (Berkeley) 8/6/95')
+divert(0)dnl
+VERSIONID(`@(#)chez.cs.mc	8.6 (Berkeley) 3/23/96')
 OSTYPE(bsd4.4)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 define(`LOCAL_RELAY', vangogh.CS.Berkeley.EDU)dnl

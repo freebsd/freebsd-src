@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.42.1.2 (Berkeley) 9/16/96";
+static char sccsid[] = "@(#)err.c	8.50 (Berkeley) 9/20/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -145,10 +145,30 @@ syserr(fmt, va_alist)
 			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
 			uname, &MsgBuf[4]);
 # endif /* LOG */
-	if (olderrno == EMFILE)
+	switch (olderrno)
 	{
+	  case EBADF:
+	  case ENFILE:
+	  case EMFILE:
+	  case ENOTTY:
+#ifdef EFBIG
+	  case EFBIG:
+#endif
+#ifdef ESPIPE
+	  case ESPIPE:
+#endif
+#ifdef EPIPE
+	  case EPIPE:
+#endif
+#ifdef ENOBUFS
+	  case ENOBUFS:
+#endif
+#ifdef ESTALE
+	  case ESTALE:
+#endif
 		printopenfds(TRUE);
 		mci_dump_all(TRUE);
+		break;
 	}
 	if (panic)
 	{
@@ -383,6 +403,11 @@ putoutmsg(msg, holdmsg, heldmsg)
 	/* output to transcript if serious */
 	if (!heldmsg && CurEnv->e_xfp != NULL && strchr("45", msg[0]) != NULL)
 		fprintf(CurEnv->e_xfp, "%s\n", msg);
+
+#ifdef LOG
+	if (LogLevel >= 15 && (OpMode == MD_SMTP || OpMode == MD_DAEMON))
+		syslog(LOG_INFO, "--> %s%s", msg, holdmsg ? " (held)" : "");
+#endif
 
 	if (msgcode == '8')
 		msg[0] = '0';
@@ -624,17 +649,29 @@ errstring(errnum)
 	  case ECONNRESET:
 		bp = buf;
 		snprintf(bp, SPACELEFT(buf, bp), "%s", sys_errlist[errnum]);
-		bp += strlen(buf);
+		bp += strlen(bp);
+		if (CurHostName != NULL)
+		{
+			if (errnum == ETIMEDOUT)
+			{
+				snprintf(bp, SPACELEFT(buf, bp), " with ");
+				bp += strlen(bp);
+			}
+			else
+			{
+				bp = buf;
+				snprintf(bp, SPACELEFT(buf, bp),
+					"Connection reset by ");
+				bp += strlen(bp);
+			}
+			snprintf(bp, SPACELEFT(buf, bp), "%s",
+				shortenstring(CurHostName, 203));
+			bp += strlen(buf);
+		}
 		if (SmtpPhase != NULL)
 		{
 			snprintf(bp, SPACELEFT(buf, bp), " during %s",
 				SmtpPhase);
-			bp += strlen(bp);
-		}
-		if (CurHostName != NULL)
-		{
-			snprintf(bp, SPACELEFT(buf, bp), " with %s",
-				shortenstring(CurHostName, 203));
 		}
 		return (buf);
 

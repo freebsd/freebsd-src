@@ -1,14 +1,14 @@
 cpyr
-cpyr	Copyright (c) 1983, 1995  Eric P. Allman
+cpyr	Copyright (c) 1983, 1995, 1996 Eric P. Allman
 cpyr	Copyright (c) 1988, 1993
 cpyr	    The Regents of the University of California.  All rights reserved.
 cpyr	
-cpyr	@(#)sendmail.hf	8.7 (Berkeley) 10/1/95
+cpyr	@(#)sendmail.hf	8.11 (Berkeley) 9/11/96
 cpyr
-smtp	Commands:
+smtp	Topics:
 smtp		HELO	EHLO	MAIL	RCPT	DATA
 smtp		RSET	NOOP	QUIT	HELP	VRFY
-smtp		EXPN	VERB
+smtp		EXPN	VERB	ETRN	DSN
 smtp	For more info use "HELP <topic>".
 smtp	To report bugs in the implementation send email to
 smtp		sendmail-bugs@sendmail.org.
@@ -19,10 +19,29 @@ helo	HELO <hostname>
 helo		Introduce yourself.
 ehlo	EHLO <hostname>
 ehlo		Introduce yourself, and request extended SMTP mode.
-mail	MAIL FROM: <sender>
-mail		Specifies the sender.
-rcpt	RCPT TO: <recipient>
+ehlo	Possible replies include:
+ehlo		SEND		Send as mail			[RFC821]
+ehlo		SOML		Send as mail or terminal	[RFC821]
+ehlo		SAML		Send as mail and terminal	[RFC821]
+ehlo		EXPN		Expand the mailing list		[RFC821]
+ehlo		HELP		Supply helpful information	[RFC821]
+ehlo		TURN		Turn the operation around	[RFC821]
+ehlo		8BITMIME	Use 8-bit data			[RFC1652]
+ehlo		SIZE		Message size declaration	[RFC1870]
+ehlo		VERB		Verbose				[Allman]
+ehlo		ONEX		One message transaction only	[Allman]
+ehlo		CHUNKING	Chunking			[RFC1830]
+ehlo		BINARYMIME	Binary MIME			[RFC1830]
+ehlo		PIPELINING	Command Pipelining		[RFC1854]
+ehlo		DSN		Delivery Status Notification	[RFC1891]
+ehlo		ETRN		Remote Message Queue Starting	[RFC1985]
+ehlo		XUSR		Initial (user) submission	[Allman]
+mail	MAIL FROM: <sender> [ <parameters> ]
+mail		Specifies the sender.  Parameters are ESMTP extensions.
+mail		See "HELP DSN" for details.
+rcpt	RCPT TO: <recipient> [ <parameters> ]
 rcpt		Specifies the recipient.  Can be used any number of times.
+rcpt		Parameters are ESMTP extensions.  See "HELP DSN" for details.
 data	DATA
 data		Following text is collected as the message.
 data		End with a single dot.
@@ -56,6 +75,20 @@ saml		implementation.
 turn	TURN
 turn		Reverses the direction of the connection.  Not currently
 turn		implemented.
+etrn	ETRN [ <hostname> | @<domain> | #<queuename> ]
+etrn		Run the queue for the specified <hostname>, or
+etrn		all hosts within a given <domain>, or a specially-named
+etrn		<queuename> (implementation-specific).
+dsn	MAIL FROM: <sender> [ RET={ FULL | HDRS} ] [ ENVID=<envid> ]
+dsn	RCPT TO: <recipient> [ NOTIFY={NEVER,SUCCESS,FAILURE,DELAY} ]
+dsn	                     [ ORCPT=<recipient> ]
+dsn		SMTP Delivery Status Notifications.
+dsn	Descriptions:
+dsn		RET	Return either the full message or only headers.
+dsn		ENVID	Sender's "envelope identifier" for tracking.
+dsn		NOTIFY	When to send a DSN. Multiple options are OK, comma-
+dsn		        delimited. NEVER must appear by itself.
+dsn		ORCPT	Original recipient.
 -bt	Help for test mode:
 -bt	?                :this help message.
 -bt	.Dmvalue         :define macro `m' to `value'.
@@ -76,3 +109,5 @@ turn		implemented.
 -bt			  flags for header recipients.
 -bt	/canon hostname  :try to canonify hostname.
 -bt	/map mapname key :look up `key' in the indicated `mapname'.
+-bt	rules addr	 :run the indicated address through the named rules.
+-bt			  Rules can be a comma separated list of rules.

@@ -41,8 +41,7 @@ divert(-1)
 #  files.
 #
 divert(0)
-VERSIONID(`@(#)generic.m4	8.2 (Berkeley) 4/21/95')
+VERSIONID(`@(#)generic.m4	8.3 (Berkeley) 3/24/96')
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward')dnl
-define(`confCW_FILE', `-o /etc/sendmail.cw')dnl
 FEATURE(redirect)dnl
 FEATURE(use_cw_file)dnl
