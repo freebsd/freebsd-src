@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.21 1998/02/25 04:18:09 hanai Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.22 1998/03/07 22:57:58 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -21,6 +21,8 @@
 	gcc
 	..
 	lint
+	..
+	msdosfs
 	..
 	stallion
 	..
