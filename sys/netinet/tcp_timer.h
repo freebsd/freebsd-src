@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.h,v 1.3 1994/08/02 07:49:12 davidg Exp $
+ * $Id: tcp_timer.h,v 1.4 1994/08/21 05:27:38 paul Exp $
  */
 
 #ifndef _NETINET_TCP_TIMER_H_
@@ -102,6 +102,10 @@
 
 #define	TCPTV_MIN	(  1*PR_SLOWHZ)		/* minimum allowable value */
 #define	TCPTV_REXMTMAX	( 64*PR_SLOWHZ)		/* max allowable REXMT value */
+
+#ifdef TTCP
+#define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
+#endif
 
 #define	TCP_LINGERTIME	120			/* linger at most 2 minutes */
 

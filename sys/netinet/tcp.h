@@ -31,13 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp.h,v 1.2 1994/08/02 07:48:52 davidg Exp $
+ * $Id: tcp.h,v 1.3 1994/08/21 05:27:34 paul Exp $
  */
 
 #ifndef _NETINET_TCP_H_
 #define _NETINET_TCP_H_
 
 typedef	u_long	tcp_seq;
+#ifdef TTCP
+typedef u_long	tcp_cc;			/* connection count per rfc1644 */
+#endif
+
 /*
  * TCP header.
  * Per RFC 793, September, 1981.
@@ -62,6 +66,9 @@ struct tcphdr {
 #define	TH_PUSH	0x08
 #define	TH_ACK	0x10
 #define	TH_URG	0x20
+#ifdef TTCP
+#define TH_FLAGS (TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG)
+#endif
 	u_short	th_win;			/* window */
 	u_short	th_sum;			/* checksum */
 	u_short	th_urp;			/* urgent pointer */
@@ -79,9 +86,18 @@ struct tcphdr {
 #define TCPOPT_TIMESTAMP	8
 #define    TCPOLEN_TIMESTAMP		10
 #define    TCPOLEN_TSTAMP_APPA		(TCPOLEN_TIMESTAMP+2) /* appendix A */
-
-#define TCPOPT_TSTAMP_HDR	\
+#define    TCPOPT_TSTAMP_HDR		\
     (TCPOPT_NOP<<24|TCPOPT_NOP<<16|TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)
+
+#ifdef TTCP
+#define	TCPOPT_CC		11		/* CC options: RFC-1644 */
+#define TCPOPT_CCNEW		12
+#define TCPOPT_CCECHO		13
+#define	   TCPOLEN_CC			6
+#define	   TCPOLEN_CC_APPA		(TCPOLEN_CC+2)
+#define	   TCPOPT_CC_HDR(ccopt)		\
+    (TCPOPT_NOP<<24|TCPOPT_NOP<<16|(ccopt)<<8|TCPOLEN_CC)
+#endif
 
 /*
  * Default maximum segment size for TCP.
@@ -92,13 +108,24 @@ struct tcphdr {
 #define	TCP_MSS	512
 
 #define	TCP_MAXWIN	65535	/* largest value for (unscaled) window */
+#ifdef TTCP
+#define	TTCP_CLIENT_SND_WND	4096	/* dflt send window for T/TCP client */
+#endif
 
 #define TCP_MAX_WINSHIFT	14	/* maximum window shift */
+
+#define TCP_MAXHLEN	(0xf<<2)	/* max length of header in bytes */
+#define TCP_MAXOLEN	(TCP_MAXHLEN - sizeof(struct tcphdr))
+					/* max space left for options */
 
 /*
  * User-settable options (used with setsockopt).
  */
 #define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
 #define	TCP_MAXSEG	0x02	/* set maximum segment size */
+#ifdef TTCP
+#define TCP_NOPUSH	0x04	/* don't push last block of write */
+#define TCP_NOOPT	0x08	/* don't use TCP options */
+#endif
 
 #endif
