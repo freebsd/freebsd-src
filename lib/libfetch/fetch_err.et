@@ -46,5 +46,5 @@ et ftch
     ec FETCH_UNAVAIL,	"File is not available"
     ec FETCH_UNKNOWN,	"Unknown error"
     ec FETCH_URL,	"Invalid URL"
-    ec FETCH_VERBOSE,	""
+    ec FETCH_VERBOSE,	"Info:"
 end

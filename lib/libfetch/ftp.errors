@@ -42,3 +42,4 @@
 551 PROTO	Requested action aborted. Page type unknown
 552 FULL	Exceeded storage allocation
 553 EXISTS	File name not allowed
+999 PROTO	Protocol error
