@@ -34,6 +34,11 @@
 #ifndef _NETSMB_DEV_H_
 #define _NETSMB_DEV_H_
 
+#ifndef _KERNEL
+#include <sys/types.h>
+#endif
+#include <sys/ioccom.h>
+
 #include <netsmb/smb.h>
 
 #define	NSMB_NAME		"nsmb"
@@ -47,7 +52,7 @@
 
 #define	SMBVOPT_CREATE		0x0001	/* create object if necessary */
 #define	SMBVOPT_PRIVATE		0x0002	/* connection should be private */
-#define	SMBVOPT_SINGLESHARE	0x0004	/* keep only ane share at this VC */
+#define	SMBVOPT_SINGLESHARE	0x0004	/* keep only one share at this VC */
 #define	SMBVOPT_PERMANENT	0x0010	/* object will keep last reference */
 
 #define	SMBSOPT_CREATE		0x0001	/* create object if necessary */
@@ -151,12 +156,6 @@ struct smbioc_rw {
 #define	SMBIOC_WRITE		_IOWR('n', 108, struct smbioc_rw)
 
 #ifdef _KERNEL
-
-#ifndef LK_SHARED
-#include <sys/lock.h>
-#endif
-
-#define IF_QEMPTY(ifq)	((ifq)->ifq_len == 0)
 
 #define SMBST_CONNECTED	1
 
