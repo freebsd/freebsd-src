@@ -69,19 +69,8 @@ Whereas
 .Fn getmicrotime
 and
 .Fn getnanotime
-functions are abstractions which can alternately return a less precise, but
+functions are abstractions which return a less precise, but
 faster to obtain, time.
-This behaviour can be toggled via the
-kern.timecounter.method sysctl variable:
-.Bl -tag -width ABC
-.It Dv 0
-sacrifice precision in favor of faster code execution
-.It Dv 1
-return the more precise time (the same as calling
-.Fn microtime
-or
-.Fn nanotime ) .
-.El
 .Pp
 The intent of the
 .Fn getmicrotime
@@ -95,9 +84,6 @@ execution time.
 .Xr microuptime 9 ,
 .Xr nanouptime 9 ,
 .Xr tvtohz 9
-.Sh DIAGNOSTICS
-Buggy hardware can cause "calcru negative..." when kern.timecounter.method
-is set to 0.
 .Sh HISTORY
 The
 .Nm microtime
