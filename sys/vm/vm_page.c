@@ -708,17 +708,23 @@ vm_page_select_cache(int color)
 	vm_page_t m;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	while (TRUE) {
-		m = vm_pageq_find(PQ_CACHE, color, FALSE);
-		if (m && ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
-			       m->hold_count || m->wire_count ||
-			  (!VM_OBJECT_TRYLOCK(m->object) &&
-			   !VM_OBJECT_LOCKED(m->object)))) {
-			vm_page_deactivate(m);
-			continue;
+	while ((m = vm_pageq_find(PQ_CACHE, color, FALSE)) != NULL) {
+		if ((m->flags & PG_BUSY) == 0 && m->busy == 0 &&
+		    m->hold_count == 0 && (VM_OBJECT_TRYLOCK(m->object) ||
+		    VM_OBJECT_LOCKED(m->object))) {
+			KASSERT(m->dirty == 0,
+			    ("Found dirty cache page %p", m));
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("Found mapped cache page %p", m));
+			KASSERT((m->flags & PG_UNMANAGED) == 0,
+			    ("Found unmanaged cache page %p", m));
+			KASSERT(m->wire_count == 0,
+			    ("Found wired cache page %p", m));
+			break;
 		}
-		return m;
+		vm_page_deactivate(m);
 	}
+	return (m);
 }
 
 /*
@@ -795,7 +801,6 @@ loop:
 			pagedaemon_wakeup();
 			return (NULL);
 		}
-		KASSERT(m->dirty == 0, ("Found dirty cache page %p", m));
 		m_object = m->object;
 		VM_OBJECT_LOCK_ASSERT(m_object, MA_OWNED);
 		vm_page_busy(m);
