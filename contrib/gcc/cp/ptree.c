@@ -28,6 +28,13 @@ Boston, MA 02111-1307, USA.  */
 #include "tree.h"
 #include "cp-tree.h"
 
+#ifndef HOST_PTR_PRINTF_FORMAT
+#define HOST_PTR_PRINTF_FORMAT HOST_PTR_PRINTF
+#endif
+#ifndef HOST_PTR_PRINTF_TYPE
+#define HOST_PTR_PRINTF_TYPE (void *)
+#endif
+
 void
 cxx_print_decl (file, node, indent)
      FILE *file;
@@ -51,19 +58,19 @@ cxx_print_decl (file, node, indent)
       && DECL_PENDING_INLINE_INFO (node))
     {
       fprintf (file, " pending-inline-info ");
-      fprintf (file, HOST_PTR_PRINTF, (void *) DECL_PENDING_INLINE_INFO (node));
+      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE DECL_PENDING_INLINE_INFO (node));
     }
   if (TREE_CODE (node) == TYPE_DECL
       && DECL_SORTED_FIELDS (node))
     {
       fprintf (file, " sorted-fields ");
-      fprintf (file, HOST_PTR_PRINTF, (void *) DECL_SORTED_FIELDS (node));
+      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE DECL_SORTED_FIELDS (node));
     }
   if ((TREE_CODE (node) == FUNCTION_DECL || TREE_CODE (node) == VAR_DECL)
       && DECL_TEMPLATE_INFO (node))
     {
       fprintf (file, " template-info ");
-      fprintf (file, HOST_PTR_PRINTF, (void *) DECL_TEMPLATE_INFO (node));
+      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE DECL_TEMPLATE_INFO (node));
     }
 }
 
@@ -184,7 +191,7 @@ cxx_print_xnode (file, node, indent)
     {
     case CPLUS_BINDING:
       fprintf (file, " scope ");
-      fprintf (file, HOST_PTR_PRINTF, BINDING_SCOPE (node));
+      fprintf (file, HOST_PTR_PRINTF_FORMAT, HOST_PTR_PRINTF_TYPE BINDING_SCOPE (node));
       print_node (file, "value", BINDING_VALUE (node), indent+4);
       print_node (file, "chain", TREE_CHAIN (node), indent+4);
       break;
