@@ -85,6 +85,7 @@
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/select.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/bus.h>
@@ -777,7 +778,7 @@ USB_DETACH(umodem)
 	USB_DETACH_START(umodem, sc);
 	int rv = 0;
 
-	DPRINTF(("umodem_detach: sc=%p flags=%d\n", sc, flags));
+	DPRINTF(("umodem_detach: sc=%p\n", sc));
 
 	if (sc->sc_notify_pipe != NULL) {
 		usbd_abort_pipe(sc->sc_notify_pipe);
