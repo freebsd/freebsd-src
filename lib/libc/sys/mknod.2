@@ -42,25 +42,19 @@
 .Ft int
 .Fn mknod "const char *path" "mode_t mode" "dev_t dev"
 .Sh DESCRIPTION
-The device special file
+The filesystem node
 .Fa path
-is created with the major and minor
-device numbers extracted from
-.Fa mode.
-The access permissions of
-.Fa path
-are descendant from the
-.Xr umask 2
-of the parent process.
+is created with the file type and access permissions specified in
+.Fa mode .
+The access permissions are modified by the process's umask value.
 .Pp
 If
 .Fa mode
 indicates a block or character special file,
 .Fa dev
-is a configuration dependent specification of a character or block
-I/O device and the superblock of the device.  If
-.Fa mode
-does not indicate a block special or character special device,
+is a configuration dependent specification denoting a particular device
+on the system.
+Otherwise,
 .Fa dev
 is ignored.
 .Pp
