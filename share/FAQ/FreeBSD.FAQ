@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.10 1994/11/23 13:13:12 dfr Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.11 1994/11/25 19:40:25 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -360,6 +360,9 @@ There is support for the following cards:
 `ze' driver:
         IBM PCMCIA credit card adapter
 
+Note:	We also support TCP/IP over parallel lines.  At this point we are
+	incompatiable with other versions, but we hope to correct this in
+	the near future.
 
 2.11:  I have a 386/486sx/486SLC machine without a math co-processor.
        Will this cause me any problems?
@@ -373,7 +376,17 @@ better than others.  It pains us to say it, but nobody ever got fired
 for buying Intel.  Unless you're sure it works with FreeBSD, beware of
 clones.
 
-2.12:  I am about to buy a new machine to run FreeBSD on and
+2.12:  What other devices does 2.X support?
+
+Here is a listing of drivers that do not fit into any of the above areas.
+
+b004.c		Driver for B004 compatiable Transputer boards
+ctx.c		Driver for CORTEX-I Frame grabber
+cx.c		Driver for CRONYX-SIGMA sync/async serial board
+pcaudio.c	Driver for PC speakers to allow the playing of audio files
+tw.c		Driver for the X-10 POWERHOUSE 
+
+2.13:  I am about to buy a new machine to run FreeBSD on and
        want an idea of what other people are running.  Is there list
        of other systems anywhere? 
 
@@ -588,7 +601,7 @@ bin-tarball:
 There was a minor SNAFU in the 2.0-R bindist and they got left out.
 If you have the source, you just have to do a "make install" from
 /usr/src/gnu/usr.bin/perl/lib and everything will be fine.  Or you
-may ftp to freefall.cdrom.com and grab them from ~/pub/perl/libs.tar.gz.
+may ftp to ftp.gbdata.com and grab them from ~/pub/perl/libs.tar.gz.
 
 
 
