@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.120 1997/04/02 17:10:16 ache Exp $
+#	$Id: Makefile,v 1.121 1997/04/09 18:59:36 jdp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -36,7 +36,14 @@
 # Put initial settings here.
 SUBDIR=
 
-# We must do include and lib first so that the perl *.ph generation
+# We must do share/info early so that installation of info `dir'
+# entries works correctly.  Do it first since it is less likely to
+# grow dependencies on include and lib than vice versa.
+.if exists(share/info)
+SUBDIR+= share/info
+.endif
+
+# We must do include and lib early so that the perl *.ph generation
 # works correctly as it uses the header files installed by this.
 .if exists(include)
 SUBDIR+= include
@@ -401,7 +408,7 @@ includes:
 	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/eBones/lib/libkadm &&	${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE}	beforeinstall
+	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
