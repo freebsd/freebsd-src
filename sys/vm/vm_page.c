@@ -799,7 +799,6 @@ loop:
 		m_object = m->object;
 		VM_OBJECT_LOCK_ASSERT(m_object, MA_OWNED);
 		vm_page_busy(m);
-		pmap_remove_all(m);
 		vm_page_free(m);
 		vm_page_unlock_queues();
 		if (m_object != object)
