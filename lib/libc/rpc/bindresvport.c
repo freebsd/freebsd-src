@@ -31,7 +31,7 @@
 /*static char *sccsid = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";*/
 /*static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";*/
 /*from: OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp */
-static char *rcsid = "$Id: bindresvport.c,v 1.4 1996/06/10 00:49:15 jraynard Exp $";
+static char *rcsid = "$Id: bindresvport.c,v 1.5 1996/08/12 14:09:46 peter Exp $";
 #endif
 
 /*
@@ -61,8 +61,8 @@ bindresvport(sd, sin)
 
 	if (sin == (struct sockaddr_in *)0) {
 		sin = &myaddr;
-		memset(sin, 0, sizeof(*sin));
-		sin->sin_len = sizeof(*sin);
+		memset(sin, 0, sinlen);
+		sin->sin_len = sinlen;
 		sin->sin_family = AF_INET;
 	} else if (sin->sin_family != AF_INET) {
 		errno = EPFNOSUPPORT;
@@ -83,7 +83,7 @@ bindresvport(sd, sin)
 			return(error);
 	}
 
-	error = bind(sd, (struct sockaddr *)sin, sizeof(*sin));
+	error = bind(sd, (struct sockaddr *)sin, sinlen);
 
 	if (sin->sin_port == 0) {
 		int saved_errno = errno;
@@ -96,8 +96,6 @@ bindresvport(sd, sin)
 		}
 
 		if (sin != &myaddr) {
-			int sinlen = sizeof(*sin);
-
 			/* Hmm, what did the kernel assign... */
 			if (getsockname(sd, (struct sockaddr *)sin,
 			    &sinlen) < 0)
