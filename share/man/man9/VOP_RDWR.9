@@ -60,7 +60,11 @@ the credentials of the caller
 .Pp
 The
 .Fa ioflag
-argument is a bit mask which can contain the following flags:
+argument is used to give directives and hints to the filesystem.
+When attempting a read, the high 16 bits are used to provide a
+read-ahead hint (in units of filesystem blocks) that the filesystem
+should attempt.  The low 16 bits are a bit mask which can contain
+the following flags:
 .Bl -tag -width IO_NODELOCKED
 .It Dv IO_UNIT
 do I/O as atomic unit
