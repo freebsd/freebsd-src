@@ -58,7 +58,6 @@ __RCSID("$NetBSD: hcreate.c,v 1.2 2001/02/19 21:26:04 ross Exp $");
 #include <search.h>
 #include <stdlib.h>
 #include <string.h>
-#include "namespace.h"
 
 /*
  * DO NOT MAKE THIS STRUCTURE LARGER THAN 32 BYTES (4 ptrs on 64-bit
