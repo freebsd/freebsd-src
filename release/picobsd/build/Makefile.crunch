@@ -8,12 +8,11 @@ all: crunch
 crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@( if [ -f crunch.inc ] ; then \
-		crunchgen -h ./crunch.inc ./crunch1.conf ; \
+		crunchgen -o -h ./crunch.inc ./crunch1.conf ; \
 	else \
-		crunchgen ./crunch1.conf ; \
+		crunchgen -o ./crunch1.conf ; \
 	fi )
 	@perl -pi -e 's#${OBJ}#${PICO_OBJ}#g' crunch1.mk ;
-	../../build/munge_crunchmk.pl crunch1.mk ;
 	@env MAKEOBJDIRPREFIX=${PICO_OBJ} ${MAKE} -f crunch1.mk all
 	strip --remove-section=.note --remove-section=.comment crunch1
 
