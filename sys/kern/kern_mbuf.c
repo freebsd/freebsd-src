@@ -198,9 +198,9 @@ mb_ctor_mbuf(void *mem, int size, void *arg)
 	m->m_type = type;
 	m->m_next = NULL;
 	m->m_nextpkt = NULL;
+	m->m_flags = flags;
 	if (flags & M_PKTHDR) {
 		m->m_data = m->m_pktdat;
-		m->m_flags = M_PKTHDR;
 		m->m_pkthdr.rcvif = NULL;
 		m->m_pkthdr.csum_flags = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
@@ -212,10 +212,8 @@ mb_ctor_mbuf(void *mem, int size, void *arg)
 /*			return 0; */
 		}
 #endif
-	} else { 
+	} else
 		m->m_data = m->m_dat;
-		m->m_flags = 0;
-	}
 	mbstat.m_mbufs += 1;	/* XXX */
 /*	return 1;
 */
@@ -333,6 +331,7 @@ mb_ctor_pack(void *mem, int size, void *arg)
 
 	m->m_type = type;
 	m->m_next = NULL;
+	m->m_nextpkt = NULL;
 	m->m_data = m->m_ext.ext_buf;
 	m->m_flags = flags|M_EXT;
 	m->m_ext.ext_free = NULL;
@@ -342,7 +341,6 @@ mb_ctor_pack(void *mem, int size, void *arg)
 	*(m->m_ext.ref_cnt) = 1;
 
 	if (flags & M_PKTHDR) {
-		m->m_nextpkt = NULL;
 		m->m_pkthdr.rcvif = NULL;
 		m->m_pkthdr.csum_flags = 0;
 		SLIST_INIT(&m->m_pkthdr.tags);
