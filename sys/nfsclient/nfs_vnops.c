@@ -2814,6 +2814,7 @@ loop:
 				slpflag | (PRIBIO + 1), "nfsfsync", slptimeo);
 			if (error) {
 			    if (nfs_sigintr(nmp, NULL, td)) {
+				VI_UNLOCK(vp);
 				error = EINTR;
 				goto done;
 			    }
