@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.93 1998/01/04 21:28:49 brian Exp $
+.\" $Id: ppp.8,v 1.94 1998/01/05 01:35:20 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2248,6 +2248,12 @@ The default MTU is 1500.  This may be increased by the MRU specified
 by the peer.  It may only be subsequently decreased by this option.
 Increasing it is not valid as the peer is not necessarily able to
 receive the increased packet size.
+.It set ns x.x.x.x y.y.y.y
+This option allows the setting of the Microsoft DNS servers that
+will be negotiated.
+.It set nbns x.x.x.x y.y.y.y
+This option allows the setting of the Microsoft NetBIOS DNS servers that
+will be negotiated.
 .It set openmode active|passive
 By default,
 .Ar openmode
@@ -2370,12 +2376,26 @@ This sets the speed of the serial device.
 .It set timeout Idle [ lqr [ retry ] ]
 This command allows the setting of the idle timer, the LQR timer (if
 enabled) and the retry timer.
-.It set ns x.x.x.x y.y.y.y
-This option allows the setting of the Microsoft DNS servers that
-will be negotiated.
-.It set nbns x.x.x.x y.y.y.y
-This option allows the setting of the Microsoft NetBIOS DNS servers that
-will be negotiated.
+.It set vj slots nslots
+This command sets the initial number of
+.Ar slots
+that
+.Nm
+will try to negotiate with the peer when VJ compression is enabled (see the
+.Sq enable
+command above).  It defaults to a value of 16.
+.Ar Nslots
+must be between
+.Ar 4
+and
+.Ar 16
+inclusive.
+.It set vj slotcomp on|off
+This command tells
+.Nm
+whether it should attempt to negotiate VJ slot compression.  By default,
+slot compression is turned
+.Ar on .
 .It set help|?
 This command gives a summary of available set commands.
 .El

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.126 1998/01/10 21:51:31 brian Exp $
+ * $Id: command.c,v 1.127 1998/01/11 17:50:31 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -620,6 +620,10 @@ static struct cmdtab const ShowCommands[] = {
   "Show modem setups", "show modem"},
   {"mru", NULL, ShowInitialMRU, LOCAL_AUTH,
   "Show Initial MRU", "show mru"},
+#ifndef NOMSEXT
+  {"msext", NULL, ShowMSExt, LOCAL_AUTH,
+  "Show MS PPP extentions", "show msext"},
+#endif
   {"mtu", NULL, ShowPreferredMTU, LOCAL_AUTH,
   "Show Preferred MTU", "show mtu"},
   {"ofilter", NULL, ShowOfilter, LOCAL_AUTH,
@@ -636,12 +640,10 @@ static struct cmdtab const ShowCommands[] = {
   "Show Idle timeout", "show timeout"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH,
   "Show STOPPED timeout", "show stopped"},
-#ifndef NOMSEXT
-  {"msext", NULL, ShowMSExt, LOCAL_AUTH,
-  "Show MS PPP extentions", "show msext"},
-#endif
   {"version", NULL, ShowVersion, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Show version string", "show version"},
+  {"vj", NULL, ShowInitVJ, LOCAL_AUTH,
+  "Show VJ values", "show vj"},
   {"help", "?", HelpCommand, LOCAL_NO_AUTH | LOCAL_AUTH,
   "Display this message", "show help|? [command]", ShowCommands},
   {NULL, NULL, NULL},
@@ -1448,6 +1450,12 @@ static struct cmdtab const SetCommands[] = {
   "Set Initial MRU value", "set mru value"},
   {"mtu", NULL, SetPreferredMTU, LOCAL_AUTH,
   "Set Preferred MTU value", "set mtu value"},
+#ifndef NOMSEXT
+  {"nbns", NULL, SetNBNS, LOCAL_AUTH,
+  "Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
+  {"ns", NULL, SetNS, LOCAL_AUTH,
+  "Set NameServer", "set ns pri-addr [sec-addr]"},
+#endif
   {"ofilter", NULL, SetOfilter, LOCAL_AUTH,
   "Set output filter", "set ofilter ..."},
   {"openmode", NULL, SetOpenMode, LOCAL_AUTH,
@@ -1468,12 +1476,8 @@ static struct cmdtab const SetCommands[] = {
   "Set modem speed", "set speed value"},
   {"timeout", NULL, SetIdleTimeout, LOCAL_AUTH,
   "Set Idle timeout", "set timeout value"},
-#ifndef NOMSEXT
-  {"ns", NULL, SetNS, LOCAL_AUTH,
-  "Set NameServer", "set ns pri-addr [sec-addr]"},
-  {"nbns", NULL, SetNBNS, LOCAL_AUTH,
-  "Set NetBIOS NameServer", "set nbns pri-addr [sec-addr]"},
-#endif
+  {"vj", NULL, SetInitVJ, LOCAL_AUTH,
+  "Set vj values", "set vj slots|slotcomp"},
   {"help", "?", HelpCommand, LOCAL_AUTH | LOCAL_NO_AUTH,
   "Display this message", "set help|? [command]", SetCommands},
   {NULL, NULL, NULL},
