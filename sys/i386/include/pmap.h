@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id$
+ * 	$Id: pmap.h,v 1.48 1997/02/22 09:34:58 peter Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -103,8 +103,8 @@
 #define	APTDPTDI	(NPDEPG-1)	/* alt ptd entry that points to APTD */
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
-#define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
-#define KSTKPTEOFF	(NPTEPG-UPAGES) /* pte entry for kernel stack */
+#define	UMAXPTDI	(PTDPTDI-1)	/* ptd entry for user space end */
+#define	UMAXPTEOFF	(NPTEPG-UPAGES_HOLE) /* pte entry for user space end */
 
 /*
  * XXX doesn't really belong here I guess...
