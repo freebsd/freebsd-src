@@ -53,14 +53,11 @@ void cpu_critical_fork_exit(void);
  *
  *	This routine is called from critical_enter() on the 0->1 transition
  *	of td_critnest, prior to it being incremented to 1.
- *
- *	If new-style critical section handling we do not have to do anything.
- *	However, as a side effect any interrupts occuring while td_critnest
- *	is non-zero will be deferred.
  */
 static __inline void
 cpu_critical_enter(struct thread *td)
 {
+
 	td->td_md.md_savecrit = intr_disable();
 }
 
@@ -70,10 +67,6 @@ cpu_critical_enter(struct thread *td)
  *	This routine is called from critical_exit() on a 1->0 transition
  *	of td_critnest, after it has been decremented to 0.  We are
  *	exiting the last critical section.
- *
- *	Note that the td->critnest (1->0) transition interrupt race against
- *	our int_pending/unpend() check below is handled by the interrupt
- *	code for us, so we do not have to do anything fancy.
  */
 static __inline void
 cpu_critical_exit(struct thread *td)
