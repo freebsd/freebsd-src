@@ -1122,9 +1122,9 @@ main (argc, argv)
 #if O_BINARY
          "0123456789A:B:C::EFGHVX:abcd:e:f:hiLlnqrsvwxyUu",
 #elif HAVE_LIBZ > 0
-         "0123456789A:B:C::EFGHVX:Zabcd:e:f:hiLlnqrsvwxy",
+         "0123456789A:B:C::EFGHRVX:Zabcd:e:f:hiLlnqrsvwxy",
 #else
-         "0123456789A:B:C::EFGHVX:abcd:e:f:hiLlnqrsvwxy",
+         "0123456789A:B:C::EFGHRVX:abcd:e:f:hiLlnqrsvwxy",
 #endif
          long_options, NULL)) != EOF)
     switch (opt)
@@ -1280,6 +1280,7 @@ main (argc, argv)
 	done_on_match = 1;
 	out_quiet = 1;
 	break;
+      case 'R':
       case 'r':
 	directories = RECURSE_DIRECTORIES;
 	break;
