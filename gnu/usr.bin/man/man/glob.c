@@ -15,6 +15,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 /* To whomever it may concern: I have never seen the code which most
    Unix programs use to perform this function.  I wrote this from scratch
    based on specifications for the pattern matching.  --RMS.  */
@@ -112,19 +114,14 @@ int noglob_dot_filenames = 1;
 static int glob_match_after_star ();
 
 #ifdef __FreeBSD__
-static int collate_range_cmp (a, b)
+static int collate_range_cmp(a, b)
 	int a, b;
 {
-	int r;
 	static char s[2][2];
 
-	if ((unsigned char)a == (unsigned char)b)
-		return 0;
 	s[0][0] = a;
 	s[1][0] = b;
-	if ((r = strcoll(s[0], s[1])) == 0)
-		r = (unsigned char)a - (unsigned char)b;
-	return r;
+	return (strcoll(s[0], s[1]));
 }
 #endif
 
