@@ -95,7 +95,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -167,7 +167,7 @@ vm_offset_t kernel_vm_end;
 /*
  * Data for the pv entry allocation mechanism
  */
-static vm_zone_t pvzone;
+static uma_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
@@ -490,14 +490,8 @@ pmap_init(phys_start, phys_end)
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
-#if 0
-	pvzone = &pvzone_store;
-	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
-		initial_pvs * sizeof (struct pv_entry));
-	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit,
-	    vm_page_array_size);
-#endif
-	pvzone = zinit("PV ENTRY", sizeof (struct pv_entry), 0, 0, 0);
+	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_allocf(pvzone, pmap_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 
@@ -521,9 +515,6 @@ pmap_init2()
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-#if 0
-	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
-#endif
 	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
 
@@ -1693,7 +1684,7 @@ static PMAP_INLINE void
 free_pv_entry(pv_entry_t pv)
 {
 	pv_entry_count--;
-	zfree(pvzone, pv);
+	uma_zfree(pvzone, pv);
 }
 
 /*
@@ -1712,7 +1703,7 @@ get_pv_entry(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup (&vm_pages_needed);
 	}
-	return zalloc(pvzone);
+	return uma_zalloc(pvzone, M_NOWAIT);
 }
 
 /*
