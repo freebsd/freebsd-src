@@ -1,0 +1,35 @@
+%{
+/*
+ * Copyright is disclaimed as to the contents of this file.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/types.h>
+
+#include <string.h>
+#include <unistd.h>
+
+#include "getconf.h"
+
+/*
+ * Override gperf's built-in external scope.
+ */
+static const struct map *in_word_set(const char *str, unsigned int len);
+
+%}
+struct map { char *name; int key; };
+%%
+PATH, _CS_PATH
+%%
+int
+find_confstr(const char *name)
+{
+	const struct map *rv;
+
+	rv = in_word_set(name, strlen(name));
+	if (rv != 0)
+		return rv->key;
+	else
+		return -1;
+}
