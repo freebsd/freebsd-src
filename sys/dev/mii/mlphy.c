@@ -167,7 +167,7 @@ static int mlphy_attach(dev)
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	ma->mii_capmask = ~sc->mii_capabilities;
 	device_printf(dev, " ");
-	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+	mii_add_media(sc);
 	printf("\n");
 #undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);

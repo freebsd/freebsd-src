@@ -165,7 +165,7 @@ static int qsphy_attach(dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+	mii_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
