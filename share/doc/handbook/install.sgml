@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.9 1995/08/29 01:42:39 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.10 1995/09/25 04:53:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -365,7 +365,7 @@ Boot:
 
 	    <item>ARNET 8 port serial card using shared IRQ.
 
-	    <item>BOCA ATIO66 6 port serial card using shared IRQ.
+	    <item>BOCA IOAT66 6 port serial card using shared IRQ.
 
 	    <item>Cyclades Cyclom-y Serial Board.
 
