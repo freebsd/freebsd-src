@@ -330,6 +330,8 @@ print_node (file, prefix, node, indent)
 	fputs (" common", file);
       if (DECL_EXTERNAL (node))
 	fputs (" external", file);
+      if (DECL_WEAK (node))
+	fputs (" weak", file);
       if (DECL_REGISTER (node) && TREE_CODE (node) != FIELD_DECL
 	  && TREE_CODE (node) != FUNCTION_DECL
 	  && TREE_CODE (node) != LABEL_DECL)
@@ -706,6 +708,22 @@ print_node (file, prefix, node, indent)
 	      fprintf (file, "");
 	    }
 #endif
+	  }
+	  break;
+
+	case VECTOR_CST:
+	  {
+	    tree vals = TREE_VECTOR_CST_ELTS (node);
+	    char buf[10];
+	    tree link;
+	    int i;
+
+	    i = 0;
+	    for (link = vals; link; link = TREE_CHAIN (link), ++i)
+	      {
+		sprintf (buf, "elt%d: ", i);
+		print_node (file, buf, TREE_VALUE (link), indent + 4);
+	      }
 	  }
 	  break;
 
