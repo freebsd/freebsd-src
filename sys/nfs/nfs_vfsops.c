@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.51 1997/10/28 15:59:12 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.52 1997/11/12 05:42:21 julian Exp $
  */
 
 #include <sys/param.h>
@@ -956,7 +956,8 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		if (VOP_ISLOCKED(vp) || vp->v_dirtyblkhd.lh_first == NULL)
+		if (VOP_ISLOCKED(vp) || vp->v_dirtyblkhd.lh_first == NULL ||
+		    waitfor == MNT_LAZY)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))
 			goto loop;
