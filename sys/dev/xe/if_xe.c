@@ -109,6 +109,8 @@
 
 #if NXE > 0
 
+#undef NCARD
+#define NCARD 0
 #if NCARD > 0
 
 #include <sys/param.h>
