@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tftpd.c,v 1.7 1997/02/22 14:22:36 peter Exp $
  */
 
 #ifndef lint
@@ -422,7 +422,8 @@ validate_access(filep, mode)
 		 */
 		err = ENOTFOUND;
 		for (dirp = dirs; dirp->name != NULL; dirp++) {
-			sprintf(pathname, "%s/%s", dirp->name, filename);
+			snprintf(pathname, sizeof(pathname), "%s/%s",
+				dirp->name, filename);
 			if (stat(pathname, &stbuf) == 0 &&
 			    (stbuf.st_mode & S_IFMT) == S_IFREG) {
 				if ((stbuf.st_mode & S_IROTH) != 0) {
@@ -632,7 +633,7 @@ errtomsg(error)
 	for (pe = errmsgs; pe->e_code >= 0; pe++)
 		if (pe->e_code == error)
 			return pe->e_msg;
-	sprintf(buf, "error %d", error);
+	snprintf(buf, sizeof(buf), "error %d", error);
 	return buf;
 }
 
