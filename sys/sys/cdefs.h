@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.8 (Berkeley) 1/9/95
- * $Id: cdefs.h,v 1.10 1996/04/13 14:23:29 bde Exp $
+ * $Id: cdefs.h,v 1.15 1997/12/13 20:39:14 pst Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -54,12 +54,16 @@
  * The __CONCAT macro is a bit tricky -- make sure you don't put spaces
  * in between its arguments.  __CONCAT can also concatenate double-quoted
  * strings produced by the __STRING macro, but this only works with ANSI C.
+ *
+ * __XSTRING is like __STRING, but it expands any macros in its argument
+ * first.  It is only available with ANSI C.
  */
 #if defined(__STDC__) || defined(__cplusplus)
 #define	__P(protos)	protos		/* full-blown ANSI C */
 #define	__CONCAT1(x,y)	x ## y
 #define	__CONCAT(x,y)	__CONCAT1(x,y)
-#define	__STRING(x)	#x
+#define	__STRING(x)	#x		/* stringify without expanding x */
+#define	__XSTRING(x)	__STRING(x)	/* expand x, then stringify */
 
 #define	__const		const		/* define reserved names to standard */
 #define	__signed	signed
@@ -153,6 +157,21 @@
 	__asm__(".stabs msg,30,0,0,0");			\
 	__asm__(".stabs \"_/**/sym\",1,0,0,0")
 #endif
+#endif
+
+#define	__IDSTRING(name,string) \
+	static const char name[] __attribute__((__unused__)) = string
+
+#ifndef	__RCSID
+#define	__RCSID(s)	__IDSTRING(rcsid,s)
+#endif
+
+#ifndef	__RCSID_SOURCE
+#define	__RCSID_SOURCE(s) __IDSTRING(rcsid_source,s)
+#endif
+
+#ifndef	__COPYRIGHT
+#define	__COPYRIGHT(s)	__IDSTRING(copyright,s)
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */

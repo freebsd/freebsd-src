@@ -36,23 +36,22 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.11 1997/12/03 02:48:25 sef Exp $
+ *	$Id: identcpu.c,v 1.7.2.12 1997/12/04 14:36:55 jkh Exp $
  */
 
 #include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <machine/asmacros.h>
 #include <machine/cpu.h>
-#include <machine/reg.h>
-#include <machine/psl.h>
 #include <machine/clock.h>
+#include <machine/cputypes.h>
+#include <machine/segments.h>
 #include <machine/specialreg.h>
-#include <machine/sysarch.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
@@ -65,6 +64,9 @@ void finishidentcpu(void);
 void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
 static void identifycyrix(void);
+static void print_AMD_info(void);
+static void print_AMD_assoc(int i);
+static void do_cpuid(u_long ax, u_long *p);
 
 u_long	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
@@ -91,6 +93,21 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 };
 
+static void
+do_cpuid(u_long ax, u_long *p)
+{
+	__asm __volatile(
+	".byte	0x0f, 0xa2;"
+	"movl	%%eax, (%%esi);"
+	"movl	%%ebx, (4)(%%esi);"
+	"movl	%%ecx, (8)(%%esi);"
+	"movl	%%edx, (12)(%%esi);"
+	:
+	: "a" (ax), "S" (p)
+	: "ax", "bx", "cx", "dx"
+	);
+}
+
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 int has_f00f_bug = 0;
 #endif
@@ -99,6 +116,7 @@ void
 printcpuinfo(void)
 {
 
+	u_long regs[4], nreg;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
@@ -164,7 +182,8 @@ printcpuinfo(void)
 	} else if (strcmp(cpu_vendor,"AuthenticAMD") == 0) {
 		/*
 		 * Values taken from AMD Processor Recognition
-		 * http://www.amd.com/html/products/pcd/techdocs/appnotes/20734c.pdf
+		 * http://www.amd.com/K6/k6docs/pdf/20734g.pdf
+		 * (also describes ``Features'' encodings.
 		 */
 		strcpy(cpu_model, "AMD ");
 		switch (cpu_id & 0xFF0) {
@@ -196,10 +215,10 @@ printcpuinfo(void)
 			strcat(cpu_model, "K5 model 1");
 			break;
 		case 0x520:
-			strcat(cpu_model, "K5 PR166");
+			strcat(cpu_model, "K5 PR166 (model 2)");
 			break;
 		case 0x530:
-			strcat(cpu_model, "K5 PR200");
+			strcat(cpu_model, "K5 PR200 (model 3)");
 			break;
 		case 0x560:
 			strcat(cpu_model, "K6");
@@ -207,6 +226,17 @@ printcpuinfo(void)
 		default:
 			strcat(cpu_model, "Unknown");
 			break;
+		}
+		do_cpuid(0x80000000, regs);
+		nreg = regs[0];
+		/* Probe to see if we can improve on the model string. */
+		if (nreg >= 0x80000004) {
+			do_cpuid(0x80000002, regs);
+			memcpy(cpu_model, regs, sizeof regs);
+			do_cpuid(0x80000003, regs);
+			memcpy(cpu_model+16, regs, sizeof regs);
+			do_cpuid(0x80000004, regs);
+			memcpy(cpu_model+32, regs, sizeof regs);
 		}
 	} else if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
 		strcpy(cpu_model, "Cyrix ");
@@ -415,12 +445,28 @@ printcpuinfo(void)
 			"\010MCE"
 			"\011CX8"
 			"\012APIC"
-			"\013<b10>"
-			"\014<b11>"
+			"\013oldMTRR"
+			"\014SEP"
 			"\015MTRR"
 			"\016PGE"
 			"\017MCA"
 			"\020CMOV"
+			"\021<b16>"
+			"\022<b17>"
+			"\023<b18>"
+			"\024<b19>"
+			"\025<b20>"
+			"\026<b21>"
+			"\027<b22>"
+			"\030MMX"
+			"\031<b24>"
+			"\032<b25>"
+			"\033<b26>"
+			"\034<b27>"
+			"\035<b28>"
+			"\036<b29>"
+			"\037<b30>"
+			"\040<b31>"
 			);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
@@ -435,10 +481,18 @@ printcpuinfo(void)
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
 		printf("\n");
+
 #endif
+	if (!bootverbose)
+		return;
+
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+		print_AMD_info();
 #ifdef I686_CPU
 	/*
 	 * XXX - Do PPro CPUID level=2 stuff here?
+	 *
+	 * No, but maybe in a print_Intel_info() function called from here.
 	 */
 #endif
 }
@@ -488,9 +542,10 @@ inthand_t	bluetrap;
 asm
 ("
 	.text
-_bluetrap:
+	.p2align 2,0x90
+" __XSTRING(CNAME(bluetrap)) ":
 	ss
-	movl	$0xa8c1d, _trap_by_wrmsr  # Don't ask meaning of the number :-).
+	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_wrmsr)) " # Don't ask meaning of the number :-).
 	addl	$2, (%esp)				  # I know wrmsr is a 2-bytes instruction.
 	iret
 ");
@@ -648,4 +703,36 @@ earlysetcpuclass(void)
 {
 
 	cpu_class = i386_cpus[cpu].cpu_class;
+}
+
+static void
+print_AMD_assoc(int i)
+{
+	if (i == 255)
+		printf(", fully associative\n");
+	else
+		printf(", %d-way associative\n", i);
+}
+
+static void
+print_AMD_info(void) 
+{
+	u_long regs[4];
+
+	do_cpuid(0x80000000, regs);
+	if (regs[0] >= 0x80000005) {
+		do_cpuid(0x80000005, regs);
+		printf("Data TLB: %d entries", (regs[1] >> 16) & 0xff);
+		print_AMD_assoc(regs[1] >> 24);
+		printf("Instruction TLB: %d entries", regs[1] & 0xff);
+		print_AMD_assoc((regs[1] >> 8) & 0xff);
+		printf("L1 data cache: %d kbytes", regs[2] >> 24);
+		printf(", %d bytes/line", regs[2] & 0xff);
+		printf(", %d lines/tag", (regs[2] >> 8) & 0xff);
+		print_AMD_assoc((regs[2] >> 16) & 0xff);
+		printf("L1 instruction cache: %d kbytes", regs[3] >> 24);
+		printf(", %d bytes/line", regs[3] & 0xff);
+		printf(", %d lines/tag", (regs[3] >> 8) & 0xff);
+		print_AMD_assoc((regs[3] >> 16) & 0xff);
+	}
 }

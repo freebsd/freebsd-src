@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.9.2.5 1997/12/09 14:43:22 steve Exp $
+ *	$Id: asmacros.h,v 1.16 1997/04/22 06:55:32 jdp Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
@@ -40,16 +40,31 @@
 
 /* XXX too much duplication in various asm*.h's. */
 
-#define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
-#ifdef GPROF
-#define ALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
+/*
+ * CNAME and HIDENAME manage the relationship between symbol names in C
+ * and the equivalent assembly language names.  CNAME is given a name as
+ * it would be used in a C program.  It expands to the equivalent assembly
+ * language name.  HIDENAME is given an assembly-language name, and expands
+ * to a possibly-modified form that will be invisible to C programs.
+ */
+#if defined(__ELF__)
+#define CNAME(csym)		csym
+#define HIDENAME(asmsym)	__CONCAT(.,asmsym)
 #else
-#define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
+#define CNAME(csym)		__CONCAT(_,csym)
+#define HIDENAME(asmsym)	asmsym
 #endif
-#define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
 
-#define GEN_ENTRY(name)		ALIGN_TEXT; .globl __CONCAT(_,name); \
-				__CONCAT(_,name):
+#define ALIGN_DATA	.p2align 2	/* 4 byte alignment, zero filled */
+#ifdef GPROF
+#define ALIGN_TEXT	.p2align 4,0x90	/* 16-byte alignment, nop filled */
+#else
+#define ALIGN_TEXT	.p2align 2,0x90	/* 4-byte alignment, nop filled */
+#endif
+#define SUPERALIGN_TEXT	.p2align 4,0x90	/* 16-byte alignment, nop filled */
+
+#define GEN_ENTRY(name)		ALIGN_TEXT; .globl CNAME(name); \
+				CNAME(name):
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
 #define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
