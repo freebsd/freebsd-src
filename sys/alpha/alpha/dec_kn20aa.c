@@ -34,6 +34,7 @@
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/termios.h>
 
@@ -123,6 +124,7 @@ dec_kn20aa_cons_init()
 			if (siocnattach(0x3f8, comcnrate))
 				panic("can't init serial console");
 
+			boothowto |= RB_SERIAL;
 			break;
 		}
 
