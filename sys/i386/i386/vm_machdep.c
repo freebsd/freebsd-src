@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.12 1994/03/07 11:38:36 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.13 1994/03/21 09:35:10 davidg Exp $
  */
 
 #include "npx.h"
@@ -52,6 +52,338 @@
 
 #include "vm/vm.h"
 #include "vm/vm_kern.h"
+
+#ifndef NOBOUNCE
+
+caddr_t		bouncememory;
+vm_offset_t	bouncepa, bouncepaend;
+int		bouncepages;
+vm_map_t	bounce_map;
+int		bmwait, bmfreeing;
+
+int		bounceallocarraysize;
+unsigned	*bounceallocarray;
+int		bouncefree;
+
+#define SIXTEENMEG (4096*4096)
+#define MAXBKVA 512
+
+/* special list that can be used at interrupt time for eventual kva free */
+struct kvasfree {
+	vm_offset_t addr;
+	vm_offset_t size;
+} kvaf[MAXBKVA];
+
+int		kvasfreecnt;
+
+/*
+ * get bounce buffer pages (count physically contiguous)
+ * (only 1 inplemented now)
+ */
+vm_offset_t
+vm_bounce_page_find(count)
+	int count;
+{
+	int bit;
+	int s,i;
+
+	if (count != 1)
+		panic("vm_bounce_page_find -- no support for > 1 page yet!!!");
+
+	s = splbio();
+retry:
+	for (i = 0; i < bounceallocarraysize; i++) {
+		if (bounceallocarray[i] != 0xffffffff) {
+			if (bit = ffs(~bounceallocarray[i])) {
+				bounceallocarray[i] |= 1 << (bit - 1) ;
+				bouncefree -= count;
+				splx(s);
+				return bouncepa + (i * 8 * sizeof(unsigned) + (bit - 1)) * NBPG;
+			}
+		}
+	}
+	tsleep((caddr_t) &bounceallocarray, PRIBIO, "bncwai", 0);
+	goto retry;
+}
+
+/*
+ * free count bounce buffer pages
+ */
+void
+vm_bounce_page_free(pa, count)
+	vm_offset_t pa;
+	int count;
+{
+	int allocindex;
+	int index;
+	int bit;
+
+	if (count != 1)
+		panic("vm_bounce_page_free -- no support for > 1 page yet!!!\n");
+
+	index = (pa - bouncepa) / NBPG;
+
+	if ((index < 0) || (index >= bouncepages))
+		panic("vm_bounce_page_free -- bad index\n");
+
+	allocindex = index / (8 * sizeof(unsigned));
+	bit = index % (8 * sizeof(unsigned));
+
+	bounceallocarray[allocindex] &= ~(1 << bit);
+
+	bouncefree += count;
+	wakeup((caddr_t) &bounceallocarray);
+}
+
+/*
+ * allocate count bounce buffer kva pages
+ */
+vm_offset_t
+vm_bounce_kva(count)
+	int count;
+{
+	int tofree;
+	int i;
+	int startfree;
+	vm_offset_t kva;
+	int s = splbio();
+	startfree = 0;
+more:
+	if (!bmfreeing && (tofree = kvasfreecnt)) {
+		bmfreeing = 1;
+more1:
+		for (i = startfree; i < kvasfreecnt; i++) {
+			pmap_remove(kernel_pmap,
+				kvaf[i].addr, kvaf[i].addr + kvaf[i].size);
+			kmem_free_wakeup(bounce_map, kvaf[i].addr,
+				kvaf[i].size);
+		}
+		if (kvasfreecnt != tofree) {
+			startfree = i;
+			bmfreeing = 0;
+			goto more;
+		}
+		kvasfreecnt = 0;
+		bmfreeing = 0;
+	}
+
+	if (!(kva = kmem_alloc_pageable(bounce_map, count * NBPG))) {
+		bmwait = 1;
+		tsleep((caddr_t) bounce_map, PRIBIO, "bmwait", 0);
+		goto more;
+	}
+
+	splx(s);
+
+	return kva;
+}
+
+/*
+ * init the bounce buffer system
+ */
+void
+vm_bounce_init()
+{
+	vm_offset_t minaddr, maxaddr;
+
+	if (bouncepages == 0)
+		return;
+	
+	bounceallocarraysize = (bouncepages + (8*sizeof(unsigned))-1) / (8 * sizeof(unsigned));
+	bounceallocarray = malloc(bounceallocarraysize * sizeof(unsigned), M_TEMP, M_NOWAIT);
+
+	if (!bounceallocarray)
+		panic("Cannot allocate bounce resource array\n");
+
+	bzero(bounceallocarray, bounceallocarraysize * sizeof(long));
+
+	bounce_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, MAXBKVA * NBPG, FALSE);
+
+	bouncepa = pmap_extract(kernel_pmap, (vm_offset_t) bouncememory);
+	bouncepaend = bouncepa + bouncepages * NBPG;
+	bouncefree = bouncepages;
+	kvasfreecnt = 0;
+}
+
+/*
+ * do the things necessary to the struct buf to implement
+ * bounce buffers...  inserted before the disk sort
+ */
+void
+vm_bounce_alloc(bp)
+	struct buf *bp;
+{
+	int countvmpg;
+	vm_offset_t vastart, vaend;
+	vm_offset_t vapstart, vapend;
+	vm_offset_t va, kva;
+	vm_offset_t pa;
+	int dobounceflag = 0;
+	int bounceindex;
+	int i;
+	int s;
+
+	if (bouncepages == 0)
+		return;
+
+	vastart = (vm_offset_t) bp->b_un.b_addr;
+	vaend = (vm_offset_t) bp->b_un.b_addr + bp->b_bcount;
+
+	vapstart = i386_trunc_page(vastart);
+	vapend = i386_round_page(vaend);
+	countvmpg = (vapend - vapstart) / NBPG;
+
+/*
+ * if any page is above 16MB, then go into bounce-buffer mode
+ */
+	va = vapstart;
+	for (i = 0; i < countvmpg; i++) {
+		pa = pmap_extract(kernel_pmap, va);
+		if (pa >= SIXTEENMEG)
+			++dobounceflag;
+		va += NBPG;
+	}
+	if (dobounceflag == 0)
+		return;
+
+	if (bouncepages < dobounceflag) 
+		panic("Not enough bounce buffers!!!");
+
+/*
+ * allocate a replacement kva for b_addr
+ */
+	kva = vm_bounce_kva(countvmpg);
+	va = vapstart;
+	for (i = 0; i < countvmpg; i++) {
+		pa = pmap_extract(kernel_pmap, va);
+		if (pa >= SIXTEENMEG) {
+			/*
+			 * allocate a replacement page
+			 */
+			vm_offset_t bpa = vm_bounce_page_find(1);
+			pmap_enter(kernel_pmap, kva + (NBPG * i), bpa, VM_PROT_DEFAULT,
+				TRUE);
+			/*
+			 * if we are writing, the copy the data into the page
+			 */
+			if ((bp->b_flags & B_READ) == 0)
+				bcopy((caddr_t) va, (caddr_t) kva + (NBPG * i), NBPG);
+		} else {
+			/*
+			 * use original page
+			 */
+			pmap_enter(kernel_pmap, kva + (NBPG * i), pa, VM_PROT_DEFAULT,
+				TRUE);
+		}
+		va += NBPG;
+	}
+
+/*
+ * flag the buffer as being bounced
+ */
+	bp->b_flags |= B_BOUNCE;
+/*
+ * save the original buffer kva
+ */
+	bp->b_savekva = bp->b_un.b_addr;
+/*
+ * put our new kva into the buffer (offset by original offset)
+ */
+	bp->b_un.b_addr = (caddr_t) (((vm_offset_t) kva) |
+				((vm_offset_t) bp->b_savekva & (NBPG - 1)));
+	return;
+}
+
+/*
+ * hook into biodone to free bounce buffer
+ */
+void
+vm_bounce_free(bp)
+	struct buf *bp;
+{
+	int i;
+	vm_offset_t origkva, bouncekva;
+	vm_offset_t vastart, vaend;
+	vm_offset_t vapstart, vapend;
+	int countbounce = 0;
+	vm_offset_t firstbouncepa = 0;
+	int firstbounceindex;
+	int countvmpg;
+	vm_offset_t bcount;
+	int s;
+
+/*
+ * if this isn't a bounced buffer, then just return
+ */
+	if ((bp->b_flags & B_BOUNCE) == 0)
+		return;
+
+	origkva = (vm_offset_t) bp->b_savekva;
+	bouncekva = (vm_offset_t) bp->b_un.b_addr;
+
+	vastart = bouncekva;
+	vaend = bouncekva + bp->b_bcount;
+	bcount = bp->b_bcount;
+	
+	vapstart = i386_trunc_page(vastart);
+	vapend = i386_round_page(vaend);
+
+	countvmpg = (vapend - vapstart) / NBPG;
+
+/*
+ * check every page in the kva space for b_addr
+ */
+	for (i = 0; i < countvmpg; i++) {
+		vm_offset_t mybouncepa;
+		vm_offset_t copycount;
+
+		copycount = i386_round_page(bouncekva + 1) - bouncekva;
+		mybouncepa = pmap_extract(kernel_pmap, i386_trunc_page(bouncekva));
+
+/*
+ * if this is a bounced pa, then process as one
+ */
+		if ((mybouncepa >= bouncepa) && (mybouncepa < bouncepaend)) {
+			if (copycount > bcount)
+				copycount = bcount;
+/*
+ * if this is a read, then copy from bounce buffer into original buffer
+ */
+			if (bp->b_flags & B_READ)
+				bcopy((caddr_t) bouncekva, (caddr_t) origkva, copycount);
+/*
+ * free the bounce allocation
+ */
+			vm_bounce_page_free(i386_trunc_page(mybouncepa), 1);
+		}
+
+		origkva += copycount;
+		bouncekva += copycount;
+		bcount -= copycount;
+	}
+
+/*
+ * add the old kva into the "to free" list
+ */
+	bouncekva = i386_trunc_page((vm_offset_t) bp->b_un.b_addr);
+	kvaf[kvasfreecnt].addr = bouncekva;
+	kvaf[kvasfreecnt++].size = countvmpg * NBPG;
+	if (bmwait) {
+		/*
+		 * if anyone is waiting on the bounce-map, then wakeup
+		 */
+		wakeup((caddr_t) bounce_map);
+		bmwait = 0;
+	}
+
+	bp->b_un.b_addr = bp->b_savekva;
+	bp->b_savekva = 0;
+	bp->b_flags &= ~B_BOUNCE;
+
+	return;
+}
+
+#endif /* NOBOUNCE */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.38 1994/03/07 11:47:31 davidg Exp $
+ *	$Id: machdep.c,v 1.39 1994/03/19 23:58:58 wollman Exp $
  */
 
 #include "npx.h"
@@ -117,7 +117,13 @@ int	bufpages = BUFPAGES;
 #else
 int	bufpages = 0;
 #endif
+#ifdef BOUNCEPAGES
+int	bouncepages = BOUNCEPAGES;
+#else
+int	bouncepages = 0;
+#endif
 extern int freebufspace;
+extern char *bouncememory;
 
 int _udatasel, _ucodesel;
 
@@ -244,6 +250,18 @@ again:
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
 
+#ifndef NOBOUNCE
+	/*
+	 * If there is more than 16MB of memory, allocate some bounce buffers
+	 */
+	if (Maxmem > 4096) {
+		if (bouncepages == 0)
+			bouncepages = 96;	/* largest physio size + extra */
+		v = (caddr_t)((vm_offset_t)((vm_offset_t)v + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
+		valloc(bouncememory, char, bouncepages * PAGE_SIZE);
+	}
+#endif
+
 	/*
 	 * End of first pass, size has been calculated so allocate memory
 	 */
@@ -293,6 +311,13 @@ again:
 	printf("avail memory = %d (%d pages)\n", ptoa(vm_page_free_count), vm_page_free_count);
 	printf("using %d buffers containing %d bytes of memory\n",
 		nbuf, bufpages * CLBYTES);
+
+#ifndef NOBOUNCE
+	/*
+	 * init bounce buffers
+	 */
+	vm_bounce_init();
+#endif
 
 	/*
 	 * Set up CPU-specific registers, cache, etc.

@@ -21,13 +21,13 @@
  * 16 Feb 93    Julian Elischer         ADDED for SCSI system
  * 1.15 is the last version to support MACH and OSF/1
  */
-/* $Revision: 1.14 $ */
+/* $Revision: 1.15 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *      $Id: st.c,v 1.14 1993/12/19 00:54:59 wollman Exp $
+ *      $Id: st.c,v 1.15 1994/01/29 10:30:41 rgrimes Exp $
  */
 
 /*
@@ -910,6 +910,14 @@ ststrategy(bp)
 	}
 	stminphys(bp);
 	opri = splbio();
+
+	/*      
+	 * Use a bounce buffer if necessary
+	 */      
+#ifndef NOBOUNCE
+	if (st->sc_link->flags & SDEV_BOUNCE)
+		vm_bounce_alloc(bp);
+#endif
 
 	/*
 	 * Place it in the queue of activities for this tape
