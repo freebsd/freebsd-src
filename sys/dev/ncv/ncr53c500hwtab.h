@@ -34,14 +34,16 @@
  */
 
 static struct ncv_hw ncv_template = {
-	NCV_HOSTID,
-	C2_FE | C2_SCSI2,
-	C3_FCLK,
-	C4_ANE,
-	0x80,
+	0,			/* CFG1 img */
+	C2_FE | C2_SCSI2,	/* CFG2 img */
+	0,			/* CFG3 img */
+	C4_ANE,			/* CFG4 img */
+	0x80,			/* CFG5 img */
 
-	CLK_40M_F,
+	CLK_40M_F,		/* clock */
+	200 / 4,		/* max period */
+	15,			/* max offset */
 
-	200 / 4,
-	15,
+	0x10,			/* CFG3_FSCSI bit */
+	0x08,			/* CFG3_FCLK bit */
 };

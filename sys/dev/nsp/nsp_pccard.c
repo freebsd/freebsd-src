@@ -318,10 +318,13 @@ static	void
 nsp_card_unload(DEVPORT_PDEVICE devi)
 {
 	struct nsp_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
+	intrmask_t s;
 
 	printf("%s: unload\n",sc->sc_sclow.sl_xname);
+	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
+	splx(s);
 }
 
 static	int
@@ -352,6 +355,7 @@ nspattach(DEVPORT_PDEVICE devi)
 	struct scsi_low_softc *slp;
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
 	u_int	iobase = DEVPORT_PDEVIOBASE(devi);
+	intrmask_t s;
 	char	dvname[16];
 
 	strcpy(dvname,"nsp");
@@ -406,9 +410,9 @@ nspattach(DEVPORT_PDEVICE devi)
 	slp->sl_hostid = NSP_HOSTID;
 	slp->sl_cfgflags = flags;
 
+	s = splcam();
 	nspattachsubr(sc);
-
-	sc->sc_ih = nspintr;
+	splx(s);
 
 	return(NSP_IOSIZE);
 }

@@ -3,41 +3,41 @@
 /*	$NetBSD$	*/
 
 /*
- * [Ported for FreeBSD]
- *  Copyright (c) 2000
- *      Noriaki Mitsunaga, Mitsuru Iwasaki and Takanori Watanabe.
- *      All rights reserved.
- * [NetBSD for NEC PC-98 series]
- *  Copyright (c) 1996, 1997, 1998
- *	NetBSD/pc98 porting staff. All rights reserved.
- *  Copyright (c) 1996, 1997, 1998
- *	Naofumi HONDA. All rights reserved.
- *  Copyright (c) 1996, 1997, 1998
- *	Kouichi Matsuda. All rights reserved.
- * 
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
- * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+* [Ported for FreeBSD]
+*  Copyright (c) 2000
+*      Noriaki Mitsunaga, Mitsuru Iwasaki and Takanori Watanabe.
+*      All rights reserved.
+* [NetBSD for NEC PC-98 series]
+*  Copyright (c) 1996, 1997, 1998
+*	NetBSD/pc98 porting staff. All rights reserved.
+*  Copyright (c) 1996, 1997, 1998
+*	Naofumi HONDA. All rights reserved.
+*  Copyright (c) 1996, 1997, 1998
+*	Kouichi Matsuda. All rights reserved.
+* 
+*  Redistribution and use in source and binary forms, with or without
+*  modification, are permitted provided that the following conditions
+*  are met:
+*  1. Redistributions of source code must retain the above copyright
+*     notice, this list of conditions and the following disclaimer.
+*  2. Redistributions in binary form must reproduce the above copyright
+*     notice, this list of conditions and the following disclaimer in the
+*     documentation and/or other materials provided with the distribution.
+*  3. The name of the author may not be used to endorse or promote products
+*     derived from this software without specific prior written permission.
+* 
+* THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+* IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+* INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+* SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+* HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+* STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+* ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+* POSSIBILITY OF SUCH DAMAGE.
+*/
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -237,10 +237,13 @@ static	void
 stg_isa_unload(device_t devi)
 {
 	struct stg_softc *sc = device_get_softc(devi);
+	intrmask_t s;
 
 	printf("%s: unload\n",sc->sc_sclow.sl_xname);
+	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
 	scsi_low_dettach(&sc->sc_sclow);
+	splx(s);
 }
 
 static	int
@@ -263,7 +266,7 @@ stgattach(device_t devi)
 	struct scsi_low_softc *slp;
 	u_int32_t flags = device_get_flags(devi);
 	u_int iobase = bus_get_resource_start(devi, SYS_RES_IOPORT, 0);
-
+	intrmask_t s;
 	char	dvname[16];
 
 	strcpy(dvname,"stg");
@@ -288,9 +291,9 @@ stgattach(device_t devi)
 	slp->sl_hostid = STG_HOSTID;
 	slp->sl_cfgflags = flags;
 
+	s = splcam();
 	stgattachsubr(sc);
-
-	sc->sc_ih = stgintr;
+	splx(s);
 
 	return(STGIOSZ);
 }

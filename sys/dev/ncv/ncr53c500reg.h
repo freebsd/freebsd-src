@@ -85,11 +85,6 @@
 /* cfg4 */
 #define	C4_ANE		0x04
 
-/* cfg3 */
-#define	C3_NULL		0x00
-#define	C3_FCLK		0x08	/* Fast SCSI		*/
-#define	C3_FSCSI	0x10	/* Fast Clock (>25Mhz)	*/
-
 /* cfg2 */
 #define	C2_SCSI2	0x08	/* SCSI-2 Enable	*/
 #define	C2_FE		0x40	/* Features Enable	*/
