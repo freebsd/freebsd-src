@@ -53,13 +53,14 @@ __FBSDID("$FreeBSD$");
 
 static const struct pccard_product ex_pccard_products[] = {
 	PCMCIA_CARD(OLICOM, OC2220, 0),
+	PCMCIA_CARD(INTEL, ETHEREXPPRO, 0),
 	{ NULL }
 };
 
 /* Bus Front End Functions */
-static int	ex_pccard_match		(device_t);
-static int	ex_pccard_probe		(device_t);
-static int	ex_pccard_attach	(device_t);
+static int	ex_pccard_match(device_t);
+static int	ex_pccard_probe(device_t);
+static int	ex_pccard_attach(device_t);
 
 static device_method_t ex_pccard_methods[] = {
 	/* Device interface */
@@ -123,12 +124,74 @@ ex_pccard_probe(device_t dev)
 }
 
 static int
+ex_pccard_enet_ok(u_char *enaddr)
+{
+	int			i;
+	u_char			sum;
+
+	if (enaddr[0] == 0xff)
+		return (0);
+	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
+		sum |= enaddr[i];
+	return (sum != 0);
+}
+
+#if 0
+#ifdef NETBSD_LIKE
+static int
+ex_pccard_silicom_cb(struct pccard_tuple *tuple, void *arg)
+{
+	u_char *enaddr = arg;
+
+	if (tuple->code != PCMCIA_CISTPL_FUNCE)
+		return (0);
+	if (tuple->length != 15)
+		return (0);
+	if (CARD_CIS_READ_1(tuple->dev, tuple, 6) != 6)
+		return (0);
+	for (i = 0; i < 6; i++)
+		enaddr[i] = CARD_CIS_READ_1(tuple->dev, tuple, 7 + i);
+	return (1);
+}
+#endif
+#endif
+
+static void
+ex_pccard_get_silicom_mac(device_t dev, u_char *ether_addr)
+{
+#if 0
+#ifdef	NETBSD_LIKE
+	CARD_CIS_SCAN(dev, ex_pccard_silicom_cb, ether_addr);
+#endif
+#ifdef	CS_LIKE
+	uint8_t buffer[64];
+	tuple_t tuple;
+	int i;
+	
+	tuple.TupleData = buffer;
+	tuple.TupleDataMax = sizeof(buffer);
+	tuple.TupleOffset = 0;
+	tuple.DesiredTuple = CISTPL_FUNCE;
+	tuple.Attributes = TUPLE_RETURN_COMMON;
+	if (CARD_SERVICE(dev, GetFirstTuple, &tuple) != CS_SUCCESS)
+		return;
+	if (CARD_SERVICES(dev, GetTupleData, &tuple) != CS_SUCCESS)
+		return;
+	if (tuple.TupleLength != 15)
+		return;
+	if (buffer[6] != 6)
+		return;
+	for (i = 0; i < 6; i++)
+		ether_addr[i] = buffer[7 + i);
+#endif
+#endif
+}
+
+static int
 ex_pccard_attach(device_t dev)
 {
 	struct ex_softc *	sc = device_get_softc(dev);
 	int			error = 0;
-	int			i;
-	u_char			sum;
 	u_char			ether_addr[ETHER_ADDR_LEN];
 
 	sc->dev = dev;
@@ -142,18 +205,23 @@ ex_pccard_attach(device_t dev)
 
 	/*
 	 * Fill in several fields of the softc structure:
-	 *	- I/O base address.
 	 *	- Hardware Ethernet address.
 	 *	- IRQ number.
 	 */
-	sc->iobase = rman_get_start(sc->ioport);
 	sc->irq_no = rman_get_start(sc->irq);
 
-	pccard_get_ether(dev, ether_addr);
-	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
-		sum |= ether_addr[i];
-	if (sum)
-		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	/* Try to get the ethernet address from the chip, then the CIS */
+	ex_get_address(sc, ether_addr);
+	if (!ex_pccard_enet_ok(ether_addr))
+		pccard_get_ether(dev, ether_addr);
+	if (!ex_pccard_enet_ok(ether_addr))
+		ex_pccard_get_silicom_mac(dev, ether_addr);
+	if (!ex_pccard_enet_ok(ether_addr)) {
+		device_printf(dev, "No NIC address found.\n");
+		error = ENXIO;
+		goto bad;
+	}
+	bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	if ((error = ex_attach(dev)) != 0) {
 		device_printf(dev, "ex_attach() failed!\n");
@@ -161,7 +229,7 @@ ex_pccard_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-				ex_intr, (void *)sc, &sc->ih);
+	    ex_intr, (void *)sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed!\n");
 		goto bad;
