@@ -1,10 +1,12 @@
-# $Id: Makefile,v 1.1.1.1 1995/08/06 11:15:54 ache Exp $
+# $Id: Makefile,v 1.1 1995/11/03 15:08:06 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        ru_SU.KOI8-R ru_SU.CP866
+LOCALES=        de_DE.ISO_8859-1 ru_SU.KOI8-R ru_SU.CP866
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
+
+DE_LINKS =      de_AT de_CH
 
 .SUFFIXES: .src .out
 
@@ -15,7 +17,12 @@ all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
 	for l in ${LOCALES}; do \
-		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out ${LOCALEDIR}/$$l/LC_TIME; \
+		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
+			   ${LOCALEDIR}/$$l/LC_TIME; \
+	done
+	for l in ${DE_LINKS}; do \
+		ln -fs ../de_DE.ISO_8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.ISO_8859-1/LC_TIME; \
 	done
 
 .include <bsd.prog.mk>
