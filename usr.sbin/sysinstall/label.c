@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.37 1996/03/02 20:02:13 jkh Exp $
+ * $Id: label.c,v 1.38 1996/03/18 15:27:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -919,6 +919,7 @@ diskLabel(char *str)
 	    }
 	    break;
 
+	case '\177':
 	case 'D':	/* delete */
 	    if (label_chunk_info[here].type == PART_SLICE) {
 		msg = MSG_NOT_APPLICABLE;
