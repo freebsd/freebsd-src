@@ -129,11 +129,11 @@ search_string(char *data, int dlen, const char *search_str)
 				break;
 			}
 			if (k == search_str_len - 1) {
-				return j + 1;
+				return (j + 1);
 			}
 		}
 	}
-	return -1;
+	return (-1);
 }
 
 static int
@@ -163,7 +163,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	/* Find keyword, "Transport: " */
 	pos = search_string(data, dlen, transport_str);
 	if (pos < 0) {
-		return -1;
+		return (-1);
 	}
 	port_data = data + pos;
 	port_dlen = dlen - pos;
@@ -298,7 +298,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	}
 
 	if (!pkt_updated)
-		return -1;
+		return (-1);
 
 	memcpy(port_newdata, port_data, port_dlen);
 	port_newdata += port_dlen;
@@ -322,7 +322,7 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 	tc->th_sum = 0;
 	tc->th_sum = TcpChecksum(pip);
 
-	return 0;
+	return (0);
 }
 
 /* Support the protocol used by early versions of RealPlayer */
@@ -348,7 +348,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 		work += 2;
 		if (ntohs(msg_id) == 0) {
 			/* end of options */
-			return 0;
+			return (0);
 		}
 		if ((ntohs(msg_id) == 1) || (ntohs(msg_id) == 7)) {
 			memcpy(&port, work, 2);
@@ -371,7 +371,7 @@ alias_pna_out(struct libalias *la, struct ip *pip,
 		work += ntohs(msg_len);
 	}
 
-	return 0;
+	return (0);
 }
 
 void
