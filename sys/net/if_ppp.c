@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.44 1997/08/22 11:34:05 peter Exp $ */
+/* $Id: if_ppp.c,v 1.45 1997/10/10 11:57:40 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
@@ -80,7 +80,6 @@
 
 #define VJC
 #define PPP_COMPRESS
-#define PPP_FILTER
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -97,7 +96,7 @@
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
-#ifdef PPP_FILTER
+#if NBPFILTER > 0
 #include <net/bpf.h>
 #endif
 
@@ -314,7 +313,7 @@ pppdealloc(sc)
     sc->sc_xc_state = NULL;
     sc->sc_rc_state = NULL;
 #endif /* PPP_COMPRESS */
-#ifdef PPP_FILTER
+#if NBPFILTER > 0
     if (sc->sc_pass_filt.bf_insns != 0) {
 	FREE(sc->sc_pass_filt.bf_insns, M_DEVBUF);
 	sc->sc_pass_filt.bf_insns = 0;
@@ -325,7 +324,7 @@ pppdealloc(sc)
 	sc->sc_active_filt.bf_insns = 0;
 	sc->sc_active_filt.bf_len = 0;
     }
-#endif /* PPP_FILTER */
+#endif /* NBPFILTER */
 #ifdef VJC
     if (sc->sc_comp != 0) {
 	FREE(sc->sc_comp, M_DEVBUF);
@@ -350,11 +349,11 @@ pppioctl(sc, cmd, data, flag, p)
     struct compressor **cp;
     struct npioctl *npi;
     time_t t;
-#ifdef PPP_FILTER
+#if NBPFILTER > 0
     struct bpf_program *bp, *nbp;
     struct bpf_insn *newcode, *oldcode;
     int newcodelen;
-#endif /* PPP_FILTER */
+#endif /* NBPFILTER */
 #ifdef	PPP_COMPRESS
     u_char ccp_option[CCP_MAX_OPTION_LENGTH];
 #endif
@@ -510,7 +509,7 @@ pppioctl(sc, cmd, data, flag, p)
 	splx(s);
 	break;
 
-#ifdef PPP_FILTER
+#if NBPFILTER > 0
     case PPPIOCSPASS:
     case PPPIOCSACTIVE:
 	nbp = (struct bpf_program *) data;
@@ -795,7 +794,7 @@ pppoutput(ifp, m0, dst, rtp)
     }
 
     if ((protocol & 0x8000) == 0) {
-#ifdef PPP_FILTER
+#if NBPFILTER > 0
 	/*
 	 * Apply the pass and active filters to the packet,
 	 * but only if it is a data packet.
@@ -821,7 +820,7 @@ pppoutput(ifp, m0, dst, rtp)
 	 * Update the time we sent the most recent data packet.
 	 */
 	sc->sc_last_sent = time.tv_sec;
-#endif /* PPP_FILTER */
+#endif /* NBPFILTER */
     }
 
 #if NBPFILTER > 0
@@ -1432,7 +1431,7 @@ ppp_inproc(sc, m)
     m->m_pkthdr.rcvif = ifp;
 
     if ((proto & 0x8000) == 0) {
-#ifdef PPP_FILTER
+#if NBPFILTER > 0
 	/*
 	 * See whether we want to pass this packet, and
 	 * if it counts as link activity.
@@ -1456,7 +1455,7 @@ ppp_inproc(sc, m)
 	 * Record the time that we received this packet.
 	 */
 	sc->sc_last_recv = time.tv_sec;
-#endif /* PPP_FILTER */
+#endif /* NBPFILTER */
     }
 
 #if NBPFILTER > 0
