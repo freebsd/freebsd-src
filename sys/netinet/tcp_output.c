@@ -35,6 +35,7 @@
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_tcpdebug.h"
+#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -122,6 +123,8 @@ tcp_output(struct tcpcb *tp)
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
+	int i, sack_rxmit;
+	struct sackhole *p;
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -171,12 +174,49 @@ tcp_output(struct tcpcb *tp)
 		}
 	}
 again:
+	/*
+	 * If we've recently taken a timeout, snd_max will be greater than
+	 * snd_nxt.  There may be SACK information that allows us to avoid
+	 * resending already delivered data.  Adjust snd_nxt accordingly.
+	 */
+	if (tp->sack_enable && SEQ_LT(tp->snd_nxt, tp->snd_max))
+		tcp_sack_adjust(tp);
 	sendalot = 0;
 	off = tp->snd_nxt - tp->snd_una;
 	sendwin = min(tp->snd_wnd, tp->snd_cwnd);
 	sendwin = min(sendwin, tp->snd_bwnd);
 
 	flags = tcp_outflags[tp->t_state];
+	/*
+	 * Send any SACK-generated retransmissions.  If we're explicitly trying
+	 * to send out new data (when sendalot is 1), bypass this function.
+	 * If we retransmit in fast recovery mode, decrement snd_cwnd, since
+	 * we're replacing a (future) new transmission with a retransmission
+	 * now, and we previously incremented snd_cwnd in tcp_input().
+	 */
+	/* 
+	 * Still in sack recovery , reset rxmit flag to zero.
+	 */
+	sack_rxmit = 0;
+	len = 0;
+	p = NULL;
+	if (tp->sack_enable &&  IN_FASTRECOVERY(tp) &&
+	    (p = tcp_sack_output(tp))) {
+		sack_rxmit = 1;
+		sendalot = 1;
+		off = p->rxmit - tp->snd_una;
+		KASSERT(tp->snd_cwnd >= 0,("%s: CWIN is negative: %ld", __func__, tp->snd_cwnd));
+		/* Do not retransmit SACK segments beyond snd_recover */
+		if (SEQ_GT(p->end, tp->snd_recover))
+			len = min(tp->snd_cwnd, tp->snd_recover - p->rxmit);
+		else
+			len = min(tp->snd_cwnd, p->end - p->rxmit);
+		if (len > 0) {
+			tcpstat.tcps_sack_rexmits++;
+			tcpstat.tcps_sack_rexmit_bytes += 
+				min(len, tp->t_maxseg);
+		}
+	}
 	/*
 	 * Get standard flags, and add SYN or FIN if requested by 'hidden'
 	 * state flags.
@@ -230,9 +270,12 @@ again:
 	 * In the normal retransmit-FIN-only case, however, snd_nxt will
 	 * be set to snd_una, the offset will be 0, and the length may
 	 * wind up 0.
+	 * 
+	 * If sack_rxmit is true we are retransmitting from the scoreboard
+	 * in which case len is already set. 
 	 */
-	len = (long)ulmin(so->so_snd.sb_cc, sendwin) - off;
-
+	if (!sack_rxmit)
+		len = ((long)ulmin(so->so_snd.sb_cc, sendwin) - off);
 
 	/*
 	 * Lop off SYN bit if it has already been sent.  However, if this
@@ -331,6 +374,8 @@ again:
 			goto send;
 		if (SEQ_LT(tp->snd_nxt, tp->snd_max))	/* retransmit case */
 			goto send;
+		if (sack_rxmit)
+			goto send;
 	}
 
 	/*
@@ -374,7 +419,18 @@ again:
 	if (flags & TH_FIN &&
 	    ((tp->t_flags & TF_SENTFIN) == 0 || tp->snd_nxt == tp->snd_una))
 		goto send;
-
+	/*
+	 * In SACK, it is possible for tcp_output to fail to send a segment
+	 * after the retransmission timer has been turned off.  Make sure
+	 * that the retransmission timer is set.
+	 */
+	if (tp->sack_enable && SEQ_GT(tp->snd_max, tp->snd_una) &&
+	    !callout_active(tp->tt_rexmt) && 
+	    !callout_active(tp->tt_persist)) {
+		callout_reset(tp->tt_rexmt, tp->t_rxtcur,
+			      tcp_timer_rexmt, tp);
+                return (0);
+        }
 	/*
 	 * TCP window updates are not reliable, rather a polling protocol
 	 * using ``persist'' packets is used to insure receipt of window
@@ -435,6 +491,19 @@ send:
 			(void)memcpy(opt + 2, &mss, sizeof(mss));
 			optlen = TCPOLEN_MAXSEG;
 
+                        /*
+                         * If this is the first SYN of connection (not a SYN
+                         * ACK), include SACK_PERMIT_HDR option.  If this is a
+                         * SYN ACK, include SACK_PERMIT_HDR option if peer has
+                         * already done so. This is only for active connect,
+			 * since the syncache takes care of the passive connect.
+                         */
+                        if (tp->sack_enable && ((flags & TH_ACK) == 0 || 
+			    (tp->t_flags & TF_SACK_PERMIT))) {
+                                *((u_int32_t *) (opt + optlen)) =
+					htonl(TCPOPT_SACK_PERMIT_HDR);
+                                optlen += 4;
+                        }
 			if ((tp->t_flags & TF_REQ_SCALE) &&
 			    ((flags & TH_ACK) == 0 ||
 			    (tp->t_flags & TF_RCVD_SCALE))) {
@@ -466,6 +535,32 @@ send:
  		optlen += TCPOLEN_TSTAMP_APPA;
  	}
 
+	/*
+	 * Send SACKs if necessary.  This should be the last option processed.
+	 * Only as many SACKs are sent as are permitted by the maximum options
+	 * size.  No more than three SACKs are sent.
+	 */
+	if (tp->sack_enable && tp->t_state == TCPS_ESTABLISHED &&
+	    (tp->t_flags & (TF_SACK_PERMIT|TF_NOOPT)) == TF_SACK_PERMIT &&
+	    tp->rcv_numsacks) {
+		u_int32_t *lp = (u_int32_t *)(opt + optlen);
+		u_int32_t *olp = lp++;
+		int count = 0;  /* actual number of SACKs inserted */
+		int maxsack = (MAX_TCPOPTLEN - (optlen + 4))/TCPOLEN_SACK;
+
+		tcpstat.tcps_sack_send_blocks++;
+		maxsack = min(maxsack, TCP_MAX_SACK);
+		for (i = 0; (i < tp->rcv_numsacks && count < maxsack); i++) {
+			struct sackblk sack = tp->sackblks[i];
+			if (sack.start == 0 && sack.end == 0)
+				continue;
+			*lp++ = htonl(sack.start);
+			*lp++ = htonl(sack.end);
+			count++;
+		}
+		*olp = htonl(TCPOPT_SACK_HDR|(TCPOLEN_SACK*count+2));
+		optlen += TCPOLEN_SACK*count + 4; /* including leading NOPs */
+	}
  	/*
 	 * Send `CC-family' options if our side wants to use them (TF_REQ_CC),
 	 * options are allowed (!TF_NOOPT) and it's not a RST.
@@ -734,6 +829,10 @@ send:
 		th->th_seq = htonl(tp->snd_nxt);
 	else
 		th->th_seq = htonl(tp->snd_max);
+	if (sack_rxmit) {
+		th->th_seq = htonl(p->rxmit);
+		p->rxmit += len;
+	}
 	th->th_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
 		bcopy(opt, th + 1, optlen);
@@ -831,6 +930,8 @@ send:
 				tp->t_flags |= TF_SENTFIN;
 			}
 		}
+		if (tp->sack_enable && sack_rxmit && (p->rxmit != tp->snd_nxt))
+			goto timer;
 		tp->snd_nxt += len;
 		if (SEQ_GT(tp->snd_nxt, tp->snd_max)) {
 			tp->snd_max = tp->snd_nxt;
@@ -853,6 +954,17 @@ send:
 		 * Initialize shift counter which is used for backoff
 		 * of retransmit time.
 		 */
+timer:
+		if (tp->sack_enable && sack_rxmit &&
+		    !callout_active(tp->tt_rexmt) &&
+		    tp->snd_nxt != tp->snd_max) {
+			callout_reset(tp->tt_rexmt, tp->t_rxtcur,
+				      tcp_timer_rexmt, tp);
+			if (callout_active(tp->tt_persist)) {
+				callout_stop(tp->tt_persist);
+				tp->t_rxtshift = 0;
+			}
+		}
 		if (!callout_active(tp->tt_rexmt) &&
 		    tp->snd_nxt != tp->snd_una) {
 			if (callout_active(tp->tt_persist)) {
