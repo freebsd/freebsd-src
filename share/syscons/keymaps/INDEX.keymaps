@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.16 1998/02/15 18:22:40 yokota Exp $
+# $Id: INDEX.keymaps,v 1.17 1998/03/28 06:42:41 imp Exp $
 #
 # database for kbdmap(8) 
 #
@@ -148,6 +148,8 @@ swedish.cp850.kbd:en:Swedish Codepage 850
 swedish.cp850.kbd:de:Schwedisch Codeseite 850
 swedish.cp850.kbd:fr:Suédois Code page 850
 swedish.cp850.kbd:pt:Sueco Codepage 850
+
+swissfrench.iso.kbd:en:Swiss-French ISO-8859-1
 
 swissgerman.iso.kbd:en:Swiss-German ISO-8859-1
 swissgerman.iso.kbd:pt:Suiço-Alemão ISO-8859-1
