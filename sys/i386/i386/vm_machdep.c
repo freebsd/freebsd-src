@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.39.4.2 1996/01/30 12:56:30 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.39.4.3 1996/06/20 01:55:54 davidg Exp $
  */
 
 #include "npx.h"
@@ -693,7 +693,7 @@ vmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
-	for (v = bp->b_saveaddr, addr = bp->b_data;
+	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page(bp->b_data);
 	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE, v += PAGE_SIZE) {
 		/*
@@ -728,7 +728,8 @@ vunmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
-	for (addr = bp->b_data; addr < bp->b_data + bp->b_bufsize;
+	for (addr = (caddr_t)trunc_page(bp->b_data);
+	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE) {
 		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		pmap_kremove((vm_offset_t) addr);
