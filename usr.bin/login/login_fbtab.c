@@ -65,7 +65,7 @@
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
-#include <dirent.h>
+#include <glob.h>
 #include <paths.h>
 #include <unistd.h>
 #include "pathnames.h"
@@ -121,40 +121,28 @@ gid_t   gid;
 /* login_protect - protect one device entry */
 
 void
-login_protect(table, path, mask, uid, gid)
-char *table;
-char *path;
-int mask;
-uid_t uid;
-gid_t gid;
+login_protect(table, pattern, mask, uid, gid)
+	char	*table;
+	char	*pattern;
+	int	mask;
+	uid_t	uid;
+	gid_t	gid;
 {
-    char    buf[BUFSIZ];
-    int     pathlen = strlen(path);
-    struct dirent *ent;
-    DIR    *dir;
+	glob_t  gl;
+	char	*path;
+	int     i;
 
-    if (strcmp("/*", path + pathlen - 2) != 0) {
-	/* clear flags of the device */
-	if (chflags(path, 0) && errno != ENOENT && errno != EOPNOTSUPP)
-	    syslog(LOG_ERR, "%s: chflags(%s): %m", table, path);
-	if (chmod(path, mask) && errno != ENOENT)
-	    syslog(LOG_ERR, "%s: chmod(%s): %m", table, path);
-	if (chown(path, uid, gid) && errno != ENOENT)
-	    syslog(LOG_ERR, "%s: chown(%s): %m", table, path);
-    } else {
-	strcpy(buf, path);
-	buf[pathlen - 1] = 0;
-	if ((dir = opendir(buf)) == 0) {
-	    syslog(LOG_ERR, "%s: opendir(%s): %m", table, path);
-	} else {
-	    while ((ent = readdir(dir)) != 0) {
-		if (strcmp(ent->d_name, ".") != 0
-		    && strcmp(ent->d_name, "..") != 0) {
-		    strcpy(buf + pathlen - 1, ent->d_name);
-		    login_protect(table, buf, mask, uid, gid);
-		}
-	    }
-	    closedir(dir);
+	if (glob(pattern, GLOB_NOSORT, NULL, &gl) != 0)
+		return;
+	for (i = 0; i < gl.gl_pathc; i++) {
+		path = gl.gl_pathv[i];
+		/* clear flags of the device */
+		if (chflags(path, 0) && errno != ENOENT && errno != EOPNOTSUPP)
+			syslog(LOG_ERR, "%s: chflags(%s): %m", table, path);
+		if (chmod(path, mask) && errno != ENOENT)
+			syslog(LOG_ERR, "%s: chmod(%s): %m", table, path);
+		if (chown(path, uid, gid) && errno != ENOENT)
+			syslog(LOG_ERR, "%s: chown(%s): %m", table, path);
 	}
-    }
+	globfree(&gl);
 }
