@@ -281,7 +281,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *linux_args)
 	bsd_args.pad = 0;
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf(ARGS(mmap, "%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx)",
+		printf(ARGS(mmap, "%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx"),
 		    (void *)bsd_args.addr,
 		    bsd_args.len,
 		    bsd_args.prot,
@@ -294,7 +294,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *linux_args)
 	error = mmap(td, &bsd_args);
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf(LMSG("mmap returns %d, 0x%lx", error, td->td_retval[0]);
+		printf(LMSG("mmap returns %d, 0x%lx"), error, td->td_retval[0]);
 #endif
 	return (error);
 }
@@ -338,7 +338,7 @@ linux_mprotect(td, uap)
 
 #ifdef DEBUG
 	if (ldebug(mprotect))
-		printf(ARGS(mprotect, "%p, 0x%lx, 0x%x)",
+		printf(ARGS(mprotect, "%p, 0x%lx, 0x%x"),
 		    (void *)uap->addr, uap->len, uap->prot);
 #endif
 	return (mprotect(td, (void *)uap));
@@ -352,7 +352,7 @@ linux_munmap(td, uap)
 
 #ifdef DEBUG
 	if (ldebug(munmap))
-		printf(ARGS(munmap, "%p, 0x%lx",
+		printf(ARGS(munmap, "%p, 0x%lx"),
 		    (void *)uap->addr, uap->len);
 #endif
 	return (munmap(td, (void *)uap));
