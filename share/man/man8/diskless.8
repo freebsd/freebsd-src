@@ -1,6 +1,7 @@
-.\"	$NetBSD: diskless.8,v 1.11 1997/06/16 07:50:35 mrg Exp $
+.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1994 Gordon W. Ross, Theo de Raadt
+.\" Updated by Luigi Rizzo
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 1994
+.Dd April 18, 2001
 .Dt DISKLESS 8
 .Os
 .Sh NAME
@@ -42,15 +43,13 @@ machines, or as a temporary measure while repairing or
 re-installing filesystems on a local disk.
 This file provides a general description of the interactions between
 a client and its server when a client is booting over the network.
-The general description is followed by specific instructions for
-configuring a server for diskless Sun clients.
 .Sh OPERATION
 When booting a system over the network, there are three
 phases of interaction between client and server:
 .Pp
 .Bl -enum -compact
 .It
-The PROM (or stage-1 bootstrap) loads a boot program.
+The stage-1 bootstrap loads a boot program, from
 .It
 The boot program loads a kernel.
 .It
@@ -59,270 +58,187 @@ The kernel does NFS mounts for root.
 .Pp
 Each of these phases are described in further detail below.
 .Pp
-In phase 1, the PROM loads a boot program.  PROM designs
-vary widely, so this phase is inherently machine-specific.
-Sun machines use
-.Tn RARP
-to determine the client's
-.Tn IP
-address and then use
-.Tn TFTP
-to download a boot program from whoever sent the
-.Tn RARP
-reply.  HP 300-series machines use the
-.Tn HP Remote Maintenance Protocol
-to download a boot program.
-Typical personal computers may load a
-network boot program either from diskette or
-using a special PROM on the network card.
+In phase 1, the stage-1 bootstrap code loads a boot program,
+which is typically able to control the network card.
+The boot program can be stored in the BIOS, in a BOOT ROM
+located on the network card (PXE, etherboot, netboot),
+or come from a disk unit (e.g. etherboot or netboot).
 .Pp
 In phase 2, the boot program loads a kernel.  Operation in
 this phase depends on the design of the boot program.
-(The design described here is the one used by Sun and NetBSD/hp300.)
-The boot program:
+Typically, the boot program uses the
+.Tn BOOTP
+or
+.Tn DHCP
+protocol to get the client's IP address and other boot
+information, including but not limited to
+the IP addresses of the NFS server, router and nameserver,
+and the name of the kernel to load.
+Then the kernel is loaded, either directly using NFS
+(as it is the case for etherboot and netboot),
+or through an intermediate loader called pxeboot and
+loaded using TFTP or NFS.
 .Pp
-.Bl -tag -width \&2.2 -compact
-.It 2.1
-gets the client IP address using
-.Tn RARP .
-.It 2.2
-gets the client name and server
-.Tn IP
-address by broadcasting an
-.Tn RPC / BOOTPARAMS / WHOAMI
-request with the client IP address.
-.It 2.3
-gets the server path for this client's
-root using an
-.Tn RPC / BOOTPARAMS / GETFILE
-request with the client name.
-.It 2.4
-gets the root file handle by calling
-.Xr mountd 8
-with the server path for the client root.
-.It 2.5
-gets the kernel file handle by calling
-.Tn NFS
-lookup on the root file handle.
-.It 2.6
-loads the kernel using
-.Tn NFS
-read calls on the kernel file handle.
-.It 2.7
-transfers control to the kernel entry point.
-.El
-.Pp
-In phase 3, the kernel does NFS mounts for root.
-The kernel repeats much of the work done by the boot program
-because there is no standard way for the boot program to pass
-the information it gathered on to the kernel.
-The procedure used by the kernel is as follows:
-.Pp
-.Bl -tag -width \&2.2 -compact
-.It 3.1
-The kernel finds a boot server using the same procedure
-as described in steps 2.1 and 2.2 above.
-.It 3.2
-The kernel gets the
-.Tn NFS
-file handle for root using the same procedure
-as described in steps 2.3 through 2.5 above.
-.It 3.3
-The kernel calls the
-.Tn NFS
-getattr function to get the last-modified time of the root
-directory, and uses it to check the system clock.
-.El
+In phase 3, the kernel uses again DHCP or BOOTP to acquire
+configuration information, and proceeds to mount the
+root filesystem and start operation.
+Some specific actions performed during the startup
+of a diskless system are listed in
+.Pa /etc/rc.diskless1
+and
+.Pa /etc/rc.diskless2
 .Sh CONFIGURATION
-Before a client can boot over the network,
-its server must be configured correctly.
-This example will demonstrate how a Sun client
-might be configured -- other clients should be similar.
-.Pp
-Assuming the client's hostname is to be
-"myclient",
-.Pp
-.Bl -enum
+In order to run a diskless client, you need the following:
+.Bl -bullet
 .It
-Add an entry to 
-.Pa /etc/ethers
-corresponding to the client's ethernet address:
-.Bd -literal -offset indent -compact
-8:0:20:7:c5:c7          myclient
-.Ed
-This will be used by
-.Xr rarpd 8 .
-.It
-Assign an IP address for myclient in your
-.Pa /etc/hosts
-or DNS database:
-.Bd -literal -offset indent -compact
-192.197.96.12           myclient
-.Ed
-.It
-If booting a Sun machine, ensure that
-.Pa /etc/inetd.conf
-is configured to run
-.Xr tftpd 8
-in the directory
-.Pa /tftpboot .
-.Pp
-If booting an HP 300-series machine, ensure that
-.Pa /etc/rbootd.conf
-is configured properly to transfer the boot program to the client.
-An entry might look like this:
-.Bd -literal -offset indent -compact
-08:00:09:01:23:E6	SYS_UBOOT	# myclient
-.Ed
-.Pp
-See the
-.Xr rbootd 8
-manual page for more information.
-.It
-If booting a SPARC machine, install a copy of the appropriate diskless boot
-loader (such as
-.Pa /usr/mdec/boot )
-in the
-.Pa /tftpboot
-directory.
-Make a link such that the boot program is
-accessible by a file name composed of the client's IP address
-in HEX, a dot, and the architecture name (all upper case).
-For example:
-.Bd -literal -offset indent -compact
-# cd /tftpboot
-# ln -s boot C0C5600C.SUN4
-.Ed
-.Pp
-For a Sun3 machine, the name would be just C0C5600C
-(the sun3 PROM does not append the architecture name). The name
-used is architecture dependent, it simply has to match what the
-booting client's PROM wishes to it to be.
-If the client's PROM fails to fetch the expected file,
-.Xr tcpdump 1
-can be used to discover which filename the client is trying to read.
-.Pp
-If booting an HP 300-series machine, ensure that the network boot program
-.Pa SYS_UBOOT
-(which may be called
-.Pa uboot.lif
-before installation)
-is installed in the directory
-.Pa /usr/mdec/rbootd .
-.It
-Add myclient to the bootparams database
-.Pa /etc/bootparams :
-.Bd -literal -offset indent -compact
-myclient  root=server:/export/myclient/root
-.Ed
-.Pp
-Note: For the swap file to be mountable, you have to make sure that mountd is
-started with the
-.Fl r
-flag.
-.It
-Build the swap file for myclient:
-.Bd -literal -offset indent -compact
-# mkdir /export/myclient
-# cd /export/myclient
-# dd if=/dev/zero of=swap bs=16k count=1024
-.Ed
-This creates a 16 Megabyte swap file.
-.It
-Populate myclient's
-.Pa /
-filesystem on the server.  How this is done depends on the
-client architecture and the version of the NetBSD distribution.
-It can be as simple as copying and modifying the server's root
-filesystem, or perhaps you need to get those files out of the
-standard binary distribution.
-.Pp
-Note that, unlike SunOS, you need to create a mount point for the
-client's swap:
-.Bd -literal -offset indent -compact
-# mkdir /export/myclient/root/swap
-.Ed
-.It
-Export the required filesystems in
-.Pa /etc/exports :
-.Bd -literal -offset indent -compact
-/usr -ro myclient
-# for SunOS:
-# /export/myclient -rw=myclient,root=myclient
-# for NetBSD:
-/export/myclient -maproot=root -alldirs myclient
-.Ed
-.Pp
-If the server and client are of the same architecture, then the client
-can share the server's
-.Pa /usr
-filesystem (as is done above).
-If not, you must build a properly fleshed out
-.Pa /usr
-partition for the client in some other place.
-.Pp
-If your server was a sparc, and your client a sun3,
-you might create and fill
-.Pa /export/usr.sun3
-and then use the following
+an NFS server which exports a root and /usr partition with
+appropriate permissions.
+The
+.Pa rc.diskless{1,2}
+scripts work with readonly partitions, as long as root is exported with
+.Fl maproot Ns =0
+so that some system files can be accessed.
+As an example,
 .Pa /etc/exports
-lines:
-.Bd -literal -offset indent -compact
-/export/usr.sun3 -ro myclient
-/export/myclient -rw=myclient,root=myclient
-.Ed
-.It
-Copy and customize at least the following files in
-.Pa /export/myclient/root :
-.Bd -literal -offset indent -compact
-# cd /export/myclient/root/etc
-# cp fstab.nfs fstab
-# cp /etc/hosts hosts
-# echo myclient > myname
-# echo 192.197.96.12 > hostname.le0
+can contain the following lines:
+.Bd -literal -offset indent
+<ROOT> -maproot=0 -alldirs <list of diskless clients>
+/usr -alldirs <list of diskless clients>
 .Ed
 .Pp
-Note that "le0" above should be replaced with the name of
-the network interface that the client will use for booting.
+where
+.Aq ROOT
+is the mountpoint on the server of the root partition.
+The script
+.Pa /usr/share/examples/diskless/clone_root
+can be used to create a shared readonly root partition,
+but in same cases you can also decide to export
+(again as readonly) the root directory used by
+the server itself.
 .It
-Correct the critical mount points and the swap file in the client's
-.Pa /etc/fstab
-(which will be
-.Pa /export/myclient/root/etc/fstab )
-ie.
-.Bd -literal -offset indent -compact
-myserver:/export/myclient/root / nfs rw 0 0
-myserver:/usr /usr nfs rw 0 0
-myserver:/export/myclient/swap none swap sw,nfsmntpt=/swap
+a
+.Tn BOOTP
+or
+.Tn DHCP
+server.
+.Xr bootpd 8
+can be enabled by
+uncommenting the
+.Em bootps
+line in
+.Pa /etc/inetd.conf .
+A sample
+.Pa /etc/bootptab
+can be the following:
+.Bd -literal -offset indent
+ .default:\\
+    hn:ht=1:vm=rfc1048:\\
+    :sm=255.255.255.0:\\
+    :sa=<SERVER>:\\
+    :gw=<GATEWAY>:\\
+    :rp="<SERVER>:<ROOT>":
+
+<CLIENT>:ha=0123456789ab:tc=.default
 .Ed
 .Pp
-Note, you must specify the swap file in
-.Pa /etc/fstab
-or it will not be used!
+where
+.Aq SERVER ,
+.Aq GATEWAY
+and
+.Aq ROOT
+have the obvious meanings.
+.It
+On the root partition, create configuration files for
+the diskless clients.
+These reside in
+.Pa /conf/${i}/etc ,
+where
+.Va i
+can be either
+.Qq Li default ,
+the subnet broadcast
+address for the client, or the IP address of the client.
+.Pp
+Files are copied from the above directories into
+.Pa /etc
+(overriding the previous content of
+.Pa /etc )
+starting from the most generic one by
+.Pa /etc/rc.diskless1 ,
+before the main part of
+.Pa /etc/rc
+(including reading
+.Pa rc.conf )
+is run.
+.Pp
+As a minimum, you normally need to have the following in
+.Pa /conf/default/etc/fstab
+.Bd -literal -offset indent
+<SERVER>:<ROOT> /     nfs    ro 0 0
+<SERVER>:/usr   /usr  nfs    ro 0 0
+proc            /proc procfs rw 0 0
+.Ed
+.Pp
+and also a customized version of
+.Pa /conf/default/etc/rc.conf
+which should contain
+the startup options for the diskless client.
+.Pp
+Most likely
+you will not need to set
+.Va hostname
+and
+.Va ifconfig_*
+because these will be already set by the startup code.
+You will also probably need to set
+.Va local_startup Ns = Ns Qq
+so that the server's
+local startup files will not be used.
+Finally, it might be convenient to use a
+.Ic case
+statement using
+.Li `hostname`
+as the switch variable to do machine-specific configuration
+in case a number of diskless clients share the same configuration
+files.
+.It
+build a kernel whose config file (e.g.\&
+.Pa /sys/i386/conf/DISKLESS )
+has at least the following options:
+.Bd -literal -offset indent
+options MFS
+options BOOTP
+options BOOTP_NFSROOT
+options BOOTP_COMPAT
+.Ed
+.Pp
+If you use the firewall, remember to default to open or your kernel
+will not be able to send/receive the bootp packets.
 .El
-.Sh FILES
-.Bl -tag -width /usr/mdec/rbootd -compact
-.It Pa /etc/ethers
-Ethernet addresses of known clients
-.It Pa /etc/bootparams
-client root pathname
-.It Pa /etc/exports
-exported NFS mount points
-.It Pa /etc/rbootd.conf
-configuration file for HP Remote Boot Daemon
-.It Pa /tftpboot
-location of boot programs loaded by the Sun PROM
-.It Pa /usr/mdec/rbootd
-location of boot programs loaded by the HP Boot ROM
-.El
+.Sh SECURITY ISSUES
+Be warned that using unencrypted NFS to mount root and user
+partitions may expose information such as
+encryption keys.
+.Sh BUGS
+This manpage is probably incomplete.
+.Pp
+.Fx
+sometimes requires to write onto
+the root partition, so the startup scripts mount MFS
+filesystems on some locations (e.g.\&
+.Pa /etc
+and
+.Pa /var ) ,
+while
+trying to preserve the original content.
+The process might not handle all cases.
 .Sh SEE ALSO
-.Xr bootparams 5 ,
 .Xr ethers 5 ,
 .Xr exports 5 ,
-.Xr bootparamd 8 ,
+.Xr bootpd 8 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
-.Xr rarpd 8 ,
-.Xr rbootd 8 ,
+.Xr pxeboot 8 ,
 .Xr reboot 8 ,
-.Xr tftpd 8
+.Xr tftpd 8 ,
+.Xr ports/net/etherboot
