@@ -1,13 +1,13 @@
    -----------------------------------------
-       FreeBSD 4.1.1  ---  RELEASE Version             ,        ,
+       FreeBSD 4.1  ---  SNAPSHOT Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a full patch release for 4.1 from the         /- _  `-/  '
-4-stable (RELENG_4) branch, currently moving         (/\/ \ \   /\
-towards the release of 4.2.  The primary purpose     / /   | `    \
-of 4.1.1 is to integrate strong cryptography         O O   ) /    |
-into a shipping release of FreeBSD following the     `-^--'`<     '
-expiration of the RSA patent.                        (_.)  _  )   /
+This is a snapshot release of the 4.1.1-stable        /- _  `-/  '
+(RELENG_4) branch which is currently moving          (/\/ \ \   /\
+towards the release of 4.2.                          / /   | `    \
+                                                     O O   ) /    |
+                                                     `-^--'`<     '
+                                                    (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
@@ -18,6 +18,22 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
+
+TARGET AUDIENCE:
+----------------
+This release is aimed primarily at early-adopters and the various
+other folks who want to get involved with the ongoing development
+of FreeBSD and are willing to deal with a few bumps in the road.
+We do our best to ensure that each snapshot works as advertised,
+but tracking -stable is a process which sometimes has its off
+days.
+
+If you're both technically proficient and know exactly what you're
+getting into here (e.g. you've been following -stable) then this
+snapshot is probably for you.  If you're more interested in doing
+business with FreeBSD than in playing with the cutting edge of
+technology, however, then 3.5 or one of the 4.x releases is almost 
+certainly your best bet.
 
 Most information here is also available from the Documentation menu
 during installation.
@@ -58,7 +74,7 @@ so much as simply keeping up to date on the latest FreeBSD technology,
 you can also install one of our "snapshot" releases:
 
 For the most up-to-date software along the RELENG_4 branch
-(also known as 4.1.1-stable), now proceeding towards the release
+(also known as 4.1-stable), now proceeding towards the release
 of FreeBSD 4.2, please install your snapshots from:
 
         ftp://releng4.freebsd.org/pub/FreeBSD/
