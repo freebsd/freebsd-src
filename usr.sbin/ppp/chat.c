@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.8 1998/02/13 05:31:03 brian Exp $
+ *	$Id: chat.c,v 1.44.2.9 1998/02/16 19:09:40 brian Exp $
  */
 
 #include <sys/param.h>
@@ -219,9 +219,11 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
         if (c->exp[2] == '!')
           ExecStr(c->physical, c->exp + 3, c->exp + 2, sizeof c->exp - 2);
 
-        if (c->exp[2] == '\0')
+        if (c->exp[2] == '\0') {
           /* Empty string, reparse (this may be better as a `goto start') */
+          c->argptr = "";
           return chat_UpdateSet(d, r, w, e, n);
+        }
 
         special = 0;
       }
