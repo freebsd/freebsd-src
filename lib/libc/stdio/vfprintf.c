@@ -66,8 +66,9 @@ __FBSDID("$FreeBSD$");
 #include "local.h"
 #include "fvwrite.h"
 
-/* Define FLOATING_POINT to get floating point. */
+/* Define FLOATING_POINT to get floating point, HEXFLOAT to get %a. */
 #define	FLOATING_POINT
+#define	HEXFLOAT
 
 union arg {
 	int	intarg;
@@ -844,10 +845,6 @@ reswitch:	switch (ch) {
 				prec++;
 			if (dtoaresult != NULL)
 				freedtoa(dtoaresult);
-			/*
-			 * XXX We don't actually have a conversion
-			 * XXX routine for this yet.
-			 */
 			if (flags & LONGDBL) {
 				fparg.ldbl = GETARG(long double);
 				dtoaresult = cp =
