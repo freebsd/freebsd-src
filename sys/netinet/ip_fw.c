@@ -1719,6 +1719,13 @@ check_ipfw_struct(struct ip_fw *frwl)
 		}
 	}
 
+	if (frwl->fw_flg & (IP_FW_F_UID | IP_FW_F_GID)) {
+		if (frwl->fw_prot != (IPPROTO_TCP | IPPROTO_UDP | IPPROTO_IP)) {
+			dprintf(("%s cannot use uid/gid logic on non-TCP/UDP\n", err_prefix));
+			return (EINVAL);
+		}
+	}
+
 	/* Check command specific stuff */
 	switch (frwl->fw_flg & IP_FW_F_COMMAND)
 	{
@@ -1752,8 +1759,6 @@ check_ipfw_struct(struct ip_fw *frwl)
 #ifdef IPFIREWALL_FORWARD
 	case IP_FW_F_FWD:
 #endif
-	case IP_FW_F_UID:
-	case IP_FW_F_GID:
 		break;
 	default:
 		dprintf(("%s invalid command\n", err_prefix));
