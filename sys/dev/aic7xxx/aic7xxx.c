@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.16.2.4 1999/03/23 07:41:25 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.16.2.5 1999/04/07 23:10:04 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -2635,8 +2635,6 @@ ahc_handle_message_phase(struct ahc_softc *ahc, struct cam_path *path)
 	int	end_session;
 
 	ahc_fetch_devinfo(ahc, &devinfo);
-
-
 	end_session = FALSE;
 	bus_phase = ahc_inb(ahc, SCSISIGI) & PHASE_MASK;
 
@@ -4206,11 +4204,12 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				maxsync = AHC_SYNCRATE_FAST;
 
-			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) == 0)
+			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) == 0) {
 				if (update_type & AHC_TRANS_USER)
 					cts->sync_offset = tinfo->user.offset;
 				else
 					cts->sync_offset = tinfo->goal.offset;
+			}
 
 			syncrate = ahc_find_syncrate(ahc, &cts->sync_period,
 						     maxsync);
@@ -5970,10 +5969,43 @@ ahc_shutdown(int howto, void *arg)
 {
 	struct	ahc_softc *ahc;
 	int	i;
+	u_int	sxfrctl1_a, sxfrctl1_b;
 
 	ahc = (struct ahc_softc *)arg;
 
+	pause_sequencer(ahc);
+
+	/*
+	 * Preserve the value of the SXFRCTL1 register for all channels.
+	 * It contains settings that affect termination and we don't want
+	 * to disturb the integrity of the bus during shutdown in case
+	 * we are in a multi-initiator setup.
+	 */
+	sxfrctl1_b = 0;
+	if ((ahc->features & AHC_TWIN) != 0) {
+		u_int sblkctl;
+
+		sblkctl = ahc_inb(ahc, SBLKCTL);
+		ahc_outb(ahc, SBLKCTL, sblkctl | SELBUSB);
+		sxfrctl1_b = ahc_inb(ahc, SXFRCTL1);
+		ahc_outb(ahc, SBLKCTL, sblkctl & ~SELBUSB);
+	}
+
+	sxfrctl1_a = ahc_inb(ahc, SXFRCTL1);
+
+	/* This will reset most registers to 0, but not all */
 	ahc_reset(ahc);
+
+	if ((ahc->features & AHC_TWIN) != 0) {
+		u_int sblkctl;
+
+		sblkctl = ahc_inb(ahc, SBLKCTL);
+		ahc_outb(ahc, SBLKCTL, sblkctl | SELBUSB);
+		ahc_outb(ahc, SXFRCTL1, sxfrctl1_b);
+		ahc_outb(ahc, SBLKCTL, sblkctl & ~SELBUSB);
+	}
+	ahc_outb(ahc, SXFRCTL1, sxfrctl1_a);
+
 	ahc_outb(ahc, SCSISEQ, 0);
 	ahc_outb(ahc, SXFRCTL0, 0);
 	ahc_outb(ahc, DSPCISTATUS, 0);
