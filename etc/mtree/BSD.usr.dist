@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.110 1998/02/25 04:19:09 hanai Exp $
+#	$Id: BSD.usr.dist,v 1.111 1998/03/01 22:45:44 jdp Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -132,6 +132,28 @@
                 ..
                 18.net
                 ..
+            ..
+            tutorials
+		ddwg
+		..
+		mh
+		..
+		devel
+		..
+		diskformat
+		..
+		disklessx
+		..
+		fonts
+		..
+		ppp
+		..
+		multios
+		..
+		newuser
+		..
+		upgrade
+		..
             ..
             usd
                 04.csh
