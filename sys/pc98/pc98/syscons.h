@@ -229,7 +229,7 @@ typedef struct default_attr {
 void set_border(u_char color);
 void set_mode(scr_stat *scp);
 void copy_font(int operation, int font_type, char* font_image);
-void load_palette(void);
+void load_palette(char *palette);
 
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);
