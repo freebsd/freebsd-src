@@ -257,7 +257,7 @@ distribute: _SUBDIR
 
 .if !target(load)
 load:	${PROG}
-	${KMODLOAD} -v ./${KMOD}.ko
+	${KMODLOAD} -v ${.CURDIR}/${KMOD}.ko
 .endif
 
 .if !target(unload)
