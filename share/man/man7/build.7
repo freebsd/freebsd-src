@@ -107,6 +107,15 @@ library sub-directory.
 .Pp
 For more information about the ports build process, see
 .Xr ports 7 .
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev TARGET_ARCH"
+.It Ev TARGET_ARCH
+The target architecture.
+Set this to cross-build for a different architecture.
+.It Ev NO_WERROR
+If defined, warnings will not cause the build to halt, even if the
+makefile says otherwise.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
 .It Pa /etc/make.conf
@@ -153,6 +162,13 @@ otherwise many programs which have been rebuilt
 .Nm top ,
 etc)
 may not work with the old kernel which is still running.
+.Pp
+The following sequence of commands can be used to cross-build the
+system for the Alpha architecture on an i386 host:
+.Bd -literal -offset indent
+cd /usr/src
+make -DNO_WERROR=1 TARGET_ARCH=alpha buildworld
+.Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
 .Xr install 1 ,
