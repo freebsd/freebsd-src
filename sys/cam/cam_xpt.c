@@ -461,6 +461,16 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/*
+		 * The Hitachi CJ series with J8A8 firmware apparantly has
+		 * problems with tagged commands.
+		 * PR: 23536
+		 * Reported by: amagai@nue.org
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "HITACHI", "DK32CJ*", "J8A8" },
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
 		 * This old revision of the TDC3600 is also SCSI-1, and
 		 * hangs upon serial number probing.
 		 */
