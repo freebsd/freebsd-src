@@ -1,4 +1,4 @@
-#       $FreeBSD$
+# $FreeBSD$
 
 # Do not define -DKLUDGELINEMODE, as it does not interact well with many
 # telnet implementations.
@@ -13,9 +13,9 @@ CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBDES} ${LIBMP} \
+DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBMP} \
                 ${LIBCRYPT}
-LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -ldes -lcrypt -lmp
+LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto -lcrypt -lmp
 
 .include <bsd.prog.mk>
 
