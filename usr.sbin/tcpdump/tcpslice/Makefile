@@ -10,7 +10,7 @@ LDADD+= -lpcap
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 
-version.c version.h: $(TCPDUMP_DISTDIR}/VERSION
+version.c version.h: ${TCPDUMP_DISTDIR}/VERSION
 	rm -f version.c ; \
 	sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION > version.c
 	set `sed 's/\([0-9]*\)\.\([0-9]*\).*/\1 \2/' ${TCPDUMP_DISTDIR}/VERSION` ; \
