@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.16 1997/10/28 13:46:51 ache Exp $
+.\"	$Id: inetd.8,v 1.17 1997/10/29 21:49:02 dima Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -43,9 +43,11 @@
 .Nm inetd
 .Op Fl d
 .Op Fl l
-.Op Fl R Ar rate
+.Op Fl c Ar maximum
+.Op Fl C Ar rate
 .Op Fl a Ar address
 .Op Fl p Ar filename
+.Op Fl R Ar rate
 .Op Ar configuration file
 .Sh DESCRIPTION
 The
@@ -76,6 +78,15 @@ The following options are available:
 Turn on debugging.
 .It Fl l
 Turn on logging.
+.It Fl c Ar maximum
+Specify the default maximum number of services that can be invoked.
+May be overridden on a per-service basis with the "max-child"
+parameter.
+.It Fl C Ar rate
+Specify the default maximum number of times a service can be invoked
+from a single IP address in one minute; the default is unlimited.
+May be overridden on a per-service basis with the
+"max-connections-per-ip-per-minute" parameter.
 .It Fl R Ar rate
 Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
