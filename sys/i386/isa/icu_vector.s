@@ -26,11 +26,11 @@
 
 #else
 
-#define	ENABLE_ICU1 \
-	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */ \
+#define	ENABLE_ICU1							\
+	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */	\
 	OUTB_ICU1		/* ... to clear in service bit */
 
-#define	OUTB_ICU1 \
+#define	OUTB_ICU1							\
 	outb	%al,$IO_ICU1
 
 #endif
@@ -43,93 +43,93 @@
 
 #else
 
-#define	ENABLE_ICU1_AND_2 \
-	movb	$ICU_EOI,%al ;	/* as above */ \
-	outb	%al,$IO_ICU2 ;	/* but do second icu first ... */ \
+#define	ENABLE_ICU1_AND_2						\
+	movb	$ICU_EOI,%al ;	/* as above */				\
+	outb	%al,$IO_ICU2 ;	/* but do second icu first ... */	\
 	OUTB_ICU1		/* ... then first icu (if !AUTO_EOI_1) */
 
 #endif
 
-#define PUSH_FRAME \
-	pushl	$0 ;		/* dummy error code */ \
-	pushl	$0 ;		/* dummy trap type */ \
-	pushal ;		/* 8 ints */ \
-	pushl	%ds ;		/* save data and extra segments ... */ \
-	pushl	%es ; \
+#define PUSH_FRAME							\
+	pushl	$0 ;		/* dummy error code */			\
+	pushl	$0 ;		/* dummy trap type */			\
+	pushal ;		/* 8 ints */				\
+	pushl	%ds ;		/* save data and extra segments ... */	\
+	pushl	%es ;							\
 	pushl	%fs
 
-#define PUSH_DUMMY \
-	pushfl ;		/* eflags */ \
-	pushl	%cs ;		/* cs */ \
-	pushl	12(%esp) ;	/* original caller eip */ \
-	pushl	$0 ;		/* dummy error code */ \
-	pushl	$0 ;		/* dummy trap type */ \
+#define PUSH_DUMMY							\
+	pushfl ;		/* eflags */				\
+	pushl	%cs ;		/* cs */				\
+	pushl	12(%esp) ;	/* original caller eip */		\
+	pushl	$0 ;		/* dummy error code */			\
+	pushl	$0 ;		/* dummy trap type */			\
 	subl	$11*4,%esp
 
-#define POP_FRAME \
-	popl	%fs ; \
-	popl	%es ; \
-	popl	%ds ; \
-	popal ; \
+#define POP_FRAME							\
+	popl	%fs ;							\
+	popl	%es ;							\
+	popl	%ds ;							\
+	popal ;								\
 	addl	$4+4,%esp
 
-#define POP_DUMMY \
+#define POP_DUMMY							\
 	addl	$16*4,%esp
 
-#define MASK_IRQ(icu, irq_num) \
-	movb	imen + IRQ_BYTE(irq_num),%al ; \
-	orb	$IRQ_BIT(irq_num),%al ; \
-	movb	%al,imen + IRQ_BYTE(irq_num) ; \
+#define MASK_IRQ(icu, irq_num)						\
+	movb	imen + IRQ_BYTE(irq_num),%al ;				\
+	orb	$IRQ_BIT(irq_num),%al ;					\
+	movb	%al,imen + IRQ_BYTE(irq_num) ;				\
 	outb	%al,$icu+ICU_IMR_OFFSET
 
-#define UNMASK_IRQ(icu, irq_num) \
-	movb	imen + IRQ_BYTE(irq_num),%al ; \
-	andb	$~IRQ_BIT(irq_num),%al ; \
-	movb	%al,imen + IRQ_BYTE(irq_num) ; \
+#define UNMASK_IRQ(icu, irq_num)					\
+	movb	imen + IRQ_BYTE(irq_num),%al ;				\
+	andb	$~IRQ_BIT(irq_num),%al ;				\
+	movb	%al,imen + IRQ_BYTE(irq_num) ;				\
 	outb	%al,$icu+ICU_IMR_OFFSET
 /*
  * Macros for interrupt interrupt entry, call to handler, and exit.
  */
 
-#define	FAST_INTR(irq_num, vec_name, icu, enable_icus) \
-	.text ; \
-	SUPERALIGN_TEXT ; \
-IDTVEC(vec_name) ; \
-	PUSH_FRAME ; \
-	mov	$KDSEL,%ax ; \
-	mov	%ax,%ds ; \
-	mov	%ax,%es ; \
-	mov	$KPSEL,%ax ; \
-	mov	%ax,%fs ; \
-	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ; \
-	movl	PCPU(CURTHREAD),%ebx ; \
-	cmpl	$0,TD_CRITNEST(%ebx) ; \
-	je	1f ; \
-; \
-	movl	$1,PCPU(INT_PENDING) ; \
-	orl	$IRQ_LBIT(irq_num),PCPU(FPENDING) ; \
-	MASK_IRQ(icu, irq_num) ; \
-	enable_icus ; \
-	jmp	10f ; \
-1: ; \
-	incl	TD_CRITNEST(%ebx) ; \
-	incl	TD_INTR_NESTING_LEVEL(%ebx) ; \
-	pushl	intr_unit + (irq_num) * 4 ; \
-	call	*intr_handler + (irq_num) * 4 ; \
-	addl	$4,%esp ; \
-	enable_icus ; \
-	incl	cnt+V_INTR ;	/* book-keeping can wait */ \
-	movl	intr_countp + (irq_num) * 4,%eax ; \
-	incl	(%eax) ; \
-	decl	TD_CRITNEST(%ebx) ; \
-	cmpl	$0,PCPU(INT_PENDING) ; \
-	je	2f ; \
-; \
-	call	unpend ; \
-2: ; \
-	decl	TD_INTR_NESTING_LEVEL(%ebx) ; \
-10: ; \
-	MEXITCOUNT ; \
+#define	FAST_INTR(irq_num, vec_name, icu, enable_icus)			\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	PUSH_FRAME ;							\
+	mov	$KDSEL,%ax ;						\
+	mov	%ax,%ds ;						\
+	mov	%ax,%es ;						\
+	mov	$KPSEL,%ax ;						\
+	mov	%ax,%fs ;						\
+	FAKE_MCOUNT((12+ACTUALLY_PUSHED)*4(%esp)) ;			\
+	movl	PCPU(CURTHREAD),%ebx ;					\
+	cmpl	$0,TD_CRITNEST(%ebx) ;					\
+	je	1f ;							\
+;									\
+	movl	$1,PCPU(INT_PENDING) ;					\
+	orl	$IRQ_LBIT(irq_num),PCPU(FPENDING) ;			\
+	MASK_IRQ(icu, irq_num) ;					\
+	enable_icus ;							\
+	jmp	10f ;							\
+1: ;									\
+	incl	TD_CRITNEST(%ebx) ;					\
+	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+	pushl	intr_unit + (irq_num) * 4 ;				\
+	call	*intr_handler + (irq_num) * 4 ;				\
+	addl	$4,%esp ;						\
+	enable_icus ;							\
+	incl	cnt+V_INTR ;	/* book-keeping can wait */		\
+	movl	intr_countp + (irq_num) * 4,%eax ;			\
+	incl	(%eax) ;						\
+	decl	TD_CRITNEST(%ebx) ;					\
+	cmpl	$0,PCPU(INT_PENDING) ;					\
+	je	2f ;							\
+;									\
+	call	unpend ;						\
+2: ;									\
+	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+10: ;									\
+	MEXITCOUNT ;							\
 	jmp	doreti
 
 /*
@@ -142,23 +142,23 @@ IDTVEC(vec_name) ; \
  * instruction or we can create a dummy frame and call the interrupt
  * handler directly.  I've chosen to use the dummy-frame method.
  */
-#define	FAST_UNPEND(irq_num, vec_name, icu) \
-	.text ; \
-	SUPERALIGN_TEXT ; \
-IDTVEC(vec_name) ; \
-; \
-	pushl %ebp ; \
-	movl %esp, %ebp ; \
-	PUSH_DUMMY ; \
-	pushl	intr_unit + (irq_num) * 4 ; \
-	call	*intr_handler + (irq_num) * 4 ;	/* do the work ASAP */ \
-	addl	$4, %esp ; \
-	incl	cnt+V_INTR ;	/* book-keeping can wait */ \
-	movl	intr_countp + (irq_num) * 4,%eax ; \
-	incl	(%eax) ; \
-	UNMASK_IRQ(icu, irq_num) ; \
-	POP_DUMMY ; \
-	popl %ebp ; \
+#define	FAST_UNPEND(irq_num, vec_name, icu)				\
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+;									\
+	pushl %ebp ;							\
+	movl %esp, %ebp ;						\
+	PUSH_DUMMY ;							\
+	pushl	intr_unit + (irq_num) * 4 ;				\
+	call	*intr_handler + (irq_num) * 4 ;	/* do the work ASAP */	\
+	addl	$4, %esp ;						\
+	incl	cnt+V_INTR ;	/* book-keeping can wait */		\
+	movl	intr_countp + (irq_num) * 4,%eax ;			\
+	incl	(%eax) ;						\
+	UNMASK_IRQ(icu, irq_num) ;					\
+	POP_DUMMY ;							\
+	popl %ebp ;							\
 	ret
 
 /* 
@@ -171,41 +171,41 @@ IDTVEC(vec_name) ; \
  * iret.  FIXME.
  */
 #define	INTR(irq_num, vec_name, icu, enable_icus, maybe_extra_ipending) \
-	.text ; \
-	SUPERALIGN_TEXT ; \
-IDTVEC(vec_name) ; \
-	PUSH_FRAME ; \
-	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */ \
-	mov	%ax,%ds ; \
-	mov	%ax,%es ; \
-	mov	$KPSEL,%ax ; \
-	mov	%ax,%fs ; \
-; \
-	maybe_extra_ipending ; \
-	MASK_IRQ(icu, irq_num) ; \
-	enable_icus ; \
-; \
-	movl	PCPU(CURTHREAD),%ebx ; \
-        cmpl	$0,TD_CRITNEST(%ebx) ; \
-	je      1f ; \
-	movl	$1,PCPU(INT_PENDING); \
-	orl     $IRQ_LBIT(irq_num),PCPU(IPENDING) ; \
-	jmp     10f ; \
-1: ; \
-	incl	TD_INTR_NESTING_LEVEL(%ebx) ; \
-; \
+	.text ;								\
+	SUPERALIGN_TEXT ;						\
+IDTVEC(vec_name) ;							\
+	PUSH_FRAME ;							\
+	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */		\
+	mov	%ax,%ds ;						\
+	mov	%ax,%es ;						\
+	mov	$KPSEL,%ax ;						\
+	mov	%ax,%fs ;						\
+;									\
+	maybe_extra_ipending ;						\
+	MASK_IRQ(icu, irq_num) ;					\
+	enable_icus ;							\
+;									\
+	movl	PCPU(CURTHREAD),%ebx ;					\
+        cmpl	$0,TD_CRITNEST(%ebx) ;					\
+	je      1f ;							\
+	movl	$1,PCPU(INT_PENDING);					\
+	orl     $IRQ_LBIT(irq_num),PCPU(IPENDING) ;			\
+	jmp     10f ;							\
+1: ;									\
+	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+;									\
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
-	cmpl	$0,PCPU(INT_PENDING) ; \
-	je      9f ; \
-	call    unpend ; \
-9: ; \
-	pushl	$irq_num; 	/* pass the IRQ */ \
-	call	sched_ithd ; \
-	addl	$4, %esp ;	/* discard the parameter */ \
-; \
-	decl	TD_INTR_NESTING_LEVEL(%ebx) ; \
-10: ; \
-	MEXITCOUNT ; \
+	cmpl	$0,PCPU(INT_PENDING) ;					\
+	je      9f ;							\
+	call    unpend ;						\
+9: ;									\
+	pushl	$irq_num; 	/* pass the IRQ */			\
+	call	sched_ithd ;						\
+	addl	$4, %esp ;	/* discard the parameter */		\
+;									\
+	decl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
+10: ;									\
+	MEXITCOUNT ;							\
 	jmp	doreti
 
 MCOUNT_LABEL(bintr)
