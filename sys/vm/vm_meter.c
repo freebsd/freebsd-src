@@ -341,8 +341,4 @@ SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	first_page, CTLFLAG_RD, &first_page, 0, "");
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	last_page, CTLFLAG_RD, &last_page, 0, "");
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	vm_page_bucket_count, CTLFLAG_RD, &vm_page_bucket_count, 0, "");
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	vm_page_hash_mask, CTLFLAG_RD, &vm_page_hash_mask, 0, "");
 #endif
