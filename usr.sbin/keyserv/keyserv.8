@@ -11,7 +11,7 @@
 .Nm keyserv
 .Nd server for storing private encryption keys
 .Sh SYNOPSIS
-.Nm keyserv 
+.Nm
 .Op Fl d
 .Op Fl D
 .Op Fl n
@@ -32,7 +32,7 @@ This is useful during power-fail reboots
 when no one is around to type a password. 
 .Pp
 If a client with no secret key calls 
-.Nm keyserv , 
+.Nm ,
 then the key of user 
 .Em nobody 
 is used instead as the default key.
@@ -44,7 +44,7 @@ Disable the use of default keys for
 .Em nobody .
 .It Fl D
 Run in debugging mode and log all requests to 
-.Nm keyserv .
+.Nm .
 .It Fl n
 Root's secret key is not read from
 .Pa /etc/.rootkey .

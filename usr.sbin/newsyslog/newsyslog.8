@@ -24,7 +24,7 @@
 .Nm newsyslog
 .Nd maintain system log files to manageable sizes
 .Sh SYNOPSIS
-.Nm newsyslog
+.Nm
 .Op Fl Fnrv
 .Op Fl f Ar config_file
 .Op Fl a Ar directory
@@ -75,7 +75,7 @@ By default, this configuration file is
 .Pa /etc/newsyslog.conf .
 Each line of the file contains information about a particular log file
 that should be handled by
-.Nm newsyslog .
+.Nm .
 Each line has five mandatory fields and four optional fields, with a
 whitespace separating each field.  Blank lines or lines beginning with
 ``#'' are ignored.  The fields of the configuration file are as
@@ -304,7 +304,7 @@ a SIGHUP will be sent.
 .El
 .Sh OPTIONS
 The following options can be used with
-.Nm Ns :
+.Nm :
 .Bl -tag -width indent
 .It Fl f Ar config_file
 Instruct
