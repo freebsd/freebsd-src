@@ -292,7 +292,7 @@ vnstrategy(struct buf *bp)
 			int off, s, nra;
 
 			nra = 0;
-			error = VOP_BMAP(vn->sc_vp, bn / bsize, &vp, &nbn, &nra);
+			error = VOP_BMAP(vn->sc_vp, bn / bsize, &vp, &nbn, &nra, NULL);
 			if (error == 0 && (long)nbn == -1)
 				error = EIO;
 
