@@ -50,6 +50,7 @@ mode2str(int mode)
 	case ATA_UDMA2: return "UDMA33";
  	case ATA_UDMA4: return "UDMA66";
 	case ATA_UDMA5: return "UDMA100";
+	case ATA_UDMA6: return "UDMA133";
 	case ATA_DMA: return "BIOSDMA";
 	default: return "???";
 	}
@@ -76,7 +77,6 @@ str2mode(char *str)
 	if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
 	return -1;
 }
-
 
 void
 usage()
