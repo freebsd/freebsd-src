@@ -34,6 +34,7 @@ struct diagif {
 	char		ifname[IFNAMSIZ];
 	u_int		index;
 	struct ifatm_mib mib;
+	int		phy_present : 1;
 	u_int		phy_type;
 	u_int		phy_loopback;
 	char		phy_name[100];
