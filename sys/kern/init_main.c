@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.40 1996/03/11 06:14:38 hsu Exp $
+ * $Id: init_main.c,v 1.42 1996/06/11 23:50:48 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -283,7 +283,14 @@ char	copyright[] =
 "Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.\nCopyright (c) 1992 Hewlett-Packard Company\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n\n";
 #else
 char	copyright[] =
+#ifdef PC98
+"Copyright (c) 1994-1996  FreeBSD(98) porting team.\n"
+"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.\n"
+"Copyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
+"\tAll rights reserved.\n\n";
+#else
 "Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
+#endif
 #endif
 static void print_caddr_t __P((void *data));
 static void

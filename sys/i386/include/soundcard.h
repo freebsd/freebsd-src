@@ -64,6 +64,9 @@
 #define SNDCARD_TRXPRO		16
 #define SNDCARD_TRXPRO_SB	17
 #define SNDCARD_TRXPRO_MPU	18
+#ifdef PC98
+#define SNDCARD_PCM86     	19
+#endif
 
 /***********************************
  * IOCTL Commands for /dev/sequencer

@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.1 1996/05/18 17:56:40 se Exp $
+ *	$Id: if_ed_p.c,v 1.2 1996/06/11 00:51:49 alex Exp $
  */
 
 #include <pci.h>
@@ -29,7 +29,11 @@
 #include <sys/kernel.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#ifdef PC98
+#include <pc98/pc98/pc98_device.h>
+#else
 #include <i386/isa/isa_device.h>
+#endif
 
 #include <ed.h>
 

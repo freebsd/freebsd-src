@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.7 1996/06/12 19:24:03 gpalmer Exp $ */
+/* $Id: ppp_tty.c,v 1.8 1996/06/12 20:07:09 nate Exp $ */
 /* from Id: ppp_tty.c,v 1.3 1995/08/16 01:36:40 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -98,7 +98,11 @@
 
 #ifdef i386	/* fiddle with the spl locking */
 # include <machine/spl.h>
+#ifdef PC98
+# include <i386/pc98/pc98_device.h>
+#else
 # include <i386/isa/isa_device.h>
+#endif
 #endif
 
 #include <net/if.h>
