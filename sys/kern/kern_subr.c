@@ -63,18 +63,12 @@ uiomove(cp, n, uio)
 {
 	register struct iovec *iov;
 	u_int cnt;
-	int error = 0;
-	int save = 0;
+	int error;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove: mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_procp == curproc,
 	    ("uiomove proc"));
-
-	if (curproc) {
-		save = curproc->p_flag & P_DEADLKTREAT;
-		curproc->p_flag |= P_DEADLKTREAT;
-	}
 
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
@@ -98,7 +92,7 @@ uiomove(cp, n, uio)
 			else
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error)
-				break;
+				return (error);
 			break;
 
 		case UIO_SYSSPACE:
@@ -117,9 +111,7 @@ uiomove(cp, n, uio)
 		cp += cnt;
 		n -= cnt;
 	}
-	if (curproc)
-		curproc->p_flag = (curproc->p_flag & ~P_DEADLKTREAT) | save;
-	return (error);
+	return (0);
 }
 
 int

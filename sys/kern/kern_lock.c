@@ -205,30 +205,9 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 	switch (flags & LK_TYPE_MASK) {
 
 	case LK_SHARED:
-		/*
-		 * If we are not the exclusive lock holder, we have to block
-		 * while there is an exclusive lock holder or while an
-		 * exclusive lock request or upgrade request is in progress.
-		 *
-		 * However, if P_DEADLKTREAT is set, we override exclusive
-		 * lock requests or upgrade requests ( but not the exclusive
-		 * lock itself ).
-		 */
 		if (lkp->lk_lockholder != pid) {
-			if (p->p_flag & P_DEADLKTREAT) {
-				error = acquire(
-					    lkp,
-					    extflags,
-					    LK_HAVE_EXCL
-					);
-			} else {
-				error = acquire(
-					    lkp, 
-					    extflags,
-					    LK_HAVE_EXCL | LK_WANT_EXCL | 
-					     LK_WANT_UPGRADE
-					);
-			}
+			error = acquire(lkp, extflags,
+				LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE);
 			if (error)
 				break;
 			sharelock(lkp, 1);
