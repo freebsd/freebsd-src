@@ -51,14 +51,12 @@
 static off_t   _kvm_pa2off(kvm_t *kd, u_long pa);
 
 struct vmstate {
-	u_int64_t       lev1map_pa;             /* PA of Lev1map */
-        u_int64_t       page_size;              /* Page size */
-        u_int64_t       nmemsegs;               /* Number of RAM segm */
+	u_int64_t       kptdir;		/* PA of page table directory */
+        u_int64_t	page_size;	/* Page size */
 };
 
 void
-_kvm_freevtop(kd)
-	kvm_t *kd;
+_kvm_freevtop(kvm_t *kd)
 {
 
 	/* Not actually used for anything right now, but safe. */
@@ -67,12 +65,11 @@ _kvm_freevtop(kd)
 }
 
 int
-_kvm_initvtop(kd)
-	kvm_t *kd;
+_kvm_initvtop(kvm_t *kd)
 {
 	struct vmstate *vm;
 	struct nlist nlist[2];
-	u_long pa;
+	u_int64_t va;
 
 	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
 	if (vm == 0) {
@@ -80,9 +77,9 @@ _kvm_initvtop(kd)
 		return (-1);
 	}
 	kd->vmst = vm;
-	vm->page_size = PAGE_SIZE;
+	vm->page_size = getpagesize(); /* XXX wrong for crashdumps */
 
-	nlist[0].n_name = "_Lev1map";
+	nlist[0].n_name = "kptdir";
 	nlist[1].n_name = 0;
 
 	if (kvm_nlist(kd, nlist) != 0) {
@@ -91,41 +88,38 @@ _kvm_initvtop(kd)
 	}
 
 	if(!ISALIVE(kd)) {
-		if (kvm_read(kd, (nlist[0].n_value), &pa, sizeof(pa)) != sizeof(pa)) {
-			_kvm_err(kd, kd->program, "cannot read Lev1map");
+		if (kvm_read(kd, (nlist[0].n_value), &va, sizeof(va)) != sizeof(va)) {
+			_kvm_err(kd, kd->program, "cannot read kptdir");
 			return (-1);
 		}
 	} else 
-		if (kvm_read(kd, (nlist[0].n_value), &pa, sizeof(pa)) != sizeof(pa)) {
-			_kvm_err(kd, kd->program, "cannot read Lev1map");
+		if (kvm_read(kd, (nlist[0].n_value), &va, sizeof(va)) != sizeof(va)) {
+			_kvm_err(kd, kd->program, "cannot read kptdir");
 			return (-1);
 		}
-	vm->lev1map_pa = pa;
+	vm->kptdir = IA64_RR_MASK(va);
 	return (0);
 
 }
 
 int
-_kvm_kvatop(kd, va, pa)
-	kvm_t *kd;
-	u_long va;
-	u_long *pa;
+_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
 {
-	u_int64_t       lev1map_pa;             /* PA of Lev1map */
-        u_int64_t       page_size;
-	int rv, page_off;
-	pv_entry_t pte;
-	off_t pteoff;
-	struct vmstate *vm;
-	vm = kd->vmst ;
-	
+	u_int64_t	kptdir;			/* PA of kptdir */
+        u_int64_t	page_size;
+	int		rv, page_off;
+	struct ia64_lpte pte;
+	off_t		pteoff;
+	struct vmstate	*vm;
 
+	vm = kd->vmst;
+	
         if (ISALIVE(kd)) {
                 _kvm_err(kd, 0, "vatop called in live kernel!");
                 return(0);
         }
-	lev1map_pa = vm->lev1map_pa;
-	page_size  = vm->page_size;
+	kptdir = vm->kptdir;
+	page_size = vm->page_size;
 
 	page_off = va & (page_size - 1);
 	if (va >= IA64_RR_BASE(6) && va <= IA64_RR_BASE(7) + ((1L<<61)-1)) {
@@ -139,7 +133,42 @@ _kvm_kvatop(kd, va, pa)
 		/*
 		 * Real kernel virtual address: do the translation.
 		 */
-		goto lose;
+#define KPTE_DIR_INDEX(va, ps) \
+	(IA64_RR_MASK(va) / ((ps) * (ps) * sizeof(struct ia64_lpte)))
+#define KPTE_PTE_INDEX(va, ps) \
+	(((va) / (ps)) % (ps / sizeof(struct ia64_lpte)))
+
+		int maxpt = page_size / sizeof(u_int64_t);
+		int ptno = KPTE_DIR_INDEX(va, page_size);
+		int pgno = KPTE_PTE_INDEX(va, page_size);
+		u_int64_t ptoff, pgoff;
+
+		if (ptno >= maxpt) {
+			_kvm_err(kd, 0, "invalid translation (va too large)");
+			goto lose;
+		}
+		ptoff = kptdir + ptno * sizeof(u_int64_t);
+		if (lseek(kd->pmfd, _kvm_pa2off(kd, ptoff), 0) == -1 ||
+		    read(kd->pmfd, &pgoff, sizeof(pgoff)) != sizeof(pgoff)) {
+			_kvm_syserr(kd, 0, "could not read page table address");
+			goto lose;
+		}
+		pgoff = IA64_RR_MASK(pgoff);
+		if (!pgoff) {
+			_kvm_err(kd, 0, "invalid translation (no page table)");
+			goto lose;
+		}
+		if (lseek(kd->pmfd, _kvm_pa2off(kd, pgoff), 0) == -1 ||
+		    read(kd->pmfd, &pte, sizeof(pte)) != sizeof(pte)) {
+			_kvm_syserr(kd, 0, "could not read PTE");
+			goto lose;
+		}
+		if (!pte.pte_p) {
+			_kvm_err(kd, 0, "invalid translation (invalid PTE)");
+			goto lose;
+		}
+		*pa = pte.pte_ppn << 12;
+		rv = page_size - page_off;
 	} else {
 		/*
 		 * Bogus address (not in KV space): punt.
