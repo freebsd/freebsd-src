@@ -1275,7 +1275,7 @@ static int sk_attach(dev)
 	if (error) {
 		printf("skc%d: couldn't set up irq\n", unit);
 		bus_release_resource(dev, SK_RES, SK_RID, sc->sk_res);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sk_irq);
 		goto fail;
 	}
 
