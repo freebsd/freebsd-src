@@ -93,14 +93,19 @@ popen(command, type)
 		/* NOTREACHED */
 	case 0:				/* Child. */
 		if (*type == 'r') {
-			if (pdes[1] != STDOUT_FILENO) {
-				(void)dup2(pdes[1], STDOUT_FILENO);
-				(void)close(pdes[1]);
-				pdes[1] = STDOUT_FILENO;
+			/*
+			 * We must NOT modify pdes, due to the
+			 * semantics of vfork.
+			 */
+			int tpdes1 = pdes[1];
+			if (tpdes1 != STDOUT_FILENO) {
+				(void)dup2(tpdes1, STDOUT_FILENO);
+				(void)close(tpdes1);
+				tpdes1 = STDOUT_FILENO;
 			}
 			(void) close(pdes[0]);
-			if (twoway && (pdes[1] != STDIN_FILENO))
-				(void)dup2(pdes[1], STDIN_FILENO);
+			if (twoway && (tpdes1 != STDIN_FILENO))
+				(void)dup2(tpdes1, STDIN_FILENO);
 		} else {
 			if (pdes[0] != STDIN_FILENO) {
 				(void)dup2(pdes[0], STDIN_FILENO);
