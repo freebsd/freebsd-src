@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: rdreg.c,v 1.4 1996/04/18 04:24:56 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +41,7 @@ dumpslot(sl)
 	int     fd;
 	struct pcic_reg r;
 
-	sprintf(name, "/dev/card%d", sl);
+	sprintf(name, CARD_DEVICE, sl);
 	fd = open(name, 2);
 	if (fd < 0) {
 		perror(name);
