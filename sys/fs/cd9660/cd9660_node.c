@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.10 1995/03/16 18:12:15 bde Exp $
+ * $Id: cd9660_node.c,v 1.11 1995/05/30 08:04:59 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -79,6 +79,8 @@ union iso_dhead {
 	struct iso_dnode *dh_chain[2];
 } iso_dhead[DNOHSZ];
 #endif
+
+static unsigned	cd9660_chars2ui __P((unsigned char *begin, int len));
 
 /*
  * Initialize hash links for inodes and dnodes.
