@@ -623,6 +623,10 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 #
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
 #
+# IPFIREWALL_FORWARD enables changing of the packet destination either
+# to do some sort of policy routing or transparent proxying.  Used by
+# ``ipfw forward''.
+#
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
@@ -641,6 +645,7 @@ options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
+options		IPFIREWALL_FORWARD	#packet destination changes
 options 	IPV6FIREWALL		#firewall for IPv6
 options 	IPV6FIREWALL_VERBOSE
 options 	IPV6FIREWALL_VERBOSE_LIMIT=100
