@@ -123,6 +123,7 @@ initialize_all_files (void)
   _initialize_ser_hardwire ();
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
+#ifndef CROSS_DEBUGGER
   _initialize_sparc64fbsd_nat ();
   _initialize_sparc64_nat ();
   _initialize_sparc_nat ();
@@ -132,6 +133,7 @@ initialize_all_files (void)
   _initialize_solib ();
   _initialize_svr4_solib ();
   _initialize_svr4_lm ();
+#endif
   _initialize_remote ();
   _initialize_dcache ();
   _initialize_sr_support ();

@@ -174,7 +174,9 @@
 #define GDB_TM_FILE config/sparc/tm-fbsd.h
 
 /* nativefile */
+#ifndef CROSS_DEBUGGER
 #define GDB_NM_FILE config/sparc/nm-fbsd.h
+#endif
 
 /* Define to 1 so <sys/proc.h> gets a definition of anon_hdl.  Works
    around a <sys/proc.h> problem on IRIX 5.  */
