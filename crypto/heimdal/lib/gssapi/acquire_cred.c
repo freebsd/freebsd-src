@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: acquire_cred.c,v 1.4 2001/01/30 00:49:05 assar Exp $");
+RCSID("$Id: acquire_cred.c,v 1.6 2001/05/11 09:16:45 assar Exp $");
 
 OM_uint32 gss_acquire_cred
            (OM_uint32 * minor_status,
@@ -48,95 +48,115 @@ OM_uint32 gss_acquire_cred
 {
     gss_cred_id_t handle;
     OM_uint32 ret;
-    krb5_principal def_princ;
+    krb5_error_code kret = 0;
     krb5_ccache ccache;
-    krb5_error_code pret = -1, kret = 0;
-    krb5_keytab kt;
-    krb5_creds cred;
-    krb5_get_init_creds_opt opt;
 
     handle = (gss_cred_id_t)malloc(sizeof(*handle));
-    if (handle == GSS_C_NO_CREDENTIAL) {
+    if (handle == GSS_C_NO_CREDENTIAL)
         return GSS_S_FAILURE;
-    }
+
     memset(handle, 0, sizeof (*handle));
 
     ret = gss_duplicate_name(minor_status, desired_name, &handle->principal);
     if (ret) {
+	free(handle);
         return ret;
     }
 
-    if (krb5_cc_default(gssapi_krb5_context, &ccache) == 0 &&
-      (pret = krb5_cc_get_principal(gssapi_krb5_context, ccache,
-					 &def_princ)) == 0 &&
-      krb5_principal_compare(gssapi_krb5_context, handle->principal,
-				 def_princ) == TRUE) {
+    if (krb5_cc_default(gssapi_krb5_context, &ccache) == 0) {
+	krb5_principal def_princ;
+
+	if (krb5_cc_get_principal(gssapi_krb5_context, ccache,
+				  &def_princ) != 0) {
+	    krb5_cc_close(gssapi_krb5_context, ccache);
+	    goto try_keytab;
+	}
+	if (krb5_principal_compare(gssapi_krb5_context, handle->principal,
+				   def_princ) == FALSE) {
+	    krb5_free_principal(gssapi_krb5_context, def_princ);
+	    krb5_cc_close(gssapi_krb5_context, ccache);
+	    goto try_keytab;
+	}
 	handle->ccache = ccache;
 	handle->keytab = NULL;
+	krb5_free_principal(gssapi_krb5_context, def_princ);
     } else {
-	kret = krb5_kt_default(gssapi_krb5_context, &kt);
+    	krb5_creds cred;
+    	krb5_get_init_creds_opt opt;
+
+ try_keytab:
+	kret = krb5_kt_default(gssapi_krb5_context, &handle->keytab);
 	if (kret != 0)
-	    goto out;
+	    goto krb5_bad;
+
 	krb5_get_init_creds_opt_init(&opt);
 	memset(&cred, 0, sizeof(cred));
-	kret = krb5_get_init_creds_keytab(gssapi_krb5_context, &cred,
-	  handle->principal, kt, 0, NULL, &opt);
-	if (kret != 0) {
-	    krb5_kt_close(gssapi_krb5_context, kt);
-	    goto out;
-	}
-	kret = krb5_cc_gen_new(gssapi_krb5_context, &krb5_mcc_ops, &ccache);
-	if (kret != 0) {
-	    krb5_kt_close(gssapi_krb5_context, kt);
-	    goto out;
-	}
-	kret = krb5_cc_initialize(gssapi_krb5_context, ccache, cred.client);
-	if (kret != 0) {
-	    krb5_kt_close(gssapi_krb5_context, kt);
-	    krb5_cc_close(gssapi_krb5_context, ccache);
-	    goto out;
-	}
-	kret = krb5_cc_store_cred(gssapi_krb5_context, ccache, &cred);
-	if (kret != 0) {
-	    krb5_kt_close(gssapi_krb5_context, kt);
-	    krb5_cc_close(gssapi_krb5_context, ccache);
-	    goto out;
-	}
-	handle->ccache = ccache;
-	handle->keytab = kt;
-    }
 
+	kret = krb5_get_init_creds_keytab(gssapi_krb5_context, &cred,
+					  handle->principal, handle->keytab,
+					  0, NULL, &opt);
+	if (kret != 0)
+	    goto krb5_bad;
+
+	kret = krb5_cc_gen_new(gssapi_krb5_context, &krb5_mcc_ops,
+			       &handle->ccache);
+	if (kret != 0) {
+	    krb5_free_creds_contents(gssapi_krb5_context, &cred);
+	    goto krb5_bad;
+	}
+
+	kret = krb5_cc_initialize(gssapi_krb5_context, handle->ccache,
+				  cred.client);
+	if (kret != 0) {
+	    krb5_free_creds_contents(gssapi_krb5_context, &cred);
+	    goto krb5_bad;
+	}
+
+	kret = krb5_cc_store_cred(gssapi_krb5_context, handle->ccache, &cred);
+	if (kret != 0) {
+	    krb5_free_creds_contents(gssapi_krb5_context, &cred);
+	    goto krb5_bad;
+	}
+
+	krb5_free_creds_contents(gssapi_krb5_context, &cred);
+    }
 
     /* XXX */
     handle->lifetime = time_req;
     handle->usage = cred_usage;
 
     ret = gss_create_empty_oid_set(minor_status, &handle->mechanisms);
-    if (ret) {
-        return ret;
-    }
+    if (ret)
+	goto gssapi_bad;
+
     ret = gss_add_oid_set_member(minor_status, GSS_KRB5_MECHANISM,
 				 &handle->mechanisms);
-    if (ret) {
-        return ret;
-    }
+    if (ret)
+	goto gssapi_bad;
 
     ret = gss_inquire_cred(minor_status, handle, NULL, time_rec, NULL,
 			   actual_mechs);
-    if (ret) {
-        return ret;
-    }
+    if (ret)
+	goto gssapi_bad;
 
     *output_cred_handle = handle;
+    return (GSS_S_COMPLETE);
 
-out:
-    if (pret == 0)
-	krb5_free_principal(gssapi_krb5_context, def_princ);
+ krb5_bad:
+    ret = GSS_S_FAILURE;
+    *minor_status = kret;
+    gssapi_krb5_set_error_string ();
 
-    if (kret != 0) {
-	*minor_status = kret;
-	return GSS_S_FAILURE;
-    }
+ gssapi_bad:
+    krb5_free_principal(gssapi_krb5_context, handle->principal);
+    if (handle->ccache != NULL)
+	krb5_cc_close(gssapi_krb5_context, handle->ccache);
+    if (handle->keytab != NULL)
+	krb5_kt_close(gssapi_krb5_context, handle->keytab);
+    if (handle->mechanisms != NULL)
+	gss_release_oid_set(NULL, &handle->mechanisms);
 
-    return GSS_S_COMPLETE;
+    free(handle);
+
+    return (ret);
 }

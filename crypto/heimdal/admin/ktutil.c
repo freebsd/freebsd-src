@@ -34,14 +34,13 @@
 #include "ktutil_locl.h"
 #include <err.h>
 
-RCSID("$Id: ktutil.c,v 1.30 2001/01/25 12:44:37 assar Exp $");
+RCSID("$Id: ktutil.c,v 1.33 2001/05/10 16:04:27 assar Exp $");
 
 static int help_flag;
 static int version_flag;
 int verbose_flag;
 char *keytab_string; 
-
-static char keytab_buf[256];
+char keytab_buf[256];
 
 static int help(int argc, char **argv);
 
@@ -108,7 +107,6 @@ static struct getargs args[] = {
 static int num_args = sizeof(args) / sizeof(args[0]);
 
 krb5_context context;
-krb5_keytab keytab;
 
 static int
 help(int argc, char **argv)
@@ -129,7 +127,7 @@ main(int argc, char **argv)
 {
     int optind = 0;
     krb5_error_code ret;
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     ret = krb5_init_context(&context);
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
@@ -145,20 +143,8 @@ main(int argc, char **argv)
     argv += optind;
     if(argc == 0)
 	usage(1);
-    if(keytab_string) {
-	ret = krb5_kt_resolve(context, keytab_string, &keytab);
-    } else {
-	if(krb5_kt_default_name (context, keytab_buf, sizeof(keytab_buf)))
-	    strlcpy (keytab_buf, "unknown", sizeof(keytab_buf));
-	keytab_string = keytab_buf;
-
-	ret = krb5_kt_default(context, &keytab);
-    }
-    if(ret)
-	krb5_err(context, 1, ret, "resolving keytab");
     ret = sl_command(cmds, argc, argv);
     if(ret == -1)
 	krb5_warnx (context, "unrecognized command: %s", argv[0]);
-    krb5_kt_close(context, keytab);
     return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kadmin_locl.h,v 1.34 2000/09/19 12:46:18 assar Exp $
+ * $Id: kadmin_locl.h,v 1.36 2001/05/07 05:32:04 assar Exp $
  */
 
 #ifndef __ADMIN_LOCL_H__
@@ -83,7 +83,11 @@
 #endif
 #include <err.h>
 #include <roken.h>
+#ifdef HAVE_OPENSSL_DES_H
+#include <openssl/des.h>
+#else
 #include <des.h>
+#endif
 #include <krb5.h>
 #include <krb5_locl.h>
 #include <hdb.h>
@@ -152,6 +156,7 @@ int set_entry(krb5_context context,
 int
 foreach_principal(const char *exp, 
 		  int (*func)(krb5_principal, void*), 
+		  const char *funcname,
 		  void *data);
 
 void get_response(const char *prompt, const char *def, char *buf, size_t len);
@@ -176,7 +181,7 @@ random_password(char *pw, size_t len);
 
 /* kadm_conn.c */
 
-sig_atomic_t term_flag, doing_useful_work;
+extern sig_atomic_t term_flag, doing_useful_work;
 
 void parse_ports(krb5_context, const char*);
 int start_server(krb5_context);

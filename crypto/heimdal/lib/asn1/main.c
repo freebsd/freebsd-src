@@ -34,7 +34,7 @@
 #include "gen_locl.h"
 #include <getarg.h>
 
-RCSID("$Id: main.c,v 1.10 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: main.c,v 1.11 2001/02/20 01:44:52 assar Exp $");
 
 extern FILE *yyin;
 
@@ -61,7 +61,7 @@ main(int argc, char **argv)
     char *name = NULL;
     int optind = 0;
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     if(getarg(args, num_args, argc, argv, &optind))
 	usage(1);
     if(help_flag)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: convert_creds.c,v 1.15 2000/07/11 19:30:04 joda Exp $");
+RCSID("$Id: convert_creds.c,v 1.17 2001/05/14 06:14:45 assar Exp $");
 
 static krb5_error_code
 check_ticket_flags(TicketFlags f)
@@ -134,16 +134,15 @@ krb524_convert_creds_kdc(krb5_context context,
     krb5_creds *v5_creds = in_cred;
     krb5_keytype keytype;
 
-    ret = krb5_enctype_to_keytype (context, v5_creds->session.keytype,
-				   &keytype);
-    if (ret)
-	return ret;
+    keytype = v5_creds->session.keytype;
 
-    if (keytype != KEYTYPE_DES) {
+    if (keytype != ENCTYPE_DES_CBC_CRC) {
+	/* MIT krb524d doesn't like nothing but des-cbc-crc tickets,
+           so go get one */
 	krb5_creds template;
 
 	memset (&template, 0, sizeof(template));
-	template.session.keytype = KEYTYPE_DES;
+	template.session.keytype = ENCTYPE_DES_CBC_CRC;
 	ret = krb5_copy_principal (context, in_cred->client, &template.client);
 	if (ret) {
 	    krb5_free_creds_contents (context, &template);
@@ -197,6 +196,7 @@ krb524_convert_creds_kdc(krb5_context context,
     sp = krb5_storage_from_mem(reply.data, reply.length);
     if(sp == NULL) {
 	ret = ENOMEM;
+	krb5_set_error_string (context, "malloc: out of memory");
 	goto out2;
     }
     krb5_ret_int32(sp, &tmp);
@@ -204,10 +204,12 @@ krb524_convert_creds_kdc(krb5_context context,
     if(ret == 0) {
 	memset(v4creds, 0, sizeof(*v4creds));
 	ret = krb5_ret_int32(sp, &tmp);
-	if(ret) goto out;
+	if(ret)
+	    goto out;
 	v4creds->kvno = tmp;
 	ret = krb5_ret_data(sp, &ticket);
-	if(ret) goto out;
+	if(ret)
+	    goto out;
 	v4creds->ticket_st.length = ticket.length;
 	memcpy(v4creds->ticket_st.dat, ticket.data, ticket.length);
 	krb5_data_free(&ticket);
@@ -216,7 +218,8 @@ krb524_convert_creds_kdc(krb5_context context,
 				      v4creds->service, 
 				      v4creds->instance, 
 				      v4creds->realm);
-	if(ret) goto out;
+	if(ret)
+	    goto out;
 	v4creds->issue_date = v5_creds->times.authtime;
 	v4creds->lifetime = _krb_time_to_life(v4creds->issue_date,
 					      v5_creds->times.endtime);
@@ -224,7 +227,8 @@ krb524_convert_creds_kdc(krb5_context context,
 				      v4creds->pname, 
 				      v4creds->pinst, 
 				      realm);
-	if(ret) goto out;
+	if(ret)
+	    goto out;
 	memcpy(v4creds->session, v5_creds->session.keyvalue.data, 8);
     }
 out:

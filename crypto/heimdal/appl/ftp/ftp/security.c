@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -37,7 +37,7 @@
 #include "ftp_locl.h"
 #endif
 
-RCSID("$Id: security.c,v 1.17 2000/11/08 23:30:32 joda Exp $");
+RCSID("$Id: security.c,v 1.18 2001/02/07 10:49:43 assar Exp $");
 
 static enum protection_level command_prot;
 static enum protection_level data_prot;
@@ -166,6 +166,7 @@ sec_get_data(int fd, struct buffer *buf, int level)
 {
     int len;
     int b;
+    void *tmp;
 
     b = block_read(fd, &len, sizeof(len));
     if (b == 0)
@@ -173,7 +174,10 @@ sec_get_data(int fd, struct buffer *buf, int level)
     else if (b < 0)
 	return -1;
     len = ntohl(len);
-    buf->data = realloc(buf->data, len);
+    tmp = realloc(buf->data, len);
+    if (tmp == NULL)
+	return -1;
+    buf->data = tmp;
     b = block_read(fd, buf->data, len);
     if (b == 0)
 	return 0;
@@ -424,9 +428,17 @@ void
 auth(char *auth_name)
 {
     int i;
+    void *tmp;
+
     for(i = 0; (mech = mechs[i]) != NULL; i++){
 	if(!strcasecmp(auth_name, mech->name)){
-	    app_data = realloc(app_data, mech->size);
+	    tmp = realloc(app_data, mech->size);
+	    if (tmp == NULL) {
+		reply(431, "Unable to accept %s at this time", mech->name);
+		return;
+	    }
+	    app_data = tmp;
+
 	    if(mech->init && (*mech->init)(app_data) != 0) {
 		reply(431, "Unable to accept %s at this time", mech->name);
 		return;
@@ -443,6 +455,7 @@ auth(char *auth_name)
 	}
     }
     free (app_data);
+    app_data = NULL;
     reply(504, "%s is unknown to me", auth_name);
 }
 
@@ -776,9 +789,11 @@ sec_end(void)
     if (mech != NULL) {
 	if(mech->end)
 	    (*mech->end)(app_data);
-	memset(app_data, 0, mech->size);
-	free(app_data);
-	app_data = NULL;
+	if (app_data != NULL) {
+	    memset(app_data, 0, mech->size);
+	    free(app_data);
+	    app_data = NULL;
+	}
     }
     sec_complete = 0;
     data_prot = (enum protection_level)0;

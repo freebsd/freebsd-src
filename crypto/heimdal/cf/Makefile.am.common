@@ -1,4 +1,4 @@
-# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
@@ -176,3 +176,6 @@ LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
 LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
 endif
 
+if DCE
+LIB_kdfs = $(top_builddir)/lib/kdfs/libkdfs.la
+endif

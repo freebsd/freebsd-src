@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kpasswd_locl.h"
 
-RCSID("$Id: kpasswd-generator.c,v 1.2 2000/12/31 07:47:38 assar Exp $");
+RCSID("$Id: kpasswd-generator.c,v 1.4 2001/05/12 15:17:10 assar Exp $");
 
 static unsigned
 read_words (const char *filename, char ***ret_w)
@@ -63,6 +63,7 @@ read_words (const char *filename, char ***ret_w)
 static int
 nop_prompter (krb5_context context,
 	      void *data,
+	      const char *name,
 	      const char *banner,
 	      int num_prompts,
 	      krb5_prompt prompts[])
@@ -176,7 +177,7 @@ main(int argc, char **argv)
     int nreq;
     char *end;
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
     argc -= optind;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,13 +33,14 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: remove.c,v 1.1 2000/01/02 04:41:02 assar Exp $");
+RCSID("$Id: remove.c,v 1.2 2001/05/10 15:44:58 assar Exp $");
 
 int
 kt_remove(int argc, char **argv)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = 0;
     krb5_keytab_entry entry;
+    krb5_keytab keytab;
     char *principal_string = NULL;
     krb5_principal principal = NULL;
     int kvno = 0;
@@ -61,7 +62,7 @@ kt_remove(int argc, char **argv)
     args[i++].value = &help_flag;
     if(getarg(args, num_args, argc, argv, &optind)) {
 	arg_printusage(args, num_args, "ktutil remove", "");
-	return 0;
+	return 1;
     }
     if(help_flag) {
 	arg_printusage(args, num_args, "ktutil remove", "");
@@ -71,7 +72,7 @@ kt_remove(int argc, char **argv)
 	ret = krb5_parse_name(context, principal_string, &principal);
 	if(ret) {
 	    krb5_warn(context, ret, "%s", principal_string);
-	    return 0;
+	    return 1;
 	}
     }
     if(keytype_string) {
@@ -84,7 +85,7 @@ kt_remove(int argc, char **argv)
 		krb5_warn(context, ret, "%s", keytype_string);
 		if(principal)
 		    krb5_free_principal(context, principal);
-		return 0;
+		return 1;
 	    }
 	}
     }
@@ -92,12 +93,32 @@ kt_remove(int argc, char **argv)
 	krb5_warnx(context, 
 		   "You must give at least one of "
 		   "principal, enctype or kvno.");
-	return 0;
+	return 1;
     }
+
+    if (keytab_string == NULL) {
+	ret = krb5_kt_default_modify_name (context, keytab_buf,
+					   sizeof(keytab_buf));
+	if (ret) {
+	    krb5_warn(context, ret, "krb5_kt_default_modify_name");
+	    return 1;
+	}
+	keytab_string = keytab_buf;
+    }
+    ret = krb5_kt_resolve(context, keytab_string, &keytab);
+    if (ret) {
+	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+	return 1;
+    }
+
+    if (verbose_flag)
+	fprintf (stderr, "Using keytab %s\n", keytab_string);
+	
     entry.principal = principal;
     entry.keyblock.keytype = enctype;
     entry.vno = kvno;
     ret = krb5_kt_remove_entry(context, keytab, &entry);
+    krb5_kt_close(context, keytab);
     if(ret)
 	krb5_warn(context, ret, "remove");
     if(principal)

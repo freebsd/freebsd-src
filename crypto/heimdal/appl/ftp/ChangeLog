@@ -1,3 +1,25 @@
+2001-04-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ftpd/ftpd.c (do_store): call closefunc before claiming that
+	everything went ok, if the close fails the file might not have
+	been stored properly
+
+2001-03-26  Assar Westerlund  <assar@sics.se>
+
+	* ftpd/ftpd.c, ftpd/popen.c: always use GLOB_LIMIT
+	* ftpd/popen.c (ftpd_popen): use GLOB_LIMIT if defined
+	* ftpd/ftpd.c (send_file_list): use GLOB_LIMIT if defined
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* ftp/cmds.c (setpeer): handle both service names and port numbers
+	for the second optional argument.  also make parsing more robust
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* ftp/security.c (sec_end): only clean app_data if there is any
+	(*): do realloc consistently
+
 2001-02-05  Assar Westerlund  <assar@sics.se>
 
 	* ftpd/popen.c (ftpd_popen): avoid overwriting the bounds of argv

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: parse.y,v 1.16 2000/07/08 11:35:47 assar Exp $ */
+/* $Id: parse.y,v 1.17 2001/03/26 04:09:55 assar Exp $ */
 
 %{
 #ifdef HAVE_CONFIG_H
@@ -44,7 +44,7 @@
 #include "lex.h"
 #include "gen_locl.h"
 
-RCSID("$Id: parse.y,v 1.16 2000/07/08 11:35:47 assar Exp $");
+RCSID("$Id: parse.y,v 1.17 2001/03/26 04:09:55 assar Exp $");
 
 static Type *new_type (Typetype t);
 void yyerror (char *);
@@ -232,7 +232,8 @@ new_type (Typetype tt)
 {
   Type *t = malloc(sizeof(*t));
   if (t == NULL) {
-      error_message ("out of memory in malloc(%u)", sizeof(*t));
+      error_message ("out of memory in malloc(%lu)", 
+		     (unsigned long)sizeof(*t));
       exit (1);
   }
   t->type = tt;

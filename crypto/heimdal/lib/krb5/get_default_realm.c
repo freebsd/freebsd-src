@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_default_realm.c,v 1.8 1999/12/02 17:05:09 joda Exp $");
+RCSID("$Id: get_default_realm.c,v 1.9 2001/05/14 06:14:47 assar Exp $");
 
 /*
  * Return a NULL-terminated list of default realms in `realms'.
@@ -73,8 +73,10 @@ krb5_get_default_realm(krb5_context context,
     }
 
     res = strdup (context->default_realms[0]);
-    if (res == NULL)
+    if (res == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     *realm = res;
     return 0;
 }

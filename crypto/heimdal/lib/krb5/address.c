@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: address.c,v 1.14 1999/12/02 17:05:07 joda Exp $");
+RCSID("$Id: address.c,v 1.15 2001/05/14 06:14:44 assar Exp $");
 
 #if 0
 /* This is the supposedly MIT-api version */
@@ -128,8 +128,10 @@ krb5_append_addresses(krb5_context context,
     int i;
     if(source->len > 0) {
 	tmp = realloc(dest->val, (dest->len + source->len) * sizeof(*tmp));
-	if(tmp == NULL)
+	if(tmp == NULL) {
+	    krb5_set_error_string(context, "realloc: out of memory");
 	    return ENOMEM;
+	}
 	dest->val = tmp;
 	for(i = 0; i < source->len; i++) {
 	    /* skip duplicates */
@@ -151,18 +153,22 @@ krb5_append_addresses(krb5_context context,
  */
 
 krb5_error_code
-krb5_make_addrport (krb5_address **res, const krb5_address *addr, int16_t port)
+krb5_make_addrport (krb5_context context,
+		    krb5_address **res, const krb5_address *addr, int16_t port)
 {
     krb5_error_code ret;
     size_t len = addr->address.length + 2 + 4 * 4;
     u_char *p;
 
     *res = malloc (sizeof(**res));
-    if (*res == NULL)
+    if (*res == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return ENOMEM;
+    }
     (*res)->addr_type = KRB5_ADDRESS_ADDRPORT;
     ret = krb5_data_alloc (&(*res)->address, len);
     if (ret) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	free (*res);
 	return ret;
     }

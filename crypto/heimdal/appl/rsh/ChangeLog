@@ -1,3 +1,12 @@
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add login_access
+	* rshd.c (login_access): add prototype
+	(syslog_and_die, fatal): add printf attributes
+	(*): AIX -> _AIX
+	(doit): use login_access
+	based on patches from Ake Sandgren <ake@cs.umu.se>
+
 2001-01-09  Assar Westerlund  <assar@sics.se>
 
 	* rshd.c (save_krb5_creds): use krb5_rd_cred2 instead of

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: addr_families.c,v 1.24 2000/07/08 13:05:43 joda Exp $");
+RCSID("$Id: addr_families.c,v 1.26 2001/05/14 22:49:55 assar Exp $");
 
 struct addr_operations {
     int af;
@@ -386,33 +386,45 @@ find_atype(int atype)
 }
 
 krb5_error_code
-krb5_sockaddr2address (const struct sockaddr *sa, krb5_address *addr)
+krb5_sockaddr2address (krb5_context context,
+		       const struct sockaddr *sa, krb5_address *addr)
 {
     struct addr_operations *a = find_af(sa->sa_family);
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string (context, "Address family %d not supported",
+			       sa->sa_family);
 	return KRB5_PROG_ATYPE_NOSUPP;
+    }
     return (*a->sockaddr2addr)(sa, addr);
 }
 
 krb5_error_code
-krb5_sockaddr2port (const struct sockaddr *sa, int16_t *port)
+krb5_sockaddr2port (krb5_context context,
+		    const struct sockaddr *sa, int16_t *port)
 {
     struct addr_operations *a = find_af(sa->sa_family);
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string (context, "Address family %d not supported",
+			       sa->sa_family);
 	return KRB5_PROG_ATYPE_NOSUPP;
+    }
     return (*a->sockaddr2port)(sa, port);
 }
 
 krb5_error_code
-krb5_addr2sockaddr (const krb5_address *addr,
+krb5_addr2sockaddr (krb5_context context,
+		    const krb5_address *addr,
 		    struct sockaddr *sa,
 		    int *sa_size,
 		    int port)
 {
     struct addr_operations *a = find_atype(addr->addr_type);
 
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string (context, "Address type %d not supported",
+			       addr->addr_type);
 	return KRB5_PROG_ATYPE_NOSUPP;
+    }
     (*a->addr2sockaddr)(addr, sa, sa_size, port);
     return 0;
 }
@@ -439,37 +451,46 @@ krb5_sockaddr_uninteresting(const struct sockaddr *sa)
 }
 
 krb5_error_code
-krb5_h_addr2sockaddr (int af,
+krb5_h_addr2sockaddr (krb5_context context,
+		      int af,
 		      const char *addr, struct sockaddr *sa, int *sa_size,
 		      int port)
 {
     struct addr_operations *a = find_af(af);
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string (context, "Address family %d not supported", af);
 	return KRB5_PROG_ATYPE_NOSUPP;
+    }
     (*a->h_addr2sockaddr)(addr, sa, sa_size, port);
     return 0;
 }
 
 krb5_error_code
-krb5_h_addr2addr (int af,
+krb5_h_addr2addr (krb5_context context,
+		  int af,
 		  const char *haddr, krb5_address *addr)
 {
     struct addr_operations *a = find_af(af);
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string (context, "Address family %d not supported", af);
 	return KRB5_PROG_ATYPE_NOSUPP;
+    }
     return (*a->h_addr2addr)(haddr, addr);
 }
 
 krb5_error_code
-krb5_anyaddr (int af,
+krb5_anyaddr (krb5_context context,
+	      int af,
 	      struct sockaddr *sa,
 	      int *sa_size,
 	      int port)
 {
     struct addr_operations *a = find_af (af);
 
-    if (a == NULL)
+    if (a == NULL) {
+	krb5_set_error_string (context, "Address family %d not supported", af);
 	return KRB5_PROG_ATYPE_NOSUPP;
+    }
 
     (*a->anyaddr)(sa, sa_size, port);
     return 0;
@@ -509,6 +530,7 @@ krb5_parse_address(krb5_context context,
     int i, n;
     struct addrinfo *ai, *a;
     int error;
+    int save_errno;
 
     for(i = 0; i < num_addrs; i++) {
 	if(at[i].parse_addr) {
@@ -522,8 +544,11 @@ krb5_parse_address(krb5_context context,
     }
 
     error = getaddrinfo (string, NULL, NULL, &ai);
-    if (error)
-	return krb5_eai_to_heim_errno(error);
+    if (error) {
+	save_errno = errno;
+	krb5_set_error_string (context, "%s: %s", string, gai_strerror(error));
+	return krb5_eai_to_heim_errno(error, save_errno);
+    }
     
     n = 0;
     for (a = ai; a != NULL; a = a->ai_next)
@@ -532,7 +557,7 @@ krb5_parse_address(krb5_context context,
     ALLOC_SEQ(addresses, n);
 
     for (a = ai, i = 0; a != NULL; a = a->ai_next, ++i) {
-	krb5_sockaddr2address (ai->ai_addr, &addresses->val[i]);
+	krb5_sockaddr2address (context, ai->ai_addr, &addresses->val[i]);
     }
     freeaddrinfo (ai);
     return 0;

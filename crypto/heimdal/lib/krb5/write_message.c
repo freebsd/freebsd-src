@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: write_message.c,v 1.6 2000/07/21 23:49:09 joda Exp $");
+RCSID("$Id: write_message.c,v 1.7 2001/05/14 06:14:52 assar Exp $");
 
 krb5_error_code
 krb5_write_message (krb5_context context,
@@ -42,12 +42,16 @@ krb5_write_message (krb5_context context,
 {
     u_int32_t len;
     u_int8_t buf[4];
+    int ret;
 
     len = data->length;
     _krb5_put_int(buf, len, 4);
     if (krb5_net_write (context, p_fd, buf, 4) != 4
-	|| krb5_net_write (context, p_fd, data->data, len) != len)
-	return errno;
+	|| krb5_net_write (context, p_fd, data->data, len) != len) {
+	ret = errno;
+	krb5_set_error_string (context, "write: %s", strerror(ret));
+	return ret;
+    }
     return 0;
 }
 
@@ -59,6 +63,7 @@ krb5_write_priv_message(krb5_context context,
 {
     krb5_error_code ret;
     krb5_data packet;
+
     ret = krb5_mk_priv (context, ac, data, &packet, NULL);
     if(ret)
 	return ret;

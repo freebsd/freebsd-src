@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: sock_principal.c,v 1.11 2000/08/09 20:53:11 assar Exp $");
+RCSID("$Id: sock_principal.c,v 1.13 2001/05/14 06:14:51 assar Exp $");
 			
 krb5_error_code
 krb5_sock_to_principal (krb5_context context,
@@ -49,14 +49,16 @@ krb5_sock_to_principal (krb5_context context,
     socklen_t len = sizeof(__ss);
     struct hostent *hostent;
     int family;
-    char hname[256];
-    char *tmp;
+    char *hname = NULL;
 
-    if (getsockname (sock, sa, &len) < 0)
-	return errno;
+    if (getsockname (sock, sa, &len) < 0) {
+	ret = errno;
+	krb5_set_error_string (context, "getsockname: %s", strerror(ret));
+	return ret;
+    }
     family = sa->sa_family;
     
-    ret = krb5_sockaddr2address (sa, &address);
+    ret = krb5_sockaddr2address (context, sa, &address);
     if (ret)
 	return ret;
 
@@ -64,20 +66,22 @@ krb5_sock_to_principal (krb5_context context,
 				   address.address.length,
 				   family);
 
-    if (hostent == NULL)
-	return h_errno;
-    tmp = hostent->h_name;
-    if (strchr(tmp, '.') == NULL) {
+    if (hostent == NULL) {
+	krb5_set_error_string (context, "gethostbyaddr: %s",
+			       hstrerror(h_errno));
+	return krb5_h_errno_to_heim_errno(h_errno);
+    }
+    hname = hostent->h_name;
+    if (strchr(hname, '.') == NULL) {
 	char **a;
 
 	for (a = hostent->h_aliases; a != NULL && *a != NULL; ++a)
 	    if (strchr(*a, '.') != NULL) {
-		tmp = *a;
+		hname = *a;
 		break;
 	    }
     }
 
-    strlcpy(hname, tmp, sizeof(hname));
     return krb5_sname_to_principal (context,
 				    hname,
 				    sname,

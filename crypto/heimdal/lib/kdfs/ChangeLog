@@ -1,3 +1,7 @@
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* k5dfspag.c: add config.h
+
 2000-12-11  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (libkdfs_la_LDFLAGS): set version to 0:1:0
