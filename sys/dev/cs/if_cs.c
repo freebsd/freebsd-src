@@ -114,7 +114,7 @@ SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RW,
   "ignore checksum errors in cs card EEPROM");
 
 static int	cs_recv_delay = 570;
-TUNABLE_INT("hw.cs.recv_delay", &cs_ignore_cksum_failure);
+TUNABLE_INT("hw.cs.recv_delay", &cs_recv_delay);
 SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RW, &cs_recv_delay, 570, "");
 
 static int
