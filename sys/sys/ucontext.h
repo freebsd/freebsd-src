@@ -50,4 +50,11 @@ typedef struct __ucontext {
 	int		__spare__[8];
 } ucontext_t;
 
+#ifndef _KERNEL
+int	getcontext(ucontext_t *);
+int	setcontext(const ucontext_t *);
+void	makecontext(ucontext_t *, void (*)(void), int, ...);
+int	swapcontext(ucontext_t *, const ucontext_t *);
+#endif /* !_KERNEL */
+
 #endif /* !_SYS_UCONTEXT_H_ */
