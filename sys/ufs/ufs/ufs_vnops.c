@@ -97,7 +97,6 @@ static vop_mkdir_t	ufs_mkdir;
 static vop_mknod_t	ufs_mknod;
 static vop_open_t	ufs_open;
 static vop_pathconf_t	ufs_pathconf;
-static vop_lock_t	ufs_lock;
 static vop_print_t	ufs_print;
 static vop_readlink_t	ufs_readlink;
 static vop_remove_t	ufs_remove;
@@ -1950,33 +1949,6 @@ ufs_strategy(ap)
 }
 
 /*
- * Snapshots require all lock requests to be exclusive.
- */
-static int
-ufs_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	int flags = ap->a_flags;
-
-	if ((VTOI(vp)->i_flags & SF_SNAPSHOT) &&
-	    ((flags & LK_TYPE_MASK) == LK_SHARED)) {
-		flags &= ~LK_TYPE_MASK;
-		flags |= LK_EXCLUSIVE;
-	}
-#ifndef	DEBUG_LOCKS
-	return (lockmgr(vp->v_vnlock, flags, VI_MTX(vp), ap->a_td));
-#else
-	return (debuglockmgr(vp->v_vnlock, flags, VI_MTX(vp),
-	    ap->a_td, "vop_stdlock", vp->filename, vp->line));
-#endif
-}
-
-/*
  * Print out the contents of an inode.
  */
 static int
@@ -2525,7 +2497,6 @@ struct vop_vector ufs_vnodeops = {
 	.vop_write =		VOP_PANIC,
 	.vop_access =		ufs_access,
 	.vop_advlock =		ufs_advlock,
-	.vop_lock =		ufs_lock,
 	.vop_bmap =		ufs_bmap,
 	.vop_cachedlookup =	ufs_lookup,
 	.vop_close =		ufs_close,

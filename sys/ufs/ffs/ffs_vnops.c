@@ -97,11 +97,13 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 #include "opt_directio.h"
+#include "opt_ffs.h"
 
 #ifdef DIRECTIO
 extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
 static vop_fsync_t	ffs_fsync;
+static vop_lock_t	ffs_lock;
 static vop_getpages_t	ffs_getpages;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
@@ -122,6 +124,7 @@ struct vop_vector ffs_vnodeops = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
 	.vop_getpages =		ffs_getpages,
+	.vop_lock =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -136,6 +139,7 @@ struct vop_vector ffs_vnodeops = {
 struct vop_vector ffs_fifoops = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
+	.vop_lock =		ffs_lock,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_strategy =		ffsext_strategy,
 	.vop_closeextattr =	ffs_closeextattr,
@@ -302,6 +306,26 @@ loop:
 	return (UFS_UPDATE(vp, wait));
 }
 
+/*
+ * Snapshots require all lock requests to be exclusive.
+ */
+static int
+ffs_lock(ap)
+	struct vop_lock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct thread *a_td;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	if ((VTOI(vp)->i_flags & SF_SNAPSHOT) &&
+	    ((ap->a_flags & LK_TYPE_MASK) == LK_SHARED)) {
+		ap->a_flags &= ~LK_TYPE_MASK;
+		ap->a_flags |= LK_EXCLUSIVE;
+	}
+	return (VOP_LOCK_APV(&ufs_vnodeops, ap));
+}
 
 /*
  * Vnode op for reading.
