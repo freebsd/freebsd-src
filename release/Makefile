@@ -138,7 +138,7 @@ COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
 .else
 COMPAT_DISTS?=	compat4x
 .endif
-OTHER_DISTS?=	games catpages manpages proflibs dict info doc
+OTHER_DISTS?=	catpages manpages games proflibs dict info doc
 CRYPTO_DISTS?=	crypto krb4 krb5
 BASE_DISTS?=	base
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
