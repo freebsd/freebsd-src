@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: nd6.h,v 1.55 2001/04/27 15:09:49 itojun Exp $	*/
+/*	$KAME: nd6.h,v 1.76 2001/12/18 02:10:31 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -80,7 +80,7 @@ struct nd_ifinfo {
 	int recalctm;			/* BaseReacable re-calculation timer */
 	u_int8_t chlim;			/* CurHopLimit */
 	u_int8_t receivedra;
-	/* the followings are for privacy extension for addrconf */
+	/* the following 3 members are for privacy extension for addrconf */
 	u_int8_t randomseed0[8]; /* upper 64 bits of MD5 digest */
 	u_int8_t randomseed1[8]; /* lower 64 bits (usually the EUI64 IFID) */
 	u_int8_t randomid[8];	/* current random ID */
@@ -125,9 +125,9 @@ struct	in6_prlist {
 		struct prf_ra raflags;
 		u_char	prefixlen;
 		u_char	origin;
-		u_long	vltime;
-		u_long	pltime;
-		u_long	expire;
+		u_int32_t vltime;
+		u_int32_t pltime;
+		time_t expire;
 		u_short if_index;
 		u_short advrtrs; /* number of advertisement routers */
 		struct	in6_addr advrtr[DRLSTSIZ]; /* XXX: explicit limit */
@@ -181,8 +181,8 @@ struct	in6_ndifreq {
 #define NDPRF_DETACHED		0x2
 
 /* protocol constants */
-#define MAX_RTR_SOLICITATION_DELAY	1	/*1sec*/
-#define RTR_SOLICITATION_INTERVAL	4	/*4sec*/
+#define MAX_RTR_SOLICITATION_DELAY	1	/* 1sec */
+#define RTR_SOLICITATION_INTERVAL	4	/* 4sec */
 #define MAX_RTR_SOLICITATIONS		3
 
 #define ND6_INFINITE_LIFETIME		0xffffffff
@@ -206,7 +206,7 @@ TAILQ_HEAD(nd_drhead, nd_defrouter);
 struct	nd_defrouter {
 	TAILQ_ENTRY(nd_defrouter) dr_entry;
 	struct	in6_addr rtaddr;
-	u_char	flags;
+	u_char	flags;		/* flags on RA message */
 	u_short	rtlifetime;
 	u_long	expire;
 	u_long	advint;		/* Mobile IPv6 addition (milliseconds) */
@@ -308,12 +308,12 @@ extern u_int32_t ip6_temp_valid_lifetime; /* seconds */
 extern int ip6_temp_regen_advance; /* seconds */
 
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[9];	/*max = home agent info*/
+	struct nd_opt_hdr *nd_opt_array[9];	/* max = home agent info */
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
 		struct nd_opt_hdr *tgt_lladdr;
-		struct nd_opt_prefix_info *pi_beg;/* multiple opts, start */
+		struct nd_opt_prefix_info *pi_beg; /* multiple opts, start */
 		struct nd_opt_rd_hdr *rh;
 		struct nd_opt_mtu *mtu;
 		struct nd_opt_hdr *six;

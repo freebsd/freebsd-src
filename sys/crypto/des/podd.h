@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: podd.h,v 1.3 2000/03/27 04:36:34 sumikawa Exp $	*/
+/*	$KAME: podd.h,v 1.4 2001/09/10 04:03:58 itojun Exp $	*/
 
 /* crypto/des/podd.h */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)

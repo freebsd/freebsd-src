@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_input.c,v 1.194 2001/05/27 13:28:35 itojun Exp $	*/
+/*	$KAME: ip6_input.c,v 1.259 2002/01/21 04:58:09 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -100,7 +100,7 @@
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#endif /*INET*/
+#endif /* INET */
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
@@ -147,7 +147,6 @@ struct ip6stat ip6stat;
 
 static void ip6_init2 __P((void *));
 static struct mbuf *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
-
 static int ip6_hopopts_input __P((u_int32_t *, u_int32_t *, struct mbuf **, int *));
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr __P((struct mbuf *, size_t, int));
@@ -279,7 +278,7 @@ ip6_input(m)
 	ip6_delaux(m);
 
 	/*
-	 * mbuf statistics by kazu
+	 * mbuf statistics
 	 */
 	if (m->m_flags & M_EXT) {
 		if (m->m_next)
@@ -290,7 +289,7 @@ ip6_input(m)
 #define M2MMAX	(sizeof(ip6stat.ip6s_m2m)/sizeof(ip6stat.ip6s_m2m[0]))
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
-				ip6stat.ip6s_m2m[loif[0].if_index]++;	/*XXX*/
+				ip6stat.ip6s_m2m[loif[0].if_index]++;	/* XXX */
 			} else if (m->m_pkthdr.rcvif->if_index < M2MMAX)
 				ip6stat.ip6s_m2m[m->m_pkthdr.rcvif->if_index]++;
 			else
@@ -322,7 +321,7 @@ ip6_input(m)
 				n = NULL;
 			}
 		}
-		if (!n) {
+		if (n == NULL) {
 			m_freem(m);
 			return;	/*ENOBUFS*/
 		}
@@ -412,6 +411,7 @@ ip6_input(m)
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
+
 	/*
 	 * The following check is not documented in specs.  A malicious
 	 * party may be able to use IPv4 mapped addr to confuse tcp/udp stack
@@ -635,7 +635,7 @@ ip6_input(m)
 		 && ip6_forward_rt.ro_rt->rt_ifp->if_type == IFT_FAITH) {
 			/* XXX do we need more sanity checks? */
 			ours = 1;
-			deliverifp = ip6_forward_rt.ro_rt->rt_ifp; /*faith*/
+			deliverifp = ip6_forward_rt.ro_rt->rt_ifp; /* faith */
 			goto hbhcheck;
 		}
 	}
@@ -692,7 +692,7 @@ ip6_input(m)
 		ip6 = mtod(m, struct ip6_hdr *);
 
 		/*
-		 * if the payload length field is 0 and the next header field  
+		 * if the payload length field is 0 and the next header field
 		 * indicates Hop-by-Hop Options header, then a Jumbo Payload
 		 * option MUST be included.
 		 */

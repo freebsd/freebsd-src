@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: frag6.c,v 1.31 2001/05/17 13:45:34 jinmei Exp $	*/
+/*	$KAME: frag6.c,v 1.33 2002/01/07 11:34:48 kjc Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.

@@ -368,7 +368,7 @@ icmp6_error(m, type, code, param)
 	m->m_pkthdr.rcvif = NULL;
 
 	icmp6stat.icp6s_outhist[type]++;
-	icmp6_reflect(m, sizeof(struct ip6_hdr)); /*header order: IPv6 - ICMPv6*/
+	icmp6_reflect(m, sizeof(struct ip6_hdr)); /* header order: IPv6 - ICMPv6 */
 
 	return;
 
@@ -396,7 +396,7 @@ icmp6_input(mp, offp, proto)
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct icmp6_hdr), IPPROTO_DONE);
-	/* m might change if M_LOOP. So, call mtod after this */
+	/* m might change if M_LOOP.  So, call mtod after this */
 #endif
 
 	/*
@@ -629,7 +629,7 @@ icmp6_input(mp, offp, proto)
 
 	case MLD6_MTRACE_RESP:
 	case MLD6_MTRACE:
-		/* XXX: these two are experimental. not officially defind. */
+		/* XXX: these two are experimental.  not officially defind. */
 		/* XXX: per-interface statistics? */
 		break;		/* just pass it to applications */
 
@@ -698,9 +698,9 @@ icmp6_input(mp, offp, proto)
 			bcopy(icmp6, nicmp6, sizeof(struct icmp6_hdr));
 			p = (u_char *)(nicmp6 + 1);
 			bzero(p, 4);
-			bcopy(hostname, p + 4, maxhlen); /*meaningless TTL*/
+			bcopy(hostname, p + 4, maxhlen); /* meaningless TTL */
 			noff = sizeof(struct ip6_hdr);
-			M_COPY_PKTHDR(n, m); /* just for recvif */
+			M_COPY_PKTHDR(n, m); /* just for rcvif */
 			n->m_pkthdr.len = n->m_len = sizeof(struct ip6_hdr) +
 				sizeof(struct icmp6_hdr) + 4 + maxhlen;
 			nicmp6->icmp6_type = ICMP6_WRUREPLY;
@@ -891,7 +891,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 		struct ip6_rthdr0 *rth0;
 		int rthlen;
 
-		while (1) { /* XXX: should avoid inf. loop explicitly? */
+		while (1) { /* XXX: should avoid infinite loop explicitly? */
 			struct ip6_ext *eh;
 
 			switch (nxt) {
@@ -1005,7 +1005,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 			default:
 				/*
 				 * This case includes ESP and the No Next
-				 * Header. In such cases going to the notify
+				 * Header.  In such cases going to the notify
 				 * label does not have any meaning
 				 * (i.e. ctlfunc will be NULL), but we go
 				 * anyway since we might have to update
@@ -1137,8 +1137,9 @@ icmp6_mtudisc_update(ip6cp, validated)
 			rt->rt_rmx.rmx_mtu = mtu;
 		}
 	}
-	if (rt)
+	if (rt) { /* XXX: need braces to avoid conflict with else in RTFREE. */
 		RTFREE(rt);
+	}
 }
 
 /*
@@ -1554,7 +1555,7 @@ ni6_nametodns(name, namelen, old)
 	}
 
 	panic("should not reach here");
-	/*NOTREACHED*/
+	/* NOTREACHED */
 
  fail:
 	if (m)
@@ -1705,7 +1706,7 @@ ni6_addrs(ni6, m, ifpp, subj)
 
 			/*
 			 * check if anycast is okay.
-			 * XXX: just experimental. not in the spec.
+			 * XXX: just experimental.  not in the spec.
 			 */
 			if ((ifa6->ia6_flags & IN6_IFF_ANYCAST) != 0 &&
 			    (niflags & NI_NODEADDR_FLAG_ANYCAST) == 0)
@@ -2106,7 +2107,7 @@ icmp6_reflect(m, off)
 	if (ia == NULL && IN6_IS_ADDR_LINKLOCAL(&t) && (m->m_flags & M_LOOP)) {
 		/*
 		 * This is the case if the dst is our link-local address
-		 * and the sender is also ourseleves.
+		 * and the sender is also ourselves.
 		 */
 		src = &t;
 	}
@@ -2117,7 +2118,7 @@ icmp6_reflect(m, off)
 
 		/*
 		 * This case matches to multicasts, our anycast, or unicasts
-		 * that we do not own. Select a source address based on the
+		 * that we do not own.  Select a source address based on the
 		 * source address of the erroneous packet.
 		 */
 		bzero(&ro, sizeof(ro));
@@ -2352,7 +2353,7 @@ icmp6_redirect_input(m, off)
 	nd6_cache_lladdr(ifp, &redtgt6, lladdr, lladdrlen, ND_REDIRECT,
 			 is_onlink ? ND_REDIRECT_ONLINK : ND_REDIRECT_ROUTER);
 
-	if (!is_onlink) {	/* better router case. perform rtredirect. */
+	if (!is_onlink) {	/* better router case.  perform rtredirect. */
 		/* perform rtredirect */
 		struct sockaddr_in6 sdst;
 		struct sockaddr_in6 sgw;
@@ -2540,7 +2541,7 @@ icmp6_redirect_output(m0, rt)
 	if (!rt_router)
 		goto nolladdropt;
 	len = sizeof(*nd_opt) + ifp->if_addrlen;
-	len = (len + 7) & ~7;	/*round by 8*/
+	len = (len + 7) & ~7;	/* round by 8 */
 	/* safety check */
 	if (len + (p - (u_char *)ip6) > maxlen)
 		goto nolladdropt;
@@ -2798,11 +2799,11 @@ ppsratecheck(lasttime, curpps, maxpps)
 	timersub(&tv, lasttime, &delta);
 
 	/*
-	 * check for 0,0 is so that the message will be seen at least once.
-	 * if more than one second have passed since the last update of
+	 * Check for 0,0 so that the message will be seen at least once.
+	 * If more than one second has passed since the last update of
 	 * lasttime, reset the counter.
 	 *
-	 * we do increment *curpps even in *curpps < maxpps case, as some may
+	 * We do increment *curpps even in *curpps < maxpps case, as some may
 	 * try to use *curpps for stat purposes as well.
 	 */
 	if ((lasttime->tv_sec == 0 && lasttime->tv_usec == 0) ||
@@ -2817,7 +2818,7 @@ ppsratecheck(lasttime, curpps, maxpps)
 	else
 		rv = 0;
 
-#if 1 /*DIAGNOSTIC?*/
+#if 1 /* DIAGNOSTIC? */
 	/* be careful about wrap-around */
 	if (*curpps + 1 > *curpps)
 		*curpps = *curpps + 1;
@@ -2852,7 +2853,7 @@ icmp6_ratelimit(dst, type, code)
 {
 	int ret;
 
-	ret = 0;	/*okay to send*/
+	ret = 0;	/* okay to send */
 
 	/* PPS limit */
 	if (!ppsratecheck(&icmp6errppslim_last, &icmp6errpps_count,
