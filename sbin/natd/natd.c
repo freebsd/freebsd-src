@@ -11,19 +11,9 @@
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <ctype.h>
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <errno.h>
-#include <signal.h>
-
-#include <netdb.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -35,9 +25,17 @@
 #include <net/route.h>
 #include <arpa/inet.h>
 
-#include <syslog.h>
 #include <alias.h>
-
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <netdb.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 #include "natd.h"
 
 /* 
@@ -136,28 +134,18 @@ int main (int argc, char** argv)
 /*
  * Check that valid aliasing address has been given.
  */
-	if (aliasAddr.s_addr == INADDR_NONE && ifName == NULL) {
+	if (aliasAddr.s_addr == INADDR_NONE && ifName == NULL)
+		errx(1, "aliasing address not given");
 
-		fprintf (stderr, "Aliasing address not given.\n");
-		exit (1);
-	}
-
-	if (aliasAddr.s_addr != INADDR_NONE && ifName != NULL) {
-
-		fprintf (stderr, "Both alias address and interface name "
-				 "are not allowed.\n");
-		exit (1);
-	}
+	if (aliasAddr.s_addr != INADDR_NONE && ifName != NULL)
+		errx(1,
+		"both alias address and interface name are not allowed");
 /*
  * Check that valid port number is known.
  */
 	if (inPort != 0 || outPort != 0)
-		if (inPort == 0 || outPort == 0) {
-
-			fprintf (stderr, "Both input and output ports"
-					 " are required.\n");
-			exit (1);
-		}
+		if (inPort == 0 || outPort == 0)
+			errx(1, "both input and output ports are required");
 
 	if (inPort == 0 && outPort == 0 && inOutPort == 0)
 		ParseOption ("port", DEFAULT_SERVICE, 0);
@@ -388,7 +376,7 @@ static void ParseArgs (int argc, char** argv)
 		opt  = argv[arg];
 		if (*opt != '-') {
 
-			fprintf (stderr, "Invalid option %s.\n", opt);
+			warnx ("invalid option %s", opt);
 			Usage ();
 		}
 
@@ -439,7 +427,7 @@ static void DoAliasing (int fd)
 	if (origBytes == -1) {
 
 		if (errno != EINTR)
-			Warn ("Read from divert socket failed.");
+			Warn ("read from divert socket failed");
 
 		return;
 	}
@@ -560,7 +548,7 @@ static void FlushPacketBuffer (int fd)
 		}
 		else {
 
-			sprintf (msgBuf, "Failed to write packet back.");
+			sprintf (msgBuf, "failed to write packet back");
 			Warn (msgBuf);
 		}
 	}
@@ -578,13 +566,13 @@ static void HandleRoutingInfo (int fd)
 	bytes = read (fd, &ifMsg, sizeof ifMsg);
 	if (bytes == -1) {
 
-		Warn ("Read from routing socket failed.");
+		Warn ("read from routing socket failed");
 		return;
 	}
 
 	if (ifMsg.ifm_version != RTM_VERSION) {
 
-		Warn ("Unexpected packet read from routing socket.");
+		Warn ("unexpected packet read from routing socket");
 		return;
 	}
 
@@ -728,7 +716,7 @@ void Warn (char* msg)
 	if (background)
 		syslog (LOG_ALERT, "%s (%m)", msg);
 	else
-		perror (msg);
+		warn (msg);
 }
 
 static void RefreshAddr ()
@@ -962,7 +950,7 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 
 	if (i >= max) {
 
-		fprintf (stderr, "Unknown option %s.\n", option);
+		warnx ("unknown option %s", option);
 		Usage ();
 	}
 
@@ -982,22 +970,14 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 		else
 			if (!strcmp (parms, "no"))
 				yesNoValue = 0;
-			else {
-
-				fprintf (stderr, "%s needs yes/no parameter.\n",
-						 option);
-				exit (1);
-			}
+			else
+				errx(1, "%s needs yes/no parameter", option);
 		break;
 
 	case Service:
-		if (!parms) {
-
-			fprintf (stderr, "%s needs service name or "
-					 "port number  parameter.\n",
-					 option);
-			exit (1);
-		}
+		if (!parms)
+			errx(1,
+		"%s needs service name or port number parameter", option);
 
 		numValue = StrToPort (parms, "divert");
 		break;
@@ -1008,40 +988,24 @@ static void ParseOption (char* option, char* parms, int cmdLine)
 		else
 			end = parms;
 
-		if (end == parms) {
-
-			fprintf (stderr, "%s needs numeric parameter.\n",
-					 option);
-			exit (1);
-		}
+		if (end == parms)
+			errx(1, "%s needs numeric parameter", option);
 		break;
 
 	case String:
 		strValue = parms;
-		if (!strValue) {
-
-			fprintf (stderr, "%s needs parameter.\n",
-					 option);
-			exit (1);
-		}
+		if (!strValue)
+			errx(1, "%s needs parameter", option);
 		break;
 
 	case None:
-		if (parms) {
-
-			fprintf (stderr, "%s does not take parameters.\n",
-					 option);
-			exit (1);
-		}
+		if (parms)
+			errx(1, "%s does not take parameters", option);
 		break;
 
 	case Address:
-		if (!parms) {
-
-			fprintf (stderr, "%s needs address/host parameter.\n",
-					 option);
-			exit (1);
-		}
+		if (!parms)
+			errx(1, "%s needs address/host parameter", option);
 
 		StrToAddr (parms, &addrValue);
 		break;
@@ -1121,11 +1085,8 @@ void ReadConfigFile (char* fileName)
 	while (fgets (buf, sizeof (buf), file)) {
 
 		ptr = strchr (buf, '\n');
-		if (!ptr) {
-
-			fprintf (stderr, "config line too link: %s\n", buf);
-			exit (1);
-		}
+		if (!ptr)
+			errx(1, "config line too link: %s", buf);
 
 		*ptr = '\0';
 		if (buf[0] == '#')
@@ -1205,44 +1166,32 @@ void SetupPermanentLink (char* parms)
  * Extract protocol.
  */
 	protoName = strtok (buf, " \t");
-	if (!protoName) {
-
-		fprintf (stderr, "permanent_link: missing protocol.\n");
-		exit (1);
-	}
+	if (!protoName)
+		errx(1, "permanent_link: missing protocol");
 
 	proto = StrToProto (protoName);
 /*
  * Extract source address.
  */
 	ptr = strtok (NULL, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "permanent_link: missing src address.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "permanent_link: missing src address");
 
 	srcPort = StrToAddrAndPort (ptr, &srcAddr, protoName);
 /*
  * Extract destination address.
  */
 	ptr = strtok (NULL, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "permanent_link: missing dst address.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "permanent_link: missing dst address");
 
 	dstPort = StrToAddrAndPort (ptr, &dstAddr, protoName);
 /*
  * Export alias port.
  */
 	ptr = strtok (NULL, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "permanent_link: missing alias port.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "permanent_link: missing alias port");
 
 	aliasPort = StrToPort (ptr, protoName);
 
@@ -1273,33 +1222,24 @@ void SetupPortRedirect (char* parms)
  * Extract protocol.
  */
 	protoName = strtok (buf, " \t");
-	if (!protoName) {
-
-		fprintf (stderr, "redirect_port: missing protocol.\n");
-		exit (1);
-	}
+	if (!protoName)
+		errx(1, "redirect_port: missing protocol");
 
 	proto = StrToProto (protoName);
 /*
  * Extract local address.
  */
 	ptr = strtok (NULL, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "redirect_port: missing local address.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "redirect_port: missing local address");
 
 	localPort = StrToAddrAndPort (ptr, &localAddr, protoName);
 /*
  * Extract public port and optinally address.
  */
 	ptr = strtok (NULL, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "redirect_port: missing public port.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "redirect_port: missing public port");
 
 	separator = strchr (ptr, ':');
 	if (separator)
@@ -1355,22 +1295,16 @@ void SetupAddressRedirect (char* parms)
  * Extract local address.
  */
 	ptr = strtok (buf, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "redirect_address: missing local address.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "redirect_address: missing local address");
 
 	StrToAddr (ptr, &localAddr);
 /*
  * Extract public address.
  */
 	ptr = strtok (NULL, " \t");
-	if (!ptr) {
-
-		fprintf (stderr, "redirect_address: missing public address.\n");
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "redirect_address: missing public address");
 
 	StrToAddr (ptr, &publicAddr);
 	PacketAliasRedirectAddr (localAddr, publicAddr);
@@ -1384,11 +1318,8 @@ void StrToAddr (char* str, struct in_addr* addr)
 		return;
 
 	hp = gethostbyname (str);
-	if (!hp) {
-
-		fprintf (stderr, "Unknown host %s.\n", str);
-		exit (1);
-	}
+	if (!hp)
+		errx(1, "unknown host %s", str);
 
 	memcpy (addr, hp->h_addr, sizeof (struct in_addr));
 }
@@ -1404,12 +1335,8 @@ int StrToPort (char* str, char* proto)
 		return htons (port);
 
 	sp = getservbyname (str, proto);
-	if (!sp) {
-
-		fprintf (stderr, "Unknown service %s/%s.\n",
-				 str, proto);
-		exit (1);
-	}
+	if (!sp)
+		errx(1, "unknown service %s/%s", str, proto);
 
 	return sp->s_port;
 }
@@ -1422,8 +1349,7 @@ int StrToProto (char* str)
 	if (!strcmp (str, "udp"))
 		return IPPROTO_UDP;
 
-	fprintf (stderr, "Unknown protocol %s. Expected tcp or udp.\n", str);
-	exit (1);
+	errx(1, "unknown protocol %s. Expected tcp or udp", str);
 }
 
 int StrToAddrAndPort (char* str, struct in_addr* addr, char* proto)
@@ -1431,11 +1357,8 @@ int StrToAddrAndPort (char* str, struct in_addr* addr, char* proto)
 	char*	ptr;
 
 	ptr = strchr (str, ':');
-	if (!ptr) {
-
-		fprintf (stderr, "%s is missing port number.\n", str);
-		exit (1);
-	}
+	if (!ptr)
+		errx(1, "%s is missing port number", str);
 
 	*ptr = '\0';
 	++ptr;
