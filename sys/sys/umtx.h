@@ -115,7 +115,7 @@ umtx_unlock(struct umtx *umtx, long id)
 static __inline int
 umtx_wait(struct umtx *umtx, long id, const struct timespec *timeout)
 {
-	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, timeout));
+	return (- _umtx_op(umtx, UMTX_OP_WAIT, id, 0, (void *)timeout));
 }
 
 /* Wake threads waiting on a user address. */
