@@ -334,13 +334,13 @@ launch_requests(struct request *rq, int reviveok)
 #ifdef VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
-		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
+		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%jx, length %ld\n",
 		rq->sdno,
 		rq,
 		rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		major(rq->bp->b_dev),
 		minor(rq->bp->b_dev),
-		rq->bp->b_blkno,
+		(intmax_t)rq->bp->b_blkno,
 		rq->bp->b_bcount);
 #endif
 	return 0;					    /* and get out of here */
@@ -357,12 +357,12 @@ launch_requests(struct request *rq, int reviveok)
 #ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "Request: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
+	    "Request: %p\n%s dev %d.%d, offset 0x%jx, length %ld\n",
 	    rq,
 	    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
 	    minor(rq->bp->b_dev),
-	    rq->bp->b_blkno,
+	    (intmax_t)rq->bp->b_blkno,
 	    rq->bp->b_bcount);
     vinum_conf.lastrq = rq;
     vinum_conf.lastbuf = rq->bp;
@@ -431,13 +431,13 @@ launch_requests(struct request *rq, int reviveok)
 #ifdef VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
-			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%llx, length %ld\n",
+			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%jx, length %ld\n",
 			rqe->b.b_iocmd == BIO_READ ? "Read" : "Write",
 			major(rqe->b.b_dev),
 			minor(rqe->b.b_dev),
 			rqe->sdno,
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
-			rqe->b.b_blkno,
+			(intmax_t)rqe->b.b_blkno,
 			rqe->b.b_bcount);
 		if (debug & DEBUG_LASTREQS) {
 		    microtime(&rqe->launchtime);	    /* time we launched this request */
@@ -636,16 +636,16 @@ bre(struct request *rq,
 #ifdef VINUMDEBUG
 		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
 			log(LOG_DEBUG,
-			    "vinum: EOF on plex %s, sd %s offset %x (user offset 0x%llx)\n",
+			    "vinum: EOF on plex %s, sd %s offset %x (user offset 0x%jx)\n",
 			    plex->name,
 			    sd->name,
 			    (u_int) sd->sectors,
-			    bp->b_blkno);
+			    (intmax_t)bp->b_blkno);
 			log(LOG_DEBUG,
-			    "vinum: stripebase %#llx, stripeoffset %#llxx, blockoffset %#llx\n",
-			    stripebase,
-			    stripeoffset,
-			    blockoffset);
+			    "vinum: stripebase %#jx, stripeoffset %#jx, blockoffset %#jx\n",
+			    (intmax_t)stripebase,
+			    (intmax_t)stripeoffset,
+			    (intmax_t)blockoffset);
 		    }
 #endif
 		}
@@ -975,13 +975,13 @@ sdio(struct buf *bp)
 #ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "  %s dev %d.%d, sd %d, offset 0x%llx, devoffset 0x%llx, length %ld\n",
+	    "  %s dev %d.%d, sd %d, offset 0x%jx, devoffset 0x%jx, length %ld\n",
 	    sbp->b.b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(sbp->b.b_dev),
 	    minor(sbp->b.b_dev),
 	    sbp->sdno,
-	    sbp->b.b_blkno - SD[sbp->sdno].driveoffset,
-	    sbp->b.b_blkno,
+	    (intmax_t)(sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
+	    (intmax_t)sbp->b.b_blkno,
 	    sbp->b.b_bcount);
 #endif
     s = splbio();
