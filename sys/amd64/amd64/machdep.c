@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.253 1997/07/20 08:37:19 bde Exp $
+ *	$Id: machdep.c,v 1.254 1997/08/05 00:01:10 dyson Exp $
  */
 
 #include "apm.h"
@@ -106,6 +106,7 @@
 #include <machine/cons.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
+#include <machine/pcb_ext.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
@@ -476,7 +477,7 @@ sendsig(catcher, sig, mask, code)
 	 *	if access is denied.
 	 */
 	if ((grow(p, (int)fp) == FALSE) ||
-	    (useracc((caddr_t)fp, sizeof (struct sigframe), B_WRITE) == FALSE)) {
+	    (useracc((caddr_t)fp, sizeof(struct sigframe), B_WRITE) == FALSE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -527,6 +528,34 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_sc.sc_fp = regs->tf_ebp;
 	sf.sf_sc.sc_pc = regs->tf_eip;
 	sf.sf_sc.sc_ps = regs->tf_eflags;
+	sf.sf_sc.sc_trapno = regs->tf_trapno;
+	sf.sf_sc.sc_err = regs->tf_err;
+
+	/*
+	 * If we're a vm86 process, we want to save the segment registers.
+	 * We also change eflags to be our emulated eflags, not the actual
+	 * eflags.
+	 */
+	if (regs->tf_eflags & PSL_VM) {
+		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
+		struct vm86_kernel *vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+
+		sf.sf_sc.sc_gs = tf->tf_vm86_gs;
+		sf.sf_sc.sc_fs = tf->tf_vm86_fs;
+		sf.sf_sc.sc_es = tf->tf_vm86_es;
+		sf.sf_sc.sc_ds = tf->tf_vm86_ds;
+
+		if (vm86->vm86_has_vme == 0)
+			sf.sf_sc.sc_ps = (tf->tf_eflags & ~(PSL_VIF | PSL_VIP))
+			    | (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
+
+		/*
+		 * We should never have PSL_T set when returning from vm86
+		 * mode.  It may be set here if we deliver a signal before
+		 * getting to vm86 mode, so turn it off.
+		 */
+		tf->tf_eflags &= ~(PSL_VM | PSL_T | PSL_VIF | PSL_VIP);
+	}
 
 	/*
 	 * Copy the sigframe out to the user's stack.
@@ -537,11 +566,10 @@ sendsig(catcher, sig, mask, code)
 		 * ...Kill the process.
 		 */
 		sigexit(p, SIGILL);
-	};
+	}
 
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
-	regs->tf_eflags &= ~PSL_VM;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -583,42 +611,78 @@ sigreturn(p, uap, retval)
 	if (useracc((caddr_t)fp, sizeof (*fp), B_WRITE) == 0)
 		return(EFAULT);
 
-	/*
-	 * Don't allow users to change privileged or reserved flags.
-	 */
-#define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = scp->sc_ps;
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.  The
-	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
-	 * sometimes set it there too.  tf_eflags is kept in the signal
-	 * context during signal handling and there is no other place
-	 * to remember it, so the PSL_RF bit may be corrupted by the
-	 * signal handler without us knowing.  Corruption of the PSL_RF
-	 * bit at worst causes one more or one less debugger trap, so
-	 * allowing it is fairly harmless.
-	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-#ifdef DEBUG
-    		printf("sigreturn: eflags = 0x%x\n", eflags);
-#endif
-    		return(EINVAL);
-	}
+	if (eflags & PSL_VM) {
+		struct trapframe_vm86 *tf = (struct trapframe_vm86 *)regs;
+		struct vm86_kernel *vm86;
 
-	/*
-	 * Don't allow users to load a valid privileged %cs.  Let the
-	 * hardware check for invalid selectors, excess privilege in
-	 * other selectors, invalid %eip's and invalid %esp's.
-	 */
+		/*
+		 * if pcb_ext == 0 or vm86_inited == 0, the user hasn't
+		 * set up the vm86 area, and we can't enter vm86 mode.
+		 */
+		if (p->p_addr->u_pcb.pcb_ext == 0)
+			return (EINVAL);
+		vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
+		if (vm86->vm86_inited == 0)
+			return (EINVAL);
+
+		/* go back to user mode if both flags are set */
+		if ((eflags & PSL_VIP) && (eflags & PSL_VIF))
+			trapsignal(p, SIGBUS, 0);
+
+#define VM_USERCHANGE	(PSL_USERCHANGE | PSL_RF)
+#define VME_USERCHANGE	(VM_USERCHANGE | PSL_VIP | PSL_VIF)
+		if (vm86->vm86_has_vme) {
+			eflags = (tf->tf_eflags & ~VME_USERCHANGE) |
+			    (eflags & VME_USERCHANGE) | PSL_VM;
+		} else {
+			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
+			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |					    (eflags & VM_USERCHANGE) | PSL_VM;
+		}
+		tf->tf_vm86_ds = scp->sc_ds;
+		tf->tf_vm86_es = scp->sc_es;
+		tf->tf_vm86_fs = scp->sc_fs;
+		tf->tf_vm86_gs = scp->sc_gs;
+		tf->tf_ds = _udatasel;
+		tf->tf_es = _udatasel;
+	} else {
+		/*
+		 * Don't allow users to change privileged or reserved flags.
+		 */
+#define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
+		/*
+		 * XXX do allow users to change the privileged flag PSL_RF.
+		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
+		 * should sometimes set it there too.  tf_eflags is kept in
+		 * the signal context during signal handling and there is no
+		 * other place to remember it, so the PSL_RF bit may be
+		 * corrupted by the signal handler without us knowing.
+		 * Corruption of the PSL_RF bit at worst causes one more or
+		 * one less debugger trap, so allowing it is fairly harmless.
+		 */
+		if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+#ifdef DEBUG
+	    		printf("sigreturn: eflags = 0x%x\n", eflags);
+#endif
+	    		return(EINVAL);
+		}
+
+		/*
+		 * Don't allow users to load a valid privileged %cs.  Let the
+		 * hardware check for invalid selectors, excess privilege in
+		 * other selectors, invalid %eip's and invalid %esp's.
+		 */
 #define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
-	if (!CS_SECURE(scp->sc_cs)) {
+		if (!CS_SECURE(scp->sc_cs)) {
 #ifdef DEBUG
-    		printf("sigreturn: cs = 0x%x\n", scp->sc_cs);
+    			printf("sigreturn: cs = 0x%x\n", scp->sc_cs);
 #endif
-		trapsignal(p, SIGBUS, T_PROTFLT);
-		return(EINVAL);
+			trapsignal(p, SIGBUS, T_PROTFLT);
+			return(EINVAL);
+		}
+		regs->tf_ds = scp->sc_ds;
+		regs->tf_es = scp->sc_es;
 	}
-
 	/* restore scratch registers */
 	regs->tf_eax = scp->sc_eax;
 	regs->tf_ebx = scp->sc_ebx;
@@ -627,8 +691,6 @@ sigreturn(p, uap, retval)
 	regs->tf_esi = scp->sc_esi;
 	regs->tf_edi = scp->sc_edi;
 	regs->tf_cs = scp->sc_cs;
-	regs->tf_ds = scp->sc_ds;
-	regs->tf_es = scp->sc_es;
 	regs->tf_ss = scp->sc_ss;
 	regs->tf_isp = scp->sc_isp;
 
@@ -787,6 +849,10 @@ struct region_descriptor r_gdt, r_idt;
 extern struct i386tss common_tss;	/* One tss per cpu */
 #else
 struct i386tss common_tss;
+#ifdef VM86
+struct segment_descriptor common_tssd;
+u_int private_tss = 0;			/* flag indicating private tss */
+#endif /* VM86 */
 #endif
 
 static struct i386tss dblfault_tss;
@@ -794,10 +860,6 @@ static char dblfault_stack[PAGE_SIZE];
 
 extern  struct user *proc0paddr;
 
-#ifdef TSS_IS_CACHED			/* cpu_switch helper */
-struct segment_descriptor *tssptr;
-int gsel_tss;
-#endif
 
 /* software prototypes -- in more palatable form */
 struct soft_segment_descriptor gdt_segs[
@@ -1005,9 +1067,8 @@ init386(first)
 	int x;
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
-#ifndef TSS_IS_CACHED
 	int gsel_tss;
-#endif
+
 	struct isa_device *idp;
 #ifndef SMP
 	/* table descriptors - used to load tables by microp */
@@ -1044,6 +1105,9 @@ init386(first)
 #endif
 	for (x = 0; x < NGDT1; x++)
 		ssdtosd(&gdt_segs[x], &gdt[x].sd);
+#ifdef VM86
+	common_tssd = gdt[GPROC0_SEL].sd;
+#endif /* VM86 */
 
 #ifdef SMP
 	/*
@@ -1380,7 +1444,11 @@ init386(first)
 	msgbufmapped = 1;
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
+#ifdef VM86
+	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE - 16;
+#else
 	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
+#endif /* VM86 */
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
@@ -1397,10 +1465,6 @@ init386(first)
 	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
 	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
 	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
-
-#ifdef TSS_IS_CACHED			/* cpu_switch helper */
-	tssptr = &gdt[GPROC0_SEL].sd;
-#endif
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
@@ -1426,6 +1490,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
+	proc0.p_addr->u_pcb.pcb_ext = 0;
 }
 
 int

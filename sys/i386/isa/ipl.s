@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.3 1997/07/30 22:46:49 smp Exp smp $
+ *	$Id: ipl.s,v 1.5 1997/07/31 05:42:06 fsmp Exp $
  */
 
 
@@ -120,6 +120,23 @@ doreti_exit:
 	movl	%eax,_cpl
 	decb	_intr_nesting_level
 	MEXITCOUNT
+#ifdef VM86
+	/*
+	 * XXX
+	 * Sometimes when attempting to return to vm86 mode, cpl is not
+	 * being reset to 0, so here we force it to 0 before returning to
+	 * vm86 mode.  doreti_stop is a convenient place to set a breakpoint.
+	 * When the cpl problem is solved, this code can disappear.
+	 */
+	cmpl	$0,_cpl
+	je	1f
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	je	1f
+doreti_stop:
+	movl	$0,_cpl
+	nop
+1:
+#endif /* VM86 */
 #if 0
 	REL_MPLOCK
 #else
@@ -198,6 +215,7 @@ swi_ast:
 	addl	$8,%esp			/* discard raddr & cpl to get trap frame */
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 	je	swi_ast_phantom
+swi_ast_user:
 	movl	$T_ASTFLT,(2+8+0)*4(%esp)
 	movb	$0,_intr_nesting_level	/* finish becoming a trap handler */
 	call	_trap
@@ -207,6 +225,14 @@ swi_ast:
 
 	ALIGN_TEXT
 swi_ast_phantom:
+#ifdef VM86
+	/*
+	 * check for ast from vm86 mode.  Placed down here so the jumps do
+	 * not get taken for mainline code.
+	 */
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	jne	swi_ast_user
+#endif /* VM86 */
 	/*
 	 * These happen when there is an interrupt in a trap handler before
 	 * ASTs can be masked or in an lcall handler before they can be

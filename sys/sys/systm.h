@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.52 1997/05/31 09:43:22 peter Exp $
+ * $Id: systm.h,v 1.53 1997/07/21 16:43:48 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -120,6 +120,7 @@ int	subyte __P((void *base, int byte));
 int	suibyte __P((void *base, int byte));
 int	fuword __P((const void *base));
 int	suword __P((void *base, int word));
+int	fusword __P((void *base));
 int	susword __P((void *base, int word));
 
 struct timeval;

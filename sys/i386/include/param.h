@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.31 1997/08/04 19:14:47 fsmp Exp $
+ *	$Id: param.h,v 1.32 1997/08/07 05:15:52 dyson Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -72,6 +72,7 @@
 #define BLKDEV_IOSIZE	2048
 #define MAXPHYS		(64 * 1024)	/* max raw I/O transfer size */
 
+#define IOPAGES	2		/* pages of i/o permission bitmap */
 #define UPAGES	2		/* pages of u-area */
 #define UPAGES_HOLE	2	/* pages of "hole" at top of user space where */
 				/* the upages used to be. DO NOT CHANGE! */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: signal.h,v 1.7 1997/02/22 09:35:12 peter Exp $
  */
 
 #ifndef _MACHINE_SIGNAL_H_
@@ -72,10 +72,15 @@ struct	sigcontext {
 	int	sc_edx;
 	int	sc_ecx;
 	int	sc_eax;
+	int	sc_gs;
+	int	sc_fs;
 #  define sc_sp sc_esp
 #  define sc_fp sc_ebp
 #  define sc_pc sc_eip
 #  define sc_ps sc_efl
+#  define sc_eflags	sc_efl
+	int	sc_trapno;
+	int	sc_err;
 };
 
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
