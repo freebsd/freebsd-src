@@ -89,7 +89,6 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
 ASSYM(TD_CRITNEST, offsetof(struct thread, td_critnest));
-ASSYM(TD_SWITCHIN, offsetof(struct thread, td_switchin));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
@@ -144,6 +143,7 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(union savefpu));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+ASSYM(PCB_SWITCHOUT, offsetof(struct pcb, pcb_switchout));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_VM86CALL, PCB_VM86CALL);
