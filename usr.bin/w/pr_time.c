@@ -74,17 +74,16 @@ pr_attime(started, now)
 		 tm.tm_year != tp.tm_year) {
 	/* The line below does not take DST into consideration */
 	/* else if (*now / 86400 != *started / 86400) { */
-		(void)strcpy(fmt, use_ampm ? "%a%I%p" : "%a%H  ");
+		(void)strcpy(fmt, use_ampm ? "%a%I%p" : "%a%H");
 	}
 
 	/* Default is hh:mm{am,pm}. */
 	else {
-		(void)strcpy(fmt, use_ampm ? "%l:%M%p" : "%k:%M ");
+		(void)strcpy(fmt, use_ampm ? "%l:%M%p" : "%k:%M");
 	}
 
-	(void)strftime(buf, sizeof(buf) - 1, fmt, &tp);
-	buf[sizeof(buf) - 1] = '\0';
-	(void)printf("%s", buf);
+	(void)strftime(buf, sizeof(buf), fmt, &tp);
+	(void)printf("%-7.7s", buf);
 }
 
 /*
