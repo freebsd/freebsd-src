@@ -252,10 +252,11 @@ sw1b:
 	movl	%eax,PCPU(CURRENTLDT)
 	jmp	2f
 
-1:	pushl	%edx				/* Preserver pointer to pcb. */
-	pushl	P_MD+MD_LDT(%eax)	/* passing p_md -> set_user_ldt */
+1:	pushl	%edx				/* Preserve pointer to pcb. */
+	addl	$P_MD,%eax			/* Pointer to mdproc is arg. */
+	pushl	%eax
 	call	set_user_ldt			/* Check and load the ldt. */
-	popl	%eax
+	addl	$4,%esp
 	popl	%edx
 2:
 
