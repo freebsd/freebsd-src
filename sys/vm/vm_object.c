@@ -964,6 +964,75 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 }
 
 /*
+ * Note that there is absolutely no sense in writing out
+ * anonymous objects, so we track down the vnode object
+ * to write out.
+ * We invalidate (remove) all pages from the address space
+ * for semantic correctness.
+ *
+ * Note: certain anonymous maps, such as MAP_NOSYNC maps,
+ * may start out with a NULL object.
+ */
+void
+vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
+    boolean_t syncio, boolean_t invalidate)
+{
+	vm_object_t backing_object;
+	struct vnode *vp;
+	int flags;
+
+	if (object == NULL)
+		return;
+	VM_OBJECT_LOCK(object);
+	while ((backing_object = object->backing_object) != NULL) {
+		VM_OBJECT_LOCK(backing_object);
+		VM_OBJECT_UNLOCK(object);
+		object = backing_object;
+		offset += object->backing_object_offset;
+		if (object->size < OFF_TO_IDX(offset + size))
+			size = IDX_TO_OFF(object->size) - offset;
+	}
+	/*
+	 * Flush pages if writing is allowed, invalidate them
+	 * if invalidation requested.  Pages undergoing I/O
+	 * will be ignored by vm_object_page_remove().
+	 *
+	 * We cannot lock the vnode and then wait for paging
+	 * to complete without deadlocking against vm_fault.
+	 * Instead we simply call vm_object_page_remove() and
+	 * allow it to block internally on a page-by-page
+	 * basis when it encounters pages undergoing async
+	 * I/O.
+	 */
+	if (object->type == OBJT_VNODE &&
+	    (object->flags & OBJ_MIGHTBEDIRTY) != 0) {
+		vp = object->handle;
+		VM_OBJECT_UNLOCK(object);
+		mtx_lock(&Giant);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+		flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
+		flags |= invalidate ? OBJPC_INVAL : 0;
+		VM_OBJECT_LOCK(object);
+		vm_object_page_clean(object,
+		    OFF_TO_IDX(offset),
+		    OFF_TO_IDX(offset + size + PAGE_MASK),
+		    flags);
+		VM_OBJECT_UNLOCK(object);
+		VOP_UNLOCK(vp, 0, curthread);
+		mtx_unlock(&Giant);
+		VM_OBJECT_LOCK(object);
+	}
+	if ((object->type == OBJT_VNODE ||
+	     object->type == OBJT_DEVICE) && invalidate) {
+		vm_object_page_remove(object,
+		    OFF_TO_IDX(offset),
+		    OFF_TO_IDX(offset + size + PAGE_MASK),
+		    FALSE);
+	}
+	VM_OBJECT_UNLOCK(object);
+}
+
+/*
  *	vm_object_madvise:
  *
  *	Implements the madvise function at the object/page level.

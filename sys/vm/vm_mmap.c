@@ -574,7 +574,7 @@ msync(td, uap)
 	/*
 	 * Clean the pages and interpret the return value.
 	 */
-	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) == 0,
+	rv = vm_map_sync(map, addr, addr + size, (flags & MS_ASYNC) == 0,
 	    (flags & MS_INVALIDATE) != 0);
 
 done2:
