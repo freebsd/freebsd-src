@@ -1,8 +1,9 @@
-#	$Id: Makefile,v 1.7 1998/06/09 04:07:08 imp Exp $
+#	$Id: Makefile,v 1.8 1998/09/19 22:42:03 obrien Exp $
 
 .include "${.CURDIR}/Makefile.inc"
 
 PROG=	at
+CFLAGS+=-Wall
 SRCS=   at.c panic.c parsetime.c perm.c
 LINKS=	${BINDIR}/at ${BINDIR}/atq \
 	${BINDIR}/at ${BINDIR}/atrm \
