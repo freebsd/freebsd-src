@@ -380,7 +380,7 @@ struct vfsops {
 
 #include <net/radix.h>
 
-#define	AF_MAX		33	/* XXX */
+#define	AF_MAX		35	/* XXX */
 
 /*
  * Network address lookup element
