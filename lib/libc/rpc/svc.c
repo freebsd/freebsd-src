@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc.c 1.44 88/02/08 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc.c	2.4 88/08/11 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc.c,v 1.2 1995/05/30 05:41:31 rgrimes Exp $";
+static char *rcsid = "$Id: svc.c,v 1.3 1995/10/22 14:51:34 phk Exp $";
 #endif
 
 /*
@@ -49,8 +49,6 @@ static char *rcsid = "$Id: svc.c,v 1.2 1995/05/30 05:41:31 rgrimes Exp $";
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 
-extern int errno;
-
 #ifdef FD_SETSIZE
 static SVCXPRT **xports;
 #else
@@ -61,6 +59,8 @@ static SVCXPRT *xports[NOFILE];
 
 #define NULL_SVC ((struct svc_callout *)0)
 #define	RQCRED_SIZE	400		/* this size is excessive */
+
+int _rpc_dtablesize(void);
 
 /*
  * The services list

@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_tcp.c,v 1.4 1995/10/27 16:56:50 adam Exp $";
+static char *rcsid = "$Id: clnt_tcp.c,v 1.5 1995/12/07 12:50:53 bde Exp $";
 #endif
 
 /*
@@ -64,7 +64,9 @@ static char *rcsid = "$Id: clnt_tcp.c,v 1.4 1995/10/27 16:56:50 adam Exp $";
 
 #define MCALL_MSG_SIZE 24
 
-extern int errno;
+int bindresvport(int sd, struct sockaddr_in *);
+int _rpc_dtablesize(void);
+bool_t xdr_opaque_auth(XDR *, struct opaque_auth *);
 
 static int	readtcp();
 static int	writetcp();
@@ -121,7 +123,7 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	u_int recvsz;
 {
 	CLIENT *h;
-	register struct ct_data *ct;
+	register struct ct_data *ct = NULL;
 	struct timeval now;
 	struct rpc_msg call_msg;
 
@@ -219,8 +221,10 @@ fooy:
 	/*
 	 * Something goofed, free stuff and barf
 	 */
-	mem_free((caddr_t)ct, sizeof(struct ct_data));
-	mem_free((caddr_t)h, sizeof(CLIENT));
+	if (ct)
+		mem_free((caddr_t)ct, sizeof(struct ct_data));
+	if (h)
+		mem_free((caddr_t)h, sizeof(CLIENT));
 	return ((CLIENT *)NULL);
 }
 

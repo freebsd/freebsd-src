@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_getmaps.c 1.10 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_getmaps.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_getmaps.c,v 1.2 1995/05/30 05:41:23 rgrimes Exp $";
+static char *rcsid = "$Id: pmap_getmaps.c,v 1.3 1995/10/22 14:51:29 phk Exp $";
 #endif
 
 /*
@@ -53,8 +53,6 @@ static char *rcsid = "$Id: pmap_getmaps.c,v 1.2 1995/05/30 05:41:23 rgrimes Exp 
 #include <sys/ioctl.h>
 #define NAMELEN 255
 #define MAX_BROADCAST_SIZE 1400
-
-extern int errno;
 
 /*
  * Get a copy of the current port maps.

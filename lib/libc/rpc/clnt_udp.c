@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_udp.c,v 1.5 1995/10/22 14:51:21 phk Exp $";
+static char *rcsid = "$Id: clnt_udp.c,v 1.6 1995/12/07 12:50:54 bde Exp $";
 #endif
 
 /*
@@ -50,7 +50,9 @@ static char *rcsid = "$Id: clnt_udp.c,v 1.5 1995/10/22 14:51:21 phk Exp $";
 #include <errno.h>
 #include <rpc/pmap_clnt.h>
 
-extern int errno;
+int bindresvport(int sd, struct sockaddr_in *);
+int _rpc_dtablesize(void);
+bool_t xdr_opaque_auth(XDR *, struct opaque_auth *);
 
 /*
  * UDP bases client side rpc operations
@@ -117,7 +119,7 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 	u_int recvsz;
 {
 	CLIENT *cl;
-	register struct cu_data *cu;
+	register struct cu_data *cu = NULL;
 	struct timeval now;
 	struct rpc_msg call_msg;
 
