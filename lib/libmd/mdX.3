@@ -17,7 +17,7 @@
 .Nm MDXFinal ,
 .Nm MDXEnd ,
 .Nm MDXFile ,
-.Nm MDXData .
+.Nm MDXData
 .Nd calculate ``MDX'' cryptographic checksum
 .Sh SYNOPSIS
 .Fd #include <mdX.h>
@@ -66,13 +66,13 @@ ascii string which represents the 128 bits in hexadecimal.
 
 .Fn MDXFile
 calculates the digest of a file, and uses 
-.Fn MDXFinal
+.Fn MDXEnd
 to return the result.
 In case the file cannot be opened, NULL is returned.
 
 .Fn MDXData
 calculates the digest of a chunk of data in memory, and uses
-.Fn MDXFinal
+.Fn MDXEnd
 to return the result.
 
 When using
