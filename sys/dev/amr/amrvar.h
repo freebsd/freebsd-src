@@ -261,6 +261,7 @@ struct amrd_softc
  * Interface between driver core and disk driver (should be using a bus?)
  */
 extern int	amr_submit_bio(struct amr_softc *sc, struct bio *bio);
+extern int 	amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int blks);
 extern void	amrd_intr(void *data);
 
 /********************************************************************************
