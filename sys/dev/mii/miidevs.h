@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/mii/miidevs,v 1.5 2000/04/22 01:54:55 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.7 2000/09/20 17:02:16 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -104,6 +104,8 @@
 #define	MII_STR_xxAMD_79C873	"Am79C873 10/100 media interface"
 #define	MII_MODEL_AMD_79c973phy	0x0036
 #define	MII_STR_AMD_79c973phy	"Am79c973 internal PHY"
+#define	MII_MODEL_AMD_79c978	0x0039
+#define	MII_STR_AMD_79c978	"Am79c978 HomePNA PHY"
 
 /* Broadcom Corp. PHYs. */
 #define	MII_MODEL_BROADCOM_3c905Cphy	0x0017
