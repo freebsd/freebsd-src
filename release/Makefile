@@ -57,6 +57,9 @@ RELEASEPORTSMODULE?=	ports
 # Unless set elsewhere, indicate the object format we'll be using.
 OBJFORMAT?=		elf
 
+# Comment this out to enable port readmes to be built.
+NOPORTREADMES?=	YES
+
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
 #NODOC=  YES
