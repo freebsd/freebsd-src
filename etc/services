@@ -2004,8 +2004,10 @@ prosharerequest 5716/udp   #proshare conf request
 prosharenotify	5717/tcp   #proshare conf notify 
 prosharenotify	5717/udp   #proshare conf notify 
 cvsup		5999/tcp   #CVSup file transfer/John Polstra/FreeBSD
-#x11		6000-6063/tcp	X Window System
-#x11		6000-6063/udp	X Window System
+x11		6000/tcp   #6000-6063 are assigned to X Window System
+x11		6000/udp
+x11-ssh		6010/tcp   #Unofficial name, for convenience
+x11-ssh		6010/udp
 softcm		6110/tcp   #HP SoftBench CM
 softcm		6110/udp   #HP SoftBench CM
 spc		6111/tcp   #HP SoftBench Sub-Process Control
