@@ -1,4 +1,4 @@
-#	$Id: aliases,v 1.4 1997/06/29 23:09:07 wosch Exp $
+#	$Id: aliases,v 1.6 1997/08/19 17:16:14 wosch Exp $
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from
@@ -12,6 +12,11 @@
 # See also RFC 2142, `MAILBOX NAMES FOR COMMON SERVICES, ROLES 
 # AND FUNCTIONS', May 1997
 
+# Pretty much everything else in this file points to "root", so 
+# would do well in either reading roots mailbox or forwarding
+# roots email from here.
+
+# root:	me@my.domain
 
 # Basic system aliases -- these MUST be present
 MAILER-DAEMON: postmaster
@@ -32,7 +37,6 @@ uucp:	root
 xten:	root
 
 # Well-known aliases -- these should be filled in!
-# root:
 # manager:
 # dumper:
 
