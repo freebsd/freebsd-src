@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.5 1995/05/30 00:07:08 rgrimes Exp $
+ *	$Id: rmail.c,v 1.6 1995/09/16 18:52:51 pst Exp $
  */
 
 #ifndef lint
@@ -72,6 +72,8 @@ static char sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #include <sys/wait.h>
 
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
@@ -80,7 +82,6 @@ static char sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
 #include <sysexits.h>
 #include <unistd.h>
 
-void err __P((int, const char *, ...));
 void usage __P((void));
 
 int
@@ -88,8 +89,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int errno, optind;
 	FILE *fp;
 	struct stat sb;
 	size_t fplen, fptlen, len;
@@ -101,7 +100,7 @@ main(argc, argv)
 
 	debug = 0;
 	domain = "UUCP";		/* Default "domain". */
-	while ((ch = getopt(argc, argv, "D:T")) != EOF)
+	while ((ch = getopt(argc, argv, "D:T")) != -1)
 		switch (ch) {
 		case 'T':
 			debug = 1;
@@ -262,11 +261,22 @@ main(argc, argv)
 	/*
 	 * Don't copy arguments beginning with - as they will be
 	 * passed to sendmail and could be interpreted as flags.
+	 * To prevent confusion of sendmail wrap < and > around
+	 * the address (helps to pass addrs like @gw1,@gw2:aa@bb)
 	 */
-	do {
-		if (*argv && **argv == '-')
+	while (*argv) {
+		if (**argv == '-')
 			err(EX_USAGE, "dash precedes argument: %s", *argv);
-	} while ((args[i++] = *argv++) != NULL);
+		if (strchr(*argv, ',') == NULL || strchr(*argv, '<') != NULL)
+			args[i++] = *argv;
+		else {
+			if ((args[i] = malloc(strlen(*argv) + 3)) == NULL)
+				err(EX_TEMPFAIL, "Cannot malloc");
+			sprintf (args [i++], "<%s>", *argv);
+		}
+		argv++;
+	} 
+	args[i] = 0;
 
 	if (debug) {
 		(void)fprintf(stderr, "Sendmail arguments:\n");
@@ -339,31 +349,3 @@ usage()
 	exit(EX_USAGE);
 }
 
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#ifdef __STDC__
-err(int eval, const char *fmt, ...)
-#else
-err(eval, fmt, va_alist)
-	int eval;
-	const char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "rmail: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(eval);
-}
