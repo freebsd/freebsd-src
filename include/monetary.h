@@ -37,13 +37,13 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-#ifndef _SIZE_T_DECLARED
+#ifndef _SSIZE_T_DECLARED
 typedef	__ssize_t	ssize_t;
-#define	_SIZE_T_DECLARED
+#define	_SSIZE_T_DECLARED
 #endif
 
 __BEGIN_DECLS
-ssize_t	strfmon(char *, size_t, const char *, ...);
+ssize_t	strfmon(char * __restrict, size_t, const char * __restrict, ...);
 __END_DECLS
 
 #endif /* !_MONETARY_H_ */
