@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.h,v 1.2 1999/04/17 19:38:38 peter Exp $
+ *	$Id: isa_compat.h,v 1.3 1999/04/18 15:50:35 peter Exp $
  */
 
 #include "vt.h"
@@ -88,6 +88,9 @@
 #include "isic.h"
 #include "tina.h"
 #include "ppc.h"
+#ifdef PC98
+#include "bs.h"
+#endif
 
 struct old_isa_driver {
 	int			type;
@@ -157,6 +160,9 @@ extern struct isa_driver pcfdriver;
 extern struct isa_driver isicdriver;
 extern struct isa_driver tinadriver;
 extern struct isa_driver ppcdriver;
+#ifdef PC98
+extern struct isa_driver bsdriver;
+#endif
 
 
 static struct old_isa_driver old_drivers[] = {
@@ -306,11 +312,20 @@ static struct old_isa_driver old_drivers[] = {
 
 /* CAM */
 
+#ifndef PC98
 #if NADV > 0
 	{ DRIVER_TYPE_CAM, &advdriver },
 #endif
+#endif
+
 #if NAHA > 0
 	{ DRIVER_TYPE_CAM, &ahadriver },
+#endif
+
+#ifdef PC98
+#if NBS > 0
+	{ DRIVER_TYPE_CAM, &bsdriver },
+#endif
 #endif
 
 /* MISC */
