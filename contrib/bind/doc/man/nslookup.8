@@ -172,7 +172,7 @@ command.
 Connects with the finger server on the current host. 
 The current host is defined when a previous lookup for a host
 was successful and returned address information (see the 
-.Dq Ic set querytype=A 
+.Dq Ic set querytype Ns = Ns Dv A 
 command).
 The 
 .Ar name 
@@ -225,12 +225,13 @@ Sorts and lists the output of previous
 command(s) with 
 .Xr more @CMD_EXT@ .
 .It Ic help
-.It Ic ?
+.It Ic ?\&
 Prints a brief summary of commands.
 .It Ic exit
 Exits the program.
-.It Xo Ic set Ar keyword 
-.Ns Op = Ns Ar value
+.It Xo
+.Ic set
+.Ar keyword Ns Op = Ns Ar value
 .Xc
 This command is used to change state information that affects the lookups.
 Valid keywords are:
@@ -239,7 +240,7 @@ Valid keywords are:
 Prints the current values of the frequently-used options to 
 .Ic set .
 Information about the  current default server and host is also printed.
-.It Ic class= Ns Ar value
+.It Ic class Ns = Ns Ar value
 Change the query class to one of:
 .Bl -tag -width "HESIOD  "
 .It Dv IN
@@ -258,8 +259,8 @@ The class specifies the protocol group of the information.
 .Dv IN ; 
 abbreviation = 
 .Ic cl )
-.It Xo Op Ic no 
-.Ns Ic debug
+.It Xo
+.Oo Ic no Oc Ns Ic debug
 .Xc
 Turn debugging mode on.  A lot more information is printed about the
 packet sent to the server and the resulting answer.
@@ -267,18 +268,16 @@ packet sent to the server and the resulting answer.
 (Default = 
 .Ic nodebug ; 
 abbreviation = 
-.Xo Op Ic no
-.Ns Ic deb )
-.Xc
-.It Xo Op Ic no 
-.Ns Ic d2
+.Oo Ic no Oc Ns Ic deb )
+.It Xo
+.Oo Ic no Oc Ns Ic d2
 .Xc
 Turn exhaustive debugging mode on.
 Essentially all fields of every packet are printed.
 .Pp
 (Default = 
 .Ic nod2 )
-.It Ic domain= Ns Ar name
+.It Ic domain Ns = Ns Ar name
 Change the default domain name to 
 .Ar name . 
 The default domain name is appended to a lookup request depending on the
@@ -302,10 +301,17 @@ command to display the list.
 .Xr hostname @CMD_EXT@ , 
 .Pa /etc/resolv.conf ,
 or 
-.Ev LOCALDOMAIN;
+.Ev LOCALDOMAIN ;
 abbreviation = 
 .Ic do )
-.It Ic srchlist= Ns Ar name1/name2/...
+.It Xo
+.Sm off
+.Ic srchlist No =
+.Ar name1 No /
+.Ar name2 No /
+.Ar ...
+.Sm on
+.Xc
 Change the default domain name to 
 .Ar name1 
 and the domain search list
@@ -331,11 +337,11 @@ command to display the list.
 .Xr hostname @CMD_EXT@ , 
 .Pa /etc/resolv.conf ,
 or 
-.Ev LOCALDOMAIN;
+.Ev LOCALDOMAIN ;
 abbreviation = 
 .Ic srchl )
-.It Xo Op Ic no
-.Ns Ic defname
+.It Xo
+.Oo Ic no Oc Ns Ic defname
 .Xc
 If set, append the default domain name to a single-component lookup request 
 (i.e., one that does not contain a period).
@@ -343,11 +349,9 @@ If set, append the default domain name to a single-component lookup request
 (Default = 
 .Ic defname ; 
 abbreviation = 
-.Xo Op Ic no
-.Ns Ic defname )
-.Xc
-.It Xo Op Ic no 
-.Ns Ic search
+.Oo Ic no Oc Ns Ic defname )
+.It Xo
+.Oo Ic no Oc Ns Ic search
 .Xc
 If the lookup request contains at least one period but 
 .Em doesn't 
@@ -357,18 +361,16 @@ to the request until an answer is received.
 (Default = 
 .Ic search ; 
 abbreviation = 
-.Xo Op Ic no 
-.Ns Ic sea )
-.Xc
-.It Ic port= Ns Ar value
+.Oo Ic no Oc Ns Ic sea )
+.It Ic port Ns = Ns Ar value
 Change the default TCP/UDP name server port to 
 .Ar value .
 .Pp
 (Default = 53; 
 abbreviation = 
 .Ic \&po )
-.It Ic querytype= Ns Ar value
-.It Ic type= Ns Ar value
+.It Ic querytype Ns = Ns Ar value
+.It Ic type Ns = Ns Ar value
 Change the type of information query to one of:
 .Bl -tag -width "HINFO   "
 .It Dv A
@@ -399,15 +401,16 @@ the supported well-known services.
 .El
 .Pp
 Other types 
-.Pq Dv ANY, AXFR, MB, MD, MF, NULL 
+.Dv ( ANY , AXFR , MB ,
+.Dv MD , MF , NULL )
 are described in the RFC-1035 document.
 .Pp
 (Default = 
 .Dv A ; 
 abbreviations = 
 .Ic q , ty )
-.It Xo Op Ic no
-.Ns Ic recurse
+.It Xo
+.Oo Ic no Oc Ns Ic recurse
 .Xc
 Tell the name server to query other servers if it does not have the
 information.
@@ -415,10 +418,8 @@ information.
 (Default = 
 .Ic recurse ; 
 abbreviation =
-.Xo Op Ic no
-.Ns Ic rec )
-.Xc
-.It Ic retry= Ns Ar number
+.Oo Ic no Oc Ns Ic rec )
+.It Ic retry Ns = Ns Ar number
 Set the number of retries to 
 .Ar number .
 When a reply to a request is not received within a certain 
@@ -429,7 +430,7 @@ The retry value controls how many times a request is resent before giving up.
 .Pp
 (Default = 4, abbreviation = 
 .Ic ret )
-.It Ic root= Ns Ar host
+.It Ic root Ns = Ns Ar host
 Change the name of the root server to 
 .Ar host . 
 This affects the 
@@ -440,35 +441,31 @@ command.
 .Ic ns.internic.net. ;
 abbreviation = 
 .Ic ro )
-.It Ic timeout= Ns Ar number
+.It Ic timeout Ns = Ns Ar number
 Change the initial timeout interval for waiting for a reply to 
 .Ar number 
 seconds. Each retry doubles the timeout period.
 .Pp
 (Default = 5 seconds; abbreviation = 
 .Ic ti )
-.It Xo Op Ic no
-.Ns Ic vc
+.It Xo
+.Oo Ic no Oc Ns Ic vc
 .Xc
 Always use a virtual circuit when sending requests to the server.
 .Pp
 (Default = 
 .Ic novc ; 
 abbreviation = 
-.Xo Op Ic no
-.Ns Ic v )
+.Oo Ic no Oc Ns Ic v )
+.It Xo
+.Oo Ic no Oc Ns Ic ignoretc
 .Xc
-.It Xo Op Ic no
-.Ns Ic ignoretc
-.Xc 
 Ignore packet truncation errors.
 .Pp
 (Default = 
 .Ic noignoretc ; 
 abbreviation = 
-.Xo Op Ic no
-.Ns Ic ig )
-.Xc 
+.Oo Ic no Oc Ns Ic ig )
 .El
 .El
 .Sh DIAGNOSTICS
@@ -478,9 +475,11 @@ Possible errors are:
 .It Li Timed out
 The server did not respond to a request after a certain amount of
 time (changed with 
-.Dq Ic set timeout= Ns Ar value ) 
+.Dq Ic set timeout Ns = Ns Ar value )
 and a certain number of retries (changed with 
-.Dq Ic set retry= Ns Ar value ) .
+.Do
+.Ic set retry Ns = Ns Ar value
+.Dc ) .
 .It Li \&No response from server
 No name server is running on the server machine.
 .It Li \&No records
