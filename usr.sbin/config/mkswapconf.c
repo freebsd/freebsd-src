@@ -111,7 +111,9 @@ do_swap(fl)
 	} while (swap && swap->f_type == SWAPSPEC);
 	fprintf(fp, "\t{ NODEV, 0, 0 },\t/* for NFS diskless */\n");
 	fprintf(fp, "\t{ NODEV, 0, 0 }\n");
-	fprintf(fp, "};\n");
+	fprintf(fp, "};\n\n");
+	fprintf(fp, "/* Stub for when generic swap config is not used. */\n");
+	fprintf(fp, "void setconf(void) {};\n");
 	fclose(fp);
 	return (swap);
 }
