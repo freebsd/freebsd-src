@@ -399,13 +399,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	if (kdb_active)
 		return (0);
 
-	makectx(tf, &kdb_pcb);
-
 	critical_enter();
 
 	kdb_active++;
-	kdb_frame = tf;
-	kdb_thr_select(curthread);
 
 #ifdef SMP
 	if ((did_stop_cpus = kdb_stop_cpus) != 0)
@@ -414,6 +410,10 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 	/* Let MD code do its thing first... */
 	kdb_cpu_trap(type, code);
+
+	kdb_frame = tf;
+	makectx(tf, &kdb_pcb);
+	kdb_thr_select(curthread);
 
 	handled = kdb_dbbe->dbbe_trap(type, code);
 
