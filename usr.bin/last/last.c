@@ -138,11 +138,10 @@ main(int argc, char *argv[])
 			 * a number after a dash.
 			 */
 			if (maxrec == -1) {
-				p = argv[optind - 1];
-				if (p[0] == '-' && p[1] == ch && !p[2])
-					maxrec = atol(++p);
-				else
-					maxrec = atol(argv[optind] + 1);
+				p = strchr(argv[optind - 1], ch);
+				if (p == NULL)
+					p = strchr(argv[optind], ch);
+				maxrec = atol(p);
 				if (!maxrec)
 					exit(0);
 			}
