@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.63 2001/05/16 23:49:27 assar Exp $
+# $Id: Makefile.am,v 1.67 2001/09/02 16:56:45 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -6,6 +6,8 @@ YFLAGS = -d
 
 lib_LTLIBRARIES = libasn1.la
 libasn1_la_LDFLAGS = -version-info 5:0:0
+
+libasn1_la_LIBADD = @LIB_com_err@
 
 BUILT_SOURCES =			\
 	$(gen_files:.x=.c)	\
@@ -98,19 +100,16 @@ asn1_compile_LDADD = \
 
 check_der_LDADD = \
 	libasn1.la \
-	../com_err/libcom_err.la \
 	$(LIB_roken)
 
 asn1_print_LDADD = $(check_der_LDADD)
-
-TESTS = check-der
 
 CLEANFILES = lex.c parse.c parse.h krb5_asn1.h $(BUILT_SOURCES) \
 	$(gen_files) asn1_files
 
 include_HEADERS = krb5_asn1.h asn1_err.h der.h
 
-$(asn1_compile_OBJECTS): parse.h
+$(asn1_compile_OBJECTS): parse.h parse.c
 
 $(gen_files) krb5_asn1.h: asn1_files
 

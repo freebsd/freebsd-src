@@ -94,6 +94,10 @@
 #include "glob.h"
 #include "roken.h"
 
+#ifndef ARG_MAX
+#define ARG_MAX _POSIX_ARG_MAX
+#endif
+
 #define	CHAR_DOLLAR		'$'
 #define	CHAR_DOT		'.'
 #define	CHAR_EOS		'\0'

@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4b from Makefile.am
+# Makefile.in generated automatically by automake 1.5 from Makefile.am.
 
-# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 # Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -10,6 +10,16 @@
 # but WITHOUT ANY WARRANTY, to the extent permitted by law; without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
+# $Id: Makefile.am,v 1.49 2001/09/05 14:14:56 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
+
+
+# $Id: Makefile.am.common,v 1.31 2001/09/01 11:12:18 assar Exp $
 
 SHELL = @SHELL@
 
@@ -31,11 +41,9 @@ infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
-
 top_builddir = ../..
 
 ACLOCAL = @ACLOCAL@
@@ -47,21 +55,17 @@ INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
-INSTALL_STRIP_FLAG =
+INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
-
 NORMAL_INSTALL = :
 PRE_INSTALL = :
 POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-
-@SET_MAKE@
 host_alias = @host_alias@
 host_triplet = @host@
 AIX_EXTRA_KAFS = @AIX_EXTRA_KAFS@
-AMDEP = @AMDEP@
 AMTAR = @AMTAR@
 AS = @AS@
 AWK = @AWK@
@@ -69,11 +73,11 @@ CANONICAL_HOST = @CANONICAL_HOST@
 CATMAN = @CATMAN@
 CATMANEXT = @CATMANEXT@
 CC = @CC@
+COMPILE_ET = @COMPILE_ET@
 CPP = @CPP@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DBLIB = @DBLIB@
 DEPDIR = @DEPDIR@
+DIR_com_err = @DIR_com_err@
 DIR_des = @DIR_des@
 DIR_roken = @DIR_roken@
 DLLTOOL = @DLLTOOL@
@@ -82,20 +86,27 @@ EXTRA_LIB45 = @EXTRA_LIB45@
 GROFF = @GROFF@
 INCLUDES_roken = @INCLUDES_roken@
 INCLUDE_ = @INCLUDE_@
+INCLUDE_des = @INCLUDE_des@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LEX = @LEX@
 LIBOBJS = @LIBOBJS@
 LIBTOOL = @LIBTOOL@
 LIB_ = @LIB_@
 LIB_AUTH_SUBDIRS = @LIB_AUTH_SUBDIRS@
+LIB_NDBM = @LIB_NDBM@
+LIB_com_err = @LIB_com_err@
+LIB_com_err_a = @LIB_com_err_a@
+LIB_com_err_so = @LIB_com_err_so@
 LIB_des = @LIB_des@
+LIB_des_a = @LIB_des_a@
 LIB_des_appl = @LIB_des_appl@
+LIB_des_so = @LIB_des_so@
 LIB_kdb = @LIB_kdb@
 LIB_otp = @LIB_otp@
 LIB_roken = @LIB_roken@
 LIB_security = @LIB_security@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-MAKEINFO = @MAKEINFO@
 NEED_WRITEAUTH_FALSE = @NEED_WRITEAUTH_FALSE@
 NEED_WRITEAUTH_TRUE = @NEED_WRITEAUTH_TRUE@
 NROFF = @NROFF@
@@ -103,37 +114,31 @@ OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
-STRIP = @STRIP@
 VERSION = @VERSION@
 VOID_RETSIGTYPE = @VOID_RETSIGTYPE@
 WFLAGS = @WFLAGS@
 WFLAGS_NOIMPLICITINT = @WFLAGS_NOIMPLICITINT@
 WFLAGS_NOUNUSED = @WFLAGS_NOUNUSED@
+X_CFLAGS = @X_CFLAGS@
+X_EXTRA_LIBS = @X_EXTRA_LIBS@
+X_LIBS = @X_LIBS@
+X_PRE_LIBS = @X_PRE_LIBS@
 YACC = @YACC@
+am__include = @am__include@
+am__quote = @am__quote@
 dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.44 2001/01/30 01:56:00 assar Exp $
-
-
-# $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
-
-
-# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
-
-
-AUTOMAKE_OPTIONS = foreign no-dependencies
+AUTOMAKE_OPTIONS = foreign no-dependencies 1.4b
 
 SUFFIXES = .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x
 
 INCLUDES = -I$(top_builddir)/include $(INCLUDES_roken)
 
-AM_CFLAGS =  $(WFLAGS)
+AM_CFLAGS = $(WFLAGS)
 
 CP = cp
-
-COMPILE_ET = $(top_builddir)/lib/com_err/compile_et
 
 buildinclude = $(top_builddir)/include
 
@@ -152,8 +157,8 @@ LIB_getsockopt = @LIB_getsockopt@
 LIB_logout = @LIB_logout@
 LIB_logwtmp = @LIB_logwtmp@
 LIB_odm_initialize = @LIB_odm_initialize@
+LIB_openpty = @LIB_openpty@
 LIB_pidfile = @LIB_pidfile@
-LIB_readline = @LIB_readline@
 LIB_res_search = @LIB_res_search@
 LIB_setpcred = @LIB_setpcred@
 LIB_setsockopt = @LIB_setsockopt@
@@ -175,25 +180,30 @@ INCLUDE_openldap = @INCLUDE_openldap@
 LIB_openldap = @LIB_openldap@
 
 INCLUDE_readline = @INCLUDE_readline@
+LIB_readline = @LIB_readline@
 
 LEXLIB = @LEXLIB@
 
 NROFF_MAN = groff -mandoc -Tascii
 
-@KRB4_TRUE@LIB_kafs = @KRB4_TRUE@$(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
+@KRB4_TRUE@LIB_kafs = $(top_builddir)/lib/kafs/libkafs.la $(AIX_EXTRA_KAFS)
 
-@KRB5_TRUE@LIB_krb5 = @KRB5_TRUE@$(top_builddir)/lib/krb5/libkrb5.la \
+@KRB5_TRUE@LIB_krb5 = $(top_builddir)/lib/krb5/libkrb5.la \
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
-@KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
-@DCE_TRUE@LIB_kdfs = @DCE_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+@KRB5_TRUE@LIB_gssapi = $(top_builddir)/lib/gssapi/libgssapi.la
+
+@DCE_TRUE@LIB_kdfs = $(top_builddir)/lib/kdfs/libkdfs.la
 
 CHECK_LOCAL = $(PROGRAMS)
 
 lib_LTLIBRARIES = libkadm5srv.la libkadm5clnt.la
-libkadm5srv_la_LDFLAGS = -version-info 7:3:0
-libkadm5clnt_la_LDFLAGS = -version-info 6:1:2
+libkadm5srv_la_LDFLAGS = -version-info 7:4:0
+libkadm5clnt_la_LDFLAGS = -version-info 6:2:2
 sbin_PROGRAMS = dump_log replay_log truncate_log
+
+libkadm5srv_la_LIBADD = ../krb5/libkrb5.la ../hdb/libhdb.la ../roken/libroken.la
+libkadm5clnt_la_LIBADD = ../krb5/libkrb5.la ../hdb/libhdb.la ../roken/libroken.la
 
 libexec_PROGRAMS = ipropd-master ipropd-slave
 
@@ -204,7 +214,7 @@ kadm5include_HEADERS = kadm5_err.h admin.h private.h \
 	kadm5-protos.h kadm5-private.h
 
 
-C_SOURCES = \
+SOURCES_client = \
 	admin.h					\
 	chpass_c.c				\
 	common_glue.c				\
@@ -227,7 +237,7 @@ C_SOURCES = \
 	send_recv.c
 
 
-S_SOURCES = \
+SOURCES_server = \
 	acl.c					\
 	admin.h					\
 	bump_pw_expire.c			\
@@ -259,8 +269,8 @@ S_SOURCES = \
 	password_quality.c
 
 
-libkadm5srv_la_SOURCES = $(S_SOURCES) server_glue.c
-libkadm5clnt_la_SOURCES = $(C_SOURCES) client_glue.c
+libkadm5srv_la_SOURCES = $(SOURCES_server) server_glue.c
+libkadm5clnt_la_SOURCES = $(SOURCES_client) client_glue.c
 
 dump_log_SOURCES = dump_log.c kadm5_locl.h
 
@@ -281,145 +291,104 @@ LDADD = \
 	$(LIB_des) \
 	$(LIB_roken) \
 	$(DBLIB) \
-	$(LIB_dlopen)
+	$(LIB_dlopen) \
+	$(LIB_pidfile)
 
 
 CLEANFILES = kadm5_err.c kadm5_err.h
 subdir = lib/kadm5
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
-CONFIG_HEADER = ../../include/config.h
-CONFIG_CLEAN_FILES = 
-LTLIBRARIES =  $(lib_LTLIBRARIES)
+CONFIG_HEADER = $(top_builddir)/include/config.h
+CONFIG_CLEAN_FILES =
+LTLIBRARIES = $(lib_LTLIBRARIES)
 
+libkadm5clnt_la_DEPENDENCIES = ../krb5/libkrb5.la ../hdb/libhdb.la \
+	../roken/libroken.la
+am_libkadm5clnt_la_OBJECTS = chpass_c.lo common_glue.lo create_c.lo \
+	delete_c.lo destroy_c.lo flush_c.lo free.lo get_c.lo \
+	get_princs_c.lo init_c.lo kadm5_err.lo marshall.lo modify_c.lo \
+	privs_c.lo randkey_c.lo rename_c.lo send_recv.lo client_glue.lo
+libkadm5clnt_la_OBJECTS = $(am_libkadm5clnt_la_OBJECTS)
+libkadm5srv_la_DEPENDENCIES = ../krb5/libkrb5.la ../hdb/libhdb.la \
+	../roken/libroken.la
+am_libkadm5srv_la_OBJECTS = acl.lo bump_pw_expire.lo chpass_s.lo \
+	common_glue.lo context_s.lo create_s.lo delete_s.lo \
+	destroy_s.lo ent_setup.lo error.lo flush_s.lo free.lo \
+	get_princs_s.lo get_s.lo init_s.lo kadm5_err.lo keys.lo log.lo \
+	marshall.lo modify_s.lo privs_s.lo randkey_s.lo rename_s.lo \
+	set_keys.lo set_modifier.lo password_quality.lo server_glue.lo
+libkadm5srv_la_OBJECTS = $(am_libkadm5srv_la_OBJECTS)
+libexec_PROGRAMS = ipropd-master$(EXEEXT) ipropd-slave$(EXEEXT)
+sbin_PROGRAMS = dump_log$(EXEEXT) replay_log$(EXEEXT) \
+	truncate_log$(EXEEXT)
+PROGRAMS = $(libexec_PROGRAMS) $(sbin_PROGRAMS)
 
-DEFS = @DEFS@ -I. -I$(srcdir) -I../../include
+am_dump_log_OBJECTS = dump_log.$(OBJEXT)
+dump_log_OBJECTS = $(am_dump_log_OBJECTS)
+dump_log_LDADD = $(LDADD)
+dump_log_DEPENDENCIES = libkadm5srv.la $(top_builddir)/lib/hdb/libhdb.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+dump_log_LDFLAGS =
+am_ipropd_master_OBJECTS = ipropd_master.$(OBJEXT)
+ipropd_master_OBJECTS = $(am_ipropd_master_OBJECTS)
+ipropd_master_LDADD = $(LDADD)
+ipropd_master_DEPENDENCIES = libkadm5srv.la \
+	$(top_builddir)/lib/hdb/libhdb.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+ipropd_master_LDFLAGS =
+am_ipropd_slave_OBJECTS = ipropd_slave.$(OBJEXT)
+ipropd_slave_OBJECTS = $(am_ipropd_slave_OBJECTS)
+ipropd_slave_LDADD = $(LDADD)
+ipropd_slave_DEPENDENCIES = libkadm5srv.la \
+	$(top_builddir)/lib/hdb/libhdb.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+ipropd_slave_LDFLAGS =
+am_replay_log_OBJECTS = replay_log.$(OBJEXT)
+replay_log_OBJECTS = $(am_replay_log_OBJECTS)
+replay_log_LDADD = $(LDADD)
+replay_log_DEPENDENCIES = libkadm5srv.la \
+	$(top_builddir)/lib/hdb/libhdb.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+replay_log_LDFLAGS =
+am_truncate_log_OBJECTS = truncate_log.$(OBJEXT)
+truncate_log_OBJECTS = $(am_truncate_log_OBJECTS)
+truncate_log_LDADD = $(LDADD)
+truncate_log_DEPENDENCIES = libkadm5srv.la \
+	$(top_builddir)/lib/hdb/libhdb.la \
+	$(top_builddir)/lib/krb5/libkrb5.la \
+	$(top_builddir)/lib/asn1/libasn1.la
+truncate_log_LDFLAGS =
+
+DEFS = @DEFS@
+DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)/include
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
-X_CFLAGS = @X_CFLAGS@
-X_LIBS = @X_LIBS@
-X_EXTRA_LIBS = @X_EXTRA_LIBS@
-X_PRE_LIBS = @X_PRE_LIBS@
-libkadm5clnt_la_LIBADD = 
-am_libkadm5clnt_la_OBJECTS =  chpass_c.lo common_glue.lo create_c.lo \
-delete_c.lo destroy_c.lo flush_c.lo free.lo get_c.lo get_princs_c.lo \
-init_c.lo kadm5_err.lo marshall.lo modify_c.lo privs_c.lo randkey_c.lo \
-rename_c.lo send_recv.lo client_glue.lo
-libkadm5clnt_la_OBJECTS =  $(am_libkadm5clnt_la_OBJECTS)
-libkadm5srv_la_LIBADD = 
-am_libkadm5srv_la_OBJECTS =  acl.lo bump_pw_expire.lo chpass_s.lo \
-common_glue.lo context_s.lo create_s.lo delete_s.lo destroy_s.lo \
-ent_setup.lo error.lo flush_s.lo free.lo get_princs_s.lo get_s.lo \
-init_s.lo kadm5_err.lo keys.lo log.lo marshall.lo modify_s.lo \
-privs_s.lo randkey_s.lo rename_s.lo set_keys.lo set_modifier.lo \
-password_quality.lo server_glue.lo
-libkadm5srv_la_OBJECTS =  $(am_libkadm5srv_la_OBJECTS)
-libexec_PROGRAMS =  ipropd-master$(EXEEXT) ipropd-slave$(EXEEXT)
-sbin_PROGRAMS =  dump_log$(EXEEXT) replay_log$(EXEEXT) \
-truncate_log$(EXEEXT)
-PROGRAMS =  $(libexec_PROGRAMS) $(sbin_PROGRAMS)
-
-am_dump_log_OBJECTS =  dump_log.$(OBJEXT)
-dump_log_OBJECTS =  $(am_dump_log_OBJECTS)
-dump_log_LDADD = $(LDADD)
-dump_log_DEPENDENCIES =  libkadm5srv.la \
-$(top_builddir)/lib/hdb/libhdb.la $(top_builddir)/lib/krb5/libkrb5.la \
-$(top_builddir)/lib/asn1/libasn1.la
-dump_log_LDFLAGS = 
-am_ipropd_master_OBJECTS =  ipropd_master.$(OBJEXT)
-ipropd_master_OBJECTS =  $(am_ipropd_master_OBJECTS)
-ipropd_master_LDADD = $(LDADD)
-ipropd_master_DEPENDENCIES =  libkadm5srv.la \
-$(top_builddir)/lib/hdb/libhdb.la $(top_builddir)/lib/krb5/libkrb5.la \
-$(top_builddir)/lib/asn1/libasn1.la
-ipropd_master_LDFLAGS = 
-am_ipropd_slave_OBJECTS =  ipropd_slave.$(OBJEXT)
-ipropd_slave_OBJECTS =  $(am_ipropd_slave_OBJECTS)
-ipropd_slave_LDADD = $(LDADD)
-ipropd_slave_DEPENDENCIES =  libkadm5srv.la \
-$(top_builddir)/lib/hdb/libhdb.la $(top_builddir)/lib/krb5/libkrb5.la \
-$(top_builddir)/lib/asn1/libasn1.la
-ipropd_slave_LDFLAGS = 
-am_replay_log_OBJECTS =  replay_log.$(OBJEXT)
-replay_log_OBJECTS =  $(am_replay_log_OBJECTS)
-replay_log_LDADD = $(LDADD)
-replay_log_DEPENDENCIES =  libkadm5srv.la \
-$(top_builddir)/lib/hdb/libhdb.la $(top_builddir)/lib/krb5/libkrb5.la \
-$(top_builddir)/lib/asn1/libasn1.la
-replay_log_LDFLAGS = 
-am_truncate_log_OBJECTS =  truncate_log.$(OBJEXT)
-truncate_log_OBJECTS =  $(am_truncate_log_OBJECTS)
-truncate_log_LDADD = $(LDADD)
-truncate_log_DEPENDENCIES =  libkadm5srv.la \
-$(top_builddir)/lib/hdb/libhdb.la $(top_builddir)/lib/krb5/libkrb5.la \
-$(top_builddir)/lib/asn1/libasn1.la
-truncate_log_LDFLAGS = 
-COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-CFLAGS = @CFLAGS@
+depcomp =
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) \
+	$(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
-LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-DIST_SOURCES =  $(libkadm5clnt_la_SOURCES) $(libkadm5srv_la_SOURCES) \
-$(dump_log_SOURCES) $(ipropd_master_SOURCES) $(ipropd_slave_SOURCES) \
-$(replay_log_SOURCES) $(truncate_log_SOURCES)
-HEADERS =  $(kadm5include_HEADERS)
+LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+CFLAGS = @CFLAGS@
+DIST_SOURCES = $(libkadm5clnt_la_SOURCES) $(libkadm5srv_la_SOURCES) \
+	$(dump_log_SOURCES) $(ipropd_master_SOURCES) \
+	$(ipropd_slave_SOURCES) $(replay_log_SOURCES) \
+	$(truncate_log_SOURCES)
+HEADERS = $(kadm5include_HEADERS)
 
-depcomp = 
-DIST_COMMON =  $(kadm5include_HEADERS) ChangeLog Makefile.am Makefile.in
-
-
-DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-
-GZIP_ENV = --best
+DIST_COMMON = $(kadm5include_HEADERS) ChangeLog Makefile.am Makefile.in
 SOURCES = $(libkadm5clnt_la_SOURCES) $(libkadm5srv_la_SOURCES) $(dump_log_SOURCES) $(ipropd_master_SOURCES) $(ipropd_slave_SOURCES) $(replay_log_SOURCES) $(truncate_log_SOURCES)
-OBJECTS = $(am_libkadm5clnt_la_OBJECTS) $(am_libkadm5srv_la_OBJECTS) $(am_dump_log_OBJECTS) $(am_ipropd_master_OBJECTS) $(am_ipropd_slave_OBJECTS) $(am_replay_log_OBJECTS) $(am_truncate_log_OBJECTS)
 
-all: all-redirect
+all: all-am
+
 .SUFFIXES:
 .SUFFIXES: .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x .c .lo .o .obj
-$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
-	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/kadm5/Makefile
-
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
-	cd $(top_builddir) \
-	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
-
-
-mostlyclean-libLTLIBRARIES:
-
-clean-libLTLIBRARIES:
-	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
-
-distclean-libLTLIBRARIES:
-
-maintainer-clean-libLTLIBRARIES:
-
-install-libLTLIBRARIES: $(lib_LTLIBRARIES)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(libdir)
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    echo " $(LIBTOOL)  --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p; \
-	  else :; fi; \
-	done
-
-uninstall-libLTLIBRARIES:
-	@$(NORMAL_UNINSTALL)
-	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
-	  echo " $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p"; \
-	  $(LIBTOOL)  --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
-	done
-
-mostlyclean-compile:
-	-rm -f *.o core *.core
-	-rm -f *.$(OBJEXT)
-
-clean-compile:
-
-distclean-compile:
-	-rm -f *.tab.c
-
-maintainer-clean-compile:
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -428,105 +397,124 @@ clean-libtool:
 	-rm -rf .libs _libs
 
 distclean-libtool:
+	-rm -f libtool
+$(srcdir)/Makefile.in:  Makefile.am $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --foreign  lib/kadm5/Makefile
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
+install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(libdir)
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo " $(LIBTOOL) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p"; \
+	    $(LIBTOOL) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libdir)/$$p; \
+	  else :; fi; \
+	done
 
-maintainer-clean-libtool:
+uninstall-libLTLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	@list='$(lib_LTLIBRARIES)'; for p in $$list; do \
+	  echo " $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p"; \
+	  $(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/$$p; \
+	done
 
-libkadm5clnt.la: $(libkadm5clnt_la_OBJECTS) $(libkadm5clnt_la_DEPENDENCIES)
+clean-libLTLIBRARIES:
+	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
+libkadm5clnt.la: $(libkadm5clnt_la_OBJECTS) $(libkadm5clnt_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libkadm5clnt_la_LDFLAGS) $(libkadm5clnt_la_OBJECTS) $(libkadm5clnt_la_LIBADD) $(LIBS)
-
-libkadm5srv.la: $(libkadm5srv_la_OBJECTS) $(libkadm5srv_la_DEPENDENCIES)
+libkadm5srv.la: $(libkadm5srv_la_OBJECTS) $(libkadm5srv_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libkadm5srv_la_LDFLAGS) $(libkadm5srv_la_OBJECTS) $(libkadm5srv_la_LIBADD) $(LIBS)
-
-mostlyclean-libexecPROGRAMS:
-
-clean-libexecPROGRAMS:
-	-test -z "$(libexec_PROGRAMS)" || rm -f $(libexec_PROGRAMS)
-
-distclean-libexecPROGRAMS:
-
-maintainer-clean-libexecPROGRAMS:
-
 install-libexecPROGRAMS: $(libexec_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(libexecdir)
 	@list='$(libexec_PROGRAMS)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
-	    echo " $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libexecdir)/$$f"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(libexecdir)/$$f; \
+	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
+	  if test -f $$p \
+	     || test -f $$p1 \
+	  ; then \
+	    f=`echo $$p1|sed '$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) $$p $(DESTDIR)$(libexecdir)/$$f"; \
+	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) $$p $(DESTDIR)$(libexecdir)/$$f; \
 	  else :; fi; \
 	done
 
 uninstall-libexecPROGRAMS:
 	@$(NORMAL_UNINSTALL)
 	@list='$(libexec_PROGRAMS)'; for p in $$list; do \
-	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  f=`echo $$p|sed 's/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
 	  echo " rm -f $(DESTDIR)$(libexecdir)/$$f"; \
 	  rm -f $(DESTDIR)$(libexecdir)/$$f; \
 	done
 
-mostlyclean-sbinPROGRAMS:
-
-clean-sbinPROGRAMS:
-	-test -z "$(sbin_PROGRAMS)" || rm -f $(sbin_PROGRAMS)
-
-distclean-sbinPROGRAMS:
-
-maintainer-clean-sbinPROGRAMS:
-
+clean-libexecPROGRAMS:
+	-test -z "$(libexec_PROGRAMS)" || rm -f $(libexec_PROGRAMS)
 install-sbinPROGRAMS: $(sbin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(sbindir)
 	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
-	    echo " $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(sbindir)/$$f"; \
-	    $(LIBTOOL)  --mode=install $(INSTALL_PROGRAM) $(INSTALL_STRIP_FLAG) $$p $(DESTDIR)$(sbindir)/$$f; \
+	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
+	  if test -f $$p \
+	     || test -f $$p1 \
+	  ; then \
+	    f=`echo $$p1|sed '$(transform);s/$$/$(EXEEXT)/'`; \
+	   echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) $$p $(DESTDIR)$(sbindir)/$$f"; \
+	   $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) $$p $(DESTDIR)$(sbindir)/$$f; \
 	  else :; fi; \
 	done
 
 uninstall-sbinPROGRAMS:
 	@$(NORMAL_UNINSTALL)
 	@list='$(sbin_PROGRAMS)'; for p in $$list; do \
-	  f="`echo $$p|sed -e 's/$(EXEEXT)$$//' -e '$(transform)' -e 's/$$/$(EXEEXT)/'`"; \
+	  f=`echo $$p|sed 's/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
 	  echo " rm -f $(DESTDIR)$(sbindir)/$$f"; \
 	  rm -f $(DESTDIR)$(sbindir)/$$f; \
 	done
 
-dump_log$(EXEEXT): $(dump_log_OBJECTS) $(dump_log_DEPENDENCIES)
+clean-sbinPROGRAMS:
+	-test -z "$(sbin_PROGRAMS)" || rm -f $(sbin_PROGRAMS)
+dump_log$(EXEEXT): $(dump_log_OBJECTS) $(dump_log_DEPENDENCIES) 
 	@rm -f dump_log$(EXEEXT)
 	$(LINK) $(dump_log_LDFLAGS) $(dump_log_OBJECTS) $(dump_log_LDADD) $(LIBS)
-
-ipropd-master$(EXEEXT): $(ipropd_master_OBJECTS) $(ipropd_master_DEPENDENCIES)
+ipropd-master$(EXEEXT): $(ipropd_master_OBJECTS) $(ipropd_master_DEPENDENCIES) 
 	@rm -f ipropd-master$(EXEEXT)
 	$(LINK) $(ipropd_master_LDFLAGS) $(ipropd_master_OBJECTS) $(ipropd_master_LDADD) $(LIBS)
-
-ipropd-slave$(EXEEXT): $(ipropd_slave_OBJECTS) $(ipropd_slave_DEPENDENCIES)
+ipropd-slave$(EXEEXT): $(ipropd_slave_OBJECTS) $(ipropd_slave_DEPENDENCIES) 
 	@rm -f ipropd-slave$(EXEEXT)
 	$(LINK) $(ipropd_slave_LDFLAGS) $(ipropd_slave_OBJECTS) $(ipropd_slave_LDADD) $(LIBS)
-
-replay_log$(EXEEXT): $(replay_log_OBJECTS) $(replay_log_DEPENDENCIES)
+replay_log$(EXEEXT): $(replay_log_OBJECTS) $(replay_log_DEPENDENCIES) 
 	@rm -f replay_log$(EXEEXT)
 	$(LINK) $(replay_log_LDFLAGS) $(replay_log_OBJECTS) $(replay_log_LDADD) $(LIBS)
-
-truncate_log$(EXEEXT): $(truncate_log_OBJECTS) $(truncate_log_DEPENDENCIES)
+truncate_log$(EXEEXT): $(truncate_log_OBJECTS) $(truncate_log_DEPENDENCIES) 
 	@rm -f truncate_log$(EXEEXT)
 	$(LINK) $(truncate_log_LDFLAGS) $(truncate_log_OBJECTS) $(truncate_log_LDADD) $(LIBS)
+
+mostlyclean-compile:
+	-rm -f *.$(OBJEXT) core *.core
+
+distclean-compile:
+	-rm -f *.tab.c
+
 .c.o:
-	$(COMPILE) -c $<
+	$(COMPILE) -c `test -f $< || echo '$(srcdir)/'`$<
+
 .c.obj:
 	$(COMPILE) -c `cygpath -w $<`
-.c.lo:
-	$(LTCOMPILE) -c -o $@ $<
 
+.c.lo:
+	$(LTCOMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
+uninstall-info-am:
 install-kadm5includeHEADERS: $(kadm5include_HEADERS)
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(DESTDIR)$(kadm5includedir)
 	@list='$(kadm5include_HEADERS)'; for p in $$list; do \
-	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  f="`echo $$p | sed -e 's|^.*/||'`"; \
-	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(kadm5includedir)/$$f"; \
-	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(kadm5includedir)/$$f; \
+	  echo " $(INSTALL_HEADER) $$d$$p $(DESTDIR)$(kadm5includedir)/$$f"; \
+	  $(INSTALL_HEADER) $$d$$p $(DESTDIR)$(kadm5includedir)/$$f; \
 	done
 
 uninstall-kadm5includeHEADERS:
@@ -564,22 +552,23 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 GTAGS:
 	here=`CDPATH=: && cd $(top_builddir) && pwd` \
 	  && cd $(top_srcdir) \
-	  && gtags -i $$here
-
-mostlyclean-tags:
-
-clean-tags:
+	  && gtags -i $(GTAGS_ARGS) $$here
 
 distclean-tags:
-	-rm -f TAGS ID
+	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH
 
-maintainer-clean-tags:
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
-distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+top_distdir = ../..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    $(mkinstalldirs) "$(distdir)/$$dir"; \
+	  fi; \
 	  if test -d $$d/$$file; then \
 	    cp -pR $$d/$$file $(distdir) \
 	    || exit 1; \
@@ -589,101 +578,100 @@ distdir: $(DISTFILES)
 	    || exit 1; \
 	  fi; \
 	done
-	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-hook
-info-am:
-info: info-am
-dvi-am:
-dvi: dvi-am
+	$(MAKE) $(AM_MAKEFLAGS) \
+	  top_distdir="${top_distdir}" distdir="$(distdir)" \
+	  dist-hook
 check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-am
-installcheck-am:
-installcheck: installcheck-am
-install-exec-am: install-libLTLIBRARIES install-libexecPROGRAMS \
-		install-sbinPROGRAMS
-	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
-install-exec: install-exec-am
+all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(HEADERS) all-local
 
-install-data-am: install-kadm5includeHEADERS install-data-local
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(libdir) $(DESTDIR)$(libexecdir) $(DESTDIR)$(sbindir) $(DESTDIR)$(kadm5includedir)
+
+install: install-am
+install-exec: install-exec-am
 install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
-install: install-am
-uninstall-am: uninstall-libLTLIBRARIES uninstall-libexecPROGRAMS \
-		uninstall-sbinPROGRAMS uninstall-kadm5includeHEADERS
-uninstall: uninstall-am
-all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(HEADERS) all-local
-all-redirect: all-am
+
+installcheck: installcheck-am
 install-strip:
-	$(MAKE) $(AM_MAKEFLAGS) INSTALL_STRIP_FLAG=-s install
-installdirs:
-	$(mkinstalldirs)  $(DESTDIR)$(libdir) $(DESTDIR)$(libexecdir) \
-		$(DESTDIR)$(sbindir) $(DESTDIR)$(kadm5includedir)
-
-
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  `test -z '$(STRIP)' || \
+	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
 mostlyclean-generic:
 
 clean-generic:
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
-	-rm -f Makefile $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-rm -f Makefile $(CONFIG_CLEAN_FILES) stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
-	-rm -f Makefile.in
-mostlyclean-am:  mostlyclean-libLTLIBRARIES mostlyclean-compile \
-		mostlyclean-libtool mostlyclean-libexecPROGRAMS \
-		mostlyclean-sbinPROGRAMS mostlyclean-tags \
-		mostlyclean-generic
-
-mostlyclean: mostlyclean-am
-
-clean-am:  clean-libLTLIBRARIES clean-compile clean-libtool \
-		clean-libexecPROGRAMS clean-sbinPROGRAMS clean-tags \
-		clean-generic mostlyclean-am
-
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-distclean-am:  distclean-libLTLIBRARIES distclean-compile \
-		distclean-libtool distclean-libexecPROGRAMS \
-		distclean-sbinPROGRAMS distclean-tags distclean-generic \
-		clean-am
-	-rm -f libtool
+clean-am: clean-generic clean-libLTLIBRARIES clean-libexecPROGRAMS \
+	clean-libtool clean-sbinPROGRAMS mostlyclean-am
 
 distclean: distclean-am
 
-maintainer-clean-am:  maintainer-clean-libLTLIBRARIES \
-		maintainer-clean-compile maintainer-clean-libtool \
-		maintainer-clean-libexecPROGRAMS \
-		maintainer-clean-sbinPROGRAMS maintainer-clean-tags \
-		maintainer-clean-generic distclean-am
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
+distclean-am: clean-am distclean-compile distclean-generic \
+	distclean-libtool distclean-tags
+
+dvi: dvi-am
+
+dvi-am:
+
+info: info-am
+
+info-am:
+
+install-data-am: install-data-local install-kadm5includeHEADERS
+
+install-exec-am: install-libLTLIBRARIES install-libexecPROGRAMS \
+	install-sbinPROGRAMS
+	@$(NORMAL_INSTALL)
+	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
+
+install-info: install-info-am
+
+install-man:
+
+installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-.PHONY: mostlyclean-libLTLIBRARIES distclean-libLTLIBRARIES \
-clean-libLTLIBRARIES maintainer-clean-libLTLIBRARIES \
-uninstall-libLTLIBRARIES install-libLTLIBRARIES mostlyclean-compile \
-distclean-compile clean-compile maintainer-clean-compile \
-mostlyclean-libtool distclean-libtool clean-libtool \
-maintainer-clean-libtool mostlyclean-libexecPROGRAMS \
-distclean-libexecPROGRAMS clean-libexecPROGRAMS \
-maintainer-clean-libexecPROGRAMS uninstall-libexecPROGRAMS \
-install-libexecPROGRAMS mostlyclean-sbinPROGRAMS distclean-sbinPROGRAMS \
-clean-sbinPROGRAMS maintainer-clean-sbinPROGRAMS uninstall-sbinPROGRAMS \
-install-sbinPROGRAMS uninstall-kadm5includeHEADERS \
-install-kadm5includeHEADERS tags mostlyclean-tags distclean-tags \
-clean-tags maintainer-clean-tags distdir info-am info dvi-am dvi \
-check-local check check-am installcheck-am installcheck install-exec-am \
-install-exec install-data-local install-data-am install-data install-am \
-install uninstall-am uninstall all-local all-redirect all-am all \
-install-strip installdirs mostlyclean-generic distclean-generic \
-clean-generic maintainer-clean-generic clean mostlyclean distclean \
-maintainer-clean
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool
+
+uninstall-am: uninstall-info-am uninstall-kadm5includeHEADERS \
+	uninstall-libLTLIBRARIES uninstall-libexecPROGRAMS \
+	uninstall-sbinPROGRAMS
+
+.PHONY: GTAGS all all-am all-local check check-am check-local clean \
+	clean-generic clean-libLTLIBRARIES clean-libexecPROGRAMS \
+	clean-libtool clean-sbinPROGRAMS distclean distclean-compile \
+	distclean-generic distclean-libtool distclean-tags distdir dvi \
+	dvi-am info info-am install install-am install-data \
+	install-data-am install-data-local install-exec install-exec-am \
+	install-info install-info-am install-kadm5includeHEADERS \
+	install-libLTLIBRARIES install-libexecPROGRAMS install-man \
+	install-sbinPROGRAMS install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool tags uninstall uninstall-am \
+	uninstall-info-am uninstall-kadm5includeHEADERS \
+	uninstall-libLTLIBRARIES uninstall-libexecPROGRAMS \
+	uninstall-sbinPROGRAMS
 
 
 install-suid-programs:
@@ -834,7 +822,6 @@ client_glue.lo server_glue.lo: $(srcdir)/common_glue.c
 # to help stupid solaris make
 
 kadm5_err.h: kadm5_err.et
-
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

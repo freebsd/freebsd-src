@@ -33,7 +33,7 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: ank.c,v 1.21 2000/09/10 19:16:39 joda Exp $");
+RCSID("$Id: ank.c,v 1.22 2001/08/10 08:08:22 joda Exp $");
 
 /*
  * fetch the default principal corresponding to `princ'
@@ -67,6 +67,7 @@ static krb5_error_code
 add_one_principal (const char *name,
 		   int rand_key,
 		   int rand_password,
+		   int use_defaults, 
 		   char *password,
 		   krb5_key_data *key_data,
 		   const char *max_ticket_life,
@@ -108,7 +109,10 @@ add_one_principal (const char *name,
 	    KADM5_PRINC_EXPIRE_TIME | KADM5_PW_EXPIRATION;
     }
 
-    edit_entry(&princ, &mask, default_ent, default_mask);
+    if(use_defaults) 
+	set_defaults(&princ, &mask, default_ent, default_mask);
+    else
+	edit_entry(&princ, &mask, default_ent, default_mask);
     if(rand_key || key_data) {
 	princ.attributes |= KRB5_KDB_DISALLOW_ALL_TIX;
 	mask |= KADM5_ATTRIBUTES;
@@ -200,10 +204,11 @@ static struct getargs args[] = {
       "max renewable lifetime", "lifetime" },
     { "attributes",	0,	arg_string,	NULL, "principal attributes",
       "attributes"},
-    { "expiration-time",0,	arg_string,	NULL, "Expiration time",
+    { "expiration-time",0,	arg_string,	NULL, "expiration time",
       "time"},
     { "pw-expiration-time", 0,  arg_string,	NULL,
-      "Password expiration time", "time"}
+      "password expiration time", "time"},
+    { "use-defaults",	0,	arg_flag,	NULL, "use default values" }
 };
 
 static int num_args = sizeof(args) / sizeof(args[0]);
@@ -232,6 +237,7 @@ add_new_key(int argc, char **argv)
     char *attributes		= NULL;
     char *expiration		= NULL;
     char *pw_expiration		= NULL;
+    int use_defaults = 0;
     int i;
     int num;
     krb5_key_data key_data[3];
@@ -246,6 +252,7 @@ add_new_key(int argc, char **argv)
     args[6].value = &attributes;
     args[7].value = &expiration;
     args[8].value = &pw_expiration;
+    args[9].value = &use_defaults;
     
     if(getarg(args, num_args, argc, argv, &optind)) {
 	usage ();
@@ -284,6 +291,7 @@ add_new_key(int argc, char **argv)
 
     for (i = optind; i < argc; ++i) {
 	ret = add_one_principal (argv[i], random_key, random_password,
+				 use_defaults, 
 				 password,
 				 kdp,
 				 max_ticket_life,

@@ -33,12 +33,12 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds_pw.c,v 1.47 2001/05/14 06:14:48 assar Exp $");
+RCSID("$Id: init_creds_pw.c,v 1.51 2001/09/18 09:36:39 joda Exp $");
 
 static int
 get_config_time (krb5_context context,
-		 char *realm,
-		 char *name,
+		 const char *realm,
+		 const char *name,
 		 int def)
 {
     int ret;
@@ -57,24 +57,6 @@ get_config_time (krb5_context context,
     if (ret >= 0)
 	return ret;
     return def;
-}
-
-static krb5_boolean
-get_config_bool (krb5_context context,
-		 char *realm,
-		 char *name)
-{
-    return krb5_config_get_bool (context,
-				 NULL,
-				 "realms",
-				 realm,
-				 name,
-				 NULL)
-	|| krb5_config_get_bool (context,
-				 NULL,
-				 "libdefaults",
-				 name,
-				 NULL);
 }
 
 static krb5_error_code
@@ -111,22 +93,13 @@ init_cred (krb5_context context,
     if (options->flags & KRB5_GET_INIT_CREDS_OPT_TKT_LIFE)
 	tmp = options->tkt_life;
     else
-	tmp = get_config_time (context,
-			       *client_realm,
-			       "ticket_lifetime",
-			       10 * 60 * 60);
+	tmp = 10 * 60 * 60;
     cred->times.endtime = now + tmp;
 
-    tmp = 0;
-    if (options->flags & KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE)
-	tmp = options->renew_life;
-    else
-	tmp = get_config_time (context,
-			       *client_realm,
-			       "renew_lifetime",
-			       0);
-    if (tmp)
-	cred->times.renew_till = now + tmp;
+    if ((options->flags & KRB5_GET_INIT_CREDS_OPT_RENEW_LIFE) &&
+	options->renew_life > 0) {
+	cred->times.renew_till = now + options->renew_life;
+    }
 
     if (in_tkt_service) {
 	krb5_realm server_realm;
@@ -135,7 +108,7 @@ init_cred (krb5_context context,
 	if (ret)
 	    goto out;
 	server_realm = strdup (*client_realm);
-	free (cred->server->realm);
+	free (*krb5_princ_realm(context, cred->server));
 	krb5_princ_set_realm (context, cred->server, &server_realm);
     } else {
 	ret = krb5_make_principal(context, &cred->server, 
@@ -231,17 +204,9 @@ get_init_creds_common(krb5_context context,
 
     if (options->flags & KRB5_GET_INIT_CREDS_OPT_FORWARDABLE)
 	flags->b.forwardable = options->forwardable;
-    else
-	flags->b.forwardable = get_config_bool (context,
-						*client_realm,
-						"forwardable");
 
     if (options->flags & KRB5_GET_INIT_CREDS_OPT_PROXIABLE)
 	flags->b.proxiable = options->proxiable;
-    else
-	flags->b.proxiable = get_config_bool (context,
-					      *client_realm,
-					      "proxiable");
 
     if (start_time)
 	flags->b.postdated = 1;
@@ -292,7 +257,7 @@ change_password (krb5_context context,
     krb5_error_code ret;
     krb5_creds cpw_cred;
     char buf1[BUFSIZ], buf2[BUFSIZ];
-    krb5_data password_data;
+    krb5_data password_data[2];
     int result_code;
     krb5_data result_code_string;
     krb5_data result_string;
@@ -326,20 +291,20 @@ change_password (krb5_context context,
 	goto out;
 
     for(;;) {
-	password_data.data   = buf1;
-	password_data.length = sizeof(buf1);
+	password_data[0].data   = buf1;
+	password_data[0].length = sizeof(buf1);
 
 	prompts[0].hidden = 1;
 	prompts[0].prompt = "New password: ";
-	prompts[0].reply  = &password_data;
+	prompts[0].reply  = &password_data[0];
 	prompts[0].type   = KRB5_PROMPT_TYPE_NEW_PASSWORD;
 
-	password_data.data   = buf2;
-	password_data.length = sizeof(buf2);
+	password_data[1].data   = buf2;
+	password_data[1].length = sizeof(buf2);
 
 	prompts[1].hidden = 1;
 	prompts[1].prompt = "Repeat new password: ";
-	prompts[1].reply  = &password_data;
+	prompts[1].reply  = &password_data[1];
 	prompts[1].type   = KRB5_PROMPT_TYPE_NEW_PASSWORD_AGAIN;
 
 	ret = (*prompter) (context, data, NULL, "Changing password",
@@ -561,6 +526,8 @@ krb5_get_init_creds_keytab(krb5_context context,
 			    NULL,
 			    &this_cred,
 			    NULL);
+    free (a);
+
     if (ret)
 	goto out;
     free (pre_auth_types);

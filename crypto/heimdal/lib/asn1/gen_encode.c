@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_encode.c,v 1.11 2000/06/19 15:19:08 joda Exp $");
+RCSID("$Id: gen_encode.c,v 1.12 2001/09/25 13:39:26 assar Exp $");
 
 static void
 encode_primitive (const char *typename, const char *name)
@@ -75,6 +75,9 @@ encode_type (const char *name, const Type *t)
 	break;
     case TOctetString:
 	encode_primitive ("octet_string", name);
+	break;
+    case TOID :
+	encode_primitive ("oid", name);
 	break;
     case TBitString: {
 	Member *m;
@@ -126,6 +129,10 @@ encode_type (const char *name, const Type *t)
 		 "UT_BitString, &l);\n"
 		 "BACK;\n",
 		 rest);
+	break;
+    }
+    case TEnumerated : {
+	encode_primitive ("enumerated", name);
 	break;
     }
     case TSequence: {
@@ -234,6 +241,8 @@ generate_type_encode (const Symbol *s)
   case TGeneralizedTime:
   case TGeneralString:
   case TBitString:
+  case TEnumerated:
+  case TOID:
   case TSequence:
   case TSequenceOf:
   case TApplication:

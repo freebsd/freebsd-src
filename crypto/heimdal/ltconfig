@@ -399,7 +399,7 @@ exec 5>>./config.log
 if test "X${LC_ALL+set}" = Xset; then LC_ALL=C; export LC_ALL; fi
 if test "X${LANG+set}"   = Xset; then LANG=C;   export LANG;   fi
 
-if test -n "$cache_file" && test -r "$cache_file" && test -f "$cache_file"; then
+if test -n "$cache_file" && test -r "$cache_file"; then
   echo "loading cache $cache_file within ltconfig"
   . $cache_file
 fi
@@ -526,11 +526,6 @@ esac
 old_archive_cmds='$AR $AR_FLAGS $oldlib$oldobjs$old_deplibs'
 old_postinstall_cmds='chmod 644 $oldlib'
 old_postuninstall_cmds=
-
-if test -n "$RANLIB"; then
-  old_archive_cmds="$old_archive_cmds~\$RANLIB \$oldlib"
-  old_postinstall_cmds="\$RANLIB \$oldlib~$old_postinstall_cmds"
-fi
 
 # Set sane defaults for various variables
 test -z "$AR" && AR=ar

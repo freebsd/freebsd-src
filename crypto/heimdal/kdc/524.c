@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: 524.c,v 1.20 2001/05/14 06:17:47 assar Exp $");
+RCSID("$Id: 524.c,v 1.23 2001/08/17 07:48:49 joda Exp $");
 
 #ifdef KRB4
 
@@ -258,9 +258,9 @@ do_524(const Ticket *t, krb5_data *reply,
 	kdc_log(0, "Failed to encode v4 ticket (%s)", spn);
 	goto out;
     }
-    ret = get_des_key(server, FALSE, &skey);
+    ret = get_des_key(server, TRUE, FALSE, &skey);
     if(ret){
-	kdc_log(0, "No DES key for server (%s)", spn);
+	kdc_log(0, "no suitable DES key for server (%s)", spn);
 	goto out;
     }
     ret = encrypt_v4_ticket(buf + sizeof(buf) - len, len, 
@@ -283,6 +283,7 @@ out:
 	free_EncryptedData(&ticket);
     }
     ret = krb5_storage_to_data(sp, reply);
+    reply->length = (*sp->seek)(sp, 0, SEEK_CUR);
     krb5_storage_free(sp);
     
     if(spn)

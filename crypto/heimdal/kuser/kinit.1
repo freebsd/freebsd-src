@@ -1,15 +1,16 @@
-.\" $Id: kinit.1,v 1.11 2001/06/08 21:35:32 joda Exp $
+.\" $Id: kinit.1,v 1.16 2002/01/24 15:30:45 assar Exp $
 .\"
 .Dd May 29, 1998
 .Dt KINIT 1
 .Os HEIMDAL
 .Sh NAME
-.Nm kinit ,
+.Nm kinit
 .Nm kauth
 .Nd acquire initial tickets
 .Sh SYNOPSIS
 .Nm kinit
 .Op Fl 4 | Fl -524init
+.Op Fl 9 | Fl -524convert
 .Op Fl -afslog
 .Oo Fl c Ar cachename \*(Ba Xo
 .Fl -cache= Ns Ar cachename
@@ -41,8 +42,8 @@
 .Oc
 .Op Fl k | Fl -use-keytab
 .Op Fl v | Fl -validate
-.Oo Fl e Ar enctype \*(Ba Xo
-.Fl -enctypes= Ns Ar enctype
+.Oo Fl e Ar enctypes \*(Ba Xo
+.Fl -enctypes= Ns Ar enctypes
 .Xc
 .Oc
 .Op Fl -fcache-version= Ns Ar integer
@@ -59,7 +60,9 @@ or if none is given, a system generated default (typically your login
 name at the default realm), and acquire a ticket granting ticket that
 can later be used to obtain tickets for other services.
 .Pp
-If you have compiled kinit with Kerberos 4 support and you have a
+If you have compiled
+.Nm kinit
+with Kerberos 4 support and you have a
 Kerberos 4 server,
 .Nm
 will detect this and get you Kerberos 4 tickets.
@@ -162,20 +165,20 @@ issued to an anonymous principal, typically
 .Pp
 The following options are only available if
 .Nm 
-has been compiled with support for Kerberos 4. The 
-.Nm kauth
-program is identical to
-.Nm kinit ,
-but has these options enabled by
-default.
+has been compiled with support for Kerberos 4. 
 .Bl -tag -width Ds
 .It Xo
 .Fl 4 Ns ,
 .Fl -524init
 .Xc
-Try to convert the obtained Kerberos 5 krbtgt to a version 4 compatible
-ticket. It will store this ticket in the default Kerberos 4 ticket
-file.
+Try to convert the obtained Kerberos 5 krbtgt to a version 4
+compatible ticket. It will store this ticket in the default Kerberos 4
+ticket file.
+.It Xo
+.Fl 9 Ns ,
+.Fl -524convert
+.Xc
+only convert ticket to version 4
 .It Fl -afslog
 Gets AFS tickets, converts them to version 4 format, and stores them
 in the kernel. Only useful if you have AFS.
@@ -201,12 +204,12 @@ command. When it finishes the credentials will be removed.
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev KRB5CCNAME
-Specifies the default cache file.
+Specifies the default credentials cache.
 .It Ev KRB5_CONFIG
-The directory where the
+The file name of
 .Pa krb5.conf
-can be found, default is 
-.Pa /etc .
+, the default being
+.Pa /etc/krb5.conf .
 .It Ev KRBTKFILE
 Specifies the Kerberos 4 ticket file to store version 4 tickets in.
 .El
@@ -216,8 +219,8 @@ Specifies the Kerberos 4 ticket file to store version 4 tickets in.
 .Sh SEE ALSO
 .Xr kdestroy 1 ,
 .Xr klist 1 ,
-.Xr krb5.conf 5 ,
-.Xr krb5_appdefault 3
+.Xr krb5_appdefault 3 ,
+.Xr krb5.conf 5
 .\".Sh STANDARDS
 .\".Sh HISTORY
 .\".Sh AUTHORS

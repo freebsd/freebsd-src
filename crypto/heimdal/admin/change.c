@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: change.c,v 1.3 2001/05/10 15:40:07 assar Exp $");
+RCSID("$Id: change.c,v 1.4 2001/07/23 09:46:40 joda Exp $");
 
 static void
 change_entry (krb5_context context, krb5_keytab keytab,
@@ -150,24 +150,9 @@ kt_change (int argc, char **argv)
 	return 1;
     }
     
-    if (keytab_string == NULL) {
-	ret = krb5_kt_default_modify_name (context, keytab_buf,
-					   sizeof(keytab_buf));
-	if (ret) {
-	    krb5_warn(context, ret, "krb5_kt_default_modify_name");
-	    return 1;
-	}
-	keytab_string = keytab_buf;
-    }
-    ret = krb5_kt_resolve(context, keytab_string, &keytab);
-    if (ret) {
-	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+    if((keytab = ktutil_open_keytab()) == NULL)
 	return 1;
-    }
 
-    if (verbose_flag)
-	fprintf (stderr, "Using keytab %s\n", keytab_string);
-	
     j = 0;
     max = 10;
     princs = malloc (max * sizeof(*princs));

@@ -33,7 +33,7 @@
 
 #include "kpasswd_locl.h"
 
-RCSID("$Id: kpasswd-generator.c,v 1.4 2001/05/12 15:17:10 assar Exp $");
+RCSID("$Id: kpasswd-generator.c,v 1.5 2001/07/31 02:44:42 assar Exp $");
 
 static unsigned
 read_words (const char *filename, char ***ret_w)
@@ -180,6 +180,12 @@ main(int argc, char **argv)
     setprogname(argv[0]);
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
+    if (help_flag)
+	usage (0);
+    if (version_flag) {
+	print_version(NULL);
+	return 0;
+    }
     argc -= optind;
     argv += optind;
 

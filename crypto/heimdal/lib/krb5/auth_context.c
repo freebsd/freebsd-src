@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: auth_context.c,v 1.56 2001/05/14 06:14:44 assar Exp $");
+RCSID("$Id: auth_context.c,v 1.57 2001/06/17 23:12:34 assar Exp $");
 
 krb5_error_code
 krb5_auth_con_init(krb5_context context,
@@ -300,36 +300,36 @@ krb5_auth_con_setremotesubkey(krb5_context context,
 }
 
 krb5_error_code
-krb5_auth_setcksumtype(krb5_context context,
-		       krb5_auth_context auth_context,
-		       krb5_cksumtype cksumtype)
+krb5_auth_con_setcksumtype(krb5_context context,
+			   krb5_auth_context auth_context,
+			   krb5_cksumtype cksumtype)
 {
     auth_context->cksumtype = cksumtype;
     return 0;
 }
 
 krb5_error_code
-krb5_auth_getcksumtype(krb5_context context,
-		       krb5_auth_context auth_context,
-		       krb5_cksumtype *cksumtype)
+krb5_auth_con_getcksumtype(krb5_context context,
+			   krb5_auth_context auth_context,
+			   krb5_cksumtype *cksumtype)
 {
     *cksumtype = auth_context->cksumtype;
     return 0;
 }
 
 krb5_error_code
-krb5_auth_setkeytype (krb5_context context,
-		      krb5_auth_context auth_context,
-		      krb5_keytype keytype)
+krb5_auth_con_setkeytype (krb5_context context,
+			  krb5_auth_context auth_context,
+			  krb5_keytype keytype)
 {
     auth_context->keytype = keytype;
     return 0;
 }
 
 krb5_error_code
-krb5_auth_getkeytype (krb5_context context,
-		      krb5_auth_context auth_context,
-		      krb5_keytype *keytype)
+krb5_auth_con_getkeytype (krb5_context context,
+			  krb5_auth_context auth_context,
+			  krb5_keytype *keytype)
 {
     *keytype = auth_context->keytype;
     return 0;
@@ -337,9 +337,9 @@ krb5_auth_getkeytype (krb5_context context,
 
 #if 0
 krb5_error_code
-krb5_auth_setenctype(krb5_context context,
-		     krb5_auth_context auth_context,
-		     krb5_enctype etype)
+krb5_auth_con_setenctype(krb5_context context,
+			 krb5_auth_context auth_context,
+			 krb5_enctype etype)
 {
     if(auth_context->keyblock)
 	krb5_free_keyblock(context, auth_context->keyblock);
@@ -351,16 +351,16 @@ krb5_auth_setenctype(krb5_context context,
 }
 
 krb5_error_code
-krb5_auth_getenctype(krb5_context context,
-		     krb5_auth_context auth_context,
-		     krb5_enctype *etype)
+krb5_auth_con_getenctype(krb5_context context,
+			 krb5_auth_context auth_context,
+			 krb5_enctype *etype)
 {
     krb5_abortx(context, "unimplemented krb5_auth_getenctype called");
 }
 #endif
 
 krb5_error_code
-krb5_auth_getlocalseqnumber(krb5_context context,
+krb5_auth_con_getlocalseqnumber(krb5_context context,
 			    krb5_auth_context auth_context,
 			    int32_t *seqnumber)
 {
@@ -369,7 +369,7 @@ krb5_auth_getlocalseqnumber(krb5_context context,
 }
 
 krb5_error_code
-krb5_auth_setlocalseqnumber (krb5_context context,
+krb5_auth_con_setlocalseqnumber (krb5_context context,
 			     krb5_auth_context auth_context,
 			     int32_t seqnumber)
 {
@@ -387,7 +387,7 @@ krb5_auth_getremoteseqnumber(krb5_context context,
 }
 
 krb5_error_code
-krb5_auth_setremoteseqnumber (krb5_context context,
+krb5_auth_con_setremoteseqnumber (krb5_context context,
 			      krb5_auth_context auth_context,
 			      int32_t seqnumber)
 {
@@ -397,7 +397,7 @@ krb5_auth_setremoteseqnumber (krb5_context context,
 
 
 krb5_error_code
-krb5_auth_getauthenticator(krb5_context context,
+krb5_auth_con_getauthenticator(krb5_context context,
 			   krb5_auth_context auth_context,
 			   krb5_authenticator *authenticator)
 {

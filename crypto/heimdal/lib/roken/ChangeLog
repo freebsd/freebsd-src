@@ -1,4 +1,211 @@
+2001-11-30  Assar Westerlund  <assar@sics.se>
+
+	* getifaddrs.c: support SIOCGLIFCONF and SIOCGLIFFLAGS which are
+	used on Solaris 8 to retrieve addresses larger than `struct
+	sockaddr'.  From Magnus Ahltorp <ahltorp@nada.kth.se> (with some
+	modifications by me)
+
+2001-10-27  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): set version to 15:0:6
+
+2001-10-22  Assar Westerlund  <assar@sics.se>
+
+	* localtime_r.c: add
+
+2001-10-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.c (dns_srv_order): don't try to return a value
+
+2001-09-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* snprintf.c: va_{start,end} fixes; from Thomas Klausner
+
+2001-09-20  Assar Westerlund  <assar@sics.se>
+
+	* resolve.c (dns_srv_order): make sure of not reading after the
+	array
+
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): bump to 14:4:5
+	* snprintf.c: rename 'struct state' -> 'struct snprintf_test' to
+	avoid collision with resolv.h on aix
+
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* parse_bytes-test.c, parse_bytes.c, parse_bytes.h, parse_units.c,
+	parse_units.h: use int instead of size_t as return values to be
+	compatible with snprintf
+
+	* strftime.c (strftime): check for return values from snprintf() <
+	0
+
+2001-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* socket.c: restrict is a keyword
+
+2001-09-03  Assar Westerlund  <assar@sics.se>
+
+	* write_pid.c: handle atexit or on_exit
+
+	* Makefile.am (EXTRA_libroken_la_SOURCES): add vis.hin to help
+	solaris make
+
+2001-08-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: use LDADD directly
+
+2001-08-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): set to 14:3:5
+
+	* issuid.c (issuid): call issetugid if it exists
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: make it play better with recent automake
+
+2001-08-21  Assar Westerlund  <assar@sics.se>
+
+	* glob.c: provide a fallback for ARG_MAX.  from <tol@stacken.kth.se>
+
+	* roken.h.in: remove all winsock.h
+	for now, it does more harm than good under cygwin and if it should be
+	used, the correct conditional needs to be found
+	from <tol@stacken.kth.se>
+
+2001-08-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getaddrinfo.c: include a definition of in6addr_loopback if it
+	doesn't exist
+
+2001-08-10  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): update to 14:2:5
+
+2001-08-08  Assar Westerlund  <assar@sics.se>
+
+	* hstrerror.c: move h_errno to its own file (h_errno.c)
+
+2001-08-04  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add getarg.3
+
+2001-08-01  Assar Westerlund  <assar@sics.se>
+
+	* mini_inetd.c (mini_inetd): explicitly use PF_UNSPEC.  be more
+	resilient to bind/listen failing.
+
+2001-07-31  Assar Westerlund  <assar@sics.se>
+
+	* getifaddrs.c (getifaddrs2): remove unused variables
+
+2001-07-31  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): update version to 14:1:5
+
+2001-07-23  Assar Westerlund  <assar@sics.se>
+
+	* getarg.c (arg_match_long): fix parsing of arg_counter optional
+	argument
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_LDFLAGS): bump version to 14:0:5
+	
+2001-07-17  Assar Westerlund  <assar@sics.se>
+
+	* snprintf-test.h: add a file with renaming of the snprintf
+	functions, to be used for running the tests
+
+2001-07-11  Assar Westerlund  <assar@sics.se>
+
+	* snprintf-test.c: add more %X tests, and long and conditional
+	long long tests
+	* snprintf.c: add support for printing long long (if available)
+
+2001-07-10  Assar Westerlund  <assar@sics.se>
+
+	* getaddrinfo.c (add_hostent): adapt to const hostent_find_fqdn
+	* hostent_find_fqdn.c (hostent_find_fqdn): const-ize
+
+2001-07-09  Assar Westerlund  <assar@sics.se>
+
+	* roken-common.h (hostent_find_fqdn): add
+	* hostent_find_fqdn.c: separate out hostent_find_fqdn
+
+	* warnerr.c: move out getprogname, setprogname
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* warnerr.c (setprogname): add const cast
+	* vis.c (SVIS): add some (unsigned char) before calling isfoo*
+	* Makefile.am (libroken_la_LDFLAGS:) set version to 13:0:4
+
+	* Makefile.am: add snprintf_test
+	* snprintf.c: rewrite so that it does not stop as soon as there
+	are no more characters to print, we need to figure out how long
+	the string would have to be.  this also fixes snprintf(NULL, 0
+
+2001-06-21  Assar Westerlund  <assar@sics.se>
+
+	* simple_exec.c (pipe_execv): remove unused variable
+
+2001-06-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getdtablesize.c: fix typo in obviously never used sysctl case
+
+	* simple_exec.c: rename check_status to wait_for_process, and
+	export it; function pipe_execv similar to popen, but with more
+	control over input and output
+
+	* roken-common.h: prototypes for wait_for_process and pipe_execv
+
+2001-06-17  Assar Westerlund  <assar@sics.se>
+
+	* roken-common.h: move emalloc et al to roken.h.in
+	* Makefile.am: make emalloc,ecalloc,erealloc,estrdup conditional
+	* emalloc.c, erealloc.c, estrup.c: use errx, since errno might not
+	be set reliably
+	* ecalloc.c: add for symmetry
+
+2001-06-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.c: dns_srv_order to order srv records
+
+2001-06-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getarg.c: Grog tries to figure out if to use mdoc.old instead of
+	mdoc by looking at some macros that were only present in the old
+	version, and by looking at the number of .Oo's present. In
+	mdoc.old .Oo was a toggle, but in mdoc it's closed by .Oc, so if
+	the number of .Oo's is bigger than the number of .Oc's, it figures
+	it must be mdoc.old. This doesn't however account for called Oc's,
+	and thus grog thinks that valid pages are mdoc.old when they
+	infact are mdoc. So let's make sure that Oc's are not called by
+	other macros.
+
+2001-05-29  Assar Westerlund  <assar@sics.se>
+
+	* base64-test.c (main): initialize numerr
+
+2001-05-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* base64.c: clean up the decode mess somewhat
+
+	* base64-test.c: base64 tests
+
+2001-05-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.h.in: just use standard C types with bswap*
+
+	* bswap.c: just use standard C types
+
 2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in: include all the headers that AC_GROK_TYPES tries for
+	finding u_int17_t et al
 
 	* Makefile.am: bump version to 12:0:3
 	* roken.h.in: re-add set_progname and get_progname for backwards

@@ -1,4 +1,4 @@
-.\" $Id: rxtelnet.1,v 1.6 2001/01/11 16:16:26 assar Exp $
+.\" $Id: rxtelnet.1,v 1.9 2001/07/12 09:28:24 assar Exp $
 .\"
 .Dd September 27, 1996
 .Dt RXTELNET 1
@@ -13,8 +13,11 @@ start a telnet and forward X-connections.
 .Op Fl k
 .Op Fl t Ar telnet_args
 .Op Fl x Ar xterm_args
+.Op Fl K Ar kx_args
 .Op Fl w Ar term_emulator
+.Op Fl b Ar telnet_program
 .Op Fl n
+.Op Fl v
 .Ar host
 .Op Ar port
 .Sh DESCRIPTION
@@ -46,12 +49,23 @@ Send
 .Ar xterm_args
 as arguments to
 .Nm xterm
+.It Fl X
+Send
+.Ar kx_args
+as arguments to
+.Nm kx
 .It Fl w
 Use
 .Ar term_emulator
 instead of xterm.
+.It Fl b
+Use
+.Ar telnet_program
+instead of telnet.
 .It Fl n
 Do not start any terminal emulator.
+.It Fl v
+Be verbose.
 .El
 .Sh EXAMPLE
 To login from host
@@ -73,8 +87,8 @@ to
 In this window you will be able to start X clients.
 .El
 .Sh SEE ALSO
-.Xr rxterm 1 ,
-.Xr tenletxr 1 ,
 .Xr kx 1 ,
-.Xr kxd 8 ,
-.Xr telnet 1
+.Xr rxterm 1 ,
+.Xr telnet 1 ,
+.Xr tenletxr 1 ,
+.Xr kxd 8

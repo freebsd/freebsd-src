@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <sl.h>
 
-RCSID("$Id: kadmin.c,v 1.38 2001/05/15 06:34:35 assar Exp $");
+RCSID("$Id: kadmin.c,v 1.41 2001/08/10 08:06:13 joda Exp $");
 
 static char *config_file;
 static char *keyfile;
@@ -118,6 +118,7 @@ static SL_cmd commands[] = {
 	"Deletes all principals matching the expressions."
     },
     { "del_entry" },
+    { "del" },
     {
 	"del_enctype",	del_enctype,	"del_enctype principal enctype...",
 	"Delete all the mentioned enctypes for principal."
@@ -223,16 +224,15 @@ main(int argc, char **argv)
     krb5_config_section *cf = NULL;
     kadm5_config_params conf;
     int optind = 0;
-    int e;
 
     setprogname(argv[0]);
 
     ret = krb5_init_context(&context);
     if (ret)
 	errx (1, "krb5_init_context failed: %d", ret);
-
-    while((e = getarg(args, num_args, argc, argv, &optind)))
-	errx(1, "error at argument `%s'", argv[optind]);
+    
+    if(getarg(args, num_args, argc, argv, &optind))
+	usage(1);
 
     if (help_flag)
 	usage (0);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.58 2001/02/20 01:44:47 assar Exp $");
+RCSID("$Id: rsh.c,v 1.63 2001/09/03 05:54:13 assar Exp $");
 
 enum auth_method auth_method;
 int do_encrypt       = -1;
@@ -48,7 +48,19 @@ krb5_crypto crypto;
 des_key_schedule schedule;
 des_cblock iv;
 #endif
+int sock_debug	     = 0;
 
+#ifdef KRB4
+static int use_v4 = -1;
+#endif
+static int use_v5 = -1;
+static int use_only_broken = 0;
+static int use_broken = 1;
+static char *port_str;
+static const char *user;
+static int do_version;
+static int do_help;
+static int do_errsock = 1;
 
 /*
  *
@@ -150,7 +162,7 @@ send_krb4_auth(int s,
 			   (struct sockaddr_in *)thataddr,
 			   KCMD_VERSION);
     if (status != KSUCCESS) {
-	warnx ("%s: %s", hostname, krb_get_err_text(status));
+	warnx("%s: %s", hostname, krb_get_err_text(status));
 	return 1;
     }
     memcpy (iv, cred.session, sizeof(iv));
@@ -295,7 +307,7 @@ send_krb5_auth(int s,
 			    NULL,
 			    NULL);
     if (status) {
-	warnx ("%s: %s", hostname, krb5_get_err_text(context, status));
+	warnx("%s: %s", hostname, krb5_get_err_text(context, status));
 	return 1;
     }
 
@@ -522,6 +534,16 @@ proto (int s, int errsock,
 	return 1;
     }
 
+    if (sock_debug) {
+	int one = 1;
+	if (setsockopt(s, SOL_SOCKET, SO_DEBUG, (void *)&one, sizeof(one)) < 0)
+	    warn("setsockopt remote");
+	if (errsock2 != -1 &&
+	    setsockopt(errsock2, SOL_SOCKET, SO_DEBUG,
+		       (void *)&one, sizeof(one)) < 0)
+	    warn("setsockopt stderr");
+    }
+
     return loop (s, errsock2);
 }
 
@@ -584,11 +606,6 @@ doit_broken (int argc,
     struct addrinfo hints;
     int error;
     char portstr[NI_MAXSERV];
-
-    if (priv_socket1 < 0) {
-	warnx ("unable to bind reserved port: is rsh setuid root?");
-	return 1;
-    }
 
     memset (&hints, 0, sizeof(hints));
     hints.ai_socktype = SOCK_STREAM;
@@ -682,6 +699,7 @@ doit (const char *hostname,
     struct addrinfo hints;
     int error;
     char portstr[NI_MAXSERV];
+    int socketfailed = 1;
     int ret;
 
     memset (&hints, 0, sizeof(hints));
@@ -701,10 +719,16 @@ doit (const char *hostname,
 	int errsock;
 
 	s = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
-	if (s < 0)
+	if (s < 0) 
 	    continue;
+	socketfailed = 0;
 	if (connect (s, a->ai_addr, a->ai_addrlen) < 0) {
-	    warn ("connect(%s)", hostname);
+	    char addr[128];
+	    if(getnameinfo(a->ai_addr, a->ai_addrlen, 
+			   addr, sizeof(addr), NULL, 0, NI_NUMERICHOST) == 0)
+		warn ("connect(%s [%s])", hostname, addr);
+	    else
+		warn ("connect(%s)", hostname);
 	    close (s);
 	    continue;
 	}
@@ -746,57 +770,37 @@ doit (const char *hostname,
 	close (s);
 	return ret;
     }
-    warnx ("failed to contact %s", hostname);
+    if(socketfailed)
+	warnx ("failed to contact %s", hostname);
     freeaddrinfo (ai);
     return -1;
 }
 
-#ifdef KRB4
-static int use_v4 = -1;
-#endif
-static int use_v5 = -1;
-static int use_only_broken = 0;
-static int use_broken = 1;
-static char *port_str;
-static const char *user;
-static int do_version;
-static int do_help;
-static int do_errsock = 1;
-
 struct getargs args[] = {
 #ifdef KRB4
-    { "krb4",	'4', arg_flag,		&use_v4,	"Use Kerberos V4",
-      NULL },
+    { "krb4",	'4', arg_flag,		&use_v4,	"Use Kerberos V4" },
 #endif
-    { "krb5",	'5', arg_flag,		&use_v5,	"Use Kerberos V5",
-      NULL },
-    { "broken", 'K', arg_flag,		&use_only_broken, "Use priv port",
-      NULL },
-    { "input",	'n', arg_negative_flag,	&input,		"Close stdin",
-      NULL },
-    { "encrypt", 'x', arg_flag,		&do_encrypt,	"Encrypt connection",
-      NULL },
+    { "krb5",	'5', arg_flag,		&use_v5,	"Use Kerberos V5" },
+    { "broken", 'K', arg_flag,		&use_only_broken, "Use only priv port" },
+    { NULL,	'd', arg_flag,		&sock_debug, "Enable socket debugging" },
+    { "input",	'n', arg_negative_flag,	&input,		"Close stdin" },
+    { "encrypt", 'x', arg_flag,		&do_encrypt,	"Encrypt connection" },
     { NULL, 	'z', arg_negative_flag,      &do_encrypt,
       "Don't encrypt connection", NULL },
-    { "forward", 'f', arg_flag,		&do_forward,	"Forward credentials",
-      NULL },
-    { "forward", 'G', arg_negative_flag,&do_forward,	"Forward credentials",
-      NULL },
+    { "forward", 'f', arg_flag,		&do_forward,	"Forward credentials"},
+    { NULL, 'G', arg_negative_flag,&do_forward,	"Don't forward credentials" },
     { "forwardable", 'F', arg_flag,	&do_forwardable,
-      "Forward forwardable credentials", NULL },
+      "Forward forwardable credentials" },
     { "unique", 'u', arg_flag,	&do_unique_tkfile,
-      "Use unique remote tkfile", NULL },
+      "Use unique remote tkfile" },
     { "tkfile", 'U', arg_string,  &unique_tkfile,
-      "Use that remote tkfile", NULL },
+      "Use that remote tkfile" },
     { "port",	'p', arg_string,	&port_str,	"Use this port",
       "number-or-service" },
-    { "user",	'l', arg_string,	&user,		"Run as this user",
-      NULL },
-    { "stderr", 'e', arg_negative_flag, &do_errsock,	"don't open stderr"},
-    { "version", 0,  arg_flag,		&do_version,	"Print version",
-      NULL },
-    { "help",	 0,  arg_flag,		&do_help,	NULL,
-      NULL }
+    { "user",	'l', arg_string,	&user,		"Run as this user" },
+    { "stderr", 'e', arg_negative_flag, &do_errsock,	"Don't open stderr"},
+    { "version", 0,  arg_flag,		&do_version,	NULL },
+    { "help",	 0,  arg_flag,		&do_help,	NULL }
 };
 
 static void
@@ -822,6 +826,7 @@ main(int argc, char **argv)
     int optind = 0;
     int ret = 1;
     char *cmd;
+    char *tmp;
     size_t cmd_len;
     const char *local_user;
     char *host = NULL;
@@ -851,6 +856,14 @@ main(int argc, char **argv)
 		&optind))
 	usage (1);
 
+    if (do_help)
+	usage (0);
+
+    if (do_version) {
+	print_version (NULL);
+	return 0;
+    }
+	
     if (do_forwardable == -1)
 	do_forwardable = krb5_config_get_bool (context, NULL,
 					       "libdefaults",
@@ -865,11 +878,15 @@ main(int argc, char **argv)
     else if (do_forward == 0)
 	do_forwardable = 0;
 
-    if (do_encrypt == -1)
-	do_encrypt = krb5_config_get_bool (context, NULL,
-					   "libdefaults",
-					   "encrypt",
-					   NULL);
+    if (do_encrypt == -1) {
+	/* we want to tell the -x flag from the default encryption
+           option */
+	if(!krb5_config_get_bool (context, NULL,
+				  "libdefaults",
+				  "encrypt",
+				  NULL))
+	    do_encrypt = 0;
+    }
 
     if (do_forwardable)
 	do_forward = 1;
@@ -888,14 +905,16 @@ main(int argc, char **argv)
 	use_v5 = 0;
     }
 
-    if (do_help)
-	usage (0);
-
-    if (do_version) {
-	print_version (NULL);
-	return 0;
+    if(priv_socket1 < 0) {
+	if (use_only_broken)
+	    errx (1, "unable to bind reserved port: is rsh setuid root?");
+	use_broken = 0;
     }
-	
+
+    if (do_encrypt == 1 && use_only_broken)
+	errx (1, "encryption not supported with old style authentication");
+
+
     if (do_unique_tkfile && unique_tkfile != NULL)
 	errx (1, "Only one of -u and -U allowed.");
 
@@ -915,6 +934,12 @@ main(int argc, char **argv)
 	    usage (1);
 	else
 	    host = argv[host_index = optind++];
+    }
+    
+    if((tmp = strchr(host, '@')) != NULL) {
+	*tmp++ = '\0';
+	user = host;
+	host = tmp;
     }
 
     if (optind == argc) {
@@ -948,7 +973,7 @@ main(int argc, char **argv)
 	user = local_user;
 
     cmd_len = construct_command(&cmd, argc - optind, argv + optind);
-
+    
     /*
      * Try all different authentication methods
      */
@@ -991,8 +1016,6 @@ main(int argc, char **argv)
 	else
 	    tmp_port = krb5_getportbyname(context, "shell", "tcp", 514);
 	auth_method = AUTH_BROKEN;
-	if (do_encrypt)
-	    errx (1, "encryption not supported with priv port authentication");
 	ret = doit_broken (argc, argv, host_index, host,
 			   user, local_user,
 			   tmp_port,

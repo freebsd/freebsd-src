@@ -1,7 +1,8 @@
 #!/bin/sh
-# $Id: rxterm.in,v 1.20 1999/02/04 09:29:49 assar Exp $
+# $Id: rxterm.in,v 1.22 2001/07/12 09:35:15 assar Exp $
 #
-usage="Usage: $0 [-l username] [-k] [-r rsh_args] [-x xterm_args] [-w term_emulator] [-v] [-h | --help] [--version] host"
+usage="Usage: $0 [-l username] [-k] [-r rsh_args] [-x xterm_args] [-K kx_args] [-w term_emulator] [-b rsh_binary][-v] [-h | --help] [--version] host"
+binary=rsh
 term=xterm
 while true
 do
@@ -10,7 +11,9 @@ do
   -r) rsh_args="${rsh_args} $2 "; shift 2;;
   -x) xterm_args="${xterm_args} $2 "; shift 2;;
   -k) kx_args="${kx_args} -k"; shift;;
+  -K) kx_args="${kx_args} $2 "; shift 2;;
   -w) term=$2; shift 2;;
+  -b) binary=$2; shift 2;;
   --version) echo "$0: %PACKAGE% %VERSION%"; exit 0;;
   -h) echo $usage; exit 0;;
   --help) echo $usage; exit 0;;
@@ -38,4 +41,4 @@ pid=$1
 disp=${2}${screen}
 auth=$3
 kill -USR1 $pid
-rsh -n $rsh_args $host "/bin/sh -c 'DISPLAY=$disp XAUTHORITY=$auth $term -T $title -n $title $xterm_args </dev/null >/dev/null 2>/dev/null &'"
+$binary -n $rsh_args $host "/bin/sh -c 'DISPLAY=$disp XAUTHORITY=$auth $term -T $title -n $title $xterm_args </dev/null >/dev/null 2>/dev/null &'"

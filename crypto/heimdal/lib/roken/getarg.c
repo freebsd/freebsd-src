@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getarg.c,v 1.40 2001/04/25 12:06:10 assar Exp $");
+RCSID("$Id: getarg.c,v 1.44 2001/09/10 13:22:43 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -139,7 +139,7 @@ mandoc_template(struct getargs *args,
 	    print_arg(buf, sizeof(buf), 1, 0, args + i);
 	    printf(".Oo Fl %c%s \\*(Ba Xo\n", args[i].short_name, buf);
 	    print_arg(buf, sizeof(buf), 1, 1, args + i);
-	    printf(".Fl -%s%s Oc\n.Xc\n", args[i].long_name, buf);
+	    printf(".Fl -%s%s\n.Xc\n.Oc\n", args[i].long_name, buf);
 	}
     /*
 	    if(args[i].type == arg_strings)
@@ -402,7 +402,11 @@ arg_match_long(struct getargs *args, size_t num_args,
 	    *flag = !negate;
 	    return 0;
 	} else if (*optarg && strcmp(optarg + 1, "maybe") == 0) {
+#ifdef HAVE_RANDOM
+	    *flag = random() & 1;
+#else
 	    *flag = rand() & 1;
+#endif
 	} else {
 	    *flag = negate;
 	    return 0;
@@ -415,13 +419,8 @@ arg_match_long(struct getargs *args, size_t num_args,
 
 	if (*optarg == '\0')
 	    val = 1;
-	else {
-	    char *endstr;
-
-	    val = strtol (optarg, &endstr, 0);
-	    if (endstr == optarg)
-		return ARG_ERR_BAD_ARG;
-	}
+	else if(sscanf(optarg + 1, "%d", &val) != 1)
+	    return ARG_ERR_BAD_ARG;
 	*(int *)current->value += val;
 	return 0;
     }
@@ -522,7 +521,13 @@ getarg(struct getargs *args, size_t num_args,
     int i;
     int ret = 0;
 
+#if defined(HAVE_SRANDOMDEV)
+    srandomdev();
+#elif defined(HAVE_RANDOM)
+    srandom(time(NULL));
+#else
     srand (time(NULL));
+#endif
     (*optind)++;
     for(i = *optind; i < argc; i++) {
 	if(argv[i][0] != '-')

@@ -1,53 +1,52 @@
-# $Id: Makefile.am,v 1.96 2001/05/16 23:57:10 assar Exp $
+# $Id: Makefile.am,v 1.117 2001/10/27 17:47:53 assar Exp $
 
-AUTOMAKE_OPTIONS = foreign no-dependencies
+include $(top_srcdir)/Makefile.am.common
 
-AM_CFLAGS += $(WFLAGS)
-
-## ACLOCAL = @ACLOCAL@ -I cf
 ACLOCAL_AMFLAGS = -I ../../cf
 
 CLEANFILES = roken.h make-roken.c $(XHEADERS)
 
 lib_LTLIBRARIES = libroken.la
-libroken_la_LDFLAGS = -version-info 12:0:3
+libroken_la_LDFLAGS = -version-info 15:0:6
 
-noinst_PROGRAMS = make-roken
+noinst_PROGRAMS = make-roken snprintf-test
 
 nodist_make_roken_SOURCES = make-roken.c
 
-check_PROGRAMS = parse_bytes-test \
-		strpftime-test \
-		getaddrinfo-test
+check_PROGRAMS = 				\
+		base64-test			\
+		getaddrinfo-test		\
+		parse_bytes-test		\
+		snprintf-test			\
+		strpftime-test
 
 TESTS = $(check_PROGRAMS)
 
 LIB_crypt = @LIB_crypt@
 
-common_LDADD = libroken.la $(LIB_crypt)
+LDADD = libroken.la $(LIB_crypt)
+make_roken_LDADD = 
 
-strpftime_test_SOURCES = strpftime-test.c strftime.c strptime.c snprintf.c
-##snprintf_test_SOURCES  = snprintf-test.c snprintf.c
-##snprintf_test_LDADD    = $(common_LDADD) -lm
-getaddrinfo_test_LDADD = $(common_LDADD)
-parse_bytes_test_LDADD = $(common_LDADD)
+strpftime_test_SOURCES	= strpftime-test.c strftime.c strptime.c snprintf.c
+snprintf_test_SOURCES	= snprintf-test.c snprintf.c
+snprintf_test_CFLAGS	= -DTEST_SNPRINTF
 
 libroken_la_SOURCES =		\
 	base64.c		\
 	bswap.c			\
 	concat.c		\
-	emalloc.c		\
 	environment.c		\
 	eread.c			\
-	erealloc.c		\
 	esetenv.c		\
-	estrdup.c		\
 	ewrite.c		\
 	getaddrinfo_hostspec.c	\
 	get_default_username.c	\
 	get_window_size.c	\
 	getarg.c		\
 	getnameinfo_verified.c	\
+	getprogname.c		\
+	h_errno.c		\
+	hostent_find_fqdn.c	\
 	issuid.c		\
 	k_getpwnam.c		\
 	k_getpwuid.c		\
@@ -61,6 +60,7 @@ libroken_la_SOURCES =		\
 	roken_gethostby.c	\
 	rtbl.c			\
 	rtbl.h			\
+	setprogname.c		\
 	signal.c		\
 	simple_exec.c		\
 	snprintf.c		\
@@ -80,6 +80,10 @@ EXTRA_libroken_la_SOURCES =	\
 	chown.c			\
 	copyhostent.c		\
 	daemon.c		\
+	ecalloc.c		\
+	emalloc.c		\
+	erealloc.c		\
+	estrdup.c		\
 	err.c			\
 	err.hin			\
 	errx.c			\
@@ -90,7 +94,6 @@ EXTRA_libroken_la_SOURCES =	\
 	freeaddrinfo.c		\
 	freehostent.c		\
 	gai_strerror.c		\
-	getaddrinfo.c		\
 	getdtablesize.c		\
 	getegid.c		\
 	geteuid.c		\
@@ -142,6 +145,7 @@ EXTRA_libroken_la_SOURCES =	\
 	unsetenv.c		\
 	verr.c			\
 	verrx.c			\
+	vis.hin			\
 	vsyslog.c		\
 	vwarn.c			\
 	vwarnx.c		\
@@ -151,9 +155,9 @@ EXTRA_libroken_la_SOURCES =	\
 
 EXTRA_DIST = roken.awk roken.h.in
 
-libroken_la_LIBADD = @LTLIBOBJS@
+libroken_la_LIBADD = @LTLIBOBJS@ $(DBLIB)
 
-$(LTLIBOBJS) $(libroken_la_OBJECTS): $(include_HEADERS) roken.h
+$(LTLIBOBJS) $(libroken_la_OBJECTS): $(include_HEADERS) roken.h $(XHEADERS)
 
 BUILT_SOURCES = make-roken.c roken.h
 
@@ -204,8 +208,9 @@ include_HEADERS = 				\
 
 nodist_include_HEADERS = roken.h
 
+man_MANS = getarg.3
 
-SUFFIXES += .hin
+SUFFIXES = .hin
 .hin.h:
 	cp $< $@
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: list.c,v 1.8 2001/05/11 00:54:01 assar Exp $");
+RCSID("$Id: list.c,v 1.10 2002/01/30 10:12:21 joda Exp $");
 
 static int help_flag;
 static int list_keys;
@@ -70,6 +70,21 @@ do_list(const char *keytab_string)
     int max_principal = sizeof("Principal") - 1;
     int max_timestamp = sizeof("Date") - 1;
     int max_key = sizeof("Key") - 1;
+
+    /* XXX specialcase the ANY type */
+    if(strncasecmp(keytab_string, "ANY:", 4) == 0) {
+	int flag = 0;
+	char buf[1024];
+	keytab_string += 4;
+	while (strsep_copy((const char**)&keytab_string, ",", 
+			   buf, sizeof(buf)) != -1) {
+	    if(flag)
+		printf("\n");
+	    do_list(buf);
+	    flag = 1;
+	}
+	return 0;
+    }
 
     ret = krb5_kt_resolve(context, keytab_string, &keytab);
     if (ret) {
@@ -122,11 +137,11 @@ do_list(const char *keytab_string)
 			 ((unsigned char*)entry.keyblock.keyvalue.data)[i]);
 	    CHECK_MAX(key);
 	}
-	kp->next = NULL;
 	*kie = kp;
 	kie = &kp->next;
 	krb5_kt_free_entry(context, &entry);
     }
+    *kie = NULL; /* termiate list */
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
 
     printf("%-*s  %-*s  %-*s", max_version, "Vno", 
@@ -170,7 +185,9 @@ out:
 int
 kt_list(int argc, char **argv)
 {
+    krb5_error_code ret;
     int optind = 0;
+    char kt[1024];
 
     if(verbose_flag)
 	list_timestamp = 1;
@@ -185,13 +202,12 @@ kt_list(int argc, char **argv)
     }
 
     if (keytab_string == NULL) {
-	do_list("FILE:/etc/krb5.keytab");
-#ifdef KRB4
-	printf ("\n");
-	do_list("krb4:/etc/srvtab");
-#endif
-    } else {
-	do_list(keytab_string);
+	if((ret = krb5_kt_default_name(context, kt, sizeof(kt))) != 0) {
+	    krb5_warn(context, ret, "getting default keytab name");
+	    return 0;
+	}
+	keytab_string = kt;
     }
+    do_list(keytab_string);
     return 0;
 }

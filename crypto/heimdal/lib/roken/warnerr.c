@@ -33,53 +33,11 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: warnerr.c,v 1.13 2001/05/16 23:54:19 assar Exp $");
+RCSID("$Id: warnerr.c,v 1.15 2001/07/09 14:56:51 assar Exp $");
 #endif
 
 #include "roken.h"
 #include "err.h"
-
-#ifndef HAVE___PROGNAME
-const char *__progname;
-#endif
-
-#ifndef HAVE_GETPROGNAME
-const char *
-getprogname(void)
-{
-    return __progname;
-}
-#endif
-
-#ifndef HAVE_SETPROGNAME
-void
-setprogname(const char *argv0)
-{
-#ifndef HAVE___PROGNAME
-    char *p;
-    if(argv0 == NULL)
-	return;
-    p = strrchr(argv0, '/');
-    if(p == NULL)
-	p = argv0;
-    else
-	p++;
-    __progname = p;
-#endif
-}
-#endif /* HAVE_SETPROGNAME */
-
-void
-set_progname(char *argv0)
-{
-    setprogname ((const char *)argv0);
-}
-
-const char *
-get_progname (void)
-{
-    return getprogname ();
-}
 
 void
 warnerr(int doerrno, const char *fmt, va_list ap)

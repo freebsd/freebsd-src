@@ -1,4 +1,4 @@
-.\" $Id: ktutil.8,v 1.12 2001/06/08 21:35:31 joda Exp $
+.\" $Id: ktutil.8,v 1.14 2001/07/23 14:47:31 joda Exp $
 .\"
 .Dd December 16, 2000
 .Dt KTUTIL 8
@@ -22,7 +22,7 @@
 is a program for managing keytabs.
 .Ar command
 can be one of the following:
-.Bl -tag -width Ds
+.Bl -tag -width srvconvert
 .It add Xo
 .Op Fl p Ar principal
 .Op Fl -principal= Ns Ar principal
@@ -38,7 +38,11 @@ can be one of the following:
 .Op Fl -no-salt
 .Xc
 Adds a key to the keytab. Options that are not specified will be
-prompted for.
+prompted for. This requires that you know the password of the
+principal to add; if what you really want is to add a new principal to
+the keytab, you should consider the
+.Ar get
+command, which talks to the kadmin server.
 .It change Xo
 .Op Fl r Ar realm
 .Op Fl -realm= Ns Ar realm
@@ -63,21 +67,25 @@ to
 .It get Xo
 .Op Fl p Ar admin principal
 .Op Fl -principal= Ns Ar admin principal
-.Oo Fl e Ar enctype \*(Ba Xo
-.Fl -enctypes= Ns Ar enctype
-.Xc
-.Oc
+.Op Fl e Ar enctype
+.Op Fl -enctypes= Ns Ar enctype
 .Op Fl r Ar realm
 .Op Fl -realm= Ns Ar realm
 .Op Fl a Ar admin server
 .Op Fl -admin-server= Ns Ar admin server
 .Op Fl s Ar server port
 .Op Fl -server-port= Ns Ar server port
-.Ar principal
+.Ar principal ...
 .Xc
-Get a key for
-.Nm principal
-and store it in a keytab.
+For each
+.Ar principal ,
+generate a new key for it (creating it if it doesn't already exist),
+and put that key in the keytab.
+.Pp
+If no
+.Ar realm
+is specified, the realm to operate on is taken from the first
+principal.
 .It list Xo
 .Op Fl -keys
 .Op Fl -timestamp
@@ -96,6 +104,14 @@ Removes the specified key or keys. Not specifying a
 removes keys with any version number. Not specifying a
 .Ar enctype
 removes keys of any type.
+.It rename Xo
+.Ar from-principal
+.Ar to-principal
+.Xc
+Renames all entries in the keytab that match the
+.Ar from-principal
+to 
+.Ar to-principal .
 .It purge Xo
 .Op Fl -age= Ns Ar age
 .Xc

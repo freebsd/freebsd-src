@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: parse_bytes.h,v 1.2 1999/12/02 16:58:51 joda Exp $ */
+/* $Id: parse_bytes.h,v 1.3 2001/09/04 09:56:00 assar Exp $ */
 
 #ifndef __PARSE_BYTES_H__
 #define __PARSE_BYTES_H__
@@ -39,10 +39,10 @@
 int
 parse_bytes (const char *s, const char *def_unit);
 
-size_t
+int
 unparse_bytes (int t, char *s, size_t len);
 
-size_t
+int
 unparse_bytes_short (int t, char *s, size_t len);
 
 #endif /* __PARSE_BYTES_H__ */

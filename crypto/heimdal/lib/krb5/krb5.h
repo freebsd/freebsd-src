@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.190 2001/05/16 22:23:56 assar Exp $ */
+/* $Id: krb5.h,v 1.197 2001/09/27 01:31:53 assar Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -42,6 +42,7 @@
 #include <asn1_err.h>
 #include <krb5_err.h>
 #include <heim_err.h>
+#include <k524_err.h>
 
 #include <krb5_asn1.h>
 
@@ -291,8 +292,8 @@ typedef union {
 
 #define KRB5_VERIFY_AP_REQ_IGNORE_INVALID	(1 << 0)
 
-#define KRB5_GC_CACHED		1
-#define KRB5_GC_USER_USER	2
+#define KRB5_GC_CACHED			(1U << 0)
+#define KRB5_GC_USER_USER		(1U << 1)
 
 /* constants for compare_creds (and cc_retrieve_cred) */
 #define KRB5_TC_DONT_MATCH_REALM	(1U << 31)
@@ -377,7 +378,6 @@ typedef struct krb5_context_data {
     krb5_boolean scan_interfaces;	/* `ifconfig -a' */
     krb5_boolean srv_lookup;		/* do SRV lookups */
     krb5_boolean srv_try_txt;		/* try TXT records also */
-    krb5_boolean srv_try_rfc2052;	/* try RFC2052 compatible records */
     int32_t fcache_vno;			/* create cache files w/ this
                                            version */
     int num_kt_types;			/* # of registered keytab types */
@@ -385,6 +385,7 @@ typedef struct krb5_context_data {
     const char *date_fmt;
     char *error_string;
     char error_buf[256];
+    krb5_addresses *ignore_addresses;
 } krb5_context_data;
 
 typedef struct krb5_ticket {
@@ -619,7 +620,8 @@ typedef struct krb5_verify_opt {
     const char *service;
 } krb5_verify_opt;
 
-#define KRB5_VERIFY_LREALMS 1
+#define KRB5_VERIFY_LREALMS		1
+#define KRB5_VERIFY_NO_ADDRESSES	2
 
 extern const krb5_cc_ops krb5_fcc_ops;
 extern const krb5_cc_ops krb5_mcc_ops;
@@ -632,12 +634,33 @@ extern const krb5_kt_ops krb5_srvtab_fkt_ops;
 extern const krb5_kt_ops krb5_any_ops;
 
 #define KRB5_KPASSWD_SUCCESS	0
-#define KRB5_KPASSWD_MALFORMED	0
-#define KRB5_KPASSWD_HARDERROR	0
-#define KRB5_KPASSWD_AUTHERROR	0
-#define KRB5_KPASSWD_SOFTERROR	0
+#define KRB5_KPASSWD_MALFORMED	1
+#define KRB5_KPASSWD_HARDERROR	2
+#define KRB5_KPASSWD_AUTHERROR	3
+#define KRB5_KPASSWD_SOFTERROR	4
 
 #define KPASSWD_PORT 464
+
+/* types for the new krbhst interface */
+struct krb5_krbhst_data;
+typedef struct krb5_krbhst_data *krb5_krbhst_handle;
+
+#define KRB5_KRBHST_KDC		1
+#define KRB5_KRBHST_ADMIN	2
+#define KRB5_KRBHST_CHANGEPW	3
+#define KRB5_KRBHST_KRB524	4
+
+typedef struct krb5_krbhst_info {
+    enum { KRB5_KRBHST_UDP,
+	   KRB5_KRBHST_TCP,
+	   KRB5_KRBHST_HTTP } proto;
+    unsigned short port;
+    unsigned short def_port;
+    struct addrinfo *ai;
+    struct krb5_krbhst_info *next;
+    char hostname[1]; /* has to come last */
+} krb5_krbhst_info;
+
 
 struct credentials; /* this is to keep the compiler happy */
 struct getargs;
