@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sfreg.h,v 1.4 1999/07/21 03:44:25 wpaul Exp $
+ *	$Id: if_sfreg.h,v 1.9 1999/07/21 04:54:46 wpaul Exp $
  */
 
 /*
@@ -1013,9 +1013,6 @@ struct sf_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	sf_bhandle;	/* bus space handle */
 	bus_space_tag_t		sf_btag;	/* bus space tag */
-	void			*sf_intrhand;	/* interrupt handler cookie */
-	struct resource		*sf_irq;	/* irq resource descriptor */
-	struct resource		*sf_res;	/* mem/ioport resource */
 	struct sf_type		*sf_info;	/* Starfire adapter info */
 	struct sf_type		*sf_pinfo;	/* phy info */
 	u_int8_t		sf_unit;	/* interface number */
@@ -1167,5 +1164,6 @@ struct sf_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
 #endif

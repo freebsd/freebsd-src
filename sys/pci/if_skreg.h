@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_skreg.h,v 1.5 1999/07/23 02:06:56 wpaul Exp $
+ *	$Id: if_skreg.h,v 1.33 1999/07/14 21:48:19 wpaul Exp $
  */
 
 /*
@@ -1127,9 +1127,6 @@ struct sk_if_softc;
 struct sk_softc {
 	bus_space_handle_t	sk_bhandle;	/* bus space handle */
 	bus_space_tag_t		sk_btag;	/* bus space tag */
-	void			*sk_intrhand;	/* irq handler handle */
-	struct resource		*sk_irq;	/* IRQ resource handle */
-	struct resource		*sk_res;	/* I/O or shared mem handle */
 	u_int8_t		sk_unit;	/* controller number */
 	u_int8_t		sk_type;
 	char			*sk_vpd_prodname;
@@ -1167,5 +1164,6 @@ struct sk_if_softc {
 
 #ifdef __alpha__
 #undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
 #endif
