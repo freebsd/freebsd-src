@@ -590,7 +590,7 @@ chkhost(f)
 			inet_ntoa(f->sin_addr));
 
 	(void) strncpy(fromb, hp->h_name, sizeof(fromb) - 1);
-	from[sizeof(fromb) - 1] = '\0';
+	fromb[sizeof(fromb) - 1] = '\0';
 	from = fromb;
 
 	/* Check for spoof, ala rlogind */
