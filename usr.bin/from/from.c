@@ -96,14 +96,14 @@ main(argc, argv)
 
 	if (!file) {
 		if (*argv) {
-			(void)sprintf(buf, "%s/%s", _PATH_MAILDIR, *argv);
+			(void)snprintf(buf, sizeof(buf), "%s/%s", _PATH_MAILDIR, *argv);
 			file  = buf;
 		} else {
 			if (!(file = getenv("MAIL"))) {
 				if (!(pwd = getpwuid(getuid())))
 					errx(1, "no password file entry for you");
 				file = pwd->pw_name;
-				(void)sprintf(buf,
+				(void)snprintf(buf, sizeof(buf),
 				    "%s/%s", _PATH_MAILDIR, file);
 				file = buf;
 			}
