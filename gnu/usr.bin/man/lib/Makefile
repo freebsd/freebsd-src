@@ -6,7 +6,9 @@ CFLAGS+= -DSTDC_HEADERS
 CLEANFILES+= config.h
 SRCS=	gripes.c util.c
 
-all depend: config.h
+# Kludge to create config.h for other modules.  The library itself doesn't
+# depend on config.h.
+all beforedepend: config.h
 
 config.h: ${.CURDIR}/config.h_dist ${.CURDIR}/../Makefile.inc
 	sed -e 's,%apropos%,${apropos},' -e 's,%whatis%,${whatis},' \
