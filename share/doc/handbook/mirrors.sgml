@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.40 1996/09/22 15:40:22 wosch Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.41 1996/10/11 12:07:43 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -519,8 +519,7 @@ for this domain.
 In case of problems, please contact &a.phk;.
 
 <descrip>
-<tag>California</tag>
-
+<tag>California, Bay Area, official source</tag>
 <itemize>
 <item>
 <url url="ftp://freefall.freebsd.org/pub/CTM"
@@ -528,30 +527,35 @@ In case of problems, please contact &a.phk;.
 </itemize>
 
 
-<tag>Denmark</tag>
-
+<tag>Germany, Berlin</tag>
 <itemize>
 <item>
-<url url="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"
-	name="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"><newline>
+<url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CTM"
+	name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CTM"><newline>
 </itemize>
 
 
-<tag>Germany</tag>
-
+<tag>Germany, Trier</tag>
 <itemize>
 <item>
-<url url="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"
-	name="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"><newline>
+<url url="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM" 
+	name="ftp://ftp.uni-trier.de/pub/unix/systems/BSD/FreeBSD/FreeBSD-current/CTM"><newline>
 </itemize>
 
 
-<tag>Taiwan</tag>
-
+<tag>South Africa, backup server for old deltas</tag>
 <itemize>
 <item>
-<url url="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"
-	name="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"><newline>
+<url url="ftp://ftp.internat.freebsd.org/pub/FreeBSD/CTM"
+	name="ftp://ftp.internat.freebsd.org/pub/FreeBSD/CTM"><newline>
+</itemize>
+
+
+<tag>Taiwan/R.O.C, Chiayi</tag>
+<itemize>
+<item>
+<url url="ftp://ftp.ccu.edu.tw/pub/freebsd/CTM"
+	name="ftp://ftp.ccu.edu.tw/pub/freebsd/CTM"><newline>
 </itemize>
 
 </descrip>
@@ -563,3 +567,4 @@ try
 <url url="http://ftpsearch.ntnu.no/ftpsearch/"
 	name="http://ftpsearch.ntnu.no/ftpsearch">. 
 FTP search is a great free archie server in Trondheim, Norway.
+
