@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.236 1997/04/17 16:26:54 wosch Exp $ -->
+<!-- $Id: contrib.sgml,v 1.237 1997/04/21 13:44:07 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -68,6 +68,7 @@ groups of people:
 	<item>&a.scrappy;
         <item>&a.tg;
         <item>&a.graichen;
+	<item>&a.jgreco;
         <item>&a.rgrimes;
 	<item>&a.jmg;
 	<item>&a.jhay;
@@ -83,6 +84,7 @@ groups of people:
 	<item>&a.imp;
         <item>&a.smace;
 	<item>&a.mckay;
+	<item>&a.tedm;
         <item>&a.amurai;
         <item>&a.markm;
 	<item>&a.max;
@@ -264,6 +266,7 @@ groups of people:
 	  <item>IMAMURA Tomoaki &lt;tomoak-i@is.aist-nara.ac.jp&gt;
 	  <item>Ishii Masahiro &lt;?&gt;
 	  <item>Itsuro Saito &lt;saito@miv.t.u-tokyo.ac.jp&gt;
+	  <item>J. David Lowe &lt;lowe@saturn5.com&gt;
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
@@ -329,6 +332,7 @@ groups of people:
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
 	  <item>MOROHOSHI Akihiko &lt;moro@race.u-tokyo.ac.jp&gt;
 	  <item>Naoki Hamada &lt;nao@tom-yam.or.jp&gt;
+	  <item>Narvi &lt;narvi@haldjas.folklore.ee&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
 	  <item>Nick Sayer &lt;nsayer@quack.kfu.com&gt;
 	  <item>Nisha Talagala &lt;nisha@cs.berkeley.edu&gt;
@@ -346,6 +350,7 @@ groups of people:
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
+	  <item>Ralf S. Engelschall &lt;rse@engelschall.com&gt;
 	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
