@@ -1947,5 +1947,30 @@ if_start_deferred(void *context, int pending)
 	(ifp->if_start)(ifp);
 }
 
+int
+if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
+{
+	int active = 0;
+
+	IF_LOCK(ifq);
+	if (_IF_QFULL(ifq)) {
+		_IF_DROP(ifq);
+		IF_UNLOCK(ifq);
+		m_freem(m);
+		return (0);
+	}
+	if (ifp != NULL) {
+		ifp->if_obytes += m->m_pkthdr.len + adjust;
+		if (m->m_flags & (M_BCAST|M_MCAST))
+			ifp->if_omcasts++;
+		active = ifp->if_flags & IFF_OACTIVE;
+	}
+	_IF_ENQUEUE(ifq, m);
+	IF_UNLOCK(ifq);
+	if (ifp != NULL && !active)
+		if_start(ifp);
+	return (1);
+}
+
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
