@@ -39,10 +39,10 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)tr.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: tr.c,v 1.3.2.1 1997/08/20 07:16:10 charnier Exp $";
+	"$Id: tr.c,v 1.7 1997/10/12 09:52:49 helbig Exp $";
 #endif /* not lint */
 
 #include <locale.h>
@@ -52,6 +52,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 static int string1[NCHARS] = {
@@ -106,7 +108,7 @@ main(argc, argv)
 	(void) setlocale(LC_CTYPE, "");
 
 	cflag = dflag = sflag = 0;
-	while ((ch = getopt(argc, argv, "cds")) !=  -1)
+	while ((ch = getopt(argc, argv, "cdsu")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -116,6 +118,9 @@ main(argc, argv)
 			break;
 		case 's':
 			sflag = 1;
+			break;
+		case 'u':
+			setbuf(stdout, (char *)NULL);
 			break;
 		case '?':
 		default:
@@ -260,9 +265,9 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: tr [-cs] string1 string2",
-		"       tr [-c] -d string1",
-		"       tr [-c] -s string1",
-		"       tr [-c] -ds string1 string2");
+		"usage: tr [-csu] string1 string2",
+		"       tr [-cu] -d string1",
+		"       tr [-cu] -s string1",
+		"       tr [-cu] -ds string1 string2");
 	exit(1);
 }
