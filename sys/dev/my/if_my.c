@@ -977,7 +977,7 @@ my_attach(device_t dev)
 		goto fail;
 	}
 	sc->my_ldata = (struct my_list_data *) sc->my_ldata_ptr;
-	round = (unsigned int)sc->my_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->my_ldata_ptr & 0xF;
 	roundptr = sc->my_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {
