@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.6 1994/09/12 11:27:03 davidg Exp $
+ * $Id: kern_exit.c,v 1.7 1994/09/25 19:33:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,10 @@
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/ptrace.h>
+#include <sys/shm.h>
+#include <sys/filedesc.h>
 
 #include <machine/cpu.h>
 #ifdef COMPAT_43
@@ -66,9 +69,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-
-__dead void cpu_exit __P((struct proc *));
-__dead void exit1 __P((struct proc *, int));
 
 /*
  * exit --

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id$
+ * $Id: uipc_socket.c,v 1.4 1994/08/02 07:43:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -46,9 +46,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/resourcevar.h>
-
-void	sofree		__P((struct socket *));
-void	sorflush	__P((struct socket *));
+#include <sys/signalvar.h>
 
 /*
  * Socket operation routines.
@@ -181,10 +179,12 @@ soclose(so)
 			if ((so->so_state & SS_ISDISCONNECTING) &&
 			    (so->so_state & SS_NBIO))
 				goto drop;
-			while (so->so_state & SS_ISCONNECTED)
-				if (error = tsleep((caddr_t)&so->so_timeo,
-				    PSOCK | PCATCH, netcls, so->so_linger))
+			while (so->so_state & SS_ISCONNECTED) {
+				error = tsleep((caddr_t)&so->so_timeo,
+				    PSOCK | PCATCH, netcls, so->so_linger);
+				if (error)
 					break;
+			}
 		}
 	}
 drop:
@@ -354,7 +354,8 @@ sosend(so, addr, uio, top, control, flags)
 #define	snderr(errno)	{ error = errno; splx(s); goto release; }
 
 restart:
-	if (error = sblock(&so->so_snd, SBLOCKWAIT(flags)))
+	error = sblock(&so->so_snd, SBLOCKWAIT(flags));
+	if (error)
 		goto out;
 	do {
 		s = splnet();
@@ -373,7 +374,7 @@ restart:
 		space = sbspace(&so->so_snd);
 		if (flags & MSG_OOB)
 			space += 1024;
-		if (atomic && resid > so->so_snd.sb_hiwat ||
+		if ((atomic && resid > so->so_snd.sb_hiwat) ||
 		    clen > so->so_snd.sb_hiwat)
 			snderr(EMSGSIZE);
 		if (space < resid + clen && uio &&
@@ -531,7 +532,8 @@ bad:
 		    (struct mbuf *)0, (struct mbuf *)0);
 
 restart:
-	if (error = sblock(&so->so_rcv, SBLOCKWAIT(flags)))
+	error = sblock(&so->so_rcv, SBLOCKWAIT(flags));
+	if (error)
 		return (error);
 	s = splnet();
 
@@ -547,11 +549,11 @@ restart:
 	 * we have to do the receive in sections, and thus risk returning
 	 * a short count if a timeout or signal occurs after we start.
 	 */
-	if (m == 0 || ((flags & MSG_DONTWAIT) == 0 &&
+	if (m == 0 || (((flags & MSG_DONTWAIT) == 0 &&
 	    so->so_rcv.sb_cc < uio->uio_resid) &&
 	    (so->so_rcv.sb_cc < so->so_rcv.sb_lowat ||
 	    ((flags & MSG_WAITALL) && uio->uio_resid <= so->so_rcv.sb_hiwat)) &&
-	    m->m_nextpkt == 0 && (pr->pr_flags & PR_ATOMIC) == 0) {
+	    m->m_nextpkt == 0 && (pr->pr_flags & PR_ATOMIC) == 0)) {
 #ifdef DIAGNOSTIC
 		if (m == 0 && so->so_rcv.sb_cc)
 			panic("receive 1");
@@ -749,7 +751,8 @@ dontblock:
 				splx(s);
 				return (0);
 			}
-			if (m = so->so_rcv.sb_mb)
+			m = so->so_rcv.sb_mb;
+			if (m)
 				nextrecord = m->m_nextpkt;
 		}
 	}

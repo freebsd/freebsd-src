@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id$
+ *	$Id: kern_acct.c,v 1.5 1994/09/26 21:09:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -105,7 +105,8 @@ acct(p, uap, retval)
 	int error;
 
 	/* Make sure that the caller is root. */
-	if (error = suser(p->p_ucred, &p->p_acflag))
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error)
 		return (error);
 
 	/*
@@ -114,7 +115,8 @@ acct(p, uap, retval)
 	 */
 	if (uap->path != NULL) {
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, p);
-		if (error = vn_open(&nd, FWRITE, 0))
+		error = vn_open(&nd, FWRITE, 0);
+		if (error)
 			return (error);
 		VOP_UNLOCK(nd.ni_vp);
 		if (nd.ni_vp->v_type != VREG) {

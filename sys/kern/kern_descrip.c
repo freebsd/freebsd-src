@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.4 1994/09/02 10:17:30 davidg Exp $
+ * $Id: kern_descrip.c,v 1.5 1994/09/25 19:33:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,7 @@
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
+#include <vm/vm.h>
 
 int finishdup(struct filedesc *fdp, int old, int new, int *retval);
 /*

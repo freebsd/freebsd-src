@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.3 1994/08/02 07:43:33 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.4 1994/08/18 03:53:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -78,15 +78,17 @@ vn_open(ndp, fmode, cmode)
 		ndp->ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF;
 		if ((fmode & O_EXCL) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
-		if (error = namei(ndp))
+		error = namei(ndp);
+		if (error)
 			return (error);
 		if (ndp->ni_vp == NULL) {
 			VATTR_NULL(vap);
 			vap->va_type = VREG;
 			vap->va_mode = cmode;
 			LEASE_CHECK(ndp->ni_dvp, p, cred, LEASE_WRITE);
-			if (error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
-			    &ndp->ni_cnd, vap))
+			error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
+			    &ndp->ni_cnd, vap);
+			if (error) 
 				return (error);
 			fmode &= ~O_TRUNC;
 			vp = ndp->ni_vp;
@@ -107,7 +109,8 @@ vn_open(ndp, fmode, cmode)
 	} else {
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = FOLLOW | LOCKLEAF;
-		if (error = namei(ndp))
+		error = namei(ndp);
+		if (error)
 			return (error);
 		vp = ndp->ni_vp;
 	}
@@ -117,7 +120,8 @@ vn_open(ndp, fmode, cmode)
 	}
 	if ((fmode & O_CREAT) == 0) {
 		if (fmode & FREAD) {
-			if (error = VOP_ACCESS(vp, VREAD, cred, p))
+			error = VOP_ACCESS(vp, VREAD, cred, p);
+			if (error)
 				goto bad;
 		}
 		if (fmode & (FWRITE | O_TRUNC)) {
@@ -125,8 +129,11 @@ vn_open(ndp, fmode, cmode)
 				error = EISDIR;
 				goto bad;
 			}
-			if ((error = vn_writechk(vp)) ||
-			    (error = VOP_ACCESS(vp, VWRITE, cred, p)))
+			error = vn_writechk(vp);
+			if(error)
+				goto bad;
+		        error = VOP_ACCESS(vp, VWRITE, cred, p);
+			if(error)
 				goto bad;
 		}
 	}
@@ -136,10 +143,12 @@ vn_open(ndp, fmode, cmode)
 		VOP_LOCK(vp);				/* XXX */
 		VATTR_NULL(vap);
 		vap->va_size = 0;
-		if (error = VOP_SETATTR(vp, vap, cred, p))
+		error = VOP_SETATTR(vp, vap, cred, p);
+		if (error)
 			goto bad;
 	}
-	if (error = VOP_OPEN(vp, fmode, cred, p))
+	error = VOP_OPEN(vp, fmode, cred, p);
+	if (error)
 		goto bad;
 	if (fmode & FWRITE)
 		vp->v_writecount++;
@@ -168,6 +177,8 @@ vn_writechk(vp)
 		switch (vp->v_type) {
 		case VREG: case VDIR: case VLNK:
 			return (EROFS);
+		default:
+			break;
 		}
 	}
 	/*
@@ -381,7 +392,8 @@ vn_ioctl(fp, com, data, p)
 	case VREG:
 	case VDIR:
 		if (com == FIONREAD) {
-			if (error = VOP_GETATTR(vp, &vattr, p->p_ucred, p))
+			error = VOP_GETATTR(vp, &vattr, p->p_ucred, p);
+			if (error)
 				return (error);
 			*(int *)data = vattr.va_size - fp->f_offset;
 			return (0);
