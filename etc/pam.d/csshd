@@ -5,4 +5,5 @@
 #
 
 # auth
-auth		required	pam_opie.so	no_warn
+auth		sufficient	pam_opie.so	no_warn no_fake_prompts
+auth		requisite	pam_opieaccess.so	no_warn
