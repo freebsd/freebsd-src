@@ -397,6 +397,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    return 0;
 	}
 
+#if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
 	case ATAPICMD: {
 	    struct ata_softc *scp;
 	    struct atapi_softc *atp;
@@ -437,6 +438,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    free(buf, M_ATA);
 	    return error;
 	}
+#endif
     }
     return ENOTTY;
 }
