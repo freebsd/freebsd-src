@@ -25,6 +25,7 @@ documentation and/or software.
  */
 
 #include "md5.h"
+#include <string.h>
 
 typedef unsigned char *POINTER;
 typedef unsigned short int UINT2;

@@ -1,5 +1,4 @@
 /* mdXhl.c
-/*
  * ----------------------------------------------------------------------------
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <phk@login.dkuug.dk> wrote this file.  As long as you retain this notice you
@@ -16,6 +15,9 @@
 #include <errno.h>
 #include "mdX.h"
 #include <sys/file.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
 
 char *
 MDXEnd(MDX_CTX *ctx)
@@ -38,9 +40,8 @@ MDXEnd(MDX_CTX *ctx)
 char *
 MDXFile (char *filename)
 {
-    unsigned char digest[16],buffer[BUFSIZ];
+    unsigned char buffer[BUFSIZ];
     MDX_CTX ctx;
-    char *p;
     int f,i,j;
 
     MDXInit(&ctx);
@@ -59,7 +60,6 @@ MDXFile (char *filename)
 char *
 MDXData (const unsigned char *data, unsigned int len)
 {
-    unsigned char digest[16];
     MDX_CTX ctx;
 
     MDXInit(&ctx);
