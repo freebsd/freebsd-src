@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.14 1995/08/03 01:45:28 jkh Exp $
+$Id: MIRROR.SITES,v 1.15 1995/08/03 17:08:19 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -80,7 +80,7 @@ USA		ftp://kryten.atinc.com/pub/FreeBSD
 USA             ftp://ftp.dataplex.net/pub/FreeBSD
                 <rkw@dataplex.net>
 
-USA             ftp://ftp.cps.cmich.edu/pub/FreeBSD
+USA             ftp://ftp.cps.cmich.edu/pub/ftp.freebsd.org
                 <ftpadmin@cps.cmich.edu>
 
 USA		ftp://ftp.cslab.vt.edu/pub/FreeBSD
