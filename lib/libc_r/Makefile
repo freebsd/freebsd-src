@@ -17,7 +17,7 @@ CFLAGS+=-I${.CURDIR}/../../include
 CFLAGS+=-D_LOCK_DEBUG
 
 # enable extra internal consistancy checks
-# CFLAGS+=-D_PTHREADS_INVARIANTS
+CFLAGS+=-D_PTHREADS_INVARIANTS
 
 AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/uthread
 PRECIOUSLIB=	yes

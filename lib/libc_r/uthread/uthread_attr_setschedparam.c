@@ -45,6 +45,10 @@ pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param
 		ret = EINVAL;
 	else if (param == NULL) {
 		ret = ENOTSUP;
+	} else if ((param->sched_priority < PTHREAD_MIN_PRIORITY) ||
+	    (param->sched_priority > PTHREAD_MAX_PRIORITY)) {
+		/* Return an unsupported value error. */
+		ret = ENOTSUP;
 	} else
 		(*attr)->prio = param->sched_priority;
 

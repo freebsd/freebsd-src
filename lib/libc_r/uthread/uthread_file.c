@@ -245,6 +245,8 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			/* Unlock the hash table: */
 			_SPINUNLOCK(&hash_lock);
 
+			_thread_run->data.fp = fp;
+
 			/* Wait on the FILE lock: */
 			_thread_kern_sched_state(PS_FILE_WAIT, fname, lineno);
 
@@ -260,14 +262,12 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 				_thread_run->continuation((void *)_thread_run);
 		}
 	}
-	return;
 }
 
 void
 _flockfile(FILE * fp)
 {
 	_flockfile_debug(fp, __FILE__, __LINE__);
-	return;
 }
 
 int
@@ -398,7 +398,6 @@ _funlockfile(FILE * fp)
 		 */
 		_thread_kern_sig_undefer();
 	}
-	return;
 }
 
 void
@@ -465,6 +464,41 @@ _funlock_owned(pthread_t pthread)
 	/*
 	 * Undefer and handle pending signals, yielding if
 	 * necessary:
+	 */
+	_thread_kern_sig_undefer();
+}
+
+void 
+_flockfile_backout(pthread_t pthread)
+{
+	int	idx = file_idx(pthread->data.fp);
+	struct	file_lock	*p;
+
+	/*
+	 * Defer signals to protect the scheduling queues from
+	 * access by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+
+	/*
+	 * Get a pointer to the lock for the file and check that
+	 * the running thread is the one with the lock:
+	 */
+	if (((pthread->flags & PTHREAD_FLAGS_IN_FILEQ) != 0) &&
+	    ((p = find_lock(idx, pthread->data.fp)) != NULL)) {
+		/* Lock the hash table: */
+		_SPINLOCK(&hash_lock);
+
+		/* Remove the thread from the queue: */
+		TAILQ_REMOVE(&p->l_head, pthread, qe);
+		pthread->flags &= ~PTHREAD_FLAGS_IN_FILEQ;
+
+		/* Unlock the hash table: */
+		_SPINUNLOCK(&hash_lock);
+	}
+
+	/*
+	 * Undefer and handle pending signals, yielding if necessary:
 	 */
 	_thread_kern_sig_undefer();
 }

@@ -48,7 +48,7 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 
 	/* Write the headers if any. */
 	if ((hdtr != NULL) && (hdtr->headers != NULL)) {
-		if (wvret = writev(s, hdtr->headers, hdtr->hdr_cnt) == -1) {
+		if ((wvret = writev(s, hdtr->headers, hdtr->hdr_cnt)) == -1) {
 			ret = -1;
 			goto ERROR;
 		} else
@@ -135,7 +135,7 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	if (ret == 0) {
 		/* Write the trailers, if any. */
 		if ((hdtr != NULL) && (hdtr->trailers != NULL)) {
-			if (wvret = writev(s, hdtr->trailers, hdtr->trl_cnt)
+			if ((wvret = writev(s, hdtr->trailers, hdtr->trl_cnt))
 			    == -1)
 				ret = -1;
 			else

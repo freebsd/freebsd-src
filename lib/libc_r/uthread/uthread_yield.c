@@ -57,8 +57,5 @@ pthread_yield(void)
 
 	/* Schedule the next thread: */
 	_thread_kern_sched(NULL);
-
-	/* Nothing to return. */
-	return;
 }
 #endif

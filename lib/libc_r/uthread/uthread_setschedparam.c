@@ -59,7 +59,8 @@ pthread_setschedparam(pthread_t pthread, int policy,
 		 */
 		_thread_kern_sig_defer();
 
-		if (param->sched_priority != pthread->base_priority) {
+		if (param->sched_priority !=
+		    PTHREAD_BASE_PRIORITY(pthread->base_priority)) {
 			/*
 			 * Remove the thread from its current priority
 			 * queue before any adjustments are made to its
@@ -72,6 +73,8 @@ pthread_setschedparam(pthread_t pthread, int policy,
 			}
 
 			/* Set the thread base priority: */
+			pthread->base_priority &=
+			    (PTHREAD_SIGNAL_PRIORITY | PTHREAD_RT_PRIORITY);
 			pthread->base_priority = param->sched_priority;
 
 			/* Recalculate the active priority: */

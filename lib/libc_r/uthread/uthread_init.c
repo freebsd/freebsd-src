@@ -90,9 +90,9 @@ _thread_init(void)
 	int             i;
 	size_t		len;
 	int		mib[2];
-	struct timeval	tv;
 	struct clockinfo clockinfo;
 	struct sigaction act;
+	struct sigaltstack alt;
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
@@ -133,7 +133,7 @@ _thread_init(void)
 
 	/*
 	 * Create a pipe that is written to by the signal handler to prevent
-	 * signals being missed in calls to _select: 
+	 * signals being missed in calls to _select:
 	 */
 	if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
 		/* Cannot create pipe, so abort: */
@@ -160,7 +160,7 @@ _thread_init(void)
 		PANIC("Cannot get kernel write pipe flags");
 	}
 	/* Allocate and initialize the ready queue: */
-	else if (_pq_alloc(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_MAX_PRIORITY) != 0) {
+	else if (_pq_alloc(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_LAST_PRIORITY) != 0) {
 		/* Abort this application: */
 		PANIC("Cannot allocate priority ready queue.");
 	}
@@ -168,10 +168,14 @@ _thread_init(void)
 	else if ((_thread_initial = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
 		/*
 		 * Insufficient memory to initialise this application, so
-		 * abort: 
+		 * abort:
 		 */
 		PANIC("Cannot allocate memory for initial thread");
-	} else {
+	}
+	/* Allocate memory for the scheduler stack: */
+	else if ((_thread_kern_sched_stack = malloc(SCHED_STACK_SIZE)) == NULL)
+		PANIC("Failed to allocate stack for scheduler");
+	else {
 		/* Zero the global kernel thread structure: */
 		memset(&_thread_kern_thread, 0, sizeof(struct pthread));
 		_thread_kern_thread.flags = PTHREAD_FLAGS_PRIVATE;
@@ -211,6 +215,12 @@ _thread_init(void)
 		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
 		_thread_initial->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
 
+		/* Setup the context for the scheduler: */
+		_setjmp(_thread_kern_sched_jb);
+		SET_STACK_JB(_thread_kern_sched_jb, _thread_kern_sched_stack +
+		    SCHED_STACK_SIZE - sizeof(double));
+		SET_RETURN_ADDR_JB(_thread_kern_sched_jb, _thread_kern_scheduler);
+
 		/*
 		 * Write a magic value to the thread structure
 		 * to help identify valid ones:
@@ -236,10 +246,16 @@ _thread_init(void)
 		TAILQ_INIT(&(_thread_initial->mutexq));
 		_thread_initial->priority_mutex_count = 0;
 
-		/* Initialize last active time to now: */
-		gettimeofday(&tv, NULL);
-		_thread_initial->last_active.tv_sec = tv.tv_sec;
-		_thread_initial->last_active.tv_usec = tv.tv_usec;
+		/* Initialize the global scheduling time: */
+		_sched_ticks = 0;
+		gettimeofday((struct timeval *) &_sched_tod, NULL);
+
+		/* Initialize last active: */
+		_thread_initial->last_active = (long) _sched_ticks;
+
+		/* Initialize the initial context: */
+		_thread_initial->curframe = NULL;
+		_thread_initial->ctxtype = CTX_JB_NOSIG;
 
 		/* Initialise the rest of the fields: */
 		_thread_initial->poll_data.nfds = 0;
@@ -257,10 +273,20 @@ _thread_init(void)
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
 		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = 0;
+		act.sa_flags = SA_SIGINFO | SA_ONSTACK;
 
-		/* Initialize signal handling: */
-		_thread_sig_init();
+		/* Clear pending signals for the process: */
+		sigemptyset(&_process_sigpending);
+
+		/* Clear the signal queue: */
+		memset(_thread_sigq, 0, sizeof(_thread_sigq));
+
+		/* Create and install an alternate signal stack: */
+		alt.ss_sp = malloc(SIGSTKSZ);	/* recommended stack size */
+		alt.ss_size = SIGSTKSZ;
+		alt.ss_flags = 0;
+		if (_thread_sys_sigaltstack(&alt, NULL) != 0)
+			PANIC("Unable to install alternate signal stack");
 
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
@@ -273,7 +299,7 @@ _thread_init(void)
 			    &_thread_sigact[i - 1]) != 0) {
 				/*
 				 * Abort this process if signal
-				 * initialisation fails: 
+				 * initialisation fails:
 				 */
 				PANIC("Cannot read signal handler info");
 			}
@@ -291,23 +317,29 @@ _thread_init(void)
 		    _thread_sys_sigaction(SIGINFO,       &act, NULL) != 0 ||
 		    _thread_sys_sigaction(SIGCHLD,       &act, NULL) != 0) {
 			/*
-			 * Abort this process if signal initialisation fails: 
+			 * Abort this process if signal initialisation fails:
 			 */
 			PANIC("Cannot initialise signal handler");
 		}
+		_thread_sigact[_SCHED_SIGNAL - 1].sa_flags = SA_SIGINFO;
+		_thread_sigact[SIGINFO - 1].sa_flags = SA_SIGINFO;
+		_thread_sigact[SIGCHLD - 1].sa_flags = SA_SIGINFO;
+
+		/* Get the process signal mask: */
+		_thread_sys_sigprocmask(SIG_SETMASK, NULL, &_process_sigmask);
 
 		/* Get the kernel clockrate: */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_CLOCKRATE;
 		len = sizeof (struct clockinfo);
 		if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
-			_clock_res_nsec = clockinfo.tick * 1000;
+			_clock_res_usec = clockinfo.tick;
 
 		/* Get the table size: */
 		if ((_thread_dtablesize = getdtablesize()) < 0) {
 			/*
 			 * Cannot get the system defined table size, so abort
-			 * this process. 
+			 * this process.
 			 */
 			PANIC("Cannot get dtablesize");
 		}
@@ -318,7 +350,7 @@ _thread_init(void)
 
 			/*
 			 * Cannot allocate memory for the file descriptor
-			 * table, so abort this process. 
+			 * table, so abort this process.
 			 */
 			PANIC("Cannot allocate memory for file descriptor table");
 		}
@@ -326,13 +358,13 @@ _thread_init(void)
 		if ((_thread_pfd_table = (struct pollfd *) malloc(sizeof(struct pollfd) * _thread_dtablesize)) == NULL) {
 			/*
 			 * Cannot allocate memory for the file descriptor
-			 * table, so abort this process. 
+			 * table, so abort this process.
 			 */
 			PANIC("Cannot allocate memory for pollfd table");
 		} else {
 			/*
 			 * Enter a loop to initialise the file descriptor
-			 * table: 
+			 * table:
 			 */
 			for (i = 0; i < _thread_dtablesize; i++) {
 				/* Initialise the file descriptor table: */
@@ -362,17 +394,13 @@ _thread_init(void)
 	if (pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
 	    pthread_cond_init(&_gc_cond,NULL) != 0)
 		PANIC("Failed to initialise garbage collector mutex or condvar");
-
-	gettimeofday(&kern_inc_prio_time, NULL);
-
-	return;
 }
 
 /*
- * Special start up code for NetBSD/Alpha 
+ * Special start up code for NetBSD/Alpha
  */
 #if	defined(__NetBSD__) && defined(__alpha__)
-int 
+int
 main(int argc, char *argv[], char *env);
 
 int

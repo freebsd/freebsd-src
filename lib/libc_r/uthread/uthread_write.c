@@ -127,7 +127,7 @@ _write(int fd, const void *buf, size_t nbytes)
 				/* Return the number of bytes written: */
 				ret = num;
 		}
-		_FD_UNLOCK(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_WRITE);
 	}
 	return (ret);
 }

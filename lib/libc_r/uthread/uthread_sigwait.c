@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 int
-sigwait(const sigset_t * set, int *sig)
+sigwait(const sigset_t *set, int *sig)
 {
 	int		ret = 0;
 	int		i;
@@ -52,11 +52,9 @@ sigwait(const sigset_t * set, int *sig)
 	 * Specify the thread kernel signal handler.
 	 */
 	act.sa_handler = (void (*) ()) _thread_sig_handler;
-	act.sa_flags = SA_RESTART;
-	act.sa_mask = *set;
-
-	/* Ensure the scheduling signal is masked: */
-	sigaddset(&act.sa_mask, _SCHED_SIGNAL);
+	act.sa_flags = SA_RESTART | SA_SIGINFO;
+	/* Ensure the signal handler cannot be interrupted by other signals: */
+	sigfillset(&act.sa_mask);
 
 	/*
 	 * Initialize the set of signals that will be waited on:
@@ -110,10 +108,12 @@ sigwait(const sigset_t * set, int *sig)
 	 * mask because a subsequent sigaction could enable an
 	 * ignored signal.
 	 */
+	sigemptyset(&tempset);
 	for (i = 1; i < NSIG; i++) {
 		if (sigismember(&waitset, i) &&
 		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
 			_thread_dfl_count[i]++;
+			sigaddset(&tempset, i);
 			if (_thread_dfl_count[i] == 1) {
 				if (_thread_sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
@@ -153,10 +153,10 @@ sigwait(const sigset_t * set, int *sig)
 	/* Restore the sigactions: */
 	act.sa_handler = SIG_DFL;
 	for (i = 1; i < NSIG; i++) {
-		if (sigismember(&waitset, i) &&
-		    (_thread_sigact[i - 1].sa_handler == SIG_DFL)) {
+		if (sigismember(&tempset, i)) {
 			_thread_dfl_count[i]--;
-			if (_thread_dfl_count == 0) {
+			if ((_thread_sigact[i - 1].sa_handler == SIG_DFL) &&
+			    (_thread_dfl_count[i] == 0)) {
 				if (_thread_sys_sigaction(i,&act,NULL) != 0)
 					ret = -1;
 			}
