@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$Id$
+#	$Id: Makefile,v 1.6 1997/02/22 13:06:31 peter Exp $
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref
@@ -12,11 +12,10 @@ USE_SOELIMPP=	yes
 USE_TBL=	yes
 SRCDIR=	${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/vi.ref
 
-index.so:: ${SRCS} ${EXTRA}
-ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
-index.so:: ${SRCS}
-	# Build index.so, side-effect of building the paper.
-	${SOELIMPP} -e 's:^\.so index.so$$::' ${ALLSRCS} | ${ROFF} > /dev/null
+# Build index.so as a side-effect of building the paper.
+index.so: ${SRCS} ${EXTRA}
+	${SOELIMPP} -e 's:^\.so index.so$$::' ${SRCS:S;^;${SRCDIR}/;} | \
+	${ROFF} > /dev/null
 	sed -e 's/MINUSSIGN/\\-/' \
 	    -e 's/DOUBLEQUOTE/""/' \
 	    -e "s/SQUOTE/'/" \
