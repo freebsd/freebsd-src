@@ -951,7 +951,7 @@ options 	PSM_HOOKRESUME		#hook the system resume event, useful
 options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 # The video card driver.
-device		vga0	at isa? conflicts
+device		vga0	at isa?
 
 # Options for vga:
 # Try the following option if the mouse pointer is not drawn correctly
