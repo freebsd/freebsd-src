@@ -59,6 +59,10 @@ dhclient_prestart()
 		ifscript_up ${ifn}
 	done
 
+	if checkyesno background_dhclient; then
+		rc_flags="${rc_flags} -nw"
+	fi
+
 	rc_flags="${rc_flags} ${_cooked_list}"
 	return 0
 }
