@@ -9,28 +9,31 @@
 
 gnudir=$(pwd)
 contribdir="${gnudir}/../../../contrib/binutils"
+platform="`uname -m`"
 
 rm -rf build
 mkdir build
 
+echo "binutils elf configuration for $platform"
+
 (cd build
-    ${contribdir}/configure i386-unknown-freebsdelf || exit
+    ${contribdir}/configure $platform-unknown-freebsdelf || exit
     (cd gas
 	echo "Updating as"
 	make config.h || exit
-	cp config.h ${gnudir}/as/i386/config.h || exit
+	cp config.h ${gnudir}/as/$platform/config.h || exit
 	)
     (cd ld
 	echo "Updating ld"
 	make config.h ldemul-list.h || exit
 	cp config.h ${gnudir}/ld || exit
-	cp ldemul-list.h ${gnudir}/ld/i386 || exit
+	cp ldemul-list.h ${gnudir}/ld/$platform || exit
 	)
     (cd bfd
 	echo "Updating libbfd"
 	make bfd.h config.h || exit
-	cp bfd.h ${gnudir}/libbfd || exit
-	cp config.h ${gnudir}/libbfd/i386 || exit
+	cp bfd.h ${gnudir}/libbfd/$platform || exit
+	cp config.h ${gnudir}/libbfd/$platform || exit
 	)
     (cd binutils
 	echo "Updating libbinutils"
