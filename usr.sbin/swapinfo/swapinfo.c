@@ -51,6 +51,7 @@ char	**argv;
 	static long blocksize;
         static int headerlen;
         static char *header;
+	char *oldbsize = NULL;
         char  **save;
 	kvm_t *kd;
 
@@ -174,7 +175,13 @@ char	**argv;
 		swapmap = head.rl_next;
 	}
 
+	if (kflag) {
+		oldbsize = getenv("BLOCKSIZE");
+		putenv("BLOCKSIZE=1k");
+	}
 	header = getbsize(&headerlen, &blocksize);
+	if (oldbsize)
+		putenv(oldbsize);
 	printf ("%-10s %10s %10s %10s %10s\n",
 		"Device", header, "Used", "Available", "Capacity");
 	for (total_avail = total_partitions = i = 0; i < nswdev; i++) {
