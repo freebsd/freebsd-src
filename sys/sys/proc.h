@@ -403,6 +403,7 @@ void	procinit __P((void));
 int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	resetpriority __P((struct proc *));
 int	roundrobin_interval __P((void));
+void	schedclock __P((struct proc *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));

@@ -2323,14 +2323,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 		cp_time[CP_INTR]++;
 	}
 	if (p != NULL) {
-		p->p_cpticks++;
-		if (++p->p_estcpu == 0)
-			p->p_estcpu--;
-		if ((p->p_estcpu & 3) == 0) {
-			resetpriority(p);
-			if (p->p_priority >= PUSER)
-				p->p_priority = p->p_usrpri;
-		}
+		schedclock(p);
 		
 		/* Update resource usage integrals and maximums. */
 		if ((pstats = p->p_stats) != NULL &&
