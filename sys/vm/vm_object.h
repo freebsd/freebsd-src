@@ -92,8 +92,8 @@ typedef u_char objtype_t;
 struct vm_object {
 	struct mtx mtx;
 	TAILQ_ENTRY(vm_object) object_list; /* list of all objects */
-	TAILQ_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
-	TAILQ_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
+	LIST_HEAD(, vm_object) shadow_head; /* objects that this is a shadow for */
+	LIST_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
 	vm_page_t root;			/* root of the resident page splay tree */
 	int generation;			/* generation ID */
