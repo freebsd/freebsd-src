@@ -163,6 +163,7 @@ as follows:
 .    It "Functions (Library Routines)"
 .    It "Function Arguments"
 .    It "Return Values"
+.    It "Exit Status"
 .    \" .It "Header File (including source code)"
 .    It "Interactive Commands"
 .    It "Library Names"
@@ -1537,6 +1538,36 @@ Currently, this macro does nothing if used without the
 .Fl std
 flag.
 .
+.Ss "Exit Status"
+.
+The
+.Ql .Ex
+macro generates text for use in the
+.Sx DIAGNOSTICS
+section.
+.Pp
+.Dl Usage: .Ex Oo -std Oc Op Ao utility Ac ...
+.Pp
+For example,
+.Ql ".Ex -std cat"
+produces:
+.
+.Bd -ragged -offset -indent
+\# a small hack to suppress a warning message
+.ds section-old "\*[section]
+.ds section 1
+.Ex -std cat
+.ds section "\*[section-old]
+.Ed
+.Pp
+.
+The
+.Fl std
+option is valid only for manual page sections 1, 6 and\~8.
+Currently, this macro does nothing if used without the
+.Fl std
+flag.
+.
 .Ss "Interactive Commands"
 .
 The
@@ -2709,6 +2740,13 @@ section below for details.
 .
 .It Li ".Sh DIAGNOSTICS"
 Diagnostic messages from a command should be placed in this section.
+The
+.Ql .Ex
+macro may be used to generate text for use in the
+.Sx DIAGNOSTICS
+section for most section 1, 6 and\~8 commands;
+see
+.Sx "Exit Status" .
 .
 .It Li ".Sh COMPATIBILITY"
 Known compatibility issues (e.g. deprecated options or parameters)
