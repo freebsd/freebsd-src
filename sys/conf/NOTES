@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.402 1998/02/04 22:03:27 eivind Exp $
+#	$Id: LINT,v 1.403 1998/02/09 15:03:38 kato Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1065,7 +1065,9 @@ options		NATM			#native ATM
 #
 # The i386/isa/sound/sound.doc has more information.
 
-# Controls all sound devices
+# Controls all "VOXWARE" driver sound devices.  See Luigi's driver
+# below for an alternate which may work better for some cards.
+#
 controller	snd0
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
 device sb0      at isa? port 0x220 irq 5 drq 1 vector sbintr
@@ -1086,8 +1088,11 @@ device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 # broken
 #device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
 
-# Luigi's snd code
-# device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0 vector pcmintr
+# Luigi's snd code (use INSTEAD of snd0 and all VOXWARE drivers!).
+# You may also wish to enable the pnp controller with this, for pnp
+# sound cards.
+#
+#device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0 vector pcmintr
 
 # Not controlled by `snd'
 device pca0 at isa? port IO_TIMER1 tty
