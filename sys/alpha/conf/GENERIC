@@ -12,8 +12,8 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
 # For hardware specific information check HARDWARE.TXT
@@ -62,7 +62,7 @@ options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	COMPAT_FREEBSD4		#Compatible with FreeBSD4
-options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI 
+options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
@@ -111,8 +111,10 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 device		ses		# SCSI Environmental Services (and SAF-TE)
 
-# RAID controllers
+# RAID controllers interfaced to the SCSI subsystem
 device		amr		# AMI MegaRAID
+
+# RAID controllers
 device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
@@ -139,12 +141,12 @@ device		ppbus		# Parallel port bus (required)
 device		lpt		# Printer
 device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
- 
+
 # If you've got a "dumb" serial or parallel PCI card that is
 # supported by the puc(4) glue driver, uncomment the following
 # line to enable it (connects to the sio and/or ppc drivers):
 #device         puc
- 
+
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		txp		# 3Com 3cR990 (``Typhoon'')
