@@ -56,12 +56,21 @@ _zalloc(vm_zone_t z)
 		zerror(ZONE_ERROR_INVALID);
 #endif
 
-	if (z->zfreecnt <= z->zfreemin)
-		return _zget(z);
+	if (z->zfreecnt <= z->zfreemin) {
+		item = _zget(z);
+		/*
+		 * PANICFAIL allows the caller to assume that the zalloc()
+		 * will always succeed.  If it doesn't, we panic here.
+		 */
+		if (item == NULL && (z->zflags & ZONE_PANICFAIL))
+			panic("zalloc(%s) failed", z->zname);
+		return(item);
+	}
 
 	item = z->zitems;
 	z->zitems = ((void **) item)[0];
 #ifdef INVARIANTS
+	KASSERT(item != NULL, ("zitems unexpectedly NULL"));
 	if (((void **) item)[1] != (void *) ZENTRY_FREE)
 		zerror(ZONE_ERROR_NOTFREE);
 	((void **) item)[1] = 0;
