@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.71 1998/01/24 06:53:32 kato Exp $
+ *	$Id: machdep.c,v 1.72 1998/01/25 12:01:38 kato Exp $
  */
 
 #include "apm.h"
@@ -292,6 +292,20 @@ again:
 	    (name) = (type *)v; v = (caddr_t)((name)+(num))
 #define	valloclim(name, type, num, lim) \
 	    (name) = (type *)v; v = (caddr_t)((lim) = ((name)+(num)))
+
+#ifdef BOUNCE_BUFFERS
+	/*
+	 * If there is more than 16MB of memory, allocate some bounce buffers
+	 */
+	if (Maxmem > 4096) {
+		if (bouncepages == 0) {
+			bouncepages = 64;
+		}
+		v = (caddr_t)((vm_offset_t)round_page(v));
+		valloc(bouncememory, char, bouncepages * PAGE_SIZE);
+	}
+#endif
+
 	valloc(callout, struct callout, ncallout);
 	valloc(callwheel, struct callout_tailq, callwheelsize);
 #ifdef SYSVSHM
@@ -320,21 +334,6 @@ again:
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
 
-#ifdef BOUNCE_BUFFERS
-	/*
-	 * If there is more than 16MB of memory, allocate some bounce buffers
-	 */
-	if (Maxmem > 4096) {
-		if (bouncepages == 0) {
-			bouncepages = 64;
-			bouncepages += ((Maxmem - 4096) / 2048) * 32;
-			if (bouncepages > 128)
-				bouncepages = 128;
-		}
-		v = (caddr_t)((vm_offset_t)round_page(v));
-		valloc(bouncememory, char, bouncepages * PAGE_SIZE);
-	}
-#endif
 
 	/*
 	 * End of first pass, size has been calculated so allocate memory
