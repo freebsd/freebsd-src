@@ -711,7 +711,7 @@ char    *ttyname_r(int, char *, size_t);
 void	_cond_wait_backout(pthread_t);
 int     _find_thread(pthread_t);
 pthread_t _get_curthread(void);
-void	*_set_curthread(ucontext_t *, struct pthread *);
+void	*_set_curthread(ucontext_t *, struct pthread *, int *);
 void	_retire_thread(void *arch_id);
 void	*_thread_stack_alloc(size_t, size_t);
 void	_thread_stack_free(void *, size_t, size_t);
