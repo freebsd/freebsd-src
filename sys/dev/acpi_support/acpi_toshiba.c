@@ -213,11 +213,12 @@ TUNABLE_INT("hw.acpi.toshiba.enable_fn_keys", &enable_fn_keys);
  *          Dynabook Satellite 2455
  *          Dynabook SS 3500
  * TOS6207  Dynabook SS2110 Series
+ * TOS6208  SPA40
  */
 static int
 acpi_toshiba_probe(device_t dev)
 {
-	static char *tosh_ids[] = { "TOS6200", "TOS6207", NULL };
+	static char *tosh_ids[] = { "TOS6200", "TOS6207", "TOS6208", NULL };
 
 	if (acpi_disabled("toshiba") ||
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, tosh_ids) == NULL ||
