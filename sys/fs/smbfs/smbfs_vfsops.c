@@ -243,7 +243,7 @@ smbfs_mount(struct mount *mp, struct thread *td)
 		}
 	}
 	vfs_getnewfsid(mp);
-	error = smbfs_root(mp, &vp, td);
+	error = smbfs_root(mp, LK_EXCLUSIVE, &vp, td);
 	if (error)
 		goto bad;
 	VOP_UNLOCK(vp, 0, td);
@@ -316,7 +316,7 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return locked root vnode of a filesystem
  */
 static int
-smbfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
+smbfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct smbmount *smp = VFSTOSMBFS(mp);
 	struct vnode *vp;

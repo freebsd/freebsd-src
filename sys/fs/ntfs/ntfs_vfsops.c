@@ -525,6 +525,7 @@ ntfs_unmount(
 static int
 ntfs_root(
 	struct mount *mp,
+	int flags,
 	struct vnode **vpp,
 	struct thread *td )
 {
