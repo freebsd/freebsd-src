@@ -151,6 +151,12 @@ ia64_mf(void)
 	__asm __volatile("mf");
 }
 
+static __inline void
+ia64_mf_a(void)
+{
+	__asm __volatile("mf.a");
+}
+
 /*
  * Calculate address in VHPT for va.
  */
