@@ -1432,7 +1432,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 				    __FUNCTION__, "types");
 				break;
 			}
-			strncpy(tp->typename, type->name, NG_TYPELEN);
+			strncpy(tp->type_name, type->name, NG_TYPELEN);
 			tp->numnodes = type->refs;
 			tl->numtypes++;
 		}
@@ -1658,6 +1658,26 @@ ng_send_dataq(hook_p hook, struct mbuf *m, meta_p meta)
 		NG_FREE_DATA(m, meta);
 	}
 	return (error);
+}
+
+/*
+ * Copy a 'meta'.
+ *
+ * Returns new meta, or NULL if original meta is NULL or ENOMEM.
+ */
+meta_p
+ng_copy_meta(meta_p meta)
+{
+	meta_p meta2;
+
+	if (meta == NULL)
+		return (NULL);
+	MALLOC(meta2, meta_p, meta->used_len, M_NETGRAPH, M_NOWAIT);
+	if (meta2 == NULL)
+		return (NULL);
+	meta2->allocated_len = meta->used_len;
+	bcopy(meta, meta2, meta->used_len);
+	return (meta2);
 }
 
 /************************************************************************
