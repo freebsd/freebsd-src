@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
@@ -83,10 +84,11 @@ afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
     dev_t dev;
+    char name[16];
 
     fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO);
     if (!fdp) {
-	printf("afd: out of memory\n");
+	ata_printf(atp->controller, atp->unit, "out of memory\n");
 	return -1;
     }
     bioq_init(&fdp->queue);
@@ -112,8 +114,8 @@ afdattach(struct atapi_softc *atp)
     fdp->dev = dev;
     fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     fdp->atp->driver = fdp;
-    if ((fdp->atp->devname = malloc(8, M_AFD, M_NOWAIT)))
-        sprintf(fdp->atp->devname, "afd%d", fdp->lun);
+    sprintf(name, "afd%d", fdp->lun);
+    ata_set_name(atp->controller, atp->unit, name);
     afd_describe(fdp);
     return 0;
 }
@@ -132,7 +134,7 @@ afddetach(struct atapi_softc *atp)
     disk_invalidate(&fdp->disk);
     disk_destroy(fdp->dev);
     devstat_remove_entry(&fdp->stats);
-    free(fdp->atp->devname, M_AFD);
+    ata_free_name(atp->controller, atp->unit);
     ata_free_lun(&afd_lun_map, fdp->lun);
     free(fdp, M_AFD);
 }   
@@ -183,25 +185,27 @@ static void
 afd_describe(struct afd_softc *fdp)
 {
     if (bootverbose) {
-	printf("afd%d: <%.40s/%.8s> rewriteable drive at ata%d as %s\n",
-	       fdp->lun, ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
-	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
-	       device_get_unit(fdp->atp->controller->dev),
-	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave");
-	printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
-	       fdp->lun, 
-	       (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
-	       ((1024L * 1024L) / fdp->cap.sector_size),
-	       fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
-	       fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
-	       fdp->cap.sector_size);
-	printf("afd%d: %dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
+	ata_printf(fdp->atp->controller, fdp->atp->unit,
+		   "<%.40s/%.8s> rewriteable drive at ata%d as %s\n",
+		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->revision,
+		   device_get_unit(fdp->atp->controller->dev),
+		   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave");
+	ata_printf(fdp->atp->controller, fdp->atp->unit,
+		   "%luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
+		   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) / 
+		   ((1024L * 1024L) / fdp->cap.sector_size),
+		   fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors,
+		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
+		   fdp->cap.sector_size);
+	ata_printf(fdp->atp->controller, fdp->atp->unit, "%dKB/s,",
+		   fdp->lun, fdp->cap.transfer_rate/8);
 	if (fdp->transfersize)
 	    printf(" transfer limit %d blks,", fdp->transfersize);
 	printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
 				 ATA_DEV(fdp->atp->unit)]));
 	if (fdp->header.medium_type) {
-	    printf("afd%d: Medium: ", fdp->lun);
+	    ata_printf(fdp->atp->controller, fdp->atp->unit, "Medium: ");
 	    switch (fdp->header.medium_type) {
 	    case MFD_2DD:
 		printf("720KB DD disk"); break;
@@ -223,15 +227,16 @@ afd_describe(struct afd_softc *fdp)
 	printf("\n");
     }
     else {
-	printf("afd%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
-	       fdp->lun, (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
-			 ((1024L * 1024L) / fdp->cap.sector_size),	
-	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
-	       fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
-	       device_get_unit(fdp->atp->controller->dev),
-	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave",
-	       ata_mode2str(fdp->atp->controller->mode[ATA_DEV(fdp->atp->unit)])
-	       );
+	ata_printf(fdp->atp->controller, fdp->atp->unit,
+		   "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
+		   (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
+		       ((1024L * 1024L) / fdp->cap.sector_size),	
+		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
+		   device_get_unit(fdp->atp->controller->dev),
+		   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave",
+		   ata_mode2str(fdp->atp->controller->
+				mode[ATA_DEV(fdp->atp->unit)]));
     }
 }
 
@@ -247,7 +252,8 @@ afdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	afd_prevent_allow(fdp, 1);
 
     if (afd_sense(fdp))
-	printf("afd%d: sense media type failed\n", fdp->lun);
+	ata_printf(fdp->atp->controller, fdp->atp->unit,
+		   "sense media type failed\n");
 
     fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
 

@@ -32,6 +32,7 @@
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h> 
+#include <sys/ata.h> 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/bio.h>
