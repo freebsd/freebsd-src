@@ -76,6 +76,8 @@ static MALLOC_DEFINE(M_ATEXEC, "atexec", "atexec callback");
 
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
+static int kern_execve(struct thread *td, char *fname, char **argv,
+	char **envv);
 
 /*
  * callout list for things to do at exec time
@@ -135,23 +137,18 @@ sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
  */
 static const struct execsw **execsw;
 
-#ifndef _SYS_SYSPROTO_H_
-struct execve_args {
-        char    *fname; 
-        char    **argv;
-        char    **envv; 
-};
-#endif
-
 /*
- * execve() system call.
+ * In-kernel implementation of execve().  All arguments are assumed to be
+ * userspace pointers from the passed thread.
  *
  * MPSAFE
  */
-int
-execve(td, uap)
+static int
+kern_execve(td, fname, argv, envv)
 	struct thread *td;
-	register struct execve_args *uap;
+	char *fname;
+	char **argv;
+	char **envv;
 {
 	struct proc *p = td->td_proc;
 	struct nameidata nd, *ndp;
@@ -203,7 +200,8 @@ execve(td, uap)
 	 * Initialize part of the common data
 	 */
 	imgp->proc = p;
-	imgp->uap = uap;
+	imgp->userspace_argv = argv;
+	imgp->userspace_envv = envv;
 	imgp->attr = &attr;
 	imgp->argc = imgp->envc = 0;
 	imgp->argv0 = NULL;
@@ -239,7 +237,7 @@ execve(td, uap)
 	 */
 	ndp = &nd;
 	NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
-	    UIO_USERSPACE, uap->fname, td);
+	    UIO_USERSPACE, fname, td);
 
 	mtx_lock(&Giant);
 interpret:
@@ -252,7 +250,7 @@ interpret:
 	}
 
 	imgp->vp = ndp->ni_vp;
-	imgp->fname = uap->fname;
+	imgp->fname = fname;
 
 	/*
 	 * Check file permissions (also 'opens' file)
@@ -624,6 +622,30 @@ done2:
 	return (error);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct execve_args {
+        char    *fname; 
+        char    **argv;
+        char    **envv; 
+};
+#endif
+
+/*
+ * MPSAFE
+ */
+int
+execve(td, uap)
+	struct thread *td;
+	struct execve_args /* {
+		syscallarg(char *) fname;
+		syscallarg(char **) argv;
+		syscallarg(char **) envv;
+	} */ *uap;
+{
+
+	return (kern_execve(td, uap->fname, uap->argv, uap->envv));
+}
+
 int
 exec_map_first_page(imgp)
 	struct image_params *imgp;
@@ -799,7 +821,7 @@ exec_extract_strings(imgp)
 	 * extract arguments first
 	 */
 
-	argv = imgp->uap->argv;
+	argv = imgp->userspace_argv;
 
 	if (argv) {
 		argp = (caddr_t)(intptr_t)fuword(argv);
@@ -832,7 +854,7 @@ exec_extract_strings(imgp)
 	 * extract environment strings
 	 */
 
-	envv = imgp->uap->envv;
+	envv = imgp->userspace_envv;
 
 	if (envv) {
 		while ((envp = (caddr_t)(intptr_t)fuword(envv++))) {
