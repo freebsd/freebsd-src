@@ -916,7 +916,8 @@ cusercom(cident, args)
 	char buf[125];  /* XXX should avoid static buffer... */
 
 	ENDPARSE;
-	getinput("Command: ", buf, sizeof(buf));
+	if (getinput("Command: ", buf, sizeof(buf)))
+		return args;  /* abort the command */
 	if (command(buf))
 		return NULL;
 
@@ -1192,7 +1193,10 @@ caskfile(cident, args)
 	char buf[MAXPATHLEN + 1];
 
 	ENDPARSE;
-	getinput("Examine: ", buf, sizeof(buf));
+	if (getinput("Examine: ", buf, sizeof(buf)))
+		return args;  /* abort */
+	/* Abort is different from a "" answer in that "" causes the current
+	 * file to be re-opened. */
 	/* XXX should modify this() or edit() to handle lists of file, ie.
 	 * the type of lists that I get if I try to glob("*") */
 	(void)edit(glob(buf));
@@ -1297,6 +1301,7 @@ csearch(cident, args)
 	enum { FORW=0, BACK=1 } direction;
 	static enum { NOINVERT=0, INVERT=1 } sense;
 	long N;
+	int abrt;
 
 	ARGTOG(direction, 6, "forw", "back", "forward", "backward",
 	    "forwards", "backwards");
@@ -1313,25 +1318,25 @@ csearch(cident, args)
 	case MAGICASKSEARCH:
 		biggetinputhack();  /* It's magic, boys */
 		if (direction == FORW)
-			getinput("Search: /", buf, 2);
+			abrt = getinput("Search: /", buf, 2);
 		else
-			getinput("Search: ?", buf, 2);
+			abrt = getinput("Search: ?", buf, 2);
 		switch (*buf) {
 		case '!':
 			/* Magic */
 			if (direction == FORW)
-				getinput("Search: !/", buf, sizeof(buf));
+				abrt = getinput("Search: !/", buf, sizeof(buf));
 			else
-				getinput("Search: !?", buf, sizeof(buf));
+				abrt = getinput("Search: !?", buf, sizeof(buf));
 			sense = INVERT;
 			break;
 		default:
 			/* No magic */
 			ungetcc(*buf);
 			if (direction == FORW)
-				getinput("Search: /", buf, sizeof(buf));
+				abrt = getinput("Search: /", buf, sizeof(buf));
 			else
-				getinput("Search: ?", buf, sizeof(buf));
+				abrt = getinput("Search: ?", buf, sizeof(buf));
 		case '\0':
 			sense = NOINVERT;
 			break;
@@ -1344,6 +1349,9 @@ csearch(cident, args)
 		str = NULL;
 		break;
 	}
+
+	if (abrt) 
+		return args;
 
 	if (cident == SEARCH || cident == MAGICASKSEARCH) {
 		settog("_ls_direction", direction, 2, "forw", "back");

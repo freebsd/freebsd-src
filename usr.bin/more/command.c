@@ -99,8 +99,10 @@ biggetinputhack()
 /*
  * Read a line of input from the terminal.  Reads at most bufsiz - 1 characters
  * and places them in buffer buf.  They are NUL-terminated.  Prints the
- * temporary prompt prompt.
+ * temporary prompt prompt.  Returns true if the user aborted the input and
+ * returns false otherwise.
  */
+int
 getinput(prompt, buf, bufsiz)
 	const char *prompt;
 	char *buf;
@@ -117,18 +119,18 @@ getinput(prompt, buf, bufsiz)
 		c = getcc();
 		if (c == '\n') {
 			*bufcur = '\0';
-			return;
+			return 0;
 		}
 		if (c == READ_INTR ||
 		    cmd_char(c, buf, &bufcur, buf + bufsiz - 1)) {
 			/* input cancelled */
 			if (bufsiz) *buf = '\0';
-			return;
+			return 1;
 		}
 		if (biggetinputhack_f) {
 			biggetinputhack_f = 0;
 			*bufcur = '\0';
-			return;
+			return 0;
 		}
 	}
 }
