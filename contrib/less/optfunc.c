@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -29,7 +29,7 @@
 #include "option.h"
 
 extern int nbufs;
-extern int cbufs;
+extern int bufspace;
 extern int pr_type;
 extern int plusoption;
 extern int swindow;
@@ -106,9 +106,8 @@ opt_o(type, s)
 			error("No log file", NULL_PARG);
 		else
 		{
-			parg.p_string = unquote_file(namelogfile);
+			parg.p_string = namelogfile;
 			error("Log file \"%s\"", &parg);
-			free(parg.p_string);
 		}
 		break;
 	}
@@ -143,7 +142,7 @@ opt_l(type, s)
 	{
 	case INIT:
 		t = s;
-		n = getnum(&t, 'l', &err);
+		n = getnum(&t, "l", &err);
 		if (err || n <= 0)
 		{
 			error("Line number is required after -l", NULL_PARG);
@@ -168,9 +167,8 @@ opt_k(type, s)
 	case INIT:
 		if (lesskey(s, 0))
 		{
-			parg.p_string = unquote_file(s);
+			parg.p_string = s;
 			error("Cannot use lesskey file \"%s\"", &parg);
-			free(parg.p_string);
 		}
 		break;
 	}
@@ -236,9 +234,8 @@ opt__T(type, s)
 		tags = lglob(s);
 		break;
 	case QUERY:
-		parg.p_string = unquote_file(tags);
+		parg.p_string = tags;
 		error("Tags file \"%s\"", &parg);
-		free(parg.p_string);
 		break;
 	}
 }
@@ -316,14 +313,14 @@ opt_b(type, s)
 {
 	switch (type)
 	{
-	case TOGGLE:
-	case QUERY:
-		/*
-		 * Allocate the new number of buffers.
-		 */
-		cbufs = ch_nbuf(cbufs);
-		break;
 	case INIT:
+	case TOGGLE:
+		/*
+		 * Set the new number of buffers.
+		 */
+		ch_setbufspace(bufspace);
+		break;
+	case QUERY:
 		break;
 	}
 }
@@ -370,7 +367,7 @@ opt__V(type, s)
 		any_display = 1;
 		putstr("less ");
 		putstr(version);
-		putstr("\nCopyright (C) 2001 Mark Nudelman\n\n");
+		putstr("\nCopyright (C) 2002 Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");
@@ -393,7 +390,7 @@ colordesc(s, fg_color, bg_color)
 	int fg, bg;
 	int err;
 	
-	fg = getnum(&s, 'D', &err);
+	fg = getnum(&s, "D", &err);
 	if (err)
 	{
 		error("Missing fg color in -D", NULL_PARG);
@@ -404,7 +401,7 @@ colordesc(s, fg_color, bg_color)
 	else
 	{
 		s++;
-		bg = getnum(&s, 'D', &err);
+		bg = getnum(&s, "D", &err);
 		if (err)
 		{
 			error("Missing fg color in -D", NULL_PARG);
@@ -486,10 +483,12 @@ opt_x(type, s)
 		for (i = 1;  i < TABSTOP_MAX;  )
 		{
 			int n = 0;
+			s = skipsp(s);
 			while (*s >= '0' && *s <= '9')
 				n = (10 * n) + (*s++ - '0');
 			if (n > tabstops[i-1])
 				tabstops[i++] = n;
+			s = skipsp(s);
 			if (*s++ != ',')
 				break;
 		}
@@ -534,6 +533,11 @@ opt_quote(type, s)
 	{
 	case INIT:
 	case TOGGLE:
+		if (s[0] == '\0')
+		{
+			openquote = closequote = '\0';
+			break;
+		}
 		if (s[1] != '\0' && s[2] != '\0')
 		{
 			error("-\" must be followed by 1 or 2 chars", NULL_PARG);

@@ -6,6 +6,9 @@ srcdir = .
 VPATH = .
 
 CC = gcc
+INSTALL = ginstall -c
+INSTALL_PROGRAM = ginstall
+INSTALL_DATA = ginstall -m 644
 AWK = gawk
 
 CFLAGS = -O2 -g
@@ -15,13 +18,20 @@ LDFLAGS = -g
 O=o
 
 LIBS =
+prefix = /dev/env/DJDIR
+exec_prefix = ${prefix}
+
+bindir = ${exec_prefix}/bin
+sysconfdir = ${prefix}/etc
+mandir = ${prefix}/man
+manext = 1
 
 #### End of system configuration section. ####
 
 # This rule allows us to supply the necessary -D options
 # in addition to whatever the user asks for.
 .c.o:
-	${CC} -I. ${CFLAGS_COMPILE_ONLY} ${CPPFLAGS} ${CFLAGS} $<
+	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} $<
 
 OBJ =	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
 	command.${O} decode.${O} edit.${O} filename.${O} forwback.${O} \
@@ -44,7 +54,14 @@ lessecho: lessecho.${O} version.${O}
 defines.h: defines.ds
 	command.com /c copy $< $@
 
-${OBJ}: less.h defines.h funcs.h
+${OBJ}: ${srcdir}/less.h defines.h ${srcdir}/funcs.h
+
+install: all ${srcdir}/less.man ${srcdir}/lesskey.man
+	${INSTALL_PROGRAM} less.exe ${bindir}/less.exe
+	${INSTALL_PROGRAM} lesskey.exe ${bindir}/lesskey.exe
+	${INSTALL_PROGRAM} lessecho.exe ${bindir}/lessecho.exe
+	${INSTALL_DATA} ${srcdir}/less.man ${mandir}/man${manext}/less.${manext}
+	${INSTALL_DATA} ${srcdir}/lesskey.man ${mandir}/man${manext}/lesskey.${manext}
 
 info:
 install-info:
