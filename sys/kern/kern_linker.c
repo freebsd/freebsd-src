@@ -1421,9 +1421,6 @@ linker_lookup_file(const char *path, int pathlen, const char *name,
  * Lookup KLD which contains requested module in the "linker.hints" file. If
  * version specification is available, then try to find the best KLD.
  * Otherwise just find the latest one.
- * 
- * XXX: Vnode locking here is hosed; lock should be held for calls to
- * VOP_GETATTR() and vn_rdwr().
  */
 static char *
 linker_hints_lookup(const char *path, int pathlen, const char *modname,
@@ -1453,7 +1450,6 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	if (error)
 		goto bad;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	VOP_UNLOCK(nd.ni_vp, 0, td);
 	if (nd.ni_vp->v_type != VREG)
 		goto bad;
 	best = cp = NULL;
@@ -1474,6 +1470,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	    UIO_SYSSPACE, IO_NODELOCKED, cred, &reclen, td);
 	if (error)
 		goto bad;
+	VOP_UNLOCK(nd.ni_vp, 0, td);
 	vn_close(nd.ni_vp, FREAD, cred, td);
 	nd.ni_vp = NULL;
 	if (reclen != 0) {
@@ -1539,8 +1536,10 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 bad:
 	if (hints)
 		free(hints, M_TEMP);
-	if (nd.ni_vp != NULL)
+	if (nd.ni_vp != NULL) {
+		VOP_UNLOCK(nd.ni_vp, 0, td);
 		vn_close(nd.ni_vp, FREAD, cred, td);
+	}
 	/*
 	 * If nothing found or hints is absent - fallback to the old
 	 * way by using "kldname[.ko]" as module name.
