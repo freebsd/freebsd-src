@@ -1,7 +1,7 @@
 .\" opie.4: Overview of the OPIE software.
 .\"
 .\" %%% portions-copyright-cmetz-96
-.\" Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+.\" Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 .\" Reserved. The Inner Net License Version 2 applies to these portions of
 .\" the software.
 .\" You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@
 .\"
 .\"	History:
 .\"
+.\"	Modified by cmetz for OPIE 2.4. Spelling fixes.
 .\"     Modified by cmetz for OPIE 2.2. Removed MJR DES documentation. Removed
 .\"         references to the old square brackets challenge delimiters.
 .\"     Modified at NRL for OPIE 2.01. Updated UNIX trademark credit.
@@ -87,7 +88,7 @@ the calculator given the challenge and the secret password. For example,
 .TP
 .I seed
 A piece of information that is used in conjunction with the secret password
-and sequence numer to compute the response. Its purpose is to allow the same
+and sequence number to compute the response. Its purpose is to allow the same
 secret password to be used for multiple sequences, by changing the seed, or
 for authentication to multiple machines by using different seeds.
 .TP
@@ -143,7 +144,7 @@ technique was implemented by Haller, Karn, and Walden at Bellcore. They
 created a free software package called "S/Key" that used an algorithm
 called a cryptographic checksum. A cryptographic checksum is a strong one-way
 function such that, knowing the result of such a function, an attacker still
-cannot feasably determine the input. Further, unlike cyclic redundancy
+cannot feasibly determine the input. Further, unlike cyclic redundancy
 checksums (CRCs), cryptographic checksums have few inputs that result in the
 same output.
 .LP

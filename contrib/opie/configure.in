@@ -1,7 +1,7 @@
 dnl configure.in: Input for Autoconf
 dnl
 dnl %%% portions-copyright-cmetz-96
-dnl Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+dnl Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 dnl Reserved. The Inner Net License Version 2 applies to these portions of
 dnl the software.
 dnl You should have received a copy of the license with this software. If
@@ -14,6 +14,11 @@ dnl License Agreement applies to this software.
 dnl
 dnl	History:
 dnl
+dnl	Modified by cmetz for OPIE 2.4. Add --enable-opieauto option. Check
+dnl	     for ut_id and ut_syslen. Make disable-wtmp disable wtmp not utmp.
+dnl	     Define HAVE_foo if foo is found by the libmissing function check.
+dnl	     Added checks for libmissing functions that were there but never
+dnl	     actually checked for and therefore available.
 dnl	Modified by cmetz for OPIE 2.32. Substitute default for LOCK_DIR.
 dnl	     Fix the --disable-user-locking bug. AC_DEFINE variables to 1.
 dnl          Really check for ut_host.
@@ -72,9 +77,11 @@ AC_ARG_ENABLE(su-star-check, [  --enable-su-star-check  Refuse to switch to disa
 AC_ARG_ENABLE(new-prompts, [  --disable-new-prompts   Use more compatible (but less informative) prompts],, AC_DEFINE(NEW_PROMPTS, 1))
 AC_ARG_ENABLE(insecure-override, [  --enable-insecure-override
                           Allow users to override insecure checks], AC_DEFINE(INSECURE_OVERRIDE, 1))
-AC_ARG_ENABLE(anonymous-ftp, [  --enable-anonymous-ftp  Enable anonymous FTP support], AC_DEFINE(DOANONYMOUS, 1) echo "Enabling anonymous FTP support in ftp -- don't say we didn't warn you!")
-AC_ARG_ENABLE(utmp, [  --disable-utmp          Disable utmp logging], AC_DEFINE(DISABLE_UTMP, 1) echo "Disabling utmp logging")
-AC_ARG_ENABLE(wtmp, [  --disable-wtmp          Disable wtmp logging], AC_DEFINE(DISABLE_UTMP, 1) echo "Disabling wtmp logging")
+AC_ARG_ENABLE(anonymous-ftp, [  --enable-anonymous-ftp  Enable anonymous FTP support], AC_DEFINE(DOANONYMOUS, 1) echo "enabling anonymous FTP support in ftp -- don't say we didn't warn you!")
+AC_ARG_ENABLE(utmp, [  --disable-utmp          Disable utmp logging], AC_DEFINE(DISABLE_UTMP, 1) echo "disabling utmp logging")
+AC_ARG_ENABLE(wtmp, [  --disable-wtmp          Disable wtmp logging], AC_DEFINE(DISABLE_WTMP, 1) echo "disabling wtmp logging")
+AC_ARG_ENABLE(opieauto, [  --enable-opieauto       Enable support for opieauto], AC_DEFINE(OPIEAUTO, 1) OPIEAUTO=opieauto; echo "enabling opieauto support")
+AC_SUBST(OPIEAUTO)
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -484,6 +491,15 @@ dnl #include <utmp.h>], [struct utmp foo; return (int)foo.ut_user[0];], AC_DEFIN
 AC_MSG_CHECKING(for ut_host in struct utmp)
 AC_TRY_COMPILE([#include <sys/types.h>
 #include <utmp.h>], [struct utmp foo; return (int)foo.ut_host[0];], AC_DEFINE(HAVE_UT_HOST) AC_MSG_RESULT(yes), AC_MSG_RESULT(no))
+AC_MSG_CHECKING(for ut_id in struct utmp)
+AC_TRY_COMPILE([#include <sys/types.h>
+#include <utmp.h>], [struct utmp foo; return (int)foo.ut_id[0];], AC_DEFINE(HAVE_UT_ID) AC_MSG_RESULT(yes), AC_MSG_RESULT(no))
+#AC_MSG_CHECKING(for ut_syslen in struct utmp)
+#AC_TRY_COMPILE([#include <sys/types.h>
+##include <utmp.h>], [struct utmp foo; return (int)foo.ut_syslen;], AC_DEFINE(HAVE_UT_SYSLEN) AC_MSG_RESULT(yes), AC_MSG_RESULT(no))
+AC_MSG_CHECKING(for ut_syslen in struct utmpx)
+AC_TRY_COMPILE([#include <sys/types.h>
+#include <utmpx.h>], [struct utmpx foo; return (int)foo.ut_syslen;], AC_DEFINE(HAVE_UTX_SYSLEN) AC_MSG_RESULT(yes), AC_MSG_RESULT(no))
 
 dnl Checks for library functions.
 dnl AC_PROG_GCC_TRADITIONAL
@@ -495,25 +511,29 @@ AC_FUNC_MEMCMP
 AC_FUNC_ALLOCA
 AC_REPLACE_FUNCS(getusershell sigaddset sigemptyset strerror strncasecmp)
 MISSING="$LIBOBJS $ALLOCA " ;
-AC_CHECK_FUNC(atexit,, MISSING="${MISSING}atexit.o "; AC_CHECK_FUNCS(on_exit))
-AC_CHECK_FUNC(endutent,, MISSING="${MISSING}endutent.o ")
-AC_CHECK_FUNC(memcpy,, MISSING="${MISSING}memcpy.o "; AC_CHECK_FUNCS(bcopy))
-AC_CHECK_FUNC(memset,, MISSING="${MISSING}memset.o "; AC_CHECK_FUNCS(bzero))
-AC_CHECK_FUNC(getcwd,, MISSING="${MISSING}getcwd.o "; AC_CHECK_FUNCS(getwd))
-AC_CHECK_FUNC(getenv, AC_DEFINE(HAVE_GETENV), MISSING="${MISSING}env.o ")
-AC_CHECK_FUNC(getutline, AC_DEFINE(HAVE_GETUTLINE), MISSING="${MISSING}getutline.o "; AC_CHECK_FUNCS(ttyslot))
-AC_CHECK_FUNC(pututline,, MISSING="${MISSING}pututline.o "; AC_CHECK_FUNCS(ttyslot))
-AC_CHECK_FUNC(setenv, AC_DEFINE(HAVE_SETENV), MISSING="${MISSING}env.o ")
-AC_CHECK_FUNC(setegid,, MISSING="${MISSING}setegid.o "; AC_CHECK_FUNCS(setregid setresgid))
-AC_CHECK_FUNC(seteuid,, MISSING="${MISSING}seteuid.o "; AC_CHECK_FUNCS(setreuid setresuid))
-AC_CHECK_FUNC(setutent,, MISSING="${MISSING}setutent.o ")
-AC_CHECK_FUNC(sigprocmask,, MISSING="${MISSING}sigprocmask.o "; AC_CHECK_FUNCS(sigblock sigsetmask))
-AC_CHECK_FUNC(strchr,, MISSING="${MISSING}strchr.o "; AC_CHECK_FUNCS(index))
-AC_CHECK_FUNC(strrchr,, MISSING="${MISSING}strrchr.o "; AC_CHECK_FUNCS(rindex))
-AC_CHECK_FUNC(strtoul,, MISSING="${MISSING}strtoul.o ")
-AC_CHECK_FUNC(sysconf,, MISSING="${MISSING}sysconf.o "; AC_CHECK_FUNCS(getdtablesize))
-AC_CHECK_FUNC(uname,, MISSING="${MISSING}uname.o "; AC_CHECK_FUNCS(gethostname))
-AC_CHECK_FUNC(unsetenv, AC_DEFINE(HAVE_UNSETENV), MISSING="${MISSING}env.o ")
+
+dnl These should be simplified by a macro
+AC_CHECK_FUNC(atexit,      AC_DEFINE(HAVE_ATEXIT),      MISSING="${MISSING}atexit.o "; AC_CHECK_FUNCS(on_exit))
+AC_CHECK_FUNC(endutent,    AC_DEFINE(HAVE_ENDUTENT),    MISSING="${MISSING}endutent.o ")
+AC_CHECK_FUNC(initgroups,  AC_DEFINE(HAVE_INITGROUPS),  MISSING="${MISSING}initgroups.o ")
+AC_CHECK_FUNC(memcmp,      AC_DEFINE(HAVE_MEMCMP),      MISSING="${MISSING}memcmp.o ")
+AC_CHECK_FUNC(memcpy,      AC_DEFINE(HAVE_MEMCPY),      MISSING="${MISSING}memcpy.o "; AC_CHECK_FUNCS(bcopy))
+AC_CHECK_FUNC(memset,      AC_DEFINE(HAVE_MEMSET),      MISSING="${MISSING}memset.o "; AC_CHECK_FUNCS(bzero))
+AC_CHECK_FUNC(getcwd,      AC_DEFINE(HAVE_GETCWD),      MISSING="${MISSING}getcwd.o "; AC_CHECK_FUNCS(getwd))
+AC_CHECK_FUNC(getenv,      AC_DEFINE(HAVE_GETENV),      MISSING="${MISSING}env.o ")
+AC_CHECK_FUNC(getutline,   AC_DEFINE(HAVE_GETUTLINE),   MISSING="${MISSING}getutline.o "; AC_CHECK_FUNCS(ttyslot))
+AC_CHECK_FUNC(pututline,   AC_DEFINE(HAVE_PUTUTLINE),   MISSING="${MISSING}pututline.o "; AC_CHECK_FUNCS(ttyslot))
+AC_CHECK_FUNC(setenv,      AC_DEFINE(HAVE_SETENV),      MISSING="${MISSING}env.o ")
+AC_CHECK_FUNC(setegid,     AC_DEFINE(HAVE_SETEGID),     MISSING="${MISSING}setegid.o "; AC_CHECK_FUNCS(setregid setresgid))
+AC_CHECK_FUNC(seteuid,     AC_DEFINE(HAVE_SETEUID),     MISSING="${MISSING}seteuid.o "; AC_CHECK_FUNCS(setreuid setresuid))
+AC_CHECK_FUNC(setutent,    AC_DEFINE(HAVE_SETUTENT),    MISSING="${MISSING}setutent.o ")
+AC_CHECK_FUNC(sigprocmask, AC_DEFINE(HAVE_SIGPROCMASK), MISSING="${MISSING}sigprocmask.o "; AC_CHECK_FUNCS(sigblock sigsetmask))
+AC_CHECK_FUNC(strchr,      AC_DEFINE(HAVE_STRCHR),      MISSING="${MISSING}strchr.o "; AC_CHECK_FUNCS(index))
+AC_CHECK_FUNC(strrchr,     AC_DEFINE(HAVE_STRRCHR),     MISSING="${MISSING}strrchr.o "; AC_CHECK_FUNCS(rindex))
+AC_CHECK_FUNC(strtoul,     AC_DEFINE(HAVE_STRTOUL),     MISSING="${MISSING}strtoul.o ")
+AC_CHECK_FUNC(sysconf,     AC_DEFINE(HAVE_SYSCONF),     MISSING="${MISSING}sysconf.o "; AC_CHECK_FUNCS(getdtablesize))
+AC_CHECK_FUNC(uname,       AC_DEFINE(HAVE_UNAME),       MISSING="${MISSING}uname.o "; AC_CHECK_FUNCS(gethostname))
+AC_CHECK_FUNC(unsetenv,    AC_DEFINE(HAVE_UNSETENV),    MISSING="${MISSING}env.o ")
 AC_SUBST(MISSING)
 
 AC_MSG_CHECKING(for nonstandard gettimeofday)
