@@ -43,7 +43,7 @@
 #include <alpha/pci/t2var.h>
 #include <alpha/pci/t2reg.h>
 
-#include "sc.h"
+#include "opt_dev_sc.h"
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif
@@ -125,7 +125,7 @@ dec_2100_a500_cons_init()
 	case 3:
 		/* display console ... */
 		/* XXX */
-#if NSC > 0
+#ifdef DEV_SC
 		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");

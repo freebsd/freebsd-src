@@ -55,7 +55,7 @@
 #include <alpha/pci/pci_kn300.h>
 #endif
 
-#include "sc.h"
+#include "opt_dev_sc.h"
 
 #ifndef	CONSPEED
 #define	CONSPEED	TTYDEF_SPEED
@@ -126,7 +126,7 @@ dec_kn300_cons_init()
 		break;
 
 	case 3:
-#if NSC > 0
+#ifdef DEV_SC
 		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");

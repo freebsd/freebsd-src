@@ -65,7 +65,7 @@
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 
-#include "sc.h"
+#include "opt_dev_sc.h"
 
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
@@ -153,7 +153,7 @@ dec_eb64plus_cons_init()
 		}
 
 	case 3:
-#if	NSC	> 0	
+#ifdef DEV_SC
 		/* graphics adapter console */
 		sccnattach();
 #else

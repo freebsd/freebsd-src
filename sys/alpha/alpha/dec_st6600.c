@@ -44,7 +44,7 @@
 #include <pci/pcivar.h>
 #include <alpha/pci/tsunamivar.h>
 
-#include "sc.h"
+#include "opt_dev_sc.h"
 
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
@@ -113,7 +113,7 @@ st6600_cons_init()
 	case 3:
 		/* display console ... */
 		/* XXX */
-#if NSC > 0
+#ifdef DEV_SC
 		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");
