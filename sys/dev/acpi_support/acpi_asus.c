@@ -320,18 +320,17 @@ acpi_asus_attach(device_t dev)
 	/* Attach LCD state, easy for most models... */
 	if (sc->model->lcd_get && strncmp(sc->model->name, "L3H", 3) != 0 &&
 	    ACPI_SUCCESS(acpi_GetInteger(sc->handle, sc->model->lcd_get,
-	    &sc->s_lcd)))
+	    &sc->s_lcd))) {
 		SYSCTL_ADD_PROC(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
 		    "lcd_backlight", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    acpi_asus_sysctl_lcd, "I", "state of the lcd backlight");
-
-	/* ...a nightmare for the L3H */
-	else if (sc->model->lcd_get) {
+	} else if (sc->model->lcd_get) {
 		ACPI_BUFFER		Buf;
 		ACPI_OBJECT		Arg[2], Obj;
 		ACPI_OBJECT_LIST	Args;
 
+		/* ...a nightmare for the L3H */
 		Arg[0].Type = ACPI_TYPE_INTEGER;
 		Arg[0].Integer.Value = 0x02;
 		Arg[1].Type = ACPI_TYPE_INTEGER;
@@ -399,68 +398,40 @@ static void
 acpi_asus_mled(device_t dev, int state)
 {
 	struct acpi_asus_softc	*sc;
-	ACPI_OBJECT		Arg;
-	ACPI_OBJECT_LIST	Args;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+	/* Note that the MLED value is inverted. */
 	sc = device_get_softc(dev);
-
-	Arg.Type = ACPI_TYPE_INTEGER;
-	Arg.Integer.Value = !state;	/* Inverted, yes! */
-
-	Args.Count = 1;
-	Args.Pointer = &Arg;
-
-	AcpiEvaluateObject(sc->handle, sc->model->mled_set, &Args, NULL);
+	acpi_SetInteger(sc->handle, sc->model->mled_set, !state);
 }
 
 static void
 acpi_asus_tled(device_t dev, int state)
 {
 	struct acpi_asus_softc	*sc;
-	ACPI_OBJECT		Arg;
-	ACPI_OBJECT_LIST	Args;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
-
-	Arg.Type = ACPI_TYPE_INTEGER;
-	Arg.Integer.Value = state;
-
-	Args.Count = 1;
-	Args.Pointer = &Arg;
-
-	AcpiEvaluateObject(sc->handle, sc->model->tled_set, &Args, NULL);
+	acpi_SetInteger(sc->handle, sc->model->tled_set, state);
 }
 
 static void
 acpi_asus_wled(device_t dev, int state)
 {
 	struct acpi_asus_softc	*sc;
-	ACPI_OBJECT		Arg;
-	ACPI_OBJECT_LIST	Args;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = device_get_softc(dev);
-
-	Arg.Type = ACPI_TYPE_INTEGER;
-	Arg.Integer.Value = state;
-
-	Args.Count = 1;
-	Args.Pointer = &Arg;
-
-	AcpiEvaluateObject(sc->handle, sc->model->wled_set, &Args, NULL);
+	acpi_SetInteger(sc->handle, sc->model->wled_set, state);
 }
 
 static int
 acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 {
 	struct acpi_asus_softc	*sc;
-	ACPI_OBJECT		Arg;
-	ACPI_OBJECT_LIST	Args;
 	int			brn, err;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -472,22 +443,18 @@ acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 	err = sysctl_handle_int(oidp, &brn, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
-		return (err);
+		goto out;
 
-	if (brn < 0 || brn > 15)
-		return (EINVAL);
+	if (brn < 0 || brn > 15) {
+		err = EINVAL;
+		goto out;
+	}
 
 	/* Keep track and update */
 	sc->s_brn = brn;
 
-	Arg.Type = ACPI_TYPE_INTEGER;
-	Arg.Integer.Value = brn;
-
-	Args.Count = 1;
-	Args.Pointer = &Arg;
-
 	if (sc->model->brn_set)
-		AcpiEvaluateObject(sc->handle, sc->model->brn_set, &Args, NULL);
+		acpi_SetInteger(sc->handle, sc->model->brn_set, brn);
 	else {
 		brn -= sc->s_brn;
 
@@ -495,12 +462,12 @@ acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
 			AcpiEvaluateObject(sc->handle, (brn > 0) ?
 			    sc->model->brn_up : sc->model->brn_dn,
 			    NULL, NULL);
-
 			(brn > 0) ? brn-- : brn++;
 		}
 	}
 
-	return (0);
+out:
+	return (err);
 }
 
 static int
@@ -518,10 +485,12 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 	err = sysctl_handle_int(oidp, &lcd, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
-		return (err);
+		goto out;
 
-	if (lcd < 0 || lcd > 1)
-		return (EINVAL);
+	if (lcd < 0 || lcd > 1) {
+		err = EINVAL;
+		goto out;
+	}
 
 	/* Keep track and update */
 	sc->s_lcd = lcd;
@@ -529,28 +498,17 @@ acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS)
 	/* Most models just need a lcd_set evaluated, the L3H is trickier */
 	if (strncmp(sc->model->name, "L3H", 3) != 0)
 		AcpiEvaluateObject(sc->handle, sc->model->lcd_set, NULL, NULL);
-	else {
-		ACPI_OBJECT		Arg;
-		ACPI_OBJECT_LIST	Args;
+	else
+		acpi_SetInteger(sc->handle, sc->model->lcd_set, 0x7);
 
-		Arg.Type = ACPI_TYPE_INTEGER;
-		Arg.Integer.Value = 0x07;
-
-		Args.Count = 1;
-		Args.Pointer = &Arg;
-
-		AcpiEvaluateObject(sc->handle, sc->model->lcd_set, &Args, NULL);
-	}
-
-	return (0);
+out:
+	return (err);
 }
 
 static int
 acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
 {
 	struct acpi_asus_softc	*sc;
-	ACPI_OBJECT		Arg;
-	ACPI_OBJECT_LIST	Args;
 	int			disp, err;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -562,23 +520,19 @@ acpi_asus_sysctl_disp(SYSCTL_HANDLER_ARGS)
 	err = sysctl_handle_int(oidp, &disp, 0, req);
 
 	if (err != 0 || req->newptr == NULL)
-		return (err);
+		goto out;
 
-	if (disp < 0 || disp > 7)
-		return (EINVAL);
+	if (disp < 0 || disp > 7) {
+		err = EINVAL;
+		goto out;
+	}
 
 	/* Keep track and update */
 	sc->s_disp = disp;
+	acpi_SetInteger(sc->handle, sc->model->disp_set, disp);
 
-	Arg.Type = ACPI_TYPE_INTEGER;
-	Arg.Integer.Value = disp;
-
-	Args.Count = 1;
-	Args.Pointer = &Arg;
-
-	AcpiEvaluateObject(sc->handle, sc->model->disp_set, &Args, NULL);
-
-	return (0);
+out:
+	return (err);
 }
 
 static void
