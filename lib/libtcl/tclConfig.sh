@@ -40,7 +40,7 @@ TCL_EXEC_PREFIX='/usr'
 TCL_SHLIB_CFLAGS='-fPIC'
 
 # Base command to use for combining object files into a shared library:
-TCL_SHLIB_LD='ld -Bshareable'
+TCL_SHLIB_LD='ld -Bshareable -x'
 
 # Either '$LIBS' (if dependent libraries should be included when linking
 # shared libraries) or an empty string.  See Tcl's configure.in for more
