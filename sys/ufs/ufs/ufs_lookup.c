@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
+ *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
  */
 
 #include <sys/param.h>
@@ -126,6 +126,7 @@ ufs_lookup(ap)
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
+	struct proc *p = cnp->cn_proc;
 
 	bp = NULL;
 	slotoffset = -1;
@@ -142,6 +143,9 @@ ufs_lookup(ap)
 		return (ENOTDIR);
 	if (error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc))
 		return (error);
+	if ((flags & ISLASTCN) && (vdp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
@@ -168,14 +172,14 @@ ufs_lookup(ap)
 			VREF(vdp);
 			error = 0;
 		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(pdp);
-			error = vget(vdp, 1);
+			VOP_UNLOCK(pdp, 0, p);
+			error = vget(vdp, LK_EXCLUSIVE, p);
 			if (!error && lockparent && (flags & ISLASTCN))
-				error = VOP_LOCK(pdp);
+				error = vn_lock(pdp, LK_EXCLUSIVE, p);
 		} else {
-			error = vget(vdp, 1);
+			error = vget(vdp, LK_EXCLUSIVE, p);
 			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(pdp);
+				VOP_UNLOCK(pdp, 0, p);
 		}
 		/*
 		 * Check that the capability number did not change
@@ -186,9 +190,9 @@ ufs_lookup(ap)
 				return (0);
 			vput(vdp);
 			if (lockparent && pdp != vdp && (flags & ISLASTCN))
-				VOP_UNLOCK(pdp);
+				VOP_UNLOCK(pdp, 0, p);
 		}
-		if (error = VOP_LOCK(pdp))
+		if (error = vn_lock(pdp, LK_EXCLUSIVE, p))
 			return (error);
 		vdp = pdp;
 		dp = VTOI(pdp);
@@ -329,6 +333,17 @@ searchloop:
 				 * reclen in ndp->ni_ufs area, and release
 				 * directory buffer.
 				 */
+				if (vdp->v_mount->mnt_maxsymlinklen > 0 &&
+				    ep->d_type == DT_WHT) {
+					slotstatus = FOUND;
+					slotoffset = dp->i_offset;
+					slotsize = ep->d_reclen;
+					dp->i_reclen = slotsize;
+					enduseful = dp->i_size;
+					ap->a_cnp->cn_flags |= ISWHITEOUT;
+					numdirpasses--;
+					goto notfound;
+				}
 				dp->i_ino = ep->d_ino;
 				dp->i_reclen = ep->d_reclen;
 				brelse(bp);
@@ -341,7 +356,7 @@ searchloop:
 		if (ep->d_ino)
 			enduseful = dp->i_offset;
 	}
-/* notfound: */
+notfound:
 	/*
 	 * If we started in the middle of the directory and failed
 	 * to find our target, we must check the beginning as well.
@@ -359,7 +374,10 @@ searchloop:
 	 * directory has not been removed, then can consider
 	 * allowing file to be created.
 	 */
-	if ((nameiop == CREATE || nameiop == RENAME) &&
+	if ((nameiop == CREATE || nameiop == RENAME ||
+	     (nameiop == DELETE &&
+	      (ap->a_cnp->cn_flags & DOWHITEOUT) &&
+	      (ap->a_cnp->cn_flags & ISWHITEOUT))) &&
 	    (flags & ISLASTCN) && dp->i_nlink != 0) {
 		/*
 		 * Access for write is interpreted as allowing
@@ -380,6 +398,12 @@ searchloop:
 			dp->i_offset = roundup(dp->i_size, DIRBLKSIZ);
 			dp->i_count = 0;
 			enduseful = dp->i_offset;
+		} else if (nameiop == DELETE) {
+			dp->i_offset = slotoffset;
+			if ((dp->i_offset & (DIRBLKSIZ - 1)) == 0)
+				dp->i_count = 0;
+			else
+				dp->i_count = dp->i_offset - prevoff;
 		} else {
 			dp->i_offset = slotoffset;
 			dp->i_count = slotsize;
@@ -403,7 +427,7 @@ searchloop:
 		 */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(vdp);
+			VOP_UNLOCK(vdp, 0, p);
 		return (EJUSTRETURN);
 	}
 	/*
@@ -473,13 +497,14 @@ found:
 		if ((dp->i_mode & ISVTX) &&
 		    cred->cr_uid != 0 &&
 		    cred->cr_uid != dp->i_uid &&
+		    tdp->v_type != VLNK &&
 		    VTOI(tdp)->i_uid != cred->cr_uid) {
 			vput(tdp);
 			return (EPERM);
 		}
 		*vpp = tdp;
 		if (!lockparent)
-			VOP_UNLOCK(vdp);
+			VOP_UNLOCK(vdp, 0, p);
 		return (0);
 	}
 
@@ -489,8 +514,7 @@ found:
 	 * Must get inode of directory entry to verify it's a
 	 * regular file, or empty directory.
 	 */
-	if (nameiop == RENAME && wantparent &&
-	    (flags & ISLASTCN)) {
+	if (nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
 		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
 			return (error);
 		/*
@@ -504,7 +528,7 @@ found:
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(vdp);
+			VOP_UNLOCK(vdp, 0, p);
 		return (0);
 	}
 
@@ -529,13 +553,13 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp);	/* race to get the inode */
+		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
 		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) {
-			VOP_LOCK(pdp);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
 			return (error);
 		}
 		if (lockparent && (flags & ISLASTCN) &&
-		    (error = VOP_LOCK(pdp))) {
+		    (error = vn_lock(pdp, LK_EXCLUSIVE, p))) {
 			vput(tdp);
 			return (error);
 		}
@@ -547,7 +571,7 @@ found:
 		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(pdp);
+			VOP_UNLOCK(pdp, 0, p);
 		*vpp = tdp;
 	}
 
@@ -606,6 +630,8 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 		printf("First bad\n");
 		goto bad;
 	}
+	if (ep->d_ino == 0)
+		return (0);
 	for (i = 0; i < namlen; i++)
 		if (ep->d_name[i] == '\0') {
 			/*return (1); */
@@ -614,9 +640,9 @@ ufs_dirbadentry(dp, ep, entryoffsetinblock)
 	}
 	if (ep->d_name[i])
 		goto bad;
-	return (ep->d_name[i]);
+	return (0);
 bad:
-	return(1);
+	return (1);
 }
 
 /*
@@ -633,15 +659,8 @@ ufs_direnter(ip, dvp, cnp)
 	struct vnode *dvp;
 	register struct componentname *cnp;
 {
-	register struct direct *ep, *nep;
 	register struct inode *dp;
-	struct buf *bp;
 	struct direct newdir;
-	struct iovec aiov;
-	struct uio auio;
-	u_int dsize;
-	int error, loc, newentrysize, spacefree;
-	char *dirbuf;
 
 #ifdef DIAGNOSTIC
 	if ((cnp->cn_flags & SAVENAME) == 0)
@@ -661,7 +680,32 @@ ufs_direnter(ip, dvp, cnp)
 			newdir.d_type = tmp; }
 #		endif
 	}
-	newentrysize = DIRSIZ(FSFMT(dvp), &newdir);
+	return (ufs_direnter2(dvp, &newdir, cnp->cn_cred, cnp->cn_proc));
+}
+
+/*
+ * Common entry point for directory entry removal used by ufs_direnter
+ * and ufs_whiteout
+ */
+ufs_direnter2(dvp, dirp, cr, p)
+	struct vnode *dvp;
+	struct direct *dirp;
+	struct ucred *cr;
+	struct proc *p;
+{
+	int newentrysize;
+	struct inode *dp;
+	struct buf *bp;
+	struct iovec aiov;
+	struct uio auio;
+	u_int dsize;
+	struct direct *ep, *nep;
+	int error, loc, spacefree;
+	char *dirbuf;
+
+	dp = VTOI(dvp);
+	newentrysize = DIRSIZ(FSFMT(dvp), dirp);
+
 	if (dp->i_count == 0) {
 		/*
 		 * If dp->i_count is 0, then namei could find no
@@ -670,22 +714,22 @@ ufs_direnter(ip, dvp, cnp)
 		 * new entry into a fresh block.
 		 */
 		if (dp->i_offset & (DIRBLKSIZ - 1))
-			panic("ufs_direnter: newblk");
+			panic("ufs_direnter2: newblk");
 		auio.uio_offset = dp->i_offset;
-		newdir.d_reclen = DIRBLKSIZ;
+		dirp->d_reclen = DIRBLKSIZ;
 		auio.uio_resid = newentrysize;
 		aiov.iov_len = newentrysize;
-		aiov.iov_base = (caddr_t)&newdir;
+		aiov.iov_base = (caddr_t)dirp;
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_rw = UIO_WRITE;
 		auio.uio_segflg = UIO_SYSSPACE;
 		auio.uio_procp = (struct proc *)0;
-		error = VOP_WRITE(dvp, &auio, IO_SYNC, cnp->cn_cred);
+		error = VOP_WRITE(dvp, &auio, IO_SYNC, cr);
 		if (DIRBLKSIZ >
 		    VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_bsize)
 			/* XXX should grow with balloc() */
-			panic("ufs_direnter: frag size");
+			panic("ufs_direnter2: frag size");
 		else if (!error) {
 			dp->i_size = roundup(dp->i_size, DIRBLKSIZ);
 			dp->i_flag |= IN_CHANGE;
@@ -745,23 +789,24 @@ ufs_direnter(ip, dvp, cnp)
 	 * Update the pointer fields in the previous entry (if any),
 	 * copy in the new entry, and write out the block.
 	 */
-	if (ep->d_ino == 0) {
+	if (ep->d_ino == 0 ||
+	    (ep->d_ino == WINO &&
+	     bcmp(ep->d_name, dirp->d_name, dirp->d_namlen) == 0)) {
 		if (spacefree + dsize < newentrysize)
-			panic("ufs_direnter: compact1");
-		newdir.d_reclen = spacefree + dsize;
+			panic("ufs_direnter2: compact1");
+		dirp->d_reclen = spacefree + dsize;
 	} else {
 		if (spacefree < newentrysize)
-			panic("ufs_direnter: compact2");
-		newdir.d_reclen = spacefree;
+			panic("ufs_direnter2: compact2");
+		dirp->d_reclen = spacefree;
 		ep->d_reclen = dsize;
 		ep = (struct direct *)((char *)ep + dsize);
 	}
-	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
+	bcopy((caddr_t)dirp, (caddr_t)ep, (u_int)newentrysize);
 	error = VOP_BWRITE(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
-		error = VOP_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC,
-		    cnp->cn_cred, cnp->cn_proc);
+		error = VOP_TRUNCATE(dvp, (off_t)dp->i_endoff, IO_SYNC, cr, p);
 	return (error);
 }
 
@@ -788,6 +833,21 @@ ufs_dirremove(dvp, cnp)
 	int error;
 
 	dp = VTOI(dvp);
+
+	if (cnp->cn_flags & DOWHITEOUT) {
+		/*
+		 * Whiteout entry: set d_ino to WINO.
+		 */
+		if (error =
+		    VOP_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
+			return (error);
+		ep->d_ino = WINO;
+		ep->d_type = DT_WHT;
+		error = VOP_BWRITE(bp);
+		dp->i_flag |= IN_CHANGE | IN_UPDATE;
+		return (error);
+	}
+
 	if (dp->i_count == 0) {
 		/*
 		 * First entry in block: set d_ino to zero.
@@ -871,7 +931,7 @@ ufs_dirempty(ip, parentino, cred)
 		if (dp->d_reclen == 0)
 			return (0);
 		/* skip empty entries */
-		if (dp->d_ino == 0)
+		if (dp->d_ino == 0 || dp->d_ino == WINO)
 			continue;
 		/* accept only "." and ".." */
 #		if (BYTE_ORDER == LITTLE_ENDIAN)

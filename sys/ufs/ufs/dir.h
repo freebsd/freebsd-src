@@ -35,11 +35,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)dir.h	8.2 (Berkeley) 1/21/94
+ *	@(#)dir.h	8.5 (Berkeley) 4/27/95
  */
 
 #ifndef _DIR_H_
 #define	_DIR_H_
+
+/*
+ * Theoretically, directories can be more than 2Gb in length, however, in
+ * practice this seems unlikely. So, we define the type doff_t as a 32-bit
+ * quantity to keep down the cost of doing lookup on a 32-bit machine.
+ */
+#define	doff_t		int32_t
+#define MAXDIRSIZE	(0x7fffffff)
 
 /*
  * A directory consists of some number of blocks of DIRBLKSIZ
@@ -70,11 +78,11 @@
 #define	MAXNAMLEN	255
 
 struct	direct {
-	u_long	d_ino;			/* inode number of entry */
-	u_short	d_reclen;		/* length of this record */
-	u_char	d_type; 		/* file type, see below */
-	u_char	d_namlen;		/* length of string in d_name */
-	char	d_name[MAXNAMLEN + 1];	/* name with length <= MAXNAMLEN */
+	u_int32_t d_ino;		/* inode number of entry */
+	u_int16_t d_reclen;		/* length of this record */
+	u_int8_t  d_type; 		/* file type, see below */
+	u_int8_t  d_namlen;		/* length of string in d_name */
+	char	  d_name[MAXNAMLEN + 1];/* name with length <= MAXNAMLEN */
 };
 
 /*
@@ -88,6 +96,7 @@ struct	direct {
 #define	DT_REG		 8
 #define	DT_LNK		10
 #define	DT_SOCK		12
+#define	DT_WHT		14
 
 /*
  * Convert between stat structure types and directory types.
@@ -104,44 +113,43 @@ struct	direct {
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 #define DIRSIZ(oldfmt, dp) \
     ((oldfmt) ? \
-    ((sizeof (struct direct) - (MAXNAMLEN+1)) + (((dp)->d_type+1 + 3) &~ 3)) : \
-    ((sizeof (struct direct) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3)))
+    ((sizeof(struct direct) - (MAXNAMLEN+1)) + (((dp)->d_type+1 + 3) &~ 3)) : \
+    ((sizeof(struct direct) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3)))
 #else
 #define DIRSIZ(oldfmt, dp) \
-    ((sizeof (struct direct) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3))
+    ((sizeof(struct direct) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3))
 #endif
 #define OLDDIRFMT	1
 #define NEWDIRFMT	0
 
 /*
- * Template for manipulating directories.
- * Should use struct direct's, but the name field
- * is MAXNAMLEN - 1, and this just won't do.
+ * Template for manipulating directories.  Should use struct direct's,
+ * but the name field is MAXNAMLEN - 1, and this just won't do.
  */
 struct dirtemplate {
-	u_long	dot_ino;
-	short	dot_reclen;
-	u_char	dot_type;
-	u_char	dot_namlen;
-	char	dot_name[4];		/* must be multiple of 4 */
-	u_long	dotdot_ino;
-	short	dotdot_reclen;
-	u_char	dotdot_type;
-	u_char	dotdot_namlen;
-	char	dotdot_name[4];		/* ditto */
+	u_int32_t	dot_ino;
+	int16_t		dot_reclen;
+	u_int8_t	dot_type;
+	u_int8_t	dot_namlen;
+	char		dot_name[4];	/* must be multiple of 4 */
+	u_int32_t	dotdot_ino;
+	int16_t		dotdot_reclen;
+	u_int8_t	dotdot_type;
+	u_int8_t	dotdot_namlen;
+	char		dotdot_name[4];	/* ditto */
 };
 
 /*
  * This is the old format of directories, sanz type element.
  */
 struct odirtemplate {
-	u_long	dot_ino;
-	short	dot_reclen;
-	u_short	dot_namlen;
-	char	dot_name[4];		/* must be multiple of 4 */
-	u_long	dotdot_ino;
-	short	dotdot_reclen;
-	u_short	dotdot_namlen;
-	char	dotdot_name[4];		/* ditto */
+	u_int32_t	dot_ino;
+	int16_t		dot_reclen;
+	u_int16_t	dot_namlen;
+	char		dot_name[4];	/* must be multiple of 4 */
+	u_int32_t	dotdot_ino;
+	int16_t		dotdot_reclen;
+	u_int16_t	dotdot_namlen;
+	char		dotdot_name[4];	/* ditto */
 };
 #endif /* !_DIR_H_ */

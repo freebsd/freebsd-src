@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
+ *	@(#)lfs_extern.h	8.6 (Berkeley) 5/8/95
  */
 
 struct fid;
@@ -45,10 +45,10 @@ struct mbuf;
 
 __BEGIN_DECLS
 u_long	 cksum __P((void *, size_t));				/* XXX */
-int	 lfs_balloc __P((struct vnode *, u_long, daddr_t, struct buf **));
+int	 lfs_balloc __P((struct vnode *, int, u_long, ufs_daddr_t, struct buf **));
 int	 lfs_blkatoff __P((struct vop_blkatoff_args *));
 int	 lfs_bwrite __P((struct vop_bwrite_args *));
-int	 lfs_check __P((struct vnode *, daddr_t));
+int	 lfs_check __P((struct vnode *, ufs_daddr_t));
 int	 lfs_close __P((struct vop_close_args *));
 int	 lfs_create __P((struct vop_create_args *));
 int	 lfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
@@ -58,7 +58,7 @@ int	 lfs_getattr __P((struct vop_getattr_args *));
 struct dinode *
 	 lfs_ifind __P((struct lfs *, ino_t, struct dinode *));
 int	 lfs_inactive __P((struct vop_inactive_args *));
-int	 lfs_init __P((void));
+int	 lfs_init __P((struct vfsconf *));
 int	 lfs_initseg __P((struct lfs *));
 int	 lfs_link __P((struct vop_link_args *));
 int	 lfs_makeinode __P((int, struct nameidata *, struct inode **));
@@ -68,8 +68,9 @@ int	 lfs_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));
 int	 lfs_mountroot __P((void));
 struct buf *
-	 lfs_newbuf __P((struct vnode *, daddr_t, size_t));
+	 lfs_newbuf __P((struct vnode *, ufs_daddr_t, size_t));
 int	 lfs_read __P((struct vop_read_args *));
+int	 lfs_reclaim __P((struct vop_reclaim_args *));
 int	 lfs_remove __P((struct vop_remove_args *));
 int	 lfs_rmdir __P((struct vop_rmdir_args *));
 int	 lfs_rename __P((struct vop_rename_args *));
@@ -79,6 +80,8 @@ int	 lfs_segwrite __P((struct mount *, int));
 int	 lfs_statfs __P((struct mount *, struct statfs *, struct proc *));
 int	 lfs_symlink __P((struct vop_symlink_args *));
 int	 lfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
+#define	 lfs_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
+                                    size_t, struct proc *)))eopnotsupp)
 int	 lfs_truncate __P((struct vop_truncate_args *));
 int	 lfs_unmount __P((struct mount *, int, struct proc *));
 int	 lfs_update __P((struct vop_update_args *));
@@ -96,6 +99,7 @@ void	lfs_dump_dinode __P((struct dinode *));
 void	lfs_dump_super __P((struct lfs *));
 #endif
 __END_DECLS
+extern int lfs_mount_type;
 extern int (**lfs_vnodeop_p)();
 extern int (**lfs_specop_p)();
 #ifdef FIFO

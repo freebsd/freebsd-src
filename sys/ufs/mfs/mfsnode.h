@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mfsnode.h	8.2 (Berkeley) 8/11/93
+ *	@(#)mfsnode.h	8.3 (Berkeley) 5/19/95
  */
 
 /*
@@ -73,9 +73,9 @@ struct mfsnode {
 #define mfs_readdir ((int (*) __P((struct  vop_readdir_args *)))mfs_badop)
 #define mfs_readlink ((int (*) __P((struct  vop_readlink_args *)))mfs_badop)
 #define mfs_abortop ((int (*) __P((struct  vop_abortop_args *)))mfs_badop)
-#define mfs_lock ((int (*) __P((struct  vop_lock_args *)))nullop)
-#define mfs_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
-#define mfs_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define mfs_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
+#define mfs_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
+#define mfs_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define mfs_pathconf ((int (*) __P((struct  vop_pathconf_args *)))mfs_badop)
 #define mfs_advlock ((int (*) __P((struct  vop_advlock_args *)))mfs_badop)
 #define mfs_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))mfs_badop)

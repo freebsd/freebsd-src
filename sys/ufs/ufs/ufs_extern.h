@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
+ *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
  */
 
 struct buf;
@@ -44,10 +44,11 @@ struct mount;
 struct nameidata;
 struct proc;
 struct ucred;
+struct ufs_args;
 struct uio;
 struct vattr;
+struct vfsconf;
 struct vnode;
-struct ufs_args;
 
 __BEGIN_DECLS
 void	 diskerr
@@ -75,7 +76,7 @@ int	 ufs_dirremove __P((struct vnode *, struct componentname*));
 int	 ufs_dirrewrite
 	    __P((struct inode *, struct inode *, struct componentname *));
 int	 ufs_getattr __P((struct vop_getattr_args *));
-int	 ufs_getlbns __P((struct vnode *, daddr_t, struct indir *, int *));
+int	 ufs_getlbns __P((struct vnode *, ufs_daddr_t, struct indir *, int *));
 struct vnode *
 	 ufs_ihashget __P((dev_t, ino_t));
 void	 ufs_ihashinit __P((void));
@@ -84,9 +85,15 @@ struct vnode *
 	 ufs_ihashlookup __P((dev_t, ino_t));
 void	 ufs_ihashrem __P((struct inode *));
 int	 ufs_inactive __P((struct vop_inactive_args *));
-int	 ufs_init __P((void));
+int	 ufs_init __P((struct vfsconf *));
 int	 ufs_ioctl __P((struct vop_ioctl_args *));
 int	 ufs_islocked __P((struct vop_islocked_args *));
+#ifdef NFS
+int	 lease_check __P((struct vop_lease_args *));
+#define	 ufs_lease_check lease_check
+#else
+#define	 ufs_lease_check ((int (*) __P((struct vop_lease_args *)))nullop)
+#endif
 int	 ufs_link __P((struct vop_link_args *));
 int	 ufs_lock __P((struct vop_lock_args *));
 int	 ufs_lookup __P((struct vop_lookup_args *));
@@ -99,9 +106,10 @@ int	 ufs_pathconf __P((struct vop_pathconf_args *));
 int	 ufs_print __P((struct vop_print_args *));
 int	 ufs_readdir __P((struct vop_readdir_args *));
 int	 ufs_readlink __P((struct vop_readlink_args *));
-int	 ufs_reclaim __P((struct vop_reclaim_args *));
+int	 ufs_reclaim __P((struct vnode *, struct proc *));
 int	 ufs_remove __P((struct vop_remove_args *));
 int	 ufs_rename __P((struct vop_rename_args *));
+#define	 ufs_revoke vop_revoke
 int	 ufs_rmdir __P((struct vop_rmdir_args *));
 int	 ufs_root __P((struct mount *, struct vnode **));
 int	 ufs_seek __P((struct vop_seek_args *));
@@ -111,6 +119,7 @@ int	 ufs_start __P((struct mount *, int, struct proc *));
 int	 ufs_strategy __P((struct vop_strategy_args *));
 int	 ufs_symlink __P((struct vop_symlink_args *));
 int	 ufs_unlock __P((struct vop_unlock_args *));
+int	 ufs_whiteout __P((struct vop_whiteout_args *));
 int	 ufs_vinit __P((struct mount *,
 	    int (**)(), int (**)(), struct vnode **));
 int	 ufsspec_close __P((struct vop_close_args *));

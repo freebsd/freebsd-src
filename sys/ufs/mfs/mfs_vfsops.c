@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
+ *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
  */
 
 #include <sys/param.h>
@@ -77,36 +77,32 @@ struct vfsops mfs_vfsops = {
 	ffs_fhtovp,
 	ffs_vptofh,
 	mfs_init,
+	ffs_sysctl,
 };
 
 /*
  * Called by main() when mfs is going to be mounted as root.
- *
- * Name is updated by mount(8) after booting.
  */
-#define ROOTNAME	"mfs_root"
-
 mfs_mountroot()
 {
 	extern struct vnode *rootvp;
-	register struct fs *fs;
-	register struct mount *mp;
+	struct fs *fs;
+	struct mount *mp;
 	struct proc *p = curproc;	/* XXX */
 	struct ufsmount *ump;
 	struct mfsnode *mfsp;
-	u_int size;
 	int error;
 
 	/*
 	 * Get vnodes for swapdev and rootdev.
 	 */
-	if (bdevvp(swapdev, &swapdev_vp) || bdevvp(rootdev, &rootvp))
-		panic("mfs_mountroot: can't setup bdevvp's");
-
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
-	mp->mnt_op = &mfs_vfsops;
-	mp->mnt_flag = MNT_RDONLY;
+	if ((error = bdevvp(swapdev, &swapdev_vp)) ||
+	    (error = bdevvp(rootdev, &rootvp))) {
+		printf("mfs_mountroot: can't setup bdevvp's");
+		return (error);
+	}
+	if (error = vfs_rootmountalloc("mfs", "mfs_root", &mp))
+		return (error);
 	mfsp = malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
 	rootvp->v_data = mfsp;
 	rootvp->v_op = mfs_vnodeop_p;
@@ -117,30 +113,20 @@ mfs_mountroot()
 	mfsp->mfs_pid = p->p_pid;
 	mfsp->mfs_buflist = (struct buf *)0;
 	if (error = ffs_mountfs(rootvp, mp, p)) {
+		mp->mnt_vfc->vfc_refcount--;
+		vfs_unbusy(mp, p);
 		free(mp, M_MOUNT);
 		free(mfsp, M_MFSNODE);
 		return (error);
 	}
-	if (error = vfs_lock(mp)) {
-		(void)ffs_unmount(mp, 0, p);
-		free(mp, M_MOUNT);
-		free(mfsp, M_MFSNODE);
-		return (error);
-	}
-	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	mp->mnt_flag |= MNT_ROOTFS;
-	mp->mnt_vnodecovered = NULLVP;
+	simple_lock(&mountlist_slock);
+	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	simple_unlock(&mountlist_slock);
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
-	bzero(fs->fs_fsmnt, sizeof(fs->fs_fsmnt));
-	fs->fs_fsmnt[0] = '/';
-	bcopy((caddr_t)fs->fs_fsmnt, (caddr_t)mp->mnt_stat.f_mntonname,
-	    MNAMELEN);
-	(void) copystr(ROOTNAME, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	(void) copystr(mp->mnt_stat.f_mntonname, fs->fs_fsmnt, MNAMELEN - 1, 0);
 	(void)ffs_statfs(mp, &mp->mnt_stat, p);
-	vfs_unlock(mp);
+	vfs_unbusy(mp, p);
 	inittodr((time_t)0);
 	return (0);
 }
@@ -202,11 +188,7 @@ mfs_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp))
-				return (EBUSY);
-			error = ffs_flushfiles(mp, flags, p);
-			vfs_unbusy(mp);
-			if (error)
+			if (error = ffs_flushfiles(mp, flags, p))
 				return (error);
 		}
 		if (fs->fs_ronly && (mp->mnt_flag & MNT_WANTRDWR))
@@ -269,7 +251,6 @@ mfs_start(mp, flags, p)
 	register struct mfsnode *mfsp = VTOMFS(vp);
 	register struct buf *bp;
 	register caddr_t base;
-	int error = 0;
 
 	base = mfsp->mfs_baseoff;
 	while (mfsp->mfs_buflist != (struct buf *)(-1)) {
@@ -284,11 +265,11 @@ mfs_start(mp, flags, p)
 		 * otherwise we will loop here, as tsleep will always return
 		 * EINTR/ERESTART.
 		 */
-		if (error = tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0))
-			if (dounmount(mp, 0, p) != 0)
-				CLRSIG(p, CURSIG(p));
+		if (tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0) &&
+		    dounmount(mp, 0, p) != 0)
+			CLRSIG(p, CURSIG(p));
 	}
-	return (error);
+	return (0);
 }
 
 /*
@@ -302,6 +283,6 @@ mfs_statfs(mp, sbp, p)
 	int error;
 
 	error = ffs_statfs(mp, sbp, p);
-	sbp->f_type = MOUNT_MFS;
+	sbp->f_type = mp->mnt_vfc->vfc_typenum;
 	return (error);
 }
