@@ -70,7 +70,6 @@
 #include "stl.h"
 #include "stli.h"
 #include "loran.h"
-#include "tina.h"
 #include "fla.h"
 #ifdef PC98
 #include "bs.h"
@@ -125,7 +124,6 @@ extern struct isa_driver ascdriver;
 extern struct isa_driver stldriver;
 extern struct isa_driver stlidriver;
 extern struct isa_driver lorandriver;
-extern struct isa_driver tinadriver;
 #ifdef PC98
 extern struct isa_driver bsdriver;
 #endif
@@ -229,9 +227,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NWL > 0
 	{ INTR_TYPE_NET, &wldriver },
-#endif
-#if NTINA > 0
-	{ INTR_TYPE_NET, &tinadriver },
 #endif
 
 /* CAM */
