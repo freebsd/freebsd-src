@@ -124,6 +124,18 @@ standard (port 68), the
 .B -p
 flag may used.  It should be followed by the udp port number that
 dhclient should use.  This is mostly useful for debugging purposes.
+If the
+.B -p
+flag is specified, the client will transmit responses to servers at a
+port number that is one less than the one specified - i.e., if you
+specify
+.B -p
+68, then the client will listen on port 68 and transmit to port 67.
+Datagrams that must go through relay agents are sent to the port
+number specified with the
+.B -p
+flag - if you wish to use alternate port numbers, you must configure
+any relay agents you are using to use the same alternate port numbers.
 .PP
 Dhclient will normally run in the foreground until it has configured
 an interface, and then will revert to running in the background.
