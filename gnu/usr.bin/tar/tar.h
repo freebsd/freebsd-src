@@ -151,6 +151,7 @@ union record
 #define EX_BADVOL	5	/* Special error code means
 				   Tape volume doesn't match the one
 				   specified on the command line */
+#define EX_BADDIR       6	/* bad directory name */
 
 /*
  * Global variables
