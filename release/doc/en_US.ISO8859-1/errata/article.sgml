@@ -111,6 +111,11 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
+<![ %release.type.release [
+    <para>No advisories.</para>
+]]>
+
+<![ %release.type.snapshot [
     <para>Remotely exploitable vulnerabilities in
       <application>CVS</application> could allow an attacker to
       execute arbitrary comands on a CVS server.  More details can be
@@ -156,12 +161,18 @@
       on workarounds and patches for supported security branches is
       contained in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
+]]>
 
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
+<![ %release.type.release [
+    <para>No news.</para>
+]]>
+
+<![ %release.type.snapshot [
     <bridgehead renderas="sect3">GEOM</bridgehead>
 
     <para>The &man.geom.4;-based disk partitioning code in the kernel
@@ -347,6 +358,7 @@
       about using the new mailing lists can be found by visiting the
       <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
       Mailman Info Page</ulink>.</para>
+]]>
 
   </sect1>
 </article>
