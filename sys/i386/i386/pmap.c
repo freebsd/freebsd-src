@@ -274,6 +274,9 @@ static int	pmap_is_current(pmap_t);
 static pdpt_entry_t *pmap_alloc_pdpt(void);
 static void	pmap_free_pdpt(pdpt_entry_t *);
 #endif
+#if defined(I686_CPU) && !defined(NO_PSE_HACK)
+static int has_pse_bug = 0;	/* Initialized so that it can be patched. */
+#endif
 
 /*
  * Move the kernel virtual free pointer to the next
@@ -285,6 +288,15 @@ static vm_offset_t
 pmap_kmem_choose(vm_offset_t addr)
 {
 	vm_offset_t newaddr = addr;
+#if defined(I686_CPU) && !defined(NO_PSE_HACK)
+	/* Deal with un-resolved Pentium4 issues */
+	if (!has_pse_bug && cpu == CPU_686 &&
+	    (cpu_id & 0xf00) == 0xf00 &&
+	    strcmp(cpu_vendor, "GenuineIntel") == 0) {
+		has_pse_bug = 1;
+		return newaddr;
+	}
+#endif
 #ifndef DISABLE_PSE
 	if (cpu_feature & CPUID_PSE) {
 		newaddr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
@@ -413,6 +425,15 @@ pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
 #ifndef DISABLE_PSE
 	if (cpu_feature & CPUID_PSE)
 		pseflag = PG_PS;
+#endif
+#if defined(I686_CPU) && !defined(NO_PSE_HACK)
+	/* Deal with un-resolved Pentium4 issues */
+	if (!has_pse_bug && cpu == CPU_686 &&
+	    (cpu_id & 0xf00) == 0xf00 &&
+	    strcmp(cpu_vendor, "GenuineIntel") == 0) {
+		has_pse_bug = 1;
+		pseflag = 0;
+	}
 #endif
 	/*
 	 * The 4MB page version of the initial
@@ -3340,3 +3361,16 @@ pmap_pvdump(pa)
 	printf(" ");
 }
 #endif
+
+#if defined(I686_CPU) && !defined(NO_PSE_HACK)
+static void note_pse_hack(void *unused);
+SYSINIT(note_pse_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, note_pse_hack, NULL);
+
+static void
+note_pse_hack(void *unused) {
+	if (!has_pse_bug)
+		return;
+	printf("Warning: Pentium 4 CPU: PSE disabled\n");
+}
+#endif
+
