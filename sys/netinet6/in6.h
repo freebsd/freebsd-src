@@ -78,7 +78,7 @@
  * Identification of the network protocol stack
  */
 #define	__KAME__
-#define	__KAME_VERSION		"19991101/FreeBSD4.x"
+#define	__KAME_VERSION		"SNAP 19991101"
 
 /*
  * Local port number conventions:
