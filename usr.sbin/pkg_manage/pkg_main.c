@@ -23,22 +23,17 @@
 
 extern PKG_info	p_inf;
 
-char *StartDir;
-
 /*
  * Main
  */
 
 void
-main(int argc, char **argv)
+main(void)
 {
     init_dialog();
 
     p_inf.Nitems = 0;	/* Initialize p_inf */
-    if (argc > 1)
-	StartDir = argv[1];
-    else
-	StartDir = NULL;
+
     get_pkginfo();
     run_menu();
 
