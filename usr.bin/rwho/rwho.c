@@ -57,7 +57,7 @@ struct	whod wd;
 int	utmpcmp();
 #define	NUSERS	1000
 struct	myutmp {
-	char	myhost[MAXHOSTNAMELEN];
+	char    myhost[sizeof(wd.wd_hostname)];
 	int	myidle;
 	struct	outmp myutmp;
 } myutmp[NUSERS];
@@ -141,7 +141,7 @@ main(argc, argv)
 	width = 0;
 	for (i = 0; i < nusers; i++) {
 		/* append one for the blank and use 8 for the out_line */
-		int j = strlen(mp->myhost) + 1 + 8;
+		int j = strlen(mp->myhost) + 1 + sizeof(mp->myutmp.out_line);
 		if (j > width)
 			width = j;
 		mp++;
@@ -150,9 +150,10 @@ main(argc, argv)
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ], cbuf[80];
 		strftime(cbuf, sizeof(cbuf), "%c", localtime((time_t *)&mp->myutmp.out_time));
-		(void)sprintf(buf, "%s:%-.*s", mp->myhost, UT_LINESIZE, mp->myutmp.out_line);
+		(void)sprintf(buf, "%s:%-.*s", mp->myhost,
+		   sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
 		printf("%-*.*s %-*s %.12s",
-		   UT_NAMESIZE, UT_NAMESIZE,
+		   UT_NAMESIZE, sizeof(mp->myutmp.out_name),
 		   mp->myutmp.out_name,
 		   width,
 		   buf,
@@ -181,11 +182,11 @@ utmpcmp(u1, u2)
 {
 	int rc;
 
-	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, UT_NAMESIZE);
+	rc = strncmp(u1->myutmp.out_name, u2->myutmp.out_name, sizeof(u2->myutmp.out_name));
 	if (rc)
 		return (rc);
-	rc = strncmp(u1->myhost, u2->myhost, UT_HOSTSIZE);
+	rc = strcmp(u1->myhost, u2->myhost);
 	if (rc)
 		return (rc);
-	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, UT_LINESIZE));
+	return (strncmp(u1->myutmp.out_line, u2->myutmp.out_line, sizeof(u2->myutmp.out_line)));
 }
