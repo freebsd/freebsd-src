@@ -4,7 +4,7 @@
 PROG=	makekey
 MAN8=	makekey.8
 
-DPADD+= ${LIBCRYPT}
-LDADD+= -lcrypt
+DPADD+= ${LIBCRYPT} ${LIBMD}
+LDADD+= -lcrypt -lmd
 
 .include <bsd.prog.mk>

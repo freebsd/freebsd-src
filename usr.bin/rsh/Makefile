@@ -14,8 +14,8 @@ CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/lib/roken \
 	-I${.CURDIR}/../../crypto/kerberosIV/appl/bsd
-DPADD=	${LIBUTIL} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
-LDADD=	-lutil -lkrb -ldes -lcrypt -lcom_err
+DPADD=	${LIBUTIL} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBMD}
+LDADD=	-lutil -lkrb -ldes -lcrypt -lcom_err -lmd
 DISTRIBUTION=	krb4
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif

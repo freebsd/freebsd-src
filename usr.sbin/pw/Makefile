@@ -10,8 +10,8 @@ MAN8=	pw.8
 
 #RND=	-DUSE_MD5RAND
 CFLAGS+= -W -Wall $(CDB) $(RND)
-LDADD=	-lcrypt
-DPADD=	${LIBCRYPT}
+LDADD=	-lcrypt -lmd
+DPADD=	${LIBCRYPT} ${LIBMD}
 
 BINMODE=0555
 
