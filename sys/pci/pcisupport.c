@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.105 1999/05/08 15:45:25 peter Exp $
+**  $Id: pcisupport.c,v 1.106 1999/05/08 21:30:38 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -850,7 +850,6 @@ static device_method_t pcib_methods[] = {
 static driver_t pcib_driver = {
 	"pcib",
 	pcib_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 
@@ -991,7 +990,6 @@ static device_method_t isab_methods[] = {
 static driver_t isab_driver = {
 	"isab",
 	isab_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 
@@ -1192,7 +1190,6 @@ static device_method_t chip_methods[] = {
 static driver_t chip_driver = {
 	"chip",
 	chip_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 
@@ -1538,7 +1535,6 @@ static device_method_t vga_methods[] = {
 static driver_t vga_driver = {
 	"vga",
 	vga_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 
@@ -1582,7 +1578,6 @@ static device_method_t ign_methods[] = {
 static driver_t ign_driver = {
 	"ign",
 	ign_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 

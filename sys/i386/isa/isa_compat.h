@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.h,v 1.4 1999/04/24 04:21:42 kato Exp $
+ *	$Id: isa_compat.h,v 1.5 1999/05/08 14:36:47 phk Exp $
  */
 
 #include "vt.h"
@@ -175,13 +175,13 @@ static struct old_isa_driver old_drivers[] = {
 
 /* Sensitive NET */
 #if NED > 0
-	{ DRIVER_TYPE_NET, &eddriver },
+	{ INTR_TYPE_NET, &eddriver },
 #endif
 #if NFE > 0
-	{ DRIVER_TYPE_NET, &fedriver },
+	{ INTR_TYPE_NET, &fedriver },
 #endif
 #if NRDP > 0
-	{ DRIVER_TYPE_NET, &rdpdriver },
+	{ INTR_TYPE_NET, &rdpdriver },
 #endif
 
 /* Sensitive CAM */
@@ -189,76 +189,76 @@ static struct old_isa_driver old_drivers[] = {
 /* TTY */
 
 #if NVT > 0
-	{ DRIVER_TYPE_TTY, &vtdriver },
+	{ INTR_TYPE_TTY, &vtdriver },
 #endif
 #if NMSE > 0
-	{ DRIVER_TYPE_TTY, &msedriver },
+	{ INTR_TYPE_TTY, &msedriver },
 #endif
 #if NPCA > 0
-	{ DRIVER_TYPE_TTY, &pcadriver },
+	{ INTR_TYPE_TTY, &pcadriver },
 #endif
 #if NGP > 0
-	{ DRIVER_TYPE_TTY, &gpdriver },
+	{ INTR_TYPE_TTY, &gpdriver },
 #endif
 #if NGSC > 0
-	{ DRIVER_TYPE_TTY, &gscdriver },
+	{ INTR_TYPE_TTY, &gscdriver },
 #endif
 #if NCY > 0
-	{ DRIVER_TYPE_TTY, &cydriver },
+	{ INTR_TYPE_TTY, &cydriver },
 #endif
 #if NDGB > 0
-	{ DRIVER_TYPE_TTY, &dgbdriver },
+	{ INTR_TYPE_TTY, &dgbdriver },
 #endif
 #if NDGM > 0
-	{ DRIVER_TYPE_TTY, &dgmdriver },
+	{ INTR_TYPE_TTY, &dgmdriver },
 #endif
 #if NLABPC > 0
-	{ DRIVER_TYPE_TTY, &labpcdriver },
+	{ INTR_TYPE_TTY, &labpcdriver },
 #endif
 #if NRCD > 0
-	{ DRIVER_TYPE_TTY, &rcdriver },
+	{ INTR_TYPE_TTY, &rcdriver },
 #endif
 #if NRP > 0
-	{ DRIVER_TYPE_TTY, &rpdriver },
+	{ INTR_TYPE_TTY, &rpdriver },
 #endif
 #if NTW > 0
-	{ DRIVER_TYPE_TTY, &twdriver },
+	{ INTR_TYPE_TTY, &twdriver },
 #endif
 #if NSI > 0
-	{ DRIVER_TYPE_TTY, &sidriver },
+	{ INTR_TYPE_TTY, &sidriver },
 #endif
 #if NASC > 0
-	{ DRIVER_TYPE_TTY, &ascdriver },
+	{ INTR_TYPE_TTY, &ascdriver },
 #endif
 #if NSTL > 0
-	{ DRIVER_TYPE_TTY, &stldriver },
+	{ INTR_TYPE_TTY, &stldriver },
 #endif
 #if NSTLI > 0
-	{ DRIVER_TYPE_TTY, &stlidriver },
+	{ INTR_TYPE_TTY, &stlidriver },
 #endif
 #if NLORAN > 0
-	{ DRIVER_TYPE_TTY, &lorandriver },
+	{ INTR_TYPE_TTY, &lorandriver },
 #endif
 #if NPPC > 0
-	{ DRIVER_TYPE_TTY, &ppcdriver },
+	{ INTR_TYPE_TTY, &ppcdriver },
 #endif
 
 /* BIO */
 
 #if NWDC > 0
-	{ DRIVER_TYPE_BIO, &wdcdriver },
+	{ INTR_TYPE_BIO, &wdcdriver },
 #endif
 #if NMCD > 0
-	{ DRIVER_TYPE_BIO, &mcddriver },
+	{ INTR_TYPE_BIO, &mcddriver },
 #endif
 #if NSCD > 0
-	{ DRIVER_TYPE_BIO, &scddriver },
+	{ INTR_TYPE_BIO, &scddriver },
 #endif
 #if NMATCD > 0
-	{ DRIVER_TYPE_BIO, &matcddriver },
+	{ INTR_TYPE_BIO, &matcddriver },
 #endif
 #if NWT > 0
-	{ DRIVER_TYPE_BIO, &wtdriver },
+	{ INTR_TYPE_BIO, &wtdriver },
 #endif
 #if NFLA > 0
 	{ DRIVER_TYPE_MISC, &fladriver },
@@ -267,130 +267,130 @@ static struct old_isa_driver old_drivers[] = {
 /* NET */
 
 #if NIE > 0
-	{ DRIVER_TYPE_NET, &iedriver },
+	{ INTR_TYPE_NET, &iedriver },
 #endif
 #if NEP > 0
-	{ DRIVER_TYPE_NET, &epdriver },
+	{ INTR_TYPE_NET, &epdriver },
 #endif
 #if NEX > 0
-	{ DRIVER_TYPE_NET, &exdriver },
+	{ INTR_TYPE_NET, &exdriver },
 #endif
 #if NLE > 0
-	{ DRIVER_TYPE_NET, &ledriver },
+	{ INTR_TYPE_NET, &ledriver },
 #endif
 #if NLNC > 0
-	{ DRIVER_TYPE_NET, &lncdriver },
+	{ INTR_TYPE_NET, &lncdriver },
 #endif
 #if NZE > 0
-	{ DRIVER_TYPE_NET, &zedriver },
+	{ INTR_TYPE_NET, &zedriver },
 #endif
 #if NZP > 0
-	{ DRIVER_TYPE_NET, &zpdriver },
+	{ INTR_TYPE_NET, &zpdriver },
 #endif
 #if NCS > 0
-	{ DRIVER_TYPE_NET, &csdriver },
+	{ INTR_TYPE_NET, &csdriver },
 #endif
 #if NAR > 0
-	{ DRIVER_TYPE_NET, &ardriver },
+	{ INTR_TYPE_NET, &ardriver },
 #endif
 #if NCX > 0
-	{ DRIVER_TYPE_NET, &cxdriver },
+	{ INTR_TYPE_NET, &cxdriver },
 #endif
 #if NEL > 0
-	{ DRIVER_TYPE_NET, &eldriver },
+	{ INTR_TYPE_NET, &eldriver },
 #endif
 #if NSR > 0
-	{ DRIVER_TYPE_NET, &srdriver },
+	{ INTR_TYPE_NET, &srdriver },
 #endif
 #if NWL > 0
-	{ DRIVER_TYPE_NET, &wldriver },
+	{ INTR_TYPE_NET, &wldriver },
 #endif
 #if NPCF > 0
-	{ DRIVER_TYPE_NET, &pcfdriver },
+	{ INTR_TYPE_NET, &pcfdriver },
 #endif
 #if NISIC > 0
-	{ DRIVER_TYPE_NET, &isicdriver },
+	{ INTR_TYPE_NET, &isicdriver },
 #endif
 #if NTINA > 0
-	{ DRIVER_TYPE_NET, &tinadriver },
+	{ INTR_TYPE_NET, &tinadriver },
 #endif
 
 /* CAM */
 
 #ifndef PC98
 #if NADV > 0
-	{ DRIVER_TYPE_CAM, &advdriver },
+	{ INTR_TYPE_CAM, &advdriver },
 #endif
 #endif
 
 #if NAHA > 0
-	{ DRIVER_TYPE_CAM, &ahadriver },
+	{ INTR_TYPE_CAM, &ahadriver },
 #endif
 
 #ifdef PC98
 #if NBS > 0
-	{ DRIVER_TYPE_CAM, &bsdriver },
+	{ INTR_TYPE_CAM, &bsdriver },
 #endif
 #endif
 
 /* MISC */
 
 #if NOLTR > 0
-	{ DRIVER_TYPE_MISC, &oltrdriver },
+	{ INTR_TYPE_MISC, &oltrdriver },
 #endif
 #if NPCM > 0
-	{ DRIVER_TYPE_MISC, &pcmdriver },
+	{ INTR_TYPE_MISC, &pcmdriver },
 #endif
 #if NPAS > 0
-	{ DRIVER_TYPE_MISC, &pasdriver },
+	{ INTR_TYPE_MISC, &pasdriver },
 #endif
 #if NSB > 0
-	{ DRIVER_TYPE_MISC, &sbdriver },
+	{ INTR_TYPE_MISC, &sbdriver },
 #endif
 #if NSBXVI > 0
-	{ DRIVER_TYPE_MISC, &sbxvidriver },
+	{ INTR_TYPE_MISC, &sbxvidriver },
 #endif
 #if NSBMIDI > 0
-	{ DRIVER_TYPE_MISC, &sbmididriver },
+	{ INTR_TYPE_MISC, &sbmididriver },
 #endif
 #if NAWE > 0
-	{ DRIVER_TYPE_MISC, &awedriver },
+	{ INTR_TYPE_MISC, &awedriver },
 #endif
 #if NGUS > 0
-	{ DRIVER_TYPE_MISC, &gusdriver },
+	{ INTR_TYPE_MISC, &gusdriver },
 #endif
 #if NMSS > 0
-	{ DRIVER_TYPE_MISC, &mssdriver },
+	{ INTR_TYPE_MISC, &mssdriver },
 #endif
 #if NCSS > 0
-	{ DRIVER_TYPE_MISC, &cssdriver },
+	{ INTR_TYPE_MISC, &cssdriver },
 #endif
 #if NSSCAPE > 0
-	{ DRIVER_TYPE_MISC, &sscapedriver },
+	{ INTR_TYPE_MISC, &sscapedriver },
 #endif
 #if NTRIX > 0
-	{ DRIVER_TYPE_MISC, &trixdriver },
+	{ INTR_TYPE_MISC, &trixdriver },
 #endif
 #if NSSCAPE > 0
-	{ DRIVER_TYPE_MISC, &sscape_mssdriver },
+	{ INTR_TYPE_MISC, &sscape_mssdriver },
 #endif
 #if NOPL > 0
-	{ DRIVER_TYPE_MISC, &opldriver },
+	{ INTR_TYPE_MISC, &opldriver },
 #endif
 #if NMPU > 0
-	{ DRIVER_TYPE_MISC, &mpudriver },
+	{ INTR_TYPE_MISC, &mpudriver },
 #endif
 #if NUART > 0
-	{ DRIVER_TYPE_MISC, &uartdriver },
+	{ INTR_TYPE_MISC, &uartdriver },
 #endif
 #if NCTX > 0
-	{ DRIVER_TYPE_MISC, &ctxdriver },
+	{ INTR_TYPE_MISC, &ctxdriver },
 #endif
 #if NSPIGOT > 0
-	{ DRIVER_TYPE_MISC, &spigotdriver },
+	{ INTR_TYPE_MISC, &spigotdriver },
 #endif
 #if NJOY > 0
-	{ DRIVER_TYPE_MISC, &joydriver },
+	{ INTR_TYPE_MISC, &joydriver },
 #endif
 
 };

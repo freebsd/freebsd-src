@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.7 1999/05/06 22:04:21 peter Exp $
+ *	$Id: intpm.c,v 1.8 1999/05/07 18:03:26 peter Exp $
  */
 
 #include "pci.h"
@@ -137,7 +137,6 @@ struct intsmb_softc{
 static driver_t intpm_driver = {
         "intsmb",
         intpm_methods,
-        DRIVER_TYPE_MISC,
         sizeof(struct intsmb_softc),
 };
 

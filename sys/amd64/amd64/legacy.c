@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.6 1999/05/08 20:24:44 peter Exp $
+ *	$Id: nexus.c,v 1.7 1999/05/08 21:34:34 peter Exp $
  */
 
 /*
@@ -88,7 +88,7 @@ static	int nexus_deactivate_resource(device_t, device_t, int, int,
 				      struct resource *);
 static	int nexus_release_resource(device_t, device_t, int, int,
 				   struct resource *);
-static	int nexus_setup_intr(device_t, device_t, struct resource *,
+static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
 			     void (*)(void *), void *, void **);
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
@@ -117,7 +117,6 @@ static device_method_t nexus_methods[] = {
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 static devclass_t nexus_devclass;
@@ -317,7 +316,7 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
  */
 static int
 nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
-		 void (*ihand)(void *), void *arg, void **cookiep)
+		 int flags, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	intrmask_t	*mask;
 	driver_t	*driver;
@@ -335,24 +334,24 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		icflags = INTR_EXCL;
 
 	driver = device_get_driver(child);
-	switch (driver->type) {
-	case DRIVER_TYPE_TTY:
+	switch (flags) {
+	case INTR_TYPE_TTY:
 		mask = &tty_imask;
 		break;
-	case (DRIVER_TYPE_TTY | DRIVER_TYPE_FAST):
+	case (INTR_TYPE_TTY | INTR_TYPE_FAST):
 		mask = &tty_imask;
 		icflags |= INTR_FAST;
 		break;
-	case DRIVER_TYPE_BIO:
+	case INTR_TYPE_BIO:
 		mask = &bio_imask;
 		break;
-	case DRIVER_TYPE_NET:
+	case INTR_TYPE_NET:
 		mask = &net_imask;
 		break;
-	case DRIVER_TYPE_CAM:
+	case INTR_TYPE_CAM:
 		mask = &cam_imask;
 		break;
-	case DRIVER_TYPE_MISC:
+	case INTR_TYPE_MISC:
 		mask = 0;
 		break;
 	default:
@@ -415,7 +414,6 @@ static device_method_t nexus_pcib_methods[] = {
 static driver_t nexus_pcib_driver = {
 	"pcib",
 	nexus_pcib_methods,
-	DRIVER_TYPE_MISC,
 	1,
 };
 

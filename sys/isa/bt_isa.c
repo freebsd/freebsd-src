@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.9 1999/04/18 19:08:28 peter Exp $
+ *	$Id: bt_isa.c,v 1.10 1999/04/24 06:48:27 peter Exp $
  */
 
 #include <sys/param.h>
@@ -330,7 +330,6 @@ static device_method_t bt_isa_methods[] = {
 static driver_t bt_isa_driver = {
 	"bt",
 	bt_isa_methods,
-	DRIVER_TYPE_CAM,
 	sizeof(struct bt_softc),
 };
 

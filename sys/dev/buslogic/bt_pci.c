@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.5 1999/04/18 15:50:35 peter Exp $
+ *	$Id: bt_pci.c,v 1.6 1999/04/23 23:30:22 gibbs Exp $
  */
 
 #include "pci.h"
@@ -224,7 +224,6 @@ static device_method_t bt_pci_methods[] = {
 static driver_t bt_pci_driver = {
 	"bt",
 	bt_pci_methods,
-	DRIVER_TYPE_CAM,
 	sizeof(struct bt_softc),
 };
 

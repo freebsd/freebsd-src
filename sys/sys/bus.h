@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.12 1999/05/07 10:11:22 phk Exp $
+ *	$Id: bus.h,v 1.13 1999/05/08 18:07:37 peter Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -52,14 +52,14 @@ typedef void driver_intr_t(void*);
  * indicate.  Buses which do interrupt remapping will want to
  * change their type to reflect what sort of devices are underneath.
  */
-typedef enum driver_type {
-    DRIVER_TYPE_TTY = 1,
-    DRIVER_TYPE_BIO = 2,
-    DRIVER_TYPE_NET = 4,
-    DRIVER_TYPE_CAM = 8,
-    DRIVER_TYPE_MISC = 16,
-    DRIVER_TYPE_FAST = 128
-} driver_type_t;
+enum intr_type {
+    INTR_TYPE_TTY = 1,
+    INTR_TYPE_BIO = 2,
+    INTR_TYPE_NET = 4,
+    INTR_TYPE_CAM = 8,
+    INTR_TYPE_MISC = 16,
+    INTR_TYPE_FAST = 128
+};
 
 typedef int (*devop_t)(void);
 
@@ -71,7 +71,6 @@ struct device_method {
 struct driver {
     const char		*name;		/* driver name */
     device_method_t	*methods;	/* method table */
-    driver_type_t	type;
     size_t		softc;		/* size of device softc struct */
     void		*priv;		/* driver private data */
     device_ops_t	ops;		/* compiled method table */
@@ -115,7 +114,7 @@ int	bus_generic_release_resource(device_t bus, device_t child,
 				     int type, int rid, struct resource *r);
 int	bus_generic_resume(device_t dev);
 int	bus_generic_setup_intr(device_t dev, device_t child,
-			       struct resource *irq,
+			       struct resource *irq, int flags,
 			       driver_intr_t *intr, void *arg, void **cookiep);
 int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
@@ -137,7 +136,7 @@ int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 int	bus_release_resource(device_t dev, int type, int rid, 
 			     struct resource *r);
-int	bus_setup_intr(device_t dev, struct resource *r,
+int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_intr_t handler, void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 

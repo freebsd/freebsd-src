@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd_isa.c,v 1.2 1999/03/10 10:36:49 yokota Exp $
+ * $Id: atkbd_isa.c,v 1.3 1999/04/16 21:22:34 peter Exp $
  */
 
 #include "atkbd.h"
@@ -64,7 +64,6 @@ static device_method_t atkbd_methods[] = {
 static driver_t atkbd_driver = {
 	ATKBD_DRIVER_NAME,
 	atkbd_methods,
-	DRIVER_TYPE_TTY,
 	sizeof(atkbd_softc_t),
 };
 
@@ -111,8 +110,8 @@ atkbdattach(device_t dev)
 	/* declare our interrupt handler */
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res, atkbd_isa_intr, sc,
-		       &ih);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
+		       atkbd_isa_intr, sc, &ih);
 
 	return 0;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isavar.h,v 1.1 1999/04/16 21:21:37 peter Exp $
  */
 
 /*
@@ -33,7 +33,8 @@
 void isa_init_intr(void);
 struct resource *isa_alloc_intr(device_t bus, device_t child, int irq);
 int isa_release_intr(device_t bus, device_t child, struct resource *r);
-int isa_setup_intr(device_t dev, device_t child, struct resource *irq,
+int isa_setup_intr(device_t dev, device_t child,
+		   struct resource *irq, int flags,
 		   driver_intr_t *intr, void *arg, void **cookiep);
 int isa_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie);

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.19 1999/05/05 06:45:09 imp Exp $
+ *      $Id: bt.c,v 1.20 1999/05/06 20:16:20 ken Exp $
  */
 
  /*
@@ -868,7 +868,8 @@ bt_attach(device_t dev)
 	/*
 	 * Setup interrupt.
 	 */
-	error = bus_setup_intr(dev, bt->irq, bt_intr, bt, &bt->ih);
+	error = bus_setup_intr(dev, bt->irq, INTR_TYPE_CAM,
+			       bt_intr, bt, &bt->ih);
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed: %d\n", error);
 		return (error);

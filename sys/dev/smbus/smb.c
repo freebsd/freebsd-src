@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.8 1999/02/14 14:36:45 nsouch Exp $
+ *	$Id: smb.c,v 1.9 1999/05/07 10:09:50 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -83,7 +83,6 @@ static device_method_t smb_methods[] = {
 static driver_t smb_driver = {
 	"smb",
 	smb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct smb_softc),
 };
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.10 1999/04/23 23:29:00 gibbs Exp $
+ *	$Id: ahb.c,v 1.11 1999/05/06 20:16:31 ken Exp $
  */
 
 #include "eisa.h"
@@ -369,7 +369,7 @@ ahbattach(device_t dev)
 		goto error_exit;
 
 	/* Enable our interrupt */
-	bus_setup_intr(dev, irq, ahbintr, ahb, &ih);
+	bus_setup_intr(dev, irq, INTR_TYPE_CAM, ahbintr, ahb, &ih);
 	return (0);
 
 error_exit:
@@ -1347,7 +1347,6 @@ static device_method_t ahb_eisa_methods[] = {
 static driver_t ahb_eisa_driver = {
 	"ahb",
 	ahb_eisa_methods,
-	DRIVER_TYPE_CAM,
 	1,			/* unused */
 };
 

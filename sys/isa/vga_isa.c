@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.5 1999/04/16 23:54:24 peter Exp $
+ * $Id: vga_isa.c,v 1.6 1999/05/08 20:20:18 peter Exp $
  */
 
 #include "vga.h"
@@ -90,7 +90,6 @@ static device_method_t isavga_methods[] = {
 static driver_t isavga_driver = {
 	DRIVER_NAME,
 	isavga_methods,
-	DRIVER_TYPE_TTY,
 	sizeof(isavga_softc_t),
 };
 

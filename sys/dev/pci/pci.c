@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.98 1999/05/08 18:09:53 peter Exp $
+ * $Id: pci.c,v 1.99 1999/05/08 20:28:01 peter Exp $
  *
  */
 
@@ -931,7 +931,6 @@ compat_pci_handler(module_t mod, int type, void *data)
 		bzero(driver, sizeof(driver_t));
 		driver->name = dvp->pd_name;
 		driver->methods = pci_compat_methods;
-		driver->type = 0; /* XXX fixup in pci_map_int() */
 		driver->softc = sizeof(struct pci_devinfo *);
 		driver->priv = dvp;
 		devclass_add_driver(pci_devclass, driver);
@@ -1373,7 +1372,6 @@ static device_method_t pci_methods[] = {
 static driver_t pci_driver = {
 	"pci",
 	pci_methods,
-	DRIVER_TYPE_MISC,
 	1,			/* no softc */
 };
 

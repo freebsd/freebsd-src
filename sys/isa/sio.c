@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.232 1999/05/07 17:52:01 mjacob Exp $
+ *	$Id: sio.c,v 1.233 1999/05/07 23:08:04 mckusick Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -350,7 +350,6 @@ static device_method_t sio_methods[] = {
 static driver_t sio_driver = {
 	driver_name,
 	sio_methods,
-	DRIVER_TYPE_TTY|DRIVER_TYPE_FAST,
 	sizeof(struct com_s),
 };
 
@@ -1135,8 +1134,9 @@ determined_type: ;
 
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res, siointr, com,
-		       &ih);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, res,
+		       INTR_TYPE_TTY | INTR_TYPE_FAST,
+		       siointr, com, &ih);
 
 	return (0);
 }

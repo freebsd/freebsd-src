@@ -160,7 +160,6 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
 static driver_t __CONCAT(dname,_driver) = { \
         #dname, \
         __CONCAT(dname,_methods), \
-        DRIVER_TYPE_MISC, \
         sizeof(struct __CONCAT(dname,_softc)) \
 }
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.8 1999/04/27 11:13:45 phk Exp $
+ *	$Id: zs_tlsb.c,v 1.9 1999/05/07 10:09:38 phk Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -114,7 +114,6 @@ static device_method_t zs_methods[] = {
 static driver_t zs_driver = {
 	"zs",
 	zs_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct zs_softc),
 };
 
@@ -415,7 +414,6 @@ static device_method_t zsc_tlsb_methods[] = {
 static driver_t zsc_tlsb_driver = {
 	"zsc",
 	zsc_tlsb_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct zsc_softc),
 };
 
@@ -466,8 +464,8 @@ zsc_tlsb_attach(device_t dev)
 	sc->sc_b = ZS_SOFTC(1);
 
 	/* XXX should use resource argument to communicate vector */
-	return BUS_SETUP_INTR(parent, dev, NULL, zsc_tlsb_intr, sc,
-			      &sc->intr);
+	return BUS_SETUP_INTR(parent, dev, NULL, INTR_TYPE_TTY,
+			      zsc_tlsb_intr, sc, &sc->intr);
 
 	return 0;
 }

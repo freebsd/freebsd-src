@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: tcds.c,v 1.1 1998/08/20 08:27:11 dfr Exp $ */
 /* from $NetBSD: tcds.c,v 1.25 1998/05/26 23:43:05 thorpej Exp $ */
 
 /*-
@@ -123,7 +123,6 @@ static device_method_t tcds_methods[] = {
 static driver_t tcds_driver = {
 	"tcds",
 	tcds_methods,
-	DRIVER_TYPE_MISC,
 	sizeof(struct tcds_softc),
 };
 
