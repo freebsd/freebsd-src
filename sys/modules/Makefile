@@ -187,6 +187,7 @@ SUBDIR+=aac \
 	pccard \
 	pecoff \
 	ray \
+	rc \
 	s3 \
 	sbni \
 	scsi_low \

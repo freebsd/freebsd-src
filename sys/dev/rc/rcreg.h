@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 1995 by Pavel Antonov, Moscow, Russia.
  * Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia.
+ * Copyright (C) 2002 by John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,19 +38,14 @@
 #define RC_BRD(s) ((s) == 0 ? 0 : \
 	(((RC_OSCFREQ + (s) / 2) / (s)) + CD180_CTICKS/2) / CD180_CTICKS)
 
-#define RC_VALIDADDR(a) (   (a) == 0x220 || (a) == 0x240 || (a) == 0x250 \
-			 || (a) == 0x260 || (a) == 0x2A0 || (a) == 0x2B0 \
-			 || (a) == 0x300 || (a) == 0x320)
-
-#define RC_VALIDIRQ(i)  ((i) < 16 && \
-			 "\0\0\0\1\1\1\0\1\0\0\1\1\1\0\0\1"[(i) & 0xF])
-
 /* Riscom/8 board ISA I/O mapping */
 #define RC_IOMAP(r)     ((((r) & 07) << 1) | (((r) & ~07) << 7))
 
 /* I/O commands */
-#define RC_OUT(p,i,d)           outb(RC_IOMAP(i) + (p), (d))
-#define RC_IN(p,i)              inb (RC_IOMAP(i) + (p))
+#define RC_OUT(sc, addr, value)						\
+	bus_space_write_1((sc)->sc_bt, (sc)->sc_bh, RC_IOMAP(addr), (value))
+#define RC_IN(sc, addr)						\
+	bus_space_read_1((sc)->sc_bt, (sc)->sc_bh, RC_IOMAP(addr))
 
 /* Riscom on-board registers (mapping assumed) */
 #define RC_RIREG        0x100   /* Ring Indicator Register (read-only)  */
