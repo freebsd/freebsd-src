@@ -195,7 +195,7 @@ since some inodes must be left free for new files.
 It also makes it impossible for other parts of the kernel
 to verify sole use of a device or file.
 These reasons made it impractical to use hard references
-without affecting the behavior of the inode cacheing scheme.
+without affecting the behavior of the inode caching scheme.
 Thus, we chose instead to keep ``soft references'' protected
 by a \fIcapability\fP \- a 32-bit number
 guaranteed to be unique\u\s-22\s0\d \**.
@@ -464,7 +464,7 @@ that decreases the number of small packets outstanding
 for network terminal traffic [Nagle84],
 providing additional reduction of network congestion.
 The overhead of packet routing has been decreased by changes in the routing
-code and by cacheing the most recently used route for each datagram socket.
+code and by caching the most recently used route for each datagram socket.
 .PP
 The buffer management strategy implemented by \fIsosend\fP has been
 changed to make better use of the increased size of the socket buffers
