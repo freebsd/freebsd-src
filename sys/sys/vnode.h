@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.58 1997/12/05 19:55:49 bde Exp $
+ * $Id: vnode.h,v 1.59 1997/12/15 03:09:51 wollman Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -153,6 +153,7 @@ struct vnode {
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
+#define VOBJREF		0x100000 /* This vnode is referenced by it's object */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -237,6 +238,12 @@ extern int		vttoif_tab[];
 #define	V_SAVE		0x0001		/* vinvalbuf: sync file first */
 #define	V_SAVEMETA	0x0002		/* vinvalbuf: leave indirect blocks */
 #define	REVOKEALL	0x0001		/* vop_revoke: revoke all aliases */
+
+static __inline void
+vref(struct vnode *vp)
+{
+	vp->v_usecount++;
+}
 
 #define	VREF(vp)	vref(vp)
 
@@ -520,8 +527,8 @@ int	vop_null __P((struct vop_generic_args *ap));
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
-void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
+void	vrefobj __P((struct vnode *vp));
 
 extern	vop_t	**default_vnodeop_p;
 #endif /* KERNEL */

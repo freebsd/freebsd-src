@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.100 1997/12/19 15:31:13 dyson Exp $
+ * $Id: vm_map.c,v 1.101 1997/12/25 20:55:15 dyson Exp $
  */
 
 /*
@@ -1725,15 +1725,19 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 *     idea.
 			 */
 			if (current->protection & VM_PROT_WRITE) {
-		   	    	vm_object_page_clean(object,
+				if (object->type == OBJT_VNODE)
+					vn_lock(object->handle, LK_EXCLUSIVE, curproc);
+		   	    vm_object_page_clean(object,
 					OFF_TO_IDX(offset),
-					OFF_TO_IDX(offset + size),
-					(syncio||invalidate)?1:0, TRUE);
+					OFF_TO_IDX(offset + size + PAGE_MASK),
+					(syncio||invalidate)?1:0);
 				if (invalidate)
 					vm_object_page_remove(object,
 						OFF_TO_IDX(offset),
-						OFF_TO_IDX(offset + size),
+						OFF_TO_IDX(offset + size + PAGE_MASK),
 						FALSE);
+				if (object->type == OBJT_VNODE)
+					VOP_UNLOCK(object->handle, 0, curproc);
 			}
 		}
 		start += size;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.61 1997/10/16 20:32:35 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.62 1997/11/12 05:42:25 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -726,10 +726,6 @@ ffs_unmount(mp, mntflags, p)
 		}
 	}
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
-
-	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	vnode_pager_uncache(ump->um_devvp, p);
-	VOP_UNLOCK(ump->um_devvp, 0, p);
 
 	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);

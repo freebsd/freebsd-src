@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.72 1997/11/07 09:20:48 phk Exp $
+ * $Id: nfs_vnops.c,v 1.73 1997/12/27 02:56:36 bde Exp $
  */
 
 
@@ -408,7 +408,6 @@ nfs_open(ap)
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 				ap->a_p, 1)) == EINTR)
 				return (error);
-			(void) vnode_pager_uncache(vp, ap->a_p);
 			np->n_brev = np->n_lrev;
 		    }
 		}

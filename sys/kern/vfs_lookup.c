@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.20 1997/09/21 04:23:01 dyson Exp $
+ * $Id: vfs_lookup.c,v 1.21 1997/12/27 02:56:22 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -537,6 +537,9 @@ nextname:
 	}
 	if (!wantparent)
 		vrele(ndp->ni_dvp);
+
+	vfs_object_create(dp, ndp->ni_cnd.cn_proc, ndp->ni_cnd.cn_cred, 1);
+
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, p);
 	return (0);
@@ -683,6 +686,9 @@ relookup(dvp, vpp, cnp)
 	
 	if (!wantparent)
 		vrele(dvp);
+
+	vfs_object_create(dp, cnp->cn_proc, cnp->cn_cred, 1);
+
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, p);
 	return (0);
