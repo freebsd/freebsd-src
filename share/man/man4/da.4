@@ -105,7 +105,7 @@ and allows the device to reorganize writes to increase efficiency and
 performance.  This performance gain comes at a price.  Should the device
 lose power while its cache contains uncommitted write operations, these
 writes will be lost.  The effect of a loss of write transactions on
-a file system is non-deterministic and can cause corruption.  Most
+a filesystem is non-deterministic and can cause corruption.  Most
 devices age write transactions to limit vulnerability to a few transactions
 recently reported as complete, but it is none-the-less recommended that
 systems with write cache enabled devices reside on an Uninterruptible

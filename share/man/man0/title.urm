@@ -316,7 +316,7 @@ RPC support	Sun Microsystems Inc.
 Shared library support	Rob Gingell and Sun Microsystems Inc.
 Sony News 3400 support	Kazumasa Utashiro
 Sparc I/II support	Computer Systems Engineering Group, Lawrence Berkeley Laboratory
-Stackable file systems	John Heidemann
+Stackable filesystems	John Heidemann
 Stdio	Chris Torek
 System documentation	The Institute of Electrical and Electronics Engineers, Inc.
 TCP/IP	Rob Gurwitz and Bolt Beranek and Newman Inc.
@@ -897,7 +897,7 @@ J. M. Bloom
 .sp 1
 This update to the 4.1 distribution of June 1981 provides support
 for the VAX 11/730, full networking and interprocess communication
-support, an entirely new file system, and many other new features.
+support, an entirely new filesystem, and many other new features.
 It is certainly the most ambitious release of software ever prepared
 here and represents many man-years of work.
 Bill Shannon (both at DEC and at Sun Microsystems)
@@ -974,7 +974,7 @@ we hope this provides as noticeable an improvement for you as it did for us.
 This release finds the system in transition; a number of facilities
 have been added in experimental versions (job control, resource limits)
 and the implementation of others is imminent (shared-segments, higher
-performance from the file system, etc.).
+performance from the filesystem, etc.).
 Applications which use facilities that are in transition should be aware
 that some of the system calls and library routines will change
 in the near future.  We have tried to be conscientious and make it
@@ -1622,7 +1622,7 @@ command, which takes effect at your next login.
 .I
 The current directory.\ \ 
 .R
-\s-1UNIX\s+1 has a file system arranged as a hierarchy of directories.
+\s-1UNIX\s+1 has a filesystem arranged as a hierarchy of directories.
 When the system administrator gave you a user name,
 they also created a directory for you (ordinarily
 with the same name as your user name).
@@ -1643,7 +1643,7 @@ Path names.\ \
 .R
 To refer to files not in the current directory, you must use a path name.
 Full path names begin with ``/\|'', the name of the root directory of the
-whole file system.
+whole filesystem.
 After the slash comes the name of each directory containing the next
 sub-directory (followed by a ``/\|'') until finally the file name is reached.
 For example,
@@ -1684,7 +1684,7 @@ for making directories and
 .IR rmdir (1)
 for destroying them.
 .LP
-For a fuller discussion of the file system, see
+For a fuller discussion of the filesystem, see
 ``A Fast File System for \s-1UNIX\s+1'' (SMM:5)
 by McKusick, Joy, Leffler, and Fabry.
 It may also be useful to glance through PRM section 2,

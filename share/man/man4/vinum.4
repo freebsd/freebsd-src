@@ -77,9 +77,9 @@ Additional plexes can be used for on-line data reorganization.  By attaching an
 additional plex and subsequently detaching one of the older plexes, data can be
 moved on-line without compromising access.
 .It
-An additional plex can be used to obtain a consistent dump of a file system.  By
+An additional plex can be used to obtain a consistent dump of a filesystem.  By
 attaching an additional plex and detaching at a specific time, the detached plex
-becomes an accurate snapshot of the file system at the time of detachment.
+becomes an accurate snapshot of the filesystem at the time of detachment.
 .\" Make sure to flush!
 .El
 .It
@@ -140,7 +140,7 @@ devices.
 .Nm
 offers automatic startup.  Unlike
 .Ux
-file systems,
+filesystems,
 .Nm
 volumes contain all the configuration information needed to ensure that they are
 started correctly when the subsystem is enabled.  This is also a significant
@@ -311,7 +311,7 @@ flag to
 .Nm newfs .
 For example, if you have a volume
 .Pa concat ,
-use the following command to create a ufs file system on it:
+use the following command to create a ufs filesystem on it:
 .Pp
 .Bd -literal
   # newfs -v /dev/vinum/concat
