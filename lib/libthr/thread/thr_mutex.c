@@ -1284,20 +1284,7 @@ _mutex_lock_backout(pthread_t pthread)
 {
 	struct pthread_mutex	*mutex;
 
-	/*
-	 * Defer signals to protect the scheduling queues from
-	 * access by the signal handler:
-	 */
-	/* _thread_kern_sig_defer();*/
-
-	/* XXX - Necessary to obey lock order */
-	UMTX_LOCK(&pthread->lock);
 	mutex = pthread->data.mutex;
-	UMTX_UNLOCK(&pthread->lock);
-
-	_SPINLOCK(&mutex->lock);
-
-	_thread_critical_enter(pthread);
 	if ((pthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0) {
 
 		mutex_queue_remove(mutex, pthread);
@@ -1306,14 +1293,6 @@ _mutex_lock_backout(pthread_t pthread)
 		pthread->data.mutex = NULL;
 
 	}
-	/*
-	 * Undefer and handle pending signals, yielding if
-	 * necessary:
-	 */
-	/* _thread_kern_sig_undefer(); */
-
-	_thread_critical_exit(pthread);
-	_SPINUNLOCK(&mutex->lock);
 }
 
 /*
@@ -1426,14 +1405,13 @@ get_mcontested(pthread_mutex_t mutexp)
 {
 	int error;
 
-	_thread_critical_enter(curthread);
-
 	/*
 	 * Put this thread on the mutex's list of waiting threads.
 	 * The lock on the thread ensures atomic (as far as other
 	 * threads are concerned) setting of the thread state with
 	 * it's status on the mutex queue.
 	 */
+	_thread_critical_enter(curthread);
 	mutex_queue_enq(mutexp, curthread);
 	do {
 		PTHREAD_SET_STATE(curthread, PS_MUTEX_WAIT);
@@ -1443,10 +1421,8 @@ get_mcontested(pthread_mutex_t mutexp)
 		error = _thread_suspend(curthread, NULL);
 		if (error != 0 && error != EAGAIN && error != EINTR)
 			PANIC("Cannot suspend on mutex.");
-
 		_SPINLOCK(&mutexp->lock);
 		_thread_critical_enter(curthread);
 	} while ((curthread->flags & PTHREAD_FLAGS_IN_MUTEXQ) != 0);
-
 	_thread_critical_exit(curthread);
 }
