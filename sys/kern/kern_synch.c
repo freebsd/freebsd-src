@@ -173,12 +173,15 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * and not the exiting thread or thread was marked as
 		 * interrupted.
 		 */
-		if (catch &&
-		    (((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) ||
-		     (td->td_flags & TDF_INTERRUPT))) {
-			td->td_flags &= ~TDF_INTERRUPT;
-			mtx_unlock_spin(&sched_lock);
-			return (EINTR);
+		if (catch) {
+			if ((p->p_flag & P_WEXIT) && p->p_singlethread != td) {
+				mtx_unlock_spin(&sched_lock);
+				return (EINTR);
+			}
+			if (td->td_flags & TDF_INTERRUPT) {
+				mtx_unlock_spin(&sched_lock);
+				return (td->td_intrval);
+			}
 		}
 	}
 	if (cold ) {
@@ -285,8 +288,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	} 
 	if ((td->td_flags & TDF_INTERRUPT) && (priority & PCATCH) &&
 	    (rval == 0)) {
-		td->td_flags &= ~TDF_INTERRUPT;
-		rval = EINTR;
+		rval = td->td_intrval;
 	}
 	mtx_unlock_spin(&sched_lock);
 

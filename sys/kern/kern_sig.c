@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/event.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/kse.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/lock.h>
@@ -94,6 +95,7 @@ static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
 static int	kern_sigtimedwait(struct thread *td, sigset_t set,
 				siginfo_t *info, struct timespec *timeout);
+static void	do_tdsignal(struct thread *td, int sig);
 
 struct filterops sig_filtops =
 	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
@@ -197,7 +199,7 @@ void
 signotify(struct thread *td)
 {
 	struct proc *p;
-	sigset_t set;
+	sigset_t set, saved;
 
 	p = td->td_proc;
 
@@ -208,6 +210,8 @@ signotify(struct thread *td)
 	 * previously masked by all threads to our siglist.
 	 */
 	set = p->p_siglist;
+	if (p->p_flag & P_SA)
+		saved = p->p_siglist;
 	SIGSETNAND(set, td->td_sigmask);
 	SIGSETNAND(p->p_siglist, set);
 	SIGSETOR(td->td_siglist, set);
@@ -216,6 +220,15 @@ signotify(struct thread *td)
 		mtx_lock_spin(&sched_lock);
 		td->td_flags |= TDF_NEEDSIGCHK | TDF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
+	}
+	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
+		if (SIGSETEQ(saved, p->p_siglist))
+			return;
+		else {
+			/* pending set changed */
+			p->p_flag |= P_SIGEVENT;
+			wakeup(&p->p_siglist);
+		}
 	}
 }
 
@@ -375,6 +388,11 @@ kern_sigaction(td, sig, act, oact, flags)
 		if (ps->ps_sigact[_SIG_IDX(sig)] == SIG_IGN ||
 		    (sigprop(sig) & SA_IGNORE &&
 		     ps->ps_sigact[_SIG_IDX(sig)] == SIG_DFL)) {
+			if ((p->p_flag & P_SA) &&
+			     SIGISMEMBER(p->p_siglist, sig)) {
+				p->p_flag |= P_SIGEVENT;
+				wakeup(&p->p_siglist);
+			}
 			/* never to be seen again */
 			SIGDELSET(p->p_siglist, sig);
 			FOREACH_THREAD_IN_PROC(p, td0)
@@ -776,6 +794,7 @@ sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	error = kern_sigtimedwait(td, set, &info, timeout);
 	if (error)
 		return (error);
+
 	if (uap->info)
 		error = copyout(&info, uap->info, sizeof(info));
 	/* Repost if we got an error. */
@@ -784,7 +803,7 @@ sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 		tdsignal(td, info.si_signo);
 		PROC_UNLOCK(td->td_proc);
 	} else {
-		td->td_retval[0] = info.si_signo;
+		td->td_retval[0] = info.si_signo; 
 	}
 	return (error);
 }
@@ -860,6 +879,8 @@ kern_sigtimedwait(struct thread *td, sigset_t set, siginfo_t *info,
 			error = EINVAL;
 			goto out;
 		}
+		if (timeout->tv_sec == 0 && timeout->tv_nsec == 0)
+			goto nosleep;
 		TIMESPEC_TO_TIMEVAL(&tv, timeout);
 		hz = tvtohz(&tv);
 	} else
@@ -872,8 +893,9 @@ kern_sigtimedwait(struct thread *td, sigset_t set, siginfo_t *info,
 		error = 0;
 	else if (error)
 		goto out;
-
+nosleep:
 	sig = cursig(td);
+
 out:
 	td->td_sigmask = oldmask;
 	if (sig) {
@@ -1445,10 +1467,33 @@ trapsignal(struct thread *td, int sig, u_long code)
 {
 	struct sigacts *ps;
 	struct proc *p;
+	siginfo_t siginfo;
+	int error;
 
 	p = td->td_proc;
-
-	PROC_LOCK(p);
+	if (td->td_flags & TDF_SA) {
+		thread_user_enter(p, td);
+		PROC_LOCK(p);
+		if (td->td_mailbox) {
+			SIGDELSET(td->td_sigmask, sig);
+			mtx_lock_spin(&sched_lock);
+			/*
+			 * don't psignal to the thread, it only can accept
+			 * its own sync signal.
+			 */
+			td->td_flags |= TDF_NOSIGPOST;
+			/*
+			 * Force scheduling an upcall, so UTS has chance to
+			 * process the signal before thread runs again in
+			 * userland.
+			 */
+			if (td->td_upcall)
+				td->td_upcall->ku_flags |= KUF_DOUPCALL;
+			mtx_unlock_spin(&sched_lock);
+		}
+	} else {
+		PROC_LOCK(p);
+	}
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
@@ -1459,8 +1504,22 @@ trapsignal(struct thread *td, int sig, u_long code)
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
 			    &td->td_sigmask, code);
 #endif
-		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], sig,
-						&td->td_sigmask, code);
+		if (!(td->td_flags & TDF_SA))
+			(*p->p_sysent->sv_sendsig)(
+				ps->ps_sigact[_SIG_IDX(sig)], sig,
+				&td->td_sigmask, code);
+		else {
+			thread_siginfo(sig, code, &siginfo);
+			mtx_unlock(&ps->ps_mtx);
+			PROC_UNLOCK(p);
+			error = copyout(&siginfo, &td->td_mailbox->tm_syncsig,
+			    sizeof(siginfo));
+			PROC_LOCK(p);
+			if (error)
+				sigexit(td, SIGILL);
+			SIGADDSET(td->td_sigmask, sig);
+			mtx_lock(&ps->ps_mtx);
+		}
 		SIGSETOR(td->td_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
 			SIGADDSET(td->td_sigmask, sig);
@@ -1512,7 +1571,8 @@ sigtd(struct proc *p, int sig, int prop)
 	 * masked.
 	 */
 	FOREACH_THREAD_IN_PROC(p, td)
-		if (!SIGISMEMBER(td->td_sigmask, sig))
+		if (!SIGISMEMBER(td->td_sigmask, sig) &&
+		    !(td->td_flags & TDF_NOSIGPOST))
 			return (td);
 
 	return (FIRST_THREAD_IN_PROC(p));
@@ -1555,6 +1615,26 @@ psignal(struct proc *p, int sig)
  */
 void
 tdsignal(struct thread *td, int sig)
+{
+	sigset_t saved;
+	struct proc *p = td->td_proc;
+
+	if (p->p_flag & P_SA)
+		saved = p->p_siglist;
+	do_tdsignal(td, sig);
+	if ((p->p_flag & P_SA) && !(p->p_flag & P_SIGEVENT)) {
+		if (SIGSETEQ(saved, p->p_siglist))
+			return;
+		else {
+			/* pending set changed */
+			p->p_flag |= P_SIGEVENT;
+			wakeup(&p->p_siglist);
+		}
+	}
+}
+
+static void
+do_tdsignal(struct thread *td, int sig)
 {
 	struct proc *p;
 	register sig_t action;
