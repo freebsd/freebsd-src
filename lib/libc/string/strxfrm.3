@@ -51,7 +51,7 @@ The
 function transforms a null-terminated string pointed to by
 .Fa src
 according to the current locale collation if any,
-then copies the resulting string
+then copies the transformed string
 into
 .Fa dst .
 Not more than
@@ -61,10 +61,11 @@ characters are copied into
 including the terminating null character added.
 If
 .Fa n
-is set to 0,
+is set to 0
+(it helps to determine an actual size needed
+for transformation),
 .Fa dst
-is permitted to be a NULL pointer (it helps to determine an actual size needed
-for transformation).
+is permitted to be a NULL pointer.
 .Pp
 Comparing two strings using
 .Fn strcmp
