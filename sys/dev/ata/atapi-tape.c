@@ -213,18 +213,18 @@ ast_describe(struct ast_softc *stp)
 	printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
 	printf("%s\n", ata_mode2str(stp->atp->controller->mode[
                                      ATA_DEV(stp->atp->unit)]));
-	ata_printf(stp->atp->controller, stp->atp->unit, "");
+	ata_printf(stp->atp->controller, stp->atp->unit, "Medium: ");
 	switch (stp->cap.medium_type) {
 	    case 0x00:
-		printf("Drive empty"); break;
+		printf("none"); break;
 	    case 0x17:
-		printf("Travan 1 (400 Mbyte) media"); break;
+		printf("Travan 1 (400 Mbyte)"); break;
 	    case 0xb6:
-		printf("Travan 4 (4 Gbyte) media"); break;
+		printf("Travan 4 (4 Gbyte)"); break;
 	    case 0xda:
-		printf("OnStream ADR (15Gyte) media"); break;
+		printf("OnStream ADR (15Gyte)"); break;
 	    default:
-		printf("Unknown media (0x%x)", stp->cap.medium_type);
+		printf("unknown (0x%x)", stp->cap.medium_type);
 	}
 	if (stp->cap.readonly) printf(", readonly");
 	if (stp->cap.reverse) printf(", reverse");
