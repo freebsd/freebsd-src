@@ -71,16 +71,16 @@ such that the values produced lie in the interval [0.0, 1.0).
 and
 .Fn nrand48
 return values of type long in the range
-[-2**31, 2**31-1]. The high-order (32) bits of
-r(n+1) are loaded into the returned value.
+[0, 2**31-1]. The high-order (31) bits of
+r(n+1) are loaded into the lower bits of the returned value, with
+the topmost (sign) bit set to zero.
 .Pp
 .Fn mrand48
 and
 .Fn jrand48
 return values of type long in the range
-[0, 2**31-1]. The high-order (31) bits of
-r(n+1) are loaded into the lower bits of the returned value, with
-the topmost (sign) bit set to zero.
+[-2**31, 2**31-1]. The high-order (32) bits of
+r(n+1) are loaded into the returned value.
 .Pp
 .Fn drand48 ,
 .Fn lrand48 ,
