@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.30 1998/01/13 02:12:43 alex Exp $";
+	"$Id: xinstall.c,v 1.31 1998/01/20 13:52:32 bde Exp $";
 #endif /* not lint */
 
 /*-
@@ -430,16 +430,15 @@ different:
 				fprintf(stderr,
 					"install: renaming for %s: %s to %s\n",
 					from_name, to_name, old_to_name);
+			if (verbose != 0)
+				printf("install: %s -> %s\n",
+					from_name, old_to_name);
 			if (dopreserve && stat(from_name, &timestamp_sb) == 0) {
 				utb.actime = from_sb.st_atime;
 				utb.modtime = from_sb.st_mtime;
 				(void)utime(to_name, &utb);
 			}
 moveit:
-			if (verbose) {
-				printf("install: %s -> %s\n",
-					from_name, old_to_name);
-			}
 			if (rename(to_name, old_to_name) < 0) {
 				serrno = errno;
 				unlink(to_name);
@@ -496,13 +495,22 @@ moveit:
 	/*
 	 * If provided a set of flags, set them, otherwise, preserve the
 	 * flags, except for the dump flag.
+	 * NFS does not support flags.  Ignore EOPNOTSUPP flags if we're just
+	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
+	 * then warn if the the fs doesn't support it, otherwise fail.
 	 */
 	if (fchflags(to_fd,
 	    flags & SETFLAGS ? fset : from_sb.st_flags & ~UF_NODUMP)) {
-		serrno = errno;
-		(void)unlink(to_name);
-		errno = serrno;
-		err(EX_OSERR, "%s: chflags", to_name);
+		if (flags & SETFLAGS) {
+			if (errno == EOPNOTSUPP)
+				warn("%s: chflags", to_name);
+			else {
+				serrno = errno;
+				(void)unlink(to_name);
+				errno = serrno;
+				err(EX_OSERR, "%s: chflags", to_name);
+			}
+		}
 	}
 
 	(void)close(to_fd);
