@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+        "$Id$";
+#endif /* not lint */
+
 /*
  * High level routines dealing with getting lines of input
  * from the file being viewed.
@@ -47,7 +52,10 @@ static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <sys/types.h>
-#include <less.h>
+
+#include "less.h"
+
+int horiz_off = NO_HORIZ_OFF;   /* # characters scrolled off left of screen */
 
 extern int squeeze;
 extern int sigs;
@@ -56,11 +64,13 @@ extern char *line;
 off_t ch_tell();
 
 /*
- * Get the next line.
+ * Get the next printable line.
+ *
  * A "current" position is passed and a "new" position is returned.
  * The current position is the position of the first character of
  * a line.  The new position is the position of the first character
  * of the NEXT line.  The line obtained is the line starting at curr_pos.
+ * It is placed into the global line buffer ("line").
  */
 off_t
 forw_line(curr_pos)
@@ -92,6 +102,10 @@ forw_line(curr_pos)
 
 		/*
 		 * Append the char to the line and get the next char.
+		 * The pappend() will throw away any unimportant chars
+		 * (ie. not underlines or bolds) as per horiz_off.
+		 *
+		 * XXX line.c needs to be rewritten...
 		 */
 		if (pappend(c))
 		{
@@ -100,7 +114,15 @@ forw_line(curr_pos)
 			 * is too long to print in the screen width.
 			 * End the line here.
 			 */
-			new_pos = ch_tell() - 1;
+			if (horiz_off != NO_HORIZ_OFF) {
+				/* Throw away left-over characters on line */
+				c = ch_forw_get();
+				while (c != '\n' && c != EOI)
+					c = ch_forw_get();
+				new_pos = ch_tell();
+			} else {
+				new_pos = ch_tell() - 1;
+			}
 			break;
 		}
 		c = ch_forw_get();
@@ -127,10 +149,12 @@ forw_line(curr_pos)
 
 /*
  * Get the previous line.
+ *
  * A "current" position is passed and a "new" position is returned.
  * The current position is the position of the first character of
  * a line.  The new position is the position of the first character
  * of the PREVIOUS line.  The line obtained is the one starting at new_pos.
+ * It is placed into the global line buffer ("line").
  */
 off_t
 back_line(curr_pos)
@@ -223,15 +247,18 @@ back_line(curr_pos)
 			break;
 		if (pappend(c))
 		{
-			/*
-			 * Got a full printable line, but we haven't
-			 * reached our curr_pos yet.  Discard the line
-			 * and start a new one.
-			 */
-			(void) pappend('\0');
-			(void) ch_back_get();
-			new_pos--;
-			goto loop;
+			if (horiz_off == NO_HORIZ_OFF) {
+				/*
+				 * Got a full printable line, but we haven't
+				 * reached our curr_pos yet.  Discard the line
+				 * and start a new one.
+				 */
+				(void) pappend('\0');
+				(void) ch_back_get();
+				new_pos--;
+				goto loop;
+			} else
+				break;  /* Got everything we need */
 		}
 	} while (new_pos < curr_pos);
 
