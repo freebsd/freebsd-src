@@ -877,7 +877,7 @@ ibwrite(struct buf *bp)
 
 	bp->b_flags &= ~B_DONE;
 	bp->b_ioflags &= ~BIO_ERROR;
-	bp->b_flags |= B_WRITEINPROG | B_CACHE;
+	bp->b_flags |= B_CACHE;
 	bp->b_iocmd = BIO_WRITE;
 
 	VI_LOCK(bp->b_vp);

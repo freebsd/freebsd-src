@@ -328,9 +328,7 @@ nwfs_doio(vp, bp, cr, td)
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;
-		bp->b_flags |= B_WRITEINPROG;
 		error = ncp_write(NWFSTOCONN(nmp), &np->n_fh, uiop, cr);
-		bp->b_flags &= ~B_WRITEINPROG;
 
 		/*
 		 * For an interrupted write, the buffer is still valid
