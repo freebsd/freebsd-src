@@ -1,4 +1,4 @@
-/*	$OpenBSD: deattack.c,v 1.9 2000/09/07 20:27:51 deraadt Exp $	*/
+/*	$OpenBSD: deattack.c,v 1.10 2000/10/31 13:18:53 markus Exp $	*/
 
 /*
  * Cryptographic attack detector for ssh - source code
@@ -85,7 +85,7 @@ int
 detect_attack(unsigned char *buf, u_int32_t len, unsigned char *IV)
 {
 	static u_int16_t *h = (u_int16_t *) NULL;
-	static u_int16_t n = HASH_MINSIZE / HASH_ENTRYSIZE;
+	static u_int32_t n = HASH_MINSIZE / HASH_ENTRYSIZE;
 	register u_int32_t i, j;
 	u_int32_t l;
 	register unsigned char *c;
