@@ -8,6 +8,21 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20041001:
+	The following libraries had their version number bumped up:
+		/lib/libm.so.2 -> libm.so.3
+		/lib/libreadline.so.4 -> libreadline.so.5
+		/usr/lib/libhistory.so.4 -> libhistory.so.5
+		/usr/lib/libopie.so.2 -> libopie.so.3
+		/usr/lib/libpcap.so.2 -> libpcap.so.3
+	FreeBSD 4.10 versions of these libraries will be added to the
+	compat4x collection.  If you expect to be able to run old 4.X
+	executables you will need to remove the old versions of these
+	libraries.  However note that any 5.X executables you have built
+	will stop working once you remove those old libraries.  You should
+	have all your ports/packages rebuilt before removing the old
+	libraries.
+
 20040928:
 	If enabled, the default is now to run named in a chroot
 	"sandbox." For users with existing configurations in
