@@ -27,10 +27,10 @@ suggestions here.
 This guide was originally written for SLIP Server services on a
 FreeBSD 1.x system.  It has been modified to reflect changes in the
 pathnames and the removal of the SLIP interface compression flags in
-FreeBSD 2.x, which appear to be the only major changes between
-FreeBSD versions.  If you do run encounter mistakes in this document,
-please email the author with enough information to help correct the
-problem.
+early versions of FreeBSD 2, which appear to be the only major
+changes between FreeBSD versions.  If you do encounter mistakes in
+this document, please email the author with enough information to
+help correct the problem.
 
 For FreeBSD 1.x users, all of the files referenced in the directory
 <tt>/etc/sliphome</tt> are actually in the <tt>/etc</tt> directory.
@@ -237,11 +237,11 @@ At the end of the line is one or more of the options.
 	dropped instead of using up your bandwidth)
 </itemize>
 
-It appears that <tt/sliplogin/ under FreeBSD 2.x ignores the options
-that FreeBSD 1.x recognized, so the options <tt/normal/,
-<tt/compress/, <tt/autocomp/, and <tt/noicmp/ will have no effect
-under FreeBSD 2.x unless your <tt/slip.login/ script includes code to
-make use of the flags.
+Note that <tt/sliplogin/ under early releases of FreeBSD 2 ignored
+the options that FreeBSD 1.x recognized, so the options
+<tt/normal/, <tt/compress/, <tt/autocomp/, and <tt/noicmp/ had no effect
+until support was added in FreeBSD 2.2 (unless your <tt/slip.login/ script
+included code to make use of the flags).
 
 Your choice of local and remote addresses for your SLIP links depends
 on whether you are going to dedicate a TCP/IP subnet or if you are
