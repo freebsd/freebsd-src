@@ -42,7 +42,7 @@
 #include <dev/sx/sx.h>
 #include <dev/sx/sx_util.h>
 
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 
 static int
 sx_pci_probe(
