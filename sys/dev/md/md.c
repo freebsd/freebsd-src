@@ -676,7 +676,9 @@ md_kthread(void *arg)
 				error = mdstart_preload(sc, bp);
 				break;
 			case MD_VNODE:
+				mtx_assert(&Giant, MA_OWNED);
 				error = mdstart_vnode(sc, bp);
+				mtx_assert(&Giant, MA_OWNED);
 				break;
 			case MD_SWAP:
 				error = mdstart_swap(sc, bp);
