@@ -40,6 +40,7 @@ LIBMD?=		${DESTDIR}/usr/lib/libmd.a
 LIBMP?=		${DESTDIR}/usr/lib/libmp.a
 LIBMYTINFO?=	${DESTDIR}/usr/lib/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}/usr/lib/libncurses.a
+LIBOPIE?=	${DESTDIR}/usr/lib/libopie.a
 LIBPC?=		${DESTDIR}/usr/lib/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}/usr/lib/libpcap.a
 LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a	# XXX doesn't exist
