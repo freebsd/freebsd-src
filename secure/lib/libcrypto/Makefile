@@ -30,7 +30,7 @@ PERLPATH=	${LCRYPTO_SRC}/des/asm:${LCRYPTO_SRC}/perlasm
 .endif
 
 LIB=		crypto
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 MAINTAINER=	kris
 
