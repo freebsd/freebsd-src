@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.55 1999/06/16 19:05:17 tegge Exp $
+ *	$Id: tcp_subr.c,v 1.56 1999/07/05 08:46:55 msmith Exp $
  */
 
 #include "opt_compat.h"
@@ -43,6 +43,7 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -586,6 +587,37 @@ tcp_pcblist SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 	    tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
+
+static int
+tcp_getcred SYSCTL_HANDLER_ARGS
+{
+	struct sockaddr_in addrs[2];
+	struct inpcb *inp;
+	int error, s;
+
+	error = suser(req->p);
+	if (error)
+		return (error);
+	error = SYSCTL_IN(req, addrs, sizeof(addrs));
+	if (error)
+		return (error);
+	s = splnet();
+	inp = in_pcblookup_hash(&tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
+	    addrs[0].sin_addr, addrs[0].sin_port, 0);
+	if (inp == NULL || inp->inp_socket == NULL ||
+	    inp->inp_socket->so_cred == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+	error = SYSCTL_OUT(req, inp->inp_socket->so_cred->pc_ucred,
+	    sizeof(struct ucred));
+out:
+	splx(s);
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
+    0, 0, tcp_getcred, "S,ucred", "Get the ucred of a TCP connection");
 
 void
 tcp_ctlinput(cmd, sa, vip)
