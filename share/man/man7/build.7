@@ -117,6 +117,40 @@ For more information about the ports build process, see
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/ports/Mk/bsd.port.mk
 .It Pa /usr/ports/Mk/bsd.sites.mk
+.Sh EXAMPLES
+The
+.Dq approved
+method of updating your system from the latest sources is:
+.Bd -literal -offset indent
+make buildworld
+make buildkernel KERNEL=FOO
+make installkernel KERNEL=FOO
+make installworld
+.Ed
+.Pp
+.Dq FOO
+must be replaced with the name of the kernel configuration file from which
+the kernel should be built.
+Alternatively, the
+.Va KERNEL
+variable in
+.Pa /etc/make.conf
+can be set to the name of the kernel to build;
+in this case the
+.Dq KERNEL=FOO
+part of the
+.Dq buildkernel
+and
+.Dq installkernel
+commands can be omitted.
+.Pp
+After running these commands a system reboot is required,
+otherwise many programs which have been rebuilt
+(such as
+.Nm ps ,
+.Nm top ,
+etc)
+will not work with the old kernel which is still running.
 .Sh SEE ALSO
 .Xr gcc 1 ,
 .Xr install 1 ,
