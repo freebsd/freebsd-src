@@ -562,7 +562,7 @@ static int
 nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	sc_p    sc = hook->node->private;
-	u_char *data;
+	const	u_char *data;
 	unsigned short dlci;
 	u_short packetlen;
 	int     resptype_seen = 0;
@@ -588,7 +588,7 @@ nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		return (0);
 
 	/* pass the first 4 bytes (already checked in the nglmi_checkdata()) */
-	data = mtod(m, u_char *);
+	data = mtod(m, const u_char *);
 	STEPBY(4);
 
 	/* Now check if there is a 'locking shift'. This is only seen in
@@ -745,7 +745,7 @@ static int
 nglmi_checkdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	sc_p    sc = hook->node->private;
-	u_char *data;
+	const	u_char *data;
 	u_short packetlen;
 	unsigned short dlci;
 	u_char  type;
@@ -755,7 +755,7 @@ nglmi_checkdata(hook_p hook, struct mbuf *m, meta_p meta)
 	int     highest_dlci = 0;
 
 	packetlen = m->m_hdr.mh_len;
-	data = mtod(m, u_char *);
+	data = mtod(m, const u_char *);
 	if (*data != 0x03) {
 		log(LOG_WARNING, "nglmi: unexpected value in LMI(%d)\n", 1);
 		goto reject;
@@ -998,7 +998,7 @@ print:
 		int     i, j, k, pos;
 		char    buf[100];
 		int     loc;
-		u_char *bp = mtod(m, u_char *);
+		const	u_char *bp = mtod(m, const u_char *);
 
 		k = i = 0;
 		loc = (m->m_hdr.mh_len - packetlen);
@@ -1025,7 +1025,7 @@ reject:
 		int     i, j, k, pos;
 		char    buf[100];
 		int     loc;
-		u_char *bp = mtod(m, u_char *);
+		const	u_char *bp = mtod(m, const u_char *);
 
 		k = i = 0;
 		loc = (m->m_hdr.mh_len - packetlen);
