@@ -1,4 +1,4 @@
-.\"	$Id: cdcontrol.1,v 1.14 1998/01/07 07:43:04 charnier Exp $
+.\"	$Id: cdcontrol.1,v 1.15 1998/01/26 00:57:54 jmz Exp $
 .\"
 .Dd July 3, 1995
 .Dt CDCONTROL 1
@@ -20,9 +20,13 @@ as
 or
 .Pa mcd0 . 
 .Pp
-If the device not specified, the environment variable 
+If the device not specified, the environment variables 
+.Ev MUSIC_CD ,
+.Ev CD_DRIVE ,
 .Ev DISC
-will be used to find the cd device.
+and
+.Ev CDPLAY
+will be used (in this order) to find the cd device.
 .Pp
 If no command is given, then
 .Nm
