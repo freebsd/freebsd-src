@@ -126,7 +126,7 @@ pairs save and restore the signal mask while
 .Fn _setjmp Ns / Ns Fn _longjmp
 pairs save and restore only the register set and the stack.
 (See
-.Fn sigmask 2 . )
+.Fn sigprocmask 2 . )
 .Pp
 The
 .Fn sigsetjmp Ns / Ns Fn siglongjmp
@@ -145,7 +145,7 @@ routine calls the routine
 If
 .Fn longjmperror
 returns the program is aborted (see
-.Xr abort 2 ) .
+.Xr abort 3 ) .
 The default version of
 .Fn longjmperror
 prints the message
