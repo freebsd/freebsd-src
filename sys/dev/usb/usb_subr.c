@@ -699,9 +699,7 @@ usbd_probe_and_attach(parent, dev, port, addr)
 {
 	struct usb_attach_arg uaa;
 	usb_device_descriptor_t *dd = &dev->ddesc;
-#if defined(__NetBSD__)
 	int found = 0;
-#endif
 	int r, i, confi, nifaces;
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 
@@ -755,20 +753,27 @@ usbd_probe_and_attach(parent, dev, port, addr)
 			uaa.ifaceno = ifaces[i]->idesc->bInterfaceNumber;
 			if (USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, 
 					  usbd_submatch)) {
-#if defined(__NetBSD__)
 				found++;
 				ifaces[i] = 0; /* consumed */
-#elif defined(__FreeBSD__)
-				/* XXX FreeBSD can't handle multiple intfaces
-				 *     on 1 device yet */
-				return (USBD_NORMAL_COMPLETION);
+
+#if defined(__FreeBSD__)
+				/* create another device for the next iface */
+				bdev = device_add_child(*parent, NULL, -1, &uaa);
+				if (!bdev) {
+					printf("%s: Device creation failed\n",
+						USBDEVNAME(dev->bus->bdev));
+					return (USBD_NORMAL_COMPLETION);
+				}
 #endif
 			}
 		}
-#if defined(__NetBSD__)
-		if (found != 0)
-			return (USBD_NORMAL_COMPLETION);
+		if (found != 0) {
+#if defined(__FreeBSD__)
+			/* remove the last created child again, it is unused */
+			device_delete_child(*parent, bdev);
 #endif
+			return (USBD_NORMAL_COMPLETION);
+		}
 	}
 	/* No interfaces were attached in any of the configurations. */
 	if (dd->bNumConfigurations > 1)/* don't change if only 1 config */
@@ -915,7 +920,7 @@ usbd_new_device(parent, bus, depth, lowspeed, port, up)
 	/* Set the address */
 	r = usbd_set_address(dev, addr);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTFN(-1,("usb_new_device: set address %d failed\n",addr));
+		DPRINTFN(-1,("usbd_new_device: set address %d failed\n",addr));
 		r = USBD_SET_ADDR_FAILED;
 		usbd_remove_device(dev, up);
 		return (r);
