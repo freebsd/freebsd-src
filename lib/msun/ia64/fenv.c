@@ -44,6 +44,6 @@ feupdateenv(const fenv_t *envp)
 
 	__stfpsr(&fpsr);
 	__ldfpsr(*envp);
-	feraiseexcept(fpsr & FE_ALL_EXCEPT);
+	feraiseexcept((fpsr >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
 	return (0);
 }
