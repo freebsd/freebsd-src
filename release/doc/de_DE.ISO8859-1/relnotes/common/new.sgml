@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.149 2002/11/09 23:18:59 ue Exp $
-  basiert auf: 1.451
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.151 2002/11/15 07:21:38 ue Exp $
+  basiert auf: 1.452
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -2477,6 +2477,11 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       beseitigt, die zu Programm-Fehlern f&uuml;hren konnten.  Weitere
       Informationen finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>.
+      &merged;</para>
+
+    <para>Diverse kritische Fehler in <application>BIND</application>
+      wurden korrigiert, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.
       &merged;</para>
   </sect2>
 
