@@ -1,5 +1,5 @@
-.\"	$KAME: ipsec_set_policy.3,v 1.15 2001/08/17 07:21:36 itojun Exp $
-.\"     $FreeBSD$
+.\"	$KAME: ipsec_set_policy.3,v 1.16 2003/01/06 21:59:03 sumikawa Exp $
+.\"	$FreeBSD$
 .\"
 .\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
 .\" All rights reserved.
@@ -117,7 +117,7 @@ means to consult to SPD defined by
 .It Ar direction Li bypass
 .Li bypass
 means to be bypassed the IPsec processing.
-(packet will be transmitted in clear).
+.Pq packet will be transmitted in clear .
 This is for privileged socket.
 .It Xo
 .Ar direction
@@ -174,7 +174,7 @@ is this node
 and
 .Ar src
 is the other node
-(peer).
+.Pq peer .
 If
 .Ar mode
 is
@@ -203,9 +203,9 @@ regarding the system default.
 means that a relevant SA can be used when available,
 since the kernel may perform IPsec operation against packets when possible.
 In this case, packets can be transmitted in clear
-(when SA is not available),
+.Pq when SA is not available ,
 or encrypted
-(when SA is available).
+.Pq when SA is available .
 .Li require
 means that a relevant SA is required,
 since the kernel must perform IPsec operation against packets.
@@ -248,7 +248,7 @@ Refer to
 for detail.
 .Pp
 Here are several examples
-(long lines are wrapped for readability):
+.Pq long lines are wrapped for readability :
 .Bd -literal -offset indent
 in discard
 out ipsec esp/transport//require
@@ -265,7 +265,7 @@ successful; otherwise a NULL pointer is returned.
 The
 .Fn ipsec_get_policylen
 function returns with positive value
-(meaning the buffer size)
+.Pq meaning the buffer size
 on success, and negative value on errors.
 The
 .Fn ipsec_dump_policy
