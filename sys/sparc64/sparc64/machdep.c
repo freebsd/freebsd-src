@@ -59,11 +59,14 @@
 #include <ddb/ddb.h>
 
 #include <machine/bootinfo.h>
+#include <machine/clock.h>
 #include <machine/frame.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
 #include <machine/reg.h>
+#include <machine/tick.h>
 
 typedef int ofw_vec_t(void *);
 
@@ -245,6 +248,7 @@ again:
 
 	globaldata_register(globaldata);
 
+	tick_start(clock, tick_hardclock);
 }
 
 unsigned
@@ -257,6 +261,7 @@ void
 sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 {
 	struct trapframe *tf;
+	u_long ps;
 
 	/*
 	 * Initialize openfirmware (needed for console).
@@ -277,6 +282,9 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 		panic("sparc64_init: no loader metadata");
 	preload_metadata = (caddr_t)bi->bi_metadata;
 
+	/*
+	 * Initialize tunables.
+	 */
 	init_param();
 
 #ifdef DDB
@@ -289,10 +297,9 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	pmap_bootstrap(bi->bi_kpa, bi->bi_end);
 
 	/*
-	 * XXX Clear tick and disable the comparator.
+	 * Disable tick for now.
 	 */
-	wrpr(tick, 0, 0);
-	wr(asr23, 1L << 63, 0);
+	tick_stop();
 
 	/*
 	 * Force trap level 1 and take over the trap table.
@@ -306,7 +313,9 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	LIST_INIT(&proc0.p_contested);
 	proc0paddr = (struct user *)user0;
 	proc0.p_addr = (struct user *)user0;
-	tf = (struct trapframe *)(user0 + UPAGES * PAGE_SIZE - sizeof(*tf));
+	proc0.p_stats = &proc0.p_addr->u_stats;
+	tf = (struct trapframe *)(user0 + UPAGES * PAGE_SIZE -
+	    sizeof(struct frame) - sizeof(*tf));
 	proc0.p_frame = tf;
 	tf->tf_tstate = 0;
 
@@ -314,6 +323,24 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	 * Initialize the per-cpu pointer so we can set curproc.
 	 */
 	globaldata = &__globaldata;
+
+	/*
+	 * Setup pointers to interrupt data tables.
+	 */
+	globaldata->gd_iq = &intr_queues[0];	/* XXX cpuno */
+	globaldata->gd_ivt = intr_vectors;
+
+	/*
+	 * Put the globaldata pointer in the alternate and interrupt %g7 also.
+	 * globaldata is tied to %g7. We could therefore also use assignments to
+	 * globaldata here.
+	 */
+	ps = rdpr(pstate);
+	wrpr(pstate, ps, PSTATE_AG);
+	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
+	wrpr(pstate, ps, PSTATE_IG);
+	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
+	wrpr(pstate, ps, 0);
 
 	/*
 	 * Initialize curproc so that mutexes work.
@@ -381,15 +408,24 @@ ptrace_single_step(struct proc *p)
 void
 setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 {
+	struct frame *fp;
 	struct pcb *pcb;
 
 	pcb = &p->p_addr->u_pcb;
+	/* The inital window for the process. */
+	fp = (struct frame *)((caddr_t)p->p_addr + UPAGES * PAGE_SIZE) - 1;
+	/* Make sure the frames that are frobbed are actually flushed. */
+	__asm __volatile("flushw");
 	mtx_lock_spin(&sched_lock);
+	fp = (struct frame *)((caddr_t)p->p_addr + UPAGES * PAGE_SIZE) - 1;
 	fp_init_pcb(pcb);
-	/* XXX */
-	p->p_frame->tf_tstate &= ~TSTATE_PEF;
+	/* Setup state in the trap frame. */
+	p->p_frame->tf_tstate = 0;
+	p->p_frame->tf_tpc = entry;
+	p->p_frame->tf_tnpc = entry + 4;
+	/* Set up user stack. */
+	fp->f_fp = stack - SPOFF;
 	mtx_unlock_spin(&sched_lock);
-	TODO;
 }
 
 void
