@@ -51,14 +51,6 @@ static int8_t *atapi_type(int32_t);
 static int8_t *atapi_cmd2str(u_int8_t);
 static int8_t *atapi_skey2str(u_int8_t);
 
-/* extern references */
-int32_t acdattach(struct atapi_softc *);
-int32_t afdattach(struct atapi_softc *);
-int32_t astattach(struct atapi_softc *);
-void acddetach(struct atapi_softc *);
-void afddetach(struct atapi_softc *);
-void astdetach(struct atapi_softc *);
-
 /* internal vars */
 MALLOC_DEFINE(M_ATAPI, "ATAPI generic", "ATAPI driver generic layer");
 
@@ -131,10 +123,8 @@ notfound:
 }
 
 void
-atapi_detach(struct ata_softc *scp, int32_t device)
+atapi_detach(struct atapi_softc *atp)
 {
-    struct atapi_softc *atp = scp->dev_softc[ATA_DEV(device)];
-
     switch (ATP_PARAM->device_type) {
 #if NATAPICD > 0
     case ATAPI_TYPE_CDROM:
@@ -155,13 +145,12 @@ atapi_detach(struct ata_softc *scp, int32_t device)
 	return;
     }
     free(atp, M_ATAPI);
-    scp->dev_softc[ATA_DEV(device)] = NULL;
 }
 
 int32_t	  
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
 		int32_t count, int32_t flags, int32_t timeout,
-		atapi_callback_t callback, void *unused, struct buf *bp)
+		atapi_callback_t callback, struct buf *bp)
 {
     struct atapi_request *request;
     int32_t error, s;
@@ -190,8 +179,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 
     /* append onto controller queue and try to start controller */
     TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
-    if (atp->controller->active == ATA_IDLE)
-	ata_start(atp->controller);
+    ata_start(atp->controller);
 
     /* if callback used, then just return, gets called from interrupt context */
     if (callback) {
@@ -207,6 +195,30 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     return error;
 }
     
+void
+atapi_start(struct atapi_softc *atp)
+{
+    switch (ATP_PARAM->device_type) {
+#if NATAPICD > 0
+    case ATAPI_TYPE_CDROM:
+	acd_start(atp);
+	break; 
+#endif
+#if NATAPIFD > 0
+    case ATAPI_TYPE_DIRECT:
+	afd_start(atp);
+	break; 
+#endif
+#if NATAPIST > 0
+    case ATAPI_TYPE_TAPE:
+	ast_start(atp);
+	break; 
+#endif
+    default:
+	return;
+    }
+}
+
 void
 atapi_transfer(struct atapi_request *request)
 {
@@ -451,7 +463,7 @@ atapi_test_ready(struct atapi_softc *atp)
     int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	
-    return atapi_queue_cmd(atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
+    return atapi_queue_cmd(atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 	
 int32_t
