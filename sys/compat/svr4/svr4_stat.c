@@ -39,6 +39,7 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/un.h>
 
 #include <vm/vm.h>
 

@@ -61,7 +61,6 @@
 #include <compat/svr4/svr4_syscall.h>
 #include <compat/svr4/svr4_signal.h>
 #include <compat/svr4/svr4_sockio.h>
-#include <compat/svr4/svr4_socket.h>
 #include <compat/svr4/svr4_errno.h>
 #include <compat/svr4/svr4_proto.h>
 #include <compat/svr4/svr4_siginfo.h>

@@ -53,4 +53,17 @@ struct sockaddr_un *svr4_find_socket(struct thread *, struct file *,
 void svr4_delete_socket(struct proc *, struct file *);
 int svr4_add_socket(struct thread *, const char *, struct stat *);
 
+struct svr4_sockcache_entry {
+	struct proc *p;		/* Process for the socket		*/
+	void *cookie;		/* Internal cookie used for matching	*/
+	struct sockaddr_un sock;/* Pathname for the socket		*/
+	udev_t dev;		/* Device where the socket lives on	*/
+	ino_t ino;		/* Inode where the socket lives on	*/
+	TAILQ_ENTRY(svr4_sockcache_entry) entries;
+};
+
+TAILQ_HEAD(svr4_sockcache_head, svr4_sockcache_entry);
+extern struct svr4_sockcache_head svr4_head;
+extern int svr4_str_initialized;
+
 #endif /* _SVR4_SOCKET_H_ */

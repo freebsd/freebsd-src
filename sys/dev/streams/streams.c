@@ -65,16 +65,7 @@ static int svr4_soo_close(struct file *, struct thread *);
 static int svr4_ptm_alloc(struct thread *);
 static  d_open_t	streamsopen;
 
-struct svr4_sockcache_entry {
-	struct proc *p;		/* Process for the socket		*/
-	void *cookie;		/* Internal cookie used for matching	*/
-	struct sockaddr_un sock;/* Pathname for the socket		*/
-	dev_t dev;		/* Device where the socket lives on	*/
-	ino_t ino;		/* Inode where the socket lives on	*/
-	TAILQ_ENTRY(svr4_sockcache_entry) entries;
-};
-
-TAILQ_HEAD(svr4_sockcache_head, svr4_sockcache_entry) svr4_head;
+struct svr4_sockcache_head svr4_head;
 
 /* Initialization flag (set/queried by svr4_mod LKM) */
 int svr4_str_initialized = 0;
