@@ -26,7 +26,7 @@
  *  major minor fix final patch/beta)
  */
 #define OPENSSL_VERSION_NUMBER	0x0090703fL
-#define OPENSSL_VERSION_TEXT	"OpenSSL 0.9.7c 30 Sep 2003"
+#define OPENSSL_VERSION_TEXT	"OpenSSL 0.9.7c-p1 30 Sep 2003"
 #define OPENSSL_VERSION_PTEXT	" part of " OPENSSL_VERSION_TEXT
 
 
