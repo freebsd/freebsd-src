@@ -185,6 +185,9 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
 	struct proc *p;
 	struct thread *td2;
+	struct kse_upcall *ku;
+	struct kse_thr_mailbox *tmbx;
+	uint32_t flags;
 
 	p = td->td_proc;
 
@@ -236,6 +239,30 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 		PROC_LOCK(p);
 		sigexit(td, (int)uap->data);
 		break;
+
+	case KSE_INTR_DBSUSPEND:
+		/* this sub-function is only for bound thread */
+		if (td->td_pflags & TDP_SA)
+			return (EINVAL);
+		ku = td->td_upcall;
+		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
+		if (tmbx == NULL || tmbx == (void *)-1)
+			return (EINVAL);
+		flags = 0;
+		while ((p->p_flag & P_TRACED) && !(p->p_flag & P_SINGLE_EXIT)) {
+			flags = fuword32(&tmbx->tm_dflags);
+			if (!(flags & TMDF_SUSPEND))
+				break;
+			PROC_LOCK(p);
+			mtx_lock_spin(&sched_lock);
+			thread_stopped(p);
+			thread_suspend_one(td);
+			PROC_UNLOCK(p);
+			mi_switch(SW_VOL, NULL);
+			mtx_unlock_spin(&sched_lock);
+		}
+		return (0);
+
 	default:
 		return (EINVAL);
 	}
@@ -297,6 +324,9 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	 * XXX need to check it that can be deliverred without a mailbox.
 	 */
 	error = suword32(&ku->ku_mailbox->km_flags, ku->ku_mflags|KMF_DONE);
+	if (!(td->td_pflags & TDP_SA))
+		if (suword32(&td->td_mailbox->tm_lwp, 0))
+			error = EFAULT;
 	PROC_LOCK(p);
 	if (error)
 		psignal(p, SIGSEGV);
@@ -361,7 +391,8 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	PROC_LOCK(p);
 	if (ku->ku_mflags & KMF_WAITSIGEVENT) {
 		/* UTS wants to wait for signal event */
-		if (!(p->p_flag & P_SIGEVENT) && !(ku->ku_flags & KUF_DOUPCALL)) {
+		if (!(p->p_flag & P_SIGEVENT) &&
+		    !(ku->ku_flags & KUF_DOUPCALL)) {
 			td->td_kflags |= TDK_KSERELSIG;
 			error = msleep(&p->p_siglist, &p->p_mtx, PPAUSE|PCATCH,
 			    "ksesigwait", (uap->timeout ? tvtohz(&tv) : 0));
@@ -373,7 +404,9 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 		error = copyout(&sigset, &ku->ku_mailbox->km_sigscaught,
 		    sizeof(sigset));
 	} else {
-		 if (! kg->kg_completed && !(ku->ku_flags & KUF_DOUPCALL)) {
+		if ((ku->ku_flags & KUF_DOUPCALL) == 0 &&
+		    ((ku->ku_mflags & KMF_NOCOMPLETED) ||
+		     (kg->kg_completed == NULL))) {
 			kg->kg_upsleeps++;
 			td->td_kflags |= TDK_KSEREL;
 			error = msleep(&kg->kg_completed, &p->p_mtx,
@@ -424,7 +457,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		kg = td->td_ksegrp;
 		if (kg->kg_upsleeps) {
 			mtx_unlock_spin(&sched_lock);
-			wakeup_one(&kg->kg_completed);
+			wakeup(&kg->kg_completed);
 			PROC_UNLOCK(p);
 			return (0);
 		}
@@ -1078,10 +1111,14 @@ thread_switchout(struct thread *td)
 	 * If it is a short term event, just suspend it in
 	 * a way that takes its KSE with it.
 	 * Select the events for which we want to schedule upcalls.
-	 * For now it's just sleep.
+	 * For now it's just sleep or if thread is suspended but
+	 * process wide suspending flag is not set (debugger
+	 * suspends thread).
 	 * XXXKSE eventually almost any inhibition could do.
 	 */
-	if (TD_CAN_UNBIND(td) && (td->td_standin) && TD_ON_SLEEPQ(td)) {
+	if (TD_CAN_UNBIND(td) && (td->td_standin) &&
+	    (TD_ON_SLEEPQ(td) || (TD_IS_SUSPENDED(td) &&
+	     !P_SHOULDSTOP(td->td_proc)))) {
 		/*
 		 * Release ownership of upcall, and schedule an upcall
 		 * thread, this new upcall thread becomes the owner of
@@ -1134,14 +1171,14 @@ thread_user_enter(struct proc *p, struct thread *td)
 	KASSERT(ku->ku_owner == td, ("wrong owner"));
 	KASSERT(!TD_CAN_UNBIND(td), ("can unbind"));
 
+	if (td->td_standin == NULL)
+		thread_alloc_spare(td);
 	ku->ku_mflags = fuword32((void *)&ku->ku_mailbox->km_flags);
 	tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
 	if ((tmbx == NULL) || (tmbx == (void *)-1L) ||
 	    (ku->ku_mflags & KMF_NOUPCALL)) {
 		td->td_mailbox = NULL;
 	} else {
-		if (td->td_standin == NULL)
-			thread_alloc_spare(td);
 		flags = fuword32(&tmbx->tm_flags);
 		/*
 		 * On some architectures, TP register points to thread
@@ -1210,16 +1247,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		td->td_pflags &= ~TDP_USTATCLOCK;
 	}
 
-	/*
-	 * Check if we should unbind and schedule upcall
-	 * after returned from interrupt or etcs, this
-	 * is usually true when process is being debugged.
-	 */
-	if (td->td_mailbox == NULL && ku != NULL &&
-	    !(td->td_pflags & TDP_UPCALLING) &&
-	    (kg->kg_completed || ku->ku_flags & KUF_DOUPCALL))
-		thread_user_enter(p, td);
-
 	uts_crit = (td->td_mailbox == NULL);
 	/*
 	 * Optimisation:
@@ -1257,13 +1284,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	} else if (td->td_mailbox && (ku == NULL)) {
 		thread_export_context(td, 1);
 		PROC_LOCK(p);
-		/*
-		 * There are upcall threads waiting for
-		 * work to do, wake one of them up.
-		 * XXXKSE Maybe wake all of them up.
-		 */
 		if (kg->kg_upsleeps)
-			wakeup_one(&kg->kg_completed);
+			wakeup(&kg->kg_completed);
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
 		thread_exit();
@@ -1372,12 +1394,6 @@ out:
 	}
 
 	ku->ku_mflags = 0;
-	/*
-	 * Clear thread mailbox first, then clear system tick count.
-	 * The order is important because thread_statclock() use
-	 * mailbox pointer to see if it is an userland thread or
-	 * an UTS kernel thread.
-	 */
 	td->td_mailbox = NULL;
 	td->td_usticks = 0;
 	return (error);	/* go sync */
@@ -1422,6 +1438,7 @@ thread_continued(struct proc *p)
 				continue;
 			FOREACH_UPCALL_IN_GROUP(kg, ku) {
 				ku->ku_flags |= KUF_DOUPCALL;
+				wakeup(&kg->kg_completed);
 				if (TD_IS_SUSPENDED(ku->ku_owner)) {
 					thread_unsuspend_one(ku->ku_owner);
 				}	
