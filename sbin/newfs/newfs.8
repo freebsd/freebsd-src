@@ -294,6 +294,10 @@ man page for possible options and their meanings.
 Mount a 64 MB large memory file system on /tmp, with
 .Xr mount 8
 options nosuid and nodev.
+.Sh BUGS
+The boot code of FreeBSD assumes that the file system that carries the
+kernel has blocks of 8 kilobytes and fragments of 1 kilobyte. You will
+not be able to boot from a file system that uses another size.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
 .Xr disktab 5 ,
