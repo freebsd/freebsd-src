@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.57 1996/09/28 04:22:46 dyson Exp $
+ *	$Id: cpufunc.h,v 1.58 1996/09/28 22:37:57 dyson Exp $
  */
 
 /*
@@ -195,6 +195,24 @@ insl(u_int port, void *addr, size_t cnt)
 			 : "di", "cx", "memory");
 }
 
+static __inline void
+invlpg(u_int addr)
+{
+	__asm __volatile("invlpg (%0)" : : "r" (addr) : "memory");
+}
+
+static __inline void
+invltlb(void)
+{
+	u_long	temp;
+	/*
+	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
+	 * is inlined.
+	 */
+	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
+			 : : "memory");
+}
+
 static __inline u_short
 inw(u_int port)
 {
@@ -267,25 +285,6 @@ static __inline void
 outw(u_int port, u_short data)
 {
 	__asm __volatile("outw %0,%%dx" : : "a" (data), "d" (port));
-}
-
-
-static __inline void
-invltlb(void)
-{
-	u_long	temp;
-	/*
-	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
-	 * is inlined.
-	 */
-	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
-			 : : "memory");
-}
-
-static __inline void
-invlpg(u_long addr)
-{
-	__asm __volatile("invlpg (%0)": :"r"(addr));
 }
 
 static __inline u_long
@@ -361,6 +360,8 @@ u_long	inl		__P((u_int port));
 void	insb		__P((u_int port, void *addr, size_t cnt));
 void	insl		__P((u_int port, void *addr, size_t cnt));
 void	insw		__P((u_int port, void *addr, size_t cnt));
+void	invlpg		__P((u_int addr));
+void	invltlb		__P((void));
 u_short	inw		__P((u_int port));
 u_int	loadandclear	__P((u_int *addr));
 void	outb		__P((u_int port, u_char data));
