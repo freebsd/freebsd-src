@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.92 1997/04/14 13:52:52 bde Exp $
+ *	$Id: trap.c,v 1.93 1997/04/26 11:45:28 peter Exp $
  */
 
 /*
@@ -967,6 +967,7 @@ fork_return(p, frame)
 {
 	frame.tf_eax = 0;		/* Child returns zero */
 	frame.tf_eflags &= ~PSL_C;	/* success */
+	frame.tf_edx = 1;
 
 	userret(p, &frame, 0);
 #ifdef KTRACE
