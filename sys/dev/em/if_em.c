@@ -610,15 +610,15 @@ em_start_locked(struct ifnet *ifp)
         if (!adapter->link_active)
                 return;
 
-        while (ifp->if_snd.ifq_head != NULL) {
+        while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 
-                IF_DEQUEUE(&ifp->if_snd, m_head);
+                IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
                 
                 if (m_head == NULL) break;
                         
 		if (em_encap(adapter, m_head)) { 
 			ifp->if_flags |= IFF_OACTIVE;
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
                 }
 
@@ -918,7 +918,7 @@ em_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
                 em_clean_transmit_interrupts(adapter);
         }
 	
-        if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+        if (ifp->if_flags & IFF_RUNNING && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                 em_start_locked(ifp);
 }
         
@@ -988,7 +988,7 @@ em_intr(void *arg)
                 loop_cnt--;
         }
                  
-        if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
+        if (ifp->if_flags & IFF_RUNNING && IFQ_DRV_IS_EMPTY(&ifp->if_snd))
                 em_start_locked(ifp);
 
 	EM_UNLOCK(adapter);
@@ -1854,7 +1854,9 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_ioctl = em_ioctl;
 	ifp->if_start = em_start;
 	ifp->if_watchdog = em_watchdog;
-	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 1);
+	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 
 #if __FreeBSD_version < 500000
         ether_ifattach(ifp, ETHER_BPF_SUPPORTED);

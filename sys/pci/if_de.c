@@ -4619,15 +4619,17 @@ tulip_ifstart(
 	if ((sc->tulip_flags & (TULIP_WANTSETUP|TULIP_TXPROBE_ACTIVE)) == TULIP_WANTSETUP)
 	    tulip_txput_setup(sc);
 
-	while (sc->tulip_if.if_snd.ifq_head != NULL) {
+	while (!IFQ_DRV_IS_EMPTY(&sc->tulip_if.if_snd)) {
 	    struct mbuf *m;
-	    IF_DEQUEUE(&sc->tulip_if.if_snd, m);
+	    IFQ_DRV_DEQUEUE(&sc->tulip_if.if_snd, m);
+	    if(m == NULL)
+		break;
 	    if ((m = tulip_txput(sc, m)) != NULL) {
-		IF_PREPEND(&sc->tulip_if.if_snd, m);
+		IFQ_DRV_PREPEND(&sc->tulip_if.if_snd, m);
 		break;
 	    }
 	}
-	if (sc->tulip_if.if_snd.ifq_head == NULL)
+	if (IFQ_DRV_IS_EMPTY(&sc->tulip_if.if_snd))
 	    sc->tulip_if.if_start = tulip_ifstart_one;
     }
 
@@ -4642,11 +4644,12 @@ tulip_ifstart_one(
     tulip_softc_t * const sc = (tulip_softc_t *)ifp->if_softc;
 
     if ((sc->tulip_if.if_flags & IFF_RUNNING)
-	    && sc->tulip_if.if_snd.ifq_head != NULL) {
+	    && !IFQ_DRV_IS_EMPTY(&sc->tulip_if.if_snd)) {
 	struct mbuf *m;
-	IF_DEQUEUE(&sc->tulip_if.if_snd, m);
-	if ((m = tulip_txput(sc, m)) != NULL)
-	    IF_PREPEND(&sc->tulip_if.if_snd, m);
+	IFQ_DRV_DEQUEUE(&sc->tulip_if.if_snd, m);
+	if(m == NULL);
+	else if((m = tulip_txput(sc, m)) != NULL)
+	    IFQ_DRV_PREPEND(&sc->tulip_if.if_snd, m);
     }
     TULIP_PERFEND(ifstart_one);
 }
@@ -4788,7 +4791,9 @@ tulip_attach(
     tulip_reset(sc);
 
     ether_ifattach(&(sc)->tulip_if, sc->tulip_enaddr);
-    ifp->if_snd.ifq_maxlen = ifqmaxlen;
+    IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+    ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
+    IFQ_SET_READY(&ifp->if_snd);
 }
 
 #if defined(TULIP_BUS_DMA)

@@ -796,7 +796,9 @@ fxp_attach(device_t dev)
 	 * Let the system queue as many packets as we have available
 	 * TX descriptors.
 	 */
-	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, FXP_NTXCB - 1);
+	ifp->if_snd.ifq_drv_maxlen = FXP_NTXCB - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	/* 
 	 * Hook our interrupt after all initialization is complete.
@@ -1278,12 +1280,15 @@ fxp_start_body(struct ifnet *ifp)
 	 * NOTE: One TxCB is reserved to guarantee that fxp_mc_setup() can add
 	 *       a NOP command when needed.
 	 */
-	while (ifp->if_snd.ifq_head != NULL && sc->tx_queued < FXP_NTXCB - 1) {
+	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    sc->tx_queued < FXP_NTXCB - 1) {
 
 		/*
 		 * Grab a packet to transmit.
 		 */
-		IF_DEQUEUE(&ifp->if_snd, mb_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, mb_head);
+		if (mb_head == NULL)
+			break;
 
 		/*
 		 * Get pointer to next available tx desc.
@@ -1634,7 +1639,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, u_int8_t statack,
 		/*
 		 * Try to start more packets transmitting.
 		 */
-		if (ifp->if_snd.ifq_head != NULL)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			fxp_start_body(ifp);
 	}
 

@@ -1337,7 +1337,9 @@ sis_attach(dev)
 	ifp->if_watchdog = sis_watchdog;
 	ifp->if_init = sis_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = SIS_TX_LIST_CNT - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, SIS_TX_LIST_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
 	 * Do MII setup.
@@ -1727,7 +1729,7 @@ sis_tick(xsc)
 	if (!sc->sis_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->sis_link++;
-		if (ifp->if_snd.ifq_head != NULL)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			sis_start(ifp);
 	}
 
@@ -1766,7 +1768,7 @@ sis_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	sc->rxcycles = count;
 	sis_rxeof(sc);
 	sis_txeof(sc);
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_start(ifp);
 
 	if (sc->rxcycles > 0 || cmd == POLL_AND_CHECK_STATUS) {
@@ -1853,7 +1855,7 @@ sis_intr(arg)
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, SIS_IER, 1);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_start(ifp);
 done:
 	SIS_UNLOCK(sc);
@@ -1970,12 +1972,12 @@ sis_start(ifp)
 	}
 
 	while(sc->sis_ldata.sis_tx_list[idx].sis_mbuf == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
 		if (sis_encap(sc, &m_head, &idx)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
@@ -2337,7 +2339,7 @@ sis_watchdog(ifp)
 	sis_reset(sc);
 	sis_init(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		sis_start(ifp);
 
 	SIS_UNLOCK(sc);
