@@ -62,7 +62,7 @@ If this option is not specified,
 operates on
 .Pa /dev .
 .El
-.Sh RULE SUBSYSTEM
+.Ss Rule Subsystem
 The
 .Xr devfs 5
 rule subsystem provides a way for the administrator of a system to control
@@ -207,9 +207,7 @@ or number.
 .It Cm unhide
 Unhide the node.
 .El
-.Ss Notes
-.Bl -bullet -offset indent
-.It
+.Sh IMPLEMENTATION NOTES
 Rulesets are created by the kernel at the first reference,
 and destroyed when the last reference disappears.
 E.g., a ruleset is created when a rule is added to it or when it is set
@@ -218,12 +216,12 @@ a ruleset is destroyed when the last rule in it is deleted,
 and no other references to it exist
 (i.e., it is not included by any rules, and it is not the current ruleset
 for any mount-point).
-.It
+.Pp
 Ruleset number 0 is the default ruleset for all new mount-points.
 It is always empty, cannot be modified or deleted, and does not show up
 in the output of
 .Cm showsets .
-.It
+.Pp
 Rules and rulesets are unique to the entire system,
 not a particular mount-point.
 I.e., a
@@ -232,8 +230,7 @@ will return the same information regardless of the mount-point specified with
 .Fl m .
 The mount-point is only relevant when changing what its current ruleset is,
 or when using one of the apply commands.
-.El
-.Ss Examples
+.Sh EXAMPLES
 When the system boots,
 the only ruleset that exists is ruleset number 0;
 since the latter may not be modified, we have to create another ruleset
