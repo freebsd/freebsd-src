@@ -495,24 +495,6 @@ functions.  If an invalid pointer is passed to
 PacketAliasRedirectDelete(), then a program crash
 or unpredictable operation could result, so it is
 necessary to be careful using this function.
-.Sh 5. Fragment Handling
-The functions in this section are used to deal with
-incoming fragments.
-
-Outgoing fragments are handled within PacketAliasOut()
-by changing the address according to any
-applicable mapping set by PacketAliasRedirectAddress(),
-or the default aliasing address set by
-PacketAliasSetAddress().
- 
-Incoming fragments are handled in one of two ways.
-If the header of a fragmented IP packet has already
-been seen, then all subsequent fragments will be
-re-mapped in the same manner the header fragment
-was.  Fragments which arrive before the header
-are saved and then retrieved once the header fragment
-has been resolved.
-
 .Ss 4.4 PacketAliasProxyRule()
 
 .Ft int
@@ -599,7 +581,6 @@ network will be matched.
 This function is usually used to redirect outgoing connections for
 internal machines that are not permitted certain types of internet
 access, or to restrict access to certain external machines.
-
 .Ss 4.5 PacketAliasPptp()
 
 .Ft extern int
@@ -627,7 +608,23 @@ If the passed address is
 .Pq 255.255.255.255 ,
 .Dv PPTP
 aliasing is disabled.
+.Sh 5. Fragment Handling
+The functions in this section are used to deal with
+incoming fragments.
 
+Outgoing fragments are handled within PacketAliasOut()
+by changing the address according to any
+applicable mapping set by PacketAliasRedirectAddress(),
+or the default aliasing address set by
+PacketAliasSetAddress().
+ 
+Incoming fragments are handled in one of two ways.
+If the header of a fragmented IP packet has already
+been seen, then all subsequent fragments will be
+re-mapped in the same manner the header fragment
+was.  Fragments which arrive before the header
+are saved and then retrieved once the header fragment
+has been resolved.
 .Ss 5.1 PacketAliasSaveFragment()
 
 .Ft int
