@@ -425,11 +425,12 @@ INSTKERNNAME?=	kernel
 KRNLSRCDIR=	${.CURDIR}/sys
 KRNLCONFDIR=	${KRNLSRCDIR}/${TARGET}/conf
 KRNLOBJDIR=	${OBJTREE}${KRNLSRCDIR}
+KERNCONFDIR?=	${KRNLCONFDIR}
 
 BUILDKERNELS=
 INSTALLKERNEL=
 .for _kernel in ${KERNCONF}
-.if exists(${KRNLCONFDIR}/${_kernel})
+.if exists(${KERNCONFDIR}/${_kernel})
 BUILDKERNELS+=	${_kernel}
 .if empty(INSTALLKERNEL)
 INSTALLKERNEL= ${_kernel}
@@ -463,7 +464,8 @@ buildkernel:
 .if !defined(NO_KERNELCONFIG)
 	cd ${KRNLCONFDIR}; \
 		PATH=${TMPPATH} \
-		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} ${_kernel}
+		    config ${CONFIGARGS} -d ${KRNLOBJDIR}/${_kernel} \
+			${KERNCONFDIR}/${_kernel}
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
 	cd ${KRNLOBJDIR}/${_kernel}; \
