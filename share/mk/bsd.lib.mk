@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.81 1998/11/18 00:48:11 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.82 1998/12/06 17:14:37 bde Exp $
 #
 
 .if !target(__initialized__)
@@ -40,9 +40,9 @@ STRIP?=	-s
 .MAIN: all
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
-# .so used for PIC object files
+# .So used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .so .s .S .c .cc .cpp .cxx .m .C .f .y .l
+.SUFFIXES: .out .o .po .So .s .S .c .cc .cpp .cxx .m .C .f .y .l
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -54,7 +54,7 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.c.so:
+.c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -69,7 +69,7 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.cc.so .C.so .cpp.so .cxx.so:
+.cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -84,7 +84,7 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.f.so:
+.f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -99,7 +99,7 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.m.so:
+.m.So:
 	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -116,7 +116,7 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.s.so:
+.s.So:
 	${CC} -x assembler-with-cpp -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
@@ -132,7 +132,7 @@ STRIP?=	-s
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-.S.so:
+.S.So:
 	${CC} -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -187,7 +187,7 @@ lib${LIB}_p.a:: ${POBJS}
 LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}${LIBDIR}
 .endif
 
-SOBJS+= ${OBJS:.o=.so}
+SOBJS+= ${OBJS:.o=.So}
 
 .if !defined(NOPIC)
 .if ${OBJFORMAT} == aout
@@ -222,8 +222,8 @@ clean:	_SUBDIR
 	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${CLEANFILES}
 	rm -f lib${LIB}.a # llib-l${LIB}.ln
 	rm -f ${POBJS} ${POBJS:S/$/.tmp/} lib${LIB}_p.a
-	rm -f ${SOBJS} ${SOBJS:S/$/.tmp/} lib${LIB}.so.* lib${LIB}.so \
-	    lib${LIB}_pic.a
+	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/} \
+	    lib${LIB}.so.* lib${LIB}.so lib${LIB}_pic.a
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
@@ -231,7 +231,7 @@ clean:	_SUBDIR
 
 _EXTRADEPEND:
 	@TMP=_depend$$$$; \
-	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < ${DEPENDFILE} \
+	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.So:/' < ${DEPENDFILE} \
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
 .if !defined(NOEXTRADEPEND) && !defined(NOPIC)

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.10 1998/10/11 04:56:03 peter Exp $
+# $Id: Makefile,v 1.11 1998/12/27 17:25:27 bde Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -99,7 +99,7 @@ ${file}.o: ${file}.cc
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${file}.so: ${file}.cc
+${file}.So: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -frtti -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
@@ -118,7 +118,7 @@ ${file}.o: ${file}.cc
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${file}.so: ${file}.cc
+${file}.So: ${file}.cc
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -O0 -frtti -fhandle-exceptions -c ${DIR}/${file}.cc -o ${.TARGET}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
