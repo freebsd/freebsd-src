@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)getgrent.3	8.2 (Berkeley) 4/19/94
-.\"	$Id: getgrent.3,v 1.2.6.1 1996/05/01 22:43:50 mpp Exp $
+.\"	$Id: getgrent.3,v 1.2.6.3 1996/06/05 02:46:53 jkh Exp $
 .\"
 .Dd September 29, 1994
 .Dt GETGRENT 3
@@ -53,7 +53,7 @@
 .Fn getgrnam "const char *name"
 .Ft struct group *
 .Fn getgrgid "gid_t gid"
-.Ft struct group *
+.Ft int
 .Fn setgroupent "int stayopen"
 .\" .Ft void
 .\" .Fn setgrfile "const char *name"
