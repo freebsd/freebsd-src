@@ -696,7 +696,7 @@ ftp.1:
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.txt ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	  cp ${.CURDIR}/doc/${RELNOTES_LANG}/$$i/${MACHINE_ARCH}/article.html ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
-	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
 	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
 .endif
