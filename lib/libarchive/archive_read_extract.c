@@ -477,13 +477,15 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 			unlink(path);
 	} else {
 		/* Doesn't already exist; try building the parent path. */
-		if (mkdirpath(a, p, flags) != ARCHIVE_OK)
+		if (mkdirpath_internal(a, path, flags) != ARCHIVE_OK)
 			return (ARCHIVE_WARN);
 	}
 
 	/* One final attempt to create the dir. */
-	if (mkdirpath_internal(a, path, flags) != ARCHIVE_OK)
+	if (mkdir(path, SECURE_DIR_MODE) != 0) {
+		archive_set_error(a, errno, "Can't create directory");
 		return (ARCHIVE_WARN);
+	}
 
 success:
 	/* Add this dir to the fixup list. */
