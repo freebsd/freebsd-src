@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.6 1995/02/21 08:38:24 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.7 1995/02/22 21:51:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,11 @@
 #define	FALSE	0
 #define	TRUE	1
 
+#define TRACE(str)	do { if (ds_debug) printf str; } while (0)
+
 typedef	u_char	bool_t;
+
+static volatile bool_t ds_debug;
 
 static void dsiodone __P((struct buf *bp));
 static char *fixlabel __P((char *sname, struct diskslice *sp,
@@ -458,6 +462,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	ds_setgeom_t *setgeom;
 {
 	int	error;
+	struct disklabel *lp1;
 	char	*msg;
 	u_char	mask;
 	bool_t	need_init;
@@ -478,7 +483,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	if (ssp != NULL && need_init)
 		dsgone(sspp);
 	if (need_init) {
-		printf("dsinit\n");
+		TRACE(("dsinit\n"));
 		error = dsinit(dname, dev, strat, lp, sspp);
 		if (error != 0) {
 			dsgone(sspp);
@@ -487,9 +492,33 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 		lp->d_npartitions = RAW_PART + 1;
 		lp->d_partitions[RAW_PART].p_size = lp->d_secperunit;
 		ssp = *sspp;
+
+		/*
+		 * If there are no real slices, then make the compatiblity
+		 * slice cover the whole disk.
+		 */
 		if (ssp->dss_nslices == BASE_SLICE)
 			ssp->dss_slices[COMPATIBILITY_SLICE].ds_size
 				= lp->d_secperunit;
+
+		/* Point the compatibility slice at the BSD slice, if any. */
+		for (slice = BASE_SLICE, sp = &ssp->dss_slices[BASE_SLICE];
+		     slice < ssp->dss_nslices; slice++, sp++)
+			if (sp->ds_type == DOSPTYP_386BSD /* XXX */) {
+				ssp->dss_first_bsd_slice = slice;
+				ssp->dss_slices[COMPATIBILITY_SLICE].ds_offset
+					= sp->ds_offset;
+				ssp->dss_slices[COMPATIBILITY_SLICE].ds_size
+					= sp->ds_size;
+				ssp->dss_slices[COMPATIBILITY_SLICE].ds_type
+					= sp->ds_type;
+				break;
+			}
+
+		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
+		*lp1 = *lp;
+		ssp->dss_slices[WHOLE_DISK_SLICE].ds_label = lp1;
+		ssp->dss_slices[WHOLE_DISK_SLICE].ds_wlabel = TRUE;
 		if (setgeom != NULL) {
 			error = setgeom(lp);
 			if (error != 0) {
@@ -506,17 +535,11 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	part = dkpart(dev);
 	unit = dkunit(dev);
 	if (sp->ds_label == NULL) {
-		struct disklabel *lp1;
-
+		set_ds_wlabel(ssp, slice, TRUE);	/* XXX invert */
 		lp1 = malloc(sizeof *lp1, M_DEVBUF, M_WAITOK);
 		*lp1 = *lp;
 		lp = lp1;	
-		if (slice == WHOLE_DISK_SLICE) {
-			sp->ds_label = lp;
-			sp->ds_wlabel = TRUE;
-			goto out;
-		}
-		printf("readdisklabel\n");
+		TRACE(("readdisklabel\n"));
 		msg = correct_readdisklabel(dkmodpart(dev, RAW_PART), strat, lp);
 #if 0 /* XXX */
 		if (msg == NULL && setgeom != NULL && setgeom(lp) != 0)
@@ -527,8 +550,9 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 			msg = fixlabel(sname, sp, lp, FALSE);
 		if (msg != NULL) {
 			free(lp, M_DEVBUF);
-			log(LOG_WARNING, "%s: cannot find label (%s)\n",
-			    sname, msg);
+			if (sp->ds_type == DOSPTYP_386BSD /* XXX */)
+				log(LOG_WARNING, "%s: cannot find label (%s)\n",
+				    sname, msg);
 			if (part == RAW_PART)
 				goto out;
 			return (EINVAL);	/* XXX needs translation */
@@ -537,7 +561,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 			struct dkbad *btp;
 
 			btp = malloc(sizeof *btp, M_DEVBUF, M_WAITOK);
-			printf("readbad144\n");
+			TRACE(("readbad144\n"));
 			msg = readbad144(dev, strat, lp, btp);
 			if (msg != NULL) {
 				log(LOG_WARNING,
@@ -559,6 +583,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 			}
 		}
 		set_ds_label(ssp, slice, lp);
+		set_ds_wlabel(ssp, slice, FALSE);
 	}
 	if (part != RAW_PART
 	    && (sp->ds_label == NULL || part >= sp->ds_label->d_npartitions))
