@@ -37,6 +37,7 @@ extern char	*SrcDir;
 extern char	*ExcludeFrom;
 extern char	*Mtree;
 extern char	*Pkgdeps;
+extern char	*Conflicts;
 extern char	*Origin;
 extern char	*InstalledPkg;
 extern char	PlayPen[];

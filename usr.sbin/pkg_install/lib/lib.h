@@ -86,7 +86,7 @@
  * Version of the package tools - increase only when some
  * functionality used by bsd.port.mk is changed, added or removed
  */
-#define PKG_INSTALL_VERSION	20020908
+#define PKG_INSTALL_VERSION	20030417
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
@@ -99,8 +99,8 @@ enum _plist_t {
     PLIST_FILE, PLIST_CWD, PLIST_CMD, PLIST_CHMOD,
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT, PLIST_IGNORE,
     PLIST_NAME, PLIST_UNEXEC, PLIST_SRC, PLIST_DISPLAY,
-    PLIST_PKGDEP, PLIST_MTREE, PLIST_DIR_RM, PLIST_IGNORE_INST,
-    PLIST_OPTION, PLIST_ORIGIN, PLIST_DEPORIGIN
+    PLIST_PKGDEP, PLIST_CONFLICTS, PLIST_MTREE, PLIST_DIR_RM, 
+    PLIST_IGNORE_INST, PLIST_OPTION, PLIST_ORIGIN, PLIST_DEPORIGIN
 };
 typedef enum _plist_t plist_t;
 
