@@ -188,37 +188,43 @@ ata_pcimatch(device_t dev)
     switch (pci_get_devid(dev)) {
     /* supported chipsets */
     case 0x12308086:
-	return "Intel PIIX IDE controller";
+	return "Intel PIIX ATA controller";
     case 0x70108086:
-	return "Intel PIIX3 IDE controller";
+	return "Intel PIIX3 ATA controller";
     case 0x71118086:
-	return "Intel PIIX4 IDE controller";
+	return "Intel PIIX4 ATA controller";
     case 0x522910b9:
-	return "AcerLabs Aladdin IDE controller";
+	return "AcerLabs Aladdin ATA controller";
     case 0x4d33105a:
-	return "Promise Ultra/33 IDE controller";
+	return "Promise Ultra/33 ATA controller";
     case 0x4d38105a:
-	return "Promise Ultra/66 IDE controller";
+	return "Promise Ultra/66 ATA controller";
     case 0x00041103:
-	return "HighPoint HPT366 IDE controller";
+	return "HighPoint HPT366 ATA controller";
     case 0x05711106: /* 82c586 & 82c686 */
-	return "VIA Apollo IDE controller";
+	switch (pci_read_config(dev, 0x08, 1)) {
+	case 1:
+	    return "VIA 82C586 ATA controller";
+	case 6:
+	    return "VIA 82C686 ATA controller";
+	}
+	return "VIA Apollo ATA controller";
 
    /* unsupported but known chipsets, generic DMA only */
-    case 0x05961106: /* 82c596 */
-	return "VIA Apollo IDE controller (generic mode)";
+    case 0x05961106:
+	return "VIA 82C596 ATA controller (generic mode)";
     case 0x06401095:
-	return "CMD 640 IDE controller (generic mode)";
+	return "CMD 640 ATA controller (generic mode)";
     case 0x06461095:
-	return "CMD 646 IDE controller (generic mode)";
+	return "CMD 646 ATA controller (generic mode)";
     case 0xc6931080:
-	return "Cypress 82C693 IDE controller (generic mode)";
+	return "Cypress 82C693 ATA controller (generic mode)";
     case 0x01021078:
-	return "Cyrix 5530 IDE controller (generic mode)";
+	return "Cyrix 5530 ATA controller (generic mode)";
     default:
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE))
-	    return "Unknown PCI IDE controller (generic mode)";
+	    return "Unknown PCI ATA controller (generic mode)";
     }
     return NULL;
 }
@@ -227,6 +233,7 @@ static int
 ata_pciprobe(device_t dev)
 {
     const char *desc = ata_pcimatch(dev);
+    
     if (desc) {
 	device_set_desc(dev, desc);
 	return 0;
@@ -839,8 +846,10 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	    printf("ata%d-%s: timeout waiting for command=%02x s=%02x e=%02x\n",
 		   scp->lun, device ? "slave" : "master", command, 
 		   scp->status, scp->error);
+	    scp->active = ATA_IDLE;
 	    return -1;
 	}
+	scp->active = ATA_IDLE;
 	break;
 
     case ATA_IMMEDIATE:
