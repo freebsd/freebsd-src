@@ -45,16 +45,21 @@ struct g_slice {
 	struct	g_provider *provider;
 };
 
+struct g_slice_hot {
+	off_t	offset;
+	off_t	length;
+};
+
 typedef int g_slice_start_t (struct bio *bp);
 
 struct g_slicer {
-	u_int		nslice;
-	u_int		nprovider;
-	u_int		nhot;
-	struct g_slice	*slices;
-	struct g_slice	*hot;
-	void		*softc;
-	g_slice_start_t	*start;
+	u_int			nslice;
+	u_int			nprovider;
+	struct g_slice		*slices;
+	u_int			nhotspot;
+	struct g_slice_hot	*hotspot;
+	void			*softc;
+	g_slice_start_t		*start;
 };
 
 g_dumpconf_t g_slice_dumpconf;
