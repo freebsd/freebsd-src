@@ -29,17 +29,23 @@
  */
 
 #include <sys/param.h>
-#include <sys/sbuf.h>
 
 #ifdef _KERNEL
+#include <sys/ctype.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/uio.h>
 #include <machine/stdarg.h>
 #else /* _KERNEL */
+#include <ctype.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #endif /* _KERNEL */
+
+#include <sys/sbuf.h>
 
 #ifdef _KERNEL
 MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
@@ -60,12 +66,18 @@ MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
 #define SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
 #define SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
+#define SBUF_FREESPACE(s)	((s)->s_size - (s)->s_len - 1)
+#define SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
 
 /*
  * Set / clear flags
  */
 #define SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
 #define SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
+
+#define SBUF_MINEXTENDSIZE	16		/* Should be power of 2. */
+#define SBUF_MAXEXTENDSIZE	PAGE_SIZE
+#define SBUF_MAXEXTENDINCR	PAGE_SIZE
 
 /*
  * Debugging support
@@ -77,7 +89,7 @@ _assert_sbuf_integrity(char *fun, struct sbuf *s)
 	KASSERT(s != NULL,
 	    ("%s called with a NULL sbuf pointer", fun));
 	KASSERT(s->s_buf != NULL,
-	    ("%s called with unitialized or corrupt sbuf", fun));
+	    ("%s called with uninitialized or corrupt sbuf", fun));
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
 }
@@ -96,6 +108,49 @@ _assert_sbuf_state(char *fun, struct sbuf *s, int state)
 #define assert_sbuf_state(s, i)	 do { } while (0)
 #endif /* _KERNEL && INVARIANTS */
 
+static int
+sbuf_extendsize(int size)
+{
+	int newsize;
+
+	newsize = SBUF_MINEXTENDSIZE;
+	while (newsize < size) {
+		if (newsize < SBUF_MAXEXTENDSIZE)
+			newsize *= 2;
+		else
+			newsize += SBUF_MAXEXTENDINCR;
+	}
+
+	return (newsize);
+}
+
+
+/*
+ * Extend an sbuf.
+ */
+static int
+sbuf_extend(struct sbuf *s, int addlen)
+{
+	char *newbuf;
+	int newsize;
+
+	if (!SBUF_CANEXTEND(s))
+		return (-1);
+
+	newsize = sbuf_extendsize(s->s_size + addlen);
+	newbuf = (char *)SBMALLOC(newsize);
+	if (newbuf == NULL)
+		return (-1);
+	bcopy(s->s_buf, newbuf, s->s_size);
+	if (SBUF_ISDYNAMIC(s))
+		SBFREE(s->s_buf);
+	else
+		SBUF_SETFLAG(s, SBUF_DYNAMIC);
+	s->s_buf = newbuf;
+	s->s_size = newsize;
+	return (0);
+}
+
 /*
  * Initialize an sbuf.
  * If buf is non-NULL, it points to a static or already-allocated string
@@ -106,23 +161,28 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 {
 	KASSERT(length >= 0,
 	    ("attempt to create an sbuf of negative length (%d)", length));
-	KASSERT(flags == 0,
-	    (__FUNCTION__ " called with non-zero flags"));
+	KASSERT((flags & ~SBUF_USRFLAGMSK) == 0,
+	    ("%s called with invalid flags", __FUNCTION__));
 
+	flags &= SBUF_USRFLAGMSK;
 	if (s == NULL) {
 		s = (struct sbuf *)SBMALLOC(sizeof *s);
 		if (s == NULL)
 			return (NULL);
 		bzero(s, sizeof *s);
+		s->s_flags = flags;
 		SBUF_SETFLAG(s, SBUF_DYNSTRUCT);
 	} else {
 		bzero(s, sizeof *s);
+		s->s_flags = flags;
 	}
 	s->s_size = length;
 	if (buf) {
 		s->s_buf = buf;
 		return (s);
 	}
+	if (flags & SBUF_AUTOEXTEND)
+		s->s_size = sbuf_extendsize(s->s_size);
 	s->s_buf = (char *)SBMALLOC(s->s_size);
 	if (s->s_buf == NULL) {
 		if (SBUF_ISDYNSTRUCT(s))
@@ -133,8 +193,36 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 	return (s);
 }
 
+#ifdef _KERNEL
 /*
- * Clear an sbuf and reset its position
+ * Create an sbuf with uio data
+ */
+struct sbuf *
+sbuf_uionew(struct sbuf *s, struct uio *uio, int *error)
+{
+	KASSERT(uio != NULL,
+	    ("%s called with NULL uio pointer", __FUNCTION__));
+	KASSERT(error != NULL,
+	    ("%s called with NULL error pointer", __FUNCTION__));
+
+	s = sbuf_new(s, NULL, uio->uio_resid + 1, 0);
+	if (s == NULL) {
+		*error = ENOMEM;
+		return (NULL);
+	}
+	*error = uiomove(s->s_buf, uio->uio_resid, uio);
+	if (*error != 0) {
+		sbuf_delete(s);
+		return (NULL);
+	}
+	s->s_len = s->s_size - 1;
+	*error = 0;
+	return (s);
+}
+#endif
+
+/*
+ * Clear an sbuf and reset its position.
  */
 void
 sbuf_clear(struct sbuf *s)
@@ -148,7 +236,8 @@ sbuf_clear(struct sbuf *s)
 }
 
 /*
- * Set the sbuf's position to an arbitrary value
+ * Set the sbuf's end position to an arbitrary value.
+ * Effectively truncates the sbuf at the new position.
  */
 int
 sbuf_setpos(struct sbuf *s, int pos)
@@ -179,8 +268,11 @@ sbuf_bcat(struct sbuf *s, const char *str, size_t len)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 	
-	while (len-- && SBUF_HASROOM(s))
+	for (; len; len--) {
+		if (!SBUF_HASROOM(s) && sbuf_extend(s, len) < 0)
+			break;
 		s->s_buf[s->s_len++] = *str++;
+	}
 	if (len) {
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
@@ -203,8 +295,10 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 
 	if (len == 0)
 		return (0);
-	if (len > (s->s_size - s->s_len - 1))
-		len = s->s_size - s->s_len - 1;
+	if (len > SBUF_FREESPACE(s)) {
+		sbuf_extend(s, len - SBUF_FREESPACE(s));
+		len = min(len, SBUF_FREESPACE(s));
+	}
 	if (copyin(uaddr, s->s_buf + s->s_len, len) != 0)
 		return (-1);
 	s->s_len += len;
@@ -238,8 +332,11 @@ sbuf_cat(struct sbuf *s, const char *str)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 	
-	while (*str && SBUF_HASROOM(s))
+	while (*str) {
+		if (!SBUF_HASROOM(s) && sbuf_extend(s, strlen(str)) < 0)
+			break;
 		s->s_buf[s->s_len++] = *str++;
+	}
 	if (*str) {
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
@@ -249,7 +346,7 @@ sbuf_cat(struct sbuf *s, const char *str)
 
 #ifdef _KERNEL
 /*
- * Copy a string from userland into an sbuf.
+ * Append a string from userland to an sbuf.
  */
 int
 sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
@@ -262,8 +359,12 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 
-	if (len == 0 || len > (s->s_size - s->s_len - 1))
-		len = s->s_size - s->s_len - 1;
+	if (len == 0)
+		len = SBUF_FREESPACE(s);	/* XXX return 0? */
+	if (len > SBUF_FREESPACE(s)) {
+		sbuf_extend(s, len);
+		len = min(len, SBUF_FREESPACE(s));
+	}
 	switch (copyinstr(uaddr, s->s_buf + s->s_len, len + 1, &done)) {
 	case ENAMETOOLONG:
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
@@ -293,26 +394,27 @@ sbuf_cpy(struct sbuf *s, const char *str)
 }
 
 /*
- * Format the given arguments and append the resulting string to an sbuf.
+ * Format the given argument list and append the resulting string to an sbuf.
  */
 int
-sbuf_printf(struct sbuf *s, const char *fmt, ...)
+sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
-	va_list ap;
 	int len;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
-	
+
 	KASSERT(fmt != NULL,
-	    (__FUNCTION__ " called with a NULL format string"));
-	
+	    ("%s called with a NULL format string", __FUNCTION__));
+
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 
-	va_start(ap, fmt);
-	len = vsnprintf(&s->s_buf[s->s_len], s->s_size - s->s_len, fmt, ap);
-	va_end(ap);
+	do {
+		len = vsnprintf(&s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1,
+		    fmt, ap);
+	} while (len > SBUF_FREESPACE(s) &&
+	    sbuf_extend(s, len - SBUF_FREESPACE(s)) == 0);
 
 	/*
 	 * s->s_len is the length of the string, without the terminating nul.
@@ -323,8 +425,8 @@ sbuf_printf(struct sbuf *s, const char *fmt, ...)
 	 * vsnprintf() returns the amount that would have been copied,
 	 * given sufficient space, hence the min() calculation below.
 	 */
-	s->s_len += min(len, s->s_size - s->s_len - 1);
-	if (!SBUF_HASROOM(s))
+	s->s_len += min(len, SBUF_FREESPACE(s));
+	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 
 	KASSERT(s->s_len < s->s_size,
@@ -333,6 +435,21 @@ sbuf_printf(struct sbuf *s, const char *fmt, ...)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 	return (0);
+}
+
+/*
+ * Format the given arguments and append the resulting string to an sbuf.
+ */
+int
+sbuf_printf(struct sbuf *s, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	va_start(ap, fmt);
+	result = sbuf_vprintf(s, fmt, ap);
+	va_end(ap);
+	return(result);
 }
 
 /*
@@ -347,12 +464,30 @@ sbuf_putc(struct sbuf *s, int c)
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
 	
-	if (!SBUF_HASROOM(s)) {
+	if (!SBUF_HASROOM(s) && sbuf_extend(s, 1) < 0) {
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 		return (-1);
 	}
 	if (c != '\0')
 	    s->s_buf[s->s_len++] = c;
+	return (0);
+}
+
+/*
+ * Trim whitespace characters from end of an sbuf.
+ */
+int
+sbuf_trim(struct sbuf *s)
+{
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+	
+	if (SBUF_HASOVERFLOWED(s))
+		return (-1);
+	
+	while (s->s_len && isspace(s->s_buf[s->s_len-1]))
+		--s->s_len;
+
 	return (0);
 }
 
@@ -411,12 +546,15 @@ sbuf_len(struct sbuf *s)
 void
 sbuf_delete(struct sbuf *s)
 {
+	int isdyn;
+
 	assert_sbuf_integrity(s);
 	/* don't care if it's finished or not */
 	
 	if (SBUF_ISDYNAMIC(s))
 		SBFREE(s->s_buf);
+	isdyn = SBUF_ISDYNSTRUCT(s);
 	bzero(s, sizeof *s);
-	if (SBUF_ISDYNSTRUCT(s))
+	if (isdyn)
 		SBFREE(s);
 }
