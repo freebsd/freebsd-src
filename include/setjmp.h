@@ -44,17 +44,6 @@
 /* The size of the jmp_buf is machine dependent: */
 #include <machine/setjmp.h>
 
-/*
- * jmp_buf and sigjmp_buf are encapsulated in different structs to force
- * compile-time diagnostics for mismatches.  The structs are the same
- * internally to avoid some run-time errors for mismatches.
- */
-#ifndef _ANSI_SOURCE
-typedef struct { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
-#endif /* not ANSI */
-
-typedef struct { long _jb[_JBLEN + 1]; } jmp_buf[1];
-
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
