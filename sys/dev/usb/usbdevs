@@ -57,7 +57,7 @@ $FreeBSD$
  * make the device recognised by the appropriate device driver.
  */
 
-vendor EGALAX2		0x0123  eGalax, Inc.
+vendor EGALAX2		0x0123	eGalax, Inc.
 vendor LTS		0x0386	LTS
 vendor AOX		0x03e8	AOX
 vendor THESYS		0x03e9	Thesys Microelectronics
@@ -319,7 +319,6 @@ vendor ACARD		0x0678	ACARD Technology
 vendor PROLIFIC		0x067b	Prolific Technology
 vendor SIEMENS		0x067c	Siemens
 vendor AVANCELOGIC	0x0680	Avance Logic
-vendor CHPRODUCTS	0x068e	CH Products
 vendor MINOLTA		0x0686	Minolta
 vendor CHPRODUCTS	0x068e	CH Products
 vendor HAGIWARA		0x0693	Hagiwara Sys-Com
@@ -350,7 +349,7 @@ vendor MIDIMAN		0x0763	Midiman
 vendor LINKSYS2		0x077b	Linksys
 vendor GRIFFIN		0x077d	Griffin Technology
 vendor SANDISK		0x0781	SanDisk
-vendor JENOPTIK		0x0784  Jenoptik
+vendor JENOPTIK		0x0784	Jenoptik
 vendor LOGITEC		0x0789	Logitec
 vendor BRIMAX		0x078e	Brimax
 vendor AXIS		0x0792	Axis Communications
