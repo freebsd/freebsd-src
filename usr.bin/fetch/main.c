@@ -52,7 +52,7 @@ static void
 usage(const char *argv0)
 {
 	fprintf(stderr, 
-		"%s: usage:\n\t%s [-DHINPMTVLqlmnprv] [-o outputfile] "
+		"%s: usage:\n\t%s [-DHILMNPRTValmnpqrv] [-o outputfile] "
 		"[-f file -h host [-c dir] | URL]\n", argv0, argv0);
 	exit(EX_USAGE);
 }
@@ -73,14 +73,14 @@ main(int argc, char *const *argv)
     fs.fs_verbose = 1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "D:HINPMT:V:Lqc:f:h:o:plmnrv")) != -1) {
+    while ((c = getopt(argc, argv, "ac:D:f:h:HilLmMnNo:pPqrT:vV:")) != -1) {
 	    switch (c) {
 	    case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 		    break;	/* ncftp compatibility */
 	    
-	    case 'q': 
-		    fs.fs_verbose = 0;
-
+	    case 'a':
+		    fs.fs_auto_retry = 1;
+		    break;
 	    case 'c':
 		    change_to_dir = optarg;
 		    break;
@@ -97,14 +97,6 @@ main(int argc, char *const *argv)
 		    fs.fs_linkfile = 1;
 		    break;
 
-	    case 'o':
-		    fs.fs_outputfile = optarg;
-		    break;
-
-	    case 'p': case 'P':
-		    fs.fs_passive_mode = 1;
-		    break;
-	    
 	    case 'm': case 'M':
 		    fs.fs_mirror = 1;
 		    break;
@@ -113,6 +105,18 @@ main(int argc, char *const *argv)
 		    fs.fs_newtime = 1;
 		    break;
 	    
+	    case 'o':
+		    fs.fs_outputfile = optarg;
+		    break;
+
+	    case 'p': case 'P':
+		    fs.fs_passive_mode = 1;
+		    break;
+	    
+	    case 'q': 
+		    fs.fs_verbose = 0;
+		    break;
+
 	    case 'r':
 		    fs.fs_restart = 1;
 		    break;
@@ -121,13 +125,6 @@ main(int argc, char *const *argv)
 		    fs.fs_precious = 1;
 		    break;
 	    
-	    case 'v':
-		    if (fs.fs_verbose < 2)
-			    fs.fs_verbose = 2;
-		    else
-			    fs.fs_verbose++;
-		    break;
-
 	    case 'T':
 		    /* strtol sets errno to ERANGE in the case of overflow */
 		    errno = 0;
@@ -136,6 +133,13 @@ main(int argc, char *const *argv)
 			    errx(EX_USAGE, "invalid timeout value: `%s'", 
 				 optarg);
 		    fs.fs_timeout = l;
+		    break;
+
+	    case 'v':
+		    if (fs.fs_verbose < 2)
+			    fs.fs_verbose = 2;
+		    else
+			    fs.fs_verbose++;
 		    break;
 
 	    default: 	

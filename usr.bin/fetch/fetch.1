@@ -7,7 +7,7 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPmnpqr
+.Op Fl MPamnpqr
 .Op Fl o Ar file
 .Ar URL
 .Nm fetch
@@ -45,6 +45,8 @@ flags.
 .Pp
 The following options are available:
 .Bl -tag -width Fl -compact
+.It Fl a
+Automatically retry the transfer upon soft failures.
 .It Fl c Ar dir
 The file to retrieve is in directory
 .Ar dir
@@ -196,3 +198,16 @@ The original implementation of
 was done by Jean-Marc Zucconi.  It was extensively re-worked for
 .Fx 3.0
 by Garrett Wollman.
+.Sh BUGS
+There are too many environment variables and command-line options.
+.Pp
+The
+.Fl a
+option is only implemented for certain kinds of
+.Tn HTTP
+failures, and no
+.Tn FTP
+failures.
+.Pp
+.Tn HTTP
+authentication is not yet implememnted.
