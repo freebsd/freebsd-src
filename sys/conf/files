@@ -1237,6 +1237,7 @@ netatalk/at_proto.c	optional netatalk
 netatalk/at_rmx.c	optional netatalkdebug
 netatalk/ddp_input.c	optional netatalk
 netatalk/ddp_output.c	optional netatalk
+netatalk/ddp_pcb.c	optional netatalk
 netatalk/ddp_usrreq.c	optional netatalk
 netatm/atm_aal5.c		optional atm_core
 netatm/atm_cm.c			optional atm_core
