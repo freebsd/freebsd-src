@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.6 1998/09/26 10:48:50 dfr Exp $
+ *	$Id: stand.h,v 1.7 1998/10/06 19:23:57 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -181,6 +181,9 @@ extern void	*calloc(size_t n1, size_t n2);
 extern void	*realloc(void *ptr, size_t size);
 extern void	*reallocf(void *ptr, size_t size);
 extern void	mallocstats(void);
+#ifdef __alpha__
+extern void	free_region(void *start, void *end);
+#endif
 
 /* disklabel support (undocumented, may be junk) */
 struct		disklabel;
