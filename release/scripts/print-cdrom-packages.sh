@@ -174,6 +174,7 @@ CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
 CDROM_SET_3="${CDROM_SET_3} lang/gnat"
 CDROM_SET_3="${CDROM_SET_3} net/cvsup-without-gui"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
+CDROM_SET_3="${CDROM_SET_3} security/portaudit"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj-jadetex"
 
 ## End of set for CDROM #3
