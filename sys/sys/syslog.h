@@ -68,8 +68,8 @@
 				/* mark "facility" */
 #define	INTERNAL_MARK	LOG_MAKEPRI((LOG_NFACILITIES<<3), 0)
 typedef struct _code {
-	char	*c_name;
-	int	c_val;
+	const char	*c_name;
+	int		c_val;
 } CODE;
 
 CODE prioritynames[] = {
