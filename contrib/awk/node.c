@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -205,8 +205,10 @@ register NODE *s;
 		cant_happen();
 	if (s->type != Node_val)
 		cant_happen();
+/*
 	if ((s->flags & NUM) == 0)
 		cant_happen();
+*/
 	if (s->stref <= 0)
 		cant_happen();
 	if ((s->flags & STR) != 0
@@ -241,7 +243,7 @@ NODE *n;
 	}
 	getnode(r);
 	*r = *n;
-	r->flags &= ~(PERM|TEMP);
+	r->flags &= ~(PERM|TEMP|FIELD);
 	r->flags |= MALLOC;
 	if (n->type == Node_val && (n->flags & STR) != 0) {
 		r->stref = 1;
@@ -513,6 +515,18 @@ char **string_ptr;
 		}
 		return i;
 	default:
+		if (do_lint) {
+			static short warned[256];
+			unsigned char uc = (unsigned char) c;
+
+			/* N.B.: use unsigned char here to avoid Latin-1 problems */
+
+			if (! warned[uc]) {
+				warned[uc] = TRUE;
+
+				warning("escape sequence `\\%c' treated as plain `%c'", uc, uc);
+			}
+		}
 		return c;
 	}
 }

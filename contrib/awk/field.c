@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-2000 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -221,6 +221,11 @@ rebuild_record()
  * set_record:
  * setup $0, but defer parsing rest of line until reference is made to $(>0)
  * or to NF.  At that point, parse only as much as necessary.
+ *
+ * Manage a private buffer for the contents of $0.  Doing so keeps us safe
+ * if `getline var' decides to rearrange the contents of the IOBUF that
+ * $0 might have been pointing into.  The cost is the copying of the buffer;
+ * but better correct than fast.
  */
 void
 set_record(buf, cnt, freeold)
@@ -230,6 +235,10 @@ int freeold;
 {
 	register int i;
 	NODE *n;
+	static char *databuf;
+	static unsigned long databuf_size;
+#define INITIAL_SIZE	512
+#define MAX_SIZE	((unsigned long) ~0)	/* maximally portable ... */
 
 	NF = -1;
 	for (i = 1; i <= parse_high_water; i++) {
@@ -250,9 +259,24 @@ int freeold;
 		save_FS = dupnode(FS_node->var_value);
 	}
 	if (freeold) {
+		/* buffer management: */
+		if (databuf_size == 0) {	/* first time */
+			emalloc(databuf, char *, INITIAL_SIZE, "set_record");
+			databuf_size = INITIAL_SIZE;
+		}
+		/* make sure there's enough room */
+		if (cnt > databuf_size) {
+			while (cnt > databuf_size && databuf_size <= MAX_SIZE)
+				databuf_size *= 2;
+			erealloc(databuf, char *, databuf_size, "set_record");
+		}
+		/* copy the data */
+		memcpy(databuf, buf, cnt);
+
+		/* manage field 0: */
 		unref(fields_arr[0]);
 		getnode(n);
-		n->stptr = buf;
+		n->stptr = databuf;
 		n->stlen = cnt;
 		n->stref = 1;
 		n->type = Node_val;
@@ -262,6 +286,9 @@ int freeold;
 	}
 	fields_arr[0]->flags |= MAYBE_NUM;
 	field0_valid = TRUE;
+
+#undef INITIAL_SIZE
+#undef MAX_SIZE
 }
 
 /* reset_record --- start over again with current $0 */
@@ -761,6 +788,8 @@ NODE *tree;
 
 	if (arr->type == Node_param_list)
 		arr = stack_ptr[arr->param_cnt];
+	if (arr->type == Node_array_ref)
+		arr = arr->orig_array;
 	if (arr->type != Node_var && arr->type != Node_var_array)
 		fatal("second argument of split is not an array");
 	arr->type = Node_var_array;
