@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2001
+.Dd March 3, 2003
 .Dt GSTAT 8
 .Os
 .Sh NAME
 .Nm gstat
-.Nd print statistics about geom disks
+.Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
 .Op Fl c
@@ -56,13 +56,12 @@ Refresh the
 display every
 .Ar interval
 microseconds.
-You can add a suffix of
-.Cm s ,
-.Cm ms ,
+Adding a suffix of
+.Cm s , ms ,
 or
 .Cm us
-(the default) to indicate that the update interval is specified in
-seconds, milliseconds or microseconds respectively.
+(the default) indicates that the update interval is specified in
+seconds, milliseconds, or microseconds, respectively.
 .El
 .Sh DIAGNOSTICS
 .Ex -std
