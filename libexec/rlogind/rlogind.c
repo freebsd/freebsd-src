@@ -231,9 +231,9 @@ doit(f, fromp)
 	hostname[sizeof(hostname) - 1] = '\0';
 
 	{
-		if ((fromp->su_family != AF_INET &&
+		if ((fromp->su_family != AF_INET
 #ifdef INET6
-		     fromp->su_family != AF_INET6
+		  && fromp->su_family != AF_INET6
 #endif
 		     ) ||
 		    fromp->su_port >= IPPORT_RESERVED ||
@@ -570,10 +570,6 @@ int
 do_rlogin(dest)
 	union sockunion *dest;
 {
-	int retval;
-	int af;
-	char *addr;
-
 	getstr(rusername, sizeof(rusername), "remuser too long");
 	getstr(lusername, sizeof(lusername), "locuser too long");
 	getstr(term+ENVSIZE, sizeof(term)-ENVSIZE, "Terminal type too long");
