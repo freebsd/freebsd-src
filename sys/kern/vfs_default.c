@@ -85,6 +85,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
 	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
 	{ &vop_fsync_desc,		(vop_t *) vop_null },
+	{ &vop_getpages_desc,		(vop_t *) vop_stdgetpages },
 	{ &vop_getvobject_desc,		(vop_t *) vop_stdgetvobject },
 	{ &vop_inactive_desc,		(vop_t *) vop_stdinactive },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
@@ -94,6 +95,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) vop_nolookup },
 	{ &vop_open_desc,		(vop_t *) vop_null },
 	{ &vop_pathconf_desc,		(vop_t *) vop_einval },
+	{ &vop_putpages_desc,		(vop_t *) vop_stdputpages },
 	{ &vop_poll_desc,		(vop_t *) vop_nopoll },
 	{ &vop_readlink_desc,		(vop_t *) vop_einval },
 	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
@@ -632,6 +634,37 @@ vop_stdbmap(ap)
 		*ap->a_runb = 0;
 	return (0);
 }
+
+int
+vop_stdgetpages(ap)
+	struct vop_getpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_reqpage;
+		vm_ooffset_t a_offset;
+	} */ *ap;
+{
+
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
+	    ap->a_count, ap->a_reqpage);
+}
+
+vop_stdputpages(ap)
+	struct vop_putpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_sync;
+		int *a_rtvals;
+		vm_ooffset_t a_offset;
+	} */ *ap;
+{
+
+	vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+	     ap->a_sync, ap->a_rtvals);
+}
+
 
 
 /* 
