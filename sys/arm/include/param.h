@@ -136,10 +136,6 @@
 /* bytes to clicks */
 #define	btoc(x)		(((unsigned)(x) + PAGE_MASK) >> PAGE_SHIFT)
 
-/* pages ("clicks") to disk blocks */
-#define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
-
 /* bytes to disk blocks */
 /*
  * btodb() is messy and perhaps slow because `bytes' may be an off_t.  We
