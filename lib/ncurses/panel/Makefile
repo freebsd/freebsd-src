@@ -4,6 +4,7 @@
 NCURSES=${.CURDIR}/../../contrib/ncurses
 
 .PATH:	${NCURSES}/panel ${NCURSES}/include
+.PATH:  ${NCURSES}/man
 
 LIB=    panel
 AWK?=	awk
@@ -22,4 +23,20 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	AWK=${AWK} sh ${NCURSES}/include/MKncurses_def.sh \
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
 
+# generate MAN3
+CLEANFILES+=	panel.3
+MAN3=		panel.3
+all-man: panel.3
+panel.3: panel.3x
+	ln -s ${.ALLSRC} ${.TARGET}
+
+MLINKS+=panel.3 bottom_panel.3 panel.3 del_panel.3 panel.3 hide_panel.3 \
+	panel.3 move_panel.3 panel.3 new_panel.3 panel.3 panel_above.3 \
+	panel.3 panel_below.3 panel.3 panel_hidden.3 \
+	panel.3 panel_userptr.3 panel.3 panel_window.3 \
+	panel.3 replace_panel.3 panel.3 set_panel_userptr.3 \
+	panel.3 show_panel.3 panel.3 top_panel.3 panel.3 update_panels.3
+
 .include <bsd.lib.mk>
+
+.SUFFIXES: .3x .3
