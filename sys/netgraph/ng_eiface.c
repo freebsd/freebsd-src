@@ -32,10 +32,8 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/mutex.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
@@ -117,90 +115,7 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-/* We keep a bitmap indicating which unit numbers are free.
-   One means the unit number is free, zero means it's taken. */
-static int	*ng_eiface_units = NULL;
-static int	ng_eiface_units_len = 0;
-static int	ng_units_in_use = 0;
-
-#define UNITS_BITSPERWORD	(sizeof(*ng_eiface_units) * NBBY)
-
-static struct mtx	ng_eiface_mtx;
-
-/************************************************************************
-			HELPER STUFF
- ************************************************************************/
-/*
- * Find the first free unit number for a new interface.
- * Increase the size of the unit bitmap as necessary.
- */
-static __inline int
-ng_eiface_get_unit(int *unit)
-{
-	int index, bit;
-
-	mtx_lock(&ng_eiface_mtx);
-	for (index = 0; index < ng_eiface_units_len
-	    && ng_eiface_units[index] == 0; index++);
-	if (index == ng_eiface_units_len) {		/* extend array */
-		int i, *newarray, newlen;
-
-		newlen = (2 * ng_eiface_units_len) + 4;
-		MALLOC(newarray, int *, newlen * sizeof(*ng_eiface_units),
-		    M_NETGRAPH, M_NOWAIT);
-		if (newarray == NULL) {
-			mtx_unlock(&ng_eiface_mtx);
-			return (ENOMEM);
-		}
-		bcopy(ng_eiface_units, newarray,
-		    ng_eiface_units_len * sizeof(*ng_eiface_units));
-		for (i = ng_eiface_units_len; i < newlen; i++)
-			newarray[i] = ~0;
-		if (ng_eiface_units != NULL)
-			FREE(ng_eiface_units, M_NETGRAPH);
-		ng_eiface_units = newarray;
-		ng_eiface_units_len = newlen;
-	}
-	bit = ffs(ng_eiface_units[index]) - 1;
-	KASSERT(bit >= 0 && bit <= UNITS_BITSPERWORD - 1,
-	    ("%s: word=%d bit=%d", __func__, ng_eiface_units[index], bit));
-	ng_eiface_units[index] &= ~(1 << bit);
-	*unit = (index * UNITS_BITSPERWORD) + bit;
-	ng_units_in_use++;
-	mtx_unlock(&ng_eiface_mtx);
-	return (0);
-}
-
-/*
- * Free a no longer needed unit number.
- */
-static __inline void
-ng_eiface_free_unit(int unit)
-{
-	int index, bit;
-
-	index = unit / UNITS_BITSPERWORD;
-	bit = unit % UNITS_BITSPERWORD;
-	mtx_lock(&ng_eiface_mtx);
-	KASSERT(index < ng_eiface_units_len,
-	    ("%s: unit=%d len=%d", __func__, unit, ng_eiface_units_len));
-	KASSERT((ng_eiface_units[index] & (1 << bit)) == 0,
-	    ("%s: unit=%d is free", __func__, unit));
-	ng_eiface_units[index] |= (1 << bit);
-	/*
-	 * XXX We could think about reducing the size of ng_eiface_units[]
-	 * XXX here if the last portion is all ones
-	 * XXX At least free it if no more units.
-	 * Needed if we are to eventually be able to unload.
-	 */
-	ng_units_in_use--;
-	if (ng_units_in_use == 0) { /* XXX make SMP safe */
-		FREE(ng_eiface_units, M_NETGRAPH);
-		ng_eiface_units_len = 0;
-		ng_eiface_units = NULL;
-	}
-	mtx_unlock(&ng_eiface_mtx);
-}
+static struct unrhdr	*ng_eiface_unit;
 
 /************************************************************************
 			INTERFACE STUFF
@@ -416,7 +331,6 @@ ng_eiface_constructor(node_p node)
 {
 	struct ifnet *ifp;
 	priv_p priv;
-	int error = 0;
 
 	/* Allocate node and interface private structures */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
@@ -430,10 +344,7 @@ ng_eiface_constructor(node_p node)
 	priv->ifp = ifp;
 
 	/* Get an interface unit number */
-	if ((error = ng_eiface_get_unit(&priv->unit)) != 0) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
+	priv->unit = alloc_unr(ng_eiface_unit);
 
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -641,7 +552,7 @@ ng_eiface_rmnode(node_p node)
 	struct ifnet *const ifp = priv->ifp;
 
 	ether_ifdetach(ifp);
-	ng_eiface_free_unit(priv->unit);
+	free_unr(ng_eiface_unit, priv->unit);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
@@ -682,10 +593,10 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		mtx_init(&ng_eiface_mtx, "ng_eiface", NULL, MTX_DEF);
+		ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
 		break;
 	case MOD_UNLOAD:
-		mtx_destroy(&ng_eiface_mtx);
+		delete_unrhdr(ng_eiface_unit);
 		break;
 	default:
 		error = EOPNOTSUPP;
