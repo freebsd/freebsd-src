@@ -483,7 +483,7 @@ exit1(td, rv)
 	
 	/*
 	 * Finally, call machine-dependent code to release the remaining
-	 * resources including address space, the kernel stack and pcb.
+	 * resources including address space.
 	 * The address space is released by "vmspace_exitfree(p)" in
 	 * vm_waitproc().
 	 */
@@ -493,6 +493,7 @@ exit1(td, rv)
 	PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
 	mtx_lock_spin(&sched_lock);
+
 	while (mtx_owned(&Giant))
 		mtx_unlock(&Giant);
 
@@ -512,11 +513,11 @@ exit1(td, rv)
 
 	cpu_sched_exit(td); /* XXXKSE check if this should be in thread_exit */
 	/*
-	 * Make sure this thread is discarded from the zombie.
+	 * Make sure the scheduler takes this thread out of its tables etc.
 	 * This will also release this thread's reference to the ucred.
+ 	 * Other thread parts to release include pcb bits and such.
 	 */
 	thread_exit();
-	panic("exit1");
 }
 
 #ifdef COMPAT_43
@@ -570,9 +571,6 @@ wait1(td, uap, compat)
 	int nfound;
 	struct proc *p, *q, *t;
 	int status, error;
-	struct thread *td2;
-	struct kse *ke;
-	struct ksegrp *kg;
 
 	q = td->td_proc;
 	if (uap->pid == 0) {
@@ -717,25 +715,9 @@ loop:
 			}
 
 			/*
-			 * There should only be one 
-			 * but do it right anyhow.
+			 * do any thread-system specific cleanups
 			 */
-			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				FOREACH_KSE_IN_GROUP(kg, ke) {
-					/* Free the KSE spare thread. */
-					if (ke->ke_tdspare != NULL) {
-						thread_free(ke->ke_tdspare);
-						ke->ke_tdspare = NULL;
-					}
-				}
-			}
-			FOREACH_THREAD_IN_PROC(p, td2) {
-				if (td2->td_standin != NULL) {
-					thread_free(td2->td_standin);
-					td2->td_standin = NULL;
-				}
-			}
-			thread_reap();	/* check for zombie threads */
+			thread_wait(p);
 
 			/*
 			 * Give vm and machine-dependent layer a chance

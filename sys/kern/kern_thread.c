@@ -66,13 +66,9 @@ static uma_zone_t thread_zone;
 
 /* DEBUG ONLY */
 SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
-static int oiks_debug = 0;	/* 0 disable, 1 printf, 2 enter debugger */
-SYSCTL_INT(_kern_threads, OID_AUTO, oiks, CTLFLAG_RW,
-	&oiks_debug, 0, "OIKS thread debug");
-
-static int oiks_max_threads_per_proc = 10;
-SYSCTL_INT(_kern_threads, OID_AUTO, oiks_max_per_proc, CTLFLAG_RW,
-	&oiks_max_threads_per_proc, 0, "Debug limit on threads per proc");
+static int thread_debug = 0;
+SYSCTL_INT(_kern_threads, OID_AUTO, debug, CTLFLAG_RW,
+	&thread_debug, 0, "thread debug");
 
 static int max_threads_per_proc = 30;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
@@ -91,11 +87,10 @@ struct mtx zombie_thread_lock;
 MTX_SYSINIT(zombie_thread_lock, &zombie_thread_lock,
     "zombie_thread_lock", MTX_SPIN);
 
+static void kse_purge(struct proc *p, struct thread *td);
 
-
-void kse_purge(struct proc *p, struct thread *td);
 /*
- * Pepare a thread for use.
+ * Prepare a thread for use.
  */
 static void
 thread_ctor(void *mem, int size, void *arg)
@@ -115,7 +110,6 @@ thread_dtor(void *mem, int size, void *arg)
 {
 	struct thread	*td;
 
-	mtx_assert(&Giant, MA_OWNED);
 	td = (struct thread *)mem;
 
 #ifdef INVARIANTS
@@ -138,8 +132,6 @@ thread_dtor(void *mem, int size, void *arg)
 		/* NOTREACHED */
 	}
 #endif
-
-	cpu_thread_dtor(td);
 }
 
 /*
@@ -346,12 +338,11 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 		return (EDEADLK);
 	}
 	if ((p->p_numthreads == 1) && (p->p_numksegrps == 1)) {
+		/* XXXSKE what if >1 KSE? check.... */
 		p->p_flag &= ~P_KSES;
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
-		while (mtx_owned(&Giant))
-			mtx_unlock(&Giant);
 		td->td_kse->ke_flags |= KEF_EXIT;
 		thread_exit();
 		/* NOTREACHED */
@@ -359,40 +350,50 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	return (0);
 }
 
+/*
+ * Either returns as an upcall or exits
+ */
 int
-kse_release(struct thread *td, struct kse_release_args *uap)
+kse_release(struct thread * td, struct kse_release_args * uap)
 {
 	struct proc *p;
+	struct ksegrp *kg;
 
 	p = td->td_proc;
-	/* KSE-enabled processes only */ 
-	if (!(p->p_flag & P_KSES))
-		return (EINVAL);
+	kg = td->td_ksegrp;
 	/*
 	 * Must be a bound thread. And kse must have a mailbox ready,
-	 * if not, the kse would can not generate an upcall.
+	 * if not, the kse can not generate an upcall.
 	 */
-	if (!(td->td_flags & TDF_UNBOUND) && (td->td_kse->ke_mailbox != NULL)) {
-		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
-		/* prevent last thread from exiting */
+	if (!(p->p_flag & P_KSES) ||
+	    (td->td_flags & TDF_UNBOUND) ||
+	    (td->td_kse->ke_mailbox == NULL))
+		return (EINVAL);
+	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
+	if (kg->kg_completed == NULL) {
+#if 1       /* temp until signals make new threads */
 		if (p->p_numthreads == 1) {
+			/* change OURSELF to become an upcall */
+			td->td_flags = TDF_UPCALLING;
 			mtx_unlock_spin(&sched_lock);
-			if (td->td_standin == NULL) {
-				PROC_UNLOCK(p);
-				td->td_standin = thread_alloc();
-				PROC_LOCK(p);
-			}
-			msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH,
-			       "pause", 0); 
-			mtx_lock_spin(&sched_lock);
-			td->td_flags |= TDF_UNBOUND;
-			thread_schedule_upcall(td, td->td_kse);
+			PROC_UNLOCK(p);
+			/*
+			 * msleep will not call thread_sched_upcall
+			 * because thread is not UNBOUND.
+			 */
+			msleep(p->p_sigacts, NULL,
+			    PPAUSE | PCATCH, "ksepause", 0);
+			return (0);
 		}
+#endif      /* end temp */
 		thread_exit();
-		/* NOTREACHED */
 	}
-	return (EINVAL);
+	/* change OURSELF to become an upcall */
+	td->td_flags = TDF_UPCALLING;
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 /* struct kse_wakeup_args {
@@ -409,8 +410,6 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	/* KSE-enabled processes only, please. */
 	if (!(p->p_flag & P_KSES))
 		return EINVAL;
-	if (td->td_standin == NULL)
-		td->td_standin = thread_alloc();
 	ke = NULL;
 	mtx_lock_spin(&sched_lock);
 	if (uap->mbx) {
@@ -507,7 +506,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 * which is safe.
 		 */
 		if ((td->td_flags & TDF_UNBOUND) || td->td_kse->ke_mailbox) {
-			if (oiks_debug == 0) {
+			if (thread_debug == 0) { /* if debugging, allow more */
 #ifdef SMP
 			if (kg->kg_kses > mp_ncpus)
 #endif
@@ -779,6 +778,8 @@ kse_free(struct kse *td)
 void
 thread_free(struct thread *td)
 {
+
+	cpu_thread_clean(td);
 	uma_zfree(thread_zone, td);
 }
 
@@ -966,10 +967,9 @@ bad:
  * Discard the current thread and exit from its context.
  *
  * Because we can't free a thread while we're operating under its context,
- * push the current thread into our KSE's ke_tdspare slot, freeing the
- * thread that might be there currently. Because we know that only this
- * processor will run our KSE, we needn't worry about someone else grabbing
- * our context before we do a cpu_throw.
+ * push the current thread into our CPU's deadthread holder. This means
+ * we needn't worry about someone else grabbing our context before we
+ * do a cpu_throw().
  */
 void
 thread_exit(void)
@@ -992,10 +992,6 @@ thread_exit(void)
 	CTR1(KTR_PROC, "thread_exit: thread %p", td);
 	KASSERT(!mtx_owned(&Giant), ("dying thread owns giant"));
 
-	if (ke->ke_tdspare != NULL) {
-		thread_stash(ke->ke_tdspare);
-		ke->ke_tdspare = NULL;
-	}
 	if (td->td_standin != NULL) {
 		thread_stash(td->td_standin);
 		td->td_standin = NULL;
@@ -1039,85 +1035,45 @@ thread_exit(void)
 		    ("thread_exit: entered with ke_bound set"));
 
 		/* 
-		 * The reason for all this hoopla is 
-		 * an attempt to stop our thread stack from being freed 
-		 * until AFTER we have stopped running on it.
-		 * Since we are under schedlock, almost any method where
-		 * it is eventually freed by someone else is probably ok.
-		 * (Especially if they do it under schedlock). We could 
-		 * almost free it here if we could be certain that 
-		 * the uma code wouldn't pull it apart immediatly, 
-		 * but unfortunatly we can not guarantee that.
-		 *
-		 * For threads that are exiting and NOT killing their
-		 * KSEs we can just stash it in the KSE, however
-		 * in the case where the KSE is also being deallocated,
-		 * we need to store it somewhere else. It turns out that
-		 * we will never free the last KSE, so there is always one
-		 * other KSE available. We might as well just choose one
-		 * and stash it there. Being under schedlock should make that
-		 * safe.
-		 *
-		 * In borrower threads, we can stash it in the lender
-		 * Where it won't be needed until this thread is long gone.
-		 * Borrower threads can't kill their KSE anyhow, so even
-		 * the KSE would be a safe place for them. It is not
-		 * necessary to have a KSE (or KSEGRP) at all beyond this
-		 * point, while we are under the protection of schedlock.
-		 *
-		 * Either give the KSE to another thread to use (or make
-		 * it idle), or free it entirely, possibly along with its
-		 * ksegrp if it's the last one.
+		 * decide what to do with the KSE attached to this thread.
 		 */
 		if (ke->ke_flags & KEF_EXIT) {
 			kse_unlink(ke);
-			/*
-			 * Designate another KSE to hold our thread.
-			 * Safe as long as we abide by whatever lock 
-			 * we control it with.. The other KSE will not
-			 * be able to run it until we release the schelock,
-			 * but we need to be careful about it deciding to 
-			 * write to the stack before then. Luckily
-			 * I believe that while another thread's
-			 * standin thread can be used in this way, the
-			 * spare thread for the KSE cannot be used without
-			 * holding schedlock at least once.
-			 */
-			ke =  FIRST_KSE_IN_PROC(p);
 		} else {
 			kse_reassign(ke);
 		}
-#if 0
-		if (ke->ke_bound) {
-			/*
-			 * WE are a borrower..
-			 * stash our thread with the owner.
-			 */
-			if (ke->ke_bound->td_standin) {
-				thread_stash(ke->ke_bound->td_standin);
-			}
-			ke->ke_bound->td_standin = td;
-		} else {
-#endif
-			if (ke->ke_tdspare != NULL) {
-				thread_stash(ke->ke_tdspare);
-				ke->ke_tdspare = NULL;
-			}
-			ke->ke_tdspare = td;
-#if 0
-		}
-#endif
 		PROC_UNLOCK(p);
 		td->td_state	= TDS_INACTIVE;
 		td->td_proc	= NULL;
 		td->td_ksegrp	= NULL;
 		td->td_last_kse	= NULL;
+		PCPU_SET(deadthread, td);
 	} else {
 		PROC_UNLOCK(p);
 	}
-
 	cpu_throw();
 	/* NOTREACHED */
+}
+
+/* 
+ * Do any thread specific cleanups that may be needed in wait()
+ * called with Giant held, proc and schedlock not held.
+ */
+void
+thread_wait(struct proc *p)
+{
+	struct thread *td;
+
+	KASSERT((p->p_numthreads == 1), ("Muliple threads in wait1()"));
+	KASSERT((p->p_numksegrps == 1), ("Muliple ksegrps in wait1()"));
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (td->td_standin != NULL) {
+			thread_free(td->td_standin);
+			td->td_standin = NULL;
+		}
+		cpu_thread_clean(td);
+	}
+	thread_reap();	/* check for zombie threads etc. */
 }
 
 /*
@@ -1145,11 +1101,6 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
 	p->p_numthreads++;
 	kg->kg_numthreads++;
-	if (oiks_debug && (p->p_numthreads > oiks_max_threads_per_proc)) {
-		printf("OIKS %d\n", p->p_numthreads);
-		if (oiks_debug > 1)
-			Debugger("OIKS");
-	}
 	td->td_kse	= NULL;
 }
 
@@ -1167,8 +1118,6 @@ kse_purge(struct proc *p, struct thread *td)
 			kg->kg_idle_kses--;
 			TAILQ_REMOVE(&kg->kg_kseq, ke, ke_kglist);
 			kg->kg_kses--;
-			if (ke->ke_tdspare)
-				thread_stash(ke->ke_tdspare);
    			kse_stash(ke);
 		}
 		TAILQ_REMOVE(&p->p_ksegrps, kg, kg_ksegrp);
@@ -1512,6 +1461,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		TD_SET_LOAN(td);
 		ke->ke_bound = td;
 		ke->ke_thread = NULL;
+		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch(); /* kse_reassign() will (re)find td2 */
 	}
 	mtx_unlock_spin(&sched_lock);
@@ -1522,12 +1472,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * for when we re-enter the kernel.
 	 */
 	if (td->td_standin == NULL) {
-		if (ke->ke_tdspare) {
-			td->td_standin = ke->ke_tdspare;
-			ke->ke_tdspare = NULL;
-		} else {
-			td->td_standin = thread_alloc();
-		}
+		td->td_standin = thread_alloc();
 	}
 
 	thread_update_uticks();
@@ -1550,6 +1495,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 
 	/*
 	 * Set user context to the UTS.
+	 * Will use Giant in cpu_thread_clean() because it uses
+	 * kmem_free(kernel_map, ...)
 	 */
 	cpu_set_upcall_kse(td, ke);
 
@@ -1619,6 +1566,7 @@ thread_single(int force_exit)
 
 	td = curthread;
 	p = td->td_proc;
+	mtx_assert(&Giant, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
@@ -1677,6 +1625,7 @@ thread_single(int force_exit)
 		thread_suspend_one(td);
 		mtx_unlock(&Giant);
 		PROC_UNLOCK(p);
+		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 		mtx_lock(&Giant);
