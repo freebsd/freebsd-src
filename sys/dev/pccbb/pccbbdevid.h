@@ -27,7 +27,7 @@
  */
 
 /* Vendor/Device IDs */
-#define	PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul
+#define	PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul	/* 16bit I/O */
 #define	PCI_DEVICE_ID_PCIC_CLPD6832	0x11101013ul
 #define	PCI_DEVICE_ID_PCIC_CLPD6833	0x11131013ul
 #define	PCI_DEVICE_ID_PCIC_CLPD6834	0x11121013ul
@@ -45,6 +45,7 @@
 #define	PCI_DEVICE_ID_RICOH_RL5C476	0x04761180ul
 #define	PCI_DEVICE_ID_RICOH_RL5C477	0x04771180ul
 #define	PCI_DEVICE_ID_RICOH_RL5C478	0x04781180ul
+#define PCI_DEVICE_ID_OMEGA_82C094	0x1221119bul	/* 16bit I/O */
 #define	PCI_DEVICE_ID_PCIC_TI1031	0xac13104cul
 #define	PCI_DEVICE_ID_PCIC_TI1130	0xac12104cul
 #define	PCI_DEVICE_ID_PCIC_TI1131	0xac15104cul
@@ -74,10 +75,9 @@
 /*
  * Other ID, from sources too vague to be reliable
  *	Mfg		  model		PCI ID
- *   Intel		82092AA		0x12218086	16bit
+ *   Intel		82092AA		0x12218086	16bit I/O
  *   smc/Databook	DB87144		0x310610b3
  *   SMC/databook	smc34c90	0xb10610b3
- *   Omega/Trident	82c094		0x00940123?
  *   Omega/Trident	82c194		0x01941023
  *   Omega/Trident	82c722		0x07221023?
  *   Opti		82c814		0xc8141045
