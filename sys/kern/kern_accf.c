@@ -115,9 +115,18 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 		break;
 
 	case MOD_UNLOAD:
+		/*
+		 * Do not support unloading yet. we don't keep track of refcounts
+		 * and unloading an accept filter callback and then having it called
+		 * is a bad thing.  A simple fix would be to track the refcount
+		 * in the struct accept_filter.
+		 */
+#if 0
 		s = splnet();
 		error = accept_filt_del(accfp->accf_name);
 		splx(s);
+#endif
+		error = EOPNOTSUPP;
 		break;
 
 	case MOD_SHUTDOWN:
