@@ -26,25 +26,24 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#      $Id: sockstat.pl,v 1.1 1999/04/15 13:40:43 des Exp $
+#      $Id: sockstat.pl,v 1.3 1999/07/06 19:12:31 des Exp $
 #
 
 my (%myaddr, %hisaddr);
 my ($user, $cmd, $pid, $fd, $inet, $type, $proto, $sock, $laddr, $faddr);
 
 print <<EOH;
-USER     COMMAND      PID   FD PROTO  LOCAL ADDRESS        FOREIGN ADDRESS
+USER     COMMAND    PID   FD PROTO  LOCAL ADDRESS         FOREIGN ADDRESS
 EOH
 format STDOUT =
-@<<<<<<< @<<<<<<<<< @>>>> @>>> @<<    @<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<
-$user,   $cmd,      $pid, $fd, $proto,$laddr,              $faddr
+@<<<<<<< @<<<<<<< @>>>> @>>> @<<<<< @<<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<
+$user,   $cmd,    $pid, $fd, $proto,$laddr,               $faddr
 .
 
-open NETSTAT, "netstat -Aan |" or die "'netstat -Aan' failed: $!";
+open NETSTAT, "netstat -Aan -finet | tail +3 |" or die "'netstat' failed: $!";
 
 while (<NETSTAT>) {
     my ($sock, $proto, $recvq, $sendq, $laddr, $faddr, $state) = split;
-    next unless ($proto =~ m/tcp|udp/);
     ($myaddr{$sock}, $hisaddr{$sock}) = ($laddr, $faddr);
 }
 
