@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.5 1999/02/06 09:30:19 kato Exp $
+ *	$Id: pc98gdc.c,v 1.6 1999/03/02 12:34:24 kato Exp $
  */
 
 #include "gdc.h"
@@ -52,8 +52,7 @@
 
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
-
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
 
 #define TEXT_GDC	IO_GDC1	/* 0x60 */
 #define	ROW		25
@@ -66,26 +65,35 @@
 #define GDC_UNIT(dev)	minor(dev)
 #define GDC_MKMINOR(unit) (unit)
 
-static int		gdcprobe(struct isa_device *dev);
-static int		gdc_attach(struct isa_device *dev);
-
-struct isa_driver gdcdriver = {
-	gdcprobe,
-	gdc_attach,
-	DRIVER_NAME,
-	0,
-};
-
 typedef struct gdc_softc {
 	video_adapter_t	*adp;
 } gdc_softc_t;
 
+#define GDC_SOFTC(unit)	\
+	((gdc_softc_t *)devclass_get_softc(gdc_devclass, unit))
+
+devclass_t		gdc_devclass;
+
+static int		gdcprobe(device_t dev);
+static int		gdc_attach(device_t dev);
+
+static device_method_t gdc_methods[] = {
+	DEVMETHOD(device_probe,		gdcprobe),
+	DEVMETHOD(device_attach,	gdc_attach),
+	{ 0, 0 }
+};
+
+static driver_t gdcdriver = {
+	DRIVER_NAME,
+	gdc_methods,
+	DRIVER_TYPE_TTY,
+	sizeof(gdc_softc_t),
+};
+
+DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
+
 static int		gdc_probe_unit(int unit, gdc_softc_t *sc, int flags);
 static int		gdc_attach_unit(int unit, gdc_softc_t *sc, int flags);
-
-#define GDC_SOFTC(unit)	(gdc_softc[unit])
-
-static gdc_softc_t	*gdc_softc[NGDC];
 
 #if FB_INSTALL_CDEV
 
@@ -104,44 +112,22 @@ static struct  cdevsw vga_cdevsw = {
 #endif /* FB_INSTALL_CDEV */
 
 static int
-gdcprobe(struct isa_device *dev)
+gdcprobe(device_t dev)
 {
 	gdc_softc_t *sc;
-	int error;
 
-	if (dev->id_unit >= sizeof(gdc_softc)/sizeof(gdc_softc[0]))
-		return 0;
-	sc = gdc_softc[dev->id_unit]
-	   = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL)
-		return 0;
-
-	error = gdc_probe_unit(dev->id_unit, sc, dev->id_flags);
-	if (error) {
-		gdc_softc[dev->id_unit] = NULL;
-		free(sc, M_DEVBUF);
-		return 0;
-	}
-
-	dev->id_iobase = sc->adp->va_io_base;
-	dev->id_maddr = (caddr_t)BIOS_PADDRTOVADDR(sc->adp->va_mem_base);
-	dev->id_msize = sc->adp->va_mem_size;
-
-	return sc->adp->va_io_size;
+	device_set_desc(dev, "Generic GDC");
+	sc = device_get_softc(dev);
+	return gdc_probe_unit(device_get_unit(dev), sc, isa_get_flags(dev));
 }
 
 static int
-gdc_attach(struct isa_device *dev)
+gdc_attach(device_t dev)
 {
 	gdc_softc_t *sc;
 
-	if (dev->id_unit >= sizeof(gdc_softc)/sizeof(gdc_softc[0]))
-		return 0;
-	sc = gdc_softc[dev->id_unit];
-	if (sc == NULL)
-		return 0;
-
-	return ((gdc_attach_unit(dev->id_unit, sc, dev->id_flags)) ? 0 : 1);
+	sc = device_get_softc(dev);
+	return gdc_attach_unit(device_get_unit(dev), sc, isa_get_flags(dev));
 }
 
 static int

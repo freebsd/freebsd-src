@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.60 1999/01/28 09:19:16 kato Exp $
+ *	$Id: if_ed.c,v 1.61 1999/03/19 16:01:34 kato Exp $
  */
 
 /*
@@ -4300,7 +4300,6 @@ static void
 edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 {
 	struct pnp_cinfo d;
-	struct isa_device *dvp;
 
 	if (dev->id_unit >= NEDTOT)
 		return;
@@ -4321,9 +4320,7 @@ edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	if (dev->id_driver == NULL) {
 		dev->id_driver = &eddriver;
-		dvp = find_isadev(isa_devtab_net, &eddriver, 0);
-		if (dvp != NULL)
-			dev->id_id = dvp->id_id;
+		dev->id_id = isa_compat_nextid();
 	}
 
 	if ((dev->id_alive = ed_probe(dev)) != 0)
