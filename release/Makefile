@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.7 1995/06/06 08:03:17 jkh Exp $
+#	$Id: Makefile,v 1.192.2.8 1995/06/07 05:50:49 jkh Exp $
 #
 # How to roll a release:
 #
@@ -86,7 +86,7 @@ release:
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh )
+	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
@@ -125,7 +125,7 @@ rerelease:
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh )
+	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
