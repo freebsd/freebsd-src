@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ns.c,v 1.2 1998/08/09 18:52:07 abial Exp $
+ * $Id: ns.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 
@@ -55,8 +55,20 @@
 #include <net/if_dl.h>
 #include <sys/un.h>
 
+#ifdef BRIDGING
+#include <sys/param.h>
+#include <sys/mbuf.h>
+#include <net/ethernet.h>
+#include <net/if_types.h> /* IFT_ETHER */
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/if_ether.h>
+#include <net/bridge.h>
+#endif
+
 char *progname;
-int rflag=1;		/* print routing by default */
+int iflag=0;
+int rflag=0;
 int sflag=0;
 int pflag=0;
 
@@ -66,8 +78,12 @@ extern int optind;
 void
 usage()
 {
-	fprintf(stderr,"\n%s [-r | -s] [-p proto]\n",progname);
+	fprintf(stderr,"\n%s [-r | -i | -s [-p proto] ]\n",progname);
+#ifdef BRIDGING
+	fprintf(stderr,"  proto: {ip|tcp|udp|icmp|bdg}\n\n");
+#else
 	fprintf(stderr,"  proto: {ip|tcp|udp|icmp}\n\n");
+#endif
 }
 
 int if_num;
@@ -221,7 +237,7 @@ get_flags(char *buf, int flags)
 }
 
 int
-routing(char *proto)
+print_routing(char *proto)
 {
 	int mib[6],i=0,rt_len,if_len;
 	char *rt_buf,*if_buf,*next,*lim;
@@ -281,16 +297,47 @@ routing(char *proto)
 		i++;
 	}
 	if_num=i;
-	if_table=(struct sockaddr **)malloc(i*sizeof(struct sockaddr));
-	ifm_table=(struct if_msghdr **)malloc(i*sizeof(struct if_msghdr));
-	memset(ifm_table,0,sizeof(ifm_table));
+	if_table=(struct sockaddr **)calloc(i,sizeof(struct sockaddr));
+	ifm_table=(struct if_msghdr **)calloc(i,sizeof(struct if_msghdr));
+	if (iflag) {
+	    printf("\nInterface table:\n");
+	    printf("----------------\n");
+	    printf("Name  Mtu   Network       Address            "
+		    "Ipkts Ierrs    Opkts Oerrs  Coll\n");
+	}
 	i=0;
 	for(next=if_buf;next<lim;next+=ifm->ifm_msglen) {
+
 		ifm=(struct if_msghdr *)next;
 		if_table[i]=(struct sockaddr *)(ifm+1);
 		ifm_table[i]=ifm;
+
+		sa = if_table[i];
+		if (iflag && sa->sa_family == AF_LINK) {
+		    struct sockaddr_dl *sdl = (struct sockaddr_dl *) sa;
+
+		    printf("%-4s  %-5d <Link>   ",
+			sock_ntop(if_table[i], if_table[i]->sa_len),
+			ifm->ifm_data.ifi_mtu);
+		    if ( sdl->sdl_alen == 6) {
+			unsigned char *p = sdl->sdl_data + sdl->sdl_nlen ;
+				
+			printf("%02x.%02x.%02x.%02x.%02x.%02x   ",
+				p[0], p[1], p[2], p[3], p[4], p[5] );
+		    } else
+			printf("                    ");
+		    printf("%9d%6d%9d%6d%6d\n",
+			ifm->ifm_data.ifi_ipackets,
+			ifm->ifm_data.ifi_ierrors,
+			ifm->ifm_data.ifi_opackets,
+			ifm->ifm_data.ifi_oerrors,
+			ifm->ifm_data.ifi_collisions
+			);
+		}
 		i++;
 	}
+	if (!rflag)
+		return(0);
 	/* Now dump the routing table */
 	printf("\nRouting table:\n");
 	printf("--------------\n");
@@ -348,6 +395,10 @@ print_ip_stats()
 	mib[0]=CTL_NET;
 	mib[1]=PF_INET;
 	mib[2]=IPPROTO_IP;
+#ifndef IPCTL_STATS
+	printf("sorry, ip stats not available\n");
+	return -1 ;
+#else
 	mib[3]=IPCTL_STATS;
 	len=sizeof(struct ipstat);
 	if(sysctl(mib,4,&s,&len,NULL,0)<0) {
@@ -360,7 +411,9 @@ print_ip_stats()
 	printf("* Packets ok:\n");
 	printf("  %10lu fragments received\n",s.ips_fragments);
 	printf("  %10lu forwarded\n",s.ips_forward);
+#if __FreeBSD_version < 300001
 	printf("  %10lu fast forwarded\n",s.ips_fastforward);
+#endif
 	printf("  %10lu forwarded on same net (redirect)\n",s.ips_redirectsent);
 	printf("  %10lu delivered to upper level\n",s.ips_delivered);
 	printf("  %10lu total ip packets generated here\n",s.ips_localout);
@@ -384,7 +437,10 @@ print_ip_stats()
 	printf("  %10lu dropped due to no route\n",s.ips_noroute);
 	printf("  %10lu bad IP version\n",s.ips_badvers);
 	printf("  %10lu too long (more than max IP size)\n",s.ips_toolong);
+#if __FreeBSD_version < 300001
 	printf("  %10lu multicast for unregistered groups\n",s.ips_notmember);
+#endif
+#endif
 }
 
 print_tcp_stats()
@@ -395,6 +451,10 @@ print_tcp_stats()
 	mib[0]=CTL_NET;
 	mib[1]=PF_INET;
 	mib[2]=IPPROTO_TCP;
+#ifndef TCPCTL_STATS
+	printf("sorry, tcp stats not available\n");
+	return -1 ;
+#else
 	mib[3]=TCPCTL_STATS;
 	len=sizeof(struct tcpstat);
 	if(sysctl(mib,4,&s,&len,NULL,0)<0) {
@@ -467,6 +527,7 @@ print_tcp_stats()
 	printf("  %10lu bogus SYN, e.g. premature ACK\n",s.tcps_badsyn);
 	printf("  %10lu resends due to MTU discovery\n",s.tcps_mturesent);
 	printf("  %10lu listen queue overflows\n",s.tcps_listendrop);
+#endif
 }
 
 print_udp_stats()
@@ -497,7 +558,9 @@ print_udp_stats()
 	printf("  %10lu packets not for hashed PCBs\n",s.udpps_pcbhashmiss);
 	printf("* Packets sent:\n");
 	printf("  %10lu total output packets\n",s.udps_opackets);
+#if __FreeBSD_version < 300001
 	printf("  %10lu output packets on fast path\n",s.udps_fastout);
+#endif
 }
 
 char *icmp_names[]={
@@ -567,6 +630,8 @@ print_icmp_stats()
 int
 stats(char *proto)
 {
+	if (!sflag)
+		return 0 ;
 	if(pflag) {
 		if(proto==NULL) {
 			fprintf(stderr,"Option '-p' requires paramter.\n");
@@ -577,12 +642,18 @@ stats(char *proto)
 		if(strcmp(proto,"icmp")==0) print_icmp_stats();
 		if(strcmp(proto,"udp")==0) print_udp_stats();
 		if(strcmp(proto,"tcp")==0) print_tcp_stats();
+#ifdef BRIDGING
+		if(strcmp(proto,"bdg")==0) print_bdg_stats();
+#endif
 		return(0);
 	}
 	print_ip_stats();
 	print_icmp_stats();
 	print_udp_stats();
 	print_tcp_stats();
+#ifdef BRIDGING
+	print_bdg_stats();
+#endif
 	return(0);
 }
 
@@ -594,10 +665,13 @@ main(int argc, char *argv[])
 
 	progname=argv[0];
 
-	while((c=getopt(argc,argv,"rsp:"))!=-1) {
+	while((c=getopt(argc,argv,"irsp:"))!=-1) {
 		switch(c) {
 		case 'r':
 			rflag++;
+			break;
+		case 'i':
+			iflag++;
 			break;
 		case 's':
 			sflag++;
@@ -605,6 +679,7 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pflag++;
+			sflag++;
 			proto=optarg;
 			break;
 		case '?':
@@ -614,15 +689,49 @@ main(int argc, char *argv[])
 			break;
 		}
 	}
+	if (rflag == 0 && sflag == 0 && iflag == 0)
+		rflag = 1 ;
 	argc-=optind;
 	if(argc>0) {
 		usage();
 		exit(-1);
 	}
-	if(rflag) {
-		routing(proto);
-	} else {
-		stats(proto);
-	}
+	print_routing(proto);
+	stats(proto);
 	exit(0);
 }
+
+#ifdef BRIDGING
+int
+print_bdg_stats() /* print bridge statistics */
+{
+    int i, slen ;
+    struct bdg_stats s ;
+    int mib[4] ;
+
+    slen = sizeof(s);
+
+    mib[0] = CTL_NET ;
+    mib[1] = PF_LINK ;
+    mib[2] = IFT_ETHER ;
+    mib[3] = PF_BDG ;
+    if (sysctl(mib,4, &s,&slen,NULL,0)==-1) {
+	return 0 ; /* no bridging */
+    }
+    printf("-- Bridging statistics --\n") ;
+    printf(
+"Name__  ___in___ ___out__ ___fwd__ __drop__ __bcast_ __mcast_ __local_ ___unk__\n");
+    for (i = 0 ; i < 16 ; i++) {
+	printf("%-6s %8d%8d%8d%8d%8d%8d%8d%8d\n",
+	  s.s[i].name,
+	  s.s[i].p_in[(int)BDG_IN],
+	  s.s[i].p_in[(int)BDG_OUT],
+	  s.s[i].p_in[(int)BDG_FORWARD],
+	  s.s[i].p_in[(int)BDG_DROP],
+	  s.s[i].p_in[(int)BDG_BCAST],
+	  s.s[i].p_in[(int)BDG_MCAST],
+	  s.s[i].p_in[(int)BDG_LOCAL],
+	  s.s[i].p_in[(int)BDG_UNKNOWN] );
+    }
+}
+#endif
