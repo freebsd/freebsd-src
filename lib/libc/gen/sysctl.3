@@ -37,7 +37,8 @@
 .Os
 .Sh NAME
 .Nm sysctl ,
-.Nm sysctlbyname
+.Nm sysctlbyname ,
+.Nm sysctlnametomib
 .Nd get or set system information
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +49,8 @@
 .Fn sysctl "int *name" "u_int namelen" "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen"
 .Ft int
 .Fn sysctlbyname "const char *name" "void *oldp" "size_t *oldlenp" "void *newp" "size_t newlen"
+.Ft int
+.Fn sysctlnametomib "const char *name" "int *mibp" "size_t *sizep"
 .Sh DESCRIPTION
 The
 .Fn sysctl
@@ -125,6 +128,56 @@ If a new value is not to be set,
 should be set to NULL and
 .Fa newlen
 set to 0.
+.Pp
+The
+.Fn sysctlnametomib
+function accepts an ASCII representation of the name,
+looks up the integer name vector,
+and returns the numeric representation in the mib array pointed to by
+.Fa mibp .
+The number of elements in the mib array is given by the location specified by
+.Fa sizep
+before the call,
+and that location gives the number of entries copied after a successful call.
+The resulting
+.Fa mib
+and
+.Fa size
+may be used in subsequent
+.Fn sysctl
+calls to get the data associated with the requested ASCII name.
+This interface is intended for use by applications that want to
+repeatedly request the same variable (the
+.Fn sysctl
+function runs in about a third the time as the same request made via the
+.Fn sysctlbyname
+function).
+The
+.Fn sysctlbyname
+function is also useful for fetching mib prefixes and then adding
+a final component.
+For example, to fetch process information
+for processes with pid's less than 100:
+
+.Bd -literal -offset indent -compact
+int i, mib[4];
+size_t len;
+struct kinfo_proc kp;
+
+/* Fill out the first three components of the mib */
+len = 4;
+sysctlnametomib("kern.proc.pid", mib, &len);
+
+/* Fetch and print entries for pid's < 100 */
+for (i = 0; i < 100; i++) {
+	mib[3] = i;
+	len = sizeof(kp);
+	if (sysctl(mib, 4, &kp, &len, NULL, 0) == -1)
+		perror("sysctl");
+	else if (len > 0)
+		printkproc(&kp);
+}
+.Ed
 .Pp
 The top level names are defined with a CTL_ prefix in
 .Aq Pa sys/sysctl.h ,
