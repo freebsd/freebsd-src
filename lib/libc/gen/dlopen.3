@@ -36,7 +36,11 @@
 .Os
 .Dt DLOPEN 3
 .Sh NAME
-.Nm dlopen , dlsym , dlfunc , dlerror , dlclose
+.Nm dlopen ,
+.Nm dlsym ,
+.Nm dlfunc ,
+.Nm dlerror ,
+.Nm dlclose
 .Nd programmatic interface to the dynamic linker
 .Sh LIBRARY
 .Lb libc
@@ -231,6 +235,16 @@ interface, below, should be used, since
 .Fn getpid
 is a function and not a data object.)
 .Pp
+If
+.Fn dlsym
+is called with the special
+.Fa handle
+.Dv RTLD_SELF ,
+then the search for the symbol is limited to the shared object
+issuing the call to
+.Fn dlsym
+and those shared objects which were loaded after it.
+.Pp
 The
 .Fn dlsym
 function
@@ -340,4 +354,5 @@ retrieved via a call to
 .Xr ld 1 ,
 .Xr rtld 1 ,
 .Xr dladdr 3 ,
+.Xr dlinfo 3 ,
 .Xr link 5
