@@ -206,19 +206,6 @@ makefile(void)
 	ofp = fopen(path("hints.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("hints.c.new"));
-#if 0
-	/*
-	 * This is causing more pain than it is worth.  And besides, the
-	 * release has been fixed so that this isn't necessary anymore.
-	 * The boot floppies load hints now.
-	 */
-	if (hintmode == 0) {
-		snprintf(line, sizeof(line), "%s.hints", PREFIX);
-		ifp = fopen(line, "r");
-		if (ifp)
-			hintmode = 2;
-	}
-#endif
 	fprintf(ofp, "int hintmode = %d;\n", hintmode);
 	fprintf(ofp, "char static_hints[] = {\n");
 	if (ifp) {
@@ -257,6 +244,55 @@ makefile(void)
 		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("hints.c.new"), path("hints.c"));
+
+	if (env) {
+		ifp = fopen(env, "r");
+		if (ifp == NULL)
+			err(1, "%s", env);
+	} else {
+		ifp = NULL;
+	}
+	ofp = fopen(path("env.c.new"), "w");
+	if (ofp == NULL)
+		err(1, "%s", path("env.c.new"));
+	fprintf(ofp, "int envmode = %d;\n", envmode);
+	fprintf(ofp, "char static_env[] = {\n");
+	if (ifp) {
+		while (fgets(line, BUFSIZ, ifp) != 0) {
+			/* zap trailing CR and/or LF */
+			while ((s = rindex(line, '\n')) != NULL)
+				*s = '\0';
+			while ((s = rindex(line, '\r')) != NULL)
+				*s = '\0';
+			/* remove # comments */
+			s = index(line, '#');
+			if (s)
+				*s = '\0';
+			/* remove any whitespace and " characters */
+			s = line;
+			while (*s) {
+				if (*s == ' ' || *s == '\t' || *s == '"') {
+					while (*s) {
+						s[0] = s[1];
+						s++;
+					}
+					/* start over */
+					s = line;
+					continue;
+				}
+				s++;
+			}
+			/* anything left? */
+			if (*line == '\0')
+				continue;
+			fprintf(ofp, "\"%s\\0\"\n", line);
+		}
+	}
+	fprintf(ofp, "\"\\0\"\n};\n");
+	if (ifp)
+		fclose(ifp);
+	fclose(ofp);
+	moveifchanged(path("env.c.new"), path("env.c"));
 }
 
 /*

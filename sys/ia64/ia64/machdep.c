@@ -387,7 +387,10 @@ ia64_init()
 	if (bootinfo.kernend)
 		kernend = round_page(bootinfo.kernend);
 	preload_metadata = (caddr_t)bootinfo.modptr;
-	kern_envp = bootinfo.envp;
+	if (envmode == 1)
+		kern_envp = static_env;
+	else
+		kern_envp = bootinfo.envp;
 
 	/* Init basic tunables, including hz */
 	init_param();

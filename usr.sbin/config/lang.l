@@ -67,6 +67,7 @@ struct kt {
 	{ "config",	CONFIG },
 	{ "cpu",	CPU },
 	{ "device",	DEVICE },
+	{ "env",	ENV },
 	{ "hints",	HINTS },
 	{ "ident",	IDENT },
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
