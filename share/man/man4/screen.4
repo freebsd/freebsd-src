@@ -125,35 +125,37 @@ SGR	E[nm	Set character attributes:		--
 		n= 4 underscore (if supported by HW)
 		n= 5 blink (if supported by HW)
 		n= 7 reverse 
-		n=3X set foreground color (see table)
-		n=4X set background color (see table)
+		n=3X set ANSI foreground color
+		     (see table)
+		n=4X set ANSI background color
+		     (see table)
 
 		   X=0 black 	X=1 red
 		   X=2 green	X=3 brown
 		   X=4 blue	X=5 magenta
 		   X=6 cyan	X=7 light grey
-		   X=9 reset to	initial	ANSI value
+		   X=9 reset to normal ANSI value
 
 --	E[s	Save cursor position			sc
 
 --	E[u	Restore	saved cursor position		rc
 
---	E[x	Reset initial colors and attributes	--
+--      E[x     Reset normal colors and attributes      --
 		to their default values
 
---	E[1;nx	Set initial ANSI background color	--
+--      E[1;nx  Set normal ANSI background color        --
 		to n (see table)
 
---	E[2;nx	Set initial ANSI foreground color	--
+--      E[2;nx  Set normal ANSI foreground color        --
 		to n (see table)
 
---	E[3;nx	Set initial ANSI attribute directly	--
+--      E[3;nx  Set normal ANSI attribute directly      --
 		to n (n	from 0 to 255)
 
---	E[5;nx	Set initial ANSI reverse background	--
+--      E[5;nx  Set normal ANSI reverse background      --
 		color to n (see	table)
 
---	E[6;nx	Set initial ANSI reverse foreground	--
+--      E[6;nx  Set normal ANSI reverse foreground      --
 		color to n (see	table)
 
 		   n= 0	black	   n= 8	dark grey
@@ -165,7 +167,7 @@ SGR	E[nm	Set character attributes:		--
 		   n= 6	cyan	   n=14	light cyan
 		   n= 7	light grey n=15	white
 
---	E[7;nx	Set initial ANSI reverse attribute	--
+--      E[7;nx  Set normal ANSI reverse attribute       --
 		directly to n (n from 0	to 255)
 
 --	E[=p;dB	Set bell pitch (p) and duration (d),	--
@@ -175,19 +177,19 @@ SGR	E[nm	Set character attributes:		--
 --	E[=tC	Set cursor type, 1 selects a blinking   --
 			cursor, 0 a steady cursor.
 
---	E[=nA	Set the border color to color n
+--      E[=nA   Set the border color to n               --
 		(see table) (if supported by HW)
 
---	E[=nF	Set initial foreground color to	n	--
+--      E[=nF   Set normal foreground color to n        --
 		(see table)
 
---	E[=nG	Set initial background color to	n	--
+--      E[=nG   Set normal background color to n        --
 		(see table)
 
---	E[=nH	Set initial reverse foreground color	--
+--      E[=nH   Set normal reverse foreground color     --
 		to n (see table)
 
---	E[=nI	Set initial reverse background color	--
+--      E[=nI   Set normal reverse background color     --
 		to n (see table)
 
 		   n= 0	black	   n= 8	dark grey
