@@ -56,6 +56,15 @@ struct acpi_powerres_info {
 #define ACPI_PR_MAX		3	/* _PR[0-2] */
 	LIST_HEAD(, acpi_powerres_device_ref) reflist[ACPI_PR_MAX];
 };
+/*Event Structure */
+struct acpi_event {
+	STAILQ_ENTRY (acpi_event) ae_q;
+#define ACPI_EVENT_TYPE_FIXEDREG 0
+#define ACPI_EVENT_TYPE_GPEREG 1
+#define ACPI_EVENT_TYPE_EC 2
+	int ae_type;
+	int ae_arg;
+};
 
 /* softc */
 typedef struct acpi_softc {
@@ -67,11 +76,14 @@ typedef struct acpi_softc {
 	int	system_state;
 	int	system_state_initialized;
 	int	broken_wakeuplogic;
+	u_int32_t gpe0_mask;
+	u_int32_t gpe1_mask;
 	int	enabled;
 	u_int32_t ignore_events;
 	struct	acpi_system_state_package system_state_package;
 	LIST_HEAD(, acpi_powerres_info) acpi_powerres_inflist;
 	LIST_HEAD(, acpi_powerres_device) acpi_powerres_devlist;
+	STAILQ_HEAD(, acpi_event) event;
 } acpi_softc_t;
 
 /* Device State */
@@ -87,4 +99,6 @@ void		 acpi_set_powerres_state(acpi_softc_t *, struct aml_name *,
 				         u_int8_t);
 void		 acpi_powerres_set_sleeping_state(acpi_softc_t *, u_int8_t);
 
+/*Event queue*/
+void acpi_queue_event(int, int);
 #endif	/* !_DEV_ACPI_ACPI_H_ */
