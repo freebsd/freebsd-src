@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.17 1996/07/30 10:48:20 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.17.2.1 1997/06/29 10:42:15 jkh Exp $";
 #endif
 
 /*
@@ -384,6 +384,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    break;
 
 	case PLIST_FILE:
+	    last_file = p->name;
 	    sprintf(tmp, "%s/%s", Where, p->name);
 	    if (isdir(tmp)) {
 		whinge("Attempting to delete directory `%s' as a file\n"
@@ -408,27 +409,26 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 		}
 		if (Verbose)
 		    printf("Delete file %s\n", tmp);
-		if (!Fake && preserve) {
-		    if (!name)
-			whinge("preserve set but no package name supplied!");
-		    else {
-			char tmp2[FILENAME_MAX];
-
-			snprintf(tmp2, FILENAME_MAX, "%s.%s", tmp, name);
-			if (fexists(tmp2)) {
-			    (void)chflags(tmp, 0);
-			    delete_hierarchy(tmp, TRUE, TRUE);
-			    if (rename(tmp2, tmp))
-				whinge("preserve:  Unable to restore %s as %s, errno = %d", tmp2, tmp, errno);
+		if (!Fake) {
+		    if (delete_hierarchy(tmp, ign_err, nukedirs)) {
+			whinge("Unable to completely remove file '%s'", tmp);
+			fail = FAIL;
+		    }
+		    if (preserve) {
+			if (!name)
+			    whinge("preserve set but no package name supplied!");
+			else {
+			    char tmp2[FILENAME_MAX];
+			    
+			    snprintf(tmp2, FILENAME_MAX, "%s.%s", tmp, name);
+			    if (fexists(tmp2)) {
+				if (rename(tmp2, tmp))
+				    whinge("preserve:  Unable to restore %s as %s, errno = %d", tmp2, tmp, errno);
+			    }
 			}
 		    }
 		}
-		else if (!Fake && delete_hierarchy(tmp, ign_err, nukedirs)) {
-		    whinge("Unable to completely remove file '%s'", tmp);
-		    fail = FAIL;
-		}
 	    }
-	    last_file = p->name;
 	    break;
 
 	case PLIST_DIR_RM:
@@ -470,13 +470,17 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
     if (!fexists(dir)) {
 	if (!ign_err)
 	    whinge("%s `%s' doesn't really exist.", isdir(dir) ? "Directory" : "File", dir);
-    } else if (nukedirs) {
+	return !ign_err;
+    }
+    else if (nukedirs) {
 	if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
 	    return 1;
-    } else if (isdir(dir)) {
+    }
+    else if (isdir(dir)) {
 	if (RMDIR(dir) && !ign_err)
 	    return 1;
-    } else {
+    }
+    else {
 	if (REMOVE(dir, ign_err))
 	    return 1;
     }
