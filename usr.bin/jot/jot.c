@@ -54,7 +54,6 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <limits.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,21 +75,18 @@ int	randomize;
 int	infinity;
 int	boring;
 int	prec;
+int	longdata;
 int	intdata;
 int	chardata;
 int	nosign;
 int	nofinalnl;
-int	oflowlen;
-char	*oflowstr;
 char	*sepstring = "\n";
 char	format[BUFSIZ];
-struct sigaction act, oact;
 
-void	arith_oflow __P((int));
 void	getargs __P((int, char *[]));
 void	getformat __P((void));
 int		getprec __P((char *));
-void	putdata __P((double, long));
+int	putdata __P((double, long));
 static void usage __P((void));
 
 int
@@ -104,23 +100,18 @@ main(argc, argv)
 	register double	*y = &yd;
 	register long	*i = &id;
 
-	act.sa_handler = arith_oflow;
-	act.sa_flags = 0;
-	sigfillset(&act.sa_mask);
-	oflowstr = "caught SIGFPE: arithmetic overflow\n";
-	oflowlen = strlen(oflowstr);
-	if (sigaction(SIGFPE, &act, &oact))
-		err(1, "loading SIGFPE handler");
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
 			*y = (double) arc4random() / ULONG_MAX;
-			putdata(*y * *x + begin, reps - *i);
+			if (putdata(*y * *x + begin, reps - *i))
+				errx(1, "range error in conversion");
 		}
 	} else
 		for (*i = 1, *x = begin; *i <= reps || infinity; (*i)++, *x += s)
-			putdata(*x, reps - *i);
+			if (putdata(*x, reps - *i))
+				errx(1, "range error in conversion");
 	if (!nofinalnl)
 		putchar('\n');
 	exit(0);
@@ -317,24 +308,41 @@ getargs(ac, av)
 		infinity = 1;
 }
 
-void
+int
 putdata(x, notlast)
 	double x;
 	long notlast;
 {
 
-	if (boring)				/* repeated word */
+	if (boring)
 		printf(format);
-	else if (chardata)			/* character representation */
-		printf(format, (int)x);
-	else if (intdata && nosign)		/* scalar */
-		printf(format, (unsigned long)x);
-	else if (intdata)
-		printf(format, (long)x);
-	else					/* real */
+	else if (longdata && nosign) {
+		if (x <= (double)ULONG_MAX && x >= (double)0)
+			printf(format, (unsigned long)x);
+		else
+			return (1);
+	} else if (longdata) {
+		if (x <= (double)LONG_MAX && x >= (double)LONG_MIN)
+			printf(format, (long)x);
+		else
+			return (1);
+	} else if (chardata || (intdata && !nosign)) {
+		if (x <= (double)INT_MAX && x >= (double)INT_MIN)
+			printf(format, (int)x);
+		else
+			return (1);
+	} else if (intdata) {
+		if (x <= (double)UINT_MAX && x >= (double)0)
+			printf(format, (unsigned int)x);
+		else
+			return (1);
+
+	} else
 		printf(format, x);
 	if (notlast != 0)
 		fputs(sepstring, stdout);
+
+	return (0);
 }
 
 static void
@@ -368,7 +376,7 @@ void
 getformat()
 {
 	register char	*p;
-	int dot, hash, space, sign, numbers, islong = 0;
+	int dot, hash, space, sign, numbers = 0;
 	char *s;
 
 	if (boring)				/* no need to bother */
@@ -401,18 +409,18 @@ getformat()
 			    ((*p == '+' || *p == '-') && !(numbers|dot|sign++))
 			    || (*p == '.' && !(dot++)))
 				p++;
-			else if (*p == '$' || *p == '*')
-				errx(1, "unsupported format character %c", *p);
-			else if (*p == '\0')
-				errx(1, "missing format character");
 			else
-				errx(1, "illegal format character %c", *p);
+				goto fmt_broken;
+		}
+		if (*p == 'l') {
+			longdata = 1;
+			if (*++p == 'l') {
+				if (p[1] != '\0')
+					p++;
+				goto fmt_broken;
+			}
 		}
 		switch (*p) {
-		case 'l':
-			islong = 1;
-			p++;
-			/* FALLTHROUGH */
 		case 'o': case 'u': case 'x': case 'X':
 			intdata = nosign = 1;
 			break;
@@ -420,32 +428,29 @@ getformat()
 			intdata = 1;
 			break;
 		case 'D':
-			if (!islong) {
+			if (!longdata) {
 				intdata = 1;
 				break;
 			}
 		case 'O': case 'U':
-			if (!islong) {
+			if (!longdata) {
 				intdata = nosign = 1;
 				break;
 			}
 		case 'c':
-			if (!(intdata | islong)) {
+			if (!(intdata | longdata)) {
 				chardata = 1;
 				break;
 			}
-		case 's':
-			errx(1, "cannot convert numeric data to strings");
-			break;
-		case 'h': case 'n': case 'p': case 'q': case 'L':
+		case 'h': case 'n': case 'p': case 'q': case 's': case 'L':
 		case '$': case '*':
-			errx(1, "unsupported format character %c", *p);
-			/* NOTREACHED */
+			goto fmt_broken;
 		case 'f': case 'e': case 'g': case 'E': case 'G':
-			if (!islong)
+			if (!longdata)
 				break;
 			/* FALLTHROUGH */
 		default:
+fmt_broken:
 			*++p = '\0';
 			errx(1, "illegal or unsupported format '%s'", s);
 			/* NOTREACHED */
@@ -460,12 +465,4 @@ getformat()
 				break;
 			}
 	}
-}
-
-void
-arith_oflow(int sig)
-{
-
-	write(STDERR_FILENO, oflowstr, oflowlen);
-	_exit(sig);
 }
