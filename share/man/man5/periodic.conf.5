@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2004
+.Dd November 24, 2004
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -486,6 +486,13 @@ Set to
 .Dq YES
 to show log entries for packets denied by
 .Xr ipf 8
+since yesterday's check.
+.It Va daily_status_security_pfdenied_enable
+.Pq Vt bool
+Set to
+.Dq YES
+to show log entries for packets denied by
+.Xr pf 4
 since yesterday's check.
 .It Va daily_status_security_ipfwlimit_enable
 .Pq Vt bool
