@@ -9,11 +9,13 @@
 .Nd pc keyboard interface
 .Sh DESCRIPTION
 
-The PC keyboard is used as the console character input device. The keyboard
+The PC keyboard is used as the console character input device.
+The keyboard
 is owned by the current virtual console.
 To switch between the virtual consoles use the sequence 
 .Ar ALT+Fn ,
-which means hold down ALT and press one of the function keys. The 
+which means hold down ALT and press one of the function keys.
+The 
 virtual console with the same number as the function key is then
 selected as the current virtual console and given exclusive use of
 the keyboard and display.
@@ -22,11 +24,15 @@ The console allows entering values that are not physically
 present on the keyboard via a special keysequence.
 To use this facility press and hold down ALT,
 then enter a decimal number from 0-255 via the numerical keypad, then
-release ALT. The entered value is then used as the ASCII value for one
-character. This way it is possible to enter any ASCII value, not present
+release ALT.
+The entered value is then used as the ASCII value for one
+character.
+This way it is possible to enter any ASCII value, not present
 on the keyboard.
-The console driver also includes a history function. It is activated by
-pressing the scroll-lock key. This holds the display, and enables the cursor
+The console driver also includes a history function.
+It is activated by
+pressing the scroll-lock key.
+This holds the display, and enables the cursor
 arrows for scrolling up and down through the last scrolled out lines.
 
 The keyboard is configurable to suit the individual user and the different
@@ -44,13 +50,16 @@ The keys on the keyboard can have any of the following functions:
 
 
 The keyboard is seen as a number of keys numbered from 1 to n. This 
-number is often referred to as the "scancode" for a given key. The number
+number is often referred to as the "scancode" for a given key.
+The number
 of the key is transmitted as an 8 bit char with bit 7 as 0 when a key is 
-pressed, and the number with bit 7 as 1 when released. This makes it 
+pressed, and the number with bit 7 as 1 when released.
+This makes it 
 possible to make the mapping of the keys fully configurable.
 
 The meaning of every key is programmable via the PIO_KEYMAP ioctl call, that
-takes a structure keymap_t as argument. The layout of this structure is as
+takes a structure keymap_t as argument.
+The layout of this structure is as
 follows:
 .Pp
 .Bd -literal -offset indent
@@ -65,10 +74,12 @@ follows:
 .Ed
 .Pp
 The field n_keys tells the system how many keydefinitions (scancodes)
-follows. Each scancode is then specified in the key_t substructure.
+follows.
+Each scancode is then specified in the key_t substructure.
 
 Each scancode can be translated to any of 8 different values, depending
-on the shift, control, and alt state. These eight possibilities are
+on the shift, control, and alt state.
+These eight possibilities are
 represented by the map array, as shown below:
 
                                                             alt
@@ -83,7 +94,8 @@ scancode 0x1E. The eight states are as shown, giving the 'A' key its
 normal behavior. 
 The spcl field is used to give the key "special" treatment, and is
 interpreted as follows. 
-Each bit corresponds to one of the states above. If the bit is 0 the 
+Each bit corresponds to one of the states above.
+If the bit is 0 the 
 key emits the number defined in the corresponding map[] entry. 
 If the bit is 1 the key is "special". This means it does not emit 
 anything; instead it changes the "state". That means it is a shift, 
@@ -96,7 +108,8 @@ num-lock (2), both (3) or ignore both (0).
 The
 .Xr kbdcontrol 1
 utility is used to load such a description into/outof
-the kernel at runtime. This makes it possible to change the key
+the kernel at runtime.
+This makes it possible to change the key
 assignments at runtime, or more important to get (GIO_KEYMAP ioctl)
 the exact key meanings from the kernel (fx. used by the X server).
 

@@ -84,7 +84,8 @@ Always zero.
 .It bit 2
 Left button status; cleared if pressed, otherwise set.
 .It bit 1
-Middle button status; cleared if pressed, otherwise set. Always one,
+Middle button status; cleared if pressed, otherwise set.
+Always one,
 if the device does not have the middle button.
 .It bit 0
 Right button status; cleared if pressed, otherwise set.
@@ -104,21 +105,26 @@ The second half of the vertical movement count in two's complement;
 -128 through 127. To obtain the full vertical movement count, add
 the byte 3 and 5.
 .It Byte 6
-The bit 7 is always zero. The lower 7 bits encode the first half of 
+The bit 7 is always zero.
+The lower 7 bits encode the first half of 
 Z axis movement count in two's complement; -64 through 63.
 .It Byte 7
-The bit 7 is always zero. The lower 7 bits encode the second half of 
+The bit 7 is always zero.
+The lower 7 bits encode the second half of 
 the Z axis movement count in two's complement; -64 through 63.
 To obtain the full Z axis movement count, add the byte 6 and 7.
 .It Byte 8
-The bit 7 is always zero. The bits 0 through 6 reflect the state
+The bit 7 is always zero.
+The bits 0 through 6 reflect the state
 of the buttons 4 through 10.
-If a button is pressed, the corresponding bit is cleared. Otherwise
+If a button is pressed, the corresponding bit is cleared.
+Otherwise
 the bit is set.
 .El
 .Pp
 The first 5 bytes of this format is compatible with the MouseSystems
-format. The additional 3 bytes have their MSBs always set to zero. 
+format.
+The additional 3 bytes have their MSBs always set to zero. 
 Thus, if the user program can interpret the MouseSystems data format and
 tries to find the first byte of the format by detecting the bit pattern
 10000xxxb, 
@@ -130,8 +136,10 @@ Refer to manual pages of individual drivers for details.
 .Sh IOCTLS
 The following
 .Xr ioctl 2
-commands are defined for the mouse drivers. The degree of support
-varies from one driver to another. This section gives general 
+commands are defined for the mouse drivers.
+The degree of support
+varies from one driver to another.
+This section gives general 
 description of the commands.
 Refer to manual pages of individual drivers for specific details.
 .Pp
@@ -159,7 +167,8 @@ typedef struct mousehw {
 .Pp
 The
 .Dv buttons
-field holds the number of buttons detected by the driver. The driver
+field holds the number of buttons detected by the driver.
+The driver
 may put an arbitrary value, such as two, in this field, if it cannot
 determine the exact number.
 .Pp
@@ -195,7 +204,8 @@ constants.
 .Pp
 The
 .Dv hwid
-is the ID value returned by the pointing device. It
+is the ID value returned by the pointing device.
+It
 depend on the interface type; refer to the manual page of 
 specific mouse drivers for possible values.
 .Pp
@@ -251,7 +261,8 @@ The array
 holds a bit mask and pattern to detect the first byte of the
 data packet.
 .Dv syncmask[0]
-is the bit mask to be ANDed with a byte. If the result is equal to
+is the bit mask to be ANDed with a byte.
+If the result is equal to
 .Dv syncmask[1] ,
 the byte is likely to be the first byte of the data packet.
 Note that this method of detecting the first byte is not 100% reliable,
@@ -267,7 +278,8 @@ Only
 .Dv level 
 and 
 .Dv accelfactor
-may be modifiable. Setting values in the other field does not generate
+may be modifiable.
+Setting values in the other field does not generate
 error and has no effect.
 .Pp
 If you do not want to change the current setting of a field, put -1
@@ -358,7 +370,8 @@ field will also be set.
 .Pp
 The other fields hold movement counts since the last 
 .Dv MOUSE_GETSTATUS
-call. The internal counters will be reset after every call to this
+call.
+The internal counters will be reset after every call to this
 command.
 .El
 .Sh FILES

@@ -64,28 +64,36 @@ Lite-On/Macronix 82c115 PNIC II
 .El
 .Pp
 All of these chips have the same general register layout, DMA
-descriptor format and method of operation. All of the clone chips
-are based on the 21143 design with various modifications. The
+descriptor format and method of operation.
+All of the clone chips
+are based on the 21143 design with various modifications.
+The
 21143 itself has support for 10baseT, BNC, AUI, MII and symbol
 media attachments, 10 and 100Mbps speeds in full or half duplex,
-built in NWAY autonegotiation and wake on LAN. The 21143 also
+built in NWAY autonegotiation and wake on LAN.
+The 21143 also
 offers several receive filter programming options including
 perfect filtering, inverse perfect filtering and hash table
 filtering.
 .Pp
 Some clone chips duplicate the 21143 fairly closely while others
-only maintain superficial simularities. Some support only MII
-media attachments. Others use different receiver filter programming
-mechanisms. At least one supports only chained DMA descriptors
+only maintain superficial simularities.
+Some support only MII
+media attachments.
+Others use different receiver filter programming
+mechanisms.
+At least one supports only chained DMA descriptors
 (most support both chained descriptors and contiguously allocated
 fixed size rings). Some chips (especially the PNIC) also have
-peculiar bugs. The
+peculiar bugs.
+The
 .Nm
 driver does its best to provide generalized support for all
 of these chipsets in order to keep special case code to a minimun.
 .Pp
 These chips are used by many vendors which makes it
-difficult provide a complete list of all supported cards. The
+difficult provide a complete list of all supported cards.
+The
 following NICs are known to work with the
 .Nm
 driver at this time:
@@ -146,24 +154,29 @@ Note: the built-in NWAY autonegotiation on the original PNIC 82c168
 chip is horribly broken and is not supported by the
 .Nm
 driver at this time: the chip will operate in any speed or duplex
-mode, however these must be set manually. The original 82c168 appears
+mode, however these must be set manually.
+The original 82c168 appears
 on very early revisions of the LinkSys LNE100TX and Matrox FastNIC.
 .It 10baseT/UTP
-Set 10Mbps operation. The
+Set 10Mbps operation.
+The
 .Ar mediaopt
 option can also be used to enable
 .Ar full-duplex
-operation. Not specifying
+operation.
+Not specifying
 .Ar full duplex
 implies
 .Ar half-duplex
 mode.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation. The
+Set 100Mbps (fast ethernet) operation.
+The
 .Ar mediaopt
 option can also be used to enable
 .Ar full-duplex
-operation. Not specifying
+operation.
+Not specifying
 .Ar full duplex
 implies
 .Ar half-duplex
@@ -176,7 +189,8 @@ driver supports the following media options:
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
-Force full duplex operation. The interface will operate in
+Force full duplex operation.
+The interface will operate in
 half duplex mode if this media option is not specified.
 .El
 .Pp
@@ -193,40 +207,49 @@ A fatal initialization error has occurred.
 .It "dc%d: watchdog timeout"
 A packet was queued for transmission and a transmit command was
 issued, however the device failed to acknowledge the transmission
-before a timeout expired. This can happen if the device is unable
+before a timeout expired.
+This can happen if the device is unable
 to deliver interrupts for some reason, of if there is a problem with
 the network connection (cable).
 .It "dc%d: no memory for rx list"
 The driver failed to allocate an mbuf for the receiver ring.
 .It "dc%d: TX underrun -- increasing TX threshold"
 The device generated a transmit underrun error while attempting to
-DMA and transmit a packet. This happens if the host is not able to
-DMA the packet data into the NIC's FIFO fast enough. The driver
+DMA and transmit a packet.
+This happens if the host is not able to
+DMA the packet data into the NIC's FIFO fast enough.
+The driver
 will dynamically increase the transmit start threshold so that
 more data must be DMAed into the FIFO before the NIC will start
 transmitting it onto the wire.
 .It "dc%d: TX underrun -- using store and forward mode"
 The device continued to generate transmit underruns even after all
 possible transmit start threshold settings had been tried, so the
-driver programmed the chip for store and forward mode. In this mode,
+driver programmed the chip for store and forward mode.
+In this mode,
 the NIC will not begin transmission until the entire packet has been
 transfered into its FIFO memory.
 .It "dc%d: chip is in D3 power state -- setting to D0"
 This message applies only to adapters which support power
-management. Some operating systems place the controller in low power
+management.
+Some operating systems place the controller in low power
 mode when shutting down, and some PCI BIOSes fail to bring the chip
-out of this state before configuring it. The controller loses all of
+out of this state before configuring it.
+The controller loses all of
 its PCI configuration in the D3 state, so if the BIOS does not set
 it back to full power mode in time, it won't be able to configure it
-correctly. The driver tries to detect this condition and bring
+correctly.
+The driver tries to detect this condition and bring
 the adapter back to the D0 (full power) state, but this may not be
-enough to return the driver to a fully operational condition. If
+enough to return the driver to a fully operational condition.
+If
 you see this message at boot time and the driver fails to attach
 the device as a network interface, you will have to perform second
 warm boot to have the device properly configured.
 .Pp
 Note that this condition only occurs when warm booting from another
-operating system. If you power down your system prior to booting
+operating system.
+If you power down your system prior to booting
 .Fx ,
 the card should be configured correctly.
 .El
@@ -272,13 +295,16 @@ driver was written by
 .Sh BUGS
 The Macronix application notes claim that in order to put the
 chips in normal operation, the driver must write a certian magic
-number into the CSR16 register. The numbers are documented in
+number into the CSR16 register.
+The numbers are documented in
 the app notes, but the exact meaning of the bits is not.
 .Pp
 The 98713A seems to have a problem with 10Mbps full duplex mode.
 The transmitter works but the receiver tends to produce many
-unexplained errors leading to very poor overall performance. The
-98715A does not exhibit this problem. All other modes on the
+unexplained errors leading to very poor overall performance.
+The
+98715A does not exhibit this problem.
+All other modes on the
 98713A seem to work correctly.
 .Pp
 The original 82c168 PNIC chip has built in NWAY support which is
@@ -293,7 +319,8 @@ autonegotiation and work correctly.)
 The
 .Nm
 driver programs 82c168 and 82c169 PNIC chips to use the store and
-forward setting for the transmit start threshold by default. This
+forward setting for the transmit start threshold by default.
+This
 is to work around problems with some NIC/PCI bus combinations where
 the PNIC can transmit corrupt frames when operating at 100Mbps,
 probably due to PCI DMA burst transfer errors.
@@ -301,16 +328,19 @@ probably due to PCI DMA burst transfer errors.
 The 82c168 and 82c169 PNIC chips also have a receiver bug that
 sometimes manifests during periods of heavy receive and transmit
 activity, where the chip will improperly DMA received frames to
-the host. The chips appear to upload several kilobytes of garbage
+the host.
+The chips appear to upload several kilobytes of garbage
 data along with the received frame data, dirtying several RX buffers
-instead of just the expected one. The
+instead of just the expected one.
+The
 .Nm
 driver detects this condition and will salvage the frame, however
 it incurs a serious performance penalty in the process.
 .Pp
 The PNIC chips also sometimes generate a transmit underrun error when
 the driver attempts to download the receiver filter setup frame, which
-can result in the receive filter being incorrectly programmed. The
+can result in the receive filter being incorrectly programmed.
+The
 .Nm
 driver will watch for this condition and requeue the setup frame until
 it is transfered successfully.
@@ -318,11 +348,13 @@ it is transfered successfully.
 The ADMtek AL981 chip (and possibly the AN985 as well) has been observed
 to sometimes wedge on transmit: this appears to happen when the driver
 queues a sequence of frames which cause it to wrap from the end of the
-the transmit descriptor ring back to the beginning. The
+the transmit descriptor ring back to the beginning.
+The
 .Nm
 driver attempts to avoid this condition by not queing any frames past
 the end of the transmit ring during a single invocation of the
 .Fn dc_start
-routine. This workaround has a negligible impact on transmit performance.
+routine.
+This workaround has a negligible impact on transmit performance.
 
 

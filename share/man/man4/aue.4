@@ -53,13 +53,16 @@ SMC 2202USB.
 .Pp
 The Pegasus contains a 10/100
 ethernet MAC with MII interface and is designed to work with both
-ethernet and HomePNA transceivers. Although designed to interface with
+ethernet and HomePNA transceivers.
+Although designed to interface with
 100Mbps peripherals, the existing USB standard specifies a maximum
-transfer speed of 12Mbps. Users should therefore not expect to actually
+transfer speed of 12Mbps.
+Users should therefore not expect to actually
 achieve 100Mbps speeds with these devices.
 .Pp
 The Pegasus supports a 64-bit multicast hash table, single perfect
-filter entry for the station address and promiscuous mode. Packets are
+filter entry for the station address and promiscuous mode.
+Packets are
 received and transmitted over separate USB bulk transfer endpoints.
 .Pp
 The
@@ -74,21 +77,25 @@ the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 file.
 .It 10baseT/UTP
-Set 10Mbps operation. The
+Set 10Mbps operation.
+The
 .Ar mediaopt
 option can also be used to enable
 .Ar full-duplex
-operation. Not specifying
+operation.
+Not specifying
 .Ar full duplex
 implies
 .Ar half-duplex
 mode.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation. The
+Set 100Mbps (fast ethernet) operation.
+The
 .Ar mediaopt
 option can also be used to enable
 .Ar full-duplex
-operation. Not specifying
+operation.
+Not specifying
 .Ar full duplex
 implies
 .Ar half-duplex
@@ -101,7 +108,8 @@ driver supports the following media options:
 .Pp
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It full-duplex
-Force full duplex operation. The interface will operate in
+Force full duplex operation.
+The interface will operate in
 half duplex mode if this media option is not specified.
 .El
 .Pp

@@ -40,9 +40,11 @@ For a card without bridge driver support, and a non-PnP card:
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCM audio play and capture. This driver
+driver provides support for PCM audio play and capture.
+This driver
 also supports various PCI and WSS/MSS compatible ISA sound cards, and
-AC97 mixer. True full duplex operation is available on most cards.
+AC97 mixer.
+True full duplex operation is available on most cards.
 .Pp
 If your sound card is supported by a bridge driver,
 .Nm
@@ -55,13 +57,16 @@ cards). Flags are set to 0 for cards not using a secondary DMA
 channel, or to 0x10 + C to specify channel C.
 .Pp
 The driver works best with WSS/MSS cards, which have a very clean
-architecture and an orthogonal set of features. They also happen to be
+architecture and an orthogonal set of features.
+They also happen to be
 among the cheapest audio cards on the market.
 .Pp
 The driver does its best to recognize the installed harware and drive
 it correctly, so that you don't have to give too many details in the
-kernel config files. For PCI and ISA PnP cards this is actually easy
-since they identify themselves. For legacy ISA cards, the driver looks
+kernel config files.
+For PCI and ISA PnP cards this is actually easy
+since they identify themselves.
+For legacy ISA cards, the driver looks
 for MSS cards at addresses 0x530 and 0x604 (obviously, unless overridden
 in the kernel config file by specifying an address).
 
@@ -77,7 +82,8 @@ list of the supported ioctls.
 
 .Sh SUPPORTED CARDS
 .Pp
-Below we include a list of supported codecs/cards. If your sound card
+Below we include a list of supported codecs/cards.
+If your sound card
 is not listed here, it may be supported by a bridge driver.
 
 .Bl -tag -width 2m  % begin list
@@ -88,13 +94,15 @@ This chipset is used, among others, on the A/Open AW35 and AW32, on
 some Intel motherboards, and (the CS4231) on some non-PnP cards.
 .Pp
 The CS4232 is reported as buggy in the Voxware documentation but
-I am not sure if this is true. On one of my Intel motherboards,
+I am not sure if this is true.
+On one of my Intel motherboards,
 capture does not work simply because the capture DMA channel is
 not wired to the ISA DMA controller.
 
 .It Yamaha OPL-SAx (ISA)
 .Pp
-Works perfectly in all modes. This chip is used in several PnP cards,
+Works perfectly in all modes.
+This chip is used in several PnP cards,
 but also (in non-PnP mode) on motherboards and laptops (e.g. the
 Toshiba Libretto).
 
