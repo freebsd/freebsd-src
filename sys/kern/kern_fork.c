@@ -148,6 +148,8 @@ rfork(p, uap)
 
 int	nprocs = 1;				/* process 0 */
 static int nextpid = 0;
+SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &nextpid, 0, 
+    "Last used PID");
 
 /*
  * Random component to nextpid generation.  We mix in a random factor to make
