@@ -76,8 +76,8 @@ Int_Open_Disk(const char *name, u_long size)
 #endif
 	u_long offset = 0;
 
-	strcpy(device, _PATH_DEV);
-	strcat(device, name);
+	strlcpy(device, _PATH_DEV, sizeof(device));
+	strlcat(device, name, sizeof(device));
 
 	d = (struct disk *)malloc(sizeof *d);
 	if(!d) return NULL;
@@ -197,7 +197,7 @@ Int_Open_Disk(const char *name, u_long size)
 		if (! ds.dss_slices[i].ds_size)
 			continue;
 		ds.dss_slices[i].ds_offset -= offset;
-		sprintf(sname, "%ss%d", name, i - 1);
+		snprintf(sname, sizeof(sname), "%ss%d", name, i - 1);
 #ifdef PC98
 		subtype = ds.dss_slices[i].ds_type |
 			ds.dss_slices[i].ds_subtype << 8;
@@ -260,8 +260,8 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j, k;
 
-		strcpy(pname, _PATH_DEV);
-		strcat(pname, sname);
+		strlcpy(pname, _PATH_DEV, sizeof(pname));
+		strlcat(pname, sname, sizeof(pname));
 		j = open(pname, O_RDONLY);
 		if (j < 0) {
 #ifdef DEBUG
@@ -294,7 +294,7 @@ Int_Open_Disk(const char *name, u_long size)
 			    dl.d_partitions[j].p_offset >
 			    ds.dss_slices[i].ds_size)
 				continue;
-			sprintf(pname, "%s%c", sname, j + 'a');
+			snprintf(pname, sizeof(pname), "%s%c", sname, j + 'a');
 			if (Add_Chunk(d,
 				dl.d_partitions[j].p_offset +
 				ds.dss_slices[i].ds_offset,
@@ -325,8 +325,8 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname, _PATH_DEV);
-		strcat(pname, name);
+		strlcpy(pname, sizeof(pname), _PATH_DEV);
+		strlcat(pname, sizeof(pname), name);
 		j = open(pname, O_RDONLY);
 		if (j < 0) {
 #ifdef DEBUG
@@ -360,7 +360,7 @@ Int_Open_Disk(const char *name, u_long size)
 			    dl.d_partitions[j].p_offset >
 			    ds.dss_slices[WHOLE_DISK_SLICE].ds_size)
 				continue;
-			sprintf(pname, "%s%c", name, j + 'a');
+			snprintf(pname, sizeof(pname), "%s%c", name, j + 'a');
 			if (Add_Chunk(d,
 				      dl.d_partitions[j].p_offset,
 				      dl.d_partitions[j].p_size,
@@ -529,8 +529,9 @@ Disk_Names()
 		if(disk_cnt >= MAX_NO_DISKS)
 			break;
 		for (i = 0; i < MAX_NO_DISKS; i++) {
-			sprintf(diskname, "%s%d", device_list[j], i);
-			sprintf(disk, _PATH_DEV"%s", diskname);
+			snprintf(diskname, sizeof(diskname), "%s%d",
+				device_list[j], i);
+			snprintf(disk, sizeof(disk), _PATH_DEV"%s", diskname);
 			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
 				continue;
 			if ((fd = open(disk, O_RDWR)) == -1)
