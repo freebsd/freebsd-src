@@ -134,7 +134,7 @@ int
 puc_attach(device_t dev, const struct puc_device_description *desc)
 {
 	char *typestr;
-	int bidx, childunit, i, irq_setup, rid;
+	int bidx, childunit, i, irq_setup, rid, type;
 	struct puc_softc *sc;
 	struct puc_device *pdev;
 	struct resource *res;
@@ -183,15 +183,21 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 
 		if (sc->sc_bar_mappings[bidx].res != NULL)
 			continue;
-		res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-		    0ul, ~0ul, 1, RF_ACTIVE);
+
+		type = (sc->sc_desc->ports[i].flags & PUC_FLAGS_MEMORY)
+		    ? SYS_RES_MEMORY : SYS_RES_IOPORT;
+
+		res = bus_alloc_resource(dev, type, &rid, 0ul, ~0ul, 1,
+		    RF_ACTIVE);
 		if (res == NULL) {
 			printf("could not get resource\n");
 			continue;
 		}
+		sc->sc_bar_mappings[bidx].type = type;
 		sc->sc_bar_mappings[bidx].res = res;
 #ifdef PUC_DEBUG
-		printf("port rid %d bst %x, start %x, end %x\n", rid,
+		printf("%s rid %d bst %x, start %x, end %x\n",
+		    (type == SYS_RES_MEMORY) ? "memory" : "port", rid,
 		    (u_int)rman_get_bustag(res), (u_int)rman_get_start(res),
 		    (u_int)rman_get_end(res));
 #endif
@@ -229,13 +235,14 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		rle = resource_list_find(&pdev->resources, SYS_RES_IRQ, 0);
 		rle->res = sc->irqres;
 
-		/* Now fake an IOPORT resource */
+		/* Now fake an IOPORT or MEMORY resource */
 		res = sc->sc_bar_mappings[bidx].res;
-		resource_list_add(&pdev->resources, SYS_RES_IOPORT, 0,
+		type = sc->sc_bar_mappings[bidx].type;
+		resource_list_add(&pdev->resources, type, 0,
 		    rman_get_start(res) + sc->sc_desc->ports[i].offset,
 		    rman_get_start(res) + sc->sc_desc->ports[i].offset + 8 - 1,
 		    8);
-		rle = resource_list_find(&pdev->resources, SYS_RES_IOPORT, 0);
+		rle = resource_list_find(&pdev->resources, type, 0);
 
 		if (sc->barmuxed == 0) {
 			rle->res = sc->sc_bar_mappings[bidx].res;
@@ -264,8 +271,7 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		if (sc->sc_ports[i].dev == NULL) {
 			if (sc->barmuxed) {
 				bus_space_unmap(rman_get_bustag(rle->res),
-						rman_get_bushandle(rle->res),
-						8);
+				    rman_get_bushandle(rle->res), 8);
 				free(rle->res, M_DEVBUF);
 				free(pdev, M_DEVBUF);
 			}
