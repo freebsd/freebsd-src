@@ -1,12 +1,13 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.8 1995/08/27 20:26:40 joerg Exp $
+#	$Id: Makefile,v 1.9 1996/02/03 13:27:54 joerg Exp $
 
 PROG=	sh
-SRCS=	alias.c builtins.c cd.c echo.c error.c eval.c exec.c expand.c \
+SRCS=	alias.c arith.y arith_lex.l builtins.c cd.c echo.c error.c eval.c \
+	exec.c expand.c \
 	histedit.c input.c jobs.c mail.c main.c memalloc.c miscbltin.c \
 	mystring.c nodes.c options.c parser.c printf.c redir.c show.c \
 	signames.c syntax.c trap.c output.c var.c
-OBJS+=	init.o arith.o arith_lex.o
+OBJS+=	init.o
 DPADD=  ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 LDADD=  -ll -ledit -ltermcap
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
@@ -17,7 +18,7 @@ CFLAGS+=-DSHELL -I. -I${.CURDIR}
 CLEANFILES+=\
 	builtins.c builtins.h init.c mkinit mknodes mksignames mksyntax \
 	nodes.c nodes.h signames.c signames.h syntax.c syntax.h token.def \
-	y.tab.h
+	arith.tab.h
 
 .depend parser.o: token.def
 token.def: mktokens
