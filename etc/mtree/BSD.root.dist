@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.40 1999/04/19 14:33:31 peter Exp $
+#	$Id: BSD.root.dist,v 1.41 1999/08/23 05:12:42 rgrimes Exp $
 #
 # Please see the file README before making changes to this file.
 #
@@ -18,36 +18,36 @@
     ..
 /set type=dir uname=root gname=wheel mode=0755
     etc
-	defaults
-	..
-	periodic
-		daily
-		..
-		weekly
-		..
-		monthly
-		..
-	..
+        defaults
+        ..
+        periodic
+            daily
+            ..
+            weekly
+            ..
+            monthly
+            ..
+        ..
         gnats
         ..
-        isdn		mode=0700
+        isdn            mode=0700
         ..
         kerberosIV
         ..
-	mail
-	..
+        mail
+        ..
         mtree
         ..
         namedb
 # leave commented out until buildworld/installworld can
 # handle new user ids
-#		s	uname=bind gname=bind mode=0750
-#		..
+#             s               uname=bind gname=bind mode=0750
+#             ..
         ..
         ppp
         ..
-	skel
-	..
+        skel
+        ..
         uucp            uname=uucp gname=uucp mode=0770
         ..
     ..
