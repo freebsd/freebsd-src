@@ -179,6 +179,7 @@ MAN=	aac.4 \
 	ubsec.4 \
 	ucom.4 \
 	udp.4 \
+	ubsa.4 \
 	uftdi.4 \
 	ugen.4 \
 	uhci.4 \

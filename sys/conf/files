@@ -1180,6 +1180,7 @@ dev/usb/usb_subr.c	optional usb
 dev/usb/usb_quirks.c	optional usb
 dev/usb/hid.c		optional usb
 dev/usb/ufm.c		optional ufm
+dev/usb/ubsa.c		optional ubsa ucom
 dev/usb/uftdi.c		optional uftdi ucom
 dev/usb/ugen.c		optional ugen
 dev/usb/uhid.c		optional uhid
