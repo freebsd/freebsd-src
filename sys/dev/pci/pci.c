@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.44 1996/01/30 01:14:29 se Exp $
+**  $Id: pci.c,v 1.45 1996/02/17 23:57:03 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -576,8 +576,9 @@ pci_bus_config (void)
 				continue;
 			case 1:
 			case 5:
-				size = -(data & PCI_MAP_IO_ADDRESS_MASK);
 				addr = map & PCI_MAP_IO_ADDRESS_MASK;
+				size = -(data & PCI_MAP_IO_ADDRESS_MASK);
+				size &= ~(addr ^ -addr);
 
 				pci_register_io (pcicb, addr, addr+size-1);
 				pcicb->pcicb_pamount += size;
@@ -975,7 +976,7 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	*/
 
 	ioaddr = pcibus->pb_read (tag, reg) & PCI_MAP_IO_ADDRESS_MASK;
-	if (!ioaddr || ioaddr > 0xfffful) {
+	if (!ioaddr) {
 		printf ("pci_map_port failed: not configured by bios.\n");
 		return (0);
 	};
@@ -990,6 +991,7 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 		return (0);
 	};
 	iosize = -(data &  PCI_MAP_IO_ADDRESS_MASK);
+	iosize &= ~(ioaddr ^ -ioaddr);
 	if (ioaddr < pcicb->pcicb_iobase
 		|| ioaddr + iosize -1 > pcicb->pcicb_iolimit) {
 		printf ("pci_map_port failed: device's iorange 0x%x-0x%x "
