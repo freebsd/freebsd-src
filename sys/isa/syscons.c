@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.83 1994/12/18 19:45:53 joerg Exp $
+ *	$Id: syscons.c,v 1.84 1994/12/26 17:50:18 ats Exp $
  */
 
 #include "sc.h"
@@ -2635,8 +2635,8 @@ getchar(void)
 int 
 pcmmap(dev_t dev, int offset, int nprot)
 {
-	if (offset > 0x20000)
-		return EINVAL;
+	if (offset > 0x20000 - PAGE_SIZE)
+		return -1;
 	return i386_btop((VIDEOMEM + offset));
 }
 
