@@ -635,6 +635,13 @@ The value should include the full path to the
 file(s), e.g.,
 .Pa /etc/mail/foo.mc
 .Pa /etc/mail/bar.mc .
+.It Va SENDMAIL_CF_DIR
+.Pq Vt str
+Override the default location for the m4 configuration files used to build a
+.Pa .cf
+file from a
+.Pa .mc
+file.
 .It Va SENDMAIL_M4_FLAGS
 .Pq Vt str
 Flags passed to m4 when building a
