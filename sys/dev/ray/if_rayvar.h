@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayvar.h,v 1.1 2000/05/07 15:12:18 dmlb Exp $
+ * $Id: if_ray.c,v 1.24 2000/04/24 15:49:20 dmlb Exp $
  *
  */
 
@@ -58,6 +58,7 @@ struct ray_nw_param {
  */
 struct ray_softc {
 
+    device_t dev;			/* Device */
     struct arpcom	arpcom;		/* Ethernet common 		*/
     struct ifmedia	ifmedia;	/* Ifnet common 		*/
     struct callout_handle
@@ -67,15 +68,17 @@ struct ray_softc {
     struct callout_handle
     			com_timerh;	/* Handle for command timer	*/
 
-    char		*card_type;	/* Card model name		*/
-    char		*vendor;	/* Card manufacturer		*/
-    int			unit;		/* Unit number			*/
-    caddr_t		maddr;		/* Shared RAM Address		*/
-    int			flags;		/* Start up flags		*/
-#if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
-    int			slotnum;	/* Slot number			*/
-    struct mem_desc	md;		/* Map info for common memory	*/
-#endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
+    bus_space_tag_t	am_bst;		/* Bus space tag for attribute memory */
+    bus_space_handle_t	am_bsh;		/* Bus space handle for attribute mem */
+    int			am_rid;		/* Resource id for attribute memory */
+    struct resource*	am_res;		/* Resource for attribute memory */
+    bus_space_tag_t	cm_bst;		/* Bus space tag for common memory */
+    bus_space_handle_t	cm_bsh;		/* Bus space handle for common memory */
+    int			cm_rid;		/* Resource id for common memory */
+    struct resource*	cm_res;		/* Resource for common memory */
+    int			irq_rid;	/* Resource id for irq */
+    struct resource*	irq_res;	/* Resource for irq */
+    void *		irq_handle;	/* Handle for irq handler */
 
     u_char		gone;		/* 1 = Card bailed out		*/
 
@@ -100,7 +103,6 @@ struct ray_softc {
     u_int8_t		sc_rxnoise;	/* Average receiver level	*/
     struct ray_siglev	sc_siglevs[RAY_NSIGLEVRECS]; /* Antenna/levels	*/
 };
-static struct ray_softc ray_softc[NRAY];
 
 #define	sc_station_addr	sc_ecf_startup.e_station_addr
 #define	sc_version	sc_ecf_startup.e_fw_build_string
@@ -175,10 +177,10 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #endif /* RAY_NEED_CM_REMAPPING */
 
 #define	SRAM_READ_1(sc, off) \
-    (u_int8_t)*((sc)->maddr + (off))
+    ((u_int8_t)bus_space_read_1((sc)->cm_bst, (sc)->cm_bsh, (off)))
 
 #define SRAM_READ_REGION(sc, off, p, n) \
-    bcopy((sc)->maddr + (off), (p), (n))
+    bus_space_read_region_1((sc)->cm_bst, (sc)->cm_bsh, (off), (void *)(p), (n))
 
 #define	SRAM_READ_FIELD_1(sc, off, s, f) \
     SRAM_READ_1((sc), (off) + offsetof(struct s, f))
@@ -191,10 +193,10 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
     SRAM_READ_REGION((sc), (off) + offsetof(struct s, f), (p), (n))
 
 #define	SRAM_WRITE_1(sc, off, val)	\
-    *((sc)->maddr + (off)) = (val)
+    bus_space_write_1((sc)->cm_bst, (sc)->cm_bsh, (off), (val))
 
 #define SRAM_WRITE_REGION(sc, off, p, n) \
-    bcopy((p), (sc)->maddr + (off), (n))
+    bus_space_write_region_1((sc)->cm_bst, (sc)->cm_bsh, (off), (void *)(p), (n))
 
 #define	SRAM_WRITE_FIELD_1(sc, off, s, f, v) 	\
     SRAM_WRITE_1((sc), (off) + offsetof(struct s, f), (v))
@@ -206,6 +208,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 
 #define	SRAM_WRITE_FIELD_N(sc, off, s, f, p, n)	\
     SRAM_WRITE_REGION((sc), (off) + offsetof(struct s, f), (p), (n))
+
 
 #ifndef RAY_COM_TIMEOUT
 #define RAY_COM_TIMEOUT		(hz / 2)
@@ -224,14 +227,14 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #define	RAY_HCS_CLEAR_INTR(sc)	ATTR_WRITE_1((sc), RAY_HCSIR, 0)
 #define RAY_HCS_INTR(sc)	(ATTR_READ_1((sc), RAY_HCSIR) & RAY_HCSIR_IRQ)
 
-#define RAY_PANIC(sc, fmt, args...) do {			\
-    panic("ray%d: %s(%d) " fmt "\n", sc->unit,			\
-    	__FUNCTION__ , __LINE__ , ##args);			\
+#define RAY_PANIC(sc, fmt, args...) do {				\
+    panic("ray%d: %s(%d) " fmt "\n", device_get_unit((sc)->dev),	\
+	__FUNCTION__ , __LINE__ , ##args);				\
 } while (0)
 
-#define RAY_PRINTF(sc, fmt, args...) do {			\
-    printf("ray%d: %s(%d) " fmt "\n", (sc)->unit,		\
-    	__FUNCTION__ , __LINE__ , ##args);			\
+#define RAY_PRINTF(sc, fmt, args...) do {				\
+    device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
+        __FUNCTION__ , __LINE__ , ##args);				\
 } while (0)
 
 #ifndef RAY_COM_MALLOC
@@ -257,8 +260,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
  * memory. Hysterical raisins led to the non-"reflexive" approach.
  * Roll on NEWCARD and it can all die...
  */
-#define CARD_MAJOR		50
-#if RAY_NEED_CM_REMAPPING 
+#if RAY_NEED_CM_REMAPPING
 #define	RAY_MAP_CM(sc)		ray_attr_mapcm(sc)
 #else
 #define RAY_MAP_CM(sc)
