@@ -854,22 +854,6 @@ static struct cdevsw bktr_cdevsw =
 	NULL,		-1
 };
 
-static int bktr_devsw_installed;
-
-static void
-bktr_drvinit( void *unused )
-{
-	dev_t dev;
-
-	if ( ! bktr_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&bktr_cdevsw, NULL);
-		bktr_devsw_installed = 1;
-	}
-}
-
-SYSINIT(bktrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bktr_drvinit,NULL)
-
 /*
  * the boot time probe routine.
  */

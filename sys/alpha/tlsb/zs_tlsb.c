@@ -469,14 +469,9 @@ zsc_tlsb_probe(device_t dev)
 static int
 zsc_tlsb_attach(device_t dev)
 {
-	static int once = 1;
 	struct zsc_softc *sc = device_get_softc(dev);
 	device_t parent = device_get_parent(dev);
 
-	if (once) {
-		once = 0;
-		cdevsw_add(&zs_cdevsw);
-	}
 	bus_generic_attach(dev);
 
 	/* XXX */
