@@ -699,6 +699,10 @@ struct bktr_softc {
     int			dpl_addr;	       /* DPL i2c address */
     int                 slow_msp_audio;	       /* 0 = use fast MSP3410/3415 programming sequence */
 					       /* 1 = use slow MSP3410/3415 programming sequence */
+					       /* 2 = use Tuner's Mono audio output via the MSP chip */
+    int                 msp_use_mono_source;   /* use Tuner's Mono audio output via the MSP chip */
+    int                 audio_mux_present;     /* 1 = has audio mux on GPIO lines, 0 = no audio mux */
+    int                 msp_source_selected;   /* 0 = TV source, 1 = Line In source, 2 = FM Radio Source */
 
 };
 
