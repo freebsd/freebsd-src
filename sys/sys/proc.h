@@ -383,12 +383,24 @@ sigonstack(size_t sp)
 	}								\
 } while (0)
 
+/* Lock and unlock a process. */
+#define PROC_LOCK(p)	mtx_enter(&(p)->p_mtx, MTX_DEF)
+#define PROC_UNLOCK(p)	mtx_exit(&(p)->p_mtx, MTX_DEF)
+
 /* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define PHOLD(p) do {							\
-	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0)		\
+	PROC_LOCK(p);							\
+	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0) {	\
+		PROC_UNLOCK(p);						\
 		faultin(p);						\
+	} else								\
+		PROC_UNLOCK(p);						\
 } while(0)
-#define PRELE(p)	(--(p)->p_lock)
+#define PRELE(p) do {							\
+	PROC_LOCK(p);							\
+	(--(p)->p_lock);						\
+	PROC_UNLOCK(p);							\
+} while(0)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
