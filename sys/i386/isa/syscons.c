@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182 1996/10/26 20:16:58 sos Exp $
+ *  $Id: syscons.c,v 1.182.2.1 1996/11/04 20:40:00 sos Exp $
  */
 
 #include "sc.h"
@@ -533,8 +533,10 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	scp->smode.mode = VT_AUTO;
 #endif
     }
+    spltty();
     (*linesw[tp->t_line].l_close)(tp, flag);
     ttyclose(tp);
+    spl0();
     return(0);
 }
 
@@ -582,7 +584,7 @@ scintr(int unit)
 	cur_tty = VIRTUAL_TTY(get_scr_num());
 	if (!(cur_tty->t_state & TS_ISOPEN))
 	    if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
-		return;
+		continue;
 
 	switch (c & 0xff00) {
 	case 0x0000: /* normal key */
@@ -593,7 +595,7 @@ scintr(int unit)
 	    	while (len-- >  0)
 		    (*linesw[cur_tty->t_line].l_rint)(*cp++ & 0xFF, cur_tty);
 	    }
-	break;
+	    break;
 	case MKEY:  /* meta is active, prepend ESC */
 	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
 	    (*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
@@ -1038,6 +1040,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error != 0)
 	    return error;
+	if (securelevel > 0)
+	    return EPERM;
 	fp = (struct trapframe *)p->p_md.md_regs;
 	fp->tf_eflags |= PSL_IOPL;
 	return 0;
@@ -1378,7 +1382,7 @@ sccnputc(dev_t dev, int c)
 
     scp->term = kernel_console;
     current_default = &kernel_default;
-    if (!(scp->status & UNKNOWN_MODE))
+    if (scp == cur_console && !(scp->status & UNKNOWN_MODE))
 	remove_cursor_image(scp);
     buf[0] = c;
     ansi_put(scp, buf, 1);
@@ -2289,6 +2293,13 @@ scinit(void)
     outb(crtc_addr, 15);
     hw_cursor |= inb(crtc_addr + 1);
 
+    /*
+     * Validate cursor location.  It may be off the screen.  Then we must
+     * not use it for the initial buffer offset.
+     */
+    if (hw_cursor >= ROW * COL)
+	hw_cursor = (ROW - 1) * COL;
+
     /* move hardware cursor out of the way */
     outb(crtc_addr, 14);
     outb(crtc_addr + 1, 0xff);
@@ -2477,7 +2488,6 @@ scgetc(u_int flags)
     static u_int chr = 0;
 
 next_code:
-    /* check if there is anything in the keyboard buffer */
     if (inb(KB_STAT) & KB_BUF_FULL) {
 	DELAY(25);
 	scancode = inb(KB_DATA);
