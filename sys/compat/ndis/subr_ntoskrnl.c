@@ -44,7 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <sys/callout.h>
+#if __FreeBSD_version > 502113
 #include <sys/kdb.h>
+#endif
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
@@ -1634,7 +1636,11 @@ __stdcall static void
 ntoskrnl_debugger(void)
 {
 
+#if __FreeBSD_version < 502113
+	Debugger("ntoskrnl_debugger(): breakpoint");
+#else
 	kdb_enter("ntoskrnl_debugger(): breakpoint");
+#endif
 }
 
 static void
