@@ -5,7 +5,7 @@
 # PROVIDE: ugidfw
 # REQUIRE:
 # BEFORE: LOGIN
-# KEYWORD: FreeBSD nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 
