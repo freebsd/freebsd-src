@@ -767,7 +767,7 @@ start(struct ctlr *ctlr)
 		 */
 		CR_EXPR(ctlr, 3, &= ~(FIFOINTEN|ERRINTEN));
 		ctlr->cleared_intr = 1;
-		ctlr->start_queue.b_active = 0;
+		ctlr->start_queue.b_bcount = 0;
 		return;
 	}
 
@@ -811,14 +811,14 @@ ad_strategy(struct buf *bp, struct ctlr *ctlr)
 	s = spltty();
 	bp->b_actf = NULL;
 
-	if (ctlr->start_queue.b_active)
+	if (ctlr->start_queue.b_bcount)
 	{
 		ctlr->last->b_actf = bp;
 		ctlr->last = bp;
 	}
 	else
 	{
-		ctlr->start_queue.b_active = 1;
+		ctlr->start_queue.b_bcount = 1;
 		ctlr->start_queue.b_actf = bp;
 		ctlr->last = bp;
 		start(ctlr);
