@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.1 1996/07/18 22:03:45 se Exp $
+ *	$Id: if_lnc_p.c,v 1.1.2.1 1997/04/04 16:48:12 kato Exp $
  */
 
 #include "pci.h"
@@ -75,7 +75,10 @@ lnc_pci_attach(config_id, unit)
 	unsigned iobase;
 	void *lnc; /* device specific data for interrupt handler ... */
 
-	iobase = pci_conf_read(config_id, PCI_MAP_REG_START) & ~PCI_MAP_IO;
+	/* pci_map_port correctly initializes bridge chips -- tvf */
+
+	if ( !pci_map_port(config_id,PCI_MAP_REG_START,(u_short *)&iobase) )
+	    printf("lnc%d: pci_port_map_attach failed?!\n",unit);
 
 	lnc = lnc_attach_ne2100_pci(unit, iobase);
 	if (!lnc)
