@@ -43,114 +43,10 @@
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
 
-extern int    use_yp_passwd, opt_fullname, opt_shell;
 extern char *prog_name;
 uid_t	uid;
 
-static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
-"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
 extern char *getnewpasswd __P(( struct passwd * , int ));
-
-char *
-getfield(char *gecos, char *field, int size)
-{
-    char *sp;
-
-    for (sp = gecos; *sp != '\0' && *sp != ','; sp++);
-    if (*sp != '\0') {
-    	*sp++ = '\0';
-    }
-    strncpy (field, gecos, size-1);
-    field[size-1] = '\0';
-    return sp;
-}
-
-int
-newfield(char *prompt, char *deflt, char *field, int size)
-{
-    char	*sp;
-
-    if (deflt == NULL) {
-        deflt = "none";
-    }
-
-    printf("%s [%s]: ", prompt, deflt);
-    fflush(stdout);
-    if (fgets(field, size, stdin) == NULL) {
-    	return 1;
-    }
-
-    if ((sp = strchr(field, '\n')) != NULL) {
-    	*sp = '\0';
-    }
-
-    if (!strcmp(field, "")) {
-    	strcpy(field, deflt);
-    }
-    if (!strcmp(field, "none")) {
-    	strcpy(field, "");
-    }
-
-    if (strchr(field, ':') != NULL) {
-    	fprintf(stderr, "%s: no colons allowed in GECOS field... sorry.\n",
-    				prog_name);
-    	return 1;
-    }
-    return 0;
-}
-
-char *
-getnewfullname(struct passwd *pw)
-{
-    char	gecos[1024], *sp, new_gecos[1024];
-    char	name[254], location[254], office[254], phone[254];
-
-    printf ("\nChanging full name for %s.\n"
-    	    "To accept the default, simply press return. To enter an empty\n"
-    	    "field, type the word \"none\".\n",
-    	    pw->pw_name);
-
-    strncpy (gecos, pw->pw_gecos, sizeof(gecos));
-    sp = getfield(gecos, name, sizeof(name));
-    if (newfield("Name", strtok(gecos, ","), name, sizeof(name))) {
-    	return NULL;
-    }
-    sp = getfield(sp, location, sizeof(location));
-    if (newfield("Location", location, location, sizeof(location))) {
-    	return NULL;
-    }
-    sp = getfield(sp, office, sizeof(office));
-    if (newfield("Office Phone", office, office, sizeof(office))) {
-    	return NULL;
-    }
-    sp = getfield(sp, phone, sizeof(phone));
-    if (newfield("Home Phone", phone, phone, sizeof(phone))) {
-    	return NULL;
-    }
-    sprintf (new_gecos, "%s,%s,%s,%s", name, location, office, phone);
-
-    sp = new_gecos + strlen(new_gecos);
-    while (*--sp == ',') *sp = '\0';
-
-    return strdup(new_gecos);
-}
-
-char *
-getnewshell(struct passwd *pw)
-{
-    char    new_shell[PATH_MAX];
-
-    printf ("\nChanging login shell for %s.\n"
-    	    "To accept the default, simply press return. To use the\n"
-    	    "system's default shell, type the word \"none\".\n",
-    	    pw->pw_name);
-
-    if (newfield("Login shell", pw->pw_shell, new_shell, sizeof(new_shell))) {
-        return NULL;
-    }
-    return strdup(new_shell);
-}
 
 char *
 getserver( void )
@@ -192,12 +88,8 @@ yp_passwd(char *user)
   struct passwd *pw;
   CLIENT *clnt;
   char   *master;
-  char   *what;
   int    c, err, status;
   char   *s;
-
-  if (use_yp_passwd + opt_fullname + opt_shell == 0)
-      use_yp_passwd = 1;	/* default to yppasswd behavior */
 
   if ((master = getserver()) == NULL) {
       exit(1);
@@ -234,27 +126,13 @@ yp_passwd(char *user)
   yppasswd.newpw.pw_shell = pw->pw_shell;
   yppasswd.oldpass = NULL;
 
-  switch (use_yp_passwd + (opt_fullname << 1) + (opt_shell << 2)) {
-  case 1:
-      what = "YP password";
-      break;
-  case 2:
-      what = "fullname";
-      break;
-  case 4:
-      what = "login shell";
-      break;
-  default:
-      what = "account information";
-  }
-  printf("Changing %s for %s on %s.\n",  what, pw->pw_name, master);
+  printf("Changing NIS password for %s on %s.\n", pw->pw_name, master);
 
   /* Get old password */
   if(pw->pw_passwd) {
     char prompt[40];
 
-    sprintf (prompt, "Please enter %spassword:", use_yp_passwd? "old " : "");
-    s = getpass (prompt);
+    s = getpass ("Old password: ");
     if( strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd)) {
         fprintf(stderr, "Sorry.\n");
         exit (1);
@@ -262,21 +140,9 @@ yp_passwd(char *user)
     yppasswd.oldpass = strdup(s);
   }
 
-  if (use_yp_passwd) {
-      if ((s = getnewpasswd(pw, 1)) == NULL)
-      	  exit (1);
-      yppasswd.newpw.pw_passwd = s;
-  }
-  if (opt_fullname) {
-      if ((s = getnewfullname(pw)) == NULL)
-      	  exit (1);
-      yppasswd.newpw.pw_gecos = s;
-  }
-  if (opt_shell) {
-      if ((s = getnewshell(pw)) == NULL)
-      	  exit (1);
-      yppasswd.newpw.pw_shell = s;
-  }
+  if ((s = getnewpasswd(pw, 1)) == NULL)
+	exit (1);
+  yppasswd.newpw.pw_passwd = s;
 
   /* The yppasswd.x file said `unix authentication required',
    * so I added it. This is the only reason it is in here.
@@ -296,11 +162,11 @@ yp_passwd(char *user)
       clnt_perrno(err);
       fprintf( stderr, "\n" );
   } else if (status) {
-      fprintf( stderr, "Error while changing %s.\n", what );
+      fprintf( stderr, "Error while changing NIS password.\n");
   }
 
-  printf("\nThe %s has%s been changed on %s.\n",
-  		what, (err || status)? " not" : "", master);
+  printf("\nNIS password has%s been changed on %s.\n",
+  		(err || status)? " not" : "", master);
 
   auth_destroy( clnt->cl_auth );
   clnt_destroy( clnt );
