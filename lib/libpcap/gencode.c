@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: gencode.c,v 1.55 94/06/20 19:07:53 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/gencode.c,v 1.1.1.1 1995/01/20 04:13:04 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -471,8 +471,8 @@ init_linktype(type)
 		return;
 
 	case DLT_NULL:
-		off_linktype = -1;
-		off_nl = 0;
+		off_linktype = 0;
+		off_nl = 4;
 		return;
 
 	case DLT_PPP:
@@ -543,6 +543,15 @@ gen_linktype(proto)
 		if (proto == ETHERTYPE_IP)
 			proto = 0x0021;		/* XXX - need ppp.h defs */
 		break;
+
+	case DLT_NULL:
+		if (proto == ETHERTYPE_IP) {
+			proto = htonl(AF_INET); /* loopback & tun put */
+						/* sa_family into     */
+						/* prepended word     */
+			return gen_cmp(off_linktype, BPF_W, (long)proto);
+		}
+ 		break;
 	}
 	return gen_cmp(off_linktype, BPF_H, (long)proto);
 }
