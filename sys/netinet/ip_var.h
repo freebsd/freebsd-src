@@ -186,6 +186,7 @@ struct mbuf *
 	 ip_srcroute __P((void));
 void	 ip_stripoptions __P((struct mbuf *, struct mbuf *));
 int	 rip_ctloutput __P((int, struct socket *, int, int, struct mbuf **));
+void	 rip_ctlinput __P((int, struct sockaddr *, void *));
 void	 rip_init __P((void));
 void	 rip_input __P((struct mbuf *, int));
 int	 rip_output __P((struct mbuf *, struct socket *, u_long));

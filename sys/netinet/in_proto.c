@@ -116,7 +116,7 @@ struct protosw inetsw[] = {
   &tcp_usrreqs
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RAW,	PR_ATOMIC|PR_ADDR,
-  rip_input,	0,		0,		rip_ctloutput,
+  rip_input,	0,		rip_ctlinput,	rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
 },
