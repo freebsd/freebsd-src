@@ -587,6 +587,21 @@ only effects data transmission (uploading / server-side).
 It does not
 effect data reception (downloading).
 .Pp
+Adjusting
+.Va net.inet.tcp.inflight_stab
+is not recommended.
+This parameter defaults to 20, representing 2 maximal packets added
+to the bandwidth delay product window calculation.  The additional
+window is required to stabilize the algorithm and improve responsiveness
+to changing conditions, but it can also result in higher ping times
+over slow links (though still much lower then you would get without
+the inflight algorithm).  In such cases you may
+wish to try reducing this parameter to 15, 10, or 5, and you may also
+have to reduce
+.Va net.inet.tcp.inflight_min
+(for example, to 3500) to get the desired effect.  Reducing these parameters
+should be done as a last resort only.
+.Pp
 The
 .Va net.inet.ip.portrange.*
 sysctls control the port number ranges automatically bound to TCP and UDP
