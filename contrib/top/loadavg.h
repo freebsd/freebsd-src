@@ -47,7 +47,7 @@ typedef double pctcpu;
 #endif
 
 #ifdef FIXED_LOADAVG
-  typedef long load_avg;
+  typedef fixpt_t load_avg;
 # define loaddouble(la) ((double)(la) / FIXED_LOADAVG)
 # define intload(i) ((int)((i) * FIXED_LOADAVG))
 #else
