@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.6 1998/10/09 03:59:24 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.19 1998/10/22 15:35:06 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -361,6 +361,7 @@
  */
 #define XL_W5_STAT_ENB		0x0C
 #define XL_W5_INTR_ENB		0x0A
+#define XL_W5_RECLAIM_THRESH	0x09	/* 3c905B only */
 #define XL_W5_RX_FILTER		0x08
 #define XL_W5_RX_EARLYTHRESH	0x06
 #define XL_W5_TX_AVAILTHRESH	0x02
@@ -554,7 +555,6 @@ struct xl_softc {
 	u_int8_t		xl_want_auto;
 	u_int8_t		xl_autoneg;
 	u_int8_t		xl_stats_no_timeout;
-	u_int8_t		xl_txeoc;
 	caddr_t			xl_ldata_ptr;
 	struct xl_list_data	*xl_ldata;
 	struct xl_chain_data	xl_cdata;
