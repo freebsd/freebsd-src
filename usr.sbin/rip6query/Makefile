@@ -3,6 +3,7 @@
 #	$FreeBSD$
 
 PROG=	rip6query
+WARNS?=	2
 MAN=	rip6query.8
 
 CFLAGS+=-DINET6 -I${.CURDIR}/../route6d
