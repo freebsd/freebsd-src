@@ -86,7 +86,7 @@ procfs_doprocregs(PFS_FILL_ARGS)
 		error = uiomove(kv, kl, uio);
 	PROC_LOCK(p);
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
-		if (p->p_stat != SSTOP)
+		if (!P_SHOULDSTOP(p))
 			error = EBUSY;
 		else
 			/* XXXKSE: */

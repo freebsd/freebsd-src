@@ -124,8 +124,8 @@ forward_signal(struct thread *td)
 	 * executing so that it executes ast().
 	 */
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(td->td_proc->p_stat == SRUN,
-	    ("forward_signal: process is not SRUN"));
+	KASSERT(td->td_state == TDS_RUNNING,
+	    ("forward_signal: thread is not TDS_RUNNING"));
 
 	CTR1(KTR_SMP, "forward_signal(%p)", td->td_proc);
 

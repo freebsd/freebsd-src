@@ -289,6 +289,7 @@ proc0_init(void *dummy __unused)
 	 * Initialize thread, process and pgrp structures.
 	 */
 	procinit();
+	threadinit();
 
 	/*
 	 * Initialize sleep queue hash table
@@ -322,19 +323,34 @@ proc0_init(void *dummy __unused)
 	p->p_sysent = &aout_sysvec;
 #endif
 
+	/*
+	 * proc_linkup was already done in init_i386() or alphainit() etc.
+	 * because the earlier code needed to follow td->td_proc. Otherwise
+	 * I would have done it here.. maybe this means this should be
+	 * done earlier too.
+	 */
 	ke = &proc0.p_kse;	/* XXXKSE */
 	kg = &proc0.p_ksegrp;	/* XXXKSE */
 	p->p_flag = P_SYSTEM;
 	p->p_sflag = PS_INMEM;
-	p->p_stat = SRUN;
-	p->p_ksegrp.kg_nice = NZERO;
- 	kg->kg_pri_class = PRI_TIMESHARE;
- 	kg->kg_user_pri = PUSER;
- 	td->td_priority = PVM;
- 	td->td_base_pri = PUSER;
-
+	p->p_state = PRS_NORMAL;
+	td->td_state = TDS_RUNNING;
+	kg->kg_nice = NZERO;
+	kg->kg_pri_class = PRI_TIMESHARE;
+	kg->kg_user_pri = PUSER;
+	td->td_priority = PVM;
+	td->td_base_pri = PUSER;
+	td->td_kse = ke; /* XXXKSE */
+	ke->ke_oncpu = 0;
+	ke->ke_state = KES_RUNNING;
+	ke->ke_thread = td;
+	/* proc_linkup puts it in the idle queue, that's not what we want. */
+	TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
+	kg->kg_idle_kses--;
 	p->p_peers = 0;
 	p->p_leader = p;
+KASSERT((ke->ke_kgrlist.tqe_next != ke), ("linked to self!"));
+
 
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));
 
@@ -662,8 +678,7 @@ kick_init(const void *udata __unused)
 
 	td = FIRST_THREAD_IN_PROC(initproc);
 	mtx_lock_spin(&sched_lock);
-	initproc->p_stat = SRUN;
-	setrunqueue(FIRST_THREAD_IN_PROC(initproc)); /* XXXKSE */
+	setrunqueue(td);	/* XXXKSE */
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

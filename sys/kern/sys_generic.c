@@ -1187,7 +1187,7 @@ selwakeup(sip)
 	sip->si_thread = NULL;
 	mtx_lock_spin(&sched_lock);
 	if (td->td_wchan == (caddr_t)&selwait) {
-		if (td->td_proc->p_stat == SSLEEP)
+		if (td->td_state == TDS_SLP)
 			setrunnable(td);
 		else
 			cv_waitq_remove(td);

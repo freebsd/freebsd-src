@@ -2392,17 +2392,35 @@ ttyinfo(struct tty *tp)
 			PGRP_UNLOCK(tp->t_pgrp);
 
 			td = FIRST_THREAD_IN_PROC(pick);
-			stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
-			    pick->p_stat == SMTX ? td->td_mtxname :
-			    td->td_wmesg ? td->td_wmesg : "iowait";
+			if (pick->p_flag & P_KSES) {
+				stmp = "KSE" ;  /* XXXKSE */
+			} else {
+				if (td) {
+					if (td->td_state == TDS_RUNQ) {
+						stmp = "running";
+					} else if (td->td_state == TDS_MTX) {
+						stmp = td->td_mtxname;
+					} else if (td->td_wmesg) {
+						stmp = td->td_wmesg;
+					} else {
+						stmp = "iowait";
+					}
+				} else {
+					stmp = "threadless";
+					panic("ttyinfo: no thread!?");
+				}
+			}
 			calcru(pick, &utime, &stime, NULL);
-			ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
-			    pick->p_stat == SZOMB ? 0 :
-			    pgtok(vmspace_resident_count(pick->p_vmspace));
+			ltmp = ((pick->p_state == PRS_NEW)
+			    || (td && (td->td_state == TDS_IWAIT))
+			    || (pick->p_state == PRS_ZOMBIE ? 0 :
+		    	    pgtok(vmspace_resident_count(pick->p_vmspace))));
 			mtx_unlock_spin(&sched_lock);
 
 			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
-			    pick->p_pid, pick->p_stat == SMTX ? "*" : "", stmp);
+			    pick->p_pid,
+			    td->td_state == TDS_MTX ? "*" : "",
+			    stmp);
 
 			/* Print user time. */
 			ttyprintf(tp, "%ld.%02ldu ",
@@ -2433,7 +2451,19 @@ ttyinfo(struct tty *tp)
  *	   we pick out just "short-term" sleepers (P_SINTR == 0).
  *	4) Further ties are broken by picking the highest pid.
  */
-#define ISRUN(p)	(((p)->p_stat == SRUN) || ((p)->p_stat == SIDL))
+#define ISRUN(p, val)						\
+do {								\
+	struct thread *td;					\
+	val = 0;						\
+	FOREACH_THREAD_IN_PROC(p, td) {				\
+		if (td->td_state == TDS_RUNQ ||			\
+		    td->td_state == TDS_RUNNING) {		\
+			val = 1;				\
+			break;					\
+		}						\
+	}							\
+} while (0)
+
 #define TESTAB(a, b)    ((a)<<1 | (b))
 #define ONLYA   2
 #define ONLYB   1
@@ -2449,10 +2479,13 @@ proc_compare(struct proc *p1, struct proc *p2)
 	if (p1 == NULL)
 		return (1);
 
+	ISRUN(p1, esta);
+	ISRUN(p2, estb);
+	
 	/*
 	 * see if at least one of them is runnable
 	 */
-	switch (TESTAB(ISRUN(p1), ISRUN(p2))) {
+	switch (TESTAB(esta, estb)) {
 	case ONLYA:
 		return (0);
 	case ONLYB:
@@ -2477,7 +2510,7 @@ proc_compare(struct proc *p1, struct proc *p2)
 	/*
 	 * weed out zombies
 	 */
-	switch (TESTAB(p1->p_stat == SZOMB, p2->p_stat == SZOMB)) {
+	switch (TESTAB(p1->p_state == PRS_ZOMBIE, p2->p_state == PRS_ZOMBIE)) {
 	case ONLYA:
 		return (1);
 	case ONLYB:

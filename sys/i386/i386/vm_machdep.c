@@ -53,6 +53,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/kse.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
@@ -254,15 +255,26 @@ cpu_set_fork_handler(td, func, arg)
 }
 
 void
-cpu_exit(td)
-	register struct thread *td;
+cpu_exit(struct thread *td)
+{
+	struct mdproc *mdp;
+
+	mdp = &td->td_proc->p_md;
+	if (mdp->md_ldt)
+		user_ldt_free(td);
+	reset_dbregs();
+}
+
+void
+cpu_thread_exit(struct thread *td)
 {
 	struct pcb *pcb = td->td_pcb; 
-	struct mdproc *mdp = &td->td_proc->p_md;
 #ifdef DEV_NPX
 	npxexit(td);
 #endif
 	if (pcb->pcb_ext != 0) {
+		/* XXXKSE  XXXSMP  not SMP SAFE.. what locks do we have? */
+		/* if (pcb->pcb_ext->ext_refcount-- == 1) ?? */
 	        /* 
 		 * XXX do we need to move the TSS off the allocated pages 
 		 * before freeing them?  (not done here)
@@ -271,8 +283,6 @@ cpu_exit(td)
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = 0;
 	}
-	if (mdp->md_ldt)
-		user_ldt_free(td);
         if (pcb->pcb_flags & PCB_DBREGS) {
                 /*
                  * disable all hardware breakpoints
@@ -286,6 +296,146 @@ void
 cpu_sched_exit(td)
 	register struct thread *td;
 {
+}
+
+void
+cpu_thread_setup(struct thread *td)
+{
+
+	td->td_pcb =
+	     (struct pcb *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb - 16) - 1;
+}
+
+struct md_store {
+	struct pcb mds_pcb;
+	struct trapframe mds_frame;
+};
+
+void
+cpu_save_upcall(struct thread *td, struct kse *newkse)
+{
+	struct trapframe *tf;
+
+	newkse->ke_mdstorage = malloc(sizeof(struct md_store), M_TEMP,
+	    M_WAITOK);
+	/* Note: use of M_WAITOK means it won't fail. */
+	/* set up shortcuts in MI section */
+	newkse->ke_pcb =
+	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_pcb);
+	newkse->ke_frame =
+	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_frame);
+	tf = newkse->ke_frame;
+
+	/* Copy the upcall pcb. Kernel mode & fp regs are here. */
+	/* XXXKSE this may be un-needed */
+	bcopy(td->td_pcb, newkse->ke_pcb, sizeof(struct pcb));
+
+	/*
+	 * This initialises most of the user mode register values
+	 * to good values. Eventually set them explicitly to know values
+	 */
+	bcopy(td->td_frame, newkse->ke_frame, sizeof(struct trapframe));
+	tf->tf_edi = 0;
+	tf->tf_esi = 0;		    /* trampoline arg */
+	tf->tf_ebp = 0;
+	tf->tf_esp = (int)newkse->ke_stackbase + newkse->ke_stacksize - 16;
+	tf->tf_ebx = 0;		    /* trampoline arg */
+	tf->tf_eip = (int)newkse->ke_upcall;
+}
+
+void
+cpu_set_upcall(struct thread *td, void *pcb)
+{
+	struct pcb *pcb2;
+
+	td->td_flags |= TDF_UPCALLING;
+
+	/* Point the pcb to the top of the stack. */
+	pcb2 = td->td_pcb;
+
+	/*
+	 * Copy the upcall pcb.  This loads kernel regs.
+	 * Those not loaded individually below get their default
+	 * values here.
+	 *
+	 * XXXKSE It might be a good idea to simply skip this as
+	 * the values of the other registers may be unimportant.
+	 * This would remove any requirement for knowing the KSE
+	 * at this time (see the matching comment below for
+	 * more analysis) (need a good safe default).
+	 */
+	bcopy(pcb, pcb2, sizeof(*pcb2));
+
+	/*
+	 * Create a new fresh stack for the new thread.
+	 * The -16 is so we can expand the trapframe if we go to vm86.
+	 * Don't forget to set this stack value into whatever supplies
+	 * the address for the fault handlers.
+	 * The contexts are filled in at the time we actually DO the
+	 * upcall as only then do we know which KSE we got.
+	 */
+	td->td_frame = (struct trapframe *)((caddr_t)pcb2 - 16) - 1;
+
+	/*
+	 * Set registers for trampoline to user mode.  Leave space for the
+	 * return address on stack.  These are the kernel mode register values.
+	 */
+	pcb2->pcb_cr3 = vtophys(vmspace_pmap(td->td_proc->p_vmspace)->pm_pdir);
+	pcb2->pcb_edi = 0;
+	pcb2->pcb_esi = (int)fork_return;		    /* trampoline arg */
+	pcb2->pcb_ebp = 0;
+	pcb2->pcb_esp = (int)td->td_frame - sizeof(void *); /* trampoline arg */
+	pcb2->pcb_ebx = (int)td;			    /* trampoline arg */
+	pcb2->pcb_eip = (int)fork_trampoline;
+	pcb2->pcb_psl &= ~(PSL_I);	/* interrupts must be disabled */
+	/*
+	 * If we didn't copy the pcb, we'd need to do the following registers:
+	 * pcb2->pcb_dr*:	cloned above.
+	 * pcb2->pcb_savefpu:	cloned above.
+	 * pcb2->pcb_flags:	cloned above.
+	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
+	 * pcb2->pcb_gs:	cloned above.  XXXKSE ???
+	 * pcb2->pcb_ext:	cleared below.
+	 */
+	 pcb2->pcb_ext = NULL;
+}
+
+void
+cpu_set_args(struct thread *td, struct kse *ke) 
+{
+	suword((void *)(ke->ke_frame->tf_esp + sizeof(void *)),
+	    (int)ke->ke_mailbox);
+}
+
+void
+cpu_free_kse_mdstorage(struct kse *kse)
+{
+
+	free(kse->ke_mdstorage, M_TEMP);
+	kse->ke_mdstorage = NULL;
+	kse->ke_pcb = NULL;
+	kse->ke_frame = NULL;
+}
+
+int
+cpu_export_context(struct thread *td)
+{
+	struct trapframe *frame;
+	struct thread_mailbox *tm;
+	struct trapframe *uframe;
+	int error;
+
+	frame = td->td_frame;
+	tm = td->td_mailbox;
+	uframe = &tm->ctx.tfrm.tf_tf;
+	error = copyout(frame, uframe, sizeof(*frame));
+	/*
+	 * "What about the fp regs?" I hear you ask.... XXXKSE
+	 * Don't know where gs and "onstack" come from.
+	 * May need to fiddle a few other values too.
+	 */
+	return (error);
 }
 
 void

@@ -102,6 +102,36 @@
  * _REMOVE		+	+	+	+
  *
  */
+#define QUEUE_MACRO_DEBUG 1
+#ifdef QUEUE_MACRO_DEBUG
+struct qm_trace {
+	char * lastfile;
+	int lastline;
+	char * prevfile;
+	int prevline;
+};
+
+#define TRACEBUF	struct qm_trace trace;
+
+#define QMD_TRACE_HEAD(head) do {					\
+	(head)->trace.prevline = (head)->trace.lastline;		\
+	(head)->trace.prevfile = (head)->trace.lastfile;		\
+	(head)->trace.lastline = __LINE__;				\
+	(head)->trace.lastfile = __FILE__;				\
+} while (0)
+
+#define QMD_TRACE_ELEM(elem) do {					\
+	(elem)->trace.prevline = (elem)->trace.lastline;		\
+	(elem)->trace.prevfile = (elem)->trace.lastfile;		\
+	(elem)->trace.lastline = __LINE__;				\
+	(elem)->trace.lastfile = __FILE__;				\
+} while (0)
+
+#else
+#define QMD_TRACE_ELEM(elem)
+#define QMD_TRACE_HEAD(head)
+#define TRACEBUF
+#endif	/* QUEUE_MACRO_DEBUG */
 
 /*
  * Singly-linked List declarations.
@@ -329,6 +359,7 @@ struct {								\
 struct name {								\
 	struct type *tqh_first;	/* first element */			\
 	struct type **tqh_last;	/* addr of last next element */		\
+	TRACEBUF							\
 }
 
 #define	TAILQ_HEAD_INITIALIZER(head)					\
@@ -338,6 +369,7 @@ struct name {								\
 struct {								\
 	struct type *tqe_next;	/* next element */			\
 	struct type **tqe_prev;	/* address of previous next element */	\
+	TRACEBUF							\
 }
 
 /*
@@ -349,6 +381,8 @@ struct {								\
 		(head2)->tqh_first->field.tqe_prev = (head1)->tqh_last;	\
 		(head1)->tqh_last = (head2)->tqh_last;			\
 		TAILQ_INIT((head2));					\
+		QMD_TRACE_HEAD(head);					\
+		QMD_TRACE_HEAD(head2);					\
 	}								\
 } while (0)
 
@@ -369,16 +403,21 @@ struct {								\
 #define	TAILQ_INIT(head) do {						\
 	TAILQ_FIRST((head)) = NULL;					\
 	(head)->tqh_last = &TAILQ_FIRST((head));			\
+	QMD_TRACE_HEAD(head);						\
 } while (0)
 
 #define	TAILQ_INSERT_AFTER(head, listelm, elm, field) do {		\
 	if ((TAILQ_NEXT((elm), field) = TAILQ_NEXT((listelm), field)) != NULL)\
 		TAILQ_NEXT((elm), field)->field.tqe_prev = 		\
 		    &TAILQ_NEXT((elm), field);				\
-	else								\
+	else {								\
 		(head)->tqh_last = &TAILQ_NEXT((elm), field);		\
+		QMD_TRACE_HEAD(head);					\
+	}								\
 	TAILQ_NEXT((listelm), field) = (elm);				\
 	(elm)->field.tqe_prev = &TAILQ_NEXT((listelm), field);		\
+	QMD_TRACE_ELEM(&(elm)->field);					\
+	QMD_TRACE_ELEM(&listelm->field);				\
 } while (0)
 
 #define	TAILQ_INSERT_BEFORE(listelm, elm, field) do {			\
@@ -386,6 +425,8 @@ struct {								\
 	TAILQ_NEXT((elm), field) = (listelm);				\
 	*(listelm)->field.tqe_prev = (elm);				\
 	(listelm)->field.tqe_prev = &TAILQ_NEXT((elm), field);		\
+	QMD_TRACE_ELEM(&(elm)->field);					\
+	QMD_TRACE_ELEM(&listelm->field);				\
 } while (0)
 
 #define	TAILQ_INSERT_HEAD(head, elm, field) do {			\
@@ -396,6 +437,8 @@ struct {								\
 		(head)->tqh_last = &TAILQ_NEXT((elm), field);		\
 	TAILQ_FIRST((head)) = (elm);					\
 	(elm)->field.tqe_prev = &TAILQ_FIRST((head));			\
+	QMD_TRACE_HEAD(head);						\
+	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
 #define	TAILQ_INSERT_TAIL(head, elm, field) do {			\
@@ -403,6 +446,8 @@ struct {								\
 	(elm)->field.tqe_prev = (head)->tqh_last;			\
 	*(head)->tqh_last = (elm);					\
 	(head)->tqh_last = &TAILQ_NEXT((elm), field);			\
+	QMD_TRACE_HEAD(head);						\
+	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
 #define	TAILQ_LAST(head, headname)					\
@@ -417,9 +462,13 @@ struct {								\
 	if ((TAILQ_NEXT((elm), field)) != NULL)				\
 		TAILQ_NEXT((elm), field)->field.tqe_prev = 		\
 		    (elm)->field.tqe_prev;				\
-	else								\
+	else {								\
 		(head)->tqh_last = (elm)->field.tqe_prev;		\
+		QMD_TRACE_HEAD(head);					\
+	}								\
 	*(elm)->field.tqe_prev = TAILQ_NEXT((elm), field);		\
+	(elm)->field.tqe_next = (void *)-1;				\
+	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
 

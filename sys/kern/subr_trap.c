@@ -48,6 +48,8 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/kse.h>
+#include <sys/ktr.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -71,13 +73,15 @@ userret(td, frame, oticks)
 	struct kse *ke = td->td_kse; 
 	struct ksegrp *kg = td->td_ksegrp;
 
+	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
+            p->p_comm);
 #ifdef INVARIANTS
 	/* Check that we called signotify() enough. */
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
-	    (p->p_kse.ke_flags & KEF_ASTPENDING) == 0))
+	    (ke->ke_flags & KEF_ASTPENDING) == 0))
 		printf("failed to set signal flags proprly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
@@ -97,6 +101,22 @@ userret(td, frame, oticks)
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
 		mtx_unlock_spin(&sched_lock);
+	}
+
+	/*
+	 * We need to check to see if we have to exit or wait due to a
+	 * single threading requirement or some other STOP condition.
+	 */
+	PROC_LOCK(p);
+	thread_suspend_check(0);	/* Can suspend or kill */
+	PROC_UNLOCK(p);
+
+	/*
+	 * DO special thread processing, e.g. upcall tweaking and such
+	 */
+	if (p->p_flag & P_KSES) {
+		thread_userret(p, kg, ke, td, frame);
+		/* printf("KSE thread returned"); */
 	}
 
 	/*
@@ -121,8 +141,7 @@ userret(td, frame, oticks)
  * This function will return with preemption disabled.
  */
 void
-ast(framep)
-	struct trapframe *framep;
+ast(struct trapframe *framep)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -136,6 +155,8 @@ ast(framep)
 	int ucode;
 #endif
 
+	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
+            p->p_comm);
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
 #ifdef WITNESS
 	if (witness_list(td))
@@ -164,6 +185,13 @@ ast(framep)
 		p->p_stats->p_prof.pr_ticks = 0;
 	}
 	mtx_unlock_spin(&sched_lock);
+	/*
+	 * XXXKSE While the fact that we owe a user profiling
+	 * tick is stored per KSE in this code, the statistics
+	 * themselves are still stored per process.
+	 * This should probably change, by which I mean that
+	 * possibly the location of both might change.
+	 */
 
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
@@ -192,14 +220,13 @@ ast(framep)
 	if (flags & KEF_NEEDRESCHED) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
-		setrunqueue(td);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
 	}
 	if (sflag & PS_NEEDSIGCHK) {
 		PROC_LOCK(p);
-		while ((sig = cursig(p)) != 0)
+		while ((sig = cursig(td)) != 0)
 			postsig(sig);
 		PROC_UNLOCK(p);
 	}

@@ -799,7 +799,7 @@ cpu_idle(void)
 {
 	if (cpu_idle_hlt) {
 		disable_intr();
-		if (procrunnable()) {
+  		if (kserunnable()) {
 			enable_intr();
 		} else {
 			/*

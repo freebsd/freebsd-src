@@ -503,7 +503,6 @@ poll_idle(void)
 			mtx_unlock(&Giant);
 			mtx_assert(&Giant, MA_NOTOWNED);
 			mtx_lock_spin(&sched_lock);
-			setrunqueue(td);
 			td->td_proc->p_stats->p_ru.ru_nvcsw++;
 			mi_switch();
 			mtx_unlock_spin(&sched_lock);

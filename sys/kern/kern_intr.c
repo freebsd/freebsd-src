@@ -201,7 +201,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	td->td_ksegrp->kg_pri_class = PRI_ITHD;
 	td->td_priority = PRI_MAX_ITHD;
-	p->p_stat = SWAIT;
+	td->td_state = TDS_IWAIT;
 	ithd->it_td = td;
 	td->td_ithd = ithd;
 	if (ithread != NULL)
@@ -229,8 +229,7 @@ ithread_destroy(struct ithd *ithread)
 	}
 	ithread->it_flags |= IT_DEAD;
 	mtx_lock_spin(&sched_lock);
-	if (p->p_stat == SWAIT) {
-		p->p_stat = SRUN; /* XXXKSE */
+	if (td->td_state == TDS_IWAIT) {
 		setrunqueue(td);
 	}
 	mtx_unlock_spin(&sched_lock);
@@ -327,7 +326,7 @@ ok:
 	 * handler as being dead and let the ithread do the actual removal.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (ithread->it_td->td_proc->p_stat != SWAIT) {
+	if (ithread->it_td->td_state != TDS_IWAIT) {
 		handler->ih_flags |= IH_DEAD;
 
 		/*
@@ -374,8 +373,8 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	td = ithread->it_td;
 	p = td->td_proc;
 	KASSERT(p != NULL, ("ithread %s has no process", ithread->it_name));
-	CTR4(KTR_INTR, "%s: pid %d: (%s) need = %d", __func__, p->p_pid, p->p_comm,
-	    ithread->it_need);
+	CTR4(KTR_INTR, "%s: pid %d: (%s) need = %d",
+	    __func__, p->p_pid, p->p_comm, ithread->it_need);
 
 	/*
 	 * Set it_need to tell the thread to keep running if it is already
@@ -387,14 +386,16 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	 */
 	ithread->it_need = 1;
 	mtx_lock_spin(&sched_lock);
-	if (p->p_stat == SWAIT) {
+	if (td->td_state == TDS_IWAIT) {
 		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
-		p->p_stat = SRUN;
-		setrunqueue(td); /* XXXKSE */
-		if (do_switch && curthread->td_critnest == 1 &&
-		    curthread->td_proc->p_stat == SRUN) {
+		setrunqueue(td);
+		if (do_switch &&
+		    (curthread->td_critnest == 1)/* &&
+		    (curthread->td_state == TDS_RUNNING) XXXKSE*/) {
+#if 0 /* not needed in KSE */
 			if (curthread != PCPU_GET(idlethread))
 				setrunqueue(curthread);
+#endif
 			curthread->td_proc->p_stats->p_ru.ru_nivcsw++;
 			mi_switch();
 		} else {
@@ -402,7 +403,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 		}
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d: it_need %d, state %d",
-		    __func__, p->p_pid, ithread->it_need, p->p_stat);
+		    __func__, p->p_pid, ithread->it_need, p->p_state);
 	}
 	mtx_unlock_spin(&sched_lock);
 
@@ -550,7 +551,7 @@ restart:
 			 */
 			if (ithd->it_enable != NULL)
 				ithd->it_enable(ithd->it_vector);
-			p->p_stat = SWAIT; /* we're idle */
+			td->td_state = TDS_IWAIT; /* we're idle */
 			p->p_stats->p_ru.ru_nvcsw++;
 			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
 			mi_switch();

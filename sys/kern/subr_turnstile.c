@@ -119,23 +119,20 @@ propagate_priority(struct thread *td)
 			return;
 		}
 
+		KASSERT(td->td_state != TDS_SURPLUS, ("Mutex owner SURPLUS"));
+		MPASS(td->td_proc != NULL);
 		MPASS(td->td_proc->p_magic == P_MAGIC);
-		KASSERT(td->td_proc->p_stat != SSLEEP, ("sleeping thread owns a mutex"));
+		KASSERT(td->td_state != TDS_SLP,
+		    ("sleeping thread owns a mutex"));
 		if (td->td_priority <= pri) /* lower is higher priority */
 			return;
 
-		/*
-		 * Bump this thread's priority.
-		 */
-		td->td_priority = pri;
 
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-		if (thread_running(td)) {
-			MPASS(td->td_proc->p_stat == SRUN
-			|| td->td_proc->p_stat == SZOMB
-			|| td->td_proc->p_stat == SSTOP);
+		if (td->td_state == TDS_RUNNING) {
+			td->td_priority = pri;
 			return;
 		}
 
@@ -151,20 +148,26 @@ propagate_priority(struct thread *td)
 		 * If on run queue move to new run queue, and quit.
 		 * XXXKSE this gets a lot more complicated under threads
 		 * but try anyhow.
+		 * We should have a special call to do this more efficiently.
 		 */
-		if (td->td_proc->p_stat == SRUN) {
+		if (td->td_state == TDS_RUNQ) {
 			MPASS(td->td_blocked == NULL);
 			remrunqueue(td);
+			td->td_priority = pri;
 			setrunqueue(td);
 			return;
 		}
+		/*
+		 * Adjust for any other cases.
+		 */
+		td->td_priority = pri;
 
 		/*
 		 * If we aren't blocked on a mutex, we should be.
 		 */
-		KASSERT(td->td_proc->p_stat == SMTX, (
+		KASSERT(td->td_state == TDS_MTX, (
 		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
-		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_proc->p_stat,
+		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_state,
 		    m->mtx_object.lo_name));
 
 		/*
@@ -590,7 +593,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 */
 		td->td_blocked = m;
 		td->td_mtxname = m->mtx_object.lo_name;
-		td->td_proc->p_stat = SMTX;
+		td->td_state = TDS_MTX;
 		propagate_priority(td);
 
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -727,7 +730,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    m, td1);
 
 	td1->td_blocked = NULL;
-	td1->td_proc->p_stat = SRUN;
 	setrunqueue(td1);
 
 	if (td->td_critnest == 1 && td1->td_priority < pri) {
@@ -744,7 +746,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			}
 		}
 #endif
-		setrunqueue(td);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR2(KTR_LOCK,
 			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
