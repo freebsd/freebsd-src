@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.251 1999/07/03 18:26:22 peter Exp $
+#	$Id: files.i386,v 1.252 1999/07/03 18:34:02 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -34,38 +34,38 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-contrib/dev/oltr/if_oltr.c	optional	oltr	device-driver
-trlld.o				optional	oltr	device-driver	\
+contrib/dev/oltr/if_oltr.c	optional	oltr
+trlld.o				optional	oltr			\
 	dependency	"$S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu" \
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu"	\
 	no-implicit-rule
-contrib/dev/oltr/trlldbm.c	optional	oltr	device-driver
-contrib/dev/oltr/trlldhm.c	optional	oltr	device-driver
-contrib/dev/oltr/trlldmac.c	optional	oltr	device-driver
-dev/ata/ata-all.c		optional	ata	device-driver
-dev/ata/ata-disk.c		optional	atadisk	device-driver
-dev/ata/ata-dma.c		optional	ata	device-driver
-dev/ata/atapi-all.c		optional	ata	device-driver
-dev/ata/atapi-cd.c		optional	atapicd	device-driver
-dev/ata/atapi-fd.c		optional	atapifd	device-driver
-dev/ata/atapi-tape.c		optional	atapist	device-driver
-dev/fb/fb.c			optional	fb	device-driver
-dev/fb/fb.c			optional	vga	device-driver
+contrib/dev/oltr/trlldbm.c	optional	oltr
+contrib/dev/oltr/trlldhm.c	optional	oltr
+contrib/dev/oltr/trlldmac.c	optional	oltr
+dev/ata/ata-all.c		optional	ata
+dev/ata/ata-disk.c		optional	atadisk
+dev/ata/ata-dma.c		optional	ata
+dev/ata/atapi-all.c		optional	ata
+dev/ata/atapi-cd.c		optional	atapicd
+dev/ata/atapi-fd.c		optional	atapifd
+dev/ata/atapi-tape.c		optional	atapist
+dev/fb/fb.c			optional	fb
+dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
-dev/fb/vga.c			optional	vga	device-driver
-dev/kbd/atkbd.c			optional	atkbd	device-driver
-dev/kbd/atkbdc.c		optional	atkbdc	device-driver
-dev/kbd/kbd.c			optional	atkbd	device-driver
-dev/kbd/kbd.c			optional	kbd	device-driver
-dev/kbd/kbd.c			optional	ukbd	device-driver
-dev/pccard/if_xe.c		optional	xe	device-driver
-dev/syscons/schistory.c		optional	sc	device-driver
-dev/syscons/scmouse.c		optional	sc	device-driver
-dev/syscons/scvesactl.c		optional	sc	device-driver
-dev/syscons/scvgarndr.c		optional	sc	device-driver
-dev/syscons/scvidctl.c		optional	sc	device-driver
-dev/syscons/scvtb.c		optional	sc	device-driver
-dev/syscons/syscons.c		optional	sc	device-driver
+dev/fb/vga.c			optional	vga
+dev/kbd/atkbd.c			optional	atkbd
+dev/kbd/atkbdc.c		optional	atkbdc
+dev/kbd/kbd.c			optional	atkbd
+dev/kbd/kbd.c			optional	kbd
+dev/kbd/kbd.c			optional	ukbd
+dev/pccard/if_xe.c		optional	xe
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scvesactl.c		optional	sc
+dev/syscons/scvgarndr.c		optional	sc
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/syscons/syscons.c		optional	sc
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
@@ -97,22 +97,22 @@ gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
 gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
-gnu/i386/isa/dgb.c		optional	dgb	device-driver
-gnu/i386/isa/dgm.c		optional	dgm	device-driver
-gnu/i386/isa/sound/awe_wave.c	optional	awe	device-driver
-i386/apm/apm.c			optional	apm	device-driver
+gnu/i386/isa/dgb.c		optional	dgb
+gnu/i386/isa/dgm.c		optional	dgm
+gnu/i386/isa/sound/awe_wave.c	optional	awe
+i386/apm/apm.c			optional	apm
 i386/apm/apm_setup.s		optional	apm
-i386/eisa/3c5x9.c		optional	ep	device-driver
-i386/eisa/adv_eisa.c		optional	adv	device-driver
-i386/eisa/ahb.c			optional	ahb	device-driver
-i386/eisa/ahc_eisa.c		optional	eisa ahc device-driver	   \
+i386/eisa/3c5x9.c		optional	ep
+i386/eisa/adv_eisa.c		optional	adv
+i386/eisa/ahb.c			optional	ahb
+i386/eisa/ahc_eisa.c		optional	eisa ahc    \
 	dependency	"aic7xxx_reg.h $S/i386/eisa/ahc_eisa.c"
-i386/eisa/bt_eisa.c		optional	bt	device-driver
-i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
+i386/eisa/bt_eisa.c		optional	bt
+i386/eisa/dpt_eisa.c		optional	eisa dpt
 i386/eisa/eisaconf.c		optional	eisa
-i386/eisa/if_fea.c		optional	fea	device-driver
-i386/eisa/if_vx_eisa.c		optional	vx	device-driver
-i386/i386/autoconf.c		standard	device-driver
+i386/eisa/if_fea.c		optional	fea
+i386/eisa/if_vx_eisa.c		optional	vx
+i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/busdma_machdep.c	standard
@@ -171,152 +171,152 @@ i386/ibcs2/ibcs2_util.c		optional	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional	ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
-i386/isa/adv_isa.c		optional	adv	device-driver
-i386/isa/aha_isa.c		optional	aha	device-driver
-i386/isa/asc.c			optional	asc	device-driver
-i386/isa/atapi-cd.c		optional	wcd	device-driver
-i386/isa/atapi.c		optional	wdc	device-driver
+i386/isa/adv_isa.c		optional	adv
+i386/isa/aha_isa.c		optional	aha
+i386/isa/asc.c			optional	asc
+i386/isa/atapi-cd.c		optional	wcd
+i386/isa/atapi.c		optional	wdc
 i386/isa/clock.c		standard
-i386/isa/cronyx.c		optional	cx	device-driver
-i386/isa/ctx.c			optional	ctx	device-driver
-i386/isa/cx.c			optional	cx	device-driver
-i386/isa/cy.c			optional	cy	device-driver
+i386/isa/cronyx.c		optional	cx
+i386/isa/ctx.c			optional	ctx
+i386/isa/cx.c			optional	cx
+i386/isa/cy.c			optional	cy
 i386/isa/diskslice_machdep.c	standard
-i386/isa/elink.c		optional	ep	device-driver
-i386/isa/elink.c		optional	ie	device-driver
-isa/fd.c			optional	fd	device-driver
-i386/isa/fla.c			optional	fla	device-driver
-i386/isa/gpib.c			optional	gp	device-driver
-i386/isa/gsc.c			optional	gsc	device-driver
-i386/isa/if_ar.c		optional	ar	device-driver
-i386/isa/if_cs.c		optional	cs	device-driver
-i386/isa/if_cx.c		optional	cx	device-driver
-i386/isa/if_ed.c		optional	ed	device-driver
-i386/isa/if_el.c		optional	el	device-driver
-i386/isa/if_ep.c		optional	ep	device-driver
-i386/isa/if_ex.c		optional	ex	device-driver
-i386/isa/if_fe.c		optional	fe	device-driver
-i386/isa/if_ie.c		optional	ie	device-driver
-i386/isa/if_le.c		optional	le	device-driver
-i386/isa/if_lnc.c		optional	lnc	device-driver
-i386/isa/if_rdp.c		optional	rdp	device-driver
-i386/isa/if_sr.c		optional	sr	device-driver
-i386/isa/if_wi.c		optional	wi	device-driver
-i386/isa/if_wl.c		optional	wl	device-driver
-i386/isa/if_ze.c		optional	ze	device-driver
-i386/isa/if_zp.c		optional	zp	device-driver
+i386/isa/elink.c		optional	ep
+i386/isa/elink.c		optional	ie
+isa/fd.c			optional	fd
+i386/isa/fla.c			optional	fla
+i386/isa/gpib.c			optional	gp
+i386/isa/gsc.c			optional	gsc
+i386/isa/if_ar.c		optional	ar
+i386/isa/if_cs.c		optional	cs
+i386/isa/if_cx.c		optional	cx
+i386/isa/if_ed.c		optional	ed
+i386/isa/if_el.c		optional	el
+i386/isa/if_ep.c		optional	ep
+i386/isa/if_ex.c		optional	ex
+i386/isa/if_fe.c		optional	fe
+i386/isa/if_ie.c		optional	ie
+i386/isa/if_le.c		optional	le
+i386/isa/if_lnc.c		optional	lnc
+i386/isa/if_rdp.c		optional	rdp
+i386/isa/if_sr.c		optional	sr
+i386/isa/if_wi.c		optional	wi
+i386/isa/if_wl.c		optional	wl
+i386/isa/if_ze.c		optional	ze
+i386/isa/if_zp.c		optional	zp
 i386/isa/intr_machdep.c		standard
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
-i386/isa/isa.c			optional	isa	device-driver
-i386/isa/isa_compat.c		optional	isa	device-driver
-i386/isa/isa_dma.c		optional	isa	device-driver
-i386/isa/istallion.c		optional	stli	device-driver
-i386/isa/joy.c			optional	joy	device-driver
-i386/isa/labpc.c		optional	labpc	device-driver
-i386/isa/loran.c		optional	loran	device-driver
-i386/isa/matcd/matcd.c		optional	matcd	device-driver
-i386/isa/mcd.c			optional	mcd	device-driver
-i386/isa/mse.c			optional	mse	device-driver
-i386/isa/npx.c			mandatory	npx	device-driver
-i386/isa/pcaudio.c		optional	pca	device-driver
-i386/isa/pcf.c			optional	pcf	device-driver
-i386/isa/pcibus.c		optional	pci	device-driver
-i386/isa/pcicx.c		optional	ze	device-driver
-i386/isa/pcicx.c		optional	zp	device-driver
-i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
-i386/isa/pnp.c			optional	pnp	device-driver
-i386/isa/ppc.c			optional	ppc	device-driver
+i386/isa/isa.c			optional	isa
+i386/isa/isa_compat.c		optional	isa
+i386/isa/isa_dma.c		optional	isa
+i386/isa/istallion.c		optional	stli
+i386/isa/joy.c			optional	joy
+i386/isa/labpc.c		optional	labpc
+i386/isa/loran.c		optional	loran
+i386/isa/matcd/matcd.c		optional	matcd
+i386/isa/mcd.c			optional	mcd
+i386/isa/mse.c			optional	mse
+i386/isa/npx.c			mandatory	npx
+i386/isa/pcaudio.c		optional	pca
+i386/isa/pcf.c			optional	pcf
+i386/isa/pcibus.c		optional	pci
+i386/isa/pcicx.c		optional	ze
+i386/isa/pcicx.c		optional	zp
+i386/isa/pcvt/pcvt_drv.c	optional	vt
+i386/isa/pcvt/pcvt_ext.c	optional	vt
+i386/isa/pcvt/pcvt_kbd.c	optional	vt
+i386/isa/pcvt/pcvt_out.c	optional	vt
+i386/isa/pcvt/pcvt_sup.c	optional	vt
+i386/isa/pcvt/pcvt_vtf.c	optional	vt
+i386/isa/pnp.c			optional	pnp
+i386/isa/ppc.c			optional	ppc
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/random_machdep.c	standard
-i386/isa/rc.c			optional	rc	device-driver
-i386/isa/rp.c			optional	rp	device-driver
-i386/isa/scd.c			optional	scd	device-driver
-i386/isa/si.c			optional	si	device-driver
-i386/isa/si2_z280.c		optional	si	device-driver
-i386/isa/si3_t225.c		optional	si	device-driver
-i386/isa/snd/ad1848.c		optional	pcm	device-driver
-i386/isa/snd/clones.c		optional	pcm	device-driver
-i386/isa/snd/dmabuf.c		optional	pcm	device-driver
-i386/isa/snd/sb_dsp.c		optional	pcm	device-driver
-i386/isa/snd/sound.c		optional	pcm	device-driver
-i386/isa/sound/ad1848.c		optional	css	device-driver
-i386/isa/sound/ad1848.c		optional	gus	device-driver
-i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
-i386/isa/sound/ad1848.c		optional	mss	device-driver
-i386/isa/sound/ad1848.c		optional	sscape	device-driver
-i386/isa/sound/ad1848.c		optional	trix	device-driver
-i386/isa/sound/ad1848.c		optional	sscape_mss	device-driver
-i386/isa/sound/adlib_card.c	optional	opl	device-driver
-i386/isa/sound/adlib_card.c	optional	trix	device-driver
-i386/isa/sound/audio.c		optional	snd	device-driver
-i386/isa/sound/cs4232.c		optional	css	device-driver
-i386/isa/sound/dev_table.c	optional	snd	device-driver
-i386/isa/sound/dmabuf.c		optional	snd	device-driver
-i386/isa/sound/gus_card.c	optional	gus	device-driver
-i386/isa/sound/gus_midi.c	optional	gus	device-driver
-i386/isa/sound/gus_vol.c	optional	gus	device-driver
-i386/isa/sound/gus_wave.c	optional	gus	device-driver
-i386/isa/sound/ics2101.c	optional	gus	device-driver
-i386/isa/sound/midi_synth.c	optional	css	device-driver
-i386/isa/sound/midi_synth.c	optional	gus	device-driver
-i386/isa/sound/midi_synth.c	optional	mpu	device-driver
-i386/isa/sound/midi_synth.c	optional	mss	device-driver
-i386/isa/sound/midi_synth.c	optional	pas	device-driver
-i386/isa/sound/midi_synth.c	optional	sb	device-driver
-i386/isa/sound/midi_synth.c	optional	sscape	device-driver
-i386/isa/sound/midi_synth.c	optional	uart	device-driver
-i386/isa/sound/midibuf.c	optional	css	device-driver
-i386/isa/sound/midibuf.c	optional	gus	device-driver
-i386/isa/sound/midibuf.c	optional	mpu	device-driver
-i386/isa/sound/midibuf.c	optional	mss	device-driver
-i386/isa/sound/midibuf.c	optional	pas	device-driver
-i386/isa/sound/midibuf.c	optional	sb	device-driver
-i386/isa/sound/midibuf.c	optional	sscape	device-driver
-i386/isa/sound/midibuf.c	optional	uart	device-driver
-i386/isa/sound/mpu401.c		optional	mpu	device-driver
-i386/isa/sound/mpu401.c		optional	sscape	device-driver
-i386/isa/sound/opl3.c		optional	opl	device-driver
-i386/isa/sound/opl3.c		optional	trix	device-driver
-i386/isa/sound/pas2_card.c	optional	pas	device-driver
-i386/isa/sound/pas2_midi.c	optional	pas	device-driver
-i386/isa/sound/pas2_mixer.c	optional	pas	device-driver
-i386/isa/sound/pas2_pcm.c	optional	pas	device-driver
-i386/isa/sound/patmgr.c		optional	snd	device-driver
-i386/isa/sound/sb16_dsp.c	optional	sbxvi	device-driver
-i386/isa/sound/sb16_midi.c	optional	sbmidi	device-driver
-i386/isa/sound/sb_card.c	optional	sb	device-driver
-i386/isa/sound/sb_dsp.c		optional	sb	device-driver
-i386/isa/sound/sb_midi.c	optional	sb	device-driver
-i386/isa/sound/sb_mixer.c	optional	sb	device-driver
-i386/isa/sound/sequencer.c	optional	snd	device-driver
-i386/isa/sound/sound_switch.c	optional	snd	device-driver
-i386/isa/sound/sound_timer.c	optional	css	device-driver
-i386/isa/sound/sound_timer.c	optional	gus	device-driver
-i386/isa/sound/sound_timer.c	optional	mss	device-driver
-i386/isa/sound/sound_timer.c	optional	mss	device-driver
-i386/isa/sound/sound_timer.c	optional	sscape	device-driver
-i386/isa/sound/sound_timer.c	optional	trix	device-driver
-i386/isa/sound/soundcard.c	optional	snd	device-driver
-i386/isa/sound/sscape.c		optional	sscape	device-driver
-i386/isa/sound/sys_timer.c	optional	snd	device-driver
-i386/isa/sound/trix.c		optional	trix	device-driver
-i386/isa/sound/uart6850.c	optional	uart	device-driver
-i386/isa/spigot.c		optional	spigot	device-driver
-i386/isa/spkr.c			optional	speaker	device-driver
-i386/isa/stallion.c		optional	stl	device-driver
-i386/isa/tw.c			optional	tw	device-driver
-i386/isa/vesa.c			optional	vga	device-driver
-i386/isa/wd.c			optional	wd	device-driver
-i386/isa/wd.c			optional	wdc	device-driver
-i386/isa/wfd.c			optional	wfd	device-driver
-i386/isa/wst.c			optional	wst	device-driver
-i386/isa/wt.c			optional	wt	device-driver
+i386/isa/rc.c			optional	rc
+i386/isa/rp.c			optional	rp
+i386/isa/scd.c			optional	scd
+i386/isa/si.c			optional	si
+i386/isa/si2_z280.c		optional	si
+i386/isa/si3_t225.c		optional	si
+i386/isa/snd/ad1848.c		optional	pcm
+i386/isa/snd/clones.c		optional	pcm
+i386/isa/snd/dmabuf.c		optional	pcm
+i386/isa/snd/sb_dsp.c		optional	pcm
+i386/isa/snd/sound.c		optional	pcm
+i386/isa/sound/ad1848.c		optional	css
+i386/isa/sound/ad1848.c		optional	gus
+i386/isa/sound/ad1848.c		optional	gusxvi
+i386/isa/sound/ad1848.c		optional	mss
+i386/isa/sound/ad1848.c		optional	sscape
+i386/isa/sound/ad1848.c		optional	trix
+i386/isa/sound/ad1848.c		optional	sscape_mss
+i386/isa/sound/adlib_card.c	optional	opl
+i386/isa/sound/adlib_card.c	optional	trix
+i386/isa/sound/audio.c		optional	snd
+i386/isa/sound/cs4232.c		optional	css
+i386/isa/sound/dev_table.c	optional	snd
+i386/isa/sound/dmabuf.c		optional	snd
+i386/isa/sound/gus_card.c	optional	gus
+i386/isa/sound/gus_midi.c	optional	gus
+i386/isa/sound/gus_vol.c	optional	gus
+i386/isa/sound/gus_wave.c	optional	gus
+i386/isa/sound/ics2101.c	optional	gus
+i386/isa/sound/midi_synth.c	optional	css
+i386/isa/sound/midi_synth.c	optional	gus
+i386/isa/sound/midi_synth.c	optional	mpu
+i386/isa/sound/midi_synth.c	optional	mss
+i386/isa/sound/midi_synth.c	optional	pas
+i386/isa/sound/midi_synth.c	optional	sb
+i386/isa/sound/midi_synth.c	optional	sscape
+i386/isa/sound/midi_synth.c	optional	uart
+i386/isa/sound/midibuf.c	optional	css
+i386/isa/sound/midibuf.c	optional	gus
+i386/isa/sound/midibuf.c	optional	mpu
+i386/isa/sound/midibuf.c	optional	mss
+i386/isa/sound/midibuf.c	optional	pas
+i386/isa/sound/midibuf.c	optional	sb
+i386/isa/sound/midibuf.c	optional	sscape
+i386/isa/sound/midibuf.c	optional	uart
+i386/isa/sound/mpu401.c		optional	mpu
+i386/isa/sound/mpu401.c		optional	sscape
+i386/isa/sound/opl3.c		optional	opl
+i386/isa/sound/opl3.c		optional	trix
+i386/isa/sound/pas2_card.c	optional	pas
+i386/isa/sound/pas2_midi.c	optional	pas
+i386/isa/sound/pas2_mixer.c	optional	pas
+i386/isa/sound/pas2_pcm.c	optional	pas
+i386/isa/sound/patmgr.c		optional	snd
+i386/isa/sound/sb16_dsp.c	optional	sbxvi
+i386/isa/sound/sb16_midi.c	optional	sbmidi
+i386/isa/sound/sb_card.c	optional	sb
+i386/isa/sound/sb_dsp.c		optional	sb
+i386/isa/sound/sb_midi.c	optional	sb
+i386/isa/sound/sb_mixer.c	optional	sb
+i386/isa/sound/sequencer.c	optional	snd
+i386/isa/sound/sound_switch.c	optional	snd
+i386/isa/sound/sound_timer.c	optional	css
+i386/isa/sound/sound_timer.c	optional	gus
+i386/isa/sound/sound_timer.c	optional	mss
+i386/isa/sound/sound_timer.c	optional	mss
+i386/isa/sound/sound_timer.c	optional	sscape
+i386/isa/sound/sound_timer.c	optional	trix
+i386/isa/sound/soundcard.c	optional	snd
+i386/isa/sound/sscape.c		optional	sscape
+i386/isa/sound/sys_timer.c	optional	snd
+i386/isa/sound/trix.c		optional	trix
+i386/isa/sound/uart6850.c	optional	uart
+i386/isa/spigot.c		optional	spigot
+i386/isa/spkr.c			optional	speaker
+i386/isa/stallion.c		optional	stl
+i386/isa/tw.c			optional	tw
+i386/isa/vesa.c			optional	vga
+i386/isa/wd.c			optional	wd
+i386/isa/wd.c			optional	wdc
+i386/isa/wfd.c			optional	wfd
+i386/isa/wst.c			optional	wst
+i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux
@@ -331,37 +331,37 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
-i4b/layer1/i4b_avm_a1.c		optional	isic	device-driver
-i4b/layer1/i4b_avm_fritz_pci.c	optional	isic	device-driver
-i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic	device-driver
-i4b/layer1/i4b_bchan.c		optional	isic	device-driver
-i4b/layer1/i4b_ctx_s0P.c	optional	isic	device-driver
-i4b/layer1/i4b_drn_ngo.c	optional	isic	device-driver
-i4b/layer1/i4b_dynalink.c	optional	isic	device-driver
-i4b/layer1/i4b_elsa_qs1i.c	optional	isic	device-driver
-i4b/layer1/i4b_elsa_qs1p.c	optional	isic	device-driver
-i4b/layer1/i4b_hscx.c		optional	isic	device-driver
-i4b/layer1/i4b_isac.c		optional	isic	device-driver
-i4b/layer1/i4b_isic.c		optional	isic	device-driver
-i4b/layer1/i4b_isic_isa.c	optional	isic	device-driver
-i4b/layer1/i4b_isic_pci.c	optional	isic	device-driver
-i4b/layer1/i4b_isic_pcmcia.c	optional	isic	device-driver
-i4b/layer1/i4b_isic_pnp.c	optional	isic	device-driver
-i4b/layer1/i4b_itk_ix1.c	optional	isic	device-driver
-i4b/layer1/i4b_l1.c		optional	isic	device-driver
-i4b/layer1/i4b_l1fsm.c		optional	isic	device-driver
-i4b/layer1/i4b_sws.c		optional	isic	device-driver
-i4b/layer1/i4b_tel_s016.c	optional	isic	device-driver
-i4b/layer1/i4b_tel_s0163.c	optional	isic	device-driver
-i4b/layer1/i4b_tel_s08.c	optional	isic	device-driver
-i4b/layer1/i4b_tel_s0P.c	optional	isic	device-driver
-i4b/layer1/i4b_usr_sti.c	optional	isic	device-driver
-isa/atkbd_isa.c			optional	atkbd	device-driver
-isa/atkbdc_isa.c		optional	atkbdc	device-driver
-isa/psm.c			optional	psm	device-driver
-isa/sio.c			optional	sio	device-driver
-isa/syscons_isa.c		optional	sc	device-driver
-isa/vga_isa.c			optional	vga	device-driver
+i4b/layer1/i4b_avm_a1.c		optional	isic
+i4b/layer1/i4b_avm_fritz_pci.c	optional	isic
+i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic
+i4b/layer1/i4b_bchan.c		optional	isic
+i4b/layer1/i4b_ctx_s0P.c	optional	isic
+i4b/layer1/i4b_drn_ngo.c	optional	isic
+i4b/layer1/i4b_dynalink.c	optional	isic
+i4b/layer1/i4b_elsa_qs1i.c	optional	isic
+i4b/layer1/i4b_elsa_qs1p.c	optional	isic
+i4b/layer1/i4b_hscx.c		optional	isic
+i4b/layer1/i4b_isac.c		optional	isic
+i4b/layer1/i4b_isic.c		optional	isic
+i4b/layer1/i4b_isic_isa.c	optional	isic
+i4b/layer1/i4b_isic_pci.c	optional	isic
+i4b/layer1/i4b_isic_pcmcia.c	optional	isic
+i4b/layer1/i4b_isic_pnp.c	optional	isic
+i4b/layer1/i4b_itk_ix1.c	optional	isic
+i4b/layer1/i4b_l1.c		optional	isic
+i4b/layer1/i4b_l1fsm.c		optional	isic
+i4b/layer1/i4b_sws.c		optional	isic
+i4b/layer1/i4b_tel_s016.c	optional	isic
+i4b/layer1/i4b_tel_s0163.c	optional	isic
+i4b/layer1/i4b_tel_s08.c	optional	isic
+i4b/layer1/i4b_tel_s0P.c	optional	isic
+i4b/layer1/i4b_usr_sti.c	optional	isic
+isa/atkbd_isa.c			optional	atkbd
+isa/atkbdc_isa.c		optional	atkbdc
+isa/psm.c			optional	psm
+isa/sio.c			optional	sio
+isa/syscons_isa.c		optional	sc
+isa/vga_isa.c			optional	vga
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/index.c			standard
@@ -382,5 +382,5 @@ libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pci/es1370.c			optional	pcm pci	device-driver
-pci/ide_pci.c			optional	wd pci	device-driver
+pci/es1370.c			optional	pcm pci
+pci/ide_pci.c			optional	wd pci

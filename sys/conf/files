@@ -3,12 +3,12 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
-aicasm				optional	ahc	device-driver	   \
+aicasm				optional	ahc			   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
 	compile-with	"${MAKE} -f $S/dev/aic7xxx/Makefile MAKESRCPATH=$S/dev/aic7xxx" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm aicasm_gram.c aicasm_scan.c y.tab.h"
-aic7xxx_{seq,reg}.h		optional	ahc	device-driver	   \
+aic7xxx_{seq,reg}.h		optional	ahc			   \
 	compile-with	"./aicasm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h aic7xxx_reg.h"			   \
@@ -34,7 +34,7 @@ bus_if.c			standard				\
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend local			\
 	clean		"bus_if.c"
-bus_if.h			standard				\ 
+bus_if.h			standard				\
 	dependency	"$S/kern/makedevops.pl $S/kern/bus_if.m"	\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend				\
@@ -80,51 +80,51 @@ ddb/db_trap.c		optional ddb
 ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
-dev/advansys/advansys.c	optional adv device-driver
-dev/advansys/advlib.c	optional adv device-driver
-dev/advansys/advmcode.c	optional adv device-driver
-dev/advansys/adwcam.c	optional adw device-driver
-dev/advansys/adwlib.c	optional adw device-driver
-dev/advansys/adwmcode.c	optional adw device-driver
-dev/aha/aha.c		optional aha device-driver
-dev/aic7xxx/aic7xxx.c	optional ahc device-driver		\
+dev/advansys/advansys.c	optional adv
+dev/advansys/advlib.c	optional adv
+dev/advansys/advmcode.c	optional adv
+dev/advansys/adwcam.c	optional adw
+dev/advansys/adwlib.c	optional adw
+dev/advansys/adwmcode.c	optional adw
+dev/aha/aha.c		optional aha
+dev/aic7xxx/aic7xxx.c	optional ahc		\
 	dependency	"aic7xxx_{reg,seq}.h"
-dev/aic7xxx/93cx6.c	optional ahc device-driver
-dev/buslogic/bt.c	optional bt  device-driver
-dev/ccd/ccd.c		optional ccd device-driver
-#dev/dpt/dpt_control.c	optional dpt device-driver
-dev/dpt/dpt_scsi.c	optional dpt device-driver
-dev/en/midway.c		optional en device-driver
-dev/hea/eni.c		optional hea device-driver
-dev/hea/eni_buffer.c	optional hea device-driver
-dev/hea/eni_globals.c	optional hea device-driver
-dev/hea/eni_if.c	optional hea device-driver
-dev/hea/eni_init.c	optional hea device-driver
-dev/hea/eni_intr.c	optional hea device-driver
-dev/hea/eni_receive.c	optional hea device-driver
-dev/hea/eni_transmit.c	optional hea device-driver
-dev/hea/eni_vcm.c	optional hea device-driver
-dev/hfa/fore_buffer.c	optional hfa device-driver
-dev/hfa/fore_command.c	optional hfa device-driver
-dev/hfa/fore_globals.c	optional hfa device-driver
-dev/hfa/fore_if.c	optional hfa device-driver
-dev/hfa/fore_init.c	optional hfa device-driver
-dev/hfa/fore_intr.c	optional hfa device-driver
-dev/hfa/fore_load.c	optional hfa device-driver
-dev/hfa/fore_output.c	optional hfa device-driver
-dev/hfa/fore_receive.c	optional hfa device-driver
-dev/hfa/fore_stats.c	optional hfa device-driver
-dev/hfa/fore_timer.c	optional hfa device-driver
-dev/hfa/fore_transmit.c	optional hfa device-driver
-dev/hfa/fore_vcm.c	optional hfa device-driver
-dev/ida/ida.c		optional ida device-driver
+dev/aic7xxx/93cx6.c	optional ahc
+dev/buslogic/bt.c	optional bt
+dev/ccd/ccd.c		optional ccd
+#dev/dpt/dpt_control.c	optional dpt
+dev/dpt/dpt_scsi.c	optional dpt
+dev/en/midway.c		optional en
+dev/hea/eni.c		optional hea
+dev/hea/eni_buffer.c	optional hea
+dev/hea/eni_globals.c	optional hea
+dev/hea/eni_if.c	optional hea
+dev/hea/eni_init.c	optional hea
+dev/hea/eni_intr.c	optional hea
+dev/hea/eni_receive.c	optional hea
+dev/hea/eni_transmit.c	optional hea
+dev/hea/eni_vcm.c	optional hea
+dev/hfa/fore_buffer.c	optional hfa
+dev/hfa/fore_command.c	optional hfa
+dev/hfa/fore_globals.c	optional hfa
+dev/hfa/fore_if.c	optional hfa
+dev/hfa/fore_init.c	optional hfa
+dev/hfa/fore_intr.c	optional hfa
+dev/hfa/fore_load.c	optional hfa
+dev/hfa/fore_output.c	optional hfa
+dev/hfa/fore_receive.c	optional hfa
+dev/hfa/fore_stats.c	optional hfa
+dev/hfa/fore_timer.c	optional hfa
+dev/hfa/fore_transmit.c	optional hfa
+dev/hfa/fore_vcm.c	optional hfa
+dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional id
-dev/isp/isp_freebsd.c	optional isp device-driver
-dev/isp/isp.c		optional isp device-driver
-dev/pdq/pdq.c		optional fea device-driver
-dev/pdq/pdq_ifsubr.c	optional fea device-driver
-dev/pdq/pdq.c		optional fpa device-driver
-dev/pdq/pdq_ifsubr.c	optional fpa device-driver
+dev/isp/isp_freebsd.c	optional isp
+dev/isp/isp.c		optional isp
+dev/pdq/pdq.c		optional fea
+dev/pdq/pdq_ifsubr.c	optional fea
+dev/pdq/pdq.c		optional fpa
+dev/pdq/pdq_ifsubr.c	optional fpa
 dev/ppbus/immio.c	optional vpo
 dev/ppbus/if_plip.c	optional plip
 dev/ppbus/lpbb.c	optional lpbb
@@ -141,12 +141,12 @@ smbus_if.o		optional smbus					\
 	dependency	"smbus_if.c smbus_if.h"				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-smbus_if.c		optional smbus					\ 
+smbus_if.c		optional smbus					\
 	dependency	"$S/kern/makedevops.pl $S/dev/smbus/smbus_if.m" \
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/smbus/smbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"smbus_if.c"
-smbus_if.h		optional smbus					\ 
+smbus_if.h		optional smbus					\
 	dependency	"$S/kern/makedevops.pl $S/dev/smbus/smbus_if.m" \
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/smbus/smbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
@@ -159,12 +159,12 @@ iicbb_if.o		optional iicbb					\
 	dependency	"iicbb_if.c"					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-iicbb_if.c		optional iicbb					\ 
+iicbb_if.c		optional iicbb					\
 	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbb_if.m" \
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/iicbus/iicbb_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"iicbb_if.c"
-iicbb_if.h		optional iicbb					\ 
+iicbb_if.h		optional iicbb					\
 	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbb_if.m" \
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/iicbus/iicbb_if.m" \
 	no-obj no-implicit-rule before-depend				\
@@ -175,12 +175,12 @@ iicbus_if.o		optional iicbus					\
 	dependency	"iicbus_if.c iicbus_if.h"			\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-iicbus_if.c		optional iicbus					\ 
+iicbus_if.c		optional iicbus					\
 	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbus_if.m" \
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/iicbus/iicbus_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"iicbus_if.c"
-iicbus_if.h		optional iicbus					\ 
+iicbus_if.h		optional iicbus					\
 	dependency	"$S/kern/makedevops.pl $S/dev/iicbus/iicbus_if.m" \
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/iicbus/iicbus_if.m" \
 	no-obj no-implicit-rule before-depend				\
@@ -189,21 +189,21 @@ dev/iicbus/iiconf.c	optional iicbus
 dev/iicbus/iicbus.c	optional iicbus
 dev/iicbus/if_ic.c	optional ic
 dev/iicbus/iic.c	optional iic
-dev/vinum/vinum.c		optional vinum device-driver
-dev/vinum/vinumconfig.c		optional vinum device-driver
-dev/vinum/vinumdaemon.c		optional vinum device-driver
-dev/vinum/vinuminterrupt.c	optional vinum device-driver
-dev/vinum/vinumio.c		optional vinum device-driver
-dev/vinum/vinumioctl.c		optional vinum device-driver
-dev/vinum/vinumlock.c		optional vinum device-driver
-dev/vinum/vinummemory.c		optional vinum device-driver
-dev/vinum/vinumparser.c		optional vinum device-driver
-dev/vinum/vinumrequest.c	optional vinum device-driver
-dev/vinum/vinumrevive.c		optional vinum device-driver
-dev/vinum/vinumstate.c		optional vinum device-driver
-dev/vinum/vinumutil.c		optional vinum device-driver
+dev/vinum/vinum.c		optional vinum
+dev/vinum/vinumconfig.c		optional vinum
+dev/vinum/vinumdaemon.c		optional vinum
+dev/vinum/vinuminterrupt.c	optional vinum
+dev/vinum/vinumio.c		optional vinum
+dev/vinum/vinumioctl.c		optional vinum
+dev/vinum/vinumlock.c		optional vinum
+dev/vinum/vinummemory.c		optional vinum
+dev/vinum/vinumparser.c		optional vinum
+dev/vinum/vinumrequest.c	optional vinum
+dev/vinum/vinumrevive.c		optional vinum
+dev/vinum/vinumstate.c		optional vinum
+dev/vinum/vinumutil.c		optional vinum
 dev/vn/vn.c			optional vn
-dev/vx/if_vx.c			optional vx  device-driver
+dev/vx/if_vx.c			optional vx
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
 gnu/ext2fs/ext2_inode.c		optional ext2fs
@@ -215,19 +215,19 @@ gnu/ext2fs/ext2_subr.c		optional ext2fs
 gnu/ext2fs/ext2_vfsops.c	optional ext2fs
 gnu/ext2fs/ext2_vnops.c		optional ext2fs
 # device drivers
-i4b/driver/i4b_trace.c	 optional i4btrc	device-driver
-i4b/driver/i4b_rbch.c	 optional i4brbch	device-driver
-i4b/driver/i4b_tel.c	 optional i4btel	device-driver
-i4b/driver/i4b_ipr.c	 optional i4bipr	
-i4b/driver/i4b_ctl.c     optional i4bctl        device-driver
-i4b/driver/i4b_isppp.c   optional i4bisppp      device-driver
+i4b/driver/i4b_trace.c	 optional i4btrc
+i4b/driver/i4b_rbch.c	 optional i4brbch
+i4b/driver/i4b_tel.c	 optional i4btel
+i4b/driver/i4b_ipr.c	 optional i4bipr
+i4b/driver/i4b_ctl.c     optional i4bctl
+i4b/driver/i4b_isppp.c   optional i4bisppp
 net/if_spppsubr.c        optional sppp
 # needed by i4bipr
 net/slcompress.c         optional i4bipr
 # tina-dd control driver
-i4b/tina-dd/i4b_tina_dd.c optional tina		device-driver
-# support 
-i4b/layer2/i4b_mbuf.c	 optional i4btrc	device-driver
+i4b/tina-dd/i4b_tina_dd.c optional tina
+# support
+i4b/layer2/i4b_mbuf.c	 optional i4btrc
 # Q.921 handler
 i4b/layer2/i4b_l2.c	 optional i4bq921
 i4b/layer2/i4b_l2fsm.c	 optional i4bq921
@@ -246,10 +246,10 @@ i4b/layer3/i4b_l2if.c	 optional i4bq931
 i4b/layer3/i4b_l4if.c	 optional i4bq931
 i4b/layer3/i4b_q932fac.c optional i4bq931
 # isdn device driver, interface to i4bd
-i4b/layer4/i4b_i4bdrv.c	 optional i4b		device-driver
-i4b/layer4/i4b_l4.c	 optional i4b		device-driver
-i4b/layer4/i4b_l4mgmt.c	 optional i4b		device-driver
-i4b/layer4/i4b_l4timer.c optional i4b		device-driver
+i4b/layer4/i4b_i4bdrv.c	 optional i4b
+i4b/layer4/i4b_l4.c	 optional i4b
+i4b/layer4/i4b_l4mgmt.c	 optional i4b
+i4b/layer4/i4b_l4timer.c optional i4b
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
@@ -460,7 +460,7 @@ spans_xdr.h			optional atm_spans atm_core	\
         dependency      "$S/netatm/spans/spans_xdr.x"		\
         compile-with    "rpcgen -h -C $S/netatm/spans/spans_xdr.x > spans_xdr.h" \
         clean           "spans_xdr.h"				\
-        no-obj no-implicit-rule 
+        no-obj no-implicit-rule
 spans_xdr.c			optional atm_spans atm_core	\
         before-depend						\
         dependency      "$S/netatm/spans/spans_xdr.x"		\
@@ -580,62 +580,62 @@ nfs/bootp_subr.c	optional bootp
 nfs/krpc_subr.c		optional bootp
 pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
-pccard/pcic.c		optional pcic device-driver
-pci/amd.c		optional amd device-driver
-pci/pcic_p.c		optional pcic device-driver
-pci/adv_pci.c		optional adv device-driver
-pci/adw_pci.c		optional adw device-driver
-pci/ahc_pci.c		optional ahc device-driver			\
+pccard/pcic.c		optional pcic
+pci/amd.c		optional amd
+pci/pcic_p.c		optional pcic
+pci/adv_pci.c		optional adv
+pci/adw_pci.c		optional adw
+pci/ahc_pci.c		optional ahc 		\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
-pci/brooktree848.c	optional bktr device-driver
-pci/bt848_i2c.c		optional bktr device-driver
-pci/bt_pci.c		optional bt pci device-driver
-pci/cy_pci.c		optional cy device-driver
-pci/dpt_pci.c		optional pci dpt device-driver
-pci/ida_pci.c		optional ida device-driver
-pci/if_al.c		optional al device-driver
-pci/if_ax.c		optional ax device-driver
-pci/if_de.c		optional de device-driver
-pci/if_ed_p.c		optional ed device-driver
-pci/if_en_pci.c		optional en device-driver
-pci/if_fxp.c		optional fxp device-driver
-pci/if_lnc_p.c		optional lnc device-driver
-pci/if_mx.c		optional mx device-driver
-pci/if_pn.c		optional pn device-driver
-pci/if_fpa.c		optional fpa device-driver
-pci/if_rl.c		optional rl device-driver
-pci/if_sr_p.c		optional sr device-driver
-pci/if_ti.c		optional ti device-driver
-pci/if_tl.c		optional tl device-driver
-pci/if_tx.c		optional tx device-driver
-pci/if_vr.c		optional vr device-driver
-pci/if_vx_pci.c		optional vx device-driver
-pci/if_wb.c		optional wb device-driver
-pci/if_xl.c		optional xl device-driver
-pci/isp_pci.c		optional isp device-driver
-pci/intpm.c		optional intpm	device-driver
-pci/meteor.c		optional meteor device-driver
-pci/ncr.c		optional ncr device-driver
-pci/pci.c		optional pci device-driver
+pci/brooktree848.c	optional bktr
+pci/bt848_i2c.c		optional bktr
+pci/bt_pci.c		optional bt pci
+pci/cy_pci.c		optional cy
+pci/dpt_pci.c		optional pci dpt
+pci/ida_pci.c		optional ida
+pci/if_al.c		optional al
+pci/if_ax.c		optional ax
+pci/if_de.c		optional de
+pci/if_ed_p.c		optional ed
+pci/if_en_pci.c		optional en
+pci/if_fxp.c		optional fxp
+pci/if_lnc_p.c		optional lnc
+pci/if_mx.c		optional mx
+pci/if_pn.c		optional pn
+pci/if_fpa.c		optional fpa
+pci/if_rl.c		optional rl
+pci/if_sr_p.c		optional sr
+pci/if_ti.c		optional ti
+pci/if_tl.c		optional tl
+pci/if_tx.c		optional tx
+pci/if_vr.c		optional vr
+pci/if_vx_pci.c		optional vx
+pci/if_wb.c		optional wb
+pci/if_xl.c		optional xl
+pci/isp_pci.c		optional isp
+pci/intpm.c		optional intpm
+pci/meteor.c		optional meteor
+pci/ncr.c		optional ncr
+pci/pci.c		optional pci
 pci/pci_compat.c	optional pci
 pci/pcisupport.c	optional pci
 pci_if.o		optional pci					\
 	dependency	"pci_if.c pci_if.h"				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-pci_if.c		optional pci					\ 
+pci_if.c		optional pci					\
 	dependency	"$S/kern/makedevops.pl $S/pci/pci_if.m"		\
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/pci/pci_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"pci_if.c"
-pci_if.h		optional pci					\ 
+pci_if.h		optional pci					\
 	dependency	"$S/kern/makedevops.pl $S/pci/pci_if.m"		\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/pci/pci_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"pci_if.h"
-pci/simos.c		optional simos device-driver
-pci/alpm.c		optional alpm	device-driver
-pci/xrpu.c		optional xrpu device-driver
+pci/simos.c		optional simos
+pci/alpm.c		optional alpm
+pci/xrpu.c		optional xrpu
 posix4/posix4_mib.c	standard
 posix4/p1003_1b.c	standard
 posix4/ksched.c	optional _kposix_priority_scheduling
@@ -683,55 +683,55 @@ vm/vm_swap.c		standard
 vm/vm_unix.c		standard
 vm/vnode_pager.c	standard
 vm/vm_zone.c		standard
-dev/streams/streams.c	optional streams device-driver
+dev/streams/streams.c	optional streams
 #
 # USB support
-pci/uhci_pci.c		optional uhci device-driver
-pci/ohci_pci.c		optional ohci device-driver
-usb_if.o		optional usb device-driver			\
+pci/uhci_pci.c		optional uhci
+pci/ohci_pci.c		optional ohci
+usb_if.o		optional usb					\
 	dependency	"usb_if.c"					\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-usb_if.c		optional usb device-driver			\ 
+usb_if.c		optional usb					\
 	dependency	"$S/kern/makedevops.pl $S/dev/usb/usb_if.m"	\
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/dev/usb/usb_if.m"	\
 	no-obj no-implicit-rule before-depend local			\
 	clean		"usb_if.c"
-usb_if.h		optional usb device-driver			\ 
+usb_if.h		optional usb					\
 	dependency	"$S/kern/makedevops.pl $S/dev/usb/usb_if.m"	\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/dev/usb/usb_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"usb_if.h"
-dev/usb/uhci.c		optional uhci device-driver
-dev/usb/ohci.c		optional ohci device-driver
-dev/usb/usb.c		optional usb device-driver
-dev/usb/usbdi.c		optional usb device-driver
-dev/usb/usbdi_util.c	optional usb device-driver
-#dev/usb/usb_mem.c	optional usb device-driver
-dev/usb/usb_subr.c	optional usb device-driver
-dev/usb/usb_quirks.c	optional usb device-driver
-dev/usb/hid.c		optional usb device-driver
-dev/usb/ugen.c		optional ugen device-driver
-dev/usb/uhid.c		optional uhid device-driver
-dev/usb/ums.c		optional ums device-driver
-dev/usb/ulpt.c		optional ulpt device-driver
-dev/usb/ukbd.c		optional ukbd device-driver
-dev/usb/umass.c		optional umass device-driver
-dev/usb/uhub.c		optional usb device-driver
+dev/usb/uhci.c		optional uhci
+dev/usb/ohci.c		optional ohci
+dev/usb/usb.c		optional usb
+dev/usb/usbdi.c		optional usb
+dev/usb/usbdi_util.c	optional usb
+#dev/usb/usb_mem.c	optional usb
+dev/usb/usb_subr.c	optional usb
+dev/usb/usb_quirks.c	optional usb
+dev/usb/hid.c		optional usb
+dev/usb/ugen.c		optional ugen
+dev/usb/uhid.c		optional uhid
+dev/usb/ums.c		optional ums
+dev/usb/ulpt.c		optional ulpt
+dev/usb/ukbd.c		optional ukbd
+dev/usb/umass.c		optional umass
+dev/usb/uhub.c		optional usb
 isa_if.o		optional isa					\
 	dependency	"isa_if.c isa_if.h"				\
 	compile-with	"${NORMAL_C}"					\
 	no-implicit-rule local
-isa_if.c		optional isa					\ 
+isa_if.c		optional isa					\
 	dependency	"$S/kern/makedevops.pl $S/isa/isa_if.m"		\
 	compile-with	"perl5 $S/kern/makedevops.pl -c $S/isa/isa_if.m" \
 	no-obj no-implicit-rule before-depend local			\
 	clean		"isa_if.c"
-isa_if.h		optional isa					\ 
+isa_if.h		optional isa					\
 	dependency	"$S/kern/makedevops.pl $S/isa/isa_if.m"		\
 	compile-with	"perl5 $S/kern/makedevops.pl -h $S/isa/isa_if.m" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"isa_if.h"
-isa/isa_common.c	optional isa device-driver
-isa/isahint.c		optional isa device-driver
-isa/bt_isa.c		optional bt isa device-driver
+isa/isa_common.c	optional isa
+isa/isahint.c		optional isa
+isa/bt_isa.c		optional bt isa

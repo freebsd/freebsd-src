@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.27 1999/06/28 09:18:44 peter Exp $
+#	$Id: Makefile.alpha,v 1.28 1999/07/02 04:16:57 mjacob Exp $
 #
 # Makefile for FreeBSD
 #
@@ -57,9 +57,6 @@ NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 NORMAL_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
-DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
-DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
 NORMAL_M= ${NORMAL_C}
@@ -221,7 +218,6 @@ __reml.S: ${S}/alpha/alpha/divrem.m4
 
 ${OBJS}: opt_global.h
 
-# XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
 	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
