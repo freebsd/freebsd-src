@@ -51,7 +51,7 @@ When a user logs into
 the system on one of these hardware terminal ports, the system has already
 opened the associated device and prepared the line for normal interactive
 use (see
-.Xr getty 8 .)
+.Xr getty 8 . )
 There is also a special case of a terminal file that connects not to
 a hardware terminal port, but to another program on the other side.
 These special terminal devices are called
@@ -69,7 +69,7 @@ how these lines are opened or used.  Also, these lines are often used
 for dialing out of a system (through an out-calling modem), but again
 the system provides programs that hide the details of accessing
 these terminal special files (see
-.Xr tip 1 ).
+.Xr tip 1 ) .
 .Pp
 When an interactive user logs in, the system prepares the line to
 behave in a certain way (called a
@@ -97,7 +97,7 @@ essentially glues the low level device driver code with the high
 level generic interface routines (such as
 .Xr read 2
 and
-.Xr write 2 ),
+.Xr write 2 ) ,
 and is responsible for implementing the semantics associated
 with the device.  When a terminal file is first opened by a program,
 the default
