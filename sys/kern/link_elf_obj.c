@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.2 1998/09/11 08:46:15 dfr Exp $
+ *	$Id: link_elf.c,v 1.3 1998/10/09 23:55:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -94,6 +94,7 @@ typedef struct elf_file {
     const Elf_Off*	chains;
     caddr_t		hash;
     caddr_t		strtab;		/* DT_STRTAB */
+    int			strsz;		/* DT_STRSZ */
     const Elf_Sym*	symtab;		/* DT_SYMTAB */
     Elf_Addr*		got;		/* DT_PLTGOT */
     const Elf_Rel*	pltrel;		/* DT_JMPREL */
@@ -104,11 +105,17 @@ typedef struct elf_file {
     int			relsize;	/* DT_RELSZ */
     const Elf_Rela*	rela;		/* DT_RELA */
     int			relasize;	/* DT_RELASZ */
+    caddr_t		modptr;
+    const Elf_Sym*	ddbsymtab;	/* The symbol table we are using */
+    long		ddbsymcnt;	/* Number of symbols */
+    caddr_t		ddbstrtab;	/* String table */
+    long		ddbstrcnt;	/* number of bytes in string table */
 } *elf_file_t;
 
 static int		parse_dynamic(linker_file_t lf);
 static int		load_dependancies(linker_file_t lf);
 static int		relocate_file(linker_file_t lf);
+static int		parse_module_symbols(linker_file_t lf);
 
 /*
  * The kernel symbol table starts here.
@@ -162,6 +169,7 @@ link_elf_init(void* arg)
 	linker_kernel_file->size = -(long)linker_kernel_file->address;
 
 	if (modptr) {
+	    ef->modptr = modptr;
 	    baseptr = preload_search_info(modptr, MODINFO_ADDR);
 	    if (baseptr)
 		linker_kernel_file->address = *(caddr_t *)baseptr;
@@ -169,12 +177,63 @@ link_elf_init(void* arg)
 	    if (sizeptr)
 		linker_kernel_file->size = *(size_t *)sizeptr;
 	}
+	(void)parse_module_symbols(linker_kernel_file);
 	linker_current_file = linker_kernel_file;
     }
 #endif
 }
 
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
+
+static int
+parse_module_symbols(linker_file_t lf)
+{
+    elf_file_t ef = lf->priv;
+    caddr_t	pointer;
+    caddr_t	ssym, esym, base;
+    caddr_t	strtab;
+    int		strcnt;
+    Elf_Sym*	symtab;
+    int		symcnt;
+
+    pointer = preload_search_info(ef->modptr, MODINFO_METADATA|MODINFOMD_SSYM);
+    if (pointer == NULL)
+	return 0;
+    ssym = *(caddr_t *)pointer;
+    pointer = preload_search_info(ef->modptr, MODINFO_METADATA|MODINFOMD_ESYM);
+    if (pointer == NULL)
+	return 0;
+    esym = *(caddr_t *)pointer;
+
+    base = ssym;
+
+    symcnt = *(long *)base;
+    base += sizeof(long);
+    symtab = (Elf_Sym *)base;
+    base += roundup(symcnt, sizeof(long));
+
+    if (base > esym || base < ssym) {
+	printf("Symbols are corrupt!\n");
+	return EINVAL;
+    }
+
+    strcnt = *(long *)base;
+    base += sizeof(long);
+    strtab = base;
+    base += roundup(strcnt, sizeof(long));
+
+    if (base > esym || base < ssym) {
+	printf("Symbols are corrupt!\n");
+	return EINVAL;
+    }
+
+    ef->ddbsymtab = symtab;
+    ef->ddbsymcnt = symcnt / sizeof(Elf_Sym);
+    ef->ddbstrtab = strtab;
+    ef->ddbstrcnt = strcnt;
+
+    return 0;
+}
 
 static int
 parse_dynamic(linker_file_t lf)
@@ -198,6 +257,9 @@ parse_dynamic(linker_file_t lf)
 	}
 	case DT_STRTAB:
 	    ef->strtab = (caddr_t) (ef->address + dp->d_un.d_ptr);
+	    break;
+	case DT_STRSZ:
+	    ef->strsz = dp->d_un.d_val;
 	    break;
 	case DT_SYMTAB:
 	    ef->symtab = (Elf_Sym*) (ef->address + dp->d_un.d_ptr);
@@ -249,6 +311,11 @@ parse_dynamic(linker_file_t lf)
 	ef->pltrelasize = ef->pltrelsize;
 	ef->pltrelsize = 0;
     }
+
+    ef->ddbsymtab = ef->symtab;
+    ef->ddbsymcnt = ef->nchains;
+    ef->ddbstrtab = ef->strtab;
+    ef->ddbstrcnt = ef->strsz;
 
     return 0;
 }
@@ -306,8 +373,6 @@ link_elf_load_module(const char *filename, linker_file_t *result)
 	linker_file_unload(lf);
 	return error;
     }
-
-    /* Try to load dependencies */
     error = load_dependancies(lf);
     if (error) {
 	linker_file_unload(lf);
@@ -318,6 +383,7 @@ link_elf_load_module(const char *filename, linker_file_t *result)
 	linker_file_unload(lf);
 	return error;
     }
+    (void)parse_module_symbols(lf);
     *result = lf;
     return (0);
 }
@@ -548,7 +614,6 @@ link_elf_load_file(const char* filename, linker_file_t* result)
 	linker_file_unload(lf);
 	goto out;
     }
-
     error = load_dependancies(lf);
     if (error) {
 	linker_file_unload(lf);
@@ -642,8 +707,8 @@ symbol_name(elf_file_t ef, const Elf_Rela *rela)
     const Elf_Sym *ref;
 
     if (ELF_R_SYM(rela->r_info)) {
-	ref = ef->symtab + ELF_R_SYM(rela->r_info);
-	return ef->strtab + ref->st_name;
+	ref = ef->ddbsymtab + ELF_R_SYM(rela->r_info);
+	return ef->ddbstrtab + ref->st_name;
     } else
 	return NULL;
 }
@@ -723,17 +788,16 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, linker_sym_t* sym)
 {
     elf_file_t ef = lf->priv;
     unsigned long symnum;
-    const Elf_Sym* es;
+    const Elf_Sym* symp;
+    const char *strp;
     unsigned long hash;
     int i;
 
+    /* First, search hashed global symbols */
     hash = elf_hash(name);
     symnum = ef->buckets[hash % ef->nbuckets];
 
     while (symnum != STN_UNDEF) {
-	const Elf_Sym *symp;
-	const char *strp;
-
 	if (symnum >= ef->nchains) {
 	    printf("link_elf_lookup_symbol: corrupt symbol table\n");
 	    return ENOENT;
@@ -760,6 +824,24 @@ link_elf_lookup_symbol(linker_file_t lf, const char* name, linker_sym_t* sym)
 	symnum = ef->chains[symnum];
     }
 
+    /* If we have not found it, look at the full table (if loaded) */
+    if (ef->symtab == ef->ddbsymtab)
+	return ENOENT;
+
+    /* Exhaustive search */
+    for (i = 0, symp = ef->ddbsymtab; i < ef->ddbsymcnt; i++, symp++) {
+	strp = ef->ddbstrtab + symp->st_name;
+	if (strcmp(name, strp) == 0) {
+	    if (symp->st_shndx != SHN_UNDEF ||
+		(symp->st_value != 0 &&
+		 ELF_ST_TYPE(symp->st_info) == STT_FUNC)) {
+		*sym = (linker_sym_t) symp;
+		return 0;
+	    } else
+		return ENOENT;
+	}
+    }
+
     return ENOENT;
 }
 
@@ -768,16 +850,22 @@ link_elf_symbol_values(linker_file_t lf, linker_sym_t sym, linker_symval_t* symv
 {
 	elf_file_t ef = lf->priv;
 	Elf_Sym* es = (Elf_Sym*) sym;
-	int symcount = ef->nchains;
 
-	if (es < ef->symtab)
-		return ENOENT;
-	if ((es - ef->symtab) > symcount)
-		return ENOENT;
-	symval->name = ef->strtab + es->st_name;
-	symval->value = (caddr_t) ef->address + es->st_value;
-	symval->size = es->st_size;
-	return 0;
+	if (es >= ef->symtab && ((es - ef->symtab) < ef->nchains)) {
+	    symval->name = ef->strtab + es->st_name;
+	    symval->value = (caddr_t) ef->address + es->st_value;
+	    symval->size = es->st_size;
+	    return 0;
+	}
+	if (ef->symtab == ef->ddbsymtab)
+	    return ENOENT;
+	if (es >= ef->ddbsymtab && ((es - ef->ddbsymtab) < ef->ddbsymcnt)) {
+	    symval->name = ef->ddbstrtab + es->st_name;
+	    symval->value = (caddr_t) ef->address + es->st_value;
+	    symval->size = es->st_size;
+	    return 0;
+	}
+	return ENOENT;
 }
 
 static int
@@ -787,12 +875,11 @@ link_elf_search_symbol(linker_file_t lf, caddr_t value,
 	elf_file_t ef = lf->priv;
 	u_long off = (u_long) value;
 	u_long diff = off;
-	int symcount = ef->nchains;
 	const Elf_Sym* es;
 	const Elf_Sym* best = 0;
 	int i;
 
-	for (i = 0, es = ef->symtab; i < symcount; i++, es++) {
+	for (i = 0, es = ef->ddbsymtab; i < ef->ddbsymcnt; i++, es++) {
 		if (es->st_name == 0)
 			continue;
 		if (off >= es->st_value) {
