@@ -486,7 +486,7 @@ release.8: write_mfs_in_kernel
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	( cd ${RD}/mfsfd && mkdir -p bin sbin && ln -s /stand/sh bin/sh )
 	cp /sbin/dhclient-script ${RD}/mfsfd/sbin
-	cp ${.CURDIR}/../etc/pccard.conf.sample ${RD}/mfsfd/etc/pccard.conf
+	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
