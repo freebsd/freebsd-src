@@ -47,8 +47,8 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include \*[Lt]stdio.h\*[Gt]
-.Fd #include \*[Lt]wchar.h\*[Gt]
+.In stdio.h
+.In wchar.h
 .Ft wint_t
 .Fn ungetwc "wint_t wc" "FILE *stream"
 .Sh DESCRIPTION
@@ -95,6 +95,6 @@ the operation will fail and the stream will remain unchanged.
 The
 .Fn ungetwc
 function conforms to
-.St -isoC99 .
+.St -isoC-99 .
 .Sh BUGS
 The current implementation uses a fixed sized ungetwc-buffer.
