@@ -471,10 +471,13 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 		 * hold them.  This will go away when free() gets a size passed
 		 * to it.
 		 */
-		if (mzone)
+		if (mzone) {
+			mtx_lock(&malloc_mtx);
 			slab = hash_sfind(mallochash,
 			    (u_int8_t *)((unsigned long)item &
 			   (~UMA_SLAB_MASK)));
+			mtx_unlock(&malloc_mtx);
+		}
 		uma_zfree_internal(zone, item, slab, 1);
 	}
 }
@@ -616,17 +619,18 @@ zone_drain(uma_zone_t zone)
 				    zone->uz_size);
 		flags = slab->us_flags;
 		mem = slab->us_data;
+		if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+			mtx_lock(&malloc_mtx);
+			UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
+			mtx_unlock(&malloc_mtx);
+		}
 		if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
-			if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
-				UMA_HASH_REMOVE(mallochash,
-				    slab, slab->us_data); 
-			} else {
+			if (!(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
 				UMA_HASH_REMOVE(&zone->uz_hash,
 				    slab, slab->us_data);
 			}
 			uma_zfree_internal(slabzone, slab, NULL, 0);
-		} else if (zone->uz_flags & UMA_ZFLAG_MALLOC)
-			UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
+		}
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
 		    zone->uz_name, UMA_SLAB_SIZE * zone->uz_ppera);
@@ -714,8 +718,9 @@ slab_zalloc(uma_zone_t zone, int wait)
 		printf("Inserting %p into malloc hash from slab %p\n",
 		    mem, slab);
 #endif
-		/* XXX Yikes! No lock on the malloc hash! */
+		mtx_lock(&malloc_mtx);
 		UMA_HASH_INSERT(mallochash, slab, mem);
+		mtx_unlock(&malloc_mtx);
 	}
 
 	slab->us_zone = zone;
@@ -1958,7 +1963,9 @@ uma_large_malloc(int size, int wait)
 		slab->us_data = mem;
 		slab->us_flags = flags | UMA_SLAB_MALLOC;
 		slab->us_size = size;
+		mtx_lock(&malloc_mtx);
 		UMA_HASH_INSERT(mallochash, slab, mem);
+		mtx_unlock(&malloc_mtx);
 	} else {
 		uma_zfree_internal(slabzone, slab, NULL, 0);
 	}
@@ -1970,7 +1977,9 @@ uma_large_malloc(int size, int wait)
 void
 uma_large_free(uma_slab_t slab)
 {
+	mtx_lock(&malloc_mtx);
 	UMA_HASH_REMOVE(mallochash, slab, slab->us_data);
+	mtx_unlock(&malloc_mtx);
 	page_free(slab->us_data, slab->us_size, slab->us_flags);
 	uma_zfree_internal(slabzone, slab, NULL, 0);
 }

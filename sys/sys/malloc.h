@@ -38,6 +38,8 @@
 #define	_SYS_MALLOC_H_
 
 #include <vm/uma.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #define splmem splhigh
 
@@ -62,12 +64,15 @@ struct malloc_type {
 	u_long	ks_maxused;	/* maximum number ever used */
 	u_long	ks_magic;	/* if it's not magic, don't touch it */
 	const char *ks_shortdesc;	/* short description */
+	struct mtx ks_mtx;	/* Lock for stats */
 };
+
+extern struct mtx malloc_mtx;
 
 #ifdef _KERNEL
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
 	struct malloc_type type[1] = { \
-		{ NULL, 0, 0, 0, 0, 0, M_MAGIC, shortdesc } \
+		{ NULL, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, {} } \
 	}; \
 	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init, type); \
 	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY, malloc_uninit, type)
