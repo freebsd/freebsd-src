@@ -5,6 +5,10 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000825:
+	/boot/device.hints is now required for installkernel to
+	succeed.
+
 20000812:
 	suidperl is now always built and installed on the system, but
 	with permissions of 511.  If you have applications that use
@@ -280,6 +284,7 @@ COMMON ITEMS:
 	To rebuild everything and install it on the current system.
 	-----------------------------------------------------------
 	make world
+	Build a new kernel, see above.
 
 	To upgrade from 4.x-stable to current
 	-------------------------------------
@@ -290,10 +295,11 @@ COMMON ITEMS:
 	[1]
 	<reboot>
 
-	Make sure that you've read the UPDATING file to understand
-	the tweaks to various things you need.  At this point in the
-	life cycloe of current, things change often and you are on
-	your own to cope.
+	Make sure that you've read the UPDATING file to understand the
+	tweaks to various things you need.  At this point in the life
+	cycle of current, things change often and you are on your own
+	to cope.  The defaults can also change, so please read ALL of
+	the UPDATING entries.
 
 	Also, if you are tracking -current, you must be subscribed to
 	freebsd-current@freebsd.org.  Make sure that before you update
