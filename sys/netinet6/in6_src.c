@@ -421,13 +421,7 @@ int
 in6_embedscope(in6, sin6, in6p, ifpp)
 	struct in6_addr *in6;
 	const struct sockaddr_in6 *sin6;
-#ifdef HAVE_NRL_INPCB
-	struct inpcb *in6p;
-#define in6p_outputopts	inp_outputopts6
-#define in6p_moptions	inp_moptions6
-#else
 	struct in6pcb *in6p;
-#endif
 	struct ifnet **ifpp;
 {
 	struct ifnet *ifp = NULL;
@@ -480,10 +474,6 @@ in6_embedscope(in6, sin6, in6p, ifpp)
 
 	return 0;
 }
-#ifdef HAVE_NRL_INPCB
-#undef in6p_outputopts
-#undef in6p_moptions
-#endif
 
 /*
  * generate standard sockaddr_in6 from embedded form.
