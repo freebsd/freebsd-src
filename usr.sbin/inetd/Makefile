@@ -7,12 +7,6 @@ MLINKS=	inetd.8 inetd.conf.5
 
 COPTS+=	-Wall -DLOGIN_CAP
 #COPTS+=	-DSANITY_CHECK
-.ifdef REAL_IDENT
-COPTS+= -DREAL_IDENT
-.ifdef FAKEID
-COPTS+= -DFAKEID
-.endif
-.endif
 
 DPADD+=	${LIBUTIL} ${LIBWRAP}
 LDADD+=	-lutil -lwrap

@@ -1644,22 +1644,31 @@ ident_stream(s, sep)		/* Ident service */
 	struct servtab *sep;
 {
 	struct sockaddr_in sin[2];
-#ifdef REAL_IDENT
 	struct ucred uc;
 	struct passwd *pw;
-#endif
 	FILE *fp;
-#ifdef FAKEID
-	FILE *fakeid = NULL;
-	char fakeid_path[PATH_MAX];
-	struct stat sb;
-#endif
-	char buf[BUFSIZE];
-	char *cp;
-	int len;
+	char buf[BUFSIZE], *cp, **av;
+	int len, c, rflag = 0, fflag = 0, argc = 0;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
+	optind = 1;
+	optreset = 1;
+	for (av = sep->se_argv; *av; av++)
+		argc++;
+	if (argc) {
+		while ((c = getopt(argc, sep->se_argv, "fr")) != -1)
+			switch (c) {
+			case 'f':
+				fflag = 1;
+				break;
+			case 'r':
+				rflag = 1;
+				break;
+			default:
+				break;
+			}
+	}
 	fp = fdopen(s, "r+");
 	len = sizeof(sin[0]);
 	if (getsockname(s, (struct sockaddr *)&sin[0], &len) == -1)
@@ -1678,9 +1687,8 @@ ident_stream(s, sep)		/* Ident service */
 	cp = strtok(NULL, ",");
 	if (cp == NULL || sscanf(cp, "%hu", &fport) != 1)
 		iderror(0, 0, fp, 0);
-#ifndef REAL_IDENT
-	iderror(lport, fport, fp, -1);
-#else
+	if (!rflag)
+		iderror(lport, fport, fp, -1);
 	sin[0].sin_port = htons(lport);
 	sin[1].sin_port = htons(fport);
 	len = sizeof(uc);
@@ -1690,41 +1698,43 @@ ident_stream(s, sep)		/* Ident service */
 	pw = getpwuid(uc.cr_uid);
 	if (pw == NULL)
 		iderror(lport, fport, fp, errno);
-#ifdef FAKEID
-	seteuid(pw->pw_uid);
-	setegid(pw->pw_gid);
-	snprintf(fakeid_path, sizeof(fakeid_path), "%s/.fakeid", pw->pw_dir);
-	if ((fakeid = fopen(fakeid_path, "r")) != NULL &&
-	    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
-		buf[sizeof(buf) - 1] = '\0';
-		if (fgets(buf, sizeof(buf), fakeid) == NULL) {
+	if (fflag) {
+		FILE *fakeid = NULL;
+		char fakeid_path[PATH_MAX];
+		struct stat sb;
+		seteuid(pw->pw_uid);
+		setegid(pw->pw_gid);
+		snprintf(fakeid_path, sizeof(fakeid_path), "%s/.fakeid",
+		    pw->pw_dir);
+		if ((fakeid = fopen(fakeid_path, "r")) != NULL &&
+		    fstat(fileno(fakeid), &sb) != -1 && S_ISREG(sb.st_mode)) {
+			buf[sizeof(buf) - 1] = '\0';
+			if (fgets(buf, sizeof(buf), fakeid) == NULL) {
+				cp = pw->pw_name;
+				fclose(fakeid);
+				goto printit;
+			}
+			fclose(fakeid);
+			strtok(buf, "\r\n");
+			if (strlen(buf) > 16)
+				buf[16] = '\0';
+			cp = buf;
+			while (isspace(*cp))
+				cp++;
+			strtok(cp, " \t");
+			if (!*cp || getpwnam(cp))
+				cp = getpwuid(uc.cr_uid)->pw_name;
+		} else
 			cp = pw->pw_name;
-			goto printit;
-		}
-		strtok(buf, "\r\n");
-		if (strlen(buf) > 16)
-			buf[16] = '\0';
-		cp = buf;
-		while (isspace(*cp))
-			cp++;
-		strtok(cp, " \t");
-		if (!*cp || getpwnam(cp))
-			cp = getpwuid(uc.cr_uid)->pw_name;
 	} else
-#endif
-	cp = pw->pw_name;
-#ifdef FAKEID
-	if (fakeid)
-		fclose(fakeid);
+		cp = pw->pw_name;
 printit:
-#endif
 	fprintf(fp, "%d , %d : USERID : FreeBSD :%s\r\n", lport, fport,
 	    cp);
 	fflush(fp);
 	fclose(fp);
 	
 	exit(0);
-#endif
 }
 
 /* ARGSUSED */
