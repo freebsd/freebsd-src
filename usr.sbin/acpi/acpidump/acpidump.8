@@ -37,9 +37,12 @@
 .Nd dump ACPI tables
 .Sh SYNOPSIS
 .Nm
+.Op Fl r
 .Nm
+.Op Fl r
 .Op Fl o Ar dsdt_file_for_output
 .Nm
+.Op Fl r
 .Op Fl f Ar dsdt_file_for_input
 .Sh DESCRIPTION
 The
@@ -47,65 +50,68 @@ The
 command analyzes ACPI tables in physical memory and dumps them to standard output.
 In addition,
 .Nm
-can disassemble some contents of the tables in AML
+can disassemble AML
 (ACPI Machine Language)
-and dump them in ASL
+found in these tables and dump them as ASL
 (ACPI Source Language).
 .Pp
-ACPI tables have an notably essential data block called DSDT
-(Differentiated System Description Table),
+ACPI tables have an essential data block (the DSDT,
+Differentiated System Description Table),
 that includes information used on the kernel side such as
-detail information about PnP hardware, procedures for controlling
-a power management support and so on.
+detailed information about PnP hardware, procedures for controlling
+power management support and so on.
 .Nm
-can extract a DSDT data block from physical memory and store it into
+can extract the DSDT data block from physical memory and store it into
 a DSDT data file, and also can generate an output in ASL
 from a given DSDT data file.
 .Pp
 When
 .Nm
-is invoked with no option, it will search ACPI tables from physical
+is invoked without the
+.Fl f
+option, it will read ACPI tables from physical
 memory via a special file
 .Pa /dev/mem
-and dump them.  First, it searches Root System Description Pointer,
-that has a signature
+and dump them.  First it searches for the RSDP
+(Root System Description Pointer),
+which has the signature
 .Qq RSD PTR\ \& ,
-and then gets RSDT
+and then gets the RSDT
 (Root System Description Table),
 which includes a list of pointers to physical memory addresses
 for other tables.
-RSDT itself and all other tables linked from RSDT are generically
-called SDT
-(System Description Table)
-and their header has the common format which consists of items
+The RSDT itself and all other tables linked from RSDT are generically
+called SDTs
+(System Description Tables)
+and their header has a common format which consists of items
 such as Signature, Length, Revision, Checksum, OEMID, OEM Table ID,
 OEM Revision, Creator ID and Creator Revision.
 .Nm
 dumps contents of these SDTs.
 For further information about formats of each table,
-see chapter 5: ACPI Software Programming Model,
-.Dq Advanced Configuration and Power Interface Specification Revision 1.0b
-from Intel/Microsoft/Toshiba.
+see chapter 5: 
+.Dq ACPI Software Programming Model 
+from the ACPI specifications referenced below.
 .Pp
 There is always a pointer to a physical memory address in RSDT for FACP
 (Fixed ACPI Description Table).
-FACP defines static system information about power management support
+The FACP defines static system information about power management support
 (ACPI Hardware Register Implementation)
 such as interrupt mode
 (INT_MODEL),
 SCI interrupt number, SMI command port
 (SMI_CMD)
 and location of ACPI registers.
-FACP also has a pointer to a physical memory address for DSDT,
+The FACP also has a pointer to a physical memory address for DSDT,
 which includes information used on the kernel side such as
 PnP, power management support and so on.
 While the other tables are described in fixed format,
-DSDT consists of AML data which compiled from sources
-written in free formated ASL, description language for ACPI.
+the DSDT consists of AML data which is compiled from sources
+written in free formated ASL, which is the description language for ACPI.
 When
 .Nm
 outputs DSDT, it disassembles the AML data and
-translates them into ASL.
+formats it as ASL.
 .Sh OPTIONS
 The following options are supported by
 .Nm :
@@ -118,6 +124,11 @@ in addition to behavior with no option.
 Interprets AML data in DSDT from a file specified in
 .Ar dsdt_file_for_input
 and dumps them in ASL to standard output.
+.It Fl r
+Additionally outputs commented ResourceTemplate() macros for Buffer
+objects that contain valid resource streams.
+These macros are defined in the ACPI 2.0 specification section
+16.2.4.
 .It Fl h
 Displays usage and exit.
 .El
@@ -148,7 +159,7 @@ specified by a pointer in FACP.
 Intel
 Microsoft
 Toshiba
-Revision 1.0b
+Revision 1.0b, 2.0
 .Ed
 <URL:http://www.teleport.com/~acpi/>
 .Sh AUTHORS
@@ -161,8 +172,9 @@ Some contributions made by
 .An Takayasu IWANASHI Aq takayasu@wendy.a.perfect-liberty.or.jp ,
 .An Yoshihiko SARUMARU Aq mistral@imasy.or.jp ,
 .An Hiroki Sato Aq hrs@FreeBSD.org ,
+.An Michael Lucas Aq mwlucas@blackhelicopters.org
 and
-.An Michael Lucas Aq mwlucas@blackhelicopters.org .
+.An Michael Smith Aq msmith@freebsd.org .
 .Sh HISTORY
 The
 .Nm
