@@ -141,6 +141,7 @@ struct if_data {
 #define	IFF_MULTICAST	0x8000		/* supports multicast */
 #define	IFF_POLLING	0x10000		/* Interface is in polling mode. */
 #define	IFF_PPROMISC	0x20000		/* user-requested promisc mode */
+#define	IFF_MONITOR	0x40000		/* user-requested monitor mode */
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \

@@ -504,6 +504,17 @@ for more information.
 .It Fl link Op Cm 0 No - Cm 2
 .Sm on
 Disable special processing at the link level with the specified interface.
+.It Cm monitor
+.Sm on
+Put the interface in monitor mode.
+No packets are transmitted and received packets are discarded after
+.Xr bpf 4
+processing.
+.Sm off
+.It Fl monitor
+.Sm on
+Take the interface out of monitor mode.
+.Sm off
 .It Cm up
 Mark an interface
 .Dq up .
