@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.163 1999/04/19 10:18:34 brian Exp $
+#	$Id: GENERIC,v 1.164 1999/04/19 11:53:36 peter Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -58,15 +58,15 @@ controller	pnp0			# PnP support for ISA
 controller	eisa0
 controller	pci0
 
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
+controller	fdc0	at isa? port "IO_FD1" irq 6 drq 2
 disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 
-controller	wdc0	at isa? port "IO_WD1" bio irq 14
+controller	wdc0	at isa? port "IO_WD1" irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
 
-controller	wdc1	at isa? port "IO_WD2" bio irq 15
+controller	wdc1	at isa? port "IO_WD2" irq 15
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
@@ -85,10 +85,10 @@ controller	isp0
 # dpt0 entry there for much fuller documentation on this.
 controller      dpt0
 
-controller	adv0	at isa? port ? cam irq ?
+controller	adv0	at isa? port ? irq ?
 controller	adw0
-controller	bt0	at isa? port ? cam irq ?
-controller	aha0	at isa? port ? cam irq ?
+controller	bt0	at isa? port ? irq ?
+controller	aha0	at isa? port ? irq ?
 
 controller	scbus0
 
@@ -100,17 +100,17 @@ device		pass0
 
 device		cd0	#Only need one of these, the code dynamically grows
 
-device		wt0	at isa? port 0x300 bio irq 5 drq 1
-device		mcd0	at isa? port 0x300 bio irq 10
+device		wt0	at isa? port 0x300 irq 5 drq 1
+device		mcd0	at isa? port 0x300 irq 10
 
-controller	matcd0	at isa? port 0x230 bio
+controller	matcd0	at isa? port 0x230
 
-device		scd0	at isa? port 0x230 bio
+device		scd0	at isa? port 0x230
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 controller	atkbdc0	at isa? port IO_KBD
-device		atkbd0	at atkbdc? tty irq 1
-device		psm0	at atkbdc? tty irq 12
+device		atkbd0	at atkbdc? irq 1
+device		psm0	at atkbdc? irq 12
 
 device		vga0	at isa? port ? conflicts
 
@@ -118,9 +118,9 @@ device		vga0	at isa? port ? conflicts
 pseudo-device	splash
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? tty
+device		sc0	at isa?
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
-#device		vt0	at isa? tty
+#device		vt0	at isa?
 #options		XSERVER			# support for X server
 #options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
@@ -138,13 +138,13 @@ device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 #device		pcic0	at card?
 #device		pcic1	at card?
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4
-device		sio1	at isa? port "IO_COM2" tty irq 3
-device		sio2	at isa? disable port "IO_COM3" tty irq 5
-device		sio3	at isa? disable port "IO_COM4" tty irq 9
+device		sio0	at isa? port "IO_COM1" flags 0x10 irq 4
+device		sio1	at isa? port "IO_COM2" irq 3
+device		sio2	at isa? disable port "IO_COM3" irq 5
+device		sio3	at isa? disable port "IO_COM4" irq 9
 
 # Parallel port
-device		ppc0	at isa? port? tty irq 7
+device		ppc0	at isa? port? irq 7
 controller	ppbus0
 device		lpt0	at ppbus?
 device		plip0	at ppbus?
@@ -171,16 +171,16 @@ device xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
-device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000
-device ie0 at isa? port 0x300 net irq 10 iomem 0xd0000
-device ep0 at isa? port 0x300 net irq 10
-device ex0 at isa? port? net irq?
-device fe0 at isa? port 0x300 net irq ?
-device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
-device lnc0 at isa? port 0x280 net irq 10 drq 0
-#device ze0 at isa? port 0x300 net irq 10 iomem 0xd8000
-#device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
-device cs0 at isa? port 0x300 net irq ?
+device ed0 at isa? port 0x280 irq 10 iomem 0xd8000
+device ie0 at isa? port 0x300 irq 10 iomem 0xd0000
+device ep0 at isa? port 0x300 irq 10
+device ex0 at isa? port? irq?
+device fe0 at isa? port 0x300 irq ?
+device le0 at isa? port 0x300 irq 5 iomem 0xd0000
+device lnc0 at isa? port 0x280 irq 10 drq 0
+#device ze0 at isa? port 0x300 irq 10 iomem 0xd8000
+#device zp0 at isa? port 0x300 irq 10 iomem 0xd8000
+device cs0 at isa? port 0x300 irq ?
 
 pseudo-device	loop
 pseudo-device	ether
