@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.3 1994/09/16 00:22:29 se Exp $
+**  $Id: ncr.c,v 1.4 1994/09/16 13:33:56 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1296,7 +1296,7 @@ static	u_long	getirr (void)
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.3 1994/09/16 00:22:29 se Exp $\n";
+	"\n$Id: ncr.c,v 1.4 1994/09/16 13:33:56 davidg Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3352,7 +3352,7 @@ static	int ncr_attach (pcici_t config_id)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.3 $)\n",
+	printf ("%s scanning for targets 0..%d ($Revision: 1.4 $)\n",
 		ncr_name (np), MAX_TARGET-1);
 
 	/*
@@ -5968,6 +5968,7 @@ void ncr_int_sir (ncb_p np)
 		**	if NO disconnected jobs.
 		**
 		**-----------------------------------------------
+		*/
 
 		/*
 		**	Look for a disconnected job.
