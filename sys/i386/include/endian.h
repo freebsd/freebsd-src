@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id$
+ *	$Id: endian.h,v 1.13 1997/02/22 09:34:31 peter Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
@@ -96,7 +96,7 @@ __extension__ ({ register u_short __X = (x); \
 /*
  * Macros for network/external number representation conversion.
  */
-#if BYTE_ORDER == BIG_ENDIAN && !defined(lint)
+#if BYTE_ORDER == BIG_ENDIAN || defined(lint)
 #define	ntohl(x)	(x)
 #define	ntohs(x)	(x)
 #define	htonl(x)	(x)
