@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.6 1993/10/12 12:08:16 rgrimes Exp $
+ *	$Id: param.h,v 1.7 1993/10/15 10:07:43 rgrimes Exp $
  */
+
+#ifndef _MACHINE_PARAM_H_
+#define _MACHINE_PARAM_H_ 1
 
 /*
  * Machine dependent constants for Intel 386.
@@ -160,3 +163,4 @@
  * phystokv stolen from SCSI device drivers and fixed to use KERNBASE
  */
 #define PHYSTOKV(x)	(x | KERNBASE)
+#endif /* _MACHINE_PARAM_H_ */

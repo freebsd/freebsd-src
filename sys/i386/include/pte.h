@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pte.h	5.5 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: pte.h,v 1.2 1993/10/16 14:39:27 rgrimes Exp $
  */
+
+#ifndef _MACHINE_PTE_H_
+#define _MACHINE_PTE_H_ 1
 
 /*
  * 386 page table entry and page table directory
@@ -135,3 +138,4 @@ unsigned int
 extern	struct pte *Sysmap;
 #endif
 #endif
+#endif /* _MACHINE_PTE_H_ */

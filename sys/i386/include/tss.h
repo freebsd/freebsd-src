@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)tss.h	5.4 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: tss.h,v 1.2 1993/10/16 14:39:38 rgrimes Exp $
  */
+
+#ifndef _MACHINE_TSS_H_
+#define _MACHINE_TSS_H_ 1
 
 /*
  * Intel 386 Context Data Type
@@ -77,3 +80,4 @@ struct i386tss {
 	int	tss_ioopt;	/* options & io offset bitmap: currently zero */
 				/* XXX unimplemented .. i/o permission bitmap */
 };
+#endif /* _MACHINE_TSS_H_ */

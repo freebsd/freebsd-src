@@ -35,8 +35,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: segments.h,v 1.2 1993/10/16 14:39:30 rgrimes Exp $
  */
+
+#ifndef _MACHINE_SEGMENTS_H_
+#define _MACHINE_SEGMENTS_H_ 1
 
 /*
  * 386 Segmentation Data Structures and definitions
@@ -195,3 +198,4 @@ struct region_descriptor {
 
 #define	NIDT	256
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
+#endif /* _MACHINE_SEGMENTS_H_ */
