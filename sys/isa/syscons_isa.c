@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: syscons_isa.c,v 1.4 1999/05/30 11:12:29 dfr Exp $
+ * $Id: syscons_isa.c,v 1.5 1999/06/22 14:13:41 yokota Exp $
  */
 
 #include "sc.h"
@@ -79,7 +79,7 @@ static device_method_t sc_methods[] = {
 static driver_t sc_driver = {
 	SC_DRIVER_NAME,
 	sc_methods,
-	1,                          /* XXX */
+	sizeof(sc_softc_t),
 };
 
 static sc_softc_t main_softc = { 0, 0, 0, -1, NULL, -1, NULL, };
@@ -125,7 +125,7 @@ sc_softc_t
 		main_softc.unit = unit;
 		return &main_softc;
 	} else {
-	        sc = (sc_softc_t *)devclass_get_softc(sc_devclass, unit);
+	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, unit));
 		if (!(sc->flags & SC_INIT_DONE)) {
 			sc->unit = unit;
 			sc->keyboard = -1;
@@ -148,7 +148,7 @@ sc_softc_t
 		return sc;
 	units = devclass_get_maxunit(sc_devclass);
 	for (i = 0; i < units; ++i) {
-	        sc = (sc_softc_t *)devclass_get_softc(sc_devclass, i);
+	        sc = (sc_softc_t *)device_get_softc(devclass_get_device(sc_devclass, i));
 		if (sc == NULL)
 			continue;
 		if (((adp == NULL) || (adp == sc->adp))
