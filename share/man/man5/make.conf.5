@@ -186,6 +186,24 @@ set to 0.
 kernel. Optimization levels above
 .Op -O ( -O2 , ...\& )
 are not supported.
+.It Ar KERNEL
+(str) Controls which kernel configurations will be
+built by
+.Cm  "${MAKE} buildkernel"
+and installed by 
+.Cm "${MAKE} installkernel" .
+For example,
+.Bd -literal -offset indent
+KERNEL=MINE DEBUG GENERIC OTHERMACHINE
+.Ed
+will build the the kernels specified by the config files
+.Pa MINE , DEBUG , GENERIC ,
+and
+.Pa OTHERMACHINE ,
+and install the kernel specified by the config file
+.Pa MINE .
+It defaults to
+.Pa GENERIC .
 .It Ar NO_KERNELCONFIG
 (bool) Set this to skip running
 .Xr config 8
