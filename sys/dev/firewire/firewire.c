@@ -522,6 +522,13 @@ firewire_attach( device_t dev )
 #endif
 	sc->fc->timeouthandle = timeout((timeout_t *)sc->fc->timeout, (void *)sc->fc, hz * 10);
 
+	callout_init(&sc->fc->busprobe_callout
+#if __FreeBSD_version >= 500000
+						, /* mpsafe? */ 0);
+#else
+						);
+#endif
+
 	/* Locate our children */
 	bus_generic_probe(dev);
 
@@ -1215,7 +1222,8 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 	}
 #endif
 #if 1
-	timeout((timeout_t *)fw_bus_probe, (void *)fc, hz/4);
+	callout_reset(&fc->busprobe_callout, hz/4,
+			(void *)fw_bus_probe, (void *)fc);
 #else
 	fw_bus_probe(fc);
 #endif
