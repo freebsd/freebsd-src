@@ -1407,6 +1407,15 @@ static void vr_init(xsc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, VR_PAR0 + i, sc->arpcom.ac_enaddr[i]);
 
+	/* BCR0 and BCR1 can override the RXCFG and TXCFG registers,
+	 * so we must set both.
+	 */
+	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_RX_THRESH);
+	VR_SETBIT(sc, VR_BCR0, VR_BCR0_RXTHRESHSTORENFWD);
+
+	VR_CLRBIT(sc, VR_BCR1, VR_BCR1_TX_THRESH);
+	VR_SETBIT(sc, VR_BCR1, VR_BCR1_TXTHRESHSTORENFWD);
+
 	VR_CLRBIT(sc, VR_RXCFG, VR_RXCFG_RX_THRESH);
 	VR_SETBIT(sc, VR_RXCFG, VR_RXTHRESH_STORENFWD);
 
