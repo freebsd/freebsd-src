@@ -446,6 +446,17 @@ run_command(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
 }
 
+static const char *
+library_path(void)
+{
+	const char *path;
+
+	path = getenv("GEOM_LIBRARY_PATH");
+	if (path == NULL)
+		path = CLASS_DIR;
+	return (path);
+}
+
 static void
 load_library(void)
 {
@@ -453,7 +464,8 @@ load_library(void)
 	uint32_t *lib_version;
 	void *dlh;
 
-	snprintf(path, sizeof(path), "%s/geom_%s.so", CLASS_DIR, class_name);
+	snprintf(path, sizeof(path), "%s/geom_%s.so", library_path(),
+	    class_name);
 	dlh = dlopen(path, RTLD_NOW);
 	if (dlh == NULL) {
 #if 0
@@ -670,8 +682,10 @@ std_list_available(void)
 	int error;
 
 	error = geom_gettree(&mesh);
-	if (error != 0)
+	if (error != 0) {
+		fprintf(stderr, "Cannot get GEOM tree: %s.\n", strerror(error));
 		exit(EXIT_FAILURE);
+	}
 	classp = find_class(&mesh, gclass_name);
 	geom_deletetree(&mesh);
 	if (classp != NULL)
@@ -688,8 +702,10 @@ std_list(struct gctl_req *req, unsigned flags __unused)
 	int error, *nargs;
 
 	error = geom_gettree(&mesh);
-	if (error != 0)
+	if (error != 0) {
+		fprintf(stderr, "Cannot get GEOM tree: %s.\n", strerror(error));
 		exit(EXIT_FAILURE);
+	}
 	classp = find_class(&mesh, gclass_name);
 	if (classp == NULL) {
 		geom_deletetree(&mesh);
