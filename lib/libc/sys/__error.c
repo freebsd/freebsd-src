@@ -40,7 +40,7 @@ extern int errno;
  * Declare a weak reference in case the application is not linked
  * with libpthread.
  */
-#pragma weak __error=__error_unthreaded
+__weak_reference(__error_unthreaded, __error);
 
 int *
 __error_unthreaded()

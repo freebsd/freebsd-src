@@ -26,8 +26,10 @@
  * $FreeBSD$
  */
 
-#pragma weak	_thread_init=_thread_init_stub
-#pragma weak	_thread_autoinit_dummy_decl=_thread_autoinit_dummy_decl_stub
+#include <sys/types.h>
+
+__weak_reference(_thread_init_stub, _thread_init);
+__weak_reference(_thread_autoinit_dummy_decl_stub, _thread_autoinit_dummy_decl);
 
 int	_thread_autoinit_dummy_decl_stub = 0;
 
