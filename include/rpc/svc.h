@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.5 1996/01/30 23:32:29 mpp Exp $
+ *	$Id: svc.h,v 1.6 1996/12/30 13:59:40 peter Exp $
  */
 
 /*
@@ -271,6 +271,7 @@ extern void rpctest_service();
 __BEGIN_DECLS
 extern void	svc_getreq	__P((int));
 extern void	svc_getreqset	__P((fd_set *));
+extern void	svc_getreqset2	__P((fd_set *, int)); /* XXX: nonstd, undoc */
 extern void	svc_run		__P((void));
 __END_DECLS
 
