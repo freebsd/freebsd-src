@@ -175,10 +175,20 @@ ACPI_STATUS
 AcpiOsTerminate (
     void);
 
+
+/*
+ * ACPI Table interfaces
+ */
+
 ACPI_STATUS
 AcpiOsGetRootPointer (
     UINT32                  Flags,
-    ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress);
+    ACPI_POINTER            *Address);
+
+ACPI_STATUS
+AcpiOsTableOverride (
+    ACPI_TABLE_HEADER       *ExistingTable,
+    ACPI_TABLE_HEADER       **NewTable);
 
 
 /*

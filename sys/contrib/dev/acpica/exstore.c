@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 162 $
+ *              $Revision: 163 $
  *
  *****************************************************************************/
 
@@ -246,7 +246,7 @@ AcpiExStore (
          * Storing to the Debug object causes the value stored to be
          * displayed and otherwise has no effect -- see ACPI Specification
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Write to Debug Object: ****:\n\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "**** Write to Debug Object: ****:\n\n"));
 
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "[ACPI Debug] %s: ",
                         AcpiUtGetTypeName (SourceDesc->Common.Type)));
@@ -288,7 +288,7 @@ AcpiExStore (
             break;
         }
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "\n"));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_EXEC, "\n"));
         break;
 
 
@@ -506,7 +506,7 @@ AcpiExStoreObjectToNode (
     TargetType = AcpiNsGetType (Node);
     TargetDesc = AcpiNsGetAttachedObject (Node);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Storing %p(%s) into node %p(%s)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Storing %p(%s) into node %p(%s)\n",
         SourceDesc, AcpiUtGetTypeName (SourceDesc->Common.Type),
               Node, AcpiUtGetTypeName (TargetType)));
 
@@ -562,7 +562,7 @@ AcpiExStoreObjectToNode (
              */
             Status = AcpiNsAttachObject (Node, NewDesc, TargetType);
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "Store %s into %s via Convert/Attach\n",
                 AcpiUtGetTypeName (SourceDesc->Common.Type),
                 AcpiUtGetTypeName (NewDesc->Common.Type)));
@@ -572,7 +572,7 @@ AcpiExStoreObjectToNode (
 
     default:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
             "Storing %s (%p) directly into node (%p), no implicit conversion\n",
             AcpiUtGetTypeName (SourceDesc->Common.Type), SourceDesc, Node));
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsutils - Dispatcher utilities
- *              $Revision: 88 $
+ *              $Revision: 89 $
  *
  ******************************************************************************/
 
@@ -231,7 +231,11 @@ AcpiDsIsResultUsed (
     case AML_CLASS_NAMED_OBJECT:
 
         if ((Op->Parent->Opcode == AML_REGION_OP)       ||
-            (Op->Parent->Opcode == AML_DATA_REGION_OP))
+            (Op->Parent->Opcode == AML_DATA_REGION_OP)  ||
+            (Op->Parent->Opcode == AML_PACKAGE_OP)      ||
+            (Op->Parent->Opcode == AML_VAR_PACKAGE_OP)  ||
+            (Op->Parent->Opcode == AML_BUFFER_OP)       ||
+            (Op->Parent->Opcode == AML_INT_EVAL_SUBTREE_OP))
         {
             /*
              * These opcodes allow TermArg(s) as operands and therefore
@@ -243,11 +247,12 @@ AcpiDsIsResultUsed (
         goto ResultNotUsed;
 
 
-    /*
-     * In all other cases. the parent will actually use the return
-     * object, so keep it.
-     */
     default:
+
+        /*
+         * In all other cases. the parent will actually use the return
+         * object, so keep it.
+         */
         goto ResultUsed;
     }
 

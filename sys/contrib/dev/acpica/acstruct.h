@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 16 $
+ *       $Revision: 17 $
  *
  *****************************************************************************/
 
@@ -195,8 +195,12 @@ typedef struct acpi_init_walk_info
     UINT16                  MethodCount;
     UINT16                  OpRegionCount;
     UINT16                  FieldCount;
+    UINT16                  BufferCount;
+    UINT16                  PackageCount;
     UINT16                  OpRegionInit;
     UINT16                  FieldInit;
+    UINT16                  BufferInit;
+    UINT16                  PackageInit;
     UINT16                  ObjectCount;
     ACPI_TABLE_DESC         *TableDesc;
 

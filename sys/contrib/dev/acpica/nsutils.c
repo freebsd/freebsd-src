@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 104 $
+ *              $Revision: 105 $
  *
  *****************************************************************************/
 
@@ -358,7 +358,6 @@ AcpiNsBuildInternalName (
             Result = &InternalName[3];
         }
     }
-
     else
     {
         /*
@@ -390,7 +389,6 @@ AcpiNsBuildInternalName (
             Result = &InternalName[i+2];
         }
     }
-
 
     /* Build the name (minus path separators) */
 
@@ -435,12 +433,12 @@ AcpiNsBuildInternalName (
     if (Info->FullyQualified)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "returning [%p] (abs) \"\\%s\"\n",
-            InternalName, &InternalName[0]));
+            InternalName, InternalName));
     }
     else
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "returning [%p] (rel) \"%s\"\n",
-            InternalName, &InternalName[2]));
+            InternalName, InternalName));
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -968,9 +966,9 @@ AcpiNsFindParentName (
                 ChildNode,  (char *) &ChildNode->Name,
                 ParentNode, (char *) &ParentNode->Name));
 
-            if (ParentNode->Name)
+            if (ParentNode->Name.Integer)
             {
-                return_VALUE (ParentNode->Name);
+                return_VALUE (ParentNode->Name.Integer);
             }
         }
 
@@ -1010,7 +1008,7 @@ AcpiNsExistDownstreamSibling (
         return (FALSE);
     }
 
-    if (Node->Name)
+    if (Node->Name.Integer)
     {
         return (TRUE);
     }

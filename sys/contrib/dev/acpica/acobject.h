@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 106 $
+ *       $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -123,23 +123,14 @@
  * The ACPI_OPERAND_OBJECT  is used to pass AML operands from the dispatcher
  * to the interpreter, and to keep track of the various handlers such as
  * address space handlers and notify handlers.  The object is a constant
- * size in order to allow them to be cached and reused.
- *
- * All variants of the ACPI_OPERAND_OBJECT  are defined with the same
- * sequence of field types, with fields that are not used in a particular
- * variant being named "Reserved".  This is not strictly necessary, but
- * may in some circumstances simplify understanding if these structures
- * need to be displayed in a debugger having limited (or no) support for
- * union types.  It also simplifies some debug code in DumpTable() which
- * dumps multi-level values: fetching Buffer.Pointer suffices to pick up
- * the value or next level for any of several types.
+ * size in order to allow it to be cached and reused.
  */
 
-/******************************************************************************
+/*******************************************************************************
  *
  * Common Descriptors
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 /*
  * Common area for all objects.
@@ -147,8 +138,6 @@
  * DataType is used to differentiate between internal descriptors, and MUST
  * be the first byte in this structure.
  */
-
-
 #define ACPI_OBJECT_COMMON_HEADER           /* SIZE/ALIGNMENT: 32 bits, one ptr plus trailing 8-bit flag */\
     UINT8                       Descriptor;         /* To differentiate various internal objs */\
     UINT8                       Type;               /* ACPI_OBJECT_TYPE */\
@@ -156,7 +145,7 @@
     union acpi_operand_obj      *NextObject;        /* Objects linked to parent NS node */\
     UINT8                       Flags; \
 
-/* Defines for flag byte above */
+/* Values for flag byte above */
 
 #define AOPOBJ_RESERVED             0x01
 #define AOPOBJ_STATIC_POINTER       0x02
@@ -192,29 +181,30 @@
     UINT32                      Length;
 
 
+/*
+ * Common fields for objects that support ASL notifications
+ */
+#define ACPI_COMMON_NOTIFY_INFO \
+    union acpi_operand_obj      *SysHandler;         /* Handler for system notifies */\
+    union acpi_operand_obj      *DrvHandler;         /* Handler for driver notifies */\
+    union acpi_operand_obj      *AddrHandler;        /* Handler for Address space */
+
+
+
 /******************************************************************************
  *
- * Individual Object Descriptors
+ * Basic data types
  *
  *****************************************************************************/
 
-
-typedef struct /* COMMON */
+typedef struct AcpiObjectCommon
 {
     ACPI_OBJECT_COMMON_HEADER
 
 } ACPI_OBJECT_COMMON;
 
 
-typedef struct /* CACHE_LIST */
-{
-    ACPI_OBJECT_COMMON_HEADER
-    union acpi_operand_obj      *Next;              /* Link for object cache and internal lists*/
-
-} ACPI_OBJECT_CACHE_LIST;
-
-
-typedef struct /* NUMBER - has value */
+typedef struct AcpiObjectInteger
 {
     ACPI_OBJECT_COMMON_HEADER
 
@@ -223,48 +213,48 @@ typedef struct /* NUMBER - has value */
 } ACPI_OBJECT_INTEGER;
 
 
-typedef struct /* STRING - has length and pointer - Null terminated, ASCII characters only */
+typedef struct AcpiObjectString                     /* Null terminated, ASCII characters only */
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_BUFFER_INFO
-    NATIVE_CHAR                 *Pointer;           /* String value in AML stream or in allocated space */
+    NATIVE_CHAR                 *Pointer;           /* String in AML stream or allocated string */
 
 } ACPI_OBJECT_STRING;
 
 
-typedef struct /* BUFFER - has length and pointer - not null terminated */
+typedef struct AcpiObjectBuffer
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_BUFFER_INFO
-    UINT8                       *Pointer;           /* Buffer value in AML stream or in allocated space */
+    UINT8                       *Pointer;           /* Buffer in AML stream or allocated buffer */
     ACPI_NAMESPACE_NODE         *Node;              /* Link back to parent node */
+    UINT8                       *AmlStart;
+    UINT32                      AmlLength;
 
 } ACPI_OBJECT_BUFFER;
 
 
-typedef struct /* PACKAGE - has count, elements, next element */
+typedef struct AcpiObjectPackage
 {
     ACPI_OBJECT_COMMON_HEADER
 
     UINT32                      Count;              /* # of elements in package */
+    UINT32                      AmlLength;
+    UINT8                       *AmlStart;
+    ACPI_NAMESPACE_NODE         *Node;              /* Link back to parent node */
     union acpi_operand_obj      **Elements;         /* Array of pointers to AcpiObjects */
-    union acpi_operand_obj      **NextElement;      /* used only while initializing */
 
 } ACPI_OBJECT_PACKAGE;
 
 
-typedef struct /* DEVICE - has handle and notification handler/context */
-{
-    ACPI_OBJECT_COMMON_HEADER
 
-    union acpi_operand_obj      *SysHandler;         /* Handler for system notifies */
-    union acpi_operand_obj      *DrvHandler;         /* Handler for driver notifies */
-    union acpi_operand_obj      *AddrHandler;        /* Handler for Address space */
+/******************************************************************************
+ *
+ * Complex data types
+ *
+ *****************************************************************************/
 
-} ACPI_OBJECT_DEVICE;
-
-
-typedef struct /* EVENT */
+typedef struct AcpiObjectEvent
 {
     ACPI_OBJECT_COMMON_HEADER
     void                        *Semaphore;
@@ -274,7 +264,7 @@ typedef struct /* EVENT */
 
 #define INFINITE_CONCURRENCY        0xFF
 
-typedef struct /* METHOD */
+typedef struct AcpiObjectMethod
 {
     ACPI_OBJECT_COMMON_HEADER
     UINT8                       MethodFlags;
@@ -292,7 +282,7 @@ typedef struct /* METHOD */
 } ACPI_OBJECT_METHOD;
 
 
-typedef struct acpi_obj_mutex /* MUTEX */
+typedef struct AcpiObjectMutex
 {
     ACPI_OBJECT_COMMON_HEADER
     UINT16                      SyncLevel;
@@ -306,65 +296,84 @@ typedef struct acpi_obj_mutex /* MUTEX */
 } ACPI_OBJECT_MUTEX;
 
 
-typedef struct /* REGION */
+typedef struct AcpiObjectRegion
 {
     ACPI_OBJECT_COMMON_HEADER
 
     UINT8                       SpaceId;
-    UINT32                      Length;
-    ACPI_PHYSICAL_ADDRESS       Address;
 
     union acpi_operand_obj      *AddrHandler;       /* Handler for system notifies */
     ACPI_NAMESPACE_NODE         *Node;              /* containing object */
     union acpi_operand_obj      *Next;
+    UINT32                      Length;
+    ACPI_PHYSICAL_ADDRESS       Address;
 
 } ACPI_OBJECT_REGION;
 
 
-typedef struct /* POWER RESOURCE - has Handle and notification handler/context*/
+
+/******************************************************************************
+ *
+ * Objects that can be notified.  All share a common NotifyInfo area.
+ *
+ *****************************************************************************/
+
+typedef struct AcpiObjectNotifyCommon               /* COMMON NOTIFY for POWER, PROCESSOR, DEVICE, and THERMAL */
 {
     ACPI_OBJECT_COMMON_HEADER
+    ACPI_COMMON_NOTIFY_INFO
+
+} ACPI_OBJECT_NOTIFY_COMMON;
+
+
+typedef struct AcpiObjectDevice
+{
+    ACPI_OBJECT_COMMON_HEADER
+    ACPI_COMMON_NOTIFY_INFO
+
+} ACPI_OBJECT_DEVICE;
+
+
+typedef struct AcpiObjectPowerResource
+{
+    ACPI_OBJECT_COMMON_HEADER
+    ACPI_COMMON_NOTIFY_INFO
 
     UINT32                      SystemLevel;
     UINT32                      ResourceOrder;
 
-    union acpi_operand_obj      *SysHandler;        /* Handler for system notifies */
-    union acpi_operand_obj      *DrvHandler;        /* Handler for driver notifies */
-
 } ACPI_OBJECT_POWER_RESOURCE;
 
 
-typedef struct /* PROCESSOR - has Handle and notification handler/context*/
+typedef struct AcpiObjectProcessor
 {
     ACPI_OBJECT_COMMON_HEADER
+    ACPI_COMMON_NOTIFY_INFO
 
     UINT32                      ProcId;
     UINT32                      Length;
     ACPI_IO_ADDRESS             Address;
 
-    union acpi_operand_obj      *SysHandler;        /* Handler for system notifies */
-    union acpi_operand_obj      *DrvHandler;        /* Handler for driver notifies */
-    union acpi_operand_obj      *AddrHandler;       /* Handler for Address space */
-
 } ACPI_OBJECT_PROCESSOR;
 
 
-typedef struct /* THERMAL ZONE - has Handle and Handler/Context */
+typedef struct AcpiObjectThermalZone
 {
     ACPI_OBJECT_COMMON_HEADER
+    ACPI_COMMON_NOTIFY_INFO
 
-    union acpi_operand_obj      *SysHandler;        /* Handler for system notifies */
-    union acpi_operand_obj      *DrvHandler;        /* Handler for driver notifies */
-    union acpi_operand_obj      *AddrHandler;       /* Handler for Address space */
 
 } ACPI_OBJECT_THERMAL_ZONE;
 
 
-/*
- * Fields.  All share a common header/info field.
- */
 
-typedef struct /* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
+/******************************************************************************
+ *
+ * Fields.  All share a common header/info field.
+ *
+ *****************************************************************************/
+
+typedef struct AcpiObjectFieldCommon                /* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_FIELD_INFO
@@ -373,7 +382,7 @@ typedef struct /* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
 } ACPI_OBJECT_FIELD_COMMON;
 
 
-typedef struct /* REGION FIELD */
+typedef struct AcpiObjectRegionField
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_FIELD_INFO
@@ -382,7 +391,7 @@ typedef struct /* REGION FIELD */
 } ACPI_OBJECT_REGION_FIELD;
 
 
-typedef struct /* BANK FIELD */
+typedef struct AcpiObjectBankField
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_FIELD_INFO
@@ -393,7 +402,7 @@ typedef struct /* BANK FIELD */
 } ACPI_OBJECT_BANK_FIELD;
 
 
-typedef struct /* INDEX FIELD */
+typedef struct AcpiObjectIndexField
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_FIELD_INFO
@@ -411,7 +420,7 @@ typedef struct /* INDEX FIELD */
 
 /* The BufferField is different in that it is part of a Buffer, not an OpRegion */
 
-typedef struct /* BUFFER FIELD */
+typedef struct AcpiObjectBufferField
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_FIELD_INFO
@@ -421,11 +430,14 @@ typedef struct /* BUFFER FIELD */
 } ACPI_OBJECT_BUFFER_FIELD;
 
 
-/*
- * Handlers
- */
 
-typedef struct /* NOTIFY HANDLER */
+/******************************************************************************
+ *
+ * Objects for handlers
+ *
+ *****************************************************************************/
+
+typedef struct AcpiObjectNotifyHandler
 {
     ACPI_OBJECT_COMMON_HEADER
 
@@ -441,7 +453,7 @@ typedef struct /* NOTIFY HANDLER */
 #define ACPI_ADDR_HANDLER_DEFAULT_INSTALLED  0x1
 
 
-typedef struct /* ADDRESS HANDLER */
+typedef struct AcpiObjectAddrHandler
 {
     ACPI_OBJECT_COMMON_HEADER
 
@@ -458,12 +470,18 @@ typedef struct /* ADDRESS HANDLER */
 } ACPI_OBJECT_ADDR_HANDLER;
 
 
+
+/******************************************************************************
+ *
+ * Special internal objects
+ *
+ *****************************************************************************/
+
 /*
  * The Reference object type is used for these opcodes:
  * Arg[0-6], Local[0-7], IndexOp, NameOp, ZeroOp, OneOp, OnesOp, DebugOp
  */
-
-typedef struct /* Reference - Local object type */
+typedef struct AcpiObjectReference
 {
     ACPI_OBJECT_COMMON_HEADER
 
@@ -485,8 +503,7 @@ typedef struct /* Reference - Local object type */
  *
  * Currently: Region and FieldUnit types
  */
-
-typedef struct /* EXTRA */
+typedef struct AcpiObjectExtra
 {
     ACPI_OBJECT_COMMON_HEADER
     UINT8                       ByteFill1;
@@ -499,7 +516,9 @@ typedef struct /* EXTRA */
 } ACPI_OBJECT_EXTRA;
 
 
-typedef struct /* DATA */
+/* Additional data that can be attached to namespace nodes */
+
+typedef struct AcpiObjectData
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_OBJECT_HANDLER         Handler;
@@ -508,38 +527,56 @@ typedef struct /* DATA */
 } ACPI_OBJECT_DATA;
 
 
+/* Structure used when objects are cached for reuse */
+
+typedef struct AcpiObjectCacheList
+{
+    ACPI_OBJECT_COMMON_HEADER
+    union acpi_operand_obj      *Next;              /* Link for object cache and internal lists*/
+
+} ACPI_OBJECT_CACHE_LIST;
+
+
+
 /******************************************************************************
  *
- * ACPI_OPERAND_OBJECT  Descriptor - a giant union of all of the above
+ * ACPI_OPERAND_OBJECT Descriptor - a giant union of all of the above
  *
  *****************************************************************************/
 
-typedef union acpi_operand_obj
+typedef union acpi_operand_obj 
 {
     ACPI_OBJECT_COMMON          Common;
-    ACPI_OBJECT_CACHE_LIST      Cache;
+
     ACPI_OBJECT_INTEGER         Integer;
     ACPI_OBJECT_STRING          String;
     ACPI_OBJECT_BUFFER          Buffer;
     ACPI_OBJECT_PACKAGE         Package;
-    ACPI_OBJECT_BUFFER_FIELD    BufferField;
-    ACPI_OBJECT_DEVICE          Device;
+
     ACPI_OBJECT_EVENT           Event;
     ACPI_OBJECT_METHOD          Method;
     ACPI_OBJECT_MUTEX           Mutex;
     ACPI_OBJECT_REGION          Region;
+
+    ACPI_OBJECT_NOTIFY_COMMON   CommonNotify;
+    ACPI_OBJECT_DEVICE          Device;
     ACPI_OBJECT_POWER_RESOURCE  PowerResource;
     ACPI_OBJECT_PROCESSOR       Processor;
     ACPI_OBJECT_THERMAL_ZONE    ThermalZone;
+
     ACPI_OBJECT_FIELD_COMMON    CommonField;
     ACPI_OBJECT_REGION_FIELD    Field;
+    ACPI_OBJECT_BUFFER_FIELD    BufferField;
     ACPI_OBJECT_BANK_FIELD      BankField;
     ACPI_OBJECT_INDEX_FIELD     IndexField;
-    ACPI_OBJECT_REFERENCE       Reference;
+
     ACPI_OBJECT_NOTIFY_HANDLER  NotifyHandler;
     ACPI_OBJECT_ADDR_HANDLER    AddrHandler;
+
+    ACPI_OBJECT_REFERENCE       Reference;
     ACPI_OBJECT_EXTRA           Extra;
     ACPI_OBJECT_DATA            Data;
+    ACPI_OBJECT_CACHE_LIST      Cache;
 
 } ACPI_OPERAND_OBJECT;
 

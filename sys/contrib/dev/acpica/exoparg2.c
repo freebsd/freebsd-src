@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
- *              $Revision: 104 $
+ *              $Revision: 105 $
  *
  *****************************************************************************/
 
@@ -177,51 +177,47 @@ AcpiExOpcode_2A_0T_0R (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE_STR ("ExOpcode_2A_0T_0R", AcpiPsGetOpcodeName (WalkState->Opcode));
+    ACPI_FUNCTION_TRACE_STR ("ExOpcode_2A_0T_0R", 
+            AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
     /* Examine the opcode */
 
     switch (WalkState->Opcode)
     {
-
     case AML_NOTIFY_OP:         /* Notify (NotifyObject, NotifyValue) */
 
         /* The first operand is a namespace node */
 
         Node = (ACPI_NAMESPACE_NODE *) Operand[0];
 
-        /* The node must refer to a device or thermal zone or processor */
+        /* Notifies allowed on this object? */
 
-        switch (Node->Type)
+        if (!AcpiEvIsNotifyObject (Node))
         {
-        case ACPI_TYPE_DEVICE:
-        case ACPI_TYPE_THERMAL:
-        case ACPI_TYPE_PROCESSOR:
-
-            /*
-             * Dispatch the notify to the appropriate handler
-             * NOTE: the request is queued for execution after this method
-             * completes.  The notify handlers are NOT invoked synchronously
-             * from this thread -- because handlers may in turn run other
-             * control methods.
-             */
-            Status = AcpiEvQueueNotifyRequest (Node,
-                                    (UINT32) Operand[1]->Integer.Value);
-            break;
-
-        default:
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unexpected notify object type %X\n",
-                Node->Type));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unexpected notify object type [%s]\n",
+                    AcpiUtGetTypeName (Node->Type)));
 
             Status = AE_AML_OPERAND_TYPE;
             break;
         }
+
+        /*
+         * Dispatch the notify to the appropriate handler
+         * NOTE: the request is queued for execution after this method
+         * completes.  The notify handlers are NOT invoked synchronously
+         * from this thread -- because handlers may in turn run other
+         * control methods.
+         */
+        Status = AcpiEvQueueNotifyRequest (Node,
+                        (UINT32) Operand[1]->Integer.Value);
         break;
+
 
     default:
 
-        ACPI_REPORT_ERROR (("AcpiExOpcode_2A_0T_0R: Unknown opcode %X\n", WalkState->Opcode));
+        ACPI_REPORT_ERROR (("AcpiExOpcode_2A_0T_0R: Unknown opcode %X\n", 
+                WalkState->Opcode));
         Status = AE_AML_BAD_OPCODE;
     }
 

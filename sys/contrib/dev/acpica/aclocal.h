@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 159 $
+ *       $Revision: 162 $
  *
  *****************************************************************************/
 
@@ -147,6 +147,7 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 #define ACPI_DESC_TYPE_NAMED            0xAA
 
 
+
 /*****************************************************************************
  *
  * Mutex typedefs and structs
@@ -273,12 +274,18 @@ typedef enum
  * be the first byte in this structure.
  */
 
+typedef union acpi_name_union
+{
+    UINT32                  Integer;
+    char                    Ascii[4];
+} ACPI_NAME_UNION;
+
 typedef struct acpi_node
 {
     UINT8                   Descriptor;     /* Used to differentiate object descriptor types */
     UINT8                   Type;           /* Type associated with this name */
     UINT16                  OwnerId;
-    UINT32                  Name;           /* ACPI Name, always 4 chars per ACPI spec */
+    ACPI_NAME_UNION         Name;           /* ACPI Name, always 4 chars per ACPI spec */
 
 
     union acpi_operand_obj  *Object;        /* Pointer to attached ACPI object (optional) */
@@ -405,8 +412,9 @@ typedef struct
 
 typedef struct
 {
+    UINT8                   AddressSpaceId;
+    ACPI_GENERIC_ADDRESS    *BlockAddress;
     UINT16                  RegisterCount;
-    UINT16                  BlockAddress;
     UINT8                   BlockBaseNumber;
 
 } ACPI_GPE_BLOCK_INFO;
@@ -415,8 +423,8 @@ typedef struct
 
 typedef struct
 {
-    UINT16                  StatusAddr;     /* Address of status reg */
-    UINT16                  EnableAddr;     /* Address of enable reg */
+    ACPI_GENERIC_ADDRESS    StatusAddress;  /* Address of status reg */
+    ACPI_GENERIC_ADDRESS    EnableAddress;  /* Address of enable reg */
     UINT8                   Status;         /* Current value of status reg */
     UINT8                   Enable;         /* Current value of enable reg */
     UINT8                   WakeEnable;     /* Mask of bits to keep enabled when sleeping */
@@ -501,11 +509,11 @@ struct acpi_obj_mutex;
 
 #define ACPI_STATE_COMMON                  /* Two 32-bit fields and a pointer */\
     UINT8                   DataType;           /* To differentiate various internal objs */\
-    UINT8                   Flags; \
-    UINT16                  Value; \
-    UINT16                  State; \
-    UINT16                  AcpiEval;  \
-    void                    *Next; \
+    UINT8                   Flags;      \
+    UINT16                  Value;      \
+    UINT16                  State;      \
+    UINT16                  Reserved;   \
+    void                    *Next;      \
 
 typedef struct acpi_common_state
 {
