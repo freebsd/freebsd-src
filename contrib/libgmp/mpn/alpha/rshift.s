@@ -1,3 +1,4 @@
+/* $Id$
  # Alpha 21064 __mpn_rshift --
 
  # Copyright (C) 1994, 1995 Free Software Foundation, Inc.
@@ -35,6 +36,7 @@
  # 1. ldq has a 3 cycle delay, srl and sll have a 2 cycle delay.
  # 2. Only aligned instruction pairs can be paired.
  # 3. The store buffer or silo might not be able to deal with the bandwidth.
+*/
 
 	.set	noreorder
 	.set	noat

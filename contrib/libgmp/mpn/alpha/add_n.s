@@ -1,3 +1,4 @@
+/* $Id$
  # Alpha __mpn_add_n -- Add two limb vectors of the same length > 0 and
  # store sum in a third limb vector.
 
@@ -26,6 +27,7 @@
  # s1_ptr	$17
  # s2_ptr	$18
  # size		$19
+*/
 
 	.set	noreorder
 	.set	noat
