@@ -4,7 +4,7 @@
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
 #
-#    http://www.FreeBSD.org/handbook/kernelconfig-config.html
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
 # The handbook is also available locally in /usr/share/doc/handbook
 # if you've installed the doc distribution, otherwise always see the
@@ -13,8 +13,8 @@
 #
 # An exhaustive list of options and more detailed explanations of the
 # device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
-# in NOTES.
+# If you are in doubt as to the purpose or necessity of a line, check
+# first in NOTES.
 #
 # For hardware specific information check HARDWARE.TXT
 #
@@ -53,13 +53,13 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
-# SMP
+# To make an SMP kernel
 #options 	SMP
 
 # Debugging for use in -current
-options 	DDB			#Enable the kernel debugger
-options 	INVARIANTS		#Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	#Extra sanity checks of internal
+#options 	DDB			#Enable the kernel debugger
+#options 	INVARIANTS		#Enable calls of extra sanity checking
+#options 	INVARIANT_SUPPORT	#Extra sanity checks of internal
 					#structures, required by INVARIANTS
 
 # Standard busses
@@ -81,8 +81,17 @@ device		atapist		# ATAPI tape drives
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
+device		ahd		# AHA39320/29320 and onboard AIC79xx devices
 device		isp		# Qlogic family
+device		mpt		# LSI-Logic MPT-Fusion
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+
+# RAID controllers interfaced to the SCSI subsystem
+device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
+device		ciss		# Compaq Smart RAID 5*
+device		dpt		# DPT Smartcache III, IV - See NOTES for options!
+device		iir		# Intel Integrated RAID
+device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
@@ -95,6 +104,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 
 # RAID controllers
 device		amr		# AMI MegaRAID
+device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
@@ -109,35 +119,27 @@ device		splash		# Splash screen and screen saver support
 # syscons is the default console driver, resembling an SCO console
 device		sc
 
+#device		agp		# support several AGP chipsets
+
 # Serial (COM) ports
 device		sio
 
-# Parallel port
-device          ppc
-device          ppbus           # Parallel port bus (required)
-device          lpt             # Printer
-device          plip            # TCP/IP over parallel
-device          ppi             # Parallel port interface device
- 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus		# MII bus support
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
-device		ste		# Sundance ST201 (D-Link DFE-550TX)
-device		tl		# Texas Instruments ThunderLAN
-device		tx		# SMC EtherPower II (83c170 ``EPIC'')
-device		vr		# VIA Rhine, Rhine II
-device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Pseudo devices - the number indicates how many units to allocated.
@@ -157,16 +159,16 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		bpf		#Berkeley packet filter
 
 # USB support
-#device		uhci		# UHCI PCI->USB interface
-#device		ohci		# OHCI PCI->USB interface
-#device		usb		# USB Bus (required)
-#device		ugen		# Generic
-#device		uhid		# "Human Interface Devices"
-#device		ukbd		# Keyboard
-#device		ulpt		# Printer
-#device		umass		# Disks/Mass storage - Requires scbus and da0
-#device		ums		# Mouse
+#device		uhci		# UHCI PCI->USB interface (breaks BigSur!)
+device		ohci		# OHCI PCI->USB interface
+device		usb		# USB Bus (required)
+device		ugen		# Generic
+device		uhid		# "Human Interface Devices"
+device		ukbd		# Keyboard
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage - Requires scbus and da0
+device		ums		# Mouse
 # USB Ethernet
-#device		aue		# ADMtek USB ethernet
-#device		cue		# CATC USB ethernet
-#device		kue		# Kawasaki LSI USB ethernet
+device		aue		# ADMtek USB ethernet
+device		cue		# CATC USB ethernet
+device		kue		# Kawasaki LSI USB ethernet
