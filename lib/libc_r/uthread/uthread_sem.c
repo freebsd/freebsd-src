@@ -206,6 +206,12 @@ sem_post(sem_t *sem)
 
 	_SEM_CHECK_VALIDITY(sem);
 
+	/*
+	 * sem_post() is required to be safe to call from within signal
+	 * handlers.  Thus, we must defer signals.
+	 */
+	_thread_kern_sig_defer();
+
 	pthread_mutex_lock(&(*sem)->lock);
 
 	(*sem)->count++;
@@ -221,6 +227,7 @@ sem_post(sem_t *sem)
 
 	pthread_mutex_unlock(&(*sem)->lock);
 
+	_thread_kern_sig_undefer();
 	retval = 0;
   RETURN:
 	return retval;
