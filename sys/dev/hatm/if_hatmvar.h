@@ -618,3 +618,4 @@ void hatm_tx_vcc_close(struct hatm_softc *sc, u_int cid);
 void hatm_rx_vcc_close(struct hatm_softc *sc, u_int cid);
 void hatm_tx_vcc_closed(struct hatm_softc *sc, u_int cid);
 void hatm_vcc_closed(struct hatm_softc *sc, u_int cid);
+void hatm_load_vc(struct hatm_softc *sc, u_int cid, int reopen);
