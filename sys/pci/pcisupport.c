@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.45 1997/03/28 18:40:24 phk Exp $
+**  $Id: pcisupport.c,v 1.46 1997/05/26 15:08:35 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -109,6 +109,29 @@ generic_pci_bridge (pcici_t tag)
     return 0;
 }
 
+/*
+ * XXX Both fixbushigh_orion() and fixbushigh_i1225() are bogus in that way,
+ * that they store the highest bus number to scan in this device's config 
+ * data, though it is about PCI buses attached to the CPU independently!
+ */
+
+static void
+fixbushigh_orion(pcici_t tag)
+{
+	tag->secondarybus = pci_cfgread(tag, 0x4a, 1);
+	tag->subordinatebus = pci_cfgread(tag, 0x4b, 1);
+}
+
+static void
+fixbushigh_i1225(pcici_t tag)
+{
+	int sublementarybus;
+
+	sublementarybus = pci_cfgread(tag, 0x41, 1);
+	if (sublementarybus != 0xff)
+		tag->secondarybus = tag->subordinatebus = sublementarybus +1;
+}
+
 static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
@@ -116,13 +139,16 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	char		*descr;
 
 	switch (type) {
+	case 0x00088086:
+		/* Silently ignore this one! What is it, anyway ??? */
+		return ("");
 	case 0x04868086:
 		return ("Intel 82425EX PCI system controller");
 	case 0x04848086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 3)
-		    return ("Intel 82378ZB PCI-ISA bridge");
-		return ("Intel 82378IB PCI-ISA bridge");
+		    return ("Intel 82378ZB PCI to ISA bridge");
+		return ("Intel 82378IB PCI to ISA bridge");
 	case 0x04838086:
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
@@ -134,10 +160,13 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		if (rev == 16 || rev == 17)
 		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
 		return ("Intel 82434LX (Mercury) PCI cache memory controller");
+	case 0x12258086:
+		fixbushigh_i1225(tag);
+		return ("Intel 824?? host to PCI bridge");
 	case 0x122d8086:
 		return ("Intel 82437FX PCI cache memory controller");
 	case 0x122e8086:
-		return ("Intel 82371FB PCI-ISA bridge");
+		return ("Intel 82371FB PCI to ISA bridge");
 	case 0x12308086:
 		return ("Intel 82371FB IDE interface");
 	case 0x12508086:
@@ -149,23 +178,32 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x06011039:
 		return ("SiS 85c601");
 	case 0x70008086:
-		return ("Intel 82371SB PCI-ISA bridge");
+		return ("Intel 82371SB PCI to ISA bridge");
 	case 0x70108086:
 		return ("Intel 82371SB IDE interface");
-	case 0x70308086:
+	case 0x71108086:
+		return ("Intel 82371AB PCI to ISA bridge");
+	case 0x71118086:
+		return ("Intel 82371AB IDE interface");
+	case 0x71128086:
+		return ("Intel 82371AB USB host controller");
+	case 0x71138086:
+		return ("Intel 82371AB power management");
+	 case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x12378086:
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c48086:
-		tag->secondarybus = 
-		    tag->subordinatebus = pci_cfgread(tag, 0x4a, 1);
-		return ("Intel 82450KX (Orion) PCI memory controller");
+		fixbushigh_orion(tag);
+		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
 	case 0x84c58086:
-		return ("Intel 82454GX (Orion) host to PCI bridge");
+		return ("Intel 82453KX/GX (Orion) PCI memory controller");
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
 	case 0x00011011:
 		return ("DEC 21050 PCI-PCI bridge");
+	case 0x124b8086:
+		return ("Intel 82380FB mobile PCI to PCI bridge");
 	};
 
 	if (descr = generic_pci_bridge(tag))
