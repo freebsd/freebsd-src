@@ -39,6 +39,7 @@ static char rcsid[] = "$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $";
 #include <string.h>
 #include <float.h>
 #include <limits.h>
+#include <math.h>
 
 #include "lint1.h"
 #include "y.tab.h"
@@ -1132,6 +1133,7 @@ typeok(op, arg, ln, rn)
 			nulleff(ln);
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	default:
 	}
 
 	if (mp->m_badeop &&
@@ -3575,6 +3577,7 @@ chkmisc(tn, vctx, tctx, eqwarn, fcall, rvdisc, szof)
 	case STRING:
 		return;
 		/* LINTED (enumeration values not handled in switch) */
+	default:
 	}
 
 	cvctx = mp->m_vctx;
@@ -3913,6 +3916,7 @@ precconf(tn)
 		}
 		break;
 		/* LINTED (enumeration values not handled in switch) */
+	default:
 	}
 
 	if (warn) {

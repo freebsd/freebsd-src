@@ -38,9 +38,13 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "bi-run.h"
 
 #include <stdio.h>
+#include <string.h>
 
 extern char *xmalloc (), *xrealloc ();
+
+#ifndef __FreeBSD__
 extern void free ();
+#endif
 
 extern struct obstack *rtl_obstack;
 

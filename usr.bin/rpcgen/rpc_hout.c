@@ -43,16 +43,18 @@ static char sccsid[] = "@(#)rpc_hout.c 1.12 89/02/22 (C) 1987 SMI";
 #include "rpc_util.h"
 
 void storexdrfuncdecl __P(( char *, int ));
-static int pconstdef __P(( definition * ));
-static int pstructdef __P(( definition * ));
-static int puniondef __P(( definition * ));
-static int pprogramdef __P(( definition * ));
-static int pstructdef __P(( definition * ));
-static int penumdef __P(( definition * ));
-static int ptypedef __P(( definition * ));
-static int pdefine __P(( char *, char * ));
+static void pconstdef __P(( definition * ));
+static void pstructdef __P(( definition * ));
+static void puniondef __P(( definition * ));
+static void pprogramdef __P(( definition * ));
+static void pstructdef __P(( definition * ));
+static void penumdef __P(( definition * ));
+static void ptypedef __P(( definition * ));
+static void pdefine __P(( char *, char * ));
 static int undefined2 __P(( char *, char * ));
-static int parglist __P(( proc_list *, char * ));
+static void parglist __P(( proc_list *, char * ));
+static void pprocdef __P(( proc_list *, version_list *, char *, int, int ));
+void pdeclaration __P(( char *, declaration *, int, char * ));
 
 static char RESULT[] = "clnt_res";
 
@@ -109,7 +111,8 @@ print_funcdef(def)
 		f_print(fout, "\n");
 		pprogramdef(def);
 		break;
-	    }
+	default:
+	}
 }
 
 /* store away enough information to allow the XDR functions to be spat
@@ -157,7 +160,7 @@ int i;
 }
 
 
-static
+static void
 pconstdef(def)
 	definition *def;
 {
@@ -167,7 +170,7 @@ pconstdef(def)
 /* print out the definitions for the arguments of functions in the
     header file
 */
-static
+static void
 pargdef(def)
 	definition *def;
 {
@@ -201,7 +204,7 @@ pargdef(def)
 }
 
 
-static
+static void
 pstructdef(def)
 	definition *def;
 {
@@ -216,7 +219,7 @@ pstructdef(def)
 	f_print(fout, "typedef struct %s %s;\n", name, name);
 }
 
-static
+static void
 puniondef(def)
 	definition *def;
 {
@@ -245,7 +248,7 @@ puniondef(def)
 	f_print(fout, "typedef struct %s %s;\n", name, name);
 }
 
-static
+static void
 pdefine(name, num)
 	char *name;
 	char *num;
@@ -253,7 +256,7 @@ pdefine(name, num)
 	f_print(fout, "#define\t%s %s\n", name, num);
 }
 
-static
+static void
 puldefine(name, num)
 	char *name;
 	char *num;
@@ -261,7 +264,7 @@ puldefine(name, num)
 	f_print(fout, "#define\t%s ((unsigned long)(%s))\n", name, num);
 }
 
-static
+static int
 define_printed(stop, start)
 	proc_list *stop;
 	version_list *start;
@@ -282,7 +285,7 @@ define_printed(stop, start)
 	/* NOTREACHED */
 }
 
-static
+static void
 pfreeprocdef(char * name, char *vers, int mode)
 {
 	f_print(fout, "extern int ");
@@ -295,7 +298,7 @@ pfreeprocdef(char * name, char *vers, int mode)
 
 }
 
-static
+static void
 pprogramdef(def)
 	definition *def;
 {
@@ -371,6 +374,7 @@ pprogramdef(def)
 	}
 }
 
+static void
 pprocdef(proc, vp, addargtype, server_p, mode)
 	proc_list *proc;
 	version_list *vp;
@@ -399,15 +403,12 @@ pprocdef(proc, vp, addargtype, server_p, mode)
 		parglist(proc, addargtype);
 	else
 		f_print(fout, "();\n");
-
-
-
 }
 
 
 
 /* print out argument list of procedure */
-static
+static void
 parglist(proc, addargtype)
 	proc_list *proc;
     char* addargtype;
@@ -438,7 +439,7 @@ parglist(proc, addargtype)
 
 }
 
-static
+static void
 penumdef(def)
 	definition *def;
 {
@@ -470,7 +471,7 @@ penumdef(def)
 	f_print(fout, "typedef enum %s %s;\n", name, name);
 }
 
-static
+static void
 ptypedef(def)
 	definition *def;
 {
@@ -517,6 +518,7 @@ ptypedef(def)
 	}
 }
 
+void
 pdeclaration(name, dec, tab, separator)
 	char *name;
 	declaration *dec;
@@ -575,7 +577,7 @@ pdeclaration(name, dec, tab, separator)
 	f_print(fout, separator);
 }
 
-static
+static int
 undefined2(type, stop)
 	char *type;
 	char *stop;

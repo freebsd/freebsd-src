@@ -2585,6 +2585,8 @@ find_split_point (loc, insn)
 	      unsignedp = (code == ZERO_EXTRACT);
 	    }
 	  break;
+	default:
+	  break;
 	}
 
       if (len && pos >= 0 && pos + len <= GET_MODE_BITSIZE (GET_MODE (inner)))
@@ -2680,6 +2682,8 @@ find_split_point (loc, insn)
 	  SUBST (XEXP (x, 0), XEXP (x, 1));
 	  SUBST (XEXP (x, 1), tem);
 	}
+      break;
+    default:
       break;
     }
 
@@ -3857,6 +3861,8 @@ simplify_rtx (x, op0_mode, last, in_dest)
 #endif
 
       break;
+    default:
+      break;
     }
 
   return x;
@@ -3990,6 +3996,8 @@ simplify_if_then_else (x)
       case LT:
       case LE:
 	return gen_unary (NEG, mode, mode, gen_unary (ABS, mode, mode, true));
+      default:
+	break;
       }
 
   /* Look for MIN or MAX.  */
@@ -4013,6 +4021,8 @@ simplify_if_then_else (x)
       case LEU:
       case LTU:
 	return gen_binary (UMIN, mode, true, false);
+      default:
+	break;
       }
 
 #if STORE_FLAG_VALUE == 1 || STORE_FLAG_VALUE == -1
@@ -4692,6 +4702,8 @@ simplify_logical (x, last)
 	return gen_rtx_combine (reverse_condition (GET_CODE (op0)),
 				mode, XEXP (op0, 0), XEXP (op0, 1));
       break;
+    default:
+      break;
     }
 
   return x;
@@ -5307,6 +5319,8 @@ extract_left_shift (x, count)
 			   GEN_INT (INTVAL (XEXP (x, 1)) >> count));
 
       break;
+    default:
+      break;
     }
 
   return 0;
@@ -5548,6 +5562,8 @@ make_compound_operation (x, in_code)
 
 	  return newer;
 	}
+    default:
+      break;
     }
 
   if (new)
@@ -6074,6 +6090,8 @@ force_to_mode (x, mode, mask, reg, just_select)
 				      force_to_mode (XEXP (x, 2), mode,
 						     mask, reg,next_select)));
       break;
+    default:
+      break;
     }
 
   /* Ensure we return a value of the proper mode.  */
@@ -6288,6 +6306,8 @@ known_cond (x, cond, reg, val)
       case LT:  case LE:
 	return gen_unary (NEG, GET_MODE (XEXP (x, 0)), GET_MODE (XEXP (x, 0)),
 			  XEXP (x, 0));
+      default:
+	break;
       }
 
   /* The only other cases we handle are MIN, MAX, and comparisons if the
@@ -6324,6 +6344,8 @@ known_cond (x, cond, reg, val)
 		  return unsignedp ? XEXP (x, 1) : x;
 		case LEU:  case LTU:
 		  return unsignedp ? XEXP (x, 0) : x;
+		default:
+		  break;
 		}
 	    }
 	}
@@ -6935,6 +6957,8 @@ nonzero_bits (x, mode)
 	    result_width = MIN (width0, width1);
 	    result_low = MIN (low0, low1);
 	    break;
+	  default:
+	    break;
 	  }
 
 	if (result_width < mode_width)
@@ -7036,6 +7060,8 @@ nonzero_bits (x, mode)
     case IF_THEN_ELSE:
       nonzero &= (nonzero_bits (XEXP (x, 1), mode)
 		  | nonzero_bits (XEXP (x, 2), mode));
+      break;
+    default:
       break;
     }
 
@@ -7306,6 +7332,8 @@ num_sign_bit_copies (x, mode)
     case GEU: case GTU: case LEU: case LTU:
       return bitwidth;
 #endif
+    default:
+      break;
     }
 
   /* If we haven't been able to figure it out by one of the above rules,
@@ -7416,6 +7444,8 @@ merge_outer_ops (pop0, pconst0, op1, const1, mode, pcomp_p)
 	case NEG:
 	  op0 = NIL;
 	  break;
+	default:
+	  break;
 	}
     }
 
@@ -7456,6 +7486,8 @@ merge_outer_ops (pop0, pconst0, op1, const1, mode, pcomp_p)
 	else /* op1 == XOR */
 	  /* (a ^ b) & b) == (~a) & b */
 	  *pcomp_p = 1;
+	break;
+      default:
 	break;
       }
 
@@ -8072,6 +8104,8 @@ simplify_shift_const (x, code, result_mode, varop, count)
 
 	      continue;
 	    }
+	  break;
+	default:
 	  break;
 	}
 
@@ -8864,6 +8898,8 @@ simplify_comparison (code, pop0, pop1)
 	      code = LT;
 	    }
 	  break;
+	default:
+	  break;
 	}
 
       /* Compute some predicates to simplify code below.  */
@@ -9397,6 +9433,8 @@ simplify_comparison (code, pop0, pop1)
 	      continue;
 	    }
 	  break;
+	default:
+	  break;
 	}
 
       break;
@@ -9527,6 +9565,8 @@ reversible_comparison_p (x)
       x = get_last_value (XEXP (x, 0));
       return (x && GET_CODE (x) == COMPARE
 	      && ! FLOAT_MODE_P (GET_MODE (XEXP (x, 0))));
+    default:
+      break;
     }
 
   return 0;
@@ -10107,6 +10147,8 @@ mark_used_regs_combine (x)
 	mark_used_regs_combine (SET_SRC (x));
 	return;
       }
+    default:
+      break;
     }
 
   /* Recursively scan the operands of this expression.  */

@@ -116,6 +116,8 @@ plus_constant_wide (x, c)
 	return gen_rtx (PLUS, mode,
 			XEXP (x, 0),
 			plus_constant (XEXP (x, 1), c));
+    default:
+      break;
     }
 
   if (c != 0)
@@ -669,6 +671,8 @@ promote_mode (type, mode, punsignedp, for_call)
 
     case POINTER_TYPE:
       break;
+    default:
+      break;
     }
 
   *punsignedp = unsignedp;
@@ -807,6 +811,8 @@ emit_stack_save (save_level, psave, after)
 	}
       break;
 #endif
+    default:
+      break;
     }
 
   /* If there is no save area and we have to allocate one, do so.  Otherwise
@@ -887,6 +893,8 @@ emit_stack_restore (save_level, sa, after)
 	fcn = gen_restore_stack_nonlocal;
       break;
 #endif
+    default:
+      break;
     }
 
   if (sa != 0)

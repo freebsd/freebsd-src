@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #include <sys/signal.h>
 #include <errno.h>
 #include <unistd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +51,10 @@ static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 extern char *archive;			/* archive name */
 char *tname = "temporary file";		/* temporary file "name" */
 
-tmp()
+void error __P(( char * ));
+
+int
+tmp(void)
 {
 	sigset_t set, oset;
 	int fd;
@@ -90,12 +94,14 @@ rname(path)
 	return((ind = rindex(path, '/')) ? ind + 1 : path);
 }
 
-badfmt()
+void
+badfmt(void)
 {
 	errno = EFTYPE;
 	error(archive);
 }
 
+void
 error(name)
 	char *name;
 {
