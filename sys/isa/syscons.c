@@ -35,11 +35,11 @@
  *
  */
 /*
- * Heavily modified by Søren Schmidt (sos@kmd-ac.dk) to provide:
+ * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
  * 	virtual consoles, SYSV ioctl's, ANSI emulation 
  *
- *	@(#)syscons.c	0.2d 930908
+ *	@(#)syscons.c	0.2e 930924
  * Derived from:
  *	@(#)pccons.c	5.11 (Berkeley) 5/21/91
  */
@@ -297,14 +297,14 @@ int pcattach(struct isa_device *dev)
 
 	if (crtc_vga)
 		if (crtc_addr == MONO_BASE)
-			printf(" VGA mono");
+			printf("VGA mono");
 		else	
-			printf(" VGA color");
+			printf("VGA color");
 	else
 		if (crtc_addr == MONO_BASE)
-			printf(" MDA/hercules");
+			printf("MDA/hercules");
 		else	
-			printf(" CGA/EGA");
+			printf("CGA/EGA");
 
 	if (NCONS > 1) 
 		printf(" <%d virtual consoles>\n", NCONS);
@@ -463,6 +463,8 @@ scintr(dev_t dev, int irq, int cpl)
 	c = sgetc(1);
 	if (c & 0x100)
 		return;
+	if ((cur_pccons->t_state & TS_ISOPEN) == 0)
+		return;
 	if (pcconsoftc.cs_flags & CSF_POLLING)
 		return;
 	if (c < 0x100)
@@ -492,7 +494,7 @@ pcparam(struct tty *tp, struct termios *t)
 
 pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
-	int error;
+	int i, error;
 	struct tty *tp;
 	struct syscframe *fp;
 	scr_stat *scp; 
@@ -608,9 +610,14 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		}
 		/* NOT REACHED */
 
-	case VT_OPENQRY:	/* return free virtual cons, allways current */
-		*data = get_scr_num(scp);
-		return 0;
+	case VT_OPENQRY:	/* return free virtual console */
+ 		for (i = 0; i < NCONS; i++)
+ 			if (!(pccons[i].t_state & TS_ISOPEN)) {
+ 				*data = i + 1;
+ 				return 0;
+ 			}
+ 		return EINVAL;
+		/* NOT REACHED */
 
 	case VT_ACTIVATE:	/* switch to screen *data */
 		return switch_scr((*data) - 1);
