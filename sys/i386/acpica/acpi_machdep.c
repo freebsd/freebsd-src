@@ -80,7 +80,7 @@ acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
 {
 	int	state;
 
-	state = 0xff;	/* XXX unknown */
+	state = APM_UNKNOWN;
 
 	if (battp->state & ACPI_BATT_STAT_DISCHARG) {
 		if (battp->cap >= 50)
@@ -94,7 +94,7 @@ acpi_capm_convert_battstate(struct  acpi_battinfo *battp)
 		state = 3;		/* charging */
 
 	/* If still unknown, determine it based on the battery capacity. */
-	if (state == 0xff) {
+	if (state == APM_UNKNOWN) {
 		if (battp->cap >= 50)
 			state = 0;	/* high */
 		else
@@ -137,18 +137,18 @@ acpi_capm_get_info(apm_info_t aip)
 	aip->ai_major       = 1;
 	aip->ai_minor       = 2;
 	aip->ai_status      = apm_softc.active;
-	aip->ai_capabilities= 0xff00;	/* XXX unknown */
+	aip->ai_capabilities= 0xff00;	/* unknown */
 
 	if (acpi_acad_get_acline(&acline))
-		aip->ai_acline = 0xff;		/* unknown */
+		aip->ai_acline = APM_UNKNOWN;	/* unknown */
 	else
 		aip->ai_acline = acline;	/* on/off */
 
 	if (acpi_battery_get_battinfo(-1, &batt)) {
-		aip->ai_batt_stat = 0xff;	/* unknown */
-		aip->ai_batt_life = 0xff;	/* unknown */
-		aip->ai_batt_time = -1;		/* unknown */
-		aip->ai_batteries = 0;
+		aip->ai_batt_stat = APM_UNKNOWN;
+		aip->ai_batt_life = APM_UNKNOWN;
+		aip->ai_batt_time = -1;		 /* unknown */
+		aip->ai_batteries = ~0U;	 /* unknown */
 	} else {
 		aip->ai_batt_stat = acpi_capm_convert_battstate(&batt);
 		aip->ai_batt_life = batt.cap;
@@ -184,7 +184,7 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 	app->ap_batt_time = (batt.min == -1) ? -1 : batt.min * 60;
 
 	if (acpi_acad_get_acline(&acline))
-		app->ap_acline = 0xff;		/* unknown */
+		app->ap_acline = APM_UNKNOWN;
 	else
 		app->ap_acline = acline;	/* on/off */
 
