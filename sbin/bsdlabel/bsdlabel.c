@@ -958,8 +958,10 @@ getasciilabel(FILE *f, struct disklabel *lp)
 			for (; cpp < &dktypenames[DKMAXTYPES]; cpp++)
 				if (*cpp && streq(*cpp, tp)) {
 					lp->d_type = cpp - dktypenames;
-					continue;
+					break;
 				}
+			if (cpp < &dktypenames[DKMAXTYPES])
+				continue;
 			v = atoi(tp);
 			if ((unsigned)v >= DKMAXTYPES)
 				fprintf(stderr, "line %d:%s %d\n", lineno,
