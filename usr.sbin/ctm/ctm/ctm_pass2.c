@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.11 1996/02/05 16:06:52 phk Exp $
+ * $Id: ctm_pass2.c,v 1.12 1996/04/29 21:02:30 phk Exp $
  *
  */
 
@@ -27,7 +27,10 @@ Pass2(FILE *fd)
     struct CTM_Syntax *sp;
     struct stat st;
     int ret = 0;
+    int match = 0;
     char md5_1[33];
+    struct CTM_Filter *filter;
+    FILE *ed = NULL;
 
     if(Verbose>3)
 	printf("Pass2 -- Checking if CTM-patch will apply\n");
@@ -48,6 +51,12 @@ Pass2(FILE *fd)
 	Delete(name);
 	Delete(md5);
 	cnt = -1;
+
+	/* if a filter list was specified, check file name against
+	   the filters specified 
+	   if no filter was given operate on all files. */
+	match = (FilterList ? 
+		    !(FilterList->Action) : CTM_FILTER_ENABLE);
 
 	GETFIELD(p,' ');
 
@@ -70,6 +79,22 @@ Pass2(FILE *fd)
 	    switch (j & CTM_F_MASK) {
 		case CTM_F_Name:
 		    GETNAMECOPY(name,sep,j,0);
+		    /* If `keep' was specified, we won't remove any files,
+		       so don't check if the file exists */
+		    if (KeepIt &&
+			(!strcmp(sp->Key,"FR") || !strcmp(sp->Key,"DR"))) {
+			match = CTM_FILTER_DISABLE;
+			break;
+		    }
+
+		    for (filter = FilterList; filter; filter = filter->Next)				if (0 == regexec(&filter->CompiledRegex, name,
+				    0, 0, 0)) {
+				    match = filter->Action;
+			    }
+
+		    if (CTM_FILTER_DISABLE == match)
+			    break;	/* should ignore this file */
+
 		    /* XXX Check DR DM rec's for parent-dir */
 		    if(j & CTM_Q_Name_New) {
 			/* XXX Check DR FR rec's for item */
@@ -124,7 +149,7 @@ Pass2(FILE *fd)
 		    if(j & CTM_Q_MD5_Before) {
 		        char *tmp;
 			GETFIELD(p,sep);
-			if((st.st_mode & S_IFMT) == S_IFREG &&
+			if(match && (st.st_mode & S_IFMT) == S_IFREG &&
 			  (tmp = MD5File(name,md5_1)) != NULL &&
 			  strcmp(tmp,p)) {
 			    fprintf(stderr,"  %s: %s md5 mismatch.\n",
@@ -154,6 +179,8 @@ Pass2(FILE *fd)
 		case CTM_F_Bytes:
 		    if(cnt < 0) WRONG
 		    GETDATA(trash,cnt);
+		    if (!match)
+			break;
 		    if(!strcmp(sp->Key,"FN")) {
 			p = tempnam(TmpDir,"CTMclient");
 			j = ctm_edit(trash,cnt,name,p);
@@ -171,6 +198,30 @@ Pass2(FILE *fd)
 			    unlink(p);
 			    Free(p);
 			    return ret;
+			}
+		        unlink(p);
+			Free(p);
+		    } else if (!strcmp(sp->Key,"FE")) {
+			p = tempnam(TmpDir,"CTMclient");
+			ed = popen("ed","w");
+			if (!ed) {
+			    WRONG
+			}
+			fprintf(ed,"e %s\n", name);
+			if (cnt != fwrite(trash,1,cnt,ed)) {
+			    perror(name);
+			    pclose(ed);
+			    WRONG
+			}
+			fprintf(ed,"w %s\n",p);
+			if (pclose(ed)) {
+			    perror(p);
+			    WRONG
+			}
+			if(strcmp(md5,MD5File(p,md5_1))) {
+			    fprintf(stderr,"%s %s MD5 didn't come out right\n",
+				sp->Key, name);
+			    WRONG
 			}
 		        unlink(p);
 			Free(p);
