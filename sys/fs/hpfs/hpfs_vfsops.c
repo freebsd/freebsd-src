@@ -225,6 +225,8 @@ hpfs_mountfs(devvp, mp, argsp, td)
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
+	if (mp->mnt_flag & MNT_ROOTFS)
+		return (EOPNOTSUPP);
 	dprintf(("hpfs_mountfs():\n"));
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
