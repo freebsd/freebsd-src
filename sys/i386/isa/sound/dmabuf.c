@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.8 1994/08/02 07:39:49 davidg Exp $
+ * $Id: dmabuf.c,v 1.9 1994/10/01 02:16:35 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -659,9 +659,7 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
       RESTORE_INTR (flags);
 #else /* linux */
 #ifdef __FreeBSD__
-      printk ("sound: Invalid DMA mode for device %d\n", dev);
-
-      isa_dmastart ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE,
+      isa_dmastart (B_RAW + ((dma_mode == DMA_MODE_READ) ? B_READ : B_WRITE),
 		    (caddr_t)dmap->raw_buf_phys[0],
 		    dmap->bytes_in_use,
 		    chan);
