@@ -369,8 +369,6 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		return ESRCH;
 	}
 found:
-	TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
-	kg->kg_idle_kses--;
 	thread_schedule_upcall(td, ke);
 	mtx_unlock_spin(&sched_lock);
 	td->td_retval[0] = 0;
@@ -1039,6 +1037,7 @@ struct thread *
 thread_schedule_upcall(struct thread *td, struct kse *ke)
 {
 	struct thread *td2;
+	struct ksegrp *kg;
 	int newkse;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1059,6 +1058,12 @@ thread_schedule_upcall(struct thread *td, struct kse *ke)
 	}
 	KASSERT((ke->ke_bound == NULL), ("kse already bound"));
 
+	if (ke->ke_state == KES_IDLE) {
+		kg = ke->ke_ksegrp;
+		TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
+		kg->kg_idle_kses--;
+		ke->ke_state = KES_UNQUEUED;
+	}
 	if ((td2 = td->td_standin) != NULL) {
 		td->td_standin = NULL;
 	} else {
@@ -1115,6 +1120,7 @@ thread_schedule_upcall(struct thread *td, struct kse *ke)
 	} else {
 		ke->ke_bound = NULL;
 		ke->ke_thread = td2;
+		ke->ke_state = KES_THREAD;
 		setrunqueue(td2);
 	}
 	return (td2);	/* bogus.. should be a void function */
