@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.38 1997/09/14 02:51:16 peter Exp $
+ * $Id: vfs_vnops.c,v 1.39 1997/10/06 02:38:27 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -298,8 +298,8 @@ vn_read(fp, uio, cred)
 		 * are.
 		 */
 		tmpseq += ((count + BKVASIZE - 1) / BKVASIZE);
-		if (tmpseq >= CHAR_MAX)
-			tmpseq = CHAR_MAX;
+		if (tmpseq >= 127)
+			tmpseq = 127;
 		fp->f_seqcount = tmpseq;
 		flag |= (fp->f_seqcount << 16);
 	} else {
@@ -491,19 +491,6 @@ vn_poll(fp, events, cred, p)
 }
 
 /*
- * File table vnode close routine.
- */
-static int
-vn_closefile(fp, p)
-	struct file *fp;
-	struct proc *p;
-{
-
-	return (vn_close(((struct vnode *)fp->f_data), fp->f_flag,
-		fp->f_cred, p));
-}
-
-/*
  * Check that the vnode is still valid, and if so
  * acquire requested lock.
  */
@@ -516,9 +503,8 @@ vn_lock(vp, flags, p)
 	int error;
 	
 	do {
-		if ((flags & LK_INTERLOCK) == 0) {
+		if ((flags & LK_INTERLOCK) == 0)
 			simple_lock(&vp->v_interlock);
-		}
 		if (vp->v_flag & VXLOCK) {
 			vp->v_flag |= VXWANT;
 			simple_unlock(&vp->v_interlock);
@@ -532,4 +518,17 @@ vn_lock(vp, flags, p)
 		flags &= ~LK_INTERLOCK;
 	} while (flags & LK_RETRY);
 	return (error);
+}
+
+/*
+ * File table vnode close routine.
+ */
+static int
+vn_closefile(fp, p)
+	struct file *fp;
+	struct proc *p;
+{
+
+	return (vn_close(((struct vnode *)fp->f_data), fp->f_flag,
+		fp->f_cred, p));
 }
