@@ -35,16 +35,22 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_acos.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("$Id: e_acos.S,v 1.5 1997/02/22 15:08:43 peter Exp $")
 
-/* acos = atan (sqrt(1 - x^2) / x) */
+/*
+ * acos(x) = atan2(sqrt(1  - x^2, x).
+ * Actually evaluate (1 - x^2) as (1 - x) * (1 + x) to avoid loss of
+ * precision when |x| is nearly 1.
+ */
 ENTRY(__ieee754_acos)
 	fldl	4(%esp)			/* x */
-	fst	%st(1)
-	fmul	%st(0)			/* x^2 */
-	fld1				
-	fsubp				/* 1 - x^2 */
-	fsqrt				/* sqrt (1 - x^2) */
+	fld1
+	fld	%st(0)
+	fsub	%st(2)			/* 1 - x */
+	fxch	%st(1)
+	fadd	%st(2)			/* 1 + x */
+	fmulp	%st(1)			/* (1 - x) * (1 + x) */
+	fsqrt
 	fxch	%st(1)
 	fpatan
 	ret
