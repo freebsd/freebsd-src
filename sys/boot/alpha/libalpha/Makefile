@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1998/08/31 21:10:40 msmith Exp $
+# $Id: Makefile,v 1.4 1998/09/26 10:51:37 dfr Exp $
 
 LIB=		alpha
 NOPIC=		true
@@ -11,7 +11,8 @@ CFLAGS=		-I${LIBSTANDDIR}
 CFLAGS+=	-DDEBUG
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs
+CFLAGS+=	-I${.CURDIR}/../../common -mno-fp-regs \
+		-I${.CURDIR}/../../.. -I.
 
 CFLAGS+= -DDISK_DEBUG
 #CPPFLAGS+= -DNO_DISKLABEL
@@ -19,8 +20,13 @@ CFLAGS+= -DDISK_DEBUG
 
 SRCS=	OSFpal.c elf_freebsd.c prom.c prom_disp.S prom_swpal.S start.S \
 	pal.S reboot.c delay.c time.c alpha_module.c devicename.c \
-	srmdisk.c srmnet.c getsecs.c alpha_copy.c
+	srmdisk.c srmnet.c getsecs.c alpha_copy.c bootinfo.c
 
 all: libalpha.a
 
+machine:
+	ln -sf ${.CURDIR}/../../../alpha/include machine
+
 .include <bsd.lib.mk>
+
+beforedepend ${OBJS}: machine
