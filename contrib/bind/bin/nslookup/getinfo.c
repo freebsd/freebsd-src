@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.18 2001/02/27 06:03:40 vixie Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.20 2001/06/20 12:30:33 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -88,8 +88,6 @@ static const char rcsid[] = "$Id: getinfo.c,v 8.18 2001/02/27 06:03:40 vixie Exp
 #include "port_after.h"
 
 #include "res.h"
-
-extern char *res_skip();
 
 static char *addr_list[MAXADDRS + 1];
 
@@ -149,7 +147,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     Boolean		isServer;
 {
     register HEADER	*headerPtr;
-    register u_char	*cp;
+    register const u_char	*cp;
     querybuf		answer;
     char		**aliasPtr;
     u_char		*eom, *bp;
@@ -158,7 +156,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     char		*dnamePtr;
     int			type, class;
     int			qdcount, ancount, arcount, nscount, buflen;
-    int			origClass;
+    int			origClass = 0;
     int			numAliases = 0;
     int			numAddresses = 0;
     int			n, i, j;
@@ -239,8 +237,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 
 	if (queryType != T_A && !(iquery && queryType == T_PTR)) {
 	    while (--ancount >= 0 && cp < eom) {
-		if ((cp = (u_char *)Print_rr(cp,
-		    (u_char *)&answer, eom, stdout)) == NULL) {
+		if ((cp = Print_rr(cp, (u_char *)&answer,
+				   eom, stdout)) == NULL) {
 		    return(ERROR);
 		}
 	    }
@@ -392,7 +390,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 	printf("Authoritative answers can be found from:\n");
     }
 
-    cp = (u_char *)res_skip((char *) &answer, 2, eom);
+    cp = res_skip((u_char *)&answer, 2, eom);
 
     numServers = 0;
     if (queryType != T_A) {
@@ -400,8 +398,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
 	 * If we don't need to save the record, just print it.
 	 */
 	while (--nscount >= 0 && cp < eom) {
-	    if ((cp = (u_char *)Print_rr(cp,
-		(u_char *) &answer, eom, stdout)) == NULL) {
+	    if ((cp = Print_rr(cp, (u_char *) &answer, 
+			       eom, stdout)) == NULL) {
 		return(ERROR);
 	    }
 	}
@@ -477,15 +475,15 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer)
     /*
      * Additional resource records contain addresses of servers.
      */
-    cp = (u_char *)res_skip((char *) &answer, 3, eom);
+    cp = res_skip((u_char*)&answer, 3, eom);
 
     if (queryType != T_A) {
 	/*
 	 * If we don't need to save the record, just print it.
 	 */
 	while (--arcount >= 0 && cp < eom) {
-	    if ((cp = (u_char *)Print_rr(cp,
-		(u_char *) &answer, eom, stdout)) == NULL) {
+	    if ((cp = Print_rr(cp, (u_char *) &answer,
+			       eom, stdout)) == NULL) {
 		return(ERROR);
 	    }
 	}
@@ -593,7 +591,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
     struct in_addr	*nsAddrPtr;
     int			queryClass;
     int			queryType;
-    char		*name;
+    const char		*name;
     HostInfo		*hostPtr;
     Boolean		isServer;
 {
@@ -699,13 +697,14 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
     struct in_addr	*nsAddrPtr;
     int			queryClass;
     int			queryType;
-    char		*name, *domain;
+    const char		*name;
+    char		*domain;
     HostInfo		*hostPtr;
     Boolean		isServer;
 {
     querybuf buf;
     char nbuf[2*MAXDNAME+2];
-    char *longname = nbuf;
+    const char *longname = nbuf;
     int n;
 
     if (domain == NULL) {
@@ -714,7 +713,7 @@ GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
 	     * copy without '.' if present.
 	     */
 	    n = strlen(name) - 1;
-	    if (name[n] == '.' && n < sizeof(nbuf) - 1) {
+	    if (name[n] == '.' && n < (int)sizeof(nbuf) - 1) {
 		    memcpy(nbuf, name, n);
 		    nbuf[n] = '\0';
 	    } else
