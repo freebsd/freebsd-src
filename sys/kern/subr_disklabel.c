@@ -373,9 +373,6 @@ diskerr(bp, what, blkdone, lp)
 		    (long)(bp->bio_blkno + (bp->bio_bcount - 1) / DEV_BSIZE));
 	}
 	if (lp && (blkdone >= 0 || bp->bio_bcount <= lp->d_secsize)) {
-#ifdef tahoe
-		sn *= DEV_BSIZE / lp->d_secsize;		/* XXX */
-#endif
 		sn += lp->d_partitions[part].p_offset;
 		/*
 		 * XXX should add slice offset and not print the slice,
