@@ -653,8 +653,12 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_rgid = cred->cr_rgid;
 		kp->ki_svgid = cred->cr_svgid;
 		/* If jailed(cred), emulate the old P_JAILED flag. */
-		if (jailed(cred))
+		if (jailed(cred)) {
 			kp->ki_flag |= P_JAILED;
+			/* If inside a jail, use 0 as a jail ID. */
+			if (!jailed(curthread->td_ucred))
+				kp->ki_jid = cred->cr_prison->pr_id;
+		}
 	}
 	ps = p->p_sigacts;
 	if (ps) {
