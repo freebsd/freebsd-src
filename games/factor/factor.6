@@ -45,14 +45,14 @@
 factor, primes \- factor a number, generate primes
 .SH SYNOPSIS
 .B factor
-[ number ] ...
+-[h] [ number ] ...
 .PP
 .B primes
-[ start [ stop ]]
+-[h] [ start [ stop ]]
 .SH DESCRIPTION
 The
 .I factor
-utility will factor integers between -2147483648 and 2147483647 inclusive.
+utility will factor integers between 0 and 4294967295 inclusive.
 When a number is factored, it is printed, followed by a ``:'',
 and the list of factors on a single line.
 Factors are listed in ascending order, and are preceded by a space.
@@ -106,6 +106,11 @@ The
 .B start
 value is terminated by a non-digit character (such as a newline).
 The input line must not be longer than 255 characters.
+.SH OPTIONS
+.LP
+.TP 8
+.B \-h
+Print the results in hexadecimal rather than decimal.
 .SH DIAGNOSTICS
 Out of range or invalid input results in `ouch' being 
 written to standard error.
