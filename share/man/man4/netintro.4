@@ -123,17 +123,17 @@ Consult the appropriate manual pages in this section for more
 information regarding the support for each protocol family.
 .Sh ADDRESSING
 Associated with each protocol family is an address
-format.  All network address adhere to a general structure,
+format.  All network addresses adhere to a general structure,
 called a sockaddr, described below.
 However, each protocol
 imposes finer and more specific structure, generally renaming
 the variant, which is discussed in the protocol family manual
 page alluded to above.
 .Bd -literal -offset indent
-    struct sockaddr {
-	u_char	sa_len;
-    	u_char	sa_family;
-    	char	sa_data[14];
+struct sockaddr {
+    u_char	sa_len;
+    u_char	sa_family;
+    char	sa_data[14];
 };
 .Ed
 .Pp
