@@ -39,13 +39,12 @@
 #include <sys/kernel.h>
 #include <sys/conf.h>
 
-#include <dev/aac/aac_compat.h>
 #include <sys/bus.h>
-#include <sys/disk.h>
 
 #include <machine/resource.h>
 #include <machine/bus.h>
 
+#include <dev/aac/aac_compat.h>
 #include <dev/aac/aacreg.h>
 #include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>

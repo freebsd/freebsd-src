@@ -35,7 +35,6 @@
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -48,6 +47,7 @@
 #include <sys/rman.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#include <geom/geom_disk.h>
 
 #include "dev/pst/pst-iop.h"
 
@@ -200,7 +200,7 @@ pststrategy(struct bio *bp)
     struct pst_softc *psc = bp->bio_disk->d_drv1;
     
     mtx_lock(&psc->mtx);
-    bioqdisksort(&psc->queue, bp);
+    bioq_disksort(&psc->queue, bp);
     pst_start(psc);
     mtx_unlock(&psc->mtx);
 }

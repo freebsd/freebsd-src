@@ -394,7 +394,6 @@ cdoninvalidate(struct cam_periph *periph)
 {
 	int s;
 	struct cd_softc *softc;
-	struct bio *q_bp;
 	struct ccb_setasync csa;
 
 	softc = (struct cd_softc *)periph->softc;
@@ -424,11 +423,7 @@ cdoninvalidate(struct cam_periph *periph)
 	 * XXX Handle any transactions queued to the card
 	 *     with XPT_ABORT_CCB.
 	 */
-	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
-		bioq_remove(&softc->bio_queue, q_bp);
-		q_bp->bio_resid = q_bp->bio_bcount;
-		biofinish(q_bp, NULL, ENXIO);
-	}
+	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 	splx(s);
 
 	/*
@@ -1464,7 +1459,7 @@ cdstrategy(struct bio *bp)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	bioqdisksort(&softc->bio_queue, bp);
+	bioq_disksort(&softc->bio_queue, bp);
 
 	splx(s);
 	
@@ -1630,16 +1625,11 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 		if (error != 0) {
 			int s;
-			struct bio *q_bp;
 
 			xpt_print_path(periph->path);
 			printf("cddone: got error %#x back\n", error);
 			s = splbio();
-			while ((q_bp = bioq_first(&softc->bio_queue)) != NULL) {
-				bioq_remove(&softc->bio_queue, q_bp);
-				q_bp->bio_resid = q_bp->bio_bcount;
-				biofinish(q_bp, NULL, EIO);
-			}
+			bioq_flush(&softc->bio_queue, NULL, EIO);
 			splx(s);
 			bp->bio_resid = bp->bio_bcount;
 			bp->bio_error = error;

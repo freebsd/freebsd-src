@@ -105,7 +105,7 @@ sscstrategy(struct bio *bp)
 
 	s = splbio();
 
-	bioqdisksort(&sc->bio_queue, bp);
+	bioq_disksort(&sc->bio_queue, bp);
 
 	if (sc->busy) {
 		splx(s);

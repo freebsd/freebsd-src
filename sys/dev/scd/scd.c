@@ -291,7 +291,7 @@ scdstrategy(struct bio *bp)
 
 	/* queue it */
 	s = splbio();
-	bioqdisksort(&sc->data.head, bp);
+	bioq_disksort(&sc->data.head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */

@@ -17,9 +17,9 @@
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/module.h>
 #include <machine/resource.h>
+#include <geom/geom_disk.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -133,7 +133,7 @@ flastrategy(struct bio *bp)
 	sc = bp->bio_disk->d_drv1;
 
 
-	bioqdisksort(&sc->bio_queue, bp);
+	bioq_disksort(&sc->bio_queue, bp);
 
 	if (sc->busy) {
 		return;

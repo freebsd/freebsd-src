@@ -45,6 +45,7 @@
 #include <machine/md_var.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <geom/geom_disk.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-pci.h>
 #include <dev/ata/ata-disk.h>
@@ -217,7 +218,6 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 {
     struct ad_softc *adp = atadev->driver;
     struct ad_request *request;
-    struct bio *bp;
 
     atadev->flags |= ATA_D_DETACHING;
     ata_prtdev(atadev, "removed from configuration\n");
@@ -229,10 +229,7 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 	biofinish(request->bp, NULL, ENXIO);
 	ad_free(request);
     }
-    while ((bp = bioq_first(&adp->queue))) {
-	bioq_remove(&adp->queue, bp); 
-	biofinish(bp, NULL, ENXIO);
-    }
+    bioq_flush(&adp->queue, NULL, ENXIO);
     disk_destroy(&adp->disk);
 
     if (adp->flags & AD_F_RAID_SUBDISK)
@@ -288,7 +285,7 @@ adstrategy(struct bio *bp)
 	return;
     }
     s = splbio();
-    bioqdisksort(&adp->queue, bp);
+    bioq_disksort(&adp->queue, bp);
     splx(s);
     ata_start(adp->device->channel);
 }

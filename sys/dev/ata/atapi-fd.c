@@ -36,9 +36,9 @@
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/cdio.h>
 #include <machine/bus.h>
+#include <geom/geom_disk.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-fd.h>
@@ -103,12 +103,8 @@ void
 afddetach(struct ata_device *atadev)
 {   
     struct afd_softc *fdp = atadev->driver;
-    struct bio *bp;
     
-    while ((bp = bioq_first(&fdp->queue))) {
-	bioq_remove(&fdp->queue, bp);
-	biofinish(bp, NULL, ENXIO);
-    }
+    bioq_flush(&fdp->queue, NULL, ENXIO);
     disk_destroy(&fdp->disk);
     ata_free_name(atadev);
     ata_free_lun(&afd_lun_map, fdp->lun);
@@ -283,7 +279,7 @@ afdstrategy(struct bio *bp)
     }
 
     s = splbio();
-    bioqdisksort(&fdp->queue, bp);
+    bioq_disksort(&fdp->queue, bp);
     splx(s);
     ata_start(fdp->device->channel);
 }

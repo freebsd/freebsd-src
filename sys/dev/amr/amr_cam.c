@@ -64,7 +64,6 @@
 #include <dev/amr/amr_compat.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/stat.h>
 
 #include <cam/cam.h>
