@@ -40,6 +40,36 @@
 #include <compat/linux/linux_ipc.h>
 #include <compat/linux/linux_util.h>
 
+struct l_seminfo {
+	l_int semmap;
+	l_int semmni;
+	l_int semmns;
+	l_int semmnu;
+	l_int semmsl;
+	l_int semopm;
+	l_int semume;
+	l_int semusz;
+	l_int semvmx;
+	l_int semaem;
+};
+
+struct l_shminfo {
+	l_int shmmax;
+	l_int shmmin;
+	l_int shmmni;
+	l_int shmseg;
+	l_int shmall;
+};
+
+struct l_shm_info {
+	l_int used_ids;
+	l_ulong shm_tot;  /* total allocated shm */
+	l_ulong shm_rss;  /* total resident shm */
+	l_ulong shm_swp;  /* total swapped shm */
+	l_ulong swap_attempts;
+	l_ulong swap_successes;
+};
+
 struct l_ipc_perm {
 	l_key_t		key;
 	l_uid16_t	uid;
@@ -188,6 +218,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		int		cmd;
 		union semun	*arg;
 	} */ bsd_args;
+	struct l_seminfo linux_seminfo;
 	int error;
 	union semun *unptr;
 	caddr_t sg;
@@ -228,16 +259,41 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		bsd_args.arg = unptr;
 		return __semctl(td, &bsd_args);
 	case LINUX_IPC_STAT:
-		bsd_args.cmd = IPC_STAT;
+	case LINUX_SEM_STAT:
+		if( args->cmd == LINUX_IPC_STAT )
+			bsd_args.cmd = IPC_STAT;
+		else
+			bsd_args.cmd = SEM_STAT;
 		unptr = stackgap_alloc(&sg, sizeof(union semun));
 		unptr->buf = stackgap_alloc(&sg, sizeof(struct semid_ds));
 		bsd_args.arg = unptr;
 		error = __semctl(td, &bsd_args);
 		if (error)
 			return error;
+		td->td_retval[0] = IXSEQ_TO_IPCID(bsd_args.semid, 
+							unptr->buf->sem_perm);
 		bsd_to_linux_semid_ds(unptr->buf, &linux_semid);
 		return copyout(&linux_semid, (caddr_t)args->arg.buf,
-		    sizeof(linux_semid));
+					    sizeof(linux_semid));
+	case LINUX_IPC_INFO:
+	case LINUX_SEM_INFO:
+		error = copyin((caddr_t)args->arg.buf, &linux_seminfo, 
+						sizeof(linux_seminfo) );
+		if (error)
+			return error;
+		bcopy(&seminfo, &linux_seminfo, sizeof(linux_seminfo) );
+/* XXX BSD equivalent?
+#define used_semids 10
+#define used_sems 10
+		linux_seminfo.semusz = used_semids;
+		linux_seminfo.semaem = used_sems;
+*/
+		error = copyout((caddr_t)&linux_seminfo, (caddr_t)args->arg.buf,
+						sizeof(linux_seminfo) );
+		if (error)
+			return error;
+		td->td_retval[0] = seminfo.semmni;
+		return 0;			/* No need for __semctl call */
 	case LINUX_GETALL:
 		/* FALLTHROUGH */
 	case LINUX_SETALL:
