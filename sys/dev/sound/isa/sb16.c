@@ -1015,7 +1015,6 @@ sbmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
     	default:
         	return -1;
-    	/* XXX how about the SG NX Pro, iomap = sgnxpro_mix */
     	}
 
 	/* Change left channel */
