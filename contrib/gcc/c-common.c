@@ -1615,7 +1615,8 @@ check_format_info (info, params)
 	{
 	  if (*format_chars == 'h' || *format_chars == 'l')
 	    length_char = *format_chars++;
-	  else if (*format_chars == 'q' || *format_chars == 'L')
+	  else if ((*format_chars == 'q' || *format_chars == 'L')
+		   && !flag_format_extensions)
 	    {
 	      length_char = *format_chars++;
 	      if (pedantic)
