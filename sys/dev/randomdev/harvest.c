@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/kthread.h>
 #include <sys/linker.h>
 #include <sys/libkern.h>
 #include <sys/mbuf.h>
@@ -37,6 +38,7 @@
 #include <sys/time.h>
 #include <crypto/blowfish/blowfish.h>
 
+#include <dev/randomdev/hash.h>
 #include <dev/randomdev/yarrow.h>
 
 /* hold the address of the routine which is actually called if
@@ -72,4 +74,21 @@ random_harvest(void *entropy, u_int count, u_int bits, u_int frac, u_int origin)
 		nanotime(&timebuf);
 		(*reap)(&timebuf, entropy, count, bits, frac, origin);
 	}
+}
+
+/* Helper routines to enable kthread_exit() to work while the module is
+ * being (or has been) unloaded.
+ */
+void
+random_set_wakeup(int *var, int value)
+{
+	*var = value;
+	wakeup(var);
+}
+
+void
+random_set_wakeup_exit(int *var, int value, int exitval)
+{
+	random_set_wakeup(var, value);
+	kthread_exit(exitval);
 }
