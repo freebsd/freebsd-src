@@ -60,7 +60,7 @@
 #include "bpfilter.h"
 #endif	/* NETGRAPH */
 
-#ifdef NETGRAPH
+#ifndef NETGRAPH
 #include "sppp.h"
 #if NSPPP <= 0
 #error Device 'sr' requires sppp.
