@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.107 1998/01/17 09:16:55 dyson Exp $
+ * $Id: vm_object.c,v 1.108 1998/01/22 17:30:39 dyson Exp $
  */
 
 /*
@@ -155,6 +155,8 @@ _vm_object_allocate(type, size, object)
 	object->behavior = OBJ_NORMAL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
+	object->cache_count = 0;
+	object->wire_count = 0;
 	object->shadow_count = 0;
 	object->pg_color = next_index;
 	if ( size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
@@ -376,6 +378,7 @@ doterm:
 			temp->shadow_count--;
 			if (temp->ref_count == 0)
 				temp->flags &= ~OBJ_OPT;
+			temp->generation++;
 		}
 		vm_object_terminate(object);
 		/* unlocks and deallocates object */
@@ -445,7 +448,7 @@ vm_object_terminate(object)
 		while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 			if (p->busy || (p->flags & PG_BUSY))
 				printf("vm_object_terminate: freeing busy page\n");
-			PAGE_WAKEUP(p);
+			p->flags |= PG_BUSY;
 			vm_page_free(p);
 			cnt.v_pfree++;
 		}
@@ -529,11 +532,15 @@ vm_object_page_clean(object, start, end, syncio)
 	} else {
 		tend = end;
 	}
+
+	for(p = TAILQ_FIRST(&object->memq); p; p = TAILQ_NEXT(p, listq)) {
+		p->flags |= PG_CLEANCHK;
+		vm_page_protect(p, VM_PROT_READ);
+	}
+
 	if ((tstart == 0) && (tend == object->size)) {
 		object->flags &= ~(OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	}
-	for(p = TAILQ_FIRST(&object->memq); p; p = TAILQ_NEXT(p, listq))
-		p->flags |= PG_CLEANCHK;
 
 rescan:
 	curgeneration = object->generation;
@@ -565,9 +572,7 @@ rescan:
 				goto rescan;
 			}
 		}
-		splx(s);
-			
-		s = splvm();
+
 		maxf = 0;
 		for(i=1;i<vm_pageout_page_count;i++) {
 			if (tp = vm_page_lookup(object, pi + i)) {
@@ -812,8 +817,7 @@ shadowlookup:
 		}
 
 		if (advise == MADV_WILLNEED) {
-			if (m->queue != PQ_ACTIVE)
-				vm_page_activate(m);
+			vm_page_activate(m);
 		} else if (advise == MADV_DONTNEED) {
 			vm_page_deactivate(m);
 		} else if (advise == MADV_FREE) {
@@ -868,7 +872,8 @@ vm_object_shadow(object, offset, length)
 	result->backing_object = source;
 	if (source) {
 		TAILQ_INSERT_TAIL(&source->shadow_head, result, shadow_list);
-		++source->shadow_count;
+		source->shadow_count++;
+		source->generation++;
 	}
 
 	/*
@@ -924,6 +929,8 @@ vm_object_qcollapse(object)
 			p = next;
 			continue;
 		}
+		p->flags |= PG_BUSY;
+
 		new_pindex = p->pindex - backing_offset_index;
 		if (p->pindex < backing_offset_index ||
 		    new_pindex >= size) {
@@ -935,7 +942,8 @@ vm_object_qcollapse(object)
 			vm_page_free(p);
 		} else {
 			pp = vm_page_lookup(object, new_pindex);
-			if (pp != NULL || (object->type == OBJT_SWAP && vm_pager_has_page(object,
+			if (pp != NULL ||
+				(object->type == OBJT_SWAP && vm_pager_has_page(object,
 				    paging_offset_index + new_pindex, NULL, NULL))) {
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
@@ -946,6 +954,7 @@ vm_object_qcollapse(object)
 				if (backing_object->type == OBJT_SWAP)
 					swap_pager_freespace(backing_object,
 					    backing_object_paging_offset_index + p->pindex, 1);
+
 				vm_page_rename(p, object, new_pindex);
 				vm_page_protect(p, VM_PROT_NONE);
 				p->dirty = VM_PAGE_BITS_ALL;
@@ -1041,6 +1050,7 @@ vm_object_collapse(object)
 			while ((p = TAILQ_FIRST(&backing_object->memq)) != 0) {
 
 				new_pindex = p->pindex - backing_offset_index;
+				p->flags |= PG_BUSY;
 
 				/*
 				 * If the parent has a page here, or if this
@@ -1053,14 +1063,12 @@ vm_object_collapse(object)
 				if (p->pindex < backing_offset_index ||
 				    new_pindex >= size) {
 					vm_page_protect(p, VM_PROT_NONE);
-					PAGE_WAKEUP(p);
 					vm_page_free(p);
 				} else {
 					pp = vm_page_lookup(object, new_pindex);
 					if (pp != NULL || (object->type == OBJT_SWAP && vm_pager_has_page(object,
 					    OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL))) {
 						vm_page_protect(p, VM_PROT_NONE);
-						PAGE_WAKEUP(p);
 						vm_page_free(p);
 					} else {
 						vm_page_protect(p, VM_PROT_NONE);
@@ -1133,17 +1141,20 @@ vm_object_collapse(object)
 
 			TAILQ_REMOVE(&object->backing_object->shadow_head, object,
 			    shadow_list);
-			--object->backing_object->shadow_count;
+			object->backing_object->shadow_count--;
+			object->backing_object->generation++;
 			if (backing_object->backing_object) {
 				TAILQ_REMOVE(&backing_object->backing_object->shadow_head,
 				    backing_object, shadow_list);
-				--backing_object->backing_object->shadow_count;
+				backing_object->backing_object->shadow_count--;
+				backing_object->backing_object->generation++;
 			}
 			object->backing_object = backing_object->backing_object;
 			if (object->backing_object) {
 				TAILQ_INSERT_TAIL(&object->backing_object->shadow_head,
 				    object, shadow_list);
-				++object->backing_object->shadow_count;
+				object->backing_object->shadow_count++;
+				object->backing_object->generation++;
 			}
 
 			object->backing_object_offset += backing_object->backing_object_offset;
@@ -1182,7 +1193,11 @@ vm_object_collapse(object)
 			 * here.
 			 */
 
-			for (p = TAILQ_FIRST(&backing_object->memq); p; p = TAILQ_NEXT(p, listq)) {
+			for (p = TAILQ_FIRST(&backing_object->memq); p;
+					p = TAILQ_NEXT(p, listq)) {
+
+				p->flags |= PG_BUSY;
+
 				new_pindex = p->pindex - backing_offset_index;
 
 				/*
@@ -1198,15 +1213,25 @@ vm_object_collapse(object)
 
 					pp = vm_page_lookup(object, new_pindex);
 
-					if ((pp == NULL || pp->valid == 0) &&
+					if ((pp == NULL) || (pp->flags & PG_BUSY) || pp->busy) {
+						PAGE_WAKEUP(p);
+						return;
+					}
+
+					pp->flags |= PG_BUSY;
+					if ((pp->valid == 0) &&
 				   	    !vm_pager_has_page(object, OFF_TO_IDX(object->paging_offset) + new_pindex, NULL, NULL)) {
 						/*
 						 * Page still needed. Can't go any
 						 * further.
 						 */
+						PAGE_WAKEUP(pp);
+						PAGE_WAKEUP(p);
 						return;
 					}
+					PAGE_WAKEUP(pp);
 				}
+				PAGE_WAKEUP(p);
 			}
 
 			/*
@@ -1217,14 +1242,16 @@ vm_object_collapse(object)
 
 			TAILQ_REMOVE(&backing_object->shadow_head,
 			    object, shadow_list);
-			--backing_object->shadow_count;
+			backing_object->shadow_count--;
+			backing_object->generation++;
 
 			new_backing_object = backing_object->backing_object;
 			if (object->backing_object = new_backing_object) {
 				vm_object_reference(new_backing_object);
 				TAILQ_INSERT_TAIL(&new_backing_object->shadow_head,
 				    object, shadow_list);
-				++new_backing_object->shadow_count;
+				new_backing_object->shadow_count++;
+				new_backing_object->generation++;
 				object->backing_object_offset +=
 					backing_object->backing_object_offset;
 			}
@@ -1232,12 +1259,11 @@ vm_object_collapse(object)
 			/*
 			 * Drop the reference count on backing_object. Since
 			 * its ref_count was at least 2, it will not vanish;
-			 * so we don't need to call vm_object_deallocate.
+			 * so we don't need to call vm_object_deallocate, but
+			 * we do anyway.
 			 */
 			vm_object_deallocate(backing_object);
-
 			object_bypasses++;
-
 		}
 
 		/*
@@ -1303,14 +1329,16 @@ again:
 					if (p->valid & p->dirty)
 						continue;
 				}
+
+				p->flags |= PG_BUSY;
 				vm_page_protect(p, VM_PROT_NONE);
-				PAGE_WAKEUP(p);
 				vm_page_free(p);
 			}
 		}
 	} else {
 		while (size > 0) {
 			if ((p = vm_page_lookup(object, start)) != 0) {
+
 				if (p->wire_count != 0) {
 					p->valid = 0;
 					vm_page_protect(p, VM_PROT_NONE);
@@ -1318,6 +1346,7 @@ again:
 					size -= 1;
 					continue;
 				}
+
 				/*
 				 * The busy flags are only cleared at
 				 * interrupt -- minimize the spl transitions
@@ -1332,6 +1361,7 @@ again:
 					}
 					splx(s);
 				}
+
 				if (clean_only) {
 					vm_page_test_dirty(p);
 					if (p->valid & p->dirty) {
@@ -1340,8 +1370,9 @@ again:
 						continue;
 					}
 				}
+
+				p->flags |= PG_BUSY;
 				vm_page_protect(p, VM_PROT_NONE);
-				PAGE_WAKEUP(p);
 				vm_page_free(p);
 			}
 			start += 1;

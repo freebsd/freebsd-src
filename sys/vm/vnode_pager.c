@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.79 1998/01/06 05:26:17 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.80 1998/01/17 09:17:02 dyson Exp $
  */
 
 /*
@@ -315,7 +315,6 @@ void
 vnode_pager_freepage(m)
 	vm_page_t m;
 {
-	PAGE_WAKEUP(m);
 	vm_page_free(m);
 }
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.26 1997/08/25 22:15:11 bde Exp $
+ * $Id: device_pager.c,v 1.27 1997/09/01 03:17:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -214,7 +214,6 @@ dev_pager_getpages(object, m, count, reqpage)
 	page = dev_pager_getfake(paddr);
 	TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
 	for (i = 0; i < count; i++) {
-		PAGE_WAKEUP(m[i]);
 		vm_page_free(m[i]);
 	}
 	s = splhigh();

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.51 1998/01/24 02:01:21 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.52 1998/01/31 07:23:11 eivind Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -720,9 +720,19 @@ cluster_wbuild(vp, size, start_lbn, len)
 				tbp->b_flags &= ~B_DONE;
 				splx(s);
 			}
+
 			if (tbp->b_flags & B_VMIO) {
+				vm_page_t m;
+
+				if (i != 0) {
+					for (j = 0; j < tbp->b_npages; j += 1) {
+						m = tbp->b_pages[j];
+						if (m->flags & PG_BUSY)
+							goto finishcluster;
+					}
+				}
+					
 				for (j = 0; j < tbp->b_npages; j += 1) {
-					vm_page_t m;
 					m = tbp->b_pages[j];
 					++m->busy;
 					++m->object->paging_in_progress;
@@ -746,6 +756,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 				tbp, b_cluster.cluster_entry);
 		}
+	finishcluster:
 		pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 			(vm_page_t *) bp->b_pages, bp->b_npages);
 		if (bp->b_bufsize > bp->b_kvasize)
