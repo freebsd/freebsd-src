@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.110 1998/04/22 10:25:15 julian Exp $
+ *	$Id: fd.c,v 1.111 1998/05/06 22:14:41 julian Exp $
  *
  */
 
@@ -334,7 +334,8 @@ static struct slice_handler slicetype = {
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
-	NULL	/* upconfig */
+	NULL,	/* upconfig */
+	NULL	/* dump */
 };
 #endif	/* SLICE */
 
