@@ -65,11 +65,15 @@ integer s_wsue(cilist *a)
 }
 integer e_wsue(Void)
 {	long loc;
-	(void) fwrite((char *)&f__reclen,sizeof(uiolen),1,f__cf);
+	fwrite((char *)&f__reclen,sizeof(uiolen),1,f__cf);
+#ifdef ALWAYS_FLUSH
+	if (fflush(f__cf))
+		err(f__elist->cierr, errno, "write end");
+#endif
 	loc=ftell(f__cf);
-	(void) fseek(f__cf,f__recloc,SEEK_SET);
-	(void) fwrite((char *)&f__reclen,sizeof(uiolen),1,f__cf);
-	(void) fseek(f__cf,loc,SEEK_SET);
+	fseek(f__cf,f__recloc,SEEK_SET);
+	fwrite((char *)&f__reclen,sizeof(uiolen),1,f__cf);
+	fseek(f__cf,loc,SEEK_SET);
 	return(0);
 }
 integer e_rsue(Void)
