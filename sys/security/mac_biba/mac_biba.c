@@ -1871,6 +1871,7 @@ mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 	struct mac_biba *subj, *obj;
+	int error;
 
 	if (!mac_biba_enabled)
 		return (0);
@@ -1878,8 +1879,9 @@ mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_subject_privileged(subj))
-		return (EPERM);
+	error = mac_biba_subject_privileged(subj);
+	if (error)
+		return (error);
 
 	if (!mac_biba_high_single(obj))
 		return (EACCES);
