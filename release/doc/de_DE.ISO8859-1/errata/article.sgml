@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.37 2003/02/06 22:11:34 ue Exp $
-	basiert auf: 1.1.2.93
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.42 2003/03/28 13:29:03 ue Exp $
+	basiert auf: 1.1.2.98
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -171,6 +171,57 @@
       Privilegien erhalten konnte.  Weitere Informationen finden Sie
       in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.</para>
+
+    <para>Ein &uuml;ber das Netzwerk ausnutzbarer Fehler in
+      <application>CVS</application> k&ouml;nnte dazu f&uuml;hren,
+      da&szlig; ein Angreifer beliebige Programme auf dem CVS Server
+      ausf&uuml;hren kann.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
+
+    <para>Durch Auswertung der Antwortzeiten von
+      <application>OpenSSL</application> w&auml;re es einem Angreifer
+      mit sehr viel Rechenleistung m&ouml;glich gewesen, unter
+      bestimmten Umst&auml;nden den Klartext der &uuml;bermittelten
+      Daten zu erhalten.  Dieser Fehler wurde in &os;
+      &release.current; durch die neue
+      <application>OpenSSL</application> Version 0.9.7 behoben.  Auf
+      den f&uuml;r Sicherheitsprobleme unterst&uuml;tzten
+      Entwicklungszweigen wurde der Fehler durch die neue
+      <application>OpenSSL</application> Version 0.9.6i behoben.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>.</para>
+
+    <para>Es ist theoretisch m&ouml;glich, da&szlig; ein Angreifer
+      den geheimen Schl&uuml;ssel ermittelt, der von der Erweiterung
+      <quote>syncookies</quote> genutzt wird.  Dadurch sinkt deren
+      Effektivit&auml;t beim Schutz vor TCP SYN Flood
+      Denial-of-Service Angriffen.  Hinweise, wie sie das Problem
+      umgehen k&ouml;nnen und weitere Informationen finden Sie in
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
+
+    <para>Durch einen Buffer-&Uuml;berlaufen in den von
+      <application>sendmail</application> genutzten Routinen zum
+      Parsen des Headers war es einen Angreifer m&ouml;glich, eine
+      speziell konstruierte Nachricht an &man.sendmail.8; zu senden
+      und so beliebige Programme ausf&uuml;hren zu lassen.  Diese
+      Programme verf&uuml;gten &uuml;ber die Rechte des Benutzer,
+      unter dessen Kennung &man.sendmail.8; lief, also typischerweise
+      <username>root</username>.  Weitere Informationen und Verweise
+      auf Patches finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:04.sendmail.asc">FreeBSD-SA-03:04</ulink>.</para>
+
+    <para>Durch einen Puffer-&Uuml;berlauf im XDR Kodierer/Dekodierer
+      war es einem Angreifer m&ouml;lich, den Service zum Absturz zu
+      bringen.  Informationen, wie Sie den Fehler beheben, finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:05.xdr.asc">FreeBSD-SA-03:05</ulink>.</para>
+
+    <para><application>OpenSSL</application> enth&auml;lt zwei
+      Schwachstellen, die erst vor kurzer Zeit bekanntgemacht wurden.
+      Informationen, wie Sie die Probleme umgehen k&ouml;nnen und
+      weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>.</para>
 ]]>
   </sect1>
 
