@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.53 1997/02/07 04:26:46 jkh Exp $
+ * $Id: options.c,v 1.54 1997/05/22 00:17:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,6 +112,8 @@ static Option Options[] = {
       OPT_IS_VAR,	NULL,			VAR_SLOW_ETHER,		varCheck	},
 { "Debugging",		"Emit extra debugging output on VTY2 (ALT-F2)",
       OPT_IS_VAR,	NULL,			VAR_DEBUG,		varCheck	},
+{ "No Warnings",	"Don't Warn the user when a setting seems incorrect",
+      OPT_IS_VAR,	NULL,			VAR_NO_WARN,		varCheck	},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",

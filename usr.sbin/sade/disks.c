@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.86 1997/06/05 09:47:55 jkh Exp $
+ * $Id: disks.c,v 1.87 1997/06/12 08:46:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -256,7 +256,7 @@ diskPartition(Device *dev, Disk *d)
 		rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			      "so as to remain cooperative with any future possible\n"
 			      "operating systems on the drive(s)?");
-		if (rv != 0 && (!cp || strcasecmp(cp, "nowarn"))) {
+		if (rv != 0 && (!cp || strcasecmp(cp, "nowarn")) && !variable_get(VAR_NO_WARN)) {
 		    rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
 				   "uncooperative with other potential operating systems on the\n"
 				   "same disk.  It will lead instead to a totally dedicated disk,\n"
@@ -455,7 +455,8 @@ diskPartition(Device *dev, Disk *d)
 	dialog_clear_norefresh();
         use_helpline("Press F1 to read more about disk slices.");
 	use_helpfile(systemHelpFile("partition", buf));
-	dialog_mesgbox("Disk slicing warning:", p, -1, -1);
+	if (!variable_get(VAR_NO_WARN))
+	    dialog_mesgbox("Disk slicing warning:", p, -1, -1);
 	free(p);
     }
     restorescr(w);
