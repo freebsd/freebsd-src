@@ -1041,8 +1041,12 @@ after_listen:
 			/*
 			 * Add data to socket buffer.
 			 */
-			m_adj(m, drop_hdrlen);	/* delayed header drop */
-			sbappend(&so->so_rcv, m);
+			if (so->so_state & SS_CANTRCVMORE) {
+				m_freem(m);
+			} else {
+				m_adj(m, drop_hdrlen);	/* delayed header drop */
+				sbappend(&so->so_rcv, m);
+			}
 			sorwakeup(so);
 			if (DELAY_ACK(tp)) {
 	                        callout_reset(tp->tt_delack, tcp_delacktime,
@@ -2041,7 +2045,10 @@ dodata:							/* XXX */
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);
-			sbappend(&so->so_rcv, m);
+			if (so->so_state & SS_CANTRCVMORE)
+				m_freem(m);
+			else
+				sbappend(&so->so_rcv, m);
 			sorwakeup(so);
 		} else {
 			thflags = tcp_reass(tp, th, &tlen, m);
