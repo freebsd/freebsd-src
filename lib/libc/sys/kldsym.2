@@ -44,6 +44,9 @@ function returns the address of the symbol specified in
 .Fa data
 in the module specified by
 .Fa fileid .
+If
+.Fa fileid
+is 0, all loaded modules are searched.
 Currently, the only
 .Fa command
 implemented is
@@ -72,7 +75,7 @@ to
 The next two members,
 .Va version
 and
-.Va symname
+.Va symname ,
 are specified by the user.
 The last two,
 .Va symvalue
