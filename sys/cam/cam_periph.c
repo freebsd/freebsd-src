@@ -26,14 +26,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.6 1998/10/22 22:16:48 ken Exp $
+ *      $Id: cam_periph.c,v 1.8 1998/12/16 21:00:06 ken Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/kernel.h>
+#include <sys/linker_set.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/devicestat.h>
