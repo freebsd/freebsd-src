@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mail.local.c,v 1.10 1996/10/23 05:05:32 scrappy Exp $
+ *	$Id: mail.local.c,v 1.10.2.1 1997/12/04 08:04:21 imp Exp $
  */
 
 #ifndef lint
@@ -203,6 +203,7 @@ deliver(fd, name, nobiff)
 	int mbfd, nr, nw, off;
 	char biffmsg[100], buf[8*1024], path[MAXPATHLEN];
 	off_t curoff;
+	uid_t saveeuid;
 
 	/*
 	 * Disallow delivery to unknown names -- special mailboxes can be
@@ -238,6 +239,8 @@ deliver(fd, name, nobiff)
 	 * XXX
 	 * open(2) should support flock'ing the file.
 	 */
+	saveeuid=geteuid();
+
 tryagain:
 	if (lstat(path, &sb)) {
 		mbfd = open(path,
@@ -250,11 +253,27 @@ tryagain:
 			warn("chown %u.%u: %s", pw->pw_uid, pw->pw_gid, name);
 			return;
 		}
+
+		/*
+		 * Now that the box is created and permissions are correct, we
+		 * close it and go back to the top so that we will come in
+		 * and write as the user.  We dont seteuid() before the above
+		 * open, because we have to be root/bin to write in var/mail 
+		 * -Crh (henrich@msu.edu)
+		 */
+		close(mbfd);
+		goto tryagain;
 	} else if (sb.st_nlink != 1 || S_ISLNK(sb.st_mode)) {
 		e_to_sys(errno);
 		warn("%s: linked file", path);
 		return;
 	} else {
+		/* Become the user, so quota enforcement will occur */
+		if(seteuid(pw->pw_uid) != 0) {
+			warn("Unable to seteuid()");
+			return; 
+		}
+
 		mbfd = open(path, O_APPEND|O_WRONLY, 0);
 		if (mbfd != -1 &&
 		    (fstat(mbfd, &fsb) || fsb.st_nlink != 1 ||
@@ -262,6 +281,7 @@ tryagain:
 		    sb.st_ino != fsb.st_ino)) {
 			warn("%s: file changed after open", path);
 			(void)close(mbfd);
+			seteuid(saveeuid); 
 			return;
 		}
 	}
@@ -269,6 +289,7 @@ tryagain:
 	if (mbfd == -1) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
+		seteuid(saveeuid);
 		return;
 	}
 
@@ -279,9 +300,8 @@ tryagain:
 		goto err1;
 	}
 
+	curoff = lseek(mbfd, (off_t)0, SEEK_END);
 	if (!nobiff) {
-		/* Get the starting offset of the new message for biff. */
-		curoff = lseek(mbfd, (off_t)0, SEEK_END);
 		(void)snprintf(biffmsg, sizeof(biffmsg), "%s@%qd\n",
 			       name, curoff);
 	}
@@ -304,6 +324,7 @@ tryagain:
 		warn("temporary file: %s", strerror(errno));
 err2:		(void)ftruncate(mbfd, curoff);
 err1:		(void)close(mbfd);
+		seteuid(saveeuid);
 		return;
 	}
 
@@ -320,8 +341,11 @@ err1:		(void)close(mbfd);
 	if (close(mbfd)) {
 		e_to_sys(errno);
 		warn("%s: %s", path, strerror(errno));
+		seteuid(saveeuid);
 		return;
 	}
+
+	seteuid(saveeuid);
 
 	if (!nobiff)
 		notifybiff(biffmsg);
