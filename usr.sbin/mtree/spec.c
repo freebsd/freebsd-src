@@ -61,7 +61,7 @@ spec()
 	int c_cur, c_next;
 	char buf[2048];
 
-	root = NULL;
+	centry = last = root = NULL;
 	bzero(&ginfo, sizeof(ginfo));
 	c_cur = c_next = 0;
 	for (lineno = 1; fgets(buf, sizeof(buf), stdin);
@@ -164,14 +164,14 @@ set(t, ip)
 	register NODE *ip;
 {
 	register int type;
-	register char *kw, *val;
+	register char *kw, *val = NULL;
 	struct group *gr;
 	struct passwd *pw;
 	mode_t *m;
 	int value;
 	char *ep;
 
-	for (; kw = strtok(t, "= \t\n"); t = NULL) {
+	for (; (kw = strtok(t, "= \t\n")); t = NULL) {
 		ip->flags |= type = parsekey(kw, &value);
 		if (value && (val = strtok(NULL, " \t\n")) == NULL)
 			err("missing value");
@@ -275,6 +275,6 @@ unset(t, ip)
 {
 	register char *p;
 
-	while (p = strtok(t, "\n\t "))
+	while ((p = strtok(t, "\n\t ")))
 		ip->flags &= ~parsekey(p, NULL);
 }

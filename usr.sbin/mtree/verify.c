@@ -46,7 +46,8 @@ static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #include "mtree.h"
 #include "extern.h"
 
-extern int crc_total, ftsoptions;
+extern long int crc_total;
+extern int ftsoptions;
 extern int dflag, eflag, rflag, sflag, uflag;
 extern char fullpath[MAXPATHLEN];
 
@@ -82,7 +83,7 @@ vwalk()
 		err("fts_open: %s", strerror(errno));
 	level = root;
 	ftsdepth = specdepth = rval = 0;
-	while (p = fts_read(t)) {
+	while ((p = fts_read(t))) {
 		switch(p->fts_info) {
 		case FTS_D:
 			++ftsdepth; 
@@ -107,8 +108,8 @@ vwalk()
 		}
 
 		for (ep = level; ep; ep = ep->next)
-			if (ep->flags & F_MAGIC &&
-			    !fnmatch(ep->name, p->fts_name, FNM_PATHNAME) ||
+			if ((ep->flags & F_MAGIC &&
+			    !fnmatch(ep->name, p->fts_name, FNM_PATHNAME)) ||
 			    !strcmp(ep->name, p->fts_name)) {
 				ep->flags |= F_VISIT;
 				if (compare(ep->name, ep, p))
