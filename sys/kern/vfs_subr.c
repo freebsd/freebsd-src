@@ -815,13 +815,15 @@ getnewvnode(tag, mp, vops, vpp)
 	/*
 	 * Wait for available vnodes.
 	 */
-	while (numvnodes > desiredvnodes) {
+	if (numvnodes > desiredvnodes) {
 		if (vnlruproc_sig == 0) {
 			vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
 			wakeup(vnlruproc);
 		}
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
+		if (numvnodes > desiredvnodes)
+			return (ENFILE);
 	}
 	numvnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
