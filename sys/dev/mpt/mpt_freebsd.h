@@ -36,13 +36,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/endian.h>
+#ifdef	RELENG_4
 #include <sys/kernel.h>
 #include <sys/queue.h>
-#ifdef	RELENG_4
 #include <sys/malloc.h>
 #else
+#include <sys/endian.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
+#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
@@ -85,7 +87,7 @@
 #define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
 #define	MPT_UNLOCK(mpt)		mpt_unlockspl(mpt)
 #define	MPTLOCK_2_CAMLOCK	MPT_UNLOCK
-#define	CAMLOCK_2_MPTLOCK(mpt)	MPT_LOCK
+#define	CAMLOCK_2_MPTLOCK	MPT_LOCK
 #define	MPT_LOCK_SETUP(mpt)
 #define	MPT_LOCK_DESTROY(mpt)
 #else
@@ -151,7 +153,7 @@
  * needed to access the data.
  */
 #define MPT_REPLY_PTOV(m, x) 		\
-	((void *)(m->reply + ((x << 1) - (u_int32_t)(m->reply_phys))))
+	((void *)(&m->reply[((x << 1) - m->reply_phys)]))
 
 #define ccb_mpt_ptr sim_priv.entries[0].ptr
 #define ccb_req_ptr sim_priv.entries[1].ptr
@@ -160,16 +162,16 @@ enum mpt_req_state {
     REQ_FREE, REQ_IN_PROGRESS, REQ_TIMEOUT, REQ_ON_CHIP, REQ_DONE
 };
 typedef struct req_entry {
-	u_int16_t    index;		/* Index of this entry */
-	union ccb   *ccb;		/* CAM request */
-	void        *req_vbuf;		/* Virtual Address of Entry */
-	void        *sense_vbuf;	/* Virtual Address of sense data */
-	u_int32_t    req_pbuf;		/* Physical Address of Entry */
-	u_int32_t    sense_pbuf;	/* Physical Address of sense data */
-	bus_dmamap_t dmap;		/* DMA map for data buffer */
+	u_int16_t	index;		/* Index of this entry */
+	union ccb *	ccb;		/* CAM request */
+	void *		req_vbuf;	/* Virtual Address of Entry */
+	void *		sense_vbuf;	/* Virtual Address of sense data */
+	bus_addr_t	req_pbuf;	/* Physical Address of Entry */
+	bus_addr_t	sense_pbuf;	/* Physical Address of sense data */
+	bus_dmamap_t	dmap;		/* DMA map for data buffer */
 	SLIST_ENTRY(req_entry) link;	/* Pointer to next in list */
 	enum mpt_req_state debug;	/* Debugging */
-	u_int32_t    sequence;		/* Sequence Number */
+	u_int32_t	sequence;	/* Sequence Number */
 } request_t;
 
 
@@ -264,15 +266,14 @@ typedef struct mpt_softc {
 	bus_dma_tag_t		reply_dmat;	/* DMA tag for reply memory */
 	bus_dmamap_t		reply_dmap;	/* DMA map for reply memory */
 	char *			reply;		/* KVA of reply memory */
-	u_int32_t		reply_phys;	/* BusAddr of reply memory (XXX Wrong) */
+	bus_addr_t		reply_phys;	/* BusAddr of reply memory */
 
 
 	bus_dma_tag_t		buffer_dmat;	/* DMA tag for buffers */
 	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
 	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
 	char *			request;	/* KVA of Request memory */
-	u_int32_t		request_phys;	/* BusADdr of request memory (XXX WRONG) */
-
+	bus_addr_t		request_phys;	/* BusADdr of request memory */
 
 	/*
 	 * CAM && Software Management
