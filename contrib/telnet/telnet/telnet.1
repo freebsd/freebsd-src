@@ -591,9 +591,10 @@ Prints out help information for the
 command.
 .El
 .It Xo
-.Ic open Ar host
+.Ic open
 .Op Fl l Ar user
-.Op Oo Fl Oc Ns Ar port
+.Op Ar host
+.Op Oo Fl /+ Oc Ns Ar port
 .Xc
 Open a connection to the named host.
 If no port number
@@ -620,6 +621,13 @@ omits any automatic initiation of
 options.
 When the port number is preceded by a minus sign,
 the initial option negotiation is done.
+When, however, the port number
+is preceded by a plus sign,
+any option negotiation and understanding is prohibited,
+making telnet dumb client for POP3/SMTP/NNTP/HTTP-like
+protocols with any data including
+.Tn TELNET
+IAC character (0xff).
 After establishing a connection, the file
 .Pa \&.telnetrc
 in the
