@@ -629,6 +629,14 @@ int out;
 	m->m_flags &= ~M_CANFASTFWD;
 #  endif /* M_CANFASTFWD */
 
+	/*
+	 * disable delayed checksums.
+	 */
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+
 	if ((ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ||
 	     ip->ip_p == IPPROTO_ICMP)) {
 		int plen = 0;
