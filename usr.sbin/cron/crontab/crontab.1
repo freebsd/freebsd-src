@@ -59,6 +59,10 @@ file in order to use this command.  If neither of these files exists, then
 depending on site-dependent configuration parameters, only the super user
 will be allowed to use this command, or all users will be able to use this
 command.
+The format of these files is one username per line,
+with no leading or trailing whitespace.
+Lines of other formats will be ignored,
+and so can be used for comments.
 .Pp
 The first form of this command is used to install a new crontab from some
 named file or standard input if the pseudo-filename ``-'' is given.
