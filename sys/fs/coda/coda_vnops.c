@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.13 1999/01/20 14:49:05 eivind Exp $
+ *  $Id: coda_vnops.c,v 1.14 1999/01/27 20:09:17 dillon Exp $
  * 
  */
 
@@ -48,6 +48,12 @@
 /*
  * HISTORY
  * $Log: coda_vnops.c,v $
+ * Revision 1.14  1999/01/27 20:09:17  dillon
+ *     Fix warnings preparing for -Wall -Wcast-qual
+ *
+ *     Also disable one usb module in LINT due to fatal compilation errors,
+ *     temporary.
+ *
  * Revision 1.13  1999/01/20 14:49:05  eivind
  * Add 'options DEBUG_LOCKS', which stores extra information in struct
  * lock, and add some macros and function parameters to make sure that
@@ -768,7 +774,7 @@ coda_ioctl(v)
     /* Should we use the name cache here? It would get it from
        lookupname sooner or later anyway, right? */
 
-    NDINIT(&ndp, LOOKUP, (iap->follow ? FOLLOW : NOFOLLOW), UIO_USERSPACE, ((c_caddr_t)iap->path), p);
+    NDINIT(&ndp, LOOKUP, (iap->follow ? FOLLOW : NOFOLLOW), UIO_USERSPACE, iap->path, p);
     error = namei(&ndp);
     tvp = ndp.ni_vp;
 
