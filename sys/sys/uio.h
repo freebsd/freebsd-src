@@ -77,6 +77,7 @@ struct uio {
 struct vm_object;
 
 int	uiomove __P((caddr_t, int, struct uio *));
+int	uiomove_frombuf __P((void *buf, int buflen, struct uio *uio));
 int	uiomoveco __P((caddr_t, int, struct uio *, struct vm_object *));
 int	uioread __P((int, struct uio *, struct vm_object *, int *));
 
