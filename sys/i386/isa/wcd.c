@@ -12,7 +12,8 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.9, Mon Oct  9 20:27:42 MSK 1995
+ * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
+ * $Id$
  */
 
 #include "wdc.h"
@@ -61,13 +62,13 @@ static
 #endif
 int  wcdattach(struct atapi*, int, struct atapi_params*, int);
 
-#define NUNIT   (NWDC*2)                /* Max. number of devices */
-#define UNIT(d) ((minor(d) >> 3) & 3)   /* Unit part of minor device number */
+#define NUNIT   16                      /* Max. number of devices */
 #define SECSIZE 2048                    /* CD-ROM sector size in bytes */
 
 #define F_BOPEN         0x0001          /* The block device is opened */
 #define F_MEDIA_CHANGED 0x0002          /* The media have changed since open */
 #define F_DEBUG         0x0004          /* Print debug info */
+#define F_LOCKED        0x0008          /* This unit is locked (or should be) */
 
 /*
  * Disc table of contents.
@@ -207,13 +208,44 @@ struct cappage {
 	u_char  reserved4[2];
 };
 
+/*
+ * CDROM changer mechanism status structure
+ */
+struct changer {
+	u_char	current_slot : 5;	/* active changer slot */
+	u_char	mech_state : 2;		/* current changer state */
+#define CH_READY	0
+#define CH_LOADING	1
+#define CH_UNLOADING	2
+#define CH_INITIALIZING	3
+	u_char	fault : 1;		/* fault in last operation */
+	u_char	reserved0 : 5;
+	u_char	cd_state : 3;		/* current mechanism state */
+#define CD_IDLE		0
+#define CD_AUDIO_ACTIVE	1
+#define CD_AUDIO_SCAN	2
+#define CD_HOST_ACTIVE	3
+#define CD_NO_STATE	7
+	u_char	current_lba[3];		/* current LBA */
+	u_char	slots;			/* number of available slots */
+	u_short	table_length;		/* slot table length */
+	struct {
+		u_char changed : 1;	/* media has changed in this slot */
+		u_char unused : 6;
+		u_char present : 1;	/* slot has a CD present */
+		u_char reserved0;
+		u_char reserved1;
+		u_char reserved2;
+	} slot[32];
+};
+
 struct wcd {
 	struct atapi *ata;              /* Controller structure */
 	int unit;                       /* IDE bus drive unit */
 	int lun;                        /* Logical device unit */
 	int flags;                      /* Device state flags */
 	int refcnt;                     /* The number of raw opens */
-	struct buf_queue_head buf_queue;               /* Queue of i/o requests */
+	struct buf_queue_head buf_queue;/* Queue of i/o requests */
 	struct atapi_params *param;     /* Drive parameters table */
 	struct toc toc;                 /* Table of disc contents */
 	struct volinfo info;            /* Volume size info */
@@ -222,6 +254,8 @@ struct wcd {
 	struct audiopage aumask;        /* Audio page mask */
 	struct subchan subchan;         /* Subchannel info */
 	char description[80];           /* Device description */
+	struct changer *changer_info;	/* changer info */
+	int slot;			/* this lun's slot number */
 #ifdef	DEVFS
 	void	*ra_devfs_token;
 	void	*rc_devfs_token;
@@ -233,6 +267,8 @@ struct wcd {
 struct wcd *wcdtab[NUNIT];      /* Drive info by unit number */
 static int wcdnlun = 0;         /* Number of configured drives */
 
+static struct wcd *wcd_init_lun(struct atapi *ata, int unit, 
+	struct atapi_params *ap, int lun);
 static void wcd_start (struct wcd *t);
 static void wcd_done (struct wcd *t, struct buf *bp, int resid,
 	struct atapires result);
@@ -246,6 +282,7 @@ static int wcd_open(dev_t dev, int rawflag);
 static int wcd_setchan (struct wcd *t,
 	u_char c0, u_char c1, u_char c2, u_char c3);
 static int wcd_eject (struct wcd *t, int closeit);
+static void wcd_select_slot(struct wcd *cdp);
 
 /*
  * Dump the array in hexadecimal format for debugging purposes.
@@ -260,15 +297,54 @@ static void wcd_dump (int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
+struct wcd *
+wcd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
+{
+	struct wcd *ptr;
+	ptr = malloc(sizeof(struct wcd), M_TEMP, M_NOWAIT);
+	if (!ptr)
+		return NULL;
+	bzero(ptr, sizeof(struct wcd));
+	bufq_init(&ptr->buf_queue);
+	ptr->ata = ata;
+	ptr->unit = unit;
+	ptr->lun = lun;
+	ptr->param = ap;
+	ptr->flags = F_MEDIA_CHANGED;
+	ptr->refcnt = 0;
+	ptr->slot = -1;
+	ptr->changer_info = NULL;
+#ifdef DEVFS
+	ptr->ra_devfs_token = 
+		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, 0),
+				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
+				 "rwcd%da", lun);
+	ptr->rc_devfs_token = 
+		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
+				 "rwcd%dc", lun);
+	ptr->a_devfs_token = 
+		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, 0),
+				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
+				 "wcd%da", lun);
+	ptr->c_devfs_token = 
+		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, RAW_PART),
+				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
+				 "wcd%dc", lun);
+#endif
+	return ptr;
+}
+
 #ifndef ATAPI_STATIC
 static
 #endif
 int 
 wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 {
-	struct wcd *t;
+	struct wcd *cdp;
 	struct atapires result;
-	int lun;
+	struct changer *chp;
+	int lun, i;
 
 	if (wcdnlun >= NUNIT) {
 		printf ("wcd: too many units\n");
@@ -279,68 +355,85 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 		printf("wcd: check `options ATAPI_STATIC' in your kernel config file!\n");
 		return (0);
 	}
-	t = malloc (sizeof (struct wcd), M_TEMP, M_NOWAIT);
-	if (! t) {
-		printf ("wcd: out of memory\n");
-		return (0);
+	if ((cdp = wcd_init_lun(ata, unit, ap, wcdnlun)) == NULL) {
+		printf("wcd: out of memory\n");
+		return 0;
 	}
-	wcdtab[wcdnlun] = t;
-	bzero (t, sizeof (struct wcd));
-	bufq_init(&t->buf_queue);
-	t->ata = ata;
-	t->unit = unit;
-	lun = t->lun = wcdnlun++;
-	t->param = ap;
-	t->flags = F_MEDIA_CHANGED;
-	t->refcnt = 0;
+        wcdtab[wcdnlun] = cdp;
+
 	if (debug) {
-		t->flags |= F_DEBUG;
+		cdp->flags |= F_DEBUG;
 		/* Print params. */
-		wcd_dump (t->lun, "info", ap, sizeof *ap);
+		wcd_dump (cdp->lun, "info", ap, sizeof *ap);
 	}
 
 	/* Get drive capabilities. */
 	result = atapi_request_immediate (ata, unit, ATAPI_MODE_SENSE,
-		0, CAP_PAGE, 0, 0, 0, 0, sizeof (t->cap) >> 8, sizeof (t->cap),
-		0, 0, 0, 0, 0, 0, 0, (char*) &t->cap, sizeof (t->cap));
+		0, CAP_PAGE, 0, 0, 0, 0, sizeof (cdp->cap) >> 8, sizeof (cdp->cap),
+		0, 0, 0, 0, 0, 0, 0, (char*) &cdp->cap, sizeof (cdp->cap));
 
 	/* Do it twice to avoid the stale media changed state. */
 	if (result.code == RES_ERR &&
 	    (result.error & AER_SKEY) == AER_SK_UNIT_ATTENTION)
 		result = atapi_request_immediate (ata, unit, ATAPI_MODE_SENSE,
-			0, CAP_PAGE, 0, 0, 0, 0, sizeof (t->cap) >> 8,
-			sizeof (t->cap), 0, 0, 0, 0, 0, 0, 0,
-			(char*) &t->cap, sizeof (t->cap));
+			0, CAP_PAGE, 0, 0, 0, 0, sizeof (cdp->cap) >> 8,
+			sizeof (cdp->cap), 0, 0, 0, 0, 0, 0, 0,
+			(char*) &cdp->cap, sizeof (cdp->cap));
 
 	/* Some drives have shorter capabilities page. */
 	if (result.code == RES_UNDERRUN)
 		result.code = 0;
 
 	if (result.code == 0) {
-		wcd_describe (t);
-		if (t->flags & F_DEBUG)
-			wcd_dump (t->lun, "cap", &t->cap, sizeof t->cap);
+		wcd_describe (cdp);
+		if (cdp->flags & F_DEBUG)
+			wcd_dump (cdp->lun, "cap", &cdp->cap, sizeof(cdp->cap));
 	}
-
-
-#ifdef DEVFS
-	t->ra_devfs_token = 
-		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, 0),
-				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				 "rwcd%da", lun);
-	t->rc_devfs_token = 
-		devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				 "rwcd%dc", lun);
-	t->a_devfs_token = 
-		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, 0),
-				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				 "wcd%da", lun);
-	t->c_devfs_token = 
-		devfs_add_devswf(&wcd_bdevsw, dkmakeminor(lun, 0, RAW_PART),
-				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				 "wcd%dc", lun);
-#endif
+	
+	/* If this is a changer device, allocate the neeeded lun's */
+	if (cdp->cap.mech == MECH_CHANGER) {
+		chp = malloc(sizeof(struct changer), M_TEMP, M_NOWAIT);
+		if (chp == NULL) {
+		    	printf("wcd: out of memory\n");
+		    	return 0;
+		}
+		bzero(chp, sizeof(struct changer));
+		result = atapi_request_immediate(ata, unit, ATAPI_MECH_STATUS,
+			0, 0, 0, 0, 0, 0, 0,
+			sizeof(struct changer)> 8, sizeof(struct changer),
+			0, 0, 0, 0, 0, 0, 
+			(char*) chp, sizeof(struct changer));
+		if (cdp->flags & F_DEBUG) {
+			printf("result.code=%d curr=%02x slots=%d len=%d\n", 
+				result.code, chp->current_slot, chp->slots, 
+				htons(chp->table_length));
+		}
+		if (result.code == RES_UNDERRUN)
+			result.code = 0;
+		if (result.code == 0) {
+			chp->table_length = htons(chp->table_length);
+		    	for (i=0; i<chp->slots && wcdnlun<NUNIT; i++) {
+				if (i>0) {
+					cdp = wcd_init_lun(ata,unit,ap,wcdnlun);
+					if (cdp == NULL) {
+				    		printf("wcd: out of memory\n");
+				    		return 0;
+		       			}
+				}
+        	    		cdp->slot = i;
+				cdp->changer_info = chp;
+				printf("wcd%d: changer slot %d %s\n",
+				       wcdnlun,
+				       i, (chp->slot[i].present ?
+				       "disk present" : "no disk"));
+        	    		wcdtab[wcdnlun++] = cdp;
+		    	}
+		    	if (wcdnlun >= NUNIT) {
+				printf ("wcd: too many units\n");
+				return (0);
+		    	}
+		}
+	}
 	return (1);
 }
 
@@ -379,21 +472,36 @@ void wcd_describe (struct wcd *t)
 		printf (", eject");
 	printf ("\n");
 
-	printf ("wcd%d: ", t->lun);
-	switch (t->cap.medium_type) {
-	case MDT_UNKNOWN:   printf ("medium type unknown");          break;
-	case MDT_DATA_120:  printf ("120mm data disc loaded");       break;
-	case MDT_AUDIO_120: printf ("120mm audio disc loaded");      break;
-	case MDT_COMB_120:  printf ("120mm data/audio disc loaded"); break;
-	case MDT_PHOTO_120: printf ("120mm photo disc loaded");      break;
-	case MDT_DATA_80:   printf ("80mm data disc loaded");        break;
-	case MDT_AUDIO_80:  printf ("80mm audio disc loaded");       break;
-	case MDT_COMB_80:   printf ("80mm data/audio disc loaded");  break;
-	case MDT_PHOTO_80:  printf ("80mm photo disc loaded");       break;
-	case MDT_NO_DISC:   printf ("no disc inside");               break;
-	case MDT_DOOR_OPEN: printf ("door open");                    break;
-	case MDT_FMT_ERROR: printf ("medium format error");          break;
-	default:    printf ("medium type=0x%x", t->cap.medium_type); break;
+	if (t->cap.mech != MECH_CHANGER) {
+		printf ("wcd%d: ", t->lun);
+		switch (t->cap.medium_type) {
+		case MDT_UNKNOWN:
+			printf ("medium type unknown"); break;
+		case MDT_DATA_120:  
+			printf ("120mm data disc loaded"); break;
+		case MDT_AUDIO_120: 
+			printf ("120mm audio disc loaded"); break;
+		case MDT_COMB_120:  
+			printf ("120mm data/audio disc loaded"); break;
+		case MDT_PHOTO_120: 
+			printf ("120mm photo disc loaded"); break;
+		case MDT_DATA_80:   
+			printf ("80mm data disc loaded"); break;
+		case MDT_AUDIO_80:  
+			printf ("80mm audio disc loaded"); break;
+		case MDT_COMB_80:   
+			printf ("80mm data/audio disc loaded"); break;
+		case MDT_PHOTO_80:  
+			printf ("80mm photo disc loaded"); break;
+		case MDT_NO_DISC:   
+			printf ("no disc inside"); break;
+		case MDT_DOOR_OPEN: 
+			printf ("door open"); break;
+		case MDT_FMT_ERROR: 
+			printf ("medium format error"); break;
+		default:    
+			printf ("medium type=0x%x", t->cap.medium_type); break;
+		}
 	}
 	if (t->cap.lock)
 		printf (t->cap.locked ? ", locked" : ", unlocked");
@@ -405,15 +513,13 @@ void wcd_describe (struct wcd *t)
 static int 
 wcd_open (dev_t dev, int rawflag)
 {
-	int lun = UNIT(dev);
+	int lun = dkunit(dev);
 	struct wcd *t;
 
-	/* Check that the device number is legal
-	 * and the ATAPI driver is loaded. */
+	/* Check device number is legal and ATAPI driver is loaded. */
 	if (lun >= wcdnlun || ! atapi_request_immediate)
 		return (ENXIO);
 	t = wcdtab[lun];
-
 	/* On the first open, read the table of contents. */
 	if (! (t->flags & F_BOPEN) && ! t->refcnt) {
 		/* Read table of contents. */
@@ -423,6 +529,7 @@ wcd_open (dev_t dev, int rawflag)
 		/* Lock the media. */
 		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+		t->flags |= F_LOCKED;
 	}
 	if (rawflag)
 		++t->refcnt;
@@ -447,26 +554,27 @@ int wcdropen (dev_t dev, int flags, int fmt, struct proc *p)
  */
 int wcdbclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int lun = UNIT(dev);
+	int lun = dkunit(dev);
 	struct wcd *t = wcdtab[lun];
 
 	/* If we were the last open of the entire device, release it. */
 	if (! t->refcnt)
 		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	t->flags &= ~F_BOPEN;
+	t->flags &= ~(F_BOPEN|F_LOCKED);
 	return (0);
 }
 
 int wcdrclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int lun = UNIT(dev);
+	int lun = dkunit(dev);
 	struct wcd *t = wcdtab[lun];
 
 	/* If we were the last open of the entire device, release it. */
 	if (! (t->flags & F_BOPEN) && t->refcnt == 1)
 		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	t->flags &= ~F_LOCKED;
 	--t->refcnt;
 	return (0);
 }
@@ -478,7 +586,7 @@ int wcdrclose (dev_t dev, int flags, int fmt, struct proc *p)
  */
 void wcdstrategy (struct buf *bp)
 {
-	int lun = UNIT(bp->b_dev);
+	int lun = dkunit(bp->b_dev);
 	struct wcd *t = wcdtab[lun];
 	int x;
 
@@ -538,6 +646,8 @@ static void wcd_start (struct wcd *t)
 		biodone (bp);
 		return;
 	}
+
+	wcd_select_slot(t);
 
 	/* We have a buf, now we should make a command
 	 * First, translate the block to absolute and put it in terms of the
@@ -631,7 +741,7 @@ static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
  */
 int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
-	int lun = UNIT(dev);
+	int lun = dkunit(dev);
 	struct wcd *t = wcdtab[lun];
 	int error = 0;
 
@@ -649,6 +759,7 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			/* Lock the media. */
 			wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 				0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+			t->flags |= F_LOCKED;
 			break;
 		}
 	switch (cmd) {
@@ -686,10 +797,14 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 			1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 	case CDIOCALLOW:
+		wcd_select_slot(t);
+		t->flags &= ~F_LOCKED;
 		return wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 	case CDIOCPREVENT:
+		wcd_select_slot(t);
+		t->flags |= F_LOCKED;
 		return wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 
@@ -973,6 +1088,8 @@ static int wcd_read_toc (struct wcd *t)
 	bzero (&t->toc, sizeof (t->toc));
 	bzero (&t->info, sizeof (t->info));
 
+	wcd_select_slot(t);
+
 	/* Check for the media.
 	 * Do it twice to avoid the stale media changed state. */
 	result = atapi_request_wait (t->ata, t->unit, ATAPI_TEST_UNIT_READY,
@@ -1075,6 +1192,8 @@ static int wcd_setchan (struct wcd *t,
 static int wcd_eject (struct wcd *t, int closeit)
 {
 	struct atapires result;
+	
+	wcd_select_slot(t);
 
 	/* Try to stop the disc. */
 	result = atapi_request_wait (t->ata, t->unit, ATAPI_START_STOP,
@@ -1103,7 +1222,7 @@ static int wcd_eject (struct wcd *t, int closeit)
 		/* Lock the media. */
 		wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
-
+		t->flags |= F_LOCKED;
 		return (0);
 	}
 
@@ -1122,11 +1241,39 @@ static int wcd_eject (struct wcd *t, int closeit)
 	/* Unlock. */
 	wcd_request_wait (t, ATAPI_PREVENT_ALLOW,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	t->flags &= ~F_LOCKED;
 
 	/* Eject. */
 	t->flags |= F_MEDIA_CHANGED;
 	return wcd_request_wait (t, ATAPI_START_STOP,
 		0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
+}
+
+static void
+wcd_select_slot(struct wcd *cdp)
+{
+	if (cdp->slot < 0 || cdp->changer_info->current_slot == cdp->slot)
+		return;
+
+	/* Unlock (might not be needed but its cheaper than asking) */
+       	wcd_request_wait (cdp, ATAPI_PREVENT_ALLOW,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	/* Unload the current media from player */
+       	wcd_request_wait (cdp, ATAPI_LOAD_UNLOAD,
+		0, 0, 0, 2, 0, 0, 0, cdp->changer_info->current_slot, 0, 0, 0);
+
+	/* load the wanted slot */
+       	wcd_request_wait (cdp, ATAPI_LOAD_UNLOAD,
+		0, 0, 0, 3, 0, 0, 0, cdp->slot, 0, 0, 0);
+
+	cdp->changer_info->current_slot = cdp->slot;
+
+	/* Lock the media if needed */
+	if (cdp->flags & F_LOCKED) {
+		wcd_request_wait (cdp, ATAPI_PREVENT_ALLOW,
+			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+	}
 }
 
 #ifdef WCD_MODULE
