@@ -80,6 +80,10 @@
     been fixed. This means that machines like AlphaServer 1200 can now
     be booted from the installation and fixit CDROMs.</para>
     
+    <para arch="alpha">Whitebox (NT-only) AlphaServer 530x machines are
+    now supported by &os;. &os; is as always booted from SRM, not from
+    AlphaBIOS.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
