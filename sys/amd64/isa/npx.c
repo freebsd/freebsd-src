@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.56 1998/02/12 21:41:10 bde Exp $
+ *	$Id: npx.c,v 1.57 1998/02/15 06:25:26 bde Exp $
  */
 
 #include "npx.h"
@@ -147,10 +147,6 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	"Floatingpoint instructions executed in hardware");
 
 static u_int	npx0_imask = SWI_CLOCK_MASK;
-
-#ifndef SMP	/* XXX per-cpu on smp */
-struct proc	*npxproc;
-#endif
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
