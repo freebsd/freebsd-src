@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.21 1996/06/10 23:07:31 gpalmer Exp $
+ * $Id: if_loop.c,v 1.22 1996/06/19 16:24:10 wollman Exp $
  */
 
 /*
@@ -109,15 +109,12 @@ loopattach(dummy)
 
 	for (ifp = loif; i < NLOOP; ifp++) {
 	    ifp->if_name = "lo";
-	    ifp->if_next = NULL;
 	    ifp->if_unit = i++;
 	    ifp->if_mtu = LOMTU;
 	    ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	    ifp->if_ioctl = loioctl;
 	    ifp->if_output = looutput;
 	    ifp->if_type = IFT_LOOP;
-	    ifp->if_hdrlen = 0;
-	    ifp->if_addrlen = 0;
 	    if_attach(ifp);
 #if NBPFILTER > 0
 	    bpfattach(ifp, DLT_NULL, sizeof(u_int));

@@ -73,6 +73,8 @@ struct	socket;
 struct	ether_header;
 #endif
 
+#include <sys/queue.h>		/* get LIST macros */
+
 /*
  * Structure describing information about an interface
  * which may be of interest to management entities.
@@ -124,8 +126,12 @@ struct	ifqueue {
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
-	struct	ifnet *if_next;		/* all struct ifnets are chained */
+	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
+#if 0
+	LIST_HEAD(, ifaddr) if_addrlist;
+#else
 	struct	ifaddr *if_addrlist;	/* linked list of addresses per if */
+#endif
         int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
@@ -161,7 +167,8 @@ struct ifnet {
 	struct	ifqueue if_snd;		/* output queue */
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 };
-typedef void if_init_f_t __P((void *));       
+typedef void if_init_f_t __P((void *));
+TAILQ_HEAD(ifnethead, ifnet);
 
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
@@ -303,7 +310,11 @@ struct ifaddr {
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
+#if 0
+	LIST_ENTRY(ifaddr) ifa_link;
+#else
 	struct	ifaddr *ifa_next;	/* next address for interface */
+#endif
 	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
 		__P((int, struct rtentry *, struct sockaddr *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
@@ -402,11 +413,11 @@ struct	ifconf {
 	else \
 		(ifa)->ifa_refcnt--;
 
-extern struct	ifnet	*ifnet;
-extern int	ifqmaxlen;
-extern struct	ifnet	loif[];
-extern int	if_index;
-extern struct	ifaddr	**ifnet_addrs;
+extern	struct ifnethead ifnet;
+extern	int ifqmaxlen;
+extern	struct ifnet loif[];
+extern	int if_index;
+extern	struct ifaddr **ifnet_addrs;
 
 void	ether_ifattach __P((struct ifnet *));
 void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));

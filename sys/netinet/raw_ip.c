@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37 1996/10/25 17:57:48 fenner Exp $
+ *	$Id: raw_ip.c,v 1.38 1996/11/11 04:56:24 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -375,7 +375,7 @@ rip_usrreq(so, req, m, nam, control)
 			error = EINVAL;
 			break;
 		}
-		if ((ifnet == 0) ||
+		if (TAILQ_EMPTY(&ifnet) ||
 		    ((addr->sin_family != AF_INET) &&
 		     (addr->sin_family != AF_IMPLINK)) ||
 		    (addr->sin_addr.s_addr &&
@@ -394,7 +394,7 @@ rip_usrreq(so, req, m, nam, control)
 			error = EINVAL;
 			break;
 		}
-		if (ifnet == 0) {
+		if (TAILQ_EMPTY(&ifnet)) {
 			error = EADDRNOTAVAIL;
 			break;
 		}
