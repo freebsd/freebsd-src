@@ -390,9 +390,6 @@ The following CD-ROM type systems are supported at this time:
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
 
-  Tekram DC390 and DC390T controllers (maybe other cards based on the
-  AMD 53c974 as well).
-
   NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
 
   UltraStor 14F, 24F and 34F SCSI controllers.
