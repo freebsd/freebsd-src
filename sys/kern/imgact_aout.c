@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_param.h>
 
+#define	uarea_pages	1
+
 static int	exec_aout_imgact(struct image_params *imgp);
 static int	aout_fixup(register_t **stack_base, struct image_params *imgp);
 
@@ -284,9 +286,8 @@ aout_coredump(td, vp, limit)
 	if (tempuser == NULL)
 		return (ENOMEM);
 	PROC_LOCK(p);
-	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+	fill_user(p, (struct user *)tempuser);
 	PROC_UNLOCK(p);
-	bcopy(p->p_uarea, tempuser, sizeof(struct user));
 	bcopy(td->td_frame,
 	    tempuser + ctob(uarea_pages) +
 	    ((caddr_t)td->td_frame - (caddr_t)td->td_kstack),
