@@ -149,6 +149,17 @@ for i in ${iflist} ; do
 done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 
+# Figure out our NFS root path
+# 
+set `mount -t nfs`
+while [ $# -ge 1 ] ; do
+    if [ "$2" = "on" -a "$3" = "/" ]; then
+	nfsroot="$1"
+	break
+    fi
+    shift
+done
+
 # Resolve templates in /conf/base, /conf/default, /conf/${bootp_ipbca},
 # and /conf/${bootp_ipa}.  For each subdirectory found within these 
 # directories:
@@ -164,6 +175,10 @@ echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 #   might contain 'myserver:/etc'.  NFS remounts allow you to avoid
 #   having to dup your system directories in /conf.  Your server must
 #   be sure to export those filesystems -alldirs, however.
+#   If the diskless_remount file contains a string beginning with a
+#   '/' it is assumed that the local nfsroot should be prepended to
+#   it before attemping to the remount.  This allows the root to be
+#   relocated without needing to change the remount files.
 #
 for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
     for j in /conf/$i/* ; do
@@ -178,6 +193,9 @@ for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
 	#
 	if [ -d $j -a -f $j/diskless_remount ]; then
 	    nfspt=`/bin/cat $j/diskless_remount`
+	    if [ `expr "$nfspt" : '\(.\)'` = "/" ]; then
+		nfspt="${nfsroot}${nfspt}"
+	    fi
 	    mount_nfs $nfspt $j
 	    chkerr $? "mount_nfs $nfspt $j"
 	fi
