@@ -102,7 +102,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.128 1996/11/14 14:28:26 andreas Exp $
+#	$Id: MAKEDEV,v 1.129 1996/12/13 07:54:57 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1000,10 +1000,14 @@ vat)
 	;;
 
 gsc*)
-	rm -f gsc0
-	mknod gsc0 c 47 0
-	chmod 666 gsc0
-	chown root.wheel gsc0
+	unit=`expr $i : 'gsc\(.*\)'`
+	rm -f gsc${unit}*
+	mknod gsc${unit} c 47 $unit
+	mknod gsc${unit}p c 47 $(($unit + 8))
+	mknod gsc${unit}d c 47 $(($unit + 32))
+	mknod gsc${unit}pd c 47 $(($unit + 40))
+	chmod 666 gsc${unit}*
+	chown root.wheel gsc${unit}*
 	;;
 
 apm*)
