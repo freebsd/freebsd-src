@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.29 1995/05/25 01:22:18 jkh Exp $
+ * $Id: menus.c,v 1.30 1995/05/25 18:48:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -586,7 +586,7 @@ DMenu MenuInstall = {
 details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.\n\n\
 None of the items in this menu will actually modify the contents of\n\
-your disk until you select the \"Write\" menu item (and even then, only\n\
+your disk until you select the \"Install\" menu item (and even then, only\n\
 after a final confirmation).  Select Cancel to leave this menu.",
     "Press F1 to read the installation guide",
     "install.hlp",
@@ -599,8 +599,8 @@ after a final confirmation).  Select Cancel to leave this menu.",
       { "Label", "Label allocated disk partitions",		/* L */
 	DMENU_CALL,	diskLabelEditor, 0, 0		},
       { "Networking", "Configure this host on a network",	/* N */
-	DMENU_CALL,	tcpOpenDialog, 0, 0		},
-      { "Write", "Install FreeBSD onto your hard disk(s)",	/* W */
+	DMENU_CALL,	tcpDeviceSelect, 0, 0		},
+      { "Install", "Install FreeBSD onto your hard disk(s)",	/* I */
 	DMENU_CALL,	installCommit, 0, 0		},
       { "Configure", "Do post-install configuration of FreeBSD", /* C */
 	DMENU_SUBMENU,	&MenuConfigure, 0, 0		},
@@ -626,7 +626,7 @@ Record to remain untouched, then select \"none\".",
       { "Standard", "Use a standard MBR (no boot manager)",	/* S */
 	DMENU_SET_VARIABLE,	"bootManager=mbr", 0, 0		},
       { "None", "Leave the Master Boot Record untouched",	/* N */
-	DMENU_CALL,		diskPartitionEditor, 0, 0	},
+	DMENU_SET_VARIABLE,	"bootManager=none", 0, 0	},
       { NULL } },
 };
 
@@ -644,11 +644,11 @@ When you're done, select Cancel",
     { { "Add User",	"Add users to the system",
 	DMENU_SYSTEM_COMMAND, "adduser", 0, 0		},
       { "Networking",	"Configure network",
-	DMENU_CALL, 	tcpOpenDialog, 0, 0		},
+	DMENU_CALL, 	tcpDeviceSelect, 0, 0		},
       { "Time Zone",	"Set which time zone you're in",
 	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0		},
       { "Packages",	"Install extra FreeBSD packaged software",
-	DMENU_CALL,	configPackages, 0, 1		},
+	DMENU_CALL,	configPackages, 0, 0		},
       { "Ports",	"Enable the FreeBSD Ports Collection from CD",
 	DMENU_CALL,	configPorts, 0, 1			},
       { "Root Password", "Set the system manager's password",

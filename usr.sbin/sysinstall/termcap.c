@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <fcntl.h>
+#include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <machine/console.h>
 
@@ -64,8 +65,11 @@ set_termcap(void)
 	    }
 	}
 	if (DebugFD == -1) {
+	    int i;
+
 	    DebugFD = open("/dev/ttyv1", O_WRONLY);
-	    ioctl(DebugFD, TIOCCONS, (char *)NULL);
+	    i = ioctl(DebugFD, TIOCCONS, (char *)NULL);
+	    msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)", DebugFD, i, !i ? "success" : strerror(errno));
 	}
 	OnVTY = TRUE;
     }

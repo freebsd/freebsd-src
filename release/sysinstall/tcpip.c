@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.13 1995/05/25 01:52:04 jkh Exp $
+ * $Id: tcpip.c,v 1.14 1995/05/25 18:48:32 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -35,6 +35,13 @@
  *
  */
 
+/*
+ * All kinds of hacking also performed by jkh on this code.  Don't
+ * blame Gary for every bogosity you see here.. :-)
+ *
+ * -jkh
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -48,12 +55,16 @@
 #include "rc.h"
 #include "sysinstall.h"
 
+#define HOSTNAME_FIELD_LEN	256
+#define IPADDR_FIELD_LEN	16
+#define EXTRAS_FIELD_LEN	256
+
 /* These are nasty, but they make the layout structure a lot easier ... */
 
-static char		hostname[256], domainname[256],
-			gateway[32], nameserver[32], iface[8];
+static char		hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
+			gateway[IPADDR_FIELD_LEN], nameserver[IPADDR_FIELD_LEN];
 static int		okbutton, cancelbutton;
-static char		ipaddr[32], netmask[32], extras[256];
+static char		ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_FIELD_LEN];
 
 /* What the screen size is meant to be */
 #define TCP_DIALOG_Y		0
@@ -61,18 +72,12 @@ static char		ipaddr[32], netmask[32], extras[256];
 #define TCP_DIALOG_WIDTH	COLS - 16
 #define TCP_DIALOG_HEIGHT	LINES - 2
 
-/* The per interface set of records */
-typedef struct _interface {
-    char	ipaddr[32];
-    char	netmask[32];
-    char	extras[256]; /* Extra stuff for ifconfig (link0, etc) */
-    int		valid;
-    Device	*dptr;
-} Interface;
-
-/* The names and details of the available interfaces, for the list */
-Interface 	if_list[INTERFACE_MAX];
-char		*iface_names[INTERFACE_MAX];
+/* This is the structure that Network devices carry around in their private, erm, structures */
+typedef struct _devPriv {
+    char ipaddr[IPADDR_FIELD_LEN];
+    char netmask[IPADDR_FIELD_LEN];
+    char extras[EXTRAS_FIELD_LEN];
+} DevInfo;
 
 /* The screen layout structure */
 typedef struct _layout {
@@ -88,49 +93,44 @@ typedef struct _layout {
 } Layout;
 
 static Layout layout[] = {
-{ 1, 2, 25, 255,
+{ 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
       "Host name:", "The name of your machine on a network, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME		0
-{ 1, 35, 20, 255,
+{ 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
       "Domain name:",
       "The name of the domain that your machine is in, e.g. bar.com",
       domainname, STRINGOBJ, NULL },
 #define LAYOUT_DOMAINNAME	1
-{ 5, 2, 18, 15,
+{ 5, 2, 18, IPADDR_FIELD_LEN - 1,
       "Gateway:",
-      "IP address of host forwarding packets to non-local hosts or nets",
+      "IP address of host forwarding packets to non-local destinations",
       gateway, STRINGOBJ, NULL },
 #define LAYOUT_GATEWAY		2
-{ 5, 35, 18, 15,
+{ 5, 35, 18, IPADDR_FIELD_LEN - 1,
       "Name server:", "IP address of your local DNS server",
       nameserver, STRINGOBJ, NULL },
 #define LAYOUT_NAMESERVER	3
-{ 9, 2, 9, 6,
-      "Interface:",
-      "Network devices found on boot (use <TAB> to exit from here)",
-      iface, LISTOBJ, NULL },
-#define LAYOUT_IFACE		4
-{ 10, 18, 18, 15,
+{ 11, 10, 18, IPADDR_FIELD_LEN - 1,
       "IP Address:",
-      "The IP address to be used for this interface - use 127.0.0.1 for lo0",
+      "The IP address to be used for this interface",
       ipaddr, STRINGOBJ, NULL },
 #define LAYOUT_IPADDR		5
-{ 10, 37, 18, 15,
+{ 11, 35, 18, IPADDR_FIELD_LEN - 1,
       "Netmask:",
       "The netmask for this interfaace, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
 #define LAYOUT_NETMASK		6
-{ 14, 18, 37, 255,
+{ 15, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
-      "Any interface-specific options to ifconfig you'd like to use",
+      "Any interface-specific options to ifconfig you would like to use",
       extras, STRINGOBJ, NULL },
 #define LAYOUT_EXTRAS		7
-{ 19, 10, 0, 0,
+{ 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
 #define LAYOUT_OKBUTTON		8
-{ 19, 30, 0, 0,
+{ 19, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
 #define LAYOUT_CANCELBUTTON	9
@@ -139,8 +139,7 @@ static Layout layout[] = {
 
 #define _validByte(b) ((b) > 0 && (b) < 255)
 
-/* A JKH special - inform the user of an unusal error in a controlled
-   fashion */
+/* whine */
 static void
 feepout(char *msg)
 {
@@ -174,6 +173,10 @@ verifySettings(void)
 	feepout("Invalid gateway IP address specified");
     else if (nameserver[0] && !verifyIP(nameserver))
 	feepout("Invalid name server IP address specified");
+    else if (netmask[0] && (netmask[0] < '0' && netmask[0] > '3'))
+	feepout("Invalid netmask value");
+    else if (ipaddr[0] && !verifyIP(ipaddr))
+	feepout("Invalid IP address");
     else
 	return 1;
     return 0;
@@ -181,16 +184,14 @@ verifySettings(void)
 
 /* This is it - how to get TCP setup values */
 int
-tcpOpenDialog(char *str)
+tcpOpenDialog(Device *devp)
 {
     WINDOW              *ds_win;
     ComposeObj          *obj = NULL;
     ComposeObj		*first, *last;
-    int                 n=0, quit=FALSE, cancel=FALSE, ret,
-    			max, n_iface;
+    int                 n=0, quit=FALSE, cancel=FALSE, ret;
+    int			max;
     char                *tmp;
-    Device		**devs;
-    char		old_iface[8];
     char		help[FILENAME_MAX];
 
     /* We need a curses window */
@@ -198,43 +199,33 @@ tcpOpenDialog(char *str)
     if (ds_win == 0)
 	msgFatal("Cannot open TCP/IP dialog window!!");
 
-    /* Look for net.devices for us to configure */
-    devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
-    if (!devs) {
-	msgConfirm("Couldn't find any potential network devices!");
-	return 0;
-    }
-
-    while (devs[n] != NULL) {
-	iface_names[n] = (devs[n])->name;
-	if_list[n].dptr = devs[n];
-	++n;
-    }
-    n_iface = n;
-
-    /* Setup a nice screen for us to splat stuff onto */
+    /* Say where our help comes from */
     systemHelpFile(TCP_HELPFILE, help);
     use_helpfile(help);
-    draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X,
-	     TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH,
+
+    /* Setup a nice screen for us to splat stuff onto */
+    draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X, TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH, dialog_attr, border_attr);
+    wattrset(ds_win, dialog_attr);
+    mvwaddstr(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 20, " Network Configuration ");
+
+    draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 8, TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 17,
 	     dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
-    mvwaddstr(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 20,
-	      " Network Configuration ");
-    draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 16,
-	     TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 21,
-	     dialog_attr, border_attr);
-    wattrset(ds_win, dialog_attr);
-    mvwaddstr(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 24,
-	      " Per Interface Configuration ");
+    mvwaddstr(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 16, " Per Interface Configuration ");
 
-    /* Initialise vars so that dialog has something to chew on */
-    strcpy(ipaddr, if_list[0].ipaddr);
-    strcpy(netmask, if_list[0].netmask);
-    strcpy(extras, if_list[0].extras);
+    /* Initialise vars from previous device values */
+    if (devp->private) {
+	DevInfo *di = (DevInfo *)devp->private;
 
-    /* Look up values already recorded with the system, or blank the
-       string variables ready to accept some new data */
+	
+	strcpy(ipaddr, di->ipaddr);
+	strcpy(netmask, di->netmask);
+	strcpy(extras, di->extras);
+    }
+    else
+	ipaddr[0] = netmask[0] = extras[0] = '\0';
+
+    /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
     tmp = getenv(VAR_HOSTNAME);
     if (tmp)
 	strcpy(hostname, tmp);
@@ -273,11 +264,6 @@ tcpOpenDialog(char *str)
 				  lt.y + TCP_DIALOG_Y, lt.x + TCP_DIALOG_X);
 	    break;
 
-	case LISTOBJ:
-	    lt.obj = NewListObj(ds_win, lt.prompt, (char **) iface_names,
-				lt.var, lt.y + TCP_DIALOG_Y,
-				lt.x + TCP_DIALOG_X, lt.len, 12, n_iface);
-	    break;
 	default:
 	    msgFatal("Don't support this object yet!");
 	}
@@ -299,9 +285,6 @@ tcpOpenDialog(char *str)
     /* Some more initialisation before we go into the main input loop */
     n = 0;
     cancelbutton = okbutton = 0;
-    strcpy(iface, iface_names[0]);
-    if_list[0].valid = FALSE;
-    strcpy(old_iface, iface);
 
     /* Incoming user data - DUCK! */
     while (!quit) {
@@ -350,15 +333,8 @@ tcpOpenDialog(char *str)
 	    }
 	    break;
 
-	    /* More special case handling - if we are at the interface
-               list, move to the OK button - the user hasn't selected
-               one of the entries in the list by pressing CR, so (s)he
-               must be wanting to skip to <OK> & <CANCEL> */
 	case KEY_DOWN:
-	    if (n == LAYOUT_EXTRAS) {
-		n = LAYOUT_IFACE;
-		obj = (((first->next)->next)->next)->next;
-	    } else if (obj->next != NULL) {
+	    if (obj->next != NULL) {
 		obj = obj->next;
 		++n;
 	    } else {
@@ -367,36 +343,18 @@ tcpOpenDialog(char *str)
 	    }
 	    break;
 
-	    /* Same as KEY_DOWN, but dialog has already move us to the
-               next object on the list, which makes this slightly
-               different. */
 	case SEL_TAB:
-	    if (n == LAYOUT_EXTRAS) {
-		n = LAYOUT_IFACE;
-		obj = (((first->next)->next)->next)->next;
-            } else if (n < max) {
+	    if (n < max)
 		++n;
-	    } else {
+	    else
 		n = 0;
-	    }
-
-	    /* This looks double dutch, but we have already MOVED onto
-               the next field, so we special case around getting to
-               that field, rather than moving off the previous
-               one. Hence we are really testing for
-	       (n == LAYOUT_IFACE) */
-
-	    if (n == LAYOUT_IPADDR) {
-		n = LAYOUT_OKBUTTON;
-		obj = ((obj->next)->next)->next;
-	    }
 	    break;
 
 	    /* The user has pressed enter over a button object */
 	case SEL_BUTTON:
- 	    if (cancelbutton) {
+ 	    if (cancelbutton)
 		cancel = TRUE, quit = TRUE;
-	    } else {
+	    else {
 		if (verifySettings())
 		    quit = TRUE;
 	    }
@@ -404,68 +362,7 @@ tcpOpenDialog(char *str)
 
 	    /* Generic CR handler */
 	case SEL_CR:
-	    /* Has the user selected a new interface? */
-	    if (strcmp(old_iface, iface)) {
-		/* Now go find the new location */
-		n_iface = 0;
-		while (strcmp(iface, iface_names[n_iface]) &&
-		       (iface_names[n_iface] != NULL))
-		    ++n_iface;
-		if (iface_names[n_iface] == NULL)
-		    msgFatal("Erk - run off the end of the list of interfaces!");
-		strcpy(ipaddr, if_list[n_iface].ipaddr);
-		strcpy(netmask, if_list[n_iface].netmask);
-		strcpy(extras, if_list[n_iface].extras);
-		if_list[n_iface].valid = FALSE;
-		
-		RefreshStringObj(layout[LAYOUT_IPADDR].obj);
-		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
-		RefreshStringObj(layout[LAYOUT_EXTRAS].obj);
-		
-		strcpy(old_iface, iface);
-	    }
-
-	    /* Loop back to the interface list from the extras box -
-               now we handle the case of saving out the data the user
-               typed in (and also do basic verification of its
-               sanity) */
-	    if (n == LAYOUT_EXTRAS) {
-		n = LAYOUT_IFACE;
-		obj = (((first->next)->next)->next)->next;
-		/* First, find the old value */
-		n_iface = 0;
-		while (strcmp(old_iface, iface_names[n_iface]) &&
-		       (iface_names[n_iface] != NULL))
-		    ++n_iface;
-		
-		if (iface_names[n_iface] == NULL)
-		    msgFatal("Erk - run off the end of the list of interfaces!");
-
-		/* Sanity check what the user supplied - this could probably
-		   be better :-( */
-		
-		if (!verifyIP(ipaddr)) {
-		    feepout("Invalid or missing IP address!");
-		    strcpy(iface, old_iface);
-		    n = LAYOUT_IFACE;
-		    obj = (((first->next)->next)->next)->next;
-		    RefreshListObj(layout[LAYOUT_IFACE].obj);
-		}
-
-		if (netmask[0] < '0' || netmask[0] > '9') {
-		    feepout("Invalid or missing netmask!");
-		    strcpy(iface, old_iface);
-		    n = LAYOUT_IFACE;
-		    obj = (((first->next)->next)->next)->next;
-		    RefreshListObj(layout[LAYOUT_IFACE].obj);
-		}
-		
-		strcpy(if_list[n_iface].ipaddr, ipaddr);
-		strcpy(if_list[n_iface].netmask, netmask);
-		strcpy(if_list[n_iface].extras, extras);
-		if_list[n_iface].valid = TRUE;
-		if_list[n_iface].dptr->enabled = TRUE;
-	    } else if (n < max)
+	    if (n < max)
 		++n;
 	    else
 		n = 0;
@@ -504,7 +401,9 @@ tcpOpenDialog(char *str)
        out to the environment via the variable_set layers */
 
     if (!cancel) {
-	int foo;
+	DevInfo *di;
+	char temp[512], ifn[64];
+
 	variable_set2(VAR_HOSTNAME, hostname);
 	variable_set2(VAR_DOMAINNAME, domainname);
 	if (gateway[0])
@@ -512,23 +411,20 @@ tcpOpenDialog(char *str)
 	if (nameserver[0])
 	    variable_set2(VAR_NAMESERVER, nameserver);
 
-	/* Loop over the per-interface data saving data which has been
-           validated ... */
-	for (foo = 0 ; foo < INTERFACE_MAX ; foo++) {
-	    if (if_list[foo].valid == TRUE) {
-		char temp[512], ifn[64];
-		sprintf(temp, "inet %s %s netmask %s",
-			if_list[foo].ipaddr, if_list[foo].extras,
-			if_list[foo].netmask);
-		sprintf(ifn, "%s%s", VAR_IFCONFIG, iface_names[foo]);
-		variable_set2(ifn, temp);
-	    }
-	}
-    }
-    return 0;
-}
+	if (!devp->private)
+	    devp->private = (DevInfo *)malloc(sizeof(DevInfo));
+	di = devp->private;
+	strcpy(di->ipaddr, ipaddr);
+	strcpy(di->netmask, netmask);
+	strcpy(di->extras, extras);
 
-static Device *netDevice;
+	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
+	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
+	variable_set2(ifn, temp);
+	return 0;
+    }
+    return 1;
+}
 
 static int
 netHook(char *str)
@@ -541,32 +437,25 @@ netHook(char *str)
     if (!*str)
 	return 0;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
-    if (devs)
-	netDevice = devs[0];
+    if (devs) {
+	tcpOpenDialog(devs[0]);
+	mediaDevice = devs[0];
+    }
     return devs ? 1 : 0;
 }
 
 /* Get a network device */
-Device *
-tcpDeviceSelect(void)
+int
+tcpDeviceSelect(char *str)
 {
     DMenu *menu;
 
-    /* If we can't find a hostname, ask user to set up TCP/IP */
-    if (!getenv(VAR_HOSTNAME))
-	tcpOpenDialog(NULL);
-
-    /* If we still can't, user is a bonehead */
-    if (!getenv(VAR_HOSTNAME)) {
-	msgConfirm("Sorry, I can't do this if you don't set up your networking first!");
-	return 0;
-    }
     menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
     if (!menu)
 	msgFatal("Unable to create network device menu!  Argh!");
     dmenuOpenSimple(menu);
     free(menu);
-    return netDevice;
+    return 0;
 }
 
 /* Start PPP on the 3rd screen */
@@ -580,6 +469,10 @@ tcpStartPPP(void)
 	return FALSE;
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
+    Mkdir("/etc/ppp", NULL);
+    /* XXX Put our IP addr in the right file instead of this stupidity!! XXX */
+    vsystem("touch /etc/ppp/ppp.linkup; chmod +x /etc/ppp/ppp.linkup");
+    vsystem("touch /etc/ppp/ppp.secret; chmod +x /etc/ppp/ppp.secret");
     if (!fork()) {
 	dup2(fd, 0);
 	dup2(fd, 1);
@@ -589,7 +482,3 @@ tcpStartPPP(void)
     }
     return TRUE;
 }
-
-
-
-	

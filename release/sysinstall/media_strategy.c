@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.21 1995/05/25 06:15:38 phk Exp $
+ * $Id: media_strategy.c,v 1.22 1995/05/25 18:48:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,18 +199,68 @@ attr_match(struct attribs *attr, char *name)
 }
 
 static pid_t getDistpid = 0;
+static Device *floppyDev;
 
 static int
-genericGetDist(char *path, struct attribs *dist_attrib, Boolean prompt)
+floppyChoiceHook(char *str)
+{
+    Device **devs;
+
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    if (!*str)
+	return 0;
+    devs = deviceFind(str, DEVICE_TYPE_FLOPPY);
+    if (devs)
+	floppyDev = devs[0];
+    return devs ? 1 : 0;
+}
+
+int
+genericGetDist(char *path, void *attrs, Boolean prompt)
 {
     int 	fd;
     char 	buf[512];
     struct stat	sb;
     int		pfd[2], numchunks;
     const char *tmp;
+    Device *devp;
+    struct attribs *dist_attrib = (struct attribs *)attrs;
+
+    /* Floppy is always last-ditch device */
+    while (prompt && floppyDev == NULL) {
+	Device **devs;
+	int cnt;
+		    
+	devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
+	cnt = deviceCount(devs);
+	if (cnt == 1)
+	    devp = devs[0];
+	else if (cnt > 1) {
+	    DMenu *menu;
+	    
+	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook);
+	    menu->title = "Please insert the ROOT floppy";
+	    dmenuOpenSimple(menu);
+	}
+	else {
+	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
+	    return -1;
+	}
+	if (!floppyDev)
+	    continue;
+	fd = open(floppyDev->devname, O_RDONLY);
+	return fd;
+    }
+    
+    if (stat(path, &sb) == 0)
+    {
+	fd = open(path, O_RDONLY, 0);
+	return(fd);
+    }
 
     snprintf(buf, 512, "%s.tgz", path);
-
     if (stat(buf, &sb) == 0)
     {
 	fd = open(buf, O_RDONLY, 0);
@@ -224,8 +274,12 @@ genericGetDist(char *path, struct attribs *dist_attrib, Boolean prompt)
 	return -1;
     }
 
-    tmp = attr_match(dist_attrib, "pieces");
-    numchunks = atoi(tmp);
+    if (dist_attrib) {
+	tmp = attr_match(dist_attrib, "pieces");
+	numchunks = atoi(tmp);
+    }
+    else
+	numchunks = 1;
 
     /* reap the previous child corpse - yuck! */
     if (getDistpid) {
@@ -240,7 +294,7 @@ genericGetDist(char *path, struct attribs *dist_attrib, Boolean prompt)
 	getDistpid = 0;
     }
 
-    msgDebug("Attempting to extract distribution from %u files\n", numchunks);
+    msgDebug("Attempting to concatenate %u chunks\n", numchunks);
     pipe(pfd);
     getDistpid = fork();
     if (!getDistpid) {
@@ -277,6 +331,8 @@ genericGetDist(char *path, struct attribs *dist_attrib, Boolean prompt)
 	    
 	    if (prompt == TRUE)
 	    {
+		extern int crc(int, unsigned long *, unsigned long *);
+
 		crc(fd, &val, &len);
 		msgDebug("crc for %s is %lu %lu\n", buf, val, len);
 	    }
@@ -332,8 +388,7 @@ mediaInitCDROM(Device *dev)
 
     if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1)
     {
-	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n",
-		   dev, strerror(errno), errno);
+	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n", dev, strerror(errno), errno);
 	return FALSE;
     }
 
@@ -344,8 +399,7 @@ mediaInitCDROM(Device *dev)
     {
 	if (errno == ENOENT)
 	{
-	    msgConfirm("Couldn't locate the directory `dists' on the cdrom\n\
-Is this a 2.0.5 CDROM?\n");
+	    msgConfirm("Couldn't locate the directory `dists' on the CD.\nIs this a 2.0.5 CDROM?\n");
 	    return FALSE;
 	} else {
 	    msgConfirm("Couldn't stat directory %s: %s", "/cdrom/dists", strerror(errno));
@@ -357,7 +411,7 @@ Is this a 2.0.5 CDROM?\n");
 }
 
 int
-mediaGetCDROM(char *dist)
+mediaGetCDROM(char *dist, char *path)
 {
     char		buf[PATH_MAX];
     struct attribs	*dist_attr;
@@ -367,13 +421,14 @@ mediaGetCDROM(char *dist)
 
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
 
-    if (attr_parse(&dist_attr, buf) == 0)
+    if (!access(buf, R_OK) && attr_parse(&dist_attr, buf) == 0)
     {
 	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
+	free(dist_attr);
 	return FALSE;
     }
    
-    snprintf(buf, PATH_MAX, "/cdrom/dists/%s", dist);
+    snprintf(buf, PATH_MAX, "/cdrom/%s%s", path ? path : "", dist);
 
     retval = genericGetDist(buf, dist_attr, FALSE);
     free(dist_attr);
@@ -411,7 +466,7 @@ mediaInitFloppy(Device *dev)
 }
 
 int
-mediaGetFloppy(char *dist)
+mediaGetFloppy(char *dist, char *path)
 {
     char		buf[PATH_MAX];
     char		*fname;
@@ -421,12 +476,12 @@ mediaGetFloppy(char *dist)
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
-    if (attr_parse(&dist_attr, buf) == 0)
+    if (!access(buf, R_OK) && attr_parse(&dist_attr, buf) == 0)
     {
 	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
+	free(dist_attr);
 	return FALSE;
     }
-   
     fname = index(dist, '/') + 1;
     snprintf(buf, PATH_MAX, "/mnt/%s", fname);
 
@@ -495,7 +550,7 @@ not on the local network\n");
 }
 
 int
-mediaGetTape(char *dist)
+mediaGetTape(char *dist, char *path)
 {
     return -1;
 }
@@ -548,7 +603,8 @@ mediaInitFTP(Device *dev)
     Device *netDevice = (Device *)dev->private;
 
     if (netDevice->init)
-	(*netDevice->init)(netDevice);
+	if (!(*netDevice->init)(netDevice))
+	    return FALSE;
 
     if ((ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
@@ -559,7 +615,7 @@ mediaInitFTP(Device *dev)
     if (!url)
 	return FALSE;
     if (!strcmp(url, "other")) {
-	url = msgGetInput(NULL, "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nAn URL looks like this:  ftp://<hostname>/<path>");
+	url = msgGetInput("ftp://", "Please specify the URL of a FreeBSD distribution on a\nremote ftp site.  This site must accept anonymous ftp!\nA URL looks like this:  ftp://<hostname>/<path>");
 	if (!url)
 	    return FALSE;
     }
@@ -572,8 +628,10 @@ mediaInitFTP(Device *dev)
 
     msgDebug("Using URL `%s'\n", url);
     hostname = url + 6;
-    dir = index(hostname, '/');
-    *(dir++) = '\0';
+    if ((dir = index(hostname, '/')) != NULL)
+	*(dir++) = '\0';
+    else
+	dir = "/";
     msgDebug("hostname = `%s'\n", hostname);
     msgDebug("dir = `%s'\n", dir);
     msgNotify("Looking up host %s..", hostname);
@@ -594,7 +652,7 @@ mediaInitFTP(Device *dev)
     if (getenv("ftpPassive"))
 	FtpPassive(ftp, 1);
     FtpBinary(ftp, 1);
-    if (*dir != '\0') {
+    if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
 	FtpChdir(ftp, dir);
     }
@@ -605,7 +663,7 @@ mediaInitFTP(Device *dev)
 static pid_t ftppid = 0;
 
 int
-mediaGetFTP(char *dist)
+mediaGetFTP(char *dist, char *path)
 {
     int 	fd;
     char 	buf[512];
@@ -613,25 +671,30 @@ mediaGetFTP(char *dist)
     const char *tmp;
     struct attribs	*dist_attr;
 
-    msgNotify("Attempting to retreive distribution `%s' over FTP", dist);
-    dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
-
+    msgNotify("Attempting to retreive `%s' over FTP", dist);
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
-
-    msgDebug("Parsing attributes file for %s\n", dist);
-    if (attr_parse(&dist_attr, buf) == 0)
-    {
-	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
-	return -1;
-    }
+    if (!access(buf, R_OK)) {
+	msgDebug("Parsing attributes file for %s\n", dist);
+	dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
+	if (attr_parse(&dist_attr, buf) == 0) {
+	    msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
+	    return -1;
+	}
    
-    msgDebug("Looking for attribute `pieces'\n");
-    tmp = attr_match(dist_attr, "pieces");
-    numchunks = atoi(tmp);
-    msgDebug("Attempting to extract distribution from %u files\n", numchunks);
+	msgDebug("Looking for attribute `pieces'\n");
+	tmp = attr_match(dist_attr, "pieces");
+	numchunks = atoi(tmp);
+    }
+    else
+	numchunks = 0;
+    msgDebug("Attempting to extract distribution from %u files\n", numchunks ? numchunks : 1);
 
-    if (numchunks == 1)
-    {
+    /* Take the lack of an info file to mean we're a fully qualified name */
+    if (!numchunks) {
+	sprintf(buf, "%s%s", path ? path : "", dist);
+	return(FtpGet(ftp, buf));
+    }
+    else if (numchunks == 1) {
 	snprintf(buf, 512, "%s.aa", dist);
 	return(FtpGet(ftp, buf));
     }
@@ -718,7 +781,7 @@ mediaInitUFS(Device *dev)
 }
 
 int
-mediaGetUFS(char *dist)
+mediaGetUFS(char *dist, char *path)
 {
     return -1;
 }
@@ -733,7 +796,7 @@ mediaInitDOS(Device *dev)
 }
 
 int
-mediaGetDOS(char *dist)
+mediaGetDOS(char *dist, char *path)
 {
     return -1;
 }
