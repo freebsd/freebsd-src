@@ -100,8 +100,10 @@ Generate a new set of boot and fixit floppies.
 This will call the
 .Cm release.5 ,
 .Cm release.9 ,
+.Cm floppies.1 ,
+.Cm floppies.2 ,
 and
-.Cm release.10
+.Cm floppies.3
 targets to re-generate the floppy images of a previous
 .Dq Li "make release" .
 This is most often used to build custom boot floppies.
@@ -109,7 +111,7 @@ This is most often used to build custom boot floppies.
 .Pp
 Targets called by
 .Dq Li "make release" :
-.Bl -tag -width ".Cm release.10"
+.Bl -tag -width ".Cm fetch-distfiles"
 .It Cm release.1
 Cleans out the
 .Pa ${CHROOTDIR}/R
@@ -123,11 +125,10 @@ Builds and installs into the
 .Dq base
 distribution non-crypto versions of some tools.
 .It Cm release.4
-.\" XXX: We build more than one kernel.  We build a stripped down
-.\" kernel for the boot media in addition to a full GENERIC kernel.
 Makes and installs the
 .Pa GENERIC
-kernel.
+kernel as well as any other kernels listed in
+.Va KERNELS .
 .It Cm release.5
 Uses
 .Xr crunchgen 1
@@ -143,8 +144,14 @@ Creates tarballs of the assembled distribution trees.
 Makes source distributions.
 .It Cm release.9
 Creates the MFS root file systems.
-.It Cm release.10
-Creates the boot, MFS root, and fixit floppies.
+.It Cm floppies.1
+Creates the boot and kernel floppies.
+.It Cm floppies.2
+Creates the fixit floppy.
+.It Cm floppies.3
+Finalizes the
+.Pa ${CHROORDIR}/R/ftp/stage/floppies
+staging directory.
 .It Cm ftp.1
 Sets up a suitable area for FTP installations in
 .Pa ${CHROOTDIR}/R/ftp .
