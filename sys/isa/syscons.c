@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.231 1997/09/04 23:01:03 yokota Exp $
+ *  $Id: syscons.c,v 1.232 1997/09/14 03:19:27 peter Exp $
  */
 
 #include "sc.h"
@@ -2007,7 +2007,7 @@ scan_esc(scr_stat *scp, u_char c)
     int i, n;
     u_short *src, *dst, count;
 
-    if (scp->term.esc == 1) {
+    if (scp->term.esc == 1) {	/* seen ESC */
 	switch (c) {
 
 	case '7':   /* Save cursor position */
@@ -2042,14 +2042,18 @@ scan_esc(scr_stat *scp, u_char c)
 #if notyet
 	case 'Q':
 	    scp->term.esc = 4;
-	    break;
+	    return;
 #endif
 	case 'c':   /* Clear screen & home */
 	    clear_screen(scp);
 	    break;
+
+	case '(':   /* iso-2022: designate 94 character set to G0 */
+	    scp->term.esc = 5;
+	    return;
 	}
     }
-    else if (scp->term.esc == 2) {
+    else if (scp->term.esc == 2) {	/* seen ESC [ */
 	if (c >= '0' && c <= '9') {
 	    if (scp->term.num_param < MAX_ESC_PAR) {
 	    if (scp->term.last_param != scp->term.num_param) {
@@ -2420,7 +2424,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    break;
 	}
     }
-    else if (scp->term.esc == 3) {
+    else if (scp->term.esc == 3) {	/* seen ESC [0-9]+ = */
 	if (c >= '0' && c <= '9') {
 	    if (scp->term.num_param < MAX_ESC_PAR) {
 	    if (scp->term.last_param != scp->term.num_param) {
@@ -2519,6 +2523,20 @@ scan_esc(scr_stat *scp, u_char c)
 		    | ((scp->term.param[0] & 0x0F) << 12);
 		scp->term.cur_attr = mask2attr(&scp->term);
 	    }
+	    break;
+	}
+    }
+#if notyet
+    else if (scp->term.esc == 4) {	/* seen ESC Q */
+	/* to be filled */
+    }
+#endif
+    else if (scp->term.esc == 5) {	/* seen ESC ( */
+	switch (c) {
+	case 'B':   /* iso-2022: desginate ASCII into G0 */
+	    break;
+	/* other items to be filled */
+	default:
 	    break;
 	}
     }
