@@ -292,136 +292,175 @@ vinum_init(int argc, char *argv[], char *arg0[])
 {
     if (argc > 0) {					    /* initialize plexes */
 	int plexindex;
-	int sdno;
-	int plexno;
-	int plexfh = NULL;				    /* file handle for plex */
-	pid_t pid;
+	int objno;
 	enum objecttype type;				    /* type returned */
-	struct _ioctl_reply reply;
-	struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
-	char filename[MAXPATHLEN];			    /* create a file name here */
-
-	/* Variables for use by children */
-	int failed = 0;					    /* set if a child dies badly */
-	int sdfh;					    /* and for subdisk */
-	char zeros[PLEXINITSIZE];
-	int count;					    /* write count */
-	long long offset;				    /* offset in subdisk */
-	long long sdsize;				    /* size of subdisk */
 
 	if (history)
 	    fflush(history);				    /* don't let all the kids do it. */
 	for (plexindex = 0; plexindex < argc; plexindex++) {
-	    plexno = find_object(argv[plexindex], &type);   /* find the object */
-	    if (plexno < 0)
+	    objno = find_object(argv[plexindex], &type);    /* find the object */
+	    if (objno < 0)
 		printf("Can't find %s\n", argv[plexindex]);
-	    else if (type != plex_object) {
-		/* XXX Consider doing this for all plexes in
-		 * a volume, etc. */
-		printf("%s is not a plex\n", argv[plexindex]);
-		break;
-	    } else if (plex.state == plex_unallocated)	    /* not a real plex, */
-		printf("%s is not allocated, can't initialize\n", plex.name);
 	    else {
-		sprintf(filename, VINUM_DIR "/plex/%s", argv[plexindex]);
-		if ((plexfh = open(filename, O_RDWR, S_IRWXU)) < 0) { /* got a plex, open it */
-							    /* We don't actually write anything to the plex,
-		       * since the system will try to format it.  We open
-		       * it to ensure that nobody else tries to open it
-		       * while we initialize its subdisks */
-		    fprintf(stderr, "can't open plex %s: %s\n", filename, strerror(errno));
-		    return;
-		}
-	    }
-	    if (dowait == 0) {				    /* don't wait for completion */
-		pid = fork();
-		if (pid != 0) {				    /* non-waiting parent */
-		    close(plexfh);			    /* we don't need this any more */
-		    sleep(1);				    /* give them a chance to print */
-		    return;				    /* and go on about our business */
-		}
-	    }
-	    /*
-	     * If we get here, we're either the first-level child
-	     * (if we're not waiting) or we're going to wait.
-	     */
-	    bzero(zeros, sizeof(zeros));
-	    openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
-	    for (sdno = 0; sdno < plex.subdisks; sdno++) {  /* initialize each subdisk */
-		/* We already have the plex data in global
-		 * plex from the call to find_object */
-		pid = fork();				    /* into the background with you */
-		if (pid == 0) {				    /* I'm the child */
-		    get_plex_sd_info(&sd, plexno, sdno);
-		    sdsize = sd.sectors * DEV_BSIZE;	    /* size of subdisk in bytes */
-		    sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
-		    setproctitle("initializing %s", filename); /* show what we're doing */
-		    syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s", filename);
-		    if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) {	/* no go */
-			syslog(LOG_ERR | LOG_KERN,
-			    "can't open subdisk %s: %s",
-			    filename,
-			    strerror(errno));
-			exit(1);
-		    }
-							    /* Set the subdisk in initializing state */
-		    message->index = sd.sdno;		    /* pass object number */
-		    message->type = sd_object;		    /* and type of object */
-		    message->state = object_initializing;
-		    message->force = 1;			    /* insist */
-		    ioctl(superdev, VINUM_SETSTATE, message);
-		    for (offset = 0; offset < sdsize; offset += count) {
-			count = write(sdfh, zeros, PLEXINITSIZE); /* write a block */
-			if (count < 0) {
-			    syslog(LOG_ERR | LOG_KERN,
-				"can't write subdisk %s: %s",
-				filename,
-				strerror(errno));
-			    exit(1);
-			}
-							    /* XXX Grrrr why doesn't this thing recognize EOF? */
-			else if (count == 0)
-			    break;
-		    }
-		    syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized", filename);
-							    /* Bring the subdisk up */
-		    message->index = sd.sdno;		    /* pass object number */
-		    message->type = sd_object;		    /* and type of object */
-		    message->state = object_up;
-		    ioctl(superdev, VINUM_SETSTATE, message);
-		    exit(0);
-		} else if (pid < 0)			    /* failure */
-		    printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
-	    }
-	    /* Now wait for them to complete */
-	    while (1) {
-		int status;
-		pid = wait(&status);
-		if (((int) pid == -1)
-		    && (errno == ECHILD))		    /* all gone */
+		switch (type) {
+		case volume_object:
+		    initvol(objno);
 		    break;
-		if (WEXITSTATUS(status) != 0) {		    /* oh, oh */
-		    printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
-		    failed++;
+
+		case plex_object:
+		    initplex(objno, argv[plexindex]);
+		    break;
+
+		case sd_object:
+		    initsd(objno);
+		    break;
+
+		default:
+		    printf("Can't initalize %s: wrong object type\n", argv[plexindex]);
+		    break;
 		}
 	    }
-	    if (failed == 0) {
-#if 0
-		message->index = plexno;		    /* pass object number */
-		message->type = plex_object;		    /* and type of object */
-		message->state = object_up;
-		message->force = 1;			    /* insist */
-		ioctl(superdev, VINUM_SETSTATE, message);
-#endif
-		syslog(LOG_INFO | LOG_KERN, "plex %s initialized", plex.name);
-	    } else
-		syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died",
-		    plex.name,
-		    failed);
-	    if (dowait == 0)				    /* we're the waiting child, */
-		exit(0);				    /* we've done our dash */
 	}
     }
+}
+
+void 
+initvol(int volno)
+{
+    printf("Not implemented yet\n");
+}
+
+void 
+initplex(int plexno, char *name)
+{
+    int sdno;
+    int plexfh = NULL;					    /* file handle for plex */
+    pid_t pid;
+    char filename[MAXPATHLEN];				    /* create a file name here */
+
+    /* Variables for use by children */
+    int failed = 0;					    /* set if a child dies badly */
+
+    sprintf(filename, VINUM_DIR "/plex/%s", name);
+    if ((plexfh = open(filename, O_RDWR, S_IRWXU)) < 0) {   /* got a plex, open it */
+	/*
+	   * We don't actually write anything to the
+	   * plex.  We open it to ensure that nobody
+	   * else tries to open it while we initialize
+	   * its subdisks.
+	 */
+	fprintf(stderr, "can't open plex %s: %s\n", filename, strerror(errno));
+	return;
+    }
+    if (dowait == 0) {
+	pid = fork();					    /* into the background with you */
+	if (pid != 0) {					    /* I'm the parent, or we failed */
+	    if (pid < 0)				    /* failure */
+		printf("Couldn't fork: %s", strerror(errno));
+	    close(plexfh);				    /* we don't need this any more */
+	    return;
+	}
+    }
+    /*
+     * If we get here, we're either the first-level child
+     * (if we're not waiting) or we're going to wait.
+     */
+    for (sdno = 0; sdno < plex.subdisks; sdno++) {	    /* initialize each subdisk */
+	get_plex_sd_info(&sd, plexno, sdno);
+	initsd(sd.sdno);
+    }
+    /* Now wait for them to complete */
+    while (1) {
+	int status;
+	pid = wait(&status);
+	if (((int) pid == -1)
+	    && (errno == ECHILD))			    /* all gone */
+	    break;
+	if (WEXITSTATUS(status) != 0) {			    /* oh, oh */
+	    printf("child %d exited with status 0x%x\n", pid, WEXITSTATUS(status));
+	    failed++;
+	}
+    }
+    if (failed == 0) {
+#if 0
+	message->index = plexno;			    /* pass object number */
+	message->type = plex_object;			    /* and type of object */
+	message->state = object_up;
+	message->force = 1;				    /* insist */
+	ioctl(superdev, VINUM_SETSTATE, message);
+#endif
+	syslog(LOG_INFO | LOG_KERN, "plex %s initialized", plex.name);
+    } else
+	syslog(LOG_ERR | LOG_KERN, "couldn't initialize plex %s, %d processes died",
+	    plex.name,
+	    failed);
+    if (dowait == 0)					    /* we're the waiting child, */
+	exit(0);					    /* we've done our dash */
+}
+
+void 
+initsd(int sdno)
+{
+    pid_t pid;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+    char filename[MAXPATHLEN];				    /* create a file name here */
+
+    /* Variables for use by children */
+    int sdfh;						    /* and for subdisk */
+    char zeros[PLEXINITSIZE];
+    int count;						    /* write count */
+    long long offset;					    /* offset in subdisk */
+    long long sdsize;					    /* size of subdisk */
+
+    if (dowait == 0) {
+	pid = fork();					    /* into the background with you */
+	if (pid > 0)					    /* I'm the parent */
+	    return;
+	else if (pid < 0) {				    /* failure */
+	    printf("couldn't fork for subdisk %d: %s", sdno, strerror(errno));
+	    return;
+	}
+    }
+    openlog("vinum", LOG_CONS | LOG_PERROR | LOG_PID, LOG_KERN);
+    bzero(zeros, sizeof(zeros));
+    get_sd_info(&sd, sdno);
+    sdsize = sd.sectors * DEV_BSIZE;			    /* size of subdisk in bytes */
+    sprintf(filename, VINUM_DIR "/rsd/%s", sd.name);
+    setproctitle("initializing %s", filename);		    /* show what we're doing */
+    syslog(LOG_INFO | LOG_KERN, "initializing subdisk %s", filename);
+    if ((sdfh = open(filename, O_RDWR, S_IRWXU)) < 0) {	    /* no go */
+	syslog(LOG_ERR | LOG_KERN,
+	    "can't open subdisk %s: %s",
+	    filename,
+	    strerror(errno));
+	exit(1);
+    }
+    /* Set the subdisk in initializing state */
+    message->index = sd.sdno;				    /* pass object number */
+    message->type = sd_object;				    /* and type of object */
+    message->state = object_initializing;
+    message->force = 1;					    /* insist */
+    ioctl(superdev, VINUM_SETSTATE, message);
+    for (offset = 0; offset < sdsize; offset += count) {
+	count = write(sdfh, zeros, PLEXINITSIZE);	    /* write a block */
+	if (count < 0) {
+	    syslog(LOG_ERR | LOG_KERN,
+		"can't write subdisk %s: %s",
+		filename,
+		strerror(errno));
+	    exit(1);
+	} else if (count == 0)
+	    break;
+    }
+    syslog(LOG_INFO | LOG_KERN, "subdisk %s initialized", filename);
+    /* Bring the subdisk up */
+    message->index = sd.sdno;				    /* pass object number */
+    message->type = sd_object;				    /* and type of object */
+    message->state = object_up;
+    message->force = 0;					    /* don't insist */
+    ioctl(superdev, VINUM_SETSTATE, message);
+    exit(0);
 }
 
 void 
@@ -506,7 +545,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 			for (sdno = 0; sdno < plex.subdisks; sdno++) {
 			    get_plex_sd_info(&sd, object, sdno);
 			    if ((sd.state >= sd_empty)
-				&& (sd.state <= sd_stale)) { /* candidate for init */
+				&& (sd.state <= sd_reviving)) {	/* candidate for init */
 				message->index = sd.sdno;   /* pass object number */
 				message->type = sd_object;  /* it's a subdisk */
 				message->state = object_up;
@@ -1076,18 +1115,6 @@ vinum_rename(int argc, char *argv[], char *argv0[])
 void 
 vinum_replace(int argc, char *argv[], char *argv0[])
 {
-    int maxlen;
-    struct vinum_rename_msg msg;
-    struct _ioctl_reply *reply = (struct _ioctl_reply *) &msg;
-
-    if (argc != 2) {
-	fprintf(stderr, "Usage: \trename <drive> <drive>\n");
-	return;
-    }
-    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
-	return;
-    }
     fprintf(stderr, "replace not implemented yet\n");
 }
 
@@ -1737,3 +1764,6 @@ vinum_readpol(int argc, char *argv[], char *argv0[])
     if (verbose)
 	vinum_lpi(plexno, recurse);
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
