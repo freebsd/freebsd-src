@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)icmp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: icmp_var.h,v 1.3 1994/08/21 05:27:23 paul Exp $
+ * $Id: icmp_var.h,v 1.8 1997/08/25 16:29:25 wollman Exp $
  */
 
 #ifndef _NETINET_ICMP_VAR_H_
@@ -54,6 +54,8 @@ struct	icmpstat {
 	u_long	icps_badlen;		/* calculated bound mismatch */
 	u_long	icps_reflect;		/* number of responses */
 	u_long	icps_inhist[ICMP_MAXTYPE + 1];
+	u_long	icps_bmcastecho; 	/* b/mcast echo requests dropped */
+	u_long	icps_bmcasttstamp; 	/* b/mcast tstamp requests dropped */
 };
 
 /*

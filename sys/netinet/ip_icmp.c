@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.22 1996/09/20 08:23:54 pst Exp $
+ *	$Id: ip_icmp.c,v 1.29 1997/08/25 16:29:27 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -70,6 +70,10 @@ SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RD,
 static int	icmpmaskrepl = 0;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 	&icmpmaskrepl, 0, "");
+
+static int	icmpbmcastecho = 1;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW, &icmpbmcastecho,
+	   0, "");
 
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
@@ -372,10 +376,22 @@ icmp_input(m, hlen)
 		break;
 
 	case ICMP_ECHO:
+		if (!icmpbmcastecho
+		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0
+		    && IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+			icmpstat.icps_bmcastecho++;
+			break;
+		}
 		icp->icmp_type = ICMP_ECHOREPLY;
 		goto reflect;
 
 	case ICMP_TSTAMP:
+		if (!icmpbmcastecho
+		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0
+		    && IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
+			icmpstat.icps_bmcasttstamp++;
+			break;
+		}
 		if (icmplen < ICMP_TSLEN) {
 			icmpstat.icps_badlen++;
 			break;
