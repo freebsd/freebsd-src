@@ -1627,12 +1627,6 @@ ENTRY(load_cr4)
 	movl	%eax,%cr4
 	ret
 
-/* void load_dr6(u_int dr6) */
-ENTRY(load_dr6)
-	movl    4(%esp),%eax
-	movl    %eax,%dr6
-	ret
-
 /* void reset_dbregs() */
 ENTRY(reset_dbregs)
 	movl    $0,%eax
