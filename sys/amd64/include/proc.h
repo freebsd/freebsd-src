@@ -57,7 +57,7 @@ struct mdthread {
 };
 
 struct mdproc {
-	struct proc_ldt *md_ldt;	/* per-process ldt */
+	struct proc_ldt *md_ldt;	/* (j) per-process ldt */
 };
 
 #ifdef	_KERNEL
