@@ -400,10 +400,9 @@
     d'initialisation du noyau (avant que le système ne passe en mode mono-utilisateur).
      &merged;</para>
 
-
     <sect3>
       <title>**Support des cartes mères et des processeurs</title>
-
+ <para></para>
     </sect3>
 
     <sect3>
@@ -417,7 +416,7 @@
 
     <sect3>
       <title>Support des interfaces réseau</title>
-
+ <para></para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
