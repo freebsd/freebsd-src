@@ -8,11 +8,13 @@
  * NOTICE: This is free software.  I hope you get some use from this program.
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
@@ -164,7 +166,7 @@ apply_complete()
 	return;
 	}
 
-    i = fscanf(fp, "%s %d %c", class, &dn, junk);
+    i = fscanf(fp, "%19s %d %c", class, &dn, junk);
     fclose(fp);
     if (i != 2)
 	{
@@ -254,7 +256,6 @@ read_piece(char *input_file)
     {
     int status = 0;
     FILE *ifp, *ofp = 0;
-    int ofd;
     int decoding = 0;
     int got_one = 0;
     int line_no = 0;
@@ -293,8 +294,9 @@ read_piece(char *input_file)
 	if (!decoding)
 	    {
 	    char *s;
+	    int fd = -1;
 
-	    if (sscanf(line, "CTM_MAIL BEGIN %s %d %d %c",
+	    if (sscanf(line, "CTM_MAIL BEGIN %29s %d %d %c",
 		    delta, &pce, &npieces, junk) != 3)
 		continue;
 
@@ -303,16 +305,16 @@ read_piece(char *input_file)
 
 	    got_one++;
 	    strcpy(tname, piece_dir);
-	    strcat(tname, "/p.XXXXXX");
-	    if ((ofd = mkstemp(tname)) < 0)
+	    strcat(tname, "/p.XXXXXXXXXX");
+	    if ((fd = mkstemp(tname)) == -1 ||
+		(ofp = fdopen(fd, "w")) == NULL)
 		{
-		err("*mkstemp: '%s'", tname);
-		status++;
-		continue;
-		}
-	    if ((ofp = fdopen(ofd, "w")) == NULL)
-		{
-		err("cannot open '%s' for writing", tname);
+		if (fd != -1) {
+		    err("cannot open '%s' for writing", tname);
+		    close(fd);
+		    }
+		else
+		    err("*mkstemp: '%s'", tname);
 		status++;
 		continue;
 		}
@@ -493,20 +495,21 @@ int
 combine(char *delta, int npieces, char *dname, char *pname, char *tname)
     {
     FILE *dfp, *pfp;
-    int dfd;
     int i, n, e;
     char buf[BUFSIZ];
+    int fd = -1;
 
     strcpy(tname, delta_dir);
-    strcat(tname, "/d.XXXXXX");
-    if ((dfd = mkstemp(tname)) < 0)
+    strcat(tname, "/d.XXXXXXXXXX");
+    if ((fd = mkstemp(tname)) == -1 ||
+	(dfp = fdopen(fd, "w")) == NULL)
 	{
-	err("*mkstemp: '%s'", tname);
-	return 0;
-	}
-    if ((dfp = fdopen(dfd, "w")) == NULL)
-	{
-	err("cannot open '%s' for writing", tname);
+	if (fd != -1) {
+	    close(fd);
+	    err("cannot open '%s' for writing", tname);
+	    }
+	else
+	    err("*mktemp: '%s'", tname);
 	return 0;
 	}
 
