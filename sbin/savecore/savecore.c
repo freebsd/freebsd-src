@@ -261,7 +261,7 @@ kmem_setup()
 
 	kmem = Open(_PATH_KMEM, O_RDONLY);
 	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, L_SET);
-	(void)Read(kmem, &kdumplo, sizeof(dumplo));
+	(void)Read(kmem, &kdumplo, sizeof(kdumplo));
 	dumplo = kdumplo;
 	if (verbose)
 		(void)printf("dumplo = %ld (%ld * %d)\n",
