@@ -126,6 +126,7 @@ struct cu_data {
 	char			*cu_outbuf;
 	u_int			cu_recvsz;	/* recv size */
 	struct pollfd		pfdp;
+	int			cu_async;
 	char			cu_inbuf[1];
 };
 
@@ -238,6 +239,7 @@ clnt_dg_create(fd, svcaddr, program, version, sendsz, recvsz)
 	cu->cu_total.tv_usec = -1;
 	cu->cu_sendsz = sendsz;
 	cu->cu_recvsz = recvsz;
+	cu->cu_async = FALSE;
 	(void) gettimeofday(&now, NULL);
 	call_msg.rm_xid = __RPC_GETXID(&now);
 	call_msg.rm_call.cb_prog = program;
@@ -312,6 +314,7 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	socklen_t fromlen, inlen;
 	ssize_t recvlen = 0;
 	int rpc_lock_value;
+	u_int32_t xid;
 
 	sigfillset(&newmask);
 	thr_sigsetmask(SIG_SETMASK, &newmask, &mask);
@@ -336,12 +339,19 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 
 call_again:
 	xdrs = &(cu->cu_outxdrs);
+	if (cu->cu_async == TRUE && xargs == NULL)
+		goto get_reply;
 	xdrs->x_op = XDR_ENCODE;
 	XDR_SETPOS(xdrs, cu->cu_xdrpos);
 	/*
 	 * the transaction is the first thing in the out buffer
+	 * XXX Yes, and it's in network byte order, so we should to
+	 * be careful when we increment it, shouldn't we.
 	 */
-	(*(u_int32_t *)(void *)(cu->cu_outbuf))++;
+	xid = ntohl(*(u_int32_t *)(void *)(cu->cu_outbuf));
+	xid++;
+	*(u_int32_t *)(void *)(cu->cu_outbuf) = htonl(xid);
+
 	if ((! XDR_PUTINT32(xdrs, &proc)) ||
 	    (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
 	    (! (*xargs)(xdrs, argsp))) {
@@ -366,6 +376,9 @@ send_again:
 		release_fd_lock(cu->cu_fd, mask);
 		return (cu->cu_error.re_status = RPC_TIMEDOUT);
 	}
+
+get_reply:
+
 	/*
 	 * sub-optimal code appears here because we have
 	 * some clock time to spare while the packets are in flight.
@@ -495,7 +508,8 @@ send_again:
 		if (recvlen < sizeof (u_int32_t))
 			continue;
 		/* see if reply transaction id matches sent id */
-		if (*((u_int32_t *)(void *)(cu->cu_inbuf)) !=
+		if (cu->cu_async == FALSE &&
+		    *((u_int32_t *)(void *)(cu->cu_inbuf)) !=
 		    *((u_int32_t *)(void *)(cu->cu_outbuf)))
 			continue;
 		/* we now assume we have the proper reply */
@@ -722,7 +736,9 @@ clnt_dg_control(cl, request, info)
 		*(u_int32_t *)(void *)(cu->cu_outbuf + 3 * BYTES_PER_XDR_UNIT)
 			= htonl(*(u_int32_t *)(void *)info);
 		break;
-
+	case CLSET_ASYNC:
+		cu->cu_async = *(int *)(void *)info;
+		break;
 	default:
 		release_fd_lock(cu->cu_fd, mask);
 		return (FALSE);
