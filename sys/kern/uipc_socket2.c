@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -222,6 +222,12 @@ sonewconn1(head, connstatus)
 	so->so_timeo = head->so_timeo;
 	so->so_pgid = head->so_pgid;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
+
+	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0)) {
+		(void) free((caddr_t)so, M_SOCKET);
+		return ((struct socket *)0);
+	}
+
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_state |= SS_COMP;
@@ -231,17 +237,6 @@ sonewconn1(head, connstatus)
 		head->so_incqlen++;
 	}
 	head->so_qlen++;
-	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0)) {
-		if (so->so_state & SS_COMP) {
-			TAILQ_REMOVE(&head->so_comp, so, so_list);
-		} else {
-			TAILQ_REMOVE(&head->so_incomp, so, so_list);
-			head->so_incqlen--;
-		}
-		head->so_qlen--;
-		(void) free((caddr_t)so, M_SOCKET);
-		return ((struct socket *)0);
-	}
 	if (connstatus) {
 		sorwakeup(head);
 		wakeup((caddr_t)&head->so_timeo);
