@@ -271,8 +271,10 @@ _fetch_connect(const char *host, int port, int af, int verbose)
 		return (NULL);
 	}
 
-	if ((conn = _fetch_reopen(sd)) == NULL)
+	if ((conn = _fetch_reopen(sd)) == NULL) {
+		_fetch_syserr();
 		close(sd);
+	}
 	return (conn);
 }
 
