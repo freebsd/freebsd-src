@@ -446,26 +446,22 @@ bufinit(void)
  *
  *	Since this call frees up buffer space, we call bufspacewakeup().
  *
- *	Can be called with or without the vm_mtx.
+ *	Must be called without the vm_mtx.
  */
 static void
 bfreekva(struct buf * bp)
 {
 
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
 	if (bp->b_kvasize) {
-		int hadvmlock;
-
 		++buffreekvacnt;
 		bufspace -= bp->b_kvasize;
-		hadvmlock = mtx_owned(&vm_mtx);
-		if (!hadvmlock)
-			mtx_lock(&vm_mtx);
+		mtx_lock(&vm_mtx);
 		vm_map_delete(buffer_map,
 		    (vm_offset_t) bp->b_kvabase,
 		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize
 		);
-		if (!hadvmlock)
-			mtx_unlock(&vm_mtx);
+		mtx_unlock(&vm_mtx);
 		bp->b_kvasize = 0;
 		bufspacewakeup();
 	}
@@ -1335,10 +1331,9 @@ static void
 vfs_vmio_release(bp)
 	struct buf *bp;
 {
-	int i, s;
+	int i;
 	vm_page_t m;
 
-	s = splvm();
 	mtx_assert(&vm_mtx, MA_OWNED);
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -1371,7 +1366,6 @@ vfs_vmio_release(bp)
 			}
 		}
 	}
-	splx(s);
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 
 	/* could drop vm_mtx here */
@@ -1770,10 +1764,9 @@ restart:
 		if (maxsize != bp->b_kvasize) {
 			vm_offset_t addr = 0;
 
-			/* we'll hold the lock over some vm ops */
-			mtx_lock(&vm_mtx);
 			bfreekva(bp);
 
+			mtx_lock(&vm_mtx);
 			if (vm_map_findspace(buffer_map,
 				vm_map_min(buffer_map), maxsize, &addr)) {
 				/*
@@ -2006,15 +1999,15 @@ notinmem:
  *	This routine is primarily used by NFS, but is generalized for the
  *	B_VMIO case.
  *
- *	Can be called with or without vm_mtx
+ *	Must be called with vm_mtx
  */
 static void
 vfs_setdirty(struct buf *bp) 
 {
 	int i;
-	int hadvmlock;
 	vm_object_t object;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Degenerate case - empty buffer
 	 */
@@ -2030,10 +2023,6 @@ vfs_setdirty(struct buf *bp)
 
 	if ((bp->b_flags & B_VMIO) == 0)
 		return;
-
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
 
 	object = bp->b_pages[0]->object;
 
@@ -2092,8 +2081,6 @@ vfs_setdirty(struct buf *bp)
 				bp->b_dirtyend = eoffset;
 		}
 	}
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -3198,7 +3185,7 @@ vfs_bio_clrbuf(struct buf *bp) {
 }
 
 /*
- * vm_hold_load_pages and vm_hold_unload pages get pages into
+ * vm_hold_load_pages and vm_hold_free_pages get pages into
  * a buffers address space.  The pages are anonymous and are
  * not associated with a file object.
  *
@@ -3251,15 +3238,13 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	vm_offset_t pg;
 	vm_page_t p;
 	int index, newnpages;
-	int hadvmlock;
 
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
 	from = round_page(from);
 	to = round_page(to);
 	newnpages = index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
+	mtx_lock(&vm_mtx);
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
 		if (p && (index < bp->b_npages)) {
@@ -3275,8 +3260,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 		}
 	}
 	bp->b_npages = newnpages;
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
+	mtx_unlock(&vm_mtx);
 }
 
 
