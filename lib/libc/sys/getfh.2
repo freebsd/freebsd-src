@@ -36,7 +36,8 @@
 .Dt GETFH 2
 .Os
 .Sh NAME
-.Nm getfh
+.Nm getfh ,
+.Nm lgetfh
 .Nd get file handle
 .Sh LIBRARY
 .Lb libc
@@ -45,6 +46,8 @@
 .In sys/mount.h
 .Ft int
 .Fn getfh "const char *path" "fhandle_t *fhp"
+.Ft int
+.Fn lgetfh "const char *path" "fhandle_t *fhp"
 .Sh DESCRIPTION
 The
 .Fn getfh
@@ -52,14 +55,27 @@ system call
 returns a file handle for the specified file or directory
 in the file handle pointed to by
 .Fa fhp .
-This system call is restricted to the superuser.
+The
+.Fn lgetfh
+system call is like
+.Fn getfh
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lgetfh
+returns information about the link,
+while
+.Fn getfh
+returns information about the file the link references.
+These system calls are restricted to the superuser.
 .Sh RETURN VALUES
-.Rv -std getfh
+.Rv -std
 .Sh ERRORS
 The
 .Fn getfh
-system call
-fails if one or more of the following are true:
+and
+.Fn lgetfgh
+system calls
+fail if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix of

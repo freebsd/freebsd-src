@@ -104,6 +104,7 @@ MLINKS+=extattr_get_file.2 extattr_set_file.2 \
 	extattr_get_file.2 extattr.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
 MLINKS+=getdirentries.2 getdents.2
+MLINKS+=getfh.2 lgetfh.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
 MLINKS+=getlogin.2 getlogin_r.3
