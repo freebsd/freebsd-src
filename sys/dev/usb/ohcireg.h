@@ -143,6 +143,7 @@ struct ohci_hcca {
 
 #define OHCI_PAGE_SIZE 0x1000
 #define OHCI_PAGE(x) ((x) &~ 0xfff)
+#define OHCI_PAGE_MASK(x) ((x) & 0xfff)
 
 typedef struct {
 	u_int32_t	ed_flags;

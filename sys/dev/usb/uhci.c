@@ -368,9 +368,9 @@ uhci_init(sc)
 		  UHCI_FRAMELIST_ALIGN, &sc->sc_dma);
 	if (err)
 		return (err);
-	sc->sc_pframes = KERNADDR(&sc->sc_dma);
+	sc->sc_pframes = KERNADDR(&sc->sc_dma, 0);
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
-	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&sc->sc_dma)); /* set frame list*/
+	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&sc->sc_dma, 0)); /* set frame list*/
 
 	/* Allocate the dummy QH where bulk traffic will be queued. */
 	bsqh = uhci_alloc_sqh(sc);
@@ -761,7 +761,7 @@ uhci_timo(addr)
 
 	usb_timeout(uhci_timo, xfer, sc->sc_ival, xfer->timo_handle);
 
-	p = KERNADDR(&xfer->dmabuf);
+	p = KERNADDR(&xfer->dmabuf, 0);
 	p[0] = 0;
 	if (UREAD2(sc, UHCI_PORTSC1) & (UHCI_PORTSC_CSC|UHCI_PORTSC_OCIC))
 		p[0] |= 1<<1;
@@ -1345,8 +1345,8 @@ uhci_alloc_std(sc)
 			return (0);
 		for(i = 0; i < UHCI_STD_CHUNK; i++) {
 			offs = i * UHCI_STD_SIZE;
-			std = (uhci_soft_td_t *)((char *)KERNADDR(&dma) +offs);
-			std->physaddr = DMAADDR(&dma) + offs;
+			std = (uhci_soft_td_t *)((char *)KERNADDR(&dma, offs));
+			std->physaddr = DMAADDR(&dma, offs);
 			std->link.std = sc->sc_freetds;
 			sc->sc_freetds = std;
 		}
@@ -1391,8 +1391,8 @@ uhci_alloc_sqh(sc)
 			return (0);
 		for(i = 0; i < UHCI_SQH_CHUNK; i++) {
 			offs = i * UHCI_SQH_SIZE;
-			sqh = (uhci_soft_qh_t *)((char *)KERNADDR(&dma) +offs);
-			sqh->physaddr = DMAADDR(&dma) + offs;
+			sqh = (uhci_soft_qh_t *)((char *)KERNADDR(&dma, offs));
+			sqh->physaddr = DMAADDR(&dma, offs);
 			sqh->hlink = sc->sc_freeqhs;
 			sc->sc_freeqhs = sqh;
 		}
@@ -1512,7 +1512,7 @@ uhci_alloc_std_chain(upipe, sc, len, rd, flags, dma, sp, ep)
 		p->td.td_token = 
 		    LE(rd ? UHCI_TD_IN (l, endpt, addr, tog) :
 			    UHCI_TD_OUT(l, endpt, addr, tog));
-		p->td.td_buffer = LE(DMAADDR(dma) + i * maxp);
+		p->td.td_buffer = LE(DMAADDR(dma, i * maxp));
 		tog ^= 1;
 	}
 	*sp = lastp;
@@ -1957,13 +1957,13 @@ uhci_device_request(xfer)
 	}
 	upipe->u.ctl.length = len;
 
-	memcpy(KERNADDR(&upipe->u.ctl.reqdma), req, sizeof *req);
+	memcpy(KERNADDR(&upipe->u.ctl.reqdma, 0), req, sizeof *req);
 
 	setup->link.std = next;
 	setup->td.td_link = LE(next->physaddr | UHCI_PTR_VF);
 	setup->td.td_status = LE(UHCI_TD_SET_ERRCNT(3) | ls | UHCI_TD_ACTIVE);
 	setup->td.td_token = LE(UHCI_TD_SETUP(sizeof *req, endpt, addr));
-	setup->td.td_buffer = LE(DMAADDR(&upipe->u.ctl.reqdma));
+	setup->td.td_buffer = LE(DMAADDR(&upipe->u.ctl.reqdma, 0));
 
 	stat->link.std = 0;
 	stat->td.td_link = LE(UHCI_PTR_T);
@@ -2101,7 +2101,7 @@ uhci_device_isoc_enter(xfer)
 	xfer->status = USBD_IN_PROGRESS;
 	xfer->hcprivint = next;
 
-	buf = DMAADDR(&xfer->dmabuf);
+	buf = DMAADDR(&xfer->dmabuf, 0);
 	status = LE(UHCI_TD_ZERO_ACTLEN(UHCI_TD_SET_ERRCNT(0) |
 					UHCI_TD_ACTIVE |
 					UHCI_TD_IOS));
@@ -2745,7 +2745,7 @@ uhci_root_ctrl_start(xfer)
 	index = UGETW(req->wIndex);
 
 	if (len != 0)
-		buf = KERNADDR(&xfer->dmabuf);
+		buf = KERNADDR(&xfer->dmabuf, 0);
 
 #define C(x,y) ((x) | ((y) << 8))
 	switch(C(req->bRequest, req->bmRequestType)) {
