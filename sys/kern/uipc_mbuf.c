@@ -103,9 +103,9 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
 	   "Maximum number of ext_buf counters available");
 
-TUNABLE_INT("kern.ipc.nmbclusters", nmbclusters);
-TUNABLE_INT("kern.ipc.nmbufs", nmbufs);
-TUNABLE_INT("kern.ipc.nmbcnt", nmbcnt);
+TUNABLE_INT("kern.ipc.nmbclusters", &nmbclusters);
+TUNABLE_INT("kern.ipc.nmbufs", &nmbufs);
+TUNABLE_INT("kern.ipc.nmbcnt", &nmbcnt);
 
 static void	m_reclaim(void);
 
