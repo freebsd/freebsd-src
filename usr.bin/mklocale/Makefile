@@ -5,7 +5,7 @@ SRCS=	yacc.c lex.c
 CFLAGS+=-I.
 CLEANFILES+=y.tab.h yacc.c lex.c
 MAN1=	mklocale.1
-LOCALES=        ja_JP.EUC ru_SU.KOI8-R lt_LN.ISO8859-1 ru_SU.CP866
+LOCALES=        ja_JP.EUC ru_SU.KOI8-R lt_LN.ISO_8859-1 ru_SU.CP866
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 afterinstall:
