@@ -49,6 +49,8 @@ CPU_DISABLE_5X86_LSSER		opt_cpu.h
 CPU_DISABLE_CMPXCHG		opt_global.h	# XXX global, unlike other CPU_*
 CPU_DISABLE_SSE			opt_cpu.h
 CPU_ELAN			opt_cpu.h
+CPU_ELAN_XTAL			opt_cpu.h
+CPU_ELAN_PPS			opt_cpu.h
 CPU_ENABLE_SSE			opt_cpu.h
 CPU_FASTER_5X86_FPU		opt_cpu.h
 CPU_GEODE			opt_cpu.h
@@ -64,8 +66,6 @@ CPU_UPGRADE_HW_CACHE		opt_cpu.h
 CPU_WT_ALLOC			opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
 CYRIX_CACHE_WORKS		opt_cpu.h
-ELAN_PPS			opt_cpu.h	# XXX should be named CPU_*
-ELAN_XTAL			opt_cpu.h	# XXX should be named CPU_*
 NO_F00F_HACK			opt_cpu.h
 NO_MEMORY_HOLE			opt_cpu.h
 
