@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.23 1994/11/18 05:02:14 phk Exp $
+ *	$Id: boot.c,v 1.24 1994/11/18 06:22:11 phk Exp $
  */
 
 
@@ -82,7 +82,8 @@ int drive;
 		memsize(0),
 		memsize(1));
 	printf("Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n");
-	printf("Usage: [[[%s(0,a)]%s][-s][-r][-a][-c][-d][-b]]\nUse ? for file list.\n\n"
+	printf("Usage: [[[%s(0,a)]%s][-s][-r][-a][-c][-d][-b]]\n");
+	printf("Use ? for file list, or simply press Return for default\n");
 			, devs[(drive & 0x80) ? 0 : 2]
 			, names[0]);
 	gateA20();
