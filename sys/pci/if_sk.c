@@ -224,9 +224,11 @@ static int sk_marv_miibus_writereg	(struct sk_if_softc *, int, int,
 						int);
 static void sk_marv_miibus_statchg	(struct sk_if_softc *);
 
-static u_int32_t sk_mchash	(caddr_t);
+static uint32_t sk_xmchash	(const uint8_t *);
+static uint32_t sk_gmchash	(const uint8_t *);
 static void sk_setfilt		(struct sk_if_softc *, caddr_t, int);
 static void sk_setmulti		(struct sk_if_softc *);
+static void sk_setpromisc	(struct sk_if_softc *);
 
 #ifdef SK_USEIOSPACE
 #define SK_RES		SYS_RES_IOPORT
@@ -709,26 +711,65 @@ sk_marv_miibus_statchg(sc_if)
 	return;
 }
 
-#define SK_POLY		0xEDB88320
-#define SK_BITS		6
+#define XMAC_POLY		0xEDB88320
+#define GMAC_POLY		0x04C11DB7L
+#define HASH_BITS		6
 
 static u_int32_t
-sk_mchash(addr)
-	caddr_t		addr;
+sk_xmchash(addr)
+	const uint8_t *addr;
 {
-	u_int32_t	crc;
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
 	for (idx = 0; idx < 6; idx++) {
 		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
-			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? SK_POLY : 0);
+			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? XMAC_POLY : 0);
 	}
 
-	return (~crc & ((1 << SK_BITS) - 1));
+	return (~crc & ((1 << HASH_BITS) - 1));
+}
+
+static u_int32_t
+sk_gmchash(addr)
+	const uint8_t *addr;
+{
+	u_int32_t crc;
+	uint idx, bit;
+	uint8_t tmpData, data;
+
+	/* Compute CRC for the address value. */
+	crc = 0xFFFFFFFF; /* initial value */
+
+	for (idx = 0; idx < 6; idx++) {
+		data = *addr++;
+
+		/* Change bit order in byte. */
+		tmpData = data;
+		for (bit = 0; bit < 8; bit++) {
+			if (tmpData & 1) {
+				data |=  1 << (7 - bit);
+			} else {
+				data &= ~(1 << (7 - bit));
+			}
+			tmpData >>= 1;
+		}
+
+		crc ^= (data << 24);
+		for (bit = 0; bit < 8; bit++) {
+			if (crc & 0x80000000) {
+				crc = (crc << 1) ^ GMAC_POLY;
+			} else {
+				crc <<= 1;
+			}
+		}
+	}
+
+	return (crc & ((1 << HASH_BITS) - 1));
 }
 
 static void
@@ -755,7 +796,7 @@ sk_setmulti(sc_if)
 	struct sk_softc		*sc = sc_if->sk_softc;
 	struct ifnet		*ifp = &sc_if->arpcom.ac_if;
 	u_int32_t		hashes[2] = { 0, 0 };
-	int			h, i;
+	int			h = 0, i;
 	struct ifmultiaddr	*ifma;
 	u_int8_t		dummy[] = { 0, 0, 0, 0, 0 ,0 };
 
@@ -798,8 +839,16 @@ sk_setmulti(sc_if)
 				continue;
 			}
 
-			h = sk_mchash(
-				LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+			switch(sc->sk_type) {
+			case SK_GENESIS:
+				h = sk_xmchash(
+					LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+				break;
+			case SK_YUKON:
+				h = sk_gmchash(
+					LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+				break;
+			}
 			if (h < 32)
 				hashes[0] |= (1 << h);
 			else
@@ -819,6 +868,35 @@ sk_setmulti(sc_if)
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH2, (hashes[0] >> 16) & 0xffff);
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH3, hashes[1] & 0xffff);
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH4, (hashes[1] >> 16) & 0xffff);
+		break;
+	}
+
+	return;
+}
+
+static void
+sk_setpromisc(sc_if)
+	struct sk_if_softc	*sc_if;
+{
+	struct sk_softc		*sc = sc_if->sk_softc;
+	struct ifnet		*ifp = &sc_if->arpcom.ac_if;
+
+	switch(sc->sk_type) {
+	case SK_GENESIS:
+		if (ifp->if_flags & IFF_PROMISC) {
+			SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_PROMISC);
+		} else {
+			SK_XM_CLRBIT_4(sc_if, XM_MODE, XM_MODE_RX_PROMISC);
+		}
+		break;
+	case SK_YUKON:
+		if (ifp->if_flags & IFF_PROMISC) {
+			SK_YU_CLRBIT_2(sc_if, YUKON_RCR,
+			    YU_RCR_UFLEN | YU_RCR_MUFLEN);
+		} else {
+			SK_YU_SETBIT_2(sc_if, YUKON_RCR,
+			    YU_RCR_UFLEN | YU_RCR_MUFLEN);
+		}
 		break;
 	}
 
@@ -1107,7 +1185,6 @@ sk_ioctl(ifp, command, data)
 	caddr_t			data;
 {
 	struct sk_if_softc	*sc_if = ifp->if_softc;
-	struct sk_softc		*sc = sc_if->sk_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			error = 0;
 	struct mii_data		*mii;
@@ -1125,34 +1202,12 @@ sk_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_flags & IFF_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc_if->sk_if_flags & IFF_PROMISC)) {
-				switch(sc->sk_type) {
-				case SK_GENESIS:
-					SK_XM_SETBIT_4(sc_if, XM_MODE,
-					    XM_MODE_RX_PROMISC);
-					break;
-				case SK_YUKON:
-					SK_YU_CLRBIT_2(sc_if, YUKON_RCR,
-					    YU_RCR_UFLEN | YU_RCR_MUFLEN);
-					break;
+			if (ifp->if_flags & IFF_RUNNING) {
+				if ((ifp->if_flags ^ sc_if->sk_if_flags)
+				    & IFF_PROMISC) {
+					sk_setpromisc(sc_if);
+					sk_setmulti(sc_if);
 				}
-				sk_setmulti(sc_if);
-			} else if (ifp->if_flags & IFF_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc_if->sk_if_flags & IFF_PROMISC) {
-				switch(sc->sk_type) {
-				case SK_GENESIS:
-					SK_XM_CLRBIT_4(sc_if, XM_MODE,
-					    XM_MODE_RX_PROMISC);
-					break;
-				case SK_YUKON:
-					SK_YU_SETBIT_2(sc_if, YUKON_RCR,
-					    YU_RCR_UFLEN | YU_RCR_MUFLEN);
-					break;
-				}
-				sk_setmulti(sc_if);
 			} else
 				sk_init(sc_if);
 		} else {
@@ -2258,12 +2313,6 @@ sk_init_xmac(sc_if)
 	    *(u_int16_t *)(&sc_if->arpcom.ac_enaddr[4]));
 	SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_USE_STATION);
 
-	if (ifp->if_flags & IFF_PROMISC) {
-		SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_PROMISC);
-	} else {
-		SK_XM_CLRBIT_4(sc_if, XM_MODE, XM_MODE_RX_PROMISC);
-	}
-
 	if (ifp->if_flags & IFF_BROADCAST) {
 		SK_XM_CLRBIT_4(sc_if, XM_MODE, XM_MODE_RX_NOBROAD);
 	} else {
@@ -2304,6 +2353,9 @@ sk_init_xmac(sc_if)
 	 * underruns when we're blasting traffic from both ports at once.
 	 */
 	SK_XM_WRITE_2(sc_if, XM_TX_REQTHRESH, SK_XM_TX_FIFOTHRESH);
+
+	/* Set promiscuous mode */
+	sk_setpromisc(sc_if);
 
 	/* Set multicast filter */
 	sk_setmulti(sc_if);
@@ -2400,8 +2452,7 @@ static void sk_init_yukon(sc_if)
 	SK_YU_WRITE_2(sc_if, YUKON_PAR, reg);
 
 	/* receive control reg */
-	SK_YU_WRITE_2(sc_if, YUKON_RCR, YU_RCR_UFLEN | YU_RCR_MUFLEN |
-		      YU_RCR_CRCR);
+	SK_YU_WRITE_2(sc_if, YUKON_RCR, YU_RCR_CRCR);
 
 	/* transmit parameter register */
 	SK_YU_WRITE_2(sc_if, YUKON_TPR, YU_TPR_JAM_LEN(0x3) |
@@ -2425,11 +2476,11 @@ static void sk_init_yukon(sc_if)
 		SK_YU_WRITE_2(sc_if, YUKON_SAL2 + i * 4, reg);
 	}
 
-	/* clear all Multicast filter hash registers */
-	SK_YU_WRITE_2(sc_if, YUKON_MCAH1, 0);
-	SK_YU_WRITE_2(sc_if, YUKON_MCAH2, 0);
-	SK_YU_WRITE_2(sc_if, YUKON_MCAH3, 0);
-	SK_YU_WRITE_2(sc_if, YUKON_MCAH4, 0);
+	/* Set promiscuous mode */
+	sk_setpromisc(sc_if);
+
+	/* Set multicast filter */
+	sk_setmulti(sc_if);
 
 	/* enable interrupt mask for counter overflows */
 	SK_YU_WRITE_2(sc_if, YUKON_TIMR, 0);
