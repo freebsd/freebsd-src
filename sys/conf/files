@@ -613,7 +613,6 @@ pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
 pci/pci_compat.c	optional pci
 pci/pcisupport.c	optional pci
-pci/wdc_p.c		optional wdc device-driver
 pci/simos.c		optional simos device-driver
 pci/alpm.c		optional alpm	device-driver
 pci/xrpu.c		optional xrpu device-driver
