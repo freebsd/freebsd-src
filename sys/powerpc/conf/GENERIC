@@ -75,6 +75,13 @@ device		atapicd		# ATAPI CDROM drives
 #device		atapifd		# ATAPI floppy drives
 #device		atapist		# ATAPI tape drives
 
+# SCSI peripherals
+device		scbus		# SCSI bus (required)
+device		da		# Direct Access (disks)
+device		sa		# Sequential Access (tape etc)
+device		cd		# CD
+device		pass		# Passthrough device (direct SCSI access)
+
 # Serial (COM) ports
 #device		sio		# 8250, 16[45]50 based serial ports
 device		zs		# Zilog 8350 based serial ports
