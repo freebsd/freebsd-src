@@ -1,11 +1,11 @@
-# @(#)northamerica	7.26
+# @(#)northamerica	7.28
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (August 17, 1994):
+# From Paul Eggert <eggert@twinsun.com> (1994-08-17):
 # A reliable and entertaining source about time zones is
 # Derek Howse, Greenwich time and the discovery of the longitude,
 # Oxford University Press (1980).
@@ -41,8 +41,8 @@
 
 # From Arthur David Olson:
 # US Daylight Saving Time ended on the last Sunday of *October* in 1974.
-# See, for example, the front page of the Saturday, October 26, 1974
-# and Sunday, October 27, 1974 editions of the Washington Post.
+# See, for example, the front page of the Saturday, 1974-10-26
+# and Sunday, 1974-10-27 editions of the Washington Post.
 
 # From Arthur David Olson:
 # Before the Uniform Time Act of 1966 took effect in 1967, observance of
@@ -60,7 +60,7 @@ Rule	US	1975	only	-	Feb	23	2:00	1:00	D
 Rule	US	1976	1986	-	Apr	lastSun	2:00	1:00	D
 Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # ...Alaska (and Hawaii) had the timezone names changed in 1967.
 #    old			 new
 #    Pacific Standard Time(PST)  -same-
@@ -76,7 +76,7 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # The tables below use `NST', not `NT', for Nome Standard Time.
 # I invented `CAWT' for Central Alaska War Time.
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # USA  EASTERN       5 H  BEHIND UTC    NEW YORK, WASHINGTON
 # USA  EASTERN       4 H  BEHIND UTC    APR 3 - OCT 30
 # USA  CENTRAL       6 H  BEHIND UTC    CHICAGO, HOUSTON
@@ -92,16 +92,16 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # USA  HAWAII       10 H  BEHIND UTC
 # USA  BERING       11 H  BEHIND UTC    SAMOA, MIDWAY
 
-# From Arthur David Olson (January 21, 1989):
+# From Arthur David Olson (1989-01-21):
 # The above dates are for 1988.
 # Note the "AKST" and "AKDT" abbreviations, the claim that there's
 # no DST in Samoa, and the claim that there is DST in Alaska and the
 # Aleutians.
 
-# From Arthur David Olson (February 13, 1988):
+# From Arthur David Olson (1988-02-13):
 # Legal standard time zone names, from United States Code (1982 Edition and
 # Supplement III), Title 15, Chapter 6, Section 260 and forward.  First, names
-# up to April 1, 1967 (when most provisions of the Uniform Time Act of 1966
+# up to 1967-04-01 (when most provisions of the Uniform Time Act of 1966
 # took effect), as explained in sections 263 and 261:
 #	(none)
 #	United States standard eastern time
@@ -111,7 +111,7 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 #	(none)
 #	United States standard Alaska time
 #	(none)
-# Next, names from April 1, 1967 until November 30, 1983 (the date for
+# Next, names from 1967-04-01 until 1983-11-30 (the date for
 # public law 98-181):
 #	Atlantic standard time
 #	eastern standard time
@@ -121,7 +121,7 @@ Rule	US	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 #	Yukon standard time
 #	Alaska-Hawaii standard time
 #	Bering standard time
-# And after November 30, 1983:
+# And after 1983-11-30:
 #	Atlantic standard time
 #	eastern standard time
 #	central standard time
@@ -150,7 +150,6 @@ Zone America/New_York	-4:56:02 -	LMT	1883 Nov 18 12:00
 			-5:00	US	E%sT	1946
 			-5:00	NYC	E%sT	1967
 			-5:00	US	E%sT
-# ZONE-DESCR America New_York United_States Eastern time (except IN, KY, MI)
 
 # US Central time, represented by Chicago
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
@@ -169,7 +168,6 @@ Zone America/Chicago	-5:50:36 -	LMT	1883 Nov 18 12:00
 			-6:00	US	C%sT	1946
 			-6:00	Chicago	C%sT	1967
 			-6:00	US	C%sT
-# ZONE-DESCR America Chicago United_States Central time
 
 # US Mountain time, represented by Denver
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
@@ -185,7 +183,6 @@ Zone America/Denver	-6:59:56 -	LMT	1883 Nov 18 12:00
 			-7:00	US	M%sT	1946
 			-7:00	Denver	M%sT	1967
 			-7:00	US	M%sT
-# ZONE-DESCR America Denver United_States Mountain time (except Arizona)
 
 # US Pacific time, represented by Los Angeles
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
@@ -199,16 +196,15 @@ Zone America/Los_Angeles -7:52:58 -	LMT	1883 Nov 18 12:00
 			-8:00	US	P%sT	1946
 			-8:00	CA	P%sT	1967
 			-8:00	US	P%sT
-# ZONE-DESCR America Los_Angeles United_States Pacific time
 
 # Alaska
 # AK%sT is the modern abbreviation for -9:00 per USNO.
 #
 # From Paul Eggert (1995-12-19):
 # Howse writes that Alaska switched from the Julian to the Gregorian calendar,
-# and from east-of-GMT to west-of-GMT days, in 1867 when the US purchased it
-# from Russia.  We omit this transition, since we can't represent changes
-# from Julian to Gregorian.
+# and from east-of-GMT to west-of-GMT days, when the US bought it from Russia.
+# This was on 1867-10-18.  We omit this transition, since we can't represent
+# changes from Julian to Gregorian.
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Juneau	 -8:57:41 -	LMT	1900 Aug 20 12:00
@@ -249,12 +245,6 @@ Zone America/Adak	-11:46:38 -	LMT	1900 Aug 20 12:00
 # and another part (e.g. Akiak) made the same switch five weeks later.
 # These switches don't quite make our 1970 cutoff.
 
-# ZONE-DESCR America Juneau United_States Alaska: Juneau
-# ZONE-DESCR America Yakutat United_States Alaska: Yakutat
-# ZONE-DESCR America Anchorage United_States Alaska: Anchorage
-# ZONE-DESCR America Nome United_States Alaska: Nome
-# ZONE-DESCR America Adak United_States Alaska: Aleutian Islands
-
 # Hawaii
 #
 # From Arthur David Olson:
@@ -277,9 +267,6 @@ Zone Pacific/Midway	-11:49:28 -	LMT	1901
 			-11:00	-	BST	1983 Nov 30	# B=Bering
 			-11:00	-	SST			# S=Samoa
 
-# ZONE-DESCR Pacific Honolulu United_States Hawaii
-# ZONE-DESCR Pacific Midway United_States Midway Island
-
 # Now we turn to US areas that have diverged from the consensus since 1970.
 
 # Arizona mostly uses MST.
@@ -290,10 +277,7 @@ Zone America/Phoenix	-7:28:18 -	LMT	1883 Nov 18 12:00
 			-7:00	-	MST	1967
 			-7:00	US	M%sT	1968
 			-7:00	-	MST
-
-# ZONE-DESCR America Phoenix United_States Arizona (except Navajo Nation)
-
-# From Arthur David Olson (February 13, 1988):
+# From Arthur David Olson (1988-02-13):
 # A writer from the Inter Tribal Council of Arizona, Inc.,
 # notes in private correspondence dated 12/28/87 that "Presently, only the
 # Navajo Nation participates in the Daylight Saving Time policy, due to its
@@ -309,8 +293,6 @@ Zone America/Boise	-7:44:49 -	LMT	1883 Nov 18 12:00
 			-7:00	US	M%sT	1974
 			-7:00	-	MST	1974 Feb  3 2:00
 			-7:00	US	M%sT
-
-# ZONE-DESCR America Boise United_States Southern Idaho and Eastern Oregon
 
 # Indiana
 #
@@ -349,9 +331,6 @@ Zone America/Indianapolis -5:44:38 - LMT 1883 Nov 18 12:00
 			-5:00	US	E%sT	1971
 			-5:00	-	EST
 Link America/Indianapolis America/Indiana/Indianapolis
-
-# ZONE-DESCR America Indianapolis United_States Indiana: Indianapolis
-
 #
 # Part of Crawford County, Indiana, last observed DST in 1975,
 # and left its clocks alone in 1974.
@@ -369,17 +348,12 @@ Zone America/Indiana/Marengo -5:45:23 -	LMT	1883 Nov 18 12:00
 			-6:00	1:00	CDT	1974 Oct 27 2:00
 			-5:00	US	E%sT	1976
 			-5:00	-	EST
-
-# sorry, tzsetup needs two-level names
-Link America/Indiana/Marengo America/Marengo_IN
-# ZONE-DESCR America Marengo_IN United_States Indiana: Crawford County
-
 #
 # Starke County, Indiana
-# From Arthur David Olson (October 28, 1991):
-# An article on page A3 of the Sunday, October 27, 1991 Washington Post
+# From Arthur David Olson (1991-10-28):
+# An article on page A3 of the Sunday, 1991-10-27 Washington Post
 # notes that Starke County switched from Central time to Eastern time as of
-# October 27, 1991.
+# 1991-10-27.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
 Rule	Starke	1947	1961	-	Apr	lastSun	2:00	1:00	D
 Rule	Starke	1947	1954	-	Sep	lastSun	2:00	0	S
@@ -393,10 +367,6 @@ Zone America/Indiana/Knox -5:46:30 -	LMT	1883 Nov 18 12:00
 			-5:00	-	EST	1963 Oct 27 2:00
 			-6:00	US	C%sT	1991 Oct 27 2:00
 			-5:00	-	EST
-
-Link America/Indiana/Knox America/Knox_IN
-# ZONE-DESCR America Knox_IN United_States Indiana: Starke County
-
 #
 # Switzerland County, Indiana, last observed DST in 1972.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -405,9 +375,6 @@ Zone America/Indiana/Vevay -5:40:16 -	LMT	1883 Nov 18 12:00
 			-5:00	-	EST	1969
 			-5:00	US	E%sT	1973
 			-5:00	-	EST
-
-Link America/Indiana/Vevay America/Vevay_IN
-# ZONE-DESCR America Vevay_IN United_States Indiana: Switzerland County
 
 # Part of Kentucky left its clocks alone in 1974.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
@@ -429,11 +396,9 @@ Zone America/Louisville	-5:43:02 -	LMT	1883 Nov 18 12:00
 			-6:00	1:00	CDT	1974 Oct 27 2:00
 			-5:00	US	E%sT
 
-# ZONE-DESCR America Louisville United_States Kentucky: Louisville area
-
 # Michigan
 #
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # Michigan didn't observe DST from 1968 to 1973.
 #
 # From Paul Eggert (1995-12-19):
@@ -465,9 +430,6 @@ Zone America/Detroit	-5:32:11 -	LMT	1905
 			-5:00	US	E%sT	1975
 			-5:00	-	EST	1975 Apr 27 2:00
 			-5:00	US	E%sT
-
-# ZONE-DESCR America Detroit United_States Michigan: Mainland
-
 #
 # The Michigan border with Wisconsin switched from EST to CST/CDT in 1973.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER
@@ -482,18 +444,25 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 			-5:00	-	EST	1973 Apr 29 2:00
 			-6:00	US	C%sT
 
-# ZONE-DESCR America Menominee United_States Michigan: Upper Peninsula
-
 # Navassa
 # uninhabited
 
-# Navassa
-# no information; probably like US/Eastern
+
+# Old names, for S5 users
+
+# Link	LINK-FROM		LINK-TO
+Link	America/New_York	EST5EDT
+Link	America/Chicago		CST6CDT
+Link	America/Denver		MST7MDT
+Link	America/Los_Angeles	PST8PDT
+Link	America/Indianapolis	EST
+Link	America/Phoenix		MST
+Link	Pacific/Honolulu	HST
 
 ################################################################################
 
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # A good source for time zone historical data outside the US is
 # Thomas G. Shanks, The International Atlas (3rd edition),
 # San Diego: ACS Publications, Inc. (1991).
@@ -503,12 +472,9 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 # Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
 # I found in the UCLA library.
 #
-# I invented the abbreviation SPST for St Pierre Standard Time; SPDT likewise.
-# Corrections are welcome!
-#
 # See the `europe' file for Greenland.
 #
-# See the `africa' file for Zone naming conventions.
+# See the `africa' file for time zone naming and abbreviation conventions.
 
 # Canada
 
@@ -597,7 +563,6 @@ Zone America/St_Johns	-3:30:52 -	LMT	1884
 			-3:31	StJohns	N%sT	1935 Mar 30
 			-3:30	StJohns	N%sT
 
-# ZONE-DESCR America St_Johns Canada Newfoundland
 
 # Labrador, New Brunswick, Nova Scotia, Prince Edward I
 
@@ -658,8 +623,6 @@ Zone America/Glace_Bay	-3:59:48 -	LMT	1902 Jun 15
 			-4:00	-	AST	1972
 			-4:00	Halifax	A%sT
 
-# ZONE-DESCR America Halifax Canada Atlantic time
-# ZONE-DESCR America Glace_Bay Canada Glace Bay, N.S.
 
 # Ontario, Quebec
 
@@ -712,12 +675,9 @@ Zone America/Nipigon	-5:53:04 -	LMT	1895
 Zone America/Rainy_River -6:17:56 -	LMT	1895
 			-6:00	Canada	C%sT
 
-# ZONE-DESCR America Montreal Canada Eastern time
-# ZONE-DESCR America Thunder_Bay Canada Thunder Bay, Ont.
-# ZONE-DESCR America Nipigon Canada Nipigon, Ont.
-# ZONE-DESCR America Rainy_River Canada Rainy River, Ont.
 
 # Manitoba
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Winn	1916	only	-	Apr	23	0:00	1:00	D
 Rule	Winn	1916	only	-	Sep	17	0:00	0	S
@@ -746,7 +706,6 @@ Rule	Winn	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 			-6:00	Winn	C%sT
 
-# ZONE-DESCR America Winnipeg Canada Manitoba
 
 # Saskatchewan
 
@@ -755,7 +714,7 @@ Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 # Some western towns (e.g. Swift Current) switched from MST/MDT to CST in 1972.
 # Other western towns (e.g. Lloydminster) are like Edmonton.
 
-# From W. Jones <jones@skdad.usask.ca> (November 6, 1992):
+# From W. Jones <jones@skdad.usask.ca> (1992-11-06):
 # The. . .below is based on information I got from our law library, the
 # provincial archives, and the provincial Community Services department.
 # A precise history would require digging through newspaper archives, and
@@ -813,8 +772,6 @@ Zone America/Swift_Current -7:11:20 -	LMT	1905 Sep
 			-7:00	Swift	M%sT	1972 Apr lastSun 2:00
 			-6:00	-	CST
 
-# ZONE-DESCR America Regina Canada Saskatchewan (except Swift Current)
-# ZONE-DESCR America Swift_Current Canada Swift current, Sask.
 
 # Alberta
 
@@ -840,7 +797,6 @@ Rule	Edm	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 Zone America/Edmonton	-7:33:52 -	LMT	1906 Sep
 			-7:00	Edm	M%sT
 
-# ZONE-DESCR America Edmonton Canada Alberta
 
 # British Columbia
 
@@ -866,8 +822,6 @@ Zone America/Dawson_Creek -8:00:56 -	LMT	1884
 			-8:00	Vanc	P%sT	1972 Aug 30 2:00
 			-7:00	-	MST
 
-# ZONE-DESCR America Vancouver Canada British Columbia (except Dawson Creek)
-# ZONE-DESCR America Dawson_Creek Canada Dawson creek, B.C.
 
 # Northwest Territories, Yukon
 
@@ -882,7 +836,6 @@ Rule	NT_YK	1919	only	-	May	25	2:00	1:00	D
 Rule	NT_YK	1919	only	-	Nov	 1	0:00	0	S
 Rule	NT_YK	1942	only	-	Feb	 9	2:00	1:00	D
 Rule	NT_YK	1945	only	-	Sep	30	2:00	0	S
-#							0:00 ??
 Rule	NT_YK	1965	only	-	Apr	lastSun	0:00	2:00	DD
 Rule	NT_YK	1965	only	-	Oct	lastSun	2:00	0	S
 Rule	NT_YK	1980	1986	-	Apr	lastSun	2:00	1:00	D
@@ -907,14 +860,6 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 			-9:00	NT_YK	Y%sT	1973 Oct lastSun 2:00
 			-8:00	NT_YK	P%sT
 
-# XXX - can somebody put territory names to all of these
-# ZONE-DESCR America Whitehorse Canada Whitehorse
-# ZONE-DESCR America Dawson Canada Dawson
-# ZONE-DESCR America Pangnirtung Canada Pangnirtung
-# ZONE-DESCR America Iqaluit Canada Iqaluit
-# ZONE-DESCR America Rankin_Inlet Canada Rankin_Inlet
-# ZONE-DESCR America Yellowknife Canada Yellowknife
-# ZONE-DESCR America Inuvik Canada Inuvik
 
 ###############################################################################
 
@@ -928,7 +873,7 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # as listed there; [there is also] "Baja California Sur and N. Pacific
 # Coast (States of Sinaloa and Sonora)."
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # The Federal District (where Mexico City is) has observed [DST] several
 # times but not recently.
 #
@@ -939,11 +884,11 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # The dates of DST probably go back to 1981.  The rules are the same as
 # US's.  This is going to be a headache for US presidential electi[o]n years!
 
-# From Arthur David Olson (February 13, 1988)
+# From Arthur David Olson (1988-02-13)
 # Since the 1981 starting date is only "probable," we'll keep the 1987
 # starting date below.
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # MEXICO BAJA CAL N   7 H  BEHIND UTC    BAJA CALIFORNIA SUR AND
 # MEXICO BAJA CAL N                      N. PACIFIC COAST (STATES
 # MEXICO BAJA CAL N                      OF SINALOA AND SONORA)
@@ -961,7 +906,7 @@ Zone America/Dawson	-9:17:40 -	LMT	1900 Aug 20
 # MEXICO                                 CAMPECHE, QUINTANA ROO AND
 # MEXICO                                 YUCATAN
 
-# From Arthur David Olson (January 21, 1989):
+# From Arthur David Olson (1989-01-21):
 # April 3 fell on a Sunday in 1988; October 29 fell on a Sunday in 1989.  Ahem.
 # USNO claims there should be four Mexican zones rather than three:
 # a zone that's GMT-8 with DST; a zone that's always GMT-7;
@@ -1028,7 +973,6 @@ Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Mar 30 23:00
 			-6:00	Mexico	C%sT
-# ZONE-DESCR America Mexico_City Mexico Mexico City
 Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1927 Jun 10 23:00
 			-6:00	-	CST	1930 Nov 15
@@ -1039,7 +983,6 @@ Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST	1970
 			-7:00	Mexico	M%sT
-# ZONE-DESCR America Mazatlan Mexico Mazatlan
 Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
@@ -1048,7 +991,6 @@ Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	BajaN	P%sT	1967 Apr lastSun 2:00
 			-8:00	US	P%sT	1996
 			-8:00	Mexico	P%sT
-# ZONE-DESCR America Tijuana Mexico Baja California Norte
 Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
@@ -1056,8 +998,6 @@ Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST	1996
 			-8:00	Mexico	P%sT
-# ZONE-DESCR America Ensenada Mexico Ensenada
-
 #
 # Revillagigedo Is
 # no information
@@ -1069,15 +1009,11 @@ Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
 Zone America/Anguilla	-4:12:16 -	LMT	1912 Mar 2
 			-4:00	-	AST
 
-# ZONE-DESCR America Anguilla Anguilla All points
-
 # Antigua and Barbuda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Antigua	-4:07:12 -	LMT	1912 Mar 2
 			-5:00	-	EST	1951
 			-4:00	-	AST
-
-# ZONE-DESCR America Antigua Antigua All points
 
 # Bahamas
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1087,8 +1023,6 @@ Rule	Bahamas	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Nassau	-5:09:24 -	LMT	1912 Mar 2
 			-5:00	Bahamas	E%sT
-
-# ZONE-DESCR America Nassau Bahamas All points
 
 # Barbados
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1101,8 +1035,6 @@ Rule	Barb	1980	only	-	Sep	25	2:00	0	S
 Zone America/Barbados	-3:58:28 -	LMT	1924		# Bridgetown
 			-3:58	-	BMT	1932	  # Bridgetown Mean Time
 			-4:00	Barb	A%sT
-
-# ZONE-DESCR America Barbados Barbados All points
 
 # Belize
 # Whitman entirely disagrees with Shanks; go with Shanks.
@@ -1117,23 +1049,17 @@ Rule	Belize	1983	only	-	Feb	12	0:00	0	S
 Zone	America/Belize	-5:52:48 -	LMT	1912 Apr
 			-6:00	Belize	C%sT
 
-# ZONE-DESCR America Belize Belize All points
-
 # Bermuda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Bermuda	-4:19:04 -	LMT	1930 Jan  1 2:00    # Hamilton
 			-4:00	-	AST	1974 Apr 28 2:00
 			-4:00	Bahamas	A%sT
 
-# ZONE-DESCR Atlantic Bermuda Bermuda All points
-
 # Cayman Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Cayman	-5:25:32 -	LMT	1890		# Georgetown
 			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	-	EST
-
-# ZONE-DESCR America Cayman Cayman_Islands All points
 
 # Clipperton
 # uninhabited
@@ -1151,19 +1077,17 @@ Rule	CR	1991	only	-	Jul	1	0:00	0	S
 Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 			-5:36	-	SJMT	1921 Jan 15 # San Jose Mean Time
 			-6:00	CR	C%sT
-# ZONE-DESCR America Costa_Rica Costa_Rica All points
-
 # Coco
 # no information; probably like America/Costa_Rica
 
 # Cuba
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # . . .DST is from 2nd Sunday in May to 2nd Sunday in October since 1981.
 # Change at midnight.  In 1979 & 1980, started at 3rd Sunday in March
 # (I think).
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # CUBA                5 H  BEHIND UTC
 # CUBA                4 H  BEHIND UTC    MAR 20 - OCT 8
 
@@ -1200,14 +1124,10 @@ Zone	America/Havana	-5:29:28 -	LMT	1890
 			-5:30	-	HMT	1925 Jul 19 12:00 # Havana MT
 			-5:00	Cuba	C%sT
 
-# ZONE-DESCR America Havana Cuba All points
-
 # Dominica
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Dominica	-4:05:36 -	LMT	1911 Jul 1 0:01		# Roseau
 			-4:00	-	AST
-
-# ZONE-DESCR America Dominica Dominica All points
 
 # Dominican Republic
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1223,8 +1143,6 @@ Zone America/Santo_Domingo -4:39:36 -	LMT	1890
 			-5:00	DR	E%sT	1974 Oct 27
 			-4:00	-	AST
 
-# ZONE-DESCR America Santo_Domingo Dominican_Republic All points
-
 # El Salvador
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Salv	1987	1988	-	May	Sun>=1	0:00	1:00	D
@@ -1234,21 +1152,15 @@ Rule	Salv	1987	1988	-	Sep	lastSun	0:00	0	S
 Zone America/El_Salvador -5:56:48 -	LMT	1921		# San Salvador
 			-6:00	Salv	C%sT
 
-# ZONE-DESCR America El_Salvador El_Salvador All points
-
 # Grenada
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	America/Grenada	-4:07:00 -	LMT	1911 Jul
+Zone	America/Grenada	-4:07:00 -	LMT	1911 Jul	# St George's
 			-4:00	-	AST
-
-# ZONE-DESCR America Grenada Grenada All points
 
 # Guadeloupe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guadeloupe	-4:06:08 -	LMT	1911 Jun 8	# Pointe a Pitre
 			-4:00	-	AST
-
-# ZONE-DESCR America Guadeloupe Guadeloupe All points
 
 # Guatemala
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1259,8 +1171,6 @@ Rule	Guat	1983	only	-	Sep	22	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guatemala	-6:02:04 -	LMT	1918 Oct 5
 			-6:00	Guat	C%sT
-
-# ZONE-DESCR America Guatemala Guatemala All points
 
 # Haiti
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1274,22 +1184,18 @@ Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 			-4:49	-	PPMT	1917 Jan 24 12:00 # P-a-P MT
 			-5:00	Haiti	E%sT
 
-# ZONE-DESCR America Port-au-Prince Haiti All points
-
 # Honduras
 # Shanks says 1921 Jan 1; go with Whitman's more precise Apr 1.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 			-6:00	Salv	C%sT
 
-# ZONE-DESCR America Tegucigalpa Honduras All points
-
 # Jamaica
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # Follows US rules.
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # JAMAICA             5 H  BEHIND UTC
 
 # From Shanks (1991):
@@ -1299,8 +1205,6 @@ Zone	America/Jamaica	-5:07:12 -	LMT	1890		# Kingston
 			-5:00	-	EST	1974 Jan 6 2:00
 			-5:00	US	E%sT
 
-# ZONE-DESCR America Jamaica Jamaica All points
-
 # Martinique
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Martinique	-4:04:20 -      LMT	1890		# Fort-de-France
@@ -1309,14 +1213,10 @@ Zone America/Martinique	-4:04:20 -      LMT	1890		# Fort-de-France
 			-4:00	1:00	ADT	1980 Sep 28
 			-4:00	-	AST
 
-# ZONE-DESCR America Martinique Martinique All points
-
 # Montserrat
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Plymouth
 			-4:00	-	AST
-
-# ZONE-DESCR America Montserrat Montserrat All points
 
 # Nicaragua
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1329,15 +1229,11 @@ Zone	America/Managua	-5:45:08 -	LMT	1890
 			-5:00	-	EST	1975 Feb 16
 			-6:00	Nic	C%sT
 
-# ZONE-DESCR America Managua Nicaragua All points
-
 # Panama
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Panama	-5:18:08 -	LMT	1890
 			-5:20	-	PMT	1908 Apr 22   # Panama Mean Time
 			-5:00	-	EST
-
-# ZONE-DESCR America Panama Panama All points
 
 # Puerto Rico
 # There are too many San Juans elsewhere, so we'll use `Puerto_Rico'.
@@ -1347,14 +1243,10 @@ Zone America/Puerto_Rico -4:24:25 -	LMT	1899 Mar 28 12:00    # San Juan
 			-4:00	1:00	AWT	1945 Sep 30  2:00
 			-4:00	-	AST
 
-# ZONE-DESCR America Puerto_Rico United_States Puerto Rico
-
 # St Kitts-Nevis
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Kitts	-4:10:52 -	LMT	1912 Mar 2	# Basseterre
 			-4:00	-	AST
-
-# ZONE-DESCR America St_Kitts St_Kitts_and_Nevis All points 
 
 # St Lucia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1362,16 +1254,12 @@ Zone America/St_Lucia	-4:04:00 -	LMT	1890		# Castries
 			-4:04	-	CMT	1912	    # Castries Mean Time
 			-4:00	-	AST
 
-# ZONE-DESCR America St_Lucia St_Lucia All points
-
 # St Pierre and Miquelon
 # There are too many St Pierres elsewhere, so we'll use `Miquelon'.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Miquelon	-3:44:40 -	LMT	1911 May 15	# St Pierre
 			-4:00	-	AST	1980 May
-			-3:00	Mont	SP%sT
-
-# ZONE-DESCR America Miquelon France St. Pierre and Miquelon
+			-3:00	Mont	PM%sT	# Pierre & Miquelon Time
 
 # St Vincent and the Grenadines
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1379,26 +1267,19 @@ Zone America/St_Vincent	-4:04:56 -	LMT	1890		# Kingstown
 			-4:05	-	KMT	1912	   # Kingstown Mean Time
 			-4:00	-	AST
 
-# ZONE-DESCR America St_Vincent St_Vincent All points
-
 # Turks and Caicos
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Grand_Turk	-4:44:32 -	LMT	1890
 			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	-	EST	1979 Apr 29 2:00
 			-5:00	US	E%sT
-# ZONE-DESCR America Grand_Turk Turks_and_Caicos All points
 
 # British Virgin Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Tortola	-4:18:28 -	LMT	1911 Jul    # Road Town
 			-4:00	-	AST
 
-# ZONE-DESCR America Tortola United_Kingdom British Virgin Islands
-
 # Virgin Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Thomas	-4:19:44 -	LMT	1911 Jul    # Charlotte Amalie
 			-4:00	-	AST
-
-# ZONE-DESCR America St_Thomas United_States Virgin Islands
