@@ -116,6 +116,24 @@ will enlarge
 .Pa /dev/vinum/testvol
 up to 2GB if there is enough space in
 .Pa /dev/vinum/testvol .
+.Sh SEE ALSO
+.Xr bsdlabel 8 ,
+.Xr dumpfs 8 ,
+.Xr fdisk 8 ,
+.Xr ffsinfo 8 ,
+.Xr fsck 8 ,
+.Xr newfs 8 ,
+.Xr tunefs 8 ,
+.Xr vinum 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+.An Christoph Herrmann Aq chm@FreeBSD.org
+.An Thomas-Henning von Kamptz Aq tomsoft@FreeBSD.org
+.An The GROWFS team Aq growfs@Tomsoft.COM
 .Sh BUGS
 The
 .Nm
@@ -176,21 +194,3 @@ This read operation will provide unexpected data when using
 .Fl N .
 Therefore, this part cannot really be simulated and will be skipped in test
 mode.
-.Sh SEE ALSO
-.Xr bsdlabel 8 ,
-.Xr dumpfs 8 ,
-.Xr fdisk 8 ,
-.Xr ffsinfo 8 ,
-.Xr fsck 8 ,
-.Xr newfs 8 ,
-.Xr tunefs 8 ,
-.Xr vinum 8
-.Sh AUTHORS
-.An Christoph Herrmann Aq chm@FreeBSD.org
-.An Thomas-Henning von Kamptz Aq tomsoft@FreeBSD.org
-.An The GROWFS team Aq growfs@Tomsoft.COM
-.Sh HISTORY
-The
-.Nm
-utility first appeared in
-.Fx 4.4 .

@@ -45,9 +45,6 @@ The standard way to use
 is to put invocations of it in the
 .Pa /etc/rc.d/serial
 startup script.
-.Sh SEE ALSO
-.Xr stty 1 ,
-.Xr sio 4
 .Sh FILES
 .Bl -tag -width /dev/ttyd? -compact
 .It Pa /dev/ttyd?
@@ -55,11 +52,14 @@ dialin devices, hardwired terminals
 .It Pa /dev/cuad?
 dialout devices
 .El
-.Sh AUTHORS
-.An Christopher G. Demetriou
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr sio 4
 .Sh HISTORY
 Originally part of cgd's com package patches, version 0.2.1, to
 .Bx 386 0.1 .
 Once controlled bidirectional capabilities.
 Little is left to control now
 that these capabilities are standard.
+.Sh AUTHORS
+.An Christopher G. Demetriou

@@ -119,12 +119,6 @@ is provided, output will be sent to stdout.
 will dump
 .Pa /dev/vinum/testvol
 with all available information.
-.Sh BUGS
-Snapshots are handled like plain files.
-They should get their own level to provide for independent control of the
-amount of what gets dumped.
-It probably also makes sense to some extend to dump the snapshot as a
-file system.
 .Sh SEE ALSO
 .Xr disklabel 8 ,
 .Xr dumpfs 8 ,
@@ -133,12 +127,18 @@ file system.
 .Xr newfs 8 ,
 .Xr tunefs 8 ,
 .Xr vinum 8
-.Sh AUTHORS
-.An Christoph Herrmann Aq chm@FreeBSD.org
-.An Thomas-Henning von Kamptz Aq tomsoft@FreeBSD.org
-.An The GROWFS team Aq growfs@Tomsoft.COM
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 4.4 .
+.Sh AUTHORS
+.An Christoph Herrmann Aq chm@FreeBSD.org
+.An Thomas-Henning von Kamptz Aq tomsoft@FreeBSD.org
+.An The GROWFS team Aq growfs@Tomsoft.COM
+.Sh BUGS
+Snapshots are handled like plain files.
+They should get their own level to provide for independent control of the
+amount of what gets dumped.
+It probably also makes sense to some extend to dump the snapshot as a
+file system.

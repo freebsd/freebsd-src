@@ -355,6 +355,8 @@ and
 .Dv RTM_CHANGE .
 As such, only the super-user may modify
 the routing tables.
+.Sh EXIT STATUS
+.Ex -std
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "add [host \&| network ] %s: gateway %s flags %x"
@@ -393,8 +395,6 @@ operation resulted in a route whose gateway uses the
 same route as the one being changed.
 The next-hop gateway should be reachable through a different route.
 .El
-.Sh EXIT STATUS
-.Ex -std
 .Sh SEE ALSO
 .\".Xr esis 4 ,
 .Xr netintro 4 ,

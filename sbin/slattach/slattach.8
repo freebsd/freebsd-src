@@ -229,6 +229,19 @@ If you use a hard-wired connection rather than a modem, invoke
 with the
 .Fl l
 option in order to ignore carrier on the slip line.
+.Sh FILES
+.Bl -tag -width /usr/share/examples/slattach/* -compact
+.It Pa /var/run/slattach.<tty>.pid
+with
+.Ar tty
+replaced by the terminal path name component of
+.Ar ttyname .
+This file contains the numerical process ID of the
+.Nm
+process and can be examined by scripts in order to send a signal to
+.Nm
+.It Pa /usr/share/examples/slattach/*
+.El
 .Sh EXAMPLES
 .Bd -literal -offset indent -compact
 slattach ttyd8
@@ -251,19 +264,6 @@ also logs failure to set the controlling terminal or failure to install
 signal handlers.
 Upon connection and redial the ttyname and baud rate
 are logged and on shutdown the ttyname is logged.
-.Sh FILES
-.Bl -tag -width /usr/share/examples/slattach/* -compact
-.It Pa /var/run/slattach.<tty>.pid
-with
-.Ar tty
-replaced by the terminal path name component of
-.Ar ttyname .
-This file contains the numerical process ID of the
-.Nm
-process and can be examined by scripts in order to send a signal to
-.Nm
-.It Pa /usr/share/examples/slattach/*
-.El
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr startslip 1 ,
