@@ -1072,7 +1072,6 @@ int
 kern_sigsuspend(struct thread *td, sigset_t mask)
 {
 	struct proc *p = td->td_proc;
-	register struct sigacts *ps;
 
 	/*
 	 * When returning from sigsuspend, we want
@@ -1081,9 +1080,7 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	 * save it here and mark the sigacts structure
 	 * to indicate this.
 	 */
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	ps = p->p_sigacts;
 	td->td_oldsigmask = td->td_sigmask;
 	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_OLDMASK;
@@ -1091,10 +1088,9 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	SIG_CANTMASK(mask);
 	td->td_sigmask = mask;
 	signotify(td);
-	while (msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
+	while (msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
@@ -1116,11 +1112,8 @@ osigsuspend(td, uap)
 {
 	struct proc *p = td->td_proc;
 	sigset_t mask;
-	register struct sigacts *ps;
 
-	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	ps = p->p_sigacts;
 	td->td_oldsigmask = td->td_sigmask;
 	mtx_lock_spin(&sched_lock);
 	td->td_flags |= TDF_OLDMASK;
@@ -1129,10 +1122,9 @@ osigsuspend(td, uap)
 	SIG_CANTMASK(mask);
 	SIGSETLO(td->td_sigmask, mask);
 	signotify(td);
-	while (msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
+	while (msleep(p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
