@@ -32,6 +32,7 @@ char *copyright =
  */
 
 #include "os.h"
+#include <errno.h>
 #include <signal.h>
 #include <setjmp.h>
 #include <ctype.h>
@@ -157,6 +158,7 @@ char *argv[];
     int topn = Default_TOPN;
     int delay = Default_DELAY;
     int displays = 0;		/* indicates unspecified */
+    int sel_ret = 0;
     time_t curr_time;
     char *(*get_userid)() = username;
     char *uname_field = "USERNAME";
@@ -711,7 +713,10 @@ restart:
 		}
 
 		/* wait for either input or the end of the delay period */
-		if (select(32, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timeout) > 0)
+		sel_ret = select(2, &readfds, NULL, NULL, &timeout);
+		if (sel_ret < 0 && errno != EINTR)
+		    quit(0);
+		if (sel_ret > 0)
 		{
 		    int newval;
 		    char *errmsg;
@@ -721,7 +726,8 @@ restart:
 
 		    /* now read it and convert to command strchr */
 		    /* (use "change" as a temporary to hold strchr) */
-		    (void) read(0, &ch, 1);
+		    if (read(0, &ch, 1) != 1)
+			quit(0);
 		    if ((iptr = strchr(command_chars, ch)) == NULL)
 		    {
 			if (ch != '\r' && ch != '\n')
