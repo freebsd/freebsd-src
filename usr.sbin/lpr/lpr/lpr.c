@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id$\n";
+	"\n$Id: lpr.c,v 1.12 1997/02/22 16:06:20 peter Exp $\n";
 #endif /* not lint */
 
 /*
@@ -76,7 +76,7 @@ static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
 
 static char	*cfname;	/* daemon control files, linked from tf's */
 static char	*class = host;	/* class title on header page */
-static char	*dfname;		/* data files */
+static char	*dfname;	/* data files */
 static char	*fonts[4];	/* troff font names */
 static char	 format = 'f';	/* format char for printing files */
 static int	 hdr = 1;	/* print header or not (default is yes) */
@@ -285,10 +285,10 @@ main(argc, argv)
 	card('P', person);
 	if (hdr) {
 		if (jobname == NULL) {
-			if (argc == 1)
+			if (argc == 0)
 				jobname = "stdin";
 			else
-				jobname = (arg = rindex(argv[1], '/')) ? arg+1 : argv[1];
+				jobname = (arg = rindex(argv[0], '/')) ? arg+1 : argv[0];
 		}
 		card('J', jobname);
 		card('C', class);
