@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.9 1995/03/16 18:14:32 bde Exp $
+ *	$Id: rtsock.c,v 1.11 1995/05/11 00:13:11 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -194,7 +194,7 @@ route_output(m, so)
 		error = rtrequest(RTM_DELETE, dst, gate, netmask,
 				rtm->rtm_flags, &saved_nrt);
 		if (error == 0) {
-			if ((rt = saved_nrt)->rt_refcnt <= 0)
+			if ((rt = saved_nrt))
 				rt->rt_refcnt++;
 			goto report;
 		}
