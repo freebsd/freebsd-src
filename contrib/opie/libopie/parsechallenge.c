@@ -1,13 +1,15 @@
-/* parsechallenge.c: The _opieparsechallenge() library function.
+/* parsechallenge.c: The __opieparsechallenge() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.32. Check for extended response sets.
+		Change prefix to double underscore.
 	Created by cmetz for OPIE 2.3 using generator.c as a guide.
 */
 
@@ -29,7 +31,7 @@ static struct algorithm algorithms[] = {
   { NULL, 0 },
 };
 
-int _opieparsechallenge FUNCTION((buffer, algorithm, sequence, seed), char *buffer AND int *algorithm AND int *sequence AND char **seed)
+int __opieparsechallenge FUNCTION((buffer, algorithm, sequence, seed, exts), char *buffer AND int *algorithm AND int *sequence AND char **seed AND int *exts)
 {
   char *c;
 
@@ -64,7 +66,13 @@ int _opieparsechallenge FUNCTION((buffer, algorithm, sequence, seed), char *buff
   }
 
   *seed = buffer;
-  *c = 0;
+  *(c++) = 0;
+
+  while(*c && !isspace(*c)) c++;
+  if (*c && !strncmp(c, "ext", 3))
+    *exts = 1;
+  else
+    *exts = 0;
 
   return 0;
 }
