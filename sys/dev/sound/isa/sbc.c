@@ -43,6 +43,7 @@ struct sbc_ihl {
 /* Here is the parameter structure per a device. */
 struct sbc_softc {
 	device_t dev; /* device */
+	device_t child_pcm, child_midi1, child_midi2;
 
 	int io_rid[IO_MAX]; /* io port rids */
 	struct resource *io[IO_MAX]; /* io port resources */
@@ -298,7 +299,6 @@ sbc_attach(device_t dev)
 	char *err = NULL;
 	struct sbc_softc *scp;
 	struct sndcard_func *func;
-	device_t child;
 	u_int32_t logical_id = isa_get_logicalid(dev);
     	int flags = device_get_flags(dev);
 	int f, dh, dl, x, irq, i;
@@ -405,24 +405,24 @@ sbc_attach(device_t dev)
 	if (func == NULL) goto bad;
 	bzero(func, sizeof(*func));
 	func->func = SCF_PCM;
-	child = device_add_child(dev, "pcm", -1);
-	device_set_ivars(child, func);
+	scp->child_pcm = device_add_child(dev, "pcm", -1);
+	device_set_ivars(scp->child_pcm, func);
 
 	/* Midi Interface */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 	if (func == NULL) goto bad;
 	bzero(func, sizeof(*func));
 	func->func = SCF_MIDI;
-	child = device_add_child(dev, "midi", -1);
-	device_set_ivars(child, func);
+	scp->child_midi1 = device_add_child(dev, "midi", -1);
+	device_set_ivars(scp->child_midi1, func);
 
 	/* OPL FM Synthesizer */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 	if (func == NULL) goto bad;
 	bzero(func, sizeof(*func));
 	func->func = SCF_SYNTH;
-	child = device_add_child(dev, "midi", -1);
-	device_set_ivars(child, func);
+	scp->child_midi2 = device_add_child(dev, "midi", -1);
+	device_set_ivars(scp->child_midi2, func);
 
 	/* probe/attach kids */
 	bus_generic_attach(dev);
@@ -439,6 +439,9 @@ sbc_detach(device_t dev)
 {
 	struct sbc_softc *scp = device_get_softc(dev);
 
+	device_delete_child(dev, scp->child_midi2);
+	device_delete_child(dev, scp->child_midi1);
+	device_delete_child(dev, scp->child_pcm);
 	release_resource(scp);
 	return bus_generic_detach(dev);
 }
