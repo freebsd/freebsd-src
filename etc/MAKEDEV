@@ -108,7 +108,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.166 1998/08/04 21:45:20 brian Exp $
+#	$Id: MAKEDEV,v 1.167 1998/08/10 10:17:46 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1028,15 +1028,13 @@ snd*)
 	snd_security_hole=0	# XXX
 	umask $snd_security_hole
 
-	if [ $unit = "0" ] ; then
-		ln -fs mixer$unit mixer
-		ln -fs sequencer$unit sequencer
-		ln -fs dsp$unit dsp
-		ln -fs audio$unit audio
-		ln -fs dspW$unit dspW
-		ln -fs music$unit music
-		ln -fs pss$unit pss
-	fi
+	ln -fs mixer$unit mixer
+	ln -fs sequencer$unit sequencer
+	ln -fs dsp$unit dsp
+	ln -fs audio$unit audio
+	ln -fs dspW$unit dspW
+	ln -fs music$unit music
+	ln -fs pss$unit pss
 
 	mknod mixer$unit	c $chr `expr $unit '*' 16 + 0`
 	mknod sequencer$unit	c $chr `expr $unit '*' 16 + 1`
