@@ -1,15 +1,19 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.13.2.2 1996/11/25 07:32:23 phk Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.18 1996/12/21 03:00:26 alex Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
-<author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date>$Date: 1996/11/20 14:18:25 $
+<author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
+  name='&lt;pds@FreeBSD.ORG&gt;'></tt>
+
+<date>$Date: 1996/12/21 03:00:26 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
 Any entries with a &lt;XXX&gt; are under construction.  
+
+
 </abstract>
 
     <toc>
@@ -313,7 +317,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           The FreeBSD-commit list has been broken up into groups dealing
           with different areas of interest.  Please see the FreeBSD mailing
           list FAQ in:
-          <url url="http://www.freebsd.org/How/handbook/eresources:mail.html" name="Handbook entry on mailing-lists">
+          <url url="../handbook/eresources:mail.html" name="Handbook entry on mailing-lists">
         <p>
       <sect1>
 	<heading>How can I get on the mailing lists?</heading>
@@ -379,7 +383,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           Greg Lehey's book ``Installing and Running FreeBSD'' is available
           from Walnut Creek and ships with the 2.1.5 CDROM.  There is also
           a larger book entitled ``The Complete FreeBSD'', which comes with
-          additional printed manpages amd includes the 2.1.5 CDROM set.  It
+          additional printed manpages and includes the 2.1.5 CDROM set.  It
           should be available in most good bookshops now.
  
           There is a FreeBSD Documentation Project which you may contact (or
@@ -471,7 +475,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           <url url="http://www.freebsd.org/" name="Main FreeBSD page">
 
           The FreeBSD handbook has a pretty complete
-          <url url="http://www.FreeBSD.ORG/How/handbook/bibliography.html" name="Bibliography">
+          <url url="../handbook/bibliography.html" name="Bibliography">
 
     <sect>
       <heading>Installation</heading>
@@ -524,7 +528,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           tape or over a network via SLIP, PPP, NFS, PLIP and Ethernet.
 
           For further information, please see 
-          <url	url="http://www.freebsd.org/handbook/install.html"
+          <url	url="../handbook/install.html"
           name="Handbook entry on installing FreeBSD.">
 
       <sect1>
@@ -710,7 +714,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           certain limitations in MSDOS) and the disk capacity is more than 1GB,
           use M cylinders, 63 heads (*not* 64), and 255 sectors per track, where
           'M' is the disk capacity in MB divided by 7.844238 (!).  So our
-          example 2GB drive would have 261 cylinders, 63 heads and 32 sectors
+          example 2GB drive would have 261 cylinders, 63 heads and 255 sectors
           per track.
 
           If you are not sure about this, or FreeBSD fails to detect the
@@ -718,7 +722,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           this is usually to create a small DOS partition on the disk.  The
           correct geometry should then be detected (and you can always remove
           the DOS partition in the partition editor if you don't want to keep
-          it).
+          it, or leave it around for programming network cards and the like).
 
           Alternatively, there is a freely available utility distributed with 
           FreeBSD called ``<tt/pfdisk.exe/'' (located in the <tt>tools</tt>
@@ -955,7 +959,7 @@ drivedata: 0
           ESDI, RLL, and ST-506 drives normally do not do this.
 
       <sect1>
-	<heading>I have 32MB of RAM. Will this cause any problems?<label id="bigram"></heading>
+	<heading>I have &gt;16MB of RAM. Will this cause any problems?<label id="bigram"></heading>
 
         <p>
           No.  FreeBSD 2.X comes with bounce buffers which allows your bus
@@ -1004,7 +1008,7 @@ drivedata: 0
           <bf/better/ security, and with no export restrictions.  FreeBSD
           2.0's password default scrambler is now <bf/MD5/-based, and is
           more CPU-intensive to crack with an automated password cracker
-          than DES.
+          than DES, and allows longer passwords as well.
 
           Since the DES encryption algorithm cannot legally be exported
           from the US, non-US users should not download this software (as
@@ -1078,7 +1082,7 @@ drivedata: 0
               AH-394x (Narrow/Twin/Wide)
             <tag/Buslogic/
               BT-445 Series &lt;VLB&gt; (but see section <ref id="bigram"
-                name="on 32 MB machines">) <newline>
+                name="on &gt;16 MB machines">) <newline>
               BT-545 Series &lt;ISA&gt; <newline>
               BT-742 Series &lt;EISA&gt;<newline>
               BT-747 Series &lt;EISA&gt;<newline>
@@ -1181,7 +1185,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 </verb>
 
         <p>
-	  See the <url url="http://www.freebsd.org/handbook/kernelconfig.html"
+	  See the <url url="../handbook/kernelconfig.html"
 	  name="Handbook entry on configuring the kernel">
 	  if you've no experience with building kernels.
 
@@ -1215,6 +1219,9 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           FreeBSD supports SCSI, QIC-02 and QIC-40/80 (Floppy based) tape
           drives.  This includes 8-mm (aka Exabyte) and DAT drives.
           The QIC-40/80 drives are known to be slow.
+
+	  Some of the early 8-mm drives are not quite compatible with
+	  SCSI-2, and may not work well with FreeBSD.
 
       <sect1>
 	<heading>What sound cards are supported by FreeBSD?</heading>
@@ -1286,6 +1293,11 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           <bf/NOTE/ We also support TCP/IP over parallel lines.  At this point
           we are incompatible with other versions, but we hope to correct
           this in the near future.
+
+	  <bf/NOTE/ Some of these cards require a DOS partition on your hard
+	  drive to run the configuration software. Software configured cards
+	  may also need to be hard-reset after running another operating
+	  system that uses manufacturer-supplied drivers.
 
       <sect1>
         <heading>I don't have a math co-processor.</heading>
@@ -1392,9 +1404,45 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           firmware for it, you will need to check the position of jumper W1
           to B-C, the default is A-B.  
 
-          The 742a EISA cards never had the ``> 16MB'' problem mentioned in
-          the section <ref id="bigram" name="on 32 MB machines">. This is a
+          The 742a EISA cards never had the ``&gt;16MB'' problem mentioned in
+          the section <ref id="bigram" name="on &gt;16 MB machines">. This is a
           problem that occurs with the Vesa-Local Buslogic SCSI cards.
+
+      <sect1>
+        <heading>FreeBSD does not recognise my on-board AIC-7xxx EISA SCSI in an HP Netserver</heading>
+        <p>
+	  This is basically a known problem.  The EISA on-board SCSI controller
+	  in the HP Netserver machines occupies EISA slot number 11, so all
+	  the ``true'' EISA slots are in front of it.  Alas, the address space
+	  for EISA slots >= 10 collides with the address space assigned to PCI,
+	  and FreeBSD's auto-configuration currently cannot handle this
+	  situation very well.
+
+	  So now, the best you can do is to pretend there were no address
+	  range clash :), go right ahead and edit the file
+	  <tt>/sys/i386/eisa/eisaconf.h</tt>.  Look for a line defining the
+	  macro <tt/EISA_SLOTS/, and bump the number it's defining to 12.
+	  Configure and compile a kernel, as described in the
+	  <url url="../handbook/kernelconfig.html"
+	  name="Handbook entry on configuring the kernel">.
+
+	  Of course, this does present you a chicken-and-egg problem when
+	  installing on such a machine.  In order to work around this
+	  problem, a special hack is available inside <em>UserConfig</em>.
+	  Do not use the ``visual'' interface, but the plain command-line
+	  interface there.  Simply type
+<verb>
+eisa 12
+quit
+</verb>
+
+	  at the prompt, and install your system as usual.  Don't forget
+	  to install the kernel source distribution, since you need to
+	  build a custom kernel, or otherwise you would have to repeat the
+	  described procedure at each boot!  <tt/dset(8)/ doesn't save this
+	  change for you.
+
+	  Hopefully, future version will have a proper fix for this problem.
 
     <sect>
       <heading>Commercial Applications</heading>
@@ -1606,7 +1654,10 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
       <sect1>
         <heading>How can I add more swap space?</heading>
 
-	<p>(by Werner Griessl)
+	<p>The best way is to increase the size of your swap partition, or
+	take advantage of this convenient excuse to add another disk, but
+	<bf/Werner Griessl/ has provided these instructions for setting FreeBSD
+	up for swapping to a file:
 
 	<p>Here is an example for 64Mb vn-swap (<tt>/usr/swap0</tt>)
 	<p>
@@ -1672,8 +1723,8 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           filesystem, and you do this by specifying the ``<tt/-t cd9660/''
           option to <tt/mount(8)/.  This does, of course, assume that the
           CDROM contains an ISO 9660 filesystem, which is what most CDROMs
-          have.  As of 1.1R, FreeBSD also understands the Rock Ridge
-          (long filename) extensions.
+          have.  As of 1.1R, FreeBSD automatically understands the Rock Ridge
+          (long filename) extensions as well.
 
           As an example, if you want to mount the CDROM device,
           ``<tt>/dev/cd0c</tt>'', under <tt>/mnt</tt>, you would execute:
@@ -1697,7 +1748,8 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           This generally means that there is no CDROM in the CDROM drive,
           or the drive is not visible on the bus. Feed the drive
           something, and/or check its master/slave status if it is
-          IDE (ATAPI).
+          IDE (ATAPI). It can take a couple of seconds for a CDROM drive
+	  to notice that it's been fed, so be patient.
           
 	  Sometimes a SCSI CD-ROM may be missed because it hadn't enough time
 	  to answer the bus reset. In you have a SCSI CD-ROM please try to
@@ -1824,6 +1876,13 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           to pass all memory tests, yet fail under operating conditions
           (such as during busmastering DMA from a SCSI controller like the
           Adaptec 1542).
+
+	  Often the guilty party is bad cache RAM or a bad on-board cache
+	  controller. Try disabling the on-board (secondary) cache in the
+	  BIOS setup and see if that solves the problem.
+
+	  You may have to run with no on-board cache. This isn't a disaster,
+	  but it's certainly less than ideal.
  
       <sect1>
         <heading>Help! X Window menus and dialog boxes don't work right!</heading>
@@ -1917,7 +1976,10 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           terminal, you use only the Alt- function key to switch to another
           virtual terminal or back to X Window.  You do not also press the
           Ctrl key; the Ctrl-Alt-function key combination is used only when
-          switching from X Window to a virtual terminal.
+          switching from X Window to a virtual terminal. If you insist on
+	  using the control key to switch back to X you can find your
+	  text console stuck in ``control-lock'' mode. Tap the control
+	  key to wake it up again.
   
       <sect1>
 	<heading>How do I increase the number of virtual consoles?</heading>
@@ -1984,7 +2046,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 
           Next, the easiest (and cleanest) way to activate the virtual
           consoles is to reboot.  However, if you really don't want to
-          reboot, you can just shut down X Window and execute (as
+          reboot, you can just shut down the X Window system and execute (as
           <tt/root/):
           <verb>
             kill -HUP 1
@@ -2009,22 +2071,19 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           <tt/xdm/ should be started without any arguments (i.e., as a
           daemon).
 
-          The Xserver config file (default:
-          <tt>/usr/X11R6/lib/X11/xdm/Xservers</tt>) should contain the
-          line:
-
-          <code>
-            :0 local /usr/X11R6/bin/X :0 vt08 -wm
-          </code>
-
-          Of course, you can omit the ``<tt/-wm/'' if you don't like it,
-          but the `<tt/`vt08/'' is quite important -- it must point to a vt
-          that won't be used by <tt/getty/'s about a second later.
+          <bf/NOTE:/ A previos version of this FAQ told you to add the
+	  <tt/vt/ you want X to use to the
+          <tt>/usr/X11R6/lib/X11/xdm/Xservers</tt> file. This is not necessary:
+	  X will use the first free <tt/vt/ it finds.
 
       <sect1>
 	<heading>What is this thing called ``<tt/sup/'', and how do I use it?</heading>
 
-        <p>
+	<p>
+	  You should really be using CVSup, not sup, according to the latest
+	  skinny. I'm going to bug the hackers for a section describing that.
+	  In the meantime:
+
           SUP stands for Software Update Protocol, and was developed by CMU
           for keeping their development trees in sync.  We use it to keep
           remote sites in sync with our central development sources.
@@ -2356,6 +2415,14 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           messages printed by your old kernel, some of which may be quite
           helpful in configuring the new one.
 
+	  <bf/NOTE:/ I recommend making a dated snapshot of your kernel
+	  in <tt/kernel.YYMMDD/ after you get it all working, that way if
+	  you do something dire the next time you play with your configuration
+	  you can boot that kernel instead of having to go all the way back
+	  to <tt/kernel.GENERIC/. This is particularly important if you're
+	  now booting off a controller that isn't supported in the GENERIC
+	  kernel (yes, personal experience).
+
       <sect1>
         <heading>My kernel compiles fail because <tt/&lowbar;hw&lowbar;float/ is missing.</heading>
 
@@ -2377,7 +2444,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           A. The problem here is that FreeBSD has code built-in to keep the
           kernel from getting trashed due to hardware or software
           conflicts.  The way to fix this is to leave out the IRQ settings
-          on other ports besides the first.  Here is a example:
+          on all but one port.  Here is a example:
 
 <verb>
 #
@@ -2440,6 +2507,10 @@ disk        fd1   at fdc0 drive 1
           </verb>
 
           Recompile and install.
+
+	  <bf/NOTE:/ You may need to increase SHMMAXPGS to some
+	  ridiculous number like 4096 (16M!) if you want to run
+	  GIMP. 256Kb is plenty for X11R6 shared memory.
 
       <sect1>
         <heading>I have 128 MB of RAM but the system only uses 64 MB.</heading>
@@ -2758,7 +2829,16 @@ disk        fd1   at fdc0 drive 1
 	  There's a useful document available which explains how to set
 	  FreeBSD up as a <url url="http://www.ssimicro.com/~jeremyc/ppp.html"
 	  name="PPP Dialup Router">
-	
+
+	  <bf/NOTE:/ This requires having at least two fixed IP addresses
+	  available, and possibly three or more, depending on how much
+	  work you want to go through to set up the Windows box. As an
+	  alternative, if you don't have a fixed IP, you can use one of
+	  the private IP subnets and install <bf/proxies/ such as
+	  <url url="http://squid.nlanr.net/Squid/" name="SQUID"> and
+	  <url url="http://www.tis.com/" name="the TIS firewall toolkit">
+	  on your FreeBSD box.
+
       <sect1>
 	<heading>Does FreeBSD support SLIP and PPP?</heading>
 

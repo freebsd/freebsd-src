@@ -1,10 +1,10 @@
-<!-- $Id$ -->
+<!-- $Id: nfs.sgml,v 1.2 1996/12/20 06:49:35 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.6 -->
+<!-- Original revision: 1.7 -->
 
 <sect><heading>NFS<label id="nfs"></heading>
 
-<p><em>原作: &a.john;.</em>
+<p><em>原作: &a.jlind;.</em>
 <p><em>訳: &a.tomo;.<newline>6 September 1996.</em>
 
 ISA用のイーサネットアダプタの中には性能が悪いため, ネットワーク, 

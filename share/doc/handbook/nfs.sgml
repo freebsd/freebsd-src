@@ -1,9 +1,9 @@
-<!-- $Id: nfs.sgml,v 1.5 1996/01/22 17:44:30 roberto Exp $ -->
+<!-- $Id: nfs.sgml,v 1.7 1996/12/19 23:02:53 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>NFS<label id="nfs"></heading>
 
-<p><em>Contributed by &a.john;.</em>
+<p><em>Contributed by &a.jlind;.</em>
 
 Certain Ethernet adapters for ISA PC systems have limitations which
 can lead to serious network problems, particularly with NFS.  This

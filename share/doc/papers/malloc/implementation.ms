@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: implementation.ms,v 1.3 1996/10/04 14:01:54 wosch Exp $
+.\" $Id: implementation.ms,v 1.4 1996/11/14 08:10:30 phk Exp $
 .\"
 .ds RH Implementation
 .NH

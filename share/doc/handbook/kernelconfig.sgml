@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.20 1996/09/16 14:27:07 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.22 1996/12/16 22:33:35 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -153,16 +153,16 @@
 	of the option handling.  Traditionally, each option in the
 	config file was simply converted into a <tt>-D</tt> switch
 	for the <tt>CFLAGS</tt> line of the kernel Makefile.  Naturally,
-	this caused a creaping optionism, with nobody really knowing
+	this caused a creeping optionism, with nobody really knowing
 	which option has been referenced in what files.
 
 	<p>In the new scheme, every <tt>#ifdef</tt> that is intended to
-	be dependant upon an option gets this option out of an
+	be dependent upon an option gets this option out of an
 	<tt>opt_<em>foo</em>.h</tt> declaration file created in the
 	compile directory by <tt>config</tt>.  The list of valid options
 	for <tt>config</tt> lives in two files: options that do not
 	depend on the architecture are listed in
-	<tt>/sys/conf/options</tt>, architecture-dependant ones
+	<tt>/sys/conf/options</tt>, architecture-dependent ones
 	in <tt>/sys/<em>arch</em>/conf/options.<em>arch</em></tt>,
 	with <em>arch</em> being for example <tt>i386</tt>.
 
@@ -1174,9 +1174,15 @@ controller wcd0
 <tscreen><verb>
 # sh MAKEDEV snd0
 </verb></tscreen>
-	creates the appropriate entries.  Follow this simple
-	procedure for any other non-GENERIC devices which do not
-	have entries.
+	creates the appropriate entries.  Note: when creating device
+	nodes for devices such as sound cards, if other people have
+	access to your machine, it may be desirable to
+	protect the devices from outside access by adding them to the
+	<tt>/etc/fbtab</tt> file.  See <tt>man fbtab</tt> for
+	more information.
+
+	Follow this simple procedure for any other non-GENERIC 
+	devices which do not have entries.
 
 	<quote><em/Note:/ All SCSI controllers use the same set
 	  of <tt>/dev</tt> entries, so you do not need to create
