@@ -769,16 +769,13 @@ static int pcib_probe(device_t dev)
 
 static int pcib_attach(device_t dev)
 {
-	struct pci_devinfo *dinfo;
-	pcicfgregs *cfg;
-
-	dinfo = device_get_ivars(dev);
-	cfg = &dinfo->cfg;
+	u_int8_t secondary;
 
 	chipset_attach(dev, device_get_unit(dev));
 
-	if (cfg->secondarybus) {
-		device_add_child(dev, "pci", cfg->secondarybus, 0);
+	secondary = pci_get_secondarybus(dev);
+	if (secondary) {
+		device_add_child(dev, "pci", secondary, 0);
 		return bus_generic_attach(dev);
 	} else
 		return 0;
