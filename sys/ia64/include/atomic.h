@@ -37,21 +37,13 @@
 /*
  * Everything is built out of cmpxchg.
  */
-#define IA64_CMPXCHG(sz, sem, type, p, cmpval, newval)		\
-({								\
-	type _cmpval = cmpval;					\
-	type _newval = newval;					\
-	volatile type *_p = (volatile type *) p;		\
-	type _ret;						\
-								\
+#define IA64_CMPXCHG(sz, sem, p, cmpval, newval, ret)		\
 	__asm __volatile (					\
 		"mov ar.ccv=%2;;\n\t"				\
 		"cmpxchg" #sz "." #sem " %0=%4,%3,ar.ccv\n\t"	\
-		: "=r" (_ret), "=m" (*_p)			\
-		: "r" (_cmpval), "r" (_newval), "m" (*_p)	\
-		: "memory");					\
-	_ret;							\
-})
+		: "=r" (ret), "=m" (*p)				\
+		: "r" (cmpval), "r" (newval), "m" (*p)		\
+		: "memory")
 
 /*
  * Some common forms of cmpxch.
@@ -59,25 +51,33 @@
 static __inline u_int32_t
 ia64_cmpxchg_acq_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
-	return IA64_CMPXCHG(4, acq, u_int32_t, p, cmpval, newval);
+	u_int32_t ret;
+	IA64_CMPXCHG(4, acq, p, cmpval, newval, ret);
+	return (ret);
 }
 
 static __inline u_int32_t
 ia64_cmpxchg_rel_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
-	return IA64_CMPXCHG(4, rel, u_int32_t, p, cmpval, newval);
+	u_int32_t ret;
+	IA64_CMPXCHG(4, rel, p, cmpval, newval, ret);
+	return (ret);
 }
 
 static __inline u_int64_t
 ia64_cmpxchg_acq_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 {
-	return IA64_CMPXCHG(8, acq, u_int64_t, p, cmpval, newval);
+	u_int64_t ret;
+	IA64_CMPXCHG(8, acq, p, cmpval, newval, ret);
+	return (ret);
 }
 
 static __inline u_int64_t
 ia64_cmpxchg_rel_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 {
-	return IA64_CMPXCHG(8, rel, u_int64_t, p, cmpval, newval);
+	u_int64_t ret;
+	IA64_CMPXCHG(8, rel, p, cmpval, newval, ret);
+	return (ret);
 }
 
 #define ATOMIC_STORE_LOAD(type, width, size)			\
@@ -156,19 +156,21 @@ ATOMIC_STORE_LOAD(long,		64,	"8")
 static __inline void							\
 atomic_##name##_acq_##width(volatile type *p, type v)			\
 {									\
-	type old;							\
+	type old, ret;							\
 	do {								\
 		old = *p;						\
-	} while (IA64_CMPXCHG(sz, acq, type, p, old, old op v) != old);	\
+		IA64_CMPXCHG(sz, acq, p, old, old op v, ret);		\
+	} while (ret != old);						\
 }									\
 									\
 static __inline void							\
 atomic_##name##_rel_##width(volatile type *p, type v)			\
 {									\
-	type old;							\
+	type old, ret;							\
 	do {								\
 		old = *p;						\
-	} while (IA64_CMPXCHG(sz, rel, type, p, old, old op v) != old);	\
+		IA64_CMPXCHG(sz, rel, p, old, old op v, ret);		\
+	} while (ret != old);						\
 }
 
 IA64_ATOMIC(1, u_int8_t,  set,	8,	|)
