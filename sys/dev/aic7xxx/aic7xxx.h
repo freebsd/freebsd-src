@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#18 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#22 $
  *
  * $FreeBSD$
  */
@@ -286,50 +286,56 @@ typedef enum {
  * chip/controller's configuration.
  */
 typedef enum {
-	AHC_FNONE		= 0x000,
-	AHC_PAGESCBS		= 0x001,/* Enable SCB paging */
-	AHC_CHANNEL_B_PRIMARY	= 0x002,/*
-					 * On twin channel adapters, probe
-					 * channel B first since it is the
-					 * primary bus.
+	AHC_FNONE	      = 0x000,
+	AHC_PRIMARY_CHANNEL   = 0x003,/*
+					 * The channel that should
+					 * be probed first.
 					 */
-	AHC_USEDEFAULTS		= 0x004,/*
+	AHC_USEDEFAULTS	      = 0x004,/*
 					 * For cards without an seeprom
 					 * or a BIOS to initialize the chip's
 					 * SRAM, we use the default target
 					 * settings.
 					 */
-	AHC_SEQUENCER_DEBUG	= 0x008,
-	AHC_SHARED_SRAM		= 0x010,
-	AHC_LARGE_SEEPROM	= 0x020,/* Uses C56_66 not C46 */
-	AHC_RESET_BUS_A		= 0x040,
-	AHC_RESET_BUS_B		= 0x080,
-	AHC_EXTENDED_TRANS_A	= 0x100,
-	AHC_EXTENDED_TRANS_B	= 0x200,
-	AHC_TERM_ENB_A		= 0x400,
-	AHC_TERM_ENB_B		= 0x800,
-	AHC_INITIATORROLE	= 0x1000,/*
+	AHC_SEQUENCER_DEBUG   = 0x008,
+	AHC_SHARED_SRAM	      = 0x010,
+	AHC_LARGE_SEEPROM     = 0x020,/* Uses C56_66 not C46 */
+	AHC_RESET_BUS_A	      = 0x040,
+	AHC_RESET_BUS_B	      = 0x080,
+	AHC_EXTENDED_TRANS_A  = 0x100,
+	AHC_EXTENDED_TRANS_B  = 0x200,
+	AHC_TERM_ENB_A	      = 0x400,
+	AHC_TERM_ENB_B	      = 0x800,
+	AHC_INITIATORROLE     = 0x1000,/*
 					  * Allow initiator operations on
 					  * this controller.
 					  */
-	AHC_TARGETROLE		= 0x2000,/*
+	AHC_TARGETROLE	      = 0x2000,/*
 					  * Allow target operations on this
 					  * controller.
 					  */
-	AHC_NEWEEPROM_FMT	= 0x4000,
-	AHC_RESOURCE_SHORTAGE	= 0x8000,
-	AHC_TQINFIFO_BLOCKED	= 0x10000,/* Blocked waiting for ATIOs */
-	AHC_INT50_SPEEDFLEX	= 0x20000,/*
+	AHC_NEWEEPROM_FMT     = 0x4000,
+	AHC_RESOURCE_SHORTAGE = 0x8000,
+	AHC_TQINFIFO_BLOCKED  = 0x10000,/* Blocked waiting for ATIOs */
+	AHC_INT50_SPEEDFLEX   = 0x20000,/*
 					   * Internal 50pin connector
 					   * sits behind an aic3860
 					   */
-	AHC_SCB_BTT		= 0x40000,/*
+	AHC_SCB_BTT	      = 0x40000,/*
 					   * The busy targets table is
 					   * stored in SCB space rather
 					   * than SRAM.
 					   */
-	AHC_BIOS_ENABLED	= 0x80000,
-	AHC_ALL_INTERRUPTS	= 0x100000
+	AHC_BIOS_ENABLED      = 0x80000,
+	AHC_ALL_INTERRUPTS    = 0x100000,
+	AHC_ULTRA_DISABLED    = 0x200000, /*
+					   * The precision resistor for
+					   * ultra transmission speeds is
+					   * missing, so we must limit
+					   * ourselves to fast SCSI.
+					   */
+	AHC_PAGESCBS	      = 0x400000, /* Enable SCB paging */
+	AHC_EDGE_INTERRUPT    = 0x800000  /* Device uses edge triggered ints */
 } ahc_flag;
 
 /*
@@ -705,32 +711,14 @@ extern struct ahc_syncrate ahc_syncrates[];
 
 /***************************** Lookup Tables **********************************/
 /*
- * Textual descriptions of the different chips indexed by chip type.
- */
-extern char *ahc_chip_names[];
-extern const u_int num_chip_names;
-
-/*
- * Hardware error codes.
- */
-struct hard_error_entry {
-        uint8_t errno;
-	char *errmesg;
-};
-extern struct hard_error_entry hard_error[];
-extern const u_int num_errors;
-
-/*
  * Phase -> name and message out response
  * to parity errors in each phase table. 
  */
-struct phase_table_entry {
+struct ahc_phase_table_entry {
         uint8_t phase;
         uint8_t mesg_out; /* Message response to parity errors */
 	char *phasemsg;
 };
-extern struct phase_table_entry phase_table[];
-extern const u_int num_phases;
 
 /************************** Serial EEPROM Format ******************************/
 
@@ -782,7 +770,8 @@ struct seeprom_config {
 #define		CFMULTILUN	0x0020	/* SCSI low byte term (284x cards) */	
 #define		CFRESETB	0x0040	/* reset SCSI bus at boot */
 #define		CFCLUSTERENB	0x0080	/* Cluster Enable */
-#define		CFCHNLBPRIMARY	0x0100	/* aic7895 probe B channel first */
+#define		CFBOOTCHAN	0x0300	/* probe this channel first */
+#define		CFBOOTCHANSHIFT 8
 #define		CFSEAUTOTERM	0x0400	/* Ultra2 Perform secondary Auto Term*/
 #define		CFSELOWTERM	0x0800	/* Ultra2 secondary low term */
 #define		CFSEHIGHTERM	0x1000	/* Ultra2 secondary high term */
@@ -806,6 +795,7 @@ struct seeprom_config {
 	uint16_t res_1[10];		/* words 20-29 */
 	uint16_t signature;		/* Signature == 0x250 */
 #define		CFSIGNATURE	0x250
+#define		CFSIGNATURE2	0x300
 	uint16_t checksum;		/* word 31 */
 };
 
@@ -1137,8 +1127,10 @@ int			ahc_search_disc_list(struct ahc_softc *ahc, int target,
 void			ahc_freeze_devq(struct ahc_softc *ahc, struct scb *scb);
 int			ahc_reset_channel(struct ahc_softc *ahc, char channel,
 					  int initiate_reset);
-void			restart_sequencer(struct ahc_softc *ahc);
+void			ahc_restart(struct ahc_softc *ahc);
 /*************************** Utility Functions ********************************/
+struct ahc_phase_table_entry*
+			ahc_lookup_phase_entry(int phase);
 void			ahc_compile_devinfo(struct ahc_devinfo *devinfo,
 					    u_int our_id, u_int target,
 					    u_int lun, char channel,

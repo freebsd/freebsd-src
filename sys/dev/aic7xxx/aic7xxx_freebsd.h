@@ -49,7 +49,7 @@
 #include <sys/queue.h>
 
 #if NPCI > 0
-#define AHC_SUPPORT_PCI 1
+#define AHC_PCI_CONFIG 1
 #ifdef AHC_ALLOW_MEMIO
 #include <machine/bus_memio.h>
 #endif
@@ -404,7 +404,7 @@ ahc_platform_scb_free(struct ahc_softc *ahc, struct scb *scb)
 }
 
 /********************************** PCI ***************************************/
-#ifdef AHC_SUPPORT_PCI
+#ifdef AHC_PCI_CONFIG
 static __inline uint32_t ahc_pci_read_config(ahc_dev_softc_t pci,
 					     int reg, int width);
 static __inline void	 ahc_pci_write_config(ahc_dev_softc_t pci,
@@ -446,10 +446,21 @@ ahc_get_pci_bus(ahc_dev_softc_t pci)
 {
 	return (pci_get_bus(pci));
 }
+
+typedef enum
+{
+	AHC_POWER_STATE_D0,
+	AHC_POWER_STATE_D1,
+	AHC_POWER_STATE_D2,
+	AHC_POWER_STATE_D3
+} ahc_power_state;
+
+void ahc_power_state_change(struct ahc_softc *ahc,
+			    ahc_power_state new_state);
 #endif
 /******************************** VL/EISA *************************************/
 int aic7770_map_registers(struct ahc_softc *ahc);
-int aic7770_map_int(struct ahc_softc *ahc);
+int aic7770_map_int(struct ahc_softc *ahc, int irq);
 
 /********************************* Debug **************************************/
 static __inline void	ahc_print_path(struct ahc_softc *, struct scb *);

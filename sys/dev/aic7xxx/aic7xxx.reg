@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#12 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#14 $
  *
  * $FreeBSD$
  */
@@ -877,6 +877,7 @@ register DFSTATUS {
 	address			0x094
 	access_mode RO
 	bit	PRELOAD_AVAIL	0x80
+	bit	DFCACHETH	0x40
 	bit	DWORDEMP	0x20
 	bit	MREQPEND	0x10
 	bit	HDONE		0x08
@@ -1456,6 +1457,10 @@ scratch_ram {
 		size		1
 	}
 
+	SEQ_FLAGS2 {
+		size		1
+		bit	SCB_DMA		0x01
+	}
 	/*
 	 * These are reserved registers in the card's scratch ram.  Some of
 	 * the values are specified in the AHA2742 technical reference manual
