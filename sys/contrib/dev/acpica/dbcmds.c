@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 97 $
+ *              $Revision: 105 $
  *
  ******************************************************************************/
 
@@ -249,10 +249,10 @@ AcpiDbDisplayLocks (void)
     UINT32                  i;
 
 
-    for (i = 0; i < MAX_MTX; i++)
+    for (i = 0; i < MAX_MUTEX; i++)
     {
         AcpiOsPrintf ("%26s : %s\n", AcpiUtGetMutexName (i),
-                    AcpiGbl_AcpiMutexInfo[i].OwnerId == ACPI_MUTEX_NOT_ACQUIRED
+                    AcpiGbl_MutexInfo[i].OwnerId == ACPI_MUTEX_NOT_ACQUIRED
                         ? "Locked" : "Unlocked");
     }
 }
@@ -276,15 +276,28 @@ AcpiDbDisplayTableInfo (
     char                    *TableArg)
 {
     UINT32                  i;
+    ACPI_TABLE_DESC         *TableDesc;
 
 
-    for (i = 0; i < NUM_ACPI_TABLES; i++)
+    for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++)
     {
-        if (AcpiGbl_AcpiTables[i].Pointer)
+        TableDesc = AcpiGbl_TableLists[i].Next;
+        while (TableDesc)
         {
-            AcpiOsPrintf ("%s at %p length %X\n", AcpiGbl_AcpiTableData[i].Name,
-                        AcpiGbl_AcpiTables[i].Pointer,
-                        (UINT32) AcpiGbl_AcpiTables[i].Length);
+            AcpiOsPrintf ( "%s at %p length %.5X",
+                    AcpiGbl_TableData[i].Name, TableDesc->Pointer,
+                    (UINT32) TableDesc->Length);
+
+            if (i != ACPI_TABLE_FACS)
+            {
+                AcpiOsPrintf (" OemID=%6s TableId=%8s OemRevision=%8.8X",
+                        TableDesc->Pointer->OemId,
+                        TableDesc->Pointer->OemTableId,
+                        TableDesc->Pointer->OemRevision);
+            }
+            AcpiOsPrintf ("\n");
+
+            TableDesc = TableDesc->Next;
         }
     }
 }
@@ -316,10 +329,10 @@ AcpiDbUnloadAcpiTable (
 
     /* Search all tables for the target type */
 
-    for (i = 0; i < NUM_ACPI_TABLES; i++)
+    for (i = 0; i < NUM_ACPI_TABLE_TYPES; i++)
     {
-        if (!ACPI_STRNCMP (TableArg, AcpiGbl_AcpiTableData[i].Signature,
-                AcpiGbl_AcpiTableData[i].SigLength))
+        if (!ACPI_STRNCMP (TableArg, AcpiGbl_TableData[i].Signature,
+                AcpiGbl_TableData[i].SigLength))
         {
             /* Found the table, unload it */
 
@@ -499,11 +512,9 @@ AcpiDbDumpNamespace (
                 return;
             }
         }
-
-        /* Alpha argument */
-
         else
         {
+            /* Alpha argument */
             /* The parameter is a name string that must be resolved to a Named obj*/
 
             SubtreeEntry = AcpiDbLocalNsLookup (StartArg);
@@ -626,7 +637,6 @@ AcpiDbSendNotify (
         AcpiOsPrintf ("Named object is not a device or a thermal object\n");
         break;
     }
-
 }
 
 
@@ -682,7 +692,6 @@ AcpiDbSetMethodData (
         return;
     }
 
-
     /* Create and initialize the new object */
 
     ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
@@ -693,7 +702,6 @@ AcpiDbSetMethodData (
     }
 
     ObjDesc->Integer.Value = Value;
-
 
     /* Store the new object into the target */
 
@@ -718,7 +726,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->Arguments[Index].Object;
 
         AcpiOsPrintf ("Arg%d: ", Index);
-        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     case 'L':
@@ -740,7 +748,7 @@ AcpiDbSetMethodData (
         ObjDesc = WalkState->LocalVariables[Index].Object;
 
         AcpiOsPrintf ("Local%d: ", Index);
-        AcpiDbDisplayInternalObject (ObjDesc, WalkState);
+        AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         break;
 
     default:
@@ -787,7 +795,6 @@ AcpiDbWalkForSpecificObjects (
 
     AcpiOsPrintf ("%32s", (char *) Buffer.Pointer);
     ACPI_MEM_FREE (Buffer.Pointer);
-
 
     /* Display short information about the object */
 
@@ -924,7 +931,6 @@ AcpiDbWalkAndMatchName (
         }
     }
 
-
     /* Get the full pathname to this object */
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
@@ -1007,7 +1013,6 @@ AcpiDbSetScope (
 
     AcpiDbPrepNamestring (Name);
 
-
     if (Name[0] == '\\')
     {
         /* Validate new scope from the root */
@@ -1038,7 +1043,6 @@ AcpiDbSetScope (
     AcpiGbl_DbScopeNode = Node;
     AcpiOsPrintf ("New scope: %s\n", AcpiGbl_DbScopeBuf);
     return;
-
 
 ErrorExit:
 
@@ -1100,7 +1104,6 @@ AcpiDbDisplayResources (
     {
         AcpiOsPrintf ("GetIrqRoutingTable failed: %s\n", AcpiFormatException (Status));
     }
-
     else
     {
         AcpiRsDumpIrqList ((UINT8 *) AcpiGbl_DbBuffer);
@@ -1131,7 +1134,6 @@ GetCrs:
         AcpiOsPrintf ("AcpiGetCurrentResources failed: %s\n", AcpiFormatException (Status));
         goto GetPrs;
     }
-
     else
     {
         AcpiRsDumpResourceList (ACPI_CAST_PTR (ACPI_RESOURCE, AcpiGbl_DbBuffer));
@@ -1168,19 +1170,16 @@ GetPrs:
     {
         AcpiOsPrintf ("AcpiGetPossibleResources failed: %s\n", AcpiFormatException (Status));
     }
-
     else
     {
         AcpiRsDumpResourceList (ACPI_CAST_PTR (ACPI_RESOURCE, AcpiGbl_DbBuffer));
     }
-
 
 Cleanup:
 
     AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
     return;
 #endif
-
 }
 
 
@@ -1237,7 +1236,6 @@ AcpiDbIntegrityWalk (
         }
     }
 
-
     return (AE_OK);
 }
 
@@ -1265,7 +1263,6 @@ AcpiDbCheckIntegrity (void)
                     AcpiDbIntegrityWalk, (void *) &Info, NULL);
 
     AcpiOsPrintf ("Verified %d namespace nodes with %d Objects\n", Info.Nodes, Info.Objects);
-
 }
 
 
@@ -1291,19 +1288,18 @@ AcpiDbGenerateGpe (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
-    GpeNumber   = ACPI_STRTOUL (GpeArg, NULL, 10);
-    BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 10);
+    GpeNumber   = ACPI_STRTOUL (GpeArg, NULL, 0);
+    BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
 
 
-    GpeEventInfo = AcpiEvGetGpeEventInfo (GpeNumber);
+    GpeEventInfo = AcpiEvGetGpeEventInfo ((void *) BlockNumber, GpeNumber);
     if (!GpeEventInfo)
     {
         AcpiOsPrintf ("Invalid GPE\n");
         return;
     }
 
-    AcpiEvGpeDispatch (GpeEventInfo);
-
+    AcpiEvGpeDispatch (GpeEventInfo, GpeNumber);
 }
 
 #endif /* ACPI_DEBUGGER */
