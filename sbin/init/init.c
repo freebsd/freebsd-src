@@ -284,7 +284,23 @@ invalid:
 		warning("ignoring excess arguments");
 
 	if (devfs) {
-		mount("devfs", _PATH_DEV, 0, 0);
+		char *s;
+		int i;
+
+		/* 
+		 * Try to avoid the trailing slash in _PATH_DEV.
+		 * Be *very* defensive.
+		 */
+		s = strdup(_PATH_DEV);
+		if (s != NULL) {
+			i = strlen(s);
+			if (i > 0 && s[i - 1] == '/')
+				s[i - 1] = '\0';
+			mount("devfs", s, 0, 0);
+			free(s);
+		} else {
+			mount("devfs", _PATH_DEV, 0, 0);
+		}
 	}
 
 	/*
