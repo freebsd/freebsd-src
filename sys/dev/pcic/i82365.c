@@ -357,9 +357,6 @@ pcic_attach_socket(device_t dev, struct pcic_handle *h)
 	 *
 	 * XXX This should add all devices that can attach to pcic, which
 	 * is what we want in the general case.
-	 *
-	 * XXX Notice we don't use h AT ALL.  This should be considered to
-	 * XXX be BAD.
 	 */
 	device_add_child(dev, NULL, -1);
 	device_set_ivars(dev, h);
