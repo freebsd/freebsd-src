@@ -120,12 +120,6 @@ Boston, MA 02111-1307, USA.  */
 #define TYPE_ASM_OP	".type"
 #define SIZE_ASM_OP	".size"
 
-/* This is how we tell the assembler that a symbol is weak.  */
-
-#define ASM_WEAKEN_LABEL(FILE,NAME) \
-  do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
-       fputc ('\n', FILE); } while (0)
-
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
    expect various different forms for this operand.  The one given here

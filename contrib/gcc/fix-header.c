@@ -531,7 +531,18 @@ read_scan_file (in_fname, argc, argv)
   push_parse_file (&scan_in, in_fname);
   CPP_OPTIONS (&scan_in)->no_line_commands = 1;
 
+#ifdef FIXPROTO_INIT
+  /* Some targets may assume special definitions (for example
+     OSF header files assume __LANGUAGE_C__).  These macros
+     are normally passed to cpplib by gcc - but we here invoke
+     cpplib directly, without going through gcc.
+     Handle these and other target-dependent initializations here. */
+  FIXPROTO_INIT (&scan_in);
+#endif
+
+  /* Actually (pre-)process the header file. */
   scan_decls (&scan_in, argc, argv);
+
   check_macro_names (&scan_in, include_entry->required);
   check_macro_names (&scan_in, include_entry->extra);
 

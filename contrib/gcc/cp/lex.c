@@ -3313,6 +3313,14 @@ real_yylex ()
 		  token_buffer[0] = '^';
 		  token_buffer[1] = 0;
 		}
+	      else if (ptr->token == NAMESPACE)
+		{
+		  static int warned;
+		  if (! warned)
+		    warning ("namespaces are mostly broken in this version of g++");
+
+		  warned = 1;
+		}
 
 	      value = (int) ptr->token;
 	    }
