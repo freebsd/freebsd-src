@@ -24,7 +24,7 @@
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$Id: vasprintf.c,v 1.1 1996/05/27 10:49:43 peter Exp $";
+static char rcsid[] = "$Id: vasprintf.c,v 1.2 1996/06/22 10:34:01 jraynard Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdio.h>
@@ -40,8 +40,8 @@ static char rcsid[] = "$Id: vasprintf.c,v 1.1 1996/05/27 10:49:43 peter Exp $";
 
 struct bufcookie {
 	char	*base;	/* start of buffer */
-	int	size;
-	int	left;
+	size_t	size;
+	size_t	left;
 };
 
 static int 	writehook __P((void *cookie, const char *, int));
@@ -53,22 +53,31 @@ writehook(cookie, buf, len)
 	int   len;
 {
 	struct bufcookie *h = (struct bufcookie *)cookie;
+	char *newbuf;
 
 	if (len == 0)
 		return 0;
 
 	if (len > h->left) {
 		/* grow malloc region */
+ 		/*
+		 * XXX this is linearly expanded, which is slow for obscenely
+		 * large strings.
+		 */
 		h->left = h->left + len + CHUNK_SPARE;
 		h->size = h->size + len + CHUNK_SPARE;
-		h->base = realloc(h->base, (size_t)h->size);
-		if (h->base == NULL)
+		newbuf = realloc(h->base, h->size);
+		if (newbuf == NULL) {
+			free(h->base);
+			h->base = NULL;
 			return (-1);
+		} else
+			h->base = newbuf;
 	}
 	/* "write" it */
 	(void)memcpy(h->base + h->size - h->left, buf, (size_t)len);
 	h->left -= len;
-	return (0);
+	return (len);
 }
 
 
@@ -105,6 +114,6 @@ vasprintf(str, fmt, ap)
 	h.base[h.size - h.left] = '\0';
 	*str = realloc(h.base, (size_t)(h.size - h.left + 1));
 	if (*str == NULL)	/* failed to realloc it to actual size */
-		return -1;
+		*str = h.base;	/* return oversize buffer */
 	return (ret);
 }
