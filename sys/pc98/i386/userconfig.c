@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.10.2.3 1996/12/14 14:48:23 joerg Exp $
+ **      $Id: userconfig.c,v 1.10.2.4 1996/12/22 15:01:42 joerg Exp $
  **/
 
 /**
@@ -572,6 +572,8 @@ findspot(DEV_LIST *dev, DEV_LIST *list)
 	for (ap = list; ap; ap = ap->next)
 	{
 	    if (ap->comment != DEV_DEVICE)			/* ignore comments */
+		continue;
+	    if (ap->iobase == -2)				/* don't group with a PCI device */
 		continue;
 	    if (!strcmp(dev->dev,ap->dev))			/* same base device */
 	    {
@@ -2252,7 +2254,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.10.2.3 1996/12/14 14:48:23 joerg Exp $
+ *      $Id: userconfig.c,v 1.10.2.4 1996/12/22 15:01:42 joerg Exp $
  */
 
 #include "scbus.h"
