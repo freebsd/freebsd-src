@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.94 1997/11/09 18:51:22 brian Exp $
+ * $Id: command.c,v 1.95 1997/11/09 22:07:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1276,6 +1276,7 @@ SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
     VarPhoneList[sizeof(VarPhoneList) - 1] = '\0';
     strcpy(VarPhoneCopy, VarPhoneList);
     VarNextPhone = VarPhoneCopy;
+    VarAltPhone = NULL;
     break;
   case VAR_HANGUP:
     strncpy(VarHangupScript, arg, sizeof(VarHangupScript) - 1);
