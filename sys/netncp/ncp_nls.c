@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/systm.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_nls.h>
@@ -245,7 +246,11 @@ ncp_pathcopy(const char *src, char *dst, int len, struct ncp_nlstables *nt)
 	u_char	c;
 /*	char *d = dst, *s = src;*/
 
-	donls = (nt && (nt->opt & NWHP_NLS));
+	if (nt == NULL) {
+		ovbcopy(src, dst, len);
+		return;
+	}
+	donls = (nt->opt & NWHP_NLS);
 	if ((nt->opt & (NWHP_UPPER | NWHP_LOWER)) == 0) {
 		while (len--) {
 			*dst = donls ? nt->u2n[(u_char)*src] : *src;
@@ -280,7 +285,11 @@ ncp_path2unix(char *src, char *dst, int len, struct ncp_nlstables *nt) {
 /*	char *d = dst, *s = src;*/
 
 /*	printf("toux(%02x): %s:",nt->opt, s);*/
-	donls = (nt && (nt->opt & NWHP_NLS));
+	if (nt == NULL) {
+		ovbcopy(src, dst, len);
+		return;
+	}
+	donls = (nt->opt & NWHP_NLS);
 	if ((nt->opt & (NWHP_UPPER | NWHP_LOWER)) == 0) {
 		while (len--) {
 			c = *src;
