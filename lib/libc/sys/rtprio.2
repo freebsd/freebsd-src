@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
 .\"    must display the following acknowledgement:
-.\" 	This product includes software developed by Henrik Vestergaard Draboel..
+.\" 	This product includes software developed by Henrik Vestergaard Draboel.
 .\" 4. The name of the author may not be used to endorse or promote products
 .\"    derived from this software without specific prior written permission.
 .\"
@@ -27,49 +27,61 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\" 
-.\" $Id: rtprio.2,v 1.1 1994/09/01 09:52:37 davidg Exp $
+.\" $Id: $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 2
-.Os FreeBSD 1.1.5.1
 .Sh NAME
 .Nm rtprio
-.Nd examine or modify a process realtime scheduling priority
+.Nd examine or modify a process realtime or idle priority
 .Sh SYNOPSIS
 .Fd #include <sys/resource.h>
+.Fd #include <sys/rtprio.h>
 .Ft int 
-.Fn rtprio "pid_t pid" "int prio"
+.Fn rtprio "function" "pid_t pid" "struct rtprio *rtp"
 .Sh DESCRIPTION
-Rtprio() is used to change or read the realtime priority of a process.
+.Fn rtprio
+is used to lookup or change the realtime or idle priority of a process.
 
+.Fa function
+specifies the operation to be performed. RTP_LOOKUP to lookup the current priority, 
+and RTP_SET to set the priority.
 .Fa pid
-specifies the process to be used. If it is 0, the current process will
-be used.
+specifies the process to be used, 0 for the current process.
 
-.Fa prio
-specifies the new priority of the process, or 
-.Dv RTPRIO_RTOFF , 
-for normal
-(non-realtime) priority or 
-.Dv RTPRIO_NOCHG
-for nochange (se RETURN VALUE).
-
-Legal values of priorities are between 
-.Dv RTPRIO_RTMIN (0)
-and  
-.Dv RTPRIO_RTMAX (31) .
+.Fa *rtp
+is a pointer to a struct rtprio which is used to specify the priority and priority type. 
+This structure has the following form:
+.Bd -literal
+struct rtprio {
+	u_short	type;
+	u_short prio;
+};
+.Ed
+.Pp
+The value of the
+.Nm type
+field may be RTP_PRIO_REALTIME for realtime priorities,
+RTP_PRIO_NORMAL for normal priorities, and RTP_PRIO_IDLE for idle priorities.
+The priority specified by the
+.Nm prio
+field ranges between 0 and  
+.Dv RTP_PRIO_MAX (usually 31) .
 0 is the highest possible priority.
 
-Realtime priority is enherited through fork() and exec().
+Realtime and idle priority is inherited through fork() and exec().
 
 A realtime process can only be preempted by a process of equal or
-higher priority, or an interrupt. Processes of equal realtime priority
-are run in a round-robin schedule.
+higher priority, or by an interrupt; idle priority processes will run only
+when no other real/normal priority process is runnable. Higher real/idle priority processes
+preempt lower real/idle priority processes. Processes of equal real/idle priority are run round-robin.
 .Sh RETURN VALUES
-If errno is not set, the new (or unchanged) realtime priority of the
-process is returned.
+.Fn rtprio
+will return 0 for success and -1 for all errors. The global variable
+.Va errno
+will be set to indicate the error.
 .Sh ERRORS
-.Fn Rtprio
+.Fn rtprio
 will fail if 
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -78,11 +90,13 @@ The specified
 was out of range.
 .It Bq Er EPERM
 The calling process is not allowed to set the realtime priority. Only
-root is allowed to change the realtime priority of any process.
+root is allowed to change the realtime priority of any process, and non-root
+may only change the idle priority of the current process.
 .It Bq Er ESRCH
 The specified process was not found.
 .Sh AUTHOR
-Henrik Vestergaard Draboel - hvd@terry.ping.dk
+The original author was Henrik Vestergaard Draboel - hvd@terry.ping.dk. This
+implementation in FreeBSD was substantially rewritten by David Greenman.
 .Sh SEE ALSO
 .Xr rtprio 1 ,
 .Xr nice 1 ,
