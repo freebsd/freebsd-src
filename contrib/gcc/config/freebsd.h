@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: freebsd.h,v 1.7 1999/04/14 00:25:45 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -35,8 +35,7 @@ Boston, MA 02111-1307, USA.  */
    -z* options (for the linker).  We have a slightly different mix.  We
    have -R (alias --rpath), no -z, --soname (-h), --assert etc. */
 
-#undef SWITCH_TAKES_ARG
-#define SWITCH_TAKES_ARG(CHAR) \
+#define FBSD_SWITCH_TAKES_ARG(CHAR) \
   (   (CHAR) == 'D' \
    || (CHAR) == 'U' \
    || (CHAR) == 'o' \
@@ -55,8 +54,7 @@ Boston, MA 02111-1307, USA.  */
    || (CHAR) == 'z' /* ignored by ld */ \
    || (CHAR) == 'R')
 
-#undef WORD_SWITCH_TAKES_ARG
-#define WORD_SWITCH_TAKES_ARG(STR)					\
+#define FBSD_WORD_SWITCH_TAKES_ARG(STR)					\
   (DEFAULT_WORD_SWITCH_TAKES_ARG (STR)					\
    || !strcmp (STR, "rpath") || !strcmp (STR, "rpath-link")		\
    || !strcmp (STR, "soname") || !strcmp (STR, "defsym") 		\
