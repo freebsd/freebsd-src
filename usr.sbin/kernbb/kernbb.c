@@ -29,7 +29,7 @@ typedef long long gcov_type;
 
 struct bbf {
 	long	checksum;
-	long	arc_count;
+	int	arc_count;
 	u_long	name;
 };
 
