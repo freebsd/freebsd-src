@@ -375,33 +375,84 @@ svr4/svr4_ttold.c		optional	compat_svr4
 i386/svr4/svr4_locore.s		optional	compat_svr4		   \
 	dependency	"svr4_assym.h"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
-i4b/layer1/i4b_asuscom_ipac.c	optional	isic
-i4b/layer1/i4b_avm_a1.c		optional	isic
-i4b/layer1/i4b_avm_fritz_pci.c	optional	isic
-#i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic
-#i4b/layer1/i4b_avm_fritz_pnp.c	optional	isic
-i4b/layer1/i4b_bchan.c		optional	isic
-i4b/layer1/i4b_ctx_s0P.c	optional	isic
-i4b/layer1/i4b_drn_ngo.c	optional	isic
-#i4b/layer1/i4b_dynalink.c	optional	isic
-i4b/layer1/i4b_elsa_qs1i.c	optional	isic
-i4b/layer1/i4b_elsa_qs1p.c	optional	isic
-i4b/layer1/i4b_elsa_pcc16.c	optional	isic
-i4b/layer1/i4b_hscx.c		optional	isic
-i4b/layer1/i4b_isac.c		optional	isic
-i4b/layer1/i4b_isic.c		optional	isic
-i4b/layer1/i4b_isic_isa.c	optional	isic
-#i4b/layer1/i4b_isic_pcmcia.c	optional	isic
-i4b/layer1/i4b_isic_pnp.c	optional	isic
-#i4b/layer1/i4b_itk_ix1.c	optional	isic
-i4b/layer1/i4b_l1.c		optional	isic
-i4b/layer1/i4b_l1fsm.c		optional	isic
-i4b/layer1/i4b_siemens_isurf.c	optional	isic
-i4b/layer1/i4b_sws.c		optional	isic
-i4b/layer1/i4b_tel_s016.c	optional	isic
-i4b/layer1/i4b_tel_s0163.c	optional	isic
-i4b/layer1/i4b_tel_s08.c	optional	isic
-i4b/layer1/i4b_usr_sti.c	optional	isic
+#
+# isdn4bsd, needed for isic | iwic | ifpi | ihfc | ifpnp | itjc
+#
+i4b/layer1/i4b_l1dmux.c         	optional        isic
+i4b/layer1/i4b_l1lib.c          	optional        isic
+i4b/layer1/i4b_l1dmux.c         	optional        iwic
+i4b/layer1/i4b_l1lib.c          	optional        iwic
+i4b/layer1/i4b_l1dmux.c         	optional        ifpi
+i4b/layer1/i4b_l1lib.c          	optional        ifpi
+i4b/layer1/i4b_l1dmux.c         	optional        ihfc
+i4b/layer1/i4b_l1lib.c          	optional        ihfc
+i4b/layer1/i4b_l1dmux.c         	optional        ifpnp
+i4b/layer1/i4b_l1lib.c          	optional        ifpnp
+i4b/layer1/i4b_l1dmux.c         	optional        itjc
+i4b/layer1/i4b_l1lib.c          	optional        itjc
+#
+# isdn4bsd, isic
+#
+i4b/layer1/isic/i4b_asuscom_ipac.c	optional	isic
+i4b/layer1/isic/i4b_avm_a1.c		optional	isic
+i4b/layer1/isic/i4b_bchan.c		optional	isic
+i4b/layer1/isic/i4b_ctx_s0P.c		optional	isic
+i4b/layer1/isic/i4b_drn_ngo.c		optional	isic
+i4b/layer1/isic/i4b_dynalink.c		optional	isic
+i4b/layer1/isic/i4b_elsa_qs1i.c		optional	isic
+i4b/layer1/isic/i4b_elsa_qs1p.c		optional	isic
+i4b/layer1/isic/i4b_elsa_pcc16.c	optional	isic
+i4b/layer1/isic/i4b_hscx.c		optional	isic
+i4b/layer1/isic/i4b_isac.c		optional	isic
+i4b/layer1/isic/i4b_isic.c		optional	isic
+i4b/layer1/isic/i4b_isic_isa.c		optional	isic
+i4b/layer1/isic/i4b_isic_pnp.c		optional	isic
+i4b/layer1/isic/i4b_itk_ix1.c		optional	isic
+i4b/layer1/isic/i4b_l1.c		optional	isic
+i4b/layer1/isic/i4b_l1fsm.c		optional	isic
+i4b/layer1/isic/i4b_siemens_isurf.c	optional	isic
+i4b/layer1/isic/i4b_sws.c		optional	isic
+i4b/layer1/isic/i4b_tel_s016.c		optional	isic
+i4b/layer1/isic/i4b_tel_s0163.c		optional	isic
+i4b/layer1/isic/i4b_tel_s08.c		optional	isic
+i4b/layer1/isic/i4b_usr_sti.c		optional	isic
+i4b/layer1/isic/i4b_diva.c		optional	isic
+#
+# isdn4bsd, iwic
+#
+i4b/layer1/iwic/i4b_iwic_pci.c		optional	iwic
+i4b/layer1/iwic/i4b_iwic_dchan.c	optional	iwic
+i4b/layer1/iwic/i4b_iwic_bchan.c	optional	iwic
+i4b/layer1/iwic/i4b_iwic_fsm.c		optional	iwic
+i4b/layer1/iwic/i4b_iwic_l1if.c		optional	iwic
+#
+# isdn4bsd, ifpi
+#
+i4b/layer1/ifpi/i4b_ifpi_pci.c		optional	ifpi
+i4b/layer1/ifpi/i4b_ifpi_isac.c		optional	ifpi
+i4b/layer1/ifpi/i4b_ifpi_l1.c		optional	ifpi
+i4b/layer1/ifpi/i4b_ifpi_l1fsm.c	optional	ifpi
+#
+# isdn4bsd, ifpnp
+#
+i4b/layer1/ifpnp/i4b_ifpnp_avm.c	optional	ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_isac.c	optional	ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_l1.c		optional	ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_l1fsm.c	optional	ifpnp
+#
+# isdn4bsd, ihfc
+#
+i4b/layer1/ihfc/i4b_ihfc_l1if.c		optional	ihfc
+i4b/layer1/ihfc/i4b_ihfc_pnp.c		optional	ihfc
+i4b/layer1/ihfc/i4b_ihfc_drv.c		optional	ihfc
+#
+# isdn4bsd, itjc
+#
+i4b/layer1/itjc/i4b_itjc_pci.c		optional	itjc
+i4b/layer1/itjc/i4b_itjc_isac.c		optional	itjc
+i4b/layer1/itjc/i4b_itjc_l1.c		optional	itjc
+i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional	itjc
+#
 isa/psm.c			optional	psm
 kern/md4c.c			optional	netsmb
 kern/subr_diskmbr.c		optional	compat_atdisk
