@@ -133,56 +133,29 @@ pthread_exit(void *status)
 		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 	}
 
-	/* Lock the thread list: */
-	_lock_thread_list();
-
-	/* Check if the running thread is at the head of the linked list: */
-	if (_thread_link_list == _thread_run) {
-		/* There is no previous thread: */
-		_thread_link_list = _thread_run->nxt;
-	} else {
-		/* Point to the first thread in the list: */
-		pthread = _thread_link_list;
-
-		/*
-		 * Enter a loop to find the thread in the linked list before
-		 * the running thread: 
-		 */
-		while (pthread != NULL && pthread->nxt != _thread_run) {
-			/* Point to the next thread: */
-			pthread = pthread->nxt;
-		}
-
-		/* Check that a previous thread was found: */
-		if (pthread != NULL) {
-			/*
-			 * Point the previous thread to the one after the
-			 * running thread: 
-			 */
-			pthread->nxt = _thread_run->nxt;
-		}
-	}
-
-	/* Unlock the thread list: */
-	_unlock_thread_list();
-
-	/* Lock the dead thread list: */
-	_lock_dead_thread_list();
-
 	/*
-	 * This thread will never run again. Add it to the list of dead
-	 * threads: 
+	 * Lock the garbage collector mutex to ensure that the garbage
+	 * collector is not using the dead thread list.
 	 */
-	_thread_run->nxt = _thread_dead;
+	if (pthread_mutex_lock(&_gc_mutex) != 0)
+		PANIC("Cannot lock gc mutex");
+
+	/* Add this thread to the list of dead threads. */
+	_thread_run->nxt_dead = _thread_dead;
 	_thread_dead = _thread_run;
 
-	/* Unlock the dead thread list: */
-	_unlock_dead_thread_list();
-
 	/*
-	 * The running thread is no longer in the thread link list so it will
-	 * now die: 
+	 * Signal the garbage collector thread that there is something
+	 * to clean up.
 	 */
+	if (pthread_cond_signal(&_gc_cond) != 0)
+		PANIC("Cannot signal gc cond");
+
+	/* Unlock the garbage collector mutex: */
+	if (pthread_mutex_unlock(&_gc_mutex) != 0)
+		PANIC("Cannot lock gc mutex");
+
+	/* This this thread will never be re-scheduled. */
 	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
 
 	/* This point should not be reached. */

@@ -251,6 +251,11 @@ _thread_init(void)
 	__set_dynamic_handler_allocator( dynamic_allocator_handler_fn );
 #endif /* GCC_2_8_MADE_THREAD_AWARE */
 
+	/* Initialise the garbage collector mutex and condition variable. */
+	if (pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
+	    pthread_cond_init(&_gc_cond,NULL) != 0)
+		PANIC("Failed to initialise garbage collector mutex or condvar");
+
 	return;
 }
 
