@@ -53,7 +53,7 @@ static int isp_pci_mbxdma __P((struct ispsoftc *));
 static int isp_pci_dmasetup __P((struct ispsoftc *, XS_T *,
 	ispreq_t *, u_int16_t *, u_int16_t));
 static void
-isp_pci_dmateardown __P((struct ispsoftc *, XS_T *, u_int32_t));
+isp_pci_dmateardown __P((struct ispsoftc *, XS_T *, u_int16_t));
 
 static void isp_pci_reset1 __P((struct ispsoftc *));
 static void isp_pci_dumpregs __P((struct ispsoftc *, const char *));
@@ -1796,7 +1796,7 @@ exit:
 }
 
 static void
-isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int32_t handle)
+isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	bus_dmamap_t *dp = &pci->dmaps[isp_handle_index(handle)];
