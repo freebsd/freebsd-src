@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+NO_GDB=	yes
+
 .include "../Makefile.inc0"
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
@@ -7,7 +9,10 @@ CONTRIBDIR= ${.CURDIR}/../../../../contrib
 
 .PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld ${SRCDIR}/bfd/doc ${GDBDIR}/gdb/doc ${GDBDIR}/gdb/mi
 
-INFO = as ld gasp gdb gdbint stabs binutils
+INFO=	as ld gasp stabs binutils
+.if !defined(NO_GDB)
+INFO+=	gdb gdbint
+.endif
 INFOSECTION=	"Programming & development tools."
 INFOENTRY_as=	"* As: (as).            The GNU assembler."
 INFOENTRY_gasp=	"* Gasp: (gasp).        The GNU Assembler Macro Preprocessor."
