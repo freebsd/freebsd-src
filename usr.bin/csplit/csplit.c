@@ -94,6 +94,7 @@ int	 doclean;		/* Should cleanup() remove output? */
 int
 main(int argc, char *argv[])
 {
+	struct sigaction sa;
 	long i;
 	int ch;
 	const char *expr;
@@ -145,9 +146,15 @@ main(int argc, char *argv[])
 	if (!kflag) {
 		doclean = 1;
 		atexit(cleanup);
-		signal(SIGHUP, handlesig);
-		signal(SIGINT, handlesig);
-		signal(SIGTERM, handlesig);
+		sa.sa_flags = 0;
+		sa.sa_handler = handlesig;
+		sigemptyset(&sa.sa_mask);
+		sigaddset(&sa.sa_mask, SIGHUP);
+		sigaddset(&sa.sa_mask, SIGINT);
+		sigaddset(&sa.sa_mask, SIGTERM);
+		sigaction(SIGHUP, &sa, NULL);
+		sigaction(SIGINT, &sa, NULL);
+		sigaction(SIGTERM, &sa, NULL);
 	}
 
 	lineno = 0;
