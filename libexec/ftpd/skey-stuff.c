@@ -1,9 +1,10 @@
 /* Author: Wietse Venema, Eindhoven University of Technology. 
  *
- *	$Id: skey-stuff.c,v 1.3 1996/09/22 21:53:34 wosch Exp $
+ *	$Id: skey-stuff.c,v 1.6 1996/10/18 17:09:26 ache Exp $
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <pwd.h>
 
 #include <skey.h>
