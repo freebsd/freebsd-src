@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.38 1998/09/05 15:17:33 bde Exp $
+ * $Id: nfs_nqlease.c,v 1.39 1998/10/31 15:31:25 peter Exp $
  */
 
 
@@ -1112,7 +1112,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 					}
 				}
 			      }
-			      vrele(vp);
+			      vput(vp);
 			      nmp->nm_inprog = NULLVP;
 			    }
 			} else if ((np->n_expiry - NQ_RENEWAL) < time_second) {
@@ -1124,7 +1124,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 				 if (vpid == vp->v_id &&
 				     nqnfs_getlease(vp, ND_WRITE, cred, p)==0)
 					np->n_brev = np->n_lrev;
-				 vrele(vp);
+				 vput(vp);
 				 nmp->nm_inprog = NULLVP;
 			    }
 			} else
