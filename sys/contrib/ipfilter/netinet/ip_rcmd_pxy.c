@@ -1,5 +1,5 @@
 /*
- * $Id: ip_rcmd_pxy.c,v 1.4.2.3 2000/10/27 22:54:04 darrenr Exp $
+ * $Id: ip_rcmd_pxy.c,v 1.4.2.4 2000/11/01 14:34:20 darrenr Exp $
  */
 /*
  * Simple RCMD transparent proxy for in-kernel use.  For use with the NAT
@@ -132,7 +132,7 @@ nat_t *nat;
 	sp = htons(sp);
 	dp = htons(fin->fin_data[1]);
 	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, (dp << 16) | sp);
+			    ip->ip_dst, (dp << 16) | sp, 0);
 	if (ipn == NULL) {
 		int slen;
 

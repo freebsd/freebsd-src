@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.17.2.6 2000/07/15 14:50:06 darrenr Exp $
+ * $Id: ip_nat.h,v 2.17.2.14 2000/11/18 03:58:04 darrenr Exp $
  * $FreeBSD$
  */
 
@@ -86,7 +86,7 @@ typedef	struct	nat	{
 	void	*nat_ifp;
 	int	nat_dir;
 	char	nat_ifname[IFNAMSIZ];
-#if SOLARIS || defined(_sgi)
+#if SOLARIS || defined(__sgi)
 	kmutex_t	nat_lock;
 #endif
 } nat_t;
@@ -248,6 +248,7 @@ typedef	struct	natlog {
 #define	NL_NEWRDR	NAT_REDIRECT
 #define	NL_NEWBIMAP	NAT_BIMAP
 #define	NL_NEWBLOCK	NAT_MAPBLK
+#define	NL_FLUSH	0xfffe
 #define	NL_EXPIRE	0xffff
 
 #define	NAT_HASH_FN(k,l,m)	(((k) + ((k) >> 12) + l) % (m))
@@ -286,9 +287,9 @@ extern	int	nat_ioctl __P((caddr_t, int, int));
 extern	int	nat_init __P((void));
 extern	nat_t	*nat_new __P((ipnat_t *, ip_t *, fr_info_t *, u_int, int));
 extern	nat_t	*nat_outlookup __P((void *, u_int, u_int, struct in_addr,
-				 struct in_addr, u_32_t));
+				 struct in_addr, u_32_t, int));
 extern	nat_t	*nat_inlookup __P((void *, u_int, u_int, struct in_addr,
-				struct in_addr, u_32_t));
+				struct in_addr, u_32_t, int));
 extern	nat_t	*nat_maplookup __P((void *, u_int, struct in_addr,
 				struct in_addr));
 extern	nat_t	*nat_lookupredir __P((natlookup_t *));
