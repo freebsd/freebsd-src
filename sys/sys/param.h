@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.14 1996/03/11 02:09:24 hsu Exp $
+ * $Id: param.h,v 1.15 1996/05/02 14:21:03 phk Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -146,7 +146,11 @@
  * it smaller make make some file systems unmountable.  Also, MAXBSIZE
  * must be less than MAXPHYS!!!
  */
+#if defined(MSDOSFS)
+#define	MAXBSIZE	32768
+#else
 #define	MAXBSIZE	16384
+#endif
 #define MAXFRAG 	8
 
 /*

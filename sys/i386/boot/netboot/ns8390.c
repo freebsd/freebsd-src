@@ -644,8 +644,9 @@ eth_pio_write(src, dst, cnt, init)
 		while (cnt--)
 			outb(eth_asic_base + NE_DATA, *(src++));
 	}
+	cnt = 200;
 	while((inb(eth_nic_base + D8390_P0_ISR) & D8390_ISR_RDC)
-		!= D8390_ISR_RDC);
+		!= D8390_ISR_RDC && --cnt);
 }
 #else
 /**************************************************************************
