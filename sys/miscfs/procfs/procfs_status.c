@@ -183,7 +183,7 @@ procfs_docmdline(curp, p, pfs, uio)
 	 * Linux behaviour is to return zero-length in this case.
 	 */
 
-	if (p->p_args && (ps_argsopen ||!p_trespass(curp, p))) {
+	if (p->p_args && (ps_argsopen || !p_can(curp, p, P_CAN_SEE, NULL))) {
 		bp = p->p_args->ar_args;
 		buflen = p->p_args->ar_length;
 		buf = 0;
