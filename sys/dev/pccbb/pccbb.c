@@ -1376,8 +1376,7 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int err;
 
-	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_CD) ==
-	    CBB_STATE_CD)
+	if ((cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_CD) != 0)
 		return (ENODEV);
 
 	err = cbb_do_power(brdev);
@@ -2027,8 +2026,8 @@ cbb_child_present(device_t self)
 	uint32_t sockstate;
 
 	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
-	return ((sockstate & CBB_STATE_CD) != 0 &&
-	  (sc->flags & CBB_CARD_OK) != 0);
+	return ((sockstate & CBB_STATE_CD) == 0 &&
+	  (sc->flags & CBB_CARD_OK) == CBB_CARD_OK);
 }
 
 static device_method_t cbb_methods[] = {
