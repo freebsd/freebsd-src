@@ -419,8 +419,6 @@
 .ds doc-operating-system-FreeBSD-4.3     4.3
 .ds doc-operating-system-FreeBSD-4.4     4.4
 .ds doc-operating-system-FreeBSD-4.5     4.5
-.ds doc-operating-system-FreeBSD-4.6     4.6
-.ds doc-operating-system-FreeBSD-4.6.1   4.6.1
 .ds doc-operating-system-FreeBSD-5.0     5.0
 .
 .de Os
