@@ -899,17 +899,19 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 		ep->d_reclen += dp->i_reclen;
 	}
 out:
-	if (ip) {
-		ip->i_effnlink--;
-		ip->i_flag |= IN_CHANGE;
-	}
 	if (DOINGSOFTDEP(dvp)) {
-		if (ip)
+		if (ip) {
+			ip->i_effnlink--;
+			softdep_change_linkcnt(ip);
 			softdep_setup_remove(bp, dp, ip, isrmdir);
+		}
 		bdwrite(bp);
 	} else {
-		if (ip)
+		if (ip) {
+			ip->i_effnlink--;
 			ip->i_nlink--;
+			ip->i_flag |= IN_CHANGE;
+		}
 		if (flags & DOWHITEOUT)
 			error = VOP_BWRITE(bp->b_vp, bp);
 		else if (DOINGASYNC(dvp) && dp->i_count != 0) {
@@ -946,12 +948,13 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	if (!OFSFMT(vdp))
 		ep->d_type = newtype;
 	oip->i_effnlink--;
-	oip->i_flag |= IN_CHANGE;
 	if (DOINGSOFTDEP(vdp)) {
+		softdep_change_linkcnt(oip);
 		softdep_setup_directory_change(bp, dp, oip, newinum, isrmdir);
 		bdwrite(bp);
 	} else {
 		oip->i_nlink--;
+		oip->i_flag |= IN_CHANGE;
 		if (DOINGASYNC(vdp)) {
 			bdwrite(bp);
 			error = 0;

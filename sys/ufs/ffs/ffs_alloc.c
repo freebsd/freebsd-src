@@ -836,6 +836,7 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		brelse(bp);
 		return (0);
 	}
+	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_time = time_second;
 	bno = dtogd(fs, bprev);
 	for (i = numfrags(fs, osize); i < frags; i++)
@@ -903,6 +904,7 @@ ffs_alloccg(ip, cg, bpref, size)
 		brelse(bp);
 		return (0);
 	}
+	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_time = time_second;
 	if (size == fs->fs_bsize) {
 		bno = ffs_alloccgblk(ip, bp, bpref);
@@ -1113,6 +1115,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	cgp = (struct cg *)bp->b_data;
 	if (!cg_chkmagic(cgp))
 		goto fail;
+	bp->b_xflags |= BX_BKGRDWRITE;
 	/*
 	 * Check to see if a cluster of the needed size (or bigger) is
 	 * available in this cylinder group.
@@ -1227,6 +1230,7 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 		brelse(bp);
 		return (0);
 	}
+	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_time = time_second;
 	if (ipref) {
 		ipref %= fs->fs_ipg;
@@ -1322,6 +1326,7 @@ ffs_blkfree(ip, bno, size)
 		brelse(bp);
 		return;
 	}
+	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_time = time_second;
 	bno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
@@ -1419,6 +1424,7 @@ ffs_checkblk(ip, bno, size)
 	cgp = (struct cg *)bp->b_data;
 	if (!cg_chkmagic(cgp))
 		panic("ffs_checkblk: cg magic mismatch");
+	bp->b_xflags |= BX_BKGRDWRITE;
 	bno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
 		free = ffs_isblock(fs, cg_blksfree(cgp), fragstoblks(fs, bno));
@@ -1484,6 +1490,7 @@ ffs_vfree( pvp, ino, mode)
 		brelse(bp);
 		return (0);
 	}
+	bp->b_xflags |= BX_BKGRDWRITE;
 	cgp->cg_time = time_second;
 	ino %= fs->fs_ipg;
 	if (isclr(cg_inosused(cgp), ino)) {
