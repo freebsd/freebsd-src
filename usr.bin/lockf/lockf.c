@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lockf.c,v 1.1.1.1.2.2 1997/07/23 06:39:42 charnier Exp $
+ * $Id: lockf.c,v 1.1.1.1.2.3 1997/08/29 05:29:30 imp Exp $
  */
 
 #include <sys/types.h>
@@ -62,7 +62,7 @@ main(int argc, char **argv)
 
     silent = 0;
     waitsec = -1;	/* Infinite. */
-    while ((ch = getopt(argc, argv, "st:")) !=  -1) {
+    while ((ch = getopt(argc, argv, "st:")) != -1) {
 	switch (ch) {
 
 	case 's':
@@ -192,7 +192,7 @@ timeout(int sig)
 static void
 usage(void)
 {
-	fprintf(stderr,
+    fprintf(stderr,
 		"usage: lockf [-s] [-t seconds] file command [arguments]\n");
 	exit(EX_USAGE);
 }

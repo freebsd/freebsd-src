@@ -42,10 +42,10 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/14/93";
+static char sccsid[] = "@(#)look.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: look.c,v 1.3.2.1 1997/07/24 06:50:33 charnier Exp $";
+	"$Id: look.c,v 1.3.2.2 1997/08/29 05:29:32 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -70,6 +70,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "pathnames.h"
 
 /*
@@ -104,13 +105,14 @@ main(argc, argv)
 {
 	struct stat sb;
 	int ch, fd, termchar;
-	unsigned char *back, *file, *front, *string, *p;
+	unsigned char *back, *file, *string, *p;
+	caddr_t front;
 
 	(void) setlocale(LC_CTYPE, "");
 
 	file = _PATH_WORDS;
 	termchar = '\0';
-	while ((ch = getopt(argc, argv, "dft:")) !=  -1)
+	while ((ch = getopt(argc, argv, "dft:")) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -149,7 +151,7 @@ main(argc, argv)
 	if (sb.st_size > SIZE_T_MAX)
 		errx(2, "%s: %s", file, strerror(EFBIG));
 	if ((front = mmap(NULL,
-	    (size_t)sb.st_size, PROT_READ, 0, fd, (off_t)0)) == NULL)
+	    (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
 		err(2, "%s", file);
 	back = front + sb.st_size;
 	exit(look(string, front, back));

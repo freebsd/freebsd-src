@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: kdump.c,v 1.7.2.3 1997/07/17 06:37:36 charnier Exp $";
+	"$Id: kdump.c,v 1.7.2.4 1997/08/29 05:29:24 imp Exp $";
 #endif /* not lint */
 
 #define KERNEL
@@ -81,7 +81,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dlm:nRTt:")) !=  -1)
+	while ((ch = getopt(argc,argv,"f:dlm:nRTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;

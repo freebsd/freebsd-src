@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt KTRACE 1
@@ -38,20 +39,21 @@
 .Nm ktrace
 .Nd enable kernel process tracing
 .Sh SYNOPSIS
-.Nm ktrace
+.Nm
 .Op Fl aCcdi
 .Op Fl f Ar trfile
 .Op Fl g Ar pgrp
 .Op Fl p Ar pid
 .Op Fl t Ar trstr
-.Nm ktrace
+.Nm
 .Op Fl adi
 .Op Fl f Ar trfile
 .Op Fl t Ar trstr
 command
 .Sh DESCRIPTION
-.Nm Ktrace
-enables kernel trace logging for the specified processes.
+The
+.Nm
+command enables kernel trace logging for the specified processes.
 Kernel trace data is logged to the file
 .Pa ktrace.out .
 The kernel operations that are traced include system calls, namei
@@ -166,6 +168,6 @@ Only works if
 is a regular file.
 .Sh HISTORY
 The
-.Nm ktrace
+.Nm
 command appeared in
 .Bx 4.4 .

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt KDUMP 1
@@ -38,14 +39,15 @@
 .Nm kdump
 .Nd display kernel trace data
 .Sh SYNOPSIS
-.Nm kdump
+.Nm
 .Op Fl dnlRT
 .Op Fl f Ar file
 .Op Fl m Ar maxdata
 .Op Fl t Op cnisuw
 .Sh DESCRIPTION
-.Nm Kdump
-displays the kernel trace files produced with
+The
+.Nm
+command displays the kernel trace files produced with
 .Xr ktrace 1
 in human readable format.
 By default, the file
@@ -70,7 +72,7 @@ bytes when decoding
 .It Fl n
 Suppress ad hoc translations.
 Normally
-.Nm kdump
+.Nm
 tries to decode many system calls into a more human readable format.
 For example,
 .Xr ioctl 2
@@ -95,6 +97,6 @@ option of
 .Xr ktrace 1
 .Sh HISTORY
 The
-.Nm kdump
+.Nm
 command appeared in
 .Bx 4.4 .
