@@ -56,6 +56,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <syslog.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+
 #include "rtadvd.h"
 #include "rrenum.h"
 #include "advcap.h"
@@ -74,7 +78,7 @@ static int do_die;
 struct msghdr sndmhdr;
 struct iovec rcviov[2];
 struct iovec sndiov[2];
-struct sockaddr_in6 from;
+struct sockaddr_in6 rcvfrom;
 struct sockaddr_in6 sin6_allnodes = {sizeof(sin6_allnodes), AF_INET6};
 struct in6_addr in6a_site_allrouters;
 static char *dumpfilename = "/var/run/rtadvd.dump"; /* XXX: should be configurable */
@@ -139,15 +143,20 @@ static int nd6_options __P((struct nd_opt_hdr *, int,
 static void free_ndopts __P((union nd_opts *));
 static void ra_output __P((struct rainfo *));
 static void rtmsg_input __P((void));
-static void rtadvd_set_dump_file __P((void));
+static void rtadvd_set_dump_file __P((int));
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	fd_set fdset;
+#ifdef HAVE_POLL_H
+	struct pollfd set[2];
+#else
+	fd_set *fdsetp, *selectfdp;
+	int fdmasks;
 	int maxfd = 0;
+#endif
 	struct timeval *timeout;
 	int i, ch;
 	int fflag = 0;
@@ -216,10 +225,10 @@ main(argc, argv)
 		fprintf(stderr, "fatal: inet_pton failed\n");
 		exit(1);
 	}
-	sock_open();
-
 	if (!fflag)
 		daemon(1, 0);
+
+	sock_open();
 
 	/* record the current PID */
 	pid = getpid();
@@ -232,22 +241,46 @@ main(argc, argv)
 		fclose(pidfp);
 	}
 
-	FD_ZERO(&fdset);
-	FD_SET(sock, &fdset);
+#ifdef HAVE_POLL_H
+	set[0].fd = sock;
+	set[0].events = POLLIN;
+	if (sflag == 0) {
+		rtsock_open();
+		set[1].fd = rtsock;
+		set[1].events = POLLIN;
+	} else
+		set[1].fd = -1;
+#else
 	maxfd = sock;
 	if (sflag == 0) {
 		rtsock_open();
-		FD_SET(rtsock, &fdset);
 		if (rtsock > sock)
 			maxfd = rtsock;
 	} else
 		rtsock = -1;
 
-	signal(SIGTERM, (void *)set_die);
-	signal(SIGUSR1, (void *)rtadvd_set_dump_file);
+	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
+	if ((fdsetp = malloc(fdmasks)) == NULL) {
+		err(1, "malloc");
+		/*NOTREACHED*/
+	}
+	if ((selectfdp = malloc(fdmasks)) == NULL) {
+		err(1, "malloc");
+		/*NOTREACHED*/
+	}
+	memset(fdsetp, 0, fdmasks);
+	FD_SET(sock, fdsetp);
+	if (rtsock >= 0)
+		FD_SET(rtsock, fdsetp);
+#endif
+
+	signal(SIGTERM, set_die);
+	signal(SIGUSR1, rtadvd_set_dump_file);
 
 	while (1) {
-		struct fd_set select_fd = fdset; /* reinitialize */
+#ifndef HAVE_POLL_H
+		memcpy(selectfdp, fdsetp, fdmasks); /* reinitialize */
+#endif
 
 		if (do_dump) {	/* SIGUSR1 */
 			do_dump = 0;
@@ -274,8 +307,14 @@ main(argc, argv)
 			    __func__);
 		}
 
-		if ((i = select(maxfd + 1, &select_fd,
-				NULL, NULL, timeout)) < 0) {
+#ifdef HAVE_POLL_H
+		if ((i = poll(set, 2, timeout ? (timeout->tv_sec * 1000 +
+		    timeout->tv_usec / 1000) : INFTIM)) < 0)
+#else
+		if ((i = select(maxfd + 1, selectfdp, NULL, NULL,
+		    timeout)) < 0)
+#endif
+		{
 			/* EINTR would occur upon SIGUSR1 for status dump */
 			if (errno != EINTR)
 				syslog(LOG_ERR, "<%s> select: %s",
@@ -284,16 +323,25 @@ main(argc, argv)
 		}
 		if (i == 0)	/* timeout */
 			continue;
-		if (rtsock != -1 && FD_ISSET(rtsock, &select_fd))
+#ifdef HAVE_POLL_H
+		if (rtsock != -1 && set[1].revents & POLLIN)
+#else
+		if (rtsock != -1 && FD_ISSET(rtsock, selectfdp))
+#endif
 			rtmsg_input();
-		if (FD_ISSET(sock, &select_fd))
+#ifdef HAVE_POLL_H
+		if (set[0].revents & POLLIN)
+#else
+		if (FD_ISSET(sock, selectfdp))
+#endif
 			rtadvd_input();
 	}
 	exit(0);		/* NOTREACHED */
 }
 
 static void
-rtadvd_set_dump_file()
+rtadvd_set_dump_file(sig)
+	int sig;
 {
 	do_dump = 1;
 }
@@ -631,7 +679,7 @@ rtadvd_input()
 			    "<%s> RS with invalid hop limit(%d) "
 			    "received from %s on %s",
 			    __func__, *hlimp,
-			    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
+			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    INET6_ADDRSTRLEN),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
@@ -641,7 +689,7 @@ rtadvd_input()
 			    "<%s> RS with invalid ICMP6 code(%d) "
 			    "received from %s on %s",
 			    __func__, icp->icmp6_code,
-			    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
+			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    INET6_ADDRSTRLEN),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
@@ -651,12 +699,12 @@ rtadvd_input()
 			    "<%s> RS from %s on %s does not have enough "
 			    "length (len = %d)",
 			    __func__,
-			    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
+			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    INET6_ADDRSTRLEN),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf), i);
 			return;
 		}
-		rs_input(i, (struct nd_router_solicit *)icp, pi, &from);
+		rs_input(i, (struct nd_router_solicit *)icp, pi, &rcvfrom);
 		break;
 	case ND_ROUTER_ADVERT:
 		/*
@@ -668,7 +716,7 @@ rtadvd_input()
 			    "<%s> RA with invalid hop limit(%d) "
 			    "received from %s on %s",
 			    __func__, *hlimp,
-			    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
+			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    INET6_ADDRSTRLEN),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
@@ -678,7 +726,7 @@ rtadvd_input()
 			    "<%s> RA with invalid ICMP6 code(%d) "
 			    "received from %s on %s",
 			    __func__, icp->icmp6_code,
-			    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
+			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    INET6_ADDRSTRLEN),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 			return;
@@ -688,12 +736,12 @@ rtadvd_input()
 			    "<%s> RA from %s on %s does not have enough "
 			    "length (len = %d)",
 			    __func__,
-			    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
+			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr, ntopbuf,
 			    INET6_ADDRSTRLEN),
 			    if_indextoname(pi->ipi6_ifindex, ifnamebuf), i);
 			return;
 		}
-		ra_input(i, (struct nd_router_advert *)icp, pi, &from);
+		ra_input(i, (struct nd_router_advert *)icp, pi, &rcvfrom);
 		break;
 	case ICMP6_ROUTER_RENUMBERING:
 		if (accept_rr == 0) {
@@ -702,7 +750,7 @@ rtadvd_input()
 			    __func__);
 			break;
 		}
-		rr_input(i, (struct icmp6_router_renum *)icp, pi, &from,
+		rr_input(i, (struct icmp6_router_renum *)icp, pi, &rcvfrom,
 			 &dst);
 		break;
 	default:
@@ -1425,8 +1473,8 @@ sock_open()
 	/* initialize msghdr for receiving packets */
 	rcviov[0].iov_base = (caddr_t)answer;
 	rcviov[0].iov_len = sizeof(answer);
-	rcvmhdr.msg_name = (caddr_t)&from;
-	rcvmhdr.msg_namelen = sizeof(from);
+	rcvmhdr.msg_name = (caddr_t)&rcvfrom;
+	rcvmhdr.msg_namelen = sizeof(rcvfrom);
 	rcvmhdr.msg_iov = rcviov;
 	rcvmhdr.msg_iovlen = 1;
 	rcvmhdr.msg_control = (caddr_t) rcvcmsgbuf;
@@ -1454,12 +1502,12 @@ rtsock_open()
 }
 
 struct rainfo *
-if_indextorainfo(int index)
+if_indextorainfo(int idx)
 {
 	struct rainfo *rai = ralist;
 
 	for (rai = ralist; rai; rai = rai->next) {
-		if (rai->ifindex == index)
+		if (rai->ifindex == idx)
 			return(rai);
 	}
 
@@ -1528,19 +1576,6 @@ struct rainfo *rainfo;
 	 */
 	for (sol = rainfo->soliciter; sol; sol = nextsol) {
 		nextsol = sol->next;
-
-#if 0
-		sndmhdr.msg_name = (caddr_t)&sol->addr;
-		i = sendmsg(sock, &sndmhdr, 0);
-		if (i < 0 || i != rainfo->ra_datalen)  {
-			if (i < 0) {
-				syslog(LOG_ERR,
-				    "<%s> unicast sendmsg on %s: %s",
-				    __func__, rainfo->ifname,
-				    strerror(errno));
-			}
-		}
-#endif
 
 		sol->next = NULL;
 		free(sol);

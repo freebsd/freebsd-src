@@ -34,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -51,6 +52,9 @@
 #include <err.h>
 #include <stdarg.h>
 #include <ifaddrs.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 
 #include "rtsold.h"
 
@@ -70,7 +74,7 @@ char *otherconf_script;
 #define MAX_RTR_SOLICITATIONS		3 /* times */
 
 /*
- * implementation dependent constants in secondes
+ * implementation dependent constants in seconds
  * XXX: should be configurable
  */
 #define PROBE_INTERVAL 60
@@ -108,7 +112,7 @@ static void TIMEVAL_ADD __P((struct timeval *, struct timeval *,
 static void TIMEVAL_SUB __P((struct timeval *, struct timeval *,
 	struct timeval *));
 
-static void rtsold_set_dump_file __P((void));
+static void rtsold_set_dump_file __P((int));
 static void usage __P((char *));
 static char **autoifprobe __P((void));
 
@@ -117,11 +121,17 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int s, rtsock, maxfd, ch;
-	int once = 0;
+	int s, ch, once = 0;
 	struct timeval *timeout;
-	struct fd_set fdset;
 	char *argv0, *opts;
+#ifdef HAVE_POLL_H
+	struct pollfd set[2];
+#else
+	fd_set *fdsetp, *selectfdp;
+	int fdmasks;
+	int maxfd;
+#endif
+	int rtsock;
 
 	/*
 	 * Initialization
@@ -224,10 +234,10 @@ main(argc, argv)
 		warnx("kernel is configured as a router, not a host");
 
 	/* initialization to dump internal status to a file */
-	if (signal(SIGUSR1, (void *)rtsold_set_dump_file) < 0) {
-		errx(1, "failed to set signal for dump status");
-		/*NOTREACHED*/
-	}
+	signal(SIGUSR1, rtsold_set_dump_file);
+
+	if (!fflag)
+		daemon(0, 0);		/* act as a daemon */
 
 	/*
 	 * Open a socket for sending RS and receiving RA.
@@ -235,25 +245,58 @@ main(argc, argv)
 	 * uses the socket.
 	 */
 	if ((s = sockopen()) < 0) {
-		errx(1, "failed to open a socket");
+		warnmsg(LOG_ERR, __func__, "failed to open a socket");
+		exit(1);
 		/*NOTREACHED*/
 	}
+#ifdef HAVE_POLL_H
+	set[0].fd = s;
+	set[0].events = POLLIN;
+#else
 	maxfd = s;
+#endif
+
+#ifdef HAVE_POLL_H
+	set[1].fd = -1;
+#endif
+
 	if ((rtsock = rtsock_open()) < 0) {
-		errx(1, "failed to open a socket");
+		warnmsg(LOG_ERR, __func__, "failed to open a socket");
+		exit(1);
 		/*NOTREACHED*/
 	}
+#ifdef HAVE_POLL_H
+	set[1].fd = rtsock;
+	set[1].events = POLLIN;
+#else
 	if (rtsock > maxfd)
 		maxfd = rtsock;
+#endif
+
+#ifndef HAVE_POLL_H
+	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
+	if ((fdsetp = malloc(fdmasks)) == NULL) {
+		err(1, "malloc");
+		/*NOTREACHED*/
+	}
+	if ((selectfdp = malloc(fdmasks)) == NULL) {
+		err(1, "malloc");
+		/*NOTREACHED*/
+	}
+#endif
 
 	/* configuration per interface */
 	if (ifinit()) {
-		errx(1, "failed to initilizatoin interfaces");
+		warnmsg(LOG_ERR, __func__,
+		    "failed to initilizatoin interfaces");
+		exit(1);
 		/*NOTREACHED*/
 	}
 	while (argc--) {
 		if (ifconfig(*argv)) {
-			errx(1, "failed to initialize %s", *argv);
+			warnmsg(LOG_ERR, __func__,
+			    "failed to initialize %s", *argv);
+			exit(1);
 			/*NOTREACHED*/
 		}
 		argv++;
@@ -261,12 +304,11 @@ main(argc, argv)
 
 	/* setup for probing default routers */
 	if (probe_init()) {
-		errx(1, "failed to setup for probing routers");
+		warnmsg(LOG_ERR, __func__,
+		    "failed to setup for probing routers");
+		exit(1);
 		/*NOTREACHED*/
 	}
-
-	if (!fflag)
-		daemon(0, 0);		/* act as a daemon */
 
 	/* dump the current pid */
 	if (!once) {
@@ -283,12 +325,17 @@ main(argc, argv)
 		}
 	}
 
-	FD_ZERO(&fdset);
-	FD_SET(s, &fdset);
-	FD_SET(rtsock, &fdset);
+#ifndef HAVE_POLL_H
+	memset(fdsetp, 0, fdmasks);
+	FD_SET(s, fdsetp);
+	FD_SET(rtsock, fdsetp);
+#endif
 	while (1) {		/* main loop */
 		int e;
-		struct fd_set select_fd = fdset;
+
+#ifndef HAVE_POLL_H
+		memcpy(selectfdp, fdsetp, fdmasks);
+#endif
 
 		if (do_dump) {	/* SIGUSR1 */
 			do_dump = 0;
@@ -312,7 +359,11 @@ main(argc, argv)
 			if (ifi == NULL)
 				break;
 		}
-		e = select(maxfd + 1, &select_fd, NULL, NULL, timeout);
+#ifdef HAVE_POLL_H
+		e = poll(set, 2, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : INFTIM);
+#else
+		e = select(maxfd + 1, selectfdp, NULL, NULL, timeout);
+#endif
 		if (e < 1) {
 			if (e < 0 && errno != EINTR) {
 				warnmsg(LOG_ERR, __func__, "select: %s",
@@ -322,9 +373,17 @@ main(argc, argv)
 		}
 
 		/* packet reception */
-		if (FD_ISSET(rtsock, &select_fd))
+#ifdef HAVE_POLL_H
+		if (set[1].revents & POLLIN)
+#else
+		if (FD_ISSET(rtsock, selectfdp))
+#endif
 			rtsock_input(rtsock);
-		if (FD_ISSET(s, &select_fd))
+#ifdef HAVE_POLL_H
+		if (set[0].revents & POLLIN)
+#else
+		if (FD_ISSET(s, selectfdp))
+#endif
 			rtsol_input(s);
 	}
 	/* NOTREACHED */
@@ -698,7 +757,8 @@ TIMEVAL_SUB(struct timeval *a, struct timeval *b, struct timeval *result)
 }
 
 static void
-rtsold_set_dump_file()
+rtsold_set_dump_file(sig)
+	int sig;
 {
 	do_dump = 1;
 }
