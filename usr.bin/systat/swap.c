@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id: swap.c,v 1.6 1998/06/09 04:17:27 imp Exp $";
+	"$Id: swap.c,v 1.7 1998/10/08 09:56:10 obrien Exp $";
 #endif /* not lint */
 
 /*
@@ -66,36 +66,8 @@ void showspace __P((char *header, int hlen, long blocksize));
 
 kvm_t	*kd;
 
-struct nlist syms[] = {
-	{ "_swaplist" },/* list of free swap areas */
-#define VM_SWAPLIST	0
-	{ "_swdevt" },	/* list of swap devices and sizes */
-#define VM_SWDEVT	1
-	{ "_nswap" },	/* size of largest swap device */
-#define VM_NSWAP	2
-	{ "_nswdev" },	/* number of swap devices */
-#define VM_NSWDEV	3
-	{ "_dmmax" },	/* maximum size of a swap block */
-#define VM_DMMAX	4
-	{ 0 }
-};
-
-static int nswap, nswdev, dmmax;
-static struct swdevt *sw;
-static long *perdev, blocksize;
-static int nfree, hlen;
-static struct rlisthdr swaplist;
-
-#define	SVAR(var) __STRING(var)	/* to force expansion */
-#define	KGET(idx, var) \
-	KGET1(idx, &var, sizeof(var), SVAR(var), (0))
-#define	KGET1(idx, p, s, msg, rv) \
-	KGET2(syms[idx].n_value, p, s, msg, rv)
-#define	KGET2(addr, p, s, msg, rv) \
-	if (kvm_read(kd, addr, p, s) != s) { \
-		error("cannot read %s: %s", msg, kvm_geterr(kd)); \
-		return rv; \
-	}
+static long blocksize;
+static int hlen;
 
 WINDOW *
 openswap()
@@ -128,82 +100,27 @@ initswap()
 	char *cp;
 	static int once = 0;
 	u_long ptr;
+	struct kvm_swap dummy;
 
 	if (once)
 		return (1);
-	if (kvm_nlist(kd, syms)) {
-		snprintf(msgbuf, sizeof(msgbuf), "systat: swap: cannot find");
-		cp = msgbuf + strlen(msgbuf) + 1;
-		for (i = 0; 
-		    syms[i].n_name != NULL && cp - msgbuf < sizeof(msgbuf); 
-		    i++) {
-			if (syms[i].n_value == 0) {
-				snprintf(cp, sizeof(msgbuf) - (cp - msgbuf),
-				    " %s", syms[i].n_name);
-				cp += strlen(cp) + 1;
-			}
-		}
+
+	if (kvm_getswapinfo(kd, &dummy, 1, 0) < 0) {
+		snprintf(msgbuf, sizeof(msgbuf), "systat: kvm_getswapinfo failed");
 		error(msgbuf);
 		return (0);
 	}
-	KGET(VM_NSWAP, nswap);
-	KGET(VM_NSWDEV, nswdev);
-	KGET(VM_DMMAX, dmmax);
-	if ((sw = malloc(nswdev * sizeof(*sw))) == NULL ||
-	    (perdev = malloc(nswdev * sizeof(*perdev))) == NULL)
-		err(1, "malloc");
-	KGET1(VM_SWDEVT, &ptr, sizeof ptr, "swdevt", (0));
-	KGET2(ptr, sw, nswdev * sizeof(*sw), "*swdevt", (0));
 	once = 1;
 	return (1);
 }
 
+static struct kvm_swap	kvmsw[16];
+static int kvnsw;
+
 void
 fetchswap()
 {
-	struct rlist head;
-	struct rlist *swapptr;
-
-	/* Count up swap space. */
-	nfree = 0;
-	memset(perdev, 0, nswdev * sizeof(*perdev));
-	KGET1(VM_SWAPLIST, &swaplist, sizeof swaplist, "swaplist", /* none */);
-	swapptr = swaplist.rlh_list;
-	while (swapptr) {
-		int	top, bottom, next_block;
-
-		KGET2((unsigned long)swapptr, &head,
-		      sizeof(struct rlist), "swapptr", /* none */);
-
-		top = head.rl_end;
-		bottom = head.rl_start;
-
-		nfree += top - bottom + 1;
-
-		/*
-		 * Swap space is split up among the configured disks.
-		 *
-		 * For interleaved swap devices, the first dmmax blocks
-		 * of swap space some from the first disk, the next dmmax
-		 * blocks from the next, and so on up to nswap blocks.
-		 *
-		 * The list of free space joins adjacent free blocks,
-		 * ignoring device boundries.  If we want to keep track
-		 * of this information per device, we'll just have to
-		 * extract it ourselves.
-		 */
-		while (top / dmmax != bottom / dmmax) {
-			next_block = ((bottom + dmmax) / dmmax);
-			perdev[(bottom / dmmax) % nswdev] +=
-				next_block * dmmax - bottom;
-			bottom = next_block * dmmax;
-		}
-		perdev[(bottom / dmmax) % nswdev] +=
-			top - bottom + 1;
-
-		swapptr = head.rl_next;
-	}
-
+	kvnsw = kvm_getswapinfo(kd, kvmsw, 16, 0);
 }
 
 void
@@ -218,58 +135,61 @@ labelswap()
 	mvwprintw(wnd, row++, 0, "%-5s%*s%9s %55s",
 	    "Disk", hlen, header, "Used",
 	    "/0%  /10% /20% /30% /40% /50% /60% /70% /80% /90% /100");
-	for (i = 0; i < nswdev; i++) {
-		if (!sw[i].sw_freed)
-			continue;
-		p = devname(sw[i].sw_dev, S_IFBLK);
-		mvwprintw(wnd, i + 1, 0, "%-5s",
-			  sw[i].sw_dev == NODEV ? "[NFS]" :
-			  p == NULL ? "??" : p);
+
+	for (i = 0; i < kvnsw; ++i) {
+		mvwprintw(wnd, i + 1, 0, "%-5s", kvmsw[i].ksw_devname);
 	}
 }
 
 void
 showswap()
 {
-	int col, div, i, j, k, avail, npfree, used, xsize, xfree;
+	int i;
+	int pagesize = getpagesize();
 
-	div = blocksize / 512;
-	avail = npfree = 0;
-	for (i = k = 0; i < nswdev; i++) {
-		/*
-		 * Don't report statistics for partitions which have not
-		 * yet been activated via swapon(8).
-		 */
-		if (!sw[i].sw_freed)
-			continue;
+#define CONVERT(v)      ((int)((quad_t)(v) * pagesize / blocksize))
 
-		col = 5;
-		mvwprintw(wnd, i + 1, col, "%*d", hlen, sw[i].sw_nblks / div);
+	for (i = 0; i <= kvnsw; ++i) {
+		int col = 5;
+		int count;
+
+		if (i == kvnsw) {
+			if (kvnsw == 1)
+				break;
+			mvwprintw(
+			    wnd,
+			    i + 1,
+			    col,
+			    "%-5s",
+			    "Total"
+			);
+			col += 5;
+		}
+
+		mvwprintw(
+		    wnd, 
+		    i + 1, 
+		    col,
+		    "%*d",
+		    hlen, 
+		    CONVERT(kvmsw[i].ksw_total)
+		);
 		col += hlen;
 
-		/*
-		 * The first dmmax is never allocated to avoid trashing of
-		 * disklabels
-		 */
-		xsize = sw[i].sw_nblks - dmmax;
-		xfree = perdev[i];
-		used = xsize - xfree;
-		mvwprintw(wnd, i + 1, col, "%9d  ", used / div);
-		for (j = (100 * used / xsize + 1) / 2; j > 0; j--)
+		mvwprintw(
+		    wnd,
+		    i + 1,
+		    col, 
+		    "%9d  ",
+		    CONVERT(kvmsw[i].ksw_used)
+		);
+
+		count = (int)((double)kvmsw[i].ksw_used * 49.999 /
+		    (double)kvmsw[i].ksw_total);
+
+		while (count >= 0) {
 			waddch(wnd, 'X');
-		npfree++;
-		avail += xsize;
-		k++;
-	}
-	/*
-	 * If only one partition has been set up via swapon(8), we don't
-	 * need to bother with totals.
-	 */
-	if (npfree > 1) {
-		used = avail - nfree;
-		mvwprintw(wnd, k + 1, 0, "%-5s%*d%9d  ",
-		    "Total", hlen, avail / div, used / div);
-		for (j = (100 * used / avail + 1) / 2; j > 0; j--)
-			waddch(wnd, 'X');
+			--count;
+		}
 	}
 }
