@@ -65,7 +65,7 @@ stop_dhcp() {
 	else
 		return
 	fi
-	kill `cat ${pidfile}`
+	/sbin/dhclient -r ${interface}
 	rm -f ${pidfile}
 	case ${startstop} in
 	[Ss][Tt][Oo][Pp])
