@@ -1,5 +1,5 @@
 /*
- * $Id: ip_raudio_pxy.c,v 1.7.2.1 2000/05/06 11:19:33 darrenr Exp $
+ * $Id: ip_raudio_pxy.c,v 1.7.2.2 2000/09/03 00:23:12 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -171,8 +171,8 @@ nat_t *nat;
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	raudio_t *rap = aps->aps_data;
 	struct in_addr swa, swb;
-	u_int a1, a2, a3, a4;
 	int off, dlen, slen;
+	int a1, a2, a3, a4;
 	u_short sp, dp;
 	fr_info_t fi;
 	tcp_seq seq;

@@ -67,7 +67,7 @@ char	*addr, *eaddr;
 	struct	sockaddr_dl	*sdl;
 
 #ifdef	IPSEND
-	if (arp_getipv4(ip, ether) == 0)
+	if (arp_getipv4(addr, ether) == 0)
 		return 0;
 #endif
 

@@ -6,9 +6,11 @@
 # in providing a very available location for the IP Filter home page and
 # distribution center.
 #
-# Thanks to Tel.Net Media for allowing me to maintain and further develop
-# IP Filter as part of my job and supplying Sun equipment for testing the
-# move to 64bits and Gigabit Ethernet.
+# Thanks to Hewlett Packard for making it possible to port IP Filter to
+# HP-UX 11.00.
+#
+# Thanks to Tel.Net Media for supplying me with equipment to ensure that
+# IP Filter continues to work on Solaris/sparc64.
 #
 # Thanks to BSDI for providing object files for BSD/OS 3.1 and the means
 # to further support development of IP Filter under BSDI.
@@ -20,6 +22,50 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.12	26/10/2000 - Released
+
+fix installing into FreeBSD-4.1
+
+fix FTP proxy bug where it'd hang and make NAT slightly more efficient
+
+fix general compiling errors/warnings on various platforms
+
+don't access ICMP data fields that aren't there
+
+3.4.11	09/10/2000 - Released
+
+return NULL for IPv6 access control lists if it is disabled rather than
+random garbage.
+
+fix for getting protocol & packet length for IPv6 packets for pullup.
+
+update plog script from version 0.8 to version 0.10
+
+patch from Frank Volf adding fix_datacksum() to NAT code, enhancing the
+capabilities for "fixing" checksums.
+
+3.4.10	03/09/2000 - Released
+
+merge patch from Frank Volf for ICMP nat handling of TCP/UDP data `errors'
+
+getline() adjusts linenum now
+
+add tcphalfclosed timeout
+
+fill in icmp_nextmtu field if it is defined on the platform
+
+RST generation fix from guido
+
+force 32bit compile for gcc on solaris if it can't generate 64bit code
+
+encase logging when fr_chksrc == 2 in #ifdef IPFILTER_LOG
+
+fix up line wrap problems in plog script
+
+fix ICMP packet handling to not drop valid ICMP errors
+
+freebsd 5.0 compat changes
+
 3.4.9	08/08/2000 - Released
 
 implement new aging mechanism in fr_tcp_age()

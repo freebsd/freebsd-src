@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.11.2.3 2000/08/05 14:50:00 darrenr Exp $
+# $Id: Makefile,v 2.11.2.4 2000/10/19 15:42:56 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -16,7 +16,7 @@ CC=gcc -Wstrict-prototypes -Wmissing-prototypes
 #CC=cc -Dconst=
 DEBUG=-g
 TOP=../..
-CFLAGS=-I$$(TOP) -g
+CFLAGS=-I$$(TOP)
 CPU=`uname -m`
 CPUDIR=`uname -s|sed -e 's@/@@g'`-`uname -r`-`uname -m`
 #
@@ -169,8 +169,8 @@ bsdi bsdos: include
 
 irix IRIX: include
 	make setup "TARGOS=IRIX" "CPUDIR=$(CPUDIR)"
-	(cd IRIX/$(CPUDIR); smake build TOP=../.. $(DEST) $(MFLAGS); cd ..)
-	(cd IRIX/$(CPUDIR); make -f Makefile.ipsend TOP=../.. $(DEST) $(MFLAGS); cd ..)
+	-(SMAKE=`which smake >/dev/null 2>&1; if [ $$? -ne 0 ] ; then echo make -f Makefile.std; else echo smake; fi`; cd IRIX/$(CPUDIR); $${SMAKE} build TOP=../.. $(DEST) $(MFLAGS); cd ..)
+	-(SMAKE=`which smake >/dev/null 2>&1; if [ $$? -ne 0 ] ; then echo make -f Makefile.ipsend.std; else echo smake -f Makefile.ipsend; fi`; cd IRIX/$(CPUDIR); $${SMAKE} TOP=../.. $(DEST) $(MFLAGS); cd ..)
 
 linux: include
 	make setup "TARGOS=Linux" "CPUDIR=$(CPUDIR)"
@@ -184,6 +184,14 @@ setup:
 	-if [ ! -d $(TARGOS)/$(CPUDIR) ] ; then mkdir $(TARGOS)/$(CPUDIR); fi
 	-rm -f $(TARGOS)/$(CPUDIR)/Makefile $(TARGOS)/$(CPUDIR)/Makefile.ipsend
 	-ln -s ../Makefile $(TARGOS)/$(CPUDIR)/Makefile
+	-if [ ! -f $(TARGOS)/$(CPUDIR)/Makefile.std -a \
+		-f $(TARGOS)/Makefile.std ] ; then \
+	    ln -s ../Makefile.std $(TARGOS)/$(CPUDIR)/Makefile.std; \
+	 fi
+	-if [ ! -f $(TARGOS)/$(CPUDIR)/Makefile.ipsend.std -a \
+		-f $(TARGOS)/Makefile.ipsend.std ] ; then \
+	    ln -s ../Makefile.ipsend.std $(TARGOS)/$(CPUDIR)/Makefile.ipsend.std; \
+	 fi
 	-ln -s ../Makefile.ipsend $(TARGOS)/$(CPUDIR)/Makefile.ipsend
 
 clean: clean-include

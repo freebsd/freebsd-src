@@ -2,7 +2,7 @@
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * $Id: ip_ftp_pxy.c,v 2.7.2.13 2000/08/07 12:35:27 darrenr Exp $
+ * $Id: ip_ftp_pxy.c,v 2.7.2.17 2000/10/19 15:40:40 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -146,6 +146,7 @@ int dlen;
 	} else
 		return 0;
 	a5 >>= 8;
+	a5 &= 0xff;
 	/*
 	 * Calculate new address parts for PORT command
 	 */
@@ -214,7 +215,7 @@ int dlen;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2, 0);
+		fix_outcksum(&ip->ip_sum, sum2);
 #endif
 		ip->ip_len += inc;
 	}
@@ -441,7 +442,7 @@ int dlen;
 		sum2 -= sum1;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
-		fix_outcksum(&ip->ip_sum, sum2, 0);
+		fix_outcksum(&ip->ip_sum, sum2);
 #endif /* SOLARIS || defined(__sgi) */
 		ip->ip_len += inc;
 	}
@@ -670,15 +671,18 @@ int rv;
 			while ((rptr < wptr) && (*rptr != '\r'))
 				rptr++;
 
-			if ((*rptr == '\r') && (rptr + 1 < wptr)) {
-				if (*(rptr + 1) == '\n') {
-					rptr += 2;
-					f->ftps_junk = 0;
+			if (*rptr == '\r') {
+				if (rptr + 1 < wptr) {
+					if (*(rptr + 1) == '\n') {
+						rptr += 2;
+						f->ftps_junk = 0;
+					} else
+						rptr++;
 				} else
-					rptr++;
+					break;
 			}
-			f->ftps_rptr = rptr;
 		}
+		f->ftps_rptr = rptr;
 
 		if (rptr == wptr) {
 			rptr = wptr = f->ftps_buf;
@@ -762,5 +766,7 @@ char **ptr;
 		j += c - '0';
 	}
 	*ptr = s;
+	i &= 0xff;
+	j &= 0xff;
 	return (i << 8) | j;
 }
