@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.20 1997/09/21 22:14:54 julian Exp $
+ * $Id: kern_conf.c,v 1.21 1997/09/21 22:20:12 julian Exp $
  */
 
 #include <sys/param.h>
@@ -198,10 +198,12 @@ bdevsw_add_generic(int bdev, int cdev, struct bdevsw *bdevsw)
 	/*
 	 * XXX hack alert.
 	 */
-	if (isdisk(makedev(bdev, 0), VBLK) && bdevsw->d_flags != D_DISK) {
+	if (isdisk(makedev(bdev, 0), VBLK) &&
+	    (bdevsw->d_flags & D_TYPEMASK) != D_DISK) {
 	    printf("bdevsw_add_generic: adding D_DISK flag for device %d\n",
 		   bdev);
-	    bdevsw->d_flags = D_DISK;
+	    bdevsw->d_flags &= ~D_TYPEMASK;
+	    bdevsw->d_flags |= D_DISK;
 	}
 	cdevsw_make(bdevsw);
 	dev = makedev(cdev, 0);

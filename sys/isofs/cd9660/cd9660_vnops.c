@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.38 1997/09/14 02:57:43 peter Exp $
+ * $Id: cd9660_vnops.c,v 1.39 1997/09/21 04:22:40 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -79,17 +79,6 @@ static int cd9660_unlock __P((struct vop_unlock_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
 static int cd9660_islocked __P((struct vop_islocked_args *));
-
-/*
- * Sysctl values for the cd9660 filesystem.
- */
-#define	CD9660_CLUSTERREAD	1	/* cluster reading enabled */
-#define	CD9660_MAXID		2	/* number of valid cd9660 ids */
-
-#define	CD9660_NAMES { \
-	{0, 0}, \
-	{ "doclusterread", CTLTYPE_INT}, \
-}
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -299,11 +288,6 @@ cd9660_getattr(ap)
 	return (0);
 }
 
-static int	cd9660_doclusterread = 1;
-SYSCTL_NODE(_vfs, MOUNT_CD9660, cd9660, CTLFLAG_RW, 0, "CD9660 filesystem");
-SYSCTL_INT(_vfs_cd9660, CD9660_CLUSTERREAD, doclusterread,
-		   CTLFLAG_RW, &cd9660_doclusterread, 0, "");
-
 /*
  * Vnode op for reading.
  */
@@ -344,7 +328,7 @@ cd9660_read(ap)
 			n = diff;
 		size = blksize(imp, ip, lbn);
 		rablock = lbn + 1;
-		if (cd9660_doclusterread) {
+		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
 			if (lblktosize(imp, rablock) <= ip->i_size)
 				error = cluster_read(vp, (off_t)ip->i_size,
 				         lbn, size, NOCRED, uio->uio_resid,

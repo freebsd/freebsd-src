@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.41 1997/09/02 20:06:12 bde Exp $
+ * $Id: spec_vnops.c,v 1.42 1997/09/14 02:58:02 peter Exp $
  */
 
 #include <sys/param.h>
@@ -176,7 +176,8 @@ spec_open(ap)
 			 */
 			if (securelevel >= 2
 			    && cdevsw[maj]->d_bdev
-			    && cdevsw[maj]->d_bdev->d_flags == D_DISK)
+			    && (cdevsw[maj]->d_bdev->d_flags & D_TYPEMASK) == 
+			    D_DISK)
 				return (EPERM);
 			/*
 			 * When running in secure mode, do not allow opens
@@ -220,7 +221,8 @@ spec_open(ap)
 		 * opens for writing of any disk block devices.
 		 */
 		if (securelevel >= 2 && ap->a_cred != FSCRED &&
-		    (ap->a_mode & FWRITE) && bdevsw[maj]->d_flags == D_DISK)
+		    (ap->a_mode & FWRITE) &&
+		    (bdevsw[maj]->d_flags & D_TYPEMASK) == D_DISK)
 			return (EPERM);
 		/*
 		 * Do not allow opens of block devices that are
@@ -422,7 +424,8 @@ spec_ioctl(ap)
 
 	case VBLK:
 		if (ap->a_command == 0 && (int)ap->a_data == B_TAPE)
-			if (bdevsw[major(dev)]->d_flags == D_TAPE)
+			if ((bdevsw[major(dev)]->d_flags & D_TYPEMASK) ==
+			    D_TAPE)
 				return (0);
 			else
 				return (1);

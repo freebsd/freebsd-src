@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.48 1997/06/14 13:56:09 bde Exp $
+ *	$Id: vn.c,v 1.49 1997/08/14 13:44:19 kato Exp $
  */
 
 /*
@@ -101,8 +101,8 @@ static	d_strategy_t	vnstrategy;
 #define BDEV_MAJOR 15
 static struct cdevsw vn_cdevsw;
 static struct bdevsw vn_bdevsw = 
-	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
-	  vndump,	vnsize,		D_DISK,	"vn",	&vn_cdevsw,	-1 };
+	{ vnopen, vnclose, vnstrategy,                      vnioctl,	/*15*/
+	  vndump, vnsize,  D_DISK | D_NOCLUSTERRW, "vn",    &vn_cdevsw, -1 };
 
 
 #ifdef DEBUG

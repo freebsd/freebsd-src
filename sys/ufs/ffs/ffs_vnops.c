@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.28 1997/09/02 20:06:46 bde Exp $
+ * $Id: ffs_vnops.c,v 1.29 1997/09/14 02:58:05 peter Exp $
  */
 
 #include <sys/param.h>
@@ -239,17 +239,7 @@ VNODEOP_SET(ffs_vnodeop_opv_desc);
 VNODEOP_SET(ffs_specop_opv_desc);
 VNODEOP_SET(ffs_fifoop_opv_desc);
 
-/*
- * Enabling cluster read/write operations.
- */
-static int ffs_doclusterread = 1;
-static int ffs_doclusterwrite = 1;
-
 SYSCTL_NODE(_vfs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS filesystem");
-SYSCTL_INT(_vfs_ffs, FFS_CLUSTERREAD, doclusterread,
-		   CTLFLAG_RW, &ffs_doclusterread, 0, "");
-SYSCTL_INT(_vfs_ffs, FFS_CLUSTERWRITE, doclusterwrite,
-		   CTLFLAG_RW, &ffs_doclusterwrite, 0, "");
 
 #include <ufs/ufs/ufs_readwrite.c>
 
