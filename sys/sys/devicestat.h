@@ -180,7 +180,7 @@ STAILQ_HEAD(devstatlist, devstat);
 #ifdef _KERNEL
 struct bio;
 
-struct devstat *devstat_new_entry(const char *dev_name, int unit_number,
+struct devstat *devstat_new_entry(const void *dev_name, int unit_number,
 				  u_int32_t block_size,
 				  devstat_support_flags flags,
 				  devstat_type_flags device_type,
