@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.100 2001/09/17 21:58:03 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.100.4.1 2002/01/25 05:39:54 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,6 +36,7 @@ static const char rcsid[] =
 
 #include <netinet/in.h>
 
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -259,13 +260,12 @@ ip_print(register const u_char *bp, register u_int length)
 	register const u_char *cp;
 	u_char nh;
 	int advance;
+	struct protoent *proto;
 
 	ip = (const struct ip *)bp;
 #ifdef LBL_ALIGN
 	/*
 	 * If the IP header is not aligned, copy into abuf.
-	 * This will never happen with BPF.  It does happen raw packet
-	 * dumps from -r.
 	 */
 	if ((long)ip & 3) {
 		static u_char *abuf = NULL;
@@ -463,7 +463,11 @@ again:
 			break;
 
 		default:
-			(void)printf(" ip-proto-%d %d", nh, len);
+			if ((proto = getprotobynumber(nh)) != NULL)
+				(void)printf(" %s", proto->p_name);
+			else
+				(void)printf(" ip-proto-%d", nh);
+			printf(" %d", len);
 			break;
 		}
 	}
@@ -482,11 +486,17 @@ again:
 	if (off & 0x3fff) {
 		/*
 		 * if this isn't the first frag, we're missing the
-		 * next level protocol header.  print the ip addr.
+		 * next level protocol header.  print the ip addr
+		 * and the protocol.
 		 */
-		if (off & 0x1fff)
+		if (off & 0x1fff) {
 			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
 				      ipaddr_string(&ip->ip_dst));
+			if ((proto = getprotobynumber(ip->ip_p)) != NULL)
+				(void)printf(" %s", proto->p_name);
+			else
+				(void)printf(" ip-proto-%d", ip->ip_p);
+		}
 #ifndef IP_MF
 #define IP_MF 0x2000
 #endif /* IP_MF */
