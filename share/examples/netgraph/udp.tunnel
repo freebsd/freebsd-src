@@ -31,7 +31,7 @@ else
 fi
 
 # Attach a UDP socket to the ``inet'' hook of the interface node
-# using the ng_ksocket(8) node type.
+# using the ng_ksocket(4) node type.
 #
 ngctl mkpeer ng0: ksocket inet inet/dgram/udp
 
