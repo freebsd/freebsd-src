@@ -29,5 +29,5 @@
 struct device;
 
 extern void apecs_init(void);
-u_int32_t apecs_pcib_read_config(struct device *dev, int b, int s, int f,
-				 int reg, int width);
+u_int32_t apecs_pcib_read_config(struct device *dev, u_int b, u_int s, u_int f,
+				 u_int reg, int width);
