@@ -96,14 +96,13 @@ static	d_close_t	spigot_close;
 static	d_read_t	spigot_read;
 static	d_write_t	spigot_write;
 static	d_ioctl_t	spigot_ioctl;
-static	d_select_t	spigot_select;
 static	d_mmap_t	spigot_mmap;
 
 #define CDEV_MAJOR 11
 static struct cdevsw spigot_cdevsw = 
 	{ spigot_open,	spigot_close,	spigot_read,	spigot_write,	/*11*/
 	  spigot_ioctl,	nostop,		nullreset,	nodevtotty,/* Spigot */
-	  spigot_select, spigot_mmap,	NULL,	"spigot",	NULL,	-1  };
+	  seltrue,	spigot_mmap,	NULL,	"spigot",	NULL,	-1  };
 
 static int
 spigot_probe(struct isa_device *devp)
@@ -238,13 +237,6 @@ struct	spigot_info	*info;
 	}
 
 	return 0;
-}
-
-static	int
-spigot_select(dev_t dev, int rw, struct proc *p)
-{
-
-	return ENXIO;
 }
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.11 1997/09/01 07:37:01 smp Exp smp $
+ *	$Id: sio.c,v 1.180 1997/09/01 07:45:28 fsmp Exp $
  */
 
 #include "opt_comconsole.h"
@@ -348,7 +348,7 @@ static	d_devtotty_t	siodevtotty;
 static struct cdevsw sio_cdevsw = {
 	sioopen,	sioclose,	sioread,	siowrite,
 	sioioctl,	siostop,	noreset,	siodevtotty,
-	ttselect,	nommap,		NULL,		driver_name,
+	ttpoll,		nommap,		NULL,		driver_name,
 	NULL,		-1,
 };
 

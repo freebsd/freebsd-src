@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.53 1997/08/08 20:09:50 julian Exp $
+ *	$Id: cons.c,v 1.54 1997/08/08 20:29:47 julian Exp $
  */
 
 #include <sys/param.h>
@@ -76,13 +76,13 @@ static	d_close_t	cnclose;
 static	d_read_t	cnread;
 static	d_write_t	cnwrite;
 static	d_ioctl_t	cnioctl;
-static	d_select_t	cnselect;
+static	d_poll_t	cnpoll;
 
 #define CDEV_MAJOR 0
 static struct cdevsw cn_cdevsw = 
 	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
 	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
-	  cnselect,	nommap,		NULL,	"console",	NULL,	-1 };
+	  cnpoll,	nommap,		NULL,	"console",	NULL,	-1 };
 
 static dev_t	cn_dev_t; 	/* seems to be never really used */
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,
@@ -374,9 +374,9 @@ cnioctl(dev, cmd, data, flag, p)
 }
 
 static int
-cnselect(dev, rw, p)
+cnpoll(dev, events, p)
 	dev_t dev;
-	int rw;
+	int events;
 	struct proc *p;
 {
 	if ((cn_tab == NULL) || cn_mute)
@@ -384,7 +384,7 @@ cnselect(dev, rw, p)
 
 	dev = cn_tab->cn_dev;
 
-	return ((*cdevsw[major(dev)]->d_select)(dev, rw, p));
+	return ((*cdevsw[major(dev)]->d_poll)(dev, events, p));
 }
 
 int

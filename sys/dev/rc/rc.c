@@ -107,7 +107,7 @@ static	d_devtotty_t	rcdevtotty;
 static struct cdevsw rc_cdevsw = 
 	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
 	  rcioctl,      rcstop,         noreset,        rcdevtotty,/* rc */
-	  ttselect,	nommap,		NULL,	"rc",	NULL,	-1 };
+	  ttpoll,	nommap,		NULL,	"rc",	NULL,	-1 };
 
 /* Per-board structure */
 static struct rc_softc {

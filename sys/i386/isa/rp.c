@@ -801,7 +801,7 @@ static	d_devtotty_t	rpdevtotty;
 static	struct cdevsw	rp_cdevsw =
 		{ rpopen,	rpclose,	rpread, 	rpwrite,
 		  rpioctl,	rpstop, 	noreset,	rpdevtotty,
-		  ttselect,	nommap, 	NULL,		driver_name,
+		  ttpoll,	nommap, 	NULL,		driver_name,
 		  NULL, 	-1};
 
 static int rp_controller_port = 0;

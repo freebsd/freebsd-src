@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.40 1997/03/24 11:24:55 bde Exp $
+ *      $Id: ch.c,v 1.41 1997/09/02 20:06:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -108,7 +108,7 @@ static	d_ioctl_t	chioctl;
 static struct cdevsw ch_cdevsw = 
 	{ chopen,	chclose,	noread,		nowrite,	/*17*/
 	  chioctl,	nostop,		nullreset,	nodevtotty,/* ch */
-	  noselect,	nommap,		nostrat,	"ch",	NULL,	-1 };
+	  seltrue,	nommap,		nostrat,	"ch",	NULL,	-1 };
 
 /*
  * SCSI glue.

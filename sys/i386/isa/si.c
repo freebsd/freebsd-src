@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.58 1997/04/20 15:36:04 bde Exp $
+ *	$Id: si.c,v 1.59 1997/07/20 14:10:11 bde Exp $
  */
 
 #ifndef lint
@@ -122,7 +122,7 @@ static	d_devtotty_t	sidevtotty;
 static struct cdevsw si_cdevsw = 
 	{ siopen,	siclose,	siread,		siwrite,	/*68*/
 	  siioctl,	sistop,		noreset,	sidevtotty,/* si */
-	  ttselect,	nommap,		NULL,	"si",	NULL,	-1 };
+	  ttpoll,	nommap,		NULL,	"si",	NULL,	-1 };
 
 
 #ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */
