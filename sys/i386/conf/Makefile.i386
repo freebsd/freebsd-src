@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.67 1995/10/29 11:10:53 davidg Exp $
+#	$Id: Makefile.i386,v 1.68 1995/10/30 20:20:49 guido Exp $
 #
 # Makefile for FreeBSD
 #
@@ -55,6 +55,7 @@ NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 NORMAL_S= ${CPP} -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
+DRIVER_S= ${CPP} -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
