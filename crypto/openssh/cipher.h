@@ -12,7 +12,7 @@
  * $FreeBSD$
  */
 
-/* RCSID("$Id: cipher.h,v 1.10 1999/11/24 19:53:46 markus Exp $"); */
+/* RCSID("$Id: cipher.h,v 1.11 2000/03/22 09:55:10 markus Exp $"); */
 
 #ifndef CIPHER_H
 #define CIPHER_H
@@ -88,11 +88,5 @@ cipher_encrypt(CipherContext * context, unsigned char *dest,
 void 
 cipher_decrypt(CipherContext * context, unsigned char *dest,
     const unsigned char *src, unsigned int len);
-
-/*
- * If and CRC-32 attack is detected this function is called. Defaults to
- * fatal, changed to packet_disconnect in sshd and ssh.
- */
-extern void (*cipher_attack_detected) (const char *fmt, ...);
 
 #endif				/* CIPHER_H */

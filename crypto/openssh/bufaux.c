@@ -16,7 +16,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: bufaux.c,v 1.7 1999/11/24 19:53:44 markus Exp $");
+RCSID("$Id: bufaux.c,v 1.8 2000/03/16 20:56:14 markus Exp $");
 
 #include "ssh.h"
 #include <openssl/bn.h>
@@ -33,7 +33,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 {
 	int bits = BN_num_bits(value);
 	int bin_size = (bits + 7) / 8;
-	char *buf = xmalloc(bin_size);
+	char unsigned *buf = xmalloc(bin_size);
 	int oi;
 	char msg[2];
 
@@ -47,7 +47,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 	PUT_16BIT(msg, bits);
 	buffer_append(buffer, msg, 2);
 	/* Store the binary data. */
-	buffer_append(buffer, buf, oi);
+	buffer_append(buffer, (char *)buf, oi);
 
 	memset(buf, 0, bin_size);
 	xfree(buf);
@@ -69,7 +69,7 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 	bytes = (bits + 7) / 8;
 	if (buffer_len(buffer) < bytes)
 		fatal("buffer_get_bignum: input buffer too small");
-	bin = buffer_ptr(buffer);
+	bin = (unsigned char*) buffer_ptr(buffer);
 	BN_bin2bn(bin, bytes, value);
 	buffer_consume(buffer, bytes);
 
