@@ -63,7 +63,6 @@
  */
 
 #include "opt_devfs.h"
-#ifndef NODEVFS
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -829,4 +828,3 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 	return (0);
 }
 
-#endif /* !NODEVFS */
