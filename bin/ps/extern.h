@@ -65,7 +65,7 @@ void	 parsefmt __P((char *));
 void	 pcpu __P((KINFO *, VARENT *));
 void	 pmem __P((KINFO *, VARENT *));
 void	 pri __P((KINFO *, VARENT *));
-void	 rtprior __P((KINFO *, VARENT *));
+void	 priorityr __P((KINFO *, VARENT *));
 void	 printheader __P((void));
 void	 rssize __P((KINFO *, VARENT *));
 void	 runame __P((KINFO *, VARENT *));

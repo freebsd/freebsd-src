@@ -244,7 +244,7 @@ pri(k, ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%*d", v->width, k->ki_p->ki_priority - PZERO);
+	(void)printf("%*d", v->width, k->ki_p->ki_pri.pri_level - PZERO);
 }
 
 void
@@ -613,31 +613,31 @@ tsize(k, ve)
 }
 
 void
-rtprior(k, ve)
+priorityr(k, ve)
 	KINFO *k;
 	VARENT *ve;
 {
 	VAR *v;
-	struct rtprio *prtp;
+	struct priority *pri;
 	char str[8];
-	unsigned prio, type;
+	unsigned class, level;
  
 	v = ve->var;
-	prtp = (struct rtprio *) ((char *)k + v->off);
-	prio = prtp->prio;
-	type = prtp->type;
-	switch (type) {
-	case RTP_PRIO_REALTIME:
-		snprintf(str, sizeof(str), "real:%u", prio);
+	pri = (struct priority *) ((char *)k + v->off);
+	class = pri->pri_class;
+	level = pri->pri_level;
+	switch (class) {
+	case PRI_REALTIME:
+		snprintf(str, sizeof(str), "real:%u", level);
 		break;
-	case RTP_PRIO_NORMAL:
+	case PRI_TIMESHARE:
 		strncpy(str, "normal", sizeof(str));
 		break;
-	case RTP_PRIO_IDLE:
-		snprintf(str, sizeof(str), "idle:%u", prio);
+	case PRI_IDLE:
+		snprintf(str, sizeof(str), "idle:%u", level);
 		break;
 	default:
-		snprintf(str, sizeof(str), "%u:%u", type, prio);
+		snprintf(str, sizeof(str), "%u:%u", class, level);
 		break;
 	}
 	str[sizeof(str) - 1] = '\0';
