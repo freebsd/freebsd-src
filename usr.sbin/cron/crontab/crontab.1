@@ -89,7 +89,12 @@ the
 .Ev VISUAL
 or
 .Ev EDITOR
-environment variables.  After you exit
+environment variables.
+The specified editor
+.Em must
+edit the file in place;
+any editor that unlinks the file and recreates it cannot be used.
+After you exit
 from the editor, the modified crontab will be installed automatically.
 .El
 .Sh SEE ALSO
