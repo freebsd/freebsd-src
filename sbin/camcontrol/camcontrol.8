@@ -137,18 +137,22 @@
 .Nm
 .Ic help
 .Sh DESCRIPTION
+The
 .Nm
-is a utility designed to provide a way for users to access and control the
+utility is designed to provide a way for users to access and control the
 .Fx
 CAM subsystem.
 .Pp
+The
 .Nm
+utility
 can cause a loss of data and/or system crashes if used improperly.  Even
 expert users are encouraged to exercise caution when using this command.
 Novice users should stay away from this utility.
 .Pp
+The
 .Nm
-has a number of primary functions, many of which support an optional
+utility has a number of primary functions, many of which support an optional
 device identifier.  A device identifier can take one of three forms:
 .Bl -tag -width 14n
 .It deviceUNIT
@@ -222,8 +226,9 @@ List all peripheral drivers attached to a given physical device (logical
 unit).
 .It Ic tur
 Send the SCSI test unit ready (0x00) command to the given device.
+The
 .Nm
-will report whether the device is ready or not.
+utility will report whether the device is ready or not.
 .It Ic inquiry
 Send a SCSI inquiry command (0x12) to a device.  By default,
 .Nm
@@ -283,7 +288,9 @@ required.  Most drives support the physical sector format.  Some drives
 support the logical block format.  Many drives, if they don't support the
 requested format, return the data in an alternate format, along with sense
 information indicating that the requested data format isn't supported.
+The
 .Nm
+utility
 attempts to detect this, and print out whatever format the drive returns.
 If the drive uses a non-standard sense code to report that it doesn't
 support the requested format,
@@ -466,7 +473,9 @@ Show or negotiate various communication parameters.  Some controllers may
 not support setting or changing some of these values.  For instance, the
 Adaptec 174x controllers do not support changing a device's sync rate or
 offset.
+The
 .Nm
+utility
 will not attempt to set the parameter if the controller indicates that it
 does not support setting the parameter.  To find out what the controller
 supports, use the
@@ -618,8 +627,9 @@ fails.
 .Dl camcontrol tur da0
 .Pp
 Send the SCSI test unit ready command to da0.
+The
 .Nm
-will report whether the disk is ready, but will not display sense
+utility will report whether the disk is ready, but will not display sense
 information if the command fails since the
 .Fl v
 switch was not specified.
@@ -634,8 +644,9 @@ printing (with the
 .Fl v
 flag) if the command fails.  Since error recovery is turned on, the
 disk will be spun up if it is not currently spinning.
+The
 .Nm
-will report whether the disk is ready.
+utility will report whether the disk is ready.
 .Bd -literal -offset indent
 camcontrol cmd -n cd -u 1 -v -c "3C 00 00 00 00 00 00 00 0e 00" \e
 	-i 0xe "s1 i3 i1 i1 i1 i1 i1 i1 i1 i1 i1 i1"
@@ -702,7 +713,7 @@ Test Unit Ready command to make the settings take effect.
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 3.0 .
 .Pp
 The mode page editing code and arbitrary SCSI command code are based upon

@@ -42,8 +42,9 @@
 .Nm
 .Ar bbdir sector ...
 .Sh DESCRIPTION
-.Nm Badsect
-makes a file to contain a bad sector.  Normally, bad sectors
+The
+.Nm
+utility makes a file to contain a bad sector.  Normally, bad sectors
 are made inaccessible by the standard formatter, which provides
 a forwarding table for bad sectors to the driver.
 If a driver supports the bad blocking standard it is much preferable to
@@ -67,8 +68,9 @@ do not support the bad-blocking standard
 .Nm
 may be used to good effect.
 .Pp
-.Nm Badsect
-is used on a quiet file system in the following way:
+The
+.Nm
+utility is used on a quiet file system in the following way:
 First mount the file system, and change to its root directory.
 Make a directory
 .Li BAD
@@ -97,8 +99,9 @@ This will leave the bad sectors in only the
 .Li BAD
 files.
 .Pp
-.Nm Badsect
-works by giving the specified sector numbers in a
+The
+.Nm
+utility works by giving the specified sector numbers in a
 .Xr mknod 2
 system call,
 creating an illegal file whose first block address is the block containing
@@ -113,8 +116,9 @@ to convert the inode to a regular file containing the bad block.
 .Sh SEE ALSO
 .Xr fsck 8
 .Sh DIAGNOSTICS
-.Nm Badsect
-refuses to attach a block that
+The
+.Nm
+utility refuses to attach a block that
 resides in a critical area or is out of range of the file system.
 A warning is issued if the block is already in use.
 .Sh BUGS
@@ -126,5 +130,5 @@ file system fragment.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.1 .

@@ -94,7 +94,9 @@
 .Ar disk Ar protofile
 .Oo Ar disktype/auto Oc
 .Sh DESCRIPTION
-.Nm Disklabel
+The
+.Nm
+utility
 installs, examines or modifies the label on a disk drive or pack.  When writing
 the label, it can be used to change the drive identification, the disk
 partitions on the drive, or to replace a damaged label.  There are several forms
@@ -137,8 +139,9 @@ partition be specified.  For example
 You do not have to include the
 .Pa /dev/
 path prefix when specifying the device.
+The
 .Nm
-will automatically prepend it.
+utility will automatically prepend it.
 .Ss Reading the disk label
 .Pp
 To examine the label on a disk drive, use
@@ -470,11 +473,11 @@ they can be defined later using
 .It
 Finally use
 .Xr newfs 8
-to create a filesystem on the new partition.
+to create a file system on the new partition.
 A typical partitioning scheme would be to have an
 .Dq a
 partition
-of approximately 128MB to hold the root filesystem, a
+of approximately 128MB to hold the root file system, a
 .Dq b
 partition for
 swap, a
@@ -510,7 +513,9 @@ auto
 .It Pa /boot/boot<n>
 .El
 .Sh SAVED FILE FORMAT
+The
 .Nm
+utility
 uses an ASCII version of the label when examining, editing or restoring a disk
 label.  The format is:
 .Bd -literal -offset 4n
@@ -643,7 +648,9 @@ represents the entire slice and should be of type
 though
 .Nm
 does not enforce this convention.
+The
 .Nm
+utility
 also knows about a number of other partition types, none of which are in current
 use.
 See the definitions starting with
@@ -844,8 +851,8 @@ the
 partition.
 .Pp
 On some machines the bootstrap code may not fit entirely in the area
-allocated for it by some filesystems.
-As a result, it may not be possible to have filesystems on some partitions
+allocated for it by some file systems.
+As a result, it may not be possible to have file systems on some partitions
 of a
 .Dq bootable
 disk.
@@ -856,7 +863,7 @@ If the installed boot code would overlap a partition of type FS_UNUSED
 it is marked as type FS_BOOT.
 The
 .Xr newfs 8
-utility will disallow creation of filesystems on FS_BOOT partitions.
+utility will disallow creation of file systems on FS_BOOT partitions.
 Conversely, if a partition has a type other than FS_UNUSED or FS_BOOT,
 .Nm
 will not install bootstrap code that overlaps it.
@@ -870,8 +877,9 @@ For the i386 architecture, the primary bootstrap sector contains
 an embedded
 .Em fdisk
 table.
-.Nm Disklabel
-takes care to not clobber it when installing a bootstrap only
+The
+.Nm
+utility takes care to not clobber it when installing a bootstrap only
 .Pq Fl B ,
 or when editing an existing label
 .Pq Fl e ,
@@ -888,7 +896,9 @@ concern if the disk is fully dedicated, so that the
 disklabel
 starts at absolute block 0 on the disk.
 .Pp
+The
 .Nm
+utility
 does not perform all possible error checking.  Warning *is* given if partitions
 overlap; if an absolute offset does not match the expected offset; if the
 .Dq c
