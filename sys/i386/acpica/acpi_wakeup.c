@@ -52,9 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <i386/isa/intr_machdep.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpica_support.h>
-
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_wakecode.h"
@@ -156,7 +154,6 @@ acpi_savecpu:				\n\
 static void
 acpi_printcpu(void)
 {
-
 	printf("======== acpi_printcpu() debug dump ========\n");
 	printf("gdt[%04x:%08x] idt[%04x:%08x] ldt[%04x] tr[%04x] efl[%08x]\n",
 		r_gdt.rd_limit, r_gdt.rd_base, r_idt.rd_limit, r_idt.rd_base,
@@ -197,9 +194,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	u_long			ef;
 	struct proc		*p;
 
-	if (sc->acpi_wakeaddr == 0) {
+	if (sc->acpi_wakeaddr == 0)
 		return (0);
-	}
 
 	AcpiSetFirmwareWakingVector(sc->acpi_wakephys);
 
@@ -222,9 +218,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	}
 
 	oldphys = pmap_extract(pm, sc->acpi_wakephys);
-	if (oldphys) {
+	if (oldphys)
 		opage = PHYS_TO_VM_PAGE(oldphys);
-	}
 	page = PHYS_TO_VM_PAGE(sc->acpi_wakephys);
 	pmap_enter(pm, sc->acpi_wakephys, page,
 		   VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE, 1);
@@ -232,7 +227,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	ret_addr = 0;
 	if (acpi_savecpu()) {
 		/* Execute Sleep */
-		p_gdt = (struct region_descriptor *)(sc->acpi_wakeaddr + physical_gdt);
+		p_gdt = (struct region_descriptor *)
+				(sc->acpi_wakeaddr + physical_gdt);
 		p_gdt->rd_limit = r_gdt.rd_limit;
 		p_gdt->rd_base = vtophys(r_gdt.rd_base);
 
@@ -255,17 +251,15 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(previous_gs,  u_int16_t, r_gs);
 		WAKECODE_FIXUP(previous_ss,  u_int16_t, r_ss);
 
-		if (acpi_get_verbose(sc)) {
+		if (acpi_get_verbose(sc))
 			acpi_printcpu();
-		}
 
 		ACPI_FLUSH_CPU_CACHE(); 
 
-		if (state == ACPI_STATE_S4 && sc->acpi_s4bios) {
+		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
 			status = AcpiEnterSleepStateS4Bios();
-		} else {
+		else
 			status = AcpiEnterSleepState(state);
-		}
 
 		if (status != AE_OK) {
 			device_printf(sc->acpi_dev,
@@ -316,7 +310,6 @@ static vm_offset_t	acpi_wakeaddr = 0;
 static void
 acpi_alloc_wakeup_handler(void)
 {
-
 	if (!cold)
 		return;
 
@@ -325,13 +318,13 @@ acpi_alloc_wakeup_handler(void)
 			       /* highaddr */ BUS_SPACE_MAXADDR, NULL, NULL,
 				PAGE_SIZE, 1, PAGE_SIZE, 0, busdma_lock_mutex,
 				&Giant, &acpi_waketag) != 0) {
-		printf("acpi_alloc_wakeup_handler: unable to create wake tag\n");
+		printf("acpi_alloc_wakeup_handler: can't create wake tag\n");
 		return;
 	}
 
 	if (bus_dmamem_alloc(acpi_waketag, (void **)&acpi_wakeaddr,
 			     BUS_DMA_NOWAIT, &acpi_wakemap)) {
-		printf("acpi_alloc_wakeup_handler: unable to allocate wake memory\n");
+		printf("acpi_alloc_wakeup_handler: can't alloc wake memory\n");
 		return;
 	}
 }
@@ -353,10 +346,8 @@ acpi_realmodeinst(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 void
 acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
-
-	if (acpi_wakeaddr == 0) {
+	if (acpi_wakeaddr == 0)
 		return;
-	}
 
 	sc->acpi_waketag = acpi_waketag;
 	sc->acpi_wakeaddr = acpi_wakeaddr;
@@ -366,4 +357,3 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 			(void *)sc->acpi_wakeaddr, PAGE_SIZE,
 			acpi_realmodeinst, sc, 0);
 }
-
