@@ -893,7 +893,7 @@ pmap_pinit2(struct pmap *pmap)
 }
 
 /***************************************************
-* Pmap allocation/deallocation routines.
+ * Pmap allocation/deallocation routines.
  ***************************************************/
 
 /*
