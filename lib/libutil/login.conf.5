@@ -74,13 +74,21 @@ All names but the last should be in lower case and contain no blanks;
 the last name may contain upper case characters and blanks for
 readability.
 .Pp
-The 
-.Pa /etc/login.conf 
-file is not referenced directly by 
-.Xr login 1
-so changes will not take effect until 
+The default
+.Pa /etc/login.conf
+shipped with
+.Fx
+is an out of the box configuration.
+Whenever changes to this file, or
+the users local
+.Pa login.conf
+file are made, the modifications will not be picked up until
 .Xr cap_mkdb 1
 is used to compile the file into a database.
+This database file will have a
+.Pa .db
+extention and is accessed through
+.Xr cgetent 3 .
 See
 .Xr getcap 3
 for a more in-depth description of the format of a capability database.
