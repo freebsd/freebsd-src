@@ -24,6 +24,7 @@
  */
 #include "includes.h"
 RCSID("$OpenBSD: auth2-chall.c,v 1.16 2002/01/13 17:57:37 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include "ssh2.h"
 #include "auth.h"
@@ -40,19 +41,19 @@ static void input_userauth_info_response(int, u_int32_t, void *);
 
 #ifdef BSD_AUTH
 extern KbdintDevice bsdauth_device;
-#else
-#ifdef SKEY
+#elif defined(USE_PAM)
+extern KbdintDevice pam_device;
+#elif defined(SKEY)
 extern KbdintDevice skey_device;
-#endif
 #endif
 
 KbdintDevice *devices[] = {
 #ifdef BSD_AUTH
 	&bsdauth_device,
-#else
-#ifdef SKEY
+#elif defined(USE_PAM)
+	&pam_device,
+#elif defined(SKEY)
 	&skey_device,
-#endif
 #endif
 	NULL
 };
