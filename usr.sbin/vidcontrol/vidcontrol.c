@@ -41,6 +41,8 @@ static const char rcsid[] =
 #include <sys/fbio.h>
 #include <sys/consio.h>
 #include <sys/errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "path.h"
 #include "decode.h"
 
@@ -74,12 +76,13 @@ usage()
 }
 
 char *
-nextarg(int ac, char **av, int *indp, int oc)
+nextarg(int ac, char **av, int *indp, int oc, int strict)
 {
 	if (*indp < ac)
 		return(av[(*indp)++]);
-	errx(1, "option requires two arguments -- %c", oc);
-	return("");
+	if (strict != 0)
+		errx(1, "option requires two arguments -- %c", oc);
+	return(NULL);
 }
 
 char *
@@ -129,7 +132,7 @@ load_scrnmap(char *filename)
 		return;
 	}
 	size = sizeof(scrnmap);
-	if (decode(fd, (char *)&scrnmap) != size) {
+	if (decode(fd, (char *)&scrnmap, size) != size) {
 		rewind(fd);
 		if (fread(&scrnmap, 1, size, fd) != size) {
 			warnx("bad screenmap file");
@@ -176,15 +179,37 @@ print_scrnmap()
 
 }
 
+int
+fsize(FILE *file)
+{
+	struct stat sb;
+
+	if (fstat(fileno(file), &sb) == 0)
+		return sb.st_size;
+	else
+		return -1;
+}
+
+#define DATASIZE(x) ((x).w * (x).h * 256 / 8)
+
 void
 load_font(char *type, char *filename)
 {
-	FILE	*fd = 0;
-	int	i, size;
-	unsigned long io;
+	FILE	*fd = NULL;
+	int	h, i, size, w;
+	unsigned long io = 0;	/* silence stupid gcc(1) in the Wall mode */
 	char	*name, *fontmap;
 	char	*prefix[]  = {"", "", FONT_PATH, FONT_PATH, NULL};
 	char	*postfix[] = {"", ".fnt", "", ".fnt"};
+
+	struct sizeinfo {
+		int w;
+		int h;
+		unsigned long io;
+	} sizes[] = {{8, 16, PIO_FONT8x16},
+		     {8, 14, PIO_FONT8x14},
+		     {8,  8,  PIO_FONT8x8},
+		     {0,  0,            0}};
 
 	for (i=0; prefix[i]; i++) {
 		name = mkfullname(prefix[i], filename, postfix[i]);
@@ -193,31 +218,57 @@ load_font(char *type, char *filename)
 			break;
 	}
 	if (fd == NULL) {
-		warn("font file not found");
+		warn("%s: can't load font file", filename);
 		return;
 	}
-	if (!strcmp(type, "8x8")) {
-		size = 8*256;
-		io = PIO_FONT8x8;
-	}
-	else if (!strcmp(type, "8x14")) {
-		size = 14*256;
-		io = PIO_FONT8x14;
-	}
-	else if (!strcmp(type, "8x16")) {
-		size = 16*256;
-		io = PIO_FONT8x16;
-	}
-	else {
-		warn("bad font size specification");
-		fclose(fd);
-		return;
-	}
-	fontmap = (char*) malloc(size);
-	if (decode(fd, fontmap) != size) {
+	if (type != NULL) {
+		size = 0;
+		if (sscanf(type, "%dx%d", &w, &h) == 2)
+			for (i = 0; sizes[i].w != 0; i++)
+				if (sizes[i].w == w && sizes[i].h == h) {
+					size = DATASIZE(sizes[i]);
+					io = sizes[i].io;
+				}
+
+		if (size == 0) {
+			warnx("%s: bad font size specification", type);
+			fclose(fd);
+			return;
+		}
+	} else {
+		/* Apply heuristics */
+		int j;
+		int dsize[2];
+
+		size = DATASIZE(sizes[0]);
+		fontmap = (char*) malloc(size);
+		dsize[0] = decode(fd, fontmap, size);
+		dsize[1] = fsize(fd);
+		free(fontmap);
+
+		size = 0;
+		for (j = 0; j < 2; j++)
+			for (i = 0; sizes[i].w != 0; i++)
+				if (DATASIZE(sizes[i]) == dsize[j]) {
+					size = dsize[j];
+					io = sizes[i].io;
+					j = 2;	/* XXX */
+					break;
+				}
+
+		if (size == 0) {
+			warnx("%s: can't guess font size", filename);
+			fclose(fd);
+			return;
+		}
 		rewind(fd);
-		if (fread(fontmap, 1, size, fd) != size) {
-			warnx("bad font file");
+	}
+
+	fontmap = (char*) malloc(size);
+	if (decode(fd, fontmap, size) != size) {
+		rewind(fd);
+		if (fsize(fd) != size || fread(fontmap, 1, size, fd) != size) {
+			warnx("%s: bad font file", filename);
 			fclose(fd);
 			free(fontmap);
 			return;
@@ -590,7 +641,8 @@ test_frame()
 int
 main(int argc, char **argv)
 {
-	int		opt;
+	char	*font, *type;
+	int	opt;
 
 
 	info.size = sizeof(info);
@@ -608,8 +660,13 @@ main(int argc, char **argv)
 				print_scrnmap();
 				break;
 			case 'f':
-				load_font(optarg,
-					nextarg(argc, argv, &optind, 'f'));
+				type = optarg;
+				font = nextarg(argc, argv, &optind, 'f', 0);
+				if (font == NULL) {
+					type = NULL;
+					font = optarg;
+				}
+				load_font(type, font);
 				break;
 			case 'g':
 				if (sscanf(optarg, "%dx%d", &vesa_cols,

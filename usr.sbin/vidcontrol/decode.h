@@ -1,1 +1,3 @@
-int decode(FILE *fd, char *buffer);
+/* $FreeBSD$ */
+
+int decode(FILE *fd, char *buffer, int len);

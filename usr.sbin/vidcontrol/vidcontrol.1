@@ -24,7 +24,7 @@
 .Op Fl b Ar color
 .Op Fl c Ar appearance
 .Op Fl d
-.Op Fl f Ar size Ar file
+.Op Fl f Oo Ar size Oc Ar \ file
 .Op Fl g Ar geometry
 .Op Fl i Cm adapter | mode
 .Op Fl l Ar screen_map
@@ -142,7 +142,7 @@ or
 Used together with the 
 .Xr moused 8
 daemon for text mode cut & paste functionality.
-.It Fl f Ar size Ar file
+.It Fl f [ Ar size ] Ar file
 Load font
 .Ar file
 for
@@ -156,6 +156,11 @@ The font file can be either uuencoded or in raw binary format.
 You can also use the menu-driven
 .Xr vidfont 1
 command to load the font of your choice.
+.Pp
+.Ar Size
+may be omitted, in this case
+.Nm
+will try to guess it from the size of font file.
 .Pp
 Note that older video cards, such as MDA and CGA, do not support 
 software font.
@@ -295,6 +300,11 @@ you may abbreviate the file name as
 .Pa iso-8x16 :
 .Pp
 .Dl vidcontrol -f 8x16 iso-8x16
+.Pp
+Furthermore, you can also omit font size
+.Dq 8x16 :
+.Pp
+.Dl vidcontrol -f iso-8x16
 .Pp
 Likewise, you can also abbreviate the screen output map file name for
 the
