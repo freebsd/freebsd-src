@@ -97,6 +97,7 @@ static MALLOC_DEFINE(M_DIRADD, "diradd","New directory entry");
 static MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
 static MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
 static MALLOC_DEFINE(M_NEWDIRBLK, "newdirblk","Unclaimed new directory block");
+static MALLOC_DEFINE(M_SAVEDINO, "savedino","Saved inodes");
 
 #define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
 
@@ -2200,7 +2201,7 @@ check_inode_unwritten(inodedep)
 	if (inodedep->id_state & ONWORKLIST)
 		WORKLIST_REMOVE(&inodedep->id_list);
 	if (inodedep->id_savedino1 != NULL) {
-		FREE(inodedep->id_savedino1, M_INODEDEP);
+		FREE(inodedep->id_savedino1, M_SAVEDINO);
 		inodedep->id_savedino1 = NULL;
 	}
 	if (free_inodedep(inodedep) == 0)
@@ -3437,7 +3438,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 			panic("initiate_write_inodeblock_ufs1: I/O underway");
 		FREE_LOCK(&lk);
 		MALLOC(inodedep->id_savedino1, struct ufs1_dinode *,
-		    sizeof(struct ufs1_dinode), M_INODEDEP, M_SOFTDEP_FLAGS);
+		    sizeof(struct ufs1_dinode), M_SAVEDINO, M_SOFTDEP_FLAGS);
 		ACQUIRE_LOCK(&lk);
 		*inodedep->id_savedino1 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs1_dinode));
@@ -3577,7 +3578,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 			panic("initiate_write_inodeblock_ufs2: I/O underway");
 		FREE_LOCK(&lk);
 		MALLOC(inodedep->id_savedino2, struct ufs2_dinode *,
-		    sizeof(struct ufs2_dinode), M_INODEDEP, M_SOFTDEP_FLAGS);
+		    sizeof(struct ufs2_dinode), M_SAVEDINO, M_SOFTDEP_FLAGS);
 		ACQUIRE_LOCK(&lk);
 		*inodedep->id_savedino2 = *dp;
 		bzero((caddr_t)dp, sizeof(struct ufs2_dinode));
@@ -4031,7 +4032,7 @@ handle_written_inodeblock(inodedep, bp)
 			*dp1 = *inodedep->id_savedino1;
 		else
 			*dp2 = *inodedep->id_savedino2;
-		FREE(inodedep->id_savedino1, M_INODEDEP);
+		FREE(inodedep->id_savedino1, M_SAVEDINO);
 		inodedep->id_savedino1 = NULL;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			stat_inode_bitmap++;
