@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_perror.c,v 1.2 1995/05/30 05:41:15 rgrimes Exp $";
+static char *rcsid = "$Id: clnt_perror.c,v 1.3 1995/10/22 14:51:14 phk Exp $";
 #endif
 
 /*
@@ -151,7 +151,7 @@ clnt_perror(rpch, s)
 	CLIENT *rpch;
 	char *s;
 {
-	(void) fprintf(stderr,"%s",clnt_sperror(rpch,s));
+	(void) fprintf(stderr,"%s\n",clnt_sperror(rpch,s));
 }
 
 
@@ -221,7 +221,7 @@ void
 clnt_perrno(num)
 	enum clnt_stat num;
 {
-	(void) fprintf(stderr,"%s",clnt_sperrno(num));
+	(void) fprintf(stderr,"%s\n",clnt_sperrno(num));
 }
 
 
@@ -262,7 +262,7 @@ void
 clnt_pcreateerror(s)
 	char *s;
 {
-	(void) fprintf(stderr,"%s",clnt_spcreateerror(s));
+	(void) fprintf(stderr,"%s\n",clnt_spcreateerror(s));
 }
 
 struct auth_errtab {
