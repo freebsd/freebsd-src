@@ -143,7 +143,7 @@ COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
 COMPAT_DISTS?=	compat4x
 .endif
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc
-CRYPTO_DISTS?=	crypto krb5
+CRYPTO_DISTS?=	crypto
 BASE_DISTS?=	base
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 
@@ -513,7 +513,7 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
 	touch release.2
 
-# Build and install crypto and krb5 distributions.
+# Build and install crypto distributions.
 release.3:
 	# Handle some grief caused by the munition braindeadness.
 	cd ${.CURDIR}/..; \
@@ -605,13 +605,6 @@ release.7:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
-	# More munition braindeadness.
-	( cd ${RD}/dists && \
-		if [ -f krb5/krb5.aa ] ; then \
-			mv krb5/krb5.* crypto && \
-			cat krb5/CHECKSUM.MD5 >> crypto/CHECKSUM.MD5 && \
-			rm -r krb5; \
-		fi )
 	touch release.7
 
 
