@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: eresources.sgml,v 1.1.1.1 1996/11/15 05:14:39 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.28 -->
+<!-- Original revision: 1.29 -->
 
 <chapt>
   <heading>インターネット上のリソース<label id="eresources"></heading>
@@ -74,6 +74,8 @@ freebsd-multimedia       マルチメディアの議論
 freebsd-platforms        Intel以外のアーキテクチャのプラットフォームへの移植
 freebsd-ports            portsコレクションに関する議論
 freebsd-security         セキュリティに関する話題
+freebsd-security-notifications
+                         セキュリティに関する通知 (モデレーテッドメーリングリスト)
 freebsd-scsi             SCSIサブシステム
 freebsd-smp              対称/非対称のマルチプロセッシングの設計に関する議論
 </verb>
@@ -157,12 +159,7 @@ help
 再度言いますが, 私たちは技術的なメーリングリストでは技術的な議論を保つよう
 要求します. もし, 「高いレベル」にのみ興味があるなら, freebsd-announce 
 に参加するように勧めます. これは少ないトラフィックの予定です. 
-<!--
-Again, we would like to request that you keep discussion in the technical mailing
-lists on a technical track.  If you are only interested in the "high points"
-then it is suggested that you join freebsd-announce, which is intended only
-for infrequent traffic.
--->
+
 <sect1><heading>メーリングリストの憲章</heading>
 
 <p>
@@ -277,6 +274,11 @@ freebsd-questionsメーリングリストのダイジェスト版です.
 <tag/FREEBSD-SECURITY/ <em>セキュリティの関連の話題</em><newline>
 FreeBSDコンピュータのセキュリティの話題 (DES, Kerberos, よく知られている
 セキュリティホールや, それらのふさぎ方など)
+
+<tag/FREEBSD-SECURITY-NOTIFICATIONS/ <em>セキュリティ関連の通知</em><newline>
+FreeBSD のセキュリティ問題や, 修正に関する通知を行ないます.
+このメーリングリストは議論を行なうためのメーリングリストではありません.
+議論は FreeBSD-security で行ないます. 
 
 <tag/FREEBSD-USER-GROUPS/ <em>ユーザグループの調整のメーリングリスト</em><newline>
 これは, ローカルなユーザグループがお互いに, または, 
