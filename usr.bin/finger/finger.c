@@ -271,8 +271,11 @@ userlist(argc, argv)
 	}
 
 	/* Handle network requests. */
-net:	for (p = nargv; *p;)
+net:	for (p = nargv; *p;) {
 		netfinger(*p++);
+		if (*p || entries)
+		    printf("\n");
+	}
 
 	if (entries == 0)
 		return;
