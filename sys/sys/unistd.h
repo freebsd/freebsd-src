@@ -125,9 +125,9 @@
 #define	_PC_VDISABLE		 9
 
 #if __POSIX_VISIBLE >= 199309
-#define _PC_ASYNC_IO		53
-#define _PC_PRIO_IO		54
-#define _PC_SYNC_IO		55
+#define	_PC_ASYNC_IO		53
+#define	_PC_PRIO_IO		54
+#define	_PC_SYNC_IO		55
 #endif
 
 #if __POSIX_VISIBLE >= 200112
@@ -154,23 +154,23 @@
  *
  * XXX currently, some operations without RFPROC set are not supported.
  */
-#define	RFNAMEG		(1<<0)  /* UNIMPL new plan9 `name space' */
-#define	RFENVG		(1<<1)  /* UNIMPL copy plan9 `env space' */
-#define	RFFDG		(1<<2)  /* copy fd table */
-#define	RFNOTEG		(1<<3)  /* UNIMPL create new plan9 `note group' */
-#define	RFPROC		(1<<4)  /* change child (else changes curproc) */
-#define	RFMEM		(1<<5)  /* share `address space' */
-#define	RFNOWAIT	(1<<6)  /* give child to init */ 
-#define	RFCNAMEG	(1<<10) /* UNIMPL zero plan9 `name space' */
-#define	RFCENVG		(1<<11) /* UNIMPL zero plan9 `env space' */
-#define	RFCFDG		(1<<12) /* close all fds, zero fd table */
+#define	RFNAMEG		(1<<0)	/* UNIMPL new plan9 `name space' */
+#define	RFENVG		(1<<1)	/* UNIMPL copy plan9 `env space' */
+#define	RFFDG		(1<<2)	/* copy fd table */
+#define	RFNOTEG		(1<<3)	/* UNIMPL create new plan9 `note group' */
+#define	RFPROC		(1<<4)	/* change child (else changes curproc) */
+#define	RFMEM		(1<<5)	/* share `address space' */
+#define	RFNOWAIT	(1<<6)	/* give child to init */
+#define	RFCNAMEG	(1<<10)	/* UNIMPL zero plan9 `name space' */
+#define	RFCENVG		(1<<11)	/* UNIMPL zero plan9 `env space' */
+#define	RFCFDG		(1<<12)	/* close all fds, zero fd table */
 #define	RFTHREAD	(1<<13)	/* enable kernel thread support */
 #define	RFSIGSHARE	(1<<14)	/* share signal handlers */
-#define	RFLINUXTHPN     (1<<16) /* do linux clone exit parent notification */
+#define	RFLINUXTHPN	(1<<16)	/* do linux clone exit parent notification */
 #define	RFSTOPPED	(1<<17)	/* leave child in a stopped state */
-#define	RFHIGHPID	(1<<18) /* use a pid higher then 10 (idleproc) */
-#define	RFPPWAIT	(1<<31) /* parent sleeps until child exits (vfork) */
-#define	RFKERNELONLY	(RFSTOPPED|RFHIGHPID|RFPPWAIT)
+#define	RFHIGHPID	(1<<18)	/* use a pid higher then 10 (idleproc) */
+#define	RFPPWAIT	(1<<31)	/* parent sleeps until child exits (vfork) */
+#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT)
 
 #endif /* __BSD_VISIBLE */
 
