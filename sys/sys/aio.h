@@ -49,24 +49,12 @@
 #define	AIO_LISTIO_MAX		16
 
 /*
- * Private mode bit for aio.
- * (This bit is set by the library routine
- *  to allow the kernel to support sync
- *  or async operations in the future.)
- */
-#define AIO_PMODE_SYNC		0x1
-#define AIO_PMODE_DONE		0x2
-#define AIO_PMODE_SUSPEND	0x4
-#define AIO_PMODE_ACTIVE	0x2357c0de
-
-/*
  * Private members for aiocb -- don't access
  * directly.
  */
 struct __aiocb_private {
 	int	status;
 	int	error;
-	int	privatemodes;
 	void	*kernelinfo;
 };
 
