@@ -1596,6 +1596,7 @@ vm_object_collapse(vm_object_t object)
 			);
 			mtx_unlock(&vm_object_list_mtx);
 
+/* XXX */		VM_OBJECT_LOCK(object);
 			uma_zfree(obj_zone, backing_object);
 
 			object_collapses++;
@@ -1619,8 +1620,6 @@ vm_object_collapse(vm_object_t object)
 			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
 			backing_object->generation++;
-			VM_OBJECT_UNLOCK(backing_object);
-/* XXX */		VM_OBJECT_UNLOCK(object);
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
@@ -1640,18 +1639,16 @@ vm_object_collapse(vm_object_t object)
 
 			/*
 			 * Drop the reference count on backing_object. Since
-			 * its ref_count was at least 2, it will not vanish;
-			 * so we don't need to call vm_object_deallocate, but
-			 * we do anyway.
+			 * its ref_count was at least 2, it will not vanish.
 			 */
-			vm_object_deallocate(backing_object);
+			backing_object->ref_count--;
+			VM_OBJECT_UNLOCK(backing_object);
 			object_bypasses++;
 		}
 
 		/*
 		 * Try again with this object's new backing object.
 		 */
-/* XXX */	VM_OBJECT_LOCK(object);
 	}
 }
 
@@ -1754,12 +1751,10 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 
 	if (prev_object == NULL)
 		return (TRUE);
-	mtx_lock(&Giant);
 	VM_OBJECT_LOCK(prev_object);
 	if (prev_object->type != OBJT_DEFAULT &&
 	    prev_object->type != OBJT_SWAP) {
 		VM_OBJECT_UNLOCK(prev_object);
-		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1775,7 +1770,6 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	 */
 	if (prev_object->backing_object != NULL) {
 		VM_OBJECT_UNLOCK(prev_object);
-		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1786,7 +1780,6 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 	if ((prev_object->ref_count > 1) &&
 	    (prev_object->size != next_pindex)) {
 		VM_OBJECT_UNLOCK(prev_object);
-		mtx_unlock(&Giant);
 		return (FALSE);
 	}
 
@@ -1810,7 +1803,6 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 		prev_object->size = next_pindex + next_size;
 
 	VM_OBJECT_UNLOCK(prev_object);
-	mtx_unlock(&Giant);
 	return (TRUE);
 }
 
