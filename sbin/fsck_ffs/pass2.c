@@ -442,7 +442,9 @@ again:
 				getpathname(pathbuf, idesc->id_number,
 				    idesc->id_number);
 				getpathname(namebuf, dirp->d_ino, dirp->d_ino);
-				pwarn("%s %s %s\n", pathbuf,
+				pwarn("%s%s%s %s %s\n", pathbuf,
+				    (strcmp(pathbuf, "/") == 0 ? "" : "/"),
+				    dirp->d_name,
 				    "IS AN EXTRANEOUS HARD LINK TO DIRECTORY",
 				    namebuf);
 				if (cursnapshot != 0)
