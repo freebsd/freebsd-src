@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.43.2.1 1995/05/31 21:42:38 jkh Exp $
+ *	$Id: boot.c,v 1.44 1995/06/11 19:31:10 rgrimes Exp $
  */
 
 
@@ -74,21 +74,20 @@ void
 boot(int drive)
 {
 	int ret;
-	char *t;
 
-#if 0
 #ifndef FORCE_COMCONSOLE
+#ifdef notyet
 	if (probe_keyboard()) {
 		init_serial();
 		loadflags |= RB_SERIAL;
 		printf("\nNo keyboard found.");
 	}
-#else
+#endif /* notyet */
+#else  /* FORCE_COMCONSOLE */
 	init_serial();
 	loadflags |= RB_SERIAL;
 	printf("\nSerial console forced.");
-#endif
-#endif
+#endif /* FORCE_COMCONSOLE */
 
 	/* Pick up the story from the Bios on geometry of disks */
 
@@ -125,6 +124,8 @@ loadstart:
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       devs[maj], unit, name);
 
+	name = dflname;		/* re-initialize in case of loop */
+	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
 	getbootdev(namebuf, &loadflags);
 	ret = openrd();
 	if (ret != 0) {
