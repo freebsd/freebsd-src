@@ -45,6 +45,10 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
+#if defined (HAVE_LIMITS_H)
+#  include <limits.h>
+#endif
+
 #include <fcntl.h>
 #include <pwd.h>
 
@@ -55,12 +59,28 @@
 #include "xmalloc.h"
 
 #if !defined (HAVE_GETPW_DECLS)
-extern struct passwd *getpwuid __P((uid_t));
+extern struct passwd *getpwuid PARAMS((uid_t));
 #endif /* !HAVE_GETPW_DECLS */
 
 #ifndef NULL
 #  define NULL 0
 #endif
+
+#ifndef CHAR_BIT
+#  define CHAR_BIT 8
+#endif
+
+/* Nonzero if the integer type T is signed.  */
+#define TYPE_SIGNED(t) (! ((t) 0 < (t) -1))
+
+/* Bound on length of the string representing an integer value of type T.
+   Subtract one for the sign bit if T is signed;
+   302 / 1000 is log10 (2) rounded up;
+   add one for integer division truncation;
+   add one more for a minus sign if t is signed.  */
+#define INT_STRLEN_BOUND(t) \
+  ((sizeof (t) * CHAR_BIT - TYPE_SIGNED (t)) * 302 / 1000 \
+   + 1 + TYPE_SIGNED (t))
 
 /* All of these functions are resolved from bash if we are linking readline
    as part of bash. */
@@ -104,18 +124,18 @@ sh_set_lines_and_columns (lines, cols)
   char *b;
 
 #if defined (HAVE_PUTENV)
-  b = xmalloc (24);
+  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("LINES=") + 1);
   sprintf (b, "LINES=%d", lines);
   putenv (b);
-  b = xmalloc (24);
+  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + sizeof ("COLUMNS=") + 1);
   sprintf (b, "COLUMNS=%d", cols);
   putenv (b);
 #else /* !HAVE_PUTENV */
 #  if defined (HAVE_SETENV)
-  b = xmalloc (8);
+  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + 1);
   sprintf (b, "%d", lines);
   setenv ("LINES", b, 1);
-  b = xmalloc (8);
+  b = (char *)xmalloc (INT_STRLEN_BOUND (int) + 1);
   sprintf (b, "%d", cols);
   setenv ("COLUMNS", b, 1);
 #  endif /* HAVE_SETENV */
