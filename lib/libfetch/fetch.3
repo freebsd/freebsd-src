@@ -511,6 +511,11 @@ variable.
 This variable is used if and only if connected to an HTTP proxy, and
 is ignored if a user and/or a password were specified in the proxy
 URL.
+.It Ev HTTP_REFERER
+Specifies the referer URL to use for HTTP requests.
+If set to
+.Dq auto ,
+the document URL will be used as referer URL.
 .It Ev HTTP_USER_AGENT
 Specifies the User-Agent string to use for HTTP requests.
 This can be useful when working with HTTP origin or proxy servers that
