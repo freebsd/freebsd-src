@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.92 1998/07/06 03:20:13 julian Exp $
+ *	$Id: ip_fw.c,v 1.93 1998/07/18 23:27:15 alex Exp $
  */
 
 /*
@@ -177,7 +177,7 @@ is_icmp_query(struct ip *ip)
 	const struct icmp *icmp;
 	int icmp_type;
 
-	icmp = (struct icmp *)((u_long *)ip + ip->ip_hl);
+	icmp = (struct icmp *)((u_int32_t *)ip + ip->ip_hl);
 	icmp_type = icmp->icmp_type;
 
 	if (icmp_type == ICMP_ECHO || icmp_type == ICMP_ROUTERSOLICIT ||
@@ -282,9 +282,9 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct ifnet *rif, struct ifnet *oif)
 {
 	static u_int64_t counter;
-	struct tcphdr *const tcp = (struct tcphdr *) ((u_long *) ip+ ip->ip_hl);
-	struct udphdr *const udp = (struct udphdr *) ((u_long *) ip+ ip->ip_hl);
-	struct icmp *const icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
+	struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
+	struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
+	struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
 	int count;
 
 	count = f ? f->fw_pcnt : ++counter;
@@ -520,7 +520,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 				break;
 			}
 			PULLUP_TO(hlen + 14);
-			tcp = (struct tcphdr *) ((u_long *)ip + ip->ip_hl);
+			tcp = (struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
 			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
 				continue;
 			src_port = ntohs(tcp->th_sport);
@@ -544,7 +544,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 				break;
 			}
 			PULLUP_TO(hlen + 4);
-			udp = (struct udphdr *) ((u_long *)ip + ip->ip_hl);
+			udp = (struct udphdr *) ((u_int32_t *)ip + ip->ip_hl);
 			src_port = ntohs(udp->uh_sport);
 			dst_port = ntohs(udp->uh_dport);
 check_ports:
@@ -566,7 +566,7 @@ check_ports:
 			if (offset != 0)	/* Type isn't valid */
 				break;
 			PULLUP_TO(hlen + 2);
-			icmp = (struct icmp *) ((u_long *)ip + ip->ip_hl);
+			icmp = (struct icmp *) ((u_int32_t *)ip + ip->ip_hl);
 			if (!icmptype_match(icmp, f))
 				continue;
 			break;
@@ -665,7 +665,7 @@ got_match:
 		case IP_FW_REJECT_RST:
 		  {
 			struct tcphdr *const tcp =
-				(struct tcphdr *) ((u_long *)ip + ip->ip_hl);
+				(struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
 			struct tcpiphdr ti, *const tip = (struct tcpiphdr *) ip;
 
 			if (offset != 0 || (tcp->th_flags & TH_RST))
