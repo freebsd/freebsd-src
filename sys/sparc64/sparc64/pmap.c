@@ -256,7 +256,6 @@ void
 pmap_bootstrap(vm_offset_t ekva)
 {
 	struct pmap *pm;
-	struct tte tte;
 	struct tte *tp;
 	vm_offset_t off;
 	vm_offset_t pa;
@@ -323,8 +322,12 @@ pmap_bootstrap(vm_offset_t ekva)
 	for (i = 0; i < kernel_tlb_slots; i++) {
 		va = TV_GET_VA(kernel_ttes[i].tte_vpn);
 		pa = TD_GET_PA(kernel_ttes[i].tte_data);
-		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE)
-			pmap_kenter(va + off, pa + off);
+		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE) {
+			tp = tsb_kvtotte(va + off);
+			tp->tte_vpn = TV_VPN(va + off);
+			tp->tte_data = TD_V | TD_8K | TD_PA(pa + off) |
+			    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
+		}
 	}
 
 	/*
@@ -338,8 +341,10 @@ pmap_bootstrap(vm_offset_t ekva)
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
-		pmap_kenter(va, pa);
-		/* tlb_page_demap(TLB_DTLB, kernel_pmap, va); */
+		tp = tsb_kvtotte(va);
+		tp->tte_vpn = TV_VPN(va);
+		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
+		    TD_CP | TD_CV | TD_P | TD_W;
 	}
 
 	/*
@@ -373,13 +378,9 @@ pmap_bootstrap(vm_offset_t ekva)
 		for (off = 0; off < translations[i].om_size;
 		    off += PAGE_SIZE) {
 			va = translations[i].om_start + off;
-			tte.tte_data = translations[i].om_tte + off;
-			tte.tte_vpn = TV_VPN(va);
 			tp = tsb_kvtotte(va);
-			CTR4(KTR_PMAP,
-			    "mapping: va=%#lx tp=%p tte=%#lx pa=%#lx",
-			    va, tp, tte.tte_data, TD_GET_PA(tte.tte_data));
-			*tp = tte;
+			tp->tte_vpn = TV_VPN(va);
+			tp->tte_data = translations[i].om_tte + off;
 		}
 	}
 
@@ -407,6 +408,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	pm->pm_active = ~0;
 	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
+
+	/* XXX flush all non-locked tlb entries */
 }
 
 void
@@ -426,6 +429,7 @@ pmap_map_tsb(void)
 	for (i = 0; i < KVA_PAGES; i++) {
 		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
 		pa = tsb_kernel_phys + i * PAGE_SIZE_4M;
+		/* XXX - cheetah */
 		data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP | TD_CV |
 		    TD_P | TD_W;
 		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
@@ -484,6 +488,7 @@ pmap_context_rollover(void)
 	mtx_assert(&sched_lock, MA_OWNED);
 	CTR0(KTR_PMAP, "pmap_context_rollover");
 	for (i = 0; i < 64; i++) {
+		/* XXX - cheetah */
 		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
 		tag = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
 		if ((data & TD_V) != 0 && (data & TD_L) == 0 &&
@@ -662,16 +667,14 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 void
 pmap_kenter(vm_offset_t va, vm_offset_t pa)
 {
-	struct tte tte;
 	struct tte *tp;
 
-	tte.tte_vpn = TV_VPN(va);
-	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP |
-	    TD_CV | TD_P | TD_W;
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
-	*tp = tte;
+	tp->tte_vpn = TV_VPN(va);
+	tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP |
+	    TD_CV | TD_P | TD_W;
 }
 
 /*
@@ -684,15 +687,13 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 void
 pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
 {
-	struct tte tte;
 	struct tte *tp;
 
-	tte.tte_vpn = TV_VPN(va);
-	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_P | flags;
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter_flags: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
-	*tp = tte;
+	tp->tte_vpn = TV_VPN(va);
+	tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_P | flags;
 }
 
 /*
@@ -734,6 +735,7 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
 {
+	struct tte *tp;
 	vm_offset_t sva;
 	vm_offset_t va;
 	vm_offset_t pa;
@@ -741,8 +743,12 @@ pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
 	pa = pa_start;
 	sva = *virt;
 	va = sva;
-	for (; pa < pa_end; pa += PAGE_SIZE, va += PAGE_SIZE)
-		pmap_kenter(va, pa);
+	for (; pa < pa_end; pa += PAGE_SIZE, va += PAGE_SIZE) {
+		tp = tsb_kvtotte(va);
+		tp->tte_vpn = TV_VPN(va);
+		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
+		    TD_CP | TD_CV | TD_P | TD_W;
+	}
 	tlb_range_demap(kernel_pmap, sva, sva + (pa_end - pa_start) - 1);
 	*virt = va;
 	return (sva);
@@ -977,8 +983,10 @@ pmap_new_thread(struct thread *td)
 		   (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE);
 		if (ks == 0)
 			panic("pmap_new_thread: kstack allocation failed");
-		tlb_page_demap(TLB_DTLB, kernel_pmap, ks);
-		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
+		if (KSTACK_GUARD_PAGES != 0) {
+			tlb_page_demap(TLB_DTLB, kernel_pmap, ks);
+			ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
+		}
 		td->td_kstack = ks;
 	}
 
