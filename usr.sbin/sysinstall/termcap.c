@@ -22,9 +22,6 @@
 
 #include "sysinstall.h"
 
-Boolean ColorDisplay;
-Boolean OnVTY;
-
 int
 set_termcap(void)
 {

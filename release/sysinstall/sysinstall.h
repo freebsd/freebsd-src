@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.5 1995/05/04 03:51:22 jkh Exp $
+ * $Id: sysinstall.h,v 1.8 1995/05/05 23:47:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -169,6 +169,19 @@ typedef struct _device {
     DeviceType type;
 } Device;
 
+/* Some internal representations of partitions */
+typedef enum {
+    PART_NONE,
+    PART_SLICE,
+    PART_SWAP,
+    PART_FILESYSTEM
+} PartType;
+
+typedef struct _part_info {
+    Boolean newfs;
+    char mountpoint[FILENAME_MAX];
+} PartInfo;
+
 
 /*** Externs ***/
 extern int		CpioFD;	  /* The file descriptor for our CPIO floppy */
@@ -215,6 +228,7 @@ extern void	systemChangeLang(char *lang);
 extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
 				     char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
+extern int	vsystem(char *fmt, ...);
 
 /* disks.c */
 extern void	partition_disks(struct disk **disks);
@@ -222,6 +236,7 @@ extern int	write_disks(struct disk **disks);
 extern void	make_filesystems(struct disk **disks);
 extern void	cpio_extract(struct disk **disks);
 extern void	extract_dists(struct disk **disks);
+extern void	install_configuration_files(struct disk **disks);
 extern void	do_final_setup(struct disk **disks);
 
 /* dmenu.c */
