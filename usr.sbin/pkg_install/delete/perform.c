@@ -30,7 +30,6 @@ static const char rcsid[] =
 static int pkg_do(char *);
 static void sanity_check(char *);
 static void undepend(PackingList, char *);
-static int chkifdepends(char *pkgname1, char *pkgname2);
 static char LogDir[FILENAME_MAX];
 
 
@@ -38,10 +37,9 @@ int
 pkg_perform(char **pkgs)
 {
     char **matched;
-    char *tmp;
-    int i, j;
+    int i;
     int err_cnt = 0;
-    int loop_cnt, errcode;
+    int errcode;
 
     if (MatchType != MATCH_EXACT) {
 	matched = matchinstalled(MatchType, pkgs, &errcode);
@@ -65,36 +63,8 @@ pkg_perform(char **pkgs)
 	}
     }
 
+    err_cnt += sortdeps(pkgs);
     for (i = 0; pkgs[i]; i++) {
-	/*
-	 * Check to see if any other package in pkgs[i+1:] depends
-	 * on pkgs[i] and deffer removal of pkgs[i] if so.
-	 */
-	loop_cnt = 0;
-	for (j = i + 1; pkgs[j]; j++) {
-	    if (chkifdepends(pkgs[j], pkgs[i]) == 1) {
-		/*
-		 * Try to avoid deadlock if package A depends on B which in
-		 * turn depends on C and C due to an error depends on A.
-		 * Use ugly but simple method, becase it Should Never
-		 * Happen[tm] in the real life anyway.
-		 */
-		if (loop_cnt > 4096) {
-		    warnx("dependency loop detected for package %s", pkgs[j]);
-		    err_cnt++;
-		    break;
-		}
-		loop_cnt++;
-		tmp = pkgs[i];
-		pkgs[i] = pkgs[j];
-		pkgs[j] = tmp;
-		/*
-		 * Another iteration requred to check if new pkgs[i]
-		 * itself has any packages that depend on it
-		 */
-		j = i + 1;
-	    }
-	}
 	err_cnt += pkg_do(pkgs[i]);
     }
 
@@ -364,38 +334,3 @@ undepend(PackingList p, char *pkgname)
      return;
 }
 
-/*
- * Check to see if pkgname1 depends on pkgname2.
- * Returns 1 if depends, 0 if not, and -1 if error occured.
- */ 
-static int
-chkifdepends(char *pkgname1, char *pkgname2)
-{
-    FILE *fp;
-    char fname[FILENAME_MAX];
-    char fbuf[FILENAME_MAX];
-    char *tmp;
-    int retval;
-
-    sprintf(fname, "%s/%s/%s",
-	    (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-	    pkgname2, REQUIRED_BY_FNAME);
-    fp = fopen(fname, "r");
-    if (fp == NULL) {
-	/* Probably pkgname2 doesn't have any packages that depend on it */
-	return 0;
-    }
-
-    retval = 0;
-    while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
-	if (fbuf[strlen(fbuf)-1] == '\n')
-	    fbuf[strlen(fbuf)-1] = '\0';
-	if (strcmp(fbuf, pkgname1) == 0) {	/* match */
-	    retval = 1;
-	    break;
-	}
-    }
-
-    fclose(fp);
-    return retval;
-}
