@@ -65,11 +65,14 @@ static void sched_setup __P((void *dummy));
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 u_char	curpriority;
+u_char	currtpriority;
 int	hogticks;
 int	lbolt;
 int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 
+static int	curpriority_cmp __P((struct proc *p));
 static void	endtsleep __P((void *));
+static void	maybe_resched __P((struct proc *chk));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
 static void	updatepri __P((struct proc *p));
@@ -93,28 +96,59 @@ sysctl_kern_quantum SYSCTL_HANDLER_ARGS
 SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof sched_quantum, sysctl_kern_quantum, "I", "");
 
-/* maybe_resched: Decide if you need to reschedule or not
- * taking the priorities and schedulers into account.
+/*-
+ * Compare priorities.  Return:
+ *     <0: priority of p < current priority
+ *      0: priority of p == current priority
+ *     >0: priority of p > current priority
+ * The priorities are the normal priorities or the normal realtime priorities
+ * if p is on the same scheduler as curproc.  Otherwise the process on the
+ * more realtimeish scheduler has lowest priority.  As usual, a higher
+ * priority really means a lower priority.
  */
-static void maybe_resched(struct proc *chk)
+static int
+curpriority_cmp(p)
+	struct proc *p;
+{
+	int c_class, p_class;
+
+	if (curproc->p_rtprio.prio != currtpriority)
+		Debugger("currtprio");
+	c_class = RTP_PRIO_BASE(curproc->p_rtprio.type);
+	p_class = RTP_PRIO_BASE(p->p_rtprio.type);
+	if (p_class != c_class)
+		return (p_class - c_class);
+	if (p_class == RTP_PRIO_NORMAL)
+		return (((int)p->p_priority - (int)curpriority) / PPQ);
+	return ((int)p->p_rtprio.prio - (int)currtpriority);
+}
+
+/*
+ * Arrange to reschedule if necessary, taking the priorities and
+ * schedulers into account.
+ */
+static void
+maybe_resched(chk)
+	struct proc *chk;
 {
 	struct proc *p = curproc; /* XXX */
 
 	/*
-	 * Compare priorities if the new process is on the same scheduler,
-	 * otherwise the one on the more realtimeish scheduler wins.
-	 *
 	 * XXX idle scheduler still broken because proccess stays on idle
 	 * scheduler during waits (such as when getting FS locks).  If a
 	 * standard process becomes runaway cpu-bound, the system can lockup
 	 * due to idle-scheduler processes in wakeup never getting any cpu.
 	 */
-	if (p == 0 ||
-		(chk->p_priority < curpriority && RTP_PRIO_BASE(p->p_rtprio.type) == RTP_PRIO_BASE(chk->p_rtprio.type)) ||
-		RTP_PRIO_BASE(chk->p_rtprio.type) < RTP_PRIO_BASE(p->p_rtprio.type)
-	) {
+	if (p == NULL) {
+#if 0
 		need_resched();
-	}
+#endif
+	} else if (chk == p) {
+		/* We may need to yield if our priority has been raised. */
+		if (curpriority_cmp(chk) > 0)
+			need_resched();
+	} else if (curpriority_cmp(chk) < 0)
+		need_resched();
 }
 
 int 
@@ -437,6 +471,7 @@ tsleep(ident, priority, wmesg, timo)
 	mi_switch();
 resume:
 	curpriority = p->p_usrpri;
+	currtpriority = p->p_rtprio.prio;
 	splx(s);
 	p->p_flag &= ~P_SINTR;
 	if (p->p_flag & P_TIMEOUT) {
@@ -576,6 +611,7 @@ await(int priority, int timo)
 		mi_switch();
 resume:
 		curpriority = p->p_usrpri;
+		currtpriority = p->p_rtprio.prio;
 
 		splx(s);
 		p->p_flag &= ~P_SINTR;
