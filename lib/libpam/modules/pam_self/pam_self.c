@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #define _BSD_SOURCE
 
+#include <pwd.h>
 #include <unistd.h>
 #include <syslog.h>
 
@@ -54,24 +55,21 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	const char *luser, *ruser;
-	int r;
+	struct passwd *pwd;
+	const char *luser;
+	int pam_err;
 
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	r = pam_get_item(pamh, PAM_USER, (const void **)&luser);
-	if (r != PAM_SUCCESS)
-		PAM_RETURN(r);
-	if (luser == NULL)
-		PAM_RETURN(PAM_USER_UNKNOWN);
-	
-	r = pam_get_item(pamh, PAM_RUSER, (const void **)&ruser);
-	if (r != PAM_SUCCESS)
-		PAM_RETURN(r);
+	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&luser);
+	if (pam_err != PAM_SUCCESS)
+		PAM_RETURN(pam_err);
+	if (luser == NULL || (pwd = getpwnam(luser)) == NULL)
+		PAM_RETURN(PAM_AUTH_ERR);
 
-	if (strcmp(luser, ruser) == 0)
+	if (getuid() == (uid_t)pwd->pw_uid)
 		PAM_RETURN(PAM_SUCCESS);
 	
 	PAM_VERBOSE_ERROR("Refused; source and target users differ");
