@@ -184,11 +184,6 @@ exit1(struct thread *td, int rv)
 		mtx_unlock(&ppeers_lock);
 	}
 
-#ifdef PGINPROF
-	mtx_lock(&Giant);
-	vmsizmon();
-	mtx_unlock(&Giant);
-#endif
 	PROC_LOCK(p);
 	_STOPEVENT(p, S_EXIT, rv);
 	wakeup(&p->p_stype);	/* Wakeup anyone in procfs' PIOCWAIT */
