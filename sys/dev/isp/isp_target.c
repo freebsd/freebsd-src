@@ -266,7 +266,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
  */
 int
 isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
-    u_int32_t opaque)
+    int cmd_cnt, int inot_cnt, u_int32_t opaque)
 {
 	lun_entry_t el;
 	u_int16_t iptr, optr;
@@ -277,8 +277,8 @@ isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
 	if (IS_DUALBUS(isp)) {
 		el.le_rsvd = (bus & 0x1) << 7;
 	}
-	el.le_cmd_count = DFLT_CMD_CNT;
-	el.le_in_count = DFLT_INOTIFY;
+	el.le_cmd_count = cmd_cnt;
+	el.le_in_count = inot_cnt;
 	if (cmd == RQSTYPE_ENABLE_LUN) {
 		if (IS_SCSI(isp)) {
 			el.le_flags = LUN_TQAE|LUN_DISAD;
@@ -438,7 +438,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 		}
 		if (aep->at_datalen) {
 			cto->ct_resid = aep->at_datalen;
-			cto->ct_flags |= CT2_DATA_UNDER;
+			cto->rsp.m1.ct_scsi_status |= CT2_DATA_UNDER;
 		}
 		if ((sts & 0xff) == SCSI_CHECK && (sts & ECMD_SVALID)) {
 			cto->rsp.m1.ct_resp[0] = 0xf0;
@@ -447,7 +447,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 			cto->rsp.m1.ct_resp[12] = (code >> 24) & 0xff;
 			cto->rsp.m1.ct_resp[13] = (code >> 16) & 0xff;
 			cto->rsp.m1.ct_senselen = 16;
-			cto->ct_flags |= CT2_SNSLEN_VALID;
+			cto->rsp.m1.ct_scsi_status |= CT2_SNSLEN_VALID;
 		}
 		cto->ct_syshandle = hdl;
 	} else {
@@ -958,16 +958,7 @@ isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
 	case CT_NOACK:
 		if (fmsg == NULL)
 			fmsg = "unacknowledged Immediate Notify pending";
-
 		isp_prt(isp, ISP_LOGERR, "CTIO returned by f/w- %s", fmsg);
-#if	0
-			if (status & SENSEVALID) {
-				bcopy((caddr_t) (cep + CTIO_SENSE_OFFSET),
-				    (caddr_t) &cdp->cd_sensedata,
-				    sizeof(scsi_sense_t));
-				cdp->cd_flags |= CDF_SENSEVALID;
-			}
-#endif
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR, "Unknown CTIO status 0x%x",
@@ -997,11 +988,11 @@ isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
 			    ct->ct_syshandle, ct->ct_status & ~QLTM_SVALID);
 		}
 	} else {
-			/*
-			 * Final CTIO completed. Release DMA resources and
-			 * notify platform dependent layers.
-			 */
-		if (ct->ct_flags & CT_DATAMASK) {
+		/*
+		 * Final CTIO completed. Release DMA resources and
+		 * notify platform dependent layers.
+		 */
+		if ((ct->ct_flags & CT_DATAMASK) != CT_NO_DATA) {
 			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
 		}
 		isp_prt(isp, pl, "final CTIO complete");
@@ -1028,6 +1019,11 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 	}
 
 	switch(ct->ct_status & ~QLTM_SVALID) {
+	case CT_BUS_ERROR:
+		isp_prt(isp, ISP_LOGERR, "PCI DMA Bus Error");
+		/* FALL Through */
+	case CT_DATA_OVER:
+	case CT_DATA_UNDER:
 	case CT_OK:
 		/*
 		 * There are generally 2 possibilities as to why we'd get
@@ -1040,19 +1036,18 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 
 	case CT_BDR_MSG:
 		/*
-		 * Bus Device Reset message received or the SCSI Bus has
-		 * been Reset; the firmware has gone to Bus Free.
+		 * Target Reset function received.
 		 *
 		 * The firmware generates an async mailbox interupt to
 		 * notify us of this and returns outstanding CTIOs with this
 		 * status. These CTIOs are handled in that same way as
 		 * CT_ABORTED ones, so just fall through here.
 		 */
-		fmsg = "Bus Device Reset";
+		fmsg = "TARGET RESET Task Management Function Received";
 		/*FALLTHROUGH*/
 	case CT_RESET:
 		if (fmsg == NULL)
-			fmsg = "Bus Reset";
+			fmsg = "LIP Reset";
 		/*FALLTHROUGH*/
 	case CT_ABORTED:
 		/*
@@ -1061,7 +1056,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		 * set, then sends us an Immediate Notify entry.
 		 */
 		if (fmsg == NULL)
-			fmsg = "ABORT TASK sent by Initiator";
+			fmsg = "ABORT Task Management Function Received";
 
 		isp_prt(isp, ISP_LOGERR, "CTIO2 destroyed by %s", fmsg);
 		break;
@@ -1073,37 +1068,17 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		isp_prt(isp, ISP_LOGERR, "CTIO2 had wrong data directiond");
 		break;
 
-	case CT_NOPATH:
-		/*
-		 * CTIO rejected by the firmware due "no path for the
-		 * nondisconnecting nexus specified". This means that
-		 * we tried to access the bus while a non-disconnecting
-		 * command is in process.
-		 */
-		isp_prt(isp, ISP_LOGERR,
-		    "Firmware rejected CTIO2 for bad nexus %d->%d",
-		    ct->ct_iid, ct->ct_lun);
-		break;
-
 	case CT_RSELTMO:
-		fmsg = "Reselection";
+		fmsg = "failure to reconnect to initiator";
 		/*FALLTHROUGH*/
 	case CT_TIMEOUT:
 		if (fmsg == NULL)
-			fmsg = "Command";
+			fmsg = "command";
 		isp_prt(isp, ISP_LOGERR, "Firmware timed out on %s", fmsg);
 		break;
 
 	case CT_ERR:
 		fmsg = "Completed with Error";
-		/*FALLTHROUGH*/
-	case CT_PHASE_ERROR:	/* Bus phase sequence error */
-		if (fmsg == NULL)
-			fmsg = "Phase Sequence Error";
-		/*FALLTHROUGH*/
-	case CT_TERMINATED:
-		if (fmsg == NULL)
-			fmsg = "terminated by TERMINATE TRANSFER";
 		/*FALLTHROUGH*/
 	case CT_LOGOUT:
 		if (fmsg == NULL)
@@ -1112,19 +1087,13 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 	case CT_PORTNOTAVAIL:
 		if (fmsg == NULL)
 			fmsg = "Port not available";
+	case CT_PORTCHANGED:
+		if (fmsg == NULL)
+			fmsg = "Port Changed";
 	case CT_NOACK:
 		if (fmsg == NULL)
 			fmsg = "unacknowledged Immediate Notify pending";
-
 		isp_prt(isp, ISP_LOGERR, "CTIO returned by f/w- %s", fmsg);
-#if	0
-			if (status & SENSEVALID) {
-				bcopy((caddr_t) (cep + CTIO_SENSE_OFFSET),
-				    (caddr_t) &cdp->cd_sensedata,
-				    sizeof(scsi_sense_t));
-				cdp->cd_flags |= CDF_SENSEVALID;
-			}
-#endif
 		break;
 
 	case CT_INVRXID:
@@ -1164,6 +1133,9 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 			    ct->ct_syshandle, ct->ct_status & ~QLTM_SVALID);
 		}
 	} else {
+		if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
+			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
+		}
 		if (ct->ct_flags & CT_SENDSTATUS) {
 			/*
 			 * Sent status and command complete.
@@ -1180,7 +1152,6 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 			 * notify platform dependent layers.
 			 */
 			isp_prt(isp, pl, "data CTIO complete");
-			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
 		}
 		(void) isp_async(isp, ISPASYNC_TARGET_ACTION, ct);
 		/*
