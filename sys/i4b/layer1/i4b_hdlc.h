@@ -31,12 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Oct 26 08:29:06 2000]
- *
- *	NOTE:
- *	- October 19th: made minor changes to HDLC_ENCODE macro
- *	  Please conform "ihfc/i4b_ihfc_drv.c" (ihfc_hdlc_Bwrite)
- *	  for correct usage! (-hp)
+ *	last edit-date: [Wed Jul 19 09:41:13 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -95,7 +90,7 @@ const u_short HDLC_FCS_TAB[256] = { 0x0000,
  *
  *	bits[4..7]:	Special bytes like 0x7e, 0x7d, 0xfd ... are flagged here
  *			NOTE: Special bytes also means 'abort' bytes (7 or more
- *			      continious set bits)
+ *			      continuous set bits)
  *
  *	bits[8..11]:	A copy of bits[0..3] but only incremented by one.
  *		     	NOTE: 0x7e has value '8' instead of '0'. Internal reasons.
@@ -149,7 +144,7 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
  *
  *	next: 'continue' or 'goto xxx'
  *
- *	cfr: complet frame
+ *	cfr: complete frame
  *	nfr: new frame
  *	     NOTE: must setup 'len' and 'dst', so that 'dst' may be written
  *		   at most 'len' times.
@@ -165,7 +160,7 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
  *	NOTE: these variables have to be 'suspended' / 'resumed' somehow:
  *		flag, blevel, crc, ib, tmp, len
  *	NOTE: zero is default value for all variables.
- *	NOTE: each time 'dst' is written, 'len' is decremented by one.
+ *	NOTE: each time 'dst' is written, 'len' is decreased by one.
  *---------------------------------------------------------------------------*/
 
 #define HDLC_DECODE(dst, len, tmp, tmp2, blevel, ib, crc, flag,	rddcmd, nfrcmd,	\
@@ -280,20 +275,21 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
  *	u_short: tmp2, blevel, ib, crc, len
  *	u_int:   tmp
  *
- *	gfr: get new frame, free old, and exit if no frame	
- *	     NOTE: must setup 'len' and 'src', so that 'src' can be read
- *		   'len' times.
+ *	gfr: This is the place where you free the last [mbuf] chain, and get
+ *	     the next one. If a mbuf is available the code should setup 'len'
+ *	     and 'src' so that 'src' may be read 'len' times. If no mbuf is
+ *	     available leave 'len' and 'src' untouched.
  *
  *	wrd: write data (output = (u_char)tmp)
  *
  *	d: dummy
  *
- *	NOTE: setting flag to '-1' and len to '0' => abort byte will be sent
+ *	NOTE: setting flag to '-2' and len to '0' => abort bytes will be sent
  *	NOTE: these variables have to be 'suspended' / 'resumed' somehow:
  *		flag, blevel, crc, ib, tmp, len
  *	NOTE: zero is default value for all variables.
- *	NOTE: each time 'src' is read, 'len' is decremented by one.
- *	NOTE: gfr must setup 'len'.
+ *	NOTE: each time 'src' is read, 'len' is decreased by one.
+ *	NOTE: neither cmd's should exit through 'goto' or 'break' statements.
  *---------------------------------------------------------------------------*/
 
 #define HDLC_ENCODE(src, len, tmp, tmp2, blevel, ib, crc, flag, gfrcmd, wrdcmd, d) \
@@ -305,7 +301,7 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
 		len++;								\
 										\
 		switch(++flag)							\
-		{ case 0:			/* abort */			\
+		{ default:			/* abort */			\
 			tmp  = blevel = 0;	/* zero is default */		\
 			tmp2 = 0xff;						\
 			goto j3##d;						\
@@ -313,8 +309,8 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
 		  case 2:			/* 2nd time FS */		\
 			tmp2 = 0x7e;						\
 			goto j3##d;						\
-		  case 3:			/* get new frame  */		\
-			gfrcmd;							\
+		  case 3:							\
+			gfrcmd;			/* get new frame */		\
 			if (!len--)						\
 			{							\
 				len++;						\
@@ -328,15 +324,14 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
 				ib  = 0;					\
 				goto j1##d; 	/* first byte */		\
 			}							\
-		  case 4:			/* CRC (lsb's) */		\
-			crc  ^= -1;						\
-			tmp2  = (u_char)crc;					\
-			crc >>= 8;						\
-			goto j2##d;						\
-		  case 5:			/* CRC (msb's) */		\
-			tmp2  = (u_char)crc;					\
+		  case 4:							\
+			crc ^= -1;						\
+			tmp2 = (u_char)crc;					\
+			goto j2##d;		/* CRC (lsb's) */		\
+		  case 5:							\
+			tmp2  = (u_char)(crc >> 8);				\
 			flag  = 1;						\
-			goto j2##d;		/* CRC stuff */			\
+			goto j2##d;		/* CRC (msb's) */		\
 		}								\
 	}									\
  	else									\
@@ -395,3 +390,4 @@ const u_short HDLC_BIT_TAB[256] = { 0x0100,
 
 
 #endif /* _I4B_HDLC_H_ */
+

@@ -28,7 +28,7 @@
  *	-------------------------------------------------
  *
  *	- Everything which has got anything to to with "PnP" bus setup has
- *	  been put here.
+ *	  been put here, except the chip spesific "PnP" setup.
  *
  *
  *      last edit-date: [Wed Jul 19 09:41:07 2000]
@@ -91,9 +91,9 @@ const struct ihfc_pnp_ids
 }
 	ihfc_pnp_ids[] =
 {
-	{ 0x10262750, FLAG_TELES_S0_163C, HFC_S	, 2, 0x200 , 0xd},
-	{ 0x20262750, FLAG_TELES_S0_163C, HFC_SP, 0, 0x000 , 0xf},
-	{ 0x1411d805, FLAG_ACER_P10	, HFC_S	, 1, 0x300 , 0xe},
+	{ 0x10262750, FLAG_TELES_S0_163C, HFC_S	, 2, 0x200 , 0x2d},
+	{ 0x20262750, FLAG_TELES_S0_163C, HFC_SP, 0, 0x000 , 0x0f},
+	{ 0x1411d805, FLAG_ACER_P10	, HFC_S	, 1, 0x300 , 0x0e},
 	{ 0 }
 };
 
@@ -149,6 +149,8 @@ ihfc_pnp_probe(device_t dev)
 	u_int32_t	vid = isa_get_vendorid(dev); 	/* vendor id	  */
 	ihfc_id_t      *ids = &ihfc_pnp_ids[0];		/* ids ptr	  */
 	ihfc_sc_t 	*sc = &ihfc_softc[unit];	/* softc	  */
+	u_char	       flag = 0;			/* flag		  */
+	void         *dummy = 0;			/* a dummy	  */
 
 	HFC_VAR;
 
@@ -161,12 +163,18 @@ ihfc_pnp_probe(device_t dev)
 	if (!vid) return ihfc_isa_probe(dev);
 
 	HFC_BEG;
-	
+
 	for ( ;(ids->vid); ids++)
 	{
 		if (ids->vid == vid)
 		{
-			bzero(sc, sizeof(ihfc_sc_t));		/* reset data structure */
+			flag = 0;
+
+			bzero(sc, sizeof(ihfc_sc_t));		/* reset data structure.*
+								 * Zero is default for  *
+								 * most, so calling the *
+								 * int. handler now will*
+								 * not be a problem.    */
 
 			S_IOBASE[0] = bus_alloc_resource(
 				dev, SYS_RES_IOPORT, &S_IORID[0],
@@ -201,6 +209,14 @@ ihfc_pnp_probe(device_t dev)
 					S_IIRQ = IIRQ3[rman_get_start(S_IRQ) & 0xf];
 				}
 
+				/* setup interrupt routine now to avvoid stray	*
+				 * interrupts.					*/
+
+				bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, (void(*)(void*))
+					HFC_INTR, sc, &dummy);
+
+				flag = 1;
+
 				if (!HFC_CONTROL(sc, 1))
 				{
 					HFC_END;
@@ -214,7 +230,7 @@ ihfc_pnp_probe(device_t dev)
 				}
 			}
 
-			ihfc_pnp_detach(dev, 0);
+			ihfc_pnp_detach(dev, flag);
 		}
 	}
 
@@ -232,6 +248,8 @@ ihfc_isa_probe(device_t dev)
 	ihfc_sc_t        *sc = &ihfc_softc[unit];	/* softc	  */
 	const u_char    *irq = &IRQ0[0]; 		/* irq's to try   */
 	const u_long *iobase = &IO0[0];			/* iobases to try */
+	u_char	        flag = 0;			/* flag		  */
+	void          *dummy = 0;			/* a dummy	  */
 
 	HFC_VAR;
 
@@ -266,6 +284,8 @@ ihfc_isa_probe(device_t dev)
 				iobase++;
 	}
 
+	flag = 0;
+
 	if (*irq && *iobase)	/* we got our resources, now test chip */
 	{
 		S_DLP     = IHFC_DLP;		/* set D-priority	*/
@@ -281,6 +301,14 @@ ihfc_isa_probe(device_t dev)
 		S_IIRQ	  = IIRQ0[*irq];	/* set internal irq	*/
 		S_IIO	  = *iobase;		/* set internal iobase	*/
 
+		/* setup interrupt routine now to avvoid stray	*
+		 * interrupts.					*/
+
+		bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, (void(*)(void*))
+			HFC_INTR, sc, &dummy);
+
+		flag = 1;
+
 		if (!HFC_CONTROL(sc, 1))
 		{
 			device_set_desc(dev, "TELEINT ISDN SPEED No. 1");
@@ -290,7 +318,7 @@ ihfc_isa_probe(device_t dev)
 		}
 	}
 
-	ihfc_pnp_detach(dev, 0);
+	ihfc_pnp_detach(dev, flag);
 
 	if (*irq && *++iobase) goto j0;	/* try again */
 
@@ -310,7 +338,6 @@ ihfc_pnp_attach(device_t dev)
 {
 	u_int	   unit = device_get_unit(dev);		/* get unit	*/
 	ihfc_sc_t   *sc	= &ihfc_softc[unit];		/* softc	*/
-	void     *dummy = 0;				/* a dummy	*/
 	HFC_VAR;
  
 	HFC_BEG;
@@ -323,9 +350,6 @@ ihfc_pnp_attach(device_t dev)
 
 	HFC_INIT(sc, 2, 0, 0);	/* Init B1 - Channel */
 	HFC_INIT(sc, 4, 0, 0); 	/* Init B2 - Channel */
-
-	bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, (void(*)(void*))
-			HFC_INTR, sc, &dummy);
 
 	HFC_END;
 	return 0;	/* success */
