@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.5 1995/05/30 08:06:02 rgrimes Exp $ */
+/*	$Id: sysv_sem.c,v 1.6 1995/07/29 11:40:14 bde Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -14,6 +14,13 @@
 #include <sys/proc.h>
 #include <sys/sem.h>
 #include <sys/malloc.h>
+
+/*
+ * System initialization
+ */
+
+extern void seminit();				/* should be static*/
+SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
 static int	semctl(), semget(), semop(), semconfig();
 int	(*semcalls[])() = { semctl, semget, semop, semconfig };

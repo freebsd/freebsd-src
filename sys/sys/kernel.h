@@ -1,4 +1,7 @@
 /*-
+ * Copyright (c) 1995 Terrence R. Lambert
+ * All rights reserved.
+ *
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -36,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.8 1995/03/17 22:02:05 wollman Exp $
+ * $Id: kernel.h,v 1.9 1995/03/20 19:20:26 wollman Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -83,6 +86,146 @@ extern long timedelta;
 #define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
 #define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
 
+
+/*
+ * Enumerated types for known system startup interfaces.
+ *
+ * Startup occurs in ascending numeric order; the list entries are
+ * sorted prior to attempting startup to guarantee order.  Items
+ * of the same level are arbitrated for order based on the 'order'
+ * element.
+ *
+ * These numbers are arbitrary and are chosen ONLY for ordering; the
+ * enumeration values are explicit rather than imlicit to provide
+ * for binary compatability with inserted elements.
+ *
+ * The SI_SUB_RUN_SCHEDULER value must have the highest lexical value.
+ *
+ * The SI_SUB_CONSOLE and SI_SUB_SWAP values represent values used by
+ * the BSD 4.4Lite but not by FreeBSD; they are maintained in dependent
+ * order to support porting.
+ *
+ * The SI_SUB_PROTO_BEGIN and SI_SUB_PROTO_END bracket a range of
+ * initializations to take place at splimp().  This is a historical
+ * wart that should be removed -- probably running everything at
+ * splimp() until the first init that doesn't want it is the correct
+ * fix.  They are currently present to ensure historical behaviour.
+ */
+enum sysinit_sub_id {
+	SI_SUB_DUMMY		= 0x00000000,	/* not executed; for linker*/
+	SI_SUB_CONSOLE		= 0x08000000,	/* console*/
+	SI_SUB_COPYRIGHT	= 0x08000001,	/* first use of console*/
+	SI_SUB_VM		= 0x10000000,	/* virtual memory system init*/
+	SI_SUB_KMEM		= 0x18000000,	/* kernel memory*/
+	SI_SUB_CPU		= 0x20000000,	/* CPU resource(s)*/
+	SI_SUB_INTRINSIC	= 0x28000000,	/* proc 0*/
+	SI_SUB_RUN_QUEUE	= 0x30000000,	/* the run queue*/
+	SI_SUB_VM_CONF		= 0x38000000,	/* config VM, set limits*/
+	SI_SUB_VFS		= 0x40000000,	/* virtual file system*/
+	SI_SUB_CLOCKS		= 0x48000000,	/* real time and stat clocks*/
+	SI_SUB_MBUF		= 0x50000000,	/* mbufs*/
+	SI_SUB_CLIST		= 0x58000000,	/* clists*/
+	SI_SUB_SYSV_SHM		= 0x64000000,	/* System V shared memory*/
+	SI_SUB_SYSV_SEM		= 0x68000000,	/* System V semaphores*/
+	SI_SUB_SYSV_MSG		= 0x6C000000,	/* System V message queues*/
+	SI_SUB_PSEUDO		= 0x70000000,	/* pseudo devices*/
+	SI_SUB_PROTO_BEGIN	= 0x80000000,	/* XXX: set splimp (kludge)*/
+	SI_SUB_PROTO_IF		= 0x84000000,	/* interfaces*/
+	SI_SUB_PROTO_DOMAIN	= 0x88000000,	/* domains (address families?)*/
+	SI_SUB_PROTO_END	= 0x8fffffff,	/* XXX: set splx (kludge)*/
+	SI_SUB_KPROF		= 0x90000000,	/* kernel profiling*/
+	SI_SUB_KICK_SCHEDULER	= 0xa0000000,	/* start the timeout events*/
+	SI_SUB_ROOT		= 0xb0000000,	/* root mount*/
+	SI_SUB_ROOT_FDTAB	= 0xb8000000,	/* root vnode in fd table...*/
+	SI_SUB_SWAP		= 0xc0000000,	/* swap*/
+	SI_SUB_INTRINSIC_POST	= 0xd0000000,	/* proc 0 cleanup*/
+	SI_SUB_KTHREAD_INIT	= 0xe0000000,	/* init process*/
+	SI_SUB_KTHREAD_PAGE	= 0xe4000000,	/* pageout daemon*/
+	SI_SUB_KTHREAD_VM	= 0xe8000000,	/* vm daemon*/
+	SI_SUB_KTHREAD_UPDATE	= 0xec000000,	/* update daemon*/
+	SI_SUB_RUN_SCHEDULER	= 0xffffffff	/* scheduler: no return*/
+};
+
+
+/*
+ * Some enumerated orders; "ANY" sorts last.
+ */
+enum sysinit_elem_order {
+	SI_ORDER_FIRST		= 0x00000000,	/* first*/
+	SI_ORDER_SECOND		= 0x00000001,	/* second*/
+	SI_ORDER_THIRD		= 0x00000002,	/* third*/
+	SI_ORDER_ANY		= 0xffffffff	/* last*/
+};
+
+
+/*
+ * System initialization call types; currently two are supported... one
+ * to do a simple function call and one to cause a process to be started
+ * by the kernel on the callers behalf.
+ */
+typedef enum sysinit_elem_type {
+	SI_TYPE_DEFAULT		= 0x00000000,	/* No special processing*/
+	SI_TYPE_KTHREAD		= 0x00000001	/* start kernel thread*/
+} si_elem_t;
+
+
+/*
+ * A system initialization call instance
+ *
+ * The subsystem
+ */
+struct sysinit {
+	unsigned int	subsystem;		/* subsystem identifier*/
+	unsigned int	order;			/* init order within subsystem*/
+	void		(*func) __P((caddr_t));	/* init function*/
+	caddr_t		udata;			/* multiplexer/argument*/
+	si_elem_t	type;			/* sysinit_elem_type*/
+};
+
+
+/*
+ * Default: no special processing
+ */
+#define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
+	static struct sysinit uniquifier ## _sys_init = {	\
+		subsystem,					\
+		order,						\
+		func,						\
+		ident,						\
+		SI_TYPE_DEFAULT					\
+	};							\
+	DATA_SET(sysinit_set,uniquifier ## _sys_init);
+
+/*
+ * Call 'fork()' before calling '(*func)(ident)'; kernel 'thread' or
+ * builtin process.
+ */
+#define	SYSINIT_KT(uniquifier, subsystem, order, func, ident)	\
+	static struct sysinit uniquifier ## _sys_init = {	\
+		subsystem,					\
+		order,						\
+		func,						\
+		ident,						\
+		SI_TYPE_KTHREAD					\
+	};							\
+	DATA_SET(sysinit_set,uniquifier ## _sys_init);
+
+
+/*
+ * A kernel process descriptor; used to start "internal" daemons
+ *
+ * Note: global_procpp may be NULL for no global save area
+ */
+struct kproc_desc {
+	char		*arg0;			/* arg 0 (for 'ps' listing)*/
+	void		(*func) __P((void));	/* "main" for kernel process*/
+	struct proc	**global_procpp;	/* ptr to proc ptr save area*/
+};
+
+/* init_proc.c*/
+extern void kproc_start __P(( caddr_t udata));
+
+
 #ifdef PSEUDO_LKM
 #include <sys/conf.h>
 #include <sys/exec.h>
@@ -102,7 +245,10 @@ extern long timedelta;
 			 nosys); }
 #else /* PSEUDO_LKM */
 
-#define PSEUDO_SET(sym, name)	   TEXT_SET(pseudo_set, sym)
+/*
+ * Compatability.  To be deprecated after LKM is updated.
+ */
+#define	PSEUDO_SET(sym, name)	SYSINIT(ps, SI_SUB_PSEUDO, SI_ORDER_ANY, sym, 0)
 
 #endif /* PSEUDO_LKM */
 
@@ -113,4 +259,4 @@ struct linker_set {
 
 extern const struct linker_set execsw_set;
 
-#endif
+#endif	/* _SYS_KERNEL_H_*/

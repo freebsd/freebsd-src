@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.135 1995/07/29 11:38:52 bde Exp $
+ *	$Id: machdep.c,v 1.136 1995/08/20 04:41:02 davidg Exp $
  */
 
 #include "npx.h"
@@ -126,6 +126,15 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
 
+/*
+ * System initialization
+ */
+
+static void cpu_startup __P(( caddr_t));
+
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
+
+
 static void identifycpu(void);
 static void initcpu(void);
 
@@ -187,8 +196,10 @@ extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
-void
-cpu_startup()
+/* ARGSUSED*/
+static void
+cpu_startup( udata)
+caddr_t		udata;	/* not used*/
 {
 	register unsigned i;
 	register caddr_t v;

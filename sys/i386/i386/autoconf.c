@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.33 1995/05/30 07:59:14 rgrimes Exp $
+ *	$Id: autoconf.c,v 1.34 1995/07/16 10:45:04 phk Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 #include <sys/dmap.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
+#include <sys/mount.h>	/* mountrootvfsops, struct vfsops*/
 
 #include <machine/md_var.h>
 #include <machine/pte.h>
@@ -66,9 +67,12 @@ static void setroot(void);
  */
 int	dkn;		/* number of iostat dk numbers assigned so far */
 
-extern int (*mountroot) __P((void));
+int vfs_mountroot __P((caddr_t));	/* XXX goes away*/
 #ifdef FFS
-int ffs_mountroot __P((void));
+extern struct vfsops	ufs_vfsops;
+#endif
+#ifdef LFS
+extern struct vfsops	lfs_vfsops;
 #endif
 #ifdef NFS
 int nfs_mountroot __P((void));
@@ -181,7 +185,7 @@ configure()
 	configure_finish();
 
 #ifdef MFS_ROOT
-	mfs_initminiroot(mfs_root);
+	mfs_initminiroot(mfs_root);		/* XXX UGLY*/
 #endif /* MFS_ROOT */
 
 #ifdef CD9660
@@ -196,7 +200,24 @@ configure()
 
 #ifdef FFS
 	if (!mountroot) {
-		mountroot = ffs_mountroot;
+		mountroot = vfs_mountroot;	/* XXX goes away*/
+		mountrootvfsops = &ufs_vfsops;
+		/*
+		 * Ignore the -a flag if this kernel isn't compiled
+		 * with a generic root/swap configuration: if we skip
+		 * setroot() and we aren't a generic kernel, chaos
+		 * will ensue because setconf() will be a no-op.
+		 * (rootdev is always initialized to NODEV in a
+		 * generic configuration, so we test for that.)
+		 */
+		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
+			setroot();
+	}
+#endif
+#ifdef LFS
+	if (!mountroot) {
+		mountroot = vfs_mountroot;	/* XXX goes away*/
+		mountrootvfsops = &lfs_vfsops;
 		/*
 		 * Ignore the -a flag if this kernel isn't compiled
 		 * with a generic root/swap configuration: if we skip

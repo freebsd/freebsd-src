@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.10 1995/03/16 18:16:48 bde Exp $
+ * $Id: lfs_vfsops.c,v 1.11 1995/03/19 14:29:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -78,16 +78,45 @@ struct vfsops lfs_vfsops = {
 
 VFS_SET(lfs_vfsops, lfs, MOUNT_LFS, 0);
 
-int
-lfs_mountroot()
-{
-	panic("lfs_mountroot");		/* XXX -- implement */
-}
 
 /*
- * VFS Operations.
+ * lfs_mount
  *
- * mount system call
+ * Called when mounting local physical media
+ *
+ * PARAMETERS:
+ *		mountroot
+ *			mp	mount point structure
+ *			path	NULL (flag for root mount!!!)
+ *			data	<unused>
+ *			ndp	<unused>
+ *			p	process (user credentials check [statfs])
+ *
+ *		mount
+ *			mp	mount point structure
+ *			path	path to mount point
+ *			data	pointer to argument struct in user space
+ *			ndp	mount point namei() return (used for
+ *				credentials on reload), reused to look
+ *				up block device.
+ *			p	process (user credentials check)
+ *
+ * RETURNS:	0	Success
+ *		!0	error number (errno.h)
+ *
+ * LOCK STATE:
+ *
+ *		ENTRY
+ *			mount point is locked
+ *		EXIT
+ *			mount point is locked
+ *
+ * NOTES:
+ *		A NULL path can be used for a flag since the mount
+ *		system call will fail with EFAULT in copyinstr in
+ *		namei() if it is a genuine NULL from the user.
+ *
+ *		Root mounts are not currently supported.
  */
 int
 lfs_mount(mp, path, data, ndp, p)
@@ -102,14 +131,37 @@ lfs_mount(mp, path, data, ndp, p)
 	struct ufsmount *ump = 0;
 	register struct lfs *fs;				/* LFS */
 	u_int size;
-	int error;
+	int err;
 
-	if (error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args)))
-		return (error);
+	/*
+	 * Use NULL path to flag a root mount
+	 */
+	if( path == NULL) {
+		/*
+		 ***
+		 * Mounting root file system
+		 ***
+		 */
+
+		/* XXX -- implement*/
+		panic("lfs_mountroot: can't setup bdevvp for root");
+	}
+
+	/*
+	 ***
+	 * Mounting non-root file system or updating a file system
+	 ***
+	 */
+
+	/* copy in user arguments*/
+	if (err = copyin(data, (caddr_t)&args, sizeof (struct ufs_args)))
+		goto error_1;
 
 	/* Until LFS can do NFS right.		XXX */
-	if (args.export.ex_flags & MNT_EXPORTED)
-		return (EINVAL);
+	if (args.export.ex_flags & MNT_EXPORTED) {
+		err = EINVAL;
+		goto error_1;
+	}
 
 	/*
 	 * If updating, check whether changing from read-only to
@@ -128,9 +180,11 @@ lfs_mount(mp, path, data, ndp, p)
 #endif
 		if (args.fspec == 0) {
 			/*
-			 * Process export requests.
+			 * Process export requests.  Jumping to "success"
+			 * will return the vfs_export() error code.
 			 */
-			return (vfs_export(mp, &ump->um_export, &args.export));
+			err = vfs_export(mp, &ump->um_export, &args.export);
+			goto success;
 		}
 	}
 	/*
@@ -138,28 +192,27 @@ lfs_mount(mp, path, data, ndp, p)
 	 * and verify that it refers to a sensible block device.
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
-	if (error = namei(ndp))
-		return (error);
+	if (err = namei(ndp))
+		goto error_1;
 	devvp = ndp->ni_vp;
 	if (devvp->v_type != VBLK) {
-		vrele(devvp);
-		return (ENOTBLK);
+		err = ENOTBLK;
+		goto error_2;
 	}
 	if (major(devvp->v_rdev) >= nblkdev) {
-		vrele(devvp);
-		return (ENXIO);
+		err = ENXIO;
+		goto error_2;
 	}
 	if ((mp->mnt_flag & MNT_UPDATE) == 0)
-		error = lfs_mountfs(devvp, mp, p);		/* LFS */
+		err = lfs_mountfs(devvp, mp, p);		/* LFS */
 	else {
 		if (devvp != ump->um_devvp)
-			error = EINVAL;	/* needs translation */
+			err = EINVAL;	/* needs translation */
 		else
 			vrele(devvp);
 	}
-	if (error) {
-		vrele(devvp);
-		return (error);
+	if (err) {
+		goto error_2;
 	}
 	ump = VFSTOUFS(mp);
 	fs = ump->um_lfs;					/* LFS */
@@ -182,7 +235,18 @@ lfs_mount(mp, path, data, ndp, p)
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void) lfs_statfs(mp, &mp->mnt_stat, p);
 #endif
-	return (0);
+
+
+
+error_2:	/* error with devvp held*/ 
+
+	/* release devvp before failing*/
+	vrele(devvp);
+
+error_1:	/* no state to back out*/
+
+success:
+	return( err);
 }
 
 /*

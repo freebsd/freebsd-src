@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.4 1995/05/30 08:06:01 rgrimes Exp $ */
+/*	$Id: sysv_msg.c,v 1.5 1995/07/29 11:40:13 bde Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -25,6 +25,13 @@
 #include <sys/proc.h>
 #include <sys/msg.h>
 #include <sys/malloc.h>
+
+/*
+ * System initialization
+ */
+
+extern void msginit();				/* should be static*/
+SYSINIT(sysv_msg, SI_SUB_SYSV_MSG, SI_ORDER_FIRST, msginit, NULL)
 
 #define MSG_DEBUG
 #undef MSG_DEBUG_OK

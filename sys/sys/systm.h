@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.22 1995/05/30 08:14:38 rgrimes Exp $
+ * $Id: systm.h,v 1.23 1995/07/05 12:04:51 davidg Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -157,8 +157,6 @@ void	hardclock __P((struct clockframe *frame));
 void	softclock __P((void));
 void	statclock __P((struct clockframe *frame));
 
-void	initclocks __P((void));
-
 void	startprofclock __P((struct proc *));
 void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
@@ -168,15 +166,7 @@ void	hardupdate __P((long));
 
 /* Initialize the world */
 extern void consinit(void);
-extern void kmeminit(void);
-extern void cpu_startup(void);
 extern void usrinfoinit(void);
-extern void rqinit(void);
-extern void vfsinit(void);
-extern void mbinit(void);
-extern void clist_init(void);
-extern void ifinit(void);
-extern void domaininit(void);
 extern void cpu_initclocks(void);
 extern void vntblinit(void);
 extern void nchinit(void);
@@ -184,9 +174,6 @@ extern void nchinit(void);
 /* Finalize the world. */
 void	shutdown_nice __P((void));
 
-extern __dead void vm_pageout(void) __dead2; /* pagedaemon, called in proc 2 */
-extern __dead void vfs_update(void) __dead2; /* update, called in proc 3 */
-extern __dead void scheduler(void) __dead2; /* sched, called in process 0 */
 
 /*
  * Kernel to clock driver interface.

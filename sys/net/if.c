@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.16 1995/06/15 00:19:56 davidg Exp $
+ * $Id: if.c,v 1.17 1995/06/28 05:31:03 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,14 @@
 #include <net/radix.h>
 #include <ether.h>
 
+/*
+ * System initialization
+ */
+
+static void ifinit __P((caddr_t));
+SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
+
+
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnet *ifnet;
 
@@ -59,9 +67,13 @@ struct	ifnet *ifnet;
  *
  * Routines with ifa_ifwith* names take sockaddr *'s as
  * parameters.
+ *
+ * This routine assumes that it will be called at splimp() or higher.
  */
+/* ARGSUSED*/
 void
-ifinit()
+ifinit( udata)
+caddr_t		udata;		/* not used*/
 {
 	register struct ifnet *ifp;
 
