@@ -1,37 +1,34 @@
-.\" Copyright (c) 2001-2003, Intel Corporation
+.\" Copyright (c) 2002 Intel Corporation
 .\" All rights reserved.
-.\" 
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions are met:
-.\"
-.\" 1. Redistributions of source code must retain the above copyright notice,
-.\"    this list of conditions and the following disclaimer.
-.\"
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
-.\"
-.\" 3. Neither the name of the Intel Corporation nor the names of its
-.\"    contributors may be used to endorse or promote products derived from
-.\"    this software without specific prior written permission.
+.\" Redistribution and use in source and binary forms of the Software, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code of the Software may retain the above
+.\" copyright notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form of the Software may reproduce the
+.\" above copyright notice, this list of conditions and the following
+.\" disclaimer in the documentation and/or other materials provided with the
+.\" distribution.
+.\" 3. Neither the name of the Intel Corporation nor the names of its contributors
+.\" shall be used to endorse or promote products derived from this Software
+.\" without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 .\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-.\" POSSIBILITY OF SUCH DAMAGE.
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE INTEL OR ITS CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2002
+.Dd April 22, 2004
 .Dt EM 4
 .Os
 .Sh NAME
@@ -40,12 +37,10 @@
 .Sh SYNOPSIS
 .Cd "device em"
 .Sh DESCRIPTION
-The
-.Nm
-driver provides support for PCI gigabit Ethernet adapters based on
-the Intel 82540, 82542, 82543, 82544 and 82546 Ethernet controller chips.
-The driver supports Transmit/Receive checksum offload
-and Jumbo Frames only on 82540, 82543, 82544 and 82546-based adapters.
+The em driver provides support for PCI gigabit Ethernet adapters based on
+the Intel 82540, 82541, 82542, 82543, 82544, 82545, 82546, and 82547 Ethernet 
+controller chips. The driver does not support Transmit/Receive checksum 
+offload and Jumbo Frames on 82542-based adapters. 
 For a list of supported adapters, see the
 .Pa README
 included with the driver.
@@ -98,22 +93,11 @@ mode is supported at this speed.
 .Pp
 The
 .Nm
-driver supports the following media options:
-.Bl -tag -width ".Cm full-duplex"
-.It Cm full-duplex
-Forces full-duplex operation
-.It Cm half-duplex
-Forces half-duplex operation.
-.El
-.Pp
-Only use
-.Cm mediaopt
-to set the driver to
-.Cm full-duplex .
-If
-.Cm mediaopt
-is not specified, the driver defaults to
-.Cm half-duplex .
+driver supports both full-duplex and half-duplex.
+Use mediaopt to force the driver to either of these settings.
+Note that the only valid parameter for mediaopt is full-duplex;
+to force the driver to half-duplex when running at less than gibabit speed,
+leave mediaopt unspecifed.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
