@@ -837,8 +837,7 @@ asr_alloc_ccb (
         OUT union asr_ccb * new_ccb;
 
         if ((new_ccb = (union asr_ccb *)malloc(sizeof(*new_ccb),
-          M_DEVBUF, M_WAITOK)) != (union asr_ccb *)NULL) {
-                bzero (new_ccb, sizeof(*new_ccb));
+          M_DEVBUF, M_WAITOK | M_ZERO)) != (union asr_ccb *)NULL) {
                 new_ccb->ccb_h.pinfo.priority = 1;
                 new_ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
                 new_ccb->ccb_h.spriv_ptr0 = sc;
@@ -1118,13 +1117,11 @@ ASR_getTidAddress(
                 if ((new_entry == FALSE)
                  || ((sc->ha_targets[bus] = bus_ptr = (target2lun_t *)malloc (
                     sizeof(*bus_ptr) + (sizeof(bus_ptr->LUN) * new_size),
-                    M_TEMP, M_WAITOK))
+                    M_TEMP, M_WAITOK | M_ZERO))
                    == (target2lun_t *)NULL)) {
                         debug_asr_printf("failed to allocate bus list\n");
                         return ((tid_t *)NULL);
                 }
-                bzero (bus_ptr, sizeof(*bus_ptr)
-                  + (sizeof(bus_ptr->LUN) * new_size));
                 bus_ptr->size = new_size + 1;
         } else if (bus_ptr->size <= new_size) {
                 target2lun_t * new_bus_ptr;
@@ -1137,17 +1134,15 @@ ASR_getTidAddress(
                 if ((new_entry == FALSE)
                  || ((new_bus_ptr = (target2lun_t *)malloc (
                     sizeof(*bus_ptr) + (sizeof(bus_ptr->LUN) * new_size),
-                    M_TEMP, M_WAITOK))
+                    M_TEMP, M_WAITOK | M_ZERO))
                    == (target2lun_t *)NULL)) {
                         debug_asr_printf("failed to reallocate bus list\n");
                         return ((tid_t *)NULL);
                 }
                 /*
-                 *      Zero and copy the whole thing, safer, simpler coding
+                 *      Copy the whole thing, safer, simpler coding
                  * and not really performance critical at this point.
                  */
-                bzero (new_bus_ptr, sizeof(*bus_ptr)
-                  + (sizeof(bus_ptr->LUN) * new_size));
                 bcopy (bus_ptr, new_bus_ptr, sizeof(*bus_ptr)
                   + (sizeof(bus_ptr->LUN) * (bus_ptr->size - 1)));
                 sc->ha_targets[bus] = new_bus_ptr;
@@ -1175,13 +1170,11 @@ ASR_getTidAddress(
                 if ((new_entry == FALSE)
                  || ((bus_ptr->LUN[target] = target_ptr = (lun2tid_t *)malloc (
                     sizeof(*target_ptr) + (sizeof(target_ptr->TID) * new_size),
-                    M_TEMP, M_WAITOK))
+                    M_TEMP, M_WAITOK | M_ZERO))
                    == (lun2tid_t *)NULL)) {
                         debug_asr_printf("failed to allocate target list\n");
                         return ((tid_t *)NULL);
                 }
-                bzero (target_ptr, sizeof(*target_ptr)
-                  + (sizeof(target_ptr->TID) * new_size));
                 target_ptr->size = new_size + 1;
         } else if (target_ptr->size <= new_size) {
                 lun2tid_t * new_target_ptr;
@@ -1194,17 +1187,15 @@ ASR_getTidAddress(
                 if ((new_entry == FALSE)
                  || ((new_target_ptr = (lun2tid_t *)malloc (
                     sizeof(*target_ptr) + (sizeof(target_ptr->TID) * new_size),
-                    M_TEMP, M_WAITOK))
+                    M_TEMP, M_WAITOK | M_ZERO))
                    == (lun2tid_t *)NULL)) {
                         debug_asr_printf("failed to reallocate target list\n");
                         return ((tid_t *)NULL);
                 }
                 /*
-                 *      Zero and copy the whole thing, safer, simpler coding
+                 *      Copy the whole thing, safer, simpler coding
                  * and not really performance critical at this point.
                  */
-                bzero (new_target_ptr, sizeof(*target_ptr)
-                  + (sizeof(target_ptr->TID) * new_size));
                 bcopy (target_ptr, new_target_ptr,
                   sizeof(*target_ptr)
                   + (sizeof(target_ptr->TID) * (target_ptr->size - 1)));
@@ -2099,11 +2090,10 @@ ASR_setSysTab(
         int                           retVal;
 
         if ((SystemTable = (PI2O_SET_SYSTAB_HEADER)malloc (
-          sizeof(I2O_SET_SYSTAB_HEADER), M_TEMP, M_WAITOK))
+          sizeof(I2O_SET_SYSTAB_HEADER), M_TEMP, M_WAITOK | M_ZERO))
           == (PI2O_SET_SYSTAB_HEADER)NULL) {
                 return (ENOMEM);
         }
-        bzero (SystemTable, sizeof(I2O_SET_SYSTAB_HEADER));
         for (ha = Asr_softc; ha; ha = ha->ha_next) {
                 ++SystemTable->NumberEntries;
         }
@@ -2515,7 +2505,9 @@ asr_attach (ATTACH_ARGS)
         struct scsi_inquiry_data * iq;
         ATTACH_SET();
 
-        if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == (Asr_softc_t *)NULL) {
+        if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) ==
+		(Asr_softc_t *)NULL)
+        {
                 ATTACH_RETURN(ENOMEM);
         }
         if (Asr_softc == (Asr_softc_t *)NULL) {
@@ -2529,7 +2521,6 @@ asr_attach (ATTACH_ARGS)
         /*
          *      Initialize the software structure
          */
-        bzero (sc, sizeof(*sc));
         LIST_INIT(&sc->ha_ccb);
 #       ifdef ASR_MEASURE_PERFORMANCE
                 {
@@ -2716,13 +2707,12 @@ asr_attach (ATTACH_ARGS)
         printf ("asr%d:", unit);
 
         if ((iq = (struct scsi_inquiry_data *)malloc (
-            sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK))
+            sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK | M_ZERO))
           != (struct scsi_inquiry_data *)NULL) {
                 defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
                 PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE             Message_Ptr;
                 int                                           posted = 0;
 
-                bzero (iq, sizeof(struct scsi_inquiry_data));
                 bzero (Message_Ptr
                   = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE, Message),
                   sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
