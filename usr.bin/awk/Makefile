@@ -11,10 +11,8 @@ CFLAGS+= -I. -I${AWKSRC}
 DPADD=	${LIBM}
 LDADD=	-lm
 
-.if ${MACHINE_ARCH} == "sparc64"
 LINKS=	${BINDIR}/nawk ${BINDIR}/awk
 MLINKS=	nawk.1 awk.1
-.endif
 
 CLEANFILES= maketab proctab.c ytab.h
 
