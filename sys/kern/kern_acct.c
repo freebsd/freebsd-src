@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.17 1997/09/21 22:00:04 gibbs Exp $
+ *	$Id: kern_acct.c,v 1.18 1997/11/06 19:29:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -229,7 +229,17 @@ acct_process(p)
 	acct.ac_flag = p->p_acflag;
 
 	/*
-	 * Now, just write the accounting information to the file.
+	 * Eliminate any file size rlimit.
+	 */
+	if (p->p_limit->p_refcnt > 1 &&
+	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
+		p->p_limit->p_refcnt--;
+		p->p_limit = limcopy(p->p_limit);
+	} 
+	p->p_rlimit[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
+
+	/*
+	 * Write the accounting information to the file.
 	 */
 	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
