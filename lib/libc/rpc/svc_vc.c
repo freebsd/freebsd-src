@@ -721,7 +721,7 @@ __rpc_get_local_uid(SVCXPRT *transp, uid_t *uid)
  
 	cmcred = __svc_getcallercreds(transp);
 	if (cmcred == NULL)
-		return(-1); 
+		return (-1); 
 	*uid = cmcred->cmcred_euid;
-	return(0);
+	return (0);
 }
