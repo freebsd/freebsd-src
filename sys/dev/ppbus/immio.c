@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: immio.c,v 1.4 1998/10/31 11:35:21 nsouch Exp $
+ *	$Id: immio.c,v 1.5 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 
@@ -72,8 +72,8 @@ struct ppb_microseq select_microseq[] = {				\
 	/* first, check there is nothing holding onto the bus */	\
 	MS_SET(VP0_SELTMO),						\
 /* _loop: */								\
-	MS_BRCLEAR(0x8, 3 /* _ready */),				\
-	MS_DBRA(-1 /* _loop */),					\
+	MS_BRCLEAR(0x8, 2 /* _ready */),				\
+	MS_DBRA(-2 /* _loop */),					\
 	MS_RET(2),			/* bus busy */			\
 /* _ready: */								\
 	MS_CASS(0x4),							\
@@ -84,8 +84,8 @@ struct ppb_microseq select_microseq[] = {				\
 	/* now, wait until the drive is ready */			\
 	MS_SET(VP0_SELTMO),						\
 /* loop: */								\
-	MS_BRSET(0x8, 4 /* ready */),					\
-	MS_DBRA(-1 /* loop */),						\
+	MS_BRSET(0x8, 3 /* ready */),					\
+	MS_DBRA(-2 /* loop */),						\
 /* error: */								\
 	MS_CASS(0xc),							\
 	MS_RET(VP0_ESELECT_TIMEOUT),					\
@@ -138,7 +138,7 @@ static struct ppb_microseq negociate_microseq[] = { 			\
 	MS_DELAY(100),							\
 	MS_CASS(0x6),							\
 	MS_DELAY(5),							\
-	MS_BRSET(0x20, 6 /* continue */),				\
+	MS_BRSET(0x20, 5 /* continue */),				\
 	MS_DELAY(5),							\
 	MS_CASS(0x7),							\
 	MS_DELAY(5),							\
@@ -217,7 +217,7 @@ static struct ppb_microseq nibble_inbyte_submicroseq[] = {
 
 	  /* do a C call to format the received nibbles */
 	  MS_C_CALL(MS_UNKNOWN /* C hook */, MS_UNKNOWN /* param */),
-	  MS_DBRA(-6 /* loop */),
+	  MS_DBRA(-7 /* loop */),
 	  MS_RET(0)
 };
 
@@ -231,7 +231,7 @@ static struct ppb_microseq ps2_inbyte_submicroseq[] = {
 	  MS_CASS(PCD | 0x6),
 	  MS_RFETCH_P(1, MS_REG_DTR, MS_FETCH_ALL),
 	  MS_CASS(PCD | 0x5),
-	  MS_DBRA(-3 /* loop */),
+	  MS_DBRA(-4 /* loop */),
 
 	  MS_RET(0)
 };
@@ -245,10 +245,10 @@ static struct ppb_microseq spp_outbyte_submicroseq[] = {
 /* loop: */
 	  MS_RASSERT_P(1, MS_REG_DTR), 
 	  MS_CASS(0x5),
-	  MS_DBRA(1),				/* decrement counter */
+	  MS_DBRA(0),				/* decrement counter */
 	  MS_RASSERT_P(1, MS_REG_DTR), 
 	  MS_CASS(0x0),
-	  MS_DBRA(-5 /* loop */),
+	  MS_DBRA(-6 /* loop */),
 
 	  /* return from the put call */
 	  MS_CASS(0x4),
@@ -258,14 +258,14 @@ static struct ppb_microseq spp_outbyte_submicroseq[] = {
 /* EPP 1.7 microsequences, ptr and len set at runtime */
 static struct ppb_microseq epp17_outstr[] = {
 	  MS_CASS(0x4),
-	  MS_RASSERT_P(MS_ACCUM, MS_REG_EPP), 
+	  MS_RASSERT_P(MS_ACCUM, MS_REG_EPP_D), 
 	  MS_CASS(0xc),
 	  MS_RET(0),
 };
 
 static struct ppb_microseq epp17_instr[] = {
 	  MS_CASS(PCD | 0x4),
-	  MS_RFETCH_P(MS_ACCUM, MS_REG_EPP, MS_FETCH_ALL), 
+	  MS_RFETCH_P(MS_ACCUM, MS_REG_EPP_D, MS_FETCH_ALL), 
 	  MS_CASS(PCD | 0xc),
 	  MS_RET(0),
 };

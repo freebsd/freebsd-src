@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.h,v 1.3 1999/01/10 12:04:54 nsouch Exp $
+ *	$Id: ppb_msq.h,v 1.4 1999/01/27 21:49:53 dillon Exp $
  *
  */
 #ifndef __PPB_MSQ_H
@@ -98,7 +98,8 @@
 #define MS_REG_DTR	0x0
 #define MS_REG_STR	0x1
 #define MS_REG_CTR	0x2
-#define MS_REG_EPP	0x4
+#define MS_REG_EPP_A	0x3
+#define MS_REG_EPP_D	0x4
 
 /*
  * Microsequence macro abstraction level

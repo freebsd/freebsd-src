@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.9 1999/01/10 12:04:55 nsouch Exp $
+ *	$Id: ppi.c,v 1.10 1999/01/27 21:49:53 dillon Exp $
  *
  */
 #include "ppi.h"
@@ -487,8 +487,8 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	case PPIGCTRL:			/* get control bits */
 		*val = ppb_rctr(&ppi->ppi_dev);
 		break;
-	case PPIGEPP:			/* get EPP bits */
-		*val = ppb_repp(&ppi->ppi_dev);
+	case PPIGEPPD:			/* get EPP data bits */
+		*val = ppb_repp_D(&ppi->ppi_dev);
 		break;
 	case PPIGECR:			/* get ECP bits */
 		*val = ppb_recr(&ppi->ppi_dev);
@@ -506,14 +506,21 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	case PPISCTRL:			/* set control bits */
 		ppb_wctr(&ppi->ppi_dev, *val);
 		break;
-	case PPISEPP:			/* set EPP bits */
-		ppb_wepp(&ppi->ppi_dev, *val);
+	case PPISEPPD:			/* set EPP data bits */
+		ppb_wepp_D(&ppi->ppi_dev, *val);
 		break;
 	case PPISECR:			/* set ECP bits */
 		ppb_wecr(&ppi->ppi_dev, *val);
 		break;
 	case PPISFIFO:			/* write FIFO */
 		ppb_wfifo(&ppi->ppi_dev, *val);
+		break;
+
+	case PPIGEPPA:			/* get EPP address bits */
+		*val = ppb_repp_A(&ppi->ppi_dev);
+		break;
+	case PPISEPPA:			/* set EPP address bits */
+		ppb_wepp_A(&ppi->ppi_dev, *val);
 		break;
 	default:
 		error = ENOTTY;
