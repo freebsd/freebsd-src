@@ -1030,7 +1030,7 @@ hpfs_lookup(ap)
 	int error;
 	int nameiop = cnp->cn_nameiop;
 	int flags = cnp->cn_flags;
-	dprintf(("hpfs_lookup(0x%x, %s, %ld, %d): \n",
+	dprintf(("hpfs_lookup(0x%x, %s, %ld):\n",
 		dhp->h_no, cnp->cn_nameptr, cnp->cn_namelen));
 
 	if (nameiop != CREATE && nameiop != DELETE && nameiop != LOOKUP) {
