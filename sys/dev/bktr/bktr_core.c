@@ -806,7 +806,6 @@ common_bktr_intr( void *arg )
 
 	}
 
-
 	/*
 	 *  Register the completed field
 	 *    (For dual-field mode, require fields from the same frame)
@@ -3080,7 +3079,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 
 	/* contruct sync : for video packet format */
 	/* sync, mode indicator packed data */
-	*dma_prog++ = OP_SYNC | 1 << 15 | BKTR_FM1;
+	*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
 	*dma_prog++ = 0;  /* NULL WORD */
 
 	b = cols;
@@ -3096,7 +3095,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	switch (i_flag) {
 	case 1:
 		/* sync vre */
-		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRE;
+		*dma_prog++ = OP_SYNC  | BKTR_GEN_IRQ | BKTR_VRE;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		*dma_prog++ = OP_JUMP;
@@ -3105,7 +3104,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 
 	case 2:
 		/* sync vro */
-		*dma_prog++ = OP_SYNC  | 1 << 24 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC  | BKTR_GEN_IRQ | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 		*dma_prog++ = OP_JUMP;
 		*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
@@ -3113,7 +3112,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 
 	case 3:
 		/* sync vro */
-		*dma_prog++ = OP_SYNC	 | 1 << 24 | 1 << 15 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC | BKTR_GEN_IRQ | BKTR_RESYNC | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 		*dma_prog++ = OP_JUMP  ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
@@ -3127,7 +3126,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 		dma_prog = (u_long * ) bktr->odd_dma_prog;
 
 		/* sync vre */
-		*dma_prog++ = OP_SYNC | 1 << 24 |  1 << 15 | BKTR_FM1;
+		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		for (i = 0; i < (rows/interlace) ; i++) {
@@ -3140,7 +3139,7 @@ yuvpack_prog( bktr_ptr_t bktr, char i_flag,
 	}
 
 	/* sync vro IRQ bit */
-	*dma_prog++ = OP_SYNC   |  1 << 24  | 1 << 15 |  BKTR_VRE;
+	*dma_prog++ = OP_SYNC   |  BKTR_GEN_IRQ  | BKTR_RESYNC |  BKTR_VRE;
 	*dma_prog++ = 0;  /* NULL WORD */
 	*dma_prog++ = OP_JUMP ;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog);
@@ -3181,8 +3180,8 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 
 	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) & ~0x80); /* clear Ycomb */
 	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) & ~0x80);
-	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | ~0x40); /* set chroma comb */
-	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | ~0x40);
+	OUTB(bktr, BKTR_E_VSCALE_HI, INB(bktr, BKTR_E_VSCALE_HI) | 0x40); /* set chroma comb */
+	OUTB(bktr, BKTR_O_VSCALE_HI, INB(bktr, BKTR_O_VSCALE_HI) | 0x40);
 
 	/* disable gamma correction removal */
 	OUTB(bktr, BKTR_COLOR_CTL, INB(bktr, BKTR_COLOR_CTL) | BT848_COLOR_CTL_GAMMA);
