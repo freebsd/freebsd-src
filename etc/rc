@@ -343,6 +343,7 @@ if [ -f /etc/rc.${arch} ]; then
 fi
 
 # Recover vi editor files.
+find /var/tmp/vi.recover ! -type f -a ! -type d -delete
 vibackup=`echo /var/tmp/vi.recover/vi.*`
 if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 	echo 'Recovering vi editor sessions'
