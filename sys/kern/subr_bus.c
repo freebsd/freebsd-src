@@ -1842,6 +1842,11 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
 {
     device_t child;
 
+    /*
+     * Make sure the class has a valid ops table.
+     */
+    kobj_class_compile((kobj_class_t) driver);
+
     DEVICE_IDENTIFY(driver, dev);
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
