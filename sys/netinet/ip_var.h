@@ -62,8 +62,8 @@ struct ipq {
 	struct mbuf *ipq_frags;		/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
 #ifdef IPDIVERT
-	u_short ipq_divert;		/* divert protocol port */
-	u_short ipq_div_cookie;		/* divert protocol cookie */
+	u_int32_t ipq_div_info;		/* ipfw divert port & flags */
+	u_int16_t ipq_div_cookie;	/* ipfw divert cookie */
 #endif
 };
 
@@ -179,9 +179,9 @@ void	ip_rsvp_force_done __P((struct socket *));
 #ifdef IPDIVERT
 void	div_init __P((void));
 void	div_input __P((struct mbuf *, int));
+void	divert_packet __P((struct mbuf *, int, int));
 extern struct pr_usrreqs div_usrreqs;
-extern u_short ip_divert_port;
-extern u_short ip_divert_cookie;
+extern u_int16_t ip_divert_cookie;
 #endif
 
 extern struct sockaddr_in *ip_fw_fwd_addr;

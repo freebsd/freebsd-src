@@ -212,6 +212,9 @@ struct ip_fw_chain {
  */
 #ifdef KERNEL
 
+#define IP_FW_PORT_DYNT_FLAG	0x10000
+#define IP_FW_PORT_TEE_FLAG	0x20000
+
 /*
  * Function definitions.
  */

@@ -72,31 +72,23 @@
 #define	DIVSNDQ		(65536 + 100)
 #define	DIVRCVQ		(65536 + 100)
 
-/* Global variables */
-
 /*
- * ip_input() and ip_output() set this secret value before calling us to
- * let us know which divert port to divert a packet to; this is done so
- * we can use the existing prototype for struct protosw's pr_input().
- * This is stored in host order.
- */
-u_short ip_divert_port;
-
-/*
- * A 16 bit cookie is passed to the user process.
- * The user process can send it back to help the caller know something
- * about where the packet came from.
+ * A 16 bit cookie is passed to and from the user process.
+ * The user process can send it back to help the caller know
+ * something about where the packet originally came from.
  *
- * If IPFW is the caller then the cookie is the rule that sent
+ * In the case of ipfw, then the cookie is the rule that sent
  * us here. On reinjection is is the rule after which processing
  * should continue. Leaving it the same will make processing start
  * at the rule number after that which sent it here. Setting it to
  * 0 will restart processing at the beginning. 
+ *
+ * For divert_packet(), ip_divert_cookie is an input value only.
+ * For div_output(), ip_divert_cookie is an output value only.
  */
 u_int16_t ip_divert_cookie;
 
 /* Internal variables */
-
 static struct inpcbhead divcb;
 static struct inpcbinfo divcbinfo;
 
@@ -107,7 +99,6 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 static struct sockaddr_in divsrc = { sizeof(divsrc), AF_INET };
 
 /* Internal functions */
-
 static int div_output(struct socket *so,
 		struct mbuf *m, struct sockaddr *addr, struct mbuf *control);
 
@@ -131,23 +122,36 @@ div_init(void)
 }
 
 /*
- * Setup generic address and protocol structures
- * for div_input routine, then pass them along with
- * mbuf chain. ip->ip_len is assumed to have had
- * the header length (hlen) subtracted out already.
- * We tell whether the packet was incoming or outgoing
- * by seeing if hlen == 0, which is a hack.
+ * IPPROTO_DIVERT is not a real IP protocol; don't allow any packets
+ * with that protocol number to enter the system from the outside.
  */
 void
 div_input(struct mbuf *m, int hlen)
 {
+	ipstat.ips_noproto++;
+	m_freem(m);
+}
+
+/*
+ * Divert a packet by passing it up to the divert socket at port 'port'.
+ *
+ * Setup generic address and protocol structures for div_input routine,
+ * then pass them along with mbuf chain.
+ */
+void
+divert_packet(struct mbuf *m, int incoming, int port)
+{
 	struct ip *ip;
 	struct inpcb *inp;
 	struct socket *sa;
+	u_int16_t nport;
 
 	/* Sanity check */
-	if (ip_divert_port == 0)
-		panic("div_input: port is 0");
+	KASSERT(port != 0, ("%s: port=0", __FUNCTION__));
+
+	/* Record and reset divert cookie */
+	divsrc.sin_port = ip_divert_cookie;
+	ip_divert_cookie = 0;
 
 	/* Assure header */
 	if (m->m_len < sizeof(struct ip) &&
@@ -156,31 +160,16 @@ div_input(struct mbuf *m, int hlen)
 	}
 	ip = mtod(m, struct ip *);
 
-	/* Record divert cookie */
-	divsrc.sin_port = ip_divert_cookie;
-	ip_divert_cookie = 0;
-
-	/* Restore packet header fields */
-	ip->ip_len += hlen;
-	HTONS(ip->ip_len);
-	HTONS(ip->ip_off);
-
 	/*
-	 * Record receive interface address, if any
+	 * Record receive interface address, if any.
 	 * But only for incoming packets.
 	 */
 	divsrc.sin_addr.s_addr = 0;
-	if (hlen) {
+	if (incoming) {
 		struct ifaddr *ifa;
 
-#ifdef DIAGNOSTIC
 		/* Sanity check */
-		if (!(m->m_flags & M_PKTHDR))
-			panic("div_input: no pkt hdr");
-#endif
-
-		/* More fields affected by ip_input() */
-		HTONS(ip->ip_id);
+		KASSERT((m->m_flags & M_PKTHDR), ("%s: !PKTHDR", __FUNCTION__));
 
 		/* Find IP address for receive interface */
 		for (ifa = m->m_pkthdr.rcvif->if_addrhead.tqh_first;
@@ -224,11 +213,11 @@ div_input(struct mbuf *m, int hlen)
 
 	/* Put packet on socket queue, if any */
 	sa = NULL;
+	nport = htons((u_int16_t)port);
 	for (inp = divcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
-		if (inp->inp_lport == htons(ip_divert_port))
+		if (inp->inp_lport == nport)
 			sa = inp->inp_socket;
 	}
-	ip_divert_port = 0;
 	if (sa) {
 		if (sbappendaddr(&sa->so_rcv, (struct sockaddr *)&divsrc,
 				m, (struct mbuf *)0) == 0)
@@ -338,8 +327,8 @@ div_output(so, m, addr, control)
 	return error;
 
 cantsend:
-	ip_divert_cookie = 0;
 	m_freem(m);
+	ip_divert_cookie = 0;
 	return error;
 }
 

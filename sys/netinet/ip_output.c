@@ -123,15 +123,20 @@ ip_output(m0, opt, ro, flags, imo)
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 	int isbroadcast;
+	u_int16_t divert_cookie;		/* firewall cookie */
 #ifdef IPFIREWALL_FORWARD
 	int fwd_rewrite_src = 0;
 #endif
-
-#ifndef IPDIVERT /* dummy variable for the firewall code to play with */
-        u_short ip_divert_cookie = 0 ;
+	struct ip_fw_chain *rule = NULL;
+  
+#ifdef IPDIVERT
+	/* Get and reset firewall cookie */
+	divert_cookie = ip_divert_cookie;
+	ip_divert_cookie = 0;
+#else
+	divert_cookie = 0;
 #endif
-	struct ip_fw_chain *rule = NULL ;
-
+  
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
          * dummynet packet are prepended a vestigial mbuf with
@@ -418,12 +423,13 @@ sendit:
 		struct sockaddr_in *old = dst;
 
 		off = (*ip_fw_chk_ptr)(&ip,
-		    hlen, ifp, &ip_divert_cookie, &m, &rule, &dst);
+		    hlen, ifp, &divert_cookie, &m, &rule, &dst);
                 /*
                  * On return we must do the following:
                  * m == NULL         -> drop the pkt
                  * 1<=off<= 0xffff   -> DIVERT
                  * (off & 0x10000)   -> send to a DUMMYNET pipe
+                 * (off & 0x20000)   -> TEE the packet
                  * dst != old        -> IPFIREWALL_FORWARD
                  * off==0, dst==old  -> accept
                  * If some of the above modules is not compiled in, then
@@ -439,7 +445,7 @@ sendit:
 		if (off == 0 && dst == old) /* common case */
 			goto pass ;
 #ifdef DUMMYNET
-                if (off & 0x10000) {  
+                if ((off & IP_FW_PORT_DYNT_FLAG) != 0) {
                     /*
                      * pass the pkt to dummynet. Need to include
                      * pipe number, m, ifp, ro, dst because these are
@@ -454,9 +460,27 @@ sendit:
 		}
 #endif   
 #ifdef IPDIVERT
-                if (off > 0 && off < 0x10000) {         /* Divert packet */
-                       ip_divert_port = off & 0xffff ;
-                       (*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
+		if (off != 0 && (off & IP_FW_PORT_DYNT_FLAG) == 0) {
+			struct mbuf *clone = NULL;
+
+			/* Clone packet if we're doing a 'tee' */
+			if ((off & IP_FW_PORT_TEE_FLAG) != 0)
+				clone = m_dup(m, M_DONTWAIT);
+
+			/* Restore packet header fields to original values */
+			HTONS(ip->ip_len);
+			HTONS(ip->ip_off);
+
+			/* Deliver packet to divert input routine */
+			ip_divert_cookie = divert_cookie;
+			divert_packet(m, 0, off & 0xffff);
+
+			/* If 'tee', continue with original packet */
+			if (clone != NULL) {
+				m = clone;
+				ip = mtod(m, struct ip *);
+				goto pass;
+			}
 			goto done;
 		}
 #endif
