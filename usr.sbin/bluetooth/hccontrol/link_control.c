@@ -56,6 +56,20 @@ hci_inquiry(int s, int argc, char **argv)
 	/* parse command parameters */
 	switch (argc) {
 	case 3:
+		/* number of responses, range 0x00 - 0xff */
+		if (sscanf(argv[2], "%d", &n0) != 1 || n0 < 0 || n0 > 0xff)
+			return (USAGE);
+
+		cp.num_responses = (n0 & 0xff);
+
+	case 2:
+		/* inquiry length (N * 1.28) sec, range 0x01 - 0x30 */
+		if (sscanf(argv[1], "%d", &n0) != 1 || n0 < 0x1 || n0 > 0x30)
+			return (USAGE);
+
+		cp.inquiry_length = (n0 & 0xff);
+
+	case 1:
 		/* LAP */
 		if (sscanf(argv[0], "%x:%x:%x", &n2, &n1, &n0) != 3)
 			return (USAGE);
@@ -64,22 +78,8 @@ hci_inquiry(int s, int argc, char **argv)
 		cp.lap[1] = (n1 & 0xff);
 		cp.lap[2] = (n2 & 0xff);
 
-	/* inquiry length (N * 1.28) sec, range 0x01 - 0x30 */
-	case 2:
-		if (sscanf(argv[1], "%d", &n0) != 1 || n0 < 0x1 || n0 > 0x30)
-			return (USAGE);
-
-		cp.inquiry_length = (n0 & 0xff);
-
-	/* number of responses, range 0x00 - 0xff */
-	case 1:
-		if (sscanf(argv[2], "%d", &n0) != 1 || n0 > 0xff)
-			return (USAGE);
-
-		cp.num_responses = (n0 & 0xff);
-
-	/* use defaults */
 	case 0:
+		/* use defaults */
 		break;
 
 	default:
@@ -194,14 +194,14 @@ hci_create_connection(int s, int argc, char **argv)
 	switch (argc) {
 	case 6:
 		/* accept role switch */
-		if (sscanf(argv[2], "%d", &n0) != 1)
+		if (sscanf(argv[5], "%d", &n0) != 1)
 			return (USAGE);
 
 		cp.accept_role_switch = n0 ? 1 : 0;
 
 	case 5:
 		/* clock offset */
-		if (sscanf(argv[2], "%d", &n0) != 1)
+		if (sscanf(argv[4], "%d", &n0) != 1)
 			return (USAGE);
 
 		cp.clock_offset = (n0 & 0xffff);
@@ -209,7 +209,7 @@ hci_create_connection(int s, int argc, char **argv)
 
 	case 4:
 		/* page scan mode */
-		if (sscanf(argv[2], "%d", &n0) != 1 || n0 < 0 || n0 > 3)
+		if (sscanf(argv[3], "%d", &n0) != 1 || n0 < 0 || n0 > 3)
 			return (USAGE);
 
 		cp.page_scan_mode = (n0 & 0xff);
@@ -383,7 +383,7 @@ hci_add_sco_connection(int s, int argc, char **argv)
 	switch (argc) {
 	case 2:
 		/* packet type */
-		if (sscanf(argv[0], "%x", &n) != 1)
+		if (sscanf(argv[1], "%x", &n) != 1)
 			return (USAGE);
 
 		n &= (NG_HCI_PKT_HV1 | NG_HCI_PKT_HV2 | NG_HCI_PKT_HV3);
