@@ -135,6 +135,10 @@
     <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
     all loader tunables.</para>
 
+    <para>The system load average computation now adds some jitter to
+    the timing of samples, in order to avoid synchronization with
+    processes that run periodically.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -173,6 +177,12 @@
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C.</para>
+
+      <para>The &man.gx.4; driver has been added to support NICs based
+      on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
+      Both fiber and copper variants of the cards are supported.  Both
+      boards support VLAN tagging/insertion, and the 82543 additionally
+      supports TCP/IP checksum offload.</para>
     </sect3>
 
     <sect3>
@@ -181,6 +191,11 @@
       <para>&man.bridge.4; and &man.dummynet.4; have received some
       enhancements and bug fixes, and are now loadable
       modules.</para>
+
+      <para>A bug in the TCP NewReno implementation, which could cause
+      degraded throughput under certain circumstances, has been
+      fixed.</para>
+
     </sect3>
 
     <sect3>
@@ -254,6 +269,10 @@
     improves compatability with binaries built for &os; 4.1-RELEASE
     and older.</para>
 
+    <para>&man.edquota.8; now takes a <option>-f</option> option to
+    allow limiting the prototype quota distribution (specified with
+    <option>-p</option>) to a single filesystem.</para>
+
     <para>&man.find.1; can now take various units of time to be
     applied to the <option>-[acm]time</option> primaries.</para>
 
@@ -293,6 +312,9 @@
     <option>-c</option>.  Formerly, the default was fixed at 16.  This
     change leads to better &man.fsck.8; performance and reduced
     fragmentation.</para>
+
+    <para>&man.newsyslog.8; now has the ability to ability to compress
+    log files using &man.bzip2.1;.</para>
 
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
 
