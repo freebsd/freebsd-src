@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.113 1997/04/05 21:41:13 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.1 1998/09/15 07:24:16 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -1112,7 +1112,7 @@ ahc_handle_target_cmd(struct ahc_softc *ahc)
 		 * to this accept tio.
 		 */
 		xpt_print_path(atio->ccb_h.path);
-		printf("Incoming Command did not disconnect %x\n", lstate);
+		printf("Incoming Command did not disconnect %p\n", lstate);
 		ahc->pending_device = lstate;
 	}
 	xpt_done((union ccb*)atio);
@@ -1745,8 +1745,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 			case MSG_ABORT:
 				xpt_print_path(scb->ccb->ccb_h.path);
 				printf("SCB %d - Abort %s Completed.\n",
-				       tag == SCB_LIST_NULL ? "" : "Tag",
-				       scb->hscb->tag);
+				       scb->hscb->tag, tag == SCB_LIST_NULL ?
+				       "" : "Tag");
 				if ((scb->flags & SCB_RECOVERY_SCB) != 0) {
 					ahc_set_ccb_status(scb->ccb,
 							   CAM_REQ_ABORTED);
