@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ul.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ul.c,v 1.4 1997/08/20 11:01:59 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -99,7 +99,7 @@ void outc __P((int));
 
 #define	PRINT(s)	if (s == NULL) /* void */; else tputs(s, 1, outchar)
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
