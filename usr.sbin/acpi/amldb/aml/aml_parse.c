@@ -703,6 +703,7 @@ aml_parse_field(struct aml_environ *env, struct aml_field *template)
 	case 'A'...'Z':
 	case '_':
 	case '.':  
+	case '/':
 		name = aml_parse_namestring(env);
 		width = aml_parse_pkglength(env);
 		template->bitlen = width;
@@ -1309,6 +1310,7 @@ aml_parse_termobj(struct aml_environ *env, int indent)
 	case 'A' ... 'Z':
 	case '_':
 	case '.':
+	case '/':
 		env->dp--;
 		ret->type = aml_t_namestr;
 		ret->nstr.dp = aml_parse_namestring(env);
