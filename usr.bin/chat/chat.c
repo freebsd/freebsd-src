@@ -18,7 +18,7 @@
  *		(614)451-1883
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.1.1.1 1994/11/12 05:25:32 lars Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.2 1994/12/19 01:02:11 ache Exp $";
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -228,7 +228,7 @@ char **argv;
 #endif
 
     init();
-    
+
     if (chat_file != NULL)
 	{
 	arg = ARG(argc, argv);
@@ -300,7 +300,7 @@ char *chat_file;
 				linect);
 			terminate (1);
 			}
-		    
+
 		    if (*sp++ == '\\')
 			if (*sp != '\0')
 			    ++sp;
@@ -672,7 +672,7 @@ int sending;
 	    else
 		*s1++ = 'N';
 	    break;
-	    
+
 	default:
 	    if (isoctal (cur_chr))
 		{
@@ -738,7 +738,7 @@ register char *s;
 	    if (*hyphen == '-')
 		if (hyphen == s || hyphen[-1] != '\\')
 		    break;
-	
+
 	if (*hyphen == '-')
 	    {
 	    *hyphen = '\0';
@@ -1105,7 +1105,7 @@ register char *string;
 	}
 
     alarm(0);
-    
+
     if (verbose && printed)
 	{
 	if (alarmed)

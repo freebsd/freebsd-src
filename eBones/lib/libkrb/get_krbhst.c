@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: get_krbhst.c,v 4.8 89/01/22 20:00:29 rfrench Exp $
- *	$Id: get_krbhst.c,v 1.2 1994/07/19 19:25:17 g89r4222 Exp $
+ *	$Id: get_krbhst.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: get_krbhst.c,v 1.2 1994/07/19 19:25:17 g89r4222 Exp $";
+"$Id: get_krbhst.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif /* lint */
 
 #include <stdio.h>
@@ -33,7 +33,7 @@ static char *rcsid =
  *
  * The KRB_CONF file contains the name of the local realm in the first
  * line (not used by this routine), followed by lines indicating realm/host
- * entries.  The words "admin server" following the hostname indicate that 
+ * entries.  The words "admin server" following the hostname indicate that
  * the host provides an administrative database server.
  *
  * For example:

@@ -32,8 +32,8 @@
 #include "file.h"
 
 #ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: apprentice.c,v 1.19 1994/05/03 17:58:23 christos Exp $";
+static char *moduleid =
+	"@(#)$Id: apprentice.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
@@ -75,7 +75,7 @@ int check;			/* non-zero? checking-only run. */
 		else
 			exit(1);
 	}
-  
+
 	/* parse it */
 	if (check)	/* print silly verbose header for USG compat. */
 		(void) printf("cont\toffset\ttype\topcode\tmask\tvalue\tdesc\n");
@@ -149,8 +149,8 @@ int *ndx, check;
 
 	if (nd+1 >= maxmagic){
 	    maxmagic += 20;
-	    if ((magic = (struct magic *) realloc(magic, 
-						  sizeof(struct magic) * 
+	    if ((magic = (struct magic *) realloc(magic,
+						  sizeof(struct magic) *
 						  maxmagic)) == NULL) {
 		(void) fprintf(stderr, "%s: Out of memory.\n", progname);
 		if (check)
@@ -165,7 +165,7 @@ int *ndx, check;
 
 	while (*l == '>') {
 		++l;		/* step over */
-		m->cont_level++; 
+		m->cont_level++;
 	}
 
 	if (m->cont_level != 0 && *l == '(') {
@@ -210,7 +210,7 @@ int *ndx, check;
 		}
 		else
 			t = l;
-		if (*t++ != ')') 
+		if (*t++ != ')')
 			magwarn("missing ')' in indirect offset");
 		l = t;
 	}
@@ -282,7 +282,7 @@ int *ndx, check;
 	} else
 		m->mask = ~0L;
 	EATAB;
-  
+
 	switch (*l) {
 	case '>':
 	case '<':
@@ -301,7 +301,7 @@ int *ndx, check;
 		}
 		/* FALL THROUGH */
 	default:
-		if (*l == 'x' && isascii((unsigned char)l[1]) && 
+		if (*l == 'x' && isascii((unsigned char)l[1]) &&
 		    isspace((unsigned char)l[1])) {
 			m->reln = *l;
 			++l;
@@ -311,12 +311,12 @@ int *ndx, check;
 		break;
 	}
   	EATAB;
-  
+
 	if (getvalue(m, &l))
 		return -1;
 	/*
 	 * TODO finish this macro and start using it!
-	 * #define offsetcheck {if (offset > HOWMANY-1) 
+	 * #define offsetcheck {if (offset > HOWMANY-1)
 	 *	magwarn("offset too big"); }
 	 */
 
@@ -344,9 +344,9 @@ GetDesc:
 	return 0;
 }
 
-/* 
- * Read a numeric value from a pointer, into the value union of a magic 
- * pointer, according to the magic type.  Update the string pointer to point 
+/*
+ * Read a numeric value from a pointer, into the value union of a magic
+ * pointer, according to the magic type.  Update the string pointer to point
  * just after the number read.  Return 0 for success, non-zero for failure.
  */
 static int
@@ -517,7 +517,7 @@ int len;
 		else {
 			(void) fputc('\\', fp);
 			switch (c) {
-			
+
 			case '\n':
 				(void) fputc('n', fp);
 				break;

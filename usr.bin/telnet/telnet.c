@@ -177,7 +177,7 @@ init_telnet()
     ClearArray(options);
 
     connected = In3270 = ISend = localflow = donebinarytoggle = 0;
-#if	defined(AUTHENTICATION) 
+#if	defined(AUTHENTICATION)
     auth_encrypt_connect(connected);
 #endif	/* defined(AUTHENTICATION)  */
     restartany = -1;
@@ -679,7 +679,7 @@ mklist(buf, name)
 		else if (islower(c))
 			*cp = toupper(c);
 	}
-	
+
 	/*
 	 * Check for an old V6 2 character name.  If the second
 	 * name points to the beginning of the buffer, and is
@@ -1747,7 +1747,7 @@ telrcv()
 	case TS_IAC:
 process_iac:
 	    switch (c) {
-	    
+
 	    case WILL:
 		telrcv_state = TS_WILL;
 		continue;
@@ -2162,7 +2162,7 @@ telnet(user)
 {
     sys_telnet_init();
 
-#if	defined(AUTHENTICATION) 
+#if	defined(AUTHENTICATION)
     {
 	static char local_host[256] = { 0 };
 

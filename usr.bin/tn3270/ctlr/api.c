@@ -305,7 +305,7 @@ struct SREGS *sregs;
 	parms.rc = 0;
 	if (parms.options == OPTION_SINGLE_KEYSTROKE) {
 	    KeystrokeEntry *entry = &parms.keystroke_specifier.keystroke_entry;
-	    
+
 	    if (AcceptKeystroke(entry->scancode, entry->shift_state) == 0) {
 		parms.rc = 0x10;		/* XXX needs 0x12 too! */
 	    }

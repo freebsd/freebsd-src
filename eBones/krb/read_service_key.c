@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: _service_key.c,v 4.10 90/03/10 19:06:56 jon Exp $
- *	$Id: read_service_key.c,v 1.2 1994/07/19 19:26:16 g89r4222 Exp $
+ *	$Id: read_service_key.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: read_service_key.c,v 1.2 1994/07/19 19:26:16 g89r4222 Exp $";
+"$Id: read_service_key.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -26,7 +26,7 @@ static char *rcsid =
  * and "realm" and a key version number "kvno", and looks in the given
  * "file" for the corresponding entry, and if found, returns the entry's
  * key field in "key".
- * 
+ *
  * If "instance" contains the string "*", then it will match
  * any instance, and the chosen instance will be copied to that
  * string.  For this reason it is important that the there is enough
@@ -102,7 +102,7 @@ read_service_key(service,instance,realm,kvno,file,key)
 	     strcmp(realm,"ATHENA.MIT.EDU")))
 	    continue;
 #else /* ! ATHENA_COMPAT */
-        if (strcmp(rlm,realm)) 
+        if (strcmp(rlm,realm))
 	    continue;
 #endif /* ATHENA_COMPAT */
 

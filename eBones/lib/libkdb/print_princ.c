@@ -1,15 +1,15 @@
 /*
- * Copyright 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
- *	from: $Header: /home/CVS/src/eBones/kdb/print_princ.c,v 1.2 1994/07/19 19:23:41 g89r4222 Exp $
- *	$Id: print_princ.c,v 1.2 1994/07/19 19:23:41 g89r4222 Exp $
+ *	from: $Header: /home/ncvs/src/eBones/kdb/print_princ.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
+ *	$Id: print_princ.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: print_princ.c,v 1.2 1994/07/19 19:23:41 g89r4222 Exp $";
+"$Id: print_princ.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>

@@ -384,7 +384,7 @@ next_ch:	tval = term_key(sp, &ikey, quoted == Q_THISCHAR ?
 			if (ch == ' ')
 				goto next_ch;
 		}
-			
+
 		/*
 		 * !!!
 		 * Historic feature.  If the first character of the input is
@@ -495,7 +495,7 @@ k_cr:			if (LF_ISSET(TXT_CR)) {
 			if (sp->s_change(sp, ep, tp->lno, LINE_RESET))
 				goto err;
 
-			/* 
+			/*
 			 * Historic practice was to delete <blank> characters
 			 * following the inserted newline.  This affected the
 			 * 'R', 'c', and 's' commands; 'c' and 's' retained

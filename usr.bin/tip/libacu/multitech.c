@@ -57,8 +57,8 @@ static CONST char *reset_command = "\rATZ\r";
 static CONST char *init_string = "AT$BA0$SB38400&E1&E4&E13&E15Q0V1X4E0S0=0\r";
 static CONST char *escape_sequence = "+++"; /* return to command escape sequence */
 static CONST int lock_baud = 1;
-static CONST unsigned int intercharacter_delay = 20; 
-static CONST unsigned int intercommand_delay = 250; 
+static CONST unsigned int intercharacter_delay = 20;
+static CONST unsigned int intercommand_delay = 250;
 static CONST unsigned int escape_guard_time = 250;
 static CONST unsigned int reset_delay = 2000;
 
@@ -91,7 +91,7 @@ int multitech_dialer (register char *num, char *acu)
 	if (lock_baud)
 	{
 		int i;
-		if ((i = speed(number(value(BAUDRATE)))) == NULL) 
+		if ((i = speed(number(value(BAUDRATE)))) == NULL)
 			return 0;
 		ttysetup (i);
 	}
@@ -112,7 +112,7 @@ badsynch:
 #endif
 		return (0);
 	}
-	acu_nap (intercommand_delay); 
+	acu_nap (intercommand_delay);
 
 	multitech_write_str (FD, echo_off_command);	/* turn off echoing */
 
@@ -125,7 +125,7 @@ badsynch:
 
 	acu_flush ();
 
-	acu_nap (intercommand_delay); 
+	acu_nap (intercommand_delay);
 	multitech_write_str (FD, init_string);
 
 	if (!multitech_swallow ("\r\nOK\r\n"))
@@ -133,7 +133,7 @@ badsynch:
 
 	fflush (stdout);
 
-	acu_nap (intercommand_delay); 
+	acu_nap (intercommand_delay);
 	multitech_write_str (FD, dial_command);
 
 	for (cp = num; *cp; cp++)
@@ -165,9 +165,9 @@ void multitech_disconnect ()
 	{
 		 /* first hang up the modem*/
 		ioctl (FD, TIOCCDTR, 0);
-		acu_nap (escape_guard_time); 
+		acu_nap (escape_guard_time);
 		ioctl (FD, TIOCSDTR, 0);
-		acu_nap (escape_guard_time); 
+		acu_nap (escape_guard_time);
 		/*
 		 * If not strapped for DTR control, try to get command mode.
 		 */
@@ -326,19 +326,19 @@ static int multitechsync ()
 	char buf[40];
 
 	while (already++ < MAXRETRY) {
-		acu_nap (intercommand_delay); 
+		acu_nap (intercommand_delay);
 		ioctl (FD, TIOCFLUSH, 0);	/* flush any clutter */
 		multitech_write_str (FD, reset_command); /* reset modem */
 		bzero(buf, sizeof(buf));
-		acu_nap (reset_delay); 
+		acu_nap (reset_delay);
 		ioctl (FD, FIONREAD, &len);
 		if (len) {
 			len = read(FD, buf, sizeof(buf));
-#ifdef DEBUG 
+#ifdef DEBUG
 			buf [len] = '\0';
 			printf("multitechsync: (\"%s\")\n\r", buf);
 #endif
-			if (index(buf, '0') || 
+			if (index(buf, '0') ||
 		   	   (index(buf, 'O') && index(buf, 'K')))
 				return(1);
 		}
@@ -354,12 +354,12 @@ static int multitechsync ()
 		 * Toggle DTR to force anyone off that might have left
 		 * the modem connected.
 		 */
-		acu_nap (escape_guard_time); 
+		acu_nap (escape_guard_time);
 		ioctl (FD, TIOCCDTR, 0);
-		acu_nap (escape_guard_time); 
+		acu_nap (escape_guard_time);
 		ioctl (FD, TIOCSDTR, 0);
 	}
-	acu_nap (intercommand_delay); 
+	acu_nap (intercommand_delay);
 	multitech_write_str (FD, reset_command);
 	return (0);
 }

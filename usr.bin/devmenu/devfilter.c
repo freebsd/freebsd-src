@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -88,7 +88,7 @@ devmenu_alldevs(void)
 
 	rv = malloc((ndevs + 1) * sizeof *rv);
 	if (!rv) {
-		err(EX_UNAVAILABLE, "malloc(%lu)", 
+		err(EX_UNAVAILABLE, "malloc(%lu)",
 		    (unsigned long)(ndevs * sizeof *rv));
 	}
 
@@ -100,7 +100,7 @@ devmenu_alldevs(void)
 
 		rv[ndx] = malloc(size);
 		if (!rv[ndx]) {
-			err(EX_UNAVAILABLE, "malloc(%lu)", 
+			err(EX_UNAVAILABLE, "malloc(%lu)",
 			    (unsigned long)size);
 		}
 
@@ -185,7 +185,7 @@ devmenu_common(const char *title, const char *hfile, char **devnames,
 	if(dialog_menu((char *)title, prompt, 24, 78, 18, nitems, items,
 		       resbuf, 0, 0) != 0) {
 		name = "none";
-	} 
+	}
 
 	for (i = 0; i < 2 * nitems; i += 2) {
 		free(items[i]);

@@ -335,7 +335,7 @@ ktrsysret(ktr)
 	(void)putchar('\n');
 }
 
-ktrnamei(cp, len) 
+ktrnamei(cp, len)
 	char *cp;
 {
 	(void)printf("\"%.*s\"\n", len, cp);

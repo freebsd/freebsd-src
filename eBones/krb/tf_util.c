@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: tf_util.c,v 4.9 90/03/10 19:19:45 jon Exp $
- *	$Id: tf_util.c,v 1.2 1994/07/19 19:26:28 g89r4222 Exp $
+ *	$Id: tf_util.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: tf_util.c,v 1.2 1994/07/19 19:26:28 g89r4222 Exp $";
+"$Id: tf_util.c,v 1.1.1.1 1994/09/30 14:50:04 csgr Exp $";
 #endif /* lint */
 
 #include <stdio.h>
@@ -51,7 +51,7 @@ char *shmat();
  *	   are invalid (ie. when deciding whether tf_init has been
  *	   called.)
  *	c. In tf_close, be sure it gets reinitialized to a negative
- *	   number. 
+ *	   number.
  */
 static  fd = -1;
 static	curpos;				/* Position in tfbfr */
@@ -109,13 +109,13 @@ static tf_gets(), tf_read();
 /*
  * tf_init() should be called before the other ticket file routines.
  * It takes the name of the ticket file to use, "tf_name", and a
- * read/write flag "rw" as arguments. 
+ * read/write flag "rw" as arguments.
  *
  * It tries to open the ticket file, checks the mode, and if everything
  * is okay, locks the file.  If it's opened for reading, the lock is
- * shared.  If it's opened for writing, the lock is exclusive. 
+ * shared.  If it's opened for writing, the lock is exclusive.
  *
- * Returns KSUCCESS if all went well, otherwise one of the following: 
+ * Returns KSUCCESS if all went well, otherwise one of the following:
  *
  * NO_TKT_FIL   - file wasn't there
  * TKT_FIL_ACC  - file was in wrong mode, etc.
@@ -129,7 +129,7 @@ tf_init(tf_name, rw)
     uid_t   me, getuid();
     struct stat stat_buf;
 #ifdef TKT_SHMEM
-    char shmidname[MAXPATHLEN]; 
+    char shmidname[MAXPATHLEN];
     FILE *sfp;
     int shmid;
 #endif
@@ -170,7 +170,7 @@ tf_init(tf_name, rw)
      * If "wflag" is set, open the ticket file in append-writeonly mode
      * and lock the ticket file in exclusive mode.  If unable to lock
      * the file, sleep and try again.  If we fail again, return with the
-     * proper error message. 
+     * proper error message.
      */
 
     curpos = sizeof(tfbfr);
@@ -214,7 +214,7 @@ tf_init(tf_name, rw)
     }
     tmp_shm_addr = krb_shm_addr;
 #endif /* TKT_SHMEM */
-    
+
     if (wflag) {
 	fd = open(tf_name, O_RDWR, 0600);
 	if (fd < 0) {
@@ -232,7 +232,7 @@ tf_init(tf_name, rw)
     }
     /*
      * Otherwise "wflag" is not set and the ticket file should be opened
-     * for read-only operations and locked for shared access. 
+     * for read-only operations and locked for shared access.
      */
 
     fd = open(tf_name, O_RDONLY, 0600);
@@ -256,7 +256,7 @@ tf_init(tf_name, rw)
  * principal's name is filled into the "p" parameter.  If all goes well,
  * KSUCCESS is returned.  If tf_init() wasn't called, TKT_FIL_INI is
  * returned.  If the name was null, or EOF was encountered, or the name
- * was longer than ANAME_SZ, TKT_FIL_FMT is returned. 
+ * was longer than ANAME_SZ, TKT_FIL_FMT is returned.
  */
 
 tf_get_pname(p)
@@ -279,7 +279,7 @@ tf_get_pname(p)
  * goes well, KSUCCESS is returned.  If tf_init() wasn't called,
  * TKT_FIL_INI is returned.  If EOF was encountered, or the instance
  * was longer than ANAME_SZ, TKT_FIL_FMT is returned.  Note that the
- * instance may be null. 
+ * instance may be null.
  */
 
 tf_get_pinst(inst)
@@ -299,7 +299,7 @@ tf_get_pinst(inst)
  * tf_get_cred() reads a CREDENTIALS record from a ticket file and fills
  * in the given structure "c".  It should only be called after tf_init(),
  * tf_get_pname(), and tf_get_pinst() have been called. If all goes well,
- * KSUCCESS is returned.  Possible error codes are: 
+ * KSUCCESS is returned.  Possible error codes are:
  *
  * TKT_FIL_INI  - tf_init wasn't called first
  * TKT_FIL_FMT  - bad format
@@ -394,7 +394,7 @@ tf_close()
  * tf_gets() is an internal routine.  It takes a string "s" and a count
  * "n", and reads from the file until either it has read "n" characters,
  * or until it reads a null byte. When finished, what has been read exists
- * in "s". If it encounters EOF or an error, it closes the ticket file. 
+ * in "s". If it encounters EOF or an error, it closes the ticket file.
  *
  * Possible return values are:
  *
@@ -408,7 +408,7 @@ tf_close()
  *		file is seriously ill.
  */
 
-static 
+static
 tf_gets(s, n)
     register char *s;
 {
@@ -455,7 +455,7 @@ tf_read(s, n)
     register n;
 {
     register count;
-    
+
     for (count = n; count > 0; --count) {
 	if (curpos >= sizeof(tfbfr)) {
 	    lastpos = read(fd, tfbfr, sizeof(tfbfr));
@@ -469,7 +469,7 @@ tf_read(s, n)
     }
     return n;
 }
-     
+
 char   *tkt_string();
 
 /*

@@ -135,7 +135,7 @@ STRNCMP(s1, s2, len)
 #define SNEXT(A) (A+2+*(A+1))	/* character following the string */
 
 /*
- *  bit flags in the descriptor 
+ *  bit flags in the descriptor
  */
 #define OPT 1
 #define STR 2
@@ -196,7 +196,7 @@ expconv()
 		    *cs = STR;
 		    SCNT(cs) = 1;
 		    ccre += 2;
-		} else 
+		} else
 		    SCNT(cs)++;
 		*ccre++ = c;
 		break;
@@ -209,7 +209,7 @@ expconv()
 		if (acs != NIL && acs != cs) {
 		    do {
 			temp = OCNT(acs);
-			OCNT(acs) = ccre - acs; 
+			OCNT(acs) = ccre - acs;
 			acs -= temp;
 		    } while (temp != 0);
 		    acs = NIL;
@@ -221,7 +221,7 @@ expconv()
 		break;
 	    }
 	    break;
-	    
+
 	/* just put the symbol in */
 	case '^':
 	case '$':
@@ -339,7 +339,7 @@ expconv()
  *	The irregular expression must be translated to internal form
  *	prior to calling this routine
  *
- *	The value returned is the pointer to the first non \a 
+ *	The value returned is the pointer to the first non \a
  *	character matched.
  */
 
@@ -501,7 +501,7 @@ expmatch (s, re, mstring)
 	    case 'e':
 		if (_escaped)
 		    return(NIL);
-		cs = MNEXT(cs); 
+		cs = MNEXT(cs);
 		break;
 
 	    /* match any number of tabs and spaces */
@@ -513,12 +513,12 @@ expmatch (s, re, mstring)
 
 		    /* match, be happy */
 		    matched = 1;
-		    cs = MNEXT(cs); 
+		    cs = MNEXT(cs);
 		} else if (*s == '\n' || *s == '\0') {
 
 		    /* match, be happy */
 		    matched = 1;
-		    cs = MNEXT(cs); 
+		    cs = MNEXT(cs);
 		} else if (*cs & ALT) {
 
 		    /* try the next part */

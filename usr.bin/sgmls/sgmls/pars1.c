@@ -604,7 +604,7 @@ struct mpos *newmpos()
 VOID endprolog()
 {
      int i;
-     
+
      ambigfree();
      if (dtdsw) {
 	  frem((UNIV)nmgrp);

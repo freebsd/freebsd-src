@@ -38,15 +38,15 @@
 		/* If cc tries to compile this, read and act on it. */
 		/* On most systems cpp will discard it automatically */
 		Congratulations, you have found a portability bug.
-		Please grep /usr/include/sys and edit the above #include 
+		Please grep /usr/include/sys and edit the above #include
 		to point at the file that defines the "major" macro.
 #endif	/*major*/
 
 #include "file.h"
 
 #ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: fsmagic.c,v 1.22 1993/02/19 12:09:04 ian Exp $";
+static char *moduleid =
+	"@(#)$Id: fsmagic.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
 #endif	/* lint */
 
 int
@@ -78,7 +78,7 @@ struct stat *sb;
 	if (sb->st_mode & S_ISUID) ckfputs("setuid ", stdout);
 	if (sb->st_mode & S_ISGID) ckfputs("setgid ", stdout);
 	if (sb->st_mode & S_ISVTX) ckfputs("sticky ", stdout);
-	
+
 	switch (sb->st_mode & S_IFMT) {
 	case S_IFDIR:
 		ckfputs("directory", stdout);
@@ -105,7 +105,7 @@ struct stat *sb;
 			struct stat tstatbuf;
 
 			if ((nch = readlink(fn, buf, BUFSIZ-1)) <= 0) {
-				ckfprintf(stdout, "unreadable symlink (%s).", 
+				ckfprintf(stdout, "unreadable symlink (%s).",
 				      strerror(errno));
 				return 1;
 			}

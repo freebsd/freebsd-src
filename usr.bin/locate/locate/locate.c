@@ -53,19 +53,19 @@ static char sccsid[] = "@(#)locate.c	8.1 (Berkeley) 6/6/93";
  * bigram coding by a further 20-25%.
  *
  * The codes are:
- * 
+ *
  * 	0-28	likeliest differential counts + offset to make nonnegative
  *	30	switch code for out-of-range count to follow in next word
  *	128-255 bigram codes (128 most common, as determined by 'updatedb')
  *	32-127  single character (printable) ascii residue (ie, literal)
- * 
+ *
  * A novel two-tiered string search technique is employed:
- * 
+ *
  * First, a metacharacter-free subpattern and partial pathname is matched
  * BACKWARDS to avoid full expansion of the pathname list.  The time savings
  * is 40-50% over forward matching, which cannot efficiently handle
  * overlapped search patterns and compressed path residue.
- * 
+ *
  * Then, the actual shell glob-style regular expression (if in this form) is
  * matched against the candidate pathnames using the slower routines provided
  * in the standard 'find'.

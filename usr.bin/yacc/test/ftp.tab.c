@@ -1196,7 +1196,7 @@ break;
 case 17:
 #line 222 "ftp.y"
  {
-			if (yyvsp[-3] && yyvsp[-1] != NULL) 
+			if (yyvsp[-3] && yyvsp[-1] != NULL)
 				send_file_list((char *) yyvsp[-1]);
 			if (yyvsp[-1] != NULL)
 				free((char *) yyvsp[-1]);

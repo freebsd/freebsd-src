@@ -6,14 +6,14 @@
  * Include file for kparse routines.
  *
  *	from: kparse.h,v 4.5 89/01/11 12:05:53 steiner Exp $
- *	$Id: kparse.h,v 1.2 1994/07/19 19:23:14 g89r4222 Exp $
+ *	$Id: kparse.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 #ifndef KPARSE_DEFS
 #define KPARSE_DEFS
 
 /*
- * values returned by fGetParameterSet() 
+ * values returned by fGetParameterSet()
  */
 
 #define PS_BAD_KEYWORD	  -2	/* unknown or duplicate keyword */
@@ -22,7 +22,7 @@
 #define PS_EOF		   1	/* nothing more in the file */
 
 /*
- * values returned by fGetKeywordValue() 
+ * values returned by fGetKeywordValue()
  */
 
 #define KV_SYNTAX	 -2	/* syntax error */
@@ -31,7 +31,7 @@
 #define KV_EOL		  1	/* nothing more on this line */
 
 /*
- * values returned by fGetToken() 
+ * values returned by fGetToken()
  */
 
 #define GTOK_BAD_QSTRING -1	/* newline found in quoted string */
@@ -44,7 +44,7 @@
 #define GTOK_WHITE	  5	/* one or more whitespace chars */
 
 /*
- * extended character classification macros 
+ * extended character classification macros
  */
 
 #define ISOCTAL(CH) 	( (CH>='0')  && (CH<='7') )
@@ -54,14 +54,14 @@
 
 /*
  * tokens consist of any printable charcacter except comma, equal, or
- * whitespace 
+ * whitespace
  */
 
 #define ISTOKENCHAR(C) ((C>040) && (C<0177) && (C != ',') && (C != '='))
 
 /*
  * the parameter table defines the keywords that will be recognized by
- * fGetParameterSet, and their default values if not specified. 
+ * fGetParameterSet, and their default values if not specified.
  */
 
 typedef struct {

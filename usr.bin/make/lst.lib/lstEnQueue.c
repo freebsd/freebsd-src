@@ -67,7 +67,7 @@ Lst_EnQueue (l, d)
     if (LstValid (l) == FALSE) {
 	return (FAILURE);
     }
-    
+
     return (Lst_Append (l, Lst_Last(l), d));
 }
 

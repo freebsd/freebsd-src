@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: get_ad_tkt.c,v 4.15 89/07/07 15:18:51 jtkohl Exp $
- *	$Id: get_ad_tkt.c,v 1.2 1994/07/19 19:25:11 g89r4222 Exp $
+ *	$Id: get_ad_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: get_ad_tkt.c,v 1.2 1994/07/19 19:25:11 g89r4222 Exp $";
+"$Id: get_ad_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -55,7 +55,7 @@ unsigned long rep_err_code;
  *
  * TEXT			original contents of	authenticator+ticket
  *			pkt->dat		built in krb_mk_req call
- * 
+ *
  * 4 bytes		time_ws			always 0 (?)
  * char			lifetime		lifetime argument passed
  * string		service			service name argument
@@ -106,12 +106,12 @@ get_ad_tkt(service,sinstance,realm,lifetime)
 
     /*
      * Look for the session key (and other stuff we don't need)
-     * in the ticket file for krbtgt.realm@lrealm where "realm" 
-     * is the service's realm (passed in "realm" argument) and 
-     * lrealm is the realm of our initial ticket.  If we don't 
+     * in the ticket file for krbtgt.realm@lrealm where "realm"
+     * is the service's realm (passed in "realm" argument) and
+     * lrealm is the realm of our initial ticket.  If we don't
      * have this, we will try to get it.
      */
-    
+
     if ((kerror = krb_get_cred("krbtgt",realm,lrealm,&cr)) != KSUCCESS) {
 	/*
 	 * If realm == lrealm, we have no hope, so let's not even try.
@@ -119,20 +119,20 @@ get_ad_tkt(service,sinstance,realm,lifetime)
 	if ((strncmp(realm, lrealm, REALM_SZ)) == 0)
 	    return(AD_NOTGT);
 	else{
-	    if ((kerror = 
+	    if ((kerror =
 		 get_ad_tkt("krbtgt",realm,lrealm,lifetime)) != KSUCCESS)
 		return(kerror);
 	    if ((kerror = krb_get_cred("krbtgt",realm,lrealm,&cr)) != KSUCCESS)
 		return(kerror);
 	}
     }
-    
+
     /*
      * Make up a request packet to the "krbtgt.realm@lrealm".
      * Start by calling krb_mk_req() which puts ticket+authenticator
      * into "pkt".  Then tack other stuff on the end.
      */
-    
+
     kerror = krb_mk_req(pkt,"krbtgt",realm,lrealm,0L);
 
     if (kerror)

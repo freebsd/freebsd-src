@@ -13,11 +13,11 @@ static char rcsid_kadm_cli_wrap_c[] =
 "from: Id: kadm_cli_wrap.c,v 4.6 89/12/30 20:09:45 qjb Exp";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kadm_cli_wrap.c,v 1.1 1995/01/20 02:02:51 wollman Exp $";
 #endif	lint
 
 /*
- * kadm_cli_wrap.c the client side wrapping of the calls to the admin server 
+ * kadm_cli_wrap.c the client side wrapping of the calls to the admin server
  */
 
 #include <sys/types.h>
@@ -26,7 +26,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <sys/socket.h>
 #include <kadm.h>
-#include <kadm_err.h> 
+#include <kadm_err.h>
 #include <krb_err.h>
 
 #ifndef NULL
@@ -42,7 +42,7 @@ static Kadm_Client client_parm;
 static des_cblock sess_key;	       /* to be filled in by kadm_cli_keyd */
 static Key_schedule sess_sched;
 
-static 
+static
 clear_secrets()
 {
 	bzero((char *)sess_key, sizeof(sess_key));
@@ -54,9 +54,9 @@ clear_secrets()
  * kadm_init_link
  *	receives    : name, inst, realm
  *
- * initializes client parm, the Kadm_Client structure which holds the 
- * data about the connection between the server and client, the services 
- * used, the locations and other fun things 
+ * initializes client parm, the Kadm_Client structure which holds the
+ * data about the connection between the server and client, the services
+ * used, the locations and other fun things
  */
 kadm_init_link(n, i, r)
 char n[];
@@ -94,11 +94,11 @@ char r[];
 
 /*
  * kadm_change_pw
- * recieves    : key 
+ * recieves    : key
  *
  * Replaces the password (i.e. des key) of the caller with that specified in
  * key. Returns no actual data from the master server, since this is called
- * by a user 
+ * by a user
  */
 kadm_change_pw(newkey)
 des_cblock newkey;		       /* The DES form of the users key */
@@ -126,7 +126,7 @@ des_cblock newkey;		       /* The DES form of the users key */
 	bcopy((char *) newkey, (char *) &keytmp, 4);
 	keytmp = htonl(keytmp);
 	stsize += vts_long(keytmp, &send_st, stsize);
-	
+
 	retc = kadm_cli_send(send_st, stsize, &ret_st, &ret_sz);
 	free((char *)send_st);
 	if (retc == KADM_SUCCESS) {
@@ -139,11 +139,11 @@ des_cblock newkey;		       /* The DES form of the users key */
 /*
  * kadm_add
  * 	receives    : vals
- * 	returns     : vals 
+ * 	returns     : vals
  *
  * Adds and entry containing values to the database returns the values of the
  * entry, so if you leave certain fields blank you will be able to determine
- * the default values they are set to 
+ * the default values they are set to
  */
 kadm_add(vals)
 Kadm_vals *vals;
@@ -176,8 +176,8 @@ Kadm_vals *vals;
 /*
  * kadm_mod
  * 	receives    : KTEXT, {values, values}
- *	returns     : CKSUM,  RETCODE, {values} 
- *	acl         : su, sms (as register or dealloc) 
+ *	returns     : CKSUM,  RETCODE, {values}
+ *	acl         : su, sms (as register or dealloc)
  *
  * Modifies all entries corresponding to the first values so they match the
  * second values. returns the values for the changed entries in vals2
@@ -220,13 +220,13 @@ Kadm_vals *vals2;
 
 /*
  * kadm_get
- * 	receives   : KTEXT, {values, flags} 
+ * 	receives   : KTEXT, {values, flags}
  *	returns    : CKSUM, RETCODE, {count, values, values, values}
- *	acl        : su 
+ *	acl        : su
  *
  * gets the fields requested by flags from all entries matching values returns
  * this data for each matching recipient, after a count of how many such
- * matches there were 
+ * matches there were
  */
 kadm_get(vals, fl)
 Kadm_vals *vals;
@@ -265,7 +265,7 @@ u_char fl[4];
  * kadm_cli_send
  *	recieves   : opcode, packet, packet length, serv_name, serv_inst
  *	returns    : return code from the packet build, the server, or
- *			 something else 
+ *			 something else
  *
  * It assembles a packet as follows:
  *	 8 bytes    : VERSION STRING
@@ -273,11 +273,11 @@ u_char fl[4];
  *		    : KTEXT
  *		    : OPCODE       \
  *		    : DATA          > Encrypted (with make priv)
- *		    : ......       / 
+ *		    : ......       /
  *
  * If it builds the packet and it is small enough, then it attempts to open the
  * connection to the admin server.  If the connection is succesfully open
- * then it sends the data and waits for a reply. 
+ * then it sends the data and waits for a reply.
  */
 kadm_cli_send(st_dat, st_siz, ret_dat, ret_siz)
 u_char *st_dat;				/* the actual data */

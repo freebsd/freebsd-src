@@ -71,9 +71,9 @@ static char	*db_array[3] = { _PATH_REMOTE, 0, 0 };
 /*
 	Expand the start tilde sequence at the start of the
 	specified path. Optionally, free space allocated to
-	path before reinitializing it. 
+	path before reinitializing it.
 */
-static int 
+static int
 expand_tilde (char **path, void (*free) (char *p))
 {
 	int rc = 0;
@@ -93,7 +93,7 @@ expand_tilde (char **path, void (*free) (char *p))
 			strcat (buffer, "/");
 			strcat (buffer, tailp);
 			if (free)
-				free (*path); 
+				free (*path);
 			*path = strdup (buffer);
 			rc++;
 		}
@@ -137,11 +137,11 @@ getremcap(host)
 			fprintf(stderr, "tip: unknown host %s\n", host);
 			break;
 		case -2:
-			fprintf(stderr, 
+			fprintf(stderr,
 			    "tip: can't open host description file\n");
 			break;
 		case -3:
-			fprintf(stderr, 
+			fprintf(stderr,
 			    "tip: possible reference loop in host description file\n");
 			break;
 		}

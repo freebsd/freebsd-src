@@ -71,14 +71,14 @@ Lst_Next (l)
 {
     register ListNode	tln;
     register List 	list = (List)l;
-    
+
     if ((LstValid (l) == FALSE) ||
 	(list->isOpen == FALSE)) {
 	    return (NILLNODE);
     }
-    
+
     list->prevPtr = list->curPtr;
-    
+
     if (list->curPtr == NilListNode) {
 	if (list->atEnd == Unknown) {
 	    /*
@@ -108,7 +108,7 @@ Lst_Next (l)
 	    list->atEnd = Middle;
 	}
     }
-    
+
     return ((LstNode)tln);
 }
 

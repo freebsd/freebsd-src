@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: create_death_packet.c,v 4.9 89/01/17 16:05:59 rfrench Exp $
- *	$Id: create_death_packet.c,v 1.2 1994/07/19 19:24:59 g89r4222 Exp $
+ *	$Id: create_death_packet.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: create_death_packet.c,v 1.2 1994/07/19 19:24:59 g89r4222 Exp $";
+"$Id: create_death_packet.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -32,12 +32,12 @@ static char *rcsid =
  * ----			-----------		----
  *
  * unsigned char	KRB_PROT_VERSION	protocol version number
- * 
+ *
  * unsigned char	AUTH_MSG_DIE		message type
- * 
+ *
  * [least significant	HOST_BYTE_ORDER		byte order of sender
  *  bit of above field]
- * 
+ *
  * string		a_name			presumably, name of
  * 						principal sending killer
  * 						packet

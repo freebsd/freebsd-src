@@ -1,7 +1,7 @@
 /*
- * $Source: /afs/athena.mit.edu/astaff/project/kerberos/src/include/RCS/kadm.h,v $
- * $Author: jtkohl $
- * Header: /afs/athena.mit.edu/astaff/project/kerberos/src/include/RCS/kadm.h,v 4.2 89/09/26 09:15:20 jtkohl Exp 
+ * $Source: /home/ncvs/src/eBones/libkadm/kadm.h,v $
+ * $Author: wollman $
+ * Header: /afs/athena.mit.edu/astaff/project/kerberos/src/include/RCS/kadm.h,v 4.2 89/09/26 09:15:20 jtkohl Exp
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *

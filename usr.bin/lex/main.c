@@ -6,7 +6,7 @@
  *
  * This code is derived from software contributed to Berkeley by
  * Vern Paxson.
- * 
+ *
  * The United States Government has rights in this work pursuant
  * to contract no. DE-AC03-76SF00098 between the United States
  * Department of Energy and the University of California.
@@ -32,7 +32,7 @@ char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-/* $Header: main.c,v 1.2 94/01/04 14:33:11 vern Exp $ */
+/* $Header: /home/ncvs/src/usr.bin/lex/main.c,v 1.1.1.1 1994/08/24 13:10:32 csgr Exp $ */
 
 
 #include "flexdef.h"

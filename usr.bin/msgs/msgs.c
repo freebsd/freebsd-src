@@ -161,7 +161,7 @@ int argc; char *argv[];
 	setbuf(stdout, NULL);
 #endif
 
-	
+
 	time(&t);
 	setuid(uid = getuid());
 	ruptible = (signal(SIGINT, SIG_IGN) == SIG_DFL);

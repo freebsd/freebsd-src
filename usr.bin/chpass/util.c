@@ -71,7 +71,7 @@ ttoa(tval)
 	else
 		*tbuf = '\0';
 	return (tbuf);
-} 
+}
 
 int
 atot(p, store)

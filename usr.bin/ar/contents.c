@@ -65,7 +65,7 @@ contents(argv)
 	int afd, all;
 	struct tm *tp;
 	char *file, buf[25];
-	
+
 	afd = open_archive(O_RDONLY);
 
 	for (all = !*argv; get_arobj(afd);) {
@@ -85,7 +85,7 @@ contents(argv)
 		if (!all && !*argv)
 			break;
 next:		skip_arobj(afd);
-	} 
+	}
 	close_archive(afd);
 
 	if (*argv) {

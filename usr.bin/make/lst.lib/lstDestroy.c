@@ -68,7 +68,7 @@ Lst_Destroy (l, freeProc)
     register ListNode	ln;
     register ListNode	tln = NilListNode;
     register List 	list = (List)l;
-    
+
     if (l == NILLST || ! l) {
 	/*
 	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
@@ -97,6 +97,6 @@ Lst_Destroy (l, freeProc)
 	     free ((Address)ln);
 	}
     }
-    
+
     free ((Address)l);
 }

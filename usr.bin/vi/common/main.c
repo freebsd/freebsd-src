@@ -605,7 +605,7 @@ gs_end(gp)
  * user's effective ID (or that the user's effective ID be root) and the
  * local .exrc files to be owned by the user's effective ID.  In all cases,
  * the file cannot be writeable by anyone other than its owner.
- * 
+ *
  * In O'Reilly ("Learning the VI Editor", Fifth Ed., May 1992, page 106),
  * it notes that System V release 3.2 and later has an option "[no]exrc".
  * The behavior is that local .exrc files are read only if the exrc option
@@ -613,7 +613,7 @@ gs_end(gp)
  * .exrc files were not read.  The problem this was intended to solve was
  * that System V permitted users to give away files, so there's no possible
  * ownership or writeability test to ensure that the file is safe.
- * 
+ *
  * POSIX 1003.2-1992 standardized exrc as an option.  It required the exrc
  * option to be off by default, thus local .exrc files are not to be read
  * by default.  The Rationale noted (incorrectly) that this was a change
@@ -621,7 +621,7 @@ gs_end(gp)
  * system security.  POSIX also required that vi check the effective user
  * ID instead of the real user ID, which is why we've switched from historic
  * practice.
- * 
+ *
  * We initialize the exrc variable to off.  If it's turned on by the system
  * or $HOME .exrc files, and the local .exrc file passes the ownership and
  * writeability tests, then we read it.  This breaks historic 4BSD practice,
@@ -644,7 +644,7 @@ exrc_isok(sp, sbp, path, rootown, rootid)
 
 	/* Check ownership permissions. */
 	euid = geteuid();
-	if (!(rootown && sbp->st_uid == 0) && 
+	if (!(rootown && sbp->st_uid == 0) &&
 	    !(rootid && euid == 0) && sbp->st_uid != euid) {
 		emsg = rootown ?
 		    "not owned by you or root" : "not owned by you";

@@ -168,7 +168,7 @@ pretty(pw)
 			(void)printf("uid\t%s\n", pw->pw_name);
 		else
 			(void)printf("uid\t%u\n", rid);
-		
+
 		if ((eid = geteuid()) != rid)
 			if (pw = getpwuid(eid))
 				(void)printf("euid\t%s", pw->pw_name);

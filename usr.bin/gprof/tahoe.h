@@ -51,7 +51,7 @@
 #define	PC	0xf
 
 enum opermodes {
-    literal, indexed, reg, regdef, autodec, autoinc, autoincdef, 
+    literal, indexed, reg, regdef, autodec, autoinc, autoincdef,
     bytedisp, bytedispdef, worddisp, worddispdef, longdisp, longdispdef,
     immediate, absolute, byterel, bytereldef, wordrel, wordreldef,
     longrel, longreldef

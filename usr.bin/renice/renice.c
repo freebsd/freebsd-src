@@ -86,7 +86,7 @@ main(argc, argv)
 		}
 		if (which == PRIO_USER) {
 			register struct passwd *pwd = getpwnam(*argv);
-			
+
 			if (pwd == NULL) {
 				fprintf(stderr, "renice: %s: unknown user\n",
 					*argv);

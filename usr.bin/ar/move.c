@@ -85,7 +85,7 @@ move(argv)
 
 	/* Read and write to an archive; pad on both. */
 	SETCF(afd, archive, 0, tname, RPAD|WPAD);
-	for (curfd = tfd1; get_arobj(afd);) {	
+	for (curfd = tfd1; get_arobj(afd);) {
 		if (*argv && (file = files(argv))) {
 			if (options & AR_V)
 				(void)printf("m - %s\n", file);
@@ -137,4 +137,4 @@ move(argv)
 		return (1);
 	}
 	return (0);
-}	
+}

@@ -5,7 +5,7 @@ SRCS=	gcore.c
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
-.if	${MACHINE} != "sparc" 
+.if	${MACHINE} != "sparc"
 SRCS+=	md-nop.c
 .else
 SRCS+=	md-${MACHINDE}.c

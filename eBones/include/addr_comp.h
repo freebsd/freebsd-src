@@ -1,12 +1,12 @@
 /*
- * Copyright 1987, 1988, 1989 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988, 1989 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
  * <Copyright.MIT>.
  *
  * Include file for address comparison macros.
  *
  *	from: addr_comp.h,v 4.0 89/01/23 09:57:44 jtkohl Exp $
- *	$Id: addr_comp.h,v 1.2 1994/07/19 19:22:44 g89r4222 Exp $
+ *	$Id: addr_comp.h,v 1.1.1.1 1994/09/30 14:49:53 csgr Exp $
  */
 
 #ifndef ADDR_COMP_DEFS

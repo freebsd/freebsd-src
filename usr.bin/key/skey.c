@@ -91,7 +91,7 @@ char *argv[];
 		if(strcmp(passwd,passwd2) == 0) break;
 		fprintf(stderr, "Sorry no match\n");
         **************/
-	
+
 	}
 
 	/* Crunch seed and password into starting key */
@@ -115,7 +115,7 @@ char *argv[];
 #else
 			printf("%d: %-29s\n",i,btoe(buf,key));
 #endif
-			f(key);		
+			f(key);
 		}
 	}
 	return 0;

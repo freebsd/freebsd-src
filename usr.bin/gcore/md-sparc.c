@@ -164,7 +164,7 @@ md_core(kd, fd, ki)
 			 * It's possible to be missing the bottomost
 			 * page because a stack page hasn't been allocated
 			 * for the register save area.  Shift over
-			 * the stack segment by a page, and update 
+			 * the stack segment by a page, and update
 			 * the u-area to reflect the new stack size.  YECH!
 			 */
 			shift_page(fd, off, ssize);

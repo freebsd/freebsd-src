@@ -87,7 +87,7 @@ find_formplan(argv)
 			tail = new;
 		}
 	}
-    
+
 	/*
 	 * if the user didn't specify one of -print, -ok or -exec, then -print
 	 * is assumed so we add a -print node on the end.  It is possible that
@@ -110,7 +110,7 @@ find_formplan(argv)
 			tail = new;
 		}
 	}
-    
+
 	/*
 	 * the command line has been completely processed into a search plan
 	 * except for the (, ), !, and -o operators.  Rearrange the plan so
@@ -139,7 +139,7 @@ find_formplan(argv)
 	plan = or_squish(plan);			/* -o's */
 	return (plan);
 }
- 
+
 FTS *tree;			/* pointer to top of FTS hierarchy */
 
 /*
@@ -155,7 +155,7 @@ find_execute(plan, paths)
 	register FTSENT *entry;
 	PLAN *p;
 	int rval;
-    
+
 	if ((tree = fts_open(paths, ftsoptions, (int (*)())NULL)) == NULL)
 		err(1, "ftsopen");
 
@@ -185,7 +185,7 @@ find_execute(plan, paths)
 			rval = 1;
 			continue;
 		}
-		 
+
 		/*
 		 * Call all the functions in the execution plan until one is
 		 * false or all have been executed.  This is where we do all

@@ -6,35 +6,35 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc_util.c 1.5 87/06/24 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_util.c,v 1.1 1993/09/13 23:20:20 jtc Exp $";
+static char rcsid[] = "$Id: rpc_util.c,v 1.1 1994/08/07 18:01:37 wollman Exp $";
 #endif
 
 /*
- * rpc_util.c, Utility routines for the RPC protocol compiler 
- * Copyright (C) 1987, Sun Microsystems, Inc. 
+ * rpc_util.c, Utility routines for the RPC protocol compiler
+ * Copyright (C) 1987, Sun Microsystems, Inc.
  */
 #include <stdio.h>
 #include "rpc_scan.h"
@@ -59,7 +59,7 @@ list *defined;	/* list of defined things */
 static int printwhere();
 
 /*
- * Reinitialize the world 
+ * Reinitialize the world
  */
 reinitialize()
 {
@@ -70,7 +70,7 @@ reinitialize()
 }
 
 /*
- * string equality 
+ * string equality
  */
 streq(a, b)
 	char *a;
@@ -80,7 +80,7 @@ streq(a, b)
 }
 
 /*
- * find a value in a list 
+ * find a value in a list
  */
 char *
 findval(lst, val, cmp)
@@ -98,7 +98,7 @@ findval(lst, val, cmp)
 }
 
 /*
- * store a value in a list 
+ * store a value in a list
  */
 void
 storeval(lstp, val)
@@ -251,7 +251,7 @@ pvname(pname, vnum)
 
 
 /*
- * print a useful (?) error message, and then die 
+ * print a useful (?) error message, and then die
  */
 void
 error(msg)
@@ -265,7 +265,7 @@ error(msg)
 
 /*
  * Something went wrong, unlink any files that we may have created and then
- * die. 
+ * die.
  */
 crash()
 {
@@ -294,7 +294,7 @@ static char expectbuf[100];
 static char *toktostr();
 
 /*
- * error, token encountered was not the expected one 
+ * error, token encountered was not the expected one
  */
 void
 expected1(exp1)
@@ -306,7 +306,7 @@ expected1(exp1)
 }
 
 /*
- * error, token encountered was not one of two expected ones 
+ * error, token encountered was not one of two expected ones
  */
 void
 expected2(exp1, exp2)
@@ -319,7 +319,7 @@ expected2(exp1, exp2)
 }
 
 /*
- * error, token encountered was not one of 3 expected ones 
+ * error, token encountered was not one of 3 expected ones
  */
 void
 expected3(exp1, exp2, exp3)

@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 static char rcsid[] =
-	"$Id$";
+	"$Id: rsh.c,v 1.3 1995/01/14 20:36:22 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -323,7 +323,7 @@ reread:		errno = 0;
 			goto done;
 		bp = buf;
 
-rewrite:	
+rewrite:
 		FD_ZERO(&rembits);
 		FD_SET(rem, &rembits);
 		if (select(16, 0, &rembits, 0, 0) < 0) {

@@ -210,7 +210,7 @@ CondGetArg (linePtr, argPtr, func, parens)
      * long. Why 16? Why not?
      */
     buf = Buf_Init(16);
-    
+
     while ((strchr(" \t)&|", *cp) == (char *)NULL) && (*cp != '\0')) {
 	if (*cp == '$') {
 	    /*
@@ -253,7 +253,7 @@ CondGetArg (linePtr, argPtr, func, parens)
 	 */
 	cp++;
     }
-    
+
     *linePtr = cp;
     return (argLen);
 }
@@ -427,7 +427,7 @@ CondDoTarget (argLen, arg)
  *
  * Side Effects:
  *	Can change 'value' even if string is not a valid number.
- *	
+ *
  *
  *-----------------------------------------------------------------------
  */
@@ -617,10 +617,10 @@ do_string_compare:
 
 		    buf = Buf_Init(0);
 		    qt = *rhs == '"' ? 1 : 0;
-		    
-		    for (cp = &rhs[qt]; 
-			 ((qt && (*cp != '"')) || 
-			  (!qt && strchr(" \t)", *cp) == NULL)) && 
+
+		    for (cp = &rhs[qt];
+			 ((qt && (*cp != '"')) ||
+			  (!qt && strchr(" \t)", *cp) == NULL)) &&
 			 (*cp != '\0'); cp++) {
 			if ((*cp == '\\') && (cp[1] != '\0')) {
 			    /*
@@ -632,7 +632,7 @@ do_string_compare:
 			} else if (*cp == '$') {
 			    int	len;
 			    Boolean freeIt;
-			    
+
 			    cp2 = Var_Parse(cp, VAR_CMD, doEval,&len, &freeIt);
 			    if (cp2 != var_Error) {
 				Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
@@ -686,7 +686,7 @@ do_string_compare:
 		    if (*rhs == '$') {
 			int 	len;
 			Boolean	freeIt;
-			
+
 			string = Var_Parse(rhs, VAR_CMD, doEval,&len,&freeIt);
 			if (string == var_Error) {
 			    right = 0.0;
@@ -714,7 +714,7 @@ do_string_compare:
 			    }
 			}
 		    }
-		    
+
 		    if (DEBUG(COND)) {
 			printf("left = %f, right = %f, op = %.2s\n", left,
 			       right, op);
@@ -762,7 +762,7 @@ error:
 		Boolean invert = FALSE;
 		char	*arg;
 		int	arglen;
-		
+
 		if (strncmp (condExpr, "defined", 7) == 0) {
 		    /*
 		     * Use CondDoDefined to evaluate the argument and
@@ -824,8 +824,8 @@ error:
 			if (val == var_Error) {
 			    t = Err;
 			} else {
-			    /* 
-			     * A variable is empty when it just contains 
+			    /*
+			     * A variable is empty when it just contains
 			     * spaces... 4/15/92, christos
 			     */
 			    char *p;
@@ -1107,7 +1107,7 @@ Cond_Eval (line)
     } else {
 	isElse = FALSE;
     }
-    
+
     /*
      * Figure out what sort of conditional it is -- what its default
      * function is, etc. -- by looking in the table of valid "ifs"
@@ -1167,16 +1167,16 @@ Cond_Eval (line)
 	 */
 	condDefProc = ifp->defProc;
 	condInvert = ifp->doNot;
-	
+
 	line += ifp->formlen;
-	
+
 	while (*line == ' ' || *line == '\t') {
 	    line++;
 	}
-	
+
 	condExpr = line;
 	condPushBack = None;
-	
+
 	switch (CondE(TRUE)) {
 	    case True:
 		if (CondToken(TRUE) == EndOfFile) {

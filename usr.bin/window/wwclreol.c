@@ -58,7 +58,7 @@ char cleared;
 	{
 		register union ww_char *buf;
 
-		buf = &w->ww_buf[row][col]; 
+		buf = &w->ww_buf[row][col];
 		for (i = w->ww_b.r - col; --i >= 0;)
 			buf++->c_w = ' ';
 	}

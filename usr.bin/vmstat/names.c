@@ -58,7 +58,7 @@ read_names()
 		warnx("disk name info not in namelist");
 		return(0);
 	}
-		
+
 	kvm_read(kd, dk_names, thenames, sizeof thenames);
 	for(i = 0; thenames[i][0]; i++) {
 		dr_name[i] = thenames[i];

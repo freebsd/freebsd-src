@@ -34,7 +34,7 @@
 #ifndef lint
 /*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: docmd.c,v 1.2 1995/02/21 04:32:54 wollman Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -610,7 +610,7 @@ except(file)
 					return(1);
 				continue;
 			}
-			val = regcomp(&rx, nl->n_name, 
+			val = regcomp(&rx, nl->n_name,
 				      REG_EXTENDED | REG_NOSUB);
 			if (!regexec(&rx, file, 0, 0, 0)) {
 				regfree(&rx);

@@ -199,7 +199,7 @@ stime_arg1(arg, tvp)
 		*p++ = '\0';
 		t->tm_sec = ATOI2(p);
 	}
-		
+
 	yearset = 0;
 	switch(strlen(arg)) {
 	case 12:			/* CCYYMMDDhhmm */

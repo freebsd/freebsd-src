@@ -303,7 +303,7 @@ int sgmls_next(sp, e)
 	char *name;
 	attribute_s *a;
 	external_entity_s *ext;
-	
+
 	name = scan_token(&p);
 	a = parse_attribute(sp, p);
 	ext = lookup_external_entity(sp, name);
@@ -449,7 +449,7 @@ int parse_data(p, linenop)
     else
       *q++ = *p++;
   }
-  
+
   if (q > start || is_sdata) {
     if (n >= datav_size)
       grow_datav();
@@ -656,7 +656,7 @@ data_s *copy_data(v, n)
     unsigned total;
     char *p;
     data_s *result;
-    
+
     result = (data_s *)xmalloc(n*sizeof(data_s));
     total = 0;
     for (i = 0; i < n; i++)
@@ -810,7 +810,7 @@ int read_line(sp)
       error(E_SYSTEM);
     return 0;
   }
-  
+
   sp->input_lineno++;
   input_lineno = sp->input_lineno;
   for (;;) {
@@ -979,7 +979,7 @@ void add_attribute(pp, a)
   *pp = a;
 }
 
-     
+
 static
 char *strsave(s)
 char *s;

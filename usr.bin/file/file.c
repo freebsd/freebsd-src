@@ -25,8 +25,8 @@
  * 4. This notice may not be removed or altered.
  */
 #ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: file.c,v 1.29 1993/10/27 20:59:05 christos Exp $";
+static char *moduleid =
+	"@(#)$Id: file.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
 #endif	/* lint */
 
 #include <stdio.h>
@@ -193,7 +193,7 @@ int wid;
 
 	if (strcmp("-", inname) == 0) {
 		if (fstat(0, &sb)<0) {
-			error("cannot fstat `%s' (%s).\n", stdname, 
+			error("cannot fstat `%s' (%s).\n", stdname,
 			      strerror(errno));
 			/*NOTREACHED*/
 		}
@@ -201,7 +201,7 @@ int wid;
 	}
 
 	if (wid > 0)
-	     (void) printf("%s:%*s ", inname, 
+	     (void) printf("%s:%*s ", inname,
 			   (int) (wid - strlen(inname)), "");
 
 	if (inname != stdname) {
@@ -212,7 +212,7 @@ int wid;
 		    putchar('\n');
 		    return;
 	    }
-		
+
 	    if ((fd = open(inname, O_RDONLY)) < 0) {
 		    /* We can't open it, but we were able to stat it. */
 		    if (sb.st_mode & 0002) ckfputs("writeable, ", stdout);
@@ -232,7 +232,7 @@ int wid;
 		/*NOTREACHED*/
 	}
 
-	if (nbytes == 0) 
+	if (nbytes == 0)
 		ckfputs("empty", stdout);
 	else {
 		buf[nbytes++] = '\0';	/* null-terminate it */

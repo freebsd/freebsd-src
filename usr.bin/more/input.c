@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- * High level routines dealing with getting lines of input 
+ * High level routines dealing with getting lines of input
  * from the file being viewed.
  *
  * When we speak of "lines" here, we mean PRINTABLE lines;
@@ -204,7 +204,7 @@ back_line(curr_pos)
 	 * until we reach the curr_pos.
 	 *
 	 * {{ This algorithm is pretty inefficient if the lines
-	 *    are much longer than the screen width, 
+	 *    are much longer than the screen width,
 	 *    but I don't know of any better way. }}
 	 */
 	if (ch_seek(new_pos))

@@ -70,23 +70,23 @@ Lst_Append (l, ln, d)
     register List 	list;
     register ListNode	lNode;
     register ListNode	nLNode;
-    
+
     if (LstValid (l) && (ln == NILLNODE && LstIsEmpty (l))) {
 	goto ok;
     }
-    
+
     if (!LstValid (l) || LstIsEmpty (l)  || ! LstNodeValid (ln, l)) {
 	return (FAILURE);
     }
     ok:
-    
+
     list = (List)l;
     lNode = (ListNode)ln;
 
     PAlloc (nLNode, ListNode);
     nLNode->datum = d;
     nLNode->useCount = nLNode->flags = 0;
-    
+
     if (lNode == NilListNode) {
 	if (list->isCirc) {
 	    nLNode->nextPtr = nLNode->prevPtr = nLNode;
@@ -97,17 +97,17 @@ Lst_Append (l, ln, d)
     } else {
 	nLNode->prevPtr = lNode;
 	nLNode->nextPtr = lNode->nextPtr;
-	
+
 	lNode->nextPtr = nLNode;
 	if (nLNode->nextPtr != NilListNode) {
 	    nLNode->nextPtr->prevPtr = nLNode;
 	}
-	
+
 	if (lNode == list->lastPtr) {
 	    list->lastPtr = nLNode;
 	}
     }
-    
+
     return (SUCCESS);
 }
 

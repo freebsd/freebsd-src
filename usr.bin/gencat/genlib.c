@@ -30,7 +30,7 @@ up-to-date.  Many thanks.
 				267 Allston St., #3
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
-    
+
 ******************************************************************/
 
 /* Edit History
@@ -96,7 +96,7 @@ static void corrupt() {
 static void nomem() {
     error(NULL, "out of memory");
 }
-	    
+
 static char *getline(fd)
 int fd;
 {
@@ -104,13 +104,13 @@ int fd;
     static char	buf[BUFSIZ], *bptr = buf, *bend = buf;
     char	*cptr, *cend;
     long	buflen;
-    
+
     if (!curline) {
 	curline = (char *) malloc(curlen);
 	if (!curline) nomem();
     }
     ++lineno;
-    
+
     cptr = curline;
     cend = curline + curlen;
     while (True) {
@@ -146,7 +146,7 @@ char *cptr;
 {
     static char	tok[MAXTOKEN+1];
     char	*tptr = tok;
-    
+
     while (*cptr && isspace(*cptr)) ++cptr;
     while (*cptr && !isspace(*cptr)) *tptr++ = *cptr++;
     *tptr = '\0';
@@ -182,7 +182,7 @@ char quote;
     static long	msglen = 0;
     long	clen, i;
     char	*tptr;
-    
+
     int		needq;
 
     if (quote && *cptr == quote) {
@@ -197,7 +197,7 @@ char quote;
 	msglen = clen;
     }
     tptr = msg;
-    
+
     while (*cptr) {
 	if (quote && *cptr == quote) {
 	    char	*tmp;
@@ -282,10 +282,10 @@ char *ostr;
     return(nstr);
 }
 
-			
+
 /*
  * The Global Stuff
- */			    
+ */
 
 
 typedef struct _msgT {
@@ -315,7 +315,7 @@ static catT	*cat;
 long MCGetByteOrder() {
     long	l = 0x00010203;
     char	*cptr = (char *) &l;
-    
+
     if (cptr[0] == 0 && cptr[1] == 1 && cptr[2] == 2 && cptr[3] == 3)
       return MC68KByteOrder;
     else return MCn86ByteOrder;
@@ -335,7 +335,7 @@ int fd;
     char	hconst[MAXTOKEN+1];
     char	quote = 0;
     int		i;
-    
+
     if (!cat) {
 	cat = (catT *) malloc(sizeof(catT));
 	if (!cat) nomem();
@@ -343,7 +343,7 @@ int fd;
     }
 
     hconst[0] = '\0';
-    
+
     while (cptr = getline(fd)) {
 	if (*cptr == '$') {
 	    ++cptr;
@@ -432,7 +432,7 @@ int fd;
     setT	*set;
     int		i;
     char	*data;
-    
+
     cat = (catT *) malloc(sizeof(catT));
     if (!cat) nomem();
     bzero(cat, sizeof(catT));
@@ -447,7 +447,7 @@ int fd;
     while (True) {
 	if (read(fd, &mcSet, sizeof(mcSet)) != sizeof(mcSet)) corrupt();
 	if (mcSet.invalid) continue;
-	
+
 	set = (setT *) malloc(sizeof(setT));
 	if (!set) nomem();
 	bzero(set, sizeof(*set));
@@ -456,7 +456,7 @@ int fd;
 	    set->prev = cat->last;
 	    cat->last = set;
 	} else cat->first = cat->last = set;
-	
+
 	set->setId = mcSet.setId;
 
 	/* Get the data */
@@ -466,14 +466,14 @@ int fd;
 	    if (lseek(fd, mcSet.data.off, L_SET) == -1) corrupt();
 	    if (read(fd, data, mcSet.dataLen) != mcSet.dataLen) corrupt();
 	    if (lseek(fd, mcSet.u.firstMsg, L_SET) == -1) corrupt();
-	
+
 	    for (i = 0; i < mcSet.numMsgs; ++i) {
 		if (read(fd, &mcMsg, sizeof(mcMsg)) != sizeof(mcMsg)) corrupt();
 		if (mcMsg.invalid) {
 		    --i;
 		    continue;
 		}
-		
+
 		msg = (msgT *) malloc(sizeof(msgT));
 		if (!msg) nomem();
 		bzero(msg, sizeof(*msg));
@@ -572,7 +572,7 @@ int orConsts;
     msgT	*msg;
     setT	*set;
     long	id;
-    
+
     if (orConsts && (type == MCLangC || type == MCLangCPlusPlus || type == MCLangANSIC)) {
 	printS(fd, "/* Use these Macros to compose and decompose setId's and msgId's */\n");
 	printS(fd, "#ifndef MCMakeId\n");
@@ -583,7 +583,7 @@ int orConsts;
         printS(fd, "\t\t\t\t\t>> (sizeof(short) * 8))\n");
 	printS(fd, "#endif\n");
     }
-    
+
     for (set = cat->first; set; set = set->next) {
 	if (set->hconst) genconst(fd, type, set->hconst, NULL, set->setId);
 
@@ -624,7 +624,7 @@ int fd;
     mcHead.minorVer = MCMinorVer;
     mcHead.flags = MCGetByteOrder();
     mcHead.firstSet = 0;	/* We'll be back to set this in a minute */
-    
+
     for (cnt = 0, set = cat->first; set; set = set->next) ++cnt;
     mcHead.numSets = cnt;
 
@@ -643,7 +643,7 @@ int fd;
 	/* The rest we'll have to come back and change in a moment */
 	pos = lseek(fd, 0, L_INCR);
 	write(fd, &mcSet, sizeof(mcSet));
-	
+
 	/* Now write all the string data */
 	mcSet.data.off = lseek(fd, 0, L_INCR);
 	cnt = 0;
@@ -689,12 +689,12 @@ char *hconst;
 #endif
 {
     setT	*set;
-    
+
     if (setId <= 0) {
 	error(NULL, "setId's must be greater than zero");
 	return;
     }
-    
+
     if (hconst && !*hconst) hconst = NULL;
     for (set = cat->first; set; set = set->next) {
 	if (set->setId == setId) {
@@ -703,7 +703,7 @@ char *hconst;
 	    break;
 	} else if (set->setId > setId) {
 	    setT	*newSet;
-	    
+
 	    newSet = (setT *) malloc(sizeof(setT));
 	    if (!newSet) nomem();
 	    bzero(newSet, sizeof(setT));
@@ -720,7 +720,7 @@ char *hconst;
 	set = (setT *) malloc(sizeof(setT));
 	if (!set) nomem();
 	bzero(set, sizeof(setT));
-	
+
 	if (cat->first) {
 	    set->prev = cat->last;
 	    set->next = NULL;
@@ -747,14 +747,14 @@ char *hconst;
 #endif
 {
     msgT	*msg;
-    
+
     if (!curSet) error(NULL, "can't specify a message when no set exists");
 
     if (msgId <= 0) {
 	error(NULL, "msgId's must be greater than zero");
 	return;
     }
-    
+
     if (hconst && !*hconst) hconst = NULL;
     for (msg = curSet->first; msg; msg = msg->next) {
 	if (msg->msgId == msgId) {
@@ -764,7 +764,7 @@ char *hconst;
 	    break;
 	} else if (msg->msgId > msgId) {
 	    msgT	*newMsg;
-	    
+
 	    newMsg = (msgT *) malloc(sizeof(msgT));
 	    if (!newMsg) nomem();
 	    bzero(newMsg, sizeof(msgT));
@@ -781,7 +781,7 @@ char *hconst;
 	msg = (msgT *) malloc(sizeof(msgT));
 	if (!msg) nomem();
 	bzero(msg, sizeof(msgT));
-	
+
 	if (curSet->first) {
 	    msg->prev = curSet->last;
 	    msg->next = NULL;
@@ -841,7 +841,7 @@ int msgId;
     msgT	*msg;
 
     if (!curSet) error(NULL, "you can't delete a message before defining the set");
-    
+
     for (msg = curSet->first; msg; msg = msg->next) {
 	if (msg->msgId == msgId) {
 	    if (msg->hconst) free(msg->hconst);
@@ -856,7 +856,7 @@ int msgId;
 	    free(msg);
 	    return;
 	} else if (msg->msgId > msgId) break;
-    }	
+    }
     warning(NULL, "specified msg doesn't exist");
 }
 

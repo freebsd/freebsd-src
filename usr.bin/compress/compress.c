@@ -84,7 +84,7 @@ main(argc, argv)
 		++p;
 	if (!strcmp(p, "uncompress"))
 		style = DECOMPRESS;
-	else if (!strcmp(p, "compress")) 
+	else if (!strcmp(p, "compress"))
 		style = COMPRESS;
 	else
 		errx(1, "unknown program name");

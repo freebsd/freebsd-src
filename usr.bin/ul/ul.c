@@ -424,7 +424,7 @@ initcap()
 		ENTER_REVERSE = ENTER_STANDOUT;
 	if (!EXIT_ATTRIBUTES && EXIT_STANDOUT)
 		EXIT_ATTRIBUTES = EXIT_STANDOUT;
-	
+
 	/*
 	 * Note that we use REVERSE for the alternate character set,
 	 * not the as/ae capabilities.  This is because we are modelling

@@ -7,12 +7,12 @@
  * access to a local account
  *
  *	from: kuserok.c,v 4.5 89/01/23 09:25:21 jtkohl Exp $
- *	$Id: kuserok.c,v 1.2 1994/07/19 19:25:50 g89r4222 Exp $
+ *	$Id: kuserok.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kuserok.c,v 1.2 1994/07/19 19:25:50 g89r4222 Exp $";
+"$Id: kuserok.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
 #endif	lint
 
 #include <krb.h>
@@ -60,9 +60,9 @@ static char rcsid[] =
  * The parmtable defines the keywords we will recognize with their
  * default values, and keeps a pointer to the found value.  The found
  * value should be filled in with strsave(), since FreeParameterSet()
- * will release memory for all non-NULL found strings. 
+ * will release memory for all non-NULL found strings.
  *
-*** NOTE WELL! *** 
+*** NOTE WELL! ***
  *
  * The table below is very nice, but we cannot hard-code a default for the
  * realm: we have to get the realm via krb_get_lrealm().  Even though the
@@ -70,7 +70,7 @@ static char rcsid[] =
  * kuserok to whatever krb_get_lrealm() tells us.  That code assumes that
  * the realm will be the entry number in the table below, so if you
  * change the order of the entries below, you have to change the
- * #definition of REALM_SCRIPT to reflect it. 
+ * #definition of REALM_SCRIPT to reflect it.
  */
 #define REALM_SUBSCRIPT 1
 parmtable kparm[] = {
@@ -113,7 +113,7 @@ kuserok(kdata, luser)
 	 * if he's trying to log in as himself, and there is no .klogin file,
 	 * let him.  To find out, call
 	 * krb_kntoln to convert the triple in kdata to a name which we can
-	 * string compare. 
+	 * string compare.
 	 */
 	if (!krb_kntoln(kdata, kuser) && (strcmp(kuser, luser) == 0)) {
 	    return(OK);
@@ -141,7 +141,7 @@ kuserok(kdata, luser)
 
     /*
      * change the default realm from the hard-coded value to the
-     * accepted realm that Kerberos specifies. 
+     * accepted realm that Kerberos specifies.
      */
     rc = krb_get_lrealm(local_realm, 1);
     if (rc == KSUCCESS)

@@ -63,14 +63,14 @@ Lst_Init(circ)
     Boolean		circ;	/* TRUE if the list should be made circular */
 {
     register List	nList;
-    
+
     PAlloc (nList, List);
-    
+
     nList->firstPtr = NilListNode;
     nList->lastPtr = NilListNode;
     nList->isOpen = FALSE;
     nList->isCirc = circ;
     nList->atEnd = Unknown;
-    
+
     return ((Lst)nList);
 }

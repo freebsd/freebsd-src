@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 static int put_pid (int fd, int pid);
 static int get_pid (int fd);
 
-/* 
+/*
  * uucp style locking routines
  * return: 0 - success
  * 	  -1 - failure

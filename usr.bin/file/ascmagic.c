@@ -35,8 +35,8 @@
 #include "names.h"
 
 #ifndef	lint
-static char *moduleid = 
-	"@(#)$Id: ascmagic.c,v 1.17 1994/01/21 01:25:30 christos Exp $";
+static char *moduleid =
+	"@(#)$Id: ascmagic.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
 #endif	/* lint */
 
 			/* an optimisation over plain strcmp() */
@@ -71,7 +71,7 @@ int nbytes;	/* size actually read */
 			return 1;
 		}
 	}
-	if ((*buf == 'c' || *buf == 'C') && 
+	if ((*buf == 'c' || *buf == 'C') &&
 	    isascii(*(buf + 1)) && isspace(*(buf + 1))) {
 		ckfputs("fortran program text", stdout);
 		return 1;
@@ -88,7 +88,7 @@ int nbytes;	/* size actually read */
 			if (STREQ(p->name, token)) {
 				ckfputs(types[p->type], stdout);
 				if (has_escapes)
-					ckfputs(" (with escape sequences)", 
+					ckfputs(" (with escape sequences)",
 						stdout);
 				return 1;
 			}

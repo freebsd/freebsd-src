@@ -15,7 +15,7 @@ static char rcsid_kadm_server_c[] =
 #include <kadm.h>
 #include <kadm_err.h>
 
-/* 
+/*
 kadm_ser_cpw - the server side of the change_password routine
   recieves    : KTEXT, {key}
   returns     : CKSUM, RETCODE

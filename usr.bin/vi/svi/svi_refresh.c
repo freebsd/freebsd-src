@@ -735,7 +735,7 @@ svi_modeline(sp, ep)
 	 * We put down the file name, the ruler, the mode and the dirty flag.
 	 * If there's not enough room, there's not enough room, we don't play
 	 * any special games.  We try to put the ruler in the middle and the
-	 * mode and dirty flag at the end.  
+	 * mode and dirty flag at the end.
 	 *
 	 * !!!
 	 * Leave the last character blank, in case it's a really dumb terminal
@@ -765,7 +765,7 @@ svi_modeline(sp, ep)
 			ADDCH(*p);
 		standend();
 	}
-		
+
 	/*
 	 * Display the ruler.  If we're not at the midpoint yet, move there.
 	 * Otherwise, just add in two extra spaces.

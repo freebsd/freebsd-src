@@ -3,7 +3,7 @@
   * control based on login names and on host (or domain) names, internet
   * addresses (or network numbers), or on terminal line names in case of
   * non-networked logins. Diagnostics are reported through syslog(3).
-  * 
+  *
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   */
 

@@ -263,7 +263,7 @@ static EXCMDLIST const cmd_subagain =
 	    "repeat the last subsitution"};
 
 /* Special command structure for :d[flags]. */
-static EXCMDLIST const cmd_del2 = 
+static EXCMDLIST const cmd_del2 =
 	{"delete",	ex_delete,	E_ADDR2|E_AUTOPRINT|E_NORC,
 	    "1bca1",
 	    "[line [,line]] d[elete][flags] [buffer] [count] [flags]",
@@ -371,7 +371,7 @@ loop:	if (nl) {
 	 */
 	if (cmdlen == 0 && (!IN_EX_MODE(sp) || ep == NULL || !blank))
 		return (0);
-		
+
 	/* Initialize the structure passed to underlying functions. */
 	memset(&exc, 0, sizeof(EXCMDARG));
 	exp = EXP(sp);

@@ -67,9 +67,9 @@ static int column;		/* Printable length, accounting for
  *		else to end boldface mode.
  *	LN_UL_X means we are one character after LN_UNDERLINE
  *		(we have gotten the '_' in "_\bX" or the 'X' in "X\b_").
- *	LN_UL_XB means we are one character after LN_UL_X 
+ *	LN_UL_XB means we are one character after LN_UL_X
  *		(we have gotten the backspace in "_\bX" or "X\b_";
- *		we expect one more ordinary character, 
+ *		we expect one more ordinary character,
  *		which will put us back in state LN_UNDERLINE).
  *	LN_BO_X means we are one character after LN_BOLDFACE
  *		(we have gotten the 'X' in "X\bX").
@@ -155,7 +155,7 @@ pappend(c)
 		 * Almost out of room in the line buffer.
 		 * Don't take any chances.
 		 * {{ Linebuf is supposed to be big enough that this
-		 *    will never happen, but may need to be made 
+		 *    will never happen, but may need to be made
 		 *    bigger for wide screens or lots of backspaces. }}
 		 */
 		return(1);
@@ -184,7 +184,7 @@ enter_boldface:
 			column--;
 			if (column + bo_width + be_width >= sc_width)
 				/*
-				 * Not enough room left on the screen to 
+				 * Not enough room left on the screen to
 				 * enter and exit boldface mode.
 				 */
 				return (1);
@@ -193,7 +193,7 @@ enter_boldface:
 			    && curr[-3] == ' ') {
 				/*
 				 * Special case for magic cookie terminals:
-				 * if the previous char was a space, replace 
+				 * if the previous char was a space, replace
 				 * it with the "enter boldface" sequence.
 				 */
 				curr[-3] = BO_CHAR;
@@ -214,17 +214,17 @@ enter_underline:
 			column--;
 			if (column + ul_width + ue_width >= sc_width)
 				/*
-				 * Not enough room left on the screen to 
+				 * Not enough room left on the screen to
 				 * enter and exit underline mode.
 				 */
 				return (1);
 
-			if (ul_width > 0 && 
+			if (ul_width > 0 &&
 			    curr > linebuf + 2 && curr[-3] == ' ')
 			{
 				/*
 				 * Special case for magic cookie terminals:
-				 * if the previous char was a space, replace 
+				 * if the previous char was a space, replace
 				 * it with the "enter underline" sequence.
 				 */
 				curr[-3] = UL_CHAR;
@@ -287,7 +287,7 @@ ln_bo_xb_case:
 		case LN_UNDERLINE:
 			if (column + ue_width + bo_width + be_width >= sc_width)
 				/*
-				 * We have just barely enough room to 
+				 * We have just barely enough room to
 				 * exit underline mode and handle a possible
 				 * underline/boldface run on mixup.
 				 */
@@ -302,7 +302,7 @@ ln_bo_xb_case:
 			}
 			if (column + be_width + ul_width + ue_width >= sc_width)
 				/*
-				 * We have just barely enough room to 
+				 * We have just barely enough room to
 				 * exit underline mode and handle a possible
 				 * underline/boldface run on mixup.
 				 */
@@ -333,7 +333,7 @@ ln_bo_xb_case:
 				else
 					curr++;
 				ln_state = LN_NORMAL;
-			} 
+			}
 			break;
 		case LN_BO_X:
 			if (c == '\b')
@@ -359,7 +359,7 @@ ln_bo_xb_case:
 				else
 					curr++;
 				ln_state = LN_NORMAL;
-			} 
+			}
 			break;
 		}
 	}
@@ -382,7 +382,7 @@ ln_bo_xb_case:
 			column--;
 		*curr++ = c;
 		return(0);
-	} 
+	}
 
 	switch ((char)c) {
 	case UL_CHAR:

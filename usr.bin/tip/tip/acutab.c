@@ -38,17 +38,17 @@ static char sccsid[] = "@(#)acutab.c	8.1 (Berkeley) 6/6/93";
 #include "tipconf.h"
 #include "tip.h"
 
-extern int df02_dialer(), df03_dialer(), 
-	   biz31f_dialer(), 
+extern int df02_dialer(), df03_dialer(),
+	   biz31f_dialer(),
 	   biz31w_dialer(),
-	   biz22f_dialer(), 
+	   biz22f_dialer(),
 	   biz22w_dialer(),
-	   ven_dialer(), 
-	   hay_dialer(), 
-	   cour_dialer(), 
-	   multitech_dialer(), 
-	   t3000_dialer(), 
-	   v3451_dialer(), 
+	   ven_dialer(),
+	   hay_dialer(),
+	   cour_dialer(),
+	   multitech_dialer(),
+	   t3000_dialer(),
+	   v3451_dialer(),
 	   v831_dialer(),
 	   dn_dialer();
 

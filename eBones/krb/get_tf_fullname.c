@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: get_tf_fullname.c,v 4.3 90/03/10 22:40:20 jon Exp $
- *	$Id: get_tf_fullname.c,v 1.2 1994/07/19 19:25:28 g89r4222 Exp $
+ *	$Id: get_tf_fullname.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: get_tf_fullname.c,v 1.2 1994/07/19 19:25:28 g89r4222 Exp $";
+"$Id: get_tf_fullname.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -22,10 +22,10 @@ static char rcsid[] =
  */
 
 /*
- * krb_get_tf_fullname() takes four arguments: the name of the 
+ * krb_get_tf_fullname() takes four arguments: the name of the
  * ticket file, and variables for name, instance, and realm to be
- * returned in.  Since the realm of a ticket file is not really fully 
- * supported, the realm used will be that of the the first ticket in 
+ * returned in.  Since the realm of a ticket file is not really fully
+ * supported, the realm used will be that of the the first ticket in
  * the file as this is the one that was obtained with a password by
  * krb_get_in_tkt().
  */
@@ -45,7 +45,7 @@ krb_get_tf_fullname(ticket_file, name, instance, realm)
     if (((tf_status = tf_get_pname(c.pname)) != KSUCCESS) ||
 	((tf_status = tf_get_pinst(c.pinst)) != KSUCCESS))
 	return (tf_status);
-    
+
     if (name)
 	strcpy(name, c.pname);
     if (instance)
@@ -59,8 +59,8 @@ krb_get_tf_fullname(ticket_file, name, instance, realm)
 	    return(KFAILURE);
 	else
 	    return(tf_status);
-    }    
+    }
     (void) tf_close();
-    
+
     return(tf_status);
 }

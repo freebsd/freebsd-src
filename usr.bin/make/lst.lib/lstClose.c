@@ -68,7 +68,7 @@ Lst_Close (l)
     Lst	    l;	  	/* The list to close */
 {
     register List 	list = (List) l;
-    
+
     if (LstValid(l) == TRUE) {
 	list->isOpen = FALSE;
 	list->atEnd = Unknown;

@@ -122,7 +122,7 @@ main(argc, argv)
 
 	uid = getuid();
 	pid = atoi(argv[1]);
-			
+
 	ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
 	if (ki == NULL || cnt != 1)
 		err(1, "%d: not found", pid);
@@ -228,7 +228,7 @@ datadump(efd, fd, p, addr, npage)
 {
 	register int cc, delta;
 	char buffer[NBPG];
-	
+
 	delta = data_offset - addr;
 	while (--npage >= 0) {
 		cc = kvm_uread(kd, p, addr, buffer, NBPG);
@@ -238,7 +238,7 @@ datadump(efd, fd, p, addr, npage)
 				err(1, "seek executable: %s", strerror(errno));
 			cc = read(efd, buffer, sizeof(buffer));
 			if (cc != sizeof(buffer))
-				if (cc < 0) 
+				if (cc < 0)
 					err(1, "read executable: %s",
 					    strerror(errno));
 				else	/* Assume untouched bss page. */

@@ -259,7 +259,7 @@ nonsel:		/* Now parse the command */
 			cmd->t = duptoeol(p, "w command");
 			if (aflag)
 				cmd->u.fd = -1;
-			else if ((cmd->u.fd = open(p, 
+			else if ((cmd->u.fd = open(p,
 			    O_WRONLY|O_APPEND|O_CREAT|O_TRUNC,
 			    DEFFILEMODE)) == -1)
 				err(FATAL, "%s: %s\n", p, strerror(errno));
@@ -633,7 +633,7 @@ compile_addr(p, a)
 		a->type = AT_LAST;
 		return (p + 1);
 						/* Line number */
-	case '0': case '1': case '2': case '3': case '4': 
+	case '0': case '1': case '2': case '3': case '4':
 	case '5': case '6': case '7': case '8': case '9':
 		a->type = AT_LINE;
 		a->u.l = strtol(p, &end, 10);
@@ -751,7 +751,7 @@ findlabel(name)
 	return (NULL);
 }
 
-/* 
+/*
  * Warn about any unused labels.  As a side effect, release the label hash
  * table space.
  */

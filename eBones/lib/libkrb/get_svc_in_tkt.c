@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: get_svc_in_tkt.c,v 4.9 89/07/18 16:33:34 jtkohl Exp $
- *	$Id: get_svc_in_tkt.c,v 1.2 1994/07/19 19:25:26 g89r4222 Exp $
+ *	$Id: get_svc_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: get_svc_in_tkt.c,v 1.2 1994/07/19 19:25:26 g89r4222 Exp $";
+"$Id: get_svc_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -57,7 +57,7 @@ static int srvtab_to_key(user, instance, realm, srvtab, key)
  * krb_get_svc_in_tkt() passes its arguments on to krb_get_in_tkt(),
  * plus two additional arguments: a pointer to the srvtab_to_key()
  * function to be used to get the key from the key file and a NULL
- * for the decryption procedure indicating that krb_get_in_tkt should 
+ * for the decryption procedure indicating that krb_get_in_tkt should
  * use the default method of decrypting the response from the KDC.
  *
  * It returns the return value of the krb_get_in_tkt() call.

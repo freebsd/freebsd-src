@@ -76,17 +76,17 @@ Lst_Insert (l, ln, d)
      */
     if (LstValid (l) && (LstIsEmpty (l) && ln == NILLNODE))
 	goto ok;
-    
+
     if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
 	return (FAILURE);
     }
-    
+
     ok:
     PAlloc (nLNode, ListNode);
-    
+
     nLNode->datum = d;
     nLNode->useCount = nLNode->flags = 0;
-    
+
     if (ln == NILLNODE) {
 	if (list->isCirc) {
 	    nLNode->prevPtr = nLNode->nextPtr = nLNode;
@@ -97,17 +97,17 @@ Lst_Insert (l, ln, d)
     } else {
 	nLNode->prevPtr = lNode->prevPtr;
 	nLNode->nextPtr = lNode;
-	
+
 	if (nLNode->prevPtr != NilListNode) {
 	    nLNode->prevPtr->nextPtr = nLNode;
 	}
 	lNode->prevPtr = nLNode;
-	
+
 	if (lNode == list->firstPtr) {
 	    list->firstPtr = nLNode;
 	}
     }
-    
+
     return (SUCCESS);
 }
-	
+

@@ -6,35 +6,35 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc_main.c 1.7 87/06/24 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_main.c,v 1.1 1994/08/07 18:01:31 wollman Exp $";
+static char rcsid[] = "$Id: rpc_main.c,v 1.2 1995/03/04 17:47:49 nate Exp $";
 #endif
 
 /*
- * rpc_main.c, Top level of the RPC protocol compiler. 
- * Copyright (C) 1987, Sun Microsystems, Inc. 
+ * rpc_main.c, Top level of the RPC protocol compiler.
+ * Copyright (C) 1987, Sun Microsystems, Inc.
  */
 
 #include <stdio.h>
@@ -109,7 +109,7 @@ main(argc, argv)
 }
 
 /*
- * strip path and add extension to filename 
+ * strip path and add extension to filename
  */
 static char *
 extendfile(path, ext)
@@ -139,7 +139,7 @@ extendfile(path, ext)
 }
 
 /*
- * Open output file with given extension 
+ * Open output file with given extension
  */
 static
 open_output(infile, outfile)
@@ -165,7 +165,7 @@ open_output(infile, outfile)
 }
 
 /*
- * Open input file with given define for C-preprocessor 
+ * Open input file with given define for C-preprocessor
  */
 static
 open_input(infile, define)
@@ -212,7 +212,7 @@ c_output(infile, define, extend, outfile)
 	char *outfilename;
 	long tell;
 
-	open_input(infile, define);	
+	open_input(infile, define);
 	outfilename = extend ? extendfile(infile, outfile) : outfile;
 	open_output(infile, outfilename);
 	f_print(fout, "#include <rpc/rpc.h>\n");
@@ -332,7 +332,7 @@ l_output(infile, define, extend, outfile)
 }
 
 /*
- * Perform registrations for service output 
+ * Perform registrations for service output
  */
 static
 do_registers(argc, argv)
@@ -351,7 +351,7 @@ do_registers(argc, argv)
 }
 
 /*
- * Parse command line arguments 
+ * Parse command line arguments
  */
 static
 parseargs(argc, argv, cmd)
@@ -398,7 +398,7 @@ parseargs(argc, argv, cmd)
 					break;
 				case 'o':
 				case 's':
-					if (argv[i][j - 1] != '-' || 
+					if (argv[i][j - 1] != '-' ||
 					    argv[i][j + 1] != 0) {
 						return (0);
 					}

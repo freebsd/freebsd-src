@@ -28,7 +28,7 @@ up-to-date.  Many thanks.
 				267 Allston St., #3
 				Cambridge, MA 02139  USA
 				nazgul@alfalfa.com
-    
+
 ******************************************************************/
 
 /* Edit History
@@ -62,7 +62,7 @@ up-to-date.  Many thanks.
  *	My extension:  If '#' is used instead of a number, the number
  *	 is generated automatically.  A # followed by anything is an empty message.
  * $quote c
- *	Optional quote character which can suround message-text to 
+ *	Optional quote character which can suround message-text to
  *	 show where spaces are.
  *
  * Escape Characters

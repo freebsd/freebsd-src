@@ -13,7 +13,7 @@ static char rcsid_ksrvutil_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/ksrvutil.c,v 4.1 89/09/26 09:33:49 jtkohl Exp ";
 #endif
 static const char rcsid[] =
-	"$Id: ksrvutil.c,v 1.1 1995/01/20 22:38:30 wollman Exp $";
+	"$Id: ksrvutil.c,v 1.2 1995/01/23 22:54:08 wollman Exp $";
 #endif	lint
 
 /*
@@ -72,9 +72,9 @@ copy_keyfile(progname, keyfile, backup_keyfile)
     char buf[BUFSIZ];		/* for copying keyfiles */
     int rcount;			/* for copying keyfiles */
     int try_again;
-    
+
     (void) bzero((char *)buf, sizeof(buf));
-    
+
     do {
 	try_again = FALSE;
 	if ((keyfile_fd = open(keyfile, O_RDONLY, 0)) < 0) {
@@ -83,8 +83,8 @@ copy_keyfile(progname, keyfile, backup_keyfile)
 	    }
 	    else {
 		try_again = TRUE;
-		if ((keyfile_fd = 
-		     open(keyfile, 
+		if ((keyfile_fd =
+		     open(keyfile,
 			  O_WRONLY | O_TRUNC | O_CREAT, SRVTAB_MODE)) < 0) {
 			err(1, "unable to create %s", keyfile);
 		}
@@ -98,8 +98,8 @@ copy_keyfile(progname, keyfile, backup_keyfile)
 
     keyfile_mode = get_mode(keyfile);
 
-    if ((backup_keyfile_fd = 
-	 open(backup_keyfile, O_WRONLY | O_TRUNC | O_CREAT, 
+    if ((backup_keyfile_fd =
+	 open(backup_keyfile, O_WRONLY | O_TRUNC | O_CREAT,
 	      keyfile_mode)) < 0) {
 	    err(1, "unable to write %s", backup_keyfile);
     }
@@ -134,8 +134,8 @@ safe_read_stdin(prompt, buf, size)
     }
     fflush(stdin);
     buf[strlen(buf)-1] = 0;
-}	
-  
+}
+
 
 void
 safe_write(progname, filename, fd, buf, len)
@@ -150,7 +150,7 @@ safe_write(progname, filename, fd, buf, len)
 	    close(fd);
 	    leave("In progress srvtab in this file.", 1);
     }
-}	
+}
 
 int
 yn(string)
@@ -161,7 +161,7 @@ yn(string)
     (void) printf("%s (y,n) [y] ", string);
     for (;;) {
 	safe_read_stdin("", ynbuf, sizeof(ynbuf));
-	
+
 	if ((ynbuf[0] == 'n') || (ynbuf[0] == 'N'))
 	    return(0);
 	else if ((ynbuf[0] == 'y') || (ynbuf[0] == 'Y') || (ynbuf[0] == 0))
@@ -174,7 +174,7 @@ yn(string)
 }
 
 void
-append_srvtab(progname, filename, fd, sname, sinst, 
+append_srvtab(progname, filename, fd, sname, sinst,
 		   srealm, key_vno, key)
   char *progname;
   char *filename;
@@ -192,7 +192,7 @@ append_srvtab(progname, filename, fd, sname, sinst,
     safe_write(progname, filename, fd, (char *)&key_vno, 1);
     safe_write(progname, filename, fd, (char *)key, sizeof(des_cblock));
     (void) fsync(fd);
-}    
+}
 
 unsigned short
 get_mode(filename)
@@ -202,8 +202,8 @@ get_mode(filename)
     unsigned short mode;
 
     (void) bzero((char *)&statbuf, sizeof(statbuf));
-    
-    if (stat(filename, &statbuf) < 0) 
+
+    if (stat(filename, &statbuf) < 0)
 	mode = SRVTAB_MODE;
     else
 	mode = statbuf.st_mode;
@@ -240,33 +240,33 @@ main(argc,argv)
     int change_this_key = FALSE;
     char databuf[BUFSIZ];
     int first_printed = FALSE;	/* have we printed the first item? */
-    
+
     int get_svc_new_key();
     void get_key_from_password();
     void print_key();
     void print_name();
-    
+
     (void) bzero((char *)sname, sizeof(sname));
     (void) bzero((char *)sinst, sizeof(sinst));
     (void) bzero((char *)srealm, sizeof(srealm));
-    
+
     (void) bzero((char *)change_tkt, sizeof(change_tkt));
     (void) bzero((char *)keyfile, sizeof(keyfile));
     (void) bzero((char *)work_keyfile, sizeof(work_keyfile));
     (void) bzero((char *)backup_keyfile, sizeof(backup_keyfile));
     (void) bzero((char *)local_realm, sizeof(local_realm));
-    
+
     (void) sprintf(change_tkt, "/tmp/tkt_ksrvutil.%d", getpid());
     krb_set_tkt_string(change_tkt);
 
     /* This is used only as a default for adding keys */
     if (krb_get_lrealm(local_realm, 1) != KSUCCESS)
 	(void) strcpy(local_realm, KRB_REALM);
-    
+
     for (i = 1; i < argc; i++) {
-	if (strcmp(argv[i], "-i") == 0) 
+	if (strcmp(argv[i], "-i") == 0)
 	    interactive++;
-	else if (strcmp(argv[i], "-k") == 0) 
+	else if (strcmp(argv[i], "-k") == 0)
 	    key++;
 	else if (strcmp(argv[i], "list") == 0) {
 	    if (arg_entered)
@@ -301,23 +301,23 @@ main(argc,argv)
 	else
 	    usage();
     }
-    
+
     if (!arg_entered)
 	usage();
 
     if (!keyfile[0])
 	(void) strcpy(keyfile, KEYFILE);
-    
+
     (void) strcpy(work_keyfile, keyfile);
     (void) strcpy(backup_keyfile, keyfile);
-    
+
     if (change || add) {
 	(void) strcat(work_keyfile, ".work");
 	(void) strcat(backup_keyfile, ".old");
-	
+
 	copy_keyfile(argv[0], keyfile, backup_keyfile);
     }
-    
+
     if (add)
 	copy_keyfile(argv[0], backup_keyfile, work_keyfile);
 
@@ -330,8 +330,8 @@ main(argc,argv)
     }
 
     if (change) {
-	if ((work_keyfile_fd = 
-	     open(work_keyfile, O_WRONLY | O_CREAT | O_TRUNC, 
+	if ((work_keyfile_fd =
+	     open(work_keyfile, O_WRONLY | O_CREAT | O_TRUNC,
 		  SRVTAB_MODE)) < 0) {
 		err(1, "unable to write %s", work_keyfile);
 	}
@@ -342,7 +342,7 @@ main(argc,argv)
 		err(1, "unable to append to %s", work_keyfile);
 	}
     }
-    
+
     if (change || list) {
 	while ((getst(backup_keyfile_fd, sname, SNAME_SZ) > 0) &&
 	       (getst(backup_keyfile_fd, sinst, INST_SZ) > 0) &&
@@ -379,19 +379,19 @@ main(argc,argv)
 		    change_this_key = 1;
 		else
 		    change_this_key = 0;
-		
+
 		if (change_this_key)
 		    (void) printf("Changing to version %d.\n", key_vno + 1);
 		else if (change)
 		    (void) printf("Not changing this key.\n");
-		
+
 		if (change_this_key) {
-		    /* 
+		    /*
 		     * Pick a new key and determine whether or not
 		     * it is safe to change
 		     */
-		    if ((status = 
-			 get_svc_new_key(new_key, sname, sinst, 
+		    if ((status =
+			 get_svc_new_key(new_key, sname, sinst,
 					 srealm, keyfile)) == KADM_SUCCESS)
 			key_vno++;
 		    else {
@@ -400,9 +400,9 @@ main(argc,argv)
 			change_this_key = FALSE;
 		    }
 		}
-		else 
+		else
 		    (void) bcopy(old_key, new_key, sizeof(new_key));
-		append_srvtab(argv[0], work_keyfile, work_keyfile_fd, 
+		append_srvtab(argv[0], work_keyfile, work_keyfile_fd,
 			      sname, sinst, srealm, key_vno, new_key);
 		if (key && change_this_key) {
 		    (void) printf("Old key: ");
@@ -417,7 +417,7 @@ main(argc,argv)
 			(void) dest_tkt();
 		    }
 		    else {
-			com_err(argv[0], status, 
+			com_err(argv[0], status,
 				" attempting to change password.");
 			(void) dest_tkt();
 			/* XXX This knows the format of a keyfile */
@@ -464,17 +464,17 @@ main(argc,argv)
 		print_key(new_key);
 		(void) printf("\n");
 	    }
-	    append_srvtab(argv[0], work_keyfile, work_keyfile_fd, 
+	    append_srvtab(argv[0], work_keyfile, work_keyfile_fd,
 			  sname, sinst, srealm, key_vno, new_key);
 	    (void) printf("Key successfully added.\n");
 	} while (yn("Would you like to add another key?"));
     }
 
-    if (change || list) 
+    if (change || list)
 	if (close(backup_keyfile_fd) < 0) {
 		warn("failure closing %s, continuing", backup_keyfile);
 	}
-    
+
     if (change || add) {
 	if (close(work_keyfile_fd) < 0) {
 		err(1, "failure closing %s", work_keyfile);
@@ -525,7 +525,7 @@ get_svc_new_key(new_key, sname, sinst, srealm, keyfile)
 
     if (((status = krb_get_svc_in_tkt(sname, sinst, srealm, PWSERV_NAME,
 				      KADM_SINST, 1, keyfile)) == KSUCCESS) &&
-	((status = kadm_init_link("changepw", KRB_MASTER, srealm)) == 
+	((status = kadm_init_link("changepw", KRB_MASTER, srealm)) ==
 	 KADM_SUCCESS)) {
 #ifdef NOENCRYPTION
 	(void) bzero((char *) new_key, sizeof(des_cblock));
@@ -535,7 +535,7 @@ get_svc_new_key(new_key, sname, sinst, srealm, keyfile)
 #endif /* NOENCRYPTION */
 	return(KADM_SUCCESS);
     }
-    
+
     return(status);
 }
 
@@ -555,7 +555,7 @@ get_key_from_password(key)
     (void) des_string_to_key(password, key);
 #endif /* NOENCRYPTION */
     (void) bzero((char *)password, sizeof(password));
-}    
+}
 
 usage()
 {

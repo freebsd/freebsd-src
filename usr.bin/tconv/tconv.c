@@ -1,7 +1,7 @@
 /*
  * tconv.c
  *
- * Ross Ridge 
+ * Ross Ridge
  * Public Domain
  * 92/02/01 07:30:23
  *
@@ -24,7 +24,7 @@
  * -D dir	directory to put terminfo binaries in
  *
  * -t term	name of terminal to translate
- * file		filename of termcap/terminfo database to use 
+ * file		filename of termcap/terminfo database to use
  *
  * If a file is specifed and no terminal is given the entire file we be
  * translated.
@@ -95,7 +95,7 @@ warn() {
 }
 
 /* output a string indenting at the beginning of a line, and wraping
- * at the right margin. 
+ * at the right margin.
  */
 void
 putstr(s)
@@ -110,7 +110,7 @@ char *s; {
 		}
 		return;
 	}
-	
+
 	if (termcap && noOT && *s == 'O')
 		return;
 	if (termcap && noGNU && *s == 'G')
@@ -163,7 +163,7 @@ push() {
 /* pop the top of the stack into onstack */
 void
 pop() {
-	if (stackptr == 0) 
+	if (stackptr == 0)
 		if (onstack == 0) {
 			warn();
 			fprintf(stderr, "I'm confused\n");
@@ -255,7 +255,7 @@ int n; {
 		push();
 
 	onstack = parm;
-	
+
 	while(n--) {		/* %p0 */
 		*dp++ = '%'; *dp++ = 'p'; *dp++ = '0' + parm;
 	}
@@ -264,7 +264,7 @@ int n; {
 		*dp++ = '%'; *dp++ = '{'; *dp++ = '9'; *dp++ = '6'; *dp++ = '}';
 		*dp++ = '%'; *dp++ = '^';
 	}
-	
+
 	if (seenm && parm < 3) { /* %{127}%^ */
 		*dp++ = '%'; *dp++ = '{'; *dp++ = '1'; *dp++ = '2'; *dp++ = '7';
 		*dp++ = '}'; *dp++ = '%'; *dp++ = '^';
@@ -355,7 +355,7 @@ int i; {
 				}
 				break;
 			case 'i': *dp++ = '%'; *dp++ = 'i'; break;
-			case '6': 
+			case '6':
 			case 'B':
 				getparm(param, 2);
 				/* %{6}%*%+ */
@@ -374,7 +374,7 @@ int i; {
 			case '>':
 				getparm(param, 2);
 				/* %?%{x}%>%t%{y}%+%; */
-				*dp++ = '%'; *dp++ = '?'; 
+				*dp++ = '%'; *dp++ = '?';
 				s += cvtchar(s);
 				*dp++ = '%'; *dp++ = '>';
 				*dp++ = '%'; *dp++ = 't';
@@ -533,7 +533,7 @@ int i; {
 			/* FALLTHROUGH */
 #endif
 		default:
-			if (compile) 
+			if (compile)
 				*dp++ = *s++;
 			else if (*s > 0 && *s < 32) {
 				*dp++ = '^';
@@ -653,7 +653,7 @@ toobig:
 	bin[10] = LSB(sz_strs);
 	bin[11] = MSB(sz_strs);
 
-	if (write(fd, bin, d - bin) == -1) 
+	if (write(fd, bin, d - bin) == -1)
 		quit(errno, "can't write binary file");
 
 	return;
@@ -746,11 +746,11 @@ char *name; {
 				s);
 		} else {
 			if (access(bindir(s), 2) == -1) {
-				if (errno != ENOENT) 
+				if (errno != ENOENT)
 					quit(errno,
 					     "can't access directory '%s'",
 					     bindir(s));
-				if (mkdir(bindir(s), 0777) == -1) 
+				if (mkdir(bindir(s), 0777) == -1)
 					quit(errno, "can't make directory '%s'",
 					     bindir(s));
 			}
@@ -760,7 +760,7 @@ char *name; {
 				if (errno != EEXIST)
 					quit(errno, "can't open file '%s'",
 					     binfile(s));
-				if (unlink(binfile(s)) == -1) 
+				if (unlink(binfile(s)) == -1)
 					quit(errno, "can't unlink file '%s'",
 					     binfile(s));
 				fd = open(binfile(s),
@@ -793,11 +793,11 @@ char *name; {
 				s);
 		} else {
 			if (access(bindir(s), 2) == -1) {
-				if (errno != ENOENT) 
+				if (errno != ENOENT)
 					quit(errno,
 					     "can't access directory '%s'",
 					     bindir(s));
-				if (mkdir(bindir(s), 0777) == -1) 
+				if (mkdir(bindir(s), 0777) == -1)
 					quit(errno, "can't make directory '%s'",
 					     bindir(s));
 			}
@@ -964,7 +964,7 @@ convtcap() {
 	if (name[0] != '\0' && name[1] != '\0' && name[2] == '|')
 		name += 3;	/* skip the 2 letter code */
 
-	if (compile) 
+	if (compile)
 		outputbin(name);
 	else
 		outputinfo(name);
@@ -1031,7 +1031,7 @@ char *file; {
 		while(c != EOF) {
 			if (c == '\\') {
 				c = getc(f);
-				if (c == EOF) 
+				if (c == EOF)
 					break;
 				if (c == '\n') {
 					c = getc(f);
@@ -1250,7 +1250,7 @@ char **argv; {
 		case 'B': compile = 1; break;
 		case 'I': compile = 0; break;
 		case 'V': pversion = 1; break;
-		case '?': 
+		case '?':
 		default:
 			quit(-1, "bad or missing command line argument");
 		}
@@ -1265,7 +1265,7 @@ char **argv; {
 	else if (optind != argc)
 		quit(-1, "wrong number of arguments");
 
-	if (from_tbin + from_tcap + from_tinfo > 1) 
+	if (from_tbin + from_tcap + from_tinfo > 1)
 		quit(-1, "more than one input file type specified");
 
 	if (!from_tcap && !from_tinfo && !from_tbin && file != NULL) {
@@ -1274,11 +1274,11 @@ char **argv; {
 			from_tcap = 1;
 		else if (strcmp(prg_name, "tic") == 0)
 			from_tinfo = 1;
-		else 
+		else
 			quit(-1, "no input file type specified");
 	}
 
-	if (from_tbin && compile) 
+	if (from_tbin && compile)
 		quit(-1, "can't convert from binary to binary");
 
 	if (file != NULL) {
@@ -1304,7 +1304,7 @@ char **argv; {
 			cleanup = do_cleanup;
 			if (from_tcap && !compile)
 				convtcfile(file);
-			else 
+			else
 				convtifile(file);
 			exit(0);
 		}
@@ -1335,7 +1335,7 @@ char **argv; {
 				  TERMINFODIR, 0,
 #endif
 				  NULL, -1);
-	else 
+	else
 		path = _buildpath(
 #ifdef USE_TERMINFO
 				  "$MYTERMINFO", 2,

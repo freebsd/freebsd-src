@@ -1,7 +1,7 @@
 /* entgen.c -
 
    Implement entgen() which generates a list of filenames from a struct fpi.
-   
+
    Written by James Clark (jjc@jclark.com).
 */
 
@@ -207,7 +207,7 @@ char *buf;
      /* return -1 if the formal public identifier was invalid or missing. */
      if (f->fpiversw < 0 || !f->fpipubis)
 	  return -1;
-     
+
      switch (c) {
      case 'A':			/* Is it available? */
 	  return f->fpitt == '+' ? 0 : -1;
@@ -307,7 +307,7 @@ struct fpi *f;
 	  return sysidgen((char *)f->fpisysis);
 
      file = path;
-     
+
      for (;;) {
 	  char *p;
 	  int len = 0;
@@ -334,7 +334,7 @@ struct fpi *f;
 	       }
 	       else
 		    len++;
-	  
+
 	  if (len > 0) {
 	       /* We've got a valid non-empty filename. */
 	       char *s;
@@ -368,7 +368,7 @@ UNIV sysidgen(s)
 char *s;
 {
      char *buf, *p;
-     
+
      buf = (char *)rmalloc(strlen(s) + 2);
 
      for (p = buf; *s; s++) {

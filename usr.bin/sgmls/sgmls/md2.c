@@ -98,7 +98,7 @@ UNCH *tbuf;                   /* Work area for tokenization[LITLEN+2]. */
                etx.c = savestr(tbuf);
                break;
           case ESMD:          /* MD: parameter literal required. */
-               etx.c = sandwich(tbuf, lex.m.mdo, lex.m.mdc); 
+               etx.c = sandwich(tbuf, lex.m.mdo, lex.m.mdc);
 	       goto bcheck;
           case ESMS:          /* MS: parameter literal required. */
                etx.c = sandwich(tbuf, lex.m.mss, lex.m.mse);
@@ -355,7 +355,7 @@ VOID storedatt(pne)
 PNE pne;
 {
      int i;
-     
+
      NEAL(pne) = (struct ad *)rmalloc((1+ADN(al))*ADSZ);
      memcpy((UNIV)NEAL(pne), (UNIV)al, (1+ADN(al))*ADSZ);
      for (i = 1; i <= (int)ADN(al); i++) {
@@ -424,7 +424,7 @@ PFPI f;                       /* Ptr to formal public identifier structure. */
           /* The standard only says that it *should* be two letters, so
 	     don't enforce that. */
           for (i = 0; i < len; i++) {
-	      /* Don't assume ASCII. */  
+	      /* Don't assume ASCII. */
 	       if (!strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZ", q[i]))
 	            return 7;
 	  }

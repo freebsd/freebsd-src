@@ -66,7 +66,7 @@ static void	sig_sync __P((int, u_int));
  * The assumptions:
  *	1: The DB routines are not reentrant.
  *	2: The curses routines may not be reentrant.
- *	
+ *
  * SIGALRM, SIGHUP, SIGTERM
  *	Used for file recovery.  The DB routines can't be reentered, so
  *	the vi routines that call DB block all three signals (see line.c).
@@ -300,7 +300,7 @@ sig_end()
 	 return;
 }
 
-/* 
+/*
  * busy_on --
  *	Set a busy message timer.
  */
@@ -423,7 +423,7 @@ h_alrm(signo)
 	/* XXX: Get the current time of day; if this fails, we're dead. */
 	if (gettimeofday(&tod, NULL))
 		goto ret;
-	
+
 	/*
 	 * Fire any timers that are past due, or any that are due
 	 * in a tenth of a second or less.

@@ -170,9 +170,9 @@ register int td;
 	case SYSCTYPE:
 	/*
 	 * dosys - execute system command
-	 */		
-		/* Make sure m4 output is NOT interrupted */		
-		fflush(stdout);			
+	 */
+		/* Make sure m4 output is NOT interrupted */
+		fflush(stdout);
 		fflush(stderr);
 		if (argc > 2)
 			sysval = system(argv[2]);
@@ -182,7 +182,7 @@ register int td;
 	/*
 	 * dosysval - return value of the last
 	 * system call.
-	 * 
+	 *
 	 */
 		pbnum(sysval);
 		break;
@@ -220,7 +220,7 @@ register int td;
 	case SUBSTYPE:
 	/*
 	 * dosub - select substring
-	 * 
+	 *
 	 */
 		if (argc > 3)
 			dosub(argv, argc);

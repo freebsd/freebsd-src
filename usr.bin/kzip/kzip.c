@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.1 1995/04/15 08:18:20 phk Exp $
+ * $Id: kzip.c,v 1.2 1995/04/25 05:27:04 phk Exp $
  *
  */
 
@@ -54,7 +54,7 @@ main(int argc, char **argv)
 		perror(obj);
 		return 2;
 	}
-	
+
 	if (pipe(pipe1) < 0) { perror("pipe()"); return 1; }
 
 	if (pipe(pipe2) < 0) { perror("pipe()"); return 1; }
@@ -99,7 +99,7 @@ main(int argc, char **argv)
 	close(pipe2[0]); close(pipe2[1]);
 	close(fdi); close(fdo);
 
-	if (waitpid(Pext, &status,0) < 0) 
+	if (waitpid(Pext, &status,0) < 0)
 		{ perror("waitpid(Pextract)"); return 1; }
 
 	if(status) {
@@ -107,15 +107,15 @@ main(int argc, char **argv)
 		return 3;
 	}
 
-	if (waitpid(Pgzip, &status,0) < 0) 
+	if (waitpid(Pgzip, &status,0) < 0)
 		{ perror("waitpid(Pgzip)"); return 1; }
-	
+
 	if(status) {
 		fprintf(stderr,"gzip returned %x\n",status);
 		return 3;
 	}
 
-	if (waitpid(Ppiggy, &status,0) < 0) 
+	if (waitpid(Ppiggy, &status,0) < 0)
 		{ perror("waitpid(Ppiggy)"); return 1; }
 
 	if(status) {
@@ -140,7 +140,7 @@ main(int argc, char **argv)
 		exit(2);
 	}
 
-	if (waitpid(Pld, &status,0) < 0) 
+	if (waitpid(Pld, &status,0) < 0)
 		{ perror("waitpid(Pld)"); return 1; }
 
 	if(status) {
@@ -152,7 +152,7 @@ main(int argc, char **argv)
 	exit(0);
 }
 
-int 
+int
 extract (char *file)
 {
 	int sz;
@@ -184,7 +184,7 @@ extract (char *file)
 
 		n = read (0, buf, l);
 		if (n != l) {
-			if (n == -1) 
+			if (n == -1)
 				perror (file);
 			else
 				fprintf (stderr, "Unexpected EOF\n");
@@ -206,7 +206,7 @@ struct nlist var_names[2] = {                           /* Symbol table */
 	{ { (char*) 16 }, N_EXT|N_TEXT, 0, 0, 0 },      /* _input_len */
 };
 
-int 
+int
 piggyback(char *file)
 {
 	int n, len;

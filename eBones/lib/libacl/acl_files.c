@@ -6,12 +6,12 @@
  * <mit-copyright.h>.
  *
  *	from: acl_files.c,v 4.4 89/12/19 13:30:53 jtkohl Exp $
- *	$Id: acl_files.c,v 1.2 1994/07/19 19:21:18 g89r4222 Exp $
+ *	$Id: acl_files.c,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: acl_files.c,v 1.2 1994/07/19 19:21:18 g89r4222 Exp $";
+"$Id: acl_files.c,v 1.1.1.1 1994/09/30 14:49:48 csgr Exp $";
 #endif lint
 
 
@@ -86,7 +86,7 @@ char *canon;
 	    dot = NULL;
 	}
     }
-    
+
     /* No such luck */
     end = principal + strlen(principal);
 
@@ -121,7 +121,7 @@ char *canon;
 	strcpy(canon, KRB_REALM);
     }
 }
-	    
+
 /* Get a lock to modify acl_file */
 /* Return new FILE pointer */
 /* or NULL if file cannot be modified */
@@ -176,7 +176,7 @@ char *acl_file;
 /* Closes f */
 static int acl_commit(acl_file, f)
 char *acl_file;
-FILE *f;     
+FILE *f;
 {
     char new[LINESIZE];
     int ret;
@@ -203,7 +203,7 @@ FILE *f;
 static int
 acl_abort(acl_file, f)
 char	*acl_file;
-FILE	*f;     
+FILE	*f;
 {
 	char		new[LINESIZE];
 	int		ret;
@@ -471,7 +471,7 @@ char *principal;
 
     sprintf(buf, "*.*%s", realm);
     if(acl_exact_match(acl, buf) || acl_exact_match(acl, "*.*@*")) return(1);
-       
+
     return(0);
 }
 

@@ -57,7 +57,7 @@ Lst_Member (l, d)
     if (lNode == NilListNode) {
 	return NILLNODE;
     }
-    
+
     do {
 	if (lNode->datum == d) {
 	    return (LstNode)lNode;
