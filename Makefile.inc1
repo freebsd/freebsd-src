@@ -495,22 +495,21 @@ buildkernel:
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} -DNO_MODULES clean
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} cleandir
-.endif
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
 	    ${MAKE} -DNO_CPU_CFLAGS -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} modules-obj
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} obj
+# XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
+.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KRNLSRCDIR}/modules)
+.for target in obj depend all
 	cd ${.CURDIR}/sys/modules/aic7xxx/aicasm; \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} -DNO_CPU_CFLAGS depend; \
-	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
-	    ${MAKE} -DNO_CPU_CFLAGS all
+	    ${MAKE} -DNO_CPU_CFLAGS ${target}
+.endfor
 .endif
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
