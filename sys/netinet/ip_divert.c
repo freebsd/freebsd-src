@@ -297,7 +297,7 @@ div_output(so, m, addr, control)
 		ipstat.ips_rawout++;			/* XXX */
 		error = ip_output(m, inp->inp_options, &inp->inp_route,
 			(so->so_options & SO_DONTROUTE) |
-			IP_ALLOWBROADCAST | IP_RAWOUTPUT | IP_SOCKINMRCVIF,
+			IP_ALLOWBROADCAST | IP_RAWOUTPUT,
 			inp->inp_moptions);
 	} else {
 		struct	ifaddr *ifa;
