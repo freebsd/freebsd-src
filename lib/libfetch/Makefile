@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/12/15 12:24:26 des Exp $
+#	$Id: Makefile,v 1.10 1998/12/16 10:24:52 des Exp $
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
@@ -45,6 +45,6 @@ hdrs: fetch_err.h
 
 .ORDER: fetch_err.c fetch_err.h
 fetch_err.c fetch_err.h: fetch_err.et
-	compile_et -lang c ${.ALLSRC}
+	compile_et ${.ALLSRC}
 
 .include <bsd.lib.mk>
