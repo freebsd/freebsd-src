@@ -300,10 +300,13 @@ usbd_transfer(xfer)
 		if (pipe->device->bus->use_polling)
 			panic("usbd_transfer: not done\n");
 		if (pipe->device->quirks->uq_flags & UQ_NO_TSLEEP) {
-			int			i;
-			for (i = 0; i < xfer->timeout + 1; i++) {
-				DELAY(1);
-			pipe->device->bus->methods->do_poll(pipe->device->bus);
+			int			i, to;
+			usbd_bus_handle		bus;
+			to = xfer->timeout * 1000;
+			bus = pipe->device->bus;
+			for (i = 0; i < to; i += 10) {
+				DELAY(10);
+				bus->methods->do_poll(bus);
 				if (xfer->done)
 					break;
 			}
