@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.39 1996/03/24 22:24:10 joerg Exp $
+<date> $Id: freebsd-faq.sgml,v 1.40 1996/04/07 17:23:34 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -421,23 +421,30 @@ Any entries with a &lt;XXX&gt; are under construction.
 	<heading>Can I mount my DOS extended partitions?</heading>
 
         <p>
-          This feature isn't in FreeBSD 2.1 but should be in 2.2.  We've
-          laid all the groundwork for making this happen, now we just need
-          to do the last 1% of the work involved.
+          Yes.  DOS extended partitions are mapped in at the end of
+          the other ``slices'' in FreeBSD, e.g. your D: drive might
+          be /dev/sd0s5, your E: drive /dev/sd0s6, and so on.  This
+          example assumes, of course, that your extended partition is
+          on SCSI drive 0.  For IDE drives, substitute ``wd'' for ``sd''
+          and so on.  You otherwise mount them exactly like you would
+          mount any other DOS drive, e.g.:
+
+        <p>
+              mount -t msdos /dev/sd0s5 /dos_d
+
 
       <sect1>
 	<heading>Can I run DOS binaries under FreeBSD?</heading>
 
         <p>
-          Not yet!  We'd like to add support for this someday, but are
-          still lacking anyone to actually do the work.  Ongoing work with
-          Linux's <tt/DOSEMU/ utility may bring this much closer to being a
-          reality sometime soon.  Send mail to
-          <url url="mailto:hackers@freebsd.org"
-            name="The FreeBSD hackers list">
+          Not yet, though BSDI has just donated their <tt/rundos/ DOS emulation
+          subsystem which we're now working on integrating and enhancing.
+          Send mail to
+          <url url="mailto:emulation@freebsd.org"
+            name="The FreeBSD emulation discussion list">
           if you're interested in joining this effort!
 
-          However, there is a neat utility called ``<tt/pcemu/'' in the
+          For now, there is a neat utility called ``<tt/pcemu/'' in the
           ports collection which emulates an 8088 and enough BIOS services
           to run DOS text mode applications.  It requires the X Window
           System (provided as XFree86 3.1.2).
