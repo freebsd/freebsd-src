@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mptable.c,v 1.3 1997/05/10 17:46:57 fsmp Exp $
+ *	$Id: mptable.c,v 1.4 1997/05/22 22:55:05 fsmp Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #define VMAJOR			2
 #define VMINOR			0
-#define VDELTA			11
+#define VDELTA			12
 
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
@@ -1133,9 +1133,6 @@ doOptionList( void )
     printf( "#options		NAPIC=%d\t\t\t# number of IO APICs\n", napic );
     printf( "#options		NINTR=%d\t\t# number of INTs\n",
 		(nintr < 24) ? 24 : nintr );
-
-    printf( "\n# Currently broken:\n" );
-    printf( "#options		SMP_PRIVPAGES\t\t# BROKEN, DO NOT use!\n" );
 
     printf( "\n# Rogue hardware:\n" );
     printf( "#\n#  Tyan Tomcat II:\n" );
