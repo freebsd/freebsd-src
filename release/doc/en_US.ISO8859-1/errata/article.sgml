@@ -172,6 +172,24 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
       </para>
 
+    <para>Unlike &man.su.1;, &man.k5su.8;
+      does not require that an invoking user be a member of
+      the <groupname>wheel</groupname> group when attempting to become
+      the superuser.  This could
+      result in some unexpected behavior.  To avoid this
+      situation, &man.k5su.8; is now installed non-SUID by default
+      (effectively disabling it).  More information can be found in
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
+
+    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
+      utility, which could allow files to be overwritten without
+      warning or allow local users unintended access to files.  These
+      problems have been corrected with a new import of
+      <application>bzip2</application>.  For more information, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+
 ]]>
   </sect1>
 
