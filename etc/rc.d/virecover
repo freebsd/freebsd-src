@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: virecover
-# REQUIRE: mountcritremote
+# REQUIRE: mountcritremote ldconfig
 # BEFORE:  DAEMON
 # KEYWORD: FreeBSD NetBSD
 #
