@@ -390,17 +390,15 @@
 	  <para>HP Embedded NetRaid</para>
 	</listitem>
       </itemizedlist>
+
+      <note>
+	<para arch="i386">Booting from these controllers is supported.  EISA
+	adapters are not supported.</para>
+
+	<para arch="alpha">Booting from these controllers is not supported due to SRM
+	limitations.</para>
+      </note>
     </para>
-
-    <note arch="i386">
-      <para>Booting from these controllers is supported.  EISA
-      adapters are not supported.</para>
-    </note>
-
-    <note arch="alpha">
-     <para>Booting from these controllers is not supported due to SRM
-      limitations.</para>
-    </note>
 
     <para arch="i386,alpha">Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x
     and 5.x firmware (&man.mlx.4; driver)
@@ -433,16 +431,17 @@
 	  <para>eXtremeRAID 1100</para>
 	</listitem>
       </itemizedlist>
-    </para>
-    <note>
-      <para>Booting from these controllers is supported. EISA adapters
-      are not supported.</para>
 
-      <para arch="alpha">Booting from these controllers is not
-      supported due to SRM limitations.  This list includes
-      controllers sold by Digital/Compaq in Alpha systems in the
-      StorageWorks family, e.g. KZPSC or KZPAC.</para>
-    </note>
+      <note>
+	<para arch="i386">Booting from these controllers is supported. EISA adapters
+	are not supported.</para>
+
+	<para arch="alpha">Booting from these controllers is not
+	supported due to SRM limitations.  This list includes
+	controllers sold by Digital/Compaq in Alpha systems in the
+	StorageWorks family, e.g. KZPSC or KZPAC.</para>
+      </note>
+    </para>
 
     <para arch="i386">Mylex PCI to SCSI RAID controllers with 6.x firmware
     (&man.mly.4; driver)
@@ -463,11 +462,12 @@
 	  <para>eXtremeRAID 3000</para>
         </listitem>
       </itemizedlist>
+
+      <note>
+	<para>Compatible Mylex controllers not listed should work, but
+	have not been verified.</para>
+      </note>
     </para>
-    <note>
-      <para>Compatible Mylex controllers not listed should work, but
-      have not been verified.</para>
-    </note>
 
     <para>3ware Escalade ATA RAID controllers (&man.twe.4; driver)
       <itemizedlist>
