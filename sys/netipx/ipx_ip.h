@@ -33,11 +33,11 @@
  *
  *	@(#)ipxip.h
  *
- * $Id: ipx_ip.h,v 1.2 1995/10/31 23:36:32 julian Exp $
+ * $Id: ipx_ip.h,v 1.3 1995/11/04 09:03:03 julian Exp $
  */
 
-#ifndef __NETIPX_IPXIP_H_
-#define __NETIPX_IPXIP_H_
+#ifndef _NETIPX_IPXIP_H_
+#define	_NETIPX_IPXIP_H_
 
 struct ifnet_en {
 	struct ifnet ifen_ifnet;
@@ -54,21 +54,18 @@ struct ifnet_en {
 extern struct ifnet ipxipif;
 extern struct ifnet_en *ipxip_list;
 
-#include <sys/cdefs.h>
+struct ifnet_en *
+	ipxipattach __P((void));
+void	ipxip_ctlinput __P((int cmd, struct sockaddr *sa));
+int	ipxip_free __P((struct ifnet *ifp));
+void	ipxip_input __P((struct mbuf *m, struct ifnet *ifp));
+int	ipxipioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
+int	ipxipoutput __P((struct ifnet *ifp, struct mbuf *m,
+			 struct sockaddr *dst, struct rtentry *rt));
+int	ipxip_route __P((struct mbuf *m));
+void	ipxip_rtchange __P((struct in_addr *dst));
+void	ipxipstart __P((struct ifnet *ifp));
 
-__BEGIN_DECLS
-void ipxip_rtchange __P((struct in_addr *dst));
-struct ifnet_en *ipxipattach __P((void));
-int ipxipioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
-void ipxip_input __P((struct mbuf *m, struct ifnet *ifp));
-int ipxipoutput __P((struct ifnet *ifn, struct mbuf *m, struct sockaddr *dst, struct rtentry *rt));
-void ipxipstart __P((struct ifnet *ifp));
-int ipxip_route __P((struct mbuf *m));
-int ipxip_free __P((struct ifnet *ifp));
-void ipxip_ctlinput __P((int cmd, struct sockaddr *sa));
-__END_DECLS
+#endif /* KERNEL */
 
-#endif
-
-#endif
-
+#endif /* !_NETIPX_IPXIP_H_ */

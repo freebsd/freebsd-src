@@ -33,11 +33,11 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.3 1995/10/31 23:36:35 julian Exp $
+ * $Id: ipx_pcb.h,v 1.4 1995/11/04 09:03:16 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
-#define _NETIPX_IPX_PCB_H_
+#define	_NETIPX_IPX_PCB_H_
 
 /*
  * IPX protocol interface control block.
@@ -78,25 +78,20 @@ struct ipxpcb {
 #define	IPXSNDQ		2048
 #define	IPXRCVQ		2048
 
-
 #ifdef KERNEL
-
 extern struct ipxpcb ipxpcb;			/* head of list */
 
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-int ipx_pcballoc __P((struct socket *so, struct ipxpcb *head));
-int ipx_pcbbind __P((struct ipxpcb *ipxp, struct mbuf *nam));
-int ipx_pcbconnect __P((struct ipxpcb *ipxp, struct mbuf *nam));
-void ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
-void ipx_pcbdetach __P((struct ipxpcb *ipxp));
-void ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
-void ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
-void ipx_pcbnotify __P((struct ipx_addr *dst, int errno, void (*notify)(struct ipxpcb *), long param));
-struct ipxpcb *ipx_pcblookup __P((struct ipx_addr *faddr, int lport, int wildp));
-__END_DECLS
-
+int	ipx_pcballoc __P((struct socket *so, struct ipxpcb *head));
+int	ipx_pcbbind __P((struct ipxpcb *ipxp, struct mbuf *nam));
+int	ipx_pcbconnect __P((struct ipxpcb *ipxp, struct mbuf *nam));
+void	ipx_pcbdetach __P((struct ipxpcb *ipxp));
+void	ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
+struct ipxpcb *
+	ipx_pcblookup __P((struct ipx_addr *faddr, int lport, int wildp));
+void	ipx_pcbnotify __P((struct ipx_addr *dst, int errno,
+			   void (*notify)(struct ipxpcb *), long param));
+void	ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
+void	ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
 #endif
 
-#endif
+#endif /* !_NETIPX_IPX_PCB_H_ */
