@@ -21,144 +21,224 @@
  * $FreeBSD$
  */
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.21 2001/07/05 18:54:14 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.33.2.2 2003/11/16 08:51:11 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
-#include <netinet/in.h>
+#include <tcpdump-stdinc.h>
 
 #include <stdio.h>
 #include <pcap.h>
+#include <string.h>
 
 #include "interface.h"
+#include "extract.h"
 #include "addrtoname.h"
 #include "ethertype.h"
+#include "atm.h"
+#include "atmuni31.h"
+#include "llc.h"
+
+#include "ether.h"
 
 /*
- * This is the top level routine of the printer.  'p' is the points
- * to the LLC/SNAP header of the packet, 'tvp' is the timestamp,
- * 'length' is the length of the packet off the wire, and 'caplen'
+ * Print an RFC 1483 LLC-encapsulated ATM frame.
+ */
+static void
+atm_llc_print(const u_char *p, int length, int caplen)
+{
+	u_short extracted_ethertype;
+
+	if (!llc_print(p, length, caplen, NULL, NULL,
+	    &extracted_ethertype)) {
+		/* ether_type not known, print raw packet */
+		if (extracted_ethertype) {
+			printf("(LLC %s) ",
+		etherproto_string(htons(extracted_ethertype)));
+		}
+		if (!xflag && !qflag)
+			default_print(p, caplen);
+	}
+}
+
+/*
+ * Given a SAP value, generate the LLC header value for a UI packet
+ * with that SAP as the source and destination SAP.
+ */
+#define LLC_UI_HDR(sap)	((sap)<<16 | (sap<<8) | 0x03)
+
+/*
+ * This is the top level routine of the printer.  'p' points
+ * to the LLC/SNAP header of the packet, 'h->ts' is the timestamp,
+ * 'h->length' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
-void
-atm_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+u_int
+atm_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	u_short ethertype, extracted_ethertype;
-
-	++infodelay;
-	ts_print(&h->ts);
+	u_int32_t llchdr;
+	u_int hdrlen = 0;
 
 	if (caplen < 8) {
 		printf("[|atm]");
-		goto out;
+		return (caplen);
 	}
-
-	if (p[4] == 0xaa || p[5] == 0xaa || p[6] == 0x03) {
-		/* if first 4 bytes are cookie/vpci */
-		if (eflag) {
-			printf("%04x ",
-			       p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3]);
-		}
-		p += 4;
-		length -= 4;
-		caplen -= 4;
-	} 
-	else if (p[0] != 0xaa || p[1] != 0xaa || p[2] != 0x03) {
-		/*XXX assume 802.6 MAC header from fore driver */
+	/*
+	 * Extract the presumed LLC header into a variable, for quick
+	 * testing.
+	 * Then check for a header that's neither a header for a SNAP
+	 * packet nor an RFC 2684 routed NLPID-formatted PDU nor
+	 * an 802.2-but-no-SNAP IP packet.
+	 */
+	llchdr = EXTRACT_24BITS(p);
+	if (llchdr != LLC_UI_HDR(LLCSAP_SNAP) &&
+	    llchdr != LLC_UI_HDR(LLCSAP_ISONS) &&
+	    llchdr != LLC_UI_HDR(LLCSAP_IP)) {
+		/*
+		 * XXX - assume 802.6 MAC header from Fore driver.
+		 *
+		 * Unfortunately, the above list doesn't check for
+		 * all known SAPs, doesn't check for headers where
+		 * the source and destination SAP aren't the same,
+		 * and doesn't check for non-UI frames.  It also
+		 * runs the risk of an 802.6 MAC header that happens
+		 * to begin with one of those values being
+		 * incorrectly treated as an 802.2 header.
+		 *
+		 * So is that Fore driver still around?  And, if so,
+		 * is it still putting 802.6 MAC headers on ATM
+		 * packets?  If so, could it be changed to use a
+		 * new DLT_IEEE802_6 value if we added it?
+		 */
 		if (eflag)
-			printf("%04x%04x %04x%04x ",
-			       p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3],
-			       p[4] << 24 | p[5] << 16 | p[6] << 8 | p[7],
-			       p[8] << 24 | p[9] << 16 | p[10] << 8 | p[11],
-			       p[12] << 24 | p[13] << 16 | p[14] << 8 | p[15]);
+			printf("%08x%08x %08x%08x ",
+			       EXTRACT_32BITS(p),
+			       EXTRACT_32BITS(p+4),
+			       EXTRACT_32BITS(p+8),
+			       EXTRACT_32BITS(p+12));
 		p += 20;
 		length -= 20;
 		caplen -= 20;
+		hdrlen += 20;
 	}
-	ethertype = p[6] << 8 | p[7];
+	atm_llc_print(p, length, caplen);
+	return (hdrlen);
+}
+
+/*
+ * ATM signalling.
+ */
+static struct tok msgtype2str[] = {
+	{ CALL_PROCEED,		"Call_proceeding" },
+	{ CONNECT,		"Connect" },
+	{ CONNECT_ACK,		"Connect_ack" },
+	{ SETUP,		"Setup" },
+	{ RELEASE,		"Release" },
+	{ RELEASE_DONE,		"Release_complete" },
+	{ RESTART,		"Restart" },
+	{ RESTART_ACK,		"Restart_ack" },
+	{ STATUS,		"Status" },
+	{ STATUS_ENQ,		"Status_enquiry" },
+	{ ADD_PARTY,		"Add_party" },
+	{ ADD_PARTY_ACK,	"Add_party_ack" },
+	{ ADD_PARTY_REJ,	"Add_party_reject" },
+	{ DROP_PARTY,		"Drop_party" },
+	{ DROP_PARTY_ACK,	"Drop_party_ack" },
+	{ 0,			NULL }
+};
+
+static void
+sig_print(const u_char *p, int caplen)
+{
+	bpf_u_int32 call_ref;
+
+	if (caplen < PROTO_POS) {
+		printf("[|atm]");
+		return;
+	}
+	if (p[PROTO_POS] == Q2931) {
+		/*
+		 * protocol:Q.2931 for User to Network Interface 
+		 * (UNI 3.1) signalling
+		 */
+		printf("Q.2931");
+		if (caplen < MSG_TYPE_POS) {
+			printf(" [|atm]");
+			return;
+		}
+		printf(":%s ",
+		    tok2str(msgtype2str, "msgtype#%d", p[MSG_TYPE_POS]));
+
+		if (caplen < CALL_REF_POS+3) {
+			printf("[|atm]");
+			return;
+		}
+		call_ref = EXTRACT_24BITS(&p[CALL_REF_POS]);
+		printf("CALL_REF:0x%06x", call_ref);
+	} else {
+		/* SCCOP with some unknown protocol atop it */
+		printf("SSCOP, proto %d ", p[PROTO_POS]);
+	}
+}
+
+/*
+ * Print an ATM PDU (such as an AAL5 PDU).
+ */
+void
+atm_print(u_int vpi, u_int vci, u_int traftype, const u_char *p, u_int length,
+    u_int caplen)
+{
 	if (eflag)
-		printf("%02x %02x %02x %02x-%02x-%02x %04x: ",
-		       p[0], p[1], p[2], /* dsap/ssap/ctrl */
-		       p[3], p[4], p[5], /* manufacturer's code */
-		       ethertype);
+		printf("VPI:%u VCI:%u ", vpi, vci);
 
-	/*
-	 * Some printers want to get back at the ethernet addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
-	 */
-	packetp = p;
-	snapend = p + caplen;
+	if (vpi == 0) {
+		switch (vci) {
 
-	length -= 8;
-	caplen -= 8;
-	p += 8;
+		case PPC:
+			sig_print(p, caplen);
+			return;
 
-	switch (ethertype) {
+		case BCC:
+			printf("broadcast sig: ");
+			return;
 
-	case ETHERTYPE_IP:
-		ip_print(p, length);
-		break;
+		case OAMF4SC:
+			printf("oamF4(segment): ");
+			return;
 
-#ifdef INET6
-	case ETHERTYPE_IPV6:
-		ip6_print(p, length);
-		break;
-#endif /*INET6*/
+		case OAMF4EC:
+			printf("oamF4(end): ");
+			return;
 
-		/*XXX this probably isn't right */
-	case ETHERTYPE_ARP:
-	case ETHERTYPE_REVARP:
-		arp_print(p, length, caplen);
-		break;
-#ifdef notyet
-	case ETHERTYPE_DN:
-		decnet_print(p, length, caplen);
-		break;
+		case METAC:
+			printf("meta: ");
+			return;
 
-	case ETHERTYPE_ATALK:
-		if (vflag)
-			fputs("et1 ", stdout);
-		atalk_print(p, length);
-		break;
-
-	case ETHERTYPE_AARP:
-		aarp_print(p, length);
-		break;
-
-	case ETHERTYPE_LAT:
-	case ETHERTYPE_MOPRC:
-	case ETHERTYPE_MOPDL:
-		/* default_print for now */
-#endif
-	default:
-		/* ether_type not known, forward it to llc_print */
-		if (!eflag)
-			printf("%02x %02x %02x %02x-%02x-%02x %04x: ",
-			       packetp[0], packetp[1], packetp[2], /* dsap/ssap/ctrl */
-			       packetp[3], packetp[4], packetp[5], /* manufacturer's code */
-			       ethertype);
-		if (!xflag && !qflag) {
-		    extracted_ethertype = 0;
-		    /* default_print(p, caplen); */
-		    llc_print(p-8,length+8,caplen+8,"000000","000000", &extracted_ethertype);
+		case ILMIC:
+			printf("ilmi: ");
+			snmp_print(p, length);
+			return;
 		}
 	}
-	if (xflag)
-		default_print(p, caplen);
- out:
-	putchar('\n');
-	--infodelay;
-	if (infoprint)
-		info(0);
+
+	switch (traftype) {
+
+	case ATM_LLC:
+	default:
+		/*
+		 * Assumes traffic is LLC if unknown.
+		 */
+		atm_llc_print(p, length, caplen);
+		break;
+
+	case ATM_LANE:
+		lane_print(p, length, caplen);
+		break;
+	}
 }

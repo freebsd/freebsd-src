@@ -1,4 +1,6 @@
-.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.114 2002/01/04 07:37:49 guy Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.148.2.6 2004/03/28 21:25:03 fenner Exp $ (LBL)
+.\"
+.\"	$NetBSD: tcpdump.8,v 1.9 2003/03/31 00:18:17 perry Exp $
 .\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
@@ -22,14 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.TH TCPDUMP 1  "3 January 2001"
+.TH TCPDUMP 1  "7 January 2004"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
 .na
 .B tcpdump
 [
-.B \-adeflLnNOpqRStuvxX
+.B \-AdDeflLnNOpqRStuUvxX
 ] [
 .B \-c
 .I count
@@ -75,8 +77,15 @@ tcpdump \- dump traffic on a network
 .ti +8
 [
 .B \-E
-.I algo:secret
+.I spi@ipaddr algo:secret,...
 ]
+.br
+.ti +8
+[
+.B \-y
+.I datalinktype
+]
+.ti +8
 [
 .B \-y
 .I datalinktype
@@ -118,14 +127,23 @@ When
 .I tcpdump
 finishes capturing packets, it will report counts of:
 .IP
+packets ``captured'' (this is the number of packets that
+.I tcpdump
+has received and processed);
+.IP
 packets ``received by filter'' (the meaning of this depends on the OS on
 which you're running
 .IR tcpdump ,
 and possibly on the way the OS was configured - if a filter was
 specified on the command line, on some OSes it counts packets regardless
-of whether they were matched by the filter expression, and on other OSes
-it counts only packets that were matched by the filter expression and
-were processed by
+of whether they were matched by the filter expression and, even if they
+were matched by the filter expression, regardless of whether
+.I tcpdump
+has read and processed them yet, on other OSes it counts only packets that were
+matched by the filter expression regardless of whether
+.I tcpdump
+has read and processed them yet, and on other OSes it counts only
+packets that were matched by the filter expression and were processed by
 .IR tcpdump );
 .IP
 packets ``dropped by kernel'' (this is the number of packets that were
@@ -135,10 +153,14 @@ in the OS on which
 is running, if the OS reports that information to applications; if not,
 it will be reported as 0).
 .LP
-On platforms that support the SIGINFO signal, such as most BSDs, it will
-report those counts when it receives a SIGINFO signal (generated, for
-example, by typing your ``status'' character, typically control-T) and
-will continue capturing packets.
+On platforms that support the SIGINFO signal, such as most BSDs
+(including Mac OS X) and Digital/Tru64 UNIX, it will report those counts
+when it receives a SIGINFO signal (generated, for example, by typing
+your ``status'' character, typically control-T, although on some
+platforms, such as Mac OS X, the ``status'' character is not set by
+default, so you must set it with
+.BR stty (1)
+in order to use it) and will continue capturing packets.
 .LP
 Reading packets from a network interface may require that you have
 special privileges:
@@ -159,7 +181,9 @@ to capture in promiscuous mode; on those versions of Solaris, you must
 be root, or
 .I tcpdump
 must be installed setuid to root, in order to capture in promiscuous
-mode.
+mode.  Note that, on many (perhaps all) interfaces, if you don't capture
+in promiscuous mode, you will not see any outgoing packets, so a capture
+not done in promiscuous mode may not be very useful.
 .TP
 .B Under HP-UX with DLPI:
 You must be root or
@@ -174,23 +198,48 @@ must be installed setuid to root.
 .B Under Linux:
 You must be root or
 .I tcpdump
-must be installed setuid to root.
+must be installed setuid to root (unless your distribution has a kernel
+that supports capability bits such as CAP_NET_RAW and code to allow
+those capability bits to be given to particular accounts and to cause
+those bits to be set on a user's initial processes when they log in, in
+which case you  must have CAP_NET_RAW in order to capture and
+CAP_NET_ADMIN to enumerate network devices with, for example, the
+.B \-D
+flag).
 .TP
-.B Under Ultrix and Digital UNIX:
-Once the super-user has enabled promiscuous-mode operation using
-.IR pfconfig (8),
-any user may capture network traffic with
+.B Under ULTRIX and Digital UNIX/Tru64 UNIX:
+Any user may capture network traffic with
 .IR tcpdump .
+However, no user (not even the super-user) can capture in promiscuous
+mode on an interface unless the super-user has enabled promiscuous-mode
+operation on that interface using
+.IR pfconfig (8),
+and no user (not even the super-user) can capture unicast traffic
+received by or sent by the machine on an interface unless the super-user
+has enabled copy-all-mode operation on that interface using
+.IR pfconfig ,
+so
+.I useful
+packet capture on an interface probably requires that either
+promiscuous-mode or copy-all-mode operation, or both modes of
+operation, be enabled on that interface.
 .TP
-.B Under BSD:
+.B Under BSD (this includes Mac OS X):
 You must have read access to
 .IR /dev/bpf* .
+On BSDs with a devfs (this includes Mac OS X), this might involve more
+than just having somebody with super-user access setting the ownership
+or permissions on the BPF devices - it might involve configuring devfs
+to set the ownership or permissions every time the system is booted,
+if the system even supports that; if it doesn't support that, you might
+have to find some other way to make that happen at boot time.
 .LP
 Reading a saved packet file doesn't require special privileges.
 .SH OPTIONS
 .TP
-.B \-a
-Attempt to convert network and broadcast addresses to names.
+.B \-A
+Print each packet (minus its link level header) in ASCII.  Handy for
+capturing web pages.
 .TP
 .B \-c
 Exit after receiving \fIcount\fP packets.
@@ -217,11 +266,43 @@ program fragment.
 .B \-ddd
 Dump packet-matching code as decimal numbers (preceded with a count).
 .TP
+.B \-D
+Print the list of the network interfaces available on the system and on
+which
+.I tcpdump
+can capture packets.  For each network interface, a number and an
+interface name, possibly followed by a text description of the
+interface, is printed.  The interface name or the number can be supplied
+to the
+.B \-i
+flag to specify an interface on which to capture.
+.IP
+This can be useful on systems that don't have a command to list them
+(e.g., Windows systems, or UNIX systems lacking
+.BR "ifconfig \-a" );
+the number can be useful on Windows 2000 and later systems, where the
+interface name is a somewhat complex string.
+.IP
+The
+.B \-D
+flag will not be supported if
+.I tcpdump
+was built with an older version of
+.I libpcap
+that lacks the
+.B pcap_findalldevs()
+function.
+.TP
 .B \-e
 Print the link-level header on each dump line.
 .TP
 .B \-E
-Use \fIalgo:secret\fP for decrypting IPsec ESP packets.
+Use \fIspi@ipaddr algo:secret\fP for decrypting IPsec ESP packets that
+are addressed to \fIaddr\fP and contain Security Parameter Index value
+\fIspi\fP. This combination may be repeated with comma or newline seperation.
+.IP
+Note that setting the secret for IPv4 ESP packets is supported at this time.
+.IP
 Algorithms may be
 \fBdes-cbc\fP,
 \fB3des-cbc\fP,
@@ -232,21 +313,36 @@ Algorithms may be
 The default is \fBdes-cbc\fP.
 The ability to decrypt packets is only present if \fItcpdump\fP was compiled
 with cryptography enabled.
-\fIsecret\fP the ascii text for ESP secret key.
-We cannot take arbitrary binary value at this moment.
+.IP
+\fIsecret\fP is the ASCII text for ESP secret key. 
+If preceeded by 0x, then a hex value will be read.
+.IP
 The option assumes RFC2406 ESP, not RFC1827 ESP.
 The option is only for debugging purposes, and
-the use of this option with truly `secret' key is discouraged.
+the use of this option with a true `secret' key is discouraged.
 By presenting IPsec secret key onto command line
 you make it visible to others, via
 .IR ps (1)
 and other occasions.
+.IP
+In addition to the above syntax, the syntax \fIfile name\fP may be used
+to have tcpdump read the provided file in. The file is opened upon 
+receiving the first ESP packet, so any special permissions that tcpdump
+may have been given should already have been given up.
 .TP
 .B \-f
 Print `foreign' IPv4 addresses numerically rather than symbolically
 (this option is intended to get around serious brain damage in
 Sun's NIS server \(em usually it hangs forever translating non-local
 internet numbers).
+.IP
+The test for `foreign' IPv4 addresses is done using the IPv4 address and
+netmask of the interface on which capture is being done.  If that
+address or netmask are not available, available, either because the
+interface on which capture is being done has no address or netmask or
+because the capture is being done on the Linux "any" interface, which
+can capture on more than one interface, this option will not work
+correctly.
 .TP
 .B \-F
 Use \fIfile\fP as input for the filter expression.
@@ -263,6 +359,13 @@ On Linux systems with 2.2 or later kernels, an
 argument of ``any'' can be used to capture packets from all interfaces.
 Note that captures on the ``any'' device will not be done in promiscuous
 mode.
+.IP
+If the
+.B \-D
+flag is supported, an interface number as printed by that flag can be
+used as the
+.I interface
+argument.
 .TP
 .B \-l
 Make stdout line buffered.
@@ -345,11 +448,13 @@ Setting
 Force packets selected by "\fIexpression\fP" to be interpreted the
 specified \fItype\fR.
 Currently known types are
+\fBaodv\fR (Ad-hoc On-demand Distance Vector protocol),
 \fBcnfp\fR (Cisco NetFlow protocol),
 \fBrpc\fR (Remote Procedure Call),
 \fBrtp\fR (Real-Time Applications protocol),
 \fBrtcp\fR (Real-Time Applications control protocol),
 \fBsnmp\fR (Simple Network Management Protocol),
+\fBtftp\fR (Trivial File Transfer Protocol),
 \fBvat\fR (Visual Audio Tool),
 and
 \fBwb\fR (distributed White Board).
@@ -369,6 +474,23 @@ Print a timestamp in default format proceeded by date on each dump line.
 .TP
 .B \-u
 Print undecoded NFS handles.
+.TP
+.B \-U
+Make output saved via the
+.B \-w
+option ``packet-buffered''; i.e., as each packet is saved, it will be
+written to the output file, rather than being written only when the
+output buffer fills.
+.IP
+The
+.B \-U
+flag will not be supported if
+.I tcpdump
+was built with an older version of
+.I libpcap
+that lacks the
+.B pcap_dump_flush()
+function.
 .TP
 .B \-v
 (Slightly more) verbose output.
@@ -401,18 +523,24 @@ Standard output is used if \fIfile\fR is ``-''.
 Print each packet (minus its link level header) in hex.
 The smaller of the entire packet or
 .I snaplen
-bytes will be printed.
+bytes will be printed.  Note that this is the entire link-layer
+packet, so for link layers that pad (e.g. Ethernet), the padding bytes
+will also be printed when the higher layer packet is shorter than the
+required padding.
+.TP
+.B \-xx
+Print each packet,
+.I including
+its link level header, in hex.
 .TP
 .B \-X
-When printing hex, print ascii too.
-Thus if
-.B \-x
-is also set, the packet is printed in hex/ascii.
+Print each packet (minus its link level header) in hex and ASCII.
 This is very handy for analysing new protocols.
-Even if
-.B \-x
-is not also set, some parts of some packets may be printed
-in hex/ascii.
+.TP
+.B \-XX
+Print each packet,
+.I including
+its link level header, in hex and ASCII.
 .TP
 .B \-y
 Set the data link type to use while capturing packets to \fIdatalinktype\fP.
@@ -458,7 +586,8 @@ If
 there is no dir qualifier,
 .B "src or dst"
 is assumed.
-For `null' link layers (i.e. point to point protocols such as slip) the
+For some link layers, such as SLIP and the ``cooked'' Linux capture mode
+used for the ``any'' device and for some other device types, the
 .B inbound
 and
 .B outbound
@@ -470,6 +599,7 @@ protos are:
 .BR ether ,
 .BR fddi ,
 .BR tr ,
+.BR wlan ,
 .BR ip ,
 .BR ip6 ,
 .BR arp ,
@@ -504,8 +634,11 @@ analogous Ethernet fields.
 FDDI headers also contain other fields,
 but you cannot name them explicitly in a filter expression.
 .LP
-Similarly, `tr' is an alias for `ether'; the previous paragraph's
-statements about FDDI headers also apply to Token Ring headers.]
+Similarly, `tr' and `wlan' are aliases for `ether'; the previous
+paragraph's statements about FDDI headers also apply to Token Ring
+and 802.11 wireless LAN headers.  For 802.11 headers, the destination
+address is the DA field and the source address is the SA field; the
+BSSID, RA, and TA fields aren't tested.]
 .LP
 In addition to the above, there are some special `primitive' keywords
 that don't follow the pattern:
@@ -675,10 +808,16 @@ True if the packet is an ethernet broadcast packet.
 The \fIether\fP
 keyword is optional.
 .IP "\fBip broadcast\fR"
-True if the packet is an IP broadcast packet.
-It checks for both
-the all-zeroes and all-ones broadcast conventions, and looks up
-the local subnet mask.
+True if the packet is an IPv4 broadcast packet.
+It checks for both the all-zeroes and all-ones broadcast conventions,
+and looks up the subnet mask on the interface on which the capture is
+being done.
+.IP
+If the subnet mask of the interface on which the capture is being done
+is not available, either because the interface on which capture is being
+done has no netmask or because the capture is being done on the Linux
+"any" interface, which can capture on more than one interface, this
+check will not work correctly.
 .IP "\fBether multicast\fR"
 True if the packet is an ethernet multicast packet.
 The \fIether\fP
@@ -697,41 +836,60 @@ True if the packet is of ether type \fIprotocol\fR.
 Note these identifiers are also keywords
 and must be escaped via backslash (\\).
 .IP
-[In the case of FDDI (e.g., `\fBfddi protocol arp\fR') and Token Ring
-(e.g., `\fBtr protocol arp\fR'), for most of those protocols, the
+[In the case of FDDI (e.g., `\fBfddi protocol arp\fR'), Token Ring
+(e.g., `\fBtr protocol arp\fR'), and IEEE 802.11 wireless LANS (e.g.,
+`\fBwlan protocol arp\fR'), for most of those protocols, the
 protocol identification comes from the 802.2 Logical Link Control (LLC)
-header, which is usually layered on top of the FDDI or Token Ring
-header.
+header, which is usually layered on top of the FDDI, Token Ring, or
+802.11 header.
 .IP
-When filtering for most protocol identifiers on FDDI or Token Ring,
-\fItcpdump\fR checks only the protocol ID field of an LLC header in
-so-called SNAP format with an Organizational Unit Identifier (OUI) of
+When filtering for most protocol identifiers on FDDI, Token Ring, or
+802.11, \fItcpdump\fR checks only the protocol ID field of an LLC header
+in so-called SNAP format with an Organizational Unit Identifier (OUI) of
 0x000000, for encapsulated Ethernet; it doesn't check whether the packet
 is in SNAP format with an OUI of 0x000000.
-.IP
-The exceptions are \fIiso\fP, for which it checks the DSAP (Destination
-Service Access Point) and SSAP (Source Service Access Point) fields of
-the LLC header, \fIstp\fP and \fInetbeui\fP, where it checks the DSAP of
-the LLC header, and \fIatalk\fP, where it checks for a SNAP-format
-packet with an OUI of 0x080007 and the Appletalk etype.
+The exceptions are:
+.RS
+.TP
+\fBiso\fP
+\fItcpdump\fR checks the DSAP (Destination Service Access Point) and
+SSAP (Source Service Access Point) fields of the LLC header;
+.TP
+\fBstp\fP and \fInetbeui\fP
+\fItcpdump\fR checks the DSAP of the LLC header;
+.TP
+\fIatalk\fP
+\fItcpdump\fR checks for a SNAP-format packet with an OUI of 0x080007
+and the AppleTalk etype.
+.RE
 .IP
 In the case of Ethernet, \fItcpdump\fR checks the Ethernet type field
-for most of those protocols; the exceptions are \fIiso\fP, \fIsap\fP,
-and \fInetbeui\fP, for which it checks for an 802.3 frame and then
-checks the LLC header as it does for FDDI and Token Ring, \fIatalk\fP,
-where it checks both for the Appletalk etype in an Ethernet frame and
-for a SNAP-format packet as it does for FDDI and Token Ring, \fIaarp\fP,
-where it checks for the Appletalk ARP etype in either an Ethernet frame
-or an 802.2 SNAP frame with an OUI of 0x000000, and \fIipx\fP, where it
-checks for the IPX etype in an Ethernet frame, the IPX DSAP in the LLC
-header, the 802.3 with no LLC header encapsulation of IPX, and the IPX
-etype in a SNAP frame.]
+for most of those protocols.  The exceptions are:
+.RS
+.TP
+\fBiso\fP, \fBsap\fP, and \fBnetbeui\fP
+\fItcpdump\fR checks for an 802.3 frame and then checks the LLC header as
+it does for FDDI, Token Ring, and 802.11;
+.TP
+\fBatalk\fP
+\fItcpdump\fR checks both for the AppleTalk etype in an Ethernet frame and
+for a SNAP-format packet as it does for FDDI, Token Ring, and 802.11;
+.TP
+\fBaarp\fP
+\fItcpdump\fR checks for the AppleTalk ARP etype in either an Ethernet
+frame or an 802.2 SNAP frame with an OUI of 0x000000;
+.TP
+\fBipx\fP
+\fItcpdump\fR checks for the IPX etype in an Ethernet frame, the IPX
+DSAP in the LLC header, the 802.3-with-no-LLC-header encapsulation of
+IPX, and the IPX etype in a SNAP frame.
+.RE
 .IP "\fBdecnet src \fIhost\fR"
 True if the DECNET source address is
 .IR host ,
 which may be an address of the form ``10.123'', or a DECNET host
 name.
-[DECNET host name support is only available on Ultrix systems
+[DECNET host name support is only available on ULTRIX systems
 that are configured to run DECNET.]
 .IP "\fBdecnet dst \fIhost\fR"
 True if the DECNET destination address is
@@ -739,6 +897,58 @@ True if the DECNET destination address is
 .IP "\fBdecnet host \fIhost\fR"
 True if either the DECNET source or destination address is
 .IR host .
+.IP "\fBifname \fIinterface\fR"
+True if the packet was logged as coming from the specified interface (applies
+only to packets logged by OpenBSD's
+.BR pf (4)).
+.IP "\fBon \fIinterface\fR"
+Synonymous with the
+.B ifname
+modifier.
+.IP "\fBrnr \fInum\fR"
+True if the packet was logged as matching the specified PF rule number
+(applies only to packets logged by OpenBSD's
+.BR pf (4)).
+.IP "\fBrulenum \fInum\fR"
+Synonomous with the
+.B rnr
+modifier.
+.IP "\fBreason \fIcode\fR"
+True if the packet was logged with the specified PF reason code.  The known
+codes are:
+.BR match ,
+.BR bad-offset ,
+.BR fragment ,
+.BR short ,
+.BR normalize ,
+and
+.B memory
+(applies only to packets logged by OpenBSD's
+.BR pf (4)).
+.IP "\fBrset \fIname\fR"
+True if the packet was logged as matching the specified PF ruleset
+name of an anchored ruleset (applies only to packets logged by
+.BR pf (4)).
+.IP "\fBruleset \fIname\fR"
+Synonomous with the
+.B rset
+modifier.
+.IP "\fBsrnr \fInum\fR"
+True if the packet was logged as matching the specified PF rule number
+of an anchored ruleset (applies only to packets logged by
+.BR pf (4)).
+.IP "\fBsubrulenum \fInum\fR"
+Synonomous with the
+.B srnr
+modifier.
+.IP "\fBaction \fIact\fR"
+True if PF took the specified action when the packet was logged.  Known actions
+are:
+.B pass
+and
+.B block
+(applies only to packets logged by OpenBSD's
+.BR pf (4)).
 .IP "\fBip\fR, \fBip6\fR, \fBarp\fR, \fBrarp\fR, \fBatalk\fR, \fBaarp\fR, \fBdecnet\fR, \fBiso\fR, \fBstp\fR, \fBipx\fR, \fInetbeui\fP"
 Abbreviations for:
 .in +.5i
@@ -784,12 +994,66 @@ Abbreviations for:
 .fi
 .in -.5i
 where \fIp\fR is one of the above protocols.
-Note that \fItcpdump\fR does an incomplete job of parsing these protocols.
+.IP "\fBl1\fR, \fBl2\fR, \fBiih\fR, \fBlsp\fR, \fBsnp\fR, \fBcsnp\fR, \fBpsnp\fR"
+Abbreviations for IS-IS PDU types.
+.IP "\fBvpi\fP \fIn\fR
+True if the packet is an ATM packet, for SunATM on Solaris, with a
+virtual path identifier of
+.IR n .
+.IP "\fBvci\fP \fIn\fR
+True if the packet is an ATM packet, for SunATM on Solaris, with a
+virtual channel identifier of
+.IR n .
+.IP \fBlane\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+an ATM LANE packet.
+Note that the first \fBlane\fR keyword encountered in \fIexpression\fR
+changes the tests done in the remainder of \fIexpression\fR
+on the assumption that the packet is either a LANE emulated Ethernet
+packet or a LANE LE Control packet.  If \fBlane\fR isn't specified, the
+tests are done under the assumption that the packet is an
+LLC-encapsulated packet.
+.IP \fBllc\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+an LLC-encapsulated packet.
+.IP \fBoamf4s\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+a segment OAM F4 flow cell (VPI=0 & VCI=3).
+.IP \fBoamf4e\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+an end-to-end OAM F4 flow cell (VPI=0 & VCI=4).
+.IP \fBoamf4\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+a segment or end-to-end OAM F4 flow cell (VPI=0 & (VCI=3 | VCI=4)).
+.IP \fBoam\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+a segment or end-to-end OAM F4 flow cell (VPI=0 & (VCI=3 | VCI=4)).
+.IP \fBmetac\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+on a meta signaling circuit (VPI=0 & VCI=1).
+.IP \fBbcc\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+on a broadcast signaling circuit (VPI=0 & VCI=2).
+.IP \fBsc\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+on a signaling circuit (VPI=0 & VCI=5).
+.IP \fBilmic\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+on an ILMI circuit (VPI=0 & VCI=16).
+.IP \fBconnectmsg\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+on a signaling circuit and is a Q.2931 Setup, Call Proceeding, Connect,
+Connect Ack, Release, or Release Done message.
+.IP \fBmetaconnect\fP
+True if the packet is an ATM packet, for SunATM on Solaris, and is
+on a meta signaling circuit and is a Q.2931 Setup, Call Proceeding, Connect,
+Release, or Release Done message.
 .IP  "\fIexpr relop expr\fR"
-True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =, !=,
-and \fIexpr\fR is an arithmetic expression composed of integer constants
-(expressed in standard C syntax), the normal binary operators
-[+, -, *, /, &, |], a length operator, and special packet data accessors.
+True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =,
+!=, and \fIexpr\fR is an arithmetic expression composed of integer
+constants (expressed in standard C syntax), the normal binary operators
+[+, -, *, /, &, |, <<, >>], a length operator, and special packet data
+accessors.
 To access
 data inside the packet, use the following syntax:
 .in +.5i
@@ -797,9 +1061,11 @@ data inside the packet, use the following syntax:
 \fIproto\fB [ \fIexpr\fB : \fIsize\fB ]\fR
 .fi
 .in -.5i
-\fIProto\fR is one of \fBether, fddi, tr,
+\fIProto\fR is one of \fBether, fddi, tr, wlan, ppp, slip, link,
 ip, arp, rarp, tcp, udp, icmp\fR or \fBip6\fR, and
 indicates the protocol layer for the index operation.
+(\fBether, fddi, wlan, tr, ppp, slip\fR and \fBlink\fR all refer to the
+link layer.)
 Note that \fItcp, udp\fR and other upper-layer protocol types only
 apply to IPv4, not IPv6 (this will be fixed in the future).
 The byte offset, relative to the indicated protocol layer, is
@@ -835,7 +1101,7 @@ The following ICMP type field values are available: \fBicmp-echoreply\fP,
 \fBicmp-maskreq\fP, \fBicmp-maskreply\fP.
 
 The following TCP flags field values are available: \fBtcp-fin\fP,
-\fBtcp-syn\fP, \fBtcp-rst\fP, \fBtcp-push\fP, \fBtcp-push\fP,
+\fBtcp-syn\fP, \fBtcp-rst\fP, \fBtcp-push\fP,
 \fBtcp-ack\fP, \fBtcp-urg\fP.
 .LP
 Primitives may be combined using:
@@ -1005,6 +1271,12 @@ Regardless of whether
 the '-e' option is specified or not, the source routing information is
 printed for source-routed packets.
 .LP
+On 802.11 networks, the '-e' option causes \fItcpdump\fP to print
+the `frame control' fields, all of the addresses in the 802.11 header,
+and the packet length.
+As on FDDI networks,
+packets are assumed to contain an LLC packet.
+.LP
 \fI(N.B.: The following description assumes familiarity with
 the SLIP compression algorithm described in RFC-1144.)\fP
 .LP
@@ -1099,7 +1371,8 @@ The general format of a tcp protocol line is:
 \fISrc\fP and \fIdst\fP are the source and destination IP
 addresses and ports.
 \fIFlags\fP are some combination of S (SYN),
-F (FIN), P (PUSH) or R (RST) or a single `.' (no flags).
+F (FIN), P (PUSH), R (RST), W (ECN CWR) or E (ECN-Echo), or a single
+`.' (no flags).
 \fIData-seqno\fP describes the portion of sequence space covered
 by the data in this packet (see example below).
 \fIAck\fP is sequence number of the next data expected the other
@@ -1507,10 +1780,10 @@ gory details.
 If you are decoding SMB sessions containing unicode strings then you
 may wish to set the environment variable USE_UNICODE to 1.
 A patch to
-auto-detect unicode srings would be welcome.
+auto-detect unicode strings would be welcome.
 
 For information on SMB packet formats and what all te fields mean see
-www.cifs.org or the pub/samba/specs/ directory on your favourite
+www.cifs.org or the pub/samba/specs/ directory on your favorite
 samba.org mirror site.
 The SMB patches were written by Andrew Tridgell
 (tridge@samba.org).
@@ -1668,14 +1941,14 @@ follow the
 corresponding request, it might not be parsable.
 
 .HD
-KIP Appletalk (DDP in UDP)
+KIP AppleTalk (DDP in UDP)
 .LP
-Appletalk DDP packets encapsulated in UDP datagrams are de-encapsulated
+AppleTalk DDP packets encapsulated in UDP datagrams are de-encapsulated
 and dumped as DDP packets (i.e., all the UDP header information is
 discarded).
 The file
 .I /etc/atalk.names
-is used to translate appletalk net and node numbers to names.
+is used to translate AppleTalk net and node numbers to names.
 Lines in this file have the form
 .RS
 .nf
@@ -1688,7 +1961,7 @@ Lines in this file have the form
 .sp .5
 .fi
 .RE
-The first two lines give the names of appletalk networks.
+The first two lines give the names of AppleTalk networks.
 The third
 line gives the name of a particular host (a host is distinguished
 from a net by the 3rd octet in the number \-
@@ -1700,7 +1973,7 @@ The
 file may contain blank lines or comment lines (lines starting with
 a `#').
 .LP
-Appletalk addresses are printed in the form
+AppleTalk addresses are printed in the form
 .RS
 .nf
 .sp .5
@@ -1714,7 +1987,7 @@ jssmag.149.235 > icsd-net.2\fR
 .RE
 (If the
 .I /etc/atalk.names
-doesn't exist or doesn't contain an entry for some appletalk
+doesn't exist or doesn't contain an entry for some AppleTalk
 host/net number, addresses are printed in numeric form.)
 In the first example, NBP (DDP port 2) on net 144.1 node 209
 is sending to whatever is listening on port 220 of net icsd node 112.
@@ -1726,7 +1999,7 @@ the broadcast address (255) is indicated by a net name with no host
 number \- for this reason it's a good idea to keep node names and
 net names distinct in /etc/atalk.names).
 .LP
-NBP (name binding protocol) and ATP (Appletalk transaction protocol)
+NBP (name binding protocol) and ATP (AppleTalk transaction protocol)
 packets have their contents interpreted.
 Other protocols just dump
 the protocol name (or number if no name is registered for the
@@ -1919,7 +2192,9 @@ will be copied from the kernel (the 2.0[.x] packet capture mechanism, if
 asked to copy only part of a packet to userland, will not report the
 true length of the packet; this would cause most IP packets to get an
 error from
-.BR tcpdump ).
+.BR tcpdump );
+.IP
+capturing on some PPP devices won't work correctly.
 .LP
 We recommend that you upgrade to a 2.2 or later kernel.
 .LP
@@ -1935,16 +2210,11 @@ prefer to fix the program generating them rather than \fItcpdump\fP.
 A packet trace that crosses a daylight savings time change will give
 skewed time stamps (the time change is ignored).
 .LP
-Filter expressions that manipulate FDDI or Token Ring headers assume
-that all FDDI and Token Ring packets are SNAP-encapsulated Ethernet
-packets.
-This is true for IP, ARP, and DECNET Phase IV, but is not true
-for protocols such as ISO CLNS.
-Therefore, the filter may inadvertently
-accept certain packets that do not properly match the filter expression.
+Filter expressions on fields other than those in Token Ring headers will
+not correctly handle source-routed Token Ring packets.
 .LP
-Filter expressions on fields other than those that manipulate Token Ring
-headers will not correctly handle source-routed Token Ring packets.
+Filter expressions on fields other than those in 802.11 headers will not
+correctly handle 802.11 data packets with both To DS and From DS set.
 .LP
 .BR "ip6 proto"
 should chase header chain, but at this moment it does not.
