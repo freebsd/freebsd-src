@@ -11,7 +11,7 @@ SUBDIR+=usb ugen uhid ukbd ulpt ums umodem umass
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=amr bktr coff fpu gnufpu ibcs2 linux mlx ncp nwfs splash streams \
-	svr4 syscons vesa vinum
+	svr4 syscons vesa vinum wi
 .endif
 
 .include <bsd.subdir.mk>
