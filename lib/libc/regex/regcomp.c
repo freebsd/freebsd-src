@@ -279,7 +279,7 @@ int cflags;
 	if(g->mlen > 3) {
 		computejumps(p, g);
 		computematchjumps(p, g);
-		if(g->matchjump == NULL) {
+		if(g->matchjump == NULL && g->charjump != NULL) {
 			free(g->charjump);
 			g->charjump = NULL;
 		}
