@@ -323,6 +323,8 @@ net.inet.tcp.newreno sysctl variable. [MERGED]
 TCP now uses a more aggressive timeout for initial SYN segments; this
 allows initial connection attempts to be dropped much faster. [MERGED]
 
+The TCP_COMPAT_42 kernel option has been removed.
+
 A new sysctl net.inet.ip.check_interface, which is on by default,
 causes IP to verify that an incoming packet arrives on an interface
 that has an address matching the packet's destination address. [MERGED]
@@ -355,6 +357,8 @@ interface. [MERGED]
 
 A bug in the NFS client that caused bogus access times with
 O_EXCL|O_CREAT opens was fixed.  [MERGED]
+
+Client-side NFS locks have been implemented.
 
 Support for the 80386 processor has been removed from the GENERIC
 kernel, as this code seriously pessimizes performance on other ia32
@@ -419,6 +423,12 @@ improve its speed on large filesystems.
 
 The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
 (10/100/1000) adapters.
+
+The labpc(4) driver has been removed due to bitrot.
+
+A new kernel option, "options REGRESSION", enables interfaces and
+functionality intended for use during correctness and regression
+testing.
 
 
 1.2. SECURITY FIXES
@@ -1119,6 +1129,9 @@ when loading a font, and has some better error-handling.
 
 ip6fw(8) now has the ability to use a preprocessor and use the -q (quiet)
 flag when reading from a file. [MERGED]
+
+devinfo, a simple tool to print the device tree and resource usage by
+devices, has been added.
 
 
 2. Supported Configurations
