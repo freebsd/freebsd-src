@@ -474,9 +474,8 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 
 static struct g_class g_mbrext_class	= {
-	MBREXT_CLASS_NAME,
-	g_mbrext_taste,
-	NULL,
+	.name = MBREXT_CLASS_NAME,
+	.taste = g_mbrext_taste,
 	G_CLASS_INITIALIZER
 };
 
