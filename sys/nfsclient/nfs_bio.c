@@ -432,13 +432,15 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		error = VOP_GETATTR(vp, &vattr, cred, td);
 		if (error)
 			return (error);
-		if (np->n_mtime != vattr.va_mtime.tv_sec) {
+		if ((np->n_flag & NSIZECHANGED)
+		    || (np->n_mtime != vattr.va_mtime.tv_sec)) {
 			if (vp->v_type == VDIR)
 				(nmp->nm_rpcops->nr_invaldir)(vp);
 			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
 			if (error)
 				return (error);
 			np->n_mtime = vattr.va_mtime.tv_sec;
+			np->n_flag &= ~NSIZECHANGED;
 		}
 	}
 	do {
