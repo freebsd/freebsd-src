@@ -51,6 +51,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/md_var.h>
@@ -122,7 +123,7 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_debug, OID_AUTO, clock_adjust_ticks, CTLFLAG_RW,
     &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
-void
+int
 interrupt(u_int64_t vector, struct trapframe *framep)
 {
 	struct thread *td;
@@ -230,6 +231,7 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 	}
 
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
+	return (TRAPF_USERMODE(framep));
 }
 
 /*
