@@ -51,13 +51,7 @@
 static void
 g_bde_start(struct bio *bp)
 {
-	struct g_geom *gp;
-	struct g_consumer *cp;
-	struct g_bde_softc *sc;
 
-	gp = bp->bio_to->geom;
-	cp = LIST_FIRST(&gp->consumer);
-	sc = gp->softc;
 	switch (bp->bio_cmd) {
 	case BIO_DELETE:
 	case BIO_READ:
