@@ -147,7 +147,7 @@ atapi_attach(void *notused)
 				 (wdmamode(atp->atapi_parm) < 0) ? 
 				 (atp->atapi_parm->dmaflag ? 2 : 0) : 
 				 wdmamode(atp->atapi_parm),
-				 udmamode(atp->atapi_parm)))
+				 udmamode(atp->atapi_parm))
 		    atp->flags |= ATAPI_F_DMA_ENABLED;
 		}
 		else
