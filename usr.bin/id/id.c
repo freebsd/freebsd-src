@@ -46,8 +46,10 @@ static char sccsid[] = "@(#)id.c	8.2 (Berkeley) 2/16/94";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/mac.h>
 
 #include <err.h>
+#include <errno.h>
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -59,6 +61,7 @@ void	current(void);
 void	pline(struct passwd *);
 void	pretty(struct passwd *);
 void	group(struct passwd *, int);
+void	maclabel(void);
 void	usage(void);
 void	user(struct passwd *);
 struct passwd *
@@ -71,10 +74,10 @@ main(int argc, char *argv[])
 {
 	struct group *gr;
 	struct passwd *pw;
-	int Gflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
+	int Gflag, Mflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
 	const char *myname;
 
-	Gflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
+	Gflag = Mflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
 
 	myname = strrchr(argv[0], '/');
 	myname = (myname != NULL) ? myname + 1 : argv[0];
@@ -88,10 +91,13 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv,
-	    (isgroups || iswhoami) ? "" : "PGgnpru")) != -1)
+	    (isgroups || iswhoami) ? "" : "PGMgnpru")) != -1)
 		switch(ch) {
 		case 'G':
 			Gflag = 1;
+			break;
+		case 'M':
+			Mflag = 1;
 			break;
 		case 'P':
 			Pflag = 1;
@@ -134,6 +140,9 @@ main(int argc, char *argv[])
 
 	pw = *argv ? who(*argv) : NULL;
 
+	if (Mflag && pw != NULL)
+		usage();
+
 	if (gflag) {
 		id = pw ? pw->pw_gid : rflag ? getgid() : getegid();
 		if (nflag && (gr = getgrgid(id)))
@@ -154,6 +163,11 @@ main(int argc, char *argv[])
 
 	if (Gflag) {
 		group(pw, nflag);
+		exit(0);
+	}
+
+	if (Mflag) {
+		maclabel();
 		exit(0);
 	}
 
@@ -317,6 +331,30 @@ group(struct passwd *pw, int nflag)
 	(void)printf("\n");
 }
 
+void
+maclabel(void)
+{
+	char *string;
+	mac_t label;
+	int error;
+
+	error = mac_prepare_process_label(&label);
+	if (error == -1)
+		errx(1, "mac_prepare_type: %s", strerror(errno));
+
+	error = mac_get_proc(label);
+	if (error == -1)
+		errx(1, "mac_get_proc: %s", strerror(errno));
+
+	error = mac_to_text(label, &string);
+	if (error == -1)
+		errx(1, "mac_to_text: %s", strerror(errno));
+
+	(void)printf("%s\n", string);
+	mac_free(label);
+	free(string);
+}
+
 struct passwd *
 who(char *u)
 {
@@ -366,6 +404,7 @@ usage(void)
 		(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 		    "usage: id [user]",
 		    "       id -G [-n] [user]",
+		    "       id -M",
 		    "       id -P [user]",
 		    "       id -g [-nr] [user]",
 		    "       id -p [user]",
