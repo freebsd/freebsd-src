@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.62 1999/06/22 07:18:20 alc Exp $
+ * $Id: vm_page.h,v 1.63 1999/07/22 06:04:17 alc Exp $
  */
 
 /*
@@ -197,7 +197,7 @@ struct vm_page {
 extern struct vpgqueues {
 	struct pglist *pl;
 	int	*cnt;
-	int	*lcnt;
+	int	lcnt;
 } vm_page_queues[PQ_COUNT];
 
 #endif
