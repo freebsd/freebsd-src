@@ -50,14 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
 #include <sys/ucontext.h>
-#include <sys/user.h>
 #include <machine/tss.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 #include <sys/proc.h>
 #include <net/if.h>
 #include <netinet/in.h>
@@ -67,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsdiskless.h>
 #include <machine/apicreg.h>
 #include <machine/cpu.h>
+#include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/proc.h>
 #include <machine/specialreg.h>
@@ -76,7 +75,6 @@ ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
-ASSYM(P_UAREA, offsetof(struct proc, p_uarea));
 
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
@@ -88,7 +86,6 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
-ASSYM(UAREA_PAGES, UAREA_PAGES);
 ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(NPTEPG, NPTEPG);
