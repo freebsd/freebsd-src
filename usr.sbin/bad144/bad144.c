@@ -115,8 +115,8 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 
-	i = -1;
-	n = ioctl(f,DIOCSRETRIES,&i);
+	i = 1;
+	n = ioctl(f,DIOCSBADSCAN,&i);
 	if (n < 0)
 		perror("Couldn't set disk in \"badscan\" mode");
 	nargc = *argc;
@@ -161,7 +161,7 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	*argc = nargc;
 	*argv = &nargv[0];
 	i = 0;
-	n = ioctl(f,DIOCSRETRIES,&i);
+	n = ioctl(f,DIOCSBADSCAN,&i);
 	if (n < 0) 
 		perror("Couldn't reset disk from \"badscan\" mode");
 }
