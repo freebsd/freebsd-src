@@ -1,5 +1,5 @@
 Portability of the new file(1) command.
-@(#) $FreeBSD$
+@(#) $Id$
 
 Read this file only if the program doesn't compile on your system.
 

@@ -1,7 +1,7 @@
 /*
  * Русский календарь
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef _ru_SU_KOI8_R_all
