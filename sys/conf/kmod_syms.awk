@@ -7,12 +7,11 @@ BEGIN {
                         syms[$3] = $2
                 }
         }
+        delete ARGV[1]
 }
 
 # De-list symbols from the export list.
 {
-        if (ARGIND == 1)
-                nextfile
         delete syms[$0]
 }
 
