@@ -72,7 +72,7 @@ sub message(@) {
 
 sub warning(@) {
 
-    my $msg = join(' ', @_);
+    my $msg = join(' ', "TB ---", @_);
     chomp($msg);
     warn("$msg\n");
     return undef;
@@ -80,7 +80,7 @@ sub warning(@) {
 
 sub error(@) {
 
-    my $msg = join(' ', "ERROR:", @_);
+    my $msg = join(' ', "TB ---", "ERROR:", @_);
     chomp($msg);
     die("$msg\n");
     return undef;
