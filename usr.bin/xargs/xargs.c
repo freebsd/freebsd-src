@@ -76,7 +76,7 @@ int
 main(int argc, char **argv)
 {
 	long arg_max;
-	int argumentc, ch, cnt, count, Iflag, indouble, insingle, jfound, lflag;
+	int ch, cnt, count, Iflag, indouble, insingle, jfound, lflag;
 	int nargs, nflag, nline, wasquoted, foundeof, xflag;
 	size_t linelen;
 	const char *eofstr;
@@ -86,8 +86,7 @@ main(int argc, char **argv)
 	ep = environ;
 	inpline = replstr = NULL;
 	eofstr = "";
-	argumentc = cnt = count = Iflag = jfound = lflag = nflag = xflag =
-	    wasquoted = 0;
+	cnt = count = Iflag = jfound = lflag = nflag = xflag = wasquoted = 0;
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -166,8 +165,8 @@ main(int argc, char **argv)
 	 * NULL.
 	 */
 	linelen = 1 + argc + nargs + 1;
-	if ((av = bxp = calloc(linelen * sizeof(char **), 1)) == NULL)
-		err(1, "calloc");
+	if ((av = bxp = malloc(linelen * sizeof(char **))) == NULL)
+		err(1, "malloc");
 
 	/*
 	 * Use the user's name for the utility as argv[0], just like the
@@ -258,9 +257,8 @@ arg2:
 							strcat(inpline, " ");
 					}
 					curlen++;
-					argumentc++;
 					inpline = realloc(realloc_holder, strlen(argp) +
-					    curlen);
+					    curlen + 2);
 					if (inpline == NULL)
 						err(1, "realloc");
 					if (curlen == 1)
@@ -285,12 +283,14 @@ arg2:
 				if (Iflag) {
 					char **tmp, **tmp2;
 					size_t repls;
+					int iter;
 
-					tmp = calloc(linelen * sizeof(char **), 1);
+					tmp = malloc(linelen * sizeof(char **));
 					if (tmp == NULL)
 						err(1, "malloc");
 					tmp2 = tmp;
-					for (repls = 5, avj = av; *avj != NULL; avj++) {
+					repls = 5;
+					for (avj = av, iter = argc; iter; avj++, iter--) {
 						*tmp = *avj;
 						if (avj != av && repls > 0 &&
 						    strstr(*tmp, replstr) != NULL) {
@@ -305,11 +305,6 @@ arg2:
 						}
 						tmp++;
 					}
-					do {
-						if (*tmp != NULL)
-							free(*tmp);
-						tmp--;
-					} while (--argumentc);
 					*tmp = *xp = NULL;
 					run(tmp2);
 					for (; tmp2 != tmp; tmp--)
@@ -317,7 +312,6 @@ arg2:
 					free(tmp2);
 					free(inpline);
 					inpline = strdup("");
-					argumentc = 0;
 				} else {
 					*xp = NULL;
 					run(av);
