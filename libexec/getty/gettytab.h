@@ -170,6 +170,7 @@ struct gettyflags {
 #define AB	gettyflags[19].value
 #define DX	gettyflags[20].value
 #define	NP	gettyflags[21].value
+#define	NPset	gettyflags[21].set
 #define	MB	gettyflags[22].value
 #define	HW	gettyflags[23].value
 #define	NC	gettyflags[24].value
