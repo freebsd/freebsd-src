@@ -500,7 +500,7 @@ skip_ipsec2:;
 		switch (rh->ip6r_type) {
 		case IPV6_RTHDR_TYPE_0:
 			 rh0 = (struct ip6_rthdr0 *)rh;
-			 addrs = (struct in6_addr *)(rh + 1);
+			 addrs = (struct in6_addr *)(rh0 + 1);
 
 			 ip6->ip6_dst = *addrs;
 			 bcopy((caddr_t)(addrs + 1), (caddr_t)addrs,
