@@ -209,6 +209,7 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	char			 tmp[100];
 	size_t			 w;
 	const char		*p;
+	const char		*fmt;
 	time_t			 tim;
 	static time_t		 now;
 
@@ -277,11 +278,13 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = (time_t)st->st_mtime;
-	if (tim < now - 6*30*24*60*60 || tim > now + 6*30*24*60*60)
-		strftime(tmp, sizeof(tmp), "%b %e  %Y", localtime(&tim));
+	if (abs(tim - now) > (365/2)*86400)
+		fmt = bsdtar->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
-		strftime(tmp, sizeof(tmp), "%b %e %R", localtime(&tim));
-	safe_fprintf(out, " %s %s", tmp, archive_entry_pathname(entry));
+		fmt = bsdtar->day_first ? "%e %b  %R" : "%b %e  %R";
+	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
+	fprintf(out, " %s ", tmp);
+	safe_fprintf(out, "%s", archive_entry_pathname(entry));
 
 	/* Extra information for links. */
 	if (archive_entry_hardlink(entry)) /* Hard link */
