@@ -51,7 +51,9 @@ extern int errno;
 #undef _KERNEL
 #include <sys/param.h>
 #include <sys/errno.h>
+#define _KERNEL
 #include <sys/time.h>
+#undef _KERNEL
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
@@ -65,18 +67,28 @@ extern int errno;
 #include <vis.h>
 #include "ktrace.h"
 
+int fread_tail(void *, int, int);
+void dumpheader(struct ktr_header *);
+void ktrsyscall(struct ktr_syscall *);
+void ktrsysret(struct ktr_sysret *);
+void ktrnamei(char *, int);
+void ktrgenio(struct ktr_genio *, int);
+void ktrpsig(struct ktr_psig *);
+void ktrcsw(struct ktr_csw *);
+void ktruser(int, unsigned char *);
+void usage(void);
+
 int timestamp, decimal, fancy = 1, tail, maxdata;
-char *tracefile = DEF_TRACEFILE;
+const char *tracefile = DEF_TRACEFILE;
 struct ktr_header ktr_header;
 
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
 
-main(argc, argv)
-	int argc;
-	char *argv[];
+int
+main(int argc, char *argv[])
 {
 	int ch, ktrlen, size;
-	register void *m;
+	void *m;
 	int trpoints = ALL_POINTS;
 
 	(void) setlocale(LC_CTYPE, "");
@@ -162,11 +174,11 @@ main(argc, argv)
 		if (tail)
 			(void)fflush(stdout);
 	}
+	return 0;
 }
 
-fread_tail(buf, size, num)
-	char *buf;
-	int num, size;
+int
+fread_tail(void *buf, int size, int num)
 {
 	int i;
 
@@ -177,12 +189,12 @@ fread_tail(buf, size, num)
 	return (i);
 }
 
-dumpheader(kth)
-	struct ktr_header *kth;
+void
+dumpheader(struct ktr_header *kth)
 {
 	static char unknown[64];
 	static struct timeval prevtime, temp;
-	char *type;
+	const char *type;
 
 	switch (kth->ktr_type) {
 	case KTR_SYSCALL:
@@ -230,18 +242,18 @@ dumpheader(kth)
 #undef KTRACE
 int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 
-static char *ptrace_ops[] = {
+static const char *ptrace_ops[] = {
 	"PT_TRACE_ME",	"PT_READ_I",	"PT_READ_D",	"PT_READ_U",
 	"PT_WRITE_I",	"PT_WRITE_D",	"PT_WRITE_U",	"PT_CONTINUE",
 	"PT_KILL",	"PT_STEP",	"PT_ATTACH",	"PT_DETACH",
 };
 
-ktrsyscall(ktr)
-	register struct ktr_syscall *ktr;
+void
+ktrsyscall(struct ktr_syscall *ktr)
 {
-	register narg = ktr->ktr_narg;
-	register register_t *ip;
-	char *ioctlname();
+	int narg = ktr->ktr_narg;
+	register_t *ip;
+	const char *ioctlname(u_long);
 
 	if (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0)
 		(void)printf("[%d]", ktr->ktr_code);
@@ -252,7 +264,7 @@ ktrsyscall(ktr)
 		char c = '(';
 		if (fancy) {
 			if (ktr->ktr_code == SYS_ioctl) {
-				char *cp;
+				const char *cp;
 				if (decimal)
 					(void)printf("(%ld", (long)*ip);
 				else
@@ -271,7 +283,7 @@ ktrsyscall(ktr)
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_ptrace) {
-				if (*ip < sizeof(ptrace_ops) /
+				if ((size_t)*ip < sizeof(ptrace_ops) /
 				    sizeof(ptrace_ops[0]) && *ip >= 0)
 					(void)printf("(%s", ptrace_ops[*ip]);
 #ifdef PT_GETREGS
@@ -319,12 +331,12 @@ ktrsyscall(ktr)
 	(void)putchar('\n');
 }
 
-ktrsysret(ktr)
-	struct ktr_sysret *ktr;
+void
+ktrsysret(struct ktr_sysret *ktr)
 {
-	register register_t ret = ktr->ktr_retval;
-	register int error = ktr->ktr_error;
-	register int code = ktr->ktr_code;
+	register_t ret = ktr->ktr_retval;
+	int error = ktr->ktr_error;
+	int code = ktr->ktr_code;
 
 	if (code >= nsyscalls || code < 0)
 		(void)printf("[%d] ", code);
@@ -354,22 +366,22 @@ ktrsysret(ktr)
 	(void)putchar('\n');
 }
 
-ktrnamei(cp, len)
-	char *cp;
+void
+ktrnamei(char *cp, int len)
 {
 	(void)printf("\"%.*s\"\n", len, cp);
 }
 
-ktrgenio(ktr, len)
-	struct ktr_genio *ktr;
+void
+ktrgenio(struct ktr_genio *ktr, int len)
 {
-	register int datalen = len - sizeof (struct ktr_genio);
-	register char *dp = (char *)ktr + sizeof (struct ktr_genio);
-	register char *cp;
-	register int col = 0;
-	register width;
+	int datalen = len - sizeof (struct ktr_genio);
+	char *dp = (char *)ktr + sizeof (struct ktr_genio);
+	char *cp;
+	int col = 0;
+	int width;
 	char visbuf[5];
-	static screenwidth = 0;
+	static int screenwidth = 0;
 
 	if (screenwidth == 0) {
 		struct winsize ws;
@@ -423,7 +435,7 @@ ktrgenio(ktr, len)
 	(void)printf("\"\n");
 }
 
-char *signames[] = {
+const char *signames[] = {
 	"NULL", "HUP", "INT", "QUIT", "ILL", "TRAP", "IOT",	/*  1 - 6  */
 	"EMT", "FPE", "KILL", "BUS", "SEGV", "SYS",		/*  7 - 12 */
 	"PIPE", "ALRM",  "TERM", "URG", "STOP", "TSTP",		/* 13 - 18 */
@@ -432,27 +444,27 @@ char *signames[] = {
 	"USR2", NULL,						/* 31 - 32 */
 };
 
-ktrpsig(psig)
-	struct ktr_psig *psig;
+void
+ktrpsig(struct ktr_psig *psig)
 {
 	(void)printf("SIG%s ", signames[psig->signo]);
 	if (psig->action == SIG_DFL)
 		(void)printf("SIG_DFL\n");
-	else
+	else {
 		(void)printf("caught handler=0x%lx mask=0x%x code=0x%x\n",
-		    (u_long)psig->action, psig->mask, psig->code);
+		    (u_long)psig->action, psig->mask.__bits[0], psig->code);
+	}
 }
 
-ktrcsw(cs)
-	struct ktr_csw *cs;
+void
+ktrcsw(struct ktr_csw *cs)
 {
 	(void)printf("%s %s\n", cs->out ? "stop" : "resume",
 		cs->user ? "user" : "kernel");
 }
 
-ktruser(len, p)
-	int len;
-	unsigned char *p;
+void
+ktruser(int len, unsigned char *p)
 {
 	(void)printf("%d ", len);
 	while (len--)
@@ -461,7 +473,8 @@ ktruser(len, p)
 		
 }
 
-usage()
+void
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: kdump [-dnlRT] [-f trfile] [-m maxdata] [-t [cnisuw]]\n");
