@@ -17,9 +17,9 @@
 #include <nlist.h>
 #include <kvm.h>
 
-struct rlist *swapmap;
+struct rlist *swaplist;
 
-static struct nlist nl[] = {{"_swapmap"},  /* list of free swap areas */
+static struct nlist nl[] = {{"_swaplist"},  /* list of free swap areas */
 #define VM_SWAPMAP	0
 			    {"_swdevt"},   /* list of swap devices and sizes */
 #define VM_SWDEVT	1
@@ -119,9 +119,9 @@ char	**argv;
 		exit (5);
 	}
 
-	if (kvm_read(kd, nl[0].n_value, &swapmap, sizeof (struct rlist *)) !=
+	if (kvm_read(kd, nl[0].n_value, &swaplist, sizeof (struct rlist *)) !=
 	    sizeof (struct rlist *)) {
-		fprintf (stderr, "%s:  didn't read all of swapmap\n", 
+		fprintf (stderr, "%s:  didn't read all of swaplist\n", 
 			 argv [0]);
 		exit (5);
 	}
@@ -129,10 +129,10 @@ char	**argv;
 	/* Traverse the list of free swap space... */
 
 	total_free = 0;
-    	while (swapmap) {
+    	while (swaplist) {
 		int	top, bottom, next_block;
 
-		if (kvm_read(kd, (long) swapmap, &head, sizeof (struct rlist )) !=
+		if (kvm_read(kd, (long) swaplist, &head, sizeof (struct rlist )) !=
 		    sizeof (struct rlist )) {
 			fprintf (stderr, "%s:  didn't read all of head\n", 
 				 argv [0]);
@@ -164,7 +164,7 @@ char	**argv;
 		by_device [(bottom / dmmax) % nswdev] +=
 			top - bottom + 1;
 
-		swapmap = head.rl_next;
+		swaplist = head.rl_next;
 	}
 
 	header = getbsize(&headerlen, &blocksize);
