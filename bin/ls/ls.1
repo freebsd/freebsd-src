@@ -91,9 +91,13 @@ a percent sign (%) after each whiteout,
 and a vertical bar (|) after each that is a
 .Tn FIFO .
 .It Fl G
-Use ANSI color sequences to distinguish file types. (See
+Use
+.Tn ANSI
+color sequences to distinguish file types.
+See
 .Ev LSCOLORS
-below.) In addition to those mentioned above in
+below.
+In addition to those mentioned above in
 .Fl F ,
 some extra attributes (setuid bit set, etc.) are also displayed.
 .It Fl H
@@ -398,7 +402,8 @@ for more information.
 The value of this variable describes what color to use for which
 attribute when the color output
 .Pq Fl G
-is specified.  This string is a concatenation of pairs of the format
+is specified.
+This string is a concatenation of pairs of the format
 .Sy fb ,
 where
 .Sy f
@@ -429,8 +434,11 @@ light grey
 default foreground or background
 .El
 .Pp
-(Note: the above are standard ANSI colors.  The actual display may
-differ depending on the color capabilities of your terminal.)
+Note that the above are standard
+.Tn ANSI
+colors.
+The actual display may differ
+depending on the color capabilities of your terminal.
 .Pp
 The order of the attributes are as follows:
 .Pp
@@ -459,7 +467,7 @@ directory writable to others, with sticky bit
 directory writable to others, without sticky bit
 .El
 .Pp
-The default is "4x5x2x3x1x464301060203", i.e., blue foreground and
+The default is "4x5x2x3x1x464301060203", i.e. blue foreground and
 default background for regular directories, black foreground and red
 background for setuid executables, etc.
 .It Ev LS_COLWIDTHS
