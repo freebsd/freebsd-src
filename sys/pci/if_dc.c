@@ -41,6 +41,7 @@
  * ASIX Electronics AX88141 (www.asix.com.tw)
  * ADMtek AL981 (www.admtek.com.tw)
  * ADMtek AN985 (www.admtek.com.tw)
+ * Netgear FA511 (www.netgear.com) Appears to be rebadged ADMTek AN985
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  * Accton EN1217 (www.accton.com)
  * Xircom X3201 (www.xircom.com)
@@ -160,6 +161,8 @@ static struct dc_type dc_devs[] = {
 		"ADMtek ADM9511 10/100BaseTX" },
 	{ DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513,
 		"ADMtek ADM9513 10/100BaseTX" },
+ 	{ DC_VENDORID_ADMTEK, DC_DEVICEID_FA511,
+ 		"Netgear FA511 10/100BaseTX" },
 	{ DC_VENDORID_ASIX, DC_DEVICEID_AX88140A,
 		"ASIX AX88140A 10/100BaseTX" },
 	{ DC_VENDORID_ASIX, DC_DEVICEID_AX88140A,
@@ -1941,6 +1944,7 @@ dc_attach(device_t dev)
 	case DC_DEVICEID_AN985:
 	case DC_DEVICEID_ADM9511:
 	case DC_DEVICEID_ADM9513:
+	case DC_DEVICEID_FA511:
 	case DC_DEVICEID_FE2500:
 	case DC_DEVICEID_EN2242:
 	case DC_DEVICEID_HAWKING_PN672TX:
