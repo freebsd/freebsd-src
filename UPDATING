@@ -1,9 +1,72 @@
 Updating Information for FreeBSD current users
 
 This file is maintained by imp@village.org.  Please send new entries
-directly to him.  See end of file for further details.  For commonly
-done items, please see the end of the file.  Search for 'COMMON
-ITEMS:'
+directly to him.  See end of file for further details.  Common issues
+are listed first, followed by specific problems that upgradiung from
+prior versions of 4.x-stable.  Prior to the 4.0 release entry, there
+are some items that are relevant to upgrading from 4.0-current.  They
+will be removed after 4.1-RELEASE happens.
+
+COMMON ITEMS:
+
+	To build a kernel
+	-----------------
+	cd /usr/src
+	# If you have not already done so, please buildworld here
+	make buildkernel KERNEL=<YOUR_KERNEL_HERE>
+	make installkernel  KERNEL=<YOUR_KERNEL_HERE>
+	# Verify that the new kernel works, it will be installed as
+	# /YOUR_KERNEL_HERE
+	mv /YOUR_KERNEL_HERE
+
+	To rebuild disk /dev entries
+	----------------------------
+	MAKEDEV should be copied from src/etc/MAKEDEV to /dev before
+	starting the following:
+
+		For N in the list of disks
+			MAKEDEV N			# eg ad0
+			for M in the list of slices
+				MAKEDEV NsMa		# eg ad0s1a
+
+
+	To rebuild everything
+	---------------------
+	make world
+
+	Except when it doesn't work :-)
+
+	To update from 3.x to 4.0 stable
+	--------------------------------
+	cd /usr/src
+	<see notes below>				[**]
+	make buildworld
+	cd sbin/mknod
+	make install
+	<follow directions to build/install a kernel>
+	cd sys/modules
+	make install
+	<follow rebuild disk /dev entries above>	[*]
+	reboot
+	<in single user>
+	cd /usr/src
+	make -DNOINFO installworld
+	make installworld
+	reboot
+	<multi-user>
+
+	[*] You may need to switch from wd to ad ala 19991210
+	[**] If you have any of the following in your /etc/make.conf,
+	please comment them out before following these instructions
+	and then do a make buildworld + make installworld after you
+	are back to <multi-user> above:
+		BUILD_KERBEROS4
+
+20000315:
+	FreeBSD 4.0 RELEASE.  The rest of this file is historical
+	and will be removed in the future.
+
+****************************** 4.0 RELEASE ******************************
 
 20000308:
 	The binary interface of perl to its modules changed.  You
@@ -616,56 +679,6 @@ http://www.freebsd.org/cgi/getmsg.cgi?fetch=827400+0+current/freebsd-current
 	PAM integrated into the tree.   Requires new /etc/pam.conf file
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
-
-COMMON ITEMS:
-
-	To build a kernel
-	-----------------
-	Update config, genassym and go:
-		cd src/usr.bin/genassym
-		make depend all install clean
-		cd ../../usr.sbin/config
-		make depend all install clean
-		cd ../../sys/i386/conf
-		config YOUR_KERNEL_HERE
-		cd ../../compile/YOUR_KERNEL_HERE
-		make depend && make
-		make install
-
-	To rebuild disk /dev entries
-	----------------------------
-
-	MAKEDEV should be copied from src/etc/MAKEDEV to /dev before
-	starting the following:
-
-		For N in the list of disks
-			MAKEDEV N			# eg ad0
-			for M in the list of slices
-				MAKEDEV NsMa		# eg ad0s1a
-
-
-	To rebuild everything
-	---------------------
-	make world
-
-	Except when it doesn't work.
-
-	To update from 3.x to 4.0 stable
-	--------------------------------
-	cd /usr/src
-	make buildworld
-	cd sbin/mknod
-	make install
-	<follow directions to build/install a kernel>
-	<follow rebuild disk /dev entries above>	[*]
-	reboot
-	<in single user>
-	cd /usr/src
-	make -DNOINFO installworld
-	make installworld
-
-	[*] You may need to switch from wd to ad ala 19991210
-
 
 FORMAT:
 
