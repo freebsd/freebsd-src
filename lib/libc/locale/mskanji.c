@@ -75,7 +75,7 @@ _MSKanji_sgetrune(string, n, result)
 
 	rune = *string++ & 0xff;
 	if ((rune > 0x80 && rune < 0xa0) ||
-	    (rune >= 0xe0 && rune < 0xfa)) {
+	    (rune >= 0xe0 && rune < 0xfd)) {
 		if (n < 2) {
 			rune = _INVALID_RUNE;
 			--string;
