@@ -86,6 +86,24 @@ Debug(const char *fmt, ...)
 }
 
 /*-
+ * Print a debugging message given its format and append the current
+ * errno description. Terminate with a newline.
+ */
+/* VARARGS */
+void
+DebugM(const char *fmt, ...)
+{
+	va_list	ap;
+	int e = errno;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, ": %s\n", strerror(e));
+	va_end(ap);
+	fflush(stderr);
+}
+
+/*-
  * Error --
  *	Print an error message given its format.
  *
