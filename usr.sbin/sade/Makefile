@@ -13,7 +13,7 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c devices.c \
 	msg.c network.c nfs.c options.c package.c register.c samba.c system.c \
 	tape.c tcpip.c termcap.c ufs.c user.c variable.c wizard.c \
 	uc_eisa.c uc_isa.c uc_kmem.c uc_list.c uc_main.c uc_pci.c \
-	uc_scsi.c keymap.h
+	uc_scsi.c keymap.h variable_load.c
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR} -I/sys
 CFLAGS+= -DUC_PRIVATE -DKERN_NO_SYMBOLS -DSAVE_USERCONFIG
