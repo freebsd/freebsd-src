@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.12 1998/10/30 01:36:40 jkh Exp $
+ *	$Id: autoconf.c,v 1.13 1999/01/20 19:22:24 peter Exp $
  */
 
 #include "opt_bootp.h"
@@ -63,6 +63,8 @@ SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
 static void	configure_finish __P((void));
 static void	configure_start __P((void));
+static int      setdumpdev __P((dev_t dev));
+
 device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
 
@@ -255,4 +257,54 @@ cpu_rootconf()
 void
 cpu_dumpconf()
 {
+	if (setdumpdev(dumpdev) != 0)
+                dumpdev = NODEV;
 }
+
+static int
+setdumpdev(dev)
+        dev_t dev;
+{
+        int maj, psize;
+        long newdumplo;
+
+        if (dev == NODEV) {
+                dumpdev = dev;
+                return (0);
+        }
+        maj = major(dev);
+        if (maj >= nblkdev || bdevsw[maj] == NULL)
+                return (ENXIO);         /* XXX is this right? */
+        if (bdevsw[maj]->d_psize == NULL)
+                return (ENXIO);         /* XXX should be ENODEV ? */
+        psize = bdevsw[maj]->d_psize(dev);
+        if (psize == -1)
+                return (ENXIO);         /* XXX should be ENODEV ? */
+        /*
+         * XXX should clean up checking in dumpsys() to be more like this,
+         * and nuke dodump sysctl (too many knobs), and move this to
+         * kern_shutdown.c...
+         */
+        newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
+        if (newdumplo < 0)
+                return (ENOSPC);
+        dumpdev = dev;
+        dumplo = newdumplo;
+        return (0);
+}
+
+static int
+sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
+{
+        int error;
+        dev_t ndumpdev;
+
+        ndumpdev = dumpdev;
+        error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
+        if (error == 0 && req->newptr != NULL)
+                error = setdumpdev(ndumpdev);
+        return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
+	    0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
