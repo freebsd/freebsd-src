@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.10 1998/10/14 16:16:50 jdp Exp $";
+	"$Id: gcore.c,v 1.11 1998/10/19 19:42:18 jdp Exp $";
 #endif /* not lint */
 
 /*
@@ -79,17 +79,19 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-void	core __P((int, int, struct kinfo_proc *));
-void	datadump __P((int, int, struct proc *, u_long, int));
-void	usage __P((void)) __dead2;
-void	userdump __P((int, struct proc *, u_long, int));
+static void	core __P((int, int, struct kinfo_proc *));
+static void	datadump __P((int, int, struct proc *, u_long, int));
+static void	killed __P((int));
+static void	restart_target __P((void));
+static void	usage __P((void)) __dead2;
+static void	userdump __P((int, struct proc *, u_long, int));
 
 kvm_t *kd;
 /* XXX undocumented routine, should be in kvm.h? */
 ssize_t kvm_uread __P((kvm_t *, const struct proc *, u_long, char *, size_t));
 
-
 static int data_offset;
+static pid_t pid;
 
 int
 main(argc, argv)
@@ -99,7 +101,7 @@ main(argc, argv)
 	register struct proc *p;
 	struct kinfo_proc *ki = NULL;
 	struct exec exec;
-	int ch, cnt, efd, fd, pid, sflag, uid;
+	int ch, cnt, efd, fd, sflag, uid;
 	char *binfile, *corefile;
 	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN + 1];
 	int is_aout;
@@ -194,18 +196,21 @@ main(argc, argv)
 	if (fd < 0)
 		err(1, "%s", corefile);
 
-	if (sflag && kill(pid, SIGSTOP) < 0)
-		err(1, "%d: stop signal", pid);
+	if (sflag) {
+		signal(SIGHUP, killed);
+		signal(SIGINT, killed);
+		signal(SIGTERM, killed);
+		if (kill(pid, SIGSTOP) == -1)
+			err(1, "%d: stop signal", pid);
+		atexit(restart_target);
+	}
 
 	if (is_aout)
 		core(efd, fd, ki);
 	else
 		elf_coredump(fd, pid);
 
-	if (sflag && kill(pid, SIGCONT) < 0)
-		err(1, "%d: continue signal", pid);
 	(void)close(fd);
-
 	exit(0);
 }
 
@@ -288,6 +293,21 @@ datadump(efd, fd, p, addr, npage)
 			    cc > 0 ? strerror(EIO) : strerror(errno));
 		addr += PAGE_SIZE;
 	}
+}
+
+static void
+killed(sig)
+	int sig;
+{
+	restart_target();
+	signal(sig, SIG_DFL);
+	kill(getpid(), sig);
+}
+
+static void
+restart_target()
+{
+	kill(pid, SIGCONT);
 }
 
 void
