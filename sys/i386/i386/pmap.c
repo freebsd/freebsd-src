@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
  *	and to when physical maps must be made correct.
  */
 
+#include "opt_cpu.h"
 #include "opt_pmap.h"
 #include "opt_msgbuf.h"
 #include "opt_kstack_pages.h"
@@ -138,6 +139,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+
+#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
+#if defined(CPU_DISABLE_SSE)
+#undef CPU_ENABLE_SSE
 #endif
 
 #define PMAP_KEEP_PDIRS
