@@ -23,4 +23,4 @@
 #             PTD is page-aligned
 #
 7	string	\357\020\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0	i386 a.out core file
->1047	string	>\0	from "%s"
+>1075	string	>\0	from "%s"
