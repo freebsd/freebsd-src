@@ -2,12 +2,10 @@
  *   of Bellcore.
  *
  *   Mink is the former name of the S/KEY authentication system.
- *   Many references for mink  may still be found in this program.   */
+ *   Many references for mink  may still be found in this program.
+ */
 
 #include <sys/param.h>
-#ifdef	QUOTA
-#include <sys/quota.h>
-#endif
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -19,9 +17,9 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>
-#include <skey.h>
 
-#define	KEYFILE	"/etc/skeykeys"
+#include "skey.h"
+#include "pathnames.h"
 
 char *skipspace();
 int skeylookup __P((struct skey *mp,char *name));
@@ -57,7 +55,8 @@ char *prompt;
 		return -1;
 	}
 	return -1;	/* Can't happen */
-}	
+}
+
 /* Return  a skey challenge string for user 'name'. If successful,
  * fill in the caller's skey structure and return 0. If unsuccessful
  * (e.g., if name is unknown) return -1.
@@ -104,13 +103,13 @@ char *name;
 	char *cp;
 	struct stat statbuf;
 
-	/* See if the KEYFILE exists, and create it if not */
-	if(stat(KEYFILE,&statbuf) == -1 && errno == ENOENT){
-		mp->keyfile = fopen(KEYFILE,"w+");
-		(void) chmod(KEYFILE, 0644);
+	/* See if the _PATH_SKEYFILE exists, and create it if not */
+	if(stat(_PATH_SKEYFILE,&statbuf) == -1 && errno == ENOENT){
+		mp->keyfile = fopen(_PATH_SKEYFILE,"w+");
+		(void) chmod(_PATH_SKEYFILE, 0644);
 	} else {
 		/* Otherwise open normally for update */
-		mp->keyfile = fopen(KEYFILE,"r+");
+		mp->keyfile = fopen(_PATH_SKEYFILE,"r+");
 	}
 	if(mp->keyfile == NULL)
 		return -1;

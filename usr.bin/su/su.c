@@ -56,6 +56,10 @@ static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #include <syslog.h>
 #include <unistd.h>
 
+#ifdef	SKEY
+#include <skey.h>
+#endif
+
 #ifdef KERBEROS
 #include <kerberosIV/des.h>
 #include <kerberosIV/krb.h>
@@ -66,10 +70,6 @@ static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 int use_kerberos = 1;
 #else
 #define	ARGSTR	"-flm"
-#endif
-
-#ifdef	SKEY
-char	*skey_crypt(), *skey_getpass();
 #endif
 
 char   *ontty __P((void));

@@ -2,7 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
-#include <skey.h>
+#include "skey.h"
 
 static unsigned long extract __P((char *s,int start,int length));
 static void standard __P((char *word));
