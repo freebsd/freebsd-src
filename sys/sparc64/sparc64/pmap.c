@@ -1046,11 +1046,12 @@ pmap_release(pmap_t pm)
 
 	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p",
 	    pm->pm_context[PCPU_GET(cpuid)], pm->pm_tsb);
-	obj = pm->pm_tsb_obj;
-	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
+	obj = pm->pm_tsb_obj;
+	VM_OBJECT_LOCK(obj);
+	KASSERT(obj->ref_count == 1, ("pmap_release: tsbobj ref count != 1"));
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
 		vm_page_lock_queues();
@@ -1065,6 +1066,7 @@ pmap_release(pmap_t pm)
 		vm_page_free_zero(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(obj);
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 }
 
