@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/sbin/fsck_ffs/SMM.doc/0.t,v 1.5 2002/08/21 18:10:31 trhodes Exp $
 .\"	@(#)0.t	8.1 (Berkeley) 6/8/93
 .\"
 .if n .ND

@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/usb/udbp.c,v 1.18 2002/08/08 12:05:50 joe Exp $
  */
 
 /* Driver for arbitrary double bulk pipe devices.

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/string/ffs.S,v 1.2 2001/10/05 18:52:40 dfr Exp $ */
 /*	$NetBSD: ffs.S,v 1.3 1996/10/17 03:08:13 cgd Exp $	*/
 
 /*

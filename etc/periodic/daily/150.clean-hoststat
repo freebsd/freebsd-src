@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/150.clean-hoststat,v 1.6 2002/08/12 11:09:01 schweikh Exp $
 #
 # Remove stale files in /var/spool/.hoststat
 #

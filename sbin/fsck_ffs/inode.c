@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/fsck_ffs/inode.c,v 1.33 2002/07/31 12:01:14 mux Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbfd/Makefile.x86-64,v 1.2 2002/12/02 09:53:59 obrien Exp $
 
 SRCS+=	cpu-i386.c elf64-x86-64.c elf64-target.h elf64-gen.c elf64.c \
 	elf32-i386.c elf32-target.h elf32.c efi-app-ia32.c elf32-gen.c elflink.c

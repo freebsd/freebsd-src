@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/sys_socket.c,v 1.47 2002/11/01 21:31:13 kbyanc Exp $
  */
 
 #include "opt_mac.h"

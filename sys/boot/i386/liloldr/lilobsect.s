@@ -12,7 +12,7 @@
 # warranties of merchantability and fitness for a particular
 # purpose.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/liloldr/lilobsect.s,v 1.1 2000/07/17 17:06:04 jlemon Exp $
 
 #
 # LILO constants

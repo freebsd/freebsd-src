@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/elf.h,v 1.3 2001/10/10 23:06:51 ps Exp $
  */
 
 #ifndef _MACHINE_ELF_H_

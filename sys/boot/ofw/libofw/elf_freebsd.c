@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/ofw/libofw/elf_freebsd.c,v 1.4 2002/07/18 12:39:01 benno Exp $
  */
 
 #include <sys/param.h>

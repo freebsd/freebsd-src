@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/in_cksum.c,v 1.4 2002/06/29 09:00:47 peter Exp $");
 
 #include <sys/types.h>
 #include <machine/endian.h>

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_disk.c,v 1.32.2.1 2002/12/20 21:52:02 phk Exp $
  */
 
 #include "opt_geom.h"

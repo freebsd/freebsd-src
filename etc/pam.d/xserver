@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/xserver,v 1.2 2001/12/05 21:26:00 des Exp $
 #
 # PAM configuration for the "xserver" service
 #

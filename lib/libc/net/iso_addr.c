@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)iso_addr.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/iso_addr.c,v 1.4 2002/03/21 18:49:23 obrien Exp $");
 
 #include <sys/types.h>
 #include <netiso/iso.h>

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/sigpvc/sigpvc_var.h,v 1.4 2002/03/20 08:00:50 alfred Exp $
  *
  */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)un.h	8.3 (Berkeley) 2/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/un.h,v 1.25 2002/08/21 16:20:01 mike Exp $
  */
 
 #ifndef _SYS_UN_H_

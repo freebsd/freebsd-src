@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/ia64/trap.c,v 1.65 2002/10/24 23:09:48 julian Exp $ */
 /* From: src/sys/alpha/alpha/trap.c,v 1.33 */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.i386/disktab,v 1.22 2001/08/31 22:49:22 murray Exp $
 #
 # Disk geometry and partition layout tables. 
 # Key:

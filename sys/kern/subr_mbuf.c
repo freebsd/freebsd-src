@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_mbuf.c,v 1.34 2002/11/27 04:26:00 tjr Exp $
  */
 
 #include "opt_mac.h"

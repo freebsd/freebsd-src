@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_auth.h,v 1.2 2002/04/29 00:25:10 anholt Exp $
  */
 
 #define __NO_VERSION__

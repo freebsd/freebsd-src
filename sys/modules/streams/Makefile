@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/streams/Makefile,v 1.10 2002/01/11 15:48:58 ru Exp $ 
 MAINTAINER=	newton@atdot.dotat.org
 
 .PATH: ${.CURDIR}/../../dev/streams

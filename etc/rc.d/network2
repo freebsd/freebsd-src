@@ -2,7 +2,7 @@
 #
 # Configure routing and miscellaneous network tunables
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/network2,v 1.135 2002/06/13 22:14:36 gordon Exp $
 #
 
 # PROVIDE: network2

@@ -32,7 +32,7 @@
  *
  *	@(#)lpc.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/lpr/lpc/lpc.h,v 1.5 2002/06/15 22:51:58 gad Exp $
  */
 
 /*

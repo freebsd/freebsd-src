@@ -32,7 +32,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_fec.c,v 1.2.2.1 2002/12/27 20:16:59 julian Exp $
  */
 /*
  * Copyright (c) 1996-1999 Whistle Communications, Inc.

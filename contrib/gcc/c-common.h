@@ -19,7 +19,7 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/c-common.h,v 1.4 2002/09/17 04:10:25 kan Exp $ */
 
 #ifndef GCC_C_COMMON_H
 #define GCC_C_COMMON_H

@@ -27,7 +27,7 @@
  *	i4b daemon - timer/timing support routines
  *	------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/timer.c,v 1.9 2002/03/26 15:12:59 hm Exp $
  *
  *      last edit-date: [Tue Mar 26 14:38:24 2002]
  *

@@ -6,7 +6,7 @@
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/grdc/grdc.c,v 1.9 2001/09/25 13:45:46 ru Exp $
  */
 
 #include <err.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/ntptrace/Makefile,v 1.3 2001/07/20 06:20:06 obrien Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntptrace
 

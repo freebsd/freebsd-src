@@ -1,7 +1,7 @@
 # Note that this files is under a "BSD" copyright (c) by David O'Brien 1997, 
 # even though it may live in src/gnu/...
 
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cpio/Makefile,v 1.8 2001/03/27 14:58:38 ru Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/cpio
 

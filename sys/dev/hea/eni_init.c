@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hea/eni_init.c,v 1.7 2002/11/06 22:58:55 jhb Exp $
  *
  */
 
@@ -50,7 +50,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hea/eni_init.c,v 1.7 2002/11/06 22:58:55 jhb Exp $");
 #endif
 
 /*

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/elf2aout/elf2aout.c,v 1.6 2002/05/25 13:43:16 ru Exp $");
 
 #include <sys/types.h>
 #include <sys/elf64.h>

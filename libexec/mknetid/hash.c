@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/mknetid/hash.c,v 1.6 2002/02/17 19:09:20 imp Exp $";
 #endif /* not lint */
 
 /*

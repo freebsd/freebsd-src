@@ -31,7 +31,7 @@ static char rcsid[] = "$OpenBSD: basename.c,v 1.4 1999/05/30 17:10:30 espie Exp 
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/basename.c,v 1.5 2002/02/01 01:08:48 obrien Exp $");
 
 #include <errno.h>
 #include <libgen.h>

@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amr_cam.c,v 1.5 2002/12/11 20:59:46 emoore Exp $
  */
 
 #include <sys/param.h>

@@ -18,7 +18,7 @@
  * The bitdomain table should be rebuilt monthly.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/contrib/bitdomain.c,v 1.3 2000/08/12 22:19:10 gshapiro Exp $ */
 
 #include <stdio.h>
 #include <errno.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/sendmail/Makefile,v 1.36 2002/02/17 22:06:20 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/p1003_1b/main.c,v 1.1 2000/02/16 14:28:40 dufault Exp $ */
 #include <stdio.h>
 
 int fifo(int argc, char *argv[]);

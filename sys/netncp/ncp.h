@@ -4,7 +4,7 @@
  *  Copyright (C) 1995 by Volker Lendecke
  *  New version derived from original ncp.h, 1998 Boris Popov
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp.h,v 1.5 2002/09/23 18:54:32 alfred Exp $
  */
 
 #ifndef _NETNCP_NCP_H_

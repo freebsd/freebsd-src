@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/ipx_outputfl.c,v 1.16 2001/11/03 08:24:00 peter Exp $
  */
 
 #include <sys/param.h>

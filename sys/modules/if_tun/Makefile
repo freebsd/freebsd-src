@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_tun/Makefile,v 1.26 2002/07/31 20:19:28 rwatson Exp $
 
 .PATH: ${.CURDIR}/../../net
 

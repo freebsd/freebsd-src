@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)machdep.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/machdep.h,v 1.6 1999/08/27 23:15:15 peter Exp $
  */
 
 /*

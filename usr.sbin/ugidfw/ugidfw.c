@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ugidfw/ugidfw.c,v 1.1 2002/08/02 07:14:22 rwatson Exp $
  */
 #include <sys/param.h>
 #include <sys/errno.h>

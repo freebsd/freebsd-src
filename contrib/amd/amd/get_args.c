@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: get_args.c,v 1.7.2.1 2001/01/10 03:23:05 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/amd/get_args.c,v 1.6 2001/09/02 18:17:08 obrien Exp $
  *
  */
 

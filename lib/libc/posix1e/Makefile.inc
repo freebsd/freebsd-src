@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/posix1e/Makefile.inc,v 1.13.2.1 2003/01/15 08:48:52 chris Exp $
 
 MAINTAINER=	rwatson@FreeBSD.org
 

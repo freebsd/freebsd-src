@@ -8,7 +8,7 @@
  *
  * It is based on manpage mklocale(1), euc(4), ja_JP.EUC.src.
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/ko_KR.eucKR.src,v 1.4 2001/11/30 01:22:01 ache Exp $
  */
 
 ENCODING     "EUC"

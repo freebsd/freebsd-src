@@ -33,7 +33,7 @@
 #
 #       @(#)vgrind.sh	8.1 (Berkeley) 6/6/93
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vgrind/vgrind.sh,v 1.3 2002/09/24 19:05:40 ache Exp $
 #
 
 set voptions=

@@ -33,7 +33,7 @@
  *	i4b_ifpnp_avm.c: AVM Fritz!Card PnP hardware driver
  *	---------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpnp/i4b_ifpnp_avm.c,v 1.8 2002/09/02 00:52:08 brooks Exp $
  *
  *      last edit-date: [Fri Jan 12 17:05:28 2001]
  *

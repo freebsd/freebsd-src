@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pci/pcib_private.h,v 1.3 2002/11/22 17:50:47 jhb Exp $
  */
 
 #ifndef __PCIB_PRIVATE_H__

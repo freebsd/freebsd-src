@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/man/catman/catman.perl,v 1.19 2001/06/10 16:03:56 ache Exp $
 
 
 sub usage {

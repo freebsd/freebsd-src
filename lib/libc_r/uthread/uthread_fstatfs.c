@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_fstatfs.c,v 1.12 2001/10/10 17:48:43 bde Exp $
  */
 #include <signal.h>
 #include <errno.h>

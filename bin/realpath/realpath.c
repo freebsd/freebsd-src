@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/realpath/realpath.c,v 1.2.2.1 2002/12/19 13:12:53 johan Exp $");
 
 #include <sys/param.h>
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/boot/powerpc/loader/conf.c,v 1.7 2001/10/07 13:22:25 benno Exp $
  */
 
 #include <stand.h>

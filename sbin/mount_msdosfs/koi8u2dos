@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/mount_msdosfs/koi8u2dos,v 1.1 2001/07/28 20:50:21 ache Exp $
 #
 # Translation table for ukrainian filenames support by <kunia@istc.kiev.ua>
 #

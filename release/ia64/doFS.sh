@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/ia64/doFS.sh,v 1.2 2002/11/06 03:36:57 marcel Exp $
 #
 # See also: ../scripts/doFS.sh
 #

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/sys/exect.S,v 1.1 2000/10/14 17:01:12 dfr Exp $ */
 /*	$NetBSD: exect.S,v 1.2 1996/10/17 03:08:18 cgd Exp $	*/
 
 /*

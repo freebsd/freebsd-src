@@ -52,7 +52,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/alpha/gen/getcontext.S,v 1.1 2002/01/10 02:40:53 deischen Exp $
  */
 
 #include <machine/asm.h>

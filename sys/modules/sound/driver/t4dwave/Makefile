@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/t4dwave/Makefile,v 1.2 2001/01/06 14:00:21 obrien Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/pci
 

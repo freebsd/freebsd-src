@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_store.c,v 1.22 2000/08/09 14:47:44 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_store.c,v 1.3 2000/11/09 06:24:45 iwasaki Exp $
  */
 
 #include <sys/param.h>

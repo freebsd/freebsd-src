@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/cvsup/doc-supfile,v 1.7 2002/07/30 14:08:16 blackend Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # source of the FreeBSD doc tree

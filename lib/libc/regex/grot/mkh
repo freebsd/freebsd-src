@@ -1,6 +1,6 @@
 #! /bin/sh
 # mkh - pull headers out of C source
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/regex/grot/mkh,v 1.3 2002/03/22 19:45:43 obrien Exp $
 PATH=/bin:/usr/bin ; export PATH
 
 # egrep pattern to pick out marked lines

@@ -31,7 +31,7 @@
 
 <sect1 id="support">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/common/dev.sgml,v 1.119.2.3 2003/01/14 18:12:50 roam Exp $</pubdate>
   </sect1info>
 
   <title>Supported Devices</title>

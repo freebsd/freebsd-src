@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/nls.alias,v 1.4 2002/01/08 19:07:03 ache Exp $
 
 ASCII                   C
 POSIX                   C

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)spec.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mtree/spec.c,v 1.15 2002/07/11 18:31:16 alfred Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

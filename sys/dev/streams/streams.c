@@ -30,7 +30,7 @@
  * skeleton produced from /usr/share/examples/drivers/make_pseudo_driver.sh
  * in 3.0-980524-SNAP then hacked a bit (but probably not enough :-).
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/streams/streams.c,v 1.30.2.1 2002/12/19 09:40:08 alfred Exp $
  */
 
 #include <sys/param.h>

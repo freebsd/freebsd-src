@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_trap.c,v 1.15 2001/07/08 04:56:05 julian Exp $
  */
 
 /*

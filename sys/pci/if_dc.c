@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_dc.c,v 1.85 2002/11/27 07:04:10 imp Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ MODULE_DEPEND(dc, miibus, 1, 1, 1);
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_dc.c,v 1.85 2002/11/27 07:04:10 imp Exp $";
 #endif
 
 /*

@@ -28,7 +28,7 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/sb.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/sbc.c,v 1.36 2002/11/26 18:16:25 cg Exp $");
 
 #define IO_MAX	3
 #define IRQ_MAX	1

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/param.h,v 1.139 2002/11/01 09:38:33 dfr Exp $
  */
 
 #ifndef _SYS_PARAM_H_

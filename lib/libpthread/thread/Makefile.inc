@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpthread/thread/Makefile.inc,v 1.35 2002/10/30 06:07:18 mini Exp $
 
 # thr sources
 .PATH: ${.CURDIR}/thread

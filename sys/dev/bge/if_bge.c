@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bge/if_bge.c,v 1.25.2.1 2003/01/08 01:38:37 jdp Exp $
  */
 
 /*
@@ -122,7 +122,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/bge/if_bge.c,v 1.25.2.1 2003/01/08 01:38:37 jdp Exp $";
 #endif
 
 /*

@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)operator.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/find/operator.c,v 1.13 2002/04/12 21:25:16 charnier Exp $");
 
 #include <sys/types.h>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.x86-64,v 1.1 2002/05/18 11:56:06 obrien Exp $
 
 TARGET_TUPLE?=	x86_64-obrien-freebsd
 

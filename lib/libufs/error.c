@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libufs/error.c,v 1.1 2002/10/22 19:25:58 jmallett Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

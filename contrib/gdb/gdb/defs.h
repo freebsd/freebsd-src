@@ -21,7 +21,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gdb/gdb/defs.h,v 1.5 2002/06/28 01:13:52 obrien Exp $ */
 
 #ifndef DEFS_H
 #define DEFS_H

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/geom/geom_sim.h,v 1.7 2002/10/24 21:14:05 phk Exp $
  */
 
 #include <pthread.h>

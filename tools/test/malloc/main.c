@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/test/malloc/main.c,v 1.2 2002/01/02 06:42:34 kbyanc Exp $ */
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>

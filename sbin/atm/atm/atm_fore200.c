@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sbin/atm/atm/atm_fore200.c,v 1.5 2002/05/17 00:20:40 arr Exp $
  *
  */
 
@@ -58,7 +58,7 @@
 #include "atm.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/atm/atm_fore200.c,v 1.5 2002/05/17 00:20:40 arr Exp $");
 #endif
 
 

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/spx_usrreq.c,v 1.35 2002/05/31 11:52:33 tanimura Exp $
  */
 
 #include <sys/param.h>

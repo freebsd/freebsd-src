@@ -1,5 +1,5 @@
 # Makefile for libform
-# $FreeBSD$
+# $FreeBSD: src/lib/libform/Makefile,v 1.7 2002/05/21 07:08:30 peter Exp $
 
 NCURSES=${.CURDIR}/../../contrib/ncurses
 

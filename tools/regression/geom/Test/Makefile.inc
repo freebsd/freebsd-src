@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/Test/Makefile.inc,v 1.5 2002/10/05 13:16:06 phk Exp $
 
 PROG =		testprg
 NOMAN =		no

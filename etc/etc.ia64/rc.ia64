@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.ia64/rc.ia64,v 1.2 2001/12/11 08:21:46 ru Exp $
 #	Do ia64 specific processing
 #
 

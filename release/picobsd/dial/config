@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/dial/config,v 1.5 2002/08/24 03:54:38 luigi Exp $
 STAND_LINKS="bin sbin usr/bin usr/sbin usr/libexec"
 o_no_devfs=""	# we have devfs
 #fd_size=2880

@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: ipfilter,v 1.10 2001/02/28 17:03:50 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ipfilter,v 1.5 2002/11/02 08:21:25 ume Exp $
 #
 
 # PROVIDE: ipfilter

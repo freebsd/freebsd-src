@@ -35,7 +35,7 @@ static char *sccsid = "@(#)xdr_rec.c 1.21 87/08/11 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)xdr_rec.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/xdr/xdr_rec.c,v 1.16.2.1 2003/01/16 08:53:59 mbr Exp $");
 
 /*
  * xdr_rec.c, Implements TCP/IP based XDR streams with a "record marking"

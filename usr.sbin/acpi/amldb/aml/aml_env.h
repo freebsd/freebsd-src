@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_env.h,v 1.11 2000/08/08 14:12:05 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_env.h,v 1.2 2000/11/09 06:24:45 iwasaki Exp $
  */
 
 #ifndef _AML_ENV_H_

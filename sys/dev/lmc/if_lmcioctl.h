@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lmc/if_lmcioctl.h,v 1.4 2002/06/02 20:05:44 schweikh Exp $
  *	$Id: if_lmcioctl.h,v 1.9 1999/02/18 10:30:18 explorer Exp $
  */
 

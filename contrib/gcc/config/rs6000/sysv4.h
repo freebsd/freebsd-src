@@ -20,6 +20,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD: src/contrib/gcc/config/rs6000/sysv4.h,v 1.4 2002/09/17 04:16:24 kan Exp $ */
+
 
 /* Yes!  We are ELF.  */
 #define	TARGET_OBJECT_FORMAT OBJECT_ELF
@@ -1207,7 +1209,7 @@ do {						\
 /* FreeBSD support.  */
 
 #define CPP_OS_FREEBSD_SPEC	"\
-  -D__PPC__ -D__ppc__ -D__PowerPC__ -D__powerpc__ \
+  -D__PPC__ -D__ppc__ -D__PowerPC__ -D__powerpc__ -D__ELF__ \
   -Acpu=powerpc -Amachine=powerpc"
 
 #define	STARTFILE_FREEBSD_SPEC	FBSD_STARTFILE_SPEC

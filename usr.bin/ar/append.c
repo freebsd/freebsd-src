@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)append.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ar/append.c,v 1.6 2001/12/10 21:13:00 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

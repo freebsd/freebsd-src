@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/agp/Makefile,v 1.8 2002/11/13 17:43:37 mux Exp $
 
 .PATH: ${.CURDIR}/../../pci
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.sys.mk,v 1.11 2002/11/13 13:49:29 ru Exp $
 #
 # This file contains common settings used for building FreeBSD
 # sources.

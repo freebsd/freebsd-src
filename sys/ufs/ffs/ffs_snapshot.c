@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_snapshot.c	8.11 (McKusick) 7/23/00
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_snapshot.c,v 1.53.2.3 2002/12/21 03:07:24 mckusick Exp $
  */
 
 #include <sys/param.h>

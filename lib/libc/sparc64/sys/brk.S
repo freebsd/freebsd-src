@@ -44,7 +44,7 @@
 #endif
 #endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/sys/brk.S,v 1.3 2002/06/30 05:36:49 obrien Exp $");
 
 #include "SYS.h"
 

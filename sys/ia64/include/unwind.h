@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/unwind.h,v 1.2 2002/10/19 19:30:38 marcel Exp $
  */
 
 int ia64_add_unwind_table(vm_offset_t, vm_offset_t, vm_offset_t);

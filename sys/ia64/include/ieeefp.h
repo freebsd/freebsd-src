@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/ieeefp.h,v 1.3 2002/05/13 05:01:05 marcel Exp $
  */
 
 #ifndef _MACHINE_IEEEFP_H_

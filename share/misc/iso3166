@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/misc/iso3166,v 1.10 2002/08/15 21:25:41 blackend Exp $
 #
 # ISO 3166 country codes
 # This includes many places that are not legally independent countries,

@@ -32,7 +32,7 @@
 #include <pci/pcivar.h>
 #include <sys/queue.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/emu10k1.c,v 1.28 2002/11/26 18:16:26 cg Exp $");
 
 /* -------------------------------------------------------------------- */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/rse.h,v 1.1 2001/10/29 12:04:23 dfr Exp $
  */
 
 #ifndef _MACHINE_RSE_H_

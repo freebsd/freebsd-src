@@ -40,7 +40,7 @@
 __RCSID("$NetBSD: ldexp.c,v 1.8 1999/08/30 18:28:26 mycroft Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/ldexp.c,v 1.3 2002/03/22 21:52:59 obrien Exp $");
 
 #include <sys/types.h>
 #include <machine/ieee.h>

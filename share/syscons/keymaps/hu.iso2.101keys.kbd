@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/hu.iso2.101keys.kbd,v 1.4 2001/03/11 23:41:18 ache Exp $
 #
 # This is for use with a US keyboard, with only the
 # Hungarian accented characters added to it, and some tricks:

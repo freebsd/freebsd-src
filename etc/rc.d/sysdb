@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: sysdb,v 1.9 2002/03/22 04:34:00 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/sysdb,v 1.2 2002/06/13 22:14:36 gordon Exp $
 #
 
 # PROVIDE: sysdb

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_sa.c,v 1.84 2002/11/14 05:03:11 imp Exp $
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *

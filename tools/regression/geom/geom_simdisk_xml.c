@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/geom/geom_simdisk_xml.c,v 1.6 2002/10/05 13:16:00 phk Exp $
  */
 
 #include <stdio.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_pcb.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns_pcb.c,v 1.12 2002/05/31 11:52:34 tanimura Exp $
  */
 
 #include <sys/param.h>

@@ -42,7 +42,7 @@
  *	from: @(#)sbusreg.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: iommureg.h,v 1.6 2001/07/20 00:07:13 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/iommureg.h,v 1.3 2002/04/02 17:41:03 tmm Exp $
  */
 
 #ifndef _MACHINE_IOMMUREG_H_

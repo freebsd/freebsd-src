@@ -22,7 +22,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *	From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/asm.h,v 1.14 2002/09/17 01:48:54 peter Exp $
  */
 
 /*

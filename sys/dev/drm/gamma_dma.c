@@ -27,7 +27,7 @@
  * Authors:
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/gamma_dma.c,v 1.2 2002/04/29 00:25:10 anholt Exp $
  */
 
 

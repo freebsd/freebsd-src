@@ -3,7 +3,7 @@
 /* #pragma ident	"@(#)mt_misc.c	1.24	93/04/29 SMI" */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/mt_misc.c,v 1.4 2002/03/22 23:18:36 obrien Exp $");
 
 #include "namespace.h"
 #include "reentrant.h"

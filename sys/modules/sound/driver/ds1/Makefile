@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/ds1/Makefile,v 1.2 2001/01/06 14:00:17 obrien Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/pci
 

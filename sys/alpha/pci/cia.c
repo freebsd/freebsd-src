@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/pci/cia.c,v 1.39 2002/03/21 06:14:58 imp Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

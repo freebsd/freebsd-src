@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
-  <FreeBSD>$FreeBSD$</FreeBSD>
+  <FreeBSD>$FreeBSD: src/tools/regression/geom/Data/disk.pc98.wdc0.xml,v 1.2 2002/03/28 21:42:14 phk Exp $</FreeBSD>
   <comment>
     A PC98 disklabel from Warner
   </comment>

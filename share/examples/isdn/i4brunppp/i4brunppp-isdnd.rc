@@ -3,7 +3,7 @@
 #    sample isdnd.rc for taking incoming calls with userland ppp
 #    -----------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/isdn/i4brunppp/i4brunppp-isdnd.rc,v 1.1 2001/07/21 11:49:28 hm Exp $
 #
 #    last edit-date: [Sat Jul 21 13:40:50 2001]
 #

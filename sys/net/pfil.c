@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/net/pfil.c,v 1.5 2002/03/19 21:54:18 alfred Exp $	*/
 
 /*
  * Copyright (c) 1996 Matthew R. Green

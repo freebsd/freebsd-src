@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_memory.h,v 1.4 2002/12/04 23:39:05 anholt Exp $
  */
 
 #define __NO_VERSION__

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libufs/inode.c,v 1.3 2002/07/11 21:27:26 jmallett Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

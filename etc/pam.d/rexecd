@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/rexecd,v 1.1 2002/05/02 05:05:28 des Exp $
 #
 # PAM configuration for the "rexecd" service
 #

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_bmap.c	8.3 (Berkeley) 1/23/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/cd9660_bmap.c,v 1.11 2002/05/04 02:37:00 jeff Exp $
  */
 
 #include <sys/param.h>

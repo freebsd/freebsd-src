@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/sys/brk.S,v 1.2 2001/10/10 10:35:01 dfr Exp $ */
 /*	$NetBSD: brk.S,v 1.4 1996/10/17 03:08:15 cgd Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/GLib/Makefile,v 1.7 2002/10/05 13:16:06 phk Exp $
 
 LIB=	G
 SRCS=   geom.c geom_aes.c geom_bsd.c geom_simdev.c geom_dump.c \

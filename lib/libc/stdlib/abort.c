@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)abort.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/abort.c,v 1.8 2002/07/10 16:35:02 wollman Exp $");
 
 #include <signal.h>
 #include <stdlib.h>

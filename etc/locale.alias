@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/locale.alias,v 1.10 2002/01/08 15:30:56 phantom Exp $
 
 ASCII                   en_US.US-ASCII
 US-ASCII                en_US.US-ASCII

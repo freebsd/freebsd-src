@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_kintf.h,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_kintf.h,v 1.15 2000/10/20 02:24:45 oster Exp $	*/
 /*
  * rf_kintf.h

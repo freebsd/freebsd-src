@@ -15,7 +15,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/gpib.c,v 1.35 2002/11/09 12:55:06 alfred Exp $
  */
 
 /* Please read the README file for usage information */

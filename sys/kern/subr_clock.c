@@ -41,7 +41,7 @@
  *	and
  *	from: src/sys/i386/isa/clock.c,v 1.176 2001/09/04
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_clock.c,v 1.2 2002/08/07 19:43:54 tmm Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_examine.c,v 1.30 2002/10/25 19:41:32 mux Exp $
  */
 
 /*

@@ -53,7 +53,7 @@
  * SUCH DAMAGE.
  *
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/amr/amr.c,v 1.36.2.2 2003/01/09 22:29:05 emoore Exp $
  */
 
 /*

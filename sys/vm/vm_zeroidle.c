@@ -7,7 +7,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_zeroidle.c,v 1.18 2002/10/12 05:32:24 jeff Exp $
  */
 
 #include <sys/param.h>

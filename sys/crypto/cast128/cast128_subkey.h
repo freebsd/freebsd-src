@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/cast128/cast128_subkey.h,v 1.3 2000/07/16 05:53:12 peter Exp $	*/
 /*	$KAME: cast128_subkey.h,v 1.3 2000/03/27 04:36:30 sumikawa Exp $	*/
 
 /*

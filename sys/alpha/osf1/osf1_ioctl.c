@@ -29,7 +29,7 @@
 
 /*
  * Additional Copyright (c) 1999 by Andrew Gallatin
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/osf1/osf1_ioctl.c,v 1.8 2002/03/20 18:58:46 obrien Exp $
  */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  *	i4b_debug.h - i4b debug header file
  *	-----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_debug.h,v 1.11 2002/03/17 09:33:12 hm Exp $
  *
  *      last edit-date: [Sun Mar 17 10:08:41 2002]
  *

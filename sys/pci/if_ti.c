@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_ti.c,v 1.67 2002/11/14 23:49:09 sam Exp $
  */
 
 /*
@@ -152,7 +152,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_ti.c,v 1.67 2002/11/14 23:49:09 sam Exp $";
 #endif
 
 struct ti_softc *tis[8];

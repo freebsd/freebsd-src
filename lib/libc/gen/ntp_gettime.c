@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/ntp_gettime.c,v 1.7 2002/02/01 00:57:29 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/sysctl.h>

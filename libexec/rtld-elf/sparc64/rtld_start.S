@@ -37,7 +37,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/sparc64/rtld_start.S,v 1.3 2002/11/18 22:08:50 tmm Exp $
  */
 
 #include <machine/asm.h>

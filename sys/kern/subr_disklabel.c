@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_disklabel.c,v 1.72 2002/09/20 19:36:04 phk Exp $
  */
 
 #include <sys/param.h>

@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: nfsd,v 1.4 2001/06/16 06:13:10 lukem Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/nfsd,v 1.8 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: nfsd

@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/gnu/lib/libdialog/textbox.c,v 1.21 2002/06/13 23:39:35 dougb Exp $";
 #endif
 
 #include <dialog.h>

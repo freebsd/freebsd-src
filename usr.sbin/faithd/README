@@ -2,7 +2,7 @@ Configuring FAITH IPv6-to-IPv4 TCP relay
 
 Kazu Yamamoto and Jun-ichiro itojun Hagino
 $KAME: README,v 1.8 2001/09/05 03:04:20 itojun Exp $
-$FreeBSD$
+$FreeBSD: src/usr.sbin/faithd/README,v 1.6 2002/05/11 05:55:05 dd Exp $
 
 Introduction
 ============

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/alpha/conf/Makefile,v 1.1 2002/07/15 17:50:17 jhb Exp $
 
 all:
 	@echo "make LINT only"

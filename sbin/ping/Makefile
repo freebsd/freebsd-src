@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/ping/Makefile,v 1.17 2001/12/04 02:19:55 obrien Exp $
 
 PROG=	ping
 MAN=	ping.8

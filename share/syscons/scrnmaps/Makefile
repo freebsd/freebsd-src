@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/scrnmaps/Makefile,v 1.20 2002/07/29 09:40:14 ru Exp $
 
 SCRMAPS = iso-8859-1_to_cp437.scm iso-8859-4_for_vga9.scm \
 	  iso-8859-7_to_cp437.scm \

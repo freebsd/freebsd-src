@@ -20,7 +20,7 @@
 #
 # For hardware specific information check HARDWARE.TXT
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/SKI,v 1.8.2.1 2003/01/03 23:57:45 marcel Exp $
 
 machine		ia64
 cpu		ITANIUM

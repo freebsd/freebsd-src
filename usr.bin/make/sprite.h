@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sprite.h	8.2 (Berkeley) 4/28/95
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/sprite.h,v 1.13 2002/09/17 21:29:06 jmallett Exp $
  */
 
 /*

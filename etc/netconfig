@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/netconfig,v 1.2.2.1 2002/12/19 07:20:58 mbr Exp $
 #
 # The network configuration file. This file is currently only used in
 # conjunction with the (TI-) RPC code in the C library, unlike its

@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: ebus.c,v 1.26 2001/09/10 16:27:53 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/ebus/ebus.c,v 1.5 2002/11/07 16:07:46 tmm Exp $
  */
 
 #include "opt_ebus.h"

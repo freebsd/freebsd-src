@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)ns_ntoa.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/ns_ntoa.c,v 1.6 2002/08/25 13:06:23 charnier Exp $");
 
 #include <sys/param.h>
 #include <arpa/inet.h>

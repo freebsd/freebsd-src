@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/gen/__udivdi3.S,v 1.1 2000/10/14 17:01:11 dfr Exp $ */
 .file "__udivdi3.s"
 
 //  

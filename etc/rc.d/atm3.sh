@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/atm3.sh,v 1.10 2002/06/13 22:14:36 gordon Exp $
 #
 
 # Start ATM daemons

@@ -25,7 +25,7 @@ ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 ************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/bootpgw/bootpgw.c,v 1.5 2002/05/28 18:37:43 alfred Exp $ */
 
 /*
  * BOOTPGW is typically used to forward BOOTP client requests from

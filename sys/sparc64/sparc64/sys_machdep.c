@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/sys_machdep.c,v 1.9 2002/04/29 18:08:26 jake Exp $
  */
 
 #include <sys/param.h>

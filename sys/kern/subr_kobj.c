@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/kern/subr_kobj.c,v 1.5 2002/06/10 22:40:26 kbyanc Exp $
  */
 
 #include <sys/param.h>

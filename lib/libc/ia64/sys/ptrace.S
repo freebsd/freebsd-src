@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/sys/ptrace.S,v 1.2 2001/10/10 10:35:01 dfr Exp $ */
 /*	$NetBSD: ptrace.S,v 1.4 1996/11/08 00:51:24 cgd Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/i2c/iicbb/Makefile,v 1.1 2002/03/23 15:48:53 nsouch Exp $
 
 .PATH:		${.CURDIR}/../../../dev/iicbus
 KMOD		= iicbb

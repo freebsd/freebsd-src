@@ -16,7 +16,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/setproctitle.c,v 1.16 2002/03/29 22:43:41 markm Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>

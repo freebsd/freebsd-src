@@ -25,7 +25,7 @@
  *
  *
  * xe pccard interface driver
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/xe/if_xe_pccard.c,v 1.5 2002/11/14 23:54:55 sam Exp $
  */
 
 #include <sys/param.h>

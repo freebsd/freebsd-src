@@ -1,7 +1,7 @@
 # Makefile.ia64 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: src/sys/conf/Makefile.alpha,v 1.76
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/Makefile.ia64,v 1.53 2002/10/13 07:07:51 marcel Exp $
 #
 # Makefile for FreeBSD
 #

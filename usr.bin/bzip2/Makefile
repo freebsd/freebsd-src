@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/bzip2/Makefile,v 1.5 2001/07/12 14:44:17 sobomax Exp $
 
 MAINTAINER=	obrien@FreeBSD.org
 

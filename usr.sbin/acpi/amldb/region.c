@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: region.c,v 1.14 2000/08/08 14:12:25 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/region.c,v 1.4 2000/11/19 13:29:43 kris Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia32/ia32_sysvec.c,v 1.2 2002/09/01 21:41:23 jake Exp $
  */
 
 #define __ELF_WORD_SIZE 32

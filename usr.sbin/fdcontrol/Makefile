@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/fdcontrol/Makefile,v 1.6 2001/12/15 19:08:58 joerg Exp $
 
 .PATH:	${.CURDIR}/../fdread
 

@@ -30,7 +30,7 @@
 #include "opt_fb.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/gfb/gfb_pci.c,v 1.4 2002/11/08 21:04:44 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

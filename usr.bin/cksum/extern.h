@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/cksum/extern.h,v 1.5 2002/03/22 01:19:26 imp Exp $
  */
 
 #include <sys/cdefs.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getpeereid.c,v 1.4.4.2 2002/12/19 08:33:38 maxim Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

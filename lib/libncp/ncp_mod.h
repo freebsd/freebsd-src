@@ -1,7 +1,7 @@
 /*
  * Describes all ncp_lib kernel functions
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ncp_mod.h,v 1.2 2002/05/30 20:51:53 wollman Exp $
  */
 #ifndef _NCP_MOD_H_
 #define _NCP_MOD_H_

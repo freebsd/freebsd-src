@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/sapicvar.h,v 1.3 2002/10/04 01:33:30 peter Exp $
  */
 
 #ifndef _MACHINE_SAPICVAR_H_

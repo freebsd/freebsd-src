@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mtree/Makefile,v 1.25 2002/11/13 12:03:27 ru Exp $
 
 .PATH: ${.CURDIR}/../../usr.bin/cksum
 

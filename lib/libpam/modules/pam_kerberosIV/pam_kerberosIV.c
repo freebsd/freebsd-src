@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_kerberosIV/pam_kerberosIV.c,v 1.10 2002/04/12 22:27:20 des Exp $");
 
 #include <sys/param.h>
 #include <pwd.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/isp/Hardware.txt,v 1.1 2001/10/07 18:26:47 mjacob Exp $ */
 
 	Hardware that is Known To or Should Work with This Driver
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.sparc64/disktab,v 1.1 2002/01/07 23:53:34 jhb Exp $
 #
 # Disk geometry and partition layout tables. 
 # Key:

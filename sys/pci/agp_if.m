@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pci/agp_if.m,v 1.1 2000/06/09 16:04:30 dfr Exp $
 #
 
 #include <sys/bus.h>

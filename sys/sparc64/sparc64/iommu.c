@@ -106,7 +106,7 @@
  *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: iommu.c,v 1.42 2001/08/06 22:02:58 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/iommu.c,v 1.11 2002/12/01 22:59:29 tmm Exp $
  */
 
 /*

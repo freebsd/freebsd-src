@@ -31,7 +31,7 @@
  *	Small changes to work under Linux -- davej@suse.de
  *
  *	Sundry porting patches from Guy Harris 12/2001
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/fsx/fsx.c,v 1.1 2001/12/20 04:15:57 jkh Exp $
  */
 
 #include <sys/types.h>

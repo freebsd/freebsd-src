@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/sgmap.c,v 1.4 2001/05/31 23:31:34 gallatin Exp $
  */
 
 #include <sys/param.h>

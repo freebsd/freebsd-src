@@ -62,7 +62,7 @@ MODULE_VERSION(miibus, 1);
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/mii.c,v 1.15 2002/10/14 22:31:52 alfred Exp $";
 #endif
 
 static int miibus_readreg(device_t, int, int);

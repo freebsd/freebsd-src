@@ -34,7 +34,7 @@
  *
  * Author: Dave Chapeskie <dchapeskie@sandvine.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_source.c,v 1.4 2002/11/05 01:08:11 julian Exp $
  */
 
 /*

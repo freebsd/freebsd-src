@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/MAINTAINERS,v 1.54 2002/11/28 00:02:25 obrien Exp $
 
 subsystem	login	notes
 -----------------------------

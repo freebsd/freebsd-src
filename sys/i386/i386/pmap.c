@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/pmap.c,v 1.376.2.1 2002/12/14 21:08:30 alc Exp $
  */
 
 /*

@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_kern.c,v 1.15.2.1 2003/01/02 19:59:57 phk Exp $
  */
 
 #include <sys/param.h>

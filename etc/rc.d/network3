@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/network3,v 1.136 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: network3

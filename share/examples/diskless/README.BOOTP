@@ -11,7 +11,7 @@ actual details you should look at /etc/rc.diskless1, /etc/rc.diskless2,
 and the /usr/share/examples/diskless/clone_root script which can
 be useful to set up clients and server for diskless boot.
 
---- $FreeBSD$ ---
+--- $FreeBSD: src/share/examples/diskless/README.BOOTP,v 1.3 2002/03/15 06:47:37 luigi Exp $ ---
 ------------------------------------------------------------------------
 
 		        BOOTP configuration mechanism

@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ipfw/ipfw.c,v 1.124 2002/09/25 11:22:36 maxim Exp $";
 #endif /* not lint */
 
 

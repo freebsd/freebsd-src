@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lmc/if_lmc_media.c,v 1.3 2002/06/02 20:05:44 schweikh Exp $
  *	$Id: if_lmc_media.c,v 1.23 1999/03/01 15:12:24 explorer Exp $
  */
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.i386,v 1.183 2002/11/18 06:17:07 jmallett Exp $
 # Options specific to the i386 platform kernels
 
 MATH_EMULATE		opt_math_emulate.h

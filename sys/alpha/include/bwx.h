@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/bwx.h,v 1.5 2000/08/28 21:48:01 dfr Exp $
  */
 
 #ifndef _MACHINE_BWX_H_

@@ -22,7 +22,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/whereis/pathnames.h,v 1.4 2002/08/22 01:50:51 johan Exp $
  */
 
 /* Where to look for libexec and games */

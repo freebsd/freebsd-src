@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/mksyntax.c,v 1.21 2002/10/02 09:57:54 tjr Exp $");
 
 /*
  * This program creates syntax.h and syntax.c.

@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_wheel/Makefile,v 1.5 2002/04/10 18:07:05 ru Exp $
 
 LIB=		pam_wheel
 SRCS=		pam_wheel.c

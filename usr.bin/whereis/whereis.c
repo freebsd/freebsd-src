@@ -32,7 +32,7 @@
 
 #include <sys/types.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/whereis/whereis.c,v 1.12 2002/08/22 01:50:51 johan Exp $");
 
 #include <sys/stat.h>
 #include <sys/sysctl.h>

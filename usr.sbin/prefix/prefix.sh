@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #	$KAME: prefix.sh,v 1.12 2001/05/26 23:38:10 itojun Exp $
-#	$FreeBSD$
+#	$FreeBSD: src/usr.sbin/prefix/prefix.sh,v 1.1 2001/06/11 12:39:17 ume Exp $
 
 # Copyright (c) 2001 WIDE Project. All rights reserved.
 #

@@ -12,7 +12,7 @@
  *
  * Snoop stuff.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/snp/snp.c,v 1.74 2002/11/11 10:45:31 tmm Exp $
  */
 
 #include <sys/param.h>

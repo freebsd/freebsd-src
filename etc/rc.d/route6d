@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: route6d,v 1.5 2002/03/22 04:34:00 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/route6d,v 1.4 2002/09/06 16:18:05 gordon Exp $
 #
 
 # PROVIDE: route6d

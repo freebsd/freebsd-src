@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/gdb/Makefile.alpha,v 1.8 2002/10/11 19:39:18 obrien Exp $
 
 XSRCS+=	alphabsd-nat.c alphafbsd-tdep.c alpha-tdep.c \
 	core-regset.c

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/gen/__moddi3.S,v 1.1 2000/10/14 17:01:11 dfr Exp $ */
 .file "__moddi3.s"
 
 //  

@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # $NetBSD: rarpd,v 1.5 2002/03/22 04:33:59 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/rarpd,v 1.2 2002/06/13 22:14:36 gordon Exp $
 #
 
 # PROVIDE: rarpd

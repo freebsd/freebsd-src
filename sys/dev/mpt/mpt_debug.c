@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpt_debug.c,v 1.3 2002/09/24 21:33:43 mjacob Exp $ */
 /*
  * Debug routines for LSI '909 FC  adapters.
  * FreeBSD Version.

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libio/io.c,v 1.4 2001/09/30 21:41:46 dillon Exp $");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/editmap/Makefile,v 1.1 2002/02/17 22:02:59 gshapiro Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

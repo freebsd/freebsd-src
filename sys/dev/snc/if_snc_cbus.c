@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/snc/if_snc_cbus.c,v 1.3 2002/03/20 02:07:42 alfred Exp $
  */
 
 /*

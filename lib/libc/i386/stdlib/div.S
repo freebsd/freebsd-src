@@ -29,7 +29,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/stdlib/div.S,v 1.8 2002/06/02 20:05:25 schweikh Exp $");
 
 ENTRY(div)
         movl    4(%esp),%eax

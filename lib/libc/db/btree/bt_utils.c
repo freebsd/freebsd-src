@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)bt_utils.c	8.8 (Berkeley) 7/20/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_utils.c,v 1.2 2002/03/21 18:47:37 obrien Exp $");
 
 #include <sys/param.h>
 

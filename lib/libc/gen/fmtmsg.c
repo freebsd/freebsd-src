@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/fmtmsg.c,v 1.3 2002/09/01 01:49:27 mike Exp $");
 
 #include <fmtmsg.h>
 #include <stdio.h>

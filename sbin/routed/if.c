@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/if.c,v 1.9 2002/02/18 20:35:19 mike Exp $
  */
 
 #include "defs.h"
@@ -42,7 +42,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #include <sys/cdefs.h>
 __RCSID("$NetBSD$");
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/if.c,v 1.9 2002/02/18 20:35:19 mike Exp $"
 
 struct interface *ifnet;		/* all interfaces */
 

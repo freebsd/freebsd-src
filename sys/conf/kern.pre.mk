@@ -3,7 +3,7 @@
 # Unified Makefile for building kernels.  This includes all the definitions
 # that need to be included before %BEFORE_DEPEND
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kern.pre.mk,v 1.21 2002/10/19 22:24:43 mux Exp $
 #
 
 # Can be overridden by makeoptions or /etc/make.conf

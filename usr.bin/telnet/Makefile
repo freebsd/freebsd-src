@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/telnet/Makefile,v 1.21 2001/12/12 00:06:51 markm Exp $
 
 PROG=		telnet
 

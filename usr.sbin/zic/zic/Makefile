@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/zic/zic/Makefile,v 1.10 2001/07/20 06:20:27 obrien Exp $
 
 .PATH: ${.CURDIR}/..
 

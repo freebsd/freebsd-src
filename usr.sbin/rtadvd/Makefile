@@ -12,7 +12,7 @@
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rtadvd/Makefile,v 1.4 2001/07/20 06:20:18 obrien Exp $
 
 PROG=	rtadvd
 MAN=	rtadvd.conf.5 rtadvd.8

@@ -59,7 +59,7 @@ static char sccsid[] = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
 #endif /* !defined NOID */
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/strptime.c,v 1.29 2002/09/06 11:24:03 tjr Exp $");
 
 #include "namespace.h"
 #include <time.h>

@@ -1,5 +1,5 @@
 #	from: Makefile.inc,v 1.1 1993/09/03 19:04:23 jtc Exp
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/i386/sys/Makefile.inc,v 1.25 2002/11/18 09:50:55 ru Exp $
 
 SRCS+=	i386_clr_watch.c i386_get_ioperm.c i386_get_ldt.c i386_set_ioperm.c \
 	i386_set_ldt.c i386_set_watch.c i386_vm86.c

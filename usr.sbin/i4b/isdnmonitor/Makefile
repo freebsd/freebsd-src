@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/i4b/isdnmonitor/Makefile,v 1.6 2001/07/20 06:19:48 obrien Exp $
 
 PROG=	isdnmonitor
 SRCS=	main.c curses.c

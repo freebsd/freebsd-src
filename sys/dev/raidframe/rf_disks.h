@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_disks.h,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_disks.h,v 1.8 2000/03/27 03:25:17 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

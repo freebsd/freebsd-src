@@ -39,7 +39,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/svr4/svr4_resource.c,v 1.11.2.1 2002/12/19 09:40:07 alfred Exp $
  */
 
 /*

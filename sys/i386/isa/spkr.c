@@ -5,7 +5,7 @@
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  * modified for PC98 by Kakefuda
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/spkr.c,v 1.56 2002/11/02 04:18:10 mdodd Exp $
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.c	8.2 (Berkeley) 11/15/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns.c,v 1.11 2002/05/31 11:52:34 tanimura Exp $
  */
 
 #include <sys/param.h>

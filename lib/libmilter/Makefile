@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libmilter/Makefile,v 1.2 2002/05/12 16:00:53 ru Exp $
 
 MAINTAINER=	gshapiro@FreeBSD.org
 

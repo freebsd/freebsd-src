@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/swtch.S,v 1.22 2002/10/22 18:03:15 jake Exp $
  */
 
 #include <machine/asmacros.h>

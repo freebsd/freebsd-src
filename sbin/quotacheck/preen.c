@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)preen.c	8.5 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/quotacheck/preen.c,v 1.23 2002/08/21 18:11:34 trhodes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

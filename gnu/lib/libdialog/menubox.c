@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/gnu/lib/libdialog/menubox.c,v 1.36 2001/07/18 05:21:36 eric Exp $";
 #endif
 
 #include <dialog.h>

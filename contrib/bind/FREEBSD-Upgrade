@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/bind/FREEBSD-Upgrade,v 1.2 2002/07/07 08:41:59 dougb Exp $
 
 1. Create clean import directory.
 2. Un-tar bind-{src|doc}.tar.gz.

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/musycc/musycc.c,v 1.23 2002/11/07 22:21:38 jhb Exp $
  *
  *
  *

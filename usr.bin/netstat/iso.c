@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)iso.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/netstat/iso.c,v 1.11 2002/09/05 17:06:51 dwmalone Exp $
  */
 /*******************************************************************************
 	          Copyright IBM Corporation 1987

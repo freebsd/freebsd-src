@@ -1,5 +1,5 @@
 #	Makefile for pccardd
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pccard/pccardd/Makefile,v 1.7 2001/07/20 06:20:07 obrien Exp $
 
 PROG=	pccardd
 MAN=	pccard.conf.5 pccardd.8

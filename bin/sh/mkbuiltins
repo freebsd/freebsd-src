@@ -35,7 +35,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkbuiltins	8.2 (Berkeley) 5/4/95
-# $FreeBSD$
+# $FreeBSD: src/bin/sh/mkbuiltins,v 1.11 2002/10/18 10:33:32 tjr Exp $
 
 temp=`/usr/bin/mktemp -t ka`
 havejobs=0

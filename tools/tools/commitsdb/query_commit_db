@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/commitsdb/query_commit_db,v 1.3 2002/04/01 17:51:27 joe Exp $
 
 # This script takes a filename and revision number as arguments
 # and spits out a list of other files and their revisions that share

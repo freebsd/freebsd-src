@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/if_aue.c,v 1.63 2002/11/14 23:54:54 sam Exp $
  */
 
 /*
@@ -99,7 +99,7 @@ MODULE_DEPEND(if_aue, usb, 1, 1, 1);
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/usb/if_aue.c,v 1.63 2002/11/14 23:54:54 sam Exp $";
 #endif
 
 /*

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/ipatm/ipatm_event.c,v 1.8 2000/12/07 22:19:04 phk Exp $
  *
  */
 
@@ -60,7 +60,7 @@
 #include <netatm/ipatm/ipatm_serv.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/ipatm/ipatm_event.c,v 1.8 2000/12/07 22:19:04 phk Exp $");
 #endif
 
 

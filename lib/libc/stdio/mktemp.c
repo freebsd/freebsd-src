@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/mktemp.c,v 1.27 2002/05/27 19:27:43 robert Exp $");
 
 /* #include "namespace.h" */
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.ia64,v 1.5 2002/12/05 18:23:08 obrien Exp $
 
 TARGET_TUPLE?=	ia64-unknown-freebsd
 

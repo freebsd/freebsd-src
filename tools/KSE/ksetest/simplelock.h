@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/KSE/ksetest/simplelock.h,v 1.2 2002/11/02 10:31:22 davidxu Exp $
  */
 
 #ifndef _SIMPLELOCK_H

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/genassym.c,v 1.43 2002/10/22 18:03:15 jake Exp $
  */
 
 #include <sys/param.h>

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/security/900.tcpwrap,v 1.2.2.1 2003/01/10 08:39:17 se Exp $
 #
 
 # Show tcp_wrapper warning messages

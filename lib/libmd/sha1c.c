@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libmd/sha1c.c,v 1.4 2002/03/21 23:38:21 obrien Exp $");
 
 #include <sys/types.h>
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.i386,v 1.18 2002/10/11 09:31:55 obrien Exp $
 
 TARGET_TUPLE?=	i386-unknown-freebsd
 

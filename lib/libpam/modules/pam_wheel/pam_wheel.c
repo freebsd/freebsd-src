@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_wheel/pam_wheel.c,v 1.12 2002/10/18 02:37:29 rwatson Exp $");
 
 #define _BSD_SOURCE
 

@@ -12,7 +12,7 @@
 # The : is required for some old versions of csh.
 # On Ultrix, /bin/sh is too buggy, change the first line to: #!/bin/sh5
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gzip/gzexe,v 1.8 2000/11/19 13:10:11 kris Exp $
 
 x=`basename $0`
 if test $# = 0; then

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_bah_zbus.c,v 1.6 2000/01/23 21:06:12 aymeric Exp $ */
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/cm/if_cm_isa.c,v 1.2 2002/03/20 02:04:09 alfred Exp $ */
 
 /*-
  * Copyright (c) 1994, 1995, 1998 The NetBSD Foundation, Inc.

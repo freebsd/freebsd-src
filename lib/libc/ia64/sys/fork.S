@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/ia64/sys/fork.S,v 1.4 2001/10/05 18:52:42 dfr Exp $
  */
 #include "SYS.h"
 

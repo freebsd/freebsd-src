@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/version/Makefile,v 1.11 2002/06/24 16:03:24 markm Exp $
 
 PROG=	pkg_version
 SRCS=	main.c perform.c

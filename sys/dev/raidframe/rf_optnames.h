@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_optnames.h,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_optnames.h,v 1.6 1999/12/07 02:54:08 oster Exp $	*/
 /*
  * rf_optnames.h

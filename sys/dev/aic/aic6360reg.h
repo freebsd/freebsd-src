@@ -29,7 +29,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic/aic6360reg.h,v 1.3 2002/03/15 21:30:41 luoqi Exp $
  */
 
 #define SCSISEQ		0x00	/* SCSI sequence control */

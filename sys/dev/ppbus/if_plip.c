@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/if_plip.c,v 1.24 2002/11/14 23:54:53 sam Exp $
  */
 
 /*

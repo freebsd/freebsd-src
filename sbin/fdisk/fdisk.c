@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/fdisk/fdisk.c,v 1.66.2.1 2003/01/02 20:18:14 phk Exp $";
 #endif /* not lint */
 
 #include <sys/disk.h>

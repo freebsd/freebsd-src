@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: Header: timerreg.h,v 1.2 93/02/28 15:08:58 mccanne Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/timerreg.h,v 1.1 2000/09/29 13:46:04 dfr Exp $
  */
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/powerpc/genassym.c,v 1.47 2002/10/21 05:27:41 grehan Exp $
  */
 
 #include <sys/param.h>

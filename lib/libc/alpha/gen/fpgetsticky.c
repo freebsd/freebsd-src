@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/fpgetsticky.c,v 1.4 2001/11/07 22:12:52 obrien Exp $");
 
 #include <sys/types.h>
 #include <ieeefp.h>

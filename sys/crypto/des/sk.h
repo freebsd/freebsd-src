@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/des/sk.h,v 1.4 2002/04/19 04:46:21 suz Exp $	*/
 /*	$KAME: sk.h,v 1.4 2001/09/10 04:03:58 itojun Exp $	*/
 
 /* crypto/des/sk.h */

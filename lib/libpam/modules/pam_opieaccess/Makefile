@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_opieaccess/Makefile,v 1.3 2002/04/10 18:07:02 ru Exp $
 
 LIB=		pam_opieaccess
 SRCS=		${LIB}.c

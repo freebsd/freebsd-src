@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/uaudio/Makefile,v 1.1 2002/07/21 17:28:50 nsayer Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/usb
 

@@ -38,7 +38,7 @@
  *
  *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
  *	$NetBSD: varargs.h,v 1.7 1997/04/06 08:47:46 cgd Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/varargs.h,v 1.5 2002/10/06 22:02:06 mike Exp $
  */
 
 #ifndef _ALPHA_VARARGS_H_

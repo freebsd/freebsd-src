@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/simple_httpd/simple_httpd.c,v 1.12 2002/04/07 17:42:27 asmodai Exp $
  */
 
 #include <sys/stat.h>

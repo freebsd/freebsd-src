@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/boot/ia64/libski/time.c,v 1.2 2001/09/19 12:12:12 dfr Exp $";
 #endif /* not lint */
 
 #include <time.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mii/e1000phy.c,v 1.7 2002/10/29 00:20:47 semenu Exp $ */
 /*
  * Principal Author: Parag Patel
  * Copyright (c) 2001

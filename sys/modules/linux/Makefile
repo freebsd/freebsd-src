@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/linux/Makefile,v 1.60 2002/09/08 02:59:38 peter Exp $
 
 MAINTAINER=	emulation@FreeBSD.org
 

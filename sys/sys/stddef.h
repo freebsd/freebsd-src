@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/stddef.h,v 1.1 2002/11/13 15:14:57 mux Exp $
  */
 
 #ifndef _SYS_STDDEF_H_

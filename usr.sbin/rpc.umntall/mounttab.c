@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/rpc.umntall/mounttab.c,v 1.5 2001/08/02 21:46:21 iedowse Exp $";
 #endif /* not lint */
 
 #include <sys/syslog.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/share/man/man8/Makefile,v 1.29 2002/11/21 20:12:05 gordon Exp $
 
 MAN=	adding_user.8 \
 	crash.8 \

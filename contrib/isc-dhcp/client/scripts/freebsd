@@ -2,7 +2,7 @@
 #
 # $Id: freebsd,v 1.13.2.4 2002/06/09 22:37:55 murray Exp $
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/isc-dhcp/client/scripts/freebsd,v 1.20.2.1 2003/01/16 07:59:32 obrien Exp $
 
 if [ -x /usr/bin/logger ]; then
 	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"

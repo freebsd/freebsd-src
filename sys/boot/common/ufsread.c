@@ -23,7 +23,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/ufsread.c,v 1.8.2.1 2002/12/23 01:02:45 imp Exp $
  */
 
 #include <ufs/ufs/dinode.h>

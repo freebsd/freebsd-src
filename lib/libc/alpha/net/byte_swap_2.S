@@ -26,7 +26,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/alpha/net/byte_swap_2.S,v 1.2 2002/02/18 20:35:16 mike Exp $
  */
 
 #include <machine/asm.h>

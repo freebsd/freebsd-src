@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)domain.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/domain.h,v 1.17 2002/03/19 20:18:36 alfred Exp $
  */
 
 #ifndef _SYS_DOMAIN_H_

@@ -30,7 +30,7 @@
 /*
  * Copyright (c) 1994, 1995, 1996 Naofumi HONDA.  All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/bs/bshw.c,v 1.11 2002/03/20 07:39:49 alfred Exp $
  */
 
 #ifdef	__NetBSD__

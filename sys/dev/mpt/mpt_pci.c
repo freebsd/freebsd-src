@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpt_pci.c,v 1.7 2002/09/24 21:33:43 mjacob Exp $ */
 /*
  * PCI specific probe and attach routines for LSI Fusion Adapters
  * FreeBSD Version.

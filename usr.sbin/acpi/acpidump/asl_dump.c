@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: asl_dump.c,v 1.6 2000/08/09 14:47:52 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/acpidump/asl_dump.c,v 1.7 2002/03/02 15:05:26 takawata Exp $
  */
 
 #include <sys/param.h>

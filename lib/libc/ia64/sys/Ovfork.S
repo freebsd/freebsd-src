@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/ia64/sys/Ovfork.S,v 1.4 2001/10/22 09:17:14 peter Exp $
  */
 #include "SYS.h"
 

@@ -35,7 +35,7 @@ static        char sccsid[] = "@(#)getnetconfig.c	1.12 91/12/19 SMI";
 #endif
 */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/getnetconfig.c,v 1.6.2.1 2002/12/19 07:20:58 mbr Exp $");
 
 /*
  * Copyright (c) 1989 by Sun Microsystems, Inc.

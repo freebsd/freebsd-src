@@ -26,7 +26,7 @@
 % * 2550 Garcia Avenue
 % * Mountain View, California  94043
 % *
-% * $FreeBSD$
+% * $FreeBSD: src/include/rpcsvc/pmap_prot.x,v 1.2 2002/05/28 16:56:14 alfred Exp $
 % */
 %/*
 % * Copyright (c) 1984,1989 by Sun Microsystems, Inc.

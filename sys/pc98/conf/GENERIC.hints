@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/conf/GENERIC.hints,v 1.16 2002/12/03 20:20:44 sos Exp $
 
 hint.atacbus.0.at="isa"
 hint.atacbus.0.port="0x640"

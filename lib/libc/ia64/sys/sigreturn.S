@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/sys/sigreturn.S,v 1.2 2001/01/29 03:23:43 deischen Exp $ */
 /*	$NetBSD: sigreturn.S,v 1.1 1995/02/10 17:50:42 cgd Exp $	*/
 
 /*

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_tc.c,v 1.141.2.1 2003/01/06 22:47:16 peter Exp $
  */
 
 #include "opt_ntp.h"

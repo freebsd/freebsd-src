@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_ftp/Makefile,v 1.4 2002/04/10 18:07:00 ru Exp $
 
 LIB=		pam_ftp
 SRCS=		pam_ftp.c

@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 static char *rcsid =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/net/nsparser.y,v 1.3 2002/03/21 22:47:17 obrien Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <err.h>

@@ -39,7 +39,7 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: mk-amd-map.c,v 1.5.2.1 2001/01/10 03:23:42 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/mk-amd-map/mk-amd-map.c,v 1.8 2001/09/02 19:28:19 obrien Exp $
  */
 
 /*

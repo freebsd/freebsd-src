@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/who/who.c,v 1.18 2002/11/15 22:41:59 peter Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

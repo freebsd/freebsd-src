@@ -9,7 +9,7 @@ static char	elsieid[] = "@(#)asctime.c	7.7";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/asctime.c,v 1.10 2002/03/22 21:53:13 obrien Exp $");
 
 /*LINTLIBRARY*/
 

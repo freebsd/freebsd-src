@@ -13,7 +13,7 @@
  * UCL. This driver is based much more on read/write/poll mode of
  * operation though.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_tun.c,v 1.112 2002/11/15 00:00:15 sam Exp $
  */
 
 #include "opt_inet.h"

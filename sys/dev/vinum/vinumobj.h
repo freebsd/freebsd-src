@@ -38,7 +38,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumobj.h,v 1.2 2001/05/23 23:04:18 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumobj.h,v 1.6 2002/05/16 21:23:45 trhodes Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/Makefile.inc,v 1.8 2001/07/20 06:19:57 obrien Exp $
 
 CFLAGS+= -DINET6
 CWARNFLAGS=	${BDECFLAGS}

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/strncmp.c,v 1.8 2002/08/22 20:08:07 jhb Exp $
  */
 
 #include <sys/libkern.h>

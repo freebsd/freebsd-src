@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/ia64/libski/ssc.c,v 1.1 2001/09/12 08:34:27 dfr Exp $
  */
 
 #include <stand.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/net/htonl.S,v 1.3 2002/02/18 20:35:17 mike Exp $ */
 /*	$NetBSD: htonl.S,v 1.1 1996/04/17 22:36:52 cgd Exp $	*/
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/subr_eventhandler.c,v 1.19 2002/07/19 17:44:44 mux Exp $
  */
 
 #include <sys/param.h>

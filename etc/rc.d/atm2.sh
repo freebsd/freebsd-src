@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/atm2.sh,v 1.11 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: atm2

@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)leave.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/leave/leave.c,v 1.12 2002/09/04 23:29:03 dwmalone Exp $");
 
 #include <err.h>
 #include <ctype.h>

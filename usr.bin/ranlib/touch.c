@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ranlib/touch.c,v 1.8 2002/04/28 11:59:43 markm Exp $");
 
 #include <sys/types.h>
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/alpha/gen/rfork_thread.S,v 1.1 2000/07/29 11:43:21 peter Exp $
  */
 
 #include "SYS.h"

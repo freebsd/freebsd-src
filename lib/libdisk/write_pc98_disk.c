@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libdisk/write_pc98_disk.c,v 1.5 2002/11/15 13:24:29 nyan Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/db_disasm.c,v 1.7 2002/08/25 13:16:45 charnier Exp $ */
 /* $NetBSD: db_disasm.c,v 1.4 1997/09/16 22:52:40 thorpej Exp $ */
 
 /* 

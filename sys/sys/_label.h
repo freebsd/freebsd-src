@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/_label.h,v 1.3 2002/11/04 02:35:46 rwatson Exp $
  */
 #ifndef _SYS__LABEL_H
 #define	_SYS__LABEL_H

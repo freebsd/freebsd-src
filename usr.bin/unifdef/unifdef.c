@@ -47,7 +47,7 @@ __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
 __IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.75 2002/09/24 19:16:29 fanf2 Exp $");
 #endif
 #ifdef __FBSDID
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/unifdef/unifdef.c,v 1.11 2002/09/24 19:27:44 fanf Exp $");
 #endif
 #endif
 

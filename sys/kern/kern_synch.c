@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_synch.c,v 1.208 2002/12/10 02:33:44 julian Exp $
  */
 
 #include "opt_ddb.h"

@@ -1,7 +1,7 @@
 /*
  *	AMD 7990 (LANCE) definitions
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ic/am7990.h,v 1.4 2000/05/01 19:58:08 peter Exp $
  */
 
 #if defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sio/sioreg.h,v 1.21 2002/09/24 02:35:56 nyan Exp $
  */
 
 /* Receiver clock frequency for "standard" pc serial ports. */

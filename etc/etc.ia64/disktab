@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/etc.ia64/disktab,v 1.1 2001/10/06 12:55:50 dfr Exp $
 #
 # Disk geometry and partition layout tables. 
 # Key:

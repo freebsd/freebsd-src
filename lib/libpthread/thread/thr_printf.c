@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_printf.c,v 1.1 2002/10/30 06:07:18 mini Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/thread/thr_printf.c,v 1.1 2002/10/30 06:07:18 mini Exp $");
 
 #include <sys/types.h>
 #include <sys/fcntl.h>

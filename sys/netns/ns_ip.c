@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_ip.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns_ip.c,v 1.11 2002/08/25 13:17:35 charnier Exp $
  */
 
 /*

@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/fstat/cd9660.c,v 1.3 2002/06/30 05:21:20 obrien Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/mp_locore.S,v 1.5 2002/08/18 02:09:27 jake Exp $
  */
 
 #include <machine/asi.h>

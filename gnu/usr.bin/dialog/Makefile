@@ -1,5 +1,5 @@
 # Makefile for dialog
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/dialog/Makefile,v 1.10 2001/03/27 14:58:41 ru Exp $
 
 SUBDIR=	TESTS
 

@@ -25,7 +25,7 @@
  *
  * Written by: yen_cw@myson.com.tw  available at: http://www.myson.com.tw/
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/my/if_my.c,v 1.12 2002/11/14 23:54:53 sam Exp $
  *
  * Myson fast ethernet PCI NIC driver
  */

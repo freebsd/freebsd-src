@@ -13,7 +13,7 @@
 # warranties of merchantability and fitness for a particular
 # purpose.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/liloldr/liloldr.s,v 1.1 2000/07/17 17:06:04 jlemon Exp $
 
 #
 # This simple program is a preloader for the normal boot3 loader.  It is

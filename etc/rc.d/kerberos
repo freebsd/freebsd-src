@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/kerberos,v 1.2 2002/07/07 04:16:53 dougb Exp $
 #
 
 # PROVIDE: kerberos

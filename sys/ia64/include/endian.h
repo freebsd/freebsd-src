@@ -32,7 +32,7 @@
  *
  *	@(#)endian.h	8.1 (Berkeley) 6/10/93
  *	$NetBSD: endian.h,v 1.5 1997/10/09 15:42:19 bouyer Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/endian.h,v 1.11 2002/09/23 04:32:17 mike Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_

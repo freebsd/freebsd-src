@@ -17,7 +17,7 @@
 __RCSID("$NetBSD: tdelete.c,v 1.2 1999/09/16 11:45:37 lukem Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/tdelete.c,v 1.5 2002/09/06 11:23:59 tjr Exp $");
 
 #include <assert.h>
 #define _SEARCH_PRIVATE

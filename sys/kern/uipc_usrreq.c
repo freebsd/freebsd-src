@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_usrreq.c,v 1.98 2002/10/28 21:17:53 rwatson Exp $
  */
 
 #include "opt_mac.h"

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_ste.c,v 1.41.2.1 2003/01/02 20:02:44 phk Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@ MODULE_DEPEND(ste, miibus, 1, 1, 1);
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_ste.c,v 1.41.2.1 2003/01/02 20:02:44 phk Exp $";
 #endif
 
 /*

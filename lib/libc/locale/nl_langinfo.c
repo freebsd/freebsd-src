@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/nl_langinfo.c,v 1.15 2002/03/22 21:52:18 obrien Exp $");
 
 #include <locale.h>
 #include <langinfo.h>

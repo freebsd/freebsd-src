@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/boot/efi/include/efilib.h,v 1.3 2002/12/10 20:11:19 marcel Exp $
  */
 
 extern EFI_HANDLE		IH;

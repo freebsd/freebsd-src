@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/sparc64/loader/Makefile,v 1.14 2002/11/10 19:17:36 jake Exp $
 
 BASE=		loader
 PROG=		${BASE}

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	From BSDI: intr.c,v 1.6.2.5 1999/07/06 19:16:52 cp Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ithread.c,v 1.20 2002/01/30 12:23:49 bde Exp $
  */
 
 /* Interrupt thread code. */

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/truss/truss.h,v 1.5 2002/08/05 12:22:55 mdodd Exp $
  */
 
 #define FOLLOWFORKS        0x00000001

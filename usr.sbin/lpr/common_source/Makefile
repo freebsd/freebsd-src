@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/lpr/common_source/Makefile,v 1.10 2002/07/17 00:51:19 gad Exp $
 
 #
 # Library of internal routines for the print spooler suite.

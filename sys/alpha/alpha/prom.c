@@ -24,7 +24,7 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/prom.c,v 1.24 2002/11/08 15:24:32 jhb Exp $
  */
 
 #include "opt_simos.h"

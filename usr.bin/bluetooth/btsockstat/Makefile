@@ -1,5 +1,5 @@
 # $Id: Makefile,v 1.1.1.1 2002/09/09 16:12:49 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/bluetooth/btsockstat/Makefile,v 1.1 2002/11/20 23:01:56 julian Exp $
 
 PROG=		btsockstat
 MAN1=		btsockstat.1

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/kern/uipc_accf.c,v 1.6 2001/06/01 21:47:34 jesper Exp $
  */
 
 #define ACCEPT_FILTER_MOD

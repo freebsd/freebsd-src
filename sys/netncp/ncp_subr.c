@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_subr.c,v 1.7 2001/05/19 05:48:07 jlemon Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

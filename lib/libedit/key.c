@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/key.c,v 1.8 2001/10/01 23:00:28 obrien Exp $");
 
 /*
  * key.c: This module contains the procedures for maintaining

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libmd/md5c.c,v 1.15 2002/06/24 13:52:26 mux Exp $");
 
 #include <sys/types.h>
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/as/alpha-freebsd/config.h,v 1.9 2002/12/02 09:43:15 obrien Exp $ */
 
 #define HAVE_DECL_GETOPT 1
 

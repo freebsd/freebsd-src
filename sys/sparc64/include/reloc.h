@@ -29,5 +29,5 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/reloc.h,v 1.1 2001/11/18 17:56:46 jake Exp $
  */

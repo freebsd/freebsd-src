@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/q2110_sigcpcs.c,v 1.9 2002/11/08 18:27:30 jhb Exp $
  *
  */
 
@@ -58,7 +58,7 @@
 #include <netatm/uni/sscop_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/q2110_sigcpcs.c,v 1.9 2002/11/08 18:27:30 jhb Exp $");
 #endif
 
 

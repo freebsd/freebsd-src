@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/pom/Makefile,v 1.6 2001/06/22 21:38:27 dd Exp $
 
 PROG=	pom
 MAN=	pom.6

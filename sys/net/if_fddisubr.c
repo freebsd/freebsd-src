@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_fddisubr.c,v 1.72 2002/11/15 00:00:15 sam Exp $
  */
 
 #include "opt_atalk.h"

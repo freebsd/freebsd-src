@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kbdcontrol/Makefile,v 1.10 2002/07/11 21:12:18 alfred Exp $
 
 PROG=	kbdcontrol
 MAN=	kbdcontrol.1 kbdmap.5

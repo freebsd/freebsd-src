@@ -26,7 +26,7 @@
       <corpauthor>The &os; Release Engineering Team</corpauthor>
     </authorgroup>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/early-adopter/article.sgml,v 1.8.2.3 2003/01/14 18:12:49 roam Exp $</pubdate>
 
     <copyright>
       <year>2002</year>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ipsend/Makefile,v 1.14 2001/07/20 06:19:51 obrien Exp $
 
 MAINTAINER=	guido@freebsd.org
 

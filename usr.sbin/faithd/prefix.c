@@ -1,5 +1,5 @@
 /*	$KAME: prefix.c,v 1.9 2001/07/02 14:36:49 itojun Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/faithd/prefix.c,v 1.2 2002/04/19 04:46:24 suz Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.

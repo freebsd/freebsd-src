@@ -61,7 +61,7 @@
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
  *	form: src/sys/i386/isa/intr_machdep.c,v 1.57 2001/07/20
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/powerpc/intr_machdep.c,v 1.1 2002/07/09 11:12:20 benno Exp $
  */
 
 #include <sys/param.h>

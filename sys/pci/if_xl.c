@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pci/if_xl.c,v 1.111 2002/11/14 23:49:09 sam Exp $
  */
 
 /*
@@ -152,7 +152,7 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/pci/if_xl.c,v 1.111 2002/11/14 23:49:09 sam Exp $";
 #endif
 
 #define XL905B_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)

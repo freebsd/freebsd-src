@@ -6,7 +6,7 @@
  * 
  * General recursion handler
  * 
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/recurse.c,v 1.10 2002/12/02 03:17:48 peter Exp $
  */
 
 #include "cvs.h"

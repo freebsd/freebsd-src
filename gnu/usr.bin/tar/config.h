@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/tar/config.h,v 1.2 2002/10/20 07:50:20 obrien Exp $ */
 
 #include <paths.h>
 

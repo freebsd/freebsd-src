@@ -42,7 +42,7 @@
  * This handles io against /dev/midi, the midi {in, out}put event queues
  * and the event/message transmittion to/from a serial port interface.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/uartsio.c,v 1.12 2002/04/04 21:03:16 jhb Exp $
  *
  */
 

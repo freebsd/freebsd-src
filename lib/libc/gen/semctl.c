@@ -27,7 +27,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/semctl.c,v 1.8 2002/08/11 19:31:02 dwmalone Exp $");
 
 #include <sys/types.h>
 #include <sys/ipc.h>

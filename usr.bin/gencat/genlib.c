@@ -31,7 +31,7 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/gencat/genlib.c,v 1.12 2002/03/26 12:39:08 charnier Exp $");
 
 #include <ctype.h>
 #include <err.h>

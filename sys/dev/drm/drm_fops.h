@@ -29,7 +29,7 @@
  *    Daryll Strauss <daryll@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_fops.h,v 1.4 2002/05/03 07:45:26 tanimura Exp $
  */
 
 #define __NO_VERSION__

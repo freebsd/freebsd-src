@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libypclnt/ypclnt_free.c,v 1.1 2002/04/13 06:20:02 des Exp $
  */
 
 #include <stdlib.h>

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/crunch/crunchide/endian.h,v 1.1 2002/05/24 06:24:40 ru Exp $
  */
 
 #include <sys/param.h>

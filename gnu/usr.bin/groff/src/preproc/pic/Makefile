@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/src/preproc/pic/Makefile,v 1.3 2002/04/11 11:06:04 ru Exp $
 
 PROG_CXX=	pic
 SRCS=		lex.cc main.cc object.cc pic.cc pic_tab.h \

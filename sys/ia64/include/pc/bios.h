@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/pc/bios.h,v 1.1 2000/09/29 13:48:14 dfr Exp $
  *      from: i386/include/pc bios.h,v 1.2
  */
 

@@ -62,7 +62,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)config.y	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/config/config.y,v 1.56 2001/08/27 05:11:53 peter Exp $
  */
 
 #include <ctype.h>

@@ -39,7 +39,7 @@
 
 /*
  * from arp.c	8.2 (Berkeley) 1/2/94
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/rtmsg.c,v 1.11 2002/10/09 23:22:11 alfred Exp $
  */
 
 #include <sys/param.h>

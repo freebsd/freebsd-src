@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pppd/Makefile,v 1.23 2001/07/24 02:37:48 kris Exp $
 
 # as per handbook policies section
 MAINTAINER=	peter@freebsd.org

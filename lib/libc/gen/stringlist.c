@@ -33,7 +33,7 @@
 static char *rcsid = "$NetBSD: stringlist.c,v 1.2 1997/01/17 07:26:20 lukem Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/stringlist.c,v 1.5 2002/02/01 00:57:29 obrien Exp $");
 
 #include <stdio.h>
 #include <string.h>

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/rrenum.c,v 1.5 2001/06/11 12:39:22 ume Exp $	*/
 /*	$KAME: rrenum.c,v 1.10 2001/01/21 15:32:16 itojun Exp $	*/
 
 /*

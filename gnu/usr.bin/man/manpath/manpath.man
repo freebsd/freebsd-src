@@ -12,7 +12,7 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/gnu/usr.bin/man/manpath/manpath.man,v 1.9 2001/10/01 16:58:30 ru Exp $
 .Dd August 16, 1999
 .Dt MANPATH 1
 .Os

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/groff/src/include/config.h,v 1.2 2002/10/13 08:36:16 ru Exp $ */
 
 #include <osreldate.h>
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_time.c,v 1.86.2.1 2002/12/19 09:40:10 alfred Exp $
  */
 
 #include "opt_mac.h"

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/kadmind,v 1.2 2002/07/07 08:00:31 dougb Exp $
 #
 
 # PROVIDE: kadmin

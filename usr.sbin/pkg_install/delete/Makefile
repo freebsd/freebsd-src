@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/delete/Makefile,v 1.17 2002/11/06 08:57:03 obrien Exp $
 
 PROG=	pkg_delete
 SRCS=	main.c perform.c

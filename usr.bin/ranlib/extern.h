@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/ranlib/extern.h,v 1.1 2002/04/28 11:59:43 markm Exp $
  */
 
 extern int build(void);

@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/xtend/user.c,v 1.12 2002/03/18 16:10:00 imp Exp $";
 #endif /* not lint */
 
 #include <ctype.h>

@@ -62,7 +62,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/reg_u_add.s,v 1.11 2002/05/13 12:55:30 bde Exp $
  *
  */
 

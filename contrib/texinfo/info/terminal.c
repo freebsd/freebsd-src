@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/info/terminal.c,v 1.7 2002/03/25 13:10:59 ru Exp $ */
 /* terminal.c -- How to handle the physical terminal for Info.
    $Id: terminal.c,v 1.23 2001/11/16 23:16:04 karl Exp $
 

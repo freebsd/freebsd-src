@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpam/modules/pam_kerberosIV/klogin.c,v 1.13 2002/04/12 22:27:20 des Exp $");
 
 #ifndef lint
 static const char sccsid[] = "@(#)klogin.c	8.3 (Berkeley) 4/2/94";

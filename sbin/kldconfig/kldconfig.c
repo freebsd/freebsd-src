@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/kldconfig/kldconfig.c,v 1.3 2001/06/29 22:31:17 roam Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/amr/amr_disk.c,v 1.21 2002/12/11 20:59:46 emoore Exp $
  */
 
 /*

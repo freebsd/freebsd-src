@@ -95,7 +95,7 @@
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-2000 Darren Reed";
 /* static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.30.2.38 2001/07/23 13:49:46 darrenr Exp $"; */
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_state.c,v 1.29 2002/08/28 13:41:36 darrenr Exp $";
 #endif
 
 #ifndef	MIN

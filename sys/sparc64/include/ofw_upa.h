@@ -28,7 +28,7 @@
  *
  *	from: NetBSD: psychoreg.h,v 1.8 2001/09/10 16:17:06 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/ofw_upa.h,v 1.3 2002/01/02 18:26:59 tmm Exp $
  */
 
 #ifndef _MACHINE_OFW_UPA_H_

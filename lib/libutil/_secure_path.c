@@ -20,7 +20,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/_secure_path.c,v 1.7 2002/02/25 01:25:30 bde Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

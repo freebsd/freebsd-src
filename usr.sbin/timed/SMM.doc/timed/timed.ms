@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\" $FreeBSD: src/usr.sbin/timed/SMM.doc/timed/timed.ms,v 1.2 2000/11/23 10:15:50 ru Exp $
 .\"
 .\" Copyright (c) 1986, 1993
 .\"	The Regents of the University of California.  All rights reserved.

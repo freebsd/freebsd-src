@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Id: pdq.c,v 1.32 1997/06/05 01:56:35 thomas Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pdq/pdq.c,v 1.8 2002/10/20 08:46:56 phk Exp $
  *
  */
 

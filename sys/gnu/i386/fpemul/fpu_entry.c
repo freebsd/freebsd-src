@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/i386/fpemul/fpu_entry.c,v 1.27 2001/11/12 21:58:23 keramida Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_map.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_map.c,v 1.5 2000/06/29 00:22:27 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

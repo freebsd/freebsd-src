@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_ps.c,v 1.35 2002/10/21 22:27:36 julian Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

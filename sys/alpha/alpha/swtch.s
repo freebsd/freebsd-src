@@ -25,7 +25,7 @@
  * rights to redistribute these changes.
  *
  *	$NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/swtch.s,v 1.33 2002/07/12 18:34:21 jhb Exp $
  */
 
 #define _LOCORE

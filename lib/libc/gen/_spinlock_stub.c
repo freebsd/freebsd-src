@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/_spinlock_stub.c,v 1.7 2002/02/01 00:57:29 obrien Exp $");
 
 #include <stdio.h>
 

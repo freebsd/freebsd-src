@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/mcbus/mcpcia.c,v 1.23 2002/03/26 19:46:40 dfr Exp $ */
 /*
  * Copyright (c) 2000 Matthew Jacob
  * All rights reserved.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)archive.h	8.3 (Berkeley) 4/2/94
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/ar/archive.h,v 1.4 2002/03/22 01:19:22 imp Exp $
  */
 
 /* Ar(1) options. */

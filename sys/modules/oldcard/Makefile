@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/oldcard/Makefile,v 1.10 2002/11/06 13:46:59 nyan Exp $
 
 .PATH: ${.CURDIR}/../../pccard ${.CURDIR}/../../pci
 

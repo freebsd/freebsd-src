@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/ofw/ofw_console.c,v 1.7 2002/11/18 06:19:12 jake Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/contrib/dev/fla/fla.c,v 1.32 2002/09/20 19:35:54 phk Exp $ 
  *
  */
 

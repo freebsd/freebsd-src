@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/raidframe/rf_freebsdkintf.c,v 1.3.2.1 2003/01/10 05:18:08 rwatson Exp $
  */
 
 /*	$NetBSD: rf_netbsdkintf.c,v 1.105 2001/04/05 02:48:51 oster Exp $	*/

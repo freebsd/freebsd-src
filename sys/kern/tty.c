@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/tty.c,v 1.190 2002/10/03 02:12:58 truckman Exp $
  */
 
 /*-

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ctm/mkCTM/Makefile,v 1.5 2001/07/20 06:19:44 obrien Exp $
 
 PROG=	mkctm
 NOMAN=	1

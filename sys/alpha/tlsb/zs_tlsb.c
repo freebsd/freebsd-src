@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/tlsb/zs_tlsb.c,v 1.33 2002/04/01 21:30:29 jhb Exp $
  */
 /*
  * This driver is a somewhat hack. A real driver might use the zs driver

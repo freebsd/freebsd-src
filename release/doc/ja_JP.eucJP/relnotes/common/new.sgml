@@ -1,7 +1,7 @@
 <!--
     FreeBSD Japanese Documentation Project
 
-    $FreeBSD$
+    $FreeBSD: src/release/doc/ja_JP.eucJP/relnotes/common/new.sgml,v 1.65.2.3 2003/01/14 17:38:19 hrs Exp $
     Original revision: 1.467.2.7
 -->
 
@@ -10,7 +10,7 @@
 
   <corpauthor>FreeBSD プロジェクト</corpauthor>
 
-  <pubdate>$FreeBSD$</pubdate>
+  <pubdate>$FreeBSD: src/release/doc/ja_JP.eucJP/relnotes/common/new.sgml,v 1.65.2.3 2003/01/14 17:38:19 hrs Exp $</pubdate>
 
   <copyright>
     <year>2000</year>

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_prot.c,v 1.164 2002/08/01 17:47:55 rwatson Exp $
  */
 
 /*

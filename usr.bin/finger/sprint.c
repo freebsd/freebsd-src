@@ -41,7 +41,7 @@ static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/finger/sprint.c,v 1.21 2002/09/04 23:29:00 dwmalone Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/idp.h,v 1.8 1999/08/28 00:49:46 peter Exp $
  */
 
 #ifndef _NETNS_IDP_H_

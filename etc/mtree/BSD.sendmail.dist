@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BSD.sendmail.dist,v 1.1 2002/04/20 19:00:11 gshapiro Exp $
 #
 # Please see the file src/etc/mtree/README before making changes to this file.
 #

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/linux/linux_genassym.c,v 1.17 2002/09/17 07:22:23 peter Exp $ */
 
 #include <sys/param.h>
 #include <sys/assym.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/kern/uipc_sem.c,v 1.3.2.1 2003/01/11 02:11:35 alfred Exp $
  */
 
 #include "opt_posix.h"

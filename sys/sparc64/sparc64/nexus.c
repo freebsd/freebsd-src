@@ -52,7 +52,7 @@
  *
  * 	from: FreeBSD: src/sys/i386/i386/nexus.c,v 1.43 2001/02/09
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/nexus.c,v 1.4 2002/05/25 02:39:28 jake Exp $
  */
 
 #include <sys/param.h>

@@ -37,7 +37,7 @@ License Agreement applies to this software.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(skey.c).
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/opiekey.c,v 1.4 2002/03/21 23:42:52 markm Exp $
 
 */
 #include "opie_cfg.h"

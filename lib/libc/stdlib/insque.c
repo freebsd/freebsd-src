@@ -7,7 +7,7 @@
  * unchanged, you can do what ever you want with this file. 
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/insque.c,v 1.2 2002/10/16 14:05:29 robert Exp $");
 
 #define	_SEARCH_PRIVATE
 #include <search.h>

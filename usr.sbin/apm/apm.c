@@ -14,7 +14,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/apm/apm.c,v 1.29 2002/10/15 16:28:21 charnier Exp $");
 
 #include <sys/file.h>
 #include <sys/ioctl.h>

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/Makefile,v 1.271 2002/12/03 17:49:05 bmah Exp $
 #
 # The user-driven targets are:
 #

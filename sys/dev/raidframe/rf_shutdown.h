@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_shutdown.h,v 1.1 2002/10/20 08:17:37 scottl Exp $ */
 /*	$NetBSD: rf_shutdown.h,v 1.2 1999/02/05 00:06:17 oster Exp $	*/
 /*
  * rf_shutdown.h

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/binutils/doc/inc-hist.diff,v 1.4 2002/07/01 07:58:18 sheldonh Exp $
 
 --- inc-hist.texinfo.orig	Wed Apr 11 08:20:01 2001
 +++ inc-hist.texinfo	Wed Apr 11 08:21:57 2001

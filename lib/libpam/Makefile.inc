@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libpam/Makefile.inc,v 1.9 2002/10/11 14:17:09 ru Exp $
 
 SHLIB_MAJOR=	2
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_paritylogging.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_paritylogging.c,v 1.10 2000/02/12 16:06:27 oster Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

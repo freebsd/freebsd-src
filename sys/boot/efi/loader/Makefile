@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/efi/loader/Makefile,v 1.18 2002/05/10 09:26:31 obrien Exp $
 
 .PATH: ${.CURDIR}/../common
 

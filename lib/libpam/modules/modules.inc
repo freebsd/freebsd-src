@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/modules.inc,v 1.12 2002/05/28 20:52:27 nectar Exp $
 
 MODULES		 =
 MODULES		+= pam_deny

@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/boot/i386/libi386/bootinfo.c,v 1.29
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/sparc64/loader/metadata.c,v 1.8 2002/11/10 19:17:36 jake Exp $
  */
 
 #include <stand.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/sys/setlogin.S,v 1.2 2001/10/10 10:35:01 dfr Exp $ */
 /*	$NetBSD: setlogin.S,v 1.1 1995/02/10 17:50:39 cgd Exp $	*/
 
 /*

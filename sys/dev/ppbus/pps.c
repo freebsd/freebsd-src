@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/pps.c,v 1.35.2.1 2003/01/10 05:18:08 rwatson Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vax.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/vax.h,v 1.3 2002/02/21 07:12:57 bde Exp $
  */
 
     /*

@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_types.h,v 1.2 2002/10/28 17:08:07 scottl Exp $ */
 /*	$NetBSD: rf_types.h,v 1.6 1999/09/05 03:05:55 oster Exp $	*/
 /*
  * rf_types.h

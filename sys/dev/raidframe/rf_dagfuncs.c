@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/raidframe/rf_dagfuncs.c,v 1.1 2002/10/20 08:17:36 scottl Exp $ */
 /*	$NetBSD: rf_dagfuncs.c,v 1.7 2001/02/03 12:51:10 mrg Exp $	*/
 /*
  * Copyright (c) 1995 Carnegie-Mellon University.

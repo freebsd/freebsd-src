@@ -31,7 +31,7 @@
  *
  * Routines to prepare request and fetch reply
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netncp/ncp_rq.c,v 1.9 2002/11/08 21:26:32 jhb Exp $
  */ 
 #include <sys/param.h>
 #include <sys/systm.h>

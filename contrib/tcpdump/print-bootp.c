@@ -20,7 +20,7 @@
  *
  * Format and print bootp packets.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-bootp.c,v 1.7 2002/06/21 00:49:02 fenner Exp $
  */
 #ifndef lint
 static const char rcsid[] =

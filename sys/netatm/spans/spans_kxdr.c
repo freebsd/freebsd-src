@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/spans/spans_kxdr.c,v 1.11 2002/11/08 18:27:30 jhb Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <netatm/port.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/spans/spans_kxdr.c,v 1.11 2002/11/08 18:27:30 jhb Exp $");
 #endif
 
 /*

@@ -84,7 +84,7 @@ static const char rcsid[] = "@(#)$Id: iptests.c,v 2.1.4.5 2002/02/22 15:32:58 da
 #endif
 #endif
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/ipfilter/ipsend/iptests.c,v 1.8 2002/03/19 11:48:15 darrenr Exp $");
 
 
 #define	PAUSE()	tv.tv_sec = 0; tv.tv_usec = 10000; \

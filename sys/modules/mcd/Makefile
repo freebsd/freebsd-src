@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mcd/Makefile,v 1.1 2002/10/04 07:14:19 mdodd Exp $
 
 .PATH: ${.CURDIR}/../../dev/mcd
 

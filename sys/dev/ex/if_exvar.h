@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/ex/if_exvar.h,v 1.2 2001/01/19 09:04:56 jhb Exp $
  */
 
 struct ex_softc {

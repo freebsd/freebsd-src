@@ -1,7 +1,7 @@
 /*
  * Australian holidays
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.australia,v 1.2 2001/11/15 03:53:57 grog Exp $
  */
 
 #ifndef _calendar_australia_

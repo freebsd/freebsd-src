@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/src/get_hw_float.c,v 1.4 2002/03/21 23:54:04 obrien Exp $
  */
 
 #include <sys/types.h>

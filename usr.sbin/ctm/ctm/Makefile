@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ctm/ctm/Makefile,v 1.17 2002/03/25 14:12:10 phk Exp $
 
 PROG=		ctm
 MAN=		ctm.1 ctm.5

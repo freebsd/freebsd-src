@@ -39,7 +39,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumraid5.c,v 1.21 2001/01/09 04:21:27 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/vinumraid5.c,v 1.12 2001/01/10 05:07:14 grog Exp $
  */
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>

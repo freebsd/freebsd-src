@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/uni_load.c,v 1.10 2002/03/20 08:00:53 alfred Exp $
  *
  */
 
@@ -61,7 +61,7 @@
 #include <netatm/atm_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/uni_load.c,v 1.10 2002/03/20 08:00:53 alfred Exp $");
 #endif
 
 /*

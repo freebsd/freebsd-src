@@ -4,7 +4,7 @@
  * Arun Sharma <arun@sharma-home.net> 
  * Last updated Mon Nov 19 23:07:46 PST 2001
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/hi_IN.ISCII-DEV.src,v 1.5 2001/11/30 07:19:21 ache Exp $
  */
 
 ENCODING     "NONE"

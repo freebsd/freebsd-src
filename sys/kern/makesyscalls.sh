@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/makesyscalls.sh,v 1.58 2002/10/29 15:47:06 dwmalone Exp $
 
 set -e
 

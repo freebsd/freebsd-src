@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/mrouted/config.c,v 1.15 2002/08/18 07:05:00 sobomax Exp $";
 #endif /* not lint */
 
 #include "defs.h"

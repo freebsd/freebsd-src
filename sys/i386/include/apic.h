@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/apic.h,v 1.18 2001/12/20 23:48:30 jhb Exp $
  */
 
 #ifndef _MACHINE_APIC_H_

@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_lock.h,v 1.1 2002/04/27 20:47:57 anholt Exp $
  */
 
 #define __NO_VERSION__

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hfa/hfa_eisa.c,v 1.1 2002/04/17 00:24:48 mdodd Exp $
  */
 
 /*

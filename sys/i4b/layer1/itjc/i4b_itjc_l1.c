@@ -27,7 +27,7 @@
  *	i4b_itjc_l1.c - NetJet-S layer 1 handler
  *	---------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/itjc/i4b_itjc_l1.c,v 1.3 2002/09/02 00:52:09 brooks Exp $
  *
  *      last edit-date: [Wed Jan 10 17:16:19 2001]
  *

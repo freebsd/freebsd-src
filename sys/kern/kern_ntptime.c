@@ -28,7 +28,7 @@
  * sys/kern/kern_clock.c.   Some of the comments below may be (even more)
  * confusing and/or plain wrong in that context.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_ntptime.c,v 1.49.2.1 2003/01/06 22:47:16 peter Exp $
  */
 
 #include "opt_ntp.h"

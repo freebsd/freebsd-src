@@ -1,5 +1,5 @@
 /*	$NetBSD: rpcb_prot.c,v 1.3 2000/07/14 08:40:42 fvdl Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/lib/libc/rpc/rpcb_prot.c,v 1.3 2002/03/22 23:18:37 obrien Exp $ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)rpcb_prot.c 1.9 89/04/21 Copyr 1984 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/rpcb_prot.c,v 1.3 2002/03/22 23:18:37 obrien Exp $");
 
 /*
  * rpcb_prot.c

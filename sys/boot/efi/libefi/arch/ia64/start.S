@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/boot/efi/libefi/arch/ia64/start.S,v 1.6 2002/12/10 04:14:01 marcel Exp $
  */
 
 	.text

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/examples/isdn/contrib/anleitung.ppp,v 1.1 2001/05/25 13:25:58 hm Exp $
 
 i4b Anleitung für syncPPP Internet-Zugang und Anrufbeantworter
 unter FreeBSD 2.2.x mit Teles.S0/16.3-Karte

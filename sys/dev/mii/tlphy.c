@@ -94,7 +94,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/tlphy.c,v 1.12 2002/10/14 22:31:52 alfred Exp $";
 #endif
 
 struct tlphy_softc {

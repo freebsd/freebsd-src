@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_deny/Makefile,v 1.6 2002/04/10 18:07:00 ru Exp $
 
 LIB=		pam_deny
 SRCS=		pam_deny.c

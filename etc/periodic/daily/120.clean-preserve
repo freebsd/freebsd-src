@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/120.clean-preserve,v 1.6 2000/09/14 17:19:10 brian Exp $
 #
 # Remove stale files in /var/preserve
 #

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_accept.c,v 1.16 2002/08/29 23:06:06 deischen Exp $
  */
 #include <errno.h>
 #include <unistd.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_mbr.c,v 1.25.2.2 2003/01/02 20:16:17 phk Exp $
  */
 
 #include <sys/param.h>

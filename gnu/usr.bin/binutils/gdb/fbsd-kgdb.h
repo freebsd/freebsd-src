@@ -1,5 +1,5 @@
 /* Native-kernel debugging definitions for FreeBSD.
- * $FreeBSD$ 
+ * $FreeBSD: src/gnu/usr.bin/binutils/gdb/fbsd-kgdb.h,v 1.3 2002/09/18 16:20:49 obrien Exp $ 
  */
 
 #ifndef FBSD_KGDB_H

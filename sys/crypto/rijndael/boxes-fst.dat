@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/rijndael/boxes-fst.dat,v 1.2 2001/06/11 12:38:55 ume Exp $	*/
 /*	$KAME: boxes-fst.dat,v 1.6 2001/05/27 00:23:22 itojun Exp $	*/
 
 const word8 S[256] = {

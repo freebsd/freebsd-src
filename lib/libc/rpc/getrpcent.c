@@ -34,7 +34,7 @@
 static char *sccsid = "@(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/getrpcent.c,v 1.13 2002/03/22 23:18:36 obrien Exp $");
 
 /*
  * Copyright (c) 1984 by Sun Microsystems, Inc.

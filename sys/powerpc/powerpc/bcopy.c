@@ -44,7 +44,7 @@ static char *rcsid = "$NetBSD: bcopy.c,v 1.2 1997/04/16 22:09:41 thorpej Exp $";
 #endif /* LIBC_SCCS and not lint */
 #ifndef lint
 static char *rcsid =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/powerpc/powerpc/bcopy.c,v 1.2 2002/06/29 09:34:54 benno Exp $";
 #endif
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/ulimit.h,v 1.1.2.1 2003/01/08 01:23:00 tjr Exp $
  */
 
 #ifndef _ULIMIT_H_

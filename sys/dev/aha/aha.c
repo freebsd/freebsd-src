@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aha/aha.c,v 1.42 2002/10/09 09:30:57 peter Exp $
  */
 
 #include <sys/param.h>

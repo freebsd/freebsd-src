@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/spans/spans_util.c,v 1.8 2002/04/19 17:45:20 arr Exp $
  *
  */
 
@@ -55,7 +55,7 @@
 #include <netatm/spans/spans_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/spans/spans_util.c,v 1.8 2002/04/19 17:45:20 arr Exp $");
 #endif
 
 

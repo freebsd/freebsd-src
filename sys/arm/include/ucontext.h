@@ -42,7 +42,7 @@
  * Created      : 30/09/94
  *
  *	$NetBSD: signal.h,v 1.8 1998/09/14 02:48:33 thorpej Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/ucontext.h,v 1.1 2001/12/09 19:39:49 obrien Exp $
  */
 
 #ifndef _MACHINE_UCONTEXT_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ia64/skiload/Makefile,v 1.9 2002/05/10 09:26:32 obrien Exp $
 
 .PATH: ${.CURDIR}/../common
 

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/setinvalidrune.c,v 1.3 2002/09/24 09:25:37 tjr Exp $");
 
 #include <rune.h>
 

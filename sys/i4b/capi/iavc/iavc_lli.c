@@ -25,7 +25,7 @@
  * capi/iavc/iavc_lli.c
  *		The AVM ISDN controllers' Low Level Interface.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/capi/iavc/iavc_lli.c,v 1.5 2002/09/02 00:52:06 brooks Exp $
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/amd/FREEBSD-upgrade,v 1.12 2001/09/02 19:32:45 obrien Exp $
 
 AMD (am-utils) 6.0.7
     originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils/

@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libz/maketree.c,v 1.3 2002/03/11 22:36:26 green Exp $");
 
 /* WARNING: this file should *not* be used by applications. It is
    part of the implementation of the compression library and is

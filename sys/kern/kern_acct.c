@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_acct.c,v 1.55.2.1 2002/12/19 09:40:10 alfred Exp $
  */
 
 #include "opt_mac.h"

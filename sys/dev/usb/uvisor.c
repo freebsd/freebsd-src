@@ -1,5 +1,5 @@
 /*	$NetBSD: uvisor.c,v 1.9 2001/01/23 14:04:14 augustss Exp $	*/
-/*      $FreeBSD$	*/
+/*      $FreeBSD: src/sys/dev/usb/uvisor.c,v 1.8 2002/08/11 21:11:14 joe Exp $	*/
 
 /* This version of uvisor is heavily based upon the version in NetBSD
  * but is missing the following patches:

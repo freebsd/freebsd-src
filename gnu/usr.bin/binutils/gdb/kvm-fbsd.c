@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/kvm-fbsd.c,v 1.44 2002/10/21 21:36:36 mp Exp $ */
 
 /*
  * This works like "remote" but, you use it like this:

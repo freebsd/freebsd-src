@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/passwd/passwd.c,v 1.22 2002/05/11 03:18:14 jedgar Exp $");
 
 #include <sys/param.h>
 

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/testrsrr/testrsrr.c,v 1.4 1999/08/28 01:17:17 peter Exp $
  */
 #include <stddef.h>
 #include <stdlib.h>

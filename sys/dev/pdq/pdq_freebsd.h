@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Id: pdqvar.h,v 1.21 1997/03/21 21:16:04 thomas Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/pdq/pdq_freebsd.h,v 1.2 2002/06/02 20:05:46 schweikh Exp $
  *
  */
 

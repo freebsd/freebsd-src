@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/boot0cfg/boot0cfg.c,v 1.13.2.1 2003/01/02 20:18:15 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsserver/nfs_syscalls.c,v 1.82 2002/11/04 15:13:35 rwatson Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsserver/nfs_syscalls.c,v 1.82 2002/11/04 15:13:35 rwatson Exp $");
 
 #include "opt_inet6.h"
 #include "opt_mac.h"

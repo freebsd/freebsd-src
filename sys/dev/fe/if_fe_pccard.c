@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fe/if_fe_pccard.c,v 1.8 2002/11/14 23:54:51 sam Exp $
  */
 
 #include <sys/param.h>

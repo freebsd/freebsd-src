@@ -48,7 +48,7 @@ static char rcsid[] = "$OpenBSD: eval.c,v 1.44 2002/04/26 16:15:16 espie Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/m4/eval.c,v 1.20 2002/07/15 02:15:12 jmallett Exp $");
 
 /*
  * eval.c

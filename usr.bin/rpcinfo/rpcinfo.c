@@ -1,5 +1,5 @@
 /*	$NetBSD: rpcinfo.c,v 1.15 2000/10/04 20:09:05 mjl Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/usr.bin/rpcinfo/rpcinfo.c,v 1.14.2.1 2002/12/19 07:20:59 mbr Exp $ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/apm,v 1.1 2002/07/07 04:16:53 dougb Exp $
 #
 
 # PROVIDE: apm

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $FreeBSD$
+ *      $FreeBSD: src/sys/i386/acpica/acpi_wakeup.c,v 1.17 2002/12/04 18:40:39 alc Exp $
  */
 
 #include <sys/param.h>

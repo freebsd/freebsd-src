@@ -30,7 +30,7 @@
 static const char copyright[] =
 	"Copyright (C) 1997, Massachusetts Institute of Technology\r\n";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/lpr/common_source/request.c,v 1.3 2000/12/30 20:56:04 phk Exp $";
 
 #include <sys/types.h>
 #include <sys/stat.h>

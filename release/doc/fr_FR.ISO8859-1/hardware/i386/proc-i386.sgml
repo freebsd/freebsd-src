@@ -3,7 +3,7 @@
      The FreeBSD French Documentation Project
 
      $Id: proc-i386.sgml,v 1.2 2002/09/28 23:23:21 eagle Exp $
-     $FreeBSD$
+     $FreeBSD: src/release/doc/fr_FR.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.3 2002/09/29 22:12:28 gioria Exp $
      Original revision: 1.3
 -->
 <sect1>

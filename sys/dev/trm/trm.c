@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/trm/trm.c,v 1.2.4.1 2002/12/16 19:23:34 cognet Exp $");
 
 #include <sys/param.h>
 

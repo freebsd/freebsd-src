@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *      from BSDI kern.c,v 1.2 1998/11/25 22:38:27 don Exp
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/rpc.lockd/kern.c,v 1.11 2002/08/15 21:52:21 alfred Exp $
  */
 
 #include <sys/param.h>

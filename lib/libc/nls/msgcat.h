@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/nls/msgcat.h,v 1.8 2000/09/03 21:05:10 ache Exp $ */
 
 #ifndef _MSGCAT_H_
 #define _MSGCAT_H_

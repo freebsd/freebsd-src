@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/Test/Makefile,v 1.5 2002/05/21 20:42:46 phk Exp $
 
 SUBDIR+=	T000 T001 T002 T003 T004 T005 T006 T007 T008 T009
 SUBDIR+=	T010 T011 T012 T013 T014

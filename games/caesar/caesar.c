@@ -50,7 +50,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)caesar.c    8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/games/caesar/caesar.c,v 1.12 2002/02/18 05:15:15 imp Exp $";
 #endif
 #endif /* not lint */
 

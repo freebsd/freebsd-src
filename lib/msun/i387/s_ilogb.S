@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_ilogb.S,v 1.8 2000/06/06 12:12:36 bde Exp $")
 
 ENTRY(ilogb)
 	pushl	%ebp

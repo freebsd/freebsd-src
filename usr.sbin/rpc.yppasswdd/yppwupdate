@@ -8,7 +8,7 @@
 #
 # Comment out the LOG=yes line to disable logging.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.yppasswdd/yppwupdate,v 1.7 1999/08/28 01:19:42 peter Exp $
 #
 
 PATH=/bin:/usr/bin; export PATH

@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/ibcs2/ibcs2_misc.c,v 1.41.2.1 2002/12/19 09:40:08 alfred Exp $
  */
 
 /*

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tip/libacu/courier.c,v 1.5 2002/03/22 01:42:34 imp Exp $");
 
 #ifndef lint
 #if 0

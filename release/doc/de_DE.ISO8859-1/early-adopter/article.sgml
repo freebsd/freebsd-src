@@ -1,7 +1,7 @@
 <!--
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
-  $FreeBSD$
+  $FreeBSD: src/release/doc/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.6.2.3 2003/01/14 23:10:40 ue Exp $
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.11 2002/12/07 20:59:31 ue Exp $
   basiert auf: 1.8.2.3
 -->
@@ -34,7 +34,7 @@
       <corpauthor>The &os; Release Engineering Team</corpauthor>
     </authorgroup>
 
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.6.2.3 2003/01/14 23:10:40 ue Exp $</pubdate>
 
     <copyright>
       <year>2002</year>

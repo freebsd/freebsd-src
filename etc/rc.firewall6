@@ -1,6 +1,6 @@
 ############
 # Setup system for IPv6 firewall service.
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.firewall6,v 1.11 2002/02/21 13:14:19 cjc Exp $
 
 # Suck in the configuration variables.
 if [ -z "${source_rc_confs_defined}" ]; then

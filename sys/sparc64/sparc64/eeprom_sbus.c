@@ -51,7 +51,7 @@
  *	from: @(#)clock.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: clock.c,v 1.41 2001/07/24 19:29:25 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/eeprom_sbus.c,v 1.1 2002/04/04 23:58:50 tmm Exp $
  */
 
 #include <sys/param.h>

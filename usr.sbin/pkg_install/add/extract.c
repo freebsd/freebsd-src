@@ -19,7 +19,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/add/extract.c,v 1.35 2002/08/02 17:28:02 sobomax Exp $");
 
 #include <err.h>
 #include "lib.h"

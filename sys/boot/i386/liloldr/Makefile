@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/liloldr/Makefile,v 1.4 2002/09/17 01:48:55 peter Exp $
 
 ORG=		0x0
 

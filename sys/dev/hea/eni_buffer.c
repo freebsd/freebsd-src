@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hea/eni_buffer.c,v 1.15 2002/11/08 18:27:28 jhb Exp $
  *
  */
 
@@ -54,7 +54,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hea/eni_buffer.c,v 1.15 2002/11/08 18:27:28 jhb Exp $");
 #endif
 
 static int	eni_test_memory(Eni_unit *);

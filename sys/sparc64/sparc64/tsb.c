@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from BSDI: pmap.c,v 1.28.2.15 2000/04/27 03:10:31 cp Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/tsb.c,v 1.27 2002/08/18 02:09:27 jake Exp $
  */
 
 #include "opt_ddb.h"

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/syslogd/Makefile,v 1.9 2001/09/09 14:30:36 dd Exp $
 
 .PATH: ${.CURDIR}/../../usr.bin/wall
 

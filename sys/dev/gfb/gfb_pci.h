@@ -26,7 +26,7 @@
  *
  * Copyright (c) 2000 Andrew Miklic
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/gfb/gfb_pci.h,v 1.1 2001/11/01 08:26:30 obrien Exp $
  */
 
 #ifndef _PCI_GFB_H_

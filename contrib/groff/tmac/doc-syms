@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-syms	8.1 (Berkeley) 06/08/93
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/doc-syms,v 1.41.2.1 2003/01/15 09:02:10 chris Exp $
 .\"
 .\"     %beginstrip%
 .

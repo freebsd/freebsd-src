@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/_thread_init.c,v 1.5 2002/02/01 00:57:29 obrien Exp $");
 
 #include <sys/types.h>
 

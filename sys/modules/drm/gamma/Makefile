@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/drm/gamma/Makefile,v 1.2 2002/04/28 04:58:35 anholt Exp $
 
 .PATH:	${.CURDIR}/../../../dev/drm
 KMOD	= gamma

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/raidframe/Makefile,v 1.1 2002/10/20 08:17:39 scottl Exp $
 KMOD=	raidframe
 NOMAN=
 

@@ -76,7 +76,7 @@
  *             Added radiolist option
  *	     - Version 0.4 released.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/kernel.c,v 1.27 2002/10/12 20:32:03 kris Exp $
  */
 
 #define __DIALOG_MAIN__

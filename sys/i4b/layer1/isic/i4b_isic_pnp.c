@@ -37,7 +37,7 @@
  *	i4b_isic_pnp.c - i4b pnp support
  *	--------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/isic/i4b_isic_pnp.c,v 1.8 2002/10/15 20:32:44 phk Exp $
  *
  *      last edit-date: [Fri Jan 26 14:01:04 2001]
  *

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ypxfrd,v 1.3 2002/10/12 10:31:31 schweikh Exp $
 #
 
 # PROVIDE: ypxfrd

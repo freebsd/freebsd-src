@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_vnops.c,v 1.100 2002/10/18 22:52:40 dillon Exp $
  */
 
 #include <sys/param.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_jail.c,v 1.26.2.1 2002/12/19 09:40:10 alfred Exp $
  *
  */
 

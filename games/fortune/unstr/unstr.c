@@ -45,7 +45,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)unstr.c     8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/games/fortune/unstr/unstr.c,v 1.8 2002/05/30 21:28:58 wollman Exp $";
 #endif
 #endif /* not lint */
 

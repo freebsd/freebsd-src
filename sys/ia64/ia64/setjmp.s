@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $FreeBSD: src/sys/ia64/ia64/setjmp.s,v 1.1 2001/09/03 13:54:49 dfr Exp $
 //
 // Copyright (c) 1999, 2000
 // Intel Corporation.

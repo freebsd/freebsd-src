@@ -94,7 +94,7 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
 static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/bin/sh/arith.y,v 1.13 2002/02/02 06:50:45 imp Exp $";
 #endif /* not lint */
 
 #include "shell.h"

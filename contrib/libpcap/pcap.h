@@ -33,7 +33,7 @@
  *
  * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.34 2001/12/09 05:10:03 guy Exp $ (LBL)
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/pcap.h,v 1.6 2002/06/21 01:38:14 fenner Exp $
  */
 
 #ifndef lib_pcap_h

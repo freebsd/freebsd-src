@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mrouted/map-mbone/Makefile,v 1.11 2001/07/20 06:20:01 obrien Exp $
 
 S=	${.CURDIR}/..
 .PATH: $S

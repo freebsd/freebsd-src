@@ -27,7 +27,7 @@
  *
  *	from: NetBSD: psychovar.h,v 1.6 2001/07/20 00:07:13 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/pci/psychovar.h,v 1.5 2002/10/16 17:03:36 tmm Exp $
  */
 
 #ifndef _SPARC64_PCI_PSYCHOVAR_H_

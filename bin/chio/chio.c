@@ -41,7 +41,7 @@ static const char copyright[] =
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/chio/chio.c,v 1.25 2002/07/01 10:46:39 dwmalone Exp $");
 
 #include <sys/param.h>
 #include <sys/chio.h> 

@@ -73,7 +73,7 @@ static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_query.c,v 8.14 1997/06/09 17:47:05 halley Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/res_query.c,v 1.25 2002/09/15 04:23:20 nectar Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

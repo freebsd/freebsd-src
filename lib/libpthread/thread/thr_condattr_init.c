@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_condattr_init.c,v 1.7 2002/09/16 08:45:34 mini Exp $
  */
 #include <string.h>
 #include <stdlib.h>

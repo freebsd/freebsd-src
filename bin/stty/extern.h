@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/stty/extern.h,v 1.9 2002/02/02 06:50:56 imp Exp $
  */
 
 int	c_cchars(const void *, const void *);

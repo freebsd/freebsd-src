@@ -33,7 +33,7 @@
  *	i4b_itjc_pci.c: NetJet-S hardware driver
  *	----------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/itjc/i4b_itjc_pci.c,v 1.6 2002/10/15 20:32:45 phk Exp $
  *
  *      last edit-date: [Thu Jan 11 11:29:38 2001]
  *

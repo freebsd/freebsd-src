@@ -28,7 +28,7 @@
  * This node presents a /dev/ngd%d device that interfaces to an other 
  * netgraph node.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_device.c,v 1.1 2002/06/18 21:32:33 julian Exp $
  *
  */
 

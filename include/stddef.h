@@ -32,7 +32,7 @@
  *
  *	@(#)stddef.h	8.1 (Berkeley) 6/2/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/stddef.h,v 1.9 2002/09/01 17:57:20 mike Exp $
  */
 
 #ifndef _STDDEF_H_

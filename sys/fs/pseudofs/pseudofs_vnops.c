@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/fs/pseudofs/pseudofs_vnops.c,v 1.32 2002/10/26 14:38:20 rwatson Exp $
  */
 
 #include <sys/param.h>

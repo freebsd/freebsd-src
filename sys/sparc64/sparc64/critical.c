@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Matthew Dillon.  This code is distributed under
  * the BSD copyright, /usr/src/COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/critical.c,v 1.6 2002/06/23 14:38:41 mux Exp $
  */
 
 #include <sys/param.h>

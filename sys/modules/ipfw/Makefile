@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ipfw/Makefile,v 1.16 2002/06/28 08:10:07 julian Exp $
 
 .PATH: ${.CURDIR}/../../netinet
 

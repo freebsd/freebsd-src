@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/w/proc_compare.c,v 1.8 2002/06/07 01:41:54 jmallett Exp $");
 
 #ifndef lint
 static const char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
@@ -66,7 +66,7 @@ static const char sccsid[] = "@(#)proc_compare.c	8.2 (Berkeley) 9/23/93";
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/w/proc_compare.c,v 1.8 2002/06/07 01:41:54 jmallett Exp $");
 
 #define ISRUN(p)	(((p)->ki_stat == SRUN) || ((p)->ki_stat == SIDL))
 #define TESTAB(a, b)    ((a)<<1 | (b))

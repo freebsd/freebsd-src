@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/dev/hfa/fore_timer.c,v 1.7 2000/10/30 20:37:00 phk Exp $
  *
  */
 
@@ -59,7 +59,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/dev/hfa/fore_timer.c,v 1.7 2000/10/30 20:37:00 phk Exp $");
 #endif
 
 

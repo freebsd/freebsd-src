@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/ParseBuffer.c,v 1.5 2002/03/07 12:52:26 obrien Exp $");
 
 #include <stdlib.h>
 #include <string.h>

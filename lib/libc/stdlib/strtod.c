@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/strtod.c,v 1.25 2002/11/14 17:06:01 robert Exp $");
 
 /****************************************************************
  *

@@ -2,7 +2,7 @@
  *	(c)Copyright 1998, Matthew Dillon.  Terms for use and redistribution
  *	are covered by the BSD Copyright as found in /usr/src/COPYRIGHT.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vm_pageq.c,v 1.7 2002/07/20 05:06:20 alc Exp $
  */
 
 #include <sys/param.h>

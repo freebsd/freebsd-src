@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/ukbd.c,v 1.41 2002/08/25 13:17:03 charnier Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

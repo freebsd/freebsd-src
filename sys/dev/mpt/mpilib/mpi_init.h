@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpilib/mpi_init.h,v 1.3 2002/08/30 03:36:50 mjacob Exp $ */
 /*
  * Copyright (c) 2000, 2001 by LSI Logic Corporation
  *

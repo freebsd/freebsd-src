@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ie/if_ie.c,v 1.85 2002/11/14 23:54:52 sam Exp $
  *
  * MAINTAINER: Matthew N. Dodd <winter@jurai.net>
  */

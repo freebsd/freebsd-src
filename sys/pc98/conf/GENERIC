@@ -16,7 +16,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/pc98/conf/GENERIC,v 1.221.2.1 2002/12/18 08:11:24 scottl Exp $
 
 machine		pc98
 #cpu		I386_CPU		#Do not enable with other cpu types

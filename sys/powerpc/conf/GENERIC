@@ -16,7 +16,7 @@
 # If you are in doubt as to the purpose or necessity of a line, check first 
 # in NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/powerpc/conf/GENERIC,v 1.19 2002/10/19 16:54:07 rwatson Exp $
 
 machine		powerpc
 cpu		MPC750

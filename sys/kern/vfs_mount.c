@@ -61,7 +61,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/vfs_mount.c,v 1.90.2.1 2002/12/19 09:40:11 alfred Exp $
  */
 
 #include <sys/param.h>

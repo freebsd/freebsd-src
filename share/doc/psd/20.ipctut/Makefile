@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/20.ipctut/Makefile,v 1.6 2002/10/29 15:01:56 ru Exp $
 
 VOLUME=		psd/20.ipctut
 SRCS=		tutor.me

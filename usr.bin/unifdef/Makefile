@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/unifdef/Makefile,v 1.3 2002/07/21 21:03:47 ru Exp $
 
 MAINTAINER=	fanf@FreeBSD.org
 

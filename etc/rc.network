@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.network,v 1.140.2.1 2002/12/14 05:28:41 imp Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 #
 

@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/sbin/atm/fore_dnld/Makefile,v 1.8 2001/12/04 02:19:43 obrien Exp $
 #
 #
 

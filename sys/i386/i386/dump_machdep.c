@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/dump_machdep.c,v 1.5.2.1 2002/12/27 20:11:08 julian Exp $
  */
 
 #include <sys/param.h>

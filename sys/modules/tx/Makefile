@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/tx/Makefile,v 1.8 2002/04/19 22:43:48 semenu Exp $
 
 .PATH: ${.CURDIR}/../../dev/tx
 

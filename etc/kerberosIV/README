@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/kerberosIV/README,v 1.4 2000/10/06 17:36:05 alex Exp $
 #	@(#)README	5.1 (Berkeley) 6/30/90
 
 Notes about the contents of the /etc/kerberosIV directory:

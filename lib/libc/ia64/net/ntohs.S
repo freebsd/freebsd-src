@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/net/ntohs.S,v 1.3 2002/02/18 20:35:17 mike Exp $ */
 /*	$NetBSD: ntohs.S,v 1.1 1996/04/17 22:37:02 cgd Exp $	*/
 
 /*

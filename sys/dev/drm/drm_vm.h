@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_vm.h,v 1.2 2002/04/29 00:25:10 anholt Exp $
  */
 
 #include <vm/vm.h>

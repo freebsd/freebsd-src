@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/timer.c,v 1.7 2002/06/30 23:36:21 naddy Exp $");
 
 /*
  * User Space Library Functions

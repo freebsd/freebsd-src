@@ -40,7 +40,7 @@
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
  *	from: FreeBSD: src/sys/i386/i386/mem.c,v 1.94 2001/09/26
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/mem.c,v 1.1 2002/03/09 22:33:16 tmm Exp $
  */
 
 /*

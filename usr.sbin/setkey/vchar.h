@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/setkey/vchar.h,v 1.2 2000/07/04 16:22:05 itojun Exp $	*/
 /*	$KAME: vchar.h,v 1.2 2000/06/07 00:29:14 itojun Exp $	*/
 
 /*

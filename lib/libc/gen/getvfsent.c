@@ -6,7 +6,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getvfsent.c,v 1.19 2002/08/10 20:19:03 mux Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

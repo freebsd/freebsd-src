@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ctx.c,v 1.42 2002/03/20 07:39:47 alfred Exp $
  */
 
 /*

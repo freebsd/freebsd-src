@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/extattr.h,v 1.11 2002/10/09 21:48:57 rwatson Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

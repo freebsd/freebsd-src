@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/drm_dma.h,v 1.3 2002/05/31 23:19:50 anholt Exp $
  */
 
 #ifdef __FreeBSD__

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/em/README,v 1.4 2002/11/08 18:14:16 pdeuskar Exp $
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 

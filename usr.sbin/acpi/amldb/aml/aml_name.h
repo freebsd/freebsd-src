@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_name.h,v 1.17 2000/08/16 18:14:54 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_name.h,v 1.2 2000/11/09 06:24:45 iwasaki Exp $
  */
 
 #ifndef _AML_NAME_H_

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/esp_var.h,v 1.1 2002/10/16 02:10:07 sam Exp $	*/
 /*	$OpenBSD: ip_esp.h,v 1.37 2002/06/09 16:26:10 itojun Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),

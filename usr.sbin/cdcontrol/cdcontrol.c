@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/cdcontrol/cdcontrol.c,v 1.43 2002/12/03 15:41:30 des Exp $";
 #endif /* not lint */
 
 #include <sys/cdio.h>

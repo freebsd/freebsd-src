@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/libkern/iconv.c,v 1.3 2002/10/06 12:20:09 mux Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -25,7 +25,7 @@
  * SUCH DAMAGE.
  *
  *	$Id: aml_evalobj.c,v 1.27 2000/08/16 18:14:53 iwasaki Exp $
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.sbin/acpi/amldb/aml/aml_evalobj.c,v 1.4 2000/11/09 06:24:45 iwasaki Exp $
  */
 
 #include <sys/param.h>

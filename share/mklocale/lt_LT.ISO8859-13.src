@@ -1,7 +1,7 @@
 /*
  * LOCALE_CTYPE for the iso_8859_13 Locale
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/mklocale/lt_LT.ISO8859-13.src,v 1.1 2002/10/25 22:02:09 ache Exp $
  */
 
 ENCODING	"NONE"

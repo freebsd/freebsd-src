@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/Makefile,v 1.21 2002/08/02 10:55:51 markm Exp $
 
 SUBDIR= cat \
 	chio \

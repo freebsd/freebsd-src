@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/fetch/Makefile,v 1.12 2002/10/30 04:53:58 des Exp $
 
 PROG=		fetch
 WARNS?=		5

@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)mkstr.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/mkstr/mkstr.c,v 1.10 2002/11/01 12:09:05 tjr Exp $");
 
 #include <err.h>
 #include <errno.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/gettytab,v 1.20 2001/08/31 22:18:50 murray Exp $
 #	from: @(#)gettytab	5.14 (Berkeley) 3/27/91
 #
 # Most of the table entries here are just copies of the old getty table,

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/chown/Makefile,v 1.9 2001/09/13 14:55:59 ru Exp $
 
 PROG=	chown
 LINKS=	${BINDIR}/chown /usr/bin/chgrp

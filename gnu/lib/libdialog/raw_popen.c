@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/raw_popen.c,v 1.4 2002/06/03 23:13:11 mike Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -26,7 +26,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/alpha/sys/sigreturn.S,v 1.3 2001/01/29 03:23:34 deischen Exp $
  */
 
 #include "SYS.h"

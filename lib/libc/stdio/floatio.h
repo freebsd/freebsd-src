@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)floatio.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/floatio.h,v 1.2 2002/03/22 23:42:01 obrien Exp $
  */
 
 /*

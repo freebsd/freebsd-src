@@ -26,7 +26,7 @@
  *
  *	from: NetBSD: if_gem_pci.c,v 1.7 2001/10/18 15:09:15 thorpej Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/gem/if_gem_pci.c,v 1.5 2002/07/10 10:24:23 benno Exp $
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/include/frame.h,v 1.4 2002/04/30 06:37:25 marcel Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_

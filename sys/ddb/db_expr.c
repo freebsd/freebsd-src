@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_expr.c,v 1.15 2002/06/25 15:59:24 tmm Exp $
  */
 
 /*

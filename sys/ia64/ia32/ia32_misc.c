@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia32/ia32_misc.c,v 1.2.2.1 2002/12/19 09:40:09 alfred Exp $
  */
 
 #include "opt_compat.h"

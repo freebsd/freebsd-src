@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fdc/Makefile,v 1.6 2002/11/06 13:46:58 nyan Exp $
 
 .if ${MACHINE} == "pc98"
 .PATH:  ${.CURDIR}/../../pc98/pc98

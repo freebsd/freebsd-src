@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/powerpc/powerpc/autoconf.c,v 1.10 2002/09/19 04:28:45 grehan Exp $";
 #endif
 
 #include "opt_bootp.h"

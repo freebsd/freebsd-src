@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #endif /* LIBC_SCCS and not lint */
 /*	$NetBSD: getgrent.c,v 1.34.2.1 1999/04/27 14:10:58 perry Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getgrent.c,v 1.22 2002/02/01 01:32:19 obrien Exp $");
 
 #include <sys/types.h>
 

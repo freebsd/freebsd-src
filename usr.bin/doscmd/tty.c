@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/tty.c,v 1.25 2002/04/12 21:18:05 charnier Exp $");
 
 #include <sys/ioctl.h>
 #include <sys/time.h>

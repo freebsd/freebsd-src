@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/mp_machdep.c,v 1.17 2002/11/20 14:09:33 jhb Exp $
  */
 
 #include "opt_ddb.h"

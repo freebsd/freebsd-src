@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/pcpu.h,v 1.20 2002/05/13 07:44:42 benno Exp $
  */
 
 #ifndef	_MACHINE_PCPU_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/intrq.c,v 1.7 2002/01/08 10:33:45 msmith Exp $
  */
 
 #include <sys/param.h>

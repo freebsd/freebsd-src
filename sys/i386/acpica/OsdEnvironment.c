@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/i386/acpica/OsdEnvironment.c,v 1.6 2002/09/30 18:45:20 jhb Exp $
  */
 
 /*

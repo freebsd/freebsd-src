@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/trpt/Makefile,v 1.7 2002/07/15 17:44:34 alfred Exp $
 
 PROG=	trpt
 WARNS?=	4

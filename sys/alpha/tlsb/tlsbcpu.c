@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/tlsbcpu.c,v 1.3 2001/10/11 21:47:27 mjacob Exp $ */
 
 /*
  * Copyright (c) 1997, 2000 by Matthew Jacob

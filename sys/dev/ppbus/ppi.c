@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/ppi.c,v 1.30 2002/08/25 13:16:59 charnier Exp $
  *
  */
 #include "opt_ppb_1284.h"

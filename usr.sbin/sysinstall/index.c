@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/index.c,v 1.99 2002/11/18 09:33:56 knu Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

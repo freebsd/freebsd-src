@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/via8233/Makefile,v 1.1 2002/08/17 16:23:44 orion Exp $
 
 .PATH: ${.CURDIR}/../../../../dev/sound/pci
 

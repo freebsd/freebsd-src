@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/sched_4bsd.c,v 1.6 2002/11/21 09:30:55 jeff Exp $
  */
 
 #include <sys/param.h>

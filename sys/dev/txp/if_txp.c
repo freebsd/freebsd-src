@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_txp.c,v 1.48 2001/06/27 06:34:50 kjc Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/txp/if_txp.c,v 1.12 2002/11/14 23:54:54 sam Exp $ */
 
 /*
  * Copyright (c) 2001
@@ -88,7 +88,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/txp/if_txp.c,v 1.12 2002/11/14 23:54:54 sam Exp $";
 #endif
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/mca_machdep.c,v 1.5 2002/09/23 18:54:31 alfred Exp $
  */
 
 #include <sys/param.h>

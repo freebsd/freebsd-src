@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/wi/wi_hostap.h,v 1.5 2002/06/24 04:42:46 imp Exp $
  */
 
 #ifndef __WI_HOSTAP_H__

@@ -47,7 +47,7 @@
  * http://samba.org/picturebook/ Special thanks also to Ian Dowse, who
  * also provided sample code upon which this driver was based.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/spic.c,v 1.4 2002/03/24 03:07:07 will Exp $
  */
 
 #include <sys/param.h>

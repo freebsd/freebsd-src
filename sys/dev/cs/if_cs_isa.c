@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/cs/if_cs_isa.c,v 1.2 2001/02/23 08:08:21 imp Exp $
  */
 
 #include <sys/param.h>

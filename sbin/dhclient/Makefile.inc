@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/Makefile.inc,v 1.3 2002/04/13 23:53:36 obrien Exp $
 
 MAINTAINER=     murray
 

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/uni/sscf_uni_lower.c,v 1.10 2002/11/08 18:27:30 jhb Exp $
  *
  */
 
@@ -62,7 +62,7 @@
 #include <vm/uma.h>
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sys/netatm/uni/sscf_uni_lower.c,v 1.10 2002/11/08 18:27:30 jhb Exp $");
 #endif
 
 extern uma_zone_t	unisig_vc_zone;

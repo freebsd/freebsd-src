@@ -68,7 +68,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/strhash.c,v 1.10 2002/03/22 21:53:10 obrien Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

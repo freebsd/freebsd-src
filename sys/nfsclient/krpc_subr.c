@@ -43,7 +43,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/nfsclient/krpc_subr.c,v 1.20 2002/02/27 18:32:19 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

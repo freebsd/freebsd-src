@@ -12,7 +12,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdtime/time32.c,v 1.5 2002/06/17 01:42:29 wollman Exp $");
 
 #include <sys/types.h>
 #include <timeconv.h>

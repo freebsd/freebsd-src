@@ -27,7 +27,7 @@
  * Authors:
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/gamma_drv.h,v 1.3 2002/05/31 23:19:50 anholt Exp $
  */
 
 #ifndef _GAMMA_DRV_H_

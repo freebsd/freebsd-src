@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_subr.c,v 1.10 2002/11/08 21:26:32 jhb Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

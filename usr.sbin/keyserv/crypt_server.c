@@ -44,7 +44,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/keyserv/crypt_server.c,v 1.9 2002/09/17 01:49:00 peter Exp $";
 #endif /* not lint */
 
 /*

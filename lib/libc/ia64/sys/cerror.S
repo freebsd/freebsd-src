@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/ia64/sys/cerror.S,v 1.1 2000/10/14 17:01:12 dfr Exp $
  */
 
 #include <machine/asm.h>

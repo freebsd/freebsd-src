@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mergemaster/Makefile,v 1.7 2001/07/20 06:20:00 obrien Exp $
 
 MAINTAINER=	dougb@FreeBSD.org
 

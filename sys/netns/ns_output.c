@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_output.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netns/ns_output.c,v 1.8 2001/11/03 13:35:07 peter Exp $
  */
 
 #include <sys/param.h>

@@ -56,7 +56,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/powerpc/powerpc/machdep.c,v 1.44 2002/11/16 06:35:53 deischen Exp $";
 #endif /* not lint */
 
 #include "opt_ddb.h"

@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/bfd/freebsd.h,v 1.4 2001/06/26 17:44:22 obrien Exp $ */
 
 /* FreeBSD QMAGIC files have the header in the text. */
 #define	N_HEADER_IN_TEXT(x)	1

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/bde/g_bde_crypt.c,v 1.5.2.2 2003/01/07 18:21:39 phk Exp $
  *
  * This source file contains the functions responsible for the crypto, keying
  * and mapping operations on the I/O requests.

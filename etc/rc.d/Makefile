@@ -1,5 +1,5 @@
 # $NetBSD: Makefile,v 1.16 2001/01/14 15:37:22 minoura Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/Makefile,v 1.9 2002/11/09 07:45:53 imp Exp $
 
 .include <bsd.own.mk>
 

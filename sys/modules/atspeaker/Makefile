@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/atspeaker/Makefile,v 1.3 2002/10/31 05:19:33 nyan Exp $
 
 .PATH: ${.CURDIR}/../../i386/isa
 

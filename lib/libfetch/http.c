@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libfetch/http.c,v 1.65 2002/11/28 12:07:15 des Exp $");
 
 /*
  * The following copyright applies to the base64 code:

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/mv/pathnames.h,v 1.6 2002/05/17 11:38:48 jmallett Exp $
  */
 
 #define	_PATH_RM	"/bin/rm"

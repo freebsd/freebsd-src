@@ -27,7 +27,7 @@
  *	i4b daemon - curses fullscreen output
  *	-------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/curses.c,v 1.9 2002/03/26 15:12:59 hm Exp $
  *
  *      last edit-date: [Tue Mar 26 14:35:33 2002]
  *

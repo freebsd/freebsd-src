@@ -1,5 +1,5 @@
 /*	$NetBSD: sigsetjmp.S,v 1.2 1996/10/17 03:08:07 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/ia64/gen/sigsetjmp.S,v 1.6 2002/11/11 08:11:44 marcel Exp $ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.

@@ -27,7 +27,7 @@
 #ifndef lint
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/fsync/fsync.c,v 1.4 2002/06/30 05:21:20 obrien Exp $");
 
 #include <err.h>
 #include <fcntl.h>

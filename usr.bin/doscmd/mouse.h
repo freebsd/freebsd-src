@@ -29,7 +29,7 @@
  *
  *	BSDI mouse.h,v 2.2 1996/04/08 19:32:58 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/mouse.h,v 1.2 1999/08/28 01:00:20 peter Exp $
  */
 
 typedef struct {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/metadata.h,v 1.1 2002/07/10 12:14:23 benno Exp $
  */
 
 #ifndef _MACHINE_METADATA_H_

@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/fdcontrol/fdcontrol.c,v 1.9 2001/12/15 19:08:58 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/fdcio.h>

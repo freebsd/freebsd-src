@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/make/Makefile.dist,v 1.2 2001/03/01 06:26:32 imp Exp $
 # a very simple makefile...
 pmake:
 	@echo 'make started.'

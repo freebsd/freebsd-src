@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/apic_vector.s,v 1.85 2002/08/23 21:45:59 peter Exp $
  */
 
 

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/config.h,v 1.5 2002/06/13 16:59:31 ume Exp $	*/
 /*	$KAME: config.h,v 1.3 2000/05/16 13:34:13 itojun Exp $	*/
 
 /*

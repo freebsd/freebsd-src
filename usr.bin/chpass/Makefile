@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/chpass/Makefile,v 1.26 2002/05/08 00:54:27 des Exp $
 
 PROG=	chpass
 SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c

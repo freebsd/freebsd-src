@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/atomic.h,v 1.17 2002/10/30 01:41:44 gallatin Exp $
  */
 
 #ifndef _MACHINE_ATOMIC_H_

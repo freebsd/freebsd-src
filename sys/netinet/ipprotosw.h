@@ -60,7 +60,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ipprotosw.h,v 1.4 2001/09/12 08:37:54 julian Exp $
  */
 
 #ifndef _NETINET_IPPROTOSW_H_

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_trantcp.c,v 1.14 2002/11/26 23:53:28 tjr Exp $
  */
 #include <sys/param.h>
 #include <sys/condvar.h>

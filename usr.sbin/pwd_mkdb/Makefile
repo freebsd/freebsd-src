@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pwd_mkdb/Makefile,v 1.9 2002/07/11 21:16:52 alfred Exp $
 
 .PATH: ${.CURDIR}/../../lib/libc/gen		# for pw_scan.c
 

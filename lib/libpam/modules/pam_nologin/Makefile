@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_nologin/Makefile,v 1.6 2002/04/10 18:07:02 ru Exp $
 
 LIB=		pam_nologin
 SRCS=		pam_nologin.c

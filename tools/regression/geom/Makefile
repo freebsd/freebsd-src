@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom/Makefile,v 1.2 2002/05/19 18:57:00 phk Exp $
 
 SUBDIR+=	ConfCmp GLib Test
 

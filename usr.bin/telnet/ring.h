@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ring.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/telnet/ring.h,v 1.5 2001/11/30 22:37:28 markm Exp $
  */
 
 #if defined(P)

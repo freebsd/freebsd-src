@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from: BSDI: pmap.v9.h,v 1.10.2.6 1999/08/23 22:18:44 cp Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/tsb.h,v 1.17 2002/08/18 02:09:26 jake Exp $
  */
 
 #ifndef	_MACHINE_TSB_H_

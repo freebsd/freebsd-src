@@ -28,7 +28,7 @@
  *    Rickard E. (Rik) Faith <faith@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/gamma_drv.c,v 1.2 2002/04/28 04:58:27 anholt Exp $
  */
 
 #ifdef __linux__

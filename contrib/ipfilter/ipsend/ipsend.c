@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ipfilter/ipsend/ipsend.c,v 1.9 2002/04/25 03:36:26 darrenr Exp $ */
 /*
  * ipsend.c (C) 1995-1998 Darren Reed
  *
@@ -36,7 +36,7 @@
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipsend.c	1.5 12/10/95 (C)1995 Darren Reed";
 /* static const char rcsid[] = "@(#)$Id: ipsend.c,v 2.2.2.3 2001/07/15 22:00:14 darrenr Exp $"; */
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/contrib/ipfilter/ipsend/ipsend.c,v 1.9 2002/04/25 03:36:26 darrenr Exp $";
 #endif
 
 

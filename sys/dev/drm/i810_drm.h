@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/drm/i810_drm.h,v 1.2 2002/04/29 18:18:42 anholt Exp $
  */
 
 #ifndef _I810_DRM_H_

@@ -7,7 +7,7 @@
  * to the original author and the contributors.
  *
  * $Id: iplang_y.y,v 2.2 1999/12/04 03:37:04 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ipfilter/iplang/iplang_y.y,v 1.4 2002/03/19 11:48:14 darrenr Exp $
  */
 
 #ifdef __sgi

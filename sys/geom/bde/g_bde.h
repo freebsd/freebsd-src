@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/bde/g_bde.h,v 1.4.2.1 2003/01/07 18:21:39 phk Exp $
  */
 
 #ifndef _SYS_GEOM_BDE_G_BDE_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_condvar.c,v 1.34 2002/10/25 07:11:12 julian Exp $
  */
 
 #include "opt_ktrace.h"

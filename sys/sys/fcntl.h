@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fcntl.h	8.3 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/fcntl.h,v 1.14 2002/09/17 22:22:50 mike Exp $
  */
 
 #ifndef _SYS_FCNTL_H_

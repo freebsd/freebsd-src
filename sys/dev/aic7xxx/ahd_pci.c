@@ -30,7 +30,7 @@
  *
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahd_pci.c#12 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/ahd_pci.c,v 1.6.2.1 2002/12/31 05:33:37 scottl Exp $
  */
 
 #include <dev/aic7xxx/aic79xx_osm.h>

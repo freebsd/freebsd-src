@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/mcbus/mcbusvar.h,v 1.2 2002/03/26 19:46:40 dfr Exp $ */
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/privatespace.h,v 1.3 2001/12/11 23:33:40 jhb Exp $
  */
 
 #ifndef _MACHINE_PRIVATESPACE_H_

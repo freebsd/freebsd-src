@@ -34,7 +34,7 @@
  * advised of the possibility of such damage.
  *
  * $Id: request.h,v 1.21 2001/05/23 23:03:23 grog Exp grog $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/request.h,v 1.20 2001/05/23 23:24:04 grog Exp $
  */
 
 /* Information needed to set up a transfer */

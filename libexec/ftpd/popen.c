@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/ftpd/popen.c,v 1.23 2002/07/17 05:47:49 mikeh Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

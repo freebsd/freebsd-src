@@ -1,5 +1,5 @@
 # $NetBSD: Makefile,v 1.15 1998/03/28 00:21:35 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/alpha/boot1/Makefile,v 1.15 2002/11/27 20:13:15 jhb Exp $
 
 .include <../Makefile.inc>
 

@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/share/examples/etc/README.examples,v 1.11 2002/11/27 16:45:10 ru Exp $
 
 The /usr/share/examples/etc directory contains the original
 distribution versions of the files which are shipped in /etc.  This is

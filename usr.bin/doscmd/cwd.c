@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/doscmd/cwd.c,v 1.17 2002/07/19 13:38:43 markm Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/libparse/Makefile,v 1.5 2002/05/13 11:09:07 ru Exp $
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/libparse
 

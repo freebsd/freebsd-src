@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em.c,v 1.16 2002/11/25 20:00:13 luigi Exp $*/
 
 #include <dev/em/if_em.h>
 

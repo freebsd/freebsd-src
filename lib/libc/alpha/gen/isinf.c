@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/isinf.c,v 1.4 2002/03/21 18:36:48 obrien Exp $");
 
 #include <sys/types.h>
 #include <machine/ieee.h>

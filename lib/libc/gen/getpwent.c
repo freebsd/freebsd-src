@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)getpwent.c	8.2 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
 /*	$NetBSD: getpwent.c,v 1.40.2.2 1999/04/27 22:09:45 perry Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getpwent.c,v 1.67 2002/05/07 23:26:00 des Exp $");
 
 #include "un-namespace.h"
 #include <sys/param.h>

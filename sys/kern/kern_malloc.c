@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_malloc.c,v 1.113 2002/11/01 18:58:12 phk Exp $
  */
 
 #include "opt_vm.h"

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/games/factor/Makefile,v 1.5 2002/10/09 19:55:04 fanf Exp $
 
 PROG=	factor
 SRCS=	factor.c pr_tbl.c

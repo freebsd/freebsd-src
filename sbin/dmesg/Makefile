@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/dmesg/Makefile,v 1.6 2001/12/04 02:19:45 obrien Exp $
 
 PROG=	dmesg
 WARNS=	0

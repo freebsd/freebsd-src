@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/file/config.h,v 1.5 2002/09/19 12:30:34 ru Exp $ */
 
 #include <osreldate.h>
 

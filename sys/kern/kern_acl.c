@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_acl.c,v 1.32.2.1 2002/12/19 09:40:10 alfred Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

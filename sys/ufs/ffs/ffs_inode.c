@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/ffs_inode.c,v 1.83 2002/09/25 02:49:48 jeff Exp $
  */
 
 #include "opt_quota.h"

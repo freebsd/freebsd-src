@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/var.c,v 1.40 2002/11/08 16:59:11 jmallett Exp $");
 
 /*-
  * var.c --

@@ -43,7 +43,7 @@
  *
  *	@(#)openfirm.c	8.1 (Berkeley) 6/11/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ofw/openfirmio.c,v 1.1 2002/10/18 15:23:43 tmm Exp $
  */
 
 #include <sys/param.h>

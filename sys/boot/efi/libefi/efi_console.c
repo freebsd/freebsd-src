@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/boot/efi/libefi/efi_console.c,v 1.3 2002/12/08 19:46:11 marcel Exp $";
 #endif /* not lint */
 
 #include <efi.h>

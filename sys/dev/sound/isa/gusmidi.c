@@ -31,7 +31,7 @@
  * Ported to the new Audio Driver by Luigi Rizzo:
  * (C) 1999 Seigo Tanimura <tanimura@r.dl.itc.u-tokyo.ac.jp>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/isa/gusmidi.c,v 1.9 2002/04/04 21:03:16 jhb Exp $
  *
  */
 

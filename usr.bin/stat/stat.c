@@ -41,7 +41,7 @@ __RCSID("$NetBSD: stat.c,v 1.9 2002/10/19 20:33:19 provos Exp $");
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/stat/stat.c,v 1.4 2002/10/25 07:26:36 dougb Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

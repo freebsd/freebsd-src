@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libatm/atm_addr.c,v 1.8 2002/06/24 22:29:01 arr Exp $");
 #ifndef lint
 #if 0	/* original (broken) import id */
 static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/07/09 21:45:18 johnc Exp $";

@@ -34,7 +34,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$FreeBSD: src/usr.sbin/wicontrol/wicontrol.c,v 1.29 2002/10/08 19:41:12 jhb Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

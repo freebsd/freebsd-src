@@ -1,5 +1,5 @@
 # client
-# $FreeBSD$
+# $FreeBSD: src/sbin/dhclient/client/Makefile,v 1.2 2002/02/19 22:23:49 obrien Exp $
 
 DIST_DIR= ${.CURDIR}/../../../contrib/isc-dhcp
 

@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/pkg_install/sign/stand.c,v 1.2 2002/04/01 09:39:07 obrien Exp $");
 
 #include "stand.h"
 

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pstat/Makefile,v 1.11 2002/05/28 06:37:27 des Exp $
 
 PROG=	pstat
 WARNS?=	2

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/wi/wi_hostap.c,v 1.18 2002/10/16 08:48:39 phk Exp $
  */
 
 /* This is experimental Host AP software for Prism 2 802.11b interfaces.

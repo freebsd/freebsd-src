@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/dsp.h,v 1.6 2001/09/05 16:28:41 cg Exp $
  */
 
 int dsp_register(int unit, int channel);

@@ -1,7 +1,7 @@
 /*
  * Feiertage
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/de_DE.ISO8859-1/calendar.feiertag,v 1.8 2002/09/22 01:53:18 grog Exp $
  */
 
 #ifndef _de_DE_ISO8859_1_feiertag_

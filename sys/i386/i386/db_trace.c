@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/db_trace.c,v 1.54 2002/10/20 20:48:56 phk Exp $
  */
 
 #include <sys/param.h>

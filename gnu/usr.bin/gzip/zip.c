@@ -5,7 +5,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/gzip/zip.c,v 1.6 1999/08/27 23:35:56 peter Exp $";
 #endif
 
 #include <ctype.h>

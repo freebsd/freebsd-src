@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/fsck/fsck.c,v 1.12 2002/10/31 15:32:39 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/mount.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/smb_rq.c,v 1.8 2002/09/18 19:44:13 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

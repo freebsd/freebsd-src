@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/geom_gpt.c,v 1.11.2.1 2002/12/20 21:52:02 phk Exp $
  */
 
 #include <sys/param.h>

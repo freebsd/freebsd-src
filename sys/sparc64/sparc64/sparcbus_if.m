@@ -21,7 +21,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/sparc64/sparc64/sparcbus_if.m,v 1.1 2001/11/09 20:43:44 tmm Exp $
 
 #include <sys/bus.h>
 #include <machine/bus.h>

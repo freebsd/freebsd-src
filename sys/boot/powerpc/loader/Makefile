@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/powerpc/loader/Makefile,v 1.10 2002/07/10 12:13:16 benno Exp $
 
 BASE=		loader
 PROG=		${BASE}

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/loader/Makefile,v 1.62 2002/08/30 14:59:47 jhb Exp $
 
 BASE=		loader
 PROG=		${BASE}

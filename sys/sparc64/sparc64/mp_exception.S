@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/mp_exception.S,v 1.7 2002/07/26 15:54:04 jake Exp $
  */
 
 #include <machine/asi.h>

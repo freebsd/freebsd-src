@@ -1,5 +1,5 @@
 /*	$NetBSD: awi.c,v 1.26 2000/07/21 04:48:55 onoe Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/awi/awi.c,v 1.23 2002/11/14 23:54:49 sam Exp $ */
 
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.

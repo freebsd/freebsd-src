@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/panic.c,v 1.6 2001/11/28 14:00:36 dcs Exp $
  * From: $NetBSD: panic.c,v 1.2 1997/03/22 01:48:36 thorpej Exp $
  */
 

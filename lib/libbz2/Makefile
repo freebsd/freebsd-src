@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbz2/Makefile,v 1.4 2002/09/28 00:25:28 peter Exp $
 
 MAINTAINER=	obrien@FreeBSD.org
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.yppasswdd/Makefile,v 1.19 2002/07/29 09:40:16 ru Exp $
 
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 

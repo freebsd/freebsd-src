@@ -6,7 +6,7 @@
  * this file contains the description of the ENI ATM midway chip
  * data structures.   see midway.c for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/en/midwayreg.h,v 1.4 2000/11/07 09:30:14 kjc Exp $
  */
 
 #if defined(sparc) 
