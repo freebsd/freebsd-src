@@ -42,10 +42,10 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-void	bintr __P((void));
-void	btrap __P((void));
-void	eintr __P((void));
-void	user __P((void));
+void	bintr(void);
+void	btrap(void);
+void	eintr(void);
+void	user(void);
 #endif
 
 /*
