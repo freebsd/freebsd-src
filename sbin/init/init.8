@@ -229,6 +229,15 @@ This hook is used by
 and
 .Xr halt 8 .
 .Pp
+.Nm Init
+will terminate all possible processes (again, it will not wait
+for deadlocked processes) and reboot the machine if sent the interrupt
+.Pq Dv INT
+signal, i.e.
+.Dq Li "kill \-INT 1".
+This is useful for shutting the machine down cleanly from inside the kernel
+or from X when the machines appears to be hung.
+.Pp
 The role of
 .Nm init
 is so critical that if it dies, the system will reboot itself
