@@ -69,7 +69,7 @@ main(argc, argv)
 {
 	register u_int secs;
 	register int hours, minutes;
-	register char c, *cp;
+	register char c, *cp = NULL;
 	struct tm *t, *localtime();
 	time_t now, time();
 	int plusnow, t_12_hour;
@@ -84,7 +84,9 @@ main(argc, argv)
 		cp = fgets(buf, sizeof(buf), stdin);
 		if (cp == NULL || *cp == '\n')
 			exit(0);
-	} else
+	} else if (argc > 2)
+		usage();
+	else
 		cp = argv[1];
 
 	if (*cp == '+') {
