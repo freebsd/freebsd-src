@@ -231,6 +231,7 @@
 #define HAVE_WAIT4 1
 #define HAVE_GLOB 1
 #define HAVE_SETREUID 1
+#define HAVE_SETEUID 1
 
 /* There are several functions which are replaced in the subdirectory
    lib.  If they are missing, the configure script will automatically

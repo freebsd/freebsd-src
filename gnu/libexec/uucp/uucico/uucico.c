@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucico_rcsid[] = "$Id: uucico.c,v 1.190 1995/06/29 19:35:59 ian Rel $";
+const char uucico_rcsid[] = "$Id: uucico.c,v 1.5 1995/08/19 21:29:59 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -147,7 +147,7 @@ static boolean fdo_call P((struct sdaemon *qdaemon,
 static int iuport_lock P((struct uuconf_port *qport, pointer pinfo));
 static boolean flogin_prompt P((pointer puuconf, const char *zconfig,
 				boolean fuuxqt, struct sconnection *qconn,
-				const char *zlogin));
+				const char *zlogin, const char **pzsystem));
 static int icallin_cmp P((int iwhich, pointer pinfo, const char *zfile));
 static boolean faccept_call P((pointer puuconf, const char *zconfig,
 			       boolean fuuxqt, const char *zlogin,
@@ -693,7 +693,8 @@ main (argc, argv)
 	    {
 	      while (! FGOT_SIGNAL ()
 		     && flogin_prompt (puuconf, zconfig, fuuxqt, &sconn,
-				       (const char *) NULL))
+				       (const char *) NULL,
+				       (const char **) NULL))
 		{
 		  /* Close and reopen the port in between calls.  */
 		  if (! fconn_close (&sconn, puuconf,
@@ -708,7 +709,7 @@ main (argc, argv)
 	    {
 	      if (flogin)
 		fret = flogin_prompt (puuconf, zconfig, fuuxqt, &sconn,
-				      zlogin);
+				      zlogin, &zsystem);
 	      else
 		{
 #if DEBUG > 1
@@ -1708,12 +1709,13 @@ struct scallin_info
 /* Prompt for a login name and a password, and run as the slave.  */
 
 static boolean
-flogin_prompt (puuconf, zconfig, fuuxqt, qconn, zlogin)
+flogin_prompt (puuconf, zconfig, fuuxqt, qconn, zlogin, pzsystem)
      pointer puuconf;
      const char *zconfig;
      boolean fuuxqt;
      struct sconnection *qconn;
      const char *zlogin;
+     const char **pzsystem;
 {
   int iuuconf;
   int istrip;
@@ -1721,6 +1723,9 @@ flogin_prompt (puuconf, zconfig, fuuxqt, qconn, zlogin)
   char *zuser, *zpass;
   boolean fret;
   struct scallin_info s;
+
+  if (pzsystem != NULL)
+    *pzsystem = NULL;
 
   DEBUG_MESSAGE0 (DEBUG_HANDSHAKE, "flogin_prompt: Waiting for login");
 
@@ -1790,8 +1795,7 @@ flogin_prompt (puuconf, zconfig, fuuxqt, qconn, zlogin)
 #if DEBUG > 1
       iholddebug = iDebug;
 #endif
-      (void) faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn,
-			   (const char **) NULL);
+      (void) faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn, pzsystem);
 #if DEBUG > 1
       iDebug = iholddebug;
 #endif

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uux_rcsid[] = "$Id: uux.c,v 1.81 1995/08/02 01:25:17 ian Rel $";
+const char uux_rcsid[] = "$Id: uux.c,v 1.7 1995/08/19 21:30:27 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -336,7 +336,10 @@ main (argc, argv)
 	}
     }
 
-  if (! UUCONF_GRADE_LEGAL (bXgrade))
+  if (! UUCONF_GRADE_LEGAL (bXgrade)
+      || ((bXgrade < '0' || bXgrade > '9')
+	  && (bXgrade < 'a' || bXgrade > 'z')
+	  && (bXgrade < 'A' || bXgrade > 'Z')))
     {
       ulog (LOG_ERROR, "Ignoring illegal grade");
       bXgrade = BDEFAULT_UUX_GRADE;

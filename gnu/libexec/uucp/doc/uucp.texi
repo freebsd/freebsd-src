@@ -5649,8 +5649,8 @@ Keywords: UUCP, protocol, FAQ
 Approved: news-answers-request@@MIT.Edu
 
 Archive-name: uucp-internals
-Version: $Revision: 1.108 $
-Last-modified: $Date: 1995/08/02 01:35:25 $
+Version: $Revision: 1.2 $
+Last-modified: $Date: 1995/08/19 21:24:55 $
 @end format
 @end ifset
 
@@ -8288,6 +8288,7 @@ Aleksey P. Rudnev @code{<alex@@kiae.su>}
 @code{tbr@@tfic.bc.ca} (Tom Rushworth)
 @code{jsacco@@ssl.com} (Joseph E. Sacco)
 @code{rsalz@@bbn.com} (Rich Salz)
+Curt Sampson @code{<curt@@portal.ca>}
 @code{sojurn!mike@@hobbes.cert.sei.cmu.edu} (Mike Sangrey)
 Nickolay Saukh @code{<nms@@ussr.EU.net>}
 @code{heiko@@lotte.sax.de} (Heiko Schlittermann)

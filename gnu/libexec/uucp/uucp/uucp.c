@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucp_rcsid[] = "$Id: uucp.c,v 1.63 1995/08/02 01:22:53 ian Rel $";
+const char uucp_rcsid[] = "$Id: uucp.c,v 1.3 1995/08/19 21:30:10 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -277,7 +277,10 @@ main (argc, argv)
 	}
     }
 
-  if (! UUCONF_GRADE_LEGAL (bCgrade))
+  if (! UUCONF_GRADE_LEGAL (bCgrade)
+      || ((bCgrade < '0' || bCgrade > '9')
+	  && (bCgrade < 'a' || bCgrade > 'z')
+	  && (bCgrade < 'A' || bCgrade > 'Z')))
     {
       ulog (LOG_ERROR, "Ignoring illegal grade");
       bCgrade = BDEFAULT_UUCP_GRADE;

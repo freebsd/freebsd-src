@@ -29,6 +29,13 @@
 #include "sysdep.h"
 
 #include <errno.h>
+
+/* NetBSD apparently does not support setuid as required by POSIX when
+   using saved setuid, so use seteuid instead.  */
+
+#if HAVE_SETEUID
+#define setuid seteuid
+#endif
 
 /* Switch to permissions of the invoking user.  */
 
