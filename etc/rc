@@ -395,6 +395,15 @@ case ${sendmail_enable} in
 	;;
 esac
 
+case ${sshd_enable} in
+[Yy][Ee][Ss])
+	if [ -x ${sshd_program:-/usr/sbin/sshd} ]; then
+		echo -n ' sshd';
+		${sshd_program:-/usr/sbin/sshd} ${sshd_flags}
+	fi
+	;;
+esac
+
 case ${usbd_enable} in
 [Yy][Ee][Ss])
 	echo -n ' usbd';	/usr/sbin/usbd ${usbd_flags}
