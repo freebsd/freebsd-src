@@ -76,7 +76,7 @@
 #define RL_EECMD	0x0050		/* EEPROM command register */
 #define RL_CFG0		0x0051		/* config register #0 */
 #define RL_CFG1		0x0052		/* config register #1 */
-					/* 0053-0057 reserved */
+                                        /* 0053-0057 reserved */   
 #define RL_MEDIASTAT	0x0058		/* media status register (8139) */
 					/* 0059-005A reserved */
 #define RL_MII		0x005A		/* 8129 chip only */
@@ -110,6 +110,7 @@
 #define RL_TXLIST_ADDR_HI	0x0024	/* 64 bits, 256 byte alignment */
 #define RL_TXLIST_ADDR_HPRIO_LO	0x0028	/* 64 bits, 256 byte alignment */
 #define RL_TXLIST_ADDR_HPRIO_HI	0x002C	/* 64 bits, 256 byte alignment */
+#define RL_CFG2			0x0053
 #define RL_TIMERINT		0x0054	/* interrupt on timer expire */
 #define RL_TXSTART		0x00D9	/* 8 bits */
 #define RL_CPLUS_CMD		0x00E0	/* 16 bits */
@@ -353,6 +354,19 @@
 #define RL_TXSTART_SWI		0x01	/* generate TX interrupt */
 #define RL_TXSTART_START	0x40	/* start normal queue transmit */
 #define RL_TXSTART_HPRIO_START	0x80	/* start hi prio queue transmit */
+
+/*
+ * Config 2 register, 8139C+/8169/8169S/8110S only
+ */
+#define RL_CFG2_BUSFREQ		0x07
+#define RL_CFG2_BUSWIDTH	0x08
+#define RL_CFG2_AUXPWRSTS	0x10
+
+#define RL_BUSFREQ_33MHZ	0x00
+#define RL_BUSFREQ_66MHZ	0x01
+                                        
+#define RL_BUSWIDTH_32BITS	0x00
+#define RL_BUSWIDTH_64BITS	0x08
 
 /* C+ mode command register */
 
