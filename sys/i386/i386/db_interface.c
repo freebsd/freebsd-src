@@ -347,13 +347,15 @@ DB_SHOW_COMMAND(pcpu, db_show_pcpu)
 	if (gd == NULL)
 		db_printf("CPU %d not found\n", id);
 	else {
-		db_printf("cpuid\t = %d\ncurproc\t = ", gd->gd_cpuid);
+		db_printf("cpuid    = %d\n", gd->gd_cpuid);
+		db_printf("curproc  = ");
 		if (gd->gd_curproc != NULL)
 			db_printf("%p: pid %d \"%s\"\n", gd->gd_curproc,
 			    gd->gd_curproc->p_pid, gd->gd_curproc->p_comm);
 		else
 			db_printf("none\n");
-		db_printf("curpcb\t = %p\nnpxproc\t = ", gd->gd_curpcb);
+		db_printf("curpcb   = %p\n", gd->gd_curpcb);
+		db_printf("npxproc  = ");
 		if (gd->gd_npxproc != NULL)
 			db_printf("%p: pid %d \"%s\"\n", gd->gd_npxproc,
 			    gd->gd_npxproc->p_pid, gd->gd_npxproc->p_comm);
