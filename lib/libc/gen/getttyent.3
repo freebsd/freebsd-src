@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)getttyent.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd June 4, 1993
+.Dd November 17, 1996
 .Dt GETTTYENT 3
 .Os BSD 4.3
 .Sh NAME
@@ -69,6 +69,7 @@ struct ttyent {
 	int	ty_status;	/* flag values */
 	char	*ty_window;	/* command for window manager */
 	char	*ty_comment;	/* comment field */
+	char	*ty_group;	/* tty group name */
 };
 .Ed
 .Pp
@@ -98,6 +99,10 @@ Allow users with a uid of 0 to login on this terminal.
 .El
 .It Fa ty_window
 The command to execute for a window system associated with the line.
+.It Fa ty_group
+A group name to which the tty belongs.
+If no group is specified in the ttys description file,
+then the tty is placed in an anonymous group called "none".
 .It Fa ty_comment
 Any trailing comment field, with any leading hash marks (``#'') or
 whitespace removed.

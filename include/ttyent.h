@@ -42,6 +42,8 @@
 #define	_TTYS_ON	"on"
 #define	_TTYS_SECURE	"secure"
 #define	_TTYS_WINDOW	"window"
+#define	_TTYS_GROUP	"group"
+#define _TTYS_NOGROUP	"none"
 
 struct ttyent {
 	char	*ty_name;	/* terminal device name */
@@ -52,6 +54,7 @@ struct ttyent {
 	int	ty_status;	/* status flags */
 	char 	*ty_window;	/* command to start up window manager */
 	char	*ty_comment;	/* comment field */
+	char	*ty_group;	/* tty group */
 };
 
 #include <sys/cdefs.h>
