@@ -222,7 +222,7 @@ i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		count		bs
 i386/isa/cronyx.c		optional	cx
-i386/isa/ctx.c			count		ctx
+i386/isa/ctx.c			optional	ctx
 i386/isa/cx.c			count		cx
 i386/isa/cy.c			count		cy
 i386/isa/elink.c		optional	ep
