@@ -199,9 +199,7 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 	if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
 		slab = vtoslab((vm_offset_t)mem);
 	} else if (zone->uz_flags & UMA_ZFLAG_HASH) {
-		ZONE_LOCK(zone);
 		slab = hash_sfind(&zone->uz_hash, mem);
-		ZONE_UNLOCK(zone);
 	} else {
 		mem += zone->uz_pgoff;
 		slab = (uma_slab_t)mem;
@@ -230,7 +228,7 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
 	    / zone->uz_rsize;
 
-	atomic_set_8(&slab->us_freelist[freei], 255);
+	slab->us_freelist[freei] = 255;
 
 	return;
 }
@@ -279,5 +277,5 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	 * Until then the count of valid slabs will make sure we don't
 	 * accidentally follow this and assume it's a valid index.
 	 */
-	atomic_set_8(&slab->us_freelist[freei], 0);
+	slab->us_freelist[freei] = 0;
 }
