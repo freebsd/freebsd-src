@@ -216,6 +216,7 @@ double	nextafter(double, double);
 double	remainder(double, double);
 double	rint(double) __pure2;
 double	round(double);
+double	trunc(double);
 #endif /* __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE */
 
 #if __BSD_VISIBLE || __XSI_VISIBLE
@@ -234,6 +235,7 @@ double	gamma(double);
 
 #if __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999
 double	copysign(double, double) __pure2;
+double	scalbln(double, long);
 double	scalbn(double, int);
 double	tgamma(double);
 #endif
@@ -309,7 +311,9 @@ float	copysignf(float, float) __pure2;
 float	nextafterf(float, float);
 float	remainderf(float, float);
 float	rintf(float);
+float	scalblnf(float, long);
 float	scalbnf(float, int);
+float	truncf(float);
 #endif
 
 /*
