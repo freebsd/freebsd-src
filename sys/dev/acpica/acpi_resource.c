@@ -511,6 +511,11 @@ acpi_res_set_end_dependant(device_t dev, void *context)
  * This code "owns" system resource objects that aren't
  * otherwise useful to devices, and which shouldn't be
  * considered "free".
+ *
+ * Note that some systems claim *all* of the physical address space
+ * with a PNP0C01 device, so we cannot correctly "own" system memory
+ * here (must be done in the SMAP handler on x86 systems, for
+ * example).
  */
 
 static int	acpi_sysresource_probe(device_t dev);
@@ -538,9 +543,7 @@ acpi_sysresource_probe(device_t dev)
 {
     if (acpi_disabled("sysresource"))
 	return(ENXIO);
-    if (acpi_MatchHid(dev, "PNP0C01")) {
-	device_set_desc(dev, "system memory");
-    } else if (acpi_MatchHid(dev, "PNP0C02")) {
+    if (acpi_MatchHid(dev, "PNP0C02")) {
 	device_set_desc(dev, "system resource");
     } else {
 	return(ENXIO);
