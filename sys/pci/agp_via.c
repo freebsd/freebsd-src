@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
-#include "opt_agp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -88,12 +87,8 @@ agp_via_match(device_t dev)
 		return ("VIA 82C694X (Apollo Pro 133A) host to PCI bridge");
 	case 0x06911106:
 		return ("VIA 82C691 (Apollo Pro) host to PCI bridge");
-	case 0x31881106:
-#if defined(__amd64__) || defined(AGP_AMD64_GART)
+	case 0x31881106:		/* AMD64 GART */
 		return NULL;
-#else
-		return ("VIA 8385 host to PCI bridge");
-#endif
 	case 0x31891106:
 		return ("VIA 8377 (Apollo KT400/KT400A/KT600) host to PCI bridge");
 	};
@@ -130,9 +125,6 @@ agp_via_attach(device_t dev)
 	u_int32_t agpsel;
 
 	switch (pci_get_devid(dev)) {
-#ifdef AGP_NO_AMD64_GART
-	case 0x31881106:
-#endif
 	case 0x31891106:
 		/* The newer VIA chipsets will select the AGP version based on
 		 * what AGP versions the card supports.  We still have to
