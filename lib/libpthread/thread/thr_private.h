@@ -662,11 +662,12 @@ struct pthread {
 	sigset_t		sigpend;
 	int			sigmask_seqno;
 	int			check_pending;
+	int			have_signals;
 	int			refcount;
 
 	/* Thread state: */
 	enum pthread_state	state;
-	int			lock_switch;
+	volatile int		lock_switch;
 
 	/*
 	 * Number of microseconds accumulated by this thread when
@@ -812,11 +813,8 @@ struct pthread {
 #define	THR_YIELD_CHECK(thrd)					\
 do {								\
 	if (((thrd)->critical_yield != 0) &&			\
-	    !(THR_IN_CRITICAL(thrd))) {				\
-		THR_LOCK_SWITCH(thrd);				\
+	    !(THR_IN_CRITICAL(thrd)))				\
 		_thr_sched_switch(thrd);			\
-		THR_UNLOCK_SWITCH(thrd);			\
-	}							\
 	else if (((thrd)->check_pending != 0) &&		\
 	    !(THR_IN_CRITICAL(thrd)))				\
 		_thr_sig_check_pending(thrd);			\
@@ -827,6 +825,7 @@ do {								\
 	if ((thrd)->locklevel >= MAX_THR_LOCKLEVEL)		\
 		PANIC("Exceeded maximum lock level");		\
 	else {							\
+		THR_DEACTIVATE_LAST_LOCK(thrd);			\
 		(thrd)->locklevel++;				\
 		_lock_acquire((lck),				\
 		    &(thrd)->lockusers[(thrd)->locklevel - 1],	\
@@ -840,29 +839,24 @@ do {								\
 		_lock_release((lck),				\
 		    &(thrd)->lockusers[(thrd)->locklevel - 1]);	\
 		(thrd)->locklevel--;				\
-		if ((thrd)->lock_switch)			\
-			;					\
-		else {						\
+		THR_ACTIVATE_LAST_LOCK(thrd);			\
+		if ((thrd)->locklevel == 0)			\
 			THR_YIELD_CHECK(thrd);			\
-		}						\
 	}							\
 } while (0)
 
-#define THR_LOCK_SWITCH(thrd)						\
+#define THR_ACTIVATE_LAST_LOCK(thrd)					\
 do {									\
-	THR_ASSERT(!(thrd)->lock_switch, "context switch locked");	\
-	_kse_critical_enter();						\
-	KSE_SCHED_LOCK((thrd)->kse, (thrd)->kseg);			\
-	(thrd)->lock_switch = 1;					\
+	if ((thrd)->locklevel > 0)					\
+		_lockuser_setactive(					\
+		    &(thrd)->lockusers[(thrd)->locklevel - 1], 1);	\
 } while (0)
 
-#define THR_UNLOCK_SWITCH(thrd)						\
+#define	THR_DEACTIVATE_LAST_LOCK(thrd)					\
 do {									\
-	THR_ASSERT((thrd)->lock_switch, "context switch not locked");	\
-	THR_ASSERT(_kse_in_critical(), "Er,not in critical region");	\
-	(thrd)->lock_switch = 0;					\
-	KSE_SCHED_UNLOCK((thrd)->kse, (thrd)->kseg);			\
-	_kse_critical_leave(&thrd->tmbx);				\
+	if ((thrd)->locklevel > 0)					\
+		_lockuser_setactive(					\
+		    &(thrd)->lockusers[(thrd)->locklevel - 1], 0);	\
 } while (0)
 
 /*
@@ -937,15 +931,19 @@ do {									\
 	_kse_critical_leave((curthr)->critical[(curthr)->locklevel]); \
 } while (0)
 
+/* Take the scheduling lock with the intent to call the scheduler. */
+#define	THR_LOCK_SWITCH(curthr) do {			\
+	(void)_kse_critical_enter();			\
+	KSE_SCHED_LOCK((curthr)->kse, (curthr)->kseg);	\
+} while (0)
+
 #define	THR_CRITICAL_ENTER(thr)		(thr)->critical_count++
 #define	THR_CRITICAL_LEAVE(thr)	do {		\
 	(thr)->critical_count--;		\
 	if (((thr)->critical_yield != 0) &&	\
 	    ((thr)->critical_count == 0)) {	\
 		(thr)->critical_yield = 0;	\
-		THR_LOCK_SWITCH(thr);		\
 		_thr_sched_switch(thr);		\
-		THR_UNLOCK_SWITCH(thr);		\
 	}					\
 } while (0)
 
@@ -1101,7 +1099,7 @@ int	_thr_schedule_add(struct pthread *, struct pthread *);
 void	_thr_schedule_remove(struct pthread *, struct pthread *);
 void	_thr_setrunnable(struct pthread *curthread, struct pthread *thread);
 void	_thr_setrunnable_unlocked(struct pthread *thread);
-void	_thr_sig_add(struct pthread *, int, siginfo_t *, ucontext_t *);
+void	_thr_sig_add(struct pthread *, int, siginfo_t *);
 void	_thr_sig_dispatch(struct kse *, int, siginfo_t *);
 int	_thr_stack_alloc(struct pthread_attr *);
 void	_thr_stack_free(struct pthread_attr *);
@@ -1114,6 +1112,7 @@ void    _thread_dump_info(void);
 void	_thread_printf(int, const char *, ...);
 void    _thr_sched_frame(struct pthread_sigframe *);
 void	_thr_sched_switch(struct pthread *);
+void	_thr_sched_switch_unlocked(struct pthread *);
 void    _thr_set_timeout(const struct timespec *);
 void    _thr_sig_handler(int, siginfo_t *, ucontext_t *);
 void    _thr_sig_check_pending(struct pthread *);

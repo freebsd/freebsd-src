@@ -125,9 +125,8 @@ _pthread_exit(void *status)
 	/* This thread will never be re-scheduled. */
 	THR_LOCK_SWITCH(curthread);
 	THR_SET_STATE(curthread, PS_DEAD);
-	_thr_sched_switch(curthread);
+	_thr_sched_switch_unlocked(curthread);
 	/* Never reach! */
-	THR_UNLOCK_SWITCH(curthread);
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");

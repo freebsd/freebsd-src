@@ -267,11 +267,12 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * lock); we should be able to safely
 					 * set the state.
 					 */
-					THR_LOCK_SWITCH(curthread);
+					THR_SCHED_LOCK(curthread, curthread);
 					THR_SET_STATE(curthread, PS_COND_WAIT);
 
 					/* Remember the CV: */
 					curthread->data.cond = *cond;
+					THR_SCHED_UNLOCK(curthread, curthread);
 
 					/* Unlock the CV structure: */
 					THR_LOCK_RELEASE(curthread,
@@ -281,7 +282,6 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					_thr_sched_switch(curthread);
 
 					curthread->data.cond = NULL;
-					THR_UNLOCK_SWITCH(curthread);
 
 					/*
 					 * XXX - This really isn't a good check
@@ -479,11 +479,12 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					 * lock); we should be able to safely
 					 * set the state.
 					 */
-					THR_LOCK_SWITCH(curthread);
+					THR_SCHED_LOCK(curthread, curthread);
 					THR_SET_STATE(curthread, PS_COND_WAIT);
 
 					/* Remember the CV: */
 					curthread->data.cond = *cond;
+					THR_SCHED_UNLOCK(curthread, curthread);
 
 					/* Unlock the CV structure: */
 					THR_LOCK_RELEASE(curthread,
@@ -493,7 +494,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					_thr_sched_switch(curthread);
 
 					curthread->data.cond = NULL;
-					THR_UNLOCK_SWITCH(curthread);
 
 					/*
 					 * XXX - This really isn't a good check

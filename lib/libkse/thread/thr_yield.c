@@ -46,9 +46,7 @@ _sched_yield(void)
 	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
-	THR_LOCK_SWITCH(curthread);
 	_thr_sched_switch(curthread);
-	THR_UNLOCK_SWITCH(curthread);
 	/* Always return no error. */
 	return(0);
 }
@@ -63,7 +61,5 @@ _pthread_yield(void)
 	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
-	THR_LOCK_SWITCH(curthread);
 	_thr_sched_switch(curthread);
-	THR_UNLOCK_SWITCH(curthread);
 }
