@@ -161,7 +161,7 @@ void g_bde_hash_pass(struct g_bde_softc *sc, const void *input, u_int len);
 
 /* g_bde_math .c */
 uint64_t g_bde_max_sector(struct g_bde_key *lp);
-void g_bde_map_sector(struct g_bde_key *lp, uint64_t isector, uint64_t *osector, uint64_t *ksector, u_int *koffset);
+void g_bde_map_sector(struct g_bde_work *wp);
 
 /* g_bde_work.c */
 void g_bde_start1(struct bio *bp);
