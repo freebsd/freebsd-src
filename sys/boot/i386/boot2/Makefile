@@ -28,7 +28,7 @@ ORG1=	0x7c00
 ORG2=	0x1000
 
 CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
-	-fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels \
+	-fno-guess-branch-probability \
 	-mrtd \
 	-I${.CURDIR}/../btx/lib -I. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
