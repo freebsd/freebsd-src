@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.104 1996/01/28 22:16:18 wollman Exp $
+ *	$Id: wd.c,v 1.105 1996/03/27 18:49:54 bde Exp $
  */
 
 /* TODO:
@@ -1176,7 +1176,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	wdsleep(du->dk_ctrlr, "wdopn1");
 	du->dk_flags |= DKFL_LABELLING;
 	du->dk_state = WANTOPEN;
-	/* drive_queue[lunit].b_actf = NULL; */
 	{
 	struct disklabel label;
 
@@ -1196,8 +1195,8 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 #else
 	if ((du->dk_flags & DKFL_BSDLABEL) == 0) {
 		/*
-		 * wdtab[ctrlr].b_active != 0 implies
-		 * drive_queue[lunit].b_actf == NULL (?)
+		 * wdtab[ctrlr].b_active != 0 implies  XXX applicable now ??
+		 * drive_queue[lunit].b_actf == NULL (?)  XXX applicable now ??
 		 * so the following guards most things (until the next i/o).
 		 * It doesn't guard against a new i/o starting and being
 		 * affected by the label being changed.  Sigh.
@@ -1206,7 +1205,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 		du->dk_flags |= DKFL_LABELLING;
 		du->dk_state = WANTOPEN;
-		/* drive_queue[lunit].b_actf = NULL; */
 
 		error = dsinit(dkmodpart(dev, RAW_PART), wdstrategy,
 			       &du->dk_dd, &du->dk_slices);
