@@ -922,17 +922,16 @@ ext2_sync(mp, waitfor, cred, td)
 loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {
+		if (vp->v_type == VNON || (vp->v_iflag & VI_XLOCK)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		MNT_IUNLOCK(mp);
 		ip = VTOI(vp);
-		if (vp->v_type == VNON ||
-		    ((ip->i_flag &
+		if ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
-		    waitfor == MNT_LAZY))) {
+		    waitfor == MNT_LAZY)) {
 			VI_UNLOCK(vp);
 			MNT_ILOCK(mp);
 			continue;
