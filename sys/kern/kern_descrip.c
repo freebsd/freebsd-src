@@ -535,10 +535,6 @@ do_dup(td, type, old, new, retval)
 		holdleaders = 0;
 	KASSERT(delfp == NULL || type == DUP_FIXED,
 	    ("dup() picked an open file"));
-#if 0
-	if (delfp && (fdp->fd_ofileflags[new] & UF_MAPPED))
-		(void) munmapfd(td, new);
-#endif
 
 	/*
 	 * Duplicate the source descriptor, update lastfile
@@ -830,10 +826,6 @@ close(td, uap)
 		error = EBADF;
 		goto done2;
 	}
-#if 0
-	if (fdp->fd_ofileflags[fd] & UF_MAPPED)
-		(void) munmapfd(td, fd);
-#endif
 	fdp->fd_ofiles[fd] = NULL;
 	fdp->fd_ofileflags[fd] = 0;
 	if (td->td_proc->p_fdtol != NULL) {
@@ -1587,10 +1579,6 @@ setugidsafety(td)
 		if (fdp->fd_ofiles[i] && is_unsafe(fdp->fd_ofiles[i])) {
 			struct file *fp;
 
-#if 0
-			if ((fdp->fd_ofileflags[i] & UF_MAPPED) != 0)
-				(void) munmapfd(td, i);
-#endif
 			if (i < fdp->fd_knlistsize) {
 				FILEDESC_UNLOCK(fdp);
 				knote_fdclose(td, i);
@@ -1641,10 +1629,6 @@ fdcloseexec(td)
 		    (fdp->fd_ofileflags[i] & UF_EXCLOSE)) {
 			struct file *fp;
 
-#if 0
-			if (fdp->fd_ofileflags[i] & UF_MAPPED)
-				(void) munmapfd(td, i);
-#endif
 			if (i < fdp->fd_knlistsize) {
 				FILEDESC_UNLOCK(fdp);
 				knote_fdclose(td, i);
@@ -2177,10 +2161,6 @@ dupfdopen(td, fdp, indx, dfd, mode, error)
 			return (EACCES);
 		}
 		fp = fdp->fd_ofiles[indx];
-#if 0
-		if (fp && fdp->fd_ofileflags[indx] & UF_MAPPED)
-			(void) munmapfd(td, indx);
-#endif
 		fdp->fd_ofiles[indx] = wfp;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
 		fhold_locked(wfp);
@@ -2203,10 +2183,6 @@ dupfdopen(td, fdp, indx, dfd, mode, error)
 		 * Steal away the file pointer from dfd and stuff it into indx.
 		 */
 		fp = fdp->fd_ofiles[indx];
-#if 0
-		if (fp && fdp->fd_ofileflags[indx] & UF_MAPPED)
-			(void) munmapfd(td, indx);
-#endif
 		fdp->fd_ofiles[indx] = fdp->fd_ofiles[dfd];
 		fdp->fd_ofiles[dfd] = NULL;
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
