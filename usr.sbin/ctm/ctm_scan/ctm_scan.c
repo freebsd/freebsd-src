@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_scan.c,v 1.5 1994/09/25 20:45:55 phk Exp $
  *
  */
 #include <stdio.h>
@@ -81,10 +81,12 @@ Do(char *path)
 	}
 	switch(st.st_mode & S_IFMT) {
 	    case S_IFDIR:
-		i = printf("d %s %d %d %d - - -\n",	
-		    buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid);
-		if(!i) 
-		    exit(-1);
+		if(!CheckMode) {
+		    i = printf("d %s %d %d %d - - -\n",	
+			buf,st.st_mode & (~S_IFMT),st.st_uid,st.st_gid);
+		    if(!i) 
+			exit(-1);
+		}
 		ret |= Do(buf);
 		break;
 	    case S_IFREG:
