@@ -236,8 +236,7 @@ main(int argc, char **argv)
 			bsdtar->bytes_per_block = 512 * t;
 			break;
 		case 'C': /* GNU tar */
-			/* Defer first -C until after -f is opened. */
-			bsdtar->start_dir = optarg;
+			set_chdir(bsdtar, optarg);
 			break;
 		case 'c': /* SUSv2 */
 			set_mode(bsdtar, opt);

@@ -367,17 +367,6 @@ static void
 write_archive(struct archive *a, struct bsdtar *bsdtar)
 {
 	const char *arg;
-	char *pending_dir;
-
-	pending_dir = NULL;
-
-	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir)) {
-		bsdtar_warnc(bsdtar, errno,
-		    "chdir(%s) failed", bsdtar->start_dir);
-		bsdtar->return_value = 1;
-		return;
-	}
-
 
 	if (bsdtar->names_from_file != NULL)
 		archive_names_from_file(bsdtar, a);
@@ -396,74 +385,10 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 					return;
 				}
 			}
-
-			/*-
-			 * The logic here for -C <dir> attempts to avoid
-			 * chdir() as long as possible.  For example:
-			 * "-C /foo -C /bar file"
-			 *    needs chdir("/bar") but not chdir("/foo")
-			 * "-C /foo -C bar file"
-			 *    needs chdir("/foo/bar")
-			 * "-C /foo -C bar /file1"
-			 *    does not need chdir()
-			 * "-C /foo -C bar /file1 file2"
-			 *    needs chdir("/foo/bar") before file2
-			 *
-			 * The only correct way to handle this is to
-			 * record a "pending" chdir request and only
-			 * execute the real chdir when a non-absolute
-			 * filename is seen on the command line.
-			 *
-			 * I went to all this work so that programs
-			 * that build tar command lines don't have to
-			 * worry about -C with non-existent
-			 * directories; such requests will only fail
-			 * if the directory must be accessed.
-			 */
-			if (pending_dir != NULL && *arg == '/') {
-				/* The -C /foo -C /bar case; dump first one. */
-				free(pending_dir);
-				pending_dir = NULL;
-			}
-			if (pending_dir) {
-				/* The -C /foo -C bar case; concatenate */
-				char *old_pending = pending_dir;
-				size_t old_len = strlen(old_pending);
-
-				pending_dir =
-				    malloc(old_len + 1 + strlen(arg));
-				if (pending_dir == NULL)
-					bsdtar_errc(bsdtar, 1, errno,
-					    "No Memory");
-				strcpy(pending_dir, old_pending);
-				free(old_pending);
-				if (pending_dir[old_len - 1] != '/') {
-					pending_dir[old_len] = '/';
-					old_len ++;
-				}
-				strcpy(pending_dir + old_len, arg);
-			} else {
-				/* Easy case: no previously-saved dir. */
-				pending_dir = strdup(arg);
-				if (pending_dir == NULL)
-					bsdtar_errc(bsdtar, 1, errno,
-					    "No Memory");
-			}
+			set_chdir(bsdtar, arg);
 		} else {
-			if (pending_dir != NULL &&
-			    (*arg != '/' || (*arg == '@' && arg[1] != '/'))) {
-				/* Handle a deferred -C */
-				if (chdir(pending_dir) != 0) {
-					bsdtar_warnc(bsdtar, 0,
-					    "could not chdir to '%s'\n",
-					    pending_dir);
-					bsdtar->return_value = 1;
-					return;
-				}
-				free(pending_dir);
-				pending_dir = NULL;
-			}
-
+			if (*arg != '/' || (arg[0] == '@' && arg[1] != '/'))
+				do_chdir(bsdtar); /* Handle a deferred -C */
 			if (*arg == '@') {
 				if (append_archive(bsdtar, a, arg + 1) != 0)
 					break;
