@@ -138,34 +138,45 @@ struct snd_size {
  * capability, and bit 29 (RO) to indicate that the card supports/
  * needs different formats on capture & playback channels.
  * Bit 29 (RW) is used to indicate/ask stereo.
+ *
+ * The number of bits required to store the sample is:
+ *  o  4 bits for the IDA ADPCM format,
+ *  o  8 bits for 8-bit formats, mu-law and A-law,
+ *  o  16 bits for the 16-bit formats, and
+ *  o  32 bits for the 24/32-bit formats.
+ *  o  undefined for the MPEG audio format.
  */
 
-#   define AFMT_QUERY		0x00000000	/* Return current fmt */
-#   define AFMT_MU_LAW		0x00000001
-#   define AFMT_A_LAW		0x00000002
-#   define AFMT_IMA_ADPCM	0x00000004
-#   define AFMT_U8		0x00000008
-#   define AFMT_S16_LE		0x00000010	/* Little endian signed 16*/
-#   define AFMT_S16_BE		0x00000020	/* Big endian signed 16 */
-#   define AFMT_S8		0x00000040
-#   define AFMT_U16_LE		0x00000080	/* Little endian U16 */
-#   define AFMT_U16_BE		0x00000100	/* Big endian U16 */
-#   define AFMT_MPEG		0x00000200	/* MPEG (2) audio */
-#   define AFMT_AC3		0x00000400	/* Dolby Digital AC3 */
+#define AFMT_QUERY	0x00000000	/* Return current format */
+#define AFMT_MU_LAW	0x00000001	/* Logarithmic mu-law */
+#define AFMT_A_LAW	0x00000002	/* Logarithmic A-law */
+#define AFMT_IMA_ADPCM	0x00000004	/* A 4:1 compressed format where 16-bit
+					 * squence represented using the
+					 * the average 4 bits per sample */
+#define AFMT_U8		0x00000008	/* Unsigned 8-bit */
+#define AFMT_S16_LE	0x00000010	/* Little endian signed 16-bit */
+#define AFMT_S16_BE	0x00000020	/* Big endian signed 16-bit */
+#define AFMT_S8		0x00000040	/* Signed 8-bit */
+#define AFMT_U16_LE	0x00000080	/* Little endian unsigned 16-bit */
+#define AFMT_U16_BE	0x00000100	/* Big endian unsigned 16-bit */
+#define AFMT_MPEG	0x00000200	/* MPEG MP2/MP3 audio */
+#define AFMT_AC3	0x00000400	/* Dolby Digital AC3 */
 /*
- * may not have all bits significant:
+ * 32-bit formats below used for 24-bit audio data where the data is stored
+ * in the 24 most significant bits and the least significant bits are not used
+ * (should be set to 0).
  */
-#   define AFMT_S32_LE		0x00001000	/* Little endian signed 32 */
-#   define AFMT_S32_BE		0x00002000	/* big endian signed 32 */
-#   define AFMT_U32_LE		0x00004000	/* Little endian unsigned 32 */
-#   define AFMT_U32_BE		0x00008000	/* big endian unsigned 32 */
+#define AFMT_S32_LE	0x00001000	/* Little endian signed 32-bit */
+#define AFMT_S32_BE	0x00002000	/* Big endian signed 32-bit */
+#define AFMT_U32_LE	0x00004000	/* Little endian unsigned 32-bit */
+#define AFMT_U32_BE	0x00008000	/* Big endian unsigned 32-bit */
 
-#   define AFMT_STEREO		0x10000000	/* can do/want stereo	*/
+#define AFMT_STEREO	0x10000000	/* can do/want stereo	*/
 
 /*
  * the following are really capabilities
  */
-#   define AFMT_WEIRD		0x20000000	/* weird hardware...	*/
+#define AFMT_WEIRD	0x20000000	/* weird hardware...	*/
     /*
      * AFMT_WEIRD reports that the hardware might need to operate
      * with different formats in the playback and capture
@@ -174,7 +185,7 @@ struct snd_size {
      * direction and S16 in the other one, and applications should
      * be aware of this limitation.
      */
-#   define AFMT_FULLDUPLEX	0x80000000	/* can do full duplex	*/
+#define AFMT_FULLDUPLEX	0x80000000	/* can do full duplex	*/
 
 /*
  * The following structure is used to get/set format and sampling rate.
@@ -878,18 +889,24 @@ typedef struct copr_msg {
  */
 
 #define SOUND_MIXER_NRDEVICES	25
-#define SOUND_MIXER_VOLUME	0
-#define SOUND_MIXER_BASS	1
-#define SOUND_MIXER_TREBLE	2
-#define SOUND_MIXER_SYNTH	3
-#define SOUND_MIXER_PCM		4
-#define SOUND_MIXER_SPEAKER	5
-#define SOUND_MIXER_LINE	6
-#define SOUND_MIXER_MIC		7
-#define SOUND_MIXER_CD		8
-#define SOUND_MIXER_IMIX	9	/*  Recording monitor  */
-#define SOUND_MIXER_ALTPCM	10
-#define SOUND_MIXER_RECLEV	11	/* Recording level */
+#define SOUND_MIXER_VOLUME	0	/* Master output level */
+#define SOUND_MIXER_BASS	1	/* Treble level of all output channels */
+#define SOUND_MIXER_TREBLE	2	/* Bass level of all output channels */
+#define SOUND_MIXER_SYNTH	3	/* Volume of synthesier input */
+#define SOUND_MIXER_PCM		4	/* Output level for the audio device */
+#define SOUND_MIXER_SPEAKER	5	/* Output level for the PC speaker
+					 * signals */
+#define SOUND_MIXER_LINE	6	/* Volume level for the line in jack */
+#define SOUND_MIXER_MIC		7	/* Volume for the signal coming from
+					 * the microphone jack */
+#define SOUND_MIXER_CD		8	/* Volume level for the input signal
+					 * connected to the CD audio input */
+#define SOUND_MIXER_IMIX	9	/* Recording monitor. It controls the
+					 * output volume of the selected
+					 * recording sources while recording */
+#define SOUND_MIXER_ALTPCM	10	/* Volume of the alternative codec
+					 * device */
+#define SOUND_MIXER_RECLEV	11	/* Global recording level */
 #define SOUND_MIXER_IGAIN	12	/* Input gain */
 #define SOUND_MIXER_OGAIN	13	/* Output gain */
 /*
