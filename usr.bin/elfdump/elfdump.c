@@ -283,7 +283,7 @@ const char *ei_abis[] = {
 
 const char *p_types[] = {
 	"PT_NULL", "PT_LOAD", "PT_DYNAMIC", "PT_INTERP", "PT_NOTE",
-	"PT_SHLIB", "PT_PHDR"
+	"PT_SHLIB", "PT_PHDR", "PT_TLS"
 };
 
 const char *p_flags[] = {
