@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.8 1994/02/17 10:20:18 rgrimes Exp $
+ *	$Id: lpt.c,v 1.9 1994/02/22 09:05:13 rgrimes Exp $
  */
 
 /*
@@ -66,10 +66,13 @@
 #include "ioctl.h"
 #include "tty.h"
 #include "uio.h"
+#include "syslog.h"
 
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/lptreg.h"
+
+#include "i386/include/lpt.h"
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
 #define	LPTOUTTIME	4	/* wait up to 4 seconds for a ready */
@@ -89,15 +92,6 @@
 #define lprintf		if (lptflag) printf
 int lptflag = 1;
 #endif
-
-void lptout();
-
-int 	lptprobe(), lptattach();
-void	lptintr();
-
-struct	isa_driver lptdriver = {
-	lptprobe, lptattach, "lpt"
-};
 
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
@@ -122,6 +116,8 @@ struct lpt_softc {
 	u_char	sc_irq ;	/* IRQ status of port */
 #define LP_HAS_IRQ	0x01	/* we have an irq available */
 #define LP_USE_IRQ	0x02	/* we are using our irq */
+#define LP_ENABLE_IRQ	0x04	/* enable IRQ on open */
+
 } lpt_sc[NLPT] ;
 
 /* bits for state */
@@ -149,12 +145,21 @@ struct lpt_softc {
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
 
+static void	lptout (struct lpt_softc * sc);
+int		lptprobe (struct isa_device *dvp);
+int		lptattach (struct isa_device *isdp);
+void		lptintr (int unit);
+
+struct	isa_driver lptdriver = {
+	lptprobe, lptattach, "lpt"
+};
+
 
 
 /*
  * Internal routine to lptprobe to do port tests of one byte value
  */
-int
+static int
 lpt_port_test(short port, u_char data, u_char mask)
 {
 	int	temp, timeout;
@@ -279,8 +284,7 @@ end_probe:
 
 /* XXX Todo - try and detect if interrupt is working */
 int
-lptattach(isdp)
-	struct isa_device *isdp;
+lptattach(struct isa_device *isdp)
 {
 	struct	lpt_softc	*sc;
 
@@ -292,7 +296,7 @@ lptattach(isdp)
 	/* check if we can use interrupt */
 	lprintf("oldirq %x\n", sc->sc_irq);
 	if(isdp->id_irq) {
-		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ;
+		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		printf("lpt%d: Interrupt-driven port\n", isdp->id_unit);
 	} else {
 		sc->sc_irq = 0;
@@ -308,9 +312,7 @@ lptattach(isdp)
  */
 
 int
-lptopen(dev, flag)
-	dev_t dev;
-	int flag;
+lptopen(dev_t dev, int flag)
 {
 	struct lpt_softc *sc;
 	int s;
@@ -321,7 +323,6 @@ lptopen(dev, flag)
 	if ((unit >= NLPT) || (sc->sc_port == 0))
 		return (ENXIO);
 
-	/* Only check open bit */
 	if (sc->sc_state) {
 	lprintf("lp: still open\n") ;
 	lprintf("still open %x\n", sc->sc_state);
@@ -332,6 +333,13 @@ lptopen(dev, flag)
 	sc->sc_flags = LPTFLAGS(minor(dev));
 	lprintf("lp flags 0x%x\n", sc->sc_flags);
 	port = sc->sc_port;
+
+	/* set IRQ status according to ENABLE_IRQ flag */
+	if(sc->sc_irq & LP_ENABLE_IRQ)
+		sc->sc_irq |= LP_USE_IRQ;
+	else
+		sc->sc_irq &= ~LP_USE_IRQ;
+
 
 	/* init printer */
 	if((sc->sc_flags & LP_NO_PRIME) == 0) {
@@ -384,20 +392,19 @@ lptopen(dev, flag)
 	lprintf("irq %x\n", sc->sc_irq);
 	if(sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
-		timeout (lptout, (caddr_t)sc, hz/2);
+		timeout ((timeout_func_t)lptout, (caddr_t)sc, hz/2);
 	}
 	lprintf("opened.\n");
 	return(0);
 }
 
-void
-lptout (sc)
-	struct lpt_softc *sc;
+static void
+lptout (struct lpt_softc * sc)
 {	int pl;
 
 	lprintf ("T %x ", inb(sc->sc_port+lpt_status));
 	if (sc->sc_state&OPEN)
-		timeout (lptout, (caddr_t)sc, hz/2);
+		timeout ((timeout_func_t)lptout, (caddr_t)sc, hz/2);
 	else	sc->sc_state &= ~TOUT;
 
 	if (sc->sc_state & ERROR)
@@ -423,9 +430,7 @@ lptout (sc)
  */
 
 int
-lptclose(dev, flag)
-	dev_t dev;
-	int flag;
+lptclose(dev_t dev, int flag)
 {
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
 	int port = sc->sc_port;
@@ -458,13 +463,13 @@ lptclose(dev, flag)
  *	This code is only used when we are polling the port
  */
 static int 
-pushbytes(sc) 
-	struct lpt_softc *sc;
+pushbytes(struct lpt_softc * sc) 
 {
 	int spin, err, tic;
 	char ch;
 	int port = sc->sc_port;
 
+	lprintf("p");
 	/* loop for every character .. */
 	while (sc->sc_xfercnt > 0) {
 		/* printer data */
@@ -518,9 +523,7 @@ pushbytes(sc)
  */
 
 int
-lptwrite(dev, uio)
-	dev_t dev;
-	struct uio *uio;
+lptwrite(dev_t dev, struct uio * uio)
 {
 	register unsigned n;
 	int pl, err;
@@ -531,26 +534,26 @@ lptwrite(dev, uio)
 		sc->sc_cp = sc->sc_inbuf->b_un.b_addr ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
-		if(sc->sc_irq & LP_USE_IRQ) 
-			while (sc->sc_xfercnt > 0) {
-				lprintf("i");
-				/* if the printer is ready for a char, */
-				/* give it one */
-				if ((sc->sc_state & OBUSY) == 0){
-					lprintf("\nC %d. ", sc->sc_xfercnt);
-					pl = spltty();
-					lptintr(sc - lpt_sc);
-					(void) splx(pl);
-				}
-				lprintf("W ");
-				if (sc->sc_state & OBUSY)
-					if (err = tsleep ((caddr_t)sc, 
-						 LPPRI|PCATCH, "lpwrite", 0)) {
-						sc->sc_state |= INTERRUPTED;
-						return(err);
-					}
+		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
+			lprintf("i");
+			/* if the printer is ready for a char, */
+			/* give it one */
+			if ((sc->sc_state & OBUSY) == 0){
+				lprintf("\nC %d. ", sc->sc_xfercnt);
+				pl = spltty();
+				lptintr(sc - lpt_sc);
+				(void) splx(pl);
 			}
-		else { /* polled write */
+			lprintf("W ");
+			if (sc->sc_state & OBUSY)
+				if (err = tsleep ((caddr_t)sc, 
+					 LPPRI|PCATCH, "lpwrite", 0)) {
+					sc->sc_state |= INTERRUPTED;
+					return(err);
+				}
+		}
+		/* check to see if we must do a polled write */
+		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) { 
 			lprintf("p");
 			if((err = pushbytes(sc)))
 				return(err);
@@ -567,8 +570,7 @@ lptwrite(dev, uio)
  */
 
 void
-lptintr(unit)
-	int unit;
+lptintr(int unit)
 {
 	struct lpt_softc *sc = lpt_sc + unit;
 	int port = sc->sc_port, sts;
@@ -607,22 +609,33 @@ lptintr(unit)
 }
 
 int
-lptioctl(dev, cmd, data, flag)
-	dev_t dev;
-	int cmd;
-	caddr_t data;
-	int flag;
+lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
 {
-	int	error;
+	int	error = 0;
+        struct	lpt_softc *sc;
+        u_int	unit = LPTUNIT(minor(dev));
 
-	error = 0;
+        sc = lpt_sc + unit;
+
 	switch (cmd) {
-#ifdef THISISASAMPLE
-	case XXX:
-		dothis; andthis; andthat;
-		error=x;
-		break;
-#endif /* THISISASAMPLE */
+	case LPT_IRQ :
+		if(sc->sc_irq & LP_HAS_IRQ) {
+			/* 
+			 * NOTE: 
+			 * If the IRQ status is changed,
+			 * this will only be visible on the
+			 * next open.
+			 */
+			if(*(int*)data == 0)
+				sc->sc_irq &= (~LP_ENABLE_IRQ);
+			else
+				sc->sc_irq |= LP_ENABLE_IRQ;
+			log(LOG_NOTICE, "lpt%c switched to %s mode\n",
+				(char)unit+'0', (sc->sc_irq & LP_ENABLE_IRQ)?
+				"interrupt-driven":"polled");
+		} else /* polled port */
+			error = EOPNOTSUPP;
+		break;	
 	default:
 		error = ENODEV;
 	}
