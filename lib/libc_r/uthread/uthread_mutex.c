@@ -32,6 +32,7 @@
  */
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
@@ -94,7 +95,8 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 					pmutex->m_flags |= MUTEX_FLAGS_INITED;
 					pmutex->m_owner = NULL;
 					pmutex->m_type = type;
-					pmutex->access_lock = 0;
+					memset(&pmutex->lock, 0,
+					    sizeof(pmutex->lock));
 					*mutex = pmutex;
 				} else {
 					free(pmutex);
@@ -116,7 +118,7 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 		ret = EINVAL;
 	else {
 		/* Lock the mutex structure: */
-		_spinlock(&(*mutex)->access_lock);
+		_SPINLOCK(&(*mutex)->lock);
 
 		/*
 		 * Free the memory allocated for the mutex
@@ -150,7 +152,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 	else if (*mutex != NULL ||
 	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
 		/* Lock the mutex structure: */
-		_spinlock(&(*mutex)->access_lock);
+		_SPINLOCK(&(*mutex)->lock);
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
@@ -195,7 +197,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 		}
 
 		/* Unlock the mutex structure: */
-		_atomic_unlock(&(*mutex)->access_lock);
+		_SPINUNLOCK(&(*mutex)->lock);
 	}
 
 	/* Return the completion status: */
@@ -217,7 +219,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	else if (*mutex != NULL ||
 	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
 		/* Lock the mutex structure: */
-		_spinlock(&(*mutex)->access_lock);
+		_SPINLOCK(&(*mutex)->lock);
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
@@ -240,13 +242,13 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 					_thread_queue_enq(&(*mutex)->m_queue, _thread_run);
 
 					/* Unlock the mutex structure: */
-					_atomic_unlock(&(*mutex)->access_lock);
+					_SPINUNLOCK(&(*mutex)->lock);
 
 					/* Block signals: */
 					_thread_kern_sched_state(PS_MUTEX_WAIT, __FILE__, __LINE__);
 
 					/* Lock the mutex again: */
-					_spinlock(&(*mutex)->access_lock);
+					_SPINLOCK(&(*mutex)->lock);
 				}
 			}
 			break;
@@ -273,13 +275,13 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 					_thread_queue_enq(&(*mutex)->m_queue, _thread_run);
 
 					/* Unlock the mutex structure: */
-					_atomic_unlock(&(*mutex)->access_lock);
+					_SPINUNLOCK(&(*mutex)->lock);
 
 					/* Block signals: */
 					_thread_kern_sched_state(PS_MUTEX_WAIT, __FILE__, __LINE__);
 
 					/* Lock the mutex again: */
-					_spinlock(&(*mutex)->access_lock);
+					_SPINLOCK(&(*mutex)->lock);
 				}
 			}
 
@@ -295,7 +297,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		}
 
 		/* Unlock the mutex structure: */
-		_atomic_unlock(&(*mutex)->access_lock);
+		_SPINUNLOCK(&(*mutex)->lock);
 	}
 
 	/* Return the completion status: */
@@ -311,7 +313,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 		ret = EINVAL;
 	} else {
 		/* Lock the mutex structure: */
-		_spinlock(&(*mutex)->access_lock);
+		_SPINLOCK(&(*mutex)->lock);
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
@@ -362,7 +364,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 		}
 
 		/* Unlock the mutex structure: */
-		_atomic_unlock(&(*mutex)->access_lock);
+		_SPINUNLOCK(&(*mutex)->lock);
 	}
 
 	/* Return the completion status: */

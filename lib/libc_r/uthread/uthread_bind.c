@@ -41,9 +41,9 @@ bind(int fd, const struct sockaddr * name, int namelen)
 {
 	int             ret;
 
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		ret = _thread_sys_bind(fd, name, namelen);
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }

@@ -32,6 +32,7 @@
  */
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
@@ -85,7 +86,7 @@ pthread_cond_init(pthread_cond_t * cond, const pthread_condattr_t * cond_attr)
 				_thread_queue_init(&pcond->c_queue);
 				pcond->c_flags |= COND_FLAGS_INITED;
 				pcond->c_type = type;
-				pcond->access_lock = 0;
+				memset(&pcond->lock,0,sizeof(pcond->lock));
 				*cond = pcond;
 			}
 		}
@@ -103,7 +104,7 @@ pthread_cond_destroy(pthread_cond_t * cond)
 		rval = EINVAL;
 	else {
 		/* Lock the condition variable structure: */
-		_spinlock(&(*cond)->access_lock);
+		_SPINLOCK(&(*cond)->lock);
 
 		/*
 		 * Free the memory allocated for the condition
@@ -137,7 +138,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
 		/* Lock the condition variable structure: */
-		_spinlock(&(*cond)->access_lock);
+		_SPINLOCK(&(*cond)->lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -156,14 +157,14 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 			_thread_run->wakeup_time.tv_sec = -1;
 
 			/* Unlock the condition variable structure: */
-			_atomic_unlock(&(*cond)->access_lock);
+			_SPINUNLOCK(&(*cond)->lock);
 
 			/* Schedule the next thread: */
 			_thread_kern_sched_state(PS_COND_WAIT,
 			    __FILE__, __LINE__);
 
 			/* Lock the condition variable structure: */
-			_spinlock(&(*cond)->access_lock);
+			_SPINLOCK(&(*cond)->lock);
 
 			/* Lock the mutex: */
 			rval = pthread_mutex_lock(mutex);
@@ -177,7 +178,7 @@ pthread_cond_wait(pthread_cond_t * cond, pthread_mutex_t * mutex)
 		}
 
 	/* Unlock the condition variable structure: */
-	_atomic_unlock(&(*cond)->access_lock);
+	_SPINUNLOCK(&(*cond)->lock);
 	}
 
 	/* Return the completion status: */
@@ -201,7 +202,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	else if (*cond != NULL ||
 	    (rval = pthread_cond_init(cond,NULL)) == 0) {
 		/* Lock the condition variable structure: */
-		_spinlock(&(*cond)->access_lock);
+		_SPINLOCK(&(*cond)->lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -230,14 +231,14 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				_thread_queue_deq(&(*cond)->c_queue);
 			} else {
 				/* Unlock the condition variable structure: */
-				_atomic_unlock(&(*cond)->access_lock);
+				_SPINUNLOCK(&(*cond)->lock);
 
 				/* Schedule the next thread: */
 				_thread_kern_sched_state(PS_COND_WAIT,
 				    __FILE__, __LINE__);
 
 				/* Lock the condition variable structure: */
-				_spinlock(&(*cond)->access_lock);
+				_SPINLOCK(&(*cond)->lock);
 
 				/* Lock the mutex: */
 				if ((rval = pthread_mutex_lock(mutex)) != 0) {
@@ -258,7 +259,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		}
 
 	/* Unlock the condition variable structure: */
-	_atomic_unlock(&(*cond)->access_lock);
+	_SPINUNLOCK(&(*cond)->lock);
 	}
 
 	/* Return the completion status: */
@@ -276,7 +277,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 		rval = EINVAL;
 	else {
 		/* Lock the condition variable structure: */
-		_spinlock(&(*cond)->access_lock);
+		_SPINLOCK(&(*cond)->lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -297,7 +298,7 @@ pthread_cond_signal(pthread_cond_t * cond)
 		}
 
 		/* Unlock the condition variable structure: */
-		_atomic_unlock(&(*cond)->access_lock);
+		_SPINUNLOCK(&(*cond)->lock);
 	}
 
 	/* Return the completion status: */
@@ -315,7 +316,7 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 		rval = EINVAL;
 	else {
 		/* Lock the condition variable structure: */
-		_spinlock(&(*cond)->access_lock);
+		_SPINLOCK(&(*cond)->lock);
 
 		/* Process according to condition variable type: */
 		switch ((*cond)->c_type) {
@@ -340,7 +341,7 @@ pthread_cond_broadcast(pthread_cond_t * cond)
 		}
 
 		/* Unlock the condition variable structure: */
-		_atomic_unlock(&(*cond)->access_lock);
+		_SPINUNLOCK(&(*cond)->lock);
 	}
 
 	/* Return the completion status: */
