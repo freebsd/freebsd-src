@@ -39,8 +39,6 @@
 
 struct meteor_capframe {
 	short	command;	/* see below for valid METEORCAPFRM commands */
-	short	signal;		/* signal to send to the user program,
-				   when a buffer is full */
 	short	lowat;		/* start transfer if < this number */
 	short	hiwat;		/* stop transfer if > this number */
 } ;
@@ -58,6 +56,8 @@ struct meteor_counts {
 	u_long fifo_errors;	/* count of fifo errors since open */
 	u_long dma_errors;	/* count of dma errors since open */
 	u_long frames_captured;	/* count of frames captured since open */
+	u_long even_fields_captured; /* count of even fields captured */
+	u_long odd_fields_captured; /* count of odd fields captured */
 } ;
 
 #define METEORCAPTUR _IOW('x', 1, int)			 /* capture a frame */
@@ -75,6 +75,10 @@ struct meteor_counts {
 #define	METEORGCHCV  _IOR('x', 9, unsigned char)	/* get uv gain */
 #define	METEORSCOUNT _IOW('x',10, struct meteor_counts)
 #define	METEORGCOUNT _IOR('x',10, struct meteor_counts)
+#define METEORSFPS   _IOW('x',11, unsigned short)	/* set fps */
+#define METEORGFPS   _IOR('x',11, unsigned short)	/* get fps */
+#define METEORSSIGNAL _IOW('x', 12, unsigned int)	/* set signal */
+#define METEORGSIGNAL _IOR('x', 12, unsigned int)	/* get signal */
 
 #define	METEOR_STATUS_ID_MASK	0xf000	/* ID of 7196 */
 #define	METEOR_STATUS_DIR	0x0800	/* Direction of Expansion port YUV */
@@ -94,6 +98,8 @@ struct meteor_counts {
 				/* METEORCAPFRM capture commands */
 #define METEOR_CAP_N_FRAMES	0x0001	/* capture N frames */
 #define METEOR_CAP_STOP_FRAMES	0x0002	/* stop capture N frames */
+#define	METEOR_HALT_N_FRAMES	0x0003	/* halt of capture N frames */
+#define METEOR_CONT_N_FRAMES	0x0004	/* continue after above halt */
 
 				/* valid video input formats:  */
 #define METEOR_FMT_NTSC		0x00100	/* NTSC --  initialized default */
@@ -108,21 +114,25 @@ struct meteor_counts {
 #define METEOR_INPUT_DEV_SVIDEO	METEOR_GEO_DEV3
 
 				/* valid video output formats:  */
-#define METEOR_GEO_RGB16	0x10000	/* packed -- initialized default */
-#define METEOR_GEO_RGB24	0x20000	/* RBG 24 bits packed */
-					/* internally stored in 32 bits */
-#define METEOR_GEO_YUV_PACKED	0x40000	/* 4-2-2 YUV 16 bits packed */
-#define METEOR_GEO_YUV_PLANER	0x80000	/* 4-2-2 YUV 16 bits planer */
+#define METEOR_GEO_RGB16	0x0010000 /* packed -- initialized default */
+#define METEOR_GEO_RGB24	0x0020000 /* RBG 24 bits packed */
+					  /* internally stored in 32 bits */
+#define METEOR_GEO_YUV_PACKED	0x0040000 /* 4-2-2 YUV 16 bits packed */
+#define METEOR_GEO_YUV_PLANER	0x0080000 /* 4-2-2 YUV 16 bits planer */
+#define METEOR_GEO_UNSIGNED	0x0400000 /* unsigned uv outputs */
+#define METEOR_GEO_EVEN_ONLY	0x1000000 /* set for even only field capture */
+#define METEOR_GEO_ODD_ONLY	0x2000000 /* set for odd only field capture */
+#define METEOR_GEO_YUV_422	0x4000000 /* 4-2-2 YUV in Y-U-V combined */
+#define METEOR_GEO_OUTPUT_MASK	0x40f0000
+#define METEOR_GEO_FIELD_MASK	0x3000000
 
-	/* following structure is used to coordinate the syncronous */
+	/* following structure is used to coordinate the synchronous */
 	   
 struct meteor_mem {
 		/* kernel write only  */
 	int	frame_size;	 /* row*columns*depth */
 	unsigned num_bufs;	 /* number of frames in buffer (1-32) */
 		/* user and kernel change these */
-	int	signal;		 /* signal raised to the user program,
-				    on completion of frame capture */
 	int	lowat;		 /* kernel starts capture if < this number */
 	int	hiwat;		 /* kernel stops capture if > this number.
 				    hiwat <= numbufs */
