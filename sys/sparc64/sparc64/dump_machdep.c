@@ -46,9 +46,6 @@
 
 CTASSERT(sizeof(struct kerneldumpheader) == DEV_BSIZE);
 
-extern struct ofw_mem_region sparc64_memreg[];
-extern int sparc64_nmemreg;
-
 static struct kerneldumpheader kdh;
 static off_t dumplo, dumppos;
 
