@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
-.\"	$Id$
+.\"	$Id: lgamma.3,v 1.5 1997/02/22 15:09:38 peter Exp $
 .\"
 .Dd December 3, 1992
 .Dt LGAMMA 3
@@ -53,7 +53,7 @@
 .Ft double
 .Fn gamma "double x"
 .Ft float
-.Fn gamma "float x"
+.Fn gammaf "float x"
 .Sh DESCRIPTION
 .Fn lgamma x
 and
@@ -67,7 +67,7 @@ return ln\||\(*G(x)| where
 .Ed
 .\}
 .if n \
-returns ln\||\(*G(x)|.
+return ln\||\(*G(x)|.
 .Pp
 The external integer
 .Fa signgam
