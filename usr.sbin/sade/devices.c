@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.2 1995/05/04 03:51:14 jkh Exp $
+ * $Id: devices.c,v 1.5 1995/05/05 23:47:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -133,11 +133,10 @@ print_command_summary()
     int b_attr = ColorDisplay ? A_BOLD : A_UNDERLINE;
 
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk        B = Scan For Bad Blocks");
-    mvprintw(17, 0, "C = Create New Partition   D = Delete Partition");
-    mvprintw(18, 0, "G = Set BIOS Geometry      U = Undo All Changes");
-    mvprintw(19, 0, "W = `Wizard' Mode          ESC = Proceed to next screen");
-    mvprintw(21, 0, "The currently selected partition is displayed in ");
+    mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
+    mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
+    mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
+    mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(b_attr); addstr(ColorDisplay ? "bold" : "underline"); attrset(A_NORMAL);
     move(0, 0);
 }
@@ -243,6 +242,10 @@ device_slice_disk(struct disk *d)
 
 	case 'G':
 	    /* Set geometry */
+	    break;
+
+	case 'S':
+	    /* Set Bootable */
 	    break;
 
 	case 'U':
