@@ -145,6 +145,7 @@ sub parse {
     $mdocvars{isin_list} = 0;
     $mdocvars{parabuf} = "";
     $mdocvars{listtype} = "";
+    $mdocvars{it_nr} = 0;
 
     open(MANPAGE, "$manpage") || die("$!: Could not open $manpage in ", __LINE__, ".\n");
     while(<MANPAGE>) {
@@ -155,10 +156,14 @@ sub parse {
 
 	# Find commands
 	if (s/^\.(.*)$/$1/) {
+	    my $cmd = $1;
+
 	    # Detect, and ignore, comment lines
 	    if (s/^\\"(.*)$/$1/) {
 		next;
 	    }
+
+	    $cmd =~ s/^([^ ]+).*$/$1/;
 
 	    if (/^Nm "?(\w+)"?/ && !defined($mdocvars{Nm})) {
 		dlog(3, "Setting Nm to $1");
@@ -206,12 +211,21 @@ sub parse {
 	    } elsif (/^It ?(.*)$/) {
 		my $txt = $1;
 
+		$mdocvars{it_nr}++;
+
 		# Flush last item
 		if ($mdocvars{parabuf} ne "") {
 		    add_listitem(\%mdocvars);
 		}
-		# Only extract the first column of column lists.
+
 		if ($mdocvars{listtype} eq "column") {
+		    # Ignore first item when it is likely to be a
+		    # header.
+		    if ($mdocvars{it_nr} == 1 && $txt =~ m/^(Em|Sy) /) {
+			dlog(2, "Skipping header line in column list");
+			next;
+		    }
+		    # Only extract the first column.
 		    $txt =~ s/ Ta /\t/g;
 		    $txt =~ s/([^\t]+)\t.*/$1/;
 		}
@@ -244,10 +258,9 @@ sub parse {
 		$mdocvars{isin_list} = 0;
 	    } elsif (/^Tn (.+)$/) {
 		# For now we print TradeName text as regular text.
-		my $txt = $1;
-		$txt =~ s/^(.+) ,$/$1,/;
+		my ($txt, $punct_str) = split_punct_chars($1);
 
-		parabuf_addline(\%mdocvars, normalize($txt));
+		parabuf_addline(\%mdocvars, normalize($txt . $punct_str));
 	    } elsif (/^Xr (.+) (.+)/) {
 		# We need to check if the manual page exist to avoid
 		# breaking the doc build just because of a broken
@@ -255,19 +268,10 @@ sub parse {
 		#parabuf_addline(\%mdocvars, "&man.$1.$2;");
 		parabuf_addline(\%mdocvars, normalize("$1($2)"));
 	    } elsif (/^Dq (.+)$/) {
-		my (@stritems, $stritem, $punct_str);
-		$punct_str = "";
-		@stritems = split(/ /, $1);
+		my ($txt, $punct_str) = split_punct_chars($1);
 
-		# Handle trailing punctuation characters specially.
-		while (defined($stritem = $stritems[$#stritems]) &&
-		       is_punct_char($stritem)) {
-		    $punct_str = $stritem . $punct_str;
-		    pop(@stritems);
-		}
-		my $txt = "<quote>".join(' ', @stritems)."</quote>$punct_str";
-
-		parabuf_addline(\%mdocvars, normalize($txt));
+		parabuf_addline(\%mdocvars,
+				normalize("<quote>$txt</quote>$punct_str"));
 	    } elsif (/^Sx (.+)$/) {
 		if ($mdocvars{isin_hwlist}) {
 		    dlog(1, "Warning: Reference to another section in the " .
@@ -275,8 +279,15 @@ sub parse {
 			 "(${cur_mansection})");
 		}
 		parabuf_addline(\%mdocvars, normalize($1));
+	    } elsif (/^Pa (.+)$/) {
+		my ($txt, $punct_str) = split_punct_chars($1);
+
+		$txt = make_ulink($txt) . $punct_str;
+		parabuf_addline(\%mdocvars, normalize($txt));
+	    } else {
+		# Ignore all other commands.
+		dlog(3, "Ignoring unknown command $cmd");
 	    }
-	    # Ignore all other commands
 	} else {
 	    # This is then regular text
 	    parabuf_addline(\%mdocvars, normalize($_));
@@ -425,5 +436,31 @@ sub load_archlist {
 sub is_punct_char {
     my ($str) = (@_);
 
-    return ($str =~ /[\.,:;()\[\]\?!]/);
+    return (length($str) == 1 && $str =~ /[\.,:;()\[\]\?!]/);
+}
+
+# Split out the punctuation characters of a mdoc(7) line.
+sub split_punct_chars {
+    my ($str) = (@_);
+    my (@stritems, $stritem, $punct_str);
+
+    $punct_str = "";
+    @stritems = split(/ /, $str);
+
+    while (defined($stritem = $stritems[$#stritems]) &&
+	   is_punct_char($stritem)) {
+	$punct_str = $stritem . $punct_str;
+	pop(@stritems);
+    }
+
+    return (join(' ', @stritems), $punct_str);
+}
+
+# Create a ulink, if the string contains an URL.
+sub make_ulink {
+    my ($str) = (@_);
+
+    $str =~ s,(http://[^ ]+),<ulink url="$1"></ulink>,;
+
+    return $str;
 }
