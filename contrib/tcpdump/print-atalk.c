@@ -493,7 +493,7 @@ ataddr_string(u_short atnet, u_char athost)
 {
 	register struct hnamemem *tp, *tp2;
 	register int i = (atnet << 8) | athost;
-	char nambuf[256];
+	char nambuf[MAXHOSTNAMELEN + 20];
 	static int first = 1;
 	FILE *fp;
 
@@ -538,7 +538,7 @@ ataddr_string(u_short atnet, u_char athost)
 		if (tp2->addr == i) {
 			tp->addr = (atnet << 8) | athost;
 			tp->nxt = newhnamemem();
-			(void)sprintf(nambuf, "%s.%d", tp2->name, athost);
+			(void)snprintf(nambuf, sizeof(nambuf), "%s.%d", tp2->name, athost);
 			tp->name = savestr(nambuf);
 			return (tp->name);
 		}
