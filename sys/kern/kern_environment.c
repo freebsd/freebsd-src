@@ -92,7 +92,7 @@ kenv(td, uap)
 	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
 
 	error = 0;
-	if (uap->what == KENV_DUMP) {
+	if (SCARG(uap, what) == KENV_DUMP) {
 #ifdef MAC
 		error = mac_check_kenv_dump(td->td_ucred);
 		if (error)
@@ -100,7 +100,7 @@ kenv(td, uap)
 #endif
 		len = 0;
 		/* Return the size if called with a NULL buffer */
-		if (uap->value == NULL) {
+		if (SCARG(uap, value) == NULL) {
 			sx_slock(&kenv_lock);
 			for (i = 0; kenvp[i] != NULL; i++)
 				len += strlen(kenvp[i]) + 1;
@@ -110,9 +110,9 @@ kenv(td, uap)
 		}
 		done = 0;
 		sx_slock(&kenv_lock);
-		for (i = 0; kenvp[i] != NULL && done < uap->len; i++) {
-			len = min(strlen(kenvp[i]) + 1, uap->len - done);
-			error = copyout(kenvp[i], uap->value + done,
+		for (i = 0; kenvp[i] != NULL && done < SCARG(uap, len); i++) {
+			len = min(strlen(kenvp[i]) + 1, SCARG(uap, len) - done);
+			error = copyout(kenvp[i], SCARG(uap, value) + done,
 			    len);
 			if (error) {
 				sx_sunlock(&kenv_lock);
@@ -124,8 +124,8 @@ kenv(td, uap)
 		return (0);
 	}
 
-	if ((uap->what == KENV_SET) ||
-	    (uap->what == KENV_UNSET)) {
+	if ((SCARG(uap, what) == KENV_SET) ||
+	    (SCARG(uap, what) == KENV_UNSET)) {
 		error = suser(td);
 		if (error)
 			return (error);
@@ -133,11 +133,11 @@ kenv(td, uap)
 
 	name = malloc(KENV_MNAMELEN, M_TEMP, M_WAITOK);
 
-	error = copyinstr(uap->name, name, KENV_MNAMELEN, NULL);
+	error = copyinstr(SCARG(uap, name), name, KENV_MNAMELEN, NULL);
 	if (error)
 		goto done;
 
-	switch (uap->what) {
+	switch (SCARG(uap, what)) {
 	case KENV_GET:
 #ifdef MAC
 		error = mac_check_kenv_get(td->td_ucred, name);
@@ -150,16 +150,16 @@ kenv(td, uap)
 			goto done;
 		}
 		len = strlen(value) + 1;
-		if (len > uap->len)
-			len = uap->len;
-		error = copyout(value, uap->value, len);
+		if (len > SCARG(uap, len))
+			len = SCARG(uap, len);
+		error = copyout(value, SCARG(uap, value), len);
 		freeenv(value);
 		if (error)
 			goto done;
 		td->td_retval[0] = len;
 		break;
 	case KENV_SET:
-		len = uap->len;
+		len = SCARG(uap, len);
 		if (len < 1) {
 			error = EINVAL;
 			goto done;
@@ -167,7 +167,7 @@ kenv(td, uap)
 		if (len > KENV_MVALLEN)
 			len = KENV_MVALLEN;
 		value = malloc(len, M_TEMP, M_WAITOK);
-		error = copyinstr(uap->value, value, len, NULL);
+		error = copyinstr(SCARG(uap, value), value, len, NULL);
 		if (error) {
 			free(value, M_TEMP);
 			goto done;

@@ -3020,7 +3020,7 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	struct ucred *tcred;
 	int error;
 
-	error = copyin(uap->mac_p, &mac, sizeof(mac));
+	error = copyin(SCARG(uap, mac_p), &mac, sizeof(mac));
 	if (error)
 		return (error);
 
@@ -3203,7 +3203,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	mtx_lock(&Giant);				/* VFS */
-	error = fget(td, uap->fd, &fp);
+	error = fget(td, SCARG(uap, fd), &fp);
 	if (error)
 		goto out;
 
@@ -3405,7 +3405,7 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 
 	mtx_lock(&Giant);				/* VFS */
 
-	error = fget(td, uap->fd, &fp);
+	error = fget(td, SCARG(uap, fd), &fp);
 	if (error)
 		goto out;
 
@@ -3583,7 +3583,7 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 	char target[MAC_MAX_POLICY_NAME];
 	int error;
 
-	error = copyinstr(uap->policy, target, sizeof(target), NULL);
+	error = copyinstr(SCARG(uap, policy), target, sizeof(target), NULL);
 	if (error)
 		return (error);
 
@@ -3593,7 +3593,7 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 		if (strcmp(mpc->mpc_name, target) == 0 &&
 		    mpc->mpc_ops->mpo_syscall != NULL) {
 			error = mpc->mpc_ops->mpo_syscall(td,
-			    uap->call, uap->arg);
+			    SCARG(uap, call), SCARG(uap, arg));
 			goto out;
 		}
 	}

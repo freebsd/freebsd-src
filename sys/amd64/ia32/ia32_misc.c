@@ -237,11 +237,11 @@ ia32_wait4(struct thread *td, struct ia32_wait4_args *uap)
 	struct rusage32 *rusage32, ru32;
 	struct rusage *rusage = NULL, ru;
 
-	rusage32 = uap->rusage;
+	rusage32 = SCARG(uap, rusage);
 	if (rusage32) {
 		sg = stackgap_init();
 		rusage = stackgap_alloc(&sg, sizeof(struct rusage));
-		uap->rusage = (struct rusage32 *)rusage;
+		SCARG(uap, rusage) = (struct rusage32 *)rusage;
 	}
 	error = wait4(td, (struct wait_args *)uap);
 	if (error)
@@ -304,13 +304,13 @@ ia32_getfsstat(struct thread *td, struct ia32_getfsstat_args *uap)
 	struct statfs *sp = NULL, stat;
 	int maxcount, count, i;
 
-	sp32 = uap->buf;
-	maxcount = uap->bufsize / sizeof(struct statfs32);
+	sp32 = SCARG(uap, buf);
+	maxcount = SCARG(uap, bufsize) / sizeof(struct statfs32);
 
 	if (sp32) {
 		sg = stackgap_init();
 		sp = stackgap_alloc(&sg, sizeof(struct statfs) * maxcount);
-		uap->buf = (struct statfs32 *)sp;
+		SCARG(uap, buf) = (struct statfs32 *)sp;
 	}
 	error = getfsstat(td, (struct getfsstat_args *) uap);
 	if (sp32 && !error) {
@@ -364,11 +364,11 @@ ia32_sigaltstack(struct thread *td, struct ia32_sigaltstack_args *uap)
 	struct sigaltstack32 *p32, *op32, s32;
 	struct sigaltstack *p = NULL, *op = NULL, s;
 
-	p32 = uap->ss;
+	p32 = SCARG(uap, ss);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct sigaltstack));
-		uap->ss = (struct sigaltstack32 *)p;
+		SCARG(uap, ss) = (struct sigaltstack32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -379,11 +379,11 @@ ia32_sigaltstack(struct thread *td, struct ia32_sigaltstack_args *uap)
 		if (error)
 			return (error);
 	}
-	op32 = uap->oss;
+	op32 = SCARG(uap, oss);
 	if (op32) {
 		sg = stackgap_init();
 		op = stackgap_alloc(&sg, sizeof(struct sigaltstack));
-		uap->oss = (struct sigaltstack32 *)op;
+		SCARG(uap, oss) = (struct sigaltstack32 *)op;
 	}
 	error = sigaltstack(td, (struct sigaltstack_args *) uap);
 	if (error)
@@ -411,12 +411,12 @@ ia32_execve(struct thread *td, struct ia32_execve_args *uap)
 	int count;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->fname);
-	ap.fname = uap->fname;
+	CHECKALTEXIST(td, &sg, SCARG(uap, fname));
+	SCARG(&ap, fname) = SCARG(uap, fname);
 
-	if (uap->argv) {
+	if (SCARG(uap, argv)) {
 		count = 0;
-		p32 = uap->argv;
+		p32 = SCARG(uap, argv);
 		do {
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
@@ -424,8 +424,8 @@ ia32_execve(struct thread *td, struct ia32_execve_args *uap)
 			count++;
 		} while (arg != 0);
 		p = stackgap_alloc(&sg, count * sizeof(char *));
-		ap.argv = p;
-		p32 = uap->argv;
+		SCARG(&ap, argv) = p;
+		p32 = SCARG(uap, argv);
 		do {
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
@@ -433,9 +433,9 @@ ia32_execve(struct thread *td, struct ia32_execve_args *uap)
 			*p++ = PTRIN(arg);
 		} while (arg != 0);
 	}
-	if (uap->envv) {
+	if (SCARG(uap, envv)) {
 		count = 0;
-		p32 = uap->envv;
+		p32 = SCARG(uap, envv);
 		do {
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
@@ -443,8 +443,8 @@ ia32_execve(struct thread *td, struct ia32_execve_args *uap)
 			count++;
 		} while (arg != 0);
 		p = stackgap_alloc(&sg, count * sizeof(char *));
-		ap.envv = p;
-		p32 = uap->envv;
+		SCARG(&ap, envv) = p;
+		p32 = SCARG(uap, envv);
 		do {
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
@@ -489,10 +489,10 @@ ia32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
 
 	if (fd != -1) {
 		struct pread_args r;
-		r.fd = fd;
-		r.buf = (void *) start;
-		r.nbyte = end - start;
-		r.offset = pos;
+		SCARG(&r, fd) = fd;
+		SCARG(&r, buf) = (void *) start;
+		SCARG(&r, nbyte) = end - start;
+		SCARG(&r, offset) = pos;
 		return (pread(td, &r));
 	} else {
 		while (start < end) {
@@ -507,13 +507,13 @@ int
 ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
 {
 	struct mmap_args ap;
-	vm_offset_t addr = (vm_offset_t) uap->addr;
-	vm_size_t len	 = uap->len;
-	int prot	 = uap->prot;
-	int flags	 = uap->flags;
-	int fd		 = uap->fd;
-	off_t pos	 = (uap->poslo
-			    | ((off_t)uap->poshi << 32));
+	vm_offset_t addr = (vm_offset_t) SCARG(uap, addr);
+	vm_size_t len	 = SCARG(uap, len);
+	int prot	 = SCARG(uap, prot);
+	int flags	 = SCARG(uap, flags);
+	int fd		 = SCARG(uap, fd);
+	off_t pos	 = (SCARG(uap, poslo)
+			    | ((off_t)SCARG(uap, poshi) << 32));
 	vm_size_t pageoff;
 	int error;
 
@@ -562,10 +562,10 @@ ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
 					 prot, VM_PROT_ALL, 0);
 			if (rv != KERN_SUCCESS)
 				return (EINVAL);
-			r.fd = fd;
-			r.buf = (void *) start;
-			r.nbyte = end - start;
-			r.offset = pos;
+			SCARG(&r, fd) = fd;
+			SCARG(&r, buf) = (void *) start;
+			SCARG(&r, nbyte) = end - start;
+			SCARG(&r, offset) = pos;
 			error = pread(td, &r);
 			if (error)
 				return (error);
@@ -585,12 +585,12 @@ ia32_mmap(struct thread *td, struct ia32_mmap_args *uap)
 		len = end - start;
 	}
 
-	ap.addr = (void *) addr;
-	ap.len = len;
-	ap.prot = prot;
-	ap.flags = flags;
-	ap.fd = fd;
-	ap.pos = pos;
+	SCARG(&ap, addr) = (void *) addr;
+	SCARG(&ap, len) = len;
+	SCARG(&ap, prot) = prot;
+	SCARG(&ap, flags) = flags;
+	SCARG(&ap, fd) = fd;
+	SCARG(&ap, pos) = pos;
 
 	return (mmap(td, &ap));
 }
@@ -608,11 +608,11 @@ ia32_setitimer(struct thread *td, struct ia32_setitimer_args *uap)
 	struct itimerval32 *p32, *op32, s32;
 	struct itimerval *p = NULL, *op = NULL, s;
 
-	p32 = uap->itv;
+	p32 = SCARG(uap, itv);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->itv = (struct itimerval32 *)p;
+		SCARG(uap, itv) = (struct itimerval32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -622,11 +622,11 @@ ia32_setitimer(struct thread *td, struct ia32_setitimer_args *uap)
 		if (error)
 			return (error);
 	}
-	op32 = uap->oitv;
+	op32 = SCARG(uap, oitv);
 	if (op32) {
 		sg = stackgap_init();
 		op = stackgap_alloc(&sg, sizeof(struct itimerval));
-		uap->oitv = (struct itimerval32 *)op;
+		SCARG(uap, oitv) = (struct itimerval32 *)op;
 	}
 	error = setitimer(td, (struct setitimer_args *) uap);
 	if (error)
@@ -650,11 +650,11 @@ ia32_select(struct thread *td, struct ia32_select_args *uap)
 	struct timeval32 *p32, s32;
 	struct timeval *p = NULL, s;
 
-	p32 = uap->tv;
+	p32 = SCARG(uap, tv);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->tv = (struct timeval32 *)p;
+		SCARG(uap, tv) = (struct timeval32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -678,11 +678,11 @@ ia32_gettimeofday(struct thread *td, struct ia32_gettimeofday_args *uap)
 	struct timeval32 *p32, s32;
 	struct timeval *p = NULL, s;
 
-	p32 = uap->tp;
+	p32 = SCARG(uap, tp);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->tp = (struct timeval32 *)p;
+		SCARG(uap, tp) = (struct timeval32 *)p;
 	}
 	error = gettimeofday(td, (struct gettimeofday_args *) uap);
 	if (error)
@@ -708,11 +708,11 @@ ia32_getrusage(struct thread *td, struct ia32_getrusage_args *uap)
 	struct rusage32 *p32, s32;
 	struct rusage *p = NULL, s;
 
-	p32 = uap->rusage;
+	p32 = SCARG(uap, rusage);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct rusage));
-		uap->rusage = (struct rusage32 *)p;
+		SCARG(uap, rusage) = (struct rusage32 *)p;
 	}
 	error = getrusage(td, (struct getrusage_args *) uap);
 	if (error)
@@ -763,28 +763,28 @@ ia32_readv(struct thread *td, struct ia32_readv_args *uap)
 
 	sg = stackgap_init();
 
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
+	if (SCARG(uap, iovcnt) > (STACKGAPLEN / sizeof (struct iovec)))
 		return (EINVAL);
 
-	osize = uap->iovcnt * sizeof (struct iovec32);
-	nsize = uap->iovcnt * sizeof (struct iovec);
+	osize = SCARG(uap, iovcnt) * sizeof (struct iovec32);
+	nsize = SCARG(uap, iovcnt) * sizeof (struct iovec);
 
 	oio = malloc(osize, M_TEMP, M_WAITOK);
 	nio = malloc(nsize, M_TEMP, M_WAITOK);
 
 	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
+	if ((error = copyin(SCARG(uap, iovp), oio, osize)))
 		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
+	for (i = 0; i < SCARG(uap, iovcnt); i++) {
 		nio[i].iov_base = PTRIN(oio[i].iov_base);
 		nio[i].iov_len = oio[i].iov_len;
 	}
 
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
+	SCARG(&a, fd) = SCARG(uap, fd);
+	SCARG(&a, iovp) = stackgap_alloc(&sg, nsize);
+	SCARG(&a, iovcnt) = SCARG(uap, iovcnt);
 
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
+	if ((error = copyout(nio, (caddr_t)SCARG(&a, iovp), nsize)))
 		goto punt;
 	error = readv(td, &a);
 
@@ -809,28 +809,28 @@ ia32_writev(struct thread *td, struct ia32_writev_args *uap)
 
 	sg = stackgap_init();
 
-	if (uap->iovcnt > (STACKGAPLEN / sizeof (struct iovec)))
+	if (SCARG(uap, iovcnt) > (STACKGAPLEN / sizeof (struct iovec)))
 		return (EINVAL);
 
-	osize = uap->iovcnt * sizeof (struct iovec32);
-	nsize = uap->iovcnt * sizeof (struct iovec);
+	osize = SCARG(uap, iovcnt) * sizeof (struct iovec32);
+	nsize = SCARG(uap, iovcnt) * sizeof (struct iovec);
 
 	oio = malloc(osize, M_TEMP, M_WAITOK);
 	nio = malloc(nsize, M_TEMP, M_WAITOK);
 
 	error = 0;
-	if ((error = copyin(uap->iovp, oio, osize)))
+	if ((error = copyin(SCARG(uap, iovp), oio, osize)))
 		goto punt;
-	for (i = 0; i < uap->iovcnt; i++) {
+	for (i = 0; i < SCARG(uap, iovcnt); i++) {
 		nio[i].iov_base = PTRIN(oio[i].iov_base);
 		nio[i].iov_len = oio[i].iov_len;
 	}
 
-	a.fd = uap->fd;
-	a.iovp = stackgap_alloc(&sg, nsize);
-	a.iovcnt = uap->iovcnt;
+	SCARG(&a, fd) = SCARG(uap, fd);
+	SCARG(&a, iovp) = stackgap_alloc(&sg, nsize);
+	SCARG(&a, iovcnt) = SCARG(uap, iovcnt);
 
-	if ((error = copyout(nio, (caddr_t)a.iovp, nsize)))
+	if ((error = copyout(nio, (caddr_t)SCARG(&a, iovp), nsize)))
 		goto punt;
 	error = writev(td, &a);
 
@@ -848,11 +848,11 @@ ia32_settimeofday(struct thread *td, struct ia32_settimeofday_args *uap)
 	struct timeval32 *p32, s32;
 	struct timeval *p = NULL, s;
 
-	p32 = uap->tv;
+	p32 = SCARG(uap, tv);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->tv = (struct timeval32 *)p;
+		SCARG(uap, tv) = (struct timeval32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -873,11 +873,11 @@ ia32_utimes(struct thread *td, struct ia32_utimes_args *uap)
 	struct timeval32 *p32, s32[2];
 	struct timeval *p = NULL, s[2];
 
-	p32 = uap->tptr;
+	p32 = SCARG(uap, tptr);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, 2*sizeof(struct timeval));
-		uap->tptr = (struct timeval32 *)p;
+		SCARG(uap, tptr) = (struct timeval32 *)p;
 		error = copyin(p32, s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -900,11 +900,11 @@ ia32_adjtime(struct thread *td, struct ia32_adjtime_args *uap)
 	struct timeval32 *p32, *op32, s32;
 	struct timeval *p = NULL, *op = NULL, s;
 
-	p32 = uap->delta;
+	p32 = SCARG(uap, delta);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->delta = (struct timeval32 *)p;
+		SCARG(uap, delta) = (struct timeval32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -914,11 +914,11 @@ ia32_adjtime(struct thread *td, struct ia32_adjtime_args *uap)
 		if (error)
 			return (error);
 	}
-	op32 = uap->olddelta;
+	op32 = SCARG(uap, olddelta);
 	if (op32) {
 		sg = stackgap_init();
 		op = stackgap_alloc(&sg, sizeof(struct timeval));
-		uap->olddelta = (struct timeval32 *)op;
+		SCARG(uap, olddelta) = (struct timeval32 *)op;
 	}
 	error = utimes(td, (struct utimes_args *) uap);
 	if (error)
@@ -942,11 +942,11 @@ ia32_statfs(struct thread *td, struct ia32_statfs_args *uap)
 	struct statfs32 *p32, s32;
 	struct statfs *p = NULL, s;
 
-	p32 = uap->buf;
+	p32 = SCARG(uap, buf);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct statfs));
-		uap->buf = (struct statfs32 *)p;
+		SCARG(uap, buf) = (struct statfs32 *)p;
 	}
 	error = statfs(td, (struct statfs_args *) uap);
 	if (error)
@@ -969,11 +969,11 @@ ia32_fstatfs(struct thread *td, struct ia32_fstatfs_args *uap)
 	struct statfs32 *p32, s32;
 	struct statfs *p = NULL, s;
 
-	p32 = uap->buf;
+	p32 = SCARG(uap, buf);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct statfs));
-		uap->buf = (struct statfs32 *)p;
+		SCARG(uap, buf) = (struct statfs32 *)p;
 	}
 	error = fstatfs(td, (struct fstatfs_args *) uap);
 	if (error)
@@ -1020,11 +1020,11 @@ ia32_pread(struct thread *td, struct ia32_pread_args *uap)
 {
 	struct pread_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, buf) = SCARG(uap, buf);
+	SCARG(&ap, nbyte) = SCARG(uap, nbyte);
+	SCARG(&ap, offset) = (SCARG(uap, offsetlo)
+			      | ((off_t)SCARG(uap, offsethi) << 32));
 	return (pread(td, &ap));
 }
 
@@ -1033,11 +1033,11 @@ ia32_pwrite(struct thread *td, struct ia32_pwrite_args *uap)
 {
 	struct pwrite_args ap;
 
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.nbyte = uap->nbyte;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, buf) = SCARG(uap, buf);
+	SCARG(&ap, nbyte) = SCARG(uap, nbyte);
+	SCARG(&ap, offset) = (SCARG(uap, offsetlo)
+			      | ((off_t)SCARG(uap, offsethi) << 32));
 	return (pwrite(td, &ap));
 }
 
@@ -1048,10 +1048,10 @@ ia32_lseek(struct thread *td, struct ia32_lseek_args *uap)
 	struct lseek_args ap;
 	off_t pos;
 
-	ap.fd = uap->fd;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
-	ap.whence = uap->whence;
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, offset) = (SCARG(uap, offsetlo)
+			      | ((off_t)SCARG(uap, offsethi) << 32));
+	SCARG(&ap, whence) = SCARG(uap, whence);
 	error = lseek(td, &ap);
 	/* Expand the quad return into two parts for eax and edx */
 	pos = *(off_t *)(td->td_retval);
@@ -1065,9 +1065,9 @@ ia32_truncate(struct thread *td, struct ia32_truncate_args *uap)
 {
 	struct truncate_args ap;
 
-	ap.path = uap->path;
-	ap.length = (uap->lengthlo
-			      | ((off_t)uap->lengthhi << 32));
+	SCARG(&ap, path) = SCARG(uap, path);
+	SCARG(&ap, length) = (SCARG(uap, lengthlo)
+			      | ((off_t)SCARG(uap, lengthhi) << 32));
 	return (truncate(td, &ap));
 }
 
@@ -1076,9 +1076,9 @@ ia32_ftruncate(struct thread *td, struct ia32_ftruncate_args *uap)
 {
 	struct ftruncate_args ap;
 
-	ap.fd = uap->fd;
-	ap.length = (uap->lengthlo
-			      | ((off_t)uap->lengthhi << 32));
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, length) = (SCARG(uap, lengthlo)
+			      | ((off_t)SCARG(uap, lengthhi) << 32));
 	return (ftruncate(td, &ap));
 }
 
@@ -1089,14 +1089,14 @@ freebsd4_ia32_sendfile(struct thread *td,
 {
 	struct freebsd4_sendfile_args ap;
 
-	ap.fd = uap->fd;
-	ap.s = uap->s;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
-	ap.nbytes = uap->nbytes;	/* XXX check */
-	ap.hdtr = uap->hdtr;		/* XXX check */
-	ap.sbytes = uap->sbytes;	/* XXX FIXME!! */
-	ap.flags = uap->flags;
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, s) = SCARG(uap, s);
+	SCARG(&ap, offset) = (SCARG(uap, offsetlo)
+			      | ((off_t)SCARG(uap, offsethi) << 32));
+	SCARG(&ap, nbytes) = SCARG(uap, nbytes);	/* XXX check */
+	SCARG(&ap, hdtr) = SCARG(uap, hdtr);		/* XXX check */
+	SCARG(&ap, sbytes) = SCARG(uap, sbytes);	/* XXX FIXME!! */
+	SCARG(&ap, flags) = SCARG(uap, flags);
 	return (freebsd4_sendfile(td, &ap));
 }
 #endif
@@ -1106,14 +1106,14 @@ ia32_sendfile(struct thread *td, struct ia32_sendfile_args *uap)
 {
 	struct sendfile_args ap;
 
-	ap.fd = uap->fd;
-	ap.s = uap->s;
-	ap.offset = (uap->offsetlo
-			      | ((off_t)uap->offsethi << 32));
-	ap.nbytes = uap->nbytes;	/* XXX check */
-	ap.hdtr = uap->hdtr;		/* XXX check */
-	ap.sbytes = uap->sbytes;	/* XXX FIXME!! */
-	ap.flags = uap->flags;
+	SCARG(&ap, fd) = SCARG(uap, fd);
+	SCARG(&ap, s) = SCARG(uap, s);
+	SCARG(&ap, offset) = (SCARG(uap, offsetlo)
+			      | ((off_t)SCARG(uap, offsethi) << 32));
+	SCARG(&ap, nbytes) = SCARG(uap, nbytes);	/* XXX check */
+	SCARG(&ap, hdtr) = SCARG(uap, hdtr);		/* XXX check */
+	SCARG(&ap, sbytes) = SCARG(uap, sbytes);	/* XXX FIXME!! */
+	SCARG(&ap, flags) = SCARG(uap, flags);
 	return (sendfile(td, &ap));
 }
 
@@ -1163,11 +1163,11 @@ ia32_stat(struct thread *td, struct ia32_stat_args *uap)
 	struct stat32 *p32, s32;
 	struct stat *p = NULL, s;
 
-	p32 = uap->ub;
+	p32 = SCARG(uap, ub);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct stat));
-		uap->ub = (struct stat32 *)p;
+		SCARG(uap, ub) = (struct stat32 *)p;
 	}
 	error = stat(td, (struct stat_args *) uap);
 	if (error)
@@ -1190,11 +1190,11 @@ ia32_fstat(struct thread *td, struct ia32_fstat_args *uap)
 	struct stat32 *p32, s32;
 	struct stat *p = NULL, s;
 
-	p32 = uap->ub;
+	p32 = SCARG(uap, ub);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct stat));
-		uap->ub = (struct stat32 *)p;
+		SCARG(uap, ub) = (struct stat32 *)p;
 	}
 	error = fstat(td, (struct fstat_args *) uap);
 	if (error)
@@ -1217,11 +1217,11 @@ ia32_lstat(struct thread *td, struct ia32_lstat_args *uap)
 	struct stat32 *p32, s32;
 	struct stat *p = NULL, s;
 
-	p32 = uap->ub;
+	p32 = SCARG(uap, ub);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct stat));
-		uap->ub = (struct stat32 *)p;
+		SCARG(uap, ub) = (struct stat32 *)p;
 	}
 	error = lstat(td, (struct lstat_args *) uap);
 	if (error)
@@ -1285,11 +1285,11 @@ ia32_sigaction(struct thread *td, struct ia32_sigaction_args *uap)
 	struct sigaction32 *p32, *op32, s32;
 	struct sigaction *p = NULL, *op = NULL, s;
 
-	p32 = uap->act;
+	p32 = SCARG(uap, act);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct sigaction));
-		uap->act = (struct sigaction32 *)p;
+		SCARG(uap, act) = (struct sigaction32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);
@@ -1300,11 +1300,11 @@ ia32_sigaction(struct thread *td, struct ia32_sigaction_args *uap)
 		if (error)
 			return (error);
 	}
-	op32 = uap->oact;
+	op32 = SCARG(uap, oact);
 	if (op32) {
 		sg = stackgap_init();
 		op = stackgap_alloc(&sg, sizeof(struct sigaction));
-		uap->oact = (struct sigaction32 *)op;
+		SCARG(uap, oact) = (struct sigaction32 *)op;
 	}
 	error = sigaction(td, (struct sigaction_args *) uap);
 	if (error)
@@ -1331,11 +1331,11 @@ ia32_xxx(struct thread *td, struct ia32_xxx_args *uap)
 	struct yyy32 *p32, s32;
 	struct yyy *p = NULL, s;
 
-	p32 = uap->zzz;
+	p32 = SCARG(uap, zzz);
 	if (p32) {
 		sg = stackgap_init();
 		p = stackgap_alloc(&sg, sizeof(struct yyy));
-		uap->zzz = (struct yyy32 *)p;
+		SCARG(uap, zzz) = (struct yyy32 *)p;
 		error = copyin(p32, &s32, sizeof(s32));
 		if (error)
 			return (error);

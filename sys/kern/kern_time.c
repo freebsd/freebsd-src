@@ -159,12 +159,12 @@ clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
 
-	if (uap->clock_id != CLOCK_REALTIME)
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
 	mtx_lock(&Giant);
 	nanotime(&ats);
 	mtx_unlock(&Giant);
-	return (copyout(&ats, uap->tp, sizeof(ats)));
+	return (copyout(&ats, SCARG(uap, tp), sizeof(ats)));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -192,9 +192,9 @@ clock_settime(struct thread *td, struct clock_settime_args *uap)
 #endif
 	if ((error = suser(td)) != 0)
 		return (error);
-	if (uap->clock_id != CLOCK_REALTIME)
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
-	if ((error = copyin(uap->tp, &ats, sizeof(ats))) != 0)
+	if ((error = copyin(SCARG(uap, tp), &ats, sizeof(ats))) != 0)
 		return (error);
 	if (ats.tv_nsec < 0 || ats.tv_nsec >= 1000000000)
 		return (EINVAL);
@@ -217,10 +217,10 @@ clock_getres(struct thread *td, struct clock_getres_args *uap)
 	struct timespec ts;
 	int error;
 
-	if (uap->clock_id != CLOCK_REALTIME)
+	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
 	error = 0;
-	if (uap->tp) {
+	if (SCARG(uap, tp)) {
 		ts.tv_sec = 0;
 		/*
 		 * Round up the result of the division cheaply by adding 1.
@@ -228,7 +228,7 @@ clock_getres(struct thread *td, struct clock_getres_args *uap)
 		 * would give 0.  Perfect rounding is unimportant.
 		 */
 		ts.tv_nsec = 1000000000 / tc_getfrequency() + 1;
-		error = copyout(&ts, uap->tp, sizeof(ts));
+		error = copyout(&ts, SCARG(uap, tp), sizeof(ts));
 	}
 	return (error);
 }
@@ -289,23 +289,23 @@ nanosleep(struct thread *td, struct nanosleep_args *uap)
 	struct timespec rmt, rqt;
 	int error;
 
-	error = copyin(uap->rqtp, &rqt, sizeof(rqt));
+	error = copyin(SCARG(uap, rqtp), &rqt, sizeof(rqt));
 	if (error)
 		return (error);
 
 	mtx_lock(&Giant);
-	if (uap->rmtp) {
-		if (!useracc((caddr_t)uap->rmtp, sizeof(rmt), 
+	if (SCARG(uap, rmtp)) {
+		if (!useracc((caddr_t)SCARG(uap, rmtp), sizeof(rmt), 
 		    VM_PROT_WRITE)) {
 			error = EFAULT;
 			goto done2;
 		}
 	}
 	error = nanosleep1(td, &rqt, &rmt);
-	if (error && uap->rmtp) {
+	if (error && SCARG(uap, rmtp)) {
 		int error2;
 
-		error2 = copyout(&rmt, uap->rmtp, sizeof(rmt));
+		error2 = copyout(&rmt, SCARG(uap, rmtp), sizeof(rmt));
 		if (error2)	/* XXX shouldn't happen, did useracc() above */
 			error = error2;
 	}

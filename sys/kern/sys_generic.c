@@ -951,7 +951,7 @@ poll(td, uap)
 	u_int ncoll, nfds;
 	size_t ni;
 
-	nfds = uap->nfds;
+	nfds = SCARG(uap, nfds);
 
 	mtx_lock(&Giant);
 	/*
@@ -971,12 +971,12 @@ poll(td, uap)
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
-	error = copyin(uap->fds, bits, ni);
+	error = copyin(SCARG(uap, fds), bits, ni);
 	if (error)
 		goto done_nosellock;
-	if (uap->timeout != INFTIM) {
-		atv.tv_sec = uap->timeout / 1000;
-		atv.tv_usec = (uap->timeout % 1000) * 1000;
+	if (SCARG(uap, timeout) != INFTIM) {
+		atv.tv_sec = SCARG(uap, timeout) / 1000;
+		atv.tv_usec = (SCARG(uap, timeout) % 1000) * 1000;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
 			goto done_nosellock;
@@ -1044,7 +1044,7 @@ done_nosellock:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = copyout(bits, uap->fds, ni);
+		error = copyout(bits, SCARG(uap, fds), ni);
 		if (error)
 			goto out;
 	}
