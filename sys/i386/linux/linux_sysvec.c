@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.40 1998/12/16 16:28:57 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.41 1998/12/19 02:55:33 julian Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -232,12 +232,12 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	      grow_stack (p, (int)fp) == FALSE)) ||
 #else
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-#endif
+#endif /* USE_VM_STACK_FOR_EXEC */
 #else
-#endif /* COMPAT_LINUX_THREADS */
 	if ((grow(p, (int)fp) == FALSE) ||
-#ifdef COMPAT_LINUX_THREADS
-#endif
+#endif /* USE_VM_STACK */
+#else
+	if ((grow(p, (int)fp) == FALSE) ||
 #endif /* COMPAT_LINUX_THREADS */
 	    (useracc((caddr_t)fp, sizeof (struct linux_sigframe), B_WRITE) == FALSE)) {
 		/*
