@@ -474,7 +474,7 @@ readrest:
 					if (mt->dirty == 0)
 						vm_page_test_dirty(mt);
 					if (mt->dirty) {
-						vm_page_protect(mt, VM_PROT_NONE);
+						pmap_page_protect(mt, VM_PROT_NONE);
 						vm_page_deactivate(mt);
 					} else {
 						vm_page_cache(mt);
@@ -700,7 +700,7 @@ readrest:
 				 * get rid of the unnecessary page
 				 */
 				vm_page_lock_queues();
-				vm_page_protect(fs.first_m, VM_PROT_NONE);
+				pmap_page_protect(fs.first_m, VM_PROT_NONE);
 				vm_page_free(fs.first_m);
 				vm_page_unlock_queues();
 				fs.first_m = NULL;

@@ -771,7 +771,7 @@ exec_map_first_page(imgp)
 		    (ma[0]->valid == 0)) {
 			if (ma[0]) {
 				vm_page_lock_queues();
-				vm_page_protect(ma[0], VM_PROT_NONE);
+				pmap_page_protect(ma[0], VM_PROT_NONE);
 				vm_page_free(ma[0]);
 				vm_page_unlock_queues();
 			}
