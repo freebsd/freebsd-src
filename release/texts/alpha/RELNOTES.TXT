@@ -143,11 +143,6 @@ Replace the PQ_*CACHE options with a single PQ_CACHESIZE option to be
 set to the cache size in kilobytes.  The old options are still
 supported for backwards compatibility. [MERGED]
 
-The NCPU, NAPIC, NBUS, and NINTR kernel configuration options,
-for configuring SMP kernels, have been removed.  NCPU is now set to a 
-maximum of 16, and the other, aforementioned options are now dynamic.
-[MERGED]
-
 The ahc(4) driver has been updated.  [MERGED]
 
 ACPI support has been merged in from the FreeBSD-ACPI project.
