@@ -1085,7 +1085,13 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 		mc->mc_flags |= _MC_FLAGS_ASYNC_CONTEXT;
 		mc->mc_scratch = tf->tf_scratch;
 		mc->mc_scratch_fp = tf->tf_scratch_fp;
-		/* XXX High FP */
+		/*
+		 * XXX If the thread never used the high FP registers, we
+		 * probably shouldn't waste time saving them.
+		 */
+		ia64_highfp_save(td);
+		mc->mc_flags |= _MC_FLAGS_HIGHFP_VALID;
+		mc->mc_high_fp = td->td_pcb->pcb_high_fp;
 	}
 	save_callee_saved(&mc->mc_preserved);
 	save_callee_saved_fp(&mc->mc_preserved_fp);
@@ -1126,7 +1132,8 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 			KASSERT(tf->tf_scratch.gr15 == SYS_sigreturn, ("foo"));
 		tf->tf_scratch = mc->mc_scratch;
 		tf->tf_scratch_fp = mc->mc_scratch_fp;
-		/* XXX High FP */
+		if (mc->mc_flags & _MC_FLAGS_HIGHFP_VALID)
+			td->td_pcb->pcb_high_fp = mc->mc_high_fp;
 	} else {
 		KASSERT((tf->tf_flags & FRAME_SYSCALL) != 0, ("foo"));
 		if ((mc->mc_flags & _MC_FLAGS_SCRATCH_VALID) == 0) {
