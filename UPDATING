@@ -3,9 +3,20 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 to him.  See end of file for further details.
 
+19990316:
+	The name of the old wd.c and atapi.c based CDROM driver has
+	been changed back to wcd. So update your config file to use
+	"device wcd" instead of "device acd".
+
+19990314:
+	For those of you using the VN device as a loadable module,
+	please be aware that the new VN device has been committed to
+	-4.x and cannot yet be used as a loadable module.  This will
+	be fixed in the future.
+	
 19990309:
-	New loader.rc mechanism.  Please see updated man pages for
-	details.  If you do nothing, nothing will change.
+	New loader.rc mechanism.  Please see src/sys/boot/README for
+	details.
 
 19990225:
 	struct proc size changed.  Recompile kernel and the
@@ -145,4 +156,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.21 1999/02/27 03:14:22 imp Exp $
+$Id: UPDATING,v 1.22 1999/03/10 06:21:28 imp Exp $
