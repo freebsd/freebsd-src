@@ -2028,7 +2028,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 
 	pa = VM_PAGE_TO_PHYS(m) & PG_FRAME;
-	origpte = *(vm_offset_t *)pte;
+	origpte = *pte;
 	opa = origpte & PG_FRAME;
 
 	if (origpte & PG_PS)
@@ -2120,7 +2120,7 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	newpte = (vm_offset_t) (pa | pte_prot(pmap, prot) | PG_V);
+	newpte = (pt_entry_t)(pa | pte_prot(pmap, prot) | PG_V);
 
 	if (wired)
 		newpte |= PG_W;
