@@ -1210,24 +1210,14 @@ brelse(struct buf * bp)
 
 	/* remaining buffers */
 	} else {
-		switch(bp->b_flags & (B_DELWRI|B_AGE)) {
-		case B_DELWRI | B_AGE:
-		    bp->b_qindex = QUEUE_DIRTY;
-		    TAILQ_INSERT_HEAD(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
-		    break;
-		case B_DELWRI:
-		    bp->b_qindex = QUEUE_DIRTY;
-		    TAILQ_INSERT_TAIL(&bufqueues[QUEUE_DIRTY], bp, b_freelist);
-		    break;
-		case B_AGE:
-		    bp->b_qindex = QUEUE_CLEAN;
-		    TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
-		    break;
-		default:
-		    bp->b_qindex = QUEUE_CLEAN;
-		    TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
-		    break;
-		}
+		if (bp->b_flags & B_DELWRI)
+			bp->b_qindex = QUEUE_DIRTY;
+		else
+			bp->b_qindex = QUEUE_CLEAN;
+		if (bp->b_flags & B_AGE)
+			TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
+		else
+			TAILQ_INSERT_TAIL(&bufqueues[bp->b_qindex], bp, b_freelist);
 	}
 
 	/*
