@@ -849,7 +849,7 @@ installFixupXFree(dialogMenuItem *self)
 int
 installFilesystems(dialogMenuItem *self)
 {
-    int i;
+    int i, mountfailed;
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev;
     Device **devs;
@@ -924,7 +924,7 @@ installFilesystems(dialogMenuItem *self)
 	    }
 	    dialog_clear_norefresh();
 	    msgNotify("Checking integrity of existing %s filesystem.", dname);
-	    i = vsystem("fsck -y %s", dname);
+	    i = vsystem("fsck_ffs -y %s", dname);
 	    if (i)
 		msgConfirm("Warning: fsck returned status of %d for %s.\n"
 			   "This partition may be unsafe to use.", i, dname);
@@ -941,6 +941,21 @@ installFilesystems(dialogMenuItem *self)
 	    msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
+
+	/* Mount devfs for other partitions to mount */
+	Mkdir("/mnt/dev");
+	if (!Fake)
+	    mountfailed = mount("devfs", "/mnt/dev", 0, NULL);
+
+	if (mountfailed) {
+	    dialog_clear_norefresh();
+	    msgNotify("Copying initial device files..");
+	    /* Copy the boot floppy's dev files */
+	    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
+		msgConfirm("Couldn't clone the /dev files!");
+		return DITEM_FAILURE | DITEM_RESTORE;
+	    }
+	}
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -954,13 +969,15 @@ installFilesystems(dialogMenuItem *self)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	if (RunningAsInit && root && (root->newfs || upgrade)) {
-	    Mkdir("/mnt/dev");
-	    if (!Fake)
-		MakeDevDisk(disk, "/mnt/dev");
+	if (mountfailed) {
+	    if (RunningAsInit && root && (root->newfs || upgrade)) {
+		Mkdir("/mnt/dev");
+		if (!Fake)
+		    MakeDevDisk(disk, "/mnt/dev");
+	    }
+	    else if (!RunningAsInit && !Fake)
+		MakeDevDisk(disk, "/dev");
 	}
-	else if (!RunningAsInit && !Fake)
-	    MakeDevDisk(disk, "/dev");
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
@@ -975,7 +992,7 @@ installFilesystems(dialogMenuItem *self)
 			if (tmp->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
-			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
+			    command_shell_add(tmp->mountpoint, "fsck_ffs -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			if (tmp->soft)
 			    command_shell_add(tmp->mountpoint, "tunefs -n enable %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
@@ -1007,18 +1024,10 @@ installFilesystems(dialogMenuItem *self)
 	}
     }
 
-    if (RunningAsInit) {
-	dialog_clear_norefresh();
-	msgNotify("Copying initial device files..");
-	/* Copy the boot floppy's dev files */
-	if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
-	    msgConfirm("Couldn't clone the /dev files!");
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-    }
-
     command_sort();
     command_execute();
+    if (!mountfailed && !Fake)
+	unmount("/mnt/dev", MNT_FORCE);
     dialog_clear_norefresh();
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
