@@ -37,7 +37,7 @@ extern int errno;
 
 int
 mkdir (dpath, dmode)
-     char *dpath;
+     const char *dpath;
      int dmode;
 {
   int cpid, status;

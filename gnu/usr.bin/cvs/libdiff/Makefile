@@ -9,7 +9,9 @@ MAINTAINER=	peter@FreeBSD.org
 LIB=		diff
 INTERNALLIB=	YES
 
-CFLAGS+= -I../lib -I${CVSDIR}/lib -DHAVE_CONFIG_H
+# gnu must be before lib to pick correct regex.h
+CFLAGS+= -I../lib -I${DESTDIR}/usr/include/gnu \
+	 -I${CVSDIR}/lib -DHAVE_CONFIG_H
 
 SRCS =	diff.c diff3.c analyze.c cmpbuf.c cmpbuf.h io.c context.c ed.c \
         normal.c ifdef.c util.c dir.c version.c diff.h side.c

@@ -104,6 +104,25 @@ Filenames for .c and .h files may contain _ but should not contain -
 (the latter causes Visual C++ 2.1 to create makefiles which Visual C++
 4.0 cannot use).
 
+* Regenerating Build Files
+
+On UNIX, if you wish to change the Build files, you will need Autoconf and
+Automake.
+
+Some combinations of Automake and Autoconf versions may break the
+CVS build if file timestamps aren't set correctly and people don't
+have the same versions the developers do, so the rules to run them
+automatically aren't included in the generated Makefiles unless you run
+configure with the --enable-maintainer-mode option.
+
+The CVS Makefiles and configure script were built using Automake 1.7.9 and
+Autoconf 2.58, respectively.
+
+There is a known bug in Autoconf 2.57 that will prevent the configure
+scripts it generates from working on some platforms.  Other combinations of
+autotool versions may or may not work.  If you get other versions to work,
+please send a report to <bug-cvs@gnu.org>.
+
 * Writing patches (strategy)
 
 Only some kinds of changes are suitable for inclusion in the

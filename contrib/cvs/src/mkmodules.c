@@ -9,8 +9,9 @@
  */
 
 #include "cvs.h"
-#include "savecwd.h"
 #include "getline.h"
+#include "history.h"
+#include "savecwd.h"
 
 #ifndef DBLKSIZ
 #define	DBLKSIZ	4096			/* since GNU ndbm doesn't define it */
@@ -200,7 +201,7 @@ static const char *const checkoutlist_contents[] = {
     "#\n",
     "# File format:\n",
     "#\n",
-    "#	[<whitespace>]<filename><whitespace><error message><end-of-line>\n",
+    "#	[<whitespace>]<filename>[<whitespace><error message>]<end-of-line>\n",
     "#\n",
     "# comment lines begin with '#'\n",
     NULL
@@ -299,9 +300,9 @@ static const char *const config_contents[] = {
     "# command.\n",
     "#TopLevelAdmin=no\n",
     "\n",
-    "# Set `LogHistory' to `all' or `TOFEWGCMAR' to log all transactions to the\n",
+    "# Set `LogHistory' to `all' or `" ALL_HISTORY_REC_TYPES "' to log all transactions to the\n",
     "# history file, or a subset as needed (ie `TMAR' logs all write operations)\n",
-    "#LogHistory=TOFEWGCMAR\n",
+    "#LogHistory=" ALL_HISTORY_REC_TYPES "\n",
     "\n",
     "# Set `RereadLogAfterVerify' to `always' (the default) to allow the verifymsg\n",
     "# script to change the log message.  Set it to `stat' to force CVS to verify",
@@ -463,7 +464,7 @@ mkmodules (dir)
     {
 	/*
 	 * File format:
-	 *  [<whitespace>]<filename><whitespace><error message><end-of-line>
+	 *  [<whitespace>]<filename>[<whitespace><error message>]<end-of-line>
 	 *
 	 * comment lines begin with '#'
 	 */
@@ -494,12 +495,13 @@ mkmodules (dir)
 	    }
 	    else
 	    {
+		/* Skip leading white space before the error message.  */
 		for (cp++;
-		     cp < last && *last && isspace ((unsigned char) *last);
+		     cp < last && *cp && isspace ((unsigned char) *cp);
 		     cp++)
 		    ;
 		if (cp < last && *cp)
-		    error (0, 0, cp, fname);
+		    error (0, 0, "%s", cp);
 	    }
 	    if (unlink_file (temp) < 0
 		&& !existence_error (errno))
@@ -851,7 +853,7 @@ init (argc, argv)
     /* Name of ,v file for this administrative file.  */
     char *info_v;
     /* Exit status.  */
-    int err;
+    int err = 0;
 
     const struct admin_file *fileptr;
 
@@ -983,5 +985,5 @@ init (argc, argv)
     mkmodules (adm);
 
     free (adm);
-    return 0;
+    return err;
 }

@@ -61,9 +61,19 @@ GNU General Public License for more details.
 #if !defined(S_ISFIFO) && defined(S_IFFIFO)
 #define S_ISFIFO(mode) (((mode) & S_IFMT) == S_IFFIFO)
 #endif
-#if !defined(S_ISSOCK) && defined(S_IFSOCK)
-#define S_ISSOCK(mode) (((mode) & S_IFMT) == S_IFSOCK)
-#endif
+
+#ifndef S_ISSOCK
+# if defined( S_IFSOCK )
+#   ifdef S_IFMT
+#     define S_ISSOCK(mode) (((mode) & S_IFMT) == S_IFSOCK)
+#   else
+#     define S_ISSOCK(mode) ((mode) & S_IFSOCK)
+#   endif /* S_IFMT */
+# elif defined( S_ISNAM )
+    /* SCO OpenServer 5.0.6a */
+#   define S_ISSOCK S_ISNAM
+# endif /* !S_IFSOCK && S_ISNAM */
+#endif /* !S_ISSOCK */
 
 #if HAVE_UNISTD_H
 #include <unistd.h>

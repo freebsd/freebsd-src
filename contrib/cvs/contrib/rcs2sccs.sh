@@ -42,13 +42,17 @@ cp $tmpfile $sedfile
 ############################################################
 # Loop over every RCS file in RCS dir
 #
+if sort -k 1,1 /dev/null 2>/dev/null
+then sort_each_field='-k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9'
+else sort_each_field='+0 +1 +2 +3 +4 +5 +6 +7 +8'
+fi
 for vfile in *,v; do
     # get rid of the ",v" at the end of the name
     file=`echo $vfile | sed -e 's/,v$//'`
 
     # work on each rev of that file in ascending order
     firsttime=1
-    rlog $file | grep "^revision [0-9][0-9]*\." | awk '{print $2}' | sed -e 's/\./ /g' | sort -n -u +0 +1 +2 +3 +4 +5 +6 +7 +8 | sed -e 's/ /./g' > $revfile
+    rlog $file | grep "^revision [0-9][0-9]*\." | awk '{print $2}' | sed -e 's/\./ /g' | sort -n -u $sort_each_field | sed -e 's/ /./g' > $revfile
     for rev in `cat $revfile`; do
         if [ $? != 0 ]; then
 		echo ERROR - revision

@@ -1,6 +1,8 @@
 ## Process this file with automake to produce Makefile.in
 # Makefile for GNU CVS program.
-# Copyright (C) 1986, 1988-1990, 2000 Free Software Foundation, Inc.
+# Copyright (C) 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994,
+#               1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+#               Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,6 +73,7 @@ cvs_SOURCES = \
 	run.c \
 	scramble.c \
 	server.c \
+	stack.c \
 	status.c \
 	subr.c \
 	tag.c \
@@ -88,10 +91,12 @@ cvs_SOURCES = \
 	fileattr.h \
 	hardlink.h \
 	hash.h \
+	history.h \
 	myndbm.h \
 	rcs.h \
 	root.h \
 	server.h \
+	stack.h \
 	update.h \
 	watch.h
 
@@ -118,11 +123,11 @@ check-local: localcheck remotecheck
 
 .PHONY: localcheck
 localcheck:
-	$(SHELL) $(srcdir)/sanity.sh `pwd`/cvs
+	$(SHELL) $(srcdir)/sanity.sh `pwd`/cvs$(EXEEXT)
 
 .PHONY: remotecheck
 remotecheck: all
-	$(SHELL) $(srcdir)/sanity.sh -r `pwd`/cvs
+	$(SHELL) $(srcdir)/sanity.sh -r `pwd`/cvs$(EXEEXT)
 
 ## MAINTAINER Targets
 

@@ -24,11 +24,11 @@
 int
 Create_Admin (dir, update_dir, repository, tag, date, nonbranch, warn,
 	      dotemplate)
-    char *dir;
-    char *update_dir;
-    char *repository;
-    char *tag;
-    char *date;
+    const char *dir;
+    const char *update_dir;
+    const char *repository;
+    const char *tag;
+    const char *date;
     int nonbranch;
     int warn;
     int dotemplate;

@@ -15,9 +15,9 @@
 #endif
 #include <assert.h>
 
-static Dtype admin_dirproc PROTO ((void *callerdat, char *dir,
-				   char *repos, char *update_dir,
-				   List *entries));
+static Dtype admin_dirproc PROTO ((void *callerdat, const char *dir,
+                                   const char *repos, const char *update_dir,
+                                   List *entries));
 static int admin_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 
 static const char *const admin_usage[] =
@@ -367,7 +367,7 @@ admin (argc, argv)
 		/* getopt will have printed an error message.  */
 
 	    usage_error:
-		/* Don't use command_name; it might be "server".  */
+		/* Don't use cvs_cmd_name; it might be "server".  */
 	        error (1, 0, "specify %s -H admin for usage information",
 		       program_name);
 	}
@@ -520,7 +520,8 @@ admin (argc, argv)
     err = start_recursion (admin_fileproc, (FILESDONEPROC) NULL, admin_dirproc,
 			   (DIRLEAVEPROC) NULL, (void *)&admin_data,
 			   argc, argv, 0,
-			   W_LOCAL, 0, CVS_LOCK_NONE, (char *) NULL, 1);
+			   W_LOCAL, 0, CVS_LOCK_NONE, (char *) NULL, 1,
+			   (char *) NULL);
     Lock_Cleanup ();
 
  return_it:
@@ -564,14 +565,21 @@ admin_fileproc (callerdat, finfo)
     if (version != NULL && strcmp (version, "0") == 0)
     {
 	error (0, 0, "cannot admin newly added file `%s'", finfo->file);
+	status = 1;
 	goto exitfunc;
     }
 
     rcs = vers->srcfile;
+    if (rcs == NULL)
+    {
+	if (!really_quiet)
+	    error (0, 0, "nothing known about %s", finfo->file);
+	status = 1;
+	goto exitfunc;
+    }
+
     if (rcs->flags & PARTIAL)
 	RCS_reparsercsfile (rcs, (FILE **) NULL, (struct rcsbuffer *) NULL);
-
-    status = 0;
 
     if (!really_quiet)
     {
@@ -776,7 +784,7 @@ admin_fileproc (callerdat, finfo)
 			error (0, 0,
 			       "%s: symbolic name %s already bound to %s",
 			       rcs->path,
-			       tag, n->data);
+			       tag, (char *)n->data);
 			status = 1;
 			free (tag);
 			continue;
@@ -835,7 +843,7 @@ admin_fileproc (callerdat, finfo)
 		    continue;
 		}
 		free (rev);
-		delta = (RCSVers *) n->data;
+		delta = n->data;
 		free (delta->state);
 		delta->state = tag;
 		break;
@@ -849,20 +857,32 @@ admin_fileproc (callerdat, finfo)
 		    status = 1;
 		    continue;
 		}
-		*p = '\0';
-		rev = RCS_gettag (rcs, arg + 2, 0, NULL);
+		*p = '\0';	/* temporarily make arg+2 its own string */
+		rev = RCS_gettag (rcs, arg + 2, 1, NULL); /* Force tag match */
 		if (rev == NULL)
 		{
-		    error (0, 0, "%s: no such revision %s", rcs->path, rev);
+		    error (0, 0, "%s: no such revision %s", rcs->path, arg+2);
 		    status = 1;
+		    *p = ':';	/* restore the full text of the -m argument */
 		    continue;
 		}
-		*p++ = ':';
-		msg = p;
+		msg = p+1;
 
 		n = findnode (rcs->versions, rev);
+		/* tags may exist against non-existing versions */
+		if (n == NULL)
+		{
+		     error (0, 0, "%s: no such revision %s: %s",
+			    rcs->path, arg+2, rev);
+		    status = 1;
+		    *p = ':';	/* restore the full text of the -m argument */
+		    free (rev);
+		    continue;
+		}
+		*p = ':';	/* restore the full text of the -m argument */
 		free (rev);
-		delta = (RCSVers *) n->data;
+
+		delta = n->data;
 		if (delta->text == NULL)
 		{
 		    delta->text = (Deltatext *) xmalloc (sizeof (Deltatext));
@@ -911,9 +931,9 @@ admin_fileproc (callerdat, finfo)
 static Dtype
 admin_dirproc (callerdat, dir, repos, update_dir, entries)
     void *callerdat;
-    char *dir;
-    char *repos;
-    char *update_dir;
+    const char *dir;
+    const char *repos;
+    const char *update_dir;
     List *entries;
 {
     if (!quiet)

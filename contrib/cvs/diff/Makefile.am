@@ -21,4 +21,5 @@ libdiff_a_SOURCES = diff.c diff3.c analyze.c cmpbuf.c cmpbuf.h io.c \
         context.c ed.c normal.c ifdef.c util.c dir.c version.c diff.h \
         side.c system.h diffrun.h
 
-EXTRA_DIST = ChangeLog build_diff.com diagmeet.note libdiff.dsp
+EXTRA_DIST = ChangeLog build_diff.com diagmeet.note \
+	libdiff.dep libdiff.dsp libdiff.mak

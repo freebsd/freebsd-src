@@ -36,14 +36,17 @@ onoff_fileproc (callerdat, finfo)
     return 0;
 }
 
-static int onoff_filesdoneproc PROTO ((void *, int, char *, char *, List *));
+
+
+static int onoff_filesdoneproc PROTO ((void *, int, const char *, const char *,
+                                       List *));
 
 static int
 onoff_filesdoneproc (callerdat, err, repository, update_dir, entries)
     void *callerdat;
     int err;
-    char *repository;
-    char *update_dir;
+    const char *repository;
+    const char *update_dir;
     List *entries;
 {
     if (setting_default)
@@ -104,7 +107,7 @@ watch_onoff (argc, argv)
     err = start_recursion (onoff_fileproc, onoff_filesdoneproc,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc, argv, local, W_LOCAL, 0, CVS_LOCK_NONE,
-			   (char *)NULL, 0);
+			   (char *) NULL, 0, (char *) NULL);
 
     Lock_Cleanup ();
     return err;
@@ -238,7 +241,7 @@ send_notifications (argc, argv, local)
        notifications stay in CVSADM_NOTIFY to be sent next time.  */
     if (current_parsed_root->isremote)
     {
-	if (strcmp (command_name, "release") != 0)
+	if (strcmp (cvs_cmd_name, "release") != 0)
 	{
 	    start_server ();
 	    ign_setup ();
@@ -247,10 +250,10 @@ send_notifications (argc, argv, local)
 	err += start_recursion (dummy_fileproc, (FILESDONEPROC) NULL,
 				(DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 				argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
-				0);
+				0, (char *) NULL);
 
 	send_to_server ("noop\012", 0);
-	if (strcmp (command_name, "release") == 0)
+	if (strcmp (cvs_cmd_name, "release") == 0)
 	    err += get_server_responses ();
 	else
 	    err += get_responses_and_close ();
@@ -264,7 +267,7 @@ send_notifications (argc, argv, local)
 	err += start_recursion (ncheck_fileproc, (FILESDONEPROC) NULL,
 				(DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 				argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
-				0);
+				0, (char *) NULL);
 	Lock_Cleanup ();
     }
     return err;
@@ -443,8 +446,8 @@ edit (argc, argv)
        repository.  */
     err = start_recursion (edit_fileproc, (FILESDONEPROC) NULL,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			   argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
-			   0);
+			   argc, argv, local, W_LOCAL, 0, 0, (char *) NULL,
+			   0, (char *) NULL);
 
     err += send_notifications (argc, argv, local);
 
@@ -534,7 +537,7 @@ unedit_fileproc (callerdat, finfo)
 	   now.  */
 	if (node != NULL)
 	{
-	    entdata = (Entnode *) node->data;
+	    entdata = node->data;
 	    if (baserev == NULL)
 	    {
 		/* This can only happen if the CVS/Baserev file got
@@ -613,7 +616,7 @@ unedit (argc, argv)
     err = start_recursion (unedit_fileproc, (FILESDONEPROC) NULL,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc, argv, local, W_LOCAL, 0, 0, (char *)NULL,
-			   0);
+			   0,  (char *) NULL);
 
     err += send_notifications (argc, argv, local);
 
@@ -622,7 +625,7 @@ unedit (argc, argv)
 
 void
 mark_up_to_date (file)
-    char *file;
+    const char *file;
 {
     char *base;
 
@@ -637,12 +640,13 @@ mark_up_to_date (file)
     free (base);
 }
 
-
+
+
 void
 editor_set (filename, editor, val)
-    char *filename;
-    char *editor;
-    char *val;
+    const char *filename;
+    const char *editor;
+    const char *val;
 {
     char *edlist;
     char *newlist;
@@ -663,32 +667,36 @@ editor_set (filename, editor, val)
 
 struct notify_proc_args {
     /* What kind of notification, "edit", "tedit", etc.  */
-    char *type;
+    const char *type;
     /* User who is running the command which causes notification.  */
-    char *who;
+    const char *who;
     /* User to be notified.  */
-    char *notifyee;
+    const char *notifyee;
     /* File.  */
-    char *file;
+    const char *file;
 };
+
+
 
 /* Pass as a static until we get around to fixing Parse_Info to pass along
    a void * where we can stash it.  */
 static struct notify_proc_args *notify_args;
 
-static int notify_proc PROTO ((char *repository, char *filter));
+
+
+static int notify_proc PROTO ((const char *repository, const char *filter));
 
 static int
 notify_proc (repository, filter)
-    char *repository;
-    char *filter;
+    const char *repository;
+    const char *filter;
 {
     FILE *pipefp;
     char *prog;
     char *expanded_prog;
-    char *p;
+    const char *p;
     char *q;
-    char *srepos;
+    const char *srepos;
     struct notify_proc_args *args = notify_args;
 
     srepos = Short_Repository (repository);
@@ -751,11 +759,11 @@ notify_proc (repository, filter)
 void
 notify_do (type, filename, who, val, watches, repository)
     int type;
-    char *filename;
-    char *who;
-    char *val;
-    char *watches;
-    char *repository;
+    const char *filename;
+    const char *who;
+    const char *val;
+    const char *watches;
+    const char *repository;
 {
     static struct addremove_args blank;
     struct addremove_args args;
@@ -919,9 +927,11 @@ notify_do (type, filename, who, val, watches, repository)
 
 	    if (args.notifyee == NULL)
 	    {
-		args.notifyee = xmalloc (endp - p + 1);
-		strncpy (args.notifyee, p, endp - p);
-		args.notifyee[endp - p] = '\0';
+		char *tmp;
+		tmp = xmalloc (endp - p + 1);
+		strncpy (tmp, p, endp - p);
+		tmp[endp - p] = '\0';
+		args.notifyee = tmp;
 	    }
 
 	    notify_args = &args;
@@ -930,7 +940,12 @@ notify_do (type, filename, who, val, watches, repository)
 	    args.file = filename;
 
 	    (void) Parse_Info (CVSROOTADM_NOTIFY, repository, notify_proc, 1);
-	    free (args.notifyee);
+
+            /* It's okay to cast out the const for the free() below since we
+             * just allocated this a few lines above.  The const was for
+             * everybody else.
+             */
+            free ((char *)args.notifyee);
 	}
 
 	p = nextp;
@@ -969,8 +984,8 @@ notify_do (type, filename, who, val, watches, repository)
 /* Check and send notifications.  This is only for the client.  */
 void
 notify_check (repository, update_dir)
-    char *repository;
-    char *update_dir;
+    const char *repository;
+    const char *update_dir;
 {
     FILE *fp;
     char *line = NULL;
@@ -1136,6 +1151,6 @@ editors (argc, argv)
 
     return start_recursion (editors_fileproc, (FILESDONEPROC) NULL,
 			    (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-			    argc, argv, local, W_LOCAL, 0, 1, (char *)NULL,
-			    0);
+			    argc, argv, local, W_LOCAL, 0, 1, (char *) NULL,
+			    0,  (char *) NULL);
 }

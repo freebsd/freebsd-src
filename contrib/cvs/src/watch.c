@@ -17,13 +17,14 @@
 
 const char *const watch_usage[] =
 {
-    "Usage: %s %s [on|off|add|remove] [-lR] [-a action] [files...]\n",
+    "Usage: %s %s {on|off|add|remove} [-lR] [-a <action>]... [<path>]...\n",
     "on/off: turn on/off read-only checkouts of files\n",
     "add/remove: add or remove notification on actions\n",
     "-l (on/off/add/remove): Local directory only, not recursive\n",
-    "-R (on/off/add/remove): Process directories recursively\n",
+    "-R (on/off/add/remove): Process directories recursively (default)\n",
     "-a (add/remove): Specify what actions, one of\n",
-    "    edit,unedit,commit,all,none\n",
+    "    edit,unedit,commit,all,none (defaults to all, multiple -a\n",
+    "    options are permitted)\n",
     "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
@@ -32,7 +33,7 @@ static struct addremove_args the_args;
 
 void
 watch_modify_watchers (file, what)
-    char *file;
+    const char *file;
     struct addremove_args *what;
 {
     char *curattr = fileattr_get0 (file, "_watchers");
@@ -225,15 +226,17 @@ addremove_fileproc (callerdat, finfo)
     return 0;
 }
 
-static int addremove_filesdoneproc PROTO ((void *, int, char *, char *,
-					   List *));
+
+
+static int addremove_filesdoneproc PROTO ((void *, int, const char *,
+                                           const char *, List *));
 
 static int
 addremove_filesdoneproc (callerdat, err, repository, update_dir, entries)
     void *callerdat;
     int err;
-    char *repository;
-    char *update_dir;
+    const char *repository;
+    const char *update_dir;
     List *entries;
 {
     if (the_args.setting_default)
@@ -342,7 +345,7 @@ watch_addremove (argc, argv)
     err = start_recursion (addremove_fileproc, addremove_filesdoneproc,
 			   (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc, argv, local, W_LOCAL, 0, CVS_LOCK_NONE,
-			   (char *)NULL, 1);
+			   (char *) NULL, 1, (char *) NULL);
 
     Lock_Cleanup ();
     return err;
@@ -516,5 +519,5 @@ watchers (argc, argv)
     return start_recursion (watchers_fileproc, (FILESDONEPROC) NULL,
 			    (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			    argc, argv, local, W_LOCAL, 0, CVS_LOCK_READ,
-			    (char *)NULL, 1);
+			    (char *) NULL, 1, (char *) NULL);
 }

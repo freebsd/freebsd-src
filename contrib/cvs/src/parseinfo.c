@@ -4,6 +4,8 @@
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -14,15 +16,16 @@ extern char *logHistory;
 
 /*
  * Parse the INFOFILE file for the specified REPOSITORY.  Invoke CALLPROC for
- * the first line in the file that matches the REPOSITORY, or if ALL != 0, any lines
- * matching "ALL", or if no lines match, the last line matching "DEFAULT".
+ * the first line in the file that matches the REPOSITORY, or if ALL != 0, any
+ * lines matching "ALL", or if no lines match, the last line matching
+ * "DEFAULT".
  *
  * Return 0 for success, -1 if there was not an INFOFILE, and >0 for failure.
  */
 int
 Parse_Info (infofile, repository, callproc, all)
-    char *infofile;
-    char *repository;
+    const char *infofile;
+    const char *repository;
     CALLPROC callproc;
     int all;
 {
@@ -32,9 +35,11 @@ Parse_Info (infofile, repository, callproc, all)
     char *line = NULL;
     size_t line_allocated = 0;
     char *default_value = NULL;
-    char *expanded_value= NULL;
+    int default_line = 0;
+    char *expanded_value;
     int callback_done, line_number;
-    char *cp, *exp, *value, *srepos, bad;
+    char *cp, *exp, *value;
+    const char *srepos;
     const char *regex_err;
 
     if (current_parsed_root == NULL)
@@ -114,10 +119,6 @@ Parse_Info (infofile, repository, callproc, all)
 	if ((cp = strrchr (value, '\n')) != NULL)
 	    *cp = '\0';
 
-	if (expanded_value != NULL)
-	    free (expanded_value);
-	expanded_value = expand_path (value, infofile, line_number);
-
 	/*
 	 * At this point, exp points to the regular expression, and value
 	 * points to the value to call the callback routine with.  Evaluate
@@ -128,12 +129,14 @@ Parse_Info (infofile, repository, callproc, all)
 	/* save the default value so we have it later if we need it */
 	if (strcmp (exp, "DEFAULT") == 0)
 	{
-	    /* Is it OK to silently ignore all but the last DEFAULT
-               expression?  */
-	    if (default_value != NULL && default_value != &bad)
+	    if (default_value != NULL)
+	    {
+		error (0, 0, "Multiple `DEFAULT' lines (%d and %d) in %s file",
+		       default_line, line_number, infofile);
 		free (default_value);
-	    default_value = (expanded_value != NULL ?
-			     xstrdup (expanded_value) : &bad);
+	    }
+	    default_value = xstrdup(value);
+	    default_line = line_number;
 	    continue;
 	}
 
@@ -147,8 +150,12 @@ Parse_Info (infofile, repository, callproc, all)
 	    if (!all)
 		error(0, 0, "Keyword `ALL' is ignored at line %d in %s file",
 		      line_number, infofile);
-	    else if (expanded_value != NULL)
+	    else if ((expanded_value = expand_path (value, infofile,
+                                                    line_number)) != NULL)
+	    {
 		err += callproc (repository, expanded_value);
+		free (expanded_value);
+	    }
 	    else
 		err++;
 	    continue;
@@ -169,8 +176,11 @@ Parse_Info (infofile, repository, callproc, all)
 	    continue;				/* no match */
 
 	/* it did, so do the callback and note that we did one */
-	if (expanded_value != NULL)
+	if ((expanded_value = expand_path (value, infofile, line_number)) != NULL)
+	{
 	    err += callproc (repository, expanded_value);
+	    free (expanded_value);
+	}
 	else
 	    err++;
 	callback_done = 1;
@@ -183,17 +193,18 @@ Parse_Info (infofile, repository, callproc, all)
     /* if we fell through and didn't callback at all, do the default */
     if (callback_done == 0 && default_value != NULL)
     {
-	if (default_value != &bad)
-	    err += callproc (repository, default_value);
+	if ((expanded_value = expand_path (default_value, infofile, default_line)) != NULL)
+	{
+	    err += callproc (repository, expanded_value);
+	    free (expanded_value);
+	}
 	else
 	    err++;
     }
 
     /* free up space if necessary */
-    if (default_value != NULL && default_value != &bad)
+    if (default_value != NULL)
 	free (default_value);
-    if (expanded_value != NULL)
-	free (expanded_value);
     free (infopath);
     if (line != NULL)
 	free (line);
@@ -209,8 +220,9 @@ Parse_Info (infofile, repository, callproc, all)
    KEYWORD=VALUE.  There is currently no way to have a multi-line
    VALUE (would be nice if there was, probably).
 
-   CVSROOT is the $CVSROOT directory (current_parsed_root->directory might not be
-   set yet).
+   CVSROOT is the $CVSROOT directory
+   (current_parsed_root->directory might not be set yet, so this
+   function takes the cvsroot as a function argument).
 
    Returns 0 for success, negative value for failure.  Call
    error(0, ...) on errors in addition to the return value.  */
@@ -285,7 +297,7 @@ parse_config (cvsroot)
 	   for making sure the syntax is consistent.  Any good examples
 	   to follow there (Apache?)?  */
 
-	/* Strip the training newline.  There will be one unless we
+	/* Strip the trailing newline.  There will be one unless we
 	   read a partial line without a newline, and then got end of
 	   file (or error?).  */
 
@@ -339,6 +351,25 @@ parse_config (cvsroot)
 		error (0, 0, "unrecognized value '%s' for SystemAuth", p);
 		goto error_return;
 	    }
+	}
+	else if (strcmp (line, "tag") == 0) {
+		RCS_setlocalid(p);
+	}
+	else if (strcmp (line, "umask") == 0) {
+	    cvsumask = (mode_t)(strtol(p, NULL, 8) & 0777);
+	}
+        else if (strcmp (line, "dlimit") == 0) {
+#ifdef BSD
+#include <sys/resource.h>
+	    struct rlimit rl;
+
+	    if (getrlimit(RLIMIT_DATA, &rl) != -1) {
+		rl.rlim_cur = atoi(p);
+		rl.rlim_cur *= 1024;
+
+		(void) setrlimit(RLIMIT_DATA, &rl);
+	    }
+#endif /* BSD */
 	}
 	else if (strcmp (line, "PreservePermissions") == 0)
 	{

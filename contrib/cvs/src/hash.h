@@ -30,7 +30,7 @@ struct node
     struct node *hashnext;
     struct node *hashprev;
     char *key;
-    char *data;
+    void *data;
     void (*delproc) ();
 };
 typedef struct node Node;

@@ -60,6 +60,8 @@ extern int client_prune_dirs;
 
 # ifdef AUTH_CLIENT_SUPPORT
 extern int use_authenticating_server;
+# endif /* AUTH_CLIENT_SUPPORT */
+# if defined (AUTH_CLIENT_SUPPORT) || defined (HAVE_GSSAPI)
 void connect_to_pserver PROTO ((cvsroot_t *,
 				struct buffer **,
 				struct buffer **,
@@ -67,7 +69,7 @@ void connect_to_pserver PROTO ((cvsroot_t *,
 #   ifndef CVS_AUTH_PORT
 #     define CVS_AUTH_PORT 2401
 #   endif /* CVS_AUTH_PORT */
-# endif /* AUTH_CLIENT_SUPPORT */
+# endif /* (AUTH_CLIENT_SUPPORT) || defined (HAVE_GSSAPI) */
 
 # if HAVE_KERBEROS
 #   ifndef CVS_PORT
@@ -75,16 +77,8 @@ void connect_to_pserver PROTO ((cvsroot_t *,
 #   endif
 # endif /* HAVE_KERBEROS */
 
-# if defined (AUTH_SERVER_SUPPORT) || (defined (SERVER_SUPPORT) && defined (HAVE_GSSAPI))
-extern void pserver_authenticate_connection PROTO ((void));
-# endif
-
-# if defined (SERVER_SUPPORT) && defined (HAVE_KERBEROS)
-extern void kserver_authenticate_connection PROTO ((void));
-# endif
-
 /* Talking to the server. */
-void send_to_server PROTO((char *str, size_t len));
+void send_to_server PROTO((const char *str, size_t len));
 void read_from_server PROTO((char *buf, size_t len));
 
 /* Internal functions that handle client communication to server, etc.  */
@@ -131,7 +125,8 @@ send_arg PROTO((char *string));
 void
 send_option_string PROTO((char *string));
 
-extern void send_a_repository PROTO ((char *, char *, char *));
+extern void send_a_repository PROTO ((const char *, const char *,
+                                      const char *));
 
 #endif /* CLIENT_SUPPORT */
 
@@ -209,5 +204,6 @@ extern int client_process_import_file
 	   int targc, char *targv[], char *repository, int all_files_binary,
 	   int modtime));
 extern void client_import_done PROTO((void));
-extern void client_notify PROTO((char *, char *, char *, int, char *));
+extern void client_notify PROTO((const char *, const char *, const char *, int,
+                                 const char *));
 #endif /* CLIENT_SUPPORT */

@@ -67,6 +67,7 @@ my $verbose = 0;
 my $total_revisions;
 my $total_interesting_revisions;
 my $total_files;
+my @ignore_files;
 
 ######################################################################
 #                    SUBROUTINES                                     #
@@ -121,12 +122,19 @@ if( exists( $ENV{ CVSDEBUGEDIT } ) )
 }
 
 $directory_to_look_at = $ENV{ CVSROOT };
-if( -l $directory_to_look_at )
+my $sym_count = 0;
+while( -l $directory_to_look_at )
 {
     $directory_to_look_at = readlink( $directory_to_look_at );
+    $sym_count += 1;
+    if( $sym_count > 5 )
+    {
+        die( "Encountered too many symlinks for $ENV{ CVSROOT }\n" );
+    }
 }
 
 print( "Processing: $directory_to_look_at\n" ) if( $verbose );
+@ignore_files = &get_ignore_files_from_cvsroot( $directory_to_look_at );
 find( \&process_file, $directory_to_look_at );
 
 my $num_files = @list_of_broken_files;
@@ -184,34 +192,6 @@ sub process_file
     elsif( ! -d $File::Find::name )
     {
         my $save = 0;
-        my @ignore_files = ( 'CVS\/fileattr$',
-                             '^CVSROOT\/modules',
-                             '^CVSROOT\/.#modules',
-                             '^CVSROOT\/loginfo',
-                             '^CVSROOT\/.#loginfo',
-                             '^CVSROOT\/rcsinfo',
-                             '^CVSROOT\/.#rcsinfo',
-                             '^CVSROOT\/editinfo',
-                             '^CVSROOT\/.#editinfo',
-                             '^CVSROOT\/commitinfo',
-                             '^CVSROOT\/.#commitinfo',
-                             '^CVSROOT\/taginfo',
-                             '^CVSROOT\/.#taginfo',
-                             '^CVSROOT\/notify',
-                             '^CVSROOT\/.#notify',
-                             '^CVSROOT\/checkoutlist',
-                             '^CVSROOT\/.#checkoutlist',
-                             '^CVSROOT\/cvswrappers',
-                             '^CVSROOT\/.#cvswrappers',
-                             '^CVSROOT\/val-tags',
-                             '^CVSROOT\/.#val-tags',
-                             '^CVSROOT\/verifymsg',
-                             '^CVSROOT\/.#verifymsg',
-                             '^CVSROOT\/config',
-                             '^CVSROOT\/.#config',
-                             '^CVSROOT\/history',
-                             '^CVSROOT\/cvsignore',
-                             '^CVSROOT\/.#cvsignore' );
 
         foreach my $ignore ( @ignore_files )
         {
@@ -322,18 +302,29 @@ sub look_at_cvs_file
 sub get_history
 {
     my( $file ) = @_;
+    $file =~ s/(["\$`\\])/\\$1/g;
     my @revisions;
     my $revision;
-
+    my $ignore = 1;
     my $save_ = $_;
 
-    open( FILE, "rlog -N '$file' 2>&1 |" ) or die( "unable to run rlog, help" );
+    open( FILE, "rlog -N \"$file\" 2>&1 |" ) or die( "unable to run rlog, help" );
 
     while( <FILE> )
     {
-        if( ( $revision ) = /^revision (.*)$/  )
-        {
-           push( @revisions, $revision );
+        #rlog outputs a "----" line before the actual revision
+        #without this we'll pick up peoples comments if they 
+        #happen to start with revision
+	if( /^----------------------------$/ )
+	{
+	    $ignore = 0;
+            next;
+        }
+
+	if( ( !$ignore ) && ( ( $revision ) = m/^revision (\S+)/ ) )
+	{
+            push( @revisions, $revision );
+            $ignore = 1;
         }
     }
 
@@ -369,9 +360,6 @@ sub get_history
 #
 #    COMMENTS :
 #      cvs command line options are as followed:
-#        -l - Do not log this command in the history file.  I am
-#             doing this because we will literaly be looking at 
-#             thousands of files with *lots* of revisions.
 #        -n - Do not run any checkout program as specified by the -o
 #             option in the modules file
 #        -p - Put all output to standard out.
@@ -383,11 +371,12 @@ sub get_history
 sub check_revision
 {
     my( $file, $revision ) = @_;
+    $file =~ s/(["\$`\\])/\\$1/g;
 
     my $cwd = getcwd();
     chdir( "/tmp" );
 
-    my $ret_code = 0xffff & system( "cvs -l co -n -p -r $revision '$file' > /dev/null 2>&1" );
+    my $ret_code = 0xffff & system( "cvs co -n -p -r $revision \"$file\" > /dev/null 2>&1" );
 
     chdir( $cwd );
     return( 1 ) if ( $ret_code == 0 );
@@ -752,4 +741,82 @@ sub branch_split
     }
 
     return( $branch, pop( @split_rev ) );
+}
+
+######################################################################
+#
+#    NAME :
+#      get_ignore_files_from_cvsroot
+#
+#    PURPOSE :
+#      Retrieve the list of files from the CVSROOT/ directory
+#      that should be ignored. 
+#      These are the regular files (e.g., commitinfo, loginfo)
+#      and those specified in the checkoutlist file.
+#
+#    PARAMETERS :
+#      The CVSROOT
+#
+#    GLOBALS :
+#      NONE
+#
+#    RETURNS :
+#      @ignore - the list of files to ignore
+#
+#    COMMENTS :
+#      NONE
+#
+######################################################################
+sub get_ignore_files_from_cvsroot {
+    my( $cvsroot ) = @_;
+    my @ignore = ( 'CVS\/fileattr$',
+                   '^CVSROOT\/loginfo',
+                   '^CVSROOT\/.#loginfo',
+                   '^CVSROOT\/rcsinfo',
+                   '^CVSROOT\/.#rcsinfo',
+                   '^CVSROOT\/editinfo',
+                   '^CVSROOT\/.#editinfo',
+                   '^CVSROOT\/verifymsg',
+                   '^CVSROOT\/.#verifymsg',
+                   '^CVSROOT\/commitinfo',
+                   '^CVSROOT\/.#commitinfo',
+                   '^CVSROOT\/taginfo',
+                   '^CVSROOT\/.#taginfo',
+                   '^CVSROOT\/cvsignore',
+                   '^CVSROOT\/.#cvsignore',
+                   '^CVSROOT\/checkoutlist',
+                   '^CVSROOT\/.#checkoutlist',
+                   '^CVSROOT\/cvswrappers',
+                   '^CVSROOT\/.#cvswrappers',
+                   '^CVSROOT\/notify',
+                   '^CVSROOT\/.#notify',
+                   '^CVSROOT\/modules',
+                   '^CVSROOT\/.#modules',
+                   '^CVSROOT\/readers',
+                   '^CVSROOT\/.#readers',
+                   '^CVSROOT\/writers',
+                   '^CVSROOT\/.#writers',
+                   '^CVSROOT\/passwd',
+                   '^CVSROOT\/config',
+                   '^CVSROOT\/.#config',
+                   '^CVSROOT\/val-tags',
+                   '^CVSROOT\/.#val-tags',
+                   '^CVSROOT\/history' );
+    my $checkoutlist_file = "$cvsroot\/CVSROOT\/checkoutlist";
+    open( CHECKOUTLIST, "<$cvsroot\/CVSROOT\/checkoutlist" )
+        or die( "Unable to read checkoutlist file: $!\n" );
+
+    my @list = <CHECKOUTLIST>;
+    chomp( @list );
+    close( CHECKOUTLIST )
+        or die( "Unable to close checkoutlist file: $!\n" );
+
+    foreach my $line( @list )
+    {
+        next if( $line =~ /^#/ || $line =~ /^$/ );
+        if( $line =~ /^\s*(\S*)\s*/ ) { $line = $1 };
+        push( @ignore, "^CVSROOT\/$line", "^CVSROOT\/\.#$line" );
+    }	
+
+    return @ignore;
 }

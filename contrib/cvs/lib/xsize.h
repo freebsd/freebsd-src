@@ -26,6 +26,8 @@
 #include <limits.h>
 #if HAVE_STDINT_H
 # include <stdint.h>
+#else
+#define SIZE_MAX UINT_MAX /* XXX */
 #endif
 
 /* The size of memory objects is often computed through expressions of

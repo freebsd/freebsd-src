@@ -1897,7 +1897,9 @@ You can branch a branch.
         Note that according to the official GIC page at
         http://www.cpsc.ucalgary.ca/redirect/grouplab/projects/gic/
         GIC is no longer being maintained and tkCVS is recommended
-        instead.  For more on tkCVS, see http://www.cyclic.com/tkcvs/
+        instead.
+
+        For more on tkCVS, see http://www.cvshome.org/dev/addontkcvs.html.
 
         kingdon@cyclic.com
 
@@ -4330,7 +4332,7 @@ kingdon@cyclic.com
    
    You should be able to run:
    
-   sort +0.1 ${dir1}/history ${dir2}/history > history
+   sort -k 1.2 ${dir1}/history ${dir2}/history > history
    
    If you "diff" a standard history file before and after such a sort,
    you might see other differences caused by garbage (split lines, nulls,

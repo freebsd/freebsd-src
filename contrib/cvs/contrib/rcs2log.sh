@@ -31,7 +31,7 @@ Report bugs to <bug-gnu-emacs@gnu.org>.'
 
 Id='$Id: rcs2log,v 1.48 2001/09/05 23:07:46 eggert Exp $'
 
-# Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2001
+# Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2001, 2003
 #  Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -49,12 +49,15 @@ Id='$Id: rcs2log,v 1.48 2001/09/05 23:07:46 eggert Exp $'
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-Copyright='Copyright 2001 Free Software Foundation, Inc.
+Copyright='Copyright 1992-2003 Free Software Foundation, Inc.
 This program comes with NO WARRANTY, to the extent permitted by law.
 You may redistribute copies of this program
 under the terms of the GNU General Public License.
 For more information about these matters, see the files named COPYING.
 Author: Paul Eggert <eggert@twinsun.com>'
+
+# functions
+@MKTEMP_SH_FUNCTION@
 
 # Use the traditional C locale.
 LANG=C
@@ -79,8 +82,10 @@ nl='
 # Parse options.
 
 # defaults
+: ${MKTEMP="@MKTEMP@"}
 : ${AWK=awk}
 : ${TMPDIR=/tmp}
+
 changelog=ChangeLog # change log file name
 datearg= # rlog date option
 hostname= # name of local host (if empty, will deduce it later)
@@ -182,11 +187,11 @@ month_data='
 	m[9]="Oct"; m[10]="Nov"; m[11]="Dec"
 '
 
-logdir=$TMPDIR/rcs2log$$
+logdir=`$MKTEMP -d $TMPDIR/rcs2log.XXXXXX`
+test -n "$logdir" || exit
 llogout=$logdir/l
 trap exit 1 2 13 15
 trap "rm -fr $logdir 2>/dev/null" 0
-(umask 077 && exec mkdir $logdir) || exit
 
 # If no rlog-format log file is given, generate one into $rlogfile.
 case $rlogfile in

@@ -1,3 +1,142 @@
+2004-05-28  Derek Price  <derek@ximbiot.com>
+
+	* xsize.h: New file from GNULIB.
+	* Makefile.am (libcvs_a_SOURCES): Add xsize.h.
+
+2004-05-15  Derek Price  <derek@ximbiot.com>
+
+	* libcvs.dsp: Header file list updated.
+	* libcvs.dep: Regenerated for "libcvs.dsp" changes.
+	* libcvs.mak: Regenerated for "libcvs.dsp" changes.
+	(Patch from Conrad Pino <conrad@pino.com>.)
+
+2004-05-13  Derek Price  <derek@ximbiot.com>
+
+	* .cvsignore: Changed for "libcvs.dsp" changes.
+	* libcvs.dsp: Added for "../cvsnt.dsw" changes.
+	* libcvs.dep: Added for "libcvs.dsp" addition.
+	* libcvs.mak: Added for "libcvs.dsp" addition.
+	(Patch from Conrad Pino <conrad@pino.com>.)
+
+2004-04-20  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Correct comments.
+
+2004-04-19  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Gratuitous reformatting.
+
+2004-04-07  Derek Price  <derek@ximbiot.com>
+
+	* regex.c: Revise "FREE_VAR" macro to eliminate C4090/C4022 warnings
+	in Windows build with Visual C++ 6.0 compiler.
+	(Original patch from Conrad T. Pino <Conrad@Pino.com>.)
+
+2004-04-04  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Correct comment.
+
+2004-04-04  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Restore complete path folding for Cygwin under Windows.
+	Add ISABSOLUTE macro for determining whether a path is absolute to
+	handle X:\ style paths under Windows (& Cygwin).
+
+2004-03-25  Derek Price  <derek@ximbiot.com>
+
+	* system.h: No longer fold back slashes in paths into slashes.
+
+2004-03-20  Derek Price  <derek@ximbiot.com>
+
+	* mkdir.c (mkdir): Declare string args const.
+
+2004-03-19  Derek Price  <derek@ximbiot.com>
+
+	* .cvsignore: Add fnmatch.h for Windows and other platforms which build
+	it.
+
+2003-12-09  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Correct spelling in comment.
+
+2003-12-03  Derek Price  <derek@ximbiot.com>
+
+	* fncase.c (OSX_filename_classes): New array.
+	(fncmp): Use FOLD_FN_CASE rather relying on the fact that it will be
+	#defined to use WNT_filename_classes.
+	* system.h: Define FOLD_FN_CASE, fncmp, and fnfold for all case
+	insensitive filesystems.  Share some code between the new generic case
+	insensitive section and the old WOE32 section.
+
+2003-10-02  Derek Price  <derek@ximbiot.com>
+
+	* getpass.c: Back out my last getpass.c update since the new GNULIB
+	version introduced some dependencies which I do not want to introduce
+	on stable.
+
+2003-10-01  Derek Price  <derek@ximbiot.com>
+
+	* getpass.c: Update to new version from GNULIB with Larry's fix
+	incorporated.
+
+2003-09-30  Larry Jones  <lawrence.jones@eds.com>
+
+	* getpass.c: Fix bug that caused password to be echoed on many
+	systems (input may not be followed by output on the same stream
+	without an intervening call to a file positioning function).
+	(Reported by David Everly <david.everly@mci.com>.)
+
+2003-07-29  Derek Price  <derek@ximbiot.com>
+
+	* getpass.c: New file, almost identical to GNULIB's currect version.
+	* Makefile.am (libcvs_a_SOURCES): Add getpass.c.
+	* Makefile.in: Regenerated.
+
+2003-06-09  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Reference the WIN32 macro only in order to define WOE32,
+	in accordance with the GNU convention to avoid implying that we
+	consider the Microsoft Windows Operating Environment any sort of "win".
+
+2003-05-21  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerate with Automake version 1.7.5.
+
+2003-05-09  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Define S_ISSOCK on SCO OpenServer.
+
+2003-04-10  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.in: Regenerated.
+
+2003-04-03  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am (distclean-local): New target to remove fnmatch.h when
+	necessary.  This should be handled by Automake, but until then...
+	(Resolves issue #100
+	<http://ccvs.cvshome.org/issues/show_bug.cgi?id=100> from
+	Serguei E. Leontiev <Serge3lse@cvshome.org>.)
+
+	* Makefile.in: Regenerated.
+
+2003-03-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notice.
+
+	* Makefile.in: Regenerated.
+
+2003-02-25  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerated.
+
+2003-01-23  Larry Jones  <lawrence.jones@eds.com>
+
+	* getdate.y: Add RCS/CVS timestamp format (Y.mm.dd.hh.mm.ss).
+	* getdate.c: Regenerated.
+
+	* wait.h (WCOREDUMP): New macro.
+
 2002-12-27  Derek Price  <derek@ximbiot.com>
 
 	* getdate.c: Regenerated with Bison 1.35.

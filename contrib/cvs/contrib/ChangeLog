@@ -1,3 +1,73 @@
+2004-01-30  Derek Price  <derek@ximbiot.com>
+
+	Close issue #155.
+	* log_accum.in: Remove unused variables.
+	(Patch from (Ville Skyttä <scop@cvshome.org>.)
+
+2003-10-14  Derek Price  <derek@ximbiot.com>
+
+	Port to pedantic POSIX 1003.1-2001 hosts, such as Debian GNU/Linux
+	testing with _POSIX2_VERSION=200112 in the environment.
+
+	* cvs2vendor.sh: Work with POSIX sort as well as with
+	traditional sort.
+	* rcs2sccs.sh, sccs2rcs.in: Likewise.
+	(Patch from Paul Eggert <eggert@twinsun.com>.)
+
+2003-09-26  Mark D. Baushke  <mdb@cvshome.org>
+
+	* sccs2rcs.in: Use @AWK@ to avoid ancient Solaris awk (no support
+	for the "?" operator). Add support for handling binary SCCS files.
+	(Suggestion from Allan Schrum <agschrum@mindspring.com>.)
+	
+2003-08-06  Derek Price  <derek@ximbiot.com>
+
+	* commit_prep.in, log_accum.in: Port copious changes from Karl Fogel
+	and CollabNet.  These changes add features, generalize, and organize.
+
+2003-07-07  Larry Jones  <lawrence.jones@eds.com>
+
+	* rcs2log.1: New file from Paul Eggert <eggert@twinsun.com>
+	via Eric Seidel <eseidel@apple.com>.
+
+2003-06-20  Derek Price  <derek@ximbiot.com>
+
+	* Don't call CVS with the -l option since CVS no longer accepts it.
+	(Suggestion from Matt Doar <matt@trpz.com>.)
+
+2003-05-21  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.in: Regenerate with Automake version 1.7.5.
+
+2003-04-10  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.in: Regenerated.
+
+2003-03-24  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notice.
+
+	* Makefile.in: Regenerated.
+
+2003-02-25  Derek Price  <derek@ximbiot.com>
+
+	* rcs2log.sh: Import RedHat 8.0's use of mktemp from the CVS 1.11.2
+	RPM.  Use new MKTEMP variable from configure.
+	* Makefile.in: Regenerated.
+
+2003-02-24  Larry Jones  <lawrence.jones@eds.com>
+	and Donald Sharp <sharpd@cisco.com>
+
+	* check_cvs.in: Filenames with funky characters need to be quoted
+	correctly.  Also needed to modify regex due to locked revisions of
+	files cause output to be different.
+
+	* check_cvs.in: Fixed multiple symlinks in your cvsroot,
+	improved CVSROOT/CVSROOT handling (Patch from Shlomo Reinstein
+	<shlomo.reinstein@intel.com).  Fixed retrieving revisions of ,v
+	files.  Added passwd, readers, and writers to list of files to
+	ignore and sorted list to match the one in src/mkmodules.c.
+
 2002-12-16  Derek Price  <derek@ximbiot.com>
 
 	* cvs_acls.in: Fix split loop error with Perl 5.8.0.

@@ -38,7 +38,9 @@
    absolute path to an executable, use the shell to find where the editor
    actually is. This allows sites with /usr/bin/vi or /usr/ucb/vi to work
    equally well (assuming that their PATH is reasonable). */
+#ifndef EDITOR_DFLT
 #define EDITOR_DFLT "vi"
+#endif
 
 /* Define to enable encryption support. */
 /* #undef ENCRYPTION */
@@ -248,7 +250,7 @@
 #define HAVE_SIGVEC 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
-#define HAVE_STDINT_H 1
+/* #undef HAVE_STDINT_H */
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1

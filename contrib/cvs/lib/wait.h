@@ -27,6 +27,9 @@
 #ifndef WIFEXITED
 #define WIFEXITED(w) (((w) & 0xff) == 0)
 #endif
+#ifndef WCOREDUMP	/* not POSIX, but common and useful */
+#define WCOREDUMP(w) (((w) & 0x80) != 0)
+#endif
 
 #ifndef WSTOPSIG
 #define WSTOPSIG(w) (((w) >> 8) & 0xff)

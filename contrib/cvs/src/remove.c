@@ -22,8 +22,8 @@ static int remove_force_fileproc PROTO ((void *callerdat,
 					 struct file_info *finfo));
 #endif
 static int remove_fileproc PROTO ((void *callerdat, struct file_info *finfo));
-static Dtype remove_dirproc PROTO ((void *callerdat, char *dir,
-				    char *repos, char *update_dir,
+static Dtype remove_dirproc PROTO ((void *callerdat, const char *dir,
+				    const char *repos, const char *update_dir,
 				    List *entries));
 
 static int force;
@@ -90,7 +90,8 @@ cvsremove (argc, argv)
 		start_recursion (remove_force_fileproc, (FILESDONEPROC) NULL,
 				 (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL,
 				 (void *) NULL, argc, argv, local, W_LOCAL,
-				 0, CVS_LOCK_NONE, (char *) NULL, 0);
+				 0, CVS_LOCK_NONE, (char *) NULL, 0,
+				 (char *) NULL);
 	    }
 	    /* else FIXME should probably act as if the file doesn't exist
 	       in doing the following checks.  */
@@ -114,7 +115,8 @@ cvsremove (argc, argv)
     err = start_recursion (remove_fileproc, (FILESDONEPROC) NULL,
                            remove_dirproc, (DIRLEAVEPROC) NULL, NULL,
 			   argc, argv,
-                           local, W_LOCAL, 0, CVS_LOCK_READ, (char *) NULL, 1);
+                           local, W_LOCAL, 0, CVS_LOCK_READ, (char *) NULL, 1,
+			   (char *) NULL);
 
     if (removed_files && !really_quiet)
 	error (0, 0, "use '%s commit' to remove %s permanently", program_name,
@@ -276,9 +278,9 @@ cannot remove file `%s' which has a sticky date of `%s'",
 static Dtype
 remove_dirproc (callerdat, dir, repos, update_dir, entries)
     void *callerdat;
-    char *dir;
-    char *repos;
-    char *update_dir;
+    const char *dir;
+    const char *repos;
+    const char *update_dir;
     List *entries;
 {
     if (!quiet)

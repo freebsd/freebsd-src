@@ -20,18 +20,23 @@ typedef enum {
     ext_method,
     fork_method
 } CVSmethod;
-extern char *method_names[];	/* change this in root.c if you change
-				   the enum above */
+extern const char method_names[][16];	/* change this in root.c if you change
+					   the enum above */
 
 typedef struct cvsroot_s {
-    char *original;		/* the complete source CVSroot string */
-    CVSmethod method;		/* one of the enum values above */
-    char *username;		/* the username or NULL if method == local */
-    char *password;		/* the username or NULL if method == local */
-    char *hostname;		/* the hostname or NULL if method == local */
-    int port;			/* the port or zero if method == local */
-    char *directory;		/* the directory name */
+    char *original;		/* The complete source CVSroot string. */
+    CVSmethod method;		/* One of the enum values above. */
+    char *directory;		/* The directory name. */
 #ifdef CLIENT_SUPPORT
-    unsigned char isremote;	/* nonzero if we are doing remote access */
+    char *username;		/* The username or NULL if method == local. */
+    char *password;		/* The password or NULL if method == local. */
+    char *hostname;		/* The hostname or NULL if method == local. */
+    int port;			/* The port or zero if method == local. */
+    char *proxy_hostname;	/* The hostname of the proxy server, or NULL
+				 * when method == local or no proxy will be
+				 * used.
+				 */
+    int proxy_port;		/* The port of the proxy or zero, as above. */
+    unsigned char isremote;	/* Nonzero if we are doing remote access. */
 #endif /* CLIENT_SUPPORT */
 } cvsroot_t;

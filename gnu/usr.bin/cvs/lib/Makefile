@@ -11,13 +11,12 @@ MAINTAINER=	peter@FreeBSD.org
 LIB=		cvs
 INTERNALLIB=	YES
 
-CFLAGS+= -I. -I${CVSDIR}/src -I${CVSDIR}/lib
+# gnu must be before lib to pick correct regex.h
+CFLAGS+= -I. -I${CVSDIR}/src -I${DESTDIR}/usr/include/gnu \
+	 -I${CVSDIR}/lib
 CFLAGS+= -DHAVE_CONFIG_H
 YFLAGS=
 CLEANFILES+=	config.h
-
-VERSION!=       sed < ${CVSDIR}/configure \
-		-e '/^[ 	]*VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q
 
 CVS_UMASK_DFLT?=	002
 CVS_ADMIN_GROUP?=	cvsadmin
@@ -29,7 +28,9 @@ SRCS=	config.h argmatch.c getdate.y getline.c \
 	xgetwd.c yesno.c
 
 config.h: config.h.proto
-	sed -e "s,@VERSION@,${VERSION}-FreeBSD,g" \
+	version=`sed < ${CVSDIR}/configure \
+	    -e '/^[ 	]*VERSION=/!d' -e 's/.*=\(.*\)/\1/' -e q`; \
+	sed -e "s,@VERSION@,$${version}-FreeBSD,g" \
 	    -e "s,@UMASK_DFLT@,${CVS_UMASK_DFLT},g" \
 	    -e "s,@TMPDIR_DFLT@,${CVS_TMPDIR_DFLT},g" \
 	    -e "s,@CVS_ADMIN_GROUP@,${CVS_ADMIN_GROUP},g" \
