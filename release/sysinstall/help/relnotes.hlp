@@ -40,6 +40,10 @@ User-mode ppp updated with various fixes and enhancements from 3.0-current.
 
 Texinfo documentation mechanisms cleaned up in source tree.
 
+fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
+This brings it in line with the numbers used in the device names
+in /dev.
+
 
 1. What's new since 2.1.7
 -------------------------
