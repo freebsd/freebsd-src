@@ -612,6 +612,7 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)
 			daprevent(periph, PR_PREVENT);
 	} else {
+		softc->flags &= ~DA_FLAG_OPEN;
 		cam_periph_release(periph);
 	}
 	cam_periph_unlock(periph);
