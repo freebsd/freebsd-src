@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.16 1996/01/01 17:24:28 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.17 1996/01/03 09:56:59 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -195,6 +195,11 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="ftp://ftp.cau.ac.kr/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:ftpadm@ftp.cau.ac.kr"
 	name="ftpadm@ftp.cau.ac.kr">.
+<item>
+<htmlurl url="ftp://ftp.easy.re.kr/pub/FreeBSD"
+	name="ftp://ftp.easy.re.kr/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:HyunSeog.Ryu@easy.re.kr"
+	name="HyunSeog.Ryu@easy.re.kr">.
 
 </itemize>
 
