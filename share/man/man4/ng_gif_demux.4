@@ -21,7 +21,7 @@
 .\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 .\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE  POSSIBILITY OF
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
 .\" Author: Brooks Davis <brooks@FreeBSD.org>
@@ -33,11 +33,11 @@
 .Os
 .Sh NAME
 .Nm ng_gif_demux
-.Nd Demultiplexr for packets from
+.Nd demultiplexer for packets from
 .Xr ng_gif 4
 nodes
 .Sh SYNOPSIS
-.Fd #include <netgraph/ng_gif_demux.h>
+.In netgraph/ng_gif_demux.h
 .Sh DESCRIPTION
 The
 .Nm
@@ -48,8 +48,8 @@ nodes in the
 networking subsystem.
 .Pp
 The
-.Dv gif 
-hook is ment to be connected to the
+.Dv gif
+hook is meant to be connected to the
 .Dv lower
 or
 .Dv orphans
@@ -57,25 +57,19 @@ hook of an
 .Xr ng_gif 4
 node.
 The
-.Dv inet ,
-.Dv inet6 ,
-.Dv atalk ,
-.Dv ipx ,
-.Dv atm ,
-.Dv natm ,
+.Dv inet , inet6 , atalk , ipx , atm , natm ,
 and
 .Dv ns
-hooks output frames of the given type when they are recieved on the
+hooks output frames of the given type when they are received on the
 .Dv gif
 hook.
-When a frame is recived on one of these hooks, it is encapsulated and
+When a frame is received on one of these hooks, it is encapsulated and
 sent out the
 .Dv gif
 hook.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -width inet6
+.Bl -tag -width ".Dv inet6"
 .It Dv gif
 Connection to the
 .Dv lower
@@ -100,8 +94,7 @@ Hook for input and output of NATM frames.
 Hook for input and output of NS frames.
 .El
 .Sh CONTROL MESSAGES
-This node type supports only the generic control messages generic
-control messages.
+This node type supports only the generic control messages.
 .Sh SEE ALSO
 .Xr gif 4 ,
 .Xr netgraph 4 ,
