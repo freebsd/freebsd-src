@@ -71,7 +71,7 @@ struct pmap {
 				mtx_assert(&(pmap)->pm_mtx, (type))
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
-				    NULL, MTX_DEF)
+				    NULL, MTX_DEF | MTX_DUPOK)
 #define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
