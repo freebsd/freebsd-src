@@ -71,6 +71,9 @@ MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount struct");
 struct mount *rootfs;
 struct vnode *rootvnode;
 char *mountrootfsname;
+#ifdef BOOTP
+extern void bootpc_init __P((void));
+#endif
 
 /*
  * vfs_init() will set maxvfsconf
@@ -90,7 +93,7 @@ struct vfsconf *vfsconf;
  * Common entry point for root mounts
  *
  * PARAMETERS:
- *		fsname	name of the filesystem
+ * 		NONE
  *
  * RETURNS:	0	Success
  *		!0	error number (errno.h)
@@ -106,70 +109,56 @@ struct vfsconf *vfsconf;
  *		the FFS file system type.  This is a matter of
  *		fixing the other file systems, not this code!
  */
-static int
-vfs_mountrootfs(fsname)
-	char			*fsname;
+static void
+vfs_mountrootfs(void *unused)
 {
 	struct mount		*mp;
 	int			err = 0;
 	struct proc		*p = curproc;	/* XXX */
 
+#ifdef BOOTP
+	bootpc_init();
+#endif
 	/*
 	 *  New root mount structure
 	 */
-	err = vfs_rootmountalloc(fsname, ROOTNAME, &mp);
-	if (err)
-		return (err);
+	if ((err = vfs_rootmountalloc(mountrootfsname, ROOTNAME, &mp))) {
+		printf("error %d: ", err);
+		panic("cannot mount root\n");
+		return ;
+	}
 	mp->mnt_flag		|= MNT_ROOTFS;
 
 	/*
 	 * Attempt the mount
 	 */
 	err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
-	if (err)
-		goto error_2;
+	if (err) {
+		vfs_unbusy(mp, p);
+		/*
+		 * free mount struct before failing
+		 * (hardly worthwhile with the PANIC eh?)
+		 */
+		free( mp, M_MOUNT);
+		printf("error %d: ", err);
+		panic("cannot mount root (2)\n");
+		return;
+	}
 
 	simple_lock(&mountlist_slock);
-	/* Add fs to list of mounted file systems*/
-	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
-	simple_unlock(&mountlist_slock);
 
+	/*
+	 * Add fs to list of mounted file systems
+	 */
+	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
+
+	simple_unlock(&mountlist_slock);
 	vfs_unbusy(mp, p);
 
 	/* root mount, update system time from FS specific data*/
 	inittodr(mp->mnt_time);
-
-	goto success;
-
-
-error_2:	/* mount error*/
-
-	vfs_unbusy(mp, p);
-
-	/* free mount struct before failing*/
-	free( mp, M_MOUNT);
-
-success:
-	return( err);
+	return;
 }
 
-/* ARGSUSED*/
-static void xxx_vfs_mountroot __P((void *fsnamep));
-#ifdef BOOTP
-extern void bootpc_init __P((void));
-#endif
-static void
-xxx_vfs_mountroot(fsnamep)
-	void *fsnamep;
-{
-  /* XXX Add a separate SYSINIT entry */
-#ifdef BOOTP
-	bootpc_init();
-#endif
-	/* Mount the root file system. */
-	if (vfs_mountrootfs(*((char **) fsnamep)))
-		panic("cannot mount root");
-}
-SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot,
-	&mountrootfsname)
+SYSINIT(mountroot, SI_SUB_MOUNT_ROOT, SI_ORDER_FIRST, vfs_mountrootfs, NULL)
 
