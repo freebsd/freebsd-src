@@ -105,6 +105,13 @@ struct greip {
 #define GRE_SS		0x0800	/* Strict Source Route */
 
 /*
+ * CISCO uses special type for GRE tunnel created as part of WCCP
+ * connection, while in fact those packets are just IPv4 encapsulated
+ * into GRE.
+ */
+#define WCCP_PROTOCOL_TYPE	0x883E
+
+/*
  * gre_sre defines a Source route Entry. These are needed if packets
  * should be routed over more than one tunnel hop by hop
  */
