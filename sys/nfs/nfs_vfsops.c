@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.10 1995/01/03 07:44:10 jkh Exp $
+ * $Id: nfs_vfsops.c,v 1.11 1995/03/16 18:15:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -89,7 +89,7 @@ struct vfsops nfs_vfsops = {
 	nfs_init,
 	nfs_sysctl
 };
-VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, 0);
+VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
 
 /*
  * This structure must be filled in by a primary bootstrap or bootstrap

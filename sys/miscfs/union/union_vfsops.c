@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.7 1994/11/04 14:41:43 davidg Exp $
+ * $Id: union_vfsops.c,v 1.8 1995/03/16 18:14:02 bde Exp $
  */
 
 /*
@@ -559,4 +559,4 @@ struct vfsops union_vfsops = {
 	union_init,
 };
 
-VFS_SET(union_vfsops, union, MOUNT_UNION, 0);
+VFS_SET(union_vfsops, union, MOUNT_UNION, VFCF_LOOPBACK);
