@@ -123,25 +123,25 @@ struct ums_softc {
 #define MOUSE_FLAGS_MASK (HIO_CONST|HIO_RELATIVE)
 #define MOUSE_FLAGS (HIO_RELATIVE)
 
-static void ums_intr __P((usbd_xfer_handle xfer,
+Static void ums_intr __P((usbd_xfer_handle xfer,
 			  usbd_private_handle priv, usbd_status status));
 
-static void ums_add_to_queue __P((struct ums_softc *sc,
+Static void ums_add_to_queue __P((struct ums_softc *sc,
 				int dx, int dy, int dz, int buttons));
-static void ums_add_to_queue_timeout __P((void *priv));
+Static void ums_add_to_queue_timeout __P((void *priv));
 
-static int  ums_enable __P((void *));
-static void ums_disable __P((void *));
+Static int  ums_enable __P((void *));
+Static void ums_disable __P((void *));
 
-static d_open_t  ums_open;
-static d_close_t ums_close;
-static d_read_t  ums_read;
-static d_ioctl_t ums_ioctl;
-static d_poll_t  ums_poll;
+Static d_open_t  ums_open;
+Static d_close_t ums_close;
+Static d_read_t  ums_read;
+Static d_ioctl_t ums_ioctl;
+Static d_poll_t  ums_poll;
 
 #define UMS_CDEV_MAJOR	111
 
-static struct cdevsw ums_cdevsw = {
+Static struct cdevsw ums_cdevsw = {
 	/* open */	ums_open,
 	/* close */	ums_close,
 	/* read */	ums_read,
@@ -356,7 +356,7 @@ USB_ATTACH(ums)
 }
 
 
-static int
+Static int
 ums_detach(device_t self)
 {
 	struct ums_softc *sc = device_get_softc(self);
@@ -473,7 +473,7 @@ ums_intr(xfer, addr, status)
 	}
 }
 
-static void
+Static void
 ums_add_to_queue_timeout(void *priv)
 {
 	struct ums_softc *sc = priv;
@@ -484,7 +484,7 @@ ums_add_to_queue_timeout(void *priv)
 	splx(s);
 }
 
-static void
+Static void
 ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int buttons)
 {
 	/* Discard data in case of full buffer */
@@ -530,7 +530,7 @@ ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int buttons)
 		selwakeup(&sc->rsel);
 	}
 }
-static int
+Static int
 ums_enable(v)
 	void *v;
 {
@@ -564,7 +564,7 @@ ums_enable(v)
 	return (0);
 }
 
-static void
+Static void
 ums_disable(priv)
 	void *priv;
 {
@@ -582,7 +582,7 @@ ums_disable(priv)
 		DPRINTF(("Discarded %d bytes in queue\n", sc->qcount));
 }
 
-static int
+Static int
 ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct ums_softc *sc;
@@ -592,7 +592,7 @@ ums_open(dev_t dev, int flag, int fmt, struct proc *p)
 	return ums_enable(sc);
 }
 
-static int
+Static int
 ums_close(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct ums_softc *sc;
@@ -608,7 +608,7 @@ ums_close(dev_t dev, int flag, int fmt, struct proc *p)
 	return 0;
 }
 
-static int
+Static int
 ums_read(dev_t dev, struct uio *uio, int flag)
 {
 	struct ums_softc *sc;
@@ -678,7 +678,7 @@ ums_read(dev_t dev, struct uio *uio, int flag)
 	return 0;
 }
 
-static int
+Static int
 ums_poll(dev_t dev, int events, struct proc *p)
 {
 	struct ums_softc *sc;

@@ -120,14 +120,14 @@ struct ulpt_softc {
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 cdev_decl(ulpt);
 #elif defined(__FreeBSD__)
-static d_open_t ulptopen;
-static d_close_t ulptclose;
-static d_write_t ulptwrite;
-static d_ioctl_t ulptioctl;
+Static d_open_t ulptopen;
+Static d_close_t ulptclose;
+Static d_write_t ulptwrite;
+Static d_ioctl_t ulptioctl;
 
 #define ULPT_CDEV_MAJOR 113
 
-static struct cdevsw ulpt_cdevsw = {
+Static struct cdevsw ulpt_cdevsw = {
 	/* open */	ulptopen,
 	/* close */	ulptclose,
 	/* read */	noread,

@@ -132,7 +132,7 @@ d_poll_t	uhidpoll;
 
 #define		UHID_CDEV_MAJOR 122
 
-static struct cdevsw uhid_cdevsw = {
+Static struct cdevsw uhid_cdevsw = {
 	/* open */	uhidopen,
 	/* close */	uhidclose,
 	/* read */	uhidread,
@@ -150,12 +150,12 @@ static struct cdevsw uhid_cdevsw = {
 };
 #endif
 
-static void uhid_intr __P((usbd_xfer_handle, usbd_private_handle,
+Static void uhid_intr __P((usbd_xfer_handle, usbd_private_handle,
 			   usbd_status));
 
-static int uhid_do_read __P((struct uhid_softc *, struct uio *uio, int));
-static int uhid_do_write __P((struct uhid_softc *, struct uio *uio, int));
-static int uhid_do_ioctl __P((struct uhid_softc *, u_long, caddr_t, int,
+Static int uhid_do_read __P((struct uhid_softc *, struct uio *uio, int));
+Static int uhid_do_write __P((struct uhid_softc *, struct uio *uio, int));
+Static int uhid_do_ioctl __P((struct uhid_softc *, u_long, caddr_t, int,
 			      struct proc *));
 
 USB_DECLARE_DRIVER(uhid);

@@ -50,7 +50,7 @@
 extern int usbdebug;
 #endif
 
-static struct usbd_quirk_entry {
+Static struct usbd_quirk_entry {
 	u_int16_t idVendor;
 	u_int16_t idProduct;
 	u_int16_t bcdDevice;
