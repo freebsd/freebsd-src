@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.32 1996/08/21 21:55:51 dyson Exp $
+ * $Id: nfs_subs.c,v 1.33 1996/09/19 18:20:59 nate Exp $
  */
 
 /*
@@ -538,7 +538,6 @@ static short *nfsrv_v3errmap[] = {
 
 #endif /* NFS_NOSERVER */
 
-extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsrtt nfsrtt;
 extern time_t nqnfsstarttime;
 extern int nqsrv_clockskew;
@@ -1136,9 +1135,10 @@ nfs_init()
 	if (nfs_ticks < 1)
 		nfs_ticks = 1;
 	/* Ensure async daemons disabled */
-	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
 		nfs_iodwant[i] = (struct proc *)0;
-	TAILQ_INIT(&nfs_bufq);
+		nfs_iodmount[i] = (struct nfsmount *)0;
+	}
 	nfs_nhinit();			/* Init the nfsnode table */
 #ifndef NFS_NOSERVER
 	nfsrv_init(0);			/* Init server data structures */

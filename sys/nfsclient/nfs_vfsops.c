@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.29 1996/05/02 14:20:40 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.30 1996/10/20 15:01:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -79,6 +79,10 @@ struct nfsstats	nfsstats;
 SYSCTL_NODE(_vfs, MOUNT_NFS, nfs, CTLFLAG_RW, 0, "NFS filesystem");
 SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
 	&nfsstats, nfsstats, "");
+#ifdef NFS_DEBUG
+int nfs_debug;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
+#endif
 
 static int	nfs_iosize __P((struct nfsmount *nmp));
 static int	mountnfs __P((struct nfs_args *,struct mount *,
@@ -588,6 +592,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 		    M_NFSMNT, M_WAITOK);
 		bzero((caddr_t)nmp, sizeof (struct nfsmount));
 		TAILQ_INIT(&nmp->nm_uidlruhead);
+		TAILQ_INIT(&nmp->nm_bufq);
 		mp->mnt_data = (qaddr_t)nmp;
 	}
 	getnewfsid(mp, MOUNT_NFS);
