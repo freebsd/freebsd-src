@@ -125,7 +125,15 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_fec.h>
 
-#define IFP2NG(ifp)  ((struct ng_node *)((struct arpcom *)(ifp))->ac_netgraph)
+/*
+ * We need a way to stash a pointer to our netgraph node in the
+ * ifnet structure so that receive handling works. As far as I can
+ * tell, although there is an AF_NETGRAPH address family, it's only
+ * used to identify sockaddr_ng structures: there is no netgraph address
+ * family domain. This means the AF_NETGRAPH entry in ifp->if_afdata[]
+ * should be unused, so we can (ab)use it to hold our node context.
+ */
+#define IFP2NG(ifp)  (struct ng_node *)(ifp->if_afdata[AF_NETGRAPH])
 #define FEC_INC(x, y)	(x) = (x + 1) % y
 
 /*
@@ -361,7 +369,10 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 		return(ENOMEM);
 
 	ac = (struct arpcom *)bifp;
-	ac->ac_netgraph = priv->node;
+
+	IF_AFDATA_LOCK(bifp);
+	bifp->if_afdata[AF_NETGRAPH] = priv->node;
+	IF_AFDATA_UNLOCK(bifp);
 
 	/*
 	 * If this is the first interface added to the bundle,
@@ -452,6 +463,11 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 
 	/* Restore input vector */
 	bifp->if_input = p->fec_if_input;
+
+	/* Remove our node context pointer. */
+	IF_AFDATA_LOCK(bifp);
+	bifp->if_afdata[AF_NETGRAPH] = NULL;
+	IF_AFDATA_UNLOCK(bifp);
 
 	/* Delete port */
 	TAILQ_REMOVE(&b->ng_fec_ports, p, fec_list);
