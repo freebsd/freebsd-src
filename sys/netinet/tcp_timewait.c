@@ -218,31 +218,24 @@ tcp_init()
 }
 
 /*
- * Create template to be used to send tcp packets on a connection.
- * Call after host entry created, allocates an mbuf and fills
- * in a skeletal tcp/ip header, minimizing the amount of work
- * necessary when the connection is used.
+ * Fill in the IP and TCP headers for an outgoing packet, given the tcpcb.
+ * tcp_template used to store this data in mbufs, but we now recopy it out
+ * of the tcpcb each time to conserve mbufs.
  */
-struct tcptemp *
-tcp_template(tp)
+void
+tcp_fillheaders(tp, ip_ptr, tcp_ptr)
 	struct tcpcb *tp;
+	void *ip_ptr;
+	void *tcp_ptr;
 {
-	register struct inpcb *inp = tp->t_inpcb;
-	register struct mbuf *m;
-	register struct tcptemp *n;
+	struct inpcb *inp = tp->t_inpcb;
+	struct tcphdr *tcp_hdr = (struct tcphdr *)tcp_ptr;
 
-	if ((n = tp->t_template) == 0) {
-		m = m_get(M_DONTWAIT, MT_HEADER);
-		if (m == NULL)
-			return (0);
-		m->m_len = sizeof (struct tcptemp);
-		n = mtod(m, struct tcptemp *);
-	}
 #ifdef INET6
 	if ((inp->inp_vflag & INP_IPV6) != 0) {
-		register struct ip6_hdr *ip6;
+		struct ip6_hdr *ip6;
 
-		ip6 = (struct ip6_hdr *)n->tt_ipgen;
+		ip6 = (struct ip6_hdr *)ip_ptr;
 		ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
 			(inp->in6p_flowinfo & IPV6_FLOWINFO_MASK);
 		ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
@@ -251,29 +244,51 @@ tcp_template(tp)
 		ip6->ip6_plen = sizeof(struct tcphdr);
 		ip6->ip6_src = inp->in6p_laddr;
 		ip6->ip6_dst = inp->in6p_faddr;
-		n->tt_t.th_sum = 0;
+		tcp_hdr->th_sum = 0;
 	} else
 #endif
-      {
-	struct ip *ip = (struct ip *)n->tt_ipgen;
+	{
+	struct ip *ip = (struct ip *) ip_ptr;
 
 	bzero(ip, sizeof(struct ip));		/* XXX overkill? */
 	ip->ip_vhl = IP_VHL_BORING;
 	ip->ip_p = IPPROTO_TCP;
 	ip->ip_src = inp->inp_laddr;
 	ip->ip_dst = inp->inp_faddr;
-	n->tt_t.th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-	    htons(sizeof(struct tcphdr) + IPPROTO_TCP));
-      }
-	n->tt_t.th_sport = inp->inp_lport;
-	n->tt_t.th_dport = inp->inp_fport;
-	n->tt_t.th_seq = 0;
-	n->tt_t.th_ack = 0;
-	n->tt_t.th_x2 = 0;
-	n->tt_t.th_off = 5;
-	n->tt_t.th_flags = 0;
-	n->tt_t.th_win = 0;
-	n->tt_t.th_urp = 0;
+	tcp_hdr->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+		htons(sizeof(struct tcphdr) + IPPROTO_TCP));
+	}
+
+	tcp_hdr->th_sport = inp->inp_lport;
+	tcp_hdr->th_dport = inp->inp_fport;
+	tcp_hdr->th_seq = 0;
+	tcp_hdr->th_ack = 0;
+	tcp_hdr->th_x2 = 0;
+	tcp_hdr->th_off = 5;
+	tcp_hdr->th_flags = 0;
+	tcp_hdr->th_win = 0;
+	tcp_hdr->th_urp = 0;
+}
+
+/*
+ * Create template to be used to send tcp packets on a connection.
+ * Allocates an mbuf and fills in a skeletal tcp/ip header.  The only
+ * use for this function is in keepalives, which use tcp_respond.
+ */
+struct tcptemp *
+tcp_maketemplate(tp)
+	struct tcpcb *tp;
+{
+	struct mbuf *m;
+	struct tcptemp *n;
+
+	m = m_get(M_DONTWAIT, MT_HEADER);
+	if (m == NULL)
+		return (0);
+	m->m_len = sizeof(struct tcptemp);
+	n = mtod(m, struct tcptemp *);
+
+	tcp_fillheaders(tp, (void *)&n->tt_ipgen, (void *)&n->tt_t);
 	return (n);
 }
 
@@ -282,10 +297,9 @@ tcp_template(tp)
  * the given TCP/IP header.  If m == 0, then we make a copy
  * of the tcpiphdr at ti and send directly to the addressed host.
  * This is used to force keep alive messages out using the TCP
- * template for a connection tp->t_template.  If flags are given
- * then we send a message back to the TCP which originated the
- * segment ti, and discard the mbuf containing it and any other
- * attached mbufs.
+ * template for a connection.  If flags are given then we send
+ * a message back to the TCP which originated the * segment ti,
+ * and discard the mbuf containing it and any other attached mbufs.
  *
  * In any case the ack and sequence number of the transmitted
  * segment are as specified by the parameters.
@@ -701,8 +715,6 @@ tcp_close(tp)
 		m_freem(q->tqe_m);
 		FREE(q, M_TSEGQ);
 	}
-	if (tp->t_template)
-		(void) m_free(dtom(tp->t_template));
 	inp->inp_ppcb = NULL;
 	soisdisconnected(so);
 #ifdef INET6
@@ -1339,7 +1351,7 @@ ipsec_hdrsiz_tcp(tp)
 #endif /* INET6 */
 	struct tcphdr *th;
 
-	if (!tp || !tp->t_template || !(inp = tp->t_inpcb))
+	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return 0;
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (!m)
@@ -1351,10 +1363,7 @@ ipsec_hdrsiz_tcp(tp)
 		th = (struct tcphdr *)(ip6 + 1);
 		m->m_pkthdr.len = m->m_len =
 			sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
-		bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip6,
-		      sizeof(struct ip6_hdr));
-		bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
-		      sizeof(struct tcphdr));
+		tcp_fillheaders(tp, ip6, th);
 		hdrsiz = ipsec6_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
 	} else
 #endif /* INET6 */
@@ -1362,10 +1371,7 @@ ipsec_hdrsiz_tcp(tp)
 	ip = mtod(m, struct ip *);
 	th = (struct tcphdr *)(ip + 1);
 	m->m_pkthdr.len = m->m_len = sizeof(struct tcpiphdr);
-	bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip,
-	      sizeof(struct ip));
-	bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
-	      sizeof(struct tcphdr));
+	tcp_fillheaders(tp, ip, th);
 	ip->ip_vhl = IP_VHL_BORING;
 	hdrsiz = ipsec4_hdrsiz(m, IPSEC_DIR_OUTBOUND, inp);
       }

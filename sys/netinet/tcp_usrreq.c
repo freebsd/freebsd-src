@@ -749,12 +749,6 @@ tcp_connect(tp, nam, p)
 	inp->inp_fport = sin->sin_port;
 	in_pcbrehash(inp);
 
-	tp->t_template = tcp_template(tp);
-	if (tp->t_template == 0) {
-		in_pcbdisconnect(inp);
-		return ENOBUFS;
-	}
-
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
 	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
@@ -840,12 +834,6 @@ tcp6_connect(tp, nam, p)
 	if ((sin6->sin6_flowinfo & IPV6_FLOWINFO_MASK) != NULL)
 		inp->in6p_flowinfo = sin6->sin6_flowinfo;
 	in_pcbrehash(inp);
-
-	tp->t_template = tcp_template(tp);
-	if (tp->t_template == 0) {
-		in6_pcbdisconnect(inp);
-		return ENOBUFS;
-	}
 
 	/* Compute window scaling to request.  */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
