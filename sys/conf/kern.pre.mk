@@ -32,6 +32,9 @@ INCLUDES+= -I$S/contrib/dev/acpica
 # ... and the same for ipfilter
 INCLUDES+= -I$S/contrib/ipfilter
 
+# ... and the same for Atheros HAL
+INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
+
 COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -fno-common
 
