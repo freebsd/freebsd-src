@@ -64,6 +64,7 @@ else
 CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
 fi
 CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
+CDROM_SET_1="${CDROM_SET_1} net/rsync"
 CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-font100dpi"
 CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-font75dpi"
 CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontCyrillic"
@@ -104,7 +105,7 @@ CDROM_SET_1="${CDROM_SET_1} mail/mutt"
 CDROM_SET_1="${CDROM_SET_1} mail/pine4"
 CDROM_SET_1="${CDROM_SET_1} mail/xfmail"
 CDROM_SET_1="${CDROM_SET_1} misc/screen"
-CDROM_SET_1="${CDROM_SET_1} net/cvsup-bin"
+CDROM_SET_1="${CDROM_SET_1} net/cvsup"
 CDROM_SET_1="${CDROM_SET_1} news/slrn"
 CDROM_SET_1="${CDROM_SET_1} news/tin"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
@@ -129,6 +130,9 @@ CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
+CDROM_SET_1="${CDROM_SET_1} misc/compat22"
+CDROM_SET_1="${CDROM_SET_1} misc/compat3x"
+CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 
 ## End of set for CDROM #1
 
