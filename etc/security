@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.8.4.3 1996/06/17 09:17:12 jkh Exp $
+#	$Id: security,v 1.8.4.4 1997/01/19 19:42:26 guido Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -25,10 +25,10 @@ set $MP
 while test $# -ge 1; do
 	mount=$1
 	shift
-	find -X $mount -xdev -type f \
+	find $mount -xdev -type f \
 		\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
-		\( -perm -u+s -or -perm -g+s \) | sort
-done | xargs -n 20 ls -lgTd > $TMP
+		\( -perm -u+s -or -perm -g+s \) -print0
+done | xargs -0 -n 20 ls -lgTd > $TMP
 
 if [ ! -f $LOG/setuid.today ] ; then
 	echo "no $LOG/setuid.today"
