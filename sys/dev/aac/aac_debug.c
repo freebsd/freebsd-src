@@ -182,7 +182,7 @@ aac_panic(struct aac_softc *sc, char *reason)
  * Print a FIB
  */
 void
-aac_print_fib(struct aac_softc *sc, struct aac_fib *fib, char *caller)
+aac_print_fib(struct aac_softc *sc, struct aac_fib *fib, const char *caller)
 {
 	device_printf(sc->aac_dev, "%s: FIB @ %p\n", caller, fib);
 	device_printf(sc->aac_dev, "  XferState %b\n", fib->Header.XferState,
