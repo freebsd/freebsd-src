@@ -357,12 +357,12 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
     /* If we have been given a wired unit number, check for existing device */
     if (unit != -1) {
 	if (unit >= 0 && unit < dc->maxunit && dc->devices[unit] != NULL) {
-	    if (bootverbose)
-		printf("%s-: %s%d exists, using next available unit number\n",
-		       dc->name, dc->name, unit);
 	    /* find the next available slot */
 	    while (++unit < dc->maxunit && dc->devices[unit] != NULL)
 		;
+	    if (bootverbose)
+		printf("%s-: %s%d already exists, using %s%d instead\n",
+		       dc->name, dc->name, *unitp, dc->name, unit);
 	}
     }
     else {
