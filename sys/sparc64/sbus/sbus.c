@@ -379,7 +379,7 @@ sbus_probe(device_t dev)
 		sc->sc_rd[i].rd_rman.rm_descr = "SBus Device Memory";
 		if (rman_init(&sc->sc_rd[i].rd_rman) != 0 ||
 		    rman_manage_region(&sc->sc_rd[i].rd_rman, 0, size) != 0)
-			panic("psycho_probe: failed to set up memory rman");
+			panic("sbus_probe: failed to set up memory rman");
 		sc->sc_rd[i].rd_poffset = phys;
 		sc->sc_rd[i].rd_pend = phys + size;
 		sc->sc_rd[i].rd_res = res;
@@ -736,6 +736,10 @@ sbus_teardown_intr(device_t dev, device_t child,
 	return (error);
 }
 
+/*
+ * There is no need to handle pass-throughs here; there are no bridges to
+ * SBuses.
+ */
 static struct resource *
 sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -768,8 +772,8 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 	switch (type) {
 	case SYS_RES_IRQ:
-		rv = bus_alloc_resource(bus, type, rid, start, end,
-		    count, flags);
+		rv = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type,
+		    rid, start, end, count, flags);
 		if (rv == NULL)
 			return (NULL);
 		break;
@@ -818,8 +822,10 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 
-	if (type == SYS_RES_IRQ)
-		return (bus_activate_resource(bus, type, rid, r));
+	if (type == SYS_RES_IRQ) {
+		return (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
+		    child, type, rid, r));
+	}
 	return (rman_activate_resource(r));
 }
 
@@ -828,8 +834,10 @@ sbus_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
 
-	if (type == SYS_RES_IRQ)
-		return (bus_deactivate_resource(bus, type, rid, r));
+	if (type == SYS_RES_IRQ) {
+		return (BUS_DEACTIVATE_RESOURCE(device_get_parent(bus),
+		    child, type, rid, r));
+	}
 	return (rman_deactivate_resource(r));
 }
 
@@ -837,16 +845,30 @@ static int
 sbus_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-	int error;
+	struct sbus_devinfo *sdi;
+	struct resource_list_entry *rle;
+	int error = 0;
 
 	if (type == SYS_RES_IRQ)
-		return (bus_release_resource(bus, type, rid, r));
-	if (rman_get_flags(r) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, type, rid, r);
-		if (error)
-			return error;
+		error = BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
+		    type, rid, r);
+	else {
+		if ((rman_get_flags(r) & RF_ACTIVE) != 0)
+			error = bus_deactivate_resource(child, type, rid, r);
+		if (error != 0)
+			return (error);
+		error = rman_release_resource(r);
 	}
-	return (rman_release_resource(r));
+	if (error != 0)
+		return (error);
+	sdi = device_get_ivars(child);
+	rle = resource_list_find(&sdi->sdi_rl, type, rid);
+	if (rle == NULL)
+		panic("sbus_release_resource: can't find resource");
+	if (rle->res == NULL)
+		panic("sbus_release_resource: resource entry is not busy");
+	rle->res = NULL;
+	return (0);
 }
 
 /*
