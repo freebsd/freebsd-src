@@ -90,48 +90,6 @@ and
 .Dq biba/low
 none.
 .Pp
-Almost all system objects are tagged with a single, active label element,
-reflecting the integrity of the object, or integrity of the data contained
-in the object.
-In general, objects labels are represented in the following form:
-.Pp
-.Dl biba/grade:compartments
-.Pp
-For example:
-.Pp
-.Bd -literal -offset indent
-biba/10:2+3+6
-biba/low
-.Ed
-.Pp
-Subject labels consist of three label elements: a single (active) label,
-as well as a range of available labels.
-This range is represented using two ordered Biba label elements, and when set
-on a process, permits the process to change its active label to any label of
-greater or equal integrity to the low end of the range, and lesser or equal
-integrity to the high end of the range.
-In general, subject labels are represented in the following form:
-.Pp
-.Dl biba/singlegrade:singlecompartments(lograde:locompartments-
-.Dl higrade:hicompartments)
-.Pp
-For example:
-.Bd -literal -offset indent
-biba/10:2+3+6(5-20:2+3+4+5+6)
-biba/high(low-high)
-.Ed
-.Pp
-Valid ranged labels must meet the following requirement regarding their
-elements:
-.Pp
-.Dl rangehigh >= single >= rangelow
-.Pp
-One class of objects with ranges currently exists, the network interface.
-In the case of the network interface, the single label element references the
-default label for packets received over the interface, and the range
-represents the range of acceptable labels of packets to be transmitted over
-the interface.
-.Pp
 In general, Biba access control takes the following model:
 .Bl -bullet
 .It
@@ -173,6 +131,70 @@ preventing the downward flow of information rather than the upward flow of
 information.
 Multi-Level Security (MLS) protects the confidentiality, rather than the
 integrity, of subjects and objects.
+.Ss Label Format
+Almost all system objects are tagged with a single, active label element,
+reflecting the integrity of the object, or integrity of the data contained
+in the object.
+In general, objects labels are represented in the following form:
+.Pp
+.Dl biba/grade:compartments
+.Pp
+For example:
+.Pp
+.Bd -literal -offset indent
+biba/10:2+3+6
+biba/low
+.Ed
+.Pp
+Subject labels consist of three label elements: a single (active) label,
+as well as a range of available labels.
+This range is represented using two ordered Biba label elements, and when set
+on a process, permits the process to change its active label to any label of
+greater or equal integrity to the low end of the range, and lesser or equal
+integrity to the high end of the range.
+In general, subject labels are represented in the following form:
+.Pp
+.Dl biba/singlegrade:singlecompartments(lograde:locompartments-
+.Dl higrade:hicompartments)
+.Pp
+For example:
+.Bd -literal -offset indent
+biba/10:2+3+6(5:2+3-20:2+3+4+5+6)
+biba/high(low-high)
+.Ed
+.Pp
+Valid ranged labels must meet the following requirement regarding their
+elements:
+.Pp
+.Dl rangehigh >= single >= rangelow
+.Pp
+One class of objects with ranges currently exists, the network interface.
+In the case of the network interface, the single label element references the
+default label for packets received over the interface, and the range
+represents the range of acceptable labels of packets to be transmitted over
+the interface.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are available for fine-tuning the enforcement of this MAC policy.
+.Bl -tag -width 'security.mac.biba.ptys_equal'
+.It Va security.mac.biba.enabled
+Enables enforcement of the Biba integrity policy
+(Default: 1)
+.It Va security.mac.biba.ptys_equal
+Label
+.Sm off
+.Xr pty 4
+s
+.Sm on
+as
+.Dq biba/equal
+upon creation
+(Default: 0)
+.It Va security.mac.biba.revocation_enabled
+Revoke access to objects if the label is changed to dominate the subject
+(Default: 0)
+.El
 .Sh SEE ALSO
 .Xr lomac 4 ,
 .Xr mac 4 ,
