@@ -93,6 +93,7 @@ device		sio
 #
 device	miibus 
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		lnc
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		xl		# 3Com
 device		rl		# RealTek 8129/8139
