@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.86 1997/08/01 04:41:38 jkh Exp $
+ * $Id: media.c,v 1.87 1997/08/11 13:08:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -396,7 +396,7 @@ mediaSetFTP(dialogMenuItem *self)
 	    return DITEM_FAILURE | what;
 	}
 	else
-	    msgDebug("Found DNS entry for %s successfully..", hostname);
+	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
