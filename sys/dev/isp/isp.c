@@ -907,7 +907,7 @@ isp_scsi_channel_init(isp, channel)
 		u_int16_t sdf;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
-			IDPRINTF(1, ("%s: skipping target %d bus %d settings\n",
+			IDPRINTF(2, ("%s: skipping target %d bus %d settings\n",
 			    isp->isp_name, tgt, channel));
 			continue;
 		}
@@ -955,7 +955,6 @@ isp_scsi_channel_init(isp, channel)
 				continue;
 			}
 		}
-
 #if	0
 		/*
 		 * We don't update dev_flags with what we've set
@@ -1499,8 +1498,6 @@ isp_pdb_sync(isp, target)
 		 * asked for, restart the process entirely (up to a point...).
 		 */
 		if (pdb.pdb_loopid != loopid) {
-			IDPRINTF(1, ("%s: wankage (%d != %d)\n",
-			    isp->isp_name, pdb.pdb_loopid, loopid));
 			loopid = 0;
 			if (lim++ < FL_PORT_ID) {
 				continue;
@@ -2138,7 +2135,7 @@ ispscsicmd(xs)
 	}
 
 	if (isp_getrqentry(isp, &iptr, &optr, (void **) &reqp)) {
-		IDPRINTF(1, ("%s: Request Queue Overflow\n", isp->isp_name));
+		IDPRINTF(2, ("%s: Request Queue Overflow\n", isp->isp_name));
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	}
@@ -2167,7 +2164,7 @@ ispscsicmd(xs)
 			ISP_ADD_REQUEST(isp, iptr);
 
 			if (isp_getrqentry(isp, &iptr, &optr, (void **)&reqp)) {
-				IDPRINTF(1, ("%s: Request Queue Overflow+\n",
+				IDPRINTF(2, ("%s: Request Queue Overflow+\n",
 				    isp->isp_name));
 				XS_SETERR(xs, HBA_BOTCH);
 				return (CMD_EAGAIN);
@@ -2368,7 +2365,7 @@ isp_control(isp, ctl, arg)
 			    ("%s: command (handle 0x%x) for %d.%d.%d aborted\n",
 			    isp->isp_name, handle, bus, tgt, XS_LUN(xs)));
 			/* FALLTHROUGH */
-		case MBOX_COMMAND_PARAM_ERROR:
+		case MBOX_COMMAND_ERROR:
 			break;
 		default:
 			PRINTF("%s: command (handle 0x%x) abort failed (%x)\n",
@@ -2674,8 +2671,9 @@ isp_intr(arg)
 				XS_SNS_IS_VALID(xs);
 				sp->req_state_flags |= RQSF_GOT_SENSE;
 			} else if (XS_STS(xs) == SCSI_CHECK) {
-				IDPRINTF(1, ("%s: check condition with no sense"
-				    " data\n", isp->isp_name));
+				IDPRINTF(2,
+				    ("%s: check condition with no sense data\n",
+				    isp->isp_name));
 			}
 		}
 		if (XS_NOERR(xs) && XS_STS(xs) == SCSI_BUSY) {
@@ -2942,7 +2940,7 @@ isp_parse_async(isp, mbox)
 		isp->isp_sendmarker = 1;
 		((fcparam *) isp->isp_param)->isp_loopstate = LOOP_PDB_RCVD;
 		isp_mark_getpdb_all(isp);
-		IDPRINTF(2, ("%s: Port Database Changed\n", isp->isp_name));
+		IDPRINTF(1, ("%s: Port Database Changed\n", isp->isp_name));
 		break;
 
 	case ASYNC_CHANGE_NOTIFY:
@@ -3835,7 +3833,7 @@ isp_update_bus(isp, bus)
 		int get;
 
 		if (sdp->isp_devparam[tgt].dev_enable == 0) {
-			IDPRINTF(1, ("%s: skipping target %d bus %d update\n",
+			IDPRINTF(2, ("%s: skipping target %d bus %d update\n",
 			    isp->isp_name, tgt, bus));
 			continue;
 		}
