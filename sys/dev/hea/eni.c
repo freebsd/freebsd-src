@@ -47,6 +47,10 @@
 #include <sys/syslog.h>
 #include <sys/eventhandler.h>
 #include <net/if.h>
+
+#include <sys/bus.h>
+#include <sys/conf.h>
+
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
@@ -58,6 +62,9 @@
 #include <netatm/atm_pcb.h>
 #include <netatm/atm_var.h>
 
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
 #include <dev/hea/eni_stats.h>
 #include <dev/hea/eni.h>
 #include <dev/hea/eni_var.h>
@@ -66,25 +73,26 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-#ifndef COMPAT_OLDPCI
-#error "The eni device requires the old pci compatibility shims"
-#endif
-
 /*
  * Typedef local functions
  */
+#if 0
 static const char	*eni_pci_probe(pcici_t, pcidi_t);
 static void	eni_pci_attach(pcici_t, int);
+#endif
 static int 	eni_get_ack(Eni_unit *);
 static int	eni_get_sebyte(Eni_unit *);
-static void	eni_read_seeprom(Eni_unit *);
+void 		eni_read_seeprom(Eni_unit *);
+#if 0
 #if BSD < 199506
 static int	eni_pci_shutdown(struct kern_devconf *, int);
 #else
 static void	eni_pci_shutdown(void *, int);
 #endif
 static void	eni_pci_reset(Eni_unit *);
+#endif
 
+#if 0
 /*
  * Used by kernel to return number of claimed devices
  */
@@ -134,6 +142,7 @@ eni_pci_probe ( pcici_t config_id, pcidi_t device_id )
 
 	return ( NULL );
 }
+#endif
 
 /*
  * The ENI-155p adapter uses an ATMEL AT24C01 serial EEPROM to store
@@ -149,8 +158,8 @@ eni_pci_probe ( pcici_t config_id, pcidi_t device_id )
  */
 #define	WRITE_SEEPROM()	(						\
     {									\
-	(void) pci_conf_write ( eup->eu_pcitag, SEEPROM,		\
-		eup->eu_sevar );					\
+	(void) pci_write_config(eup->eu_pcitag, SEEPROM,		\
+		eup->eu_sevar, 4);					\
 	DELAY(SEPROM_DELAY);						\
     }									\
 )
@@ -216,7 +225,7 @@ eni_pci_probe ( pcici_t config_id, pcidi_t device_id )
  *
  */
 static int
-eni_get_ack ( eup )
+eni_get_ack (eup)
 	Eni_unit	*eup;
 {
 	int		ack;
@@ -225,14 +234,14 @@ eni_get_ack ( eup )
 	/*
 	 * Read DATA line from SEPROM
 	 */
-	eup->eu_sevar = pci_conf_read ( eup->eu_pcitag, SEEPROM );
+	eup->eu_sevar = pci_read_config(eup->eu_pcitag, SEEPROM, 4);
 	DELAY ( SEPROM_DELAY );
 	ack = eup->eu_sevar & SEPROM_DATA;
 
 	eup->eu_sevar &= ~SEPROM_CLK;
-	WRITE_SEEPROM ();
+	WRITE_SEEPROM();
 	eup->eu_sevar |= SEPROM_DATA;
-	WRITE_SEEPROM ();
+	WRITE_SEEPROM();
 
 	return ( ack );
 }
@@ -255,7 +264,7 @@ eni_get_ack ( eup )
  *
  */
 static int
-eni_get_sebyte( eup )
+eni_get_sebyte(eup)
 	Eni_unit	*eup;
 {
 	int	i;
@@ -273,7 +282,7 @@ eni_get_sebyte( eup )
 		/*
 		 * Read DATA line from SEPROM
 		 */
-		data = pci_conf_read ( eup->eu_pcitag, SEEPROM );
+		data = pci_read_config(eup->eu_pcitag, SEEPROM, 4);
 		DELAY ( SEPROM_DELAY );
 		/* (Possibly) mask bit into accumulating value */
 		if ( data & SEPROM_DATA )
@@ -298,7 +307,7 @@ eni_get_sebyte( eup )
  *	none
  *
  */
-static void
+void
 eni_read_seeprom ( eup )
 	Eni_unit	*eup;
 {
@@ -352,6 +361,7 @@ eni_read_seeprom ( eup )
 	return;
 }
 
+#if 0
 /*
  * The kernel has found a device which we are willing to support.
  * We are now being called to do any necessary work to make the
@@ -686,4 +696,5 @@ eni_pci_shutdown ( eup, howto )
 
 }
 #endif	/* BSD < 199506 */
+#endif
 #endif
