@@ -25,7 +25,9 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #define NO_RECORDING /* XXX: some routines missing from uaudio.c */
+#endif
 
 /* Defined in uaudio.c, used in uaudio_pcm,c */
 

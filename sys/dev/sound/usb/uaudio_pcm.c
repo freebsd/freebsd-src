@@ -73,6 +73,7 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
+	ch->dir = dir;
 
 	pa_dev = device_get_parent(sc->sc_dev);
      	/* Create ua_playfmt[] & ua_recfmt[] */
@@ -320,7 +321,11 @@ ua_attach(device_t dev)
 
 	snprintf(status, SND_STATUSLEN, "at addr ?");
 
+#ifndef NO_RECORDING
+	if (pcm_register(dev, ua, 1, 1)) {
+#else
 	if (pcm_register(dev, ua, 1, 0)) {
+#endif
 		return(ENXIO);
 	}
 
