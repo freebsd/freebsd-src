@@ -99,7 +99,7 @@ static const char rcsid[] =
 
 #if defined(__i386__) || defined(__ia64__)
 #define	NUMBOOT	2
-#elif defined(__alpha__) || defined(__sparc64__)
+#elif defined(__alpha__) || defined(__sparc64__) || defined(__powerpc__)
 #define	NUMBOOT	1
 #else
 #error	I do not know about this architecture.
