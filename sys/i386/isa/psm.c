@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.55 1998/10/13 07:56:38 yokota Exp $
+ * $Id: psm.c,v 1.56 1998/10/22 05:58:40 bde Exp $
  */
 
 /*
@@ -179,20 +179,20 @@ static struct psm_softc {    /* Driver status information */
 #define PSM_CONFIG_RESOLUTION	0x000f	/* resolution */
 #define PSM_CONFIG_ACCEL	0x00f0  /* acceleration factor */
 #define PSM_CONFIG_NOCHECKSYNC	0x0100  /* disable sync. test */
+#define PSM_CONFIG_NOIDPROBE	0x0200  /* disable mouse model probe */
+#define PSM_CONFIG_NORESET	0x0400  /* don't reset the mouse */
+#define PSM_CONFIG_FORCETAP	0x0800  /* assume `tap' action exists */
+#define PSM_CONFIG_IGNPORTERROR	0x1000  /* ignore error in aux port test */
 
 #define PSM_CONFIG_FLAGS	(PSM_CONFIG_RESOLUTION 		\
 				    | PSM_CONFIG_ACCEL		\
-				    | PSM_CONFIG_NOCHECKSYNC)
+				    | PSM_CONFIG_NOCHECKSYNC	\
+				    | PSM_CONFIG_NOIDPROBE	\
+				    | PSM_CONFIG_NORESET	\
+				    | PSM_CONFIG_FORCETAP	\
+				    | PSM_CONFIG_IGNPORTERROR)
 
 /* other flags (flags) */
-/*
- * Pass mouse data packet to the user land program `as is', even if 
- * the mouse has vendor-specific enhanced features and uses non-standard 
- * packet format.  Otherwise manipulate the mouse data packet so that 
- * it can be recognized by the programs which can only understand 
- * the standard packet format.
-*/
-#define PSM_FLAGS_NATIVEMODE 	0x0200
 
 /* for backward compatibility */
 #define OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
@@ -281,6 +281,7 @@ static struct {
     { MOUSE_MODEL_GENERIC,
       0xc0, MOUSE_PS2_PACKETSIZE, NULL, },
 };
+#define GENERIC_MOUSE_ENTRY	6
 
 /* device driver declarateion */
 struct isa_driver psmdriver = { psmprobe, psmattach, "psm", FALSE };
@@ -587,19 +588,28 @@ reinitialize(int unit, mousemode_t *mode)
     case -1: 	/* time out */
     default: 	/* error */
     	recover_from_error(kbdc);
+	if (sc->config & PSM_CONFIG_IGNPORTERROR)
+	    break;
     	log(LOG_ERR, "psm%d: the aux port is not functioning (%d).\n",
     	    unit, i);
     	return FALSE;
     }
 
-    /* 
-     * NOTE: some controllers appears to hang the `keyboard' when
-     * the aux port doesn't exist and `PSMC_RESET_DEV' is issued. 
-     */
-    if (!reset_aux_dev(kbdc)) {
-        recover_from_error(kbdc);
-        log(LOG_ERR, "psm%d: failed to reset the aux device.\n", unit);
-        return FALSE;
+    if (sc->config & PSM_CONFIG_NORESET) {
+	/* 
+	 * Don't try to reset the pointing device.  It may possibly be
+	 * left in the unknown state, though...
+	 */
+    } else {
+	/* 
+	 * NOTE: some controllers appears to hang the `keyboard' when
+	 * the aux port doesn't exist and `PSMC_RESET_DEV' is issued. 
+	 */
+	if (!reset_aux_dev(kbdc)) {
+            recover_from_error(kbdc);
+            log(LOG_ERR, "psm%d: failed to reset the aux device.\n", unit);
+            return FALSE;
+	}
     }
 
     /* 
@@ -612,15 +622,19 @@ reinitialize(int unit, mousemode_t *mode)
     }
     empty_both_buffers(kbdc, 10);	/* remove stray data if any */
 
-    /* FIXME: hardware ID, mouse buttons? */
+    if (sc->config & PSM_CONFIG_NOIDPROBE) {
+	i = GENERIC_MOUSE_ENTRY;
+    } else {
+	/* FIXME: hardware ID, mouse buttons? */
 
-    /* other parameters */
-    for (i = 0; vendortype[i].probefunc != NULL; ++i) {
-	if ((*vendortype[i].probefunc)(sc)) {
-	    if (verbose >= 2)
-		log(LOG_ERR, "psm%d: found %s\n", 
-		    unit, model_name(vendortype[i].model));
-	    break;
+	/* other parameters */
+	for (i = 0; vendortype[i].probefunc != NULL; ++i) {
+	    if ((*vendortype[i].probefunc)(sc)) {
+		if (verbose >= 2)
+		    log(LOG_ERR, "psm%d: found %s\n", 
+			unit, model_name(vendortype[i].model));
+		break;
+	    }
 	}
     }
 
@@ -793,6 +807,7 @@ psmprobe(struct isa_device *dvp)
         printf("psm%d: unable to set the command byte.\n", unit);
         endprobe(0);
     }
+    write_controller_command(sc->kbdc, KBDC_ENABLE_AUX_PORT);
 
     /*
      * NOTE: `test_aux_port()' is designed to return with zero if the aux
@@ -823,6 +838,8 @@ psmprobe(struct isa_device *dvp)
     case -1:        /* time out */
     default:        /* error */
         recover_from_error(sc->kbdc);
+	if (sc->config & PSM_CONFIG_IGNPORTERROR)
+	    break;
         restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: the aux port is not functioning (%d).\n",
@@ -830,17 +847,25 @@ psmprobe(struct isa_device *dvp)
         endprobe(0);
     }
 
-    /*
-     * NOTE: some controllers appears to hang the `keyboard' when the aux
-     * port doesn't exist and `PSMC_RESET_DEV' is issued.
-     */
-    if (!reset_aux_dev(sc->kbdc)) {
-        recover_from_error(sc->kbdc);
-        restore_controller(sc->kbdc, command_byte);
-        if (verbose)
-            printf("psm%d: failed to reset the aux device.\n", unit);
-        endprobe(0);
+    if (sc->config & PSM_CONFIG_NORESET) {
+	/* 
+	 * Don't try to reset the pointing device.  It may possibly be
+	 * left in the unknown state, though...
+	 */
+    } else {
+	/*
+	 * NOTE: some controllers appears to hang the `keyboard' when the aux
+	 * port doesn't exist and `PSMC_RESET_DEV' is issued.
+	 */
+	if (!reset_aux_dev(sc->kbdc)) {
+            recover_from_error(sc->kbdc);
+            restore_controller(sc->kbdc, command_byte);
+            if (verbose)
+        	printf("psm%d: failed to reset the aux device.\n", unit);
+            endprobe(0);
+	}
     }
+
     /*
      * both the aux port and the aux device is functioning, see if the
      * device can be enabled. NOTE: when enabled, the device will start
@@ -848,11 +873,12 @@ psmprobe(struct isa_device *dvp)
      * the device can be enabled.
      */
     if (!enable_aux_dev(sc->kbdc) || !disable_aux_dev(sc->kbdc)) {
-	/* MOUSE ERROR */
-        restore_controller(sc->kbdc, command_byte);
-        if (verbose)
-            printf("psm%d: failed to enable the aux device.\n", unit);
-        endprobe(0);
+        /* MOUSE ERROR */
+	recover_from_error(sc->kbdc);
+	restore_controller(sc->kbdc, command_byte);
+	if (verbose)
+	    printf("psm%d: failed to enable the aux device.\n", unit);
+	endprobe(0);
     }
 
     /* save the default values after reset */
@@ -888,16 +914,21 @@ psmprobe(struct isa_device *dvp)
         break;
     }
 
-    /* # of buttons */
-    sc->hw.buttons = get_mouse_buttons(sc->kbdc);
+    if (sc->config & PSM_CONFIG_NOIDPROBE) {
+	sc->hw.buttons = 2;
+	i = GENERIC_MOUSE_ENTRY;
+    } else {
+	/* # of buttons */
+	sc->hw.buttons = get_mouse_buttons(sc->kbdc);
 
-    /* other parameters */
-    for (i = 0; vendortype[i].probefunc != NULL; ++i) {
-	if ((*vendortype[i].probefunc)(sc)) {
-	    if (verbose >= 2)
-		printf("psm%d: found %s\n",
-		    unit, model_name(vendortype[i].model));
-	    break;
+	/* other parameters */
+	for (i = 0; vendortype[i].probefunc != NULL; ++i) {
+	    if ((*vendortype[i].probefunc)(sc)) {
+		if (verbose >= 2)
+		    printf("psm%d: found %s\n",
+			   unit, model_name(vendortype[i].model));
+		break;
+	    }
 	}
     }
 
@@ -910,6 +941,8 @@ psmprobe(struct isa_device *dvp)
         sc->dflt_mode.syncmask[0] = 0;
     else
         sc->dflt_mode.syncmask[0] = vendortype[i].syncmask;
+    if (sc->config & PSM_CONFIG_FORCETAP)
+        sc->mode.syncmask[0] &= ~MOUSE_PS2_TAP;
     sc->dflt_mode.syncmask[1] = 0;	/* syncbits */
     sc->mode = sc->dflt_mode;
     sc->mode.packetsize = vendortype[i].packetsize;
@@ -1734,6 +1767,9 @@ psmintr(int unit)
 	z = 0;
         ms.obutton = sc->button;		  /* previous button state */
         ms.button = butmap[c & MOUSE_PS2_BUTTONS];
+	/* `tapping' action */
+	if (sc->config & PSM_CONFIG_FORCETAP)
+	    ms.button |= ((c & MOUSE_PS2_TAP)) ? 0 : MOUSE_BUTTON4DOWN;
 
 	switch (sc->hw.model) {
 
