@@ -4,8 +4,6 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $FreeBSD$
- *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
  *
@@ -32,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #ifndef _SYSINSTALL_H_INCLUDE
