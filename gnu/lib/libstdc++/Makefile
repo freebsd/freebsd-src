@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCDIR=	${.CURDIR}/../../../contrib/egcs/libstdc++
+SRCDIR=	${.CURDIR}/../../../contrib/libstdc++
 
 .PATH: ${SRCDIR} ${SRCDIR}/stl ${SRCDIR}/../libio
 
@@ -20,13 +20,15 @@ DPADD+=		${LIBM}
 HDRS=	cassert cctype cerrno cfloat ciso646 climits clocale cmath complex \
 	csetjmp csignal cstdarg cstddef cstdio cstdlib cstring ctime \
 	cwchar cwctype fstream iomanip iosfwd iostream stdexcept string \
-	strstream complex.h stl.h
+	strstream complex.h stl.h valarray
 
-SHDRS=	bastring.cc bastring.h complext.cc complext.h dcomplex.h fcomplex.h \
-	ldcomplex.h straits.h
+STDHDRS=bastring.cc bastring.h complext.cc complext.h dcomplex.h fcomplex.h \
+	gslice.h gslice_array.h indirect_array.h ldcomplex.h mask_array.h \
+	slice.h slice_array.h std_valarray.h straits.h valarray_array.h \
+	valarray_array.tcc valarray_meta.h
 
-STLHDRS=algo.h algobase.h algorithm alloc.h bvector.h defalloc.h deque deque.h \
-	function.h functional hash_map hash_map.h hash_set hash_set.h \
+STLHDRS=algo.h algobase.h algorithm alloc.h bitset bvector.h defalloc.h deque \
+	deque.h function.h functional hash_map hash_map.h hash_set hash_set.h \
 	hashtable.h heap.h iterator iterator.h list list.h map map.h memory \
 	multimap.h multiset.h numeric pair.h pthread_alloc pthread_alloc.h \
 	queue rope rope.h ropeimpl.h set set.h slist slist.h stack stack.h \
@@ -75,7 +77,7 @@ beforeinstall:
 	    ${STLHDRS:S;^;${SRCDIR}/stl/;} \
 	    ${DESTDIR}/usr/include/g++
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${SHDRS:S;^;${SRCDIR}/std/;} \
+	    ${STDHDRS:S;^;${SRCDIR}/std/;} \
 	    ${DESTDIR}/usr/include/g++/std
 
 CLEANFILES+=	dummy.h dummy.c dummy.C
