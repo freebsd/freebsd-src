@@ -148,6 +148,7 @@ struct mly_command {
     void	(* mc_complete)(struct mly_command *mc);	/* completion handler */
     void	*mc_private;					/* caller-private data */
 
+    int				mc_timestamp;
 };
 
 /*
@@ -237,6 +238,7 @@ struct mly_softc {
     /* command-completion task */
     struct task		mly_task_complete;	/* deferred-completion task */
 #endif
+    int				mly_qfrzn_cnt;		/* Track simq freezes */
 };
 
 /*
