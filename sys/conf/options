@@ -111,6 +111,7 @@ EXT2FS		opt_dontuse.h
 FDESC		opt_dontuse.h
 FFS		opt_dontuse.h
 IFS		opt_dontuse.h
+LINPROCFS	opt_dontuse.h
 MFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
