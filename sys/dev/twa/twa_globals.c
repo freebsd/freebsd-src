@@ -137,7 +137,7 @@ struct twa_message	twa_aen_table[] = {
 	{0x00FD, "Handler lockup"},
 	{0x00FE, "Retrying PCI transfer"},
 	{0x00FF, "AEN queue is full"},
-	{0xFFFFFFFF, (char *)NULL}
+	{0xFFFFFFFF, ""}
 };
 
 /* AEN severity table. */
@@ -147,7 +147,7 @@ char	*twa_aen_severity_table[] = {
 	"WARNING",
 	"INFO",
 	"DEBUG",
-	(char *)NULL
+	""
 };
 
 /* Error messages. */
@@ -307,7 +307,7 @@ struct twa_message	twa_error_table[] = {
 	{0x0330, "Log updates not allowed"},
 	{0x0331, "Logs are invalid"},
 	{0x0332, "Logs not found"},
-	{0xFFFFFFFF, (char *)NULL}
+	{0xFFFFFFFF, ""}
 };
     
 #ifdef TWA_DEBUG
