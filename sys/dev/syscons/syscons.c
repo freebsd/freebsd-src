@@ -554,7 +554,8 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
 int
 scread(dev_t dev, struct uio *uio, int flag)
 {
-    sc_touch_scrn_saver();
+    if (!sc_saver_keyb_only)
+	sc_touch_scrn_saver();
     return ttyread(dev, uio, flag);
 }
 
