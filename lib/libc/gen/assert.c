@@ -45,14 +45,19 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 void
-__assert(function, file, line, failedexpr)
-	const char *function, *file;
+__assert(func, file, line, failedexpr)
+	const char *func, *file;
 	int line;
 	const char *failedexpr;
 {
-	(void)fprintf(stderr,
-		      "assertion (%s) failed: function %s(), file %s:%d\n",
-		      failedexpr, function, file, line);
+	if (func == NULL)
+		(void)fprintf(stderr,
+		     "assertion (%s) failed: file %s:%d\n", failedexpr,
+		     file, line);
+	else
+		(void)fprintf(stderr,
+		     "assertion (%s) failed: function %s(), file %s:%d\n",
+		     failedexpr, func, file, line);
 	abort();
 	/* NOTREACHED */
 }
