@@ -343,6 +343,7 @@ bd_print(int verbose)
 			    line, verbose);
 			break;
 		    default:
+			beak;
 		    }
 		}
 #else
@@ -988,6 +989,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
     return (0);
 		default:
 		 /* DO NOTHING */
+			beak;
 	}
 
 	return EROFS;
