@@ -134,28 +134,35 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 #define	nack_fcp	unp.nack_fcp
 #define	hdrp		unp.hp
 	} unp;
-	int bus, rval = 0;
+	u_int8_t local[QENTRY_LEN];
+	int bus, type, rval = 0;
 
+	type = isp_get_response_type(isp, (isphdr_t *)vptr);
 	unp.vp = vptr;
 
 	ISP_TDQE(isp, "isp_target_notify", (int) *optrp, vptr);
 
-	switch(hdrp->rqs_entry_type) {
+	switch(type) {
 	case RQSTYPE_ATIO:
-		isp_handle_atio(isp, atiop);
+		isp_get_atio(isp, atiop, (at_entry_t *) local);
+		isp_handle_atio(isp, (at_entry_t *) local);
 		break;
 	case RQSTYPE_CTIO:
-		isp_handle_ctio(isp, ctiop);
+		isp_get_ctio(isp, ctiop, (ct_entry_t *) local);
+		isp_handle_ctio(isp, (ct_entry_t *) local);
 		break;
 	case RQSTYPE_ATIO2:
-		isp_handle_atio2(isp, at2iop);
+		isp_get_atio2(isp, at2iop, (at2_entry_t *) local);
+		isp_handle_atio2(isp, (at2_entry_t *) local);
 		break;
 	case RQSTYPE_CTIO2:
-		isp_handle_ctio2(isp, ct2iop);
+		isp_get_ctio2(isp, ct2iop, (ct2_entry_t *) local);
+		isp_handle_ctio2(isp, (ct2_entry_t *) local);
 		break;
 	case RQSTYPE_ENABLE_LUN:
 	case RQSTYPE_MODIFY_LUN:
-		(void) isp_async(isp, ISPASYNC_TARGET_ACTION, vptr);
+		isp_get_enable_lun(isp, lunenp, (lun_entry_t *) local);
+		(void) isp_async(isp, ISPASYNC_TARGET_ACTION, local);
 		break;
 
 	case RQSTYPE_NOTIFY:
@@ -168,9 +175,13 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		 */
 		bus = 0;
 		if (IS_FC(isp)) {
+			isp_get_notify_fc(isp, inot_fcp, (in_fcentry_t *)local);
+			inot_fcp = (in_fcentry_t *) local;
 			status = inot_fcp->in_status;
 			seqid = inot_fcp->in_seqid;
 		} else {
+			isp_get_notify(isp, inotp, (in_entry_t *)local);
+			inotp = (in_entry_t *) local;
 			status = inotp->in_status & 0xff;
 			seqid = inotp->in_seqid;
 			if (IS_DUALBUS(isp)) {
@@ -185,7 +196,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		/*
 		 * ACK it right away.
 		 */
-		isp_notify_ack(isp, (status == IN_RESET)? NULL : vptr);
+		isp_notify_ack(isp, (status == IN_RESET)? NULL : local);
 		switch (status) {
 		case IN_RESET:
 			(void) isp_async(isp, ISPASYNC_BUS_RESET, &bus);
@@ -193,9 +204,9 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		case IN_MSG_RECEIVED:
 		case IN_IDE_RECEIVED:
 			if (IS_FC(isp)) {
-				isp_got_msg_fc(isp, bus, vptr);
+				isp_got_msg_fc(isp, bus, (in_fcentry_t *)local);
 			} else {
-				isp_got_msg(isp, bus, vptr);
+				isp_got_msg(isp, bus, (in_entry_t *)local);
 			}
 			break;
 		case IN_RSRC_UNAVAIL:
@@ -233,10 +244,15 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		 * Immediate Notify entry for some asynchronous event.
 		 */
 		if (IS_FC(isp)) {
+			isp_get_notify_ack_fc(isp, nack_fcp,
+			    (na_fcentry_t *)local);
+			nack_fcp = (na_fcentry_t *)local;
 			isp_prt(isp, ISP_LOGTDEBUG1,
 			    "Notify Ack status=0x%x seqid 0x%x",
 			    nack_fcp->na_status, nack_fcp->na_seqid);
 		} else {
+			isp_get_notify_ack(isp, nackp, (na_entry_t *)local);
+			nackp = (na_entry_t *)local;
 			isp_prt(isp, ISP_LOGTDEBUG1,
 			    "Notify Ack event 0x%x status=0x%x seqid 0x%x",
 			    nackp->na_event, nackp->na_status, nackp->na_seqid);
@@ -244,8 +260,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR,
-		    "Unknown entry type 0x%x in isp_target_notify",
-		    hdrp->rqs_entry_type);
+		    "Unknown entry type 0x%x in isp_target_notify", type);
 		rval = -1;
 		break;
 	}
@@ -277,7 +292,7 @@ isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
     int cmd_cnt, int inot_cnt, u_int32_t opaque)
 {
 	lun_entry_t el;
-	u_int16_t iptr, optr;
+	u_int16_t nxti, optr;
 	void *outp;
 
 
@@ -314,14 +329,14 @@ isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
 	}
 	el.le_timeout = 2;
 
-	if (isp_getrqentry(isp, &iptr, &optr, &outp)) {
-		isp_prt(isp, ISP_LOGWARN,
+	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {
+		isp_prt(isp, ISP_LOGERR,
 		    "Request Queue Overflow in isp_lun_cmd");
 		return (-1);
 	}
-	ISP_SWIZ_ENABLE_LUN(isp, outp, &el);
 	ISP_TDQE(isp, "isp_lun_cmd", (int) optr, &el);
-	ISP_ADD_REQUEST(isp, iptr);
+	isp_put_enable_lun(isp, &el, outp);
+	ISP_ADD_REQUEST(isp, nxti);
 	return (0);
 }
 
@@ -330,26 +345,26 @@ int
 isp_target_put_entry(struct ispsoftc *isp, void *ap)
 {
 	void *outp;
-	u_int16_t iptr, optr;
+	u_int16_t nxti, optr;
 	u_int8_t etype = ((isphdr_t *) ap)->rqs_entry_type;
 
-	if (isp_getrqentry(isp, &iptr, &optr, &outp)) {
+	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {
 		isp_prt(isp, ISP_LOGWARN,
 		    "Request Queue Overflow in isp_target_put_entry");
 		return (-1);
 	}
 	switch (etype) {
 	case RQSTYPE_ATIO:
-		ISP_SWIZ_ATIO(isp, outp, ap);
+		isp_put_atio(isp, (at_entry_t *) ap, (at_entry_t *) outp);
 		break;
 	case RQSTYPE_ATIO2:
-		ISP_SWIZ_ATIO2(isp, outp, ap);
+		isp_put_atio2(isp, (at2_entry_t *) ap, (at2_entry_t *) outp);
 		break;
 	case RQSTYPE_CTIO:
-		ISP_SWIZ_CTIO(isp, outp, ap);
+		isp_put_ctio(isp, (ct_entry_t *) ap, (ct_entry_t *) outp);
 		break;
 	case RQSTYPE_CTIO2:
-		ISP_SWIZ_CTIO2(isp, outp, ap);
+		isp_put_ctio2(isp, (ct2_entry_t *) ap, (ct2_entry_t *) outp);
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR,
@@ -358,8 +373,7 @@ isp_target_put_entry(struct ispsoftc *isp, void *ap)
 	}
 
 	ISP_TDQE(isp, "isp_target_put_entry", (int) optr, ap);;
-
-	ISP_ADD_REQUEST(isp, iptr);
+	ISP_ADD_REQUEST(isp, nxti);
 	return (0);
 }
 
@@ -639,10 +653,10 @@ static void
 isp_notify_ack(struct ispsoftc *isp, void *arg)
 {
 	char storage[QENTRY_LEN];
-	u_int16_t iptr, optr;
+	u_int16_t nxti, optr;
 	void *outp;
 
-	if (isp_getrqentry(isp, &iptr, &optr, &outp)) {
+	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {
 		isp_prt(isp, ISP_LOGWARN,
 		    "Request Queue Overflow For isp_notify_ack");
 		return;
@@ -672,7 +686,7 @@ isp_notify_ack(struct ispsoftc *isp, void *arg)
 		}
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
-		ISP_SWIZ_NOT_ACK_FC(isp, outp, na);
+		isp_put_notify_ack_fc(isp, na, (na_fcentry_t *)outp);
 	} else {
 		na_entry_t *na = (na_entry_t *) storage;
 		if (arg) {
@@ -690,10 +704,10 @@ isp_notify_ack(struct ispsoftc *isp, void *arg)
 		}
 		na->na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 		na->na_header.rqs_entry_count = 1;
-		ISP_SWIZ_NOT_ACK(isp, outp, na);
+		isp_put_notify_ack(isp, na, (na_entry_t *)outp);
 	}
 	ISP_TDQE(isp, "isp_notify_ack", (int) optr, storage);
-	ISP_ADD_REQUEST(isp, iptr);
+	ISP_ADD_REQUEST(isp, nxti);
 }
 
 static void
@@ -738,7 +752,7 @@ isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
 		 * its command resource count, and the firmware is
 		 * recovering from a Bus Device Reset, it returns
 		 * the ATIO with this status. We set the command
-		 * resource count in the Enable Lun entry and no
+		 * resource count in the Enable Lun entry and do
 		 * not increment it. Therefore we should never get
 		 * this status here.
 		 */

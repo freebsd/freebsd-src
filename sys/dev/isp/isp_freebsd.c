@@ -916,15 +916,16 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 	void *qe;
 	struct ccb_scsiio *cso = &ccb->csio;
 	u_int16_t *hp, save_handle;
-	u_int16_t iptr, optr;
+	u_int16_t nxti, optr;
+	u_int8_t local[QENTRY_LEN];
 
 
-	if (isp_getrqentry(isp, &iptr, &optr, &qe)) {
+	if (isp_getrqentry(isp, &nxti, &optr, &qe)) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("Request Queue Overflow in isp_target_start_ctio\n");
 		return (CAM_RESRC_UNAVAIL);
 	}
-	bzero(qe, QENTRY_LEN);
+	bzero(local, QENTRY_LEN);
 
 	/*
 	 * We're either moving data or completing a command here.
@@ -932,7 +933,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 
 	if (IS_FC(isp)) {
 		atio_private_data_t *atp;
-		ct2_entry_t *cto = qe;
+		ct2_entry_t *cto = (ct2_entry_t *) local;
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
@@ -963,7 +964,6 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 				cto->rsp.m1.ct_scsi_status |= CT2_SNSLEN_VALID;
 			}
 		} else {
-			cto->ct_reloff = atp->bytes_xfered;
 			cto->ct_flags |= CT2_FLAG_MODE0;
 			if ((cso->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 				cto->ct_flags |= CT2_DATA_IN;
@@ -996,7 +996,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		cto->ct_timeout = 10;
 		hp = &cto->ct_syshandle;
 	} else {
-		ct_entry_t *cto = qe;
+		ct_entry_t *cto = (ct_entry_t *) local;
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		cto->ct_header.rqs_entry_count = 1;
@@ -1051,9 +1051,9 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 
 	save_handle = *hp;
 
-	switch (ISP_DMASETUP(isp, cso, qe, &iptr, optr)) {
+	switch (ISP_DMASETUP(isp, cso, (ispreq_t *) local, &nxti, optr)) {
 	case CMD_QUEUED:
-		ISP_ADD_REQUEST(isp, iptr);
+		ISP_ADD_REQUEST(isp, nxti);
 		return (CAM_REQ_INPROG);
 
 	case CMD_EAGAIN:
@@ -1080,12 +1080,12 @@ isp_target_putback_atio(union ccb *ccb)
 {
 	struct ispsoftc *isp;
 	struct ccb_scsiio *cso;
-	u_int16_t iptr, optr;
+	u_int16_t nxti, optr;
 	void *qe;
 
 	isp = XS_ISP(ccb);
 
-	if (isp_getrqentry(isp, &iptr, &optr, &qe)) {
+	if (isp_getrqentry(isp, &nxti, &optr, &qe)) {
 		(void) timeout(isp_refire_putback_atio, ccb, 10);
 		isp_prt(isp, ISP_LOGWARN,
 		    "isp_target_putback_atio: Request Queue Overflow"); 
@@ -1094,7 +1094,8 @@ isp_target_putback_atio(union ccb *ccb)
 	bzero(qe, QENTRY_LEN);
 	cso = &ccb->csio;
 	if (IS_FC(isp)) {
-		at2_entry_t *at = qe;
+		at2_entry_t local, *at = &local;
+		MEMZERO(at, sizeof (at2_entry_t));
 		at->at_header.rqs_entry_type = RQSTYPE_ATIO2;
 		at->at_header.rqs_entry_count = 1;
 		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) != 0) {
@@ -1104,9 +1105,10 @@ isp_target_putback_atio(union ccb *ccb)
 		}
 		at->at_status = CT_OK;
 		at->at_rxid = cso->tag_id;
-		ISP_SWIZ_ATIO2(isp, qe, qe);
+		isp_put_atio2(isp, at, qe);
 	} else {
-		at_entry_t *at = qe;
+		at_entry_t local, *at = &local;
+		MEMZERO(at, sizeof (at_entry_t));
 		at->at_header.rqs_entry_type = RQSTYPE_ATIO;
 		at->at_header.rqs_entry_count = 1;
 		at->at_iid = cso->init_id;
@@ -1116,10 +1118,10 @@ isp_target_putback_atio(union ccb *ccb)
 		at->at_status = CT_OK;
 		at->at_tag_val = AT_GET_TAG(cso->tag_id);
 		at->at_handle = AT_GET_HANDLE(cso->tag_id);
-		ISP_SWIZ_ATIO(isp, qe, qe);
+		isp_put_atio(isp, at, qe);
 	}
 	ISP_TDQE(isp, "isp_target_putback_atio", (int) optr, qe);
-	ISP_ADD_REQUEST(isp, iptr);
+	ISP_ADD_REQUEST(isp, nxti);
 	isp_complete_ctio(ccb);
 }
 
@@ -1639,12 +1641,12 @@ isp_watchdog(void *arg)
 			XS_CMD_C_WDOG(xs);
 			isp_done(xs);
 		} else {
-			u_int16_t iptr, optr;
-			ispreq_t *mp;
+			u_int16_t nxti, optr;
+			ispreq_t local, *mp= &local, *qe;
 
 			XS_CMD_C_WDOG(xs);
 			xs->ccb_h.timeout_ch = timeout(isp_watchdog, xs, hz);
-			if (isp_getrqentry(isp, &iptr, &optr, (void **) &mp)) {
+			if (isp_getrqentry(isp, &nxti, &optr, (void **) &qe)) {
 				ISP_UNLOCK(isp);
 				return;
 			}
@@ -1654,8 +1656,8 @@ isp_watchdog(void *arg)
 			mp->req_header.rqs_entry_type = RQSTYPE_MARKER;
 			mp->req_modifier = SYNC_ALL;
 			mp->req_target = XS_CHANNEL(xs) << 7;
-			ISP_SWIZZLE_REQUEST(isp, mp);
-			ISP_ADD_REQUEST(isp, iptr);
+			isp_put_request(isp, mp, qe);
+			ISP_ADD_REQUEST(isp, nxti);
 		}
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG2, "watchdog with no command");
