@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.14 1995/03/25 16:52:11 davidg Exp $
+	$Id: syscalls.master,v 1.15 1995/04/23 12:20:52 ache Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -196,7 +196,7 @@
 152	UNIMPL	0 NOHIDE nosys
 153	UNIMPL	0 NOHIDE nosys
 154	UNIMPL	0 NOHIDE nosys
-#ifdef NFS
+#if defined(NFS) || defined(NFS_SERVER) || defined(NFS_CLIENT)
 155	STD	2 BSD	nfssvc
 #else
 155	UNIMPL	0 BSD	nosys
@@ -206,7 +206,7 @@
 158	STD	2 BSD	fstatfs
 159	UNIMPL	0 NOHIDE nosys
 160	UNIMPL	0 NOHIDE nosys
-#ifdef NFS
+#if defined(NFS) || defined(NFS_SERVER) || defined(NFS_CLIENT)
 161	STD	2 BSD	getfh
 #else
 161	UNIMPL	0 BSD	nosys
