@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.82 (Berkeley) 10/28/95";
+static char sccsid[] = "@(#)headers.c	8.82.1.1 (Berkeley) 2/18/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -1253,6 +1253,8 @@ vanilla:
 				putline(obuf, mci);
 				p = ++nlp;
 				obp = obuf;
+				if (*p != ' ' && *p != '\t')
+					*obp++ = ' ';
 			}
 			sprintf(obp, "%.*s", sizeof obuf - (obp - obuf) - 1, p);
 			putline(obuf, mci);
@@ -1437,7 +1439,7 @@ commaize(h, p, oldstyle, mci, e)
 		firstone = FALSE;
 		*p = savechar;
 	}
-	(void) strcpy(obp, "\n");
+	*obp = '\0';
 	putline(obuf, mci);
 }
 /*
