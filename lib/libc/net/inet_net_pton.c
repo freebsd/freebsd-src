@@ -186,7 +186,7 @@ inet_net_pton_ipv4(src, dst, size)
 		else			/* Class A */
 			bits = 8;
 		/* If imputed mask is narrower than specified octets, widen. */
-		if (bits >= 8 && bits < ((dst - odst) * 8))
+		if (bits < ((dst - odst) * 8))
 			bits = (dst - odst) * 8;
 	}
 	/* Extend network to cover the actual mask. */
