@@ -32,8 +32,6 @@
         ..
         msdosfs
         ..
-        stallion
-        ..
         perl
             5.00503
                 B
@@ -140,6 +138,8 @@
                 ..
             ..
         ..
+        stallion
+        ..
     ..
     libexec
         aout
@@ -150,8 +150,8 @@
             ru
             ..
         ..
-	sendmail
-	..
+        sendmail
+        ..
         sm.bin
         ..
         uucp
@@ -177,16 +177,16 @@
         dict
         ..
         doc
-	    bind
-	        html
-		..
-		misc
-		..
-	    ..
-	    ncurses
-	    ..
-	    ntp
-	    ..
+            bind
+                html
+                ..
+                misc
+                ..
+            ..
+            ncurses
+            ..
+            ntp
+            ..
             papers
             ..
             psd
@@ -279,8 +279,8 @@
             ..
             atm
             ..
-	    bc
-	    ..
+            bc
+            ..
             bootforth
             ..
             cvs
@@ -293,16 +293,16 @@
             ..
             cvsup
             ..
-	    dialog
-	    ..
+            dialog
+            ..
             diskless
                 209.157.86.12
                 ..
                 HT.DISKLESS
                 ..
-                archive.backplane.com
-                ..
                 HT.STD
+                ..
+                archive.backplane.com
                 ..
             ..
             drivers
@@ -332,18 +332,18 @@
                 ..
             ..
             libdialog
-	    ..
-            libvgl
             ..
-            meteor
+            libvgl
             ..
             mdoc
             ..
+            meteor
+            ..
             more
-	    ..
-	    netgraph
-	    ..
-	    nwclient
+            ..
+            netgraph
+            ..
+            nwclient
             ..
             perfmon
             ..
@@ -355,9 +355,9 @@
             ..
             printing
             ..
-            slattach
-            ..
             scsi_target
+            ..
+            slattach
             ..
             sliplogin
             ..
@@ -417,77 +417,77 @@
         locale
             cs_CZ.ISO_8859-2
             ..
-            da_DK.ISO_8859-1
-            ..
             da_DK.DIS_8859-15
             ..
-            de_AT.ISO_8859-1
+            da_DK.ISO_8859-1
             ..
             de_AT.DIS_8859-15
             ..
-            de_CH.ISO_8859-1
+            de_AT.ISO_8859-1
             ..
             de_CH.DIS_8859-15
             ..
-            de_DE.ISO_8859-1
+            de_CH.ISO_8859-1
             ..
             de_DE.DIS_8859-15
             ..
-            en_AU.ISO_8859-1
+            de_DE.ISO_8859-1
             ..
             en_AU.DIS_8859-15
             ..
-            en_CA.ISO_8859-1
+            en_AU.ISO_8859-1
             ..
             en_CA.DIS_8859-15
             ..
-            en_GB.ISO_8859-1
+            en_CA.ISO_8859-1
             ..
             en_GB.DIS_8859-15
             ..
-            en_US.ISO_8859-1
+            en_GB.ISO_8859-1
             ..
             en_US.DIS_8859-15
             ..
-            es_ES.ISO_8859-1
+            en_US.ISO_8859-1
             ..
             es_ES.DIS_8859-15
             ..
-            fi_FI.ISO_8859-1
+            es_ES.ISO_8859-1
             ..
             fi_FI.DIS_8859-15
             ..
-            fr_BE.ISO_8859-1
+            fi_FI.ISO_8859-1
             ..
             fr_BE.DIS_8859-15
             ..
-            fr_CA.ISO_8859-1
+            fr_BE.ISO_8859-1
             ..
             fr_CA.DIS_8859-15
             ..
-            fr_CH.ISO_8859-1
+            fr_CA.ISO_8859-1
             ..
             fr_CH.DIS_8859-15
             ..
-            fr_FR.ISO_8859-1
+            fr_CH.ISO_8859-1
             ..
             fr_FR.DIS_8859-15
+            ..
+            fr_FR.ISO_8859-1
             ..
             hr_HR.ISO_8859-2
             ..
             hu_HU.ISO_8859-2
             ..
-            is_IS.ISO_8859-1
-            ..
             is_IS.DIS_8859-15
             ..
-            it_CH.ISO_8859-1
+            is_IS.ISO_8859-1
             ..
             it_CH.DIS_8859-15
             ..
-            it_IT.ISO_8859-1
+            it_CH.ISO_8859-1
             ..
             it_IT.DIS_8859-15
+            ..
+            it_IT.ISO_8859-1
             ..
             ja_JP.EUC
             ..
@@ -497,50 +497,50 @@
             ..
             ko_KR.EUC
             ..
-	    la_LN.ASCII
+            la_LN.ASCII
             ..
-	    la_LN.ISO_8859-1
+            la_LN.DIS_8859-15
             ..
-	    la_LN.ISO_8859-2
+            la_LN.ISO_8859-1
             ..
-	    la_LN.ISO_8859-4
-	    ..
-	    la_LN.DIS_8859-15
+            la_LN.ISO_8859-2
             ..
-	    lt_LT.ISO_8859-4
-	    ..
-            nl_BE.ISO_8859-1
+            la_LN.ISO_8859-4
+            ..
+            lt_LT.ISO_8859-4
             ..
             nl_BE.DIS_8859-15
             ..
-            nl_NL.ISO_8859-1
+            nl_BE.ISO_8859-1
             ..
             nl_NL.DIS_8859-15
             ..
-            no_NO.ISO_8859-1
+            nl_NL.ISO_8859-1
             ..
             no_NO.DIS_8859-15
             ..
-            pl_PL.ISO_8859-2
+            no_NO.ISO_8859-1
             ..
-            pt_PT.ISO_8859-1
+            pl_PL.ISO_8859-2
             ..
             pt_PT.DIS_8859-15
             ..
+            pt_PT.ISO_8859-1
+            ..
             ru_SU.CP866
             ..
-	    ru_SU.ISO_8859-5
+            ru_SU.ISO_8859-5
             ..
             ru_SU.KOI8-R
             ..
             sl_SI.ISO_8859-2
             ..
-            sv_SE.ISO_8859-1
-            ..
             sv_SE.DIS_8859-15
             ..
-	    uk_UA.KOI8-U
-	    ..
+            sv_SE.ISO_8859-1
+            ..
+            uk_UA.KOI8-U
+            ..
             zh_CN.EUC
             ..
             zh_TW.Big5
@@ -665,77 +665,77 @@
             ..
             cs_CZ.ISO_8859-2
             ..
-            da_DK.ISO_8859-1
-            ..
             da_DK.DIS_8859-15
             ..
-            de_AT.ISO_8859-1
+            da_DK.ISO_8859-1
             ..
             de_AT.DIS_8859-15
             ..
-            de_CH.ISO_8859-1
+            de_AT.ISO_8859-1
             ..
             de_CH.DIS_8859-15
             ..
-            de_DE.ISO_8859-1
+            de_CH.ISO_8859-1
             ..
             de_DE.DIS_8859-15
             ..
-            en_AU.ISO_8859-1
+            de_DE.ISO_8859-1
             ..
             en_AU.DIS_8859-15
             ..
-            en_CA.ISO_8859-1
+            en_AU.ISO_8859-1
             ..
             en_CA.DIS_8859-15
             ..
-            en_GB.ISO_8859-1
+            en_CA.ISO_8859-1
             ..
             en_GB.DIS_8859-15
             ..
-            en_US.ISO_8859-1
+            en_GB.ISO_8859-1
             ..
             en_US.DIS_8859-15
             ..
-            es_ES.ISO_8859-1
+            en_US.ISO_8859-1
             ..
             es_ES.DIS_8859-15
             ..
-            fi_FI.ISO_8859-1
+            es_ES.ISO_8859-1
             ..
             fi_FI.DIS_8859-15
             ..
-            fr_BE.ISO_8859-1
+            fi_FI.ISO_8859-1
             ..
             fr_BE.DIS_8859-15
             ..
-            fr_CA.ISO_8859-1
+            fr_BE.ISO_8859-1
             ..
             fr_CA.DIS_8859-15
             ..
-            fr_CH.ISO_8859-1
+            fr_CA.ISO_8859-1
             ..
             fr_CH.DIS_8859-15
             ..
-            fr_FR.ISO_8859-1
+            fr_CH.ISO_8859-1
             ..
             fr_FR.DIS_8859-15
+            ..
+            fr_FR.ISO_8859-1
             ..
             hr_HR.ISO_8859-2
             ..
             hu_HU.ISO_8859-2
             ..
-            is_IS.ISO_8859-1
-            ..
             is_IS.DIS_8859-15
             ..
-            it_CH.ISO_8859-1
+            is_IS.ISO_8859-1
             ..
             it_CH.DIS_8859-15
             ..
-            it_IT.ISO_8859-1
+            it_CH.ISO_8859-1
             ..
             it_IT.DIS_8859-15
+            ..
+            it_IT.ISO_8859-1
             ..
             ja_JP.EUC
             ..
@@ -745,18 +745,18 @@
             ..
             ko_KR.EUC
             ..
-	    la_LN.ASCII
+            la_LN.ASCII
             ..
-	    la_LN.ISO_8859-1
+            la_LN.DIS_8859-15
             ..
-	    la_LN.ISO_8859-2
+            la_LN.ISO_8859-1
             ..
-	    la_LN.ISO_8859-4
-	    ..
-	    la_LN.DIS_8859-15
+            la_LN.ISO_8859-2
             ..
-	    lt_LT.ISO_8859-4
-	    ..
+            la_LN.ISO_8859-4
+            ..
+            lt_LT.ISO_8859-4
+            ..
             nl_BE.ISO_8859-1
             ..
             nl_NL.ISO_8859-1
@@ -769,18 +769,18 @@
             ..
             ru_SU.CP866
             ..
-	    ru_SU.ISO_8859-5
+            ru_SU.ISO_8859-5
             ..
             ru_SU.KOI8-R
             ..
             sl_SI.ISO_8859-2
             ..
-            sv_SE.ISO_8859-1
-            ..
             sv_SE.DIS_8859-15
             ..
-	    uk_UA.KOI8-U
-	    ..
+            sv_SE.ISO_8859-1
+            ..
+            uk_UA.KOI8-U
+            ..
             zh_CN.EUC
             ..
         ..
@@ -811,11 +811,11 @@
         tabset
         ..
         tmac
-	    locale
+            locale
             ..
             mdoc
-		locale
-		..
+                locale
+                ..
             ..
             mm
             ..
