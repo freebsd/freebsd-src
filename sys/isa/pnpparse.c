@@ -47,7 +47,7 @@
  * Resource Data or it reaches the end of Resource Data.
  */
 void
-pnp_parse_resources(device_t dev, u_char *resources, int len)
+pnp_parse_resources(device_t dev, u_char *resources, int len, u_int32_t vendor_id, u_int32_t logical_id, int ldn)
 {
 	device_t parent = device_get_parent(dev);
 	u_char tag, *resp, *resinfo;
@@ -189,6 +189,9 @@ pnp_parse_resources(device_t dev, u_char *resources, int len)
 				config->ic_port[config->ic_nport].ir_align =
 					resinfo[5];
 				config->ic_nport++;
+				pnp_check_quirks(vendor_id,
+						 logical_id,
+						 ldn, config);
 				break;
 
 			case PNP_TAG_IO_FIXED:

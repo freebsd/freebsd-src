@@ -1,6 +1,7 @@
-/*-
- * Copyright (c) 1999 Doug Rabson
- * All rights reserved.
+/*
+ * Include file for type definitions in midi driver.
+ * 
+ * Copyright by Seigo Tanimura 1999.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,40 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
+ *
  */
 
-#ifndef _ISA_PNPVAR_H_
-#define _ISA_PNPVAR_H_
+typedef struct _mididev_info mididev_info;
 
-#ifdef _KERNEL
-
-#if 0
-void    pnp_write(int d, u_char r); /* used by Luigi's sound driver */
-u_char  pnp_read(int d); /* currently unused, but who knows... */
-#endif
-
-#define PNP_HEXTONUM(c)	((c) >= 'a'		\
-			 ? (c) - 'a' + 10	\
-			 : ((c) >= 'A'		\
-			    ? (c) - 'A' + 10	\
-			    : (c) - '0'))
-
-#define PNP_EISAID(s)				\
-	((((s[0] - '@') & 0x1f) << 2)		\
-	 | (((s[1] - '@') & 0x18) >> 3)		\
-	 | (((s[1] - '@') & 0x07) << 13)	\
-	 | (((s[2] - '@') & 0x1f) << 8)		\
-	 | (PNP_HEXTONUM(s[4]) << 16)		\
-	 | (PNP_HEXTONUM(s[3]) << 20)		\
-	 | (PNP_HEXTONUM(s[6]) << 24)		\
-	 | (PNP_HEXTONUM(s[5]) << 28))
-
-char *pnp_eisaformat(u_int32_t id);
-void pnp_parse_resources(device_t dev, u_char *resources, int len, u_int32_t vendor_id, u_int32_t logical_id, int ldn);
-
-void pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn, struct isa_config *config);
-
-#endif /* _KERNEL */
-
-#endif /* !_ISA_PNPVAR_H_ */
+typedef int (midi_callback_t)(mididev_info *d, int reason);
+typedef void (midi_intr_t)(void *p, mididev_info *md);

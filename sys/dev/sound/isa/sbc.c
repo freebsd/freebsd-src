@@ -400,7 +400,6 @@ sbc_attach(device_t dev)
 	child = device_add_child(dev, "pcm", -1);
 	device_set_ivars(child, func);
 
-#if notyet
 	/* Midi Interface */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 	if (func == NULL) goto bad;
@@ -416,7 +415,6 @@ sbc_attach(device_t dev)
 	func->func = SCF_SYNTH;
 	child = device_add_child(dev, "midi", -1);
 	device_set_ivars(child, func);
-#endif /* notyet */
 
 	/* probe/attach kids */
 	bus_generic_attach(dev);
