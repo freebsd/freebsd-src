@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #endif /* TEST */
 
+#define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
+
 static int
 do_rand(unsigned long *ctx)
 {
@@ -108,7 +110,11 @@ void
 srand(seed)
 u_int seed;
 {
+	int i;
+
 	next = seed;
+	for (i = 0; i < NSHUFF; i++)
+		(void)do_rand(&next);
 }
 
 
@@ -137,7 +143,7 @@ sranddev()
 		unsigned long junk;
 
 		gettimeofday(&tv, NULL);
-		next = (getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk;
+		srand((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk);
 	}
 }
 
