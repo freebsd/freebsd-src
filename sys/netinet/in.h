@@ -366,6 +366,7 @@ __END_DECLS
 #define	IP_RECVOPTS		5    /* bool; receive all IP opts w/dgram */
 #define	IP_RECVRETOPTS		6    /* bool; receive IP opts for response */
 #define	IP_RECVDSTADDR		7    /* bool; receive IP dst addr w/dgram */
+#define	IP_SENDSRCADDR		IP_RECVDSTADDR /* cmsg_type to set src addr */
 #define	IP_RETOPTS		8    /* ip_opts; set/get IP options */
 #define	IP_MULTICAST_IF		9    /* u_char; set/get IP multicast i/f  */
 #define	IP_MULTICAST_TTL	10   /* u_char; set/get IP multicast ttl */
