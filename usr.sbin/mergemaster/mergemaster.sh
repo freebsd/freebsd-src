@@ -276,7 +276,7 @@ case "${DONT_CHECK_PAGER}" in
          PAGER=/usr/local/bin/less
        fi
        ;;
-    '')
+    [mM]|'')
        PAGER=more
        ;;
     *)
