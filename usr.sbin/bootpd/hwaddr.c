@@ -33,6 +33,13 @@
 #define bcmp(a,b,c)     memcmp(a,b,c)
 #endif
 
+/* For BSD 4.4, set arp entry by writing to routing socket */
+#if defined(BSD)
+#if BSD >= 199306
+extern int bsd_arp_set __P((struct in_addr *, char *, int));
+#endif
+#endif
+
 #include "bptypes.h"
 #include "hwaddr.h"
 #include "report.h"
@@ -123,6 +130,9 @@ setarp(s, ia, ha, len)
 	}
 #endif	/* SVR4 */
 #else	/* SIOCSARP */
+#if defined(BSD) && (BSD >= 199306)
+	bsd_arp_set(ia, ha, len);
+#else	/* Not BSD 4.4, and SIOCSARP not defined */
 	/*
 	 * Oh well, SIOCSARP is not defined.  Just run arp(8).
 	 * XXX - Gag!
@@ -138,6 +148,7 @@ setarp(s, ia, ha, len)
 	if (status)
 		report(LOG_ERR, "arp failed, exit code=0x%x", status);
 	return;
+#endif /* ! 4.4 BSD */
 #endif	/* SIOCSARP */
 }
 
