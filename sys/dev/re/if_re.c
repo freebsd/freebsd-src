@@ -717,6 +717,7 @@ re_diag(sc)
 
 	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
 	RL_UNLOCK(sc);
+	/* XXX: re_diag must not be called when in ALTQ mode */
 	IF_HANDOFF(&ifp->if_snd, m0, ifp);
 	RL_LOCK(sc);
 	m0 = NULL;
@@ -1206,7 +1207,9 @@ re_attach(dev)
 		ifp->if_baudrate = 1000000000;
 	else
 		ifp->if_baudrate = 100000000;
-	ifp->if_snd.ifq_maxlen = RL_IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd,  RL_IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capenable = ifp->if_capabilities & ~IFCAP_HWCSUM;
 
 	callout_handle_init(&sc->rl_stat_ch);
@@ -1788,7 +1791,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	re_rxeof(sc);
 	re_txeof(sc);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(ifp->if_snd))
 		re_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -1872,7 +1875,7 @@ re_intr(arg)
 		}
 	}
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		re_start_locked(ifp);
 
 done_locked:
@@ -2009,7 +2012,7 @@ re_start_locked(ifp)
 {
 	struct rl_softc		*sc;
 	struct mbuf		*m_head = NULL;
-	int			idx;
+	int			idx, queued = 0;
 
 	sc = ifp->if_softc;
 
@@ -2018,12 +2021,12 @@ re_start_locked(ifp)
 	idx = sc->rl_ldata.rl_tx_prodidx;
 
 	while (sc->rl_ldata.rl_tx_mbuf[idx] == NULL) {
-		IF_DEQUEUE(&ifp->if_snd, m_head);
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
 		if (re_encap(sc, &m_head, &idx)) {
-			IF_PREPEND(&ifp->if_snd, m_head);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
@@ -2033,7 +2036,12 @@ re_start_locked(ifp)
 		 * to him.
 		 */
 		BPF_MTAP(ifp, m_head);
+
+		queued++;
 	}
+
+	if (queued == 0)
+		return;
 
 	/* Flush the TX descriptors */
 
