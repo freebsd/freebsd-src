@@ -46,9 +46,8 @@
 .In dev/pci/pcivar.h
 .In dev/pci/pcireg.h
 .In machine/pci_cfgreg.h
-.Pp
 .Ft void
-.Fn pci_write_config "device_t dev" "int reg" "u_int32_t val" "int width"
+.Fn pci_write_config "device_t dev" "int reg" "uint32_t val" "int width"
 .Ft int
 .Fn pci_enable_busmaster "device_t dev"
 .Ft int
@@ -61,12 +60,12 @@
 .Fn pci_set_powerstate "device_t dev" "int state"
 .Ft int
 .Fn pci_get_powerstate "device_t dev"
-.Ft u_int32_t
+.Ft uint32_t
 .Fn pci_read_config "device_t dev" "int reg" "int width"
 .Ft device_t
-.Fn pci_find_bsf "u_int8_t" "u_int8_t" "u_int8_t"
+.Fn pci_find_bsf "uint8_t bus" "uint8_t slot" "uint8_t func"
 .Ft device_t
-.Fn pci_find_device "u_int16_t" "u_int16_t"
+.Fn pci_find_device "uint16_t vendor" "uint16_t device"
 .Sh DESCRIPTION
 The
 .Nm
@@ -124,7 +123,7 @@ The
 .Fn pci_disable_io
 function clears the appropriate bit.
 The
-.Fa state
+.Fa space
 argument specifies which resource is affected; this can be either
 .Dv SYS_RES_MEMORY
 or
@@ -144,7 +143,7 @@ state of
 .Dv PCI_POWERSTATE_D0
 is returned.
 The following power states are defined by ACPI:
-.Bl -hang -width PCI_POWERSTATE_UNKNOWN
+.Bl -hang -width ".Dv PCI_POWERSTATE_UNKNOWN"
 .It Dv PCI_POWERSTATE_D0
 State in which device is on and running.
 It is receiving full power from the system and delivering
@@ -152,14 +151,14 @@ full functionality to the user.
 .It Dv PCI_POWERSTATE_D1
 Class-specific low-power state in which device context may or
 may not be lot.
-Buses in this state cannot do anything to the bus, to
+Busses in this state cannot do anything to the bus, to
 force devices to lose context.
 .It Dv PCI_POWERSTATE_D2
 Class-specific low-power state in which device context may or
 may not be lost.
 Attains greater power savings than
 .Dv PCI_POWERSTATE_D1 .
-Buses in this state can cause devices to lose some context.
+Busses in this state can cause devices to lose some context.
 Devices
 .Em must
 be prepared for the bus to be in this state or higher.
@@ -193,7 +192,7 @@ of a PCI device, given its
 .Fa bus ,
 .Fa slot ,
 and
-.Fa function .
+.Fa func .
 .Pp
 The
 .Fn pci_find_device
@@ -209,7 +208,7 @@ only returns the first matching device.
 .Sh IMPLEMENTATION NOTES
 The
 .Vt pci_addr_t
-type is varies according to the size of the PCI bus address
+type varies according to the size of the PCI bus address
 space on the target architecture.
 .Sh SEE ALSO
 .Xr pci 4 ,
