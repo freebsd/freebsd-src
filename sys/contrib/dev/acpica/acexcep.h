@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 71 $
+ *       $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -239,7 +239,7 @@
 #define AE_AML_CIRCULAR_REFERENCE       (ACPI_STATUS) (0x0020 | AE_CODE_AML)
 #define AE_AML_BAD_RESOURCE_LENGTH      (ACPI_STATUS) (0x0021 | AE_CODE_AML)
 
-#define AE_CODE_AML_MAX                 0x0020
+#define AE_CODE_AML_MAX                 0x0021
 
 /*
  * Internal exceptions used for control

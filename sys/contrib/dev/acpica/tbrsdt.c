@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbrsdt - ACPI RSDT table utilities
- *              $Revision: 12 $
+ *              $Revision: 13 $
  *
  *****************************************************************************/
 
@@ -366,6 +366,7 @@ AcpiTbGetTableRsdt (
 
     AcpiTbGetRsdtAddress (&Address);
 
+    TableInfo.Type = ACPI_TABLE_XSDT;
     Status = AcpiTbGetTable (&Address, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
