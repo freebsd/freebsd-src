@@ -76,6 +76,8 @@ nfstype nfsv3_type[9] = {
 	NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK, NFFIFO, NFNON
 };
 
+static void *nfsm_dissect_xx_sub(int s, struct mbuf **md, caddr_t *dpos, int how);
+
 u_quad_t
 nfs_curusec(void) 
 {
@@ -164,7 +166,7 @@ nfsm_mbuftouio(struct mbuf **mrep, struct uio *uiop, int siz, caddr_t *dpos)
  * cases. (The macros use the vars. dpos and dpos2)
  */
 void *
-nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left)
+nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, int how)
 {
 	struct mbuf *mp, *mp2;
 	int siz2, xfer;
@@ -187,7 +189,9 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left)
 	} else if (siz > MHLEN) {
 		panic("nfs S too big");
 	} else {
-		MGET(mp2, M_TRYWAIT, MT_DATA);
+		MGET(mp2, how, MT_DATA);
+		if (mp2 == NULL)
+			return NULL;
 		mp2->m_next = mp->m_next;
 		mp->m_next = mp2;
 		mp->m_len -= left;
@@ -267,6 +271,18 @@ nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 void *
 nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 {
+	return nfsm_dissect_xx_sub(s, md, dpos, M_TRYWAIT);
+}
+
+void *
+nfsm_dissect_xx_nonblock(int s, struct mbuf **md, caddr_t *dpos)
+{
+	return nfsm_dissect_xx_sub(s, md, dpos, M_DONTWAIT);
+}
+
+static void *
+nfsm_dissect_xx_sub(int s, struct mbuf **md, caddr_t *dpos, int how)
+{
 	int t1;
 	char *cp2;
 	void *ret;
@@ -277,7 +293,7 @@ nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 		*dpos += s;
 		return ret;
 	}
-	cp2 = nfsm_disct(md, dpos, s, t1); 
+	cp2 = nfsm_disct(md, dpos, s, t1, how); 
 	return cp2;
 }
 

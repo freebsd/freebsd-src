@@ -48,7 +48,7 @@ extern nfstype nfsv3_type[];
 
 int	nfs_adv(struct mbuf **, caddr_t *, int, int);
 u_quad_t nfs_curusec(void);
-void	*nfsm_disct(struct mbuf **, caddr_t *, int, int);
+void	*nfsm_disct(struct mbuf **, caddr_t *, int, int, int);
 
 /* ****************************** */
 /* Build request/reply phase macros */
@@ -62,6 +62,7 @@ void	*nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos);
 /* Interpretation phase macros */
 
 void	*nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos);
+void	*nfsm_dissect_xx_nonblock(int s, struct mbuf **md, caddr_t *dpos);
 int	nfsm_strsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos);
 int	nfsm_adv_xx(int s, struct mbuf **md, caddr_t *dpos);
 
@@ -90,6 +91,14 @@ do { \
 ({ \
 	void *ret; \
 	ret = nfsm_dissect_xx((s), &md, &dpos); \
+	nfsm_dcheckp(ret, mrep); \
+	(c)ret; \
+})
+
+#define	nfsm_dissect_nonblock(c, s) \
+({ \
+	void *ret; \
+	ret = nfsm_dissect_xx_nonblock((s), &md, &dpos); \
 	nfsm_dcheckp(ret, mrep); \
 	(c)ret; \
 })
