@@ -560,6 +560,7 @@ static int
 pccbb_attach(device_t brdev)
 {
 	struct pccbb_softc *sc = (struct pccbb_softc *)device_get_softc(brdev);
+	uint32_t sockbase;
 	int rid;
 
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "pccbb", MTX_DEF);
