@@ -1,6 +1,8 @@
 /*
  * if_ppp.h - Point-to-Point Protocol definitions.
- *
+ */
+
+/*-
  * Copyright (c) 1989 Carnegie Mellon University.
  * All rights reserved.
  *

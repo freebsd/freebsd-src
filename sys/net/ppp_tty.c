@@ -1,7 +1,8 @@
 /*
  * ppp_tty.c - Point-to-Point Protocol (PPP) driver for asynchronous
  * 	       tty devices.
- *
+ */
+/*-
  * Copyright (c) 1989 Carnegie Mellon University.
  * All rights reserved.
  *

@@ -1,7 +1,8 @@
 /*
  * Synchronous PPP/Cisco/Frame Relay link level subroutines.
  * Keepalive protocol implemented in both Cisco and PPP modes.
- *
+ */
+/*-
  * Copyright (C) 1994-2000 Cronyx Engineering.
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *

@@ -1,6 +1,8 @@
 /*
  * if_ppp.c - Point-to-Point Protocol (PPP) Asynchronous driver.
- *
+ */
+
+/*-
  * Copyright (c) 1989 Carnegie Mellon University.
  * All rights reserved.
  *

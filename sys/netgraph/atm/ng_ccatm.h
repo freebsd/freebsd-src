@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001-2002
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
@@ -31,7 +31,9 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
+ */
+
+/*
  * Interface to ng_ccatm
  */
 #ifndef _NETGRAPH_ATM_NG_CCATM_H_

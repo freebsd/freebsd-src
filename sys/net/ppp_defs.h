@@ -1,6 +1,7 @@
 /*
  * ppp_defs.h - PPP definitions.
- *
+ */
+/*-
  * Copyright (c) 1994 The Australian National University.
  * All rights reserved.
  *

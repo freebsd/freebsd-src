@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998-2002 Luigi Rizzo
  *
  * Work partly supported by: Cisco Systems, Inc. - NSITE lab, RTP, NC
