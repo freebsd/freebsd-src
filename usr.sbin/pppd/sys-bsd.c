@@ -44,6 +44,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/param.h>
+#include <sys/module.h>
 #ifdef NetBSD1_2
 #include <util.h>
 #endif
@@ -169,28 +170,29 @@ sys_check_options()
 }
 
 /*
- * ppp_available - check whether the system has any ppp interfaces
- * (in fact we check whether we can do an ioctl on ppp0).
+ * ppp_available - check whether the system has the ppp module loaded
+ * or compiled in. If it doesn't, and we're actually root (not just SUID
+ * root) try loading it before giving up.
  */
 int
 ppp_available()
 {
-    int s, ok;
-    struct ifreq ifr;
+    const char *modname = "if_ppp";
     extern char *no_ppp_msg;
 
-    if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-	return 1;		/* can't tell */
+    if (modfind(modname) != -1) {
+	return 1;
+    }
 
-    strncpy(ifr.ifr_name, "ppp0", sizeof (ifr.ifr_name));
-    ok = ioctl(s, SIOCGIFFLAGS, (caddr_t) &ifr) >= 0;
-    close(s);
+    if (getuid() == 0 && kldload(modname) != -1)
+	return 1;
 
     no_ppp_msg = "\
 This system lacks kernel support for PPP.  To include PPP support\n\
-in the kernel, please follow the steps detailed in the README.bsd\n\
-file in the ppp-2.2 distribution.\n";
-    return ok;
+in the kernel, please add \"device ppp\" to your kernel config or \n\
+load the if_ppp module.\n";
+
+    return 0;
 }
 
 /*
