@@ -3280,10 +3280,11 @@ pmap_mapdev(pa, size)
 	vm_offset_t pa;
 	vm_size_t size;
 {
-	vm_offset_t va, tmpva;
+	vm_offset_t va, tmpva, offset;
 	unsigned *pte;
 
-	size = roundup(size, PAGE_SIZE);
+	offset = pa & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
 
 	va = kmem_alloc_pageable(kernel_map, size);
 #if !defined(MAX_PERF)
@@ -3301,7 +3302,20 @@ pmap_mapdev(pa, size)
 	}
 	invltlb();
 
-	return ((void *) va);
+	return ((void *)(va + offset));
+}
+
+void
+pmap_unmapdev(va, size)
+	vm_offset_t va;
+	vm_size_t size;
+{
+	vm_offset_t base, offset;
+
+	base = va & PG_FRAME;
+	offset = va & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
+	kmem_free(kernel_map, base, size);
 }
 
 /*
