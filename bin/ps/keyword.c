@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.7 1995/09/26 17:48:58 peter Exp $
+ *	$Id: keyword.c,v 1.8 1995/10/28 20:11:15 phk Exp $
  */
 
 #ifndef lint
@@ -135,7 +135,7 @@ VAR var[] = {
 	{"re", "RE", NULL, 0, pvar, 3, POFF(p_swtime), ULONG, "d"},
 	{"rgid", "RGID", NULL, 0, evar, UIDLEN, EOFF(e_pcred.p_rgid),
 		ULONG, UIDFMT},
-	{"rlink", "RLINK", NULL, 0, pvar, 8, POFF(p_back), KPTR, "x"},
+	{"rlink", "RLINK", NULL, 0, pvar, 8, POFF(p_procq.tqe_prev), KPTR, "x"},
 	{"rss", "RSS", NULL, 0, p_rssize, 4},
 	{"rssize", "", "rsz"},
 	{"rsz", "RSZ", NULL, 0, rssize, 4},
