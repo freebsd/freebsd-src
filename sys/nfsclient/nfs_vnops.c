@@ -1540,11 +1540,18 @@ nfs_rename(struct vop_rename_args *ap)
 	 * under NFSV3.  NFSV2 does not have this problem because
 	 * ( as far as I can tell ) it flushes dirty buffers more
 	 * often.
+	 * 
+	 * Skip the rename operation if the fsync fails, this can happen
+	 * due to the server's volume being full, when we pushed out data
+	 * that was written back to our cache earlier. Not checking for
+	 * this condition can result in potential (silent) data loss.
 	 */
-	VOP_FSYNC(fvp, fcnp->cn_cred, MNT_WAIT, fcnp->cn_thread);
+	error = VOP_FSYNC(fvp, fcnp->cn_cred, MNT_WAIT, fcnp->cn_thread);
 	VOP_UNLOCK(fvp, 0, fcnp->cn_thread);
-	if (tvp)
-	    VOP_FSYNC(tvp, tcnp->cn_cred, MNT_WAIT, tcnp->cn_thread);
+	if (!error && tvp)
+		error = VOP_FSYNC(tvp, tcnp->cn_cred, MNT_WAIT, tcnp->cn_thread);
+	if (error)
+		goto out;
 
 	/*
 	 * If the tvp exists and is in use, sillyrename it before doing the
