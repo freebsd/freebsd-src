@@ -61,8 +61,12 @@ smb_usr_vc2spec(struct smbioc_ossn *dp, struct smb_vcspec *spec)
 	int flags = 0;
 
 	bzero(spec, sizeof(*spec));
+
+#ifdef NETSMB_NO_ANON_USER
 	if (dp->ioc_user[0] == 0)
 		return EINVAL;
+#endif
+
 	if (dp->ioc_server == NULL)
 		return EINVAL;
 	if (dp->ioc_localcs[0] == 0) {
