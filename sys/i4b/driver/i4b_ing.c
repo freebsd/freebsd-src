@@ -213,7 +213,6 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_ing_connect,
 	ng_ing_rcvdata,
-	ng_ing_rcvdata,
 	ng_ing_disconnect,
 	ng_ing_cmdlist
 };
