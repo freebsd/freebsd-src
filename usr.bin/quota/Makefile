@@ -4,4 +4,7 @@ PROG=	quota
 BINOWN=	root
 BINMODE=4555
 
+DPADD=	${LIBRPCSVC}
+LDADD=	-lrpcsvc
+
 .include <bsd.prog.mk>
