@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: dot.cshrc,v 1.5 1996/09/21 21:35:35 wosch Exp $
 #
 # .cshrc - csh resource script, read at beginning 
 #	   of execution by each shell
@@ -22,4 +22,7 @@ if ($?prompt) then
 	set history = 100
 	set savehist = 100
 	set mail = (/var/mail/$USER)
+
+	# make mail(1) happy:
+	setenv	crt	24
 endif
