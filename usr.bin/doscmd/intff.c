@@ -29,7 +29,7 @@
  *
  *	BSDI intff.c,v 2.2 1996/04/08 19:32:56 bostic Exp
  *
- * $Id: intff.c,v 1.2 1997/09/30 22:03:57 jlemon Exp $
+ * $Id: intff.c,v 1.3 1998/07/01 19:56:17 imp Exp $
  */
 
 #include "doscmd.h"
@@ -450,7 +450,7 @@ int2f11_lseek(regcontext_t *REGS)
     off_t	offset;
 
     fd = r_sft->fd;
-    offset = (R_CX << 16) + R_DX;
+    offset = (off_t) ((int) ((R_CX << 16) + R_DX);
     
     debug(D_REDIR,"lseek(%d, 0x%qx, SEEK_END)\n", fd, offset);
     
