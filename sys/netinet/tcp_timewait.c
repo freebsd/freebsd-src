@@ -1848,7 +1848,8 @@ tcp_twrespond(struct tcptw *tw, int flags)
 		if (path_mtu_discovery)
 			ip->ip_off |= IP_DF;
 		error = ip_output(m, inp->inp_options, NULL,
-		    (tw->tw_so_options & SO_DONTROUTE), NULL, inp);
+		    ((tw->tw_so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0),
+		    NULL, inp);
 	}
 	if (flags & TH_ACK)
 		tcpstat.tcps_sndacks++;
