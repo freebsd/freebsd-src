@@ -208,10 +208,14 @@ SMC/WD Ethernet or
 3COM 3c503	ed0	0x280	5	iomem 0xd8000
 
 NOTE for 386bsd users: the we0 device for the WD80xxyy card has been
-replaced with an ed0 device. The default settings of 2/280/d000 have
+replaced with an ed0 device. The default settings of 9/280/d000 have
 been changed to 5/280/d800 as this address accomdates all of the boards.
 
-Novell Ethernet	ne0	0x300	9
+Novell Ethernet	ed0	0x280	5
+
+NOTE for 386bsd users: the ne0 device for the NEx000 card has been
+replaced with an ed0 device.  The default settings of 9/300 have
+been changed to 5/280.
 
 ISOLAN ISOLink	is0	0x280	10	7
 
@@ -1032,4 +1036,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.6 1993/09/22 07:38:16 alm Exp $
+This is $Id: install_notes,v 1.7 1993/10/01 04:40:57 rgrimes Exp $
