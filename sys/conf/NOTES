@@ -1619,6 +1619,7 @@ device		miibus
 # fea:  DEC DEFEA EISA FDDI adapter
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
+#	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
 # le:   Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
@@ -1789,6 +1790,7 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+hint.fxp.0.prefer_iomap="0"
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
