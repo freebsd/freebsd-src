@@ -13,7 +13,7 @@
 #include "worm.h"
 #include "cd.h"
 #define NSCAN 0
-#define NOPMEM 0
+#include "od.h"
 #include "ch.h"
 #define NCOMM 0
 
