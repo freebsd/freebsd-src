@@ -1,4 +1,4 @@
-$Id: README.de,v 1.1 1994/08/16 20:40:56 thomas Exp $
+$Id: README.de,v 1.1 1994/10/01 20:16:42 wollman Exp $
 
 ----------------
 
@@ -44,17 +44,14 @@ You will need to apply the following patches:
 After that is done you will need to edit your config file (in
 i386/conf) and lines similar to:
 
-	controller pci0 at isa? irq 9
+	controller pci0
 	device de0
-
-The above assumes the board is configured to use IRQ 9 by your
-BIOS.  Change the IRQ if need to match your configuration.
 
 Now you are ready to rebuild your kernel, reboot, and see if the
 driver can configure your board.  When the system boots, you will
 hopefully something close to:
 
-	on pci0:7 <digital dc21040 ethernet> irq a isa=9 [1] as de0
+	on pci0:7 <digital dc21040 ethernet> int a irq 9 as de0
 	          memory size=0x1000 virtual=0xf25e9000 physical=0xc0001000
 	de0: enabling Thinwire/AUI port
 	de0: DC21040 pass 2.3 (TULIP) ethernet address 08:00:2b:e2:1e:09
