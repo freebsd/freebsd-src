@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.4 1994/08/18 22:35:21 wollman Exp $
+ * $Id: if_sl.c,v 1.5 1994/09/09 12:58:10 davidg Exp $
  */
 
 /*
@@ -483,7 +483,6 @@ slstart(tp)
 #endif
 		sc->sc_if.if_lastchange = time;
 
-#if 0
 		/*
 		 * If system is getting low on clists, just flush our
 		 * output queue (if the stuff was important, it'll get
@@ -494,7 +493,7 @@ slstart(tp)
 			sc->sc_if.if_collisions++;
 			continue;
 		}
-#endif
+
 		/*
 		 * The extra FRAME_END will start up a new packet, and thus
 		 * will flush any accumulated garbage.  We do this whenever
