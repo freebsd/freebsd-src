@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.33 1994/02/02 23:10:55 ache Exp $
+ *	$Id: syscons.c,v 1.34 1994/02/04 10:36:15 chmr Exp $
  *
  */
 
@@ -2470,7 +2470,7 @@ static int kbd_reply()
 	int i;
 
 	kbd_wait();
-	for (i=0; i<50000; i++) {       /* at least 300 msec, 500 msec enough */
+	for (i=0; i<60000; i++) {       /* at least 300 msec, 600 msec enough */
 		if (inb(KB_STAT) & KB_BUF_FULL)
 			return ((u_char) inb(KB_DATA));
 		DELAY (10);
