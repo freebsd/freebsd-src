@@ -44,6 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#include "opt_mca.h"
+#ifdef DEV_MCA
+#include <i386/bios/mca_machdep.h>
+#endif
+
 #include <machine/legacyvar.h>
 #include <machine/resource.h>
 
@@ -159,12 +164,14 @@ legacy_attach(device_t dev)
 			panic("legacy_attach eisa");
 		device_probe_and_attach(child);
 	}
-	if (!devclass_get_device(devclass_find("mca"), 0)) {
+#ifdef DEV_MCA
+	if (MCA_system && !devclass_get_device(devclass_find("mca"), 0)) {
         	child = BUS_ADD_CHILD(dev, 0, "mca", 0);
         	if (child == 0)
                 	panic("legacy_probe mca");
 		device_probe_and_attach(child);
 	}
+#endif
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
 		child = BUS_ADD_CHILD(dev, 0, "isa", 0);
 		if (child == NULL)
