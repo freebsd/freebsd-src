@@ -1910,6 +1910,7 @@ init386(first)
 	 * Giant is used early for at least debugger traps and unexpected traps.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
+	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
 	mtx_lock(&Giant);
 
 	/* make ldt memory segments */
