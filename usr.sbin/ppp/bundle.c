@@ -308,7 +308,6 @@ bundle_LayerFinish(void *v, struct fsm *fp)
 {
   /* The given fsm is now down (fp cannot be NULL)
    *
-   * If it's the last LCP, fsm_Down all NCPs
    * If it's the last NCP, fsm_Close all LCPs
    */
 
@@ -321,18 +320,12 @@ bundle_LayerFinish(void *v, struct fsm *fp)
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, CLOSE_STAYDOWN);
     fsm2initial(fp);
-  } else if (fp->proto == PROTO_LCP) {
-    int others_active;
-
-    others_active = 0;
-    for (dl = bundle->links; dl; dl = dl->next)
-      if (fp != &dl->physical->link.lcp.fsm &&
-          dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP)
-        others_active++;
-
-    if (!others_active)
-      fsm2initial(&bundle->ncp.ipcp.fsm);
   }
+  /*
+   * If it's an LCP, don't try to murder any NCPs, let bundle_LinkClosed()
+   * do that side of things (at a time when a call to fsm2initial() on the
+   * NCP isn't going to take charge of bringing down this link).
+   */
 }
 
 int
