@@ -78,11 +78,23 @@ struct ipxpcb {
 
 
 #ifdef KERNEL
+
 extern struct ipxpcb ipxpcb;			/* head of list */
-int ipx_pcballoc(), ipx_pcbbind(), ipx_pcbconnect();
-void ipx_pcbdisconnect(), ipx_pcbdetach(), ipx_setsockaddr();
-void ipx_setpeeraddr(), ipx_pcbnotify();
-struct ipxpcb *ipx_pcblookup();
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int ipx_pcballoc __P((struct socket *so, struct ipxpcb *head));
+int ipx_pcbbind __P((struct ipxpcb *ipxp, struct mbuf *nam));
+int ipx_pcbconnect __P((struct ipxpcb *ipxp, struct mbuf *nam));
+void ipx_pcbdisconnect __P((struct ipxpcb *ipxp));
+void ipx_pcbdetach __P((struct ipxpcb *ipxp));
+void ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
+void ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
+void ipx_pcbnotify __P((struct ipx_addr *dst, int errno, int (*notify)(), long param));
+struct ipxpcb *ipx_pcblookup __P((struct ipx_addr *faddr, int lport, int wildp));
+__END_DECLS
+
 #endif
 
 #endif

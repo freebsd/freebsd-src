@@ -314,7 +314,7 @@ ipx_ctlinput(cmd, arg)
 	switch (type) {
 
 	case IPX_ERR_UNREACH_HOST:
-		ipx_pcbnotify(ipx, (int)ipxctlerrmap[cmd], ipx_abort, (long)0);
+		ipx_pcbnotify(ipx, (int)ipxctlerrmap[cmd], ipx_abort, NULL);
 		break;
 
 	case IPX_ERR_NOSOCK:

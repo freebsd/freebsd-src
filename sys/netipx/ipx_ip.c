@@ -63,23 +63,7 @@
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
-
-struct ifnet_en {
-	struct ifnet ifen_ifnet;
-	struct route ifen_route;
-	struct in_addr ifen_src;
-	struct in_addr ifen_dst;
-	struct ifnet_en *ifen_next;
-};
-
-void ipxipstart();
-int ipxipoutput(), ipxipioctl();
-void ipxip_input();
-int ipxip_free();
-void ipxip_ctlinput();
-void ipxip_rtchange();
-
-#define LOMTU	(1024+512);
+#include <netipx/ipx_ip.h>
 
 struct ifnet ipxipif;
 struct ifnet_en *ipxip_list; /* list of all hosts and gateways or broadcast addrs */

@@ -1696,8 +1696,7 @@ spx_slowtimo()
 			if (cb->s_timer[i] && --cb->s_timer[i] == 0) {
 				(void) spx_usrreq(cb->s_ipxpcb->ipxp_socket,
 				    PRU_SLOWTIMO, (struct mbuf *)0,
-				    (struct mbuf *)i, (struct mbuf *)0,
-				    (struct mbuf *)0);
+				    (struct mbuf *)i, (struct mbuf *)0);
 				if (ipnxt->ipxp_prev != ip)
 					goto tpgone;
 			}

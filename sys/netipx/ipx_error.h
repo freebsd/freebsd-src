@@ -90,9 +90,19 @@ struct	ipx_errstat {
 };
 
 #ifdef KERNEL
+
 extern struct ipx_errstat ipx_errstat;
-int ipx_err_x(), ipx_echo();
-void ipx_error(), ipx_printhost(), ipx_err_input();
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int ipx_err_x __P((int c));
+int ipx_echo __P((struct mbuf *m));
+void ipx_error __P((struct mbuf *om, int type, int param));
+void ipx_printhost __P((struct ipx_addr *addr));
+void ipx_err_input __P((struct mbuf *m));
+__END_DECLS
+
 #endif
 
 #endif
