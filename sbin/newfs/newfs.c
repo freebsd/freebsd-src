@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: newfs.c,v 1.21 1998/07/16 12:04:52 charnier Exp $";
+	"$Id: newfs.c,v 1.22 1998/07/20 12:04:42 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -226,7 +226,7 @@ main(argc, argv)
 	struct partition oldpartition;
 	struct stat st;
 	struct statfs *mp;
-	int fsi, fso, len, n;
+	int fsi, fso, len, n, vflag;
 	char *cp, *s1, *s2, *special, *opstring;
 #ifdef MFS
 	struct vfsconf vfc;
@@ -234,6 +234,7 @@ main(argc, argv)
 	char buf[BUFSIZ];
 #endif
 
+	vflag = 0;
 	if ((progname = strrchr(*argv, '/')))
 		++progname;
 	else
@@ -246,7 +247,7 @@ main(argc, argv)
 
 	opstring = mfs ?
 	    "NF:T:a:b:c:d:e:f:i:m:o:s:" :
-	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:x:";
+	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:v:x";
 	while ((ch = getopt(argc, argv, opstring)) != -1)
 		switch (ch) {
 		case 'N':
@@ -352,6 +353,9 @@ main(argc, argv)
 			if ((nsectors = atoi(optarg)) < 0)
 				fatal("%s: bad sectors/track", optarg);
 			break;
+		case 'v':
+			vflag = 1;
+			break;
 		case 'x':
 			if ((cylspares = atoi(optarg)) < 0)
 				fatal("%s: bad spare sectors per cylinder",
@@ -451,7 +455,8 @@ main(argc, argv)
 			printf("%s: %s: not a character-special device\n",
 			    progname, special);
 		cp = strchr(argv[0], '\0') - 1;
-		if (cp == (char *)-1 ||
+		if (!vflag &&
+		    cp == (char *)-1 ||
 		    ((*cp < 'a' || *cp > 'h') && !isdigit(*cp)))
 			fatal("%s: can't figure out file system partition",
 			    argv[0]);
@@ -460,7 +465,7 @@ main(argc, argv)
 			disktype = argv[1];
 #endif
 		lp = getdisklabel(special, fsi);
-		if (isdigit(*cp))
+		if (vflag || isdigit(*cp))
 			pp = &lp->d_partitions[0];
 		else
 			pp = &lp->d_partitions[*cp - 'a'];

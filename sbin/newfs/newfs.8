@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
-.\"	$Id$
+.\"	$Id: newfs.8,v 1.15 1998/07/15 06:28:04 charnier Exp $
 .\"
 .Dd May 3, 1995
 .Dt NEWFS 8
@@ -61,6 +61,7 @@
 .Op Fl s Ar size
 .Op Fl t Ar tracks
 .Op Fl u Ar sectors
+.Op Fl v
 .Op Fl x Ar sectors
 .Ar special
 .Nm mount_mfs
@@ -212,6 +213,14 @@ See
 for more details on how to set this option.
 .It Fl s Ar size
 The size of the file system in sectors.
+.It Fl v
+Specify that the partition does not contain any slices, and that
+.Nm
+should treat the whole partition as the file system.  This option is useful for
+synthetic disks such as
+.Nm ccd
+and 
+.Nm vinum.
 .El
 .Pp
 The following options override the standard sizes for the disk geometry. 
@@ -314,7 +323,8 @@ not be able to boot from a file system that uses another size.
 .Xr fsck 8 ,
 .Xr mount 8 ,
 .Xr scsiformat 8 ,
-.Xr tunefs 8
+.Xr tunefs 8 ,
+.Xr vinum 8
 .Rs
 .%A M. McKusick
 .%A W. Joy
