@@ -72,6 +72,7 @@ MAN=	aac.4 \
 	ktr.4 \
 	lge.4 \
 	lo.4 \
+	lomac.4 \
 	lp.4 \
 	lpbb.4 \
 	lpt.4 \
