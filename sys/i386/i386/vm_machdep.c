@@ -441,6 +441,7 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	 * Set the trap frame to point at the beginning of the uts
 	 * function.
 	 */
+	td->td_frame->tf_ebp = 0; 
 	td->td_frame->tf_esp =
 	    (int)ku->ku_stack.ss_sp + ku->ku_stack.ss_size - 16;
 	td->td_frame->tf_eip = (int)ku->ku_func;
