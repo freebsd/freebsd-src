@@ -32,7 +32,7 @@
 .\"	@(#)finger.1	8.3 (Berkeley) 5/5/94
 .\" $FreeBSD$
 .\"
-.Dd August 1, 1997
+.Dd July 22, 2002
 .Dt FINGER 1
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ The
 utility displays information about the system users.
 .Pp
 Options are:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl 4
 Forces
 .Nm
@@ -82,37 +82,33 @@ is displayed rather than the hours and minutes.
 .Pp
 Unknown devices as well as nonexistent idle and login times are
 displayed as single asterisks.
-.Pp
 .It Fl h
 When used in conjunction with the
 .Fl s
 option, the name of the remote host is displayed instead of the office
 location and office phone.
-.Pp
 .It Fl o
 When used in conjunction with the
 .Fl s
 option, the office location and office phone information is displayed
 instead of the name of the remote host.
-.Pp
 .It Fl g
 This option restricts the gecos output to only the users' real
 name. It also has the side-effect of restricting the output
 of the remote host when used in conjunction with the
 .Fl h
 option.
-.Pp
 .It Fl l
 Produce a multi-line format displaying all of the information
 described for the
 .Fl s
 option as well as the user's home directory, home phone number, login
 shell, mail status, and the contents of the files
-.Dq Pa .forward ,
-.Dq Pa .plan ,
-.Dq Pa .project
+.Pa .forward ,
+.Pa .plan ,
+.Pa .project
 and
-.Dq Pa .pubkey
+.Pa .pubkey
 from the user's home directory.
 .Pp
 If idle time is at least a minute and less than a day, it is
@@ -136,7 +132,6 @@ Mail status is shown as ``No Mail.'' if there is no mail at all, ``Mail
 last read DDD MMM ## HH:MM YYYY (TZ)'' if the person has looked at their
 mailbox since new mail arriving, or ``New mail received ...'', ``Unread
 since ...'' if they have new mail.
-.Pp
 .It Fl p
 Prevent
 the
@@ -144,11 +139,11 @@ the
 option of
 .Nm
 from displaying the contents of the
-.Dq Pa .forward ,
-.Dq Pa .plan ,
-.Dq Pa .project
+.Pa .forward ,
+.Pa .plan ,
+.Pa .project
 and
-.Dq Pa .pubkey
+.Pa .pubkey
 files.
 .It Fl m
 Prevent matching of
@@ -162,7 +157,6 @@ option is supplied.
 All name matching performed by
 .Nm
 is case insensitive.
-.Pp
 .It Fl T
 Disable the piggybacking of data on the initial connection request.
 This option is needed to finger hosts with a broken TCP implementation.
@@ -202,7 +196,7 @@ The
 option is the only option that may be passed to a remote machine.
 .Pp
 If the file
-.Dq Pa .nofinger
+.Pa .nofinger
 exists in the user's home directory,
 .Nm
 behaves as if the user in question does not exist.
