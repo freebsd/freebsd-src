@@ -32,6 +32,9 @@
 
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#ifndef NONETGRAPH
+#include <netgraph.h>
+#endif
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -292,6 +295,21 @@ ID0kldload(const char *dev)
   ID0set0();
   result = kldload(dev);
   log_Printf(LogID0, "%d = kldload(\"%s\")\n", result, dev);
+  ID0setuser();
+  return result;
+}
+#endif
+
+#ifndef NONETGRAPH
+int
+ID0NgMkSockNode(const char *name, int *cs, int *ds)
+{
+  int result;
+
+  ID0set0();
+  result = NgMkSockNode(name, cs, ds);
+  log_Printf(LogID0, "%d = NgMkSockNode(\"%s\", &cs, &ds)\n",
+             result, name ? name : "");
   ID0setuser();
   return result;
 }
