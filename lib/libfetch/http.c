@@ -352,25 +352,34 @@ _http_cmd(int fd, char *fmt, ...)
 static int
 _http_get_reply(int fd)
 {
+    char *p;
+    
     if (_fetch_getln(fd, &reply_buf, &reply_size, &reply_length) == -1)
 	return -1;
     /*
      * A valid status line looks like "HTTP/m.n xyz reason" where m
      * and n are the major and minor protocol version numbers and xyz
      * is the reply code.
-     * We grok HTTP 1.0 and 1.1, so m must be 1 and n must be 0 or 1.
+     * Unfortunately, there are servers out there (NCSA 1.5.1, to name
+     * just one) that do not send a version number, so we can't rely
+     * on finding one, but if we do, insist on it being 1.0 or 1.1.
      * We don't care about the reason phrase.
      */
-    if (strncmp(reply_buf, "HTTP/1.", 7) != 0
-	|| (reply_buf[7] != '0' && reply_buf[7] != '1') || reply_buf[8] != ' '
-	|| !isdigit(reply_buf[9])
-	|| !isdigit(reply_buf[10])
-	|| !isdigit(reply_buf[11]))
+    if (strncmp(reply_buf, "HTTP", 4) != 0)
+	return HTTP_PROTOCOL_ERROR;
+    p = reply_buf + 4;
+    if (*p == '/') {
+	if (p[1] != '1' || p[2] != '.' || (p[3] != '0' && p[3] != '1'))
+	    return HTTP_PROTOCOL_ERROR;
+	p += 4;
+    }
+    if (*p != ' '	
+	|| !isdigit(p[1])
+	|| !isdigit(p[2])
+	|| !isdigit(p[3]))
 	return HTTP_PROTOCOL_ERROR;
     
-    return ((reply_buf[9] - '0') * 100
-	    + (reply_buf[10] - '0') * 10
-	    + (reply_buf[11] - '0'));
+    return ((p[1] - '0') * 100 + (p[2] - '0') * 10 + (p[3] - '0'));
 }
 
 /*
