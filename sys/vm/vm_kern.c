@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.43 1998/02/05 03:32:39 dyson Exp $
+ * $Id: vm_kern.c,v 1.44 1998/02/06 12:14:23 eivind Exp $
  */
 
 /*
@@ -147,7 +147,7 @@ kmem_alloc(map, size)
 	 * offset within the kernel map.
 	 */
 	vm_map_lock(map);
-	if (vm_map_findspace(map, 0, size, &addr)) {
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
 		return (0);
 	}
@@ -291,7 +291,7 @@ kmem_malloc(map, size, waitflag)
 	 * offset within the kernel map.
 	 */
 	vm_map_lock(map);
-	if (vm_map_findspace(map, 0, size, &addr)) {
+	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
 		if (map == mb_map) {
 			mb_map_full = TRUE;
@@ -299,7 +299,8 @@ kmem_malloc(map, size, waitflag)
 			return (0);
 		}
 		if (waitflag == M_WAITOK)
-			panic("kmem_malloc: kmem_map too small");
+			panic("kmem_malloc(%d): kmem_map too small: %d total allocated",
+				size, map->size);
 		return (0);
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
@@ -390,7 +391,7 @@ kmem_alloc_wait(map, size)
 		 * to lock out sleepers/wakers.
 		 */
 		vm_map_lock(map);
-		if (vm_map_findspace(map, 0, size, &addr) == 0)
+		if (vm_map_findspace(map, vm_map_min(map), size, &addr) == 0)
 			break;
 		/* no space now; see if we can ever get space */
 		if (vm_map_max(map) - vm_map_min(map) < size) {

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.113 1998/02/06 12:14:28 eivind Exp $
+ * $Id: vm_pageout.c,v 1.114 1998/02/09 06:11:34 eivind Exp $
  */
 
 /*
@@ -1145,7 +1145,6 @@ vm_pageout_page_stats()
 		m = next;
 	}
 }
-	
 
 static int
 vm_pageout_free_page_calc(count)
@@ -1193,13 +1192,15 @@ vm_pageout()
 
 	if (cnt.v_free_count > 1024) {
 		cnt.v_cache_max = (cnt.v_free_count - 1024) / 2;
-		cnt.v_cache_min = (cnt.v_free_count - 1024) / 8;
+		cnt.v_cache_min = cnt.v_free_target * 2;
 		cnt.v_inactive_target = 2*cnt.v_cache_min + 192;
 	} else {
 		cnt.v_cache_min = 0;
 		cnt.v_cache_max = 0;
 		cnt.v_inactive_target = cnt.v_free_count / 4;
 	}
+	if (cnt.v_inactive_target > cnt.v_free_count / 3)
+		cnt.v_inactive_target = cnt.v_free_count / 3;
 
 	/* XXX does not really belong here */
 	if (vm_page_max_wired == 0)
@@ -1244,13 +1245,10 @@ vm_pageout()
 				continue;
 			}
 		} else if (vm_pages_needed) {
-			tsleep(&vm_pages_needed, PVM, "psleep", hz/10);
+			vm_pages_needed = 0;
+			tsleep(&vm_pages_needed, PVM, "psleep", hz/2);
 		}
-		inactive_target =
-			(cnt.v_page_count - cnt.v_wire_count) / 4;
-		if (inactive_target < 2*cnt.v_free_min)
-			inactive_target = 2*cnt.v_free_min;
-		cnt.v_inactive_target = inactive_target;
+
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
 		vm_pages_needed = 0;
