@@ -27,7 +27,7 @@
 #
 
 # PROVIDE: hostname
-# REQUIRE: mountcritlocal sysctl tty
+# REQUIRE: mountcritlocal tty
 # BEFORE:  netif
 # KEYWORD: FreeBSD
 
