@@ -2119,7 +2119,11 @@ again:
     goto dequeue_drop;
   }
 
-  if (launch.need > sc->txslot[chan].bfree) {
+  /*
+   * note: don't use the entire buffer space.  if WRTX becomes equal
+   * to RDTX, the transmitter stops assuming the buffer is empty!  --kjc
+   */
+  if (launch.need >= sc->txslot[chan].bfree) {
     EN_COUNT(sc->txoutspace);
 #ifdef EN_DEBUG
     printf("%s: tx%d: out of transmit space\n", sc->sc_dev.dv_xname, chan);
