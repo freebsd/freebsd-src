@@ -1,13 +1,16 @@
 # $FreeBSD$
 
-I4BETCPROG=	answer			\
+NOOBJ=
+
+SCRIPTS=	answer			\
 		isdntel.sh		\
 		record			\
 		tell			\
 		tell-record		\
 		unknown_incoming
+SCRIPTS_NAME_isdntel.sh= isdntel.sh
 
-I4BETCFILE=	holidays.D		\
+FILES=		holidays.D		\
 		isdnd.rates.A		\
 		isdnd.rates.D		\
 		isdnd.rates.F		\
@@ -16,14 +19,8 @@ I4BETCFILE=	holidays.D		\
 		isdnd.rc.sample		\
 		isdntel.alias.sample
 
-install:
-		for i in ${I4BETCPROG} ; do \
-		  ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 700 $$i \
-		  ${DESTDIR}/etc/isdn ; \
-		done ; \
-		for i in ${I4BETCFILE} ; do \
-		  ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 $$i \
-		  ${DESTDIR}/etc/isdn ; \
-		done
+BINDIR=		/etc/isdn
+BINMODE=	700
+FILESMODE=	600
 
-.include <bsd.own.mk>
+.include <bsd.prog.mk>
