@@ -1,57 +1,57 @@
-# $Id: no_NO.ISO_8859-1.src,v 1.1 1997/06/03 14:17:12 ache Exp $
+# $Id: no_NO.ISO_8859-1.src,v 1.2 1997/06/23 19:36:14 julian Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
 # Short months names
 #
-Jan
-Feb
-Mar
-Apr
-Mai
-Jun
-Jul
-Aug
-Sep
-Okt
-Nov
-Des
+jan
+feb
+mar
+apr
+mai
+jun
+jul
+aug
+sep
+okt
+nov
+des
 #
 # Long months names
 #
-Januar
-Februar
-Mars
-April
-Mai
-Juni
-Juli
-August
-September
-Oktober
-November
-Desember
+januar
+februar
+mars
+april
+mai
+juni
+juli
+august
+september
+oktober
+november
+desember
 #
 # Short weekdays names
 # (padded with a space to conform with other languages)
-Søn
-Man
-Tir
-Ons
-Tor
-Fre
-Lør
+søn
+man
+tir
+ons
+tor
+fre
+lør
 #
 # Long weekdays names
 #
-Søndag
-Mandag
-Tirsdag
-Onsdag
-Torsdag
-Fredag
-Lørdag
+søndag
+mandag
+tirsdag
+onsdag
+torsdag
+fredag
+lørdag
 #
 # X_fmt
 #
