@@ -298,7 +298,7 @@ int		pthread_attr_getschedpolicy __P((const pthread_attr_t *, int *));
 int		pthread_attr_getscope __P((const pthread_attr_t *, int *));
 int		pthread_attr_setinheritsched __P((pthread_attr_t *, int));
 int		pthread_attr_setschedparam __P((pthread_attr_t *,
-			struct sched_param *));
+			const struct sched_param *));
 int		pthread_attr_setschedpolicy __P((pthread_attr_t *, int));
 int		pthread_attr_setscope __P((pthread_attr_t *, int));
 int		pthread_getschedparam __P((pthread_t pthread, int *,
