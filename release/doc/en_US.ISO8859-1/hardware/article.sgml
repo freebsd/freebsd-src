@@ -906,7 +906,28 @@
     <title>Miscellaneous Networks</title>
 
     <para arch="i386">Cronyx Sigma synchronous / asynchronous serial
-      adapters (&man.cx.4; driver)</para>
+      adapters with V.35/RS-232/RS-530/RS-449 interfaces (&man.cx.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Cronyx Sigma-22, Sigma-24</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Sigma-100</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Sigma-400, Sigma-401, Sigma-404, Sigma-410, Sigma-440</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Sigma-500</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Sigma-703</para>
+	</listitem>
+        <listitem>
+	  <para>Cronyx Sigma-800, Sigma-801, Sigma-810, Sigma-840</para>
+	</listitem>
+      </itemizedlist>
+    </para>
 
     <para arch="i386">Cronyx Tau synchronous serial adapters for ISA bus
       (&man.ctau.4; driver)
