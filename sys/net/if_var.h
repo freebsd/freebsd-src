@@ -180,6 +180,8 @@ struct ifnet {
 	struct	label if_label;		/* interface MAC label */
 
 	void	*if_afdata[AF_MAX];
+	int	if_afdata_initialized;
+	struct	mtx if_afdata_mtx;
 };
 
 typedef void if_init_f_t(void *);
@@ -289,6 +291,13 @@ typedef void if_init_f_t(void *);
 } while (0)
 
 #ifdef _KERNEL
+#define	IF_AFDATA_LOCK_INIT(ifp)	\
+    mtx_init(&(ifp)->if_afdata_mtx, "if_afdata", NULL, MTX_DEF)
+#define	IF_AFDATA_LOCK(ifp)	mtx_lock(&(ifp)->if_afdata_mtx)
+#define	IF_AFDATA_TRYLOCK(ifp)	mtx_trylock(&(ifp)->if_afdata_mtx)
+#define	IF_AFDATA_UNLOCK(ifp)	mtx_unlock(&(ifp)->if_afdata_mtx)
+#define	IF_AFDATA_DESTROY(ifp)	mtx_destroy(&(ifp)->if_afdata_mtx)
+
 #define	IF_HANDOFF(ifq, m, ifp)			if_handoff(ifq, m, ifp, 0)
 #define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	if_handoff(ifq, m, ifp, adj)
 
