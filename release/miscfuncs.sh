@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.7 1994/11/21 04:35:24 jkh Exp $
+# $Id: miscfuncs.sh,v 1.8 1994/11/21 06:45:01 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -41,10 +41,9 @@ X11SIZE="50MB"
 
 interrupt()
 {
-	if dialog --clear --title "User Interrupt Requested" \
-	  --yesno "Do you wish to abort the installation?" -1 -1; then
-		exit 0;
-	fi
+	dialog --clear --title "User Interrupt Requested" \
+	  --msgbox "\n ** Aborting the installation ** \n" -1 -1
+	exit 0;
 }
 
 # Handle the return value from a dialog, doing some pre-processing
