@@ -40,9 +40,7 @@
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/ktr.h>
 #include <sys/proc.h>
-#include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -2516,7 +2514,8 @@ geteblk(int size)
 	maxsize = (size + BKVAMASK) & ~BKVAMASK;
 
 	s = splbio();
-	while ((bp = getnewbuf(0, 0, size, maxsize)) == 0);
+	while ((bp = getnewbuf(0, 0, size, maxsize)) == 0)
+		continue;
 	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
@@ -2636,7 +2635,6 @@ allocbuf(struct buf *bp, int size)
 			}
 		}
 	} else {
-		vm_page_t m;
 		int desiredpages;
 
 		newbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
@@ -2659,6 +2657,8 @@ allocbuf(struct buf *bp, int size)
 			 * if we have to remove any pages.
 			 */
 			if (desiredpages < bp->b_npages) {
+				vm_page_t m;
+
 				vm_page_lock_queues();
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
