@@ -2186,10 +2186,11 @@ hint.pcf.0.irq="5"
 #
 # i4b passive ISDN cards support contains the following hardware drivers:
 #
-#	isic - I4b Siemens Isdn Chipset driver
-#	iwic - I4b Winbond Isdn Chip driver
-#	ifpi - I4b Fritz!card PcI driver
-#	ihfc - I4b cologne chip designs HFC ISA chip driver
+#	isic - Siemens/Infineon ISDN ISAC/HSCX/IPAC chipset driver
+#	iwic - Winbond W6692 PCI bus ISDN S/T interface controller
+#	ifpi - AVM Fritz!Card PCI driver
+#	ihfc - Cologne Chip HFC ISA/ISA-PnP chipset driver
+#	ifpnp - AVM Fritz!Card PnP driver 
 #
 # Note that the ``options'' (if given) and ``device'' lines must BOTH
 # be uncommented to enable support for a given card !
