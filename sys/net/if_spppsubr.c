@@ -2381,7 +2381,8 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				lcp.Down(sp);
 				lcp.Up(sp);
 			}
-		} else if (++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
+		} else if (!sp->pp_loopcnt &&
+			   ++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
 			if (debug)
 				log(-1, " max_failure (%d) exceeded, "
 				       "send conf-rej\n",
