@@ -28,7 +28,7 @@ SRCS=	alias.c arpadate.c bf_torek.c clock.c collect.c conf.c control.c \
 	stab.c stats.c sysexits.c timers.c trace.c udb.c usersmtp.c util.c \
 	version.c
 DPADD=	${LIBUTIL} ${LIBWRAP}
-LDADD=	-lutil -lwrap
+LDADD+=	-lutil -lwrap
 MAN1=	mailq.1 newaliases.1
 MAN5=	aliases.5
 MAN8=	sendmail.8 
