@@ -244,6 +244,9 @@ struct acpi_ec_softc {
     int			ec_csrvalue;
 };
 
+static int			 acpi_ec_event_driven = 0;
+TUNABLE_INT("hw.acpi.ec.event_driven", &acpi_ec_event_driven);
+
 #define EC_LOCK_TIMEOUT	1000	/* 1ms */
 
 static __inline ACPI_STATUS
@@ -618,7 +621,7 @@ EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Event);
 
     /* XXX this should test whether interrupts are available some other way */
-    if(cold)
+    if (cold || acpi_ec_event_driven)
 	return_ACPI_STATUS(EcWaitEvent(sc, Event));
 
     if (!EcIsLocked(sc))
