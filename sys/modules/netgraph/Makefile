@@ -45,7 +45,7 @@ SUBDIR=	async \
 _bluetooth=	bluetooth
 .endif
 
-.if !defined(NOCRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
+.if !defined(NO_CRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
 _mppc=		mppc
 .endif
 

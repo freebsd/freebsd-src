@@ -23,7 +23,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 BIN1+=	printcap
 .endif
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \

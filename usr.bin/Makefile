@@ -245,7 +245,7 @@ _nsupdate=	nsupdate
 _bluetooth=	bluetooth
 .endif
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _chkey=		chkey
 _newkey=	newkey
 .endif

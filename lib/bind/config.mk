@@ -34,7 +34,7 @@ CFLAGS+=	-DWANT_IPV6
 .endif
 
 # Enable crypto if available
-.if !defined(NOCRYPT)
+.if !defined(NO_CRYPT)
 CFLAGS+=	-DOPENSSL
 .endif
 
@@ -91,7 +91,7 @@ BIND_LDADD=	${BIND_DPADD}
 .endif
 
 # Link against crypto library
-.if !defined(NOCRYPT)
+.if !defined(NO_CRYPT)
 CRYPTO_DPADD=	${LIBCRYPTO}
 CRYPTO_LDADD=	-lcrypto
 .endif

@@ -82,7 +82,7 @@ _libsmdb=	libsmdb
 _libsmutil=	libsmutil
 .endif
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _libmp=		libmp
 .endif
 
