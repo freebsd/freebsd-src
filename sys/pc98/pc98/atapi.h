@@ -111,6 +111,7 @@
 #define ATAPI_PREVENT_ALLOW     0x1e    /* prevent/allow media removal */
 #define ATAPI_READ_CAPACITY     0x25    /* get volume capacity */
 #define ATAPI_READ_BIG          0x28    /* read data */
+#define ATAPI_WRITE_BIG		0x2a    /* write data */
 #define ATAPI_READ_TOC          0x43    /* get table of contents */
 #define ATAPI_READ_SUBCHANNEL   0x42    /* get subchannel info */
 #define ATAPI_MODE_SELECT_BIG   0x55    /* set device parameters */

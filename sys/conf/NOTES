@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.390 1997/12/31 21:46:17 obrien Exp $
+#	$Id: LINT,v 1.391 1998/01/14 19:41:36 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -832,6 +832,10 @@ options		ATAPI_STATIC	#Don't do it as an LKM
 
 # IDE CD-ROM driver - requires wdc controller and ATAPI option
 device          wcd0
+
+# IDE floppy driver - requires wdc controller and ATAPI option
+device          wfd0
+
 
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
