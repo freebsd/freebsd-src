@@ -1,5 +1,5 @@
 /*	$NetBSD: uhid.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: uhid.c,v 1.5 1999/01/07 23:31:34 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -71,7 +71,7 @@
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (uhiddebug) printf x
 #define DPRINTFN(n,x)	if (uhiddebug>(n)) printf x
-int	uhiddebug = 0;
+int	uhiddebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

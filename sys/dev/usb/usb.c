@@ -1,5 +1,5 @@
 /*	$NetBSD: usb.c,v 1.11 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: usb.c,v 1.5 1999/01/07 23:31:37 n_hibma Exp $ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -77,9 +77,9 @@ MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) printf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
-int	usbdebug = 0;
-int	uhcidebug;
-int	ohcidebug;
+int	usbdebug = 1;
+int	uhcidebug = 1;
+int	ohcidebug = 1;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
