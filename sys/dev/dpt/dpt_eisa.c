@@ -58,7 +58,7 @@
 
 #include <dev/dpt/dpt.h>
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
 #include <machine/clock.h>
 

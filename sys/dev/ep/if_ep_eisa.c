@@ -40,7 +40,7 @@
 
 #include <machine/clock.h>
 
-#include <i386/eisa/eisaconf.h>
+#include <dev/eisa/eisaconf.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>

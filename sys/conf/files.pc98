@@ -66,6 +66,7 @@ dev/ata/atapi-all.c		optional	atapist
 dev/ata/atapi-cd.c		optional	atapicd
 dev/ata/atapi-fd.c		optional	atapifd
 dev/ata/atapi-tape.c		optional	atapist
+dev/eisa/eisaconf.c		optional	eisa
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
 dev/fb/splash.c			optional	splash
@@ -114,13 +115,6 @@ gnu/i386/isa/dgb.c		optional	dgb
 gnu/i386/isa/dgm.c		optional	dgm
 gnu/i386/isa/sound/awe_wave.c	optional	awe
 i386/apm/apm.c			optional	apm
-#i386/eisa/adv_eisa.c		optional	adv
-i386/eisa/ahb.c			optional	ahb
-i386/eisa/ahc_eisa.c		optional	eisa ahc    \
-	dependency	"aic7xxx_reg.h $S/i386/eisa/ahc_eisa.c"
-i386/eisa/eisaconf.c		optional	eisa
-i386/eisa/if_fea.c		optional	fea
-i386/eisa/if_vx_eisa.c		optional	vx
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
@@ -187,7 +181,6 @@ i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
-#i386/isa/adv_isa.c		optional	adv
 i386/isa/asc.c			optional	asc
 i386/isa/atapi-cd.c		optional	wcd
 pc98/pc98/atapi.c		optional	wdc
@@ -207,9 +200,7 @@ i386/isa/if_cs.c		optional	cs
 i386/isa/if_cx.c		optional	cx
 pc98/pc98/if_ed.c		optional	ed
 i386/isa/if_el.c		optional	el
-i386/isa/if_ex.c		optional	ex
 i386/isa/if_fe.c		optional	fe
-i386/isa/if_ie.c		optional	ie
 i386/isa/if_le.c		optional	le
 i386/isa/if_lnc.c		optional	lnc
 i386/isa/if_rdp.c		optional	rdp
