@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.57 1998/03/04 06:44:59 dyson Exp $
+ * $Id: spec_vnops.c,v 1.58 1998/03/07 21:35:52 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -722,6 +722,7 @@ spec_getpages(ap)
 	int i, pcount, size, s;
 	daddr_t blkno;
 	struct buf *bp;
+	vm_page_t m;
 	vm_ooffset_t offset;
 	int toff, nextoff, nread;
 	struct vnode *vp = ap->a_vp;
@@ -784,6 +785,7 @@ spec_getpages(ap)
 	pbgetvp(ap->a_vp, bp);
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
+	bp->b_resid = 0;
 
 	cnt.v_vnodein++;
 	cnt.v_vnodepgsin += pcount;
@@ -814,14 +816,9 @@ spec_getpages(ap)
 	}
 	pmap_qremove(kva, pcount);
 
-	/*
-	 * Free the buffer header back to the swap buffer pool.
-	 */
-	relpbuf(bp);
 
 	gotreqpage = 0;
 	for (i = 0, toff = 0; i < pcount; i++, toff = nextoff) {
-		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
 		m = ap->a_m[i];
 
@@ -862,9 +859,24 @@ spec_getpages(ap)
 		}
 	}
 	if (!gotreqpage) {
-		printf("spec_getpages: I/O read failure: (code=%d)\n", error);
+		m = ap->a_m[ap->a_reqpage];
+#ifndef MAX_PERF
+		printf("spec_getpages: I/O read failure: (error code=%d)\n", error);
+		printf("               size: %d, resid: %d, a_count: %d, valid: 0x%x\n",
+				size, bp->b_resid, ap->a_count, m->valid);
+		printf("               nread: %d, reqpage: %d, pindex: %d, pcount: %d\n",
+				nread, ap->a_reqpage, m->pindex, pcount);
+#endif
+		/*
+		 * Free the buffer header back to the swap buffer pool.
+		 */
+		relpbuf(bp);
 		return VM_PAGER_ERROR;
 	}
+	/*
+	 * Free the buffer header back to the swap buffer pool.
+	 */
+	relpbuf(bp);
 	return VM_PAGER_OK;
 }
 
