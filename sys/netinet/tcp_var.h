@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.10 1995/03/16 18:15:07 bde Exp $
+ * $Id: tcp_var.h,v 1.11 1995/04/09 01:29:29 davidg Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -139,6 +139,8 @@ struct tcpcb {
 
 /* TUBA stuff */
 	caddr_t	t_tuba_pcb;		/* next level down pcb for TCP over z */
+/* More RTT stuff */
+	u_long	t_rttupdated;		/* number of times rtt sampled */
 };
 
 /*
@@ -277,6 +279,12 @@ struct	tcpstat {
 	u_long	tcps_predack;		/* times hdr predict ok for acks */
 	u_long	tcps_preddat;		/* times hdr predict ok for data pkts */
 	u_long	tcps_pcbcachemiss;
+	u_long	tcps_cachedrtt;		/* times cached RTT in route updated */
+	u_long	tcps_cachedrttvar;	/* times cached rttvar updated */
+	u_long	tcps_cachedssthresh;	/* times cached ssthresh updated */
+	u_long	tcps_usedrtt;		/* times RTT initialized from route */
+	u_long	tcps_usedrttvar;	/* times RTTVAR initialized from rt */
+	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
 };
 
 /*
@@ -363,6 +371,10 @@ struct tcpcb *
 int	 tcp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 void	 tcp_xmit_timer __P((struct tcpcb *, int));
+
+extern	u_long tcp_sendspace;
+extern	u_long tcp_recvspace;
+
 #endif /* KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */
