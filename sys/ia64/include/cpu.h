@@ -75,18 +75,14 @@ struct clockframe {
  * CTL_MACHDEP definitions.
  */
 #define	CPU_CONSDEV		1	/* dev_t: console terminal device */
-#define	CPU_ROOT_DEVICE		2	/* string: root device name */
-#define	CPU_BOOTED_KERNEL	3	/* string: booted kernel name */
-#define	CPU_ADJKERNTZ		4	/* int:	timezone offset	(seconds) */
-#define	CPU_DISRTCSET		5	/* int: disable resettodr() call */
-#define	CPU_WALLCLOCK		6	/* int:	indicates wall CMOS clock */
-#define	CPU_MAXID		7	/* valid machdep IDs */
+#define	CPU_ADJKERNTZ		2	/* int:	timezone offset	(seconds) */
+#define	CPU_DISRTCSET		3	/* int: disable resettodr() call */
+#define	CPU_WALLCLOCK		4	/* int:	indicates wall CMOS clock */
+#define	CPU_MAXID		5	/* valid machdep IDs */
 
 #define	CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
 	{ "console_device", CTLTYPE_STRUCT }, \
-	{ "root_device", CTLTYPE_STRING }, \
-	{ "booted_kernel", CTLTYPE_STRING }, \
 	{ "adjkerntz", CTLTYPE_INT }, \
 	{ "disable_rtc_set", CTLTYPE_INT }, \
 	{ "wall_cmos_clock", CTLTYPE_INT }, \
@@ -100,11 +96,6 @@ struct reg;
 struct rpb;
 struct trapframe;
 
-extern struct rpb *hwrpb;
-extern volatile int mc_expected, mc_received;
-
-int	badaddr(void *, size_t);
-int	badaddr_read(void *, size_t, void *);
 u_int64_t console_restart(u_int64_t, u_int64_t, u_int64_t);
 int	do_ast(struct trapframe *);
 void	dumpconf(void);
@@ -118,8 +109,6 @@ void	init_prom_interface(struct rpb*);
 void	interrupt(u_int64_t, struct trapframe *);
 void	machine_check(unsigned long, struct trapframe *, unsigned long,
     unsigned long);
-u_int64_t hwrpb_checksum(void);
-void	hwrpb_restart_setup(void);
 void	regdump(struct trapframe *);
 void	regtoframe(struct reg *, struct trapframe *);
 void	set_iointr(void (*)(void *, unsigned long));
