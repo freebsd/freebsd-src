@@ -1406,8 +1406,13 @@ static void vr_init(xsc)
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, VR_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+	
+	/* Set DMA size */
+	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_DMA_LENGTH);
+	VR_SETBIT(sc, VR_BCR0, VR_BCR0_DMA_STORENFWD);
 
-	/* BCR0 and BCR1 can override the RXCFG and TXCFG registers,
+	/* 
+	 * BCR0 and BCR1 can override the RXCFG and TXCFG registers,
 	 * so we must set both.
 	 */
 	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_RX_THRESH);
