@@ -192,6 +192,7 @@ looutput(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	register struct rtentry *rt;
 {
+	struct mbuf *n;
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
 
@@ -204,30 +205,22 @@ looutput(ifp, m, dst, rt)
 	 * KAME requires that the packet to be contiguous on the
 	 * mbuf.  We need to make that sure.
 	 * this kind of code should be avoided.
-	 * XXX: fails to join if interface MTU > MCLBYTES.  jumbogram?
+	 *
+	 * XXX: KAME may no longer need contiguous packets.  Once
+	 * that has been verified, the following code _should_ be
+	 * removed.
 	 */
-	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
-		struct mbuf *n;
 
-		/* XXX MT_HEADER should be m->m_type */
-		MGETHDR(n, M_DONTWAIT, MT_HEADER);
-		if (!n)
-			goto contiguousfail;
-		M_MOVE_PKTHDR(n, m);
-		MCLGET(n, M_DONTWAIT);
-		if (! (n->m_flags & M_EXT)) {
-			m_freem(n);
-			goto contiguousfail;
+	if (m && m->m_next != NULL) {
+
+		n = m_defrag(m, M_DONTWAIT);
+
+		if (n == NULL) {
+			m_freem(m);
+			return (ENOBUFS);
+		} else {
+			m = n;
 		}
-
-		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
-		n->m_len = n->m_pkthdr.len;
-		m_freem(m);
-		m = n;
-	}
-	if (0) {
-contiguousfail:
-		printf("looutput: mbuf allocation failed\n");
 	}
 
 	ifp->if_opackets++;
