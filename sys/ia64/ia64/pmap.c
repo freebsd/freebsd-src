@@ -2557,39 +2557,37 @@ pmap_install(pmap_t pmap)
 	critical_enter();
 
 	oldpmap = PCPU_GET(current_pmap);
-
-	if (pmap == oldpmap || pmap == kernel_pmap) {
+	if (oldpmap == pmap) {
 		critical_exit();
-		return pmap;
+		return (oldpmap);
 	}
 
-	if (oldpmap) {
-		atomic_clear_32(&pmap->pm_active, PCPU_GET(cpumask));
-	}
+	if (oldpmap != NULL)
+		atomic_clear_32(&oldpmap->pm_active, PCPU_GET(cpumask));
 
 	PCPU_SET(current_pmap, pmap);
-	if (!pmap) {
-		/*
-		 * RIDs 0..4 have no mappings to make sure we generate 
-		 * page faults on accesses.
-		 */
+
+	if (pmap == NULL) {
+		/* Invalidate regions 0-4. */
 		ia64_set_rr(IA64_RR_BASE(0), (0 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(1), (1 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(2), (2 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(3), (3 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(4), (4 << 8)|(PAGE_SHIFT << 2)|1);
 		critical_exit();
-		return oldpmap;
+		return (oldpmap);
 	}
 
 	atomic_set_32(&pmap->pm_active, PCPU_GET(cpumask));
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 5; i++) {
 		ia64_set_rr(IA64_RR_BASE(i),
-			    (pmap->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
+		    (pmap->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
+	}
 
 	critical_exit();
-	return oldpmap;
+
+	return (oldpmap);
 }
 
 vm_offset_t
