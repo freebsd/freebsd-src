@@ -86,7 +86,8 @@ KEYMAPS= be.iso bg.bds.ctrlcaps bg.phonetic.ctrlcaps br275.cp850 br275.iso \
 keymap.h:
 	rm -f keymap.tmp
 	for map in ${KEYMAPS} ; do \
-		kbdcontrol -L $$map | \
+		KEYMAP_PATH=${.CURDIR}/../../share/syscons/keymaps \
+			kbdcontrol -L $$map | \
 			sed -e '/^static accentmap_t/,$$d' >> keymap.tmp ; \
 	done
 	echo "static struct keymapInfo keymapInfos[] = {" >> keymap.tmp

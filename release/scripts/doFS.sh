@@ -137,6 +137,15 @@ case `uname -r` in
 	dofs_vn
 	;;
 *)
+	if [ ! -f "${RD}/trees/bin/boot/boot" ]; then
+		cp -p ${RD}/trees/bin/boot/boot1 ${RD}/trees/bin/boot/boot
+		if [ -f "${RD}/trees/bin/boot/boot2" ]; then
+			cat ${RD}/trees/bin/boot/boot2 >> \
+			    ${RD}/trees/bin/boot/boot
+		fi
+	fi
+	BOOT1="-b ${RD}/trees/bin/boot/boot"
+	BOOT2=""
 	dofs_md
 	;;
 esac
