@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.20 1995/05/30 08:16:01 rgrimes Exp $
+ * $Id: vm_glue.c,v 1.21 1995/07/10 08:48:58 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -405,7 +405,7 @@ extern int vm_pageout_free_min;
  * if any, otherwise the longest-resident process.
  */
 void
-swapout_threads()
+swapout_procs()
 {
 	register struct proc *p;
 	struct proc *outp, *outp2;
