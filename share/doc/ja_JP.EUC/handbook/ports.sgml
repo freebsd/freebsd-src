@@ -1,8 +1,8 @@
-<!-- $Id: ports.sgml,v 1.7 1997/02/25 14:24:28 hanai Exp $ -->
+<!-- $Id: ports.sgml,v 1.8 1997/03/10 01:09:48 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.24 -->
+<!-- Original revision: 1.25 -->
 
-<sect><heading>ports コレクション <label id="ports"></heading>
+<chapt><heading>アプリケーションのインストール : ports コレクション <label id="ports"></heading>
 
 <p><em>原作: &a.jraynard;.</em>
 <p><em>訳: &a.masaki;, &a.saeki;.<newline>
@@ -36,7 +36,7 @@ FreeBSD の ports コレクションを利用すると, 最小限の労力で
 完了しています. 'make install' とタイプするだけで, 動作するプログラムを
 入手することができるのです. 
 
-<sect1><heading> なぜ ports コレクションを作ったのか?</heading>
+<sect><heading> なぜ ports コレクションを作ったのか?</heading>
 
 <p>FreeBSD の基本システムは, 非常に多くのツールやユーティリティから
 構成されています. しかし, よく使われるプログラムのうち多くのものが, 
@@ -72,7 +72,7 @@ Emacs や mtools が基本システムに含まれていなくても何の問題もないでしょう.)
 <p> なお, これは単純ながら非常に柔軟なツールを組み合わせることで, 
 非常に強力な働きをさせるという「Unix 流」の作業の優れた実例です. 
 
-<sect1><heading>ports コレクションはどのように動くのでしょうか?</heading>
+<sect><heading>ports コレクションはどのように動くのでしょうか?</heading>
 <p>
 インターネットでは通常, <ref id="ports:tarball" name="tarball"> の形で
 プログラムが配布されています. これは, Makefile とソースコードで構成され, 
@@ -192,13 +192,13 @@ infodir=/usr/local/info install )
 <p> 以上のステップが make の出力と一致するかどうか確認してください. 
 今まで確認していなかったのなら, 今からするようにしてください! 
 
-<sect1><heading>FreeBSD ports コレクションの入手 <label id="ports:getting"></heading>
+<sect<heading>FreeBSD ports コレクションの入手 <label id="ports:getting"></heading>
 <p>
 あるプログラムの FreeBSD port を入手するには二つの方法があります. 
 ひとつは <ref id="ports:cd" name="FreeBSD CD-ROM"> を使う方法で, 
 もうひとつは <ref id="ports:inet"name="インターネット接続"> を使う方法です. 
 
-<sect2><heading>CD-ROM からコンパイルする <label id="ports:cd"></heading>
+<sect1><heading>CD-ROM からコンパイルする <label id="ports:cd"></heading>
 <p>
 FreeBSD をインストールしたときに, ``Do you want to link the ports 
 collection to your CDROM'' という質問に yes と答えていたら, 
@@ -265,7 +265,7 @@ CD-ROM に入れることができなかったものがあることに注意してください. この場合,
 <ref id="ports:inet" name="インターネット経由で ports をコンパイルする"> の
 節を参照してください. 
 
-<sect2><heading> インターネット経由で ports をコンパイルする <label id="ports:inet"></heading>
+<sect1><heading> インターネット経由で ports をコンパイルする <label id="ports:inet"></heading>
 <p>
 CD-ROM を持っていなかったり, その ports の最新バージョンを確実に入手したい
 場合は, その ports の <ref id="ports:skeleton" name="スケルトン"> を
@@ -339,7 +339,7 @@ gnats スケルトンを展開したら, gnats ディレクトリへ移動して ports を構築します.
 distfiles ディレクトリには, ほとんどすべての ports のソースコードが
 置かれているので, すべてをダウンロードするには非常に長い時間がかかるでしょう! 
 
-<sect1><heading> スケルトン <label id="ports:skeleton"></heading>
+<sect><heading> スケルトン <label id="ports:skeleton"></heading>
 <p>
 スケルトン (訳注: skeleton とは骸骨のことです) とは, 締め切りを守るため, 
 食事をするのを忘れるほど仕事にのめり込んだハッカーたちのなれの果ての
@@ -347,7 +347,7 @@ distfiles ディレクトリには, ほとんどすべての ports のソースコードが
 いいえ, ここでスケルトンの意味するところは, ports の魔術を実現するのに
 必要とされるすべてのものを提供する最小の骨組みのことです. 
 
-<sect2><heading>Makefile<label id="ports:makefile"></heading>
+<sect1><heading>Makefile<label id="ports:makefile"></heading>
 <p>
 スケルトンのもっとも重要な要素は Makefile です. Makefile は ports を
 どのようにコンパイルし, インストールをおこなうかを指示する
@@ -411,7 +411,7 @@ distfiles ディレクトリには, ほとんどすべての ports のソースコードが
 インストールした後での処理を置き換えていて, 最終的な場所に man ページを
 置いた後で圧縮するように指示している, と言っておくだけで充分でしょう. 
 
-<sect2><heading>files ディレクトリ </heading>
+<sect1><heading>files ディレクトリ </heading>
 <p>
 ports のチェックサム算出には MD5 アルゴリズムを使用しているので, 
 この <ref id="ports:checksum" name="チェックサム"> を含んでいる
@@ -422,12 +422,12 @@ ports のチェックサム算出には MD5 アルゴリズムを使用しているので,
 このディレクトリは, ports に必要だけれども, 他のどこにも属さない
 雑多なファイルも含んでいます. 
 
-<sect2><heading>patches ディレクトリ </heading>
+<sect1><heading>patches ディレクトリ </heading>
 <p>
 このディレクトリには, FreeBSD ですべてを正常に動作させるのに
 必要な <ref id="ports:patch" name="パッチ"> が含まれています. 
 
-<sect2><heading>pkg ディレクトリ </heading>
+<sect1><heading>pkg ディレクトリ </heading>
 <p>
 このディレクトリには, 非常に役立つ三つのファイルが含まれています:-
 <itemize>
@@ -441,7 +441,7 @@ DESCR - より詳細な説明.
 PLIST - プログラムのインストール時に作成される, すべてのファイルのリスト. 
 </itemize>
 
-<sect1><heading> あれ? 動かない!?<label id="ports:kaput"></heading>
+<sect><heading> あれ? 動かない!?<label id="ports:kaput"></heading>
 
 <p>おやおや. では, 次の四つのどれかをやってみてください:
 
@@ -483,13 +483,13 @@ PLIST - プログラムのインストール時に作成される, すべてのファイルのリスト.
 
 </enum>
 
-<sect1><heading>ports 化したいプログラムがあるのですが...</heading>
+<sect><heading>ports 化したいプログラムがあるのですが...</heading>
 
 <p> すばらしい!具体的なやり方については
 <ref id="porting:starting" name="ガイドライン"> に, 詳細な手順がありますので
 ご覧ください. 
 
-<sect1><heading> 質問と回答集 </heading>
+<sect><heading> 質問と回答集 </heading>
 <p>
 <itemize>
 <item>
