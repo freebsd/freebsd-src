@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050215: [applicable to sparc64 only]
+	uart(4) is the default serial console now. When using the
+	GENERIC kernel, make sure to start getty(8) processes on
+	ttyu0 and/or ttyu1. Either run mergemaster(8) or edit
+	/etc/ttys manually.
+
 20050203:
 	ppp(8) no longer reverts to sending ECHO requests if LQR is
 	enabled but fails negotiation.  To enable the old behaviour,
