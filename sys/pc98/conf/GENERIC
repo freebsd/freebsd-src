@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.20 1997/04/08 12:01:11 kato Exp $
+#	$Id: GENERIC98,v 1.21 1997/06/09 13:37:08 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -181,7 +181,7 @@ device ed2 at isa? port 0x00d8 net irq 6 flags 0x300000 vector edintr
 device ed3 at isa? port 0x00d0 net irq 6 flags 0x400000 vector edintr
 device ed4 at isa? port 0x56d0 net irq 5 flags 0x500000 vector edintr
 device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000 vector edintr
-device ed6 at isa? port 0x00d0 net irq 6 flags 0x800000 vector edintr
+device ed6 at isa? port 0x0770 net irq 6 flags 0x800000 vector edintr
 device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000 vector edintr
 device ed8 at isa? port 0x03d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000 vector edintr
 device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000 vector edintr
