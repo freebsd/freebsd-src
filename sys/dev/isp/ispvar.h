@@ -1,4 +1,4 @@
-/* $Id: ispvar.h,v 1.6 1998/04/14 17:51:32 mjacob Exp $ */
+/* $Id: ispvar.h,v 1.1 1998/04/22 17:54:58 mjacob Exp $ */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -161,7 +161,10 @@ typedef struct {
 #define	FW_REINIT		0x0006
 #define	FW_NON_PART		0x0007
 
-static inline char *fw_statename __P((u_int8_t x))
+static __inline char *fw_statename __P((u_int8_t x));
+static __inline char *
+fw_statename(x)
+	u_int8_t x;
 {
 	switch(x) {
 	case FW_CONFIG_WAIT:	return "Config Wait";
