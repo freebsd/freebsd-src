@@ -227,6 +227,11 @@ for all cards.
 Systems with multiple PCI bridges that need to use ISA routing are encouraged
 to use polling mode on each of the cards.
 The default is 0.
+.It Va hw.pcic.ignore_pci
+Defaults to 0.
+Set to 1 to completely ignore the cardbus bridge.
+This may help some old laptops work.
+Setting to 1 on newer laptops will almost certainly fail.
 .El
 .Sh HISTORY
 Too long to detail in the man page.
