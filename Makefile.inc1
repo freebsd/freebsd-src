@@ -728,14 +728,41 @@ libraries:
 	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
 	    ${MAKE} -f Makefile.inc1 _generic_libs;
 
+# These dependencies are not automatically generated:
+#
+# gnu/lib/csu, gnu/lib/libgcc and lib/csu must be built before all
+# shared libraries for ELF.
+#
+_startup_libs=	gnu/lib/csu gnu/lib/libgcc
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-${OBJFORMAT})
-_startup_libs=	lib/csu/${MACHINE_ARCH}-${OBJFORMAT}
+_startup_libs+=	lib/csu/${MACHINE_ARCH}-${OBJFORMAT}
 .else
-_startup_libs=	lib/csu/${MACHINE_ARCH}
+_startup_libs+=	lib/csu/${MACHINE_ARCH}
 .endif
-_startup_libs+=	gnu/lib/csu gnu/lib/libgcc
 
-_prebuild_libs=	lib/libcom_err lib/libcrypt lib/libkvm lib/libmd \
+_prebuild_libs=
+
+_generic_libs=	gnu/lib
+
+.if !defined(NOPERL) && !defined(NO_PERL)
+_generic_libs+=	gnu/usr.bin/perl/libperl
+.endif
+
+.if !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+_prebuild_libs+=	kerberos5/lib/libasn1
+_prebuild_libs+=	kerberos5/lib/libgssapi
+_prebuild_libs+=	kerberos5/lib/libkrb5
+_prebuild_libs+=	kerberos5/lib/libroken
+_generic_libs+=	kerberos5/lib
+.endif
+
+.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+_prebuild_libs+=	kerberosIV/lib/libkrb
+kerberosIV/lib/libkrb__L: lib/libcrypt__L
+_generic_libs+=	kerberosIV/lib
+.endif
+
+_prebuild_libs+= lib/libcom_err lib/libcrypt lib/libkvm lib/libmd \
 		lib/libncurses lib/libopie lib/libradius lib/librpcsvc \
 		lib/libsbuf lib/libtacplus lib/libutil lib/libypclnt \
 		lib/libz lib/msun
@@ -743,36 +770,19 @@ _prebuild_libs=	lib/libcom_err lib/libcrypt lib/libkvm lib/libmd \
 lib/libopie__L lib/libradius__L lib/libtacplus__L: lib/libmd__L
 lib/libypclnt__L: lib/librpcsvc__L
 
-_generic_libs=	lib gnu/lib
+_generic_libs+=	lib
 
-.if !defined(NOPERL) && !defined(NO_PERL)
-_generic_libs+=	gnu/usr.bin/perl/libperl
-.endif
-
-.if !defined(NOCRYPT)
-.if defined(MAKE_KERBEROS4)
-_prebuild_libs+=	kerberosIV/lib/libkrb
-kerberosIV/lib/libkrb__L: lib/libcrypt__L
-_generic_libs+=	kerberosIV/lib
-.endif
-.if defined(MAKE_KERBEROS5)
-_prebuild_libs+=	kerberos5/lib/libasn1
-_prebuild_libs+=	kerberos5/lib/libgssapi
-_prebuild_libs+=	kerberos5/lib/libkrb5
-_prebuild_libs+=	kerberos5/lib/libroken
-_generic_libs+=	kerberos5/lib
-.endif
-.if !defined(NOSECURE)
+.if !defined(NOCRYPT) && !defined(NOSECURE)
 _prebuild_libs+=	secure/lib/libcrypto
 .if !defined(NO_OPENSSH)
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: secure/lib/libcrypto__L lib/libz__L
 .endif
 _generic_libs+=	secure/lib
-.endif !defined(NOSECURE)
-.endif !defined(NOCRYPT)
+.endif
 
 _generic_libs+=	usr.bin/lex/lib
+
 .if ${MACHINE_ARCH} == "i386"
 _generic_libs+=	usr.sbin/pcvt/keycap
 .endif
