@@ -3,6 +3,11 @@
 
 MAN=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
 	stdarg.3 sysexits.3 timeradd.3 tree.3
+
+.ifndef NOLIBC_R || NOLIBPTHREAD || NOLIBTHR
+MAN+=	pthread_mutex_timedlock.3
+.endif
+
 MLINKS+=bitstring.3 bit_alloc.3 bitstring.3 bit_clear.3 \
 	bitstring.3 bit_decl.3 bitstring.3 bit_ffc.3 bitstring.3 bit_ffs.3 \
 	bitstring.3 bit_nclear.3 bitstring.3 bit_nset.3 bitstring.3 bit_set.3 \
