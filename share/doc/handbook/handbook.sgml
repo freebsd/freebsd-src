@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.8 1995/06/14 18:38:52 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.10 1995/06/20 16:51:38 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -60,7 +60,7 @@ OUTLINE:
       <author>
 	<name>The FreeBSD Documentation Project</name>
       </author>
-      <date>June 20, 1995</date>
+      <date>June 22, 1995</date>
 
       <abstract>Welcome to FreeBSD!  This handbook covers the
 	installation and day to day use of <bf>FreeBSD Release
@@ -70,7 +70,7 @@ OUTLINE:
 	work of many individials.  Many sections do not yet exist
 	and some of those that do exist need to be updated.  If
 	you are interested in helping with this project, send
-	email to &a.jfieber; or to the FreeBSD Documentantion
+	email to &a.jfieber; or to the FreeBSD Documentation
 	Project mailing list <tt>&lt;doc@freebsd.org&gt;</tt>.
       </abstract>
 	
