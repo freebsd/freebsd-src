@@ -88,8 +88,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
-#include <sys/sysctl.h>
-
 extern void trap(struct trapframe frame);
 extern void syscall(struct trapframe frame);
 
