@@ -17,9 +17,9 @@ MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR}
 
 .if !defined(NO_KERBEROS)
-CFLAGS+= -DKRB5 -DHEIMDAL
-DPADD+=	 ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
-LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -lroken
+CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
+DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
+LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
 .endif
 
 DPADD+=	${LIBOPIE} ${LIBMD}
