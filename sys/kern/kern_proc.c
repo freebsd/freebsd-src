@@ -860,8 +860,10 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	if (flags & KERN_PROC_NOTHREADS) {
 		fill_kinfo_proc(p, &kinfo_proc);
+		PROC_UNLOCK(p);
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 				   sizeof(kinfo_proc));
+		PROC_LOCK(p);
 	} else {
 		_PHOLD(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
