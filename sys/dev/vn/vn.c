@@ -81,10 +81,8 @@
 #include <sys/file.h>
 #include <sys/uio.h>
 #include <sys/disklabel.h>
-#ifdef TEST_LABELLING
 #include <sys/diskslice.h>
 #include <sys/stat.h>
-#endif
 
 #include <miscfs/specfs/specdev.h>
 
@@ -98,11 +96,7 @@ int vndebug = 0x00;
 #define VDB_IO		0x04
 #endif
 
-#ifdef TEST_LABELLING
 #define	vnunit(dev)	dkunit(dev)
-#else
-#define	vnunit(x)	(minor(x) >> 3)
-#endif
 
 #define	getvnbuf()	\
 	((struct buf *)malloc(sizeof(struct buf), M_DEVBUF, M_WAITOK))
@@ -117,15 +111,17 @@ struct vn_softc {
 	struct ucred	*sc_cred;	/* credentials */
 	int		 sc_maxactive;	/* max # of active requests */
 	struct buf	 sc_tab;	/* transfer queue */
-#ifdef TEST_LABELLING
+	u_long		 sc_options;	/* options */
 	struct diskslices *sc_slices;
-#endif
 };
 
 /* sc_flags */
 #define VNF_INITED	0x01
 
 struct vn_softc *vn_softc[NVN];
+u_long	vn_options;
+
+#define IFOPT(vn,opt) if (((vn)->sc_options|vn_options) & (opt))
 
 /*
  * XXX these decls should be static (without __P(())) or elsewhere.
@@ -146,15 +142,11 @@ int	vndump __P((dev_t dev));
 int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
-	struct vn_softc *vn;
+	struct vn_softc *vn = vn_softc[vnunit(dev)];
 
-	vn = vn_softc[vnunit(dev)];
-#ifdef TEST_LABELLING
-	if (vn->sc_slices != NULL)
-		dsclose(dev, mode, vn->sc_slices);
-#endif
-	vn_softc[vnunit(dev)] = 0;
-	free(vn, M_DEVBUF);
+	IFOPT(vn, VN_LABELS)
+		if (vn->sc_slices != NULL)
+			dsclose(dev, mode, vn->sc_slices);
 	return (0);
 }
 
@@ -164,12 +156,12 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	int unit = vnunit(dev),size;
 	struct vn_softc *vn;
 
-#ifdef DEBUG
-	if (vndebug & VDB_FOLLOW)
-		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", dev, flags, mode, p);
-#endif
-	if (unit >= NVN)
+	if (unit >= NVN) {
+		if (vn_options & VN_FOLLOW)
+			printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", 
+				dev, flags, mode, p);
 		return(ENOENT);
+	}
 
 	vn = vn_softc[unit];
 	if (!vn) {
@@ -179,27 +171,33 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 		bzero(vn, sizeof *vn);
 		vn_softc[unit] = vn;
 	}
-#ifdef TEST_LABELLING
-	if (vn->sc_flags & VNF_INITED) {
-		struct disklabel label;
 
-		/* Build label for whole disk. */
-		bzero(&label, sizeof label);
-		label.d_secsize = DEV_BSIZE;
-		label.d_nsectors = 32;
-		label.d_ntracks = 64;
-		label.d_ncylinders = vn->sc_size / (32 * 64);
-		label.d_secpercyl = 32 * 64;
-		label.d_secperunit = label.d_partitions[RAW_PART].p_size
-				   = vn->sc_size;
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", dev, flags, mode, p);
 
-		return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
-			       vnstrategy, (ds_setgeom_t *)NULL));
+	IFOPT(vn, VN_LABELS) {
+		if (vn->sc_flags & VNF_INITED) {
+			struct disklabel label;
+
+			/* Build label for whole disk. */
+			bzero(&label, sizeof label);
+			label.d_secsize = DEV_BSIZE;
+			label.d_nsectors = 32;
+			label.d_ntracks = 64;
+			label.d_ncylinders = vn->sc_size / (32 * 64);
+			label.d_secpercyl = 32 * 64;
+			label.d_secperunit = 
+					label.d_partitions[RAW_PART].p_size =
+					vn->sc_size;
+
+			return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
+				       vnstrategy, (ds_setgeom_t *)NULL));
+		}
+		if (dkslice(dev) != WHOLE_DISK_SLICE || 
+		    dkpart(dev) != RAW_PART ||
+		    mode != S_IFCHR)
+			return (ENXIO);
 	}
-	if (dkslice(dev) != WHOLE_DISK_SLICE || dkpart(dev) != RAW_PART ||
-	    mode != S_IFCHR)
-		return (ENXIO);
-#endif /* TEST_LABELLING */
 	return(0);
 }
 
@@ -218,37 +216,36 @@ vnstrategy(struct buf *bp)
 	register caddr_t addr;
 	int sz, flags, error;
 
-#ifdef DEBUG
-	if (vndebug & VDB_FOLLOW)
+	IFOPT(vn, VN_DEBUG)
 		printf("vnstrategy(%p): unit %d\n", bp, unit);
-#endif
+
 	if ((vn->sc_flags & VNF_INITED) == 0) {
 		bp->b_error = ENXIO;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
 		return;
 	}
-#ifdef TEST_LABELLING
-	bp->b_resid = bp->b_bcount;	/* XXX best place to set this? */
-	if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
-		biodone(bp);
-		return;
-	}
- 	bn = bp->b_pblkno;
-	bp->b_resid = bp->b_bcount;	/* XXX best place to set this? */
-#else /* !TEST_LABELLING */
-	bn = bp->b_blkno;
-	sz = howmany(bp->b_bcount, DEV_BSIZE);
-	bp->b_resid = bp->b_bcount;
-	if (bn < 0 || bn + sz > vn->sc_size) {
-		if (bn != vn->sc_size) {
-			bp->b_error = EINVAL;
-			bp->b_flags |= B_ERROR;
+	IFOPT(vn, VN_LABELS) {
+		bp->b_resid = bp->b_bcount;/* XXX best place to set this? */
+		if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
+			biodone(bp);
+			return;
 		}
-		biodone(bp);
-		return;
+		bn = bp->b_pblkno;
+		bp->b_resid = bp->b_bcount;/* XXX best place to set this? */
+	} else {
+		bn = bp->b_blkno;
+		sz = howmany(bp->b_bcount, DEV_BSIZE);
+		bp->b_resid = bp->b_bcount;
+		if (bn < 0 || bn + sz > vn->sc_size) {
+			if (bn != vn->sc_size) {
+				bp->b_error = EINVAL;
+				bp->b_flags |= B_ERROR;
+			}
+			biodone(bp);
+			return;
+		}
 	}
-#endif /* TEST_LABELLING */
 	bn = dbtob(bn);
 	bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
 	addr = bp->b_data;
@@ -262,10 +259,9 @@ vnstrategy(struct buf *bp)
 		error = VOP_BMAP(vn->sc_vp, bn / bsize, &vp, &nbn, &nra);
 		if (error == 0 && (long)nbn == -1)
 			error = EIO;
-#ifdef DEBUG
-		if (!dovncluster)
+
+		IFOPT(vn, VN_DONTCLUSTER)
 			nra = 0;
-#endif
 
 		off = bn % bsize;
 		if (off)
@@ -274,11 +270,10 @@ vnstrategy(struct buf *bp)
 			sz = (1 + nra) * bsize;
 		if (resid < sz)
 			sz = resid;
-#ifdef DEBUG
-		if (vndebug & VDB_IO)
+
+		IFOPT(vn,VN_IO)
 			printf("vnstrategy: vp %p/%p bn 0x%x/0x%lx sz 0x%x\n",
 			       vn->sc_vp, vp, bn, nbn, sz);
-#endif
 
 		nbp = getvnbuf();
 		nbp->b_flags = flags;
@@ -354,12 +349,10 @@ vnstart(struct vn_softc *vn)
 	 */
 	bp = vn->sc_tab.b_actf;
 	vn->sc_tab.b_actf = bp->b_actf;
-#ifdef DEBUG
-	if (vndebug & VDB_IO)
+	IFOPT(vn, VN_IO)
 		printf("vnstart(%d): bp %p vp %p blkno 0x%lx addr %p cnt 0x%lx\n",
 		       0, bp, bp->b_vp, bp->b_blkno, bp->b_data,
 		       bp->b_bcount);
-#endif
 	if ((bp->b_flags & B_READ) == 0)
 		bp->b_vp->v_numoutput++;
 	VOP_STRATEGY(bp);
@@ -373,27 +366,23 @@ vniodone(struct buf *bp)
 	int s;
 
 	s = splbio();
-#ifdef DEBUG
-	if (vndebug & VDB_IO)
+
+	IFOPT(vn, VN_IO)
 		printf("vniodone(%d): bp %p vp %p blkno 0x%lx addr %p cnt 0x%lx\n",
 		       0, bp, bp->b_vp, bp->b_blkno, bp->b_data,
 		       bp->b_bcount);
-#endif
+
 	if (bp->b_error) {
-#ifdef DEBUG
-		if (vndebug & VDB_IO)
+		IFOPT(vn, VN_IO)
 			printf("vniodone: bp %p error %d\n", bp, bp->b_error);
-#endif
 		pbp->b_flags |= B_ERROR;
 		pbp->b_error = biowait(bp);
 	}
 	pbp->b_resid -= bp->b_bcount;
 	putvnbuf(bp);
 	if (pbp->b_resid == 0) {
-#ifdef DEBUG
-		if (vndebug & VDB_IO)
+		IFOPT(vn, VN_IO)
 			printf("vniodone: pbp %p iodone\n", pbp);
-#endif
 		biodone(pbp);
 	}
 	if (vn->sc_tab.b_actf)
@@ -407,40 +396,51 @@ vniodone(struct buf *bp)
 int
 vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
-	int unit = vnunit(dev);
-	register struct vn_softc *vn;
+	struct vn_softc *vn = vn_softc[vnunit(dev)];
 	struct vn_ioctl *vio;
 	struct vattr vattr;
 	struct nameidata nd;
 	int error;
+	u_long *f;
 
-#ifdef DEBUG
-	if (vndebug & VDB_FOLLOW)
+
+	IFOPT(vn,VN_FOLLOW)
 		printf("vnioctl(0x%lx, 0x%lx, %p, 0x%x, %p): unit %d\n",
-		       dev, cmd, data, flag, p, unit);
-#endif
+		       dev, cmd, data, flag, p, vnunit(dev));
 
-#ifdef TEST_LABELLING
-	vn = vn_softc[unit];
-	if (vn->sc_slices != NULL) {
-		error = dsioctl(dev, cmd, data, flag, vn->sc_slices,
-				vnstrategy, (ds_setgeom_t *)NULL);
-		if (error != -1)
-			return (error);
+	switch (cmd) {
+	case VNIOCATTACH:
+	case VNIOCDETACH:
+	case VNIOCGSET:
+	case VNIOCGCLEAR:
+	case VNIOCUSET:
+	case VNIOCUCLEAR:
+		goto vn_specific;
 	}
-	if (dkslice(dev) != WHOLE_DISK_SLICE || dkpart(dev) != RAW_PART)
-		return (ENOTTY);
-#endif
+
+	IFOPT(vn,VN_LABELS) {
+		if (vn->sc_slices != NULL) {
+			error = dsioctl(dev, cmd, data, flag, vn->sc_slices,
+					vnstrategy, (ds_setgeom_t *)NULL);
+			if (error != -1)
+				return (error);
+		}
+		if (dkslice(dev) != WHOLE_DISK_SLICE || 
+		    dkpart(dev) != RAW_PART)
+			return (ENOTTY);
+	}
+
+    vn_specific:
 
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
 		return (error);
 
-	vn = vn_softc[unit];
 	vio = (struct vn_ioctl *)data;
+	f = (u_long*)data;
 	switch (cmd) {
 
-	case VNIOCSET:
+	case VNIOCATTACH:
 		if (vn->sc_flags & VNF_INITED)
 			return(EBUSY);
 		/*
@@ -470,26 +470,24 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		vnthrottle(vn, vn->sc_vp);
 		vio->vn_size = dbtob(vn->sc_size);
 		vn->sc_flags |= VNF_INITED;
-#ifdef TEST_LABELLING
-		/*
-		 * Reopen so that `ds' knows which devices are open.  If
-		 * this is the first VNIOCSET, then we've guaranteed that
-		 * the device is the cdev and that no other slices or
-		 * labels are open.  Otherwise, we rely on VNIOCCLR not
-		 * being abused.
-		 */
-		error = vnopen(dev, flag, S_IFCHR, p);
-		if (error)
-			vnclear(vn);
-#endif
-#ifdef DEBUG
-		if (vndebug & VDB_INIT)
+		IFOPT(vn, VN_LABELS) {
+			/*
+			 * Reopen so that `ds' knows which devices are open.
+			 * If this is the first VNIOCSET, then we've 
+			 * guaranteed that the device is the cdev and that 
+			 * no other slices or labels are open.  Otherwise,
+			 * we rely on VNIOCCLR not being abused.
+			 */
+			error = vnopen(dev, flag, S_IFCHR, p);
+			if (error)
+				vnclear(vn);
+		}
+		IFOPT(vn, VN_FOLLOW)
 			printf("vnioctl: SET vp %p size %x\n",
 			       vn->sc_vp, vn->sc_size);
-#endif
 		break;
 
-	case VNIOCCLR:
+	case VNIOCDETACH:
 		if ((vn->sc_flags & VNF_INITED) == 0)
 			return(ENXIO);
 		/*
@@ -501,10 +499,28 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 * hardware devices?
 		 */
 		vnclear(vn);
-#ifdef DEBUG
-		if (vndebug & VDB_INIT)
+		IFOPT(vn, VN_FOLLOW)
 			printf("vnioctl: CLRed\n");
-#endif
+		break;
+	
+	case VNIOCGSET:
+		vn_options |= *f;
+		*f = vn_options;
+		break;
+
+	case VNIOCGCLEAR:
+		vn_options &= ~(*f);
+		*f = vn_options;
+		break;
+
+	case VNIOCUSET:
+		vn->sc_options |= *f;
+		*f = vn->sc_options;
+		break;
+
+	case VNIOCUCLEAR:
+		vn->sc_options &= ~(*f);
+		*f = vn->sc_options;
 		break;
 
 	default:
@@ -582,10 +598,8 @@ vnclear(struct vn_softc *vn)
 	register struct vnode *vp = vn->sc_vp;
 	struct proc *p = curproc;		/* XXX */
 
-#ifdef DEBUG
-	if (vndebug & VDB_FOLLOW)
-		printf("vnclear(%p): vp %p\n", vn, vp);
-#endif
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnclear(%p): vp=%p\n", vn, vp);
 	vn->sc_flags &= ~VNF_INITED;
 	if (vp == (struct vnode *)0)
 		panic("vnclear: null vp");
@@ -594,10 +608,9 @@ vnclear(struct vn_softc *vn)
 	vn->sc_vp = (struct vnode *)0;
 	vn->sc_cred = (struct ucred *)0;
 	vn->sc_size = 0;
-#ifdef TEST_LABELLING
-	if (vn->sc_slices != NULL)
-		dsgone(&vn->sc_slices);
-#endif
+	IFOPT(vn, VN_LABELS)
+		if (vn->sc_slices != NULL)
+			dsgone(&vn->sc_slices);
 }
 
 size_t

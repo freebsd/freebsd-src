@@ -57,5 +57,15 @@ struct vn_ioctl {
  * an VNIOCCLR must be used to reset a configuration.  An attempt to
  * VNIOCSET an already active unit will return EBUSY.
  */
-#define VNIOCSET	_IOWR('F', 0, struct vn_ioctl)	/* enable disk */
-#define VNIOCCLR	_IOW('F', 1, struct vn_ioctl)	/* disable disk */
+#define VNIOCATTACH	_IOWR('F', 0, struct vn_ioctl)	/* attach file */
+#define VNIOCDETACH	_IOWR('F', 1, struct vn_ioctl)	/* detach disk */
+#define VNIOCGSET	_IOWR('F', 2, u_long )		/* set global option */
+#define VNIOCGCLEAR	_IOWR('F', 3, u_long )		/* reset --//-- */
+#define VNIOCUSET	_IOWR('F', 4, u_long )		/* set unit option */
+#define VNIOCUCLEAR	_IOWR('F', 5, u_long )		/* reset --//-- */
+
+#define VN_LABELS	0x1	/* Use disk(/slice) labels */
+#define VN_FOLLOW	0x2	/* Debug flow in vn driver */
+#define VN_DEBUG	0x4	/* Debug data in vn driver */
+#define VN_IO		0x8	/* Debug I/O in vn driver */
+#define VN_DONTCLUSTER	0x10	/* Don't cluster */
