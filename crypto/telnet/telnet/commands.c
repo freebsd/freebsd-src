@@ -2238,7 +2238,6 @@ tn(int argc, char *argv[])
 
     if (src_addr != NULL) {
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_NUMERICHOST;
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(src_addr, 0, &hints, &src_res);
