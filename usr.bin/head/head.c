@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)head.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: head.c,v 1.7 1997/07/10 06:46:13 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -105,6 +105,7 @@ main(argc, argv)
 		for (first = 1; *argv; ++argv) {
 			if ((fp = fopen(*argv, "r")) == NULL) {
 				warn("%s", *argv);
+				eval = 1;
 				continue;
 			}
 			if (argc > 1) {
