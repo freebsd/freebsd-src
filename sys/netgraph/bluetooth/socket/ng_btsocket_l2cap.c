@@ -2409,13 +2409,28 @@ int
 ng_btsocket_l2cap_listen(struct socket *so, struct thread *td)
 {
 	ng_btsocket_l2cap_pcb_p	pcb = so2l2cap_pcb(so);
+	int error;
 
-	if (pcb == NULL)
-		return (EINVAL);
-	if (ng_btsocket_l2cap_node == NULL) 
-		return (EINVAL);
-
-	return ((pcb->psm == 0)? EDESTADDRREQ : 0);
+	SOCK_LOCK(so);
+	error = solisten_proto_check(so);
+	if (error != 0)
+		goto out;
+	if (pcb == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	if (ng_btsocket_l2cap_node == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	if (pcb->psm == 0) {
+		error = EDESTADDRREQ;
+		goto out;
+	}
+	solisten_proto(so);
+out:
+	SOCK_UNLOCK(so);
+	return (error);
 } /* ng_btsocket_listen */
 
 /*

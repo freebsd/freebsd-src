@@ -81,8 +81,8 @@ void		atm_aal5_init(void);
 	/* atm_cm.c */
 int		atm_cm_connect(Atm_endpoint *, void *, Atm_attributes *,
 			Atm_connection **);
-int		atm_cm_listen(Atm_endpoint *, void *, Atm_attributes *,
-			Atm_connection **);
+int		atm_cm_listen(struct socket *, Atm_endpoint *, void *,
+			Atm_attributes *, Atm_connection **);
 int		atm_cm_addllc(Atm_endpoint *, void *, struct attr_llc *,
 			Atm_connection *, Atm_connection **);
 int		atm_cm_addparty(Atm_connection *, int, struct t_atm_sap *);
