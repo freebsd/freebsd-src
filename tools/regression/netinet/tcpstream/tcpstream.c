@@ -40,6 +40,8 @@
 
 #include <arpa/inet.h>
 
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,15 +90,11 @@ tcpstream_client(struct sockaddr_in sin, long seed)
 	srandom(seed);
 
 	sock = socket(PF_INET, SOCK_STREAM, 0);
-	if (sock == -1) {
-		perror("socket");
-		exit(-1);
-	}
+	if (sock == -1)
+		errx(-1, "socket: %s", strerror(errno));
 
-	if (connect(sock, (struct sockaddr *) &sin, sizeof(sin)) == -1) {
-		perror("connect");
-		exit(-1);
-	}
+	if (connect(sock, (struct sockaddr *) &sin, sizeof(sin)) == -1)
+		errx(-1, "connect: %s", strerror(errno));
 
 	for (j = 0; j < MAX_LOOPS; j++) {
 		for (i = 0; i < MAX_LONGS; i++) {
@@ -128,20 +126,14 @@ tcpstream_server(struct sockaddr_in sin, long seed)
 	int input_byte_counter;
 
 	listen_sock = socket(PF_INET, SOCK_STREAM, 0);
-	if (listen_sock == -1) {
-		perror("socket");
-		exit(-1);
-	}
+	if (listen_sock == -1)
+		errx(-1, "socket: %s", strerror(errno));
 
-	if (bind(listen_sock, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
-		perror("bind");
-		exit(-1);
-	}
+	if (bind(listen_sock, (struct sockaddr *)&sin, sizeof(sin)) == -1)
+		errx(-1, "bind: %s", strerror(errno));
 
-	if (listen(listen_sock, -1) == -1) {
-		perror("listen");
-		exit(-1);
-	}
+	if (listen(listen_sock, -1) == -1)
+		errx(-1, "listen: %s", strerror(errno));
 
 	while (1) {
 		bzero(&other_sin, sizeof(other_sin));
@@ -201,11 +193,8 @@ main(int argc, char *argv[])
 		sin.sin_len = sizeof(sin);
 		sin.sin_family = AF_INET;
 
-		if (inet_aton(argv[2], &sin.sin_addr) != 1) {
-			errno = EINVAL;
-			perror(argv[2]);
-			exit(-1);
-		}
+		if (inet_aton(argv[2], &sin.sin_addr) != 1)
+			errx(-1, "%s: %s", argv[2], strerror(EINVAL));
 
 		port = strtoul(argv[3], &dummy, 10);
 		if (port < 1 || port > 65535 || *dummy != '\0')
