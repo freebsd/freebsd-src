@@ -225,6 +225,8 @@
 
 #ico files
 0	string	\102\101\050\000\000\000\056\000\000\000\000\000\000\000	Icon for ms-windows
+
+# Windows icons (Ian Springer <ips@fpk.hp.com>)
 0	string	\000\000\001\000	ms-windows icon resource
 >4	byte	1			- 1 icon
 >4	byte	>1			- %d icons
@@ -275,10 +277,6 @@
 0	string		!<spell>	MKS Spell hash list (old format)
 0	string		!<spell2>	MKS Spell hash list
 0	string		AH		Halo(TM) bitmapped font file
-0	leshort		0x601A		Atari ST contiguous executable
->14	lelong		&gt;0		- not stripped
-0	leshort		0x601B		Atari ST non-contig executable
->14	lelong		&gt;0		- not stripped
 0	lelong		0x08086b70	TurboC BGI file
 0	lelong		0x08084b50	TurboC Font file
 

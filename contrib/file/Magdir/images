@@ -300,3 +300,21 @@
 0	string	pM86		Atari ST STAD bitmap image data (vert)
 >5	byte	0x00		(white background)
 >5	byte	0xFF		(black background)
+
+# SGI RICE image file <mpruett@sgi.com>
+0	beshort	0x5249		RICE image
+>2	beshort	x		v%d
+>4	beshort	x		(%d x
+>6	beshort	x		%d)
+>8	beshort	0		8 bit
+>8	beshort	1		10 bit
+>8	beshort	2		12 bit
+>8	beshort	3		13 bit
+>10	beshort	0		4:2:2
+>10	beshort	1		4:2:2:4
+>10	beshort	2		4:4:4
+>10	beshort	3		4:4:4:4
+>12	beshort	1		RGB
+>12	beshort	2		CCIR601
+>12	beshort	3		RP175
+>12	beshort	4		YUV
