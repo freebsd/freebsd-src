@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.106 1996/06/18 01:22:06 bde Exp $
+ *	$Id: pmap.c,v 1.107 1996/06/25 00:39:21 dyson Exp $
  */
 
 /*
@@ -612,6 +612,7 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 		 * unmap the page table page
 		 */
 		pmap->pm_pdir[m->pindex] = 0;
+		--pmap->pm_stats.resident_count;
 		/*
 		 * Do a pmap_update to make the invalidated mapping
 		 * take effect immediately.
@@ -747,6 +748,7 @@ pmap_release_free_page(pmap, p)
 	 * Remove the page table page from the processes address space.
 	 */
 	pde[p->pindex] = 0;
+	--pmap->pm_stats.resident_count;
 
 	if (p->hold_count)  {
 		int *kvap;
