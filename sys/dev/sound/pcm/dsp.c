@@ -985,7 +985,9 @@ dsp_mmap(dev_t i_dev, vm_offset_t offset, int nprot)
 		return -1;
 	}
 
-	c->flags |= CHN_F_MAPPED;
+	if (!(c->flags & CHN_F_MAPPED))
+		c->flags |= CHN_F_MAPPED;
+
 	ret = atop(vtophys(((char *)sndbuf_getbuf(c->bufsoft)) + offset));
 	relchns(i_dev, rdch, wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
 
