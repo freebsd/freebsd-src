@@ -784,22 +784,6 @@ sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td)
 	sched_init_concurrency(kg);
 }
 
-/*
- * Called by the uma process fini routine..
- * undo anything we may have done in the uma_init method.
- * Panic if it's not all 1:1:1:1
- * Called from:
- *  proc_fini() (UMA method)
- */
-void
-sched_destroyproc(struct proc *p)
-{
-
-	/* this function slated for destruction */
-	KASSERT((p->p_numthreads == 1), ("Cached proc with > 1 thread "));
-	KASSERT((p->p_numksegrps == 1), ("Cached proc with > 1 ksegrp "));
-}
-
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 /*
  * thread is being either created or recycled.
