@@ -104,7 +104,7 @@ SRCS+=	adler32.c crc32.c infblock.c infcodes.c inffast.c inflate.c \
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c \
-	fstat.c close.c lseek.c open.c read.c write.c
+	fstat.c close.c lseek.c open.c read.c write.c readdir.c
 
 # network routines
 SRCS+=	arp.c ether.c in_cksum.c net.c udp.c netif.c rpc.c
@@ -115,7 +115,7 @@ SRCS+=	bootp.c rarp.c bootparam.c
 # boot filesystems
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c zipfs.c
 SRCS+=	netif.c nfs.c
-SRCS+=	dosfs.c
+SRCS+=	dosfs.c ext2fs.c
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/stand.h \

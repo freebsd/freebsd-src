@@ -51,16 +51,26 @@ static int	cd9660_read(struct open_file *f, void *buf, size_t size, size_t *resi
 static int	cd9660_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	cd9660_seek(struct open_file *f, off_t offset, int where);
 static int	cd9660_stat(struct open_file *f, struct stat *sb);
+static int	cd9660_readdir(struct open_file *f, struct dirent *d);
 
 struct fs_ops cd9660_fsops = {
-	"cd9660", cd9660_open, cd9660_close, cd9660_read, cd9660_write, cd9660_seek, cd9660_stat
+	"cd9660",
+	cd9660_open,
+	cd9660_close,
+	cd9660_read,
+	cd9660_write,
+	cd9660_seek,
+	cd9660_stat,
+	cd9660_readdir
 };
 
 struct file {
-	int isdir;			/* nonzero if file is directory */
-	off_t off;			/* Current offset within file */
-	daddr_t bno;			/* Starting block number  */
-	off_t size;			/* Size of file */
+	int 		f_isdir;	/* nonzero if file is directory */
+	off_t 		f_off;		/* Current offset within file */
+	daddr_t 	f_bno;		/* Starting block number */
+	off_t 		f_size;		/* Size of file */
+	daddr_t		f_buf_blkno;	/* block number of data block */	
+	char		*f_buf;		/* buffer for data block */
 };
 
 struct ptable_ent {
@@ -217,10 +227,10 @@ cd9660_open(path, f)
 	bzero(fp, sizeof(struct file));
 	f->f_fsdata = (void *)fp;
 
-	fp->isdir = (isonum_711(rec.flags) & 2) != 0;
-	fp->off = 0;
-	fp->bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
-	fp->size = isonum_733(rec.size);
+	fp->f_isdir = (isonum_711(rec.flags) & 2) != 0;
+	fp->f_off = 0;
+	fp->f_bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
+	fp->f_size = isonum_733(rec.size);
 	free(buf);
 
 	return 0;
@@ -246,154 +256,39 @@ cd9660_close(f)
 }
 
 static int
-cd9660_readfile(f, start, size, resid)
+buf_read_file(f, buf_p, size_p)
 	struct open_file *f;
-	void *start;
-	size_t size;
-	size_t *resid;
+	char **buf_p;
+	size_t *size_p;
 {
 	struct file *fp = (struct file *)f->f_fsdata;
+	daddr_t blkno;
 	int rc = 0;
-	daddr_t bno;
-	char buf[ISO_DEFAULT_BLOCK_SIZE];
-	char *dp;
-	size_t read, off;
+	size_t read;
 
-	while (size) {
-		if (fp->off < 0 || fp->off >= fp->size)
-			break;
-		bno = fp->off / ISO_DEFAULT_BLOCK_SIZE + fp->bno;
-		if (fp->off & (ISO_DEFAULT_BLOCK_SIZE - 1)
-		    || size < ISO_DEFAULT_BLOCK_SIZE)
-			dp = buf;
-		else
-			dp = start;
+	blkno = fp->f_off / ISO_DEFAULT_BLOCK_SIZE + fp->f_bno;
+
+	if (blkno != fp->f_buf_blkno) {
+		if (fp->f_buf == (char *)0)
+			fp->f_buf = malloc(ISO_DEFAULT_BLOCK_SIZE);
+
 		twiddle();
-		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
-					   ISO_DEFAULT_BLOCK_SIZE, dp, &read);
+		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ,
+		    cdb2devb(blkno), ISO_DEFAULT_BLOCK_SIZE, fp->f_buf, &read);
 		if (rc)
-			return rc;
+			return (rc);
 		if (read != ISO_DEFAULT_BLOCK_SIZE)
-			return EIO;
-		if (dp == buf) {
-			off = fp->off & (ISO_DEFAULT_BLOCK_SIZE - 1);
-			if (read > off + size)
-				read = off + size;
-			read -= off;
-			bcopy(buf + off, start, read);
-			start += read;
-			fp->off += read;
-			size -= read;
-		} else {
-			start += ISO_DEFAULT_BLOCK_SIZE;
-			fp->off += ISO_DEFAULT_BLOCK_SIZE;
-			size -= ISO_DEFAULT_BLOCK_SIZE;
-		}
-	}
-	if (resid)
-		*resid = size;
-	return rc;
-}
+			return (EIO);
 
-static int
-cd9660_readdir(f, start, size, resid)
-	struct open_file *f;
-	void *start;
-	size_t size;
-	size_t *resid;
-{
-	struct file *fp = (struct file *)f->f_fsdata;
-	int rc = 0;
-	daddr_t bno, boff;
-	char buf[ISO_DEFAULT_BLOCK_SIZE];
-	struct dirent *dp;
-	struct dirent *lastdp;
-	struct iso_directory_record *ep = 0;
-	size_t read, off, reclen, namelen;
-
-	if (fp->off < 0 || fp->off >= fp->size)
-		return 0;
-	boff = fp->off / ISO_DEFAULT_BLOCK_SIZE;
-	bno = fp->bno;
-	off = fp->off;
-
-	if (off % ISO_DEFAULT_BLOCK_SIZE) {
-		twiddle();
-		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
-					   ISO_DEFAULT_BLOCK_SIZE, buf, &read);
-		if (rc)
-			return rc;
-		if (read != ISO_DEFAULT_BLOCK_SIZE)
-			return EIO;
-		boff++;
-		ep = (struct iso_directory_record *)
-			(buf + (off % ISO_DEFAULT_BLOCK_SIZE));
+		fp->f_buf_blkno = blkno;
 	}
 
-	lastdp = dp = (struct dirent *) start;
-	dp->d_fileno = 0;
-	dp->d_type = DT_UNKNOWN;
-	dp->d_namlen = 0;
-	while (size && off < fp->size) {
-		if ((off % ISO_DEFAULT_BLOCK_SIZE) == 0) {
-			twiddle();
-			rc = f->f_dev->dv_strategy
-				(f->f_devdata, F_READ,
-				 cdb2devb(bno + boff),
-				 ISO_DEFAULT_BLOCK_SIZE,
-				 buf, &read);
-			if (rc)
-				break;
-			if (read != ISO_DEFAULT_BLOCK_SIZE) {
-				rc = EIO;
-				break;
-			}
-			boff++;
-			ep = (struct iso_directory_record *) buf;
-		}
+	*buf_p = fp->f_buf + fp->f_off;
+	*size_p = ISO_DEFAULT_BLOCK_SIZE - fp->f_off;
 
-		if (isonum_711(ep->length) == 0) {
-			/* skip to next block, if any */
-			off = boff * ISO_DEFAULT_BLOCK_SIZE;
-			continue;
-		}
-
-		namelen = isonum_711(ep->name_len);
-		if (namelen == 1 && ep->name[0] == 1)
-			namelen = 2;
-		reclen = sizeof(struct dirent) - (MAXNAMLEN+1) + namelen + 1;
-		reclen = (reclen + 3) & ~3;
-		if (reclen > size)
-			break;
-
-		dp->d_fileno = isonum_733(ep->extent);
-		dp->d_reclen = reclen;
-		if (isonum_711(ep->flags) & 2)
-			dp->d_type = DT_DIR;
-		else
-			dp->d_type = DT_REG;
-		dp->d_namlen = namelen;
-		if (isonum_711(ep->name_len) == 1 && ep->name[0] == 0)
-			strcpy(dp->d_name, ".");
-		else if (isonum_711(ep->name_len) == 1 && ep->name[0] == 1)
-			strcpy(dp->d_name, "..");
-		else
-			bcopy(ep->name, dp->d_name, dp->d_namlen);
-		dp->d_name[dp->d_namlen] = 0;
-
-		lastdp = dp;
-		dp = (struct dirent *) ((char *) dp + dp->d_reclen);
-		size -= reclen;
-		ep = (struct iso_directory_record *)
-		    ((char *) ep + isonum_711(ep->length));
-		off += isonum_711(ep->length);
-	}
-
-	fp->off = off;
-	lastdp->d_reclen += size;
-	if (resid)
-		*resid = 0;
-	return rc;
+	if (*size_p > fp->f_size - fp->f_off)
+		*size_p = fp->f_size - fp->f_off;
+	return (rc);
 }
 
 static int
@@ -404,11 +299,81 @@ cd9660_read(f, start, size, resid)
 	size_t *resid;
 {
 	struct file *fp = (struct file *)f->f_fsdata;
+	char *buf, *addr;
+	size_t buf_size, csize;
+	int rc = 0;
 
-	if (fp->isdir)
-		return cd9660_readdir(f, start, size, resid);
+	addr = start;
+	while (size) {
+		if (fp->f_off < 0 || fp->f_off >= fp->f_size)
+			break;
+
+		rc = buf_read_file(f, &buf, &buf_size);
+		if (rc)
+			break;
+
+		csize = size > buf_size ? buf_size : size;
+		bcopy(buf, addr, csize);
+
+		fp->f_off += csize;
+		addr += csize;
+		size -= csize;
+	}
+	if (resid)
+		*resid = size;
+	return (rc);
+}
+
+static int
+cd9660_readdir(struct open_file *f, struct dirent *d)
+{
+	struct file *fp = (struct file *)f->f_fsdata;
+	struct iso_directory_record *ep;
+	size_t buf_size, reclen, namelen;
+	int error = 0;
+	char *buf;
+
+again:
+	if (fp->f_off >= fp->f_size)
+		return (ENOENT);
+	error = buf_read_file(f, &buf, &buf_size);
+	if (error)
+		return (error);
+	ep = (struct iso_directory_record *)buf;
+
+	if (isonum_711(ep->length) == 0) {
+		daddr_t blkno;
+		
+		/* skip to next block, if any */
+		blkno = fp->f_off / ISO_DEFAULT_BLOCK_SIZE;
+		fp->f_off = (blkno + 1) * ISO_DEFAULT_BLOCK_SIZE;
+		goto again;
+	}
+
+	namelen = isonum_711(ep->name_len);
+	if (namelen == 1 && ep->name[0] == 1)
+		namelen = 2;
+	reclen = sizeof(struct dirent) - (MAXNAMLEN+1) + namelen + 1;
+	reclen = (reclen + 3) & ~3;
+
+	d->d_fileno = isonum_733(ep->extent);
+	d->d_reclen = reclen;
+	if (isonum_711(ep->flags) & 2)
+		d->d_type = DT_DIR;
 	else
-		return cd9660_readfile(f, start, size, resid);
+		d->d_type = DT_REG;
+	d->d_namlen = namelen;
+
+	if (isonum_711(ep->name_len) == 1 && ep->name[0] == 0)
+		strcpy(d->d_name, ".");
+	else if (isonum_711(ep->name_len) == 1 && ep->name[0] == 1)
+		strcpy(d->d_name, "..");
+	else
+		bcopy(ep->name, d->d_name, d->d_namlen);
+	d->d_name[d->d_namlen] = 0;
+
+	fp->f_off += isonum_711(ep->length);
+	return (0);
 }
 
 static int
@@ -431,18 +396,18 @@ cd9660_seek(f, offset, where)
 
 	switch (where) {
 	case SEEK_SET:
-		fp->off = offset;
+		fp->f_off = offset;
 		break;
 	case SEEK_CUR:
-		fp->off += offset;
+		fp->f_off += offset;
 		break;
 	case SEEK_END:
-		fp->off = fp->size - offset;
+		fp->f_off = fp->f_size - offset;
 		break;
 	default:
 		return -1;
 	}
-	return fp->off;
+	return fp->f_off;
 }
 
 static int
@@ -454,11 +419,11 @@ cd9660_stat(f, sb)
 
 	/* only important stuff */
 	sb->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
-	if (fp->isdir)
+	if (fp->f_isdir)
 		sb->st_mode |= S_IFDIR;
 	else
 		sb->st_mode |= S_IFREG;
 	sb->st_uid = sb->st_gid = 0;
-	sb->st_size = fp->size;
+	sb->st_size = fp->f_size;
 	return 0;
 }
