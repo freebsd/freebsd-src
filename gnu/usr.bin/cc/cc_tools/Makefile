@@ -94,7 +94,7 @@ genrtl.c genrtl.h: gengenrtl
 GENSRCS+=	genrtl.c genrtl.h
 
 SRCS+=	bitmap.c concat.c dummy-conditions.c errors.c genautomata.c \
-	gensupport.c getruntime.c ggc-none.c hashtab.c insn-conditions.c \
+	gensupport.c getruntime.c ggc-none.c hashtab.c \
 	obstack.c physmem.c print-rtl.c read-rtl.c rtl.c varray.c xmemdup.c
 
 #-----------------------------------------------------------------------
