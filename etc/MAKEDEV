@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.180 1999/01/06 16:18:05 yokota Exp $
+#	$Id: MAKEDEV,v 1.181 1999/01/08 16:03:57 hm Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -773,6 +773,11 @@ usb*)
 ums*)
 	unit=`expr $i : 'ums\(.*\)'`
 	mknod ums$unit c 111 $unit
+	;;
+
+ulpt*)
+	unit=`expr $i : 'ulpt\(.*\)'`
+	mknod ulpt$unit c 113 $unit
 	;;
 
 lpt*)
