@@ -367,6 +367,7 @@ dev/md/md.c		optional md
 dev/mii/amphy.c		optional miibus
 dev/mii/brgphy.c	optional miibus
 dev/mii/dcphy.c		optional miibus pci
+dev/mii/e1000phy.c	optional miibus
 dev/mii/exphy.c		optional miibus
 dev/mii/inphy.c		optional miibus
 dev/mii/mii.c		optional miibus
