@@ -104,7 +104,6 @@ typedef unsigned char b_xflags_t;
 struct buf {
 	struct bio b_io;		/* "Builtin" I/O request. */
 #define	b_bcount	b_io.bio_bcount
-#define	b_blkno		b_io.bio_blkno
 #define	b_caller1	b_io.bio_caller1
 #define	b_caller2	b_io.bio_caller2
 #define	b_data		b_io.bio_data
@@ -122,6 +121,7 @@ struct buf {
 #define B_MAGIC_BIO	0x10b10b10
 #define B_MAGIC_NFS	0x67238234
 	void	(*b_iodone)(struct buf *);
+	daddr_t b_blkno;		/* Underlying physical block number. */
 	off_t	b_offset;		/* Offset into file. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* (V) Buffer's associated vnode. */
 	struct buf	*b_left;	/* (V) splay tree link */
