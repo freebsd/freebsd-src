@@ -83,7 +83,7 @@ struct	sockaddr_storage sa;
 
 char	default_shell[] = _PATH_BSHELL;
 
-static void doit(struct sockaddr_storage *);
+static void doit(struct sockaddr *);
 static void getstr(char *, int, const char *);
 static void error(const char *fmt, ...);
 
@@ -125,12 +125,12 @@ main(int argc, char *argv[])
 	realhostname_sa(remote, sizeof(remote) - 1,
 			(struct sockaddr *)&from, fromlen);
 
-	doit(&from);
+	doit((struct sockaddr *)&from);
 	return(0);
 }
 
 static void
-doit(struct sockaddr_storage *fromp)
+doit(struct sockaddr *fromp)
 {
 	char cmdbuf[NCARGS+1], *cp;
 	char user[16], pass[16];
@@ -159,25 +159,25 @@ doit(struct sockaddr_storage *fromp)
 		port = port * 10 + c - '0';
 	}
 	if (port != 0) {
-		sd = socket(fromp->ss_family, SOCK_STREAM, 0);
+		sd = socket(fromp->sa_family, SOCK_STREAM, 0);
 		if (sd < 0)
 			exit(1);
 		bzero(&sa, sizeof(sa));
-		sa.ss_family = fromp->ss_family;
-		sa.ss_len = fromp->ss_len;
+		sa.ss_family = fromp->sa_family;
+		sa.ss_len = fromp->sa_len;
 		if (bind(sd, (struct sockaddr *)&sa, sa.ss_len) < 0)
 			exit(1);
-		switch (fromp->ss_family) {
+		switch (fromp->sa_family) {
 		case AF_INET:
-			((struct sockaddr_in *)fromp)->sin_port = htons(port);
+			((struct sockaddr_in *)(void *)fromp)->sin_port = htons(port);
 			break;
 		case AF_INET6:
-			((struct sockaddr_in6 *)fromp)->sin6_port = htons(port);
+			((struct sockaddr_in6 *)(void *)fromp)->sin6_port = htons(port);
 			break;
 		default:
 			exit(1);
 		}
-		if (connect(sd, (struct sockaddr *)fromp, fromp->ss_len) < 0)
+		if (connect(sd, fromp, fromp->sa_len) < 0)
 			exit(1);
 	}
 	getstr(user, sizeof(user), "username");
