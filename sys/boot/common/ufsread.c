@@ -33,12 +33,12 @@
  * We use 4k `virtual' blocks for filesystem data, whatever the actual
  * filesystem block size. FFS blocks are always a multiple of 4k.
  */
-#define VBLKSIZE	4096
-#define	VBLKSHIFT	12
+#define VBLKSHIFT	12
+#define VBLKSIZE	(1 << VBLKSHIFT)
 #define VBLKMASK	(VBLKSIZE - 1)
 #define DBPERVBLK	(VBLKSIZE / DEV_BSIZE)
-#define INDIRPERVBLK(fs) (NINDIR(fs) / ((fs)->fs_bsize / VBLKSIZE))
-#define IPERVBLK(fs)	(INOPB(fs) / ((fs)->fs_bsize / VBLKSIZE))
+#define INDIRPERVBLK(fs) (NINDIR(fs) / ((fs)->fs_bsize >> VBLKSHIFT))
+#define IPERVBLK(fs)	(INOPB(fs) / ((fs)->fs_bsize >> VBLKSHIFT))
 #define INO_TO_VBA(fs, ipervblk, x) \
     (fsbtodb(fs, cgimin(fs, ino_to_cg(fs, x))) + \
     (((x) % (fs)->fs_ipg) / (ipervblk) * DBPERVBLK))
@@ -62,7 +62,7 @@ static ssize_t fsread(ino_t, void *, size_t);
 static int ls, dsk_meta;
 static uint32_t fs_off;
 
-static inline int
+static __inline__ int
 fsfind(const char *name, ino_t * ino)
 {
 	char buf[DEV_BSIZE];
@@ -177,7 +177,7 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 			n = INDIRPERVBLK(fs);
 			addr = dp1.di_ib[0];
 			vbaddr = fsbtodb(fs, addr) +
-			    (lbn - NDADDR) / n * DBPERVBLK;
+			    (lbn - NDADDR) / (n * DBPERVBLK);
 			if (indmap != vbaddr) {
 				if (dskread(indbuf, vbaddr, DBPERVBLK))
 					return -1;
@@ -222,13 +222,15 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	static struct ufs2_dinode dp2;
 	static ino_t inomap;
 	char *blkbuf;
-	caddr_t indbuf;
+	void *indbuf;
 	struct fs *fs;
 	char *s;
 	size_t n, nb, size, off, vboff;
 	ufs_lbn_t lbn;
 	ufs2_daddr_t addr, vbaddr;
 	static ufs2_daddr_t blkmap, indmap;
+	u_int u;
+
 
 	blkbuf = dmadat->blkbuf;
 	indbuf = dmadat->indbuf;
@@ -281,14 +283,14 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 		} else if (lbn < NDADDR + NINDIR(fs)) {
 			n = INDIRPERVBLK(fs);
 			addr = DIP(di_ib[0]);
-			vbaddr = fsbtodb(fs, addr) +
-			    (lbn - NDADDR) / n * DBPERVBLK;
+			u = (u_int)(lbn - NDADDR) / (n * DBPERVBLK);
+			vbaddr = fsbtodb(fs, addr) + u;
 			if (indmap != vbaddr) {
 				if (dskread(indbuf, vbaddr, DBPERVBLK))
 					return -1;
 				indmap = vbaddr;
 			}
-			n = (lbn - NDADDR) % n;
+			n = (lbn - NDADDR) & (n - 1);
 			if (fs->fs_magic == FS_UFS1_MAGIC)
 				addr = ((ufs1_daddr_t *)indbuf)[n];
 			else
