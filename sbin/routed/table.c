@@ -639,16 +639,18 @@ rtm_type_name(u_char type)
 		"RTM_NEWMADDR",
 		"RTM_DELMADDR"
 	};
-	static char name0[NAME0_LEN];
+#define NEW_RTM_PAT "RTM type %#x"
+	static char name0[sizeof(NEW_RTM_PAT)+2];
 
 
 	if (type > sizeof(rtm_types)/sizeof(rtm_types[0])
 	    || type == 0) {
-		snprintf(name0, NAME0_LEN, "RTM type %#x", type);
+		snprintf(name0, sizeof(name0), NEW_RTM_PAT, type);
 		return name0;
 	} else {
 		return rtm_types[type-1];
 	}
+#undef NEW_RTM_PAT
 }
 
 
