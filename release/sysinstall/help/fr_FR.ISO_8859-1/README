@@ -37,10 +37,10 @@ voir comment est conçu un tel système.
 Une importante collection de logiciels supportés (les << ports >>) est
 aussi fournie pour vous aider à obtenir et à installer sur FreeBSD,
 les logiciels traditionnels du domaine UNIX. Plus de 270 ports sont
-ainsi disponibles, parmi lesquels, l'éditeur EMACS, le langage
-lisp... Tout cela contribue à faire de FreeBSD un système
-d'exploitation puissant et accessible, capable de rivaliser avec
-beaucoup de stations de travail.
+ainsi disponibles, des éditeurs de texte aux langages de programmation,
+en passant par les applications graphiques... Tout cela contribue à 
+faire autour de FreeBSD, un environnement puissant et accessible, 
+capable de rivaliser avec beaucoup de stations de travail.
 
 En complément, il est recommandé d'acquérir les ouvrages relatifs à
 4.4BSD, chez << O'Reilly Associates >> et << USENIX Association >>,
@@ -66,20 +66,20 @@ votre disque avant de continuer cette installation.
 Les commentaires techniques à propos de cette version peuvent être
 adressés à :
 
-        hackers@FreeBSD.org
+        hackers@FreeBSD.org                    (en anglais)
 
 Les rapports de disfonctionnement << bug reports >> peuvent être
 notifiés par la commande << send-pr >> dès que votre système est
 installé. Dans le cas contraire, ils peuvent être adressés à :
 
-        bugs@FreeBSD.org
+        bugs@FreeBSD.org                       (en anglais)
 
 N'oubliez par de joindre à votre requête, le numéro de la version de
 FreeBSD concernée.
 
 Les questions d'ordre général sont à diriger vers :
 
-        questions@FreeBSD.org
+        questions@FreeBSD.org                  (en anglais)
 
 Ne soyez pas impatient si vos questions ne trouvent pas réponse dans
 la minute, car c'est beaucoup d'investissement que d'y répondre et il
@@ -102,4 +102,3 @@ de FreeBSD vous donnera entière satisfaction.
 
                                 Jordan Hubbard,
                                 pour le projet FreeBSD
-
