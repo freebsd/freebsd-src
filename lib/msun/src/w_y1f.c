@@ -1,4 +1,4 @@
-/* w_j1f.c -- float version of w_j1.c.
+/* w_y1f.c -- float version of w_y1.c.
  * Conversion to float by Ian Lance Taylor, Cygnus Support, ian@cygnus.com.
  */
 
@@ -18,28 +18,36 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 /*
- * wrapper of j1f
+ * wrapper of y1f
  */
 
 #include "math.h"
 #include "math_private.h"
 
 #ifdef __STDC__
-	float j1f(float x)		/* wrapper j1f */
+	float y1f(float x)		/* wrapper y1f */
 #else
-	float j1f(x)			/* wrapper j1f */
+	float y1f(x)			/* wrapper y1f */
 	float x;
 #endif
 {
 #ifdef _IEEE_LIBM
-	return __ieee754_j1f(x);
+	return __ieee754_y1f(x);
 #else
 	float z;
-	z = __ieee754_j1f(x);
+	z = __ieee754_y1f(x);
 	if(_LIB_VERSION == _IEEE_ || isnanf(x) ) return z;
-	if(fabsf(x)>(float)X_TLOSS) {
-		/* j1(|x|>X_TLOSS) */
-	        return (float)__kernel_standard((double)x,(double)x,136);
+        if(x <= (float)0.0){
+                if(x==(float)0.0)
+                    /* d= -one/(x-x); */
+                    return (float)__kernel_standard((double)x,(double)x,110);
+                else
+                    /* d = zero/(x-x); */
+                    return (float)__kernel_standard((double)x,(double)x,111);
+        }
+	if(x>(float)X_TLOSS) {
+		/* y1(x>X_TLOSS) */
+	        return (float)__kernel_standard((double)x,(double)x,137);
 	} else
 	    return z;
 #endif
