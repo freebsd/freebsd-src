@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.9 1999/01/11 23:43:54 bde Exp $
+ *	$Id: cy_pci.c,v 1.10 1999/01/15 10:00:12 bde Exp $
  */
 
 /*
@@ -69,11 +69,10 @@ cy_probe(config_id, device_id)
 	pcici_t config_id;
 	pcidi_t device_id;
 {
-	if ((device_id & 0xffff) == CY_VENDORID_CYCLADES &&
-	    ((device_id >> 16) == CY_DEVICEID_CYCLOM_Y_1 ||
-	     (device_id >> 16) == CY_DEVICEID_CYCLOM_Y_2))
+	device_id &= ~0x00060000;
+	if (device_id == 0x0100120e || device_id == 0x0101120e)
 		return ("Cyclades Cyclom-Y Serial Adapter");
-	return NULL;
+	return (NULL);
 }
 
 static void
@@ -102,7 +101,7 @@ cy_attach(config_id, unit)
 		/*
 		 * No ports found. Release resources and punt.
 		 */
-		printf("cy%d: no ports found!", unit);
+		printf("cy%d: no ports found!\n", unit);
 		goto fail;
 	}
 
