@@ -550,7 +550,6 @@ udf_root(struct mount *mp, struct vnode **vpp, struct thread *td)
 
 	vp = *vpp;
 	vp->v_vflag |= VV_ROOT;
-	udfmp->root_vp = vp;
 
 	return (0);
 }
