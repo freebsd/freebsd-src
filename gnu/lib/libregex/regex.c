@@ -126,7 +126,7 @@ init_syntax_once ()
 #endif /* not emacs */
 
 #ifdef __FreeBSD__
-#include "collate.h"
+#include <locale.h>
 #endif
 
 /* Get the interface, including the syntax bits.  */
@@ -2320,7 +2320,7 @@ compile_range (p_ptr, pend, translate, syntax, b)
 
   /* If the start is after the end, the range is empty.  */
 #ifdef __FreeBSD__
-  if (__collcmp (range_start, range_end) > 0)
+  if (collate_range_cmp (range_start, range_end) > 0)
 #else
   if (range_start > range_end)
 #endif
@@ -2328,8 +2328,8 @@ compile_range (p_ptr, pend, translate, syntax, b)
 
 #ifdef __FreeBSD__
    for (this_char = 0; this_char < 1 << BYTEWIDTH; this_char++)
-	if (   __collcmp(range_start, this_char) <= 0
-	    && __collcmp(this_char, range_end) <= 0
+	if (   collate_range_cmp (range_start, this_char) <= 0
+	    && collate_range_cmp (this_char, range_end) <= 0
 	   ) {
 		SET_LIST_BIT (TRANSLATE (this_char));
 	     }
