@@ -2814,15 +2814,20 @@
   <sect2 id="usb">
     <title>USB Devices</title>
 
-    <para>A range of USB peripherals are supported; devices known to
+    <para arch="alpha,i386,pc98">A range of USB peripherals are supported; devices known to
     work are listed in this section.  Owing to the
     generic nature of most USB devices, with some exceptions any
     device of a given class will be supported, even if not explicitly
     listed here.</para>
 
-    <note>
+    <note arch="alpha,i386,pc98">
       <para>USB Ethernet adapters can be found in the section listing <link
       linkend="ethernet">Ethernet interfaces</link>.</para>
+    </note>
+
+    <note arch="alpha,i386,pc98">
+      <para>USB Bluetooth adapters can be found in <link
+      linkend="bluetooth">Bluetooth</link> section.</para>
     </note>
 
     <para arch="i386,pc98,alpha">Host Controllers (&man.ohci.4; and &man.uhci.4; drivers)
@@ -3120,6 +3125,39 @@
       </itemizedlist>
 
       </para>
+
+  </sect2>
+
+  <sect2 id="bluetooth">
+    <title>Bluetooth Devices</title>
+
+    <para arch="i386">PCCARD Host Controllers (&man.ng.bt3c.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>3Com/HP 3CRWB6096-A PCCARD adapter</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">USB Host Controllers (&man.ng.ubt.4; driver)
+      <itemizedlist>
+        <listitem>
+	  <para>3Com 3CREB96</para>
+	</listitem>
+        <listitem>
+	  <para>EPoX BT-DG02</para>
+	</listitem>
+        <listitem>
+	  <para>Mitsumi USB Bluetooth adapter</para>
+	</listitem>
+        <listitem>
+	  <para>MSI MS-6967</para>
+	</listitem>
+        <listitem>
+	  <para>TDK Bluetooth USB adapter</para>
+	</listitem>
+      </itemizedlist>
+    </para>
 
   </sect2>
 
