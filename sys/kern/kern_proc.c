@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ktrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -49,6 +51,10 @@
 #include <sys/sx.h>
 #include <sys/user.h>
 #include <sys/jail.h>
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -643,8 +649,13 @@ fill_kinfo_proc(p, kp)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	kp->ki_addr =/* p->p_addr; */0; /* XXXKSE */
 	kp->ki_args = p->p_args;
-	kp->ki_tracep = p->p_tracep;
 	kp->ki_textvp = p->p_textvp;
+#ifdef KTRACE
+	kp->ki_tracep = p->p_tracep;
+	mtx_lock(&ktrace_mtx);
+	kp->ki_traceflag = p->p_traceflag;
+	mtx_unlock(&ktrace_mtx);
+#endif
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
 	if (p->p_ucred) {
@@ -696,7 +707,6 @@ fill_kinfo_proc(p, kp)
 	kp->ki_stat = p->p_stat;
 	kp->ki_sflag = p->p_sflag;
 	kp->ki_swtime = p->p_swtime;
-	kp->ki_traceflag = p->p_traceflag;
 	kp->ki_pid = p->p_pid;
 	/* vvv XXXKSE */
 	bintime2timeval(&p->p_runtime, &tv);
