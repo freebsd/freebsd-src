@@ -157,7 +157,7 @@ _##name##_uninit(struct vfsconf *vfc) {					\
         return pfs_uninit(&name##_info, vfc);				\
 }									\
 									\
-static struct vfsops testfs_vfsops = {					\
+static struct vfsops name##_vfsops = {					\
 	_##name##_mount,						\
 	vfs_stdstart,							\
 	pfs_unmount,							\
