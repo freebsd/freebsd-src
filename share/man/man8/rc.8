@@ -30,23 +30,41 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: rc.8,v 1.3 1997/03/07 03:28:21 jmg Exp $
 .\"
 .Dd December 11, 1993
 .Dt RC 8
 .Os BSD 4
 .Sh NAME
 .Nm rc
-.Nd command script for auto\-reboot and daemons
+.Nd command scripts for auto\-reboot and daemon startup
 .Sh SYNOPSIS
 .Nm rc
+.Nm rc.conf
+.Nm rc.conf.local
+.Nm rc.serial
+.Nm rc.pccard
+.Nm rc.network
+.Nm rc.firewall
+.Nm rc.<arch>
 .Nm rc.local
+.Nm rc.shutdown
 .Sh DESCRIPTION
 .Nm Rc
-is the command script which controls the automatic reboot and
+is the command script which controls the automatic reboot
+(calling the other scripts) and
 .Nm rc.local
 is the script holding commands which are pertinent only
 to a specific site.
+.Nm Rc.conf
+contains the global system configuration information referenced
+by the rc files, while
+.Nm rc.conf.local
+contains the local system configuration.
+.Pp
+.Nm Rc.shutdown
+is the command script which contains any necessary commands
+to be executed as the system is shut down.
 .Pp
 When an automatic reboot is in progress,
 .Nm rc
@@ -75,28 +93,56 @@ starts all the daemons on the system, preserves editor files
 and clears the scratch directory
 .Pa /tmp .
 .Pp
-.Nm Rc.local
-is executed immediately before any other commands after a successful
-.Nm fsck .
-Normally, the first commands placed in the
-.Nm rc.local
-file define the machine's name, using
-.Xr hostname 1 ,
-and save any possible core image that might have been
-generated as a result of a system crash, with
-.Xr savecore 8 .
-The latter command is included in the
-.Nm rc.local
-file because the directory in which core dumps are saved
-is usually site specific.
+.Nm Rc.serial
+is used to set any special configurations for serial devices.
 .Pp
-Following tradition, the startup files
+.Nm Rc.pccard
+is used to enable PC-cards.
+.Pp
+.Nm Rc.network
+is used to start the network.
+The network is started in three passes.
+The first pass sets the hostname and domainname, configures the network
+interfaces, turns on any IP firewall rules, and starts routing.
+The second pass starts most of the network related daemons.
+The third pass starts NFS, amd, rwhod, Kerberos and
+the multicast routing daemon.
+.Pp
+.Nm Rc.firewall
+is used to configure rules for the kernel based firewall
+service. It has several possible options:
+.Pp
+.Bl -tag -width "fBfilename" -compact -offset indent
+.It open
+will allow anyone in.
+.It client
+will try to protect just this machine.
+.It simple
+will try to protect a whole network.
+.It closed
+totally disables IP services except via lo0 interface.
+.It UNKNOWN
+disables the loading of firewall rules.
+.It filename
+will load the rules in the given filename (full path required).
+.El
+.Pp
+.Nm Rc.<arch>
+runs architecture specific programs.
+.Pp
+.Nm Rc.local
+is executed after the scripts above, but before the rest of the
 .Nm rc
-and
+file is completed.
+Presently, all
 .Nm rc.local
-reside in
+does is to put version information in
+.Pa /etc/motd .
+.Pp
+Following tradition, the startup files reside in
 .Pa /etc .
 .Sh SEE ALSO
+.Xr rc.conf 5 ,
 .Xr init 8 ,
 .Xr reboot 8 ,
 .Xr savecore 8
