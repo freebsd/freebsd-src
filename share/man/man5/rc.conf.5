@@ -244,6 +244,11 @@ If
 .Xr dhclient 8
 is used to set the hostname via DHCP,
 this variable should be set to an empty string.
+.It Va ipv6_enable
+.Pq Vt bool
+Enable support for IPv6 networking.
+Note that this requires that the kernel have been compiled with
+.Cd "options INET6" .
 .It Va nisdomainname
 .Pq Vt str
 The NIS domain name of this host, or
@@ -273,11 +278,27 @@ the
 kernel module will be loaded.
 See also
 .Va ipfilter_enable .
+.It Va ipv6_firewall_enable
+.Pq Vt bool
+The IPv6 equivalent of
+.Va firewall_enable .
+Set to
+.Dq Li YES
+to load IPv6 firewall rules at startup.
+If the kernel was not built with
+.Cd "options IPV6FIREWALL" ,
+the
+.Pa ip6fw.ko
+kernel module will be loaded.
 .It Va firewall_script
 .Pq Vt str
 This variable specifies the full path to the firewall script to run.
 The default is
 .Pa /etc/rc.firewall .
+.It Va ipv6_firewall_script
+.Pq Vt str
+The IPv6 equivalent of
+.Va firewall_script .
 .It Va firewall_type
 .Pq Vt str
 Names the firewall type from the selection in
@@ -301,11 +322,19 @@ basic protection for a LAN.
 .Pp
 If a filename is specified, the full path
 must be given.
+.It Va ipv6_firewall_type
+.Pq Vt str
+The IPv6 equivalent of
+.Va firewall_type .
 .It Va firewall_quiet
 .Pq Vt bool
 Set to
 .Dq Li YES
 to disable the display of firewall rules on the console during boot.
+.It Va ipv6_firewall_quiet
+.Pq Vt bool
+The IPv6 equivalent of
+.Va firewall_quiet .
 .It Va firewall_logging
 .Pq Vt bool
 Set to
@@ -314,6 +343,10 @@ to enable firewall event logging.
 This is equivalent to the
 .Dv IPFIREWALL_VERBOSE
 kernel option.
+.It Va ipv6_firewall_logging
+.Pq Vt bool
+The IPv6 equivalent of
+.Va firewall_logging .
 .It Va firewall_flags
 .Pq Vt str
 Flags passed to
@@ -321,6 +354,10 @@ Flags passed to
 if
 .Va firewall_type
 specifies a filename.
+.It Va ipv6_firewall_flags
+.Pq Vt str
+The IPv6 equivalent of
+.Va firewall_flags .
 .It Va natd_program
 .Pq Vt str
 Path to
@@ -419,6 +456,16 @@ Set to
 .Pa /etc/ipf.rules
 by default.
 This variable contains the name of the filter rule definition file.
+The file is expected to be readable for the
+.Xr ipf 8
+command to execute.
+.\" ----- ipv6_ipfilter_rules setting ---------------------------
+.It Va ipv6_ipfilter_rules
+.Pq Vt str
+Set to
+.Pa /etc/ipf6.rules
+by default.
+This variable contains the IPv6 filter rule definition file.
 The file is expected to be readable for the
 .Xr ipf 8
 command to execute.
@@ -627,6 +674,9 @@ by default.
 Setting to
 .Dq Li YES
 will cause the kernel to ignore ICMP REDIRECT packets.
+Refer to
+.Xr icmp 4
+for more information.
 .It Va icmp_log_redirect
 .Pq Vt bool
 Set to
@@ -638,6 +688,33 @@ will cause the kernel to log ICMP REDIRECT packets.
 Note that
 the log messages are not rate-limited, so this option should only be used
 for troubleshooting networks.
+Refer to
+.Xr icmp 4
+for more information.
+.It Va icmp_bmcastecho
+.Pq Vt bool
+Set to
+.Dq Li YES
+to respond to broadcast or multicast ICMP ping packets.
+Refer to
+.Xr icmp 4
+for more information.
+.It Va ip_portrange_first
+.Pq Vt int
+If not set to
+.Dq Li NO
+this is the first port in the default portrange.
+Refer to
+.Xr ip 4
+for more information.
+.It Va ip_portrange_last
+.Pq Vt int
+If not set to
+.Dq Li NO
+this is the last port in the default portrange.
+Refer to
+.Xr ip 4
+for more information.
 .It Va network_interfaces
 .Pq Vt str
 Set to the list of network interfaces to configure on this host.
@@ -707,6 +784,35 @@ it is possible to use something like:
 .Bd -literal
 ifconfig_ed0="DHCP"
 .Ed
+.It Va ipv6_network_interfaces
+.Pq Vt str
+This is the IPv6 equivalent of
+.Va network_interfaces .
+Instead of setting the ifconfig variables as
+.Va ifconfig_ Ns Aq Ar interface
+they should be set as
+.Va ipv6_ifconfig_ Ns Aq Ar interface .
+Aliases should be set as
+.Va ipv6_ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
+.Va ipv6_prefix_ Ns Aq Ar interface
+does something.
+Interfaces that does not have a
+.Va ipv6_ifconfig_ Ns Aq Ar interface
+setting will auto configures by
+.Xr rtsol 8
+if the
+.Ar ipv6_gateway_enable
+is set to
+.Dq Li NO .
+Note that the IPv6 networking code does not support the
+.Pa /etc/start_if. Ns Aq Ar interface
+files.
+.It Va ipv6_default_interface
+.Pq Vt str
+If not set to
+.Dq Li NO
+this is the default output interface for scoped addresses.
+Now this works only for IPv6 link local multicast addresses.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
@@ -735,6 +841,21 @@ via the
 option to
 .Xr ifconfig 8
 before attempting to configure it.
+.It Va sppp_interfaces
+.Pq Vt str
+Set to the list of
+.Xr sppp 4
+interfaces to configure on this host.
+A
+.Va spppconfig_ Ns Aq Ar interface
+variable is assumed to exist for each value of
+.Ar interface .
+Each interface should also be configured by a general
+.Va ifconfig_ Ns Aq Ar interface
+setting.
+Refer to
+.Xr spppconfig 8
+for more information about available options.
 .It Va ppp_enable
 .Pq Vt bool
 If set to
@@ -956,21 +1077,6 @@ This variable has no effect if
 is not enabled.
 This variable is experimental.
 It may be removed or changed in the near future.
-.It Va kerberos4_server_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to start a Kerberos IV authentication server
-at boot time.
-.It Va kadmind4_server_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to start
-.Xr kadmind 8 ,
-the Kerberos IV Administration Daemon; set to
-.Dq Li NO
-on a slave server.
 .It Va kerberos_stash
 .Pq Vt str
 If
@@ -990,6 +1096,13 @@ Set to
 .Dq Li YES
 to start a Kerberos 5 authentication server
 at boot time.
+.It Va kerberos5_server
+.Pq Vt str
+If
+.Va kerberos5_server_enable
+is set to
+.Dq Li YES
+this is the path to Kerberos 5 authentication server.
 .It Va kadmind5_server_enable
 .Pq Vt bool
 Set to
@@ -999,6 +1112,13 @@ to start
 the Kerberos 5 Administration Daemon; set to
 .Dq Li NO
 on a slave server.
+.It Va kadmind5_server
+.Pq Vt str
+If
+.Va kadmind5_server_enable
+is set to
+.Dq Li YES
+this is the path to Kerberos 5 Administration Daemon.
 .It Va rwhod_enable
 .Pq Vt bool
 If set to
@@ -1166,6 +1286,22 @@ is set to
 these are the flags to pass to the
 .Xr rpcbind 8
 daemon.
+.It Va keyserv_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr keyserv 8
+daemon on boot for running Secure RPC.
+.It Va keyserv_flags
+.Pq Vt str
+If
+.Va keyserv_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to
+.Xr keyserv 8
+daemon.
 .It Va xtend_enable
 .Pq Vt bool
 If set to
@@ -1213,7 +1349,7 @@ This is mandatory when
 is set to
 .Dq Li YES .
 .It Va timed_enable
-.Pq Vt boot
+.Pq Vt bool
 If set to
 .Dq Li YES ,
 run the
@@ -1367,6 +1503,13 @@ is set to
 these are the flags to pass to the
 .Xr rpc.yppasswdd 8
 daemon.
+.It Va rpc_ypupdated_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+rpc.ypupdated
+daemon at system boot time.
 .It Va defaultrouter
 .Pq Vt str
 If not set to
@@ -1374,6 +1517,10 @@ If not set to
 create a default route to this host name or IP address
 (use an IP address if this router is also required to get to the
 name server!).
+.It Va ipv6_defaultrouter
+.Pq Vt str
+The IPv6 equivalent of
+.Va defaultrouter .
 .It Va static_routes
 .Pq Vt str
 Set to the list of static routes that are to be added at system
@@ -1388,12 +1535,30 @@ variable is assumed to exist
 whose contents will later be passed to a
 .Dq Nm route Cm add
 operation.
+.It Va ipv6_static_routes
+.Pq Vt str
+The IPv6 equivalent of
+.Va static_routes .
+If not set to
+.Dq Li NO
+then for each whitespace separated
+.Ar element
+in the value, a
+.Va ipv6_route_ Ns Aq Ar element
+variable is assumed to exist
+whose contents will later be passed to a
+.Dq Nm route Cm add -inet6
+operation.
 .It Va gateway_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 configure host to act as an IP router, e.g. to forward packets
 between interfaces.
+.It Va ipv6_gateway_enable
+.Pq Vt bool
+The IPv6 equivalent of
+.Va gateway_enable .
 .It Va router_enable
 .Pq Vt bool
 If set to
@@ -1403,6 +1568,17 @@ settings of
 .Va router
 and
 .Va router_flags .
+.It Va ipv6_router_enable
+.Pq Vt bool
+The IPv6 equivalent of
+.Va router_enable .
+If set to
+.Dq Li YES ,
+run a routing daemon of some sort, based on the
+settings of
+.Va ipv6_router
+and
+.Va ipv6_router_flags .
 .It Va router
 .Pq Vt str
 If
@@ -1410,6 +1586,10 @@ If
 is set to
 .Dq Li YES ,
 this is the name of the routing daemon to use.
+.It Va ipv6_router
+.Pq Vt str
+The IPv6 equivalent of
+.Va router .
 .It Va router_flags
 .Pq Vt str
 If
@@ -1417,12 +1597,30 @@ If
 is set to
 .Dq Li YES ,
 these are the flags to pass to the routing daemon.
+.It Va ipv6_router_flags
+.Pq Vt str
+The IPv6 equivalent of
+.Va router_flags .
 .It Va mrouted_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 run the multicast routing daemon,
 .Xr mrouted 8 .
+.It Va mroute6d_enable
+.Pq Vt bool
+The IPv6 equivalent of
+.Va mrouted_enable .
+If set to
+.Dq Li YES ,
+run the IPv6 multicast routing daemon.
+Note that no IPv6 multicast routing daemon is included in the
+.Fx
+base system but
+.Xr pim6dd 8
+can be installed from the
+.Fx
+Ports Collection.
 .It Va mrouted_flags
 .Pq Vt str
 If
@@ -1432,6 +1630,49 @@ is set to
 these are the flags to pass to the
 .Xr mrouted 8
 daemon.
+.It Va mroute6d_flags
+.Pq Vt str
+The IPv6 equivalent of
+.Va mrouted_flags .
+If
+.Va mroute6d_enable
+is set to
+.Dq Li YES ,
+these are the flags passed to the IPv6 multicast routing daemon.
+.It Va mroute6d_program
+.Pq Vt str
+If
+.Va mroute6d_enable
+is set to
+.Dq Li YES ,
+this is the path to the IPv6 multicast routing daemon.
+.It Va rtadvd_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr rtadvd 8
+daemon at boot time.
+.Xr rtadvd 8
+will only run if
+.Va ipv6_gateway_enable
+is also set to
+.Dq Li YES .
+The
+.Xr rtadvd 8
+utility sends router advertisement packets to the interfaces specified in
+.Va rtadvd_interfaces .
+.Xr rtadvd 8
+and should only be enabled with great care.
+You may want to fine-tune
+.Xr rtadvd.conf 5 .
+.It Va rtadvd_interfaces
+.Pq Vt str
+If
+.Va rtadvd_enable
+is set to
+.Dq Li YES
+this is the list of interfaces to use.
 .It Va ipxgateway_enable
 .Pq Vt bool
 If set to
@@ -1504,6 +1745,42 @@ is set to
 these are the flags to pass to the
 .Xr bootparamd 8
 daemon.
+.It Va stf_interface_ipv4addr
+.Pq Vt str
+If not set to
+.Dq Li NO
+this is the local IPv4 address for 6to4 (IPv6 over IPv4 tunneling
+interface).
+Specify this entry to enable the 6to4 interface.
+.It Va stf_interface_ipv4plen
+.Pq Vt int
+Prefix length for 6to4 IPv4 addresses, to limit peer address range.
+An effective value is 0-31.
+.It Va stf_interface_ipv6_ifid
+.Pq Vt str
+IPv6 interface id for
+.Xr stf 4 .
+This can be set to
+.Dq Li AUTO .
+.It Va stf_interface_ipv6_slaid
+.Pq Vt str
+IPv6 Site Level Aggregator for
+.Xr stf 4 .
+.It Va ipv6_faith_prefix
+.Pq Vt str
+If not set to
+.Dq Li NO
+this is the faith prefix to enable a FAITH IPv6-to-IPv4 TCP
+translator.
+You also need
+.Xr faithd 8
+setup.
+.It Va ipv6_ipv4mapping
+.Pq Vt bool
+If set to
+.Dq Li YES
+this enables IPv4 mapped IPv6 address communication (like
+::ffff:a.b.c.d).
 .It Va atm_enable
 .Pq Vt bool
 Set to
@@ -1993,6 +2270,16 @@ Set to
 to enable OSF/1 (Digital UNIX) binary emulation at system
 initial boot time.
 (alpha)
+.It Va svr4_enable
+.Pq Vt bool
+If set to
+.Dq Li YES
+enable SysVR4 emulation at boot time.
+.It Va sysvipc_enable
+.Pq Vt bool
+If set to
+.Dq Li YES
+load System V IPC primitives at boot time.
 .It Va clear_tmp_enable
 .Pq Vt bool
 Set to
@@ -2007,6 +2294,11 @@ Set to the list of shared library paths to use with
 NOTE:
 .Pa /usr/lib
 will always be added first, so it need not appear in this list.
+.It Va ldconfig_paths_aout
+.Pq str
+Set to the list of shared library paths to use with
+.Xr ldconfig 8 .
+legacy aout support.
 .It Va ldconfig_insecure
 .Pq Vt bool
 The
@@ -2069,6 +2361,22 @@ is set to
 .Dq Li YES ,
 these are the flags to pass to the
 .Xr sshd 8
+daemon.
+.It Va usbd_enable
+.Pq bool
+If set to
+.Dq Li YES ,
+run the
+.Xr usbd 8
+daemon at boot time.
+.It Va usbd_flags
+.Pq Vt str
+If
+.Va usbd_enable
+is set to
+.Dq Li YES ,
+these are the flags passed to
+.Xr usbd 8
 daemon.
 .It Va unaligned_print
 .Pq Vt bool
@@ -2284,6 +2592,86 @@ manual page, option
 .Fl p ,
 for more information on changing VGA palette
 values.)
+.It Va harvest_interrupt
+.Pq Vt bool
+Set to
+.Dq Li YES
+to use hardware interrupts as an entropy source.
+Refer to
+.Xr random 4
+for more information.
+.It Va harvest_ethernet
+.Pq Vt bool
+Set to
+.Dq Li YES
+to use LAN traffic as an entropy source.
+Refer to
+.Xr random 4
+for more information.
+.It Va harvest_p_to_p
+.Pq Vt bool
+Set to
+.Dq Li YES
+to use serial line traffic as an entropy source.
+Refer to
+.Xr random 4
+for more information.
+.It Va entropy_dir
+.Pq Vt str
+Set to
+.Dq Li NO
+to disable caching entropy via
+.Xr cron 8 .
+Otherwise set to the directory used to store entropy files in.
+.It Va entropy_file
+.Pq Vt str
+Set to
+.Dq Li NO
+to disable caching entropy through reboots.
+Otherwise set to the filename used to store cached entropy through
+reboots.
+This file should be located on the root file system to seed the
+.Xr random 4
+device as early as possible in the boot process.
+.It Va entropy_save_sz
+.Pq Vt int
+Size of the entropy cache files saved by
+save-entropy
+periodically.
+.It Va entropy_save_num
+.Pq Vt int
+Number of entropy cache files to save by
+save-entropy
+periodically.
+.It Va ipsec_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to run
+.Xr setkey 8
+on
+.Va ipsec_file
+at boot time.
+.It Va ipsec_file
+.Pq Vt str
+Config file for
+.Xr setkey 8 .
+.It Va dmesg_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to save
+.Xr dmesg 8
+to
+.Pa /var/run/dmesg.boot
+on boot.
+.It Va rcshutdown_timeout
+.Pq Vt int
+If set, start a watchdog timer in the background which will terminate
+.Pa rc.shutdown
+if
+.Xr shutdown 8
+has not completed within the specified time (in seconds).
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -2298,6 +2686,7 @@ values.)
 .Xr kbdcontrol 1 ,
 .Xr makewhatis 1 ,
 .Xr vidcontrol 1 ,
+.Xr ip 4 ,
 .Xr kld 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
@@ -2341,6 +2730,7 @@ values.)
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr usbd 8 ,
 .Xr vinum 8 ,
 .Xr xtend 8 ,
 .Xr yp 8 ,
