@@ -17,6 +17,8 @@
 
 #include "wdc.h"
 #include "wcd.h"
+#include "opt_atapi.h"
+
 #if NWCD > 0 && NWDC > 0 && defined (ATAPI)
 
 #include <sys/param.h>
