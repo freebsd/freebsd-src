@@ -7,6 +7,10 @@ SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+=telnetd
 .else
+.if defined(RELEASEDIR)
+# make release needs both
+SUBDIR+=telnetd
+.endif
 SUBDIR+= ../secure/libexec/telnetd
 .endif
 
