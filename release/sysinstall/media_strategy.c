@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.6 1995/05/21 17:56:13 gpalmer Exp $
+ * $Id: media_strategy.c,v 1.5 1995/05/21 15:40:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -236,9 +236,8 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 	    if (memory == (caddr_t) -1)
 		msgFatal("mmap error: %s\n", strerror(errno));
 
-	    write(1, memory, sb.st_size);
+ 	    write(1, memory, sb.st_size);
 	    munmap(memory, sb.st_size);
-	    close(fd);
 	    close(fd);
 	    ++chunk;
 	}
@@ -296,7 +295,7 @@ mediaGetCDROM(char *dist)
 
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
-    snprintf(buf, PATH_MAX, "/mnt/stand/info/%s.inf", dist);
+    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
     if (attr_parse(&dist_attr, buf) == 0)
     {
 	msgConfirm("Cannot load information file for distribution\n");
@@ -337,7 +336,7 @@ mediaGetFloppy(char *dist)
 
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
-    snprintf(buf, PATH_MAX, "/mnt/stand/info/%s.inf", dist);
+    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
     if (attr_parse(&dist_attr, buf) == 0)
     {
 	msgConfirm("Cannot load information file for distribution\n");
