@@ -128,6 +128,7 @@ execve(p, uap)
 	imgp->vp = NULL;
 	imgp->firstpage = NULL;
 	imgp->ps_strings = 0;
+	imgp->auxarg_size = 0;
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
@@ -614,21 +615,28 @@ exec_copyout_strings(imgp)
 	 * If we have a valid auxargs ptr, prepare some room
 	 * on the stack.
 	 */
-	if (imgp->auxargs)
-	/*
-	 * The '+ 2' is for the null pointers at the end of each of the
-	 * arg and env vector sets, and 'AT_COUNT*2' is room for the
-	 * ELF Auxargs data.
-	 */
-		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2 +
-				  AT_COUNT*2) * sizeof(char*));
-	else 
-	/*
-	 * The '+ 2' is for the null pointers at the end of each of the
-	 * arg and env vector sets
-	 */
+	if (imgp->auxargs) {
+		/*
+		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
+		 * lower compatibility.
+		 */
+		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
+			: (AT_COUNT * 2);
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets,and imgp->auxarg_size is room
+		 * for argument of Runtime loader.
+		 */
+		vectp = (char **) (destp - (imgp->argc + imgp->envc + 2 +
+				       imgp->auxarg_size) * sizeof(char *));
+
+	} else 
+		/*
+		 * The '+ 2' is for the null pointers at the end of each of
+		 * the arg and env vector sets
+		 */
 		vectp = (char **)
-			(destp - (imgp->argc + imgp->envc + 2) * sizeof(char*));
+			(destp - (imgp->argc + imgp->envc + 2) * sizeof(char *));
 
 	/*
 	 * vectp also becomes our initial stack base

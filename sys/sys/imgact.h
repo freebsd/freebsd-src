@@ -58,6 +58,7 @@ struct image_params {
 	struct vm_page *firstpage;	/* first page that we mapped */
 	char *fname;            /* pointer to filename of executable (user space) */
 	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
+	size_t auxarg_size;
 };
 
 #ifdef _KERNEL
