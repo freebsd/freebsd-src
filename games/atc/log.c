@@ -100,7 +100,7 @@ log_score(list_em)
 #endif
 
 	umask(0);
-	fd = open(_PATH_SCORE, O_CREAT|O_RDWR, 0644);
+	fd = open(_PATH_SCORE, O_CREAT|O_RDWR, 0664);
 	if (fd < 0) {
 		perror(_PATH_SCORE);
 		return (-1);
