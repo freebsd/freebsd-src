@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.13 1997/02/26 02:22:45 mpp Exp $\n";
+	"\n$Id: lpr.c,v 1.14 1997/03/31 05:10:18 imp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -146,6 +146,7 @@ main(argc, argv)
 			i = atoi(optarg);
 			if (i > 0)
 				ncopies = i;
+			break;
 
 		case '1':		/* troff fonts */
 		case '2':
