@@ -1,5 +1,7 @@
 /* Code for the buffer data structure.  */
 
+/* $FreeBSD$ */
+
 #include <assert.h>
 #include "cvs.h"
 #include "buffer.h"
@@ -1378,8 +1380,7 @@ stdio_buffer_shutdown (buf)
 
     if (buf->input)
     {
-	if (! buf_empty_p (buf)
-	    || getc (bc->fp) != EOF)
+	if (! buf_empty_p (buf))
 	{
 # ifdef SERVER_SUPPORT
 	    if (server_active)
