@@ -141,7 +141,6 @@ runcmd(char *cmd)
 	    if (rc > -1) {
 		n =  h.ending_track - h.starting_track + 1;
 		rc = read_toc_entrys ((n+1)*sizeof(struct cd_toc_entry));
-		toc_buffer[n].track = 255;
 		if (standalone)
 		    printf("track minute second frame\n");
 		for (i = 0; i <= n; i++)
