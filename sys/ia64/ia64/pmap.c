@@ -961,7 +961,7 @@ pmap_remove_pv(pmap_t pmap, pv_entry_t pv, vm_page_t m)
 	if (!rtval)
 		return rtval;
 
-	if (m) {
+	if ((pv->pv_pte.pte_ig & PTE_IG_MANAGED) && m) {
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 
