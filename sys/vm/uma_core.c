@@ -1638,6 +1638,9 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	if (zone->uz_flags & UMA_ZFLAG_FULL)
 		goto zfree_internal;
 
+	if (zone->uz_dtor)
+		zone->uz_dtor(item, zone->uz_size, udata);
+
 zfree_restart:
 	cpu = PCPU_GET(cpuid);
 	CPU_LOCK(zone, cpu);
@@ -1657,8 +1660,6 @@ zfree_start:
 			KASSERT(bucket->ub_bucket[bucket->ub_ptr] == NULL,
 			    ("uma_zfree: Freeing to non free bucket index."));
 			bucket->ub_bucket[bucket->ub_ptr] = item;
-			if (zone->uz_dtor)
-				zone->uz_dtor(item, zone->uz_size, udata);
 #ifdef INVARIANTS
 			if (zone->uz_flags & UMA_ZFLAG_MALLOC)
 				uma_dbg_free(zone, udata, item);
@@ -1774,6 +1775,9 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 	u_int8_t *mem;
 	u_int8_t freei;
 
+	if (!skip && zone->uz_dtor)
+		zone->uz_dtor(item, zone->uz_size, udata);
+
 	ZONE_LOCK(zone);
 
 	if (!(zone->uz_flags & UMA_ZFLAG_MALLOC)) {
@@ -1812,9 +1816,6 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 
 	/* Zone statistics */
 	zone->uz_free++;
-
-	if (!skip && zone->uz_dtor)
-		zone->uz_dtor(item, zone->uz_size, udata);
 
 	if (zone->uz_flags & UMA_ZFLAG_FULL) {
 		if (zone->uz_pages < zone->uz_maxpages)
