@@ -110,4 +110,4 @@ TCL_SRC_DIR='/usr/src/contrib/tcl'
 # List of standard directories in which to look for packages during
 # "package require" commands.  Contains the "prefix" directory plus also
 # the "exec_prefix" directory, if it is different.
-TCL_PACKAGE_PATH='/usr/local/lib/tclpkg'
+TCL_PACKAGE_PATH='/usr/local/libdata/tcl'
