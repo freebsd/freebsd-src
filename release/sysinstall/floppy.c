@@ -128,7 +128,7 @@ mediaInitFloppy(Device *dev)
     msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
     if (!distWanted)
     	msgConfirm("Please insert floppy for %s", dev->description);
-    else if (distWanted != (char *)1)	/* 1 is kludge for "don't ask!" */
+    else
 	msgConfirm("Please insert floppy containing %s for %s", distWanted, dev->description);
 
     memset(&dosargs, 0, sizeof dosargs);
