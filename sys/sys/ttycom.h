@@ -64,7 +64,7 @@ struct winsize {
 						/* 3-4 obsolete */
 						/* 5-7 obsolete or unused */
 						/* 8-10 compat */
-						/* 11-12 obsolete or unusedor unused  */
+						/* 11-12 obsolete or unused */
 #define	TIOCEXCL	 _IO('t', 13)		/* set exclusive use of tty */
 #define	TIOCNXCL	 _IO('t', 14)		/* reset exclusive use of tty */
 						/* 15 unused */
