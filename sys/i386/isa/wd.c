@@ -91,6 +91,7 @@
 				/* correct max is 256 but some controllers */
 				/* can't handle that in all cases */
 #define WDOPT_32BIT	0x8000
+#define WDOPT_SLEEPHACK	0x4000
 #define WDOPT_MULTIMASK	0x00ff
 
 static int wd_goaway(struct kern_devconf *, int);
@@ -209,7 +210,8 @@ struct disk {
 	u_char	dk_timeout;	/* countdown to next timeout */
 	short	dk_port;	/* i/o port base */
 
-	short	dk_flags;	/* drive characteistics found */
+	short	dk_flags;	/* drive characteristics found */
+	u_long	cfg_flags;	/* configured characteristics */
 #define	DKFL_SINGLE	0x00004	/* sector at a time mode */
 #define	DKFL_ERROR	0x00008	/* processing a disk error */
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
@@ -242,7 +244,7 @@ static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
 static int wdsetctlr(struct disk *du);
 static int wdwsetctlr(struct disk *du);
-static int wdgetctlr(struct disk *du, int flags);
+static int wdgetctlr(struct disk *du);
 static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
@@ -383,8 +385,10 @@ wdattach(struct isa_device *dvp)
 		 * Use the individual device flags or the controller
 		 * flags.
 		 */
-		if (wdgetctlr(du, wdup->id_flags |
-			((dvp->id_flags) >> (16 * unit))) == 0) {
+		du->cfg_flags = wdup->id_flags |
+			((dvp->id_flags) >> (16 * unit));
+
+		if (wdgetctlr(du) == 0) {
 			char buf[sizeof du->dk_params.wdp_model + 1];
 
 			/*
@@ -401,6 +405,8 @@ wdattach(struct isa_device *dvp)
 				printf(", 32-bit");
 			if (du->dk_multi > 1)
 				printf(", multi-block-%d", du->dk_multi);
+			if (du->cfg_flags & WDOPT_SLEEPHACK)
+				printf(", sleep-hack");
 			printf("\n");
 			if (du->dk_params.wdp_heads == 0)
 				printf("wd%d: size unknown, using %s values\n",
@@ -837,7 +843,14 @@ wdintr(int unit)
 	if (wdtab[unit].b_active == 2)
 		return;		/* intr in wdflushirq() */
 	if (!wdtab[unit].b_active) {
+#ifdef WDDEBUG
+		/*
+		 * These happen mostly because the power-mgt part of the
+		 * bios shuts us down, and we just manage to see the
+		 * interrupt from the "SLEEP" command.
+ 		 */
 		printf("wdc%d: extra interrupt\n", unit);
+#endif
 		return;
 	}
 
@@ -1239,9 +1252,13 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 {
 	u_int	wdc;
 
+	wdc = du->dk_port;
+	if (du->cfg_flags & WDOPT_SLEEPHACK)
+		if(inb(wdc + wd_status) == WDCS_BUSY)
+			wdunwedge(du);
+
 	if (wdwait(du, 0, TIMEOUT) < 0)
 		return (1);
-	wdc = du->dk_port;
 	if( command == WDCC_FEATURES) {
 		outb(wdc + wd_features, count);
 	} else {
@@ -1329,11 +1346,12 @@ wdwsetctlr(struct disk *du)
  * issue READP to drive to ask it what it is.
  */
 static int
-wdgetctlr(struct disk *du, int flags)
+wdgetctlr(struct disk *du)
 {
 	int	i;
 	char    tb[DEV_BSIZE], tb2[DEV_BSIZE];
 	struct wdparams *wp = NULL;
+	u_long flags = du->cfg_flags;
 again:
 	if (wdcommand(du, 0, 0, 0, 0, WDCC_READP) != 0
 	    || wdwait(du, WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ, TIMEOUT) != 0) {
