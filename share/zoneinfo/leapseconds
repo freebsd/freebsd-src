@@ -1,7 +1,5 @@
 # @(#)leapseconds	7.14
 
-# $FreeBSD$
-
 # Allowance for leapseconds added to each timezone file.
 
 # The International Earth Rotation Service periodically uses leap seconds

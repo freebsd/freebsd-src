@@ -1,7 +1,5 @@
 # @(#)etcetera	7.11
 
-# $FreeBSD$
-
 # These entries are mostly present for historical reasons, so that
 # people in areas not otherwise covered by the tz files could "zic -l"
 # to a time zone that was right for their area.  These days, the
