@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.13 1995/12/21 19:20:55 davidg Exp $
+ *	$Id: db_trace.c,v 1.14 1995/12/22 07:09:24 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -229,22 +229,27 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	db_expr_t count;
 	char *modif;
 {
-	struct i386_frame *frame, *lastframe = NULL;
+	struct i386_frame *frame;
 	int *argp;
 	db_addr_t callpc;
+	boolean_t first;
 
 	if (count == -1)
 		count = 65535;
 
 	if (!have_addr) {
 		frame = (struct i386_frame *)ddb_regs.tf_ebp;
+		if (frame == NULL)
+			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
 		callpc = (db_addr_t)ddb_regs.tf_eip;
 	} else {
 		frame = (struct i386_frame *)addr;
 		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
 	}
 
+	first = TRUE;
 	while (count--) {
+		struct i386_frame *actframe;
 		int		narg;
 		char *	name;
 		db_expr_t	offset;
@@ -255,23 +260,47 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 
-		if (lastframe == NULL && sym == NULL) {
-			/* Symbol not found, peek at code */
-			int instr = db_get_value(callpc, 4, FALSE);
+		/*
+		 * Attempt to determine a (possibly fake) frame that gives
+		 * the caller's pc.  It may differ from `frame' if the
+		 * current function never sets up a standard frame or hasn't
+		 * set one up yet or has just discarded one.  The last two
+		 * cases can be guessed fairly reliably for code generated
+		 * by gcc.  The first case is too much trouble to handle in
+		 * general because the amount of junk on the stack depends
+		 * on the pc (the special handling of "calltrap", etc. in
+		 * db_nextframe() works because the `next' pc is special).
+		 */
+		actframe = frame;
+		if (first && !have_addr) {
+			int instr;
 
-			offset = 1;
-			   /* enter: pushl %ebp, movl %esp, %ebp */
-			if ((instr & 0x00ffffff) == 0x00e58955 ||
-			    /* enter+1: movl %esp, %ebp */
-			    (instr & 0x0000ffff) == 0x0000e589) {
-				offset = 0;
+			instr = db_get_value(callpc, 4, FALSE);
+			if ((instr & 0x00ffffff) == 0x00e58955) {
+				/* pushl %ebp; movl %esp, %ebp */
+				actframe = (struct i386_frame *)
+					   (ddb_regs.tf_esp - 4);
+			} else if ((instr & 0x0000ffff) == 0x0000e589) {
+				/* movl %esp, %ebp */
+				actframe = (struct i386_frame *)
+					   ddb_regs.tf_esp;
+				if (ddb_regs.tf_ebp == 0) {
+					/* Fake the caller's frame better. */
+					frame = actframe;
+				}
+			} else if ((instr & 0x000000ff) == 0x000000c3) {
+				/* ret */
+				actframe = (struct i386_frame *)
+					   (ddb_regs.tf_esp - 4);
+			} else if (offset == 0) {
+				/* Probably a symbol in assembler code. */
+				actframe = (struct i386_frame *)
+					   (ddb_regs.tf_esp - 4);
 			}
-	    	}
-		if (lastframe == NULL && offset == 0 && !have_addr)
-			argp = &((struct i386_frame *)(ddb_regs.tf_esp-4))->f_arg0;
-		else
-			argp = &frame->f_arg0;
+		}
+		first = FALSE;
 
+		argp = &actframe->f_arg0;
 		narg = MAXNARG;
 		if (sym != NULL && db_sym_numargs(sym, &narg, argnames)) {
 			argnp = argnames;
@@ -281,13 +310,12 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 
 		db_print_stack_entry(name, narg, argnp, argp, callpc);
 
-		if (lastframe == NULL && offset == 0 && !have_addr) {
-			/* Frame really belongs to next callpc */
-			lastframe = (struct i386_frame *)(ddb_regs.tf_esp-4);
-			callpc = (db_addr_t)db_get_value((int)&lastframe->f_retaddr, 4, FALSE);
+		if (actframe != frame) {
+			/* `frame' belongs to caller. */
+			callpc = (db_addr_t)
+			    db_get_value((int)&actframe->f_retaddr, 4, FALSE);
 			continue;
 		}
-		lastframe = frame;
 
 		db_nextframe(&frame, &callpc);
 
