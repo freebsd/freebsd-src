@@ -13,15 +13,18 @@ of the Voxware ioctl() audio calls, so that many applications --
 even commercial ones -- will run unmodified with this driver.  On
 the other hand, at the moment this driver does not support /dev/midi
 and /dev/synth, or some ioctl() used in xquake. Do not expect
-/dev/synth to be supported before summer'98.
+/dev/synth to be supported anytime soon.
 
 I also have implemented a new software interface with an independent
 set of ioctl(), to support some functions which were not easy to
 express with the existing software interface (e.g. full duplex on
-the SB16). To make an effective use of the new functionalities you
-need to recompile applications by replacing the audio module(s).
+old SB16 cards). To make an effective use of the new functionalities
+you need to recompile applications by replacing the audio module(s).
+Such modified driver modules are present in the misc/ directory
+for several applications.
 
-Updated versions of this code will available at the following URL:
+This file gives quick information on how to install the driver.
+Updated versions of this code will be available at the following URL:
 
 	http://www.iet.unipi.it/~luigi/FreeBSD.html
 
@@ -49,10 +52,18 @@ APPLICATIONS:
   - xanim
   - various mpeg players (mpg123, amp, ...);
 
+  WITH SPECIAL DRIVER MODULE (supplied)
+  - speak_freely, full duplex (requires removing the definition of
+    HALF_DUPLEX in the Makefile);
+  - the realaudio player (3.0, dynamically linked);
+  - vat, full duplex (the version in ports is already modified);
+  - timidity, a software midi-to-pcm converter;
+
   NOT WORKING
   - xquake (we do not support mmapped buffers yet);
 
-                    ---INSTALLATION---
+
+		    ---INSTALLATION---
 
   * add the following lines to your kernel configuration file:
 
@@ -108,14 +119,14 @@ APPLICATIONS:
     "flags 0x13" specifies that you have a dual dma board with
     channel 3 as secondary DMA channel.
 
-  * build the kernel using the following steps
+  * build the kernel using the standard steps
 
 	config MYKERNEL
 	cd /sys/compile/MYKERNEL
 	make depend
 	make
 
-  * PnP support:
+  * note for PnP cards:
 
     For PnP cards, only the line for "pcm0" is needed (the code
     will allocate entries for more cards if found), but IT MUST
@@ -145,8 +156,8 @@ APPLICATIONS:
 
 WHAT IF THIS DRIVER DOES NOT WORK:
 
-If the driver does not work with your hardware, I am willing to
-help but I need the following:
+If the driver does not work with your hardware, I might to help
+but I need the following information:
 
   - relevant lines in your config file;
   - dmesg output
@@ -200,8 +211,8 @@ this driver. In particular I would like to thank:
     * Jim Lowe for his suggestion on the block-mode select;
     * Allison Mankin and Brad Karp at ISI-East for supplying a GUS PnP
       which allowed me to support this card;
-    * Eric J. Schwertfeger for donating sn ES1868 card for writing the
-      driver.
+    * Eric J. Schwertfeger for donating an ES1868 card for writing the
+      driver (which i haven't done yet...).
     * and many people who had the patience to try the driver
       on their cards and report success/fauilure and useful
       information.

@@ -184,7 +184,9 @@ dsp_wrintr(snddev_info *d)
 	    /* for any reason, size has changed. Stop and restart */
 	    DEB(printf("wrintr: bsz change from %d to %d, rp %d rl %d\n",
 		b->dl, l, b->rp, b->rl));
-	    d->callback(d, SND_CB_WR | SND_CB_STOP );
+	    DEB(printf("wrintr: dl %d -> %d\n", b->dl, l);)
+	    if (b->dl != 0)
+		d->callback(d, SND_CB_WR | SND_CB_STOP );
 	    /*
 	     * at high speed, it might well be that the count
 	     * changes in the meantime. So we try to update b->rl
@@ -270,10 +272,10 @@ dsp_write_body(snddev_info *d, struct uio *buf)
 	    else
 		timeout = 1 ;
             ret = tsleep( (caddr_t)b, PRIBIO|PCATCH, "dspwr", timeout);
-	    if (ret == EINTR || ret == ERESTART)
+	    if (ret == EINTR)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
-	    if (ret == EINTR)
+	    if (ret == EINTR || ret == ERESTART)
 		break ;
             continue;
         }
@@ -457,10 +459,12 @@ dsp_rdintr(snddev_info *d)
 	 ( FULL_DUPLEX(d) || (d->flags & SND_F_WRITING) == 0 ) ) {
 	int l = min(b->fl - 0x100, d->rec_blocksize);
 	l &= DMA_ALIGN_MASK ; /* realign sizes */
+	DEB(printf("rdintr: dl %d -> %d\n", b->dl, l);)
 	if (l != b->dl) {
 	    /* for any reason, size has changed. Stop and restart */
+	    if (b->dl > 0 )
+		d->callback(d, SND_CB_RD | SND_CB_STOP );
 	    b->dl = l ;
-	    d->callback(d, SND_CB_RD | SND_CB_STOP );
 	    d->callback(d, SND_CB_RD | SND_CB_START );
 	}
     } else {
@@ -553,10 +557,10 @@ dsp_read_body(snddev_info *d, struct uio *buf)
 	    else
 		timeout = 1; /* maybe data will be ready earlier */
             ret = tsleep( (caddr_t)b, PRIBIO | PCATCH , "dsprd", timeout ) ;
-	    if (ret == EINTR || ret == ERESTART)
+	    if (ret == EINTR)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
-	    if (ret == EINTR)
+	    if (ret == EINTR || ret == ERESTART)
 		break ;
             continue;
         }
@@ -593,7 +597,7 @@ dsp_read_body(snddev_info *d, struct uio *buf)
     s = spltty();          /* no interrupts here ... */
     d->flags &= ~SND_F_READING ;
     if (d->flags & SND_F_ABORTING) {
-        d->flags |= ~SND_F_ABORTING;
+        d->flags &= ~SND_F_ABORTING; /* XXX */
 	splx(s);
 	dsp_rdabort(d, 1 /* restart */);
 	/* XXX return EINTR ? */
@@ -761,7 +765,8 @@ snd_flush(snddev_info *d)
 	    return -1 ;
 	}
 	if ( ret && --count == 0) {
-	    printf("timeout flushing dbuf_out.chan, cnt 0x%x flags 0x%08lx\n",
+	    printf("timeout flushing dbuf_out, chan %d cnt 0x%x flags 0x%08lx\n",
+		    b->chan,
 		    b->rl, d->flags);
 	    break;
 	}
