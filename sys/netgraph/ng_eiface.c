@@ -96,7 +96,6 @@ static ng_rcvmsg_t	ng_eiface_rcvmsg;
 static ng_shutdown_t	ng_eiface_rmnode;
 static ng_newhook_t	ng_eiface_newhook;
 static ng_rcvdata_t	ng_eiface_rcvdata;
-static ng_connect_t	ng_eiface_connect;
 static ng_disconnect_t	ng_eiface_disconnect;
 
 /* Node type descriptor */
@@ -108,7 +107,6 @@ static struct ng_type typestruct = {
 	.rcvmsg =	ng_eiface_rcvmsg,
 	.shutdown =	ng_eiface_rmnode,
 	.newhook =	ng_eiface_newhook,
-	.connect =	ng_eiface_connect,
 	.rcvdata =	ng_eiface_rcvdata,
 	.disconnect =	ng_eiface_disconnect,
 	.cmdlist =	ng_eiface_cmdlist
@@ -556,18 +554,6 @@ ng_eiface_rmnode(node_p node)
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
-	return (0);
-}
-
-
-/*
- * This is called once we've already connected a new hook to the other node.
- * It gives us a chance to balk at the last minute.
- */
-static int
-ng_eiface_connect(hook_p hook)
-{
-	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
 
