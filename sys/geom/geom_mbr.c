@@ -192,9 +192,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
 		if (error)
 			fwsectors = 17;
-		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
-		if (error)
-			break;
+		sectorsize = cp->provider->sectorsize;
 		if (sectorsize != 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
@@ -355,9 +353,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		error = g_getattr("GEOM::fwsectors", cp, &fwsectors);
 		if (error)
 			fwsectors = 17;
-		error = g_getattr("GEOM::sectorsize", cp, &sectorsize);
-		if (error)
-			break;
+		sectorsize = cp->provider->sectorsize;
 		if (sectorsize != 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
