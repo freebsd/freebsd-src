@@ -35,11 +35,10 @@
  */
 
 #ifndef _NETINET_IN_H_
-#define _NETINET_IN_H_
+#define	_NETINET_IN_H_
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
-#include <sys/socket.h>
 #include <machine/endian.h>
 
 /* Protocols common to RFC 1700, POSIX, and X/Open. */
