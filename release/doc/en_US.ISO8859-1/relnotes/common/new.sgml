@@ -160,6 +160,10 @@
 
       <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.</para>
 
+      <para>The &man.rl.4; driver now has support for the RealTek
+	8139C+ Fast Ethernet chip and the RealTek 8169 Gigabit
+	Ethernet chip.</para>
+
       <para arch="i386">The &man.rue.4; network driver has been added,
         providing support for Ethernet adapters based on the RealTek
         RTL8150 USB to Fast Ethernet controller chip.</para>
