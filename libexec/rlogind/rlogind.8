@@ -74,13 +74,17 @@ Enable vacuous mode.
 Enable 
 .Tn DES
 encryption for all data passed via the rlogin
-session.   This may impact response time
-and CPU utilization, but provides increased security.
+session.  This may impact response time
+and
+.Tn CPU
+utilization, but provides increased security.
 .El
 .Pp
 .Nm Rlogind
 listens for service requests at the port indicated in
-the ``login'' service specification; see
+the
+.Dq login
+service specification; see
 .Xr services 5 .
 When a service request is received the following protocol
 is initiated:
@@ -169,21 +173,27 @@ by the server failed.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr ruserok 3 ,
+.Xr hosts.equiv 5 ,
 .Xr hosts 5 ,
+.Xr login.conf 5 ,
 .Xr nologin 5 ,
-.Xr rshd 8
+.Xr services 5 ,
+.Xr rshd 8 .
 .Sh FILES
 .Bl -tag -width /etc/hostsxxxxxxxx -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
-.It Pa $HOME/.rhosts
+.Sm off
+.It Pa Ev $HOME /.rhosts
+.Sm on
 .It Pa /var/run/nologin
 .El
-
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.  This is
-insecure, but is useful in an ``open'' environment.
+insecure, but is useful in an
+.Dq open
+environment.
 .Pp
 A facility to allow all data exchanges to be encrypted should be
 present.
