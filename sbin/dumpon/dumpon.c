@@ -32,42 +32,38 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-/*static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";*/
+#if 0
+static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";
+#endif
 static const char rcsid[] =
-	"$Id: dumpon.c,v 1.4 1997/02/22 14:32:22 peter Exp $";
+	"$Id$";
 #endif /* not lint */
 
-#include <errno.h>
+#include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
 #include <sysexits.h>
-#include <err.h>
 
 void	usage __P((void)) __dead2;
-static char *whoami;
 
 int
 main(int argc, char **argv)
 {
-	extern char *optarg;
-	extern int optind;
 	int ch, verbose, rv;
 	struct stat stab;
 	int mib[2];
 
 	verbose = rv = 0;
-	whoami = argv[0];
 	while ((ch = getopt(argc, argv, "v")) != -1)
 		switch((char)ch) {
 		case 'v':
@@ -107,10 +103,10 @@ main(int argc, char **argv)
 
 	if (verbose) {
 		if (stab.st_rdev == NODEV) {
-			printf("%s: crash dumps disabled\n", whoami);
+			printf("dumpon: crash dumps disabled\n");
 		} else {
-			printf("%s: crash dumps to %s (%lu, %lu)\n",
-			       whoami, argv[0],
+			printf("dumpon: crash dumps to %s (%lu, %lu)\n",
+			       argv[0],
 			       (unsigned long)major(stab.st_rdev),
 			       (unsigned long)minor(stab.st_rdev));
 		}
@@ -123,7 +119,7 @@ void
 usage()
 {
 	fprintf(stderr,
-		"usage: %s [-v] special_file\n"
-		"       %s [-v] off\n", whoami, whoami);
+		"usage: dumpon [-v] special_file\n"
+		"       dumpon [-v] off\n");
 	exit(EX_USAGE);
 }
