@@ -373,15 +373,14 @@ enum {
 #define PCCARD_S(a, b) PCMCIA_STR_ ## a ## _ ## b
 #define PCCARD_P(a, b) PCMCIA_PRODUCT_ ## a ## _ ## b
 #define PCCARD_C(a, b) PCMCIA_CIS_ ## a ## _ ## b
-#define PCMCIA_CARD_D(v, p, f) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
-		PCCARD_P(v, p), f, PCCARD_C(v, p) }
-#define PCMCIA_CARD2_D(v1, p1, p2, f) \
-		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  f, PCMCIA_CIS_ ## p2}
-#if 1
-#define PCMCIA_CARD(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
+#define PCMCIA_CARD(v, p, f) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), f, PCCARD_C(v, p) }
 #define PCMCIA_CARD2(v1, p1, p2, f) \
+		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
+		  f, PCMCIA_CIS_ ## p2}
+#define PCMCIA_CARD_ND(v, p, f) { NULL, PCMCIA_VENDOR_ ## v, \
+		PCCARD_P(v, p), f, PCCARD_C(v, p) }
+#define PCMCIA_CARD2_ND(v1, p1, p2, f) \
 		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
 		  f, PCMCIA_CIS_ ## p2}
-#endif
+
