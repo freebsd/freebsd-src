@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.23 1998/02/24 14:13:11 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.24 1998/02/26 06:45:43 msmith Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -230,20 +230,27 @@ dos2unixtime(dd, dt, dh, tsp)
 	tsp->tv_nsec = (dh % 100) * 10000000;
 }
 
+/*
+ * 0 - character disallowed in long file name.
+ * 1 - character should be replaced by '_' in DOS file name, 
+ *     and generation number inserted.
+ * 2 - character ('.' and ' ') should be skipped in DOS file name,
+ *     and generation number inserted.
+ */
 static u_char
 unix2dos[256] = {
 	0,    0,    0,    0,    0,    0,    0,    0,	/* 00-07 */
 	0,    0,    0,    0,    0,    0,    0,    0,	/* 08-0f */
 	0,    0,    0,    0,    0,    0,    0,    0,	/* 10-17 */
 	0,    0,    0,    0,    0,    0,    0,    0,	/* 18-1f */
-	0,    0x21, 0,    0x23, 0x24, 0x25, 0x26, 0x27,	/* 20-27 */
-	0x28, 0x29, 0,    0,    0,    0x2d, 0,    0,	/* 28-2f */
+	2,    0x21, 0,    0x23, 0x24, 0x25, 0x26, 0x27,	/* 20-27 */
+	0x28, 0x29, 0,    1,    1,    0x2d, 2,    0,	/* 28-2f */
 	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,	/* 30-37 */
-	0x38, 0x39, 0,    0,    0,    0,    0,    0,	/* 38-3f */
+	0x38, 0x39, 0,    1,    0,    1,    0,    0,	/* 38-3f */
 	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,	/* 40-47 */
 	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,	/* 48-4f */
 	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,	/* 50-57 */
-	0x58, 0x59, 0x5a, 0,    0,    0,    0x5e, 0x5f,	/* 58-5f */
+	0x58, 0x59, 0x5a, 1,    0,    1,    0x5e, 0x5f,	/* 58-5f */
 	0x60, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,	/* 60-67 */
 	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,	/* 68-6f */
 	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,	/* 70-77 */
@@ -476,6 +483,7 @@ unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 	const u_char *cp, *dp, *dp1;
 	u_char gentext[6], *wcp;
 	u_int8_t c;
+#define U2D(c) (u2d_loaded && ((c) & 0x80) ? u2d[(c) & 0x7f] : unix2dos[c])
 
 	/*
 	 * Fill the dos filename string with blanks. These are DOS's pad
@@ -507,6 +515,14 @@ unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 			break;
 	if (i < 0)
 		return 0;
+
+
+	/*
+	 * Filenames with some characters are not allowed!
+	 */
+	for (cp = un, i = unlen; --i >= 0; cp++)
+		if (U2D(*cp) == 0)
+			return 0;
 
 	/*
 	 * Now find the extension
@@ -542,12 +558,15 @@ unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 			c = dp[i];
 			c = lu_loaded && (c & 0x80) ?
 			    lu[c & 0x7f] : l2u[c];
-			c = u2d_loaded && (c & 0x80) ?
-			    u2d[c & 0x7f] : unix2dos[c];
+			c = U2D(c);
 			if (dp[i] != (dn[j] = c)
 			    && conv != 3)
 				conv = 2;
-			if (!dn[j]) {
+			if (dn[j] == 1) {
+				conv = 3;
+				dn[j] = '_';
+			}
+			if (dn[j] == 2) {
 				conv = 3;
 				dn[j--] = ' ';
 			}
@@ -566,12 +585,15 @@ unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 	for (i = j = 0; un < dp && j < 8; i++, j++, un++) {
 		c = lu_loaded && (*un & 0x80) ?
 		    lu[*un & 0x7f] : l2u[*un];
-		c = u2d_loaded && (c & 0x80) ?
-		    u2d[c & 0x7f] : unix2dos[c];
+		c = U2D(c);
 		if (*un != (dn[j] = c)
 		    && conv != 3)
 			conv = 2;
-		if (!dn[j]) {
+		if (dn[j] == 1) {
+			conv = 3;
+			dn[j] = '_';
+		}
+		if (dn[j] == 2) {
 			conv = 3;
 			dn[j--] = ' ';
 		}
@@ -617,6 +639,7 @@ unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 	while (wcp < gentext + sizeof(gentext))
 		dn[i++] = *wcp++;
 	return 3;
+#undef U2D
 }
 
 /*
