@@ -5,4 +5,28 @@
 This FAQ lists systems (and componets) known to work with FreeBSD 2.0.  None
 of these lists should be seen as a recomandation for a manufacture.
 
-Revision: $Id:$
+Revision: $Id: Systems.FAQ,v 1.3 1994/09/16 18:35:24 gclarkii Exp $
+
+
+i386:
+
+
+Motherboard: Magitronics 386DX-40
+Busses: ISA and VLB (VLB not tested)
+Ram: 20 Megs
+Video: Generic 1MB Tseng 4000 (ISA)
+Disks:
+	2 - Segate ST1126 (SCSI)
+	1 - Seagate ST1480 (SCSI)
+	1 - Toshiba MK-234FC-C (IDE)
+Controllers:
+	Generic IDE
+	Adaptec AH-1542CF
+NOTES:  This system has not been pounded on.
+
+
+
+Credits:
+	FreeBSD Core Team
+	Gary Clark II
+
