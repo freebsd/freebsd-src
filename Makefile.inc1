@@ -246,6 +246,10 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 .if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
+.else
+	# XXX - These two can depend on any header file.
+	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
+	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in ${USRDIRS}
 	mkdir -p ${WORLDTMP}/${_dir}
