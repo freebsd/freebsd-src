@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.12 1995/04/01 20:18:43 joerg Exp $
+ * $Id: subr_prf.c,v 1.13 1995/04/08 21:32:11 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -448,16 +448,15 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 8;
 			goto number;
+		case 'p':
+			ul = (u_long)va_arg(ap, void *);
+			base = 16;
+			putchar('0', flags, tp);
+			putchar('x', flags, tp);
+			goto number;
 		case 'u':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 10;
-			goto number;
-		case 'p':
-			ul = (u_long) va_arg(ap, void *);
-			width=8;
-			base=16;
-			putchar('0',flags,tp);
-			putchar('x',flags,tp);
 			goto number;
 		case 'x':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
@@ -505,16 +504,18 @@ putchar(c, flags, tp)
 	if ((flags & TOLOG) &&
 	    c != '\0' && c != '\r' && c != 0177 && msgbufmapped) {
 		mbp = msgbufp;
-		if (mbp->msg_magic != MSG_MAGIC) {
-			bzero((caddr_t)mbp, sizeof(*mbp));
+		if (mbp->msg_magic != MSG_MAGIC ||
+		    mbp->msg_bufx >= MSG_BSIZE ||
+		    mbp->msg_bufr >= MSG_BSIZE) {
+			bzero(mbp, sizeof(struct msgbuf));
 			mbp->msg_magic = MSG_MAGIC;
 		}
 		mbp->msg_bufc[mbp->msg_bufx++] = c;
 		if (mbp->msg_bufx >= MSG_BSIZE)
 			mbp->msg_bufx = 0;
+		/* If the buffer is full, keep the most recent data. */
 		if (mbp->msg_bufr == mbp->msg_bufx) {
-			mbp->msg_bufr++;
-			if (mbp->msg_bufr >= MSG_BSIZE)
+			if (++mbp->msg_bufr >= MSG_BSIZE)
 				mbp->msg_bufr = 0;
 		}
 	}
@@ -574,6 +575,12 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			base = 8;
 			goto number;
 			break;
+		case 'p':
+			ul = (u_long)va_arg(ap, void *);
+			base = 16;
+			*bp++ = '0';
+			*bp++ = 'x';
+			goto number;
 		case 'u':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 10;
