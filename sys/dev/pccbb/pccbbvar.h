@@ -98,15 +98,11 @@ struct cbb_softc {
 #define	CARD_YV_CARD	0x08
 
 /* for power_socket */
-#define	CARD_VCC_UC	0x0000
-#define	CARD_VCC_3V	0x0001
-#define	CARD_VCC_XV	0x0002
-#define	CARD_VCC_YV	0x0003
-#define	CARD_VCC_0V	0x0004
-#define	CARD_VCC_5V	0x0005
-#define	CARD_VCCMASK	0x000f
-#define	CARD_VPP_UC	0x0000
-#define	CARD_VPP_VCC	0x0010
-#define	CARD_VPP_12V	0x0030
-#define	CARD_VPP_0V	0x0040
-#define	CARD_VPPMASK	0x00f0
+#define	CARD_VCC(X)	(X)
+#define CARD_VPP_VCC	0xf0
+#define CARD_VCCMASK	0xf
+#define CARD_VCCSHIFT	0
+#define XV		2
+#define YV		1
+
+#define CARD_OFF	(CARD_VCC(0))
