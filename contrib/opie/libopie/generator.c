@@ -1,7 +1,7 @@
 /* generator.c: The opiegenerator() library function.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -9,6 +9,9 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.31. Renamed "init" to "init-hex".
+	      Removed active attack protection support. Fixed fairly
+              bug in how init response was computed (i.e., dead wrong).
 	Modified by cmetz for OPIE 2.3. Use _opieparsechallenge(). ifdef
 	      around string.h. Output hex responses by default, output
 	      OTP re-init extended responses (same secret) if sequence
@@ -45,20 +48,21 @@ int opiegenerator FUNCTION((buffer, secret, response), char *buffer AND char *se
   if ((sequence < 2) || (sequence > 9999))
     return 1;
 
-  if (!secret[0])
-    return 2;
-
   if (opiepasscheck(secret))
     return -2;
 
   if (i = opiekeycrunch(algorithm, key, seed, secret))
     return i;
 
+
   if (sequence < 10) {
     char newseed[OPIE_SEED_MAX + 1];
-    char newkey[8], cko[8], ckn[8], ckxor[8], cv[8];
+    char newkey[8];
     char *c;
     char buf[OPIE_SEED_MAX + 48 + 1];
+
+    while (sequence-- != 0)
+      opiehash(key, algorithm);
 
     if (opienewseed(strcpy(newseed, seed)) < 0)
       return -1;
@@ -69,43 +73,15 @@ int opiegenerator FUNCTION((buffer, secret, response), char *buffer AND char *se
     for (i = 0; i < 499; i++)
       opiehash(newkey, algorithm);
 
-    if (opiekeycrunch(algorithm | 0x10, cko, seed, secret))
-      return -1;
-
-    if (opiekeycrunch(algorithm | 0x10, ckn, newseed, secret))
-      return -1;
-
-    for (i = 0; i < 8; i++)
-      ckxor[i] = cko[i] ^ ckn[i];
-
-    strcpy(response, "init:");
+    strcpy(response, "init-hex:");
     strcat(response, opiebtoh(buf, key));
     sprintf(buf, ":%s 499 %s:", algids[algorithm], newseed);
     strcat(response, buf);
     strcat(response, opiebtoh(buf, newkey));
-    strcat(response, ":");
-    strcat(response, opiebtoh(buf, ckxor));
-    strcat(response, ":");
-
-    c = buf;
-    memcpy(c, ckn, sizeof(ckn)); c += sizeof(ckn);
-    memcpy(c, key, sizeof(key)); c += sizeof(key);
-#ifdef HAVE_ANSISPRINTF
-    c += sprintf(c, "%s 499 %s", algids[algorithm], newseed);
-#else /* HAVE_ANSISPRINTF */
-    sprintf(c, "%s 499 %s", algids[algorithm], newseed);
-    while(*c) c++;
-#endif /* HAVE_ANSISPRINTF */
-    memcpy(c, newkey, sizeof(newkey)); c += sizeof(newkey);
-    memcpy(c, ckxor, sizeof(ckxor)); c += sizeof(ckxor);
-    memcpy(c, ckn, sizeof(ckn)); c += sizeof(ckn);
-    opiehashlen(algorithm, buf, cv, (unsigned int)c - (unsigned int)buf);
-
-    strcat(response, opiebtoh(buf, cv));
   } else {
     while (sequence-- != 0)
       opiehash(key, algorithm);
-    
+
     opiebtoh(response, key);
   }
 
