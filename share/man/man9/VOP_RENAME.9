@@ -62,14 +62,14 @@ pathname information about the file's new name
 The source directory and file are unlocked but are expected to have their
 ref count bumped on entry.
 The VOP routine is expected to
-.Fn vrele
+.Xr vrele 9
 both prior
 to returning.
 .Pp
 The destination directory and file are locked as well as having their ref
 count bumped.
 The VOP routine is expected to
-.Fn vput
+.Xr vput 9
 both prior to
 returning.
 .Sh PSEUDOCODE
@@ -312,5 +312,5 @@ An attempt was made to remove a directory which is not empty.
 .Sh SEE ALSO
 .Xr vnode 9
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Doug Rabson .
