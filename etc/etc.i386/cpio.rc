@@ -1,4 +1,4 @@
-#	$Id: cpio.rc,v 1.3 1994/06/04 11:55:56 jkh Exp $
+#	$Id: cpio.rc,v 1.4 1994/06/04 12:00:51 jkh Exp $
 #
 
 stty status '^T'
@@ -56,7 +56,8 @@ rm -f /fastboot
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
 
 OPSYSTEM=FreeBSD
-RELEASE="1.1.5"
+# Sure wish we had uname at this point
+RELEASE="2.0.0 (Development)"
 NVTTYS="4"
 echo "${OPSYSTEM} Base System Release ${RELEASE}"
 echo ""
@@ -94,8 +95,8 @@ echo " "
 echo "If you should wish to uninstall ${OPSYSTEM}, delete the partition by using the"
 echo "DOS 5 FDISK program. If installed on the entire drive, use the FDISK/MBR"
 echo "to remove the ${OPSYSTEM} bootstrap from the drive."
-echo 'erase ^?, werase ^H, kill ^U, intr ^C'
-stty newcrt werase  intr  kill  erase  9600
+echo 'erase ^H, kill ^U, intr ^C'
+stty newcrt erase ^H intr ^C kill ^U
 umask 0
 echo ". /magic" >>/.profile
 exit 1
