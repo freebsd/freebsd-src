@@ -44,8 +44,6 @@ static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 
 #include <err.h>
 #include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -438,6 +436,7 @@ inocleanup()
 void
 inodirty()
 {
+
 	dirty(pbp);
 }
 
@@ -501,7 +500,6 @@ pinode(ino)
 	register struct dinode *dp;
 	register char *p;
 	struct passwd *pw;
-	char *ctime();
 
 	printf(" I=%lu ", ino);
 	if (ino < ROOTINO || ino > maxino)
