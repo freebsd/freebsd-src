@@ -159,7 +159,7 @@ static char *descrs[] = {
     "x11-servers", "X Window System servers.",
     "x11-toolkits", "X Window System based development toolkits.",
     "x11-wm", "X Window System window managers.",
-    "zope", "Software related to the Zope language.",
+    "zope", "Software related to the Zope platform.",
     NULL, NULL,
 };
 
