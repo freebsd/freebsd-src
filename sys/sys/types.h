@@ -74,6 +74,7 @@ typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
 typedef	u_int32_t	gid_t;		/* group id */
 typedef	u_int32_t	in_addr_t;	/* base type for internet address */
+typedef	u_int16_t	in_port_t;
 typedef	u_int32_t	ino_t;		/* inode number */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
 typedef	u_int16_t	mode_t;		/* permissions */
