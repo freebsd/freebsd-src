@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 91 $
+ *       $Revision: 92 $
  *
  *****************************************************************************/
 
@@ -649,12 +649,6 @@ ACPI_STATUS
 AcpiAmlUnsignedIntegerToString (
     ACPI_INTEGER            Value,
     NATIVE_CHAR             *OutString);
-
-ACPI_STATUS
-AcpiAmlBuildCopyInternalPackageObject (
-    ACPI_OPERAND_OBJECT     *SourceObj,
-    ACPI_OPERAND_OBJECT     *DestObj,
-    ACPI_WALK_STATE         *WalkState);
 
 
 /*

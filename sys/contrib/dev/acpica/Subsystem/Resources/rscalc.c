@@ -2,7 +2,7 @@
  *
  * Module Name: rscalc - AcpiRsCalculateByteStreamLength
  *                       AcpiRsCalculateListLength
- *              $Revision: 18 $
+ *              $Revision: 21 $
  *
  ******************************************************************************/
 
@@ -119,6 +119,8 @@
 
 #include "acpi.h"
 #include "acresrc.h"
+#include "amlcode.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          RESOURCE_MANAGER
         MODULE_NAME         ("rscalc")
@@ -825,6 +827,7 @@ AcpiRsCalculateListLength (
                  */
                 BytesConsumed = 2;
                 StructureSize = RESOURCE_LENGTH;
+                ByteStreamBufferLength = BytesParsed;
                 break;
 
 
@@ -936,7 +939,9 @@ AcpiRsCalculatePciRoutingTableLength (
 
         for (TableIndex = 0; TableIndex < 4 && !NameFound; TableIndex++)
         {
-            if (ACPI_TYPE_STRING == (*SubObjectList)->Common.Type)
+            if ((ACPI_TYPE_STRING == (*SubObjectList)->Common.Type) ||
+                ((INTERNAL_TYPE_REFERENCE == (*SubObjectList)->Common.Type) &&
+                    ((*SubObjectList)->Reference.OpCode == AML_NAMEPATH_OP)))
             {
                 NameFound = TRUE;
             }
@@ -950,18 +955,25 @@ AcpiRsCalculatePciRoutingTableLength (
             }
         }
 
-        TempSizeNeeded += (sizeof (PCI_ROUTING_TABLE) - 1);
+        TempSizeNeeded += (sizeof (PCI_ROUTING_TABLE) - 4);
 
         /*
          * Was a String type found?
          */
         if (TRUE == NameFound)
         {
-            /*
-             * The length String.Length field includes the
-             * terminating NULL
-             */
-            TempSizeNeeded += (*SubObjectList)->String.Length;
+            if (ACPI_TYPE_STRING == (*SubObjectList)->Common.Type)
+            {
+                /*
+                 * The length String.Length field includes the
+                 * terminating NULL
+                 */
+                TempSizeNeeded += (*SubObjectList)->String.Length;
+            }
+            else
+            {
+                TempSizeNeeded += AcpiNsGetPathnameLength ((*SubObjectList)->Reference.Node);
+            }
         }
 
         else
@@ -985,7 +997,7 @@ AcpiRsCalculatePciRoutingTableLength (
     }
 
 
-    *BufferSizeNeeded = TempSizeNeeded + sizeof (PCI_ROUTING_TABLE);
+    *BufferSizeNeeded = TempSizeNeeded;
 
     return_ACPI_STATUS (AE_OK);
 }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 69 $
+ *       $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -187,6 +187,7 @@
 #define TRACE_USER_REQUESTS         0x01000000
 #define TRACE_PACKAGE               0x02000000
 #define TRACE_MUTEX                 0x04000000
+#define TRACE_INIT                  0x08000000
 
 #define TRACE_ALL                   0x0FFFFF00
 

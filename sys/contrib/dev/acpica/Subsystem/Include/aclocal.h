@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 100 $
+ *       $Revision: 104 $
  *
  *****************************************************************************/
 
@@ -459,6 +459,23 @@ typedef struct acpi_update_state
 
 } ACPI_UPDATE_STATE;
 
+
+/*
+ * Pkg state - used to traverse nested package structures
+ */
+typedef struct acpi_pkg_state
+{
+    ACPI_STATE_COMMON
+    union acpi_operand_obj  *SourceObject;
+    union acpi_operand_obj  *DestObject;
+    struct acpi_walk_state  *WalkState;
+    void                    *ThisTargetObj;
+    UINT32                  NumPackages;
+    UINT16                  Index;
+
+} ACPI_PKG_STATE;
+
+
 /*
  * Control state - one per if/else and while constructs.
  * Allows nesting of these constructs
@@ -519,6 +536,7 @@ typedef union acpi_gen_state
     ACPI_UPDATE_STATE       Update;
     ACPI_SCOPE_STATE        Scope;
     ACPI_PSCOPE_STATE       ParseScope;
+    ACPI_PKG_STATE          Pkg;
     ACPI_RESULT_VALUES      Results;
 
 } ACPI_GENERIC_STATE;
@@ -741,7 +759,6 @@ typedef struct acpi_init_walk_info
 
 typedef struct acpi_device_walk_info
 {
-    UINT32                  Flags;
     UINT16                  DeviceCount;
     UINT16                  Num_STA;
     UINT16                  Num_INI;
