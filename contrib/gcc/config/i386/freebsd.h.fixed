@@ -535,7 +535,8 @@ do {									\
 
 /* This goes away when the math emulator is fixed.  */
 #undef TARGET_DEFAULT
-#define TARGET_DEFAULT	(MASK_NO_FANCY_MATH_387 | 0301)
+#define TARGET_DEFAULT \
+  (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_NO_FANCY_MATH_387)
 
 /* FreeBSD ELF using our home-grown crtbegin.o/crtend.o does not support the
    DWARF2 unwinding mechanisms.  Once `make world' bootstraping problems with
