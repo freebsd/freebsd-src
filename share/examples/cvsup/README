@@ -5,13 +5,16 @@ the FreeBSD sources via the Internet.  These supfiles will work
 with CVSup version 14.0 or later.  For general information on CVSup
 itself, please see http://www.freebsd.org/doc/handbook/cvsup.html
 
-To maintain the sources for the FreeBSD-current release, use:
+To track the Errata/Security fixes for this version of the FreeBSD-stable
+release, use:
 
     standard-supfile		Main source tree
 
     ports-supfile		Ports collection
 
-To maintain the sources for the FreeBSD-stable release, use:
+To track the sources for the Development Branch of this FreeBSD-stable
+release (not recommended unless you read the freebsd-stable@FreeBSD.ORG
+mailing list), use:
 
     stable-supfile		Main source tree
 
