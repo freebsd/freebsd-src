@@ -289,7 +289,7 @@ xe_probe(device_t dev)
   int buf;
   u_char ver_str[CISTPL_BUFSIZE>>1];
   off_t offs;
-  int success, rc, i;
+  int success, rc = 0, i;
   int rid;
   struct resource *r;
 
@@ -438,6 +438,8 @@ xe_probe(device_t dev)
   /* Die now if something went wrong above */
   if (success < 3)
     return ENXIO;
+  if (rc != 0)
+    return (rc);
 
   /* Check for certain strange CE2's that look like CE's */
   if (strcmp(scp->card_type, "CE") == 0) {
