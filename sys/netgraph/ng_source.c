@@ -209,6 +209,8 @@ static struct ng_type ng_source_typestruct = {
 };
 NETGRAPH_INIT(source, &ng_source_typestruct);
 
+static int ng_source_set_autosrc(sc_p, u_int32_t);
+
 /*
  * Node constructor
  */
