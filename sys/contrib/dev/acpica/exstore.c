@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 181 $
+ *              $Revision: 182 $
  *
  *****************************************************************************/
 
@@ -279,14 +279,14 @@ AcpiExStore (
 
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "Length 0x%.2X",
                     (UINT32) SourceDesc->Buffer.Length));
-            ACPI_DUMP_BUFFER (SourceDesc->Buffer.Pointer, 
+            ACPI_DUMP_BUFFER (SourceDesc->Buffer.Pointer,
                 (SourceDesc->Buffer.Length < 32) ? SourceDesc->Buffer.Length : 32);
             break;
 
 
         case ACPI_TYPE_STRING:
 
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "Length 0x%.2X, \"%s\"\n", 
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DEBUG_OBJECT, "Length 0x%.2X, \"%s\"\n",
                     SourceDesc->String.Length, SourceDesc->String.Pointer));
             break;
 

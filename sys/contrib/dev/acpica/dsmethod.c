@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 94 $
+ *              $Revision: 97 $
  *
  *****************************************************************************/
 
@@ -225,8 +225,9 @@ AcpiDsParseMethod (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    Status = AcpiDsInitAmlWalk (WalkState, Op, Node, ObjDesc->Method.AmlStart,
-                    ObjDesc->Method.AmlLength, NULL, NULL, 1);
+    Status = AcpiDsInitAmlWalk (WalkState, Op, Node,
+                    ObjDesc->Method.AmlStart,
+                    ObjDesc->Method.AmlLength, NULL, 1);
     if (ACPI_FAILURE (Status))
     {
         AcpiDsDeleteWalkState (WalkState);
@@ -353,8 +354,9 @@ AcpiDsCallControlMethod (
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *MethodNode;
-    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_WALK_STATE         *NextWalkState;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_PARAMETER_INFO     Info;
     UINT32                  i;
 
 
@@ -400,7 +402,6 @@ AcpiDsCallControlMethod (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-
         /* Create and init a Root Node */
 
         Op = AcpiPsCreateScopeOp ();
@@ -412,7 +413,7 @@ AcpiDsCallControlMethod (
 
         Status = AcpiDsInitAmlWalk (NextWalkState, Op, MethodNode,
                         ObjDesc->Method.AmlStart,  ObjDesc->Method.AmlLength,
-                        NULL, NULL, 1);
+                        NULL, 1);
         if (ACPI_FAILURE (Status))
         {
             AcpiDsDeleteWalkState (NextWalkState);
@@ -442,9 +443,12 @@ AcpiDsCallControlMethod (
      */
     ThisWalkState->Operands [ThisWalkState->NumOperands] = NULL;
 
+    Info.Parameters = &ThisWalkState->Operands[0];
+    Info.ParameterType = ACPI_PARAM_ARGS;
+
     Status = AcpiDsInitAmlWalk (NextWalkState, NULL, MethodNode,
                     ObjDesc->Method.AmlStart, ObjDesc->Method.AmlLength,
-                    &ThisWalkState->Operands[0], NULL, 3);
+                    &Info, 3);
     if (ACPI_FAILURE (Status))
     {
         goto Cleanup;
@@ -479,7 +483,7 @@ AcpiDsCallControlMethod (
     /* On error, we must delete the new walk state */
 
 Cleanup:
-    if (NextWalkState->MethodDesc)
+    if (NextWalkState && (NextWalkState->MethodDesc))
     {
         /* Decrement the thread count on the method parse tree */
 

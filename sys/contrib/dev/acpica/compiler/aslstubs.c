@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslstubs - Stubs used to link to Aml interpreter
- *              $Revision: 12 $
+ *              $Revision: 13 $
  *
  *****************************************************************************/
 
@@ -207,6 +207,13 @@ ACPI_STATUS
 AcpiEvInitializeRegion (
     ACPI_OPERAND_OBJECT     *RegionObj,
     BOOLEAN                 AcpiNsLocked)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiEvCheckForWakeOnlyGpe (
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo)
 {
     return (AE_OK);
 }

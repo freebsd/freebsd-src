@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 199 $
+ *       $Revision: 201 $
  *
  *****************************************************************************/
 
@@ -264,8 +264,6 @@ typedef struct acpi_namespace_node
     UINT8                       Type;           /* Type associated with this name */
     UINT16                      OwnerId;
     ACPI_NAME_UNION             Name;           /* ACPI Name, always 4 chars per ACPI spec */
-
-
     union acpi_operand_object   *Object;        /* Pointer to attached ACPI object (optional) */
     struct acpi_namespace_node  *Child;         /* First child */
     struct acpi_namespace_node  *Peer;          /* Next peer*/
@@ -287,9 +285,7 @@ typedef struct acpi_namespace_node
 #define ANOBJ_METHOD_LOCAL              0x10
 #define ANOBJ_METHOD_NO_RETVAL          0x20
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x40
-
 #define ANOBJ_IS_BIT_OFFSET             0x80
-
 
 /*
  * ACPI Table Descriptor.  One per ACPI table
@@ -392,16 +388,33 @@ typedef struct acpi_create_field_info
  *
  ****************************************************************************/
 
-/* Information about a GPE, one per each GPE in an array */
+/* Dispatch info for each GPE -- either a method or handler, cannot be both */
 
-typedef struct acpi_gpe_event_info
+typedef struct acpi_handler_info
+{
+    ACPI_EVENT_HANDLER              Address;        /* Address of handler, if any */
+    void                            *Context;       /* Context to be passed to handler */
+    ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level (saved) */
+
+} ACPI_HANDLER_INFO;
+
+typedef union acpi_gpe_dispatch_info
 {
     ACPI_NAMESPACE_NODE             *MethodNode;    /* Method node for this GPE level */
-    ACPI_GPE_HANDLER                Handler;        /* Address of handler, if any */
-    void                            *Context;       /* Context to be passed to handler */
+    struct acpi_handler_info        *Handler;
+
+} ACPI_GPE_DISPATCH_INFO;
+
+/*
+ * Information about a GPE, one per each GPE in an array.
+ * NOTE: Important to keep this struct as small as possible.
+ */
+typedef struct acpi_gpe_event_info
+{
+    union acpi_gpe_dispatch_info    Dispatch;       /* Either Method or Handler */
     struct acpi_gpe_register_info   *RegisterInfo;  /* Backpointer to register info */
-    UINT8                           Flags;          /* Level or Edge */
-    UINT8                           BitMask;        /* This GPE within the register */
+    UINT8                           Flags;          /* Misc info about this GPE */
+    UINT8                           RegisterBit;    /* This GPE bit within the register */
 
 } ACPI_GPE_EVENT_INFO;
 
@@ -411,9 +424,8 @@ typedef struct acpi_gpe_register_info
 {
     ACPI_GENERIC_ADDRESS            StatusAddress;  /* Address of status reg */
     ACPI_GENERIC_ADDRESS            EnableAddress;  /* Address of enable reg */
-    UINT8                           Status;         /* Current value of status reg */
-    UINT8                           Enable;         /* Current value of enable reg */
-    UINT8                           WakeEnable;     /* Mask of bits to keep enabled when sleeping */
+    UINT8                           EnableForWake;  /* GPEs to keep enabled when sleeping */
+    UINT8                           EnableForRun;   /* GPEs to keep enabled when running */
     UINT8                           BaseGpeNumber;  /* Base GPE number for this register */
 
 } ACPI_GPE_REGISTER_INFO;
@@ -424,6 +436,7 @@ typedef struct acpi_gpe_register_info
  */
 typedef struct acpi_gpe_block_info
 {
+    ACPI_NAMESPACE_NODE             *Node;
     struct acpi_gpe_block_info      *Previous;
     struct acpi_gpe_block_info      *Next;
     struct acpi_gpe_xrupt_info      *XruptBlock;    /* Backpointer to interrupt block */
@@ -598,7 +611,7 @@ typedef struct acpi_thread_state
     struct acpi_walk_state      *WalkStateList;         /* Head of list of WalkStates for this thread */
     union acpi_operand_object   *AcquiredMutexList;     /* List of all currently acquired mutexes */
     UINT32                      ThreadId;               /* Running thread ID */
-    UINT16                      CurrentSyncLevel;       /* Mutex Sync (nested acquire) level */
+    UINT8                       CurrentSyncLevel;       /* Mutex Sync (nested acquire) level */
 
 } ACPI_THREAD_STATE;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 152 $
+ *       $Revision: 154 $
  *
  *****************************************************************************/
 
@@ -132,7 +132,7 @@
 #define ACPI_INIT_GLOBAL(a,b) a
 #endif
 
-/* 
+/*
  * Keep local copies of these FADT-based registers.  NOTE: These globals
  * are first in this file for alignment reasons on 64-bit systems.
  */
@@ -265,6 +265,7 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_StepToNextCall;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_GlobalLockPresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_EventsInitialized;
+ACPI_EXTERN BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
 
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;

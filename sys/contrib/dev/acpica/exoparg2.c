@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
- *              $Revision: 119 $
+ *              $Revision: 121 $
  *
  *****************************************************************************/
 
@@ -172,6 +172,7 @@ AcpiExOpcode_2A_0T_0R (
 {
     ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_NAMESPACE_NODE     *Node;
+    UINT32                  Value;
     ACPI_STATUS             Status = AE_OK;
 
 
@@ -189,16 +190,48 @@ AcpiExOpcode_2A_0T_0R (
 
         Node = (ACPI_NAMESPACE_NODE *) Operand[0];
 
+        /* Second value is the notify value */
+
+        Value = (UINT32) Operand[1]->Integer.Value;
+
         /* Notifies allowed on this object? */
 
         if (!AcpiEvIsNotifyObject (Node))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unexpected notify object type [%s]\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                    "Unexpected notify object type [%s]\n",
                     AcpiUtGetTypeName (Node->Type)));
 
             Status = AE_AML_OPERAND_TYPE;
             break;
         }
+
+#ifdef ACPI_GPE_NOTIFY_CHECK
+        /*
+         * GPE method wake/notify check.  Here, we want to ensure that we
+         * don't receive any "DeviceWake" Notifies from a GPE _Lxx or _Exx
+         * GPE method during system runtime.  If we do, the GPE is marked
+         * as "wake-only" and disabled.
+         *
+         * 1) Is the Notify() value == DeviceWake?
+         * 2) Is this a GPE deferred method?  (An _Lxx or _Exx method)
+         * 3) Did the original GPE happen at system runtime?
+         *    (versus during wake)
+         *
+         * If all three cases are true, this is a wake-only GPE that should
+         * be disabled at runtime.
+         */
+        if (Value == 2)     /* DeviceWake */
+        {
+            Status = AcpiEvCheckForWakeOnlyGpe (WalkState->GpeEventInfo);
+            if (ACPI_FAILURE (Status))
+            {
+                /* AE_WAKE_ONLY_GPE only error, means ignore this notify */
+
+                return_ACPI_STATUS (AE_OK)
+            }
+        }
+#endif
 
         /*
          * Dispatch the notify to the appropriate handler
@@ -207,8 +240,7 @@ AcpiExOpcode_2A_0T_0R (
          * from this thread -- because handlers may in turn run other
          * control methods.
          */
-        Status = AcpiEvQueueNotifyRequest (Node,
-                        (UINT32) Operand[1]->Integer.Value);
+        Status = AcpiEvQueueNotifyRequest (Node, Value);
         break;
 
 

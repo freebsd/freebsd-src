@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acefi.h - OS specific defines, etc.
- *       $Revision: 14 $
+ *       $Revision: 15 $
  *
  *****************************************************************************/
 
@@ -116,8 +116,6 @@
 
 #ifndef __ACEFI_H__
 #define __ACEFI_H__
-
-#define ACPI_OS_NAME                "AED EFI"
 
 #include <efi.h>
 #include <efistdarg.h>

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 101 $
+ *              $Revision: 105 $
  *
  ******************************************************************************/
 
@@ -783,8 +783,23 @@ AcpiDbDisplayGpes (void)
 {
     ACPI_GPE_BLOCK_INFO     *GpeBlock;
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
-    UINT32                  i = 0;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
+    ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    UINT32                  GpeIndex;
+    UINT32                  Block = 0;
+    UINT32                  i;
+    UINT32                  j;
+    char                    Buffer[80];
+    ACPI_BUFFER             RetBuf;
+    ACPI_STATUS             Status;
 
+
+    RetBuf.Length = sizeof (Buffer);
+    RetBuf.Pointer = Buffer;
+
+    Block = 0;
+
+    /* Walk the GPE lists */
 
     GpeXruptInfo = AcpiGbl_GpeXruptListHead;
     while (GpeXruptInfo)
@@ -792,17 +807,126 @@ AcpiDbDisplayGpes (void)
         GpeBlock = GpeXruptInfo->GpeBlockListHead;
         while (GpeBlock)
         {
-            AcpiOsPrintf ("Block %d - %p\n", i, GpeBlock);
-            AcpiOsPrintf ("    Registers:    %d\n", GpeBlock->RegisterCount);
-            AcpiOsPrintf ("    GPE range:    %d to %d\n", GpeBlock->BlockBaseNumber,
-                            GpeBlock->BlockBaseNumber + (GpeBlock->RegisterCount * 8) -1);
-            AcpiOsPrintf ("    RegisterInfo: %p\n", GpeBlock->RegisterInfo);
-            AcpiOsPrintf ("    EventInfo:    %p\n", GpeBlock->EventInfo);
-            i++;
+            Status = AcpiGetName (GpeBlock->Node, ACPI_FULL_PATHNAME, &RetBuf);
+            if (ACPI_FAILURE (Status))
+            {
+                AcpiOsPrintf ("Could not convert name to pathname\n");
+            }
 
+            AcpiOsPrintf ("\nBlock %d - Info %p  DeviceNode %p [%s]\n",
+                    Block, GpeBlock, GpeBlock->Node, Buffer);
+            AcpiOsPrintf ("    Registers:    %u (%u GPEs) \n",
+                    GpeBlock->RegisterCount,
+                    ACPI_MUL_8 (GpeBlock->RegisterCount));
+            AcpiOsPrintf ("    GPE range:    0x%X to 0x%X\n",
+                    GpeBlock->BlockBaseNumber,
+                    GpeBlock->BlockBaseNumber +
+                        (GpeBlock->RegisterCount * 8) -1);
+            AcpiOsPrintf ("    RegisterInfo: %p  Status %8.8X%8.8X Enable %8.8X%8.8X\n",
+                    GpeBlock->RegisterInfo,
+                    ACPI_FORMAT_UINT64 (GpeBlock->RegisterInfo->StatusAddress.Address),
+                    ACPI_FORMAT_UINT64 (GpeBlock->RegisterInfo->EnableAddress.Address));
+            AcpiOsPrintf ("    EventInfo:    %p\n", GpeBlock->EventInfo);
+
+            /* Examine each GPE Register within the block */
+
+            for (i = 0; i < GpeBlock->RegisterCount; i++)
+            {
+                GpeRegisterInfo = &GpeBlock->RegisterInfo[i];
+
+                AcpiOsPrintf (
+                        "    Reg %u:  WakeEnable %2.2X, RunEnable %2.2X  Status %8.8X%8.8X Enable %8.8X%8.8X\n",
+                        i, GpeRegisterInfo->EnableForWake,
+                        GpeRegisterInfo->EnableForRun,
+                        ACPI_FORMAT_UINT64 (GpeRegisterInfo->StatusAddress.Address),
+                        ACPI_FORMAT_UINT64 (GpeRegisterInfo->EnableAddress.Address));
+
+                /* Now look at the individual GPEs in this byte register */
+
+                for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++)
+                {
+                    GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
+                    GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
+
+                    if (!(GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK))
+                    {
+                        /* This GPE is not used (no method or handler) */
+
+                        continue;
+                    }
+
+                    AcpiOsPrintf (
+                            "        GPE %.3X: %p  Bit %2.2X  Flags %2.2X: ",
+                            GpeBlock->BlockBaseNumber + GpeIndex,
+                            GpeEventInfo, GpeEventInfo->RegisterBit,
+                            GpeEventInfo->Flags);
+
+                    if (GpeEventInfo->Flags & ACPI_GPE_LEVEL_TRIGGERED)
+                    {
+                        AcpiOsPrintf ("Level, ");
+                    }
+                    else
+                    {
+                        AcpiOsPrintf ("Edge,  ");
+                    }
+
+                    switch (GpeEventInfo->Flags & ACPI_GPE_TYPE_MASK)
+                    {
+                    case ACPI_GPE_TYPE_WAKE:
+                        AcpiOsPrintf ("WakeOnly: ");
+                        break;
+                    case ACPI_GPE_TYPE_RUNTIME:
+                        AcpiOsPrintf (" RunOnly: ");
+                        break;
+                    case ACPI_GPE_TYPE_WAKE_RUN:
+                        AcpiOsPrintf (" WakeRun: ");
+                        break;
+                    default:
+                        AcpiOsPrintf (" NotUsed: ");
+                        break;
+                    }
+
+                    if (GpeEventInfo->Flags & ACPI_GPE_WAKE_ENABLED)
+                    {
+                        AcpiOsPrintf ("[Wake 1 ");
+                    }
+                    else
+                    {
+                        AcpiOsPrintf ("[Wake 0 ");
+                    }
+
+                    if (GpeEventInfo->Flags & ACPI_GPE_RUN_ENABLED)
+                    {
+                        AcpiOsPrintf ("Run 1], ");
+                    }
+                    else
+                    {
+                        AcpiOsPrintf ("Run 0], ");
+                    }
+
+                    switch (GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
+                    {
+                    case ACPI_GPE_DISPATCH_NOT_USED:
+                        AcpiOsPrintf ("NotUsed");
+                        break;
+                    case ACPI_GPE_DISPATCH_HANDLER:
+                        AcpiOsPrintf ("Handler");
+                        break;
+                    case ACPI_GPE_DISPATCH_METHOD:
+                        AcpiOsPrintf ("Method");
+                        break;
+                    default:
+                        AcpiOsPrintf ("UNKNOWN: %X",
+                            GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK);
+                        break;
+                    }
+
+                    AcpiOsPrintf ("\n");
+                }
+            }
+            Block++;
             GpeBlock = GpeBlock->Next;
         }
-
         GpeXruptInfo = GpeXruptInfo->Next;
     }
 }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 98 $
+ *              $Revision: 100 $
  *
  ******************************************************************************/
 
@@ -175,6 +175,7 @@ enum AcpiExDebuggerCommands
     CMD_RESOURCES,
     CMD_RESULTS,
     CMD_SET,
+    CMD_SLEEP,
     CMD_STATS,
     CMD_STOP,
     CMD_TABLES,
@@ -233,6 +234,7 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"RESOURCES",    1},
     {"RESULTS",      0},
     {"SET",          3},
+    {"SLEEP",        1},
     {"STATS",        0},
     {"STOP",         0},
     {"TABLES",       0},
@@ -621,7 +623,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_FIND:
-        AcpiDbFindNameInNamespace (AcpiGbl_DbArgs[1]);
+        Status = AcpiDbFindNameInNamespace (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_GO:
@@ -730,7 +732,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_METHODS:
-        AcpiDbDisplayObjects ("METHOD", AcpiGbl_DbArgs[1]);
+        Status = AcpiDbDisplayObjects ("METHOD", AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_NAMESPACE:
@@ -744,7 +746,7 @@ AcpiDbCommandDispatch (
 
     case CMD_OBJECT:
         ACPI_STRUPR (AcpiGbl_DbArgs[1]);
-        AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
+        Status = AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_OPEN:
@@ -775,8 +777,12 @@ AcpiDbCommandDispatch (
         AcpiDbSetMethodData (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2], AcpiGbl_DbArgs[3]);
         break;
 
+    case CMD_SLEEP:
+        Status = AcpiDbSleep (AcpiGbl_DbArgs[1]);
+        break;
+
     case CMD_STATS:
-        AcpiDbDisplayStatistics (AcpiGbl_DbArgs[1]);
+        Status = AcpiDbDisplayStatistics (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_STOP:
