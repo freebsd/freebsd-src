@@ -31,12 +31,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#8 $
+ * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#9 $
  */
 
 #include <sys/param.h>
 
 #include <grp.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <unistd.h>
