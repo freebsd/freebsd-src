@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: printcap.c,v 1.3 1997/12/02 20:45:25 wollman Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -260,7 +260,7 @@ getprintcap_int(bp, pp)
 	pp->no_header = capdb_getaltlog(bp, "sh", "banner.disable");
 	pp->header_last = capdb_getaltlog(bp, "hl", "banner.last");
 	pp->rw = capdb_getaltlog(bp, "rw", "tty.rw");
-	pp->tof = capdb_getaltlog(bp, "fo", "job.topofform");
+	pp->tof = !capdb_getaltlog(bp, "fo", "job.topofform");
 	
 	/*
 	 * Filters:
