@@ -319,14 +319,12 @@ daemon_bypass:
 	/*
 	 * Set up signal handlers
 	 */
-	rc = (int)signal(SIGHUP, scsp_sighup);
-	if (rc == -1) {
+	if (signal(SIGHUP, scsp_sighup) == SIG_ERR) {
 		scsp_log(LOG_ERR, "SIGHUP signal setup failed");
 		exit(1);
 	}
 
-	rc = (int)signal(SIGINT, scsp_sigint);
-	if (rc == -1) {
+	if (signal(SIGINT, scsp_sigint) == SIG_ERR) {
 		scsp_log(LOG_ERR, "SIGINT signal setup failed");
 		exit(1);
 	}
