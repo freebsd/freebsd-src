@@ -212,6 +212,20 @@
       <filename>src/sys/rpc/rpcclnt.c</filename> in &os;
       &release.current;.</para>
 
+    <para>(11 Jan 2004) Some problems have been encountered when using
+      third-party NSS modules, such as <filename>nss_ldap</filename>,
+      and groups with large membership lists.  These have been fixed
+      with revision 1.2 of <filename>src/include/nss.h</filename> and
+      revision 1.2 of
+      <filename>src/lib/libc/net/nss_compat.c</filename> in &os;
+      &release.current;.</para>
+
+    <para>(13 Jan 2004) The &os; &release.current; release notes
+      incorrectly stated that <application>GCC</application> was a
+      post-release GCC 3.3.3 snapshot.  They should have stated that
+      GCC was a <emphasis>pre-release</emphasis> GCC 3.3.3
+      snapshot.</para>
+
 ]]>
 
   </sect1>
