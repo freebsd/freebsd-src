@@ -41,14 +41,13 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/user.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 /*
@@ -58,20 +57,17 @@
  * from the kernel address space.
  */
 int
-procfs_domem(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocmem(PFS_FILL_ARGS)
 {
 	int error;
 
 	if (uio->uio_resid == 0)
 		return (0);
 
-	error = p_candebug(curp, p);
+	error = p_candebug(td->td_proc, p);
 	if (error)
 		return (error);
+	error = proc_rwmem(p, uio);
 
-	return (proc_rwmem(p, uio));
+	return (error);
 }

@@ -68,7 +68,6 @@ SUBDIR=	3dfx \
 	ppbus \
 	ppi \
 	pps \
-	procfs \
 	${_random} \
 	rl \
 	rp \

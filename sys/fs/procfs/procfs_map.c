@@ -44,8 +44,9 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/uio.h>
 
+#include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
 #include <vm/vm.h>
@@ -68,11 +69,7 @@
  * can try a bigger buffer.
  */
 int
-procfs_domap(curp, p, pfs, uio)
-	struct proc *curp;
-	struct proc *p;
-	struct pfsnode *pfs;
-	struct uio *uio;
+procfs_doprocmap(PFS_FILL_ARGS)
 {
 	int len;
 	int error;
@@ -90,7 +87,7 @@ procfs_domap(curp, p, pfs, uio)
 		return (0);
 	
 	error = 0;
-	if (map != &curproc->p_vmspace->vm_map)
+	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_lock_read(map);
 	for (entry = map->header.next;
 		((uio->uio_resid > 0) && (entry != &map->header));
@@ -118,23 +115,22 @@ procfs_domap(curp, p, pfs, uio)
 			addr += PAGE_SIZE;
 		}
 
-		for( lobj = tobj = obj; tobj; tobj = tobj->backing_object)
+		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object)
 			lobj = tobj;
 
 		if (lobj) {
 			switch(lobj->type) {
-
-default:
-case OBJT_DEFAULT:
+			default:
+			case OBJT_DEFAULT:
 				type = "default";
 				break;
-case OBJT_VNODE:
+			case OBJT_VNODE:
 				type = "vnode";
 				break;
-case OBJT_SWAP:
+			case OBJT_SWAP:
 				type = "swap";
 				break;
-case OBJT_DEVICE:
+			case OBJT_DEVICE:
 				type = "device";
 				break;
 			}
@@ -148,13 +144,12 @@ case OBJT_DEVICE:
 			ref_count = 0;
 			shadow_count = 0;
 		}
-			
 
 		/*
 		 * format:
 		 *  start, end, resident, private resident, cow, access, type.
 		 */
-		snprintf(mebuffer, sizeof(mebuffer),
+		snprintf(mebuffer, sizeof mebuffer,
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s\n",
 			(u_long)entry->start, (u_long)entry->end,
 			resident, privateresident, obj,
@@ -175,14 +170,8 @@ case OBJT_DEVICE:
 		if (error)
 			break;
 	}
-	if (map != &curproc->p_vmspace->vm_map)
+	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_unlock_read(map);
 	
-	return error;
-}
-
-int
-procfs_validmap(struct thread *td)
-{
-	return ((td->td_proc->p_flag & P_SYSTEM) == 0);
+	return (error);
 }
