@@ -30,7 +30,9 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <calendar.h>
+#include <ctype.h>
 #include <err.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -198,8 +200,9 @@ main(int argc, char *argv[])
 	 * and use the country code to determine the default
 	 * switchdate and date format from the switches table.
 	 */
-	if ((locale = setlocale(LC_TIME, "")) == NULL)
+	if ((locale = setlocale(LC_ALL, "")) == NULL)
 		warn("setlocale");
+	locale = setlocale(LC_TIME, NULL);
 	if (locale == NULL ||
 	    strcmp(locale, "C") == 0 ||
 	    strcmp(locale, "POSIX") == 0 ||
@@ -373,7 +376,10 @@ printeaster(int y, int julian, int orthodox)
 	date    dt;
 	struct tm tm;
 	char    buf[80];
+	static int d_first = -1;
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 	/* force orthodox easter for years before 1583 */
 	if (y < 1583)
 		orthodox = 1;
@@ -390,7 +396,7 @@ printeaster(int y, int julian, int orthodox)
 	tm.tm_year = dt.y - 1900;
 	tm.tm_mon  = dt.m - 1;
 	tm.tm_mday = dt.d;
-	strftime(buf, sizeof(buf), "%EF %Y",  &tm);
+	strftime(buf, sizeof(buf), d_first ? "%e %B %Y" : "%B %e %Y",  &tm);
 	printf("%s\n", buf);
 }
 
@@ -582,6 +588,7 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
 	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
+	mlines->name[0] = toupper((unsigned char)mlines->name[0]);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -673,6 +680,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
 	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
+	mlines->name[0] = toupper((unsigned char)mlines->name[0]);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -735,15 +743,20 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 void
 mkweekdays(struct weekdays *wds)
 {
-	int i;
+	int i, len;
 	struct tm tm;
+	char buf[20];
 
 	memset(&tm, 0, sizeof(tm));
 
 	for (i = 0; i != 7; i++) {
 		tm.tm_wday = (i+1) % 7;
-		strftime(wds->names[i], 4, "%a", &tm);
-		wds->names[i][2] = ' '; 
+		strftime(buf, sizeof(buf), "%a", &tm);
+		len = strlen(buf);
+		if (len > 2)
+			len = 2;
+		strcpy(wds->names[i], "   ");
+		strncpy(wds->names[i] + 2 - len, buf, len);
 	}
 }
 
