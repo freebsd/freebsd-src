@@ -33,6 +33,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1143,18 +1144,18 @@ pf_dump(void)
 	pfq_refresh();
 	pft_refresh();
 
-	syslog(LOG_ERR, "Dump: pfi_table_age = %zu",
-	    pfi_table_age);
+	syslog(LOG_ERR, "Dump: pfi_table_age = %ju",
+	    (uintmax_t)pfi_table_age);
 	syslog(LOG_ERR, "Dump: pfi_table_count = %d",
 	    pfi_table_count);
 	
-	syslog(LOG_ERR, "Dump: pfq_table_age = %zu",
-	    pfq_table_age);
+	syslog(LOG_ERR, "Dump: pfq_table_age = %ju",
+	    (uintmax_t)pfq_table_age);
 	syslog(LOG_ERR, "Dump: pfq_table_count = %d",
 	    pfq_table_count);
 
-	syslog(LOG_ERR, "Dump: pft_table_age = %zu",
-	    pft_table_age);
+	syslog(LOG_ERR, "Dump: pft_table_age = %ju",
+	    (uintmax_t)pft_table_age);
 
 	syslog(LOG_ERR, "Dump: pft_table_count = %d",
 	    pft_table_count);
