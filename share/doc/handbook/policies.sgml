@@ -1,4 +1,4 @@
-<!-- $Id: policies.sgml,v 1.11 1997/02/22 12:59:00 peter Exp $ -->
+<!-- $Id: policies.sgml,v 1.12 1997/03/30 09:55:11 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Source Tree Guidelines and Policies
@@ -167,7 +167,7 @@ To upgrade to a newer version of cpio, when it is available:
                 cvs import -m 'Virgin import of GNU v2.4.2' \
                         src/contrib/cpio GNU v2.4.2
 
-        4. Follow the instructions printed out in step 2 to resolve any
+        4. Follow the instructions printed out in step 3 to resolve any
            conflicts between local FreeBSD changes and the newer version.
 
 Do not, under any circumstances, deviate from this procedure.
