@@ -116,13 +116,13 @@ device		ax0		# ASIX AX88140A
 device		de0		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
 device		le0		# Lance
-device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
+device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 controller	miibus0		# MII bus support
 device		al0		# ADMtek AL981/AN985 (``Comet''/``Centaur'')
 device		dm0		# Davicom DM9100/DM9102
-device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
 device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
