@@ -222,7 +222,7 @@ bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL))
       != bundle->phys_type.open && bundle->idle.timer.state == TIMER_STOPPED)
     /* We may need to start our idle timer */
-    bundle_StartIdleTimer(bundle);
+    bundle_StartIdleTimer(bundle, 0);
 }
 
 void
@@ -265,7 +265,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
   } else if (fp->proto == PROTO_IPCP) {
     bundle_CalculateBandwidth(fp->bundle);
     time(&bundle->upat);
-    bundle_StartIdleTimer(bundle);
+    bundle_StartIdleTimer(bundle, 0);
     bundle_Notify(bundle, EX_NORMAL);
     mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
   }
@@ -519,6 +519,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
+  unsigned secs;
 
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
     descriptor_Read(&bundle->ncp.mp.server.desc, bundle, fdset);
@@ -561,7 +562,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                    bundle->dev.Name, n);
         return;
       }
-      if (ntohl(tun.family) != AF_INET)
+      if (ntohl(tun.header.family) != AF_INET)
         /* XXX: Should be maintaining drop/family counts ! */
         return;
     }
@@ -570,7 +571,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         bundle->ncp.ipcp.my_ip.s_addr) {
       /* we've been asked to send something addressed *to* us :( */
       if (Enabled(bundle, OPT_LOOPBACK)) {
-        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in, NULL);
+        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in, NULL, NULL);
         if (pri >= 0) {
           n += sz - sizeof tun.data;
           write(bundle->dev.fd, data, n);
@@ -591,7 +592,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
        * Note, we must be in AUTO mode :-/ otherwise our interface should
        * *not* be UP and we can't receive data
        */
-      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial, NULL);
+      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial, NULL, NULL);
       if (pri >= 0)
         bundle_Open(bundle, NULL, PHYS_AUTO, 0);
       else
@@ -605,9 +606,13 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         return;
     }
 
-    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out, NULL);
-    if (pri >= 0)
-      ip_Enqueue(&bundle->ncp.ipcp, pri, tun.data, n);
+    secs = 0;
+    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out, NULL, &secs);
+    if (pri >= 0) {
+      /* Prepend the number of seconds timeout given in the filter */
+      tun.header.timeout = secs;
+      ip_Enqueue(&bundle->ncp.ipcp, pri, (char *)&tun, n + sizeof tun.header);
+    }
   }
 }
 
@@ -1246,18 +1251,22 @@ bundle_IdleTimeout(void *v)
  *  close LCP and link.
  */
 void
-bundle_StartIdleTimer(struct bundle *bundle)
+bundle_StartIdleTimer(struct bundle *bundle, unsigned secs)
 {
   timer_Stop(&bundle->idle.timer);
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL)) !=
       bundle->phys_type.open && bundle->cfg.idle.timeout) {
-    int secs;
+    time_t now = time(NULL);
 
-    secs = bundle->cfg.idle.timeout;
+    if (secs == 0)
+      secs = bundle->cfg.idle.timeout;
+
+    /* We want at least `secs' */
     if (bundle->cfg.idle.min_timeout > secs && bundle->upat) {
-      int up = time(NULL) - bundle->upat;
+      int up = now - bundle->upat;
 
       if ((long long)bundle->cfg.idle.min_timeout - up > (long long)secs)
+        /* Only increase from the current `remaining' value */
         secs = bundle->cfg.idle.min_timeout - up;
     }
     bundle->idle.timer.func = bundle_IdleTimeout;
@@ -1265,7 +1274,7 @@ bundle_StartIdleTimer(struct bundle *bundle)
     bundle->idle.timer.load = secs * SECTICKS;
     bundle->idle.timer.arg = bundle;
     timer_Start(&bundle->idle.timer);
-    bundle->idle.done = time(NULL) + secs;
+    bundle->idle.done = now + secs;
   }
 }
 
@@ -1276,7 +1285,7 @@ bundle_SetIdleTimer(struct bundle *bundle, int timeout, int min_timeout)
   if (min_timeout >= 0)
     bundle->cfg.idle.min_timeout = min_timeout;
   if (bundle_LinkIsUp(bundle))
-    bundle_StartIdleTimer(bundle);
+    bundle_StartIdleTimer(bundle, 0);
 }
 
 void
