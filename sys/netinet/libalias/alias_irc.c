@@ -229,7 +229,7 @@ lFOUND_CTCP:
 				 alias_address = GetAliasAddress(link);
 				 iCopy += snprintf(&newpacket[iCopy],
 										 sizeof(newpacket)-iCopy, 
-										 "%lu ", htonl(alias_address.s_addr));
+										 "%lu ", (u_long)htonl(alias_address.s_addr));
 				 if( iCopy >= sizeof(newpacket) ) { /* Truncated/fit exactly - bad news */
 					 DBprintf(("DCC constructed packet overflow.\n"));
 					 goto lBAD_CTCP;

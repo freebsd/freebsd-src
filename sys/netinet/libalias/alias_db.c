@@ -340,11 +340,13 @@ static int newDefaultLink;           /* Indicates if a new aliasing     */
                                      /* link has been created after a   */
                                      /* call to PacketAliasIn/Out().    */
              
+#ifndef NO_FW_PUNCH
 static int fireWallFD = -1;          /* File descriptor to be able to   */
                                      /* control firewall.  Opened by    */
                                      /* PacketAliasSetMode on first     */
                                      /* setting the PKT_ALIAS_PUNCH_FW  */
                                      /* flag.                           */
+#endif
 
 
 
@@ -375,10 +377,12 @@ static int SeqDiff(u_long, u_long);
 
 static void ShowAliasStats(void);
 
+#ifndef NO_FW_PUNCH
 /* Firewall control */
 static void InitPunchFW(void);
 static void UninitPunchFW(void);
 static void ClearFWHole(struct alias_link *link);
+#endif
 
 /* Log file control */
 static void InitPacketAliasLog(void);
@@ -750,8 +754,10 @@ DeleteLink(struct alias_link *link)
     if (deleteAllLinks == 0 && link->flags & LINK_PERMANENT)
         return;
 
+#ifndef NO_FW_PUNCH
 /* Delete associatied firewall hole, if any */
     ClearFWHole(link);
+#endif
 
 /* Adjust output table pointers */
     link_last = link->last_out;
@@ -987,12 +993,14 @@ ReLink(struct alias_link *old_link,
     new_link = AddLink(src_addr, dst_addr, alias_addr,
                        src_port, dst_port, alias_port_param,
                        link_type);
+#ifndef NO_FW_PUNCH
     if (new_link != NULL &&
         old_link->link_type == LINK_TCP &&
         old_link->data.tcp &&
         old_link->data.tcp->fwhole > 0) {
       PunchFWHole(new_link);
     }
+#endif
     DeleteLink(old_link);
     return new_link;
 }
@@ -2005,7 +2013,9 @@ PacketAliasUninit(void) {
     CleanupAliasData();
     deleteAllLinks = 0;
     UninitPacketAliasLog();
+#ifndef NO_FW_PUNCH
     UninitPunchFW();
+#endif
 }
 
 
@@ -2027,6 +2037,7 @@ PacketAliasSetMode(
         UninitPacketAliasLog();
     }
 
+#ifndef NO_FW_PUNCH
 /* Start punching holes in the firewall? */
     if (flags & mask & PKT_ALIAS_PUNCH_FW) {
         InitPunchFW();
@@ -2035,6 +2046,7 @@ PacketAliasSetMode(
     if (~flags & mask & PKT_ALIAS_PUNCH_FW) {
         UninitPunchFW();
     }
+#endif
 
 /* Other flags can be set/cleared without special action */
     packetAliasMode = (flags & mask) | (packetAliasMode & ~mask);
@@ -2048,6 +2060,8 @@ PacketAliasCheckNewLink(void)
     return newDefaultLink;
 }
 
+
+#ifndef NO_FW_PUNCH
 
 /*****************
   Code to support firewall punching.  This shouldn't really be in this
@@ -2222,3 +2236,4 @@ ClearAllFWHoles(void) {
     }
     memset(fireWallField, 0, fireWallNumNums);
 }
+#endif
