@@ -10,12 +10,13 @@ WARNS=	2
 CFLAGS+= -DBFD_ASSEMBLER
 CFLAGS+= -I${.CURDIR}/../as/${TARGET_ARCH}-freebsd -I${.CURDIR}/../as
 CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR}/../../../../../include/gnu
 CFLAGS+= -I${SRCDIR} -I${SRCDIR}/gas -I${SRCDIR}/gas/config
 DPADD=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 CLEANFILES= gasp+%FIXED.c
 
 gasp+%FIXED.c: gasp.c
-	sed -e 's|xregex\.h|gnuregex.h|g' ${.ALLSRC} >${.TARGET}
+	sed -e 's|xregex\.h|regex.h|g' ${.ALLSRC} >${.TARGET}
 
 .include <bsd.prog.mk>
