@@ -582,7 +582,7 @@
       0.9.6a.</para>
 
       <para><application>sendmail</application> and associated utilities
-      have been upgraded to version 8.11.5.  See
+      have been upgraded to version 8.11.6.  See
       <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
       for more information.</para>
 
