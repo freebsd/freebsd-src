@@ -30,11 +30,15 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/disklabel.h>
+#include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,11 +70,7 @@ static char lbuf[LBUF];
 #define MIN_SEC_SIZE 512	/* the sector size to start sensing at */
 int secsize = 0;		/* the sensed sector size */
 
-const char *disk;
-const char *disks[] =
-{
-  "/dev/ad0", "/dev/da0", 0
-};
+char *disk;
 
 struct disklabel disklabel;		/* disk parameters */
 
@@ -197,6 +197,7 @@ static void print_params();
 static void change_active(int which);
 static void change_code();
 static void get_params_to_use();
+static char *get_rootdisk(void);
 static void dos(int sec, int size, unsigned char *c, unsigned char *s,
 		unsigned char *h);
 static int open_disk(int u_flag);
@@ -221,6 +222,7 @@ static int string(char *str, char **ans);
 int
 main(int argc, char *argv[])
 {
+	struct	stat sb;
 	int	c, i;
 
 	while ((c = getopt(argc, argv, "BIab:f:istuv1234")) != -1)
@@ -271,34 +273,26 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 0)
-	{
-		static char realname[12];
-
-		if(strncmp(argv[0], "/dev", 4) == 0)
+	if (argc == 0) {
+		disk = get_rootdisk();
+	} else {
+		if (stat(argv[0], &sb) == 0) {
+			/* OK, full pathname given */
 			disk = argv[0];
-		else
-		{
-			snprintf(realname, 12, "/dev/%s", argv[0]);
-			disk = realname;
+		} else if (errno == ENOENT) {
+			/* Try prepending "/dev" */
+			if ((disk = malloc(strlen(argv[0]) + strlen(_PATH_DEV) +
+			     1)) == NULL)
+				errx(1, "out of memory");
+			strcpy(disk, _PATH_DEV);
+			strcat(disk, argv[0]);
+		} else {
+			/* other stat error, let it fail below */
+			disk = argv[0];
 		}
-		
-		if (open_disk(u_flag) < 0)
-			err(1, "cannot open disk %s", disk);
 	}
-	else
-	{
-		int rv = 0;
-
-		for(i = 0; disks[i]; i++)
-		{
-			disk = disks[i];
-			rv = open_disk(u_flag);
-			if(rv != -2) break;
-		}
-		if(rv < 0)
-			err(1, "cannot open any disk");
-	}
+	if (open_disk(u_flag) < 0)
+		err(1, "cannot open disk %s", disk);
 
 	/* (abu)use mboot.bootinst to probe for the sector size */
 	if ((mboot.bootinst = malloc(MAX_SEC_SIZE)) == NULL)
@@ -1452,4 +1446,40 @@ sanitize_partition(partp)
     }
 
     return (1);
+}
+
+/*
+ * Try figuring out the root device's canonical disk name.
+ * The following choices are considered:
+ *   /dev/ad0s1a     => /dev/ad0
+ *   /dev/da0a       => /dev/da0
+ *   /dev/vinum/root => /dev/vinum/root
+ */
+static char *
+get_rootdisk(void)
+{
+	struct statfs rootfs;
+	regex_t re;
+#define NMATCHES 2
+	regmatch_t rm[NMATCHES];
+	char *s;
+	int rv;
+
+	if (statfs("/", &rootfs) == -1)
+		err(1, "statfs(\"/\")");
+
+	if ((rv = regcomp(&re, "^(/dev/.*)(\\d+(s\\d+)?[a-h])?$",
+		    REG_EXTENDED)) != 0)
+		errx(1, "regcomp() failed (%d)", rv);
+	if ((rv = regexec(&re, rootfs.f_mntfromname, NMATCHES, rm, 0)) != 0)
+		errx(1,
+"mounted root fs resource doesn't match expectations (regexec returned %d)",
+		    rv);
+	if ((s = malloc(rm[1].rm_eo - rm[1].rm_so + 1)) == NULL)
+		errx(1, "out of memory");
+	memcpy(s, rootfs.f_mntfromname + rm[1].rm_so,
+	    rm[1].rm_eo - rm[1].rm_so);
+	s[rm[1].rm_eo - rm[1].rm_so] = 0;
+
+	return s;
 }
