@@ -2164,12 +2164,12 @@ fildesc_drvinit(void *unused)
 	}
 }
 
-static fo_rdwr_t badfo_readwrite;
-static fo_ioctl_t badfo_ioctl;
-static fo_poll_t badfo_poll;
-static fo_kqfilter_t badfo_kqfilter;
-static fo_stat_t badfo_stat;
-static fo_close_t badfo_close;
+static fo_rdwr_t	badfo_readwrite;
+static fo_ioctl_t	badfo_ioctl;
+static fo_poll_t	badfo_poll;
+static fo_kqfilter_t	badfo_kqfilter;
+static fo_stat_t	badfo_stat;
+static fo_close_t	badfo_close;
 
 struct fileops badfileops = {
 	badfo_readwrite,

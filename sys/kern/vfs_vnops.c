@@ -63,13 +63,13 @@
 
 #include <machine/limits.h>
 
-static fo_rdwr_t vn_read;
-static fo_rdwr_t vn_write;
-static fo_ioctl_t vn_ioctl;
-static fo_poll_t vn_poll;
-static fo_kqfilter_t vn_kqfilter;
-static fo_stat_t vn_statfile;
-static fo_close_t vn_closefile;
+static fo_rdwr_t	vn_read;
+static fo_rdwr_t	vn_write;
+static fo_ioctl_t	vn_ioctl;
+static fo_poll_t	vn_poll;
+static fo_kqfilter_t	vn_kqfilter;
+static fo_stat_t	vn_statfile;
+static fo_close_t	vn_closefile;
 
 struct 	fileops vnops = {
 	vn_read, vn_write, vn_ioctl, vn_poll, vn_kqfilter,

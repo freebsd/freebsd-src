@@ -94,13 +94,13 @@
 /*
  * interfaces to the outside world
  */
-static fo_rdwr_t pipe_read;
-static fo_rdwr_t pipe_write;
-static fo_ioctl_t pipe_ioctl;
-static fo_poll_t pipe_poll;
-static fo_kqfilter_t pipe_kqfilter;
-static fo_stat_t pipe_stat;
-static fo_close_t pipe_close;
+static fo_rdwr_t	pipe_read;
+static fo_rdwr_t	pipe_write;
+static fo_ioctl_t	pipe_ioctl;
+static fo_poll_t	pipe_poll;
+static fo_kqfilter_t	pipe_kqfilter;
+static fo_stat_t	pipe_stat;
+static fo_close_t	pipe_close;
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,

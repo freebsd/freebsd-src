@@ -58,13 +58,13 @@ static int	kqueue_scan(struct file *fp, int maxevents,
 		    struct thread *td);
 static void 	kqueue_wakeup(struct kqueue *kq);
 
-static fo_rdwr_t kqueue_read;
-static fo_rdwr_t kqueue_write;
-static fo_ioctl_t kqueue_ioctl;
-static fo_poll_t kqueue_poll;
-static fo_kqfilter_t kqueue_kqfilter;
-static fo_stat_t kqueue_stat;
-static fo_close_t kqueue_close;
+static fo_rdwr_t	kqueue_read;
+static fo_rdwr_t	kqueue_write;
+static fo_ioctl_t	kqueue_ioctl;
+static fo_poll_t	kqueue_poll;
+static fo_kqfilter_t	kqueue_kqfilter;
+static fo_stat_t	kqueue_stat;
+static fo_close_t	kqueue_close;
 
 static struct fileops kqueueops = {
 	kqueue_read,
