@@ -4,7 +4,9 @@
 .Os
 .Sh NAME
 .Nm digictl
-.Nd Control Digiboard devices
+.Nd control
+.Tn Digiboard
+devices
 .Sh SYNOPSIS
 .Nm
 .Op Fl d Ar debug
@@ -13,28 +15,30 @@
 .Sh DESCRIPTION
 The
 .Nm
-program provides control of the Digiboard installed with the given control
+program provides control of the
+.Tn Digiboard
+installed with the given control
 .Ar device
 name.
 A digiboard control
 .Ar device
 is usually of the form
-.Dq /dev/digi Ns Ar N Ns No .ctl
+.Pa /dev/digi Ns Ar N Ns Pa .ctl
 where
 .Ar N
 is the card number and starts at 0 for the first attached card.
 .Pp
-The following flags are recognised:
-.Bl -tag -width XXXX -offset XXXX
+The following flags are recognized:
+.Bl -tag -xwidth ".Fl d Ar debug"
 .It Fl d Ar debug
 If the driver has been compiled with
 .Dv DEBUG
 defined, the following bits from the
 .Ar debug
 variable are used to enable diagnostics in the digiboard driver:
-.Bl -tag -width XXXXXXXXXXXX
+.Bl -tag -xwidth ".No 1024 ( Em MODEM )"
 .It 1 ( Em INIT )
-Diagnostics during card attach, detach and initialisation.
+Diagnostics during card attach, detach and initialization.
 .It 2 ( Em OPEN )
 Diagnostics when opening a port.
 .It 4 ( Em CLOSE )
@@ -59,19 +63,19 @@ Diagnostics when setting modem status flags.
 Reports when a RING is received.
 .El
 .It Fl i
-Display the card identification string and type id.
+Display the card identification string and type ID.
 .It Fl r
-Reinitialise the card.
+Reinitialize the card.
 For boards with external port modules, it is possible to add or remove
 modules and dynamically reprobe the number of ports using this switch.
-All ports on the card must be closed in order to reinitialise the card.
+All ports on the card must be closed in order to reinitialize the card.
 .Pp
-It is preferable to reinitialise the card rather than reload the entire
-digi module as reinitialisation only affects the specified board rather
+It is preferable to reinitialize the card rather than reload the entire
+digi module as reinitialization only affects the specified board rather
 than affecting all attached boards.
 .El
 .Sh BUGS
-It should be possible to reinitialise a board without closing all of the
+It should be possible to reinitialize a board without closing all of the
 existing ports.
 .Sh HISTORY
 The
