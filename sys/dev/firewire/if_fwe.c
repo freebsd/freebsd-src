@@ -123,7 +123,7 @@ fwe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 static void
 fwe_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "if_fwe", device_get_unit(parent));
+	BUS_ADD_CHILD(parent, 0, "fwe", device_get_unit(parent));
 }
 
 static int
@@ -186,7 +186,7 @@ fwe_attach(device_t dev)
 	ifp = &fwe->fwe_if;
 	ifp->if_softc = &fwe->eth_softc;
 
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), unit);
 	ifp->if_init = fwe_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = fwe_start;
@@ -640,7 +640,7 @@ static device_method_t fwe_methods[] = {
 };
 
 static driver_t fwe_driver = {
-        "if_fwe",
+        "fwe",
 	fwe_methods,
 	sizeof(struct fwe_softc),
 };
