@@ -89,15 +89,11 @@ PPS_SYNC	opt_ntp.h
 QUOTA
 SPX_HACK
 SUIDDIR		opt_suiddir.h
-SYSVMSG		opt_sysvipc.h
-SYSVSEM		opt_sysvipc.h
-SYSVSHM		opt_sysvipc.h
-SHMALL		opt_sysvipc.h
-SHMMAX		opt_sysvipc.h
-SHMMAXPGS	opt_sysvipc.h
-SHMMIN		opt_sysvipc.h
-SHMMNI		opt_sysvipc.h
-SHMSEG		opt_sysvipc.h
+MSGMNB		opt_sysvipc.h
+MSGMNI		opt_sysvipc.h
+MSGSEG		opt_sysvipc.h
+MSGSSZ		opt_sysvipc.h
+MSGTQL		opt_sysvipc.h
 SEMMAP		opt_sysvipc.h
 SEMMNI		opt_sysvipc.h
 SEMMNS		opt_sysvipc.h
@@ -105,11 +101,15 @@ SEMMNU		opt_sysvipc.h
 SEMMSL		opt_sysvipc.h
 SEMOPM		opt_sysvipc.h
 SEMUME		opt_sysvipc.h
-MSGMNB		opt_sysvipc.h
-MSGMNI		opt_sysvipc.h
-MSGSEG		opt_sysvipc.h
-MSGSSZ		opt_sysvipc.h
-MSGTQL		opt_sysvipc.h
+SHMALL		opt_sysvipc.h
+SHMMAX		opt_sysvipc.h
+SHMMAXPGS	opt_sysvipc.h
+SHMMIN		opt_sysvipc.h
+SHMMNI		opt_sysvipc.h
+SHMSEG		opt_sysvipc.h
+SYSVMSG		opt_sysvipc.h
+SYSVSEM		opt_sysvipc.h
+SYSVSHM		opt_sysvipc.h
 VFS_AIO
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
