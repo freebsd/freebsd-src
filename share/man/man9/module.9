@@ -47,19 +47,37 @@ The
 .Xr DECLARE_MODULE 9
 macro
 registers the module with the system.
+.Pp
 When the module is loaded, the event handler function is called with
 the
 .Fa what
 argument set to
 .Dv MOD_LOAD .
-On unload,
+.Pp
+On unload it is first called with
+.Fa what
+set to MOD_QUIESCE .
+If the unload was not forced, a non-zero return will prevent the
+unload from happening.
+.Pp
+If the unload continues
 .Fa what
 is set to
 .Dv MOD_UNLOAD .
+If the module returns non-zero to this, the unload will not happen.
+.Pp
+The difference between MOD_QUIESCE and MOD_UNLOAD is that the module
+should fail MOD_QUIESCE if it is currently in use, whereas MOD_UNLOAD
+should only fail if it is impossible to unload the module, for instance
+because there are memory references to the module which cannot be revoked.
+.Pp
 When the system is shutting down,
 .Fa what
 contains the value of
 .Dv MOD_SHUTDOWN .
+.Pp
+The module should return EOPNOTSUPP for unrecognized values of
+.Fa what .
 .Sh EXAMPLES
 .Bd -literal
 #include <sys/param.h>

@@ -799,7 +799,7 @@ vfs_domount(
 				break;
 		if (vfsp == NULL) {
 			lf->userrefs--;
-			linker_file_unload(lf);
+			linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 			vput(vp);
 			return (ENODEV);
 		}

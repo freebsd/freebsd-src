@@ -33,9 +33,11 @@
 .Nd unload a file from the kernel
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Op Fl v
 .Fl i Ar id
 .Nm
+.Op Fl f
 .Op Fl v
 .Op Fl n
 .Ar name
@@ -47,6 +49,11 @@ utility unloads a file which was previously loaded with
 .Pp
 The following options are available:
 .Bl -tag -width indentXX
+.It Fl f
+Force the unload.
+This ignores error returns to MOD_QUISCE from the module and implies
+that the module should be unloaded even if it is currently in use.
+The users are left to cope as best they can.
 .It Fl v
 Be more verbose.
 .It Fl i Ar id
