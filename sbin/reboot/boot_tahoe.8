@@ -1,0 +1,152 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)boot_tahoe.8	8.2 (Berkeley) 4/19/94
+.\"
+.Dd April 19, 1994
+.Dt BOOT 8 tahoe
+.Os
+.Sh NAME
+.Nm boot
+.Nd
+system bootstrapping procedures
+.Sh DESCRIPTION
+.Sy Power fail and crash recovery.
+Normally, the system will reboot itself at power-up or after crashes.
+An automatic consistency check of the file systems will be performed,
+and unless this fails, the system will resume multi-user operations.
+.Pp
+.Sy Cold starts.
+These are processor-type dependent.
+On the
+.Tn CCI
+Power 6/32 and related processors,
+the system will do a standard autoboot from drive 0
+upon power-up or reset.
+This automatic boot may be cancelled by typing a
+.Ql \&#
+in the first few seconds after reset.
+This enters console mode; the console prompt is
+.Ql >
+or
+.Ql \&# .
+The boot flags can be set to any hexadecimal value
+.Fl n
+with the command
+.Pp
+.Bd -filled -offset indent -compact
+.Li \&#> p23
+.Ar n .
+.Ed
+.Pp
+The default device may be examined or set; see the Diagnostics and Debugging
+manual for the processor for details on device naming and syntax.
+After setting the boot flags and/or device,
+a bootstrap sequence can be initiated with
+.Pp
+.Dl #> fb
+.Pp
+A specific device or bootstrap file may be used; for example,
+.Pp
+.Dl \&#> \&fb xfd(1,0)
+.Pp
+would boot from the `a' partition on
+.Tn XFD
+drive 1.
+.Pp
+The file specifications used for the boostrap
+when loaded with the
+.Dq askme
+flag
+(register 23 set to 1 or 3)
+are of the form:
+.Pp
+.Dl device(adaptor,controller,unit,minor)
+.Pp
+where
+.Ar device
+is the type of the device to be searched,
+.Ar adaptor
+is number of the
+.Tn VERSAbus
+(or
+.Tn VMEbus )
+to which the device is attached,
+.Ar controller
+is the unit number of the controller on that buss,
+.Ar unit
+is the unit number of the disk or tape,
+and
+.Ar minor
+is the disk partition or tape file number.
+Leading adaptor or controller numbers default to 0.
+Normal line editing characters can be used when typing the file specification.
+The following list of supported devices may vary from installation to
+installation:
+.Pp
+.Bd -unfilled -offset indent -compact
+dk	SMD or ESDI disks on VDDC or SMD-E
+cy	tape on Ciprico Tapemaster controller
+.Ed
+.Pp
+For example,
+to boot from a file system which starts at cylinder 0
+of unit 0 of an
+.Tn SMD-E
+disk, type
+.Ql dk(0,0)vmunix
+to the boot prompt;
+.Ql dk(2,1,0)vmunix
+would specify drive 1 on
+.Tn SMD-E
+controller 2.
+.Pp
+In an emergency, the bootstrap methods described in the paper
+.%T "Installing and Operating 4.3 BSD-tahoe UNIX on the Tahoe"
+can be used
+to boot from a distribution tape.
+.Sh FILES
+.Bl -tag -width /vmunix -compact
+.It Pa /vmunix
+system code
+.It Pa /boot
+system bootstrap
+.El
+.Sh SEE ALSO
+.Xr halt 8 ,
+.Xr reboot 8 ,
+.Xr shutdown 8
+.Sh BUGS
+The disklabel format used by some versions of the console processor
+is different than the format used by
+.Tn UNIX
+and the bootstrap.
+.Sh HISTORY
