@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.81 1995/04/01 12:01:13 ache Exp $
+ *	$Id: sio.c,v 1.82 1995/04/01 22:57:43 ache Exp $
  */
 
 #include "sio.h"
@@ -85,6 +85,19 @@ termioschars(t)
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
 #define	RS_IBUFSIZE	256
+
+#define SET_BYPASS(tp, t) \
+	if (!((t)->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP \
+			   | IXOFF | IXON)) \
+	    && (!((t)->c_iflag & BRKINT) || ((t)->c_iflag & IGNBRK)) \
+	    && (!((t)->c_iflag & PARMRK) || \
+		((t)->c_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK)) \
+	    && !((t)->c_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG \
+			   | PENDIN)) \
+	    && linesw[(tp)->t_line].l_rint == ttyinput) \
+		(tp)->t_state |= TS_CAN_BYPASS_L_RINT; \
+	else \
+		(tp)->t_state &= ~TS_CAN_BYPASS_L_RINT
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -885,8 +898,7 @@ open_top:
 		goto open_top;
 	}
 	error =	(*linesw[tp->t_line].l_open)(dev, tp);
-	if (linesw[tp->t_line].l_rint != ttyinput)
-		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
+	SET_BYPASS(tp, &(tp->t_termios));
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
 out:
@@ -1343,6 +1355,7 @@ sioioctl(dev, cmd, data, flag, p)
 	if (error >= 0)
 		return (error);
 	error = ttioctl(tp, cmd, data, flag);
+	SET_BYPASS(tp, &(tp->t_termios));
 	if (error >= 0)
 		return (error);
 	s = spltty();
@@ -1565,8 +1578,7 @@ repeat:
 		 * slinput is reasonably fast (usually 40 instructions plus
 		 * call overhead).
 		 */
-		if (   (tp->t_state & TS_CAN_BYPASS_L_RINT)
-		    && !(tp->t_state & TS_LOCAL)) {
+		if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
 			tk_nin += incc;
 			tk_rawcc += incc;
 			tp->t_rawcc += incc;
@@ -1718,8 +1730,6 @@ retry:
 	    != (LSR_TSRE | LSR_TXRDY))
 		goto retry;
 
-	tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-
 	if (divisor != 0) {
 		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
 		outb(iobase + com_dlbl, divisor & 0xFF);
@@ -1746,15 +1756,7 @@ retry:
 			com->state &= ~CS_ODEVREADY;
 	}
 
-	if (!(iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
-			   | IXOFF | IXON))
-	    && (!(iflag & BRKINT) || (iflag & IGNBRK))
-	    && (!(iflag & PARMRK) ||
-		(iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK))
-	    && !(lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
-			   | PENDIN))
-	    && linesw[tp->t_line].l_rint == ttyinput)
-		tp->t_state |= TS_CAN_BYPASS_L_RINT;
+	SET_BYPASS(tp, t);
 	/*
 	 * Recover from fiddling with CS_TTGO.  We used to call siointr1()
 	 * unconditionally, but that defeated the careful discarding of
