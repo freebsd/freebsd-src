@@ -380,16 +380,16 @@ dumpout(int unit)
 static int
 dump_ccd(int argc, char **argv)
 {
-	int i, err;
+	int i, error;
 
 	if (argc == 0) {
-		err = dumpout(-1);
+		error = dumpout(-1);
 	} else {
-		err = 0;
-		for (i = 0; err == 0 && i < argc; i++)
-			err = dumpout(resolve_ccdname(argv[i]));
+		error = 0;
+		for (i = 0; error == 0 && i < argc; i++)
+			error = dumpout(resolve_ccdname(argv[i]));
 	}
-	return (err);
+	return (error);
 }
 
 static int
