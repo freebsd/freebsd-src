@@ -46,8 +46,8 @@ static const char rcsid[] =
  */
 
 void
-init() {
-
+init(void)
+{
 	PLAY	*pp;
 	int	i, j;
 	CARD	card;
@@ -90,8 +90,8 @@ init() {
 }
 
 void
-shuffle() {
-
+shuffle(void)
+{
 	int		i, r;
 	CARD	temp;
 
@@ -109,8 +109,8 @@ shuffle() {
 }
 
 void
-newboard() {
-
+newboard(void)
+{
 	int	i;
 	PLAY	*pp;
 	static int	first = TRUE;
@@ -168,8 +168,8 @@ newboard() {
 }
 
 void
-newscore() {
-
+newscore(void)
+{
 	int		i, new;
 	PLAY	*pp;
 	static int	was_full = -1;

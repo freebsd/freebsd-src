@@ -49,9 +49,8 @@ static const char rcsid[] =
  */
 
 int
-roll(ndie, nsides)
-int	ndie, nsides; {
-
+roll(int ndie, int nsides)
+{
 	int			tot;
 
 	tot = 0;

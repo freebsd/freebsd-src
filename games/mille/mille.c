@@ -59,9 +59,8 @@ static const char rcsid[] =
 static void usage(void);
 
 int
-main(ac, av)
-	int	ac;
-	char	*av[]; {
+main(int ac, char *av[])
+{
 
 	bool	restore;
 
@@ -137,7 +136,7 @@ main(ac, av)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: mille [restore_file]\n");
 	exit(1);
@@ -148,8 +147,8 @@ usage()
  * quit.
  */
 void
-rub(sig)
-int sig; {
+rub(int sig __unused)
+{
 
 	(void)signal(SIGINT, SIG_IGN);
 	if (getyn(REALLYPROMPT))
@@ -161,8 +160,8 @@ int sig; {
  *	Time to go beddy-by
  */
 void
-die(code)
-int code; {
+die(int code)
+{
 
 	(void)signal(SIGINT, SIG_IGN);
 	if (outf)
