@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.50 1998/05/25 03:45:35 steve Exp $";
+	"$Id: ftpd.c,v 1.51 1998/06/03 11:33:44 jb Exp $";
 #endif /* not lint */
 
 /*
@@ -925,7 +925,6 @@ pass(passwd)
 #ifdef	LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
-	static char homedir[MAXPATHLEN];
 
 	if (logged_in || askpasswd == 0) {
 		reply(503, "Login with USER first.");
@@ -1004,8 +1003,10 @@ skip:
 		}
 	}
 	setusercontext(lc, pw, (uid_t)0,
-	LOGIN_SETGROUP|LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK);
+		LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|
+		LOGIN_SETRESOURCES|LOGIN_SETUMASK);
 #else
+	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);
 #endif
 
@@ -1053,12 +1054,6 @@ skip:
 		reply(550, "Can't set uid.");
 		goto bad;
 	}
-
-	/*
-	 * Set home directory so that use of ~ (tilde) works correctly.
-	 */
-	if (getcwd(homedir, MAXPATHLEN) != NULL)
-		setenv("HOME", homedir, 1);
 
 	/*
 	 * Display a login message, if it exists.
