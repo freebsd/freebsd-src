@@ -91,7 +91,6 @@ static struct cdevsw fakewd_cdevsw = {
 static struct cdevsw fakewddisk_cdevsw;
 
 /* prototypes */
-static void ad_start(struct ad_softc *);
 static void ad_timeout(struct ad_request *);
 static int32_t ad_version(u_int16_t);
 
@@ -207,17 +206,14 @@ ad_attach(struct ata_softc *scp, int32_t device)
 }
 
 void
-ad_detach(struct ata_softc *scp, int32_t device)
+ad_detach(struct ad_softc *adp)
 {
-    struct ad_softc *adp = scp->dev_softc[ATA_DEV(device)];
-  
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev1);
     disk_destroy(adp->dev2);
     devstat_remove_entry(&adp->stats);
     ata_free_lun(&adp_lun_map, adp->lun);
     free(adp, M_AD);
-    scp->dev_softc[ATA_DEV(device)] = NULL;
 }
 
 static int
@@ -252,7 +248,7 @@ adstrategy(struct buf *bp)
 
     s = splbio();
     bufqdisksort(&adp->queue, bp);
-    ad_start(adp);
+    ata_start(adp->controller);
     splx(s);
 }
 
@@ -320,7 +316,7 @@ addump(dev_t dev)
     return 0;
 }
 
-static void
+void
 ad_start(struct ad_softc *adp)
 {
     struct buf *bp = bufq_first(&adp->queue);
@@ -348,10 +344,6 @@ ad_start(struct ad_softc *adp)
 
     /* link onto controller queue */
     TAILQ_INSERT_TAIL(&adp->controller->ata_queue, request, chain);
-
-    /* try to start controller */
-    if (adp->controller->active == ATA_IDLE)
-	ata_start(adp->controller);
 }
 
 void
@@ -566,7 +558,6 @@ oops:
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
 
     free(request, M_AD);
-    ad_start(adp);
     return ATA_OP_FINISHED;
 }
 
