@@ -392,15 +392,22 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 			tbp = getblk(vp, lbn + i, size, 0, 0);
 
-			if ((tbp->b_flags & B_CACHE) ||
-				(tbp->b_flags & B_VMIO) == 0) {
+			/*
+			 * If the buffer is already fully valid or locked
+			 * (which could also mean that a background write is
+			 * in progress), or the buffer is not backed by VMIO,
+			 * stop.
+			 */
+			if ((tbp->b_flags & (B_CACHE|B_LOCKED)) ||
+			    (tbp->b_flags & B_VMIO) == 0) {
 				bqrelse(tbp);
 				break;
 			}
 
-			for (j = 0;j < tbp->b_npages; j++)
+			for (j = 0;j < tbp->b_npages; j++) {
 				if (tbp->b_pages[j]->valid)
 					break;
+			}
 
 			if (j != tbp->b_npages) {
 				bqrelse(tbp);
@@ -701,8 +708,13 @@ cluster_wbuild(vp, size, start_lbn, len)
 
 	while (len > 0) {
 		s = splbio();
+		/*
+		 * If the buffer is not delayed-write (i.e. dirty), or it 
+		 * is delayed-write but either locked or inval, it cannot 
+		 * partake in the clustered write.
+		 */
 		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
-		  ((tbp->b_flags & (B_INVAL | B_DELWRI)) != B_DELWRI) ||
+		  ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) != B_DELWRI) ||
 		  BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
 			++start_lbn;
 			--len;
@@ -774,12 +786,16 @@ cluster_wbuild(vp, size, start_lbn, len)
 
 				/*
 				 * If it IS in core, but has different
-				 * characteristics, don't cluster with it.
+				 * characteristics, or is locked (which
+				 * means it could be undergoing a background
+				 * I/O or be in a weird state), then don't
+				 * cluster with it.
 				 */
 				if ((tbp->b_flags & (B_VMIO | B_CLUSTEROK |
 				    B_INVAL | B_DELWRI | B_NEEDCOMMIT))
 				  != (B_DELWRI | B_CLUSTEROK |
 				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
+				    (tbp->b_flags & B_LOCKED) ||
 				    tbp->b_wcred != bp->b_wcred ||
 				    BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
 					splx(s);
