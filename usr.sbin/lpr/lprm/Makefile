@@ -6,6 +6,7 @@
 BINDIR=	/usr/bin
 
 PROG=	lprm
+BINOWN=	root
 BINGRP=	daemon
 BINMODE= 6555
 

@@ -20,6 +20,7 @@ DISTRIBUTION=	krb4
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 .endif
 
+BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
 

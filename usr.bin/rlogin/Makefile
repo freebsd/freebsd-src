@@ -6,6 +6,7 @@ SRCS=	rlogin.c
 CFLAGS+=-Wall
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
+BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
 
