@@ -190,7 +190,7 @@ editentry_update(void *hook, int letter, void *arg, int count, char *name)
 		editentry_set(name, (char *)arg, 0);
 		break;
 	default:
-		/* NOTREACHED */
+		; /* NOTREACHED */
 	}
 }
 
@@ -215,7 +215,7 @@ editentry_save(void *hook, char *name)
 		/* NOTREACHED */
 
 	default:
-		/* NOTREACHED */
+		; /* NOTREACHED */
 	}
 
 	return (0);			/* This should never happen. */
@@ -317,7 +317,7 @@ editentry_set(char *name, char *newvalue, int editonly)
 		break;
 
 	default:
-		/* NOTREACHED */
+		; /* NOTREACHED */
 	}
 
 	return (0);
@@ -510,7 +510,7 @@ load_format(char *pagedb_path, int page)
 			break;
 
 		default:
-			/* NOTREACHED */
+			; /* NOTREACHED */
 		}
 
 		/* Repeat processing loop with next character. */
