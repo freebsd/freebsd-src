@@ -167,7 +167,7 @@ main(int argc, char *argv[])
 		}
 	} else {
 		fts_options &= ~FTS_PHYSICAL;
-		fts_options |= FTS_LOGICAL;
+		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
 
 	/* Save the target base in "to". */
@@ -397,8 +397,16 @@ copy(char *argv[], enum op type, int fts_options)
 
 		switch (curr->fts_statp->st_mode & S_IFMT) {
 		case S_IFLNK:
-			if (copy_link(curr, !dne))
-				badcp = rval = 1;
+			/* Catch special case of a non-dangling symlink */
+			if ((fts_options & FTS_LOGICAL) ||
+			    ((fts_options & FTS_COMFOLLOW) &&
+			    curr->fts_level == 0)) {
+				if (copy_file(curr, dne))
+					badcp = rval = 1;
+			} else {	
+				if (copy_link(curr, !dne))
+					badcp = rval = 1;
+			}
 			break;
 		case S_IFDIR:
 			if (!Rflag && !rflag) {
