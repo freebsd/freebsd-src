@@ -1812,10 +1812,9 @@ void
 vm_page_cowclear(vm_page_t m)
 {
 
-	/* XXX KDM find out if giant is required here. */
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->cow) {
-		atomic_subtract_int(&m->cow, 1);
+		m->cow--;
 		/* 
 		 * let vm_fault add back write permission  lazily
 		 */
@@ -1828,9 +1827,9 @@ vm_page_cowclear(vm_page_t m)
 void
 vm_page_cowsetup(vm_page_t m)
 {
-	/* XXX KDM find out if giant is required here */
-	GIANT_REQUIRED;
-	atomic_add_int(&m->cow, 1);
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	m->cow++;
 	vm_page_protect(m, VM_PROT_READ);
 }
 

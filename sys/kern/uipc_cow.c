@@ -96,7 +96,9 @@ socow_iodone(void *addr, void *args)
 	pp = PHYS_TO_VM_PAGE(paddr);
 	s = splvm();
 	/* remove COW mapping  */
+	vm_page_lock_queues();
 	vm_page_cowclear(pp);
+	vm_page_unlock_queues();
 	vm_object_deallocate(pp->object);
 	splx(s);
 	/* note that sf_buf_free() unwires the page for us*/
@@ -141,12 +143,12 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/* 
 	 * set up COW
 	 */
+	vm_page_lock_queues();
 	vm_page_cowsetup(pp);
 
 	/*
 	 * wire the page for I/O
 	 */
-	vm_page_lock_queues();
 	vm_page_wire(pp);
 	vm_page_unlock_queues();
 
