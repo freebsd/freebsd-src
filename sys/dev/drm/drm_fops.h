@@ -315,7 +315,7 @@ int DRM(write_string)(drm_device_t *dev, const char *s)
 	DRM_DEBUG("dev->buf_sigio=%p\n", dev->buf_sigio);
 	if (dev->buf_sigio) {
 		DRM_DEBUG("dev->buf_sigio->sio_pgid=%d\n", dev->buf_sigio->sio_pgid);
-		pgsigio(dev->buf_sigio, SIGIO, 0);
+		pgsigio(&dev->buf_sigio, SIGIO, 0);
 	}
 	DRM_DEBUG("waking\n");
 	wakeup(&dev->buf_rp);
