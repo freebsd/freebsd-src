@@ -76,7 +76,7 @@
 #define EN_INTR_RET(X) return
 #define EN_IOCTL_CMDT u_long
 
-struct device {
+struct midway_device {
   char dv_xname[IFNAMSIZ];
 };
 
@@ -90,7 +90,7 @@ struct device {
 
 struct en_softc {
   /* bsd glue */
-  struct device sc_dev;		/* system device */
+  struct midway_device sc_dev;		/* system device */
   struct ifnet enif;		/* network ifnet handle */
 
   /* bus glue */
