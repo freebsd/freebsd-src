@@ -163,6 +163,9 @@ The following targets are not run during the normal install process.
 Show list of files needed to be fetched in order to build the port.
 .It Cm fetch-recursive
 Fetch the distfiles of the port and all its dependencies.
+.It Cm fetch-recursive-list
+Show list of files that would be retrieved by
+.Cm fetch-recursive .
 .It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
 of those dependencies.
@@ -191,6 +194,10 @@ when you should have used
 .It Cm deinstall
 Remove an installed port from the system, similar to
 .Xr pkg_delete 1 .
+.It Cm deinstall-all
+Remove all installed ports with the same
+.Va PKGORIGIN
+from the system.
 .It Cm package
 Make a binary package for the port.
 The port will be installed if it has not already been.
