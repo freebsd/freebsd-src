@@ -327,7 +327,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 			}
 			db_printf(" ---\n");
 			if (tfps & ALPHA_PSL_USERMODE) {
-				printf("--- user mode ---\n");
+				db_printf("--- user mode ---\n");
 				break;	/* Terminate search.  */
 			}
 			have_trapframe = 1;
