@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.36.2.10 1998/04/16 00:25:45 brian Exp $
+#	$Id: Makefile,v 1.36.2.11 1998/04/25 10:48:41 brian Exp $
 
 PROG=	ppp
 SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
@@ -8,7 +8,7 @@ SRCS=	arp.c async.c auth.c bundle.c ccp.c chap.c chat.c command.c \
 	slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
 CFLAGS+=-Wall -Wpointer-arith
 LDADD+= -lutil -lz
-DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
+DPADD+=	${LIBUTIL} ${LIBZ}
 BINMODE=4550
 BINOWN=	root
 BINGRP=	network
@@ -19,6 +19,7 @@ MAN=	ppp.8
 .else
 MAN8=	ppp.8
 LDADD+=	-lmd -lcrypt
+DPADD+= ${LIBMD} ${LIBCRYPT}
 .endif
 
 .if defined(RELEASE_CRUNCH)
