@@ -261,7 +261,9 @@
 176	UNIMPL	LINUX	rt_sigpending
 177	UNIMPL	LINUX	rt_sigtimedwait
 178	UNIMPL	LINUX	rt_sigqueueinfo
-179	UNIMPL	LINUX	rt_sigsuspend
+179	STD	LINUX	{ int linux_rt_sigsuspend( \
+				struct linux_new_sigset *newset, \
+				size_t sigsetsize); }
 180	UNIMPL	LINUX	pread
 181	UNIMPL	LINUX	pwrite
 182	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
