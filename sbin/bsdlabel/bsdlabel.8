@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: disklabel.8,v 1.10 1998/12/17 16:50:10 jkh Exp $
+.\"	$Id: disklabel.8,v 1.11 1999/07/31 08:11:58 grog Exp $
 .\"
 .Dd July 30, 1999
 .Dt DISKLABEL 8
@@ -343,13 +343,6 @@ and
 for the standard stage1 and stage2 boot images (details may vary
 on architectures like the Alpha, where only a single-stage boot is used).
 .El
-.Ss The booteasy bootstrap manager
-.Pp
-FreeBSD supplies a boot manager called
-.Nm booteasy 
-which resides in the Master Boot Record.  Use the
-.Nm boot0cfg
-program to install it.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/disktab
