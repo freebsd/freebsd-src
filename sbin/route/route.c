@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.3 1996/01/02 20:09:22 wollman Exp $";
+	"$Id: route.c,v 1.4 1996/01/20 12:56:57 mpp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -58,8 +58,12 @@ static const char rcsid[] =
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netns/ns.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
+#ifdef CCITT
 #include <netccitt/x25.h>
+#endif
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -86,9 +90,13 @@ union	sockunion {
 	struct	sockaddr sa;
 	struct	sockaddr_in sin;
 	struct	sockaddr_ns sns;
+#ifdef ISO
 	struct	sockaddr_iso siso;
+#endif
 	struct	sockaddr_dl sdl;
+#ifdef CCITT
 	struct	sockaddr_x25 sx25;
+#endif
 } so_dst, so_gate, so_mask, so_genmask, so_ifa, so_ifp;
 
 typedef union sockunion *sup;
@@ -105,7 +113,9 @@ void	flushroutes(), newroute(), monitor(), sockaddr(), sodump(), bprintf();
 void	print_getmsg(), print_rtmsg(), pmsg_common(), pmsg_addrs(), mask_addr();
 int	getaddr(), rtmsg(), x25_makemask();
 extern	char *inet_ntoa(), *iso_ntoa(), *link_ntoa();
+#ifdef CCITT
 extern	int ccitt_addr __P((char *, struct sockaddr_x25 *));
+#endif
 
 __dead	void usage __P((const char *)) __dead2;
 
@@ -225,12 +235,16 @@ flushroutes(argc, argv)
 			case K_LINK:
 				af = AF_LINK;
 				break;
+#ifdef ISO
 			case K_ISO:
 			case K_OSI:
 				af = AF_ISO;
 				break;
+#endif
+#ifdef CCITT
 			case K_X25:
 				af = AF_CCITT;
+#endif
 			default:
 				goto bad;
 		} else
@@ -349,11 +363,12 @@ routename(sa)
 	case AF_LINK:
 		return (link_ntoa((struct sockaddr_dl *)sa));
 
+#ifdef ISO
 	case AF_ISO:
 		(void) sprintf(line, "iso %s",
 		    iso_ntoa(&((struct sockaddr_iso *)sa)->siso_addr));
 		break;
-
+#endif
 	default:
 	    {	u_short *s = (u_short *)sa;
 		u_short *slim = s + ((sa->sa_len + 1) >> 1);
@@ -442,10 +457,12 @@ netname(sa)
 	case AF_LINK:
 		return (link_ntoa((struct sockaddr_dl *)sa));
 
+#ifdef ISO
 	case AF_ISO:
 		(void) sprintf(line, "iso %s",
 		    iso_ntoa(&((struct sockaddr_iso *)sa)->siso_addr));
 		break;
+#endif
 
 	default:
 	    {	u_short *s = (u_short *)sa->sa_data;
@@ -510,19 +527,23 @@ newroute(argc, argv)
 				af = AF_LINK;
 				aflen = sizeof(struct sockaddr_dl);
 				break;
+#ifdef ISO
 			case K_OSI:
 			case K_ISO:
 				af = AF_ISO;
 				aflen = sizeof(struct sockaddr_iso);
 				break;
+#endif
 			case K_INET:
 				af = AF_INET;
 				aflen = sizeof(struct sockaddr_in);
 				break;
+#ifdef CCITT
 			case K_X25:
 				af = AF_CCITT;
 				aflen = sizeof(struct sockaddr_x25);
 				break;
+#endif
 			case K_SA:
 				af = PF_ROUTE;
 				aflen = sizeof(union sockunion);
@@ -748,7 +769,9 @@ getaddr(which, s, hpp)
 {
 	register sup su;
 	struct ns_addr ns_addr();
+#ifdef ISO
 	struct iso_addr *iso_addr();
+#endif
 	struct hostent *hp;
 	struct netent *np;
 	u_long val;
@@ -812,6 +835,7 @@ getaddr(which, s, hpp)
 		su->sns.sns_addr = ns_addr(s);
 		return (!ns_nullhost(su->sns.sns_addr));
 
+#ifdef ISO
 	case AF_OSI:
 		su->siso.siso_addr = *iso_addr(s);
 		if (which == RTA_NETMASK || which == RTA_GENMASK) {
@@ -821,14 +845,17 @@ getaddr(which, s, hpp)
 			su->siso.siso_len = 1 + cp - (char *)su;
 		}
 		return (1);
+#endif
 
 	case AF_LINK:
 		link_addr(s, &su->sdl);
 		return (1);
 
+#ifdef ISO
 	case AF_CCITT:
 		ccitt_addr(s, &su->sx25);
 		return (which == RTA_DST ? x25_makemask() : 1);
+#endif
 
 	case PF_ROUTE:
 		su->sa.sa_len = sizeof(*su);
@@ -870,6 +897,7 @@ netdone:
 	errx(EX_NOHOST, "bad address: %s", s);
 }
 
+#ifdef CCITT
 int
 x25_makemask()
 {
@@ -884,6 +912,7 @@ x25_makemask()
 	}
 	return 0;
 }
+#endif
 
 short ns_nullh[] = {0,0,0};
 short ns_bh[] = {-1,-1,-1};
@@ -1068,13 +1097,17 @@ mask_addr()
 	switch (so_dst.sa.sa_family) {
 	case AF_NS:
 	case AF_INET:
+#ifdef CCITT
 	case AF_CCITT:
+#endif
 	case 0:
 		return;
+#ifdef ISO
 	case AF_ISO:
 		olen = MIN(so_dst.siso.siso_nlen,
 			   MAX(so_mask.sa.sa_len - 6, 0));
 		break;
+#endif
 	}
 	cp1 = so_mask.sa.sa_len + 1 + (char *)&so_dst;
 	cp2 = so_dst.sa.sa_len + 1 + (char *)&so_dst;
@@ -1083,11 +1116,13 @@ mask_addr()
 	cp2 = so_mask.sa.sa_len + 1 + (char *)&so_mask;
 	while (cp1 > so_dst.sa.sa_data)
 		*--cp1 &= *--cp2;
+#ifdef ISO
 	switch (so_dst.sa.sa_family) {
 	case AF_ISO:
 		so_dst.siso.siso_nlen = olen;
 		break;
 	}
+#endif
 }
 
 char *msgtypes[] = {
@@ -1336,10 +1371,12 @@ sodump(su, which)
 		(void) printf("%s: link %s; ",
 		    which, link_ntoa(&su->sdl));
 		break;
+#ifdef ISO
 	case AF_ISO:
 		(void) printf("%s: iso %s; ",
 		    which, iso_ntoa(&su->siso.siso_addr));
 		break;
+#endif
 	case AF_INET:
 		(void) printf("%s: inet %s; ",
 		    which, inet_ntoa(su->sin.sin_addr));

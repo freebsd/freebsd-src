@@ -47,8 +47,10 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #include <netipx/ipx_if.h>
 #include <netns/ns.h>
 #include <netns/ns_if.h>
+#ifdef ISO
 #include <netiso/iso.h>
 #include <netiso/iso_var.h>
+#endif
 #include <arpa/inet.h>
 
 #include <signal.h>
@@ -78,7 +80,9 @@ intpr(interval, ifnetaddr)
 		struct in_ifaddr in;
 		struct ipx_ifaddr ipx;
 		struct ns_ifaddr ns;
+#ifdef ISO
 		struct iso_ifaddr iso;
+#endif
 	} ifaddr;
 	u_long ifaddraddr;
 	struct sockaddr *sa;

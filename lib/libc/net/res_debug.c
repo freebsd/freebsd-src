@@ -53,12 +53,15 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 1.5 1995/08/21 09:15:34 bde Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 1.6 1996/01/07 09:14:55 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <netinet/in.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
+
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
@@ -415,7 +418,9 @@ __p_rr(cp, msg, file)
 {
 	int type, class, dlen, n, c;
 	struct in_addr inaddr;
+#ifdef ISO
 	struct iso_addr isoa;
+#endif
 	const u_char *cp1, *cp2;
 	u_int32_t tmpttl, t;
 	int lcnt;
@@ -556,6 +561,7 @@ __p_rr(cp, msg, file)
 		putc('"', file);
 		break;
 
+#ifdef ISO
   	case T_NSAP:
 		isoa.isoa_len = dlen;
 		if (isoa.isoa_len > sizeof(isoa.isoa_genaddr))
@@ -564,6 +570,7 @@ __p_rr(cp, msg, file)
 		(void) fprintf(file, "\t%s", iso_ntoa(&isoa));
 		cp += dlen;
   		break;
+#endif
 
 	case T_MINFO:
 	case T_RP:
