@@ -38,6 +38,7 @@ NOOBJ=	noobj
 # SHARED=	copies
 SHARED?=	symlinks
 
+OSREL	= ${DESTDIR}/usr/include/osreldate.h
 beforeinstall: ${SHARED}
 	@${ECHO} installing ${FILES}
 	@-for i in ${FILES}; do \
@@ -46,12 +47,14 @@ beforeinstall: ${SHARED}
 		    ${DESTDIR}/usr/include/$$i; \
 	done
 	@${ECHO} creating osreldate.h
-	@rm -f ${DESTDIR}/usr/include/osreldate.h
-	@echo \#'undef __FreeBSD_version' > ${DESTDIR}/usr/include/osreldate.h
+	@echo \#'undef __FreeBSD_version' > ${OSREL}.new
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
-		>> ${DESTDIR}/usr/include/osreldate.h
-	@chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/osreldate.h
-	@chmod 444 ${DESTDIR}/usr/include/osreldate.h
+		>> ${OSREL}.new
+	@if cmp -s ${OSREL} ${OSREL}.new >/dev/null 2>&1 ; then \
+		rm -f ${OSREL}.new ; else \
+		mv -f ${OSREL}.new ${OSREL} ; fi
+	@chown ${BINOWN}.${BINGRP} ${OSREL}
+	@chmod 444 ${OSREL}
 	@${ECHO} installing ${DIRS}
 	@-for i in ${DIRS}; do \
 		if [ ! -d ${DESTDIR}/usr/include/$$i ]; \
