@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.2 1996/07/23 07:46:44 asami Exp $
+ *	$Id: wd.c,v 1.3 1996/07/30 18:56:10 asami Exp $
  */
 
 /* TODO:
@@ -503,8 +503,12 @@ reset_ok:
 			else
 				du->dk_error = inb(du->dk_port + wd_error); 
 			/* printf("Error (drv 1) : %x\n", du->dk_error); */
-
-			if(du->dk_error != 0x01)
+			/*
+			 * Sometimes (apparently mostly with ATAPI
+			 * drives involved) 0x81 really means 0x81
+			 * (drive 0 OK, drive 1 failed).
+			 */
+			if(du->dk_error != 0x01 && du->dk_error != 0x81)
 				goto nodevice;
 		} else	/* drive 0 fail */
 			goto nodevice;
@@ -1603,6 +1607,30 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 	return (0);
 }
 
+static void
+wdsetmulti(struct disk *du)
+{
+	/*
+	 * The config option flags low 8 bits define the maximum multi-block
+	 * transfer size.  If the user wants the maximum that the drive
+	 * is capable of, just set the low bits of the config option to
+	 * 0x00ff.
+	 */
+	if ((du->cfg_flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
+		int configval = du->cfg_flags & WDOPT_MULTIMASK;
+		du->dk_multi = min(du->dk_multi, configval);
+		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
+			du->dk_multi = 1;
+		} else {
+		    	if (wdwait(du, WDCS_READY, TIMEOUT) < 0) {
+				du->dk_multi = 1;
+			}
+		}
+	} else {
+		du->dk_multi = 1;
+	}
+}
+
 /*
  * issue IDC to drive to tell it just what geometry it is to be.
  */
@@ -1653,26 +1681,15 @@ wdsetctlr(struct disk *du)
 		return (1);
 	}
 
-	/*
-	 * The config option flags low 8 bits define the maximum multi-block
-	 * transfer size.  If the user wants the maximum that the drive
-	 * is capable of, just set the low bits of the config option to
-	 * 0x00ff.
-	 */
-	if ((du->cfg_flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
-		if (du->dk_multi > (du->cfg_flags & WDOPT_MULTIMASK))
-			du->dk_multi = du->cfg_flags & WDOPT_MULTIMASK;
-		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
-			du->dk_multi = 1;
-		}
-	} else {
-		du->dk_multi = 1;
-	}
+	wdsetmulti(du);
 
 #ifdef NOTYET
 /* set read caching and write caching */
 	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
+	wdwait(du, WDCS_READY, TIMEOUT);
+
 	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
+	wdwait(du, WDCS_READY, TIMEOUT);
 #endif
 
 	return (0);
@@ -1748,6 +1765,10 @@ again:
 		else {
 			outb(du->dk_port + wd_sdh, WDSD_IBM | (du->dk_unit << 4));
 			DELAY(5000);	/* usually unnecessary; drive select is fast */
+		/*
+		 * Do this twice: may get a false WDCS_READY the first time.
+		 */
+		inb(du->dk_port + wd_status);
 			if ((inb(du->dk_port + wd_status) & (WDCS_BUSY | WDCS_READY))
 			    != WDCS_READY
 			    || wdcommand(du, 0, 0, 0, 0, WDCC_RESTORE | WD_STEP) != 0
@@ -1868,6 +1889,12 @@ failed:
 	for (i=sizeof(wp->wdp_model)-1; i>=0 && wp->wdp_model[i]==' '; i--) {
 		wp->wdp_model[i] = '\0';
 	}
+
+	/*
+	 * find out the drives maximum multi-block transfer capability
+	 */
+	du->dk_multi = wp->wdp_nsecperint & 0xff;
+	wdsetmulti(du);
 
 #ifdef WDDEBUG
 	printf(

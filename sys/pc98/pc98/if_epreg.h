@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
+ *  $Id: if_epreg.h,v 1.2 1996/07/23 07:46:18 asami Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -107,10 +107,6 @@ struct ep_board {
 /*
  * Some global constants
  */
-#define ETHER_MIN_LEN	     64
-#define ETHER_MAX_LEN	   1518
-#define ETHER_ADDR_LEN	      6
-
 #define TX_INIT_RATE         16
 #define TX_INIT_MAX_RATE     64
 #define RX_INIT_LATENCY      64
@@ -455,8 +451,6 @@ struct ep_board {
 #define BNC 				0x2
 #define UTP 				0x4
 
-#define ETHER_ADDR_LEN			6
-#define ETHER_MAX			1536
 #define RX_BYTES_MASK			(u_short) (0x07ff)
 
 extern	struct ep_board ep_board[];
