@@ -274,6 +274,7 @@ struct md_store {
 	struct trapframe mds_frame;
 };
 
+#if 0
 void
 cpu_save_upcall(struct thread *td, struct kse *newkse)
 {
@@ -294,6 +295,7 @@ cpu_save_upcall(struct thread *td, struct kse *newkse)
 	/* This copies most of the user mode register values. */
 	bcopy(td->td_frame, newkse->ke_frame, sizeof(struct trapframe));
 }
+#endif
 
 void
 cpu_set_upcall(struct thread *td, void *pcb)
@@ -345,6 +347,7 @@ cpu_set_upcall(struct thread *td, void *pcb)
 #endif
 }
 
+#if 0
 void
 cpu_set_args(struct thread *td, struct kse *ke)
 {
@@ -353,7 +356,9 @@ cpu_set_args(struct thread *td, struct kse *ke)
 	    (int)ke->ke_mailbox);
 */
 }
+#endif
 
+#if 0
 void
 cpu_free_kse_mdstorage(struct kse *kse)
 {
@@ -363,12 +368,14 @@ cpu_free_kse_mdstorage(struct kse *kse)
 	kse->ke_pcb = NULL;
 	kse->ke_frame = NULL;
 }
+#endif
 
+#if 0
 int
 cpu_export_context(struct thread *td)
 {
+
 	/* XXXKSE */
-#if 0
 	struct trapframe *frame;
 	struct thread_mailbox *tm;
 	struct trapframe *uframe;
@@ -384,9 +391,9 @@ cpu_export_context(struct thread *td)
 	 * May need to fiddle a few other values too.
 	 */
 	return (error);
-#endif
 	return (0);
 }
+#endif
 
 void
 cpu_wait(p)
