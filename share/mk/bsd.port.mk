@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.41 1994/09/28 14:19:30 jkh Exp $
+# $Id: bsd.port.mk,v 1.42 1994/10/03 13:45:03 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -101,6 +101,7 @@ PKGDIR?=		${.CURDIR}/pkg
 # Change these if you'd prefer to keep the cookies someplace else.
 EXTRACT_COOKIE?=	${WRKDIR}/.extract_done
 CONFIGURE_COOKIE?=	${WRKDIR}/.configure_done
+INSTALL_COOKIE?=	${WRKDIR}/.install_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
@@ -143,6 +144,10 @@ PKGFILE?=		${DISTNAME}${PKG_SUFX}
 .MAIN: all
 all: extract configure build
 
+.if !target(is_depended)
+is_depended:	all install
+.endif
+
 # The following are used to create easy dummy targets for disabling some
 # bit of default target behavior you don't want.  They still check to see
 # if the target exists, and if so don't do anything, since you might want
@@ -167,7 +172,7 @@ package:
 .endif
 .if defined(NO_INSTALL) && !target(install)
 install:
-	@${DO_NADA}
+	@touch -f ${INSTALL_COOKIE}
 .endif
 
 # More standard targets start here.
@@ -178,13 +183,16 @@ pre-install:
 .endif
 
 .if !target(install)
-install: pre-install
+install: ${INSTALL_COOKIE}
+
+${INSTALL_COOKIE}: pre-install
 	@echo "===>  Installing for ${DISTNAME}"
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
 .else defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
 .endif
+	@touch -f ${INSTALL_COOKIE}
 .endif
 
 .if !target(pre-package)
@@ -218,7 +226,7 @@ build: configure pre-build
 		if [ ! -d ${PORTSDIR}/$$i ]; then \
 			echo ">> No directory for ${PORTSDIR}/$$i.  Skipping.."; \
 		else \
-			(cd ${PORTSDIR}/$$i; ${MAKE} all install) ; \
+			(cd ${PORTSDIR}/$$i; ${MAKE} is_depended) ; \
 		fi \
 	done
 	@echo "===>  Returning to build of ${DISTNAME}"
