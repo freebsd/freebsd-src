@@ -3346,11 +3346,10 @@ ngsr_constructor(node_p *nodep)
 /*
  * give our ok for a hook to be added...
  * If we are not running this should kick the device into life.
- * We allow hooks called "control" and dlci[1-1023]
  * The hook's private info points to our stash of info about that
  * channel.
  */
-static	int
+static int
 ngsr_newhook(node_p node, hook_p hook, const char *name)
 {
 	struct sr_softc *	sc = node->private;
