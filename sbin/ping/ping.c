@@ -324,7 +324,7 @@ main(argc, argv)
 			break;
 		case 'm':		/* TTL */
 			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > 255)
+			if (*ep || ep == optarg || ultmp > MAXTTL)
 				errx(EX_USAGE, "invalid TTL: `%s'", optarg);
 			ttl = ultmp;
 			options |= F_TTL;
@@ -381,7 +381,7 @@ main(argc, argv)
 			break;
 		case 'T':		/* multicast TTL */
 			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > 255)
+			if (*ep || ep == optarg || ultmp > MAXTTL)
 				errx(EX_USAGE, "invalid multicast TTL: `%s'",
 				    optarg);
 			mttl = ultmp;
