@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $Id: nfs_srvcache.c,v 1.11 1997/02/22 09:42:40 peter Exp $
+ * $Id: nfs_srvcache.c,v 1.12 1997/05/10 16:12:03 dfr Exp $
  */
 
 #ifndef NFS_NOSERVER 
@@ -44,26 +44,20 @@
  *		pages 53-63. San Diego, February 1989.
  */
 #include <sys/param.h>
-#include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <netinet/in.h>
 #ifdef ISO
 #include <netiso/iso.h>
 #endif
-#include <nfs/nfsm_subs.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsrvcache.h>
-#include <nfs/nqnfs.h>
 
 extern struct nfsstats nfsstats;
 extern int nfsv2_procid[NFS_NPROCS];

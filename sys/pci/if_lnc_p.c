@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_lnc_p.c,v 1.3 1997/02/22 09:44:06 peter Exp $
+ *	$Id: if_lnc_p.c,v 1.4 1997/04/04 16:44:52 kato Exp $
  */
 
 #include "pci.h"
@@ -29,7 +29,6 @@
 #include <sys/kernel.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <i386/isa/isa_device.h>
 
 #include "lnc.h"
 

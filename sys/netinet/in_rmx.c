@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_rmx.c,v 1.28 1997/02/13 19:46:41 wollman Exp $
+ *	$Id: in_rmx.c,v 1.29 1997/02/14 18:15:45 wollman Exp $
  */
 
 /*
@@ -46,25 +46,14 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-#include <netinet/tcp_timer.h>
-#include <netinet/tcp_var.h>
 
 extern int	in_inithead __P((void **head, int off));
 

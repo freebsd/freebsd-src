@@ -40,19 +40,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <sys/errno.h>
-#if defined(__FreeBSD__)
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/syslog.h>
-#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -60,9 +51,6 @@
 #include <net/if_atm.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_atm.h>
 
 #ifdef NATM

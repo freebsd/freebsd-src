@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: wdc_p.c,v 1.1 1997/03/11 23:17:26 se Exp $
+ *	$Id: wdc_p.c,v 1.2 1997/04/28 19:26:18 se Exp $
  */
 
 /*
@@ -30,14 +30,10 @@
 #ifdef CMD640
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <i386/isa/wdc_p.h>
-
-#include "wdc.h"
 
 /*
  * PCI-ID's of IDE-Controller

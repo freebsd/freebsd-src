@@ -39,15 +39,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
-#include <sys/mbuf.h>
 
 #include <net/if.h>
-#include <net/radix.h>
-#include <net/route.h>
 
 #include <netinet/in.h>
 

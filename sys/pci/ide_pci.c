@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	From: wd82371.c,v 1.5.2.1 1996/11/16 21:19:51 phk Exp $
- *	$Id$
+ *	$Id: ide_pci.c,v 1.1 1997/07/29 12:57:09 sos Exp $
  */
 
 #include "pci.h"
@@ -35,15 +35,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
-#include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-
-#include <machine/pmap.h>	/* for vtophys */
 
 #include <i386/isa/wdreg.h>
 

@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id$
+ * $Id: mfs_vnops.c,v 1.17 1997/02/22 09:47:33 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
@@ -45,10 +44,7 @@
 
 #include <miscfs/specfs/specdev.h>
 
-#include <machine/vmparam.h>
-
 #include <ufs/mfs/mfsnode.h>
-#include <ufs/mfs/mfsiom.h>
 #include <ufs/mfs/mfs_extern.h>
 
 static int	mfs_badop __P((void));

@@ -30,11 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.16 1997/02/22 09:39:03 peter Exp $
+ * $Id: kern_conf.c,v 1.17 1997/06/02 04:56:38 julian Exp $
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>

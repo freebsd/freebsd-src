@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.16 1997/02/22 09:42:36 peter Exp $
+ * $Id: nfs_node.c,v 1.17 1997/05/09 13:04:43 dfr Exp $
  */
 
 
@@ -44,15 +44,12 @@
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
-#include <nfs/nqnfs.h>
 
 LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
 u_long nfsnodehash;

@@ -31,20 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_debug.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: lfs_debug.c,v 1.6 1997/02/22 09:47:19 peter Exp $
  */
 
 #ifdef DEBUG
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/vnode.h>
 #include <sys/mount.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/lfs/lfs.h>
-#include <ufs/lfs/lfs_extern.h>
 
 static void	lfs_dump_dinode __P((struct dinode *dip));
 static void	lfs_dump_super __P((struct lfs *lfsp));

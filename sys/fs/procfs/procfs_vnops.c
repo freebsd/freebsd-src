@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.28 1997/02/22 09:40:31 peter Exp $
+ *	$Id: procfs_vnops.c,v 1.29 1997/02/24 16:44:11 bde Exp $
  */
 
 /*
@@ -54,8 +54,6 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
-#include <sys/resourcevar.h>
-#include <vm/vm.h>	/* for PAGE_SIZE */
 #include <machine/reg.h>
 #include <miscfs/procfs/procfs.h>
 

@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: inflate.c,v 1.8 1997/02/22 09:38:58 peter Exp $
  *
  *
  */
@@ -17,7 +17,6 @@
 #ifdef KERNEL
 #include <sys/systm.h>
 #endif
-#include <sys/mman.h>
 #include <sys/malloc.h>
 
 /* needed to make inflate() work */

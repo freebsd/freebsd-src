@@ -34,10 +34,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.12 1997/03/09 06:10:34 mpp Exp $
+ * $Id: ufs_quota.c,v 1.13 1997/03/23 03:37:48 bde Exp $
  */
-
-#include "opt_quota.h"		/* not really necessary... */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -52,7 +50,6 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
-#include <ufs/ufs/ufs_extern.h>
 
 /*
  * Quota name to error message mapping.

@@ -37,21 +37,15 @@
  *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_ctl.c,v 1.15 1997/04/27 19:02:37 alex Exp $
+ *	$Id: procfs_ctl.c,v 1.16 1997/04/27 21:32:21 alex Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
-#include <sys/signal.h>
 #include <sys/signalvar.h>
-#include <sys/ptrace.h>
 #include <miscfs/procfs/procfs.h>
 
 #include <vm/vm.h>

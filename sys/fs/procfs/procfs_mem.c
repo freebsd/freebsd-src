@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.24 1997/04/06 02:29:31 dyson Exp $
+ *	$Id: procfs_mem.c,v 1.25 1997/04/20 17:12:11 dyson Exp $
  */
 
 /*
@@ -47,8 +47,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>

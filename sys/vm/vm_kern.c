@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.36 1997/05/29 02:57:22 peter Exp $
+ * $Id: vm_kern.c,v 1.37 1997/06/22 15:47:11 peter Exp $
  */
 
 /*
@@ -70,12 +70,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/queue.h>
-#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -86,7 +83,6 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
 vm_map_t kernel_map=0;

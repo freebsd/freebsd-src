@@ -35,19 +35,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.17 1997/04/13 06:27:09 phk Exp $
+ * $Id: union_subr.c,v 1.18 1997/04/16 16:24:24 kato Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
-#include <sys/queue.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <vm/vm.h>

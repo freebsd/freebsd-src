@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.2 1997/01/17 23:54:42 joerg Exp $
+ * $Id: if_fpa.c,v 1.3 1997/03/24 11:24:51 bde Exp $
  *
  */
 
@@ -34,44 +34,21 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
 #if defined(__bsdi__) || defined(__NetBSD__)
 #include <sys/device.h>
 #endif
 
 #include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_dl.h>
-#include <net/route.h>
-
-#include "bpfilter.h"
-#if NBPFILTER > 0
-#include <net/bpf.h>
-#include <net/bpfdesc.h>
-#endif
 
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #endif
-#if defined(__FreeBSD__)
-#include <netinet/if_fddi.h>
-#else
-#include <net/if_fddi.h>
-#endif
-
-#include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 
 #if defined(__FreeBSD__)
 #include "fpa.h"
 #include <pci/pcivar.h>
-#include <i386/isa/icu.h>
 #include <dev/pdq/pdqvar.h>
 #include <dev/pdq/pdqreg.h>
 #elif defined(__bsdi__)
@@ -83,9 +60,6 @@
 #if _BSDI_VERSION < 199401
 #define IRQSHARE	0
 #endif
-#include <i386/pci/pci.h>
-#include <dev/pdq/pdqvar.h>
-#include <dev/pdq/pdqreg.h>
 #elif defined(__NetBSD__)
 #include <dev/pci/pcivar.h>
 #include <dev/ic/pdqvar.h>
