@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.c,v 1.8 1997/03/13 14:53:53 brian Exp $
+ * $Id: log.c,v 1.9 1997/05/04 02:39:03 ache Exp $
  *
  */
 #include "defs.h"
@@ -41,7 +41,7 @@
 #ifdef USELOGFILE
 static FILE *logfile;
 #endif
-static char logbuff[2000];
+static char logbuff[MAX_MRU*3+(MAX_MRU/16+1)*22+80];
 char *logptr;
 static struct mbuf *logtop;
 static struct mbuf *lognext;
