@@ -534,13 +534,13 @@ trap(a0, a1, a2, entry, framep)
 				/*
 				 * Grow the stack if necessary
 				 */
-				/* grow_stack returns false only if va falls into
+				/* vm_map_growstack fails only if va falls into
 				 * a growable stack region and the stack growth
-				 * fails.  It returns true if va was not within
+				 * fails.  It succeeds if va was not within
 				 * a growable stack region, or if the stack 
 				 * growth succeeded.
 				 */
-				if (!grow_stack (p, va))
+				if (vm_map_growstack(p, va) != KERN_SUCCESS)
 					rv = KERN_FAILURE;
 				else
 					/* Fault in the user page: */
