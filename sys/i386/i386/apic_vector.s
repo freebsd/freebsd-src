@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.22 1997/09/21 21:40:53 gibbs Exp $
+ *	$Id: apic_vector.s,v 1.38 1997/12/04 19:46:26 smp Exp smp $
  */
 
 
@@ -190,7 +190,12 @@ IDTVEC(vec_name) ;							\
 #define UNMASK_IRQ(irq_num)					\
 	IMASK_LOCK ;				/* into critical reg */	\
 	testl	$IRQ_BIT(irq_num), _apic_imen ;				\
-	je	9f ;							\
+	jne	7f ;				/* bit set, masked */	\
+	testl	$IRQ_BIT(irq_num), _apic_pin_trigger ;			\
+	jz	9f ;				/* edge, don't EOI */	\
+	movl	$0, lapic_eoi ;			/* should be safe */	\
+	jmp	9f ;				/* skip unmasking */	\
+7:									\
 	andl	$~IRQ_BIT(irq_num), _apic_imen ;/* clear mask bit */	\
 	movl	_ioapic,%ecx ;			/* ioapic[0]addr */	\
 	movl	$REDTBL_IDX(irq_num),(%ecx) ;	/* write the index */	\
@@ -239,7 +244,7 @@ IDTVEC(vec_name) ;							\
 	orl	$IRQ_BIT(irq_num), _cil ;				\
 	AVCPL_UNLOCK ;							\
 ;									\
-	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
+;;;	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
@@ -314,7 +319,7 @@ IDTVEC(vec_name) ;							\
 	jne	2f ;				/* this INT masked */	\
 	AVCPL_UNLOCK ;							\
 ;									\
-	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
+;;;	movl	$0, lapic_eoi ;			/* XXX too soon? */	\
 	incb	_intr_nesting_level ;					\
 ;	 								\
   /* entry point used by doreti_unpend for HWIs. */			\
@@ -406,6 +411,132 @@ _Xinvltlb:
 	iret
 
 
+#ifdef BETTER_CLOCK
+
+/*
+ * Executed by a CPU when it receives an Xcpucheckstate IPI from another CPU,
+ *
+ *  - Stores current cpu state in checkstate_cpustate[cpuid]
+ *      0 == user, 1 == sys, 2 == intr
+ *  - Stores current process in checkstate_curproc[cpuid]
+ *
+ *  - Signals its receipt by setting bit cpuid in checkstate_probed_cpus.
+ *
+ * stack: 0 -> ds, 4 -> ebx, 8 -> eax, 12 -> eip, 16 -> cs, 20 -> eflags
+ */
+
+	.text
+	SUPERALIGN_TEXT
+	.globl _Xcpucheckstate
+	.globl _checkstate_cpustate
+	.globl _checkstate_curproc
+	.globl _checkstate_pc
+_Xcpucheckstate:
+	pushl	%eax
+	pushl	%ebx		
+	pushl	%ds			/* save current data segment */
+
+	movl	$KDSEL, %eax
+	movl	%ax, %ds		/* use KERNEL data segment */
+
+	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+
+	movl	$0, %ebx		
+	movl	16(%esp), %eax	
+	andl	$3, %eax
+	cmpl	$3, %eax
+	je	1f
+#ifdef VM86
+	testl	$PSL_VM, 20(%esp)
+	jne	1f
+#endif
+	incl	%ebx			/* system or interrupt */
+#ifdef CPL_AND_CML	
+	cmpl	$0, _inside_intr
+	je	1f
+	incl	%ebx			/* interrupt */
+#endif
+1:	
+	movl	_cpuid, %eax
+	movl	%ebx, _checkstate_cpustate(,%eax,4)
+	movl	_curproc, %ebx
+	movl	%ebx, _checkstate_curproc(,%eax,4)
+	movl	12(%esp), %ebx
+	movl	%ebx, _checkstate_pc(,%eax,4)
+
+	lock				/* checkstate_probed_cpus |= (1<<id) */
+	btsl	%eax, _checkstate_probed_cpus
+
+	popl	%ds			/* restore previous data segment */
+	popl	%ebx
+	popl	%eax
+	iret
+
+/*
+ * Executed by a CPU when it receives an Xcpuast IPI from another CPU,
+ *
+ *  - Signals its receipt by clearing bit cpuid in checkstate_need_ast.
+ *
+ *  - We need a better method of triggering asts on other cpus.
+ */
+
+	.text
+	SUPERALIGN_TEXT
+	.globl _Xcpuast
+_Xcpuast:
+	PUSH_FRAME
+	movl	$KDSEL, %eax
+	movl	%ax, %ds		/* use KERNEL data segment */
+	movl	%ax, %es
+
+	movl	_cpuid, %eax
+	lock				/* checkstate_need_ast &= ~(1<<id) */
+	btrl	%eax, _checkstate_need_ast
+	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+
+	lock
+	btsl	%eax, _checkstate_pending_ast
+	jc	1f
+
+	FAKE_MCOUNT(12*4(%esp))
+
+	/* 
+	 * Giant locks do not come cheap.
+	 * A lot of cycles are going to be wasted here.
+	 */
+	call	_get_isrlock
+
+	AVCPL_LOCK
+#ifdef CPL_AND_CML
+	movl	_cml, %eax
+#else
+	movl	_cpl, %eax
+#endif
+	pushl	%eax
+	AVCPL_UNLOCK
+	lock
+	incb	_intr_nesting_level
+	sti
+	
+	pushl	$0
+	
+	lock
+	orl	$SWI_AST_PENDING, _ipending
+	
+	movl	_cpuid, %eax
+	lock	
+	btrl	%eax, _checkstate_pending_ast
+
+	MEXITCOUNT
+	jmp	_doreti
+1:
+	/* We are already in the process of delivering an ast for this CPU */
+	POP_FRAME
+	iret			
+
+#endif /* BETTER_CLOCK */
+
+	
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
  *
@@ -560,6 +691,17 @@ _stopped_cpus:
 	.long	0
 _started_cpus:
 	.long	0
+
+#ifdef BETTER_CLOCK
+	.globl _checkstate_probed_cpus
+	.globl _checkstate_need_ast
+_checkstate_probed_cpus:
+	.long	0	
+_checkstate_need_ast:
+	.long	0
+_checkstate_pending_ast:
+	.long	0
+#endif
 
 	.globl	_apic_pin_trigger
 _apic_pin_trigger:
