@@ -109,7 +109,7 @@ vendor ZONET			0x8a01	Zonet Technology Inc.
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
 vendor ROLAND			0xc00c	Roland
-vendor COREGA			0xc00f	Corega K.K.
+vendor COREGA2			0xc00f	Corega K.K.
 vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
@@ -424,6 +424,7 @@ vendor ARGOSY			-1	ARGOSY
 vendor AMD			-1	AMD
 vendor BILLIONTON		-1	Billionton Systems Inc.
 vendor CNET			-1	CNet
+vendor COREGA			-1	Corega K.K.
 vendor DIGITAL			-1 	Digital Equipment Corporation
 vendor DLINK			-1 	D-Link
 vendor DYNALINK			-1	DynaLink
