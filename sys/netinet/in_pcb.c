@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.36 1997/12/23 01:40:40 alex Exp $
+ *	$Id: in_pcb.c,v 1.37 1997/12/25 06:57:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -55,8 +55,8 @@
 
 struct	in_addr zeroin_addr;
 
-static void	 in_pcbinshash __P((struct inpcb *));
-static void	 in_rtchange __P((struct inpcb *, int));
+static void	in_pcbremlists __P((struct inpcb *));
+static void	in_rtchange __P((struct inpcb *, int));
 
 /*
  * These configure the range of local port addresses assigned to
@@ -106,6 +106,17 @@ SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
 	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
 
+/*
+ * in_pcb.c: manage the Protocol Control Blocks.
+ *
+ * NOTE: It is assumed that most of these functions will be called at
+ * splnet(). XXX - There are, unfortunately, a few exceptions to this
+ * rule that should be fixed.
+ */
+
+/*
+ * Allocate a PCB and associate it with the socket.
+ */
 int
 in_pcballoc(so, pcbinfo, p)
 	struct socket *so;
@@ -113,7 +124,6 @@ in_pcballoc(so, pcbinfo, p)
 	struct proc *p;
 {
 	register struct inpcb *inp;
-	int s;
 
 	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, 
 	       p ? M_WAITOK : M_NOWAIT);
@@ -122,10 +132,7 @@ in_pcballoc(so, pcbinfo, p)
 	bzero((caddr_t)inp, sizeof(*inp));
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
-	s = splnet();
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
-	in_pcbinshash(inp);
-	splx(s);
 	so->so_pcb = (caddr_t)inp;
 	return (0);
 }
@@ -139,6 +146,7 @@ in_pcbbind(inp, nam, p)
 	register struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
 	struct sockaddr_in *sin;
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error;
@@ -147,9 +155,7 @@ in_pcbbind(inp, nam, p)
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || inp->inp_laddr.s_addr != INADDR_ANY)
 		return (EINVAL);
-	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0 &&
-	    ((so->so_proto->pr_flags & PR_CONNREQUIRED) == 0 ||
-	     (so->so_options & SO_ACCEPTCONN) == 0))
+	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = 1;
 	if (nam) {
 		sin = (struct sockaddr_in *)nam;
@@ -186,8 +192,8 @@ in_pcbbind(inp, nam, p)
 			if (ntohs(lport) < IPPORT_RESERVED && p &&
 			    suser(p->p_ucred, &p->p_acflag))
 				return (EACCES);
-			t = in_pcblookup(inp->inp_pcbinfo, zeroin_addr, 0,
-			    sin->sin_addr, lport, wild);
+			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
+			    lport, wild);
 			if (t && (reuseport & t->inp_socket->so_options) == 0)
 				return (EADDRINUSE);
 		}
@@ -202,17 +208,17 @@ in_pcbbind(inp, nam, p)
 		if (inp->inp_flags & INP_HIGHPORT) {
 			first = ipport_hifirstauto;	/* sysctl */
 			last  = ipport_hilastauto;
-			lastport = &inp->inp_pcbinfo->lasthi;
+			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			if (p && (error = suser(p->p_ucred, &p->p_acflag)))
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
-			lastport = &inp->inp_pcbinfo->lastlow;
+			lastport = &pcbinfo->lastlow;
 		} else {
 			first = ipport_firstauto;	/* sysctl */
 			last  = ipport_lastauto;
-			lastport = &inp->inp_pcbinfo->lastport;
+			lastport = &pcbinfo->lastport;
 		}
 		/*
 		 * Simple check to ensure all ports are not used up causing
@@ -228,14 +234,20 @@ in_pcbbind(inp, nam, p)
 			count = first - last;
 
 			do {
-				if (count-- <= 0)	/* completely used? */
-					return (EADDRNOTAVAIL);
+				if (count-- < 0) {	/* completely used? */
+					/*
+					 * Undo any address bind that may have
+					 * occurred above.
+					 */
+					inp->inp_laddr.s_addr = INADDR_ANY;
+					return (EAGAIN);
+				}
 				--*lastport;
 				if (*lastport > first || *lastport < last)
 					*lastport = first;
 				lport = htons(*lastport);
-			} while (in_pcblookup(inp->inp_pcbinfo,
-				 zeroin_addr, 0, inp->inp_laddr, lport, wild));
+			} while (in_pcblookup_local(pcbinfo,
+				 inp->inp_laddr, lport, wild));
 		} else {
 			/*
 			 * counting up
@@ -243,18 +255,28 @@ in_pcbbind(inp, nam, p)
 			count = last - first;
 
 			do {
-				if (count-- <= 0)	/* completely used? */
-					return (EADDRNOTAVAIL);
+				if (count-- < 0) {	/* completely used? */
+					/*
+					 * Undo any address bind that may have
+					 * occurred above.
+					 */
+					inp->inp_laddr.s_addr = INADDR_ANY;
+					return (EAGAIN);
+				}
 				++*lastport;
 				if (*lastport < first || *lastport > last)
 					*lastport = first;
 				lport = htons(*lastport);
-			} while (in_pcblookup(inp->inp_pcbinfo,
-				 zeroin_addr, 0, inp->inp_laddr, lport, wild));
+			} while (in_pcblookup_local(pcbinfo,
+				 inp->inp_laddr, lport, wild));
 		}
 	}
 	inp->inp_lport = lport;
-	in_pcbrehash(inp);
+	if (in_pcbinshash(inp) != 0) {
+		inp->inp_laddr.s_addr = INADDR_ANY;
+		inp->inp_lport = 0;
+		return (EAGAIN);
+	}
 	return (0);
 }
 
@@ -403,10 +425,11 @@ in_pcbconnect(inp, nam, p)
 	if (error = in_pcbladdr(inp, nam, &ifaddr))
 		return(error);
 
-	if (in_pcblookuphash(inp->inp_pcbinfo, sin->sin_addr, sin->sin_port,
+	if (in_pcblookup_hash(inp->inp_pcbinfo, sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr ? inp->inp_laddr : ifaddr->sin_addr,
-	    inp->inp_lport, 0) != NULL)
+	    inp->inp_lport, 0) != NULL) {
 		return (EADDRINUSE);
+	}
 	if (inp->inp_laddr.s_addr == INADDR_ANY) {
 		if (inp->inp_lport == 0)
 			(void)in_pcbbind(inp, (struct sockaddr *)0, p);
@@ -435,8 +458,8 @@ in_pcbdetach(inp)
 	struct inpcb *inp;
 {
 	struct socket *so = inp->inp_socket;
-	int s;
 
+	in_pcbremlists(inp);
 	so->so_pcb = 0;
 	sofree(so);
 	if (inp->inp_options)
@@ -444,10 +467,6 @@ in_pcbdetach(inp)
 	if (inp->inp_route.ro_rt)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
-	s = splnet();
-	LIST_REMOVE(inp, inp_hash);
-	LIST_REMOVE(inp, inp_list);
-	splx(s);
 	FREE(inp, M_PCB);
 }
 
@@ -470,6 +489,9 @@ in_setsockaddr(so, nam)
 	register struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
+	/*
+	 * Do the malloc first in case it blocks.
+	 */
 	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
 	bzero(sin, sizeof *sin);
 	sin->sin_family = AF_INET;
@@ -499,6 +521,9 @@ in_setpeeraddr(so, nam)
 	struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
+	/*
+	 * Do the malloc first in case it blocks.
+	 */
 	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
 	bzero((caddr_t)sin, sizeof (*sin));
 	sin->sin_family = AF_INET;
@@ -527,8 +552,6 @@ in_setpeeraddr(so, nam)
  * cmds that are uninteresting (e.g., no error in the map).
  * Call the protocol specific routine (if any) to report
  * any errors for each matching socket.
- *
- * Must be called at splnet.
  */
 void
 in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
@@ -636,62 +659,94 @@ in_rtchange(inp, errno)
 	}
 }
 
+/*
+ * Lookup a PCB based on the local address and port.
+ */
 struct inpcb *
-in_pcblookup(pcbinfo, faddr, fport_arg, laddr, lport_arg, wild_okay)
+in_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 	struct inpcbinfo *pcbinfo;
-	struct in_addr faddr, laddr;
-	u_int fport_arg, lport_arg;
+	struct in_addr laddr;
+	u_int lport_arg;
 	int wild_okay;
 {
 	register struct inpcb *inp, *match = NULL;
 	int matchwild = 3, wildcard;
-	u_short fport = fport_arg, lport = lport_arg;
-	int s;
+	u_short lport = lport_arg;
 
-	s = splnet();
-
-	for (inp = pcbinfo->listhead->lh_first; inp != NULL; inp = inp->inp_list.le_next) {
-		if (inp->inp_lport != lport)
-			continue;
-		wildcard = 0;
-		if (inp->inp_faddr.s_addr != INADDR_ANY) {
-			if (faddr.s_addr == INADDR_ANY)
-				wildcard++;
-			else if (inp->inp_faddr.s_addr != faddr.s_addr ||
-			    inp->inp_fport != fport)
-				continue;
-		} else {
-			if (faddr.s_addr != INADDR_ANY)
-				wildcard++;
-		}
-		if (inp->inp_laddr.s_addr != INADDR_ANY) {
-			if (laddr.s_addr == INADDR_ANY)
-				wildcard++;
-			else if (inp->inp_laddr.s_addr != laddr.s_addr)
-				continue;
-		} else {
-			if (laddr.s_addr != INADDR_ANY)
-				wildcard++;
-		}
-		if (wildcard && wild_okay == 0)
-			continue;
-		if (wildcard < matchwild) {
-			match = inp;
-			matchwild = wildcard;
-			if (matchwild == 0) {
-				break;
+	if (!wild_okay) {
+		struct inpcbhead *head;
+		/*
+		 * Look for an unconnected (wildcard foreign addr) PCB that
+		 * matches the local address and port we're looking for.
+		 */
+		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
+		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+			if (inp->inp_faddr.s_addr == INADDR_ANY &&
+			    inp->inp_laddr.s_addr == laddr.s_addr &&
+			    inp->inp_lport == lport) {
+				/*
+				 * Found.
+				 */
+				return (inp);
 			}
 		}
+		/*
+		 * Not found.
+		 */
+		return (NULL);
+	} else {
+		struct inpcbporthead *porthash;
+		struct inpcbport *phd;
+		struct inpcb *match = NULL;
+		/*
+		 * Best fit PCB lookup.
+		 *
+		 * First see if this local port is in use by looking on the
+		 * port hash list.
+		 */
+		porthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(lport,
+		    pcbinfo->porthashmask)];
+		for (phd = porthash->lh_first; phd != NULL; phd = phd->phd_hash.le_next) {
+			if (phd->phd_port == lport)
+				break;
+		}
+		if (phd != NULL) {
+			/*
+			 * Port is in use by one or more PCBs. Look for best
+			 * fit.
+			 */
+			for (inp = phd->phd_pcblist.lh_first; inp != NULL;
+			    inp = inp->inp_portlist.le_next) {
+				wildcard = 0;
+				if (inp->inp_faddr.s_addr != INADDR_ANY)
+					wildcard++;
+				if (inp->inp_laddr.s_addr != INADDR_ANY) {
+					if (laddr.s_addr == INADDR_ANY)
+						wildcard++;
+					else if (inp->inp_laddr.s_addr != laddr.s_addr)
+						continue;
+				} else {
+					if (laddr.s_addr != INADDR_ANY)
+						wildcard++;
+				}
+				if (wildcard < matchwild) {
+					match = inp;
+					matchwild = wildcard;
+					if (matchwild == 0) {
+						break;
+					}
+				}
+			}
+		}
+		return (match);
 	}
-	splx(s);
-	return (match);
 }
 
 /*
  * Lookup PCB in hash list.
  */
 struct inpcb *
-in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
+in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	struct inpcbinfo *pcbinfo;
 	struct in_addr faddr, laddr;
 	u_int fport_arg, lport_arg;
@@ -700,9 +755,7 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 	struct inpcbhead *head;
 	register struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
-	int s;
 
-	s = splnet();
 	/*
 	 * First look for an exact match.
 	 */
@@ -711,8 +764,12 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
 		    inp->inp_laddr.s_addr == laddr.s_addr &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport)
-			goto found;
+		    inp->inp_lport == lport) {
+			/*
+			 * Found.
+			 */
+			return (inp);
+		}
 	}
 	if (wildcard) {
 		struct inpcb *local_wild = NULL;
@@ -720,64 +777,100 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard)
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
 		for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
-			    inp->inp_fport == 0 && inp->inp_lport == lport) {
+			    inp->inp_lport == lport) {
 				if (inp->inp_laddr.s_addr == laddr.s_addr)
-					goto found;
+					return (inp);
 				else if (inp->inp_laddr.s_addr == INADDR_ANY)
 					local_wild = inp;
 			}
 		}
-		if (local_wild != NULL) {
-			inp = local_wild;
-			goto found;
-		}
+		return (local_wild);
 	}
-	splx(s);
-	return (NULL);
 
-found:
 	/*
-	 * Move PCB to head of this hash chain so that it can be
-	 * found more quickly in the future.
-	 * XXX - this is a pessimization on machines with few
-	 * concurrent connections.
+	 * Not found.
 	 */
-	if (inp != head->lh_first) {
-		LIST_REMOVE(inp, inp_hash);
-		LIST_INSERT_HEAD(head, inp, inp_hash);
-	}
-	splx(s);
-	return (inp);
+	return (NULL);
 }
 
 /*
- * Insert PCB into hash chain. Must be called at splnet.
+ * Insert PCB onto various hash lists.
  */
-static void
+int
 in_pcbinshash(inp)
 	struct inpcb *inp;
 {
-	struct inpcbhead *head;
+	struct inpcbhead *pcbhash;
+	struct inpcbporthead *pcbporthash;
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+	struct inpcbport *phd;
 
-	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
-		 inp->inp_lport, inp->inp_fport, inp->inp_pcbinfo->hashmask)];
+	pcbhash = &pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
+		 inp->inp_lport, inp->inp_fport, pcbinfo->hashmask)];
 
-	LIST_INSERT_HEAD(head, inp, inp_hash);
+	pcbporthash = &pcbinfo->porthashbase[INP_PCBPORTHASH(inp->inp_lport,
+	    pcbinfo->porthashmask)];
+
+	/*
+	 * Go through port list and look for a head for this lport.
+	 */
+	for (phd = pcbporthash->lh_first; phd != NULL; phd = phd->phd_hash.le_next) {
+		if (phd->phd_port == inp->inp_lport)
+			break;
+	}
+	/*
+	 * If none exists, malloc one and tack it on.
+	 */
+	if (phd == NULL) {
+		MALLOC(phd, struct inpcbport *, sizeof(struct inpcbport), M_PCB, M_NOWAIT);
+		if (phd == NULL) {
+			return (ENOBUFS); /* XXX */
+		}
+		phd->phd_port = inp->inp_lport;
+		LIST_INIT(&phd->phd_pcblist);
+		LIST_INSERT_HEAD(pcbporthash, phd, phd_hash);
+	}
+	inp->inp_phd = phd;
+	LIST_INSERT_HEAD(&phd->phd_pcblist, inp, inp_portlist);
+	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+	return (0);
 }
 
+/*
+ * Move PCB to the proper hash bucket when { faddr, fport } have  been
+ * changed. NOTE: This does not handle the case of the lport changing (the
+ * hashed port list would have to be updated as well), so the lport must
+ * not change after in_pcbinshash() has been called.
+ */
 void
 in_pcbrehash(inp)
 	struct inpcb *inp;
 {
 	struct inpcbhead *head;
-	int s;
-
-	s = splnet();
-	LIST_REMOVE(inp, inp_hash);
 
 	head = &inp->inp_pcbinfo->hashbase[INP_PCBHASH(inp->inp_faddr.s_addr,
 		inp->inp_lport, inp->inp_fport, inp->inp_pcbinfo->hashmask)];
 
+	LIST_REMOVE(inp, inp_hash);
 	LIST_INSERT_HEAD(head, inp, inp_hash);
-	splx(s);
+}
+
+/*
+ * Remove PCB from various lists.
+ */
+static void
+in_pcbremlists(inp)
+	struct inpcb *inp;
+{
+	if (inp->inp_lport) {
+		struct inpcbport *phd = inp->inp_phd;
+
+		LIST_REMOVE(inp, inp_hash);
+		LIST_REMOVE(inp, inp_portlist);
+		if (phd->phd_pcblist.lh_first == NULL) {
+			LIST_REMOVE(phd, phd_hash);
+			free(phd, M_PCB);
+		}
+	}
+	LIST_REMOVE(inp, inp_list);
 }
