@@ -1607,7 +1607,7 @@ itjc_attach(device_t dev)
 		ITJC_DMA_POOL_BYTES,			/* maxsize*/
 		1,					/* nsegments*/
 		ITJC_DMA_POOL_BYTES,			/* maxsegsz*/
-		BUS_DMA_ALLOCNOW | BUS_DMAMEM_NOSYNC,	/* flags*/
+		BUS_DMA_ALLOCNOW | BUS_DMA_COHERENT,	/* flags*/
 		&ctx->tag);
 
 	if (error)
@@ -1621,7 +1621,7 @@ itjc_attach(device_t dev)
         error = bus_dmamem_alloc(
 		ctx->tag, 				/* DMA tag */
 		(void **)&ctx->pool,	/* KV addr of the allocated memory */
-		BUS_DMA_NOWAIT | BUS_DMAMEM_NOSYNC,	/* flags */
+		BUS_DMA_NOWAIT | BUS_DMA_COHERENT,	/* flags */
 		&ctx->map);				/* KV <-> PCI map */
 
 	if (error)
