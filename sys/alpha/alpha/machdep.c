@@ -107,6 +107,7 @@
 #include <sys/reboot.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/msgbuf.h>

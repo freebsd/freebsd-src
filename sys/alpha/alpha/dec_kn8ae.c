@@ -38,6 +38,7 @@
 #include <sys/termios.h>
 #include <sys/cons.h>
 #include <sys/reboot.h>
+#include <sys/bus.h>
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
