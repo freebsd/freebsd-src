@@ -1,11 +1,11 @@
-.TH curs_terminfo 3X ""
+.TH curs_terminfo 3 ""
 .ds n 5
 .SH NAME
-\fBcurs_terminfo\fR: \fBsetupterm\fR, \fBsetterm\fR,
+\fBsetupterm\fR, \fBsetterm\fR,
 \fBset_curterm\fR, \fBdel_curterm\fR, \fBrestartterm\fR, \fBtparm\fR,
 \fBtputs\fR, \fBputp\fR, \fBvidputs\fR, \fBvidattr\fR, \fBmvcur\fR,
-\fBtigetflag\fR, \fBtigetnum\fR, \fBtigetstr\fR - \fBncurses\fR
-interfaces to terminfo database
+\fBtigetflag\fR, \fBtigetnum\fR, 
+\fBtigetstr\fR - \fBncurses\fR interfaces to terminfo database
 .SH SYNOPSIS
 \fB#include <ncurses.h>\fR
 .br
@@ -51,7 +51,7 @@ recommended.
 Initially, \fBsetupterm\fR should be called.  Note that
 \fBsetupterm\fR is automatically called by \fBinitscr\fR and
 \fBnewterm\fR.  This defines the set of terminal-dependent variables
-[listed in \fBterminfo\fR(\*n)].  The \fBterminfo\fR variables
+[listed in \fBterminfo\fR(5)].  The \fBterminfo\fR variables
 \fBlines\fR and \fBcolumns\fR are initialized by \fBsetupterm\fR as
 follows: If \fBuse_env(FALSE)\fR has been called, values for
 \fBlines\fR and \fBcolumns\fR specified in \fBterminfo\fR are used.
@@ -68,7 +68,7 @@ correspond to the SVr4 headers \fBcurses.h\fR and \fBterm.h\fR).  Parameterized
 strings should be passed through \fBtparm\fR to instantiate them.  All
 \fBterminfo\fR strings [including the output of \fBtparm\fR] should be printed
 with \fBtputs\fR or \fBputp\fR.  Call the \fBreset_shell_mode\fR to restore the
-tty modes before exiting [see \fBcurs_kernel\fR(3X)].  Programs which use
+tty modes before exiting [see \fBcurs_kernel\fR(3)].  Programs which use
 cursor addressing should output \fBenter_ca_mode\fR upon startup and should
 output \fBexit_ca_mode\fR before exiting.  Programs desiring shell escapes
 should call
@@ -136,7 +136,7 @@ the \fIfildes\fR specified in \fBsetupterm\fR.
 
 The \fBvidputs\fR routine displays the string on the terminal in the
 video attribute mode \fIattrs\fR, which is any combination of the
-attributes listed in \fBncurses\fR(3X).  The characters are passed to
+attributes listed in \fBncurses\fR(3).  The characters are passed to
 the \fBputchar\fR-like routine \fIputc\fR.
 
 The \fBvidattr\fR routine is like the \fBvidputs\fR routine, except
@@ -159,7 +159,7 @@ With the \fBtigetstr\fR routine, the value \fB(char *)-1\fR is
 returned if \fIcapname\fR is not a string capability.
 
 The \fIcapname\fR for each capability is given in the table column entitled
-\fIcapname\fR code in the capabilities section of \fBterminfo\fR(\*n).
+\fIcapname\fR code in the capabilities section of \fBterminfo\fR(5).
 
 \fBchar *boolnames\fR, \fB*boolcodes\fR, \fB*boolfnames\fR
 
@@ -181,8 +181,8 @@ The \fBsetupterm\fR routine should be used in place of \fBsetterm\fR.
 
 Note that \fBvidattr\fR and \fBvidputs\fR may be macros.
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_kernel\fR(3X), \fBcurs_termcap\fR(3X),
-\fBputc\fR(3S), \fBterminfo\fR(\*n)
+\fBncurses\fR(3), \fBcurs_initscr\fR(3), \fBcurs_kernel\fR(3),
+\fBputc\fR(3), \fBterminfo\fR(5)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

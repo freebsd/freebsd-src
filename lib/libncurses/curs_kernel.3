@@ -1,6 +1,6 @@
-.TH curs_kernel 3X ""
+.TH curs_kernel 3 ""
 .SH NAME
-\fBcurs_kernel\fR: \fBdef_prog_mode\fR, \fBdef_shell_mode\fR,
+\fBdef_prog_mode\fR, \fBdef_shell_mode\fR,
 \fBreset_prog_mode\fR, \fBreset_shell_mode\fR, \fBresetty\fR,
 \fBsavetty\fR, \fBgetsyx\fR, \fBsetsyx\fR, \fBripoffline\fR,
 \fBcurs_set\fR, \fBnapms\fR - low-level \fBncurses\fR routines
@@ -69,7 +69,7 @@ at the beginning, do its manipulation of its own windows, do a
 \fBdoupdate\fR.
 
 The \fBripoffline\fR routine provides access to the same facility that
-\fBslk_init\fR [see curs_slk(3X)] uses to reduce the size of the
+\fBslk_init\fR [see curs_slk(3)] uses to reduce the size of the
 screen.  \fBripoffline\fR must be called before \fBinitscr\fR or
 \fBnewterm\fR is called.  If \fIline\fR is positive, a line is removed
 from the top of \fBstdscr\fR; if \fIline\fR is negative, a line is
@@ -105,8 +105,8 @@ The SVr4 man pages warn that the return value of \fBcurs_set\fR "is currently
 incorrect".  This implementation gets it right, but it may be unwise to count
 on the correctness of the return value anywhere else.
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X),
-\fBcurs_scr_dump\fR(3X), \fBcurs_slk\fR(3X)
+\fBncurses\fR(3), \fBcurs_initscr\fR(3), \fBcurs_outopts\fR(3), \fBcurs_refresh\fR(3),
+\fBcurs_scr_dmp\fR(3), \fBcurs_slk\fR(3)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

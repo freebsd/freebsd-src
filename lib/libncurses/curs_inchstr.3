@@ -1,9 +1,8 @@
-.TH curs_inchstr 3X ""
+.TH curs_inchstr 3 ""
 .SH NAME
-\fBcurs_inchstr\fR: \fBinchstr\fR, \fBinchnstr\fR, \fBwinchstr\fR,
+\fBinchstr\fR, \fBinchnstr\fR, \fBwinchstr\fR,
 \fBwinchnstr\fR, \fBmvinchstr\fR, \fBmvinchnstr\fR, \fBmvwinchstr\fR,
-\fBmvwinchnstr\fR - get a string of characters (and attributes) from a
-\fBncurses\fR window
+\fBmvwinchnstr\fR - get a string of characters (and attributes) from a \fBncurses\fR window
 .SH SYNOPSIS
 \fB#include <ncurses.h>\fR
 
@@ -30,14 +29,14 @@ right margin of the window.  The four functions with \fIn\fR as
 the last argument, return a leading substring at most \fIn\fR characters long.
 Constants defined in \fB<ncurses.h>\fR can be used with the \fB&\fR (logical
 AND) operator to extract the character or the attribute alone from any position
-in the \fIchstr\fR [see curs_inch(3X)].
+in the \fIchstr\fR [see curs_inch(3)].
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and an integer value
 other than \fBERR\fR upon successful completion.
 .SH NOTES
 Note that all routines except \fBwinchnstr\fR may be macros.
 .SH SEE ALSO
-\fBncurses\fR(3X), \fBcurs_inch\fR(3X).
+\fBncurses\fR(3), \fBcurs_inch\fR(3).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:
