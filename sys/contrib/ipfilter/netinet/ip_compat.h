@@ -214,7 +214,11 @@ typedef	 int	minor_t;
 #if defined(__FreeBSD__) && (defined(KERNEL) || defined(_KERNEL))
 # include <sys/param.h>
 # ifndef __FreeBSD_version
-#  include <sys/osreldate.h>
+#  ifdef IPFILTER_LKM
+#   include <osreldate.h>
+#  else
+#   include <sys/osreldate.h>
+#  endif
 # endif
 # ifdef IPFILTER_LKM
 #  define       ACTUALLY_LKM_NOT_KERNEL
