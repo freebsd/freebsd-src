@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.34 1998/04/30 16:50:07 peter Exp $";
+	"$Id: login.c,v 1.35 1998/06/01 08:47:04 amurai Exp $";
 #endif /* not lint */
 
 /*
@@ -414,7 +414,7 @@ main(argc, argv)
 		}
 
 		if (!rval) {
-			char * approvp;
+			char * approvep;
 		    
 			/*
 			 * If authentication succeeds, run any approval
@@ -432,7 +432,7 @@ main(argc, argv)
 				/*
 				 * See what the authorize program says
 				 */
-				if (r != AUTH_NONE) {
+				if (r != 0) {
 					rval = 0;
 
 					if (!rootok && (r & AUTH_ROOTOKAY))
