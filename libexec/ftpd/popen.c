@@ -108,7 +108,7 @@ ftpd_popen(program, type)
 
 		memset(&gl, 0, sizeof(gl));
 		gl.gl_matchc = MAXGLOBARGS;
-		flags |= GLOB_MAXPATH;
+		flags |= GLOB_LIMIT;
 		if (glob(argv[argc], flags, NULL, &gl))
 			gargv[gargc++] = strdup(argv[argc]);
 		else

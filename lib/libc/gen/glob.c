@@ -170,9 +170,11 @@ glob(pattern, flags, errfunc, pglob)
 		if (!(flags & GLOB_DOOFFS))
 			pglob->gl_offs = 0;
 	}
-	if (flags & GLOB_MAXPATH)
+	if (flags & GLOB_LIMIT) {
 		limit = pglob->gl_matchc;
-	else
+		if (limit == 0)
+			limit = ARG_MAX;
+	} else
 		limit = 0;
 	pglob->gl_flags = flags & ~GLOB_MAGCHAR;
 	pglob->gl_errfunc = errfunc;
@@ -687,8 +689,10 @@ globextend(path, pglob, limit)
 	char *copy;
 	const Char *p;
 
-	if (*limit && pglob->gl_pathc > *limit)
-		return (GLOB_LIMIT);
+	if (*limit && pglob->gl_pathc > *limit) {
+		errno = 0;
+		return (GLOB_NOSPACE);
+	}
 
 	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
 	pathv = pglob->gl_pathv ?
