@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.23 1998/10/23 18:57:39 bde Exp $";
+	"$Id: disklabel.c,v 1.24 1998/12/17 16:50:10 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -150,7 +150,7 @@ main(argc, argv)
 {
 	register struct disklabel *lp;
 	FILE *t;
-	int ch, f, flag, error = 0;
+	int ch, f = 0, flag, error = 0;
 	char *name = 0;
 
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
@@ -241,6 +241,9 @@ main(argc, argv)
 		err(4, "%s", specname);
 
 	switch(op) {
+
+	case UNSPEC:
+		break;
 
 	case EDIT:
 		if (argc != 1)
