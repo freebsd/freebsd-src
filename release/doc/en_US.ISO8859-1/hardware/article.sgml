@@ -742,7 +742,7 @@
     <title>Ethernet Interfaces</title>
 
     <para arch="i386,alpha">Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
-    AIC-6915 Fast Ethernet controller chip (&man.sf.4 driver)
+    AIC-6915 Fast Ethernet controller chip (&man.sf.4; driver)
       <itemizedlist>
         <listitem>
           <para>ANA-62011 64-bit single port 10/100baseTX adapter</para>
@@ -1150,7 +1150,7 @@
     </para>
 
     <para arch="i386">National Semiconductor DP83820 and DP83821 Gigabit Ethernet
-    NICs (&man.nge.4 driver)
+    NICs (&man.nge.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Addtron AEG320T</para>
@@ -1193,7 +1193,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4 drivers)
+    <para arch="i386,alpha">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4; drivers)
       <itemizedlist>
         <listitem>
 	  <para>SK-9821 1000baseT copper, single port</para>
