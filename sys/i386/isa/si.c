@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.75 1998/08/16 01:04:48 bde Exp $
+ *	$Id: si.c,v 1.76 1998/08/23 08:26:40 bde Exp $
  */
 
 #ifndef lint
@@ -437,7 +437,7 @@ si_eisa_attach(ed)
 	sc->sc_typename = si_type[sc->sc_type];
 
 	if ((iospace = ed->ioconf.ioaddrs.lh_first) == NULL) {
-		printf("si%d: no iospace??\n", ed->unit);
+		printf("si%lu: no iospace??\n", ed->unit);
 		return -1;
 	}
 	sc->sc_eisa_iobase = iospace->addr;
@@ -446,18 +446,18 @@ si_eisa_attach(ed)
 	sc->sc_eisa_irq = irq;
 
 	if ((maddr = ed->ioconf.maddrs.lh_first) == NULL) {
-		printf("si%d: where am I??\n", ed->unit);
+		printf("si%lu: where am I??\n", ed->unit);
 		return -1;
 	}
 	eisa_reg_start(ed);
 	if (eisa_reg_iospace(ed, iospace)) {
-		printf("si%d: failed to register iospace 0x%x\n",
-			ed->unit, iospace);
+		printf("si%lu: failed to register iospace %p\n",
+			ed->unit, (void *)iospace);
 		return -1;
 	}
 	if (eisa_reg_mspace(ed, maddr)) {
-		printf("si%d: failed to register memspace 0x%x\n",
-			ed->unit, maddr);
+		printf("si%lu: failed to register memspace %p\n",
+			ed->unit, (void *)maddr);
 		return -1;
 	}
 	/*
@@ -468,7 +468,7 @@ si_eisa_attach(ed)
 	 */
 	if (eisa_reg_intr(ed, irq, (void (*)(void *)) si_intr,
 		(void *)(intptr_t)(ed->unit), &tty_imask, 1)) {
-		printf("si%d: failed to register interrupt %d\n",
+		printf("si%lu: failed to register interrupt %d\n",
 			ed->unit, irq);
 		return -1;
 	}
