@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /*	$NetBSD: db_elf.c,v 1.4 1998/05/03 18:49:54 thorpej Exp $	*/
-
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -37,6 +35,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
