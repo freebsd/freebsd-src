@@ -31,6 +31,17 @@ static d_psize_t diskpsize;
 
 static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
  
+static void
+inherit_raw(dev_t pdev, dev_t dev)
+{
+	dev->si_disk = pdev->si_disk;
+	dev->si_drv1 = pdev->si_drv1;
+	dev->si_drv2 = pdev->si_drv2;
+	dev->si_iosize_max = pdev->si_iosize_max;
+	dev->si_bsize_phys = pdev->si_bsize_phys;
+	dev->si_bsize_best = pdev->si_bsize_best;
+}
+
 dev_t
 disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
 {
@@ -176,12 +187,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	}
 
 	/* Inherit properties from the whole/raw dev_t */
-	dev->si_disk = pdev->si_disk;
-	dev->si_drv1 = pdev->si_drv1;
-	dev->si_drv2 = pdev->si_drv2;
-	dev->si_iosize_max = pdev->si_iosize_max;
-	dev->si_bsize_phys = pdev->si_bsize_phys;
-	dev->si_bsize_best = pdev->si_bsize_best;
+	inherit_raw(pdev, dev);
 
 	if (error)
 		goto out;
@@ -205,9 +211,11 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 {
 	struct disk *dp;
 	int error;
+	dev_t pdev;
 
 	error = 0;
-	dp = dev->si_disk;
+	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
+	dp = pdev->si_disk;
 	dsclose(dev, devtype, dp->d_slice);
 	if (!dsisopen(dp->d_slice)) {
 		error = dp->d_devsw->d_close(dp->d_dev, fflag, devtype, p);
@@ -221,16 +229,10 @@ diskstrategy(struct bio *bp)
 	dev_t pdev;
 	struct disk *dp;
 
-	dp = bp->bio_dev->si_disk;
-	if (!dp) {
-		pdev = dkmodpart(dkmodslice(bp->bio_dev, WHOLE_DISK_SLICE), RAW_PART);
-		dp = bp->bio_dev->si_disk = pdev->si_disk;
-		bp->bio_dev->si_drv1 = pdev->si_drv1;
-		bp->bio_dev->si_drv2 = pdev->si_drv2;
-		bp->bio_dev->si_iosize_max = pdev->si_iosize_max;
-		bp->bio_dev->si_bsize_phys = pdev->si_bsize_phys;
-		bp->bio_dev->si_bsize_best = pdev->si_bsize_best;
-	}
+	pdev = dkmodpart(dkmodslice(bp->bio_dev, WHOLE_DISK_SLICE), RAW_PART);
+	dp = pdev->si_disk;
+	if (dp != bp->bio_dev->si_disk)
+		inherit_raw(pdev, bp->bio_dev);
 
 	if (!dp) {
 		bp->bio_error = ENXIO;
@@ -256,8 +258,10 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
 	struct disk *dp;
 	int error;
+	dev_t pdev;
 
-	dp = dev->si_disk;
+	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
+	dp = pdev->si_disk;
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
 		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, p);
@@ -270,12 +274,11 @@ diskpsize(dev_t dev)
 	struct disk *dp;
 	dev_t pdev;
 
-	dp = dev->si_disk;
-	if (!dp) {
-		pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
-		dp = pdev->si_disk;
-		if (!dp)
-			return (-1);
+	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
+	dp = pdev->si_disk;
+	if (!dp)
+		return (-1);
+	if (dp != dev->si_disk) {
 		dev->si_drv1 = pdev->si_drv1;
 		dev->si_drv2 = pdev->si_drv2;
 		/* XXX: don't set bp->b_dev->si_disk (?) */
