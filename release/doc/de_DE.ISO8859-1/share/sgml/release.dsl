@@ -1,7 +1,7 @@
 <!--
 	$FreeBSD$
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.8 2002/10/13 16:40:33 ue Exp $
-	basiert auf: 1.6
+	basiert auf: 1.6.2.1
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
@@ -38,17 +38,6 @@
                 (literal "> wenden.")
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
-              (make element gi: "small"  
-                (literal "Alle Anwender von FreeBSD ")
-		(literal (entity-text "release.branch"))
-		(literal " sollten sich in die Mailingliste ")
-                (literal "<")
-		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
-                  (literal "current@FreeBSD.org"))
-                (literal "> eintragen.")))
-
-            (make element gi: "p"
-                  attributes: (list (list "align" "center"))
 	      (literal "Wenn Sie Fragen zu dieser Dokumentation haben, wenden Sie sich an <")
 	      (create-link (list (list "HREF" "mailto:de-bsd-translators@de.FreeBSD.org"))
                 (literal "de-bsd-translators@de.FreeBSD.org"))
@@ -75,7 +64,7 @@
               (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+5.0-current")))))
+              (else        (string-append u "&" "manpath=FreeBSD+5.0-RELEASE")))))
       ]]>
 
       (define (toc-depth nd)
