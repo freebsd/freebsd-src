@@ -800,6 +800,8 @@ case ${local_startup} in
 			(set -T
 			trap 'exit 1' 2
 			${script} start)
+		else
+			echo "Skipping ${script}, not executable"
 		fi
 	done
 	IFS="${script_save_sep}"
