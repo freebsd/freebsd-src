@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ip6fw
-# REQUIRE: network2
+# REQUIRE: routing
 # BEFORE: network_ipv6
 # KEYWORD: FreeBSD
 
