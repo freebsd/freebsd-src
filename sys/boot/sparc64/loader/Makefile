@@ -1,10 +1,8 @@
 # $FreeBSD$
 
-BASE=		loader
-PROG=		${BASE}
+PROG=		loader
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" sparc64
-BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
@@ -48,66 +46,42 @@ CFLAGS+=	-DLOADER_TFTP_SUPPORT
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/sparc64
-.if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.else
-LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-.endif
 .endif
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
-.include	<${.CURDIR}/../../common/Makefile.inc>
+.include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
-CFLAGS+=	-I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I.
 
-CLEANFILES+=	vers.c ${BASE}.help
+CLEANFILES+=	vers.c loader.help
 
-CFLAGS+=	-ffreestanding
-LDFLAGS=	-nostdlib -static
+LDFLAGS=	-static
 
 # Openfirmware standalone support library
 LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 
 # where to get libstand from
-#XXX need a better way to do this
-LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
-.if !exists(${LIBSTAND})
-LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
-.if !exists(${LIBSTAND})
-LIBSTAND=	-lstand
-.endif
-.endif
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBOFW} -lstand
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-${BASE}.help: help.common help.sparc64
+loader.help: help.common help.sparc64
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 .PATH: ${.CURDIR}/../../forth
-FILES=	${BASE}.help loader.4th support.4th loader.conf
+FILES=	loader.help loader.4th support.4th loader.conf
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
 FILES+= loader.rc
 .endif
 
-# There are no things relevant to all boot parts of FreeBSD/sparc64 yet.
-#.include <${.CURDIR}/../Makefile.inc>
-
 .include <bsd.prog.mk>
-
-.if exists(${.CURDIR}/../../../sparc64/include)
-beforedepend ${OBJS}: machine
-
-machine:
-	ln -sf ${.CURDIR}/../../../sparc64/include machine
-.endif
-
-CLEANFILES+=	machine
