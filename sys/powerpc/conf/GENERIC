@@ -26,6 +26,7 @@ maxusers	0
 #hints		"GENERIC.hints"
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	NO_WERROR=true		#XXX: We don't want -Werror just now
 
 options 	FFS
 options 	COMPAT_43
