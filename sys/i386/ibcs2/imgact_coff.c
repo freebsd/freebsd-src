@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.11 1995/12/07 12:45:48 davidg Exp $
+ *	$Id: imgact_coff.c,v 1.12 1996/01/19 23:00:38 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -124,7 +124,7 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 
 	copy_len = (offset + filsz) - trunc_page(offset + filsz);
 	map_addr = trunc_page(vmaddr + filsz);
-	map_len = round_page(memsz) - trunc_page(filsz);
+	map_len = round_page(vmaddr + memsz) - map_addr;
 
 	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx,0x%x, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0)\n", __FILE__, __LINE__, map_addr, map_len));
 
@@ -145,14 +145,14 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 			    trunc_page(offset + filsz)))
 		return error;
 
-	bcopy(data_buf, (caddr_t) map_addr, copy_len);
+	error = copyout(data_buf, (caddr_t) map_addr, copy_len);
 
 	if (vm_map_remove(kernel_map,
 			  (vm_offset_t) data_buf,
 			  (vm_offset_t) data_buf + PAGE_SIZE))
 		panic("load_coff_section vm_map_remove failed");
 
-	return 0;
+	return error;
 }
 
 int
