@@ -191,17 +191,15 @@ static u_long ds_crc(u_char *ep);
 /*
  *	PC-Card (PCMCIA) specific code.
  */
-static int edinit(struct pccard_devinfo *, int);	/* init device */
+static int edinit(struct pccard_devinfo *);		/* init device */
 static void edunload(struct pccard_devinfo *);		/* Disable driver */
 static int card_intr(struct pccard_devinfo *);		/* Interrupt handler */
-static void edsuspend(struct pccard_devinfo *);		/* Suspend driver */
 
 static struct pccard_device ed_info = {
 	"ed",
 	edinit,
 	edunload,
 	card_intr,
-	edsuspend,
 	0,			/* Attributes - presently unused */
 	&net_imask		/* Interrupt mask for device */
 				/* XXX - Should this also include net_imask? */
@@ -209,39 +207,25 @@ static struct pccard_device ed_info = {
 
 /*
  *	Initialize the device - called from Slot manager.
- *
- *	If first is set, then check for the device's existence
- *	before initializing it.  Once initialized, the device table may
- *	be set up.
  */
 static int
-edinit(struct pccard_devinfo *devi, int first)
+edinit(struct pccard_devinfo *devi)
 {
 	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
 
 	/* validate unit number. */
-	if (first) {
-		if (devi->isahd.id_unit >= NED)
-			return(ENODEV);
-		/*
-		 * Probe the device. If a value is returned, the
-		 * device was found at the location.
-		 */
-		sc->gone = 0;
-		if (ed_probe_pccard(&devi->isahd, devi->misc) == 0)
-			return(ENXIO);
-		if (ed_attach_isa(&devi->isahd) == 0)
-			return(ENXIO);
-	} else {
-	        sc->gone = 0;	/* reenable after a suspend */
-	}
+	if (devi->isahd.id_unit >= NED)
+		return(ENODEV);
 	/*
-	 * XXX TODO:
-	 * If it was initialized before, the device structure
-	 * should also be initialized.  We should
-	 * reset (and possibly restart) the hardware, but
-	 * I am not sure of the best way to do this...
+	 * Probe the device. If a value is returned, the
+	 * device was found at the location.
 	 */
+	sc->gone = 0;
+	if (ed_probe_pccard(&devi->isahd, devi->misc) == 0)
+		return(ENXIO);
+	if (ed_attach_isa(&devi->isahd) == 0)
+		return(ENXIO);
+
 	return(0);
 }
 
@@ -279,29 +263,6 @@ card_intr(struct pccard_devinfo *devi)
 {
 	edintr_sc(&ed_softc[devi->isahd.id_unit]);
 	return(1);
-}
-
-/*
- *	Called when a power down is requested. Shuts down the
- *	device and configures the device as unavailable (but
- *	still loaded...). A resume is done by calling
- *	edinit with first = 0. This is called when the user suspends
- *	the system, or the APM code suspends the system.
- */
-static void
-edsuspend(struct pccard_devinfo *devi)
-{
-	struct ed_softc *sc = &ed_softc[devi->isahd.id_unit];
-        /*
-	 * Some 'ed' cards will generate a interrupt as they go away, 
-	 * and by the time the interrupt handler gets to the card,
-	 * the interrupt can't be cleared.
-	 * By setting gone here, we tell the handler to ignore the
-	 * interrupt when it happens.
-	 */
-        sc->gone = 1;		/* avoid spinning endlessly in interrupt handler */
-
-	printf("ed%d: suspending\n", devi->isahd.id_unit);
 }
 #endif /* NCARD > 0 */
 
