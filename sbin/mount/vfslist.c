@@ -34,16 +34,14 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)vfslist.c	8.1 (Berkeley) 5/8/95";
-#else
+#endif
 static const char rcsid[] =
 	"$Id$";
-#endif
 #endif /* not lint */
 
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "extern.h"
 
@@ -83,7 +81,7 @@ makevfslist(fslist)
 		if (*nextcp == ',')
 			i++;
 	if ((av = malloc((size_t)(i + 2) * sizeof(char *))) == NULL) {
-		warn(NULL);
+		warnx("malloc failed");
 		return (NULL);
 	}
 	nextcp = fslist;

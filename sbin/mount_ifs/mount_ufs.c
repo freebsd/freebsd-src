@@ -40,10 +40,9 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
-#else
-static const char rcsid[] =
-	"$Id: mount_ufs.c,v 1.12 1998/03/08 19:03:05 steve Exp $";
 #endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -52,8 +51,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include <ufs/ufs/ufsmount.h>
@@ -132,7 +129,7 @@ mount_ufs(argc, argv)
 	result = -1;
 	/*
 	 * If we are mounting root, and we have a mount of something that
-	 * might be the compatability slice, try mounting other slices
+	 * might be the compatibility slice, try mounting other slices
 	 * first.  If the kernel has done the right thing and mounted
 	 * the slice because the disk is really sliced, this will find
 	 * the real root filesystem.  If not, we'll try what was supplied.
@@ -158,21 +155,22 @@ mount_ufs(argc, argv)
 #else
 	if (mount(vfc.vfc_name, fs_name, mntflags, &args) < 0) {
 #endif
-		(void)fprintf(stderr, "%s on %s: ", args.fspec, fs_name);
 		switch (errno) {
 		case EMFILE:
-			(void)fprintf(stderr, "mount table full.\n");
+			warnx("%s on %s: mount table full",
+				args.fspec, fs_name);
 			break;
 		case EINVAL:
 			if (mntflags & MNT_UPDATE)
-				(void)fprintf(stderr,
-		    "Specified device does not match mounted device.\n");
+				warnx(
+		"%s on %s: specified device does not match mounted device",
+					args.fspec, fs_name);
 			else
-				(void)fprintf(stderr,
-				    "Incorrect super block.\n");
+				warnx("%s on %s: incorrect super block",
+					args.fspec, fs_name);
 			break;
 		default:
-			(void)fprintf(stderr, "%s\n", strerror(errno));
+			warn(NULL);
 			break;
 		}
 		return (1);
