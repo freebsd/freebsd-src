@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.89 1997/06/11 22:29:01 se Exp $
+ *      $Id: scsiconf.c,v 1.90 1997/09/02 20:06:35 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -317,6 +317,10 @@ static struct scsidevs knowndevs[] =
 		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "ARCHIVE", "4586XX 28887-*", "*",
 		"st", SC_MORE_LUS, 0
 	},
+	{
+		T_SEQUENTIAL, T_SEQUENTIAL, T_REMOV, "SONY", "TSL-7000", "*",
+		"st", SC_MORE_LUS, 0
+	},
 #endif	/* NST */
 #if NCH > 0
 	/*
@@ -331,6 +335,10 @@ static struct scsidevs knowndevs[] =
 	},
 	{
 		T_CHANGER, T_CHANGER, T_REMOV, "ARCHIVE", "4586XX 28887-*", "*",
+		"ch", SC_MORE_LUS
+	},
+	{
+		T_CHANGER, T_CHANGER, T_REMOV, "SONY", "TSL-7000", "*",
 		"ch", SC_MORE_LUS
 	},
 #endif /* NCH */
