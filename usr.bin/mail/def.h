@@ -155,12 +155,14 @@ struct headline {
 #define	GSUBJECT 2		/* Likewise, Subject: line */
 #define	GCC	4		/* And the Cc: line */
 #define	GBCC	8		/* And also the Bcc: line */
-#define	GMASK	(GTO|GSUBJECT|GCC|GBCC)
+#define	GREPLYTO 0x10		/* And the Reply-To: line */
+#define	GINREPLYTO 0x20		/* The In-Reply-To: line */
+#define	GMASK	(GTO|GSUBJECT|GCC|GBCC|GREPLYTO|GINREPLYTO)
 				/* Mask of places from whence */
 
-#define	GNL	16		/* Print blank line after */
-#define	GDEL	32		/* Entity removed from list */
-#define	GCOMMA	64		/* detract puts in commas */
+#define	GNL	0x40		/* Print blank line after */
+#define	GDEL	0x80		/* Entity removed from list */
+#define	GCOMMA	0x100		/* detract puts in commas */
 
 /*
  * Structure used to pass about the current
@@ -172,6 +174,8 @@ struct header {
 	char *h_subject;		/* Subject string */
 	struct name *h_cc;		/* Carbon copies string */
 	struct name *h_bcc;		/* Blind carbon copies */
+	char *h_replyto;		/* Reply address */
+	char *h_inreplyto;		/* Reference */
 	struct name *h_smopts;		/* Sendmail options */
 };
 

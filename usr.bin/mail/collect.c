@@ -232,12 +232,21 @@ cont:
 			break;
 		case 's':
 			/*
-			 * Set the Subject list.
+			 * Set the Subject line.
 			 */
 			cp = &linebuf[2];
 			while (isspace(*cp))
 				cp++;
 			hp->h_subject = savestr(cp);
+			break;
+		case 'R':
+			/*
+			 * Set the Reply-To line.
+			 */
+			cp = &linebuf[2];
+			while (isspace(*cp))
+				cp++;
+			hp->h_replyto = savestr(cp);
 			break;
 		case 'c':
 			/*
@@ -523,11 +532,11 @@ forward(ms, fp, f)
 		return(0);
 	if (*msgvec == 0) {
 		*msgvec = first(0, MMNORM);
-		if (*msgvec == NULL) {
+		if (*msgvec == 0) {
 			printf("No appropriate messages\n");
 			return(0);
 		}
-		msgvec[1] = NULL;
+		msgvec[1] = 0;
 	}
 	if (f == 'f' || f == 'F')
 		tabst = NOSTR;

@@ -251,9 +251,9 @@ statusput(mp, obuf, prefix)
  * which does all the dirty work.
  */
 int
-mail(to, cc, bcc, smopts, subject)
+mail(to, cc, bcc, smopts, subject, replyto)
 	struct name *to, *cc, *bcc, *smopts;
-	char *subject;
+	char *subject, *replyto;
 {
 	struct header head;
 
@@ -262,6 +262,8 @@ mail(to, cc, bcc, smopts, subject)
 	head.h_cc = cc;
 	head.h_bcc = bcc;
 	head.h_smopts = smopts;
+	head.h_replyto = replyto;
+	head.h_inreplyto = NOSTR;
 	mail1(&head, 0);
 	return(0);
 }
@@ -282,6 +284,9 @@ sendmail(str)
 	head.h_cc = NIL;
 	head.h_bcc = NIL;
 	head.h_smopts = NIL;
+	if ((head.h_replyto = getenv("REPLYTO")) == NULL)
+		head.h_replyto = NOSTR;
+	head.h_inreplyto = NOSTR;
 	mail1(&head, 0);
 	return(0);
 }
@@ -437,7 +442,8 @@ infix(hp, fi)
 		return(fi);
 	}
 	(void) rm(tempMail);
-	(void) puthead(hp, nfo, GTO|GSUBJECT|GCC|GBCC|GNL|GCOMMA);
+	(void) puthead(hp, nfo,
+		       GTO|GSUBJECT|GCC|GBCC|GREPLYTO|GINREPLYTO|GNL|GCOMMA);
 	c = getc(fi);
 	while (c != EOF) {
 		(void) putc(c, nfo);
@@ -483,6 +489,10 @@ puthead(hp, fo, w)
 		fmt("Cc:", hp->h_cc, fo, w&GCOMMA), gotcha++;
 	if (hp->h_bcc != NIL && w & GBCC)
 		fmt("Bcc:", hp->h_bcc, fo, w&GCOMMA), gotcha++;
+	if (hp->h_replyto != NOSTR && w & GREPLYTO)
+		fprintf(fo, "Reply-To: %s\n", hp->h_replyto), gotcha++;
+	if (hp->h_inreplyto != NOSTR && w & GINREPLYTO)
+		fprintf(fo, "In-Reply-To: <%s>\n", hp->h_inreplyto), gotcha++;
 	if (gotcha && w & GNL)
 		(void) putc('\n', fo);
 	return(0);
