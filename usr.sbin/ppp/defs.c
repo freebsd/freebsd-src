@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: defs.c,v 1.6 1997/12/21 12:11:05 brian Exp $
+ *	$Id: defs.c,v 1.7 1997/12/23 22:38:53 brian Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,7 @@ void
 SetLabel(const char *label)
 {
   if (label)
-    strncpy(dstsystem, label, sizeof(dstsystem) - 1);
+    strncpy(dstsystem, label, sizeof dstsystem - 1);
   else
     *dstsystem = '\0';
 }
@@ -88,7 +88,7 @@ GetShortHost()
 {
   char *p;
 
-  if (gethostname(VarShortHost, sizeof(VarShortHost))) {
+  if (gethostname(VarShortHost, sizeof VarShortHost)) {
     LogPrintf(LogERROR, "GetShortHost: gethostbyname: %s\n", strerror(errno));
     return 0;
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.116 1997/12/21 03:16:09 brian Exp $
+ * $Id: command.c,v 1.117 1997/12/23 22:38:52 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -766,18 +766,18 @@ RunCommand(int argc, char const *const *argv, const char *label)
 
       *buf = '\0';
       if (label) {
-        strncpy(buf, label, sizeof(buf) - 3);
-        buf[sizeof(buf)-3] = '\0';
+        strncpy(buf, label, sizeof buf - 3);
+        buf[sizeof buf - 3] = '\0';
         strcat(buf, ": ");
       }
       n = strlen(buf);
       for (f = 0; f < argc; f++) {
-        if (n < sizeof(buf)-1 && f)
+        if (n < sizeof buf - 1 && f)
           buf[n++] = ' ';
         if (arghidden(argc, argv, f))
-          strncpy(buf+n, HIDDEN, sizeof(buf)-n-1);
+          strncpy(buf+n, HIDDEN, sizeof buf - n - 1);
         else
-          strncpy(buf+n, argv[f], sizeof(buf)-n-1);
+          strncpy(buf+n, argv[f], sizeof buf - n - 1);
         n += strlen(buf+n);
       }
       LogPrintf(LogCOMMAND, "%s\n", buf);
@@ -999,7 +999,7 @@ SetServer(struct cmdargs const *arg)
     if (passwd == NULL)
       VarHaveLocalAuthKey = 0;
     else {
-      strncpy(VarLocalAuthKey, passwd, sizeof(VarLocalAuthKey) - 1);
+      strncpy(VarLocalAuthKey, passwd, sizeof VarLocalAuthKey - 1);
       VarLocalAuthKey[sizeof VarLocalAuthKey - 1] = '\0';
       VarHaveLocalAuthKey = 1;
     }
@@ -1329,28 +1329,28 @@ SetVariable(struct cmdargs const *arg)
 
   switch (param) {
   case VAR_AUTHKEY:
-    strncpy(VarAuthKey, argp, sizeof(VarAuthKey) - 1);
-    VarAuthKey[sizeof(VarAuthKey) - 1] = '\0';
+    strncpy(VarAuthKey, argp, sizeof VarAuthKey - 1);
+    VarAuthKey[sizeof VarAuthKey - 1] = '\0';
     break;
   case VAR_AUTHNAME:
-    strncpy(VarAuthName, argp, sizeof(VarAuthName) - 1);
-    VarAuthName[sizeof(VarAuthName) - 1] = '\0';
+    strncpy(VarAuthName, argp, sizeof VarAuthName - 1);
+    VarAuthName[sizeof VarAuthName - 1] = '\0';
     break;
   case VAR_DIAL:
-    strncpy(VarDialScript, argp, sizeof(VarDialScript) - 1);
-    VarDialScript[sizeof(VarDialScript) - 1] = '\0';
+    strncpy(VarDialScript, argp, sizeof VarDialScript - 1);
+    VarDialScript[sizeof VarDialScript - 1] = '\0';
     break;
   case VAR_LOGIN:
-    strncpy(VarLoginScript, argp, sizeof(VarLoginScript) - 1);
-    VarLoginScript[sizeof(VarLoginScript) - 1] = '\0';
+    strncpy(VarLoginScript, argp, sizeof VarLoginScript - 1);
+    VarLoginScript[sizeof VarLoginScript - 1] = '\0';
     break;
   case VAR_DEVICE:
     if (modem != -1)
       LogPrintf(LogWARN, "Cannot change device to \"%s\" when \"%s\" is open\n",
                 argp, VarDevice);
     else {
-      strncpy(VarDeviceList, argp, sizeof(VarDeviceList) - 1);
-      VarDeviceList[sizeof(VarDeviceList) - 1] = '\0';
+      strncpy(VarDeviceList, argp, sizeof VarDeviceList - 1);
+      VarDeviceList[sizeof VarDeviceList - 1] = '\0';
     }
     break;
   case VAR_ACCMAP:
@@ -1358,16 +1358,16 @@ SetVariable(struct cmdargs const *arg)
     VarAccmap = map;
     break;
   case VAR_PHONE:
-    strncpy(VarPhoneList, argp, sizeof(VarPhoneList) - 1);
-    VarPhoneList[sizeof(VarPhoneList) - 1] = '\0';
-    strncpy(VarPhoneCopy, VarPhoneList, sizeof(VarPhoneCopy) - 1);
-    VarPhoneCopy[sizeof(VarPhoneCopy) - 1] = '\0';
+    strncpy(VarPhoneList, argp, sizeof VarPhoneList - 1);
+    VarPhoneList[sizeof VarPhoneList - 1] = '\0';
+    strncpy(VarPhoneCopy, VarPhoneList, sizeof VarPhoneCopy - 1);
+    VarPhoneCopy[sizeof VarPhoneCopy - 1] = '\0';
     VarNextPhone = VarPhoneCopy;
     VarAltPhone = NULL;
     break;
   case VAR_HANGUP:
-    strncpy(VarHangupScript, argp, sizeof(VarHangupScript) - 1);
-    VarHangupScript[sizeof(VarHangupScript) - 1] = '\0';
+    strncpy(VarHangupScript, argp, sizeof VarHangupScript - 1);
+    VarHangupScript[sizeof VarHangupScript - 1] = '\0';
     break;
 #ifdef HAVE_DES
   case VAR_ENC:

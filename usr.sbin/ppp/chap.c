@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.26 1997/11/22 03:37:25 brian Exp $
+ * $Id: chap.c,v 1.27 1997/12/07 23:55:25 brian Exp $
  *
  *	TODO:
  */
@@ -230,10 +230,10 @@ RecvChapTalk(struct fsmheader *chp, struct mbuf *bp)
 		      VarBaseDevice);
 	  else {
 	    struct utmp ut;
-	    memset(&ut, 0, sizeof(ut));
+	    memset(&ut, 0, sizeof ut);
 	    time(&ut.ut_time);
-	    strncpy(ut.ut_name, name, sizeof(ut.ut_name)-1);
-	    strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
+	    strncpy(ut.ut_name, name, sizeof ut.ut_name - 1);
+	    strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
 	    if (logout(ut.ut_line))
 	      logwtmp(ut.ut_line, "", "");
 	    login(&ut);

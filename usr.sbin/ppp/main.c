@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.109 1997/12/17 21:21:56 brian Exp $
+ * $Id: main.c,v 1.110 1997/12/22 02:28:18 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -278,7 +278,7 @@ ex_desc(int ex)
     "reboot", "errdead", "hangup", "term", "nodial", "nologin"
   };
 
-  if (ex >= 0 && ex < sizeof(desc) / sizeof(*desc))
+  if (ex >= 0 && ex < sizeof desc / sizeof *desc)
     return desc[ex];
   snprintf(num, sizeof num, "%d", ex);
   return num;
@@ -545,7 +545,7 @@ main(int argc, char **argv)
     TtyCommandMode(1);
   }
 
-  snprintf(pid_filename, sizeof(pid_filename), "%stun%d.pid",
+  snprintf(pid_filename, sizeof pid_filename, "%stun%d.pid",
            _PATH_VARRUN, tunno);
   lockfile = ID0fopen(pid_filename, "w");
   if (lockfile != NULL) {
@@ -616,11 +616,13 @@ ReadTty(void)
   LogPrintf(LogDEBUG, "termode = %d, netfd = %d, mode = %d\n",
 	    TermMode, netfd, mode);
   if (!TermMode) {
-    n = read(netfd, linebuff, sizeof(linebuff) - 1);
+    n = read(netfd, linebuff, sizeof linebuff - 1);
     if (n > 0) {
       aft_cmd = 1;
       if (linebuff[n-1] == '\n')
         linebuff[--n] = '\0';
+      else
+        linebuff[n] = '\0';
       if (n)
         DecodeCommand(linebuff, n, IsInteractive(0) ? NULL : "Client");
       Prompt();
@@ -1021,7 +1023,7 @@ DoLoop(void)
       /* something to read from modem */
       if (LcpFsm.state <= ST_CLOSED)
 	nointr_usleep(10000);
-      n = read(modem, rbuff, sizeof(rbuff));
+      n = read(modem, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
 	DownConnection();
       } else
@@ -1052,12 +1054,12 @@ DoLoop(void)
     }
     if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {	/* something to read
 							 * from tun */
-      n = read(tun_in, &tun, sizeof(tun));
+      n = read(tun_in, &tun, sizeof tun);
       if (n < 0) {
 	LogPrintf(LogERROR, "read from tun: %s\n", strerror(errno));
 	continue;
       }
-      n -= sizeof(tun)-sizeof(tun.data);
+      n -= sizeof tun - sizeof tun.data;
       if (n <= 0) {
 	LogPrintf(LogERROR, "read from tun: Only %d bytes read\n", n);
 	continue;

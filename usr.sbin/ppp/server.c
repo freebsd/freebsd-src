@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: server.c,v 1.14 1997/12/21 12:11:08 brian Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ ServerLocalOpen(const char *name, mode_t mask)
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (mask != (mode_t)-1)
     mask = umask(mask);
-  if (bind(s, (struct sockaddr *) & ifsun, sizeof(ifsun)) < 0) {
+  if (bind(s, (struct sockaddr *)&ifsun, sizeof ifsun) < 0) {
     if (mask != (mode_t)-1)
       umask(mask);
     LogPrintf(LogERROR, "Local: bind: %s\n", strerror(errno));
@@ -138,7 +138,7 @@ ServerTcpOpen(int port)
   ifsin.sin_addr.s_addr = INADDR_ANY;
   ifsin.sin_port = htons(port);
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
-  if (bind(s, (struct sockaddr *) & ifsin, sizeof(ifsin)) < 0) {
+  if (bind(s, (struct sockaddr *)&ifsin, sizeof ifsin) < 0) {
     LogPrintf(LogERROR, "Tcp: bind: %s\n", strerror(errno));
     if (errno == EADDRINUSE && VarTerm)
       fprintf(VarTerm, "Wait for a while, then try again.\n");

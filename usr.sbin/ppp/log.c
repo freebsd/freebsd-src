@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: log.c,v 1.23 1997/12/21 12:11:07 brian Exp $
  */
 
 #include <sys/param.h>
@@ -237,7 +237,7 @@ LogDumpBuff(int lev, const char *hdr, const u_char * ptr, int n)
       LogPrintf(lev, "%s\n", hdr);
     while (n > 0) {
       b = buf;
-      for (b = buf; b != buf + sizeof(buf) - 2 && n--; b += 3)
+      for (b = buf; b != buf + sizeof buf - 2 && n--; b += 3)
 	sprintf(b, " %02x", (int) *ptr++);
       strcpy(b, "\n");
       LogPrintf(lev, buf);

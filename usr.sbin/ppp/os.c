@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.36 1997/12/03 10:23:51 brian Exp $
+ * $Id: os.c,v 1.37 1997/12/13 02:37:27 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -90,9 +90,9 @@ SetIpDevice(struct in_addr myaddr,
       close(s);
       return (0);
     }
-    memset(&ifra.ifra_addr, '\0', sizeof(ifra.ifra_addr));
-    memset(&ifra.ifra_broadaddr, '\0', sizeof(ifra.ifra_addr));
-    memset(&ifra.ifra_mask, '\0', sizeof(ifra.ifra_addr));
+    memset(&ifra.ifra_addr, '\0', sizeof ifra.ifra_addr);
+    memset(&ifra.ifra_broadaddr, '\0', sizeof ifra.ifra_broadaddr);
+    memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
     if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
 		strerror(errno));
@@ -111,9 +111,9 @@ SetIpDevice(struct in_addr myaddr,
      * If different address has been set, then delete it first.
      */
     if (oldmine.s_addr || oldhis.s_addr) {
-      memset(&ifra.ifra_addr, '\0', sizeof(ifra.ifra_addr));
-      memset(&ifra.ifra_broadaddr, '\0', sizeof(ifra.ifra_addr));
-      memset(&ifra.ifra_mask, '\0', sizeof(ifra.ifra_addr));
+      memset(&ifra.ifra_addr, '\0', sizeof ifra.ifra_addr);
+      memset(&ifra.ifra_broadaddr, '\0', sizeof ifra.ifra_broadaddr);
+      memset(&ifra.ifra_mask, '\0', sizeof ifra.ifra_mask);
       if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
         LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
 		  strerror(errno));
@@ -126,13 +126,13 @@ SetIpDevice(struct in_addr myaddr,
     sock_in = (struct sockaddr_in *) & (ifra.ifra_addr);
     sock_in->sin_family = AF_INET;
     sock_in->sin_addr = myaddr;
-    sock_in->sin_len = sizeof(*sock_in);
+    sock_in->sin_len = sizeof *sock_in;
 
     /* Set destination address */
     sock_in = (struct sockaddr_in *) & (ifra.ifra_broadaddr);
     sock_in->sin_family = AF_INET;
     sock_in->sin_addr = hisaddr;
-    sock_in->sin_len = sizeof(*sock_in);
+    sock_in->sin_len = sizeof *sock_in;
 
     addr = ntohl(myaddr.s_addr);
     if (IN_CLASSA(addr))
@@ -151,7 +151,7 @@ SetIpDevice(struct in_addr myaddr,
     sock_in = (struct sockaddr_in *) & (ifra.ifra_mask);
     sock_in->sin_family = AF_INET;
     sock_in->sin_addr.s_addr = htonl(mask);
-    sock_in->sin_len = sizeof(*sock_in);
+    sock_in->sin_len = sizeof *sock_in;
 
     if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
       if (how != SET_TRY)
@@ -299,7 +299,7 @@ OpenTunnel(int *ptun)
 
   err = ENOENT;
   for (unit = 0; unit <= MAX_TUN; unit++) {
-    snprintf(devname, sizeof(devname), "/dev/tun%d", unit);
+    snprintf(devname, sizeof devname, "/dev/tun%d", unit);
     tun_out = ID0open(devname, O_RDWR);
     if (tun_out >= 0)
       break;
@@ -327,8 +327,8 @@ OpenTunnel(int *ptun)
    */
   strncpy(ifname, devname + 5, IFNAMSIZ - 1);
 
-  memset(&ifra, '\0', sizeof(ifra));
-  memset(&ifrq, '\0', sizeof(ifrq));
+  memset(&ifra, '\0', sizeof ifra);
+  memset(&ifrq, '\0', sizeof ifrq);
 
   strncpy(ifrq.ifr_name, ifname, IFNAMSIZ - 1);
   strncpy(ifra.ifra_name, ifname, IFNAMSIZ - 1);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.23 1997/12/03 10:23:47 brian Exp $
+ * $Id: hdlc.c,v 1.24 1997/12/04 18:49:26 brian Exp $
  *
  *	TODO:
  */
@@ -355,7 +355,7 @@ static struct {
   { 0xc481, 0xc481, "Proprietary Node ID Authentication Protocol" }
 };
 
-#define NPROTOCOLS (sizeof(protocols)/sizeof(protocols[0]))
+#define NPROTOCOLS (sizeof protocols/sizeof protocols[0])
 
 static const char *
 Protocol2Nam(u_short proto)
@@ -477,7 +477,7 @@ HdlcErrorCheck()
   struct hdlcstat *hp = &HdlcStat;
   struct hdlcstat *op = &laststat;
 
-  if (memcmp(hp, op, sizeof(laststat))) {
+  if (memcmp(hp, op, sizeof laststat)) {
     LogPrintf(LogPHASE, "HDLC errors -> FCS: %u ADDR: %u COMD: %u PROTO: %u\n",
 	      hp->badfcs - op->badfcs, hp->badaddr - op->badaddr,
       hp->badcommand - op->badcommand, hp->unknownproto - op->unknownproto);
