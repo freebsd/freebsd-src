@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)who.1	8.2 (Berkeley) 12/30/93
-.\"	$Id$
+.\"	$Id: who.1,v 1.4 1997/02/22 19:57:52 peter Exp $
 .\"
 .Dd December 30, 1993
 .Dt WHO 1
@@ -43,9 +43,9 @@
 .Op Ar am I
 .Op Ar file 
 .Sh DESCRIPTION
-The utility
-.Nm who
-displays
+The
+.Nm
+utility displays
 a list of all users currently logged on, showing for each user
 the login name,
 tty name, the date and time of login, and hostname if not local.
@@ -57,7 +57,7 @@ Available options:
 Returns the invoker's real user name. 
 .It Ar file
 By default,
-.Nm who
+.Nm
 gathers information from the file
 .Pa /var/run/utmp .
 An alternate
