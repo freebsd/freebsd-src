@@ -90,10 +90,10 @@ void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
 int	gif_clone_create(struct if_clone *, int);
-int	gif_clone_destroy(struct ifnet *);
+void	gif_clone_destroy(struct ifnet *);
 
 struct if_clone gif_cloner = IF_CLONE_INITIALIZER("gif",
-    gif_clone_create, gif_clone_destroy, IF_MAXUNIT);
+    gif_clone_create, gif_clone_destroy, 0, IF_MAXUNIT);
 
 static int gifmodevent(module_t, int, void *);
 void gif_delete_tunnel(struct gif_softc *);
@@ -207,7 +207,7 @@ gif_clone_create(ifc, unit)
 	return (0);
 }
 
-int
+void
 gif_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -231,7 +231,6 @@ gif_clone_destroy(ifp)
 	if_detach(ifp);
 
 	free(sc, M_GIF);
-	return (0);
 }
 
 static int
