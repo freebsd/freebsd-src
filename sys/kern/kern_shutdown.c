@@ -59,6 +59,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/smp.h>		/* smp_active, cpuid */
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/sysproto.h>
@@ -66,7 +67,6 @@
 
 #include <machine/pcb.h>
 #include <machine/md_var.h>
-#include <machine/smp.h>		/* smp_active, cpuid */
 
 #include <sys/signalvar.h>
 

@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <vm/vm.h>
@@ -63,7 +64,6 @@
 
 #include <machine/cpu.h>
 #include <machine/limits.h>
-#include <machine/smp.h>
 
 #ifdef GPROF
 #include <sys/gmon.h>
@@ -150,46 +150,57 @@ initclocks(dummy)
 }
 
 /*
+ * Each time the real-time timer fires, this function is called on all CPUs
+ * with each CPU passing in its curproc as the first argument.  If possible
+ * a nice optimization in the future would be to allow the CPU receiving the
+ * actual real-time timer interrupt to call this function on behalf of the
+ * other CPUs rather than sending an IPI to all other CPUs so that they
+ * can call this function.  Note that hardclock() calls hardclock_process()
+ * for the CPU receiving the timer interrupt, so only the other CPUs in the
+ * system need to call this function (or have it called on their behalf.
+ */
+void
+hardclock_process(p, user)
+	struct proc *p;
+	int user;
+{
+	struct pstats *pstats;
+
+	/*
+	 * Run current process's virtual and profile time, as needed.
+	 */
+	mtx_assert(&sched_lock, MA_OWNED);
+	pstats = p->p_stats;
+	if (user &&
+	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
+	    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
+		p->p_sflag |= PS_ALRMPEND;
+		aston(p);
+	}
+	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
+	    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
+		p->p_sflag |= PS_PROFPEND;
+		aston(p);
+	}
+}
+
+/*
  * The real-time timer, interrupting hz times per second.
  */
 void
 hardclock(frame)
 	register struct clockframe *frame;
 {
-	register struct proc *p;
 	int need_softclock = 0;
 
-	p = curproc;
-	if (p != PCPU_GET(idleproc)) {
-		register struct pstats *pstats;
-
-		/*
-		 * Run current process's virtual and profile time, as needed.
-		 */
-		pstats = p->p_stats;
-		if (CLKF_USERMODE(frame) &&
-		    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
-		    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-			mtx_lock_spin(&sched_lock);
-			p->p_sflag |= PS_ALRMPEND;
-			aston(p);
-			mtx_unlock_spin(&sched_lock);
-		}
-		if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
-		    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-			mtx_lock_spin(&sched_lock);
-			p->p_sflag |= PS_PROFPEND;
-			aston(p);
-			mtx_unlock_spin(&sched_lock);
-		}
-	}
-
-#if defined(SMP) && defined(__i386__)
-	forward_hardclock(pscnt);
-#endif
+	mtx_lock_spin(&sched_lock);
+	hardclock_process(curproc, CLKF_USERMODE(frame));
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * If no separate statistics clock is available, run it from here.
+	 *
+	 * XXX: this only works for UP
 	 */
 	if (stathz == 0)
 		statclock(frame);
@@ -328,43 +339,39 @@ stopprofclock(p)
 }
 
 /*
- * Statistics clock.  Grab profile sample, and if divider reaches 0,
- * do process and kernel statistics.  Most of the statistics are only
+ * Do process and kernel statistics.  Most of the statistics are only
  * used by user-level statistics programs.  The main exceptions are
- * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
+ * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.  This function
+ * should be called by all CPUs in the system for each statistics clock
+ * interrupt.  See the description of hardclock_process for more detail on
+ * this function's relationship to statclock.
  */
 void
-statclock(frame)
-	register struct clockframe *frame;
+statclock_process(p, pc, user)
+	struct proc *p;
+	register_t pc;
+	int user;
 {
 #ifdef GPROF
-	register struct gmonparam *g;
+	struct gmonparam *g;
 	int i;
 #endif
-	register struct proc *p;
 	struct pstats *pstats;
 	long rss;
 	struct rusage *ru;
 	struct vmspace *vm;
 
-	mtx_lock_spin(&sched_lock);
-
-	if (CLKF_USERMODE(frame)) {
+	KASSERT(p == curproc, ("statclock_process: p != curproc"));
+	mtx_assert(&sched_lock, MA_OWNED);
+	if (user) {
 		/*
 		 * Came from user mode; CPU was in user state.
 		 * If this process is being profiled, record the tick.
 		 */
-		p = curproc;
 		if (p->p_sflag & PS_PROFIL)
-			addupc_intr(p, CLKF_PC(frame), 1);
-#if defined(SMP) && defined(__i386__)
-		if (stathz != 0)
-			forward_statclock(pscnt);
-#endif
-		if (--pscnt > 0) {
-			mtx_unlock_spin(&sched_lock);
+			addupc_intr(p, pc, 1);
+		if (pscnt < psdiv)
 			return;
-		}
 		/*
 		 * Charge the time as appropriate.
 		 */
@@ -380,21 +387,15 @@ statclock(frame)
 		 */
 		g = &_gmonparam;
 		if (g->state == GMON_PROF_ON) {
-			i = CLKF_PC(frame) - g->lowpc;
+			i = pc - g->lowpc;
 			if (i < g->textsize) {
 				i /= HISTFRACTION * sizeof(*g->kcount);
 				g->kcount[i]++;
 			}
 		}
 #endif
-#if defined(SMP) && defined(__i386__)
-		if (stathz != 0)
-			forward_statclock(pscnt);
-#endif
-		if (--pscnt > 0) {
-			mtx_unlock_spin(&sched_lock);
+		if (pscnt < psdiv)
 			return;
-		}
 		/*
 		 * Came from kernel mode, so we were:
 		 * - handling an interrupt,
@@ -407,8 +408,7 @@ statclock(frame)
 		 * so that we know how much of its real time was spent
 		 * in ``non-process'' (i.e., interrupt) work.
 		 */
-		p = curproc;
-		if ((p->p_ithd != NULL) || CLKF_INTR(frame)) {
+		if ((p->p_ithd != NULL) || p->p_intr_nesting_level >= 2) {
 			p->p_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
@@ -419,7 +419,6 @@ statclock(frame)
 				cp_time[CP_IDLE]++;
 		}
 	}
-	pscnt = psdiv;
 
 	schedclock(p);
 
@@ -434,7 +433,23 @@ statclock(frame)
 		if (ru->ru_maxrss < rss)
 			ru->ru_maxrss = rss;
 	}
+}
 
+/*
+ * Statistics clock.  Grab profile sample, and if divider reaches 0,
+ * do process and kernel statistics.  Most of the statistics are only
+ * used by user-level statistics programs.  The main exceptions are
+ * p->p_uticks, p->p_sticks, p->p_iticks, and p->p_estcpu.
+ */
+void
+statclock(frame)
+	register struct clockframe *frame;
+{
+
+	mtx_lock_spin(&sched_lock);
+	if (--pscnt == 0)
+		pscnt = psdiv;
+	statclock_process(curproc, CLKF_PC(frame), CLKF_USERMODE(frame));
 	mtx_unlock_spin(&sched_lock);
 }
 

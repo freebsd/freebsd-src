@@ -107,10 +107,11 @@
 #define XINVLTLB_OFFSET		(ICU_OFFSET + 112)
 
 /* inter-cpu clock handling */
-#define XCPUCHECKSTATE_OFFSET	(ICU_OFFSET + 113)
+#define XHARDCLOCK_OFFSET	(ICU_OFFSET + 113)
+#define XSTATCLOCK_OFFSET	(ICU_OFFSET + 114)
 
 /* inter-CPU rendezvous */
-#define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 114)
+#define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 115)
 
 /* IPI to generate an additional software trap at the target CPU */
 #define XCPUAST_OFFSET		(ICU_OFFSET +  48)
@@ -173,7 +174,8 @@ inthand_t
 
 inthand_t
 	Xinvltlb,	/* TLB shootdowns */
-	Xcpucheckstate,	/* Check cpu state */
+	Xhardclock,	/* Forward hardclock() */
+	Xstatclock,	/* Forward statclock() */
 	Xcpuast,	/* Additional software trap on other cpu */ 
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
 	Xspuriousint,	/* handle APIC "spurious INTs" */

@@ -211,6 +211,10 @@ clkintr(struct clockframe frame)
 		mtx_unlock_spin(&clock_lock);
 	}
 	timer_func(&frame);
+#ifdef SMP
+	if (timer_func == hardclock)
+		forward_hardclock();
+#endif
 	switch (timer0_state) {
 
 	case RELEASED:
@@ -253,6 +257,9 @@ clkintr(struct clockframe frame)
 			timer_func = hardclock;
 			timer0_state = RELEASED;
 			hardclock(&frame);
+#ifdef SMP
+			forward_hardclock();
+#endif
 		}
 		break;
 	}
@@ -374,8 +381,12 @@ release_timer2()
 static void
 rtcintr(struct clockframe frame)
 {
-	while (rtcin(RTC_INTR) & RTCIR_PERIOD)
+	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		statclock(&frame);
+#ifdef SMP
+		forward_statclock();
+#endif
+	}
 }
 
 #include "opt_ddb.h"

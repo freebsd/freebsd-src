@@ -262,8 +262,6 @@ static struct trapframe proc0_tf;
 static struct globaldata __globaldata;
 #endif
 
-struct cpuhead cpuhead;
-
 struct mtx sched_lock;
 struct mtx Giant;
 
@@ -454,16 +452,10 @@ again:
 	bufinit();
 	vm_pager_bufferinit();
 
-	SLIST_INIT(&cpuhead);
-	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
-
 #ifdef SMP
-	/*
-	 * OK, enough kmem_alloc/malloc state should be up, lets get on with it!
-	 */
-	mp_start();			/* fire up the APs and APICs */
-	mp_announce();
-#endif  /* SMP */
+	globaldata_register(GLOBALDATA);
+#endif
+
 	cpu_setregs();
 }
 
