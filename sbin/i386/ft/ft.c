@@ -469,7 +469,7 @@ int
 main(int argc, char *argv[])
 {
   int i;
-  char *tape, *getenv();
+  char *tape;
 
 
   /* Get device from environment, command line will override. */
