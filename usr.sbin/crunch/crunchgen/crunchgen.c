@@ -915,7 +915,7 @@ void top_makefile_rules(FILE *outmk)
 {
 	prog_t *p;
 
-	fprintf(outmk, "LIBS=");
+	fprintf(outmk, "LIBS+=");
 	output_strlst(outmk, libs);
 
 	if (makeobj) {
