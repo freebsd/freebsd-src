@@ -152,7 +152,7 @@ pbunsigned(unsigned long n)
 }
 
 void 
-initspaces()
+initspaces(void)
 {
 	int i;
 
@@ -168,7 +168,7 @@ initspaces()
 }
 
 void 
-enlarge_strspace()
+enlarge_strspace(void)
 {
 	char *newstrspace;
 	int i;
@@ -189,7 +189,7 @@ enlarge_strspace()
 }
 
 void
-enlarge_bufspace()
+enlarge_bufspace(void)
 {
 	char *newbuf;
 	int i;
@@ -246,7 +246,7 @@ onintr(int signo __unused)
  * killdiv - get rid of the diversion files
  */
 void
-killdiv()
+killdiv(void)
 {
 	int n;
 
@@ -291,7 +291,7 @@ xstrdup(const char *s)
 }
 
 void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 "usage: m4 [-d flags] [-t name] [-gs] [-D name[=value]]...\n"
@@ -351,7 +351,7 @@ doprintfilename(struct input_file *f)
  * and later dump everything that was added since then to a file.
  */
 size_t
-buffer_mark()
+buffer_mark(void)
 {
 	return bp - buf;
 }

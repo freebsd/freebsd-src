@@ -188,7 +188,7 @@ set_trace_flags(const char *s)
 }
 
 static int
-frame_level()
+frame_level(void)
 {
 	int level;
 	int framep;
