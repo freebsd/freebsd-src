@@ -140,6 +140,20 @@ __FBSDID("$FreeBSD$");
 
 typedef	int32_t	swblk_t;	/* swap offset */
 
+/*
+ * Swap device table
+ */
+struct swdevt {
+	udev_t	sw_dev;			/* For quasibogus swapdev reporting */
+	int	sw_flags;
+	int	sw_nblks;
+	int     sw_used;
+	struct	vnode *sw_vp;
+	dev_t	sw_device;
+};
+
+#define	SW_CLOSING	0x04
+
 struct swblock {
 	struct swblock	*swb_hnext;
 	vm_object_t	swb_object;
@@ -2535,7 +2549,7 @@ swaponvp(td, vp, dev, nblks)
 	sp->sw_vp = vp;
 	sp->sw_dev = dev2udev(dev);
 	sp->sw_device = dev;
-	sp->sw_flags = SW_FREED;
+	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
 
