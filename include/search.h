@@ -50,6 +50,10 @@ int	 hcreate(size_t);
 void	 hdestroy(void);
 ENTRY	*hsearch(ENTRY, ACTION);
 void	 insque(void *, void *);
+void	*lfind(const void *, const void *, size_t *, size_t,
+	    int (*)(const void *, const void *));
+void	*lsearch(const void *, void *, size_t *, size_t,
+	    int (*)(const void *, const void *));
 void	 remque(void *);
 void	*tdelete(const void * __restrict, void ** __restrict,
 	    int (*)(const void *, const void *));
