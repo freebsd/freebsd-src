@@ -53,8 +53,6 @@ include		System include files.
 
 kerberos5	Kerberos5 (Heimdal) package.
 
-kerberosIV	KerberosIV (eBones) package.
-
 lib		System libraries.
 
 libexec		System daemons.
