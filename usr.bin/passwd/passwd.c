@@ -29,9 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $id$
- *
  */
 
 #ifndef lint
@@ -41,17 +38,19 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
+#if 0
+static char sccsid[] = "@(#)passwd.c	8.3 (Berkeley) 4/2/94";
+#endif
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.11 1997/02/22 19:56:35 peter Exp $";
+	"$Id: passwd.c,v 1.12 1997/03/29 04:31:27 imp Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef YP
 #include <pwd.h>
@@ -68,7 +67,7 @@ extern int yp_passwd	__P(( char * ));
 
 #include "extern.h"
 
-void	usage __P((void));
+static void usage __P((void));
 
 int use_local_passwd = 0;
 
@@ -132,7 +131,7 @@ main(argc, argv)
 					yp_server = "localhost";
 #ifdef PARANOID
 			} else {
-				warnx("Only the super-user may use the -d flag.");
+				warnx("only the super-user may use the -d flag");
 			}
 #endif
 			break;
@@ -143,7 +142,7 @@ main(argc, argv)
 				yp_server = optarg;
 #ifdef PARANOID
 			} else {
-				warnx("Only the super-user may use the -h flag.");
+				warnx("only the super-user may use the -h flag");
 			}
 #endif
 			break;
@@ -189,14 +188,14 @@ main(argc, argv)
 			 * Reject -l flag if NIS is turned on and the user
 			 * doesn't exist in the local password database.
 			 */
-				errx(1, "unknown local user: %s.", uname);
+				errx(1, "unknown local user: %s", uname);
 			}
 		} else if (res == USER_LOCAL_ONLY) {
 			/*
 			 * Reject -y flag if user only exists locally.
 			 */
 			if (__use_yp)
-				errx(1, "unknown NIS user: %s.", uname);
+				errx(1, "unknown NIS user: %s", uname);
 		} else if (res == USER_YP_AND_LOCAL) {
 			if (!use_local_passwd && (yp_in_pw_file || __use_yp))
 				exit(yp_passwd(uname));
@@ -217,24 +216,23 @@ main(argc, argv)
 	exit(local_passwd(uname));
 }
 
-void
+static void
 usage()
 {
 
 #ifdef	YP
 #ifdef	KERBEROS
-	fprintf(stderr,
-	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname]\n");
-	fprintf(stderr,
-	"        [-l] [-y] [-o] [-d domain [-h host]] [user]\n");
+	fprintf(stderr, "%s\n%s\n",
+		"usage: passwd [-l] [-i instance] [-r realm] [-u fullname]",
+		"       passwd [-l] [-y] [-o] [-d domain [-h host]] [user]");
 #else
-	(void)fprintf(stderr, "usage: passwd [-l] [-y] [-o] [-d domain \
-[-h host]] [user] \n");
+	(void)fprintf(stderr,
+		"usage: passwd [-l] [-y] [-o] [-d domain [-h host]] [user]\n");
 #endif
 #else
 #ifdef	KERBEROS
 	fprintf(stderr,
-	 "usage: passwd [-l] [-i instance] [-r realm] [-u fullname] [user]\n");
+		"usage: passwd [-l] [-i instance] [-r realm] [-u fullname] [user]\n");
 #else
 	(void)fprintf(stderr, "usage: passwd user\n");
 #endif
