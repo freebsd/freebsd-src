@@ -29,7 +29,7 @@
 
 #include "SYS.h"
 
-LEAF(sigprocmask, 3)
+PLEAF(sigprocmask, 3)
 	mov	a2, a5			/* safe */
 	cmoveq	a1, 1, a0		/* if set == NULL, how = SIG_BLOCK */
 	beq	a1, Ldoit		/* and set = 0, and do it. */
@@ -40,5 +40,5 @@ Ldoit:	CALLSYS_ERROR(sigprocmask)
 Lret:	mov	zero, v0
 	RET
 
-	END(sigprocmask)
+	PEND(sigprocmask)
 

@@ -29,9 +29,9 @@
 
 #include "SYS.h"
 
-LEAF(sigsuspend, 1)
+PLEAF(sigsuspend, 1)
 	ldl	a0, 0(a0)		/* pass *mask instead of mask */
 	CALLSYS_ERROR(sigsuspend)
 	mov	zero, v0		/* shouldn't need; just in case... */
 	RET
-END(sigsuspend)
+PEND(sigsuspend)
