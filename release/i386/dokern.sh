@@ -40,6 +40,8 @@ sed	\
 	-e '/	uscanner	/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
+echo "options  MUTEX_NOINLINE"
+
 echo "options  NETGRAPH"
 echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
