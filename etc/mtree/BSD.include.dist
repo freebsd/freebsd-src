@@ -67,6 +67,8 @@
         ext
         ..
     ..
+    geom
+    ..
     isc
     ..
     isofs
