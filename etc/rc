@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.169.2.2 1999/02/10 18:08:38 jkh Exp $
+#	$Id: rc,v 1.169.2.3 1999/02/11 22:03:27 dillon Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -401,23 +401,19 @@ fi
 [ -f /etc/rc.devfs ] && sh /etc/rc.devfs
 
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
-# use this file and want to make it programmatic, source /etc/rc.conf in
-# /etc/rc.local and add your custom variables to /etc/rc.conf.local, as
+# use this file and want to make it programmatic, source /etc/defaults/rc.conf
+# in /etc/rc.local and add your custom variables to /etc/rc.conf, as
 # shown below.  Please do not put local extensions into /etc/rc itself. 
 # Use /etc/rc.local
 #
 # ---- rc.local  ----
-#     if [ -f /etc/rc.conf ]; then
-#             . /etc/rc.conf
+#     if [ -f /etc/defaults/rc.conf ]; then
+#             . /etc/defaults/rc.conf
 #     fi
 #
 #     ... additional startup conditionals ...
 # ---- rc.local  ----
 #
-
-# Do traditional rc.local file if it exists. 
-# 
-
 if [ -f /etc/rc.local ]; then
 	echo -n 'starting local daemons:'
         sh /etc/rc.local
