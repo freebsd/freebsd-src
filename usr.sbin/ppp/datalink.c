@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.4 1998/05/23 22:24:33 brian Exp $
+ *	$Id: datalink.c,v 1.5 1998/05/25 02:22:32 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1022,7 +1022,8 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
 }
 
 int
-datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov)
+datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
+             pid_t newpid)
 {
   /* If `dl' is NULL, we're allocating before a Fromiov() */
   int link_fd;
@@ -1048,7 +1049,7 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov)
     dl ? realloc(dl->name, DATALINK_MAXNAME) : malloc(DATALINK_MAXNAME);
   iov[(*niov)++].iov_len = DATALINK_MAXNAME;
 
-  link_fd = modem2iov(dl ? dl->physical : NULL, iov, niov, maxiov);
+  link_fd = modem2iov(dl ? dl->physical : NULL, iov, niov, maxiov, newpid);
 
   if (link_fd == -1 && dl) {
     free(dl->name);
