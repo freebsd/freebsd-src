@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id$
+#	$Id: bsd.port.subdir.mk,v 1.1 1994/08/22 10:46:38 jkh Exp $
 
 .MAIN: all
 
@@ -35,6 +35,10 @@ ${SUBDIR}::
 all: _SUBDIRUSE
 .endif
 
+.if !target(bundle)
+bundle: _SUBDIRUSE
+.endif
+
 .if !target(extract)
 extract: _SUBDIRUSE
 .endif
@@ -55,10 +59,6 @@ clean: _SUBDIRUSE
 depend: _SUBDIRUSE
 .endif
 
-.if !target (maninstall)
-maninstall: _SUBDIRUSE
-.endif
-
 .if !target(install)
 .if !target(beforeinstall)
 beforeinstall:
@@ -69,14 +69,6 @@ afterinstall:
 install: afterinstall
 afterinstall: realinstall
 realinstall: beforeinstall _SUBDIRUSE
-.endif
-
-.if !target(lint)
-lint: _SUBDIRUSE
-.endif
-
-.if !target(obj)
-obj: _SUBDIRUSE
 .endif
 
 .if !target(tags)
