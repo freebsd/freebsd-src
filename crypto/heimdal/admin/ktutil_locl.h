@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: ktutil_locl.h,v 1.14 2001/05/10 15:42:45 assar Exp $
+ * $Id: ktutil_locl.h,v 1.17 2001/08/22 20:30:18 assar Exp $
  * $FreeBSD$
  */
 
@@ -55,7 +55,7 @@
 #include <parse_time.h>
 #include <roken.h>
 
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #else
 #include <des.h>
@@ -72,7 +72,8 @@ extern krb5_context context;
 
 extern int verbose_flag;
 extern char *keytab_string; 
-extern char keytab_buf[256];
+
+krb5_keytab ktutil_open_keytab(void);
 
 int kt_add (int argc, char **argv);
 int kt_change (int argc, char **argv);
@@ -81,6 +82,7 @@ int kt_get (int argc, char **argv);
 int kt_list(int argc, char **argv);
 int kt_purge(int argc, char **argv);
 int kt_remove(int argc, char **argv);
+int kt_rename(int argc, char **argv);
 int srvconv(int argc, char **argv);
 int srvcreate(int argc, char **argv);
 
