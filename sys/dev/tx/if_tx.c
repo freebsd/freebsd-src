@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
@@ -59,8 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_vlan_var.h>
 
-#include <vm/vm.h>		/* for vtophys */
-#include <vm/pmap.h>		/* for vtophys */
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -90,7 +87,6 @@ MODULE_DEPEND(tx, miibus, 1, 1, 1);
 static int epic_ifioctl(struct ifnet *, u_long, caddr_t);
 static void epic_intr(void *);
 static void epic_tx_underrun(epic_softc_t *);
-static int epic_common_attach(epic_softc_t *);
 static void epic_ifstart(struct ifnet *);
 static void epic_ifwatchdog(struct ifnet *);
 static void epic_stats_update(epic_softc_t *);
@@ -129,6 +125,7 @@ static int epic_probe(device_t);
 static int epic_attach(device_t);
 static void epic_shutdown(device_t);
 static int epic_detach(device_t);
+static void epic_release(epic_softc_t *);
 static struct epic_type *epic_devtype(device_t);
 
 static device_method_t epic_methods[] = {
@@ -205,6 +202,19 @@ epic_devtype(dev)
 #define	EPIC_RID	PCIR_BASEMEM
 #endif
 
+static void
+epic_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	u_int32_t *addr;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
+	addr = arg;
+	*addr = segs->ds_addr;
+}
+
 /*
  * Attach routine: map registers, allocate softc, rings and descriptors.
  * Reset to known state.
@@ -263,26 +273,123 @@ epic_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
-		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		error = ENXIO;
 		goto fail;
 	}
 
-	/* Do OS independent part, including chip wakeup and reset. */
-	error = epic_common_attach(sc);
+	/* Allocate DMA tags. */
+	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * EPIC_MAX_FRAGS,
+	    EPIC_MAX_FRAGS, MCLBYTES, 0, &sc->mtag);
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
-		error = ENXIO;
+		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
 	}
+
+	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct epic_rx_desc) * RX_RING_SIZE,
+	    1, sizeof(struct epic_rx_desc) * RX_RING_SIZE, 0, &sc->rtag);
+	if (error) {
+		device_printf(dev, "couldn't allocate dma tag\n");
+		goto fail;
+	}
+
+	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct epic_tx_desc) * TX_RING_SIZE,
+	    1, sizeof(struct epic_tx_desc) * TX_RING_SIZE, 0, &sc->ttag);
+	if (error) {
+		device_printf(dev, "couldn't allocate dma tag\n");
+		goto fail;
+	}
+
+	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct epic_frag_list) * TX_RING_SIZE,
+	    1, sizeof(struct epic_frag_list) * TX_RING_SIZE, 0, &sc->ftag);
+	if (error) {
+		device_printf(dev, "couldn't allocate dma tag\n");
+		goto fail;
+	}
+
+	/* Allocate DMA safe memory and get the DMA addresses. */
+	error = bus_dmamem_alloc(sc->ftag, (void **)&sc->tx_flist,
+	    BUS_DMA_NOWAIT, &sc->fmap);
+	if (error) {
+		device_printf(dev, "couldn't allocate dma memory\n");
+		goto fail;
+	}
+	bzero(sc->tx_flist, sizeof(struct epic_frag_list) * TX_RING_SIZE);
+	error = bus_dmamap_load(sc->ftag, sc->fmap, sc->tx_flist,
+	    sizeof(struct epic_frag_list) * TX_RING_SIZE, epic_dma_map_addr,
+	    &sc->frag_addr, 0);
+	if (error) {
+		device_printf(dev, "couldn't map dma memory\n");
+		goto fail;
+	}
+	error = bus_dmamem_alloc(sc->ttag, (void **)&sc->tx_desc,
+	    BUS_DMA_NOWAIT, &sc->tmap);
+	if (error) {
+		device_printf(dev, "couldn't allocate dma memory\n");
+		goto fail;
+	}
+	bzero(sc->tx_desc, sizeof(struct epic_tx_desc) * TX_RING_SIZE);
+	error = bus_dmamap_load(sc->ttag, sc->tmap, sc->tx_desc,
+	    sizeof(struct epic_tx_desc) * TX_RING_SIZE, epic_dma_map_addr,
+	    &sc->tx_addr, 0);
+	if (error) {
+		device_printf(dev, "couldn't map dma memory\n");
+		goto fail;
+	}
+	error = bus_dmamem_alloc(sc->rtag, (void **)&sc->rx_desc,
+	    BUS_DMA_NOWAIT, &sc->rmap);
+	if (error) {
+		device_printf(dev, "couldn't allocate dma memory\n");
+		goto fail;
+	}
+	bzero(sc->rx_desc, sizeof(struct epic_rx_desc) * RX_RING_SIZE);
+	error = bus_dmamap_load(sc->rtag, sc->rmap, sc->rx_desc,
+	    sizeof(struct epic_rx_desc) * RX_RING_SIZE, epic_dma_map_addr,
+	    &sc->rx_addr, 0);
+	if (error) {
+		device_printf(dev, "couldn't map dma memory\n");
+		goto fail;
+	}
+
+	/* Bring the chip out of low-power mode. */
+	CSR_WRITE_4(sc, GENCTL, GENCTL_SOFT_RESET);
+	DELAY(500);
+
+	/* Workaround for Application Note 7-15. */
+	for (i = 0; i < 16; i++)
+		CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
+
+	/* Read MAC address from EEPROM. */
+	for (i = 0; i < ETHER_ADDR_LEN / sizeof(u_int16_t); i++)
+		((u_int16_t *)sc->sc_macaddr)[i] = epic_read_eeprom(sc,i);
+
+	/* Set Non-Volatile Control Register from EEPROM. */
+	CSR_WRITE_4(sc, NVCTL, epic_read_eeprom(sc, EEPROM_NVCTL) & 0x1F);
+
+	/* Set defaults. */
+	sc->tx_threshold = TRANSMIT_THRESHOLD;
+	sc->txcon = TXCON_DEFAULT;
+	sc->miicfg = MIICFG_SMI_ENABLE;
+	sc->phyid = EPIC_UNKN_PHY;
+	sc->serinst = -1;
+
+	/* Fetch card id. */
+	sc->cardvend = pci_read_config(dev, PCIR_SUBVEND_0, 2);
+	sc->cardid = pci_read_config(dev, PCIR_SUBDEV_0, 2);
+
+	if (sc->cardvend != SMC_VENDORID)
+		device_printf(dev, "unknown card vendor %04xh\n", sc->cardvend);
 
 	/* Do ifmedia setup. */
 	if (mii_phy_probe(dev, &sc->miibus,
 	    epic_ifmedia_upd, epic_ifmedia_sts)) {
 		device_printf(dev, "ERROR! MII without any PHY!?\n");
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		error = ENXIO;
 		goto fail;
 	}
@@ -304,34 +411,71 @@ epic_attach(dev)
 	}
 	printf("\n");
 
-	/* Attach to OS's managers. */
-	ether_ifattach(ifp, sc->sc_macaddr);
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	callout_handle_init(&sc->stat_ch);
-
 	/* Initialize rings. */
 	if (epic_init_rings(sc)) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		device_printf(dev, "failed to init rings\n");
 		error = ENXIO;
 		goto fail;
 	}
 
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	callout_handle_init(&sc->stat_ch);
+
 	/* Activate our interrupt handler. */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
 	    epic_intr, sc, &sc->sc_ih);
 	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-		bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
 		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
 
+	/* Attach to OS's managers. */
+	ether_ifattach(ifp, sc->sc_macaddr);
+
+	splx(s);
+	return (0);
 fail:
+	epic_release(sc);
 	splx(s);
 	return (error);
+}
+
+/*
+ * Free any resources allocated by the driver.
+ */
+static void
+epic_release(epic_softc_t *sc)
+{
+
+	if (sc->irq)
+		bus_release_resource(sc->dev, SYS_RES_IRQ, 0, sc->irq);
+	if (sc->res)
+		bus_release_resource(sc->dev, EPIC_RES, EPIC_RID, sc->res);
+	epic_free_rings(sc);
+	if (sc->tx_flist) {
+		bus_dmamap_unload(sc->ftag, sc->fmap);
+		bus_dmamem_free(sc->ftag, sc->tx_flist, sc->fmap);
+		bus_dmamap_destroy(sc->ftag, sc->fmap);
+	}
+	if (sc->tx_desc) {
+		bus_dmamap_unload(sc->ttag, sc->tmap);
+		bus_dmamem_free(sc->ttag, sc->tx_desc, sc->tmap);
+		bus_dmamap_destroy(sc->ttag, sc->tmap);
+	}
+	if (sc->rx_desc) {
+		bus_dmamap_unload(sc->rtag, sc->rmap);
+		bus_dmamem_free(sc->rtag, sc->rx_desc, sc->rmap);
+		bus_dmamap_destroy(sc->rtag, sc->rmap);
+	}
+	if (sc->mtag)
+		bus_dma_tag_destroy(sc->mtag);
+	if (sc->ftag)
+		bus_dma_tag_destroy(sc->ftag);
+	if (sc->ttag)
+		bus_dma_tag_destroy(sc->ttag);
+	if (sc->rtag)
+		bus_dma_tag_destroy(sc->rtag);
 }
 
 /*
@@ -358,14 +502,7 @@ epic_detach(dev)
 	device_delete_child(dev, sc->miibus);
 
 	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-	bus_release_resource(dev, EPIC_RES, EPIC_RID, sc->res);
-
-	epic_free_rings(sc);
-	free(sc->tx_flist, M_DEVBUF);
-	free(sc->tx_desc, M_DEVBUF);
-	free(sc->rx_desc, M_DEVBUF);
-
+	epic_release(sc);
 	splx(s);
 	return (0);
 }
@@ -467,65 +604,39 @@ epic_ifioctl(ifp, command, data)
 	return (error);
 }
 
-/*
- * OS-independed part of attach process. allocate memory for descriptors
- * and frag lists, wake up chip, read MAC address and PHY identyfier.
- */
-static int
-epic_common_attach(sc)
-	epic_softc_t *sc;
+static void
+epic_dma_map_txbuf(void *arg, bus_dma_segment_t *segs, int nseg,
+    bus_size_t mapsize, int error)
 {
+	struct epic_frag_list *flist;
 	int i;
 
-	sc->tx_flist = malloc(sizeof(struct epic_frag_list) * TX_RING_SIZE,
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	sc->tx_desc = malloc(sizeof(struct epic_tx_desc) * TX_RING_SIZE,
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	sc->rx_desc = malloc(sizeof(struct epic_rx_desc) * RX_RING_SIZE,
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (error)
+		return;
 
-	if (sc->tx_flist == NULL || sc->tx_desc == NULL || sc->rx_desc == NULL){
-		device_printf(sc->dev, "failed to malloc memory\n");
-		if (sc->tx_flist)
-			free(sc->tx_flist, M_DEVBUF);
-		if (sc->tx_desc)
-			free(sc->tx_desc, M_DEVBUF);
-		if (sc->rx_desc)
-			free(sc->rx_desc, M_DEVBUF);
-		return (ENOMEM);
+	KASSERT(nseg <= EPIC_MAX_FRAGS, ("too many DMA segments"));
+	flist = arg;
+	/* Fill fragments list. */
+	for (i = 0; i < nseg; i++) {
+		KASSERT(segs[i].ds_len <= MCLBYTES, ("segment size too large"));
+		flist->frag[i].fraglen = segs[i].ds_len;
+		flist->frag[i].fragaddr = segs[i].ds_addr;
 	}
+	flist->numfrags = nseg;
+}
 
-	/* Bring the chip out of low-power mode. */
-	CSR_WRITE_4(sc, GENCTL, GENCTL_SOFT_RESET);
-	DELAY(500);
+static void
+epic_dma_map_rxbuf(void *arg, bus_dma_segment_t *segs, int nseg,
+    bus_size_t mapsize, int error)
+{
+	struct epic_rx_desc *desc;
 
-	/* Workaround for Application Note 7-15. */
-	for (i = 0; i < 16; i++)
-		CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
+	if (error)
+		return;
 
-	/* Read MAC address from EEPROM. */
-	for (i = 0; i < ETHER_ADDR_LEN / sizeof(u_int16_t); i++)
-		((u_int16_t *)sc->sc_macaddr)[i] = epic_read_eeprom(sc,i);
-
-	/* Set Non-Volatile Control Register from EEPROM. */
-	CSR_WRITE_4(sc, NVCTL, epic_read_eeprom(sc, EEPROM_NVCTL) & 0x1F);
-
-	/* Set defaults. */
-	sc->tx_threshold = TRANSMIT_THRESHOLD;
-	sc->txcon = TXCON_DEFAULT;
-	sc->miicfg = MIICFG_SMI_ENABLE;
-	sc->phyid = EPIC_UNKN_PHY;
-	sc->serinst = -1;
-
-	/* Fetch card id. */
-	sc->cardvend = pci_read_config(sc->dev, PCIR_SUBVEND_0, 2);
-	sc->cardid = pci_read_config(sc->dev, PCIR_SUBDEV_0, 2);
-
-	if (sc->cardvend != SMC_VENDORID)
-		device_printf(sc->dev, "unknown card vendor %04xh\n",
-		    sc->cardvend);
-
-	return (0);
+	KASSERT(nseg == 1, ("too many DMA segments"));
+	desc = arg;
+	desc->bufaddr = segs->ds_addr;
 }
 
 /*
@@ -542,7 +653,7 @@ epic_ifstart(ifp)
 	struct epic_tx_desc *desc;
 	struct epic_frag_list *flist;
 	struct mbuf *m0, *m;
-	int i;
+	int error;
 
 	while (sc->pending_txs < TX_RING_SIZE) {
 		buf = sc->tx_buffer + sc->cur_tx;
@@ -556,44 +667,49 @@ epic_ifstart(ifp)
 		if (m0 == NULL)
 			return;
 
-		/* Fill fragments list. */
-		for (m = m0, i = 0; (m != NULL) && (i < EPIC_MAX_FRAGS);
-		    m = m->m_next, i++) {
-			flist->frag[i].fraglen = m->m_len;
-			flist->frag[i].fragaddr = vtophys(mtod(m, caddr_t));
+		error = bus_dmamap_load_mbuf(sc->mtag, buf->map, m0,
+		    epic_dma_map_txbuf, flist, 0);
+
+		if (error && error != EFBIG) {
+			m_freem(m0);
+			ifp->if_oerrors++;
+			continue;
 		}
-		flist->numfrags = i;
 
 		/*
 		 * If packet was more than EPIC_MAX_FRAGS parts,
 		 * recopy packet to a newly allocated mbuf cluster.
 		 */
-		if (m != NULL) {
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (error) {
+			m = m_defrag(m0, M_DONTWAIT);
 			if (m == NULL) {
 				m_freem(m0);
 				ifp->if_oerrors++;
 				continue;
 			}
-
-			m_copydata(m0, 0, m0->m_pkthdr.len, mtod(m, caddr_t));
-			flist->frag[0].fraglen =
-			     m->m_pkthdr.len = m->m_len = m0->m_pkthdr.len;
-			m->m_pkthdr.rcvif = ifp;
-
-			flist->numfrags = 1;
-			flist->frag[0].fragaddr = vtophys(mtod(m, caddr_t));
 			m_freem(m0);
 			m0 = m;
+
+			error = bus_dmamap_load_mbuf(sc->mtag, buf->map, m,
+			    epic_dma_map_txbuf, flist, 0);
+			if (error) {
+				m_freem(m);
+				ifp->if_oerrors++;
+				continue;
+			}
 		}
+		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_PREWRITE);
 
 		buf->mbuf = m0;
 		sc->pending_txs++;
 		sc->cur_tx = (sc->cur_tx + 1) & TX_RING_MASK;
 		desc->control = 0x01;
 		desc->txlength =
-		    max(m0->m_pkthdr.len,ETHER_MIN_LEN-ETHER_CRC_LEN);
+		    max(m0->m_pkthdr.len, ETHER_MIN_LEN - ETHER_CRC_LEN);
 		desc->status = 0x8000;
+		bus_dmamap_sync(sc->ttag, sc->tmap,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		bus_dmamap_sync(sc->ftag, sc->fmap, BUS_DMASYNC_PREWRITE);
 		CSR_WRITE_4(sc, COMMAND, COMMAND_TXQUEUED);
 
 		/* Set watchdog timer. */
@@ -617,7 +733,10 @@ epic_rx_done(sc)
 	struct epic_rx_buffer *buf;
 	struct epic_rx_desc *desc;
 	struct mbuf *m;
+	bus_dmamap_t map;
+	int error;
 
+	bus_dmamap_sync(sc->rtag, sc->rmap, BUS_DMASYNC_POSTREAD);
 	while ((sc->rx_desc[sc->cur_rx].status & 0x8000) == 0) {
 		buf = sc->rx_buffer + sc->cur_rx;
 		desc = sc->rx_desc + sc->cur_rx;
@@ -637,6 +756,7 @@ epic_rx_done(sc)
 		}
 
 		/* Save packet length and mbuf contained packet. */
+		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_POSTREAD);
 		len = desc->rxlength - ETHER_CRC_LEN;
 		m = buf->mbuf;
 
@@ -652,8 +772,21 @@ epic_rx_done(sc)
 		m_adj(buf->mbuf, ETHER_ALIGN);
 
 		/* Point to new mbuf, and give descriptor to chip. */
-		desc->bufaddr = vtophys(mtod(buf->mbuf, caddr_t));
+		error = bus_dmamap_load_mbuf(sc->mtag, sc->sparemap, buf->mbuf,
+		    epic_dma_map_rxbuf, desc, 0);
+		if (error) {
+			buf->mbuf = m;
+			desc->status = 0x8000;
+			ifp->if_ierrors++;
+			continue;
+		}
+
 		desc->status = 0x8000;
+		bus_dmamap_unload(sc->mtag, buf->map);
+		map = buf->map;
+		buf->map = sc->sparemap;
+		sc->sparemap = map;
+		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_PREREAD);
 
 		/* First mbuf in packet holds the ethernet and packet headers */
 		m->m_pkthdr.rcvif = ifp;
@@ -665,6 +798,8 @@ epic_rx_done(sc)
 		/* Successfuly received frame */
 		ifp->if_ipackets++;
         }
+	bus_dmamap_sync(sc->rtag, sc->rmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 /*
@@ -681,6 +816,7 @@ epic_tx_done(sc)
 	struct epic_tx_desc *desc;
 	u_int16_t status;
 
+	bus_dmamap_sync(sc->ttag, sc->tmap, BUS_DMASYNC_POSTREAD);
 	while (sc->pending_txs > 0) {
 		buf = sc->tx_buffer + sc->dirty_tx;
 		desc = sc->tx_desc + sc->dirty_tx;
@@ -696,6 +832,8 @@ epic_tx_done(sc)
 		/* Packet is transmitted. Switch to next and free mbuf. */
 		sc->pending_txs--;
 		sc->dirty_tx = (sc->dirty_tx + 1) & TX_RING_MASK;
+		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->mtag, buf->map);
 		m_freem(buf->mbuf);
 		buf->mbuf = NULL;
 
@@ -714,6 +852,8 @@ epic_tx_done(sc)
 
 	if (sc->pending_txs < TX_RING_SIZE)
 		sc->sc_if.if_flags &= ~IFF_OACTIVE;
+	bus_dmamap_sync(sc->ttag, sc->tmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 /*
@@ -840,7 +980,7 @@ epic_ifwatchdog(ifp)
 
 	/* If not successful. */
 	if (sc->pending_txs > 0) {
-		ifp->if_oerrors+=sc->pending_txs;
+		ifp->if_oerrors += sc->pending_txs;
 
 		/* Reinitialize board. */
 		device_printf(sc->dev, "reinitialization\n");
@@ -1113,7 +1253,7 @@ epic_miibus_mediainit(dev)
 }
 
 /*
- * Reset chip, allocate rings, and update media.
+ * Reset chip and update media.
  */
 static void
 epic_init(xsc)
@@ -1149,8 +1289,8 @@ epic_init(xsc)
 		CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
 
 	/* Give rings to EPIC */
-	CSR_WRITE_4(sc, PRCDAR, vtophys(sc->rx_desc));
-	CSR_WRITE_4(sc, PTCDAR, vtophys(sc->tx_desc));
+	CSR_WRITE_4(sc, PRCDAR, sc->rx_addr);
+	CSR_WRITE_4(sc, PTCDAR, sc->tx_addr);
 
 	/* Put node address to EPIC. */
 	CSR_WRITE_4(sc, LAN0, ((u_int16_t *)sc->sc_macaddr)[0]);
@@ -1324,9 +1464,8 @@ epic_start_activity(sc)
 {
 
 	/* Start rx process. */
-	CSR_WRITE_4(sc, COMMAND,
-		COMMAND_RXQUEUED | COMMAND_START_RX |
-		(sc->pending_txs ? COMMAND_TXQUEUED : 0));
+	CSR_WRITE_4(sc, COMMAND, COMMAND_RXQUEUED | COMMAND_START_RX |
+	    (sc->pending_txs ? COMMAND_TXQUEUED : 0));
 }
 
 /*
@@ -1387,7 +1526,7 @@ epic_queue_last_packet(sc)
 	struct epic_frag_list *flist;
 	struct epic_tx_buffer *buf;
 	struct mbuf *m0;
-	int i;
+	int error, i;
 
 	device_printf(sc->dev, "queue last packet\n");
 
@@ -1403,24 +1542,30 @@ epic_queue_last_packet(sc)
 		return (ENOBUFS);
 
 	/* Prepare mbuf. */
-	m0->m_len = min(MHLEN, ETHER_MIN_LEN-ETHER_CRC_LEN);
-	flist->frag[0].fraglen = m0->m_len;
+	m0->m_len = min(MHLEN, ETHER_MIN_LEN - ETHER_CRC_LEN);
 	m0->m_pkthdr.len = m0->m_len;
 	m0->m_pkthdr.rcvif = &sc->sc_if;
 	bzero(mtod(m0, caddr_t), m0->m_len);
 
 	/* Fill fragments list. */
-	flist->frag[0].fraglen = m0->m_len;
-	flist->frag[0].fragaddr = vtophys(mtod(m0, caddr_t));
-	flist->numfrags = 1;
+	error = bus_dmamap_load_mbuf(sc->mtag, buf->map, m0,
+	    epic_dma_map_txbuf, flist, 0);
+	if (error) {
+		m_freem(m0);
+		return (error);
+	}
+	bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_PREWRITE);
 
 	/* Fill in descriptor. */
 	buf->mbuf = m0;
 	sc->pending_txs++;
 	sc->cur_tx = (sc->cur_tx + 1) & TX_RING_MASK;
 	desc->control = 0x01;
-	desc->txlength = max(m0->m_pkthdr.len,ETHER_MIN_LEN-ETHER_CRC_LEN);
+	desc->txlength = max(m0->m_pkthdr.len, ETHER_MIN_LEN - ETHER_CRC_LEN);
 	desc->status = 0x8000;
+	bus_dmamap_sync(sc->ttag, sc->tmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->ftag, sc->fmap, BUS_DMASYNC_PREWRITE);
 
 	/* Launch transmission. */
 	CSR_WRITE_4(sc, COMMAND, COMMAND_STOP_TDMA | COMMAND_TXQUEUED);
@@ -1492,10 +1637,16 @@ epic_free_rings(sc)
 		desc->buflength = 0;
 		desc->bufaddr = 0;
 
-		if (buf->mbuf)
+		if (buf->mbuf) {
+			bus_dmamap_unload(sc->mtag, buf->map);
+			bus_dmamap_destroy(sc->mtag, buf->map);
 			m_freem(buf->mbuf);
+		}
 		buf->mbuf = NULL;
 	}
+
+	if (sc->sparemap != NULL)
+		bus_dmamap_destroy(sc->mtag, sc->sparemap);
 
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		struct epic_tx_buffer *buf = sc->tx_buffer + i;
@@ -1505,8 +1656,11 @@ epic_free_rings(sc)
 		desc->buflength = 0;
 		desc->bufaddr = 0;
 
-		if (buf->mbuf)
+		if (buf->mbuf) {
+			bus_dmamap_unload(sc->mtag, buf->map);
+			bus_dmamap_destroy(sc->mtag, buf->map);
 			m_freem(buf->mbuf);
+		}
 		buf->mbuf = NULL;
 	}
 }
@@ -1520,16 +1674,18 @@ static int
 epic_init_rings(sc)
 	epic_softc_t *sc;
 {
-	int i;
+	int error, i;
 
 	sc->cur_rx = sc->cur_tx = sc->dirty_tx = sc->pending_txs = 0;
 
+	/* Initialize the RX descriptor ring. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct epic_rx_buffer *buf = sc->rx_buffer + i;
 		struct epic_rx_desc *desc = sc->rx_desc + i;
 
 		desc->status = 0;		/* Owned by driver */
-		desc->next = vtophys(sc->rx_desc + ((i+1) & RX_RING_MASK));
+		desc->next = sc->rx_addr +
+		    ((i + 1) & RX_RING_MASK) * sizeof(struct epic_rx_desc);
 
 		if ((desc->next & 3) ||
 		    ((desc->next & PAGE_MASK) + sizeof *desc) > PAGE_SIZE) {
@@ -1538,24 +1694,47 @@ epic_init_rings(sc)
 		}
 
 		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if(buf->mbuf == NULL) {
+		if (buf->mbuf == NULL) {
 			epic_free_rings(sc);
 			return (ENOBUFS);
 		}
 		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
 		m_adj(buf->mbuf, ETHER_ALIGN);
 
-		desc->bufaddr = vtophys( mtod(buf->mbuf,caddr_t) );
-		desc->buflength = buf->mbuf->m_len;/* Max RX buffer length */
+		error = bus_dmamap_create(sc->mtag, 0, &buf->map);
+		if (error) {
+			epic_free_rings(sc);
+			return (error);
+		}
+		error = bus_dmamap_load_mbuf(sc->mtag, buf->map, buf->mbuf,
+		    epic_dma_map_rxbuf, desc, 0);
+		if (error) {
+			epic_free_rings(sc);
+			return (error);
+		}
+		bus_dmamap_sync(sc->mtag, buf->map, BUS_DMASYNC_PREREAD);
+
+		desc->buflength = buf->mbuf->m_len; /* Max RX buffer length */
 		desc->status = 0x8000;		/* Set owner bit to NIC */
 	}
+	bus_dmamap_sync(sc->rtag, sc->rmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
+	/* Create the spare DMA map. */
+	error = bus_dmamap_create(sc->mtag, 0, &sc->sparemap);
+	if (error) {
+		epic_free_rings(sc);
+		return (error);
+	}
+
+	/* Initialize the TX descriptor ring. */
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		struct epic_tx_buffer *buf = sc->tx_buffer + i;
 		struct epic_tx_desc *desc = sc->tx_desc + i;
 
 		desc->status = 0;
-		desc->next = vtophys(sc->tx_desc + ((i+1) & TX_RING_MASK));
+		desc->next = sc->tx_addr +
+		    ((i + 1) & TX_RING_MASK) * sizeof(struct epic_tx_desc);
 
 		if ((desc->next & 3) ||
 		    ((desc->next & PAGE_MASK) + sizeof *desc) > PAGE_SIZE) {
@@ -1564,7 +1743,8 @@ epic_init_rings(sc)
 		}
 
 		buf->mbuf = NULL;
-		desc->bufaddr = vtophys(sc->tx_flist + i);
+		desc->bufaddr = sc->frag_addr +
+		    i * sizeof(struct epic_frag_list);
 
 		if ((desc->bufaddr & 3) ||
 		    ((desc->bufaddr & PAGE_MASK) +
@@ -1572,7 +1752,16 @@ epic_init_rings(sc)
 			epic_free_rings(sc);
 			return (EFAULT);
 		}
+
+		error = bus_dmamap_create(sc->mtag, 0, &buf->map);
+		if (error) {
+			epic_free_rings(sc);
+			return (error);
+		}
 	}
+	bus_dmamap_sync(sc->ttag, sc->tmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->ftag, sc->fmap, BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
