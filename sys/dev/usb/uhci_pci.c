@@ -181,7 +181,8 @@ uhci_pci_attach(device_t self)
 		return ENOMEM;
 	}
 		
-	usbus = device_add_child(self, "usb", -1, sc);
+	usbus = device_add_child(self, "usb", -1);
+	device_set_ivars(usbus, sc);
 	if (!usbus) {
 		device_printf(self, "could not add USB device\n");
 		return ENOMEM;

@@ -134,7 +134,7 @@ lpbb_attach(device_t dev)
 	device_t bitbang, iicbus;
 	
 	/* add generic bit-banging code */
-	bitbang = device_add_child(dev, "iicbb", -1, NULL);
+	bitbang = device_add_child(dev, "iicbb", -1);
 
 	/* add the iicbus to the tree */
 	iicbus = iicbus_alloc_bus(bitbang);
@@ -191,7 +191,7 @@ static int
 lpbb_ppb_attach(struct ppb_device *dev)
 {
 	/* add the parallel port I2C interface to the bus tree */
-	if (!device_add_child(root_bus, "lpbb", dev->id_unit, NULL))
+	if (!device_add_child(root_bus, "lpbb", dev->id_unit))
 		return (0);
 
 	return (1);

@@ -252,7 +252,7 @@ ida_attach(struct ida_softc *ida)
 	ida->num_drives = cinfo.num_drvs;
 
 	for (i = 0; i < ida->num_drives; i++)
-		device_add_child(ida->dev, "id", i, NULL);
+		device_add_child(ida->dev, "id", i);
 
 	bus_generic_attach(ida->dev);
 

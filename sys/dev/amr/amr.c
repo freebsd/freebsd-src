@@ -439,9 +439,10 @@ amr_startup(struct amr_softc *sc)
 	    }
 	    dr->al_cylinders = dr->al_size / (dr->al_heads * dr->al_sectors);
 	    
-	    dr->al_disk = device_add_child(sc->amr_dev, NULL, -1, dr);
+	    dr->al_disk = device_add_child(sc->amr_dev, NULL, -1);
 	    if (dr->al_disk == 0)
 		device_printf(sc->amr_dev, "device_add_child failed\n");
+	    device_set_ivars(dr->al_disk, dr);
 	}
     }
     

@@ -206,7 +206,8 @@ tlsb_probe(device_t dev)
 		tdev->td_swrev = TLDEV_SWREV(tldev);
 		tdev->td_hwrev = TLDEV_HWREV(tldev);
 
-		child = device_add_child(dev, NULL, -1, tdev);
+		child = device_add_child(dev, NULL, -1);
+		device_set_ivars(child, tdev);
 		device_set_desc(child, tlsb_node_type_str(tdev->td_dtype));
 
 		/*

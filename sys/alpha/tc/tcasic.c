@@ -82,7 +82,7 @@ tcasic_probe(device_t dev)
 		return ENXIO;
 	tcasic0 = dev;
 	device_set_desc(dev, "Turbochannel Host Bus Adapter");
-	tc0 = device_add_child(dev, "tc", 0, 0);
+	tc0 = device_add_child(dev, "tc", 0);
 	return 0;
 }
 

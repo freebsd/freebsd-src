@@ -104,6 +104,7 @@ static driver_t kft_driver = {
 static int
 kft_probe(device_t dev)
 {
+	device_t child;
 	struct kft_softc *sc = (struct kft_softc *) device_get_softc(dev);
 	struct kft_device* kd;
 	int hoseno;
@@ -145,7 +146,8 @@ kft_probe(device_t dev)
 		kd->kd_node = sc->sc_node;
 		kd->kd_dtype = sc->sc_dtype;
 		kd->kd_hosenum = hoseno;
-		device_add_child(dev, kd->kd_name, -1, kd);
+		child = device_add_child(dev, kd->kd_name, -1);
+		device_set_ivars(child, kd);
 	}
 
 	return 0;
