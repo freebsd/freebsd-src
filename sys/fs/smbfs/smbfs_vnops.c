@@ -140,10 +140,9 @@ smbfs_access(ap)
 			break;
 		}
 	}
-	mpmode = vp->v_type == VREG ? smp->sm_args.file_mode :
-	    smp->sm_args.dir_mode;
-	return (vaccess(vp->v_type, mpmode, smp->sm_args.uid,
-	    smp->sm_args.gid, ap->a_mode, ap->a_cred, NULL));
+	mpmode = vp->v_type == VREG ? smp->sm_file_mode : smp->sm_dir_mode;
+	return (vaccess(vp->v_type, mpmode, smp->sm_uid,
+	    smp->sm_gid, ap->a_mode, ap->a_cred, NULL));
 }
 
 /* ARGSUSED */
@@ -363,7 +362,7 @@ smbfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL)
 		atime = &vap->va_atime;
 	if (mtime != atime) {
-		if (ap->a_cred->cr_uid != VTOSMBFS(vp)->sm_args.uid &&
+		if (ap->a_cred->cr_uid != VTOSMBFS(vp)->sm_uid &&
 		    (error = suser_cred(ap->a_cred, SUSER_ALLOWJAIL)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))

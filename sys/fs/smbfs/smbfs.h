@@ -76,11 +76,15 @@ struct vop_ioctl_args;
 struct buf;
 
 struct smbmount {
-	struct smbfs_args	sm_args;
+	/* struct smbfs_args	sm_args; */
+	uid_t			sm_uid;
+	gid_t 			sm_gid;
+	mode_t 			sm_file_mode;
+	mode_t 			sm_dir_mode;
 	struct mount * 		sm_mp;
 	struct smbnode *	sm_root;
 	struct ucred *		sm_owner;
-	int			sm_flags;
+	u_int			sm_flags;
 	long			sm_nextino;
 	struct smb_share * 	sm_share;
 /*	struct simplelock	sm_npslock;*/
