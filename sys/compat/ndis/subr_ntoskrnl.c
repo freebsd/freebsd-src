@@ -114,35 +114,23 @@ __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
 __stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
 __stdcall static void ntoskrnl_create_lock(kspin_lock *);
 __stdcall static void dummy(void);
+__stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
 
 static struct mtx ntoskrnl_interlock;
-static int ntoskrnl_inits = 0;
 
 int
 ntoskrnl_libinit()
 {
-	if (ntoskrnl_inits) {
-		ntoskrnl_inits++;
-		return(0);
-	}
-
 	mtx_init(&ntoskrnl_interlock, "ntoskrnllock", MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 
-	ntoskrnl_inits++;
 	return(0);
 }
 
 int
 ntoskrnl_libfini()
 {
-	if (ntoskrnl_inits != 1) {
-		ntoskrnl_inits--;
-		return(0);
-	}
-
 	mtx_destroy(&ntoskrnl_interlock);
-	ntoskrnl_inits--;
 
 	return(0);
 }
@@ -652,6 +640,25 @@ ntoskrnl_create_lock(lock)
 	return;
 }
 
+__stdcall static size_t
+ntoskrnl_memcmp(s1, s2, len)
+	const void		*s1;
+	const void		*s2;
+	size_t			len;
+{
+	size_t			i, total = 0;
+	uint8_t			*m1, *m2;
+
+	m1 = __DECONST(char *, s1);
+	m2 = __DECONST(char *, s2);
+
+	for (i = 0; i < len; i++) {
+		if (m1[i] == m2[i])
+			total++;
+	}
+	return(total);
+}
+
 __stdcall static void
 dummy()
 {
@@ -661,6 +668,7 @@ dummy()
 
 
 image_patch_table ntoskrnl_functbl[] = {
+	{ "RtlCompareMemory",		(FUNC)ntoskrnl_memcmp },
 	{ "RtlEqualUnicodeString",	(FUNC)ntoskrnl_unicode_equal },
 	{ "RtlCopyUnicodeString",	(FUNC)ntoskrnl_unicode_copy },
 	{ "RtlUnicodeStringToAnsiString", (FUNC)ntoskrnl_unicode_to_ansi },
