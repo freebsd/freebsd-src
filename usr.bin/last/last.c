@@ -94,10 +94,12 @@ static time_t	snaptime;			/* if != 0, we will only
 						 * at this snapshot time
 						 */
 
+int	 main __P((int, char *[]));
 void	 addarg __P((int, char *));
 time_t	 dateconv __P((char *));
 void	 hostconv __P((char *));
 void	 onintr __P((int));
+char	*ttyconv __P((char *));
 char	*ttyconv __P((char *));
 int	 want __P((struct utmp *));
 void	 usage __P((void));
