@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.20 1995/07/13 17:55:12 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.21 1995/07/24 12:50:49 dfr Exp $
  */
 
 /*
@@ -619,9 +619,8 @@ nfs_setattr(ap)
 		 ap->a_p, 1)) == EINTR)
 		return (error);
 	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_p);
-	if (error) {
-		if (vap->va_size != VNOVAL)
-			np->n_size = np->n_vattr.va_size = tsize;
+	if (error && vap->va_size != VNOVAL) {
+		np->n_size = np->n_vattr.va_size = tsize;
 		vnode_pager_setsize(vp, (u_long)np->n_size);
 	}
 	return (error);
