@@ -54,8 +54,14 @@
 #define	SCHAR_MIN	__SCHAR_MIN	/* min value for a signed char */
 
 #define	UCHAR_MAX	__UCHAR_MAX	/* max value for an unsigned char */
-#define	CHAR_MAX	__CHAR_MAX	/* max value for a char */
-#define	CHAR_MIN	__CHAR_MIN	/* min value for a char */
+
+#ifdef __CHAR_UNSIGNED__
+#define	CHAR_MAX	UCHAR_MAX	/* max value for a char */
+#define	CHAR_MIN	0		/* min value for a char */
+#else
+#define	CHAR_MAX	SCHAR_MAX	/* max value for a char */
+#define	CHAR_MIN	SCHAR_MIN	/* min value for a char */
+#endif
 
 #define	USHRT_MAX	__USHRT_MAX	/* max value for an unsigned short */
 #define	SHRT_MAX	__SHRT_MAX	/* max value for a short */
