@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.9 1998/09/29 09:06:00 bde Exp $
+ *      $Id: busdma_machdep.c,v 1.10 1998/10/07 03:38:14 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -138,8 +138,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 	newtag->parent = parent;
 	newtag->boundary = boundary;
-	newtag->lowaddr = trunc_page(lowaddr) + (PAGE_SIZE - 1);
-	newtag->highaddr = trunc_page(highaddr) + (PAGE_SIZE - 1);
+	newtag->lowaddr = trunc_page((vm_offset_t)lowaddr) + (PAGE_SIZE - 1);
+	newtag->highaddr = trunc_page((vm_offset_t)highaddr) + (PAGE_SIZE - 1);
 	newtag->filter = filter;
 	newtag->filterarg = filterarg;
 	newtag->maxsize = maxsize;
@@ -395,7 +395,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
 		 */
-		vaddr = trunc_page(buf);
+		vaddr = trunc_page((vm_offset_t)buf);
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.36 1998/10/03 04:12:09 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.37 1998/10/11 19:22:07 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -193,7 +193,7 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 	unsigned char *data_buf = 0;
 	size_t copy_len;
 
-	map_addr = trunc_page(vmaddr);
+	map_addr = trunc_page((vm_offset_t)vmaddr);
 
 	if (memsz > filsz)
 		map_len = trunc_page(offset+filsz) - trunc_page(offset);
@@ -219,8 +219,8 @@ elf_load_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, 
 	 * bit into it. The remaining space should be .bss...
 	 */
 	copy_len = (offset + filsz) - trunc_page(offset + filsz);
-	map_addr = trunc_page(vmaddr + filsz);
-	map_len = round_page(vmaddr + memsz) - map_addr;
+	map_addr = trunc_page((vm_offset_t)vmaddr + filsz);
+	map_len = round_page((vm_offset_t)vmaddr + memsz) - map_addr;
 
         if (map_len != 0) {
 		if (error = vm_map_find(&vmspace->vm_map, NULL, 0,

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.41 1998/03/28 10:33:07 bde Exp $
+ * $Id: sys_pipe.c,v 1.42 1998/06/07 17:11:39 dfr Exp $
  */
 
 /*
@@ -490,8 +490,8 @@ pipe_build_write_buffer(wpipe, uio)
 	if (size > wpipe->pipe_buffer.size)
 		size = wpipe->pipe_buffer.size;
 
-	endaddr = round_page(uio->uio_iov->iov_base + size);
-	for(i = 0, addr = trunc_page(uio->uio_iov->iov_base);
+	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
+	for(i = 0, addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
 		addr < endaddr;
 		addr += PAGE_SIZE, i+=1) {
 

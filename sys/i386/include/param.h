@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.45 1998/08/31 08:41:40 kato Exp $
+ *	$Id: param.h,v 1.46 1998/09/09 01:21:25 jdp Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -140,8 +140,8 @@
 /*
  * Mach derived conversion macros
  */
-#define trunc_page(x)		((unsigned)(x) & ~PAGE_MASK)
-#define round_page(x)		((((unsigned)(x)) + PAGE_MASK) & ~PAGE_MASK)
+#define trunc_page(x)		((x) & ~PAGE_MASK)
+#define round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
 #define trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
 #define round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 

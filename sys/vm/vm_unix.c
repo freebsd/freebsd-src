@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id: vm_unix.c,v 1.15 1997/08/02 14:33:27 bde Exp $
+ * $Id: vm_unix.c,v 1.16 1997/11/06 19:29:57 phk Exp $
  */
 
 /*
@@ -74,7 +74,7 @@ obreak(p, uap)
 	int rv;
 
 	base = round_page((vm_offset_t) vm->vm_daddr);
-	new = round_page(uap->nsize);
+	new = round_page((vm_offset_t)uap->nsize);
 	if (new > base) {
 		if ((new - base) > (unsigned) p->p_rlimit[RLIMIT_DATA].rlim_cur)
 			return ENOMEM;

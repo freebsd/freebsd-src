@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.75 1998/03/04 10:27:00 dufault Exp $
+ * $Id: vm_glue.c,v 1.76 1998/09/29 17:33:59 abial Exp $
  */
 
 #include "opt_rlimit.h"
@@ -125,8 +125,8 @@ kernacc(addr, len, rw)
 	vm_offset_t saddr, eaddr;
 	vm_prot_t prot = rw == B_READ ? VM_PROT_READ : VM_PROT_WRITE;
 
-	saddr = trunc_page(addr);
-	eaddr = round_page(addr + len);
+	saddr = trunc_page((vm_offset_t)addr);
+	eaddr = round_page((vm_offset_t)addr + len);
 	vm_map_lock_read(kernel_map);
 	rv = vm_map_check_protection(kernel_map, saddr, eaddr, prot);
 	vm_map_unlock_read(kernel_map);
@@ -164,7 +164,7 @@ useracc(addr, len, rw)
 	 */
 	save_hint = map->hint;
 	rv = vm_map_check_protection(map,
-	    trunc_page(addr), round_page(addr + len), prot);
+	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len), prot);
 	map->hint = save_hint;
 	vm_map_unlock_read(map);
 	
@@ -176,8 +176,8 @@ vslock(addr, len)
 	caddr_t addr;
 	u_int len;
 {
-	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page(addr),
-	    round_page(addr + len), FALSE);
+	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
+	    round_page((vm_offset_t)addr + len), FALSE);
 }
 
 void
@@ -189,8 +189,8 @@ vsunlock(addr, len, dirtied)
 #ifdef	lint
 	dirtied++;
 #endif	/* lint */
-	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page(addr),
-	    round_page(addr + len), TRUE);
+	vm_map_pageable(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
+	    round_page((vm_offset_t)addr + len), TRUE);
 }
 
 /*

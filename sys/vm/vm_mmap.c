@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.82 1998/08/24 08:39:37 dfr Exp $
+ * $Id: vm_mmap.c,v 1.83 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -220,8 +220,8 @@ mmap(p, uap)
 	 * There should really be a pmap call to determine a reasonable
 	 * location.
 	 */
-	else if (addr < round_page(p->p_vmspace->vm_daddr + MAXDSIZ))
-		addr = round_page(p->p_vmspace->vm_daddr + MAXDSIZ);
+	else if (addr < round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ))
+		addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ);
 
 	if (flags & MAP_ANON) {
 		/*
@@ -987,7 +987,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		object = NULL;
 	} else {
 		object = vm_pager_allocate(type,
-			handle, OFF_TO_IDX(objsize), prot, foff);
+			handle, objsize, prot, foff);
 		if (object == NULL)
 			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
 	}
