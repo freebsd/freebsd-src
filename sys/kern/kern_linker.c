@@ -515,8 +515,10 @@ linker_file_unload(linker_file_t file)
 	}
 	for (ml = TAILQ_FIRST(&found_modules); ml; ml = nextml) {
 		nextml = TAILQ_NEXT(ml, link);
-		if (ml->container == file)
+		if (ml->container == file) {
 			TAILQ_REMOVE(&found_modules, ml, link);
+			free(ml, M_LINKER);
+		}
 	}
 
 	/* 
