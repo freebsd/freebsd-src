@@ -2334,6 +2334,22 @@ static int stl_initech(stlbrd_t *brdp)
 	banknr = 0;
 
 	for (i = 0; (i < STL_MAXPANELS); i++) {
+		/*
+		 * ECH and ECHMC boards have a limit of 32 ports, so when
+		 * we hit that limit, stop scanning.  The stock driver
+		 * has a test to see if the number of boards overflows the
+		 * address space allocated, but this test is wrong in that
+		 * we have no way to probe additional cards beyond the 32nd
+		 * port.  So when we get to 32 ports, stop.
+		 */
+		if (brdp->brdtype == BRD_ECH || brdp->brdtype == BRD_ECHMC) {
+			if (brdp->nrports == 32)
+				break;
+		}
+		/*
+		 * ECHPCI boards multiplex pannels at ioaddr2, rather than
+		 * having the address regions contiguous like other boards.
+		 */
 		if (brdp->brdtype == BRD_ECHPCI) {
 			outb(brdp->ioctrl, nxtid);
 			ioaddr = brdp->ioaddr2;
@@ -2341,14 +2357,6 @@ static int stl_initech(stlbrd_t *brdp)
 		status = inb(ioaddr + ECH_PNLSTATUS);
 		if ((status & ECH_PNLIDMASK) != nxtid)
 			break;
-		if (brdp->brdtype == BRD_ECH || brdp->brdtype == BRD_ECHMC) {
-			if (ioaddr >= (brdp->ioaddr2 + 0x20)) {
-				printf("STALLION: too many ports attached "
-					"to board %d, remove last module\n",
-					brdp->brdnr);
-				break;
-			}
-		}
 		panelp = (stlpanel_t *) malloc(sizeof(stlpanel_t), M_TTYS,
 			M_NOWAIT);
 		if (panelp == (stlpanel_t *) NULL) {
@@ -2382,6 +2390,24 @@ static int stl_initech(stlbrd_t *brdp)
 			panelp->uartp = (void *) &stl_cd1400uart;
 			panelp->isr = stl_cd1400echintr;
 			if (status & ECH_PNL16PORT) {
+				/*
+				 * Handle the 8 + 16 + 16 and the 
+				 * 8 + 8 + 8 + 16 cases of bad configuration
+				 * for the EC8/32 class of boards.
+				 */
+				if ((brdp->brdtype == BRD_ECH
+				    || brdp->brdtype == BRD_ECHMC) &&
+				    (brdp->nrports + 16 > 32)) {
+					printf(
+"STALLION: Limit of 32 ports exceeded, remove last module on board %d\n",
+brdp->unitid);
+					free(panelp, M_TTYS);
+					banknr--;
+					brdp->bnk2panel[banknr] = 0;
+					brdp->bnkpageaddr[banknr] = 0;
+					brdp->bnkstataddr[banknr] = 0;
+					break;
+				}
 				panelp->nrports = 16;
 				panelp->ackmask = 0x80;
 				if (brdp->brdtype != BRD_ECHPCI)
