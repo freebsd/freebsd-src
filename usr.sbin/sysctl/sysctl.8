@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sysctl.8	8.1 (Berkeley) 6/6/93
+.\"	@(#)sysctl.8	8.2 (Berkeley) 5/9/95
 .\"
-.Dd "June 6, 1993"
+.Dd "May 9, 1995"
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -159,6 +159,27 @@ privilege can change the value.
 .It user.posix2_sw_dev	integer	no
 .It user.posix2_upe	integer	no
 .El
+.Pp
+The
+.Nm sysctl
+program can get or set debugging variables
+that have been identified for its display.
+This information can be obtained by using the command:
+.Bd -literal -offset indent
+sysctl debug
+.Ed
+In addition,
+.Nm sysctl
+can extract information about the filesystems that have been compiled
+into the running system.
+This information can be obtained by using the command:
+.Bd -literal -offset indent
+sysctl vfs
+.Ed
+By default, only filesystems that are actively being used are listed.
+Use of the
+.Fl A
+flag lists all the filesystems compiled into the running kernel.
 .Sh EXAMPLES
 .Pp
 For example, to retrieve the maximum number of processes allowed

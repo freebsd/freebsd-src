@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 1995 Jan-Simon Pendry
- * Copyright (c) 1995
+/*-
+ * Copyright (c) 1987, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Jan-Simon Pendry.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,16 +29,47 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)misc-bsd44l.h	8.1 (Berkeley) 5/10/95
- *
  */
 
-#define M_NEWTYPE	0
+#ifndef lint
+static char copyright[] =
+"@(#) Copyright (c) 1987, 1990, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
 
-#include <sys/ucred.h>
-#include <nfs/rpcv2.h>
-#define NFS_NPROCS	26		/* from <nfs/nfsproto.h> */
-#include <nfs/nfs.h>
+#ifndef lint
+static char sccsid[] = "@(#)update.c	8.1 (Berkeley) 6/6/93";
+#endif /* not lint */
 
-#include <ufs/ufs/ufsmount.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+main()
+{
+	struct itimerval value;
+	void mysync();
+
+	daemon(0, 0);
+
+	(void)signal(SIGALRM, mysync);
+
+	value.it_interval.tv_sec = 30;
+	value.it_interval.tv_usec = 0;
+	value.it_value = value.it_interval;
+	if (setitimer(ITIMER_REAL, &value, NULL)) {
+		perror("update: setitimer");
+		exit(1);
+	}
+	for (;;)
+		sigpause(sigblock(0L));
+	/* NOTREACHED */
+}
+
+void
+mysync()
+{
+	(void)sync();
+}

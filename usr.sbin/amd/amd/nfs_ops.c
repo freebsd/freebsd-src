@@ -39,7 +39,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)nfs_ops.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)nfs_ops.c	8.2 (Berkeley) 5/10/95";
 #endif /* not lint */
 
 #include "am.h"
@@ -52,10 +52,10 @@ static char sccsid[] = "@(#)nfs_ops.c	8.1 (Berkeley) 6/6/93";
 #ifdef NFS_3
 typedef nfs_fh fhandle_t;
 #endif /* NFS_3 */
+#include <sys/mount.h>
 #ifdef NFS_HDR
 #include NFS_HDR
 #endif /* NFS_HDR */
-#include <sys/mount.h>
 #include "mount.h"
 
 /*
@@ -510,8 +510,6 @@ mntfs *mf;
 	else
 		xopts = strdup(opts);
 
-	bzero((voidp) &nfs_args, sizeof(nfs_args));
-
 	mnt.mnt_dir = dir;
 	mnt.mnt_fsname = fs_name;
 	mnt.mnt_type = MTAB_TYPE_NFS;
@@ -528,6 +526,10 @@ mntfs *mf;
 	/*
 	 * set mount args
 	 */
+#ifdef NFS_ARGSVERSION
+	nfs_args.version = NFS_ARGSVERSION;
+#endif
+
 	NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) fhp->fhstatus_u.fhs_fhandle);
 
 #ifdef ULTRIX_HACK

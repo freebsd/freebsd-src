@@ -1,4 +1,4 @@
-.\" Copyright (c) 1985, 1991, 1993
+.\" Copyright (c) 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -29,94 +29,46 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)arp.8	8.2 (Berkeley) 4/27/95
+.\"	@(#)update.8	8.3 (Berkeley) 4/19/94
 .\"
-.Dd April 27, 1995
-.Dt ARP 8
-.Os BSD 4.3
+.Dd April 19, 1994
+.Dt UPDATE 8
+.Os
 .Sh NAME
-.Nm arp
-.Nd address resolution display and control
+.Nm update
+.Nd flush internal filesystem caches to disk frequently
 .Sh SYNOPSIS
-.Nm arp
-.Ar hostname
-.Nm arp
-.Fl a
-.Nm arp
-.Fl d Ar hostname
-.Nm arp
-.Fl s Ar hostname ether_addr
-.Op Ar temp
-.Op Ar pub
-.Nm arp
-.Fl f Ar filename
+.Nm update
 .Sh DESCRIPTION
 The
-.Nm arp
-program displays and modifies the Internet-to-Ethernet address translation
-tables used by the address resolution protocol
-.Pq Xr arp 4 .
-With no flags, the program displays the current
-.Tn ARP
-entry for
-.Ar hostname .
-The host may be specified by name or by number,
-using Internet dot notation.
+.Nm update
+command helps protect the integrity of disk volumes
+by flushing
+volatile cached filesystem data
+to disk at thirty second intervals.
+.Nm Update
+uses the
+.Xr sync 2
+function call to do the task.
 .Pp
-Available options:
-.Bl -tag -width Ds
-.It Fl a
-The program displays all of the current
-.Tn ARP
-entries.
-.It Fl d
-A super-user may delete an entry for the host called
-.Ar hostname
-with the
-.Fl d
-flag.
-.It Fl s Ar hostname ether_addr
-Create an
-.Tn ARP
-entry for the host called
-.Ar hostname
-with the Ethernet address 
-.Ar ether_addr .
-The Ethernet address is given as six hex bytes separated by colons.
-The entry will be permanent unless the word
-.Ar temp
-is given in the command. 
-If the word
-.Ar pub
-is given, the entry will be "published"; i.e., this system will
-act as an
-.Tn ARP
-server,
-responding to requests for 
-.Ar hostname
-even though the host address is not its own.
-.It Fl f
-Causes the file
-.Ar filename
-to be read and multiple entries to be set in the
-.Tn ARP
-tables.  Entries
-in the file should be of the form
-.Pp
-.Bd -filled -offset indent -compact
-.Ar hostname ether_addr
-.Op Ar temp
-.Op Ar pub
-.Ed
-.Pp
-with argument meanings as given above.
-.El
+.Nm Update
+is commonly invoked at startup time by
+.Xr rc 8
+when the system goes multi-user.
 .Sh SEE ALSO
-.Xr inet 3 ,
-.Xr arp 4 ,
-.Xr ifconfig 8
+.Xr sync 2 ,
+.Xr fsck 8 ,
+.Xr init 8 ,
+.Xr rc 8 ,
+.Xr sync 8
+.Sh BUGS
+It is possible on some systems that a
+.Xr sync
+occurring simultaneously with a crash may cause
+file system damage. See
+.Xr fsck 8 .
 .Sh HISTORY
-The
-.Nm
+An
+.Nm update
 command appeared in
-.Bx 4.3 .
+.At v6 .

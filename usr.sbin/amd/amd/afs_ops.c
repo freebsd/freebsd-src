@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)afs_ops.c	8.1 (Berkeley) 6/6/93
+ *	@(#)afs_ops.c	8.2 (Berkeley) 5/10/95
  *
  * $Id: afs_ops.c,v 5.2.2.4 1992/05/31 16:36:36 jsp Exp $
  *
@@ -50,10 +50,10 @@
 #ifdef NFS_3
 typedef nfs_fh fhandle_t;
 #endif /* NFS_3 */
+#include <sys/mount.h>
 #ifdef NFS_HDR
 #include NFS_HDR
 #endif /* NFS_HDR */
-#include <sys/mount.h>
 #include "mount.h"
 
 /*
@@ -142,6 +142,10 @@ char *opts;
 		plog(XLOG_FATAL, "Can't find root file handle for %s", dir);
 		return EINVAL;
 	}
+
+#ifdef NFS_ARGSVERSION
+	nfs_args.version = NFS_ARGSVERSION;
+#endif
 
 	NFS_FH_DREF(nfs_args.fh, (NFS_FH_TYPE) fhp);
 

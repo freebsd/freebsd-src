@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)traceroute.8	8.1 (Berkeley) 6/6/93
+.\"     @(#)traceroute.8	8.2 (Berkeley) 6/1/94
 .\"
-.Dd June 6, 1993
+.Dd June 1, 1994
 .Dt TRACEROUTE 8
 .Os BSD 4.3
 .Sh NAME
@@ -122,6 +122,7 @@ force the source address to be something other than the IP address
 of the interface the probe packet is sent on.  If the IP address
 is not one of this machine's interface addresses, an error is
 returned and nothing is sent.
+.ne 1i
 .It Fl t Ar tos
 Set the
 .Em type-of-service
