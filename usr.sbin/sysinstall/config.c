@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.42 1996/07/02 09:12:34 jkh Exp $
+ * $Id: config.c,v 1.43 1996/07/04 23:11:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -244,7 +244,7 @@ configFstab(void)
 
 #define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 void
-configSysconfig(void)
+configSysconfig(char *config)
 {
     FILE *fp;
     char *lines[MAX_LINES], *cp;
@@ -252,13 +252,12 @@ configSysconfig(void)
     Variable *v;
     int i, nlines;
 
-    fp = fopen("/etc/sysconfig", "r");
+    fp = fopen(config, "r");
     if (!fp) {
-	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
-		   "rather strangely as a result of this.");
+	msgConfirm("Unable to open %s file!  This is bad!", config);
 	return;
     }
-    msgNotify("Writing configuration changes to /etc/sysconfig file..");
+    msgNotify("Writing configuration changes to %s file..", config);
 
     nlines = 0;
     /* Read in the entire file */
@@ -267,7 +266,7 @@ configSysconfig(void)
 	    break;
 	lines[nlines++] = strdup(line);
     }
-    msgDebug("Read %d lines from sysconfig.\n", nlines);
+    msgDebug("Read %d lines from %s.\n", nlines, config);
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
@@ -293,11 +292,11 @@ configSysconfig(void)
     /* Now write it all back out again */
     fclose(fp);
     if (Fake) {
-	msgDebug("Writing sysconfig out to debugging screen..\n");
+	msgDebug("Writing %s out to debugging screen..\n", config);
 	fp = fdopen(DebugFD, "w");
     }
     else
-    	fp = fopen("/etc/sysconfig", "w");
+    	fp = fopen(config, "w");
     for (i = 0; i < nlines; i++) {
 	static Boolean firstTime = TRUE;
 

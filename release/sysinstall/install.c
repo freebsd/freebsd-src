@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.106 1996/07/02 10:57:52 jkh Exp $
+ * $Id: install.c,v 1.107 1996/07/04 23:11:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -299,13 +299,13 @@ installExpress(dialogMenuItem *self)
     if (!Dists) {
 	dialog_clear();
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (!mediaDevice) {
 	dialog_clear();
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
@@ -315,9 +315,9 @@ installExpress(dialogMenuItem *self)
 
 	/* Now write out any changes .. */
 	configResolv();
-	configSysconfig();
+	configSysconfig("/etc/sysconfig");
     }
-    return i | DITEM_RESTORE | DITEM_RECREATE;
+    return i | DITEM_RECREATE;
 }
 
 /* Novice mode installation */
@@ -357,7 +357,7 @@ installNovice(dialogMenuItem *self)
 	       "of distributions if none of the provided ones are suitable.");
     while (1) {
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RECREATE;
 	
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
 	    break;
@@ -367,7 +367,7 @@ installNovice(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
@@ -376,7 +376,7 @@ installNovice(dialogMenuItem *self)
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
-	return i | DITEM_RESTORE | DITEM_RECREATE;
+	return i | DITEM_RECREATE;
 
     }
     else
@@ -468,9 +468,9 @@ installNovice(dialogMenuItem *self)
 
     /* Now write out any changes .. */
     configResolv();
-    configSysconfig();
+    configSysconfig("/etc/sysconfig");
 
-    return DITEM_LEAVE_MENU | DITEM_RESTORE | DITEM_RECREATE;
+    return DITEM_LEAVE_MENU | DITEM_RECREATE;
 }
 
 /* The version of commit we call from the Install Custom menu */
@@ -486,7 +486,7 @@ installCustomCommit(dialogMenuItem *self)
 
 	/* Now write out any changes .. */
 	configResolv();
-	configSysconfig();
+	configSysconfig("/etc/sysconfig");
 	return i;
     }
     else
@@ -543,7 +543,7 @@ installCommit(dialogMenuItem *self)
 		       "see the Interfaces configuration item on the Configuration menu.");
     }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
-    return i | DITEM_RESTORE | DITEM_RECREATE;
+    return i | DITEM_RECREATE;
 }
 
 static void
