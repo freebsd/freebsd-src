@@ -42,7 +42,7 @@
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	ACPI_BUS_MANAGER
+#define _COMPONENT	ACPI_BUS
 MODULE_NAME("PCI")
 
 struct acpi_pcib_softc {
