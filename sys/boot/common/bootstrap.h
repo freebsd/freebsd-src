@@ -78,6 +78,7 @@ extern char	*strdupout(vm_offset_t str);
 
 /* bcache.c */
 extern int	bcache_init(int nblks, size_t bsize);
+extern void	bcache_flush();
 
 /*
  * Disk block cache
