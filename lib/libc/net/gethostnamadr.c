@@ -123,6 +123,10 @@ gethostbyname(const char *name)
 {
 	struct hostent *hp;
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
 	if (_res.options & RES_USE_INET6) {		/* XXX */
 		hp = gethostbyname2(name, AF_INET6);	/* XXX */
 		if (hp)					/* XXX */
