@@ -107,11 +107,10 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW,
     &ptys_equal, 0, "Label pty devices as biba/equal on create");
 TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
 
-static int	mac_biba_revocation_enabled = 0;
+static int	revocation_enabled = 0;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RW,
-    &mac_biba_revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.biba.revocation_enabled",
-    &mac_biba_revocation_enabled);
+    &revocation_enabled, 0, "Revoke access to objects on relabel");
+TUNABLE_INT("security.mac.biba.revocation_enabled", &revocation_enabled);
 
 static int	mac_biba_slot;
 #define	SLOT(l)	((struct mac_biba *)LABEL_TO_SLOT((l), mac_biba_slot).l_ptr)
@@ -267,7 +266,7 @@ mac_biba_contains_equal(struct mac_biba *mac_biba)
 		if (mac_biba->mb_rangelow.mbe_type == MAC_BIBA_TYPE_EQUAL)
 			return (1);
 		if (mac_biba->mb_rangehigh.mbe_type == MAC_BIBA_TYPE_EQUAL)
-		return (1);
+			return (1);
 	}
 
 	return (0);
@@ -1703,7 +1702,7 @@ mac_biba_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	 * Rely on the use of open()-time protections to handle
 	 * non-revocation cases.
 	 */
-	if (!mac_biba_enabled || !mac_biba_revocation_enabled)
+	if (!mac_biba_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&cred->cr_label);
@@ -1752,7 +1751,7 @@ mac_biba_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 {
 	struct mac_biba *subj, *obj;
 
-	if (!mac_biba_enabled || !mac_biba_revocation_enabled)
+	if (!mac_biba_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&active_cred->cr_label);
@@ -1770,7 +1769,7 @@ mac_biba_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 {
 	struct mac_biba *subj, *obj;
 
-	if (!mac_biba_enabled || !mac_biba_revocation_enabled)
+	if (!mac_biba_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&active_cred->cr_label);
@@ -2072,7 +2071,7 @@ mac_biba_check_vnode_write(struct ucred *active_cred,
 {
 	struct mac_biba *subj, *obj;
 
-	if (!mac_biba_enabled || !mac_biba_revocation_enabled)
+	if (!mac_biba_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(&active_cred->cr_label);
