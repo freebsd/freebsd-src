@@ -29,9 +29,22 @@ maxusers	0
 makeoptions	NO_WERROR=true		#XXX: We don't want -Werror just now
 
 options 	FFS
+options		NFSCLIENT
+options		NFS_ROOT
+options		BOOTP
+options		BOOTP_NFSROOT
 options 	COMPAT_43
+options		INET
 options         MD_ROOT
 options         MD_ROOT_SIZE=1024
+options		INVARIANTS
+options		INVARIANT_SUPPORT
+options		WITNESS
 
-device		md
-device		ofwd
+options		POWERMAC
+
+device		pci
+device		loop
+device		ether
+device		miibus
+device		gem
