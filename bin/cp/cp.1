@@ -102,6 +102,16 @@ indirected through, and for
 to create special files rather than copying them as normal files.
 Created directories have the same mode as the corresponding source
 directory, unmodified by the process' umask.
+.Pp
+Note that
+.Nm
+copies hard linked files as separate files.
+If you need to preserve hard links, consider using
+.Xr tar 1 ,
+.Xr cpio 1 ,
+or
+.Xr pax 1
+instead.
 .It Fl f
 For each existing destination pathname, remove it and
 create a new file, without prompting for confirmation
