@@ -125,28 +125,28 @@ fi
 echo $name
 echo	""
 echo -n "Number of bytes per disk sector? [512] "
-read bytes_per_sect
+read bytes_per_sect junk
 if [ "$bytes_per_sect" = "" ]; then
 	bytes_per_sect=512
 fi
 echo $bytes_per_sect
 echo	""
 echo -n "Total number of disk cylinders? [1024] "
-read cyls_per_disk
+read cyls_per_disk junk
 if [ "$cyls_per_disk" = "" ]; then
 	cyls_per_disk=1024
 fi
 echo $cyls_per_disk
 echo	""
 echo -n "Number of disk heads (i.e., tracks/cylinder)? [12] "
-read tracks_per_cyl
+read tracks_per_cyl junk
 if [ "$tracks_per_cyl" = "" ]; then
 	tracks_per_cyl=12
 fi
 echo $tracks_per_cyl
 echo	""
 echo -n "Number of disk sectors (i.e., sectors/track)? [36] "
-read sects_per_track
+read sects_per_track junk
 if [ "$sects_per_track" = "" ]; then
 	sects_per_track=36
 fi
@@ -157,11 +157,14 @@ disksize=`expr $cylindersize \* $cyls_per_disk`
 mb_sect=`expr 1024 \* 1024 / $bytes_per_sect`
 mb_per_disk=`expr $disksize / $mb_sect`
 echo "Disk has a total of $mb_per_disk Mb."
+echo "It must be divided into at least two partitions: one for the root" 
+echo "filesystem and one for swap.  In addition, it is a very good idea to"
+echo "have at least a third partition for the /usr filesystem."
+echo ""
 echo "For greater efficiency, partitions should begin and end on cylinder"
-echo "boundaries.  And there should be at least two of them: one for the root" 
-echo "filesystem and one for the /usr filesystem.  If you know the size NN"
-echo "in Megabytes (Mb) of a partition you want, then use the following formula"
-echo "to determine the number NC of cylinders to use:"
+echo "boundaries.  If you know the size NN in Megabytes (Mb) of a partition"
+echo "you want, then use the following formula to determine the number NC of"
+echo "cylinders to use:"
 echo	"	NC = integer { ( NN * $mb_sect ) /  $cylindersize }"
 echo -n "Total size of the ${OPSYSTEM} portion of the disk (in cylinders)? [${cyls_per_disk}] "
 read partition junk
@@ -195,19 +198,19 @@ whats_left=`expr $partition - $badspacesec`
 cyl_left=`expr $whats_left / $cylindersize`
 mb_left=`expr $whats_left / $mb_sect`
 echo	""
-echo	"There are $mb_left Mb ($cyl_left cylinders) left to allocate."
+echo	"There are $mb_left Mb ($cyl_left cylinders) to allocate."
 echo	""
 # set default root partition to 15MB
 part_size=`expr \( 15 \* $mb_sect \) /  $cylindersize`
 if [ $part_size -gt $cyl_left ]; then
 	part_size=$cyl_left
 fi
-echo "The root partition is usually no larger than about 15 Mb, and sometimes as"
-echo "small as 7 or 8 Mb."
+echo "The root partition is usually no larger than about 15 Mb, and sometimes"
+echo "as small as 7 or 8 Mb."
 root=0
 while [ $root -eq 0 ]; do
 	echo -n "Root partition size (in cylinders)? [${part_size}] "
-	read root
+	read root junk
 	if [ "$root" = "" ]; then
 		root=$part_size
 	fi
@@ -237,7 +240,7 @@ echo "We can build the root filesystem with block/fragment sizes of either"
 echo "	1) 4k/512, to save disk space at the expense of speed, or"
 echo "	2) 8k/1k for speed at the expense of disk space."
 echo -n "Which blocking factor should we use for the root filesystem? [2] "
-read blocking_factor
+read blocking_factor junk
 if [ "$blocking_factor" = "" ]; then
 	blocking_factor=2
 fi
@@ -249,12 +252,11 @@ min_cyl=`expr $minswap / $cylindersize`
 swap=0
 while [ $swap -eq 0 ]; do
 	echo
-	echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM}"
-	echo	"portion of disk."
+	echo    "$mb_left Mb ($cyl_left cylinders) remaining in ${OPSYSTEM} portion of disk."
 	echo
 	echo	"Minimum swap space is $min_cyl cylinders."
-	echo	"If your RAM size is NR Mb, then the recomended swap size NS (in cylinders)"
-	echo	"for running X is:"
+	echo	"For running X, if your RAM size is NR Mb, then the recomended swap"
+	echo	"size NS (in cylinders) is:"
 	echo	" 	NS = integer { ( 2.1 x NR x $mb_sect ) / ${cylindersize} }"
 	
 	# guess memory size
@@ -276,7 +278,7 @@ while [ $swap -eq 0 ]; do
 	case $swap_cyl in
 		[1-9]*)
 			swap=`expr $swap_cyl \* $cylindersize`
-			if [ $swap -gt $whats_left ]; then
+			if [ $swap_cyl -gt $cyl_left ]; then
 				echo "Swap size is greater than remaining free space"
 				swap=0
 			fi
