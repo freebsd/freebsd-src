@@ -986,6 +986,9 @@
         2.02 ISA PnP ISDN cards has been added to the &man.isic.4;
         <application>isdn4bsd</application> driver. &merged;</para> 
 
+	<para>The &man.isic.4; driver now supports the Compaq Microcom
+	610 ISDN ISA PnP card.</para>
+
 	<para>Active CAPI-based ISDN cards manufacured by AVM are now
 	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver.  The
 	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
@@ -995,7 +998,7 @@
 	accepted in &man.isdnd.rc.5; files to limit the time a
 	connection may remain open. &merged;</para>
 
-	<para>&man.isdnphone.8; now supports a <option>-k</option> for
+	<para>&man.isdnphone.8; now supports a <option>-k</option> option for
 	sending messages via the keypad facility to a PBX or exchange
 	office.</para>
       </sect4>
@@ -1385,6 +1388,9 @@
     <para>&man.edquota.8; now takes a <option>-f</option> option to
     allow limiting the prototype quota distribution (specified with
     <option>-p</option>) to a single filesystem.</para>
+
+    <para>&man.fbtab.5; now accepts glob matching patterns for target
+    devices, not just individual devices and directories.</para>
 
     <para arch="i386">&man.fdisk.8; no longer attempts to search for
     a device if none has been specified on the command line, but
@@ -1794,6 +1800,12 @@
     <filename>/var/run</filename> and
     <filename>/var/spool/lock</filename> at boot time. &merged;</para>
 
+    <para>&man.rcmd.3; now supports the use of the
+    <envar>RSH</envar> environment variable to specify a program to
+    use other than &man.rsh.1; for remote execution.  As a result,
+    programs such as &man.dump.8;, can use &man.ssh.1; for remote
+    transport.</para>
+
     <para>&man.rdist.1; has been retired from the base system, but is still
     available from &os; Ports Collection as 
     <port>net/44bsd-rdist</port>.</para>
@@ -1917,7 +1929,7 @@
     manpage is also installed in a more consistent fashion now.</para>
 
     <para>&man.sysinstall.8; now has the ability to load KLDs as a
-    part of the installation.</para>
+    part of the installation. &merged;</para>
 
     <para>&man.syslogd.8; can take a <option>-n</option> option to
     disable DNS queries for every request. &merged;</para>
