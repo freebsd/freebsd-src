@@ -50,10 +50,10 @@ sed	-e '/	pci$/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
-	-e '/maxusers/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/atapist/d' \
+	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 else
@@ -70,10 +70,10 @@ sed	-e '/pty/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
 	-e '/SOFTUPDATES/d' \
-	-e '/maxusers/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/atapist/d' \
+	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 fi
@@ -98,7 +98,6 @@ sed	-e '/pty/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
-	-e '/maxusers/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
@@ -119,6 +118,7 @@ sed	-e '/pty/d' \
 	-e '/aue/d' \
 	-e '/cue/d' \
 	-e '/kue/d' \
+	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 fi
 
