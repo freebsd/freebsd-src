@@ -29,10 +29,18 @@ Report problems and direct all questions to:
 
 /*
  * $Log: rlog.c,v $
+ * Revision 1.8  1995/10/29  17:56:28  peter
+ * Restore nate's change from rev 1.2; improve readability of the rlog output
+ * (adds a short row of dashes in a place that CVS and RCS dont mind)
+ *
  * Revision 1.7  1995/10/28  21:50:58  peter
  * First part of import conflict merge from rcs-5.7 import.
  *
- * All those $Log$ entries, combined with the whitespace changes are a real
+ * All those $Log: rlog.c,v $
+ * Revision 1.8  1995/10/29  17:56:28  peter
+ * Restore nate's change from rev 1.2; improve readability of the rlog output
+ * (adds a short row of dashes in a place that CVS and RCS dont mind)
+ * entries, combined with the whitespace changes are a real
  * pain.
  *
  * I'm committing this now, before it's completely finished to get it compiling
@@ -229,10 +237,10 @@ static struct rcslockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.7 1995/10/28 21:50:58 peter Exp $")
+mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.8 1995/10/29 17:56:28 peter Exp $")
 {
 	static char const cmdusage[] =
-		"\nrlog usage: rlog -{bhLNRt} -ddates -l[lockers] -r[revs] -sstates -Vn -w[logins] -xsuff -zzone file ...";
+		"\nrlog usage: rlog -{bhLNRt} -v[string] -ddates -l[lockers] -r[revs] -sstates -Vn -w[logins] -xsuff -zzone file ...";
 
 	register FILE *out;
 	char *a, **newargv;
@@ -249,9 +257,12 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.7 1995/10/28 21:50:58 peter Exp $")
 	int pre5;
 	int shownames;
 	int revno;
+	int versionlist;
+	char *vstring;
 
         descflag = selectflag = shownames = true;
-	onlylockflag = onlyRCSflag = false;
+	versionlist = onlylockflag = onlyRCSflag = false;
+	vstring=0;
 	out = stdout;
 	suffixes = X_DEFAULT;
 
@@ -328,6 +339,11 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.7 1995/10/28 21:50:58 peter Exp $")
 			setRCSversion(*argv);
 			break;
 
+		case 'v':
+			versionlist = true;
+			vstring = a;
+			break;
+
                 default:
 		unknown:
 			error("unknown option: %s%s", *argv, cmdusage);
@@ -380,6 +396,12 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.7 1995/10/28 21:50:58 peter Exp $")
             /* do nothing if -L is given and there are no locks*/
 	    if (onlylockflag && !Locks)
 		continue;
+
+	    if ( versionlist ) {
+		gettree();
+		aprintf(out, "%s%s %s\n", vstring, workname, tiprev());
+		continue;
+	    }
 
 	    if ( onlyRCSflag ) {
 		aprintf(out, "%s\n", RCSname);
