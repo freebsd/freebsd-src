@@ -35,7 +35,7 @@
 .Dt CHPASS 1
 .Os
 .Sh NAME
-.Nm chpass
+.Nm chpass, chfn, chsh, ypchpass, ypchfn, ypchsh
 .Nd add or change user database information
 .Sh SYNOPSIS
 chpass
@@ -205,6 +205,72 @@ When the editor terminates, the information is re-read and used to
 update the user database itself.
 Only the user, or the super-user, may edit the information associated
 with the user.
+.Sh NIS INTERACTION
+.Nm Chpass
+can also be used in conjunction with NIS, however some restrictions
+apply.
+Currently,
+.Nm chpass
+can only make changes to the NIS passwd maps through
+.Xr yppasswdd 8 ,
+which only permits changes to a user's password, shell and gecos
+fields. It can not be used to change other user information or to
+add new records to the NIS passwd maps. (Doing that would require
+something such as ypupdated, which is not yet supported.)
+Furthermore,
+.Xr yppasswdd 8
+requires password authentication before it will make any
+changes, even if it receives a request from the super-user.
+.Pp
+As a result, the following restrictions apply when
+.Nm chpass
+is used with NIS:
+.Bl -enum -offset indent
+.It
+.Pa Only the shell and gecos information may be changed.
+All other
+fields are restricted, even when
+.Nm chpass
+is invoked by the super-user, because the
+.Xr yppasswdd 8
+daemon has no support for updating them. While support for
+changing other fields could be added, this would lead to
+compatibility problems with other NIS-capable systems.
+Even though the super-user may supply data for other fields
+while editing an entry, the extra information (other than the
+password -- see below) will be silently discarded.
+.It
+.Pa Password authentication is required.
+.Nm Chpass
+will prompt for the user's NIS password before effecting
+any changes. If the password is invalid, all changes will be
+discarded.
+.It
+.Pa Adding new records to the local
+.Pa password database is discouraged.
+.Nm Chpass
+will allow the administrator to add new records to the
+local password database while NIS is enabled, but this can lead to
+some confusion since the new records are appended to the end of
+the master password file, usually after the special NIS '+' entries.
+The administrator should use
+.Xr vipw 8
+to modify the local password
+file when NIS is running.
+.It
+.Pa Password changes are not permitted.
+Users should use
+.Xr passwd 1
+or
+.Xr yppasswd 1
+to change their NIS passwords. The super-user is allowed to specify
+a new password (even though the ``Password:'' field does not show
+up in the editor template, the super-user may add it back by hand),
+but even the super-user must supply the user's original password
+otherwise
+.Xr yppasswdd 8
+will refuse to update the NIS maps.
+.El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd
@@ -230,6 +296,16 @@ and
 .%A Ken Thompson
 .%T "UNIX Password security"
 .Re
+.Sh NOTES
+The
+.Xr chfn 1 ,
+.Xr chsh 1 ,
+.Xr ypchpass 1 ,
+.Xr ypchfn 1
+and
+.Xr upchsh 1
+commands are really only links to
+.Nm chpass .
 .Sh BUGS
 User information should (and eventually will) be stored elsewhere.
 .Sh HISTORY
