@@ -4,7 +4,7 @@
 .error "ACPI can only be compiled into the kernel on the amd64 and ia64 platforms"
 .endif
 
-.if ${MACHINE_ARCH} != "i386"
+.if ${MACHINE} != "i386"
 .error "The ACPI module is only for i386"
 .endif
 
