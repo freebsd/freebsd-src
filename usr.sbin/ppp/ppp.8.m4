@@ -5341,6 +5341,52 @@ or
 .Dv HISADDR
 keywords.
 .Pp
+.It RAD_FRAMED_IPV6_ROUTE
+The received string is expected to be in the format
+.Ar dest Ns Op / Ns Ar bits
+.Ar gw
+.Op Ar metrics .
+Any specified metrics are ignored.
+.Dv MYADDR6
+and
+.Dv HISADDR6
+are understood as valid values for
+.Ar dest
+and
+.Ar gw ,
+.Dq default
+can be used for
+.Ar dest
+to sepcify the default route, and
+.Dq ::
+is understood to be the same as
+.Dq default
+for
+.Ar dest
+and
+.Dv HISADDR6
+for
+.Ar gw .
+.Pp
+For example, a returned value of
+.Dq 3ffe:505:abcd::/48 ::
+would result in a routing table entry to the 3ffe:505:abcd::/48 network via
+.Dv HISADDR6
+and a returned value of
+.Dq :: ::
+or
+.Dq default HISADDR6
+would result in a default route to
+.Dv HISADDR6 .
+.Pp
+All RADIUS IPv6 routes are applied after any sticky routes are
+applied, making RADIUS IPv6 routes override configured routes.  This
+also applies for RADIUS IPv6 routes that don't {include} the
+.Dv MYADDR6
+or
+.Dv HISADDR6
+keywords.
+.Pp
 .It RAD_SESSION_TIMEOUT
 If supplied, the client connection is closed after the given number of
 seconds.
