@@ -226,7 +226,7 @@ g_gate_start(struct bio *bp)
 	sc->sc_seq++;
 
 	mtx_lock(&sc->sc_inqueue_mtx);
-	bioq_disksort(&sc->sc_inqueue, bp);
+	bioq_insert_tail(&sc->sc_inqueue, bp);
 	wakeup(sc);
 	mtx_unlock(&sc->sc_inqueue_mtx);
 }
@@ -385,6 +385,10 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		G_GATE_DEBUG(1, "Invalid sector size.");
 		return (EINVAL);
 	}
+	if ((ggio->gctl_mediasize % ggio->gctl_sectorsize) != 0) {
+		G_GATE_DEBUG(1, "Invalid media size.");
+		return (EINVAL);
+	}
 	if ((ggio->gctl_flags & G_GATE_FLAG_READONLY) != 0 &&
 	    (ggio->gctl_flags & G_GATE_FLAG_WRITEONLY) != 0) {
 		G_GATE_DEBUG(1, "Invalid flags.");
@@ -536,7 +540,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			    bp->bio_length);
 			if (error != 0) {
 				mtx_lock(&sc->sc_inqueue_mtx);
-				bioq_disksort(&sc->sc_inqueue, bp);
+				bioq_insert_head(&sc->sc_inqueue, bp);
 				mtx_unlock(&sc->sc_inqueue_mtx);
 				g_gate_release(sc);
 				return (error);
@@ -580,7 +584,7 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 			G_GATE_LOGREQ(1, bp, "Request desisted.");
 			atomic_add_acq_32(&sc->sc_queue_count, 1);
 			mtx_lock(&sc->sc_inqueue_mtx);
-			bioq_disksort(&sc->sc_inqueue, bp);
+			bioq_insert_head(&sc->sc_inqueue, bp);
 			wakeup(sc);
 			mtx_unlock(&sc->sc_inqueue_mtx);
 		} else {
