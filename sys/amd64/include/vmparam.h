@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.14 1994/09/01 03:16:40 davidg Exp $
+ *	$Id: vmparam.h,v 1.15 1994/09/12 11:38:20 davidg Exp $
  */
 
 
@@ -88,7 +88,7 @@
  * Size of the Shared Memory Pages page table.
  */
 #ifndef	SHMMAXPGS
-#define	SHMMAXPGS	512		/* XXX until we have more kmap space */
+#define	SHMMAXPGS	1024		/* XXX until we have more kmap space */
 #endif
 
 /*
