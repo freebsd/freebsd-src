@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.48 1997/03/22 06:53:45 bde Exp $
+ * $Id: ufs_vnops.c,v 1.49 1997/03/31 12:02:53 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -1485,14 +1485,7 @@ ufs_rmdir(ap)
 
 	ip = VTOI(vp);
 	dp = VTOI(dvp);
-	/*
-	 * No rmdir "." please.
-	 */
-	if (dp == ip) {
-		vrele(dvp);
-		vput(vp);
-		return (EINVAL);
-	}
+
 	/*
 	 * Verify the directory is empty (and valid).
 	 * (Rmdir ".." won't be valid since

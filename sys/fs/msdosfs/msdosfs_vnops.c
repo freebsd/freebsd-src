@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.40 1997/02/26 14:23:16 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.41 1997/04/10 14:56:49 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1422,15 +1422,6 @@ msdosfs_rmdir(ap)
 
 	ddep = VTODE(ap->a_dvp);	/* parent dir of dir to delete	 */
 	dep = VTODE(ap->a_vp);/* directory to delete	 */
-
-	/*
-	 * Don't let "rmdir ." go thru.
-	 */
-	if (ddep == dep) {
-		vrele(ap->a_vp);
-		vput(ap->a_vp);
-		return EINVAL;
-	}
 
 	/*
 	 * Be sure the directory being deleted is empty.
