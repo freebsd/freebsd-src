@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.51 1995/11/09 22:46:58 gibbs Exp $
+#	$Id: GENERIC,v 1.52 1995/11/29 20:07:46 nate Exp $
 #
 
 machine		"i386"
@@ -23,7 +23,7 @@ options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 
-config		kernel	root on wd0 
+config		kernel	root on wd0
 
 controller	isa0
 controller	eisa0
@@ -42,8 +42,8 @@ controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
-options         ATAPI   #Enable ATAPI support for IDE bus
-device          wcd0    #IDE CD-ROM
+options		ATAPI	#Enable ATAPI support for IDE bus
+device		wcd0	#IDE CD-ROM
 
 controller	ncr0
 controller	ahb0
@@ -53,7 +53,7 @@ controller	ahc1
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
-controller	aic0    at isa? port 0x340 bio irq 11 vector aicintr
+controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
 controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
 controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
 controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
@@ -80,8 +80,9 @@ device		scd0	at isa? port 0x230 bio
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
+#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD >= 2.0.5
 #options		XSERVER			# include code for XFree86
+#options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
 #options		"PCVT_SCANSET=2"	# IBM keyboards are non-std
 
