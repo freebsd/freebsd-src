@@ -193,14 +193,14 @@ getline(cfp)
 	register char *lp = line;
 	register c;
 
-	while ((c = getc(cfp)) != '\n') {
+	while ((c = getc(cfp)) != '\n' && linel+1 < sizeof(line)) {
 		if (c == EOF)
 			return(0);
 		if (c == '\t') {
 			do {
 				*lp++ = ' ';
 				linel++;
-			} while ((linel & 07) != 0);
+			} while ((linel & 07) != 0 && linel+1 < sizeof(line));
 			continue;
 		}
 		*lp++ = c;
