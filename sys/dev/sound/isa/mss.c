@@ -966,7 +966,10 @@ static driver_t mss_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(mss, isa, mss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_mss, 1);
+
 
 /*
  * main irq handler for the CS423x. The OPTi931 code is
@@ -1458,7 +1461,10 @@ static driver_t pnpmss_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_pnpmss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_pnpmss, 1);
+
 
 /*
  * the opti931 seems to miss interrupts when working in full
@@ -1597,7 +1603,10 @@ static driver_t guspcm_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_guspcm, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_guspcm, 1);
+
 
 static int
 mssmix_init(snd_mixer *m)
