@@ -60,7 +60,7 @@
 enum {	/* symbols */
     MIDNIGHT, NOON, TEATIME,
     PM, AM, TOMORROW, TODAY, NOW,
-    MINUTES, HOURS, DAYS, WEEKS,
+    MINUTES, HOURS, DAYS, WEEKS, MONTHS, YEARS,
     NUMBER, PLUS, DOT, SLASH, ID, JUNK,
     JAN, FEB, MAR, APR, MAY, JUN,
     JUL, AUG, SEP, OCT, NOV, DEC,
@@ -91,6 +91,10 @@ struct {
     { "days", DAYS,1 },		/* (pluralized) */
     { "week", WEEKS,0 },	/* week ... */
     { "weeks", WEEKS,1 },	/* (pluralized) */
+    { "month", MONTHS,0 },	/* month ... */
+    { "months", MONTHS,1 },	/* (pluralized) */
+    { "year", YEARS,0 },	/* year ... */
+    { "years", YEARS,1 },	/* (pluralized) */
     { "jan", JAN,0 },
     { "feb", FEB,0 },
     { "mar", MAR,0 },
@@ -144,7 +148,7 @@ static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
 static const char rcsid[] =
-	"$Id: parsetime.c,v 1.15 1998/08/30 17:33:05 steve Exp $";
+	"$Id: parsetime.c,v 1.16 1998/12/06 07:42:09 archie Exp $";
 
 /* Local functions */
 
@@ -272,51 +276,12 @@ expect(int desired)
 
 
 /*
- * dateadd() adds a number of minutes to a date.  It is extraordinarily
- * stupid regarding day-of-month overflow, and will most likely not
- * work properly
- */
-static void
-dateadd(int minutes, struct tm *tm)
-{
-    /* increment days */
-
-    while (minutes > 24*60) {
-	minutes -= 24*60;
-	tm->tm_mday++;
-    }
-
-    /* increment hours */
-    while (minutes > 60) {
-	minutes -= 60;
-	tm->tm_hour++;
-	if (tm->tm_hour > 23) {
-	    tm->tm_mday++;
-	    tm->tm_hour = 0;
-	}
-    }
-
-    /* increment minutes */
-    tm->tm_min += minutes;
-
-    if (tm->tm_min > 59) {
-	tm->tm_hour++;
-	tm->tm_min -= 60;
-
-	if (tm->tm_hour > 23) {
-	    tm->tm_mday++;
-	    tm->tm_hour = 0;
-	}
-    }
-} /* dateadd */
-
-
-/*
  * plus() parses a now + time
  *
- *  at [NOW] PLUS NUMBER [MINUTES|HOURS|DAYS|WEEKS]
+ *  at [NOW] PLUS NUMBER [MINUTES|HOURS|DAYS|WEEKS|MONTHS|YEARS]
  *
  */
+
 static void
 plus(struct tm *tm)
 {
@@ -329,19 +294,35 @@ plus(struct tm *tm)
     expectplur = (delay != 1) ? 1 : 0;
 
     switch (token()) {
+    case YEARS:
+	    tm->tm_year += delay;
+	    break;
+    case MONTHS:
+	    tm->tm_mon += delay;
+	    break;
     case WEEKS:
 	    delay *= 7;
     case DAYS:
-	    delay *= 24;
+	    tm->tm_mday += delay;
+	    break;
     case HOURS:
-	    delay *= 60;
+	    tm->tm_hour += delay;
+	    break;
     case MINUTES:
-	    if (expectplur != sc_tokplur)
-		warnx("pluralization is wrong");
-	    dateadd(delay, tm);
-	    return;
+	    tm->tm_min += delay;
+	    break;
+    default:
+    	    plonk(sc_tokid);
+	    break;
     }
-    plonk(sc_tokid);
+
+    if (expectplur != sc_tokplur)
+	warnx("pluralization is wrong");
+
+    tm->tm_isdst = -1;
+    if (mktime(tm) < 0)
+	plonk(sc_tokid);
+
 } /* plus */
 
 
