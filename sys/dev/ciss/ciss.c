@@ -57,7 +57,7 @@
  * are available, but we aren't supposed to know about them, and it is
  * dubious whether they would provide major performance improvements
  * except under extreme load.
- * 
+ *
  * Currently the only supported CISS adapters are the Compaq Smart
  * Array 5* series (5300, 5i, 532).  Even with only three adapters,
  * Compaq still manage to have interface variations.
@@ -280,7 +280,7 @@ ciss_probe(device_t dev)
 	return(-10);
     }
     return(ENOENT);
-}	
+}
 
 /************************************************************************
  * Attach the driver to this adapter.
@@ -350,7 +350,7 @@ ciss_attach(device_t dev)
 	error = ENXIO;
 	goto out;
     }
-	
+
     /*
      * Do PCI-specific init.
      */
@@ -375,7 +375,7 @@ ciss_attach(device_t dev)
      */
     if ((error = ciss_identify_adapter(sc)) != 0)
 	goto out;
-    
+
     /*
      * Build our private table of logical devices.
      */
@@ -441,7 +441,6 @@ ciss_detach(device_t dev)
     ciss_free(sc);
 
     return(0);
-    
 }
 
 /************************************************************************
@@ -478,7 +477,7 @@ ciss_init_pci(struct ciss_softc *sc)
     error = ENXIO;
     sc->ciss_regs_rid = CISS_TL_SIMPLE_BAR_REGS;
     if ((sc->ciss_regs_resource =
-	 bus_alloc_resource_any(sc->ciss_dev, SYS_RES_MEMORY, 
+	 bus_alloc_resource_any(sc->ciss_dev, SYS_RES_MEMORY,
 				&sc->ciss_regs_rid, RF_ACTIVE)) == NULL) {
 	ciss_printf(sc, "can't allocate register window\n");
 	return(ENXIO);
@@ -493,7 +492,7 @@ ciss_init_pci(struct ciss_softc *sc)
     sc->ciss_cfg_rid = CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_CFG_BAR) & 0xffff;
     if (sc->ciss_cfg_rid != sc->ciss_regs_rid) {
 	if ((sc->ciss_cfg_resource =
-	     bus_alloc_resource_any(sc->ciss_dev, SYS_RES_MEMORY, 
+	     bus_alloc_resource_any(sc->ciss_dev, SYS_RES_MEMORY,
 				    &sc->ciss_cfg_rid, RF_ACTIVE)) == NULL) {
 	    ciss_printf(sc, "can't allocate config window\n");
 	    return(ENXIO);
@@ -507,7 +506,7 @@ ciss_init_pci(struct ciss_softc *sc)
 	    rman_get_start(sc->ciss_regs_resource) + 1;
     }
     cofs = CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_CFG_OFF);
-    
+
     /*
      * Use the base/size/offset values we just calculated to
      * sanity-check the config structure.  If it's OK, point to it.
@@ -518,7 +517,7 @@ ciss_init_pci(struct ciss_softc *sc)
     }
     sc->ciss_cfg = (struct ciss_config_table *)(cbase + cofs);
     debug(1, "config struct at %p", sc->ciss_cfg);
-    
+
     /*
      * Validate the config structure.  If we supported other transport
      * methods, we could select amongst them at this point in time.
@@ -531,7 +530,7 @@ ciss_init_pci(struct ciss_softc *sc)
     }
     if ((sc->ciss_cfg->valence < CISS_MIN_VALENCE) ||
 	(sc->ciss_cfg->valence > CISS_MAX_VALENCE)) {
-	ciss_printf(sc, "adapter interface specification (%d) unsupported\n", 
+	ciss_printf(sc, "adapter interface specification (%d) unsupported\n",
 		    sc->ciss_cfg->valence);
 	return(ENXIO);
     }
@@ -571,13 +570,13 @@ ciss_init_pci(struct ciss_softc *sc)
      * Turn off interrupts before we go routing anything.
      */
     CISS_TL_SIMPLE_DISABLE_INTERRUPTS(sc);
-    
+
     /*
      * Allocate and set up our interrupt.
      */
     sc->ciss_irq_rid = 0;
     if ((sc->ciss_irq_resource =
-	 bus_alloc_resource_any(sc->ciss_dev, SYS_RES_IRQ, &sc->ciss_irq_rid, 
+	 bus_alloc_resource_any(sc->ciss_dev, SYS_RES_IRQ, &sc->ciss_irq_rid,
 				RF_ACTIVE | RF_SHAREABLE)) == NULL) {
 	ciss_printf(sc, "can't allocate interrupt\n");
 	return(ENXIO);
@@ -591,7 +590,7 @@ ciss_init_pci(struct ciss_softc *sc)
     /*
      * Allocate the parent bus DMA tag appropriate for our PCI
      * interface.
-     * 
+     *
      * Note that "simple" adapters can only address within a 32-bit
      * span.
      */
@@ -700,7 +699,7 @@ ciss_flush_adapter(struct ciss_softc *sc)
     case CISS_CMD_STATUS_SUCCESS:
 	break;
     default:
-	ciss_printf(sc, "error flushing cache (%s)\n",  
+	ciss_printf(sc, "error flushing cache (%s)\n",
 		    ciss_name_command_status(command_status));
 	error = EIO;
 	goto out;
@@ -747,7 +746,7 @@ ciss_init_requests(struct ciss_softc *sc)
 			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   CISS_COMMAND_ALLOC_SIZE * 
+			   CISS_COMMAND_ALLOC_SIZE *
 			   sc->ciss_max_requests, 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
@@ -759,12 +758,12 @@ ciss_init_requests(struct ciss_softc *sc)
     /*
      * Allocate memory and make it available for DMA.
      */
-    if (bus_dmamem_alloc(sc->ciss_command_dmat, (void **)&sc->ciss_command, 
+    if (bus_dmamem_alloc(sc->ciss_command_dmat, (void **)&sc->ciss_command,
 			 BUS_DMA_NOWAIT, &sc->ciss_command_map)) {
 	ciss_printf(sc, "can't allocate command memory\n");
 	return(ENOMEM);
     }
-    bus_dmamap_load(sc->ciss_command_dmat, sc->ciss_command_map, sc->ciss_command, 
+    bus_dmamap_load(sc->ciss_command_dmat, sc->ciss_command_map, sc->ciss_command,
 		    CISS_COMMAND_ALLOC_SIZE * sc->ciss_max_requests,
 		    ciss_command_map_helper, sc, 0);
     bzero(sc->ciss_command, CISS_COMMAND_ALLOC_SIZE * sc->ciss_max_requests);
@@ -863,7 +862,7 @@ ciss_identify_adapter(struct ciss_softc *sc)
 	ciss_printf(sc, "  signature '%.4s'\n", sc->ciss_cfg->signature);
 	ciss_printf(sc, "  valence %d\n", sc->ciss_cfg->valence);
 	ciss_printf(sc, "  supported I/O methods 0x%b\n",
-		    sc->ciss_cfg->supported_methods, 
+		    sc->ciss_cfg->supported_methods,
 		    "\20\1READY\2simple\3performant\4MEMQ\n");
 	ciss_printf(sc, "  active I/O method 0x%b\n",
 		    sc->ciss_cfg->active_method, "\20\2simple\3performant\4MEMQ\n");
@@ -875,7 +874,7 @@ ciss_identify_adapter(struct ciss_softc *sc)
 		    sc->ciss_cfg->interrupt_coalesce_count);
 	ciss_printf(sc, "  max outstanding commands %d\n",
 		    sc->ciss_cfg->max_outstanding_commands);
-	ciss_printf(sc, "  bus types 0x%b\n", sc->ciss_cfg->bus_types, 
+	ciss_printf(sc, "  bus types 0x%b\n", sc->ciss_cfg->bus_types,
 		    "\20\1ultra2\2ultra3\10fibre1\11fibre2\n");
 	ciss_printf(sc, "  server name '%.16s'\n", sc->ciss_cfg->server_name);
 	ciss_printf(sc, "  heartbeat 0x%x\n", sc->ciss_cfg->heartbeat);
@@ -887,7 +886,7 @@ out:
 	    free(sc->ciss_id, CISS_MALLOC_CLASS);
 	    sc->ciss_id = NULL;
 	}
-    }	
+    }
     if (cr != NULL)
 	ciss_release_request(cr);
     return(error);
@@ -1104,7 +1103,7 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
      * Build a BMIC request to fetch the drive ID.
      */
     if ((error = ciss_get_bmic_request(sc, &cr, CISS_BMIC_ID_LDRIVE,
-				       (void **)&ld->cl_ldrive, 
+				       (void **)&ld->cl_ldrive,
 				       sizeof(*ld->cl_ldrive))) != 0)
 	goto out;
     cc = CISS_FIND_COMMAND(cr);
@@ -1118,7 +1117,7 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
 	ciss_printf(sc, "error sending BMIC LDRIVE command (%d)\n", error);
 	goto out;
     }
-    
+
     /*
      * Check response.
      */
@@ -1198,7 +1197,7 @@ ciss_get_ldrive_status(struct ciss_softc *sc,  struct ciss_ldrive *ld)
      * Build a CISS BMIC command to get the logical drive status.
      */
     if ((error = ciss_get_bmic_request(sc, &cr, CISS_BMIC_ID_LSTATUS,
-				       (void **)&ld->cl_lstatus, 
+				       (void **)&ld->cl_lstatus,
 				       sizeof(*ld->cl_lstatus))) != 0)
 	goto out;
     cc = CISS_FIND_COMMAND(cr);
@@ -1233,7 +1232,7 @@ ciss_get_ldrive_status(struct ciss_softc *sc,  struct ciss_ldrive *ld)
     /*
      * Set the drive's summary status based on the returned status.
      *
-     * XXX testing shows that a failed JBOD drive comes back at next 
+     * XXX testing shows that a failed JBOD drive comes back at next
      * boot in "queued for expansion" mode.  WTF?
      */
     ld->cl_status = ciss_decode_ldrive_status(ld->cl_lstatus->status);
@@ -1279,7 +1278,7 @@ ciss_accept_media(struct ciss_softc *sc, int ldrive, int async)
     struct ciss_bmic_cdb	*cbc;
     int				error;
 
-    debug(0, "bringing logical drive %d back online %ssynchronously", 
+    debug(0, "bringing logical drive %d back online %ssynchronously",
 	  ldrive, async ? "a" : "");
 
     /*
@@ -1316,7 +1315,7 @@ ciss_accept_media(struct ciss_softc *sc, int ldrive, int async)
      */
     ciss_accept_media_complete(cr);
     return(0);
-    
+
 out:
     if (cr != NULL)
 	ciss_release_request(cr);
@@ -1480,7 +1479,7 @@ ciss_done(struct ciss_softc *sc)
 	if (tag == CISS_TL_SIMPLE_OPQ_EMPTY)
 	    break;
 	index = tag >> 2;
-	debug(2, "completed command %d%s", index, 
+	debug(2, "completed command %d%s", index,
 	      (tag & CISS_HDR_HOST_TAG_ERROR) ? " with error" : "");
 	if (index >= sc->ciss_max_requests) {
 	    ciss_printf(sc, "completed invalid request %d (0x%x)\n", index, tag);
@@ -1497,7 +1496,7 @@ ciss_done(struct ciss_softc *sc)
 	}
 	complete = 1;
     }
-    
+
     /*
      * Invoke completion processing.  If we can defer this out of
      * interrupt context, that'd be good.
@@ -1665,7 +1664,7 @@ static int
 ciss_poll_request(struct ciss_request *cr, int timeout)
 {
     int		error;
- 
+
     debug_called(2);
 
     cr->cr_flags |= CISS_REQ_POLL;
@@ -1725,7 +1724,7 @@ ciss_abort_request(struct ciss_request *ar)
     if ((error = ciss_get_request(ar->cr_sc, &cr)) != 0)
 	return(error);
 
-    /* build the abort command */	
+    /* build the abort command */
     cc = CISS_FIND_COMMAND(cr);
     cc->header.address.mode.mode = CISS_HDR_ADDRESS_MODE_PERIPHERAL;	/* addressing? */
     cc->header.address.physical.target = 0;
@@ -1802,7 +1801,6 @@ ciss_preen_command(struct ciss_request *cr)
     cmdphys = CISS_FIND_COMMANDPHYS(cr);
     cc->error_info.error_info_address = cmdphys + sizeof(struct ciss_command);
     cc->error_info.error_info_length = CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command);
-    
 }
 
 /************************************************************************
@@ -1839,7 +1837,7 @@ ciss_get_bmic_request(struct ciss_softc *sc, struct ciss_request **crp,
     debug_called(2);
 
     cr = NULL;
-    buf = NULL;	
+    buf = NULL;
 
     /*
      * Get a request.
@@ -2141,7 +2139,7 @@ ciss_cam_init(struct ciss_softc *sc)
 
 /************************************************************************
  * Initiate a rescan of the 'logical devices' SIM
- */ 
+ */
 static void
 ciss_cam_rescan_target(struct ciss_softc *sc, int target)
 {
@@ -2418,12 +2416,12 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
     u_int8_t	opcode;
 
     target = csio->ccb_h.target_id;
-    opcode = (csio->ccb_h.flags & CAM_CDB_POINTER) ? 
+    opcode = (csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	*(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0];
 
     /*
      * Handle requests for volumes that don't exist.  A selection timeout
-     * is slightly better than an illegal request.  Other errors might be 
+     * is slightly better than an illegal request.  Other errors might be
      * better.
      */
     if (sc->ciss_logical[target].cl_status == CISS_LD_NONEXISTENT) {
@@ -2457,7 +2455,7 @@ ciss_cam_emulate(struct ciss_softc *sc, struct ccb_scsiio *csio)
 	 * If this is a Synchronise Cache command, typically issued when
 	 * a device is closed, flush the adapter and complete now.
 	 */
-	if (((csio->ccb_h.flags & CAM_CDB_POINTER) ? 
+	if (((csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	     *(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0]) == SYNCHRONIZE_CACHE) {
 	    ciss_flush_adapter(sc);
 	    csio->ccb_h.status = CAM_REQ_CMP;
@@ -2513,7 +2511,7 @@ ciss_cam_complete(struct ciss_request *cr)
      */
     switch(scsi_status) {
 	/* no status due to adapter error */
-    case -1:				
+    case -1:
 	debug(0, "adapter error");
 	csio->ccb_h.status = CAM_REQ_CMP_ERR;
 	break;
@@ -2531,14 +2529,14 @@ ciss_cam_complete(struct ciss_request *cr)
 	bzero(&csio->sense_data, SSD_FULL_SIZE);
 	bcopy(&ce->sense_info[0], &csio->sense_data, ce->sense_length);
 	csio->sense_len = ce->sense_length;
-	csio->resid = ce->residual_count;	
+	csio->resid = ce->residual_count;
 	csio->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 #ifdef CISS_DEBUG
 	{
 	    struct scsi_sense_data	*sns = (struct scsi_sense_data *)&ce->sense_info[0];
 	    debug(0, "sense key %x", sns->flags & SSD_KEY);
 	}
-#endif	    
+#endif
 	break;
 
     case SCSI_STATUS_BUSY:		/* CISS_SCSI_STATUS_BUSY */
@@ -2572,7 +2570,7 @@ ciss_cam_complete_fixup(struct ciss_softc *sc, struct ccb_scsiio *csio)
     struct ciss_ldrive		*cl;
     int				target;
 
-    if (((csio->ccb_h.flags & CAM_CDB_POINTER) ? 
+    if (((csio->ccb_h.flags & CAM_CDB_POINTER) ?
 	 *(u_int8_t *)csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes[0]) == INQUIRY) {
 
 	inq = (struct scsi_inquiry_data *)csio->data_ptr;
@@ -2641,7 +2639,7 @@ ciss_periodic(void *arg)
      */
     if (sc->ciss_cfg->heartbeat == sc->ciss_heartbeat) {
 	sc->ciss_heart_attack++;
-	debug(0, "adapter heart attack in progress 0x%x/%d", 
+	debug(0, "adapter heart attack in progress 0x%x/%d",
 	      sc->ciss_heartbeat, sc->ciss_heart_attack);
 	if (sc->ciss_heart_attack == 3) {
 	    ciss_printf(sc, "ADAPTER HEARTBEAT FAILED\n");
@@ -2699,7 +2697,7 @@ ciss_notify_event(struct ciss_softc *sc)
 	debug(1, "acquired request %d", cr->cr_tag);
     }
 
-    /* 
+    /*
      * Get a databuffer if we don't already have one, note that the
      * adapter command wants a larger buffer than the actual
      * structure.
@@ -2793,7 +2791,7 @@ ciss_notify_complete(struct ciss_request *cr)
 	return;
     }
 
-    /* 
+    /*
      * If the adapter gave us a text message, print it.
      */
     if (cn->message[0] != 0)
@@ -3019,7 +3017,7 @@ ciss_notify_abort_bmic(struct ciss_softc *sc)
     case CISS_CMD_STATUS_SUCCESS:
 	break;
     default:
-	ciss_printf(sc, "error cancelling Notify on Event (%s)\n",  
+	ciss_printf(sc, "error cancelling Notify on Event (%s)\n",
 		    ciss_name_command_status(command_status));
 	error = EIO;
 	goto out;
@@ -3121,7 +3119,7 @@ ciss_notify_logical(struct ciss_softc *sc, struct ciss_notify *cn)
 static void
 ciss_notify_physical(struct ciss_softc *sc, struct ciss_notify *cn)
 {
- 
+
 }
 
 /************************************************************************
@@ -3153,7 +3151,7 @@ ciss_print_request(struct ciss_request *cr)
 	ciss_printf(sc, "  logical unit %d\n", cc->header.address.logical.lun);
 	break;
     }
-    ciss_printf(sc, "  %s cdb length %d type %s attribute %s\n", 
+    ciss_printf(sc, "  %s cdb length %d type %s attribute %s\n",
 		(cc->cdb.direction == CISS_CDB_DIRECTION_NONE) ? "no-I/O" :
 		(cc->cdb.direction == CISS_CDB_DIRECTION_READ) ? "READ" :
 		(cc->cdb.direction == CISS_CDB_DIRECTION_WRITE) ? "WRITE" : "??",
@@ -3238,7 +3236,7 @@ ciss_print_ldrive(struct ciss_softc *sc, struct ciss_ldrive *ld)
 	target = CISS_BIG_MAP_TARGET(sc, ld->cl_lstatus->drive_failure_map[i]);
 	if (bus == -1)
 	    continue;
-	ciss_printf(sc, "physical drive %d:%d (%x) failed\n", bus, target, 
+	ciss_printf(sc, "physical drive %d:%d (%x) failed\n", bus, target,
 		    ld->cl_lstatus->drive_failure_map[i]);
     }
 }
@@ -3280,7 +3278,7 @@ static void
 ciss_print0(void)
 {
     struct ciss_softc	*sc;
-    
+
     sc = devclass_get_softc(devclass_find("ciss"), 0);
     if (sc == NULL) {
 	printf("no ciss controllers\n");
