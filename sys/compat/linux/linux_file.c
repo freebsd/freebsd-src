@@ -849,3 +849,31 @@ linux_fdatasync(p, uap)
 	bsd.fd = uap->fd;
 	return fsync(p, &bsd);
 }
+
+int
+linux_pread(p, uap)
+	struct proc *p;
+	struct linux_pread_args *uap;
+{
+	struct pread_args bsd;
+
+	bsd.fd = uap->fd;
+	bsd.buf = uap->buf;
+	bsd.nbyte = uap->nbyte;
+	bsd.offset = uap->offset;
+	return pread(p, &bsd);
+}
+
+int
+linux_pwrite(p, uap)
+	struct proc *p;
+	struct linux_pwrite_args *uap;
+{
+	struct pwrite_args bsd;
+
+	bsd.fd = uap->fd;
+	bsd.buf = uap->buf;
+	bsd.nbyte = uap->nbyte;
+	bsd.offset = uap->offset;
+	return pwrite(p, &bsd);
+}
