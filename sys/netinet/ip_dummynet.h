@@ -259,6 +259,7 @@ struct dn_flow_set {
 #define DN_IS_RED		0x0002
 #define DN_IS_GENTLE_RED	0x0004
 #define DN_QSIZE_IS_BYTES	0x0008	/* queue size is measured in bytes */
+#define DN_NOERROR		0x0010	/* do not report ENOBUFS on drops  */
 #define DN_IS_PIPE		0x4000
 #define DN_IS_QUEUE		0x8000
 
