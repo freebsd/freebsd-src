@@ -34,12 +34,14 @@ standard output.
 displays only complete word matches. 
 .Pp
 .Ar keyword
-really is a regular expression, please read grep(1) manual page for 
-more information about its format.
-.Sh RETURN VALUES
+really is a regular expression, please read
+.Xr grep 1
+manual page for more information about its format.
+.Sh DIAGNOSTICS
 The 
 .Nm
 utility exits 0 on success, and 1 if no keyword matched.
 .Sh SEE ALSO
+.Xr grep 1 ,
 .Xr makewhatis 1 ,
 .Xr man 1
