@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.14 1997/08/23 05:14:23 smp Exp $
+ *	$Id: param.h,v 1.37 1997/08/24 00:04:59 fsmp Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -52,6 +52,16 @@
 #endif
 #define MID_MACHINE	MID_I386
 
+/*
+ * Architecture dependent constants for i386 based machines.
+ */
+#ifdef PC98
+/* NEC PC-9801/9821 series and compatibles. */
+#define	MACHINE_ARCH	"pc-98"
+#else
+/* IBM-PC compatibles. */
+#define	MACHINE_ARCH	"ibm-pc"
+#endif
 
 #ifndef LOCORE
 
