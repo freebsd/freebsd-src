@@ -1623,6 +1623,7 @@ dataconn(name, size, mode)
 		*sizebuf = '\0';
 	if (pdata >= 0) {
 		union sockunion from;
+		int flags;
 		int s, fromlen = ctrl_addr.su_len;
 		struct timeval timeout;
 		fd_set set;
@@ -1633,15 +1634,27 @@ dataconn(name, size, mode)
 		timeout.tv_usec = 0;
 		timeout.tv_sec = 120;
 
-		if (select(pdata+1, &set, (fd_set *) 0, (fd_set *) 0, &timeout) == 0 ||
-		    (s = accept(pdata, (struct sockaddr *) &from, &fromlen)) < 0) {
-			reply(425, "Can't open data connection.");
-			(void) close(pdata);
-			pdata = -1;
-			return (NULL);
-		}
+		/*
+		 * Granted a socket is in the blocking I/O mode,
+		 * accept() will block after a successful select()
+		 * if the selected connection dies in between.
+		 * Therefore set the non-blocking I/O flag here.
+		 */
+		if ((flags = fcntl(pdata, F_GETFL, 0)) == -1 ||
+		    fcntl(pdata, F_SETFL, flags | O_NONBLOCK) == -1)
+			goto pdata_err;
+		if (select(pdata+1, &set, (fd_set *) 0, (fd_set *) 0, &timeout) <= 0 ||
+		    (s = accept(pdata, (struct sockaddr *) &from, &fromlen)) < 0)
+			goto pdata_err;
 		(void) close(pdata);
 		pdata = s;
+		/*
+		 * Unset the blocking I/O flag on the child socket
+		 * again so stdio can work on it.
+		 */
+		if ((flags = fcntl(pdata, F_GETFL, 0)) == -1 ||
+		    fcntl(pdata, F_SETFL, flags & ~O_NONBLOCK) == -1)
+			goto pdata_err;
 #ifdef IP_TOS
 		if (from.su_family == AF_INET)
 	      {
@@ -1653,6 +1666,11 @@ dataconn(name, size, mode)
 		reply(150, "Opening %s mode data connection for '%s'%s.",
 		     type == TYPE_A ? "ASCII" : "BINARY", name, sizebuf);
 		return (fdopen(pdata, mode));
+pdata_err:
+		reply(425, "Can't open data connection.");
+		(void) close(pdata);
+		pdata = -1;
+		return (NULL);
 	}
 	if (data >= 0) {
 		reply(125, "Using existing data connection for '%s'%s.",
