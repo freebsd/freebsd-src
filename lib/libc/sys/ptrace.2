@@ -18,16 +18,16 @@
 .Sh DESCRIPTION
 .Fn ptrace
 provides tracing and debugging facilities.
-It allows one process 
+It allows one process
 (the
 .Em tracing
-process) 
-to control another 
+process)
+to control another
 (the
 .Em traced
-process.)
+process).
 Most of the time, the traced process runs normally, but when it
-receives a signal 
+receives a signal
 (see
 .Xr sigaction 2 ) ,
 it stops.
@@ -85,14 +85,12 @@ In the current
 implementation, these two requests are completely identical.
 The
 .Fa addr
-argument specifies the address 
-(in the traced process's virtual address space) 
+argument specifies the address
+(in the traced process's virtual address space)
 at which the read is to be done.
-This address does not have to meet any alignment constraints.  
+This address does not have to meet any alignment constraints.
 The value read is returned as the return value from
-.Eo \&
-.Fn ptrace
-.Ec .
+.Fn ptrace .
 .It Dv PT_WRITE_I , Dv PT_WRITE_D
 These requests parallel
 .Dv PT_READ_I
@@ -105,10 +103,10 @@ argument supplies the value to be written.
 .It Dv PT_IO
 This request allows reading and writing arbitrary amounts of data in
 the traced process's address space.
-The 
+The
 .Fa addr
-argument specifies a pointer to a 
-.Vt struct ptrace_io_desc ,
+argument specifies a pointer to a
+.Vt "struct ptrace_io_desc" ,
 which is defined as follows:
 .Bd -literal
 struct ptrace_io_desc {
@@ -136,8 +134,8 @@ upon return.
 .It Dv PT_CONTINUE
 The traced process continues execution.
 .Fa addr
-is an address specifying the place where execution is to be resumed 
-(a new value for the program counter,) 
+is an address specifying the place where execution is to be resumed
+(a new value for the program counter),
 or
 .Po Vt caddr_t Pc Ns 1
 to indicate that execution is to pick up where it left off.
@@ -160,7 +158,8 @@ given as the signal to be delivered.
 .It Dv PT_ATTACH
 This request allows a process to gain control of an otherwise
 unrelated process and begin tracing it.
-It does not need any cooperation from the to-be-traced process.  In
+It does not need any cooperation from the to-be-traced process.
+In
 this case,
 .Fa pid
 specifies the process ID of the to-be-traced process, and the other
@@ -246,7 +245,7 @@ Additionally, machine-specific requests can exist.
 Some requests can cause
 .Fn ptrace
 to return
-.Li -1
+\-1
 as a non-error value; to disambiguate,
 .Va errno
 can be set to 0 before the call and checked afterwards.
@@ -271,7 +270,7 @@ The
 .Fa request
 was not one of the legal requests.
 .It
-The signal number 
+The signal number
 (in
 .Fa data )
 to
@@ -297,7 +296,7 @@ was attempted on a process that was already being traced.
 A request attempted to manipulate a process that was being traced by
 some process other than the one making the request.
 .It
-A request 
+A request
 (other than
 .Dv PT_ATTACH )
 specified a process that wasn't stopped.
@@ -305,7 +304,7 @@ specified a process that wasn't stopped.
 .It Bq Er EPERM
 .Bl -bullet -compact
 .It
-A request 
+A request
 (other than
 .Dv PT_ATTACH )
 attempted to manipulate a process that wasn't being traced at all.
