@@ -58,6 +58,17 @@ The
 .Fl pg
 option also links in versions of the library routines
 that are compiled for profiling.
+By convention these libraries have their name suffixed with
+.Pa _p ,
+i.e. the profiled version of
+.Pa libc.a
+is
+.Pa libc_p.a
+and if you specify libraries directly to the
+compiler or linker you can use
+.Fl l Ns Ar c_p
+instead of
+.Fl l Ns Ar c .
 .Nm Gprof
 reads the given object file (the default is
 .Pa a.out)
