@@ -284,6 +284,8 @@ main(argc, argv)
 			break;
 		case 'l':
 			autologin = 1;
+			if(autologin == 0)
+				autologin = -1;
 			user = optarg;
 			break;
 		case 'n':
@@ -344,6 +346,17 @@ main(argc, argv)
 			/* NOTREACHED */
 		}
 	}
+
+	if (autologin == -1) {		/* esc@magic.fi; force  */
+#if defined(AUTHENTICATION)
+		autologin = 1;
+#endif
+#if defined(ENCRYPTION)
+		encrypt_auto(1);
+		decrypt_auto(1);
+#endif
+	}
+
 	if (autologin == -1)
 		autologin = (rlogin == _POSIX_VDISABLE) ? 0 : 1;
 
