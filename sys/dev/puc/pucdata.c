@@ -926,6 +926,15 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* NetMos 0S1P PCI: 0S, 1P */
+	{   "NetMos NM9805 1284 Printer port",
+		{   0x9710, 0x9805, 0,      0       },
+		{   0xffff, 0xffff, 0,      0       },
+		{
+			{ PUC_PORT_TYPE_LPT, 0x10, 0x00, 0x00 },
+		},
+	},
+
 	/*
 	 * This is the Middle Digital, Inc. PCI-Weasel, which
 	 * uses a PCI interface implemented in FPGA.
