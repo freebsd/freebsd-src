@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 149 $
+ *       $Revision: 155 $
  *
  *****************************************************************************/
 
@@ -156,21 +156,25 @@ ACPI_STATUS
 AcpiExConvertToInteger (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_OPERAND_OBJECT     **ResultDesc,
-    ACPI_WALK_STATE         *WalkState);
+    UINT32                  Flags);
 
 ACPI_STATUS
 AcpiExConvertToBuffer (
     ACPI_OPERAND_OBJECT     *ObjDesc,
-    ACPI_OPERAND_OBJECT     **ResultDesc,
-    ACPI_WALK_STATE         *WalkState);
+    ACPI_OPERAND_OBJECT     **ResultDesc);
 
 ACPI_STATUS
 AcpiExConvertToString (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_OPERAND_OBJECT     **ResultDesc,
-    UINT32                  Base,
-    UINT32                  MaxLength,
-    ACPI_WALK_STATE         *WalkState);
+    UINT32                  Type);
+
+/* Types for ->String conversion */
+
+#define ACPI_EXPLICIT_BYTE_COPY         0x00000000
+#define ACPI_EXPLICIT_CONVERT_HEX       0x00000001
+#define ACPI_IMPLICIT_CONVERT_HEX       0x00000002
+#define ACPI_EXPLICIT_CONVERT_DECIMAL   0x00000003
 
 ACPI_STATUS
 AcpiExConvertToTargetType (
@@ -182,7 +186,7 @@ AcpiExConvertToTargetType (
 UINT32
 AcpiExConvertToAscii (
     ACPI_INTEGER            Integer,
-    UINT32                  Base,
+    UINT16                  Base,
     UINT8                   *String,
     UINT8                   MaxLength);
 
@@ -316,11 +320,19 @@ AcpiExDoConcatenate (
     ACPI_OPERAND_OBJECT     **ActualReturnDesc,
     ACPI_WALK_STATE         *WalkState);
 
-BOOLEAN
+ACPI_STATUS
+AcpiExDoLogicalNumericOp (
+    UINT16                  Opcode,
+    ACPI_INTEGER            Integer0,
+    ACPI_INTEGER            Integer1,
+    BOOLEAN                 *LogicalResult);
+
+ACPI_STATUS
 AcpiExDoLogicalOp (
     UINT16                  Opcode,
-    ACPI_INTEGER            Operand0,
-    ACPI_INTEGER            Operand1);
+    ACPI_OPERAND_OBJECT     *Operand0,
+    ACPI_OPERAND_OBJECT     *Operand1,
+    BOOLEAN                 *LogicalResult);
 
 ACPI_INTEGER
 AcpiExDoMathOp (
@@ -447,7 +459,7 @@ AcpiExSystemDoNotifyOp (
 
 ACPI_STATUS
 AcpiExSystemDoSuspend(
-    UINT32                  Time);
+    ACPI_INTEGER            Time);
 
 ACPI_STATUS
 AcpiExSystemDoStall (
@@ -484,6 +496,10 @@ AcpiExSystemWaitSemaphore (
 /*
  * exmonadic - ACPI AML (p-code) execution, monadic operators
  */
+
+ACPI_STATUS
+AcpiExOpcode_0A_0T_1R (
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExOpcode_1A_0T_0R (
@@ -543,12 +559,13 @@ AcpiExResolveObjectToValue (
 
 
 /*
- * exdump - Scanner debug output routines
+ * exdump - Interpreter debug output routines
  */
 
 void
 AcpiExDumpOperand (
-    ACPI_OPERAND_OBJECT     *EntryDesc);
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    UINT32                  Depth);
 
 void
 AcpiExDumpOperands (

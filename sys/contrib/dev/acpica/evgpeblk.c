@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpeblk - GPE block creation and initialization.
- *              $Revision: 36 $
+ *              $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -181,17 +181,18 @@ AcpiEvValidGpeEvent (
  * FUNCTION:    AcpiEvWalkGpeList
  *
  * PARAMETERS:  GpeWalkCallback     - Routine called for each GPE block
+ *              Flags               - ACPI_NOT_ISR or ACPI_ISR
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Walk the GPE lists.
- *              FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
 
 ACPI_STATUS
 AcpiEvWalkGpeList (
-    ACPI_GPE_CALLBACK       GpeWalkCallback)
+    ACPI_GPE_CALLBACK       GpeWalkCallback,
+    UINT32                  Flags)
 {
     ACPI_GPE_BLOCK_INFO     *GpeBlock;
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
@@ -201,7 +202,7 @@ AcpiEvWalkGpeList (
     ACPI_FUNCTION_TRACE ("EvWalkGpeList");
 
 
-    AcpiOsAcquireLock (AcpiGbl_GpeLock, ACPI_ISR);
+    AcpiOsAcquireLock (AcpiGbl_GpeLock, Flags);
 
     /* Walk the interrupt level descriptor list */
 
@@ -228,7 +229,7 @@ AcpiEvWalkGpeList (
     }
 
 UnlockAndExit:
-    AcpiOsReleaseLock (AcpiGbl_GpeLock, ACPI_ISR);
+    AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
     return_ACPI_STATUS (Status);
 }
 
@@ -413,7 +414,8 @@ AcpiEvSaveMethodInfo (
  *
  * PARAMETERS:  Callback from WalkNamespace
  *
- * RETURN:      Status
+ * RETURN:      Status.  NOTE: We ignore errors so that the _PRW walk is
+ *              not aborted on a single _PRW failure.
  *
  * DESCRIPTION: Called from AcpiWalkNamespace.  Expects each object to be a
  *              Device.  Run the _PRW method.  If present, extract the GPE
@@ -1102,15 +1104,13 @@ AcpiEvCreateGpeBlock (
     /* Dump info about this GPE block */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INIT,
-        "GPE %02X to %02X [%4.4s] %u regs at %8.8X%8.8X on int 0x%X\n",
+        "GPE %02X to %02X [%4.4s] %u regs on int 0x%X\n",
         (UINT32) GpeBlock->BlockBaseNumber,
         (UINT32) (GpeBlock->BlockBaseNumber +
                 ((GpeBlock->RegisterCount * ACPI_GPE_REGISTER_WIDTH) -1)),
         GpeDevice->Name.Ascii,
         GpeBlock->RegisterCount,
-        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
         InterruptLevel));
-
 
     /* Enable all valid GPEs found above */
 

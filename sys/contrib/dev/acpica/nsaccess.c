@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 182 $
+ *              $Revision: 184 $
  *
  ******************************************************************************/
 
@@ -245,8 +245,10 @@ AcpiNsRootInitialize (void)
 
 #if defined (_ACPI_ASL_COMPILER) || defined (_ACPI_DUMP_APP)
 
-                /* iASL Compiler cheats by putting parameter count in the OwnerID */
-
+                /*
+                 * iASL Compiler cheats by putting parameter count
+                 * in the OwnerID
+                 */
                 NewNode->OwnerId = ObjDesc->Method.ParamCount;
 #else
                 /* Mark this as a very SPECIAL method */
@@ -290,6 +292,7 @@ AcpiNsRootInitialize (void)
                                             1, &ObjDesc->Mutex.Semaphore);
                     if (ACPI_FAILURE (Status))
                     {
+                        AcpiUtRemoveReference (ObjDesc);
                         goto UnlockAndExit;
                     }
 
@@ -307,6 +310,7 @@ AcpiNsRootInitialize (void)
                                         &ObjDesc->Mutex.Semaphore);
                     if (ACPI_FAILURE (Status))
                     {
+                        AcpiUtRemoveReference (ObjDesc);
                         goto UnlockAndExit;
                     }
                 }
@@ -324,7 +328,8 @@ AcpiNsRootInitialize (void)
 
             /* Store pointer to value descriptor in the Node */
 
-            Status = AcpiNsAttachObject (NewNode, ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc));
+            Status = AcpiNsAttachObject (NewNode, ObjDesc,
+                        ACPI_GET_OBJECT_TYPE (ObjDesc));
 
             /* Remove local reference to the object */
 
@@ -565,7 +570,8 @@ AcpiNsLookup (
             Type = ThisNode->Type;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Prefix-only Pathname (Zero name segments), Flags=%X\n", Flags));
+                "Prefix-only Pathname (Zero name segments), Flags=%X\n",
+                Flags));
             break;
 
         case AML_DUAL_NAME_PREFIX:
@@ -661,7 +667,7 @@ AcpiNsLookup (
         /* Try to find the single (4 character) ACPI name */
 
         Status = AcpiNsSearchAndEnter (SimpleName, WalkState, CurrentNode,
-                        InterpreterMode, ThisSearchType, LocalFlags, &ThisNode);
+                    InterpreterMode, ThisSearchType, LocalFlags, &ThisNode);
         if (ACPI_FAILURE (Status))
         {
             if (Status == AE_NOT_FOUND)

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 10 $
+ *              $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -168,10 +168,10 @@ AcpiNsDumpOneDevice (
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
         }
 
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
-                        Info->HardwareId.Value,
-                        ACPI_FORMAT_UINT64 (Info->Address),
-                        Info->CurrentStatus));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES,
+            "    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
+            Info->HardwareId.Value, ACPI_FORMAT_UINT64 (Info->Address),
+            Info->CurrentStatus));
         ACPI_MEM_FREE (Info);
     }
 
@@ -206,13 +206,14 @@ AcpiNsDumpRootDevices (void)
         return;
     }
 
-    Status = AcpiGetHandle (0, ACPI_NS_SYSTEM_BUS, &SysBusHandle);
+    Status = AcpiGetHandle (NULL, ACPI_NS_SYSTEM_BUS, &SysBusHandle);
     if (ACPI_FAILURE (Status))
     {
         return;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES, "Display of all devices in the namespace:\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
+        "Display of all devices in the namespace:\n"));
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, SysBusHandle,
                 ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,

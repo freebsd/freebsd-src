@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 134 $
+ *              $Revision: 136 $
  *
  *****************************************************************************/
 
@@ -160,13 +160,15 @@ AcpiNsReportError (
     {
         /* There is a non-ascii character in the name */
 
-        AcpiOsPrintf ("[0x%4.4X] (NON-ASCII)\n", *(ACPI_CAST_PTR (UINT32, InternalName)));
+        AcpiOsPrintf ("[0x%4.4X] (NON-ASCII)\n",
+            *(ACPI_CAST_PTR (UINT32, InternalName)));
     }
     else
     {
         /* Convert path to external format */
 
-        Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, InternalName, NULL, &Name);
+        Status = AcpiNsExternalizeName (ACPI_UINT32_MAX,
+                    InternalName, NULL, &Name);
 
         /* Print target name */
 
@@ -221,7 +223,8 @@ AcpiNsReportMethodError (
 
     if (Path)
     {
-        Status = AcpiNsGetNodeByPath (Path, PrefixNode, ACPI_NS_NO_UPSEARCH, &Node);
+        Status = AcpiNsGetNodeByPath (Path, PrefixNode,
+                    ACPI_NS_NO_UPSEARCH, &Node);
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("ReportMethodError: Could not get node\n");
@@ -262,7 +265,7 @@ AcpiNsPrintNodePathname (
         return;
     }
 
-    /* Convert handle to a full pathname and print it (with supplied message) */
+    /* Convert handle to full pathname and print it (with supplied message) */
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
 
@@ -410,13 +413,11 @@ AcpiNsGetInternalNameLength (
     Info->FullyQualified = FALSE;
 
     /*
-     * For the internal name, the required length is 4 bytes
-     * per segment, plus 1 each for RootPrefix, MultiNamePrefixOp,
-     * segment count, trailing null (which is not really needed,
-     * but no there's harm in putting it there)
+     * For the internal name, the required length is 4 bytes per segment, plus
+     * 1 each for RootPrefix, MultiNamePrefixOp, segment count, trailing null
+     * (which is not really needed, but no there's harm in putting it there)
      *
-     * strlen() + 1 covers the first NameSeg, which has no
-     * path separator
+     * strlen() + 1 covers the first NameSeg, which has no path separator
      */
     if (AcpiNsValidRootPrefix (NextExternalChar[0]))
     {
@@ -436,10 +437,9 @@ AcpiNsGetInternalNameLength (
     }
 
     /*
-     * Determine the number of ACPI name "segments" by counting
-     * the number of path separators within the string.  Start
-     * with one segment since the segment count is (# separators)
-     * + 1, and zero separators is ok.
+     * Determine the number of ACPI name "segments" by counting the number of
+     * path separators within the string. Start with one segment since the
+     * segment count is [(# separators) + 1], and zero separators is ok.
      */
     if (*NextExternalChar)
     {
@@ -745,7 +745,8 @@ AcpiNsExternalizeName (
             /* <count> 4-byte names */
 
             NamesIndex = PrefixLength + 2;
-            NumSegments = (ACPI_NATIVE_UINT) (UINT8) InternalName[(ACPI_NATIVE_UINT) (PrefixLength + 1)];
+            NumSegments = (ACPI_NATIVE_UINT) (UINT8)
+                          InternalName[(ACPI_NATIVE_UINT) (PrefixLength + 1)];
             break;
 
         case AML_DUAL_NAME_PREFIX:
@@ -793,7 +794,7 @@ AcpiNsExternalizeName (
     }
 
     /*
-     * Build ConvertedName...
+     * Build ConvertedName
      */
     *ConvertedName = ACPI_MEM_CALLOCATE (RequiredLength);
     if (!(*ConvertedName))
@@ -886,7 +887,7 @@ AcpiNsMapHandleToNode (
  *
  * PARAMETERS:  Node          - Node to be converted to a Handle
  *
- * RETURN:      An USER ACPI_HANDLE
+ * RETURN:      A user handle
  *
  * DESCRIPTION: Convert a real Node to a namespace handle
  *
@@ -1115,7 +1116,8 @@ AcpiNsFindParentName (
         ParentNode = AcpiNsGetParentNode (ChildNode);
         if (ParentNode)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Parent of %p [%4.4s] is %p [%4.4s]\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                "Parent of %p [%4.4s] is %p [%4.4s]\n",
                 ChildNode,  AcpiUtGetNodeName (ChildNode),
                 ParentNode, AcpiUtGetNodeName (ParentNode)));
 
@@ -1125,7 +1127,8 @@ AcpiNsFindParentName (
             }
         }
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "unable to find parent of %p (%4.4s)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "Unable to find parent of %p (%4.4s)\n",
             ChildNode, AcpiUtGetNodeName (ChildNode)));
     }
 
@@ -1159,11 +1162,9 @@ AcpiNsGetParentNode (
     }
 
     /*
-     * Walk to the end of this peer list.
-     * The last entry is marked with a flag and the peer
-     * pointer is really a pointer back to the parent.
-     * This saves putting a parent back pointer in each and
-     * every named object!
+     * Walk to the end of this peer list. The last entry is marked with a flag
+     * and the peer pointer is really a pointer back to the parent. This saves
+     * putting a parent back pointer in each and every named object!
      */
     while (!(Node->Flags & ANOBJ_END_OF_PEER_LIST))
     {
@@ -1181,8 +1182,8 @@ AcpiNsGetParentNode (
  *
  * PARAMETERS:  Node       - Current table entry
  *
- * RETURN:      Next valid Node in the linked node list.  NULL if no more valid
- *              nodess
+ * RETURN:      Next valid Node in the linked node list. NULL if no more valid
+ *              nodes.
  *
  * DESCRIPTION: Find the next valid node within a name table.
  *              Useful for implementing NULL-end-of-list loops.

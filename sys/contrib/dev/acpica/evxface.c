@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 145 $
+ *              $Revision: 147 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,53 @@
 
 #define _COMPONENT          ACPI_EVENTS
         ACPI_MODULE_NAME    ("evxface")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiInstallExceptionHandler
+ *
+ * PARAMETERS:  Handler         - Pointer to the handler function for the
+ *                                event
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Saves the pointer to the handler function
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiInstallExceptionHandler (
+    ACPI_EXCEPTION_HANDLER  Handler)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("AcpiInstallExceptionHandler");
+
+
+    Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Don't allow two handlers. */
+
+    if (AcpiGbl_ExceptionHandler)
+    {
+        Status = AE_ALREADY_EXISTS;
+        goto Cleanup;
+    }
+
+    /* Install the handler */
+
+    AcpiGbl_ExceptionHandler = Handler;
+
+Cleanup:
+    (void) AcpiUtReleaseMutex (ACPI_MTX_EVENTS);
+    return_ACPI_STATUS (Status);
+}
 
 
 /*******************************************************************************
@@ -461,6 +508,7 @@ UnlockAndExit:
  *                                  ACPI_DEVICE_NOTIFY: DriverHandler (80-ff)
  *                                  ACPI_ALL_NOTIFY:  both system and device
  *              Handler         - Address of the handler
+ *
  * RETURN:      Status
  *
  * DESCRIPTION: Remove a handler for notifies on an ACPI device
@@ -506,9 +554,8 @@ AcpiRemoveNotifyHandler (
         goto UnlockAndExit;
     }
 
-    /*
-     * Root Object
-     */
+    /* Root Object */
+
     if (Device == ACPI_ROOT_OBJECT)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Removing notify handler for ROOT object.\n"));
@@ -537,9 +584,8 @@ AcpiRemoveNotifyHandler (
         }
     }
 
-    /*
-     * All Other Objects
-     */
+    /* All Other Objects */
+
     else
     {
         /* Notifies allowed on this object? */

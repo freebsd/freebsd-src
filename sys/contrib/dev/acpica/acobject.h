@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 125 $
+ *       $Revision: 126 $
  *
  *****************************************************************************/
 
@@ -210,7 +210,10 @@ typedef struct acpi_object_integer
 
 } ACPI_OBJECT_INTEGER;
 
-
+/*
+ * Note: The String and Buffer object must be identical through the Pointer
+ * element.  There is code that depends on this.
+ */
 typedef struct acpi_object_string   /* Null terminated, ASCII characters only */
 {
     ACPI_OBJECT_COMMON_HEADER

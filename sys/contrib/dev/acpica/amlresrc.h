@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amlresrc.h - AML resource descriptors
- *              $Revision: 24 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -173,7 +173,7 @@ typedef struct asl_resource_node
 /*
  * Resource descriptors defined in the ACPI specification.
  *
- * Alignment must be BYTE because these descriptors
+ * Packing/alignment must be BYTE because these descriptors
  * are used to overlay the AML byte stream.
  */
 #pragma pack(1)
@@ -390,7 +390,7 @@ typedef struct asl_general_register_desc
 
 #pragma pack()
 
-/* Union of all resource descriptors, sow we can allocate the worst case */
+/* Union of all resource descriptors, so we can allocate the worst case */
 
 typedef union asl_resource_desc
 {

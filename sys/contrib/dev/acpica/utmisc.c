@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 100 $
+ *              $Revision: 101 $
  *
  ******************************************************************************/
 
@@ -445,16 +445,15 @@ AcpiUtValidAcpiCharacter (
  * FUNCTION:    AcpiUtStrtoul64
  *
  * PARAMETERS:  String          - Null terminated string
- *              Terminater      - Where a pointer to the terminating byte is returned
- *              Base            - Radix of the string
+ *              Base            - Radix of the string: 10, 16, or ACPI_ANY_BASE
+ *              RetInteger      - Where the converted integer is returned
  *
- * RETURN:      Converted value
+ * RETURN:      Status and Converted value
  *
  * DESCRIPTION: Convert a string into an unsigned value.
+ *              NOTE: Does not support Octal strings, not needed.
  *
  ******************************************************************************/
-#define NEGATIVE    1
-#define POSITIVE    0
 
 ACPI_STATUS
 AcpiUtStrtoul64 (
@@ -462,34 +461,28 @@ AcpiUtStrtoul64 (
     UINT32                  Base,
     ACPI_INTEGER            *RetInteger)
 {
-    UINT32                  Index;
+    UINT32                  ThisDigit;
     ACPI_INTEGER            ReturnValue = 0;
-    ACPI_STATUS             Status = AE_OK;
-    ACPI_INTEGER            Dividend;
     ACPI_INTEGER            Quotient;
 
 
-    *RetInteger = 0;
+    ACPI_FUNCTION_TRACE ("UtStroul64");
+
 
     switch (Base)
     {
-    case 0:
-    case 8:
+    case ACPI_ANY_BASE:
     case 10:
     case 16:
         break;
 
     default:
-        /*
-         * The specified Base parameter is not in the domain of
-         * this function:
-         */
-        return (AE_BAD_PARAMETER);
+        /* Invalid Base */
+        return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /*
-     * skip over any white space in the buffer:
-     */
+    /* Skip over any white space in the buffer */
+
     while (ACPI_IS_SPACE (*String) || *String == '\t')
     {
         ++String;
@@ -497,21 +490,15 @@ AcpiUtStrtoul64 (
 
     /*
      * If the input parameter Base is zero, then we need to
-     * determine if it is octal, decimal, or hexadecimal:
+     * determine if it is decimal or hexadecimal:
      */
     if (Base == 0)
     {
-        if (*String == '0')
+        if ((*String == '0') &&
+            (ACPI_TOLOWER (*(++String)) == 'x'))
         {
-            if (ACPI_TOLOWER (*(++String)) == 'x')
-            {
-                Base = 16;
-                ++String;
-            }
-            else
-            {
-                Base = 8;
-            }
+            Base = 16;
+            ++String;
         }
         else
         {
@@ -520,14 +507,9 @@ AcpiUtStrtoul64 (
     }
 
     /*
-     * For octal and hexadecimal bases, skip over the leading
+     * For hexadecimal base, skip over the leading
      * 0 or 0x, if they are present.
      */
-    if (Base == 8 && *String == '0')
-    {
-        String++;
-    }
-
     if (Base == 16 &&
         *String == '0' &&
         ACPI_TOLOWER (*(++String)) == 'x')
@@ -535,20 +517,24 @@ AcpiUtStrtoul64 (
         String++;
     }
 
-    /* Main loop: convert the string to an unsigned long */
+    /* Main loop: convert the string to a 64-bit integer */
 
     while (*String)
     {
         if (ACPI_IS_DIGIT (*String))
         {
-            Index = ((UINT8) *String) - '0';
+            /* Convert ASCII 0-9 to Decimal value */
+
+            ThisDigit = ((UINT8) *String) - '0';
         }
         else
         {
-            Index = (UINT8) ACPI_TOUPPER (*String);
-            if (ACPI_IS_UPPER ((char) Index))
+            ThisDigit = (UINT8) ACPI_TOUPPER (*String);
+            if (ACPI_IS_UPPER ((char) ThisDigit))
             {
-                Index = Index - 'A' + 10;
+                /* Convert ASCII Hex char to value */
+
+                ThisDigit = ThisDigit - 'A' + 10;
             }
             else
             {
@@ -556,50 +542,42 @@ AcpiUtStrtoul64 (
             }
         }
 
-        if (Index >= Base)
+        /* Check to see if digit is out of range */
+
+        if (ThisDigit >= Base)
         {
             goto ErrorExit;
         }
 
-        /* Check to see if value is out of range: */
+        /* Divide the digit into the correct position */
 
-        Dividend = ACPI_INTEGER_MAX - (ACPI_INTEGER) Index;
-        (void) AcpiUtShortDivide (&Dividend, Base, &Quotient, NULL);
+        (void) AcpiUtShortDivide ((ACPI_INTEGER_MAX - (ACPI_INTEGER) ThisDigit),
+                    Base, &Quotient, NULL);
         if (ReturnValue > Quotient)
         {
             goto ErrorExit;
         }
 
         ReturnValue *= Base;
-        ReturnValue += Index;
+        ReturnValue += ThisDigit;
         ++String;
     }
 
     *RetInteger = ReturnValue;
-    return (Status);
+    return_ACPI_STATUS (AE_OK);
 
 
 ErrorExit:
-    switch (Base)
+    /* Base was set/validated above */
+
+    if (Base == 10)
     {
-    case 8:
-        Status = AE_BAD_OCTAL_CONSTANT;
-        break;
-
-    case 10:
-        Status = AE_BAD_DECIMAL_CONSTANT;
-        break;
-
-    case 16:
-        Status = AE_BAD_HEX_CONSTANT;
-        break;
-
-    default:
-        /* Base validated above */
-        break;
+        return_ACPI_STATUS (AE_BAD_DECIMAL_CONSTANT);
     }
-
-    return (Status);
+    else
+    {
+        return_ACPI_STATUS (AE_BAD_HEX_CONSTANT);
+    }
 }
 
 

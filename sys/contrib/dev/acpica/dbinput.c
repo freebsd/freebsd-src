@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 100 $
+ *              $Revision: 101 $
  *
  ******************************************************************************/
 
@@ -141,6 +141,7 @@ enum AcpiExDebuggerCommands
     CMD_CALL,
     CMD_CLOSE,
     CMD_DEBUG,
+    CMD_DISASSEMBLE,
     CMD_DUMP,
     CMD_ENABLEACPI,
     CMD_EVENT,
@@ -200,6 +201,7 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"CALL",         0},
     {"CLOSE",        0},
     {"DEBUG",        1},
+    {"DISASSEMBLE",  1},
     {"DUMP",         1},
     {"ENABLEACPI",   0},
     {"EVENT",        1},
@@ -275,6 +277,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("    [GENERAL]       General-Purpose Commands\n");
         AcpiOsPrintf ("    [NAMESPACE]     Namespace Access Commands\n");
         AcpiOsPrintf ("    [METHOD]        Control Method Execution Commands\n");
+        AcpiOsPrintf ("    [STATISTICS]    Statistical Information\n");
         AcpiOsPrintf ("    [FILE]          File I/O Commands\n");
         return;
     }
@@ -298,17 +301,32 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Locks                               Current status of internal mutexes\n");
         AcpiOsPrintf ("Quit or Exit                        Exit this command\n");
         AcpiOsPrintf ("Stats [Allocations|Memory|Misc\n");
-        AcpiOsPrintf ("       |Objects|Tables]             Display namespace and memory statistics\n");
+        AcpiOsPrintf ("      |Objects|Sizes|Stack|Tables]  Display namespace and memory statistics\n");
         AcpiOsPrintf ("Tables                              Display info about loaded ACPI tables\n");
         AcpiOsPrintf ("Unload <TableSig> [Instance]        Unload an ACPI table\n");
         AcpiOsPrintf ("! <CommandNumber>                   Execute command from history buffer\n");
         AcpiOsPrintf ("!!                                  Execute last command again\n");
         return;
 
+    case 'S':
+        AcpiOsPrintf ("\nStats Subcommands\n\n");
+        AcpiOsPrintf ("Allocations                         Display list of current memory allocations\n");
+        AcpiOsPrintf ("Memory                              Dump internal memory lists\n");
+        AcpiOsPrintf ("Misc                                Namespace search and mutex stats\n");
+        AcpiOsPrintf ("Objects                             Summary of namespace objects\n");
+        AcpiOsPrintf ("Sizes                               Sizes for each of the internal objects\n");
+        AcpiOsPrintf ("Stack                               Display CPU stack usage\n");
+        AcpiOsPrintf ("Tables                              Info about current ACPI table(s)\n");
+        return;
+
     case 'N':
         AcpiOsPrintf ("\nNamespace Access Commands\n\n");
+        AcpiOsPrintf ("Disassemble <Method>                Disassemble a control method\n");
         AcpiOsPrintf ("Event <F|G> <Value>                 Generate AcpiEvent (Fixed/GPE)\n");
         AcpiOsPrintf ("Find <Name>   (? is wildcard)       Find ACPI name(s) with wildcards\n");
+        AcpiOsPrintf ("Gpe <GpeNum> <GpeBlock>             Simulate a GPE\n");
+        AcpiOsPrintf ("Gpes                                Display info on all GPEs\n");
+        AcpiOsPrintf ("Integrity                           Validate namespace integrity\n");
         AcpiOsPrintf ("Method                              Display list of loaded control methods\n");
         AcpiOsPrintf ("Namespace [<Addr>|<Path>] [Depth]   Display loaded namespace tree/subtree\n");
         AcpiOsPrintf ("Notify <NamePath> <Value>           Send a notification\n");
@@ -317,8 +335,10 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Prefix [<NamePath>]                 Set or Get current execution prefix\n");
         AcpiOsPrintf ("References <Addr>                   Find all references to object at addr\n");
         AcpiOsPrintf ("Resources xxx                       Get and display resources\n");
+        AcpiOsPrintf ("Sleep <SleepState>                  Simulate sleep/wake sequence\n");
         AcpiOsPrintf ("Terminate                           Delete namespace and all internal objects\n");
         AcpiOsPrintf ("Thread <Threads><Loops><NamePath>   Spawn threads to execute method(s)\n");
+        AcpiOsPrintf ("Type <Object>                       Display object type\n");
         return;
 
     case 'M':
@@ -599,6 +619,10 @@ AcpiDbCommandDispatch (
 
     case CMD_DEBUG:
         AcpiDbExecute (AcpiGbl_DbArgs[1], &AcpiGbl_DbArgs[2], EX_SINGLE_STEP);
+        break;
+
+    case CMD_DISASSEMBLE:
+        AcpiDbDisassembleMethod (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_DUMP:
