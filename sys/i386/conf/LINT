@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.224 1995/12/16 21:00:14 bde Exp $
+#	$Id: LINT,v 1.225 1995/12/22 18:44:07 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -20,6 +20,7 @@ machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
 cpu		"I586_CPU"		# aka Pentium(tm)
+cpu		"I686_CPU"		# aka Pentium Pro(tm)
 
 # 
 # This is the ``identification'' of the kernel.  Usually this should
