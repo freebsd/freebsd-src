@@ -46,7 +46,7 @@
 #include <sys/stat.h>
 #include <sys/acl.h>
 
-static MALLOC_DEFINE(M_ACL, "acl", "access control list");
+MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
 static int	vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
@@ -94,7 +94,10 @@ vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	struct acl inkernelacl;
 	int error;
 
+	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_GETACL(vp, type, &inkernelacl, p->p_ucred, p);
+	VOP_UNLOCK(vp, 0, p);
 	if (error == 0)
 		error = copyout(&inkernelacl, aclp, sizeof(struct acl));
 	return (error);
