@@ -477,19 +477,11 @@ svr4_sys_uname(td, uap)
 	
 	memset(&sut, 0, sizeof(sut));
 
-	strncpy(sut.sysname, ostype, sizeof(sut.sysname));
-	sut.sysname[sizeof(sut.sysname) - 1] = '\0';
-
+	strlcpy(sut.sysname, ostype, sizeof(sut.sysname));
 	getcredhostname(td->td_ucred, sut.nodename, sizeof(sut.nodename));
-
-	strncpy(sut.release, osrelease, sizeof(sut.release));
-	sut.release[sizeof(sut.release) - 1] = '\0';
-
-	strncpy(sut.version, version, sizeof(sut.version));
-	sut.version[sizeof(sut.version) - 1] = '\0';
-
-	strncpy(sut.machine, machine, sizeof(sut.machine));
-	sut.machine[sizeof(sut.machine) - 1] = '\0';
+	strlcpy(sut.release, osrelease, sizeof(sut.release));
+	strlcpy(sut.version, version, sizeof(sut.version));
+	strlcpy(sut.machine, machine, sizeof(sut.machine));
 
 	return copyout((caddr_t) &sut, (caddr_t) SCARG(uap, name),
 		       sizeof(struct svr4_utsname));
