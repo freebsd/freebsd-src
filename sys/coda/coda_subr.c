@@ -415,12 +415,10 @@ int handleDownCall(opcode, out)
 	      cp->c_flags &= ~C_VATTR;
 	      if (CTOV(cp)->v_flag & VTEXT)
 		  error = coda_vmflush(cp);
-	      CODADEBUG(CODA_ZAPFILE, myprintf(("zapfile: fid = (%lx.%lx.%lx), 
-                                              refcnt = %d, error = %d\n",
-					      cp->c_fid.Volume, 
-					      cp->c_fid.Vnode, 
-					      cp->c_fid.Unique, 
-					      CTOV(cp)->v_usecount - 1, error)););
+	      CODADEBUG(CODA_ZAPFILE, myprintf((
+"zapfile: fid = (%lx.%lx.%lx), refcnt = %d, error = %d\n",
+		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique,
+		  CTOV(cp)->v_usecount - 1, error)););
 	      if (CTOV(cp)->v_usecount == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
@@ -441,13 +439,12 @@ int handleDownCall(opcode, out)
 	      vref(CTOV(cp));
 	      
 	      cp->c_flags &= ~C_VATTR;
-	      coda_nc_zapParentfid(&out->coda_zapdir.CodaFid, IS_DOWNCALL);     
-	      
-	      CODADEBUG(CODA_ZAPDIR, myprintf(("zapdir: fid = (%lx.%lx.%lx), 
-                                          refcnt = %d\n",cp->c_fid.Volume, 
-					     cp->c_fid.Vnode, 
-					     cp->c_fid.Unique, 
-					     CTOV(cp)->v_usecount - 1)););
+	      coda_nc_zapParentfid(&out->coda_zapdir.CodaFid, IS_DOWNCALL);
+
+	      CODADEBUG(CODA_ZAPDIR, myprintf((
+"zapdir: fid = (%lx.%lx.%lx), refcnt = %d\n",
+		  cp->c_fid.Volume, cp->c_fid.Vnode, cp->c_fid.Unique,
+		  CTOV(cp)->v_usecount - 1)););
 	      if (CTOV(cp)->v_usecount == 1) {
 		  cp->c_flags |= C_PURGING;
 	      }
