@@ -1080,8 +1080,6 @@ SRBdone( PACB pACB, PDCB pDCB, PSRB pSRB )
     ULONG  swlval;
 
     pcmd = pSRB->pcmd;
-    if( !(pcmd->flags & SCSI_NOMASK) )
-	untimeout(DC390_timeout, (caddr_t) pSRB);
     plink = pcmd->sc_link;
     status = pSRB->TargetStatus;
     if(pSRB->SRBFlag & AUTO_REQSENSE)

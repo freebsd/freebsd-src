@@ -32,11 +32,13 @@
  *
  *	@(#)if_slvar.h	8.3 (Berkeley) 2/1/94
  *
- * $Id$
+ * $Id: if_slvar.h,v 1.13 1997/02/22 09:41:06 peter Exp $
  */
 
 #ifndef _NET_IF_SLVAR_H_
 #define _NET_IF_SLVAR_H_
+
+#include <sys/callout.h>
 
 /*
  * Definitions for SLIP interface data structures
@@ -57,7 +59,13 @@ struct sl_softc {
 	long	sc_abortcount;		/* number of abort escape chars */
 	long	sc_starttime;		/* time of first abort in window */
 	u_int	sc_keepalive;		/* time	to decide link hang */
-	u_int	sc_outfill;		/* time	to send	FRAME_END when output idle */
+	u_int	sc_outfill;	/* time	to send	FRAME_END when output idle */
+					/*
+					 * Handles for scheduling outfill and
+					 * keepalive timeouts.
+					 */
+	struct	callout_handle	sc_ofhandle;
+	struct	callout_handle	sc_kahandle;
 #ifdef INET				/* XXX */
 	struct	slcompress sc_comp;	/* tcp compression data */
 #endif
