@@ -26,12 +26,13 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.2 1998/09/17 23:52:10 msmith Exp $
+ *	$Id: vidconsole.c,v 1.3 1998/10/02 16:32:45 msmith Exp $
  */
 
 #include <stand.h>
 #include <bootstrap.h>
 #include <btxv86.h>
+#include <machine/psl.h>
 #include "libi386.h"
 
 #if KEYBOARD_PROBE
@@ -76,6 +77,10 @@ vidc_probe(struct console *cp)
 static int
 vidc_init(int arg)
 {
+    int		i = 0;
+
+    while((i < 10) && (vidc_ischar()))
+	  (void)vidc_getchar();
     return(0);	/* XXX reinit? */
 }
 
@@ -110,7 +115,9 @@ vidc_ischar(void)
     v86.addr = 0x16;
     v86.eax = 0x100;
     v86int();
-    return(v86.eax);
+    if (!(v86.efl & PSL_Z))
+	return(v86.eax & 0xff);
+    return(0);
 }
 
 #if KEYBOARD_PROBE

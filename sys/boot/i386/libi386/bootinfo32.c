@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.7 1998/10/03 14:13:30 rnordier Exp $
+ *	$Id: bootinfo.c,v 1.8 1998/10/06 07:27:05 msmith Exp $
  */
 
 #include <stand.h>
@@ -316,4 +316,3 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
 
     return(0);
 }
-    
