@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.12 1996/08/13 00:43:01 pst Exp $
+ *	$Id: modload.c,v 1.13 1996/08/13 00:50:59 pst Exp $
  */
 
 #include <stdio.h>
@@ -121,10 +121,10 @@ void
 usage()
 {
 
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "modload [-d] [-v] [-q] [-u] [-A <kernel>] [-e <entry]\n");
+	fprintf(stderr, 
+	    "usage: modload [-d] [-v] [-q] [-u] [-A <kernel>] [-e <entry]\n");
 	fprintf(stderr,
-	    "[-p <postinstall>] [-o <output file>] <input file>\n");
+	    "               [-p <postinstall>] [-o <output file>] <input file>\n");
 	exit(1);
 }
 

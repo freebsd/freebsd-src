@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: key.c,v 1.3 1995/03/19 13:29:25 joerg Exp $
+ *	$Id: key.c,v 1.4 1995/04/28 19:29:29 ache Exp $
  */
 
 #ifndef lint
@@ -192,7 +192,7 @@ f_extproc(ip)
 	struct info *ip;
 {
 
-	if (ip->set) {
+	if (!ip->off) {
 		int tmp = 1;
 		(void)ioctl(ip->fd, TIOCEXT, &tmp);
 	} else {
