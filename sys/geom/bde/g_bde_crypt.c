@@ -52,8 +52,10 @@
 #include <geom/geom.h>
 #include <geom/bde/g_bde.h>
 
-
-#define MD5_KEY
+/*
+ * XXX: Debugging DO NOT ENABLE
+ */
+#undef MD5_KEY
 
 /*
  * Derive kkey from mkey + sector offset.
