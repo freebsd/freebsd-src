@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gprof.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: gprof.c,v 1.4.6.1 1997/07/11 06:20:55 charnier Exp $";
+	"$Id: gprof.c,v 1.4.6.2 1997/07/15 08:16:39 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -728,8 +728,7 @@ funcsymbol( nlistp )
 	/*
 	 *	name must start with an underscore if uflag is set.
 	 *	can't have any `funny' characters in name,
-	 *	where `funny' includes	`.', .o file names
-	 *			and	`$', pascal labels.
+	 *	where `funny' means `.' (.o file names)
 	 *	need to make an exception for sparc .mul & co.
 	 *	perhaps we should just drop this code entirely...
 	 */
@@ -747,7 +746,7 @@ funcsymbol( nlistp )
     }
 #endif
     while ( c = *name++ ) {
-	if ( c == '.' || c == '$' ) {
+	if ( c == '.' ) {
 	    return FALSE;
 	}
     }
