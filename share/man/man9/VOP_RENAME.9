@@ -85,14 +85,12 @@ vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
     if (fvp->v_mount != tdvp->v_mount) {
 	error = EXDEV;
     abortit:
-	VOP_ABORTOP(tdvp, tcnp);
 	if (tdvp == tvp)
 	    vrele(tdvp);
 	else
 	    vput(tdvp);
 	if (tvp)
 	    vput(tvp);
-	VOP_ABORTOP(fdvp, fcnp);
 	vrele(fdvp);
 	vrele(fvp);
 	return error;
@@ -115,7 +113,6 @@ vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
 	/*
 	 * Release destination.
 	 */
-	VOP_ABORTOP(tdvp, tcnp);
 	vput(tdvp);
 	vput(tvp);
 
