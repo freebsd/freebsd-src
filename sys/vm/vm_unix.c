@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
  *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: vm_unix.c,v 1.3 1994/08/02 07:55:41 davidg Exp $
  */
 
 /*
@@ -54,7 +54,7 @@
 extern int swap_pager_full;
 
 struct obreak_args {
-	char	*nsiz;
+	char *nsiz;
 };
 
 /* ARGSUSED */
@@ -69,34 +69,34 @@ obreak(p, uap, retval)
 	int rv;
 	register int diff;
 
-	old = (vm_offset_t)vm->vm_daddr;
+	old = (vm_offset_t) vm->vm_daddr;
 	new = round_page(uap->nsiz);
-	if ((int)(new - old) > p->p_rlimit[RLIMIT_DATA].rlim_cur)
-		return(ENOMEM);
+	if ((int) (new - old) > p->p_rlimit[RLIMIT_DATA].rlim_cur)
+		return (ENOMEM);
 	old = round_page(old + ctob(vm->vm_dsize));
 	diff = new - old;
 	if (diff > 0) {
 		if (swap_pager_full) {
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 		rv = vm_allocate(&vm->vm_map, &old, diff, FALSE);
 		if (rv != KERN_SUCCESS) {
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 		vm->vm_dsize += btoc(diff);
 	} else if (diff < 0) {
 		diff = -diff;
 		rv = vm_deallocate(&vm->vm_map, new, diff);
 		if (rv != KERN_SUCCESS) {
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 		vm->vm_dsize -= btoc(diff);
 	}
-	return(0);
+	return (0);
 }
 
 struct ovadvise_args {
-	int	anom;
+	int anom;
 };
 
 /* ARGSUSED */

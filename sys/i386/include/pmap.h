@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.18 1994/11/14 14:12:24 bde Exp $
+ * 	$Id: pmap.h,v 1.19 1994/12/18 03:11:46 davidg Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -62,7 +62,11 @@ typedef unsigned int *pt_entry_t;
  * given to the user (NUPDE)
  */
 #ifndef NKPT
+#if 0
 #define	NKPT			26	/* actual number of kernel page tables */
+#else
+#define	NKPT			9	/* actual number of kernel page tables */
+#endif
 #endif
 #ifndef NKPDE
 #define NKPDE			63	/* addressable number of page tables/pde's */
@@ -126,6 +130,43 @@ pmap_kextract(vm_offset_t va)
 	pa = (pa & PG_FRAME) | (va & ~PG_FRAME);
 	return pa;
 }
+
+/*
+ *	pmap_is_referenced:
+ *
+ *	Return whether or not the specified physical page was referenced
+ *	by any physical maps.
+ */
+#define pmap_is_referenced(pa)		pmap_testbit((pa), PG_U)
+
+/*
+ *	pmap_is_modified:
+ *
+ *	Return whether or not the specified physical page was modified
+ *	in any physical maps.
+ */
+#define pmap_is_modified(pa)		pmap_testbit((pa), PG_M)
+
+/*      
+ *	Clear the modify bits on the specified physical page.
+ */
+#define pmap_clear_modify(pa)		pmap_changebit((pa), PG_M, FALSE)
+
+/*      
+ *	pmap_clear_reference:
+ *       
+ *	Clear the reference bit on the specified physical page.
+ */     
+#define pmap_clear_reference(pa)	pmap_changebit((pa), PG_U, FALSE)
+
+/*
+ *	Routine:	pmap_copy_on_write
+ *	Function:
+ *		Remove write privileges from all
+ *		physical maps for this physical page.
+ */
+#define pmap_copy_on_write(pa)		pmap_changebit((pa), PG_RW, FALSE)
+
 #endif
 
 /*
@@ -196,6 +237,7 @@ pv_entry_t	pv_table;		/* array of entries, one per page */
 struct pcb;
 
 void	pmap_activate __P((pmap_t, struct pcb *));
+void	pmap_changebit __P((vm_offset_t, int, boolean_t));
 pmap_t	pmap_kernel __P((void));
 boolean_t pmap_page_exists __P((pmap_t, vm_offset_t));
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);

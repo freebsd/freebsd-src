@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.9 1994/10/10 00:58:31 phk Exp $
+ * $Id: buf.h,v 1.10 1994/10/18 06:55:57 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -83,9 +83,9 @@ struct buf {
 	void	*b_driver2;		/* for private use by the driver */
 	void	*b_spc;
 #ifndef VMIO
-	void	*b_pages[(MAXBSIZE + PAGE_SIZE - 1)/PAGE_SIZE];
+	void	*b_pages[(MAXPHYS + PAGE_SIZE - 1)/PAGE_SIZE];
 #else
-	vm_page_t	b_pages[(MAXBSIZE + PAGE_SIZE - 1)/PAGE_SIZE];
+	struct	vm_page *b_pages[(MAXPHYS + PAGE_SIZE - 1)/PAGE_SIZE];
 #endif
 	int		b_npages;
 };
@@ -116,13 +116,13 @@ struct buf {
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
-#define	B_PAGET		0x00010000	/* Page in/out of page table space. */
-#define	B_PGIN		0x00020000	/* Pagein op, so swap() can count it. */
+#define	B_MALLOC	0x00010000	/* malloced b_data */
+#define	B_CLUSTEROK		0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_PHYS		0x00040000	/* I/O to user memory. */
 #define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
 #define	B_READ		0x00100000	/* Read buffer. */
 #define	B_TAPE		0x00200000	/* Magnetic tape I/O. */
-#define	B_UAREA		0x00400000	/* Buffer describes Uarea I/O. */
+#define	B_PDWANTED	0x00400000	/* Pageout daemon wants this buffer. */
 #define	B_WANTED	0x00800000	/* Process wants this buffer. */
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
@@ -159,7 +159,7 @@ struct cluster_save {
 /*
  * Definitions for the buffer free lists.
  */
-#define BUFFER_QUEUES	5	/* number of free buffer queues */
+#define BUFFER_QUEUES	6	/* number of free buffer queues */
 
 LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
 TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
@@ -167,8 +167,9 @@ TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
 #define QUEUE_NONE	0	/* on no queue */
 #define QUEUE_LOCKED	1	/* locked buffers */
 #define QUEUE_LRU	2	/* useful buffers */
-#define QUEUE_AGE	3	/* less useful buffers */
-#define QUEUE_EMPTY	4	/* empty buffer headers*/
+#define QUEUE_VMIO	3	/* VMIO buffers */
+#define QUEUE_AGE	4	/* not-useful buffers */
+#define QUEUE_EMPTY	5	/* empty buffer headers*/
 
 /*
  * Zero out the buffer's data area.
@@ -202,12 +203,12 @@ int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	brelse __P((struct buf *));
-struct buf *getnewbuf __P((int slpflag, int slptimeo));
+struct buf *getnewbuf __P((int slpflag, int slptimeo, int));
 struct buf *     getpbuf __P((void));
 struct buf *incore __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
-void	allocbuf __P((struct buf *, int));
+int allocbuf __P((struct buf *, int, int));
 int	biowait __P((struct buf *));
 void	biodone __P((struct buf *));
 

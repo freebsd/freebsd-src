@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_param.h,v 1.3 1994/08/02 07:55:37 davidg Exp $
  */
 
 /*
@@ -76,7 +76,8 @@
 /*
  * This belongs in types.h, but breaks too many existing programs.
  */
-typedef int	boolean_t;
+typedef int boolean_t;
+
 #define	TRUE	1
 #define	FALSE	0
 
@@ -94,36 +95,51 @@ typedef int	boolean_t;
  *	we can easily make them constant if we so desire.
  */
 #ifndef PAGE_SIZE
-#define	PAGE_SIZE	cnt.v_page_size		/* size of page */
+#define	PAGE_SIZE	cnt.v_page_size	/* size of page */
 #endif
 #ifndef PAGE_MASK
-#define PAGE_MASK	page_mask		/* size of page - 1 */
+#define PAGE_MASK	page_mask	/* size of page - 1 */
 #endif
 #ifndef PAGE_SHIFT
-#define PAGE_SHIFT	page_shift		/* bits to shift for pages */
+#define PAGE_SHIFT	page_shift	/* bits to shift for pages */
 #endif
 
 #endif
 
 #ifdef KERNEL
-extern vm_size_t	page_mask;
-extern int		page_shift;
+extern vm_size_t page_mask;
+extern int page_shift;
+
 #endif
 
 /*
  * CTL_VM identifiers
  */
-#define	VM_METER	 1		/* struct vmmeter */
-#define	VM_LOADAVG	 2		/* struct loadavg */
-#define	VM_MAXID	 3		/* number of valid vm ids */
+#define	VM_METER		1	/* struct vmmeter */
+#define	VM_LOADAVG	 	2	/* struct loadavg */
+#define VM_V_FREE_MIN		3	/* cnt.v_free_min */
+#define VM_V_FREE_TARGET	4	/* cnt.v_free_target */
+#define VM_V_FREE_RESERVED	5	/* cnt.v_free_reserved */
+#define VM_V_INACTIVE_TARGET	6	/* cnt.v_inactive_target */
+#define VM_V_CACHE_MIN		7	/* cnt.v_cache_max */
+#define VM_V_CACHE_MAX		8	/* cnt.v_cache_min */
+#define VM_V_PAGEOUT_FREE_MIN	9	/* cnt.v_pageout_free_min */
+#define	VM_MAXID		10	/* number of valid vm ids */
 
 #define CTL_VM_NAMES { \
 	{ 0, 0 }, \
 	{ "vmmeter", CTLTYPE_STRUCT }, \
 	{ "loadavg", CTLTYPE_STRUCT }, \
+	{ "v_free_min", CTLTYPE_INT }, \
+	{ "v_free_target", CTLTYPE_INT }, \
+	{ "v_free_reserved", CTLTYPE_INT }, \
+	{ "v_inactive_target", CTLTYPE_INT }, \
+	{ "v_cache_min", CTLTYPE_INT }, \
+	{ "v_cache_max", CTLTYPE_INT }, \
+	{ "v_pageout_free_min", CTLTYPE_INT}, \
 }
 
-/* 
+/*
  *	Return values from the VM routines.
  */
 #define	KERN_SUCCESS		0
@@ -142,50 +158,12 @@ extern int		page_shift;
  *	No rounding is used.
  */
 #ifdef KERNEL
-
-#if 0
-
-#ifndef atop
-#define	atop(x)		(((unsigned)(x)) >> PAGE_SHIFT)
-#endif
-#ifndef ptoa
-#define	ptoa(x)		((vm_offset_t)((x) << PAGE_SHIFT))
-#endif
-
-/*
- * Round off or truncate to the nearest page.  These will work
- * for either addresses or counts (i.e., 1 byte rounds to 1 page).
- */
-#ifndef round_page
-#define round_page(x) \
-	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) & ~PAGE_MASK))
-#endif
-#ifndef trunc_page
-#define trunc_page(x) \
-	((vm_offset_t)(((vm_offset_t)(x)) & ~PAGE_MASK))
-#endif
-#ifndef num_pages
-#define num_pages(x) \
-	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
-#endif
-
-#endif
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
 
-extern vm_size_t	mem_size;	/* size of physical memory (bytes) */
-extern vm_offset_t	first_addr;	/* first physical page */
-extern vm_offset_t	last_addr;	/* last physical page */
-
-#else
-#if 0
-/* out-of-kernel versions of round_page and trunc_page */
-#define	round_page(x) \
-       ((((vm_offset_t)(x) + (vm_page_size - 1)) / vm_page_size) * vm_page_size)
-#define	trunc_page(x) \
-	((((vm_offset_t)(x)) / vm_page_size) * vm_page_size)
-#endif
-
-#endif /* KERNEL */
-#endif /* ASSEMBLER */
-#endif /* _VM_PARAM_ */
+extern vm_size_t mem_size;	/* size of physical memory (bytes) */
+extern vm_offset_t first_addr;	/* first physical page */
+extern vm_offset_t last_addr;	/* last physical page */
+#endif				/* KERNEL */
+#endif				/* ASSEMBLER */
+#endif				/* _VM_PARAM_ */

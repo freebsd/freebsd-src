@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: lock.h,v 1.2 1994/08/02 07:55:11 davidg Exp $
  */
 
 /*
@@ -78,11 +78,11 @@
  */
 
 struct slock {
-	int		lock_data;	/* in general 1 bit is sufficient */
+	int lock_data;		/* in general 1 bit is sufficient */
 };
 
-typedef struct slock	simple_lock_data_t;
-typedef struct slock	*simple_lock_t;
+typedef struct slock simple_lock_data_t;
+typedef struct slock *simple_lock_t;
 
 /*
  *	The general lock structure.  Provides for multiple readers,
@@ -93,61 +93,55 @@ typedef struct slock	*simple_lock_t;
 struct lock {
 #ifdef	vax
 	/*
-	 *	Efficient VAX implementation -- see field description below.
+	 * Efficient VAX implementation -- see field description below.
 	 */
-	unsigned int	read_count:16,
-			want_upgrade:1,
-			want_write:1,
-			waiting:1,
-			can_sleep:1,
-			:0;
+	unsigned int read_count:16, want_upgrade:1, want_write:1, waiting:1, can_sleep:1,:0;
 
-	simple_lock_data_t	interlock;
-#else /* vax */
+	simple_lock_data_t interlock;
+#else				/* vax */
 #ifdef	ns32000
 	/*
-	 *	Efficient ns32000 implementation --
-	 *	see field description below.
+	 * Efficient ns32000 implementation -- see field description below.
 	 */
-	simple_lock_data_t	interlock;
-	unsigned int	read_count:16,
-			want_upgrade:1,
-			want_write:1,
-			waiting:1,
-			can_sleep:1,
-			:0;
+	simple_lock_data_t interlock;
+	unsigned int read_count:16, want_upgrade:1, want_write:1, waiting:1, can_sleep:1,:0;
 
-#else /* ns32000 */
-	/*	Only the "interlock" field is used for hardware exclusion;
-	 *	other fields are modified with normal instructions after
-	 *	acquiring the interlock bit.
+#else				/* ns32000 */
+	/*
+	 * Only the "interlock" field is used for hardware exclusion; other
+	 * fields are modified with normal instructions after acquiring the
+	 * interlock bit.
 	 */
-	simple_lock_data_t
-			interlock;	/* Interlock for remaining fields */
-	boolean_t	want_write;	/* Writer is waiting, or locked for write */
-	boolean_t	want_upgrade;	/* Read-to-write upgrade waiting */
-	boolean_t	waiting;	/* Someone is sleeping on lock */
-	boolean_t	can_sleep;	/* Can attempts to lock go to sleep */
-	int		read_count;	/* Number of accepted readers */
-#endif	/* ns32000 */
-#endif	/* vax */
-	char		*thread;	/* Thread that has lock, if recursive locking allowed */
-					/* (should be thread_t, but but we then have mutually
-					   recursive definitions) */
-	int		recursion_depth;/* Depth of recursion */
+	 simple_lock_data_t
+	 interlock;		/* Interlock for remaining fields */
+	boolean_t want_write;	/* Writer is waiting, or locked for write */
+	boolean_t want_upgrade;	/* Read-to-write upgrade waiting */
+	boolean_t waiting;	/* Someone is sleeping on lock */
+	boolean_t can_sleep;	/* Can attempts to lock go to sleep */
+	int read_count;		/* Number of accepted readers */
+#endif				/* ns32000 */
+#endif				/* vax */
+	char *thread;		/* Thread that has lock, if recursive locking
+				 * allowed */
+	/*
+	 * (should be thread_t, but but we then have mutually recursive
+	 * definitions)
+	 */
+	int recursion_depth;	/* Depth of recursion */
 };
 
-typedef struct lock	lock_data_t;
-typedef struct lock	*lock_t;
+typedef struct lock lock_data_t;
+typedef struct lock *lock_t;
 
 #if NCPUS > 1
 __BEGIN_DECLS
-void		simple_lock __P((simple_lock_t));
-void		simple_lock_init __P((simple_lock_t));
-boolean_t	simple_lock_try __P((simple_lock_t));
-void		simple_unlock __P((simple_lock_t));
+void simple_lock __P((simple_lock_t));
+void simple_lock_init __P((simple_lock_t));
+boolean_t simple_lock_try __P((simple_lock_t));
+void simple_unlock __P((simple_lock_t));
+
 __END_DECLS
-#else		/* No multiprocessor locking is necessary. */
+#else				/* No multiprocessor locking is necessary. */
 #define	simple_lock(l)
 #define	simple_lock_init(l)
 #define	simple_lock_try(l)	(1)	/* Always succeeds. */
@@ -159,16 +153,17 @@ __END_DECLS
 #define	lock_read_done(l)	lock_done(l)
 #define	lock_write_done(l)	lock_done(l)
 
-void		lock_clear_recursive __P((lock_t));
-void		lock_done __P((lock_t));
-void		lock_init __P((lock_t, boolean_t));
-void		lock_read __P((lock_t));
-boolean_t	lock_read_to_write __P((lock_t));
-void		lock_set_recursive __P((lock_t));
-void		lock_sleepable __P((lock_t, boolean_t));
-boolean_t	lock_try_read __P((lock_t));
-boolean_t	lock_try_read_to_write __P((lock_t));
-boolean_t	lock_try_write __P((lock_t));
-void		lock_write __P((lock_t));
-void		lock_write_to_read __P((lock_t));
-#endif /* !_LOCK_H_ */
+void lock_clear_recursive __P((lock_t));
+void lock_done __P((lock_t));
+void lock_init __P((lock_t, boolean_t));
+void lock_read __P((lock_t));
+boolean_t lock_read_to_write __P((lock_t));
+void lock_set_recursive __P((lock_t));
+void lock_sleepable __P((lock_t, boolean_t));
+boolean_t lock_try_read __P((lock_t));
+boolean_t lock_try_read_to_write __P((lock_t));
+boolean_t lock_try_write __P((lock_t));
+void lock_write __P((lock_t));
+void lock_write_to_read __P((lock_t));
+
+#endif				/* !_LOCK_H_ */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode_pager.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: vnode_pager.h,v 1.3 1994/08/02 07:55:43 davidg Exp $
  */
 
 #ifndef	_VNODE_PAGER_
@@ -46,12 +46,12 @@
  * VNODE pager private data.
  */
 struct vnpager {
-	int		vnp_flags;	/* flags */
-	struct vnode	*vnp_vp;	/* vnode */
-	vm_size_t	vnp_size;	/* vnode current size */
+	int vnp_flags;		/* flags */
+	struct vnode *vnp_vp;	/* vnode */
+	vm_size_t vnp_size;	/* vnode current size */
 };
-typedef struct vnpager	*vn_pager_t;
+typedef struct vnpager *vn_pager_t;
 
 #define VN_PAGER_NULL	((vn_pager_t)0)
 
-#endif	/* _VNODE_PAGER_ */
+#endif				/* _VNODE_PAGER_ */

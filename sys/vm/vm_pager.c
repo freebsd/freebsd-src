@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.9 1994/12/19 00:02:56 davidg Exp $
+ * $Id: vm_pager.c,v 1.10 1994/12/23 04:56:51 davidg Exp $
  */
 
 /*
@@ -89,7 +89,7 @@ struct pagerops *pagertab[] = {
 	&vnodepagerops,		/* PG_VNODE */
 	&devicepagerops,	/* PG_DEV */
 };
-int npagers = sizeof (pagertab) / sizeof (pagertab[0]);
+int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
 
 struct pagerops *dfltpagerops = NULL;	/* default pager */
 
@@ -120,7 +120,7 @@ vm_pager_init()
 	 */
 	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
 		if (pgops)
-			(*(*pgops)->pgo_init)();
+			(*(*pgops)->pgo_init) ();
 	if (dfltpagerops == NULL)
 		panic("no default pager");
 }
@@ -130,6 +130,7 @@ vm_pager_bufferinit()
 {
 	struct buf *bp;
 	int i;
+
 	bp = swbuf;
 	/*
 	 * Now set up swap and physical I/O buffer headers.
@@ -143,8 +144,8 @@ vm_pager_bufferinit()
 	bp->b_vnbufs.le_next = NOLIST;
 	bp->b_actf = NULL;
 
-	swapbkva = kmem_alloc_pageable( pager_map, nswbuf * MAXPHYS);
-	if( !swapbkva)
+	swapbkva = kmem_alloc_pageable(pager_map, nswbuf * MAXPHYS);
+	if (!swapbkva)
 		panic("Not enough pager_map VM space for physical buffers");
 }
 
@@ -165,34 +166,34 @@ vm_pager_allocate(type, handle, size, prot, off)
 
 	ops = (type == PG_DFLT) ? dfltpagerops : pagertab[type];
 	if (ops)
-		return ((*ops->pgo_alloc)(handle, size, prot, off));
+		return ((*ops->pgo_alloc) (handle, size, prot, off));
 	return (NULL);
 }
 
 void
 vm_pager_deallocate(pager)
-	vm_pager_t	pager;
+	vm_pager_t pager;
 {
 	if (pager == NULL)
 		panic("vm_pager_deallocate: null pager");
 
-	(*pager->pg_ops->pgo_dealloc)(pager);
+	(*pager->pg_ops->pgo_dealloc) (pager);
 }
 
 
 int
 vm_pager_get_pages(pager, m, count, reqpage, sync)
-	vm_pager_t	pager;
-	vm_page_t	*m;
-	int		count;
-	int		reqpage;
-	boolean_t	sync;
+	vm_pager_t pager;
+	vm_page_t *m;
+	int count;
+	int reqpage;
+	boolean_t sync;
 {
 	int i;
 
 	if (pager == NULL) {
-		for (i=0;i<count;i++) {
-			if( i != reqpage) {
+		for (i = 0; i < count; i++) {
+			if (i != reqpage) {
 				PAGE_WAKEUP(m[i]);
 				vm_page_free(m[i]);
 			}
@@ -200,35 +201,34 @@ vm_pager_get_pages(pager, m, count, reqpage, sync)
 		vm_page_zero_fill(m[reqpage]);
 		return VM_PAGER_OK;
 	}
-
-	if( pager->pg_ops->pgo_getpages == 0) {
-		for(i=0;i<count;i++) {
-			if( i != reqpage) {
+	if (pager->pg_ops->pgo_getpages == 0) {
+		for (i = 0; i < count; i++) {
+			if (i != reqpage) {
 				PAGE_WAKEUP(m[i]);
 				vm_page_free(m[i]);
 			}
 		}
-		return(VM_PAGER_GET(pager, m[reqpage], sync));
+		return (VM_PAGER_GET(pager, m[reqpage], sync));
 	} else {
-		return(VM_PAGER_GET_MULTI(pager, m, count, reqpage, sync));
+		return (VM_PAGER_GET_MULTI(pager, m, count, reqpage, sync));
 	}
 }
 
 int
 vm_pager_put_pages(pager, m, count, sync, rtvals)
-	vm_pager_t	pager;
-	vm_page_t	*m;
-	int		count;
-	boolean_t	sync;
-	int		*rtvals;
+	vm_pager_t pager;
+	vm_page_t *m;
+	int count;
+	boolean_t sync;
+	int *rtvals;
 {
 	int i;
 
-	if( pager->pg_ops->pgo_putpages)
-		return(VM_PAGER_PUT_MULTI(pager, m, count, sync, rtvals));
+	if (pager->pg_ops->pgo_putpages)
+		return (VM_PAGER_PUT_MULTI(pager, m, count, sync, rtvals));
 	else {
-		for(i=0;i<count;i++) {
-			rtvals[i] = VM_PAGER_PUT( pager, m[i], sync);
+		for (i = 0; i < count; i++) {
+			rtvals[i] = VM_PAGER_PUT(pager, m[i], sync);
 		}
 		return rtvals[0];
 	}
@@ -236,12 +236,12 @@ vm_pager_put_pages(pager, m, count, sync, rtvals)
 
 boolean_t
 vm_pager_has_page(pager, offset)
-	vm_pager_t	pager;
-	vm_offset_t	offset;
+	vm_pager_t pager;
+	vm_offset_t offset;
 {
 	if (pager == NULL)
 		panic("vm_pager_has_page: null pager");
-	return ((*pager->pg_ops->pgo_haspage)(pager, offset));
+	return ((*pager->pg_ops->pgo_haspage) (pager, offset));
 }
 
 /*
@@ -255,37 +255,37 @@ vm_pager_sync()
 
 	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
 		if (pgops)
-			(*(*pgops)->pgo_putpage)(NULL, NULL, 0);
+			(*(*pgops)->pgo_putpage) (NULL, NULL, 0);
 }
 
 #if 0
 void
 vm_pager_cluster(pager, offset, loff, hoff)
-	vm_pager_t	pager;
-	vm_offset_t	offset;
-	vm_offset_t	*loff;
-	vm_offset_t	*hoff;
+	vm_pager_t pager;
+	vm_offset_t offset;
+	vm_offset_t *loff;
+	vm_offset_t *hoff;
 {
 	if (pager == NULL)
 		panic("vm_pager_cluster: null pager");
-	return ((*pager->pg_ops->pgo_cluster)(pager, offset, loff, hoff));
+	return ((*pager->pg_ops->pgo_cluster) (pager, offset, loff, hoff));
 }
 #endif
 
 vm_offset_t
 vm_pager_map_page(m)
-	vm_page_t	m;
+	vm_page_t m;
 {
 	vm_offset_t kva;
 
 	kva = kmem_alloc_wait(pager_map, PAGE_SIZE);
 	pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
-	return(kva);
+	return (kva);
 }
 
 void
 vm_pager_unmap_page(kva)
-	vm_offset_t	kva;
+	vm_offset_t kva;
 {
 	pmap_kremove(kva);
 	kmem_free_wakeup(pager_map, kva, PAGE_SIZE);
@@ -293,11 +293,11 @@ vm_pager_unmap_page(kva)
 
 vm_page_t
 vm_pager_atop(kva)
-	vm_offset_t	kva;
+	vm_offset_t kva;
 {
 	vm_offset_t pa;
 
-	pa = pmap_kextract( kva);
+	pa = pmap_kextract(kva);
 	if (pa == 0)
 		panic("vm_pager_atop");
 	return (PHYS_TO_VM_PAGE(pa));
@@ -322,8 +322,8 @@ vm_pager_lookup(pglist, handle)
  */
 int
 pager_cache(object, should_cache)
-	vm_object_t	object;
-	boolean_t	should_cache;
+	vm_object_t object;
+	boolean_t should_cache;
 {
 	if (object == NULL)
 		return (KERN_INVALID_ARGUMENT);
@@ -343,10 +343,11 @@ pager_cache(object, should_cache)
 }
 
 /*
- * allocate a physical buffer 
+ * allocate a physical buffer
  */
 struct buf *
-getpbuf() {
+getpbuf()
+{
 	int s;
 	struct buf *bp;
 
@@ -354,7 +355,7 @@ getpbuf() {
 	/* get a bp from the swap buffer header pool */
 	while ((bp = bswlist.tqh_first) == NULL) {
 		bswneeded = 1;
-		tsleep((caddr_t)&bswneeded, PVM, "wswbuf", 0); 
+		tsleep((caddr_t) & bswneeded, PVM, "wswbuf", 0);
 	}
 	TAILQ_REMOVE(&bswlist, bp, b_freelist);
 	splx(s);
@@ -362,7 +363,7 @@ getpbuf() {
 	bzero(bp, sizeof *bp);
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
-	bp->b_data = (caddr_t) (MAXPHYS * (bp-swbuf)) + swapbkva;
+	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_vnbufs.le_next = NOLIST;
 	return bp;
 }
@@ -371,7 +372,8 @@ getpbuf() {
  * allocate a physical buffer, if one is available
  */
 struct buf *
-trypbuf() {
+trypbuf()
+{
 	int s;
 	struct buf *bp;
 
@@ -386,7 +388,7 @@ trypbuf() {
 	bzero(bp, sizeof *bp);
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
-	bp->b_data = (caddr_t) (MAXPHYS * (bp-swbuf)) + swapbkva;
+	bp->b_data = (caddr_t) (MAXPHYS * (bp - swbuf)) + swapbkva;
 	bp->b_vnbufs.le_next = NOLIST;
 	return bp;
 }
@@ -410,18 +412,17 @@ relpbuf(bp)
 		crfree(bp->b_wcred);
 		bp->b_wcred = NOCRED;
 	}
-
 	if (bp->b_vp)
-		brelvp(bp);
+		pbrelvp(bp);
 
 	if (bp->b_flags & B_WANTED)
-		wakeup((caddr_t)bp);
+		wakeup((caddr_t) bp);
 
 	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 
 	if (bswneeded) {
 		bswneeded = 0;
-		wakeup((caddr_t)&bswlist);
+		wakeup((caddr_t) & bswlist);
 	}
 	splx(s);
 }

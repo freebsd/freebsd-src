@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_map.h,v 1.3 1994/08/02 07:55:26 davidg Exp $
  */
 
 /*
@@ -86,9 +86,9 @@
  */
 
 union vm_map_object {
-	struct vm_object	*vm_object;	/* object object */
-	struct vm_map		*share_map;	/* share map */
-	struct vm_map		*sub_map;	/* belongs to another map */
+	struct vm_object *vm_object;	/* object object */
+	struct vm_map *share_map;	/* share map */
+	struct vm_map *sub_map;		/* belongs to another map */
 };
 
 /*
@@ -98,22 +98,22 @@ union vm_map_object {
  *	Also included is control information for virtual copy operations.
  */
 struct vm_map_entry {
-	struct vm_map_entry	*prev;		/* previous entry */
-	struct vm_map_entry	*next;		/* next entry */
-	vm_offset_t		start;		/* start address */
-	vm_offset_t		end;		/* end address */
-	union vm_map_object	object;		/* object I point to */
-	vm_offset_t		offset;		/* offset into object */
-	boolean_t		is_a_map:1,	/* Is "object" a map? */
-				is_sub_map:1,	/* Is "object" a submap? */
-		/* Only in sharing maps: */
-				copy_on_write:1,/* is data copy-on-write */
-				needs_copy:1;	/* does object need to be copied */
-		/* Only in task maps: */
-	vm_prot_t		protection;	/* protection code */
-	vm_prot_t		max_protection;	/* maximum protection */
-	vm_inherit_t		inheritance;	/* inheritance */
-	int			wired_count;	/* can be paged if = 0 */
+	struct vm_map_entry *prev;	/* previous entry */
+	struct vm_map_entry *next;	/* next entry */
+	vm_offset_t start;		/* start address */
+	vm_offset_t end;		/* end address */
+	union vm_map_object object;	/* object I point to */
+	vm_offset_t offset;		/* offset into object */
+	boolean_t is_a_map:1,		/* Is "object" a map? */
+	 is_sub_map:1,			/* Is "object" a submap? */
+	/* Only in sharing maps: */
+	 copy_on_write:1,		/* is data copy-on-write */
+	 needs_copy:1;			/* does object need to be copied */
+	/* Only in task maps: */
+	vm_prot_t protection;		/* protection code */
+	vm_prot_t max_protection;	/* maximum protection */
+	vm_inherit_t inheritance;	/* inheritance */
+	int wired_count;		/* can be paged if = 0 */
 };
 
 /*
@@ -123,19 +123,19 @@ struct vm_map_entry {
  *	insertion, or removal.
  */
 struct vm_map {
-	struct pmap *		pmap;		/* Physical map */
-	lock_data_t		lock;		/* Lock for map data */
-	struct vm_map_entry	header;		/* List of entries */
-	int			nentries;	/* Number of entries */
-	vm_size_t		size;		/* virtual size */
-	boolean_t		is_main_map;	/* Am I a main map? */
-	int			ref_count;	/* Reference count */
-	simple_lock_data_t	ref_lock;	/* Lock for ref_count field */
-	vm_map_entry_t		hint;		/* hint for quick lookups */
-	simple_lock_data_t	hint_lock;	/* lock for hint storage */
-	vm_map_entry_t		first_free;	/* First free space hint */
-	boolean_t		entries_pageable; /* map entries pageable?? */
-	unsigned int		timestamp;	/* Version number */
+	struct pmap *pmap;		/* Physical map */
+	lock_data_t lock;		/* Lock for map data */
+	struct vm_map_entry header;	/* List of entries */
+	int nentries;			/* Number of entries */
+	vm_size_t size;			/* virtual size */
+	boolean_t is_main_map;		/* Am I a main map? */
+	int ref_count;			/* Reference count */
+	simple_lock_data_t ref_lock;	/* Lock for ref_count field */
+	vm_map_entry_t hint;		/* hint for quick lookups */
+	simple_lock_data_t hint_lock;	/* lock for hint storage */
+	vm_map_entry_t first_free;	/* First free space hint */
+	boolean_t entries_pageable;	/* map entries pageable?? */
+	unsigned int timestamp;		/* Version number */
 #define	min_offset		header.start
 #define max_offset		header.end
 };
@@ -150,9 +150,9 @@ struct vm_map {
  *	does not include a reference for the imbedded share_map.]
  */
 typedef struct {
-	int		main_timestamp;
-	vm_map_t	share_map;
-	int		share_timestamp;
+	int main_timestamp;
+	vm_map_t share_map;
+	int share_timestamp;
 } vm_map_version_t;
 
 /*
@@ -181,50 +181,36 @@ typedef struct {
 #define	MAX_KMAPENT	128
 
 #ifdef KERNEL
-boolean_t	 vm_map_check_protection __P((vm_map_t,
-		    vm_offset_t, vm_offset_t, vm_prot_t));
-int		 vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t,
-		    vm_size_t, vm_offset_t, boolean_t, boolean_t));
-void		 vm_map_copy_entry __P((vm_map_t,
-		    vm_map_t, vm_map_entry_t, vm_map_entry_t));
+boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
+int vm_map_copy __P((vm_map_t, vm_map_t, vm_offset_t, vm_size_t, vm_offset_t, boolean_t, boolean_t));
+void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));
 struct pmap;
-vm_map_t	 vm_map_create __P((struct pmap *,
-		    vm_offset_t, vm_offset_t, boolean_t));
-void		 vm_map_deallocate __P((vm_map_t));
-int		 vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
-vm_map_entry_t	 vm_map_entry_create __P((vm_map_t));
-void		 vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
-void		 vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
-void		 vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
-int		 vm_map_find __P((vm_map_t, vm_object_t,
-		    vm_offset_t, vm_offset_t *, vm_size_t, boolean_t));
-int		 vm_map_findspace __P((vm_map_t,
-		    vm_offset_t, vm_size_t, vm_offset_t *));
-int		 vm_map_inherit __P((vm_map_t,
-		    vm_offset_t, vm_offset_t, vm_inherit_t));
-void		 vm_map_init __P((struct vm_map *,
-		    vm_offset_t, vm_offset_t, boolean_t));
-int		 vm_map_insert __P((vm_map_t,
-		    vm_object_t, vm_offset_t, vm_offset_t, vm_offset_t));
-int		 vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t,
-		    vm_map_entry_t *, vm_object_t *, vm_offset_t *, vm_prot_t *,
-		    boolean_t *, boolean_t *));
-void		 vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
-boolean_t	 vm_map_lookup_entry __P((vm_map_t,
-		    vm_offset_t, vm_map_entry_t *));
-int		 vm_map_pageable __P((vm_map_t,
-		    vm_offset_t, vm_offset_t, boolean_t));
-int		 vm_map_clean __P((vm_map_t,
-		    vm_offset_t, vm_offset_t, boolean_t, boolean_t));
-void		 vm_map_print __P((vm_map_t, boolean_t));
-int		 vm_map_protect __P((vm_map_t,
-		    vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
-void		 vm_map_reference __P((vm_map_t));
-int		 vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
-void		 vm_map_simplify __P((vm_map_t, vm_offset_t));
-void		 vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
-void		 vm_map_startup __P((void));
-int		 vm_map_submap __P((vm_map_t,
-		    vm_offset_t, vm_offset_t, vm_map_t));
+vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t, boolean_t));
+void vm_map_deallocate __P((vm_map_t));
+int vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
+vm_map_entry_t vm_map_entry_create __P((vm_map_t));
+void vm_map_entry_delete __P((vm_map_t, vm_map_entry_t));
+void vm_map_entry_dispose __P((vm_map_t, vm_map_entry_t));
+void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
+int vm_map_find __P((vm_map_t, vm_object_t, vm_offset_t, vm_offset_t *, vm_size_t, boolean_t));
+int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
+int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
+void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t, boolean_t));
+int vm_map_insert __P((vm_map_t, vm_object_t, vm_offset_t, vm_offset_t, vm_offset_t));
+int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
+    vm_offset_t *, vm_prot_t *, boolean_t *, boolean_t *));
+void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
+boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
+int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
+int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
+void vm_map_print __P((vm_map_t, boolean_t));
+int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
+void vm_map_reference __P((vm_map_t));
+int vm_map_remove __P((vm_map_t, vm_offset_t, vm_offset_t));
+void vm_map_simplify __P((vm_map_t, vm_offset_t));
+void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
+void vm_map_startup __P((void));
+int vm_map_submap __P((vm_map_t, vm_offset_t, vm_offset_t, vm_map_t));
+
 #endif
-#endif /* _VM_MAP_ */
+#endif				/* _VM_MAP_ */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.12 1994/10/21 01:19:25 wollman Exp $
+ * $Id: ufs_vnops.c,v 1.13 1994/11/26 19:38:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -441,8 +441,10 @@ ufs_chmod(vp, mode, cred, p)
 	ip->i_mode &= ~ALLPERMS;
 	ip->i_mode |= (mode & ALLPERMS);
 	ip->i_flag |= IN_CHANGE;
+/*
 	if ((vp->v_flag & VTEXT) && (ip->i_mode & S_ISTXT) == 0)
 		(void) vnode_pager_uncache(vp);
+*/
 	return (0);
 }
 
@@ -647,6 +649,8 @@ ufs_remove(ap)
 	if ((error = ufs_dirremove(dvp, ap->a_cnp)) == 0) {
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
+		if( (ip->i_nlink == 0) && vp->v_vmdata)
+			((vm_object_t)vp->v_vmdata)->flags |= OBJ_INTERNAL;
 	}
 out:
 	if (dvp == vp)
