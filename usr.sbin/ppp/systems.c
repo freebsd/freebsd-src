@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.29 1997/12/15 20:21:47 brian Exp $
+ * $Id: systems.c,v 1.30 1997/12/17 21:21:42 brian Exp $
  *
  *  TODO:
  */
@@ -232,7 +232,7 @@ ReadSystem(const char *name, const char *file, int doexec)
   int n, len;
   u_char olauth;
   char line[LINE_LEN];
-  char filename[200];
+  char filename[MAXPATHLEN];
   int linenum;
   int argc;
   char **argv;
