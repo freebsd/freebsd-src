@@ -58,6 +58,45 @@ static struct linesw snpdisc = {
 	l_nullioctl,	ttyinput,	ttstart,	ttymodem
 };
 
+/*
+ * This is the main snoop per-device structure.
+ */
+struct snoop {
+	LIST_ENTRY(snoop)	snp_list;	/* List glue. */
+	dev_t			snp_target;	/* Target tty device. */
+	struct tty		*snp_tty;	/* Target tty pointer. */
+	u_long			 snp_len;	/* Possible length. */
+	u_long			 snp_base;	/* Data base. */
+	u_long			 snp_blen;	/* Used length. */
+	caddr_t			 snp_buf;	/* Allocation pointer. */
+	int			 snp_flags;	/* Flags. */
+	struct selinfo		 snp_sel;	/* Select info. */
+	int			 snp_olddisc;	/* Old line discipline. */
+};
+
+/*
+ * Possible flags.
+ */
+#define SNOOP_ASYNC		0x0002
+#define SNOOP_OPEN		0x0004
+#define SNOOP_RWAIT		0x0008
+#define SNOOP_OFLOW		0x0010
+#define SNOOP_DOWN		0x0020
+
+/*
+ * Other constants.
+ */
+#define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
+						 * 4K tested to be the minimum
+						 * for which on normal tty
+						 * usage there is no need to
+						 * allocate more.
+						 */
+#define SNOOP_MAXLEN		(64*1024)	/* This one also,64K enough
+						 * If we grow more,something
+						 * really bad in this world..
+						 */
+
 static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
 /*
  * The number of the "snoop" line discipline.  This gets determined at
