@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.42 1997/11/25 07:07:44 julian Exp $
+ * $Id: kern_synch.c,v 1.43 1997/12/29 00:22:26 dyson Exp $
  */
 
 #include "opt_ktrace.h"
@@ -65,9 +65,9 @@ u_char	curpriority;		/* usrpri of curproc */
 int	lbolt;			/* once a second sleep address */
 
 static void	endtsleep __P((void *));
+static void	roundrobin __P((void *arg));
+static void	schedcpu __P((void *arg));
 static void	updatepri __P((struct proc *p));
-static void roundrobin __P((void *arg));
-static void schedcpu __P((void *arg));
 
 #define MAXIMUM_SCHEDULE_QUANTUM	(1000000) /* arbitrary limit */
 #ifndef DEFAULT_SCHEDULE_QUANTUM
