@@ -86,14 +86,6 @@ struct cmd cmdtab[] = {
 	{ "topq",	topqhelp,	PR,	topq,		0 },
 	{ "up",		uphelp,		PR,	0,		up_q },
 	{ "?",		helphelp,	0,	help,		0 },
-	{ "xabort",	aborthelp,	PR,	0,		doabort },
-	{ "xenable",	enablehelp,	PR,	0,		enable },
-	{ "xdisable",	disablehelp,	PR,	0, 		disable },
-	{ "xdown",	downhelp,	PR,	down,		0 },
-	{ "xrestart",	restarthelp,	0,	0,		restart },
-	{ "xstart",	starthelp,	PR,	0,		startcmd },
-	{ "xstop",	stophelp,	PR,	0,		stop },
-	{ "xup",	uphelp,		PR,	0,		up },
 	{ 0, 0, 0, 0, 0},
 };
 
