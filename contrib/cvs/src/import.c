@@ -216,7 +216,11 @@ import (argc, argv)
     }
 #endif
 
-    if (use_editor)
+    if (
+#ifdef SERVER_SUPPORT
+        !server_active &&
+#endif
+        use_editor)
     {
 	do_editor ((char *) NULL, &message,
 #ifdef CLIENT_SUPPORT
@@ -247,8 +251,7 @@ import (argc, argv)
 
 	if (vbranch[0] != '\0')
 	    option_with_arg ("-b", vbranch);
-	if (message)
-	    option_with_arg ("-m", message);
+	option_with_arg ("-m", message ? message : "");
 	if (keyword_opt != NULL)
 	    option_with_arg ("-k", keyword_opt);
 	/* The only ignore processing which takes place on the server side
@@ -1225,7 +1228,7 @@ add_rcs_file (message, rcs, user, add_vhead, key_opt,
 		    case S_IFREG: break;
 		    case S_IFCHR:
 		    case S_IFBLK:
-#ifdef HAVE_ST_RDEV
+#ifdef HAVE_STRUCT_STAT_ST_RDEV
 			if (fprintf (fprcs, "special\t%s %lu;\012",
 				     (file_type == S_IFCHR
 				      ? "character"
@@ -1282,7 +1285,7 @@ userfile);
 			case S_IFREG: break;
 			case S_IFCHR:
 			case S_IFBLK:
-#ifdef HAVE_ST_RDEV
+#ifdef HAVE_STRUCT_STAT_ST_RDEV
 			    if (fprintf (fprcs, "special\t%s %lu;\012",
 					 (file_type == S_IFCHR
 					  ? "character"

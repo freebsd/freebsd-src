@@ -302,7 +302,6 @@ time_stamp_server (file, vers_ts, entdata)
     else
     {
         struct tm *tm_p;
-        struct tm local_tm;
 
 	vers_ts->ts_user = xmalloc (25);
 	/* We want to use the same timestamp format as is stored in the
@@ -313,14 +312,7 @@ time_stamp_server (file, vers_ts, entdata)
 	   stored in local time, and therefore it is not possible to cause
 	   st_mtime to be out of sync by changing the timezone.  */
 	tm_p = gmtime (&sb.st_mtime);
-	if (tm_p)
-	{
-	    memcpy (&local_tm, tm_p, sizeof (local_tm));
-	    cp = asctime (&local_tm);	/* copy in the modify time */
-	}
-	else
-	    cp = ctime (&sb.st_mtime);
-
+	cp = tm_p ? asctime (tm_p) : ctime (&sb.st_mtime);
 	cp[24] = 0;
 	/* Fix non-standard format.  */
 	if (cp[8] == '0') cp[8] = ' ';
@@ -357,7 +349,6 @@ time_stamp (file)
     if (mtime)
     {
 	struct tm *tm_p;
-        struct tm local_tm;
 	ts = xmalloc (25);
 	/* We want to use the same timestamp format as is stored in the
 	   st_mtime.  For unix (and NT I think) this *must* be universal
@@ -367,14 +358,7 @@ time_stamp (file)
 	   stored in local time, and therefore it is not possible to cause
 	   st_mtime to be out of sync by changing the timezone.  */
 	tm_p = gmtime (&sb.st_mtime);
-	if (tm_p)
-	{
-	    memcpy (&local_tm, tm_p, sizeof (local_tm));
-	    cp = asctime (&local_tm);	/* copy in the modify time */
-	}
-	else
-	    cp = ctime(&sb.st_mtime);
-
+	cp = tm_p ? asctime (tm_p) : ctime (&sb.st_mtime);
 	cp[24] = 0;
 	/* Fix non-standard format.  */
 	if (cp[8] == '0') cp[8] = ' ';

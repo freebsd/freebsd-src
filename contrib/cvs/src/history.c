@@ -1031,7 +1031,7 @@ fill_hrec (line, hr)
 
 
 #ifndef STAT_BLOCKSIZE
-#if HAVE_ST_BLKSIZE
+#if HAVE_STRUCT_STAT_ST_BLKSIZE
 #define STAT_BLOCKSIZE(s) (s).st_blksize
 #else
 #define STAT_BLOCKSIZE(s) (4 * 1024)

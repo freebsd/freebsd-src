@@ -526,7 +526,7 @@ you want to edit.  @xref{Multiple developers}, for an explanation.
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node Committing your changes
 @subsection Committing your changes
-@cindex Committing changes
+@cindex Committing changes to files
 @cindex Log message entry
 @cindex CVSEDITOR, environment variable
 @cindex EDITOR, environment variable
@@ -2305,7 +2305,7 @@ command @code{cvs pserver} when it receives a
 connection on the right port.  By default, the port
 number is 2401; it would be different if your client
 were compiled with @code{CVS_AUTH_PORT} defined to
-something else, though.  This can also be sepcified in the CVSROOT variable
+something else, though.  This can also be specified in the CVSROOT variable
 (@pxref{Remote repositories}) or overridden with the CVS_CLIENT_PORT
 environment variable (@pxref{Environment variables}).
 
@@ -6773,7 +6773,7 @@ than one person is working in a repository.
 @node When to commit
 @section When to commit?
 @cindex When to commit
-@cindex Commit, when to
+@cindex Committing, when to
 @cindex Policy
 
 Your group should decide which policy to use regarding
@@ -12393,7 +12393,7 @@ cvs import -I ! -W "*.exe -k 'b'" first-dir vendortag reltag
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node commit files
 @appendixsec The commit support files
-@cindex Commit files
+@cindex Committing, administrative support files
 
 The @samp{-i} flag in the @file{modules} file can be
 used to run a certain program whenever files are
@@ -12510,8 +12510,8 @@ is used as a file name or command-line as appropriate.
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node commitinfo
 @appendixsubsec Commitinfo
-@cindex Commitinfo
-@cindex Checking commits
+@cindex @file{commitinfo}
+@cindex Commits, precommit verification of
 @cindex Precommit checking
 
 The @file{commitinfo} file defines programs to execute
@@ -12549,10 +12549,24 @@ All occurrences of the name @samp{ALL} appearing as a
 regular expression are used in addition to the first
 matching regular expression or the name @samp{DEFAULT}.
 
-Note: when @sc{cvs} is accessing a remote repository,
-@file{commitinfo} will be run on the @emph{remote}
-(i.e., server) side, not the client side (@pxref{Remote
-repositories}).
+@cindex @file{commitinfo}, working directory
+@cindex @file{commitinfo}, command environment
+The command will be run in the root of the workspace
+containing the new versions of any files the user would like
+to modify (commit), @emph{or in a copy of the workspace on
+the server (@pxref{Remote repositories})}.  If a file is
+being removed, there will be no copy of the file under the
+current directory.  If a file is being added, there will be
+no corresponding archive file in the repository unless the
+file is being resurrected.
+
+Note that both the repository directory and the corresponding
+Attic (@pxref{Attic}) directory may need to be checked to
+locate the archive file corresponding to any given file being
+committed.  Much of the information about the specific commit
+request being made, including the destination branch, commit
+message, and command line options specified, is not available
+to the command.
 
 @c FIXME: should discuss using commitinfo to control
 @c who has checkin access to what (e.g. Joe can check into
@@ -14064,9 +14078,10 @@ who committed the change.  If you are committing the change logged
 in as "root" (not under "su" or other root-priv giving program),
 @sc{cvs} cannot determine who is actually making the change.
 As such, by default, @sc{cvs} disallows changes to be committed by users
-logged in as "root".  (You can disable this option by commenting out
-the definition of @code{CVS_BADROOT} in @file{options.h} before
-building @sc{cvs}.
+logged in as "root".  (You can disable this option by passing the
+@code{--enable-rootcommit} option to @file{configure} and recompiling @sc{cvs}.
+On some systems this means editing the appropriate @file{config.h} file
+before building @sc{cvs}.)
 
 @item Too many arguments!
 This message is typically printed by the @file{log.pl}

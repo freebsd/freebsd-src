@@ -249,8 +249,8 @@ Building from source code under Unix:
 
 	$ ./noautomake.sh --noautoconf
 
-    The CVS Makefiles and configure script were built using Automake 1.5 and
-    Autoconf 2.13, respectively.  Other combinations of autotool versions may
+    The CVS Makefiles and configure script were built using Automake 1.6.3 and
+    Autoconf 2.53, respectively.  Other combinations of autotool versions may
     or may not work.
 
 2)  Run "configure":
@@ -278,13 +278,36 @@ Building from source code under Unix:
 
     Typically this can reduce the size of the executable by around 30%.
 
+    If you are building CVS with the server enabled, you can disable
+    server flow control using the --disable-server-flow-control
+    If you are working with a large remote repository and a 'cvs
+    checkout' is swamping your network and memory, enable flow control.
+    You will end up with even less probability of a consistent checkout
+    (see Concurrency in cvs.texinfo), but CVS doesn't try to guarantee
+    that anyway.  The master server process will monitor how far it is
+    getting behind, if it reaches the high water mark, it will signal
+    the child process to stop generating data when convenient (ie: no
+    locks are held, currently at the beginning of a new directory).
+    Once the buffer has drained sufficiently to reach the low water
+    mark, it will be signalled to start again.  You may override the
+    default hi/low watermarks here too by passing
+    '<lowwater>,<highwater>', in bytes, as an argument to
+    --enable-server-flow-control.  The low water mark defaults to one
+    megabyte and the high water mark defaults to two megabytes.
+
+	$ ./configure --enable-server-flow-control=1M,2M
+
+    The --with-tmpdir argument to configure may be used to set a
+    specific directory for use as a default temporary directory.  If not
+    set, configure will pick the first directory it finds which it has
+    read, write, and execute permissions to from $TMPDIR, $TMP, $TEMP,
+    /tmp, and /var/tmp, in that order.  Failing that, it will use /tmp.
+
+    The --with-umask argument to configure can be used to change
+    the default umask used by the CVS server executable.
+
     Unlike previous versions of CVS, you do not need to install RCS
     or GNU diff.  
-
-    NOTE: The configure program will cache the results of the previous
-    configure execution.  If you need to re-run configure from scratch, you
-    may need to run "make distclean" first to remove the cached
-    configuration information.
 
     If you are using gcc and are planning to modify CVS, you may want to
     configure with -Wall; see the file HACKING for details.
@@ -431,7 +454,7 @@ following also works:
 	C:\> vcvars32
 	C:\> nmake /f cvsnt.mak CFG="cvsnt - Win32 Debug"
 
-* You might also try http://wincvs.org & http://www.cvsnt.org
+* You might also try http://cvsgui.org & http://www.cvsnt.org
 
 -------------------------------------------------------------------------------
 
@@ -441,8 +464,9 @@ For OS/2, see os2/README and emx/README.
 
 For VMS, see README.VMS
 
-For Macintosh, see macintosh/README.MacCVS, or, since that file isn't there
-anymore, you might try http://wincvs.org .
+Mac OS X: Builds fine, just like UNIX.
+
+For older versions of Mac OS, you might try http://cvsgui.org .
 
 For a Java client, see jCVS (which is a separate package from CVS
 itself, but which might be preferable to the Macintosh port mentioned

@@ -222,6 +222,8 @@ cvstag (argc, argv)
 	if (date)
 	    client_senddate (date);
 
+	send_arg ("--");
+
 	send_arg (symtag);
 
 	if (is_rtag)
@@ -233,7 +235,6 @@ cvstag (argc, argv)
 	}
 	else
 	{
-
 	    send_files (argc, argv, local, 0,
 
 		    /* I think the -c case is like "cvs status", in
@@ -380,8 +381,8 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     mtlist = getlist();
     err = start_recursion (check_fileproc, check_filesdoneproc,
                            (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-                           argc - 1, argv + 1, local_specified, which, 0, 1,
-                           where, 1);
+			   argc - 1, argv + 1, local_specified, which, 0,
+			   LOCK_READ, where, 1);
     
     if (err)
     {
@@ -390,19 +391,13 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
      
     /* It would be nice to provide consistency with respect to
        commits; however CVS lacks the infrastructure to do that (see
-       Concurrency in cvs.texinfo and comment in do_recursion).  We
-       do need to ensure that the RCS file info that gets read and
-       cached in do_recursion isn't stale by the time we get around
-       to using it to rewrite the RCS file in the callback, and this
-       is the easiest way to accomplish that.  */
-    lock_tree_for_write (argc - 1, argv + 1, local_specified, which, 0);
+       Concurrency in cvs.texinfo and comment in do_recursion).  */
 
     /* start the recursion processor */
     err = start_recursion (is_rtag ? rtag_fileproc : tag_fileproc,
 			   (FILESDONEPROC) NULL, tag_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL, argc - 1, argv + 1,
-			   local_specified, which, 0, 0, where, 1);
-    Lock_Cleanup ();
+			   local_specified, which, 0, LOCK_WRITE, where, 1);
     dellist (&mtlist);
     if (where != NULL)
 	free (where);
@@ -423,11 +418,21 @@ check_fileproc (callerdat, finfo)
     
     if (check_uptodate) 
     {
-	Ctype status = Classify_File (finfo, (char *) NULL, (char *) NULL,
-				      (char *) NULL, 1, 0, &vers, 0);
-	if ((status != T_UPTODATE) && (status != T_CHECKOUT) &&
-	    (status != T_PATCH))
+	switch (Classify_File (finfo, (char *) NULL, (char *) NULL,
+				      (char *) NULL, 1, 0, &vers, 0))
 	{
+	case T_UPTODATE:
+	case T_CHECKOUT:
+	case T_PATCH:
+	case T_REMOVE_ENTRY:
+	    break;
+	case T_UNKNOWN:
+	case T_CONFLICT:
+	case T_NEEDS_MERGE:
+	case T_MODIFIED:
+	case T_ADDED:
+	case T_REMOVED:
+	default:
 	    error (0, 0, "%s is locally modified", finfo->fullname);
 	    freevers_ts (&vers);
 	    return (1);
@@ -1280,11 +1285,11 @@ Numeric tag %s contains characters other than digits and '.'", name);
 			   val_direntproc, (DIRLEAVEPROC) NULL,
 			   (void *)&the_val_args,
 			   argc, argv, local, which, aflag,
-			   1, NULL, 1);
+			   LOCK_READ, NULL, 1);
     if (repository != NULL && repository[0] != '\0')
     {
 	if (restore_cwd (&cwd, NULL))
-	    exit (EXIT_FAILURE);
+	    error_exit ();
 	free_cwd (&cwd);
     }
 
