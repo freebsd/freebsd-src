@@ -35,6 +35,7 @@ PFILES=	mqueue.h sched.h semaphore.h # aio.h
 
 # Only for default SHARED=copies case
 SFILES=	soundcard.h joystick.h
+DEVFILES=	digi/digiio.h
 
 LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
@@ -48,7 +49,8 @@ LSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
 	cam/scsi dev/ppbus dev/usb dev/wi
 
 # For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
-LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus dev/usb dev/wi
+LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
+	dev/digi dev/ppbus dev/usb dev/wi
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -108,6 +110,11 @@ copies:
 	cd ${.CURDIR}/../sys; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
+.endfor
+.for i in ${DEVFILES}
+	cd ${.CURDIR}/../sys/dev; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i \
+		${DESTDIR}/usr/include/dev/$i
 .endfor
 .if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
