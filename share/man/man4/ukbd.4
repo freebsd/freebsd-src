@@ -62,7 +62,7 @@ and make device nodes
 .Pp
 .Dl "sh MAKEDEV kbd0 kbd1"
 .Pp
-If both an AT keyboard as well as USB keyboards are used at the same time, the
+If both an AT keyboard USB keyboards are used at the same time, the
 AT keyboard will appear as
 .Pa kbd0
 in
@@ -86,15 +86,15 @@ You can swap console keyboards by using the command
 .Pp
 .Dl "kbdcontrol -k /dev/kbd1"
 .Pp
-From this point on onwards, the first USB keyboard will be the keyboard
-to be used as the console.
+From this point on, the first USB keyboard will be the keyboard
+to be used by the console.
 .Pp
 If you want to use a USB keyboard as your default and not use an AT keyboard at
 all, you will have to remove the
 .Cd "device atkbd"
 line from the kernel configuration file.
-Because of the order of the device
-initialization, the USB keyboard will be detected
+Because of the device initialization order,
+the USB keyboard will be detected
 .Em after
 the console driver
 initializes itself and you have to explicitly tell the console
