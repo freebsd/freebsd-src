@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uux_rcsid[] = "$Id: uux.c,v 1.1 1993/08/04 19:37:14 jtc Exp $";
+const char uux_rcsid[] = "$Id: uux.c,v 1.1 1993/08/05 18:28:19 conklin Exp $";
 #endif
 
 #include "uudefs.h"
@@ -506,8 +506,9 @@ main (argc, argv)
 	{
 	  if (iuuconf != UUCONF_NOT_FOUND)
 	    ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
-	  if (! funknown_system (puuconf, zsys, &sxqtsys))
+	  if (funknown_system (puuconf, zsys, &sxqtsys)) {
 	    ulog (LOG_FATAL, "%s: System not found", zsys);
+	  }
 	}
     }
 
@@ -866,7 +867,7 @@ main (argc, argv)
 	    {
 	      if (iuuconf != UUCONF_NOT_FOUND)
 		ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
-	      if (! funknown_system (puuconf, zsystem, &sfromsys))
+	      if (funknown_system (puuconf, zsystem, &sfromsys))
 		ulog (LOG_FATAL, "%s: System not found", zsystem);
 	    }
 
