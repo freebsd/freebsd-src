@@ -1,4 +1,4 @@
-/*	$Id: $	*/
+/*	$Id: chio.c,v 1.1.1.1 1997/03/06 15:30:06 joerg Exp $	*/
 
 /*
  * Copyright (c) 1996 Jason R. Thorpe <thorpej@and.com>
@@ -103,7 +103,6 @@ main(argc, argv)
 	char **argv;
 {
 	int ch, i;
-	char *cp;
 
 	while ((ch = getopt(argc, argv, "f:")) != -1) {
 		switch (ch) {
@@ -470,7 +469,10 @@ do_status(cname, argc, argv)
 	struct changer_params data;
 	u_int8_t *statusp;
 	int i, count, chet, schet, echet;
-	char *cmdname, *description;
+	char *description;
+
+	count = 0;
+	description = NULL;
 
 	/*
 	 * On a status command, we expect the following:
@@ -637,7 +639,8 @@ bits_to_string(v, cp)
 			np++;
 		if ((v & (1 << (f - 1))) == 0)
 			continue;
-		bp += sprintf(bp, "%c%.*s", sep, np - cp, cp);
+		bp += snprintf(bp, sizeof(buf) - (bp - &buf[0]),
+						"%c%.*s", sep, np - cp, cp);
 		sep = ',';
 	}
 	if (sep != '<')
@@ -657,7 +660,12 @@ cleanup()
 static void
 usage()
 {
+	int i;
 
-	fprintf(stderr, "usage: %s command arg1 arg2 ...\n", __progname);
+	fprintf(stderr, "usage: %s [-f changer] command [args ...]\n", __progname);
+	fprintf(stderr, "commands:");
+	for (i = 0; commands[i].cc_name; i++)
+		fprintf(stderr, " %s", commands[i].cc_name);
+	fprintf(stderr, "\n");
 	exit(1);
 }
