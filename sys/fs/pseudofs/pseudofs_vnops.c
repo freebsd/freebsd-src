@@ -163,6 +163,9 @@ pfs_getattr(struct vop_getattr_args *va)
 
 	PFS_TRACE((pn->pn_name));
 
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (ENOENT);
+
 	VATTR_NULL(vap);
 	vap->va_type = vn->v_type;
 	vap->va_fileid = pn->pn_fileno;
@@ -262,6 +265,9 @@ pfs_getextattr(struct vop_getextattr_args *va)
 	int error;
 
 	PFS_TRACE((pd->pn_name));
+
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (ENOENT);
 
 	if (pn->pn_getextattr == NULL)
 		PFS_RETURN (EOPNOTSUPP);
