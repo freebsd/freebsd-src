@@ -61,7 +61,8 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_csreg.h>
 
-#include "pnp.h"
+/* #include "pnp.h" */
+#define NPNP 0
 
 #if NPNP > 0
 #include <i386/isa/pnp.h>
