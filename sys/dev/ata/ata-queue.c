@@ -163,7 +163,7 @@ ata_start(struct ata_channel *ch)
     /* lock the ATA HW for this request */
     mtx_lock(&ch->queue_mtx);
     ch->locking(ch, ATA_LF_LOCK);
-    if (!ATA_LOCK_CH(ch, ATA_ACTIVE)) {
+    if (!ATA_LOCK_CH(ch)) {
 	mtx_unlock(&ch->queue_mtx);
 	return;
     }

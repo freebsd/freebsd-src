@@ -120,7 +120,7 @@ ata_probe(device_t dev)
     ch->device[SLAVE].unit = ATA_SLAVE;
     ch->device[SLAVE].mode = ATA_PIO;
     ch->dev = dev;
-    ch->state = ATA_IDLE;
+    ch->lock = ATA_IDLE;
 
     /* initialise device(s) on this channel */
     ch->locking(ch, ATA_LF_LOCK);
@@ -236,7 +236,7 @@ ata_reinit(struct ata_channel *ch)
     /* reset the HW */
     if (bootverbose)
 	ata_printf(ch, -1, "reiniting channel ..\n");
-    ATA_FORCELOCK_CH(ch, ATA_CONTROL);
+    ATA_FORCELOCK_CH(ch);
     ch->flags |= ATA_IMMEDIATE_MODE;
     ch->running = NULL;
     devices = ch->devices;
@@ -317,7 +317,7 @@ ata_suspend(device_t dev)
 	return ENXIO;
 
     ch->locking(ch, ATA_LF_LOCK);
-    ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
+    ATA_SLEEPLOCK_CH(ch);
     return 0;
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2003 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2004 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -301,7 +301,7 @@ struct acd_softc {
     int				flags;		/* device state flags */
 #define		F_LOCKED		0x0001	/* this unit is locked */
 
-    struct mtx			queue_mtx;	/* queue lock */
+    struct mtx			queue_mtx;	/* bio queue lock */
     struct bio_queue_head	queue;		/* queue of i/o requests */
     struct toc			toc;		/* table of disc contents */
     struct audiopage		au;		/* audio page info */
@@ -312,9 +312,9 @@ struct acd_softc {
     struct acd_softc		**driver;	/* softc's of changer slots */
     int				slot;		/* this instance slot number */
     time_t			timestamp;	/* this instance timestamp */
-    u_int			disk_size;	/* size of current media */
-    u_int			block_size;	/* blocksize currently used */
+    u_int32_t			disk_size;	/* size of current media */
+    u_int32_t			block_size;	/* blocksize currently used */
+    u_int32_t			iomax;		/* Max I/O request (bytes) */
     struct g_geom		*gp;		/* geom instance */
     struct g_provider		*pp[MAXTRK+1];	/* providers */
-    u_int			iomax;		/* Max I/O request (bytes) */
 };
