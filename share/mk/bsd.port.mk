@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.205 1996/06/01 05:47:42 asami Exp $
+# $Id: bsd.port.mk,v 1.206 1996/06/13 06:03:39 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -78,12 +78,14 @@
 #				  the "install" target.  This is the default if
 #				  USE_IMAKE or USE_X11 is set.
 #
-# NO_EXTRACT	- Use a dummy (do-nothing) extract target.
-# NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
 # NO_BUILD		- Use a dummy (do-nothing) build target.
-# NO_PACKAGE	- Use a dummy (do-nothing) package target.
-# NO_INSTALL	- Use a dummy (do-nothing) install target.
+# NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
 # NO_CDROM		- Use dummy (do-nothing) targets if FOR_CDROM is set.
+# NO_DESCRIBE	- Use a dummy (do-nothing) describe target.
+# NO_EXTRACT	- Use a dummy (do-nothing) extract target.
+# NO_INSTALL	- Use a dummy (do-nothing) install target.
+# NO_PACKAGE	- Use a dummy (do-nothing) package target.
+# NO_PKG_REGISTER - Don't register a port install as a package.
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
 # NO_WRKDIR		- There's no work directory at all; port does this someplace
 #				  else.
@@ -201,6 +203,50 @@
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
+# Support for an encapsulation in /usr/src - these are essentially simplied ports
+# and have a number of defaults we can presume right off the bat.
+.if defined(SRC_ENCAPSULATION)
+.if exists (${.CURDIR}/obj)
+WRKDIR=${.CURDIR}/obj
+.else
+NO_WRKDIR=			yes
+.endif
+
+# Disable things that should be disabled for encapsulations.
+NO_PACKAGE=			yes
+NO_MTREE=			yes
+NO_FETCH=			yes
+NO_PKG_REGISTER=	yes
+describe:
+	@${DO_NADA}
+
+# Finally, give us working obj and cleandir targets to make us more compatible
+# with "traditional" /usr/src ports.
+.if !target(obj)
+.if defined(NOOBJ)
+obj:
+	@${DO_NADA}
+.else
+obj:
+	@cd ${.CURDIR}; rm -rf obj; here=`pwd`; \
+		dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; ${ECHO} "$$here -> $$dest"; \
+		ln -s $$dest obj; if test -d /usr/obj -a ! -d $$dest; then mkdir -p $$dest; fi
+.endif
+.endif
+
+.if !target(cleandir)
+.if defined(NOCLEANDIR)
+cleandir:
+	@${DO_NADA}
+.else
+cleandir:
+	@rm -rf ${WRKDIR}/${DISTNAME}
+	@rm -f ${WRKDIR}/.*_done
+.endif
+.endif
+
+.endif
+
 # These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
@@ -253,7 +299,7 @@ PACKAGE_COOKIE?=	${WRKDIR}/.package_done
 
 # How to do nothing.  Override if you, for some strange reason, would rather
 # do something.
-DO_NADA?=		echo -n
+DO_NADA?=		/usr/bin/true
 
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
@@ -458,7 +504,7 @@ package:
 
 .if defined(ALL_HOOK)
 all:
-	@${SETENV} CURDIR=${.CURDIR} DISTNAME=${DISTNAME} \
+	@cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTNAME=${DISTNAME} \
 	  DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} \
 	  PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 	  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
@@ -502,6 +548,12 @@ makesum:
 .if defined(NO_CONFIGURE) && !target(configure)
 configure: patch
 	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
+.endif
+
+# Disable describe
+.if defined(NO_DESCRIBE) && !target(describe)
+describe:
+	@${DO_NADA}
 .endif
 
 # Disable build
@@ -594,10 +646,12 @@ do-fetch:
 
 .if !target(do-extract)
 do-extract:
+.if !defined(NO_WRKDIR)
 	@${RM} -rf ${WRKDIR}
 	@${MKDIR} -p ${WRKDIR}
+.endif
 	@for file in ${EXTRACT_ONLY}; do \
-		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
+		if !(cd ${WRKDIR} && ${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
 			exit 1; \
 		fi \
@@ -674,20 +728,20 @@ do-patch:
 .if !target(do-configure)
 do-configure:
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
-		/bin/sh ${SCRIPTDIR}/configure; \
+		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR}\
+		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
+		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
+		  PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} DEPENDS="${DEPENDS}" \
+		  X11BASE=${X11BASE} /bin/sh ${SCRIPTDIR}/configure; \
 	fi
 .if defined(HAS_CONFIGURE)
-	@(cd ${WRKSRC}; CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
+	@(cd ${WRKSRC} && CC="${CC}" ac_cv_path_CC="${CC}" CFLAGS="${CFLAGS}" \
 	    INSTALL="/usr/bin/install -c -o ${BINOWN} -g ${BINGRP}" \
 	    INSTALL_PROGRAM="/usr/bin/install ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}" \
 	    ${CONFIGURE_ENV} ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
-	@(cd ${WRKSRC}; ${XMKMF})
+	@(cd ${WRKSRC} && ${XMKMF})
 .endif
 .endif
 
@@ -707,14 +761,14 @@ do-build:
 .if !target(do-install)
 do-install:
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
-	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} ${INSTALL_TARGET})
 .if defined(USE_IMAKE) && !defined(NO_INSTALL_MANPAGES)
-	@(cd ${WRKSRC}; ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
+	@(cd ${WRKSRC} && ${SETENV} ${MAKE_ENV} ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install.man)
 .endif
 .endif
 .endif
@@ -778,13 +832,13 @@ delete-package:
 
 _PORT_USE: .USE
 .if make(real-fetch)
-	@${MAKE} ${.MAKEFLAGS} fetch-depends
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fetch-depends
 .endif
 .if make(real-extract)
-	@${MAKE} ${.MAKEFLAGS} build-depends lib-depends misc-depends
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} build-depends lib-depends misc-depends
 .endif
 .if make(real-install)
-	@${MAKE} ${.MAKEFLAGS} run-depends
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} run-depends
 .endif
 .if make(real-install)
 .if !defined(NO_MTREE)
@@ -796,25 +850,26 @@ _PORT_USE: .USE
 	fi
 .endif
 .endif
-	@${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/} ]; then \
-		${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
+		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
 		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
 		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
 		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/}; \
 	fi
-	@${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/do-/}
-	@${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/post-/}
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/do-/}
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/post-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/post-/} ]; then \
-		${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR} WRKDIR=${WRKDIR} \
-		  WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} SCRIPTDIR=${SCRIPTDIR} \
-		  FILESDIR=${FILESDIR} PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} \
-		  DEPENDS="${DEPENDS}" X11BASE=${X11BASE} \
+		cd ${.CURDIR} && ${SETENV} CURDIR=${.CURDIR} DISTDIR=${DISTDIR}\
+		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
+		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
+		  PORTSDIR=${PORTSDIR} PREFIX=${PREFIX} DEPENDS="${DEPENDS}" \
+		  X11BASE=${X11BASE} \
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
-.if make(real-install)
-	@${MAKE} ${.MAKEFLAGS} fake-pkg
+.if make(real-install)  && !defined(NO_PKG_REGISTER)
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fake-pkg
 .endif
 .if !make(real-fetch) \
 	&& (!make(real-patch) || !defined(PATCH_CHECK_ONLY)) \
@@ -833,7 +888,7 @@ _PORT_USE: .USE
 
 .if !target(fetch)
 fetch:
-	@${MAKE} ${.MAKEFLAGS} real-fetch
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-fetch
 .endif
 
 .if !target(extract)
@@ -861,17 +916,17 @@ package: install ${PACKAGE_COOKIE}
 .endif
 
 ${EXTRACT_COOKIE}:
-	@${MAKE} ${.MAKEFLAGS} real-extract
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-extract
 ${PATCH_COOKIE}:
-	@${MAKE} ${.MAKEFLAGS} real-patch
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-patch
 ${CONFIGURE_COOKIE}:
-	@${MAKE} ${.MAKEFLAGS} real-configure
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-configure
 ${BUILD_COOKIE}:
-	@${MAKE} ${.MAKEFLAGS} real-build
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-build
 ${INSTALL_COOKIE}:
-	@${MAKE} ${.MAKEFLAGS} real-install
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-install
 ${PACKAGE_COOKIE}:
-	@${MAKE} ${.MAKEFLAGS} real-package
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} real-package
 
 # And call the macros
 
@@ -911,7 +966,7 @@ post-${name}:
 
 .if !target(checkpatch)
 checkpatch:
-	@${MAKE} PATCH_CHECK_ONLY=yes ${.MAKEFLAGS} patch
+	@cd ${.CURDIR} && ${MAKE} PATCH_CHECK_ONLY=yes ${.MAKEFLAGS} patch
 .endif
 
 # Reinstall
@@ -940,12 +995,10 @@ pre-clean:
 .if !target(clean)
 clean: pre-clean
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
-	@${RM} -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
-		${BUILD_COOKIE} ${PATCH_COOKIE}
-.if defined(NO_WRKDIR)
-	@${RM} -f ${WRKDIR}/.*_done
+.if !defined(NO_WRKDIR) && !exists(${.CURDIR}/obj)
+	${RM} -rf ${WRKDIR}
 .else
-	@${RM} -rf ${WRKDIR}
+	@${RM} -f ${WRKDIR}/.*_done
 .endif
 .endif
 
@@ -997,7 +1050,7 @@ checksum: fetch
 	else \
 		(cd ${DISTDIR}; OK=""; \
 		  for file in ${DISTFILES} ${PATCHFILES}; do \
-			CKSUM=`${MD5} $$file | ${AWK} '{print $$4}'`; \
+			CKSUM=`${MD5} < $$file`; \
 			CKSUM2=`${GREP} "($$file)" ${MD5_FILE} | ${AWK} '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
 				${ECHO_MSG} ">> No checksum recorded for $$file"; \
@@ -1051,7 +1104,7 @@ pre-repackage:
 
 .if !target(package-noinstall)
 package-noinstall:
-	@${MAKE} ${.MAKEFLAGS} PACKAGE_NOINSTALL=yes real-package
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} PACKAGE_NOINSTALL=yes real-package
 .endif
 
 ################################################################
@@ -1060,9 +1113,9 @@ package-noinstall:
 
 .if !target(depends)
 depends: lib-depends misc-depends
-	@${MAKE} ${.MAKEFLAGS} fetch-depends
-	@${MAKE} ${.MAKEFLAGS} build-depends
-	@${MAKE} ${.MAKEFLAGS} run-depends
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fetch-depends
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} build-depends
+	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} run-depends
 
 .if make(fetch-depends)
 DEPENDS_TMP+=	${FETCH_DEPENDS}
@@ -1214,9 +1267,9 @@ describe:
 		${ECHO} -n "|/dev/null"; \
 	fi
 	@${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|"
-	@${ECHO} -n `make depends-list|sort|uniq`
+	@cd ${.CURDIR} && ${ECHO} -n `make depends-list|sort|uniq`
 	@${ECHO} -n "|"
-	@${ECHO} -n `make package-depends|sort|uniq`
+	@cd ${.CURDIR} && ${ECHO} -n `make package-depends|sort|uniq`
 	@${ECHO} ""
 .endif
 
@@ -1227,7 +1280,7 @@ readmes:	readme
 .if !target(readme)
 readme:
 	@rm -f README.html
-	@make README.html
+	@cd ${.CURDIR} && make README.html
 .endif
 
 README.html:
