@@ -82,6 +82,7 @@
 #define FTP_OK				200
 #define FTP_FILE_STATUS			213
 #define FTP_SERVICE_READY		220
+#define FTP_TRANSFER_COMPLETE		226
 #define FTP_PASSIVE_MODE		227
 #define FTP_LPASSIVE_MODE		228
 #define FTP_EPASSIVE_MODE		229
@@ -327,6 +328,10 @@ _ftp_readfn(void *v, char *buf, int len)
     int r;
 
     io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     if (io->csd == -1 || io->dsd == -1 || io->dir == O_WRONLY) {
 	errno = EBADF;
 	return -1;
@@ -355,6 +360,10 @@ _ftp_writefn(void *v, const char *buf, int len)
     int w;
     
     io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     if (io->csd == -1 || io->dsd == -1 || io->dir == O_RDONLY) {
 	errno = EBADF;
 	return -1;
@@ -373,6 +382,13 @@ _ftp_writefn(void *v, const char *buf, int len)
 static fpos_t
 _ftp_seekfn(void *v, fpos_t pos, int whence)
 {
+    struct ftpio *io;
+    
+    io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     errno = ESPIPE;
     return -1;
 }
@@ -381,8 +397,13 @@ static int
 _ftp_closefn(void *v)
 {
     struct ftpio *io;
+    int r;
 
     io = (struct ftpio *)v;
+    if (io == NULL) {
+	errno = EBADF;
+	return -1;
+    }
     if (io->dir == -1)
 	return 0;
     if (io->csd == -1 || io->dsd == -1) {
@@ -393,7 +414,10 @@ _ftp_closefn(void *v)
     io->dir = -1;
     io->dsd = -1;
     DEBUG(fprintf(stderr, "Waiting for final status\n"));
-    io->err = _ftp_chkerr(io->csd);
+    if ((r = _ftp_chkerr(io->csd)) != FTP_TRANSFER_COMPLETE)
+	io->err = r;
+    else
+	io->err = 0;
     close(io->csd);
     io->csd = -1;
     return io->err ? -1 : 0;
@@ -434,9 +458,9 @@ _ftp_transfer(int cd, char *oper, char *file,
     FILE *df;
 
     /* check flags */
-    pasv = (flags && strchr(flags, 'p'));
-    high = (flags && strchr(flags, 'h'));
-    verbose = (flags && strchr(flags, 'v'));
+    pasv = CHECK_FLAG('p');
+    high = CHECK_FLAG('h');
+    verbose = CHECK_FLAG('v');
 
     /* passive mode */
     if (!pasv)
@@ -716,11 +740,11 @@ _ftp_connect(struct url *url, struct url *purl, char *flags)
     char localhost[MAXHOSTNAMELEN];
     char pbuf[MAXHOSTNAMELEN + MAXLOGNAME + 1];
 
-    direct = (flags && strchr(flags, 'd'));
-    verbose = (flags && strchr(flags, 'v'));
-    if ((flags && strchr(flags, '4')))
+    direct = CHECK_FLAG('d');
+    verbose = CHECK_FLAG('v');
+    if (CHECK_FLAG('4'))
 	af = AF_INET;
-    else if ((flags && strchr(flags, '6')))
+    else if (CHECK_FLAG('6'))
 	af = AF_INET6;
 
     if (direct)
@@ -887,7 +911,7 @@ fetchXGetFTP(struct url *url, struct url_stat *us, char *flags)
     int cd;
 
     /* get the proxy URL, and check if we should use HTTP instead */
-    if (!strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+    if (!CHECK_FLAG('d') && (purl = _ftp_get_proxy()) != NULL) {
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 	    return _http_request(url, "GET", us, purl, flags);
     } else {
@@ -934,7 +958,7 @@ fetchPutFTP(struct url *url, char *flags)
     int cd;
 
     /* get the proxy URL, and check if we should use HTTP instead */
-    if (!strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+    if (!CHECK_FLAG('d') && (purl = _ftp_get_proxy()) != NULL) {
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 	    /* XXX HTTP PUT is not implemented, so try without the proxy */
 	    purl = NULL;
@@ -954,7 +978,7 @@ fetchPutFTP(struct url *url, char *flags)
 	return NULL;
     
     /* initiate the transfer */
-    return _ftp_transfer(cd, (flags && strchr(flags, 'a')) ? "APPE" : "STOR",
+    return _ftp_transfer(cd, CHECK_FLAG('a') ? "APPE" : "STOR",
 			 url->doc, O_WRONLY, url->offset, flags);
 }
 
@@ -968,7 +992,7 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     int cd;
 
     /* get the proxy URL, and check if we should use HTTP instead */
-    if (!strchr(flags, 'd') && (purl = _ftp_get_proxy()) != NULL) {
+    if (!CHECK_FLAG('d') && (purl = _ftp_get_proxy()) != NULL) {
 	if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
 	    FILE *f;
 
