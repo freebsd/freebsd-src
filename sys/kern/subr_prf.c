@@ -336,9 +336,13 @@ putchar(int c, void *arg)
 	int consdirect, flags = ap->flags;
 
 	consdirect = ((flags & TOCONS) && constty == NULL);
-	/* Don't use the tty code after a panic. */
+	/* Don't use the tty code after a panic or while in ddb. */
 	if (panicstr)
 		consdirect = 1;
+#ifdef DDB
+	if (db_active)
+		consdirect = 1;
+#endif
 	if (consdirect) {
 		if (c != '\0')
 			cnputc(c);
