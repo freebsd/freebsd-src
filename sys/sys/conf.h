@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.28 1995/12/13 15:13:44 julian Exp $
+ *	@(#)conf.h	8.5 (Berkeley) 1/9/95
+ * $Id: conf.h,v 1.31 1996/02/29 00:07:09 hsu Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -52,31 +52,35 @@ struct tty;
 struct uio;
 struct vnode;
 
-typedef int d_open_t __P((dev_t, int, int, struct proc *));
-typedef int d_close_t __P((dev_t, int, int, struct proc *));
-typedef void d_strategy_t __P((struct buf *));
-typedef int d_ioctl_t __P((dev_t, int, caddr_t, int, struct proc *));
-typedef int d_dump_t __P((dev_t));
-typedef int d_psize_t __P((dev_t));
+typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
+typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
+typedef void d_strategy_t __P((struct buf *bp));
+typedef int d_ioctl_t __P((dev_t dev, int cmd, caddr_t data,
+			   int fflag, struct proc *p));
+typedef int d_dump_t __P((dev_t dev));
+typedef int d_psize_t __P((dev_t dev));
 
-typedef int d_read_t __P((dev_t, struct uio *, int));
-typedef int d_write_t __P((dev_t, struct uio *, int));
-typedef void d_stop_t __P((struct tty *, int));
-typedef int d_reset_t __P((dev_t));
-typedef struct tty *d_devtotty_t __P((dev_t));
-typedef int d_select_t __P((dev_t, int, struct proc *));
-typedef int d_mmap_t __P((dev_t, int, int));
+typedef int d_read_t __P((dev_t dev, struct uio *uio, int ioflag));
+typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
+typedef void d_stop_t __P((struct tty *tp, int rw));
+typedef int d_reset_t __P((dev_t dev));
+typedef struct tty *d_devtotty_t __P((dev_t dev));
+typedef int d_select_t __P((dev_t dev, int which, struct proc *p));
+typedef int d_mmap_t __P((dev_t dev, int offset, int nprot));
 
 typedef int l_open_t __P((dev_t dev, struct tty *tp));
 typedef int l_close_t __P((struct tty *tp, int flag));
 typedef int l_read_t __P((struct tty *tp, struct uio *uio, int flag));
 typedef int l_write_t __P((struct tty *tp, struct uio *uio, int flag));
-typedef int l_ioctl_t __P((struct tty *tp, int cmd, caddr_t data, int flag,
-			   struct proc *p));
+typedef int l_ioctl_t __P((struct tty *tp, int cmd, caddr_t data,
+			   int flag, struct proc *p));
 typedef int l_rint_t __P((int c, struct tty *tp));
 typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
 
+/*
+ * Block device switch table
+ */
 struct bdevsw {
 	d_open_t	*d_open;
 	d_close_t	*d_close;
@@ -94,6 +98,9 @@ struct bdevsw {
 extern struct bdevsw *bdevsw[];
 #endif
 
+/*
+ * Character device switch table
+ */
 struct cdevsw {
 	d_open_t	*d_open;
 	d_close_t	*d_close;
@@ -115,6 +122,9 @@ struct cdevsw {
 extern struct cdevsw *cdevsw[];
 #endif
 
+/*
+ * Line discipline switch table
+ */
 struct linesw {
 	l_open_t	*l_open;
 	l_close_t	*l_close;
@@ -135,6 +145,9 @@ void ldisc_deregister __P((int));
 #define LDISC_LOAD 	-1		/* Loadable line discipline */
 #endif
 
+/*
+ * Swap device table
+ */
 struct swdevt {
 	dev_t	sw_dev;
 	int	sw_flags;
@@ -143,7 +156,7 @@ struct swdevt {
 };
 #define	SW_FREED	0x01
 #define	SW_SEQUENTIAL	0x02
-#define sw_freed	sw_flags	/* XXX compat */
+#define	sw_freed	sw_flags	/* XXX compat */
 
 #ifdef KERNEL
 d_open_t	noopen;
