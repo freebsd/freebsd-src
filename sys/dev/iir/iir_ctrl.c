@@ -41,6 +41,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
