@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.7 1994/06/01 05:15:00 asami Exp $";
+static char *rcsid = "$Id: main.c,v 1.8 1994/12/06 00:51:44 jkh Exp $";
 #endif
 
 /*
@@ -127,7 +127,7 @@ main(int argc, char **argv)
 	    break;
 	}
 
-    argc -= optind;	
+    argc -= optind;
     argv += optind;
 
     /* Set some reasonable defaults */

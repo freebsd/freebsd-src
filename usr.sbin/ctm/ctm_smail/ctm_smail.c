@@ -1,14 +1,14 @@
 /*
- * Send a compressed CTM delta to a recipient mailing list by encoding it 
+ * Send a compressed CTM delta to a recipient mailing list by encoding it
  * in safe ASCII characters, in mailer-friendly chunks, and passing it
  * to sendmail.  The encoding is almost the same as MIME BASE64, and is
  * protected by a simple checksum.
  *
  * Author: Stephen McKay
  *
- * NOTICE: This is free software.  I hope you get some use from this program.  
- * In return you should think about all the nice people who give away software. 
- * Maybe you should write some free software too.  
+ * NOTICE: This is free software.  I hope you get some use from this program.
+ * In return you should think about all the nice people who give away software.
+ * Maybe you should write some free software too.
  */
 
 #include <stdio.h>
@@ -69,7 +69,7 @@ main(int argc, char **argv)
 	err("%s: %s", delta_file, strerror(errno));
 	exit(1);
 	}
-    
+
     if (max_ctm_size != 0 && sb.st_size > max_ctm_size)
 	apologise(delta_file, sb.st_size, max_ctm_size, mail_alias);
     else

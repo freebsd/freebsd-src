@@ -14,7 +14,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    This product includes software developed by Hellmuth Michaelis.
- * 4. The name of the developer may not be used to endorse or promote 
+ * 4. The name of the developer may not be used to endorse or promote
  *    products derived from this software without specific prior written
  *    permission.
  *
@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	misc.c, 3.00, last edit-date: [Sun Jan  2 20:09:21 1994] 
+ * 	misc.c, 3.00, last edit-date: [Sun Jan  2 20:09:21 1994]
  */
 
 /*---------------------------------------------------------------------------
@@ -84,9 +84,9 @@ void readfont(char *filename)
 	struct stat sbuf, *sbp;
 	int ret;
 	char buffer[1024];
-	
+
 	sbp = &sbuf;
-	
+
 	if((in = fopen(filename, "r")) == NULL)
 	{
 		sprintf(buffer, "cannot open file %s for reading", filename);
@@ -107,31 +107,31 @@ void readfont(char *filename)
 			ch_height = HEIGHT8X8;
 			ch_width = WIDTH8;
 			break;
-			
+
 		case FONT8X10:
 			ch_height = HEIGHT8X10;
 			ch_width = WIDTH8;
 			break;
-			
+
 		case FONT8X14:
 			ch_height = HEIGHT8X14;
 			ch_width = WIDTH8;
 			break;
-			
+
 		case FONT8X16:
 			ch_height = HEIGHT8X16;
 			ch_width = WIDTH8;
 			break;
-			
+
 		case FONT16X16:
 			ch_height = HEIGHT16X16;
 			ch_width = WIDTH16;
 			break;
-			
+
 		default:
 			fprintf(stderr,"error, file %s is no valid font file, size=%d\n",filename,sbp->st_size);
 			exit(1);
-	}			
+	}
 
 	if((fonttab = (unsigned char *)malloc((size_t)sbp->st_size)) == NULL)
 	{
@@ -147,7 +147,7 @@ void readfont(char *filename)
 		sprintf(buffer,"error reading file %s, size = %d, ret = %d\n",filename,sbp->st_size, ret);
 		perror(buffer);
 		exit(1);
-	}		
+	}
 }
 
 /*---------------------------------------------------------------------------*
@@ -158,12 +158,12 @@ void writefont()
 	FILE *in, *out;
 	int ret;
 	char buffer[1024];
-	
+
 	if((in = fopen(lfilename, "r")) != NULL)
 	{
 		int c;
 		char wfn[1024];
-		
+
 		strcpy(wfn, lfilename);
 		strcat(wfn, ".BAK");
 		if((out = fopen(wfn, "w")) == NULL)
@@ -179,7 +179,7 @@ void writefont()
 		fclose(out);
 		fclose(in);
 	}
-			
+
 	if((out = fopen(lfilename, "w")) == NULL)
 	{
 		sprintf(buffer, "cannot open file %s for writing", lfilename);
@@ -192,7 +192,7 @@ void writefont()
 		sprintf(buffer,"error writing file %s, size=%d, ret=%d\n",lfilename,lfilesize, ret);
 		perror(buffer);
 		exit(1);
-	}		
+	}
 }
 
 /*---------------------------------------------------------------------------*
@@ -223,7 +223,7 @@ void move_ch(int src, int dst)
 {
 	unsigned char *s, *d;
 	int offset = 0;
-	
+
 	if(ch_width == WIDTH16)
 		offset = 2;
 	else
@@ -231,7 +231,7 @@ void move_ch(int src, int dst)
 
 	s = &(fonttab[ch_height * offset * src]);
 	d = &(fonttab[ch_height * offset * dst]);
-		
+
 	bcopy(s, d, (ch_height*offset));	/* src -> dst */
 }
 
@@ -243,7 +243,7 @@ void xchg_ch(int src, int dst)
 	unsigned char *s, *d;
 	unsigned char buf[32];
 	int offset = 0;
-	
+
 	if(ch_width == WIDTH16)
 		offset = 2;
 	else
@@ -251,7 +251,7 @@ void xchg_ch(int src, int dst)
 
 	s = &(fonttab[ch_height * offset * src]);
 	d = &(fonttab[ch_height * offset * dst]);
-		
+
 	bcopy(s, buf, (ch_height*offset));	/* src -> tmp */
 	bcopy(d, s, (ch_height*offset));	/* dst -> src */
 	bcopy(buf, d, (ch_height*offset));	/* tmp -> dst */
@@ -266,19 +266,19 @@ void display(int no)
 	char line[32];
 	int ln_no;
 	unsigned char hibyte;
-	unsigned char lobyte;	
+	unsigned char lobyte;
 	int offset;
 	int r;
 
 	offset = 0;
 	r = 1;
 	lobyte = 0;
-	
+
 	if(ch_width == WIDTH16)
 		fontchar = &(fonttab[ch_height * 2 * no]);
 	else
 		fontchar = &(fonttab[ch_height * no]);
-		
+
 	for (ln_no = 0; ln_no < ch_height; ln_no++)
 	{
 		hibyte = *(fontchar + (offset++));
@@ -287,7 +287,7 @@ void display(int no)
 		{
 			lobyte = *(fontchar + offset++);
 		}
-			
+
 		strcpy(line,bitmask[(int)((hibyte >> 4) & 0x0f)]);
 		strcat(line,bitmask[(int)(hibyte & 0x0f)]);
 
@@ -317,7 +317,7 @@ void save_ch(void)
 	int r, c;
 	unsigned short byte;
 	unsigned short shift;
-	
+
 	if(ch_width == WIDTH16)
 		offset = 2;
 	else
@@ -326,7 +326,7 @@ void save_ch(void)
 	s = &(fonttab[ch_height * offset * curchar]);
 
 	r = 1;
-	
+
 	while(r <= ch_height)
 	{
 		c = 1;

@@ -20,10 +20,10 @@ SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	stab.c stats.c sysexits.c trace.c udb.c usersmtp.c \
 	util.c version.c
 DPADD=	${LIBDBM} ${LIBCOMPAT}
-LDADD=	
+LDADD=
 MAN1=	mailq.0 newaliases.0
 MAN5=	aliases.0
-MAN8=	sendmail.0 
+MAN8=	sendmail.0
 LINKS=	${DESTDIR}/usr/sbin/sendmail ${DESTDIR}/usr/bin/newaliases \
 	${DESTDIR}/usr/sbin/sendmail ${DESTDIR}/usr/bin/mailq
 BINDIR=	/usr/sbin

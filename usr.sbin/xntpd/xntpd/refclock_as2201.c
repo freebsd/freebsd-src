@@ -56,7 +56,7 @@
  * available using a gadget box and 1-pps signal from the receiver. This
  * improves the accuracy to the order of a few tens of microseconds. In
  * addition, the serial output and 1-pps signal can be bussed to
- * additional receivers. 
+ * additional receivers.
  */
 
 /*

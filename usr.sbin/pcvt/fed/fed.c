@@ -14,7 +14,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    This product includes software developed by Hellmuth Michaelis.
- * 4. The name of the developer may not be used to endorse or promote 
+ * 4. The name of the developer may not be used to endorse or promote
  *    products derived from this software without specific prior written
  *    permission.
  *
@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	fed.c, 3.00, last edit-date: [Sun Jan  2 20:08:45 1994]   
+ * 	fed.c, 3.00, last edit-date: [Sun Jan  2 20:08:45 1994]
  */
 
 /*---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ void main(int argc, char *argv[])
 	int i;
 	int row, col;
 	int ret;
-	
+
 	if(argc != 2)
 	{
 		fprintf(stderr,"EGA/VGA Fonteditor, Rel 1.00\n");
@@ -81,10 +81,10 @@ void main(int argc, char *argv[])
 	if(ch_width == WIDTH16)
 		addstr("1234567890123456");
 	else
-		addstr("12345678");	
+		addstr("12345678");
 
 /* charcater vertical ruler */
-	
+
 	for(i=1; i < ch_height+1; i++)
 		mvprintw((WINROW+i), (CHCOL + ((WIDTH16 - ch_width)/2) - 2), "%2d", i);
 
@@ -112,19 +112,19 @@ void main(int argc, char *argv[])
 
 	cmd_win = newwin(((WSIZE)+(2*WBORDER)),(CMDSIZE+(2*WBORDER)),
 				WINROW,CMDCOL);
-	keypad(cmd_win,TRUE);				
+	keypad(cmd_win,TRUE);
 	idlok(cmd_win, TRUE);
 	box(cmd_win,'|','-');
 
 	sel_mode();
-	
+
 /* character font window */
 
 	ch_win = newwin((ch_height+(2*WBORDER)),(ch_width+(2*WBORDER)),
 				WINROW, CHCOL+((WIDTH16 - ch_width)/2));
 	keypad(ch_win,TRUE);
 	idlok(ch_win, TRUE);
-	
+
 	box(ch_win,'|','-');
 	wrefresh(ch_win);
 
@@ -132,7 +132,7 @@ void main(int argc, char *argv[])
 
 	set_win = newwin((WSIZE+(2*WBORDER)),((WSIZE*2)+(2*WBORDER)),
 				WINROW,SETCOL); /* whole character set */
-	keypad(set_win,TRUE);				
+	keypad(set_win,TRUE);
 	idlok(set_win, TRUE);
 
 	box(set_win,'|','-');
@@ -152,10 +152,10 @@ void main(int argc, char *argv[])
 	wmove(set_win,1,1);
 	wrefresh(set_win);
 
-/* start */	
+/* start */
 
 	clr_cmd();
-	
+
 	curchar = 0;
 
 	if((ret = selectc()) == 1)

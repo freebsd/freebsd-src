@@ -146,7 +146,7 @@ struct ctl_var peer_var[] = {
 	{ CP_RECEIVED,	UI,	"received" },	/* 31 */
 	{ CP_SENT,	UI,	"sent" },	/* 32 */
 	{ CP_FILTERROR,	AR,	"filterror" },	/* 33 */
-	{ CP_FLASH,     TST,	"flash"},	/* 34 */ 
+	{ CP_FLASH,     TST,	"flash"},	/* 34 */
 	{ CP_DISP,      AR,	"disp" },	/* 35 */
 	/*
 	 * These are duplicate entries so that we can
@@ -608,7 +608,7 @@ openhost(hname)
 
 	if (!getnetnum(hname, &netnum, temphost))
 		return 0;
-	
+
 	if (debug > 2)
 		printf("Opening host %s\n", temphost);
 
@@ -627,7 +627,7 @@ openhost(hname)
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd == -1)
 		error("socket", "", "");
-	
+
 #if defined(SYS_HPUX) && (SYS_HPUX < 8)
 #ifdef SO_RCVBUF
 	{ int rbufsize = DATASIZE + 2048;	/* 2K for slop */
@@ -641,7 +641,7 @@ openhost(hname)
 	if (connect(sockfd, (struct sockaddr *)&hostaddr,
 		    sizeof(hostaddr)) == -1)
 		error("connect", "", "");
-	
+
 	havehost = 1;
 	return 1;
 }
@@ -726,7 +726,7 @@ again:
 		tvo = tvout;
 	else
 		tvo = tvsout;
-	
+
 	FD_SET(sockfd, &fds);
 	n = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
 
@@ -954,22 +954,22 @@ again:
 			printf("Number of fragments exceeds maximum\n");
 		return ERR_TOOMUCH;
 	}
-	
+
 	for (n = 0; n < numfrags; n++) {
 		if (offset == offsets[n])
 			goto again;	/* duplicate */
 		if (offset < offsets[n])
 			break;
 	}
-	
+
 	if ((u_short)(n > 0 && offsets[n-1] + counts[n-1]) > offset)
 		goto overlap;
 	if (n < numfrags && (u_short)(offset + count) > offsets[n])
 		goto overlap;
-	
+
 	{
 		register int i;
-		
+
 		for (i = numfrags; i > n; i--) {
 			offsets[i] = offsets[i-1];
 			counts[i] = counts[i-1];
@@ -1162,7 +1162,7 @@ again:
 	res = sendrequest(opcode, associd, auth, qsize, qdata);
 	if (res != 0)
 		return res;
-	
+
 	/*
 	 * Get the response.  If we got a standard error, print a message
 	 */
@@ -1286,7 +1286,7 @@ docmd(cmdline)
 	tokenize(cmdline, tokens, &ntok);
 	if (ntok == 0)
 		return;
-	
+
 	/*
 	 * Find the appropriate command description.
 	 */
@@ -1300,7 +1300,7 @@ docmd(cmdline)
 		    tokens[0]);
 		return;
 	}
-	
+
 	/*
 	 * Save the keyword, then walk through the arguments, interpreting
 	 * as we go.
@@ -1623,7 +1623,7 @@ rtdatetolfp(str, lfp)
 
 	if (*cp++ != '-')
 		return 0;
-	
+
 	for (i = 0; i < 3; i++)
 		buf[i] = *cp++;
 	buf[3] = '\0';
@@ -1637,7 +1637,7 @@ rtdatetolfp(str, lfp)
 
 	if (*cp++ != '-')
 		return 0;
-	
+
 	if (!isdigit(*cp))
 		return 0;
 	cal.year = *cp++ - '0';
@@ -2488,7 +2488,7 @@ statustoa(type, st)
 		(void)strcat(cb, ", ");
 		(void)strcat(cb, getcode(CTL_SYS_EVENT(st), sys_codes));
 		break;
-	
+
 	case TYPE_PEER:
 		/*
 		 * Handcraft the bits
@@ -2535,7 +2535,7 @@ statustoa(type, st)
 			    peer_codes));
 		}
 		break;
-	
+
 	case TYPE_CLOCK:
 		(void)strcpy(cb, getcode(((st)>>8) & 0xff, clock_codes));
 		(void)strcat(cb, ", last_");
@@ -2573,7 +2573,7 @@ nextvar(datalen, datap, vname, vvalue)
 		cp++;
 	if (cp == cpend)
 		return 0;
-	
+
 	/*
 	 * Copy name until we hit a ',', an '=', a '\r' or a '\n'.  Backspace
 	 * over any white space and terminate it.
@@ -2800,7 +2800,7 @@ outputarr(fp, name, narr, lfp)
 	 */
 	if ((int)strlen(name) < 10)
 		*bp++ = ' ';
-	
+
 	for (i = narr; i > 0; i--) {
 		if (i != narr)
 			*bp++ = ' ';
@@ -2937,14 +2937,14 @@ cookedprint(datatype, length, data, status, fp)
 					}
 				}
 				break;
-			
+
 			case UI:
 				if (!decodeuint(value, &uval))
 					output_raw = '?';
 				else
 					output(fp, name, uinttoa(uval));
 				break;
-			
+
 			case IN:
 				if (!decodeint(value, &ival))
 					output_raw = '?';
@@ -2961,11 +2961,11 @@ cookedprint(datatype, length, data, status, fp)
 				else
 					output(fp, name, numtoa(hval));
 				break;
-			
+
 			case ST:
 				output_raw = '*';
 				break;
-			
+
 			case RF:
 				if (decodenetnum(value, &hval))
 					output(fp, name, nntohost(hval));
@@ -3000,14 +3000,14 @@ cookedprint(datatype, length, data, status, fp)
 					output(fp, name, b);
 				}
 				break;
-			
+
 			case MD:
 				if (!decodeuint(value, &uval))
 					output_raw = '?';
 				else
 					output(fp, name, uinttoa(uval));
 				break;
-			
+
 			case AR:
 				if (!decodearr(value, &narr, lfparr))
 					output_raw = '?';
@@ -3021,7 +3021,7 @@ cookedprint(datatype, length, data, status, fp)
 				else
 					output(fp, name, tstflags(uval));
 				break;
-			
+
 			default:
 				(void) fprintf(stderr,
 			"Internal error in cookedprint, %s=%s, fmt %d\n",

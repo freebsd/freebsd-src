@@ -37,7 +37,7 @@
  *
  *	@(#)os-convex.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-convex.h,v 5.2.2.1 1992/02/09 15:10:16 jsp beta $
+ * $Id: os-convex.h,v 1.1.1.1 1994/05/26 05:22:07 rgrimes Exp $
  *
  * Convex C220, version 7.1 definitions for Amd (automounter)
  *         from Eitan Mizrotsky <eitan@shum.huji.ac.il>
@@ -48,33 +48,33 @@
  * Does the compiler grok void *
  */
 #undef	VOIDP
- 
+
 /*
  * Which version of the Sun RPC library we are using
  * This is the implementation release number, not
  * the protocol revision number.
  */
 #define	RPC_3
- 
+
 /*
  * Which version of the NFS interface are we using.
  * This is the implementation release number, not
  * the protocol revision number.
  */
 #define	NFS_3
- 
+
 /*
  * Byte ordering
  */
 #undef ARCH_ENDIAN
 #define	ARCH_ENDIAN	"big"
- 
+
 /*
  * Name of filesystem types
  */
 #define	MOUNT_TYPE_UFS	MOUNT_UFS
 #define MOUNT_TYPE_NFS	MOUNT_NFS
- 
- 
+
+
 #define strrchr rindex
 #define strchr  index

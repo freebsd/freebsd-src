@@ -1,23 +1,23 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 1.8 1994/08/24 23:53:54 thyagara Exp $
+ * $Id: mapper.c,v 1.2 1994/09/08 02:51:19 wollman Exp $
  */
 
 /*
  * Copyright (c) Xerox Corporation 1992. All rights reserved.
- *  
+ *
  * License is granted to copy, to use, and to make and to use derivative
  * works for research and evaluation purposes, provided that Xerox is
  * acknowledged in all documentation pertaining to any such copy or derivative
  * work. Xerox grants no other licenses expressed or implied. The Xerox trade
  * name should not be used in any advertising without its written permission.
- *  
+ *
  * XEROX CORPORATION MAKES NO REPRESENTATIONS CONCERNING EITHER THE
  * MERCHANTABILITY OF THIS SOFTWARE OR THE SUITABILITY OF THIS SOFTWARE
  * FOR ANY PARTICULAR PURPOSE.  The software is provided "as is" without
  * express or implied warranty of any kind.
- *  
+ *
  * These notices must be retained in any copies of any part of this software.
  */
 
@@ -354,10 +354,10 @@ void accept_neighbors(src, dst, p, datalen, level)
 	    ifc_node->tries = -1;
 	    ifc_node->u.alias = node;
 	}
-	
+
 	ifc = find_interface(ifc_addr, node);
 	old_neighbors = ifc->neighbors;
-	
+
 	/* Add the neighbors for this interface */
 	while (ncount--) {
 	    u_long 	neighbor;
@@ -490,10 +490,10 @@ void accept_neighbors2(src, dst, p, datalen)
 	    ifc_node->tries = -1;
 	    ifc_node->u.alias = node;
 	}
-	
+
 	ifc = find_interface(ifc_addr, node);
 	old_neighbors = ifc->neighbors;
-	
+
 	/* Add the neighbors for this interface */
 	while (ncount--) {
 	    u_long 	neighbor;
@@ -586,7 +586,7 @@ void print_map(node)
 {
     if (node) {
 	char *name, *addr;
-	
+
 	print_map(node->left);
 
 	addr = inet_fmt(node->addr, s1);
@@ -794,7 +794,7 @@ main(argc, argv)
     char *argv[];
 {
     int flood = FALSE, graph = FALSE;
-    
+
 #ifdef SYSV
     setvbuf(stderr, NULL, _IOLBF, 0);
 #else
@@ -837,7 +837,7 @@ main(argc, argv)
     }
 
     if (argc > 1) {
-      usage:	
+      usage:
 	fprintf(stderr,
 		"Usage: map-mbone [-f] [-g] [-n] [-t timeout] %s\n\n",
 		"[-r retries] [-d [debug-level]] [router]");

@@ -61,7 +61,7 @@ extern int errno;
 
 /*
  * This controls whether stats are written to the fileset. Provided
- * so that xntpdc can turn off stats when the file system fills up. 
+ * so that xntpdc can turn off stats when the file system fills up.
  */
 int stats_control;
 
@@ -90,7 +90,7 @@ init_util()
 	peerstats.type     = FILEGEN_DAY;
 	peerstats.flag     = FGEN_FLAG_LINK; /* not yet enabled !!*/
 	filegen_register("peerstats", &peerstats);
-	
+
 	loopstats.fp       = NULL;
 	loopstats.prefix   = &statsdir[0];
 	loopstats.basename = emalloc(strlen(LOOPNAME)+1);
@@ -173,7 +173,7 @@ hourly_stats()
 	syslog(LOG_INFO, "offset %s freq %s poll %d",
 	    lfptoa(&last_offset, 6), fptoa(drift_comp, 3),
 	    sys_poll);
-	
+
 	if (stats_drift_file != 0) {
 		if ((fp = fopen(stats_temp_file, "w")) == NULL) {
 			syslog(LOG_ERR, "can't open %s: %m",
@@ -249,7 +249,7 @@ stats_config(item, value)
 		}
 		loop_config(LOOP_DRIFTCOMP, &old_drift, temp);
 		break;
-	
+
 	case STATS_STATSDIR:
 		if (strlen(value) >= sizeof(statsdir)) {
 			syslog(LOG_ERR,
@@ -413,7 +413,7 @@ getauthkeys(keyfile)
 	len = strlen(keyfile);
 	if (len == 0)
 		return;
-	
+
 	if (key_file_name != 0) {
 		if (len > (int)strlen(key_file_name)) {
 			(void) free(key_file_name);
@@ -423,7 +423,7 @@ getauthkeys(keyfile)
 
 	if (key_file_name == 0)
 		key_file_name = emalloc((u_int)(len + 1));
-	
+
 	memmove(key_file_name, keyfile, len+1);
 
 	authreadkeys(key_file_name);

@@ -181,7 +181,7 @@ main(argc, argv)
 		badsecttable = spc * dp->d_ncylinders - totsize;
 	}
 
-	/* 
+	/*
 	 * Figure out if disk is large enough for
 	 * expanded swap area and 'd', 'e', and 'f'
 	 * partitions.  Otherwise, use smaller defaults

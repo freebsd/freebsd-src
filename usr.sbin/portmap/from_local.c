@@ -1,6 +1,6 @@
  /*
   * Check if an address belongs to the local system. Adapted from:
-  * 
+  *
   * @(#)pmap_svc.c 1.32 91/03/11 Copyright 1984,1990 Sun Microsystems, Inc.
   * @(#)get_myaddress.c  2.1 88/07/29 4.0 RPCSRC.
   */

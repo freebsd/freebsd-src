@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.h,v 1.5 1994/10/24 20:09:21 phk Exp $
+ * $Id: ctm.h,v 1.6 1995/03/04 20:36:45 phk Exp $
  *
  */
 
@@ -66,7 +66,7 @@ EXTERN u_char *FileName;
 EXTERN u_char *BaseDir;
 EXTERN u_char *TmpDir;
 
-/* 
+/*
  * Paranoid -- Just in case they should be after us...
  *  0 not at all.
  *  1 normal.
@@ -75,7 +75,7 @@ EXTERN u_char *TmpDir;
  *
  * Verbose -- What to tell mom...
  *  0 Nothing which wouldn't surprise.
- *  1 Normal. 
+ *  1 Normal.
  *  2 Show progress '.'.
  *  3 Show progress names, and actions.
  *  4 even more...
@@ -89,7 +89,7 @@ EXTERN u_char *TmpDir;
  *  8 Destination-tree not correct.
  * 16 Destination-tree not correct, can force.
  * 32 Internal problems.
- * 
+ *
  */
 
 EXTERN int Paranoid;

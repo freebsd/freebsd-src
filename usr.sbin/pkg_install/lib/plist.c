@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.11 1995/04/22 00:14:20 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.12 1995/04/22 07:41:02 jkh Exp $";
 #endif
 
 /*
@@ -93,7 +93,7 @@ find_plist(Package *pkg, plist_t type)
     }
     return NULL;
 }
- 
+
 /* Look for a specific boolean option argument in the list */
 char *
 find_plist_option(Package *pkg, char *name)
@@ -139,7 +139,7 @@ delete_plist(Package *pkg, Boolean all, plist_t type, char *name)
 	    p = p->next;
     }
 }
-    
+
 /* Allocate a new packing list entry */
 PackingList
 new_plist_entry(void)
@@ -253,7 +253,7 @@ read_plist(Package *pkg, FILE *fp)
 		cp = NULL;
 	}
 	else
-	    cmd = PLIST_FILE; 
+	    cmd = PLIST_FILE;
 	add_plist(pkg, cmd, cp);
     }
 }
@@ -381,7 +381,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	    if (Verbose)
 		printf("Delete%s %s\n",
 		       p->type == PLIST_FILE ? "" : " directory", full_name);
-	    
+
 	    if (!Fake && delete_hierarchy(full_name, ign_err,
 					  p->type == PLIST_DIR_RM ? FALSE : nukedirs)) {
 		whinge("Unable to completely remove file '%s'", full_name);
@@ -407,7 +407,7 @@ int
 delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 {
     char *cp1, *cp2;
-    
+
     cp1 = cp2 = dir;
     if (!fexists(dir)) {
 	if (!ign_err)

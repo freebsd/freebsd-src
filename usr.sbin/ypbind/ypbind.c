@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.12 1995/05/12 16:52:58 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.14 1995/05/29 16:39:52 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -169,7 +169,7 @@ CLIENT *clnt;
 			return &res;
 		}
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
-		if (ypdb == NULL) {	
+		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
 			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
 			return &res;
@@ -338,7 +338,7 @@ int sig;
 	pmap_unset(YPBINDPROG, YPBINDVERS);
 	exit(0);
 }
-	
+
 void
 main(argc, argv)
 int argc;
@@ -757,7 +757,7 @@ int force;
 		if (force == 0)
 			return;
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
-		if (ypdb == NULL) {	
+		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
 			return;
 		}

@@ -7,12 +7,12 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.h,v 1.3 1994/08/24 23:54:40 thyagara Exp $
+ * $Id: prune.h,v 1.2 1994/09/08 02:51:24 wollman Exp $
  */
 
-/* 
+/*
  * Macro for copying the user-level cache table to the kernel
- * level table variable passed on by the setsock option 
+ * level table variable passed on by the setsock option
  */
 
 #define COPY_TABLES(from, to) { \
@@ -34,7 +34,7 @@
  * an extra field in the user level table.
  *
  */
-struct ktable 
+struct ktable
 {
     struct ktable  *kt_next;       	/* pointer to the next entry        */
     u_long	    kt_origin;		/* subnet origin of multicasts      */
@@ -57,7 +57,7 @@ struct ktable
 /*
  * structure to store incoming prunes
  */
-struct prunlst 
+struct prunlst
 {
     struct prunlst *rl_next;
     u_long	    rl_router;
@@ -120,4 +120,4 @@ struct tr_resp {
 
 #define VAL_TO_MASK(x, i) { \
 			x = ~((1 << (32 - (i))) - 1); \
-			}				
+			}

@@ -29,7 +29,7 @@ main (int argc, char **argv)
     int rc;
 
     switch (argc) {
-      case 2:  cdname = argv[1]; 
+      case 2:  cdname = argv[1];
           break;
       case 1:  if(cdname = getenv("CDPLAY"))
 	  /* Break if CDPLAY is set */
@@ -173,7 +173,7 @@ int
 setvol (int l, int r)
 {
     struct ioc_vol v;
-    
+
     v.vol[0] = l;
     v.vol[1] = r;
     v.vol[2] = 0;
@@ -181,10 +181,10 @@ setvol (int l, int r)
     return ioctl (cd_fd, CDIOCSETVOL, &v);
 }
 int
-getvol (int  *l, int *r) 
+getvol (int  *l, int *r)
 {
     struct ioc_vol v;
-    if (ioctl (cd_fd, CDIOCGETVOL, &v) < 0) 
+    if (ioctl (cd_fd, CDIOCGETVOL, &v) < 0)
 	return -1;
     *l = v.vol[0];
     *r = v.vol[1];
@@ -207,7 +207,7 @@ read_toc_entrys (int len)
     return ioctl (cd_fd, CDIOREADTOCENTRYS, (char *) &t);
 }
 int
-play_msf (int start_m, int start_s, int start_f, 
+play_msf (int start_m, int start_s, int start_f,
 	  int end_m, int end_s, int end_f)
 {
     struct ioc_play_msf a;
@@ -231,7 +231,7 @@ status (int *trk, int *min, int *sec, int *frame)
     s.address_format = CD_MSF_FORMAT;
     s.data_format = CD_CURRENT_POSITION;
     open_cd ();
-    if (ioctl (cd_fd, CDIOCREADSUBCHANNEL, (char *) &s) < 0) 
+    if (ioctl (cd_fd, CDIOCREADSUBCHANNEL, (char *) &s) < 0)
 	    return -1;
     *trk = s.data->what.position.track_number;
     *min = s.data->what.position.reladdr.msf.minute;
@@ -239,7 +239,7 @@ status (int *trk, int *min, int *sec, int *frame)
     *frame = s.data->what.position.reladdr.msf.frame;
     return s.data->header.audio_status;
 }
-    
+
 int
 input ()
 {

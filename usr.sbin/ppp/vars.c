@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
- * 
+ * $Id: vars.c,v 1.2 1995/02/26 12:18:05 amurai Exp $
+ *
  */
 #include "fsm.h"
 #include "command.h"
@@ -46,7 +46,7 @@ struct confdesc pppConfs[] = {
 
 struct pppvars pppVars = {
   DEF_MRU, 0, MODEM_SPEED, CS8, 180, 30, 3,
-  MODEM_DEV, OPEN_PASSIVE, LOCAL_NO_AUTH, 
+  MODEM_DEV, OPEN_PASSIVE, LOCAL_NO_AUTH,
 };
 
 int

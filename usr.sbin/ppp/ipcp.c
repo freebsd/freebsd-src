@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.2 1995/02/26 12:17:33 amurai Exp $
- * 
+ * $Id: ipcp.c,v 1.3 1995/03/11 15:18:44 amurai Exp $
+ *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
  */
@@ -331,7 +331,7 @@ int mode;
           bcopy(&IpcpInfo.his_ipaddr.s_addr, nakp+2, length);
           nakp += length;
           break;
-	  
+
 	}
 	IpcpInfo.his_ipaddr = ipaddr;
 	bcopy(cp, ackp, length);

@@ -94,7 +94,7 @@ rip_input(from, rip, size)
 			    n->rip_dst.sa_len = sizeof(n->rip_dst);
 #endif
 			n->rip_metric = ntohl(n->rip_metric);
-			/* 
+			/*
 			 * A single entry with sa_family == AF_UNSPEC and
 			 * metric ``infinity'' means ``all routes''.
 			 * We respond to routers only if we are acting
@@ -164,7 +164,7 @@ rip_input(from, rip, size)
 			}
 			rt = rtfind(from);
 			if (rt == 0 || ((rt->rt_state & RTS_INTERFACE) == 0) &&
-			    rt->rt_metric >= ifp->int_metric) 
+			    rt->rt_metric >= ifp->int_metric)
 				addrouteforif(ifp);
 			else
 				rt->rt_timer = 0;

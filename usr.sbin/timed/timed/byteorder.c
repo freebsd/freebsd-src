@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)byteorder.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.3 $"
+#ident "$Revision: 1.1.1.1 $"
 #endif
 
 #include "globals.h"
@@ -59,7 +59,7 @@ bytenetorder(ptr)
 		ptr->tsp_time.tv_sec = htonl((u_long)ptr->tsp_time.tv_sec);
 		ptr->tsp_time.tv_usec = htonl((u_long)ptr->tsp_time.tv_usec);
 		break;
-	
+
 	default:
 		break;		/* nothing more needed */
 	}
@@ -79,7 +79,7 @@ bytehostorder(ptr)
 		ptr->tsp_time.tv_sec = ntohl((u_long)ptr->tsp_time.tv_sec);
 		ptr->tsp_time.tv_usec = ntohl((u_long)ptr->tsp_time.tv_usec);
 		break;
-	
+
 	default:
 		break;		/* nothing more needed */
 	}

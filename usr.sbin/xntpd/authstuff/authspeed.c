@@ -84,7 +84,7 @@ char *argv[];
 		case 'n':
 			loops = atoi(ntp_optarg);
 			if (loops <= 0) {
-				(void) fprintf(stderr, 
+				(void) fprintf(stderr,
 			"%s: %s is unlikely to be a useful number of loops\n",
 					       progname, ntp_optarg);
 				errflg++;
@@ -182,22 +182,22 @@ dodelay(loops)
 	/*
 	 *  If we're attempting to compute the cost of an auth2crypt()
 	 *  for first compute the total cost, then compute the
-	 *  cost of only doing the first step, auth1crypt().  What 
+	 *  cost of only doing the first step, auth1crypt().  What
 	 *  remains is the cost of auth2crypt.
 	 */
 	loopcount = loops;
 	(void) gettimeofday(&tstart, (struct timezone *)0);
 	(void) getrusage(RUSAGE_SELF, &rstart);
-	
+
 	while (loopcount-- > 0) {
 		auth1crypt((loops & 0xf) + domd5, pkt, 48);
 		L_ADDUF(&dummy1, dummy3);
 		auth2crypt((loops & 0xf) + domd5, pkt, 48);
 	}
-	
+
 	(void) getrusage(RUSAGE_SELF, &rend);
 	(void) gettimeofday(&tend, (struct timezone *)0);
-	
+
 	subtime(&tstart, &tend, &rtime1);
 #ifdef FAKE_RUSAGE
 	vtime1 = (rend.tms_utime - rstart.tms_utime) * 1.0 / HZ;

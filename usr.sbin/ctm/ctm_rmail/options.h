@@ -15,7 +15,7 @@
  *
  * For example:
  *	zap -xz -f flame -q34 -- -x
- * 
+ *
  * where zap.c contains the following in main():
  *
  *	OPTIONS("[-xz] [-q queue-id] [-f dump-file] user")

@@ -1,13 +1,13 @@
 /*
  * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.13 1994/05/12 12:49:31 kardel Exp
- *  
+ *
  * testdcf.c,v 3.13 1994/05/12 12:49:31 kardel Exp
  *
  * simple DCF77 100/200ms pulse test program (via 50Baud serial line)
  *
  * Copyright (c) 1993,1994
  * Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -112,7 +112,7 @@ typedef struct clocktime clocktime_t;
  * 59		      - usually missing (minute indication), except for leap insertion
  */
 
-static struct rawdcfcode 
+static struct rawdcfcode
 {
   char offset;			/* start bit */
 } rawdcfcode[] =
@@ -165,7 +165,7 @@ static unsigned long ext_bf(buf, idx)
   register int i, first;
 
   first = rawdcfcode[idx].offset;
-  
+
   for (i = rawdcfcode[idx+1].offset - 1; i >= first; i--)
     {
       sum <<= 1;
@@ -199,7 +199,7 @@ static unsigned long convert_rawdcf(buffer, size, clock)
       printf("%-30s", "*** INCOMPLETE");
       return CVT_NONE;
     }
-  
+
   /*
    * check Start and Parity bits
    */

@@ -262,7 +262,7 @@ rip_input(from, size)
 		    n->rip_metric);
 		break;
 		}
-			
+
 	    }
 	    size -= sizeof (struct netinfo), n++;
 	}

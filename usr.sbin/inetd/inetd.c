@@ -39,8 +39,8 @@ static char copyright[] =
 
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
-static char inetd_c_rcsid[] = 
-	"$Id$";
+static char inetd_c_rcsid[] =
+	"$Id: inetd.c,v 1.4 1994/12/21 19:08:45 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -58,7 +58,7 @@ static char inetd_c_rcsid[] =
  * to receive further messages on, or ``take over the socket'',
  * processing all arriving datagrams and, eventually, timing
  * out.	 The first type of server is said to be ``multi-threaded'';
- * the second type of server ``single-threaded''. 
+ * the second type of server ``single-threaded''.
  *
  * Inetd uses a configuration file which is read at startup
  * and, possibly, at some later time in response to a hangup signal.
@@ -460,7 +460,7 @@ main(argc, argv, envp)
 				if (pwd->pw_uid) {
 					if (setgid(pwd->pw_gid) < 0) {
 						syslog(LOG_ERR,
-						  "%s: can't set gid %d: %m", 
+						  "%s: can't set gid %d: %m",
 						  sep->se_service, pwd->pw_gid);
 						_exit(1);
 					}
@@ -468,7 +468,7 @@ main(argc, argv, envp)
 							pwd->pw_gid);
 					if (setuid(pwd->pw_uid) < 0) {
 						syslog(LOG_ERR,
-						  "%s: can't set uid %d: %m", 
+						  "%s: can't set uid %d: %m",
 						  sep->se_service, pwd->pw_uid);
 						_exit(1);
 					}
@@ -500,7 +500,7 @@ reapchild(signo)
 		if (pid <= 0)
 			break;
 		if (debug)
-			fprintf(stderr, "%d reaped, status %#x\n", 
+			fprintf(stderr, "%d reaped, status %#x\n",
 				pid, status);
 		for (sep = servtab; sep; sep = sep->se_next)
 			if (sep->se_wait == pid) {
@@ -550,10 +550,10 @@ config(signo)
 			/*
 			 * sep->se_wait may be holding the pid of a daemon
 			 * that we're waiting for.  If so, don't overwrite
-			 * it unless the config file explicitly says don't 
+			 * it unless the config file explicitly says don't
 			 * wait.
 			 */
-			if (cp->se_bi == 0 && 
+			if (cp->se_bi == 0 &&
 			    (sep->se_wait == 1 || cp->se_wait == 0))
 				sep->se_wait = cp->se_wait;
 #define SWAP(a, b) { char *c = a; a = b; b = c; }
@@ -685,7 +685,7 @@ setup(sep)
 
 	if ((sep->se_fd = socket(AF_INET, sep->se_socktype, 0)) < 0) {
 		if (debug)
-			fprintf(stderr, "socket failed on %s/%s: %s\n", 
+			fprintf(stderr, "socket failed on %s/%s: %s\n",
 				sep->se_service, sep->se_proto,
 				strerror(errno));
 		syslog(LOG_ERR, "%s/%s: socket: %m",
@@ -719,13 +719,13 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
         if (sep->se_rpc) {
                 int i, len = sizeof(struct sockaddr);
 
-                if (getsockname(sep->se_fd, 
+                if (getsockname(sep->se_fd,
 				(struct sockaddr*)&sep->se_ctrladdr, &len) < 0){
                         syslog(LOG_ERR, "%s/%s: getsockname: %m",
                                sep->se_service, sep->se_proto);
                         (void) close(sep->se_fd);
                         sep->se_fd = -1;
-                        return;       
+                        return;
                 }
                 if (debug)
                         print_service("REG ", sep);
@@ -736,7 +736,7 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
                                  ? IPPROTO_UDP : IPPROTO_TCP,
                                  ntohs(sep->se_ctrladdr.sin_port));
                 }
-                     
+
         }
 	if (sep->se_socktype == SOCK_STREAM)
 		listen(sep->se_fd, 10);
@@ -889,8 +889,8 @@ more:
                                         sep->se_rpc_lowvers;
                                 break;
                         default:
-                                syslog(LOG_ERR, 
-					"bad RPC version specifier; %s\n", 
+                                syslog(LOG_ERR,
+					"bad RPC version specifier; %s\n",
 					sep->se_service);
                                 freeconfig(sep);
                                 goto more;
@@ -911,13 +911,13 @@ more:
 		sep->se_wait = 0;
 
 		if (strcmp(sep->se_proto, "tcp")) {
-			syslog(LOG_ERR, 
+			syslog(LOG_ERR,
 				"%s: bad protocol for tcpmux service %s",
 				CONFIG, sep->se_service);
 			goto more;
 		}
 		if (sep->se_socktype != SOCK_STREAM) {
-			syslog(LOG_ERR, 
+			syslog(LOG_ERR,
 				"%s: bad socket type for tcpmux service %s",
 				CONFIG, sep->se_service);
 			goto more;
@@ -1055,9 +1055,9 @@ setproctitle(a, s)
 	cp = Argv[0];
 	size = sizeof(sin);
 	if (getpeername(s, (struct sockaddr *)&sin, &size) == 0)
-		(void) sprintf(buf, "-%s [%s]", a, inet_ntoa(sin.sin_addr)); 
+		(void) sprintf(buf, "-%s [%s]", a, inet_ntoa(sin.sin_addr));
 	else
-		(void) sprintf(buf, "-%s", a); 
+		(void) sprintf(buf, "-%s", a);
 	strncpy(cp, buf, LastArg - cp);
 	cp += strlen(cp);
 	while (cp < LastArg)
@@ -1098,7 +1098,7 @@ int check_loop(sin, sep)
 		if (sin->sin_port == se2->se_ctrladdr.sin_port) {
 			syslog(LOG_WARNING,
 			       "%s/%s:%s/%s loop request REFUSED from %s",
-			       sep->se_service, sep->se_proto, 
+			       sep->se_service, sep->se_proto,
 			       se2->se_service, se2->se_proto,
 			       inet_ntoa(sin->sin_addr));
 			return 1;
@@ -1118,7 +1118,7 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 	struct sockaddr_in sin;
 
 	size = sizeof(sin);
-	if ((i = recvfrom(s, buffer, sizeof(buffer), 0, 
+	if ((i = recvfrom(s, buffer, sizeof(buffer), 0,
 			  (struct sockaddr *)&sin, &size)) < 0)
 		return;
 
@@ -1226,7 +1226,7 @@ chargen_dg(s, sep)		/* Character generator */
 	}
 
 	size = sizeof(sin);
-	if (recvfrom(s, text, sizeof(text), 0, 
+	if (recvfrom(s, text, sizeof(text), 0,
 		     (struct sockaddr *)&sin, &size) < 0)
 		return;
 
@@ -1243,7 +1243,7 @@ chargen_dg(s, sep)		/* Character generator */
 		rs = ring;
 	text[LINESIZ] = '\r';
 	text[LINESIZ + 1] = '\n';
-	(void) sendto(s, text, sizeof(text), 0, 
+	(void) sendto(s, text, sizeof(text), 0,
 		      (struct sockaddr *)&sin, sizeof(sin));
 }
 
@@ -1293,7 +1293,7 @@ machtime_dg(s, sep)
 	int size;
 
 	size = sizeof(sin);
-	if (recvfrom(s, (char *)&result, sizeof(result), 0, 
+	if (recvfrom(s, (char *)&result, sizeof(result), 0,
 		     (struct sockaddr *)&sin, &size) < 0)
 		return;
 
@@ -1301,7 +1301,7 @@ machtime_dg(s, sep)
 		return;
 
 	result = machtime();
-	(void) sendto(s, (char *) &result, sizeof(result), 0, 
+	(void) sendto(s, (char *) &result, sizeof(result), 0,
 		      (struct sockaddr *)&sin, sizeof(sin));
 }
 
@@ -1334,7 +1334,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 	clock = time((time_t *) 0);
 
 	size = sizeof(sin);
-	if (recvfrom(s, buffer, sizeof(buffer), 0, 
+	if (recvfrom(s, buffer, sizeof(buffer), 0,
 		     (struct sockaddr *)&sin, &size) < 0)
 		return;
 
@@ -1342,7 +1342,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 		return;
 
 	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
-	(void) sendto(s, buffer, strlen(buffer), 0, 
+	(void) sendto(s, buffer, strlen(buffer), 0,
 		      (struct sockaddr *)&sin, sizeof(sin));
 }
 
@@ -1359,10 +1359,10 @@ print_service(action, sep)
 		fprintf(stderr,
 	    		"%s: %s proto=%s, wait=%d, user=%s builtin=%x server=%s\n",
 	    		action, sep->se_service, sep->se_proto,
-	    		sep->se_wait, sep->se_user, (int)sep->se_bi, 
+	    		sep->se_wait, sep->se_user, (int)sep->se_bi,
 			sep->se_server);
 	else
-		fprintf(stderr, 
+		fprintf(stderr,
 			"%s: %s proto=%s, wait=%d, user=%s builtin=%x server=%s\n",
 			action, sep->se_service, sep->se_proto,
 			sep->se_wait, sep->se_user, (int)sep->se_bi,

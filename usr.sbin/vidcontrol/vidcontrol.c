@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.9 1995/02/22 13:41:27 sos Exp $
+ *	$Id: vidcontrol.c,v 1.10 1995/03/03 21:21:24 dima Exp $
  */
 
 #include <ctype.h>
@@ -166,7 +166,7 @@ print_scrnmap()
 		if (i > 0 && i % 16 == 0)
 			fprintf(stdout, "\n");
 		if (hex)
-			fprintf(stdout, " %02x", map[i]); 
+			fprintf(stdout, " %02x", map[i]);
 		else
 			fprintf(stdout, " %03d", map[i]);
 	}
@@ -174,7 +174,7 @@ print_scrnmap()
 
 }
 
-void 
+void
 load_font(char *type, char *filename)
 {
 	FILE	*fd;
@@ -255,7 +255,7 @@ set_cursor_type(char *appearence)
 	else if (!strcmp(appearence, "destructive"))
 		type = 3;
 	else {
-		fprintf(stderr, 
+		fprintf(stderr,
 		    "argument to -c must be normal, blink or destructive\n");
 		return;
 	}
@@ -292,7 +292,7 @@ video_mode(int argc, char **argv, int *index)
 	}
 	return;
 }
-		
+
 int
 get_color_number(char *color)
 {
@@ -312,8 +312,8 @@ set_normal_colors(int argc, char **argv, int *index)
 	if (*index < argc && (color = get_color_number(argv[*index])) != -1) {
 		(*index)++;
 		fprintf(stderr, "[=%dF", color);
-		if (*index < argc 
-		    && (color = get_color_number(argv[*index])) != -1 
+		if (*index < argc
+		    && (color = get_color_number(argv[*index])) != -1
 		    && color < 8) {
 			(*index)++;
 			fprintf(stderr, "[=%dG", color);
@@ -327,8 +327,8 @@ set_reverse_colors(int argc, char **argv, int *index)
 
 	if ((color = get_color_number(argv[*(index)-1])) != -1) {
 		fprintf(stderr, "[=%dH", color);
-		if (*index < argc 
-		    && (color = get_color_number(argv[*index])) != -1 
+		if (*index < argc
+		    && (color = get_color_number(argv[*index])) != -1
 		    && color < 8) {
 			(*index)++;
 			fprintf(stderr, "[=%dI", color);
@@ -344,7 +344,7 @@ set_border_color(char *arg)
 		fprintf(stderr, "[=%dA", color);
 	}
 	else
-		usage(); 
+		usage();
 }
 
 test_frame()
@@ -356,11 +356,11 @@ test_frame()
 		fprintf(stdout, "[=15F[=0G        %2d [=%dF%-16s"
 				"[=15F[=0G        %2d [=%dF%-16s        "
 				"[=15F %2d [=%dGBACKGROUND[=0G\n",
-			i, i, legal_colors[i], i+8, i+8, 
-			legal_colors[i+8], i, i); 
+			i, i, legal_colors[i], i+8, i+8,
+			legal_colors[i+8], i, i);
 	}
 	fprintf(stdout, "[=%dF[=%dG[=%dH[=%dI\n",
-		info.mv_norm.fore, info.mv_norm.back, 
+		info.mv_norm.fore, info.mv_norm.back,
 		info.mv_rev.fore, info.mv_rev.back);
 }
 
@@ -371,7 +371,7 @@ main(int argc, char **argv)
 	extern int	optind;
 	int		opt;
 
-	
+
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0) {
 		perror("Must be on a virtual console");

@@ -37,7 +37,7 @@
  *
  *	@(#)amq.c	8.1 (Berkeley) 6/7/93
  *
- * $Id: amq.c,v 5.2.2.1 1992/02/09 15:09:16 jsp beta $
+ * $Id: amq.c,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp $
  *
  */
 
@@ -54,7 +54,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id: amq.c,v 5.2.2.1 1992/02/09 15:09:16 jsp beta $";
+static char rcsid[] = "$Id: amq.c,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp $";
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
 #endif /* not lint */
 
@@ -115,7 +115,7 @@ printf("%-*.*s %-*.*s %-*.*s %s\n\t%-5d %-7d %-6d %-7d %-7d %-6d %02d/%02d/%02d 
 			*mt->mt_directory ? mt->mt_directory : "/",	/* XXX */
 			*twid, *twid,
 			mt->mt_type,
-			*mwid, *mwid, 
+			*mwid, *mwid,
 			mt->mt_mountinfo,
 			mt->mt_mountpoint,
 
@@ -370,7 +370,7 @@ char *argv[];
 		if (unmount_flag)
 			errs = 1;
 	}
-	
+
 	if (errs) {
 show_usage:
 		fprintf(stderr, "\
@@ -607,7 +607,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 }
 
 /*
- * udpresport creates a datagram socket and attempts to bind it to a 
+ * udpresport creates a datagram socket and attempts to bind it to a
  * secure port.
  * returns: The bound socket, or -1 to indicate an error.
  */

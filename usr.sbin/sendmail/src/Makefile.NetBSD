@@ -17,7 +17,7 @@ PROG=	sendmail
 # spiral snail, but it will work.
 DBMDEF=	-DNEWDB -DNIS
 
-#nasty warning about gcc 2.4.x caused bugs 
+#nasty warning about gcc 2.4.x caused bugs
 CFLAGS=-I${.CURDIR} ${DBMDEF} -DNETISO
 #CFLAGS+=-I${.CURDIR} ${DBMDEF} -DNETISO
 
@@ -28,7 +28,7 @@ SRCS=	alias.c arpadate.c clock.c collect.c conf.c convtime.c daemon.c \
 	util.c version.c
 MAN1=	mailq.0 newaliases.0
 MAN5=	aliases.0
-MAN8=	sendmail.0 
+MAN8=	sendmail.0
 LINKS=	/usr/sbin/sendmail /usr/bin/newaliases \
 	/usr/sbin/sendmail /usr/bin/mailq
 BINDIR=	/usr/sbin

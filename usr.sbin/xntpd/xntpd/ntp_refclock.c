@@ -907,9 +907,9 @@ refclock_ioctl(fd, flags)
 #ifdef CLK
 
 	/*
-	 * The CLK option provides timestamping at the driver level. 
+	 * The CLK option provides timestamping at the driver level.
 	 * It requires the tty_clk streams module and System V STREAMS
-	 * support. 
+	 * support.
 	 */
 	if (flags & (LDISC_CLK | LDISC_CLKPPS | LDISC_ACTS)) {
 		if (ioctl(fd, I_PUSH, "clk") < 0)
@@ -1174,15 +1174,15 @@ refclock_control(srcadr, in, out)
 		}
 		if (in->haveflags & CLK_HAVEFLAG2) {
 			pp->sloppyclockflag &= ~CLK_FLAG2;
-			pp->sloppyclockflag |= in->flags & CLK_FLAG2;           
+			pp->sloppyclockflag |= in->flags & CLK_FLAG2;
 		}
 		if (in->haveflags & CLK_HAVEFLAG3) {
 			pp->sloppyclockflag &= ~CLK_FLAG3;
-			pp->sloppyclockflag |= in->flags & CLK_FLAG3;           
+			pp->sloppyclockflag |= in->flags & CLK_FLAG3;
 		}
 		if (in->haveflags & CLK_HAVEFLAG4) {
 			pp->sloppyclockflag &= ~CLK_FLAG4;
-			pp->sloppyclockflag |= in->flags & CLK_FLAG4;           
+			pp->sloppyclockflag |= in->flags & CLK_FLAG4;
 		}
 		if (in->flags & CLK_FLAG3)
 			(void)refclock_ioctl(pp->io.fd, LDISC_PPS);

@@ -32,8 +32,8 @@ main()
 	else		    big = 0;
     }
     for (i=0; i< sizeof(long); i++) {
-	if (big == 1 && (u.c[i] == (sizeof(long) - i))) { 
-		continue; 
+	if (big == 1 && (u.c[i] == (sizeof(long) - i))) {
+		continue;
        	} else if (big == 0 && (u.c[i] == (i+1))) {
 		continue;
 	} else {

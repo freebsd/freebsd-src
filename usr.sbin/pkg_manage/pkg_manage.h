@@ -1,5 +1,5 @@
-/* 
- * include file for pkg_manage 
+/*
+ * include file for pkg_manage
  *
  *
  * Copyright (c) 1995, Marc van Kempen
@@ -13,7 +13,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  */
 
 #include <sys/types.h>
@@ -48,7 +48,7 @@ typedef struct {
 #define PKG_DELETE 	"/usr/sbin/pkg_delete"
 #define PKG_INFO 	"/usr/sbin/pkg_info"
 #define PKG_ADD 	"/usr/sbin/pkg_add"
-#define TAR 		"/usr/bin/tar" 
+#define TAR 		"/usr/bin/tar"
 #define GUNZIP		"/usr/bin/gunzip"
 
 /* HELP_PATH must have a trailing '/' */
@@ -73,7 +73,7 @@ void    FreeInfo(void);
 void	install_package(char *fname);
 int	get_pkg_index(char *selection);
 void	install_batch(void);
-int	get_desc(char *fname, char **name, char **comment, 
+int	get_desc(char *fname, char **name, char **comment,
 		 char **desc, long *size, char *tmp_file);
 int	exec_catch_errors(char *prog, char *arg, char *fout);
 int	already_installed(char *name);

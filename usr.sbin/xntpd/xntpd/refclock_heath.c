@@ -24,7 +24,7 @@
  * sunset without warning. Since the indicated precision is 100 ms,
  * expect a host synchronized only to this thing to wander to and fro,
  * occasionally being rudely stepped when the offset exceeds the default
- * CLOCK_MAX of 128 ms. 
+ * CLOCK_MAX of 128 ms.
  *
  * The internal DIPswitches should be set to operate at 1200 baud in
  * MANUAL mode and the current year. The external DIPswitches should be

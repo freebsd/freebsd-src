@@ -1,9 +1,9 @@
-# $Id: Makefile,v 1.4 1995/04/24 13:00:49 jkh Exp $
+# $Id: Makefile,v 1.5 1995/05/27 20:05:35 jkh Exp $
 
 PROG=   pkg_manage
 SRCS=   pkg_main.c pkg_manage.c pkg_ui.c version.c
 LDADD+= -ldialog -lncurses -lmytinfo
-DPADD+= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} 
+DPADD+= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 CFLAGS+= -Wall -Wstrict-prototypes -DHELP_PATH=\"${HELPDIR}/\" \
 	 -I${.CURDIR}/../../gnu/lib/libdialog \
 	 -I${.CURDIR}/../../lib/libncurses

@@ -533,7 +533,7 @@ udbmatch(user, field)
 		  case UDB_HESIOD:
 			key.data = keybuf;
 			key.size = keylen;
-			i = hes_udb_get(&key, &info); 
+			i = hes_udb_get(&key, &info);
 			if (i != 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
@@ -621,7 +621,7 @@ udbmatch(user, field)
 			{
 				key.data = ":default:mailname";
 				key.size = strlen(key.data);
-				i = hes_udb_get(&key, &info); 
+				i = hes_udb_get(&key, &info);
 
 				if (i != 0 || info.size <= 0)
 				{

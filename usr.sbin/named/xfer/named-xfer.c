@@ -11,7 +11,7 @@
  * -
  * Copyright (c) 1988, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -27,7 +27,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -41,14 +41,14 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -70,7 +70,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 4.9.1.23 1994/07/22 08:42:39 vixie Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 1.2 1994/09/22 20:45:34 pst Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -202,7 +202,7 @@ main(argc, argv)
 		case 'z':		/* zone == domain */
 			domain = optarg;
 			domain_len = strlen(domain);
-			while ((domain_len > 0) && 
+			while ((domain_len > 0) &&
 					(domain[domain_len-1] == '.'))
 				domain[--domain_len] = '\0';
 			break;
@@ -339,7 +339,7 @@ main(argc, argv)
 	buildprotolist();
 
 	/* init zone data */
- 
+
 	zp = &zone;
 #ifdef STUBS
 	if (stub_only)
@@ -427,7 +427,7 @@ main(argc, argv)
 	}
 	/*NOTREACHED*/
 }
- 
+
 static char *UsageText[] = {
 	"\t-z zone_to_transfer\n",
 	"\t-f db_file\n",
@@ -549,7 +549,7 @@ getzone(zp, serial_no, port)
 			syslog(LOG_ERR, "socket: %m");
 			error++;
 			break;
-		}	
+		}
 		dprintf(2, (ddt, "connecting to server #%d [%s].%d\n",
 			    cnt+1, inet_ntoa(sin.sin_addr),
 			    ntohs(sin.sin_port)));
@@ -559,7 +559,7 @@ getzone(zp, serial_no, port)
 			error++;
 			(void) my_close(s);
 			continue;
-		}	
+		}
 tryagain:
 		n = res_mkquery(QUERY, zp->z_origin, Class,
 				T_SOA, NULL, 0, NULL, buf, bufsize);
@@ -583,7 +583,7 @@ tryagain:
 			syslog(LOG_ERR, "writemsg: %m");
 			error++;
 			(void) my_close(s);
-			continue;	
+			continue;
 		}
 		/*
 		 * Get out your butterfly net and catch the SOA
@@ -630,7 +630,7 @@ tryagain:
 		 *  2) not an authority response
 		 *  3) both the number of answers and authority count < 1)
 		 */
-		if (hp->rcode != NOERROR || !(hp->aa) || 
+		if (hp->rcode != NOERROR || !(hp->aa) ||
 		    (ancount < 1 && aucount < 1)) {
 #ifndef GEN_AXFR
 			if (Class == C_IN) {
@@ -689,7 +689,7 @@ tryagain:
 							type = T_SOA;
 						else if (!nscnt)
 							type = T_NS;
-						else 
+						else
 							type = T_SOA;
 					} else
 #endif
@@ -729,7 +729,7 @@ tryagain:
 						syslog(LOG_ERR,"writemsg: %m");
 						error++;
 						(void) my_close(s);
-						break;	
+						break;
 					}
 				}
 				/*
@@ -805,7 +805,7 @@ tryagain:
 					error++;
 					break;
 				}
-		
+
 			} else {
 #endif /*STUBS*/
 				n = print_output(buf, bufsize, cp);
@@ -941,7 +941,7 @@ read_alarm()
 {
 	read_interrupted = 1;
 }
- 
+
 static int
 netread(fd, buf, len, timeout)
 	int fd;
@@ -1217,7 +1217,7 @@ print_output(msg, msglen, rrp)
 	 * that might have been altered by ignored records.
 	 * (This means that we sometimes output unnecessary $ORIGIN
 	 * lines, but that is harmless.)
-	 * 
+	 *
 	 * Also update prev_comment now.
 	 */
 	if (prev_comment && ignore[0] == '\0') {

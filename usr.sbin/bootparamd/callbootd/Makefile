@@ -1,9 +1,9 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$Id: Makefile,v 1.3 1995/03/01 20:36:20 jkh Exp $
+#	$Id: Makefile,v 1.4 1995/03/02 22:00:33 wpaul Exp $
 
 PROG=	callbootd
 SRCS=	bootparam_prot_xdr.c bootparam_prot_clnt.c callbootd.c
-NOMAN=	
+NOMAN=
 CFLAGS+= -I.
 CLEANFILES= bootparam_prot_clnt.c bootparam_prot_xdr.c  \
 	    bootparam_prot.h bootparam_prot.x
@@ -18,7 +18,7 @@ bootparam_prot_xdr.c: bootparam_prot.h
 	cp ${DESTDIR}/usr/include/rpcsvc/bootparam_prot.x .
 	rpcgen  -c -o bootparam_prot_xdr.c bootparam_prot.x
 
-bootparam_prot.h: 
+bootparam_prot.h:
 	rm -f bootparam_prot.x
 	cp ${DESTDIR}/usr/include/rpcsvc/bootparam_prot.x .
 	rpcgen  -h -o bootparam_prot.h bootparam_prot.x

@@ -162,7 +162,7 @@ struct datum_pts_unit {
   int usec;			/* miliseconds */
   u_char leap;			/* funny leap character code */
   char retbuf[8];		/* returned time from the datum pts */
-  char nbytes;			/* number of bytes received from datum pts */ 
+  char nbytes;			/* number of bytes received from datum pts */
   double sigma2;		/* average squared error (roughly) */
   int tzoff;			/* time zone offest from GMT */
 };
@@ -652,7 +652,7 @@ static void datum_pts_receive(rbufp)
   datum_pts->second =	10*((datum_pts->retbuf[4] & 0x70)>>4) +
 				(datum_pts->retbuf[4] & 0x0f);
 
-  datum_pts->msec =	100*((datum_pts->retbuf[5] & 0xf0) >> 4) + 
+  datum_pts->msec =	100*((datum_pts->retbuf[5] & 0xf0) >> 4) +
 				10*(datum_pts->retbuf[5] & 0x0f) +
 				((datum_pts->retbuf[6] & 0xf0)>>4);
 

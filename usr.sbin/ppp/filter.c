@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id:$
- * 
+ *
+ * $Id: filter.c,v 1.3 1995/02/26 12:17:25 amurai Exp $
+ *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
 
@@ -80,7 +80,7 @@ int *pwidth;
     /* if width is not given, assume whole 32 bits are meaningfull */
     bits = 32;
   }
-  
+
   *pwidth = bits;
   pmask->s_addr = htonl(netmasks[bits]);
 
@@ -246,7 +246,7 @@ checkestab:
       printf("estab is expected.\n");
       return(0);
     }
-    
+
     return(1);
   } else if (argc == 1)
     goto checkestab;

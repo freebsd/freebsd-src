@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
- * 
+ * $Id: log.c,v 1.2 1995/02/26 12:17:38 amurai Exp $
+ *
  */
 #include "defs.h"
 #include <time.h>
@@ -248,7 +248,7 @@ LogTimeStamp()
     mypid = getpid();
   ltime = time(0);
   ptm = localtime(&ltime);
-  sprintf(logptr, "%02d-%02d %02d:%02d:%02d [%d] ", 
+  sprintf(logptr, "%02d-%02d %02d:%02d:%02d [%d] ",
     ptm->tm_mon + 1, ptm->tm_mday,
 	ptm->tm_hour, ptm->tm_min, ptm->tm_sec, mypid);
   logptr += strlen(logptr);

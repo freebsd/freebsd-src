@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 1.2 1994/09/08 02:51:18 wollman Exp $
+ * $Id: main.c,v 1.3 1995/03/31 21:16:43 wollman Exp $
  */
 
 /*
@@ -89,7 +89,7 @@ main(argc, argv)
     }
 
     if (argc > 0) {
-usage:	fprintf(stderr, 
+usage:	fprintf(stderr,
 		"usage: mrouted [-p] [-c configfile] [-d [debug_level]]\n");
 	exit(1);
     }
@@ -128,7 +128,7 @@ usage:	fprintf(stderr,
     srandom(gethostid());
 
     /*
-     * Get generation id 
+     * Get generation id
      */
     gettimeofday(&tv, &tzp);
     dvmrp_genid = tv.tv_sec;
@@ -157,7 +157,7 @@ usage:	fprintf(stderr,
     if (debug)
 	fprintf(stderr, "pruning %s\n", pruning ? "on" : "off");
 
-    fp = fopen(pidfilename, "w");		
+    fp = fopen(pidfilename, "w");
     if (fp != NULL) {
 	fprintf(fp, "%d\n", getpid());
 	(void) fclose(fp);
@@ -184,7 +184,7 @@ usage:	fprintf(stderr,
     for(;;) {
 	recvlen = recvfrom(igmp_socket, recv_buf, sizeof(recv_buf),
 			   0, NULL, &dummy);
-	if (recvlen < 0) {	
+	if (recvlen < 0) {
 	    if (errno != EINTR) log(LOG_ERR, errno, "recvfrom");
 	    continue;
 	}
@@ -235,7 +235,7 @@ static void fasttimer()
 	timer();
 
     age_callout_queue();/* Advance the timer for the callout queue
-				for groups */	
+				for groups */
     alarm(1);
 }
 
@@ -355,7 +355,7 @@ static void cdump()
 
     fp = fopen(cachefilename, "w");
     if (fp != NULL) {
-	dump_cache(fp); 
+	dump_cache(fp);
 	(void) fclose(fp);
     }
 }

@@ -122,7 +122,7 @@ findid(name)
 		if (ferror(fp))
 			break;
 		n = sscanf(loginargs, "%15s%*[ \t]%15s%*[ \t]%15s%*[ \t]%15s%*[ \t]%15s%*[ \t]%15s%*[ \t]%15s%*[ \t]%15s%*[ \t]%15s\n",
-                        user, laddr, raddr, mask, slopt[0], slopt[1], 
+                        user, laddr, raddr, mask, slopt[0], slopt[1],
 			slopt[2], slopt[3], slopt[4]);
 		if (user[0] == '#' || isspace(user[0]))
 			continue;

@@ -40,7 +40,7 @@ static TO_Validate	*validateQ, *currentVQ;
 static int		VQcount;
 
 /*****************************************************************
- * validate() is called from dovalidate(). it takes as parameters, 
+ * validate() is called from dovalidate(). it takes as parameters,
  * the domain name sought, the class, type etc. of record, the server
  * that gave us the answer and the data it gave us
  *
@@ -63,8 +63,8 @@ static int		VQcount;
  *              if(data agrees with what we have)
  *                return VALID_NO_CACHE;
  *              else return INVALID;
- *    
- *          if(we are not authoritative) /findns() returned OK;/       
+ *
+ *          if(we are not authoritative) /findns() returned OK;/
  *          if (address records for NS's found in cache){
  *                       if("server" = one of the addresses){
  *                               return VALID_CACHE;
@@ -129,7 +129,7 @@ validate(dname, server, type, class, data, dlen
 		np = NULL;
 	else
 		np = nlookup(dname, &htp, &fname, 0);
-    
+
 	/* we were able to locate namebufs for this domain, or a parent domain,
 	 * or ??? */
 
@@ -150,7 +150,7 @@ validate(dname, server, type, class, data, dlen
 	}
 	switch (findns(&np, class, nsp, &count, 0)) {
 	case NXDOMAIN:
-		/** we are authoritative for this domain, lookup name 
+		/** we are authoritative for this domain, lookup name
 		 * in our zone data, if it matches, return valid.
 		 * in either case, do not cache
 		 **/
@@ -164,7 +164,7 @@ validate(dname, server, type, class, data, dlen
 #ifdef NCACHE
 		if(rcode == NXDOMAIN) {
 			/* If we had an exactmatch on the name, we found the
-			 * name in our authority database, so this couldn't 
+			 * name in our authority database, so this couldn't
 			 * have been a bad name. INVALID data, say so
 			 */
 			if (exactmatch)
@@ -178,7 +178,7 @@ validate(dname, server, type, class, data, dlen
 		}
 #endif
 		if (!strcasecmp(dname, np->n_dname)) {
-      
+
 			/* if the name we seek is the same as that we have ns
 			 * records for, compare the data we have to see if it
 			 * matches. if it does, return valid_no_cache, if it
@@ -189,7 +189,7 @@ validate(dname, server, type, class, data, dlen
 			else
 				return INVALID;
 		}
-    
+
 		/* we found ns records in a higher level, if we were unable to
 		 * locate the exact name earlier, it means we are
 		 * authoritative for this domain but do not have records for
@@ -197,7 +197,7 @@ validate(dname, server, type, class, data, dlen
 		 */
 		if (!exactmatch)
 			return INVALID;
-    
+
 		/* we found the exact name earlier and we are obviously
 		 * authoritative so check for data records and see if any
 		 * match.
@@ -206,7 +206,7 @@ validate(dname, server, type, class, data, dlen
 			return VALID_NO_CACHE;
 		else
 			return INVALID;
-  
+
 	case SERVFAIL:/* could not find name server records*/
 		/* stick_in_queue(dname, type, class, data); */
 		if (needs_prime_cache)
@@ -215,7 +215,7 @@ validate(dname, server, type, class, data, dlen
 		free_nsp(nsp);
 #endif
 		return INVALID;
-    
+
 	case OK: /*proceed */
 		dprintf(5,
 			(ddt,
@@ -244,7 +244,7 @@ validate(dname, server, type, class, data, dlen
 } /*validate*/
 
 /***********************************************************************
- * validate rr returned by somebody against your own database, if you are 
+ * validate rr returned by somebody against your own database, if you are
  * authoritative for the information. if you have a record that matches,
  * return 1, else return 0. validate() above will use this and determine
  * if the record should be returned/discarded.
@@ -257,10 +257,10 @@ isvalid(np, type, class, data, dlen)
 	int dlen;
 {
 	register struct databuf *dp;
-  
+
 	for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
 		if (!wanted(dp, class, type)) {
-			if ((type == T_CNAME) && (class == dp->d_class)) { 
+			if ((type == T_CNAME) && (class == dp->d_class)) {
 				/* if a cname exists, any other will not */
 				return(0);
 				/* we come here only for zone info,
@@ -269,9 +269,9 @@ isvalid(np, type, class, data, dlen)
 			}
 			continue;
 		}
-		/* type and class match, if i get here 
+		/* type and class match, if i get here
 		 * let's now compare the data section, per RR type
-		 */  
+		 */
 
 		/* unless, of course, the data was negative, in which case
 		 * we should return FAILURE since we should not have found
@@ -279,8 +279,8 @@ isvalid(np, type, class, data, dlen)
 		 */
 		if ((data == NULL) || (dlen == 0)) {
 			return 0;
-		} 
-		
+		}
+
 		/* XXX:	why aren't we just calling db_cmp() ?
 		 */
 
@@ -321,7 +321,7 @@ isvalid(np, type, class, data, dlen)
 			       if (x == 0)
 				       return (1);
 			       else
-				      break; 
+				      break;
 
 			case T_MINFO:
 			case T_SOA:
@@ -329,16 +329,16 @@ isvalid(np, type, class, data, dlen)
 				/* compare first string */
 				x = strncasecmp((char *)dp->d_data, data,
 						strlen(data) + 1);
-				if (x != 0) 
+				if (x != 0)
 					break;
 
 				/* move to second string */
 				td = data + (strlen(data) + 1);
-				tdp = dp->d_data + 
+				tdp = dp->d_data +
 					(strlen((char *)dp->d_data)+1);
 
 				/* compare second string */
-				x = strncasecmp(td, (char *)tdp, 
+				x = strncasecmp(td, (char *)tdp,
 						strlen((char *)td+1));
 				if (x != 0)
 					break;
@@ -357,7 +357,7 @@ isvalid(np, type, class, data, dlen)
 					if (x != 0)
 						break;
 				}
-				
+
 				/* everything was equal, wow!
 				 * so return a success
 				 */
@@ -372,7 +372,7 @@ isvalid(np, type, class, data, dlen)
 					break;
 				td = data + INT16SZ;
 				tdp = dp->d_data + INT16SZ;
-				x = strncasecmp(td, (char *)tdp, 
+				x = strncasecmp(td, (char *)tdp,
 						strlen((char *)td) + 1);
 				if (x != 0)
 					break;
@@ -390,8 +390,8 @@ isvalid(np, type, class, data, dlen)
 	 */
 	if ((data == NULL) || (dlen == 0)) {
 		/* negative data, report success */
-		return 1; 
-	} 
+		return 1;
+	}
 	/* positive data, no such RR, validation failed */
 	return (0);
 }
@@ -399,8 +399,8 @@ isvalid(np, type, class, data, dlen)
 /******************************************************************
   * get a list of databufs that have ns addresses for the closest domain
   * you know about, get their addresses and confirm that server indeed
-  * is one of them. if yes return 1 else 0. 
-  * first checks the cache that we build in nslookup() earlier 
+  * is one of them. if yes return 1 else 0.
+  * first checks the cache that we build in nslookup() earlier
   * when we ns_forw(). if unableto find it there, it checks the entire
   * hash table to do address translations.
   *******************************************************************/
@@ -416,7 +416,7 @@ check_addr_ns(nsp, server, dname)
 	struct databuf **nsdp;
 
 	dprintf(5, (ddt,
-		    "check_addr_ns: s:[%s], db:0x%x, d:\"%s\"\n", 
+		    "check_addr_ns: s:[%s], db:0x%x, d:\"%s\"\n",
 		    inet_ntoa(*saddr), nsp, dname));
 
 	for(i = lastNA; i != firstNA; i = (i+1) % MAXNAMECACHE) {
@@ -450,7 +450,7 @@ check_addr_ns(nsp, server, dname)
 }
 
 /*************************************************************************
- * checks in hash tables for the address of servers whose name is in the 
+ * checks in hash tables for the address of servers whose name is in the
  * data section of nsp records. borrows code from nslookup()/ns_forw.c
  * largely.
  *************************************************************************/
@@ -466,10 +466,10 @@ check_in_tables(nsp, server, syslogdname)
 	char *dname, *fname;
 	int class;
 	int qcomp();
-  
+
 	dprintf(3, (ddt, "check_in_tables(nsp=x%x,qp=x%x,'%s')\n",
 		    nsp, server, syslogdname));
-  
+
 	while ((nsdp = *nsp++) != NULL) {
 		class = nsdp->d_class;
 		dname = (char *)nsdp->d_data;
@@ -563,7 +563,7 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
 				(char *)malloc((unsigned)strlen(servername)+1);
 			strcpy(nameaddrlist[i].nsname, servername);
 			return;
-		} 
+		}
 	}
 	/* we have to add this one to our cache */
 
@@ -591,9 +591,9 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
  * Decode the resource record 'rrp' and validate the RR.
  * Borrows code almost entirely from doupdate(). is a rather
  * non-invasive routine since it just goes thru the same motions
- * as doupdate but just marks the array validatelist entry as 
+ * as doupdate but just marks the array validatelist entry as
  * the return code from validate(). This is later used in doupdate
- * to cache/not cache the entry. also used in update_msg() to 
+ * to cache/not cache the entry. also used in update_msg() to
  * delete/keep the record from the outgoing message.
  */
 int
@@ -875,7 +875,7 @@ update_msg(msg, msglen, Vlist, c)
 	}
 #endif
 	/* just making sure we do not do all the work for nothing */
-	for (i=0;  i<c;  i++) { 
+	for (i=0;  i<c;  i++) {
 		if (Vlist[i] == INVALID) {
 			inv = 1;
 			break;
@@ -961,7 +961,7 @@ update_msg(msg, msglen, Vlist, c)
 	newlen += (n_new+2*INT16SZ);
 	rembuflen -= (n_new+2*INT16SZ);
 	/* have to decode and copy every Valid RR from here */
-  
+
 	cp = msg +HFIXEDSZ +qlen;	/*skip header and query section*/
 	for (i = 0;  i < c;  i++) {
 		if (Vlist[i] == INVALID) {
@@ -975,7 +975,7 @@ update_msg(msg, msglen, Vlist, c)
 			hp->rcode = FORMERR;
 			goto badend;
 		}
-		n_new = dn_comp(dname, newcp, rembuflen, dnptrs, edp); 
+		n_new = dn_comp(dname, newcp, rembuflen, dnptrs, edp);
 		if (n_new < 0)
 			goto badend;
 		cp += n;
@@ -1110,7 +1110,7 @@ update_msg(msg, msglen, Vlist, c)
 			bcopy(cp,newcp,INT16SZ);
 			cp += INT16SZ;
 			newcp += INT16SZ;
-		
+
 			/* get name */
 			n = dn_expand(msg, eom, cp, (char *)data, sizeof data);
 			if (n < 0) {
@@ -1145,7 +1145,7 @@ update_msg(msg, msglen, Vlist, c)
 	}
 	*msglen = newlen;
 	free((char *)newmsg);
-  
+
 #ifdef DEBUG
 	if (debug >= 10)
 		fp_query(msg, ddt);

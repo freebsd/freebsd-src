@@ -305,9 +305,9 @@ struct ns_addr *addr;
 
     (void)sprintf(buf, "%s#%x:%x:%x:%x:%x:%x",
 	xns_nettoa(addr->x_net),
-	addr->x_host.c_host[0], addr->x_host.c_host[1], 
-	addr->x_host.c_host[2], addr->x_host.c_host[3], 
+	addr->x_host.c_host[0], addr->x_host.c_host[1],
+	addr->x_host.c_host[2], addr->x_host.c_host[3],
 	addr->x_host.c_host[4], addr->x_host.c_host[5]);
-	
+
     return(buf);
 }

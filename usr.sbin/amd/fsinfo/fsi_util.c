@@ -34,7 +34,7 @@
  *
  *	@(#)fsi_util.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: fsi_util.c,v 5.2.2.1 1992/02/09 15:09:39 jsp beta $
+ * $Id: fsi_util.c,v 1.1.1.1 1994/05/26 05:22:18 rgrimes Exp $
  *
  */
 
@@ -72,7 +72,7 @@ char *s, *s1, *s2, *s3, *s4;
 	fprintf(stderr, "%s:%d: ", l->i_file, l->i_line);
 	fprintf(stderr, s, s1, s2, s3, s4);
 	fputc('\n', stderr);
-	
+
 }
 
 void fatal(s, s1, s2, s3, s4)

@@ -37,7 +37,7 @@
  *
  *	@(#)info_passwd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_passwd.c,v 5.2.2.1 1992/02/09 15:08:33 jsp beta $
+ * $Id: info_passwd.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp $
  *
  */
 
@@ -113,7 +113,7 @@ time_t *tp;
 		*user++ = '\0';
 		/*
 		 * Find start of host "path".  If no / then Invalid...
-		 */ 
+		 */
 		p = strchr(dir+1, '/');
 		if (!p)
 			goto enoent;

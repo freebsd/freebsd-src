@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.7 1994/05/30 06:10:07 paulus Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.2 1994/09/25 02:32:15 wollman Exp $";
 #endif
 
 /*
@@ -71,7 +71,7 @@ establish_ppp()
     /*
      * Find out which interface we were given.
      */
-    if (ioctl(fd, PPPIOCGUNIT, &ifunit) < 0) {	
+    if (ioctl(fd, PPPIOCGUNIT, &ifunit) < 0) {
 	syslog(LOG_ERR, "ioctl(PPPIOCGUNIT): %m");
 	die(1);
     }

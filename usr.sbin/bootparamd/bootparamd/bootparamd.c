@@ -1,11 +1,11 @@
 /*
 
-This code is not copyright, and is placed in the public domain. Feel free to 
+This code is not copyright, and is placed in the public domain. Feel free to
 use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id$
+	$Id: bootparamd.c,v 1.1.1.1 1995/02/26 23:40:52 wpaul Exp $
 
 */
 
@@ -31,34 +31,34 @@ static char askname[MAX_MACHINE_NAME];
 static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
 
-  
+
 bp_whoami_res *
 bootparamproc_whoami_1(whoami)
 bp_whoami_arg *whoami;
 {
   long haddr;
   static bp_whoami_res res;
-  if (debug) 
-    fprintf(stderr,"whoami got question for %d.%d.%d.%d\n", 
+  if (debug)
+    fprintf(stderr,"whoami got question for %d.%d.%d.%d\n",
 	    255 &  whoami->client_address.bp_address_u.ip_addr.net,
 	    255 & whoami->client_address.bp_address_u.ip_addr.host,
 	    255 &  whoami->client_address.bp_address_u.ip_addr.lh,
 	    255 &  whoami->client_address.bp_address_u.ip_addr.impno);
-  if (dolog) 
-    syslog(LOG_NOTICE, "whoami got question for %d.%d.%d.%d\n", 
+  if (dolog)
+    syslog(LOG_NOTICE, "whoami got question for %d.%d.%d.%d\n",
 	    255 &  whoami->client_address.bp_address_u.ip_addr.net,
 	    255 & whoami->client_address.bp_address_u.ip_addr.host,
 	    255 &  whoami->client_address.bp_address_u.ip_addr.lh,
 	    255 &  whoami->client_address.bp_address_u.ip_addr.impno);
 
-  bcopy((char *)&whoami->client_address.bp_address_u.ip_addr, (char *)&haddr, 
+  bcopy((char *)&whoami->client_address.bp_address_u.ip_addr, (char *)&haddr,
 	sizeof(haddr));
   he = gethostbyaddr((char *)&haddr,sizeof(haddr),AF_INET);
   if ( ! he ) goto failed;
 
   if (debug) fprintf(stderr,"This is host %s\n", he->h_name);
   if (dolog) syslog(LOG_NOTICE,"This is host %s\n", he->h_name);
-  
+
   strcpy(askname, he->h_name);
   if (checkhost(askname, hostname) ) {
     res.client_name = hostname;
@@ -70,7 +70,7 @@ bp_whoami_arg *whoami;
       bcopy( &route_addr, &res.router_address.bp_address_u.ip_addr, 4);
     }
     if (debug) fprintf(stderr,
-		       "Returning %s   %s    %d.%d.%d.%d\n", 
+		       "Returning %s   %s    %d.%d.%d.%d\n",
 		       res.client_name,
 		       res.domain_name,
 		       255 &  res.router_address.bp_address_u.ip_addr.net,
@@ -78,7 +78,7 @@ bp_whoami_arg *whoami;
 		       255 &  res.router_address.bp_address_u.ip_addr.lh,
 		       255 & res.router_address.bp_address_u.ip_addr.impno);
     if (dolog) syslog(LOG_NOTICE,
-		       "Returning %s   %s    %d.%d.%d.%d\n", 
+		       "Returning %s   %s    %d.%d.%d.%d\n",
 		       res.client_name,
 		       res.domain_name,
 		       255 &  res.router_address.bp_address_u.ip_addr.net,
@@ -102,11 +102,11 @@ bp_getfile_arg *getfile;
   char *where, *index();
   static bp_getfile_res res;
 
-  if (debug) 
+  if (debug)
     fprintf(stderr,"getfile got question for \"%s\" and file \"%s\"\n",
 	    getfile->client_name, getfile->file_id);
 
-  if (dolog) 
+  if (dolog)
     syslog(LOG_NOTICE,"getfile got question for \"%s\" and file \"%s\"\n",
 	    getfile->client_name, getfile->file_id);
 
@@ -137,14 +137,14 @@ bp_getfile_arg *getfile;
 	bzero(&res.server_address.bp_address_u.ip_addr,4);
       } else goto failed;
     }
-    if (debug) 
+    if (debug)
       fprintf(stderr, "returning server:%s path:%s address: %d.%d.%d.%d\n",
 	     res.server_name, res.server_path,
 	     255 &  res.server_address.bp_address_u.ip_addr.net,
 	     255 & res.server_address.bp_address_u.ip_addr.host,
 	     255 &  res.server_address.bp_address_u.ip_addr.lh,
 	     255 & res.server_address.bp_address_u.ip_addr.impno);
-    if (dolog) 
+    if (dolog)
       syslog(LOG_NOTICE, "returning server:%s path:%s address: %d.%d.%d.%d\n",
 	     res.server_name, res.server_path,
 	     255 &  res.server_address.bp_address_u.ip_addr.net,
@@ -155,14 +155,14 @@ bp_getfile_arg *getfile;
   }
   failed:
   if (debug) fprintf(stderr, "getfile failed for %s\n", getfile->client_name);
-  if (dolog) syslog(LOG_NOTICE, 
+  if (dolog) syslog(LOG_NOTICE,
 		    "getfile failed for %s\n", getfile->client_name);
   return(NULL);
 }
 
 /*    getthefile return 1 and fills the buffer with the information
       of the file, e g "host:/export/root/client" if it can be found.
-      If the host is in the database, but the file is not, the buffer 
+      If the host is in the database, but the file is not, the buffer
       will be empty. (This makes it possible to give the special
       empty answer for the file "dump")   */
 
@@ -218,7 +218,7 @@ char *fileid, *buffer;
     }
     /* skip to next entry */
     if ( match ) break;
-    pch = ch = getc(bpf); 
+    pch = ch = getc(bpf);
     while ( ! ( ch == '\n' && pch != '\\') && ch != EOF) {
       pch = ch; ch = getc(bpf);
     }
@@ -238,8 +238,8 @@ char *fileid, *buffer;
 	    strcpy(buffer, where);                   /* found file */
 	    res = 1; break;
 	  }
-	} else {  
-	  while (isspace(ch) && ch != '\n') ch = getc(bpf); 
+	} else {
+	  while (isspace(ch) && ch != '\n') ch = getc(bpf);
 	                                             /* read to end of line */
 	  if ( ch == '\n' ) {                        /* didn't find it */
 	    res = -1; break;                         /* but host is there */
@@ -319,7 +319,7 @@ char *hostname;
       return(res);
     }
     /* skip to next entry */
-    pch = ch = getc(bpf); 
+    pch = ch = getc(bpf);
     while ( ! ( ch == '\n' && pch != '\\') && ch != EOF) {
       pch = ch; ch = getc(bpf);
     }

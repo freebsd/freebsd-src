@@ -3,7 +3,7 @@
  * -
  * Copyright (c) 1985, 1989
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -19,7 +19,7 @@
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -33,14 +33,14 @@
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -61,21 +61,21 @@ char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "@(#)main.c	5.42 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/22 21:36:01 pst Exp $";
+static char rcsid[] = "$Id: main.c,v 1.2 1994/09/22 21:50:36 pst Exp $";
 #endif /* not lint */
 
 /*
  ******************************************************************************
- *  
+ *
  *   main.c --
- *  
+ *
  *	Main routine and some action routines for the name server
  *	lookup program.
  *
  *	Andrew Cherenson
  *	U.C. Berkeley Computer Science Div.
  *	CS298-26, Fall 1985
- *  
+ *
  ******************************************************************************
  */
 
@@ -98,7 +98,7 @@ static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/22 21:36:01 pst Exp $";
 #include "pathnames.h"
 
 /*
- * Name of a top-level name server. Can be changed with 
+ * Name of a top-level name server. Can be changed with
  * the "set root" command.
  */
 
@@ -193,7 +193,7 @@ main(argc, argv)
      *  find the server's address and name. If the resolver library
      *  already has some addresses for a potential name server,
      *  then use them. Otherwise, see if the current host has a server.
-     *  Command line arguments may override the choice of initial server. 
+     *  Command line arguments may override the choice of initial server.
      */
 
     defaultPtr = (HostInfo *) Calloc(1, sizeof(HostInfo));
@@ -203,11 +203,11 @@ main(argc, argv)
      *  no args =  go into interactive mode, use default host as server
      *	1 arg	=  use as host name to be looked up, default host will be server
      *		   non-interactive mode
-     *  2 args	=  1st arg: 
-     *		     if it is '-', then 
+     *  2 args	=  1st arg:
+     *		     if it is '-', then
      *		        ignore but go into interactive mode
-     *		     else 
-     *		         use as host name to be looked up, 
+     *		     else
+     *		         use as host name to be looked up,
      *			 go into non-interactive mode
      *		2nd arg: name or inet address of server
      *
@@ -226,7 +226,7 @@ main(argc, argv)
     }
     if (argc > 2) {
 	Usage();
-    } 
+    }
     if (argc && *argv[0] != '-') {
 	wantedHost = *argv;	/* name of host to be looked up */
     }
@@ -238,7 +238,7 @@ main(argc, argv)
 	/*
 	 * Use an explicit name server. If the hostname lookup fails,
 	 * default to the server(s) in resolv.conf.
-	 */ 
+	 */
 
 	if (inet_aton(*++argv, &addr)) {
 	    _res.nscount = 1;
@@ -246,18 +246,18 @@ main(argc, argv)
 	} else {
 	    hp = gethostbyname(*argv);
 	    if (hp == NULL) {
-		fprintf(stderr, "*** Can't find server address for '%s': ", 
+		fprintf(stderr, "*** Can't find server address for '%s': ",
 			*argv);
 		herror((char *)NULL);
 		fputc('\n', stderr);
 	    } else {
 		for (i = 0; i < MAXNS && hp->h_addr_list[i] != NULL; i++) {
-		    bcopy(hp->h_addr_list[i], 
-			    (char *)&_res.nsaddr_list[i].sin_addr, 
+		    bcopy(hp->h_addr_list[i],
+			    (char *)&_res.nsaddr_list[i].sin_addr,
 			    hp->h_length);
 		}
 		_res.nscount = i;
-	    } 
+	    }
 	}
     }
 
@@ -270,13 +270,13 @@ main(argc, argv)
 	        LocalServer(defaultPtr);
 		break;
 	    } else {
-		result = GetHostInfoByAddr(&(_res.nsaddr_list[i].sin_addr), 
-				    &(_res.nsaddr_list[i].sin_addr), 
+		result = GetHostInfoByAddr(&(_res.nsaddr_list[i].sin_addr),
+				    &(_res.nsaddr_list[i].sin_addr),
 				    defaultPtr);
 		if (result != SUCCESS) {
 		    fprintf(stderr,
-		    "*** Can't find server name for address %s: %s\n", 
-		       inet_ntoa(_res.nsaddr_list[i].sin_addr), 
+		    "*** Can't find server name for address %s: %s\n",
+		       inet_ntoa(_res.nsaddr_list[i].sin_addr),
 		       DecodeError(result));
 		} else {
 		    defaultAddr = _res.nsaddr_list[i].sin_addr;
@@ -329,7 +329,7 @@ main(argc, argv)
 
 	(void) setjmp(env);
 
-	/* 
+	/*
 	 * Return here after a longjmp.
 	 */
 
@@ -338,7 +338,7 @@ main(argc, argv)
 
 	/*
 	 * Read and evaluate commands. The commands are described in commands.l
-	 * Yylex returns 0 when ^D or 'exit' is typed. 
+	 * Yylex returns 0 when ^D or 'exit' is typed.
 	 */
 
 	printf("> ");
@@ -414,11 +414,11 @@ IsAddr(host, addrPtr)
     if (isdigit(host[0])) {
 	    /* Make sure it has only digits and dots. */
 	    for (cp = host; *cp; ++cp) {
-		if (!isdigit(*cp) && *cp != '.') 
+		if (!isdigit(*cp) && *cp != '.')
 		    return FALSE;
 	    }
 	    /* If it has a trailing dot, don't treat it as an address. */
-	    if (*--cp != '.') { 
+	    if (*--cp != '.') {
 		return inet_aton(host, addrPtr);
 	    }
     }
@@ -432,7 +432,7 @@ IsAddr(host, addrPtr)
  *  SetDefaultServer --
  *
  *	Changes the default name server to the one specified by
- *	the first argument. The command "server name" uses the current 
+ *	the first argument. The command "server name" uses the current
  *	default server to lookup the info for "name". The command
  *	"lserver name" uses the original server to lookup "name".
  *
@@ -510,9 +510,9 @@ SetDefaultServer(string, local)
     if (IsAddr(newServer, &addr)) {
 	result = GetHostInfoByAddr(servAddrPtr, &addr, newDefPtr);
 	/* If we can't get the name, fall through... */
-    } 
+    }
     if (result != SUCCESS && result != NONAUTH) {
-	result = GetHostInfoByName(servAddrPtr, C_IN, T_A, 
+	result = GetHostInfoByName(servAddrPtr, C_IN, T_A,
 			newServer, newDefPtr, 1);
     }
 
@@ -559,14 +559,14 @@ DoLookup(host, servPtr, serverName)
 {
     int result;
     struct in_addr *servAddrPtr;
-    struct in_addr addr; 
+    struct in_addr addr;
 
     /* Skip escape character */
     if (host[0] == '\\')
 	host++;
 
     /*
-     *  If the user gives us an address for an address query, 
+     *  If the user gives us an address for an address query,
      *  silently treat it as a PTR query. If the query type is already
      *  PTR, then convert the address into the in-addr.arpa format.
      *
@@ -581,8 +581,8 @@ DoLookup(host, servPtr, serverName)
 	servAddrPtr = (struct in_addr *) servPtr->servers[0]->addrList[0];
     }
 
-    /* 
-     * RFC1123 says we "SHOULD check the string syntactically for a 
+    /*
+     * RFC1123 says we "SHOULD check the string syntactically for a
      * dotted-decimal number before looking it up [...]" (p. 13).
      */
     if (queryType == T_A && IsAddr(host, &addr)) {
@@ -590,8 +590,8 @@ DoLookup(host, servPtr, serverName)
     } else {
 	if (queryType == T_PTR) {
 	    CvtAddrToPtr(host);
-	} 
-	result = GetHostInfoByName(servAddrPtr, queryClass, queryType, host, 
+	}
+	result = GetHostInfoByName(servAddrPtr, queryClass, queryType, host,
 			&curHostInfo, 0);
     }
 
@@ -618,7 +618,7 @@ DoLookup(host, servPtr, serverName)
 	    break;
 
 	case NO_INFO:
-	    fprintf(stderr, "*** No %s (%s) records available for %s\n", 
+	    fprintf(stderr, "*** No %s (%s) records available for %s\n",
 			DecodeType(queryType), p_type(queryType), host);
 	    break;
 
@@ -659,7 +659,7 @@ LookupHost(string, putToFile)
     int		result;
 
     /*
-     *  Invalidate the current host information to prevent Finger 
+     *  Invalidate the current host information to prevent Finger
      *  from using bogus info.
      */
 
@@ -699,13 +699,13 @@ LookupHost(string, putToFile)
  *
  *  LookupHostWithServer --
  *
- *	Asks the name server specified in the second argument for 
+ *	Asks the name server specified in the second argument for
  *	information about the host or domain specified in the first
  *	argument. The information is printed if the lookup was successful.
  *
  *	Address info about the requested name server is obtained
  *	from the default name server. This routine will return an
- *	error if the default server doesn't have info about the 
+ *	error if the default server doesn't have info about the
  *	requested server. Thus an error return status might not
  *	mean the requested name server doesn't have info about the
  *	requested host.
@@ -743,11 +743,11 @@ LookupHostWithServer(string, putToFile)
 	}
 	fprintf(filePtr,"> %s\n", string);
     }
-    
+
     result = GetHostInfoByName(
 		defaultPtr->addrList ?
 		    (struct in_addr *) defaultPtr->addrList[0] :
-		    (struct in_addr *) defaultPtr->servers[0]->addrList[0], 
+		    (struct in_addr *) defaultPtr->servers[0]->addrList[0],
 		C_IN, T_A, server, &serverInfo, 1);
 
     if (result != SUCCESS) {
@@ -768,7 +768,7 @@ LookupHostWithServer(string, putToFile)
 /*
  ******************************************************************************
  *
- *  SetOption -- 
+ *  SetOption --
  *
  *	This routine is used to change the state information
  *	that affect the lookups. The command format is
@@ -1017,7 +1017,7 @@ ShowOptions()
     printf("  retry=%d\n", _res.retry);
     printf("  root=%s\n", rootServerName);
     printf("  domain=%s\n", _res.defdname);
-    
+
     if (cp = _res.dnsrch) {
 	printf("  srchlist=%s", *cp);
 	for (cp++; *cp; cp++) {
@@ -1072,7 +1072,7 @@ CvtAddrToPtr(name)
     if (IsAddr(name, &addr)) {
 	p = inet_ntoa(addr);
 	if (sscanf(p, "%d.%d.%d.%d", &ip[0], &ip[1], &ip[2], &ip[3]) == 4) {
-	    sprintf(name, "%d.%d.%d.%d.in-addr.arpa.", 
+	    sprintf(name, "%d.%d.%d.%d.in-addr.arpa.",
 		ip[3], ip[2], ip[1], ip[0]);
 	}
     }

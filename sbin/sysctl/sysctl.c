@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.4 1995/02/16 00:28:42 wollman Exp $";
+	"$Id: sysctl.c,v 1.5 1995/05/12 19:10:56 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -291,7 +291,7 @@ parse(string, flags)
 			getloadavg(loads, 3);
 			if (!nflag)
 				fprintf(stdout, "%s: ", string);
-			fprintf(stdout, "%.2f %.2f %.2f\n", 
+			fprintf(stdout, "%.2f %.2f %.2f\n",
 			    loads[0], loads[1], loads[2]);
 			return;
 		}
@@ -333,7 +333,7 @@ parse(string, flags)
 	default:
 		fprintf(stderr, "Illegal top level value: %d\n", mib[0]);
 		return;
-	
+
 	}
 	if (bufp) {
 		fprintf(stderr, "name %s in %s is unknown\n", *bufp, string);
@@ -404,7 +404,7 @@ parse(string, flags)
 		}
 		if (!nflag)
 			fprintf(stdout, "%s = %s\n", string,
-			    devname(dev, 
+			    devname(dev,
 				    (special & CONSDEV) ? S_IFCHR : S_IFBLK));
 		else
 			fprintf(stdout, "0x%x\n", dev);

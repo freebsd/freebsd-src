@@ -60,7 +60,7 @@ caljulian(ntptime, jt)
 		nt -= SECSPERCYCLE;
 		cyear++;
 	}
-	
+
 	/*
 	 * Seconds, minutes and hours are too hard to do without
 	 * divides, so we don't.
@@ -96,7 +96,7 @@ caljulian(ntptime, jt)
 	for (i = 0; i < 11; i++)
 		if (snt < calmonthtab[i+1])
 			break;
-	
+
 	if (i > 9)
 		jt->month = i - 9;	/* January or February */
 	else

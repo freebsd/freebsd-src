@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)measure.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.1.1.1 $"
+#ident "$Revision: 1.2 $"
 #endif
 
 #include "globals.h"
@@ -96,7 +96,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 			goto quit;
 		}
 	}
-	    
+
 
 	/*
 	 * empty the icmp input queue
@@ -191,7 +191,7 @@ measure(maxmsec, wmsec, hname, addr, print)
 			if (cc < 0)
 				goto quit;
 
-			/* 
+			/*
 			 * got something.  See if it is ours
 			 */
 			icp = (struct icmp *)(packet + (ip->ip_hl << 2));

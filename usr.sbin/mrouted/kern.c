@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 1.6 1994/08/24 23:53:37 thyagara Exp $
+ * $Id: kern.c,v 1.2 1994/09/08 02:51:17 wollman Exp $
  */
 
 
@@ -180,4 +180,4 @@ void k_del_rg(kt)
     if (setsockopt(igmp_socket, IPPROTO_IP, DVMRP_DEL_MFC,
 		   (char *)&mc, sizeof(mc)) < 0)
 	log(LOG_WARNING, errno, "setsockopt DVMRP_DEL_MFC");
-}	
+}

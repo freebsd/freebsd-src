@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: compat.c,v 1.6 1994/01/15 20:43:43 vixie Exp $";
+static char rcsid[] = "$Id: compat.c,v 1.1.1.1 1994/08/27 13:43:02 jkh Exp $";
 #endif
 
 /* vix 30dec93 [broke this out of misc.c - see RCS log for history]
@@ -143,7 +143,7 @@ getdtablesize() {
  * Snarfage done by Jarkko Hietaniemi <Jarkko.Hietaniemi@hut.fi>
  * *) well, almost, had to K&R the function entry, HPUX "cc"
  * does not grok ANSI function prototypes */
- 
+
 /*
  * flock (fd, operation)
  *
@@ -199,13 +199,13 @@ flock(fd, operation)
 	case LOCK_UN:		/* unlock */
 		i = lockf (fd, F_ULOCK, 0);
 		break;
- 
+
 	default:		/* can't decipher operation */
 		i = -1;
 		errno = EINVAL;
 		break;
 	}
- 
+
 	return (i);
 }
 #endif /*NEED_FLOCK*/

@@ -74,7 +74,7 @@ main(argc, argv)
 	register struct rip *query = msg;
 	fd_set ibits;
 	u_char retry;
-	
+
 	argv0 = argv;
 #if BSD >= 43
 	openlog("routed", LOG_PID | LOG_ODELAY, LOG_DAEMON);

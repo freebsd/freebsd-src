@@ -12,7 +12,7 @@
 
 # use O=-O (usual) or O=-g (debugging)
 # warning: do not use -O with gcc
-O=	
+O=
 
 CC=	gcc
 

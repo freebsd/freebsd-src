@@ -484,7 +484,7 @@ ctl_error(errcode)
 
 		*(u_long *)((u_char *)&rpkt + CTL_HEADER_LEN)
 		    = htonl(res_keyid);
-		maclen = 
+		maclen =
 		    authencrypt(res_keyid, (U_LONG *)&rpkt, CTL_HEADER_LEN);
 		sendpkt(rmt_addr, lcl_inter, -2, (struct pkt *)&rpkt,
 		    CTL_HEADER_LEN + maclen);
@@ -643,7 +643,7 @@ process_control(rbufp, restrict)
 	 */
 	for (cc = control_codes; cc->control_code != NO_REQUEST; cc++) {
 		if (cc->control_code == res_opcode) {
-#ifdef DEBUG	
+#ifdef DEBUG
 			if (debug >= 2)
 				printf("opcode %d, found command handler\n",
 				    res_opcode);
@@ -742,7 +742,7 @@ ctlsysstatus()
 				clock |= CTL_SST_TS_PPS;
 		}
 	}
-	return (u_short)CTL_SYS_STATUS(sys_leap, clock, 
+	return (u_short)CTL_SYS_STATUS(sys_leap, clock,
 	    ctl_sys_num_events, ctl_sys_last_event);
 }
 
@@ -815,7 +815,7 @@ ctl_flushpkt(more)
 			    totlen++;
 			}
 			*(u_long *)datapt = htonl(res_keyid);
-			maclen = 
+			maclen =
 			    authencrypt(res_keyid, (U_LONG *)&rpkt, totlen);
 
  			sendpkt(rmt_addr, lcl_inter, -5, (struct pkt *)&rpkt,
@@ -900,7 +900,7 @@ ctl_putstr(tag, data, len)
 	cq = tag;
 	while (*cq != '\0')
 		*cp++ = *cq++;
-	
+
 	if (len > 0) {
 		*cp++ = '=';
 		*cp++ = '"';
@@ -936,7 +936,7 @@ ctl_putlfp(tag, ts)
 	cq = lfptoms(ts, 3);
 	while (*cq != '\0')
 		*cp++ = *cq++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -961,7 +961,7 @@ ctl_putfp(tag, fp)
 	cq = fptoms(fp, 2);
 	while (*cq != '\0')
 		*cp++ = *cq++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -986,7 +986,7 @@ ctl_putufp(tag, ufp)
 	cq = ufptoms(ufp, 2);
 	while (*cq != '\0')
 		*cp++ = *cq++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -1011,7 +1011,7 @@ ctl_putuint(tag, uval)
 	(void) sprintf(cp, "%lu", uval);
 	while (*cp != '\0')
 		cp++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -1061,7 +1061,7 @@ ctl_putint(tag, ival)
 	(void) sprintf(cp, "%ld", ival);
 	while (*cp != '\0')
 		cp++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -1087,7 +1087,7 @@ ctl_putts(tag, ts)
 	    ts->l_uf & 0xffffffffL);
 	while (*cp != '\0')
 		cp++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -1112,7 +1112,7 @@ ctl_putadr(tag, addr)
 	cq = numtoa(addr);
 	while (*cq != '\0')
 		*cp++ = *cq++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -1137,7 +1137,7 @@ ctl_putid(tag, id)
 	cq = id;
 	while (*cq != '\0' && (cq - id) < 4)
 		*cp++ = *cq++;
-	
+
 	ctl_putdata(buffer, cp - buffer, 0);
 }
 
@@ -1292,7 +1292,7 @@ ctl_putsys(varid)
 		  be = buf + sizeof(buf) - strlen(sys_var[CS_VARLIST].text) - 4;
 		  if (s > be)
 		    break;	/* really long var name 8-( - Killer */
-		  
+
 		  strcpy(s, sys_var[CS_VARLIST].text);
 		  strcat(s, "=\"");
 		  s += strlen(s);
@@ -1335,7 +1335,7 @@ ctl_putsys(varid)
 
 		  if (s+2 >= be)
 		    break;
-		  
+
 		  *s++ = '"';
 		  *s = '\0';
 
@@ -1496,7 +1496,7 @@ ctl_putpeer(varid, peer)
 		  be = buf + sizeof(buf) - strlen(peer_var[CP_VARLIST].text) - 4;
 		  if (s > be)
 		    break;	/* really long var name 8-( - Killer */
-		  
+
 		  strcpy(s, peer_var[CP_VARLIST].text);
 		  strcat(s, "=\"");
 		  s += strlen(s);
@@ -1518,7 +1518,7 @@ ctl_putpeer(varid, peer)
 
 		  if (s+2 >= be)
 		    break;
-		  
+
 		  *s++ = '"';
 		  *s = '\0';
 
@@ -1611,7 +1611,7 @@ ctl_putclock(varid, clock, mustput)
 		  be = buf + sizeof(buf) - strlen(clock_var[CC_VARLIST].text) - 4;
 		  if (s > be)
 		    break;	/* really long var name 8-( - Killer */
-		  
+
 		  strcpy(s, clock_var[CC_VARLIST].text);
 		  strcat(s, "=\"");
 		  s += strlen(s);
@@ -1639,7 +1639,7 @@ ctl_putclock(varid, clock, mustput)
 		      ss = k->text;
 		      if (!ss)
 			continue;
-		      
+
 		      while (*ss && *ss != '=')
 			ss++;
 
@@ -1655,7 +1655,7 @@ ctl_putclock(varid, clock, mustput)
 
 		  if (s+2 >= be)
 		    break;
-		  
+
 		  *s++ = '"';
 		  *s = '\0';
 
@@ -1693,7 +1693,7 @@ ctl_getitem(var_list, data)
 
 	if (var_list == (struct ctl_var *)0)
 	  return &eol;
-	
+
 	/*
 	 * Look for a first character match on the tag.  If we find
 	 * one, see if it is a full match.
@@ -2017,7 +2017,7 @@ write_variables(rbufp, restrict)
 		        t = v->text;
 			while (*t && *t != '=')
 			  *tt++ = *t++;
-			
+
 			*tt++ = '=';
 			strcat(tt, valuep);
 
@@ -2112,7 +2112,7 @@ read_clock_status(rbufp, restrict)
 	 * If we got here we have a peer which is a clock.  Get his status.
 	 */
 	clock.kv_list = (struct ctl_var *)0;
-	
+
 	refclock_control(&peer->srcadr, (struct refclockstat *)0, &clock);
 
 	/*
@@ -2346,7 +2346,7 @@ ctlsettrap(raddr, linter, traptype, version)
 	 */
 	if (tptouse == NULL)
 		return 0;
-	
+
 	/*
 	 * Set up this structure for him.
 	 */
@@ -2380,11 +2380,11 @@ ctlclrtrap(raddr, linter, traptype)
 
 	if ((tp = ctlfindtrap(raddr, linter)) == NULL)
 		return 0;
-	
+
 	if (tp->tr_flags & TRAP_CONFIGURED
 	    && traptype != TRAP_TYPE_CONFIG)
 		return 0;
-	
+
 	tp->tr_flags = 0;
 	num_ctl_traps--;
 	return 1;
@@ -2527,7 +2527,7 @@ report_event(err, peer)
 				struct ctl_var *kv;
 
 				clock.kv_list = (struct ctl_var *)0;
-				
+
  				refclock_control(&peer->srcadr,
 						 (struct refclockstat *)0,
 						 &clock);

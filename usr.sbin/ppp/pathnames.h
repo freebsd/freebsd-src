@@ -30,9 +30,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 
- * $Id:$
- * 
+ *
+ * $Id: pathnames.h,v 1.3 1995/02/26 12:17:52 amurai Exp $
+ *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */
 

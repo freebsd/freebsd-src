@@ -35,7 +35,7 @@ calyearstart(dateinyear)
 		cyclestart = MAR1900;
 	while ((cyclestart + SECSPERCYCLE) <= dateinyear)
 		cyclestart += SECSPERCYCLE;
-	
+
 	/*
 	 * If we're in the first year of the cycle, January 1 is
 	 * two months back from the cyclestart and the year is

@@ -54,7 +54,7 @@ static char *id =
  *	-hm	remapping debugging
  *	-hm	garbage output for remapped keys bugfix
  *	-hm	patch from Lon Willet, adding -R
- *	
+ *
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -89,12 +89,12 @@ char *argv[];
 	int c = 0;
 
 	int errf = 0;
-	
+
 	int rate = -1;
 	int delay = -1;
 	char *map;
 	int kbfd;
-	
+
 	while((c = getopt(argc, argv, "Rd:lm:opr:st:x")) != EOF)
 	{
 		switch(c)
@@ -123,11 +123,11 @@ char *argv[];
 				else
 					of = 1;
 				break;
-				
+
 			case 'p':
 				pf = 1;
 				break;
-				
+
 			case 'r':
 				rf = 1;
 				rate = atoi(optarg);
@@ -136,7 +136,7 @@ char *argv[];
 			case 's':
 				sf = 1;
 				break;
-				
+
 			case 't':
 				if(*optarg == '+')
 					tf = 1;
@@ -152,7 +152,7 @@ char *argv[];
 				else
 					xf = 1;
 				break;
-				
+
 			default:
 				usage();
 		}
@@ -175,7 +175,7 @@ char *argv[];
 		showtypeamatic(kbfd);
 		exit(0);
 	}
-	
+
 	if(lf)
 	{
 		listcurrent(kbfd);
@@ -194,7 +194,7 @@ char *argv[];
 	{
 		setrepeat(kbfd, tf);
 	}
-		
+
 	if(df || rf)
 	{
 		if(delay > 3)
@@ -217,12 +217,12 @@ char *argv[];
 
 	close(kbfd);
 	exit(0);
-}				
+}
 
 /*---------------------------------------------------------------------------*
  *	display usage info & exit
  *---------------------------------------------------------------------------*/
-usage() 
+usage()
 {
 	fprintf(stderr, "\nkcon: keyboard control and remapping utility for pcvt video driver\n");
 	fprintf(stderr, "usage: [-R] [-d delay] [-l] [-m map] [-o] [-p] [-r rate] [-t +/-] [-x]\n");
@@ -231,10 +231,10 @@ usage()
 	fprintf(stderr, "       -l   produce listing of current keyboard mapping\n");
 	fprintf(stderr, "       -m   set keyboard remapping from a keycap entry\n");
 	fprintf(stderr, "       -o   set octal output for listing\n");
-	fprintf(stderr, "       -p   pure, don't display escape as 'ESC' for listing\n");	
+	fprintf(stderr, "       -p   pure, don't display escape as 'ESC' for listing\n");
 	fprintf(stderr, "       -r   chars/second repeat value (range: 0...31 => 30...2 chars/sec)\n");
 	fprintf(stderr, "       -s   show, display the current keyboard typematic values\n");
-	fprintf(stderr, "       -t   switch repeat on(+) or off(-)\n");	
+	fprintf(stderr, "       -t   switch repeat on(+) or off(-)\n");
 	fprintf(stderr, "       -x   set hexadecimal output for listing\n\n");
 	exit(1);
 }
@@ -248,7 +248,7 @@ u_char *s;
 	static char res_str[80];
 	static char conv_buf[80];
 	int i;
-	
+
 	res_str[0] = '\0';
 
 	for(i = 0; s[i]; i++)
@@ -302,14 +302,14 @@ int kbfd;
 	struct kbd_ovlkey keyboardmap[KBDMAXKEYS];
 	struct kbd_ovlkey *kbmapp;
 	int keytype;
-	int altgr_defined;	
+	int altgr_defined;
 	int i;
 
 	altgr_defined = 0;
 	kbmapp = keyboardmap;
 
 	for (i = 0; i < KBDMAXKEYS; i++)
-	{		
+	{
 		kbmapp->keynum = i;
 
 		if(ioctl(kbfd, KBDGCKEY, kbmapp) < 0)
@@ -336,11 +336,11 @@ int kbfd;
 	}
 
 	kbmapp = &keyboardmap[1];
-	
+
 	for(i = 1; i < KBDMAXKEYS; i++)
 	{
 		keytype = kbmapp->type;
-		
+
 		if(keytype)
 		{
 			if(keytype & KBD_OVERLOAD)
@@ -357,22 +357,22 @@ int kbfd;
 				case KBD_KP:
 				case KBD_CURSOR:
 				case KBD_RETURN: /* ??? */
-				
+
 					if(kbmapp->subu == KBD_SUBT_STR)
 						printf("%-15s ",showcntrl(kbmapp->unshift));
 					else
 						printf("Function()      ");
-		
+
 					if(kbmapp->subs == KBD_SUBT_STR)
 						printf("%-15s ",showcntrl(kbmapp->shift));
 					else
 						printf("Function()      ");
-					
+
 					if(kbmapp->subc == KBD_SUBT_STR)
 						printf("%-15s ",showcntrl(kbmapp->ctrl));
 					else
 						printf("Function()      ");
-					
+
 					if(altgr_defined)
 					{
 						if(kbmapp->suba == KBD_SUBT_STR)
@@ -381,13 +381,13 @@ int kbfd;
 							printf("Function()      ");
 					}
 					break;
-			}			
+			}
 			putchar('\n');
 		}
 		kbmapp++;
 	}
-}	
-	
+}
+
 /*---------------------------------------------------------------------------*
  *	show delay and rate values for keyboard
  *---------------------------------------------------------------------------*/
@@ -438,7 +438,7 @@ int kbfd;
 
 	int cur_typemat_val;
 	int delay, rate;
-	
+
 	if((ioctl(kbfd, KBDGTPMAT, &cur_typemat_val)) < 0)
 	{
 		perror("kcon: ioctl KBDGTPMAT failed");
@@ -461,7 +461,7 @@ int kbfd;
 int tf;
 {
 	int	srepsw_val;
-	
+
 	if(tf == 1)
 		srepsw_val = KBD_REPEATON;
 	else
@@ -473,7 +473,7 @@ int tf;
 		exit(1);
 	}
 }
-	
+
 /*---------------------------------------------------------------------------*
  *	set delay and rate values for keyboard
  *---------------------------------------------------------------------------*/
@@ -495,7 +495,7 @@ int rate;
 		delay = (cur_typemat_val & 0x60);
 	else
 		delay = ((delay << 5) & 0x60);
-		
+
 	if(rate == -1)
 		rate = (cur_typemat_val & 0x1f);
 	else
@@ -521,7 +521,7 @@ char *map;
 	int ret;
 	char keyflag[128];
 	int i;
-	
+
 	/* try to find the entry */
 
 	ret = kgetent(cap_entry, map);
@@ -544,7 +544,7 @@ char *map;
 		perror("kcon: ioctl KBDDEFAULT failed");
 		exit(1);
 	}
-	
+
 	/* DE flag present? */
 
 	if(kgetflag("de"))
@@ -582,15 +582,15 @@ int kbfd;
 		"sc",	KBD_SCROLL
 	};
 
-	
+
 	for(i = 0; i < 4; i++)
 	{
 		int n;
-		
+
 		sprintf(cap, "%s", lock[i].ch);
-		
+
 		n = kgetnum(cap);
-		
+
 		if(n > 0)
 		{
 			if (keyflag[n])
@@ -622,7 +622,7 @@ int kbfd;
 	int i, j;
 	char cap[16];
 	struct kbd_ovlkey entry;
-	
+
 	struct {
 		char	ch;
 		u_short	typ;
@@ -639,7 +639,7 @@ int kbfd;
 		for(j = 1; j < 10; j++)
 		{
 			int n;
-			
+
 			sprintf(cap, "%c%d", shift[i].ch,j);
 
 			n = kgetnum(cap);
@@ -655,7 +655,7 @@ int kbfd;
 
 				entry.keynum = n;
 				entry.type = shift[i].typ;
-				if((ioctl(kbfd, KBDSCKEY, &entry)) < 0) 
+				if((ioctl(kbfd, KBDSCKEY, &entry)) < 0)
 				{
 					perror("kcon: ioctl KBDSCKEY failed");
 					exit(1);
@@ -678,7 +678,7 @@ int kbfd;
 	char *addr_str;
 	char *new_str;
 	struct kbd_ovlkey entry;
-	
+
 	struct {
 		char	*addr;
 		char	ch;
@@ -688,8 +688,8 @@ int kbfd;
 		&entry.shift[0],	'S',
 		&entry.ctrl[0],		'C',
 		&entry.altgr[0],	'A'
-	};				
-	
+	};
+
 	for(i = 1; i < KBDMAXKEYS; i++)
 	{
 		setflag = 0;
@@ -707,10 +707,10 @@ int kbfd;
 		for(j = 0; j < 5; j++)
 		{
 			sprintf(cap, "%c%d", standard[j].ch,i);
-			
+
 			if((j == 0) && (kgetflag(cap)))
 			{
-				/* delete a key */	
+				/* delete a key */
 
 				entry.type = KBD_NONE;
 				setflag = 1;
@@ -718,7 +718,7 @@ int kbfd;
 
 			}
 			else
-			{	
+			{
 				addr_str = standard[j].addr;
 				if(new_str = kgetstr(cap, &addr_str))
 				{
@@ -731,7 +731,7 @@ int kbfd;
 				}
 			}
 		}
-			
+
 setit:		if (setflag)
 		{
 			if (keyflag[i])

@@ -1,5 +1,5 @@
 /***************************************************************
- * 
+ *
  * Program:	pkg_ui.c
  * Author:	Marc van Kempen
  * Desc:	user interface parts of pkg_manage
@@ -15,7 +15,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  ***************************************************************/
 
 #include <stdlib.h>
@@ -61,9 +61,9 @@ view_installed(void)
     quit_view = FALSE;
     while (!quit_view) {
 	use_helpline("F1=help, use arrow-keys or character to select option and press enter");
-	if (dialog_menu("View installed packages", 
+	if (dialog_menu("View installed packages",
 			"Press enter to see the package descriptions",
-			LINES, COLS, LINES-5, p_inf.Nitems, 
+			LINES, COLS, LINES-5, p_inf.Nitems,
 			p_inf.mnu, selection, &ch, &sc )) {
 	    quit_view = TRUE;
 	} else {
@@ -106,7 +106,7 @@ delete_installed(void)
 	use_helpfile(DEL_INST_HLP);
 	if (dialog_menu("DELETE an installed package",
 			"Press enter to select a package",
-			LINES, COLS, LINES-5, p_inf.Nitems, 
+			LINES, COLS, LINES-5, p_inf.Nitems,
 			p_inf.mnu, selection, &ch, &sc)) {
 	    quit_view = TRUE;
 	} else {
@@ -115,7 +115,7 @@ delete_installed(void)
 	    while (!quit_del) {
 		sprintf(tmp, "Delete <%s>", p_inf.name[i]);
 		use_helpline("F1=help, use arrow-keys or digit to select option and press enter");
-		if (dialog_menu("Delete a package", tmp, 10, COLS-6, 
+		if (dialog_menu("Delete a package", tmp, 10, COLS-6,
 				3, 3, mnu, selection, &ch0, &sc0)) {
 		    quit_del = TRUE;
 		} else {
@@ -161,7 +161,7 @@ delete_installed(void)
 
 void
 preview_pkg(void)
-/* 
+/*
  * Desc: View the package description and comment before installation
  */
 {
@@ -223,12 +223,12 @@ install_batch(void)
     }
     return;
 } /* install_batch() */
-	
+
 
 void
 install_pkgs_indir(void)
 /*
- * Desc: install several packages. 
+ * Desc: install several packages.
  */
 {
     WINDOW		*pkg_win, *w, *tmpwin;
@@ -254,12 +254,12 @@ install_pkgs_indir(void)
 	fprintf(stderr, "\ninstall_pkgs_indir: dupwin(newscr) failed\n");
 	exit(1);
     }
-    
+
     use_helpline(NULL);
     pkg_win = newwin(LINES-4, COLS-12, 2, 5);
     if (pkg_win == NULL) {
 	endwin();
-	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", 
+	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n",
 		LINES-4, COLS-10, 2, 5);
 	exit(1);
     }
@@ -273,7 +273,7 @@ install_pkgs_indir(void)
 
     /* now build a list of the packages in the chosen directory */
     /* and display them in a list */
-    
+
     get_dir(StartDir ? StartDir : ".", "*.tgz", &d, &n);
     get_filenames(d, n, &fnames, &nf);
     FreeDir(d, n); 	/* free the space allocated to d */
@@ -296,7 +296,7 @@ install_pkgs_indir(void)
     if (!comment) {
 	fprintf(stderr, "install_batch(): Error malloc'ing space for comment\n");
 	exit(-1);
-    }    
+    }
     desc = (char **) malloc( sizeof(char *) * nf );
     if (!desc) {
 	fprintf(stderr, "install_batch(): Error malloc'ing space for desc\n");
@@ -348,9 +348,9 @@ install_pkgs_indir(void)
     a = (int *) malloc( nf * sizeof(int) );
     j = 0;
     for (i=0; i<nf; i++) {
-	dialog_gauge("Scanning directory:", fnames[i], LINES/2-3, COLS/2-30, 
+	dialog_gauge("Scanning directory:", fnames[i], LINES/2-3, COLS/2-30,
 		     7, 60, (int) ((float) (i+1)/nf*100));
-	if (get_desc(fnames[i], &(names[i]), &(comment[i]), 
+	if (get_desc(fnames[i], &(names[i]), &(comment[i]),
 		     &(desc[i]), &(sizes[i]), tmp_dir) == FALSE) {
 	    a[j] = i;
 	    j++;
@@ -375,7 +375,7 @@ install_pkgs_indir(void)
 	free(sizes);
 	delwin(pkg_win);
     }
-    
+
     /* Now we should have an array with indices of filenames that are not */
     /* packages, say a[0..k), 0<=k<=n, and the filenames itself           */
     /* remove the non-packages from the array 				  */
@@ -383,7 +383,7 @@ install_pkgs_indir(void)
     i=0;
     p=0;
     while (i+p < nf) {
-	if ((i+p == a[p]) && (p<j)) {	    
+	if ((i+p == a[p]) && (p<j)) {
 	    free(fnames[i+p]);
 	    free(names[i+p]);
 	    free(comment[i+p]);
@@ -402,12 +402,12 @@ install_pkgs_indir(void)
     free(a);
 
     o_pkg[0] = '0';
-    pkg_obj = NewListObj(pkg_win, "To be installed", names, o_pkg, 
+    pkg_obj = NewListObj(pkg_win, "To be installed", names, o_pkg,
 			 1, 2, LINES-11, COLS-50, nf);
     AddObj(&obj, LISTOBJ, (void *) pkg_obj);
-    
+
     o_pkgi[0] = '0';
-    pkgi_obj = NewListObj(pkg_win, "Already Installed", p_inf.name, o_pkgi, 
+    pkgi_obj = NewListObj(pkg_win, "Already Installed", p_inf.name, o_pkgi,
 			  1, COLS-45, LINES-11, COLS-50, p_inf.Nitems);
     AddObj(&obj, LISTOBJ, (void *) pkgi_obj);
 
@@ -554,7 +554,7 @@ install_pkgs_indir(void)
     touchwin(tmpwin);
     wrefresh(tmpwin);
     delwin(tmpwin);
-	    
+
     return;
 } /* install_batch() */
 
@@ -584,7 +584,7 @@ run_menu(void)
 	} else {
 	    sel = atoi(selection);
 	    switch(sel) {
-	    case 1: /* View installed packages */		
+	    case 1: /* View installed packages */
 		view_installed();
 		break;
 	    case 2: /* Delete installed package */

@@ -127,7 +127,7 @@ mon_start(mode)
 	}
 	if (mode == MON_OFF)
 		return;		/* Ooops.. */
-	
+
 	if (!mon_have_memory) {
 		mon_total_mem = 0;
 		mon_mem_increments = 0;
@@ -164,7 +164,7 @@ mon_stop(mode)
 	mon_enabled &= ~mode;
 	if (mon_enabled != MON_OFF)
 		return;
-	
+
 	/*
 	 * Put everything back on the free list
 	 */
@@ -210,7 +210,7 @@ monitor(rbufp)
 
 	md = mon_hash[hash];
 	while (md != NULL) {
-		if (md->rmtadr == netnum && 
+		if (md->rmtadr == netnum &&
 		    /* ?? md->interface == rbufp->dstadr && ?? */
 		    md->mode == (u_char)mode) {
 			md->lasttime = current_time;
@@ -254,7 +254,7 @@ monitor(rbufp)
 		 */
 		md->fifo_prev->fifo_next = md->fifo_next;
 		md->fifo_next->fifo_prev = md->fifo_prev;
-		
+
 	} else {
 		if (mon_free == NULL)           /* if free list empty */
 			mon_getmoremem();       /* then get more */

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: fdwrite.c,v 1.1.1.1 1994/09/18 07:39:19 phk Exp $
+ * $Id: fdwrite.c,v 1.2 1994/10/14 16:03:33 joerg Exp $
  *
  */
 
@@ -142,7 +142,7 @@ main(int argc, char **argv)
 		printf("Format: %d cylinders, %d heads, %d sectors, %d bytes = %dkb\n",
 		fdt.tracks,fdt.heads,fdt.sectrac,(1<<fdt.secsize) * 128,
 		fdt.tracks*bpt*fdt.heads/1024);
-		    
+
 	    }
 	    memset(trackbuf,0,bpt);
 	    for(j=0;inputfd >= 0 && j<bpt;j+=i) {

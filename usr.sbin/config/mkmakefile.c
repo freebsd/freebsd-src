@@ -234,7 +234,7 @@ read_files()
 	register struct opt *op;
 	char *wd, *this, *needs, *special, *depends, *clean;
 	char fname[32];
-	int nreqs, first = 1, configdep, isdup, std, filetype, 
+	int nreqs, first = 1, configdep, isdup, std, filetype,
 	    imp_rule, no_obj, before_depend;
 
 	ftab = 0;
@@ -253,7 +253,7 @@ next:
 	/*
 	 * filename	[ standard | optional ] [ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ device-driver] [ no-obj ]
-	 *	[ compile-with "compile rule" [no-implicit-rule] ] 
+	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
 	 *	[ clean "file-list"]
 	 */
@@ -624,15 +624,15 @@ do_rules(f)
 		else {
 			*cp = '\0';
 			if (och == 'o') {
-				fprintf(f, "%so:\n\t-cp $S/%so .\n\n", 
+				fprintf(f, "%so:\n\t-cp $S/%so .\n\n",
 					tail(np), np);
 				continue;
 			}
 			if (ftp->f_depends)
-				fprintf(f, "%so: $S/%s%c %s\n", tail(np), 
+				fprintf(f, "%so: $S/%s%c %s\n", tail(np),
 					np, och, ftp->f_depends);
 			else
-				fprintf(f, "%so: $S/%s%c\n", tail(np), 
+				fprintf(f, "%so: $S/%s%c\n", tail(np),
 					np, och);
 		}
 		tp = tail(np);

@@ -27,7 +27,7 @@
 /*
  * FreeBSD:
  * format a floppy disk
- * 
+ *
  * Added FD_GTYPE ioctl, verifying, proportional indicators.
  * Serge Vakulenko, vak@zebub.msk.su
  * Sat Dec 18 17:45:47 MSK 1993
@@ -98,7 +98,7 @@ verify_track(int fd, int track, int tracksize)
 		fdopts |= FDOPT_NORETRY;
 		(void)ioctl(fd, FD_SOPTS, &fdopts);
 	}
-	
+
 	if (bufsz < tracksize) {
 		if (buf)
 			free (buf);

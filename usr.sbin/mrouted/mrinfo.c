@@ -44,24 +44,24 @@
  * SUCH DAMAGE.
  * ---------------------------------
  * Copyright (c) Xerox Corporation 1992. All rights reserved.
- * 
+ *
  * License is granted to copy, to use, and to make and to use derivative works
  * for research and evaluation purposes, provided that Xerox is acknowledged
  * in all documentation pertaining to any such copy or derivative work. Xerox
  * grants no other licenses expressed or implied. The Xerox trade name should
  * not be used in any advertising without its written permission.
- * 
+ *
  * XEROX CORPORATION MAKES NO REPRESENTATIONS CONCERNING EITHER THE
  * MERCHANTABILITY OF THIS SOFTWARE OR THE SUITABILITY OF THIS SOFTWARE FOR
  * ANY PARTICULAR PURPOSE.  The software is provided "as is" without express
  * or implied warranty of any kind.
- * 
+ *
  * These notices must be retained in any copies of any part of this software.
  */
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 1.2 1994/09/08 02:51:20 wollman Exp $";
+    "@(#) $Id: mrinfo.c,v 1.3 1995/05/16 00:28:46 jkh Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -98,7 +98,7 @@ inet_name(addr)
  * message and the current debug level.  For errors of severity LOG_ERR or
  * worse, terminate the program.
  */
-void 
+void
 log(severity, syserr, format, a, b, c, d, e)
 	int     severity, syserr;
 	char   *format;
@@ -137,7 +137,7 @@ log(severity, syserr, format, a, b, c, d, e)
 /*
  * Send a neighbors-list request.
  */
-void 
+void
 ask(dst)
 	u_long  dst;
 {
@@ -145,7 +145,7 @@ ask(dst)
 			htonl(MROUTED_LEVEL), 0);
 }
 
-void 
+void
 ask2(dst)
 	u_long  dst;
 {
@@ -156,7 +156,7 @@ ask2(dst)
 /*
  * Process an incoming neighbor-list message.
  */
-void 
+void
 accept_neighbors(src, dst, p, datalen)
 	u_long  src, dst;
 	u_char *p;
@@ -189,7 +189,7 @@ accept_neighbors(src, dst, p, datalen)
 	}
 }
 
-void 
+void
 accept_neighbors2(src, dst, p, datalen)
 	u_long  src, dst;
 	u_char *p;
@@ -232,7 +232,7 @@ accept_neighbors2(src, dst, p, datalen)
 	}
 }
 
-int 
+int
 get_number(var, deflt, pargv, pargc)
 	int    *var, *pargc, deflt;
 	char ***pargv;
@@ -258,7 +258,7 @@ get_number(var, deflt, pargv, pargc)
 	}
 }
 
-u_long 
+u_long
 host_addr(name)
 	char   *name;
 {

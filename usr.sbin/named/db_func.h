@@ -1,6 +1,6 @@
 /* db_proc.h - prototypes for functions in db_*.c
  *
- * $Id: db_func.h,v 1.8 1994/07/23 23:23:56 vixie Exp $
+ * $Id: db_func.h,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $
  */
 
 /* ++from db_update.c++ */
@@ -79,7 +79,7 @@ extern int		getdtablesize __P((void));
 extern struct databuf	*rm_datum __P((struct databuf *,
 				       struct namebuf *,
 				       struct databuf *));
-extern struct namebuf	*rm_name __P((struct namebuf *, 
+extern struct namebuf	*rm_name __P((struct namebuf *,
 				      struct namebuf **,
 				      struct namebuf *));
 #ifdef INVQ

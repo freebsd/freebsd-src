@@ -18,7 +18,7 @@
  * This driver supports the KSI/Odetecs TPRO-S IRIG-B reader and TPRO-
  * SAT GPS receiver for the Sun Microsystems SBus. It requires that the
  * tpro.o device driver be installed and loaded.
- */ 
+ */
 
 /*
  * TPRO interface definitions

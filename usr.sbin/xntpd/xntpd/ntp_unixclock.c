@@ -341,7 +341,7 @@ clock_parms(tickadj, tick)
 #define	K_TICKADJ	0
 #define	K_TICK		1
 
-	/* 
+	/*
 	 * Check to see what to use for the object file for names and get
 	 * the locations of the necessary kernel variables.
 	 */
@@ -413,7 +413,7 @@ clock_parms(tickadj, tick)
 /*
  * clock_parms for Solaris 2.2 and later, with high-res timer kernel code.
  * The clock code changed in Solaris 2.2, and tickadj went away.
- * The good news is that ADJTIME_IS_ACCURATE and tick is available through 
+ * The good news is that ADJTIME_IS_ACCURATE and tick is available through
  * sysconf().
  */
 static void
@@ -425,10 +425,10 @@ clock_parms(tickadj, tick)
 
         hz = (int) sysconf (_SC_CLK_TCK);
         *tick = 1000000L/hz;
-        *tickadj = (*tick/16); /* There is no tickadj, and it is only set here 
+        *tickadj = (*tick/16); /* There is no tickadj, and it is only set here
 				for tvu_maxslew calculation above. Really,
 				clock_parms should return adj_precision
-				and tvu_maxslew, instead of the very 
+				and tvu_maxslew, instead of the very
 				BSD-centric tickadj */
 
 #ifdef DEBUG

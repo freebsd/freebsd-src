@@ -1,5 +1,5 @@
 /***************************************************************
- * 
+ *
  * Program:	pkg_manage.c
  * Author:	Marc van Kempen
  * Desc:	Add, delete packages with the pkg_* binaries
@@ -22,7 +22,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  ***************************************************************/
 
 #include <stdlib.h>
@@ -46,7 +46,7 @@ PKG_info	p_inf = { 0, 0, NULL, NULL, NULL, NULL, NULL };
  *
  *******************************************************************/
 
-void 
+void
 FreeInfo(void)
 /*
  * Desc: free the space allocated to p_inf
@@ -69,12 +69,12 @@ FreeInfo(void)
 
 int
 file_exists(char *fname)
-/* 
+/*
  * Desc: check if the file <fname> exists (and is readable)
  */
 {
     FILE *f;
-    
+
     if (strlen(fname) == 0) return(FALSE); /* apparently opening an empty */
 					   /* file for reading succeeds always */
     f = fopen(fname, "r");
@@ -91,7 +91,7 @@ int
 exec_catch_errors(char *prog, char *arg, char *fout)
 /*
  * Desc: run the program <prog> with arguments <arg> and catch its output
- * 	 in <fout> and display it in case of an error. specify NULL, 
+ * 	 in <fout> and display it in case of an error. specify NULL,
  *	 if you don't want output.
  */
 {
@@ -119,7 +119,7 @@ exec_catch_errors(char *prog, char *arg, char *fout)
 
     sprintf(execstr, "%s %s > %s 2>&1", prog, arg, fout);
     ret = system(execstr);
-    if (ret) {	
+    if (ret) {
 
 	yesno = dialog_yesno("Error", "An error occured, view output?", 8, 40);
 	if (yesno == 0) {
@@ -137,7 +137,7 @@ exec_catch_errors(char *prog, char *arg, char *fout)
 	free(fout);
     }
     free(execstr);
-    
+
     return(ret);
 } /* exec_catch_errors() */
 
@@ -165,7 +165,7 @@ get_pkginfo(void)
 
     dialog_msgbox("PKG INFO", "Reading info, please wait ...", 4, 35, FALSE);
 
-    tmp_file = tempnam(NULL, "pkg.");  
+    tmp_file = tempnam(NULL, "pkg.");
     ret = exec_catch_errors(PKG_INFO, "-a", tmp_file);
     if (ret) {
 	dialog_notify("Could not get package info\nexiting!");
@@ -182,7 +182,7 @@ get_pkginfo(void)
 	free(tmp_file);
 	return;
     }
-    
+
     if (stat(tmp_file, &sb)) {	/* stat file to get filesize */
 	dialog_notify("Could not stat temporary file");
 	fclose(f);
@@ -190,7 +190,7 @@ get_pkginfo(void)
 	free(tmp_file);
 	return;
     }
-    
+
     if (sb.st_size == 0) {
 	dialog_notify("No packages installed or no info available");
 	fclose(f);
@@ -220,7 +220,7 @@ get_pkginfo(void)
     i = p_inf.N - strlen("Information for") - 1;
     p = p_inf.buf;
     if (strncmp(p_inf.buf, "Information for", 15) == 0) {
-	n = 1; 
+	n = 1;
     } else {
 	n = 0;
     }
@@ -232,7 +232,7 @@ get_pkginfo(void)
 	}
 	p++;
     }
-    
+
     /* malloc space for PKG_info */
     p_inf.name = (char **) malloc( n * sizeof(char *) );
     p_inf.comment = (char **) malloc( n * sizeof(char *) );
@@ -297,13 +297,13 @@ get_pkginfo(void)
     for (i=0; i<p_inf.Nitems; i++) {
 	/* tag */
 	p_inf.mnu[j] = (char *) malloc( lsize );
-	strncpy(p_inf.mnu[j], p_inf.name[i], lsize-1); 
+	strncpy(p_inf.mnu[j], p_inf.name[i], lsize-1);
 	p_inf.mnu[j++][lsize-1] = 0;
 
 	/* description */
 	p_inf.mnu[j] = (char *) malloc( lsize );
-	strncpy(p_inf.mnu[j], p_inf.comment[i], lsize-1); 
-	p_inf.mnu[j++][lsize-1] = 0; 
+	strncpy(p_inf.mnu[j], p_inf.comment[i], lsize-1);
+	p_inf.mnu[j++][lsize-1] = 0;
     }
 
     return;
@@ -323,13 +323,13 @@ get_pkg_index(char *selection)
 	    index = i;
 	}
     }
-    
+
     return(index);
 } /* get_pkg_index() */
 
 void
 install_package(char *fname)
-/* 
+/*
  * Desc: install the package <fname>
  */
 {
@@ -351,12 +351,12 @@ install_package(char *fname)
 
 
 int
-get_desc(char *fname, char **name, char **comment, 
+get_desc(char *fname, char **name, char **comment,
 	 char **desc, long *size, char *tmp_dir)
 /*
  * Desc: get the description and comment from the files
  *	 DESC, CONTENT and COMMENT from fname
- * Pre:  the current working directory is a temporary, 
+ * Pre:  the current working directory is a temporary,
  *	 empty directory.
  * Post: name = the name of the package
  * 	 comment = the comment for the package
@@ -372,7 +372,7 @@ get_desc(char *fname, char **name, char **comment,
     *desc = NULL;
     *name = NULL;
 
-    sprintf(args, "--fast-read -zxvf %s -C %s %s %s %s", fname, 
+    sprintf(args, "--fast-read -zxvf %s -C %s %s %s %s", fname,
 	    tmp_dir, CONTENTS, DESC, COMMENT);
     ret = exec_catch_errors(TAR, args, NULL);
     if (ret) {
@@ -416,7 +416,7 @@ get_desc(char *fname, char **name, char **comment,
     found = FALSE;
     while (*p && !found) {
 	if (strncmp(p, "@name ", 6) == 0) {
-	    i=0; 
+	    i=0;
 	    p += 6;
 	    while (*p && p[i] != '\n' && p[i] != '\r') i++;
 	    *name = (char *) malloc( i+1 );
@@ -506,7 +506,7 @@ get_desc(char *fname, char **name, char **comment,
 	sscanf(tmp, "%*s %ld", size);
 	pclose(pf);
     }
-	
+
     if (found) {
 	return(TRUE);
     } else {
@@ -517,7 +517,7 @@ get_desc(char *fname, char **name, char **comment,
 
 int
 already_installed(char *name)
-/* 
+/*
  * Desc: check if <name> is already installed as a package
  */
 {
@@ -532,5 +532,5 @@ already_installed(char *name)
 
     return(found);
 } /* already_installed() */
-    
- 
+
+

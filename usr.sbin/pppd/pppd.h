@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.3 1994/05/26 06:43:42 paulus Exp $
+ * $Id: pppd.h,v 1.2 1994/09/25 02:32:13 wollman Exp $
  */
 
 /*
@@ -154,7 +154,7 @@ u_long GetMask __ARGS((u_long)); /* get netmask for address */
 #ifndef LOG_PPP			/* we use LOG_LOCAL2 for syslog by default */
 #if defined(DEBUGMAIN) || defined(DEBUGFSM) || defined(DEBUG) \
   || defined(DEBUGLCP) || defined(DEBUGIPCP) || defined(DEBUGUPAP) \
-  || defined(DEBUGCHAP) 
+  || defined(DEBUGCHAP)
 #define LOG_PPP LOG_LOCAL2
 #else
 #define LOG_PPP LOG_DAEMON

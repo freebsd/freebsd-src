@@ -17,7 +17,7 @@
  * Receivers. No specific claim of accuracy is made for these receiver,
  * but actual experience suggests that 10 ms would be a conservative
  * assumption.
- * 
+ *
  * The DIPswitches should be set for 9600 bps line speed, 24-hour day-
  * of-year format and UTC time zone. Automatic correction for DST should
  * be disabled. It is very important that the year be set correctly in

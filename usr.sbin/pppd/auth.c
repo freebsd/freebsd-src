@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.6 1994/05/25 06:25:05 paulus Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.2 1994/09/25 02:31:52 wollman Exp $";
 #endif
 
 #include <stdio.h>
@@ -758,7 +758,7 @@ check_access(f, filename)
  * NONWILD_CLIENT set if the secret didn't have "*" for the client, and
  * NONWILD_SERVER set if the secret didn't have "*" for the server.
  * Any following words on the line (i.e. address authorization
- * info) are placed in a wordlist and returned in *addrs.  
+ * info) are placed in a wordlist and returned in *addrs.
  */
 static int
 scan_authfile(f, client, server, secret, addrs, filename)
@@ -851,7 +851,7 @@ scan_authfile(f, client, server, secret, addrs, filename)
 	}
 	if (secret != NULL)
 	    strcpy(secret, word);
-		
+
 	best_flag = got_flag;
 
 	/*

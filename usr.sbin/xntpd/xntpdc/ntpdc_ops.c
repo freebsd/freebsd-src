@@ -294,7 +294,7 @@ peerlist(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_PEER_LIST, 0, 0, 0, (char *)NULL, &items,
 	    &itemsize, (char **)&plist, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -356,7 +356,7 @@ dopeers(pcmd, fp, dmstyle)
 
 	res = doquery(IMPL_XNTPD, REQ_PEER_LIST_SUM, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&plist, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -447,14 +447,14 @@ printpeer(pp, fp)
 	(void) fprintf(fp, "hmode %s, pmode %s, stratum %d, precision %d\n",
 	    modetoa(pp->hmode), modetoa(pp->pmode),
 	    pp->stratum, pp->precision);
-	
+
 	(void) fprintf(fp,
 	    "leap %c%c, refid [%s], rootdistance %s, rootdispersion %s\n",
 	    pp->leap & 0x2 ? '1' : '0',
 	    pp->leap & 0x1 ? '1' : '0',
 	    refid_string(pp->refid, pp->stratum), fptoa(NTOHS_FP(pp->rootdelay), 5),
 	    ufptoa(NTOHS_FP(pp->rootdispersion), 5));
-	
+
 	(void) fprintf(fp,
 	    "ppoll %d, hpoll %d, keyid %lu, version %d, association %u\n",
 	    pp->ppoll, pp->hpoll, (u_long)pp->keyid, pp->version, ntohs(pp->associd));
@@ -465,7 +465,7 @@ printpeer(pp, fp)
 
 	(void) fprintf(fp, "boffset %s, ttl %d\n",
 	    fptoa(NTOHS_FP(pp->estbdelay), 5), pp->ttl);
-	
+
 	(void) fprintf(fp, "timer %lds, flags", (long)ntohl(pp->timer));
 	if (pp->flags == 0) {
 		(void) fprintf(fp, " none\n");
@@ -509,7 +509,7 @@ printpeer(pp, fp)
 	NTOHL_FP(&pp->xmt, &tempts);
 	(void) fprintf(fp, "transmit timestamp:  %s\n",
 	    prettydate(&tempts));
-	
+
 	(void) fprintf(fp, "filter delay: ");
 	for (i = 0; i < NTP_SHIFT; i++) {
 		(void) fprintf(fp, " %-8.8s",
@@ -535,7 +535,7 @@ printpeer(pp, fp)
 			(void) fprintf(fp, "\n              ");
 	}
 	(void) fprintf(fp, "\n");
-	
+
 
 	NTOHL_FP(&pp->offset, &tempts);
 	(void) fprintf(fp,
@@ -571,7 +571,7 @@ showpeer(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_PEER_INFO, 0, qitems,
 	    sizeof(struct info_peer_list), (char *)plist, &items,
 	    &itemsize, (char **)&pp, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -615,7 +615,7 @@ peerstats(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_PEER_STATS, 0, qitems,
 	    sizeof(struct info_peer_list), (char *)plist, &items,
 	    &itemsize, (char **)&pp, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -687,7 +687,7 @@ loopinfo(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_LOOP_INFO, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&il, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -741,7 +741,7 @@ sysinfo(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_SYS_INFO, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&is, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -818,7 +818,7 @@ sysstats(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_SYS_STATS, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&ss, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -852,7 +852,7 @@ sysstats(pcmd, fp)
 	    (u_long)ntohl(ss->badauth));
 	if (itemsize != sizeof(struct info_sys_stats))
 		return;
-	
+
 	(void) fprintf(fp, "limitation rejects:     %ld\n",
 	    (u_long)ntohl(ss->limitrejected));
 }
@@ -875,7 +875,7 @@ iostats(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_IO_STATS, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&io, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -929,7 +929,7 @@ memstats(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_MEM_STATS, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&mem, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -980,7 +980,7 @@ timerstats(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_TIMER_STATS, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&tim, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -1104,7 +1104,7 @@ doconfig(pcmd, fp, mode)
 	res = doquery(IMPL_XNTPD, REQ_CONFIG, 1, 1,
 	    sizeof(struct conf_peer), (char *)&cpeer, &items,
 	    &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1134,7 +1134,7 @@ unconfig(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_UNCONFIG, 1, qitems,
 	    sizeof(struct conf_unpeer), (char *)plist, &items,
 	    &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 }
@@ -1208,7 +1208,7 @@ doset(pcmd, fp, req)
 	res = doquery(IMPL_XNTPD, req, 1, 1,
 	    sizeof(struct conf_sys_flags), (char *)&sys, &items,
 	    &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 }
@@ -1266,7 +1266,7 @@ reslist(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_GET_RESTRICT, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&rl, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -1438,7 +1438,7 @@ do_restrict(pcmd, fp, req_code)
 	res = doquery(IMPL_XNTPD, req_code, 1, 1,
 	    sizeof(struct conf_restrict), (char *)&cres, &items,
 	    &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1471,10 +1471,10 @@ monlist(pcmd, fp)
 	    &items, &itemsize, &struct_star,
 	    (version < 0) ? (1 << INFO_ERR_REQ) : 0);
 
-	if (res == INFO_ERR_REQ && version < 0) 
+	if (res == INFO_ERR_REQ && version < 0)
 	  res = doquery(IMPL_XNTPD, REQ_MON_GETLIST, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, &struct_star, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -1490,7 +1490,7 @@ monlist(pcmd, fp)
 			       "===============================================================================\n");
 		while (items > 0) {
 			addr.s_addr = ml->daddr;
-			(void) fprintf(fp, 
+			(void) fprintf(fp,
 				"%-22.22s %5d %-15s %8ld %1d %1d %6lu %6lu %7lu\n",
 				       nntohost(ml->addr),
 				       ntohs(ml->port),
@@ -1576,7 +1576,7 @@ monitor(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, req_code, 1, 0, 0, (char *)0,
 	    &items, &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1640,7 +1640,7 @@ reset(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_RESET_STATS, 1, 1,
 	    sizeof(struct reset_flags), (char *)&rflags, &items,
 	    &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1671,7 +1671,7 @@ preset(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_RESET_PEER, 1, qitems,
 	    sizeof(struct conf_unpeer), (char *)plist, &items,
 	    &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 }
@@ -1693,7 +1693,7 @@ readkeys(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_REREAD_KEYS, 1, 0, 0, (char *)0,
 	    &items, &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1748,7 +1748,7 @@ do_trustkey(pcmd, fp, req)
 
 	res = doquery(IMPL_XNTPD, req, 1, ritems, sizeof(u_long),
 	    (char *)keyids, &items, &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1772,7 +1772,7 @@ authinfo(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_AUTHINFO, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&ia, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -1815,7 +1815,7 @@ traps(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_TRAPS, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&it, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -1839,7 +1839,7 @@ traps(pcmd, fp)
 			(void) fprintf(fp, "low priority\n");
 		else
 			(void) fprintf(fp, "normal priority\n");
-		
+
 		(void) fprintf(fp, "set for %ld secs, last set %ld secs ago\n",
 		    (long)it->origtime, (long)it->settime);
 		(void) fprintf(fp, "sequence %d, number of resets %ld\n",
@@ -1901,7 +1901,7 @@ do_addclr_trap(pcmd, fp, req)
 
 	res = doquery(IMPL_XNTPD, req, 1, 1, sizeof(struct conf_trap),
 	    (char *)&ctrap, &items, &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1954,7 +1954,7 @@ do_changekey(pcmd, fp, req)
 
 	res = doquery(IMPL_XNTPD, req, 1, 1, sizeof(u_long),
 	    (char *)&key, &items, &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;
@@ -1978,7 +1978,7 @@ ctlstats(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_GET_CTLSTATS, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&ic, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -2056,7 +2056,7 @@ leapinfo(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_GET_LEAPINFO, 0, 0, 0, (char *)NULL,
 	    &items, &itemsize, (char **)&il, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -2124,7 +2124,7 @@ clockstat(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_GET_CLOCKINFO, 0, qitems,
 	    sizeof(U_LONG), (char *)clist, &items,
 	    &itemsize, (char **)&cl, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -2282,7 +2282,7 @@ clkbug(pcmd, fp)
 	res = doquery(IMPL_XNTPD, REQ_GET_CLKBUGINFO, 0, qitems,
 	    sizeof(U_LONG), (char *)clist, &items,
 	    &itemsize, (char **)&cl, 0);
-	
+
 	if (res != 0 && items == 0)
 		return;
 
@@ -2363,7 +2363,7 @@ setprecision(pcmd, fp)
 
 	res = doquery(IMPL_XNTPD, REQ_SET_PRECISION, 1, 1, sizeof(long),
 	    (char *)&precision, &items, &itemsize, &dummy, 0);
-	
+
 	if (res == 0)
 		(void) fprintf(fp, "done!\n");
 	return;

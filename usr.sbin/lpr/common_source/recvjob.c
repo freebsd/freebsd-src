@@ -94,7 +94,7 @@ recvjob()
 		frecverr("unknown printer %s", printer);
 	else if (status == -3)
 		fatal("potential reference loop detected in printcap file");
-	
+
 	if (cgetstr(bp, "lf", &LF) == -1)
 		LF = _PATH_CONSOLE;
 	if (cgetstr(bp, "sd", &SD) == -1)

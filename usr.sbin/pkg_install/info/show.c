@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: show.c,v 1.4 1994/12/06 00:51:46 jkh Exp $";
+static const char *rcsid = "$Id: show.c,v 1.5 1995/01/05 01:10:13 swallace Exp $";
 #endif
 
 /*
@@ -51,14 +51,14 @@ show_index(char *title, char *fname)
     FILE *fp;
     char line[MAXINDEXSIZE+2];
     int i,n;
-    
+
     if (!Quiet)
         printf("%s%s", InfoPrefix, title);
     fp = fopen(fname, "r");
     if (!fp) {
         whinge("show_file: Can't open '%s' for reading.", fname);
         return;
-    }   
+    }
     if(fgets(line, MAXINDEXSIZE+1, fp)) {
 	if(line[MAXINDEXSIZE-1] != '\n')
           line[MAXINDEXSIZE] = '\n';
@@ -66,7 +66,7 @@ show_index(char *title, char *fname)
 	fputs(line, stdout);
     }
     fclose(fp);
-}   
+}
 
 /* Show a packing list item type.  If type is -1, show all */
 void
@@ -92,7 +92,7 @@ show_plist(char *title, Package *plist, plist_t type)
 	    else
 		printf(Quiet ? "%s\n" : "File: %s\n", p->name);
 	    break;
-	    
+
 	case PLIST_CWD:
 	    printf(Quiet ? "@cwd %s\n" : "\tCWD to %s\n", p->name);
 	    break;
@@ -180,7 +180,7 @@ show_files(char *title, Package *plist)
 		printf("%s/%s\n", dir, p->name);
 	    ign = FALSE;
 	    break;
-	    
+
 	case PLIST_CWD:
 	    dir = p->name;
 	    break;

@@ -73,7 +73,7 @@ main(argc, argv)
 		default:
 			usage();
 		}
-	
+
 	argc -= optind;
 	argv += optind;
 
@@ -109,7 +109,7 @@ copyfile(from, to)
 {
 	int nr, nw, off;
 	char buf[8*1024];
-	
+
 	while ((nr = read(from, buf, sizeof(buf))) > 0)
 		for (off = 0; off < nr; nr -= nw, off += nw)
 			if ((nw = write(to, buf + off, nr)) < 0)

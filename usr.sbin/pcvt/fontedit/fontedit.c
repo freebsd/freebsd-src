@@ -17,7 +17,7 @@
  *
  *      REVISION HISTORY:
  *
- *      Nov 21, 1987 - Fixed man page to say "Fontedit" instead of "Top" 
+ *      Nov 21, 1987 - Fixed man page to say "Fontedit" instead of "Top"
  *      Nov 22, 1987 - Added BSD Compatible ioctl, turned cursor on/off
  *                     - eap@bucsf.bu.edu
  */
@@ -79,7 +79,7 @@ typedef enum { false, true } bool;
 #define	ROW_OFFSET	3
 #define COL_OFFSET	10
 
-/* 
+/*
  * Position of the DRCS table.
  */
 
@@ -122,8 +122,8 @@ interrupt()
 {
 	void clear_screen();
 #ifdef CURFIX
-        printf("%s\n",CURSORON);   
-#endif CURFIX   
+        printf("%s\n",CURSORON);
+#endif CURFIX
 #ifdef SYSV
 	ioctl( 0, TCSETA, &old_stty );
 #endif SYSV
@@ -142,7 +142,7 @@ interrupt()
  * Main
  *	Grab input/output file and call main command processor.
  */
-	
+
 main( argc, argv )
 int argc;
 char *argv[];
@@ -168,7 +168,7 @@ char *argv[];
 		}
 	}
 	fclose( font_file );
-	
+
 	if ( ( font_file = fopen( argv[1], "r" ) ) != (FILE *)0 ) {
 		get_table( font_file );
 		fclose( font_file );
@@ -204,7 +204,7 @@ char *argv[];
 	ioctl( 0, TIOCSETA, &new_stty );
 #endif /* __NetBSD__ || __FreeBSD__ */
 #ifdef BSD
-	new_stty.sg_flags |= CBREAK;               
+	new_stty.sg_flags |= CBREAK;
         new_stty.sg_flags &= ~ECHO;
 	ioctl( 0, TIOCSETP, &new_stty );
 #endif BSD
@@ -237,7 +237,7 @@ char *argv[];
 
 /*
  * Command
- *	Process a function key. 
+ *	Process a function key.
  *
  *	The user cannot fill in slots 0 or 95 (space and del respecitively).
  */
@@ -317,7 +317,7 @@ command()
 			}
 			draw_current();
 			break;
-	
+
 		case KEY_REMOVE:	/* Remove a row	*/
 			change = true;
 			for ( j = 0; j < MAX_COLS; ++j ) {
@@ -349,7 +349,7 @@ command()
 				warning( "Changes not saved" );
 				error = true;
 				override = true;
-			} else { 
+			} else {
 				extract_entry( current_entry );
 				draw_current();
 			}
@@ -363,7 +363,7 @@ command()
 			} else {
 				print_entry( current_entry, false );
 				current_entry = current_entry - 1;
-				if ( current_entry == 0 ) 
+				if ( current_entry == 0 )
 					current_entry = TOTAL_ENTRIES - 2;
 				print_entry( current_entry, true );
 			}
@@ -398,7 +398,7 @@ command()
 			break;
 
 		case KEY_LEFT:
-			if ( col == 0 ) 
+			if ( col == 0 )
 				col = MAX_COLS;
 			col = col - 1;
 			break;
@@ -522,7 +522,7 @@ init_restore()
 {
 	register int row, col;
 	register int i;
-	
+
 	void  draw_current(), clear_screen(), print_entry();
 
 	clear_screen();
@@ -572,7 +572,7 @@ init_restore()
 		printf( "|" );
 		move ( TABLE_ROW + i * 2 + 1, TABLE_COL +12 * 2 - 1);
 		printf( "+" );
-	}	
+	}
 	for ( i = 0; i < TOTAL_ENTRIES; ++i )
 		print_entry( i, (i == current_entry) ? true : false );
 }
@@ -618,7 +618,7 @@ draw_current()
  * highlight
  *	Draw the cursor in the main display area.
  */
- 
+
 void
 highlight( row, col, on )
 unsigned int row, col;
@@ -654,7 +654,7 @@ bool on;
 /*
  * Clear_screen
  */
- 
+
 void
 clear_screen()
 {
@@ -681,7 +681,7 @@ int y, x;
  *	Convert the bit pattern used in the main display area into something
  *	that the vt220 can digest - namely sixels...
  */
- 
+
 void
 build_entry( entry_no )
 unsigned int entry_no;
@@ -711,7 +711,7 @@ unsigned int entry_no;
 		}
 		font_table[entry_no][col+8] = mask + 077;
 	}
-		
+
 }
 
 
@@ -733,7 +733,7 @@ unsigned int entry_no;
 		/* Top set of sixels	*/
 
 		mask = font_table[entry_no][col];
-		if ( mask >= 077 ) 
+		if ( mask >= 077 )
 			mask -= 077;
 		else
 			mask = 0;		/* Bogus entry	*/
@@ -756,7 +756,7 @@ unsigned int entry_no;
 			mask = mask >> 1;
 		}
 	}
-		
+
 }
 
 
@@ -773,7 +773,7 @@ int entry_no;
 {
 	register char *fp	= font_table[entry_no];
 
-	printf( "\033P1;%d;1;0;0;0{ @%c%c%c%c%c%c%c%c/%c%c%c%c%c%c%c%c\033\\", 
+	printf( "\033P1;%d;1;0;0;0{ @%c%c%c%c%c%c%c%c/%c%c%c%c%c%c%c%c\033\\",
 		entry_no,
 		fp[ 0], fp[ 1], fp[ 2], fp[ 3], fp[ 4], fp[ 5], fp[ 6], fp[ 7],
 		fp[ 8], fp[ 9], fp[10], fp[11], fp[12], fp[13], fp[14], fp[15] );
@@ -830,8 +830,8 @@ FILE *font_file;
 
 	for ( i = 0; i < TOTAL_ENTRIES; ++i ) {
 		fp = font_table[i];
-		fprintf( font_file, "\033P1;%d;1;0;0;0{ @%c%c%c%c%c%c%c%c/%c%c%c%c%c%c%c%c\033\\\n", 
-			i, 
+		fprintf( font_file, "\033P1;%d;1;0;0;0{ @%c%c%c%c%c%c%c%c/%c%c%c%c%c%c%c%c\033\\\n",
+			i,
 			fp[ 0], fp[ 1], fp[ 2], fp[ 3], fp[ 4], fp[ 5], fp[ 6], fp[ 7],
 			fp[ 8], fp[ 9], fp[10], fp[11], fp[12], fp[13], fp[14], fp[15] );
 	}
@@ -855,10 +855,10 @@ FILE *font_file;
 	register int j;
 
 	while( fgets( s, 255, font_file ) ) {
-		if ( strncmp( s, "\033P1;", 4 ) !=  0 ) 
+		if ( strncmp( s, "\033P1;", 4 ) !=  0 )
 			continue;	/* Bogus line	*/
 		p = &s[4];
-		if ( sscanf( p, "%d", &i ) != 1 ) 
+		if ( sscanf( p, "%d", &i ) != 1 )
 			continue;	/* Illegal entry number	*/
 
 		if ( i <= 0 || TOTAL_ENTRIES <= i )
@@ -868,12 +868,12 @@ FILE *font_file;
 
 		while ( *p && *p != '@' )
 			++p;		/* Skip to font definition */
-		if ( ! *p++ ) 
+		if ( ! *p++ )
 			continue;	/* Skip @	*/
 
 		for ( j = 0; *p && *p != '\033' && j < 16; ++j, ++p ) {
 			if ( *p == '/' ) {
-				j = 8; 
+				j = 8;
 				++p;
 			}
 			fp[j] = *p;
@@ -888,7 +888,7 @@ FILE *font_file;
  * Help
  *	Print out help information.
  */
- 
+
 void
 help()
 {

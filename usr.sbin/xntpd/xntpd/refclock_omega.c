@@ -9,7 +9,7 @@
  *	Tarted up the sample filtering mechanism to give improved
  *	one-off measurements.  Improved measurement dispersion code
  *	to account for accumulated drift when the clock loses lock.
- *		
+ *
  */
 
 #if defined(REFCLOCK) && (defined(OMEGA) || defined(OMEGACLK) || defined(OMEGAPPS))
@@ -305,7 +305,7 @@ omega_start(unit, peer)
 	/*
 	 * POSIX serial line parameters (termios interface)
 	 *
-	 * The OMEGACLK option provides timestamping at the driver level. 
+	 * The OMEGACLK option provides timestamping at the driver level.
 	 * It requires the tty_clk streams module.
 	 *
 	 * The OMEGAPPS option provides timestamping at the driver level.
@@ -359,7 +359,7 @@ omega_start(unit, peer)
 	/*
 	 * 4.3bsd serial line parameters (sgttyb interface)
 	 *
-	 * The OMEGACLK option provides timestamping at the driver level. 
+	 * The OMEGACLK option provides timestamping at the driver level.
 	 * It requires the tty_clk line discipline and 4.3bsd or later.
 	 */
     {	struct sgttyb ttyb;

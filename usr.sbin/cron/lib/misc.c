@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: misc.c,v 1.1.1.1 1994/08/27 13:43:02 jkh Exp $";
+static char rcsid[] = "$Id: misc.c,v 1.2 1995/04/29 13:25:13 ache Exp $";
 #endif
 
 /* vix 26jan87 [RCS has the rest of the log]
@@ -639,7 +639,7 @@ arpadate(clock)
 	time_t t = clock ?*clock :time(0L);
 	struct tm *tm = localtime(&t);
 	static char ret[30];	/* zone name might be >3 chars */
-	
+
 	(void) sprintf(ret, "%s, %2d %s %2d %02d:%02d:%02d %s",
 		       DowNames[tm->tm_wday],
 		       tm->tm_mday,

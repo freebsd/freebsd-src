@@ -39,7 +39,7 @@ main(int argc, char ** argv)
     }
   else
     txc.mode = 0;
-    
+
   if (__adjtimex(&txc) < 0)
     perror("adjtimex");
   else
@@ -194,29 +194,29 @@ char *argv[];
 	}
 
 	if (setnoprintf && (noprintf_offset == 0)) {
-		(void) fprintf(stderr, 
+		(void) fprintf(stderr,
 			       "No noprintf kernal variable\n");
 		errflg++;
 	}
 
 	if (unsetdosync && (dosync_offset == 0)) {
-		(void) fprintf(stderr, 
+		(void) fprintf(stderr,
 			       "No dosynctodr kernal variable\n");
 		errflg++;
 	}
-	
+
 	if (writeopttickadj && (tickadj_offset == 0)) {
-		(void) fprintf(stderr, 
+		(void) fprintf(stderr,
 			       "No tickadj kernal variable\n");
 		errflg++;
 	}
 
 	if (writetick && (tick_offset == 0)) {
-		(void) fprintf(stderr, 
+		(void) fprintf(stderr,
 			       "No tick kernal variable\n");
 		errflg++;
 	}
-	
+
 
 	if (tickadj_offset != 0)
 		readvar(fd, tickadj_offset, &tickadj);
@@ -273,7 +273,7 @@ char *argv[];
 	if ((!quiet) && (tickadj_offset != 0))
 		(void) printf("recommended value of tickadj = %d us\n",
 		    recommend_tickadj);
-	
+
 	if (writetickadj == 0 && !writeopttickadj &&
 	    !unsetdosync && writetick == 0 && !setnoprintf)
 		exit(errflg ? 1 : 0);
@@ -344,7 +344,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 #if defined(SYS_AUX3) || defined(SYS_AUX2)
 #define X_TICKADJ       0
 #define X_TICK          1
-#define X_DEF	
+#define X_DEF
 	static struct nlist nl[] =
 	{	{"tickadj"},
 		{"tick"},
@@ -357,7 +357,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 #define	X_TICK		1
 #define	X_DOSYNC	2
 #define	X_NOPRINTF	3
-#define X_DEF	
+#define X_DEF
 	static struct nlist nl[] =
 	{	{{"_tickadj"}},
 		{{"_tick"}},
@@ -372,7 +372,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 #define	X_TICK		1
 #define	X_DOSYNC	2
 #define	X_NOPRINTF	3
-#define X_DEF	
+#define X_DEF
 	static struct nlist nl[] =
 	{	{{"tickadj"}},
 		{{"tick"}},
@@ -388,7 +388,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 #endif
 #define	X_DOSYNC	1
 #define	X_NOPRINTF	2
-#define X_DEF	
+#define X_DEF
 	static struct nlist nl[] =
 	{	{"tickadj"},
 		{"dosynctodr"},
@@ -405,7 +405,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 #define	X_TICKADJ	0
 #define	X_TICK		1
 #define	X_DEF
-	static struct nlist nl[] = 
+	static struct nlist nl[] =
 #ifdef hp9000s300
 	{       {"_tickadj"},
 	        {"_old_tick"},
@@ -452,7 +452,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	for (kname = kernels; *kname != NULL; kname++) {
 		if (stat(*kname, &stbuf) == -1)
 			continue;
-		if (nlist(*kname, nl) >= 0) 
+		if (nlist(*kname, nl) >= 0)
 			break;
 	}
 #endif
@@ -537,7 +537,7 @@ writevar(fd, off, var)
 	unsigned long off;
 	int var;
 {
-	
+
 	if (lseek(fd, off, L_SET) == -1) {
 		(void) fprintf(stderr, "%s: lseek fails: ", progname);
 		perror("");
@@ -561,7 +561,7 @@ readvar(fd, off, var)
 	int *var;
 {
 	int i;
-	
+
 	if (lseek(fd, off, L_SET) == -1) {
 		(void) fprintf(stderr, "%s: lseek fails: ", progname);
 		perror("");

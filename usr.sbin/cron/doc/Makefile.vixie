@@ -17,7 +17,7 @@
 
 # Makefile for vixie's cron
 #
-# $Id: Makefile,v 2.9 1994/01/15 20:43:43 vixie Exp $
+# $Id: Makefile.vixie,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $
 #
 # vix 03mar88 [moved to RCS, rest of log is in there]
 # vix 30mar87 [goodbye, time.c; hello, getopt]
@@ -35,7 +35,7 @@
 #	SHELL is for the 'augumented make' systems where 'make' imports
 #	SHELL from the environment and then uses it to run its commands.
 #	if your environment SHELL variable is /bin/csh, make goes real
-#	slow and sometimes does the wrong thing.  
+#	slow and sometimes does the wrong thing.
 #
 #	this package needs the 'bitstring macros' library, which is
 #	available from me or from the comp.sources.unix archive.  if you

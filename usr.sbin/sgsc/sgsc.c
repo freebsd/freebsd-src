@@ -58,7 +58,7 @@ main(int argc, char **argv)
   int fd;
 
   char *file = DEFAULT_FILE;
-  
+
   int show_dpi     = 0;
   int show_width   = 0;
   int show_height  = 0;
@@ -74,7 +74,7 @@ main(int argc, char **argv)
   int set_switch   = 0;
 
   char *progn = *argv;
-  
+
   if (argc == 0) usage(progn);
 
   while( (c = getopt(argc, argv, "sqf:b:r:w:h:t:")) != FAIL)

@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.2 1993/09/03 23:01:00 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.3 1994/12/06 00:51:40 jkh Exp $";
 #endif
 
 /*
@@ -75,7 +75,7 @@ main(int argc, char **argv)
 	    break;
 	}
 
-    argc -= optind;	
+    argc -= optind;
     argv += optind;
 
     /* Get all the remaining package names, if any */

@@ -49,12 +49,12 @@ atolfp(str, lfp)
 	 */
 	while (isspace(*cp))
 		cp++;
-	
+
 	if (*cp == '-') {
 		cp++;
 		isneg = 1;
 	}
-	
+
 	if (*cp == '+')
 		cp++;
 
@@ -70,7 +70,7 @@ atolfp(str, lfp)
 	if (*cp != '\0' && !isspace(*cp)) {
 		if (*cp++ != '.')
 			return 0;
-	
+
 		while (ndec < 9 && *cp != '\0'
 		    && (ind = strchr(digits, *cp)) != NULL) {
 			ndec++;
@@ -81,7 +81,7 @@ atolfp(str, lfp)
 
 		while (isdigit(*cp))
 			cp++;
-		
+
 		if (*cp != '\0' && !isspace(*cp))
 			return 0;
 	}
@@ -110,7 +110,7 @@ atolfp(str, lfp)
 
 	if (isneg)
 		M_NEG(dec_i, dec_f);
-	
+
 	lfp->l_ui = dec_i;
 	lfp->l_uf = dec_f;
 	return 1;

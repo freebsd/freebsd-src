@@ -49,14 +49,14 @@ union ns_net net;
 {
 	static struct sockaddr_ns sxn;
 	extern char ether_broadcast_addr[6];
-	
+
 	bzero(&sxn, sizeof (struct sockaddr_ns));
 	sxn.sns_family = AF_NS;
 	sxn.sns_len = sizeof (sxn);
 	sxn.sns_addr.x_net = net;
 	sxn.sns_addr.x_host = *(union ns_host *)ether_broadcast_addr;
 	return( (struct sockaddr *)&sxn);
-	
+
 }
 
 /*
@@ -72,13 +72,13 @@ rip_input(from, size)
 	int newsize;
 	struct afswitch *afp;
 
-	
+
 	ifp = 0;
 	TRACE_INPUT(ifp, from, size);
 	if (from->sa_family >= AF_MAX)
 		return;
 	afp = &afswitch[from->sa_family];
-	
+
 	size -= sizeof (u_short)	/* command */;
 	n = msg->rip_nets;
 
@@ -91,7 +91,7 @@ rip_input(from, size)
 				break;
 			size -= sizeof (struct netinfo);
 
-			/* 
+			/*
 			 * A single entry with rip_dst == DSTNETS_ALL and
 			 * metric ``infinity'' means ``all routes''.
 			 */

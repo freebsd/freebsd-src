@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: futil.c,v 1.2 1993/09/03 23:00:34 jkh Exp $";
+static const char *rcsid = "$Id: futil.c,v 1.3 1994/12/06 00:51:32 jkh Exp $";
 #endif
 
 /*
@@ -34,7 +34,7 @@ int
 make_hierarchy(char *dir)
 {
     char *cp1, *cp2;
-    
+
     if (dir[0] == '/')
 	cp1 = cp2 = dir + 1;
     else

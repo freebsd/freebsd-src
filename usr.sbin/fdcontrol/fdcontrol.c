@@ -35,7 +35,7 @@ getnumber(void)
 {
   int i;
   char b[80];
-  
+
   fgets(b, 80, stdin);
   if(b[0] == '\n') return -1;
 
@@ -69,23 +69,23 @@ main(int argc, char **argv)
 	debug = atoi(optarg);
 	settype = 0;
 	break;
-	
+
       case 's':
 	debug = -1;
 	settype = 1;
 	break;
-	
+
       case '?':
       default:
 	usage();
       }
-  
+
   argc -= optind;
   argv += optind;
 
   if(argc != 1)
     usage();
-  
+
   if((fd = open(argv[0], 0)) < 0)
     {
       perror("open(floppy)");
@@ -101,7 +101,7 @@ main(int argc, char **argv)
 	}
       return 0;
     }
-  
+
   if(settype)
     {
       if(ioctl(fd, FD_GTYPE, &ft) < 0)
@@ -129,7 +129,7 @@ main(int argc, char **argv)
 	}
       return 0;
     }
-  
+
 }
 
 
