@@ -1718,13 +1718,12 @@ cd0: 250.000MB/s transfers (250.000MHz, offset 12)</programlisting>
 
       <para>AS500 onboard sound can be used by adding a line like</para>
 
-      <programlisting>device pcm</programlisting> 
+      <programlisting>device pcm0 at isa? port? irq 10 drq 0 flags 0x10011</programlisting> 
 
       <para>to the kernel configuration file.</para>
 
       <para>Using the ECU I configured my AS500 to use IRQ10, port 0x530 
-      and drq 0. You will need to specify this in your hints file, and 
-      the uncommon flags 0x10011 as well.</para>
+      and drq 0. Note the uncommon flags in the kernel configuration.</para>
 
       <para>AS600 has a peculiarity for its PCI slots. AS600 (or rather the 
       PCI expansion card containing the SCSI adapters) does not allow I/O port 
