@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.25 1999/06/28 02:37:48 grog Exp grog $
+ * $Id: vinumio.c,v 1.37 1999/08/14 06:26:32 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -836,7 +836,7 @@ write_volume_label(int volno)
     *dlp = *lp;
     bp->b_flags &= ~B_INVAL;
     bp->b_flags |= B_WRITE;
-    vinumstrategy(bp);					    /* write it out */
+    BUF_STRATEGY(bp, 0);				    /* write it out */
     error = biowait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
     brelse(bp);

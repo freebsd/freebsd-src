@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.50 1999/07/17 19:58:37 phk Exp $ */
+/* $Id: ccd.c,v 1.51 1999/07/18 14:30:57 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -1265,7 +1265,7 @@ ccdioctl(dev, cmd, data, flag, p)
 		if (error == 0) {
 			if (cmd == DIOCWDINFO)
 				error = writedisklabel(CCDLABELDEV(dev),
-				    ccdstrategy, &cs->sc_label);
+				    &cs->sc_label);
 		}
 
 		cs->sc_flags &= ~CCDF_LABELLING;
@@ -1435,8 +1435,8 @@ ccdgetdisklabel(dev)
 	/*
 	 * Call the generic disklabel extraction routine.
 	 */
-	if ((errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
-	    &cs->sc_label)) != NULL)
+	errstring = readdisklabel(CCDLABELDEV(dev), &cs->sc_label);
+	if (errstring != NULL)
 		ccdmakedisklabel(cs);
 
 #ifdef DEBUG

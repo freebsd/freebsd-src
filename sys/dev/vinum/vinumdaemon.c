@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.5 1999/06/23 03:22:01 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.11 1999/08/07 08:06:05 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -183,7 +183,7 @@ vinum_daemon(void)
 void 
 recover_io(struct request *rq)
 {
-    vinumstrategy(rq->bp);				    /* reissue the command */
+    BUF_STRATEGY(rq->bp, 0);				    /* reissue the command */
 }
 
 /* Functions called to interface with the daemon */

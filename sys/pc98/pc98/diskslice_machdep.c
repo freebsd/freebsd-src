@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.20 1999/06/26 02:47:15 mckusick Exp $
+ *	$Id: diskslice_machdep.c,v 1.21 1999/08/08 10:06:27 kato Exp $
  */
 
 /*
@@ -74,17 +74,16 @@ static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset));
-static void extended __P((char *dname, dev_t dev, d_strategy_t *strat,
-			  struct disklabel *lp, struct diskslices *ssp,
-			  u_long ext_offset, u_long ext_size,
-			  u_long base_ext_offset, int nsectors, int ntracks,
-			  u_long mbr_offset));
+static void extended __P((char *dname, dev_t dev, struct disklabel *lp,
+			  struct diskslices *ssp, u_long ext_offset,
+			  u_long ext_size, u_long base_ext_offset,
+			  int nsectors, int ntracks, u_long mbr_offset));
 
 #ifdef PC98
 #define DPBLKNO(cyl,hd,sect) ((cyl)*(lp->d_secpercyl))
 #ifdef COMPAT_ATDISK
-int     atcompat_dsinit __P((char *dname, dev_t dev, d_strategy_t *strat,
-							struct disklabel *lp, struct diskslices **sspp));
+int     atcompat_dsinit __P((char *dname, dev_t dev,
+		 struct disklabel *lp, struct diskslices **sspp));
 #endif
 #endif
 
@@ -201,10 +200,9 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 }
 
 int
-dsinit(dname, dev, strat, lp, sspp)
+dsinit(dname, dev, lp, sspp)
 	char	*dname;
 	dev_t	dev;
-	d_strategy_t *strat;
 	struct disklabel *lp;
 	struct diskslices **sspp;
 {
@@ -248,7 +246,7 @@ reread_mbr:
 	if (bp->b_bcount < 1024)
 		bp->b_bcount = 1024;
 #endif
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
@@ -325,7 +323,7 @@ reread_mbr:
 		/* IBM-PC HDD */
 		bp->b_flags = B_INVAL | B_AGE;
 		brelse(bp);
-		return atcompat_dsinit(dname, dev, strat, lp, sspp);
+		return atcompat_dsinit(dname, dev, lp, sspp);
 	}
 #endif
 	dp0 = (struct dos_partition *)(cp + 512);
@@ -488,7 +486,7 @@ reread_mbr:
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
 		if (sp->ds_type == DOSPTYP_EXTENDED || 
                     sp->ds_type == DOSPTYP_EXTENDEDX)
-			extended(dname, bp->b_dev, strat, lp, ssp,
+			extended(dname, bp->b_dev, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
 				 max_nsectors, max_ntracks, mbr_offset);
 #endif
@@ -503,12 +501,11 @@ done:
 
 /* PC98 does not use this function */
 void
-extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
+extended(dname, dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	 nsectors, ntracks, mbr_offset)
 	char	*dname;
 	dev_t	dev;
 	struct disklabel *lp;
-	d_strategy_t *strat;
 	struct diskslices *ssp;
 	u_long	ext_offset;
 	u_long	ext_size;
@@ -538,7 +535,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	bp->b_blkno = ext_offset;
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags |= B_READ;
-	(*strat)(bp);
+	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, dname, "error reading extended partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
@@ -625,7 +622,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			extended(dname, dev, strat, lp, ssp,
+			extended(dname, dev, lp, ssp,
 				 ext_offsets[dospart], ext_sizes[dospart],
 				 base_ext_offset, nsectors, ntracks,
 				 mbr_offset);

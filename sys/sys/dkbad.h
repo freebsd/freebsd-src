@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.2 (Berkeley) 7/10/94
- * $Id: dkbad.h,v 1.9 1997/02/22 09:45:07 peter Exp $
+ * $Id: dkbad.h,v 1.10 1998/02/01 20:08:36 bde Exp $
  */
 
 #ifndef _SYS_DKBAD_H_
@@ -89,10 +89,9 @@ struct dkbad_intern {
 struct buf;
 struct disklabel;
 
-struct dkbad_intern *internbad144 __P((struct dkbad *btp,
-				       struct disklabel *lp));
-char	*readbad144 __P((dev_t dev, void (*strat)(struct buf *bp),
-			 struct disklabel *lp, struct dkbad *btp));
+struct dkbad_intern *internbad144 __P((struct dkbad *btp, 
+	struct disklabel *lp));
+char	*readbad144 __P((dev_t dev, struct disklabel *lp, struct dkbad *btp));
 daddr_t	transbad144 __P((struct dkbad_intern *bip, daddr_t blkno));
 #endif
 

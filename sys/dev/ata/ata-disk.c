@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.15 1999/07/17 17:55:53 phk Exp $
+ *	$Id: ata-disk.c,v 1.16 1999/08/10 21:59:57 sos Exp $
  */
 
 #include "ata.h"
@@ -97,7 +97,6 @@ static struct cdevsw fakewd_cdevsw;
 /* prototypes */
 static void ad_attach(void *);
 static int32_t ad_getparam(struct ad_softc *);
-static void ad_strategy(struct buf *);
 static void ad_start(struct ad_softc *);
 static void ad_sleep(struct ad_softc *, int8_t *);
 static int8_t ad_version(u_int16_t);
@@ -316,8 +315,7 @@ printf("adopen: lun=%d adnlun=%d\n", lun, adnlun);
     label.d_secpercyl = adp->sectors * adp->heads;
     label.d_secperunit = adp->total_secs;
 
-    error = dsopen("ad", dev, fmt, 0, &adp->slices, &label, ad_strategy,
-                   (ds_setgeom_t *)NULL, &ad_cdevsw);
+    error = dsopen("ad", dev, fmt, 0, &adp->slices, &label);
 
     adp->flags &= ~AD_F_LABELLING;
     ad_sleep(adp, "adop2");
@@ -351,8 +349,7 @@ adioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
         return ENXIO;
 
     ad_sleep(adp, "adioct");
-    error = dsioctl("sd", dev, cmd, addr, flags, &adp->slices, 
-		    ad_strategy, (ds_setgeom_t *)NULL);
+    error = dsioctl("sd", dev, cmd, addr, flags, &adp->slices);
 
     if (error != ENOIOCTL)
         return error;
@@ -403,7 +400,7 @@ adpsize(dev_t dev)
 
     if (lun >= adnlun || !(adp = adtab[lun]))
         return -1;
-    return dssize(dev, &adp->slices, adopen, adclose);
+    return dssize(dev, &adp->slices);
 }
 
 int
@@ -475,12 +472,6 @@ addump(dev_t dev)
         printf("ad_dump: timeout waiting for final ready\n");
 
     return 0;
-}
-
-static void 
-ad_strategy(struct buf *bp)
-{
-    adstrategy(bp);
 }
 
 static void

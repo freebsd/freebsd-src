@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.76 1999/07/08 06:05:58 mckusick Exp $
+ * $Id: buf.h,v 1.77 1999/07/09 16:41:18 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -477,8 +477,8 @@ int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **));
 int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
 void	cluster_write __P((struct buf *, u_quad_t));
-int	physio __P((void (*)(struct buf *), struct buf *, dev_t, 
-	    int, u_int (*)(struct buf *), struct uio *));
+int	physio __P((struct buf *, dev_t, int, u_int (*)(struct buf *),
+	    struct uio *));
 int	physread __P((dev_t dev, struct uio *uio, int ioflag));
 int	physwrite __P((dev_t dev, struct uio *uio, int ioflag));
 u_int	minphys __P((struct buf *));
