@@ -124,7 +124,7 @@ add_tty(name)
 	Flags |= AC_T;
 
 	if ((tp = NEW(struct tty_list)) == NULL)
-		err(1, "malloc");
+		errx(1, "malloc failed");
 	tp->len = 0;				/* full match */
 	tp->ret = 1;				/* do if match */
 	if (*name == '!') {			/* don't do if match */
@@ -210,7 +210,7 @@ update_user(head, name, secs)
 		return head;
 
 	if ((up = NEW(struct user_list)) == NULL)
-		err(1, "malloc");
+		errx(1, "malloc failed");
 	up->next = head;
 	(void)strncpy(up->name, name, sizeof (up->name) - 1);
 	up->name[sizeof (up->name) - 1] = '\0';	/* paranoid! */
@@ -440,7 +440,7 @@ log_in(head, up)
 	 * go ahead and log them in
 	 */
 	if ((lp = NEW(struct utmp_list)) == NULL)
-		err(1, "malloc");
+		errx(1, "malloc failed");
 	lp->next = head;
 	head = lp;
 	memmove((char *)&lp->usr, (char *)up, sizeof (struct utmp));
