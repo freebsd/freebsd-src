@@ -57,8 +57,14 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 struct	fileops socketops = {
-	soo_read, soo_write, soo_ioctl, soo_poll, soo_kqfilter,
-	soo_stat, soo_close, DFLAG_PASSABLE
+	.fo_read = soo_read,
+	.fo_write = soo_write,
+	.fo_ioctl = soo_ioctl,
+	.fo_poll = soo_poll,
+	.fo_kqfilter = soo_kqfilter,
+	.fo_stat = soo_stat,
+	.fo_close = soo_close,
+	.fo_flags = DFLAG_PASSABLE
 };
 
 /* ARGSUSED */
