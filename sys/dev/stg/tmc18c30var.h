@@ -57,7 +57,6 @@ struct stg_softc {
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_ioh;
 
-#if __FreeBSD_version >= 400001
 	int port_rid;
 	int irq_rid;
 	int mem_rid;
@@ -66,7 +65,6 @@ struct stg_softc {
 	struct resource *mem_res;
 
 	void *stg_intrhand;
-#endif	/* __FreeBSD_version */
 #endif	/* __FreeBSD__ */
 
 	int sc_tmaxcnt;

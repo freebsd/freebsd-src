@@ -53,18 +53,9 @@
 #include <vm/vm.h>
 
 #include <machine/bus.h>
-
 #include <machine/bus_pio.h>
-#include <i386/isa/isa_device.h>
-
 #include <machine/dvcfg.h>
 
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static struct stg_softc *stg_get_softc(int);
-extern struct stg_softc *stgdata[];
-#define DEVPORT_ALLOCSOFTCFUNC stg_get_softc
-#define DEVPORT_SOFTCARRAY     stgdata
-#endif
 #include <sys/device_port.h>
 
 #include <cam/scsi/scsi_low.h>
@@ -72,15 +63,9 @@ extern struct stg_softc *stgdata[];
 
 #include <dev/stg/tmc18c30reg.h>
 #include <dev/stg/tmc18c30var.h>
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-#include "stg.h"
-#endif
 
 #define	STG_HOSTID	7
 
-/* pccard support */
-#include	"card.h"
-#if NCARD > 0
 #include	<sys/kernel.h>
 #include	<sys/module.h>
 #if !defined(__FreeBSD__) || __FreeBSD_version < 500014
@@ -93,12 +78,7 @@ static	int	stgprobe(DEVPORT_PDEVICE devi);
 static	int	stgattach(DEVPORT_PDEVICE devi);
 
 static	void	stg_card_unload	__P((DEVPORT_PDEVICE));
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static	int	stg_card_init	__P((DEVPORT_PDEVICE));
-static	int	stg_card_intr	__P((DEVPORT_PDEVICE));
-#endif
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 /*
  * Additional code for FreeBSD new-bus PCCard frontend
  */
@@ -258,63 +238,6 @@ static devclass_t stg_devclass;
 
 DRIVER_MODULE(stg, pccard, stg_pccard_driver, stg_devclass, 0, 0);
 
-#else
-
-PCCARD_MODULE(stg, stg_card_init,stg_card_unload, stg_card_intr, 0, cam_imask);
-
-#endif
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-static struct stg_softc *
-stg_get_softc(int unit)
-{
-	struct stg_softc *sc;
-
-	if (unit >= NSTG) {
-		return(NULL);
-	}
-
-	if (stgdata[unit] == NULL) {
-		sc = malloc(sizeof(struct stg_softc), M_TEMP,M_NOWAIT);
-		if (sc == NULL) {
-			printf("stg_get_softc: cannot malloc!\n");
-			return(NULL);
-		}
-		stgdata[unit] = sc;
-	} else {
-		sc = stgdata[unit];
-	}
-
-	return(sc);
-}
-
-static	int
-stg_card_init(DEVPORT_PDEVICE devi)
-{
-	int unit = DEVPORT_PDEVUNIT(devi);
-
-	if (NSTG <= unit)
-		return (ENODEV);
-
-	printf("probe stg\n");
-	if (stgprobe(devi) == 0)
-		return (ENXIO);
-
-	printf("attach stg\n");
-	if (stgattach(devi) == 0)
-		return (ENXIO);
-
-	return (0);
-}
-
-static	int
-stg_card_intr(DEVPORT_PDEVICE devi)
-{
-	stgintr(DEVPORT_PDEVGET_SOFTC(devi));
-	return 1;
-}
-#endif
-
 static	void
 stg_card_unload(DEVPORT_PDEVICE devi)
 {
@@ -332,16 +255,11 @@ static	int
 stgprobe(DEVPORT_PDEVICE devi)
 {
 	int rv;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 	struct stg_softc *sc = device_get_softc(devi);
 
 	rv = stgprobesubr(rman_get_bustag(sc->port_res),
 			  rman_get_bushandle(sc->port_res),
 			  DEVPORT_PDEVFLAGS(devi));
-#else
-	rv = stgprobesubr(I386_BUS_SPACE_IO,
-			  DEVPORT_PDEVIOBASE(devi), DEVPORT_PDEVFLAGS(devi));
-#endif
 
 	return rv;
 }
@@ -349,9 +267,6 @@ stgprobe(DEVPORT_PDEVICE devi)
 static	int
 stgattach(DEVPORT_PDEVICE devi)
 {
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-	int unit = DEVPORT_PDEVUNIT(devi);
-#endif
 	struct stg_softc *sc;
 	struct scsi_low_softc *slp;
 	u_int32_t flags = DEVPORT_PDEVFLAGS(devi);
@@ -360,14 +275,6 @@ stgattach(DEVPORT_PDEVICE devi)
 	char	dvname[16];
 
 	strcpy(dvname,"stg");
-
-#if defined(__FreeBSD__) && __FreeBSD_version < 400001
-	if (unit >= NSTG)
-	{
-		printf("%s: unit number too high\n",dvname);
-		return (0);
-	}
-#endif
 
 	if (iobase == 0)
 	{
@@ -381,17 +288,9 @@ stgattach(DEVPORT_PDEVICE devi)
 	}
 
 	slp = &sc->sc_sclow;
-#if defined(__FreeBSD__) && __FreeBSD_version >= 400001
 	slp->sl_dev = devi;
 	sc->sc_iot = rman_get_bustag(sc->port_res);
 	sc->sc_ioh = rman_get_bushandle(sc->port_res);
-#else
-	bzero(sc, sizeof(struct stg_softc));
-	strcpy(slp->sl_dev.dv_xname, dvname);
-	slp->sl_dev.dv_unit = unit;
-	sc->sc_iot = I386_BUS_SPACE_IO;
-	sc->sc_ioh = iobase;
-#endif
 
 	slp->sl_hostid = STG_HOSTID;
 	slp->sl_cfgflags = flags;
@@ -402,4 +301,3 @@ stgattach(DEVPORT_PDEVICE devi)
 
 	return(STGIOSZ);
 }
-#endif /* NCARD>0 */
