@@ -59,6 +59,7 @@ int	sigismember __P((const sigset_t *, int));
 int	sigpending __P((sigset_t *));
 int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
+int	sigwait __P((const sigset_t *, int *));
 
 
 #ifdef _P1003_1B_VISIBLE
