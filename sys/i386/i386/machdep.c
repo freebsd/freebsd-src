@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.128.4.8 1996/06/25 20:19:29 markm Exp $
+ *	$Id: machdep.c,v 1.128.4.9 1996/10/16 02:16:00 jkh Exp $
  */
 
 #include "npx.h"
@@ -380,9 +380,14 @@ again:
 #if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
 	boothowto |= RB_CONFIG;
 #endif
-
-        if (boothowto & RB_CONFIG)
+        if (boothowto & RB_CONFIG) {
+#ifdef USERCONFIG
 		userconfig();
+		cninit();	/* the preferred console may have changed */
+#else
+		printf("Sorry! no userconfig in this kernel\n");
+#endif
+	}
 
 #ifdef BOUNCE_BUFFERS
 	/*
