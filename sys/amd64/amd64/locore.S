@@ -415,37 +415,14 @@ NON_GPROF_ENTRY(prepare_usermode)
  */
 NON_GPROF_ENTRY(sigcode)
 	call	SIGF_HANDLER(%esp)		/* call signal handler */
-	movl	SIGF_SIGRET(%esp),%eax		/* Get sigreturn cookie */
-	cmpl	$0x0ABCDEF0,%eax		/* New one? */
-	jne	3f
-/* New signalling code */
-	lea	SIGF_UC(%esp),%eax		/* get ucontext */
+	lea	SIGF_UC(%esp),%eax		/* get ucontext_t */
 	pushl	%eax
-	testl	$PSL_VM,UC_EFLAGS(%eax)
-	jne	1f
-	movl	UC_GS(%eax),%gs			/* restore %gs */
-1:
-	movl	$SYS_sigreturn,%eax
-	pushl	%eax				/* junk to fake return addr. */
-	int	$0x80				/* enter kernel with args */
-						/* on stack */
-2:
-	jmp	2b
-/* Old signalling code */
-3:
-	lea	SIGF_SC(%esp),%eax		/* get sigcontext */
-	pushl	%eax
-	testl	$PSL_VM,SC_PS(%eax)
-	jne	4f
-	movl	SC_GS(%eax),%gs			/* restore %gs */
-4:
 	movl	$SYS_osigreturn,%eax
 	pushl	%eax				/* junk to fake return addr. */
 	int	$0x80				/* enter kernel with args */
 						/* on stack */
-5:
-	jmp	5b
-
+1:
+	jmp	1b
 	ALIGN_TEXT
 _esigcode:
 
