@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.113 1997/04/05 21:41:13 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.114 1997/04/07 18:32:47 gibbs Exp $
  */
 /*
  * TODO:
@@ -1662,8 +1662,8 @@ ahc_handle_scsiint(ahc, intstat)
 		}
 		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENBUSFREE);
 		ahc_outb(ahc, CLRSINT1, CLRBUSFREE);
-		restart_sequencer(ahc);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		restart_sequencer(ahc);
 	} else if ((status & SELTO) != 0) {
 		struct scsi_xfer *xs;
 		u_int8_t scbptr;
@@ -1725,8 +1725,8 @@ ahc_handle_scsiint(ahc, intstat)
 			(ahc_inb(ahc, SEQADDR1) << 8)
 			| ahc_inb(ahc, SEQADDR0));
 		ahc_outb(ahc, CLRSINT1, status);
-		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		scb = NULL;
 	} else if ((status & SCSIPERR) != 0) {
 		/*
@@ -1791,14 +1791,14 @@ ahc_handle_scsiint(ahc, intstat)
 			 */
 			xs->error = XS_DRIVER_STUFFUP;
 		ahc_outb(ahc, CLRSINT1, CLRSCSIPERR);
-		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 	} else {
 		sc_print_addr(scb->xs->sc_link);
 		printf("Unknown SCSIINT. Status = 0x%x\n", status);
 		ahc_outb(ahc, CLRSINT1, status);
-		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		scb = NULL;
 	}
 	if (scb != NULL) {
@@ -1908,7 +1908,7 @@ ahc_done(ahc, scb)
 			if (ahc->scb_data->maxhscbs >= 16
 			 || (ahc->flags & AHC_PAGESCBS)) {
 				/* Default to 8 tags */
-				xs->sc_link->opennings += 13;
+				xs->sc_link->opennings += 6;
 			} else {
 				/*
 				 * Default to 4 tags on whimpy
@@ -3347,8 +3347,9 @@ ahc_reset_device(ahc, target, channel, lun, tag, xs_error)
 	 */
 	for (i = 0; i < ahc->scb_data->numscbs; i++) {
 		scbp = ahc->scb_data->scbarray[i];
-		if ((scbp->flags & SCB_ACTIVE)
-		  && ahc_match_scb(scbp, target, channel, lun, tag)) {
+		if ((scbp->flags & SCB_ACTIVE) != 0
+		 && (scbp->flags & SCB_QUEUED_FOR_DONE) == 0
+		 &&  ahc_match_scb(scbp, target, channel, lun, tag)) {
 			u_int8_t busy_scbid;
 
 			scbp->flags |= SCB_ABORTED|SCB_QUEUED_FOR_DONE;
@@ -3391,17 +3392,16 @@ ahc_reset_device(ahc, target, channel, lun, tag, xs_error)
 					ahc_outb(ahc, SCBPTR, busy_scbid);
 					next_scbid = ahc_inb(ahc,
 							     SCB_LINKED_NEXT);
-
-					if (next_scbid == SCB_LIST_NULL)
-						panic("Couldn't find next SCB");
 				}
 
-				next_scb = ahc->scb_data->scbarray[next_scbid];
-				if (!ahc_match_scb(next_scb, target,
-						   channel, lun, tag)) {
-					STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
-							   next_scb, links);
-					next_scb->flags |= SCB_WAITINGQ;
+				if (next_scbid != SCB_LIST_NULL) {
+					next_scb = ahc->scb_data->scbarray[next_scbid];
+					if (!ahc_match_scb(next_scb, target,
+							   channel, lun, tag)) {
+						STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
+								   next_scb, links);
+						next_scb->flags |= SCB_WAITINGQ;
+					}
 				}
 			}
 		}
