@@ -36,10 +36,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)net.c	8.3 (Berkeley) 1/2/94";
+static char sccsid[] = "@(#)net.c	8.4 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: net.c,v 1.6.2.2 1997/08/03 19:23:28 peter Exp $";
 #endif
 #endif /* not lint */
 
@@ -66,7 +66,7 @@ netfinger(name)
 	extern int lflag;
 	extern int Tflag;
 	register FILE *fp;
-	register int c;
+	register int c, lastc;
 	struct in_addr defaddr;
 	struct hostent *hp, def;
 	struct servent *sp;
@@ -149,9 +149,8 @@ netfinger(name)
 	 * it isn't a space, we can simply set the 7th bit.  Every ASCII
 	 * character with bit 7 set is printable.
 	 */
-	if (fp = fdopen(s, "r")) {
-		int lastc = '\n';
-
+	lastc = 0;
+	if ((fp = fdopen(s, "r")) != NULL) {
 		while ((c = getc(fp)) != EOF) {
 			if (c == 0x0d) {
 				if (lastc == '\r')	/* ^M^M - skip dupes */

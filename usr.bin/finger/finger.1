@@ -30,8 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)finger.1	8.3 (Berkeley) 5/5/94
+.\"	$Id$
 .\"
-.Dd May 5, 1994
+.Dd August 1, 1997
 .Dt FINGER 1
 .Os BSD 4
 .Sh NAME
@@ -56,7 +57,7 @@ status (as a ``*'' before the terminal name if write permission is
 denied), idle time, login time, and either office location and office
 phone number, or the remote host. If
 .Fl h
-is given, the remote host is printed (the default.) If
+is given, the remote host is printed (the default).  If
 .Fl o
 is given, the office location and office phone number is printed
 instead.
@@ -202,8 +203,19 @@ last login data base
 .Xr w 1 ,
 .Xr who 1 ,
 .Xr ttcp 4 .
+.Rs
+.%A D. Zimmerman
+.%T The Finger User Information Protocol
+.%R RFC 1288
+.%D December, 1991
+.Re
 .Sh HISTORY
 The
 .Nm finger
 command appeared in
 .Bx 3.0 .
+.Sh BUGS
+The current FINGER protocol RFC requires that the client keep the connection
+fully open until the server closes.  This prevents the use of the optimal
+three-packet T/TCP exchange.  (Servers which depend on this requirement are
+bogus but have nonetheless been observed in the Internet at large.)

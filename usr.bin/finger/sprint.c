@@ -36,10 +36,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)sprint.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sprint.c,v 1.7.2.1 1997/07/03 07:12:39 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -47,8 +47,8 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <time.h>
 #include <db.h>
-#include <pwd.h>
 #include <err.h>
+#include <pwd.h>
 #include <errno.h>
 #include <utmp.h>
 #include <stdio.h>
@@ -67,6 +67,7 @@ sflag_print()
 	register WHERE *w;
 	register int sflag, r, namelen;
 	char p[80];
+	PERSON *tmp;
 	DBT data, key;
 
 	/*
@@ -86,10 +87,10 @@ sflag_print()
 	 *		remote host
 	 */
 #define	MAXREALNAME	20
-#define	MAXHOSTNAME	20	/* in reality, hosts are never longer than 16 */
+#define MAXHOSTNAME     17      /* in reality, hosts are never longer than 16 */
 	(void)printf("%-*s %-*s%s  %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
 	    "Name", " TTY  Idle  Login Time",
-	    oflag ? " Office     Office Phone" : " Where");
+	    oflag ? " Office  Phone" : " Where");
 
 	for (sflag = R_FIRST;; sflag = R_NEXT) {
 		r = (*db->seq)(db, &key, &data, sflag);
@@ -97,7 +98,8 @@ sflag_print()
 			err(1, "db seq");
 		if (r == 1)
 			break;
-		pn = *(PERSON **)data.data;
+		memmove(&tmp, data.data, sizeof tmp);
+		pn = tmp;
 
 		for (w = pn->whead; w != NULL; w = w->next) {
 			namelen = MAXREALNAME;
@@ -138,12 +140,12 @@ sflag_print()
 				(void)printf(" %.5s", p + 11);
 office:			if (oflag) {
 				if (pn->office)
-				(void)printf(" %-10.10s", pn->office);
-			else if (pn->officephone)
-				(void)printf(" %-10.10s", " ");
-			if (pn->officephone)
-				(void)printf(" %-.15s",
-				    prphone(pn->officephone));
+					(void)printf(" %-7.7s", pn->office);
+				else if (pn->officephone)
+					(void)printf(" %-7.7s", " ");
+				if (pn->officephone)
+					(void)printf(" %-.9s",
+					    prphone(pn->officephone));
 			} else
 				(void)printf(" %.*s", MAXHOSTNAME, w->host);
 			putchar('\n');

@@ -36,10 +36,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)util.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: util.c,v 1.3.6.1 1997/07/03 07:12:40 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -47,9 +47,9 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <db.h>
+#include <err.h>
 #include <pwd.h>
 #include <utmp.h>
-#include <err.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -57,6 +57,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
+#include <errno.h>
 #include "finger.h"
 
 static void	 find_idle_and_ttywrite __P((WHERE *));
@@ -86,14 +87,14 @@ match(pw, user)
 	if ((p = strtok(p, ",")) == NULL)
 		return(0);
 
-	for (t = name; *t = *p; ++p)
+	for (t = name; (*t = *p) != '\0'; ++p)
 		if (*t == '&') {
 			(void)strcpy(t, pw->pw_name);
 			while (*++t);
 		}
 		else
 			++t;
-	for (t = name; p = strtok(t, "\t "); t = NULL)
+	for (t = name; (p = strtok(t, "\t ")) != NULL; t = NULL)
 		if (!strcasecmp(p, user))
 			return(1);
 	return(0);
@@ -180,9 +181,10 @@ enter_person(pw)
 	key.data = pw->pw_name;
 	key.size = strlen(pw->pw_name);
 
-	switch((*db->get)(db, &key, &data, 0)) {
+	switch ((*db->get)(db, &key, &data, 0)) {
 	case 0:
-		return(*(PERSON **)data.data);
+		memmove(&pn, data.data, sizeof pn);
+		return (pn);
 	default:
 	case -1:
 		err(1, "db get");
@@ -196,8 +198,8 @@ enter_person(pw)
 		data.size = sizeof(PERSON *);
 		data.data = &pn;
 		if ((*db->put)(db, &key, &data, 0))
-			err(1, NULL);
-		return(pn);
+			err(1, "db put");
+		return (pn);
 	}
 }
 
@@ -209,6 +211,7 @@ find_person(name)
 
 	register int cnt;
 	DBT data, key;
+	PERSON *p;
 	char buf[UT_NAMESIZE + 1];
 
 	if (!db)
@@ -224,7 +227,10 @@ find_person(name)
 	key.data = buf;
 	key.size = cnt;
 
-	return((*db->get)(db, &key, &data, 0) ? NULL : *(PERSON **)data.data);
+	if ((*db->get)(db, &key, &data, 0))
+		return (NULL);
+	memmove(&p, data.data, sizeof p);
+	return (p);
 }
 
 PERSON *
@@ -314,7 +320,7 @@ find_idle_and_ttywrite(w)
 
 	(void)snprintf(tbuf, sizeof(tbuf), "%s/%s", _PATH_DEV, w->tty);
 	if (stat(tbuf, &sb) < 0) {
-		warn("%s", tbuf);
+		warn(tbuf);
 		return;
 	}
 	w->idletime = now < sb.st_atime ? 0 : now - sb.st_atime;
@@ -347,7 +353,7 @@ userinfo(pn, pw)
 	/* ampersands get replaced by the login name */
 	if (!(p = strsep(&bp, ",")))
 		return;
-	for (t = name; *t = *p; ++p)
+	for (t = name; (*t = *p) != '\0'; ++p)
 		if (*t == '&') {
 			(void)strcpy(t, pw->pw_name);
 			if (islower(*t))
