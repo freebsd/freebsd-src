@@ -1,0 +1,10 @@
+$Header: /home/morgan/pam/Linux-PAM-0.52/modules/pam_unix/RCS/CHANGELOG,v 1.1 1996/08/29 13:23:29 morgan Exp $
+
+Tue Apr 23 12:28:09 EDT 1996 (Alexander O. Yuriev alex@bach.cis.temple.edu)
+
+	* PAM_DISALLOW_NULL_AUTHTOK implemented in the authentication module
+	* pam_sm_open_session() and pam_sm_close_session() implemented
+	  A new "trace" flag added to flags of /etc/pam.conf. Using this
+	  flag system administrator is able to make pam_unix module provide
+	  very extensive audit trail sent so syslog with LOG_AUTHPRIV level.
+	* pam_sm_set_cred() is done

@@ -1,0 +1,371 @@
+/* $Id: pam_unix_passwd.-c,v 1.6 1997/04/05 06:31:06 morgan Exp morgan $ */
+
+/*
+ * $Log: pam_unix_passwd.-c,v $
+ * Revision 1.6  1997/04/05 06:31:06  morgan
+ * mostly a reformat.
+ *
+ * Revision 1.5  1996/12/01 03:05:54  morgan
+ * debugging with _pam_macros.h
+ *
+ * Revision 1.4  1996/11/10 21:04:51  morgan
+ * pwdb conversion
+ *
+ * Revision 1.3  1996/09/05 06:48:15  morgan
+ * A lot has changed. I'd recommend you study the diff.
+ *
+ * Revision 1.2  1996/09/01 16:33:27  morgan
+ * Cristian Gafton's changes
+ *
+ * Revision 1.1  1996/08/29 13:21:27  morgan
+ * Initial revision
+ *
+ */
+
+static const char rcsid_pass[] =
+"$Id: pam_unix_passwd.-c,v 1.6 1997/04/05 06:31:06 morgan Exp morgan $\n"
+" - PAM_PWDB password module <morgan@parc.power.net>"
+;
+
+#include "pam_unix_pwupd.-c"
+
+/* passwd/salt conversion macros */
+
+#define ascii_to_bin(c) ((c)>='a'?(c-59):(c)>='A'?((c)-53):(c)-'.')
+#define bin_to_ascii(c) ((c)>=38?((c)-38+'a'):(c)>=12?((c)-12+'A'):(c)+'.')
+
+/* data tokens */
+
+#define _UNIX_OLD_AUTHTOK  "-UN*X-OLD-PASS"
+#define _UNIX_NEW_AUTHTOK  "-UN*X-NEW-PASS"
+
+/* Implementation */
+
+/*
+ * FUNCTION: _pam_unix_chauthtok() 
+ *
+ * this function works in two passes. The first, when UNIX__PRELIM is
+ * set, obtains the previous password. It sets the PAM_OLDAUTHTOK item
+ * or stores it as a data item. The second function obtains a new
+ * password (verifying if necessary, that the user types it the same a
+ * second time.) depending on the 'ctrl' flags this new password may
+ * be stored in the PAM_AUTHTOK item or a private data item.
+ *
+ * Having obtained a new password. The function updates the
+ * /etc/passwd (and optionally the /etc/shadow) file(s).
+ *
+ * Provision is made for the creation of a blank shadow file if none
+ * is available, but one is required to update the shadow file -- the
+ * intention being for shadow passwords to be seamlessly implemented
+ * from the generic UNIX scheme. -- THIS BIT IS PRE-ALPHA.. and included
+ * in this release (.52) mostly for the purpose of discussion.
+ */
+
+static int _unix_chauthtok(pam_handle_t *pamh, unsigned int ctrl)
+{
+    int retval;
+    unsigned int lctrl;
+
+    /* <DO NOT free() THESE> */
+    const char *user;
+    const char *pass_old, *pass_new;
+    /* </DO NOT free() THESE> */
+
+    D(("called"));
+
+    /*
+     * First get the name of a user
+     */
+
+    retval = _unix_get_user( pamh, ctrl, "Username: ", &user );
+    if ( retval != PAM_SUCCESS ) {
+	if ( on(UNIX_DEBUG,ctrl) ) {
+	    _log_err(LOG_DEBUG, "password - could not identify user");
+	}
+	return retval;
+    }
+
+    if ( on(UNIX__PRELIM, ctrl) ) {
+	/*
+	 * obtain and verify the current password (OLDAUTHTOK) for
+	 * the user.
+	 */
+
+	char *Announce;
+
+	D(("prelim check"));
+
+	if ( _unix_blankpasswd(ctrl, user) ) {
+
+	    return PAM_SUCCESS;
+
+	} else if ( off(UNIX__IAMROOT, ctrl) ) {
+
+	    /* instruct user what is happening */
+#define greeting "Changing password for "
+	    Announce = (char *) malloc(sizeof(greeting)+strlen(user));
+	    if (Announce == NULL) {
+		_log_err(LOG_CRIT, "password - out of memory");
+		return PAM_BUF_ERR;
+	    }
+	    (void) strcpy(Announce, greeting);
+	    (void) strcpy(Announce+sizeof(greeting)-1, user);
+#undef greeting
+
+	    lctrl = ctrl;
+	    set(UNIX__OLD_PASSWD, lctrl);
+	    retval = _unix_read_password( pamh, lctrl
+					  , Announce
+					  , "(current) UNIX password: "
+					  , NULL
+					  , _UNIX_OLD_AUTHTOK
+					  , &pass_old );
+	    free(Announce);
+
+	    if ( retval != PAM_SUCCESS ) {
+		_log_err(LOG_NOTICE
+			 , "password - (old) token not obtained");
+		return retval;
+	    }
+
+	    /* verify that this is the password for this user */
+
+	    retval = _unix_verify_password(pamh, user, pass_old, ctrl);
+	} else {
+	    D(("process run by root so do nothing this time around"));
+	    pass_old = NULL;
+	    retval = PAM_SUCCESS;           /* root doesn't have too */
+	}
+
+	if ( retval != PAM_SUCCESS ) {
+	    D(("Authentication failed"));
+	    pass_old = NULL;
+	    return retval;
+	}
+
+	retval = pam_set_item(pamh, PAM_OLDAUTHTOK, (const void *) pass_old);
+	pass_old = NULL;
+	if ( retval != PAM_SUCCESS ) {
+	    _log_err(LOG_CRIT, "failed to set PAM_OLDAUTHTOK");
+	}
+
+    } else if ( on( UNIX__UPDATE, ctrl ) ) {
+	/* tpass is used below to store the _pam_md() return; it
+	 * should be _pam_delete()'d. */
+
+	char *tpass=NULL;     
+
+	/*
+	 * obtain the proposed password
+	 */
+
+	D(("do update"));
+
+	/*
+	 * get the old token back. NULL was ok only if root [at this
+	 * point we assume that this has already been enforced on a
+	 * previous call to this function].
+	 */
+
+	if ( off(UNIX_NOT_SET_PASS, ctrl) ) {
+	    retval = pam_get_item(pamh, PAM_OLDAUTHTOK
+				  , (const void **)&pass_old);
+	} else {
+	    retval = pam_get_data(pamh, _UNIX_OLD_AUTHTOK
+				  , (const void **)&pass_old);
+	    if (retval == PAM_NO_MODULE_DATA) {
+		retval = PAM_SUCCESS;
+		pass_old = NULL;
+	    }
+	}
+
+	if (retval != PAM_SUCCESS) {
+	    _log_err(LOG_NOTICE, "user not authenticated");
+	    return retval;
+	}
+
+	D(("get new password now"));
+
+	lctrl = ctrl;
+
+	/*
+	 * use_authtok is to force the use of a previously entered
+	 * password -- needed for pluggable password strength checking
+	 */
+
+	if ( on(UNIX_USE_AUTHTOK, lctrl) ) {
+	    set(UNIX_USE_FIRST_PASS, lctrl);
+	}
+
+	retval = _unix_read_password( pamh, lctrl
+				      , NULL
+				      , "Enter new UNIX password: "
+				      , "Retype new UNIX password: "
+				      , _UNIX_NEW_AUTHTOK
+				      , &pass_new );
+
+	if ( retval != PAM_SUCCESS ) {
+	    if ( on(UNIX_DEBUG,ctrl) ) {
+		_log_err(LOG_ALERT
+			 , "password - new password not obtained");
+	    }
+	    pass_old = NULL;                               /* tidy up */
+	    return retval;
+	}
+
+	D(("returned to _unix_chauthtok"));
+
+	/*
+	 * At this point we know who the user is and what they
+	 * propose as their new password. Verify that the new
+	 * password is acceptable.
+	 */
+
+	if (pass_new[0] == '\0') {     /* "\0" password = NULL */
+	    pass_new = NULL;
+	}
+
+	retval = _pam_unix_approve_pass(pamh, ctrl, pass_old, pass_new);
+
+	if (retval != PAM_SUCCESS) {
+	    _log_err(LOG_NOTICE, "new password not acceptable");
+	    pass_new = pass_old = NULL;	              /* tidy up */
+	    return retval;
+	}
+
+	/*
+	 * By reaching here we have approved the passwords and must now
+	 * rebuild the password database file.
+	 */
+
+	/*
+	 * First we encrypt the new password.
+	 *
+	 * XXX - this is where we might need some code for RADIUS types
+	 *       of password handling... no encryption needed..
+	 */
+
+	if ( on(UNIX_MD5_PASS, ctrl) ) {
+
+	    /*
+	     * Code lifted from Marek Michalkiewicz's shadow suite. (CG)
+	     * removed use of static variables (AGM)
+	     */
+
+	    struct timeval tv;
+	    MD5_CTX ctx;
+	    unsigned char result[16];
+	    char *cp = (char *)result;
+	    unsigned char tmp[16];
+	    int i;
+
+	    MD5Init(&ctx);
+	    gettimeofday(&tv, (struct timezone *) 0);
+	    MD5Update(&ctx, (void *) &tv, sizeof tv);
+	    i = getpid();
+	    MD5Update(&ctx, (void *) &i, sizeof i);
+	    i = clock();
+	    MD5Update(&ctx, (void *) &i, sizeof i);
+	    MD5Update(&ctx, result, sizeof result);
+	    MD5Final(tmp, &ctx);
+	    strcpy(cp, "$1$");  /* magic for the MD5 */
+	    cp += strlen(cp);
+	    for (i = 0; i < 8; i++)
+		*cp++ = i64c(tmp[i] & 077);
+	    *cp = '\0';
+
+	    /* no longer need cleartext */
+	    pass_new = tpass = _pam_md(pass_new, (const char *)result);
+
+	} else {
+	    /*
+	     * Salt manipulation is stolen from Rick Faith's passwd
+	     * program.  Sorry Rick :) -- alex
+	     */
+
+	    time_t tm;
+	    char salt[3];
+
+	    time(&tm);
+	    salt[0] = bin_to_ascii(tm & 0x3f);
+	    salt[1] = bin_to_ascii((tm >> 6) & 0x3f);
+	    salt[2] = '\0';
+
+	    if ( off(UNIX_BIGCRYPT, ctrl) && strlen(pass_new) > 8 ) {
+		/* to avoid using the _extensions_ of the bigcrypt()
+		   function we truncate the newly entered password */
+		char *temp = malloc(9);
+
+		if (temp == NULL) {
+		    _log_err(LOG_CRIT, "out of memory for password");
+		    pass_new = pass_old = NULL;	         /* tidy up */
+		    return PAM_BUF_ERR;
+		}
+
+		/* copy first 8 bytes of password */
+		strncpy(temp, pass_new, 8);
+		temp[8] = '\0';
+
+		/* no longer need cleartext */
+		pass_new = tpass = _pam_md( temp, salt );
+
+		_pam_delete(temp);                       /* tidy up */
+	    } else {
+		/* no longer need cleartext */
+		pass_new = tpass = _pam_md( pass_new, salt );
+	    }
+	}
+
+	D(("password processed"));
+
+	/* update the password database(s) -- race conditions..? */
+
+	retval = unix_update_db(pamh, ctrl, user, pass_old, pass_new);
+	pass_old = pass_new = NULL;
+
+    } else {            /* something has broken with the module */
+
+	_log_err(LOG_ALERT, "password received unknown request");
+	retval = PAM_ABORT;
+
+    }
+
+    return retval;
+}
+
+/* ******************************************************************
+ * Copyright (c) Alexander O. Yuriev (alex@bach.cis.temple.edu), 1996.
+ * Copyright (c) Andrew Morgan <morgan@parc.power.net> 1996, 1997.
+ * Copyright (c) Cristian Gafton, <gafton@redhat.com> 1996, 1997.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ * 
+ * ALTERNATIVELY, this product may be distributed under the terms of
+ * the GNU Public License, in which case the provisions of the GPL are
+ * required INSTEAD OF the above restrictions.  (This clause is
+ * necessary due to a potential bad interaction between the GPL and
+ * the restrictions contained in a BSD-style copyright.)
+ * 
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ */

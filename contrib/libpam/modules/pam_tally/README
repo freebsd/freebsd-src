@@ -1,0 +1,51 @@
+
+SUMMARY:
+  pam_tally:
+
+        Maintains a count of attempted accesses, can reset count on success,
+                can deny access if too many attempts fail.
+
+        Options:
+
+                * onerr=[succeed|fail] (if something weird happens
+                        such as unable to open the file, what to do?)
+                * file=/where/to/keep/counts (default /var/log/faillog)
+
+        (auth)
+                * no_magic_root (root DOES increment counter. Use for
+                        daemon-based stuff, like telnet/rsh/login)
+                
+        (account)
+                * deny=n (deny access if tally for this user exceeds n;
+                        The presence of deny=n changes the default for 
+                        reset/no_reset to reset, unless the user trying to
+                        gain access is root and the no_magic_root option
+                        has NOT been specified.)
+                
+                * no_magic_root (access attempts by root DON'T ignore deny.
+                        Use this for daemon-based stuff, like telnet/rsh/login)
+                * even_deny_root_account (Root can become unavailable. BEWARE.
+                        Note that magic root trying to gain root bypasses this,
+                        but normal users can be locked out.)
+                
+                * reset (reset count to 0 on successful entry, even for
+                        magic root)
+                * no_reset (don't reset count on successful entry)
+                        This is the default unless deny exists and the
+                        user attempting access is NOT magic root.
+
+        Also checks to make sure that the list file is a plain
+        file and not world writable.
+
+        - Tim Baverstock <warwick@mmm.co.uk>, Multi Media Machine Ltd.
+                v0.1 5 March 1997
+
+BUGS:
+
+pam_tally is very dependant on getpw*(): a database of usernames
+would be much more flexible.
+
+The (4.0 Redhat) utilities seem to do funny things with uid, and I'm
+not wholly sure I understood what I should have been doing anyway so
+the `keep a count of current logins' bit has been #ifdef'd out and you
+can only reset the counter on successful authentication, for now.

@@ -1,0 +1,20 @@
+# $Id: README,v 1.1 1996/12/01 03:17:57 morgan Exp $
+#
+
+This module is an authentication module that does not authenticate.
+Instead it always returns PAM_IGNORE, indicating that it does not want
+to affect the authentication process.
+
+Its purpose is to log a message to the syslog indicating the
+pam_item's available at the time it was invoked. It is a diagnostic
+tool.
+
+Recognized arguments:
+
+	none
+
+module services provided:
+
+	auth		_authetication and _setcred (blank)
+
+Andrew Morgan

@@ -1,0 +1,39 @@
+This is the README for pam_unix in Linux-PAM-0.53.
+--------------------------------------------------
+
+pam_unix comes as four separate modules:
+
+pam_unix_auth:		authentication module providing
+		pam_authenticate() and pam_setcred() hooks
+
+	NO options are recognized. Credential facilities are trivial
+	(function simply returns)
+
+pam_unix_sess:		session module, providing session logging
+
+	"debug" and "trace" arguments are accepted, which indicate the
+	logging-level for syslog.
+
+		"debug" ->	LOG_DEBUG    [ also default ]
+		"trace" ->	LOG_AUTHPRIV
+
+pam_unix_acct:		account management, providing shadow account
+		managment features, password aging etc..
+
+	NO options are recognized. Account managment trivial without
+	shadow active.
+
+pam_unix_passwd:	password updating facilities providing
+		cracklib password strength checking facilities.
+
+	if compiled, the default behavior is to check passwords
+	strictly using CrackLib. This behavior can be turned off
+	with the argument
+
+		"strict=false"
+
+	invalid arguments are logged to syslog.
+
+------------------------------
+- Andrew 1996/11/9
+------------------------------

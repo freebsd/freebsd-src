@@ -1,0 +1,36 @@
+#!/bin/bash
+
+CONFILE="$FAKEROOT"$CONFIGED/pam.conf
+IGNORE_AGE=./.ignore_age
+CONF=./pam.conf
+
+echo
+
+if [ -f "$IGNORE_AGE" ]; then
+	echo "you don't want to be bothered with the age of your $CONFILE file"
+	yes="n"
+elif [ ! -f "$CONFILE" ] || [ "$CONF" -nt "$CONFILE" ]; then
+	if [ -f "$CONFILE" ]; then
+		echo "\
+An older Linux-PAM configuration file already exists ($CONFILE)"
+		WRITE=overwrite
+	fi
+	echo -n "\
+Do you wish to copy the $CONF file in this distribution
+to $CONFILE ? (y/n) [n] "
+	read yes
+else
+	yes=n
+fi
+
+if [ "$yes" = "y" ]; then
+	echo "  copying $CONF to $CONFILE"
+	cp $CONF $CONFILE
+else
+	touch "$IGNORE_AGE"
+	echo "  Skipping $CONF installation"
+fi
+
+echo
+
+exit 0

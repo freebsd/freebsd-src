@@ -1,0 +1,910 @@
+/* 
+ * $Id: support.-c,v 1.7 1997/04/05 06:32:06 morgan Exp morgan $
+ *
+ * $Log: support.-c,v $
+ * Revision 1.7  1997/04/05 06:32:06  morgan
+ * new option and also deleted _readto
+ *
+ * Revision 1.6  1997/02/15 17:27:20  morgan
+ * added helper binary to password checking
+ *
+ * Revision 1.5  1996/12/01 03:05:54  morgan
+ * debugging with _pam_macros.h
+ *
+ * Revision 1.4  1996/11/10 21:06:07  morgan
+ * pwdb conversion
+ *
+ * Copyright information at end of file.
+ */
+
+/*
+ * here is the string to inform the user that the new passwords they
+ * typed were not the same.
+ */
+
+#define MISTYPED_PASS "Sorry, passwords do not match"
+
+/* type definition for the control options */
+
+typedef struct {
+     const char *token;
+     unsigned int mask;            /* shall assume 32 bits of flags */
+     unsigned int flag;
+} UNIX_Ctrls;
+
+/*
+ * macro to determine if a given flag is on
+ */
+
+#define on(x,ctrl)  (unix_args[x].flag & ctrl)
+
+/*
+ * macro to determine that a given flag is NOT on
+ */
+
+#define off(x,ctrl) (!on(x,ctrl))
+
+/*
+ * macro to turn on/off a ctrl flag manually
+ */
+
+#define set(x,ctrl)   (ctrl = ((ctrl)&unix_args[x].mask)|unix_args[x].flag)
+#define unset(x,ctrl) (ctrl &= ~(unix_args[x].flag))
+
+/* the generic mask */
+
+#define _ALL_ON_  (~0U)
+
+/* end of macro definitions definitions for the control flags */
+
+/* ****************************************************************** *
+ * ctrl flags proper..
+ */
+
+/*
+ * here are the various options recognized by the unix module. They
+ * are enumerated here and then defined below. Internal arguments are
+ * given NULL tokens.
+ */
+
+#define UNIX__OLD_PASSWD          0     /* internal */
+#define UNIX__VERIFY_PASSWD       1     /* internal */
+#define UNIX__IAMROOT             2     /* internal */
+
+#define UNIX_AUDIT                3     /* print more things than debug..
+					   some information may be sensitive */
+#define UNIX_USE_FIRST_PASS       4
+#define UNIX_TRY_FIRST_PASS       5
+#define UNIX_NOT_SET_PASS         6     /* don't set the AUTHTOK items */
+
+#define UNIX__PRELIM              7     /* internal */
+#define UNIX__UPDATE              8     /* internal */
+#define UNIX__NONULL              9     /* internal */
+#define UNIX__QUIET              10     /* internal */
+#define UNIX_USE_AUTHTOK         11     /* insist on reading PAM_AUTHTOK */
+#define UNIX_SHADOW              12     /* signal shadow on */
+#define UNIX_MD5_PASS            13     /* force the use of MD5 passwords */
+#define UNIX__NULLOK             14     /* Null token ok */
+#define UNIX_RADIUS              15     /* wish to use RADIUS for password */
+#define UNIX__SET_DB             16     /* internal - signals redirect to db */
+#define UNIX_DEBUG               17     /* send more info to syslog(3) */
+#define UNIX_NODELAY             18     /* admin does not want a fail-delay */
+#define UNIX_UNIX                19     /* wish to use /etc/passwd for pwd */
+#define UNIX_BIGCRYPT            20     /* use DEC-C2 crypt()^x function */
+/* -------------- */
+#define UNIX_CTRLS_              21     /* number of ctrl arguments defined */
+
+
+static const UNIX_Ctrls unix_args[UNIX_CTRLS_] = {
+/* symbol                 token name          ctrl mask      ctrl       *
+ * ------------------     ------------------  -------------- ---------- */
+
+/* UNIX__OLD_PASSWD */    {  NULL,            _ALL_ON_,                 01 },
+/* UNIX__VERIFY_PASSWD */ {  NULL,            _ALL_ON_,                 02 },
+/* UNIX__IAMROOT */       {  NULL,            _ALL_ON_,                 04 },
+/* UNIX_AUDIT */          { "audit",          _ALL_ON_,                010 },
+/* UNIX_USE_FIRST_PASS */ { "use_first_pass", _ALL_ON_^(060),          020 },
+/* UNIX_TRY_FIRST_PASS */ { "try_first_pass", _ALL_ON_^(060),          040 },
+/* UNIX_NOT_SET_PASS */   { "not_set_pass",   _ALL_ON_,               0100 },
+/* UNIX__PRELIM */        {  NULL,            _ALL_ON_^(0600),        0200 },
+/* UNIX__UPDATE */        {  NULL,            _ALL_ON_^(0600),        0400 },
+/* UNIX__NONULL */        {  NULL,            _ALL_ON_,              01000 },
+/* UNIX__QUIET */         {  NULL,            _ALL_ON_,              02000 },
+/* UNIX_USE_AUTHTOK */    { "use_authtok",    _ALL_ON_,              04000 },
+/* UNIX_SHADOW */         { "shadow",         _ALL_ON_^(0140000),   010000 },
+/* UNIX_MD5_PASS */       { "md5",            _ALL_ON_^(02000000),  020000 },
+/* UNIX__NULLOK */        { "nullok",         _ALL_ON_^(01000),          0 },
+/* UNIX_RADIUS */	  { "radius",         _ALL_ON_^(0110000),   040000 },
+/* UNIX__SET_DB */	  {  NULL,            _ALL_ON_,            0100000 },
+/* UNIX_DEBUG */          { "debug",          _ALL_ON_,            0200000 },
+/* UNIX_NODELAY */        { "nodelay",        _ALL_ON_,            0400000 },
+/* UNIX_UNIX */	  	  { "unix",           _ALL_ON_^(050000),  01000000 },
+/* UNIX_BIGCRYPT */	  { "bigcrypt",       _ALL_ON_^(020000),  02000000 },
+};
+
+#define UNIX_DEFAULTS  (unix_args[UNIX__NONULL].flag)
+
+/* syslogging function for errors and other information */
+
+static void _log_err(int err, const char *format, ...)
+{
+    va_list args;
+
+    va_start(args, format);
+    openlog("PAM_pwdb", LOG_CONS|LOG_PID, LOG_AUTH);
+    vsyslog(err, format, args);
+    va_end(args);
+    closelog();
+}
+
+/* this is a front-end for module-application conversations */
+
+static int converse(pam_handle_t *pamh, int ctrl, int nargs
+		    , struct pam_message **message
+		    , struct pam_response **response)
+{
+    int retval;
+    struct pam_conv *conv;
+
+    D(("begin to converse"));
+
+    retval = pam_get_item( pamh, PAM_CONV, (const void **) &conv ) ; 
+    if ( retval == PAM_SUCCESS ) {
+
+	retval = conv->conv(nargs, ( const struct pam_message ** ) message
+			    , response, conv->appdata_ptr);
+
+	D(("returned from application's conversation function"));
+
+	if (retval != PAM_SUCCESS && on(UNIX_DEBUG,ctrl) ) {
+	    _log_err(LOG_DEBUG, "conversation failure [%s]"
+		     , pam_strerror(pamh, retval));
+	}
+
+    } else {
+	_log_err(LOG_ERR, "couldn't obtain coversation function [%s]"
+		 , pam_strerror(pamh, retval));
+    }
+
+    D(("ready to return from module conversation"));
+
+    return retval;                  /* propagate error status */
+}
+
+static int make_remark(pam_handle_t *pamh, unsigned int ctrl
+		       , int type, const char *text)
+{
+    int retval=PAM_SUCCESS;
+
+    if ( off(UNIX__QUIET, ctrl) ) {
+	struct pam_message *pmsg[1], msg[1];
+	struct pam_response *resp;
+
+	pmsg[0] = &msg[0];
+	msg[0].msg = text;
+	msg[0].msg_style = type;
+
+	resp = NULL;
+	retval = converse(pamh, ctrl, 1, pmsg, &resp);
+
+	if (resp) {
+	    _pam_drop_reply(resp, 1);
+	}
+    }
+    return retval;
+}
+
+/*
+ * set the control flags for the UNIX module.
+ */
+
+static int set_ctrl(int flags, int argc, const char **argv)
+{
+    unsigned int ctrl;
+
+    D(("called."));
+
+    ctrl = UNIX_DEFAULTS;         /* the default selection of options */
+
+    /* set some flags manually */
+
+    if ( getuid() == 0 && !(flags & PAM_CHANGE_EXPIRED_AUTHTOK) ) {
+	set(UNIX__IAMROOT, ctrl);
+    }
+    if ( flags & PAM_UPDATE_AUTHTOK ) {
+	set(UNIX__UPDATE, ctrl);
+    }
+    if ( flags & PAM_PRELIM_CHECK ) {
+	set(UNIX__PRELIM, ctrl);
+    }
+    if ( flags & PAM_DISALLOW_NULL_AUTHTOK ) {
+	set(UNIX__NONULL, ctrl);
+    }
+    if ( flags & PAM_SILENT ) {
+	set(UNIX__QUIET, ctrl);
+    }
+
+    /* now parse the arguments to this module */
+
+    while (argc-- > 0) {
+	int j;
+
+	D(("pam_pwdb arg: %s",*argv));
+
+	for (j=0; j<UNIX_CTRLS_; ++j) {
+	    if (unix_args[j].token
+		&& ! strcmp(*argv, unix_args[j].token) ) {
+		break;
+	    }
+	}
+
+	if ( j >= UNIX_CTRLS_ ) {
+	    _log_err(LOG_ERR, "unrecognized option [%s]",*argv);
+	} else {
+	    ctrl &= unix_args[j].mask;    /* for turning things off */
+	    ctrl |= unix_args[j].flag;    /* for turning things on  */
+	}
+
+	++argv;                            /* step to next argument */
+    }
+
+    /* these are used for updating passwords in specific places */
+
+    if (on(UNIX_SHADOW,ctrl) || on(UNIX_RADIUS,ctrl) || on(UNIX_UNIX,ctrl)) {
+	set(UNIX__SET_DB, ctrl);
+    }
+
+    /* auditing is a more sensitive version of debug */
+
+    if ( on(UNIX_AUDIT,ctrl) ) {
+	set(UNIX_DEBUG, ctrl);
+    }
+
+    /* return the set of flags */
+
+    D(("done."));
+    return ctrl;
+}
+
+/* use this to free strings. ESPECIALLY password strings */
+
+static char *_pam_delete(register char *xx)
+{
+    _pam_overwrite(xx);
+    _pam_drop(xx);
+    return NULL;
+}
+
+static void _cleanup(pam_handle_t *pamh, void *x, int error_status)
+{
+    x = _pam_delete( (char *) x );
+}
+
+/* ************************************************************** *
+ * Useful non-trivial functions                                   *
+ * ************************************************************** */
+
+#include "pam_unix_md.-c"
+
+/*
+ * the following is used to keep track of the number of times a user fails
+ * to authenticate themself.
+ */
+
+#define FAIL_PREFIX                   "-UN*X-FAIL-"
+#define UNIX_MAX_RETRIES              3
+
+struct _pam_failed_auth {
+    char *user;                  /* user that's failed to be authenticated */
+    char *name;                  /* attempt from user with name */
+    int id;                      /* uid of name'd user */
+    int count;                   /* number of failures so far */
+};
+
+#ifndef PAM_DATA_REPLACE
+#error "Need to get an updated libpam 0.52 or better"
+#endif
+
+static void _cleanup_failures(pam_handle_t *pamh, void *fl, int err)
+{
+    int quiet;
+    const char *service=NULL;
+    struct _pam_failed_auth *failure;
+
+    D(("called"));
+
+    quiet = err & PAM_DATA_SILENT;     /* should we log something? */
+    err  &= PAM_DATA_REPLACE;          /* are we just replacing data? */
+    failure = (struct _pam_failed_auth *) fl;
+
+    if ( failure != NULL ) {
+
+	if ( !quiet && !err ) {   /* under advisement from Sun,may go away */
+
+	    /* log the number of authentication failures */
+	    if ( failure->count != 0 ) {
+		(void) pam_get_item(pamh, PAM_SERVICE
+				    , (const void **)&service);
+		_log_err(LOG_NOTICE
+			 , "%d authentication failure%s; %s(uid=%d) -> "
+			 "%s for %s service"
+			 , failure->count, failure->count==1 ? "":"s"
+			 , failure->name
+			 , failure->id
+			 , failure->user
+			 , service == NULL ? "**unknown**":service
+		    );
+		if ( failure->count > UNIX_MAX_RETRIES ) {
+		    _log_err(LOG_ALERT
+			     , "service(%s) ignoring max retries; %d > %d"
+			     , service == NULL ? "**unknown**":service
+			     , failure->count
+			     , UNIX_MAX_RETRIES );
+		}
+	    }
+	}
+	failure->user = _pam_delete(failure->user);            /* tidy up */
+	failure->name = _pam_delete(failure->name);            /* tidy up */
+	free(failure);
+    }
+}
+
+/*
+ * verify the password of a user
+ */
+
+#include <sys/types.h>
+#include <sys/wait.h>
+
+static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd)
+{
+    int retval, child, fds[2];
+
+    D(("called."));
+    /* create a pipe for the password */
+    if (pipe(fds) != 0) {
+	D(("could not make pipe"));
+	return PAM_AUTH_ERR;
+    }
+
+    /* fork */
+    child = fork();
+    if (child == 0) {
+	static char *args[] = { NULL, NULL };
+	static char *envp[] = { NULL };
+
+	/* XXX - should really tidy up PAM here too */
+	while (pwdb_end() == PWDB_SUCCESS);
+
+	/* reopen stdin as pipe */
+	close(fds[1]);
+	dup2(fds[0], STDIN_FILENO);
+
+	/* exec binary helper */
+	args[0] = x_strdup(CHKPWD_HELPER);
+	execve(CHKPWD_HELPER, args, envp);
+
+	/* should not get here: exit with error */
+	D(("helper binary is not available"));
+	exit(PWDB_SUCCESS+1);
+    } else if (child > 0) {
+	/* wait for child */
+	close(fds[0]);
+	if (passwd != NULL) {            /* send the password to the child */
+	    write(fds[1], passwd, strlen(passwd)+1);
+	    passwd = NULL;
+	} else {
+	    write(fds[1], "", 1);                        /* blank password */
+	}
+	close(fds[1]);
+	(void) waitpid(child, &retval, 0);  /* wait for helper to complete */
+	retval = (retval == PWDB_SUCCESS) ? PAM_SUCCESS:PAM_AUTH_ERR;
+    } else {
+	D(("fork failed"));
+	retval = PAM_AUTH_ERR;
+    }
+
+    D(("returning %d", retval));
+    return retval;
+}
+
+static int _unix_verify_password(pam_handle_t *pamh, const char *name
+				 , const char *p, unsigned int ctrl)
+{
+    const struct pwdb *pw=NULL;
+    const struct pwdb_entry *pwe=NULL;
+
+    const char *salt;
+    char *pp;
+    char *data_name;
+    int retval;
+
+    D(("called"));
+
+#ifdef HAVE_PAM_FAIL_DELAY
+    if ( off(UNIX_NODELAY, ctrl) ) {
+	D(("setting delay"));
+	(void) pam_fail_delay(pamh, 1000000);  /* 1 sec delay for on failure */
+    }
+#endif
+
+    /* locate the entry for this user */
+
+    D(("locating user's record"));
+    retval = pwdb_locate("user", PWDB_DEFAULT, name, PWDB_ID_UNKNOWN, &pw);
+    if (retval == PWDB_PASS_PHRASE_REQD) {
+	/*
+	 * give the password to the pwdb library. It may be needed to
+	 * access the database
+	 */
+
+	retval = pwdb_set_entry( pw, "pass_phrase", p, 1+strlen(p)
+				 , NULL, NULL, 0);
+	if (retval != PWDB_SUCCESS) {
+	    _log_err(LOG_ALERT, "find pass; %s", pwdb_strerror(retval));
+	    (void) pwdb_delete(&pw);
+	    p = NULL;
+	    return PAM_CRED_INSUFFICIENT;
+	}
+
+	retval = pwdb_locate("user", pw->source, name, PWDB_ID_UNKNOWN, &pw);
+    }
+
+    if (retval != PWDB_SUCCESS) {
+	D(("user's record unavailable"));
+	if ( on(UNIX_AUDIT, ctrl) ) {
+	    /* this might be a typo and the user has given a password
+	       instead of a username. Careful with this. */
+	    _log_err(LOG_ALERT, "check pass; user (%s) unknown", name);
+	} else {
+	    _log_err(LOG_ALERT, "check pass; user unknown");
+	}
+	(void) pwdb_delete(&pw);
+	p = NULL;
+	return PAM_USER_UNKNOWN;
+    }
+
+    /*
+     * courtesy of PWDB the password for the user is stored in
+     * encrypted form in the "passwd" entry of pw.
+     */
+
+    retval = pwdb_get_entry(pw, "passwd", &pwe);
+    if (retval != PWDB_SUCCESS) {
+	if (geteuid()) {
+	    /* we are not root perhaps this is the reason? Run helper */
+	    D(("running helper binary"));
+	    retval = pwdb_run_helper_binary(pamh, p);
+	} else {
+	    retval = PAM_AUTHINFO_UNAVAIL;
+	    _log_err(LOG_ALERT, "get passwd; %s", pwdb_strerror(retval));
+	}
+	(void) pwdb_delete(&pw);
+	p = NULL;
+	return retval;
+    }
+    salt = (const char *) pwe->value;
+
+    /*
+     * XXX: Cristian, the above is not the case for RADIUS(?) Some
+     * lines should be added for RADIUS to verify the password in
+     * clear text...
+     */
+
+    if ( ( !salt ) && ( !p ) ) {
+
+	/* the stored password is NULL */
+
+	(void) pwdb_entry_delete(&pwe);
+	(void) pwdb_delete(&pw);
+
+	if ( off(UNIX__NONULL, ctrl ) ) {    /* this means we've succeeded */
+	    return PAM_SUCCESS;
+	} else {
+	    return PAM_AUTH_ERR;
+	}
+    }
+
+    pp = _pam_md(p, salt);
+    p = NULL;                                /* no longer needed here */
+
+    data_name = (char *) malloc(sizeof(FAIL_PREFIX)+strlen(name));
+    if ( data_name == NULL ) {
+	_log_err(LOG_CRIT, "no memory for data-name");
+    }
+    strcpy(data_name, FAIL_PREFIX);
+    strcpy(data_name + sizeof(FAIL_PREFIX)-1, name);
+
+    /* the moment of truth -- do we agree with the password? */
+
+    if ( strcmp( pp, salt ) == 0 ) {
+
+	retval = PAM_SUCCESS;
+	if (data_name) {                     /* reset failures */
+	    pam_set_data(pamh, data_name, NULL, _cleanup_failures);
+	}
+
+    } else {
+
+	retval = PAM_AUTH_ERR;
+	if (data_name != NULL) {
+	    struct _pam_failed_auth *new=NULL;
+	    const struct _pam_failed_auth *old=NULL;
+
+	    /* get a failure recorder */
+
+	    new = (struct _pam_failed_auth *)
+		malloc(sizeof(struct _pam_failed_auth));
+
+	    if (new != NULL) {
+
+		/* any previous failures for this user ? */
+		pam_get_data(pamh, data_name, (const void **)&old );
+
+		if (old != NULL) {
+		    new->count = old->count +1;
+		    if (new->count >= UNIX_MAX_RETRIES) {
+			retval = PAM_MAXTRIES;
+		    }
+		} else {
+		    new->count = 1;
+		}
+		new->user = x_strdup(name);
+		new->id = getuid();
+		new->name = x_strdup(getlogin() ? getlogin():"" );
+
+		pam_set_data(pamh, data_name, new, _cleanup_failures);
+
+	    } else {
+		_log_err(LOG_CRIT, "no memory for failure recorder");
+	    }
+	}
+
+    }
+
+    (void) pwdb_entry_delete(&pwe);
+    (void) pwdb_delete(&pw);
+    salt = NULL;
+    _pam_delete(data_name);
+    _pam_delete(pp);
+
+    return retval;
+}
+
+/*
+ * this function obtains the name of the current user and ensures
+ * that the PAM_USER item is set to this value
+ */
+
+static int _unix_get_user(pam_handle_t *pamh, unsigned int ctrl
+			  , const char *prompt, const char **user)
+{
+    int retval;
+
+    D(("called"));
+
+    retval = pam_get_user(pamh, user, prompt);
+    if (retval != PAM_SUCCESS) {
+	D(("trouble reading username"));
+	return retval;
+    }
+
+    /*
+     * Various libraries at various times have had bugs related to
+     * '+' or '-' as the first character of a user name. Don't take
+     * any chances here. Require that the username starts with an
+     * alphanumeric character.
+     */
+
+    if (!isalnum(**user)) {
+	if (on(UNIX_DEBUG,ctrl) || **user) {
+	    _log_err(LOG_ERR, "bad username [%s]", *user);
+	}
+	return PAM_USER_UNKNOWN;
+    }
+
+    if (retval == PAM_SUCCESS && on(UNIX_DEBUG,ctrl)) {
+	_log_err(LOG_DEBUG, "username [%s] obtained", *user);
+    }
+
+    return retval;
+}
+
+/*
+ * _unix_blankpasswd() is a quick check for a blank password
+ *
+ * returns TRUE if user does not have a password
+ * - to avoid prompting for one in such cases (CG)
+ */
+
+static int _unix_blankpasswd(unsigned int ctrl, const char *name)
+{
+    const struct pwdb *pw=NULL;
+    const struct pwdb_entry *pwe=NULL;
+    int retval;
+
+    D(("called"));
+
+    /*
+     * This function does not have to be too smart if something goes
+     * wrong, return FALSE and let this case to be treated somewhere
+     * else (CG)
+     */
+
+    if ( on(UNIX__NONULL, ctrl) )
+	return 0;                     /* will fail but don't let on yet */
+
+    /* find the user's database entry */
+
+    retval = pwdb_locate("user", PWDB_DEFAULT, name, PWDB_ID_UNKNOWN, &pw);
+    if (retval != PWDB_SUCCESS || pw == NULL ) {
+
+	retval = 0;
+
+    } else {
+
+	/* Does this user have a password? */
+
+	retval = pwdb_get_entry(pw, "passwd", &pwe);
+	if ( retval != PWDB_SUCCESS || pwe == NULL )
+	    retval = 0;
+	else if ( pwe->value == NULL || ((char *)pwe->value)[0] == '\0' )
+	    retval = 1;
+	else
+	    retval = 0;
+
+    }
+
+    /* tidy up */
+
+    if ( pw ) {
+	(void) pwdb_delete(&pw);
+	if ( pwe )
+	    (void) pwdb_entry_delete(&pwe);
+    }
+
+    return retval;
+}
+
+/*
+ * obtain a password from the user
+ */
+
+static int _unix_read_password( pam_handle_t *pamh
+				, unsigned int ctrl
+				, const char *comment
+				, const char *prompt1
+				, const char *prompt2
+				, const char *data_name
+				, const char **pass )
+{
+    int authtok_flag;
+    int retval;
+    const char *item;
+    char *token;
+
+    D(("called"));
+
+    /*
+     * make sure nothing inappropriate gets returned
+     */
+
+    *pass = token = NULL;
+
+    /*
+     * which authentication token are we getting?
+     */
+
+    authtok_flag = on(UNIX__OLD_PASSWD,ctrl) ? PAM_OLDAUTHTOK:PAM_AUTHTOK ;
+
+    /*
+     * should we obtain the password from a PAM item ?
+     */
+
+    if ( on(UNIX_TRY_FIRST_PASS,ctrl) || on(UNIX_USE_FIRST_PASS,ctrl) ) {
+	retval = pam_get_item(pamh, authtok_flag, (const void **) &item);
+	if (retval != PAM_SUCCESS ) {
+	    /* very strange. */
+	    _log_err(LOG_ALERT
+		     , "pam_get_item returned error to unix-read-password"
+		);
+	    return retval;
+	} else if (item != NULL) {    /* we have a password! */
+	    *pass = item;
+	    item = NULL;
+	    return PAM_SUCCESS;
+	} else if (on(UNIX_USE_FIRST_PASS,ctrl)) {
+	    return PAM_AUTHTOK_RECOVER_ERR;       /* didn't work */
+	} else if (on(UNIX_USE_AUTHTOK, ctrl)
+		   && off(UNIX__OLD_PASSWD, ctrl)) {
+	    return PAM_AUTHTOK_RECOVER_ERR;
+	}
+    }
+
+    /*
+     * getting here implies we will have to get the password from the
+     * user directly.
+     */
+
+    {
+	struct pam_message msg[3],*pmsg[3];
+	struct pam_response *resp;
+	int i, replies;
+
+	/* prepare to converse */
+
+	if ( comment != NULL && off(UNIX__QUIET, ctrl) ) {
+	    pmsg[0] = &msg[0];
+	    msg[0].msg_style = PAM_TEXT_INFO;
+	    msg[0].msg = comment;
+	    i = 1;
+	} else {
+	    i = 0;
+	}
+
+	pmsg[i] = &msg[i];
+	msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
+	msg[i++].msg = prompt1;
+	replies = 1;
+
+	if ( prompt2 != NULL ) {
+	    pmsg[i] = &msg[i];
+	    msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
+	    msg[i++].msg = prompt2;
+	    ++replies;
+	}
+
+	/* so call the conversation expecting i responses */
+	resp = NULL;
+	retval = converse(pamh, ctrl, i, pmsg, &resp);
+
+	if (resp != NULL) {
+
+	    /* interpret the response */
+
+	    if (retval == PAM_SUCCESS) {     /* a good conversation */
+
+		token = x_strdup(resp[i-replies].resp);
+		if (token != NULL) {
+		    if (replies == 2) {
+
+			/* verify that password entered correctly */
+			if (!resp[i-1].resp
+			    || strcmp(token,resp[i-1].resp)) {
+			    token = _pam_delete(token); /* mistyped */
+			    retval = PAM_AUTHTOK_RECOVER_ERR;
+			    make_remark(pamh, ctrl
+					, PAM_ERROR_MSG, MISTYPED_PASS);
+			}
+		    }
+
+		} else {
+		    _log_err(LOG_NOTICE
+			     , "could not recover authentication token");
+		}
+
+	    }
+
+	    /*
+	     * tidy up the conversation (resp_retcode) is ignored
+	     * -- what is it for anyway? AGM
+	     */
+
+	    _pam_drop_reply(resp, i);
+
+	} else {
+	    retval = (retval == PAM_SUCCESS)
+		? PAM_AUTHTOK_RECOVER_ERR:retval ;
+	}
+    }
+
+    if (retval != PAM_SUCCESS) {
+	if ( on(UNIX_DEBUG,ctrl) )
+	    _log_err(LOG_DEBUG,"unable to obtain a password");
+	return retval;
+    }
+
+    /* 'token' is the entered password */
+
+    if ( off(UNIX_NOT_SET_PASS, ctrl) ) {
+
+	/* we store this password as an item */
+
+	retval = pam_set_item(pamh, authtok_flag, token);
+	token = _pam_delete(token);   /* clean it up */
+	if ( retval != PAM_SUCCESS
+	     || (retval = pam_get_item(pamh, authtok_flag
+				       , (const void **)&item))
+	     != PAM_SUCCESS ) {
+
+	    _log_err(LOG_CRIT, "error manipulating password");
+	    return retval;
+
+	}
+
+    } else {
+	/*
+	 * then store it as data specific to this module. pam_end()
+	 * will arrange to clean it up.
+	 */
+
+	retval = pam_set_data(pamh, data_name, (void *) token, _cleanup);
+	if (retval != PAM_SUCCESS) {
+	    _log_err(LOG_CRIT, "error manipulating password data [%s]"
+		     , pam_strerror(pamh, retval) );
+	    token = _pam_delete(token);
+	    return retval;
+	}
+	item = token;
+	token = NULL;           /* break link to password */
+    }
+
+    *pass = item;
+    item = NULL;                 /* break link to password */
+
+    return PAM_SUCCESS;
+}
+
+static int _pam_unix_approve_pass(pam_handle_t *pamh
+				  , unsigned int ctrl
+				  , const char *pass_old
+				  , const char *pass_new)
+{
+     D(("&new=%p, &old=%p",pass_old,pass_new));
+     D(("new=[%s]",pass_new));
+     D(("old=[%s]",pass_old));
+
+     if (pass_new == NULL || (pass_old && !strcmp(pass_old,pass_new))) {
+	  if ( on(UNIX_DEBUG, ctrl) ) {
+	       _log_err(LOG_DEBUG, "bad authentication token");
+	  }
+	  make_remark(pamh, ctrl, PAM_ERROR_MSG, pass_new == NULL ?
+		       "No password supplied":"Password unchanged" );
+	  return PAM_AUTHTOK_ERR;
+     }
+
+     /*
+      * if one wanted to hardwire authentication token strength
+      * checking this would be the place - AGM
+      */
+
+     return PAM_SUCCESS;
+}
+
+/* ****************************************************************** *
+ * Copyright (c) Andrew G. Morgan, <morgan@parc.power.net> 1996.
+ * Copyright (c) Alex O. Yuriev, 1996.
+ * Copyright (c) Cristian Gafton 1996.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ * 
+ * ALTERNATIVELY, this product may be distributed under the terms of
+ * the GNU Public License, in which case the provisions of the GPL are
+ * required INSTEAD OF the above restrictions.  (This clause is
+ * necessary due to a potential bad interaction between the GPL and
+ * the restrictions contained in a BSD-style copyright.)
+ * 
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
