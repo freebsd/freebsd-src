@@ -111,7 +111,6 @@ static int
 vx_eisa_attach(device_t dev)
 {
     struct vx_softc *sc;
-    int             unit = device_get_unit(dev);
     struct resource *io = 0;
     struct resource *eisa_io = 0;
     struct resource *irq = 0;
@@ -139,28 +138,31 @@ vx_eisa_attach(device_t dev)
 	goto bad;
     }
 
-    if ((sc = vxalloc(unit)) == NULL)
-	goto bad;
+    sc = device_get_softc(dev);
 
-    sc->vx_io_addr = rman_get_start(io);
+    sc->vx_res = io;
+    sc->vx_bhandle = rman_get_bushandle(io);
+    sc->vx_btag = rman_get_bustag(io);
 
     rid = 0;
     irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
 			     0, ~0, 1, RF_ACTIVE);
     if (!irq) {
 	device_printf(dev, "No irq?!\n");
-	vxfree(sc);
 	goto bad;
     }
+
+    sc->vx_irq = irq;
 
     /* Now the registers are availible through the lower ioport */
 
     vxattach(sc);
 
     if (bus_setup_intr(dev, irq, INTR_TYPE_NET, vxintr, sc, &ih)) {
-	vxfree(sc);
 	goto bad;
     }
+
+    sc->vx_intrhand = ih;
 
     return 0;
 

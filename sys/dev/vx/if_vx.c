@@ -54,13 +54,6 @@
  *          babkin@hq.icb.chel.su
  */
 
-#include "vx.h"
-
-#if NVX < 4	/* These cost 4 bytes apiece, so give us 4 */
-#undef NVX
-#define NVX 4
-#endif
-
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,6 +67,9 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+
 #include <net/bpf.h>
 
 
@@ -81,10 +77,6 @@
 
 #define ETHER_MAX_LEN	1518
 #define ETHER_ADDR_LEN	6
-
-struct vx_softc *vx_softc[NVX];
-
-u_long vx_count;	/* both PCI and EISA */
 
 static struct connector_entry {
   int bit;
@@ -107,8 +99,6 @@ static struct connector_entry {
   { 0, "???"}
 };
 
-/* struct vx_softc *vxalloc __P((int)); */
-/* void *vxfree __P((struct vx_softc *)); */
 /* int vxattach __P((struct vx_softc *)); */
 static void vxtxstat __P((struct vx_softc *));
 static int vxstatus __P((struct vx_softc *));
@@ -127,43 +117,6 @@ static void vxgetlink __P((struct vx_softc *));
 static void vxsetlink __P((struct vx_softc *));
 /* int vxbusyeeprom __P((struct vx_softc *)); */
 
-struct vx_softc *
-vxalloc(unit)
-    int unit;
-{
-    struct vx_softc *sc;
-
-    if (unit >= NVX) {
-	printf("vx%d: unit number too high.\n", unit);
-	return NULL;
-    }
-
-    if (vx_softc[unit]) {
-	printf("vx%d: already allocated.\n", unit);
-	return NULL;
-    }
-
-    sc = malloc(sizeof(struct vx_softc), M_DEVBUF, M_NOWAIT);
-    if (sc == NULL) {
-	printf("vx%d: cannot malloc.\n", unit);
-	return NULL;
-    }
-    bzero(sc, sizeof(struct vx_softc));
-    callout_handle_init(&sc->ch);
-
-    vx_softc[unit] = sc;
-    sc->unit = unit;
-    return (sc);    
-}
-
-void
-vxfree(sc)
-    struct vx_softc *sc;
-{
-    vx_softc[sc->unit] = NULL;
-    free(sc, M_DEVBUF);
-    return;
-}
 
 int
 vxattach(sc)
@@ -172,8 +125,9 @@ vxattach(sc)
     struct ifnet *ifp = &sc->arpcom.ac_if;
     int i;
 
+    callout_handle_init(&sc->ch);
     GO_WINDOW(0);
-    outw(VX_COMMAND, GLOBAL_RESET);
+    CSR_WRITE_2(sc, VX_COMMAND, GLOBAL_RESET);
     VX_BUSY_WAIT;
 
     vxgetlink(sc);
@@ -186,11 +140,11 @@ vxattach(sc)
         int x;
         if (vxbusyeeprom(sc))
             return 0;
-        outw(BASE + VX_W0_EEPROM_COMMAND, EEPROM_CMD_RD
+        CSR_WRITE_2(sc,  VX_W0_EEPROM_COMMAND, EEPROM_CMD_RD
 	     | (EEPROM_OEM_ADDR_0 + i));
         if (vxbusyeeprom(sc))
             return 0;
-        x = inw(BASE + VX_W0_EEPROM_DATA);
+        x = CSR_READ_2(sc, VX_W0_EEPROM_DATA);
         sc->arpcom.ac_enaddr[(i << 1)] = x >> 8;
         sc->arpcom.ac_enaddr[(i << 1) + 1] = x;
     }
@@ -237,20 +191,20 @@ vxinit(xsc)
     GO_WINDOW(2);
 
     for (i = 0; i < 6; i++) /* Reload the ether_addr. */
-	outb(BASE + VX_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
+	CSR_WRITE_1(sc,  VX_W2_ADDR_0 + i, sc->arpcom.ac_enaddr[i]);
 
-    outw(BASE + VX_COMMAND, RX_RESET);
+    CSR_WRITE_2(sc,  VX_COMMAND, RX_RESET);
     VX_BUSY_WAIT;
-    outw(BASE + VX_COMMAND, TX_RESET);
+    CSR_WRITE_2(sc,  VX_COMMAND, TX_RESET);
     VX_BUSY_WAIT;
 
     GO_WINDOW(1);	/* Window 1 is operating window */
     for (i = 0; i < 31; i++)
-	inb(BASE + VX_W1_TX_STATUS);
+	CSR_READ_1(sc,  VX_W1_TX_STATUS);
 
-    outw(BASE + VX_COMMAND,SET_RD_0_MASK | S_CARD_FAILURE |
+    CSR_WRITE_2(sc,  VX_COMMAND,SET_RD_0_MASK | S_CARD_FAILURE |
 			S_RX_COMPLETE | S_TX_COMPLETE | S_TX_AVAIL);
-    outw(BASE + VX_COMMAND,SET_INTR_MASK | S_CARD_FAILURE |
+    CSR_WRITE_2(sc,  VX_COMMAND,SET_INTR_MASK | S_CARD_FAILURE |
 			S_RX_COMPLETE | S_TX_COMPLETE | S_TX_AVAIL);
 
     /*
@@ -259,13 +213,13 @@ vxinit(xsc)
      * already be queued.  However, a single stray interrupt is
      * unimportant.
      */
-    outw(BASE + VX_COMMAND, ACK_INTR | 0xff);
+    CSR_WRITE_2(sc,  VX_COMMAND, ACK_INTR | 0xff);
 
     vxsetfilter(sc);
     vxsetlink(sc);
 
-    outw(BASE + VX_COMMAND, RX_ENABLE);
-    outw(BASE + VX_COMMAND, TX_ENABLE);
+    CSR_WRITE_2(sc,  VX_COMMAND, RX_ENABLE);
+    CSR_WRITE_2(sc,  VX_COMMAND, TX_ENABLE);
 
     vxmbuffill((caddr_t) sc);
 
@@ -284,7 +238,7 @@ vxsetfilter(sc)
     register struct ifnet *ifp = &sc->arpcom.ac_if;  
     
     GO_WINDOW(1);           /* Window 1 is operating window */
-    outw(BASE + VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL | FIL_BRDCST |
+    CSR_WRITE_2(sc,  VX_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL | FIL_BRDCST |
 	 FIL_MULTICAST |
 	 ((ifp->if_flags & IFF_PROMISC) ? FIL_PROMISC : 0 ));
 }               
@@ -296,7 +250,7 @@ vxgetlink(sc)
     int n, k;
 
     GO_WINDOW(3);
-    sc->vx_connectors = inw(BASE + VX_W3_RESET_OPT) & 0x7f;
+    sc->vx_connectors = CSR_READ_2(sc, VX_W3_RESET_OPT) & 0x7f;
     for (n = 0, k = 0; k < VX_CONNECTORS; k++) {
       if (sc->vx_connectors & conn_tab[k].bit) {
 	if (n > 0) {
@@ -311,7 +265,7 @@ vxgetlink(sc)
 	return;
     }
     GO_WINDOW(3);
-    sc->vx_connector = (inl(BASE + VX_W3_INTERNAL_CFG) 
+    sc->vx_connector = (CSR_READ_4(sc,  VX_W3_INTERNAL_CFG) 
 			& INTERNAL_CONNECTOR_MASK) 
 			>> INTERNAL_CONNECTOR_BITS;
     if (sc->vx_connector & 0x10) {
@@ -397,29 +351,29 @@ vxsetlink(sc)
 
     /* Set the selected connector. */
     GO_WINDOW(3);
-    j = inl(BASE + VX_W3_INTERNAL_CFG) & ~INTERNAL_CONNECTOR_MASK;
-    outl(BASE + VX_W3_INTERNAL_CFG, j | (i <<INTERNAL_CONNECTOR_BITS));
+    j = CSR_READ_4(sc,  VX_W3_INTERNAL_CFG) & ~INTERNAL_CONNECTOR_MASK;
+    CSR_WRITE_4(sc,  VX_W3_INTERNAL_CFG, j | (i <<INTERNAL_CONNECTOR_BITS));
 
     /* First, disable all. */
-    outw(BASE + VX_COMMAND, STOP_TRANSCEIVER);
+    CSR_WRITE_2(sc,  VX_COMMAND, STOP_TRANSCEIVER);
     DELAY(800);
     GO_WINDOW(4);
-    outw(BASE + VX_W4_MEDIA_TYPE, 0);
+    CSR_WRITE_2(sc,  VX_W4_MEDIA_TYPE, 0);
 
     /* Second, enable the selected one. */
     switch(i) {
       case CONNECTOR_UTP:
 	GO_WINDOW(4);
-	outw(BASE + VX_W4_MEDIA_TYPE, ENABLE_UTP);
+	CSR_WRITE_2(sc,  VX_W4_MEDIA_TYPE, ENABLE_UTP);
 	break;
       case CONNECTOR_BNC:
-	outw(BASE + VX_COMMAND, START_TRANSCEIVER);
+	CSR_WRITE_2(sc,  VX_COMMAND, START_TRANSCEIVER);
 	DELAY(800);
 	break;
       case CONNECTOR_TX:
       case CONNECTOR_FX:
 	GO_WINDOW(4);
-	outw(BASE + VX_W4_MEDIA_TYPE, LINKBEAT_ENABLE);
+	CSR_WRITE_2(sc,  VX_W4_MEDIA_TYPE, LINKBEAT_ENABLE);
 	break;
       default:	/* AUI and MII fall here */
 	break;
@@ -434,7 +388,7 @@ static void
 vxstart(ifp)
     struct ifnet *ifp;
 {
-    register struct vx_softc *sc = vx_softc[ifp->if_unit];
+    register struct vx_softc *sc = ifp->if_softc;
     register struct mbuf *m, *m0;
     int sh, len, pad;
 
@@ -468,23 +422,23 @@ startagain:
 	goto readcheck;
     }
     VX_BUSY_WAIT;
-    if (inw(BASE + VX_W1_FREE_TX) < len + pad + 4) {
-	outw(BASE + VX_COMMAND, SET_TX_AVAIL_THRESH | ((len + pad + 4) >> 2));
+    if (CSR_READ_2(sc, VX_W1_FREE_TX) < len + pad + 4) {
+	CSR_WRITE_2(sc,  VX_COMMAND, SET_TX_AVAIL_THRESH | ((len + pad + 4) >> 2));
 	/* not enough room in FIFO */
-	if (inw(BASE + VX_W1_FREE_TX) < len + pad + 4) { /* make sure */
+	if (CSR_READ_2(sc, VX_W1_FREE_TX) < len + pad + 4) { /* make sure */
 	    ifp->if_flags |= IFF_OACTIVE;
 	    ifp->if_timer = 1;
 	    return;
 	}
     }
-    outw(BASE + VX_COMMAND, SET_TX_AVAIL_THRESH | (8188 >> 2));
+    CSR_WRITE_2(sc,  VX_COMMAND, SET_TX_AVAIL_THRESH | (8188 >> 2));
     IF_DEQUEUE(&ifp->if_snd, m0);
     if (m0 == 0) {		/* not really needed */
 	return;
     }
 
     VX_BUSY_WAIT;
-    outw(BASE + VX_COMMAND, SET_TX_START_THRESH |
+    CSR_WRITE_2(sc,  VX_COMMAND, SET_TX_START_THRESH |
 	((len / 4 + sc->tx_start_thresh) >> 2));
 
     if (sc->arpcom.ac_if.if_bpf) {
@@ -497,19 +451,21 @@ startagain:
      */
     sh = splhigh();
 
-    outl(BASE + VX_W1_TX_PIO_WR_1, len | TX_INDICATE);
+    CSR_WRITE_4(sc,  VX_W1_TX_PIO_WR_1, len | TX_INDICATE);
 
     for (m = m0; m != 0;) {
         if (m->m_len > 3)
-	    outsl(BASE + VX_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len / 4);
+	    bus_space_write_multi_4(sc->vx_btag, sc->vx_bhandle,
+		VX_W1_TX_PIO_WR_1, (u_int32_t *)mtod(m, caddr_t), m->m_len / 4);
         if (m->m_len & 3)
-	    outsb(BASE + VX_W1_TX_PIO_WR_1,
-	      mtod(m, caddr_t) + (m->m_len & ~3) , m->m_len & 3);
+	    bus_space_write_multi_1(sc->vx_btag, sc->vx_bhandle,
+		VX_W1_TX_PIO_WR_1,
+		mtod(m, caddr_t) + (m->m_len & ~3) , m->m_len & 3);
         MFREE(m, m0);
         m = m0;
     }
     while (pad--)
-	outb(BASE + VX_W1_TX_PIO_WR_1, 0);	/* Padding */
+	CSR_WRITE_1(sc,  VX_W1_TX_PIO_WR_1, 0);	/* Padding */
 
     splx(sh);
 
@@ -517,10 +473,10 @@ startagain:
     ifp->if_timer = 1;
 
 readcheck:
-    if ((inw(BASE + VX_W1_RX_STATUS) & ERR_INCOMPLETE) == 0) {
+    if ((CSR_READ_2(sc, VX_W1_RX_STATUS) & ERR_INCOMPLETE) == 0) {
 	/* We received a complete packet. */
 	
-	if ((inw(BASE + VX_STATUS) & S_INTR_LATCH) == 0) {
+	if ((CSR_READ_2(sc, VX_STATUS) & S_INTR_LATCH) == 0) {
 	    /*
 	     * No interrupt, read the packet and continue
 	     * Is  this supposed to happen? Is my motherboard
@@ -559,7 +515,7 @@ vxstatus(sc)
      * Check the FIFO status and act accordingly
      */
     GO_WINDOW(4);
-    fifost = inw(BASE + VX_W4_FIFO_DIAG);
+    fifost = CSR_READ_2(sc, VX_W4_FIFO_DIAG);
     GO_WINDOW(1);
 
     if (fifost & FIFOS_RX_UNDERRUN) {
@@ -601,8 +557,8 @@ vxtxstat(sc)
     * We need to read+write TX_STATUS until we get a 0 status
     * in order to turn off the interrupt flag.
     */
-    while ((i = inb(BASE + VX_W1_TX_STATUS)) & TXS_COMPLETE) {
-	outb(BASE + VX_W1_TX_STATUS, 0x0);
+    while ((i = CSR_READ_1(sc,  VX_W1_TX_STATUS)) & TXS_COMPLETE) {
+	CSR_WRITE_1(sc,  VX_W1_TX_STATUS, 0x0);
 
     if (i & TXS_JABBER) {
 	++sc->arpcom.ac_if.if_oerrors;
@@ -620,7 +576,7 @@ vxtxstat(sc)
 	vxreset(sc);
     } else if (i & TXS_MAX_COLLISION) {
 	++sc->arpcom.ac_if.if_collisions;
-	outw(BASE + VX_COMMAND, TX_ENABLE);
+	CSR_WRITE_2(sc,  VX_COMMAND, TX_ENABLE);
 	sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
     } else
 	sc->tx_succ_ok = (sc->tx_succ_ok+1) & 127;
@@ -636,9 +592,9 @@ vxintr(voidsc)
     struct ifnet *ifp = &sc->arpcom.ac_if;
 
     for (;;) {
-	outw(BASE + VX_COMMAND, C_INTR_LATCH);
+	CSR_WRITE_2(sc,  VX_COMMAND, C_INTR_LATCH);
 
-	status = inw(BASE + VX_STATUS);
+	status = CSR_READ_2(sc, VX_STATUS);
 
 	if ((status & (S_TX_COMPLETE | S_TX_AVAIL |
 		S_RX_COMPLETE | S_CARD_FAILURE)) == 0)
@@ -650,7 +606,7 @@ vxintr(voidsc)
 	 * Due to the i386 interrupt queueing, we may get spurious
 	 * interrupts occasionally.
 	 */
-	outw(BASE + VX_COMMAND, ACK_INTR | status);
+	CSR_WRITE_2(sc,  VX_COMMAND, ACK_INTR | status);
 
 	if (status & S_RX_COMPLETE)
 	    vxread(sc);
@@ -685,7 +641,7 @@ vxread(sc)
     struct ether_header *eh;
     u_int len;
 
-    len = inw(BASE + VX_W1_RX_STATUS);
+    len = CSR_READ_2(sc, VX_W1_RX_STATUS);
 
 again:
 
@@ -766,7 +722,7 @@ again:
     * I'll modify vxread() so that it can handle RX_EARLY interrupts.
     */
     if (vxstatus(sc)) {
-	len = inw(BASE + VX_W1_RX_STATUS);
+	len = CSR_READ_2(sc, VX_W1_RX_STATUS);
 	/* Check if we are stuck and reset [see XXX comment] */
 	if (len & ERR_INCOMPLETE) {
 	    if (ifp->if_flags & IFF_DEBUG)
@@ -780,7 +736,7 @@ again:
     return;
 
 abort:
-    outw(BASE + VX_COMMAND, RX_DISCARD_TOP_PACK);
+    CSR_WRITE_2(sc,  VX_COMMAND, RX_DISCARD_TOP_PACK);
 }
 
 static struct mbuf *
@@ -853,9 +809,11 @@ vxget(sc, totlen)
         }
         len = min(totlen, len);
         if (len > 3)
-            insl(BASE + VX_W1_RX_PIO_RD_1, mtod(m, u_int32_t *), len / 4);
+            bus_space_read_multi_4(sc->vx_btag, sc->vx_bhandle,
+		VX_W1_RX_PIO_RD_1, mtod(m, u_int32_t *), len / 4);
 	if (len & 3) {
-	    insb(BASE + VX_W1_RX_PIO_RD_1, mtod(m, u_int8_t *) + (len & ~3),
+            bus_space_read_multi_1(sc->vx_btag, sc->vx_bhandle,
+		VX_W1_RX_PIO_RD_1, mtod(m, u_int8_t *) + (len & ~3),
 		len & 3);
 	}
         m->m_len = len;
@@ -864,7 +822,7 @@ vxget(sc, totlen)
         mp = &m->m_next;
     }
 
-    outw(BASE +VX_COMMAND, RX_DISCARD_TOP_PACK);
+    CSR_WRITE_2(sc, VX_COMMAND, RX_DISCARD_TOP_PACK);
 
     splx(sh);
 
@@ -878,7 +836,7 @@ vxioctl(ifp, cmd, data)
     u_long cmd;
     caddr_t data;
 {
-    struct vx_softc *sc = vx_softc[ifp->if_unit];
+    struct vx_softc *sc = ifp->if_softc;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
@@ -964,7 +922,7 @@ static void
 vxwatchdog(ifp)
     struct ifnet *ifp;
 {
-    struct vx_softc *sc = vx_softc[ifp->if_unit];
+    struct vx_softc *sc = ifp->if_softc;
 
     if (ifp->if_flags & IFF_DEBUG)
 	printf("vx%d: device timeout\n", ifp->if_unit);
@@ -981,20 +939,20 @@ vxstop(sc)
 
     ifp->if_timer = 0;
 
-    outw(BASE + VX_COMMAND, RX_DISABLE);
-    outw(BASE + VX_COMMAND, RX_DISCARD_TOP_PACK);
+    CSR_WRITE_2(sc,  VX_COMMAND, RX_DISABLE);
+    CSR_WRITE_2(sc,  VX_COMMAND, RX_DISCARD_TOP_PACK);
     VX_BUSY_WAIT;
-    outw(BASE + VX_COMMAND, TX_DISABLE);
-    outw(BASE + VX_COMMAND, STOP_TRANSCEIVER);
+    CSR_WRITE_2(sc,  VX_COMMAND, TX_DISABLE);
+    CSR_WRITE_2(sc,  VX_COMMAND, STOP_TRANSCEIVER);
     DELAY(800);
-    outw(BASE + VX_COMMAND, RX_RESET);
+    CSR_WRITE_2(sc,  VX_COMMAND, RX_RESET);
     VX_BUSY_WAIT;
-    outw(BASE + VX_COMMAND, TX_RESET);
+    CSR_WRITE_2(sc,  VX_COMMAND, TX_RESET);
     VX_BUSY_WAIT;
-    outw(BASE + VX_COMMAND, C_INTR_LATCH);
-    outw(BASE + VX_COMMAND, SET_RD_0_MASK);
-    outw(BASE + VX_COMMAND, SET_INTR_MASK);
-    outw(BASE + VX_COMMAND, SET_RX_FILTER);
+    CSR_WRITE_2(sc,  VX_COMMAND, C_INTR_LATCH);
+    CSR_WRITE_2(sc,  VX_COMMAND, SET_RD_0_MASK);
+    CSR_WRITE_2(sc,  VX_COMMAND, SET_INTR_MASK);
+    CSR_WRITE_2(sc,  VX_COMMAND, SET_RX_FILTER);
 
     vxmbufempty(sc);
 }
@@ -1006,7 +964,7 @@ vxbusyeeprom(sc)
     int j, i = 100;
 
     while (i--) {
-        j = inw(BASE + VX_W0_EEPROM_COMMAND);
+        j = CSR_READ_2(sc, VX_W0_EEPROM_COMMAND);
         if (j & EEPROM_BUSY)
             DELAY(100);
         else
