@@ -293,9 +293,12 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 					t = mktime(&tm);
 				else
 					t = timegm(&tm);
-				tm = *localtime(&t);
-				strftime(buf, sizeof(buf), "%c", &tm);
-				printf("Resume timer: %s\n", buf);
+				if (t != -1) {
+					tm = *localtime(&t);
+					strftime(buf, sizeof(buf), "%c", &tm);
+					printf("Resume timer: %s\n", buf);
+				} else
+					printf("Resume timer: unknown\n");
 			}
 		}
 
