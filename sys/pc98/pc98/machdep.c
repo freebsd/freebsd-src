@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.50 1997/08/09 01:56:34 kato Exp $
+ *	$Id: machdep.c,v 1.51 1997/08/18 11:29:57 kato Exp $
  */
 
 #include "apm.h"
@@ -683,6 +683,7 @@ sigreturn(p, uap, retval)
 		 * hardware check for invalid selectors, excess privilege in
 		 * other selectors, invalid %eip's and invalid %esp's.
 		 */
+#define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
 		if (!CS_SECURE(scp->sc_cs)) {
 #ifdef DEBUG
     			printf("sigreturn: cs = 0x%x\n", scp->sc_cs);
