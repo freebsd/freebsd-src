@@ -80,7 +80,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int all, ch, errs, mnts;
+	int all, ch, errs = 0, mnts;
 	char **typelist = NULL;
 	struct statfs *mntbuf;
 
@@ -211,7 +211,8 @@ umountfs(name, typelist)
 	struct timeval pertry, try;
 	CLIENT *clp;
 	int so;
-	char *type, *delimp, *hostp, *mntpt, *origname, rname[MAXPATHLEN];
+	char *type, *delimp = NULL, *hostp, *mntpt, *origname;
+	char rname[MAXPATHLEN];
 
 	if (realpath(name, rname) == NULL) {
 		/* Continue and let the system call check it... */

@@ -657,7 +657,7 @@ getnfsargs(spec, nfsargsp)
 #ifdef NFSKERB
 	char *cp;
 #endif
-	u_short tport;
+	u_short tport = 0;
 	static struct nfhret nfhret;
 	static char nam[MNAMELEN + 1];
 
