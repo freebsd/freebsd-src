@@ -76,7 +76,9 @@ static struct _word {
     { "distSetMinimum",		distSetMinimum		},
     { "distSetEverything",	distSetEverything	},
     { "distSetSrc",		distSetSrc		},
+#ifndef X_AS_PKG
     { "distSetXF86",		distSetXF86		},
+#endif
     { "distExtractAll",		distExtractAll		},
     { "docBrowser",		docBrowser		},
     { "docShowDocument",	docShowDocument		},

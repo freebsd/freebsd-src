@@ -372,9 +372,11 @@ extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
 extern unsigned int	CRYPTODists;		/* Which naughty distributions we want		*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
+#ifndef X_AS_PKG
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
+#endif
 extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
@@ -418,12 +420,13 @@ extern DMenu		MenuDiskDevices;	/* Disk type devices				*/
 extern DMenu		MenuSubDistributions;	/* Custom distribution menu			*/
 extern DMenu		MenuSrcDistributions;	/* Source distribution menu			*/
 extern DMenu		MenuXF86;		/* XFree86 main menu				*/
+#ifndef X_AS_PKG
 extern DMenu		MenuXF86Select;		/* XFree86 distribution selection menu		*/
 extern DMenu		MenuXF86SelectCore;	/* XFree86 core distribution menu		*/
 extern DMenu		MenuXF86SelectServer;	/* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectPC98Server; /* XFree86 server distribution menu		*/
 extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
-extern DMenu		MenuXF86SelectFonts;	/* XFree86 font selection menu			*/
+#endif
 extern DMenu		MenuXDesktops;		/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
@@ -531,7 +534,9 @@ extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
+#ifndef X_AS_PKG
 extern int	distSetXF86(dialogMenuItem *self);
+#endif
 extern int	distExtractAll(dialogMenuItem *self);
 
 /* dmenu.c */
