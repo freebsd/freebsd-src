@@ -350,6 +350,7 @@ struct thread {
 #define	TDF_CAN_UNBIND	0x000004 /* Only temporarily bound. */
 #define	TDF_SINTR	0x000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
+#define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define	TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
@@ -450,7 +451,6 @@ struct kse {
 };
 
 /* flags kept in ke_flags */
-#define	KEF_IDLEKSE	0x00004	/* A 'Per CPU idle process'.. has one thread */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 #define	KEF_EXIT	0x04000	/* KSE is being killed. */
 
