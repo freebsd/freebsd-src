@@ -102,7 +102,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.2 1996/12/14 11:36:00 joerg Exp $
+#	$Id: MAKEDEV,v 1.127.2.3 1996/12/30 20:52:22 joerg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -184,6 +184,7 @@ all)
 	sh MAKEDEV perfmon speaker pcaudio psm0	mse0 sysmouse	# cdev
 	sh MAKEDEV vty4						# cdev
 	sh MAKEDEV tun0						# cdev
+	sh MAKEDEV apm card0 card1				# cdev, laptop
 	;;
 std)
 	rm -f console drum mem kmem null random urandom zero io tty klog
