@@ -34,7 +34,7 @@
 #define	G_CONCAT_CLASS_NAME	"CONCAT"
 
 #define	G_CONCAT_MAGIC		"GEOM::CONCAT"
-#define	G_CONCAT_VERSION	0
+#define	G_CONCAT_VERSION	1
 
 #ifdef _KERNEL
 #define	G_CONCAT_TYPE_MANUAL	0
@@ -42,7 +42,10 @@
 
 #define	G_CONCAT_DEBUG(lvl, ...)	do {				\
 	if (g_concat_debug >= (lvl)) {					\
-		printf("GEOM_CONCAT[%u]: ", lvl);			\
+		printf("GEOM_CONCAT");					\
+		if (g_concat_debug > 0)					\
+			printf("[%u]", lvl);				\
+		printf(": ");						\
 		printf(__VA_ARGS__);					\
 		printf("\n");						\
 	}								\
@@ -65,13 +68,14 @@ struct g_concat_disk {
 };
 
 struct g_concat_softc {
-	u_int		sc_type;	/* provider type */
+	u_int		 sc_type;	/* provider type */
+	struct g_geom	*sc_geom;
 	struct g_provider *sc_provider;
-	char		sc_name[16];	/* concat name */
-	uint32_t	sc_id;		/* concat unique ID */
+	char		 sc_name[16];	/* concat name */
+	uint32_t	 sc_id;		/* concat unique ID */
 
 	struct g_concat_disk *sc_disks;
-	uint16_t	sc_ndisks;
+	uint16_t	 sc_ndisks;
 };
 #endif	/* _KERNEL */
 

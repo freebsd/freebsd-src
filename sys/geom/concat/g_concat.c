@@ -117,15 +117,15 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	sc = disk->d_softc;
 	cp = disk->d_consumer;
 
-	G_CONCAT_DEBUG(1, "Removing disk %s from %s.", cp->provider->name,
-	    sc->sc_provider->name);
+	G_CONCAT_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
+	    sc->sc_geom->name);
 
 	disk->d_consumer = NULL;
-
-	g_error_provider(sc->sc_provider, ENXIO);
-
-	G_CONCAT_DEBUG(0, "Disk %s removed from %s.", cp->provider->name,
-	    sc->sc_provider->name);
+	if (sc->sc_provider != NULL) {
+		g_orphan_provider(sc->sc_provider, ENXIO);
+		sc->sc_provider = NULL;
+		G_CONCAT_DEBUG(0, "Device %s removed.", sc->sc_geom->name);
+	}
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
@@ -150,14 +150,6 @@ g_concat_orphan(struct g_consumer *cp)
 	if (disk == NULL)	/* Possible? */
 		return;
 	g_concat_remove_disk(disk);
-
-	if (sc->sc_type == G_CONCAT_TYPE_MANUAL) {
-		/*
-		 * For manually configured devices, don't remove provider
-		 * even is there are no vaild disks at all.
-		 */
-		return;
-	}
 
 	/* If there are no valid disks anymore, remove device. */
 	if (g_concat_nvalid(sc) == 0)
@@ -305,6 +297,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
 		return;
 
+	sc->sc_provider = g_new_providerf(sc->sc_geom, "%s", sc->sc_geom->name);
 	start = 0;
 	for (no = 0; no < sc->sc_ndisks; no++) {
 		disk = &sc->sc_disks[no];
@@ -326,7 +319,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	sc->sc_provider->mediasize = start;
 	g_error_provider(sc->sc_provider, 0);
 
-	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_provider->name);
+	G_CONCAT_DEBUG(0, "Device %s activated.", sc->sc_geom->name);
 }
 
 static int
@@ -364,8 +357,7 @@ static int
 g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 {
 	struct g_concat_disk *disk;
-	struct g_provider *ourpp;
-	struct g_consumer *cp;
+	struct g_consumer *cp, *fcp;
 	struct g_geom *gp;
 	int error;
 
@@ -378,8 +370,8 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	if (disk->d_consumer != NULL)
 		return (EEXIST);
 
-	ourpp = sc->sc_provider;
-	gp = ourpp->geom;
+	gp = sc->sc_geom;
+	fcp = LIST_FIRST(&gp->consumer);
 
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
@@ -388,8 +380,8 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 		return (error);
 	}
 
-	if (ourpp->acr > 0 || ourpp->acw > 0 || ourpp->ace > 0) {
-		error = g_access(cp, ourpp->acr, ourpp->acw, ourpp->ace);
+	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0)) {
+		error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
 		if (error != 0) {
 			g_detach(cp);
 			g_destroy_consumer(cp);
@@ -424,8 +416,8 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 
 	return (0);
 fail:
-	if (ourpp->acr > 0 || ourpp->acw > 0 || ourpp->ace > 0)
-		g_access(cp, -ourpp->acr, -ourpp->acw, -ourpp->ace);
+	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0))
+		g_access(cp, -fcp->acr, -fcp->acw, -fcp->ace);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	return (error);
@@ -435,7 +427,6 @@ static struct g_geom *
 g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
     u_int type)
 {
-	struct g_provider *pp;
 	struct g_concat_softc *sc;
 	struct g_geom *gp;
 	u_int no;
@@ -451,7 +442,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->sc_name, md->md_name) == 0) {
-			G_CONCAT_DEBUG(0, "Device %s already cofigured.",
+			G_CONCAT_DEBUG(0, "Device %s already configured.",
 			    gp->name);
 			return (NULL);
 		}
@@ -483,13 +474,8 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	sc->sc_type = type;
 
 	gp->softc = sc;
-
-	pp = g_new_providerf(gp, "%s", gp->name);
-	sc->sc_provider = pp;
-	/*
-	 * Don't run provider yet (by setting its error to 0), because we're
-	 * not aware of its media and sector size.
-	 */
+	sc->sc_geom = gp;
+	sc->sc_provider = NULL;
 
 	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", gp->name, sc->sc_id);
 
@@ -509,33 +495,33 @@ g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 		return (ENXIO);
 
 	pp = sc->sc_provider;
-	if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0) {
+	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
 			G_CONCAT_DEBUG(0, "Device %s is still open, so it "
-			    "can't be definitely removed.",
-			    sc->sc_provider->name);
+			    "can't be definitely removed.", pp->name);
 		} else {
 			G_CONCAT_DEBUG(1,
-			    "Device %s is still open (r%dw%de%d).",
-			    sc->sc_provider->name, pp->acr, pp->acw, pp->ace);
+			    "Device %s is still open (r%dw%de%d).", pp->name,
+			    pp->acr, pp->acw, pp->ace);
 			return (EBUSY);
 		}
 	}
-
-	g_error_provider(pp, ENXIO);
 
 	for (no = 0; no < sc->sc_ndisks; no++) {
 		if (sc->sc_disks[no].d_consumer != NULL)
 			g_concat_remove_disk(&sc->sc_disks[no]);
 	}
 
-	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
-		G_CONCAT_DEBUG(0, "Device %s removed.", pp->name);
-
-	gp = sc->sc_provider->geom;
+	gp = sc->sc_geom;
 	gp->softc = NULL;
+	KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
+	    gp->name));
 	free(sc->sc_disks, M_CONCAT);
 	free(sc, M_CONCAT);
+
+	pp = LIST_FIRST(&gp->provider);
+	if (pp == NULL || (pp->acr == 0 && pp->acw == 0 && pp->ace == 0))
+		G_CONCAT_DEBUG(0, "Device %s destroyed.", gp->name);
 
 	g_wither_geom(gp, ENXIO);
 
@@ -561,7 +547,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct g_geom *gp;
 	int error;
 
-	g_trace(G_T_TOPOLOGY, "g_concat_taste(%s, %s)", mp->name, pp->name);
+	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
 	G_CONCAT_DEBUG(3, "Tasting %s.", pp->name);
@@ -574,11 +560,9 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_attach(cp, pp);
 
 	error = g_concat_read_metadata(cp, &md);
-	if (error != 0) {
-		g_wither_geom(gp, ENXIO);
-		return (NULL);
-	}
 	g_wither_geom(gp, ENXIO);
+	if (error != 0)
+		return (NULL);
 	gp = NULL;
 
 	if (strcmp(md.md_magic, G_CONCAT_MAGIC) != 0)
@@ -609,8 +593,9 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		G_CONCAT_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
 		error = g_concat_add_disk(sc, pp, md.md_no);
 		if (error != 0) {
-			G_CONCAT_DEBUG(0, "Cannot add disk %s to %s.", pp->name,
-			    gp->name);
+			G_CONCAT_DEBUG(0,
+			    "Cannot add disk %s to %s (error=%d).", pp->name,
+			    gp->name, error);
 			return (NULL);
 		}
 	} else {
@@ -624,8 +609,9 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		G_CONCAT_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
 		error = g_concat_add_disk(sc, pp, md.md_no);
 		if (error != 0) {
-			G_CONCAT_DEBUG(0, "Cannot add disk %s to %s.", pp->name,
-			    gp->name);
+			G_CONCAT_DEBUG(0,
+			    "Cannot add disk %s to %s (error=%d).", pp->name,
+			    gp->name, error);
 			g_concat_destroy(sc, 1);
 			return (NULL);
 		}
@@ -638,110 +624,175 @@ static void
 g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	u_int attached, no;
-	struct g_concat_metadata *md;
+	struct g_concat_metadata md;
 	struct g_provider *pp;
 	struct g_concat_softc *sc;
 	struct g_geom *gp;
 	struct sbuf *sb;
-	char buf[20];
+	const char *name;
+	char param[16];
+	int *nargs;
 
 	g_topology_assert();
-	md = gctl_get_paraml(req, "metadata", sizeof(*md));
-	if (md == NULL) {
-		gctl_error(req, "No '%s' argument.", "metadata");
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (md->md_all <= 1) {
-		G_CONCAT_DEBUG(1, "Invalid 'md_all' value (= %d).", md->md_all);
-		gctl_error(req, "Invalid 'md_all' value (= %d).", md->md_all);
+	if (*nargs <= 2) {
+		gctl_error(req, "Too few arguments.");
 		return;
 	}
 
+	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
+	md.md_version = G_CONCAT_VERSION;
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
+	strlcpy(md.md_name, name, sizeof(md.md_name));
+	md.md_id = arc4random();
+	md.md_no = 0;
+	md.md_all = *nargs - 1;
+
 	/* Check all providers are valid */
-	for (no = 0; no < md->md_all; no++) {
-		snprintf(buf, sizeof(buf), "disk%u", no);
-		pp = gctl_get_provider(req, buf);
+	for (no = 1; no < *nargs; no++) {
+		snprintf(param, sizeof(param), "arg%u", no);
+		name = gctl_get_asciiparam(req, param);
+		if (name == NULL) {
+			gctl_error(req, "No 'arg%u' argument.", no);
+			return;
+		}
+		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
+			name += strlen("/dev/");
+		pp = g_provider_by_name(name);
 		if (pp == NULL) {
-			G_CONCAT_DEBUG(1, "Disk %u is invalid.", no + 1);
-			gctl_error(req, "Disk %u is invalid.", no + 1);
+			G_CONCAT_DEBUG(1, "Disk %s is invalid.", name);
+			gctl_error(req, "Disk %s is invalid.", name);
 			return;
 		}
 	}
 
-	gp = g_concat_create(mp, md, G_CONCAT_TYPE_MANUAL);
+	gp = g_concat_create(mp, &md, G_CONCAT_TYPE_MANUAL);
 	if (gp == NULL) {
-		gctl_error(req, "Can't configure %s.concat.", md->md_name);
+		gctl_error(req, "Can't configure %s.concat.", md.md_name);
 		return;
 	}
 
 	sc = gp->softc;
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	sbuf_printf(sb, "Can't attach disk(s) to %s:", gp->name);
-	for (attached = no = 0; no < md->md_all; no++) {
-		snprintf(buf, sizeof(buf), "disk%u", no);
-		pp = gctl_get_provider(req, buf);
-		if (g_concat_add_disk(sc, pp, no) != 0) {
+	for (attached = 0, no = 1; no < *nargs; no++) {
+		snprintf(param, sizeof(param), "arg%u", no);
+		name = gctl_get_asciiparam(req, param);
+		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
+			name += strlen("/dev/");
+		pp = g_provider_by_name(name);
+		KASSERT(pp != NULL, ("Provider %s disappear?!", name));
+		if (g_concat_add_disk(sc, pp, no - 1) != 0) {
 			G_CONCAT_DEBUG(1, "Disk %u (%s) not attached to %s.",
-			    no + 1, pp->name, gp->name);
+			    no, pp->name, gp->name);
 			sbuf_printf(sb, " %s", pp->name);
 			continue;
 		}
 		attached++;
 	}
 	sbuf_finish(sb);
-	if (md->md_all != attached) {
+	if (md.md_all != attached) {
 		g_concat_destroy(gp->softc, 1);
 		gctl_error(req, "%s", sbuf_data(sb));
 	}
 	sbuf_delete(sb);
 }
 
-static void
-g_concat_ctl_destroy(struct gctl_req *req, struct g_geom *gp)
+static struct g_concat_softc *
+g_concat_find_device(struct g_class *mp, const char *name)
 {
 	struct g_concat_softc *sc;
-	int *force, error;
+	struct g_geom *gp;
+
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		if (strcmp(gp->name, name) == 0 ||
+		    strcmp(sc->sc_name, name) == 0) {
+			return (sc);
+		}
+	}
+	return (NULL);
+}
+
+static void
+g_concat_ctl_destroy(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_concat_softc *sc;
+	int *force, *nargs, error;
+	const char *name;
+	char param[16];
+	u_int i;
 
 	g_topology_assert();
 
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs <= 0) {
+		gctl_error(req, "Missing device(s).");
+		return;
+	}
 	force = gctl_get_paraml(req, "force", sizeof(*force));
 	if (force == NULL) {
 		gctl_error(req, "No '%s' argument.", "force");
 		return;
 	}
-	sc = gp->softc;
-	if (sc == NULL) {
-		gctl_error(req, "Cannot destroy device %s (not configured).",
-		    gp->name);
-		return;
-	}
-	error = g_concat_destroy(sc, *force);
-	if (error != 0) {
-		gctl_error(req, "Cannot destroy device %s (error=%d).",
-		    gp->name, error);
-		return;
+
+	for (i = 0; i < (u_int)*nargs; i++) {
+		snprintf(param, sizeof(param), "arg%u", i);
+		name = gctl_get_asciiparam(req, param);
+		if (name == NULL) {
+			gctl_error(req, "No 'arg%u' argument.", i);
+			return;
+		}
+		sc = g_concat_find_device(mp, name);
+		if (sc == NULL) {
+			gctl_error(req, "No such device: %s.", name);
+			return;
+		}
+		error = g_concat_destroy(sc, *force);
+		if (error != 0) {
+			gctl_error(req, "Cannot destroy device %s (error=%d).",
+			    sc->sc_geom->name, error);
+			return;
+		}
 	}
 }
 
 static void
 g_concat_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
-	struct g_geom *gp;
+	uint32_t *version;
 
 	g_topology_assert();
 
-	if (strcmp(verb, "create device") == 0) {
-		g_concat_ctl_create(req, mp);
+	version = gctl_get_paraml(req, "version", sizeof(*version));
+	if (version == NULL) {
+		gctl_error(req, "No '%s' argument.", "version");
+		return;
+	}
+	if (*version != G_CONCAT_VERSION) {
+		gctl_error(req, "Userland and kernel parts are out of sync.");
 		return;
 	}
 
-	gp = gctl_get_geom(req, mp, "geom");
-	if (gp == NULL || gp->softc == NULL) {
-		gctl_error(req, "unknown device");
+	if (strcmp(verb, "create") == 0) {
+		g_concat_ctl_create(req, mp);
 		return;
-	}
-	if (strcmp(verb, "destroy device") == 0) {
-		g_concat_ctl_destroy(req, gp);
+	} else if (strcmp(verb, "destroy") == 0) {
+		g_concat_ctl_destroy(req, mp);
 		return;
 	}
 	gctl_error(req, "Unknown verb.");
