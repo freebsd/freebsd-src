@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: util.c,v 1.2 1996/08/29 22:39:41 wosch Exp wosch $
+ * $Id: util.c,v 1.1 1996/08/31 23:14:54 wosch Exp $
  */
 
 
@@ -156,31 +156,43 @@ patprep(name)
 	register char *endmark, *p, *subp;
 
 	subp = globfree;
-	*subp++ = '\0';
+	*subp++ = '\0';   /* set first element to '\0' */
 	p = name + strlen(name) - 1;
-	/* skip trailing metacharacters (and [] ranges) */
+
+	/* skip trailing metacharacters */
 	for (; p >= name; p--)
-		if (index("*?", *p) == 0)
+		if (index(LOCATE_REG, *p) == NULL)
 			break;
-	if (p < name)
-		p = name;
-	if (*p == ']')
-		for (p--; p >= name; p--)
-			if (*p == '[') {
-				p--;
-				break;
-			}
-	if (p < name)
-		p = name;
-	/*
-	 * if pattern has only metacharacters, check every path (force '/'
-	 * search)
+
+	/* 
+	 * check if maybe we are in a character class
+	 *
+	 * 'foo.[ch]'
+	 *        |----< p
 	 */
-	if ((p == name) && index("?*[]", *p) != 0)
+	if (p >= name && 
+	    (index(p, '[') != NULL || index(p, ']') != NULL)) {
+		for (p = name; *p != '\0'; p++)
+			if (*p == ']' || *p == '[')
+				break;
+		p--;
+
+		/* 
+		 * cannot find a non-meta character, give up
+		 * '*\*[a-z]'
+		 *    |-------< p
+		 */
+		if (p >= name && index(LOCATE_REG, *p) != NULL)
+			p = name - 1;
+	}
+	
+	if (p < name) 			
+		/* only meta chars: "???", force '/' search */
 		*subp++ = '/';
+
 	else {
 		for (endmark = p; p >= name; p--)
-			if (index("]*?", *p) != 0)
+			if (index(LOCATE_REG, *p) != NULL)
 				break;
 		for (++p;
 		    (p <= endmark) && subp < (globfree + sizeof(globfree));)
