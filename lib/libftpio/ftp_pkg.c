@@ -11,7 +11,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id$
+ * $Id: ftp_pkg.c,v 1.1.1.1 1996/06/17 12:26:06 jkh Exp $
  *
  * TCL Interface code for functions provided by the ftp library.
  *
@@ -180,11 +180,11 @@ Ftp_binary(ClientData clientData, Tcl_Interp *interp, int argc, char **argv)
 {
     FILE *fp;
 
-    CHECK_ARGS(2, argv[0], "fileId bool");
+    CHECK_ARGS(1, argv[0], "fileId");
     if (Tcl_GetOpenFile(interp, argv[1], TRUE, TRUE, &fp) != TCL_OK)
 	return TCL_ERROR;
-    /* Debug("ftp_pkg: set binary mode to %d", atoi(argv[2])); */
-    ftpBinary(fp, atoi(argv[2]));
+    /* Debug("ftp_pkg: set binary mode"); */
+    ftpBinary(fp);
     return TCL_OK;
 }
 
