@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.7 1999/01/18 03:36:17 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.8 1999/03/23 02:46:39 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -50,12 +50,6 @@
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 #endif
-
-jmp_buf command_fail;					    /* return on a failed command */
-
-/* Why aren't these declared anywhere? XXX */
-int setjmp(jmp_buf);
-void longjmp(jmp_buf, int);
 
 void attachobject(struct vinum_ioctl_msg *);
 void detachobject(struct vinum_ioctl_msg *);
