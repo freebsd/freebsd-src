@@ -34,12 +34,12 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_ANSI_H_
+#ifndef	_MACHINE_ANSI_H_
 #define	_MACHINE_ANSI_H_
 
 /*
- * Types which are fundamental to the implementation and must be declared
- * in more than one standard header are defined here.  Standard headers
+ * Types which are fundamental to the implementation and may appear in
+ * more than one standard header are defined here.  Standard headers
  * then use:
  *	#ifdef	_BSD_SIZE_T_
  *	typedef	_BSD_SIZE_T_	size_t;
@@ -148,4 +148,4 @@ typedef union {
 	__int64_t	_mbstateL;		/* for alignment */
 } __mbstate_t;
 
-#endif /* !_MACHINE_ANSI_H_ */
+#endif	/* !_MACHINE_ANSI_H_ */
