@@ -26,8 +26,10 @@
  * $FreeBSD$
  */
 
+#define UDF_HASHTBLSIZE 100
+
 struct udf_node {
-	TAILQ_ENTRY(udf_node)	tq;
+	LIST_ENTRY(udf_node)	le;
 	struct vnode	*i_vnode;
 	struct vnode	*i_devvp;
 	struct udf_mnt	*udfmp;
@@ -50,7 +52,8 @@ struct udf_mnt {
 	uint64_t		root_id;
 	struct vnode		*root_vp;
 	struct long_ad		root_icb;
-	TAILQ_HEAD(, udf_node)	udf_tqh;
+	LIST_HEAD(udf_hash_lh, udf_node)	*hashtbl;
+	u_long			hashsz;
 	struct mtx		hash_mtx;
 	int			p_sectors;
 	int			s_table_entries;
