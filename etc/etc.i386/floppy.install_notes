@@ -1,6 +1,6 @@
                         FLOPPY INSTALLATION NOTES
                                 FreeBSD
-                              Release 1.0
+                              Release 1.1
 
 Welcome to FreeBSD!  This document has been put together in an effort
 to make initial installation of the system from floppy as easy as possible.
@@ -150,4 +150,4 @@ to make initial installation of the system from floppy as easy as possible.
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.11 1993/10/16 12:22:45 rgrimes Exp $
+End of $Id: floppy.install_notes,v 1.12 1993/10/16 12:41:36 jkh Exp $
