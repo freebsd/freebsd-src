@@ -24,7 +24,6 @@
  */
 
 #include <sys/cdefs.h>
-
 __FBSDID("$FreeBSD$");
 
 /* System Headers */
