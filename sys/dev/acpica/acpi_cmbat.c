@@ -66,6 +66,7 @@ struct acpi_cmbat_softc {
     struct timespec bif_lastupdated;
     struct timespec bst_lastupdated;
 
+    int		    flags;
     int		    present;
     int		    cap;
     int		    min;
@@ -189,9 +190,14 @@ acpi_cmbat_get_bst(void *context)
 	goto end;
     acpi_cmbat_info_updated(&sc->bst_lastupdated);
 
-    /* XXX Should we shut down here? */
-    if (sc->bst.state & ACPI_BATT_STAT_CRITICAL)
-	device_printf(dev, "critically low charge!\n");
+    /* XXX If all batteries are critical, perhaps we should suspend. */
+    if (sc->bst.state & ACPI_BATT_STAT_CRITICAL) {
+    	if ((sc->flags & ACPI_BATT_STAT_CRITICAL) == 0) {
+	    sc->flags |= ACPI_BATT_STAT_CRITICAL;
+	    device_printf(dev, "critically low charge!\n");
+	}
+    } else
+	sc->flags &= ~ACPI_BATT_STAT_CRITICAL;
 
 end:
     if (bst_buffer.Pointer != NULL)
