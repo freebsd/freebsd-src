@@ -365,8 +365,9 @@ umountfs(struct statfs *sfs)
 			warn("unmount of %s failed", sfs->f_mntonname);
 		if (errno != ENOENT)
 			return (1);
-		/* Compatability for old kernels. */
-		warnx("retrying using path instead of file system ID");
+		/* Compatibility for old kernels. */
+		if (sfs->f_fsid.val[0] != 0 || sfs->f_fsid.val[1] != 0)
+			warnx("retrying using path instead of file system ID");
 		if (unmount(sfs->f_mntonname, fflag) != 0) {
 			warn("unmount of %s failed", sfs->f_mntonname);
 			return (1);
@@ -557,7 +558,7 @@ mntinfo(struct statfs **mntbuf)
 }
 
 /*
- * Convert a hexidecimal filesystem ID to an fsid_t.
+ * Convert a hexadecimal filesystem ID to an fsid_t.
  * Returns 0 on success.
  */
 int
