@@ -1003,6 +1003,7 @@ pccard_child_pnpinfo_str(device_t bus, device_t child, char *buf,
 	struct pccard_function *func = devi->fcn;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 
+	/* XXX need to make sure that we've quoted the " in strings! */
 	snprintf(buf, buflen, "manufacturer=0x%04x product=0x%04x "
 	    "cisvendor=\"%s\" cisproduct=\"%s\" function_type=%d",
 	    sc->card.manufacturer, sc->card.product, sc->card.cis1_info[0],
