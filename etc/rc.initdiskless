@@ -1,3 +1,5 @@
+#!/bin/sh
+#
 # Copyright (c) 1999  Matt Dillion
 # All rights reserved.
 #
@@ -25,8 +27,12 @@
 # $FreeBSD$
 #
 
-#
-# /etc/rc.diskless1 - general BOOTP startup
+# PROVIDE: initdiskless
+# KEYWORD: FreeBSD
+
+dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+[ ${dlv:=0} -eq 0 ] && exit 0
+
 #
 # BOOTP has mounted / for us.  Assume a read-only mount.  We must then
 # - figure out our IP by querying the interface
@@ -46,7 +52,8 @@
 #	checks error code and drops into shell on failure.
 #	if shell exits, terminates script as well as /etc/rc.
 #
-chkerr() {
+chkerr()
+{
 	case $1 in
 	0)
 		;;
@@ -58,7 +65,8 @@ chkerr() {
 	esac
 }
 
-mount_md() {
+mount_md()
+{
 	/sbin/mdconfig -a -t malloc -s $1 -u $3
 	/sbin/disklabel -r -w md$3 auto
 	/sbin/newfs /dev/md$3c
@@ -93,8 +101,8 @@ done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 
 if [ -z "`hostname -s`" ]; then
-        hostname=`kenv dhcp.host-name`
-        hostname $hostname
+	hostname=`kenv dhcp.host-name`
+	hostname $hostname
 	echo "Hostname is $hostname"
 fi
 
@@ -126,19 +134,10 @@ done
 # build the resolv.conf
 #
 if [ ! -e /etc/resolv.conf ]; then
-        echo domain `kenv dhcp.domain-name` > /etc/resolv.conf
+	echo domain `kenv dhcp.domain-name` > /etc/resolv.conf
 
-        set `kenv dhcp.domain-name-servers`
-        for ns in `IFS=','; echo $*`; do
-                echo nameserver $ns >> /etc/resolv.conf;
-        done
+	set `kenv dhcp.domain-name-servers`
+	for ns in `IFS=','; echo $*`; do
+		echo nameserver $ns >> /etc/resolv.conf;
+	done
 fi
-
-# Tell /etc/rc to run the specified script after it does its mounts but
-# before it does anything else.
-#
-# This script is responsible for setting up the diskless mount environment.
-# This can be overriden by /conf/ME/rc.conf.local if, for example, you do not
-# want to run the standard system /etc/rc.diskless2
-
-diskless_mount="/etc/rc.diskless2"
