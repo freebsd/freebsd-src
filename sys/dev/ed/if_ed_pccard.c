@@ -77,7 +77,7 @@ static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
 static int	ed_pccard_detach(device_t);
 
-static int	ed_pccard_Linksys(device_t dev);
+static int	ed_pccard_dl100xx(device_t dev);
 static int	ed_pccard_ax88190(device_t dev);
 
 static void	ax88190_geteprom(struct ed_softc *);
@@ -88,6 +88,7 @@ static u_int	ed_pccard_dlink_mii_readbits(struct ed_softc *sc, int nbits);
 static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
 #endif
+static int	ed_pccard_Linksys(device_t dev);
 
 /*
  *      ed_pccard_detach - unload the driver and clear the table.
@@ -98,10 +99,8 @@ ed_pccard_detach(device_t dev)
 	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
-	if (sc->gone) {
-		device_printf(dev, "already unloaded\n");
+	if (sc->gone)
 		return (0);
-	}
 	ed_stop(sc);
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
@@ -201,12 +200,9 @@ ed_pccard_match(device_t dev)
 	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
+	      pp - ed_pccard_products, pp->flags);
 		if (pp->prod.pp_name != NULL)
 			device_set_desc(dev, pp->prod.pp_name);
-		if (pp->flags & NE2000DVF_DL10019)
-			device_set_flags(dev, ED_FLAGS_LINKSYS);
-		else if (pp->flags & NE2000DVF_AX88190)
-			device_set_flags(dev, ED_FLAGS_AX88190);
 		return (0);
 	}
 	return (ENXIO);
@@ -220,28 +216,27 @@ ed_pccard_match(device_t dev)
 static int
 ed_pccard_probe(device_t dev)
 {
+	const struct ed_product *pp;
 	int	error;
-	int	flags = device_get_flags(dev);
 
-	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_AX88190) {
-		error = ed_pccard_ax88190(dev);
-		goto end2;
+	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
+	    (const struct pccard_product *) ed_pccard_products,
+	    sizeof(ed_pccard_products[0]), NULL)) == NULL)
+		return (ENXIO);
+	if (pp->flags & NE2000DVF_DL10019) {
+		error = ed_probe_Novell(dev, 0, 0);
+		if (error == 0)
+			error = ed_pccard_Linksys(dev);
+		ed_release_resources(dev);
+		if (error == 0)
+			goto end2;
 	}
-
-	error = ed_probe_Novell(dev, 0, flags);
-	if (error == 0)
-		goto end;
-	ed_release_resources(dev);
-
-	error = ed_probe_WD80x3(dev, 0, flags);
-	if (error == 0)
-		goto end;
-	ed_release_resources(dev);
-	goto end2;
-
-end:
-	if (ED_FLAGS_GETTYPE(flags) & ED_FLAGS_LINKSYS)
-		ed_pccard_Linksys(dev);
+	if (pp->flags & NE2000DVF_AX88190) {
+		error = ed_pccard_ax88190(dev);
+		if (error == 0)
+			goto end2;
+	}
+	error = ed_probe_Novell(dev, 0, 0);
 end2:
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
@@ -268,7 +263,7 @@ ed_pccard_attach(device_t dev)
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 			       edintr, sc, &sc->irq_handle);
 	if (error) {
-		printf("setup intr failed %d \n", error);
+		device_printf(dev, "setup intr failed %d \n", error);
 		ed_release_resources(dev);
 		return (error);
 	}	      
@@ -292,7 +287,6 @@ ed_pccard_attach(device_t dev)
 		    ed_ifmedia_sts);
 	}
 #endif
-
 	return (error);
 }
 
@@ -377,6 +371,7 @@ ed_pccard_Linksys(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
+	uint8_t id;
 	int i;
 
 	/*
@@ -389,18 +384,16 @@ ed_pccard_Linksys(device_t dev)
 	for (sum = 0, i = 0x04; i < 0x0c; i++)
 		sum += ed_asic_inb(sc, i);
 	if (sum != 0xff)
-		return (0);		/* invalid DL10019C */
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		return (ENXIO);		/* invalid DL10019C */
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->arpcom.ac_enaddr[i] = ed_asic_inb(sc, 0x04 + i);
-	}
-
 	ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+	id = ed_asic_inb(sc, 0xf);
 	sc->isa16bit = 1;
 	sc->vendor = ED_VENDOR_LINKSYS;
 	sc->type = ED_TYPE_NE2000;
-	sc->type_str = "Linksys";
-
-	return (1);
+	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
+	return (0);
 }
 
 /*
