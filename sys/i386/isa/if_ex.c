@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.13 1998/10/22 05:58:39 bde Exp $
+ *	$Id: if_ex.c,v 1.14 1999/01/28 01:59:53 dillon Exp $
  */
 
 /*
@@ -298,6 +298,7 @@ int ex_attach(struct isa_device *dev)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 	DODEBUG(Start_End, printf("ex_attach%d: finish\n", unit););
+	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
 	return(1);
 }
 
