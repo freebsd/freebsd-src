@@ -6,7 +6,7 @@
 .Nm natd
 .Nd Network Address Translation Daemon
 .Sh SYNOPSIS
-.Nm natd
+.Nm
 .Bk -words
 .Op Fl unregistered_only | u
 .Op Fl log | l
@@ -466,7 +466,7 @@ The range will be cleared for all rules on startup.
 .El
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
-.Nm No :
+.Nm :
 .Bl -enum
 .It
 Build a custom kernel with the following options:
@@ -502,7 +502,7 @@ and you are using
 on that interface, you must make sure that you start
 .Nm ppp
 prior to starting
-.Nm No .
+.Nm .
 .El
 .Pp
 Running
@@ -519,7 +519,7 @@ on how to configure it to be started automatically during boot.
 Once
 .Nm
 is running, you must ensure that traffic is diverted to
-.Nm No :
+.Nm :
 .Bl -enum
 .It
 You will need to adjust the
@@ -550,7 +550,7 @@ the start of the script so that
 sees all packets before they are dropped by the firewall.
 .Pp
 After translation by
-.Nm No ,
+.Nm ,
 packets re-enter the firewall at the rule number following the rule number
 that caused the diversion (not the next rule if there are several at the
 same number).

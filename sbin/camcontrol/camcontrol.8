@@ -34,56 +34,56 @@
 .Nm camcontrol
 .Nd CAM control program
 .Sh SYNOPSIS
-.Nm camcontrol
+.Nm
 .Aq Ar command
 .Op device id
 .Op generic args
 .Op command args
-.Nm camcontrol
+.Nm
 .Ic devlist
 .Op Fl v
-.Nm camcontrol
+.Nm
 .Ic periphlist
 .Op device id
 .Op Fl n Ar dev_name
 .Op Fl u Ar unit_number
-.Nm camcontrol
+.Nm
 .Ic tur
 .Op device id
 .Op generic args
-.Nm camcontrol
+.Nm
 .Ic inquiry 
 .Op device id
 .Op generic args
 .Op Fl D
 .Op Fl S
 .Op Fl R
-.Nm camcontrol
+.Nm
 .Ic start
 .Op device id
 .Op generic args
-.Nm camcontrol
+.Nm
 .Ic stop
 .Op device id
 .Op generic args
-.Nm camcontrol
+.Nm
 .Ic eject
 .Op device id
 .Op generic args
-.Nm camcontrol
+.Nm
 .Ic rescan
 .Aq bus Ns Op :target:lun
-.Nm camcontrol
+.Nm
 .Ic reset
 .Aq bus Ns Op :target:lun
-.Nm camcontrol
+.Nm
 .Ic defects
 .Op device id
 .Op generic args
 .Aq Fl f Ar format
 .Op Fl P
 .Op Fl G
-.Nm camcontrol
+.Nm
 .Ic modepage
 .Op device id
 .Op generic args
@@ -91,7 +91,7 @@
 .Op Fl P Ar pgctl
 .Op Fl b | Fl e
 .Op Fl d
-.Nm camcontrol
+.Nm
 .Ic cmd
 .Op device id
 .Op generic args
@@ -100,21 +100,21 @@
 .Bk -words
 .Op Fl o Ar len Ar fmt Op args
 .Ek
-.Nm camcontrol
+.Nm
 .Ic debug
 .Op Fl I
 .Op Fl T
 .Op Fl S
 .Op Fl c
 .Aq all|off|bus Ns Op :target Ns Op :lun
-.Nm camcontrol
+.Nm
 .Ic tags
 .Op device id
 .Op generic args
 .Op Fl N Ar tags
 .Op Fl q
 .Op Fl v
-.Nm camcontrol
+.Nm
 .Ic negotiate
 .Op device id
 .Op generic args
@@ -127,27 +127,27 @@
 .Op Fl U
 .Op Fl W Ar bus_width
 .Op Fl v
-.Nm camcontrol
+.Nm
 .Ic format
 .Op device id
 .Op generic args
 .Op Fl q
 .Op Fl w
 .Op Fl y
-.Nm camcontrol
+.Nm
 .Ic help
 .Sh DESCRIPTION
-.Nm camcontrol
+.Nm
 is a utility designed to provide a way for users to access and control the
 .Fx
 CAM subsystem.
 .Pp
-.Nm camcontrol
+.Nm
 can cause a loss of data and/or system crashes if used improperly.  Even
 expert users are encouraged to exercise caution when using this command.
 Novice users should stay away from this utility.
 .Pp
-.Nm camcontrol
+.Nm
 has a number of primary functions, many of which support an optional
 device identifier.  A device identifier can take one of three forms:
 .Bl -tag -width 01234567890123
@@ -182,7 +182,7 @@ arguments will
 override a specified bus:target or bus:target:lun, however.
 .Pp
 Most of the
-.Nm camcontrol
+.Nm
 primary functions support these generic arguments:
 .Bl -tag -width 01234567890123
 .It Fl C Ar count
@@ -226,11 +226,11 @@ List all peripheral drivers attached to a given physical device (logical
 unit).
 .It Ic tur
 Send the SCSI test unit ready (0x00) command to the given device.
-.Nm camcontrol
+.Nm
 will report whether the device is ready or not.
 .It Ic inquiry
 Send a SCSI inquiry command (0x12) to a device.  By default,
-.Nm camcontrol
+.Nm
 will print out the standard inquiry data, device serial number, and
 transfer rate information.  The user can specify that only certain types of
 inquiry data be printed:
@@ -239,7 +239,7 @@ inquiry data be printed:
 Get the standard inquiry data.
 .It Fl S
 Print out the serial number.  If this flag is the only one specified,
-.Nm camcontrol
+.Nm
 will not print out "Serial Number" before the value returned by the drive.
 This is to aid in script writing.
 .It Fl R
@@ -283,11 +283,11 @@ required.  Most drives support the physical sector format.  Some drives
 support the logical block format.  Many drives, if they don't support the
 requested format, return the data in an alternate format, along with sense
 information indicating that the requested data format isn't supported.
-.Nm camcontrol
+.Nm
 attempts to detect this, and print out whatever format the drive returns.
 If the drive uses a non-standard sense code to report that it doesn't
 support the requested format,
-.Nm camcontrol
+.Nm
 will probably see the error as a failure to complete the request.
 .It Fl G
 Print out the grown defect list.  This is a list of bad blocks that have
@@ -301,7 +301,7 @@ If neither
 nor
 .Fl G
 is specified,
-.Nm camcontrol
+.Nm
 will print out the number of defects given in the READ DEFECT DATA header
 returned from the drive.
 .It Ic modepage
@@ -325,9 +325,9 @@ either edit mode page values with the text editor pointed to by his
 .Ev EDITOR
 environment variable, or supply mode page values via standard input, using
 the same format that
-.Nm camcontrol
+.Nm
 uses to display mode page values.  The editor will be invoked if
-.Nm camcontrol
+.Nm
 detects that standard input is terminal.
 .It Fl l
 Lists all available mode pages.
@@ -428,7 +428,7 @@ determined by using the
 switch.  The meaning of the
 .Fl v
 switch for this
-.Nm camcontrol
+.Nm
 subcommand is described below.
 .It Fl q
 Be quiet, and don't report the number of tags.  This is generally used when
@@ -437,7 +437,7 @@ setting the number of tags.
 The verbose flag has special functionality for the
 .Em tags
 argument.  It causes
-.Nm camcontrol
+.Nm
 to print out the tagged queueing related fields of the XPT_GDEV_TYPE CCB:
 .Bl -tag -width 0123456789012
 .It dev_openings
@@ -480,7 +480,7 @@ Show or negotiate various communication parameters.  Some controllers may
 not support setting or changing some of these values.  For instance, the
 Adaptec 174x controllers do not support changing a device's sync rate or
 offset.
-.Nm camcontrol
+.Nm
 will not attempt to set the parameter if the controller indicates that it
 does not support setting the parameter.  To find out what the controller
 supports, use the
@@ -522,7 +522,7 @@ current negotiation settings.
 The verbose switch has special meaning for the
 .Ic negotiate
 subcommand.  It causes
-.Nm camcontrol
+.Nm
 to print out the contents of a Path Inquiry (XPT_PATH_INQ) CCB sent to the
 controller driver.
 .It Fl W Ar bus_width
@@ -578,24 +578,24 @@ the questions, however.  To disable questions, use the
 argument, below.
 .It Fl w
 Issue a non-immediate format command.  By default,
-.Nm camcontrol
+.Nm
 issues the FORMAT UNIT command with the immediate bit set.  This tells the
 device to immediately return the format command, before the format has
 actually completed.  Then,
-.Nm camcontrol
+.Nm
 gathers
 .Tn SCSI
 sense information from the device every second to determine how far along
 in the format process it is.  If the
 .Fl w
 argument is specified,
-.Nm camcontrol
+.Nm
 will issue a non-immediate format command, and will be unable to print any
 information to let the user know what percentage of the disk has been
 formatted.
 .It Fl y
 Don't ask any questions.  By default,
-.Nm camcontrol
+.Nm
 will ask the user if he/she really wants to format the disk in question,
 and also if the default format command timeout is acceptable.  The user
 will not be asked about the timeout if a timeout is specified on the
@@ -612,7 +612,7 @@ variable allows the user to specify an alternate mode page format file.
 The
 .Ev EDITOR
 variable determines which text editor 
-.Nm camcontrol
+.Nm
 starts when editing mode pages.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/scsi_modes -compact
@@ -632,7 +632,7 @@ fails.
 .Dl camcontrol tur da0
 .Pp
 Send the SCSI test unit ready command to da0.
-.Nm camcontrol
+.Nm
 will report whether the disk is ready, but will not display sense
 information if the command fails since the
 .Fl v
@@ -648,7 +648,7 @@ printing (with the
 .Fl v
 flag) if the command fails.  Since error recovery is turned on, the
 disk will be spun up if it is not currently spinning.
-.Nm camcontrol
+.Nm
 will report whether the disk is ready.
 .Bd -literal -offset indent
 camcontrol cmd -n cd -u 1 -v -c "3C 00 00 00 00 00 00 00 0e 00" \e
@@ -710,7 +710,7 @@ Test Unit Ready command to make the settings take effect.
 .Xr xpt 4
 .Sh HISTORY
 The
-.Nm camcontrol
+.Nm
 command first appeared in
 .Fx 3.0 .
 .Pp
@@ -739,7 +739,7 @@ The sense information from the test unit ready command would not get
 printed out, since the first
 .Xr getopt 3
 call in 
-.Nm camcontrol
+.Nm
 bails out when it sees the second argument to
 .Fl c
 .Po
@@ -749,5 +749,5 @@ above.  Fixing this behavior would take some gross code, or changes to the
 .Xr getopt 3
 interface.  The best way to circumvent this problem is to always make sure
 to specify generic
-.Nm camcontrol
+.Nm
 arguments before any command-specific arguments.
