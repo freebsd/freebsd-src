@@ -393,9 +393,9 @@ hexdump ( bp, len )
 	int	i, j;
 
 	/*
-	 * Print as 4 groups of four bytes. Each byte separated
-	 * by space, each block of four separated, and two blocks`
-	 * of eight also separated.
+	 * Print as 4 groups of four bytes. Each byte is separated
+	 * by a space, each block of four is separated, and two blocks
+	 * of eight are also separated.
 	 */
 	for ( i = 0; i < len; i += 16 ) {
 		if ( Log )
