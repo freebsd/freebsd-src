@@ -361,17 +361,7 @@ int	vers;
 		return ((CLIENT *) NULL);
 	}
         tpconf = NULL;
-#if defined(i386)
-#if defined(__FreeBSD__)
 	if (uname(&u) == -1)
-#else
-	if (_nuname(&u) == -1)
-#endif
-#elif defined(sparc)
-	if (_uname(&u) == -1)
-#else
-#error Unknown architecture!
-#endif
 	{
 		endnetconfig(localhandle);
 		return ((CLIENT *) NULL);
