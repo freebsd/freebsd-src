@@ -1113,7 +1113,7 @@ filt_bpfread(kn, hint)
 	struct bpf_d *d = (struct bpf_d *)kn->kn_hook;
 	int ready;
 
-	BPFD_LOCK(d);
+	BPFD_LOCK_ASSERT(d);
 	ready = bpf_ready(d);
 	if (ready) {
 		kn->kn_data = d->bd_slen;
@@ -1125,7 +1125,6 @@ filt_bpfread(kn, hint)
 		    bpf_timed_out, d);
 		d->bd_state = BPF_WAITING;
 	}
-	BPFD_UNLOCK(d);
 
 	return (ready);
 }
