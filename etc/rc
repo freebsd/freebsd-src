@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.147 1998/07/28 01:15:12 nectar Exp $
+#	$Id: rc,v 1.148 1998/08/10 19:53:50 brian Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -76,7 +76,9 @@ fi
 
 umount -a >/dev/null 2>&1
 
+echo -n "Mounting NFS file systems"
 mount -a -t nonfs
+echo .
 if [ $? != 0 ]; then
 	echo "Filesystem mount failed, startup aborted"
 	exit 1
