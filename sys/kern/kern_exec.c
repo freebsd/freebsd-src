@@ -590,15 +590,18 @@ exec_map_first_page(imgp)
 
 		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) || (ma[0]->valid == 0)) {
 			if (ma[0]) {
+				vm_page_lock_queues();
 				vm_page_protect(ma[0], VM_PROT_NONE);
 				vm_page_free(ma[0]);
+				vm_page_unlock_queues();
 			}
 			return EIO;
 		}
 	}
-
+	vm_page_lock_queues();
 	vm_page_wire(ma[0]);
 	vm_page_wakeup(ma[0]);
+	vm_page_unlock_queues();
 
 	pmap_qenter((vm_offset_t)imgp->image_header, ma, 1);
 	imgp->firstpage = ma[0];
@@ -614,7 +617,9 @@ exec_unmap_first_page(imgp)
 
 	if (imgp->firstpage) {
 		pmap_qremove((vm_offset_t)imgp->image_header, 1);
+		vm_page_lock_queues();
 		vm_page_unwire(imgp->firstpage, 1);
+		vm_page_unlock_queues();
 		imgp->firstpage = NULL;
 	}
 }
