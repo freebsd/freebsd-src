@@ -348,6 +348,10 @@ g_io_schedule_down(struct thread *tp __unused)
 			continue;
 		}
 		g_bioq_unlock(&g_bio_run_down);
+		if (pace > 0) {
+			msleep(&error, NULL, PRIBIO, "g_down", hz/10);
+			pace--;
+		}
 		error = g_io_check(bp);
 		if (error) {
 			g_io_deliver(bp, error);
@@ -375,10 +379,6 @@ g_io_schedule_down(struct thread *tp __unused)
 		mtx_lock(&mymutex);
 		bp->bio_to->geom->start(bp);
 		mtx_unlock(&mymutex);
-		if (pace) {
-			pace--;
-			break;
-		}
 	}
 }
 
