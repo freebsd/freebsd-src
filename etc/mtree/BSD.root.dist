@@ -1,12 +1,12 @@
-#	$Id: BSD.root.dist,v 1.28 1997/10/20 00:35:38 jmb Exp $
+#	$Id: BSD.root.dist,v 1.29 1998/09/14 08:34:45 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
 .
-    bin             uname=root gname=wheel
+    bin
     ..
 /set type=dir uname=root gname=wheel mode=0555
-    dev             uname=root gname=wheel mode=0755
+    dev             mode=0755
         fd
         ..
     ..
@@ -37,7 +37,7 @@
         uucp            uname=uucp gname=uucp mode=0770
         ..
     ..
-    lkm             uname=root gname=wheel
+    lkm
     ..
     mnt
     ..
@@ -45,7 +45,7 @@
     ..
     root
     ..
-    sbin            uname=root gname=wheel
+    sbin
     ..
     tmp             uname=root gname=wheel mode=01777
     ..
