@@ -39,9 +39,14 @@
 #include "sort.h"
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: init.c,v 1.5 2001/02/19 20:50:17 jdolecek Exp $");
 __SCCSID("@(#)init.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <string.h>
@@ -121,7 +126,7 @@ static const char *
 setcolumn(pos, cur_fld, gflag)
 	const char *pos;
 	struct field *cur_fld;
-	int gflag;
+	int gflag __unused;
 {
 	struct column *col;
 	int tmp;

@@ -40,9 +40,14 @@
 #include "fsort.h"
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: msort.c,v 1.9 2001/01/19 10:50:31 jdolecek Exp $");
 __SCCSID("@(#)msort.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>

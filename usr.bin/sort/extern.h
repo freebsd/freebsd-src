@@ -36,12 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 void	 append  __P((const u_char **, int, int, FILE *,
 	    void (*)(const RECHEADER *, FILE *), struct field *));
 void	 concat __P((FILE *, FILE *));
-length_t enterkey __P((RECHEADER *, DBT *, int, struct field *));
+length_t enterkey __P((RECHEADER *, DBT *, size_t, struct field *));
 void	 fixit __P((int *, char **));
 void	 fldreset __P((struct field *));
 FILE	*ftmp __P((void));
