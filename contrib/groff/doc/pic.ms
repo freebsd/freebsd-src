@@ -10,7 +10,7 @@
 .\" This document was written for free use and redistribution by
 .\" Eric S. Raymond <esr@thyrsus.com> in August 1995.
 .\"
-.\"	$Id: pic.ms,v 1.2 1999/12/04 08:57:07 wlemb Exp $	
+.\"	$Id: pic.ms,v 1.1.1.1 2000/02/06 09:39:20 wlemb Exp $	
 .\"
 .\" Set a proper TeX
 .ie t .ds tx T\h'-.1667m'\v'.224m'E\v'-.224m'\h'-.125m'X

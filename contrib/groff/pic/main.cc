@@ -563,8 +563,8 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU pic version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU pic version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }

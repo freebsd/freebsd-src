@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1992, 2000 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -25,7 +25,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include <osfcn.h>
 #else
 #include <fcntl.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #endif
 
 #ifndef S_IRUSR

@@ -1,0 +1,491 @@
+name  HNB
+lbpname  Swiss-Narrow-Bold
+special
+spacewidth 228
+slant 0
+ligatures fi fl 0
+charset
+ha	280	2	0x4c3	 0,94	 # asciicircum
+ti	280	0	0x4c4	 0,126	 # asciitilde
+vS	280	2	0x169	 1,176	 # Scaron
+vZ	280	2	0x16e	 1,206	 # Zcaron
+vs	280	2	0x173	 1,177	 # scaron
+vz	280	2	0x174	 1,207	 # zcaron
+:Y	280	2	0x16d	 1,74	 # Ydieresis
+tm	280	2	0x170	 4,41	 # trademark
+aq	195	2	0x27	 0,39	 # quotesingle
+space	228	0	0x20	 0,32
+!	273	2	0x21	 0,33	 # exclam
+"	389	2	0x22	 0,34	 # quotedbl
+dq	389	2	0x22	 0,34	 # quotedbl
+#	456	2	0x23	 0,35	 # numbersign
+sh	456	2	0x23	 0,35	 # "
+$	456	2	0x24	 0,36	 # dollar
+Do	456	2	0x24	 0,36	 # "
+%	720	2	0x25	 0,37	 # percent
+&	592	2	0x26	 0,38	 # ampersand
+'	195	2	0x27	 0,39	 # quoteright
+cq	195	2	0x27	 0,39	 # quoteright
+(	273	2	0x28	 0,40	 # parenleft
+)	273	2	0x29	 0,41	 # parenright
+*	319	2	0x2a	 0,42	 # asterisk
++	479	0	0x2b	 0,43	 # plus
+,	228	0	0x2c	 0,44	 # comma
+-	479	0	0x2d	 0,45	 # hyphen
+hy	479	0	0x2d	 0,45	 # "
+char173	479	0	0x2d	 0,45	 # "
+.	228	0	0x2e	 0,46	 # period
+/	228	2	0x2f	 0,47	 # slash
+sl	228	2	0x2f	 0,47	 # "
+0	456	2	0x30	 0,48	 # zero
+1	456	2	0x31	 0,49	 # one
+2	456	2	0x32	 0,50	 # two
+3	456	2	0x33	 0,51	 # three
+4	456	2	0x34	 0,52	 # four
+5	456	2	0x35	 0,53	 # five
+6	456	2	0x36	 0,54	 # six
+7	456	2	0x37	 0,55	 # seven
+8	456	2	0x38	 0,56	 # eight
+9	456	2	0x39	 0,57	 # nine
+:	273	0	0x3a	 0,58	 # colon
+;	273	0	0x3b	 0,59	 # semicolon
+<	479	0	0x3c	 0,60	 # less
+=	479	0	0x3d	 0,61	 # equal
+>	479	0	0x3e	 0,62	 # greater
+?	501	2	0x3f	 0,63	 # question
+@	800	2	0x40	 0,64	 # at
+at	800	2	0x40	 0,64	 # "
+A	592	2	0x41	 0,65	 # A
+B	592	2	0x42	 0,66	 # B
+C	592	2	0x43	 0,67	 # C
+D	592	2	0x44	 0,68	 # D
+E	547	2	0x45	 0,69	 # E
+F	501	2	0x46	 0,70	 # F
+G	638	2	0x47	 0,71	 # G
+H	592	2	0x48	 0,72	 # H
+I	228	2	0x49	 0,73	 # I
+J	456	2	0x4a	 0,74	 # J
+K	592	2	0x4b	 0,75	 # K
+L	501	2	0x4c	 0,76	 # L
+M	683	2	0x4d	 0,77	 # M
+N	592	2	0x4e	 0,78	 # N
+O	638	2	0x4f	 0,79	 # O
+P	547	2	0x50	 0,80	 # P
+Q	638	2	0x51	 0,81	 # Q
+R	592	2	0x52	 0,82	 # R
+S	547	2	0x53	 0,83	 # S
+T	501	2	0x54	 0,84	 # T
+U	592	2	0x55	 0,85	 # U
+V	547	2	0x56	 0,86	 # V
+W	774	2	0x57	 0,87	 # W
+X	547	2	0x58	 0,88	 # X
+Y	547	2	0x59	 0,89	 # Y
+Z	501	2	0x5a	 0,90	 # Z
+[	273	2	0x5b	 0,91	 # bracketleft
+lB	273	2	0x5b	 0,91	 # "
+\	228	2	0x5c	 0,92	 # backslash
+rs	228	2	0x5c	 0,92	 # "
+]	273	2	0x5d	 0,93	 # bracketright
+rB	273	2	0x5d	 0,93	 # "
+a^	280	2	0x5e	 0,94	 # circumflex
+^	280	2	0x5e	 0,94	 # "
+_	456	0	0x5f	 0,95	 # underscore
+`	280	2	0x60	 0,96	 # quoteleft
+oq	280	2	0x60	 0,96	 # "
+a	456	0	0x61	 0,97	 # a
+b	501	2	0x62	 0,98	 # b
+c	456	0	0x63	 0,99	 # c
+d	501	2	0x64	 0,100	 # d
+e	456	0	0x65	 0,101	 # e
+f	273	2	0x66	 0,102	 # f
+g	501	1	0x67	 0,103	 # g
+h	501	2	0x68	 0,104	 # h
+i	228	2	0x69	 0,105	 # i
+j	228	2	0x6a	 0,106	 # j
+k	456	2	0x6b	 0,107	 # k
+l	228	2	0x6c	 0,108	 # l
+m	729	0	0x6d	 0,109	 # m
+n	501	0	0x6e	 0,110	 # n
+o	501	0	0x6f	 0,111	 # o
+p	501	1	0x70	 0,112	 # p
+q	501	1	0x71	 0,113	 # q
+r	319	0	0x72	 0,114	 # r
+s	456	0	0x73	 0,115	 # s
+t	273	2	0x74	 0,116	 # t
+u	501	0	0x75	 0,117	 # u
+v	456	0	0x76	 0,118	 # v
+w	638	0	0x77	 0,119	 # w
+x	456	0	0x78	 0,120	 # x
+y	456	1	0x79	 0,121	 # y
+z	410	0	0x7a	 0,122	 # z
+lC	319	2	0x7b	 0,123	 # braceleft
+{	319	2	0x7b	 0,123	 # "
+|	230	2	0x7c	 0,124	 # "
+rC	319	2	0x7d	 0,125	 # braceright
+}	319	2	0x7d	 0,125	 # "
+a~	280	2	0x7e	 0,126	 # tilde
+~	280	2	0x7e	 0,126	 # "
+char161	273	1	0xad	 4,7	 # exclamdown
+char162	456	2	0x9b	 4,19	 # cent
+char163	456	2	0x9c	 4,11	 # sterling
+char164	456	2	0x12f	 4,24	 # currency
+char165	456	2	0x9d	 4,12	 # yen
+char166	230	2	0x7c	 0,124	 # brokenbar
+char167	456	2	0x15	 4,6	 # section
+char168	273	2	0x122	 1,7	 # dieresis
+char169	604	2	0x154	 4,23	 # copyright
+char170	303	2	0xa6	 4,15	 # ordfeminine
+char171	456	0	0xae	 4,9	 # guillemotleft
+char172	479	0	0xaa	 6,20	 # logicalnot
+char173	456	0	0x132	 4,33	 # hyphen
+char174	604	2	0x155	 4,22	 # registered
+char175	500	2	0x2d	 6,0	 # macron
+char176	328	2	0xf8	 6,36	 # degree
+char177	479	0	0xf1	 6,1	 # plusminus
+char178	273	2	0xfd	 4,20	 # twosuperior
+char179	273	2	0x14d	 4,26	 # threesuperior
+char180	273	2	0x120	 1,6	 # acute "acute accent"
+char181	501	1	0xe6	 8,25	 # mu
+char182	456	2	0x14	 4,5	 # paragraph
+char183	240	0	0xfa	 6,32	 # periodcentered
+char184	273	0	0x139	 1,17	 # cedilla
+char185	273	2	0x156	 4,78	 # onesuperior
+char186	299	2	0xa7	 4,16	 # ordmasculine
+char187	456	0	0xaf	 4,10	 # guillemotright
+char188	684	2	0xac	 4,18	 # onequarter
+char189	684	2	0xab	 4,17	 # onehalf
+char190	684	2	0x12e	 4,25	 # threequarters
+char191	501	1	0xa8	 4,8	 # questiondown
+char192	501	2	0x15c	 1,32	 # Agrave
+char193	501	2	0x15a	 1,26	 # Aacute
+char194	501	2	0x15b	 1,28	 # Acircumflex
+char195	501	2	0x28e	 1,76	 # Atilde
+char196	592	2	0x8e	 1,30	 # Adieresis
+char197	592	2	0x8f	 1,34	 # Aring
+char198	820	2	0x92	 1,36	 # AE
+char199	592	2	0x80	 1,38	 # Ccedilla
+char200	592	2	0x160	 1,46	 # Egrave
+char201	547	2	0x90	 1,40	 # Eacute
+char202	547	2	0x15e	 1,42	 # Ecircumflex
+char203	547	2	0x15f	 1,44	 # Edieresis
+char204	547	2	0x164	 1,54	 # Igrave
+char205	547	2	0x161	 1,48	 # Iacute
+char206	547	2	0x162	 1,50	 # Icircumflex
+char207	547	2	0x163	 1,52	 # Idieresis
+char208	592	2	0x13d	 1,78	 # Eth
+char209	592	2	0xa5	 1,56	 # Ntilde
+char210	592	2	0x167	 1,64	 # Ograve
+char211	592	2	0x165	 1,58	 # Oacute
+char212	592	2	0x166	 1,60	 # Ocircumflex
+char213	592	2	0x168	 1,82	 # Otilde
+char214	638	2	0x99	 1,62	 # Odieresis
+char215	479	0	0x157	 6,39	 # multiply
+char216	638	2	0x140	 1,80	 # Oslash
+char217	638	2	0x16c	 1,72	 # Ugrave
+char218	638	2	0x16a	 1,66	 # Uacute
+char219	638	2	0x16b	 1,68	 # Ucircumflex
+char220	592	2	0x9a	 1,70	 # Udieresis
+char221	592	2	0x16f	 1,84	 # Yacute
+char222	547	2	0x13e	 1,88	 # Thorn
+char223	501	2	0x147	 1,23	 # germandbls
+char224	456	2	0x85	 1,33	 # agrave
+char225	456	2	0xa0	 1,27	 # aacute
+char226	456	2	0x83	 1,29	 # acircumflex
+char227	456	2	0x284	 1,93	 # atilde
+char228	456	2	0x84	 1,31	 # adieresis
+char229	456	2	0x86	 1,35	 # aring
+char230	729	0	0x91	 1,37	 # ae
+char231	456	0	0x87	 1,39	 # ccedilla
+char232	456	2	0x8a	 1,47	 # egrave
+char233	456	2	0x82	 1,41	 # eacute
+char234	456	2	0x88	 1,43	 # ecircumflex
+char235	456	2	0x89	 1,45	 # edieresis
+char236	228	2	0x8d	 1,55	 # igrave
+char237	228	2	0xa1	 1,49	 # iacute
+char238	228	2	0x8c	 1,51	 # icircumflex
+char239	228	2	0x8b	 1,53	 # idieresis
+char240	501	2	0x148	 1,87	 # eth
+char241	501	2	0xa4	 1,57	 # ntilde
+char242	501	2	0x95	 1,65	 # ograve
+char243	501	2	0xa2	 1,59	 # oacute
+char244	501	2	0x93	 1,61	 # ocircumflex
+char245	501	2	0x172	 1,83	 # otilde
+char246	501	2	0x94	 1,63	 # odieresis
+char247	479	0	0xf6	 6,8	 # divide
+char248	501	0	0x145	 1,81	 # oslash
+char249	501	2	0x97	 1,73	 # ugrave
+char250	501	2	0xa3	 1,67	 # uacute
+char251	501	2	0x96	 1,69	 # ucircumflex
+char252	501	2	0x81	 1,71	 # udieresis
+char253	501	3	0x175	 1,85	 # yacute
+char254	501	3	0x143	 1,89	 # thorn
+char255	456	3	0x98	 1,75	 # ydieresis
+-D	592	2	0x13d	 1,78	 # Eth "Icelandic uppercase eth"
+Sd	501	2	0x148	 1,87	 # eth "Icelandic lowercase eth"
+TP	547	2	0x13e	 1,88	 # Thorn "Icelandic uppercase thorn"
+Tp	501	3	0x143	 1,89	 # thorn "Icelandic lowercase thorn"
+AE	820	2	0x92	 1,36	 # AE
+ae	729	0	0x91	 1,37	 # ae
+OE	820	2	0x141	 1,166	 # OE
+oe	774	0	0x146	 1,167	 # oe
+ij	450	0	0x150	 1,139	 # ij "Dutch ij ligature"
+ss	501	2	0x147	 1,23	 # germandbls
+'A	501	2	0x15a	 1,26	 # Aacute
+'E	547	2	0x90	 1,40	 # Eacute
+'I	547	2	0x161	 1,48	 # Iacute
+'O	547	2	0x165	 1,58	 # Oacute
+'U	547	2	0x16a	 1,66	 # Uacute
+'a	456	2	0xa0	 1,27	 # aacute
+'e	456	2	0x82	 1,41	 # eacute
+'i	228	2	0xa1	 1,49	 # iacute
+'o	501	2	0xa2	 1,59	 # oacute
+'u	501	2	0x95	 1,65	 # uacute
+:A	592	2	0x8e	 1,30	 # Adieresis
+:E	592	2	0x15f	 1,44	 # Edieresis
+:I	592	2	0x163	 1,52	 # Idieresis
+:O	638	2	0x99	 1,62	 # Odieresis
+:U	592	2	0x9a	 1,70	 # Udieresis
+:Y	592	2	0x16d	 1,74	 # Ydieresis
+:a	456	2	0x84	 1,31	 # adieresis
+:e	456	2	0x89	 1,45	 # edieresis
+:i	228	2	0x8b	 1,53	 # idieresis
+:o	501	2	0x94	 1,63	 # odieresis
+:u	501	2	0x81	 1,71	 # udieresis
+:y	456	3	0x98	 1,75	 # ydieresis
+^A	456	2	0x15b	 1,28	 # Acircumflex
+^E	456	2	0x15e	 1,42	 # Ecircumflex
+^I	456	2	0x162	 1,50	 # Icircumflex
+^O	456	2	0x166	 1,60	 # Ocircumflex
+^U	456	2	0x16b	 1,68	 # Ucircumflex
+^a	456	2	0x83	 1,29	 # acircumflex
+^e	456	2	0x88	 1,43	 # ecircumflex
+^i	228	2	0x8c	 1,51	 # icircumflex
+^o	501	2	0x93	 1,61	 # ocircumflex
+^u	501	2	0x96	 1,69	 # ucircumflex
+`A	501	2	0x15c	 1,32	 # Agrave
+`E	501	2	0x160	 1,46	 # Egrave
+`I	501	2	0x164	 1,54	 # Igrave
+`O	501	2	0x167	 1,64	 # Ograve
+`U	501	2	0x16c	 1,72	 # Ugrave
+`a	456	2	0x85	 1,33	 # agrave
+~a	456	2	0x284	 ---	 # atilde
+`e	456	2	0x8a	 1,47	 # egrave
+`i	228	2	0x8d	 1,55	 # igrave
+`o	501	2	0x95	 1,65	 # ograve
+`u	501	2	0x97	 1,73	 # ugrave
+~A	501	2	0x28e	 1,26	 # Atilde
+~N	592	2	0xa5	 1,56	 # Ntilde
+~O	592	2	0x168	 1,82	 # Otilde
+~n	501	2	0xa4	 1,57	 # ntilde
+~o	501	2	0x172	 1,83	 # otilde
+vS	501	2	0x169	 1,176	 # Scaron
+vs	501	2	0x173	 1,177	 # scaron
+vZ	501	2	0x16e	 1,206	 # Zcaron
+vz	501	2	0x174	 1,207	 # zcaron
+,C	592	2	0x80	 1,38	 # Ccedilla
+,c	456	0	0x87	 1,39	 # ccedilla
+/L	501	2	0x13f	 1,152	 # Lslash "Polish L with a slash"
+/l	228	2	0x144	 1,153	 # lslash "Polish l with a slash"
+/O	638	2	0x140	 1,80	 # Oslash
+/o	501	0	0x145	 1,81	 # oslash
+oA	592	2	0x8f	 1,34	 # Aring
+oa	456	2	0x86	 1,35	 # aring
+a"	273	2	0x13a	 1,16	 # hungarumlaut "Hungarian umlaut"
+a-	273	2	0x135	 1,8	 # macron "macron or bar accent"
+a.	273	2	0x137	 1,15	 # dotaccent "dot accent"
+a^	273	2	0x5e	 1,3	 # circumflex "circumflex accent"
+aa	273	2	0x120	 1,6	 # acute "acute accent"
+ga	273	2	0x121	 1,0	 # grave "grave accent"
+ab	273	2	0x136	 1,22	 # breve "breve accent"
+ac	273	0	0x139	 1,17	 # cedilla "cedilla accent"
+ad	273	2	0x122	 1,7	 # dieresis "umlaut or dieresis"
+ah	273	2	0x13c	 1,19	 # caron "h\('a\(vcek accent"
+ao	273	2	0x138	 1,14	 # ring "ring or circle accent"
+a~	273	2	0x7e	 1,2	 # tilde "tilde accent"
+ho	273	0	0x13b	 1,18	 # ogonek "hook or ogonek accent"
+.i	228	0	0x142	 1,239	 # dotlessi "i without a dot"
+Cs	456	2	0x12f	 4,24	 # currency "Scandinavian currency sign"
+Do	456	2	0x24	 0,36	 # dollar
+Po	456	2	0x9c	 4,11	 # sterling
+Ye	456	2	0x9d	 4,12	 # yen
+Fn	456	2	0x9f	 4,14	 # florin
+ct	456	2	0x9b	 4,19	 # cent
+Fo	456	0	0xae	 4,9	 # guillemotleft
+Fc	273	0	0x4bb	 4,20	 # guillemotright
+fo	273	0	0x127	 4,35	 # guilsinglleft
+fc	273	0	0x128	 4,36	 # guilsinglright
+r!	273	1	0xad	 4,7	 # exclamdown
+r?	501	1	0xa8	 4,8	 # questiondown
+fi	501	2	0x130	 4,54	 # fi "fi ligature"
+fl	501	2	0x131	 4,55	 # fl "fl ligature"
+OK	501	0	0x3d6	 ---	 # \& "check mark, tick"
+Of	303	2	0xa6	 4,15	 # ordfeminine
+Om	299	2	0xa7	 4,16	 # ordmasculine
+S1	273	2	0x156	 4,78	 # onesuperior
+S2	273	2	0xfd	 4,20	 # twosuperior
+S3	273	2	0x14d	 4,26	 # threesuperior
+<-	809	0	0x1b	 6,22	 # arrowleft
+->	809	0	0x1a	 6,21	 # arrowright
+<>	854	0	0x1d	 6,25	 # arrowboth "horizontal double-headed arrow"
+da	494	0	0x19	 6,24	 # arrowdown
+ua	494	0	0x18	 6,23	 # arrowup
+va	494	0	0x12	 6,26	 # \& "vertical double-headed arrow"
+lA	494	0	0x3dc	 6,57	 # arrowdblleft
+rA	494	0	0x3de	 6,56	 # arrowdblright
+hA	494	0	0x3db	 6,60	 # arrowdblboth "horizontal double-headed double arrow"
+dA	494	0	0x3df	 6,59	 # arrowdbldown
+uA	494	0	0x3dd	 6,58	 # arrowdblup
+ba	820	2	0xb3	 3,9	 # bar
+bb	230	2	0x7c	 0,124	 # brokenbar
+br	820	0	0x1db	 3,9	 # br "box rule with traditional troff metrics"
+ru	820	0	0x123	 4,34	 # ru "baseline rule"
+ul	456	0	0x5f	 0,95	 # ul "underline with traditional troff metrics"
+bv	820	0	0x3f4	 3,9	 # bv "bold vertical"
+ci	699	0	0x9	 4,1	 # circle
+bu	522	0	0x7	 4,0	 # bullet
+co	604	2	0x154	 4,23	 # copyright
+rg	604	2	0x155	 4,22	 # registered
+tm	604	2	0x170	 4,41	 # trademark
+dd	456	2	0x12b	 4,40	 # daggerdbl "double dagger sign"
+dg	456	2	0x12a	 4,39	 # dagger
+ps	456	2	0x14	 4,5	 # paragraph
+sc	456	2	0x15	 4,6	 # section
+de	328	2	0xf8	 6,36	 # degree
+em	820	0	0x123	 4,34	 # emdash "em dash"
+en	456	0	0x132	 4,33	 # endash "en dash"
+%0	820	2	0x129	 4,75	 # perthousand "per thousand, per mille sign"
+12	684	2	0xab	 4,17	 # onehalf
+14	684	2	0xac	 4,18	 # onequarter
+34	684	2	0x12e	 4,25	 # threequarters
+f/	137	2	0x158	 6,6	 # fraction "bar for fractions"
+fm	137	0	0x3a2	 6,45	 # minute "footmark, prime"
+sd	137	0	0x3b2	 6,46	 # second
+ha	137	2	0x4c3	 6,85	 # asciicircum "\s-2ASCII\s+2 circumflex, hat, caret"
+ti	137	0	0x4c4	 6,12	 # asciitilde "\s-2ASCII\s0 tilde, large tilde"
+hy	500	0	0x2d	 6,0	 # hyphen
+lB	273	2	0x5b	 0,91	 # bracketleft
+rB	273	2	0x5d	 0,93	 # bracketright
+lC	319	2	0x7b	 0,123	 # braceleft
+rC	319	2	0x7d	 0,125	 # braceright
+la	319	0	0x3e1	 6,10	 # angleleft "left angle bracket"
+ra	319	0	0x3f1	 6,11	 # angleright "right angle bracket"
+Bq	410	0	0x4b9	 4,63	 # quotedblbase "low double comma quote"
+bq	410	0	0x4b8	 6,62	 # quotesinglbase "low single comma quote"
+lq	410	2	0x125	 4,32	 # quotedblleft
+rq	410	2	0x4ba	 6,31	 # quotedblright
+oq	228	2	0x176	 4,29	 # quoteleft "single open quote"
+aq	195	2	0x27	 0,39	 # quotesingle "apostrophe quote"
+or	230	0	0x3f4	 0,124	 # bar
+at	800	2	0x40	 0,64	 # at
+.C1	479	0	0x2d	 0,45	 # - minus "minus sign from current font"
+sh	456	2	0x23	 0,35	 # numbersign
+sl	228	2	0x2f	 0,47	 # slash
+rs	228	2	0x5c	 0,92	 # backslash
+3d	228	0	0x35c	 6,102	 # therefore
+tf	228	0	0x35c	 6,102	 # therefore
+*A	228	0	0x341	 8,0	 # Alpha
+*B	228	0	0x342	 8,2	 # Beta
+*C	228	0	0x358	 8,28	 # Xi
+*D	228	0	0x344	 8,8	 # Delta
+*E	228	0	0x345	 8,10	 # Epsilon
+*F	609	0	0x346	 8,44	 # Phi
+*G	481	0	0x347	 8,6	 # Gamma
+*H	481	0	0x351	 8,16	 # Theta
+*I	481	0	0x349	 8,18	 # Iota
+*K	481	0	0x34b	 8,20	 # Kappa
+*L	481	0	0x34c	 8,22	 # Lambda
+*M	481	0	0x34d	 8,24	 # Mu
+*N	481	0	0x34e	 8,26	 # Nu
+*O	481	0	0x34f	 8,30	 # Omicron
+*P	481	0	0x350	 8,32	 # Pi
+*Q	481	0	0x359	 8,48	 # Psi
+*R	481	0	0x352	 8,34	 # Rho
+*S	481	0	0x353	 8,36	 # Sigma
+*T	481	0	0x354	 8,40	 # Tau
+*U	481	0	0x3a1	 8,76	 # Upsilon
+*W	630	0	0x357	 8,50	 # Omega
+*X	481	0	0x343	 8,36	 # Chi
+*Y	481	0	0x348	 8,14	 # Eta
+*Z	481	0	0x35a	 8,12	 # Zeta
+*a	499	0	0xe0	 8,1	 # alpha
+*b	499	0	0xe1	 8,3	 # beta
+*c	499	0	0x378	 8,29	 # xi
+*d	487	0	0xeb	 8,9	 # delta
+*e	487	0	0x36e	 8,70	 # epsilon
+*f	487	0	0x366	 8,45	 # phi
++f	487	0	0x36a	 8,77	 # phi1 "variant phi"
+*g	487	0	0x367	 8,7	 # gamma
+*h	486	0	0xe9	 8,17	 # theta
++h	486	0	0x375	 8,71	 # theta1 "variant theta"
+*i	486	0	0x369	 8,19	 # iota
+*k	486	0	0x36b	 8,21	 # kappa
+*l	486	0	0x36c	 8,23	 # lambda
+*m	501	0	0xe6	 8,25	 # mu
+*n	501	0	0x36e	 8,27	 # nu
+*o	501	0	0x36f	 8,31	 # omicron
+*p	527	0	0xe3	 8,33	 # pi
++p	527	0	0x376	 8,78	 # omega1 "variant pi, looking like omega"
+*q	527	0	0x379	 8,49	 # psi
+*r	527	0	0x372	 8,35	 # rho
+*s	531	0	0xe5	 8,37	 # sigma
+*t	375	0	0xe7	 8,41	 # tau
+*u	375	0	0x375	 8,27	 # upsilon
+*w	375	0	0x377	 8,51	 # omega
+*x	375	0	0x363	 8,47	 # chi
+*y	375	0	0x368	 8,15	 # eta
+*z	375	0	0x37a	 8,13	 # zeta
+ts	375	0	0x356	 8,39	 # sigma1 "terminal sigma"
+~~	655	0	0xf7	 6,13	 # approxequal
+~=	655	0	0xf7	 6,13	 # approxequal
+!=	655	0	0x3b9	 6,99	 # notequal
+**	228	0	0x32a	 0,32	 # asteriskmath
++-	479	0	0xf1	 6,1	 # plusminus
+<=	592	0	0xf3	 6,2	 # lessequal
+==	592	0	0x3ba	 8,14	 # equivalence
+=~	592	0	0x340	 8,116	 # congruent
+>=	499	0	0x3b3	 8,3	 # greaterequal
+AN	499	0	0x3d9	 8,85	 # logicaland
+OR	499	0	0x3da	 8,86	 # logicalor
+no	499	0	0x3d8	 8,20	 # logicalnot
+te	499	0	0x324	 8,121	 # existential "there exists, existential quantifier"
+fa	499	0	0x322	 8,122	 # universal "for all, universal quantifier"
+Ah	499	0	0x3c0	 9,0	 # aleph
+Im	499	0	0x3c1	 8,21	 # Ifraktur "Fraktur I, imaginary"
+Re	499	0	0x3c2	 8,22	 # Rfraktur "Fraktur R, real"
+if	499	0	0x3a5	 8,19	 # infinity
+md	499	0	0x3b7	 8,32	 # dotmath
+mo	499	0	0x3ce	 8,15	 # element
+mu	499	0	0x3b4	 8,39	 # multiply
+nc	499	0	0x3cb	 8,197	 # notpropersuperset
+nm	499	0	0x3cf	 8,209	 # notelement
+pl	273	0	0x32b	 0,93	 # plusmath "plus sign in special font"
+eq	479	0	0x33d	 0,61	 # equalmath "equals sign in special font"
+pt	479	0	0x3b5	 6,4	 # proportional
+pp	479	0	0x35e	 8,89	 # perpendicular
+sb	479	0	0x3cc	 6,67	 # propersubset
+sp	479	0	0x3c9	 6,68	 # propersuperset
+ib	479	0	0x3cd	 6,69	 # reflexsubset
+ip	479	0	0x3ca	 6,70	 # reflexsuperset
+ap	479	0	0x37e	 6,12	 # similar
+pd	479	0	0x3b6	 6,34	 # partialdiff "partial differentiation sign"
+c*	479	0	0x3c4	 6,80	 # circlemultiply "multiply sign in a circle"
+c+	479	0	0x3c5	 6,81	 # circleplus "plus sign in a circle"
+ca	645	0	0xef	 6,16	 # intersection "intersection, cap"
+cu	645	0	0x3c8	 6,66	 # union "union, cup"
+di	479	0	0x3b8	 6,8	 # divide "division sign"
+-h	820	0	0xc4	 3,8	 # hbar
+gr	820	0	0x3d1	 6,33	 # gradient
+es	638	0	0x3c6	 0,79	 # emptyset
+CL	617	0	0x5	 5,168	 # club "club suit"
+SP	617	0	0x6	 5,171	 # spade "spade suit"
+HE	617	0	0x3	 5,170	 # heart "heart suit"
+DI	617	0	0x4	 5,169	 # diamond "diamond suit"
+CR	617	0	0x3bf	 5,20	 # carriagereturn "carriage return symbol"
+st	617	0	0x327	 6,71	 # suchthat
+/_	617	0	0x3d0	 6,79	 # angle
+<<	456	0	0xae	 6,77	 # "" "much less"
+>>	456	0	0xaf	 6,78	 # "" "much greater"
+wp	456	0	0x3c3	 6,53	 # weierstrass "Weierstrass p"
+lz	456	0	0x3e0	 6,95	 # lozenge
+an	820	0	0x3be	 3,8	 # arrowhorizex "horizontal arrow extension"
+pc	240	0	0xfa	 6,32	 # periodcentered

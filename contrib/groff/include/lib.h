@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -22,50 +22,31 @@ extern "C" {
 #ifndef strerror
   char *strerror(int);
 #endif
-#ifndef __BORLANDC__
-  const char *itoa(int);
-  const char *iftoa(int, int);
-#endif /* __BORLANDC__ */
+  const char *i_to_a(int);
+  const char *if_to_a(int, int);
 }
 
-#ifdef STDLIB_H_DECLARES_GETOPT
-#include <stdlib.h>
-#else /* not STDLIB_H_DECLARES_GETOPT */
-#ifdef UNISTD_H_DECLARES_GETOPT
-#include <sys/types.h>
-#include <unistd.h>
-#else /* not UNISTD_H_DECLARES_GETOPT */
-extern "C" {
-  int getopt(int, char *const *, const char *);
-}
-#endif /* not UNISTD_H_DECLARES_GETOPT */
-
-extern "C" {
-  extern char *optarg;
-  extern int optind;
-  extern int opterr;
-}
-
-#endif /* not STDLIB_H_DECLARES_GETOPT */
+#include <groff-getopt.h>
 
 char *strsave(const char *s);
 int is_prime(unsigned);
 
 #include <stdio.h>
 
-FILE *xtmpfile();
+FILE *xtmpfile(char **namep=0, char *postfix=0, int do_unlink=1);
+char *xtmptemplate(char *extension=0);
 
-#ifndef STDIO_H_DECLARES_POPEN
+#ifdef NEED_DECLARATION_POPEN
 
 extern "C" { FILE *popen(const char *, const char *); }
 
-#endif /* not STDIO_H_DECLARES_POPEN */
+#endif /* NEED_DECLARATION_POPEN */
 
-#ifndef STDIO_H_DECLARES_PCLOSE
+#ifdef NEED_DECLARATION_PCLOSE
 
 extern "C" { int pclose (FILE *); }
 
-#endif /* not STDIO_H_DECLARES_PCLOSE */
+#endif /* NEED_DECLARATION_PCLOSE */
 
 int interpret_lf_args(const char *p);
 
@@ -75,6 +56,14 @@ inline int illegal_input_char(int c)
 {
   return c >= 0 && illegal_char_table[c];
 }
+
+#ifndef HAVE_STRCASECMP
+#define strcasecmp(a,b) strcmp((a),(b))
+#endif
+
+#ifndef HAVE_STRNCASECMP
+#define strncasecmp(a,b,c) strncmp((a),(b),(c))
+#endif
 
 #ifdef HAVE_CC_LIMITS_H
 #include <limits.h>

@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -38,6 +38,9 @@ grodvi \- convert groff output to TeX dvi format
 ] [
 .IR files \|.\|.\|.
 ]
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 .B grodvi
 is a driver for
@@ -139,7 +142,7 @@ for font and device description files.
 .B @FONTDIR@/devdvi/DESC
 Device description file.
 .TP
-.B @FONTDIR@/devdvi/ F
+.BI @FONTDIR@/devdvi/ F
 Font description file for font
 .IR F .
 .TP
@@ -153,7 +156,8 @@ use a different resolution (57816 units per inch) to those produced by
 \*(tx.
 Incorrectly written drivers which assume the resolution used by \*(tx,
 rather than using the resolution specified in the dvi file will not
-work with grodvi.
+work with
+.BR grodvi .
 .LP
 When using the
 .B \-d
@@ -165,7 +169,6 @@ and widths of rules be rounded.
 .BR tfmtodit (@MAN1EXT@),
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
-.BR @g@eqn (@MAN1EXT@),
 .BR groff_out (@MAN5EXT@),
 .BR groff_font (@MAN5EXT@),
 .BR groff_char (@MAN7EXT@)

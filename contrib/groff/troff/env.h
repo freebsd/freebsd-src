@@ -206,6 +206,7 @@ public:
   environment(symbol);
   environment(const environment *);	// for temporary environment
   ~environment();
+  void copy(const environment *);
   int is_dummy() { return dummy; }
   int is_empty();
   int is_composite() { return composite; }

@@ -23,13 +23,14 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "device.h"
 #include "searchpath.h"
 #include "macropath.h"
+#include "htmlindicate.h"
 
 #define STARTUP_FILE "eqnrc"
 
 extern int yyparse();
 
-static char *delim_search(char *, int);
-static int inline_equation(FILE *, string &, string &);
+static char *delim_search    (char *, int);
+static int   inline_equation (FILE *, string &, string &);
 
 char start_delim = '\0';
 char end_delim = '\0';
@@ -39,6 +40,7 @@ int draw_flag = 0;
 int one_size_reduction_flag = 0;
 int compatible_flag = 0;
 int no_newline_in_delim_flag = 0;
+
 
 int read_line(FILE *fp, string *p)
 {
@@ -78,7 +80,7 @@ void do_file(FILE *fp, const char *filename)
 	     && linebuf[2] == 'Q'
 	     && (linebuf[3] == ' ' || linebuf[3] == '\n' || compatible_flag)) {
       put_string(linebuf, stdout);
-      put_string(".if '\\*(.T'html' \\X(graphic-start(\\c\n", stdout);
+      graphic_start();
       int start_lineno = current_lineno + 1;
       str.clear();
       for (;;) {
@@ -108,7 +110,7 @@ void do_file(FILE *fp, const char *filename)
       }
       restore_compatibility();
       printf(".lf %d\n", current_lineno);
-      put_string(".if '\\*(.T'html' \\X(graphic-end(\\c\n", stdout);
+      graphic_end();
       put_string(linebuf, stdout);
     }
     else if (start_delim != '\0' && linebuf.search(start_delim) >= 0
@@ -165,7 +167,7 @@ static int inline_equation(FILE *fp, string &linebuf, string &str)
       ptr = &linebuf[0];
     }
     str += '\0';
-    put_string(".if '\\*(.T'html' \\X(graphic-start(\\c\n", stdout);
+    graphic_start();
     init_lex(str.contents(), current_filename, start_lineno);
     yyparse();
     start = delim_search(ptr, start_delim);
@@ -180,7 +182,7 @@ static int inline_equation(FILE *fp, string &linebuf, string &str)
   printf(".lf %d\n", current_lineno);
   output_string();
   restore_compatibility();
-  put_string(".if '\\*(.T'html' \\X(graphic-end(\\c\n", stdout);
+  graphic_end();
   printf(".lf %d\n", current_lineno + 1);
   return 1;
 }
@@ -259,8 +261,8 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU eqn version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU eqn version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }

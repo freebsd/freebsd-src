@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -31,6 +31,9 @@ the original English.
 .BI \-t n
 ]
 .IR filename \|.\|.\|.
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 @g@lookbib prints a prompt on the standard error (unless the standard input is not a terminal),
 reads from the standard input a line containing a set of keywords,

@@ -1,6 +1,177 @@
 This file describes recent user-visible changes in groff.  Bug fixes
 are not described.  There are more details in the man pages.
 
+VERSION 1.16.1
+==============
+
+Bug fixes only; no user-visible changes.
+
+VERSION 1.16
+============
+
+Groff
+-----
+
+The anachronism of calling the man macro package with `-man' has been fixed;
+now you can say `-m man' also. The same is true for `ms', `me', `markup',
+`mandoc', and `mdoc'.
+
+A new switch `-g' for calling `grn' is available.
+
+A new switch `-G' for calling `grap' is available.
+
+EBCDIC support for tty devices has been added.  On such hosts, IBM code page
+1047 is available with -Tcp1047 instead of -Tascii and -Tlatin1 (and, for
+the moment, -Tutf8).  Note that non-tty devices are not yet supported (but
+installed).
+
+Troff
+-----
+
+A new command line option to the `man' macros is available: `-rSxx' (with
+`xx' either 10, 11, or 12) to set the base document font size to `xx'
+points.  Additionally, `.SH' now produces larger headings than `.SS'.
+
+To solve a problem with the .PSPIC macro which needs the `-U' switch of
+troff to access an external program (psbb), a new request .psbb is now
+available to get the bounding box of a PostScript image file.  The values
+(in PostScript units) are returned in the new read-only number registers
+`llx', `lly', `urx', and `ury'.  Consequently, .PSPIC has been adapted to
+use the new request, and the psbb program has been removed.
+
+A new predefined writable number register, `year', has been added.  It
+contains the current year.
+
+A new read-only register, `.Y', has been added.  It contains the revision
+number of the groff package.
+
+`\fP' now behaves as expected in situations like the following where the
+font `foo' is undefined:
+
+  .B bold text
+  normal text \f[foo]bar\fP normal text
+
+Previously, the text after \fP appeared as bold.
+
+The `substring' request is not new, but hasn't been documented before.
+
+The predefined `.T' string register (which holds the current output device)
+is not new, but hasn't been documented before.
+
+A new request `length' computes the length of a string and returns it in
+a number register.
+
+The macro files `tmac.a4' (for specifying A4 paper format) and `tmac.trace'
+(a debugging aid) are now installed also.
+
+A new resource file, `troffrc-end', is now available.  It is invoked after
+all user-specified macros.  Currently used by the html device to include
+tmac.html; thus no need for users to specify -mhtml anymore.
+
+The soft hyphen character now has a glyph name: `shc'.
+
+The latin-1 character 173 (PS name `periodcentered') has got the troff glyph
+name `pc' and is no longer intermixed with the symbol character `md' (PS
+name `mathdot').
+
+ASCII character 34 (PS name `quotedbl') has got the troff glyph name `dq'
+(which is an alias to character `"').
+
+ASCII character 39 (PS name `quoteright') has got the troff glyph name `cq'
+(which is an alias to character "'").
+
+Some additions to the font description files have been implemented for
+better support of HTML output:
+
+  The new format of lines in the `charset' subsection of font description
+  files is
+
+     name metrics type code [entity_name] [-- comment]
+
+  Currently, only the font description files in devhtml use the optional
+  entity_name string to define glyph entities in HTML.  Everything after the
+  entity_name field is ignored; in case this field isn't used, two hyphen
+  characters are now necessary to start a comment.
+
+  Two new requests are available in DESC files (currently used only with
+  grohtml):
+
+    use_charnames_in_special
+      This command indicates that troff should encode named characters
+      inside special commands.
+
+    pass_filenames
+      requests that troff tells the driver the source file name being
+      processed.  This is achieved by another tcommand: `F filename'.
+
+Grotty
+------
+
+Bruno Haible <haible@clisp.cons.org> contributed support for UTF8 output.
+
+Grohtml
+-------
+
+Added .LINE macro to tmac.arkup.
+
+The obsolete `.LINK' macro has been removed.
+
+.URL, .FTP, and .MAILTO macros now accept an optional third argument which
+will be immediately appended to the second argument (to be used with
+punctuation, for example).
+
+Grodvi
+------
+
+The font size 11pt has been changed to 10.95pt (as used in LaTeX 2e).
+
+A new font file CWI (using cmitt10; this is typewriter italic) has been
+added.
+
+Grolbp
+------
+
+A new driver for Canon CAPSL printers (LBP-4 and LBP-8 series laser
+printers).  This code has been contributed by Francisco Andres Verdu
+<pandres@dragonet.es>.
+
+Grn
+---
+
+A new preprocessor to process gremlin pictures.  It is based on the
+original Berkeley implementation of grn, written by David Slattengren
+and Barry Roitblat, and has been adapted to groff by Daniel Senderowicz
+<daniel@synchrods.com> and Werner Lemberg <wl@gnu.org>.
+
+Pic
+---
+
+Added the `srand' command to set the seed for a new sequence of
+pseudo-random numbers to be returned by `rand'.
+
+Gxditview
+---------
+
+Simplified installation: The Imakefile will now be configured (by groff's
+configure script).
+
+Documentation
+-------------
+
+Three new man pages are available: groff_tmac.5 (documenting how troff macros
+are accessed and where they are found), groff.7 (a short reference of the GNU
+roff language), and roff.7 (a general survey on GNU troff).
+
+Miscellaneous
+-------------
+
+A port to win32 (for use with Microsoft Visual C++ 6.0) is now part of the
+distribution.  It has been contributed by Blake McBride
+<blake@florida-software.com>.
+
+More information about programs, macros, documentation, etc., which is
+related to groff has been collected in the file `MORE.STUFF'.
+
 VERSION 1.13, 1.14, 1.15
 ========================
 

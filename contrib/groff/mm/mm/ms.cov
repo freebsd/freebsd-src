@@ -1,5 +1,5 @@
 .\"------------
-.\" $Id: ms.cov,v 1.32 1999/09/03 05:33:13 jh Exp $
+.\" $Id: ms.cov,v 1.2 2000/02/21 20:32:58 jhaegg Exp $
 .\" Cover sheet. Mostly like ms cover.
 .\"------------
 .de cov@print-title

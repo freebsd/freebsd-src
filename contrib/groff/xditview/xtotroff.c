@@ -7,6 +7,9 @@
 #include	<X11/Xlib.h>
 #include	<stdio.h>
 #include	<ctype.h>
+#include	<unistd.h>
+#include	<stdlib.h>
+#include	<fcntl.h>
 #include	"XFontName.h"
 #include	"DviChar.h"
 
@@ -148,8 +151,13 @@ MapFont (font_name, troff_name)
 		
 	printf ("%s -> %s\n", names[0], troff_name);
 
-	(void) unlink (troff_name);
-	out = fopen (troff_name, "w");
+	{ /* Avoid race while opening file */
+		int fd;
+		(void) unlink (troff_name);
+		fd = open (troff_name, O_WRONLY | O_CREAT | O_EXCL, 0600);
+		out = fdopen (fd, "w");
+	}
+
 	if (!out) {
 		perror (troff_name);
 		return 0;

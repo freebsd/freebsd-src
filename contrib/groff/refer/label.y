@@ -77,7 +77,7 @@ class field_expr : public expression {
   int number;
   char name;
 public:
-  field_expr(char nm, int num) : name(nm), number(num) { }
+  field_expr(char nm, int num) : number(num), name(nm) { }
   void evaluate(int, const reference &, string &, substring_position &);
   unsigned analyze() { return CONTAINS_VARIABLE; }
 };
@@ -136,14 +136,14 @@ class extractor_expr : public unary_expr {
 public:
   enum { BEFORE = +1, MATCH = 0, AFTER = -1 };
   extractor_expr(expression *e, extractor_func *f, int pt)
-    : unary_expr(e), func(f), part(pt) { }
+    : unary_expr(e), part(pt), func(f) { }
   void evaluate(int, const reference &, string &, substring_position &);
 };
 
 class truncate_expr : public unary_expr {
   int n;
 public:
-  truncate_expr(expression *e, int i) : n(i), unary_expr(e) { } 
+  truncate_expr(expression *e, int i) : unary_expr(e), n(i) { } 
   void evaluate(int, const reference &, string &, substring_position &);
 };
 
@@ -509,7 +509,7 @@ void format_expr::evaluate(int tentative, const reference &ref,
   if (type != '0')
     result += format_serial(type, num + 1);
   else {
-    const char *ptr = itoa(num + first_number);
+    const char *ptr = i_to_a(num + first_number);
     int pad = width - strlen(ptr);
     while (--pad >= 0)
       result += '0';
@@ -530,7 +530,7 @@ static const char *format_serial(char c, int n)
       // numerals; I can find no historical basis for this usage
       const char *s = c == 'i' ? "zwmdclxvi" : "ZWMDCLXVI";
       if (n >= 40000)
-	return itoa(n);
+	return i_to_a(n);
       while (n >= 10000) {
 	*p++ = s[0];
 	n -= 10000;
@@ -928,7 +928,7 @@ int reference::merge_labels_by_parts(reference **v, int n, label_type type,
 string label_pool;
 
 label_info::label_info(const string &s)
-: count(0), total(1), length(s.length()), start(label_pool.length())
+: start(label_pool.length()), length(s.length()), count(0), total(1)
 {
   label_pool += s;
 }

@@ -1,5 +1,6 @@
 MAN1=grog.n
 CLEANADD=grog
+NAMEPREFIX=$(g)
 
 all: grog
 
@@ -9,14 +10,15 @@ grog: grog.pl grog.sh
 	  sed -e 's;/usr/bin/perl;$(PERLPATH);' $(srcdir)/grog.pl >$@; \
 	else \
 	  rm -f $@; \
-	  sed "$(SH_SCRIPT_SED_CMD)" $(srcdir)/grog.sh >$@; \
+	  sed -e 's/@g@/$(g)/g' \
+	      -e "$(SH_SCRIPT_SED_CMD)" $(srcdir)/grog.sh >$@; \
 	fi
 	chmod +x $@
 
 install_data: grog
-	-test -d $(bindir) || mkdir $(bindir)
+	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
 	-rm -f $(bindir)/grog
-	$(INSTALL_PROGRAM) grog $(bindir)/grog
+	$(INSTALL_SCRIPT) grog $(bindir)/grog
 
 uninstall_sub:
 	-rm -f $(bindir)/grog

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.sim,v 1.32 1999/09/03 05:33:14 jh Exp $
+# $Id: Makefile.sim,v 1.2 2000/06/18 10:08:06 wlemb Exp $
 #
 # To install mgm separately as tmac.gm:
 # make -f Makefile.sub tmacdir=/usr/local/lib/groff/tmac srcdir=. \
@@ -41,26 +41,26 @@ install: groff_mm.n groff_mmse.n
 .man.n:
 	@echo Making $@ from $<
 	@-rm -f $@
-	@sed -e "s;@HYPHENFILE@;$(hyphenfile);g" \
-	-e "s;@FONTDIR@;$(fontdir);g" \
-	-e "s;@FONTPATH@;$(fontpath);g" \
-	-e "s;@MACRODIR@;$(tmacdir);g" \
-	-e "s;@MACROPATH@;$(tmacpath);g" \
-	-e "s;@DEVICE@;$(DEVICE);g" \
-	-e "s;@DEFAULT_INDEX@;$(indexdir)/$(indexname);g" \
-	-e "s;@DEFAULT_INDEX_NAME@;$(indexname);g" \
-	-e "s;@INDEX_SUFFIX@;$(indexext);g" \
-	-e "s;@COMMON_WORDS_FILE@;$(common_words_file);g" \
-	-e "s;@MAN1EXT@;$(man1ext);g" \
-	-e "s;@MAN5EXT@;$(man5ext);g" \
-	-e "s;@MAN7EXT@;$(man7ext);g" \
-	-e "s;@TMAC_S@;$(tmac_s);g" \
-	-e "s;@TMAC_M@;$(tmac_m);g" \
-	-e "s;@TMAC_MDIR@;$(tmacdir)/mm;g" \
-	-e "s;@BROKEN_SPOOLER_FLAGS@;$(BROKEN_SPOOLER_FLAGS);g" \
-	-e "s;@VERSION@;$(version);g" \
-	-e "s;@MDATE@;$(mdate);g" \
-	-e "s;@g@;$(g);g" \
-	-e "s;@G@;`echo $(g) | tr [a-z] [A-Z]`;g" \
+	@sed -e "s|@HYPHENFILE@|$(hyphenfile)|g" \
+	-e "s|@FONTDIR@|$(fontdir)|g" \
+	-e "s|@FONTPATH@|$(fontpath)|g" \
+	-e "s|@MACRODIR@|$(tmacdir)|g" \
+	-e "s|@MACROPATH@|$(tmacpath)|g" \
+	-e "s|@DEVICE@|$(DEVICE)|g" \
+	-e "s|@DEFAULT_INDEX@|$(indexdir)/$(indexname)|g" \
+	-e "s|@DEFAULT_INDEX_NAME@|$(indexname)|g" \
+	-e "s|@INDEX_SUFFIX@|$(indexext)|g" \
+	-e "s|@COMMON_WORDS_FILE@|$(common_words_file)|g" \
+	-e "s|@MAN1EXT@|$(man1ext)|g" \
+	-e "s|@MAN5EXT@|$(man5ext)|g" \
+	-e "s|@MAN7EXT@|$(man7ext)|g" \
+	-e "s|@TMAC_S@|$(tmac_s)|g" \
+	-e "s|@TMAC_M@|$(tmac_m)|g" \
+	-e "s|@TMAC_MDIR@|$(tmacdir)/mm|g" \
+	-e "s|@BROKEN_SPOOLER_FLAGS@|$(BROKEN_SPOOLER_FLAGS)|g" \
+	-e "s|@VERSION@|$(version)|g" \
+	-e "s|@MDATE@|$(mdate)|g" \
+	-e "s|@g@|$(g)|g" \
+	-e "s!@G@;`echo $(g) | tr [a-z] [A-Z]`!g" \
 	$< >$@
 

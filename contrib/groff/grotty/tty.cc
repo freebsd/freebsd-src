@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989-2000 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -19,6 +19,7 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #include "driver.h"
+#include "device.h"
 
 #ifndef SHRT_MIN
 #define SHRT_MIN (-32768)
@@ -103,7 +104,7 @@ class glyph {
 public:
   glyph *next;
   short hpos;
-  unsigned char code;
+  unsigned int code;
   unsigned char mode;
   void *operator new(size_t);
   void operator delete(void *);
@@ -136,23 +137,26 @@ void glyph::operator delete(void *p)
 }
 
 class tty_printer : public printer {
+  int is_utf8;
   glyph **lines;
   int nlines;
   int cached_v;
   int cached_vpos;
-  void add_char(unsigned char, int, int, unsigned char);
+  void add_char(unsigned int, int, int, unsigned char);
 public:
-  tty_printer();
+  tty_printer(const char *device);
   ~tty_printer();
   void set_char(int, font *, const environment *, int, const char *name);
   void draw(int code, int *p, int np, const environment *env);
+  void put_char(unsigned int);
   void begin_page(int) { }
   void end_page(int page_length);
   font *make_font(const char *);
 };
 
-tty_printer::tty_printer() : cached_v(0)
+tty_printer::tty_printer(const char *device) : cached_v(0)
 {
+  is_utf8 = !strcmp(device,"utf8");
   nlines = 66;
   lines = new glyph *[nlines];
   for (int i = 0; i < nlines; i++)
@@ -171,7 +175,7 @@ void tty_printer::set_char(int i, font *f, const environment *env, int w, const 
   add_char(f->get_code(i), env->hpos, env->vpos, ((tty_font *)f)->get_mode());
 }
 
-void tty_printer::add_char(unsigned char c, int h, int v, unsigned char mode)
+void tty_printer::add_char(unsigned int c, int h, int v, unsigned char mode)
 {
 #if 0
   // This is too expensive.
@@ -266,6 +270,33 @@ void tty_printer::draw(int code, int *p, int np, const environment *env)
   }
 }
 
+void tty_printer::put_char (unsigned int wc)
+{
+  if (is_utf8 && wc >= 0x80) {
+    char buf[6+1];
+    int count;
+    char *p = buf;
+    if (wc < 0x800)
+      count = 1, *p = (unsigned char) ((wc >> 6) | 0xC0);
+    else if (wc < 0x10000)
+      count = 2, *p = (unsigned char) ((wc >> 12) | 0xE0);
+    else if (wc < 0x200000)
+      count = 3, *p = (unsigned char) ((wc >> 18) | 0xF0);
+    else if (wc < 0x4000000)
+      count = 4, *p = (unsigned char) ((wc >> 24) | 0xF8);
+    else if (wc <= 0x7FFFFFFF)
+      count = 5, *p = (unsigned char) ((wc >> 30) | 0xFC);
+    else
+      return;
+    do *++p = (unsigned char)(((wc >> (6 * --count)) & 0x3F) | 0x80);
+      while (count > 0);
+    *++p = '\0';
+    fputs(buf,stdout);
+  } else {
+    putchar(wc);
+  }
+}
+
 void tty_printer::end_page(int page_length)
 {
   if (page_length % font::vert != 0)
@@ -340,10 +371,10 @@ void tty_printer::end_page(int page_length)
 	putchar('\b');
       }
       if (p->mode & BOLD_MODE) {
-	putchar(p->code);
+	put_char(p->code);
 	putchar('\b');
       }
-      putchar(p->code);
+      put_char(p->code);
       hpos++;
     }
     putchar('\n');
@@ -365,7 +396,7 @@ font *tty_printer::make_font(const char *nm)
 
 printer *make_printer()
 {
-  return new tty_printer;
+  return new tty_printer(device);
 }
 
 static void usage();
@@ -380,8 +411,8 @@ int main(int argc, char **argv)
     switch(c) {
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "grotty version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "grotty version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }

@@ -1,32 +1,39 @@
-#Copyright (C) 1994 Free Software Foundation, Inc.
+# Copyright (C) 1994 Free Software Foundation, Inc.
 #     Written by James Clark (jjc@jclark.com)
 #
-#This file is part of groff.
+# This file is part of groff.
 #
-#groff is free software; you can redistribute it and/or modify it under
-#the terms of the GNU General Public License as published by the Free
-#Software Foundation; either version 2, or (at your option) any later
-#version.
+# groff is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2, or (at your option) any later
+# version.
 #
-#groff is distributed in the hope that it will be useful, but WITHOUT ANY
-#WARRANTY; without even the implied warranty of MERCHANTABILITY or
-#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-#for more details.
+# groff is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
 #
-#You should have received a copy of the GNU General Public License along
-#with groff; see the file COPYING.  If not, write to the Free Software
-#Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# You should have received a copy of the GNU General Public License along
+# with groff; see the file COPYING.  If not, write to the Free Software
+# Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 # Directory containing Autofont TFM files.
 # The TFM files I used are available for ftp as
-# ftp-boi.external.hp.com:/pub/printers/laserjet/win.dos/tfmlj4p.exe
-# This is a self-extracting MS-DOS archive.
-AUTOFONT=/u/jjc/autofont
+#
+#   ftp://ftp.hp.com/pub/faxes/software/tfmlj4.exe
+#
+# This is a self-extracting MS-DOS archive (in ZIP format).
+
+# This is set up so you can do
+#   make -f generate/Makefile
+# in the parent directory of this directory.
+
+AUTOFONT=/usr/local/lib/groff-lj4
 HPFTODIT=hpftodit
 # .05 em
 IFLAG=-i 439
 SFLAG=-s
-srcdir=.
+srcdir=generate
 TEXTMAP=$(srcdir)/text.map
 SPECIALMAP=$(srcdir)/special.map
 

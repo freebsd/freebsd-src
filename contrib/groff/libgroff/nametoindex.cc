@@ -79,7 +79,7 @@ int character_indexer::numbered_char_index(int n)
   // Not the most efficient possible implementation.
   char buf[INT_DIGITS + 3];
   buf[0] = ' ';
-  strcpy(buf + 1, itoa(n));
+  strcpy(buf + 1, i_to_a(n));
   return named_char_index(buf);
 }
 

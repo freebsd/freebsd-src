@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1999 Free Software Foundation, Inc.
+Copyright (C) 1999-2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -26,18 +26,26 @@ the original English.
 .SH NAME
 grohtml \- html driver for groff
 .SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBgrohtml 'u
+.ti \niu
 .B grohtml
-[
-.B \-atvdgm?
-] [
-.BI \-F dir
-] [
-.BI \-I imagetype
-] [
-.BI \-r resolution
-] [
-.IR files \|.\|.\|.
-]
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-atTvdgm?
+.OP \-F dir
+.OP \-I imagetype
+.OP \-r resolution
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
 .SH DESCRIPTION
 .B grohtml
 translates the output of GNU
@@ -106,6 +114,12 @@ present to supress execution of this development code.
 The default in
 .B grohtml
 is that html tables are generated when appropriate.
+.TP
+.B \-T
+forbids
+.B grohtml
+from generating images when processing output from tbl.
+This is useful when simple textual tables are being produced.
 .TP
 .BI \-F dir
 Search the directory

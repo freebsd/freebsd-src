@@ -35,9 +35,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include "defs.h"
 #include "index.h"
 
+#include "nonposix.h"
+
 extern "C" {
-  // Sun's stdlib.h fails to declare this.
+  // Solaris 2.5.1 has these functions,
+  // but its stdlib.h fails to declare them.
   char *mktemp(char *);
+  int mkstemp(char *);
 }
 
 #define DEFAULT_HASH_TABLE_SIZE 997
@@ -169,8 +173,8 @@ int main(int argc, char **argv)
       break;
     case 'v':
       {
-	extern const char *version_string;
-	fprintf(stderr, "GNU indxbib version %s\n", version_string);
+	extern const char *Version_string;
+	fprintf(stderr, "GNU indxbib version %s\n", Version_string);
 	fflush(stderr);
 	break;
       }
@@ -197,7 +201,15 @@ int main(int argc, char **argv)
   read_common_words_file();
   if (!basename)
     basename = optind < argc ? argv[optind] : DEFAULT_INDEX_NAME;
-  const char *p = strrchr(basename, '/');
+  const char *p = strrchr(basename, DIR_SEPS[0]), *p1;
+  const char *sep = &DIR_SEPS[1];
+  while (*sep)
+    {
+      p1 = strrchr(basename, *sep);
+      if (p1 && (!p || p1 > p))
+	p = p1;
+      sep++;
+    }
   long name_max;
   if (p) {
     char *dir = strsave(basename);
@@ -219,13 +231,19 @@ int main(int argc, char **argv)
   else {
     temp_index_file = strsave(TEMP_INDEX_TEMPLATE);
   }
+#ifndef HAVE_MKSTEMP
   if (!mktemp(temp_index_file) || !temp_index_file[0])
     fatal("cannot create file name for temporary file");
+#endif
   catch_fatal_signals();
+#ifdef HAVE_MKSTEMP
+  int fd = mkstemp(temp_index_file);
+#else
   int fd = creat(temp_index_file, S_IRUSR|S_IRGRP|S_IROTH);
+#endif
   if (fd < 0)
     fatal("can't create temporary index file: %1", strerror(errno));
-  indxfp = fdopen(fd, "w");
+  indxfp = fdopen(fd, FOPEN_WB);
   if (indxfp == 0)
     fatal("fdopen failed");
   if (fseek(indxfp, sizeof(index_header), 0) < 0)
@@ -274,7 +292,22 @@ int main(int argc, char **argv)
   strcat(index_file, INDEX_SUFFIX);
 #ifdef HAVE_RENAME
   if (rename(temp_index_file, index_file) < 0)
-    fatal("can't rename temporary index file: %1", strerror(errno));
+    {
+#ifdef __MSDOS__
+      // RENAME could fail on plain MSDOS filesystems because
+      // INDEX_FILE is an invalid filename, e.g. it has multiple dots.
+      char *fname = p ? index_file + (p - basename) : 0;
+      char *dot = 0;
+
+      // Replace the dot with an underscore and try again.
+      if (fname
+	  && (dot = strchr(fname, '.')) != 0
+	  && strcmp(dot, INDEX_SUFFIX) != 0)
+	*dot = '_';
+      if (rename(temp_index_file, index_file) < 0)
+#endif
+	fatal("can't rename temporary index file: %1", strerror(errno));
+    }
 #else /* not HAVE_RENAME */
   ignore_fatal_signals();
   if (unlink(index_file) < 0) {
@@ -422,7 +455,9 @@ static int do_whole_file(const char *filename)
 static int do_file(const char *filename)
 {
   errno = 0;
-  FILE *fp = fopen(filename, "r");
+  // Need binary I/O for MS-DOS/MS-Windows, because indxbib relies on
+  // byte counts to be consistent with fseek.
+  FILE *fp = fopen(filename, FOPEN_RB);
   if (fp == 0) {
     error("can't open `%1': %2", filename, strerror(errno));
     return 0;
@@ -452,6 +487,21 @@ static int do_file(const char *filename)
     int c = getc(fp);
     if (c == EOF)
       break;
+    // We opened the file in binary mode, so we need to skip
+    // every CR character before a Newline.
+    if (c == '\r') {
+      int peek = getc(fp);
+      if (peek = '\n') {
+	byte_count++;
+	c = peek;
+      }
+      else
+	ungetc(peek, fp);
+    }
+#if defined(__MSDOS__) || defined(_MSC_VER)
+    else if (c == 0x1a)	// ^Z means EOF in text files
+      break;
+#endif
     byte_count++;
     switch (state) {
     case START:
