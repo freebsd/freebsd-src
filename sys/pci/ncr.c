@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.99 1997/07/18 19:33:56 se Exp $
+**  $Id: ncr.c,v 1.100 1997/07/25 20:45:05 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -311,6 +311,10 @@
 #define	OUTW(r, val) outw (np->port+offsetof(struct ncr_reg,r),(val))
 #define	OUTL(r, val) outl (np->port+offsetof(struct ncr_reg,r),(val))
 
+#define	INB_OFF(o) inb (np->port + (o))
+#define	INW_OFF(o) inw (np->port + (o))
+#define	INL_OFF(o) inl (np->port + (o))
+
 #else
 
 #define INB(r) (np->reg->r)
@@ -320,6 +324,10 @@
 #define OUTB(r, val) np->reg->r = (val)
 #define OUTW(r, val) np->reg->r = (val)
 #define OUTL(r, val) np->reg->r = (val)
+
+#define INB_OFF(o) *( ((u_char *) np->reg) + (o) )
+#define INW_OFF(o) *((u_short *) ( ((u_char *) np->reg) + (o)) )
+#define INL_OFF(o) *((u_long *)  ( ((u_char *) np->reg) + (o)) )
 
 #endif
 
@@ -1023,6 +1031,9 @@ struct ncb {
 	vm_offset_t     vaddr;
 	vm_offset_t     paddr;
 
+	vm_offset_t     vaddr2;
+	vm_offset_t     paddr2;
+
 	/*
 	**	pointer to the chip's registers.
 	*/
@@ -1030,14 +1041,22 @@ struct ncb {
 	struct ncr_reg* reg;
 
 	/*
-	**	A copy of the script, relocated for this ncb.
+	**	A copy of the scripts, relocated for this ncb.
 	*/
-	struct script	*script;
+	struct script	*script0;
+	struct scripth	*scripth0;
 
 	/*
-	**	Physical address of this instance of ncb->script
+	**	Scripts instance virtual address.
+	*/
+	struct script	*script;
+	struct scripth	*scripth;
+
+	/*
+	**	Scripts instance physical address.
 	*/
 	u_long		p_script;
+	u_long		p_scripth;
 
 	/*
 	**	The SCSI address of the host adapter.
@@ -1165,6 +1184,7 @@ struct ncb {
 };
 
 #define NCB_SCRIPT_PHYS(np,lbl)	(np->p_script + offsetof (struct script, lbl))
+#define NCB_SCRIPTH_PHYS(np,lbl) (np->p_scripth + offsetof (struct scripth,lbl))
 
 /*==========================================================
 **
@@ -1187,12 +1207,15 @@ struct ncb {
 **----------------------------------------------------------
 */
 
+/*
+**	Script fragments which are loaded into the on-board RAM 
+**	of 825A, 875 and 895 chips.
+*/
 struct script {
 	ncrcmd	start		[  7];
 	ncrcmd	start0		[  2];
 	ncrcmd	start1		[  3];
 	ncrcmd  startpos	[  1];
-	ncrcmd  tryloop		[MAX_START*5+2];
 	ncrcmd  trysel		[  8];
 	ncrcmd	skip		[  8];
 	ncrcmd	skip2		[  3];
@@ -1210,14 +1233,6 @@ struct script {
 	ncrcmd  status		[ 27];
 	ncrcmd  msg_in		[ 26];
 	ncrcmd  msg_bad		[  6];
-	ncrcmd  msg_parity	[  6];
-	ncrcmd	msg_reject	[  8];
-	ncrcmd	msg_ign_residue	[ 32];
-	ncrcmd  msg_extended	[ 18];
-	ncrcmd  msg_ext_2	[ 18];
-	ncrcmd	msg_wdtr	[ 27];
-	ncrcmd  msg_ext_3	[ 18];
-	ncrcmd	msg_sdtr	[ 27];
 	ncrcmd  complete	[ 13];
 	ncrcmd	cleanup		[ 12];
 	ncrcmd	cleanup0	[ 11];
@@ -1229,15 +1244,6 @@ struct script {
 	ncrcmd  disconnect1	[ 23];
 	ncrcmd	msg_out		[  9];
 	ncrcmd	msg_out_done	[  7];
-	ncrcmd	msg_out_abort	[ 10];
-	ncrcmd  getcc		[  4];
-	ncrcmd  getcc1		[  5];
-#ifdef NCR_GETCC_WITHMSG
-	ncrcmd	getcc2		[ 33];
-#else
-	ncrcmd	getcc2		[ 14];
-#endif
-	ncrcmd	getcc3		[ 10];
 	ncrcmd  badgetcc	[  6];
 	ncrcmd	reselect	[  8];
 	ncrcmd	reselect1	[  8];
@@ -1247,6 +1253,30 @@ struct script {
 	ncrcmd	resel_tag	[ 24];
 	ncrcmd  data_in		[MAX_SCATTER * 4 + 7];
 	ncrcmd  data_out	[MAX_SCATTER * 4 + 7];
+};
+
+/*
+**	Script fragments which stay in main memory for all chips.
+*/
+struct scripth {
+	ncrcmd  tryloop		[MAX_START*5+2];
+	ncrcmd  msg_parity	[  6];
+	ncrcmd	msg_reject	[  8];
+	ncrcmd	msg_ign_residue	[ 32];
+	ncrcmd  msg_extended	[ 18];
+	ncrcmd  msg_ext_2	[ 18];
+	ncrcmd	msg_wdtr	[ 27];
+	ncrcmd  msg_ext_3	[ 18];
+	ncrcmd	msg_sdtr	[ 27];
+	ncrcmd	msg_out_abort	[ 10];
+	ncrcmd  getcc		[  4];
+	ncrcmd  getcc1		[  5];
+#ifdef NCR_GETCC_WITHMSG
+	ncrcmd	getcc2		[ 33];
+#else
+	ncrcmd	getcc2		[ 14];
+#endif
+	ncrcmd	getcc3		[ 10];
 	ncrcmd	aborttag	[  4];
 	ncrcmd	abort		[ 22];
 	ncrcmd	snooptest	[  9];
@@ -1282,8 +1312,8 @@ static	void	ncr_negotiate	(struct ncb* np, struct tcb* tp);
 static	void	ncr_opennings	(ncb_p np, lcb_p lp, struct scsi_xfer * xp);
 static	void	ncb_profile	(ncb_p np, ccb_p cp);
 static	void	ncr_script_copy_and_bind
-				(struct script * script, ncb_p np);
-static  void    ncr_script_fill (struct script * scr);
+				(ncb_p np, ncrcmd *src, ncrcmd *dst, int len);
+static  void    ncr_script_fill (struct script * scr, struct scripth *scrh);
 static	int	ncr_scatter	(struct dsb* phys, vm_offset_t vaddr,
 				 vm_size_t datalen);
 static	void	ncr_setmaxtags	(tcb_p tp, u_long usrtags);
@@ -1320,7 +1350,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.99 1997/07/18 19:33:56 se Exp $\n";
+	"\n$Id: ncr.c,v 1.100 1997/07/25 20:45:05 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1438,12 +1468,30 @@ static char *ncr_name (ncb_p np)
 #define	RELOC_SOFTC	0x40000000
 #define	RELOC_LABEL	0x50000000
 #define	RELOC_REGISTER	0x60000000
+#define	RELOC_KVAR	0x70000000
+#define	RELOC_LABELH	0x80000000
 #define	RELOC_MASK	0xf0000000
 
 #define	NADDR(label)	(RELOC_SOFTC | offsetof(struct ncb, label))
 #define PADDR(label)    (RELOC_LABEL | offsetof(struct script, label))
+#define PADDRH(label)   (RELOC_LABELH | offsetof(struct scripth, label))
 #define	RADDR(label)	(RELOC_REGISTER | REG(label))
 #define	FADDR(label,ofs)(RELOC_REGISTER | ((REG(label))+(ofs)))
+#define	KVAR(which)	(RELOC_KVAR | (which))
+
+#define KVAR_TIME_TV_SEC		(0)
+#define KVAR_TIME			(1)
+#define KVAR_NCR_CACHE			(2)
+
+#define	SCRIPT_KVAR_FIRST		(0)
+#define	SCRIPT_KVAR_LAST		(3)
+
+/*
+ * Kernel variables referenced in the scripts.
+ * THESE MUST ALL BE ALIGNED TO A 4-BYTE BOUNDARY.
+ */
+static void *script_kvars[] =
+	{ &time.tv_sec, &time, &ncr_cache };
 
 static	struct script script0 = {
 /*--------------------------< START >-----------------------*/ {
@@ -1451,7 +1499,7 @@ static	struct script script0 = {
 	**	Claim to be still alive ...
 	*/
 	SCR_COPY (sizeof (((struct ncb *)0)->heartbeat)),
-		(ncrcmd) &time.tv_sec,
+		KVAR (KVAR_TIME_TV_SEC),
 		NADDR (heartbeat),
 	/*
 	**      Make data structure address invalid.
@@ -1484,32 +1532,7 @@ static	struct script script0 = {
 	*/
 	SCR_JUMP,
 }/*-------------------------< STARTPOS >--------------------*/,{
-		PADDR(tryloop),
-}/*-------------------------< TRYLOOP >---------------------*/,{
-/*
-**	Load an entry of the start queue into dsa
-**	and try to start it by jumping to TRYSEL.
-**
-**	Because the size depends on the
-**	#define MAX_START parameter, it is filled
-**	in at runtime.
-**
-**-----------------------------------------------------------
-**
-**  ##===========< I=0; i<MAX_START >===========
-**  ||	SCR_COPY (4),
-**  ||		NADDR (squeue[i]),
-**  ||		RADDR (dsa),
-**  ||	SCR_CALL,
-**  ||		PADDR (trysel),
-**  ##==========================================
-**
-**	SCR_JUMP,
-**		PADDR(tryloop),
-**
-**-----------------------------------------------------------
-*/
-0
+		PADDRH(tryloop),
 
 }/*-------------------------< TRYSEL >----------------------*/,{
 	/*
@@ -1695,7 +1718,7 @@ static	struct script script0 = {
 	**      Set a time stamp for this selection
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		(ncrcmd) &time,
+		KVAR (KVAR_TIME),
 		NADDR (header.stamp.select),
 	/*
 	**      load the savep (saved pointer) into
@@ -1748,7 +1771,7 @@ static	struct script script0 = {
 	SCR_JUMP ^ IFTRUE (DATA (M_EXTENDED)),
 		PADDR (msg_in),
 	SCR_JUMP ^ IFTRUE (DATA (M_REJECT)),
-		PADDR (msg_reject),
+		PADDRH (msg_reject),
 	/*
 	**	normal processing
 	*/
@@ -1877,7 +1900,7 @@ static	struct script script0 = {
 	**	... set a timestamp ...
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		(ncrcmd) &time,
+		KVAR (KVAR_TIME),
 		NADDR (header.stamp.command),
 	/*
 	**	... and send the command
@@ -1899,7 +1922,7 @@ static	struct script script0 = {
 	**	set the timestamp.
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		(ncrcmd) &time,
+		KVAR (KVAR_TIME),
 		NADDR (header.stamp.status),
 	/*
 	**	If this is a GETCC transfer,
@@ -1965,7 +1988,7 @@ static	struct script script0 = {
 	SCR_FROM_REG (socl),
 		0,
 	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
+		PADDRH (msg_parity),
 	SCR_FROM_REG (scratcha),
 		0,
 	/*
@@ -1980,13 +2003,13 @@ static	struct script script0 = {
 	SCR_JUMP ^ IFTRUE (DATA (M_DISCONNECT)),
 		PADDR (disconnect),
 	SCR_JUMP ^ IFTRUE (DATA (M_EXTENDED)),
-		PADDR (msg_extended),
+		PADDRH (msg_extended),
 	SCR_JUMP ^ IFTRUE (DATA (M_NOOP)),
 		PADDR (clrack),
 	SCR_JUMP ^ IFTRUE (DATA (M_REJECT)),
-		PADDR (msg_reject),
+		PADDRH (msg_reject),
 	SCR_JUMP ^ IFTRUE (DATA (M_IGN_RESIDUE)),
-		PADDR (msg_ign_residue),
+		PADDRH (msg_ign_residue),
 	/*
 	**	Rest of the messages left as
 	**	an exercise ...
@@ -2004,266 +2027,6 @@ static	struct script script0 = {
 		0,
 	SCR_JUMP,
 		PADDR (setmsg),
-
-}/*-------------------------< MSG_PARITY >---------------*/,{
-	/*
-	**	count it
-	*/
-	SCR_REG_REG (PS_REG, SCR_ADD, 0x01),
-		0,
-	/*
-	**	send a "message parity error" message.
-	*/
-	SCR_LOAD_REG (scratcha, M_PARITY),
-		0,
-	SCR_JUMP,
-		PADDR (setmsg),
-}/*-------------------------< MSG_REJECT >---------------*/,{
-	/*
-	**	If a negotiation was in progress,
-	**	negotiation failed.
-	*/
-	SCR_FROM_REG (HS_REG),
-		0,
-	SCR_INT ^ IFTRUE (DATA (HS_NEGOTIATE)),
-		SIR_NEGO_FAILED,
-	/*
-	**	else make host log this message
-	*/
-	SCR_INT ^ IFFALSE (DATA (HS_NEGOTIATE)),
-		SIR_REJECT_RECEIVED,
-	SCR_JUMP,
-		PADDR (clrack),
-
-}/*-------------------------< MSG_IGN_RESIDUE >----------*/,{
-	/*
-	**	Terminate cycle
-	*/
-	SCR_CLR (SCR_ACK),
-		0,
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDR (dispatch),
-	/*
-	**	get residue size.
-	*/
-	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
-		NADDR (msgin[1]),
-	/*
-	**	Check for message parity error.
-	*/
-	SCR_TO_REG (scratcha),
-		0,
-	SCR_FROM_REG (socl),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
-	SCR_FROM_REG (scratcha),
-		0,
-	/*
-	**	Size is 0 .. ignore message.
-	*/
-	SCR_JUMP ^ IFTRUE (DATA (0)),
-		PADDR (clrack),
-	/*
-	**	Size is not 1 .. have to interrupt.
-	*/
-/*<<<*/	SCR_JUMPR ^ IFFALSE (DATA (1)),
-		40,
-	/*
-	**	Check for residue byte in swide register
-	*/
-	SCR_FROM_REG (scntl2),
-		0,
-/*<<<*/	SCR_JUMPR ^ IFFALSE (MASK (WSR, WSR)),
-		16,
-	/*
-	**	There IS data in the swide register.
-	**	Discard it.
-	*/
-	SCR_REG_REG (scntl2, SCR_OR, WSR),
-		0,
-	SCR_JUMP,
-		PADDR (clrack),
-	/*
-	**	Load again the size to the sfbr register.
-	*/
-/*>>>*/	SCR_FROM_REG (scratcha),
-		0,
-/*>>>*/	SCR_INT,
-		SIR_IGN_RESIDUE,
-	SCR_JUMP,
-		PADDR (clrack),
-
-}/*-------------------------< MSG_EXTENDED >-------------*/,{
-	/*
-	**	Terminate cycle
-	*/
-	SCR_CLR (SCR_ACK),
-		0,
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDR (dispatch),
-	/*
-	**	get length.
-	*/
-	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
-		NADDR (msgin[1]),
-	/*
-	**	Check for message parity error.
-	*/
-	SCR_TO_REG (scratcha),
-		0,
-	SCR_FROM_REG (socl),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
-	SCR_FROM_REG (scratcha),
-		0,
-	/*
-	*/
-	SCR_JUMP ^ IFTRUE (DATA (3)),
-		PADDR (msg_ext_3),
-	SCR_JUMP ^ IFFALSE (DATA (2)),
-		PADDR (msg_bad),
-}/*-------------------------< MSG_EXT_2 >----------------*/,{
-	SCR_CLR (SCR_ACK),
-		0,
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDR (dispatch),
-	/*
-	**	get extended message code.
-	*/
-	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
-		NADDR (msgin[2]),
-	/*
-	**	Check for message parity error.
-	*/
-	SCR_TO_REG (scratcha),
-		0,
-	SCR_FROM_REG (socl),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
-	SCR_FROM_REG (scratcha),
-		0,
-	SCR_JUMP ^ IFTRUE (DATA (M_X_WIDE_REQ)),
-		PADDR (msg_wdtr),
-	/*
-	**	unknown extended message
-	*/
-	SCR_JUMP,
-		PADDR (msg_bad)
-}/*-------------------------< MSG_WDTR >-----------------*/,{
-	SCR_CLR (SCR_ACK),
-		0,
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDR (dispatch),
-	/*
-	**	get data bus width
-	*/
-	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
-		NADDR (msgin[3]),
-	SCR_FROM_REG (socl),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
-	/*
-	**	let the host do the real work.
-	*/
-	SCR_INT,
-		SIR_NEGO_WIDE,
-	/*
-	**	let the target fetch our answer.
-	*/
-	SCR_SET (SCR_ATN),
-		0,
-	SCR_CLR (SCR_ACK),
-		0,
-
-	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_OUT)),
-		SIR_NEGO_PROTO,
-	/*
-	**	Send the M_X_WIDE_REQ
-	*/
-	SCR_MOVE_ABS (4) ^ SCR_MSG_OUT,
-		NADDR (msgout),
-	SCR_CLR (SCR_ATN),
-		0,
-	SCR_COPY (1),
-		RADDR (sfbr),
-		NADDR (lastmsg),
-	SCR_JUMP,
-		PADDR (msg_out_done),
-
-}/*-------------------------< MSG_EXT_3 >----------------*/,{
-	SCR_CLR (SCR_ACK),
-		0,
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDR (dispatch),
-	/*
-	**	get extended message code.
-	*/
-	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
-		NADDR (msgin[2]),
-	/*
-	**	Check for message parity error.
-	*/
-	SCR_TO_REG (scratcha),
-		0,
-	SCR_FROM_REG (socl),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
-	SCR_FROM_REG (scratcha),
-		0,
-	SCR_JUMP ^ IFTRUE (DATA (M_X_SYNC_REQ)),
-		PADDR (msg_sdtr),
-	/*
-	**	unknown extended message
-	*/
-	SCR_JUMP,
-		PADDR (msg_bad)
-
-}/*-------------------------< MSG_SDTR >-----------------*/,{
-	SCR_CLR (SCR_ACK),
-		0,
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDR (dispatch),
-	/*
-	**	get period and offset
-	*/
-	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
-		NADDR (msgin[3]),
-	SCR_FROM_REG (socl),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
-		PADDR (msg_parity),
-	/*
-	**	let the host do the real work.
-	*/
-	SCR_INT,
-		SIR_NEGO_SYNC,
-	/*
-	**	let the target fetch our answer.
-	*/
-	SCR_SET (SCR_ATN),
-		0,
-	SCR_CLR (SCR_ACK),
-		0,
-
-	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_OUT)),
-		SIR_NEGO_PROTO,
-	/*
-	**	Send the M_X_SYNC_REQ
-	*/
-	SCR_MOVE_ABS (5) ^ SCR_MSG_OUT,
-		NADDR (msgout),
-	SCR_CLR (SCR_ATN),
-		0,
-	SCR_COPY (1),
-		RADDR (sfbr),
-		NADDR (lastmsg),
-	SCR_JUMP,
-		PADDR (msg_out_done),
 
 }/*-------------------------< COMPLETE >-----------------*/,{
 	/*
@@ -2340,7 +2103,7 @@ static	struct script script0 = {
 	SCR_FROM_REG (SS_REG),
 		0,
 	SCR_JUMP ^ IFTRUE (DATA (S_CHECK_COND)),
-		PADDR(getcc2),
+		PADDRH(getcc2),
 	/*
 	**	And make the DSA register invalid.
 	*/
@@ -2464,7 +2227,7 @@ static	struct script script0 = {
 	**	and count the disconnects.
 	*/
 	SCR_COPY (sizeof (struct timeval)),
-		(ncrcmd) &time,
+		KVAR (KVAR_TIME),
 		NADDR (header.stamp.disconnect),
 	SCR_COPY (4),
 		NADDR (disc_phys),
@@ -2495,7 +2258,7 @@ static	struct script script0 = {
 	**	If it was no ABORT message ...
 	*/
 	SCR_JUMP ^ IFTRUE (DATA (M_ABORT)),
-		PADDR (msg_out_abort),
+		PADDRH (msg_out_abort),
 	/*
 	**	... wait for the next phase
 	**	if it's a message out, send it again, ...
@@ -2516,167 +2279,6 @@ static	struct script script0 = {
 	*/
 	SCR_JUMP,
 		PADDR (dispatch),
-}/*-------------------------< MSG_OUT_ABORT >-------------*/,{
-	/*
-	**	After ABORT message,
-	**
-	**	expect an immediate disconnect, ...
-	*/
-	SCR_REG_REG (scntl2, SCR_AND, 0x7f),
-		0,
-	SCR_CLR (SCR_ACK|SCR_ATN),
-		0,
-	SCR_WAIT_DISC,
-		0,
-	/*
-	**	... and set the status to "ABORTED"
-	*/
-	SCR_LOAD_REG (HS_REG, HS_ABORTED),
-		0,
-	SCR_JUMP,
-		PADDR (cleanup),
-
-}/*-------------------------< GETCC >-----------------------*/,{
-	/*
-	**	The ncr doesn't have an indirect load
-	**	or store command. So we have to
-	**	copy part of the control block to a
-	**	fixed place, where we can modify it.
-	**
-	**	We patch the address part of a COPY command
-	**	with the address of the dsa register ...
-	*/
-	SCR_COPY_F (4),
-		RADDR (dsa),
-		PADDR (getcc1),
-	/*
-	**	... then we do the actual copy.
-	*/
-	SCR_COPY (sizeof (struct head)),
-}/*-------------------------< GETCC1 >----------------------*/,{
-		0,
-		NADDR (header),
-	/*
-	**	Initialize the status registers
-	*/
-	SCR_COPY (4),
-		NADDR (header.status),
-		RADDR (scr0),
-}/*-------------------------< GETCC2 >----------------------*/,{
-	/*
-	**	Get the condition code from a target.
-	**
-	**	DSA points to a data structure.
-	**	Set TEMP to the script location
-	**	that receives the condition code.
-	**
-	**	Because there is no script command
-	**	to load a longword into a register,
-	**	we use a CALL command.
-	*/
-/*<<<*/	SCR_CALLR,
-		24,
-	/*
-	**	Get the condition code.
-	*/
-	SCR_MOVE_TBL ^ SCR_DATA_IN,
-		offsetof (struct dsb, sense),
-	/*
-	**	No data phase may follow!
-	*/
-	SCR_CALL,
-		PADDR (checkatn),
-	SCR_JUMP,
-		PADDR (no_data),
-/*>>>*/
-
-	/*
-	**	The CALL jumps to this point.
-	**	Prepare for a RESTORE_POINTER message.
-	**	Save the TEMP register into the saved pointer.
-	*/
-	SCR_COPY (4),
-		RADDR (temp),
-		NADDR (header.savep),
-	/*
-	**	Load scratcha, because in case of a selection timeout,
-	**	the host will expect a new value for startpos in
-	**	the scratcha register.
-	*/
-	SCR_COPY (4),
-		PADDR (startpos),
-		RADDR (scratcha),
-#ifdef NCR_GETCC_WITHMSG
-	/*
-	**	If QUIRK_NOMSG is set, select without ATN.
-	**	and don't send a message.
-	*/
-	SCR_FROM_REG (QU_REG),
-		0,
-	SCR_JUMP ^ IFTRUE (MASK (QUIRK_NOMSG, QUIRK_NOMSG)),
-		PADDR(getcc3),
-	/*
-	**	Then try to connect to the target.
-	**	If we are reselected, special treatment
-	**	of the current job is required before
-	**	accepting the reselection.
-	*/
-	SCR_SEL_TBL_ATN ^ offsetof (struct dsb, select),
-		PADDR(badgetcc),
-	/*
-	**	save target id.
-	*/
-	SCR_FROM_REG (sdid),
-		0,
-	SCR_TO_REG (ctest0),
-		0,
-	/*
-	**	Send the IDENTIFY message.
-	**	In case of short transfer, remove ATN.
-	*/
-	SCR_MOVE_TBL ^ SCR_MSG_OUT,
-		offsetof (struct dsb, smsg2),
-	SCR_CLR (SCR_ATN),
-		0,
-	/*
-	**	save the first byte of the message.
-	*/
-	SCR_COPY (1),
-		RADDR (sfbr),
-		NADDR (lastmsg),
-	SCR_JUMP,
-		PADDR (prepare2),
-
-#endif
-}/*-------------------------< GETCC3 >----------------------*/,{
-	/*
-	**	Try to connect to the target.
-	**	If we are reselected, special treatment
-	**	of the current job is required before
-	**	accepting the reselection.
-	**
-	**	Silly target won't accept a message.
-	**	Select without ATN.
-	*/
-	SCR_SEL_TBL ^ offsetof (struct dsb, select),
-		PADDR(badgetcc),
-	/*
-	**	save target id.
-	*/
-	SCR_FROM_REG (sdid),
-		0,
-	SCR_TO_REG (ctest0),
-		0,
-	/*
-	**	Force error if selection timeout
-	*/
-	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_IN)),
-		0,
-	/*
-	**	don't negotiate.
-	*/
-	SCR_JUMP,
-		PADDR (prepare2),
 
 }/*------------------------< BADGETCC >---------------------*/,{
 	/*
@@ -2685,7 +2287,7 @@ static	struct script script0 = {
 	SCR_FROM_REG (ctest2),
 		0,
 	SCR_JUMP ^ IFTRUE (MASK (CSIGP,CSIGP)),
-		PADDR (getcc2),
+		PADDRH (getcc2),
 	SCR_INT,
 		SIR_SENSE_FAILED,
 }/*-------------------------< RESELECT >--------------------*/,{
@@ -2868,7 +2470,7 @@ static	struct script script0 = {
 **	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
 **		PADDR (no_data),
 **	SCR_COPY (sizeof (struct timeval)),
-**		(ncrcmd) &time,
+**		KVAR (KVAR_TIME),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_IN,
 **		offsetof (struct dsb, data[ 0]),
@@ -2892,10 +2494,10 @@ static	struct script script0 = {
 **	#define MAX_SCATTER parameter,
 **	it is filled in at runtime.
 **
-**	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN)),
+**	SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT)),
 **		PADDR (no_data),
 **	SCR_COPY (sizeof (struct timeval)),
-**		(ncrcmd) &time,
+**		KVAR (KVAR_TIME),
 **		NADDR (header.stamp.data),
 **	SCR_MOVE_TBL ^ SCR_DATA_OUT,
 **		offsetof (struct dsb, data[ 0]),
@@ -2916,6 +2518,457 @@ static	struct script script0 = {
 */
 (u_long)&ident
 
+}/*--------------------------------------------------------*/
+};
+
+
+static	struct scripth scripth0 = {
+/*-------------------------< TRYLOOP >---------------------*/{
+/*
+**	Load an entry of the start queue into dsa
+**	and try to start it by jumping to TRYSEL.
+**
+**	Because the size depends on the
+**	#define MAX_START parameter, it is filled
+**	in at runtime.
+**
+**-----------------------------------------------------------
+**
+**  ##===========< I=0; i<MAX_START >===========
+**  ||	SCR_COPY (4),
+**  ||		NADDR (squeue[i]),
+**  ||		RADDR (dsa),
+**  ||	SCR_CALL,
+**  ||		PADDR (trysel),
+**  ##==========================================
+**
+**	SCR_JUMP,
+**		PADDRH(tryloop),
+**
+**-----------------------------------------------------------
+*/
+0
+}/*-------------------------< MSG_PARITY >---------------*/,{
+	/*
+	**	count it
+	*/
+	SCR_REG_REG (PS_REG, SCR_ADD, 0x01),
+		0,
+	/*
+	**	send a "message parity error" message.
+	*/
+	SCR_LOAD_REG (scratcha, M_PARITY),
+		0,
+	SCR_JUMP,
+		PADDR (setmsg),
+}/*-------------------------< MSG_REJECT >---------------*/,{
+	/*
+	**	If a negotiation was in progress,
+	**	negotiation failed.
+	*/
+	SCR_FROM_REG (HS_REG),
+		0,
+	SCR_INT ^ IFTRUE (DATA (HS_NEGOTIATE)),
+		SIR_NEGO_FAILED,
+	/*
+	**	else make host log this message
+	*/
+	SCR_INT ^ IFFALSE (DATA (HS_NEGOTIATE)),
+		SIR_REJECT_RECEIVED,
+	SCR_JUMP,
+		PADDR (clrack),
+
+}/*-------------------------< MSG_IGN_RESIDUE >----------*/,{
+	/*
+	**	Terminate cycle
+	*/
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (dispatch),
+	/*
+	**	get residue size.
+	*/
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[1]),
+	/*
+	**	Check for message parity error.
+	*/
+	SCR_TO_REG (scratcha),
+		0,
+	SCR_FROM_REG (socl),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
+		PADDRH (msg_parity),
+	SCR_FROM_REG (scratcha),
+		0,
+	/*
+	**	Size is 0 .. ignore message.
+	*/
+	SCR_JUMP ^ IFTRUE (DATA (0)),
+		PADDR (clrack),
+	/*
+	**	Size is not 1 .. have to interrupt.
+	*/
+/*<<<*/	SCR_JUMPR ^ IFFALSE (DATA (1)),
+		40,
+	/*
+	**	Check for residue byte in swide register
+	*/
+	SCR_FROM_REG (scntl2),
+		0,
+/*<<<*/	SCR_JUMPR ^ IFFALSE (MASK (WSR, WSR)),
+		16,
+	/*
+	**	There IS data in the swide register.
+	**	Discard it.
+	*/
+	SCR_REG_REG (scntl2, SCR_OR, WSR),
+		0,
+	SCR_JUMP,
+		PADDR (clrack),
+	/*
+	**	Load again the size to the sfbr register.
+	*/
+/*>>>*/	SCR_FROM_REG (scratcha),
+		0,
+/*>>>*/	SCR_INT,
+		SIR_IGN_RESIDUE,
+	SCR_JUMP,
+		PADDR (clrack),
+
+}/*-------------------------< MSG_EXTENDED >-------------*/,{
+	/*
+	**	Terminate cycle
+	*/
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (dispatch),
+	/*
+	**	get length.
+	*/
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[1]),
+	/*
+	**	Check for message parity error.
+	*/
+	SCR_TO_REG (scratcha),
+		0,
+	SCR_FROM_REG (socl),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
+		PADDRH (msg_parity),
+	SCR_FROM_REG (scratcha),
+		0,
+	/*
+	*/
+	SCR_JUMP ^ IFTRUE (DATA (3)),
+		PADDRH (msg_ext_3),
+	SCR_JUMP ^ IFFALSE (DATA (2)),
+		PADDR (msg_bad),
+}/*-------------------------< MSG_EXT_2 >----------------*/,{
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (dispatch),
+	/*
+	**	get extended message code.
+	*/
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[2]),
+	/*
+	**	Check for message parity error.
+	*/
+	SCR_TO_REG (scratcha),
+		0,
+	SCR_FROM_REG (socl),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
+		PADDRH (msg_parity),
+	SCR_FROM_REG (scratcha),
+		0,
+	SCR_JUMP ^ IFTRUE (DATA (M_X_WIDE_REQ)),
+		PADDRH (msg_wdtr),
+	/*
+	**	unknown extended message
+	*/
+	SCR_JUMP,
+		PADDR (msg_bad)
+}/*-------------------------< MSG_WDTR >-----------------*/,{
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (dispatch),
+	/*
+	**	get data bus width
+	*/
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[3]),
+	SCR_FROM_REG (socl),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
+		PADDRH (msg_parity),
+	/*
+	**	let the host do the real work.
+	*/
+	SCR_INT,
+		SIR_NEGO_WIDE,
+	/*
+	**	let the target fetch our answer.
+	*/
+	SCR_SET (SCR_ATN),
+		0,
+	SCR_CLR (SCR_ACK),
+		0,
+
+	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_OUT)),
+		SIR_NEGO_PROTO,
+	/*
+	**	Send the M_X_WIDE_REQ
+	*/
+	SCR_MOVE_ABS (4) ^ SCR_MSG_OUT,
+		NADDR (msgout),
+	SCR_CLR (SCR_ATN),
+		0,
+	SCR_COPY (1),
+		RADDR (sfbr),
+		NADDR (lastmsg),
+	SCR_JUMP,
+		PADDR (msg_out_done),
+
+}/*-------------------------< MSG_EXT_3 >----------------*/,{
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (dispatch),
+	/*
+	**	get extended message code.
+	*/
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[2]),
+	/*
+	**	Check for message parity error.
+	*/
+	SCR_TO_REG (scratcha),
+		0,
+	SCR_FROM_REG (socl),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
+		PADDRH (msg_parity),
+	SCR_FROM_REG (scratcha),
+		0,
+	SCR_JUMP ^ IFTRUE (DATA (M_X_SYNC_REQ)),
+		PADDRH (msg_sdtr),
+	/*
+	**	unknown extended message
+	*/
+	SCR_JUMP,
+		PADDR (msg_bad)
+
+}/*-------------------------< MSG_SDTR >-----------------*/,{
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (dispatch),
+	/*
+	**	get period and offset
+	*/
+	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
+		NADDR (msgin[3]),
+	SCR_FROM_REG (socl),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (CATN, CATN)),
+		PADDRH (msg_parity),
+	/*
+	**	let the host do the real work.
+	*/
+	SCR_INT,
+		SIR_NEGO_SYNC,
+	/*
+	**	let the target fetch our answer.
+	*/
+	SCR_SET (SCR_ATN),
+		0,
+	SCR_CLR (SCR_ACK),
+		0,
+
+	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_OUT)),
+		SIR_NEGO_PROTO,
+	/*
+	**	Send the M_X_SYNC_REQ
+	*/
+	SCR_MOVE_ABS (5) ^ SCR_MSG_OUT,
+		NADDR (msgout),
+	SCR_CLR (SCR_ATN),
+		0,
+	SCR_COPY (1),
+		RADDR (sfbr),
+		NADDR (lastmsg),
+	SCR_JUMP,
+		PADDR (msg_out_done),
+
+}/*-------------------------< MSG_OUT_ABORT >-------------*/,{
+	/*
+	**	After ABORT message,
+	**
+	**	expect an immediate disconnect, ...
+	*/
+	SCR_REG_REG (scntl2, SCR_AND, 0x7f),
+		0,
+	SCR_CLR (SCR_ACK|SCR_ATN),
+		0,
+	SCR_WAIT_DISC,
+		0,
+	/*
+	**	... and set the status to "ABORTED"
+	*/
+	SCR_LOAD_REG (HS_REG, HS_ABORTED),
+		0,
+	SCR_JUMP,
+		PADDR (cleanup),
+
+}/*-------------------------< GETCC >-----------------------*/,{
+	/*
+	**	The ncr doesn't have an indirect load
+	**	or store command. So we have to
+	**	copy part of the control block to a
+	**	fixed place, where we can modify it.
+	**
+	**	We patch the address part of a COPY command
+	**	with the address of the dsa register ...
+	*/
+	SCR_COPY_F (4),
+		RADDR (dsa),
+		PADDRH (getcc1),
+	/*
+	**	... then we do the actual copy.
+	*/
+	SCR_COPY (sizeof (struct head)),
+}/*-------------------------< GETCC1 >----------------------*/,{
+		0,
+		NADDR (header),
+	/*
+	**	Initialize the status registers
+	*/
+	SCR_COPY (4),
+		NADDR (header.status),
+		RADDR (scr0),
+}/*-------------------------< GETCC2 >----------------------*/,{
+	/*
+	**	Get the condition code from a target.
+	**
+	**	DSA points to a data structure.
+	**	Set TEMP to the script location
+	**	that receives the condition code.
+	**
+	**	Because there is no script command
+	**	to load a longword into a register,
+	**	we use a CALL command.
+	*/
+/*<<<*/	SCR_CALLR,
+		24,
+	/*
+	**	Get the condition code.
+	*/
+	SCR_MOVE_TBL ^ SCR_DATA_IN,
+		offsetof (struct dsb, sense),
+	/*
+	**	No data phase may follow!
+	*/
+	SCR_CALL,
+		PADDR (checkatn),
+	SCR_JUMP,
+		PADDR (no_data),
+/*>>>*/
+
+	/*
+	**	The CALL jumps to this point.
+	**	Prepare for a RESTORE_POINTER message.
+	**	Save the TEMP register into the saved pointer.
+	*/
+	SCR_COPY (4),
+		RADDR (temp),
+		NADDR (header.savep),
+	/*
+	**	Load scratcha, because in case of a selection timeout,
+	**	the host will expect a new value for startpos in
+	**	the scratcha register.
+	*/
+	SCR_COPY (4),
+		PADDR (startpos),
+		RADDR (scratcha),
+#ifdef NCR_GETCC_WITHMSG
+	/*
+	**	If QUIRK_NOMSG is set, select without ATN.
+	**	and don't send a message.
+	*/
+	SCR_FROM_REG (QU_REG),
+		0,
+	SCR_JUMP ^ IFTRUE (MASK (QUIRK_NOMSG, QUIRK_NOMSG)),
+		PADDRH(getcc3),
+	/*
+	**	Then try to connect to the target.
+	**	If we are reselected, special treatment
+	**	of the current job is required before
+	**	accepting the reselection.
+	*/
+	SCR_SEL_TBL_ATN ^ offsetof (struct dsb, select),
+		PADDR(badgetcc),
+	/*
+	**	save target id.
+	*/
+	SCR_FROM_REG (sdid),
+		0,
+	SCR_TO_REG (ctest0),
+		0,
+	/*
+	**	Send the IDENTIFY message.
+	**	In case of short transfer, remove ATN.
+	*/
+	SCR_MOVE_TBL ^ SCR_MSG_OUT,
+		offsetof (struct dsb, smsg2),
+	SCR_CLR (SCR_ATN),
+		0,
+	/*
+	**	save the first byte of the message.
+	*/
+	SCR_COPY (1),
+		RADDR (sfbr),
+		NADDR (lastmsg),
+	SCR_JUMP,
+		PADDR (prepare2),
+
+#endif
+}/*-------------------------< GETCC3 >----------------------*/,{
+	/*
+	**	Try to connect to the target.
+	**	If we are reselected, special treatment
+	**	of the current job is required before
+	**	accepting the reselection.
+	**
+	**	Silly target won't accept a message.
+	**	Select without ATN.
+	*/
+	SCR_SEL_TBL ^ offsetof (struct dsb, select),
+		PADDR(badgetcc),
+	/*
+	**	save target id.
+	*/
+	SCR_FROM_REG (sdid),
+		0,
+	SCR_TO_REG (ctest0),
+		0,
+	/*
+	**	Force error if selection timeout
+	*/
+	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_IN)),
+		0,
+	/*
+	**	don't negotiate.
+	*/
+	SCR_JUMP,
+		PADDR (prepare2),
 }/*-------------------------< ABORTTAG >-------------------*/,{
 	/*
 	**      Abort a bad reselection.
@@ -2957,19 +3010,19 @@ static	struct script script0 = {
 	**	Read the variable.
 	*/
 	SCR_COPY (4),
-		(ncrcmd) &ncr_cache,
+		KVAR (KVAR_NCR_CACHE),
 		RADDR (scratcha),
 	/*
 	**	Write the variable.
 	*/
 	SCR_COPY (4),
 		RADDR (temp),
-		(ncrcmd) &ncr_cache,
+		KVAR (KVAR_NCR_CACHE),
 	/*
 	**	Read back the variable.
 	*/
 	SCR_COPY (4),
-		(ncrcmd) &ncr_cache,
+		KVAR (KVAR_NCR_CACHE),
 		RADDR (temp),
 }/*-------------------------< SNOOPEND >-------------------*/,{
 	/*
@@ -2980,6 +3033,7 @@ static	struct script script0 = {
 }/*--------------------------------------------------------*/
 };
 
+
 /*==========================================================
 **
 **
@@ -2989,12 +3043,12 @@ static	struct script script0 = {
 **==========================================================
 */
 
-void ncr_script_fill (struct script * scr)
+void ncr_script_fill (struct script * scr, struct scripth * scrh)
 {
 	int	i;
 	ncrcmd	*p;
 
-	p = scr->tryloop;
+	p = scrh->tryloop;
 	for (i=0; i<MAX_START; i++) {
 		*p++ =SCR_COPY (4);
 		*p++ =NADDR (squeue[i]);
@@ -3003,16 +3057,16 @@ void ncr_script_fill (struct script * scr)
 		*p++ =PADDR (trysel);
 	};
 	*p++ =SCR_JUMP;
-	*p++ =PADDR(tryloop);
+	*p++ =PADDRH(tryloop);
 
-	assert ((u_long)p == (u_long)&scr->tryloop + sizeof (scr->tryloop));
+	assert ((u_long)p == (u_long)&scrh->tryloop + sizeof (scrh->tryloop));
 
 	p = scr->data_in;
 
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_IN));
 	*p++ =PADDR (no_data);
 	*p++ =SCR_COPY (sizeof (struct timeval));
-	*p++ =(ncrcmd) &time;
+	*p++ =(ncrcmd) KVAR (KVAR_TIME);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_IN;
 	*p++ =offsetof (struct dsb, data[ 0]);
@@ -3036,7 +3090,7 @@ void ncr_script_fill (struct script * scr)
 	*p++ =SCR_JUMP ^ IFFALSE (WHEN (SCR_DATA_OUT));
 	*p++ =PADDR (no_data);
 	*p++ =SCR_COPY (sizeof (struct timeval));
-	*p++ =(ncrcmd) &time;
+	*p++ =(ncrcmd) KVAR (KVAR_TIME);
 	*p++ =NADDR (header.stamp.data);
 	*p++ =SCR_MOVE_TBL ^ SCR_DATA_OUT;
 	*p++ =offsetof (struct dsb, data[ 0]);
@@ -3065,27 +3119,14 @@ void ncr_script_fill (struct script * scr)
 **==========================================================
 */
 
-static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
+void ncr_script_copy_and_bind (ncb_p np, ncrcmd *src, ncrcmd *dst, int len)
 {
-	ncrcmd  opcode, new, old;
-	ncrcmd	*src, *dst, *start, *end;
+	ncrcmd  opcode, new, old, tmp1, tmp2;
+	ncrcmd	*start, *end;
 	int relocs;
 
-#ifndef __NetBSD__
-	np->script = (struct script*) vm_page_alloc_contig 
-	(round_page(sizeof (struct script)), 0x100000, 0xffffffff, PAGE_SIZE);
-#else  /* !__NetBSD___ */
-	np->script = (struct script *)
-		malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
-#endif /* __NetBSD__ */
-
-	np->p_script = vtophys(np->script);
-
-	src = script->start;
-	dst = np->script->start;
-
 	start = src;
-	end = src + (sizeof (struct script) / 4);
+	end = src + len/4;
 
 	while (src < end) {
 
@@ -3100,13 +3141,13 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 
 		if (opcode == 0) {
 			printf ("%s: ERROR0 IN SCRIPT at %d.\n",
-				ncr_name(np), src-start-1);
+				ncr_name(np), (int) (src-start-1));
 			DELAY (1000000);
 		};
 
 		if (DEBUG_FLAGS & DEBUG_SCRIPT)
-			printf ("%x:  <%x>\n",
-				(unsigned)(src-1), (unsigned)opcode);
+			printf ("%p:  <%x>\n",
+				(src-1), (unsigned)opcode);
 
 		/*
 		**	We don't have to decode ALL commands
@@ -3118,17 +3159,22 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 			**	COPY has TWO arguments.
 			*/
 			relocs = 2;
-			if ((src[0] ^ src[1]) & 3) {
+			tmp1 = src[0];
+			if ((tmp1 & RELOC_MASK) == RELOC_KVAR)
+				tmp1 = 0;
+			tmp2 = src[1];
+			if ((tmp2 & RELOC_MASK) == RELOC_KVAR)
+				tmp2 = 0;
+			if ((tmp1 ^ tmp2) & 3) {
 				printf ("%s: ERROR1 IN SCRIPT at %d.\n",
-					ncr_name(np), src-start-1);
+					ncr_name(np), (int) (src-start-1));
 				DELAY (1000000);
-			};
-
+			}
 			/*
-			**	If PREFETCH feature is not enabled/supported
-			**	remove the NO FLUSH bit if present.
+			**	If PREFETCH feature not enabled, remove 
+			**	the NO FLUSH bit if present.
 			*/
-			if ((opcode & SCR_NO_FLUSH)&&!(np->features & FE_PFEN))
+			if ((opcode & SCR_NO_FLUSH) && !(np->features&FE_PFEN))
 				dst[-1] = (opcode & ~SCR_NO_FLUSH);
 			break;
 
@@ -3173,8 +3219,20 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 				case RELOC_LABEL:
 					new = (old & ~RELOC_MASK) + np->p_script;
 					break;
+				case RELOC_LABELH:
+					new = (old & ~RELOC_MASK) + np->p_scripth;
+					break;
 				case RELOC_SOFTC:
 					new = (old & ~RELOC_MASK) + vtophys(np);
+					break;
+				case RELOC_KVAR:
+					if (((old & ~RELOC_MASK) <
+					     SCRIPT_KVAR_FIRST) ||
+					    ((old & ~RELOC_MASK) >
+					     SCRIPT_KVAR_LAST))
+						panic("ncr KVAR out of range");
+					new = vtophys(script_kvars[old &
+					    ~RELOC_MASK]);
 					break;
 				case 0:
 					/* Don't relocate a 0 address. */
@@ -3184,7 +3242,7 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 					}
 					/* fall through */
 				default:
-					new = vtophys(old);
+					panic("ncr_script_copy_and_bind: weird relocation %x @ %d\n", old, (src - start));
 					break;
 				}
 
@@ -3493,6 +3551,33 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->unit = unit;
 
 	/*
+	**	Allocate structure for script relocation.
+	*/
+#ifdef __FreeBSD__
+	if (sizeof (struct script) > PAGE_SIZE) {
+		np->script0  = (struct script*) vm_page_alloc_contig 
+			(round_page(sizeof (struct script)), 
+			 0x100000, 0xffffffff, PAGE_SIZE);
+	} else {
+		np->script0  = (struct script *)
+			malloc (sizeof (struct script),  M_DEVBUF, M_WAITOK);
+	}
+	if (sizeof (struct scripth) > PAGE_SIZE) {
+		np->scripth0 = (struct scripth*) vm_page_alloc_contig 
+			(round_page(sizeof (struct scripth)), 
+			 0x100000, 0xffffffff, PAGE_SIZE);
+	} else {
+		np->scripth0 = (struct scripth *)
+			malloc (sizeof (struct scripth), M_DEVBUF, M_WAITOK);
+	}
+#else  /* __FreeBSD___ */
+	np->script0  = (struct script *)
+		malloc (sizeof (struct script),  M_DEVBUF, M_WAITOK);
+	np->scripth0 = (struct scripth *)
+		malloc (sizeof (struct scripth), M_DEVBUF, M_WAITOK);
+#endif /* __FreeBSD__ */
+
+	/*
 	**	Try to map the controller chip to
 	**	virtual and physical memory.
 	*/
@@ -3532,7 +3617,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	np->rv_gpcntl	= INB(nc_gpcntl);
 	np->rv_stest2	= INB(nc_stest2) & 0x20;
 
-	if (bootverbose) {
+	if (bootverbose >= 2) {
 		printf ("\tBIOS values:  SCNTL3:%02x DMODE:%02x  DCNTL:%02x\n",
 			np->rv_scntl3, np->rv_dmode, np->rv_dcntl);
 		printf ("\t              CTEST3:%02x CTEST4:%02x CTEST5:%02x\n",
@@ -3690,6 +3775,46 @@ static	void ncr_attach (pcici_t config_id, int unit)
 			burst_code(np->rv_dmode, np->rv_ctest4, np->rv_ctest5);
 	}
 
+#ifndef NCR_IOMAPPED
+	/*
+	**	Get on-board RAM bus address when supported
+	*/
+	if ((np->features & FE_RAM) && sizeof(struct script) <= 4096)
+#ifdef __NetBSD__
+		(void)pci_map_mem(pa->pa_tag, 0x18, &np->vaddr2, &np->paddr2));
+#else	/* !__NetBSD__ */
+		(void)(!pci_map_mem (config_id,0x18, &np->vaddr2, &np->paddr2));
+#endif	/* __NetBSD */
+#endif	/* !NCR_IOMAPPED */
+
+#ifdef SCSI_NCR_PCI_CONFIG_FIXUP
+	/*
+	**	If cache line size is enabled, check PCI config space and 
+	**	try to fix it up if necessary.
+	*/
+#ifdef PCIR_CACHELNSZ	/* To be sure that new PCI stuff is present */
+	do {
+		u_char cachelnsz = pci_cfgread(config_id, PCIR_CACHELNSZ, 1);
+		u_short command  = pci_cfgread(config_id, PCIR_COMMAND, 2);
+
+		if (!cachelnsz) {
+			cachelnsz = 8;
+			printf("%s: setting PCI cache line size register to %d.\n",
+				ncr_name(np), (int)cachelnsz);
+			pci_cfgwrite(config_id, PCIR_CACHELNSZ, cachelnsz, 1);
+		}
+
+		if (!(command & (1<<4))) {
+			command |= (1<<4);
+			printf("%s: setting PCI command write and invalidate.\n",
+				ncr_name(np));
+			pci_cfgwrite(config_id, PCIR_COMMAND, command, 2);
+		}
+	} while (0);
+#endif /* PCIR_CACHELNSZ */
+
+#endif /* SCSI_NCR_PCI_CONFIG_FIXUP */
+
 	/*
 	**	Bells and whistles   ;-)
 	*/
@@ -3699,11 +3824,32 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		(np->rv_ctest5 & DFS) ? "large" : "normal");
 
 	/*
-	**	Patch script to physical addresses
+	**	Print some complementary information that can be helpfull.
 	*/
+	if (bootverbose)
+		printf("%s: %s, %s IRQ driver%s\n",
+			ncr_name(np),
+			np->rv_stest2 & 0x20 ? "differential" : "single-ended",
+			np->rv_dcntl & IRQM ? "totem pole" : "open drain",
+			np->vaddr2 ? ", using on-board RAM" : "");
+			
+	/*
+	**	Patch scripts to physical addresses
+	*/
+	ncr_script_fill (&script0, &scripth0);
 
-	ncr_script_fill (&script0);
-	ncr_script_copy_and_bind (&script0, np);
+	np->scripth	= np->scripth0;
+	np->p_scripth	= vtophys(np->scripth);
+
+	np->script	= np->vaddr2 ? (struct script *) np->vaddr2:np->script0;
+	np->p_script	= np->vaddr2 ? np->paddr2 : vtophys(np->script0);
+
+	ncr_script_copy_and_bind (np, (ncrcmd *) &script0,
+			(ncrcmd *) np->script0, sizeof(struct script));
+
+	ncr_script_copy_and_bind (np, (ncrcmd *) &scripth0,
+		(ncrcmd *) np->scripth0, sizeof(struct scripth));
+
 	np->ccb->p_ccb	= vtophys (np->ccb);
 
 	/*
@@ -3711,9 +3857,9 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	if (np->features & FE_LED0) {
-		np->script->reselect[0]  = SCR_REG_REG(gpreg, SCR_OR,  0x01);
-		np->script->reselect1[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
-		np->script->reselect2[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
+		np->script0->reselect[0]  = SCR_REG_REG(gpreg, SCR_OR,  0x01);
+		np->script0->reselect1[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
+		np->script0->reselect2[0] = SCR_REG_REG(gpreg, SCR_AND, 0xfe);
 	}
 
 	/*
@@ -3721,7 +3867,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	*/
 
 	np->jump_tcb.l_cmd	= SCR_JUMP;
-	np->jump_tcb.l_paddr	= NCB_SCRIPT_PHYS (np, abort);
+	np->jump_tcb.l_paddr	= NCB_SCRIPTH_PHYS (np, abort);
 
 	/*
 	**  Get SCSI addr of host adapter (set by bios?).
@@ -4351,7 +4497,7 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 		printf ("%s: queuepos=%d tryoffset=%d.\n", ncr_name (np),
 		np->squeueput,
 		(unsigned)(np->script->startpos[0]- 
-			   (NCB_SCRIPT_PHYS (np, tryloop))));
+			   (NCB_SCRIPTH_PHYS (np, tryloop))));
 
 	/*
 	**	Script processor may be waiting for reselect.
@@ -4777,7 +4923,7 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	*/
 
 	np->squeueput = 0;
-	np->script->startpos[0] = NCB_SCRIPT_PHYS (np, tryloop);
+	np->script->startpos[0] = NCB_SCRIPTH_PHYS (np, tryloop);
 	np->script->start0  [0] = SCR_INT ^ IFFALSE (0);
 
 	/*
@@ -4806,7 +4952,7 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	OUTB (nc_stest3, TE     );	/*  TolerANT enable		     */
 	OUTB (nc_stime0, 0x0b	);	/*  HTH = disabled, STO = 0.1 sec.   */
 
-	if (bootverbose) {
+	if (bootverbose >= 2) {
 		printf ("\tACTUAL values:SCNTL3:%02x DMODE:%02x  DCNTL:%02x\n",
 			np->rv_scntl3, np->rv_dmode, np->rv_dcntl);
 		printf ("\t              CTEST3:%02x CTEST4:%02x CTEST5:%02x\n",
@@ -4819,6 +4965,15 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 
 	if (np->features & FE_LED0) {
 		OUTOFFB (nc_gpcntl, 0x01);
+	}
+
+	/*
+	**    Upload the script into on-board RAM
+	*/
+	if (np->vaddr2) {
+		if (bootverbose)
+			printf ("%s: copying script fragments into the on-board RAM ...\n", ncr_name(np));
+		bcopy(np->script0, np->script, sizeof(struct script));
 	}
 
 	/*
@@ -5063,6 +5218,16 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char scntl3, u_char sxfer)
 		printf ("%d.%d MB/s (%d ns, offset %d)\n",
 			mb10 / 10, mb10 % 10, tp->period / 10, sxfer & 0x1f);
 	} else  printf ("asynchronous.\n");
+
+#if 1
+	/*
+	**	Convert tp->period in nano-seconds since ncrcontrol 
+	**	is expecting nano-seconds. It should be better to 
+	**	update ncrcontrol.
+	*/
+		if (tp->period != 0xffff)
+			tp->period = (tp->period + 9) / 10;
+#endif
 
 	/*
 	**	set actual value and sync_status
@@ -5410,6 +5575,78 @@ static void ncr_timeout (void *arg)
 
 /*==========================================================
 **
+**	log message for real hard errors
+**
+**	"ncr0 targ 0?: ERROR (ds:si) (so-si-sd) (sxfer/scntl3) @ name (dsp:dbc)."
+**	"	      reg: r0 r1 r2 r3 r4 r5 r6 ..... rf."
+**
+**	exception register:
+**		ds:	dstat
+**		si:	sist
+**
+**	SCSI bus lines:
+**		so:	control lines as driver by NCR.
+**		si:	control lines as seen by NCR.
+**		sd:	scsi data lines as seen by NCR.
+**
+**	wide/fastmode:
+**		sxfer:	(see the manual)
+**		scntl3:	(see the manual)
+**
+**	current script command:
+**		dsp:	script adress (relative to start of script).
+**		dbc:	first word of script command.
+**
+**	First 16 register of the chip:
+**		r0..rf
+**
+**==========================================================
+*/
+
+static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
+{
+	u_long	dsp;
+	int	script_ofs;
+	int	script_size;
+	char	*script_name;
+	u_char	*script_base;
+	int	i;
+
+	dsp	= INL (nc_dsp);
+
+	if (dsp > np->p_script && dsp <= np->p_script + sizeof(struct script)) {
+		script_ofs	= dsp - np->p_script;
+		script_size	= sizeof(struct script);
+		script_base	= (u_char *) np->script;
+		script_name	= "script";
+	}
+	else {
+		script_ofs	= dsp - np->p_scripth;
+		script_size	= sizeof(struct scripth);
+		script_base	= (u_char *) np->scripth;
+		script_name	= "scripth";
+	}
+
+	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ %s (%x:%08x).\n",
+		ncr_name (np), (unsigned)INB (nc_ctest0)&0x0f, dstat, sist,
+		(unsigned)INB (nc_socl), (unsigned)INB (nc_sbcl), (unsigned)INB (nc_sbdl),
+		(unsigned)INB (nc_sxfer),(unsigned)INB (nc_scntl3), script_name, script_ofs,
+		(unsigned)INL (nc_dbc));
+
+	if (((script_ofs & 3) == 0) &&
+	    (unsigned)script_ofs < script_size) {
+		printf ("%s: script cmd = %08x\n", ncr_name(np),
+			(int) *(ncrcmd *)(script_base + script_ofs));
+	}
+
+        printf ("%s: regdump:", ncr_name(np));
+        for (i=0; i<16;i++)
+            printf (" %02x", (unsigned)INB_OFF(i));
+        printf (".\n");
+}
+
+/*==========================================================
+**
 **
 **	ncr chip exception handler.
 **
@@ -5528,6 +5765,13 @@ void ncr_exception (ncb_p np)
 	};
 
 	/*========================================
+	**	log message for real hard errors
+	**========================================
+	*/
+
+	ncr_log_hard_error(np, sist, dstat);
+
+	/*========================================
 	**	do the register dump
 	**========================================
 	*/
@@ -5536,62 +5780,11 @@ void ncr_exception (ncb_p np)
 		int i;
 		gettime(&np->regtime);
 		for (i=0; i<sizeof(np->regdump); i++)
-			((char*)&np->regdump)[i] = ((volatile char*)np->reg)[i];
+			((char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
 		np->regdump.nc_sist  = sist;
 	};
 
-	/*=========================================
-	**	log message for real hard errors
-	**=========================================
-
-	"ncr0 targ 0?: ERROR (ds:si) (so-si-sd) (sxfer/scntl3) @ (dsp:dbc)."
-	"	      reg: r0 r1 r2 r3 r4 r5 r6 ..... rf."
-
-	exception register:
-		ds:	dstat
-		si:	sist
-
-	SCSI bus lines:
-		so:	control lines as driver by NCR.
-		si:	control lines as seen by NCR.
-		sd:	scsi data lines as seen by NCR.
-
-	wide/fastmode:
-		sxfer:	(see the manual)
-		scntl3:	(see the manual)
-
-	current script command:
-		dsp:	script adress (relative to start of script).
-		dbc:	first word of script command.
-
-	First 16 register of the chip:
-		r0..rf
-
-	=============================================
-	*/
-
-	dsp = (unsigned) INL (nc_dsp);
-	dsa = (unsigned) INL (nc_dsa);
-
-	script_ofs = dsp - np->p_script;
-
-	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%08x).\n",
-		ncr_name (np), INB (nc_ctest0)&0x0f, dstat, sist,
-		INB (nc_socl), INB (nc_sbcl), INB (nc_sbdl),
-		INB (nc_sxfer),INB (nc_scntl3), script_ofs,
-		(unsigned) INL (nc_dbc));
-
-	if (((script_ofs & 3) == 0) &&
-	    (unsigned)script_ofs < sizeof(struct script)) {
-		printf ("\tscript cmd = %08x\n", 
-			*(ncrcmd *)((char*)np->script +script_ofs));
-	}
-
-	printf ("\treg:\t");
-	for (i=0; i<16;i++)
-		printf (" %02x", ((volatile u_char*)np->reg)[i]);
-	printf (".\n");
 
 	/*----------------------------------------
 	**	clean up the dma fifo
@@ -5787,7 +5980,7 @@ void ncr_int_sto (ncb_p np)
 	*/
 
 	scratcha = INL (nc_scratcha);
-	diff = scratcha - NCB_SCRIPT_PHYS (np, tryloop);
+	diff = scratcha - NCB_SCRIPTH_PHYS (np, tryloop);
 
 /*	assert ((diff <= MAX_START * 20) && !(diff % 20));*/
 
@@ -5891,8 +6084,12 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	} else if (dsp == vtophys (&cp->patch[6])) {
 		vdsp = &cp->patch[4];
 		nxtdsp = vdsp[3];
+	} else if (dsp > np->p_script &&
+		   dsp <= np->p_script + sizeof(struct script)) {
+		vdsp = (u_long *) ((char*)np->script - np->p_script + dsp -8);
+		nxtdsp = dsp;
 	} else {
-		vdsp = (u_long*) ((char*)np->script - np->p_script + dsp -8);
+		vdsp = (u_long *) ((char*)np->scripth - np->p_scripth+ dsp -8);
 		nxtdsp = dsp;
 	};
 
@@ -6090,7 +6287,7 @@ void ncr_int_sir (ncb_p np)
 			if (DEBUG_FLAGS & DEBUG_RESTART)
 				printf ("+ restart job ..\n");
 			OUTL (nc_dsa, CCB_PHYS (cp, phys));
-			OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, getcc));
+			OUTL (nc_dsp, NCB_SCRIPTH_PHYS (np, getcc));
 			return;
 		};
 
@@ -6736,7 +6933,7 @@ static	void ncr_alloc_ccb (ncb_p np, u_long target, u_long lun)
 		tp->call_lun.l_paddr = NCB_SCRIPT_PHYS (np, resel_lun);
 
 		tp->jump_lcb.l_cmd   = (SCR_JUMP);
-		tp->jump_lcb.l_paddr = NCB_SCRIPT_PHYS (np, abort);
+		tp->jump_lcb.l_paddr = NCB_SCRIPTH_PHYS (np, abort);
 		np->jump_tcb.l_paddr = vtophys (&tp->jump_tcb);
 
 		tp->usrtags = SCSI_NCR_DFLT_TAGS;
@@ -6765,7 +6962,7 @@ static	void ncr_alloc_ccb (ncb_p np, u_long target, u_long lun)
 		lp->call_tag.l_paddr = NCB_SCRIPT_PHYS (np, resel_tag);
 
 		lp->jump_ccb.l_cmd   = (SCR_JUMP);
-		lp->jump_ccb.l_paddr = NCB_SCRIPT_PHYS (np, aborttag);
+		lp->jump_ccb.l_paddr = NCB_SCRIPTH_PHYS (np, aborttag);
 
 		lp->actlink = 1;
 
@@ -7060,7 +7257,7 @@ static int ncr_snooptest (struct ncb* np)
 	/*
 	**	init
 	*/
-	pc  = NCB_SCRIPT_PHYS (np, snooptest);
+	pc  = NCB_SCRIPTH_PHYS (np, snooptest);
 	host_wr = 1;
 	ncr_wr  = 2;
 	/*
@@ -7104,11 +7301,11 @@ static int ncr_snooptest (struct ncb* np)
 	/*
 	**	Check termination position.
 	*/
-	if (pc != NCB_SCRIPT_PHYS (np, snoopend)+8) {
+	if (pc != NCB_SCRIPTH_PHYS (np, snoopend)+8) {
 		printf ("CACHE TEST FAILED: script execution failed.\n");
 		printf ("\tstart=%08x, pc=%08x, end=%08x\n", 
-			NCB_SCRIPT_PHYS (np, snooptest), pc,
-			NCB_SCRIPT_PHYS (np, snoopend) +8);
+			NCB_SCRIPTH_PHYS (np, snooptest), pc,
+			NCB_SCRIPTH_PHYS (np, snoopend) +8);
 		return (0x40);
 	};
 	/*
@@ -7289,7 +7486,7 @@ ncrgetfreq (ncb_p np, int gen)
 	 */
 	OUTB (nc_scntl3, 0);
 
-	if (bootverbose)
+	if (bootverbose >= 2)
 	  	printf ("\tDelay (GEN=%d): %lu msec\n", gen, ms);
 	/*
 	 * adjust for prescaler, and convert into KHz 
@@ -7317,7 +7514,7 @@ static void ncr_getclock (ncb_p np, u_char multiplier)
 			f1 = ncrgetfreq (np, 11);
 			f2 = ncrgetfreq (np, 11);
 
-			if (bootverbose)
+			if (bootverbose >= 2)
 			  printf ("\tNCR clock is %luKHz, %luKHz\n", f1, f2);
 			if (f1 > f2) f1 = f2;	/* trust lower result	*/
 			if (f1 > 45000) {
