@@ -355,7 +355,7 @@ bpfopen(dev, flags, fmt, td)
 	mac_create_bpfdesc(td->td_ucred, d);
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
-	callout_init(&d->bd_callout, 1);
+	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
 
 	return (0);
 }

@@ -403,7 +403,7 @@ sched_setup(void *dummy)
 		sched_quantum = SCHED_QUANTUM;
 	hogticks = 2 * sched_quantum;
 
-	callout_init(&schedcpu_callout, 1);
+	callout_init(&schedcpu_callout, CALLOUT_MPSAFE);
 	callout_init(&roundrobin_callout, 0);
 
 	/* Kick off timeout driven events by calling first time. */
