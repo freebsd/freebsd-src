@@ -45,6 +45,7 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -638,8 +639,14 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
-	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
-	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+#ifdef MAC
+	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	    &vattr);
+#endif /* MAC */
+	if (error == 0) {
+		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
+		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	if (error) {
