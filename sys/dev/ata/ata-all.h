@@ -282,6 +282,7 @@ extern struct intr_config_hook *ata_delayed_attach;
 int ata_probe(device_t);
 int ata_attach(device_t);
 int ata_detach(device_t);
+int ata_suspend(device_t);
 int ata_resume(device_t);
 void ata_start(struct ata_channel *);
 void ata_reset(struct ata_channel *);
