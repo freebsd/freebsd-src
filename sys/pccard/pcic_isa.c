@@ -289,8 +289,8 @@ pcic_isa_attach(device_t dev)
 	}
 	sc->iorid = rid;
 	sc->iores = r;
-	sc->csc_route = isa_parallel;
-	sc->func_route = isa_parallel;
+	sc->csc_route = pcic_iw_isa;
+	sc->func_route = pcic_iw_isa;
 
 	rid = 0;
 	r = NULL;
