@@ -291,10 +291,12 @@ vlan_start(struct ifnet *ifp)
 			continue;
 		}
 		IF_ENQUEUE(&p->if_snd, m);
-		if ((p->if_flags & IFF_OACTIVE) == 0) {
+		ifp->if_opackets++;
+		p->if_obytes += m->m_pkthdr.len;
+		if (m->m_flags & M_MCAST)
+			p->if_omcasts++;
+		if ((p->if_flags & IFF_OACTIVE) == 0)
 			p->if_start(p);
-			ifp->if_opackets++;
-		}
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 
