@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9 1996/10/23 07:25:35 asami Exp $
+ *	$Id: wd.c,v 1.10 1996/11/02 10:40:07 asami Exp $
  */
 
 /* TODO:
@@ -599,7 +599,7 @@ wdstrategy(register struct buf *bp)
 #endif
 
 	/*
-	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
+	 * Do bounds checking, adjust transfer, and set b_pblkno.
 	 */
 	if (dscheck(bp, du->dk_slices) <= 0)
 		goto done;

@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.23 1996/11/06 17:31:14 joerg Exp $
+ *	$Id: od.c,v 1.24 1996/12/01 11:25:17 sos Exp $
  */
 
 /*
@@ -487,7 +487,7 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	}
 
 	/*
-	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
+	 * Do bounds checking, adjust transfer, and set b_pblkno.
 	 */
 	{
 	int status;

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95 1996/09/14 04:31:09 bde Exp $
+ *      $Id: sd.c,v 1.96 1996/12/01 11:25:18 sos Exp $
  */
 
 #include "opt_bounce.h"
@@ -435,7 +435,7 @@ sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		goto bad;
 	}
 	/*
-	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
+	 * Do bounds checking, adjust transfer, and set b_pblkno.
 	 */
 	if (dscheck(bp, sd->dk_slices) <= 0)
 		goto done;	/* XXX check b_resid */
