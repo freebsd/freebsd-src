@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- *	$Id: if.h,v 1.53 1999/06/06 09:17:51 phk Exp $
+ *	$Id: if.h,v 1.54 1999/06/19 18:42:27 phk Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -200,15 +200,15 @@ struct ifmediareq {
 
 /* 
  * Structure used to retrieve aux status data from interfaces.
- * kernel suppliers to this interface should respect the formatting
+ * Kernel suppliers to this interface should respect the formatting
  * needed by ifconfig(8): each line starts with a TAB and ends with
- * a newline.  The canonical example to copy&past is in if_tun.c
+ * a newline.  The canonical example to copy and paste is in if_tun.c.
  */
 
-#define IFSTATMAX	800		/* 10 lines of text */
+#define	IFSTATMAX	800		/* 10 lines of text */
 struct ifstat {
-	char	ifs_name[IFNAMSIZ];		/* if name, e.g. "en0" */
-	char ascii[IFSTATMAX+1];
+	char	ifs_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	char	ascii[IFSTATMAX + 1];
 };
 
 /*
@@ -236,8 +236,10 @@ MALLOC_DECLARE(M_IFMADDR);
 
 #ifdef KERNEL
 struct proc;
+
 int	prison_if __P((struct proc *p, struct sockaddr *sa));
-/* XXX - this should go away soon */
+
+/* XXX - this should go away soon. */
 #include <net/if_var.h>
 #endif
 
