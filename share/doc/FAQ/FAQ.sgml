@@ -1,11 +1,11 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.12 1996/10/09 20:52:35 asami Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.13 1996/10/19 23:13:36 roberto Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date>$Date: 1996/10/09 20:52:35 $
+<date>$Date: 1996/10/19 23:13:36 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2779,7 +2779,7 @@ disk        fd1   at fdc0 drive 1
           <url url="http://www.FreeBSD.ORG/How/handbook/ppp.html"
             name="Handbook entry on PPP (kernel version)">
           <url url="http://www.FreeBSD.ORG/How/handbook/userppp.html"
-            name="Handbook entry on SLIP (user-mode version)">
+            name="Handbook entry on PPP (user-mode version)">
 
       <sect1> 
         <heading>I can connect with IJPPP but it doesn't work right!</heading>
