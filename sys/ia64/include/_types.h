@@ -97,7 +97,7 @@ typedef	__uint64_t	__vm_size_t;
 typedef __builtin_va_list	__va_list;	/* internally known to gcc */
 #if !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
 #define	__GNUC_VA_LIST
-typedef	_BSD_VA_LIST_	__gnuc_va_list;		/* compatibility w/GNU headers*/
+typedef	__va_list	__gnuc_va_list;		/* compatibility w/GNU headers*/
 #endif
 #else
 #error Must add va_list support for this non-GCC compiler.   
