@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.39 1997/09/05 10:23:54 davidg Exp $
+ *	$Id: if_fxp.c,v 1.40 1997/09/21 22:02:08 gibbs Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/if_media.h>
 
 #ifdef INET
@@ -162,8 +163,7 @@ static u_char fxp_cb_config_template[] = {
 	0xf3,	/* 18 */
 	0x0,	/* 19 */
 	0x3f,	/* 20 */
-	0x5,	/* 21 */
-	0x0, 0x0
+	0x5	/* 21 */
 };
 
 /* Supported media types. */
@@ -206,9 +206,7 @@ const struct fxp_supported_media fxp_media[] = {
 
 static int fxp_mediachange	__P((struct ifnet *));
 static void fxp_mediastatus	__P((struct ifnet *, struct ifmediareq *));
-
 void fxp_set_media		__P((struct fxp_softc *, int));
-
 static inline void fxp_scb_wait	__P((struct fxp_softc *));
 static FXP_INTR_TYPE fxp_intr	__P((void *));
 static void fxp_start		__P((struct ifnet *));
@@ -223,8 +221,8 @@ static void fxp_mdi_write	__P((struct fxp_softc *, int, int, int));
 static void fxp_read_eeprom	__P((struct fxp_softc *, u_int16_t *,
 				    int, int));
 static int fxp_attach_common	__P((struct fxp_softc *, u_int8_t *));
-
 void fxp_stats_update		__P((void *));
+static void fxp_mc_setup	__P((struct fxp_softc *));
 
 /*
  * Set initial transmit threshold at 64 (512 bytes). This is
@@ -246,21 +244,18 @@ static int tx_threshold = 64;
 #define FXP_TXCB_MASK	(FXP_NTXCB - 1)
 
 /*
- * Number of DMA segments in a TxCB. Note that this is carefully
- * chosen to make the total struct size an even power of two. It's
- * critical that no TxCB be split across a page boundry since
- * no attempt is made to allocate physically contiguous memory.
- * 
- * XXX - don't forget to change the hard-coded constant in the
- * fxp_cb_tx struct (defined in if_fxpreg.h), too!
- */
-#define FXP_NTXSEG	29
-
-/*
  * Number of receive frame area buffers. These are large so chose
  * wisely.
  */
 #define FXP_NRFABUFS	32
+
+/*
+ * Maximum number of seconds that the receiver can be idle before we
+ * assume it's dead and attempt to reset it by reprogramming the
+ * multicast filter. This is part of a work-around for a bug in the
+ * NIC. See fxp_stats_update().
+ */
+#define FXP_MAX_RX_IDLE	15
 
 /*
  * Wait for the previous command to be accepted (but not necessarily
@@ -272,8 +267,7 @@ fxp_scb_wait(sc)
 {
 	int i = 10000;
 
-	while ((CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) & FXP_SCB_COMMAND_MASK)
-	    && --i);
+	while (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) && --i);
 }
 
 /*************************************************************
@@ -629,6 +623,10 @@ fxp_attach_common(sc, enaddr)
 		goto fail;
 	bzero(sc->fxp_stats, sizeof(struct fxp_stats));
 
+	sc->mcsp = malloc(sizeof(struct fxp_cb_mcs), M_DEVBUF, M_NOWAIT);
+	if (sc->mcsp == NULL)
+		goto fail;
+
 	/*
 	 * Pre-allocate our receive buffers.
 	 */
@@ -683,6 +681,8 @@ fxp_attach_common(sc, enaddr)
 		free(sc->cbl_base, M_DEVBUF);
 	if (sc->fxp_stats)
 		free(sc->fxp_stats, M_DEVBUF);
+	if (sc->mcsp)
+		free(sc->mcsp, M_DEVBUF);
 	/* frees entire chain */
 	if (sc->rfa_headm)
 		m_freem(sc->rfa_headm);
@@ -775,9 +775,12 @@ fxp_start(ifp)
 
 txloop:
 	/*
-	 * See if we're all filled up with buffers to transmit.
+	 * See if we're all filled up with buffers to transmit, or
+	 * if we need to suspend xmit until the multicast filter
+	 * has been reprogrammed (which can only be done at the
+	 * head of the command chain).
 	 */
-	if (sc->tx_queued >= FXP_NTXCB)
+	if (sc->tx_queued >= FXP_NTXCB || sc->need_mcsetup)
 		return;
 
 	/*
@@ -925,19 +928,21 @@ fxp_intr(arg)
 		if (statack & FXP_SCB_STATACK_CNA) {
 			struct fxp_cb_tx *txp;
 
-			for (txp = sc->cbl_first;
+			for (txp = sc->cbl_first; sc->tx_queued &&
 			    (txp->cb_status & FXP_CB_STATUS_C) != 0;
 			    txp = txp->next) {
 				if (txp->mb_head != NULL) {
 					m_freem(txp->mb_head);
 					txp->mb_head = NULL;
-					sc->tx_queued--;
 				}
-				if (txp == sc->cbl_last)
-					break;
+				sc->tx_queued--;
 			}
 			sc->cbl_first = txp;
-			ifp->if_timer = 0;
+			if (sc->tx_queued == 0) {
+				ifp->if_timer = 0;
+				if (sc->need_mcsetup)
+					fxp_mc_setup(sc);
+			}
 			/*
 			 * Try to start more packets transmitting.
 			 */
@@ -1044,10 +1049,17 @@ fxp_stats_update(arg)
 	struct fxp_softc *sc = arg;
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_stats *sp = sc->fxp_stats;
+	int s;
 
 	ifp->if_opackets += sp->tx_good;
 	ifp->if_collisions += sp->tx_total_collisions;
 	ifp->if_ipackets += sp->rx_good;
+	if (sp->rx_good) {
+		ifp->if_ipackets += sp->rx_good;
+		sc->rx_idle_secs = 0;
+	} else {
+		sc->rx_idle_secs++;
+	}
 	ifp->if_ierrors +=
 	    sp->rx_crc_errors +
 	    sp->rx_alignment_errors +
@@ -1062,20 +1074,31 @@ fxp_stats_update(arg)
 		if (tx_threshold < 192)
 			tx_threshold += 64;
 	}
+	s = splimp();
+	/*
+	 * If we haven't received any packets in FXP_MAC_RX_IDLE seconds,
+	 * then assume the receiver has locked up and attempt to clear
+	 * the condition by reprogramming the multicast filter. This is
+	 * a work-around for a bug in the 82557 where the receiver locks
+	 * up if it gets certain types of garbage in the syncronization
+	 * bits prior to the packet header. This bug is supposed to only
+	 * occur in 10Mbps mode, but has been seen to occur in 100Mbps
+	 * mode as well (perhaps due to a 10/100 speed transition).
+	 */
+	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
+		sc->rx_idle_secs = 0;
+		fxp_mc_setup(sc);
+	}
 	/*
 	 * If there is no pending command, start another stats
 	 * dump. Otherwise punt for now.
 	 */
-	if ((CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) &
-	    FXP_SCB_COMMAND_MASK) == 0) {
+	if (CSR_READ_1(sc, FXP_CSR_SCB_COMMAND) == 0) {
 		/*
-		 * Start another stats dump. By waiting for it to be
-		 * accepted, we avoid having to do splhigh locking when
-		 * writing scb_command in other parts of the driver.
+		 * Start another stats dump.
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND,
 		    FXP_SCB_COMMAND_CU_DUMPRESET);
-		fxp_scb_wait(sc);
 	} else {
 		/*
 		 * A previous command is still waiting to be accepted.
@@ -1092,10 +1115,11 @@ fxp_stats_update(arg)
 		sp->rx_rnr_errors = 0;
 		sp->rx_overrun_errors = 0;
 	}
+	splx(s);
 	/*
 	 * Schedule another timeout one second from now.
 	 */
-	timeout(fxp_stats_update, sc, hz);
+	sc->stat_ch = timeout(fxp_stats_update, sc, hz);
 }
 
 /*
@@ -1165,7 +1189,7 @@ fxp_watchdog(ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 
-	log(LOG_ERR, FXP_FORMAT ": device timeout\n", FXP_ARGS(sc));
+	printf(FXP_FORMAT ": device timeout\n", FXP_ARGS(sc));
 	ifp->if_oerrors++;
 
 	fxp_init(sc);
@@ -1180,7 +1204,7 @@ fxp_init(xsc)
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
-	int i, s, mcast, prm;
+	int i, s, prm;
 
 	s = splimp();
 	/*
@@ -1190,12 +1214,6 @@ fxp_init(xsc)
 
 	prm = (ifp->if_flags & IFF_PROMISC) ? 1 : 0;
 	sc->promisc_mode = prm;
-	/*
-	 * Sleeze out here and enable reception of all multicasts if
-	 * multicasts are enabled. Ideally, we'd program the multicast
-	 * address filter to only accept specific multicasts.
-	 */
-	mcast = (ifp->if_flags & (IFF_MULTICAST|IFF_ALLMULTI)) ? 1 : 0;
 
 	/*
 	 * Initialize base of CBL and RFA memory. Loading with zero
@@ -1226,7 +1244,8 @@ fxp_init(xsc)
 	 * zero and must be one bits in this structure and this is the easiest
 	 * way to initialize them all to proper values.
 	 */
-	bcopy(fxp_cb_config_template, cbp, sizeof(struct fxp_cb_config));
+	bcopy(fxp_cb_config_template, (void *)&cbp->cb_status,
+		sizeof(fxp_cb_config_template));
 
 	cbp->cb_status =	0;
 	cbp->cb_command =	FXP_CB_COMMAND_CONFIG | FXP_CB_COMMAND_EL;
@@ -1260,13 +1279,13 @@ fxp_init(xsc)
 	cbp->force_fdx =	0;	/* (don't) force full duplex */
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
-	cbp->mc_all =		mcast;	/* accept all multicasts */
+	cbp->mc_all =		sc->all_mcasts;/* accept all multicasts */
 
 	/*
 	 * Start the config command/DMA.
 	 */
 	fxp_scb_wait(sc);
-	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(cbp));
+	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&cbp->cb_status));
 	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	while (!(cbp->cb_status & FXP_CB_STATUS_C));
@@ -1303,17 +1322,17 @@ fxp_init(xsc)
 	for (i = 0; i < FXP_NTXCB; i++) {
 		txp[i].cb_status = FXP_CB_STATUS_C | FXP_CB_STATUS_OK;
 		txp[i].cb_command = FXP_CB_COMMAND_NOP;
-		txp[i].link_addr = vtophys(&txp[(i + 1) & FXP_TXCB_MASK]);
+		txp[i].link_addr = vtophys(&txp[(i + 1) & FXP_TXCB_MASK].cb_status);
 		txp[i].tbd_array_addr = vtophys(&txp[i].tbd[0]);
 		txp[i].next = &txp[(i + 1) & FXP_TXCB_MASK];
 	}
 	/*
-	 * Set the stop flag on the first TxCB and start the control
+	 * Set the suspend flag on the first TxCB and start the control
 	 * unit. It will execute the NOP and then suspend.
 	 */
 	txp->cb_command = FXP_CB_COMMAND_NOP | FXP_CB_COMMAND_S;
 	sc->cbl_first = sc->cbl_last = txp;
-	sc->tx_queued = 0;
+	sc->tx_queued = 1;
 
 	fxp_scb_wait(sc);
 	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
@@ -1592,6 +1611,7 @@ fxp_ioctl(ifp, command, data)
 		break;
 
 	case SIOCSIFFLAGS:
+		sc->all_mcasts = (ifp->if_flags & IFF_ALLMULTI) ? 1 : 0;
 
 		/*
 		 * If interface is marked up and not running, then start it.
@@ -1609,6 +1629,7 @@ fxp_ioctl(ifp, command, data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		sc->all_mcasts = (ifp->if_flags & IFF_ALLMULTI) ? 1 : 0;
 #if defined(__NetBSD__)
 	    {
 		struct ifreq *ifr = (struct ifreq *) data;
@@ -1622,7 +1643,14 @@ fxp_ioctl(ifp, command, data)
 			 * Multicast list has changed; set the hardware
 			 * filter accordingly.
 			 */
-			fxp_init(sc);
+			if (!sc->all_mcasts)
+				fxp_mc_setup(sc);
+			/*
+			 * fxp_mc_setup() can turn on all_mcasts if we run
+			 * out of space, so check it again rather than else {}.
+			 */
+			if (sc->all_mcasts)
+				fxp_init(sc);
 			error = 0;
 		}
 	    }
@@ -1631,7 +1659,14 @@ fxp_ioctl(ifp, command, data)
 		 * Multicast list has changed; set the hardware filter
 		 * accordingly.
 		 */
-		fxp_init(sc);
+		if (!sc->all_mcasts)
+			fxp_mc_setup(sc);
+		/*
+		 * fxp_mc_setup() can turn on sc->all_mcasts, so check it
+		 * again rather than else {}.
+		 */
+		if (sc->all_mcasts)
+			fxp_init(sc);
 		error = 0;
 #endif /* __NetBSD__ */
 		break;
@@ -1646,4 +1681,80 @@ fxp_ioctl(ifp, command, data)
 	}
 	(void) splx(s);
 	return (error);
+}
+
+/*
+ * Program the multicast filter.
+ *
+ * We have an artificial restriction that the multicast setup command
+ * must be the first command in the chain, so we take steps to ensure
+ * that. By requiring this, it allows us to keep the performance of
+ * the pre-initialized command ring (esp. link pointers) by not actually
+ * inserting the mcsetup command in the ring - i.e. it's link pointer
+ * points to the TxCB ring, but the mcsetup descriptor itself is not part
+ * of it. We then can do 'CU_START' on the mcsetup descriptor and have it
+ * lead into the regular TxCB ring when it completes.
+ *
+ * This function must be called at splimp.
+ */
+static void
+fxp_mc_setup(sc)
+	struct fxp_softc *sc;
+{
+	struct fxp_cb_mcs *mcsp = sc->mcsp;
+	struct ifnet *ifp = &sc->sc_if;
+	struct ifmultiaddr *ifma;
+	int nmcasts;
+
+	if (sc->tx_queued) {
+		sc->need_mcsetup = 1;
+		return;
+	}
+	sc->need_mcsetup = 0;
+
+	/*
+	 * Initialize multicast setup descriptor.
+	 */
+	mcsp->next = sc->cbl_base;
+	mcsp->mb_head = NULL;
+	mcsp->cb_status = 0;
+	mcsp->cb_command = FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_S;
+	mcsp->link_addr = vtophys(&sc->cbl_base->cb_status);
+
+	nmcasts = 0;
+	if (!sc->all_mcasts) {
+		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
+		    ifma = ifma->ifma_link.le_next) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (nmcasts >= MAXMCADDR) {
+				sc->all_mcasts = 1;
+				nmcasts = 0;
+				break;
+			}
+			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+			    (void *) &sc->mcsp->mc_addr[nmcasts][0], 6);
+			nmcasts++;
+		}
+	}
+	mcsp->mc_cnt = nmcasts * 6;
+	sc->cbl_first = sc->cbl_last = (struct fxp_cb_tx *) mcsp;
+	sc->tx_queued = 1;
+
+	/*
+	 * Wait until command unit is not active. This should never
+	 * be the case when nothing is queued, but make sure anyway.
+	 */
+	while ((CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS) >> 6) ==
+	    FXP_SCB_CUS_ACTIVE) ;
+
+	/*
+	 * Start the multicast setup command.
+	 */
+	fxp_scb_wait(sc);
+	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&mcsp->cb_status));
+	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_START);
+
+	ifp->if_timer = 5;
+	return;
 }
