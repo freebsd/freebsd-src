@@ -432,7 +432,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		mtx_lock_spin(&sched_lock);
 		PROC_UNLOCK_NOSWITCH(p);
 		if (sig != 0) {
-			if (p->p_wchan)
+			if (p->p_wchan != NULL)
 				unsleep(p);
 		} else if (p->p_wchan == NULL)
 			catch = 0;
@@ -498,7 +498,7 @@ endtsleep(arg)
 	CTR3(KTR_PROC, "endtsleep: proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	mtx_lock_spin(&sched_lock);
-	if (p->p_wchan) {
+	if (p->p_wchan != NULL) {
 		if (p->p_stat == SSLEEP)
 			setrunnable(p);
 		else
@@ -517,7 +517,7 @@ unsleep(p)
 {
 
 	mtx_lock_spin(&sched_lock);
-	if (p->p_wchan) {
+	if (p->p_wchan != NULL) {
 		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_slpq);
 		p->p_wchan = NULL;
 	}
