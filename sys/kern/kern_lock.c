@@ -488,7 +488,7 @@ void
 lockinit(lkp, prio, wmesg, timo, flags)
 	struct lock *lkp;
 	int prio;
-	char *wmesg;
+	const char *wmesg;
 	int timo;
 	int flags;
 {
