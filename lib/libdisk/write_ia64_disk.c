@@ -224,21 +224,57 @@ static int
 update_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
     struct gpt_ent *tbl)
 {
+	struct gpt_ent *save;
 	char *buffer;
 	struct chunk *c;
 	off_t off;
 	size_t bufsz;
-	int error, idx;
+	int error, idx, sav;
 
+	/*
+	 * Save the entries of those chunks that have an index. They are
+	 * the ones that exist on disk already.
+	 */
+	sav = 0;
+	for (c = disk->chunks->part; c != NULL; c = c->next) {
+		if ((c->flags & CHUNK_HAS_INDEX))
+			sav++;
+	}
+	if (sav > 0) {
+		save = malloc(sav * sizeof(struct gpt_ent));
+		if (save == NULL)
+			abort();
+		sav = 0;
+		for (c = disk->chunks->part; c != NULL; c = c->next) {
+			if ((c->flags & CHUNK_HAS_INDEX)) {
+				idx = CHUNK_FTOI(c->flags);
+				save[sav] = tbl[idx];
+				c->flags ^= CHUNK_ITOF(idx);
+				c->flags |= CHUNK_ITOF(sav);
+				sav++;
+			}
+		}
+	} else
+		save = NULL;
+
+	/*
+	 * Clear the table entries.
+	 */
+	for (idx = 0; idx < disk->gpt_size; idx++) {
+		uuid_create_nil(&tbl[idx].ent_type, NULL);
+		tbl[idx].ent_lba_start = 0;
+		tbl[idx].ent_lba_end = 0;
+		tbl[idx].ent_attr = 0;
+		bzero(tbl[idx].ent_name, sizeof(tbl[idx].ent_name));
+	}
+
+	/*
+	 * Repopulate the table from the chunks, possibly using saved
+	 * information.
+	 */
 	idx = 0;
 	for (c = disk->chunks->part; c != NULL; c = c->next) {
 		if (!(c->flags & CHUNK_HAS_INDEX)) {
-			while (idx < disk->gpt_size &&
-			    !uuid_is_nil(&tbl[idx].ent_type, NULL))
-				idx++;
-			if (idx == disk->gpt_size)
-				return (ENOSPC);
-
 			switch (c->type) {
 			case freebsd:
 				tbl[idx].ent_type = _fbsd;
@@ -261,12 +297,21 @@ update_gpt(int fd, const struct disk *disk, struct gpt_hdr *hdr,
 			default:
 				return (EINVAL);
 			}
-		} else
-			idx = CHUNK_FTOI(c->flags);
-
+		} else {
+			sav = CHUNK_FTOI(c->flags);
+			tbl[idx].ent_type = save[sav].ent_type;
+			memcpy(tbl[idx].ent_name, save[sav].ent_name,
+			    sizeof(tbl[idx].ent_name));
+		}
 		tbl[idx].ent_lba_start = c->offset;
 		tbl[idx].ent_lba_end = c->end;
+
+		idx++;
+		if (idx == disk->gpt_size)
+			return (ENOSPC);
  	}
+	if (save != NULL)
+		free(save);
 
 	hdr[0].hdr_crc_table = crc32(tbl,
 	    disk->gpt_size * sizeof(struct gpt_ent));
