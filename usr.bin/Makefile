@@ -1,9 +1,9 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.32 1995/01/14 20:58:58 wollman Exp $
+#	$Id: Makefile,v 1.33 1995/01/19 22:31:17 wollman Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
-#			ptx spell spline struct units xsend
-# XXX Use GNU versions: dc bc diff grep ld man apropos whatis patch uucp
+#			spell spline struct units xsend
+# XXX Use GNU versions: apropos bc dc diff grep ld man patch ptx uucp whatis
 # Moved to secure: bdes
 #
 SUBDIR=	apply ar at banner basename biff cal calendar \
