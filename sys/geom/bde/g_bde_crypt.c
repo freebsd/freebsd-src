@@ -209,7 +209,7 @@ g_bde_crypt_write(struct g_bde_work *wp)
 	}
 	bzero(skey, sizeof skey);
 	bzero(&ci, sizeof ci);
-	bzero(&ki, sizeof ci);
+	bzero(&ki, sizeof ki);
 }
 
 /*
