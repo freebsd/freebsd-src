@@ -310,6 +310,7 @@ fwe_init(void *arg)
 		fwe->pkt_hdr.mode.stream.chtag = fwe->stream_ch;
 		/* allocate DMA channel and init packet mode */
 		xferq->flag |= FWXFERQ_OPEN | FWXFERQ_EXTBUF;
+		xferq->flag &= ~0xff;
 		xferq->flag |= fwe->stream_ch & 0xff;
 		/* register fwe_input handler */
 		xferq->sc = (caddr_t) fwe;
