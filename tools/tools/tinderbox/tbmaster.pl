@@ -378,7 +378,7 @@ sub tbmaster($) {
 
     if ($dump) {
 	foreach my $key (sort(keys(%CONFIG))) {
-	    printf("%-12s = ", lc($key));
+	    printf("%-12s = ", uc($key));
 	    if (!defined($CONFIG{$key})) {
 		print("(undef)");
 	    } elsif (ref($CONFIG{$key})) {
