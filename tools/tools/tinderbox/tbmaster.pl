@@ -36,7 +36,7 @@ my %CONFIGS	= (
     'global' => {
 	'TBDIR'		=> '/home/des/tinderbox',
 	'OPTIONS'	=> [ '--update', '--verbose' ],
-	'EMAIL'		=> 'developers,%%ARCH%%',
+	'EMAIL'		=> 'des',
     },
     # 5-CURRENT tinderbox
     'cueball' => {
@@ -103,7 +103,6 @@ sub tinderbox($$$$) {
     push(@args, "--logfile=$logfile");
     push(@args, @{$CONFIG{'TARGETS'}});
 
-    print(STDERR join(' ', @args), "\n");
     rename($logfile, "$logfile.old");
     if (system(@args) != 0) {
 	my $messages = "";
@@ -114,7 +113,7 @@ sub tinderbox($$$$) {
 	warn("$branch tinderbox failed for $arch/$machine\n");
 	if (open(LOGFILE, "<", $logfile)) {
 	    while (<LOGFILE>) {
-		if (m/^TB \*\*\*/) {
+		if (m/^TB ---/) {
 		    if (@accumulate && $error) {
 			$messages .= join('', @accumulate);
 		    }
@@ -150,12 +149,12 @@ sub tinderbox($$$$) {
 
 sub usage() {
 
-    print(STDERR "usage: tbmaster config\n");
-    print(STDERR "recognized configs:");
+    my @configs = ();
     foreach my $config (sort(keys(%CONFIGS))) {
-	print(STDERR " $config")
+	push(@configs, $config)
 	    unless ($config eq 'global');
     }
+    print(STDERR "usage: tbmaster [", join('|', @configs), "]\n");
     exit(1);
 }
 
@@ -164,7 +163,7 @@ MAIN:{
 	unless (@ARGV == 1);
     my $config = lc($ARGV[0]);
     usage()
-	unless (exists($CONFIG{$config}) && $config ne 'global');
+	unless (exists($CONFIGS{$config}) && $config ne 'global');
     %CONFIG = %{$CONFIGS{$config}};
     foreach my $key (keys(%{$CONFIGS{'global'}})) {
 	$CONFIG{$key} = $CONFIGS{'global'}->{$key}

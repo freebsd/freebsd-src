@@ -338,7 +338,6 @@ MAIN:{
 	error("invalid log file name");
     }
     $logfile = $1;
-    logstage("logging to $logfile");
     unlink($logfile);
     open(STDOUT, '>', $logfile)
 	or error("$logfile: $!");
