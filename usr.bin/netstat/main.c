@@ -121,8 +121,8 @@ struct nlist nl[] = {
 	{ "_ip_mrtproto" },
 #define N_MRTSTAT	28
 	{ "_mrtstat" },
-#define N_MRTTABLE	29
-	{ "_mrttable" },
+#define N_MFCTABLE	29
+	{ "_mfctable" },
 #define N_VIFTABLE	30
 	{ "_viftable" },
 	"",
@@ -261,7 +261,7 @@ main(argc, argv)
 			break;
 		case 'p':
 			if ((tp = name2protox(optarg)) == NULL) {
-				errx(1,
+				errx(1, 
 				     "%s: unknown or uninstrumented protocol",
 				     optarg);
 			}
@@ -367,7 +367,7 @@ main(argc, argv)
 			    nl[N_MRTSTAT].n_value);
 		else
 			mroutepr(nl[N_MRTPROTO].n_value,
-			    nl[N_MRTTABLE].n_value,
+			    nl[N_MFCTABLE].n_value,
 			    nl[N_VIFTABLE].n_value);
 		exit(0);
 	}
