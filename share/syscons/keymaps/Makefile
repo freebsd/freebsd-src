@@ -17,6 +17,7 @@ KEYMAPS+= icelandic.iso.kbd icelandic.iso.acc.kbd
 KEYMAPS+= it.iso.kbd
 KEYMAPS+= jp.106.kbd jp.106x.kbd
 KEYMAPS+= lat-amer.kbd
+KEYMAPS+= lt.iso4.kbd
 KEYMAPS+= norwegian.iso.kbd
 KEYMAPS+= pl_PL.ISO_8859-2.kbd 
 KEYMAPS+= pt.iso.kbd pt.iso.acc.kbd
