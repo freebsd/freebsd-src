@@ -176,6 +176,9 @@ pci_cfgregopen(void)
 				    sizeof(struct PIR_entry);
 				printf("Using $PIR table, %d entries at %p\n",
 				    pci_route_count, pci_route_table);
+				if (bootverbose)
+					pci_print_route_table(pci_route_table,
+					    pci_route_count);
 			}
 		}
 	}
