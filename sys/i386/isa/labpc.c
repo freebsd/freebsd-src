@@ -57,7 +57,9 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
+#ifdef LOUTB
 #include <machine/clock.h>
+#endif
 
 #include <i386/isa/isa_device.h>
 
@@ -406,7 +408,7 @@ labpcinit(void)
 static int
 labpcprobe(struct isa_device *dev)
 {
-	static unit;
+	static int unit;
 	struct ctlr scratch, *ctlr;
 	u_char status;
 
@@ -1096,7 +1098,7 @@ labpcioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 }
 
 
-static labpc_devsw_installed = 0;
+static int	labpc_devsw_installed = 0;
 
 static void 	labpc_drvinit(void *unused)
 {
