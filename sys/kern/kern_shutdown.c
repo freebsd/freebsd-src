@@ -304,13 +304,8 @@ boot(howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 	splhigh();
-	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold) {
-		savectx(&dumppcb);
-#ifdef __i386__
-		dumppcb.pcb_cr3 = rcr3();
-#endif
+	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold)
 		dumpsys();
-	}
 
 	/* Now that we're going to really halt the system... */
 	EVENTHANDLER_INVOKE(shutdown_final, howto);
@@ -470,6 +465,10 @@ dumpsys(void)
 	int	error;
 	static int dumping;
 
+	savectx(&dumppcb);
+#ifdef __i386__
+	dumppcb.pcb_cr3 = rcr3();
+#endif
 	if (dumping++) {
 		printf("Dump already in progress, bailing...\n");
 		return;
