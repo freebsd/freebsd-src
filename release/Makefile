@@ -477,7 +477,7 @@ release.8: write_mfs_in_kernel
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
-		mkdir -p etc dev mnt stand/help
+		mkdir -p etc/defaults dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
