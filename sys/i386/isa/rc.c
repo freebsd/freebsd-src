@@ -275,7 +275,7 @@ rcattach(dvp)
 	if (!rc_started) {
 		register_swi(SWI_TTY, rcpoll);
 		rc_wakeup((void *)NULL);
-		rc_started = 0;
+		rc_started = 1;
 	}
 	return 1;
 }
