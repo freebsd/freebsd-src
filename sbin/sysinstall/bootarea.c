@@ -107,7 +107,7 @@ build_bootblocks(struct disklabel *label)
 	}
 
 	dialog_clear();
-	sprintf(scratch, "\nLoading boot code from %s\n", boot1);
+	sprintf(scratch, "\nLoading boot code from %s\n", boot2);
 	dialog_msgbox(TITLE, scratch, 5, 60, 0);
 
 	fd = open(boot2, O_RDONLY);
@@ -127,12 +127,13 @@ build_bootblocks(struct disklabel *label)
 		return(-1);
 	}
 
+	dialog_clear();
+
 	/* Copy DOS partition area into bootblocks */
 
 	bcopy(mbr->dospart, &bootblocks[DOSPARTOFF],
 	      sizeof(struct dos_partition) * 4);
 
-	dialog_clear();
 
 	/* Write the disklabel into the bootblocks */
 
