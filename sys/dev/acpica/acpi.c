@@ -93,6 +93,7 @@ static int acpi_off_state = ACPI_STATE_S5;
 
 struct mtx	acpi_mutex;
 
+static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
@@ -156,10 +157,31 @@ static driver_t acpi_driver = {
 };
 
 devclass_t acpi_devclass;
-DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, 0, 0);
+DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0);
 
 SYSCTL_INT(_debug, OID_AUTO, acpi_debug_layer, CTLFLAG_RW, &AcpiDbgLayer, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, acpi_debug_level, CTLFLAG_RW, &AcpiDbgLevel, 0, "");
+
+/*
+ * ACPI can only be loaded as a module by the loader; activating it after
+ * system bootstrap time is not useful, and can be fatal to the system.
+ * It also cannot be unloaded, since the entire system bus heirarchy hangs off it.
+ */
+static int
+acpi_modevent(struct module *mod, int event, void *junk)
+{
+    switch(event) {
+    case MOD_LOAD:
+	if (!cold)
+	    return(EPERM);
+	break;
+    case MOD_UNLOAD:
+	return(EBUSY);
+    default:
+	break;
+    }
+    return(0);
+}
 
 /*
  * Detect ACPI, perform early initialisation
@@ -937,22 +959,109 @@ acpi_ForeachPackageObject(ACPI_OBJECT *pkg, void (* func)(ACPI_OBJECT *comp, voi
  * Find the (index)th resource object in a set.
  */
 ACPI_STATUS
-acpi_FindIndexedResource(ACPI_RESOURCE *resbuf, int index, ACPI_RESOURCE **resp)
+acpi_FindIndexedResource(ACPI_BUFFER *buf, int index, ACPI_RESOURCE **resp)
 {
-    u_int8_t		*p;
+    ACPI_RESOURCE	*rp;
     int			i;
 
-    p = (u_int8_t *)resbuf;
+    rp = (ACPI_RESOURCE *)buf->Pointer;
     i = index;
-    while (i > 0) {
-	/* range check */
-	if (p > ((u_int8_t *)resbuf + resbuf->Length))
+    while (i-- > 0) {
+	/* range check */	
+	if (rp > (ACPI_RESOURCE *)((u_int8_t *)buf->Pointer + buf->Length))
 	    return(AE_BAD_PARAMETER);
-	p += ((ACPI_RESOURCE *)p)->Length;
-	i--;
+	/* check for terminator */
+	if ((rp->Id == ACPI_RSTYPE_END_TAG) ||
+	    (rp->Length == 0))
+	    return(AE_NOT_FOUND);
+	rp = ACPI_RESOURCE_NEXT(rp);
     }
     if (resp != NULL)
-	*resp = (ACPI_RESOURCE *)p;
+	*resp = rp;
+    return(AE_OK);
+}
+
+/*
+ * Append an ACPI_RESOURCE to an ACPI_BUFFER.
+ *
+ * Given a pointer to an ACPI_RESOURCE structure, expand the ACPI_BUFFER
+ * provided to contain it.  If the ACPI_BUFFER is empty, allocate a sensible
+ * backing block.  If the ACPI_RESOURCE is NULL, return an empty set of
+ * resources.
+ */
+#define ACPI_INITIAL_RESOURCE_BUFFER_SIZE	512
+
+ACPI_STATUS
+acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
+{
+    ACPI_RESOURCE	*rp;
+    void		*newp;
+    
+    /*
+     * Initialise the buffer if necessary.
+     */
+    if (buf->Pointer == NULL) {
+	buf->Length = ACPI_INITIAL_RESOURCE_BUFFER_SIZE;
+	if ((buf->Pointer = AcpiOsAllocate(buf->Length)) == NULL)
+	    return(AE_NO_MEMORY);
+	rp = (ACPI_RESOURCE *)buf->Pointer;
+	rp->Id = ACPI_RSTYPE_END_TAG;
+	rp->Length = 0;
+    }
+    if (res == NULL)
+	return(AE_OK);
+    
+    /*
+     * Scan the current buffer looking for the terminator.
+     * This will either find the terminator or hit the end
+     * of the buffer and return an error.
+     */
+    rp = (ACPI_RESOURCE *)buf->Pointer;
+    for (;;) {
+	/* range check, don't go outside the buffer */
+	if (rp >= (ACPI_RESOURCE *)((u_int8_t *)buf->Pointer + buf->Length))
+	    return(AE_BAD_PARAMETER);
+	if ((rp->Id == ACPI_RSTYPE_END_TAG) ||
+	    (rp->Length == 0)) {
+	    break;
+	}
+	rp = ACPI_RESOURCE_NEXT(rp);
+    }
+
+    /*
+     * Check the size of the buffer and expand if required.
+     *
+     * Required size is:
+     *	size of existing resources before terminator + 
+     *	size of new resource and header +
+     * 	size of terminator.
+     *
+     * Note that this loop should really only run once, unless
+     * for some reason we are stuffing a *really* huge resource.
+     */
+    while ((((u_int8_t *)rp - (u_int8_t *)buf->Pointer) + 
+	    res->Length + ACPI_RESOURCE_LENGTH_NO_DATA +
+	    ACPI_RESOURCE_LENGTH) >= buf->Length) {
+	if ((newp = AcpiOsAllocate(buf->Length * 2)) == NULL)
+	    return(AE_NO_MEMORY);
+	bcopy(buf->Pointer, newp, buf->Length);
+	AcpiOsFree(buf->Pointer);
+	buf->Pointer = newp;
+	buf->Length += buf->Length;
+    }
+    
+    /*
+     * Insert the new resource.
+     */
+    bcopy(res, rp, res->Length + ACPI_RESOURCE_LENGTH_NO_DATA);
+    
+    /*
+     * And add the terminator.
+     */
+    rp = ACPI_RESOURCE_NEXT(rp);
+    rp->Id = ACPI_RSTYPE_END_TAG;
+    rp->Length = 0;
+
     return(AE_OK);
 }
 
