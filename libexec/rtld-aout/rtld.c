@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.54 1998/06/07 03:53:06 brian Exp $
+ *	$Id: rtld.c,v 1.55 1998/06/21 14:22:29 mckay Exp $
  */
 
 #include <sys/param.h>
@@ -1605,6 +1605,8 @@ sym_addr(name)
 }
 
 
+static int *p_errno;	/* Pointer to errno variable in main program. */
+
 /*
  * Help old a.out binaries that are broken by the new errno macro.  They
  * can be missing __error() through no fault of their own.  In particular,
@@ -1626,6 +1628,21 @@ lookup_errno_hack(sym, src_map, real_def_only)
 		return NULL;
 
 	/*
+	 * Locate errno in the main program.  If it's not there, NULL
+	 * will be returned by our __error() substitute, and a core dump
+	 * will follow.  That's impossible, of course, since crt0.o always
+	 * supplies errno.
+	 */
+	smp = NULL;
+	np = lookup("_errno", &smp, 1);
+	if (np != NULL && smp != NULL) {
+		p_errno = (int *)(smp->som_addr + np->nz_value);
+#ifdef DEBUG
+		xprintf(" HACK: _errno at %p in %s\n", p_errno, smp->som_path);
+#endif
+	}
+
+	/*
 	 * Specifically find the ld.so link map because most routines
 	 * skip over it during normal operation.
 	 */
@@ -1634,10 +1651,7 @@ lookup_errno_hack(sym, src_map, real_def_only)
 			break;
 
 	/*
-	 * Actually, ld.so uses errno via the new macro, so it has a copy
-	 * of __error() lying around.  The really neat but obscure hack
-	 * is to just use that one, but to be really clear about what
-	 * is going on, we use an explicit __error() substitute.
+	 * Find our __error() substitute stashed here in ld.so.
 	 */
 	np = lookup("___error_unthreaded_hack", &smp, real_def_only);
 	if (np != NULL)
@@ -1661,7 +1675,7 @@ lookup_errno_hack(sym, src_map, real_def_only)
 int *
 __error_unthreaded_hack()
 {
-	return &errno;
+	return p_errno;
 }
 
 
