@@ -34,7 +34,7 @@ SUBDIR= cat \
 SUBDIR+=csh
 .endif
 
-.if !defined(NO_SENDMAIL)
+.if !defined(NO_SENDMAIL) && !defined(NOUUCP)
 SUBDIR+=rmail
 .endif
 
