@@ -91,10 +91,7 @@ struct isa_driver {
 };
 
 #ifdef _KERNEL
-
-int	haveseen_iobase __P((struct isa_device *dvp, int iosize));
 int	isa_compat_nextid __P((void));
-
 #endif
 
 #endif	/* COMPAT_OLDISA */
