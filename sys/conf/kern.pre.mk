@@ -70,6 +70,8 @@ COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 .if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
+CFLAGS+= --param inline-unit-growth=100
+CFLAGS+= --param large-function-growth=1000
 WERROR?= -Werror
 .endif
 
@@ -88,7 +90,7 @@ CFLAGS+=	-DGPROF4 -DGUPROF
 # XXX doesn't work yet
 #PROF=	-prof_gen
 . else
-PROF=	-finstrument-functions
+PROF=	-finstrument-functions -Wno-inline
 . endif
 .else
 . if ${CC} == "icc"
