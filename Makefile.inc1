@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.30 1998/10/11 07:41:31 peter Exp $
+#	$Id: Makefile.inc1,v 1.31 1998/10/11 18:39:38 rnordier Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -943,7 +943,6 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/sys/boot && ${MAKE} -DNOMAN install
 	cd ${.CURDIR}/sys/${MACHINE}/boot && ${MAKE} -DNOMAN install
 .endif
 
