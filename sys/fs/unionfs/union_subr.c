@@ -1349,6 +1349,7 @@ union_dircheck(struct thread *td, struct vnode **vp, struct file *fp)
 			}
 			VOP_UNLOCK(lvp, 0, td);
 			FILE_LOCK(fp);
+			fp->f_vnode = lvp;
 			fp->f_data = lvp;
 			fp->f_offset = 0;
 			FILE_UNLOCK(fp);

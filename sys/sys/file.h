@@ -116,6 +116,7 @@ struct file {
 	struct fileops *f_ops;	/* File operations */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	int	f_count;	/* (f) reference count */
+	struct vnode *f_vnode;	/* NULL or applicable vnode */
 
 	/* DFLAG_SEEKABLE specific fields */
 	off_t	f_offset;

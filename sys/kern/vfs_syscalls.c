@@ -282,7 +282,7 @@ fstatfs(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	mp = ((struct vnode *)fp->f_data)->v_mount;
+	mp = fp->f_vnode->v_mount;
 	fdrop(fp, td);
 	if (mp == NULL)
 		return (EBADF);
@@ -403,7 +403,7 @@ fchdir(td, uap)
 
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return (error);
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	VREF(vp);
 	fdrop(fp, td);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -502,7 +502,7 @@ chroot_refuse_vdir_fds(fdp)
 		if (fp == NULL)
 			continue;
 		if (fp->f_type == DTYPE_VNODE) {
-			vp = fp->f_data;
+			vp = fp->f_vnode;
 			if (vp->v_type == VDIR)
 				return (EPERM);
 		}
@@ -745,6 +745,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		td->td_retval[0] = indx;
 		return 0;
 	}
+	fp->f_vnode = vp;
 	fp->f_data = vp;
 	fp->f_flag = flags & FMASK;
 	fp->f_ops = &vnops;
@@ -1346,7 +1347,7 @@ lseek(td, uap)
 		fdrop(fp, td);
 		return (ESPIPE);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	noneg = (vp->v_type != VCHR);
 	offset = uap->offset;
 	switch (uap->whence) {
@@ -2056,7 +2057,7 @@ fchflags(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	error = setfflags(td, fp->f_data, uap->flags);
+	error = setfflags(td, fp->f_vnode, uap->flags);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2180,7 +2181,7 @@ fchmod(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	error = setfmode(td, fp->f_data, uap->mode);
+	error = setfmode(td, fp->f_vnode, uap->mode);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2322,7 +2323,7 @@ fchown(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	error = setfown(td, fp->f_data, uap->uid, uap->gid);
+	error = setfown(td, fp->f_vnode, uap->uid, uap->gid);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2520,7 +2521,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 		return (error);
 	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
 		return (error);
-	error = setutimes(td, fp->f_data, ts, 2, tptr == NULL);
+	error = setutimes(td, fp->f_vnode, ts, 2, tptr == NULL);
 	fdrop(fp, td);
 	return (error);
 }
@@ -2622,7 +2623,7 @@ ftruncate(td, uap)
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
 		fdrop(fp, td);
 		return (error);
@@ -2733,7 +2734,7 @@ fsync(td, uap)
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
 		fdrop(fp, td);
 		return (error);
@@ -3096,7 +3097,7 @@ ogetdirentries(td, uap)
 		fdrop(fp, td);
 		return (EBADF);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 unionread:
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
@@ -3196,6 +3197,7 @@ unionread:
 			struct vnode *tvp = vp;
 			vp = vp->v_mount->mnt_vnodecovered;
 			VREF(vp);
+			fp->f_vnode = vp;
 			fp->f_data = vp;
 			fp->f_offset = 0;
 			vput(tvp);
@@ -3244,7 +3246,7 @@ getdirentries(td, uap)
 		fdrop(fp, td);
 		return (EBADF);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 unionread:
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
@@ -3293,6 +3295,7 @@ unionread:
 			struct vnode *tvp = vp;
 			vp = vp->v_mount->mnt_vnodecovered;
 			VREF(vp);
+			fp->f_vnode = vp;
 			fp->f_data = vp;
 			fp->f_offset = 0;
 			vput(tvp);
@@ -3646,6 +3649,7 @@ fhopen(td, uap)
 	 * from under us while we block in the lock op
 	 */
 	fhold(fp);
+	nfp->f_vnode = vp;
 	nfp->f_data = vp;
 	nfp->f_flag = fmode & FMASK;
 	nfp->f_ops = &vnops;
@@ -3967,7 +3971,7 @@ extattr_set_fd(td, uap)
 	if (error)
 		return (error);
 
-	error = extattr_set_vp(fp->f_data, uap->attrnamespace,
+	error = extattr_set_vp(fp->f_vnode, uap->attrnamespace,
 	    attrname, uap->data, uap->nbytes, td);
 	fdrop(fp, td);
 
@@ -4140,7 +4144,7 @@ extattr_get_fd(td, uap)
 	if (error)
 		return (error);
 
-	error = extattr_get_vp(fp->f_data, uap->attrnamespace,
+	error = extattr_get_vp(fp->f_vnode, uap->attrnamespace,
 	    attrname, uap->data, uap->nbytes, td);
 
 	fdrop(fp, td);
@@ -4272,7 +4276,7 @@ extattr_delete_fd(td, uap)
 	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
 	if (error)
 		return (error);
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 
 	error = extattr_delete_vp(vp, uap->attrnamespace, attrname, td);
 	fdrop(fp, td);
@@ -4418,7 +4422,7 @@ extattr_list_fd(td, uap)
 	if (error)
 		return (error);
 
-	error = extattr_list_vp(fp->f_data, uap->attrnamespace, uap->data,
+	error = extattr_list_vp(fp->f_vnode, uap->attrnamespace, uap->data,
 	    uap->nbytes, td);
 
 	fdrop(fp, td);

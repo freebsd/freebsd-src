@@ -352,7 +352,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 */
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		vp = fp->f_data;
+		vp = fp->f_vnode;
 
 		switch (flp->l_type) {
 		case F_RDLCK:
@@ -430,7 +430,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 */
 		fhold(fp);
 		FILEDESC_UNLOCK(fdp);
-		vp = fp->f_data;
+		vp = fp->f_vnode;
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK, flp,
 		    F_POSIX);
 		fdrop(fp, td);
@@ -1028,7 +1028,7 @@ fpathconf(td, uap)
 		break;
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
-		vp = fp->f_data;
+		vp = fp->f_vnode;
 		mtx_lock(&Giant);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
@@ -1465,7 +1465,7 @@ fdfree(td)
 				lf.l_start = 0;
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
-				vp = fp->f_data;
+				vp = fp->f_vnode;
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)td->td_proc->
 						   p_leader,
@@ -1564,7 +1564,7 @@ static int
 is_unsafe(struct file *fp)
 {
 	if (fp->f_type == DTYPE_VNODE) {
-		struct vnode *vp = fp->f_data;
+		struct vnode *vp = fp->f_vnode;
 
 		if ((vp->v_vflag & VV_PROCDEP) != 0)
 			return (1);
@@ -1722,6 +1722,7 @@ fdcheckstd(td)
 				break;
 			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);
+			fp->f_vnode = nd.ni_vp;
 			fp->f_data = nd.ni_vp;
 			fp->f_flag = flags;
 			fp->f_ops = &vnops;
@@ -1770,7 +1771,7 @@ closef(fp, td)
 			lf.l_start = 0;
 			lf.l_len = 0;
 			lf.l_type = F_UNLCK;
-			vp = fp->f_data;
+			vp = fp->f_vnode;
 			(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
 					   F_UNLCK, &lf, F_POSIX);
 		}
@@ -1794,7 +1795,7 @@ closef(fp, td)
 				lf.l_start = 0;
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
-				vp = fp->f_data;
+				vp = fp->f_vnode;
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)fdtol->fdl_leader,
 						   F_UNLCK, &lf, F_POSIX);
@@ -1919,7 +1920,7 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO) {
 		error = EINVAL;
 	} else {
-		*vpp = fp->f_data;
+		*vpp = fp->f_vnode;
 		vref(*vpp);
 	}
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
@@ -2018,7 +2019,7 @@ fdrop_locked(fp, td)
 		lf.l_start = 0;
 		lf.l_len = 0;
 		lf.l_type = F_UNLCK;
-		vp = fp->f_data;
+		vp = fp->f_vnode;
 		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
 	}
 	if (fp->f_ops != &badfileops)
@@ -2064,7 +2065,7 @@ flock(td, uap)
 	}
 
 	mtx_lock(&Giant);
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
 	lf.l_len = 0;

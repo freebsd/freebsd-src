@@ -271,7 +271,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		return (EBADF);
 	}
 
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if (vp->v_type != VDIR) {
 		fdrop(fp, td);
 		return (EINVAL);
