@@ -771,9 +771,7 @@ udp_attach(struct socket *so, int proto, struct proc *p)
 		return error;
 
 	inp = (struct inpcb *)so->so_pcb;
-#ifdef INET6
 	inp->inp_vflag |= INP_IPV4;
-#endif
 	inp->inp_ip_ttl = ip_defttl;
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
