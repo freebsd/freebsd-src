@@ -41,7 +41,6 @@ PAE			opt_global.h
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
 CLK_USE_TSC_CALIBRATION		opt_clock.h
-SMP_TSC				opt_clock.h
 TIMER_FREQ			opt_clock.h
 
 NO_F00F_HACK			opt_cpu.h

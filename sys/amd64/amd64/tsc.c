@@ -30,11 +30,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/power.h>
+#include <sys/smp.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -42,6 +43,13 @@
 uint64_t	tsc_freq;
 int		tsc_is_broken;
 u_int		tsc_present;
+
+#ifdef SMP
+static int	smp_tsc;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RD, &smp_tsc, 0,
+    "Indicates whether the TSC is safe to use in SMP mode");
+TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
+#endif
 
 static	unsigned tsc_get_timecount(struct timecounter *tc);
 
@@ -77,14 +85,17 @@ init_TSC(void)
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
 
-#if defined(SMP) && !defined(SMP_TSC)
+#ifdef SMP
 	/*
-	 * We can not use the TSC in SMP mode, until we figure out a
-	 * cheap (impossible), reliable and precise (yeah right!)  way
-	 * to synchronize the TSCs of all the CPUs.
-	 * Modern SMP hardware has the ACPI timer and we use that.
+	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
+	 * are somehow synchronized.  Some hardware configurations do
+	 * this, but we have no way of determining whether this is the
+	 * case, so we do not use the TSC in multi-processor systems
+	 * unless the user indicated (by setting kern.timecounter.smp_tsc
+	 * to 1) that he believes that his TSCs are synchronized.
 	 */
-	return;
+	if (mp_ncpus > 1 && !smp_tsc)
+		return;
 #endif
 
 	/*
