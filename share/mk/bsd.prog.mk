@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.15 1994/12/28 03:50:58 ache Exp $
+#	$Id: bsd.prog.mk,v 1.16 1995/01/14 07:51:09 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -113,13 +113,13 @@ MAN1=	${PROG}.1
 _PROGSUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR)
 	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> $$entry"; \
+		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
 			cd ${.CURDIR}/$${entry}.${MACHINE}; \
 		else \
 			cd ${.CURDIR}/$${entry}; \
 		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/}); \
+		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
 	done
 .endif
 
