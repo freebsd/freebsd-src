@@ -1811,6 +1811,7 @@ ndis_getstate_80211(sc)
 			    "unknown nettype %d\n", arg);
 			break;
 		}
+		IEEE80211_ADDR_COPY(ic->ic_bss->ni_bssid, bs->nwbx_macaddr);
 		free(bs, M_TEMP);
 	} else
 		return;
