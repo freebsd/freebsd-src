@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nodes.c.pat	8.2 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: nodes.c.pat,v 1.5 1997/02/22 13:58:39 peter Exp $
  */
 
 #include <stdlib.h>
@@ -79,7 +79,7 @@ copyfunc(n)
 	funcstringsize = 0;
 	calcsize(n);
 	funcblock = ckmalloc(funcblocksize + funcstringsize);
-	funcstring = funcblock + funcblocksize;
+	funcstring = (char *)funcblock + funcblocksize;
 	return copynode(n);
 }
 
@@ -128,7 +128,7 @@ copynodelist(lp)
 	lpp = &start;
 	while (lp) {
 		*lpp = funcblock;
-		funcblock += ALIGN(sizeof(struct nodelist));
+		funcblock = (char *)funcblock + ALIGN(sizeof(struct nodelist));
 		(*lpp)->n = copynode(lp->n);
 		lp = lp->next;
 		lpp = &(*lpp)->next;
@@ -143,8 +143,8 @@ STATIC char *
 nodesavestr(s)
 	char   *s;
 {
-	register char *p = s;
-	register char *q = funcstring;
+	char *p = s;
+	char *q = funcstring;
 	char   *rtn = funcstring;
 
 	while ((*q++ = *p++) != '\0')
