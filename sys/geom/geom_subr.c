@@ -571,19 +571,6 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 	g_post_event(EV_SPOILED, NULL, NULL, pp, cp);
 }
 
-static struct g_class *
-g_class_by_name(const char *name)
-{
-	struct g_class *mp;
-
-	g_trace(G_T_TOPOLOGY, "g_class_by_name(%s)", name);
-	g_topology_assert();
-	LIST_FOREACH(mp, &g_classes, class)
-		if (!strcmp(mp->name, name))
-			return (mp);
-	return (NULL);
-}
-
 int
 g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 {
