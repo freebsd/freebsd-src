@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.64 1997/10/28 15:58:52 bde Exp $
+ *	$Id: tcp_input.c,v 1.65 1997/11/07 08:53:21 phk Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -315,6 +315,19 @@ tcp_input(m, iphlen)
 		goto drop;
 	}
 #endif /* TUBA_INCLUDE */
+
+	/*
+	 * Reject attempted self-connects.  XXX This actually masks
+	 * a bug elsewhere, since self-connect should work.
+	 * However, a urrently-active DoS attack in the Internet
+	 * sends a phony self-connect request which causes an infinite
+	 * loop.
+	 */
+	if (ti->ti_src.s_addr == ti->ti_dst.s_addr
+	    && ti->ti_sport == ti->ti_dport) {
+		tcpstat.tcps_badsyn++;
+		goto drop;
+	}
 
 	/*
 	 * Check that TCP offset makes sense,
