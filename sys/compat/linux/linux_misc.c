@@ -40,6 +40,7 @@
 #include <sys/imgact_aout.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -1144,4 +1145,23 @@ linux_sched_getscheduler(p, uap)
 	}
 
 	return error;
+}
+
+#define REBOOT_CAD_ON	0x89abcdef
+#define REBOOT_CAD_OFF	0
+#define REBOOT_HALT	0xcdef0123
+
+int
+linux_reboot(struct proc *p, struct linux_reboot_args *args)
+{
+	struct reboot_args bsd_args;
+
+#ifdef DEBUG
+	if (ldebug(reboot))
+		printf(ARGS(reboot, "%p"), args->opt);
+#endif
+	if (args->opt == REBOOT_CAD_ON || args->opt == REBOOT_CAD_OFF)
+		return (0);
+	bsd_args.opt = args->opt == REBOOT_HALT ? RB_HALT : 0;
+	return (reboot(p, &bsd_args));
 }

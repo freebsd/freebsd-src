@@ -59,8 +59,10 @@
 18	UNIMPL	LINUX
 19	STD	LINUX	{ int linux_lseek(int fdes, long off, int whence); }
 20	NOPROTO	LINUX	{ int getpid(void); } 
-21	UNIMPL	LINUX
-22	STD	LINUX	{ int linux_umount(void); }
+21	STD	LINUX	{ int linux_mount(char *specialfile, char *dir, \
+				char *filesystemtype, u_long rwflag, \
+				void *data); }
+22	STD	LINUX	{ int linux_umount(char *path); }
 23	NOPROTO	LINUX	{ int setuid(uid_t uid); }
 24	NOPROTO	LINUX	{ int getuid(void); }
 25	UNIMPL	LINUX
@@ -90,7 +92,7 @@
 49	UNIMPL	LINUX
 50	UNIMPL	LINUX
 51	NOPROTO	LINUX	{ int acct(char *path); }
-52	UNIMPL	LINUX
+52	STD	LINUX	{ int linux_umount2(char *path, int flags); }
 53	UNIMPL	LINUX
 54	STD	LINUX	{ int linux_ioctl(int fd, u_long cmd, u_long arg); }
 55	UNIMPL	LINUX
@@ -393,7 +395,7 @@
 308	STD	LINUX	{ int linux_delete_module(void); }
 309	STD	LINUX	{ int linux_get_kernel_syms(void); }
 310	STD	LINUX	{ int linux_ksyslog(int what); }
-311	NOPROTO	LINUX	{ int reboot(int opt); }
+311	STD	LINUX	{ int linux_reboot(int magic1, int magic2, int opt); }
 312	STD	LINUX	{ int linux_clone(int flags, void *stack); }
 313	STD	LINUX	{ int linux_uselib(char *library); }	
 314	NOPROTO	BSD	{ int mlock(const void *addr, size_t len); }
