@@ -206,6 +206,8 @@ accept1(p, uap, compat)
 			sizeof (namelen));
 		if(error)
 			return (error);
+		if (namelen < 0)
+			return (EINVAL);
 	}
 	error = holdsock(fdp, uap->s, &lfp);
 	if (error)
@@ -1193,6 +1195,10 @@ getsockname1(p, uap, compat)
 		fdrop(fp, p);
 		return (error);
 	}
+	if (len < 0) {
+		fdrop(fp, p);
+		return (EINVAL);
+	}
 	so = (struct socket *)fp->f_data;
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &sa);
@@ -1271,6 +1277,10 @@ getpeername1(p, uap, compat)
 	if (error) {
 		fdrop(fp, p);
 		return (error);
+	}
+	if (len < 0) {
+		fdrop(fp, p);
+		return (EINVAL);
 	}
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
