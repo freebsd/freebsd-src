@@ -105,6 +105,8 @@ void	free(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags);
 void	malloc_init(void *);
 int	malloc_last_fail(void);
+void	malloc_type_allocated(struct malloc_type *type, unsigned long size);
+void	malloc_type_freed(struct malloc_type *type, unsigned long size);
 void	malloc_uninit(void *);
 void	*realloc(void *addr, unsigned long size, struct malloc_type *type,
 	    int flags);
