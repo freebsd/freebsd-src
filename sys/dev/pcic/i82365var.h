@@ -136,40 +136,8 @@ char	*pcic_vendor_to_string(int);
 
 int	pcic_attach(device_t dev);
 
-#if 0
-
-static __inline int pcic_read(struct pcic_handle *, int);
-static __inline int
-pcic_read(h, idx)
-	struct pcic_handle *h;
-	int idx;
-{
-	if (idx != -1)
-		bus_space_write_1(h->sc->iot, h->sc->ioh, PCIC_REG_INDEX,
-		    h->sock + idx);
-	return (bus_space_read_1(h->sc->iot, h->sc->ioh, PCIC_REG_DATA));
-}
-
-static __inline void pcic_write(struct pcic_handle *, int, int);
-static __inline void
-pcic_write(h, idx, data)
-	struct pcic_handle *h;
-	int idx;
-	int data;
-{
-	if (idx != -1)
-		bus_space_write_1(h->sc->iot, h->sc->ioh, PCIC_REG_INDEX,
-		    h->sock + idx);
-	bus_space_write_1(h->sc->iot, h->sc->ioh, PCIC_REG_DATA, (data));
-}
-#else
-#define pcic_read(h, idx) \
-	(*(h)->ph_read)((h), (idx))
-
-#define pcic_write(h, idx, data) \
-	(*(h)->ph_write)((h), (idx), (data))
-
-#endif
+#define pcic_read(h, idx) 	(*(h)->ph_read)((h), (idx))
+#define pcic_write(h, idx, data) (*(h)->ph_write)((h), (idx), (data))
 
 /*
  * bus/device/etc routines

@@ -72,8 +72,6 @@ int	pcic_debug = 1;
 
 #define VERBOSE(arg) if (bootverbose) printf arg; else ;
 
-#define DETACH_FORCE	0x1
-
 #define	PCIC_VENDOR_UNKNOWN		0
 #define	PCIC_VENDOR_I82365SLR0		1
 #define	PCIC_VENDOR_I82365SLR1		2
