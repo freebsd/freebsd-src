@@ -350,6 +350,17 @@ struct pthread_attr {
 #define PTHREAD_CREATE_SUSPENDED		1
 
 /*
+ * Additional state for a thread suspended with pthread_suspend_np().
+ */
+enum pthread_susp {
+	SUSP_NO,	/* Not suspended. */
+	SUSP_YES,	/* Suspended. */
+	SUSP_NOWAIT,	/* Suspended, was in a mutex or condition queue. */
+	SUSP_MUTEX_WAIT,/* Suspended, still in a mutex queue. */
+	SUSP_COND_WAIT	/* Suspended, still in a condition queue. */
+};
+
+/*
  * Miscellaneous definitions.
  */
 #define PTHREAD_STACK_DEFAULT			65536
@@ -577,7 +588,7 @@ struct pthread {
 #define PTHREAD_CANCEL_NEEDED		0x0010
 	int	cancelflags;
 
-	int	suspended;
+	enum	pthread_susp suspended;
 
 	thread_continuation_t	continuation;
 

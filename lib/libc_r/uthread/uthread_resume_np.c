@@ -40,12 +40,14 @@
 int
 pthread_resume_np(pthread_t thread)
 {
-	int ret;
+	int	ret;
+	enum	pthread_susp old_suspended;
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
 		/* Cancel any pending suspensions: */
-		thread->suspended = 0;
+		old_suspended = thread->suspended;
+		thread->suspended = SUSP_NO;
 
 		/* Is it currently suspended? */
 		if (thread->state == PS_SUSPENDED) {
@@ -55,9 +57,28 @@ pthread_resume_np(pthread_t thread)
 			 */
 			_thread_kern_sig_defer();
 
-			/* Allow the thread to run. */
-			PTHREAD_SET_STATE(thread,PS_RUNNING);
-			PTHREAD_PRIOQ_INSERT_TAIL(thread);
+			switch (old_suspended) {
+			case SUSP_MUTEX_WAIT:
+				/* Set the thread's state back. */
+				PTHREAD_SET_STATE(thread,PS_MUTEX_WAIT);
+				break;
+			case SUSP_COND_WAIT:
+				/* Set the thread's state back. */
+				PTHREAD_SET_STATE(thread,PS_COND_WAIT);
+				break;
+			case SUSP_NOWAIT:
+				/* Allow the thread to run. */
+				PTHREAD_SET_STATE(thread,PS_RUNNING);
+				PTHREAD_WAITQ_REMOVE(thread);
+				PTHREAD_PRIOQ_INSERT_TAIL(thread);
+				break;
+			case SUSP_NO:
+			case SUSP_YES:
+				/* Allow the thread to run. */
+				PTHREAD_SET_STATE(thread,PS_RUNNING);
+				PTHREAD_PRIOQ_INSERT_TAIL(thread);
+				break;
+			}
 
 			/*
 			 * Undefer and handle pending signals, yielding if
