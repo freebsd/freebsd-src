@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rwalld.c,v 1.6 1997/12/02 12:20:17 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -152,9 +152,12 @@ void killkids()
 		;
 }
 
-void *wallproc_wall_1(s)
-	char **s;
+void *wallproc_wall_1_svc(s, rqstp)
+	wrapstring		*s;
+	struct svc_req		*rqstp;
 {
+	static void		*dummy = NULL;
+
 	/* fork, popen wall with special option, and send the message */
 	if (fork() == 0) {
 		FILE *pfp;
@@ -166,7 +169,7 @@ void *wallproc_wall_1(s)
 			exit(0);
 		}
 	}
-	return(NULL);
+	return(&dummy);
 }
 
 void
@@ -189,7 +192,7 @@ wallprog_1(rqstp, transp)
 	case WALLPROC_WALL:
 		xdr_argument = xdr_wrapstring;
 		xdr_result = xdr_void;
-		local = (char *(*)()) wallproc_wall_1;
+		local = (char *(*)()) wallproc_wall_1_svc;
 		break;
 
 	default:
@@ -197,7 +200,7 @@ wallprog_1(rqstp, transp)
 		goto leave;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
 		svcerr_decode(transp);
 		goto leave;
 	}
@@ -205,7 +208,7 @@ wallprog_1(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument)) {
+	if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument)) {
 		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
 	}
