@@ -4,8 +4,8 @@
 #
 # Format <file>:<lang>:<description>
 #
-# lang: ar bg cs da de el en es fi fr hr hu is it iw ja ko nl no pl pt
-#       ro ru sh sk sl sv tr uk zh
+# lang: ar bg cs da de el en es fi fr hr hu hy is it iw ja ko nl no pl
+#       pt ro ru sh sk sl sv tr uk zh
 # lang: lang,lang
 #
 # If lang empty use 'en' (us-english) as default.
@@ -30,6 +30,7 @@ MENU:es:Seleccione el idioma de su teclado
 MENU:iw:êìù úãì÷îä úôù úà øçá
 MENU:uk:BÉÂÅÒ¦ÔØ ÒÏÚËÌÁÄËÕ ËÌÁ×¦ÁÔÕÒÉ
 MENU:el:Åğéëİîôå ôï ğëçêôñïëüãéï ôçò êïíóüëáò
+MENU:hy:Àİïñ»ù ëï»Õİ³ß³ñÇ ¹³ë³íáñáõÃÛáõİÁ
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,da,no,sv,pt,es:iso-8x16.fnt
@@ -38,6 +39,7 @@ FONT:pl:iso02-8x16.fnt
 FONT:iw:iso08-8x16.fnt
 FONT:uk:koi8-u-8x16.fnt
 FONT:el:iso07-8x16.fnt
+FONT:hy:haik8-8x16.fnt
 # 
 be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
@@ -179,6 +181,11 @@ hu.iso2.101keys.kbd:es:Húngaro 101 ISO-8859-2
 hu.iso2.102keys.kbd:en:Hungarian 102 ISO-8859-2
 hu.iso2.102keys.kbd:de:Ungarisch 102 ISO-8859-2
 hu.iso2.102keys.kbd:es:Húngaro 102 ISO-8859-2
+
+hy.armscii-8.kbd:hy:Ğ³Û»ñ»İ ÑİãÛáõİ³ÛÇİ ¥Phonetic¤ ¹³ë³íáñáõÃÛáõİ
+hy.armscii-8.kbd:ru:áÒÍÑÎÓËÁÑ ÆÏÎÅÔÉŞÅÓËÁÑ ÒÁÓËÌÁÄËÁ
+hy.armscii-8.kbd:en:Armenian phonetic layout
+hy.armscii-8.kbd:de:Armenische phonetische Tastenbelegung
 
 icelandic.iso.kbd:en:Icelandic ISO-8859-1
 icelandic.iso.kbd:de:Isländisch ISO-8859-1

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
+FONTS=	armscii8-8x8.fnt armscii8-8x14.fnt armscii8-8x16.fnt \
+	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
 	cp850-8x8.fnt cp850-8x14.fnt cp850-8x16.fnt \
 	cp850-thin-8x8.fnt cp850-thin-8x16.fnt \
@@ -10,6 +11,7 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp866b-8x16.fnt cp866c-8x16.fnt \
 	cp866u-8x16.fnt cp866u-8x14.fnt cp866u-8x8.fnt \
 	cp1251-8x8.fnt cp1251-8x14.fnt cp1251-8x16.fnt \
+	haik8-8x8.fnt haik8-8x14.fnt haik8-8x16.fnt \
 	iso-8x8.fnt iso-8x14.fnt iso-8x16.fnt \
 	iso02-8x8.fnt iso02-8x14.fnt iso02-8x16.fnt \
 	iso04-8x8.fnt iso04-8x14.fnt iso04-8x16.fnt iso04-wide-8x16.fnt \
