@@ -77,22 +77,23 @@ int32_t afdattach(struct atapi_softc *);
 static int32_t afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
 static void afd_start(struct afd_softc *);
-static void afd_partial_done(struct atapi_request *);
-static void afd_done(struct atapi_request *);
+static int32_t afd_partial_done(struct atapi_request *);
+static int32_t afd_done(struct atapi_request *);
 static int32_t afd_eject(struct afd_softc *, int32_t);
 static int32_t afd_start_stop(struct afd_softc *, int32_t);
 static int32_t afd_prevent_allow(struct afd_softc *, int32_t);
 
 /* internal vars */
-static int32_t afdnlun = 0;		/* number of config'd drives */
+MALLOC_DEFINE(M_AFD, "AFD driver", "ATAPI floppy driver buffers");
 
 int32_t 
 afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
     dev_t dev;
+    static int32_t afdnlun = 0;
 
-    fdp = malloc(sizeof(struct afd_softc), M_TEMP, M_NOWAIT);
+    fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT);
     if (!fdp) {
 	printf("afd: out of memory\n");
 	return -1;
@@ -104,7 +105,7 @@ afdattach(struct atapi_softc *atp)
     fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
 
     if (afd_sense(fdp)) {
-	free(fdp, M_TEMP);
+	free(fdp, M_AFD);
 	return -1;
     }
 
@@ -118,6 +119,7 @@ afdattach(struct atapi_softc *atp)
 		      0x174);
     dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
     dev->si_drv1 = fdp;
+    dev->si_iosize_max = 252 * DEV_BSIZE;
     return 0;
 }
 
@@ -133,11 +135,9 @@ afd_sense(struct afd_softc *fdp)
     bzero(buffer, sizeof(buffer));
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
-	if (!(error = atapi_immed_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
-				      A_READ, 30))) {
-	    error = atapi_error(fdp->atp, error);
+	if (!(error = atapi_queue_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
+				      A_READ, 30, NULL, NULL, NULL)))
 	    break;
-	}
     }
 #ifdef AFD_DEBUG
     atapi_dump("afd: sense", buffer, sizeof(buffer));
@@ -204,8 +204,6 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label;
-
-    dev->si_iosize_max = 254 * DEV_BSIZE;
 
     fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     afd_prevent_allow(fdp, 1);
@@ -331,26 +329,27 @@ afd_start(struct afd_softc *fdp)
 		    (bp->b_flags & B_READ) ? A_READ : 0, 30, afd_done, fdp, bp);
 }
 
-static void 
+static int32_t 
 afd_partial_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
 
     if (request->result) {
-	bp->b_error = atapi_error(request->device, request->result);
+	bp->b_error = request->result;
 	bp->b_flags |= B_ERROR;
     }
     bp->b_resid += request->bytecount;
+    return 0;
 }
 
-static void 
+static int32_t 
 afd_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
     struct afd_softc *fdp = request->driver;
 
     if (request->result || (bp->b_flags & B_ERROR)) {
-	bp->b_error = atapi_error(request->device, request->result);
+	bp->b_error = request->result;
 	bp->b_flags |= B_ERROR;
     }
     else
@@ -358,6 +357,7 @@ afd_done(struct atapi_request *request)
     devstat_end_transaction_buf(&fdp->stats, bp);
     biodone(bp);
     afd_start(fdp);
+    return 0;
 }
 
 static int32_t 
@@ -389,10 +389,10 @@ afd_start_stop(struct afd_softc *fdp, int32_t start)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int32_t error;
 
-    error = atapi_immed_cmd(fdp->atp, ccb, NULL, 0, 0, 10);
+    error = atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 10, NULL, NULL, NULL);
     if (error)
-	return atapi_error(fdp->atp, error);
-    return atapi_error(fdp->atp, atapi_wait_ready(fdp->atp, 30));
+	return error;
+    return atapi_wait_ready(fdp->atp, 30);
 }
 
 static int32_t
@@ -401,5 +401,5 @@ afd_prevent_allow(struct afd_softc *fdp, int32_t lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
-    return atapi_error(fdp->atp, atapi_immed_cmd(fdp->atp, ccb, NULL, 0, 0,30));
+    return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0,30, NULL, NULL, NULL);
 }
