@@ -152,11 +152,6 @@ nomenclature:
 struct pcm_channel *fkchan_setup(device_t dev);
 int fkchan_kill(struct pcm_channel *c);
 
-/*
- * Major nuber for the sound driver.
- */
-#define SND_CDEV_MAJOR 30
-
 #define	SND_MAXVCHANS	255
 
 /*
