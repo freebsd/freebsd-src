@@ -52,7 +52,7 @@ In a kernel that does not have "options INVARIANTS",
 the 
 .Fn KASSERT
 macro is defined to be a no-op.  
-.Sh EXAMPLE
+.Sh EXAMPLES
 The kernel function
 .Fn vput
 must not be called with a NULL pointer.
@@ -68,7 +68,9 @@ vput(vp)
 .Ed
 .Sh SEE ALSO
 .Xr config 8 ,
-.Xr panic 9 
+.Xr CONDSPLASSERT.9 ,
+.Xr panic 9 ,
+.Xr SPLASSERT.9
 .Sh AUTHORS
 This manual page was written by
 .An Jonathan M. Bresler
