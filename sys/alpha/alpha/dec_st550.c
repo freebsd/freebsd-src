@@ -34,9 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
-#include "opt_dev_sc.h"
-
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
@@ -55,18 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
-
-#ifndef NO_SIO
-#ifndef	CONSPEED
-#define	CONSPEED TTYDEF_SPEED
-#endif
-static int comcnrate = CONSPEED;
-extern int comconsole;
-extern int siocnattach(int, int);
-extern int siogdbattach(int, int);
-#endif
-
-extern int sccnattach(void);
 
 void st550_init(void);
 static void st550_cons_init(void);
@@ -105,41 +90,15 @@ st550_cons_init()
 
 	cia_init();
 
-#ifndef NO_SIO
-#ifdef DDB
-	siogdbattach(0x2f8, 57600);
-#endif
-#endif
-
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
 	case 2:
-#ifndef NO_SIO
-		/* serial console ... */
-		/* XXX */
-		/*
-		 * Delay to allow PROM putchars to complete.
-		 * FIFO depth * character time,
-		 * character time = (1000000 / (defaultrate / 10))
-		 */
-		DELAY(160000000 / comcnrate);
-		comconsole = 0;
-		if (siocnattach(0x3f8, comcnrate))
-			panic("can't init serial console");
-
 		boothowto |= RB_SERIAL;
-#endif
 		break;
 
 	case 3:
-		/* display console ... */
-		/* XXX */
-#ifdef DEV_SC
-		sccnattach();
-#else
-		panic("not configured to use display && keyboard console");
-#endif
+		boothowto &= ~RB_SERIAL;
 		break;
 
 	default:
