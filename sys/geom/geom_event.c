@@ -66,6 +66,7 @@ static u_int g_pending_events;
 static void g_do_event(struct g_event *ep);
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
+static struct sx g_eventstall;
 static int g_shutdown;
 
 void
@@ -74,6 +75,20 @@ g_waitidle(void)
 
 	while (g_pending_events)
 		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
+}
+
+void
+g_stall_events(void)
+{
+
+	sx_slock(&g_eventstall);
+}
+
+void
+g_release_events(void)
+{
+
+	sx_sunlock(&g_eventstall);
 }
 
 void
@@ -220,6 +235,7 @@ one_event(void)
 	struct g_event *ep;
 	struct g_provider *pp;
 
+	sx_xlock(&g_eventstall);
 	g_topology_lock();
 	for (;;) {
 		mtx_lock(&g_eventlock);
@@ -236,6 +252,7 @@ one_event(void)
 	if (ep == NULL) {
 		mtx_unlock(&g_eventlock);
 		g_topology_unlock();
+		sx_xunlock(&g_eventstall);
 		return (0);
 	}
 	TAILQ_REMOVE(&g_events, ep, events);
@@ -254,6 +271,7 @@ one_event(void)
 	if (g_pending_events == 0)
 		wakeup(&g_pending_events);
 	g_topology_unlock();
+	sx_xunlock(&g_eventstall);
 	return (1);
 }
 
@@ -345,4 +363,5 @@ g_event_init()
 		SHUTDOWN_PRI_FIRST);
 #endif
 	mtx_init(&g_eventlock, "GEOM orphanage", NULL, MTX_DEF);
+	sx_init(&g_eventstall, "GEOM event stalling");
 }
