@@ -177,8 +177,7 @@ static char *pnp_classes[] = {
 static char *
 search_token(char *str, int slen, char *token)
 {
-	char *p;
-	int tlen, i, j;
+	int tlen, i;
 
 #define UNKNOWN_LENGTH	-1
 
