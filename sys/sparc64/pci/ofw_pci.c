@@ -55,12 +55,13 @@ u_int8_t pci_bus_cnt;
 phandle_t *pci_bus_map;
 int pci_bus_map_sz;
 
-#define	OPQ_NEED_SWIZZLE	1
+#define	OPQ_NO_SWIZZLE	1
 static struct ofw_pci_quirk {
 	char	*opq_model;
 	int	opq_quirks;
 } ofw_pci_quirks[] = {
-	{ "SUNW,UltraSPARC-IIi-cEngine", OPQ_NEED_SWIZZLE }
+	{ "SUNW,Ultra-4", OPQ_NO_SWIZZLE },
+	{ "SUNW,Ultra-1-Engine", OPQ_NO_SWIZZLE },
 };
 #define	OPQ_NENT	(sizeof(ofw_pci_quirks) / sizeof(ofw_pci_quirks[0]))
 
@@ -77,18 +78,20 @@ ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
 	u_int32_t pintr, intr;
 	char type[32];
 
-	if ((pci_quirks & OPQ_NEED_SWIZZLE) != 0 &&
-	    pintsz == sizeof(u_int32_t) && pregsz >= sizeof(preg) &&
+	if (pintsz != sizeof(u_int32_t))
+		return (-1);
+	bcopy(pintptr, &pintr, sizeof(pintr));
+	if ((pci_quirks & OPQ_NO_SWIZZLE) == 0 && pregsz >= sizeof(preg) &&
 	    OF_getprop(node, "device_type", type, sizeof(type)) != -1 &&
-	    strcmp(type, OFW_PCI_PCIBUS) == 0) {
+	    strcmp(type, OFW_PCI_PCIBUS) == 0 && pintr >= 1 && pintr <= 4) {
 		/*
 		 * Handle a quirk found on some Netra t1 models: there exist
 		 * PCI bridges without interrupt maps, where we apparently must
 		 * do the PCI swizzle and continue to map on at the parent.
 		 */
-		bcopy(pintptr, &pintr, sizeof(pintr));
 		bcopy(pregptr, &preg, sizeof(preg));
-		intr = (OFW_PCI_PHYS_HI_DEVICE(preg.phys_hi) + pintr) % 4;
+		intr = (OFW_PCI_PHYS_HI_DEVICE(preg.phys_hi) + pintr + 3) %
+		    4 + 1;
 		*rintr = malloc(sizeof(intr), M_OFWPROP, M_WAITOK);
 		bcopy(&intr, *rintr, sizeof(intr));
 		*terminate = 0;
