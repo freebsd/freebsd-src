@@ -42,25 +42,25 @@
 #ifndef _SETJMP_H_
 #define _SETJMP_H_
 
+#include <sys/cdefs.h>
+
 /* The size of the jmp_buf is machine dependent: */
 #include <machine/setjmp.h>
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
-int	setjmp(jmp_buf);
-void	longjmp(jmp_buf, int) __dead2;
-
-#ifndef _ANSI_SOURCE
-int	sigsetjmp(sigjmp_buf, int);
-void	siglongjmp(sigjmp_buf, int) __dead2;
-#endif /* not ANSI */
-
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-int	_setjmp(jmp_buf);
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 void	_longjmp(jmp_buf, int) __dead2;
+int	_setjmp(jmp_buf);
+#endif
+void	longjmp(jmp_buf, int) __dead2;
+#if __BSD_VISIBLE
 void	longjmperror(void);
-#endif /* neither ANSI nor POSIX */
+#endif
+int	setjmp(jmp_buf);
+#if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
+void	siglongjmp(sigjmp_buf, int) __dead2;
+int	sigsetjmp(sigjmp_buf, int);
+#endif
 __END_DECLS
 
 #endif /* !_SETJMP_H_ */
