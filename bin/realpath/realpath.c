@@ -46,7 +46,7 @@ static void usage(void) __dead2;
 int
 main(int argc, char *argv[])
 {
-	char buf[PATH_MAX];
+	char buf[MAXPATHLEN];
 	char *p;
 
 	if (argc == 1) {
@@ -54,7 +54,7 @@ main(int argc, char *argv[])
 			err(1, "getcwd()");
 	} else if (argc == 2) {
 		if ((p = realpath(argv[1], buf)) == NULL)
-			err(1, "%s", argv[1]);
+			err(1, "%s", buf);
 	} else
 		usage();
 	(void)printf("%s\n", p);
