@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.9 1999/01/07 07:20:41 peter Exp $
+#	$Id: Makefile.upgrade,v 1.10 1999/01/25 01:47:49 peter Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -39,15 +39,23 @@ make	:
 # with them (in case the installed kernel is an older version), then 
 # install the elf world.
 #
-aout-to-elf aout-to-elf-install :				\
+aout-to-elf aout-to-elf-install :	/var/db/update.cfg	\
 		${MAKEOBJDIRPREFIX}/do_aout_buildworld		\
 		${MAKEOBJDIRPREFIX}/do_elf_buildworld		\
 		${MAKEOBJDIRPREFIX}/do_move_aout_libs		\
 		${MAKEOBJDIRPREFIX}/do_aout_installworld	\
-		${MAKEOBJDIRPREFIX}/do_aout_kernel		\
 		${MAKEOBJDIRPREFIX}/do_elf_installworld		\
+		${MAKEOBJDIRPREFIX}/do_elf_kernel		\
 		${MAKEOBJDIRPREFIX}/do_set_objformat		\
-		${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
+		${MAKEOBJDIRPREFIX}/do_reboot
+
+# front-load all the information we're going to need.
+/var/db/update.cfg:
+	@if [ -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
+	    env MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 1 /var/db/update.cfg; \
+	else \
+	    echo "Your source tree must not be fully populated; unable to find upgrade script"; echo "in ${.CURDIR}/tools/tools/upgrade/doupgrade.sh."; exit 1; \
+	fi
 
 #
 # Just do the build parts of the transition build.
@@ -186,39 +194,15 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 	@touch ${MAKEOBJDIRPREFIX}/do_aout_installworld
 
 #
-# The installed kernel may not match the world that is installed, so build
-# a generic kernel, but don't install it. The user can decide if the kernel
-# needs to be installed. Perhaps we should install it in the root
-# directory as an obscure name just in case a reboot is required?
+# Build and install a new kernel, as well as the boot blocks necessary to
+# boot it.
 #
-${MAKEOBJDIRPREFIX}/do_aout_kernel :
-.if	${INSTALLEDVERSION} >= 300003
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " You are already running 3.0, so a kernel build"
-	@echo " is probably not required."
-	@echo "--------------------------------------------------------------"
-.else
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Building a generic kernel using the new aout tools"
-	@echo "--------------------------------------------------------------"
-.if	exists(${.CURDIR}/sys/compile/GENERICupgrade)
-	@rm -rf ${.CURDIR}/sys/compile/GENERICupgrade
-.endif
-.if	!exists(${.CURDIR}/sys/${MACHINE}/conf/GENERICupgrade)
-	-cp ${.CURDIR}/sys/${MACHINE}/conf/GENERIC \
-		${.CURDIR}/sys/${MACHINE}/conf/GENERICupgrade
-.endif
-	@cd ${.CURDIR}/sys/${MACHINE}/conf; config GENERICupgrade
-	@-cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make KERNFORMAT=aout depend && \
-		OBJFORMAT=aout make KERNFORMAT=aout all
-	@cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make KERNFORMAT=aout depend && \
-		OBJFORMAT=aout make KERNFORMAT=aout all
-.endif
-	@touch ${MAKEOBJDIRPREFIX}/do_aout_kernel
+${MAKEOBJDIRPREFIX}/do_elf_kernel :
+	@if [ -f /var/db/update.cfg -a -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
+	     env MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 2 /var/db/update.cfg; \
+	fi
+	@touch ${MAKEOBJDIRPREFIX}/do_elf_kernel
+	@rm -f /var/db/update.cfg
 
 #
 # Install the elf world overwriting just about all the previously installed
@@ -246,6 +230,9 @@ ${MAKEOBJDIRPREFIX}/do_elf_installworld :
 		PATH=${AOUTTMPPATH} OBJFORMAT=elf NOTOOLS=1 \
 		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
 		make -f Makefile.inc1 -m ${.CURDIR}/share/mk installworld
+	@if [ ! -f /etc/pam.conf ]; then cp ${.CURDIR}/etc/pam.conf /etc; fi
+	@if [ ! -f /etc/auth.conf ]; then cp ${.CURDIR}/etc/auth.conf /etc; fi
+	@if [ ! -f /etc/login.conf ]; then cp ${.CURDIR}/etc/login.conf /etc; fi
 	@touch ${MAKEOBJDIRPREFIX}/do_elf_installworld
 
 #
@@ -261,43 +248,20 @@ ${MAKEOBJDIRPREFIX}/do_set_objformat	:
 	@touch ${MAKEOBJDIRPREFIX}/do_set_objformat
 
 #
-# If not already running a current kernel, install the GENERICupgrade kernel
-# and reboot.
-#
-${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
-.if	${INSTALLEDVERSION} >= 300003
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Your system has been updated to run elf by default!"
-	@echo
-	@echo " You should reboot your system now."
-	@echo "--------------------------------------------------------------"
-	@touch ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
-.else
+# Time to reboot!
+${MAKEOBJDIRPREFIX}/do_reboot	:
 .if !defined(NOCONFIRM)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Your system has been updated to run elf by default!"
+ 	@echo " Your system has now been fully updated to elf!"
 	@echo
-	@echo " Since you are running ${INSTALLEDNAME}, the kernel must"
-	@echo " be installed before the system is rebooted. You can type"
-	@echo " Ctrl-C to abort the kernel installation (at your own risk),"
-	@echo " or press return for the kernel to be installed and the"
-	@echo " system rebooted."
+ 	@echo " It's now time to reboot from your new ELF kernel."
+ 	@echo " You can type Ctrl-C to abort this (at your own risk)"
+ 	@echo " or press return to reboot the system."
 	@echo "--------------------------------------------------------------"
 	@${MAKEOBJDIRPREFIX}/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
 .endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Installing a new GENERICupgrade kernel"
-	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make KERNFORMAT=aout install
-	@echo
-	@echo "--------------------------------------------------------------"
 	@echo " Rebooting......."
 	@echo "--------------------------------------------------------------"
-	@touch ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
+ 	@touch ${MAKEOBJDIRPREFIX}/do_reboot
 	@-${MAKEOBJDIRPREFIX}/reboot
-.endif
-
