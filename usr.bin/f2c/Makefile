@@ -29,4 +29,8 @@ tokdefs.h: ${.CURDIR}/tokens
 CLEANFILES+=\
 	gram.c tokdefs.h y.tab.h
 
+afterinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	  ${INSTALLFLAGS} f77.script ${DESTDIR}${BINDIR}/f77
+
 .include <bsd.prog.mk>
