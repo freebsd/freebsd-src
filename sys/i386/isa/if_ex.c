@@ -25,6 +25,9 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
+ * MAINTAINER: Matthew N. Dodd <winter@jurai.net>
+ *                             <mdodd@FreeBSD.org>
  */
 
 /*
@@ -37,15 +40,21 @@
 
 #include "ex.h"
 #if NEX > 0
-#include "opt_inet.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -57,69 +66,117 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
+#include <isa/pnpvar.h>
+
 #include <i386/isa/if_exreg.h>
 
 #ifdef EXDEBUG
-#define Start_End 1
-#define Rcvd_Pkts 2
-#define Sent_Pkts 4
-#define Status    8
+# define Start_End 1
+# define Rcvd_Pkts 2
+# define Sent_Pkts 4
+# define Status    8
 static int debug_mask = 0;
 static int exintr_count = 0;
-#define DODEBUG(level, action) if (level & debug_mask) action
+# define DODEBUG(level, action) if (level & debug_mask) action
 #else
-#define DODEBUG(level, action)
+# define DODEBUG(level, action)
 #endif
 
 #define Conn_BNC 1
 #define Conn_TPE 2
 #define Conn_AUI 3
 
+#define CARD_TYPE_EX_10		1
+#define CARD_TYPE_EX_10_PLUS	2	
+
 struct ex_softc {
-  	struct arpcom arpcom;	/* Ethernet common data */
-	u_int iobase;	/* I/O base address. */
-	u_short connector;	/* Connector type. */
-	u_short irq_no; /* IRQ number. */
-	char *irq2ee; /* irq <-> internal representation conversion */
-	u_char *ee2irq;
-	u_int mem_size;	/* Total memory size, in bytes. */
-	u_int rx_mem_size;	/* Rx memory size (by default, first 3/4 of total memory). */
-  u_int rx_lower_limit, rx_upper_limit; /* Lower and upper limits of receive buffer. */
-  u_int rx_head; /* Head of receive ring buffer. */
-	u_int tx_mem_size;	/* Tx memory size (by default, last quarter of total memory). */
-  u_int tx_lower_limit, tx_upper_limit; /* Lower and upper limits of transmit buffer. */
-  u_int tx_head, tx_tail; /* Head and tail of transmit ring buffer. */
-  u_int tx_last; /* Pointer to beginning of last frame in the chain. */
+  	struct arpcom	arpcom;		/* Ethernet common data */
+
+	device_t	dev;
+	struct resource *ioport;
+	struct resource *irq;
+
+	u_int		iobase;		/* I/O base address. */
+	u_short		irq_no;		/* IRQ number. */
+
+	char *		irq2ee;		/* irq <-> internal		*/
+	u_char *	ee2irq;		/* representation conversion	*/
+
+	u_short		connector;	/* Connector type. */
+
+	u_int		mem_size;	/* Total memory size, in bytes. */
+	u_int		rx_mem_size;	/* Rx memory size (by default,	*/
+					/* first 3/4 of total memory).	*/
+
+	u_int		rx_lower_limit;	/* Lower and upper limits of	*/
+	u_int		rx_upper_limit;	/* receive buffer.		*/
+
+	u_int		rx_head;	/* Head of receive ring buffer. */
+	u_int		tx_mem_size;	/* Tx memory size (by default,	*/
+					/* last quarter of total memory).*/
+
+	u_int		tx_lower_limit;	/* Lower and upper limits of	*/
+	u_int		tx_upper_limit;	/* transmit buffer.		*/
+
+	u_int		tx_head;	/* Head and tail of 		*/
+	u_int		tx_tail;	/* transmit ring buffer.	*/
+
+	u_int		tx_last;	/* Pointer to beginning of last	*/
+					/* frame in the chain.		*/
 };
 
-static struct ex_softc ex_sc[NEX]; /* XXX would it be better to malloc(3) the memory? */
+static char irq2eemap[] =
+	{ -1, -1, 0, 1, -1, 2, -1, -1, -1, 0, 3, 4, -1, -1, -1, -1 };
+static u_char ee2irqmap[] =
+	{ 9, 3, 5, 10, 11, 0, 0, 0 };
 
-static char irq2eemap[] = { -1, -1, 0, 1, -1, 2, -1, -1, -1, 0, 3, 4, -1, -1, -1, -1 };
-static u_char ee2irqmap[] = { 9, 3, 5, 10, 11, 0, 0, 0 };
-static char plus_irq2eemap[] = { -1, -1, -1, 0, 1, 2, -1, 3, -1, 4, 5, 6, 7, -1, -1, -1 };
-static u_char plus_ee2irqmap[] = { 3, 4, 5, 7, 9, 10, 11, 12 };
+static char plus_irq2eemap[] =
+	{ -1, -1, -1, 0, 1, 2, -1, 3, -1, 4, 5, 6, 7, -1, -1, -1 };
+static u_char plus_ee2irqmap[] =
+	{ 3, 4, 5, 7, 9, 10, 11, 12 };
 
-static int ex_probe __P((struct isa_device *));
-static int ex_attach __P((struct isa_device *));
-static void ex_init __P((void *));
-static void ex_start __P((struct ifnet *));
-static void ex_stop __P((int));
-static ointhand2_t exintr;
-static int ex_ioctl __P((struct ifnet *, u_long, caddr_t));
-static void ex_reset __P((int));
-static void ex_watchdog __P((struct ifnet *));
+/* Bus Front End Functions */
+static int	ex_isa_probe	__P((device_t));
+static int	ex_attach	__P((device_t));
 
-static u_short eeprom_read __P((int, int));
-static int look_for_card __P((u_int));
-static void ex_tx_intr __P((int));
-static void ex_rx_intr __P((int));
+/* Network Interface Functions */
+static void	ex_init		__P((void *));
+static void	ex_start	__P((struct ifnet *));
+static int	ex_ioctl	__P((struct ifnet *, u_long, caddr_t));
+static void	ex_watchdog	__P((struct ifnet *));
 
-struct isa_driver exdriver = {
-	ex_probe,
-	ex_attach,
+static void	ex_stop		__P((struct ex_softc *));
+static void	ex_reset	__P((struct ex_softc *));
+
+static driver_intr_t	exintr;
+static void	ex_tx_intr	__P((struct ex_softc *));
+static void	ex_rx_intr	__P((struct ex_softc *));
+
+static u_short	eeprom_read	__P((int, int));
+
+static device_method_t ex_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ex_isa_probe),
+	DEVMETHOD(device_attach,	ex_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ex_driver = {
 	"ex",
-	0
+	ex_methods,
+	sizeof(struct ex_softc),
+};
+
+static devclass_t ex_devclass;
+
+DRIVER_MODULE(ex, isa, ex_driver, ex_devclass, 0, 0);
+
+static struct isa_pnp_id ex_ids[] = {
+	{ 0x3110d425,	NULL },	/* INT1031 */
+	{ 0x3010d425,	NULL },	/* INT1030 */
+	{ 0,		NULL },
 };
 
 static int look_for_card(u_int iobase)
@@ -135,36 +192,103 @@ static int look_for_card(u_int iobase)
 	count2 = inb(iobase + ID_REG);
 	count2 = inb(iobase + ID_REG);
 	count2 = inb(iobase + ID_REG);
+
 	return((count2 & Counter_bits) == ((count1 + 0xc0) & Counter_bits));
 }
 
-
-int ex_probe(struct isa_device *dev)
+static int
+ex_get_media (u_int32_t iobase)
 {
-	int unit = dev->id_unit;
-	struct ex_softc *sc = &ex_sc[unit];
-	u_int iobase;
-	u_short eaddr_tmp;
-	int tmp;
+	int	tmp;
 
-	DODEBUG(Start_End, printf("ex_probe%d: start\n", unit););
+	outb(iobase + CMD_REG, Bank2_Sel);
+	tmp = inb(iobase + REG3);
+	outb(iobase + CMD_REG, Bank0_Sel);
+
+	if (tmp & TPE_bit)
+		return(Conn_TPE);
+	if (tmp & BNC_bit)
+		return(Conn_BNC);
+
+	return (Conn_AUI);
+}
+
+static void
+ex_get_address (u_int32_t iobase, u_char *enaddr)
+{
+	u_int16_t	eaddr_tmp;
+
+	eaddr_tmp = eeprom_read(iobase, EE_Eth_Addr_Lo);
+	enaddr[5] = eaddr_tmp & 0xff;
+	enaddr[4] = eaddr_tmp >> 8;
+	eaddr_tmp = eeprom_read(iobase, EE_Eth_Addr_Mid);
+	enaddr[3] = eaddr_tmp & 0xff;
+	enaddr[2] = eaddr_tmp >> 8;
+	eaddr_tmp = eeprom_read(iobase, EE_Eth_Addr_Hi);
+	enaddr[1] = eaddr_tmp & 0xff;
+	enaddr[0] = eaddr_tmp >> 8;
+	
+	return;
+}
+
+static int
+ex_card_type (u_char *enaddr)
+{
+	if ((enaddr[0] == 0x00) && (enaddr[1] == 0xA0) && (enaddr[2] == 0xC9))
+		return (CARD_TYPE_EX_10_PLUS);
+
+	return (CARD_TYPE_EX_10);
+}
+
+static int
+ex_isa_probe(device_t dev)
+{
+	u_int		iobase;
+	u_int		irq;
+	char *		irq2ee;
+	u_char *	ee2irq;
+	u_char 		enaddr[6];
+	int		tmp;
+	int		error;
+
+	DODEBUG(Start_End, printf("ex_probe: start\n"););
+
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ex_ids);
+
+	/* If the card had a PnP ID that didn't match any we know about */
+	if (error == ENXIO) {
+		return(error);
+	}
+
+	/* If we had some other problem. */
+	if (!(error == 0 || error == ENOENT)) {
+		return(error);
+	}
 
 	/*
-	 * If an I/O address was supplied in the configuration file, probe only
-	 * that. Otherwise, cycle through the predefined set of possible addresses.
+	 * If an I/O address was supplied in the configuration file
+	 * or by PnP ,probe only that. Otherwise, cycle through the
+	 * predefined set of possible addresses.
+	 * This should really be a bus enumerator ala DEVICE_IDENTFY()
 	 */
-	if (dev->id_iobase != -1) {
-		if (! look_for_card(iobase = dev->id_iobase))
-			return(0);
-	}
-	else {
-		for (iobase = 0x200; iobase < 0x3a0; iobase += 0x10)
+	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
+	if (iobase != 0) {
+		if (! look_for_card(iobase)) {
+			printf("ex: no card found at 0x%03x\n", iobase);
+			return(ENXIO);
+		}
+	} else {
+		for (iobase = 0x200; iobase < 0x3a0; iobase += 0x10) {
 			if (look_for_card(iobase))
 				break;
-		if (iobase >= 0x3a0)
-			return(0);
-		else
-			dev->id_iobase = iobase;
+		}
+		if (iobase >= 0x3a0) {
+			return(ENXIO);
+		} else {
+			bus_set_resource(dev, SYS_RES_IOPORT, 0,
+					 iobase, EX_IOSIZE);
+		}
 	}
 
 	/*
@@ -173,6 +297,79 @@ int ex_probe(struct isa_device *dev)
 	outb(iobase + CMD_REG, Reset_CMD);
 	DELAY(400);
 
+	ex_get_address(iobase, enaddr);
+
+	/* work out which set of irq <-> internal tables to use */
+	if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
+		irq2ee = plus_irq2eemap;
+		ee2irq = plus_ee2irqmap;
+	} else {
+		irq2ee = irq2eemap;
+		ee2irq = ee2irqmap;
+	}
+
+	tmp = eeprom_read(iobase, EE_IRQ_No) & IRQ_No_Mask;
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
+
+	if (irq > 0) {
+		if (ee2irq[tmp] != irq) {
+			printf("ex: WARNING: board's EEPROM is configured"
+				" for IRQ %d, using %d\n",
+				ee2irq[tmp], irq);
+		}
+	} else {
+		irq = ee2irq[tmp];
+		bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
+	}
+
+	if (irq == 0) {
+		printf("ex: invalid IRQ.\n");
+		return(ENXIO);
+	}
+
+	DODEBUG(Start_End, printf("ex_probe: finish\n"););
+
+	return(0);
+}
+
+
+int ex_attach(device_t dev)
+{
+	struct ex_softc *	sc = device_get_softc(dev);
+	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	int			unit = device_get_unit(dev);
+	int			error;
+	int			rid;
+	void *			ih;
+
+	DODEBUG(Start_End, device_printf(dev, "start\n"););
+
+	rid = 0;
+	sc->ioport  = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+					 0, ~0, 1, RF_ACTIVE);
+
+	if (!sc->ioport) {
+		device_printf(dev, "No I/O space?!\n");
+		goto bad;
+	}
+
+	rid = 0;
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				     0, ~0, 1, RF_ACTIVE);
+
+	if (!sc->irq) {
+		device_printf(dev, "No IRQ?!\n");
+		goto bad;
+	}
+
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+			       exintr, (void *)unit, &ih);
+
+	if (error) {
+		device_printf(dev, "bus_setup_intr() failed!\n");
+		goto bad;
+	}
+
 	/*
 	 * Fill in several fields of the softc structure:
 	 *	- I/O base address.
@@ -180,68 +377,23 @@ int ex_probe(struct isa_device *dev)
 	 *	- IRQ number (if not supplied in config file, read it from EEPROM).
 	 *	- Connector type.
 	 */
-	sc->iobase = iobase;
-	eaddr_tmp = eeprom_read(iobase, EE_Eth_Addr_Lo);
-	sc->arpcom.ac_enaddr[5] = eaddr_tmp & 0xff;
-	sc->arpcom.ac_enaddr[4] = eaddr_tmp >> 8;
-	eaddr_tmp = eeprom_read(iobase, EE_Eth_Addr_Mid);
-	sc->arpcom.ac_enaddr[3] = eaddr_tmp & 0xff;
-	sc->arpcom.ac_enaddr[2] = eaddr_tmp >> 8;
-	eaddr_tmp = eeprom_read(iobase, EE_Eth_Addr_Hi);
-	sc->arpcom.ac_enaddr[1] = eaddr_tmp & 0xff;
-	sc->arpcom.ac_enaddr[0] = eaddr_tmp >> 8;
-	tmp = eeprom_read(iobase, EE_IRQ_No) & IRQ_No_Mask;
+	sc->dev = dev;
+	sc->iobase = rman_get_start(sc->ioport);
+	sc->irq_no = rman_get_start(sc->irq);
+
+	ex_get_address(sc->iobase, sc->arpcom.ac_enaddr);
 
 	/* work out which set of irq <-> internal tables to use */
-	if (sc->arpcom.ac_enaddr[0] == 0x00 &&
-	    sc->arpcom.ac_enaddr[1] == 0xA0 &&
-	    sc->arpcom.ac_enaddr[2] == 0xC9) {    /* it's a 10+ */
+	if (ex_card_type(sc->arpcom.ac_enaddr) == CARD_TYPE_EX_10_PLUS) {
 		sc->irq2ee = plus_irq2eemap;
 		sc->ee2irq = plus_ee2irqmap;
-	} else {                                  /* it's an ordinary 10 */
+	} else {
 		sc->irq2ee = irq2eemap;
 		sc->ee2irq = ee2irqmap;
 	}
 
-	if (dev->id_irq > 0) {
-		if (sc->ee2irq[tmp] != ffs(dev->id_irq) - 1)
-			printf("ex%d: WARNING: board's EEPROM is configured for IRQ %d, using %d\n", unit, sc->ee2irq[tmp], ffs(dev->id_irq) - 1);
-		sc->irq_no = ffs(dev->id_irq) - 1;
-	}
-	else {
-		sc->irq_no = sc->ee2irq[tmp];
-		dev->id_irq = 1 << sc->irq_no;
-	}
-	if (sc->irq_no == 0) {
-		printf("ex%d: invalid IRQ.\n", unit);
-		return(0);
-	}
-	outb(iobase + CMD_REG, Bank2_Sel);
-	tmp = inb(iobase + REG3);
-	if (tmp & TPE_bit)
-		sc->connector = Conn_TPE;
-	else if (tmp & BNC_bit)
-		sc->connector = Conn_BNC;
-	else
-		sc->connector = Conn_AUI;
+	sc->connector = ex_get_media(sc->iobase);
 	sc->mem_size = CARD_RAM_SIZE;	/* XXX This should be read from the card itself. */
-
-	outb(iobase + CMD_REG, Bank0_Sel);
-
-	DODEBUG(Start_End, printf("ex_probe%d: finish\n", unit););
-	return(EX_IOSIZE);
-}
-
-
-int ex_attach(struct isa_device *dev)
-{
-	int unit = dev->id_unit;
-	struct ex_softc *sc = &ex_sc[unit];
-	struct ifnet *ifp = &sc->arpcom.ac_if;
-
-	DODEBUG(Start_End, printf("ex_attach%d: start\n", unit););
-
-	dev->id_ointr = exintr;
 
 	/*
 	 * Initialize the ifnet structure.
@@ -255,7 +407,8 @@ int ex_attach(struct isa_device *dev)
 	ifp->if_ioctl = ex_ioctl;
 	ifp->if_watchdog = ex_watchdog;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST /* XXX not done yet. | IFF_MULTICAST */;
+	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST
+					/* XXX not done yet. | IFF_MULTICAST */;
 
 	/*
 	 * Attach the interface.
@@ -263,12 +416,10 @@ int ex_attach(struct isa_device *dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	if (sc->arpcom.ac_enaddr[0] == 0x00 &&
-	    sc->arpcom.ac_enaddr[1] == 0xA0 &&
-	    sc->arpcom.ac_enaddr[2] == 0xC9) {
-		printf("ex%d: Intel EtherExpress Pro/10+, address %6D, connector ", dev->id_unit, sc->arpcom.ac_enaddr, ":");
+	if (ex_card_type(sc->arpcom.ac_enaddr) == CARD_TYPE_EX_10_PLUS) {
+		printf("ex%d: Intel EtherExpress Pro/10+, address %6D, connector ", unit, sc->arpcom.ac_enaddr, ":");
 	} else {
-		printf("ex%d: Intel EtherExpress Pro/10, address %6D, connector ", dev->id_unit, sc->arpcom.ac_enaddr, ":");
+		printf("ex%d: Intel EtherExpress Pro/10, address %6D, connector ", unit, sc->arpcom.ac_enaddr, ":");
 	}
 	switch(sc->connector) {
 		case Conn_TPE: printf("TPE\n"); break;
@@ -283,22 +434,34 @@ int ex_attach(struct isa_device *dev)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	DODEBUG(Start_End, printf("ex_attach%d: finish\n", unit););
 	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
-	return(1);
+
+	return(0);
+
+bad:
+
+	if (sc->ioport)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->ioport);
+	if (sc->irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+
+	return (-1);
 }
 
 
 void ex_init(void *xsc)
 {
-	register struct ex_softc *sc = (struct ex_softc *) xsc;
-	struct ifnet *ifp = &sc->arpcom.ac_if;
-	int s, i;
-	register int iobase = sc->iobase;
-	unsigned short temp_reg;
+	struct ex_softc *	sc = (struct ex_softc *) xsc;
+	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	int			s;
+	int			i;
+	register int		iobase = sc->iobase;
+	unsigned short		temp_reg;
 
 	DODEBUG(Start_End, printf("ex_init%d: start\n", ifp->if_unit););
 
-	if (ifp->if_addrhead.tqh_first == NULL)
-	  return;
+	if (ifp->if_addrhead.tqh_first == NULL) {
+		return;
+	}
 	s = splimp();
 	sc->arpcom.ac_if.if_timer = 0;
 
@@ -307,10 +470,12 @@ void ex_init(void *xsc)
 	 */
 	outb(iobase + CMD_REG, Bank2_Sel);
 	temp_reg = inb(iobase + EEPROM_REG);
-	if (temp_reg & Trnoff_Enable)
-	  outb(iobase + EEPROM_REG, temp_reg & ~Trnoff_Enable);
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-	  outb(iobase + I_ADDR_REG0 + i, sc->arpcom.ac_enaddr[i]);
+	if (temp_reg & Trnoff_Enable) {
+		outb(iobase + EEPROM_REG, temp_reg & ~Trnoff_Enable);
+	}
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		outb(iobase + I_ADDR_REG0 + i, sc->arpcom.ac_enaddr[i]);
+	}
 	/*
 	 * - Setup transmit chaining and discard bad received frames.
 	 * - Match broadcast.
@@ -375,459 +540,532 @@ void ex_init(void *xsc)
 }
 
 
-void ex_start(struct ifnet *ifp)
+void
+ex_start(struct ifnet *ifp)
 {
-  int unit = ifp->if_unit;
-  register struct ex_softc *sc = &ex_sc[unit];
-  register int iobase = sc->iobase;
-  int i, s, len, data_len, avail, dest, next;
-  unsigned char tmp16[2];
-  struct mbuf *opkt;
-  register struct mbuf *m;
+	struct ex_softc *	sc = ifp->if_softc;
+	int			iobase = sc->iobase;
+	int			i, s, len, data_len, avail, dest, next;
+	unsigned char		tmp16[2];
+	struct mbuf *		opkt;
+	struct mbuf *		m;
 
-  DODEBUG(Start_End, printf("ex_start%d: start\n", unit););
+	DODEBUG(Start_End, printf("ex_start%d: start\n", unit););
 
-  s = splimp();
-
-  /*
-   * Main loop: send outgoing packets to network card until there are no
-   * more packets left, or the card cannot accept any more yet.
-   */
-  while (((opkt = ifp->if_snd.ifq_head) != NULL) && ! (ifp->if_flags & IFF_OACTIVE)) {
-
-    /*
-     * Ensure there is enough free transmit buffer space for this packet,
-     * including its header. Note: the header cannot wrap around the end of
-     * the transmit buffer and must be kept together, so we allow space for
-     * twice the length of the header, just in case.
-     */
-    for (len = 0, m = opkt; m != NULL; m = m->m_next)
-      len += m->m_len;
-    data_len = len;
-    DODEBUG(Sent_Pkts, printf("1. Sending packet with %d data bytes. ", data_len););
-    if (len & 1)
-      len += XMT_HEADER_LEN + 1;
-    else
-      len += XMT_HEADER_LEN;
-    if ((i = sc->tx_tail - sc->tx_head) >= 0)
-      avail = sc->tx_mem_size - i;
-    else
-      avail = -i;
-	DODEBUG(Sent_Pkts, printf("i=%d, avail=%d\n", i, avail););
-    if (avail >= len + XMT_HEADER_LEN) {
-      IF_DEQUEUE(&ifp->if_snd, opkt);
-
-#ifdef EX_PSA_INTR      
-      /*
-       * Disable rx and tx interrupts, to avoid corruption of the host
-       * address register by interrupt service routines. XXX Is this necessary with splimp() enabled?
-       */
-      outb(iobase + MASK_REG, All_Int);
-#endif
-
-      /*
-       * Compute the start and end addresses of this frame in the tx buffer.
-       */
-      dest = sc->tx_tail;
-      next = dest + len;
-      if (next > sc->tx_upper_limit) {
-	if ((sc->tx_upper_limit + 2 - sc->tx_tail) <= XMT_HEADER_LEN) {
-	  dest = sc->tx_lower_limit;
-	  next = dest + len;
-	}
-	else
-	  next = sc->tx_lower_limit + next - sc->tx_upper_limit - 2;
-      }
-
-      /*
-       * Build the packet frame in the card's ring buffer.
-       */
-      DODEBUG(Sent_Pkts, printf("2. dest=%d, next=%d. ", dest, next););
-      outw(iobase + HOST_ADDR_REG, dest);
-      outw(iobase + IO_PORT_REG, Transmit_CMD);
-      outw(iobase + IO_PORT_REG, 0);
-      outw(iobase + IO_PORT_REG, next);
-      outw(iobase + IO_PORT_REG, data_len);
+	s = splimp();
 
 	/*
-	 * Output the packet data to the card. Ensure all transfers are
-	 * 16-bit wide, even if individual mbufs have odd length.
+	 * Main loop: send outgoing packets to network card until there are no
+	 * more packets left, or the card cannot accept any more yet.
 	 */
+	while (((opkt = ifp->if_snd.ifq_head) != NULL) &&
+	       !(ifp->if_flags & IFF_OACTIVE)) {
 
-     for (m = opkt, i = 0; m != NULL; m = m->m_next) {
-		DODEBUG(Sent_Pkts, printf("[%d]", m->m_len););
-		if (i) {
-			tmp16[1] = *(mtod(m, caddr_t));
-			outsw(iobase + IO_PORT_REG, tmp16, 1);
+		/*
+		 * Ensure there is enough free transmit buffer space for
+		 * this packet, including its header. Note: the header
+		 * cannot wrap around the end of the transmit buffer and
+		 * must be kept together, so we allow space for twice the
+		 * length of the header, just in case.
+		 */
+
+		for (len = 0, m = opkt; m != NULL; m = m->m_next) {
+			len += m->m_len;
 		}
-		outsw(iobase + IO_PORT_REG, mtod(m, caddr_t) + i, (m->m_len - i) / 2);
-		if ((i = (m->m_len - i) & 1) != 0)
-			tmp16[0] = *(mtod(m, caddr_t) + m->m_len - 1);
-	}
-	if (i)
-		outsw(iobase + IO_PORT_REG, tmp16, 1);
 
-      /*
-       * If there were other frames chained, update the chain in the last one.
-       */
-      if (sc->tx_head != sc->tx_tail) {
-	if (sc->tx_tail != dest) {
-	  outw(iobase + HOST_ADDR_REG, sc->tx_last + XMT_Chain_Point);
-	  outw(iobase + IO_PORT_REG, dest);
-	}
-	outw(iobase + HOST_ADDR_REG, sc->tx_last + XMT_Byte_Count);
-	i = inw(iobase + IO_PORT_REG);
-	outw(iobase + HOST_ADDR_REG, sc->tx_last + XMT_Byte_Count);
-	outw(iobase + IO_PORT_REG, i | Ch_bit);
-      }
+		data_len = len;
 
-      /*
-       * Resume normal operation of the card:
-       * - Make a dummy read to flush the DRAM write pipeline.
-       * - Enable receive and transmit interrupts.
-       * - Send Transmit or Resume_XMT command, as appropriate.
-       */
-      inw(iobase + IO_PORT_REG);
-#ifdef EX_PSA_INTR
-      outb(iobase + MASK_REG, All_Int & ~(Rx_Int | Tx_Int));
+		DODEBUG(Sent_Pkts, printf("1. Sending packet with %d data bytes. ", data_len););
+
+		if (len & 1) {
+			len += XMT_HEADER_LEN + 1;
+		} else {
+			len += XMT_HEADER_LEN;
+		}
+
+		if ((i = sc->tx_tail - sc->tx_head) >= 0) {
+			avail = sc->tx_mem_size - i;
+		} else {
+			avail = -i;
+		}
+
+		DODEBUG(Sent_Pkts, printf("i=%d, avail=%d\n", i, avail););
+
+		if (avail >= len + XMT_HEADER_LEN) {
+			IF_DEQUEUE(&ifp->if_snd, opkt);
+
+#ifdef EX_PSA_INTR      
+			/*
+			 * Disable rx and tx interrupts, to avoid corruption
+			 * of the host address register by interrupt service
+			 * routines.
+			 * XXX Is this necessary with splimp() enabled?
+			 */
+			outb(iobase + MASK_REG, All_Int);
 #endif
-      if (sc->tx_head == sc->tx_tail) {
-	outw(iobase + XMT_BAR, dest);
-	outb(iobase + CMD_REG, Transmit_CMD);
-	sc->tx_head = dest;
-	DODEBUG(Sent_Pkts, printf("Transmit\n"););
-      }
-      else {
-	outb(iobase + CMD_REG, Resume_XMT_List_CMD);
-	DODEBUG(Sent_Pkts, printf("Resume\n"););
-	}
-      sc->tx_last = dest;
-      sc->tx_tail = next;
-      
-      if (ifp->if_bpf != NULL)
-	bpf_mtap(ifp, opkt);
-      ifp->if_timer = 2;
-      ifp->if_opackets++;
-      m_freem(opkt);
-    }
-    else {
-      ifp->if_flags |= IFF_OACTIVE;
-	  DODEBUG(Status, printf("OACTIVE start\n"););
-	}
-  }
 
-  splx(s);
+			/*
+			 * Compute the start and end addresses of this
+			 * frame in the tx buffer.
+			 */
+			dest = sc->tx_tail;
+			next = dest + len;
 
-  DODEBUG(Start_End, printf("ex_start%d: finish\n", unit););
+			if (next > sc->tx_upper_limit) {
+				if ((sc->tx_upper_limit + 2 - sc->tx_tail) <=
+				    XMT_HEADER_LEN) {
+					dest = sc->tx_lower_limit;
+					next = dest + len;
+				}
+			} else {
+				next = sc->tx_lower_limit +
+				       next - sc->tx_upper_limit - 2;
+			}
+
+			/*
+			 * Build the packet frame in the card's ring buffer.
+			 */
+			DODEBUG(Sent_Pkts, printf("2. dest=%d, next=%d. ", dest, next););
+
+			outw(iobase + HOST_ADDR_REG, dest);
+			outw(iobase + IO_PORT_REG, Transmit_CMD);
+			outw(iobase + IO_PORT_REG, 0);
+			outw(iobase + IO_PORT_REG, next);
+			outw(iobase + IO_PORT_REG, data_len);
+
+			/*
+			 * Output the packet data to the card. Ensure all
+			 * transfers are 16-bit wide, even if individual
+			 * mbufs have odd length.
+			 */
+
+			for (m = opkt, i = 0; m != NULL; m = m->m_next) {
+				DODEBUG(Sent_Pkts, printf("[%d]", m->m_len););
+				if (i) {
+					tmp16[1] = *(mtod(m, caddr_t));
+					outsw(iobase + IO_PORT_REG, tmp16, 1);
+				}
+				outsw(iobase + IO_PORT_REG,
+				      mtod(m, caddr_t) + i, (m->m_len - i) / 2);
+
+				if ((i = (m->m_len - i) & 1) != 0) {
+					tmp16[0] = *(mtod(m, caddr_t) +
+						   m->m_len - 1);
+				}
+			}
+			if (i) {
+				outsw(iobase + IO_PORT_REG, tmp16, 1);
+	
+				/*
+				 * If there were other frames chained, update the
+				 * chain in the last one.
+				 */
+				if (sc->tx_head != sc->tx_tail) {
+					if (sc->tx_tail != dest) {
+						outw(iobase + HOST_ADDR_REG,
+						     sc->tx_last + XMT_Chain_Point);
+						outw(iobase + IO_PORT_REG, dest);
+					}
+					outw(iobase + HOST_ADDR_REG,
+					     sc->tx_last + XMT_Byte_Count);
+					i = inw(iobase + IO_PORT_REG);
+					outw(iobase + HOST_ADDR_REG,
+					     sc->tx_last + XMT_Byte_Count);
+					outw(iobase + IO_PORT_REG, i | Ch_bit);
+				}
+		
+				/*
+				 * Resume normal operation of the card:
+				 * - Make a dummy read to flush the DRAM write
+				 *   pipeline.
+				 * - Enable receive and transmit interrupts.
+				 * - Send Transmit or Resume_XMT command, as
+				 *   appropriate.
+				 */
+				inw(iobase + IO_PORT_REG);
+#ifdef EX_PSA_INTR
+				outb(iobase + MASK_REG, All_Int & ~(Rx_Int | Tx_Int));
+#endif
+				if (sc->tx_head == sc->tx_tail) {
+					outw(iobase + XMT_BAR, dest);
+					outb(iobase + CMD_REG, Transmit_CMD);
+					sc->tx_head = dest;
+					DODEBUG(Sent_Pkts, printf("Transmit\n"););
+				} else {
+					outb(iobase + CMD_REG, Resume_XMT_List_CMD);
+					DODEBUG(Sent_Pkts, printf("Resume\n"););
+				}
+		
+				sc->tx_last = dest;
+				sc->tx_tail = next;
+     		 
+				if (ifp->if_bpf != NULL) {
+					bpf_mtap(ifp, opkt);
+				}
+				ifp->if_timer = 2;
+				ifp->if_opackets++;
+				m_freem(opkt);
+			} else {
+				ifp->if_flags |= IFF_OACTIVE;
+				DODEBUG(Status, printf("OACTIVE start\n"););
+			}
+		}
+	}
+
+	splx(s);
+
+	DODEBUG(Start_End, printf("ex_start%d: finish\n", unit););
+}
+
+static void
+ex_stop(struct ex_softc *sc)
+{
+	int iobase = sc->iobase;
+
+	DODEBUG(Start_End, printf("ex_stop%d: start\n", unit););
+
+	/*
+	 * Disable card operation:
+	 * - Disable the interrupt line.
+	 * - Flush transmission and disable reception.
+	 * - Mask and clear all interrupts.
+	 * - Reset the 82595.
+	 */
+	outb(iobase + CMD_REG, Bank1_Sel);
+	outb(iobase + REG1, inb(iobase + REG1) & ~TriST_INT);
+	outb(iobase + CMD_REG, Bank0_Sel);
+	outb(iobase + CMD_REG, Rcv_Stop);
+	sc->tx_head = sc->tx_tail = sc->tx_lower_limit;
+	sc->tx_last = 0; /* XXX I think these two lines are not necessary, because ex_init will always be called again to reinit the interface. */
+	outb(iobase + MASK_REG, All_Int);
+	outb(iobase + STATUS_REG, All_Int);
+	outb(iobase + CMD_REG, Reset_CMD);
+	DELAY(200);
+
+	DODEBUG(Start_End, printf("ex_stop%d: finish\n", unit););
+
+	return;
 }
 
 
-void ex_stop(int unit)
+static void
+exintr(void *arg)
 {
-  struct ex_softc *sc = &ex_sc[unit];
-  int iobase = sc->iobase;
+	struct ex_softc *	sc = (struct ex_softc *)arg;
+	struct ifnet *	ifp = &sc->arpcom.ac_if;
+	int			iobase = sc->iobase;
+	int			int_status, send_pkts;
 
-  DODEBUG(Start_End, printf("ex_stop%d: start\n", unit););
-
-  /*
-   * Disable card operation:
-   * - Disable the interrupt line.
-   * - Flush transmission and disable reception.
-   * - Mask and clear all interrupts.
-   * - Reset the 82595.
-   */
-  outb(iobase + CMD_REG, Bank1_Sel);
-  outb(iobase + REG1, inb(iobase + REG1) & ~TriST_INT);
-  outb(iobase + CMD_REG, Bank0_Sel);
-  outb(iobase + CMD_REG, Rcv_Stop);
-  sc->tx_head = sc->tx_tail = sc->tx_lower_limit;
-  sc->tx_last = 0; /* XXX I think these two lines are not necessary, because ex_init will always be called again to reinit the interface. */
-  outb(iobase + MASK_REG, All_Int);
-  outb(iobase + STATUS_REG, All_Int);
-  outb(iobase + CMD_REG, Reset_CMD);
-  DELAY(200);
-
-  DODEBUG(Start_End, printf("ex_stop%d: finish\n", unit););
-}
-
-
-static void exintr(int unit)
-{
-  struct ex_softc *sc = &ex_sc[unit];
-  struct ifnet *ifp = &sc->arpcom.ac_if;
-  int iobase = sc->iobase;
-  int int_status, send_pkts;
-
-  DODEBUG(Start_End, printf("exintr%d: start\n", unit););
+	DODEBUG(Start_End, printf("exintr%d: start\n", unit););
 
 #ifdef EXDEBUG
 	if (++exintr_count != 1)
 		printf("WARNING: nested interrupt (%d). Mail the author.\n", exintr_count);
 #endif
 
-  send_pkts = 0;
-  while ((int_status = inb(iobase + STATUS_REG)) & (Tx_Int | Rx_Int)) {
-    if (int_status & Rx_Int) {
-      outb(iobase + STATUS_REG, Rx_Int);
-      ex_rx_intr(unit);
-    }
-	else if (int_status & Tx_Int) {
-      outb(iobase + STATUS_REG, Tx_Int);
-      ex_tx_intr(unit);
-      send_pkts = 1;
-    }
-  }
+	send_pkts = 0;
+	while ((int_status = inb(iobase + STATUS_REG)) & (Tx_Int | Rx_Int)) {
+		if (int_status & Rx_Int) {
+			outb(iobase + STATUS_REG, Rx_Int);
 
-  /*
-   * If any packet has been transmitted, and there are queued packets to
-   * be sent, attempt to send more packets to the network card.
-   */
+			ex_rx_intr(sc);
+		} else if (int_status & Tx_Int) {
+			outb(iobase + STATUS_REG, Tx_Int);
 
-  if (send_pkts && (ifp->if_snd.ifq_head != NULL))
-    ex_start(ifp);
+			ex_tx_intr(sc);
+			send_pkts = 1;
+		}
+	}
+
+	/*
+	 * If any packet has been transmitted, and there are queued packets to
+	 * be sent, attempt to send more packets to the network card.
+	 */
+
+	if (send_pkts && (ifp->if_snd.ifq_head != NULL)) {
+		ex_start(ifp);
+	}
 
 #ifdef EXDEBUG
 	exintr_count--;
 #endif
 
-  DODEBUG(Start_End, printf("exintr%d: finish\n", unit););
+	DODEBUG(Start_End, printf("exintr%d: finish\n", unit););
+
+	return;
 }
 
-
-void ex_tx_intr(int unit)
+static void
+ex_tx_intr(struct ex_softc *sc)
 {
-  register struct ex_softc *sc = &ex_sc[unit];
-  register struct ifnet *ifp = &sc->arpcom.ac_if;
-  register int iobase = sc->iobase;
-  int tx_status;
+	struct ifnet *	ifp = &sc->arpcom.ac_if;
+	int		iobase = sc->iobase;
+	int		tx_status;
 
-  DODEBUG(Start_End, printf("ex_tx_intr%d: start\n", unit););
+	DODEBUG(Start_End, printf("ex_tx_intr%d: start\n", unit););
 
-  /*
-   * - Cancel the watchdog.
-   * For all packets transmitted since last transmit interrupt:
-   * - Advance chain pointer to next queued packet.
-   * - Update statistics.
-   */
+	/*
+	 * - Cancel the watchdog.
+	 * For all packets transmitted since last transmit interrupt:
+	 * - Advance chain pointer to next queued packet.
+	 * - Update statistics.
+	 */
 
-  ifp->if_timer = 0;
-  while (sc->tx_head != sc->tx_tail) {
-    outw(iobase + HOST_ADDR_REG, sc->tx_head);
-    if (! inw(iobase + IO_PORT_REG) & Done_bit)
-      break;
-    tx_status = inw(iobase + IO_PORT_REG);
-    sc->tx_head = inw(iobase + IO_PORT_REG);
-    if (tx_status & TX_OK_bit)
-      ifp->if_opackets++;
-    else
-      ifp->if_oerrors++;
-    ifp->if_collisions += tx_status & No_Collisions_bits;
-  }
+	ifp->if_timer = 0;
 
-  /*
-   * The card should be ready to accept more packets now.
-   */
+	while (sc->tx_head != sc->tx_tail) {
+		outw(iobase + HOST_ADDR_REG, sc->tx_head);
 
-  ifp->if_flags &= ~IFF_OACTIVE;
-  DODEBUG(Status, printf("OIDLE tx_intr\n"););
+		if (! inw(iobase + IO_PORT_REG) & Done_bit)
+			break;
 
-  DODEBUG(Start_End, printf("ex_tx_intr%d: finish\n", unit););
+		tx_status = inw(iobase + IO_PORT_REG);
+		sc->tx_head = inw(iobase + IO_PORT_REG);
+
+		if (tx_status & TX_OK_bit) {
+			ifp->if_opackets++;
+		} else {
+			ifp->if_oerrors++;
+		}
+
+		ifp->if_collisions += tx_status & No_Collisions_bits;
+	}
+
+	/*
+	 * The card should be ready to accept more packets now.
+	 */
+
+	ifp->if_flags &= ~IFF_OACTIVE;
+
+	DODEBUG(Status, printf("OIDLE tx_intr\n"););
+	DODEBUG(Start_End, printf("ex_tx_intr%d: finish\n", unit););
+
+	return;
 }
 
-
-void ex_rx_intr(int unit)
+static void
+ex_rx_intr(struct ex_softc *sc)
 {
-  register struct ex_softc *sc = &ex_sc[unit];
-  register struct ifnet *ifp = &sc->arpcom.ac_if;
-  register int iobase = sc->iobase;
-  int rx_status, pkt_len, QQQ;
-  register struct mbuf *m, *ipkt;
-  struct ether_header *eh;
+	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	int			iobase = sc->iobase;
+	int			rx_status;
+	int			pkt_len;
+	int			QQQ;
+	struct mbuf *		m;
+	struct mbuf *		ipkt;
+	struct ether_header *	eh;
 
-  DODEBUG(Start_End, printf("ex_rx_intr%d: start\n", unit););
+	DODEBUG(Start_End, printf("ex_rx_intr%d: start\n", unit););
 
-  /*
-   * For all packets received since last receive interrupt:
-   * - If packet ok, read it into a new mbuf and queue it to interface,
-   *   updating statistics.
-   * - If packet bad, just discard it, and update statistics.
-   * Finally, advance receive stop limit in card's memory to new location.
-   */
+	/*
+	 * For all packets received since last receive interrupt:
+	 * - If packet ok, read it into a new mbuf and queue it to interface,
+	 *   updating statistics.
+	 * - If packet bad, just discard it, and update statistics.
+	 * Finally, advance receive stop limit in card's memory to new location.
+	 */
 
-  outw(iobase + HOST_ADDR_REG, sc->rx_head);
-  while (inw(iobase + IO_PORT_REG) == RCV_Done) {
-    rx_status = inw(iobase + IO_PORT_REG);
-    sc->rx_head = inw(iobase + IO_PORT_REG);
-    QQQ = pkt_len = inw(iobase + IO_PORT_REG);
-    if (rx_status & RCV_OK_bit) {
-      MGETHDR(m, M_DONTWAIT, MT_DATA);
-      ipkt = m;
-      if (ipkt == NULL)
-	ifp->if_iqdrops++;
-      else {
-	ipkt->m_pkthdr.rcvif = ifp;
-	ipkt->m_pkthdr.len = pkt_len;
-	ipkt->m_len = MHLEN;
-	while (pkt_len > 0) {
-	  if (pkt_len > MINCLSIZE) {
-	    MCLGET(m, M_DONTWAIT);
-	    if (m->m_flags & M_EXT)
-	      m->m_len = MCLBYTES;
-	    else {
-	      m_freem(ipkt);
-	      ifp->if_iqdrops++;
-	      goto rx_another;
-	    }
-	  }
-	  m->m_len = min(m->m_len, pkt_len);
+	outw(iobase + HOST_ADDR_REG, sc->rx_head);
+
+	while (inw(iobase + IO_PORT_REG) == RCV_Done) {
+
+		rx_status = inw(iobase + IO_PORT_REG);
+		sc->rx_head = inw(iobase + IO_PORT_REG);
+		QQQ = pkt_len = inw(iobase + IO_PORT_REG);
+
+		if (rx_status & RCV_OK_bit) {
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
+			ipkt = m;
+			if (ipkt == NULL) {
+				ifp->if_iqdrops++;
+			} else {
+				ipkt->m_pkthdr.rcvif = ifp;
+				ipkt->m_pkthdr.len = pkt_len;
+				ipkt->m_len = MHLEN;
+
+				while (pkt_len > 0) {
+					if (pkt_len > MINCLSIZE) {
+						MCLGET(m, M_DONTWAIT);
+						if (m->m_flags & M_EXT) {
+							m->m_len = MCLBYTES;
+						} else {
+							m_freem(ipkt);
+							ifp->if_iqdrops++;
+							goto rx_another;
+						}
+					}
+					m->m_len = min(m->m_len, pkt_len);
 
 	  /*
 	   * NOTE: I'm assuming that all mbufs allocated are of even length,
 	   * except for the last one in an odd-length packet.
 	   */
-	  insw(iobase + IO_PORT_REG, mtod(m, caddr_t), m->m_len / 2);
-	  if (m->m_len & 1)
-		*(mtod(m, caddr_t) + m->m_len - 1) = inb(iobase + IO_PORT_REG);
-	  pkt_len -= m->m_len;
-	  if (pkt_len > 0) {
-	    MGET(m->m_next, M_DONTWAIT, MT_DATA);
-	    if (m->m_next == NULL) {
-	      m_freem(ipkt);
-	      ifp->if_iqdrops++;
-	      goto rx_another;
-	    }
-	    m = m->m_next;
-	    m->m_len = MLEN;
-	  }
-	}
-	eh = mtod(ipkt, struct ether_header *);
+
+					insw(iobase + IO_PORT_REG,
+					     mtod(m, caddr_t), m->m_len / 2);
+
+					if (m->m_len & 1) {
+						*(mtod(m, caddr_t) + m->m_len - 1) = inb(iobase + IO_PORT_REG);
+					}
+					pkt_len -= m->m_len;
+
+					if (pkt_len > 0) {
+						MGET(m->m_next, M_DONTWAIT, MT_DATA);
+						if (m->m_next == NULL) {
+							m_freem(ipkt);
+							ifp->if_iqdrops++;
+							goto rx_another;
+						}
+						m = m->m_next;
+						m->m_len = MLEN;
+					}
+				}
+				eh = mtod(ipkt, struct ether_header *);
 #ifdef EXDEBUG
-	  if (debug_mask & Rcvd_Pkts) {
-          if ((eh->ether_dhost[5] != 0xff) || (eh->ether_dhost[0] != 0xff)) {
-            printf("Receive packet with %d data bytes: %6D -> ", QQQ, eh->ether_shost, ":");
-            printf("%6D\n", eh->ether_dhost, ":");
-	  } /* QQQ */
-	  }
+	if (debug_mask & Rcvd_Pkts) {
+		if ((eh->ether_dhost[5] != 0xff) || (eh->ether_dhost[0] != 0xff)) {
+			printf("Receive packet with %d data bytes: %6D -> ", QQQ, eh->ether_shost, ":");
+			printf("%6D\n", eh->ether_dhost, ":");
+		} /* QQQ */
+	}
 #endif
-	if (ifp->if_bpf != NULL) {
-		bpf_mtap(ifp, ipkt);
+				if (ifp->if_bpf != NULL) {
+					bpf_mtap(ifp, ipkt);
 
 		/*
-		 * Note that the interface cannot be in promiscuous mode if there are
-		 * no BPF listeners. And if we are in promiscuous mode, we have to
-		 * check if this packet is really ours.
+		 * Note that the interface cannot be in promiscuous mode
+		 * if there are no BPF listeners. And if we are in
+		 * promiscuous mode, we have to check if this packet is
+		 * really ours.
 		 */
-		if ((ifp->if_flags & IFF_PROMISC) &&
-		    (eh->ether_dhost[0] & 1) == 0 &&
-		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr, sizeof(eh->ether_dhost)) != 0 &&
-		    bcmp(eh->ether_dhost, etherbroadcastaddr, sizeof(eh->ether_dhost)) != 0) {
-			m_freem(ipkt);
-			goto rx_another;
+					if ((ifp->if_flags & IFF_PROMISC) &&
+					    (eh->ether_dhost[0] & 1) == 0 &&
+					    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr, sizeof(eh->ether_dhost)) != 0 &&
+					    bcmp(eh->ether_dhost, etherbroadcastaddr, sizeof(eh->ether_dhost)) != 0) {
+						m_freem(ipkt);
+						goto rx_another;
+					}
+				}
+				m_adj(ipkt, sizeof(struct ether_header));
+				ether_input(ifp, eh, ipkt);
+				ifp->if_ipackets++;
+			}
+		} else {
+			ifp->if_ierrors++;
 		}
+		outw(iobase + HOST_ADDR_REG, sc->rx_head);
+rx_another: ;
 	}
-	m_adj(ipkt, sizeof(struct ether_header));
-	ether_input(ifp, eh, ipkt);
-	ifp->if_ipackets++;
-      }
-    }
-    else
-      ifp->if_ierrors++;
-    outw(iobase + HOST_ADDR_REG, sc->rx_head);
-  rx_another: ;
-  }
-  if (sc->rx_head < sc->rx_lower_limit + 2)
-    outw(iobase + RCV_STOP_REG, sc->rx_upper_limit);
-  else
-    outw(iobase + RCV_STOP_REG, sc->rx_head - 2);
 
-  DODEBUG(Start_End, printf("ex_rx_intr%d: finish\n", unit););
+	if (sc->rx_head < sc->rx_lower_limit + 2)
+		outw(iobase + RCV_STOP_REG, sc->rx_upper_limit);
+	else
+		outw(iobase + RCV_STOP_REG, sc->rx_head - 2);
+
+	DODEBUG(Start_End, printf("ex_rx_intr%d: finish\n", unit););
+
+	return;
 }
 
 
 int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-  struct ex_softc *sc = &ex_sc[ifp->if_unit];
-  int s, error = 0;
+	struct ex_softc *	sc = ifp->if_softc;
+	int			s;
+	int			error = 0;
 
-  DODEBUG(Start_End, printf("ex_ioctl%d: start ", ifp->if_unit););
+	DODEBUG(Start_End, printf("ex_ioctl%d: start ", ifp->if_unit););
 
-  s = splimp();
+	s = splimp();
 
-  switch(cmd) {
-  case SIOCSIFADDR:
-  case SIOCGIFADDR:
-  case SIOCSIFMTU:
-    error = ether_ioctl(ifp, cmd, data);
-    break;
+	switch(cmd) {
+		case SIOCSIFADDR:
+		case SIOCGIFADDR:
+		case SIOCSIFMTU:
+			error = ether_ioctl(ifp, cmd, data);
+			break;
 
-  case SIOCSIFFLAGS:
-    DODEBUG(Start_End, printf("SIOCSIFFLAGS"););
-    if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
-      ifp->if_flags &= ~IFF_RUNNING;
-      ex_stop(ifp->if_unit);
-    }
-    else
-      ex_init(sc);
-    break;
+		case SIOCSIFFLAGS:
+			DODEBUG(Start_End, printf("SIOCSIFFLAGS"););
+			if ((ifp->if_flags & IFF_UP) == 0 &&
+			    (ifp->if_flags & IFF_RUNNING)) {
+
+				ifp->if_flags &= ~IFF_RUNNING;
+				ex_stop(sc);
+			} else {
+      				ex_init(sc);
+			}
+			break;
 #ifdef NODEF
-  case SIOCGHWADDR:
-    DODEBUG(Start_End, printf("SIOCGHWADDR"););
-    bcopy((caddr_t) sc->sc_addr, (caddr_t) &ifr->ifr_data, sizeof(sc->sc_addr));
-    break;
+		case SIOCGHWADDR:
+			DODEBUG(Start_End, printf("SIOCGHWADDR"););
+			bcopy((caddr_t)sc->sc_addr, (caddr_t)&ifr->ifr_data,
+			      sizeof(sc->sc_addr));
+			break;
 #endif
-  case SIOCADDMULTI:
-    DODEBUG(Start_End, printf("SIOCADDMULTI"););
-  case SIOCDELMULTI:
-    DODEBUG(Start_End, printf("SIOCDELMULTI"););
-    /* XXX Support not done yet. */
-    error = EINVAL;
-    break;
-  default:
-    DODEBUG(Start_End, printf("unknown"););
-    error = EINVAL;
-  }
+		case SIOCADDMULTI:
+			DODEBUG(Start_End, printf("SIOCADDMULTI"););
+		case SIOCDELMULTI:
+			DODEBUG(Start_End, printf("SIOCDELMULTI"););
+			/* XXX Support not done yet. */
+			error = EINVAL;
+			break;
+		default:
+			DODEBUG(Start_End, printf("unknown"););
+			error = EINVAL;
+	}
 
-  splx(s);
+	splx(s);
 
-  DODEBUG(Start_End, printf("\nex_ioctl%d: finish\n", ifp->if_unit););
-  return(error);
+	DODEBUG(Start_End, printf("\nex_ioctl%d: finish\n", ifp->if_unit););
+
+	return(error);
 }
 
 
-void ex_reset(int unit)
+static void
+ex_reset(struct ex_softc *sc)
 {
-  struct ex_softc *sc = &ex_sc[unit];
-  int s;
+	int s;
 
-  DODEBUG(Start_End, printf("ex_reset%d: start\n", unit););
+	DODEBUG(Start_End, printf("ex_reset%d: start\n", unit););
   
-  s = splimp();
+	s = splimp();
 
-  ex_stop(unit);
-  ex_init(sc);
+	ex_stop(sc);
+	ex_init(sc);
 
-  splx(s);
+	splx(s);
 
-  DODEBUG(Start_End, printf("ex_reset%d: finish\n", unit););
+	DODEBUG(Start_End, printf("ex_reset%d: finish\n", unit););
+
+	return;
 }
 
 
-void ex_watchdog(struct ifnet *ifp)
+static void
+ex_watchdog(struct ifnet *ifp)
 {
+	struct ex_softc *	sc = ifp->if_softc;
 
-  DODEBUG(Start_End, printf("ex_watchdog%d: start\n", ifp->if_unit););
+	DODEBUG(Start_End, printf("ex_watchdog%d: start\n", ifp->if_unit););
 
-  ifp->if_flags &= ~IFF_OACTIVE;
-  DODEBUG(Status, printf("OIDLE watchdog\n"););
-  ifp->if_oerrors++;
-  ex_reset(ifp->if_unit);
-  ex_start(ifp);
+	ifp->if_flags &= ~IFF_OACTIVE;
 
-  DODEBUG(Start_End, printf("ex_watchdog%d: finish\n", ifp->if_unit););
+	DODEBUG(Status, printf("OIDLE watchdog\n"););
+
+	ifp->if_oerrors++;
+	ex_reset(sc);
+	ex_start(ifp);
+
+	DODEBUG(Start_End, printf("ex_watchdog%d: finish\n", ifp->if_unit););
+
+	return;
 }
 
 
-static u_short eeprom_read(int iobase, int location)
+static u_short
+eeprom_read(int iobase, int location)
 {
 	int i;
 	u_short data = 0;
