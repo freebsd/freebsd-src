@@ -1294,12 +1294,13 @@ scstart(struct tty *tp)
 		tp->t_state |= TS_BUSY;
 		splx(s);
 		rbp = &tp->t_outq;
-		scp->status &= ~CURSOR_ENABLED;
+		/* scp->status &= ~CURSOR_ENABLED; */
 		while (rbp->c_cc) {
 			len = q_to_b(rbp, buf, PCBURST);
 			ansi_put(scp, buf, len);
 		}
-		scp->status |= (CURSOR_ENABLED | UPDATE_SCREEN);
+		/* scp->status |= (CURSOR_ENABLED | UPDATE_SCREEN); */
+		scp->status |= UPDATE_SCREEN;
 		s = spltty();
 		tp->t_state &= ~TS_BUSY;
 		if (rbp->c_cc <= tp->t_lowat) {
@@ -1576,13 +1577,11 @@ clear_screen(scr_stat *scp)
 static int 
 switch_scr(scr_stat *scp, u_int next_scr)
 {
-	if (switch_in_progress && 
-		(cur_console->proc != pfind(cur_console->pid)))
+	if (switch_in_progress && (cur_console->proc != pfind(cur_console->pid)))
 		switch_in_progress = FALSE;
 
 	if (next_scr >= MAXCONS || switch_in_progress
-	    || (cur_console->smode.mode == VT_AUTO && 
-		cur_console->status & UNKNOWN_MODE)) {
+	    || (cur_console->smode.mode == VT_AUTO && cur_console->status & UNKNOWN_MODE)) {
 		do_bell(scp, BELL_PITCH, BELL_DURATION);
 		return EINVAL;
 	}
@@ -2257,7 +2256,7 @@ scinit(void)
 	init_done = TRUE;
 	/*
 	 * Crtat initialized to point to MONO buffer, if not present change
-	 * to CGA_BUF offset. ONLY ADD the difference since locore.s adds
+	 * to CGA_BUF offset. ONLY add the difference since locore.s adds
 	 * in the remapped offset at the "right" time
 	 */
 	was = *cp;
@@ -2360,6 +2359,7 @@ init_scp(scr_stat *scp)
 	scp->bell_pitch = BELL_PITCH;
 	scp->bell_duration = BELL_DURATION;
 	scp->status = (*(char *)pa_to_va(0x417) & 0x20) ? NLKED : 0;
+	scp->status |= CURSOR_ENABLED;
 	scp->pid = 0;
 	scp->proc = NULL;
 	scp->smode.mode = VT_AUTO;
@@ -2377,17 +2377,21 @@ scput(u_char c)
 	save = scp->term;
 	scp->term = kernel_console;
 	current_default = &kernel_default;
-	scp->status &= ~CURSOR_ENABLED;
+	if (scp->scr_buf == Crtat)
+		draw_cursor(scp, FALSE);
 	ansi_put(scp, &c, 1);
-	scp->status |= (CURSOR_ENABLED | UPDATE_SCREEN);
+	scp->status |= UPDATE_SCREEN;
 	kernel_console = scp->term;
 	current_default = &user_default;
 	scp->term = save;
-	if ((scp->scr_buf != Crtat) && (scp == cur_console)) {
-		bcopyw(scp->scr_buf, Crtat, 
-		       scp->xsize*scp->ysize*sizeof(u_short));
-		scp->status &= ~CURSOR_SHOWN;
+	if (scp == cur_console /* && scrn_timer not running */) {
+		if (scp->scr_buf != Crtat) {
+	    		bcopyw(scp->scr_buf, Crtat,
+			       (scp->xsize*scp->ysize)*sizeof(u_short));
+	    		scp->status &= ~CURSOR_SHOWN;
+		}
 		draw_cursor(scp, TRUE);
+		scp->status &= ~UPDATE_SCREEN;
 	}
 }
 
