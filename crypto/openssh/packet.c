@@ -1344,6 +1344,7 @@ packet_set_interactive(int interactive)
 
 	/* Only set socket options if using a socket.  */
 	if (!packet_connection_is_on_socket())
+		return;
 	if (interactive)
 		set_nodelay(connection_in);
 #if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
