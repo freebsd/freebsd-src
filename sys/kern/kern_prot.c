@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.29 1997/03/31 13:41:49 peter Exp $
+ * $Id: kern_prot.c,v 1.30 1997/03/31 13:47:00 peter Exp $
  */
 
 /*
@@ -671,6 +671,31 @@ setregid(p, uap, retval)
 		pc->p_svgid = pc->pc_ucred->cr_groups[0];
 		p->p_flag |= P_SUGID;
 	}
+	return (0);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct issetugid_args {
+	int dummy;
+};
+#endif
+/* ARGSUSED */
+int
+issetugid(p, uap, retval)
+	register struct proc *p;
+	struct issetugid_args *uap;
+	int *retval;
+{
+	/*
+	 * Note: OpenBSD sets a P_SUGIDEXEC flag set at execve() time,
+	 * we use P_SUGID because we consider changing the owners as
+	 * "tainting" as well.
+	 * This is significant for procs that start as root and "become"
+	 * a user without an exec - programs cannot know *everything*
+	 * that libc *might* have put in their data segment.
+	 */
+	if (p->p_flag & P_SUGID)
+		return (1);
 	return (0);
 }
 
