@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.8 1995/11/20 12:41:11 phk Exp $
+ *	$Id: eisaconf.c,v 1.9 1995/11/29 10:12:34 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -28,8 +28,9 @@
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 
-#include "i386/isa/icu.h"	 /* Hmmm.  Interrupt stuff? */
-#include "eisaconf.h"
+#include <i386/eisa/eisaconf.h>
+
+#include <i386/isa/icu.h>	 /* Hmmm.  Interrupt stuff? */
 
 struct eisa_device_node{
 	struct	eisa_device dev;
@@ -61,7 +62,7 @@ static struct eisa_device_node *eisa_dev_list;
 static struct eisa_device_node **eisa_dev_list_tail = &eisa_dev_list;
 static u_long eisa_unit;
 
-static static struct eisa_driver mainboard_drv = {
+static struct eisa_driver mainboard_drv = {
 				     "eisa",
 				     NULL,
 				     NULL,
