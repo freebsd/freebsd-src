@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_fcntl.c,v 1.3 1995/10/16 05:52:53 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -250,22 +250,22 @@ ibcs2_fcntl(p, uap, retval)
 	case IBCS2_F_DUPFD:
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_DUPFD;
-		SCARG(&fa, arg) = SCARG(uap, arg);
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		return fcntl(p, &fa, retval);
 	case IBCS2_F_GETFD:
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_GETFD;
-		SCARG(&fa, arg) = SCARG(uap, arg);
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		return fcntl(p, &fa, retval);
 	case IBCS2_F_SETFD:
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_SETFD;
-		SCARG(&fa, arg) = SCARG(uap, arg);
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		return fcntl(p, &fa, retval);
 	case IBCS2_F_GETFL:
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_GETFL;
-		SCARG(&fa, arg) = SCARG(uap, arg);
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		error = fcntl(p, &fa, retval);
 		if (error)
 			return error;
@@ -274,7 +274,8 @@ ibcs2_fcntl(p, uap, retval)
 	case IBCS2_F_SETFL:
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_SETFL;
-		SCARG(&fa, arg) = (void *)ioflags2oflags((int)SCARG(uap, arg));
+		SCARG(&fa, arg) = (/* XXX */ int)
+				  ioflags2oflags((int)SCARG(uap, arg));
 		return fcntl(p, &fa, retval);
 
 	case IBCS2_F_GETLK:
@@ -288,7 +289,7 @@ ibcs2_fcntl(p, uap, retval)
 		cvt_iflock2flock(&ifl, flp);
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_GETLK;
-		SCARG(&fa, arg) = (void *)flp;
+		SCARG(&fa, arg) = (/* XXX */ int)flp;
 		error = fcntl(p, &fa, retval);
 		if (error)
 			return error;
@@ -308,7 +309,7 @@ ibcs2_fcntl(p, uap, retval)
 		cvt_iflock2flock(&ifl, flp);
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_SETLK;
-		SCARG(&fa, arg) = (void *)flp;
+		SCARG(&fa, arg) = (/* XXX */ int)flp;
 
 		return fcntl(p, &fa, retval);
 	    }
@@ -324,7 +325,7 @@ ibcs2_fcntl(p, uap, retval)
 		cvt_iflock2flock(&ifl, flp);
 		SCARG(&fa, fd) = SCARG(uap, fd);
 		SCARG(&fa, cmd) = F_SETLKW;
-		SCARG(&fa, arg) = (void *)flp;
+		SCARG(&fa, arg) = (/* XXX */ int)flp;
 		return fcntl(p, &fa, retval);
 	    }
 	}
