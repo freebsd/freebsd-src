@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.75 1998/03/07 21:36:36 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.76 1998/03/08 09:59:06 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -194,6 +194,7 @@ ffs_mount( mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
 		fs = ump->um_fs;
+		devvp = ump->um_devvp;
 		err = 0;
 		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
@@ -231,7 +232,6 @@ ffs_mount( mp, path, data, ndp, p)
 			 * that user has necessary permissions on the device.
 			 */
 			if (p->p_ucred->cr_uid != 0) {
-				devvp = ump->um_devvp;
 				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 				if (error = VOP_ACCESS(devvp, VREAD | VWRITE,
 				    p->p_ucred, p)) {
@@ -239,6 +239,13 @@ ffs_mount( mp, path, data, ndp, p)
 					return (error);
 				}
 				VOP_UNLOCK(devvp, 0, p);
+			}
+
+			/* check to see if we need to start softdep */
+			if (fs->fs_flags & FS_DOSOFTDEP) {
+				err = softdep_mount(devvp, mp, fs, p->p_ucred);
+				if (err)
+					goto error_1;
 			}
 
 			fs->fs_ronly = 0;
