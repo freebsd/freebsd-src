@@ -40,14 +40,31 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#60 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#72 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
 #include "aic79xx.reg"
 #include "scsi_message.h"
 
+restart:
+if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {
+	test	SEQINTCODE, 0xFF jz idle_loop;
+	SET_SEQINTCODE(NO_SEQINT)
+}
+
 idle_loop:
+
+	if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {
+		/*
+		 * Convert ERROR status into a sequencer
+		 * interrupt to handle the case of an
+		 * interrupt collision on the hardware
+		 * setting of HWERR.
+		 */
+		test	ERROR, 0xFF jz . + 2;
+		SET_SEQINTCODE(SAW_HWERR)
+	}
 	SET_MODE(M_SCSI, M_SCSI)
 	test	SCSISEQ0, ENSELO|ENARBO jnz idle_loop_checkbus;
 	test	SEQ_FLAGS2, SELECTOUT_QFROZEN jnz idle_loop_checkbus;
@@ -69,11 +86,18 @@ END_CRITICAL;
 	test	SCSISIGO, ATNO jz idle_loop_check_nonpackreq;
 	call	unexpected_nonpkt_phase_find_ctxt;
 idle_loop_check_nonpackreq:
-	test	SSTAT2, NONPACKREQ jz idle_loop_scsi;
+	test	SSTAT2, NONPACKREQ jz . + 2;
 	call	unexpected_nonpkt_phase_find_ctxt;
-idle_loop_scsi:
+	call	idle_loop_gsfifo_in_scsi_mode;
+	call	idle_loop_service_fifos;
+	call	idle_loop_cchan;
+	jmp	idle_loop;
+
 BEGIN_CRITICAL;
-	test	LQISTAT2, LQIGSAVAIL jz idle_loop_service_fifos;
+idle_loop_gsfifo:
+	SET_MODE(M_SCSI, M_SCSI)
+idle_loop_gsfifo_in_scsi_mode:
+	test	LQISTAT2, LQIGSAVAIL jz return;
 	/*
 	 * We have received good status for this transaction.  There may
 	 * still be data in our FIFOs draining to the host.  Setup
@@ -113,31 +137,29 @@ good_status_IU_done:
 	 */
 	call	complete;
 END_CRITICAL;
-	jmp	idle_loop_scsi;
+	jmp	idle_loop_gsfifo_in_scsi_mode;
 BEGIN_CRITICAL;
 good_status_check_fifos:
 	clc;
 	bmov	ARG_1, SCBPTR, 2;
 	SET_MODE(M_DFF0, M_DFF0)
 	call	check_fifo;
-	jc	idle_loop_service_fifos;
+	jc	return;
 	SET_MODE(M_DFF1, M_DFF1)
 	call	check_fifo;
-	jc	idle_loop_service_fifos;
+	jc	return;
 	SET_MODE(M_SCSI, M_SCSI)
-	call	queue_scb_completion;
+	jmp	queue_scb_completion;
 END_CRITICAL;
+
 idle_loop_service_fifos:
 	SET_MODE(M_DFF0, M_DFF0)
 	test	LONGJMP_ADDR[1], INVALID_ADDR jnz idle_loop_next_fifo;
 	call	longjmp;
 idle_loop_next_fifo:
 	SET_MODE(M_DFF1, M_DFF1)
-	test	LONGJMP_ADDR[1], INVALID_ADDR jnz idle_loop_last_fifo_done;
-	call	longjmp;
-idle_loop_last_fifo_done:
-	call	idle_loop_cchan;
-	jmp	idle_loop;
+	test	LONGJMP_ADDR[1], INVALID_ADDR jz longjmp;
+	ret;
 
 idle_loop_cchan:
 	SET_MODE(M_CCHAN, M_CCHAN)
@@ -175,6 +197,8 @@ fetch_new_scb_done:
 	bmov	NEXT_QUEUED_SCB_ADDR, SCB_NEXT_SCB_BUSADDR, 4;
 	mvi	SCB_NEXT[1], SCB_LIST_NULL;
 	mvi	SCB_NEXT2[1], SCB_LIST_NULL;
+	/* Increment our position in the QINFIFO. */
+	mov	NONE, SNSCB_QOFF;
 	/*
 	 * SCBs that want to send messages are always
 	 * queued independently.  This ensures that they
@@ -189,22 +213,15 @@ fetch_new_scb_done:
 	bmov	SCBPTR, SINDIR, 2;
 	bmov	DINDIR, REG0, 2;
 	cmp	SCBPTR[1], SCB_LIST_NULL je first_new_target_scb;
-	bmov	SCB_NEXT, REG0, 2;
-fetch_new_scb_fini:
-	/* Increment our position in the QINFIFO. */
-	mov	NONE, SNSCB_QOFF ret;
+	bmov	SCB_NEXT, REG0, 2 ret;
 first_new_target_scb:
 	cmp	WAITING_TID_HEAD[1], SCB_LIST_NULL je first_new_scb;
 	bmov	SCBPTR, WAITING_TID_TAIL, 2;
 	bmov	SCB_NEXT2, REG0, 2;
-	bmov	WAITING_TID_TAIL, REG0, 2;
-	/* Increment our position in the QINFIFO. */
-	mov	NONE, SNSCB_QOFF ret;
+	bmov	WAITING_TID_TAIL, REG0, 2 ret;
 first_new_scb:
 	bmov	WAITING_TID_HEAD, REG0, 2;
-	bmov	WAITING_TID_TAIL, REG0, 2;
-	/* Increment our position in the QINFIFO. */
-	mov	NONE, SNSCB_QOFF ret;
+	bmov	WAITING_TID_TAIL, REG0, 2 ret;
 END_CRITICAL;
 
 scbdma_idle:
@@ -228,19 +245,16 @@ fill_qoutfifo:
 	bmov	COMPLETE_SCB_DMAINPROG_HEAD, COMPLETE_SCB_HEAD, 2;
 	mvi	CCSCBCTL, CCSCBRESET;
 	bmov	SCBHADDR, QOUTFIFO_NEXT_ADDR, 4;
-	mov	CCSCBRAM, COMPLETE_SCB_HEAD;
-	or	CCSCBRAM, A, COMPLETE_SCB_HEAD[1];
 	bmov	SCBPTR, COMPLETE_SCB_HEAD, 2;
-	jmp	fill_qoutfifo_first_entry;
 fill_qoutfifo_loop:
-	mov	CCSCBRAM, SCB_NEXT_COMPLETE;
-	or	CCSCBRAM, A, SCB_NEXT_COMPLETE[1];
-	bmov	SCBPTR, SCB_NEXT_COMPLETE, 2;
-fill_qoutfifo_first_entry:
+	mov	CCSCBRAM, SCBPTR;
+	or	CCSCBRAM, A, SCBPTR[1];
 	mov	NONE, SDSCB_QOFF;
 	cmp	SCB_NEXT_COMPLETE[1], SCB_LIST_NULL je fill_qoutfifo_done;
 	cmp	CCSCBADDR, CCSCBADDR_MAX je fill_qoutfifo_done;
-	test	QOFF_CTLSTA, SDSCB_ROLLOVR jz fill_qoutfifo_loop;
+	test	QOFF_CTLSTA, SDSCB_ROLLOVR jnz fill_qoutfifo_done;
+	bmov	SCBPTR, SCB_NEXT_COMPLETE, 2;
+	jmp	fill_qoutfifo_loop;
 fill_qoutfifo_done:
 	mov	SCBHCNT, CCSCBADDR;
 	mvi	CCSCBCTL, CCSCBEN|CCSCBRESET;
@@ -290,7 +304,7 @@ longjmp:
 	bmov	STACK, LONGJMP_ADDR, 2 ret;
 END_CRITICAL;
 
-/************************ Packetized LongJmp Routines *************************/
+/*************************** Chip Bug Work Arounds ****************************/
 /*
  * Must disable interrupts when setting the mode pointer
  * register as an interrupt occurring mid update will
@@ -309,6 +323,14 @@ toggle_dff_mode_work_around:
 	clr	SEQINTCTL ret;
 }
 
+
+if ((ahd->bugs & AHD_INTCOLLISION_BUG) != 0) {
+set_seqint_work_around:
+	mov	SEQINTCODE, SINDEX;
+	mvi	SEQINTCODE, NO_SEQINT ret;
+}
+
+/************************ Packetized LongJmp Routines *************************/
 SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
 start_selection:
@@ -358,26 +380,30 @@ END_CRITICAL;
 
 /*
  * Allocate a FIFO for a non-packetized transaction.
- * For some reason unkown to me, both FIFOs must be free before we
- * can allocate a FIFO for a non-packetized transaction.  This
- * may be fixed in Rev B.
+ * In RevA hardware, both FIFOs must be free before we
+ * can allocate a FIFO for a non-packetized transaction.
  */
 allocate_fifo_loop:
 	/*
 	 * Do whatever work is required to free a FIFO.
 	 */
-	SET_MODE(M_DFF0, M_DFF0)
-	test	LONGJMP_ADDR[1], INVALID_ADDR jnz . + 2;
-	call	longjmp;
-	SET_MODE(M_DFF1, M_DFF1)
-	test	LONGJMP_ADDR[1], INVALID_ADDR jnz . + 2;
-	call	longjmp;
+	call	idle_loop_service_fifos;
 	SET_MODE(M_SCSI, M_SCSI)
 allocate_fifo:
-	and	A, FIFO0FREE|FIFO1FREE, DFFSTAT;
-	cmp	A, FIFO0FREE|FIFO1FREE jne allocate_fifo_loop;
-take_fifo:
-	or	DFFSTAT, CURRFIFO;
+	if ((ahd->bugs & AHD_NONPACKFIFO_BUG) != 0) {
+		and	A, FIFO0FREE|FIFO1FREE, DFFSTAT;
+		cmp	A, FIFO0FREE|FIFO1FREE jne allocate_fifo_loop;
+	} else {
+		test	DFFSTAT, FIFO1FREE jnz allocate_fifo1;
+		test	DFFSTAT, FIFO0FREE jz allocate_fifo_loop;
+		mvi	DFFSTAT, B_CURRFIFO_0;
+		SET_MODE(M_DFF0, M_DFF0)
+		bmov	SCBPTR, ALLOCFIFO_SCBPTR, 2 ret;
+	}
+SET_SRC_MODE	M_SCSI;
+SET_DST_MODE	M_SCSI;
+allocate_fifo1:
+	mvi	DFFSTAT, CURRFIFO_1;
 	SET_MODE(M_DFF1, M_DFF1)
 	bmov	SCBPTR, ALLOCFIFO_SCBPTR, 2 ret;
 
@@ -485,6 +511,7 @@ curscb_ww_done:
 		 */
 		bmov	SCBPTR, CURRSCB, 2;
 	}
+
 	/*
 	 * Requeue any SCBs not sent, to the tail of the waiting Q.
 	 */
@@ -518,9 +545,7 @@ select_out_inc_tid_q:
 	mvi	WAITING_TID_TAIL[1], SCB_LIST_NULL;
 	bmov	SCBPTR, CURRSCB, 2;
 END_CRITICAL;
-
 	mvi	CLRSINT0, CLRSELDO;
-
 	test	LQOSTAT2, LQOPHACHGOUTPKT jnz unexpected_nonpkt_phase;
 	test	LQOSTAT1, LQOPHACHGINPKT jnz unexpected_nonpkt_phase;
 
@@ -583,15 +608,16 @@ ITloop:
 	cmp	A,P_STATUS	je p_status;
 	cmp	A,P_MESGIN	je p_mesgin;
 
-	mvi	SEQINTCODE, BAD_PHASE;
+	SET_SEQINTCODE(BAD_PHASE)
 	jmp	ITloop;			/* Try reading the bus again. */
 
 /*
  * Command phase.  Set up the DMA registers and let 'er rip.
  */
 p_command:
-SET_SRC_MODE	M_DFF1;
-SET_DST_MODE	M_DFF1;
+	test	SEQ_FLAGS, NOT_IDENTIFIED jz p_command_okay;
+	SET_SEQINTCODE(PROTO_VIOLATION)
+p_command_okay:
 	test	MODE_PTR, ~(MK_MODE(M_DFF1, M_DFF1))
 		jnz p_command_allocate_fifo;
 	/*
@@ -599,32 +625,34 @@ SET_DST_MODE	M_DFF1;
 	 * re-allocate a FIFO so transfer state is
 	 * reset.
 	 */
+SET_SRC_MODE	M_DFF1;
+SET_DST_MODE	M_DFF1;
 	mvi	DFFSXFRCTL, RSTCHN|CLRSHCNT;
+	SET_MODE(M_SCSI, M_SCSI)
 p_command_allocate_fifo:
 	bmov	ALLOCFIFO_SCBPTR, SCBPTR, 2;
 	call	allocate_fifo;
+SET_SRC_MODE	M_DFF1;
+SET_DST_MODE	M_DFF1;
 	add	NONE, -17, SCB_CDB_LEN;
 	jnc	p_command_embedded;
 p_command_from_host:
 	bmov	HADDR[0], SCB_CDB_PTR, 11;
 	mvi	SG_CACHE_PRE, LAST_SEG;
 	mvi	DFCNTRL, (PRELOADEN|SCSIEN|HDMAEN);
-	jmp	p_command_loop;
+	jmp	p_command_xfer;
 p_command_embedded:
 	bmov	SHCNT[0], SCB_CDB_LEN,  1;
-	bmov	SHCNT[1], ALLZEROS, 2;
 	bmov	DFDAT, SCB_CDB_STORE, 16; 
 	mvi	DFCNTRL, SCSIEN;
-p_command_loop:
-	test	DFCNTRL, SCSIEN jnz p_command_loop;
+p_command_xfer:
+	and	SEQ_FLAGS, ~NO_CDB_SENT;
+	test	DFCNTRL, SCSIEN jnz .;
 	/*
 	 * DMA Channel automatically disabled.
 	 * Don't allow a data phase if the command
-	 * was not fully transferred.  Make sure that
-	 * we clear the IDENTIFY SEEN flag if a retry
-	 * falls short too.
+	 * was not fully transferred.
 	 */
-	and	SEQ_FLAGS, ~NO_CDB_SENT;
 	test	SSTAT2, SDONE jnz ITloop;
 	or	SEQ_FLAGS, NO_CDB_SENT;
 	jmp	ITloop;
@@ -637,9 +665,7 @@ p_command_loop:
 SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
 p_status:
-	test	SEQ_FLAGS,NOT_IDENTIFIED jz p_status_okay;
-	mvi	SEQINTCODE, PROTO_VIOLATION;
-	jmp	mesgin_done;
+	test	SEQ_FLAGS,NOT_IDENTIFIED jnz mesgin_proto_violation;
 p_status_okay:
 	mov	SCB_SCSI_STATUS, SCSIDAT;
 	or	SCB_CONTROL, STATUS_RCVD;
@@ -744,7 +770,7 @@ p_mesgin:
  */
 host_message_loop:
 	call	phase_lock;	/* Benign the first time through. */
-	mvi	SEQINTCODE, HOST_MSG_LOOP;
+	SET_SEQINTCODE(HOST_MSG_LOOP)
 	cmp	RETURN_1, EXIT_MSG_LOOP	je ITloop;
 	cmp	RETURN_1, CONT_MSG_LOOP_WRITE	jne . + 3;
 	mov	SCSIDAT, RETURN_2;
@@ -761,9 +787,12 @@ mesgin_ign_wide_residue:
 	cmp	REG0, 0x01 jne mesgin_reject;
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz . + 2;
 	test	DATA_COUNT_ODD, 0x1	jz mesgin_done;
-	mvi	SEQINTCODE, IGN_WIDE_RES;
+	SET_SEQINTCODE(IGN_WIDE_RES)
 	jmp	mesgin_done;
 
+mesgin_proto_violation:
+	SET_SEQINTCODE(PROTO_VIOLATION)
+	jmp	mesgin_done;
 mesgin_reject:
 	mvi	MSG_MESSAGE_REJECT	call mk_mesg;
 mesgin_done:
@@ -851,11 +880,11 @@ setup_SCB_disconnected:
 	jmp	mesgin_done;
 
 not_found:
-	mvi	SEQINTCODE, NO_MATCH;
+	SET_SEQINTCODE(NO_MATCH)
 	jmp	mesgin_done;
 
 not_found_ITloop:
-	mvi	SEQINTCODE, NO_MATCH;
+	SET_SEQINTCODE(NO_MATCH)
 	jmp	ITloop;
 
 /*
@@ -871,9 +900,6 @@ not_found_ITloop:
  * it to the QINFIFO and tell us not to post to the QOUTFIFO by setting 
  * RETURN_1 to SEND_SENSE.
  */
-mesgin_complete_proto_violation:
-	mvi	SEQINTCODE, PROTO_VIOLATION;
-	jmp	mesgin_done;
 mesgin_complete:
 
 	/*
@@ -891,34 +917,28 @@ mesgin_complete:
 	 * If we are identified and have successfully sent the CDB,
 	 * any status will do.  Optimize this fast path.
 	 */
-	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT jnz . + 2;
-	test	SCB_CONTROL, STATUS_RCVD jnz complete_accepted;
+	test	SCB_CONTROL, STATUS_RCVD jz mesgin_proto_violation;
+	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT jz complete_accepted;
 
 	/*
 	 * If the target never sent an identify message but instead went
 	 * to mesgin to give an invalid message, let the host abort us.
 	 */
-	test	SEQ_FLAGS, NOT_IDENTIFIED jnz mesgin_complete_proto_violation;
-
-	/*
-	 * If the target never gave us status information, have
-	 * the host abort the command.
-	 */
-	test	SCB_CONTROL, STATUS_RCVD jz mesgin_complete_proto_violation;
+	test	SEQ_FLAGS, NOT_IDENTIFIED jnz mesgin_proto_violation;
 
 	/*
 	 * If we recevied good status but never successfully sent the
 	 * cdb, abort the command.
 	 */
 	test	SCB_SCSI_STATUS,0xff	jnz complete_accepted;
-	test	SEQ_FLAGS, NO_CDB_SENT jnz mesgin_complete_proto_violation;
+	test	SEQ_FLAGS, NO_CDB_SENT jnz mesgin_proto_violation;
 complete_accepted:
 
 	/*
 	 * See if we attempted to deliver a message but the target ingnored us.
 	 */
 	test	SCB_CONTROL, MK_MESSAGE jz . + 2;
-	mvi	SEQINTCODE, MKMSG_FAILED;
+	SET_SEQINTCODE(MKMSG_FAILED)
 	call	queue_scb_completion;
 	jmp	await_busfree;
 
@@ -937,6 +957,14 @@ queue_arg1_scb_completion:
 	SET_MODE(M_SCSI, M_SCSI)
 	bmov	SCBPTR, ARG_1, 2;
 queue_scb_completion:
+	if ((ahd->bugs & AHD_ABORT_LQI_BUG) == 0) {
+		/*
+		 * Set MK_MESSAGE to trigger an abort should this SCB
+		 * be referenced by a target even though it is not currently
+		 * active.
+		 */
+		or	SCB_CONTROL, MK_MESSAGE;
+	}
 	test	SCB_SCSI_STATUS,0xff	jnz bad_status;
 	/*
 	 * Check for residuals
@@ -971,10 +999,8 @@ mesgin_disconnect:
 	 * XXX - Wait for more testing.
 	test	SCSISIGI, ATNI jnz mesgin_done;
 	 */
-	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT	jz disconnect_allowed;
-	mvi	SEQINTCODE, PROTO_VIOLATION;
-	jmp	mesgin_done;
-disconnect_allowed:
+	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT
+		jnz mesgin_proto_violation;
 	or	SCB_CONTROL,DISCONNECTED;
 	test	SCB_CONTROL, TAG_ENB jnz await_busfree;
 queue_disc_scb:
@@ -1005,7 +1031,7 @@ await_busfree_not_m_dff:
 	call	clear_target_state;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz idle_loop;
-	mvi	SEQINTCODE, MISSED_BUSFREE;
+	SET_SEQINTCODE(MISSED_BUSFREE)
 
 
 /*
@@ -1047,12 +1073,13 @@ save_pointers_full:
  * SCB anytime we enter a data phase for the first time, so all
  * we need to do is clear the DPHASE flag and let the data phase
  * code do the rest.  We also reset/reallocate the FIFO to make
- * sure we have a clean start for the next data phase.
+ * sure we have a clean start for the next data or command phase.
  */
 mesgin_rdptrs:
 	and	SEQ_FLAGS, ~DPHASE;
 	test	MODE_PTR, ~(MK_MODE(M_DFF1, M_DFF1)) jnz msgin_rdptrs_get_fifo;
 	mvi	DFFSXFRCTL, RSTCHN|CLRSHCNT;
+	SET_MODE(M_SCSI, M_SCSI)
 msgin_rdptrs_get_fifo:
 	call	allocate_fifo;
 	jmp	mesgin_done;
@@ -1064,6 +1091,7 @@ clear_target_state:
 
 phase_lock:     
 	test	SCSIPHASE, 0xFF jz .;
+	test	SSTAT1, SCSIPERR jnz phase_lock;
 phase_lock_latch_phase:
 	and	LASTPHASE, PHASE_MASK, SCSISIGI ret;
 
@@ -1090,6 +1118,7 @@ inb_next_wait:
 	 * before continuing.
 	 */
 	test	SCSIPHASE, 0xFF jz .;
+	test	SSTAT1, SCSIPERR jnz inb_next_wait;
 inb_next_check_phase:
 	and	LASTPHASE, PHASE_MASK, SCSISIGI;
 	cmp	LASTPHASE, P_MESGIN jne mesgin_phasemis;
@@ -1112,20 +1141,6 @@ disable_ccsgen:
 disable_ccsgen_fetch_done:
 	clr	SG_STATE ret;
 
-data_group_idle_loop:
-	mov	SAVED_MODE, MODE_PTR;
-	test	SG_STATE, LOADING_NEEDED jz . + 2;
-	call	service_fifo;
-	TOGGLE_DFF_MODE
-	test	SG_STATE, LOADING_NEEDED jz . + 2;
-	call	service_fifo;
-	call	idle_loop_cchan;
-	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {
-		mov	SAVED_MODE jmp set_mode_work_around;
-	} else {
-		mov	MODE_PTR, SAVED_MODE ret;
-	}
-
 service_fifo:
 	/*
 	 * Do we have any prefetch left???
@@ -1138,11 +1153,10 @@ service_fifo:
 	test	CCSGCTL, SG_CACHE_AVAIL jz return;
 
 	/* Did we just finish fetching segs? */
-	cmp	CCSGCTL, CCSGEN|SG_CACHE_AVAIL|CCSGDONE
-		je idle_sgfetch_complete;
+	test	CCSGCTL, CCSGDONE jnz idle_sgfetch_complete;
 
 	/* Are we actively fetching segments? */
-	test	CCSGCTL, CCSGEN jnz return;
+	test	CCSGCTL, CCSGENACK jnz return;
 
 	/*
 	 * We fetch a "cacheline aligned" and sized amount of data
@@ -1151,17 +1165,15 @@ service_fifo:
 	 * set the prefetch amount to a reasonable level if the
 	 * cacheline size is unknown.
 	 */
-	and	SGHADDR[0], SG_PREFETCH_ALIGN_MASK, SCB_RESIDUAL_SGPTR;
+	bmov	SGHADDR, SCB_RESIDUAL_SGPTR, 4;
 	mvi	SGHCNT, SG_PREFETCH_CNT;
 	if ((ahd->bugs & AHD_REG_SLOW_SETTLE_BUG) != 0) {
 		/*
 		 * Need two instruction between "touches" of SGHADDR.
-		 * Note the setting of SGHCNT counts as one of
-		 * these two instructions.
 		 */
 		nop;
 	}
-	bmov	SGHADDR[1], SCB_RESIDUAL_SGPTR[1], 3;
+	and	SGHADDR[0], SG_PREFETCH_ALIGN_MASK, SCB_RESIDUAL_SGPTR;
 	mvi	CCSGCTL, CCSGEN|SG_CACHE_AVAIL|CCSGRESET;
 	or	SG_STATE, FETCH_INPROG ret;
 idle_sgfetch_complete:
@@ -1215,7 +1227,15 @@ sg_advance:
 	 * de-asserts and we don't want to accidentally
 	 * re-enable it.
 	 */
-	or	DFCNTRL, PRELOADEN|HDMAEN;
+	if ((ahd->features & AHD_NEW_DFCNTRL_OPTS) != 0) {
+		/*
+		 * Use SCSIENWRDIS so that SCSIEN is never
+		 * modified by this operation.
+		 */
+		or	DFCNTRL, PRELOADEN|SCSIENWRDIS|HDMAEN;
+	} else {
+		or	DFCNTRL, PRELOADEN|HDMAEN;
+	}
 	/*
 	 * Do we have another segment in the cache?
 	 */
@@ -1248,9 +1268,15 @@ load_first_seg:
 	mvi	SG_STATE, LOADING_NEEDED ret;
 	clr	SG_STATE ret;
 
+p_data_handle_xfer:
+	call	setjmp_setscb;
+	test	SG_STATE, LOADING_NEEDED jnz service_fifo;
+p_data_clear_handler:
+	or	LONGJMP_ADDR[1], INVALID_ADDR ret;
+
 p_data:
 	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT	jz p_data_allowed;
-	mvi	SEQINTCODE, PROTO_VIOLATION;
+	SET_SEQINTCODE(PROTO_VIOLATION)
 p_data_allowed:
  
 	test	SEQ_FLAGS, DPHASE	jz data_phase_initialize;
@@ -1263,14 +1289,15 @@ p_data_allowed:
 	 * unless we already know that we should be bitbucketing.
 	 */
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jnz p_data_bitbucket;
-	mvi	SEQINTCODE, PDATA_REINIT;
-	jmp	data_group_dma_loop;
+	SET_SEQINTCODE(PDATA_REINIT)
+	jmp	data_phase_inbounds;
 
 p_data_bitbucket:
 	/*
 	 * Turn on `Bit Bucket' mode, wait until the target takes
 	 * us to another phase, and then notify the host.
 	 */
+	mov	SAVED_MODE, MODE_PTR;
 	test	MODE_PTR, ~(MK_MODE(M_DFF1, M_DFF1))
 		jnz bitbucket_not_m_dff;
 	/*
@@ -1285,8 +1312,10 @@ bitbucket_not_m_dff:
 	/* Wait for non-data phase. */
 	test	SCSIPHASE, ~DATA_PHASE_MASK jz .;
 	and	SXFRCTL1, ~BITBUCKET;
-	SET_MODE(M_DFF1, M_DFF1)
-	mvi	SEQINTCODE, DATA_OVERRUN;
+	RESTORE_MODE(SAVED_MODE)
+SET_SRC_MODE	M_DFF1;
+SET_DST_MODE	M_DFF1;
+	SET_SEQINTCODE(DATA_OVERRUN)
 	jmp	ITloop;
 
 data_phase_initialize:
@@ -1295,13 +1324,19 @@ data_phase_initialize:
 data_phase_inbounds:
 	/* We have seen a data phase at least once. */
 	or	SEQ_FLAGS, DPHASE;
+	mov	SAVED_MODE, MODE_PTR;
+	test	SG_STATE, LOADING_NEEDED jz data_group_dma_loop;
+	call	p_data_handle_xfer;
 data_group_dma_loop:
 	/*
 	 * The transfer is complete if either the last segment
 	 * completes or the target changes phase.  Both conditions
 	 * will clear SCSIEN.
 	 */
-	call	data_group_idle_loop;
+	call	idle_loop_service_fifos;
+	call	idle_loop_cchan;
+	call	idle_loop_gsfifo;
+	RESTORE_MODE(SAVED_MODE)
 	test	DFCNTRL, SCSIEN jnz data_group_dma_loop;
 
 data_group_dmafinish:
@@ -1357,6 +1392,7 @@ data_phase_finish:
 data_phase_done:
 	/* Kill off any pending prefetch */
 	call	disable_ccsgen;
+	or 	LONGJMP_ADDR[1], INVALID_ADDR;
 
 	if ((ahd->flags & AHD_TARGETROLE) != 0) {
 		test	SEQ_FLAGS, DPHASE_PENDING jz ITloop;
@@ -1414,7 +1450,8 @@ residual_before_last_seg:
 	 * hardware will only interrupt us once SHVALID or
 	 * LAST_SEG_DONE.
 	 */
-	call	data_group_idle_loop;
+	call	idle_loop_service_fifos;
+	RESTORE_MODE(SAVED_MODE)
 	jmp	calc_residual;
 
 sgptr_fixup:
@@ -1448,7 +1485,7 @@ export seq_isr:
 	test	SEQINTSRC, CFG4DATA	jnz cfg4data_intr;
 	test	SEQINTSRC, CFG4ISTAT	jnz cfg4istat_intr;
 	test	SEQINTSRC, CFG4ICMD	jnz cfg4icmd_intr;
-	mvi	SEQINTCODE, INVALID_SEQINT;
+	SET_SEQINTCODE(INVALID_SEQINT)
 
 /*
  * There are two types of save pointers interrupts:
@@ -1486,7 +1523,7 @@ cfg4istat_intr:
 	/*
 	 * Host sets up address/count and enables transfer.
 	 */
-	mvi	SEQINTCODE, CFG4ISTAT_INTR;
+	SET_SEQINTCODE(CFG4ISTAT_INTR)
 	jmp	cfg4istat_setup_handler;
 cfg4istat_have_sense_addr:
 	bmov	HADDR, SCB_SENSE_BUSADDR, 4;
@@ -1635,7 +1672,7 @@ END_CRITICAL;
 
 check_status_overrun:
 	test	SHCNT[2], 0xFF jz status_IU_done;
-	mvi	SEQINTCODE, STATUS_OVERRUN;
+	SET_SEQINTCODE(STATUS_OVERRUN)
 	jmp	status_IU_done;
 pkt_handle_status:
 	call	setjmp_setscb;
@@ -1694,11 +1731,11 @@ SET_DST_MODE	M_DFF0;
 	mvi	DFFSXFRCTL, CLRCHN;
 	mvi	CLRSINT2, CLRNONPACKREQ;
 	test	SCSIPHASE, ~(MSG_IN_PHASE|MSG_OUT_PHASE) jnz illegal_phase;
-	mvi	SEQINTCODE, ENTERING_NONPACK;
+	SET_SEQINTCODE(ENTERING_NONPACK)
 	jmp	ITloop;
 
 illegal_phase:
-	mvi	SEQINTCODE, ILLEGAL_PHASE;
+	SET_SEQINTCODE(ILLEGAL_PHASE)
 	jmp	ITloop;
 
 /*
@@ -1708,11 +1745,10 @@ illegal_phase:
  * BITBUCKET.
  */
 pkt_handle_overrun:
-	mvi	SEQINTCODE, CFG4OVERRUN;
+	SET_SEQINTCODE(CFG4OVERRUN)
 	call	freeze_queue;
 	if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) == 0) {
-		SET_MODE(M_SCSI, M_SCSI)
-		or	SXFRCTL1,BITBUCKET;
+		or	DFFSXFRCTL, DFFBITBUCKET;
 SET_SRC_MODE	M_DFF1;
 SET_DST_MODE	M_DFF1;
 	} else {
@@ -1721,12 +1757,14 @@ SET_DST_MODE	M_DFF1;
 	}
 	call	setjmp;
 	if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) != 0) {
-		test	DFSTATUS, PKT_PRELOAD_AVAIL jz overrun_load_done;
+		test	DFSTATUS, PRELOAD_AVAIL jz overrun_load_done;
 		call	load_overrun_buf;
 		or	DFCNTRL, PRELOADEN;
 overrun_load_done:
+		test	SEQINTSRC, CTXTDONE jnz pkt_overrun_end;
+	} else {
+		test	DFFSXFRCTL, DFFBITBUCKET jz pkt_overrun_end;
 	}
-	test	SEQINTSRC, CTXTDONE jnz pkt_overrun_end;
 	test	SSTAT2, NONPACKREQ jz return;
 pkt_overrun_end:
 	or	SCB_RESIDUAL_SGPTR, SG_OVERRUN_RESID;
