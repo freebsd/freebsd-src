@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdisasm.h - AML disassembler
- *       $Revision: 8 $
+ *       $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -273,6 +273,34 @@ AcpiDmCommaIfListMember (
 
 void
 AcpiDmCommaIfFieldMember (
+    ACPI_PARSE_OBJECT       *Op);
+
+
+/*
+ * dmobject
+ */
+
+void
+AcpiDmDecodeNode (
+    ACPI_NAMESPACE_NODE     *Node);
+
+void
+AcpiDmDisplayInternalObject (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+void
+AcpiDmDisplayArguments (
+    ACPI_WALK_STATE         *WalkState);
+
+void
+AcpiDmDisplayLocals (
+    ACPI_WALK_STATE         *WalkState);
+
+void
+AcpiDmDumpMethodInfo (
+    ACPI_STATUS             Status,
+    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op);
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 253 $
+ *       $Revision: 261 $
  *
  *****************************************************************************/
 
@@ -123,11 +123,14 @@
 
 /*
  * Data type ranges
+ * Note: These macros are designed to be compiler independent as well as
+ * working around problems that some 32-bit compilers have with 64-bit
+ * constants.
  */
-#define ACPI_UINT8_MAX                  (UINT8)  0xFF
-#define ACPI_UINT16_MAX                 (UINT16) 0xFFFF
-#define ACPI_UINT32_MAX                 (UINT32) 0xFFFFFFFF
-#define ACPI_UINT64_MAX                 (UINT64) 0xFFFFFFFFFFFFFFFF
+#define ACPI_UINT8_MAX                  (UINT8) (~((UINT8)  0)) /* 0xFF               */
+#define ACPI_UINT16_MAX                 (UINT16)(~((UINT16) 0)) /* 0xFFFF             */
+#define ACPI_UINT32_MAX                 (UINT32)(~((UINT32) 0)) /* 0xFFFFFFFF         */
+#define ACPI_UINT64_MAX                 (UINT64)(~((UINT64) 0)) /* 0xFFFFFFFFFFFFFFFF */
 #define ACPI_ASCII_MAX                  0x7F
 
 
@@ -228,7 +231,7 @@ typedef char                            *ACPI_PHYSICAL_ADDRESS;
 typedef UINT16                          ACPI_SIZE;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000002
-#define _HW_ALIGNMENT_SUPPORT
+#define ACPI_MISALIGNED_TRANSFERS
 #define ACPI_USE_NATIVE_DIVIDE                          /* No 64-bit integers, ok to use native divide */
 #define ACPI_MAX_PTR                    ACPI_UINT16_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
@@ -266,7 +269,7 @@ typedef UINT64                          ACPI_PHYSICAL_ADDRESS;
 typedef UINT32                          ACPI_SIZE;
 
 #define ALIGNED_ADDRESS_BOUNDARY        0x00000004
-#define _HW_ALIGNMENT_SUPPORT
+#define ACPI_MISALIGNED_TRANSFERS
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
 
@@ -378,8 +381,6 @@ typedef struct uint32_struct
 typedef UINT32                          ACPI_INTEGER;
 #define ACPI_INTEGER_MAX                ACPI_UINT32_MAX
 #define ACPI_INTEGER_BIT_SIZE           32
-#define ACPI_MAX_BCD_VALUE              99999999
-#define ACPI_MAX_BCD_DIGITS             8
 #define ACPI_MAX_DECIMAL_DIGITS         10
 
 #define ACPI_USE_NATIVE_DIVIDE          /* Use compiler native 32-bit divide */
@@ -392,8 +393,6 @@ typedef UINT32                          ACPI_INTEGER;
 typedef UINT64                          ACPI_INTEGER;
 #define ACPI_INTEGER_MAX                ACPI_UINT64_MAX
 #define ACPI_INTEGER_BIT_SIZE           64
-#define ACPI_MAX_BCD_VALUE              9999999999999999
-#define ACPI_MAX_BCD_DIGITS             16
 #define ACPI_MAX_DECIMAL_DIGITS         19
 
 #if ACPI_MACHINE_WIDTH == 64
@@ -486,7 +485,7 @@ typedef UINT32                          ACPI_TABLE_TYPE;
 #define ACPI_TABLE_SSDT                 (ACPI_TABLE_TYPE) 5
 #define ACPI_TABLE_XSDT                 (ACPI_TABLE_TYPE) 6
 #define ACPI_TABLE_MAX                  6
-#define NUM_ACPI_TABLES                 (ACPI_TABLE_MAX+1)
+#define NUM_ACPI_TABLE_TYPES            (ACPI_TABLE_MAX+1)
 
 
 /*
@@ -595,12 +594,9 @@ typedef UINT32                          ACPI_OBJECT_TYPE;
 
 
 /*
- * AcpiEvent Types: Fixed & General Purpose
+ * Acpi Event Types: Fixed & General Purpose
  */
 typedef UINT32                          ACPI_EVENT_TYPE;
-
-#define ACPI_EVENT_FIXED                0
-#define ACPI_EVENT_GPE                  1
 
 /*
  * Fixed events
@@ -621,10 +617,13 @@ typedef UINT32                          ACPI_EVENT_TYPE;
 #define ACPI_EVENT_EDGE_TRIGGERED       2
 
 /*
- * GPEs
+ * Flags for GPE and Lock interfaces
  */
-#define ACPI_EVENT_WAKE_ENABLE          0x1
-#define ACPI_EVENT_WAKE_DISABLE         0x1
+#define ACPI_EVENT_WAKE_ENABLE          0x2
+#define ACPI_EVENT_WAKE_DISABLE         0x2
+
+#define ACPI_NOT_ISR                    0x1
+#define ACPI_ISR                        0x0
 
 
 /*
@@ -830,10 +829,22 @@ typedef struct acpi_system_info
     UINT32                      DebugLevel;
     UINT32                      DebugLayer;
     UINT32                      NumTableTypes;
-    ACPI_TABLE_INFO             TableInfo [NUM_ACPI_TABLES];
+    ACPI_TABLE_INFO             TableInfo [NUM_ACPI_TABLE_TYPES];
 
 } ACPI_SYSTEM_INFO;
 
+
+/*
+ * Types specific to the OS service interfaces
+ */
+
+typedef UINT32
+(ACPI_SYSTEM_XFACE *OSD_HANDLER) (
+    void                    *Context);
+
+typedef void
+(ACPI_SYSTEM_XFACE *OSD_EXECUTION_CALLBACK) (
+    void                    *Context);
 
 /*
  * Various handlers and callback procedures
@@ -904,12 +915,38 @@ ACPI_STATUS (*ACPI_WALK_CALLBACK) (
 #define ACPI_INTERRUPT_HANDLED          0x01
 
 
-/* Structure and flags for AcpiGetDeviceInfo */
+/* Common string version of device HIDs and UIDs */
 
-#define ACPI_VALID_HID                  0x1
-#define ACPI_VALID_UID                  0x2
-#define ACPI_VALID_ADR                  0x4
-#define ACPI_VALID_STA                  0x8
+typedef struct acpi_device_id
+{
+    char                    Value[ACPI_DEVICE_ID_LENGTH];
+
+} ACPI_DEVICE_ID;
+
+/* Common string version of device CIDs */
+
+typedef struct acpi_compatible_id
+{
+    char                    Value[ACPI_MAX_CID_LENGTH];
+
+} ACPI_COMPATIBLE_ID;
+
+typedef struct acpi_compatible_id_list
+{
+    UINT32                  Count;
+    UINT32                  Size;
+    ACPI_COMPATIBLE_ID      Id[1];
+
+} ACPI_COMPATIBLE_ID_LIST;
+
+
+/* Structure and flags for AcpiGetObjectInfo */
+
+#define ACPI_VALID_STA                  0x0001
+#define ACPI_VALID_ADR                  0x0002
+#define ACPI_VALID_HID                  0x0004
+#define ACPI_VALID_UID                  0x0008
+#define ACPI_VALID_CID                  0x0010
 
 
 #define ACPI_COMMON_OBJ_INFO \
@@ -924,15 +961,18 @@ typedef struct acpi_obj_info_header
 } ACPI_OBJ_INFO_HEADER;
 
 
+/* Structure returned from Get Object Info */
+
 typedef struct acpi_device_info
 {
     ACPI_COMMON_OBJ_INFO;
 
-    UINT32                      Valid;              /*  Are the next bits legit? */
-    char                        HardwareId[9];      /*  _HID value if any */
-    char                        UniqueId[9];        /*  _UID value if any */
-    ACPI_INTEGER                Address;            /*  _ADR value if any */
-    UINT32                      CurrentStatus;      /*  _STA value */
+    UINT32                      Valid;              /* Indicates which fields are valid */
+    UINT32                      CurrentStatus;      /* _STA value */
+    ACPI_INTEGER                Address;            /* _ADR value if any */
+    ACPI_DEVICE_ID              HardwareId;         /* _HID value if any */
+    ACPI_DEVICE_ID              UniqueId;           /* _UID value if any */
+    ACPI_COMPATIBLE_ID_LIST     CompatibilityId;    /* List of _CIDs if any */
 
 } ACPI_DEVICE_INFO;
 
@@ -1291,7 +1331,7 @@ typedef struct acpi_resource
 
 #define ACPI_NEXT_RESOURCE(Res)             (ACPI_RESOURCE *)((UINT8 *) Res + Res->Length)
 
-#ifdef _HW_ALIGNMENT_SUPPORT
+#ifdef ACPI_MISALIGNED_TRANSFERS
 #define ACPI_ALIGN_RESOURCE_SIZE(Length)    (Length)
 #else
 #define ACPI_ALIGN_RESOURCE_SIZE(Length)    ACPI_ROUND_UP_TO_NATIVE_WORD(Length)

@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 61 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -319,7 +319,7 @@ ACPI_STATUS
 AcpiUnloadTable (
     ACPI_TABLE_TYPE         TableType)
 {
-    ACPI_TABLE_DESC         *ListHead;
+    ACPI_TABLE_DESC         *TableDesc;
 
 
     ACPI_FUNCTION_TRACE ("AcpiUnloadTable");
@@ -335,8 +335,8 @@ AcpiUnloadTable (
 
     /* Find all tables of the requested type */
 
-    ListHead = &AcpiGbl_AcpiTables[TableType];
-    do
+    TableDesc = AcpiGbl_TableLists[TableType].Next;
+    while (TableDesc);
     {
         /*
          * Delete all namespace entries owned by this table.  Note that these
@@ -344,14 +344,14 @@ AcpiUnloadTable (
          * "Scope" operator.  Thus, we need to track ownership by an ID, not
          * simply a position within the hierarchy
          */
-        AcpiNsDeleteNamespaceByOwner (ListHead->TableId);
+        AcpiNsDeleteNamespaceByOwner (TableDesc->TableId);
 
-        /* Delete (or unmap) the actual table */
+        TableDesc = TableDesc->Next;
+    }
 
-        AcpiTbDeleteAcpiTable (TableType);
+    /* Delete (or unmap) all tables of this type */
 
-    } while (ListHead != &AcpiGbl_AcpiTables[TableType]);
-
+    AcpiTbDeleteTablesByType (TableType);
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -400,7 +400,7 @@ AcpiGetTableHeader (
     /* Check the table type and instance */
 
     if ((TableType > ACPI_TABLE_MAX)    ||
-        (ACPI_IS_SINGLE_TABLE (AcpiGbl_AcpiTableData[TableType].Flags) &&
+        (ACPI_IS_SINGLE_TABLE (AcpiGbl_TableData[TableType].Flags) &&
          Instance > 1))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -486,7 +486,7 @@ AcpiGetTable (
     /* Check the table type and instance */
 
     if ((TableType > ACPI_TABLE_MAX)    ||
-        (ACPI_IS_SINGLE_TABLE (AcpiGbl_AcpiTableData[TableType].Flags) &&
+        (ACPI_IS_SINGLE_TABLE (AcpiGbl_TableData[TableType].Flags) &&
          Instance > 1))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);

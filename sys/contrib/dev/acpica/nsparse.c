@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsparse - namespace interface to AML parser
- *              $Revision: 3 $
+ *              $Revision: 4 $
  *
  *****************************************************************************/
 
@@ -160,10 +160,9 @@ AcpiNsOneCompleteParse (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-
     /* Create and initialize a new walk state */
 
-    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+    WalkState = AcpiDsCreateWalkState (TableDesc->TableId,
                                     NULL, NULL, NULL);
     if (!WalkState)
     {

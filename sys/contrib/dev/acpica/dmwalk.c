@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmwalk - AML disassembly tree walk
- *              $Revision: 9 $
+ *              $Revision: 10 $
  *
  ******************************************************************************/
 
@@ -210,9 +210,8 @@ AcpiDmWalkParseTree (
         }
         else
         {
-            /*
-             * Let the callback process the node.
-             */
+            /* Let the callback process the node */
+
             Status = DescendingCallback (Op, Info->Level, Context);
             if (ACPI_SUCCESS (Status))
             {
@@ -477,9 +476,8 @@ AcpiDmDescendingOp (
         Info->Level--;
     }
 
-    /*
-     * Start the opcode argument list if necessary
-     */
+    /* Start the opcode argument list if necessary */
+
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
     if ((OpInfo->Flags & AML_HAS_ARGS) ||
@@ -492,9 +490,8 @@ AcpiDmDescendingOp (
             AcpiOsPrintf (" (");
         }
 
-        /*
-         * If this is a named opcode, print the associated name value
-         */
+        /* If this is a named opcode, print the associated name value */
+
         if (OpInfo->Flags & AML_NAMED)
         {
             switch (Op->Common.AmlOpcode)

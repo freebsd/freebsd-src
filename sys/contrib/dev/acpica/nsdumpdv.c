@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 5 $
+ *              $Revision: 8 $
  *
  *****************************************************************************/
 
@@ -147,7 +147,8 @@ AcpiNsDumpOneDevice (
     void                    *Context,
     void                    **ReturnValue)
 {
-    ACPI_DEVICE_INFO        Info;
+    ACPI_BUFFER             Buffer;
+    ACPI_DEVICE_INFO        *Info;
     ACPI_STATUS             Status;
     UINT32                  i;
 
@@ -157,18 +158,21 @@ AcpiNsDumpOneDevice (
 
     Status = AcpiNsDumpOneObject (ObjHandle, Level, Context, ReturnValue);
 
-    Status = AcpiGetObjectInfo (ObjHandle, &Info);
+    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
+    Status = AcpiGetObjectInfo (ObjHandle, &Buffer);
     if (ACPI_SUCCESS (Status))
     {
+        Info = Buffer.Pointer;
         for (i = 0; i < Level; i++)
         {
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
         }
 
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, "    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
-                        Info.HardwareId,
-                        ACPI_HIDWORD (Info.Address), ACPI_LODWORD (Info.Address),
-                        Info.CurrentStatus));
+                        Info->HardwareId.Value,
+                        ACPI_HIDWORD (Info->Address), ACPI_LODWORD (Info->Address),
+                        Info->CurrentStatus));
+        ACPI_MEM_FREE (Info);
     }
 
     return (Status);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 112 $
+ *              $Revision: 113 $
  *
  *****************************************************************************/
 
@@ -741,14 +741,23 @@ AcpiUtCopySimpleObject (
         if ((SourceDesc->Buffer.Pointer) &&
             (!(SourceDesc->Common.Flags & AOPOBJ_STATIC_POINTER)))
         {
-            DestDesc->Buffer.Pointer = ACPI_MEM_ALLOCATE (SourceDesc->Buffer.Length);
-            if (!DestDesc->Buffer.Pointer)
-            {
-                return (AE_NO_MEMORY);
-            }
+            DestDesc->Buffer.Pointer = NULL;
 
-            ACPI_MEMCPY (DestDesc->Buffer.Pointer, SourceDesc->Buffer.Pointer,
-                         SourceDesc->Buffer.Length);
+            /* Create an actual buffer only if length > 0 */
+
+            if (SourceDesc->Buffer.Length)
+            {
+                DestDesc->Buffer.Pointer = ACPI_MEM_ALLOCATE (SourceDesc->Buffer.Length);
+                if (!DestDesc->Buffer.Pointer)
+                {
+                    return (AE_NO_MEMORY);
+                }
+
+                /* Copy the actual buffer data */
+
+                ACPI_MEMCPY (DestDesc->Buffer.Pointer, SourceDesc->Buffer.Pointer,
+                             SourceDesc->Buffer.Length);
+            }
         }
         break;
 
