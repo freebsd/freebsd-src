@@ -63,6 +63,7 @@ struct	md_page {
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
 
+#define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
 #define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
 #ifdef _KERNEL
