@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
+#include <timeconv.h>
 #include <unistd.h>
 #include <utmp.h>
 #include <pwd.h>
@@ -121,7 +122,8 @@ int			quiet_mode;
 int			iff_flag = IFF_POINTOPOINT;
 int			multicast_mode  = NO_MULTICAST;
 int			multicast_scope;
-struct sockaddr_in	multicast_addr  = { sizeof multicast_addr, AF_INET };
+struct sockaddr_in	multicast_addr  =
+	{ sizeof multicast_addr, AF_INET, 0, { 0 }, { 0 } };
 
 /*
  * Alarm interval. Don't forget to change the down time check in ruptime
@@ -149,34 +151,32 @@ struct	whod mywd;
 struct	servent *sp;
 int	s, utmpf;
 
-#define	WHDRSIZE	(sizeof(mywd) - sizeof(mywd.wd_we))
+#define	WHDRSIZE	(int)(sizeof(mywd) - sizeof(mywd.wd_we))
 
-void	 run_as __P((uid_t *, gid_t *));
-int	 configure __P((int));
-void	 getboottime __P((int));
-void	 onalrm __P((int));
-void	 quit __P((char *));
-void	 rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
-int	 verify __P((char *, int));
-static void usage __P((void));
+void	 run_as(uid_t *, gid_t *);
+int	 configure(int);
+void	 getboottime(int);
+void	 onalrm(int);
+void	 quit(const char *);
+void	 rt_xaddrs(caddr_t, caddr_t, struct rt_addrinfo *);
+int	 verify(char *, int);
+static void usage(void);
 #ifdef DEBUG
-char	*interval __P((int, char *));
+char	*interval(int, char *);
 void	 Sendto __P((int, const void *, size_t, int,
 		     const struct sockaddr *, int));
 #define	 sendto Sendto
 #endif
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct sockaddr_in from;
 	struct stat st;
 	char path[64];
 	int on = 1;
 	char *cp;
-	struct sockaddr_in sin;
+	struct sockaddr_in soin;
 	uid_t unpriv_uid;
 	gid_t unpriv_gid;
 
@@ -249,11 +249,11 @@ main(argc, argv)
 		syslog(LOG_ERR, "setsockopt SO_BROADCAST: %m");
 		exit(1);
 	}
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_port = sp->s_port;
-	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+	memset(&soin, 0, sizeof(soin));
+	soin.sin_len = sizeof(soin);
+	soin.sin_family = AF_INET;
+	soin.sin_port = sp->s_port;
+	if (bind(s, (struct sockaddr *)&soin, sizeof(soin)) < 0) {
 		syslog(LOG_ERR, "bind: %m");
 		exit(1);
 	}
@@ -394,7 +394,7 @@ int	alarmcount;
 
 void
 onalrm(signo)
-	int signo;
+	int signo __unused;
 {
 	register struct neighbor *np;
 	register struct whoent *we = mywd.wd_we, *wlast;
@@ -501,7 +501,7 @@ done:
 
 void
 getboottime(signo)
-	int signo;
+	int signo __unused;
 {
 	int mib[2];
 	size_t size;
@@ -519,7 +519,7 @@ getboottime(signo)
 
 void
 quit(msg)
-	char *msg;
+	const char *msg;
 {
 	syslog(LOG_ERR, "%s", msg);
 	exit(1);
@@ -551,8 +551,8 @@ rt_xaddrs(cp, cplim, rtinfo)
  * networks which deserve status information.
  */
 int
-configure(s)
-	int s;
+configure(so)
+	int so;
 {
 	register struct neighbor *np;
 	register struct if_msghdr *ifm;
@@ -574,14 +574,14 @@ configure(s)
 
 		mreq.imr_multiaddr.s_addr = htonl(INADDR_WHOD_GROUP);
 		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-		if (setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+		if (setsockopt(so, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 					&mreq, sizeof(mreq)) < 0) {
 			syslog(LOG_ERR,
 				"setsockopt IP_ADD_MEMBERSHIP: %m");
 			return(0);
 		}
 		ttl = multicast_scope;
-		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL,
+		if (setsockopt(so, IPPROTO_IP, IP_MULTICAST_TTL,
 					&ttl, sizeof(ttl)) < 0) {
 			syslog(LOG_ERR,
 				"setsockopt IP_MULTICAST_TTL: %m");
