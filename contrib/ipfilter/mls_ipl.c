@@ -40,7 +40,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: mls_ipl.c,v 2.2.2.1 2001/06/26 10:43:20 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: mls_ipl.c,v 2.2.2.2 2002/04/10 05:05:54 darrenr Exp $";
 #endif
 
 extern	int	ipldetach __P((void));
@@ -49,6 +49,7 @@ extern	int	ipldetach __P((void));
 #endif
 extern	int	nulldev __P((void));
 extern	int	errno;
+extern	int	iplidentify __P((char *));
 
 extern int nodev __P((void));
 

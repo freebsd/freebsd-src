@@ -22,15 +22,15 @@ echo "$1...";
 		/bin/rm -f logout
 		exit 1
 	fi
-	../ipmon -P /dev/null -f logout >> results/$1
+	TZ=GMT ../ipmon -P /dev/null -f logout >> results/$1
         echo "--------" >> results/$1
-	../ipmon -P /dev/null -bf logout >> results/$1.b
+	TZ=GMT ../ipmon -P /dev/null -bf logout >> results/$1.b
         echo "--------" >> results/$1.b
 done ) < regress/$1
 ../ipftest -br regress/$1 -Hi input/$1 -l logout > /dev/null
-../ipmon -P /dev/null -f logout >> results/$1
+TZ=GMT ../ipmon -P /dev/null -f logout >> results/$1
 echo "--------" >> results/$1
-../ipmon -P /dev/null -bf logout >> results/$1.b
+TZ=GMT ../ipmon -P /dev/null -bf logout >> results/$1.b
 echo "--------" >> results/$1.b
 
 cmp expected/$1 results/$1
