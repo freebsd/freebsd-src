@@ -38,12 +38,19 @@ static char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <grp.h>
 
 static FILE *_gr_fp;
 static struct group _gr_group;
 static int _gr_stayopen;
 static int grscan(), start_gr();
+#ifdef YP
+static int _gr_stepping_yp;
+static int _gr_yp_enabled;
+static int _getypgroup(struct group *, const char *, const char *);
+static int _nextypgroup(struct group *);
+#endif
 
 #define	MAXGRP		200
 static char *members[MAXGRP];
@@ -53,8 +60,26 @@ static char line[MAXLINELENGTH];
 struct group *
 getgrent()
 {
-	if (!_gr_fp && !start_gr() || !grscan(0, 0, NULL))
+	if (!_gr_fp && !start_gr()) {
+		return NULL;
+	}
+
+#ifdef YP
+	if (_gr_stepping_yp) {
+		return (_nextypgroup(&_gr_group) ? &_gr_group : 0);
+	}
+#endif
+
+	if (!grscan(0, 0, NULL))
 		return(NULL);
+#ifdef YP
+	if(_gr_group.gr_name[0] == '+' && _gr_group.gr_name[1]) {
+		_getypgroup(&_gr_group, &_gr_group.gr_name[1],
+			    "group.byname");
+	} else if(_gr_group.gr_name[0] == '+') {
+		return (_nextypgroup(&_gr_group) ? &_gr_group : 0);
+	}
+#endif
 	return(&_gr_group);
 }
 
@@ -67,6 +92,11 @@ getgrnam(name)
 	if (!start_gr())
 		return(NULL);
 	rval = grscan(1, 0, name);
+#ifdef YP
+	if(!rval && _gr_yp_enabled < 0) {
+		rval = _getypgroup(&_gr_group, name, "group.byname");
+	}
+#endif
 	if (!_gr_stayopen)
 		endgrent();
 	return(rval ? &_gr_group : NULL);
@@ -85,19 +115,51 @@ getgrgid(gid)
 	if (!start_gr())
 		return(NULL);
 	rval = grscan(1, gid, NULL);
+#ifdef YP
+	if(!rval && _gr_yp_enabled) {
+		char buf[16];
+		snprintf(buf, sizeof buf, "%d", (unsigned)gid);
+		rval = _getypgroup(&_gr_group, buf, "group.bygid");
+	}
+#endif
 	if (!_gr_stayopen)
 		endgrent();
 	return(rval ? &_gr_group : NULL);
 }
 
-static
+static int
 start_gr()
 {
 	if (_gr_fp) {
 		rewind(_gr_fp);
 		return(1);
 	}
-	return((_gr_fp = fopen(_PATH_GROUP, "r")) ? 1 : 0);
+	_gr_fp = fopen(_PATH_GROUP, "r");
+	if(!_gr_fp) return 0;
+#ifdef YP
+	/*
+	 * This is a disgusting hack, used to determine when YP is enabled.
+	 * This would be easier if we had a group database to go along with
+	 * the password database.
+	 */
+	{
+		char *line;
+		size_t linelen;
+		_gr_yp_enabled = 0;
+		while(line = fgetln(_gr_fp, &linelen)) {
+			if(line[0] == '+') {
+				if(line[1] && !_gr_yp_enabled) {
+					_gr_yp_enabled = 1;
+				} else {
+					_gr_yp_enabled = -1;
+					break;
+				}
+			}
+		}
+		rewind(_gr_fp);
+	}
+#endif
+	return 1;
 }
 
 int
@@ -113,19 +175,25 @@ setgroupent(stayopen)
 	if (!start_gr())
 		return(0);
 	_gr_stayopen = stayopen;
+#ifdef YP
+	_gr_stepping_yp = 0;
+#endif
 	return(1);
 }
 
 void
 endgrent()
 {
+#ifdef YP
+	_gr_stepping_yp = 0;
+#endif
 	if (_gr_fp) {
 		(void)fclose(_gr_fp);
 		_gr_fp = NULL;
 	}
 }
 
-static
+static int
 grscan(search, gid, name)
 	register int search, gid;
 	register char *name;
@@ -147,8 +215,20 @@ grscan(search, gid, name)
 			continue;
 		}
 		_gr_group.gr_name = strsep(&bp, ":\n");
-		if (search && name && strcmp(_gr_group.gr_name, name))
-			continue;
+		if (search && name) {
+#ifdef YP
+			if(_gr_group.gr_name[0] == '+') {
+				if(strcmp(&_gr_group.gr_name[1], name)) {
+					continue;
+				}
+				return _getypgroup(&_gr_group, name,
+						   "group.byname");
+			}
+#endif /* YP */
+			if(strcmp(_gr_group.gr_name, name)) {
+				continue;
+			}
+		}
 		_gr_group.gr_passwd = strsep(&bp, ":\n");
 		if (!(cp = strsep(&bp, ":\n")))
 			continue;
@@ -179,3 +259,127 @@ grscan(search, gid, name)
 	}
 	/* NOTREACHED */
 }
+
+#ifdef YP
+
+static void
+_gr_breakout_yp(struct group *gr, char *result)
+{
+	char *s, *cp;
+	char **m;
+
+	s = strsep(&result, ":"); /* name */
+	gr->gr_name = s;
+
+	s = strsep(&result, ":"); /* password */
+	gr->gr_passwd = s;
+
+	s = strsep(&result, ":"); /* gid */
+	gr->gr_gid = atoi(s);
+
+	s = result;
+	cp = 0;
+
+	for (m = _gr_group.gr_mem = members; /**/; s++) {
+		if (m == &members[MAXGRP - 1]) {
+			break;
+		}
+		if (*s == ',') {
+			if (cp) {
+				*s = '\0';
+				*m++ = cp;
+				cp = NULL;
+			}
+		} else if (*s == '\0' || *s == '\n' || *s == ' ') {
+			if (cp) {
+				*s = '\0';
+				*m++ = cp;
+			}
+			break;
+		} else if (cp == NULL) {
+			cp = s;
+		}
+	}
+	*m = NULL;
+}
+
+static char *_gr_yp_domain;
+
+static int
+_getypgroup(struct group *gr, const char *name, const char *map)
+{
+	char *result, *s;
+	static char resultbuf[1024];
+	int resultlen;
+
+	if(!_gr_yp_domain) {
+		if(yp_get_default_domain(&_gr_yp_domain))
+		  return 0;
+	}
+
+	if(yp_match(_gr_yp_domain, map, name, strlen(name), 
+		    &result, &resultlen))
+		return 0;
+
+	s = strchr(result, '\n');
+	if(s) *s = '\0';
+
+	if(resultlen >= sizeof resultbuf) return 0;
+	strcpy(resultbuf, result);
+	result = resultbuf;
+	_gr_breakout_yp(gr, resultbuf);
+
+	return 1;
+}
+
+
+static int
+_nextypgroup(struct group *gr)
+{
+	static char *key;
+	static int keylen;
+	char *lastkey, *result;
+	static char resultbuf[1024];
+	int resultlen;
+	int rv;
+
+	if(!_gr_yp_domain) {
+		if(yp_get_default_domain(&_gr_yp_domain))
+		  return 0;
+	}
+
+	if(!_gr_stepping_yp) {
+		if(key) free(key);
+		rv = yp_first(_gr_yp_domain, "group.byname",
+			      &key, &keylen, &result, &resultlen);
+		if(rv) {
+			return 0;
+		}
+		_gr_stepping_yp = 1;
+		goto unpack;
+	} else {
+tryagain:
+		lastkey = key;
+		rv = yp_next(_gr_yp_domain, "group.byname", key, keylen,
+			     &key, &keylen, &result, &resultlen);
+		free(lastkey);
+unpack:
+		if(rv) {
+			_gr_stepping_yp = 0;
+			return 0;
+		}
+
+		if(resultlen > sizeof(resultbuf)) {
+			free(result);
+			goto tryagain;
+		}
+
+		strcpy(resultbuf, result);
+		free(result);
+		if(result = strchr(resultbuf, '\n')) *result = '\0';
+		_gr_breakout_yp(gr, resultbuf);
+	}
+	return 1;
+}
+		
+#endif /* YP */
