@@ -128,7 +128,11 @@ typedef	__gid_t		gid_t;		/* group id */
 #endif
 
 typedef	__uint32_t	ino_t;		/* inode number */
-typedef	long		key_t;		/* IPC key (for Sys V IPC) */
+
+#ifndef _KEY_T_DECLARED
+typedef	__key_t		key_t;		/* IPC key (for Sys V IPC) */
+#define	_KEY_T_DECLARED
+#endif
 
 #ifndef _MODE_T_DECLARED
 typedef	__mode_t	mode_t;		/* permissions */
