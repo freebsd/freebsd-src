@@ -1,9 +1,12 @@
-#	@(#)Makefile	1.0 (Berkeley) 4/21/96
+# $Id: Makefile,v 1.5 1997/07/30 04:55:34 skynyrd Exp $
+
+GLOBAL_DIR=	${.CURDIR}/../../../contrib/global
+.PATH:		${GLOBAL_DIR}/gtags
 
 MAN1=	gtags.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/gtags.sh ${DESTDIR}/usr/bin/gtags
+	    ${GLOBAL_DIR}/gtags/gtags.pl ${DESTDIR}/usr/bin/gtags
 
 .include <bsd.prog.mk>
