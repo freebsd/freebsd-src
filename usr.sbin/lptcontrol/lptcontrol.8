@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\" $FreeBSD$
-.Dd September 3, 1994
+.Dd February 22, 2005
 .Dt LPTCONTROL 8
 .Os
 .Sh NAME
@@ -19,13 +19,13 @@
 .Nd a utility for manipulating the lpt printer driver
 .Sh SYNOPSIS
 .Nm
-.Fl i | p | e | s
-.Op Fl d Ar device
+.Fl e | i | p | s
+.Op Fl d Ar control_device
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to set either the interrupt-driven, extended or polling mode
-of individual
+utility is used to set either the interrupt-driven, extended, standard,
+or polling mode of individual
 .Xr lpt 4
 devices.
 When a printer is switched from
@@ -38,27 +38,27 @@ ECP/ISA parallel port, it may be FIFO+DMA or ECP.
 .Pp
 The following command line options are supported:
 .Bl -tag -width indent
+.It Fl e
+Turn on extended mode.
 .It Fl i
 Turn on interrupt-driven mode.
 .It Fl p
 Turn on polled mode.
-.It Fl e
-Turn on extended mode.
 .It Fl s
 Turn on standard mode, i.e., turn off extended mode.
-.It Fl d Ar device
-Set the mode of the printer device specified by
-.Ar device .
+.It Fl d Ar control_device
+Set the mode of the printer control device specified by
+.Ar control_device .
 The default value for
-.Ar device
+.Ar control_device
 is
 .Pa /dev/lpt0 .
 .El
 .Pp
 One of
-.Fl i , p
+.Fl e , i , p
 or
-.Fl e
+.Fl s
 must be specified.
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/GENERIC -compact
@@ -68,11 +68,18 @@ printer devices
 printer control devices
 .It Pa /sys/i386/conf/GENERIC
 kernel configuration file
+.It Pa /boot/device.hints
+Device hints for the parallel port chipset driver,
+.Xr ppc 4
 .El
 .Sh BUGS
-Sure to be some.
+The control device name should never have been an option,
+but should have been an optional argument.
+Because of this, a single argument is treated as a device name.
 .Sh SEE ALSO
-.Xr lpt 4
+.Xr lpt 4 ,
+.Xr ppc 4 ,
+.Xr device.hints 5
 .Sh AUTHORS
 .An Geoffrey M. Rehmet
 .Sh HISTORY
