@@ -8,13 +8,13 @@ INFOSECTION= "Programming & development tools."
 INFOENTRY_readline= "* Readline: (readline).		The GNU Readline library"
 INFOENTRY_rluserman= "* Readline: (readline).       The GNU readline library API"
 
-CLEANFILES += readline.texinfo
+CLEANFILES += readline.texi
 
-readline.info: rlman.texinfo rltech.texinfo rluser.texinfo manvers.texinfo
+readline.info: rlman.texi rluser.texi rltech.texi version.texi fdl.texi
 
-readline.texinfo: rlman.texinfo
-	cp ${SRCDIR}/rlman.texinfo ${.TARGET}
+readline.texi: rlman.texi
+	cp ${SRCDIR}/rlman.texi ${.TARGET}
 
-rluserman.info: rluser.texinfo manvers.texinfo
+rluserman.info: rluserman.texi version.texi rluser.texi fdl.texi
 
 .include <bsd.info.mk>
