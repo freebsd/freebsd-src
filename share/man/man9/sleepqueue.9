@@ -1,0 +1,89 @@
+.\" Copyright (c) 2000 John H. Baldwin <jhb@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Nov 3, 2000
+.Dt SLEEPQUEUE 9
+.Os
+.Sh NAME
+.Nm endtsleep ,
+.Nm sleepinit ,
+.Nm unsleep
+.Nd manage the queues of sleeping processes
+.Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/proc.h>
+.Ft void
+.Fn endtsleep "void *arg"
+.Ft void
+.Fn sleepinit "void"
+.Ft void
+.Fn unsleep "struct proc *p"
+.Sh DESCRIPTION
+The sleep queues used by
+.Xr msleep 9
+and friends are stored in a hash array.
+The address of the wait channel is used to generate an index into the array.
+Each entry in the array is a queue of processes that are sleeping on wait
+channels that hash to that index.
+.Xr msleep 9
+places processes into their appropriate queues directly.
+To handle timeouts, the
+.Fn endtsleep
+function is registered as a
+.Xr timeout 9 .
+When the process is woken by either
+.Fn wakeup
+or
+.Fn wakeup_one ,
+the timeout is revoked via
+.Xr untimeout 9 .
+If the process is not awakened soon enough, then
+.Fn endtsleep
+is called with
+.Fa arg
+pointing to the
+.Li struct proc
+of the process that timed out.
+.Fn endtsleep
+undoes the sleep and makes the process runnable if it is in the
+.Dv SSLEEP
+state.
+The sleep queues and the hash array are protected internally by the
+.Va sched_lock
+mutex.
+.Pp
+.Fn unsleep
+simply removes the process
+.Fa p
+from its sleep queue.
+.Pp
+.Fn sleepinit
+is called during system startup and initializes the scheduler quantum
+.Pq Va sched_quantum
+and the sleep queues.
+.Sh SEE ALSO
+.Xr msleep 9 ,
+.Xr runqueue 9 ,
+.Xr scheduler 9
