@@ -74,11 +74,10 @@ abort()
 	 * if SIGABRT ignored, or caught and the handler returns, do
 	 * it again, only harder.
 	 */
+	(void)signal(SIGABRT, SIG_DFL);
 #ifdef _THREAD_SAFE
-	(void) _thread_sys_signal(SIGABRT, SIG_DFL);
 	(void) _thread_sys_sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
 #else
-	(void)signal(SIGABRT, SIG_DFL);
 	(void)sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
 #endif
 	(void)kill(getpid(), SIGABRT);
