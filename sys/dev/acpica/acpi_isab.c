@@ -90,11 +90,13 @@ MODULE_DEPEND(acpi_isab, acpi, 1, 1, 1);
 static int
 acpi_isab_probe(device_t dev)
 {
+	ACPI_HANDLE h;
 
+	h = acpi_get_handle(dev);
 	if (acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
 	    !acpi_disabled("isa") &&
 	    devclass_get_device(isab_devclass, 0) == dev &&
-	    (acpi_MatchHid(dev, "PNP0A05") || acpi_MatchHid(dev, "PNP0A06"))) {
+	    (acpi_MatchHid(h, "PNP0A05") || acpi_MatchHid(h, "PNP0A06"))) {
 		device_set_desc(dev, "ACPI Generic ISA bridge");
 		return (0);
 	}

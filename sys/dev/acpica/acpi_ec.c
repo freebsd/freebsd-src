@@ -454,7 +454,7 @@ acpi_ec_probe(device_t dev)
     if (DEV_ECDT(dev)) {
 	params = acpi_get_private(dev);
 	ret = 0;
-    } else if (acpi_MatchHid(dev, "PNP0C09")) {
+    } else if (acpi_MatchHid(acpi_get_handle(dev), "PNP0C09")) {
 	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
 			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);

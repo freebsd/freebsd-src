@@ -291,8 +291,8 @@ acpi_cmbat_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 static int
 acpi_cmbat_probe(device_t dev)
 {
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
-	!acpi_disabled("cmbat") && acpi_MatchHid(dev, "PNP0C0A")) {
+    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("cmbat")
+	&& acpi_MatchHid(acpi_get_handle(dev), "PNP0C0A")) {
 
 	device_set_desc(dev, "Control Method Battery");
 	return (0);
