@@ -8,7 +8,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: setup.sh,v 1.3 1995/02/02 08:31:38 jkh Exp $
+# $Id: setup.sh,v 1.4 1995/02/02 20:46:40 jkh Exp $
 
 # Grab the miscellaneous functions.
 . /stand/scripts/miscfuncs.sh
@@ -43,6 +43,7 @@ again, type \`/stand/scripts/setup.sh\'." -1 -1 5 \
 	;;
 
 	network)
+		INTERFACE=""
 		network_setup
 	;;
 
