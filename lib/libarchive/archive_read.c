@@ -428,8 +428,8 @@ archive_read_finish(struct archive *a)
 
 	/* Casting a pointer to int allows us to remove 'const.' */
 	free((void *)(uintptr_t)(const void *)a->nulls);
-	if (a->extract_mkdirpath.s != NULL)
-		free(a->extract_mkdirpath.s);
+	archive_string_free(&a->extract_mkdirpath);
+	archive_string_free(&a->error_string);
 	if (a->entry)
 		archive_entry_free(a->entry);
 	a->magic = 0;
@@ -455,7 +455,7 @@ __archive_read_register_format(struct archive *a,
 
 	for (i = 0; i < number_slots; i++) {
 		if (a->formats[i].bid == bid)
-			return (0); /* We've already installed */
+			return (ARCHIVE_WARN); /* We've already installed */
 		if (a->formats[i].bid == NULL) {
 			a->formats[i].bid = bid;
 			a->formats[i].read_header = read_header;

@@ -165,8 +165,8 @@ archive_write_finish(struct archive *a)
 
 	/* Release various dynamic buffers. */
 	free((void *)(uintptr_t)(const void *)a->nulls);
-	if (a->extract_mkdirpath.s != NULL)
-		free(a->extract_mkdirpath.s);
+	archive_string_free(&a->extract_mkdirpath);
+	archive_string_free(&a->error_string);
 	a->magic = 0;
 	free(a);
 }
