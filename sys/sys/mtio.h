@@ -169,7 +169,7 @@ struct scsi_tape_errors {
 	struct {
 		u_int32_t retries;	/* total # retries performed */
 		u_int32_t corrected;	/* total # corrections performed */
-		u_int32_t processed;	/* total # corrections succssful */
+		u_int32_t processed;	/* total # corrections successful */
 		u_int32_t failures;	/* total # corrections/retries failed */
 		u_int64_t nbytes;	/* total # bytes processed */
 	} wterr, rderr;
