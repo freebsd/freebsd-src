@@ -29,7 +29,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.19 2003/04/26 02:00:49 grog Exp $
+ * $Id: vinumkw.h,v 1.20 2003/05/07 03:32:09 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -104,11 +104,9 @@ enum keyword {
     kw_preferred,					    /* preferred plex */
     kw_device,
     kw_init,
-    kw_label,
     kw_resetconfig,
     kw_writethrough,
     kw_writeback,
-    kw_raw,
     kw_replace,
     kw_resetstats,
     kw_attach,
