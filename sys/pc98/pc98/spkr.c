@@ -11,10 +11,6 @@
  * modified for PC98 by Kakefuda
  */
 
-#include "speaker.h"
-
-#if NSPEAKER > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -630,5 +626,4 @@ spkr_drvinit(void *unused)
 SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)
 
 
-#endif  /* NSPEAKER > 0 */
 /* spkr.c ends here */
