@@ -78,6 +78,7 @@
 #define	CDEV_MAJOR	162
 
 #ifdef SMP
+#include <sys/lock.h>
 #include <machine/smptests.h>	/* USE_COMLOCK ? */
 #ifdef USE_COMLOCK
 extern struct mtx	com_mtx;
