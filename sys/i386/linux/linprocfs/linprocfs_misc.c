@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 Pierre Beyssac
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -40,14 +42,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/jail.h>
-#include <sys/vnode.h>
 #include <sys/blist.h>
-#include <sys/tty.h>
+#include <sys/dkstat.h>
+#include <sys/jail.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <i386/linux/linprocfs/linprocfs.h>
+#include <sys/systm.h>
+#include <sys/tty.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -60,7 +63,10 @@
 #include <machine/md_var.h>
 #include <machine/cputypes.h>
 
-struct proc;
+#include <i386/linux/linprocfs/linprocfs.h>
+
+#define T2J(x) (((x) * 100) / stathz)
+#define T2S(x) ((x) / stathz)
 
 int
 linprocfs_domeminfo(curp, p, pfs, uio)
@@ -71,7 +77,6 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 {
 	char *ps;
 	int xlen;
-	int error;
 	char psbuf[512];		/* XXX - conservative */
 	unsigned long memtotal;		/* total memory in bytes */
 	unsigned long memused;		/* used memory in bytes */
@@ -99,8 +104,13 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	 */
 	memused = cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
-	swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
-	swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+	if (swapblist == NULL) {
+		swaptotal = 0;
+		swapfree = 0;
+	} else {
+		swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
+		swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
+	}
 	swapused = swaptotal - swapfree;
 	memshared = 0;
 	for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
@@ -141,11 +151,7 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-	return (error);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
 }
 
 int
@@ -157,7 +163,6 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 {
 	char *ps;
 	int xlen;
-	int error;
 	char psbuf[512];		/* XXX - conservative */
 	char *class;
 #if 0
@@ -201,9 +206,88 @@ linprocfs_docpuinfo(curp, p, pfs, uio)
 	xlen -= uio->uio_offset;
 	ps = psbuf + uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
-	if (xlen <= 0)
-		error = 0;
-	else
-		error = uiomove(ps, xlen, uio);
-	return (error);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
 }
+
+int
+linprocfs_dostat(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+        char *ps;
+	char psbuf[512];
+	int xlen;
+
+	ps = psbuf;
+	ps += sprintf(ps,
+		      "cpu %ld %ld %ld %ld\n"
+		      "disk 0 0 0 0\n"
+		      "page %u %u\n"
+		      "swap %u %u\n"
+		      "intr %u\n"
+		      "ctxt %u\n"
+		      "btime %ld\n",
+		      T2J(cp_time[CP_USER]),
+		      T2J(cp_time[CP_NICE]),
+		      T2J(cp_time[CP_SYS] /*+ cp_time[CP_INTR]*/),
+		      T2J(cp_time[CP_IDLE]),
+		      cnt.v_vnodepgsin,
+		      cnt.v_vnodepgsout,
+		      cnt.v_swappgsin,
+		      cnt.v_swappgsout,
+		      cnt.v_intr,
+		      cnt.v_swtch,
+		      boottime.tv_sec);
+	xlen = ps - psbuf;
+	xlen -= uio->uio_offset;
+	ps = psbuf + uio->uio_offset;
+	xlen = imin(xlen, uio->uio_resid);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+}
+
+int
+linprocfs_douptime(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	char *ps;
+	int xlen;
+	char psbuf[64];
+	struct timeval tv;
+
+	getmicrouptime(&tv);
+	ps = psbuf;
+	ps += sprintf(ps, "%ld.%02ld %ld.%02ld\n",
+		      tv.tv_sec, tv.tv_usec / 10000,
+		      T2S(cp_time[CP_IDLE]), T2J(cp_time[CP_IDLE]) % 100);
+	xlen = ps - psbuf;
+	xlen -= uio->uio_offset;
+	ps = psbuf + uio->uio_offset;
+	xlen = imin(xlen, uio->uio_resid);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+}
+
+int
+linprocfs_doversion(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+        char *ps;
+	int xlen;
+
+	ps = version; /* XXX not entirely correct */
+	for (xlen = 0; ps[xlen] != '\n'; ++xlen)
+		/* nothing */ ;
+	++xlen;
+	xlen -= uio->uio_offset;
+	ps += uio->uio_offset;
+	xlen = imin(xlen, uio->uio_resid);
+	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+}
+
