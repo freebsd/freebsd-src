@@ -53,7 +53,7 @@ extern int child_suppress_run;
 
 extern struct target_ops child_ops;
 
-/* This module's target vector.  */
+/* This module's target vectors.  */
 static struct target_ops fbsd_thread_ops;
 static struct target_ops fbsd_core_ops;
 
@@ -324,8 +324,6 @@ fbsd_thread_new_objfile (struct objfile *objfile)
 {
   td_err_e err;
 
-  /* Don't attempt to use thread_db on targets which can not run
-     (core files).  */
   if (objfile == NULL)
     {
       /* All symbols have been discarded.  If the thread_db target is
@@ -342,9 +340,9 @@ fbsd_thread_new_objfile (struct objfile *objfile)
   if (!child_suppress_run)
     goto quit;
 
+  /* Nothing to do.  The thread library was already detected and the
+     target vector was already activated.  */
   if (fbsd_thread_active)
-    /* Nothing to do.  The thread library was already detected and the
-       target vector was already activated.  */
     goto quit;
 
   /* Initialize the structure that identifies the child process.  Note
@@ -484,14 +482,12 @@ fbsd_thread_resume (ptid_t ptid, int step, enum target_signal signo)
       if (ret)
         error (thread_db_err_str (ret));
 
-      /*
-       * For M:N thread, we need to tell UTS to set/unset single step
-       * flag at context switch time, the flag will be written into
-       * thread mailbox. This becauses some architecture may not have
-       * machine single step flag in ucontext, so we put the flag in mailbox,
-       * when the thread switches back, kse_switchin restores the single step
-       * state.
-       */ 
+      /* For M:N thread, we need to tell UTS to set/unset single step
+         flag at context switch time, the flag will be written into
+         thread mailbox. This becauses some architecture may not have
+         machine single step flag in ucontext, so we put the flag in mailbox,
+         when the thread switches back, kse_switchin restores the single step
+         state.  */
       ret = td_thr_sstep_p (&th, step);
       if (ret)
         error (thread_db_err_str (ret));
@@ -764,10 +760,8 @@ fbsd_thread_post_startup_inferior (ptid_t ptid)
 {
   if (fbsd_thread_present && !fbsd_thread_active)
     {
-      /*
-       * The child process is now the actual multi-threaded
-       * program.  Snatch its process ID... 
-       */
+      /* The child process is now the actual multi-threaded
+         program.  Snatch its process ID... */
       proc_handle.pid = GET_PID (ptid);
       td_ta_new_p (&proc_handle, &thread_agent);
       fbsd_thread_activate();
@@ -777,10 +771,6 @@ fbsd_thread_post_startup_inferior (ptid_t ptid)
 static void
 fbsd_thread_mourn_inferior (void)
 {
-  /*
-   * Forget about the child's process ID.  We shouldn't need it
-   * anymore.
-   */
   if (fbsd_thread_active)
     fbsd_thread_deactivate ();
 
