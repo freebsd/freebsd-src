@@ -54,6 +54,9 @@
 
 #include "assym.s"
 
+	.register %g2,#ignore
+	.register %g3,#ignore
+
 /*
  * C library -- _setjmp, _longjmp
  *
@@ -66,9 +69,9 @@
  */
 
 ENTRY(_setjmp)
-	stx	%sp, [%o0 + UC_MC + MC_O6]
-	stx	%o7, [%o0 + UC_MC + MC_O7]
-	stx	%fp, [%o0 + UC_MC + MC_G1]
+	stx	%sp, [%o0 + _JB_SP]
+	stx	%o7, [%o0 + _JB_PC]
+	stx	%fp, [%o0 + _JB_FP]
 	retl
 	 clr	%o0
 END(_setjmp)
@@ -77,15 +80,17 @@ ENTRY(_longjmp)
 	mov	1, %g1
 	movrnz	%o1, %o1, %g1			! compute v ? v : 1
 	mov	%o0, %g2
-	ldx	[%g2 + UC_MC + MC_G1], %g3	! fetch callers frame
+	ldx	[%g2 + _JB_FP], %g3		! fetch callers frame
 1:	cmp	%fp, %g3			! compare against desired frame
 	bl,a	1b				! if below,
 	 restore				!    pop frame and loop
 	be,a	2f				! if there,
-	 ldx	[%g2 + UC_MC + MC_O6], %o0	!    fetch return %sp
+	 ldx	[%g2 + _JB_SP], %o0		!    fetch return %sp
 
 .Lbotch:
 	call	CNAME(longjmperror)
+	 nop
+	call	CNAME(abort)
 	 nop
 	illtrap
 
@@ -94,7 +99,7 @@ ENTRY(_longjmp)
 	 mov	%o0, %sp			! it is OK, put it in place
 	b,a	.Lbotch
 	 nop
-3:	ldx	[%g2 + UC_MC + MC_O7], %o7	! fetch return address
+3:	ldx	[%g2 + _JB_PC], %o7		! fetch return address
 	retl
 	 mov	%g1, %o0			! return v ? v : 1;
 END(_longjmp)
