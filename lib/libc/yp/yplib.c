@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.16 1996/03/19 19:27:03 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.4 1996/04/24 18:32:22 wpaul Exp wpaul $";
 #endif
 
 #include <sys/param.h>
@@ -95,11 +95,11 @@ static struct ypmatch_ent {
 
 static void
 ypmatch_add(map, key, keylen, val, vallen)
-char *map;
-char *key;
-int keylen;
-char *val;
-int vallen;
+	char *map;
+	char *key;
+	int keylen;
+	char *val;
+	int vallen;
 {
 	struct ypmatch_ent *ep;
 	time_t t;
@@ -155,11 +155,11 @@ int vallen;
 
 static bool_t
 ypmatch_find(map, key, keylen, val, vallen)
-char *map;
-char *key;
-int keylen;
-char **val;
-int *vallen;
+	char *map;
+	char *key;
+	int keylen;
+	char **val;
+	int *vallen;
 {
 	struct ypmatch_ent *ep;
 	time_t t;
@@ -189,7 +189,7 @@ int *vallen;
 
 char *
 ypbinderr_string(incode)
-int incode;
+	int incode;
 {
 	static char err[80];
 	switch(incode) {
@@ -208,8 +208,8 @@ int incode;
 
 int
 _yp_dobind(dom, ypdb)
-char *dom;
-struct dom_binding **ypdb;
+	char *dom;
+	struct dom_binding **ypdb;
 {
 	static int pid = -1;
 	char path[MAXPATHLEN];
@@ -245,6 +245,7 @@ struct dom_binding **ypdb;
 	for(ysd = _ypbindlist; ysd; ysd = ysd->dom_pnext)
 		if( strcmp(dom, ysd->dom_domain) == 0)
 			break;
+
 	if(ysd==NULL) {
 		ysd = (struct dom_binding *)malloc(sizeof *ysd);
 		bzero((char *)ysd, sizeof *ysd);
@@ -262,6 +263,14 @@ again:
 	}
 #ifdef BINDINGDIR
 	if(ysd->dom_vers==0) {
+		/*
+		 * We're trying to make a new binding: zorch the
+		 * existing handle now (if any).
+		 */
+		if(ysd->dom_client) {
+			clnt_destroy(ysd->dom_client);
+			ysd->dom_client = NULL;
+		}
 		sprintf(path, "%s/%s.%d", BINDINGDIR, dom, 2);
 		if( (fd=open(path, O_RDONLY)) == -1) {
 			/* no binding file, YP is dead. */
@@ -307,6 +316,14 @@ again:
 skipit:
 #endif
 	if(ysd->dom_vers==-1 || ysd->dom_vers==0) {
+		/*
+		 * We're trying to make a new binding: zorch the
+		 * existing handle now (if any).
+		 */
+		if(ysd->dom_client) {
+			clnt_destroy(ysd->dom_client);
+			ysd->dom_client = NULL;
+		}
 		bzero((char *)&clnt_sin, sizeof clnt_sin);
 		clnt_sin.sin_family = AF_INET;
 		clnt_sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -318,13 +335,13 @@ skipit:
 			/*
 			 * These conditions indicate ypbind just isn't
 			 * alive -- we probably don't want to shoot our
-			 * mouth off in this case and generate error
+			 * mouth off in this case; instead generate error
 			 * messages only for really exotic problems.
 			 */
 			if (rpc_createerr.cf_stat != RPC_PROGNOTREGISTERED &&
 			   (rpc_createerr.cf_stat != RPC_SYSTEMERROR &&
-			    rpc_createerr.cf_error.re_errno == ECONNREFUSED))
-			clnt_pcreateerror("clnttcp_create");
+			   rpc_createerr.cf_error.re_errno == ECONNREFUSED))
+				clnt_pcreateerror("clnttcp_create");
 			if(new)
 				free(ysd);
 			return (YPERR_YPBIND);
@@ -365,20 +382,21 @@ gotit:
 		strcpy(ysd->dom_domain, dom);
 	}
 
-	tv.tv_sec = _yplib_timeout/2;
-	tv.tv_usec = 0;
-	if(ysd->dom_client)
-		clnt_destroy(ysd->dom_client);
-	ysd->dom_socket = RPC_ANYSOCK;
-	ysd->dom_client = clntudp_create(&ysd->dom_server_addr,
-		YPPROG, YPVERS, tv, &ysd->dom_socket);
-	if(ysd->dom_client==NULL) {
-		clnt_pcreateerror("clntudp_create");
-		ysd->dom_vers = -1;
-		goto again;
+	/* Don't rebuild the connection to the server unless we have to. */
+	if (ysd->dom_client == NULL) {
+		tv.tv_sec = _yplib_timeout/2;
+		tv.tv_usec = 0;
+		ysd->dom_socket = RPC_ANYSOCK;
+		ysd->dom_client = clntudp_create(&ysd->dom_server_addr,
+			YPPROG, YPVERS, tv, &ysd->dom_socket);
+		if(ysd->dom_client==NULL) {
+			clnt_pcreateerror("clntudp_create");
+			ysd->dom_vers = -1;
+			goto again;
+		}
+		if( fcntl(ysd->dom_socket, F_SETFD, 1) == -1)
+			perror("fcntl: F_SETFD");
 	}
-	if( fcntl(ysd->dom_socket, F_SETFD, 1) == -1)
-		perror("fcntl: F_SETFD");
 
 	if(new) {
 		ysd->dom_pnext = _ypbindlist;
@@ -392,7 +410,7 @@ gotit:
 
 static void
 _yp_unbind(ypb)
-struct dom_binding *ypb;
+	struct dom_binding *ypb;
 {
 	clnt_destroy(ypb->dom_client);
 	ypb->dom_client = NULL;
@@ -401,14 +419,14 @@ struct dom_binding *ypb;
 
 int
 yp_bind(dom)
-char *dom;
+	char *dom;
 {
 	return _yp_dobind(dom, NULL);
 }
 
 void
 yp_unbind(dom)
-char *dom;
+	char *dom;
 {
 	struct dom_binding *ypb, *ypbp;
 
@@ -430,12 +448,12 @@ char *dom;
 
 int
 yp_match(indomain, inmap, inkey, inkeylen, outval, outvallen)
-char *indomain;
-char *inmap;
-const char *inkey;
-int inkeylen;
-char **outval;
-int *outvallen;
+	char *indomain;
+	char *inmap;
+	const char *inkey;
+	int inkeylen;
+	char **outval;
+	int *outvallen;
 {
 	struct dom_binding *ysd;
 	struct ypresp_val yprv;
@@ -485,6 +503,7 @@ again:
 		ysd->dom_vers = -1;
 		goto again;
 	}
+
 	if( !(r=ypprot_err(yprv.stat)) ) {
 		*outvallen = yprv.val.valdat_len;
 		*outval = (char *)malloc(*outvallen+1);
@@ -494,9 +513,10 @@ again:
 		if( strcmp(_yp_domain, indomain)==0 )
 			 ypmatch_add(inmap, inkey, inkeylen, *outval, *outvallen);
 #endif
-	}
+	} else
+		_yp_unbind(ysd);
+
 	xdr_free(xdr_ypresp_val, (char *)&yprv);
-	_yp_unbind(ysd);
 	return r;
 }
 
@@ -514,12 +534,12 @@ char **domp;
 
 int
 yp_first(indomain, inmap, outkey, outkeylen, outval, outvallen)
-char *indomain;
-char *inmap;
-char **outkey;
-int *outkeylen;
-char **outval;
-int *outvallen;
+	char *indomain;
+	char *inmap;
+	char **outkey;
+	int *outkeylen;
+	char **outval;
+	int *outvallen;
 {
 	struct ypresp_key_val yprkv;
 	struct ypreq_nokey yprnk;
@@ -563,22 +583,23 @@ again:
 		*outval = (char *)malloc(*outvallen+1);
 		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
-	}
+	} else
+		_yp_unbind(ysd);
+
 	xdr_free(xdr_ypresp_key_val, (char *)&yprkv);
-	_yp_unbind(ysd);
 	return r;
 }
 
 int
 yp_next(indomain, inmap, inkey, inkeylen, outkey, outkeylen, outval, outvallen)
-char *indomain;
-char *inmap;
-char *inkey;
-int inkeylen;
-char **outkey;
-int *outkeylen;
-char **outval;
-int *outvallen;
+	char *indomain;
+	char *inmap;
+	char *inkey;
+	int inkeylen;
+	char **outkey;
+	int *outkeylen;
+	char **outval;
+	int *outvallen;
 {
 	struct ypresp_key_val yprkv;
 	struct ypreq_key yprk;
@@ -625,17 +646,18 @@ again:
 		*outval = (char *)malloc(*outvallen+1);
 		bcopy(yprkv.val.valdat_val, *outval, *outvallen);
 		(*outval)[*outvallen] = '\0';
-	}
+	} else
+		_yp_unbind(ysd);
+
 	xdr_free(xdr_ypresp_key_val, (char *)&yprkv);
-	_yp_unbind(ysd);
 	return r;
 }
 
 int
 yp_all(indomain, inmap, incallback)
-char *indomain;
-char *inmap;
-struct ypall_callback *incallback;
+	char *indomain;
+	char *inmap;
+	struct ypall_callback *incallback;
 {
 	struct ypreq_nokey yprnk;
 	struct dom_binding *ysd;
@@ -684,9 +706,9 @@ struct ypall_callback *incallback;
 
 int
 yp_order(indomain, inmap, outorder)
-char *indomain;
-char *inmap;
-int *outorder;
+	char *indomain;
+	char *inmap;
+	int *outorder;
 {
  	struct dom_binding *ysd;
 	struct ypresp_order ypro;
@@ -720,7 +742,11 @@ again:
 		goto again;
 	}
 
-	*outorder = ypro.ordernum;
+	if( !(r=ypprot_err(ypro.stat)) ) {
+		*outorder = ypro.ordernum;
+	} else
+		_yp_unbind(ysd);
+
 	xdr_free(xdr_ypresp_order, (char *)&ypro);
 	_yp_unbind(ysd);
 	return ypprot_err(ypro.stat);
@@ -728,9 +754,9 @@ again:
 
 int
 yp_master(indomain, inmap, outname)
-char *indomain;
-char *inmap;
-char **outname;
+	char *indomain;
+	char *inmap;
+	char **outname;
 {
 	struct dom_binding *ysd;
 	struct ypresp_master yprm;
@@ -764,15 +790,16 @@ again:
 	}
 	if( !(r=ypprot_err(yprm.stat)) ) {
 		*outname = (char *)strdup(yprm.peer);
-	}
+	} else
+		_yp_unbind(ysd);
+
 	xdr_free(xdr_ypresp_master, (char *)&yprm);
-	_yp_unbind(ysd);
 	return r;
 }
 int
 yp_maplist(indomain, outmaplist)
-char *indomain;
-struct ypmaplist **outmaplist;
+	char *indomain;
+	struct ypmaplist **outmaplist;
 {
 	struct dom_binding *ysd;
 	struct ypresp_maplist ypml;
@@ -794,21 +821,23 @@ again:
 	bzero((char *)&ypml, sizeof ypml);
 
 	r = clnt_call(ysd->dom_client, YPPROC_MAPLIST,
-		xdr_domainname, (char *)&indomain, xdr_ypresp_maplist, &ypml, tv);
+		xdr_domainname,(char *)&indomain,xdr_ypresp_maplist,&ypml,tv);
 	if (r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_maplist: clnt_call");
 		ysd->dom_vers = -1;
 		goto again;
 	}
-	*outmaplist = ypml.maps;
+	if( !(r=ypprot_err(ypml.stat)) ) {
+		*outmaplist = ypml.maps;
+	} else
+		_yp_unbind(ysd);
 	/* NO: xdr_free(xdr_ypresp_maplist, &ypml);*/
-	_yp_unbind(ysd);
 	return ypprot_err(ypml.stat);
 }
 
 char *
 yperr_string(incode)
-int incode;
+	int incode;
 {
 	static char err[80];
 
@@ -854,7 +883,7 @@ int incode;
 
 int
 ypprot_err(incode)
-unsigned int incode;
+	unsigned int incode;
 {
 	switch(incode) {
 	case YP_TRUE:
@@ -885,7 +914,7 @@ unsigned int incode;
 
 int
 _yp_check(dom)
-char **dom;
+	char **dom;
 {
 	char *unused;
 
