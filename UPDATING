@@ -79,12 +79,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	consumers in sync.
 
 20021024:
-	Old, compatibility slices have been removed in GEOM kernels.  This
-	means that you will have to update your /etc/fstab to not use
-	disk devices of the form /dev/ad0a.  Instead, you now must
-	specify /dev/ad0s1a, or whatever slice your FreeBSD partition
-	really is on.  The old device names have gone away, so if you
-	use them anywhere else, you must also adjust those uses.
+	Old, compatibility slices have been removed in GEOM kernels.
+	This means that you will have to update your /etc/fstab to
+	not use disk devices of the form /dev/ad0a.  Instead, you
+	now must specify /dev/ad0s1a, or whatever slice your FreeBSD
+	partition really is on.  The old device names have gone
+	away, so if you use them anywhere else, you must also adjust
+	those uses.  (This doesn't affect the disks formatted in
+	the ``dangerously-dedicated'' mode.)
 
 20021023:
 	Alphas with kernels from between 20020830 and 20021023 and/or
