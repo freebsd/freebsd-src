@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.1 (Berkeley) 6/10/93
- * $Id: radix.h,v 1.5 1994/11/14 14:06:06 bde Exp $
+ * $Id: radix.h,v 1.6 1995/03/16 18:14:29 bde Exp $
  */
 
 #ifndef _NET_RADIX_H_
@@ -120,6 +120,9 @@ struct radix_node_head {
 		__P((void *v, struct radix_node_head *head));
 	int	(*rnh_walktree)			/* traverse tree */
 		__P((struct radix_node_head *head, walktree_f_t *f, void *w));
+	int	(*rnh_walktree_from)		/* traverse tree below a */
+		__P((struct radix_node_head *head, void *a, void *m,
+		     walktree_f_t *f, void *w));
 	void	(*rnh_close)	/* do something when the last ref drops */
 		__P((struct radix_node *rn, struct radix_node_head *head));
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */

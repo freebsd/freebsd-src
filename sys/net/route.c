@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.15 1995/01/23 17:53:21 davidg Exp $
+ *	$Id: route.c,v 1.16 1995/03/16 18:14:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -52,10 +52,6 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_mroute.h>
-
-#ifdef NS
-#include <netns/ns.h>
-#endif
 
 #define	SA(p) ((struct sockaddr *)(p))
 
@@ -350,7 +346,7 @@ ifa_ifwithroute(flags, dst, gateway)
 
 #define ROUNDUP(a) (a>0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 
-static void rt_fixfamily(struct rtentry *rt);
+static int rt_fixdelete(struct radix_node *, void *);
 
 int
 rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
@@ -379,7 +375,15 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			panic ("rtrequest delete");
 		rt = (struct rtentry *)rn;
 		rt->rt_flags &= ~RTF_UP;
-		rt_fixfamily(rt);
+
+		/*
+		 * Now search what's left of the subtree for any cloned
+		 * routes which might have been formed from this node.
+		 */
+		if (rt->rt_flags & RTF_PRCLONING) {
+			rnh->rnh_walktree_from(rnh, dst, netmask,
+					       rt_fixdelete, rt);
+		}
 		if (rt->rt_gwroute) {
 			rt = rt->rt_gwroute; RTFREE(rt);
 			(rt = (struct rtentry *)rn)->rt_gwroute = 0;
@@ -444,13 +448,10 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		ifa->ifa_refcnt++;
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
-		if (req == RTM_RESOLVE)
+		if (req == RTM_RESOLVE) {
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
-		if ((req == RTM_RESOLVE) 
-		    && ((*ret_nrt)->rt_flags & RTF_PRCLONING)) {
-			rt->rt_parent = (*ret_nrt);
-			rt->rt_nextchild = (*ret_nrt)->rt_nextchild;
-			(*ret_nrt)->rt_nextchild = rt;
+			if ((*ret_nrt)->rt_flags & RTF_PRCLONING)
+				rt->rt_parent = (*ret_nrt);
 		}
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, SA(ret_nrt ? *ret_nrt : 0));
@@ -468,45 +469,22 @@ bad:
 /*
  * Called from rtrequest(RTM_DELETE, ...) to fix up the route's ``family''
  * (i.e., the routes related to it by the operation of cloning).  This
- * involves deleting the entire chain of descendants (in the case of a parent
- * route being deleted), or removing this route from the chain (in the case
- * of a child route being deleted).
+ * routine is iterated over all potential former-child-routes by way of
+ * rnh->rnh_walktree_from() above, and those that actually are children of
+ * the late parent (passed in as VP here) are themselves deleted.
  */
-static void
-rt_fixfamily(struct rtentry *rt0)
+static int
+rt_fixdelete(struct radix_node *rn, void *vp)
 {
-	struct rtentry *rt, *lrt, *nrt;
+	struct rtentry *rt = (struct rtentry *)rn;
+	struct rtentry *rt0 = vp;
 
-	if(rt = rt0->rt_parent) {
-		if(rt->rt_flags & RTF_CHAINDELETE)
-			return;	/* relax, it will all be done for us */
-
-		/* So what if it takes linear time? */
-		do {
-			lrt = rt;
-			rt = rt->rt_nextchild;
-		} while(rt && rt != rt0);
-		lrt->rt_nextchild = rt0->rt_nextchild;
-	} else if((rt = rt0)->rt_nextchild) {
-		lrt = rt;
-		rt->rt_flags |= RTF_CHAINDELETE;
-
-		rt = rt->rt_nextchild;
-
-		while(rt) {
-			nrt = rt->rt_nextchild;
-			/*
-			 * There might be some value to open-coding this
-			 * rtrequest call, but I am not yet convinced of
-			 * the value of this.
-			 */
-			rtrequest(RTM_DELETE, rt_key(rt), 
-				  (struct sockaddr *)0, rt_mask(rt),
-				  rt->rt_flags, (struct rtentry **)0);
-			rt = nrt;
-		}
-		lrt->rt_flags &= ~RTF_CHAINDELETE;
+	if (rt->rt_parent == rt0) {
+		return rtrequest(RTM_DELETE, rt_key(rt), 
+				 (struct sockaddr *)0, rt_mask(rt),
+				 rt->rt_flags, (struct rtentry **)0);
 	}
+	return 0;
 }
 
 int

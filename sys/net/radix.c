@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.2 (Berkeley) 1/4/94
- * $Id: radix.c,v 1.4 1994/10/08 22:38:23 phk Exp $
+ * $Id: radix.c,v 1.5 1994/10/15 21:33:17 phk Exp $
  */
 
 /*
@@ -662,6 +662,84 @@ out:
 	return (tt);
 }
 
+/*
+ * This is the same as rn_walktree() except for the parameters and the
+ * exit.
+ */
+int
+rn_walktree_from(h, a, m, f, w)
+	struct radix_node_head *h;
+	void *a, *m;
+	register int (*f)();
+	void *w;
+{
+	int error;
+	struct radix_node *base, *next;
+	u_char *xa = (u_char *)a;
+	u_char *xm = (u_char *)m;
+	register struct radix_node *rn, *last = 0 /* shut up gcc */;
+	int stopping = 0;
+	int lastb;
+
+	/*
+	 * rn_search_m is sort-of-open-coded here.
+	 */
+	for (rn = h->rnh_treetop; rn->rn_b >= 0; ) {
+		last = rn;
+		if (!(rn->rn_bmask & xm[rn->rn_off]))
+			break;
+		if (rn->rn_bmask & xa[rn->rn_off]) {
+			rn = rn->rn_r;
+		} else {
+			rn = rn->rn_l;
+		}
+	}
+
+	/*
+	 * Two cases: either we stepped off the end of our mask,
+	 * in which case last == rn, or we reached a leaf, in which
+	 * case we want to start from the last node we looked at.
+	 * Either way, last is the node we want to start from.
+	 */
+	rn = last;
+	lastb = rn->rn_b;
+
+	/*
+	 * This gets complicated because we may delete the node
+	 * while applying the function f to it, so we need to calculate
+	 * the successor node in advance.
+	 */
+	while (rn->rn_b >= 0) 
+		rn = rn->rn_l;
+
+	while (!stopping) {
+		base = rn;
+		/* If at right child go back up, otherwise, go right */
+		while (rn->rn_p->rn_r == rn && !(rn->rn_flags & RNF_ROOT)) {
+			rn = rn->rn_p;
+
+			/* if went up beyond last, stop */ 
+			if (rn->rn_b < lastb) {
+				stopping = 1;
+			}
+		}
+
+		/* Find the next *leaf* since next node might vanish, too */
+		for (rn = rn->rn_p->rn_r; rn->rn_b >= 0;)
+			rn = rn->rn_l;
+		next = rn;
+		/* Process leaves */
+		while ((rn = base) != 0) {
+			base = rn->rn_dupedkey;
+			if (!(rn->rn_flags & RNF_ROOT) 
+			    && (error = (*f)(rn, w)))
+				return (error);
+		}
+		rn = next;
+	}
+	return 0;
+}
+
 int
 rn_walktree(h, f, w)
 	struct radix_node_head *h;
@@ -728,6 +806,7 @@ rn_inithead(head, off)
 	rnh->rnh_deladdr = rn_delete;
 	rnh->rnh_matchaddr = rn_match;
 	rnh->rnh_walktree = rn_walktree;
+	rnh->rnh_walktree_from = rn_walktree_from;
 	rnh->rnh_treetop = t;
 	return (1);
 }
