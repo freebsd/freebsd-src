@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1997/02/22 19:55:34 peter Exp $
+# $Id: Makefile,v 1.11 1997/10/05 09:39:58 jkh Exp $
 #
 # By default, flex will be configured to generate 8-bit scanners only if the
 # -8 flag is given.  If you want it to always generate 8-bit scanners, add
@@ -14,8 +14,7 @@ LINKS+=	${BINDIR}/lex ${BINDIR}/lex++
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex
 LINKS+=	${BINDIR}/lex ${BINDIR}/flex++
 
-SRCS=		scan.c ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.c \
-		parse.h \
+SRCS=		scan.c ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
 		skel.c sym.c tblcmp.c yylex.c
 LFLAGS+=	-is
 CFLAGS+=	-I. -I${.CURDIR}
@@ -24,7 +23,7 @@ MLINKS+=	lex.1 flex.1
 MLINKS+=	lex.1 flex++.1
 MLINKS+=	lex.1 lex++.1
 
-CLEANFILES+=	parse.c parse.h scan.c y.tab.h y.tab.c
+CLEANFILES=	scan.c
 
 .if !defined(NOLIB)
 SUBDIR=		lib
@@ -34,21 +33,12 @@ beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 \
 		${.CURDIR}/FlexLexer.h ${DESTDIR}/usr/include/g++
 
-
-.ORDER:	parse.c parse.h
-parse.c parse.h: parse.y
-	$(YACC) -d $(.CURDIR)/parse.y
-	mv -f y.tab.c parse.c
-	mv -f y.tab.h parse.h
-
 bootstrap: initscan.c
 	@cmp -s ${.CURDIR}/initscan.c scan.c || { \
 		echo "Bootstrapping flex" ; \
 		rm -f scan.c ; \
 		cp -f ${.CURDIR}/initscan.c scan.c ; \
 	}
-
-scan.o:	parse.h
 
 test: check
 check: $(PROG)
