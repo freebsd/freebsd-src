@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.10 1995/03/10 20:29:51 davidg Exp $
+ * $Id: vfs_cache.c,v 1.11 1995/03/12 02:01:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -305,7 +305,7 @@ cache_purgevfs(mp)
 				PURGE(ncp);
 				ncp = ncpp->lh_first;
 			} else {
-				ncp = ncp->nc_lru.tqe_next;
+				ncp = ncp->nc_hash.le_next;
 			}
 		}
 	}
