@@ -133,6 +133,8 @@ Several IPFW improvements including stateful inspection, user- and
 group-based firewalling, dynamic logging with arbitrary logging
 limits, probabilistic rule match. [MERGED]
 
+IPv6 IPFW has been imported from the KAME project.
+
 The "dummynet" traffic shaper now handles efficiently thousands
 of independent queues. [MERGED]
 
@@ -191,6 +193,12 @@ and the Belkin F5U111.
 Driver support has been added for Aironet 4500/4800 802.11 wireless
 adapters. This includes PCMCIA, PCI and ISA models.
 
+IPv6 support has been imported from the KAME project. This includes the
+kernel IPv6 protocol stack (sys/netinet6), TCP IPv6 support, configurable
+IPv6 and IPv4 tunneling over IPv6 or IPv4, and IPv6 TCP to IPv4 TCP
+translation gateway support. Protocol-independent name resolution
+functions have been added to libc (getaddrinfo, getnameinfo, etc).
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -225,6 +233,14 @@ absolutely no administrative changes to the machine to work, and is
 at the very least a step up from plaintext. To use it, you need to
 either use "telnet -ax" or set up a .telnetrc to enable it by default.
 
+IPsec support has been imported from the KAME project. This includes IPsec
+tunnel mode to implement a Virtual Private Network via a security gateway,
+and IPsec transport mode to achieve secure socket-level communication.
+Also, kernel-internal crypto code has been imported to sys/crypto, and
+IPsec support has been added to the following userland applications:
+sbin/ping, usr.sbin/inetd, usr.sbin/rrenumd, usr.sbin/traceroute6,
+usr.sbin/rtadvd, usr.sbin/setkey
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -254,6 +270,21 @@ improvements added, which makes it almost completely POSIX-compliant.  In
 addition, Linux's kernel-supported LinuxThreads library is now available as
 a port (ports/devel/linuxthreads), which can be used for native FreeBSD
 programs.
+
+The following dedicated IPv6 applications have been added:
+ sbin/ping6, sbin/rtsol, usr.sbin/gifconfig, usr.sbin/ifmcstat,
+ usr.sbin/pim6dd, usr.sbin/pim6sd, usr.sbin/prefix, usr.sbin/rip6query,
+ usr.sbin/route6d, usr.sbin/rrenumd, usr.sbin/rtadvd, usr.sbin/rtsold,
+ usr.sbin/traceroute6
+
+The following applications have been updated to support IPv6:
+ usr.bin/netstat, usr.bin/fstat, usr.bin/sockstat, usr.sbin/tcpdchk,
+ usr.sbin/tcpdump, usr.sbin/trpt, libexec/ftpd, libexec/rlogind,
+ libexec/rshd, libexec/telnetd
+
+Many ports have been updated to support IPv6. See the 'ipv6' virtual ports
+category for a list.
+
 
 2. Supported Configurations
 ---------------------------
