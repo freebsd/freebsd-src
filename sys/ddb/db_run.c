@@ -71,6 +71,11 @@ void db_set_single_step(void);
 void db_clear_single_step(void);
 #endif
 
+#ifdef SOFTWARE_SSTEP
+db_breakpoint_t	db_not_taken_bkpt = 0;
+db_breakpoint_t	db_taken_bkpt = 0;
+#endif
+
 boolean_t
 db_stop_at_pc(is_breakpoint)
 	boolean_t	*is_breakpoint;
@@ -78,10 +83,16 @@ db_stop_at_pc(is_breakpoint)
 	register db_addr_t	pc;
 	register db_breakpoint_t bkpt;
 
+	pc = PC_REGS();
+#ifdef SOFTWARE_SSTEP
+	if ((db_not_taken_bkpt != 0 && pc == db_not_taken_bkpt->address)
+	    || (db_taken_bkpt != 0 && pc == db_taken_bkpt->address))
+		*is_breakpoint = FALSE;
+#endif
+
 	db_clear_single_step();
 	db_clear_breakpoints();
 	db_clear_watchpoints();
-	pc = PC_REGS();
 
 #ifdef	FIXUP_PC_AFTER_BREAK
 	if (*is_breakpoint) {
@@ -245,8 +256,6 @@ db_restart_at_pc(watchpt)
  *	we allocate a breakpoint and save it here.
  *	These breakpoints are deleted on return.
  */
-db_breakpoint_t	db_not_taken_bkpt = 0;
-db_breakpoint_t	db_taken_bkpt = 0;
 
 void
 db_set_single_step(void)
