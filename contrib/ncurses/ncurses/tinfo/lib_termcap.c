@@ -103,16 +103,17 @@ tgetent(char *bufp GCC_UNUSED, const char *name)
 /* LINT_PREPRO
 #endif*/
 
+    }
+
 #ifdef FREEBSD_NATIVE
-	/*
-	 * This is a REALLY UGLY hack. Basically, if we originate with
-	 * a termcap source, try and copy it out.
-	 */
-	if (bufp && _nc_termcap[0])
-		strncpy(bufp, _nc_termcap, 1024);
+    /*
+     * This is a REALLY UGLY hack. Basically, if we originate with
+     * a termcap source, try and copy it out.
+     */
+    if (bufp && _nc_termcap[0])
+	strncpy(bufp, _nc_termcap, 1024);
 #endif
 
-    }
     returnCode(errcode);
 }
 
