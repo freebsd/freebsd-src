@@ -124,9 +124,7 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 {
 	u_long ps;
 
-	ps = rdpr(pstate);
-	if (ps & PSTATE_IE)
-		wrpr(pstate, ps, PSTATE_IE);
+	ps = intr_disable();
 	if (vec != -1) {
 		intr_vectors[vec].iv_func = ivf;
 		intr_vectors[vec].iv_arg = iva;
@@ -134,7 +132,7 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 		intr_vectors[vec].iv_vec = vec;
 	}
 	intr_handlers[pri] = ihf;
-	wrpr(pstate, ps, 0);
+	intr_restore(ps);
 }
 
 static void
