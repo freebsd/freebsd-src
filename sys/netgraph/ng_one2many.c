@@ -331,7 +331,7 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			linkNum = *((int32_t *)msg->data);
 			if (linkNum == NG_ONE2MANY_ONE_LINKNUM)
 				link = &priv->one;
-			else if (linkNum == 0
+			else if (linkNum >= 0
 			    && linkNum < NG_ONE2MANY_MAX_LINKS) {
 				link = &priv->many[linkNum];
 			} else {
