@@ -1,14 +1,14 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
-MAN4=	ahc.4 al.4 alpm.4 atkbd.4 atkbdc.4 ax.4 blackhole.4 bpf.4 \
-	bridge.4 ccd.4 cd.4 ch.4 da.4 ddb.4 de.4 \
-	divert.4 dm.4 drum.4 dummynet.4 fd.4 fdc.4 fpa.4 fxp.4 \
+MAN4=	ahc.4 alpm.4 atkbd.4 atkbdc.4 blackhole.4 bpf.4 \
+	bridge.4 ccd.4 cd.4 ch.4 da.4 dc.4 ddb.4 de.4 \
+	divert.4 drum.4 dummynet.4 fd.4 fdc.4 fpa.4 fxp.4 \
 	icmp.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
 	inet.4 intpm.4 intro.4 ip.4 ipfirewall.4 keyboard.4 kld.4 \
-	lo.4 lp.4 lpbb.4 lpt.4 mem.4 mouse.4 mtio.4 mx.4 natm.4 ncr.4 \
+	lo.4 lp.4 lpbb.4 lpt.4 mem.4 mouse.4 mtio.4 natm.4 ncr.4 \
 	netintro.4 null.4 pass.4 ppbus.4 ppi.4 ppp.4 pt.4 pty.4 \
-	route.4 ohci.4 pcm.4 pcvt.4 pn.4 psm.4 rl.4 sa.4 screen.4 scsi.4 \
+	route.4 ohci.4 pcm.4 pcvt.4 psm.4 rl.4 sa.4 screen.4 scsi.4 \
 	sd.4 sf.4 si.4 sio.4 sis.4 sk.4 sl.4 smb.4 smbus.4 smp.4 snp.4 \
 	splash.4 sppp.4 ssc.4 st.4 ste.4 su.4 syscons.4 sysmouse.4 tcp.4 \
 	termios.4 ti.4 tl.4 ttcp.4 tty.4 tun.4 udp.4 uhci.4 uk.4 ukbd.4 \

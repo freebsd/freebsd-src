@@ -120,6 +120,10 @@ Any usage of "/dev/sd*" in ``/etc/fstab'' must be replace by "/dev/da*".
 In addition, any useage of "/dev/*sd*" in scripts need to be changed.
 Even if you have old `sd' device entries in /dev, they will no longer work.
 
+The `al' `ax' `dm' `pn' and `mx' drivers have been removed and replaced
+with a single driver (`dc') in order to reduce code duplication. The
+new driver handles all chipsets supported by the older driver, and it
+offers improved support for 10/100 cards based on the DEC/Intel 21143.
 
 1.2. SECURITY FIXES
 -------------------
