@@ -40,5 +40,8 @@ SLIST_HEAD(index_head, index_entry);
 extern char	*LimitChars;
 extern char	*PreventChars;
 extern char	*MatchName;
+extern Boolean	RegexExtended;
+
+extern int	version_match(char *, const char *);
 
 #endif	/* _INST_VERSION_H_INCLUDE */
