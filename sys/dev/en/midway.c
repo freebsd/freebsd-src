@@ -135,6 +135,7 @@ enum {
 #include <sys/stdint.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <vm/uma.h>
 
 #include <net/if.h>
@@ -1168,24 +1169,22 @@ en_loadvc(struct en_softc *sc, struct en_vcc *vc)
 }
 
 /*
+ * Open the given vcc.
+ *
  * LOCK: unlocked, needed
  */
 static int
-en_open_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
+en_open_vcc(struct en_softc *sc, struct atmio_openvcc *op)
 {
-	u_int vci, flags;
 	uint32_t oldmode, newmode;
 	struct en_rxslot *slot;
 	struct en_vcc *vc;
 	int error = 0;
 
-	vci = ATM_PH_VCI(&pi->aph);
-	flags = ATM_PH_FLAGS(&pi->aph);
-
 	DBG(sc, IOCTL, ("enable vpi=%d, vci=%d, flags=%#x",
-	    ATM_PH_VPI(&pi->aph), vci, flags));
+	    op->param.vpi, op->param.vci, op->param.flags));
 
-	if (ATM_PH_VPI(&pi->aph) || vci >= MID_N_VC)
+	if (op->param.vpi != 0 || op->param.vci >= MID_N_VC)
 		return (EINVAL);
 
 	vc = uma_zalloc(en_vcc_zone, M_NOWAIT | M_ZERO);
@@ -1194,7 +1193,7 @@ en_open_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
 
 	EN_LOCK(sc);
 
-	if (sc->vccs[vci] != NULL) {
+	if (sc->vccs[op->param.vci] != NULL) {
 		error = EBUSY;
 		goto done;
 	}
@@ -1209,13 +1208,11 @@ en_open_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
 	}
 
 	vc->rxslot = slot;
-	vc->rxhand = pi->rxhand;
-	vc->vcc.vci = vci;
-	vc->vcc.traffic = ATMIO_TRAFFIC_UBR;
-	vc->vcc.flags = flags;
+	vc->rxhand = op->rxhand;
+	vc->vcc = op->param;
 
 	oldmode = slot->mode;
-	newmode = (flags & ATM_PH_AAL5) ? MIDV_AAL5 : MIDV_NOAAL;
+	newmode = (op->param.aal == ATMIO_AAL_5) ? MIDV_AAL5 : MIDV_NOAAL;
 	slot->mode = MIDV_SETMODE(oldmode, newmode);
 	slot->vcc = vc;
 
@@ -1230,8 +1227,9 @@ en_open_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
 	en_loadvc(sc, vc);	/* does debug printf for us */
 
 	/* don't free below */
-	sc->vccs[vci] = vc;
+	sc->vccs[vc->vcc.vci] = vc;
 	vc = NULL;
+	sc->vccs_open++;
 
   done:
 	if (vc != NULL)
@@ -1253,33 +1251,28 @@ en_close_finish(struct en_softc *sc, struct en_vcc *vc)
 
 	DBG(sc, VC, ("vci: %u free (%p)", vc->vcc.vci, vc));
 
-	/* XXX wakeup */
 	sc->vccs[vc->vcc.vci] = NULL;
 	uma_zfree(en_vcc_zone, vc);
+	sc->vccs_open--;
 }
 
 /*
  * LOCK: unlocked, needed
  */
 static int
-en_close_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
+en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl, int wait)
 {
-	u_int vci, flags;
 	uint32_t oldmode, newmode;
 	struct en_vcc *vc;
 	int error = 0;
 
-	vci = ATM_PH_VCI(&pi->aph);
-	flags = ATM_PH_FLAGS(&pi->aph);
+	DBG(sc, IOCTL, ("disable vpi=%d, vci=%d", cl->vpi, cl->vci));
 
-	DBG(sc, IOCTL, ("disable vpi=%d, vci=%d, flags=%#x",
-	    ATM_PH_VPI(&pi->aph), vci, flags));
-
-	if (ATM_PH_VPI(&pi->aph) || vci >= MID_N_VC)
+	if (cl->vpi != 0 || cl->vci >= MID_N_VC)
 		return (EINVAL);
 
 	EN_LOCK(sc);
-	if ((vc = sc->vccs[vci]) == NULL) {
+	if ((vc = sc->vccs[cl->vci]) == NULL) {
 		error = ENOTCONN;
 		goto done;
 	}
@@ -1296,9 +1289,9 @@ en_close_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
 		goto done;
 	}
 
-	oldmode = en_read(sc, MID_VC(vci));
+	oldmode = en_read(sc, MID_VC(cl->vci));
 	newmode = MIDV_SETMODE(oldmode, MIDV_TRASH) & ~MIDV_INSERVICE;
-	en_write(sc, MID_VC(vci), (newmode | (oldmode & MIDV_INSERVICE)));
+	en_write(sc, MID_VC(cl->vci), (newmode | (oldmode & MIDV_INSERVICE)));
 
 	/* halt in tracks, be careful to preserve inservice bit */
 	DELAY(27);
@@ -1311,11 +1304,28 @@ en_close_vcc(struct en_softc *sc, struct atm_pseudoioctl *pi)
 	    _IF_QLEN(&vc->rxslot->q) == 0 &&
 	    (vc->vflags & VCC_SWSL) == 0) {
 		en_close_finish(sc, vc);
-		DBG(sc, IOCTL, ("VCI %u now free", vci));
-	} else {
-		vc->vflags |= VCC_DRAIN;
-		DBG(sc, IOCTL, ("VCI %u now draining", vci));
+		goto done;
 	}
+
+	vc->vflags |= VCC_DRAIN;
+	DBG(sc, IOCTL, ("VCI %u now draining", cl->vci));
+
+	if (!wait) {
+		vc->vflags |= VCC_ASYNC;
+		goto done;
+	}
+
+	vc->vflags |= VCC_CLOSE_RX;
+	while ((sc->ifatm.ifnet.if_flags & IFF_RUNNING) &&
+	    (vc->vflags & VCC_DRAIN))
+		cv_wait(&sc->cv_close, &sc->en_mtx);
+
+	en_close_finish(sc, vc);
+	if (!(sc->ifatm.ifnet.if_flags & IFF_RUNNING)) {
+		error = EIO;
+		goto done;
+	}
+
 
   done:
 	EN_UNLOCK(sc);
@@ -1342,8 +1352,6 @@ en_reset_ul(struct en_softc *sc)
 	int lcv;
 
 	if_printf(&sc->ifatm.ifnet, "reset\n");
-	backtrace();
-
 	sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
 
 	if (sc->en_busreset)
@@ -1397,6 +1405,14 @@ en_reset_ul(struct en_softc *sc)
 			m_freem(m);
 		}
 		sc->txslot[lcv].mbsize = 0;
+	}
+
+	/*
+	 * Unstop all waiters
+	 */
+	while (!cv_waitq_empty(&sc->cv_close)) {
+		cv_broadcast(&sc->cv_close);
+		DELAY(100);
 	}
 }
 
@@ -1528,18 +1544,32 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct en_softc *sc = (struct en_softc *)ifp->if_softc;
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct atm_pseudoioctl *api = (struct atm_pseudoioctl *)data;
+	struct atm_pseudoioctl *pa = (struct atm_pseudoioctl *)data;
 	struct atmio_vcctable *vtab;
+	struct atmio_openvcc ena;
+	struct atmio_closevcc dis;
 	int error = 0;
 
 	switch (cmd) {
 
 	  case SIOCATMENA:		/* enable circuit for recv */
-		error = en_open_vcc(sc, api);
+		bzero(&ena, sizeof(ena));
+		ena.param.flags = ATM_PH_FLAGS(&pa->aph) &
+		    (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
+		ena.param.vpi = ATM_PH_VPI(&pa->aph);
+		ena.param.vci = ATM_PH_VCI(&pa->aph);
+		ena.param.aal = (ATM_PH_FLAGS(&pa->aph) & ATM_PH_AAL5) ?
+		    ATMIO_AAL_5 : ATMIO_AAL_0;
+		ena.param.traffic = ATMIO_TRAFFIC_UBR;
+		ena.rxhand = pa->rxhand;
+		error = en_open_vcc(sc, &ena);
 		break;
 
 	  case SIOCATMDIS: 		/* disable circuit for recv */
-		error = en_close_vcc(sc, api);
+		bzero(&dis, sizeof(dis));
+		dis.vpi = ATM_PH_VPI(&pa->aph);
+		dis.vci = ATM_PH_VCI(&pa->aph);
+		error = en_close_vcc(sc, &dis, 0);
 		break;
 
 	  case SIOCSIFADDR: 
@@ -1590,6 +1620,14 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	  case SIOCSIFMEDIA:
 	  case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, cmd);
+		break;
+
+	  case SIOCATMOPENVCC:		/* netgraph/harp internal use */
+		error = en_open_vcc(sc, (struct atmio_openvcc *)data);
+		break;
+
+	  case SIOCATMCLOSEVCC:		/* netgraph and HARP internal use */
+		error = en_close_vcc(sc, (struct atmio_closevcc *)data, 1);
 		break;
 
 	  case SIOCATMGETVCCS:	/* internal netgraph use */
@@ -1828,8 +1866,13 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 			m_freem(m);
 		if (_IF_QLEN(&slot->indma) == 0 && _IF_QLEN(&slot->q) == 0 &&
 		    (en_read(sc, MID_VC(vc->vcc.vci)) & MIDV_INSERVICE) == 0 &&
-		    (vc->vflags & VCC_SWSL) == 0)
-			en_close_finish(sc, vc);
+		    (vc->vflags & VCC_SWSL) == 0) {
+			vc->vflags &= ~VCC_CLOSE_RX;
+			if (vc->vflags & VCC_ASYNC)
+				en_close_finish(sc, vc);
+			else
+				cv_signal(&sc->cv_close);
+		}
 		return;
 	}
 
@@ -2888,6 +2931,7 @@ en_attach(struct en_softc *sc)
 
 	mtx_init(&sc->en_mtx, device_get_nameunit(sc->dev),
 	    MTX_NETWORK_LOCK, MTX_DEF);
+	cv_init(&sc->cv_close, "VC close");
 
 	/*
 	 * Make the sysctl tree
@@ -3068,6 +3112,7 @@ en_destroy(struct en_softc *sc)
 
 	(void)sysctl_ctx_free(&sc->sysctl_ctx);
 
+	cv_destroy(&sc->cv_close);
 	mtx_destroy(&sc->en_mtx);
 }
 
