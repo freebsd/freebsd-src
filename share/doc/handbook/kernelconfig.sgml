@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.9 1996/03/31 18:01:55 joerg Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.10 1996/05/09 23:04:46 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -44,7 +44,7 @@
 
 	</itemize></p>
 
-    <sect><heading>Building and Installing a Custom Kernel</heading>
+    <sect><heading>Building and Installing a Custom Kernel<label id="kernelconfig:building"></heading>
 
       <p>First, let us take a quick tour of the kernel build
 	directory.  All directories mentioned will be relative to
