@@ -739,10 +739,8 @@ acpi_cpu_startup_cx()
 
     sc = device_get_softc(cpu_devices[0]);
     sbuf_new(&sb, cpu_cx_supported, sizeof(cpu_cx_supported), SBUF_FIXEDLEN);
-    for (i = 0; i < cpu_cx_count; i++) {
-	sbuf_printf(&sb, "C%d/%d ", sc->cpu_cx_states[i].type,
-		    sc->cpu_cx_states[i].trans_lat);
-    }
+    for (i = 0; i < cpu_cx_count; i++)
+	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
     sbuf_trim(&sb);
     sbuf_finish(&sb);
     SYSCTL_ADD_STRING(&acpi_cpu_sysctl_ctx,
@@ -751,8 +749,8 @@ acpi_cpu_startup_cx()
 		      0, "Cx/microsecond values for supported Cx states");
     SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
 		    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
-		    OID_AUTO, "cx_lowest", CTLTYPE_INT | CTLFLAG_RW,
-		    NULL, 0, acpi_cpu_cx_lowest_sysctl, "I",
+		    OID_AUTO, "cx_lowest", CTLTYPE_STRING | CTLFLAG_RW,
+		    NULL, 0, acpi_cpu_cx_lowest_sysctl, "A",
 		    "lowest Cx sleep state to use");
     SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
 		    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
@@ -1085,7 +1083,8 @@ acpi_cpu_history_sysctl(SYSCTL_HANDLER_ARGS)
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
-    sysctl_handle_string(oidp, sbuf_data(&sb), 0, req);
+    sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+    sbuf_delete(&sb);
 
     return (0);
 }
@@ -1094,13 +1093,17 @@ static int
 acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS)
 {
     struct	 acpi_cpu_softc *sc;
+    char	 state[8];
     int		 val, error, i;
 
     sc = device_get_softc(cpu_devices[0]);
-    val = cpu_cx_lowest;
-    error = sysctl_handle_int(oidp, &val, 0, req);
+    snprintf(state, sizeof(state), "C%d", cpu_cx_lowest + 1);
+    error = sysctl_handle_string(oidp, state, sizeof(state), req);
     if (error != 0 || req->newptr == NULL)
 	return (error);
+    if (strlen(state) < 2 || toupper(state[0]) != 'C')
+	return (EINVAL);
+    val = (int) strtol(state + 1, NULL, 10) - 1;
     if (val < 0 || val > cpu_cx_count - 1)
 	return (EINVAL);
 
