@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.174 1999/06/10 00:17:27 brian Exp $
+.\" $Id: ppp.8,v 1.175 1999/06/11 11:27:18 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3905,7 +3905,8 @@ is omitted, it defaults to
 unless the IP address is 0.0.0.0 in which case it defaults to
 .Dq /0 .
 .Pp
-.Ar Hisaddr
+If you wish to assign a dynamic IP number to the peer,
+.Ar hisaddr
 may also be specified as a range of IP numbers in the format
 .Bd -literal -offset indent
 .Ar \&IP Ns Oo \&- Ns Ar \&IP Ns Xo
