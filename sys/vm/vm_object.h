@@ -71,9 +71,6 @@
 #ifndef	_VM_OBJECT_
 #define	_VM_OBJECT_
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/queue.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_PHYS,
