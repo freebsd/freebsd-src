@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.8 1999/04/27 00:23:57 brian Exp $
+ *  $Id: physical.h,v 1.9 1999/05/08 11:07:24 brian Exp $
  *
  */
 
@@ -30,17 +30,21 @@ struct cmdargs;
 
 #define TTY_DEVICE	1
 #define TCP_DEVICE	2
-#define EXEC_DEVICE	3
+#define UDP_DEVICE	3
+#define EXEC_DEVICE	4
 
 struct device {
   int type;
   const char *name;
-  int (*open)(struct physical *);
+
   int (*raw)(struct physical *);
   void (*offline)(struct physical *);
   void (*cooked)(struct physical *);
-  void (*postclose)(struct physical *);
-  void (*restored)(struct physical *);
+  void (*stoptimer)(struct physical *);
+  void (*destroy)(struct physical *);
+  ssize_t (*read)(struct physical *, void *, size_t);
+  ssize_t (*write)(struct physical *, const void *, size_t);
+  void (*device2iov)(struct physical *, struct iovec *, int *, int, pid_t);
   int (*speed)(struct physical *);
   const char *(*openinfo)(struct physical *);
 };
@@ -52,7 +56,6 @@ struct physical {
   struct async async;          /* Our async state */
   struct hdlc hdlc;            /* Our hdlc state */
   int fd;                      /* File descriptor for this device */
-  int mbits;                   /* Current DCD status */
   struct mbuf *out;            /* mbuf that suffered a short write */
   int connect_count;
   struct datalink *dl;         /* my owner */
@@ -67,8 +70,10 @@ struct physical {
     char *base;
   } name;
 
-  unsigned Utmp : 1;           /* Are we in utmp ? */
+  unsigned Utmp : 1;           /* Are we in utmp ? (move to ttydevice ?) */
   pid_t session_owner;         /* HUP this when closing the link */
+
+  struct device *handler;      /* device specific handler */
 
   struct {
     unsigned rts_cts : 1;      /* Is rts/cts enabled ? */
@@ -82,12 +87,6 @@ struct physical {
       int delay;               /* Wait this many seconds after login script */
     } cd;
   } cfg;
-
-  struct termios ios;          /* To be able to reset from raw mode */
-
-  struct pppTimer Timer;       /* CD checks */
-
-  const struct device *handler; /* device specific handlers */
 };
 
 #define field2phys(fp, name) \
@@ -98,6 +97,10 @@ struct physical {
 
 #define descriptor2physical(d) \
   ((d)->type == PHYSICAL_DESCRIPTOR ? field2phys(d, desc) : NULL)
+
+#define PHYSICAL_NOFORCE	1
+#define PHYSICAL_FORCE_ASYNC	2
+#define PHYSICAL_FORCE_SYNC	3
 
 extern struct physical *physical_Create(struct datalink *, int);
 extern int physical_Open(struct physical *, struct bundle *);
@@ -132,3 +135,4 @@ extern int physical_RemoveFromSet(struct physical *, fd_set *, fd_set *,
 extern int physical_SetMode(struct physical *, int);
 extern void physical_DeleteQueue(struct physical *);
 extern void physical_SetupStack(struct physical *, int);
+extern void physical_StopDeviceTimer(struct physical *);

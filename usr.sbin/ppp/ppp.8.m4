@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.166 1999/05/02 08:52:50 brian Exp $
+.\" $Id: ppp.8,v 1.167 1999/05/08 11:07:25 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -148,12 +148,15 @@ The user can use
 to check the packet flow over the
 .Em PPP
 link.
-.It Supports PPP over TCP capability.
+.It Supports PPP over TCP and PPP over UDP.
 If a device name is specified as
-.Em host Ns No : Ns Em port ,
+.Em host Ns No : Ns Em port Ns
+.Op / Ns Em tcp Ns No | Ns Em udp ,
 .Nm
-will open a TCP connection for transporting data rather than using a
-conventional serial device.
+will open a TCP or UDP connection for transporting data rather than using a
+conventional serial device.  UDP connections force
+.Nm
+into synchronous mode.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
@@ -1202,14 +1205,14 @@ as if passed to the
 command.  The value will be used in
 .Nm ppp Ns No s
 subsequent CBCP phase.
-.Sh PPP OVER TCP (a.k.a Tunnelling)
+.Sh PPP OVER TCP and UDP (a.k.a Tunnelling)
 Instead of running
 .Nm
 over a serial link, it is possible to
-use a TCP connection instead by specifying a host and port as the
+use a TCP connection instead by specifying the host, port and protocol as the
 device:
 .Pp
-.Dl set device ui-gate:6669
+.Dl set device ui-gate:6669/tcp
 .Pp
 Instead of opening a serial device,
 .Nm
@@ -1278,7 +1281,7 @@ on awfulhak (the initiator) should contain the following:
 .Bd -literal -offset indent
 ui-gate:
  set escape 0xff
- set device ui-gate:ppp-in
+ set device ui-gate:ppp-in/tcp
  set dial
  set timeout 30
  set log Phase Chat Connect hdlc LCP IPCP CCP tun
@@ -1308,6 +1311,7 @@ Internet), and the
 traffic is conceptually encapsulated
 (although not packet by packet) inside the TCP stream between
 the two gateways.
+.Pp
 The major disadvantage of this mechanism is that there are two
 "guaranteed delivery" mechanisms in place - the underlying TCP
 stream and whatever protocol is used over the
@@ -1315,6 +1319,14 @@ stream and whatever protocol is used over the
 link - probably TCP again.  If packets are lost, both levels will
 get in each others way trying to negotiate sending of the missing
 packet.
+.Pp
+To avoid this overhead, it is also possible to do all this using
+UDP instead of TCP as the transport by simply changing the protocol
+from "tcp" to "udp".  When using UDP as a transport,
+.Nm
+will operate in synchronous mode.  This is another gain as the incoming
+data does not have to be rearranged into packets.
+.Pp
 .Sh PACKET ALIASING
 The
 .Fl alias
@@ -1922,6 +1934,10 @@ Generate an LCP packet trace.
 Generate LQR reports.
 .It Li Phase
 Phase transition log output.
+.It Li Physical
+Dump physical level packet in hex.
+.It Li Sync
+Dump sync level packet in hex.
 .It Li TCP/IP
 Dump all TCP/IP packets.
 .It Li Timer
@@ -3508,15 +3524,16 @@ is opened.  Standard input, output and error are fed back to
 and are read and written as if they were a regular device.
 .Pp
 If a
-.Dq host:port
-pair is given,
+.Dq host:port Ns Op /tcp|/udp
+specification is given,
 .Nm
 will attempt to connect to the given
 .Dq host
 on the given
 .Dq port .
-Refer to the section on
-.Em PPP OVER TCP
+If a tcp or udp specification is not given, the default is tcp.  Refer to
+the section on
+.Em PPP OVER TCP and UDP
 above for further details.
 .Pp
 If multiple
@@ -3802,7 +3819,7 @@ and that number is not already in use,
 .Nm
 will grant the peers request.  This is useful if the peer wants
 to re-establish a link using the same IP number as was previously
-allocated (thus maintaining any existing tcp connections).
+allocated (thus maintaining any existing tcp or udp connections).
 .Pp
 If the peer requests an IP number that's either outside
 of this range or is already in use,
@@ -4247,7 +4264,14 @@ can also be used, but link encryption may be implemented in the future, so
 .Xr telnet 1
 should not be relied upon.
 .It set speed Ar value
-This sets the speed of the serial device.
+This sets the speed of the serial device.  If speed is specified as
+.Dq sync ,
+.Nm
+treats the device as a synchronous device.
+.Pp
+Certain device types will know whether they should be specified as
+synchronous or asynchronous.  These devices will override incorrect
+settings and log a warning to this effect.
 .It set stopped Op Ar LCPseconds Op Ar CCPseconds
 If this option is set,
 .Nm

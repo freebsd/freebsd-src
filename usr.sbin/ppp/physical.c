@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.9 1999/05/08 11:07:22 brian Exp $
+ *  $Id: physical.c,v 1.10 1999/05/09 20:13:51 brian Exp $
  *
  */
 
@@ -88,6 +88,7 @@
 #include "cbcp.h"
 #include "datalink.h"
 #include "tcp.h"
+#include "udp.h"
 #include "exec.h"
 #include "tty.h"
 
@@ -97,11 +98,18 @@ static int physical_DescriptorWrite(struct descriptor *, struct bundle *,
 static void physical_DescriptorRead(struct descriptor *, struct bundle *,
                                     const fd_set *);
 
-static const struct device *handlers[] = {
-  &ttydevice, &tcpdevice, &execdevice
+struct {
+  struct device *(*create)(struct physical *);
+  struct device *(*iov2device)(int, struct physical *, struct iovec *iov,
+                               int *niov, int maxiov);
+} devices[] = {
+  { tty_Create, tty_iov2device },
+  { tcp_Create, tcp_iov2device },
+  { udp_Create, udp_iov2device },
+  { exec_Create, exec_iov2device }
 };
 
-#define NHANDLERS (sizeof handlers / sizeof handlers[0])
+#define NDEVICES (sizeof devices / sizeof devices[0])
 
 static int
 physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
@@ -129,7 +137,6 @@ physical_Create(struct datalink *dl, int type)
   memset(p->link.proto_out, '\0', sizeof p->link.proto_out);
   link_EmptyStack(&p->link);
 
-  memset(&p->Timer, '\0', sizeof p->Timer);
   p->handler = NULL;
   p->desc.type = PHYSICAL_DESCRIPTOR;
   p->desc.UpdateSet = physical_UpdateSet;
@@ -256,7 +263,7 @@ physical_ReallyClose(struct physical *p)
 
   log_Printf(LogDEBUG, "%s: Really close %d\n", p->link.name, p->fd);
   if (p->fd >= 0) {
-    timer_Stop(&p->Timer);
+    physical_StopDeviceTimer(p);
     if (p->Utmp) {
       ID0logout(p->name.base);
       p->Utmp = 0;
@@ -273,8 +280,8 @@ physical_ReallyClose(struct physical *p)
     }
     if (newsid)
       bundle_setsid(p->dl->bundle, 0);
-    if (p->handler && p->handler->postclose)
-      (*p->handler->postclose)(p);
+    if (p->handler && p->handler->destroy)
+      (*p->handler->destroy)(p);
     p->handler = NULL;
   }
   *p->name.full = '\0';
@@ -441,7 +448,6 @@ physical_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     return;
   }
 
-  log_DumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
   rbuff -= p->input.sz;
   n += p->input.sz;
 
@@ -475,12 +481,11 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
              int fd)
 {
   struct physical *p;
-  int len, h;
+  int len, h, type;
 
   p = (struct physical *)iov[(*niov)++].iov_base;
   p->link.name = dl->name;
   throughput_init(&p->link.throughput);
-  memset(&p->Timer, '\0', sizeof p->Timer);
   memset(p->link.Queue, '\0', sizeof p->link.Queue);
 
   p->desc.UpdateSet = physical_UpdateSet;
@@ -494,18 +499,6 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
                         p->name.full : p->name.full + len;
   p->out = NULL;
   p->connect_count = 1;
-
-  if (p->handler) {
-    for (h = 0; h < NHANDLERS; h++)
-      if (p->handler == (const struct device *)(long)handlers[h]->type) {
-        p->handler = handlers[h];
-        break;
-      }
-    if (h == NHANDLERS) {
-      log_Printf(LogERROR, "iov2physical: Can't find device hander !\n");
-      p->handler = NULL;
-    }
-  }
 
   p->link.lcp.fsm.bundle = dl->bundle;
   p->link.lcp.fsm.link = &p->link;
@@ -538,8 +531,13 @@ iov2physical(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
 
   throughput_start(&p->link.throughput, "physical throughput",
                    Enabled(dl->bundle, OPT_THROUGHPUT));
-  if (p->handler && p->handler->restored)
-    (*p->handler->restored)(p);
+
+  type = (long)p->handler;
+  for (h = 0; h < NDEVICES && p->handler == NULL; h++)
+    p->handler = (*devices[h].iov2device)(type, p, iov, niov, maxiov);
+
+  if (p->handler == NULL)
+    physical_SetupStack(p, PHYSICAL_NOFORCE);
 
   return p;
 }
@@ -557,12 +555,12 @@ physical2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
     timer_Stop(&p->link.ccp.fsm.OpenTimer);
     timer_Stop(&p->link.lcp.fsm.StoppedTimer);
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
-    if (p->handler)
-      p->handler = (const struct device *)(long)p->handler->type;
-    if (p->Timer.state != TIMER_STOPPED) {
-      timer_Stop(&p->Timer);
-      p->Timer.state = TIMER_RUNNING;	/* Special - see iov2physical() */
+    if (p->handler) {
+      if (p->handler->device2iov)
+        (*p->handler->device2iov)(p, iov, niov, maxiov, newpid);
+      p->handler = (struct device *)(long)p->handler->type;
     }
+
     if (tcgetpgrp(p->fd) == getpgrp())
       p->session_owner = getpid();      /* So I'll eventually get HUP'd */
     timer_Stop(&p->link.throughput.Timer);
@@ -633,18 +631,30 @@ physical_SetRtsCts(struct physical *p, int enable)
    return 1;
 }
 
-/* Encapsulation for a read on the FD.  Avoids some exposure, and
-   concentrates control. */
 ssize_t
 physical_Read(struct physical *p, void *buf, size_t nbytes)
 {
-   return read(p->fd, buf, nbytes);
+  ssize_t ret;
+
+  if (p->handler && p->handler->read)
+    ret = (*p->handler->read)(p, buf, nbytes);
+  else
+    ret = read(p->fd, buf, nbytes);
+
+  log_DumpBuff(LogPHYSICAL, "read", buf, ret);
+
+  return ret;
 }
 
 ssize_t
 physical_Write(struct physical *p, const void *buf, size_t nbytes)
 {
-   return write(p->fd, buf, nbytes);
+  log_DumpBuff(LogPHYSICAL, "write", buf, nbytes);
+
+  if (p->handler && p->handler->write)
+    return (*p->handler->write)(p, buf, nbytes);
+
+  return write(p->fd, buf, nbytes);
 }
 
 int
@@ -788,16 +798,17 @@ physical_Open(struct physical *p, struct bundle *bundle)
     log_Printf(LogDEBUG, "%s: Open: Modem is already open!\n", p->link.name);
     /* We're going back into "term" mode */
   else if (p->type == PHYS_DIRECT) {
-    if (tty_OpenStdin(p)) {
+    physical_SetDevice(p, "");
+    p->fd = STDIN_FILENO;
+    for (h = 0; h < NDEVICES && p->handler == NULL && p->fd >= 0; h++)
+        p->handler = (*devices[h].create)(p);
+    if (p->fd >= 0) {
+      if (p->handler == NULL)
+        physical_SetupStack(p, PHYSICAL_NOFORCE);
       physical_Found(p);
-      p->handler = &ttydevice;
-    } else {
-      log_Printf(LogDEBUG, "%s: physical_Open: stdin is not a tty\n",
-                 p->link.name);
-      physical_SetDevice(p, "");
-      physical_SetupStack(p, 0);
-      physical_Found(p);
-      return p->fd = STDIN_FILENO;
+      if (p->handler == NULL)
+        log_Printf(LogDEBUG, "%s: stdin is unidentified\n",
+                   p->link.name);
     }
   } else {
     dev = p->cfg.devlist;
@@ -805,16 +816,18 @@ physical_Open(struct physical *p, struct bundle *bundle)
     while (devno < p->cfg.ndev && p->fd < 0) {
       physical_SetDevice(p, dev);
 
-      for (h = 0; h < NHANDLERS; h++)
-        if (handlers[h]->open && (*handlers[h]->open)(p)) {
-          p->handler = handlers[h];
-          physical_Found(p);
-        }
+      if (*p->name.full == '/')
+        p->fd = ID0open(p->name.full, O_RDWR | O_NONBLOCK);
+
+      for (h = 0; h < NDEVICES && p->handler == NULL; h++)
+        p->handler = (*devices[h].create)(p);
 
       if (p->fd < 0)
 	log_Printf(LogWARN, "%s: Device (%s) must begin with a '/',"
                    " a '!' or be a host:port pair\n", p->link.name,
                    p->name.full);
+      else
+        physical_Found(p);
       dev += strlen(dev) + 1;
       devno++;
     }
@@ -824,10 +837,11 @@ physical_Open(struct physical *p, struct bundle *bundle)
 }
 
 void
-physical_SetupStack(struct physical *p, int forceasync)
+physical_SetupStack(struct physical *p, int how)
 {
   link_EmptyStack(&p->link);
-  if (!forceasync && physical_IsSync(p))
+  if (how == PHYSICAL_FORCE_SYNC ||
+      (how == PHYSICAL_NOFORCE && physical_IsSync(p)))
     link_Stack(&p->link, &synclayer);
   else {
     link_Stack(&p->link, &asynclayer);
@@ -841,7 +855,20 @@ physical_SetupStack(struct physical *p, int forceasync)
 #ifndef NOALIAS
   link_Stack(&p->link, &aliaslayer);
 #endif
-  if (forceasync && physical_IsSync(p))
+  if (how == PHYSICAL_FORCE_ASYNC && physical_IsSync(p)) {
     log_Printf(LogWARN, "Sync device setting ignored for ``%s'' device\n",
                p->handler ? p->handler->name : "unknown");
+    p->cfg.speed = MODEM_SPEED;
+  } else if (how == PHYSICAL_FORCE_SYNC && !physical_IsSync(p)) {
+    log_Printf(LogWARN, "Async device setting ignored for ``%s'' device\n",
+               p->handler ? p->handler->name : "unknown");
+    physical_SetSync(p);
+  }
+}
+
+void
+physical_StopDeviceTimer(struct physical *p)
+{
+  if (p->handler && p->handler->stoptimer)
+    (*p->handler->stoptimer)(p);
 }
