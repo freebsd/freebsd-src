@@ -236,16 +236,14 @@ acpi_pci_link_get_irq_resources(ACPI_RESOURCE *resources,
 		Interrupts = resources->Data.Irq.Interrupts;
 		break;
 	case ACPI_RSTYPE_EXT_IRQ:
-                NumberOfInterrupts =
+		NumberOfInterrupts =
 		    resources->Data.ExtendedIrq.NumberOfInterrupts;
-                Interrupts = resources->Data.ExtendedIrq.Interrupts;
+		Interrupts = resources->Data.ExtendedIrq.Interrupts;
 		break;
 	}
-	
-	if (NumberOfInterrupts == 0) {
-		printf("acpi link get: empty IRQ resource\n");
+
+	if (NumberOfInterrupts == 0)
 		return_ACPI_STATUS (AE_NULL_ENTRY);
-	}
 
 	count = 0;
 	for (i = 0; i < NumberOfInterrupts; i++) {
@@ -382,7 +380,7 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	}
 	if (buf.Pointer == NULL) {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN,
-		    "_PRS nuffer is empty - %s\n", acpi_name(handle)));
+		    "_PRS buffer is empty - %s\n", acpi_name(handle)));
 		error = AE_NO_MEMORY;
 		goto out;
 	}
