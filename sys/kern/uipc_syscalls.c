@@ -97,9 +97,7 @@ static struct {
 	struct mtx sf_lock;
 } sf_freelist;
 
-vm_offset_t sf_base;
-struct sf_buf *sf_bufs;
-u_int sf_buf_alloc_want;
+static u_int sf_buf_alloc_want;
 
 /*
  * System call interface to the socket abstraction.
@@ -1617,6 +1615,8 @@ getsockaddr(namp, uaddr, len)
 static void
 sf_buf_init(void *arg)
 {
+	struct sf_buf *sf_bufs;
+	vm_offset_t sf_base;
 	int i;
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
