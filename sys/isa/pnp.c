@@ -800,6 +800,8 @@ pnp_identify(driver_t *driver, device_t parent)
 		if (num_pnp_devs)
 			break;
 	}
+	if (bootverbose)
+		printf("PNP Identify complete\n");
 }
 
 static device_method_t pnp_methods[] = {
