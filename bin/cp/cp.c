@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: cp.c,v 1.18 1999/04/25 21:13:32 imp Exp $";
+	"$Id: cp.c,v 1.19 1999/05/08 10:19:27 kris Exp $";
 #endif /* not lint */
 
 /*
@@ -79,7 +79,7 @@ static const char rcsid[] =
                 *--(p).p_end = 0;					\
 }
 
-PATH_T to = { to.p_path, "" };
+PATH_T to = { to.p_path, "", "" };
 
 uid_t myuid;
 int Rflag, iflag, pflag, rflag, fflag;
