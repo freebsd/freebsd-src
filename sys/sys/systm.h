@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.69 1998/01/21 18:28:49 gibbs Exp $
+ * $Id: systm.h,v 1.70 1998/02/24 02:01:11 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -112,7 +112,11 @@ void	ttyprintf __P((struct tty *, const char *, ...));
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
+#ifdef __i386__
 extern void	(*bzero) __P((void *buf, size_t len));
+#else
+void	bzero __P((void *buf, size_t len));
+#endif
 
 void	*memcpy __P((void *to, const void *from, size_t len));
 
@@ -126,10 +130,10 @@ int	copyout __P((const void *kaddr, void *udaddr, size_t len));
 int	fubyte __P((const void *base));
 int	subyte __P((void *base, int byte));
 int	suibyte __P((void *base, int byte));
-int	fuword __P((const void *base));
-int	suword __P((void *base, int word));
-int	fusword __P((void *base));
-int	susword __P((void *base, int word));
+long	fuword __P((const void *base));
+int	suword __P((void *base, long word));
+long	fusword __P((void *base));
+int	susword __P((void *base, long word));
 
 int	hzto __P((struct timeval *tv));
 void	realitexpire __P((void *));
@@ -176,6 +180,8 @@ void	callout_handle_init __P((struct callout_handle *));
 struct	callout_handle timeout __P((timeout_t *, void *, int));
 void	untimeout __P((timeout_t *, void *, struct callout_handle));
 
+#ifdef __i386__
+
 /* Interrupt management */
 void		setdelayed(void);
 void		setsoftast(void);
@@ -212,6 +218,12 @@ intrmask_t	spltty(void);
 intrmask_t	splvm(void);
 void		splx(intrmask_t ipl);
 void		splz(void);
+
+#endif
+
+#ifdef __alpha__
+#include <machine/ipl.h>
+#endif
 
 /*
  * XXX It's not clear how "machine independent" these will be yet, but

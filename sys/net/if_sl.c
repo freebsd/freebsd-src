@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.67 1998/02/13 12:46:14 phk Exp $
+ * $Id: if_sl.c,v 1.68 1998/03/30 09:52:00 phk Exp $
  */
 
 /*
@@ -187,8 +187,8 @@ static timeout_t sl_keepalive;
 static timeout_t sl_outfill;
 static int	slclose __P((struct tty *,int));
 static int	slinput __P((int, struct tty *));
-static int	slioctl __P((struct ifnet *, int, caddr_t));
-static int	sltioctl __P((struct tty *, int, caddr_t, int, struct proc *));
+static int	slioctl __P((struct ifnet *, u_long, caddr_t));
+static int	sltioctl __P((struct tty *, u_long, caddr_t, int, struct proc *));
 static int	slopen __P((dev_t, struct tty *));
 static int	sloutput __P((struct ifnet *,
 	    struct mbuf *, struct sockaddr *, struct rtentry *));
@@ -361,7 +361,7 @@ slclose(tp,flag)
 static int
 sltioctl(tp, cmd, data, flag, p)
 	struct tty *tp;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;
@@ -747,7 +747,7 @@ sl_btom(sc, len)
 		}
 		sc->sc_ep = mtod(m, u_char *) + SLBUFSIZE;
 		m->m_data = (caddr_t)sc->sc_buf;
-		m->m_ext.ext_buf = (caddr_t)((int)sc->sc_buf &~ MCLOFSET);
+		m->m_ext.ext_buf = (caddr_t)((long)sc->sc_buf &~ MCLOFSET);
 	} else
 		bcopy((caddr_t)sc->sc_buf, mtod(m, caddr_t), len);
 
@@ -941,7 +941,7 @@ newpack:
 static int
 slioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;

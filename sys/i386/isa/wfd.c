@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.8 1998/02/13 22:41:00 pst Exp $
+ *      $Id: wfd.c,v 1.9 1998/03/20 23:14:52 msmith Exp $
  */
 
 /*
@@ -617,7 +617,7 @@ static int wfd_request_wait (struct wfd *t, u_char cmd, u_char a1, u_char a2,
  * Perform special action on behalf of the user.
  * Knows about the internals of this device
  */
-int wfdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+int wfdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	int lun = UNIT(dev);
 	struct wfd *t = wfdtab[lun];

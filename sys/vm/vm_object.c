@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.120 1998/04/29 04:28:09 dyson Exp $
+ * $Id: vm_object.c,v 1.121 1998/05/21 07:47:58 dyson Exp $
  */
 
 /*
@@ -1596,16 +1596,16 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 	if (object == NULL)
 		return;
 
-	db_iprintf("Object 0x%x: type=%d, size=0x%x, res=%d, ref=%d, flags=0x%x\n",
-	    (int) object, (int) object->type, (int) object->size,
+	db_iprintf("Object 0x%lx: type=%d, size=0x%lx, res=%d, ref=%d, flags=0x%x\n",
+	    (long) object, (int) object->type, (long) object->size,
 	    object->resident_page_count,
 		object->ref_count,
 		object->flags);
-	db_iprintf(" sref=%d, offset=0x%x, backing_object(%d)=(0x%x)+0x%x\n",
+	db_iprintf(" sref=%d, offset=0x%x, backing_object(%d)=(0x%lx)+0x%x\n",
 		object->shadow_count,
 	    (int) object->paging_offset,
-		(((int)object->backing_object)?object->backing_object->ref_count:0),
-	    (int) object->backing_object,
+		(((long)object->backing_object)?object->backing_object->ref_count:0),
+	    (long) object->backing_object,
 		(int) object->backing_object_offset);
 
 	if (!full)
@@ -1638,9 +1638,9 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 /* XXX need this non-static entry for calling from vm_map_print. */
 void
 vm_object_print(addr, have_addr, count, modif)
-	db_expr_t addr;
+        /* db_expr_t */ long addr;
 	boolean_t have_addr;
-	db_expr_t count;
+	/* db_expr_t */ long count;
 	char *modif;
 {
 	vm_object_print_static(addr, have_addr, count, modif);

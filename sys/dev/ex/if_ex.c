@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.10 1998/01/08 23:40:52 eivind Exp $
+ *	$Id: if_ex.c,v 1.11 1998/03/28 13:24:06 bde Exp $
  */
 
 /*
@@ -119,7 +119,7 @@ static int ex_attach __P((struct isa_device *));
 static void ex_init __P((void *));
 static void ex_start __P((struct ifnet *));
 static void ex_stop __P((int));
-static int ex_ioctl __P((struct ifnet *, int, caddr_t));
+static int ex_ioctl __P((struct ifnet *, u_long, caddr_t));
 static void ex_reset __P((int));
 static void ex_watchdog __P((struct ifnet *));
 
@@ -760,7 +760,7 @@ void ex_rx_intr(int unit)
 }
 
 
-int ex_ioctl(register struct ifnet *ifp, int cmd, caddr_t data)
+int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
   register struct ifaddr *ifa = (struct ifaddr *) data;
   struct ex_softc *sc = &ex_sc[ifp->if_unit];

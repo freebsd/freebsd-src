@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.11 1997/12/06 13:24:04 bde Exp $
+ * $Id: tty_conf.c,v 1.12 1997/12/16 17:40:27 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -200,7 +200,7 @@ l_nostart(tp)
 static int
 l_nullioctl(tp, cmd, data, flags, p)
 	struct tty *tp;
-	int cmd;
+	u_long cmd;
 	char *data;
 	int flags;
 	struct proc *p;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.56 1998/04/10 00:09:04 alex Exp $
+ * $Id: vfs_vnops.c,v 1.57 1998/05/07 04:58:25 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 #include <sys/ttycom.h>
 
 static int vn_closefile __P((struct file *fp, struct proc *p));
-static int vn_ioctl __P((struct file *fp, int com, caddr_t data, 
+static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
 		struct proc *p));
 static int vn_read __P((struct file *fp, struct uio *uio, 
 		struct ucred *cred));
@@ -442,7 +442,7 @@ vn_stat(vp, sb, p)
 static int
 vn_ioctl(fp, com, data, p)
 	struct file *fp;
-	int com;
+	u_long com;
 	caddr_t data;
 	struct proc *p;
 {

@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.34 1998/04/15 17:46:46 bde Exp $ */
+/* $Id: ppp_tty.c,v 1.35 1998/05/01 16:40:21 bde Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -112,7 +112,7 @@ static int	pppopen __P((dev_t dev, struct tty *tp));
 static int	pppclose __P((struct tty *tp, int flag));
 static int	pppread __P((struct tty *tp, struct uio *uio, int flag));
 static int	pppwrite __P((struct tty *tp, struct uio *uio, int flag));
-static int	ppptioctl __P((struct tty *tp, int cmd, caddr_t data, int flag,
+static int	ppptioctl __P((struct tty *tp, u_long cmd, caddr_t data, int flag,
 		       struct proc *));
 static int	pppinput __P((int c, struct tty *tp));
 static int	pppstart __P((struct tty *tp));
@@ -465,7 +465,7 @@ pppwrite(tp, uio, flag)
 static int
 ppptioctl(tp, cmd, data, flag, p)
     struct tty *tp;
-    int cmd;
+    u_long cmd;
     caddr_t data;
     int flag;
     struct proc *p;

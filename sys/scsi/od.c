@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.37 1998/04/17 22:37:07 des Exp $
+ *	$Id: od.c,v 1.38 1998/04/27 11:36:04 des Exp $
  */
 
 /*
@@ -128,7 +128,7 @@ static int odunit(dev_t dev) { return ODUNIT(dev); }
 
 static errval od_open __P((dev_t dev, int mode, int fmt, struct proc *p,
 			   struct scsi_link *sc_link));
-static errval od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval od_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag,
 		       struct proc *p, struct scsi_link *sc_link);
 static errval od_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
 			    struct scsi_link *sc_link));
@@ -666,7 +666,7 @@ bad:
  * Knows about the internals of this device
  */
 static errval
-od_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
+od_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
 	/* struct od_cmd_buf *args; */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: smc83c170.h,v 1.6 1998/04/13 14:15:40 semenu Exp $
+ *      $Id: smc83c170.h,v 1.7 1998/04/15 17:47:08 bde Exp $
  *
  */
 
@@ -349,7 +349,7 @@ typedef struct {
 static char* epic_pci_probe __P((pcici_t, pcidi_t));
 
 /* Folowing functions calls splimp() */
-static int epic_ifioctl __P((register struct ifnet *, int, caddr_t));
+static int epic_ifioctl __P((register struct ifnet *, u_long, caddr_t));
 static void epic_ifstart __P((struct ifnet *));
 static void epic_ifwatchdog __P((struct ifnet *));
 static void epic_pci_attach __P((pcici_t, int));

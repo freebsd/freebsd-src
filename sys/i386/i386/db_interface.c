@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.37 1997/10/27 17:23:12 bde Exp $
+ *	$Id: db_interface.c,v 1.38 1997/11/20 18:09:36 bde Exp $
  */
 
 /*
@@ -213,7 +213,7 @@ kdb_trap(type, code, regs)
 void
 db_read_bytes(addr, size, data)
 	vm_offset_t	addr;
-	register int	size;
+	register size_t	size;
 	register char	*data;
 {
 	register char	*src;
@@ -233,7 +233,7 @@ db_read_bytes(addr, size, data)
 void
 db_write_bytes(addr, size, data)
 	vm_offset_t	addr;
-	register int	size;
+	register size_t	size;
 	register char	*data;
 {
 	register char	*dst;

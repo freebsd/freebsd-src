@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.56 1998/01/24 02:54:12 eivind Exp $
+ *	$Id: cons.c,v 1.57 1998/03/28 10:32:56 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -352,7 +352,7 @@ cnwrite(dev, uio, flag)
 static int
 cnioctl(dev, cmd, data, flag, p)
 	dev_t dev;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;

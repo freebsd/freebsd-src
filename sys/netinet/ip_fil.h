@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 1.1.1.5 1998/03/21 10:11:12 peter Exp $
+ * $Id: ip_fil.h,v 1.2 1998/03/21 13:37:44 peter Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -382,7 +382,7 @@ extern	int	ipf_log __P((void));
 extern	void	ipfr_fastroute __P((ip_t *, fr_info_t *, frdest_t *));
 extern	struct	ifnet *get_unit __P((char *));
 # define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
-# if defined(__NetBSD__) || defined(__OpenBSD__) || (_BSDI_VERSION >= 199701)
+# if defined(__NetBSD__) || defined(__OpenBSD__) || (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300003)
 extern	int	iplioctl __P((dev_t, u_long, caddr_t, int));
 # else
 extern	int	iplioctl __P((dev_t, int, caddr_t, int));

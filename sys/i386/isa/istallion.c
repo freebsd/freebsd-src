@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.17 1998/02/13 12:45:52 phk Exp $
+ * $Id: istallion.c,v 1.18 1998/04/15 17:45:29 bde Exp $
  */
 
 /*****************************************************************************/
@@ -1158,7 +1158,7 @@ STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 
 /*****************************************************************************/
 
-STATIC int stliioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+STATIC int stliioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct termios	*newtios, *localtios;
 	struct tty	*tp;

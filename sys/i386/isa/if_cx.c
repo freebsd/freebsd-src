@@ -83,7 +83,7 @@ static int cxtinth __P((cx_chan_t *c));
 #define IFSTRUCTSZ   (sizeof (struct sppp))
 #define IFNETSZ         (sizeof (struct ifnet))
 
-static int cxsioctl (struct ifnet *ifp, int cmd, caddr_t data);
+static int cxsioctl (struct ifnet *ifp, u_long cmd, caddr_t data);
 static void cxstart (struct ifnet *ifp);
 static void cxwatchdog (struct ifnet *ifp);
 static void cxinput (cx_chan_t *c, void *buf, unsigned len);
@@ -316,7 +316,7 @@ struct isa_driver cxdriver = { cxprobe, cxattach, "cx" };
  * Process an ioctl request.
  */
 static int
-cxsioctl (struct ifnet *ifp, int cmd, caddr_t data)
+cxsioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	cx_chan_t *q, *c = ifp->if_softc;
 	int error, s, was_up, should_be_up;

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.86 1998/04/16 10:35:50 peter Exp $
+ * $Id: st.c,v 1.87 1998/04/17 22:37:16 des Exp $
  */
 
 /*
@@ -144,7 +144,7 @@ static dev_t stsetunit(dev_t dev, int unit) { return STSETUNIT(dev, unit); }
 
 static errval st_open(dev_t dev, int flags, int fmt, struct proc *p,
 		struct scsi_link *sc_link);
-static errval st_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval st_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
 static errval st_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
@@ -983,7 +983,7 @@ badnews:
  * knows about the internals of this device
  */
 static	errval
-st_ioctl(dev_t dev, int cmd, caddr_t arg, int	flag,
+st_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag,
 struct proc *p, struct scsi_link *sc_link)
 {
 	errval  errcode = 0;

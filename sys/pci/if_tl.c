@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.7 1998/05/29 16:58:46 wpaul Exp $
+ *	$Id: if_tl.c,v 1.8 1998/05/31 16:59:39 wpaul Exp $
  */
 
 /*
@@ -240,7 +240,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.7 1998/05/29 16:58:46 wpaul Exp $";
+	"$Id: if_tl.c,v 1.8 1998/05/31 16:59:39 wpaul Exp $";
 #endif
 
 /*
@@ -309,7 +309,7 @@ static int tl_encap		__P((struct tl_softc *, struct tl_chain *,
 
 static void tl_intr		__P((void *));
 static void tl_start		__P((struct ifnet *));
-static int tl_ioctl		__P((struct ifnet *, int, caddr_t));
+static int tl_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void tl_init		__P((void *));
 static void tl_stop		__P((struct tl_softc *));
 static void tl_watchdog		__P((struct ifnet *));
@@ -2412,7 +2412,7 @@ static void tl_ifmedia_sts(ifp, ifmr)
 
 static int tl_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
-	int			command;
+	u_long			command;
 	caddr_t			data;
 {
 	struct tl_softc		*sc = ifp->if_softc;

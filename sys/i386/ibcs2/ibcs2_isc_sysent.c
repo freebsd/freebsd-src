@@ -5,6 +5,8 @@
  * created from	Id: syscalls.isc,v 1.4 1997/04/09 15:44:44 bde Exp 
  */
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>

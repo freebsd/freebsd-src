@@ -218,7 +218,7 @@ sndclose(dev_t dev, int flags, int mode, struct proc * p)
 }
 
 static int
-sndioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc * p)
+sndioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
     dev = minor(dev);
     FIX_RETURN(sound_ioctl_sw(dev, &files[dev], cmd, arg));

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.38 1998/03/07 21:37:15 dyson Exp $
+ * $Id: vm_page.h,v 1.39 1998/05/24 04:25:27 dyson Exp $
  */
 
 /*
@@ -116,8 +116,13 @@ struct vm_page {
 	u_char	busy;			/* page busy count */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
+#if PAGE_SIZE == 4096
 	u_char	valid;			/* map of valid DEV_BSIZE chunks */
 	u_char	dirty;			/* map of dirty DEV_BSIZE chunks */
+#elif PAGE_SIZE == 8192
+	u_short	valid;			/* map of valid DEV_BSIZE chunks */
+	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
+#endif
 };
 
 /*

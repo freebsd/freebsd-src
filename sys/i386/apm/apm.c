@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.70 1998/03/30 09:47:57 phk Exp $
+ *	$Id: apm.c,v 1.71 1998/06/03 01:59:32 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -917,7 +917,7 @@ apmclose(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc;
 	int error = 0;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.92 1998/05/17 11:52:35 phk Exp $
+ * $Id: init_main.c,v 1.93 1998/05/28 09:30:15 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -390,6 +390,7 @@ proc0_init(dummy)
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
 	p->p_addr = proc0paddr;				/* XXX */
 
+#ifndef __alpha__		/* XXX what is this? */
 #define INCOMPAT_LITES2
 #ifdef INCOMPAT_LITES2
 	/*
@@ -397,6 +398,7 @@ proc0_init(dummy)
 	 */
 	cpu_set_init_frame(p, init_framep);			/* XXX! */
 #endif	/* INCOMPAT_LITES2*/
+#endif
 
 	/*
 	 * We continue to place resource usage info and signal
@@ -603,10 +605,10 @@ start_init(p)
 		/*
 		 * Move out the arg pointers.
 		 */
-		uap = (char **)((int)ucp & ~(NBPW-1));
+		uap = (char **)((long)ucp & ~(NBPW-1));
 		(void)suword((caddr_t)--uap, 0);	/* terminator */
-		(void)suword((caddr_t)--uap, (int)arg1);
-		(void)suword((caddr_t)--uap, (int)arg0);
+		(void)suword((caddr_t)--uap, (long)arg1);
+		(void)suword((caddr_t)--uap, (long)arg0);
 
 		/*
 		 * Point at the arguments.

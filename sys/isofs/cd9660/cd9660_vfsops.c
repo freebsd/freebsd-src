@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.38 1998/04/20 23:18:46 julian Exp $
+ * $Id: cd9660_vfsops.c,v 1.39 1998/05/06 05:29:30 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -197,7 +197,7 @@ cd9660_mount(mp, path, data, ndp, p)
 {
 	struct vnode *devvp;
 	struct iso_args args;
-	u_int size;
+	size_t size;
 	int error;
 	struct iso_mnt *imp = 0;
 

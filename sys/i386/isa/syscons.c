@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.260 1998/04/17 10:03:11 des Exp $
+ *  $Id: syscons.c,v 1.261 1998/05/17 11:52:18 phk Exp $
  */
 
 #include "sc.h"
@@ -984,7 +984,7 @@ scparam(struct tty *tp, struct termios *t)
 }
 
 int
-scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
     int error;
     u_int i;

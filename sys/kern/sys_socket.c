@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.16 1997/09/14 02:52:15 peter Exp $
+ * $Id: sys_socket.c,v 1.17 1998/03/28 10:33:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ soo_write(fp, uio, cred)
 int
 soo_ioctl(fp, cmd, data, p)
 	struct file *fp;
-	int cmd;
+	u_long cmd;
 	register caddr_t data;
 	struct proc *p;
 {

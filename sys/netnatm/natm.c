@@ -77,7 +77,7 @@ static int natm_usr_send __P((struct socket *, int, struct mbuf *,
 			      struct sockaddr *, struct mbuf *, 
 			      struct proc *));
 static int natm_usr_peeraddr __P((struct socket *, struct sockaddr **));
-static int natm_usr_control __P((struct socket *, int, caddr_t,
+static int natm_usr_control __P((struct socket *, u_long, caddr_t,
 				 struct ifnet *, struct proc *));
 static int natm_usr_abort __P((struct socket *));
 static int natm_usr_bind __P((struct socket *, struct sockaddr *, 
@@ -349,7 +349,7 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
 }
 
 static int
-natm_usr_control(struct socket *so, int cmd, caddr_t arg,
+natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
 		 struct ifnet *ifp, struct proc *p)
 {
     struct natmpcb *npcb;

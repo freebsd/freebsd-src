@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.44 1998/03/30 09:52:40 phk Exp $
+ * $Id: if_ether.c,v 1.45 1998/05/23 08:03:40 phk Exp $
  */
 
 /*
@@ -104,7 +104,7 @@ SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
 	   &arp_proxyall, 0, "");
 
 static void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
-static void	arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
+static void	arprequest __P((struct arpcom *, u_int32_t *, u_int32_t *, u_char *));
 static void	arpintr __P((void));
 static void	arptfree __P((struct llinfo_arp *));
 static void	arptimer __P((void *));
@@ -275,7 +275,7 @@ arp_rtrequest(req, rt, sa)
 static void
 arprequest(ac, sip, tip, enaddr)
 	register struct arpcom *ac;
-	register u_long *sip, *tip;
+	register u_int32_t *sip, *tip;
 	register u_char *enaddr;
 {
 	register struct mbuf *m;

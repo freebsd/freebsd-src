@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.40 1998/03/26 20:51:47 phk Exp $
+ * $Id: sys_pipe.c,v 1.41 1998/03/28 10:33:07 bde Exp $
  */
 
 /*
@@ -93,7 +93,7 @@ static int pipe_write __P((struct file *fp, struct uio *uio,
 static int pipe_close __P((struct file *fp, struct proc *p));
 static int pipe_poll __P((struct file *fp, int events, struct ucred *cred,
 		struct proc *p));
-static int pipe_ioctl __P((struct file *fp, int cmd, caddr_t data, struct proc *p));
+static int pipe_ioctl __P((struct file *fp, u_long cmd, caddr_t data, struct proc *p));
 
 static struct fileops pipeops =
     { pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_close };
@@ -927,7 +927,7 @@ pipe_write(fp, uio, cred)
 int
 pipe_ioctl(fp, cmd, data, p)
 	struct file *fp;
-	int cmd;
+	u_long cmd;
 	register caddr_t data;
 	struct proc *p;
 {

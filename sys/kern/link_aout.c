@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.4 1997/11/07 08:52:59 phk Exp $
+ *	$Id: link_aout.c,v 1.5 1997/11/20 20:07:50 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,8 @@
 #include <sys/linker.h>
 #include <a.out.h>
 #include <link.h>
+
+#ifndef __alpha__
 
 static int		link_aout_load_file(const char*, linker_file_t*);
 
@@ -443,3 +445,6 @@ restart:
 
     return 0;
 }
+
+#endif /* !__alpha__ */
+

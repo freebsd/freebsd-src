@@ -338,7 +338,7 @@ ibcs2_ioctl(p, uap)
 {
 	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
-	int (*ctl) __P((struct file *, int, caddr_t, struct proc *));
+	int (*ctl) __P((struct file *, u_long, caddr_t, struct proc *));
 	int error;
 
 	if (SCARG(uap, fd) < 0 || SCARG(uap, fd) >= fdp->fd_nfiles ||

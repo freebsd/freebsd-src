@@ -193,7 +193,7 @@ static int sync_clock2 (int unit, long period); /* setup clock 2 period */
 static int putfifo (talog_chan *pchan, u_short fifoent);
 static int alog_open (dev_t dev, int oflags, int devtype, struct proc *p);
 static int alog_close (dev_t dev, int fflag, int devtype, struct proc *p);
-static int alog_ioctl (dev_t dev, int cmd, caddr_t data,
+static int alog_ioctl (dev_t dev, u_long cmd, caddr_t data,
 		        int fflag, struct proc *p);
 static int alog_read (dev_t dev, struct uio *uio, int ioflag);
 static int alog_poll (dev_t dev, int events, struct proc *p);
@@ -215,7 +215,7 @@ struct isa_driver alogdriver = { alog_probe, alog_attach, "alog", 0 };
 
 
 /* handle the ioctls */
-static int alog_ioctl (dev_t dev, int cmd, caddr_t data,
+static int alog_ioctl (dev_t dev, u_long cmd, caddr_t data,
 		        int fflag, struct proc *p)
 {
   int unit = UNIT(dev);

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.18 1997/04/01 14:31:04 bde Exp $
+ *	$Id: db_aout.c,v 1.19 1997/09/28 08:34:46 phk Exp $
  */
 
 /*
@@ -324,11 +324,13 @@ X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 void
 kdb_init()
 {
+#ifdef __i386__
 	if (bootinfo.bi_esymtab != bootinfo.bi_symtab)
 		X_db_sym_init((int *)bootinfo.bi_symtab,
 			      (char *)((bootinfo.bi_esymtab + sizeof(int) - 1)
 				       & ~(sizeof(int) - 1)),
 			      "kernel");
+#endif
 }
 
 #if 0

@@ -72,7 +72,7 @@
 
 #define EN_INTR_TYPE void
 #define EN_INTR_RET(X) return
-#define EN_IOCTL_CMDT int
+#define EN_IOCTL_CMDT u_long
 
 struct device {
   char dv_xname[IFNAMSIZ];

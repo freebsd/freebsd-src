@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.16 1998/02/03 21:51:57 bde Exp $
+ *	$Id: sysent.h,v 1.17 1998/04/28 18:15:08 eivind Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
@@ -60,7 +60,7 @@ struct sysentvec {
 	int 		*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap) __P((int, int));
 					/* translate trap-to-signal mapping */
-	int		(*sv_fixup) __P((int **, struct image_params *));
+	int		(*sv_fixup) __P((long **, struct image_params *));
 					/* stack fixup function */
 	void		(*sv_sendsig) __P((void (*)(int), int, int, u_long));
 					/* send signal */
