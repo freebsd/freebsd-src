@@ -91,6 +91,7 @@ ia64_gateway_page:
 gw_ret:
 {	.mmi
 	mov		ar.rnat=r22
+	;;
 	mov		ar.rsc=r24
 	mov		ar.pfs=r28
 }
