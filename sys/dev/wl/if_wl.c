@@ -215,10 +215,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #endif
 
 #include <net/bpf.h>
-
-
 #include <i386/isa/isa_device.h>
-
 #include <i386/isa/ic/if_wl_i82586.h>	/* Definitions for the Intel chip */
 
 /* was 1000 in original, fed to DELAY(x) */
@@ -472,14 +469,12 @@ wlattach(struct isa_device *id)
     sc->nwid[1] = sc->psa[WLPSA_NWID+1];
     
     /* fetch MAC address - decide which one first */
-    if (sc->psa[WLPSA_MACSEL] & 1) {
+    if (sc->psa[WLPSA_MACSEL] & 1)
 	j = WLPSA_LOCALMAC;
-    } else {
+    else
 	j = WLPSA_UNIMAC;
-    }
-    for(i=0; i < WAVELAN_ADDR_SIZE; ++i) {
+    for (i=0; i < WAVELAN_ADDR_SIZE; ++i)
 	sc->wl_addr[i] = sc->psa[j + i];
-    }
 
     /* enter normal 16 bit mode operation */
     sc->hacr = HACR_DEFAULT;
@@ -544,19 +539,19 @@ wldump(int unit)
 	
     printf("scb at %04x:\n ", OFFSET_SCB);
     outw(PIOR1(base), OFFSET_SCB);
-    for(i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++)
 	printf("%04x ", inw(PIOP1(base)));
     printf("\n");
 	
     printf("cu at %04x:\n ", OFFSET_CU);
     outw(PIOR1(base), OFFSET_CU);
-    for(i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++)
 	printf("%04x ", inw(PIOP1(base)));
     printf("\n");
 	
     printf("tbd at %04x:\n ", OFFSET_TBD);
     outw(PIOR1(base), OFFSET_TBD);
-    for(i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++)
 	printf("%04x ", inw(PIOP1(base)));
     printf("\n");
 }
@@ -807,8 +802,10 @@ wlbldcu(int unit)
     SET_CHAN_ATTN(unit);
 
     outw(PIOR0(base), OFFSET_ISCP + 0);	/* address of iscp_busy */
-    for (i = 1000000; inw(PIOP0(base)) && (i-- > 0); );
-    if (i <= 0) printf("wl%d bldcu(): iscp_busy timeout.\n", unit);
+    for (i = 1000000; inw(PIOP0(base)) && (i-- > 0); )
+	continue;
+    if (i <= 0)
+	printf("wl%d bldcu(): iscp_busy timeout.\n", unit);
     outw(PIOR0(base), OFFSET_SCB + 0);	/* address of scb_status */
     for (i = STATUS_TRIES; i-- > 0; ) {
 	if (inw(PIOP0(base)) == (SCB_SW_CX|SCB_SW_CNA)) 
@@ -867,7 +864,7 @@ wlstart(struct ifnet *ifp)
      * if we are already busy 
      */
     if (sc->tbusy) {
-	if((scb_status & 0x0700) == SCB_CUS_IDLE &&
+	if ((scb_status & 0x0700) == SCB_CUS_IDLE &&
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
 	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
@@ -884,8 +881,8 @@ wlstart(struct ifnet *ifp)
 	} else {
 	    return;	/* genuinely still busy */
 	}
-    } else if((scb_status & 0x0700) == SCB_CUS_ACTV ||
-	      (cu_status & AC_SW_B)){
+    } else if ((scb_status & 0x0700) == SCB_CUS_ACTV ||
+      (cu_status & AC_SW_B)){
 #ifdef WLDEBUG
 	printf("wl%d: CU unexpectedly busy; scb %04x cu %04x\n",
 	       unit, scb_status, cu_status);
@@ -1175,7 +1172,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	if (ifp->if_flags & IFF_PROMISC) {
 	    mode |= MOD_PROM;
 	}
-	if(ifp->if_flags & IFF_LINK0) {
+	if (ifp->if_flags & IFF_LINK0) {
 	    mode |= MOD_PROM;
 	}
 	/*
@@ -1208,7 +1205,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
   
 	/* if WLDEBUG set on interface, then printf rf-modem regs
 	*/
-	if(ifp->if_flags & IFF_DEBUG)
+	if (ifp->if_flags & IFF_DEBUG)
 	    wlmmcstat(unit);
 	break;
 #if	MULTICAST
@@ -1237,7 +1234,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 
 	if (error == ENETRESET) {
-	    if(sc->flags & DSF_RUNNING) {
+	    if (sc->flags & DSF_RUNNING) {
 		sc->flags &= ~DSF_RUNNING;
 		wlinit(sc);
 	    }
@@ -1286,7 +1283,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* check IRQ value */
 	irqval = fubyte(up+WLPSA_IRQNO);
 	for (irq = 15; irq >= 0; irq--)
-	    if(irqvals[irq] == irqval)
+	    if (irqvals[irq] == irqval)
 		break;
 	if (irq == 0)			/* oops */
 	    break;
@@ -1446,13 +1443,13 @@ int unit;
 	printf("wl%d: wlintr() called\n",unit);
 #endif
 
-    if((int_type = inw(HASR(base))) & HASR_MMC_INTR) {
+    if ((int_type = inw(HASR(base))) & HASR_MMC_INTR) {
 	/* handle interrupt from the modem management controler */
 	/* This will clear the interrupt condition */ 
 	(void) wlmmcread(base,MMC_DCE_STATUS); /* ignored for now */
     }
 
-    if(!(int_type & HASR_INTR)){	/* return if no interrupt from 82586 */
+    if (!(int_type & HASR_INTR)){	/* return if no interrupt from 82586 */
 	/* commented out. jrb.  it happens when reinit occurs
 	   printf("wlintr: int_type %x, dump follows\n", int_type);
 	   wldump(unit);
@@ -1462,7 +1459,7 @@ int unit;
 
     if (gathersnr)
 	getsnr(unit);
-    for(;;) {
+    for (;;) {
 	outw(PIOR0(base), OFFSET_SCB + 0);	/* get scb status */
 	int_type = (inw(PIOP0(base)) & SCB_SW_INT);
 	if (int_type == 0)			/* no interrupts left */
@@ -1650,13 +1647,13 @@ wlrequeue(int unit, u_short fd_p)
     rbd_offset = inw(PIOP0(base));
     if ((f_rbdp = rbd_offset) != I82586NULL) {
 	l_rbdp = f_rbdp;
-	for(;;) {
+	for (;;) {
 	    outw(PIOR0(base), l_rbdp + 0);	/* address of status */
-	    if(inw(PIOP0(base)) & RBD_SW_EOF)
+	    if (inw(PIOP0(base)) & RBD_SW_EOF)
 		break;
 	    outw(PIOP0(base), 0);
 	    outw(PIOR0(base), l_rbdp + 2);	/* next_rbd_offset */
-	    if((l_rbdp = inw(PIOP0(base))) == I82586NULL)
+	    if ((l_rbdp = inw(PIOP0(base))) == I82586NULL)
 		break;
 	}
 	outw(PIOP0(base), 0);
@@ -1867,7 +1864,7 @@ wlbldru(int unit)
     int 	i;
 
     sc->begin_fd = fd_p;
-    for(i = 0; i < N_FD; i++) {
+    for (i = 0; i < N_FD; i++) {
 	fd.status = 0;
 	fd.command = 0;
 	fd.link_offset = fd_p + sizeof(fd_t);
@@ -1886,7 +1883,7 @@ wlbldru(int unit)
     outw(PIOR0(base), fd_p + 6);	/* address of rbd_offset */
     outw(PIOP0(base), rbd_p);
     outw(PIOR1(base), rbd_p);
-    for(i = 0; i < N_RBD; i++) {
+    for (i = 0; i < N_RBD; i++) {
 	rbd.status = 0;
 	rbd.buffer_addr = rbd_p + sizeof(rbd_t) + 2;
 	rbd.buffer_base = 0;
@@ -1970,7 +1967,7 @@ wldiag(int unit)
     outw(PIOR1(base), OFFSET_CU);
     outw(PIOP1(base), 0);			/* ac_status */
     outw(PIOP1(base), AC_DIAGNOSE|AC_CW_EL);/* ac_command */
-    if(wlcmd(unit, "diag()") == 0)
+    if (wlcmd(unit, "diag()") == 0)
 	return 0;
     outw(PIOR0(base), OFFSET_CU);
     if (inw(PIOP0(base)) & 0x0800) {
@@ -2050,13 +2047,12 @@ wlconfig(int unit)
     configure.hardware	     	= 0x0008;	/* tx even w/o CD */
     configure.min_frame_len   	= 0x0040;
 #endif
-    if(sc->mode & (MOD_PROM | MOD_ENAL)) {
+    if (sc->mode & (MOD_PROM | MOD_ENAL))
 	configure.hardware |= 1;
-    }
     outw(PIOR1(base), OFFSET_CU + 6);
     outsw(PIOP1(base), &configure, sizeof(configure_t)/2);
 
-    if(wlcmd(unit, "config()-configure") == 0)
+    if (wlcmd(unit, "config()-configure") == 0)
 	return 0;
 #if	MULTICAST
     outw(PIOR1(base), OFFSET_CU);
@@ -2086,7 +2082,7 @@ wlconfig(int unit)
 	    + enm->enm_addrlo[5];
 	hi = (enm->enm_addrhi[3] << 16) + (enm->enm_addrhi[4] << 8)
 	    + enm->enm_addrhi[5];
-	while(lo <= hi) {
+	while (lo <= hi) {
 	    outw(PIOP1(base),enm->enm_addrlo[0] +
 		 (enm->enm_addrlo[1] << 8));
 	    outw(PIOP1(base),enm->enm_addrlo[2] +
@@ -2111,7 +2107,7 @@ printf("mcast_addr[%d,%d,%d] %x %x %x %x %x %x\n", lo, hi, cnt,
 #endif
     outw(PIOR1(base), OFFSET_CU + 6);		/* mc-cnt */
     outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
-    if(wlcmd(unit, "config()-mcaddress") == 0)
+    if (wlcmd(unit, "config()-mcaddress") == 0)
 	return 0;
 #endif	/* MULTICAST */
 
@@ -2121,7 +2117,7 @@ printf("mcast_addr[%d,%d,%d] %x %x %x %x %x %x\n", lo, hi, cnt,
     outw(PIOR1(base), OFFSET_CU + 6);
     outsw(PIOP1(base), sc->wl_addr, WAVELAN_ADDR_SIZE/2);
 
-    if(wlcmd(unit, "config()-address") == 0)
+    if (wlcmd(unit, "config()-address") == 0)
 	return(0);
 
     wlinitmmc(unit);
@@ -2148,7 +2144,7 @@ wlcmd(int unit, char *str)
     SET_CHAN_ATTN(unit);
     
     outw(PIOR0(base), OFFSET_CU);
-    for(i = 0; i < 0xffff; i++)
+    for (i = 0; i < 0xffff; i++)
 	if (inw(PIOP0(base)) & AC_SW_C)
 	    break;
     if (i == 0xffff || !(inw(PIOP0(base)) & AC_SW_OK)) {
@@ -2192,7 +2188,7 @@ wlack(int unit)
     short base = sc->base;
 
     outw(PIOR1(base), OFFSET_SCB);
-    if(!(cmd = (inw(PIOP1(base)) & SCB_SW_INT)))
+    if (!(cmd = (inw(PIOP1(base)) & SCB_SW_INT)))
 	return(0);
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -2201,7 +2197,8 @@ wlack(int unit)
     outw(PIOP1(base), cmd);
     SET_CHAN_ATTN(unit);
     outw(PIOR0(base), OFFSET_SCB + 2);	/* address of scb_command */
-    for (i = 1000000; inw(PIOP0(base)) && (i-- > 0); );
+    for (i = 1000000; inw(PIOP0(base)) && (i-- > 0); )
+	continue;
     if (i < 1)
 	printf("wl%d wlack(): board not accepting command.\n", unit);
     return(cmd);
@@ -2333,9 +2330,11 @@ wlmmcstat(int unit)
 static u_short
 wlmmcread(u_int base, u_short reg)
 {
-    while(inw(HASR(base)) & HASR_MMC_BUSY) ;
+    while (inw(HASR(base)) & HASR_MMC_BUSY)
+	continue;
     outw(MMCR(base),reg << 1);
-    while(inw(HASR(base)) & HASR_MMC_BUSY) ;
+    while (inw(HASR(base)) & HASR_MMC_BUSY)
+	continue;
     return (u_short)inw(MMCR(base)) >> 8;
 }
 
@@ -2553,7 +2552,7 @@ void wl_cache_store (int unit, int base, struct ether_header *eh,
 	 * . MAC address is 6 bytes,
 	 * . var w_nextcache holds total number of entries already cached
 	 */
-	for(i = 0; i < sc->w_nextcache; i++) {
+	for (i = 0; i < sc->w_nextcache; i++) {
 		if (! bcmp(eh->ether_shost, sc->w_sigcache[i].macsrc,  6 )) {
 			/* Match!,
 			 * so we already have this entry,
