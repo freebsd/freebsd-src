@@ -250,30 +250,18 @@ __asm__("fnsave %0": :"m"(*fdata));
 			    pthread->state == PS_FDW_WAIT ||
 			    pthread->state == PS_SELECT_WAIT) {
 				/* Check if this thread is to wait forever: */
-#if	defined(__FreeBSD__)
-				if (pthread->wakeup_time.ts_sec == -1) {
-#else
 				if (pthread->wakeup_time.tv_sec == -1) {
-#endif
 				}
 				/*
 				 * Check if this thread is to wakeup
 				 * immediately or if it is past its wakeup
 				 * time: 
 				 */
-#if	defined(__FreeBSD__)
-				else if ((pthread->wakeup_time.ts_sec == 0 &&
-					pthread->wakeup_time.ts_nsec == 0) ||
-					 (ts.ts_sec > pthread->wakeup_time.ts_sec) ||
-					 ((ts.ts_sec == pthread->wakeup_time.ts_sec) &&
-					  (ts.ts_nsec >= pthread->wakeup_time.ts_nsec))) {
-#else
 				else if ((pthread->wakeup_time.tv_sec == 0 &&
 					pthread->wakeup_time.tv_nsec == 0) ||
 					 (ts.tv_sec > pthread->wakeup_time.tv_sec) ||
 					 ((ts.tv_sec == pthread->wakeup_time.tv_sec) &&
 					  (ts.tv_nsec >= pthread->wakeup_time.tv_nsec))) {
-#endif
 					/*
 					 * Check if this thread is waiting on
 					 * select: 
@@ -694,37 +682,22 @@ __asm__("fnsave %0": :"m"(*fdata));
 						 * Check if this thread is to
 						 * wait forever: 
 						 */
-#if	defined(__FreeBSD__)
-						if (pthread->wakeup_time.ts_sec == -1) {
-#else
 						if (pthread->wakeup_time.tv_sec == -1) {
-#endif
 						}
 						/*
 						 * Check if this thread is to
 						 * wakeup immediately: 
 						 */
-#if	defined(__FreeBSD__)
-						else if (pthread->wakeup_time.ts_sec == 0 &&
-							 pthread->wakeup_time.ts_nsec == 0) {
-#else
 						else if (pthread->wakeup_time.tv_sec == 0 &&
 							 pthread->wakeup_time.tv_nsec == 0) {
-#endif
 						}
 						/*
 						 * Check if the current time
 						 * is after the wakeup time: 
 						 */
-#if	defined(__FreeBSD__)
-						else if ((ts.ts_sec > pthread->wakeup_time.ts_sec) ||
-							 ((ts.ts_sec == pthread->wakeup_time.ts_sec) &&
-							  (ts.ts_nsec > pthread->wakeup_time.ts_nsec))) {
-#else
 						else if ((ts.tv_sec > pthread->wakeup_time.tv_sec) ||
 							 ((ts.tv_sec == pthread->wakeup_time.tv_sec) &&
 							  (ts.tv_nsec > pthread->wakeup_time.tv_nsec))) {
-#endif
 						} else {
 							/*
 							 * Calculate the time
@@ -733,26 +706,16 @@ __asm__("fnsave %0": :"m"(*fdata));
 							 * for the clock
 							 * resolution: 
 							 */
-#if	defined(__FreeBSD__)
-							ts1.ts_sec = pthread->wakeup_time.ts_sec - ts.ts_sec;
-							ts1.ts_nsec = pthread->wakeup_time.ts_nsec - ts.ts_nsec +
-								CLOCK_RES_NSEC;
-#else
 							ts1.tv_sec = pthread->wakeup_time.tv_sec - ts.tv_sec;
 							ts1.tv_nsec = pthread->wakeup_time.tv_nsec - ts.tv_nsec +
 								CLOCK_RES_NSEC;
-#endif
 
 							/*
 							 * Check for
 							 * underflow of the
 							 * nanosecond field: 
 							 */
-#if	defined(__FreeBSD__)
-							if (ts1.ts_nsec < 0) {
-#else
 							if (ts1.tv_nsec < 0) {
-#endif
 								/*
 								 * Allow for
 								 * the
@@ -761,24 +724,15 @@ __asm__("fnsave %0": :"m"(*fdata));
 								 * nanosecond
 								 * field: 
 								 */
-#if	defined(__FreeBSD__)
-								ts1.ts_sec--;
-								ts1.ts_nsec += 1000000000;
-#else
 								ts1.tv_sec--;
 								ts1.tv_nsec += 1000000000;
-#endif
 							}
 							/*
 							 * Check for overflow
 							 * of the nanosecond
 							 * field: 
 							 */
-#if	defined(__FreeBSD__)
-							if (ts1.ts_nsec >= 1000000000) {
-#else
 							if (ts1.tv_nsec >= 1000000000) {
-#endif
 								/*
 								 * Allow for
 								 * the
@@ -787,13 +741,8 @@ __asm__("fnsave %0": :"m"(*fdata));
 								 * nanosecond
 								 * field: 
 								 */
-#if	defined(__FreeBSD__)
-								ts1.ts_sec++;
-								ts1.ts_nsec -= 1000000000;
-#else
 								ts1.tv_sec++;
 								ts1.tv_nsec -= 1000000000;
-#endif
 							}
 							/*
 							 * Convert the
@@ -1268,20 +1217,11 @@ _thread_kern_select(int wait_reqd)
 		 */
 		if (wait_reqd && settimeout) {
 			/* Check if this thread wants to wait forever: */
-#if	defined(__FreeBSD__)
-			if (pthread->wakeup_time.ts_sec == -1) {
-#else
 			if (pthread->wakeup_time.tv_sec == -1) {
-#endif
 			}
 			/* Check if this thread doesn't want to wait at all: */
-#if	defined(__FreeBSD__)
-			else if (pthread->wakeup_time.ts_sec == 0 &&
-				 pthread->wakeup_time.ts_nsec == 0) {
-#else
 			else if (pthread->wakeup_time.tv_sec == 0 &&
 				 pthread->wakeup_time.tv_nsec == 0) {
-#endif
 				/* Override the caller's request to wait: */
 				wait_reqd = 0;
 			} else {
@@ -1289,57 +1229,33 @@ _thread_kern_select(int wait_reqd)
 				 * Calculate the time until this thread is
 				 * ready, allowing for the clock resolution: 
 				 */
-#if	defined(__FreeBSD__)
-				ts1.ts_sec = pthread->wakeup_time.ts_sec - ts.ts_sec;
-				ts1.ts_nsec = pthread->wakeup_time.ts_nsec - ts.ts_nsec +
-					CLOCK_RES_NSEC;
-#else
 				ts1.tv_sec = pthread->wakeup_time.tv_sec - ts.tv_sec;
 				ts1.tv_nsec = pthread->wakeup_time.tv_nsec - ts.tv_nsec +
 					CLOCK_RES_NSEC;
-#endif
 
 				/*
 				 * Check for underflow of the nanosecond
 				 * field: 
 				 */
-#if	defined(__FreeBSD__)
-				if (ts1.ts_nsec < 0) {
-#else
 				if (ts1.tv_nsec < 0) {
-#endif
 					/*
 					 * Allow for the underflow of the
 					 * nanosecond field: 
 					 */
-#if	defined(__FreeBSD__)
-					ts1.ts_sec--;
-					ts1.ts_nsec += 1000000000;
-#else
 					ts1.tv_sec--;
 					ts1.tv_nsec += 1000000000;
-#endif
 				}
 				/*
 				 * Check for overflow of the nanosecond
 				 * field: 
 				 */
-#if	defined(__FreeBSD__)
-				if (ts1.ts_nsec >= 1000000000) {
-#else
 				if (ts1.tv_nsec >= 1000000000) {
-#endif
 					/*
 					 * Allow for the overflow of the
 					 * nanosecond field: 
 					 */
-#if	defined(__FreeBSD__)
-					ts1.ts_sec++;
-					ts1.ts_nsec -= 1000000000;
-#else
 					ts1.tv_sec++;
 					ts1.tv_nsec -= 1000000000;
-#endif
 				}
 				/*
 				 * Convert the timespec structure to a
@@ -1753,56 +1669,28 @@ _thread_kern_set_timeout(struct timespec * timeout)
 		 * Set the wakeup time to something that can be recognised as
 		 * different to an actual time of day: 
 		 */
-#if	defined(__FreeBSD__)
-		_thread_run->wakeup_time.ts_sec = -1;
-		_thread_run->wakeup_time.ts_nsec = -1;
-#else
 		_thread_run->wakeup_time.tv_sec = -1;
 		_thread_run->wakeup_time.tv_nsec = -1;
-#endif
 	}
 	/* Check if no waiting is required: */
-#if	defined(__FreeBSD__)
-	else if (timeout->ts_sec == 0 && timeout->ts_nsec == 0) {
-#else
 	else if (timeout->tv_sec == 0 && timeout->tv_nsec == 0) {
-#endif
 		/* Set the wake up time to 'immediately': */
-#if	defined(__FreeBSD__)
-		_thread_run->wakeup_time.ts_sec = 0;
-		_thread_run->wakeup_time.ts_nsec = 0;
-#else
 		_thread_run->wakeup_time.tv_sec = 0;
 		_thread_run->wakeup_time.tv_nsec = 0;
-#endif
 	} else {
 		/* Get the current time: */
 		gettimeofday(&tv, NULL);
 		TIMEVAL_TO_TIMESPEC(&tv, &current_time);
 
 		/* Calculate the time for the current thread to wake up: */
-#if	defined(__FreeBSD__)
-		_thread_run->wakeup_time.ts_sec = current_time.ts_sec + timeout->ts_sec;
-		_thread_run->wakeup_time.ts_nsec = current_time.ts_nsec + timeout->ts_nsec;
-#else
 		_thread_run->wakeup_time.tv_sec = current_time.tv_sec + timeout->tv_sec;
 		_thread_run->wakeup_time.tv_nsec = current_time.tv_nsec + timeout->tv_nsec;
-#endif
 
 		/* Check if the nanosecond field needs to wrap: */
-#if	defined(__FreeBSD__)
-		if (_thread_run->wakeup_time.ts_nsec >= 1000000000) {
-#else
 		if (_thread_run->wakeup_time.tv_nsec >= 1000000000) {
-#endif
 			/* Wrap the nanosecond field: */
-#if	defined(__FreeBSD__)
-			_thread_run->wakeup_time.ts_sec += 1;
-			_thread_run->wakeup_time.ts_nsec -= 1000000000;
-#else
 			_thread_run->wakeup_time.tv_sec += 1;
 			_thread_run->wakeup_time.tv_nsec -= 1000000000;
-#endif
 		}
 	}
 	return;
