@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.46 1995/04/16 12:56:22 davidg Exp $
+ * $Id: vm_pageout.c,v 1.47 1995/04/16 14:12:15 davidg Exp $
  */
 
 /*
@@ -526,20 +526,6 @@ vm_pageout_scan()
 	int force_wakeup = 0;
 	int vnodes_skipped = 0;
 
-	/* calculate the total cached size */
-
-	if ((cnt.v_inactive_count + cnt.v_free_count + cnt.v_cache_count) <
-	    (cnt.v_inactive_target + cnt.v_free_min)) {
-		vm_req_vmdaemon();
-	}
-	/*
-	 * now swap processes out if we are in low memory conditions
-	 */
-	if ((cnt.v_free_count <= cnt.v_free_min) &&
-	    !swap_pager_full && vm_swap_size && vm_pageout_req_swapout == 0) {
-		vm_pageout_req_swapout = 1;
-		vm_req_vmdaemon();
-	}
 	pages_freed = 0;
 
 	/*
@@ -750,14 +736,30 @@ rescan1:
 
 	/*
 	 * If we didn't get enough free pages, and we have skipped a vnode
-	 * in a writeable object, wakeup the sync daemon.
+	 * in a writeable object, wakeup the sync daemon.  And kick swapout
+	 * if we did not get enough free pages.
 	 */
-	if (vnodes_skipped &&
-	    (cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_min) {
-		if (!vfs_update_wakeup) {
-			vfs_update_wakeup = 1;
-			wakeup((caddr_t) &vfs_update_wakeup);
+	if ((cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_target) {
+		if (vnodes_skipped &&
+		    (cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_min) {
+			if (!vfs_update_wakeup) {
+				vfs_update_wakeup = 1;
+				wakeup((caddr_t) &vfs_update_wakeup);
+			}
 		}
+		/*
+		 * now swap processes out if we are in low memory conditions
+		 */
+		if (!swap_pager_full && vm_swap_size &&
+			vm_pageout_req_swapout == 0) {
+			vm_pageout_req_swapout = 1;
+			vm_req_vmdaemon();
+		}
+	}
+
+	if ((cnt.v_inactive_count + cnt.v_free_count + cnt.v_cache_count) <
+	    (cnt.v_inactive_target + cnt.v_free_min)) {
+		vm_req_vmdaemon();
 	}
 
 	/*
@@ -883,7 +885,10 @@ vm_daemon()
 
 	while (TRUE) {
 		tsleep((caddr_t) &vm_daemon_needed, PUSER, "psleep", 0);
-		swapout_threads();
+		if( vm_pageout_req_swapout) {
+			swapout_threads();
+			vm_pageout_req_swapout = 0;
+		}
 		/*
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
