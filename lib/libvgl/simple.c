@@ -38,45 +38,41 @@ static byte VGLSavePaletteBlue[256];
 
 #define ABS(a)		(((a)<0) ? -(a) : (a))
 #define SGN(a)		(((a)<0) ? -1 : 1)
-
+#define min(x, y)	(((x) < (y)) ? (x) : (y))
+#define max(x, y)	(((x) > (y)) ? (x) : (y))
 
 void
 VGLSetXY(VGLBitmap *object, int x, int y, byte color)
 {
+  int offset;
+
   VGLCheckSwitch();
-  if (x>=0 && x<object->Xsize && y>=0 && y<object->Ysize) {
+  if (x>=0 && x<object->VXsize && y>=0 && y<object->VYsize) {
     if (!VGLMouseFreeze(x, y, 1, 1, color)) {
       switch (object->Type) {
       case MEMBUF:
       case VIDBUF8:
-        object->Bitmap[y*object->Xsize+x]=(color);
+        object->Bitmap[y*object->VXsize+x]=(color);
         break;
+      case VIDBUF8S:
+	object->Bitmap[VGLSetSegment(y*object->VXsize+x)]=(color);
+	break;
       case VIDBUF8X:
         outb(0x3c4, 0x02);
         outb(0x3c5, 0x01 << (x&0x3));
-	object->Bitmap[(unsigned)(object->Xsize/2*y)+(x/4)] = (color);
+	object->Bitmap[(unsigned)(VGLAdpInfo.va_line_width*y)+(x/4)] = (color);
 	break;
+      case VIDBUF4S:
+	offset = VGLSetSegment(y*VGLAdpInfo.va_line_width + x/8);
+	goto set_planar;
       case VIDBUF4:
-          outb(0x3c4, 0x02); outb(0x3c5, 0x01);
-          outb(0x3ce, 0x04); outb(0x3cf, 0x00);
-	  object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] =
-            ( object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] & ~(0x80>>(x%8)) )
-             |  ((color & 0x01) ? (0x80>>(x%8)) : 0);
-          outb(0x3c4, 0x02); outb(0x3c5, 0x02);
-          outb(0x3ce, 0x04); outb(0x3cf, 0x01);
-	  object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] =
-            ( object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] & ~(0x80>>(x%8)) )
-             |  ((color & 0x02) ? (0x80>>(x%8)) : 0);
-          outb(0x3c4, 0x02); outb(0x3c5, 0x04);
-          outb(0x3ce, 0x04); outb(0x3cf, 0x02);
-	  object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] =
-            ( object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] & ~(0x80>>(x%8)) )
-             |  ((color & 0x04) ? (0x80>>(x%8)) : 0);
-          outb(0x3c4, 0x02); outb(0x3c5, 0x08);
-          outb(0x3ce, 0x04); outb(0x3cf, 0x03);
-	  object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] =
-            ( object->Bitmap[(y*object->Xsize/8+x/8)&0xffff] & ~(0x80>>(x%8)) )
-             |  ((color & 0x08) ? (0x80>>(x%8)) : 0);
+	offset = y*VGLAdpInfo.va_line_width + x/8;
+set_planar:
+        outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
+        outb(0x3ce, 0x00); outb(0x3cf, color & 0x0f);	/* set/reset */
+        outb(0x3ce, 0x01); outb(0x3cf, 0x0f);		/* set/reset enable */
+        outb(0x3ce, 0x08); outb(0x3cf, 0x80 >> (x%8));	/* bit mask */
+	object->Bitmap[offset] |= color;
       }
     }
     VGLMouseUnFreeze();
@@ -86,19 +82,42 @@ VGLSetXY(VGLBitmap *object, int x, int y, byte color)
 byte
 VGLGetXY(VGLBitmap *object, int x, int y)
 {
+  int offset;
+#if 0
+  int i;
+  byte color;
+  byte mask;
+#endif
+
   VGLCheckSwitch();
+  if (x<0 || x>=object->VXsize || y<0 || y>=object->VYsize)
+    return 0;
   switch (object->Type) {
     case MEMBUF:
     case VIDBUF8:
-      return object->Bitmap[((y*object->Xsize)+x)];
-      break;
+      return object->Bitmap[((y*object->VXsize)+x)];
+    case VIDBUF8S:
+      return object->Bitmap[VGLSetSegment(y*object->VXsize+x)];
     case VIDBUF8X:
       outb(0x3ce, 0x04); outb(0x3cf, x & 0x3);
-      return object->Bitmap[(unsigned)(object->Xsize/2*y)+(x/4)];
-      break;
+      return object->Bitmap[(unsigned)(VGLAdpInfo.va_line_width*y)+(x/4)];
+    case VIDBUF4S:
+      offset = VGLSetSegment(y*VGLAdpInfo.va_line_width + x/8);
+      goto get_planar;
     case VIDBUF4:
-      return (object->Bitmap[((y*object->Xsize/8)+x/8)]&(0x80>>(x%8))) ? 1 : 0;
-      break;
+      offset = y*VGLAdpInfo.va_line_width + x/8;
+get_planar:
+#if 1
+      return (object->Bitmap[offset]&(0x80>>(x%8))) ? 1 : 0;	/* XXX */
+#else
+      color = 0;
+      mask = 0x80 >> (x%8);
+      for (i = 0; i < VGLModeInfo.vi_planes; i++) {
+	outb(0x3ce, 0x04); outb(0x3cf, i);
+	color |= (object->Bitmap[offset] & mask) ? (1 << i) : 0;
+      }
+      return color;
+#endif
   }
   return 0;
 }
@@ -234,22 +253,49 @@ VGLFilledEllipse(VGLBitmap *object, int xc, int yc, int a, int b, byte color)
 void
 VGLClear(VGLBitmap *object, byte color)
 {
+  int offset;
+  int len;
+
   VGLCheckSwitch();
   VGLMouseFreeze(0, 0, object->Xsize, object->Ysize, color);
   switch (object->Type) {
   case MEMBUF:
   case VIDBUF8:
-    memset(object->Bitmap, color, object->Xsize*object->Ysize);
+    memset(object->Bitmap, color, object->VXsize*object->VYsize);
     break;
+
+  case VIDBUF8S:
+    for (offset = 0; offset < object->VXsize*object->VYsize; ) {
+      VGLSetSegment(offset);
+      len = min(object->VXsize*object->VYsize - offset,
+		VGLAdpInfo.va_window_size);
+      memset(object->Bitmap, color, len);
+      offset += len;
+    }
+    break;
+
   case VIDBUF8X:
     /* XXX works only for Xsize % 4 = 0 */
+    outb(0x3c6, 0xff);
     outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
-    memset(object->Bitmap, color, object->Xsize*object->Ysize/4);
+    memset(object->Bitmap, color, VGLAdpInfo.va_line_width*object->VYsize);
     break;
 
   case VIDBUF4:
+  case VIDBUF4S:
     /* XXX works only for Xsize % 8 = 0 */
-    memset(object->Bitmap, color, object->Xsize/8*object->Ysize);
+    outb(0x3c4, 0x02); outb(0x3c5, 0x0f);
+    outb(0x3ce, 0x05); outb(0x3cf, 0x02);		/* mode 2 */
+    outb(0x3ce, 0x01); outb(0x3cf, 0x00);		/* set/reset enable */
+    outb(0x3ce, 0x08); outb(0x3cf, 0xff);		/* bit mask */
+    for (offset = 0; offset < VGLAdpInfo.va_line_width*object->VYsize; ) {
+      VGLSetSegment(offset);
+      len = min(object->VXsize*object->VYsize - offset,
+		VGLAdpInfo.va_window_size);
+      memset(object->Bitmap, color, len);
+      offset += len;
+    }
+    outb(0x3ce, 0x05); outb(0x3cf, 0x00);
     break;
   }
   VGLMouseUnFreeze();

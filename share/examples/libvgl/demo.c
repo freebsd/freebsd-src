@@ -36,7 +36,7 @@ int
 main(int argc, char **argv)
 {
   int x, y, xsize, ysize, i,j;
-  VGLBitmap tmp;
+  VGLBitmap *tmp;
 
   // set graphics mode, here 320x240 256 colors
   // supported modes are (from <machine/console.h>):
@@ -53,9 +53,10 @@ main(int argc, char **argv)
   xsize=VGLDisplay->Xsize;
   ysize=VGLDisplay->Ysize;
 
-  // alloc a new bitmap (there should be a function for this)
-  tmp.Type = MEMBUF; tmp.Bitmap = (char*)malloc(256*256);
-  tmp.Xsize = 256; tmp.Ysize = 256;
+  // alloc a new bitmap
+  tmp = VGLBitmapCreate(MEMBUF, 256, 256, NULL);
+  VGLBitmapAllocateBits(tmp);
+  VGLClear(tmp, 0);
 
   // fill the screen with colored lines
   for (y=0; y<ysize; y++) 
@@ -86,15 +87,15 @@ main(int argc, char **argv)
   // now show some simple bitblit 
   for (i=0; i<256; i++)
     for (j=0; j<256; j++)
-      tmp.Bitmap[i+256*j] = i%16;
-  VGLBitmapCopy(&tmp, 0, 0, VGLDisplay, 0, 0, 128, 128);
+      tmp->Bitmap[i+256*j] = i%16;
+  VGLBitmapCopy(tmp, 0, 0, VGLDisplay, 0, 0, 128, 128);
   for (i=0; i<256; i++)
     for (j=0; j<256; j++)
-      tmp.Bitmap[i+256*j] = j%16;
-  VGLBitmapCopy(&tmp, 0, 0, VGLDisplay, 3, 128, 128, 128);
+      tmp->Bitmap[i+256*j] = j%16;
+  VGLBitmapCopy(tmp, 0, 0, VGLDisplay, 3, 128, 128, 128);
   sleep(2);
-  VGLBitmapCopy(VGLDisplay, 237, 311, &tmp, 64, 64, 128, 128);
-  VGLBitmapCopy(&tmp, 32, 32, VGLDisplay, 400, 128, 128, 128);
+  VGLBitmapCopy(VGLDisplay, 237, 311, tmp, 64, 64, 128, 128);
+  VGLBitmapCopy(tmp, 32, 32, VGLDisplay, 400, 128, 128, 128);
   sleep(2);
   VGLBitmapCopy(VGLDisplay, 300, 300, VGLDisplay, 500, 128, 128, 128);
   sleep(5);
