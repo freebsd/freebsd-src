@@ -1129,11 +1129,11 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * The other pages in our m[] array are also released on completion,
 	 * so we cannot assume they are valid anymore either.
 	 *
-	 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+	 * NOTE: b_blkno is destroyed by the call to swstrategy()
 	 */
 
 	BUF_KERNPROC(bp);
-	VOP_STRATEGY(bp->b_vp, bp);
+	swstrategy(bp);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1186,7 +1186,7 @@ swap_pager_getpages(object, m, count, reqpage)
  *	We support both OBJT_DEFAULT and OBJT_SWAP objects.  DEFAULT objects
  *	are automatically converted to SWAP objects.
  *
- *	In a low memory situation we may block in VOP_STRATEGY(), but the new 
+ *	In a low memory situation we may block in swstrategy(), but the new 
  *	vm_page reservation system coupled with properly written VFS devices 
  *	should ensure that no low-memory deadlock occurs.  This is an area
  *	which needs work.
@@ -1380,13 +1380,13 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		/*
 		 * asynchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+		 * NOTE: b_blkno is destroyed by the call to swstrategy()
 		 */
 
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
-			VOP_STRATEGY(bp->b_vp, bp);
+			swstrategy(bp);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
@@ -1396,11 +1396,11 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		/*
 		 * synchronous
 		 *
-		 * NOTE: b_blkno is destroyed by the call to VOP_STRATEGY
+		 * NOTE: b_blkno is destroyed by the call to swstrategy()
 		 */
 
 		bp->b_iodone = swp_pager_sync_iodone;
-		VOP_STRATEGY(bp->b_vp, bp);
+		swstrategy(bp);
 
 		/*
 		 * Wait for the sync I/O to complete, then update rtvals.
