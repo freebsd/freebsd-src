@@ -2083,7 +2083,7 @@
     <title>Miscellaneous Networks</title>
 
     <para arch="i386">Granch SBNI12 point-to-point communications
-    adapters (sbni driver)
+    adapters (&man.sbni.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>SBNI12-XX and SBNI12D-XX ISA and PCI</para>
