@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.27 1995/12/17 21:22:57 phk Exp $
+ * $Id: if_ze.c,v 1.28 1996/01/26 09:27:33 phk Exp $
  */
 
 #include "ze.h"
@@ -126,8 +126,6 @@ static struct	ze_softc {
 	caddr_t	smem_end;	/* shared memory end address */
 	u_long	smem_size;	/* total shared memory size */
 	caddr_t	smem_ring;	/* start of RX ring-buffer (in smem) */
-
-	caddr_t	bpf;		/* BPF "magic cookie" */
 
 	u_char	memwidth;	/* width of access to card mem 8 or 16 */
 	u_char	xmit_busy;	/* transmitter is busy */
@@ -619,6 +617,7 @@ ze_attach(isa_dev)
 	/*
 	 * Initialize ifnet structure
 	 */
+	ifp->if_softc = sc;
 	ifp->if_unit = isa_dev->id_unit;
 	ifp->if_name = "ze" ;
 	ifp->if_mtu = ETHERMTU;
@@ -633,29 +632,7 @@ ze_attach(isa_dev)
 	 * Attach the interface
 	 */
 	if_attach(ifp);
-
-	/*
-	 * Search down the ifa address list looking for the AF_LINK type entry
-	 */
- 	ifa = ifp->if_addrlist;
-	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	    (ifa->ifa_addr->sa_family != AF_LINK))
-		ifa = ifa->ifa_next;
-	/*
-	 * If we find an AF_LINK type entry we fill in the hardware address.
-	 *	This is useful for netstat(1) to keep track of which interface
-	 *	is which.
-	 */
-	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-		/*
-		 * Fill in the link-level address for this interface
-		 */
-		sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDR_LEN;
-		sdl->sdl_slen = 0;
-		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-	}
+	ether_ifattach(ifp);
 
 	/*
 	 * Print additional info when attached
@@ -670,7 +647,7 @@ ze_attach(isa_dev)
 	 * If BPF is in the kernel, call the attach for it
 	 */
 #if NBPFILTER > 0
-	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
 #if NAPM > 0
@@ -929,7 +906,7 @@ static inline void
 ze_xmit(ifp)
 	struct ifnet *ifp;
 {
-	struct ze_softc *sc = &ze_softc[ifp->if_unit];
+	struct ze_softc *sc = ifp->if_softc;
 	u_short len = sc->txb_next_len;
 
 	/*
@@ -984,7 +961,7 @@ static void
 ze_start(ifp)
 	struct ifnet *ifp;
 {
-	struct ze_softc *sc = &ze_softc[ifp->if_unit];
+	struct ze_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
 	caddr_t buffer;
 	int len;
@@ -1055,8 +1032,8 @@ outloop:
 	 * If there is BPF support in the configuration, tap off here.
 	 */
 #if NBPFILTER > 0
-	if (sc->bpf) {
-		bpf_mtap(sc->bpf, m0);
+	if (ifp->if_bpf) {
+		bpf_mtap(ifp, m0);
 	}
 #endif
 
@@ -1344,7 +1321,7 @@ ze_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
-	struct ze_softc *sc = &ze_softc[ifp->if_unit];
+	struct ze_softc *sc = ifp->if_softc;
 	int s, error = 0;
 
 	s = splnet();
@@ -1535,8 +1512,8 @@ ze_get_packet(sc, buf, len)
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf.
 	 */
-	if (sc->bpf) {
-		bpf_mtap(sc->bpf, head);
+	if (sc->arpcom.ac_if.if_bpf) {
+		bpf_mtap(&sc->arpcom.ac_if, head);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.25 1995/12/20 21:53:38 wollman Exp $
+ * $Id: if.c,v 1.26 1996/01/24 21:08:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/radix.h>
-#include <ether.h>
 
 /*
  * System initialization
@@ -161,11 +160,6 @@ if_attach(ifp)
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
 	}
-	/* XXX -- Temporary fix before changing 10 ethernet drivers */
-#if NETHER > 0
-	if (ifp->if_output == ether_output)
-		ether_ifattach(ifp);
-#endif
 }
 /*
  * Locate an interface based on a complete address.

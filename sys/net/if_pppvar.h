@@ -1,5 +1,5 @@
 /*	from Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp	*/
-/*	$Id: if_pppvar.h,v 1.2 1995/10/31 20:24:11 peter Exp $	*/
+/*	$Id: if_pppvar.h,v 1.3 1996/01/30 22:57:49 mpp Exp $	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *
@@ -73,7 +73,6 @@ struct ppp_softc {
 #endif
 	u_int	sc_bytessent;		/* count of octets sent */
 	u_int	sc_bytesrcvd;		/* count of octets received */
-	caddr_t	sc_bpf;			/* hook for BPF */
 	enum	NPmode sc_npmode[NUM_NP]; /* what to do with each NP */
 	struct	compressor *sc_xcomp;	/* transmit compressor */
 	void	*sc_xc_state;		/* transmit compressor state */

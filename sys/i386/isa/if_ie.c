@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.31 1995/12/10 13:38:45 phk Exp $
+ *	$Id: if_ie.c,v 1.32 1996/01/26 09:27:26 phk Exp $
  */
 
 /*
@@ -303,11 +303,6 @@ static struct ie_softc {
 
   struct ie_en_addr mcast_addrs[MAXMCAST + 1];
   int mcast_count;
-
-#if NBPFILTER > 0
-  caddr_t ie_bpf;
-#endif
-
 } ie_softc[NIE];
 
 #define MK_24(base, ptr) ((caddr_t)((u_long)ptr - (u_long)base))
@@ -579,12 +574,13 @@ ieattach(dvp)
   struct ie_softc *ie = &ie_softc[unit];
   struct ifnet *ifp = &ie->arpcom.ac_if;
 
+  ifp->if_softc = ie;
   ifp->if_unit = unit;
   ifp->if_name = iedriver.name;
   ifp->if_mtu = ETHERMTU;
   printf(" <%s R%d> ethernet address %6D\n",
-	 ie_hardware_names[ie_softc[unit].hard_type],
-	 ie_softc[unit].hard_vers + 1,
+	 ie_hardware_names[ie->hard_type],
+	 ie->hard_vers + 1,
 	 ie->arpcom.ac_enaddr, ":");
 
   ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -596,29 +592,13 @@ ieattach(dvp)
   ifp->if_hdrlen = 14;
 
 #if NBPFILTER > 0
-  bpfattach(&ie_softc[unit].ie_bpf, ifp, DLT_EN10MB,
-	    sizeof(struct ether_header));
+  bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
   if_attach(ifp);
+  ether_ifattach(ifp);
   kdc_ie[unit].kdc_description = ie_hardware_names[ie_softc[unit].hard_type];
-
-  {
-    struct ifaddr *ifa = ifp->if_addrlist;
-    struct sockaddr_dl *sdl;
-    while(ifa && ifa->ifa_addr && ifa->ifa_addr->sa_family != AF_LINK)
-      ifa = ifa->ifa_next;
-
-    if(!ifa || !ifa->ifa_addr) return 1;
-
-    /* Provide our ether address to the higher layers */
-    sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-    sdl->sdl_type = IFT_ETHER;
-    sdl->sdl_alen = 6;
-    sdl->sdl_slen = 0;
-    bcopy(ie->arpcom.ac_enaddr, LLADDR(sdl), 6);
-    return 1;
-  }
+  return 1;
 }
 
 /*
@@ -857,7 +837,7 @@ static inline int check_eh(struct ie_softc *ie,
      * Receiving all multicasts, but no unicasts except those destined for us.
      */
 #if NBPFILTER > 0
-    *to_bpf = (ie->ie_bpf != 0); /* BPF gets this packet if anybody cares */
+    *to_bpf = (ie->arpcom.ac_if.if_bpf != 0); /* BPF gets this packet if anybody cares */
 #endif
     if(eh->ether_dhost[0] & 1) {
       return 1;
@@ -870,7 +850,7 @@ static inline int check_eh(struct ie_softc *ie,
      * Receiving all packets.  These need to be passed on to BPF.
      */
 #if NBPFILTER > 0
-    *to_bpf = (ie->ie_bpf != 0);
+    *to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
     /* If for us, accept and hand up to BPF */
     if(ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr)) return 1;
@@ -904,7 +884,7 @@ static inline int check_eh(struct ie_softc *ie,
      * Whew!  (Hope this is a fast machine...)
      */
 #if NBPFILTER > 0
-    *to_bpf = (ie->ie_bpf != 0);
+    *to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
     /* We want to see multicasts. */
     if(eh->ether_dhost[0] & 1) return 1;
@@ -928,7 +908,7 @@ static inline int check_eh(struct ie_softc *ie,
      * as quickly as possible.
      */
 #if NBPFILTER > 0
-    *to_bpf = (ie->ie_bpf != 0);
+    *to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
 #endif
     return 1;
   }
@@ -1221,7 +1201,7 @@ static void ie_readframe(unit, ie, num)
     m0.m_next = m;
 
     /* Pass it up */
-    bpf_mtap(ie->ie_bpf, &m0);
+    bpf_mtap(&ie->arpcom.ac_if, &m0);
   }
   /*
    * A signal passed up from the filtering code indicating that the
@@ -1283,7 +1263,7 @@ static void
 iestart(ifp)
 	struct ifnet *ifp;
 {
-  struct ie_softc *ie = &ie_softc[ifp->if_unit];
+  struct ie_softc *ie = ifp->if_softc;
   struct mbuf *m0, *m;
   unsigned char *buffer;
   u_short len;
@@ -1317,8 +1297,8 @@ iestart(ifp)
      * See if bpf is listening on this interface, let it see the packet
      * before we commit it to the wire.
      */
-    if(ie->ie_bpf)
-      bpf_tap(ie->ie_bpf, ie->xmit_cbuffs[ie->xmit_count], len);
+    if(ie->arpcom.ac_if.if_bpf)
+      bpf_tap(&ie->arpcom.ac_if, ie->xmit_cbuffs[ie->xmit_count], len);
 #endif
 
     ie->xmit_buffs[ie->xmit_count]->ie_xmit_flags = IE_XMIT_LAST | len;
@@ -1883,7 +1863,7 @@ ieioctl(ifp, command, data)
 	caddr_t data;
 {
   struct ifaddr *ifa = (struct ifaddr *)data;
-  struct ie_softc *ie = &ie_softc[ifp->if_unit];
+  struct ie_softc *ie = ifp->if_softc;
   struct ifreq *ifr = (struct ifreq *) data;
   int s, error = 0;
 

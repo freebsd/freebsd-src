@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.10 1995/12/15 00:54:09 bde Exp $
+ * $Id: if_eg.c,v 1.11 1996/01/26 09:27:17 phk Exp $
  */
 
 /* To do:
@@ -423,6 +423,7 @@ egattach (struct isa_device *id)
 	}
 
 	/* Initialize ifnet structure. */
+	ifp->if_softc = sc;
 	ifp->if_unit = id->id_unit;
 	ifp->if_name = "eg";
 	ifp->if_output = ether_output;
@@ -432,13 +433,14 @@ egattach (struct isa_device *id)
 
 	/* Now we can attach the interface. */
 	if_attach(ifp);
+	ether_ifattach(ifp);
 
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 	sc->kdc.kdc_state = DC_IDLE;
 
 
 #if NBPFILTER > 0
-	bpfattach(&ifp->if_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
 	return 1;
@@ -519,7 +521,7 @@ static void
 egstart(ifp)
 	struct ifnet *ifp;
 {
-	register struct eg_softc *sc = &eg_softc[ifp->if_unit];
+	register struct eg_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
 	int len;
 	short *ptr;
@@ -552,7 +554,7 @@ egstart(ifp)
 	}
 #if NBPFILTER > 0
 	if (sc->sc_arpcom.ac_if.if_bpf)
-		bpf_mtap(sc->sc_arpcom.ac_if.if_bpf, m0);
+		bpf_mtap(&sc->sc_arpcom.ac_if, m0);
 #endif
 	m_freem(m0);
 
@@ -684,7 +686,7 @@ egread(sc, buf, len)
 	 * If so, hand off the raw packet to BPF.
 	 */
 	if (ifp->if_bpf) {
-		bpf_mtap(ifp->if_bpf, m);
+		bpf_mtap(ifp, m);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
@@ -716,7 +718,7 @@ egioctl(ifp, command, data)
 	int command;
 	caddr_t data;
 {
-	struct eg_softc *sc = &eg_softc[ifp->if_unit];
+	struct eg_softc *sc = ifp->if_softc;
 	register struct ifaddr *ifa = (struct ifaddr *)data;
 	int s, error = 0;
 

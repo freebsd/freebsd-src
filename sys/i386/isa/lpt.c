@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.47 1995/12/08 23:20:32 phk Exp $
+ *	$Id: lpt.c,v 1.48 1995/12/10 13:38:56 phk Exp $
  */
 
 /*
@@ -873,6 +873,7 @@ lpattach (struct lpt_softc *sc, int unit)
 {
 	struct ifnet *ifp = &sc->sc_if;
 
+	ifp->if_softc = sc;
 	ifp->if_name = "lp";
 	ifp->if_unit = unit;
 	ifp->if_mtu = LPMTU;
@@ -887,7 +888,7 @@ lpattach (struct lpt_softc *sc, int unit)
 	printf("lp%d: TCP/IP capable interface\n", unit);
 
 #if NBPFILTER > 0
-	bpfattach(&ifp->if_bpf, ifp, DLT_NULL, LPIPHDRLEN);
+	bpfattach(ifp, DLT_NULL, LPIPHDRLEN);
 #endif
 }
 /*
@@ -1154,7 +1155,7 @@ lpintr (int unit)
 	    }
 #if NBPFILTER > 0
 	    if (sc->sc_if.if_bpf) {
-		bpf_tap(sc->sc_if.if_bpf, sc->sc_ifbuf, len);
+		bpf_tap(&sc->sc_if, sc->sc_ifbuf, len);
 	    }
 #endif
 	    len -= LPIPHDRLEN;
@@ -1356,7 +1357,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	    m0.m_len = 2;
 	    m0.m_data = (char *)&hdr;
 
-	    bpf_mtap(ifp->if_bpf, &m0);
+	    bpf_mtap(ifp, &m0);
 	}
 #endif
     }

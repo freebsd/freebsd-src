@@ -253,6 +253,7 @@ vx_pci_attach(
  	printf("Warning! Defective early revision adapter!\n");
     }
 
+    ifp->if_softc = sc;
     ifp->if_unit = unit;
     ifp->if_name = "vx";
     ifp->if_mtu = ETHERMTU;
@@ -263,24 +264,8 @@ vx_pci_attach(
     ifp->if_watchdog = vxwatchdog;
 
     if_attach(ifp);
+    ether_ifattach(ifp);
 
-    /*
-     * Fill the hardware address into ifa_addr if we find an AF_LINK entry.
-     * We need to do this so bpf's can get the hardware addr of this card.
-     * netstat likes this too!
-     */
-    ifa = ifp->if_addrlist;
-    while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	   (ifa->ifa_addr->sa_family != AF_LINK))
-	ifa = ifa->ifa_next;
-
-    if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-	sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = ETHER_ADDR_LEN;
-	sdl->sdl_slen = 0;
-	bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-    }
     /* we give some initial parameters */
     sc->rx_avg_pkt = 128;
 
@@ -307,7 +292,7 @@ vx_pci_attach(
     sc->top = sc->mcur = 0;
 
 #if NBPFILTER > 0
-    bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
+    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
    pci_map_int(config_id, (void *) vxintr, (void *) unit, &net_imask);
@@ -487,7 +472,7 @@ static void
 vxstart(ifp)
     struct ifnet *ifp;
 {
-    register struct vx_softc *sc = &vx_softc[ifp->if_unit];
+    register struct vx_softc *sc = ifp->if_softc;
     register u_int len;
     register struct mbuf *m;
     struct mbuf *top;
@@ -570,8 +555,8 @@ startagain:
 	outb(BASE + VX_W1_TX_PIO_WR_1, 0);	/* Padding */
 
 #if NBPFILTER > 0
-    if (sc->bpf) {
-	bpf_mtap(sc->bpf, top);
+    if (sc->arpcom.ac_if.if_bpf) {
+	bpf_mtap(&sc->arpcom.ac_if, top);
     }
 #endif
 
@@ -888,8 +873,8 @@ all_pkt:
     top->m_pkthdr.len = sc->cur_len;
 
 #if NBPFILTER > 0
-    if (sc->bpf) {
-	bpf_mtap(sc->bpf, top);
+    if (sc->arpcom.ac_if.if_bpf) {
+	bpf_mtap(&sc->arpcom.ac_if, top);
 
 	/*
 	 * Note that the interface cannot be in promiscuous mode if there are
@@ -958,7 +943,7 @@ vxioctl(ifp, cmd, data)
     caddr_t data;
 {
     register struct ifaddr *ifa = (struct ifaddr *) data;
-    struct vx_softc *sc = &vx_softc[ifp->if_unit];
+    struct vx_softc *sc = ifp->if_softc;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
