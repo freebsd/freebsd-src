@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.81 1996/07/08 02:25:53 dyson Exp $
+ * $Id: vm_pageout.c,v 1.83 1996/07/27 03:24:08 dyson Exp $
  */
 
 /*
@@ -314,9 +314,12 @@ do_backward:
 		}
 	}
 
+	/*
+	 * we allow reads during pageouts...
+	 */
 	for (i = page_base; i < (page_base + pageout_count); i++) {
 		mc[i]->flags |= PG_BUSY;
-		vm_page_protect(mc[i], VM_PROT_NONE);
+		vm_page_protect(mc[i], VM_PROT_READ);
 	}
 
 	return vm_pageout_flush(&mc[page_base], pageout_count, sync);
@@ -356,7 +359,7 @@ vm_pageout_flush(mc, count, sync)
 			 * essentially lose the changes by pretending it
 			 * worked.
 			 */
-			pmap_tc_modified(mt);
+			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
 			mt->dirty = 0;
 			break;
 		case VM_PAGER_ERROR:
@@ -443,7 +446,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 				continue;
 			}
 
-			refcount = pmap_tc_referenced(VM_PAGE_TO_PHYS(p));
+			refcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
 			if (refcount) {
 				p->flags |= PG_REFERENCED;
 			} else if (p->flags & PG_REFERENCED) {
@@ -583,7 +586,7 @@ vm_pageout_scan()
 
 	maxlaunder = (cnt.v_inactive_target > MAXLAUNDER) ?
 	    MAXLAUNDER : cnt.v_inactive_target;
-
+rescan0:
 	maxscan = cnt.v_inactive_count;
 	for( m = TAILQ_FIRST(&vm_page_queue_inactive);
 
@@ -596,7 +599,7 @@ vm_pageout_scan()
 		cnt.v_pdpages++;
 
 		if (m->queue != PQ_INACTIVE) {
-			break;
+			goto rescan0;
 		}
 
 		next = TAILQ_NEXT(m, pageq);
@@ -618,33 +621,32 @@ vm_pageout_scan()
 			continue;
 		}
 
-		if (m->valid != 0) {
-			if (m->object->ref_count == 0) {
-				m->flags &= ~PG_REFERENCED;
-				pmap_tc_referenced(VM_PAGE_TO_PHYS(m));
-			} else if (((m->flags & PG_REFERENCED) == 0) &&
-				pmap_tc_referenced(VM_PAGE_TO_PHYS(m))) {
-				vm_page_activate(m);
-				continue;
-			}
+		if (m->object->ref_count == 0) {
+			m->flags &= ~PG_REFERENCED;
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+		} else if (((m->flags & PG_REFERENCED) == 0) &&
+			pmap_ts_referenced(VM_PAGE_TO_PHYS(m))) {
+			vm_page_activate(m);
+			continue;
+		}
 
-			if ((m->flags & PG_REFERENCED) != 0) {
-				m->flags &= ~PG_REFERENCED;
-				pmap_tc_referenced(VM_PAGE_TO_PHYS(m));
-				vm_page_activate(m);
-				continue;
-			}
-			if (m->dirty == 0) {
-				vm_page_test_dirty(m);
-			} else if (m->dirty != 0) {
-				m->dirty = VM_PAGE_BITS_ALL;
-			}
-		} 
+		if ((m->flags & PG_REFERENCED) != 0) {
+			m->flags &= ~PG_REFERENCED;
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+			vm_page_activate(m);
+			continue;
+		}
+
+		if (m->dirty == 0) {
+			vm_page_test_dirty(m);
+		} else if (m->dirty != 0) {
+			m->dirty = VM_PAGE_BITS_ALL;
+		}
 
 		if (m->valid == 0) {
 			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_free(m);
-			++cnt.v_dfree;
+			cnt.v_dfree++;
 			++pages_freed;
 		} else if (m->dirty == 0) {
 			vm_page_cache(m);
@@ -786,7 +788,7 @@ vm_pageout_scan()
 			if (m->flags & PG_REFERENCED) {
 				refcount += 1;
 			}
-			refcount += pmap_tc_referenced(VM_PAGE_TO_PHYS(m));
+			refcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
 			if (refcount) {
 				m->act_count += ACT_ADVANCE + refcount;
 				if (m->act_count > ACT_MAX)
