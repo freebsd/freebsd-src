@@ -356,6 +356,13 @@ struct sis_ring_data {
 #define SIS_DEVICEID_7016	0x7016
 
 /*
+ * SiS 900 PCI revision codes.
+ */
+#define SIS_REV_630E		0x0081
+#define SIS_REV_630S		0x0082
+#define SIS_REV_630EA1		0x0083
+
+/*
  * NatSemi vendor ID
  */
 #define NS_VENDORID		0x100B
