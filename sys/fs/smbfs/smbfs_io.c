@@ -46,6 +46,7 @@
 #include <sys/dirent.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #if __FreeBSD_version < 400000
@@ -444,6 +445,8 @@ smbfs_getpages(ap)
 	npages = btoc(count);
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
+	cnt.v_vnodein++;
+	cnt.v_vnodepgsin += count;
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
@@ -484,7 +487,7 @@ smbfs_getpages(ap)
 
 		if (nextoff <= size) {
 			m->valid = VM_PAGE_BITS_ALL;
-			m->dirty = 0;
+			vm_page_undirty(m);
 		} else {
 			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
 			vm_page_set_validclean(m, 0, nvalid);
@@ -580,6 +583,8 @@ smbfs_putpages(ap)
 #endif
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
+	cnt.v_vnodeout++;
+	cnt.v_vnodepgsout += count;
 
 	iov.iov_base = (caddr_t) kva;
 	iov.iov_len = count;
@@ -608,7 +613,7 @@ smbfs_putpages(ap)
 		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
 		for (i = 0; i < nwritten; i++) {
 			rtvals[i] = VM_PAGER_OK;
-			pages[i]->dirty = 0;
+			vm_page_undirty(pages[i]);
 		}
 	}
 	return rtvals[0];
