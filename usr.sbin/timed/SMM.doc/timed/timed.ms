@@ -1,3 +1,5 @@
+.\" $FreeBSD$
+.\"
 .\" Copyright (c) 1986, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -180,7 +182,6 @@ one of three states: slave, master, or candidate for election to master.
 Also, the term \fIbroadcast\fP refers to
 the sending of a message to all active time daemons.
 .sp 1
-.DS L
 .SH
 Adjtime Message
 .so time
@@ -196,8 +197,6 @@ The slave will accordingly
 adjust the time of its machine.
 This message requires an acknowledgment.
 .sp 1
-.DE
-.DS L
 .SH
 Acknowledgment Message
 .so unused
@@ -210,8 +209,6 @@ acknowledgment only.
 It is used in several different contexts, for example
 in reply to an Adjtime message.
 .sp 1
-.DE
-.DS L
 .SH
 Master Request Message
 .so unused
@@ -223,8 +220,6 @@ A newly-started time daemon broadcasts this message to
 locate a master.  No other action is implied by this packet.
 It requires a Master Acknowledgment.
 .sp 1
-.DE
-.DS L
 .SH
 Master Acknowledgement
 .so unused
@@ -235,8 +230,6 @@ Type: TSP_MASTERACK (4)
 The master sends this message to acknowledge the Master Request message
 and the Conflict Resolution Message.
 .sp 1
-.DE
-.DS L
 .SH
 Set Network Time Message
 .so date
@@ -253,8 +246,6 @@ The next
 synchronization round will eliminate the small time difference
 caused by the random delay in the communication channel.
 .sp 1
-.DE
-.DS L
 .SH
 Master Active Message
 .so unused
@@ -266,8 +257,6 @@ The master broadcasts this message to
 solicit the names of the active slaves.
 Slaves will reply with a Slave Active message.
 .sp 1
-.DE
-.DS L
 .SH
 Slave Active Message
 .so unused
@@ -279,8 +268,6 @@ A slave sends this message to the master in answer to a Master Active message.
 This message is also sent when a new slave starts up to inform the master that
 it wants to be synchronized.
 .sp 1
-.DE
-.DS L
 .SH
 Master Candidature Message
 .so unused
@@ -292,8 +279,6 @@ A slave eligible to become a master broadcasts this message when its election
 timer expires.
 The message declares that the slave wishes to become the new master.
 .sp 1
-.DE
-.DS L
 .SH
 Candidature Acceptance Message
 .so unused
@@ -306,8 +291,6 @@ that has broadcast an Election message.
 The candidate will add the slave's name to the list of machines that it
 will control should it become the master.
 .sp 1
-.DE
-.DS L
 .SH
 Candidature Rejection Message
 .so unused
@@ -320,8 +303,6 @@ to any election messages from other slaves
 with this message.
 This rejects any candidature other than the first received.
 .sp 1
-.DE
-.DS L
 .SH
 Multiple Master Notification Message
 .so unused
@@ -332,8 +313,6 @@ Type: TSP_CONFLICT (11)
 When two or more masters reply to a Master Request message, the slave
 uses this message to inform one of them that more than one master exists.
 .sp 1
-.DE
-.DS L
 .SH
 Conflict Resolution Message 
 .so unused
@@ -344,8 +323,6 @@ Type: TSP_RESOLVE (12)
 A master which has been informed of the existence of other masters
 broadcasts this message to determine who the other masters are.
 .sp 1
-.DE
-.DS L
 .SH
 Quit Message
 .so unused
@@ -360,8 +337,6 @@ This message is sent by the master in three different contexts:
 In all cases, the recipient time daemon will become a slave.
 This message requires an acknowledgement.
 .sp 1
-.DE
-.DS L
 .SH
 Set Date Message
 .so date
@@ -374,8 +349,6 @@ when a super-user wants to set the network date.
 If the local time daemon is the master, it will set the date;
 if it is a slave, it will communicate the desired date to the master.
 .sp 1
-.DE
-.DS L
 .SH
 Set Date Request Message
 .so date
@@ -386,8 +359,6 @@ Type: TSP_SETDATEREQ (23)
 A slave that has received a Set Date message will communicate the
 desired date to the master using this message.
 .sp 1
-.DE
-.DS L
 .SH
 Set Date Acknowledgment Message
 .so unused
@@ -401,8 +372,6 @@ The same message is sent by the local time daemon to the program
 \fIdate(1)\fP to confirm that the network date has been set by the
 master.
 .sp 1
-.DE
-.DS L
 .SH
 Start Tracing Message
 .so unused
@@ -414,8 +383,6 @@ The controlling program \fItimedc\fP sends this message to the local
 time daemon to start the recording in a system file of
 all messages received.
 .sp 1
-.DE
-.DS L
 .SH
 Stop Tracing Message
 .so unused
@@ -427,8 +394,6 @@ Type: TSP_TRACEOFF (18)
 time daemon to stop the recording of
 messages received.
 .sp 1
-.DE
-.DS L
 .SH
 Master Site Message
 .so unused
@@ -439,8 +404,6 @@ Type: TSP_MSITE (19)
 \fITimedc\fP sends this message to the local time daemon to find out
 where the master is running.
 .sp 1
-.DE
-.DS L
 .SH
 Remote Master Site Message
 .so unused
@@ -453,8 +416,6 @@ of the master.
 It then uses the Acknowledgement message to 
 communicate this location to \fItimedc\fP.
 .sp 1
-.DE
-.DS L
 .SH
 Test Message
 .so unused
@@ -466,9 +427,7 @@ For testing purposes, \fItimedc\fP sends this message to a slave
 to cause its election timer to expire.  NOTE: \fItimed\fP
 is not normally compiled to support this.
 .sp 1
-.DE
 .SH
-.DS L
 .SH
 Loop Detection Message
 .so loop
@@ -480,7 +439,6 @@ This packet is initiated by all masters occasionally to attempt to detect loops.
 All submasters forward this packet onto the networks over which they are master.
 If a master receives a packet it sent out initially,
 it knows that a loop exists and tries to correct the problem.
-.DE
 .SH
 References
 .IP 1.
