@@ -1,4 +1,4 @@
-KPASSWD(1)              FreeBSD General Commands Manual             KPASSWD(1)
+KPASSWD(1)                  NetBSD Reference Manual                 KPASSWD(1)
 
 NNAAMMEE
      kkppaasssswwdd - Kerberos 5 password changing program
@@ -16,4 +16,4 @@ DDIIAAGGNNOOSSTTIICCSS
 SSEEEE AALLSSOO
      kpasswdd(8)
 
-HEIMDAL                         August 27, 1997                        HEIMDAL
+ HEIMDAL                        August 27, 1997                              1

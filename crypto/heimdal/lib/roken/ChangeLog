@@ -1,3 +1,7 @@
+2002-10-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.c: pull up 1.37; check length of txt records
+
 2002-09-10  Johan Danielsson  <joda@pdc.kth.se>
 
 	* roken.awk: include config.h before stdio.h (breaks with

@@ -1,4 +1,4 @@
-TELNETD(8)              FreeBSD System Manager's Manual             TELNETD(8)
+TELNETD(8)              NetBSD System Manager's Manual              TELNETD(8)
 
 NNAAMMEE
      tteellnneettdd - DARPA TELNET protocol server
@@ -34,8 +34,8 @@ DDEESSCCRRIIPPTTIIOONN
                   valid  Only allow connections when the remote user can pro-
                          vide valid authentication information to identify the
                          remote user.  The login(1) command will provide any
-                         additional user verification needed if the remote
-                         user is not allowed automatic access to the specified
+                         additional user verification needed if the remote us-
+                         er is not allowed automatic access to the specified
                          account.
 
                   other  Only allow connections that supply some authentica-
@@ -105,22 +105,22 @@ DDEESSCCRRIIPPTTIIOONN
      --SS _t_o_s
 
      --uu _l_e_n       This option is used to specify the size of the field in the
-                  utmp structure that holds the remote host name.  If the
-                  resolved host name is longer than _l_e_n, the dotted decimal
-                  value will be used instead.  This allows hosts with very
-                  long host names that overflow this field to still be
-                  uniquely identified.  Specifying --uu00 indicates that only
-                  dotted decimal addresses should be put into the _u_t_m_p file.
+                  utmp structure that holds the remote host name.  If the re-
+                  solved host name is longer than _l_e_n, the dotted decimal val-
+                  ue will be used instead.  This allows hosts with very long
+                  host names that overflow this field to still be uniquely
+                  identified.  Specifying --uu00 indicates that only dotted deci-
+                  mal addresses should be put into the _u_t_m_p file.
 
-     --UU           This option causes tteellnneettdd to refuse connections from
-                  addresses that cannot be mapped back into a symbolic name
-                  via the gethostbyaddr(3) routine.
+     --UU           This option causes tteellnneettdd to refuse connections from ad-
+                  dresses that cannot be mapped back into a symbolic name via
+                  the gethostbyaddr(3) routine.
 
      --XX _a_u_t_h_t_y_p_e  This option is only valid if tteellnneettdd has been built with
                   support for the authentication option.  It disables the use
                   of _a_u_t_h_t_y_p_e authentication, and can be used to temporarily
-                  disable a specific authentication type without having to
-                  recompile tteellnneettdd.
+                  disable a specific authentication type without having to re-
+                  compile tteellnneettdd.
 
      --LL _p_a_t_h_n_a_m_e  Specify pathname to an alternative login program.
 
@@ -175,8 +175,8 @@ DDEESSCCRRIIPPTTIIOONN
      WILL SGA           Indicates that it will not be sending IAC GA, go
                         ahead, commands.
 
-     WILL STATUS        Indicates a willingness to send the client, upon
-                        request, of the current status of all TELNET options.
+     WILL STATUS        Indicates a willingness to send the client, upon re-
+                        quest, of the current status of all TELNET options.
 
      WILL TIMING-MARK   Whenever a DO TIMING-MARK command is received, it is
                         always responded to with a WILL TIMING-MARK
@@ -197,8 +197,8 @@ DDEESSCCRRIIPPTTIIOONN
                         ters remotely.
 
      DO ECHO            This is not really supported, but is sent to identify
-                        a 4.2BSD telnet(1) client, which will improperly
-                        respond with WILL ECHO.  If a WILL ECHO is received, a
+                        a 4.2BSD telnet(1) client, which will improperly re-
+                        spond with WILL ECHO.  If a WILL ECHO is received, a
                         DONT ECHO will be sent in response.
 
      DO TERMINAL-TYPE   Indicates a desire to be able to request the name of
@@ -236,8 +236,8 @@ DDEESSCCRRIIPPTTIIOONN
                         linemode.  Note that the [--kk] option can be used to
                         disable this.
 
-     DO AUTHENTICATION  Only sent if tteellnneettdd is compiled with support for
-                        authentication, and indicates a willingness to receive
+     DO AUTHENTICATION  Only sent if tteellnneettdd is compiled with support for au-
+                        thentication, and indicates a willingness to receive
                         authentication information for automatic login.
 
      DO ENCRYPT         Only sent if tteellnneettdd is compiled with support for data
@@ -290,4 +290,4 @@ BBUUGGSS
 
      TTeellnneettdd never sends TELNET IAC GA (go ahead) commands.
 
-4.2 Berkeley Distribution        June 1, 1994        4.2 Berkeley Distribution
+4.2 Berkeley Distribution        June 1, 1994                                5

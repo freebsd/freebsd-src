@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_keyfile.c,v 1.14 2002/09/09 14:22:26 nectar Exp $");
+RCSID("$Id: keytab_keyfile.c,v 1.14.2.1 2002/10/21 16:07:26 joda Exp $");
 
 /* afs keyfile operations --------------------------------------- */
 
@@ -82,8 +82,7 @@ get_cell_and_realm (krb5_context context,
 	krb5_set_error_string (context, "no cell in %s", AFS_SERVERTHISCELL);
 	return EINVAL;
     }
-    if (buf[strlen(buf) - 1] == '\n')
-	buf[strlen(buf) - 1] = '\0';
+    buf[strcspn(buf, "\n")] = '\0';
     fclose(f);
 
     d->cell = strdup (buf);
@@ -100,8 +99,7 @@ get_cell_and_realm (krb5_context context,
 				   AFS_SERVERMAGICKRBCONF);
 	    return EINVAL;
 	}
-	if (buf[strlen(buf)-1] == '\n')
-	    buf[strlen(buf)-1] = '\0';
+	buf[strcspn(buf, "\n")] = '\0';
 	fclose(f);
     }
     /* uppercase */

@@ -1,4 +1,4 @@
-KINIT(1)                FreeBSD General Commands Manual               KINIT(1)
+KINIT(1)                    NetBSD Reference Manual                   KINIT(1)
 
 NNAAMMEE
      kkiinniitt kkaauutthh - acquire initial tickets
@@ -8,9 +8,9 @@ SSYYNNOOPPSSIISS
            ----ccaacchhee==_c_a_c_h_e_n_a_m_e] [--ff | ----ffoorrwwaarrddaabbllee] [--tt _k_e_y_t_a_b_n_a_m_e |
            ----kkeeyyttaabb==_k_e_y_t_a_b_n_a_m_e] [--ll _t_i_m_e | ----lliiffeettiimmee==_t_i_m_e] [--pp | ----pprrooxxiiaabbllee]
            [--RR | ----rreenneeww] [----rreenneewwaabbllee] [--rr _t_i_m_e | ----rreenneewwaabbllee--lliiffee==_t_i_m_e] [--SS
-           _p_r_i_n_c_i_p_a_l | ----sseerrvveerr==_p_r_i_n_c_i_p_a_l] [--ss _t_i_m_e | ----ssttaarrtt--ttiimmee==_t_i_m_e]
-           [--kk | ----uussee--kkeeyyttaabb] [--vv | ----vvaalliiddaattee] [--ee _e_n_c_t_y_p_e_s |
-           ----eennccttyyppeess==_e_n_c_t_y_p_e_s] [--aa _a_d_d_r_e_s_s_e_s | ----eexxttrraa--aaddddrreesssseess==_a_d_d_r_e_s_s_e_s]
+           _p_r_i_n_c_i_p_a_l | ----sseerrvveerr==_p_r_i_n_c_i_p_a_l] [--ss _t_i_m_e | ----ssttaarrtt--ttiimmee==_t_i_m_e] [--kk |
+           ----uussee--kkeeyyttaabb] [--vv | ----vvaalliiddaattee] [--ee _e_n_c_t_y_p_e_s | ----eennccttyyppeess==_e_n_c_t_y_p_e_s]
+           [--aa _a_d_d_r_e_s_s_e_s | ----eexxttrraa--aaddddrreesssseess==_a_d_d_r_e_s_s_e_s]
            [----ffccaacchhee--vveerrssiioonn==_i_n_t_e_g_e_r] [----nnoo--aaddddrreesssseess] [----aannoonnyymmoouuss]
            [----vveerrssiioonn] [----hheellpp] [_p_r_i_n_c_i_p_a_l [_c_o_m_m_a_n_d]]
 
@@ -74,8 +74,8 @@ DDEESSCCRRIIPPTTIIOONN
              Create a credentials cache of version vveerrssiioonn.
 
      --aa, ----eexxttrraa--aaddddrreesssseess==_e_n_c_t_y_p_e_s
-             Adds a set of addresses that will, in addition to the systems
-             local addresses, be put in the ticket. This can be useful if all
+             Adds a set of addresses that will, in addition to the systems lo-
+             cal addresses, be put in the ticket. This can be useful if all
              addresses a client can use can't be automatically figured out.
              One such example is if the client is behind a firewall. Also set-
              table via libdefaults/extra_addresses in krb5.conf(5).
@@ -124,4 +124,4 @@ EENNVVIIRROONNMMEENNTT
 SSEEEE AALLSSOO
      kdestroy(1), klist(1), krb5_appdefault(3), krb5.conf(5)
 
-HEIMDAL                          May 29, 1998                          HEIMDAL
+ HEIMDAL                         May 29, 1998                                2
