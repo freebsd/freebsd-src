@@ -333,7 +333,7 @@ int vm_map_lookup (vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_obje
     vm_pindex_t *, vm_prot_t *, boolean_t *);
 void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
 boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
-void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr,
+void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags);
 int vm_map_protect (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 int vm_map_remove (vm_map_t, vm_offset_t, vm_offset_t);
