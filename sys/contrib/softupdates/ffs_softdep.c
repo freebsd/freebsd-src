@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.49 (McKusick) 1/12/00
+ *	from: @(#)ffs_softdep.c	9.50 (McKusick) 1/12/00
  * $FreeBSD$
  */
 
@@ -4556,8 +4556,18 @@ getdirtybuf(bpp, waitfor)
 	for (;;) {
 		if ((bp = *bpp) == NULL)
 			return (0);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) == 0)
-			break;
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+			if ((bp->b_xflags & BX_BKGRDINPROG) == 0)
+				break;
+			BUF_UNLOCK(bp);
+			if (waitfor != MNT_WAIT)
+				return (0);
+			bp->b_xflags |= BX_BKGRDWAIT;
+			tsleep(&bp->b_xflags, PRIBIO, "getbuf", 0);
+			if (bp->b_xflags & BX_BKGRDINPROG)
+				panic("getdirtybuf: still writing");
+			continue;
+		}
 		if (waitfor != MNT_WAIT)
 			return (0);
 		FREE_LOCK_INTERLOCKED(&lk);
