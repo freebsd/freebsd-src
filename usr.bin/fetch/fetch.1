@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.2 1996/07/05 01:03:20 jkh Exp $
+.\" $Id: fetch.1,v 1.9 1996/09/23 22:24:15 wosch Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os
@@ -7,11 +7,11 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPmpqr
+.Op Fl MPmnpqr
 .Op Fl o Ar file
 .Ar URL
 .Nm fetch
-.Op Fl MPmpqr
+.Op Fl MPmnpqr
 .Op Fl o Ar file
 .Op Fl c Ar dir
 .Fl f Ar file
@@ -34,6 +34,11 @@ For compatibility with
 the form 
 .Em site.domain:/path/to/the/file
 is also accepted.
+To denote a local filename to be copied or linked to (see
+.Fl l
+flag), the
+.Em file:/path/to/the/file
+URL form is used.
 
 The second form of the command can be used to get a file using the
 .Em ftp
@@ -51,6 +56,8 @@ Mirror mode: Set the modification time of the file so that it is
 identical to the modification time of the file at the remote host.
 If the file already exists on the local host and is identical (as
 gauged by size and modification time), no transfer is done.
+.It Fl n
+Don't preserve the modtime of the transfered file, use the current time.
 .It Fl P
 .It Fl p
 Use passive mode if you are behind a firewall.
@@ -66,8 +73,23 @@ on the remote host.
 Set the
 .Ar host
 for transfer.
+.It Fl l
+If target is a
+.Ar file:/
+style of URL, make a link to the target rather than trying
+to copy it.
+.It Fl T Ar seconds
+Set timeout value to
+.Ar seconds.
+Overrides the environment variables
+.Ev FTP_TIMEOUT
+for ftp transfers or
+.Ev HTTP_TIMEOUT 
+for http transfers if set.
 .It Fl q
 Quiet mode. Do not report transfer progress on the terminal.
+.It Fl v
+Verbose mode - display FTP connection information in painful detail.
 .It Fl r
 Reget. Use this flag to restart an interrupted transfer.
 .It Fl o Ar file
@@ -85,7 +107,7 @@ A transfer using the
 .Em http
 protocol will be aborted after the delay specified by the
 .Ev HTTP_TIMEOUT
-variable. The default is 60 (seconds)
+variable. The default is 300 (seconds)
 
 .Ev FTP_LOGIN
 is the login name for the remote host. Default is
@@ -97,10 +119,19 @@ is the password for the remote host. Default is
 
 .Ev FTP_PASSIVE_MODE
 will force the use of passive mode FTP for firewalls.
+
+If
+.Ev HTTP_PROXY
+is set to a value of the form
+.Em host:port
+it specifies the address of a http proxy. The proxy will be used
+for all ftp and http requests. This is useful if you are behind
+an application firewall.
 .Sh SEE ALSO
-.Xr tftp 1
+.Xr tftp 1 ,
 .Xr ftp 1
 .Sh HISTORY
 The 
 .Nm fetch
-command appeared in FreeBSD 2.1.5
+command appeared in
+.Fx 2.1.5 .
