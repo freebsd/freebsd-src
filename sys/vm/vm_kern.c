@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.15 1995/07/29 11:44:20 bde Exp $
+ * $Id: vm_kern.c,v 1.16 1995/09/03 20:40:39 dyson Exp $
  */
 
 /*
@@ -95,7 +95,7 @@ vm_map_t u_map;
  *	kmem_alloc_pageable:
  *
  *	Allocate pageable memory to the kernel's address map.
- *	map must be "kernel_map" below.
+ *	"map" must be kernel_map or a submap of kernel_map.
  */
 
 vm_offset_t
@@ -106,13 +106,7 @@ kmem_alloc_pageable(map, size)
 	vm_offset_t addr;
 	register int result;
 
-#if	0
-	if (map != kernel_map)
-		panic("kmem_alloc_pageable: not called with kernel_map");
-#endif
-
 	size = round_page(size);
-
 	addr = vm_map_min(map);
 	result = vm_map_find(map, NULL, (vm_offset_t) 0,
 	    &addr, size, TRUE);
