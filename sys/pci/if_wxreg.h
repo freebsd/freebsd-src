@@ -166,6 +166,13 @@ typedef struct {
 #define	WXDCR_SLU	0x40		/* Set Link Up */
 #define	WXDCR_ILOS	0x80		/* Invert Loss-of-Signal */
 
+/*
+ * General purpose I/O pins
+ *
+ * Pin 0 is for the LED.
+ *
+ * Pin 1 is to detect loss of signal (LOS)- if it is set, we've lost signal.
+ */
 #define	WXDCR_SWDPINS_SHIFT	18
 #define	WXDCR_SWDPINS_MASK	0xf
 #define		WXDCR_SWDPIN0	(1 << 18)
@@ -178,6 +185,7 @@ typedef struct {
 #define		WXDCR_SWDPIO1	(1 << 23)
 #define		WXDCR_SWDPIO2	(1 << 24)
 #define		WXDCR_SWDPIO3	(1 << 25)
+
 
 #define	WXDCR_RST	0x04000000	/* Device Reset (self clearing) */
 #define	WXDCR_RFCE	0x08000000	/* Receive Flow Control Enable */
@@ -281,6 +289,30 @@ typedef struct {
 #define	WX_COLLISION_THRESHOLD	15
 #define	WX_FDX_COLLISION_DX	64
 #define	WX_HDX_COLLISION_DX	512
+
+/*
+ * Receive Configuration Word defines
+ */
+
+#define	WXRXCW_CWMASK	0x0000ffff
+#define	WXRXCW_NC	0x04000000
+#define	WXRXCW_IV	0x08000000
+#define	WXRXCW_CC	0x10000000
+#define	WXRXCW_C	0x20000000
+#define	WXRXCW_SYNCH	0x40000000
+#define	WXRXCW_ANC	0x80000000
+
+/*
+ * Receive Configuration Word defines
+ */
+
+#define	WXRXCW_CWMASK	0x0000ffff
+#define	WXRXCW_NC	0x04000000
+#define	WXRXCW_IV	0x08000000
+#define	WXRXCW_CC	0x10000000
+#define	WXRXCW_C	0x20000000
+#define	WXRXCW_SYNCH	0x40000000
+#define	WXRXCW_ANC	0x80000000
 
 /*
  * Miscellaneous

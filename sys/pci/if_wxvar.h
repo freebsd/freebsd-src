@@ -235,11 +235,12 @@ typedef struct wx_softc {
 	/*
 	 * misc goodies
 	 */
-	u_int32_t		:	18,
+	u_int32_t		:	17,
 		wx_no_flow 	:	1,
 		wx_ilos		:	1,
 		wx_no_ilos	:	1,
 		wx_debug	:	1,
+		ane_failed	:	1,
 		linkup		:	1,
 		all_mcasts	:	1,
 		revision	:	8;	/* chip revision */
@@ -322,3 +323,9 @@ typedef struct wx_softc {
 #endif
 #define	R_NXT_IDX(x)	((x + RXINCR) & (WX_MAX_RDESC - 1))
 #define	R_PREV_IDX(x)	((x - RXINCR) & (WX_MAX_RDESC - 1))
+
+/*
+ * Link Up timeout, in milliseconds.
+ */
+
+#define	WX_LINK_UP_TIMEOUT	500
