@@ -77,10 +77,7 @@ __RCSID("@(#) $FreeBSD$");
  *
  */
 void
-set_arpserver(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+set_arpserver(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int			i, len, prefix_len = 0, rc, s;
 	char			*intf;
@@ -164,7 +161,7 @@ set_arpserver(argc, argv, cmdp)
 			exit(1);
 		}
 		int_info = (struct air_netif_rsp *) air.air_buf_addr;
-		lis = (struct sockaddr_in *)&int_info->anp_proto_addr;
+		lis = (struct sockaddr_in *)(void *)&int_info->anp_proto_addr;
 		prefix_buf[0].ip_addr = lis->sin_addr;
 		free(int_info);
 	
@@ -276,10 +273,7 @@ set_arpserver(argc, argv, cmdp)
  *
  */
 void
-set_macaddr(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+set_macaddr(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int			s;
 	char			*intf;
@@ -372,10 +366,7 @@ set_macaddr(argc, argv, cmdp)
  *
  */
 void
-set_netif(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+set_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	struct atmsetreq	anr;
 	char			str[16];
@@ -460,14 +451,11 @@ set_netif(argc, argv, cmdp)
  *
  */
 void
-set_prefix(argc, argv, cmdp)
-	int		argc;
-	char		**argv;
-	struct cmd	*cmdp;
+set_prefix(int argc, char **argv, const struct cmd *cmdp __unused)
 {
 	int			s;
 	char			*intf;
-	u_char			prefix[13];
+	u_char			pfx[13];
 	struct atmsetreq	asr;
 
 	/*
@@ -483,8 +471,7 @@ set_prefix(argc, argv, cmdp)
 	/*
 	 * Get the prefix provided by the user
 	 */
-	if (get_hex_atm_addr(argv[0], prefix, sizeof(prefix)) !=
-			sizeof(prefix)) {
+	if (get_hex_atm_addr(argv[0], pfx, sizeof(pfx)) != sizeof(pfx)) {
 		fprintf(stderr, "%s: Invalid NSAP prefix\n", prog);
 		exit(1);
 	}
@@ -494,7 +481,7 @@ set_prefix(argc, argv, cmdp)
 	 */
 	asr.asr_opcode = AIOCS_SET_PRF;
 	strncpy(asr.asr_prf_intf, intf, sizeof(asr.asr_prf_intf));
-	bcopy(prefix, asr.asr_prf_pref, sizeof(asr.asr_prf_pref));
+	bcopy(pfx, asr.asr_prf_pref, sizeof(asr.asr_prf_pref));
 
 	/*
 	 * Pass the new prefix to the kernel

@@ -117,6 +117,14 @@ Section     Path    Line      Line     Path     Corr   Uncorr\n\
 BIP8        BIP8    BIP24     FEBE     FEBE     HCS    HCS\n\
 Errs        Errs    Errs      Errs     Errs     Errs   Errs\n"
 
+static void	print_fore200_taxi(struct air_vinfo_rsp *);
+static void	print_fore200_oc3(struct air_vinfo_rsp *);
+static void	print_fore200_dev(struct air_vinfo_rsp *);
+static void	print_fore200_atm(struct air_vinfo_rsp *);
+static void	print_fore200_aal0(struct air_vinfo_rsp *);
+static void	print_fore200_aal4(struct air_vinfo_rsp *);
+static void	print_fore200_aal5(struct air_vinfo_rsp *);
+static void	print_fore200_driver(struct air_vinfo_rsp *);
 
 /*
  * Process show Fore SBA-200 statistics command
@@ -195,7 +203,7 @@ show_fore200_stats(intf, argc, argv)
 		}
 		exit(1);
 	}
-	cfg = (struct air_cfg_rsp *) air.air_buf_addr;
+	cfg = (struct air_cfg_rsp *)(void *)air.air_buf_addr;
 
 	/*
 	 * Get vendor-specific statistics from the kernel
@@ -221,12 +229,12 @@ show_fore200_stats(intf, argc, argv)
 		}
 		exit(1);
 	}
-	stats = (struct air_vinfo_rsp *) air.air_buf_addr;
+	stats = (struct air_vinfo_rsp *)(void *)air.air_buf_addr;
 
 	/*
 	 * Print the statistics
 	 */
-	if (buf_len < sizeof(struct air_vinfo_rsp) +
+	if ((size_t)buf_len < sizeof(struct air_vinfo_rsp) +
 			sizeof(Fore_stats)) {
 		free(stats);
 		free(cfg);
