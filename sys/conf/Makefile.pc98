@@ -47,6 +47,11 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
+
+# This hack lets us use the Intel ACPICA code without spamming a new 
+# include path into 100+ source files.
+INCLUDES+= -I$S/contrib/dev/acpica/Subsystem/Include
+
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
@@ -252,7 +257,7 @@ kernel-reinstall kernel-reinstall.debug:
 	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
-		${KERNEL}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KERNEL}
+		${KERNEL_KO}${.TARGET:S/kernel-reinstall//} ${DESTDIR}${KODIR}
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 all:	modules
