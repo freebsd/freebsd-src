@@ -1309,6 +1309,22 @@ int21_3f(regcontext_t *REGS)
 ** write
 */
 static int
+write_or_truncate(int fd, char *addr, int len)
+{
+    off_t offset;
+
+    if (len == 0) {
+	offset = lseek(fd, 0, SEEK_CUR);
+	if (offset < 0)
+	    return -1;
+	else
+	    return ftruncate(fd, offset);
+    } else {
+	return write(fd, addr, len);
+    }
+}
+
+static int
 int21_40(regcontext_t *REGS)
 {
     char	*addr;
@@ -1322,7 +1338,7 @@ int21_40(regcontext_t *REGS)
     switch (R_BX) {
     case 0:
 	if (redirect0) {
-	    n = write (R_BX, addr, nbytes);
+	    n = write_or_truncate(R_BX, addr, nbytes);
 	    break;
 	}
 	n = nbytes;
@@ -1331,7 +1347,7 @@ int21_40(regcontext_t *REGS)
 	break;
     case 1:
 	if (redirect1) {
-	    n = write (R_BX, addr, nbytes);
+	    n = write_or_truncate(R_BX, addr, nbytes);
 	    break;
 	}
 	n = nbytes;
@@ -1340,7 +1356,7 @@ int21_40(regcontext_t *REGS)
 	break;
     case 2:
 	if (redirect2) {
-	    n = write (R_BX, addr, nbytes);
+	    n = write_or_truncate(R_BX, addr, nbytes);
 	    break;
 	}
 	n = nbytes;
@@ -1348,7 +1364,7 @@ int21_40(regcontext_t *REGS)
 	    tty_write(*addr++, -1);
 	break;
     default:
-	n = write (R_BX, addr, nbytes);
+	n = write_or_truncate(R_BX, addr, nbytes);
 	break;
     }
     if (n < 0)
