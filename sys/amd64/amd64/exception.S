@@ -74,50 +74,68 @@
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
-#define	TRAP(a)		pushq $(a) ; jmp alltraps
-#define	TRAP_NOEN(a)	pushq $(a) ; jmp alltraps_noen
 
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
-IDTVEC(div)
-	pushq $0; TRAP(T_DIVIDE)
+/* Traps that we leave interrupts disabled for.. */
+#define	TRAP_NOEN(a)	\
+	subq $TF_RIP,%rsp; \
+	movq $(a),TF_TRAPNO(%rsp) ; \
+	movq $0,TF_ADDR(%rsp) ; \
+	movq $0,TF_ERR(%rsp) ; \
+	jmp alltraps_noen
 IDTVEC(dbg)
-	pushq $0; TRAP_NOEN(T_TRCTRAP)
-IDTVEC(nmi)
-	pushq $0; TRAP(T_NMI)
+	TRAP_NOEN(T_TRCTRAP)
 IDTVEC(bpt)
-	pushq $0; TRAP_NOEN(T_BPTFLT)
+	TRAP_NOEN(T_BPTFLT)
+
+/* Regular traps; The cpu does not supply tf_err for these. */
+#define	TRAP(a)	 \
+	subq $TF_RIP,%rsp; \
+	movq $(a),TF_TRAPNO(%rsp) ; \
+	movq $0,TF_ADDR(%rsp) ; \
+	movq $0,TF_ERR(%rsp) ; \
+	jmp alltraps
+IDTVEC(div)
+	TRAP(T_DIVIDE)
+IDTVEC(nmi)
+	TRAP(T_NMI)
 IDTVEC(ofl)
-	pushq $0; TRAP(T_OFLOW)
+	TRAP(T_OFLOW)
 IDTVEC(bnd)
-	pushq $0; TRAP(T_BOUND)
+	TRAP(T_BOUND)
 IDTVEC(ill)
-	pushq $0; TRAP(T_PRIVINFLT)
+	TRAP(T_PRIVINFLT)
 IDTVEC(dna)
-	pushq $0; TRAP(T_DNA)
+	TRAP(T_DNA)
 IDTVEC(fpusegm)
-	pushq $0; TRAP(T_FPOPFLT)
-IDTVEC(tss)
-	TRAP(T_TSSFLT)
-IDTVEC(missing)
-	TRAP(T_SEGNPFLT)
-IDTVEC(stk)
-	TRAP(T_STKFLT)
-IDTVEC(prot)
-	TRAP(T_PROTFLT)
-IDTVEC(page)
-	TRAP_NOEN(T_PAGEFLT)
+	TRAP(T_FPOPFLT)
 IDTVEC(mchk)
-	pushq $0; TRAP(T_MCHK)
+	TRAP(T_MCHK)
 IDTVEC(rsvd)
-	pushq $0; TRAP(T_RESERVED)
+	TRAP(T_RESERVED)
 IDTVEC(fpu)
-	pushq $0; TRAP(T_ARITHTRAP)
-IDTVEC(align)
-	TRAP(T_ALIGNFLT)
+	TRAP(T_ARITHTRAP)
 IDTVEC(xmm)
-	pushq $0; TRAP(T_XMMFLT)
+	TRAP(T_XMMFLT)
+
+/* This group of traps have tf_err already pushed by the cpu */
+#define	TRAP_ERR(a)	\
+	subq $TF_ERR,%rsp; \
+	movq $(a),TF_TRAPNO(%rsp) ; \
+	movq $0,TF_ADDR(%rsp) ; \
+	jmp alltraps_noen
+IDTVEC(tss)
+	TRAP_ERR(T_TSSFLT)
+IDTVEC(missing)
+	TRAP_ERR(T_SEGNPFLT)
+IDTVEC(stk)
+	TRAP_ERR(T_STKFLT)
+IDTVEC(prot)
+	TRAP_ERR(T_PROTFLT)
+IDTVEC(align)
+	TRAP_ERR(T_ALIGNFLT)
 	
 	/*
 	 * alltraps entry point.  Use swapgs if this is the first time in the
@@ -129,7 +147,6 @@ IDTVEC(xmm)
 	.globl	alltraps
 	.type	alltraps,@function
 alltraps:
-	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	alltraps_testi		/* already running with kernel GS.base */
 	swapgs
@@ -139,6 +156,7 @@ alltraps_testi:
 	sti
 alltraps_pushregs:
 	movq	%rdi,TF_RDI(%rsp)
+alltraps_pushregs_no_rdi:
 	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
@@ -170,21 +188,34 @@ calltrap:
 	.globl	alltraps_noen
 	.type	alltraps_noen,@function
 alltraps_noen:
-	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	alltraps_pushregs	/* already running with kernel GS.base */
 	swapgs
 	jmp	alltraps_pushregs
 
 IDTVEC(dblfault)
-	pushq	$T_DOUBLEFLT
-	subq	$TF_TRAPNO,%rsp		/* tf_err and tf_trapno already pushed */
+	subq	$TF_ERR,%rsp
+	movq	$T_DOUBLEFLT,TF_TRAPNO(%rsp)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
 1:	call	dblfault_handler
 2:	hlt
 	jmp	2b
+
+IDTVEC(page)
+	subq	$TF_ERR,%rsp
+	movq	$T_PAGEFLT,TF_TRAPNO(%rsp)
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
+	jz	1f			/* already running with kernel GS.base */
+	swapgs
+1:	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
+	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
+	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	alltraps_pushregs_no_rdi
+	sti
+	jmp	alltraps_pushregs_no_rdi
 
 /*
  * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
