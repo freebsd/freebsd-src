@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.10 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.11 1999/01/10 11:13:36 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -36,6 +36,10 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Printer Class spec: http://www.usb.org/developers/data/usbprn10.pdf
  */
 
 #include <sys/param.h>
@@ -173,10 +177,8 @@ USB_ATTACH(ulpt)
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id = usbd_get_interface_descriptor(iface);
-#if 0
 	usb_config_descriptor_t *cd = usbd_get_config_descriptor(dev);
 	usb_device_request_t req;
-#endif
 	char devinfo[1024];
 	usb_endpoint_descriptor_t *ed;
 	usbd_status r;
@@ -191,7 +193,7 @@ USB_ATTACH(ulpt)
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed)
 		goto nobulk;
-	if ((ed->bEndpointAddress & UE_IN) != UE_OUT ||
+	if ((ed->bEndpointAddress & UE_DIR) != UE_OUT ||
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_BULK) {
 		/* In case we are using a bidir protocol... */
 		ed = usbd_interface2endpoint_descriptor(iface, 1);
@@ -210,15 +212,12 @@ USB_ATTACH(ulpt)
 		USB_ATTACH_ERROR_RETURN;
 	sc->sc_ifaceno = id->bInterfaceNumber;
 
-#if 0
-XXX needs a different way to read the id string since the length
-is unknown.  usbd_do_request() returns error on a short transfer.
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
 	req.bRequest = UR_GET_DEVICE_ID;
 	USETW(req.wValue, cd->bConfigurationValue);
 	USETW2(req.wIndex, id->bInterfaceNumber, id->bAlternateSetting);
 	USETW(req.wLength, sizeof devinfo - 1);
-	r = usbd_do_request(dev, &req, devinfo);
+	r = usbd_do_request_flags(dev, &req, devinfo, USBD_SHORT_XFER_OK, NULL);
 	if (r == USBD_NORMAL_COMPLETION) {
 		int len;
 		char *idstr;
@@ -230,7 +229,6 @@ is unknown.  usbd_do_request() returns error on a short transfer.
 	} else {
 		printf("%s: cannot get device id\n", USBDEVNAME(sc->sc_dev));
 	}
-#endif
 
 	USB_ATTACH_SUCCESS_RETURN;
 
@@ -369,7 +367,6 @@ ulptclose(dev, flag, mode, p)
 
 	sc->sc_state = 0;
 
-	DPRINTF(("ulptclose: closed\n"));
 	return (0);
 }
 
@@ -386,7 +383,6 @@ ulptwrite(dev, uio, flags)
 	usbd_status r;
 	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
-	DPRINTF(("ulptwrite\n"));
 	reqh = usbd_alloc_request();
 	if (reqh == 0)
 		return (ENOMEM);
@@ -405,7 +401,7 @@ ulptwrite(dev, uio, flags)
 		DPRINTFN(1, ("ulptwrite: transfer %d bytes\n", n));
 		r = usbd_sync_transfer(reqh);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("ulptwrite: error=%d\n", r));
+			DPRINTFN(1, ("ulptwrite: error=%d\n", r));
 			usbd_clear_endpoint_stall(sc->sc_bulkpipe);
 			error = EIO;
 			break;
