@@ -3,12 +3,12 @@ $FreeBSD$
 
 For the import of lib{f,g}2c, files were pruned by:
 
-	tar xvzpf gcc-2.95.1.tar.gz '*/libf2c'
+	tar xvypf gcc-2.95.2.tar.bz2 '*/libf2c'
 
 Then imported by:
 
-	cvs import -m "Virgin import of GCC 2.95.1's libf2c"  \
-		src/contrib/libf2c FSF gcc_2_95_1
+	cvs import -m "Virgin import of GCC 2.95.2's libf2c"  \
+		src/contrib/libf2c FSF gcc_2_95_2
 
 
 To make local changes to amd, simply patch and commit to the main
@@ -19,4 +19,4 @@ David M. Gay <dmg@bell-labs.com> (as libg2c is based on AT&T's netlib
 collection).
 
 obrien@NUXI.com
-19-September-1999
+31-October-1999
