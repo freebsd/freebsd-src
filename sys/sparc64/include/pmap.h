@@ -49,10 +49,10 @@
 #define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
 #define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
 #define	DCACHE_COLOR(va)	(((va) >> PAGE_SHIFT) & DCACHE_COLOR_MASK)
+#define	DCACHE_OTHER_COLOR(color) \
+	((color) ^ DCACHE_COLOR_BITS)
 
 #define	PMAP_CONTEXT_MAX	8192
-
-#define	PG_UNCACHEABLE		(1<<0)
 
 #define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
