@@ -70,6 +70,7 @@ int fflg, iflg, vflg;
 int	copy __P((char *, char *));
 int	do_move __P((char *, char *));
 int	fastcopy __P((char *, char *, struct stat *));
+int	main __P((int, char *[]));
 void	usage __P((void));
 
 int
@@ -140,7 +141,7 @@ main(argc, argv)
 			warnx("%s: destination pathname too long", *argv);
 			rval = 1;
 		} else {
-			memmove(endp, p, len + 1);
+			memmove(endp, p, (size_t)len + 1);
 			if (do_move(*argv, path))
 				rval = 1;
 		}
@@ -178,8 +179,8 @@ do_move(from, to)
 			strmode(sb.st_mode, modep);
 			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
-			    user_from_uid(sb.st_uid, 0),
-			    group_from_gid(sb.st_gid, 0), to, YESNO);
+			    user_from_uid((unsigned long)sb.st_uid, 0),
+			    group_from_gid((unsigned long)sb.st_gid, 0), to, YESNO);
 			ask = 1;
 		}
 		if (ask) {
@@ -247,7 +248,7 @@ fastcopy(from, to, sbp)
 	if (blen < sbp->st_blksize) {
 		if (bp != NULL)
 			free(bp);
-		if ((bp = malloc(sbp->st_blksize)) == NULL) {
+		if ((bp = malloc((size_t)sbp->st_blksize)) == NULL) {
 			blen = 0;
 			warnx("malloc failed");
 			return (1);
@@ -262,8 +263,8 @@ fastcopy(from, to, sbp)
 		(void)close(from_fd);
 		return (1);
 	}
-	while ((nread = read(from_fd, bp, blen)) > 0)
-		if (write(to_fd, bp, nread) != nread) {
+	while ((nread = read(from_fd, bp, (size_t)blen)) > 0)
+		if (write(to_fd, bp, (size_t)nread) != nread) {
 			warn("%s", to);
 			goto err;
 		}
@@ -298,7 +299,7 @@ err:		if (unlink(to))
 	 * on a file that we copied, i.e., that we didn't create.)
 	 */
 	errno = 0;
-	if (fchflags(to_fd, sbp->st_flags))
+	if (fchflags(to_fd, (u_long)sbp->st_flags))
 		if (errno != EOPNOTSUPP || sbp->st_flags != 0)
 			warn("%s: set flags (was: 0%07o)", to, sbp->st_flags);
 
