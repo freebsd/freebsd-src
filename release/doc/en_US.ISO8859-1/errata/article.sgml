@@ -249,5 +249,10 @@
       longer fake disklabels, but &man.growfs.8; insists on examining
       a label.</para>
 
+    <bridgehead renderas="sect3">IPFW</bridgehead>
+
+    <para>&man.ipfw.4; <literal>skipto</literal> rules do not work
+      when coupled with the <literal>log</literal> keyword.  This bug
+      has been fixed in &release.current;.</para>
   </sect1>
 </article>
