@@ -461,6 +461,8 @@ traverse(int argc, char *argv[], int options)
 			if (!f_recursive && chp != NULL)
 				(void)fts_set(ftsp, p, FTS_SKIP);
 			break;
+		default:
+			break;
 		}
 	if (errno)
 		err(1, "fts_read");
@@ -573,6 +575,7 @@ display(FTSENT *p, FTSENT *list)
 				f_notabs = 0;
 			/* fall through */
 		default:
+			break;
 		}
 		maxinode = makenines(maxinode);
 		maxblock = makenines(maxblock);
