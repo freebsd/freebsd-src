@@ -35,6 +35,9 @@
  * $FreeBSD$
  */
 
+#ifndef _GEOM_GEOM_SLICE_H_
+#define _GEOM_GEOM_SLICE_H_
+
 struct g_slice {
 	off_t	offset;
 	off_t	length;
@@ -45,6 +48,7 @@ typedef int g_slice_start_t (struct bio *bp);
 
 struct g_slicer {
 	int		nslice;
+	int		nprovider;
 	off_t		cfrontstuff;
 	off_t		frontstuff;
 	struct g_slice	*slices;
@@ -54,5 +58,10 @@ struct g_slicer {
 
 g_dumpconf_t g_slice_dumpconf;
 struct g_provider * g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char *fmt, ...);
+int g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length, char *fmt, ...);
+#define G_SLICE_CONFIG_CHECK	0
+#define G_SLICE_CONFIG_SET	1
+#define G_SLICE_CONFIG_FORCE	2
 struct g_geom * g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start);
 
+#endif /* _GEOM_GEOM_SLICE_H_ */
