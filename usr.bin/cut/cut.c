@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cut.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)cut.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)cut.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int	cflag;
 char	dchar;
@@ -218,7 +219,8 @@ f_cut(fp, fname)
 	int output;
 	char lbuf[_POSIX2_LINE_MAX + 1];
 
-	for (sep = dchar, output = 0; fgets(lbuf, sizeof(lbuf), fp);) {
+	for (sep = dchar; fgets(lbuf, sizeof(lbuf), fp);) {
+		output = 0;
 		for (isdelim = 0, p = lbuf;; ++p) {
 			if (!(ch = *p))
 				err("%s: line too long.\n", fname);

@@ -1,4 +1,4 @@
-.\" Copyright (c) 1989, 1990, 1993
+.\" Copyright (c) 1989, 1990, 1993, 1994
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)finger.1	8.2 (Berkeley) 2/16/94
+.\"	@(#)finger.1	8.3 (Berkeley) 5/5/94
 .\"
-.Dd February 16, 1994
+.Dd May 5, 1994
 .Dt FINGER 1
 .Os BSD 4
 .Sh NAME
@@ -150,6 +150,11 @@ style.
 The
 .Fl l
 option is the only option that may be passed to a remote machine.
+.Sh FILES
+.Bl -tag -width /var/log/lastlog -compact
+.It Pa /var/log/lastlog
+last login data base
+.El
 .Sh SEE ALSO
 .Xr chpass 1 ,
 .Xr w 1 ,

@@ -32,14 +32,16 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)odsyntax.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)odsyntax.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "hexdump.h"
 
 int deprecated;
