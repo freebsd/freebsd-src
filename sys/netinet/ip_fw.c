@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.55 1997/02/22 09:41:32 peter Exp $
+ *	$Id: ip_fw.c,v 1.56 1997/04/06 11:09:03 dufault Exp $
  */
 
 /*
@@ -760,6 +760,7 @@ ip_fw_init(void)
 	bzero(&deny, sizeof deny);
 	deny.fw_prot = IPPROTO_IP;
 	deny.fw_number = (u_short)-1;
+	deny.fw_flg = IP_FW_F_IN | IP_FW_F_OUT;
 	add_entry(&ip_fw_chain, &deny);
 
 	printf("IP packet filtering initialized, "
