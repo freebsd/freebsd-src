@@ -57,7 +57,11 @@ static const char rcsid[] =
 
 #define FLOATING_POINT
 
+#ifdef FLOATING_POINT
+#include <locale.h>
 #include "floatio.h"
+#endif
+
 #define	BUF		513	/* Maximum length of numeric string. */
 
 /*
@@ -123,6 +127,9 @@ __svfscanf(FILE *fp, char const *fmt0, va_list ap)
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
 		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+#ifdef FLOATING_POINT
+	char decimal_point = localeconv()->decimal_point[0];
+#endif
 
 	nassigned = 0;
 	nconversions = 0;
@@ -599,18 +606,19 @@ literal:
 						goto fok;
 					}
 					break;
-				case '.':
-					if (flags & DPTOK) {
-						flags &= ~(SIGNOK | DPTOK);
-						goto fok;
-					}
-					break;
 				case 'e': case 'E':
 					/* no exponent without some digits */
 					if ((flags&(NDIGITS|EXPOK)) == EXPOK) {
 						flags =
 						    (flags & ~(EXPOK|DPTOK)) |
 						    SIGNOK | NDIGITS;
+						goto fok;
+					}
+					break;
+				default:
+					if ((char)c == decimal_point &&
+					    (flags & DPTOK)) {
+						flags &= ~(SIGNOK | DPTOK);
 						goto fok;
 					}
 					break;
@@ -677,10 +685,10 @@ match_failure:
  */
 static u_char *
 __sccl(tab, fmt)
-	register char *tab;
-	register u_char *fmt;
+	char *tab;
+	u_char *fmt;
 {
-	register int c, n, v, i;
+	int c, n, v, i;
 
 	/* first `clear' the whole table */
 	c = *fmt++;		/* first char hat => negated scanset */
