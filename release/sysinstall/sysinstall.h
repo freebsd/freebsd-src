@@ -147,6 +147,8 @@
 #define ATTR_SELECTED			(ColorDisplay ? item_selected_attr : item_attr)
 #define ATTR_TITLE	button_active_attr
 
+/* Handy strncpy() macro */
+#define SAFE_STRCPY(to, from)	sstrncpy((to), (from), sizeof (to))
 
 /*** Types ***/
 typedef unsigned int Boolean;
@@ -564,6 +566,7 @@ extern int	Mkdir(char *);
 extern int	Mount(char *, void *data);
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
+extern char	*sstrncpy(char *dst, const char *src, int size);
 
 /* msg.c */
 extern Boolean	isDebug(void);
