@@ -21,6 +21,7 @@
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL?=	kernel
+KODIR?=		/modules
 STD8X16FONT?=	iso
 
 .if !defined(S)
