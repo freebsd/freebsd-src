@@ -298,7 +298,7 @@ lf_setlock(lock)
 			lf_printlist("lf_setlock", block);
 		}
 #endif /* LOCKF_DEBUG */
-		error = tsleep((caddr_t)lock, priority, lockstr, 0);
+		error = tsleep(lock, priority, lockstr, 0);
 		/*
 		 * We may have been awakened by a signal and/or by a
 		 * debugger continuing us (in which cases we must remove
@@ -726,7 +726,7 @@ lf_split(lock1, lock2)
 	 * the encompassing lock
 	 */
 	MALLOC(splitlock, struct lockf *, sizeof *splitlock, M_LOCKF, M_WAITOK);
-	bcopy((caddr_t)lock1, (caddr_t)splitlock, sizeof *splitlock);
+	bcopy(lock1, splitlock, sizeof *splitlock);
 	splitlock->lf_start = lock2->lf_end + 1;
 	TAILQ_INIT(&splitlock->lf_blkhd);
 	lock1->lf_end = lock2->lf_start - 1;
@@ -755,7 +755,7 @@ lf_wakelock(listhead)
 		if (lockf_debug & 2)
 			lf_print("lf_wakelock: awakening", wakelock);
 #endif /* LOCKF_DEBUG */
-		wakeup((caddr_t)wakelock);
+		wakeup(wakelock);
 	}
 }
 

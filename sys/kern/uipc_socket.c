@@ -348,7 +348,7 @@ soclose(so)
 			    (so->so_state & SS_NBIO))
 				goto drop;
 			while (so->so_state & SS_ISCONNECTED) {
-				error = tsleep((caddr_t)&so->so_timeo,
+				error = tsleep(&so->so_timeo,
 				    PSOCK | PCATCH, "soclos", so->so_linger * hz);
 				if (error)
 					break;
@@ -1116,7 +1116,7 @@ sorflush(so)
 	socantrcvmore(so);
 	sbunlock(sb);
 	asb = *sb;
-	bzero((caddr_t)sb, sizeof (*sb));
+	bzero(sb, sizeof (*sb));
 	splx(s);
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
