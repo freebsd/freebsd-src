@@ -90,6 +90,7 @@ but show ports symbolically.
 .Nm
 .Fl i | I Ar interface
 .Op Fl abdnt
+.Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Ek
@@ -109,7 +110,7 @@ is also present, multicast addresses currently in use are shown
 for each Ethernet interface and for each IP interface address.
 Multicast addresses are shown on separate lines following the interface
 address with which they are associated.
-It
+If
 .Fl b
 is also present, show the number of bytes in and out.
 If
@@ -286,6 +287,7 @@ The following address families and protocols are recognized:
 .\".It Cm iso Pq Dv AF_ISO
 .\".Cm clnp , cltp , esis , tp
 .It Cm unix Pq Dv AF_UNIX
+.It Cm link Pq Dv AF_LINK
 .El
 .Pp
 The program will complain if

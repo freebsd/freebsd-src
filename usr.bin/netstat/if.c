@@ -251,7 +251,6 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 			*cp = '\0';
 			ifaddraddr = (u_long)TAILQ_FIRST(&ifnet.if_addrhead);
 		}
-		printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 		ifaddrfound = ifaddraddr;
 
 		/*
@@ -269,6 +268,7 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 		drops = ifnet.if_snd.ifq_drops;
 
 		if (ifaddraddr == 0) {
+			printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 			printf("%-13.13s ", "none");
 			printf("%-15.15s ", "none");
 		} else {
@@ -280,6 +280,12 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 			cp = (CP(ifaddr.ifa.ifa_addr) - CP(ifaddraddr)) +
 				CP(&ifaddr);
 			sa = (struct sockaddr *)cp;
+			if (af != AF_UNSPEC && sa->sa_family != af) {
+				ifaddraddr =
+				    (u_long)TAILQ_NEXT(&ifaddr.ifa, ifa_link);
+				continue;
+			}
+			printf("%-5.5s %-5lu ", name, ifnet.if_mtu);
 			switch (sa->sa_family) {
 			case AF_UNSPEC:
 				printf("%-13.13s ", "none");
