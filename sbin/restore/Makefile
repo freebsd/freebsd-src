@@ -1,12 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id$
+#	$Id: Makefile,v 1.8 1998/08/06 21:41:13 markm Exp $
 
 PROG=	restore
 LINKS=	${BINDIR}/restore ${BINDIR}/rrestore
 CFLAGS+=-DRRESTORE
 SRCS=	main.c interactive.c restore.c dirs.c symtab.c tape.c utilities.c \
 	dumprmt.c
-BINOWN=	root
 BINGRP=	tty
 BINMODE=2555
 MAN8=	restore.8

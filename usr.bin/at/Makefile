@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1997/02/22 19:54:03 peter Exp $
+#	$Id: Makefile,v 1.7 1998/06/09 04:07:08 imp Exp $
 
 .include "${.CURDIR}/Makefile.inc"
 
@@ -11,7 +11,6 @@ MLINKS=	at.1 batch.1 \
 	at.1 atq.1 \
 	at.1 atrm.1
 
-BINOWN=	root
 BINMODE= 4555
 MANSRC= .
 CLEANFILES += ${MAN1}

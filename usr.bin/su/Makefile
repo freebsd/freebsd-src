@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.19 1998/08/30 17:02:51 gpalmer Exp $
+#	$Id: Makefile,v 1.20 1998/09/02 14:46:20 bde Exp $
 
 PROG=	su
 SRCS=	su.c
@@ -28,7 +28,6 @@ LDADD+=	-lkrb -ldes
 DISTRIBUTION=	krb
 .endif
 
-BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
 

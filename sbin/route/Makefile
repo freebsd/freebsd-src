@@ -5,7 +5,6 @@ MAN8=	route.8
 SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CLEANFILES+=keywords.h
-BINOWN=	root
 BINMODE=4555
 
 keywords.h: keywords

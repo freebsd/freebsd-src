@@ -1,11 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.10 1998/08/06 21:38:27 markm Exp $
+#	$Id: Makefile,v 1.11 1998/09/05 00:31:38 jb Exp $
 
 PROG=	rlogin
 SRCS=	rlogin.c
 CFLAGS+=-Wall
 
-BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
 
