@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.37 1999/08/13 14:44:13 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.38 1999/08/14 10:05:50 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -583,15 +583,24 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 		       sizeof(linux_termio));
 
     case LINUX_TCSETA:
-	linux_to_bsd_termio((struct linux_termio *)args->arg, &bsd_termios);
+	error = copyin((caddr_t)args->arg, &linux_termio, sizeof(linux_termio));
+	if (error)
+	    return error;
+	linux_to_bsd_termio(&linux_termio, &bsd_termios);
 	return (*func)(fp, TIOCSETA, (caddr_t)&bsd_termios, p);
 
     case LINUX_TCSETAW:
-	linux_to_bsd_termio((struct linux_termio *)args->arg, &bsd_termios);
+	error = copyin((caddr_t)args->arg, &linux_termio, sizeof(linux_termio));
+	if (error)
+	    return error;
+	linux_to_bsd_termio(&linux_termio, &bsd_termios);
 	return (*func)(fp, TIOCSETAW, (caddr_t)&bsd_termios, p);
 
     case LINUX_TCSETAF:
-	linux_to_bsd_termio((struct linux_termio *)args->arg, &bsd_termios);
+	error = copyin((caddr_t)args->arg, &linux_termio, sizeof(linux_termio));
+	if (error)
+	    return error;
+	linux_to_bsd_termio(&linux_termio, &bsd_termios);
 	return (*func)(fp, TIOCSETAF, (caddr_t)&bsd_termios, p);
 
     case LINUX_TCGETS:
@@ -602,15 +611,27 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 		       sizeof(linux_termios));
 
     case LINUX_TCSETS:
-	linux_to_bsd_termios((struct linux_termios *)args->arg, &bsd_termios);
+	error = copyin((caddr_t)args->arg, &linux_termios,
+		       sizeof(linux_termios));
+	if (error)
+	    return error;
+	linux_to_bsd_termios(&linux_termios, &bsd_termios);
 	return (*func)(fp, TIOCSETA, (caddr_t)&bsd_termios, p);
 
     case LINUX_TCSETSW:
-	linux_to_bsd_termios((struct linux_termios *)args->arg, &bsd_termios);
+	error = copyin((caddr_t)args->arg, &linux_termios,
+		       sizeof(linux_termios));
+	if (error)
+	    return error;
+	linux_to_bsd_termios(&linux_termios, &bsd_termios);
 	return (*func)(fp, TIOCSETAW, (caddr_t)&bsd_termios, p);
 
     case LINUX_TCSETSF:
-	linux_to_bsd_termios((struct linux_termios *)args->arg, &bsd_termios);
+	error = copyin((caddr_t)args->arg, &linux_termios,
+		       sizeof(linux_termios));
+	if (error)
+	    return error;
+	linux_to_bsd_termios(&linux_termios, &bsd_termios);
 	return (*func)(fp, TIOCSETAF, (caddr_t)&bsd_termios, p);
 	    
     case LINUX_TIOCGPGRP:
