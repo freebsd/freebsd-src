@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.80 1998/09/06 22:41:40 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.81 1998/10/08 16:15:22 kato Exp $
  */
 
 #include "opt_smp.h"
@@ -188,7 +188,7 @@ typedef struct BASETABLE_ENTRY {
 #define CHECK_POINTS
  */
 
-#if defined(CHECK_POINTS)
+#if defined(CHECK_POINTS) && !defined(PC98)
 #define CHECK_READ(A)	 (outb(CMOS_REG, (A)), inb(CMOS_DATA))
 #define CHECK_WRITE(A,D) (outb(CMOS_REG, (A)), outb(CMOS_DATA, (D)))
 
@@ -1765,10 +1765,12 @@ start_all_aps(u_int boot_addr)
 	install_ap_tramp(boot_addr);
 
 
+#ifndef PC98
 	/* save the current value of the warm-start vector */
 	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
+#endif
 
 	/* record BSP in CPU map */
 	all_cpus = 1;
@@ -1838,11 +1840,13 @@ start_all_aps(u_int boot_addr)
 		gd->prv_CMAP3 = &newpt[5 + UPAGES];
 		gd->prv_PMAP1 = &newpt[6 + UPAGES];
 
+#ifndef PC98
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_addr >> 4);
 		outb(CMOS_REG, BIOS_RESET);
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
+#endif
 
 		bootPTD = myPTD;
 		/* attempt to start the Application Processor */
@@ -1869,10 +1873,12 @@ start_all_aps(u_int boot_addr)
 	/* fill in our (BSP) APIC version */
 	cpu_apic_versions[0] = lapic.version;
 
+#ifndef PC98
 	/* restore the warmstart vector */
 	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
+#endif
 
 	/*
 	 * Set up the idle context for the BSP.  Similar to above except
