@@ -39,6 +39,7 @@
  *			and many others.
  */
 
+#include "opt_bootp.h"
 #include "opt_compat.h"
 #include "opt_nfsroot.h"
 #include "opt_pmap.h"
@@ -541,6 +542,7 @@ got_common_bi_size:
 	movsb
 
 #ifdef NFS_ROOT
+#ifndef BOOTP_NFSV3
 	/*
 	 * If we have a nfs_diskless structure copy it in
 	 */
@@ -554,6 +556,7 @@ got_common_bi_size:
 	movsb
 	movl	$R(nfs_diskless_valid),%edi
 	movl	$1,(%edi)
+#endif
 #endif
 
 	/*
