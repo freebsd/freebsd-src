@@ -747,7 +747,7 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
     if (ncpaddr_isdefault(gw)) {
       if (!quiet)
         log_Printf(LogERROR, "rt_Set: Cannot add a route with"
-                   " destination 0.0.0.0\n");
+                   " gateway 0.0.0.0\n");
       close(s);
       return result;
     } else {
