@@ -379,24 +379,8 @@ int
 in6_gif_attach(sc)
 	struct gif_softc *sc;
 {
-#ifndef USE_ENCAPCHECK
-	struct sockaddr_in6 mask6;
-
-	bzero(&mask6, sizeof(mask6));
-	mask6.sin6_len = sizeof(struct sockaddr_in6);
-	mask6.sin6_addr.s6_addr32[0] = mask6.sin6_addr.s6_addr32[1] =
-	    mask6.sin6_addr.s6_addr32[2] = mask6.sin6_addr.s6_addr32[3] = ~0;
-	mask6.sin6_scope_id = ~0;
-
-	if (!sc->gif_psrc || !sc->gif_pdst)
-		return EINVAL;
-	sc->encap_cookie6 = encap_attach(AF_INET6, -1, sc->gif_psrc,
-	    (struct sockaddr *)&mask6, sc->gif_pdst, (struct sockaddr *)&mask6,
-	    (struct protosw *)&in6_gif_protosw, sc);
-#else
 	sc->encap_cookie6 = encap_attach_func(AF_INET6, -1, gif_encapcheck,
 	    (struct protosw *)&in6_gif_protosw, sc);
-#endif
 	if (sc->encap_cookie6 == NULL)
 		return EEXIST;
 	return 0;
