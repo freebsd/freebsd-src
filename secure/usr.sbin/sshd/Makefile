@@ -19,8 +19,8 @@ CFLAGS+=-I${SSHDIR}
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DKRB5 -DHEIMDAL
 SRCS+=	auth-krb5.c
-LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
-DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD}
+LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -lroken
+DPADD+=	 ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
 .endif
 
 LDADD+=	-lopie -lmd
