@@ -256,7 +256,10 @@ snpread(dev, uio, flag)
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
 			snp->snp_flags |= SNOOP_RWAIT;
-			tsleep((caddr_t)snp, (PZERO + 1) | PCATCH, "snprd", 0);
+			error = tsleep((caddr_t)snp, (PZERO + 1) | PCATCH,
+			    "snprd", 0);
+			if (error != 0)
+				return (error);
 		}
 	} while (snp->snp_len == 0);
 
