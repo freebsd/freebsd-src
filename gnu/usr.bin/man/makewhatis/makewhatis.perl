@@ -48,14 +48,6 @@ sub usage {
     warn <<EOF;
 usage: makewhatis [-verbose] [-help] [-format colum] [-name name]
                   [-outfile file] directory [...]	      
-
--verbose           Verbose output
--format colum      Format output. Default $format
--help              This help.
--outfile file      Write all output to file.
--name name	   Use name instead ``$whatis_name''		   
-directory          A ``*/man'' directory.  Treats colons as spaces,
-                   hence ``makewhatis \$MANPATH'' is allowed.
 EOF
 
     exit 1;
