@@ -29,20 +29,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.21.2.4 1996/06/08 07:10:37 gibbs Exp $
+ *	$Id: aic7770.c,v 1.21.2.5 1996/10/06 16:42:11 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
-#include <eisa.h>
+#include "eisa.h"
 #endif
 #if NEISA > 0 || defined(__NetBSD__)
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined(__FreeBSD__)
-#include <sys/devconf.h>
-#endif
 #include <sys/kernel.h>
+#if defined(__FreeBSD__) 
+#include <sys/devconf.h> 
+#endif
 
 #if defined(__NetBSD__)
 #include <sys/device.h>
@@ -86,18 +86,19 @@
 static int	aic7770probe __P((void));
 static int	aic7770_attach __P((struct eisa_device *e_dev));
 
-static struct eisa_driver ahc_eisa_driver = {
-					"ahc",
-					aic7770probe,
-					aic7770_attach,
-					/*shutdown*/NULL,
-					&ahc_unit
-				      };
+static struct eisa_driver ahc_eisa_driver =
+{
+	"ahc",
+	aic7770probe,
+	aic7770_attach,
+	/*shutdown*/NULL,
+	&ahc_unit
+};
 
 DATA_SET (eisadriver_set, ahc_eisa_driver);
 
 static struct kern_devconf kdc_aic7770 = {
-	0, 0, 0,                /* filled in by dev_attach */
+	0, 0, 0,		/* filled in by dev_attach */
 	"ahc", 0, { MDDT_EISA, 0, "bio" },
 	eisa_generic_externalize, 0, 0, EISA_EXTERNALLEN,
 	&kdc_eisa0,		/* parent */
@@ -107,26 +108,25 @@ static struct kern_devconf kdc_aic7770 = {
 	DC_CLS_MISC		/* host adapters aren't special */
 };
 
-
 static char	*aic7770_match __P((eisa_id_t type));
 
 static  char*
 aic7770_match(type)
 	eisa_id_t type;
 {
-	switch(type) {
-		case EISA_DEVICE_ID_ADAPTEC_AIC7770:
-			return ("Adaptec aic7770 SCSI host adapter");
-			break;
-		case EISA_DEVICE_ID_ADAPTEC_274x:
-			return ("Adaptec 274X SCSI host adapter");
-			break;
-		case EISA_DEVICE_ID_ADAPTEC_284xB:
-		case EISA_DEVICE_ID_ADAPTEC_284x:
-			return ("Adaptec 284X SCSI host adapter");
-			break;
-		default:
-			break;
+	switch (type) {
+	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
+		return ("Adaptec aic7770 SCSI host adapter");
+		break;
+	case EISA_DEVICE_ID_ADAPTEC_274x:
+		return ("Adaptec 274X SCSI host adapter");
+		break;
+	case EISA_DEVICE_ID_ADAPTEC_284xB:
+	case EISA_DEVICE_ID_ADAPTEC_284x:
+		return ("Adaptec 284X SCSI host adapter");
+		break;
+	default:
+		break;
 	}
 	return (NULL);
 }
@@ -134,9 +134,10 @@ aic7770_match(type)
 static int
 aic7770probe(void)
 {
-	u_long iobase;
-	char intdef;
-	u_long irq;
+	u_int32_t iobase;
+	u_int32_t irq;
+	u_int8_t intdef;
+	u_int8_t hcntrl;
 	struct eisa_device *e_dev = NULL;
 	int count;
 
@@ -144,7 +145,11 @@ aic7770probe(void)
 	while ((e_dev = eisa_match_dev(e_dev, aic7770_match))) {
 		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE)
 			 + AHC_EISA_SLOT_OFFSET;
-		ahc_reset(iobase);
+
+		/* Pause the card preseving the IRQ type */
+		hcntrl = inb(iobase + HCNTRL) & IRQMS;
+
+		outb(iobase + HCNTRL, hcntrl | PAUSE);
 
 		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
@@ -183,8 +188,9 @@ int	ahc_eisa_match __P((struct device *, void *, void *));
 void	ahc_eisa_attach __P((struct device *, struct device *, void *));
 
 
-struct cfattach ahc_eisa_ca = {
-	sizeof(struct ahc_data), ahc_eisa_match, ahc_eisa_attach
+struct cfattach ahc_eisa_ca =
+{
+	sizeof(struct ahc_softc), ahc_eisa_match, ahc_eisa_attach
 };
 
 /*
@@ -196,7 +202,7 @@ ahc_eisa_irq(bc, ioh)
 	bus_io_handle_t ioh;
 {
 	int irq;
-	u_char intdef;
+	u_int8_t intdef;
 
 	ahc_reset("ahc_eisa", bc, ioh);
 	intdef = bus_io_read_1(bc, ioh, INTDEF);
@@ -266,47 +272,50 @@ ahc_eisa_attach(parent, self, aux)
 	ahc_type type;
 
 #if defined(__FreeBSD__)
-	struct ahc_data *ahc;
+	struct ahc_softc *ahc;
 	resvaddr_t *iospace;
 	int unit = e_dev->unit;
 	int irq = ffs(e_dev->ioconf.irq) - 1;
 
 	iospace = e_dev->ioconf.ioaddrs.lh_first;
 
-	if(!iospace)
+	if (!iospace)
 		return -1;
 
-	switch(e_dev->id) {
-		case EISA_DEVICE_ID_ADAPTEC_AIC7770:
-			type = AHC_AIC7770;
-			break;
-		case EISA_DEVICE_ID_ADAPTEC_274x:
-			type = AHC_274;
-			break;          
-		case EISA_DEVICE_ID_ADAPTEC_284xB:
-		case EISA_DEVICE_ID_ADAPTEC_284x:
-			type = AHC_284;
-			break;
-		default: 
-			printf("aic7770_attach: Unknown device type!\n");
-			return -1;
-			break;
+	switch (e_dev->id) {
+	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
+		type = AHC_AIC7770;
+		break;
+	case EISA_DEVICE_ID_ADAPTEC_274x:
+		type = AHC_274;
+		break;          
+	case EISA_DEVICE_ID_ADAPTEC_284xB:
+	case EISA_DEVICE_ID_ADAPTEC_284x:
+		type = AHC_284;
+		break;
+	default: 
+		printf("aic7770_attach: Unknown device type!\n");
+		return -1;
+		break;
 	}
 
-	if(!(ahc = ahc_alloc(unit, iospace->addr, type, AHC_FNONE)))
+	if (!(ahc = ahc_alloc(unit, iospace->addr, NULL,
+			      type, AHC_FNONE, NULL)))
 		return -1;
 
 	eisa_reg_start(e_dev);
-	if(eisa_reg_iospace(e_dev, iospace)) {
+	if (eisa_reg_iospace(e_dev, iospace)) {
 		ahc_free(ahc);
 		return -1;
 	}
+
+	ahc_reset(ahc);
 
 	/*
 	 * The IRQMS bit enables level sensitive interrupts. Only allow
 	 * IRQ sharing if it's set.
 	 */
-	if(eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &bio_imask,
+	if (eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &bio_imask,
 			 /*shared ==*/ahc->pause & IRQMS)) {
 		ahc_free(ahc);
 		return -1;
@@ -315,7 +324,7 @@ ahc_eisa_attach(parent, self, aux)
 
 #elif defined(__NetBSD__)
 
-	struct ahc_data *ahc = (void *)self;
+	struct ahc_softc *ahc = (void *)self;
 	struct eisa_attach_args *ea = aux;
 	bus_chipset_tag_t bc = ea->ea_bc;
 	bus_io_handle_t ioh;
@@ -360,7 +369,7 @@ ahc_eisa_attach(parent, self, aux)
 	 * Tell the user what type of interrupts we're using.
 	 * usefull for debugging irq problems
 	 */
-	if(bootverbose) {
+	if (bootverbose) {
 		printf("%s: Using %s Interrupts\n",
 		       ahc_name(ahc),
 		       ahc->pause & IRQMS ?
@@ -373,11 +382,11 @@ ahc_eisa_attach(parent, self, aux)
 	 *
 	 * First, the aic7770 card specific setup.
 	 */
-	switch( ahc->type ) {
-	    case AHC_AIC7770:
-	    case AHC_274:
-	    {
-		u_char biosctrl = AHC_INB(ahc, HA_274_BIOSCTRL);
+	switch (ahc->type) {
+	case AHC_AIC7770:
+	case AHC_274:
+	{
+		u_int8_t biosctrl = ahc_inb(ahc, HA_274_BIOSCTRL);
 
 		/* Get the primary channel information */
 		ahc->flags |= (biosctrl & CHANNEL_B_PRIMARY);
@@ -385,9 +394,9 @@ ahc_eisa_attach(parent, self, aux)
 		if((biosctrl & BIOSMODE) == BIOSDISABLED)
 			ahc->flags |= AHC_USEDEFAULTS;
 		break;
-	    }
-	    case AHC_284:
-	    {
+	}
+	case AHC_284:
+	{
 		/* XXX
 		 * All values are automagically intialized at
 		 * POST for these cards, so we can always rely
@@ -398,41 +407,35 @@ ahc_eisa_attach(parent, self, aux)
 		 * save a lot of users the grief of failed installs.
 		 */
 		break;
-	    }
-	    default:
+	}
+	default:
 		break;
 	}
 
-	/*      
+	/*
 	 * See if we have a Rev E or higher aic7770. Anything below a
 	 * Rev E will have a R/O autoflush disable configuration bit.
-	 * It's still not clear exactly what is differenent about the Rev E.
-	 * We think it allows 8 bit entries in the QOUTFIFO to support
-	 * "paging" SCBs so you can have more than 4 commands active at
-	 * once.
-	 */     
+	 * The Rev E. cards have some changes to support Adaptec's SCB
+	 * paging scheme, but I don't know what that is yet.
+	 */
 	{
 		char *id_string;
-		u_char sblkctl;
-		u_char sblkctl_orig;
+		u_int8_t sblkctl;
+		u_int8_t sblkctl_orig;
 
-		sblkctl_orig = AHC_INB(ahc, SBLKCTL);
+		sblkctl_orig = ahc_inb(ahc, SBLKCTL);
 		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
-		AHC_OUTB(ahc, SBLKCTL, sblkctl);
-		sblkctl = AHC_INB(ahc, SBLKCTL);
-		if(sblkctl != sblkctl_orig)
-		{
+		ahc_outb(ahc, SBLKCTL, sblkctl);
+		sblkctl = ahc_inb(ahc, SBLKCTL);
+		if (sblkctl != sblkctl_orig) {
 			id_string = "aic7770 >= Rev E, ";
 			/*
 			 * Ensure autoflush is enabled
 			 */
 			sblkctl &= ~AUTOFLUSHDIS;
-			AHC_OUTB(ahc, SBLKCTL, sblkctl);
+			ahc_outb(ahc, SBLKCTL, sblkctl);
 
-			/* Allow paging on this adapter */
-			ahc->flags |= AHC_PAGESCBS;
-		}
-		else
+		} else
 			id_string = "aic7770 <= Rev C, ";
 
 		printf("%s: %s", ahc_name(ahc), id_string);
@@ -440,15 +443,15 @@ ahc_eisa_attach(parent, self, aux)
 
 	/* Setup the FIFO threshold and the bus off time */
 	{
-		u_char hostconf = AHC_INB(ahc, HOSTCONF);
-		AHC_OUTB(ahc, BUSSPD, hostconf & DFTHRSH);
-		AHC_OUTB(ahc, BUSTIME, (hostconf << 2) & BOFF);
+		u_int8_t hostconf = ahc_inb(ahc, HOSTCONF);
+		ahc_outb(ahc, BUSSPD, hostconf & DFTHRSH);
+		ahc_outb(ahc, BUSTIME, (hostconf << 2) & BOFF);
 	}
 
 	/*
 	 * Generic aic7xxx initialization.
 	 */
-	if(ahc_init(ahc)){
+	if (ahc_init(ahc)) {
 #if defined(__FreeBSD__)
 		ahc_free(ahc);
 		/*
@@ -466,19 +469,18 @@ ahc_eisa_attach(parent, self, aux)
 	/*
 	 * Enable the board's BUS drivers
 	 */
-	AHC_OUTB(ahc, BCTL, ENABLE);
+	ahc_outb(ahc, BCTL, ENABLE);
 
 #if defined(__FreeBSD__)
 	/*
 	 * Enable our interrupt handler.
 	 */
-	if(eisa_enable_intr(e_dev, irq)) {
+	if (eisa_enable_intr(e_dev, irq)) {
 		ahc_free(ahc);
 		eisa_release_intr(e_dev, irq, ahc_intr);
 		return -1;
 	}
 
-	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
 #elif defined(__NetBSD__)
 	intrstr = eisa_intr_string(ec, ih);
 	/*
@@ -487,7 +489,7 @@ ahc_eisa_attach(parent, self, aux)
 	 */
 	ahc->sc_ih = eisa_intr_establish(ec, ih,
 	    ahc->pause & IRQMS ? IST_LEVEL : IST_EDGE, IPL_BIO, ahc_intr, ahc
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__)
 	    , ahc->sc_dev.dv_xname
 #endif
 	    );
