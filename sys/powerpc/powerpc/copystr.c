@@ -31,10 +31,8 @@
  *	$NetBSD: copystr.c,v 1.3 2000/06/08 06:47:17 kleink Exp $
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>

@@ -31,10 +31,8 @@
  * $NetBSD: trap.c,v 1.58 2002/03/04 04:07:35 dbj Exp $
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ktrace.h"

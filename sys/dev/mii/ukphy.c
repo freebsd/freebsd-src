@@ -70,6 +70,9 @@
  * driver for generic unknown PHYs
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -81,16 +84,10 @@
 #include <net/if.h>
 #include <net/if_media.h>
 
-
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 static int ukphy_probe(device_t);
 static int ukphy_attach(device_t);

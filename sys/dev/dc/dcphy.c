@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -40,6 +38,9 @@
  * and the alternative is to create a fake MII interface in the driver,
  * which is harder to do.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,11 +71,6 @@
 #include <pci/if_dcreg.h>
 
 #include "miibus_if.h"
-
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 #define DC_SETBIT(sc, reg, x)                           \
         CSR_WRITE_4(sc, reg,                            \

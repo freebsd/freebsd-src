@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -40,7 +38,11 @@
  * Columbia University, New York City
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
+
 #ifdef INET
 #define ANCACHE
 #endif
@@ -70,11 +72,6 @@
 
 #include <dev/an/if_aironet_ieee.h>
 #include <dev/an/if_anreg.h>
-
-#ifndef lint
-static const char rcsid[] =
- "$FreeBSD$";
-#endif
 
 static struct isa_pnp_id an_ids[] = {
 	{ 0x0100ec06, "Aironet ISA4500/ISA4800" },

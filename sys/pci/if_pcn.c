@@ -29,18 +29,12 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
  * AMD Am79c972 fast ethernet PCI NIC driver. Datatheets are available
  * from http://www.amd.com.
  *
- * Written by Bill Paul <wpaul@osd.bsdi.com>
- */
-
-/*
  * The AMD PCnet/PCI controllers are more advanced and functional
  * versions of the venerable 7990 LANCE. The PCnet/PCI chips retain
  * backwards compatibility with the LANCE and thus can be made
@@ -54,6 +48,9 @@
  * allows the receive handler to pass packets to the upper protocol
  * layers without copying on both the x86 and alpha platforms).
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,11 +91,6 @@ MODULE_DEPEND(pcn, miibus, 1, 1, 1);
 
 /* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
-
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 
 /*
  * Various supported device vendors/types and their names.

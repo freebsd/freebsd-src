@@ -22,9 +22,6 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
 
 /*
@@ -35,15 +32,14 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <netatm/port.h>
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
 
 /*
  * This file contains code that has been copied and/or modified from
@@ -87,7 +83,6 @@ __RCSID("@(#) $FreeBSD$");
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr.c 1.35 87/08/12";*/
 /*static char *sccsid = "from: @(#)xdr.c	2.1 88/07/29 4.0 RPCSRC";*/
-/*static char *rcsid = "Id: xdr.c,v 1.2.4.2 1996/06/05 02:52:02 jkh Exp";*/
 #endif
 
 /*
@@ -408,7 +403,6 @@ xdr_opaque(xdrs, cp, cnt)
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)xdr_mem.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_mem.c	2.1 88/07/29 4.0 RPCSRC";*/
-/*static char *rcsid = "Id: xdr_mem.c,v 1.2.4.2 1996/06/05 02:52:04 jkh Exp";*/
 #endif
 
 /*
