@@ -1701,13 +1701,14 @@ ppc_probe(device_t dev)
 	device_t parent;
 	int port;
 
-	device_set_desc(dev, "Parallel port");
-
-	/* XXX shall be connected to pnpbios - from Peter Wemm */
+	/* If we are a PNP device, abort.  Otherwise we attach to *everthing* */
 	if (isa_get_logicalid(dev))
                 return ENXIO;
 
 	parent = device_get_parent(dev);
+
+	/* XXX shall be set after detection */
+	device_set_desc(dev, "Parallel port");
 
 	/*
 	 * Allocate the ppc_data structure.
