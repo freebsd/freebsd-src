@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.20 1994/04/20 07:06:20 davidg Exp $
+ *	$Id: vm_machdep.c,v 1.22 1994/05/25 08:55:23 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -55,12 +55,14 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
-#define b_cylin b_resid
+#ifndef NOBOUNCE
+vm_map_t	io_map;
+volatile int	kvasfreecnt;
+
 
 caddr_t		bouncememory;
-vm_offset_t	bouncepa, bouncepaend;
 int		bouncepages, bpwait;
-vm_map_t	io_map;
+vm_offset_t	*bouncepa;
 int		bmwait, bmfreeing;
 
 #define BITS_IN_UNSIGNED (8*sizeof(unsigned))
@@ -69,8 +71,8 @@ unsigned	*bounceallocarray;
 int		bouncefree;
 
 #define SIXTEENMEG (4096*4096)
-#define MAXBKVA 512
-int		maxbkva=MAXBKVA*NBPG;
+#define MAXBKVA 1024
+int		maxbkva = MAXBKVA*NBPG;
 
 /* special list that can be used at interrupt time for eventual kva free */
 struct kvasfree {
@@ -78,7 +80,6 @@ struct kvasfree {
 	vm_offset_t size;
 } kvaf[MAXBKVA];
 
-int		kvasfreecnt;
 
 vm_offset_t vm_bounce_kva();
 /*
@@ -103,7 +104,7 @@ retry:
 				bounceallocarray[i] |= 1 << (bit - 1) ;
 				bouncefree -= count;
 				splx(s);
-				return bouncepa + (i * BITS_IN_UNSIGNED + (bit - 1)) * NBPG;
+				return bouncepa[(i * BITS_IN_UNSIGNED + (bit - 1))];
 			}
 		}
 	}
@@ -120,7 +121,8 @@ vm_bounce_kva_free(addr, size, now)
 {
 	int s = splbio();
 	kvaf[kvasfreecnt].addr = addr;
-	kvaf[kvasfreecnt++].size = size;
+	kvaf[kvasfreecnt].size = size;
+	++kvasfreecnt;
 	if( now) {
 		/*
 		 * this will do wakeups
@@ -153,10 +155,13 @@ vm_bounce_page_free(pa, count)
 	if (count != 1)
 		panic("vm_bounce_page_free -- no support for > 1 page yet!!!\n");
 
-	index = (pa - bouncepa) / NBPG;
+	for(index=0;index<bouncepages;index++) {
+		if( pa == bouncepa[index])
+			break;
+	}
 
-	if ((index < 0) || (index >= bouncepages))
-		panic("vm_bounce_page_free -- bad index\n");
+	if( index == bouncepages)
+		panic("vm_bounce_page_free: invalid bounce buffer");
 
 	allocindex = index / BITS_IN_UNSIGNED;
 	bit = index % BITS_IN_UNSIGNED;
@@ -174,45 +179,29 @@ vm_bounce_page_free(pa, count)
  * allocate count bounce buffer kva pages
  */
 vm_offset_t
-vm_bounce_kva(count, waitok)
-	int count;
+vm_bounce_kva(size, waitok)
+	int size;
 	int waitok;
 {
-	int tofree;
 	int i;
 	int startfree;
 	vm_offset_t kva = 0;
 	int s = splbio();
-	int size = count;
-	startfree = 0;
 more:
-	if (!bmfreeing && (tofree = kvasfreecnt)) {
+	if (!bmfreeing && kvasfreecnt) {
 		bmfreeing = 1;
-		for (i = startfree; i < kvasfreecnt; i++) {
-			/*
-			 * if we have a kva of the right size, no sense
-			 * in freeing/reallocating...
-			 * might affect fragmentation short term, but
-			 * as long as the amount of io_map is
-			 * significantly more than the maximum transfer
-			 * size, I don't think that it is a problem.
-			 */
+		for (i = 0; i < kvasfreecnt; i++) {
 			pmap_remove(kernel_pmap,
 				kvaf[i].addr, kvaf[i].addr + kvaf[i].size);
-			if( size && !kva && kvaf[i].size == size) {
-				kva = kvaf[i].addr;
-			} else {
-				kmem_free_wakeup(io_map, kvaf[i].addr,
-					kvaf[i].size);
-			}
-		}
-		if (kvasfreecnt != tofree) {
-			startfree = i;
-			bmfreeing = 0;
-			goto more;
+			kmem_free_wakeup(io_map, kvaf[i].addr,
+				kvaf[i].size);
 		}
 		kvasfreecnt = 0;
 		bmfreeing = 0;
+		if( bmwait) {
+			bmwait = 0;
+			wakeup( (caddr_t) io_map);
+		}
 	}
 
 	if( size == 0) {
@@ -220,7 +209,7 @@ more:
 		return NULL;
 	}
 
-	if (!kva && !(kva = kmem_alloc_pageable(io_map, size))) {
+	if ((kva = kmem_alloc_pageable(io_map, size)) == 0) {
 		if( !waitok) {
 			splx(s);
 			return NULL;
@@ -230,12 +219,11 @@ more:
 		goto more;
 	}
 	splx(s);
-
 	return kva;
 }
 
 /*
- * same as vm_bounce_kva -- but really allocate
+ * same as vm_bounce_kva -- but really allocate (but takes pages as arg)
  */
 vm_offset_t
 vm_bounce_kva_alloc(count) 
@@ -248,7 +236,7 @@ int count;
 		kva = (vm_offset_t) malloc(count*NBPG, M_TEMP, M_WAITOK);
 		return kva;
 	}
-	kva = vm_bounce_kva(count, 1);
+	kva = vm_bounce_kva(count*NBPG, 1);
 	for(i=0;i<count;i++) {
 		pa = vm_bounce_page_find(1);
 		pmap_kenter(kva + i * NBPG, pa);
@@ -275,7 +263,7 @@ vm_bounce_kva_alloc_free(kva, count)
 		pa = pmap_kextract(kva + i * NBPG);
 		vm_bounce_page_free(pa, 1);
 	}
-	vm_bounce_kva_free(kva, count);
+	vm_bounce_kva_free(kva, count*NBPG, 0);
 }
 
 /*
@@ -299,11 +287,24 @@ vm_bounce_alloc(bp)
 	if (bouncepages == 0)
 		return;
 
-	if (bp->b_bufsize < bp->b_bcount) {
-		printf("vm_bounce_alloc: b_bufsize(%d) < b_bcount(%d) !!!!\n",
-			bp->b_bufsize, bp->b_bcount);
-		bp->b_bufsize = bp->b_bcount;
+	if (bp->b_flags & B_BOUNCE) {
+		printf("vm_bounce_alloc: called recursively???\n");
+		return;
 	}
+
+	if (bp->b_bufsize < bp->b_bcount) {
+		printf("vm_bounce_alloc: b_bufsize(0x%x) < b_bcount(0x%x) !!!!\n",
+			bp->b_bufsize, bp->b_bcount);
+		panic("vm_bounce_alloc");
+	}
+
+/*
+ *  This is not really necessary
+ *	if( bp->b_bufsize != bp->b_bcount) {
+ *		printf("size: %d, count: %d\n", bp->b_bufsize, bp->b_bcount);
+ *	}
+ */
+		
 
 	vastart = (vm_offset_t) bp->b_data;
 	vaend = (vm_offset_t) bp->b_data + bp->b_bufsize;
@@ -332,6 +333,11 @@ vm_bounce_alloc(bp)
  * allocate a replacement kva for b_addr
  */
 	kva = vm_bounce_kva(countvmpg*NBPG, 1);
+#if 0
+	printf("%s: vapstart: %x, vapend: %x, countvmpg: %d, kva: %x ",
+		(bp->b_flags & B_READ) ? "read":"write",
+			vapstart, vapend, countvmpg, kva);
+#endif
 	va = vapstart;
 	for (i = 0; i < countvmpg; i++) {
 		pa = pmap_kextract(va);
@@ -341,6 +347,9 @@ vm_bounce_alloc(bp)
 			 */
 			vm_offset_t bpa = vm_bounce_page_find(1);
 			pmap_kenter(kva + (NBPG * i), bpa);
+#if 0
+			printf("r(%d): (%x,%x,%x) ", i, va, pa, bpa);
+#endif
 			/*
 			 * if we are writing, the copy the data into the page
 			 */
@@ -371,6 +380,9 @@ vm_bounce_alloc(bp)
  */
 	bp->b_data = (caddr_t) (((vm_offset_t) kva) |
 				((vm_offset_t) bp->b_savekva & (NBPG - 1)));
+#if 0
+	printf("b_savekva: %x, newva: %x\n", bp->b_savekva, bp->b_data);
+#endif
 	return;
 }
 
@@ -382,14 +394,8 @@ vm_bounce_free(bp)
 	struct buf *bp;
 {
 	int i;
-	vm_offset_t origkva, bouncekva;
-	vm_offset_t vastart, vaend;
-	vm_offset_t vapstart, vapend;
-	int countbounce = 0;
-	vm_offset_t firstbouncepa = 0;
-	int firstbounceindex;
+	vm_offset_t origkva, bouncekva, bouncekvaend;
 	int countvmpg;
-	vm_offset_t bcount;
 	int s;
 
 /*
@@ -398,22 +404,24 @@ vm_bounce_free(bp)
 	if ((bp->b_flags & B_BOUNCE) == 0)
 		return;
 
+/*
+ *  This check is not necessary
+ *	if (bp->b_bufsize != bp->b_bcount) {
+ *		printf("vm_bounce_free: b_bufsize=%d, b_bcount=%d\n",
+ *			bp->b_bufsize, bp->b_bcount);
+ *	}
+ */
+
 	origkva = (vm_offset_t) bp->b_savekva;
 	bouncekva = (vm_offset_t) bp->b_data;
-
-	vastart = bouncekva;
-	vaend = bouncekva + bp->b_bufsize;
-	bcount = bp->b_bufsize;
-	
-	vapstart = i386_trunc_page(vastart);
-	vapend = i386_round_page(vaend);
-
-	countvmpg = (vapend - vapstart) / NBPG;
+/*
+	printf("free: %d ", bp->b_bufsize);
+*/
 
 /*
  * check every page in the kva space for b_addr
  */
-	for (i = 0; i < countvmpg; i++) {
+	for (i = 0; i < bp->b_bufsize; ) {
 		vm_offset_t mybouncepa;
 		vm_offset_t copycount;
 
@@ -423,36 +431,51 @@ vm_bounce_free(bp)
 /*
  * if this is a bounced pa, then process as one
  */
-		if ((mybouncepa >= bouncepa) && (mybouncepa < bouncepaend)) {
-			if (copycount > bcount)
-				copycount = bcount;
+		if ( mybouncepa != pmap_kextract( i386_trunc_page( origkva))) {
+			vm_offset_t tocopy = copycount;
+			if (i + tocopy > bp->b_bufsize)
+				tocopy = bp->b_bufsize - i;
 /*
  * if this is a read, then copy from bounce buffer into original buffer
  */
 			if (bp->b_flags & B_READ)
-				bcopy((caddr_t) bouncekva, (caddr_t) origkva, copycount);
+				bcopy((caddr_t) bouncekva, (caddr_t) origkva, tocopy);
 /*
  * free the bounce allocation
  */
-			vm_bounce_page_free(i386_trunc_page(mybouncepa), 1);
+			
+/*
+			printf("(kva: %x, pa: %x)", bouncekva, mybouncepa);
+*/
+			vm_bounce_page_free(mybouncepa, 1);
 		}
 
 		origkva += copycount;
 		bouncekva += copycount;
-		bcount -= copycount;
+		i += copycount;
 	}
 
 /*
+	printf("\n");
+*/
+/*
  * add the old kva into the "to free" list
  */
-	bouncekva = i386_trunc_page((vm_offset_t) bp->b_data);
-	vm_bounce_kva_free( bouncekva, countvmpg*NBPG, 0);
+	
+	bouncekva= i386_trunc_page((vm_offset_t) bp->b_data);
+	bouncekvaend= i386_round_page((vm_offset_t)bp->b_data + bp->b_bufsize);
+
+/*
+	printf("freeva: %d\n", (bouncekvaend - bouncekva) / NBPG);
+*/
+	vm_bounce_kva_free( bouncekva, (bouncekvaend - bouncekva), 0);
 	bp->b_data = bp->b_savekva;
 	bp->b_savekva = 0;
 	bp->b_flags &= ~B_BOUNCE;
 
 	return;
 }
+
 
 /*
  * init the bounce buffer system
@@ -461,6 +484,7 @@ void
 vm_bounce_init()
 {
 	vm_offset_t minaddr, maxaddr;
+	int i;
 
 	kvasfreecnt = 0;
 
@@ -473,353 +497,23 @@ vm_bounce_init()
 	if (!bounceallocarray)
 		panic("Cannot allocate bounce resource array\n");
 
-	bzero(bounceallocarray, bounceallocarraysize * sizeof(long));
+	bzero(bounceallocarray, bounceallocarraysize * sizeof(unsigned));
+	bouncepa = malloc(bouncepages * sizeof(vm_offset_t), M_TEMP, M_NOWAIT);
+	if (!bouncepa)
+		panic("Cannot allocate physical memory array\n");
 
-
-	bouncepa = pmap_kextract((vm_offset_t) bouncememory);
-	bouncepaend = bouncepa + bouncepages * NBPG;
+	for(i=0;i<bouncepages;i++) {
+		vm_offset_t pa;
+		if( (pa = pmap_kextract((vm_offset_t) bouncememory + i * NBPG)) >= SIXTEENMEG)
+			panic("bounce memory out of range");
+		if( pa == 0)
+			panic("bounce memory not resident");
+		bouncepa[i] = pa;
+	}
 	bouncefree = bouncepages;
+
 }
-
-
-#ifdef BROKEN_IN_44
-static void
-cldiskvamerge( kvanew, orig1, orig1cnt, orig2, orig2cnt)
-	vm_offset_t kvanew;
-	vm_offset_t orig1, orig1cnt;
-	vm_offset_t orig2, orig2cnt;
-{
-	int i;
-	vm_offset_t pa;
-/*
- * enter the transfer physical addresses into the new kva
- */
-	for(i=0;i<orig1cnt;i++) {
-		vm_offset_t pa;
-		pa = pmap_kextract((caddr_t) orig1 + i * PAGE_SIZE);
-		pmap_kenter(kvanew + i * PAGE_SIZE, pa);
-	}
-
-	for(i=0;i<orig2cnt;i++) {
-		vm_offset_t pa;
-		pa = pmap_kextract((caddr_t) orig2 + i * PAGE_SIZE);
-		pmap_kenter(kvanew + (i + orig1cnt) * PAGE_SIZE, pa);
-	}
-	pmap_update();
-}
-
-void
-cldisksort(struct buf *dp, struct buf *bp, vm_offset_t maxio)
-{
-	register struct buf *ap, *newbp;
-	int i, trycount=0;
-	vm_offset_t orig1pages, orig2pages;
-	vm_offset_t orig1begin, orig2begin;
-	vm_offset_t kvanew, kvaorig;
-
-	if( bp->b_bcount < MAXCLSTATS*PAGE_SIZE)
-		++rqstats[bp->b_bcount/PAGE_SIZE];
-	/*
-	 * If nothing on the activity queue, then
-	 * we become the only thing.
-	 */
-	ap = dp->b_actf;
-	if(ap == NULL) {
-		dp->b_actf = bp;
-		dp->b_actl = bp;
-		bp->av_forw = NULL;
-		return;
-	}
-
-	/*
-	 * If we lie after the first (currently active)
-	 * request, then we must locate the second request list
-	 * and add ourselves to it.
-	 */
-
-	if (bp->b_pblkno < ap->b_pblkno) {
-		while (ap->av_forw) {
-			/*
-			 * Check for an ``inversion'' in the
-			 * normally ascending block numbers,
-			 * indicating the start of the second request list.
-			 */
-			if (ap->av_forw->b_pblkno < ap->b_pblkno) {
-				/*
-				 * Search the second request list
-				 * for the first request at a larger
-				 * block number.  We go before that;
-				 * if there is no such request, we go at end.
-				 */
-				do {
-					if (bp->b_pblkno < ap->av_forw->b_pblkno)
-						goto insert;
-					ap = ap->av_forw;
-				} while (ap->av_forw);
-				goto insert;		/* after last */
-			}
-			ap = ap->av_forw;
-		}
-		/*
-		 * No inversions... we will go after the last, and
-		 * be the first request in the second request list.
-		 */
-		goto insert;
-	}
-	/*
-	 * Request is at/after the current request...
-	 * sort in the first request list.
-	 */
-	while (ap->av_forw) {
-		/*
-		 * We want to go after the current request
-		 * if there is an inversion after it (i.e. it is
-		 * the end of the first request list), or if
-		 * the next request is a larger block than our request.
-		 */
-		if (ap->av_forw->b_pblkno < ap->b_pblkno ||
-		    bp->b_pblkno < ap->av_forw->b_pblkno )
-			goto insert;
-		ap = ap->av_forw;
-	}
-
-insert:
-
-	/*
-	 * read clustering with new read-ahead disk drives hurts mostly, so
-	 * we don't bother...
-	 */
-	if( bp->b_flags & B_READ)
-		goto nocluster;
-	/*
-	 * we currently only cluster I/O transfers that are at page-aligned
-	 * kvas and transfers that are multiples of page lengths.
-	 */
-	if ((bp->b_flags & B_BAD) == 0 &&
-		((bp->b_bcount & PAGE_MASK) == 0) &&
-		(((vm_offset_t) bp->b_un.b_addr & PAGE_MASK) == 0)) {
-		if( maxio > MAXCLSTATS*PAGE_SIZE)
-			maxio = MAXCLSTATS*PAGE_SIZE;
-		/*
-		 * merge with previous?
-		 * conditions:
-		 * 	1) We reside physically immediately after the previous block.
-		 *	2) The previous block is not first on the device queue because
-		 *	   such a block might be active.
-		 *  3) The mode of the two I/Os is identical.
-		 *  4) The previous kva is page aligned and the previous transfer
-		 *	   is a multiple of a page in length.
-		 *	5) And the total I/O size would be below the maximum.
-		 */
-		if( (ap->b_pblkno + (ap->b_bcount / DEV_BSIZE) == bp->b_pblkno) &&
-			(dp->b_actf != ap) &&
-			((ap->b_flags & ~B_CLUSTER) == bp->b_flags) &&
-			((ap->b_flags & B_BAD) == 0) &&
-			((ap->b_bcount & PAGE_MASK) == 0) &&
-			(((vm_offset_t) ap->b_un.b_addr & PAGE_MASK) == 0) &&
-			(ap->b_bcount + bp->b_bcount < maxio)) {
-
-			orig1begin = (vm_offset_t) ap->b_un.b_addr;
-			orig1pages = ap->b_bcount / PAGE_SIZE;
-
-			orig2begin = (vm_offset_t) bp->b_un.b_addr;
-			orig2pages = bp->b_bcount / PAGE_SIZE;
-			/*
-			 * see if we can allocate a kva, if we cannot, the don't
-			 * cluster.
-			 */
-			kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
-			if( !kvanew) {
-				goto nocluster;
-			}
-
-
-			if( (ap->b_flags & B_CLUSTER) == 0) {
-
-				/*
-				 * get a physical buf pointer
-				 */
-				newbp = (struct buf *)trypbuf();
-				if( !newbp) {
-					vm_bounce_kva_free( kvanew, PAGE_SIZE * (orig1pages + orig2pages), 1);
-					goto nocluster;
-				}
-
-				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
-
-				/*
-				 * build the new bp to be handed off to the device
-				 */
-
-				--clstats[ap->b_bcount/PAGE_SIZE];
-				*newbp = *ap;
-				newbp->b_flags |= B_CLUSTER;
-				newbp->b_un.b_addr = (caddr_t) kvanew;
-				newbp->b_bcount += bp->b_bcount;
-				newbp->b_bufsize = newbp->b_bcount;
-				newbp->b_clusterf = ap;
-				newbp->b_clusterl = bp;
-				++clstats[newbp->b_bcount/PAGE_SIZE];
-
-				/*
-				 * enter the new bp onto the device queue
-				 */
-				if( ap->av_forw)
-					ap->av_forw->av_back = newbp;
-				else
-					dp->b_actl = newbp;
-
-				if( dp->b_actf != ap )
-					ap->av_back->av_forw = newbp;
-				else
-					dp->b_actf = newbp;
-
-				/*
-				 * enter the previous bps onto the cluster queue
-				 */
-				ap->av_forw = bp;
-				bp->av_back = ap;
-	
-				ap->av_back = NULL;
-				bp->av_forw = NULL;
-
-			} else {
-				vm_offset_t addr;
-
-				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
-				/*
-				 * free the old kva
-				 */
-				vm_bounce_kva_free( orig1begin, ap->b_bufsize, 0);
-				--clstats[ap->b_bcount/PAGE_SIZE];
-
-				ap->b_un.b_addr = (caddr_t) kvanew;
-
-				ap->b_clusterl->av_forw = bp;
-				bp->av_forw = NULL;
-				bp->av_back = ap->b_clusterl;
-				ap->b_clusterl = bp;
-
-				ap->b_bcount += bp->b_bcount;
-				ap->b_bufsize = ap->b_bcount;
-				++clstats[ap->b_bcount/PAGE_SIZE];
-			}
-			return;
-		/*
-		 * merge with next?
-		 * conditions:
-		 * 	1) We reside physically before the next block.
-		 *  3) The mode of the two I/Os is identical.
-		 *  4) The next kva is page aligned and the next transfer
-		 *	   is a multiple of a page in length.
-		 *	5) And the total I/O size would be below the maximum.
-		 */
-		} else if( ap->av_forw &&
-			(bp->b_pblkno + (bp->b_bcount / DEV_BSIZE) == ap->av_forw->b_pblkno) &&
-			(bp->b_flags == (ap->av_forw->b_flags & ~B_CLUSTER)) &&
-			((ap->av_forw->b_flags & B_BAD) == 0) &&
-			((ap->av_forw->b_bcount & PAGE_MASK) == 0) &&
-			(((vm_offset_t) ap->av_forw->b_un.b_addr & PAGE_MASK) == 0) &&
-			(ap->av_forw->b_bcount + bp->b_bcount < maxio)) {
-
-			orig1begin = (vm_offset_t) bp->b_un.b_addr;
-			orig1pages = bp->b_bcount / PAGE_SIZE;
-
-			orig2begin = (vm_offset_t) ap->av_forw->b_un.b_addr;
-			orig2pages = ap->av_forw->b_bcount / PAGE_SIZE;
-
-			/*
-			 * see if we can allocate a kva, if we cannot, the don't
-			 * cluster.
-			 */
-			kvanew = vm_bounce_kva( PAGE_SIZE * (orig1pages + orig2pages), 0);
-			if( !kvanew) {
-				goto nocluster;
-			}
-			
-			/*
-			 * if next isn't a cluster we need to create one
-			 */
-			if( (ap->av_forw->b_flags & B_CLUSTER) == 0) {
-
-				/*
-				 * get a physical buf pointer
-				 */
-				newbp = (struct buf *)trypbuf();
-				if( !newbp) {
-					vm_bounce_kva_free( kvanew, PAGE_SIZE * (orig1pages + orig2pages), 1);
-					goto nocluster;
-				}
-
-				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
-				ap = ap->av_forw;
-				--clstats[ap->b_bcount/PAGE_SIZE];
-				*newbp = *ap;
-				newbp->b_flags |= B_CLUSTER;
-				newbp->b_un.b_addr = (caddr_t) kvanew;
-				newbp->b_blkno = bp->b_blkno;
-				newbp->b_pblkno = bp->b_pblkno;
-				newbp->b_bcount += bp->b_bcount;
-				newbp->b_bufsize = newbp->b_bcount;
-				newbp->b_clusterf = bp;
-				newbp->b_clusterl = ap;
-				++clstats[newbp->b_bcount/PAGE_SIZE];
-
-				if( ap->av_forw)
-					ap->av_forw->av_back = newbp;
-				else
-					dp->b_actl = newbp;
-
-				if( dp->b_actf != ap )
-					ap->av_back->av_forw = newbp;
-				else
-					dp->b_actf = newbp;
-
-				bp->av_forw = ap;
-				ap->av_back = bp;
-	
-				bp->av_back = NULL;
-				ap->av_forw = NULL;
-			} else {
-				vm_offset_t addr;
-
-				cldiskvamerge( kvanew, orig1begin, orig1pages, orig2begin, orig2pages);
-				ap = ap->av_forw;
-				vm_bounce_kva_free( orig2begin, ap->b_bufsize, 0);
-
-				ap->b_un.b_addr = (caddr_t) kvanew;
-				bp->av_forw = ap->b_clusterf;
-				ap->b_clusterf->av_back = bp;
-				ap->b_clusterf = bp;
-				bp->av_back = NULL;
-				--clstats[ap->b_bcount/PAGE_SIZE];
-			
-				ap->b_blkno = bp->b_blkno;
-				ap->b_pblkno = bp->b_pblkno;
-				ap->b_bcount += bp->b_bcount;
-				ap->b_bufsize = ap->b_bcount;
-				++clstats[ap->b_bcount/PAGE_SIZE];
-
-			}
-			return;
-		}
-	}
-	/*
-	 * don't merge
-	 */
-nocluster:
-	++clstats[bp->b_bcount/PAGE_SIZE];
-	bp->av_forw = ap->av_forw;
-	if( bp->av_forw)
-		bp->av_forw->av_back = bp;
-	else
-		dp->b_actl = bp;
-
-	ap->av_forw = bp;
-	bp->av_back = ap;
-}
-#endif
-
+#endif /* NOBOUNCE */
 /*
  * quick version of vm_fault
  */
@@ -875,25 +569,6 @@ cpu_fork(p1, p2)
 	    (unsigned) ctob(UPAGES) - offset);
 	p2->p_md.md_regs = p1->p_md.md_regs;
 
-	/*
-	 * Wire top of address space of child to it's kstack.
-	 * First, fault in a page of pte's to map it.
-	 */
-#if 0
-        addr = trunc_page((u_int)vtopte(kstack));
-	vm_map_pageable(&p2->p_vmspace->vm_map, addr, addr+NBPG, FALSE);
-	for (i=0; i < UPAGES; i++)
-		pmap_enter(&p2->p_vmspace->vm_pmap, kstack+i*NBPG,
-			   pmap_extract(kernel_pmap, ((int)p2->p_addr)+i*NBPG),
-			   /*
-			    * The user area has to be mapped writable because
-			    * it contains the kernel stack (when CR0_WP is on
-			    * on a 486 there is no user-read/kernel-write
-			    * mode).  It is protected from user mode access
-			    * by the segment limits.
-			    */
-			   VM_PROT_READ|VM_PROT_WRITE, TRUE);
-#endif
 	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*
@@ -910,44 +585,6 @@ cpu_fork(p1, p2)
 	return (0);
 }
 
-#ifdef notyet
-/*
- * cpu_exit is called as the last action during exit.
- *
- * We change to an inactive address space and a "safe" stack,
- * passing thru an argument to the new stack. Now, safely isolated
- * from the resources we're shedding, we release the address space
- * and any remaining machine-dependent resources, including the
- * memory for the user structure and kernel stack.
- *
- * Next, we assign a dummy context to be written over by swtch,
- * calling it to send this process off to oblivion.
- * [The nullpcb allows us to minimize cost in mi_switch() by not having
- * a special case].
- */
-struct proc *swtch_to_inactive();
-volatile void
-cpu_exit(p)
-	register struct proc *p;
-{
-	static struct pcb nullpcb;	/* pcb to overwrite on last swtch */
-
-#if NNPX > 0
-	npxexit(p);
-#endif	/* NNPX */
-
-	/* move to inactive space and stack, passing arg accross */
-	p = swtch_to_inactive(p);
-
-	/* drop per-process resources */
-	vmspace_free(p->p_vmspace);
-	kmem_free(kernel_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
-
-	p->p_addr = (struct user *) &nullpcb;
-	mi_switch();
-	/* NOTREACHED */
-}
-#else
 void
 cpu_exit(p)
 	register struct proc *p;
@@ -977,7 +614,6 @@ cpu_wait(p) struct proc *p; {
 	kmem_free(kernel_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
 	vmspace_free(p->p_vmspace);
 }
-#endif
 
 /*
  * Dump the machine specific header information at the start of a core dump.
@@ -1011,12 +647,6 @@ setredzone(pte, vaddr)
    used by sched (that has physical memory mapped 1:1 at bottom)
    and take the dump while still in mapped mode */
 }
-
-/*
- * Move pages from one kernel virtual address to another.
- * Both addresses are assumed to reside in the Sysmap,
- * and size must be a multiple of CLSIZE.
- */
 
 /*
  * Move pages from one kernel virtual address to another.
@@ -1063,8 +693,6 @@ kvtop(void *addr)
 	return((int)va);
 }
 
-extern vm_map_t phys_map;
-
 /*
  * Map an IO request into kernel virtual address space.
  *
@@ -1084,6 +712,12 @@ vmapbuf(bp)
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
+
+	/*
+	 * this is the kva that is to be used for
+	 * the temporary kernel mapping
+	 */
+	kva = (vm_offset_t) bp->b_saveaddr;
 
 	lastv = 0;
 	for (addr = (caddr_t)trunc_page(bp->b_data);
@@ -1114,11 +748,10 @@ vmapbuf(bp)
 		vm_page_hold(PHYS_TO_VM_PAGE(pa));
 	}
 
-	addr = bp->b_saveaddr = bp->b_un.b_addr;
+	addr = bp->b_saveaddr = bp->b_data;
 	off = (int)addr & PGOFSET;
 	npf = btoc(round_page(bp->b_bufsize + off));
-	kva = kmem_alloc_wait(phys_map, ctob(npf));
-	bp->b_un.b_addr = (caddr_t) (kva + off);
+	bp->b_data = (caddr_t) (kva + off);
 	while (npf--) {
 		pa = pmap_extract(&curproc->p_vmspace->vm_pmap, (vm_offset_t)addr);
 		if (pa == 0)
@@ -1139,17 +772,13 @@ vunmapbuf(bp)
 	register struct buf *bp;
 {
 	register int npf;
-	register caddr_t addr = bp->b_un.b_addr;
+	register caddr_t addr = bp->b_data;
 	vm_offset_t kva,va,v,lastv,pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
-	npf = btoc(round_page(bp->b_bufsize + ((int)addr & PGOFSET)));
-	kva = (vm_offset_t)((int)addr & ~PGOFSET);
-	kmem_free_wakeup(phys_map, kva, ctob(npf));
-	bp->b_un.b_addr = bp->b_saveaddr;
+	bp->b_data = bp->b_saveaddr;
 	bp->b_saveaddr = NULL;
-
 
 /*
  * unhold the pde, and data pages
@@ -1174,6 +803,7 @@ vunmapbuf(bp)
 			vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 			lastv = v;
 		}
+		pmap_kremove( addr);
 	}
 }
 
