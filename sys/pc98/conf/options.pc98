@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.78.2.1 1999/02/16 11:13:57 kato Exp $
+#	$Id: options.pc98,v 1.78.2.2 1999/03/03 10:57:44 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -162,6 +162,11 @@ AVM_A1_PCMCIA		opt_i4b.h
 I4B_SMP_WORKAROUND      opt_i4b.h
 # enable VJ compression code for ipr i/f
 IPR_VJ			opt_i4b.h
+
+# Total number of ports controlled by the dgb(4) driver.
+# Defaults to NDGB*16.
+NDGBPORTS		opt_dgb.h
+
 # -------------------------------
 # EOF
 # -------------------------------
