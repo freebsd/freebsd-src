@@ -40,9 +40,11 @@ LEAF(sbrk, 1)
 	br	pv, L1				/* XXX profiling */
 L1:	LDGP(pv)
 	ldq	a1, curbrk
+	beq	a0, L2
 	addq	a0, a1, a0
 	CALLSYS_ERROR(break)
 	stq	a0, curbrk
+L2:
 	mov	a1, v0
 	RET
 END(sbrk)
