@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.143 1998/12/30 09:50:43 dt Exp $
+#	$Id: BSD.usr.dist,v 1.144 1999/01/01 08:45:44 peter Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -328,7 +328,7 @@
                     test
                     ..
                 ..
-                misc
+                syscall
                     module
                     ..
                     test
