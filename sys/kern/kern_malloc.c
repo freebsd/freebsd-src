@@ -55,6 +55,7 @@
 #include <vm/vm_map.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
+#include <vm/uma_dbg.h>
 
 #if defined(INVARIANTS) && defined(__i386__)
 #include <machine/cpu.h>
@@ -386,8 +387,13 @@ kmeminit(dummy)
 		int size = kmemzones[indx].kz_size;
 		char *name = kmemzones[indx].kz_name;
 
-		kmemzones[indx].kz_zone = uma_zcreate(name, size, NULL, NULL,
-		    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
+		kmemzones[indx].kz_zone = uma_zcreate(name, size,
+#ifdef INVARIANTS
+		    trash_ctor, trash_dtor, trash_init, trash_fini,
+#else
+		    NULL, NULL, NULL, NULL,
+#endif
+		    UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
 		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
