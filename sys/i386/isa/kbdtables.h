@@ -12,6 +12,8 @@
  *	Søren Schmidt 		Email:	sos@kmd-ac.dk
  *	Tritonvej 36		UUCP:	...uunet!dkuug!kmd-ac!sos
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
+ *
+ *	$Id$
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
