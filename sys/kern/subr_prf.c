@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.23 1996/01/18 10:23:02 phk Exp $
+ * $Id: subr_prf.c,v 1.24 1996/01/19 11:38:18 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -466,10 +466,14 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			PCHAR(ch);
 			break;
 		case '*':
-			width = va_arg(ap, int);
-			if (width < 0) {
-				ladjust = !ladjust;
-				width = -width;
+			if (!dot) {
+				width = va_arg(ap, int);
+				if (width < 0) {
+					ladjust = !ladjust;
+					width = -width;
+				}
+			} else {
+				dwidth = va_arg(ap, int);
 			}
 			goto reswitch;
 		case '0':
