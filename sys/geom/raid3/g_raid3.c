@@ -466,11 +466,9 @@ g_raid3_init_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 	int error;
 
 	disk = &sc->sc_disks[md->md_no];
-	disk->d_softc = sc;
 	error = g_raid3_connect_disk(disk, pp);
 	if (error != 0)
 		goto fail;
-	disk->d_no = md->md_no;
 	disk->d_state = G_RAID3_DISK_STATE_NONE;
 	disk->d_flags = md->md_dflags;
 	if (md->md_provider[0] != '\0')
@@ -2757,8 +2755,11 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_syncid = 0;
 	sc->sc_idle = 0;
-	for (n = 0; n < sc->sc_ndisks; n++)
+	for (n = 0; n < sc->sc_ndisks; n++) {
+		sc->sc_disks[n].d_softc = sc;
+		sc->sc_disks[n].d_no = n;
 		sc->sc_disks[n].d_state = G_RAID3_DISK_STATE_NODISK;
+	}
 	bioq_init(&sc->sc_queue);
 	mtx_init(&sc->sc_queue_mtx, "graid3:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
