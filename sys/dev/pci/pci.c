@@ -176,6 +176,14 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
+static int pci_do_powerstate = 0;
+TUNABLE_INT("hw.pci.do_powerstate", (int *)&pci_do_powerstate);
+SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
+    &pci_do_powerstate, 0,
+    "Enable setting the power states of the PCI devices.  This means that we\n\
+set devices into D0 before probe/attach, and D3 if they fail to attach.  It\n\
+also means we set devices into D3 state before shutdown.");
+
 /* Find a device_t by bus/slot/function */
 
 device_t
@@ -484,6 +492,12 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	uint16_t status;
 	int result;
 
+	/*
+	 * Dx -> Dx is a nop always.
+	 */
+	if (pci_get_powerstate(dev) == state)
+		return (0);
+
 	if (cfg->pp.pp_cap != 0) {
 		status = PCI_READ_CONFIG(dev, child, cfg->pp.pp_status, 2)
 		    & ~PCIM_PSTAT_DMASK;
@@ -752,13 +766,14 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 * For I/O registers, if bottom bit is set, and the next bit up
 	 * isn't clear, we know we have a BAR that doesn't conform to the
 	 * spec, so ignore it.  Also, sanity check the size of the data
-	 * areas to the type of memory involved.
+	 * areas to the type of memory involved.  Memory must be at least
+	 * 32 bytes in size, while I/O ranges must be at least 4.
 	 */
 	if ((testval & 0x1) == 0x1 &&
 	    (testval & 0x2) != 0)
 		return (1);
 	if ((type == SYS_RES_MEMORY && ln2size < 5) ||
-	    (type == SYS_RES_IOPORT && ln2size < 3))
+	    (type == SYS_RES_IOPORT && ln2size < 2))
 		return (1);
 
 	if (ln2range == 64)
@@ -1696,16 +1711,26 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	int i;
 
 	/*
-	 * Only do header type 0 devices.  Type 1 devices are bridges, which
-	 * we know need special treatment.  Type 2 devices are cardbus bridges
-	 * which also require special treatment.  Other types are unknown, and
-	 * we err on the side of safety by ignoring them.
+	 * Only do header type 0 devices.  Type 1 devices are bridges,
+	 * which we know need special treatment.  Type 2 devices are
+	 * cardbus bridges which also require special treatment.
+	 * Other types are unknown, and we err on the side of safety
+	 * by ignoring them.
 	 */
 	if (dinfo->cfg.hdrtype != 0)
 		return;
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		printf("pci%d:%d:%d: setting power state D0\n", dinfo->cfg.bus,
-		    dinfo->cfg.slot, dinfo->cfg.func);
+	/*
+	 * Restore the device to full power mode.  We must do this
+	 * before we restore the registers because moving from D3 to
+	 * D0 will cause the chip's BARs and some other registers to
+	 * be reset to some unknown power on reset values.  Cut down
+	 * the noise on boot by doing nothing if we are already in
+	 * state D0.
+	 */
+	if (pci_do_powerstate && (pci_get_powerstate(dev) != PCI_POWERSTATE_D0)) {
+		printf("pci%d:%d:%d: Transition from D%d to D0\n", dinfo->cfg.bus,
+		    dinfo->cfg.slot, dinfo->cfg.func,
+		    pci_get_powerstate(dev));
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
@@ -1725,6 +1750,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 {
 	int i;
 	uint32_t cls;
+	int ps;
 
 	/*
 	 * Only do header type 0 devices.  Type 1 devices are bridges, which
@@ -1763,15 +1789,22 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	 * detach and (b) use generic drivers for these devices so that some
 	 * device actually attaches.  We need to make sure that when we
 	 * implement (a) we don't power the device down on a reattach.
-	 *
-	 * John and Nate also tell me that we should be running the power up
-	 * and power down hooks when we change power state for those nodes
-	 * that have ACPI hooks in the tree.
 	 */
 	cls = pci_get_class(dev);
-	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
+	if (pci_do_powerstate && setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
+		/*
+		 * PCI spec is clear that we can only go into D3 state from
+		 * D0 state.  Transition from D[12] into D0 before going
+		 * to D3 state.
+		 */
+		ps = pci_get_powerstate(dev);
+		if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3) {
+			printf("pci%d:%d:%d: Transition from D%d to D0\n", dinfo->cfg.bus,
+			    dinfo->cfg.slot, dinfo->cfg.func, ps);
+			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+		}
 		if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3) {
-			printf("pci%d:%d:%d: setting power state D3\n", dinfo->cfg.bus,
+			printf("pci%d:%d:%d: Transition from D0 to D3\n", dinfo->cfg.bus,
 			    dinfo->cfg.slot, dinfo->cfg.func);
 			pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 		}
