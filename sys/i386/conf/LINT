@@ -45,17 +45,17 @@ maxusers	10
 # max, and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
-options		"MAXDSIZ=(256*1024*1024)"
-options		"DFLDSIZ=(256*1024*1024)"
+options 	"MAXDSIZ=(256*1024*1024)"
+options 	"DFLDSIZ=(256*1024*1024)"
 
 # When this is set, be extra conservative in various parts of the kernel
 # and choose functionality over speed (on the widest variety of systems).
-options		FAILSAFE
+options 	FAILSAFE
 
 # Options for the VM subsystem
-#options	PQ_NOOPT		# No coloring
-options		PQ_LARGECACHE		# color for 512k/16k cache
-#options	PQ_HUGECACHE		# color for 1024k/16k cache
+#options 	PQ_NOOPT		# No coloring
+options 	PQ_LARGECACHE		# color for 512k/16k cache
+#options 	PQ_HUGECACHE		# color for 1024k/16k cache
 
 # This allows you to actually store this configuration file into
 # the kernel binary itself, where it may be later read by saying:
@@ -94,14 +94,14 @@ config		kernel	root on wd0 dumps on wd0
 #
 
 # Mandatory:
-options		SMP			# Symmetric MultiProcessor Kernel
-options		APIC_IO			# Symmetric (APIC) I/O
+options 	SMP			# Symmetric MultiProcessor Kernel
+options 	APIC_IO			# Symmetric (APIC) I/O
 
 # Optional, these are the defaults plus 1:
-options		NCPU=5			# number of CPUs
-options		NBUS=5			# number of busses
-options		NAPIC=2			# number of IO APICs
-options		NINTR=25		# number of INTs
+options 	NCPU=5			# number of CPUs
+options 	NBUS=5			# number of busses
+options 	NAPIC=2			# number of IO APICs
+options 	NINTR=25		# number of INTs
 
 #
 # Rogue SMP hardware:
@@ -200,21 +200,21 @@ cpu		"I686_CPU"		# aka Pentium Pro(tm)
 # NOTE 3: This option may cause failures for software that requires
 # locked cycles in order to operate correctly.
 #
-options		"CPU_BLUELIGHTNING_FPU_OP_CACHE"
-options		"CPU_BLUELIGHTNING_3X"
-options		"CPU_BTB_EN"
-options		"CPU_DIRECT_MAPPED_CACHE"
-options		"CPU_DISABLE_5X86_LSSER"
-options		"CPU_FASTER_5X86_FPU"
-options		"CPU_I486_ON_386"
-options		"CPU_IORT"
-options		"CPU_LOOP_EN"
-options		"CPU_RSTK_EN"
-options		"CPU_SUSP_HLT"
-options		"CPU_WT_ALLOC"
-options		"CYRIX_CACHE_WORKS"
-options		"CYRIX_CACHE_REALLY_WORKS"
-#options	"NO_F00F_HACK"
+options 	"CPU_BLUELIGHTNING_FPU_OP_CACHE"
+options 	"CPU_BLUELIGHTNING_3X"
+options 	"CPU_BTB_EN"
+options 	"CPU_DIRECT_MAPPED_CACHE"
+options 	"CPU_DISABLE_5X86_LSSER"
+options 	"CPU_FASTER_5X86_FPU"
+options 	"CPU_I486_ON_386"
+options 	"CPU_IORT"
+options 	"CPU_LOOP_EN"
+options 	"CPU_RSTK_EN"
+options 	"CPU_SUSP_HLT"
+options 	"CPU_WT_ALLOC"
+options 	"CYRIX_CACHE_WORKS"
+options 	"CYRIX_CACHE_REALLY_WORKS"
+#options 	"NO_F00F_HACK"
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
@@ -222,9 +222,9 @@ options		"CYRIX_CACHE_REALLY_WORKS"
 # bogus (but freely-distributable) math emulator, or a much more
 # fully-featured but GPL-licensed emulator taken from Linux.
 #
-options		MATH_EMULATE		#Support for x87 emulation
+options 	MATH_EMULATE		#Support for x87 emulation
 # Don't enable both of these in a real config.
-options		GPL_MATH_EMULATE	#Support for x87 emulation via
+options 	GPL_MATH_EMULATE	#Support for x87 emulation via
 					#new math emulator 
 
 
@@ -236,7 +236,7 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # FreeBSD.  You probably do NOT want to remove this as much current code
 # still relies on the 4.3 emulation.
 #
-options		"COMPAT_43"
+options 	"COMPAT_43"
 
 #
 # Statically compile in the i386 a.out LKM compatability support.
@@ -249,29 +249,29 @@ options 	LKM
 # This option is required for the WINE Windows(tm) emulator, and is
 # not used by anything else (that we know of).
 #
-options		USER_LDT		#allow user-level control of i386 ldt
+options 	USER_LDT		#allow user-level control of i386 ldt
 
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
 # memory, semaphores, and message queues, respectively.
 #
-options		SYSVSHM
-options		SYSVSEM
-options		SYSVMSG
+options 	SYSVSHM
+options 	SYSVSEM
+options 	SYSVMSG
 
 #
 # This option includes a MD5 routine in the kernel, this is used for
 # various authentication and privacy uses.
 #
-options		"MD5"
+options 	"MD5"
 
 #
 # Allow processes to switch to vm86 mode, as well as enabling direct
 # user-mode access to the I/O port space.  This option is necessary for 
 # the doscmd emulator to run and the VESA modes in syscons to be available.
 #
-options		"VM86"
+options 	"VM86"
 
 
 #####################################################################
@@ -280,14 +280,14 @@ options		"VM86"
 #
 # Enable the kernel debugger.
 #
-options		DDB
+options 	DDB
 
 #
 # Don't drop into DDB for a panic. Intended for unattended operation
 # where you may want to drop to DDB from the console, but still want
 # the machine to recover from a panic
 #
-options		DDB_UNATTENDED
+options 	DDB_UNATTENDED
 
 #
 # If using GDB remote mode to debug the kernel, there's a non-standard
@@ -296,12 +296,12 @@ options		DDB_UNATTENDED
 # standard and you're on your own if you enable it.  See also the
 # "remotechat" variables in the FreeBSD specific version of gdb.
 #
-options		GDB_REMOTE_CHAT
+options 	GDB_REMOTE_CHAT
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).
 #
-options		KTRACE			#kernel tracing
+options 	KTRACE			#kernel tracing
 
 #
 # The INVARIANTS option is used in a number of source files to enable
@@ -310,7 +310,7 @@ options		KTRACE			#kernel tracing
 # for these conditions, which can only occur as a result of
 # programming errors.
 #
-options		INVARIANTS
+options 	INVARIANTS
 
 #
 # The INVARIANT_SUPPORT option makes us compile in support for
@@ -320,20 +320,20 @@ options		INVARIANTS
 # source files (by changing the source file or specifying it on the
 # command line) if you have 'INVARIANT_SUPPORT' enabled.
 #
-options		INVARIANT_SUPPORT
+options 	INVARIANT_SUPPORT
 
 #
 # The DIAGNOSTIC option is used to enable extra debugging information
 # from some parts of the kernel.  As this makes everything more noisy,
 # it is disabled by default.
 #
-options		DIAGNOSTIC
+options 	DIAGNOSTIC
 
 #
 # PERFMON causes the driver for Pentium/Pentium Pro performance counters
 # to be compiled.  See perfmon(4) for more information.
 #
-options		PERFMON
+options 	PERFMON
 
 
 #
@@ -342,17 +342,17 @@ options		PERFMON
 # quality assurance purposes (like this file, which the option takes it name
 # from.)
 #
-options COMPILING_LINT
+options 	COMPILING_LINT
 
 
 # XXX - this doesn't belong here.
 # Allow ordinary users to take the console - this is useful for X.
-options		UCONSOLE
+options 	UCONSOLE
 
 # XXX - this doesn't belong here either
-options		USERCONFIG		#boot -c editor
-options		INTRO_USERCONFIG	#imply -c and show intro screen
-options		VISUAL_USERCONFIG	#visual boot -c editor
+options 	USERCONFIG		#boot -c editor
+options 	INTRO_USERCONFIG	#imply -c and show intro screen
+options 	VISUAL_USERCONFIG	#visual boot -c editor
 
 #####################################################################
 # NETWORKING OPTIONS
@@ -363,16 +363,16 @@ options		VISUAL_USERCONFIG	#visual boot -c editor
 #  Source code for the NS (Xerox Network Service) is provided for amusement
 #  value.
 #
-options		INET			#Internet communications protocols
+options 	INET			#Internet communications protocols
 
-options		IPX			#IPX/SPX communications protocols
-options		IPXIP			#IPX in IP encapsulation (not available)
-options		IPTUNNEL		#IP in IPX encapsulation (not available)
+options 	IPX			#IPX/SPX communications protocols
+options 	IPXIP			#IPX in IP encapsulation (not available)
+options 	IPTUNNEL		#IP in IPX encapsulation (not available)
 
-options		NETATALK		#Appletalk communications protocols
+options 	NETATALK		#Appletalk communications protocols
 
 # These are currently broken but are shipped due to interest.
-#options		NS			#Xerox NS protocols
+#options 	NS			#Xerox NS protocols
 
 # These are currently broken and are no longer shipped due to lack
 # of interest.
@@ -447,9 +447,9 @@ pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
-options PPP_BSDCOMP			#PPP BSD-compress support
-options PPP_DEFLATE			#PPP zlib/deflate/gzip support
-options PPP_FILTER			#enable bpf filtering (needs bpfilter)
+options 	PPP_BSDCOMP		#PPP BSD-compress support
+options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
+options 	PPP_FILTER		#enable bpf filtering (needs bpfilter)
 
 #
 # Internet family options:
@@ -493,20 +493,20 @@ options PPP_FILTER			#enable bpf filtering (needs bpfilter)
 #
 # TCPDEBUG is undocumented.
 #
-options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
-options		MROUTING		# Multicast routing
+options 	"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
+options 	MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
 options         IPFIREWALL_FORWARD      #enable transparent proxy support
-options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
-options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
-options		IPDIVERT		#divert sockets
-options		IPFILTER		#kernel ipfilter support
-options		IPFILTER_LOG		#ipfilter logging
-#options	IPFILTER_LKM		#kernel support for ip_fil.o LKM
-options		IPSTEALTH		#support for stealth forwarding
-options		TCPDEBUG
+options 	"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
+options 	IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by default
+options 	IPDIVERT		#divert sockets
+options 	IPFILTER		#kernel ipfilter support
+options 	IPFILTER_LOG		#ipfilter logging
+#options 	IPFILTER_LKM		#kernel support for ip_fil.o LKM
+options 	IPSTEALTH		#support for stealth forwarding
+options 	TCPDEBUG
 
 # The following options add sysctl variables for controlling how certain
 # TCP packets are handled.
@@ -532,8 +532,8 @@ options         "ICMP_BANDLIM"
 # IPFIREWALL as well. See the dummynet(4) manpage for more info.
 # BRIDGE enables bridging between ethernet cards -- see bridge(4).
 # You can use IPFIREWALL and dummynet together with bridging.
-options	DUMMYNET
-options	BRIDGE
+options 	DUMMYNET
+options 	BRIDGE
 
 #
 # ATM (HARP version) options
@@ -557,11 +557,11 @@ options	BRIDGE
 # The `hfa' driver provides support for the FORE Systems, Inc.
 # PCA-200E ATM PCI Adapter.
 #
-options		ATM_CORE		#core ATM protocol family
-options		ATM_IP			#IP over ATM support
-options		ATM_SIGPVC		#SIGPVC signalling manager
-options		ATM_SPANS		#SPANS signalling manager
-options		ATM_UNI			#UNI signalling manager
+options 	ATM_CORE		#core ATM protocol family
+options 	ATM_IP			#IP over ATM support
+options 	ATM_SIGPVC		#SIGPVC signalling manager
+options 	ATM_SPANS		#SPANS signalling manager
+options 	ATM_UNI			#UNI signalling manager
 device		hea0			#Efficient ENI-155p ATM PCI
 device		hfa0			#FORE PCA-200E ATM PCI
 
@@ -583,30 +583,30 @@ device		hfa0			#FORE PCA-200E ATM PCI
 #
 
 # One of these is mandatory:
-options		FFS			#Fast filesystem
-options		MFS			#Memory File System
-options		NFS			#Network File System
+options 	FFS			#Fast filesystem
+options 	MFS			#Memory File System
+options 	NFS			#Network File System
 
 # The rest are optional:
-# options	NFS_NOSERVER		#Disable the NFS-server code.
-options		"CD9660"		#ISO 9660 filesystem
-options		FDESC			#File descriptor filesystem
-options		KERNFS			#Kernel filesystem
-options		MSDOSFS			#MS DOS File System
-options		NTFS			#NT File System
-options		NULLFS			#NULL filesystem
-options		PORTAL			#Portal filesystem
-options		PROCFS			#Process filesystem
-options		UMAPFS			#UID map filesystem
-options		UNION			#Union filesystem
+# options 	NFS_NOSERVER		#Disable the NFS-server code.
+options 	"CD9660"		#ISO 9660 filesystem
+options 	FDESC			#File descriptor filesystem
+options 	KERNFS			#Kernel filesystem
+options 	MSDOSFS			#MS DOS File System
+options 	NTFS			#NT File System
+options 	NULLFS			#NULL filesystem
+options 	PORTAL			#Portal filesystem
+options 	PROCFS			#Process filesystem
+options 	UMAPFS			#UID map filesystem
+options 	UNION			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
-options		"CD9660_ROOT"		#CD-ROM usable as root device
-options		FFS_ROOT		#FFS usable as root device
-options		MFS_ROOT		#MFS usable as root device
-options		NFS_ROOT		#NFS usable as root device
+options 	"CD9660_ROOT"		#CD-ROM usable as root device
+options 	FFS_ROOT		#FFS usable as root device
+options 	MFS_ROOT		#MFS usable as root device
+options 	NFS_ROOT		#NFS usable as root device
 # This code is still experimental (e.g. doesn't handle disk slices well).
 # Also, 'options MFS' is currently incompatible with DEVFS.
-options		DEVFS			#devices filesystem
+options 	DEVFS			#devices filesystem
 
 # Soft updates is technique for improving file system speed and
 # making abrupt shutdown less risky.  It is not enabled by default due
@@ -616,35 +616,35 @@ options		DEVFS			#devices filesystem
 # do to enable this.  ../../contrib/softupdates/README gives
 # more details on how they actually work.
 #
-#options		SOFTUPDATES
+#options 	SOFTUPDATES
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
-options		MFS_ROOT_SIZE=10
+options 	MFS_ROOT_SIZE=10
 # Allows MFS filesystems to be exported via nfs
-options		EXPORTMFS
+options 	EXPORTMFS
 
 # Allow this many swap-devices.
-options		NSWAPDEV=20
+options 	NSWAPDEV=20
 
 # Disk quotas are supported when this option is enabled.  If you
 # change the value of this option, you must do a `make clean' in your
 # kernel compile directory in order to get a working kernel.
 #
-options		QUOTA			#enable disk quotas
+options 	QUOTA			#enable disk quotas
 
 # Add more checking code to various filesystems
-#options		NULLFS_DIAGNOSTIC
-#options		KERNFS_DIAGNOSTIC
-#options		UMAPFS_DIAGNOSTIC
-#options		UNION_DIAGNOSTIC
+#options 	NULLFS_DIAGNOSTIC
+#options 	KERNFS_DIAGNOSTIC
+#options 	UMAPFS_DIAGNOSTIC
+#options 	UNION_DIAGNOSTIC
 
 # In particular multi-session CD-Rs might require a huge amount of
 # time in order to "settle".  If we are about mounting them as the
 # root f/s, we gotta wait a little.
 #
 # The number is supposed to be in seconds.
-options		"CD9660_ROOTDELAY=20"
+options 	"CD9660_ROOTDELAY=20"
 
 # If you are running a machine just as a fileserver for PC and MAC
 # users, using SAMBA or Netatalk, you may consider setting this option
@@ -659,27 +659,27 @@ options		"CD9660_ROOTDELAY=20"
 # you all the support calls as the filesystem it's used on will act as
 # they expect: "It's my dir so it must be my file".
 #
-options		SUIDDIR
+options 	SUIDDIR
 
 
 # Add some error checking code to the null_bypass routine
 # in the NULL filesystem
-#options		SAFETY
+#options 	SAFETY
 
 
 # NFS options:
-options		"NFS_MINATTRTIMO=3"	# VREG attrib cache timeout in sec
-options		"NFS_MAXATTRTIMO=60"
-options		"NFS_MINDIRATTRTIMO=30"	# VDIR attrib cache timeout in sec
-options		"NFS_MAXDIRATTRTIMO=60"
-options		"NFS_GATHERDELAY=10"	# Default write gather delay (msec)
-options		"NFS_UIDHASHSIZ=29"	# Tune the size of nfssvc_sock with this
-options		"NFS_WDELAYHASHSIZ=16"	# and with this
-options		"NFS_MUIDHASHSIZ=63"	# Tune the size of nfsmount with this
-options		NFS_DEBUG		# Enable NFS Debugging
+options 	"NFS_MINATTRTIMO=3"	# VREG attrib cache timeout in sec
+options 	"NFS_MAXATTRTIMO=60"
+options 	"NFS_MINDIRATTRTIMO=30"	# VDIR attrib cache timeout in sec
+options 	"NFS_MAXDIRATTRTIMO=60"
+options 	"NFS_GATHERDELAY=10"	# Default write gather delay (msec)
+options 	"NFS_UIDHASHSIZ=29"	# Tune the size of nfssvc_sock with this
+options 	"NFS_WDELAYHASHSIZ=16"	# and with this
+options 	"NFS_MUIDHASHSIZ=63"	# Tune the size of nfsmount with this
+options 	NFS_DEBUG		# Enable NFS Debugging
 
 # Coda stuff:
-options		CODA			#CODA filesystem.
+options 	CODA			#CODA filesystem.
 pseudo-device	vcoda	4		#coda minicache <-> venus comm.
 
 
@@ -691,9 +691,9 @@ pseudo-device	vcoda	4		#coda minicache <-> venus comm.
 # _KPOSIX_PRIORITY_SCHEDULING: Build in _POSIX_PRIORITY_SCHEDULING
 # _KPOSIX_VERSION:             Version kernel is built for
 
-options		"P1003_1B"
-options		"_KPOSIX_PRIORITY_SCHEDULING"
-options		"_KPOSIX_VERSION=199309L"
+options 	"P1003_1B"
+options 	"_KPOSIX_PRIORITY_SCHEDULING"
+options 	"_KPOSIX_VERSION=199309L"
 
 
 #####################################################################
@@ -774,16 +774,16 @@ device sctarg0 at scbus? # SCSI target
 # SCSI_DELAY: The number of MILLISECONDS to freeze the SIM (scsi adapter)
 #             queue after a bus reset, and the number of milliseconds to
 #             freeze the device queue after a bus device reset.
-options		CAMDEBUG
-options		"CAM_DEBUG_BUS=-1"
-options		"CAM_DEBUG_TARGET=-1"
-options		"CAM_DEBUG_LUN=-1"
-options		"CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
-options		"CAM_MAX_HIGHPOWER=4"
-options		SCSI_NO_SENSE_STRINGS
-options		SCSI_NO_OP_STRINGS
-options		SCSI_REPORT_GEOMETRY
-options		SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
+options 	CAMDEBUG
+options 	"CAM_DEBUG_BUS=-1"
+options 	"CAM_DEBUG_TARGET=-1"
+options 	"CAM_DEBUG_LUN=-1"
+options 	"CAM_DEBUG_FLAGS=CAM_DEBUG_INFO|CAM_DEBUG_TRACE|CAM_DEBUG_CDB"
+options 	"CAM_MAX_HIGHPOWER=4"
+options 	SCSI_NO_SENSE_STRINGS
+options 	SCSI_NO_OP_STRINGS
+options 	SCSI_REPORT_GEOMETRY
+options 	SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
@@ -796,22 +796,22 @@ options		SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 # kern.cam.cd.changer.min_busy_seconds
 # kern.cam.cd.changer.max_busy_seconds
 #
-options		"CHANGER_MIN_BUSY_SECONDS=2"
-options		"CHANGER_MAX_BUSY_SECONDS=10"
+options 	"CHANGER_MIN_BUSY_SECONDS=2"
+options 	"CHANGER_MAX_BUSY_SECONDS=10"
 
 # Options for the CAM sequential access driver:
 # SA_SPACE_TIMEOUT: Timeout for space operations, in minutes
 # SA_REWIND_TIMEOUT: Timeout for rewind operations, in minutes
 # SA_ERASE_TIMEOUT: Timeout for erase operations, in minutes
 # SA_1FM_AT_EOD: Default to model which only has a default one filemark at EOT.
-options		"SA_SPACE_TIMEOUT=(60)"
-options		"SA_REWIND_TIMEOUT=(2*60)"
-options		"SA_ERASE_TIMEOUT=(4*60)"
-options		"SA_1FM_AT_EOD"
+options 	"SA_SPACE_TIMEOUT=(60)"
+options 	"SA_REWIND_TIMEOUT=(2*60)"
+options 	"SA_ERASE_TIMEOUT=(4*60)"
+options 	"SA_1FM_AT_EOD"
 
 # Optional timeout for the CAM processor target (pt) device
 # This is specified in seconds.  The default is 60 seconds.
-options		SCSI_PT_DEFAULT_TIMEOUT="60"
+options 	SCSI_PT_DEFAULT_TIMEOUT="60"
 
 
 #####################################################################
@@ -835,7 +835,7 @@ options 	VINUMDEBUG	#enable Vinum debugging hooks
 #pseudo-device	tb
 
 # Size of the kernel message buffer.  Should be N * pagesize.
-options		"MSGBUF_SIZE=40960"
+options 	"MSGBUF_SIZE=40960"
 
 
 #####################################################################
@@ -881,18 +881,18 @@ controller	isa0
 #
 # PAS_JOYSTICK_ENABLE enables the gameport on the ProAudio Spectrum
 
-options		"AUTO_EOI_1"
-#options	"AUTO_EOI_2"
-options		"MAXMEM=(128*1024)"
+options 	"AUTO_EOI_1"
+#options 	"AUTO_EOI_2"
+options 	"MAXMEM=(128*1024)"
 options 	"TUNE_1542"
-#options	BROKEN_KEYBOARD_RESET
-#options	PAS_JOYSTICK_ENABLE
+#options 	BROKEN_KEYBOARD_RESET
+#options 	PAS_JOYSTICK_ENABLE
 
 # Enable support for the kernel PLL to use an external PPS signal,
 # under supervision of [x]ntpd(8)
 # More info in ftp://ftp.udel.edu/pub/ntp/kernel.tar.Z
 
-options		PPS_SYNC
+options 	PPS_SYNC
 
 # If you see the "calcru: negative time of %ld usec for pid %d (%s)\n"
 # message you probably have some broken sw/hw which disables interrupts
@@ -900,7 +900,7 @@ options		PPS_SYNC
 # choosing a high value for NTIMECOUNTER.  The default is 5, there
 # is no upper limit but more than a couple of hundred are not productive.
 
-options		"NTIMECOUNTER=20"
+options 	"NTIMECOUNTER=20"
 
 # Enable PnP support in the kernel.  This allows you to automaticly
 # attach to PnP cards for drivers that support it and allows you to
@@ -914,12 +914,12 @@ controller	atkbdc0	at isa? port IO_KBD tty
 device		atkbd0	at isa? tty irq 1
 
 # Options for atkbd:
-options		ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	ATKBD_DFLT_KEYMAP="jp.106"
 
 # These options are valid for other keyboard drivers as well.
-options		KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
-options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
@@ -930,9 +930,9 @@ options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 device		psm0	at isa? tty irq 12
 
 # Options for psm:
-options		PSM_HOOKAPM		#hook the APM resume event, useful
+options 	PSM_HOOKAPM		#hook the APM resume event, useful
 					#for some laptops
-options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 # The video card driver.
 device		vga0	at isa? port ? conflicts
@@ -941,36 +941,36 @@ device		vga0	at isa? port ? conflicts
 # Try the following option if the mouse pointer is not drawn correctly 
 # or font does not seem to be loaded properly.  May cause flicker on 
 # some systems.
-options		VGA_ALT_SEQACCESS
+options 	VGA_ALT_SEQACCESS
 
 # If you can dispense with some vga driver features, you may want to
 # use the following options to save some memory.
-options		VGA_NO_FONT_LOADING	# don't save/load font
-options		VGA_NO_MODE_CHANGE	# don't change video modes
+options 	VGA_NO_FONT_LOADING	# don't save/load font
+options 	VGA_NO_MODE_CHANGE	# don't change video modes
 
 # Older video cards may require this option for proper operation.
-options		VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
+options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
 
 # To include support for VESA video modes
-options		VESA			# needs VM86 defined too!!
+options 	VESA			# needs VM86 defined too!!
 
 # Splash screen at start up!  Screen savers require this too.
 pseudo-device	splash
 
 # The pcvt console driver (vt220 compatible).
 device		vt0	at isa? tty
-options		XSERVER			# support for running an X server.
-options		FAT_CURSOR		# start with block cursor
+options 	XSERVER			# support for running an X server.
+options 	FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
-options		PCVT_SCANSET=2 		# IBM keyboards are non-std
+options 	PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible).
 device		sc0	at isa? tty
-options		MAXCONS=16		# number of virtual consoles
-options		"STD8X16FONT"		# Compile font in
+options 	MAXCONS=16		# number of virtual consoles
+options 	"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
-options		SC_HISTORY_SIZE=200	# number of history buffer lines
-options		SC_DISABLE_REBOOT	# disable reboot key sequence
+options 	SC_HISTORY_SIZE=200	# number of history buffer lines
+options 	SC_DISABLE_REBOOT	# disable reboot key sequence
 
 #
 # `flags' for sc0:
@@ -1105,7 +1105,7 @@ options         "CMD640"	#Enable work around for CMD640 h/w bug
 # ATAPI enables the support for ATAPI-compatible IDE devices
 #
 options         ATAPI   #Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
+options 	ATAPI_STATIC	#Don't do it as an LKM
 
 #
 # This option allow you to override the default probe time for IDE
@@ -1113,7 +1113,7 @@ options		ATAPI_STATIC	#Don't do it as an LKM
 # the IDE specs, but may still work for you (it will work for most
 # people).
 #
-options		IDE_DELAY=8000	# Be optimistic about Joe IDE device
+options 	IDE_DELAY=8000	# Be optimistic about Joe IDE device
 
 # IDE CD-ROM & CD-R/RW  driver - requires wdc controller and ATAPI option
 device          acd0
@@ -1142,7 +1142,7 @@ disk		id3	at ida0 drive 3
 # 
 # To disable this behaviour, the following line should be used.
 # Do this is you wish to boot of a different device.
-#options		IDA_CUCKOO_MODE=0
+#options 	IDA_CUCKOO_MODE=0
 
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
@@ -1152,15 +1152,15 @@ controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
 # however.
-options		FDC_DEBUG
+options 	FDC_DEBUG
 # FDC_YE enables support for the floppies used on the Libretto.  This is a
 # pcmcia floppy.  You will also need to add
 #card "Y-E DATA" "External FDD"
 #        config 0x4 "fdc0" 10
 # to your pccard.conf file.
-options		FDC_YE
+options 	FDC_YE
 # This option is undocumented on purpose.
-options		FDC_PRINT_BOGUS_CHIPTYPE
+options 	FDC_PRINT_BOGUS_CHIPTYPE
 #
 # Activate this line instead of the fdc0 line above if you happen to
 # have an Insight floppy tape.  Probing them proved to be dangerous
@@ -1208,14 +1208,14 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4
 #
 
 # Options for serial drivers that support consoles (only for sio now):
-options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to 
+options 	BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to 
 					#DDB, if available.
-options		CONSPEED=9600		#default speed for serial console (default 9600)
+options 	CONSPEED=9600		#default speed for serial console (default 9600)
 
 # Options for sio:
-options		COM_ESP			#code for Hayes ESP
-options		COM_MULTIPORT		#code for some cards with shared IRQs
-options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
+options 	COM_ESP			#code for Hayes ESP
+options 	COM_MULTIPORT		#code for some cards with shared IRQs
+options 	"EXTRA_SIO=2"		#number of extra sio ports to allocate
 
 # Other flags for sio that aren't documented in the man page.
 #	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
@@ -1265,8 +1265,8 @@ device lnc0 at isa? port 0x280 net irq 10 drq 0
 device rdp0 at isa? port 0x378 net irq 7 flags 2
 device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000
 device wi0 at isa? port? net irq ?
-options		WLCACHE		# enables the signal-strength cache
-options		WLDEBUG		# enables verbose debugging output
+options 	WLCACHE		# enables the signal-strength cache
+options 	WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300 net irq ?
 device xe0 at isa? port? irq ?
 # We can (bogusly) include both the dedicated PCCARD drivers and the generic
@@ -1294,7 +1294,7 @@ device oltr0 at isa?
 pseudo-device	atm
 device en0
 device en1
-options		NATM			#native ATM
+options 	NATM			#native ATM
 
 #
 # Audio drivers: `snd', `sb', `pas', `gus', `pca'
@@ -1508,9 +1508,9 @@ device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port IO_GAME
 device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
-options		CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		dgb0	at isa? port 0x220 iomem 0xfc000 iosiz ? tty
-options		"NDGBPORTS=16"		# Defaults to 16*NDGB
+options 	"NDGBPORTS=16"		# Defaults to 16*NDGB
 device		dgm0	at isa? port 0x104 iomem 0xd0000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5
 device          rc0     at isa? port 0x220 tty irq 12
@@ -1556,7 +1556,7 @@ options AHC_ALLOW_MEMIO
 # for most machines, but in particular the HP NetServer LC series comes
 # with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
 # thus you need to bump this figure to 12 for them.
-options	"EISA_SLOTS=12"
+options 	"EISA_SLOTS=12"
 
 #
 # PCI devices & PCI options:
@@ -1746,14 +1746,14 @@ controller	isp0
 #	ISP_COMPILE_2200_FW	-	compile in 2200 firmware
 #
 options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1, isp4
-options		SCSI_ISP_WWN=\"0x5000000099990000\"
+options 	SCSI_ISP_WWN=\"0x5000000099990000\"
 #options 	"ISP_DISABLE_1020_SUPPORT"
 #options 	"ISP_DISABLE_1080_SUPPORT"
 #options 	"ISP_DISABLE_2100_SUPPORT"
-#options	"ISP_COMPILE_1020_FW=1"
-#options	"ISP_COMPILE_1080_FW=1"
-#options	"ISP_COMPILE_2100_FW=1"
-#options	"ISP_COMPILE_2200_FW=1"
+#options 	"ISP_COMPILE_1020_FW=1"
+#options 	"ISP_COMPILE_1080_FW=1"
+#options 	"ISP_COMPILE_2100_FW=1"
+#options 	"ISP_COMPILE_2200_FW=1"
 					# we want in full duplex mode.
 
 device		al0
@@ -1791,7 +1791,7 @@ device		bktr0
 #
 # PCI options
 #
-#options	PCI_QUIET	#quiets PCI code on chipset settings
+#options 	PCI_QUIET	#quiets PCI code on chipset settings
 
 #
 # PCCARD/PCMCIA
@@ -1803,7 +1803,7 @@ device		pcic0 at card?
 device		pcic1 at card?
 
 # You may need to reset all pccards after resuming
-options		PCIC_RESUME_RESET	# reset after resume
+options 	PCIC_RESUME_RESET	# reset after resume
 
 #
 # Laptop/Notebook options:
@@ -1815,7 +1815,7 @@ options		PCIC_RESUME_RESET	# reset after resume
 # For older notebooks that signal a powerfail condition (external
 # power supply dropped, or battery state low) by issuing an NMI:
 
-options		POWERFAIL_NMI	# make it beep instead of panicing
+options 	POWERFAIL_NMI	# make it beep instead of panicing
 
 #
 # SMB bus
@@ -1988,7 +1988,7 @@ pseudo-device   "i4btel"        2
 # network driver for IP over raw HDLC ISDN
 pseudo-device   "i4bipr"	4
 # enable VJ header compression detection for ipr i/f
-options		IPR_VJ
+options 	IPR_VJ
 #
 # network driver for sync PPP over ISDN
 pseudo-device	"i4bisppp"	4
@@ -2025,21 +2025,21 @@ device		ppc0	at isa? disable port? tty irq 7
 
 # Kernel BOOTP support 
 
-options		BOOTP		# Use BOOTP to obtain IP address/hostname
-options		BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
-options		"BOOTP_NFSV3"	# Use NFS v3 to NFS mount root
-options		BOOTP_COMPAT	# Workaround for broken bootp daemons.
-options		"BOOTP_WIRED_TO=fxp0" # Use interface fxp0 for BOOTP
+options 	BOOTP		# Use BOOTP to obtain IP address/hostname
+options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
+options 	"BOOTP_NFSV3"	# Use NFS v3 to NFS mount root
+options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
+options 	"BOOTP_WIRED_TO=fxp0" # Use interface fxp0 for BOOTP
 
 # If you want to disable loadable kernel modules (LKM), you
 # might want to use this option.
-#options		NO_LKM
+#options 	NO_LKM
 
 #
 # Add tie-ins for a hardware watchdog.  This only enable the hooks;
 # the user must still supply the actual driver.
 #
-options		HW_WDOG
+options 	HW_WDOG
 
 #
 # Set the number of PV entries per process.  Increasing this can
@@ -2062,14 +2062,14 @@ options         "PMAP_SHPGPERPROC=201"
 # (see also sysctls "vm.defer_swapspace_pageouts" and
 # "vm.disable_swapspace_pageouts")
 #
-#options	NO_SWAPPING
+#options 	NO_SWAPPING
 
 # Set the number of sf_bufs to allocate. sf_bufs are virtual buffers
 # for sendfile(2) that are used to map file VM pages, and normally
 # default to a quantity that is roughly 16*MAXUSERS+512. You would
 # typically want about 4 of these for each simultaneous file send.
 #
-options		"NSFBUFS=1024"
+options 	"NSFBUFS=1024"
 
 #
 # Enable extra debugging code for locks.  This include storing the
@@ -2077,75 +2077,75 @@ options		"NSFBUFS=1024"
 # and changing a number of function calls to pass around the relevant
 # data.  This is not at all useful unless you are debugging lock code.
 #
-options		DEBUG_LOCKS
+options 	DEBUG_LOCKS
 
 # More undocumented options for linting.
 
-options		CLK_CALIBRATION_LOOP
-options		"CLK_USE_I8254_CALIBRATION"
-options		CLK_USE_TSC_CALIBRATION
-options		CLUSTERDEBUG
-options		COMPAT_LINUX
-options		CPU_UPGRADE_HW_CACHE
-options		DEBUG
-options		DEBUG_VFS_LOCKS
-options		"DEBUG_1284"
-#options	DISABLE_PSE
-options		"EXT2FS"
-options		"I586_PMC_GUPROF=0x70000"
-options		"IBCS2"
-options		KEY
-options		KEY_DEBUG
-options		LOCKF_DEBUG
-options		LOUTB
-options		KBD_MAXRETRY=4
-options		KBD_MAXWAIT=6
-options		KBD_RESETDELAY=201
-options		KBDIO_DEBUG=2
-options		MSGMNB=2049
-options		MSGMNI=41
-options		MSGSEG=2049
-options		MSGSSZ=16
-options		MSGTQL=41
-options		NBUF=512
-options		NETATALKDEBUG
-options		NMBCLUSTERS=1024
-options		NPX_DEBUG
-options		PANIC_REBOOT_WAIT_TIME=16
-options		"PCVT_24LINESDEF"
-options		PCVT_CTRL_ALT_DEL
-options		PCVT_EMU_MOUSE
-options		PCVT_FREEBSD=211
-options		PCVT_META_ESC
-options		PCVT_NSCREENS=9
-options		PCVT_PRETTYSCRNS
-options		PCVT_SCREENSAVER
-options		PCVT_USEKBDSEC
-options		"PCVT_VT220KEYB"
-options		PSM_DEBUG=1
-options		SCSI_NCR_DEBUG
-options		SCSI_NCR_DFLT_TAGS=4
-options		SCSI_NCR_MAX_SYNC=10000
-options		SCSI_NCR_MAX_WIDE=1
-options		SCSI_NCR_MYADDR=7
-options		SEMMAP=31
-options		SEMMNI=11
-options		SEMMNS=61
-options		SEMMNU=31
-options		SEMMSL=61
-options		SEMOPM=101
-options		SEMUME=11
-options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
-options		SHMALL=1025
-options		"SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)"
-options		SHMMAXPGS=1025
-options		SHMMIN=2
-options		SHMMNI=33
-options		SHMSEG=9
-options		SI_DEBUG
-options		SIMPLELOCK_DEBUG
-options		SPX_HACK
-options		VFS_BIO_DEBUG
+options 	CLK_CALIBRATION_LOOP
+options 	"CLK_USE_I8254_CALIBRATION"
+options 	CLK_USE_TSC_CALIBRATION
+options 	CLUSTERDEBUG
+options 	COMPAT_LINUX
+options 	CPU_UPGRADE_HW_CACHE
+options 	DEBUG
+options 	DEBUG_VFS_LOCKS
+options 	"DEBUG_1284"
+#options 	DISABLE_PSE
+options 	"EXT2FS"
+options 	"I586_PMC_GUPROF=0x70000"
+options 	"IBCS2"
+options 	KEY
+options 	KEY_DEBUG
+options 	LOCKF_DEBUG
+options 	LOUTB
+options 	KBD_MAXRETRY=4
+options 	KBD_MAXWAIT=6
+options 	KBD_RESETDELAY=201
+options 	KBDIO_DEBUG=2
+options 	MSGMNB=2049
+options 	MSGMNI=41
+options 	MSGSEG=2049
+options 	MSGSSZ=16
+options 	MSGTQL=41
+options 	NBUF=512
+options 	NETATALKDEBUG
+options 	NMBCLUSTERS=1024
+options 	NPX_DEBUG
+options 	PANIC_REBOOT_WAIT_TIME=16
+options 	"PCVT_24LINESDEF"
+options 	PCVT_CTRL_ALT_DEL
+options 	PCVT_EMU_MOUSE
+options 	PCVT_FREEBSD=211
+options 	PCVT_META_ESC
+options 	PCVT_NSCREENS=9
+options 	PCVT_PRETTYSCRNS
+options 	PCVT_SCREENSAVER
+options 	PCVT_USEKBDSEC
+options 	"PCVT_VT220KEYB"
+options 	PSM_DEBUG=1
+options 	SCSI_NCR_DEBUG
+options 	SCSI_NCR_DFLT_TAGS=4
+options 	SCSI_NCR_MAX_SYNC=10000
+options 	SCSI_NCR_MAX_WIDE=1
+options 	SCSI_NCR_MYADDR=7
+options 	SEMMAP=31
+options 	SEMMNI=11
+options 	SEMMNS=61
+options 	SEMMNU=31
+options 	SEMMSL=61
+options 	SEMOPM=101
+options 	SEMUME=11
+options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
+options 	SHMALL=1025
+options 	"SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)"
+options 	SHMMAXPGS=1025
+options 	SHMMIN=2
+options 	SHMMNI=33
+options 	SHMSEG=9
+options 	SI_DEBUG
+options 	SIMPLELOCK_DEBUG
+options 	SPX_HACK
+options 	VFS_BIO_DEBUG
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
@@ -2191,19 +2191,19 @@ options		VFS_BIO_DEBUG
 controller      dpt0
 
 # DPT options
-options DPT_VERIFY_HINTR
-options DPT_RESTRICTED_FREELIST
-#!CAM# options DPT_MEASURE_PERFORMANCE
-options DPT_FREELIST_IS_STACK
-#!CAM# options DPT_HANDLE_TIMEOUTS
-options DPT_TIMEOUT_FACTOR=4
-options	DPT_INTR_DELAY=200      # Some motherboards need that
-options DPT_LOST_IRQ
-options DPT_RESET_HBA
+options 	DPT_VERIFY_HINTR
+options 	DPT_RESTRICTED_FREELIST
+#!CAM# options 	DPT_MEASURE_PERFORMANCE
+options 	DPT_FREELIST_IS_STACK
+#!CAM# options 	DPT_HANDLE_TIMEOUTS
+options 	DPT_TIMEOUT_FACTOR=4
+options 	DPT_INTR_DELAY=200      # Some motherboards need that
+options 	DPT_LOST_IRQ
+options 	DPT_RESET_HBA
 
 # Don't EVER set this without having talked to Simon Shapiro on the phone
 # first.
-options DPT_SHUTDOWN_SLEEP=500
+options 	DPT_SHUTDOWN_SLEEP=500
 
 #
 # Embedded system options:
@@ -2233,13 +2233,13 @@ device		ums0
 
 # debugging options for the USB subsystem
 #
-options		UHCI_DEBUG
-options		OHCI_DEBUG
-options		USB_DEBUG
+options 	UHCI_DEBUG
+options 	OHCI_DEBUG
+options 	USB_DEBUG
 
-options		UGEN_DEBUG
-options		UHID_DEBUG
-options		UHUB_DEBUG
-options		UKBD_DEBUG
-options		ULPT_DEBUG
-options		UMS_DEBUG
+options 	UGEN_DEBUG
+options 	UHID_DEBUG
+options 	UHUB_DEBUG
+options 	UKBD_DEBUG
+options 	ULPT_DEBUG
+options 	UMS_DEBUG

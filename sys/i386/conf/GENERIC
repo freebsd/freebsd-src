@@ -70,7 +70,7 @@ disk		fd0	at fdc0 drive 0
 disk		fd1	at fdc0 drive 1
 
 # IDE controller and disks
-options		"CMD640"	# work around CMD640 chip deficiency
+options 	"CMD640"	# work around CMD640 chip deficiency
 controller	wdc0	at isa? port "IO_WD1" bio irq 14
 disk		wd0	at wdc0 drive 0
 disk		wd1	at wdc0 drive 1
@@ -80,8 +80,8 @@ disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
 # ATAPI devices
-options		ATAPI		#Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
+options 	ATAPI		#Enable ATAPI support for IDE bus
+options 	ATAPI_STATIC	#Don't do it as an LKM
 device		acd0		#IDE CD-ROM
 device		wfd0		#IDE Floppy (e.g. LS-120)
 
