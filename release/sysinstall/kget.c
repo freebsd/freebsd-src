@@ -23,20 +23,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kget.c,v 1.1.2.2 1999/02/16 01:59:45 jkh Exp $
+ * $Id: kget.c,v 1.1.2.3 1999/02/21 22:02:08 abial Exp $
  */
 
 #include "sysinstall.h"
 #include <sys/sysctl.h>
-#include "i386/isa/isa_device.h"
-#include "i386/isa/pnp.h"
+#include <isa/isa_device.h>
+#include <isa/pnp.h>
 
 int
 kget(char *out)
 {
-    int len, i, bytes_written = 0;
+    int len, i, bytes_written;
     char *buf;
-    char *mib = "machdep.uc_devlist";
+    char *mib1 = "machdep.uc_devlist";
     char *mib2 = "machdep.uc_pnplist";
     char name[9];
     FILE *fout;
@@ -44,33 +44,41 @@ kget(char *out)
     struct pnp_cinfo *c;
     char *p;
  
+    /* We use sysctlbyname, because the oid is unknown (OID_AUTO) */
+    /* get the buffer size */
+    i = sysctlbyname(mib1, NULL, &len, NULL, NULL);
+    if (i) {
+	msgDebug("kget: error buffer sizing\n");
+	return -1;
+    }
+    if (len <= 0) {
+	msgDebug("kget: mib1 has length of %d\n", len);
+	return -1;
+    }
+    buf = (char *)alloca(len * sizeof(char));
+    i = sysctlbyname(mib1, buf, &len, NULL, NULL);
+    if (i) {
+	msgDebug("kget: error retrieving data\n");
+	return -1;
+    }
+
+    /* now it's time to create the output file; if we end up not writing to
+       it, we'll unlink() it later. */
     fout = fopen(out, "w");
     if (fout == NULL) {
 	msgDebug("kget: Unable to open %s for writing.\n", out);
 	return -1;
     }
 
-    /* We use sysctlbyname, because the oid is unknown (OID_AUTO) */
-    /* get the buffer size */
-    i = sysctlbyname(mib, NULL, &len, NULL, NULL);
-    if (i) {
-	msgDebug("kget: error buffer sizing\n");
-	return -1;
-    }
-    buf = (char *)malloc(len * sizeof(char));
-    i = sysctlbyname(mib, buf, &len, NULL, NULL);
-    if (i) {
-	msgDebug("kget: error retrieving data\n");
-	return -1;
-    }
-    i = 0;
+    i = bytes_written = 0;
     while (i < len) {
 	id = (struct isa_device *)(buf + i);
 	p = (buf + i + sizeof(struct isa_device));
 	strncpy(name, p, 8);
 	if (!id->id_enabled) {
 	    bytes_written += fprintf(fout, "di %s%d\n", name, id->id_unit);
-	} else {
+	}
+	else {
 	    bytes_written += fprintf(fout, "en %s%d\n", name, id->id_unit);
 	    if (id->id_iobase > 0) {
 		bytes_written += fprintf(fout, "po %s%d %#x\n",
@@ -97,7 +105,6 @@ kget(char *out)
 	}
 	i += sizeof(struct isa_device) + 8;
     }
-    free(buf), buf = NULL;
     /* Now, print the changes to PnP override table */
     i = sysctlbyname(mib2, NULL, &len, NULL, NULL);
     if (i) {
@@ -105,14 +112,19 @@ kget(char *out)
 	msgDebug("kget: can't get PnP data - skipping...\n");
 	goto bail;
     }
-    buf = (char *)malloc(len * sizeof(char));
-    i = sysctlbyname(mib2, buf, &len, NULL, NULL);
-    if (i) {
-	msgDebug("kget: error retrieving data\n");
+    if (len <= 0) {
+	msgDebug("kget: PnP data has length of %d\n", len);
 	goto bail;
     }
-    i = 0;
+    buf = (char *)alloca(len * sizeof(char));
+    i = sysctlbyname(mib2, buf, &len, NULL, NULL);
+    if (i) {
+	msgDebug("kget: error retrieving data mib2\n");
+	goto bail;
+    }
     /* Print the PnP override table. Taken from userconfig.c */
+ 
+    i = 0;
     do {
 	c = (struct pnp_cinfo *)(buf + i);
 	if (c->csn >0 && c->csn != 255) {
@@ -143,9 +155,10 @@ kget(char *out)
         }
     } while ((i += sizeof(struct pnp_cinfo)) < len);
 bail:
-    fprintf(fout, "q\n");
+    if (bytes_written)
+	fprintf(fout, "q\n");
+    else
+	unlink(out);
     fclose(fout);
-    if (buf)
-       free(buf);
     return 0;
 }
