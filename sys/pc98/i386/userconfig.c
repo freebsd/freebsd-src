@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.55 1998/09/28 08:26:10 kato Exp $
+ **      $Id: userconfig.c,v 1.56 1998/10/08 12:09:38 kato Exp $
  **/
 
 /**
@@ -240,7 +240,8 @@ static DEV_INFO device_info[] = {
 #endif
 {"isp",	        "QLogic ISP SCSI Controller",		FLG_IMMUTABLE,	CLS_STORAGE},
 {"dpt",         "DPT SCSI RAID Controller",		FLG_IMMUTABLE,	CLS_STORAGE},
-{"adv",         "Advanced Systems SCSI controller",	0,		CLS_STORAGE},
+{"adv",         "AdvanSys SCSI narrow controller",	0,		CLS_STORAGE},
+{"adw",         "AdvanSys SCSI WIDE controller",	0,		CLS_STORAGE},
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
@@ -2400,7 +2401,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.55 1998/09/28 08:26:10 kato Exp $
+ *      $Id: userconfig.c,v 1.56 1998/10/08 12:09:38 kato Exp $
  */
 
 #include "scbus.h"
