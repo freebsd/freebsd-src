@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.137 1995/02/09 09:47:08 jkh Exp $
+#	$Id: LINT,v 1.138 1995/02/10 05:42:24 amurai Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -280,7 +280,7 @@ device		cd0	#SCSI CD-ROMs
 # required for `telnetd', `rlogind', `screen', `emacs', and `xterm',
 # among others.
 #
-pseudo-device	pty	4	#Pseudo ttys
+pseudo-device	pty	16	#Pseudo ttys - can go as high as 64
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
