@@ -1,4 +1,4 @@
-.\"	$Id: getvfsent.3,v 1.9 1997/03/03 06:02:54 mpp Exp $
+.\"	$Id: getvfsent.3,v 1.10 1998/03/19 07:33:31 charnier Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
@@ -17,11 +17,12 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
-.Ft struct vfsconf *
+.Fd #undef getvfsbyname
+.Ft struct ovfsconf *
 .Fn getvfsbyname "const char *name"
-.Ft struct vfsconf *
+.Ft struct ovfsconf *
 .Fn getvfsbytype "int type"
-.Ft struct vfsconf *
+.Ft struct ovfsconf *
 .Fn getvfsent "void"
 .Ft void
 .Fn setvfsent "int cachelist"
@@ -47,7 +48,7 @@ provide direct access to a single filesystem's information;
 steps through the list of filesystems one at a time.  All three
 functions return a null pointer when no data is available.  The fields
 in a
-.Dq Li struct vfsconf
+.Dq Li struct ovfsconf
 are as follows:
 .Pp
 .Bl -tag -compact -width vfc_refcount
@@ -134,7 +135,7 @@ Here is an example, taken from the source to
 .Xr mount_cd9660 8 :
 .Bd -literal -offset indent
 
-struct vfsconf *vfc;
+struct ovfsconf *vfc;
 
 /* setup code here */
 
