@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sockio.h	8.1 (Berkeley) 3/28/94
- * $Id: sockio.h,v 1.9 1997/02/22 09:45:57 peter Exp $
+ * $Id: sockio.h,v 1.10 1997/05/03 21:05:03 peter Exp $
  */
 
 #ifndef	_SYS_SOCKIO_H_
@@ -82,5 +82,7 @@
 #define	SIOCSIFPHYS	 _IOW('i', 54, struct ifreq)	/* set IF wire */
 #define	SIOCSIFMEDIA	_IOWR('i', 55, struct ifreq)	/* set net media */
 #define	SIOCGIFMEDIA	_IOWR('i', 56, struct ifmediareq) /* get net media */
+#define	SIOCSIFGENERIC	 _IOW('i', 57, struct ifreq)	/* generic IF set op */
+#define	SIOCGIFGENERIC	_IOWR('i', 58, struct ifreq)	/* generic IF get op */
 
 #endif /* !_SYS_SOCKIO_H_ */
