@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.103 1999/05/07 18:03:27 peter Exp $
+**  $Id: pcisupport.c,v 1.104 1999/05/08 14:55:18 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1134,7 +1134,7 @@ chip_match(device_t dev)
 
 	/* Ross (?) -- vendor 0x1166 */
 	case 0x00051166:
-		fixbushigh_Ross(tag);
+		fixbushigh_Ross(dev);
 		return ("Ross (?) host to PCI bridge");
 
 	/* NEC -- vendor 0x1033 */
