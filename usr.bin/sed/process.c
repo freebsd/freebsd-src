@@ -337,14 +337,14 @@ substitute(struct s_command *cp)
 	if (!regexec_e(re, s, 0, 0, psl))
 		return (0);
 
-  	SS.len = 0;				/* Clean substitute space. */
-  	slen = psl;
-  	n = cp->u.s->n;
+	SS.len = 0;				/* Clean substitute space. */
+	slen = psl;
+	n = cp->u.s->n;
 	lastempty = 1;
 
-  	switch (n) {
-  	case 0:					/* Global */
-  		do {
+	switch (n) {
+	case 0:					/* Global */
+		do {
 			if (lastempty || match[0].rm_so != match[0].rm_eo) {
 				/* Locate start of replaced string. */
 				re_off = match[0].rm_so;
@@ -371,7 +371,7 @@ substitute(struct s_command *cp)
 		/* Copy trailing retained string. */
 		if (slen > 0)
 			cspace(&SS, s, slen, APPEND);
-  		break;
+		break;
 	default:				/* Nth occurrence */
 		while (--n) {
 			if (match[0].rm_eo == match[0].rm_so)
@@ -567,12 +567,12 @@ regsub(SPACE *sp, char *string, char *src)
 		else
 			no = -1;
 		if (no < 0) {		/* Ordinary character. */
- 			if (c == '\\' && (*src == '\\' || *src == '&'))
- 				c = *src++;
+			if (c == '\\' && (*src == '\\' || *src == '&'))
+				c = *src++;
 			NEEDSP(1);
- 			*dst++ = c;
+			*dst++ = c;
 			++sp->len;
- 		} else if (match[no].rm_so != -1 && match[no].rm_eo != -1) {
+		} else if (match[no].rm_so != -1 && match[no].rm_eo != -1) {
 			len = match[no].rm_eo - match[no].rm_so;
 			NEEDSP(len);
 			memmove(dst, string + match[no].rm_so, len);
