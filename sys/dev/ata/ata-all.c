@@ -305,6 +305,9 @@ ata_pciattach(device_t dev)
 	iobase_1 = pci_read_config(dev, 0x10, 4) & IOMASK;
 	altiobase_1 = pci_read_config(dev, 0x14, 4) & IOMASK;
 	irq1 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
+	/* this is needed for old non-std systems */
+	if (iobase_1 == IO_WD1 && irq1 == 0x00)
+	    irq1 = 14;
     }
 
     if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
@@ -316,6 +319,9 @@ ata_pciattach(device_t dev)
 	iobase_2 = pci_read_config(dev, 0x18, 4) & IOMASK;
 	altiobase_2 = pci_read_config(dev, 0x1c, 4) & IOMASK;
 	irq2 = pci_read_config(dev, PCI_INTERRUPT_REG, 4) & 0xff;
+	/* this is needed for old non-std systems */
+	if (iobase_2 == IO_WD2 && irq2 == 0x00)
+	    irq2 = 15;
     }
 
     /* is this controller busmaster DMA capable ? */
@@ -384,51 +390,58 @@ ata_pciattach(device_t dev)
     /* now probe the addresse found for "real" ATA/ATAPI hardware */
     lun = 0;
     if (iobase_1 && ata_probe(iobase_1, altiobase_1, bmaddr_1, dev, &lun)) {
+	int rid;
+	void *ih;
+
 	scp = atadevices[lun];
 	scp->chiptype = type;
-	if (iobase_1 == IO_WD1)
-#ifdef __i386__
-	    inthand_add(device_get_nameunit(dev), irq1, ataintr, scp,
-			&bio_imask, INTR_EXCL);
-#endif
+	rid = 0;
+	if (iobase_1 == IO_WD1) {
 #ifdef __alpha__
 	    alpha_platform_setup_ide_intr(0, ataintr, scp);
-#endif
-	else {
-	    int rid = 0;
-	    void *ih;
-
+#else
+	    bus_set_resource(dev, SYS_RES_IRQ, rid, irq1, 1);
 	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 					   RF_SHAREABLE | RF_ACTIVE)))
 		printf("ata_pciattach: Unable to alloc interrupt\n");
-	    bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
+#endif
+	} else {
+	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					   RF_SHAREABLE | RF_ACTIVE)))
+		printf("ata_pciattach: Unable to alloc interrupt\n");
 	}
+	if (irq)
+	    bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, isa_apic_irq(irq1), unit);
     }
     lun = 1;
     if (iobase_2 && ata_probe(iobase_2, altiobase_2, bmaddr_2, dev, &lun)) {
+	int rid;
+	void *ih;
+
 	scp = atadevices[lun];
 	scp->chiptype = type;
-	if (iobase_2 == IO_WD2)
-#ifdef __i386__
-	    inthand_add(device_get_nameunit(dev), irq2, ataintr, scp,
-			&bio_imask, INTR_EXCL);
-#endif
+	if (iobase_2 == IO_WD2) {
 #ifdef __alpha__
 	    alpha_platform_setup_ide_intr(1, ataintr, scp);
+#else
+	    rid = 1;
+	    bus_set_resource(dev, SYS_RES_IRQ, rid, irq2, 1);
+	    if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+					   RF_SHAREABLE | RF_ACTIVE)))
+		printf("ata_pciattach: Unable to alloc interrupt\n");
 #endif
-	else {
-	    int rid = 0;
-	    void *ih;
-
+	} else {
+	    rid = 0;
 	    if (irq1 != irq2 || irq == NULL) {
 	  	if (!(irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 					       RF_SHAREABLE | RF_ACTIVE)))
 		    printf("ata_pciattach: Unable to alloc interrupt\n");
 	    }
-	    bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 	}
+	    if (irq)
+		bus_setup_intr(dev, irq, INTR_TYPE_BIO, ataintr, scp, &ih);
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, isa_apic_irq(irq2), unit);
     }
@@ -680,17 +693,23 @@ ata_getparam(struct ata_softc *scp, int32_t device, u_int8_t command)
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
     DELAY(1);
 
+    /* enable interrupts */
+    outb(scp->altioaddr, ATA_A_4BIT);
+    DELAY(1);
+
     /* apparently some devices needs this repeated */
     do {
 	if (ata_command(scp, device, command, 0, 0, 0, 0, 0, ATA_WAIT_INTR)) {
 	    ata_printf(scp, device, "identify failed\n");
 	    return -1;
 	}
-	if (retry++) {
+	if (retry++ > 4) {
 	    ata_printf(scp, device, "drive wont come ready after identify\n");
 	    return -1;
 	}
-    } while (ata_wait(scp, device, ATA_S_READY|ATA_S_DSC|ATA_S_DRQ));
+    } while (ata_wait(scp, device, 
+		      ((command == ATA_C_ATAPI_IDENTIFY) ?
+			ATA_S_DRQ : (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))));
 
     insw(scp->ioaddr + ATA_DATA, buffer, sizeof(buffer)/sizeof(int16_t));
     ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
@@ -1000,9 +1019,9 @@ ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
 	    ata_printf(scp, device, "WARNING: WAIT_INTR active=%s\n",
 		       active2str(scp->active));
 	scp->active = ATA_WAIT_INTR;
-	asleep((caddr_t)scp, PRIBIO, "atacmd", 500);
+	asleep((caddr_t)scp, PRIBIO, "atacmd", 10 * hz);
 	outb(scp->ioaddr + ATA_CMD, command);
-	if (await(PRIBIO, 500)) {
+	if (await(PRIBIO, 10 * hz)) {
 	    ata_printf(scp, device, "ata_command: timeout waiting for intr\n");
 	    scp->active = ATA_IDLE;
 	    return -1;
@@ -1051,6 +1070,7 @@ ata_mode2str(int32_t mode)
     case ATA_WDMA2: return "WDMA2";
     case ATA_UDMA2: return "UDMA33";
     case ATA_UDMA4: return "UDMA66";
+    case ATA_DMA: return "DMA";
     default: return "???";
     }
 }
