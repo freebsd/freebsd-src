@@ -36,6 +36,8 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <ddb/ddb.h>
+#include <ddb/db_output.h>
 
 #include "acpi.h"
 #include "acdebug.h"
