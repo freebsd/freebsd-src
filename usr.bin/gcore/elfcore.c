@@ -125,28 +125,29 @@ elf_coredump(int fd, pid_t pid)
 
 	php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 	for (i = 0;  i < seginfo.count;  i++) {
-		int nleft = php->p_filesz;
+		uintmax_t nleft = php->p_filesz;
 
 		lseek(memfd, (off_t)php->p_vaddr, SEEK_SET);
 		while (nleft > 0) {
 			char buf[8*1024];
-			int nwant;
-			int ngot;
+			size_t nwant;
+			ssize_t ngot;
 
-			nwant = nleft;
-			if (nwant > sizeof buf)
+			if (nleft > sizeof(buf))
 				nwant = sizeof buf;
+			else
+				nwant = nleft;
 			ngot = read(memfd, buf, nwant);
 			if (ngot == -1)
 				err(1, "read from %s", memname);
-			if (ngot < nwant)
+			if ((size_t)ngot < nwant)
 				errx(1, "short read from %s:"
 				    " wanted %d, got %d", memname,
 				    nwant, ngot);
 			ngot = write(fd, buf, nwant);
 			if (ngot == -1)
 				err(1, "write of segment %d failed", i);
-			if (ngot != nwant)
+			if ((size_t)ngot != nwant)
 				errx(1, "short write");
 			nleft -= nwant;
 		}
@@ -395,7 +396,7 @@ readhdrinfo(pid_t pid, prstatus_t *status, prfpregset_t *fpregset,
 		err(1, "cannot open %s", name);
 	if ((n = read(fd, &status->pr_reg, sizeof status->pr_reg)) == -1)
 		err(1, "read error from %s", name);
-	if (n < sizeof status->pr_reg)
+	if ((size_t)n < sizeof(status->pr_reg))
 		errx(1, "short read from %s: wanted %u, got %d", name,
 		    sizeof status->pr_reg, n);
 	close(fd);
@@ -406,7 +407,7 @@ readhdrinfo(pid_t pid, prstatus_t *status, prfpregset_t *fpregset,
 		err(1, "cannot open %s", name);
 	if ((n = read(fd, fpregset, sizeof *fpregset)) == -1)
 		err(1, "read error from %s", name);
-	if (n < sizeof *fpregset)
+	if ((size_t)n < sizeof(*fpregset))
 		errx(1, "short read from %s: wanted %u, got %d", name,
 		    sizeof *fpregset, n);
 	close(fd);

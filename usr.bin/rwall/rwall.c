@@ -177,7 +177,7 @@ makemsg(const char *fname)
 	mbuf = malloc(mbufsize);
 	if (mbuf == NULL)
 		err(1, "out of memory");
-	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
+	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != (u_int)mbufsize)
 		err(1, "can't read temporary file");
 	close(fd);
 }

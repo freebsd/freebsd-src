@@ -103,12 +103,10 @@ static char **gargv;
 
 int
 #ifdef BUILTIN
-progprintf(argc, argv)
+progprintf(int argc, char *argv[])
 #else
-main(argc, argv)
+main(int argc, char *argv[])
 #endif
-	int argc;
-	char *argv[];
 {
 	static const char *skip1, *skip2;
 	int ch, chopped, end, fieldwidth, haveprec, havewidth, precision, rval;
@@ -292,9 +290,7 @@ next:		for (start = fmt;; ++fmt) {
 }
 
 static char *
-mkquad(str, ch)
-	char *str;
-	int ch;
+mkquad(char *str, int ch)
 {
 	static char *copy;
 	static size_t copy_size;
@@ -325,12 +321,10 @@ mkquad(str, ch)
 }
 
 static int
-escape(fmt, percent)
-	register char *fmt;
-	int percent;
+escape(char *fmt, int percent)
 {
-	register char *store;
-	register int value, c;
+	char *store;
+	int value, c;
 
 	for (store = fmt; (c = *fmt); ++fmt, ++store) {
 		if (c != '\\') {
@@ -395,7 +389,7 @@ escape(fmt, percent)
 }
 
 static int
-getchr()
+getchr(void)
 {
 	if (!*gargv)
 		return ('\0');
@@ -403,7 +397,7 @@ getchr()
 }
 
 static const char *
-getstr()
+getstr(void)
 {
 	if (!*gargv)
 		return ("");
@@ -411,8 +405,7 @@ getstr()
 }
 
 static int
-getint(ip)
-	int *ip;
+getint(int *ip)
 {
 	quad_t val;
 	u_quad_t uval;
@@ -430,10 +423,7 @@ getint(ip)
 }
 
 static int
-getquads(qp, uqp, signedconv)
-	quad_t *qp;
-	u_quad_t *uqp;
-	int signedconv;
+getquads(quad_t *qp, u_quad_t *uqp, int signedconv)
 {
 	char *ep;
 	int rval;
@@ -472,8 +462,7 @@ getquads(qp, uqp, signedconv)
 }
 
 static int
-getdouble(dp)
-	double *dp;
+getdouble(double *dp)
 {
 	char *ep;
 	int rval;
@@ -503,9 +492,9 @@ getdouble(dp)
 }
 
 static int
-asciicode()
+asciicode(void)
 {
-	register int ch;
+	int ch;
 
 	ch = **gargv;
 	if (ch == '\'' || ch == '"')
@@ -515,7 +504,7 @@ asciicode()
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: printf format [arg ...]\n");
 }

@@ -119,9 +119,7 @@ usage(void)
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 	char *p;
@@ -198,7 +196,7 @@ main(argc, argv)
  *	read through the wtmp file
  */
 void
-wtmp()
+wtmp(void)
 {
 	struct utmp	*bp;			/* current structure */
 	struct stat	stb;			/* stat of file for size */
@@ -237,8 +235,7 @@ wtmp()
  *	process a single wtmp entry
  */
 void
-doentry(bp)
-	struct utmp *bp;
+doentry(struct utmp *bp)
 {
 	struct ttytab	*tt, *ttx;		/* ttylist entry */
 
@@ -325,9 +322,7 @@ doentry(bp)
  * logout type (crash/shutdown) as appropriate.
  */
 void
-printentry(bp, tt)
-	struct utmp *bp;
-	struct ttytab *tt;
+printentry(struct utmp *bp, struct ttytab *tt)
 {
 	char ct[80];
 	struct tm *tm;
@@ -378,8 +373,7 @@ printentry(bp, tt)
  *	see if want this entry
  */
 int
-want(bp)
-	struct utmp *bp;
+want(struct utmp *bp)
 {
 	ARG *step;
 
@@ -412,9 +406,7 @@ want(bp)
  *	add an entry to a linked list of arguments
  */
 void
-addarg(type, arg)
-	int type;
-	char *arg;
+addarg(int type, char *arg)
 {
 	ARG *cur;
 
@@ -433,8 +425,7 @@ addarg(type, arg)
  *	off the domain suffix since that's what login(1) does.
  */
 void
-hostconv(arg)
-	char *arg;
+hostconv(char *arg)
 {
 	static int first = 1;
 	static char *hostdot, name[MAXHOSTNAMELEN];
@@ -457,8 +448,7 @@ hostconv(arg)
  *	convert tty to correct name.
  */
 char *
-ttyconv(arg)
-	char *arg;
+ttyconv(char *arg)
 {
 	char *mval;
 
@@ -490,8 +480,7 @@ ttyconv(arg)
  * 	Derived from atime_arg1() in usr.bin/touch/touch.c
  */
 time_t
-dateconv(arg)
-        char *arg;
+dateconv(char *arg)
 {
         time_t timet;
         struct tm *t;
@@ -562,8 +551,7 @@ terr:           errx(1,
  *	on interrupt, we inform the user how far we've gotten
  */
 void
-onintr(signo)
-	int signo;
+onintr(int signo)
 {
 	char ct[80];
 	struct tm *tm;

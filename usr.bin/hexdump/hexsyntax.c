@@ -52,9 +52,7 @@ __FBSDID("$FreeBSD$");
 off_t skip;				/* bytes to skip */
 
 void
-newsyntax(argc, argvp)
-	int argc;
-	char ***argvp;
+newsyntax(int argc, char ***argvp)
 {
 	int ch;
 	char *p, **argv;
@@ -135,7 +133,7 @@ newsyntax(argc, argvp)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: hexdump [-bcCdovx] [-e fmt] [-f fmt_file] [-n length]",

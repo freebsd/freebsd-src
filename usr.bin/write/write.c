@@ -74,11 +74,9 @@ void search_utmp(char *, char *, char *, uid_t);
 int utmp_chk(char *, char *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
-	register char *cp;
+	char *cp;
 	time_t atime;
 	uid_t myuid;
 	int msgsok, myttyfd;
@@ -136,7 +134,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: write user [tty]\n");
 	exit(1);
@@ -147,8 +145,7 @@ usage()
  *     the given tty
  */
 int
-utmp_chk(user, tty)
-	char *user, *tty;
+utmp_chk(char *user, char *tty)
 {
 	struct utmp u;
 	int ufd;
@@ -179,9 +176,7 @@ utmp_chk(user, tty)
  * writing from, unless that's the only terminal with messages enabled.
  */
 void
-search_utmp(user, tty, mytty, myuid)
-	char *user, *tty, *mytty;
-	uid_t myuid;
+search_utmp(char *user, char *tty, char *mytty, uid_t myuid)
 {
 	struct utmp u;
 	time_t bestatime, atime;
@@ -233,10 +228,7 @@ search_utmp(user, tty, mytty, myuid)
  *     and the access time
  */
 int
-term_chk(tty, msgsokP, atimeP, showerror)
-	char *tty;
-	int *msgsokP, showerror;
-	time_t *atimeP;
+term_chk(char *tty, int *msgsokP, time_t *atimeP, int showerror)
 {
 	struct stat s;
 	char path[MAXPATHLEN];
@@ -256,9 +248,7 @@ term_chk(tty, msgsokP, atimeP, showerror)
  * do_write - actually make the connection
  */
 void
-do_write(tty, mytty, myuid)
-	char *tty, *mytty;
-	uid_t myuid;
+do_write(char *tty, char *mytty, uid_t myuid)
 {
 	const char *login;
 	char *nows;
@@ -298,8 +288,7 @@ do_write(tty, mytty, myuid)
  * done - cleanup and exit
  */
 void
-done(n)
-	int n __unused;
+done(int n __unused)
 {
 	(void)printf("EOF\r\n");
 	exit(0);
@@ -310,8 +299,7 @@ done(n)
  *     turns \n into \r\n
  */
 void
-wr_fputs(s)
-	unsigned char *s;
+wr_fputs(unsigned char *s)
 {
 
 #define	PUTC(c)	if (putchar(c) == EOF) err(1, NULL);

@@ -72,9 +72,7 @@ int	Lines, Columns;		/* window size */
 speed_t	Ospeed;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 #ifdef TIOCGWINSZ
 	struct winsize win;
@@ -242,10 +240,7 @@ main(argc, argv)
  * Tell the user if a control key has been changed from the default value.
  */
 void
-report(name, which, def)
-	const char *name;
-	int which;
-	u_int def;
+report(const char *name, int which, u_int def)
 {
 	u_int old, new;
 
@@ -273,8 +268,7 @@ report(name, which, def)
  * This means that -e, -i and -k get default arguments supplied for them.
  */
 void
-obsolete(argv)
-	char *argv[];
+obsolete(char *argv[])
 {
 	for (; *argv; ++argv) {
 		if (argv[0][0] != '-' || (argv[1] && argv[1][0] != '-') ||
@@ -296,7 +290,7 @@ obsolete(argv)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 "usage: tset  [-IQrSs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]",

@@ -65,9 +65,7 @@ void	stime_file(char *, struct timeval *);
 void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	struct timeval tv[2];
@@ -197,9 +195,7 @@ main(argc, argv)
 #define	ATOI2(ar)	((ar)[0] - '0') * 10 + ((ar)[1] - '0'); (ar) += 2;
 
 void
-stime_arg1(arg, tvp)
-	char *arg;
-	struct timeval *tvp;
+stime_arg1(char *arg, struct timeval *tvp)
 {
 	time_t now;
 	struct tm *t;
@@ -260,10 +256,7 @@ terr:		errx(1,
 }
 
 void
-stime_arg2(arg, year, tvp)
-	char *arg;
-	int year;
-	struct timeval *tvp;
+stime_arg2(char *arg, int year, struct timeval *tvp)
 {
 	time_t now;
 	struct tm *t;
@@ -293,9 +286,7 @@ stime_arg2(arg, year, tvp)
 }
 
 void
-stime_file(fname, tvp)
-	char *fname;
-	struct timeval *tvp;
+stime_file(char *fname, struct timeval *tvp)
 {
 	struct stat sb;
 
@@ -306,10 +297,7 @@ stime_file(fname, tvp)
 }
 
 int
-rw(fname, sbp, force)
-	char *fname;
-	struct stat *sbp;
-	int force;
+rw(char *fname, struct stat *sbp, int force)
 {
 	int fd, needed_chmod, rval;
 	u_char byte;
@@ -358,7 +346,7 @@ err:			rval = 1;
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: touch [-acfhm] [-r file] [-t [[CC]YY]MMDDhhmm[.SS]] file ...\n");
 	exit(1);

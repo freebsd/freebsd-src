@@ -44,9 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "hexdump.h"
 
 void
-conv_c(pr, p)
-	PR *pr;
-	u_char *p;
+conv_c(PR *pr, u_char *p)
 {
 	char buf[10];
 	char const *str;
@@ -92,9 +90,7 @@ strpr:		*pr->cchar = 's';
 }
 
 void
-conv_u(pr, p)
-	PR *pr;
-	u_char *p;
+conv_u(PR *pr, u_char *p)
 {
 	static char const * list[] = {
 		"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",

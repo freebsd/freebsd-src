@@ -55,9 +55,7 @@ void process(FILE *, const char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	FILE *fp;
 	int ch;
@@ -85,18 +83,16 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: unvis [file ...]\n");
 	exit(1);
 }
 
 void
-process(fp, filename)
-	FILE *fp;
-	const char *filename;
+process(FILE *fp, const char *filename)
 {
-	register int offset = 0, c, ret;
+	int offset = 0, c, ret;
 	int state = 0;
 	char outc;
 

@@ -18,7 +18,7 @@
 static const struct map *in_word_set(const char *str, unsigned int len);
 
 %}
-struct map { char *name; int key; };
+struct map { const char *name; int key; };
 %%
 PATH, _CS_PATH
 POSIX_V6_ILP32_OFF32_CFLAGS, _CS_POSIX_V6_ILP32_OFF32_CFLAGS
