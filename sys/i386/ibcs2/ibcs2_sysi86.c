@@ -51,6 +51,7 @@
 #define SETNAME		56
 #define SI86_MEM	65
 
+extern int hw_float;
 
 int
 ibcs2_sysi86(struct proc *p, struct ibcs2_sysi86_args *args, int *retval)
