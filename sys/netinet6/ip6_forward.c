@@ -343,8 +343,7 @@ ip6_forward(m, srcrt)
 			}
 
 			/* this probably fails but give it a try again */
-			rtalloc_ign((struct route *)&ip6_forward_rt,
-				    RTF_PRCLONING);
+			rtalloc((struct route *)&ip6_forward_rt);
 		}
 
 		if (ip6_forward_rt.ro_rt == 0) {
@@ -368,7 +367,7 @@ ip6_forward(m, srcrt)
 		dst->sin6_family = AF_INET6;
 		dst->sin6_addr = ip6->ip6_dst;
 
-  		rtalloc_ign((struct route *)&ip6_forward_rt, RTF_PRCLONING);
+  		rtalloc((struct route *)&ip6_forward_rt);
 		if (ip6_forward_rt.ro_rt == 0) {
 			ip6stat.ip6s_noroute++;
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);

@@ -463,7 +463,7 @@ verify_rev_path(struct in_addr src, struct ifnet *ifp)
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = src;
 
-		rtalloc_ign(&ro, RTF_CLONING|RTF_PRCLONING);
+		rtalloc_ign(&ro, RTF_CLONING);
 	}
 
 	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
