@@ -252,6 +252,15 @@ ip_output(m0, opt, ro, flags, imo)
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
+	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
+	    imo != NULL && imo->imo_multicast_ifp != NULL) {
+		/*
+		 * Bypass the normal routing lookup for multicast
+		 * packets if the interface is specified.
+		 */
+		ifp = imo->imo_multicast_ifp;
+		IFP_TO_IA(ifp, ia);
+		isbroadcast = 0;	/* fool gcc */
 	} else {
 		/*
 		 * If this is the case, we probably don't want to allocate
@@ -294,8 +303,6 @@ ip_output(m0, opt, ro, flags, imo)
 		 */
 		if (imo != NULL) {
 			ip->ip_ttl = imo->imo_multicast_ttl;
-			if (imo->imo_multicast_ifp != NULL)
-				ifp = imo->imo_multicast_ifp;
 			if (imo->imo_multicast_vif != -1)
 				ip->ip_src.s_addr =
 				    ip_mcast_src(imo->imo_multicast_vif);
@@ -316,13 +323,9 @@ ip_output(m0, opt, ro, flags, imo)
 		 * of outgoing interface.
 		 */
 		if (ip->ip_src.s_addr == INADDR_ANY) {
-			register struct in_ifaddr *ia1;
-
-			TAILQ_FOREACH(ia1, &in_ifaddrhead, ia_link)
-				if (ia1->ia_ifp == ifp) {
-					ip->ip_src = IA_SIN(ia1)->sin_addr;
-					break;
-				}
+			/* Interface may have no addresses. */
+			if (ia != NULL)
+				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
 		IN_LOOKUP_MULTI(ip->ip_dst, ifp, inm);
@@ -385,15 +388,18 @@ ip_output(m0, opt, ro, flags, imo)
 	 * of outgoing interface.
 	 */
 	if (ip->ip_src.s_addr == INADDR_ANY) {
-		ip->ip_src = IA_SIN(ia)->sin_addr;
+		/* Interface may have no addresses. */
+		if (ia != NULL) {
+			ip->ip_src = IA_SIN(ia)->sin_addr;
 #ifdef IPFIREWALL_FORWARD
-		/* Keep note that we did this - if the firewall changes
-		 * the next-hop, our interface may change, changing the
-		 * default source IP. It's a shame so much effort happens
-		 * twice. Oh well. 
-		 */
-		fwd_rewrite_src++;
+			/* Keep note that we did this - if the firewall changes
+		 	* the next-hop, our interface may change, changing the
+		 	* default source IP. It's a shame so much effort happens
+		 	* twice. Oh well. 
+		 	*/
+			fwd_rewrite_src++;
 #endif /* IPFIREWALL_FORWARD */
+		}
 	}
 #endif /* notdef */
 	/*
