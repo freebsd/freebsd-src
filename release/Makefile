@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.58 1996/10/15 17:03:53 jkh Exp $
+#	$Id: Makefile,v 1.247 1996/11/02 18:58:07 jkh Exp $
 #
 # How to roll a release:
 #
@@ -80,10 +80,18 @@ rerelease release:
 	cd ${.CURDIR}/.. && ${MAKE} install DESTDIR=${CHROOTDIR}
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs co -P src
+		cvs -d ${CVSROOT} co -P src
+.if defined(INTCVSROOT)
+	cd ${CHROOTDIR}/usr && \
+	    cvs -d ${INTCVSROOT} co -P src/secure src/eBones
+.endif
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
-		cvs co -P -r ${RELEASETAG} src
+		cvs co -d ${CVSROOT} -P -r ${RELEASETAG} src
+.if defined(INTCVSROOT)
+	cd ${CHROOTDIR}/usr && \
+	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/eBones
+.endif
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
 	cd ${CHROOTDIR}/usr/src && patch --silent < ${LOCAL_PATCHES}
@@ -367,6 +375,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
+	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	# make the small bootfd
@@ -578,7 +587,7 @@ doMFSKERN:
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 	@ls -l ${RD}/boot.${FSIMAGE}/kernel
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	cat /usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
+	cat ${RD}/trees/bin/usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
 		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
 	@echo 'USERCONFIG' > startup_foo
 	@echo 'intro' >> startup_foo

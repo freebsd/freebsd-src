@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73 1996/10/10 09:22:27 jkh Exp $
+ * $Id: dist.c,v 1.74 1996/11/02 19:50:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -580,10 +580,6 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
-	/* Assume that if we couldn't get all the dists, our media probably needs changing at this point */
-	if (mediaDevice->type == DEVICE_TYPE_FTP)
-	    variable_unset(VAR_FTP_PATH);
-	mediaDevice->shutdown(mediaDevice);
 	return DITEM_FAILURE | DITEM_RESTORE;
     }
     return DITEM_SUCCESS;
