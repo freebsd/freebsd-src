@@ -214,7 +214,23 @@ as the alias address.  If this option is not specified, the
 .Fl n
 or
 .Fl interface
-option must be used.
+option must be used.  The specified address should be the address assigned
+to the public network interface.
+.Pp
+All data passing out through this addresses interface will be rewritten
+with a source address equal to
+.Ar address .
+All data arriving at the interface from outside will be checked to
+see if it matches any already-aliased outgoing connection.  If it does,
+the packet is altered accordingly.  If not, all
+.Fl redirect_port
+and
+.Fl redirect_address
+assignments are checked and actioned.  If no other action can be made,
+and if
+.Fl deny_incoming
+is not specified, the packet is delivered to the local machine and port
+as specified in the packet.
 
 .It Fl n | interface Ar interface
 Use
@@ -229,7 +245,10 @@ flag should also be used.  If this option is not specified, the
 or
 .Fl alias_address
 flag must be used.
-
+.Pp
+The specified
+.Ar interface
+must be the public network interface.
 .It Fl f | config Ar configfile
 Read configuration from
 .Ar configfile .
