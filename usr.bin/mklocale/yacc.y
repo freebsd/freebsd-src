@@ -77,6 +77,7 @@ _RuneLocale	new_locale = { "", "", NULL, NULL, 0, {}, {}, {},
 void set_map(rune_map *, rune_list *, unsigned long);
 void set_digitmap(rune_map *, rune_list *);
 void add_map(rune_map *, rune_list *, unsigned long);
+static void usage(void);
 %}
 
 %union	{
@@ -127,7 +128,7 @@ entry	:	ENCODING STRING
 		strncpy(new_locale.encoding, $2, sizeof(new_locale.encoding)); }
 	|	VARIABLE
 		{ new_locale.variable_len = strlen($1) + 1;
-		  new_locale.variable = malloc(new_locale.variable_len);
+		  new_locale.variable = xmalloc(new_locale.variable_len);
 		  strcpy((char *)new_locale.variable, $1);
 		}
 	|	INVALID RUNE
@@ -146,28 +147,28 @@ entry	:	ENCODING STRING
 
 list	:	RUNE
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $1;
 		    $$->max = $1;
 		    $$->next = 0;
 		}
 	|	RUNE THRU RUNE
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $1;
 		    $$->max = $3;
 		    $$->next = 0;
 		}
 	|	list RUNE
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $2;
 		    $$->max = $2;
 		    $$->next = $1;
 		}
 	|	list RUNE THRU RUNE
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $2;
 		    $$->max = $4;
 		    $$->next = $1;
@@ -176,7 +177,7 @@ list	:	RUNE
 
 map	:	LBRK RUNE RUNE RBRK
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $2;
 		    $$->max = $2;
 		    $$->map = $3;
@@ -184,7 +185,7 @@ map	:	LBRK RUNE RUNE RBRK
 		}
 	|	map LBRK RUNE RUNE RBRK
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $3;
 		    $$->max = $3;
 		    $$->map = $4;
@@ -192,7 +193,7 @@ map	:	LBRK RUNE RUNE RBRK
 		}
 	|	LBRK RUNE THRU RUNE ':' RUNE RBRK
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $2;
 		    $$->max = $4;
 		    $$->map = $6;
@@ -200,7 +201,7 @@ map	:	LBRK RUNE RUNE RBRK
 		}
 	|	map LBRK RUNE THRU RUNE ':' RUNE RBRK
 		{
-		    $$ = (rune_list *)malloc(sizeof(rune_list));
+		    $$ = (rune_list *)xmalloc(sizeof(rune_list));
 		    $$->min = $3;
 		    $$->max = $5;
 		    $$->map = $7;
@@ -224,8 +225,6 @@ main(int ac, char *av[])
 {
     int x;
 
-    extern char *optarg;
-    extern int optind;
     fp = stdout;
 
     while ((x = getopt(ac, av, "do:")) != EOF) {
@@ -235,16 +234,12 @@ main(int ac, char *av[])
 	    break;
 	case 'o':
 	    locale_file = optarg;
-	    if ((fp = fopen(locale_file, "w")) == 0) {
-		perror(locale_file);
-		exit(1);
-	    }
+	    if ((fp = fopen(locale_file, "w")) == 0)
+		err(1, "%s", locale_file);
 	    atexit(cleanout);
 	    break;
 	default:
-	usage:
-	    fprintf(stderr, "usage: mklocale [-d] [-o output] [source]\n");
-	    exit(1);
+	    usage();
 	}
     }
 
@@ -252,13 +247,11 @@ main(int ac, char *av[])
     case 0:
 	break;
     case 1:
-	if (freopen(av[optind], "r", stdin) == 0) {
-	    perror(av[optind]);
-	    exit(1);
-	}
+	if (freopen(av[optind], "r", stdin) == 0)
+	    err(1, "%s", av[optind]);
 	break;
     default:
-	goto usage;
+	usage();
     }
     for (x = 0; x < _CACHED_RUNES; ++x) {
 	mapupper.map[x] = x;
@@ -270,6 +263,13 @@ main(int ac, char *av[])
     yyparse();
 
     return(0);
+}
+
+static void
+usage()
+{
+    fprintf(stderr, "usage: mklocale [-d] [-o output] [source]\n");
+    exit(1);
 }
 
 void
@@ -284,10 +284,8 @@ xmalloc(sz)
 	unsigned int sz;
 {
     void *r = malloc(sz);
-    if (!r) {
-	perror("xmalloc");
-	exit(1);
-    }
+    if (!r)
+	errx(1, "xmalloc");
     return(r);
 }
 
@@ -296,10 +294,8 @@ xlalloc(sz)
 	unsigned int sz;
 {
     unsigned long *r = (unsigned long *)malloc(sz * sizeof(unsigned long));
-    if (!r) {
-	perror("xlalloc");
-	exit(1);
-    }
+    if (!r)
+	errx(1, "xlalloc");
     return(r);
 }
 
@@ -310,10 +306,8 @@ xrelalloc(old, sz)
 {
     unsigned long *r = (unsigned long *)realloc((char *)old,
 						sz * sizeof(unsigned long));
-    if (!r) {
-	perror("xrelalloc");
-	exit(1);
-    }
+    if (!r)
+	errx(1, "xrelalloc");
     return(r);
 }
 
@@ -443,8 +437,7 @@ add_map(map, list, flag)
 	    r->next = list;
 	    return;
 	}
-	fprintf(stderr, "Error: conflicting map entries\n");
-	exit(1);
+	errx(1, "error: conflicting map entries");
     }
 
     if (list->min >= r->min && list->max <= r->max) {
@@ -580,34 +573,28 @@ dump_tables()
 	}
     }
 
-    first_d = -1;
+    first_d = curr_d = -1;
     for (x = 0; x < _CACHED_RUNES; ++x) {
 	unsigned long r = types.map[x];
 
 	if (r & _CTYPE_D) {
 		if (first_d < 0)
 			first_d = curr_d = x;
-		else if (x != curr_d + 1) {
-			fprintf(stderr, "Error: DIGIT range is not contiguous\n");
-			exit(1);
-		} else if (x - first_d > 9) {
-			fprintf(stderr, "Error: DIGIT range is too big\n");
-			exit(1);
-		} else
+		else if (x != curr_d + 1)
+			errx(1, "error: DIGIT range is not contiguous");
+		else if (x - first_d > 9)
+			errx(1, "error: DIGIT range is too big");
+		else
 			curr_d++;
-		if (!(r & _CTYPE_X)) {
-			fprintf(stderr, "Error: DIGIT range is not a subset of XDIGIT range\n");
-			exit(1);
-		}
+		if (!(r & _CTYPE_X))
+			errx(1,
+			"error: DIGIT range is not a subset of XDIGIT range");
 	}
     }
-    if (first_d < 0) {
-	fprintf(stderr, "Error: no DIGIT range defined in the single byte area\n");
-	exit(1);
-    } else if (curr_d - first_d < 9) {
-	fprintf(stderr, "Error: DIGIT range is too small in the single byte area\n");
-	exit(1);
-    }
+    if (first_d < 0)
+	errx(1, "error: no DIGIT range defined in the single byte area");
+    else if (curr_d - first_d < 9)
+	errx(1, "error: DIGIT range is too small in the single byte area");
 
     new_locale.invalid_rune = htonl(new_locale.invalid_rune);
 
