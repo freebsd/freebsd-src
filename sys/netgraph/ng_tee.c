@@ -116,6 +116,13 @@ static const struct ng_cmdlist ng_tee_cmds[] = {
 	  NULL,
 	  NULL
 	},
+	{
+	  NGM_TEE_COOKIE,
+	  NGM_TEE_GETCLR_STATS,
+	  "getclrstats",
+	  NULL,
+	  &ng_tee_stats_type
+	},
 	{ 0 }
 };
 
@@ -204,34 +211,40 @@ ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 	case NGM_TEE_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_TEE_GET_STATS:
-		    {
+		case NGM_TEE_CLR_STATS:
+		case NGM_TEE_GETCLR_STATS:
+                    {
 			struct ng_tee_stats *stats;
 
-			NG_MKRESPONSE(resp, msg,
-			    sizeof(struct ng_tee_stats), M_NOWAIT);
-			if (resp == NULL) {
-				error = ENOMEM;
-				goto done;
+                        if (msg->header.cmd != NGM_TEE_CLR_STATS) {
+                                NG_MKRESPONSE(resp, msg,
+                                    sizeof(*stats), M_NOWAIT);
+				if (resp == NULL) {
+					error = ENOMEM;
+					goto done;
+				}
+				stats = (struct ng_tee_stats *)resp->data;
+				bcopy(&sc->right.stats, &stats->right,
+				    sizeof(stats->right));
+				bcopy(&sc->left.stats, &stats->left,
+				    sizeof(stats->left));
+				bcopy(&sc->right2left.stats, &stats->right2left,
+				    sizeof(stats->right2left));
+				bcopy(&sc->left2right.stats, &stats->left2right,
+				    sizeof(stats->left2right));
+                        }
+                        if (msg->header.cmd != NGM_TEE_GET_STATS) {
+				bzero(&sc->right.stats,
+				    sizeof(sc->right.stats));
+				bzero(&sc->left.stats,
+				    sizeof(sc->left.stats));
+				bzero(&sc->right2left.stats,
+				    sizeof(sc->right2left.stats));
+				bzero(&sc->left2right.stats,
+				    sizeof(sc->left2right.stats));
 			}
-			stats = (struct ng_tee_stats *) resp->data;
-			bcopy(&sc->right.stats,
-			    &stats->right, sizeof(stats->right));
-			bcopy(&sc->left.stats,
-			    &stats->left, sizeof(stats->left));
-			bcopy(&sc->right2left.stats,
-			    &stats->right2left, sizeof(stats->right2left));
-			bcopy(&sc->left2right.stats,
-			    &stats->left2right, sizeof(stats->left2right));
-			break;
+                        break;
 		    }
-		case NGM_TEE_CLR_STATS:
-			bzero(&sc->right.stats, sizeof(sc->right.stats));
-			bzero(&sc->left.stats, sizeof(sc->left.stats));
-			bzero(&sc->right2left.stats,
-			    sizeof(sc->right2left.stats));
-			bzero(&sc->left2right.stats,
-			    sizeof(sc->left2right.stats));
-			break;
 		default:
 			error = EINVAL;
 			break;
