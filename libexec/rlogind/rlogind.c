@@ -555,7 +555,7 @@ fatal(f, msg, syserr)
 		    msg, strerror(errno));
 	else
 		len = snprintf(bp, sizeof(buf), "rlogind: %s.\r\n", msg);
-	if (len == -1)
+	if (len < 0)
 		len = 0;
 	(void) write(f, buf, bp + len - buf);
 	exit(1);
