@@ -50,18 +50,30 @@
 #define	T_ALIGN_LDDF	0x12
 #define	T_ALIGN_STDF	0x13
 #define	T_PRIV_ACTION	0x14
-#define	T_INTERRUPT	0x15
+#define	T_INTR		0x15
 #define	T_WATCH_PHYS	0x16
 #define	T_WATCH_VIRT	0x17
 #define	T_ECC		0x18
 #define	T_IMMU_MISS	0x19
 #define	T_DMMU_MISS	0x1a
 #define	T_DMMU_PROT	0x1b
-#define	T_SPILL		0x1c
-#define	T_FILL		0x1d
-#define	T_BREAKPOINT	0x1e
-
+#define	T_CLOCK		0x1c
+#define	T_SPILL		0x1d
+#define	T_FILL		0x1e
+#define	T_BREAKPOINT	0x1f
 #define	T_KERNEL	0x20
+
+#define	T_TYPE_SHIFT	0
+#define	T_TYPE_SIZE	6
+#define	T_TYPE_MASK	(((1 << T_TYPE_SIZE) - 1) << T_TYPE_SHIFT)
+#define	T_TYPE(type) \
+	(((type) & T_TYPE_MASK) >> T_TYPE_SHIFT)
+
+#define	T_LEVEL_SHIFT	T_TYPE_SIZE
+#define	T_LEVEL_SIZE	4
+#define	T_LEVEL_MASK	(((1 << T_LEVEL_SIZE) - 1) << T_LEVEL_SHIFT)
+#define	T_LEVEL(type) \
+	(((type) & T_LEVEL_MASK) >> T_LEVEL_SHIFT)
 
 #ifndef LOCORE
 extern const char *trap_msg[];
