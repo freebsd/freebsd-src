@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.15 1998/07/15 06:45:00 charnier Exp $
+.\"	$Id: ping.8,v 1.16 1998/08/26 01:58:39 dillon Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -85,8 +85,7 @@ Stop after sending
 .Pq and receiving
 .Ar count
 .Tn ECHO_RESPONSE
-packets.  non-root users may not send more then 100 packets and default
-to 16, while root defaults to infinity.
+packets.  If this option is not specified, ping will operate until interrupted.
 .It Fl d
 Set the
 .Dv SO_DEBUG
