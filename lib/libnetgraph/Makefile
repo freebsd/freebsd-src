@@ -9,7 +9,7 @@ SHLIB_MAJOR=	1
 
 SRCS=		sock.c msg.c debug.c
 
-CFLAGS+=	-g -Wall
+CFLAGS+=	-Wall
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/netgraph.h \
