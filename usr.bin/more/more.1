@@ -212,8 +212,10 @@ All marks are lost when a new file is examined.
 .It Ic \&/ Ns Ar pattern
 Search forward in the file for the N-th line containing the pattern.
 N defaults to 1.
-The pattern is a regular expression, as recognized by
-.Xr ed .
+The pattern is a POSIX.2
+.Dq extended format
+regular expression, as described in
+.Xr re_format 7 .
 The search starts at the second line displayed.
 .It Ic \&? Ns Ar pattern
 Search backward in the file for the N-th line containing the pattern.
