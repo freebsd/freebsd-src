@@ -912,6 +912,14 @@ Internet, such as
 .Xr fingerd 8 ,
 and a small number of TCP/IP clients, such as IRC, where full names
 specified in the passwd file may be used by default.
+.Pp
+The
+.Nm
+utility writes a log to the
+.Pa /var/log/userlog
+file when actions such as user or group additions or deletions occur.
+The location of this logfile can be changed in
+.Xr pw.conf 5 .
 .Sh FILES
 .Bl -tag -width /etc/master.passwd.new -compact
 .It Pa /etc/master.passwd
@@ -930,6 +938,8 @@ Temporary copy of the Version 7 password file
 Temporary copy of the group file
 .It Pa /etc/pw.conf
 Pw default options file
+.It Pa /var/log/userlog
+User/group modification logfile
 .El
 .Sh SEE ALSO
 .Xr chpass 1 ,
