@@ -1,6 +1,6 @@
 /*
  *	from db.h	4.16 (Berkeley) 6/1/90
- *	$Id: db_glob.h,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $
+ *	$Id: db_glob.h,v 1.2 1995/05/30 03:48:37 rgrimes Exp $
  */
 
 /*
@@ -65,8 +65,8 @@
 	/* ONE_WEEK maximum ttl */
 DECL	int		max_cache_ttl INIT(7*24*60*60);
 
-	/* 5 minute minimum ttl */
-DECL	int		min_cache_ttl INIT(5*60);
+	/* no minimum ttl */
+DECL	int		min_cache_ttl INIT(0);
 
 	/* current line number */
 DECL	int		lineno;

@@ -70,7 +70,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 1.3 1995/05/30 03:49:10 rgrimes Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 1.4 1995/08/20 21:49:40 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -97,7 +97,9 @@ static char rcsid[] = "$Id: named-xfer.c,v 1.3 1995/05/30 03:49:10 rgrimes Exp $
 #include <resolv.h>
 #include <stdio.h>
 #include <syslog.h>
-#include <math.h>
+#if !defined(SVR4) || !defined(sun)
+# include <math.h>
+#endif
 #include <ctype.h>
 #include <signal.h>
 
@@ -167,9 +169,9 @@ main(argc, argv)
 		closed += (close(fd) == 0);
 
 #ifdef RENICE
-	nice (-40);	/* this is the recommended procedure to        */
-	nice (20);	/*   reset the priority of the current process */
-	nice (0);	/*   to "normal" (== 0) - see nice(3)          */
+	nice(-40);	/* this is the recommended procedure to        */
+	nice(20);	/*   reset the priority of the current process */
+	nice(0);	/*   to "normal" (== 0) - see nice(3)          */
 #endif
 
 #ifdef LOG_DAEMON
@@ -195,7 +197,9 @@ main(argc, argv)
 			break;
 		case 'l':
 			ddtfile = (char *)malloc(strlen(optarg) +
-			    sizeof(".XXXXXX") + 1);
+						 sizeof(".XXXXXX") + 1);
+			if (!ddtfile)
+				panic(errno, "malloc(ddtfile)");
 #ifdef SHORT_FNAMES
 			filenamecpy(ddtfile, optarg);
 #else
@@ -220,6 +224,8 @@ main(argc, argv)
 			dbfile = optarg;
 			tmpname = (char *)malloc((unsigned)strlen(optarg) +
 						 sizeof(".XXXXXX") + 1);
+			if (!tmpname)
+				panic(errno, "malloc(tmpname)");
 #ifdef SHORT_FNAMES
 			filenamecpy(tmpname, optarg);
 #else
@@ -399,6 +405,7 @@ main(argc, argv)
 	}
 	dprintf(1, (ddt, "addrcnt = %d\n", zp->z_addrcnt));
 
+	res_init();
 	_res.options &= ~(RES_DEFNAMES | RES_DNSRCH | RES_RECURSE);
 	result = getzone(zp, serial_no, port);
 	(void) my_fclose(dbfp);
@@ -656,10 +663,13 @@ getzone(zp, serial_no, port)
 				goto tryagain;
 			}
 #endif
-			syslog(LOG_INFO,
-	    "%s from [%s], zone %s: rcode %d, aa %d, ancount %d, aucount %d\n",
-			       "bad response to SOA query",
-			       inet_ntoa(sin.sin_addr), zp->z_origin,
+			syslog(LOG_NOTICE,
+       "[%s] %s for %s, SOA query got rcode %d, aa %d, ancount %d, aucount %d",
+			       inet_ntoa(sin.sin_addr),
+			       (hp->aa
+				? (qdcount==1 ?"no SOA found" :"bad response")
+				: "not authoritative"),
+			       zp->z_origin[0] != '\0' ? zp->z_origin : ".",
 			       hp->rcode, hp->aa, ancount, aucount);
 			error++;
 			(void) my_close(s);
@@ -1110,7 +1120,7 @@ soa_zinfo(zp, cp, eom)
 	GETSHORT(class, cp);
 	GETLONG(ttl, cp);
 	cp += INT16SZ;	/* dlen */
-	if (type != T_SOA || class != curclass || ttl == 0)
+	if (type != T_SOA || class != curclass)
 		return ("zinfo wrong typ/cla/ttl");
 	/* Skip master name and contact name, we can't validate them. */
 	if ((n = dn_skipname(cp, eom)) == -1)
@@ -1403,7 +1413,7 @@ print_output(msg, msglen, rrp)
 		tab = 1;
 	}
 
-	if (ttl != 0 && ttl != minimum_ttl)
+	if (ttl != minimum_ttl)
 		(void) fprintf(dbfp, "%d\t", (int) ttl);
 	else if (tab)
 		(void) putc('\t', dbfp);

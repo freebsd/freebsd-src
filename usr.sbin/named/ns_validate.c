@@ -10,8 +10,11 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/file.h>
+
 #include <netinet/in.h>
 #include <arpa/nameser.h>
+#include <arpa/inet.h>
+
 #include <syslog.h>
 #include <errno.h>
 #include <stdio.h>
@@ -50,7 +53,7 @@ static int		VQcount;
  * VALID_NO_CACHE if the name is something we are authoritative for.
  *
  * pseudocode for function validate is as follows:
- * validate(domain, server, type, class, data, dlen, rcode) {
+ * validate(domain, qdomain, server, type, class, data, dlen, rcode) {
  *
  *       if (dname or a higher level name not found in cache)
  *          return INVALID;
@@ -63,8 +66,10 @@ static int		VQcount;
  *              if (data agrees with what we have)
  *                return VALID_NO_CACHE;
  *              else return INVALID;
- *
- *          if (we are not authoritative) /findns() returned OK;/
+ *    
+ *          if (we are not authoritative) /findns() returned OK;/       
+ *	    if (domain lives below the qdomain)
+ *		return VALID_CACHE;
  *          if (address records for NS's found in cache){
  *                       if ("server" = one of the addresses){
  *                               return VALID_CACHE;
@@ -88,15 +93,14 @@ static int		VQcount;
  *                                 we have needs_prime_cache = 0;
  *****************************************************************************/
 int
-validate(dname, server, type, class, data, dlen
+validate(dname, qdomain, server, type, class, data, dlen
 #ifdef NCACHE
 	 ,rcode
 #endif
 	 )
-	char *dname;
+	char *dname, *qdomain;
 	struct sockaddr_in *server;
-	int type;
-	int class;
+	int type, class;
 	char *data;
 	int dlen;
 #ifdef NCACHE
@@ -107,7 +111,7 @@ validate(dname, server, type, class, data, dlen
 	struct hashbuf *htp;
 	struct databuf *nsp[NSMAX];
 	int count;
-	char *fname;
+	const char *fname;
 	int exactmatch = 0;
 	struct fwdinfo *fwd;
 
@@ -133,10 +137,8 @@ validate(dname, server, type, class, data, dlen
 	/* we were able to locate namebufs for this domain, or a parent domain,
 	 * or ??? */
 
-	if (np == NULL) {
-		fname = (char *)malloc(1);
-		fname[0] = '\0';
-	}
+	if (np == NULL)
+		fname = "";
 	dprintf(5, (ddt,
 		    "validate:namebuf found np:%#lx, d:\"%s\", f:\"%s\"\n",
 		    (u_long)np, dname, fname));
@@ -145,8 +147,6 @@ validate(dname, server, type, class, data, dlen
 		dnamep = np;
 		exactmatch = 1;
 	}
-	if (np == NULL && fname != NULL)
-		free((char *)fname);
 	switch (findns(&np, class, nsp, &count, 0)) {
 	case NXDOMAIN:
 		/** we are authoritative for this domain, lookup name
@@ -216,12 +216,11 @@ validate(dname, server, type, class, data, dlen
 		return (INVALID);
 
 	case OK: /*proceed */
-		dprintf(5,
-			(ddt,
-			 "validate:found ns records:calling check_addr_ns\n"));
+		dprintf(5, (ddt, "validate:found ns records\n"));
 		if (needs_prime_cache)
 			needs_prime_cache = 0;
-		if (check_addr_ns(nsp, server, dname)) {
+		if (samedomain(dname, qdomain) ||
+		    check_addr_ns(nsp, server, dname)) {
 #ifdef	DATUMREFCNT
 			free_nsp(nsp);
 #endif
@@ -390,8 +389,8 @@ isvalid(np, type, class, data, dlen)
 				if (x != 0)
 					break;
 				td += (strlen(td) + 1);
-				tdp += (strlen(tdp) + 1);
-
+				tdp += (strlen((char *)tdp) + 1);
+				
 				/* compare second string */
 				x = strncasecmp(td, (char *)tdp,
 						strlen((char *)td+1));
@@ -436,9 +435,8 @@ check_addr_ns(nsp, server, dname)
 	struct in_addr *saddr = &(server->sin_addr);
 	struct databuf **nsdp;
 
-	dprintf(5, (ddt,
-		    "check_addr_ns: s:[%s], db:0x%x, d:\"%s\"\n",
-		    inet_ntoa(*saddr), nsp, dname));
+	dprintf(5, (ddt, "check_addr_ns: s:[%s], db:0x%lx, d:\"%s\"\n", 
+		    inet_ntoa(*saddr), (u_long)nsp, dname));
 
 	for(i = lastNA; i != firstNA; i = (i+1) % MAXNAMECACHE) {
 		if (!bcmp((char *)saddr,
@@ -484,13 +482,13 @@ check_in_tables(nsp, server, syslogdname)
 	register struct namebuf *np;
 	register struct databuf *dp, *nsdp;
 	struct hashbuf *tmphtp;
-	char *dname, *fname;
+	const char *dname, *fname;
 	int class;
 	int qcomp();
-
-	dprintf(3, (ddt, "check_in_tables(nsp=x%x,qp=x%x,'%s')\n",
-		    nsp, server, syslogdname));
-
+  
+	dprintf(3, (ddt, "check_in_tables(nsp=x%lx, qp=x%x, '%s')\n",
+		    (u_long)nsp, server, syslogdname));
+  
 	while ((nsdp = *nsp++) != NULL) {
 		class = nsdp->d_class;
 		dname = (char *)nsdp->d_data;
@@ -532,10 +530,10 @@ check_in_tables(nsp, server, syslogdname)
  *************************************************************************/
 void
 store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
-	char *servername;
+	const char *servername;
 	struct in_addr serveraddr;
-	char *syslogdname;
-	char *sysloginfo;
+	const char *syslogdname;
+	const char *sysloginfo;
 {
 	int i;
 
@@ -575,17 +573,13 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
 				       syslogdname);
 #endif
 			free(nameaddrlist[i].nsname);
-			nameaddrlist[i].nsname =
-				(char *)malloc((unsigned)strlen(servername)+1);
-			strcpy(nameaddrlist[i].nsname, servername);
+			nameaddrlist[i].nsname = savestr(servername);
 			return;
 		}
 	}
 	/* we have to add this one to our cache */
 
-	nameaddrlist[firstNA].nsname =
-		(char *)malloc((unsigned)strlen(servername)+1);
-	strcpy(nameaddrlist[firstNA].nsname, servername);
+	nameaddrlist[firstNA].nsname = savestr(servername);
 	bcopy((char *)&serveraddr,
 	      (char *)&(nameaddrlist[firstNA].ns_addr),
 	      INADDRSZ);
@@ -613,9 +607,10 @@ store_name_addr(servername, serveraddr, syslogdname, sysloginfo)
  * delete/keep the record from the outgoing message.
  */
 int
-dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
+dovalidate(msg, msglen, rrp, zone, flags, qdomain, server, VCode)
 	u_char *msg, *rrp;
 	int  msglen, zone, flags;
+	char *qdomain;
 	struct sockaddr_in *server;
 	int *VCode;
 {
@@ -783,7 +778,7 @@ dovalidate(msg, msglen, rrp, zone, flags, server, VCode)
 		return (-1);
 	}
 
-	*VCode = validate(dname, server, type, class,(char *)cp1, n
+	*VCode = validate(dname, qdomain, server, type, class,(char *)cp1, n
 #ifdef NCACHE
 			  ,NOERROR
 #endif
@@ -821,12 +816,12 @@ stick_in_queue(dname, type, class, data)
 
 	if (validateQ == NULL) {
 		validateQ = (TO_Validate *)malloc(sizeof(TO_Validate));
+		if (!validateQ)
+			panic(errno, "malloc(validateQ)");
 		validateQ->type = type;
 		validateQ->class = class;
-		validateQ->dname = malloc((unsigned)strlen(dname)+1);
-		strcpy(validateQ->dname, dname);
-		validateQ->data = malloc((unsigned)strlen(data)+1);
-		strcpy(validateQ->data, data);
+		validateQ->dname = savestr(dname);
+		validateQ->data = savestr(data);	/* XXX no \0 */
 		gettimeofday(&tp, &tzp);
 		validateQ->time = tp.tv_sec;
 		VQcount = 1;
@@ -836,12 +831,12 @@ stick_in_queue(dname, type, class, data)
 	}
 	if (VQcount < MAXVQ) {
 		tempVQ =(TO_Validate *)malloc(sizeof(TO_Validate));
+		if (!tempVQ)
+			panic(errno, "malloc(tempVQ)");
 		tempVQ->type = type;
 		tempVQ->class = class;
-		tempVQ->dname = malloc((unsigned)strlen(dname)+1);
-		strcpy(tempVQ->dname, dname);
-		tempVQ->data = malloc((unsigned)strlen(data)+1);
-		strcpy(tempVQ->data, data);
+		tempVQ->dname = savestr(dname);
+		tempVQ->data = savestr(data);	/* XXX no \0 */
 		gettimeofday(&tp,&tzp);
 		tempVQ->time = tp.tv_sec;
 		tempVQ->next = currentVQ->next;
@@ -879,7 +874,8 @@ stick_in_queue(dname, type, class, data)
 	return;
 }
 #endif
-
+
+#ifdef BAD_IDEA
 /* removes any INVALID RR's from the msg being returned, updates msglen to
  * reflect the new message length.
  */
@@ -935,6 +931,8 @@ update_msg(msg, msglen, Vlist, c)
 	dprintf(2, (ddt, "update_msg: NEEDS updating:\n"));
 
 	RRlen = (int *)malloc((unsigned)c*sizeof(int));
+	if (!RRlen)
+		panic(errno, "malloc(RRlen)");
 	hp = (HEADER *)msg;
 	new_ancount = ancount = ntohs(hp->ancount);
 	new_nscount = nscount = ntohs(hp->nscount);
@@ -945,7 +943,7 @@ update_msg(msg, msglen, Vlist, c)
 	/* skip the query section */
 	qlen = dn_expand(msg, eom, cp, qname, sizeof qname);
 	if (qlen <= 0) {
-		dprintf(2, (ddt, "dn_skipname() failed, bad record\n"));
+		dprintf(2, (ddt, "dn_expand() failed, bad record\n"));
 		goto badend;
 	}
 	cp +=qlen;
@@ -1242,5 +1240,6 @@ badend:
 	free((char *)RRlen);
 	return (-1);
 }
+#endif /*BAD_IDEA*/
 
 #endif /*VALIDATE*/
