@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.77.2.21 1998/03/23 08:04:00 jkh Exp $
+#	$Id: GENERIC,v 1.77.2.22 1998/03/24 01:20:14 jkh Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -63,18 +63,12 @@ device		wfd0		#IDE floppy (LS-120)
 
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
-#
-# Note: The dpt driver is present in this release but was left disabled
-# due to its relatively late entry (it's almost certainly benign to enable
-# it but we didn't want to risk any chance of destabilizing 2.2.6).  To
-# enable DPT support, uncomment the dpt0 controller entry and the two
-# options DPTOPT and DPT_MEASURE_PERFORMANCE entries below.
 
 controller	ncr0
 controller	amd0
 controller	ahb0
 controller	ahc0
-#controller	dpt0
+controller	dpt0
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
@@ -83,8 +77,7 @@ controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
 controller	nca1	at isa? port 0x350 bio irq 5 vector ncaintr
 controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 
-#options		DPTOPT			# will go away soon
-#options   		DPT_MEASURE_PERFORMANCE	# just enable for now
+options   		DPT_MEASURE_PERFORMANCE	# Required by DPT driver??
 #options		DPT_VERIFY_HINTR	# Some hardware must have it!
 #options		DPT_TRACK_CCB_STATES	# Some hardware must have it!
 #options    		DPT_HANDLE_TIMEOUTS	# Some hardware must have it!
