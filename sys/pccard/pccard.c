@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.71 1999/02/13 11:31:59 kuriyama Exp $
+ *	$Id: pccard.c,v 1.72 1999/02/14 20:41:01 guido Exp $
  */
 
 #include "opt_devfs.h"
@@ -60,6 +60,7 @@
 
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
+#include <pccard/pcic.h>
 #include <pccard/slot.h>
 
 #include <machine/md_var.h>
@@ -339,7 +340,7 @@ unregister_device_interrupt(struct pccard_devinfo *devi)
 			printf("Return IRQ=%d\n",slt->irq);
 			slt->ctrl->mapirq(slt, 0);
 			INTRDIS(1<<slt->irq);
-			unregister_intr(slt->irq, slot_irq_handler);
+			unregister_pcic_intr(slt->irq, slot_irq_handler);
 			if (devi->drv->imask)
 				INTRUNMASK(*devi->drv->imask,(1<<slt->irq));
 			/* Remove from the PCIC controller imask */
@@ -526,7 +527,7 @@ pccard_alloc_intr(u_int imask, inthand2_t *hand, int unit,
 		if (!(mask & imask))
 			continue;
 		INTRMASK(*maskp, mask);
-		if (register_intr(irq, 0, 0, hand, maskp, unit) == 0) {
+		if (register_pcic_intr(irq, 0, 0, hand, maskp, unit) == 0) {
 			/* add this to the PCIC controller's mask */
 			if (pcic_imask)
 				INTRMASK(*pcic_imask, (1 << irq));
