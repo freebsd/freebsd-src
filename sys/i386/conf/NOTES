@@ -2157,12 +2157,16 @@ options		COMPAT_SVR4	# build emulator statically
 options		DEBUG_SVR4	# enable verbose debugging
 pseudo-device	streams		# STREAMS network driver (required for svr4).
 
+# Debug options
+options 	BUS_DEBUG	# enable newbus debugging
+options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
+options 	NPX_DEBUG	# enable npx debugging (FPU/math emu)
+
 # More undocumented options for linting.
 # Note that documenting these are not considered an affront.
 
 options 	AHC_DUMP_EEPROM
 options 	AHC_TMODE_ENABLE
-options 	BUS_DEBUG
 options 	CAM_DEBUG_DELAY
 options 	CLK_CALIBRATION_LOOP
 options 	CLK_USE_I8254_CALIBRATION
@@ -2172,7 +2176,6 @@ options 	COMPAT_LINUX
 options 	CPU_UPGRADE_HW_CACHE
 options 	DEBUG
 options 	DEBUG_LINUX
-options 	DEBUG_VFS_LOCKS
 #options 	DISABLE_PSE
 options 	ENABLE_ALART
 options 	ENABLE_VFS_IOOPT
@@ -2197,7 +2200,6 @@ options 	MSGTQL=41
 options 	NBUF=512
 options 	NETATALKDEBUG
 options 	NMBCLUSTERS=1024
-options 	NPX_DEBUG
 #options 	OLTR_NO_BULLSEYE_MAC
 #options 	OLTR_NO_HAWKEYE_MAC
 #options 	OLTR_NO_TMS_MAC
