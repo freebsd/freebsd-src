@@ -63,6 +63,7 @@ __RCSID("$FreeBSD$");
 #include    <ctype.h>
 #include    <errno.h>
 #include    <signal.h>
+#include    <unistd.h>
 #include    "make.h"
 #include    "hash.h"
 #include    "dir.h"
@@ -328,10 +329,10 @@ CompatRunCommand (cmdp, gnp)
     if (cpid == 0) {
 	if (local) {
 	    execvp(av[0], av);
-	    (void) write (2, av[0], strlen (av[0]));
-	    (void) write (2, ":", 1);
-	    (void) write (2, strerror(errno), strlen(strerror(errno)));
-	    (void) write (2, "\n", 1);
+	    (void) write (STDERR_FILENO, av[0], strlen (av[0]));
+	    (void) write (STDERR_FILENO, ":", 1);
+	    (void) write (STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
+	    (void) write (STDERR_FILENO, "\n", 1);
 	} else {
 	    (void)execv(av[0], av);
 	}

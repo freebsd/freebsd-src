@@ -161,7 +161,7 @@ stunalloc(p)
 	pointer p;
 {
 	if (p == NULL) {		/*DEBUG */
-		write(2, "stunalloc\n", 10);
+		write(STDERR_FILENO, "stunalloc\n", 10);
 		abort();
 	}
 	stacknleft += stacknxt - (char *)p;

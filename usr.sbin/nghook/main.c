@@ -156,7 +156,7 @@ main(int ac, char *av[])
 			/* Write packet to stdout */
 			if (asciiFlag)
 				WriteAscii((u_char *) buf, rl);
-			else if ((wl = write(1, buf, rl)) != rl) {
+			else if ((wl = write(STDOUT_FILENO, buf, rl)) != rl) {
 				if (wl < 0) {
 					err(EX_OSERR, "write(stdout)");
 				} else {
@@ -221,7 +221,7 @@ WriteAscii(u_char *buf, int len)
 				    sizeof(sbuf) - strlen(sbuf), " ");
 		snprintf(sbuf + strlen(sbuf),
 		    sizeof(sbuf) - strlen(sbuf), "\n");
-		(void) write(1, sbuf, strlen(sbuf));
+		(void) write(STDOUT_FILENO, sbuf, strlen(sbuf));
 	}
 	ch = '\n';
 	write(1, &ch, 1);

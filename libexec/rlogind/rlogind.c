@@ -586,7 +586,7 @@ getstr(buf, cnt, errmsg)
 	char c;
 
 	do {
-		if (read(0, &c, 1) != 1)
+		if (read(STDIN_FILENO, &c, 1) != 1)
 			exit(1);
 		if (--cnt < 0)
 			fatal(STDOUT_FILENO, errmsg, 0);

@@ -46,6 +46,7 @@ static char rcsid[] =
 #include <fcntl.h>
 #endif
 
+#include <unistd.h>
 /*
  * Tty input interrupt handler.
  * (1) Read input into buffer (wwib*).
@@ -68,7 +69,7 @@ wwrint()
 	/* we have set c_cc[VMIN] to 0 */
 	(void) fcntl(0, F_SETFL, O_NONBLOCK|wwnewtty.ww_fflags);
 #endif
-	n = read(0, wwibq, wwibe - wwibq);
+	n = read(STDIN_FILENO, wwibq, wwibe - wwibq);
 #if defined(OLD_TTY) || defined(VMIN_BUG)
 	(void) fcntl(0, F_SETFL, wwnewtty.ww_fflags);
 #endif

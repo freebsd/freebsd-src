@@ -98,7 +98,7 @@ main(argc, argv)
 top:
 	errno = 0;
 	rval = 0;
-	if (read(0, &c, 1) != 1)
+	if (read(STDIN_FILENO, &c, 1) != 1)
 		exit(0);
 	switch (c) {
 
@@ -141,7 +141,7 @@ top:
 		DEBUG1("rmtd: W %s\n", count);
 		record = checkbuf(record, n);
 		for (i = 0; i < n; i += cc) {
-			cc = read(0, &record[i], n - i);
+			cc = read(STDIN_FILENO, &record[i], n - i);
 			if (cc <= 0) {
 				DEBUG("rmtd: premature eof\n");
 				exit(2);
@@ -161,8 +161,8 @@ top:
 		if (rval < 0)
 			goto ioerror;
 		(void)sprintf(resp, "A%d\n", rval);
-		(void)write(1, resp, strlen(resp));
-		(void)write(1, record, rval);
+		(void)write(STDOUT_FILENO, resp, strlen(resp));
+		(void)write(STDOUT_FILENO, record, rval);
 		goto top;
 
 	case 'I':
@@ -187,8 +187,8 @@ top:
 		  if (rval > 24)	/* original mtget structure size */
 			rval = 24;
 		  (void)sprintf(resp, "A%d\n", rval);
-		  (void)write(1, resp, strlen(resp));
-		  (void)write(1, (char *)&mtget, rval);
+		  (void)write(STDOUT_FILENO, resp, strlen(resp));
+		  (void)write(STDOUT_FILENO, (char *)&mtget, rval);
 		  goto top;
 		}
 
@@ -205,7 +205,7 @@ top:
 respond:
 	DEBUG1("rmtd: A %d\n", rval);
 	(void)sprintf(resp, "A%d\n", rval);
-	(void)write(1, resp, strlen(resp));
+	(void)write(STDOUT_FILENO, resp, strlen(resp));
 	goto top;
 ioerror:
 	error(errno);
@@ -220,7 +220,7 @@ getstring(bp)
 	char *cp = bp;
 
 	for (i = 0; i < SSIZE; i++) {
-		if (read(0, cp+i, 1) != 1)
+		if (read(STDIN_FILENO, cp+i, 1) != 1)
 			exit(0);
 		if (cp[i] == '\n')
 			break;
@@ -257,5 +257,5 @@ error(num)
 
 	DEBUG2("rmtd: E %d (%s)\n", num, strerror(num));
 	(void)snprintf(resp, sizeof(resp), "E%d\n%s\n", num, strerror(num));
-	(void)write(1, resp, strlen(resp));
+	(void)write(STDOUT_FILENO, resp, strlen(resp));
 }

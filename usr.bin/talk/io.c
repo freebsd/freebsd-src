@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <string.h>
 #include <sys/filio.h>
+#include <unistd.h>
 #include "talk.h"
 
 #define A_LONG_TIME 10000000
@@ -105,7 +106,7 @@ talk()
 			 */
 			int i;
 			ioctl(0, FIONREAD, (struct sgttyb *) &nb);
-			nb = read(0, buf, nb);
+			nb = read(STDIN_FILENO, buf, nb);
 			display(&my_win, buf, nb);
 			/* might lose data here because sockt is non-blocking */
 			for (i = 0; i < nb; ++i)

@@ -32,8 +32,9 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)remcap.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 /*
  * remcap - routines for dealing with the remote host data base
@@ -44,6 +45,7 @@ static char sccsid[] = "@(#)remcap.c	8.1 (Berkeley) 6/6/93";
 #include <fcntl.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 #ifndef BUFSIZ
@@ -112,7 +114,7 @@ tgetent(bp, name)
 				while (*p++ != ':')
 					;
 			if (strlen(bp) + strlen(p) > BUFSIZ) {
-				write(2, "Remcap entry too long\n", 23);
+				write(STDERR_FILENO, "Remcap entry too long\n", 23);
 				return (-1);
 			}
 			strcat(bp, p);
@@ -174,7 +176,7 @@ getent(bp, name, cp)
 				break;
 			}
 			if (cp >= bp+BUFSIZ) {
-				write(2,"Remcap entry too long\n", 23);
+				write(STDERR_FILENO, "Remcap entry too long\n", 23);
 				break;
 			} else
 				*cp++ = c;
@@ -210,7 +212,7 @@ tnchktc()
 	p = tbuf + strlen(tbuf) - 2;	/* before the last colon */
 	while (*--p != ':')
 		if (p<tbuf) {
-			write(2, "Bad remcap entry\n", 18);
+			write(STDERR_FILENO, "Bad remcap entry\n", 18);
 			return (0);
 		}
 	p++;
@@ -223,7 +225,7 @@ tnchktc()
 		q++;
 	*q = 0;
 	if (++hopcount > MAXHOP) {
-		write(2, "Infinite tc= loop\n", 18);
+		write(STDERR_FILENO, "Infinite tc= loop\n", 18);
 		return (0);
 	}
 	if (getent(tcbuf, tcname, remotefile) != 1) {
@@ -236,7 +238,7 @@ tnchktc()
 		;
 	l = p - holdtbuf + strlen(q);
 	if (l > BUFSIZ) {
-		write(2, "Remcap entry too long\n", 23);
+		write(STDERR_FILENO, "Remcap entry too long\n", 23);
 		q[BUFSIZ - (p-holdtbuf)] = 0;
 	}
 	strcpy(p, q);
