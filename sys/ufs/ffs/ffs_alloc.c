@@ -1893,11 +1893,15 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (ERPCMISMATCH);
 	if ((error = getvnode(curproc->p_fd, cmd.handle, &fp)) != 0)
 		return (error);
-	mp = ((struct vnode *)fp->f_data)->v_mount;
-	if (strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN))
+	vn_start_write((struct vnode *)fp->f_data, &mp, V_WAIT);
+	if (mp == 0 || strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN)) {
+		vn_finished_write(mp);
 		return (EINVAL);
-	if (mp->mnt_flag & MNT_RDONLY)
+	}
+	if (mp->mnt_flag & MNT_RDONLY) {
+		vn_finished_write(mp);
 		return (EROFS);
+	}
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	filetype = IFREG;
@@ -1925,7 +1929,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		}
 #endif /* DEBUG */
 		if ((error = VFS_VGET(mp, (ino_t)cmd.value, &vp)) != 0)
-			return (error);
+			break;
 		ip = VTOI(vp);
 		ip->i_nlink += cmd.size;
 		ip->i_effnlink += cmd.size;
@@ -1944,7 +1948,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		}
 #endif /* DEBUG */
 		if ((error = VFS_VGET(mp, (ino_t)cmd.value, &vp)) != 0)
-			return (error);
+			break;
 		ip = VTOI(vp);
 		ip->i_blocks += cmd.size;
 		ip->i_flag |= IN_CHANGE;
@@ -1976,7 +1980,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		tip.i_fs = fs;
 		while (cmd.size > 0) {
 			if ((error = ffs_freefile(&tip, cmd.value, filetype)))
-				return (error);
+				break;
 			cmd.size -= 1;
 			cmd.value += 1;
 		}
@@ -2023,8 +2027,10 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    oidp->oid_number);
 		}
 #endif /* DEBUG */
-		return(EINVAL);
+		error = EINVAL;
+		break;
 
 	}
-	return (0);
+	vn_finished_write(mp);
+	return (error);
 }
