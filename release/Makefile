@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.41 1994/11/13 01:20:36 jkh Exp $
+#	$Id: Makefile,v 1.42 1994/11/13 01:46:22 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -130,5 +130,35 @@ release20:
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
+foo:
+	(cd ${.CURDIR}/../etc ; \
+		${MAKE} srcebones-tarball \
+			DESTDIR=${RELEASEDIR}/filesys \
+			NOCRYPT=yes SHARED=copies)
+		
+bar:
+	(cd ${.CURDIR}/../etc ; \
+		${MAKE} des-tarball \
+			DESTDIR=${RELEASEDIR}/filesys \
+			SHARED=copies)
+
+DISTRIBUTIONS=	bindist DES games 
+MTREEFILES=	${.CURDIR}/../etc/mtree
+
+distribute: 
+	-mkdir ${RELEASEDIR}
+	chflags -R noschg ${RELEASEDIR}/.
+	rm -rf ${RELEASEDIR}/*
+	for i in ${DISTRIBUTIONS} ; \
+	do \
+	mkdir ${RELEASEDIR}/$$i ; \
+	mtree -deU -f ${MTREEFILES}/BSD.root.dist -p ${RELEASEDIR}/$$i/ ; \
+	mtree -deU -f ${MTREEFILES}/BSD.var.dist -p ${RELEASEDIR}/$$i/var ; \
+	mtree -deU -f ${MTREEFILES}/BSD.usr.dist -p ${RELEASEDIR}/$$i/usr ; \
+	done 
+	#( cd ${.CURDIR} ;  \
+		#${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
+	#install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
+		#${RELEASEDIR}/bindist/kernel
 
 .include <bsd.prog.mk>
