@@ -36,6 +36,7 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <sys/consio.h>
 #include <sys/disklabel.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
@@ -328,6 +329,7 @@ int
 installFixitCDROM(dialogMenuItem *self)
 {
     struct stat sb;
+    int need_eject;
 
     if (!RunningAsInit)
 	return DITEM_SUCCESS;
@@ -336,18 +338,29 @@ installFixitCDROM(dialogMenuItem *self)
     (void)unlink("/mnt2");
     (void)rmdir("/mnt2");
 
+    need_eject = 0;
+    CDROMInitQuiet = 1;
     while (1) {
-	msgConfirm("Please insert a FreeBSD live filesystem CD/DVD and press return");
+	if (need_eject)
+	    msgConfirm(
+	"Please insert a FreeBSD live filesystem CD/DVD and press return");
 	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS
 	    || !DEVICE_INIT(mediaDevice)) {
 	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
 	    mediaClose();
-	    if (msgYesNo("Unable to mount the disc - do you want to try again?") != 0)
+	    if (need_eject && msgYesNo("Unable to mount the disc. Do you want to try again?") != 0)
 		return DITEM_FAILURE;
-	}
-	else
+	} else if (!file_readable("/dist/rescue/ldconfig")) {
+		mediaClose();
+		if (need_eject &&
+		    msgYesNo("Unable to find a FreeBSD live filesystem. Do you want to try again?") != 0)
+		    return DITEM_FAILURE;
+	} else
 	    break;
+	CDROMInitQuiet = 0;
+	need_eject = 1;
     }
+    CDROMInitQuiet = 0;
 
     /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /dist, do
      * a little kludge dance here..
@@ -397,7 +410,8 @@ installFixitCDROM(dialogMenuItem *self)
 	symlink("/mnt2/usr/bin/vi", "/usr/bin/vi");
     fixit_common();
     mediaClose();
-    msgConfirm("Please remove the FreeBSD fixit CDROM/DVD now.");
+    if (need_eject)
+	msgConfirm("Please remove the FreeBSD fixit CDROM/DVD now.");
     return DITEM_SUCCESS;
 }
 
@@ -527,6 +541,10 @@ fixit_common(void)
 	(void)waitpid(child, &waitstatus, 0);
 	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0)
 	    systemResumeDialog();
+	else if (OnVTY) {
+	    ioctl(0, VT_ACTIVATE, 0);
+	    msgInfo(NULL);
+	}
     }
     dialog_clear();
 }
