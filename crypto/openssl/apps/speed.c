@@ -773,6 +773,7 @@ int MAIN(int argc, char **argv)
 			{
 			dsa_doit[R_DSA_512]=1;
 			dsa_doit[R_DSA_1024]=1;
+			dsa_doit[R_DSA_2048]=1;
 			}
 		else
 #endif
@@ -1006,6 +1007,9 @@ int MAIN(int argc, char **argv)
 	c[D_CBC_RC5][0]=count;
 	c[D_CBC_BF][0]=count;
 	c[D_CBC_CAST][0]=count;
+	c[D_CBC_128_AES][0]=count;
+	c[D_CBC_192_AES][0]=count;
+	c[D_CBC_256_AES][0]=count;
 
 	for (i=1; i<SIZE_NUM; i++)
 		{
@@ -1031,6 +1035,9 @@ int MAIN(int argc, char **argv)
 		c[D_CBC_RC5][i]=c[D_CBC_RC5][i-1]*l0/l1;
 		c[D_CBC_BF][i]=c[D_CBC_BF][i-1]*l0/l1;
 		c[D_CBC_CAST][i]=c[D_CBC_CAST][i-1]*l0/l1;
+		c[D_CBC_128_AES][i]=c[D_CBC_128_AES][i-1]*l0/l1;
+		c[D_CBC_192_AES][i]=c[D_CBC_192_AES][i-1]*l0/l1;
+		c[D_CBC_256_AES][i]=c[D_CBC_256_AES][i-1]*l0/l1;
 		}
 #ifndef OPENSSL_NO_RSA
 	rsa_c[R_RSA_512][0]=count/2000;
