@@ -207,6 +207,9 @@
 
     <para>A remote buffer overflow in &man.tcpdump.1; has been fixed
     (see security advisory FreeBSD-SA-01:48).</para>
+
+    <para>A remote buffer overflow in &man.telnetd.8; has been
+    fixed (see security advisory FreeBSD-SA-01:49).</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
