@@ -1,4 +1,4 @@
-# @(#)australasia	7.68
+# @(#)australasia	7.69
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -297,45 +297,37 @@ Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 ###############################################################################
 
 # New Zealand
-#
-# From Paul Eggert (2002-10-23):
-# The Department of Internal Affairs (DIA) maintains a brief history;
-# see tz-link.htm for the full reference.
-#
-# Shanks gives 1868 for the introduction of standard time; go with the
-# DIA's more-precise 1868-11-02.  The DIA says that clocks were
-# advanced by half an hour in 1941; go with Shanks's more-precise
-# 1940-09-29 02:00.  The DIA says that starting in 1933 DST began the
-# first Sunday in September; go with Shanks's last Sunday starting in
-# 1934.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-# Shanks gives 1927 Nov 6 - 1928 Mar 4, 1928 Oct 14 - 1929 Mar 17,
-# 1929 Oct 13 - 1930 Mar 16; go with Whitman.
-Rule	NZ	1927	only	-	Nov	26	2:00	0:30	HD
-Rule	NZ	1928	1929	-	Mar	Sun>=1	2:00	0	S
-Rule	NZ	1928	only	-	Nov	 4	2:00	0:30	HD
-Rule	NZ	1929	only	-	Oct	30	2:00	0:30	HD
-Rule	NZ	1930	1933	-	Mar	Sun>=15	2:00	0	S
-Rule	NZ	1930	1933	-	Oct	Sun>=8	2:00	0:30	HD
-# Whitman says DST went on and off during war years, and the base UT offset
-# didn't change until 1945 Apr 30; go with Shanks.
-Rule	NZ	1934	1940	-	Apr	lastSun	2:00	0	S
-Rule	NZ	1934	1939	-	Sep	lastSun	2:00	0:30	HD
+Rule	NZ	1927	only	-	Nov	 6	2:00	1:00	S
+Rule	NZ	1928	only	-	Mar	 4	2:00	0	M
+Rule	NZ	1928	1933	-	Oct	Sun>=8	2:00	0:30	S
+Rule	NZ	1929	1933	-	Mar	Sun>=15	2:00	0	M
+Rule	NZ	1934	1940	-	Apr	lastSun	2:00	0	M
+Rule	NZ	1934	1940	-	Sep	lastSun	2:00	0:30	S
+Rule	NZ	1946	only	-	Jan	 1	0:00	0	S
+# Since 1957 Chatham has been 45 minutes ahead of NZ, but there's no
+# convenient notation for this so we must duplicate the Rule lines.
 Rule	NZ	1974	only	-	Nov	Sun>=1	2:00s	1:00	D
+Rule	Chatham	1974	only	-	Nov	Sun>=1	2:45s	1:00	D
 Rule	NZ	1975	only	-	Feb	lastSun	2:00s	0	S
+Rule	Chatham	1975	only	-	Feb	lastSun	2:45s	0	S
 Rule	NZ	1975	1988	-	Oct	lastSun	2:00s	1:00	D
+Rule	Chatham	1975	1988	-	Oct	lastSun	2:45s	1:00	D
 Rule	NZ	1976	1989	-	Mar	Sun>=1	2:00s	0	S
+Rule	Chatham	1976	1989	-	Mar	Sun>=1	2:45s	0	S
 Rule	NZ	1989	only	-	Oct	Sun>=8	2:00s	1:00	D
+Rule	Chatham	1989	only	-	Oct	Sun>=8	2:45s	1:00	D
 Rule	NZ	1990	max	-	Oct	Sun>=1	2:00s	1:00	D
-Rule	NZ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 Rule	Chatham	1990	max	-	Oct	Sun>=1	2:45s	1:00	D
-Rule	Chatham	1991	max	-	Mar	Sun>=15	2:45s	0	S
+Rule	NZ	1990	max	-	Mar	Sun>=15	2:00s	0	S
+Rule	Chatham	1990	max	-	Mar	Sun>=15	2:45s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Auckland	11:39:04 -	LMT	1868 Nov  2
-			11:30	NZ	NZ%sT	1940 Sep 29 2:00
+			11:30	NZ	NZ%sT	1946 Jan  1
 			12:00	NZ	NZ%sT
-Zone Pacific/Chatham	12:45	Chatham	CHA%sT
+Zone Pacific/Chatham	12:13:48 -	LMT	1957 Jan  1
+			12:45	Chatham	CHA%sT
 
 
 # Auckland Is
@@ -443,6 +435,8 @@ Zone Pacific/Johnston	-10:00	-	HST
 
 # Midway
 Zone Pacific/Midway	-11:49:28 -	LMT	1901
+			-11:00	-	NST	1956 Jun  3
+			-11:00	1:00	NDT	1956 Sep  2
 			-11:00	-	NST	1967 Apr	# N=Nome
 			-11:00	-	BST	1983 Nov 30	# B=Bering
 			-11:00	-	SST			# S=Samoa
@@ -513,7 +507,8 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	 10:00	EST EST	Eastern Australia
 #	 10:00	ChST	Chamorro
 #	 10:30	LHST LHST Lord Howe*
-#	 12:00	NZST NZDT New Zealand
+#	 11:30	NZMT NZST New Zealand through 1945
+#	 12:00	NZST NZDT New Zealand 1946-present
 #	 12:45	CHAST CHADT Chatham*
 #	-11:00	SST	Samoa
 #	-10:00	HST	Hawaii
@@ -1067,11 +1062,14 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # time on both the first Sunday in October and the third Sunday in March.
 # As with Australia, we'll assume the tradition is 2:00s, not 2:00.
 #
-# From Paul Eggert (1999-10-29):
-# Shanks gives no time data for Chatham; usno1989 says it's +12:45,
-# usno1995 says it's +12:45/+13:45, and IATA SSIM (1991/1999)
-# gives the NZ rules but with transitions at 2:45 local standard time.
-# Guess that they have been in lock-step with NZ since 1990.
+# From Paul Eggert (2003-05-26):
+# The Department of Internal Affairs (DIA) maintains a brief history,
+# as does Carol Squires; see tz-link.htm for the full references.
+# Use these sources in preference to Shanks.
+#
+# For Chatham, IATA SSIM (1991/1999) gives the NZ rules but with
+# transitions at 2:45 local standard time; this confirms that Chatham
+# is always exactly 45 minutes ahead of Auckland.
 
 ###############################################################################
 
@@ -1152,6 +1150,23 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # </a> (1999-01-26)
 # that Truk and Yap are UTC+10, and Ponape and Kosrae are UTC+11.
 # We don't know when Kosrae switched from UTC+12; assume January 1 for now.
+
+
+# Midway
+
+# From Charles T O'Connor, KMTH DJ (1956),
+# quoted in the KTMH section of the Radio Heritage Collection
+# <http://radiodx.com/spdxr/KMTH.htm> (2002-12-31):
+# For the past two months we've been on what is known as Daylight
+# Saving Time.  This time has put us on air at 5am in the morning,
+# your time down there in New Zealand.  Starting September 2, 1956
+# we'll again go back to Standard Time.  This'll mean that we'll go to
+# air at 6am your time.
+#
+# From Paul Eggert (2003-03-23):
+# We don't know the date of that quote, but we'll guess they
+# started DST on June 3.  Possibly DST was observed other years
+# in Midway, but we have no record of it.
 
 
 # Pitcairn
@@ -1276,6 +1291,24 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # From Pulu 'Anau (2002-11-05):
 # The law was for 3 years, supposedly to get renewed.  It wasn't.
+
+
+# Wake
+
+# From Vernice Anderson, Personal Secretary to Philip Jessup,
+# US Ambassador At Large (oral history interview, 1971-02-02):
+#
+# Saturday, the 14th [of October, 1950] -- ...  The time was all the
+# more confusing at that point, because we had crossed the
+# International Date Line, thus getting two Sundays.  Furthermore, we
+# discovered that Wake Island had two hours of daylight saving time
+# making calculation of time in Washington difficult if not almost
+# impossible.
+#
+# http://www.trumanlibrary.org/wake/meeting.htm
+
+# From Paul Eggert (2003-03-23):
+# We have no other report of DST in Wake Island, so omit this info for now.
 
 ###############################################################################
 
