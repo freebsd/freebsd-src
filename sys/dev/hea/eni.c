@@ -35,10 +35,6 @@
  *
  */
 
-#ifdef COMPILING_LINT
-#warning "The eni driver is broken and is not compiled with LINT"
-#else
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -696,5 +692,4 @@ eni_pci_shutdown ( eup, howto )
 
 }
 #endif	/* BSD < 199506 */
-#endif
 #endif
