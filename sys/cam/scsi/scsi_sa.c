@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.16.2.1 1999/02/05 08:40:45 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.16.2.2 1999/02/18 22:05:56 ken Exp $
  */
 
 #include <sys/param.h>
@@ -1596,7 +1596,7 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 		    rblim, SSD_FULL_SIZE, 5000);
 
 		error = cam_periph_runccb(ccb, saerror, 0,
-		    SF_RETRY_UA, &softc->device_stats);
+		    SF_RETRY_UA | SF_RETRY_SELTO, &softc->device_stats);
 
 		xpt_release_ccb(ccb);
 
@@ -2775,6 +2775,8 @@ sareservereleaseunit(struct cam_periph *periph, int reserve)
 		sflag = SF_RETRY_UA;
 	else
 		sflag = SF_RETRY_UA|SF_QUIET_IR;
+
+	sflag |= SF_RETRY_SELTO;
 
 	ccb = cam_periph_getccb(periph,  1);
 
