@@ -124,7 +124,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     buf.Pointer = NULL;
     crsbuf.Pointer = NULL;
     prsbuf.Pointer = NULL;
-    interrupt = 255;
+    interrupt = PCI_INVALID_IRQ;
 
     /* ACPI numbers pins 0-3, not 1-4 like the BIOS. */
     pin--;
@@ -393,6 +393,5 @@ out:
     if (buf.Pointer != NULL)
 	AcpiOsFree(buf.Pointer);
 
-    /* XXX APIC_IO interrupt mapping? */
     return_VALUE (interrupt);
 }
