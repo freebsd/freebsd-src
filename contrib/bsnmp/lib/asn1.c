@@ -4,33 +4,29 @@
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
- *
- * Redistribution of this software and documentation and use in source and
- * binary forms, with or without modification, are permitted provided that
- * the following conditions are met:
- *
- * 1. Redistributions of source code or documentation must retain the above
- *    copyright notice, this list of conditions and the following disclaimer.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
- * AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
- * FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Begemot: bsnmp/lib/asn1.c,v 1.27 2003/12/08 17:11:58 hbb Exp $
+ * $Begemot: bsnmp/lib/asn1.c,v 1.28 2004/08/06 08:46:49 brandt Exp $
  *
  * ASN.1 for SNMP.
  */
@@ -39,7 +35,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include <inttypes.h>
+#include <stdint.h>
 #include <assert.h>
 #include "asn1.h"
 
@@ -228,7 +224,7 @@ asn_commit_header(struct asn_buf *b, u_char *ptr)
 static enum asn_err
 asn_get_real_integer(struct asn_buf *b, asn_len_t len, int64_t *vp)
 {
-	u_int64_t val;
+	uint64_t val;
 	int neg = 0;
 	enum asn_err err;
 
@@ -277,16 +273,16 @@ asn_put_real_integer(struct asn_buf *b, u_char type, int64_t ival)
 	int i, neg = 0;
 # define OCTETS 8
 	u_char buf[OCTETS];
-	u_int64_t val;
+	uint64_t val;
 	enum asn_err ret;
 
 	if (ival < 0) {
 		/* this may fail if |INT64_MIN| > |INT64_MAX| and 
 		 * the value is between * INT64_MIN <= ival < -(INT64_MAX+1) */
-		val = (u_int64_t)-(ival + 1);
+		val = (uint64_t)-(ival + 1);
 		neg = 1;
 	} else
-		val = (u_int64_t)ival;
+		val = (uint64_t)ival;
 
 	/* split the value into octets */
 	for (i = OCTETS - 1; i >= 0; i--) {
@@ -320,7 +316,7 @@ asn_put_real_integer(struct asn_buf *b, u_char type, int64_t ival)
  * first byte must be 0.
  */
 static enum asn_err
-asn_get_real_unsigned(struct asn_buf *b, asn_len_t len, u_int64_t *vp)
+asn_get_real_unsigned(struct asn_buf *b, asn_len_t len, uint64_t *vp)
 {
 	enum asn_err err;
 
@@ -357,7 +353,7 @@ asn_get_real_unsigned(struct asn_buf *b, asn_len_t len, u_int64_t *vp)
  * Values with the msb on need 9 octets.
  */
 static int
-asn_put_real_unsigned(struct asn_buf *b, u_char type, u_int64_t val)
+asn_put_real_unsigned(struct asn_buf *b, u_char type, uint64_t val)
 {
 	int i;
 # define OCTETS 9
@@ -799,9 +795,9 @@ asn_put_ipaddress(struct asn_buf *b, const u_char *addr)
  * 0x42|0x41 <len> ...
  */
 enum asn_err
-asn_get_uint32_raw(struct asn_buf *b, asn_len_t len, u_int32_t *vp)
+asn_get_uint32_raw(struct asn_buf *b, asn_len_t len, uint32_t *vp)
 {
-	u_int64_t v;
+	uint64_t v;
 	enum asn_err err;
 
 	if ((err = asn_get_real_unsigned(b, len, &v)) == ASN_ERR_OK) {
@@ -812,15 +808,15 @@ asn_get_uint32_raw(struct asn_buf *b, asn_len_t len, u_int32_t *vp)
 			asn_error(b, "uint32 too large %llu", v);
 			err = ASN_ERR_RANGE;
 		}
-		*vp = (u_int32_t)v;
+		*vp = (uint32_t)v;
 	}
 	return (err);
 }
 
 enum asn_err
-asn_put_uint32(struct asn_buf *b, u_char type, u_int32_t val)
+asn_put_uint32(struct asn_buf *b, u_char type, uint32_t val)
 {
-	u_int64_t v = val;
+	uint64_t v = val;
 
 	return (asn_put_real_unsigned(b, ASN_CLASS_APPLICATION|type, v));
 }
@@ -830,13 +826,13 @@ asn_put_uint32(struct asn_buf *b, u_char type, u_int32_t val)
  * 0x46 <len> ...
  */
 enum asn_err
-asn_get_counter64_raw(struct asn_buf *b, asn_len_t len, u_int64_t *vp)
+asn_get_counter64_raw(struct asn_buf *b, asn_len_t len, uint64_t *vp)
 {
 	return (asn_get_real_unsigned(b, len, vp));
 }
 
 enum asn_err
-asn_put_counter64(struct asn_buf *b, u_int64_t val)
+asn_put_counter64(struct asn_buf *b, uint64_t val)
 {
 	return (asn_put_real_unsigned(b,
 	    ASN_CLASS_APPLICATION | ASN_APP_COUNTER64, val));
@@ -847,7 +843,7 @@ asn_put_counter64(struct asn_buf *b, u_int64_t val)
  * 0x43 <len> ...
  */
 enum asn_err
-asn_get_timeticks(struct asn_buf *b, u_int32_t *vp)
+asn_get_timeticks(struct asn_buf *b, uint32_t *vp)
 {
 	asn_len_t len;
 	u_char type;
@@ -863,9 +859,9 @@ asn_get_timeticks(struct asn_buf *b, u_int32_t *vp)
 }
 
 enum asn_err
-asn_put_timeticks(struct asn_buf *b, u_int32_t val)
+asn_put_timeticks(struct asn_buf *b, uint32_t val)
 {
-	u_int64_t v = val;
+	uint64_t v = val;
 
 	return (asn_put_real_unsigned(b,
 	    ASN_CLASS_APPLICATION | ASN_APP_TIMETICKS, v));
