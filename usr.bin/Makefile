@@ -248,7 +248,7 @@ SUBDIR+=ncplist \
 	smbutil
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=chkey newkey
 .endif
 
