@@ -19,8 +19,6 @@ SRCS+=	bsd_comp.c
 SRCS+=	ppp_deflate.c zlib.c
 .endif
 
-CLEANFILES=	ppp.h
-
 .if ${PPP_INET} > 0
 opt_inet.h:
 	echo "#define INET 1" >> ${.TARGET}
