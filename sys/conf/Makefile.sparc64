@@ -39,8 +39,9 @@ S=	../../..
 # XXX: this should probably go somewhere else
 COPTS+=		-mcmodel=medlow -msoft-float
 
-SYSTEM_SFILES= $S/$M/$M/locore.S $S/$M/$M/exception.S
-SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o env.o config.o hack.So
+SYSTEM_SFILES= $S/$M/$M/locore.S $S/$M/$M/exception.S $S/$M/$M/interrupt.S
+SYSTEM_OBJS= locore.o exception.o interrupt.o vnode_if.o ${OBJS} hints.o \
+	     env.o config.o hack.So
 
 %BEFORE_DEPEND
 
@@ -61,6 +62,9 @@ SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o env.o config.o hack
 #	    grep -v 'possible pointer alignment problem'
 
 exception.o: $S/$M/$M/exception.S assym.s
+	${NORMAL_S}
+
+interrupt.o: $S/$M/$M/interrupt.S assym.s
 	${NORMAL_S}
 
 locore.o: $S/$M/$M/locore.S assym.s

@@ -40,6 +40,7 @@ sparc64/sparc64/elf_machdep.c	standard
 # first.  Otherwise they're normal.
 # sparc64/sparc64/locore.S	standard
 # sparc64/sparc64/exception.S	standard
+# sparc64/sparc64/interrupt.S	standard
 sparc64/sparc64/eeprom.c	optional	eeprom
 sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
 sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
