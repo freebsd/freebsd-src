@@ -523,12 +523,25 @@
 .
 .\" NS doc-header macro
 .\" NS   print page header
+.\" NS
+.\" NS local variables:
+.\" NS   doc-reg-dh
+.\" NS   doc-reg-dh1
 .
 .de doc-header
 .  ev doc-env-dh
 .  doc-setup-page-layout
 .  if !\n[cR] \
 '    sp \n[doc-header-space]u
+.  nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\f[P]'
+.  nr doc-reg-dh1 \w'\*[doc-caption-font2]\*[doc-volume]\f[P]'
+.  if (\n[doc-reg-dh] + \n[doc-reg-dh1] + \n[doc-reg-dh] >= \n[.lt]) \{\
+.    while (\n[doc-reg-dh] + \n[doc-reg-dh1] + \n[doc-reg-dh] >= \n[.lt]) \{\
+.      substring doc-header-string 1 -1
+.      nr doc-reg-dh \w'\*[doc-caption-font]\*[doc-header-string]\|.\|.\|.\f[P]'
+.    \}
+.    as doc-header-string "\|.\|.\|.
+.  \}
 .  tl \*[doc-caption-font]\*[doc-header-string]\f[P]\*[doc-caption-font2]\*[doc-volume]\f[P]\*[doc-caption-font]\*[doc-header-string]\f[P]
 '  sp \n[doc-header-space]u
 .  ev
