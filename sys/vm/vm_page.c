@@ -79,6 +79,8 @@
 #include <vm/vm_param.h>
 #include <sys/lock.h>
 #include <vm/vm_kern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -1919,7 +1921,6 @@ again1:
 			m->busy = 0;
 			m->queue = PQ_NONE;
 			m->object = NULL;
-			vm_page_wire(m);
 		}
 
 		/*
@@ -1927,24 +1928,31 @@ again1:
 		 * Allocate kernel VM, unfree and assign the physical pages to it and
 		 * return kernel VM pointer.
 		 */
-		tmp_addr = addr = kmem_alloc_pageable(map, size);
-		if (addr == 0) {
+		vm_map_lock(map);
+		if (vm_map_findspace(map, vm_map_min(map), size, &addr) !=
+		    KERN_SUCCESS) {
 			/*
 			 * XXX We almost never run out of kernel virtual
 			 * space, so we don't make the allocated memory
 			 * above available.
 			 */
+			vm_map_unlock(map);
 			splx(s);
 			return (NULL);
 		}
+		vm_object_reference(kernel_object);
+		vm_map_insert(map, kernel_object, addr - VM_MIN_KERNEL_ADDRESS,
+		    addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
+		vm_map_unlock(map);
 
+		tmp_addr = addr;
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 			vm_page_insert(m, kernel_object,
 				OFF_TO_IDX(tmp_addr - VM_MIN_KERNEL_ADDRESS));
-			pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(m));
 			tmp_addr += PAGE_SIZE;
 		}
+		vm_map_pageable(map, addr, addr + size, FALSE);
 
 		splx(s);
 		return ((void *)addr);
