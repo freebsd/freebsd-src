@@ -267,8 +267,6 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
  *	for vnode-backed vn's, and the new vm_pager_strategy() call for
  *	vm_object-backed vn's.
  *
- *	Currently B_ASYNC is only partially handled - for OBJT_SWAP I/O only.
- *
  *	NOTE: bp->b_blkno is DEV_BSIZE'd.  We must generate bp->b_pblkno for
  *	our uio or vn_pager_strategy() call that is vn->sc_secsize'd
  */

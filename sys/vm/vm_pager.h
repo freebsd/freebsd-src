@@ -50,7 +50,7 @@
 
 TAILQ_HEAD(pagerlst, vm_object);
 
-struct buf;
+struct bio;
 
 struct pagerops {
 	void (*pgo_init) __P((void));		/* Initialize pager. */
@@ -60,7 +60,7 @@ struct pagerops {
 	void (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
 	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
 	void (*pgo_pageunswapped) __P((vm_page_t));
-	void (*pgo_strategy) __P((vm_object_t, struct buf *));
+	void (*pgo_strategy) __P((vm_object_t, struct bio *));
 };
 
 /*
@@ -104,7 +104,7 @@ vm_offset_t vm_pager_map_page __P((vm_page_t));
 void vm_pager_sync __P((void));
 void vm_pager_unmap_pages __P((vm_offset_t, int));
 void vm_pager_unmap_page __P((vm_offset_t));
-void vm_pager_strategy __P((vm_object_t object, struct buf *bp));
+void vm_pager_strategy __P((vm_object_t object, struct bio *bp));
 
 /*
  *	vm_page_get_pages:
