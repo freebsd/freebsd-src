@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $Id$
+ * $Id: nfs_srvcache.c,v 1.11 1997/02/22 09:42:40 peter Exp $
  */
 
 #ifndef NFS_NOSERVER 
@@ -184,6 +184,7 @@ loop:
 	    rp = rp->rc_hash.le_next) {
 	    if (nd->nd_retxid == rp->rc_xid && nd->nd_procnum == rp->rc_proc &&
 		netaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
+		        NFS_DPF(RC, ("H%03x", rp->rc_xid & 0xfff));
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
 				(void) tsleep((caddr_t)rp, PZERO-1, "nfsrc", 0);
@@ -224,6 +225,7 @@ loop:
 		}
 	}
 	nfsstats.srvcache_misses++;
+	NFS_DPF(RC, ("M%03x", nd->nd_retxid & 0xfff));
 	if (numnfsrvcache < desirednfsrvcache) {
 		rp = (struct nfsrvcache *)malloc((u_long)sizeof *rp,
 		    M_NFSD, M_WAITOK);
@@ -289,6 +291,7 @@ loop:
 	    rp = rp->rc_hash.le_next) {
 	    if (nd->nd_retxid == rp->rc_xid && nd->nd_procnum == rp->rc_proc &&
 		netaddr_match(NETFAMILY(rp), &rp->rc_haddr, nd->nd_nam)) {
+			NFS_DPF(RC, ("U%03x", rp->rc_xid & 0xfff));
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
 				(void) tsleep((caddr_t)rp, PZERO-1, "nfsrc", 0);
@@ -319,6 +322,7 @@ loop:
 			return;
 		}
 	}
+	NFS_DPF(RC, ("L%03x", nd->nd_retxid & 0xfff));
 }
 
 /*
