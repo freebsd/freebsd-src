@@ -96,11 +96,6 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
  */
 
 /*
- * #define IEEE_LITTLE_ENDIAN for IEEE-arithmetic machines where the least
- *	significant byte has the lowest address.
- * #define IEEE_BIG_ENDIAN for IEEE-arithmetic machines where the most
- *	significant byte has the lowest address.
- * #define Long int on machines with 32-bit ints and 64-bit longs.
  * #define Sudden_Underflow for IEEE-format machines without gradual
  *	underflow (i.e., that flush to zero on underflow).
  * #define IBM for IBM mainframe-style floating-point arithmetic.
@@ -124,10 +119,8 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
  *	FLT_RADIX, FLT_ROUNDS, and DBL_MAX.
  */
 
+#if defined(__i386__) || defined(__ia64__) || defined(__alpha__)
 #include <sys/types.h>
-
-#if defined(i386) || (defined(mips) && defined(MIPSEL)) || \
-    defined(__ia64__) || defined(__alpha__)
 #if BYTE_ORDER == BIG_ENDIAN
 #define IEEE_BIG_ENDIAN
 #else
