@@ -28,7 +28,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	5
-#define	ISP_PLATFORM_VERSION_MINOR	6
+#define	ISP_PLATFORM_VERSION_MINOR	7
 
 /*
  * We're not ready for primetime yet
@@ -79,19 +79,15 @@ typedef struct tstate {
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	lun_id_t lun;
+	int bus;
 	u_int32_t hold;
 } tstate_t;
 
-/*
- * This should work very well for 100% of parallel SCSI cases, 100%
- * of non-SCCLUN FC cases, and hopefully some larger fraction of the
- * SCCLUN FC cases. Basically, we index by the low 5 bits of lun and
- * then linear search. This has to be reasonably zippy, but not crucially
- * so.
- */
-#define	LUN_HASH_SIZE		32
-#define	LUN_HASH_FUNC(lun)	((lun) & 0x1f)
-
+#define	LUN_HASH_SIZE			32
+#define	LUN_HASH_FUNC(isp, port, lun)					\
+	((IS_DUALBUS(isp)) ?						\
+		(((lun) & ((LUN_HASH_SIZE >> 1) - 1)) << (port)) :	\
+		((lun) & (LUN_HASH_SIZE - 1)))
 #endif
 
 struct isposinfo {
@@ -115,13 +111,13 @@ struct isposinfo {
 	int			splsaved;
 #endif
 #ifdef	ISP_TARGET_MODE
-#define	TM_WANTED		0x01
-#define	TM_BUSY			0x02
-#define	TM_TMODE_ENABLED	0x80
+#define	TM_WANTED		0x80
+#define	TM_BUSY			0x40
+#define	TM_TMODE_ENABLED	0x03
 	u_int8_t		tmflags;
 	u_int8_t		rstatus;
 	u_int16_t		rollinfo;
-	tstate_t		tsdflt;
+	tstate_t		tsdflt[2];	/* two busses */
 	tstate_t		*lun_hash[LUN_HASH_SIZE];
 #endif
 };
