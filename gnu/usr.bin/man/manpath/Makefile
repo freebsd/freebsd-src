@@ -6,7 +6,7 @@ DPADD=	${LIBMAN}
 LDADD=	${LIBMAN}
 
 CFLAGS+= -DMAIN -DSTDC_HEADERS -DPOSIX -DHAS_TROFF -DDO_UNCOMPRESS
-CFLAGS+= -DALT_SYSTEMS -I${.CURDIR}/../lib -I${.OBJDIR}/../lib
+CFLAGS+= -I${.CURDIR}/../lib -I${.OBJDIR}/../lib
 CLEANFILES+=	manpath.1
 
 manpath.1: ${.CURDIR}/manpath.man
