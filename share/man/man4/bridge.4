@@ -1,5 +1,5 @@
 .\"
-.\"     $Id$
+.\"     $Id: bridge.4,v 1.2 1998/12/21 22:37:53 luigi Exp $
 .\"
 .Dd Sep 28, 1998
 .Dt BRIDGE 4
@@ -33,7 +33,9 @@ filtering on bridged packets. Note that
 rules only apply
 to IP packets. Non-IP packets are subject to the default
 .Nm ipfw
-rule (number 65535) which must be an
+rule
+.Pq number 65535
+which must be an
 .Ar allow
 rule if we want ARP and other non-IP packets to flow through the
 bridge.
@@ -54,12 +56,23 @@ Extended functionality to enable bridging selectively on clusters
 of interfaces is still in the works.
 .Pp
 Not all interface support bridging -- at the moment it works for
-``ed'', ``de'', ``ep'', ``fxp'', ``lnc'' interfaces.
+.Dq ed ,
+.Dq de ,
+.Dq ep ,
+.Dq fe ,
+.Dq fxp ,
+.Dq lnc ,
+.Dq mx ,
+.Dq tx ,
+and
+.Dq xl
+interfaces.
 .Sh SEE ALSO
 .Xr ip 4 ,
 .Xr ipfw 8 ,
 .Xr sysctl 8 .
 .Sh HISTORY
 .Nm
-bridging has been introduced in FreeBSD 2.2.8
-by Luigi Rizzo <luigi@iet.unipi.it>.
+bridging was introduced in FreeBSD 2.2.8
+by
+.An Luigi Rizzo Aq luigi@iet.unipi.it .
