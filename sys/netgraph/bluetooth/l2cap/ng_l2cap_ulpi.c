@@ -185,7 +185,7 @@ ng_l2cap_l2ca_con_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result,
 		op->result = result;
 		op->status = status;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -333,7 +333,7 @@ ng_l2cap_l2ca_con_rsp_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result)
 		op = (ng_l2cap_l2ca_con_rsp_op *)(msg->data);
 		op->result = result;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -374,7 +374,7 @@ ng_l2cap_l2ca_con_ind(ng_l2cap_chan_p ch)
 		ip->psm = ch->psm;
 		ip->ident = ch->ident;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -524,7 +524,7 @@ ng_l2cap_l2ca_cfg_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result)
 		bcopy(&ch->oflow, &op->oflow, sizeof(op->oflow));
 		op->flush_timo = ch->flush_timo;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 
 		if (error == 0 && result == NG_L2CAP_SUCCESS) {
 			ch->cfg_state |= NG_L2CAP_CFG_IN;
@@ -680,7 +680,7 @@ ng_l2cap_l2ca_cfg_rsp_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result)
 		op = (ng_l2cap_l2ca_cfg_rsp_op *)(msg->data);
 		op->result = result;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -733,7 +733,7 @@ ng_l2cap_l2ca_cfg_ind(ng_l2cap_chan_p ch)
 		bcopy(&ch->iflow, &ip->iflow, sizeof(ip->iflow));
 		ip->flush_timo = ch->flush_timo;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -865,7 +865,7 @@ ng_l2cap_l2ca_write_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result,
 		op->length = length;
 		op->lcid   = ch->scid;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -1059,7 +1059,7 @@ ng_l2cap_l2ca_qos_ind(ng_l2cap_chan_p ch)
 	else {
 		ip = (ng_l2cap_l2ca_qos_ind_ip *)(msg->data);
 		bcopy(&ch->con->remote, &ip->bdaddr, sizeof(ip->bdaddr));
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -1179,7 +1179,7 @@ ng_l2cap_l2ca_discon_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result)
 		op = (ng_l2cap_l2ca_discon_op *)(msg->data);
 		op->result = result;
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	}
 
 	return (error);
@@ -1215,7 +1215,7 @@ ng_l2cap_l2ca_discon_ind(ng_l2cap_chan_p ch)
 	else {
 		ip = (ng_l2cap_l2ca_discon_ind_ip *)(msg->data);
 		ip->lcid = ch->scid;
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->l2c, 0);
 	} 
 
 	return (error);
@@ -1409,7 +1409,7 @@ ng_l2cap_l2ca_ping_rsp(ng_l2cap_con_p con, u_int32_t token, u_int16_t result,
 			m_copydata(data, 0, size, (caddr_t) op + sizeof(*op));
 		}
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->ctl, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->ctl, 0);
 	}
 out:
 	NG_FREE_M(data);
@@ -1529,7 +1529,7 @@ ng_l2cap_l2ca_get_info_rsp(ng_l2cap_con_p con, u_int32_t token,
 			m_copydata(data, 0, size, (caddr_t) op + sizeof(*op));
 		}
 
-		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->ctl, NULL);
+		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->ctl, 0);
 	}
 out:
 	NG_FREE_M(data);
@@ -1632,7 +1632,7 @@ ng_l2cap_l2ca_enable_clt(ng_l2cap_p l2cap, struct ng_mesg *msg)
  * 
  * 	/* Send response to control hook */
  * 	if (l2cap->ctl != NULL && NG_HOOK_IS_VALID(l2cap->ctl))
- * 		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->ctl, NULL);
+ * 		NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->ctl, 0);
 #endif
 
 	return (error);

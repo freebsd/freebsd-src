@@ -250,9 +250,9 @@ hcirawpr(kvm_t *kvmd, u_long addr)
 		}
 
 		fprintf(stdout,
-"%-8.8x %-8.8x %-6.6x %6d %6d %-16.16s\n",
-			(int) pcb.so,
-			(int) this,
+"%-8lx %-8lx %-6.6x %6d %6d %-16.16s\n",
+			(unsigned long) pcb.so,
+			(unsigned long) this,
 			pcb.flags,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
@@ -299,9 +299,9 @@ l2caprawpr(kvm_t *kvmd, u_long addr)
 		}
 
 		fprintf(stdout,
-"%-8.8x %-8.8x %6d %6d %-17.17s\n",
-			(int) pcb.so,
-			(int) this,
+"%-8lx %-8lx %6d %6d %-17.17s\n",
+			(unsigned long) pcb.so,
+			(unsigned long) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
 			bdaddrpr(&pcb.src, NULL, 0));
@@ -358,8 +358,8 @@ l2cappr(kvm_t *kvmd, u_long addr)
 		}
 
 		fprintf(stdout,
-"%-8.8x %6d %6d %-17.17s/%-5d %-17.17s %-5d %s\n",
-			(int) this,
+"%-8lx %6d %6d %-17.17s/%-5d %-17.17s %-5d %s\n",
+			(unsigned long) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
 			bdaddrpr(&pcb.src, local, sizeof(local)),
@@ -405,9 +405,9 @@ l2caprtpr(kvm_t *kvmd, u_long addr)
 		}
 
 		fprintf(stdout,
-"%-8.8x %-8.8x %-17.17s\n",
-			(int) this,
-			(int) rt.hook,
+"%-8lx %-8lx %-17.17s\n",
+			(unsigned long) this,
+			(unsigned long) rt.hook,
 			bdaddrpr(&rt.src, NULL, 0));
 	}
 } /* l2caprtpr */
@@ -464,8 +464,8 @@ rfcommpr(kvm_t *kvmd, u_long addr)
 		}
 
 		fprintf(stdout,
-"%-8.8x %6d %6d %-17.17s %-17.17s %-4d %-4d %s\n",
-			(int) this,
+"%-8lx %6d %6d %-17.17s %-17.17s %-4d %-4d %s\n",
+			(unsigned long) this,
 			so.so_rcv.sb_cc,
 			so.so_snd.sb_cc,
 			bdaddrpr(&pcb.src, local, sizeof(local)),
@@ -527,9 +527,9 @@ rfcommpr_s(kvm_t *kvmd, u_long addr)
 		}
 
 		fprintf(stdout,
-"%-8.8x %-8.8x %-4x %-5d %-5d %-4s %s\n",
-			(int) so.so_pcb,
-			(int) this,
+"%-8lx %-8lx %-4x %-5d %-5d %-4s %s\n",
+			(unsigned long) so.so_pcb,
+			(unsigned long) this,
 			s.flags,
 			s.mtu,
 			s.outq.len,

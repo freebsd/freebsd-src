@@ -51,7 +51,7 @@ MALLOC_DECLARE(M_NETGRAPH_HCI);
 		if ((m)->m_len < (s)) 			\
 			(m) = m_pullup((m), (s)); 	\
 		if ((m) == NULL) 			\
-			NG_HCI_ALERT("%s: %s - m_pullup(%d) failed\n", \
+			NG_HCI_ALERT("%s: %s - m_pullup(%zd) failed\n", \
 				__func__, NG_NODE_NAME(unit->node), (s)); \
 	} while (0)
 
