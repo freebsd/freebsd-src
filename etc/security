@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.9 1995/09/15 00:22:31 ache Exp $
+#	$Id: security,v 1.10 1996/04/18 10:34:07 ache Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL
@@ -27,20 +27,15 @@ while test $# -ge 1; do
 	shift
 	find -X $mount -xdev -type f \
 		\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
-		\( -perm -u+s -or -perm -g+s \) -or \
-		\( -type c -or -type b \) \
-	| sort
-# exclude date/time info for devices
-done |  xargs -n 20 ls -lgTd | expand | \
-	sed 's/\(^[cb].*, *[0-9x]*\).*\( \/.*\)$/\1\2/' \
-> $TMP
+		\( -perm -u+s -or -perm -g+s \) | sort
+done | xargs -n 20 ls -lgTd > $TMP
 
 if [ ! -f $LOG/setuid.today ] ; then
 	echo "no $LOG/setuid.today"
 	cp $TMP $LOG/setuid.today
 fi
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
-	echo "$host setuid/device diffs:"
+	echo "$host setuid diffs:"
 	diff -b $LOG/setuid.today $TMP
 	mv $LOG/setuid.today $LOG/setuid.yesterday
 	mv $TMP $LOG/setuid.today
