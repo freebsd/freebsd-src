@@ -28,9 +28,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ypupdated_main.c,v 1.1 1996/12/25 19:31:28 wpaul Exp wpaul $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "ypupdate_prot.h"
 #include <stdio.h>
@@ -63,9 +66,6 @@
 #endif
 
 #define	_RPCSVC_CLOSEDOWN 120
-#ifndef lint
-static const char rcsid[] = "$Id: ypupdated_main.c,v 1.1 1996/12/25 19:31:28 wpaul Exp wpaul $";
-#endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
 		 /* Whether Stream or Datagram ? */
@@ -87,7 +87,7 @@ void _msgout(char* msg)
 	if (_rpcpmstart)
 		syslog(LOG_ERR, msg);
 	else
-		(void) fprintf(stderr, "%s\n", msg);
+		warnx("%s", msg);
 #else
 	syslog(LOG_ERR, msg);
 #endif
@@ -146,7 +146,7 @@ ypupdated_svc_run()
 			if (errno == EINTR) {
 				continue;
 			}
-			perror("svc_run: - select failed");
+			warn("svc_run: - select failed");
 			return;
 		case 0:
 			continue;
@@ -181,10 +181,11 @@ static void reaper(sig)
 
 void usage()
 {
-	fprintf(stderr, "%s [-p path]\n", progname);
+	fprintf(stderr, "rpc.ypupdatedd [-p path]\n");
 	exit(0);
 }
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];

@@ -28,10 +28,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yp_dbdelete.c,v 1.1 1996/12/26 05:43:03 wpaul Exp wpaul $
- *
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -44,10 +47,6 @@
 #include <paths.h>
 #include <rpcsvc/yp.h>
 #include "ypxfr_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: yp_dbdelete.c,v 1.1 1996/12/26 05:43:03 wpaul Exp wpaul $";
-#endif
 
 int yp_del_record(dbp,key)
 	DB *dbp;

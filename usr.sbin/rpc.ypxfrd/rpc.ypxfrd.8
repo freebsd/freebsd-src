@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rpc.ypxfrd.8,v 1.5 1997/02/22 16:13:01 peter Exp $
 .\"
 .Dd June 2, 1996
 .Dt RPC.YPXFRD 8
@@ -41,7 +41,7 @@
 .Op Fl p Ar path
 .Sh DESCRIPTION
 The
-.Nm rpc.ypxfrd
+.Nm
 daemon is used to speed up the distribtion of very large NIS maps
 from NIS master to NIS slave servers. The normal method for transfering
 maps involves several steps:
@@ -83,18 +83,18 @@ and
 .Pa passwd.by{name,uid} .
 .Pp
 The
-.Nm rpc.ypxfrd
+.Nm
 server speeds up the transfer process by allowing NIS slave servers to
 simply copy the master server's map files rather than building their
 own from scratch. Simply put,
-.Nm rpc.ypxfrd
+.Nm
 implements an RPC-based file transfer protocol. Transfering even
 a multi-megabyte file in this fashion takes only a few seconds compared
 to the several minutes it would take even a reasonably fast slave server
 to build a new map from scratch.
 .Pp
 The
-.Nm rpc.ypxfrd
+.Nm
 server uses the same access restriction mechanism as
 .Xr ypserv 8 .
 This means that slave servers will only be permitted to transfer
@@ -105,9 +105,8 @@ ports will be allowed to transfer the
 .Pa master.passwd
 maps.
 .Sh OPTIONS
-The following options and flags are supported by
-.Nm rpc.ypxfrd :
-.Bl -tag -width flag
+The following option is available:
+.Bl -tag -width indent
 .It Fl p Ar path
 This option can be used to override the default path to
 the location of the NIS
@@ -125,15 +124,17 @@ The NIS maps for a particular NIS domain.
 .Xr ypserv 8 ,
 .Xr ypxfr 8
 .Sh BUGS
-The FreeBSD
+The
+.Bx Free
 .Nm ypxfrd
 protocol is not compatible with that used by SunOS. This is unfortunate
 but unavoidable: Sun's protocol is not freely available, and even if it
 were it would probably not be useful since the SunOS NIS v2 implementation
-uses the original ndbm package for its map databases whereas the FreeBSD
+uses the original ndbm package for its map databases whereas the
+.Bx Free
 implementation uses Berkeley DB. These two packages use vastly different
 file formats. Furthermore, ndbm is byte-order sensitive and not very
 smart about it, meaning that am ndbm database created on a big endian
 system can't be read on a little endian system.
 .Sh AUTHOR
-Bill Paul <wpaul@ctr.columbia.edu>
+.An Bill Paul Aq wpaul@ctr.columbia.edu
