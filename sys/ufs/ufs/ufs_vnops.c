@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.100 1998/09/30 00:53:40 mckusick Exp $
+ * $Id: ufs_vnops.c,v 1.101 1998/12/09 02:06:27 eivind Exp $
  */
 
 #include "opt_quota.h"
@@ -506,9 +506,9 @@ ufs_setattr(ap)
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		ufs_itimes(vp);
-		if (vap->va_mtime.tv_sec != VNOVAL)
-			ip->i_atime = vap->va_atime.tv_sec;
 		if (vap->va_atime.tv_sec != VNOVAL)
+			ip->i_atime = vap->va_atime.tv_sec;
+		if (vap->va_mtime.tv_sec != VNOVAL)
 			ip->i_mtime = vap->va_mtime.tv_sec;
 		error = UFS_UPDATE(vp, (struct timeval *)0,
 		    (struct timeval *)0, 0);
