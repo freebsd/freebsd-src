@@ -322,36 +322,42 @@ record_label_chunks(Device **devs, Device *dev)
 static PartInfo *
 new_part(char *mpoint, Boolean newfs)
 {
-    PartInfo *ret;
+    PartInfo *pi;
 
     if (!mpoint)
 	mpoint = "/change_me";
 
-    ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
-    sstrncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    strcpy(ret->newfs_cmd, "newfs ");
-    strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
-    ret->newfs = newfs;
-    ret->soft = strcmp(mpoint, "/") ? 1 : 0;
-    return ret;
+    pi = (PartInfo *)safe_malloc(sizeof(PartInfo));
+    sstrncpy(pi->mountpoint, mpoint, FILENAME_MAX);
+
+    pi->do_newfs = newfs;
+
+    pi->newfs_type = NEWFS_UFS;
+    strcpy(pi->newfs_data.newfs_ufs.user_options, "");
+    pi->newfs_data.newfs_ufs.acls = FALSE;
+    pi->newfs_data.newfs_ufs.multilabel = FALSE;
+    pi->newfs_data.newfs_ufs.softupdates = strcmp(mpoint, "/");
+    pi->newfs_data.newfs_ufs.ufs2 = FALSE;
+
+    return pi;
 }
 
 #if defined(__ia64__)
 static PartInfo *
 new_efi_part(char *mpoint, Boolean newfs)
 {
-    PartInfo *ret;
+    PartInfo *pi;
 
     if (!mpoint)
 	mpoint = "/efi";
 
-    ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
-    sstrncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    /* XXX */
-    strcpy(ret->newfs_cmd, "newfs_msdos ");
-    ret->newfs = newfs;
-    ret->soft = 0;
-    return ret;
+    pi = (PartInfo *)safe_malloc(sizeof(PartInfo));
+    sstrncpy(pi->mountpoint, mpoint, FILENAME_MAX);
+
+    pi->do_newfs = newfs;
+    pi->newfs_type = NEWFS_MSDOS;
+
+    return pi;
 }
 #endif
 
@@ -404,7 +410,7 @@ get_mountpoint(struct chunk *old)
 
     newfs = TRUE;
     if (tmp) {
-	newfs = tmp->newfs;
+	newfs = tmp->do_newfs;
     	safe_free(tmp);
     }
     val = string_skipwhite(string_prune(val));
@@ -448,13 +454,49 @@ get_partition_type(void)
 static void
 getNewfsCmd(PartInfo *p)
 {
+    char buffer[NEWFS_CMD_ARGS_MAX];
     char *val;
 
-    val = msgGetInput(p->newfs_cmd,
-		      "Please enter the newfs command and options you'd like to use in\n"
-		      "creating this file system.");
-    if (val)
-	sstrncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
+    switch (p->newfs_type) {
+    case NEWFS_UFS:
+	snprintf(buffer, NEWFS_CMD_ARGS_MAX, "%s %s %s %s",
+	    NEWFS_UFS_CMD, p->newfs_data.newfs_ufs.softupdates ?  "-U" : "",
+	    p->newfs_data.newfs_ufs.ufs2 ? "-O2" : "-O1",
+	    p->newfs_data.newfs_ufs.user_options);
+	break;
+    case NEWFS_MSDOS:
+	snprintf(buffer, NEWFS_CMD_ARGS_MAX, "%s", NEWFS_MSDOS_CMD);
+	break;
+    case NEWFS_CUSTOM:
+	strcpy(buffer, p->newfs_data.newfs_custom.command);
+	break;
+    }
+
+    val = msgGetInput(buffer,
+	"Please enter the newfs command and options you'd like to use in\n"
+	"creating this file system.");
+    if (val != NULL) {
+	p->newfs_type = NEWFS_CUSTOM;
+	strlcpy(p->newfs_data.newfs_custom.command, val, NEWFS_CMD_ARGS_MAX);
+    }
+}
+
+static void
+getNewfsOptionalArguments(PartInfo *p)
+{
+	char buffer[NEWFS_CMD_ARGS_MAX];
+	char *val;
+
+	/* Must be UFS, per argument checking in I/O routines. */
+
+	strlcpy(buffer,  p->newfs_data.newfs_ufs.user_options,
+	    NEWFS_CMD_ARGS_MAX);
+	val = msgGetInput(buffer,
+	    "Please enter any additional UFS newfs options you'd like to\n"
+	    "use in creating this file system.");
+	if (val != NULL)
+		strlcpy(p->newfs_data.newfs_ufs.user_options, val,
+		    NEWFS_CMD_ARGS_MAX);
 }
 
 #define MAX_MOUNT_NAME	9
@@ -473,7 +515,7 @@ getNewfsCmd(PartInfo *p)
 static void
 print_label_chunks(void)
 {
-    int  i, j, srow, prow, pcol;
+    int  i, j, spaces, srow, prow, pcol;
     int  sz;
     char clrmsg[80];
     int ChunkPartStartRow;
@@ -581,7 +623,7 @@ print_label_chunks(void)
 	}
 	/* Otherwise it's a DOS, swap or filesystem entry in the Chunk window */
 	else {
-	    char onestr[PART_OFF], num[10], *mountpoint, newfs[10];
+	    char onestr[PART_OFF], num[10], *mountpoint, newfs[12];
 
 	    /*
 	     * We copy this into a blank-padded string so that it looks like
@@ -626,18 +668,34 @@ print_label_chunks(void)
 		    label_chunk_info[i].c->type == efi) {
 			strcat(newfs, "  ");
 			PartInfo *pi = (PartInfo *)label_chunk_info[i].c->private_data;
-			strcat(newfs, pi->newfs ? " Y" : " N");
+			strcat(newfs, pi->do_newfs ? " Y" : " N");
 		}
 #endif
 	    }
 	    else if (label_chunk_info[i].c->private_data && label_chunk_info[i].type == PART_FILESYSTEM) {
-		strcpy(newfs, "UFS");
-		strcat(newfs,
-		    ((PartInfo *)label_chunk_info[i].c->private_data)->soft ?
-		      "+S" : "  ");
-		strcat(newfs,
-		    ((PartInfo *)label_chunk_info[i].c->private_data)->newfs ?
-		      " Y" : " N");
+		PartInfo *pi = (PartInfo *)label_chunk_info[i].c->private_data;
+
+		switch (pi->newfs_type) {
+		case NEWFS_UFS:
+			strcpy(newfs, NEWFS_UFS_STRING);
+			if (pi->newfs_data.newfs_ufs.ufs2)
+				strcat(newfs, "2");
+			else
+				strcat(newfs, "1");
+			if (pi->newfs_data.newfs_ufs.softupdates)
+				strcat(newfs, "+S");
+			else
+				strcat(newfs, "  ");
+
+			break;
+		case NEWFS_MSDOS:
+			strcpy(newfs, "FAT");
+			break;
+		case NEWFS_CUSTOM:
+			strcpy(newfs, "CUST");
+			break;
+		}
+		strcat(newfs, pi->do_newfs ? " Y" : " N ");
 	    }
 	    else if (label_chunk_info[i].type == PART_SWAP)
 		strcpy(newfs, "SWAP");
@@ -695,9 +753,9 @@ print_command_summary(void)
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
     mvprintw(18, 0, "C = Create        D = Delete   M = Mount pt.");
     if (!RunningAsInit)
-	mvprintw(18, 47, "W = Write");
-    mvprintw(19, 0, "N = Newfs Opts    Q = Finish   S = Toggle SoftUpdates");
-    mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults    R = Delete+Merge");
+	mvprintw(18, 56, "W = Write");
+    mvprintw(19, 0, "N = Newfs Opts    Q = Finish   S = Toggle SoftUpdates   Z = Custom Newfs");
+    mvprintw(20, 0, "T = Toggle Newfs  U = Undo     A = Auto Defaults        R = Delete+Merge");
     mvprintw(22, 0, "Use F1 or ? to get more help, arrow keys to select.");
     move(0, 0);
 }
@@ -798,6 +856,27 @@ diskLabel(Device *dev)
 	    systemDisplayHelp("partition");
 	    clear_wins();
 	    break;
+
+	case '2':
+	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
+		PartInfo *pi =
+		    ((PartInfo *)label_chunk_info[here].c->private_data);
+
+		if ((pi != NULL) &&
+		    (pi->newfs_type == NEWFS_UFS)) {
+#ifdef __i386__
+			if (label_chunk_info[here].c->flags & CHUNK_IS_ROOT)
+				msg = MSG_NOT_APPLICABLE;
+			else
+#endif
+				pi->newfs_data.newfs_ufs.ufs2 =
+				    !pi->newfs_data.newfs_ufs.ufs2;
+		} else
+		    msg = MSG_NOT_APPLICABLE;
+	    } else
+		msg = MSG_NOT_APPLICABLE;
+	    break;
+		break;
 
 	case 'A':
 	    if (label_chunk_info[here].type != PART_SLICE) {
@@ -987,7 +1066,7 @@ diskLabel(Device *dev)
 		p = get_mountpoint(label_chunk_info[here].c);
 		if (p) {
 		    if (!oldp)
-		    	p->newfs = FALSE;
+		    	p->do_newfs = FALSE;
 		    if (label_chunk_info[here].type == PART_FAT
 			&& (!strcmp(p->mountpoint, "/") || !strcmp(p->mountpoint, "/usr")
 			    || !strcmp(p->mountpoint, "/var"))) {
@@ -1009,8 +1088,9 @@ diskLabel(Device *dev)
 
 	case 'N':	/* Set newfs options */
 	    if (label_chunk_info[here].c->private_data &&
-		((PartInfo *)label_chunk_info[here].c->private_data)->newfs)
-		getNewfsCmd(label_chunk_info[here].c->private_data);
+		((PartInfo *)label_chunk_info[here].c->private_data)->do_newfs)
+		getNewfsOptionalArguments(
+		    label_chunk_info[here].c->private_data);
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    clear_wins();
@@ -1019,8 +1099,10 @@ diskLabel(Device *dev)
 	case 'S':	/* Toggle soft updates flag */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-		if (pi)
-		    pi->soft = !pi->soft;
+		if (pi != NULL &&
+		    pi->newfs_type == NEWFS_UFS)
+			pi->newfs_data.newfs_ufs.softupdates =
+			    !pi->newfs_data.newfs_ufs.softupdates;
 		else
 		    msg = MSG_NOT_APPLICABLE;
 	    }
@@ -1032,15 +1114,20 @@ diskLabel(Device *dev)
 	    if ((label_chunk_info[here].type == PART_FILESYSTEM) &&
 	        (label_chunk_info[here].c->private_data)) {
 		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-		if (!pi->newfs)
+		if (!pi->do_newfs)
 		    label_chunk_info[here].c->flags |= CHUNK_NEWFS;
 		else
 		    label_chunk_info[here].c->flags &= ~CHUNK_NEWFS;
 
 		label_chunk_info[here].c->private_data =
-		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE);
-		if (pi && pi->soft)
-		    ((PartInfo *)label_chunk_info[here].c->private_data)->soft = 1;
+		    new_part(pi ? pi->mountpoint : NULL, pi ? !pi->do_newfs
+		    : TRUE);
+		if (pi != NULL &&
+		    pi->newfs_type == NEWFS_UFS) {
+		    PartInfo *pi_new = label_chunk_info[here].c->private_data;
+
+		    pi_new->newfs_data.newfs_ufs = pi->newfs_data.newfs_ufs;
+		}
 		safe_free(pi);
 		label_chunk_info[here].c->private_free = safe_free;
 		if (variable_cmp(DISK_LABELLED, "written"))
@@ -1050,14 +1137,16 @@ diskLabel(Device *dev)
 	    else if (label_chunk_info[here].type == PART_FAT &&
 	      label_chunk_info[here].c->type == efi &&
 	      label_chunk_info[here].c->private_data) {
-		PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-		if (!pi->newfs)
+		PartInfo *pi =
+		    ((PartInfo *)label_chunk_info[here].c->private_data);
+
+		if (!pi->do_newfs)
 		    label_chunk_info[here].c->flags |= CHUNK_NEWFS;
 		else
 		    label_chunk_info[here].c->flags &= ~CHUNK_NEWFS;
 
 		label_chunk_info[here].c->private_data =
-		    new_efi_part(pi->mountpoint, !pi->newfs);
+		    new_efi_part(pi->mountpoint, !pi->do_newfs);
 		safe_free(pi);
 		label_chunk_info[here].c->private_free = safe_free;
 		if (variable_cmp(DISK_LABELLED, "written"))
@@ -1112,6 +1201,16 @@ diskLabel(Device *dev)
 	    }
 	    clear_wins();
 	    break;
+
+	case 'Z':	/* Set newfs command line */
+	    if (label_chunk_info[here].c->private_data &&
+		((PartInfo *)label_chunk_info[here].c->private_data)->do_newfs)
+		getNewfsCmd(label_chunk_info[here].c->private_data);
+	    else
+		msg = MSG_NOT_APPLICABLE;
+	    clear_wins();
+	    break;
+
 
 	case '|':
 	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
@@ -1437,9 +1536,10 @@ diskLabelNonInteractive(Device *dev)
 			status = DITEM_FAILURE;
 			break;
 		    } else {
-			tmp->private_data = new_part(mpoint, TRUE);
+			PartInfo *pi;
+			pi = tmp->private_data = new_part(mpoint, TRUE);
 			tmp->private_free = safe_free;
-			((PartInfo *)tmp->private_data)->soft = soft;
+			pi->newfs_data.newfs_ufs.softupdates = soft;
 		    }
 		}
 	    }
@@ -1459,7 +1559,7 @@ diskLabelNonInteractive(Device *dev)
 		newfs = toupper(do_newfs[0]) == 'Y' ? TRUE : FALSE;
 		if (c1->private_data) {
 		    p = c1->private_data;
-		    p->newfs = newfs;
+		    p->do_newfs = newfs;
 		    strcpy(p->mountpoint, mpoint);
 		}
 		else {

@@ -308,14 +308,39 @@ typedef enum {
     PART_FAT,
 } PartType;
 
-/* The longest newfs command we'll hand to system() */
-#define NEWFS_CMD_MAX	256
+#define	NEWFS_UFS_CMD		"newfs"
+#define	NEWFS_MSDOS_CMD		"newfs_msdos"
+
+enum newfs_type { NEWFS_UFS, NEWFS_MSDOS, NEWFS_CUSTOM };
+#define	NEWFS_UFS_STRING	"UFS"
+#define	NEWFS_MSDOS_STRING	"FAT"
+#define	NEWFS_CUSTOM_STRING	"CST"
+
+/* The longest set of custom command line arguments we'll pass. */
+#define NEWFS_CMD_ARGS_MAX	256
 
 typedef struct _part_info {
-    Boolean newfs;
-    char mountpoint[FILENAME_MAX];
-    char newfs_cmd[NEWFS_CMD_MAX];
-    int soft;
+	char mountpoint[FILENAME_MAX];
+
+	/* Is invocation of newfs desired? */
+	Boolean do_newfs;
+
+	enum newfs_type newfs_type;
+	union {
+		struct {
+			char user_options[NEWFS_CMD_ARGS_MAX];
+			Boolean acls;		/* unused */
+			Boolean multilabel;	/* unused */
+			Boolean softupdates;
+			Boolean ufs2;
+		} newfs_ufs;
+		struct {
+			/* unused */
+		} newfs_msdos;
+		struct {
+			char command[NEWFS_CMD_ARGS_MAX];
+		} newfs_custom;
+	} newfs_data;
 } PartInfo;
 
 /* An option */
