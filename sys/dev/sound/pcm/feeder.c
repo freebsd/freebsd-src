@@ -270,6 +270,9 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 	struct pcm_feeder *try, *stop;
 	int max;
 
+	/* we're broken for recording currently, reject attempts */
+	if (c->direction == PCMDIR_REC)
+		return EINVAL;
 	stop = c->feeder;
 	try = NULL;
 	max = 0;
