@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.h,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iiconf.h,v 1.3 1999/01/09 18:08:24 nsouch Exp $
  */
 #ifndef __IICONF_H
 #define __IICONF_H
@@ -117,6 +117,10 @@ extern int iicbus_start(device_t, u_char, int);
 extern int iicbus_stop(device_t);
 extern int iicbus_write(device_t, char *, int, int *, int);
 extern int iicbus_read(device_t, char *, int, int *, int, int);
+
+/* single byte read/write functions, start/stop not managed */
+extern int iicbus_write_byte(device_t, char, int);
+extern int iicbus_read_byte(device_t, char *, int);
 
 /* Read/write operations with start/stop conditions managed */
 extern int iicbus_block_write(device_t, u_char, char *, int, int *);
