@@ -57,6 +57,7 @@
 #include <sys/pioctl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>

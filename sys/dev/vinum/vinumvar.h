@@ -43,6 +43,7 @@
 
 #include <sys/time.h>
 #include <dev/vinum/vinumstate.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 /*

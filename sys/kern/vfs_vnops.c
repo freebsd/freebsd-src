@@ -45,6 +45,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>

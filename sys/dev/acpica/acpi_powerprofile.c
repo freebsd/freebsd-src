@@ -28,6 +28,7 @@
 
 #include "opt_acpi.h"	/* XXX trim includes */
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
 

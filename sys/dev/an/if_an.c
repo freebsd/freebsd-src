@@ -107,6 +107,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/resource.h>
 
