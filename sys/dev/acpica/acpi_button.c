@@ -154,20 +154,21 @@ acpi_button_attach(device_t dev)
 		      AcpiFormatException(status));
 	return_VALUE (ENXIO);
     }
-    acpi_device_enable_wake_capability(sc->button_handle, 1);
-    acpi_device_enable_wake_event(sc->button_handle);
 
+    /* Enable the GPE for wake/runtime. */
+    acpi_wake_init(dev, ACPI_GPE_TYPE_WAKE_RUN);
+    acpi_wake_set_enable(dev, 1);
+    
     return_VALUE (0);
 }
 
 static int
 acpi_button_suspend(device_t dev)
 {
-#if 0
-    struct acpi_button_softc	*sc;
+    struct acpi_softc           *acpi_sc;
 
-    sc = device_get_softc(dev);
-#endif
+    acpi_sc = acpi_device_get_parent_softc(dev);
+    acpi_wake_sleep_prep(dev, acpi_sc->acpi_sstate);
     return (0);
 }
 
