@@ -356,16 +356,16 @@ svr4_elf_modevent(module_t mod, int type, void *data)
 			printf("svr4 ELF exec handler installed\n");
 		break;
 	case MOD_UNLOAD:
-		/* XXX There needs to be a generic function that any
-		 * emulator can call to say, "Are any currently-running
-		 * executables using me?" so we can fail to unload the
-		 * module if it's in use.  Locking up because you forgot
-		 * to shut down a program prior to a kldunload isn't fun.
-		 */
-		if (elf_remove_brand_entry(&svr4_brand) < 0)
+		/* Only allow the emulator to be removed if it isn't in use. */
+		if (elf_brand_inuse(&svr4_brand) != 0) {
+			error = EBUSY;
+		} else if (elf_remove_brand_entry(&svr4_brand) < 0) {
 			error = EINVAL;
+		}
+
 		if (error)
-			printf("Could not deinstall ELF interpreter entry\n");
+			printf("Could not deinstall ELF interpreter entry (error %d)\n",
+			       error);
 		else if (bootverbose)
 			printf("svr4 ELF exec handler removed\n");
 		break;
