@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id$
+#	$Id: Makefile,v 1.80 1997/02/22 19:53:59 peter Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -21,7 +21,7 @@ SUBDIR=	apply ar at banner basename biff brandelf cal calendar \
 	rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed sgmlfmt sgmls shar showmount size soelim split \
 	strings	strip su symorder talk tclsh tconv tcopy tee tftp time \
-	tip tn3270 touch tput tr true tset tsort tty ul	uname \
+	tip tn3270 top touch tput tr true tset tsort tty ul uname \
 	unexpand unifdef uniq units unvis users uudecode uuencode vacation \
 	vgrind vi vis w wall wc what whereis which who whois window \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
