@@ -36,8 +36,45 @@ static const char rcsid[] =
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 
 #include "pwupd.h"
+
+static char * grpath = _PATH_PWD;
+
+int
+setgrdir(const char * dir)
+{
+	if (dir == NULL)
+		return -1;
+	else {
+		char * d = malloc(strlen(dir)+1);
+		if (d == NULL)
+			return -1;
+		grpath = strcpy(d, dir);
+	}
+	return 0;
+}
+
+char *
+getgrpath(const char * file)
+{
+	static char pathbuf[MAXPATHLEN];
+
+	snprintf(pathbuf, sizeof pathbuf, "%s/%s", grpath, file);
+	return pathbuf;
+}
+
+int
+grdb(char *arg,...)
+{
+	/*
+	 * This is a stub for now, but maybe eventually be functional
+	 * if ever an indexed version of /etc/groups is implemented.
+	 */
+	arg=arg;
+	return 0;
+}
 
 int
 fmtgrentry(char **buf, int * buflen, struct group * grp, int type)
@@ -96,7 +133,7 @@ gr_update(struct group * grp, char const * group, int mode)
 	int		grbuflen = 0;
 	char	       *grbuf = NULL;
 
-	endgrent();
+	ENDGRENT();
 	l = snprintf(pfx, sizeof pfx, "%s:", group);
 
 	/*
@@ -104,8 +141,10 @@ gr_update(struct group * grp, char const * group, int mode)
 	 */
 	if (grp != NULL && fmtgrentry(&grbuf, &grbuflen, grp, PWF_PASSWD) == -1)
 		l = -1;
-	else
-		l = fileupdate(_PATH_GROUP, 0644, grbuf, pfx, l, mode);
+	else {
+		if ((l = fileupdate(getgrpath(_GROUP), 0644, grbuf, pfx, l, mode)) != 0)
+			l = grdb(NULL) == 0;
+	}
 	if (grbuf != NULL)
 		free(grbuf);
 	return l;

@@ -34,7 +34,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <sys/types.h>
 
-#include "pwupd.h"
 #include "pw.h"
 
 static int

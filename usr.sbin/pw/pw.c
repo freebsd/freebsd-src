@@ -29,11 +29,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
-#include "pw.h"
 #include <err.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <sys/wait.h>
+#include "pw.h"
 
 const char     *Modes[] = {"add", "del", "mod", "show", "next", NULL};
 const char     *Which[] = {"user", "group", NULL};
@@ -45,6 +45,40 @@ static const char *Combo2[] = {
   "adduser", "deluser", "moduser", "showuser", "nextuser",
   "addgroup", "delgroup", "modgroup", "showgroup", "nextgroup",
 NULL};
+
+struct pwf PWF =
+{
+	0,
+	setpwent,
+	endpwent,
+	getpwent,
+	getpwuid,
+	getpwnam,
+	pwdb,
+	setgrent,
+	endgrent,
+	getgrent,
+	getgrgid,
+	getgrnam,
+	grdb
+
+};
+struct pwf VPWF =
+{
+	1,
+	vsetpwent,
+	vendpwent,
+	vgetpwent,
+	vgetpwuid,
+	vgetpwnam,
+	vpwdb,
+	vsetgrent,
+	vendgrent,
+	vgetgrent,
+	vgetgrgid,
+	vgetgrnam,
+	vgrdb
+};
 
 static struct cargs arglist;
 
@@ -58,23 +92,24 @@ main(int argc, char *argv[])
 	int             ch;
 	int             mode = -1;
 	int             which = -1;
+	char		*config = NULL;
 	struct userconf *cnf;
 
 	static const char *opts[W_NUM][M_NUM] =
 	{
 		{ /* user */
-			"C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
-			"C:qn:u:rY",
-			"C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
-			"C:qn:u:FPa",
-			"C:q"
+			"V:C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
+			"V:C:qn:u:rY",
+			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
+			"V:C:qn:u:FPa7",
+			"V:C:q"
 		},
 		{ /* grp  */
-			"C:qn:g:h:M:pNPY",
-			"C:qn:g:Y",
-			"C:qn:g:l:h:FM:m:NPY",
-			"C:qn:g:FPa",
-			"C:q"
+			"V:C:qn:g:h:M:pNPY",
+			"V:C:qn:g:Y",
+			"V:C:qn:g:l:h:FM:m:NPY",
+			"V:C:qn:g:FPa",
+			"V:C:q"
 		 }
 	};
 
@@ -91,10 +126,25 @@ main(int argc, char *argv[])
 	 * Break off the first couple of words to determine what exactly
 	 * we're being asked to do
 	 */
-	while (argc > 1 && *argv[1] != '-') {
+	while (argc > 1) {
 		int             tmp;
 
-		if ((tmp = getindex(Modes, argv[1])) != -1)
+		if (*argv[1] == '-') {
+			/*
+			 * Special case, allow pw -V<dir> <operation> [args] for scripts etc.
+			 */
+			if (argv[1][1] == 'V') {
+				optarg = &argv[1][2];
+				if (*optarg == '\0') {
+					optarg = argv[2];
+					++argv;
+					--argc;
+				}
+				addarg(&arglist, 'V', optarg);
+			} else
+				break;
+		}
+		else if ((tmp = getindex(Modes, argv[1])) != -1)
 			mode = tmp;
 		else if ((tmp = getindex(Which, argv[1])) != -1)
 			which = tmp;
@@ -103,7 +153,7 @@ main(int argc, char *argv[])
 			mode = tmp % M_NUM;
 		} else if (strcmp(argv[1], "help") == 0)
 			cmdhelp(mode, which);
-		else if (which != -1 && mode != -1 && arglist.lh_first == NULL)
+		else if (which != -1 && mode != -1)
 			addarg(&arglist, 'n', argv[1]);
 		else
 			errx(EX_USAGE, "unknown keyword `%s'", argv[1]);
@@ -145,9 +195,28 @@ main(int argc, char *argv[])
 		freopen("/dev/null", "w", stderr);
 
 	/*
+	 * Set our base working path if not overridden
+	 */
+
+	config = getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL;
+
+	if (getarg(&arglist, 'V') != NULL) {
+		char * etcpath = getarg(&arglist, 'V')->val;
+		if (*etcpath) {
+			if (config == NULL) {	/* Only override config location if -C not specified */
+				config = malloc(MAXPATHLEN);
+				snprintf(config, MAXPATHLEN, "%s/pw.conf", etcpath);
+			}
+			memcpy(&PWF, &VPWF, sizeof PWF);
+			setpwdir(etcpath);
+			setgrdir(etcpath);
+		}
+	}
+    
+	/*
 	 * Now, let's do the common initialisation
 	 */
-	cnf = read_userconfig(getarg(&arglist, 'C') ? getarg(&arglist, 'C')->val : NULL);
+	cnf = read_userconfig(config);
 
 	ch = funcs[which] (cnf, mode, &arglist);
 
@@ -215,6 +284,7 @@ cmdhelp(int mode, int which)
 		{
 			{
 				"usage: pw useradd [name] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"  Adding users:\n"
@@ -234,7 +304,8 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n"
 				"  Setting defaults:\n"
-				"\t-D             set user defaults\n"
+				"\t-V etcdir      alternate /etc location\n"
+			        "\t-D             set user defaults\n"
 				"\t-b dir         default home root dir\n"
 				"\t-e period      default expiry period\n"
 				"\t-p period      default password change period\n"
@@ -248,11 +319,13 @@ cmdhelp(int mode, int which)
 				"\t-s shell       default shell\n"
 				"\t-y path        set NIS passwd file path\n",
 				"usage: pw userdel [uid|name] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-Y             update NIS maps\n"
 				"\t-r             remove home & contents\n",
 				"usage: pw usermod [uid|name] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if no user\n"
@@ -273,16 +346,20 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: pw usershow [uid|name] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-n name        login name\n"
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
 				"\t-P             prettier format\n"
-				"\t-a             print all users\n",
+				"\t-a             print all users\n"
+				"\t-7             print in v7 format\n",
 				"usage: pw usernext [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
 			},
 			{
 				"usage: pw groupadd [group|gid] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-n group       group name\n"
@@ -292,10 +369,12 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: pw groupdel [group|gid] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-Y             update NIS maps\n",
 				"usage: pw groupmod [group|gid] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
 				"\t-q             quiet operation\n"
 				"\t-F             force add if not exists\n"
@@ -307,12 +386,14 @@ cmdhelp(int mode, int which)
 				"\t-Y             update NIS maps\n"
 				"\t-N             no update\n",
 				"usage: pw groupshow [group|gid] [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-n name        group name\n"
 				"\t-g gid         group id\n"
 				"\t-F             force print\n"
 				"\t-P             prettier format\n"
 				"\t-a             print all accounting groups\n",
 				"usage: pw groupnext [switches]\n"
+				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
 			}
 		};
