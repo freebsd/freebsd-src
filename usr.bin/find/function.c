@@ -674,7 +674,7 @@ c_exec(OPTION *option, char ***argvp)
 	for (ap = argv = *argvp;; ++ap) {
 		if (!*ap)
 			errx(1,
-			    "%s: no terminating \";\"", option->name);
+			    "%s: no terminating \";\" or \"+\"", option->name);
 		if (**ap == ';')
 			break;
 		if (**ap == '+' && ap != argv && strcmp(*(ap - 1), "{}") == 0) {
