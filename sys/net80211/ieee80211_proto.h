@@ -179,6 +179,8 @@ struct wmeParams {
 	u_int8_t	wmep_txopLimit;
 	u_int8_t	wmep_noackPolicy;	/* 0 (ack), 1 (no ack) */
 };
+#define	IEEE80211_TXOP_TO_US(_txop)	((_txop)<<5)
+#define	IEEE80211_US_TO_TXOP(_us)	((_us)>>5)
 
 struct chanAccParams {
 	u_int8_t	cap_info;		/* version of the current set */
