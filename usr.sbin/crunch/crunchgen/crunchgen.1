@@ -32,7 +32,7 @@
 .Nd generates build environment for a crunched binary
 .Sh SYNOPSIS
 .Nm \&crunchgen
-.Op Fl fql
+.Op Fl foql
 .Op Fl h Ar makefile-header-name
 .Op Fl m Ar makefile-name
 .Op Fl c Ar c-file-name
@@ -123,6 +123,8 @@ are annoying to pass through environment variables.
 Set output Makefile name to
 .Ar makefile-name .
 The default name is ``<conf-name>.mk''.
+.It Fl o
+Add ``make obj'' rules to each program make target.
 .It Fl q
 Quiet operation.  Status messages are suppressed.
 .El
