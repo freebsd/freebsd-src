@@ -42,8 +42,9 @@
 server
 .Sh SYNOPSIS
 .Nm nfsd
-.Op Fl rut
+.Op Fl arut
 .Op Fl n Ar num_servers
+.Op Fl h Ar bindip
 .Sh DESCRIPTION
 .Nm Nfsd
 runs on a server machine to service
@@ -72,6 +73,19 @@ or
 options to re-register NFS if the portmap server is restarted.
 .It Fl n
 Specifies how many servers to create.
+.It Fl h Ar bindip
+Specifies which IP address or hostname to bind to on the local host.
+This option is recommended when a host has multiple interfaces. Multiple
+.Fl h
+options may be specified.
+.It Fl a
+Specifies that nfsd should bind to the wildcard IP address.
+This is the default if no
+.Fl h
+options are given.  It may also be specified in addition to any
+.Fl h
+options given.  Note that NFS/UDP does not operate properly when
+bound to the wildcard IP address whether you use -a or do not use -h.
 .It Fl t
 Serve
 .Tn TCP NFS
@@ -119,6 +133,19 @@ KLD is available,
 .Nm nfsd
 will exit with an error.
 .Pp
+If
+.Nm nfsd
+is to be run on a host with multiple interfaces or interface aliases, use
+of the
+.Fl h
+option is recommended.  If you do not use the option NFS may not respond to
+UDP packets from the same IP address they were sent to.  Use of this option
+is also recommended when securing NFS exports on a firewalling machine such
+that the NFS sockets can only be accessed by the inside interface.
+.Nm Ipfw
+would then be used to block nfs-related packets that come in on the outside
+interface.
+.Pp
 The
 .Nm nfsd
 utility exits 0 on success, and >0 if an error occurs.
@@ -127,7 +154,8 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr nfssvc 2 ,
 .Xr kldload 8 ,
 .Xr mountd 8 ,
-.Xr portmap 8
+.Xr portmap 8 ,
+.Xr ipfw 8
 .Sh HISTORY
 The
 .Nm nfsd
