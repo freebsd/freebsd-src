@@ -144,10 +144,15 @@ _pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 			 */
 			SET_RETURN_ADDR_JB(new_thread->ctx.jb, _thread_start);
 
+#if !defined(__ia64__)
 			/* The stack starts high and builds down: */
 			SET_STACK_JB(new_thread->ctx.jb,
 			    (long)new_thread->stack + pattr->stacksize_attr
 			    - sizeof(double));
+#else
+			SET_STACK_JB(new_thread->ctx.jb,
+			    (long)new_thread->stack, pattr->stacksize_attr);
+#endif
 
 			/* Copy the thread attributes: */
 			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
