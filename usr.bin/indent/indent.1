@@ -34,7 +34,7 @@
 .\"	@(#)indent.1	8.1 (Berkeley) 7/1/93
 .\" $FreeBSD$
 .\"
-.Dd July 1, 1993
+.Dd Februrary 13, 2004
 .Dt INDENT 1
 .Os
 .Sh NAME
@@ -196,7 +196,8 @@ lines will be indented that far from the beginning of the first line of the
 statement.  Parenthesized expressions have extra indentation added to
 indicate the nesting, unless
 .Fl \&lp
-is in effect.
+is in effect
+or the contination indent is exactly half of the main indent.
 .Fl \&ci
 defaults to the same value as
 .Fl i  .
