@@ -260,7 +260,7 @@ getccdbuf(struct ccdbuf *cpy)
 }
 
 /*
- * putccdbuf() -	Allocate and zero a ccd buffer.
+ * putccdbuf() -	Free a ccd buffer.
  *
  *	This routine is called at splbio().
  */
