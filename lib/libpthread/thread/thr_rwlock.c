@@ -41,10 +41,12 @@
 __weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
 __weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);
+__weak_reference(_pthread_rwlock_timedrdlock, pthread_rwlock_timedrdlock);
 __weak_reference(_pthread_rwlock_tryrdlock, pthread_rwlock_tryrdlock);
 __weak_reference(_pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
 __weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
 __weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
+__weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
 
 /*
  * Prototypes
@@ -137,8 +139,8 @@ _pthread_rwlock_init (pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr
 	return (ret);
 }
 
-int
-_pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
+static int
+rwlock_rdlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 {
 	pthread_rwlock_t 	prwlock;
 	int			ret;
@@ -162,8 +164,12 @@ _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 
 	/* give writers priority over readers */
 	while (prwlock->blocked_writers || prwlock->state < 0) {
-		ret = _thr_cond_wait(&prwlock->read_signal, &prwlock->lock);
-
+		if (abstime)
+			ret = _pthread_cond_timedwait(&prwlock->read_signal,
+				&prwlock->lock, abstime);
+		else
+			ret = _thr_cond_wait(&prwlock->read_signal,
+				&prwlock->lock);
 		if (ret != 0) {
 			/* can't do a whole lot if this fails */
 			_thr_mutex_unlock(&prwlock->lock);
@@ -188,7 +194,20 @@ _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 	return (ret);
 }
 
+int
+_pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
+{
+	return rwlock_rdlock_common (rwlock, NULL);
+}
+
 __strong_reference(_pthread_rwlock_rdlock, _thr_rwlock_rdlock);
+
+int
+_pthread_rwlock_timedrdlock (pthread_rwlock_t *rwlock,
+	 const struct timespec *abstime)
+{
+	return rwlock_rdlock_common(rwlock, abstime);
+}
 
 int
 _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
@@ -301,8 +320,8 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 
 __strong_reference(_pthread_rwlock_unlock, _thr_rwlock_unlock);
 
-int
-_pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
+static int
+rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 {
 	pthread_rwlock_t 	prwlock;
 	int			ret;
@@ -327,8 +346,12 @@ _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 	while (prwlock->state != 0) {
 		++prwlock->blocked_writers;
 
-		ret = _thr_cond_wait(&prwlock->write_signal, &prwlock->lock);
-
+		if (abstime != NULL)
+			ret = _pthread_cond_timedwait(&prwlock->write_signal,
+				&prwlock->lock, abstime);
+		else
+			ret = _thr_cond_wait(&prwlock->write_signal,
+				&prwlock->lock);
 		if (ret != 0) {
 			--prwlock->blocked_writers;
 			_thr_mutex_unlock(&prwlock->lock);
@@ -347,4 +370,16 @@ _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 	return (ret);
 }
 
+int
+_pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
+{
+	return rwlock_wrlock_common (rwlock, NULL);
+}
 __strong_reference(_pthread_rwlock_wrlock, _thr_rwlock_wrlock);
+
+int
+_pthread_rwlock_timedwrlock (pthread_rwlock_t *rwlock,
+	const struct timespec *abstime)
+{
+	return rwlock_wrlock_common (rwlock, abstime);
+}
