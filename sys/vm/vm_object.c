@@ -377,6 +377,28 @@ vm_object_reference(vm_object_t object)
 }
 
 /*
+ *	vm_object_reference_locked:
+ *
+ *	Gets another reference to the given object.
+ *
+ *	The object must be locked.
+ */
+void
+vm_object_reference_locked(vm_object_t object)
+{
+	struct vnode *vp;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT((object->flags & OBJ_DEAD) == 0,
+	    ("vm_object_reference_locked: dead object referenced"));
+	object->ref_count++;
+	if (object->type == OBJT_VNODE) {
+		vp = object->handle;
+		vref(vp);
+	}
+}
+
+/*
  * Handle deallocating an object of type OBJT_VNODE.
  */
 void
@@ -1184,12 +1206,12 @@ vm_object_split(vm_map_entry_t entry)
 
 	source = orig_object->backing_object;
 	if (source != NULL) {
-		vm_object_reference(source);	/* Referenced by new_object */
 		VM_OBJECT_LOCK(source);
 		LIST_INSERT_HEAD(&source->shadow_head,
 				  new_object, shadow_list);
 		source->shadow_count++;
 		source->generation++;
+		vm_object_reference_locked(source);	/* for new_object */
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		VM_OBJECT_UNLOCK(source);
 		new_object->backing_object_offset = 
@@ -1623,7 +1645,6 @@ vm_object_collapse(vm_object_t object)
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
-				vm_object_reference(new_backing_object);
 				VM_OBJECT_LOCK(new_backing_object);
 				LIST_INSERT_HEAD(
 				    &new_backing_object->shadow_head,
@@ -1632,6 +1653,7 @@ vm_object_collapse(vm_object_t object)
 				);
 				new_backing_object->shadow_count++;
 				new_backing_object->generation++;
+				vm_object_reference_locked(new_backing_object);
 				VM_OBJECT_UNLOCK(new_backing_object);
 				object->backing_object_offset +=
 					backing_object->backing_object_offset;

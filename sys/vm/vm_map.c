@@ -2369,8 +2369,8 @@ vm_map_copy_entry(
 				}
 			}
 
-			vm_object_reference(src_object);
 			VM_OBJECT_LOCK(src_object);
+			vm_object_reference_locked(src_object);
 			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
 			VM_OBJECT_UNLOCK(src_object);
 			dst_entry->object.vm_object = src_object;
