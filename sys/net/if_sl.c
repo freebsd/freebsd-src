@@ -379,7 +379,7 @@ slopen(dev, tp)
 	return (0);
 }
 
-void
+static void
 sldestroy(struct sl_softc *sc)
 {
 	bpfdetach(&sc->sc_if);
