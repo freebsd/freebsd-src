@@ -30,26 +30,33 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)sinh.3	6.6 (Berkeley) 4/19/91
-.\"	$Id: sinh.3,v 1.4 1993/10/29 22:57:30 jtc Exp $
+.\"	$Id: sinh.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .Dd April 19, 1991
 .Dt SINH 3
 .Os
 .Sh NAME
-.Nm sinh
+.Nm sinh ,
+.Nm sinhf
 .Nd hyperbolic sine function
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn sinh "double  x"
+.Ft float
+.Fn sinhf "float  x"
 .Sh DESCRIPTION
 The
 .Fn sinh
-function computes the hyperbolic sine of
+and the
+.Fn sinhf
+functions compute the hyperbolic sine of
 .Fa x .
 .Sh RETURN VALUES
 The
 .Fn sinh
-function returns the hyperbolic sine value unless
+and the
+.Fn sinhf
+functions return the hyperbolic sine value unless
 the  magnitude 
 of
 .Fa x

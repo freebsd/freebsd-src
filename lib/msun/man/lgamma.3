@@ -30,15 +30,17 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
-.\"	$Id: lgamma.3,v 1.6 1994/01/11 00:46:56 jtc Exp $
+.\"	$Id: lgamma.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd December 3, 1992
 .Dt LGAMMA 3
 .Os BSD 4.3
 .Sh NAME
 .Nm lgamma ,
-.Nm gamma
-.Nd log gamma function, gamma function
+.Nm lgammaf ,
+.Nm gamma ,
+.Nm gammaf
+.Nd log gamma functions, gamma functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft extern int
@@ -46,12 +48,18 @@
 .sp
 .Ft double
 .Fn lgamma "double x"
+.Ft float
+.Fn lgammaf "float x"
 .Ft double
 .Fn gamma "double x"
+.Ft float
+.Fn gamma "float x"
 .Sh DESCRIPTION
-.Fn Lgamma x
+.Fn lgamma x
+and
+.Fn lgammaf x
 .if t \{\
-returns ln\||\(*G(x)| where
+return ln\||\(*G(x)| where
 .Bd -unfilled -offset indent
 \(*G(x) = \(is\d\s8\z0\s10\u\u\s8\(if\s10\d t\u\s8x\-1\s10\d e\u\s8\-t\s10\d dt	for x > 0 and
 .br
@@ -65,8 +73,10 @@ The external integer
 .Fa signgam
 returns the sign of \(*G(x).
 .Pp
-.Fn Gamma x
-returns \(*G(x), with no effect on
+.Fn gamma x
+and
+.Fn gammaf x
+return \(*G(x), with no effect on
 .Fa signgam .
 .Sh IDIOSYNCRASIES
 Do not use the expression
@@ -79,19 +89,25 @@ lg = lgamma(x); g = signgam\(**exp(lg);
 .Pp
 Only after
 .Fn lgamma
+or
+.Fn lgammaf
 has returned can signgam be correct.
 .Pp
 For arguments in its range,
 .Fn gamma
+and
+.Fn gammaf
 is preferred, as for positive arguments
 it is accurate to within one unit in the last place.
 Exponentiation of
 .Fn lgamma
 will lose up to 10 significant bits.
 .Sh RETURN VALUES
-.Fn Gamma
+.Fn gamma ,
+.Fn gammaf ,
+.Fn lgamma ,
 and
-.Fn lgamma
+.Fn lgammaf
 return appropriate values unless an argument is out of range.
 Overflow will occur for sufficiently large positive values, and
 non-positive integers.

@@ -30,22 +30,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)cos.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: cos.3,v 1.5 1993/10/29 22:57:25 jtc Exp $
+.\"	$Id: cos.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt COS 3
 .Os
 .Sh NAME
-.Nm cos
-.Nd cosine function
+.Nm cos ,
+.Nm cosf
+.Nd cosine functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn cos "double x"
+.Ft float
+.Fn cos "float x"
 .Sh DESCRIPTION
 The
 .Fn cos
-function computes the cosine of
+and the
+.Fn cosf
+functions compute the cosine of
 .Fa x
 (measured in radians).
 A large magnitude argument may yield a result with little or no 
@@ -55,7 +60,9 @@ For a discussion of error due to roundoff, see
 .Sh RETURN VALUES
 The
 .Fn cos
-function returns the cosine value.
+and the 
+.Fn cosf
+functions return the cosine value.
 .Sh SEE ALSO
 .Xr sin 3 ,
 .Xr tan 3 ,

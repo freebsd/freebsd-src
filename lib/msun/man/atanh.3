@@ -30,22 +30,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)atanh.3	5.2 (Berkeley) 5/6/91
-.\"	$Id: atanh.3,v 1.4 1993/10/29 22:57:24 jtc Exp $
+.\"	$Id: atanh.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd May 6, 1991
 .Dt ATANH 3
 .Os BSD 4.3
 .Sh NAME
-.Nm atanh
-.Nd inverse hyperbolic tangent function
+.Nm atanh ,
+.Nm atanhf
+.Nd inverse hyperbolic tangent functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn atanh "double x"
+.Ft float
+.Fn atanhf "float x"
 .Sh DESCRIPTION
 The
 .Fn  atanh
-function computes the inverse hyperbolic tangent
+and the 
+.Fn  atanhf
+functions compute the inverse hyperbolic tangent
 of the real
 argument
 .Ar x .
@@ -54,8 +59,10 @@ For a discussion of error due to roundoff, see
 .Sh RETURN VALUES
 The
 .Fn atanh
-function
-returns the inverse hyperbolic tangent of
+and the 
+.Fn atanhf
+functions
+return the inverse hyperbolic tangent of
 .Ar x
 if successful.
 On the

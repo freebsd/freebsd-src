@@ -30,29 +30,36 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)tanh.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: tanh.3,v 1.4 1993/10/05 16:33:49 jtc Exp $
+.\"	$Id: tanh.3,v 1.1.1.1 1994/08/19 09:39:43 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt TANH 3
 .Os
 .Sh NAME
-.Nm tanh
-.Nd hyperbolic tangent function
+.Nm tanh ,
+.Nm tanhf
+.Nd hyperbolic tangent functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn tanh "double x"
+.Ft float
+.Fn tanhf "float x"
 .Sh DESCRIPTION
 The
 .Fn tanh
-function computes the hyperbolic tangent of
+and the
+.Fn tanhf
+functions compute the hyperbolic tangent of
 .Fa x .
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
 The
 .Fn tanh
-function returns the hyperbolic tangent value.
+and the 
+.Fn tanhf
+functions return the hyperbolic tangent value.
 .Sh SEE ALSO
 .Xr acos 3 ,
 .Xr asin 3 ,
