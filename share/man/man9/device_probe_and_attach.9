@@ -41,7 +41,8 @@
 .Fn device_probe_and_attach "device_t dev"
 .Sh DESCRIPTION
 This function is called during autoconfiguration to initialise the
-devices in the system.  For each device, the
+devices in the system.
+For each device, the
 .Xr DEVICE_PROBE 9
 method of each suitable driver is called and if a probe succeeds, a
 description of the device is printed and the

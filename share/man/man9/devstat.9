@@ -68,7 +68,8 @@
 .Fc
 .Sh DESCRIPTION
 The devstat subsystem is an interface for recording device
-statistics, as its name implies.  The idea is to keep reasonably detailed
+statistics, as its name implies.
+The idea is to keep reasonably detailed
 statistics while utilizing a minimum amount of CPU time to record them.
 Thus, no statistical calculations are actually performed in the kernel
 portion of the
@@ -78,7 +79,8 @@ code. Instead, that is left for user programs to handle.
 .Fn devstat_add_entry
 registers a device with the
 .Nm
-subsystem.  The caller is expected to have already allocated \fBand zeroed\fR
+subsystem.
+The caller is expected to have already allocated \fBand zeroed\fR
 the devstat structure before calling this function.
 .Fn devstat_add_entry
 takes several arguments:
@@ -92,40 +94,48 @@ The device name. e.g. da, cd, sa.
 .It unit_number
 Device unit number.
 .It block_size
-Block size of the device, if supported.  If the device does not support a
+Block size of the device, if supported.
+If the device does not support a
 block size, or if the blocksize is unknown at the time the device is added
 to the
 .Nm
 list, it should be set to 0.
 .It flags
-Flags indicating operations supported or not supported by the device.  See
-below for details.
+Flags indicating operations supported or not supported by the device.
+See below for details.
 .It device_type
-The device type.  This is broken into three sections:  base device type
+The device type.
+This is broken into three sections:  base device type
 (e.g. direct access, CDROM, sequential access), interface type (IDE, SCSI
-or other) and a pass-through flag to indicate pas-through devices.  See below
-for a complete list of types.
+or other) and a pass-through flag to indicate pas-through devices.
+See below for a complete list of types.
 .It priority
-The device priority.  The priority is used to determine how devices are
+The device priority.
+The priority is used to determine how devices are
 sorted within
 .Nm devstat Ns 's
-list of devices.  Devices are sorted first by priority (highest to lowest),
-and then by attach order.  See below for a complete list of available
+list of devices.
+Devices are sorted first by priority (highest to lowest),
+and then by attach order.
+See below for a complete list of available
 priorities.
 .El
 .Pp
 .Fn devstat_remove_entry
 removes a device from the
 .Nm
-subsystem.  It takes the devstat structure for the device in question as
-an argument.  The
+subsystem.
+It takes the devstat structure for the device in question as
+an argument.
+The
 .Nm
 generation number is incremented and the number of devices is decremented.
 .Pp
 .Fn devstat_start_transaction
 registers the start of a transaction with the
 .Nm
-subsystem.  The busy count is incremented with each transaction start.
+subsystem.
+The busy count is incremented with each transaction start.
 When a device goes from idle to busy, the system uptime is recorded in the
 .Va start_time
 field of the
@@ -135,7 +145,8 @@ structure.
 .Fn devstat_end_transaction
 registers the end of a transaction with the
 .Nm
-subsystem.  It takes four arguments:
+subsystem.
+It takes four arguments:
 .Bl -tag -width tag_type
 .It ds
 The
@@ -144,7 +155,8 @@ structure for the device in question.
 .It bytes
 The number of bytes transferred in this transaction.
 .It tag_type
-Transaction tag type.  See below for tag types.
+Transaction tag type.
+See below for tag types.
 .It flags
 Transaction flags indicating whether the transaction was a read, write, or
 whether no data was transferred.
@@ -164,19 +176,23 @@ structure is composed of the following fields:
 .It dev_links
 Each
 .Va devstat
-structure is placed in a linked list when it is registered.  The
+structure is placed in a linked list when it is registered.
+The
 .Va dev_links
 field contains a pointer to the next entry in the list of
 .Va devstat
 structures.
 .It device_number
-The device number is a unique identifier for each device.  The device
-number is incremented for each new device that is registered.  The device
+The device number is a unique identifier for each device.
+The device
+number is incremented for each new device that is registered.
+The device
 number is currently only a 32-bit integer, but it could be enlarged if
 someone has a system with more than four billion device arrival events.
 .It device_name
 The device name is a text string given by the registering driver to
-identify itself.  (e.g.\&
+identify itself.
+(e.g.\&
 .Dq da ,
 .Dq cd ,
 .Dq sa ,
@@ -185,8 +201,9 @@ etc.)
 The unit number identifies the particular instance of the peripheral driver
 in question.
 .It bytes_written
-This is the number of bytes that have been written to the device.  This
-number is currently an unsigned 64 bit integer.  This will hopefully
+This is the number of bytes that have been written to the device.
+This number is currently an unsigned 64 bit integer.
+This will hopefully
 eliminate the counter wrap that would come very quickly on some systems if
 32 bit integers were used.
 .It bytes_read
@@ -201,12 +218,14 @@ This is the number of writes to the device.
 This is the number of free/erase operations on the device.
 .It num_other
 This is the number of transactions to the device which are neither reads or
-writes.  For instance,
+writes.
+For instance,
 .Tn SCSI
 drivers often send a test unit ready command to
 .Tn SCSI
-devices.  The test unit ready command does not read or write any data.  It
-merely causes the device to return its status.
+devices.
+The test unit ready command does not read or write any data.
+It merely causes the device to return its status.
 .It busy_count
 This is the current number of outstanding transactions for the device.
 This should never go below zero, and on an idle device it should be zero.
@@ -215,20 +234,23 @@ the way
 .Fn devstat_start_transaction
 and
 .Fn devstat_end_transaction
-are being called in client code.  There should be one and only one
+are being called in client code.
+There should be one and only one
 transaction start event and one transaction end event for each transaction.
 .It block_size
 This is the block size of the device, if the device has a block size.
 .It tag_types
 This is an array of counters to record the number of various tag types that
-are sent to a device.  See below for a list of tag types.
+are sent to a device.
+See below for a list of tag types.
 .It dev_creation_time
 This is the time, as reported by
 .Fn getmicrotime
 that the device was registered.
 .It busy_time
 This is the amount of time that the device busy count has been greater than
-zero.  This is only updated when the busy count returns to zero.
+zero.
+This is only updated when the busy count returns to zero.
 .It start_time
 This is the time, as reported by
 .Fn getmicrouptime
@@ -236,29 +258,38 @@ that the device busy count went from zero to one.
 .It last_comp_time
 This is the time as reported by
 .Fn getmicrouptime
-that a transaction last completed.  It is used along with
+that a transaction last completed.
+It is used along with
 .Va start_time
 to calculate the device busy time.
 .It flags
 These flags indicate which statistics measurements are supported by a
-particular device.  These flags are primarily intended to serve as an aid
+particular device.
+These flags are primarily intended to serve as an aid
 to userland programs that decipher the statistics.
 .It device_type
-This is the device type.  It consists of three parts:  the device type
+This is the device type.
+It consists of three parts:  the device type
 (e.g. direct access, CDROM, sequential access, etc.), the interface (IDE,
 SCSI or other) and whether or not the device in question is a pass-through
-driver.  See below for a complete list of device types.
+driver.
+See below for a complete list of device types.
 .It priority
-This is the priority.  This is the first parameter used to determine where
+This is the priority.
+This is the first parameter used to determine where
 to insert a device in the
 .Nm
-list.  The second parameter is attach order.  See below for a list of
+list.
+The second parameter is attach order.
+See below for a list of
 available priorities.
 .El
 .Pp
-Each device is given a device type.  Pass-through devices have the same
+Each device is given a device type.
+Pass-through devices have the same
 underlying device type and interface as the device they provide an
-interface for, but they also have the pass-through flag set.  The base
+interface for, but they also have the pass-through flag set.
+The base
 device types are identical to the
 .Tn SCSI
 device type numbers, so with
@@ -266,7 +297,8 @@ device type numbers, so with
 peripherals, the device type returned from an inquiry is usually ORed with
 the
 .Tn SCSI
-interface type and the pass-through flag if appropriate.  The device type
+interface type and the pass-through flag if appropriate.
+The device type
 flags are as follows:
 .Bd -literal -offset indent
 typedef enum {
@@ -297,7 +329,8 @@ typedef enum {
 Devices have a priority associated with them, which controls roughly where
 they are placed in the
 .Nm
-list.  The priorities are as follows:
+list.
+The priorities are as follows:
 .Bd -literal -offset indent
 typedef enum {
 	DEVSTAT_PRIORITY_MIN	= 0x000,
@@ -314,7 +347,8 @@ typedef enum {
 .Ed
 .Pp
 Each device has associated with it flags to indicate what operations are
-supported or not supported.  The
+supported or not supported.
+The
 .Va devstat_support_flags
 values are as follows:
 .Bl -tag -width DEVSTAT_NO_ORDERED_TAGS
@@ -325,7 +359,8 @@ This device does not have a blocksize.
 .It DEVSTAT_NO_ORDERED_TAGS
 This device does not support ordered tags.
 .It DEVSTAT_BS_UNAVAILABLE
-This device supports a blocksize, but it is currently unavailable.  This
+This device supports a blocksize, but it is currently unavailable.
+This
 flag is most often used with removable media drives.
 .El
 .Pp
@@ -361,7 +396,8 @@ The device doesn't support tags.
 .Pp
 The tag type values correspond to the lower four bits of the
 .Tn SCSI
-tag definitions.  In CAM, for instance, the
+tag definitions.
+In CAM, for instance, the
 .Va tag_action
 from the CCB is ORed with 0xf to determine the tag type to pass in to
 .Fn devstat_end_transaction .
@@ -375,7 +411,8 @@ This is the current version of the
 subsystem, and it should be incremented each time a change is made that
 would require recompilation of userland programs that access
 .Nm
-statistics.  Userland programs use this version, via the
+statistics.
+Userland programs use this version, via the
 .Va kern.devstat.version
 .Nm sysctl
 variable to determine whether they are in sync with the kernel
@@ -407,9 +444,11 @@ variable.
 .Pp
 It is impossible with the current
 .Nm
-architecture to accurately measure time per transaction.  The only feasible
+architecture to accurately measure time per transaction.
+The only feasible
 way to accurately measure time per transaction would be to record a
-timestamp for every transaction.  This measurement is probably not
+timestamp for every transaction.
+This measurement is probably not
 worthwhile for most people as it would adversely affect the performance of
 the system and cost space to store the timestamps for individual
 transactions.
