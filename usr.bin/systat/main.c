@@ -111,14 +111,6 @@ main(argc, argv)
 		error("%s", errbuf);
 		exit(1);
 	}
-	if (kvm_nlist(kd, namelist)) {
-		nlisterr(namelist);
-		exit(1);
-	}
-	if (namelist[X_FIRST].n_type == 0) {
-		fprintf(stderr, "couldn't read namelist.\n");
-		exit(1);
-	}
 	signal(SIGINT, die);
 	signal(SIGQUIT, die);
 	signal(SIGTERM, die);
@@ -140,6 +132,14 @@ main(argc, argv)
 	if (wload == NULL) {
 		fprintf(stderr, "Couldn't set up load average window.\n");
 		die(0);
+	}
+	if (kvm_nlist(kd, namelist)) {
+		nlisterr(namelist);
+		exit(1);
+	}
+	if (namelist[X_FIRST].n_type == 0) {
+		fprintf(stderr, "couldn't read namelist.\n");
+		exit(1);
 	}
 	gethostname(hostname, sizeof (hostname));
 	NREAD(X_HZ, &hz, LONG);
