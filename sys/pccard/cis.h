@@ -1,4 +1,3 @@
-
 /*
  *	PCMCIA card structures and defines.
  *	These defines relate to the user level
