@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.39 1999/04/19 06:57:33 peter Exp $
+ *	$Id: eisaconf.c,v 1.40 1999/04/19 07:58:34 peter Exp $
  */
 
 #include "opt_eisa.h"
@@ -82,35 +82,6 @@ struct eisa_device {
 };
 
 
-/*
- * Local function declarations and static variables
- */
-#if 0
-static void eisa_reg_print __P((struct eisa_device *e_dev,
-				char *string, char *separator));
-static int eisa_add_resvaddr __P((struct eisa_device *e_dev,
-				  struct resvlist *head, u_long	base,
-				  u_long size, int flags));
-static int eisa_reg_resvaddr __P((struct eisa_device *e_dev, 
-				  struct resvlist *head, resvaddr_t *resvaddr,
-				  int *reg_count));
-#endif
-
-#if 0
-/*
- * Keep some state about what we've printed so far
- * to make probe output pretty.
- */
-static struct {
-	int	in_registration;/* reg_start has been called */
-	int	num_interrupts;	
-	int	num_ioaddrs;
-	int	num_maddrs;
-	int	column;		/* How much we have output so far. */
-#define	MAX_COL 80
-} reg_state;
-#endif
-
 /* Global variable, so UserConfig can change it. */
 #ifndef EISA_SLOTS
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
@@ -147,7 +118,7 @@ mainboard_probe(device_t dev)
 static int
 mainboard_attach(device_t dev)
 {
-    return (0);
+	return (0);
 }
 
 static device_method_t mainboard_methods[] = {
@@ -196,7 +167,7 @@ eisa_probe(device_t dev)
 		e_dev = (struct eisa_device *)malloc(sizeof(*e_dev),
 						     M_DEVBUF, M_NOWAIT);
 		if (!e_dev) {
-			printf("eisa0: cannot malloc eisa_device");
+			device_printf(dev, "cannot malloc eisa_device");
 			break; /* Try to attach what we have already */
 		}
 		bzero(e_dev, sizeof(*e_dev));
@@ -404,92 +375,6 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 	return rv;
 }
 
-#if 0
-
-/* Interrupt and I/O space registration facitlities */
-void
-eisa_reg_start(e_dev)
-	struct eisa_device *e_dev;
-{
-	/*
-	 * Announce the device.
-	 */
-	char *string;
-
-	reg_state.in_registration = 1;
-	reg_state.num_interrupts = 0;
-	reg_state.num_ioaddrs = 0;
-	reg_state.num_maddrs = 0;
-	reg_state.column = 0;
-
-	string = malloc(strlen(e_dev->full_name) + sizeof(" <>") + /*NULL*/1,
-			M_TEMP, M_NOWAIT);
-	if(!string) {
-		printf("eisa0: cannot malloc device description string\n");
-		return;
-	}
-	sprintf(string, " <%s>", e_dev->full_name);
-	eisa_reg_print(e_dev, string, /*separator=*/NULL);
-	free(string, M_TEMP);
-}
-
-/*
- * Output registration information mindfull of screen wrap.
- * Output an optional character separator before the string
- * if the line does not wrap.
- */
-static void
-eisa_reg_print(e_dev, string, separator)
-	struct eisa_device *e_dev;
-	char *string;
-	char *separator;
-{
-	int len = strlen(string);
-
-	if(separator)
-		len++;
-
-	if(reg_state.column + len > MAX_COL) {
-		printf("\n");
-		reg_state.column = 0;
-	}
-	else if(separator) {
-		printf("%c", *separator);
-		reg_state.column++;
-	}
-
-	if(reg_state.column == 0)
-		reg_state.column += printf("%s%ld:%s",
-					   e_dev->driver->name,
-					   e_dev->unit,
-					   string);
-	else
-		reg_state.column += printf("%s", string);
-}
-
-/* Interrupt and I/O space registration facitlities */
-void
-eisa_reg_end(e_dev)
-	struct eisa_device *e_dev;
-{
-	if( reg_state.in_registration )
-	{
-		char string[25];
-
-		snprintf(string, sizeof(string), " on %s0 slot %d",
-			mainboard_drv.name,
-			e_dev->ioconf.slot);
-		eisa_reg_print(e_dev, string, NULL);
-		printf("\n");
-		reg_state.in_registration = 0;
-	}
-	else
-		printf("eisa_reg_end called outside of a "
-		       "registration session\n");
-}
-
-#endif /* 0 */
-
 int
 eisa_add_intr(dev, irq)
 	device_t dev;
@@ -508,124 +393,6 @@ eisa_add_intr(dev, irq)
 	TAILQ_INSERT_TAIL(&e_dev->ioconf.irqs, irq_info, links);
 	return 0;
 }
-
-#if 0
-
-int
-eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
-	struct eisa_device *e_dev;
-	int   irq;
-	void (*func)(void *);
-	void  *arg;
-	u_int *maskptr;
-	int   shared;
-{
-	char string[25];
-	char separator = ',';
-
-#if NOT_YET
-	/* 
-	 * Punt on conflict detection for the moment.
-	 * I want to develop a generic routine to do
-	 * this for all device types.
-	 */
-	int checkthese = CC_IRQ;
-	if (haveseen_dev(dev, checkthese))
-        	return 1;
-#endif
-	if (reg_state.in_registration) {
-		/*
-		 * Find the first instance of this irq that has a
-		 * NULL idesc.
-		 */
-		struct irq_node *cur_irq;
-
-		cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
-		while (cur_irq != NULL) {
-			if (cur_irq->irq_no == irq
-			 && cur_irq->idesc == NULL) {
-				/* XXX use cfg->devdata  */
-                		void *dev_instance = (void *)-1;
-
-				cur_irq->idesc = intr_create(dev_instance,
-							     irq,
-							     func,
-							     arg,
-							     maskptr, 0);
-				break;
-			}
-			cur_irq = TAILQ_NEXT(cur_irq, links);
-		}
- 
-		if (cur_irq == NULL || cur_irq->idesc == NULL)
-			return (-1);
-	} else {
-		return EPERM;
-	}
-
-	snprintf(string, sizeof(string), " irq %d", irq);
-	eisa_reg_print(e_dev, string, reg_state.num_interrupts ? 
-				      &separator : NULL);
-	reg_state.num_interrupts++;
-	return (0);
-}
-
-int
-eisa_release_intr(e_dev, irq, func)
-	struct eisa_device *e_dev;
-	int   irq;
-	void  (*func)(void *);
-{
-	int	result;
-	struct	irq_node *cur_irq;
-
-	result = -1;
-	cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
-       	while (cur_irq != NULL) {
-		if (cur_irq->irq_no == irq) {
-			struct	irq_node *next_irq;
-
-			next_irq = TAILQ_NEXT(cur_irq, links);
-			if (cur_irq->idesc != NULL)
-				intr_destroy(cur_irq->idesc);
-			TAILQ_REMOVE(&e_dev->ioconf.irqs, cur_irq, links);
-			free(cur_irq, M_DEVBUF);
-			cur_irq = next_irq;
-			result = 0;
-		} else {
-			cur_irq = TAILQ_NEXT(cur_irq, links);
-		}
-	}
-	if (result != 0) {
-		printf("%s%ld: Attempted to release an interrupt (%d) "
-		       "it doesn't own\n", e_dev->driver->name,
-			e_dev->unit, irq);
-	}
-
-	return (result);
-}
-
-int
-eisa_enable_intr(e_dev, irq)
-	struct eisa_device *e_dev;
-	int irq;
-{
-	struct	irq_node *cur_irq;
-	int	result;
-
-	result = -1;
-	cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
-       	while (cur_irq != NULL) {
-		if (cur_irq->irq_no == irq
-		 && cur_irq->idesc != NULL) {
-			result = intr_connect(cur_irq->idesc);
-		}
-		cur_irq = TAILQ_NEXT(cur_irq, links);
-	}
-	return (result);
-}
-
-#endif /* 0 */
 
 static int
 eisa_add_resvaddr(e_dev, head, base, size, flags)
@@ -703,91 +470,6 @@ eisa_add_iospace(dev, iobase, iosize, flags)
 	return	eisa_add_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), iobase,
 				  iosize, flags);
 }
-
-#if 0
-
-static int
-eisa_reg_resvaddr(e_dev, head, resvaddr, reg_count)
-	struct eisa_device *e_dev;
-	struct resvlist *head;
-	resvaddr_t *resvaddr;
-	int *reg_count;
-{
-	if (reg_state.in_registration) {
-		resvaddr_t *node;
-		/*
-		 * Ensure that this resvaddr is actually in the devices'
-		 * reservation list.
-		 */
-		for(node = head->lh_first; node;
-		    node = node->links.le_next) {
-			if (node == resvaddr) {
-				char buf[35];
-				char separator = ',';
-				char *string = buf;
-
-				if (*reg_count == 0) {
-					/* First time */
-					string += sprintf(string, " at");
-				}
-
-				if (node->size == 1 
-				  || (node->flags & RESVADDR_BITMASK))
-					sprintf(string, " 0x%lx", node->addr);
-				else
-					sprintf(string, " 0x%lx-0x%lx",
-						node->addr,
-						node->addr + node->size - 1);
-				eisa_reg_print(e_dev, buf,
-						*reg_count ? &separator : NULL);
-				(*reg_count)++;
-				return (0);
-			}
-		}
-		return (ENOENT);
-	}
-	return EPERM;
-}
-
-int
-eisa_reg_mspace(e_dev, resvaddr)
-	struct eisa_device *e_dev;
-	resvaddr_t *resvaddr;
-{
-#ifdef NOT_YET
-	/* 
-	 * Punt on conflict detection for the moment.
-	 * I want to develop a generic routine to do
-	 * this for all device types.
-	 */
-	int checkthese = CC_MADDR;
-	if (haveseen_dev(dev, checkthese))
-		return -1;
-#endif
-	return (eisa_reg_resvaddr(e_dev, &(e_dev->ioconf.maddrs), resvaddr,
-				  &(reg_state.num_maddrs)));
-}
-	
-int
-eisa_reg_iospace(e_dev, resvaddr)
-	struct eisa_device *e_dev;
-	resvaddr_t *resvaddr;
-{
-#ifdef NOT_YET
-	/* 
-	 * Punt on conflict detection for the moment.
-	 * I want to develop a generic routine to do
-	 * this for all device types.
-	 */
-	int checkthese = CC_IOADDR;
-	if (haveseen_dev(dev, checkthese))
-		return -1;
-#endif
-	return (eisa_reg_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), resvaddr,
-				  &(reg_state.num_ioaddrs)));
-}
-
-#endif
 
 static device_method_t eisa_methods[] = {
 	/* Device interface */
