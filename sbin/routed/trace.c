@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.13 $"
+#ident "$Revision: 1.14 $"
 
 #define	RIPCMDS
 #include "defs.h"
@@ -60,6 +60,59 @@ static char *tracelevel_pat = "%s\n";
 char savetracename[MAXPATHLEN+1];
 
 static void trace_dump(void);
+
+
+/* convert string to printable characters
+ */
+static char *
+qstring(u_char *s, int len)
+{
+	static char buf[8*20+1];
+	char *p;
+	u_char *s2, c;
+
+
+	for (p = buf; len != 0 && p < &buf[sizeof(buf)-1]; len--) {
+		c = *s++;
+		if (c == '\0') {
+			for (s2 = s+1; s2 < &s[len]; s2++) {
+				if (*s2 != '\0')
+					break;
+			}
+			if (s2 >= &s[len])
+			    goto exit;
+		}
+
+		if (c >= ' ' && c < 0x7f && c != '\\') {
+			*p++ = c;
+			continue;
+		}
+		*p++ = '\\';
+		switch (c) {
+		case '\\':
+			*p++ = '\\';
+			break;
+		case '\n':
+			*p++= 'n';
+			break;
+		case '\r':
+			*p++= 'r';
+			break;
+		case '\t':
+			*p++ = 't';
+			break;
+		case '\b':
+			*p++ = 'b';
+			break;
+		default:
+			p += sprintf(p,"%o",c);
+			break;
+		}
+	}
+exit:
+	*p = '\0';
+	return buf;
+}
 
 
 /* convert IP address to a string, but not into a single buffer
@@ -188,10 +241,11 @@ trace_off(char *p, ...)
 
 void
 trace_on(char *filename,
-	 int trusted)
+	 int initial)			/* 1=setting from command line */
 {
 	struct stat stbuf;
 	FILE *n_ftrace;
+	u_int old_tracelevel;
 
 
 	/* Given a null filename when tracing is already on, increase the
@@ -219,7 +273,7 @@ trace_on(char *filename,
 			return;
 		}
 
-		if (!trusted
+		if (!initial
 #ifdef _PATH_TRACE
 		    && (strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)
 			|| strstr(filename,"../")
@@ -252,7 +306,11 @@ trace_on(char *filename,
 
 	if (new_tracelevel == 0)
 		new_tracelevel = 1;
-	set_tracelevel();
+	old_tracelevel = tracelevel;
+	set_tracelevel(initial);
+
+	if (!initial && old_tracelevel == 0)
+		trace_dump();
 }
 
 
@@ -281,7 +339,7 @@ sigtrace_off(int s)
  *	actions + packets + contents
  */
 void
-set_tracelevel(void)
+set_tracelevel(int initial)
 {
 	static char *off_msgs[MAX_TRACELEVEL] = {
 		"Tracing actions stopped",
@@ -304,7 +362,8 @@ set_tracelevel(void)
 			return;
 		}
 	}
-	while (new_tracelevel != tracelevel) {
+
+	for (; new_tracelevel != tracelevel; tracelevel++) {
 		if (new_tracelevel < tracelevel) {
 			if (--tracelevel == 0)
 				trace_off(tracelevel_pat, off_msgs[0]);
@@ -317,7 +376,8 @@ set_tracelevel(void)
 				else
 					ftrace = stdout;
 			}
-			tmsg(tracelevel_pat, on_msgs[tracelevel++]);
+			if (!initial || tracelevel+1 == new_tracelevel)
+				tmsg(tracelevel_pat, on_msgs[tracelevel]);
 		}
 	}
 	tracelevel_pat = "%s\n";
@@ -377,10 +437,11 @@ static struct bits if_bits[] = {
 };
 
 static struct bits is_bits[] = {
+	{ IS_ALIAS,		0,		"ALIAS" },
 	{ IS_SUBNET,		0,		"" },
-	{ IS_REMOTE,		0,		"REMOTE" },
+	{ IS_REMOTE,		(IS_NO_RDISC
+				 | IS_BCAST_RDISC), "REMOTE" },
 	{ IS_PASSIVE,		(IS_NO_RDISC
-				 | IS_BCAST_RDISC
 				 | IS_NO_RIP
 				 | IS_NO_SUPER_AG
 				 | IS_PM_RDISC
@@ -389,10 +450,10 @@ static struct bits is_bits[] = {
 	{ IS_CHECKED,		0,		"" },
 	{ IS_ALL_HOSTS,		0,		"" },
 	{ IS_ALL_ROUTERS,	0,		"" },
-	{ IS_RIP_QUERIED,	0,		"" },
+	{ IS_DISTRUST,		0,		"DISTRUST" },
 	{ IS_BROKE,		IS_SICK,	"BROKEN" },
 	{ IS_SICK,		0,		"SICK" },
-	{ IS_ACTIVE,		0,		"ACTIVE" },
+	{ IS_DUP,		0,		"DUPLICATE" },
 	{ IS_NEED_NET_SYN,	0,		"" },
 	{ IS_NO_AG,		IS_NO_SUPER_AG,	"NO_AG" },
 	{ IS_NO_SUPER_AG,	0,		"NO_SUPER_AG" },
@@ -414,7 +475,7 @@ static struct bits is_bits[] = {
 	{ IS_NO_ADV_OUT,	IS_BCAST_RDISC,	"NO_RDISC_ADV" },
 	{ IS_ADV_OUT,		0,		"RDISC_ADV" },
 	{ IS_BCAST_RDISC,	0,		"BCAST_RDISC" },
-	{ IS_PM_RDISC,		0,		"PM_RDISC" },
+	{ IS_PM_RDISC,		0,		"" },
 	{ 0,			0,		"%#x"}
 };
 
@@ -495,15 +556,18 @@ trace_if(char *act,
 		return;
 
 	lastlog();
-	(void)fprintf(ftrace, "%s interface %-4s ", act, ifp->int_name);
+	(void)fprintf(ftrace, "%-3s interface %-4s ", act, ifp->int_name);
 	(void)fprintf(ftrace, "%-15s-->%-15s ",
 		      naddr_ntoa(ifp->int_addr),
-		      addrname(htonl((ifp->int_if_flags & IFF_POINTOPOINT)
-				     ? ifp->int_dstaddr
-				     : ifp->int_net),
+		      addrname(((ifp->int_if_flags & IFF_POINTOPOINT)
+				? ifp->int_dstaddr
+				: htonl(ifp->int_net)),
 			       ifp->int_mask, 1));
 	if (ifp->int_metric != 0)
 		(void)fprintf(ftrace, "metric=%d ", ifp->int_metric);
+	if (!IS_RIP_OUT_OFF(ifp->int_state)
+	    && ifp->int_d_metric != 0)
+		(void)fprintf(ftrace, "fake_default=%d ", ifp->int_d_metric);
 	trace_bits(if_bits, ifp->int_if_flags, 0);
 	trace_bits(is_bits, ifp->int_state, 0);
 	(void)fputc('\n',ftrace);
@@ -605,6 +669,7 @@ trace_act(char *p, ...)
 	lastlog();
 	va_start(args, p);
 	vfprintf(ftrace, p, args);
+	(void)fputc('\n',ftrace);
 }
 
 
@@ -621,6 +686,7 @@ trace_pkt(char *p, ...)
 	lastlog();
 	va_start(args, p);
 	vfprintf(ftrace, p, args);
+	(void)fputc('\n',ftrace);
 }
 
 
@@ -762,10 +828,14 @@ walk_trace(struct radix_node *rn,
 static void
 trace_dump(void)
 {
+	struct interface *ifp;
+
 	if (ftrace == 0)
 		return;
 	lastlog();
 
+	for (ifp = ifnet; ifp != 0; ifp = ifp->int_next)
+		trace_if("", ifp);
 	(void)rn_walktree(rhead, walk_trace, 0);
 }
 
@@ -778,8 +848,8 @@ trace_rip(char *dir1, char *dir2,
 	  int size)			/* total size of message */
 {
 	struct netinfo *n, *lim;
-	struct netauth *a;
-	int i;
+#	define NA (msg->rip_auths)
+	int i, seen_route;
 
 	if (!TRACEPACKETS || ftrace == 0)
 		return;
@@ -803,17 +873,20 @@ trace_rip(char *dir1, char *dir2,
 	if (!TRACECONTENTS)
 		return;
 
+	seen_route = 0;
 	switch (msg->rip_cmd) {
 	case RIPCMD_REQUEST:
 	case RIPCMD_RESPONSE:
 		n = msg->rip_nets;
 		lim = (struct netinfo *)((char*)msg + size);
 		for (; n < lim; n++) {
-			if (n->n_family == RIP_AF_UNSPEC
+			if (!seen_route
+			    && n->n_family == RIP_AF_UNSPEC
 			    && ntohl(n->n_metric) == HOPCNT_INFINITY
-			    && n+1 == lim
-			    && n == msg->rip_nets
-			    && msg->rip_cmd == RIPCMD_REQUEST) {
+			    && msg->rip_cmd == RIPCMD_REQUEST
+			    && (n+1 == lim
+				|| (n+2 == lim
+				    && (n+1)->n_family == RIP_AF_AUTH))) {
 				(void)fputs("\tQUERY ", ftrace);
 				if (n->n_dst != 0)
 					(void)fprintf(ftrace, "%s ",
@@ -822,32 +895,57 @@ trace_rip(char *dir1, char *dir2,
 					(void)fprintf(ftrace, "mask=%#x ",
 						      (u_int)ntohl(n->n_mask));
 				if (n->n_nhop != 0)
-					(void)fprintf(ftrace, " nhop=%s ",
+					(void)fprintf(ftrace, "nhop=%s ",
 						      naddr_ntoa(n->n_nhop));
 				if (n->n_tag != 0)
-					(void)fprintf(ftrace, "tag=%#x",
+					(void)fprintf(ftrace, "tag=%#x ",
 						      ntohs(n->n_tag));
 				(void)fputc('\n',ftrace);
 				continue;
 			}
 
 			if (n->n_family == RIP_AF_AUTH) {
-				a = (struct netauth*)n;
+				if (NA->a_type == RIP_AUTH_PW
+				    && n == msg->rip_nets) {
+					(void)fprintf(ftrace, "\tPassword"
+						      " Authentication:"
+						      " \"%s\"\n",
+						      qstring(NA->au.au_pw,
+							  RIP_AUTH_PW_LEN));
+					continue;
+				}
+
+				if (NA->a_type == RIP_AUTH_MD5
+				    && n == msg->rip_nets) {
+					(void)fprintf(ftrace,
+						      "\tMD5 Authentication"
+						      " len=%d KeyID=%u"
+						      " seqno=%u"
+						      " rsvd=%#x,%#x\n",
+						      NA->au.a_md5.md5_pkt_len,
+						      NA->au.a_md5.md5_keyid,
+						      NA->au.a_md5.md5_seqno,
+						      NA->au.a_md5.rsvd[0],
+						      NA->au.a_md5.rsvd[1]);
+					continue;
+				}
 				(void)fprintf(ftrace,
-					      "\tAuthentication type %d: ",
-					      ntohs(a->a_type));
+					      "\tAuthentication"
+					      " type %d: ",
+					      ntohs(NA->a_type));
 				for (i = 0;
-				     i < sizeof(a->au.au_pw);
+				     i < sizeof(NA->au.au_pw);
 				     i++)
 					(void)fprintf(ftrace, "%02x ",
-						      a->au.au_pw[i]);
+						      NA->au.au_pw[i]);
 				(void)fputc('\n',ftrace);
 				continue;
 			}
 
+			seen_route = 1;
 			if (n->n_family != RIP_AF_INET) {
 				(void)fprintf(ftrace,
-					      "\t(af %d) %-18s mask=%#x",
+					      "\t(af %d) %-18s mask=%#x ",
 					      ntohs(n->n_family),
 					      naddr_ntoa(n->n_dst),
 					      (u_int)ntohl(n->n_mask));
