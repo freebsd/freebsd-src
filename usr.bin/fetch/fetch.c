@@ -206,9 +206,9 @@ fetch(char *URL, char *path)
     if (!*url->scheme) {
 	if (!*url->host)
 	    strcpy(url->scheme, SCHEME_FILE);
-	else if (strncasecmp(url->host, "ftp.", 4))
+	else if (strncasecmp(url->host, "ftp.", 4) == 0)
 	    strcpy(url->scheme, SCHEME_FTP);
-	else if (strncasecmp(url->host, "www.", 4))
+	else if (strncasecmp(url->host, "www.", 4) == 0)
 	    strcpy(url->scheme, SCHEME_HTTP);
     }
 
