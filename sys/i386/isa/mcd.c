@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.68 1996/02/02 22:08:28 ache Exp $
+ *	$Id: mcd.c,v 1.69 1996/02/03 00:06:49 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1576,7 +1576,8 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 	    sc->address_format != CD_LBA_FORMAT)
 		return EINVAL;
 
-	if (sc->data_format != CD_CURRENT_POSITION)
+	if (sc->data_format != CD_CURRENT_POSITION &&
+	    sc->data_format != CD_MEDIA_CATALOG)
 		return EINVAL;
 
 	if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
@@ -1587,32 +1588,42 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 
 	data.header.audio_status = cd->audio_status;
 	data.what.position.data_format = sc->data_format;
-	data.what.position.control = q.control;
-	data.what.position.addr_type = q.addr_type;
-	data.what.position.track_number = bcd2bin(q.trk_no);
-	data.what.position.index_number = bcd2bin(q.idx_no);
-	switch (sc->address_format) {
-	case CD_MSF_FORMAT:
-		data.what.position.reladdr.msf.unused = 0;
-		data.what.position.reladdr.msf.minute = bcd2bin(q.trk_size_msf[0]);
-		data.what.position.reladdr.msf.second = bcd2bin(q.trk_size_msf[1]);
-		data.what.position.reladdr.msf.frame = bcd2bin(q.trk_size_msf[2]);
-		data.what.position.absaddr.msf.unused = 0;
-		data.what.position.absaddr.msf.minute = bcd2bin(q.hd_pos_msf[0]);
-		data.what.position.absaddr.msf.second = bcd2bin(q.hd_pos_msf[1]);
-		data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
+
+	switch (sc->data_format) {
+	case CD_MEDIA_CATALOG:
+		data.what.media_catalog.mc_valid = 1;
+		data.what.media_catalog.mc_number[0] = '\0';
 		break;
-	case CD_LBA_FORMAT:
-		lba = msf2hsg(q.trk_size_msf, 1);
-		/*
-		 * Pre-gap has index number of 0, and decreasing MSF
-		 * address.  Must be converted to negative LBA, per
-		 * SCSI spec.
-		 */
-		if (data.what.position.index_number == 0)
-			lba = -lba;
-		data.what.position.reladdr.lba = htonl(lba);
-		data.what.position.absaddr.lba = htonl(msf2hsg(q.hd_pos_msf, 0));
+
+	case CD_CURRENT_POSITION:
+		data.what.position.control = q.control;
+		data.what.position.addr_type = q.addr_type;
+		data.what.position.track_number = bcd2bin(q.trk_no);
+		data.what.position.index_number = bcd2bin(q.idx_no);
+		switch (sc->address_format) {
+		case CD_MSF_FORMAT:
+			data.what.position.reladdr.msf.unused = 0;
+			data.what.position.reladdr.msf.minute = bcd2bin(q.trk_size_msf[0]);
+			data.what.position.reladdr.msf.second = bcd2bin(q.trk_size_msf[1]);
+			data.what.position.reladdr.msf.frame = bcd2bin(q.trk_size_msf[2]);
+			data.what.position.absaddr.msf.unused = 0;
+			data.what.position.absaddr.msf.minute = bcd2bin(q.hd_pos_msf[0]);
+			data.what.position.absaddr.msf.second = bcd2bin(q.hd_pos_msf[1]);
+			data.what.position.absaddr.msf.frame = bcd2bin(q.hd_pos_msf[2]);
+			break;
+		case CD_LBA_FORMAT:
+			lba = msf2hsg(q.trk_size_msf, 1);
+			/*
+			 * Pre-gap has index number of 0, and decreasing MSF
+			 * address.  Must be converted to negative LBA, per
+			 * SCSI spec.
+			 */
+			if (data.what.position.index_number == 0)
+				lba = -lba;
+			data.what.position.reladdr.lba = htonl(lba);
+			data.what.position.absaddr.lba = htonl(msf2hsg(q.hd_pos_msf, 0));
+			break;
+		}
 		break;
 	}
 
