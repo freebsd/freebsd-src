@@ -99,9 +99,7 @@ int writetimes(struct quotause *, int, int);
 int writeprivs(struct quotause *, int, char *, int);
 
 int
-main(argc, argv)
-	register char **argv;
-	int argc;
+main(int argc, char **argv)
 {
 	register struct quotause *qup, *protoprivs, *curprivs;
 	register long id, protoid;
