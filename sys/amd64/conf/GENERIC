@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.96 1997/09/22 00:37:08 gibbs Exp $
+#	$Id: GENERIC,v 1.97 1997/10/08 17:05:03 nate Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -96,7 +96,6 @@ device		scd0	at isa? port 0x230 bio
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		PCVT_FREEBSD=210	# pcvt running on FreeBSD >= 2.0.5
 #options		XSERVER			# support for X server
 #options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
