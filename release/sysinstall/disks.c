@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.12 1995/10/14 09:30:45 jkh Exp $
+ * $Id: disks.c,v 1.31.2.13 1995/10/14 19:13:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,7 +49,7 @@
 #define CHUNK_START_ROW		5
 
 /* Where we keep track of MBR chunks */
-static struct chunk *chunk_info[10];
+static struct chunk *chunk_info[16];
 static int current_chunk;
 
 static void
@@ -402,7 +402,7 @@ static u_char *
 getBootMgr(int disk)
 {
     extern u_char mbr[], bteasy17[];
-    static char str[80];
+    char str[80];
 
     /* Figure out what kind of MBR the user wants */
     sprintf(str, "Install Boot Manager for %s drive?", disk == 0 ? "first" :
