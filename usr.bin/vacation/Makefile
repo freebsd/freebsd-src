@@ -3,4 +3,6 @@
 PROG=	vacation
 DPADD=	${LIBDBM}
 
+CFLAGS+= -Wall
+
 .include <bsd.prog.mk>
