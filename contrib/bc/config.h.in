@@ -46,6 +46,9 @@
 /* Define if you have the isgraph function.  */
 #undef HAVE_ISGRAPH
 
+/* Define if you have the setvbuf function.  */
+#undef HAVE_SETVBUF
+
 /* Define if you have the <lib.h> header file.  */
 #undef HAVE_LIB_H
 

@@ -1,7 +1,7 @@
 /* version.h: version information for GNU bc and GNU dc */
 
 /* This file is part of GNU bc and GNU dc.
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,10 +20,9 @@
  */
 
 #define BC_VERSION  \
-"bc 1.04\nCopyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc."
+"bc 1.05\n\
+Copyright 1991, 1992, 1993, 1994, 1997, 1998 Free Software Foundation, Inc."
 
 #define DC_VERSION \
-"dc 1.1 (GNU bc 1.04)\nCopyright (C) 1994, 1997 Free Software Foundation, Inc."
-
-
-
+"dc 1.2 (GNU bc 1.05)\n\
+Copyright 1994, 1997, 1998 Free Software Foundation, Inc."

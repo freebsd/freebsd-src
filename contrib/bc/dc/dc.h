@@ -1,7 +1,7 @@
 /* 
  * Header file for dc routines
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,8 @@
 #endif /* __STDC__ */
 
 
-typedef enum {DC_FALSE, DC_TRUE} dc_boolean;
+typedef enum {DC_TOSS, DC_KEEP}   dc_discard;
+typedef enum {DC_NONL, DC_WITHNL} dc_newline;
 
 
 /* type discriminant for dc_data */

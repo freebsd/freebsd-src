@@ -1,7 +1,7 @@
 /* 
  * implement stack functions for dc
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 /* simple linked-list implementaion suffices: */
 struct dc_list {
 	dc_data value;
+	struct dc_array *array;	/* opaque */
 	struct dc_list *link;
 };
 typedef struct dc_list dc_list;
@@ -60,6 +61,7 @@ dc_alloc DC_DECLVOID()
 
 	result = dc_malloc(sizeof *result);
 	result->value.dc_type = DC_UNINITIALIZED;
+	result->array = NULL;
 	result->link = NULL;
 	return result;
 }
@@ -247,6 +249,7 @@ dc_clear_stack DC_DECLVOID()
 			dc_free_str(&n->value.v.string);
 		else
 			dc_garbage("in stack", -1);
+		dc_array_free(n->array);
 		free(n);
 	}
 	dc_stack = NULL;
@@ -369,6 +372,7 @@ dc_pop DC_DECLARG((result))
 		dc_garbage("at top of stack", -1);
 	*result = r->value;
 	dc_stack = r->link;
+	dc_array_free(r->array);
 	free(r);
 	return DC_SUCCESS;
 }
@@ -396,6 +400,7 @@ dc_register_pop DC_DECLARG((stackid, result))
 		dc_garbage(" stack", stackid);
 	*result = r->value;
 	dc_register[stackid] = r->link;
+	dc_array_free(r->array);
 	free(r);
 	return DC_SUCCESS;
 }
@@ -415,25 +420,25 @@ dc_tell_stackdepth DC_DECLVOID()
 
 
 /* return the length of the indicated data value;
- * if discard_flag is true, the deallocate the value when done
+ * if discard_p is DC_TOSS, the deallocate the value when done
  *
  * The definition of a datum's length is deligated to the
  * appropriate module.
  */
 int
-dc_tell_length DC_DECLARG((value, discard_flag))
+dc_tell_length DC_DECLARG((value, discard_p))
 	dc_data value DC_DECLSEP
-	dc_boolean discard_flag DC_DECLEND
+	dc_discard discard_p DC_DECLEND
 {
 	int length;
 
 	if (value.dc_type == DC_NUMBER){
 		length = dc_numlen(value.v.number);
-		if (discard_flag == DC_TRUE)
+		if (discard_p == DC_TOSS)
 			dc_free_num(&value.v.number);
 	} else if (value.dc_type == DC_STRING) {
 		length = dc_strlen(value.v.string);
-		if (discard_flag == DC_TRUE)
+		if (discard_p == DC_TOSS)
 			dc_free_str(&value.v.string);
 	} else {
 		dc_garbage("in tell_length", -1);
@@ -453,5 +458,32 @@ dc_printall DC_DECLARG((obase))
 	dc_list *n;
 
 	for (n=dc_stack; n; n=n->link)
-		dc_print(n->value, obase);
+		dc_print(n->value, obase, DC_WITHNL, DC_KEEP);
+}
+
+
+
+
+/* get the current array head for the named array */
+struct dc_array *
+dc_get_stacked_array DC_DECLARG((array_id))
+	int array_id DC_DECLEND
+{
+	dc_list *r = dc_register[regmap(array_id)];
+	return r ? r->array : NULL;
+}
+
+/* set the current array head for the named array */
+void
+dc_set_stacked_array DC_DECLARG((array_id, new_head))
+	int array_id DC_DECLSEP
+	struct dc_array *new_head DC_DECLEND
+{
+	dc_list *r;
+
+	array_id = regmap(array_id);
+	r = dc_register[array_id];
+	if ( ! r )
+		r = dc_register[array_id] = dc_alloc();
+	r->array = new_head;
 }

@@ -1,7 +1,7 @@
 /* 
  * evaluate the dc language, from a FILE* or a string
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@
 #include "dc.h"
 #include "dc-proto.h"
 
+typedef enum {DC_FALSE, DC_TRUE} dc_boolean;
+
 typedef enum {
 	DC_OKAY = DC_SUCCESS, /* no further intervention needed for this command */
 	DC_EATONE,		/* caller needs to eat the lookahead char */
@@ -50,6 +52,7 @@ typedef enum {
 	DC_STR,			/* caller needs to parse a dc_str from input stream */
 	DC_SYSTEM,		/* caller needs to run a system() on next input line */
 	DC_COMMENT,		/* caller needs to skip to the next input line */
+	DC_NEGCMP,		/* caller needs to re-call dc_func() with `negcmp' set */
 
 	DC_EOF_ERROR	/* unexpected end of input; abort current eval */
 } dc_status;
@@ -127,11 +130,13 @@ dc_eval_and_free_str DC_DECLARG((string))
  *
  * c -> the "current" input character under consideration
  * peekc -> the lookahead input character
+ * negcmp -> negate comparison test (for <,=,> commands)
  */
 static dc_status
-dc_func DC_DECLARG((c, peekc))
+dc_func DC_DECLARG((c, peekc, negcmp))
 	int c DC_DECLSEP
-	int peekc DC_DECLEND
+	int peekc DC_DECLSEP
+	int negcmp DC_DECLEND
 {
 	/* we occasionally need these for temporary data */
 	/* Despite the GNU coding standards, it is much easier
@@ -198,7 +203,7 @@ dc_func DC_DECLARG((c, peekc))
 		 */
 		if (peekc == EOF)
 			return DC_EOF_ERROR;
-		if (dc_cmpop() <  0)
+		if ( (dc_cmpop() <  0) == !negcmp )
 			if (dc_register_get(peekc, &datum) == DC_SUCCESS)
 				if (dc_eval_and_free_str(datum) == DC_QUIT)
 					return DC_QUIT;
@@ -209,7 +214,7 @@ dc_func DC_DECLARG((c, peekc))
 		 */
 		if (peekc == EOF)
 			return DC_EOF_ERROR;
-		if (dc_cmpop() == 0)
+		if ( (dc_cmpop() == 0) == !negcmp )
 			if (dc_register_get(peekc, &datum) == DC_SUCCESS)
 				if (dc_eval_and_free_str(datum) == DC_QUIT)
 					return DC_QUIT;
@@ -220,7 +225,7 @@ dc_func DC_DECLARG((c, peekc))
 		 */
 		if (peekc == EOF)
 			return DC_EOF_ERROR;
-		if (dc_cmpop()  > 0)
+		if ( (dc_cmpop() >  0) == !negcmp )
 			if (dc_register_get(peekc, &datum) == DC_SUCCESS)
 				if (dc_eval_and_free_str(datum) == DC_QUIT)
 					return DC_QUIT;
@@ -236,6 +241,8 @@ dc_func DC_DECLARG((c, peekc))
 	case '[':	/* read to balancing ']' into a dc_str */
 		return DC_STR;
 	case '!':	/* read to newline and call system() on resulting string */
+		if (peekc == '<' || peekc == '=' || peekc == '>')
+			return DC_NEGCMP;
 		return DC_SYSTEM;
 	case '#':	/* comment; skip remainder of current line */
 		return DC_COMMENT;
@@ -244,8 +251,7 @@ dc_func DC_DECLARG((c, peekc))
 		if (dc_pop(&datum) == DC_SUCCESS){
 			char tmps;
 			if (datum.dc_type == DC_NUMBER){
-				tmps = (char) dc_num2int(datum.v.number, DC_TRUE);
-				dc_free_num(&datum.v.number);
+				tmps = (char) dc_num2int(datum.v.number, DC_TOSS);
 			}else if (datum.dc_type == DC_STRING){
 				tmps = *dc_str2charp(datum.v.string);
 				dc_free_str(&datum.v.string);
@@ -269,7 +275,7 @@ dc_func DC_DECLARG((c, peekc))
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = 0;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_num2int(datum.v.number, DC_TRUE);
+				tmpint = dc_num2int(datum.v.number, DC_TOSS);
 			if ( ! (2 <= tmpint  &&  tmpint <= DC_IBASE_MAX) )
 				fprintf(stderr,
 						"%s: input base must be a number \
@@ -283,7 +289,7 @@ between 2 and %d (inclusive)\n",
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = -1;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_num2int(datum.v.number, DC_TRUE);
+				tmpint = dc_num2int(datum.v.number, DC_TOSS);
 			if ( ! (tmpint >= 0) )
 				fprintf(stderr,
 						"%s: scale must be a nonnegative number\n",
@@ -301,11 +307,17 @@ between 2 and %d (inclusive)\n",
 		if (dc_register_get(peekc, &datum) == DC_SUCCESS)
 			dc_push(datum);
 		return DC_EATONE;
+	case 'n':	/* print the value popped off of top-of-stack;
+				 * do not add a trailing newline
+				 */
+		if (dc_pop(&datum) == DC_SUCCESS)
+			dc_print(datum, dc_obase, DC_NONL, DC_TOSS);
+		break;
 	case 'o':	/* set output base to value on top of stack */
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = 0;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_num2int(datum.v.number, DC_TRUE);
+				tmpint = dc_num2int(datum.v.number, DC_TOSS);
 			if ( ! (tmpint > 1) )
 				fprintf(stderr,
 						"%s: output base must be a number greater than 1\n",
@@ -314,12 +326,14 @@ between 2 and %d (inclusive)\n",
 				dc_obase = tmpint;
 		}
 		break;
-	case 'p':	/* print the datum on the top of stack */
+	case 'p':	/* print the datum on the top of stack,
+				 * with a trailing newline
+				 */
 		if (dc_top_of_stack(&datum) == DC_SUCCESS)
-			dc_print(datum, dc_obase);
+			dc_print(datum, dc_obase, DC_WITHNL, DC_KEEP);
 		break;
 	case 'q':	/* quit two levels of evaluation, posibly exiting program */
-		unwind_depth = 2;
+		unwind_depth = 1; /* the return below is the first level of returns */
 		unwind_noexit = DC_FALSE;
 		return DC_QUIT;
 	case 'r':	/* rotate (swap) the top two elements on the stack
@@ -389,14 +403,18 @@ between 2 and %d (inclusive)\n",
 	case 'O':	/* push the current output base onto the stack */
 		dc_push(dc_int2data(dc_obase));
 		break;
-	case 'P':	/* print the value popped off of top-of-stack;
-				 * do not add a trailing newline
-				 */
+	case 'P':
+		/* Pop the value off the top of a stack.  If it is
+		 * a number, dump out the integer portion of its
+		 * absolute value as a "base UCHAR_MAX+1" byte stream;
+		 * if it is a string, just print it.
+		 * In either case, do not append a trailing newline.
+		 */
 		if (dc_pop(&datum) == DC_SUCCESS){
-			if (datum.dc_type == DC_STRING)
-				dc_out_str(datum.v.string, DC_FALSE, DC_TRUE);
-			else if (datum.dc_type == DC_NUMBER)
-				dc_out_num(datum.v.number, dc_obase, DC_FALSE, DC_TRUE);
+			if (datum.dc_type == DC_NUMBER)
+				dc_dump_num(datum.v.number, DC_TOSS);
+			else if (datum.dc_type == DC_STRING)
+				dc_out_str(datum.v.string, DC_NONL, DC_TOSS);
 			else
 				dc_garbage("at top of stack", -1);
 		}
@@ -409,9 +427,10 @@ between 2 and %d (inclusive)\n",
 			unwind_depth = 0;
 			unwind_noexit = DC_TRUE;
 			if (datum.dc_type == DC_NUMBER)
-				unwind_depth = dc_num2int(datum.v.number, DC_TRUE);
-			if (unwind_depth > 0)
+				unwind_depth = dc_num2int(datum.v.number, DC_TOSS);
+			if (unwind_depth-- > 0)
 				return DC_QUIT;
+			unwind_depth = 0;	/* paranoia */
 			fprintf(stderr,
 					"%s: Q command requires a number >= 1\n",
 					progname);
@@ -427,7 +446,7 @@ between 2 and %d (inclusive)\n",
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = 0;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_num2int(datum.v.number, DC_TRUE);
+				tmpint = dc_num2int(datum.v.number, DC_TOSS);
 			dc_stack_rotate(tmpint);
 		}
 		break;
@@ -444,13 +463,13 @@ between 2 and %d (inclusive)\n",
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = 0;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_tell_scale(datum.v.number, DC_TRUE);
+				tmpint = dc_tell_scale(datum.v.number, DC_TOSS);
 			dc_push(dc_int2data(tmpint));
 		}
 		break;
 	case 'Z':	/* replace the datum on the top-of-stack with its length */
 		if (dc_pop(&datum) == DC_SUCCESS)
-			dc_push(dc_int2data(dc_tell_length(datum, DC_TRUE)));
+			dc_push(dc_int2data(dc_tell_length(datum, DC_TOSS)));
 		break;
 
 	case ':':	/* store into array */
@@ -459,7 +478,7 @@ between 2 and %d (inclusive)\n",
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = -1;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_num2int(datum.v.number, DC_TRUE);
+				tmpint = dc_num2int(datum.v.number, DC_TOSS);
 			if (dc_pop(&datum) == DC_SUCCESS){
 				if (tmpint < 0)
 					fprintf(stderr,
@@ -476,7 +495,7 @@ between 2 and %d (inclusive)\n",
 		if (dc_pop(&datum) == DC_SUCCESS){
 			tmpint = -1;
 			if (datum.dc_type == DC_NUMBER)
-				tmpint = dc_num2int(datum.v.number, DC_TRUE);
+				tmpint = dc_num2int(datum.v.number, DC_TOSS);
 			if (tmpint < 0)
 				fprintf(stderr,
 						"%s: array index must be a nonnegative integer\n",
@@ -507,6 +526,8 @@ dc_evalstr DC_DECLARG((string))
 	int c;
 	int peekc;
 	int count;
+	int negcmp;
+	int next_negcmp = 0;
 
 	if (string.dc_type != DC_STRING){
 		fprintf(stderr,
@@ -521,7 +542,9 @@ dc_evalstr DC_DECLARG((string))
 		peekc = EOF;
 		if (s < end)
 			peekc = *(const unsigned char *)s;
-		switch (dc_func(c, peekc)){
+		negcmp = next_negcmp;
+		next_negcmp = 0;
+		switch (dc_func(c, peekc, negcmp)){
 		case DC_OKAY:
 			break;
 		case DC_EATONE:
@@ -562,6 +585,9 @@ dc_evalstr DC_DECLARG((string))
 			else
 				++s;
 			break;
+		case DC_NEGCMP:
+			next_negcmp = 1;
+			break;
 
 		case DC_EOF_ERROR:
 			fprintf(stderr, "%s: unexpected EOS\n", progname);
@@ -582,6 +608,8 @@ dc_evalfile DC_DECLARG((fp))
 {
 	int c;
 	int peekc;
+	int negcmp;
+	int next_negcmp = 0;
 	dc_data datum;
 
 	stdin_lookahead = EOF;
@@ -593,7 +621,9 @@ dc_evalfile DC_DECLARG((fp))
 		 */
 		if (fp == stdin)
 			stdin_lookahead = peekc;
-		switch (dc_func(c, peekc)){
+		negcmp = next_negcmp;
+		next_negcmp = 0;
+		switch (dc_func(c, peekc, negcmp)){
 		case DC_OKAY:
 			if (stdin_lookahead != peekc  &&  fp == stdin)
 				peekc = getc(fp);
@@ -635,6 +665,9 @@ dc_evalfile DC_DECLARG((fp))
 				peekc = getc(fp);
 			if (peekc != EOF)
 				peekc = getc(fp);
+			break;
+		case DC_NEGCMP:
+			next_negcmp = 1;
 			break;
 
 		case DC_EOF_ERROR:

@@ -1,7 +1,7 @@
 /* number.c: Implements arbitrary precision numbers. */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994, 1997, 1998 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1031,6 +1031,10 @@ bc_raisemod (base, expo, mod, result, scale)
   temp = copy_num (_one_);
   init_num (&parity);
 
+  /* Check the base for scale digits. */
+  if (base->n_scale != 0)
+      rt_warn ("non-zero scale in base");
+
   /* Check the exponent for scale digits. */
   if (exponent->n_scale != 0)
     {
@@ -1209,8 +1213,11 @@ bc_sqrt (num, scale)
 
   /* Calculate the initial guess. */
   if (cmp_res < 0)
-    /* The number is between 0 and 1.  Guess should start at 1. */
-    guess = copy_num (_one_);
+    {
+      /* The number is between 0 and 1.  Guess should start at 1. */
+      guess = copy_num (_one_);
+      cscale = (*num)->n_scale;
+    }
   else
     {
       /* The number is greater than 1.  Guess should start at 10^(exp/2). */
@@ -1221,11 +1228,11 @@ bc_sqrt (num, scale)
       guess1->n_scale = 0;
       bc_raise (guess, guess1, &guess, 0);
       free_num (&guess1);
+      cscale = 3;
     }
 
   /* Find the square root using Newton's algorithm. */
   done = FALSE;
-  cscale = 3;
   while (!done)
     {
       free_num (&guess1);

@@ -1,7 +1,7 @@
 /* 
  * implement string functions for dc
  *
- * Copyright (C) 1994, 1997 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,13 +92,13 @@ dc_free_str DC_DECLARG((value))
 void
 dc_out_str DC_DECLARG((value, newline, discard_flag))
 	dc_str value DC_DECLSEP
-	dc_boolean newline DC_DECLSEP
-	dc_boolean discard_flag DC_DECLEND
+	dc_newline newline DC_DECLSEP
+	dc_discard discard_flag DC_DECLEND
 {
 	fwrite(value->s_ptr, value->s_len, sizeof *value->s_ptr, stdout);
-	if (newline == DC_TRUE)
-		printf("\n");
-	if (discard_flag == DC_TRUE)
+	if (newline == DC_WITHNL)
+		putchar('\n');
+	if (discard_flag == DC_TOSS)
 		dc_free_str(&value);
 }
 
