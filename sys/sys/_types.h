@@ -75,22 +75,21 @@ typedef	unsigned int	__useconds_t;	/* microseconds (unsigned) */
  * wchar_t, and should be able to hold all members of the largest
  * character set plus one extra value (WEOF), and must be at least 16 bits.
  */
-typedef	int		__ct_rune_t;
-typedef	__ct_rune_t	__rune_t;
-typedef	__ct_rune_t	__wchar_t;
-typedef	__ct_rune_t	__wint_t;
+typedef	int		__ct_rune_t;	/* arg type for ctype funcs */
+typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
+typedef	__ct_rune_t	__wchar_t;	/* wchar_t (see above) */
+typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
 
 /*
  * dev_t has differing meanings in userland and the kernel.
  */
 #ifdef _KERNEL
-struct cdev;
 typedef	struct cdev	*__dev_t;
 #else
-typedef	__udev_t	__dev_t;		/* device number */
+typedef	__udev_t	__dev_t;	/* device number */
 #endif
 
-typedef	__uint32_t	__fixpt_t;		/* fixed point number */
+typedef	__uint32_t	__fixpt_t;	/* fixed point number */
 
 /*
  * mbstate_t is an opaque object to keep conversion state during multibyte
@@ -98,7 +97,7 @@ typedef	__uint32_t	__fixpt_t;		/* fixed point number */
  */
 typedef union {
 	char		__mbstate8[128];
-	__int64_t	_mbstateL;		/* for alignment */
+	__int64_t	_mbstateL;	/* for alignment */
 } __mbstate_t;
 
 #endif /* !_SYS__TYPES_H_ */
