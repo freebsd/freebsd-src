@@ -70,7 +70,7 @@ static const char rcsid[] =
 #endif
 
 #ifdef KERBEROS
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include <netdb.h>
 
