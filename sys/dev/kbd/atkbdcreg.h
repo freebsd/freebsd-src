@@ -132,6 +132,9 @@
 #define PSM_MOUSE_ID		0
 #define PSM_BALLPOINT_ID	2
 #define PSM_INTELLI_ID		3
+#define PSM_EXPLORER_ID		4
+#define PSM_4DMOUSE_ID		6
+#define PSM_4DPLUS_ID		8
 
 #ifdef KERNEL
 

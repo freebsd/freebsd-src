@@ -101,19 +101,6 @@
 #define PSM_DEBUG	0	/* logging: 0: none, 1: brief, 2: verbose */
 #endif
 
-/* features */
-
-/* #define PSM_HOOKAPM	   	   hook the APM resume event */
-/* #define PSM_RESETAFTERSUSPEND   reset the device at the resume event */
-
-#if NAPM <= 0
-#undef PSM_HOOKAPM
-#endif /* NAPM */
-
-#ifndef PSM_HOOKAPM
-#undef PSM_RESETAFTERSUSPEND
-#endif /* PSM_HOOKAPM */
-
 /* end of driver specific options */
 
 /* input queue */
@@ -173,11 +160,13 @@ static struct psm_softc {    /* Driver status information */
     int           button;	/* the latest button state */
     int		  xold;	/* previous absolute X position */
     int		  yold;	/* previous absolute Y position */
+    int		  watchdog;	/* watchdog timer flag */
+    struct callout_handle callout;	/* watchdog timer call out */
 #ifdef DEVFS
     void          *devfs_token;
     void          *b_devfs_token;
 #endif
-#ifdef PSM_HOOKAPM
+#if NAPM > 0
     struct apmhook resumehook;
 #endif
 } *psm_softc[NPSM];
@@ -195,6 +184,8 @@ static struct psm_softc {    /* Driver status information */
 #define PSM_CONFIG_NORESET	0x0400  /* don't reset the mouse */
 #define PSM_CONFIG_FORCETAP	0x0800  /* assume `tap' action exists */
 #define PSM_CONFIG_IGNPORTERROR	0x1000  /* ignore error in aux port test */
+#define PSM_CONFIG_HOOKRESUME	0x2000	/* hook the system resume event */
+#define PSM_CONFIG_INITAFTERSUSPEND 0x4000 /* init the device at the resume event */
 
 #define PSM_CONFIG_FLAGS	(PSM_CONFIG_RESOLUTION 		\
 				    | PSM_CONFIG_ACCEL		\
@@ -202,7 +193,9 @@ static struct psm_softc {    /* Driver status information */
 				    | PSM_CONFIG_NOIDPROBE	\
 				    | PSM_CONFIG_NORESET	\
 				    | PSM_CONFIG_FORCETAP	\
-				    | PSM_CONFIG_IGNPORTERROR)
+				    | PSM_CONFIG_IGNPORTERROR	\
+				    | PSM_CONFIG_HOOKRESUME	\
+				    | PSM_CONFIG_INITAFTERSUSPEND)
 
 /* other flags (flags) */
 #define PSM_FLAGS_FINGERDOWN	0x0001 /* VersaPad finger down */
@@ -234,7 +227,7 @@ typedef int packetfunc_t __P((struct psm_softc *, unsigned char *,
 static int psmprobe __P((struct isa_device *));
 static int psmattach __P((struct isa_device *));
 static void psm_drvinit __P((void *));
-#ifdef PSM_HOOKAPM
+#if NAPM > 0
 static int psmresume __P((void *));
 #endif
 
@@ -251,19 +244,20 @@ static int get_aux_id __P((KBDC));
 static int set_mouse_sampling_rate __P((KBDC, int));
 static int set_mouse_scaling __P((KBDC, int));
 static int set_mouse_resolution __P((KBDC, int));
-#ifdef PSM_RESETAFTERSUSPEND
+#if NAPM > 0
 static int set_mouse_mode __P((KBDC));
-#endif /* PSM_RESETAFTERSUSPEND */
+#endif
 static int get_mouse_buttons __P((KBDC));
 static int is_a_mouse __P((int));
 static void recover_from_error __P((KBDC));
 static int restore_controller __P((KBDC, int));
-#ifdef PSM_RESETAFTERSUSPEND
+#if NAPM > 0
 static int reinitialize __P((int, mousemode_t *));
 #endif
 static int doopen __P((int, int));
-static char *model_name(int);
+static char *model_name __P((int));
 static ointhand2_t psmintr;
+static void psmtimeout __P((void *));
 
 /* vendor specific features */
 typedef int probefunc_t __P((struct psm_softc *));
@@ -273,7 +267,10 @@ static probefunc_t enable_groller;
 static probefunc_t enable_gmouse;
 static probefunc_t enable_aglide; 
 static probefunc_t enable_kmouse;
+static probefunc_t enable_msexplorer;
 static probefunc_t enable_msintelli;
+static probefunc_t enable_4dmouse;
+static probefunc_t enable_4dplus;
 static probefunc_t enable_mmanplus;
 static probefunc_t enable_versapad;
 static int tame_mouse __P((struct psm_softc *, mousestatus_t *, unsigned char *));
@@ -284,18 +281,28 @@ static struct {
     int 		packetsize;
     probefunc_t 	*probefunc;
 } vendortype[] = {
+    /*
+     * WARNING: the order of probe is very important.  Don't mess it
+     * unless you know what you are doing.
+     */
     { MOUSE_MODEL_NET,			/* Genius NetMouse */
-      0xc8, MOUSE_INTELLI_PACKETSIZE, enable_gmouse, },
+      0x08, MOUSE_PS2INTELLI_PACKETSIZE, enable_gmouse, },
     { MOUSE_MODEL_NETSCROLL,		/* Genius NetScroll */
       0xc8, 6, enable_groller, },
-    { MOUSE_MODEL_GLIDEPOINT,		/* ALPS GlidePoint */
-      0xc0, MOUSE_PS2_PACKETSIZE, enable_aglide, },
     { MOUSE_MODEL_MOUSEMANPLUS,		/* Logitech MouseMan+ */
       0x08, MOUSE_PS2_PACKETSIZE, enable_mmanplus, },
+    { MOUSE_MODEL_EXPLORER,		/* Microsoft IntelliMouse Explorer */
+      0x08, MOUSE_PS2INTELLI_PACKETSIZE, enable_msexplorer, },
+    { MOUSE_MODEL_4D,			/* A4 Tech 4D Mouse */
+      0x08, MOUSE_4D_PACKETSIZE, enable_4dmouse, },
+    { MOUSE_MODEL_4DPLUS,		/* A4 Tech 4D+ Mouse */
+      0xc8, MOUSE_4DPLUS_PACKETSIZE, enable_4dplus, },
+    { MOUSE_MODEL_INTELLI,		/* Microsoft IntelliMouse */
+      0x08, MOUSE_PS2INTELLI_PACKETSIZE, enable_msintelli, },
+    { MOUSE_MODEL_GLIDEPOINT,		/* ALPS GlidePoint */
+      0xc0, MOUSE_PS2_PACKETSIZE, enable_aglide, },
     { MOUSE_MODEL_THINK,		/* Kensignton ThinkingMouse */
       0x80, MOUSE_PS2_PACKETSIZE, enable_kmouse, },
-    { MOUSE_MODEL_INTELLI,		/* Microsoft IntelliMouse */
-      0xc8, MOUSE_INTELLI_PACKETSIZE, enable_msintelli, },
     { MOUSE_MODEL_VERSAPAD,		/* Interlink electronics VersaPad */
       0xe8, MOUSE_PS2VERSA_PACKETSIZE, enable_versapad, },
     { MOUSE_MODEL_GENERIC,
@@ -449,7 +456,7 @@ set_mouse_resolution(KBDC kbdc, int val)
     return ((res == PSM_ACK) ? val : -1);
 }
 
-#ifdef PSM_RESETAFTERSUSPEND
+#if NAPM > 0
 /*
  * NOTE: once `set_mouse_mode()' is called, the mouse device must be
  * re-enabled by calling `enable_aux_dev()'
@@ -465,8 +472,7 @@ set_mouse_mode(KBDC kbdc)
 
     return (res == PSM_ACK);
 }
-#endif /* PSM_RESETAFTERSUSPEND */
-
+#endif /* NAPM > 0 */
 
 static int
 get_mouse_buttons(KBDC kbdc)
@@ -505,6 +511,7 @@ is_a_mouse(int id)
         PSM_MOUSE_ID,		/* mouse */
         PSM_BALLPOINT_ID,	/* ballpoint device */
         PSM_INTELLI_ID,		/* Intellimouse */
+        PSM_EXPLORER_ID,	/* Intellimouse Explorer */
         -1			/* end of table */
     };
     int i;
@@ -525,13 +532,16 @@ model_name(int model)
 	int model_code;
 	char *model_name;
     } models[] = {
-        { MOUSE_MODEL_NETSCROLL,	"NetScroll Mouse" },
-        { MOUSE_MODEL_NET,		"NetMouse" },
+        { MOUSE_MODEL_NETSCROLL,	"NetScroll" },
+        { MOUSE_MODEL_NET,		"NetMouse/NetScroll Optical" },
         { MOUSE_MODEL_GLIDEPOINT,	"GlidePoint" },
         { MOUSE_MODEL_THINK,		"ThinkingMouse" },
         { MOUSE_MODEL_INTELLI,		"IntelliMouse" },
         { MOUSE_MODEL_MOUSEMANPLUS,	"MouseMan+" },
         { MOUSE_MODEL_VERSAPAD,		"VersaPad" },
+        { MOUSE_MODEL_EXPLORER,		"IntelliMouse Explorer" },
+        { MOUSE_MODEL_4D,		"4D Mouse" },
+        { MOUSE_MODEL_4DPLUS,		"4D+ Mouse" },
         { MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
         { MOUSE_MODEL_UNKNOWN,		NULL },
     };
@@ -579,13 +589,15 @@ restore_controller(KBDC kbdc, int command_byte)
     if (!set_controller_command_byte(kbdc, 0xff, command_byte)) {
 	log(LOG_ERR, "psm: failed to restore the keyboard controller "
 		     "command byte.\n");
+	empty_both_buffers(kbdc, 10);
 	return FALSE;
     } else {
+	empty_both_buffers(kbdc, 10);
 	return TRUE;
     }
 }
 
-#ifdef PSM_RESETAFTERSUSPEND
+#if NAPM > 0
 /* 
  * Re-initialize the aux port and device. The aux port must be enabled
  * and its interrupt must be disabled before calling this routine. 
@@ -692,7 +704,7 @@ reinitialize(int unit, mousemode_t *mode)
 
     return TRUE;
 }
-#endif /* PSM_RESETAFTERSUSPEND */
+#endif /* NAPM > 0 */
 
 static int
 doopen(int unit, int command_byte)
@@ -744,6 +756,10 @@ doopen(int unit, int command_byte)
 	return (EIO);
     }
 
+    /* start the watchdog timer */
+    sc->watchdog = FALSE;
+    sc->callout = timeout(psmtimeout, (void *)unit, hz*2);
+
     return (0);
 }
 
@@ -784,6 +800,15 @@ psmprobe(struct isa_device *dvp)
     sc->addr = dvp->id_iobase;
     sc->kbdc = kbdc_open(sc->addr);
     sc->config = dvp->id_flags & PSM_CONFIG_FLAGS;
+    /* XXX: for backward compatibility */
+#if defined(PSM_HOOKAPM)
+    sc->config |= 
+#ifdef PSM_RESETAFTERSUSPEND
+	PSM_CONFIG_HOOKRESUME | PSM_CONFIG_INITAFTERSUSPEND;
+#else
+	PSM_CONFIG_HOOKRESUME;
+#endif
+#endif /* PSM_HOOKAPM */
     sc->flags = 0;
     if (bootverbose)
         ++verbose;
@@ -933,6 +958,9 @@ psmprobe(struct isa_device *dvp)
         break;
     case PSM_MOUSE_ID:
     case PSM_INTELLI_ID:
+    case PSM_EXPLORER_ID:
+    case PSM_4DMOUSE_ID:
+    case PSM_4DPLUS_ID:
         sc->hw.type = MOUSE_MOUSE;
         break;
     default:
@@ -1058,6 +1086,7 @@ psmattach(struct isa_device *dvp)
 
     /* Setup initial state */
     sc->state = PSM_VALID;
+    callout_handle_init(&sc->callout);
 
     /* Done */
 #ifdef    DEVFS
@@ -1069,7 +1098,7 @@ psmattach(struct isa_device *dvp)
         DV_CHR, 0, 0, 0666, "bpsm%d", unit);
 #endif /* DEVFS */
 
-#ifdef PSM_HOOKAPM
+#if NAPM > 0
     sc->resumehook.ah_name = "PS/2 mouse";
     sc->resumehook.ah_fun = psmresume;
     sc->resumehook.ah_arg = (void *)unit;
@@ -1077,7 +1106,7 @@ psmattach(struct isa_device *dvp)
     apm_hook_establish(APM_HOOK_RESUME , &sc->resumehook);
     if (verbose)
         printf("psm%d: APM hooks installed.\n", unit);
-#endif /* PSM_HOOKAPM */
+#endif /* NAPM > 0 */
 
     if (!verbose) {
         printf("psm%d: model %s, device ID %d\n", 
@@ -1126,6 +1155,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
     sc->rsel.si_pid = 0;
     sc->mode.level = sc->dflt_mode.level;
     sc->mode.protocol = sc->dflt_mode.protocol;
+    sc->watchdog = FALSE;
 
     /* flush the event queue */
     sc->queue.count = 0;
@@ -1220,6 +1250,10 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
     }
     splx(s);
 
+    /* stop the watchdog timer */
+    untimeout(psmtimeout, (void *)PSM_UNIT(dev), sc->callout);
+    callout_handle_init(&sc->callout);
+
     /* remove anything left in the output buffer */
     empty_aux_buffer(sc->kbdc, 10);
 
@@ -1233,12 +1267,12 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	     * hereafter. 
 	     */
 	    log(LOG_ERR, "psm%d: failed to disable the device (psmclose).\n",
-	        PSM_UNIT(dev));
+		PSM_UNIT(dev));
         }
 
         if (get_mouse_status(sc->kbdc, stat, 0, 3) < 3)
             log(LOG_DEBUG, "psm%d: failed to get status (psmclose).\n", 
-	        PSM_UNIT(dev));
+		PSM_UNIT(dev));
     }
 
     if (!set_controller_command_byte(sc->kbdc, 
@@ -1741,6 +1775,23 @@ psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 }
 
 static void
+psmtimeout(void *arg)
+{
+    struct psm_softc *sc;
+    int unit;
+
+    unit = (int)arg;
+    sc = psm_softc[unit];
+    if (sc->watchdog) {
+	if (verbose >= 4)
+	    log(LOG_DEBUG, "psm%d: lost interrupt?\n", unit);
+	psmintr(unit);
+    }
+    sc->watchdog = TRUE;
+    sc->callout = timeout(psmtimeout, (void *)unit, hz);
+}
+
+static void
 psmintr(int unit)
 {
     /*
@@ -1808,11 +1859,9 @@ psmintr(int unit)
 	/* 
 	 * A kludge for Kensington device! 
 	 * The MSB of the horizontal count appears to be stored in 
-	 * a strange place. This kludge doesn't affect other mice 
-	 * because the bit is the overflow bit which is, in most cases, 
-	 * expected to be zero when we reach here. XXX 
+	 * a strange place.
 	 */
-	if (sc->hw.model != MOUSE_MODEL_VERSAPAD)
+	if (sc->hw.model == MOUSE_MODEL_THINK)
 	    sc->ipacket[1] |= (c & MOUSE_PS2_XOVERFLOW) ? 0x80 : 0;
 
         /* ignore the overflow bits... */
@@ -1827,10 +1876,38 @@ psmintr(int unit)
 
 	switch (sc->hw.model) {
 
+	case MOUSE_MODEL_EXPLORER:
+	    /*
+	     *          b7 b6 b5 b4 b3 b2 b1 b0
+	     * byte 1:  oy ox sy sx 1  M  R  L
+	     * byte 2:  x  x  x  x  x  x  x  x
+	     * byte 3:  y  y  y  y  y  y  y  y
+	     * byte 4:  *  *  S2 S1 s  d2 d1 d0
+	     *
+	     * L, M, R, S1, S2: left, middle, right and side buttons
+	     * s: wheel data sign bit
+	     * d2-d0: wheel data
+	     */
+	    z = (sc->ipacket[3] & MOUSE_EXPLORER_ZNEG)
+		? (sc->ipacket[3] & 0x0f) - 16 : (sc->ipacket[3] & 0x0f);
+	    ms.button |= (sc->ipacket[3] & MOUSE_EXPLORER_BUTTON4DOWN)
+		? MOUSE_BUTTON4DOWN : 0;
+	    ms.button |= (sc->ipacket[3] & MOUSE_EXPLORER_BUTTON5DOWN)
+		? MOUSE_BUTTON5DOWN : 0;
+	    break;
+
 	case MOUSE_MODEL_INTELLI:
 	case MOUSE_MODEL_NET:
 	    /* wheel data is in the fourth byte */
 	    z = (char)sc->ipacket[3];
+	    /* some mice may send 7 when there is no Z movement?! XXX */
+	    if ((z >= 7) || (z <= -7))
+		z = 0;
+	    /* some compatible mice have additional buttons */
+	    ms.button |= (c & MOUSE_PS2INTELLI_BUTTON4DOWN)
+		? MOUSE_BUTTON4DOWN : 0;
+	    ms.button |= (c & MOUSE_PS2INTELLI_BUTTON5DOWN)
+		? MOUSE_BUTTON5DOWN : 0;
 	    break;
 
 	case MOUSE_MODEL_MOUSEMANPLUS:
@@ -1883,18 +1960,40 @@ psmintr(int unit)
 			? MOUSE_BUTTON5DOWN : 0;
 		    break;
 		case 2:
-		    /* this packet type is reserved, and currently ignored */
-		    /* FALL THROUGH */
+		    /* this packet type is reserved by Logitech... */
+		    /*
+		     * IBM ScrollPoint Mouse uses this packet type to
+		     * encode both vertical and horizontal scroll movement.
+		     */
+		    x = y = 0;
+		    /* horizontal count */
+		    if (sc->ipacket[2] & 0x0f)
+			z = (sc->ipacket[2] & MOUSE_SPOINT_WNEG) ? -2 : 2;
+		    /* vertical count */
+		    if (sc->ipacket[2] & 0xf0)
+			z = (sc->ipacket[2] & MOUSE_SPOINT_ZNEG) ? -1 : 1;
+#if 0
+		    /* vertical count */
+		    z = (sc->ipacket[2] & MOUSE_SPOINT_ZNEG)
+			? ((sc->ipacket[2] >> 4) & 0x0f) - 16
+			: ((sc->ipacket[2] >> 4) & 0x0f);
+		    /* horizontal count */
+		    w = (sc->ipacket[2] & MOUSE_SPOINT_WNEG)
+			? (sc->ipacket[2] & 0x0f) - 16
+			: (sc->ipacket[2] & 0x0f);
+#endif
+		    break;
 		case 0:
 		    /* device type packet - shouldn't happen */
 		    /* FALL THROUGH */
 		default:
 		    x = y = 0;
 		    ms.button = ms.obutton;
-            	    log(LOG_DEBUG, "psmintr: unknown PS2++ packet type %d: "
-				   "0x%02x 0x%02x 0x%02x\n",
-			MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket),
-			sc->ipacket[0], sc->ipacket[1], sc->ipacket[2]);
+		    if (bootverbose)
+			log(LOG_DEBUG, "psmintr: unknown PS2++ packet type %d: "
+				       "0x%02x 0x%02x 0x%02x\n",
+			    MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket),
+			    sc->ipacket[0], sc->ipacket[1], sc->ipacket[2]);
 		    break;
 		}
 	    } else {
@@ -1909,9 +2008,11 @@ psmintr(int unit)
 	    break;
 
 	case MOUSE_MODEL_NETSCROLL:
-	    /* three addtional bytes encode button and wheel events */
-	    ms.button |= (sc->ipacket[3] & MOUSE_PS2_BUTTON3DOWN) 
+	    /* three addtional bytes encode buttons and wheel events */
+	    ms.button |= (sc->ipacket[3] & MOUSE_PS2_BUTTON3DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
+	    ms.button |= (sc->ipacket[3] & MOUSE_PS2_BUTTON1DOWN)
+		? MOUSE_BUTTON5DOWN : 0;
 	    z = (sc->ipacket[3] & MOUSE_PS2_XNEG) 
 		? sc->ipacket[4] - 256 : sc->ipacket[4];
 	    break;
@@ -1976,6 +2077,60 @@ psmintr(int unit)
 		| ((y < 0) ? MOUSE_PS2_YNEG : 0);
 	    break;
 
+	case MOUSE_MODEL_4D:
+	    /*
+	     *          b7 b6 b5 b4 b3 b2 b1 b0
+	     * byte 1:  s2 d2 s1 d1 1  M  R  L
+	     * byte 2:  sx x  x  x  x  x  x  x
+	     * byte 3:  sy y  y  y  y  y  y  y
+	     *
+	     * s1: wheel 1 direction
+	     * d1: wheel 1 data
+	     * s2: wheel 2 direction
+	     * d2: wheel 2 data
+	     */
+	    x = (sc->ipacket[1] & 0x80) ? sc->ipacket[1] - 256 : sc->ipacket[1];
+	    y = (sc->ipacket[2] & 0x80) ? sc->ipacket[2] - 256 : sc->ipacket[2];
+	    switch (c & MOUSE_4D_WHEELBITS) {
+	    case 0x10:
+		z = 1;
+		break;
+	    case 0x30:
+		z = -1;
+		break;
+	    case 0x40:	/* 2nd wheel turning right XXX */
+		z = 2;
+		break;
+	    case 0xc0:	/* 2nd wheel turning left XXX */
+		z = -2;
+		break;
+	    }
+	    break;
+
+	case MOUSE_MODEL_4DPLUS:
+	    if ((x < 16 - 256) && (y < 16 - 256)) {
+		/*
+		 *          b7 b6 b5 b4 b3 b2 b1 b0
+		 * byte 1:  0  0  1  1  1  M  R  L
+		 * byte 2:  0  0  0  0  1  0  0  0
+		 * byte 3:  0  0  0  0  S  s  d1 d0
+		 *
+		 * L, M, R, S: left, middle, right and side buttons
+		 * s: wheel data sign bit
+		 * d1-d0: wheel data
+		 */
+		x = y = 0;
+		if (sc->ipacket[2] & MOUSE_4DPLUS_BUTTON4DOWN)
+		    ms.button |= MOUSE_BUTTON4DOWN;
+		z = (sc->ipacket[2] & MOUSE_4DPLUS_ZNEG)
+			? ((sc->ipacket[2] & 0x07) - 8)
+			: (sc->ipacket[2] & 0x07) ;
+	    } else {
+		/* preserve previous button states */
+		ms.button |= ms.obutton & MOUSE_EXTBUTTONS;
+	    }
+	    break;
+
 	case MOUSE_MODEL_GENERIC:
 	default:
 	    break;
@@ -2014,6 +2169,8 @@ psmintr(int unit)
         sc->status.dz += ms.dz;
         sc->status.button = ms.button;
         sc->button = ms.button;
+
+	sc->watchdog = FALSE;
 
         /* queue data */
         if (sc->queue.count + sc->inputbytes < sizeof(sc->queue.buf)) {
@@ -2092,7 +2249,7 @@ enable_lcordless(struct psm_softc *sc)
 }
 #endif /* notyet */
 
-/* Genius NetScroll Mouse */
+/* Genius NetScroll Mouse, MouseSystems SmartScroll Mouse */
 static int
 enable_groller(struct psm_softc *sc)
 {
@@ -2123,13 +2280,12 @@ enable_groller(struct psm_softc *sc)
         return FALSE;
     if ((status[1] != '3') || (status[2] != 'D'))
         return FALSE;
-    /* FIXME!! */
-    sc->hw.buttons = get_mouse_buttons(sc->kbdc);
+    /* FIXME: SmartScroll Mouse has 5 buttons! XXX */
     sc->hw.buttons = 4;
     return TRUE;
 }
 
-/* Genius NetMouse/NetMouse Pro */
+/* Genius NetMouse/NetMouse Pro, ASCII Mie Mouse, NetScroll Optical */
 static int
 enable_gmouse(struct psm_softc *sc)
 {
@@ -2229,7 +2385,7 @@ enable_kmouse(struct psm_softc *sc)
     return TRUE;
 }
 
-/* Logitech MouseMan+/FirstMouse+ */
+/* Logitech MouseMan+/FirstMouse+, IBM ScrollPoint Mouse */
 static int
 enable_mmanplus(struct psm_softc *sc)
 {
@@ -2243,6 +2399,11 @@ enable_mmanplus(struct psm_softc *sc)
     int i;
 
     /* the special sequence to enable the fourth button and the roller. */
+    /*
+     * NOTE: for ScrollPoint to respond correctly, the SET_RESOLUTION
+     * must be called exactly three times since the last RESET command
+     * before this sequence. XXX
+     */
     for (i = 0; i < sizeof(res)/sizeof(res[0]); ++i) {
 	if (res[i] < 0) {
 	    if (!set_mouse_scaling(kbdc, 1))
@@ -2265,7 +2426,7 @@ enable_mmanplus(struct psm_softc *sc)
      * byte 3:  m7 m6 m5 m4 m3 m2 m1 m0
      *
      * p3-p0: packet type: 0
-     * m7-m0: model ID: MouseMan+:0x50, FirstMouse+:0x51,...
+     * m7-m0: model ID: MouseMan+:0x50, FirstMouse+:0x51, ScrollPoint:0x58...
      */
     /* check constant bits */
     if ((data[0] & MOUSE_PS2PLUS_SYNCMASK) != MOUSE_PS2PLUS_SYNC)
@@ -2288,6 +2449,31 @@ enable_mmanplus(struct psm_softc *sc)
      * special data packet. The mouse may be put in the IntelliMouse mode
      * if it is initialized by the IntelliMouse's method.
      */
+    return TRUE;
+}
+
+/* MS IntelliMouse Explorer */
+static int
+enable_msexplorer(struct psm_softc *sc)
+{
+    static unsigned char rate[] = { 200, 200, 80, };
+    KBDC kbdc = sc->kbdc;
+    int id;
+    int i;
+
+    /* the special sequence to enable the extra buttons and the roller. */
+    for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
+	    return FALSE;
+    }
+    /* the device will give the genuine ID only after the above sequence */
+    id = get_aux_id(kbdc);
+    if (id != PSM_EXPLORER_ID)
+	return FALSE;
+
+    sc->hw.hwid = id;
+    sc->hw.buttons = 5;		/* IntelliMouse Explorer XXX */
+
     return TRUE;
 }
 
@@ -2321,6 +2507,70 @@ enable_msintelli(struct psm_softc *sc)
     return TRUE;
 }
 
+/* A4 Tech 4D Mouse */
+static int
+enable_4dmouse(struct psm_softc *sc)
+{
+    /*
+     * Newer wheel mice from A4 Tech may use the 4D+ protocol.
+     */
+
+    static unsigned char rate[] = { 200, 100, 80, 60, 40, 20 };
+    KBDC kbdc = sc->kbdc;
+    int id;
+    int i;
+
+    for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
+	    return FALSE;
+    }
+    id = get_aux_id(kbdc);
+    /*
+     * WinEasy 4D, 4 Way Scroll 4D: 6
+     * Cable-Free 4D: 8 (4DPLUS)
+     * WinBest 4D+, 4 Way Scroll 4D+: 8 (4DPLUS)
+     */
+    if (id != PSM_4DMOUSE_ID)
+	return FALSE;
+
+    sc->hw.hwid = id;
+    sc->hw.buttons = 3;		/* XXX some 4D mice have 4? */
+
+    return TRUE;
+}
+
+/* A4 Tech 4D+ Mouse */
+static int
+enable_4dplus(struct psm_softc *sc)
+{
+    /*
+     * Newer wheel mice from A4 Tech seem to use this protocol.
+     * Older models are recognized as either 4D Mouse or IntelliMouse.
+     */
+    KBDC kbdc = sc->kbdc;
+    int id;
+
+    /*
+     * enable_4dmouse() already issued the following ID sequence...
+    static unsigned char rate[] = { 200, 100, 80, 60, 40, 20 };
+    int i;
+
+    for (i = 0; i < sizeof(rate)/sizeof(rate[0]); ++i) {
+        if (set_mouse_sampling_rate(kbdc, rate[i]) != rate[i])
+	    return FALSE;
+    }
+    */
+
+    id = get_aux_id(kbdc);
+    if (id != PSM_4DPLUS_ID)
+	return FALSE;
+
+    sc->hw.hwid = id;
+    sc->hw.buttons = 4;		/* XXX */
+
+    return TRUE;
+}
+
 /* Interlink electronics VersaPad */
 static int
 enable_versapad(struct psm_softc *sc)
@@ -2340,6 +2590,8 @@ enable_versapad(struct psm_softc *sc)
 	return FALSE;
     set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
 
+    sc->config |= PSM_CONFIG_HOOKRESUME | PSM_CONFIG_INITAFTERSUSPEND;
+
     return TRUE;				/* PS/2 absolute mode */
 }
 
@@ -2357,7 +2609,7 @@ psm_drvinit(void *unused)
     }
 }
 
-#ifdef PSM_HOOKAPM
+#if NAPM > 0
 static int
 psmresume(void *dummy)
 {
@@ -2370,10 +2622,18 @@ psmresume(void *dummy)
     if (verbose >= 2)
         log(LOG_NOTICE, "psm%d: APM resume hook called.\n", unit);
 
+    if (!(sc->config & PSM_CONFIG_HOOKRESUME))
+	return (0);
+
     /* don't let anybody mess with the aux device */
     if (!kbdc_lock(sc->kbdc, TRUE))
 	return (EIO);
     s = spltty();
+
+    /* block our watchdog timer */
+    sc->watchdog = FALSE;
+    untimeout(psmtimeout, (void *)unit, sc->callout);
+    callout_handle_init(&sc->callout);
 
     /* save the current controller command byte */
     empty_both_buffers(sc->kbdc, 10);
@@ -2402,20 +2662,20 @@ psmresume(void *dummy)
     }
     sc->inputbytes = 0;
 
-#ifdef PSM_RESETAFTERSUSPEND
     /* try to detect the aux device; are you still there? */
-    if (reinitialize(unit, &sc->mode)) {
-	/* yes */
-	sc->state |= PSM_VALID;
-    } else {
-	/* the device has gone! */
-        restore_controller(sc->kbdc, c);
-	sc->state &= ~PSM_VALID;
-	log(LOG_ERR, "psm%d: the aux device has gone! (psmresume).\n",
-	    unit);
-	err = ENXIO;
+    if (sc->config & PSM_CONFIG_INITAFTERSUSPEND) {
+	if (reinitialize(unit, &sc->mode)) {
+	    /* yes */
+	    sc->state |= PSM_VALID;
+	} else {
+	    /* the device has gone! */
+	    restore_controller(sc->kbdc, c);
+	    sc->state &= ~PSM_VALID;
+	    log(LOG_ERR, "psm%d: the aux device has gone! (psmresume).\n",
+		unit);
+	    err = ENXIO;
+	}
     }
-#endif /* PSM_RESETAFTERSUSPEND */
     splx(s);
 
     /* restore the driver state */
@@ -2454,7 +2714,7 @@ psmresume(void *dummy)
 
     return (err);
 }
-#endif /* PSM_HOOKAPM */
+#endif /* NAPM > 0 */
 
 SYSINIT(psmdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, psm_drvinit, NULL)
 

@@ -116,6 +116,9 @@ typedef struct mousehw {
 #define MOUSE_MODEL_MOUSEMANPLUS	7
 #define MOUSE_MODEL_KIDSPAD		8
 #define MOUSE_MODEL_VERSAPAD		9
+#define MOUSE_MODEL_EXPLORER		10
+#define MOUSE_MODEL_4D			11
+#define MOUSE_MODEL_4DPLUS		12
 
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
@@ -128,6 +131,16 @@ typedef struct mousemode {
 } mousemode_t;
 
 /* protocol */
+/*
+ * Serial protocols:
+ *   Microsoft, MouseSystems, Logitech, MM series, MouseMan, Hitachi Tablet,
+ *   GlidePoint, IntelliMouse, Thinking Mouse, MouseRemote, Kidspad,
+ *   VersaPad
+ * Bus mouse protocols:
+ *   bus, InPort
+ * PS/2 mouse protocol:
+ *   PS/2
+ */
 #define MOUSE_PROTO_UNKNOWN	(-1)
 #define MOUSE_PROTO_MS		0	/* Microsoft Serial, 3 bytes */
 #define MOUSE_PROTO_MSC		1	/* Mouse Systems, 5 bytes */
@@ -193,7 +206,7 @@ typedef struct mousevar {
 
 /* MS IntelliMouse (variant of MS Serial) */
 #define MOUSE_INTELLI_PACKETSIZE 4
-#define MOUSE_INTELLI_BUTTON2DOWN 0x10	/* middle button the 4th byte */
+#define MOUSE_INTELLI_BUTTON2DOWN 0x10	/* middle button in the 4th byte */
 
 /* Mouse Systems Corp. mouse data packet */
 #define MOUSE_MSC_PACKETSIZE	5
@@ -228,16 +241,34 @@ typedef struct mousevar {
 					        * Yes! this is the same bit 
 						* as SYNC!
 					 	*/
-#define MOUSE_PS2PLUS_BUTTON4DOWN 0x10	/* 4th button on MouseMan+ */
-#define MOUSE_PS2PLUS_BUTTON5DOWN 0x20
 
 #define MOUSE_PS2_XNEG		0x10
 #define MOUSE_PS2_YNEG		0x20
 #define MOUSE_PS2_XOVERFLOW	0x40
 #define MOUSE_PS2_YOVERFLOW	0x80
-#define MOUSE_PS2PLUS_ZNEG	0x08	/* MouseMan+ negative wheel movement */
+
+/* Logitech MouseMan+ (PS/2) data packet (PS/2++ protocol) */
 #define MOUSE_PS2PLUS_SYNCMASK	0x48
 #define MOUSE_PS2PLUS_SYNC	0x48
+#define MOUSE_PS2PLUS_ZNEG	0x08	/* sign bit */
+#define MOUSE_PS2PLUS_BUTTON4DOWN 0x10	/* 4th button on MouseMan+ */
+#define MOUSE_PS2PLUS_BUTTON5DOWN 0x20
+
+/* IBM ScrollPoint (PS/2) also uses PS/2++ protocol */
+#define MOUSE_SPOINT_ZNEG	0x80	/* sign bits */
+#define MOUSE_SPOINT_WNEG	0x08
+
+/* MS IntelliMouse (PS/2) data packet */
+#define MOUSE_PS2INTELLI_PACKETSIZE 4
+/* some compatible mice have additional buttons */
+#define MOUSE_PS2INTELLI_BUTTON4DOWN 0x40
+#define MOUSE_PS2INTELLI_BUTTON5DOWN 0x80
+
+/* MS IntelliMouse Explorer (PS/2) data packet (variation of IntelliMouse) */
+#define MOUSE_EXPLORER_ZNEG	0x08	/* sign bit */
+/* IntelliMouse Explorer has additional button data in the fourth byte */
+#define MOUSE_EXPLORER_BUTTON4DOWN 0x10
+#define MOUSE_EXPLORER_BUTTON5DOWN 0x20
 
 /* Interlink VersaPad (serial I/F) data packet */
 #define MOUSE_VERSA_PACKETSIZE	6
@@ -260,6 +291,15 @@ typedef struct mousevar {
 #define MOUSE_PS2VERSA_BUTTON2DOWN	0x00	/* middle */
 #define MOUSE_PS2VERSA_BUTTON3DOWN	0x01	/* right */
 #define MOUSE_PS2VERSA_TAP		0x02
+
+/* A4 Tech 4D Mouse (PS/2) data packet */
+#define MOUSE_4D_PACKETSIZE		3	
+#define MOUSE_4D_WHEELBITS		0xf0
+
+/* A4 Tech 4D+ Mouse (PS/2) data packet */
+#define MOUSE_4DPLUS_PACKETSIZE		3	
+#define MOUSE_4DPLUS_ZNEG		0x04	/* sign bit */
+#define MOUSE_4DPLUS_BUTTON4DOWN	0x08
 
 /* sysmouse extended data packet */
 /*

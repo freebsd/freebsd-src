@@ -49,6 +49,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -202,17 +203,20 @@ static char *rnames[] = {
 
 /* models */
 static symtab_t	rmodels[] = {
-    { "NetScroll",	MOUSE_MODEL_NETSCROLL },
-    { "NetMouse",	MOUSE_MODEL_NET },
-    { "GlidePoint",	MOUSE_MODEL_GLIDEPOINT },
-    { "ThinkingMouse",	MOUSE_MODEL_THINK },
-    { "IntelliMouse",	MOUSE_MODEL_INTELLI },
-    { "EasyScroll",	MOUSE_MODEL_EASYSCROLL },
-    { "MouseMan+",	MOUSE_MODEL_MOUSEMANPLUS },
-    { "Kidspad",	MOUSE_MODEL_KIDSPAD },
-    { "VersaPad",	MOUSE_MODEL_VERSAPAD },
-    { "generic",	MOUSE_MODEL_GENERIC },
-    { NULL, 		MOUSE_MODEL_UNKNOWN },
+    { "NetScroll",		MOUSE_MODEL_NETSCROLL },
+    { "NetMouse/NetScroll Optical", MOUSE_MODEL_NET },
+    { "GlidePoint",		MOUSE_MODEL_GLIDEPOINT },
+    { "ThinkingMouse",		MOUSE_MODEL_THINK },
+    { "IntelliMouse",		MOUSE_MODEL_INTELLI },
+    { "EasyScroll/SmartScroll",	MOUSE_MODEL_EASYSCROLL },
+    { "MouseMan+",		MOUSE_MODEL_MOUSEMANPLUS },
+    { "Kidspad",		MOUSE_MODEL_KIDSPAD },
+    { "VersaPad",		MOUSE_MODEL_VERSAPAD },
+    { "IntelliMouse Explorer",	MOUSE_MODEL_EXPLORER },
+    { "4D Mouse",		MOUSE_MODEL_4D },
+    { "4D+ Mouse",		MOUSE_MODEL_4DPLUS },
+    { "generic",		MOUSE_MODEL_GENERIC },
+    { NULL, 			MOUSE_MODEL_UNKNOWN },
 };
 
 /* PnP EISA/product IDs */
@@ -223,6 +227,8 @@ static symtab_t pnpprod[] = {
     { "MSH0001",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
     /* MS IntelliMouse TrackBall */
     { "MSH0004",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
+    /* Tremon Wheel Mouse MUSD */
+    { "HTK0001",        MOUSE_PROTO_INTELLI,    MOUSE_MODEL_INTELLI },
     /* Genius PnP Mouse */
     { "KYE0001",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MouseSystems SmartScroll Mouse (OEM from Genius?) */
@@ -243,6 +249,12 @@ static symtab_t pnpprod[] = {
     { "LGI8051",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech serial */
     { "LGI8001",	MOUSE_PROTO_LOGIMOUSEMAN, MOUSE_MODEL_GENERIC },
+    /* A4 Tech 4D/4D+ Mouse */
+    { "A4W0005",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_4D },
+    /* 8D Scroll Mouse */
+    { "PEC9802",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
+    /* Mitsumi Wireless Scroll Mouse */
+    { "MTM6401",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
 
     /* MS bus */
     { "PNP0F00",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
@@ -358,7 +370,7 @@ static struct rodentparam {
     int baudrate;
     int rate;			/* report rate */
     int resolution;		/* MOUSE_RES_XXX or a positive number */
-    int zmap;			/* MOUSE_{X|Y}AXIS or a button number */
+    int zmap[4];		/* MOUSE_{X|Y}AXIS or a button number */
     int wmode;			/* wheel mode button number */
     int mfd;			/* mouse file descriptor */
     int cfd;			/* /dev/consolectl file descriptor */
@@ -375,7 +387,7 @@ static struct rodentparam {
     baudrate : 1200, 
     rate : 0,
     resolution : MOUSE_RES_UNKNOWN, 
-    zmap: 0,
+    zmap: { 0, 0, 0, 0 },
     wmode: 0,
     mfd : -1,
     cfd : -1,
@@ -429,6 +441,7 @@ main(int argc, char *argv[])
 {
     int c;
     int	i;
+    int	j;
 
     while((c = getopt(argc,argv,"3C:DF:I:PRS:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
@@ -521,9 +534,9 @@ main(int argc, char *argv[])
 
 	case 'z':
 	    if (strcmp(optarg, "x") == 0)
-		rodent.zmap = MOUSE_XAXIS;
+		rodent.zmap[0] = MOUSE_XAXIS;
 	    else if (strcmp(optarg, "y") == 0)
-		rodent.zmap = MOUSE_YAXIS;
+		rodent.zmap[0] = MOUSE_YAXIS;
             else {
 		i = atoi(optarg);
 		/* 
@@ -534,7 +547,30 @@ main(int argc, char *argv[])
 	            warnx("invalid argument `%s'", optarg);
 	            usage();
 		}
-		rodent.zmap = 1 << (i - 1);
+		rodent.zmap[0] = 1 << (i - 1);
+		rodent.zmap[1] = 1 << i;
+		debug("optind: %d, optarg: '%s'", optind, optarg);
+		for (j = 1; j < 4; ++j) {
+		    if ((optind >= argc) || !isdigit(*argv[optind]))
+			break;
+		    i = atoi(argv[optind]);
+		    if ((i <= 0) || (i > MOUSE_MAXBUTTON - 1)) {
+			warnx("invalid argument `%s'", argv[optind]);
+			usage();
+		    }
+		    rodent.zmap[j] = 1 << (i - 1);
+		    ++optind;
+		}
+		if (rodent.zmap[3] == 0)
+		    rodent.zmap[3] = rodent.zmap[2] << 1;
+		/*
+		 * If the second pair of mapping is not specified,
+		 * make it the same as the first pair.
+		 */
+		if (rodent.zmap[2] == 0)
+		    rodent.zmap[2] = rodent.zmap[0];
+		if (rodent.zmap[3] == 0)
+		    rodent.zmap[3] = rodent.zmap[1];
 	    }
 	    break;
 
@@ -781,7 +817,7 @@ moused(void)
 	     * button, we need to cook up a corresponding button `up' event
 	     * after sending a button `down' event.
 	     */
-            if ((rodent.zmap > 0) && (action.dz != 0)) {
+            if ((rodent.zmap[0] > 0) && (action.dz != 0)) {
 		action.obutton = action.button;
 		action.dx = action.dy = action.dz = 0;
 	        r_map(&action, &action2);
@@ -1449,6 +1485,8 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 					   MouseMan+ */
 	    act->dx = act->dy = 0;
 	    act->dz = (rBuf & 0x08) ? (rBuf & 0x0f) - 16 : (rBuf & 0x0f);
+	    if ((act->dz >= 7) || (act->dz <= -7))
+		act->dz = 0;
 	    act->obutton = act->button;
 	    act->button = butmapintelli[(rBuf & MOUSE_MSS_BUTTONS) >> 4]
 		| (act->obutton & (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN));
@@ -1591,10 +1629,26 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	 * is MOUSE_MODEL_GENERIC.
 	 */
 	switch (rodent.hw.model) {
+	case MOUSE_MODEL_EXPLORER:
+	    /* wheel and additional button data is in the fourth byte */
+	    act->dz = (pBuf[3] & MOUSE_EXPLORER_ZNEG)
+		? (pBuf[3] & 0x0f) - 16 : (pBuf[3] & 0x0f);
+	    act->button |= (pBuf[3] & MOUSE_EXPLORER_BUTTON4DOWN)
+		? MOUSE_BUTTON4DOWN : 0;
+	    act->button |= (pBuf[3] & MOUSE_EXPLORER_BUTTON5DOWN)
+		? MOUSE_BUTTON5DOWN : 0;
+	    break;
 	case MOUSE_MODEL_INTELLI:
 	case MOUSE_MODEL_NET:
 	    /* wheel data is in the fourth byte */
 	    act->dz = (char)pBuf[3];
+	    if ((act->dz >= 7) || (act->dz <= -7))
+		act->dz = 0;
+	    /* some compatible mice may have additional buttons */
+	    act->button |= (pBuf[0] & MOUSE_PS2INTELLI_BUTTON4DOWN)
+		? MOUSE_BUTTON4DOWN : 0;
+	    act->button |= (pBuf[0] & MOUSE_PS2INTELLI_BUTTON5DOWN)
+		? MOUSE_BUTTON5DOWN : 0;
 	    break;
 	case MOUSE_MODEL_MOUSEMANPLUS:
 	    if (((pBuf[0] & MOUSE_PS2PLUS_SYNCMASK) == MOUSE_PS2PLUS_SYNC)
@@ -1618,8 +1672,28 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 			? MOUSE_BUTTON5DOWN : 0;
 		    break;
 		case 2:
-		    /* this packet type is reserved, and currently ignored */
-		    /* FALL THROUGH */
+		    /* this packet type is reserved by Logitech */
+		    /*
+		     * IBM ScrollPoint Mouse uses this packet type to
+		     * encode both vertical and horizontal scroll movement.
+		     */
+		    act->dx = act->dy = 0;
+		    /* horizontal roller count */
+		    if (pBuf[2] & 0x0f)
+			act->dz = (pBuf[2] & MOUSE_SPOINT_WNEG) ? -2 : 2;
+		    /* vertical roller count */
+		    if (pBuf[2] & 0xf0)
+			act->dz = (pBuf[2] & MOUSE_SPOINT_ZNEG) ? -1 : 1;
+#if 0
+		    /* vertical roller count */
+		    act->dz = (pBuf[2] & MOUSE_SPOINT_ZNEG)
+			? ((pBuf[2] >> 4) & 0x0f) - 16
+			: ((pBuf[2] >> 4) & 0x0f);
+		    /* horizontal roller count */
+		    act->dw = (pBuf[2] & MOUSE_SPOINT_WNEG)
+			? (pBuf[2] & 0x0f) - 16 : (pBuf[2] & 0x0f);
+#endif
+		    break;
 		case 0:
 		    /* device type packet - shouldn't happen */
 		    /* FALL THROUGH */
@@ -1641,9 +1715,11 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    act->button |= ((pBuf[0] & MOUSE_PS2_TAP)) ? 0 : MOUSE_BUTTON4DOWN;
 	    break;
 	case MOUSE_MODEL_NETSCROLL:
-	    /* three addtional bytes encode button and wheel events */
-	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON3DOWN) 
+	    /* three addtional bytes encode buttons and wheel events */
+	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON3DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
+	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON1DOWN)
+		? MOUSE_BUTTON5DOWN : 0;
 	    act->dz = (pBuf[3] & MOUSE_PS2_XNEG) ? pBuf[4] - 256 : pBuf[4];
 	    break;
 	case MOUSE_MODEL_THINK:
@@ -1673,6 +1749,36 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    }
 	    prev_x = x;
 	    prev_y = y;
+	    break;
+	case MOUSE_MODEL_4D:
+	    act->dx = (pBuf[1] & 0x80) ?    pBuf[1] - 256  :  pBuf[1];
+	    act->dy = (pBuf[2] & 0x80) ?  -(pBuf[2] - 256) : -pBuf[2];
+	    switch (pBuf[0] & MOUSE_4D_WHEELBITS) {
+	    case 0x10:
+		act->dz = 1;
+		break;
+	    case 0x30:
+		act->dz = -1;
+		break;
+	    case 0x40:	/* 2nd wheel rolling right XXX */
+		act->dz = 2;
+		break;
+	    case 0xc0:	/* 2nd wheel rolling left XXX */
+		act->dz = -2;
+		break;
+	    }
+	    break;
+	case MOUSE_MODEL_4DPLUS:
+	    if ((act->dx < 16 - 256) && (act->dy > 256 - 16)) {
+		act->dx = act->dy = 0;
+		if (pBuf[2] & MOUSE_4DPLUS_BUTTON4DOWN)
+		    act->button |= MOUSE_BUTTON4DOWN;
+		act->dz = (pBuf[2] & MOUSE_4DPLUS_ZNEG)
+			      ? ((pBuf[2] & 0x07) - 8) : (pBuf[2] & 0x07);
+	    } else {
+		/* preserve previous button states */
+		act->button |= act->obutton & MOUSE_EXTBUTTONS;
+	    }
 	    break;
 	case MOUSE_MODEL_GENERIC:
 	default:
@@ -1798,7 +1904,7 @@ r_map(mousestatus_t *act1, mousestatus_t *act2)
     act2->dy = act1->dy;
     act2->dz = act1->dz;
 
-    switch (rodent.zmap) {
+    switch (rodent.zmap[0]) {
     case 0:	/* do nothing */
 	break;
     case MOUSE_XAXIS:
@@ -1814,11 +1920,16 @@ r_map(mousestatus_t *act1, mousestatus_t *act2)
 	}
 	break;
     default:	/* buttons */
-	pbuttons &= ~(rodent.zmap | (rodent.zmap << 1));
-	if (act1->dz < 0)
-	    pbuttons |= rodent.zmap;
+	pbuttons &= ~(rodent.zmap[0] | rodent.zmap[1]
+		    | rodent.zmap[2] | rodent.zmap[3]);
+	if (act1->dz < -1)
+	    pbuttons |= rodent.zmap[2];
+	else if (act1->dz < 0)
+	    pbuttons |= rodent.zmap[0];
+	else if (act1->dz > 1)
+	    pbuttons |= rodent.zmap[3];
 	else if (act1->dz > 0)
-	    pbuttons |= (rodent.zmap << 1);
+	    pbuttons |= rodent.zmap[1];
 	act2->dz = 0;
 	break;
     }
