@@ -19,8 +19,14 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.16 1995/04/12 20:48:13 wollman Exp $
+ * $Id: wt.c,v 1.17 1995/05/30 08:03:22 rgrimes Exp $
  *
+ */
+
+/*
+ * Code for MTERASE added by John Lind (john@starfire.mn.org) 95/09/02.
+ * This was very easy due to the excellent structure and clear coding
+ * of the original driver.
  */
 
 /*
@@ -487,6 +493,20 @@ int wtioctl (int dev, int cmd, void *arg, int mode)
 			return (error);
 		if (error = wtwritefm (t))
 			return (error);
+		return (0);
+	case MTERASE:		/* erase to EOM */
+		if (! (t->flags & TPWRITE) || (t->flags & TPWP))
+			return (EACCES);
+		if (error = wtwait (t, PCATCH, "wterase"))
+			return (error);
+		/* ERASE operations work like REWIND. */
+		/* Simulate the rewind operation here. */
+		t->flags &= ~(TPRO | TPWO | TPVOL);
+		if (! wtcmd (t, QIC_ERASE))
+			return (EIO);
+		t->flags |= TPSTART | TPREW;
+		t->flags |= TPWANY;
+		wtclock (t);
 		return (0);
 	}
 	return (EINVAL);
