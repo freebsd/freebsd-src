@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_fs.h"
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -258,6 +259,8 @@ spec_read(ap)
 	int error = 0;
 	dev_t dev;
 
+	dev = vp->v_rdev;
+
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
 		panic("spec_read mode");
@@ -269,24 +272,14 @@ spec_read(ap)
 
 	switch (vp->v_type) {
 
-	case VCHR:
-		VOP_UNLOCK(vp, 0, p);
-		error = (*devsw(vp->v_rdev)->d_read)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
-
 	case VBLK:
+#ifdef ALLOW_BDEV_ACCESS
 		if (uio->uio_offset < 0)
 			return (EINVAL);
-		dev = vp->v_rdev;
 
-		/*
-		 * Calculate block size for block device.  The block size must
-		 * be larger then the physical minimum.
-		 */
-
-		bsize = vp->v_rdev->si_bsize_best;
+		bsize = dev->si_bsize_phys;
+		while (bsize < dev->si_bsize_max && bsize < uio->uio_resid)
+			bsize <<= 1;
 
 		if ((ioctl = devsw(dev)->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
@@ -313,6 +306,12 @@ spec_read(ap)
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			brelse(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
+		return (error);
+#endif /* ALLOW_BDEV_ACCESS */
+	case VCHR:
+		VOP_UNLOCK(vp, 0, p);
+		error = (*devsw(dev)->d_read) (dev, uio, ap->a_ioflag);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	default:
@@ -343,36 +342,30 @@ spec_write(ap)
 	struct partinfo dpart;
 	register int n, on;
 	int error = 0;
+	dev_t dev;
 
+	dev = vp->v_rdev;
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
 		panic("spec_write mode");
 	if (uio->uio_segflg == UIO_USERSPACE && uio->uio_procp != curproc)
 		panic("spec_write proc");
 #endif
+	if (uio->uio_resid == 0)
+		return (0);
 
 	switch (vp->v_type) {
 
-	case VCHR:
-		VOP_UNLOCK(vp, 0, p);
-		error = (*devsw(vp->v_rdev)->d_write)
-			(vp->v_rdev, uio, ap->a_ioflag);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
-		return (error);
-
 	case VBLK:
-		if (uio->uio_resid == 0)
-			return (0);
+#ifdef ALLOW_BDEV_ACCESS
 		if (uio->uio_offset < 0)
 			return (EINVAL);
 
-		/*
-		 * Calculate block size for block device.  The block size must
-		 * be larger then the physical minimum.
-		 */
-		bsize = vp->v_rdev->si_bsize_best;
+		bsize = dev->si_bsize_phys;
+		while (bsize < dev->si_bsize_max && bsize < uio->uio_resid)
+			bsize <<= 1;
 
-		if ((*devsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
+		if ((*devsw(dev)->d_ioctl)(dev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {
 			if (dpart.part->p_fstype == FS_BSDFFS &&
 			    dpart.part->p_frag != 0 && dpart.part->p_fsize != 0)
@@ -399,6 +392,14 @@ spec_write(ap)
 			else
 				bdwrite(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
+		return (error);
+#endif /* ALLOW_BDEV_ACCESS */
+
+	case VCHR:
+		VOP_UNLOCK(vp, 0, p);
+		error = (*devsw(dev)->d_write)
+			(dev, uio, ap->a_ioflag);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	default:
