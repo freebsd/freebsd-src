@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001 Søren Schmidt
+ * Copyright (c) 2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,20 +56,50 @@ struct cdr_track {
 	int test_write;			/* use test writes, laser turned off */
 };
 
+struct cdr_cue_entry {
+	u_int8_t adr:4;
+    	u_int8_t ctl:4;
+	u_int8_t track;
+	u_int8_t index;
+	u_int8_t dataform;
+	u_int8_t scms;
+	u_int8_t min;
+	u_int8_t sec;
+	u_int8_t frame;
+};
+
+struct cdr_cuesheet {
+    	int32_t len;
+	struct cdr_cue_entry *entries;
+	int session_format;
+#define CDR_SESS_CDROM          0x00
+#define CDR_SESS_CDI            0x10
+#define CDR_SESS_CDROM_XA       0x20
+
+	int session_type;
+#define CDR_SESS_NONE           0x00
+#define CDR_SESS_FINAL          0x01
+#define CDR_SESS_RESERVED       0x02
+#define CDR_SESS_MULTI          0x03
+
+	int test_write;
+};
+
 #define CDRIOCBLANK		_IOW('c', 100, int)
 #define CDR_B_ALL		0x0
 #define CDR_B_MIN		0x1
 #define CDR_B_SESSION		0x6
 
 #define CDRIOCNEXTWRITEABLEADDR	_IOR('c', 101, int)
-
-#define CDRIOCOPENDISK		_IO('c', 102)
-#define CDRIOCCLOSEDISK		_IOW('c', 103, int)
-#define CDRIOCOPENTRACK		_IOW('c', 104, struct cdr_track)
-#define CDRIOCCLOSETRACK	_IO('c', 105)
-
-#define CDRIOCWRITESPEED	_IOW('c', 106, int)
-#define CDRIOCGETBLOCKSIZE	_IOR('c', 107, int)
-#define CDRIOCSETBLOCKSIZE	_IOW('c', 108, int)
+#define CDRIOCINITWRITER	_IOW('c', 102, int)
+#define CDRIOCINITTRACK		_IOW('c', 103, struct cdr_track)
+#define CDRIOCSENDCUE		_IOW('c', 104, struct cdr_cuesheet)
+#define CDRIOCFLUSH		_IO('c', 105)
+#define CDRIOCFIXATE		_IOW('c', 106, int)
+#define CDRIOCREADSPEED		_IOW('c', 107, int)
+#define CDRIOCWRITESPEED	_IOW('c', 108, int)
+#define CDRIOCGETBLOCKSIZE	_IOR('c', 109, int)
+#define CDRIOCSETBLOCKSIZE	_IOW('c', 110, int)
+#define CDRIOCGETPROGRESS	_IOR('c', 111, int)
 
 #endif /* !_SYS_CDRIO_H_ */

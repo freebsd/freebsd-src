@@ -92,6 +92,7 @@
 #define ATAPI_READ_BUFFER		0x3c	/* read device buffer */
 #define ATAPI_READ_SUBCHANNEL		0x42	/* get subchannel info */
 #define ATAPI_READ_TOC			0x43	/* get table of contents */
+#define ATAPI_PLAY_10			0x45	/* play by lba */
 #define ATAPI_PLAY_MSF			0x47	/* play by MSF address */
 #define ATAPI_PLAY_TRACK		0x48	/* play by track number */
 #define ATAPI_PAUSE			0x4b	/* pause audio operation */
@@ -109,7 +110,7 @@
 #define ATAPI_BLANK			0xa1	/* blank the media */
 #define ATAPI_SEND_KEY			0xa3	/* send DVD key structure */
 #define ATAPI_REPORT_KEY		0xa4	/* get DVD key structure */
-#define ATAPI_PLAY_BIG			0xa5	/* play by lba */
+#define ATAPI_PLAY_12			0xa5	/* play by lba */
 #define ATAPI_LOAD_UNLOAD		0xa6	/* changer control command */
 #define ATAPI_READ_STRUCTURE		0xad	/* get DVD structure */
 #define ATAPI_PLAY_CD			0xb4	/* universal play command */
@@ -142,21 +143,10 @@ struct atapi_reqsense {
     u_int8_t	sk_specific2;			/* sense key specific */
 };  
 
-struct atapi_softc {
-    struct ata_softc		*controller;	/* ptr to controller softc */
-    int				unit;		/* ATA_MASTER or ATA_SLAVE */
-    void			*driver;	/* ptr to subdriver softc */
-    char			*devname;	/* this devices name */
-    u_int8_t			cmd;		/* last cmd executed */
-    int				flags;		/* drive flags */
-#define		ATAPI_F_MEDIA_CHANGED	0x0001
-
-};
-
 typedef int atapi_callback_t(struct atapi_request *);
 
 struct atapi_request {
-    struct atapi_softc		*device;	/* ptr to parent device */
+    struct ata_device		*device;	/* ptr to parent softc */
     u_int8_t			ccb[16];	/* command control block */
     int				ccbsize;	/* size of ccb (12 | 16) */
     u_int32_t			bytecount;	/* bytes to transfer */
@@ -167,7 +157,7 @@ struct atapi_request {
     int				result;		/* result of this cmd */
     int				error;		/* result translated to errno */
     struct atapi_reqsense	sense;		/* sense data if error */
-    int				flags;		
+    int				flags;
 #define		ATPR_F_READ		0x0001
 #define		ATPR_F_DMA_USED		0x0002
 #define		ATPR_F_AT_HEAD		0x0004
@@ -177,27 +167,27 @@ struct atapi_request {
     caddr_t			data;		/* pointer to data buf */
     atapi_callback_t		*callback;	/* ptr to callback func */
     struct ata_dmaentry		*dmatab;	/* DMA transfer table */
-    void 			*driver;	/* driver specific */
+    void			*driver;	/* driver specific */
     TAILQ_ENTRY(atapi_request)	chain;		/* list management */
 };
 
-void atapi_attach(struct ata_softc *, int);
-void atapi_detach(struct atapi_softc *);
-void atapi_start(struct atapi_softc *);
-void atapi_transfer(struct atapi_request *);
+void atapi_attach(struct ata_device *);
+void atapi_detach(struct ata_device *);
+void atapi_reinit(struct ata_device *);
+void atapi_start(struct ata_device *);
+int atapi_transfer(struct atapi_request *);
 int atapi_interrupt(struct atapi_request *);
-int atapi_queue_cmd(struct atapi_softc *, int8_t [], caddr_t, int, int, int, atapi_callback_t, void *);
-void atapi_reinit(struct atapi_softc *);
-int atapi_test_ready(struct atapi_softc *);
-int atapi_wait_ready(struct atapi_softc *, int);
-void atapi_request_sense(struct atapi_softc *, struct atapi_reqsense *);
+int atapi_queue_cmd(struct ata_device *, int8_t [], caddr_t, int, int, int, atapi_callback_t, void *);
+int atapi_test_ready(struct ata_device *);
+int atapi_wait_dsc(struct ata_device *, int);
+void atapi_request_sense(struct ata_device *, struct atapi_reqsense *);
 void atapi_dump(char *, void *, int);
-int acdattach(struct atapi_softc *);
-void acddetach(struct atapi_softc *);
-void acd_start(struct atapi_softc *);
-int afdattach(struct atapi_softc *);
-void afddetach(struct atapi_softc *);
-void afd_start(struct atapi_softc *);
-int astattach(struct atapi_softc *);
-void astdetach(struct atapi_softc *);
-void ast_start(struct atapi_softc *);
+int acdattach(struct ata_device *);
+void acddetach(struct ata_device *);
+void acd_start(struct ata_device *);
+int afdattach(struct ata_device *);
+void afddetach(struct ata_device *);
+void afd_start(struct ata_device *);
+int astattach(struct ata_device *);
+void astdetach(struct ata_device *);
+void ast_start(struct ata_device *);

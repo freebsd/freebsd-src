@@ -28,10 +28,10 @@
  * $FreeBSD$
  */
 
-#include "opt_global.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
@@ -44,20 +44,22 @@
 #include <sys/syslog.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
-#include <machine/md_var.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
 
 /* device structures */
 static d_open_t		adopen;
+static d_close_t	adclose;
 static d_strategy_t	adstrategy;
 static d_dump_t		addump;
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
-	/* close */	nullclose,
+	/* close */	adclose,
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	noioctl,
@@ -80,15 +82,18 @@ static void ad_timeout(struct ad_request *);
 static void ad_free(struct ad_request *);
 static int ad_version(u_int16_t);
 
+/* misc defines */
+#define AD_MAX_RETRIES	3
+
 /* internal vars */
 static u_int32_t adp_lun_map = 0;
-static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
-static int ata_dma = 1; 
-static int ata_wc = 1; 
+static int ata_dma = 1;
+static int ata_wc = 1;
 static int ata_tags = 0; 
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 TUNABLE_INT("hw.ata.wc", &ata_wc);
 TUNABLE_INT("hw.ata.tags", &ata_tags);
+static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* sysctl vars */
 SYSCTL_DECL(_hw_ata);
@@ -99,95 +104,93 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RD, &ata_wc, 0,
 SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
 	   "ATA disk tagged queuing support");
 
-/* defines */
-#define	AD_MAX_RETRIES	3
-#define AD_PARAM	ATA_PARAM(adp->controller, adp->unit)
-
-/* experimental cache flush on B_ORDERED */
-#define ATA_FLUSHCACHE_ON 
-
 void
-ad_attach(struct ata_softc *scp, int device)
+ad_attach(struct ata_device *atadev)
 {
     struct ad_softc *adp;
     dev_t dev;
 
-
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
-	ata_printf(scp, device, "failed to allocate driver storage\n");
+	ata_prtdev(atadev, "failed to allocate driver storage\n");
 	return;
     }
-    scp->dev_softc[ATA_DEV(device)] = adp;
-    adp->controller = scp;
-    adp->unit = device;
+    adp->device = atadev;
 #ifdef ATA_STATIC_ID
-    adp->lun = (device_get_unit(scp->dev) << 1) + ATA_DEV(device);
+    adp->lun = (device_get_unit(atadev->channel->dev)<<1)+ATA_DEV(atadev->unit);
 #else
     adp->lun = ata_get_lun(&adp_lun_map);
 #endif
-    adp->heads = AD_PARAM->heads;
-    adp->sectors = AD_PARAM->sectors;
-    adp->total_secs = AD_PARAM->cylinders * adp->heads * adp->sectors;	
-    
+    ata_set_name(atadev, "ad", adp->lun);
+    adp->heads = atadev->param->heads;
+    adp->sectors = atadev->param->sectors;
+    adp->total_secs = atadev->param->cylinders * adp->heads * adp->sectors;	
+    bufq_init(&adp->queue);
+
     /* does this device need oldstyle CHS addressing */
-    if (!ad_version(AD_PARAM->version_major) || 
-	!(AD_PARAM->atavalid & ATA_FLAG_54_58) || !AD_PARAM->lba_size)
+    if (!ad_version(atadev->param->version_major) || 
+	!(atadev->param->atavalid & ATA_FLAG_54_58) || !atadev->param->lba_size)
 	adp->flags |= AD_F_CHS_USED;
 
     /* use the 28bit LBA size if valid */
-    if (AD_PARAM->cylinders == 16383 && adp->total_secs < AD_PARAM->lba_size)
-	adp->total_secs = AD_PARAM->lba_size;
+    if (atadev->param->cylinders == 16383 &&
+	adp->total_secs < atadev->param->lba_size)
+	adp->total_secs = atadev->param->lba_size;
 
     /* use the 48bit LBA size if valid */
-    if (AD_PARAM->support.address48)
-	adp->total_secs = AD_PARAM->lba_size48;
-
+    if (atadev->param->support.address48 &&
+	atadev->param->lba_size48 > 268435455)
+	adp->total_secs = atadev->param->lba_size48;
+    
+    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     /* use multiple sectors/interrupt if device supports it */
     adp->transfersize = DEV_BSIZE;
-    if (ad_version(AD_PARAM->version_major)) {
-	int secsperint = max(1, min(AD_PARAM->sectors_intr, 16));
-	if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
-			 0, secsperint, 0, ATA_WAIT_INTR) &&
-            !ata_wait(adp->controller, adp->unit, 0))
-        adp->transfersize *= secsperint;
+    if (ad_version(atadev->param->version_major)) {
+	int secsperint = max(1, min(atadev->param->sectors_intr, 16));
+
+	if (!ata_command(atadev, ATA_C_SET_MULTI, 0, secsperint,
+			 0, ATA_WAIT_INTR) && !ata_wait(atadev, 0))
+	adp->transfersize *= secsperint;
     }
 
-    /* enable read/write cacheing if not default on device */
-    if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+    /* enable read caching if not default on device */
+    if (ata_command(atadev, ATA_C_SETFEATURES,
 		    0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
-	printf("ad%d: enabling readahead cache failed\n", adp->lun);
+	ata_prtdev(atadev, "enabling readahead cache failed\n");
 
-    /* enable write cacheing if allowed and not default on device */
-    if (ata_wc || ata_tags) {
-	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+    /* enable write caching if allowed and not default on device */
+    if (ata_wc || (ata_tags && ad_tagsupported(adp))) {
+	if (ata_command(atadev, ATA_C_SETFEATURES,
 			0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
-	ata_printf(scp, device, "enabling write cache failed\n");
+	    ata_prtdev(atadev, "enabling write cache failed\n");
     }
     else {
-	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+	if (ata_command(atadev, ATA_C_SETFEATURES,
 			0, 0, ATA_C_F_DIS_WCACHE, ATA_WAIT_INTR))
-	ata_printf(scp, device, "disabling write cache failed\n");
+	    ata_prtdev(atadev, "disabling write cache failed\n");
     }
 
     /* use DMA if allowed and if drive/controller supports it */
     if (ata_dma)
-	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), 
-		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+	ata_dmainit(atadev->channel, atadev->unit, ata_pmode(atadev->param), 
+		    ata_wmode(atadev->param), ata_umode(atadev->param));
     else
-	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1, -1);
- 
+	ata_dmainit(atadev->channel, atadev->unit,
+		    ata_pmode(atadev->param), -1, -1);
+
     /* use tagged queueing if allowed and supported */
     if (ata_tags && ad_tagsupported(adp)) {
-	adp->num_tags = AD_PARAM->queuelen;
+	adp->num_tags = atadev->param->queuelen;
 	adp->flags |= AD_F_TAG_ENABLED;
-	adp->controller->flags |= ATA_QUEUED;
-	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+	adp->device->channel->flags |= ATA_QUEUED;
+	if (ata_command(atadev, ATA_C_SETFEATURES,
 			0, 0, ATA_C_F_DIS_RELIRQ, ATA_WAIT_INTR))
-	    printf("ad%d: disabling release interrupt failed\n", adp->lun);
-	if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+	    ata_prtdev(atadev, "disabling release interrupt failed\n");
+	if (ata_command(atadev, ATA_C_SETFEATURES,
 			0, 0, ATA_C_F_DIS_SRVIRQ, ATA_WAIT_INTR))
-	    printf("ad%d: disabling service interrupt failed\n", adp->lun);
+	    ata_prtdev(atadev, "disabling service interrupt failed\n");
     }
+
+    ATA_UNLOCK_CH(atadev->channel);
 
     devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
@@ -199,52 +202,63 @@ ad_attach(struct ata_softc *scp, int device)
     dev->si_iosize_max = 256 * DEV_BSIZE;
     adp->dev = dev;
 
-    bufq_init(&adp->queue);
+    /* construct the disklabel */
+    bzero(&adp->disk.d_label, sizeof(struct disklabel));
+    adp->disk.d_label.d_secsize = DEV_BSIZE;
+    adp->disk.d_label.d_nsectors = adp->sectors;
+    adp->disk.d_label.d_ntracks = adp->heads;
+    adp->disk.d_label.d_ncylinders = adp->total_secs/(adp->heads*adp->sectors);
+    adp->disk.d_label.d_secpercyl = adp->sectors * adp->heads;
+    adp->disk.d_label.d_secperunit = adp->total_secs;
 
-    if (bootverbose) {
-	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
-	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
-	       ad_version(AD_PARAM->version_major), device_get_unit(scp->dev),
-	       (adp->unit == ATA_MASTER) ? "master" : "slave");
-
-	printf("ad%d: %lluMB (%llu sectors), %llu cyls, %u heads, %u S/T, %u B/S\n",
-	       adp->lun,
-	       (unsigned long long)adp->total_secs / ((1024L*1024L)/DEV_BSIZE),
-	       (unsigned long long)adp->total_secs, 
-	       (unsigned long long)adp->total_secs / (adp->heads*adp->sectors),
-	       adp->heads, adp->sectors, DEV_BSIZE);
-
-	printf("ad%d: %d secs/int, %d depth queue, %s%s\n", 
-	       adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
-	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
-
-	printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
-	       adp->lun, ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
-	       ata_umode(AD_PARAM), AD_PARAM->hwres_cblid);
-
-    }
+    atadev->driver = adp;
+    atadev->flags = 0;
 
     /* if this disk belongs to an ATA RAID dont print the probe */
-    if (ar_probe(adp))
-	printf("ad%d: %lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n",
-	       adp->lun,
-	       (unsigned long long)adp->total_secs / ((1024L*1024L)/DEV_BSIZE),
-	       AD_PARAM->model,
-	       (unsigned long long)adp->total_secs / (adp->heads*adp->sectors),
-	       adp->heads, adp->sectors, device_get_unit(scp->dev),
-	       (adp->unit == ATA_MASTER) ? "master" : "slave",
-	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+    if (ata_raiddisk_attach(adp))
+	adp->flags |= AD_F_RAID_SUBDISK;
+    else
+	ad_print(adp);
 }
 
 void
-ad_detach(struct ad_softc *adp)
+ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 {
+    struct ad_softc *adp = atadev->driver;
+    struct ad_request *request;
+    struct buf *bp;
+
+    atadev->flags |= ATA_D_DETACHING;
+    ata_prtdev(atadev, "removed from configuration\n");
+    ad_invalidatequeue(adp, NULL);
+    TAILQ_FOREACH(request, &atadev->channel->ata_queue, chain) {
+	if (request->softc != adp)
+	    continue;
+	TAILQ_REMOVE(&atadev->channel->ata_queue, request, chain);
+	request->bp->b_error = ENXIO;
+	request->bp->b_flags |= B_ERROR;
+	biodone(request->bp);
+	ad_free(request);
+    }
+    while ((bp = bufq_first(&adp->queue))) {
+	bufq_remove(&adp->queue, bp); 
+	request->bp->b_error = ENXIO;
+	request->bp->b_flags |= B_ERROR;
+	biodone(request->bp);
+    }
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev);
     devstat_remove_entry(&adp->stats);
+    if (flush) {
+	if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
+	    ata_prtdev(atadev, "flushing cache on detach failed\n");
+    }
+    if (adp->flags & AD_F_RAID_SUBDISK)
+	ata_raiddisk_detach(adp);
+    ata_free_name(atadev);
     ata_free_lun(&adp_lun_map, adp->lun);
+    atadev->driver = NULL;
+    atadev->flags = 0;
     free(adp, M_AD);
 }
 
@@ -252,16 +266,21 @@ static int
 adopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct ad_softc *adp = dev->si_drv1;
-    struct disklabel *dl;
 
-    dl = &adp->disk.d_label;
-    bzero(dl, sizeof *dl);
-    dl->d_secsize = DEV_BSIZE;
-    dl->d_nsectors = adp->sectors;
-    dl->d_ntracks = adp->heads;
-    dl->d_ncylinders = adp->total_secs / (adp->heads * adp->sectors);
-    dl->d_secpercyl = adp->sectors * adp->heads;
-    dl->d_secperunit = adp->total_secs;
+    if (adp->flags & AD_F_RAID_SUBDISK)
+	return EBUSY;
+    return 0;
+}
+
+static int
+adclose(dev_t dev, int flags, int fmt, struct proc *p)
+{
+    struct ad_softc *adp = dev->si_drv1;
+
+    ATA_SLEEPLOCK_CH(adp->device->channel, ATA_CONTROL);
+    if (ata_command(adp->device, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
+	ata_prtdev(adp->device, "flushing cache on close failed\n");
+    ATA_UNLOCK_CH(adp->device->channel);
     return 0;
 }
 
@@ -271,17 +290,16 @@ adstrategy(struct buf *bp)
     struct ad_softc *adp = bp->b_dev->si_drv1;
     int s;
 
-    /* if it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-	bp->b_resid = 0;
+    if (adp->device->flags & ATA_D_DETACHING) {
+	bp->b_error = ENXIO;
+	bp->b_flags |= B_ERROR;
 	biodone(bp);
 	return;
     }
-
     s = splbio();
     bufqdisksort(&adp->queue, bp);
-    ata_start(adp->controller);
     splx(s);
+    ata_start(adp->device->channel);
 }
 
 int
@@ -303,8 +321,8 @@ addump(dev_t dev)
 	return ENXIO;
 
     /* force PIO mode for dumps */
-    adp->controller->mode[ATA_DEV(adp->unit)] = ATA_PIO;
-    ata_reinit(adp->controller);
+    adp->device->mode = ATA_PIO;
+    ata_reinit(adp->device->channel);
 
     blkcnt = howmany(PAGE_SIZE, secsize);
 
@@ -324,7 +342,7 @@ addump(dev_t dev)
 	}
 
 	bzero(&request, sizeof(struct ad_request));
-	request.device = adp;
+	request.softc = adp;
 	request.blockaddr = blkno;
 	request.bytecount = PAGE_SIZE * dumppages;
 	request.data = va;
@@ -346,31 +364,21 @@ addump(dev_t dev)
 	addr += PAGE_SIZE * dumppages;
     }
 
-    if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DSC) < 0)
-	printf("ad%d: timeout waiting for final ready\n", adp->lun);
-
+    if (ata_wait(adp->device, ATA_S_READY | ATA_S_DSC) < 0)
+	ata_prtdev(adp->device, "timeout waiting for final ready\n");
     return 0;
 }
 
 void
-ad_start(struct ad_softc *adp)
+ad_start(struct ata_device *atadev)
 {
+    struct ad_softc *adp = atadev->driver;
     struct buf *bp = bufq_first(&adp->queue);
     struct ad_request *request;
     int tag = 0;
 
     if (!bp)
 	return;
-
-#ifdef ATA_FLUSHCACHE_ON 
-    /*
-     * if B_ORDERED is set cache should be flushed, if there are
-     * any outstanding requests, hold off and wait for them to finish
-     */
-    if (adp->flags & AD_F_TAG_ENABLED &&
-	bp->b_flags & B_ORDERED && adp->outstanding > 0)
-	return;
-#endif
 
     /* if tagged queueing enabled get next free tag */
     if (adp->flags & AD_F_TAG_ENABLED) {
@@ -381,12 +389,12 @@ ad_start(struct ad_softc *adp)
     }
 
     if (!(request = malloc(sizeof(struct ad_request), M_AD, M_NOWAIT|M_ZERO))) {
-	printf("ad%d: out of memory in start\n", adp->lun);
+	ata_prtdev(atadev, "out of memory in start\n");
 	return;
     }
 
     /* setup request */
-    request->device = adp;
+    request->softc = adp;
     request->bp = bp;
     request->blockaddr = bp->b_pblkno;
     request->bytecount = bp->b_bcount;
@@ -394,9 +402,9 @@ ad_start(struct ad_softc *adp)
     request->tag = tag;
     if (bp->b_flags & B_READ) 
 	request->flags |= ADR_F_READ;
-    if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA) {
-	if (!(request->dmatab = ata_dmaalloc(adp->controller, adp->unit)))
-	    adp->controller->mode[ATA_DEV(adp->unit)] = ATA_PIO;
+    if (adp->device->mode >= ATA_DMA) {
+	if (!(request->dmatab = ata_dmaalloc(atadev->channel, atadev->unit)))
+	    adp->device->mode = ATA_PIO;
     }
 
     /* insert in tag array */
@@ -406,7 +414,7 @@ ad_start(struct ad_softc *adp)
     bufq_remove(&adp->queue, bp); 
 
     /* link onto controller queue */
-    TAILQ_INSERT_TAIL(&adp->controller->ata_queue, request, chain);
+    TAILQ_INSERT_TAIL(&atadev->channel->ata_queue, request, chain);
 }
 
 int
@@ -414,12 +422,12 @@ ad_transfer(struct ad_request *request)
 {
     struct ad_softc *adp;
     u_int64_t lba;
-    u_int16_t count;
+    u_int32_t count, max_count;
     u_int8_t cmd;
     int flags = ATA_IMMEDIATE;
 
     /* get request params */
-    adp = request->device;
+    adp = request->softc;
 
     /* calculate transfer details */
     lba = request->blockaddr + (request->donecount / DEV_BSIZE);
@@ -433,12 +441,13 @@ ad_transfer(struct ad_request *request)
 	    request->timeout_handle = 
 		timeout((timeout_t*)ad_timeout, request, 10 * hz);
 
-	/* setup transfer parameters !! 65536 for 48bit SOS XXX */
+	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
-	if (count > 256) {
-	    count = 256;
-	    printf("ad%d: count %d size transfers not supported\n",
-		   adp->lun, count);
+	max_count = adp->device->param->support.address48 ? 65536 : 256;
+	if (count > max_count) {
+	    ata_prtdev(adp->device,
+		       "count %d size transfers not supported\n", count);
+	    count = max_count;
 	}
 
 	if (adp->flags & AD_F_CHS_USED) {
@@ -447,7 +456,7 @@ ad_transfer(struct ad_request *request)
 	    int head = (lba % (adp->sectors * adp->heads)) / adp->sectors;
 
 	    lba = (sector&0xff) | ((cylinder&0xffff)<<8) | ((head&0xf)<<24);
-	    flags |= ATA_USE_CHS;
+	    adp->device->flags |= ATA_D_USE_CHS;
 	}
 
 	/* setup first transfer length */
@@ -457,62 +466,59 @@ ad_transfer(struct ad_request *request)
 
 	/* does this drive & transfer work with DMA ? */
 	request->flags &= ~ADR_F_DMA_USED;
-	if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA &&
-	    !ata_dmasetup(adp->controller, adp->unit, request->dmatab,
-			  request->data, request->bytecount)) {
+	if (adp->device->mode >= ATA_DMA &&
+	    !ata_dmasetup(adp->device->channel, adp->device->unit,
+			  request->dmatab, request->data, request->bytecount)) {
 	    request->flags |= ADR_F_DMA_USED;
 	    request->currentsize = request->bytecount;
 
 	    /* do we have tags enabled ? */
 	    if (adp->flags & AD_F_TAG_ENABLED) {
-	    	cmd = (request->flags & ADR_F_READ) ?
+		cmd = (request->flags & ADR_F_READ) ?
 		    ATA_C_READ_DMA_QUEUED : ATA_C_WRITE_DMA_QUEUED;
 
-		if (ata_command(adp->controller, adp->unit, cmd, lba,
-		    		request->tag << 3, count, flags)) {
-		    printf("ad%d: error executing command", adp->lun);
+		if (ata_command(adp->device, cmd, lba,
+				request->tag << 3, count, flags)) {
+		    ata_prtdev(adp->device, "error executing command");
 		    goto transfer_failed;
 		}
-		if (ata_wait(adp->controller, adp->unit, ATA_S_READY)) {
-		    printf("ad%d: timeout waiting for READY\n", adp->lun);
+		if (ata_wait(adp->device, ATA_S_READY)) {
+		    ata_prtdev(adp->device, "timeout waiting for READY\n");
 		    goto transfer_failed;
 		}
 		adp->outstanding++;
 
 		/* if ATA bus RELEASE check for SERVICE */
 		if (adp->flags & AD_F_TAG_ENABLED &&
-		    inb(adp->controller->ioaddr + ATA_IREASON) & ATA_I_RELEASE)
+		    ATA_INB(adp->device->channel->r_io, ATA_IREASON) &
+		    ATA_I_RELEASE)
 		    return ad_service(adp, 1);
 	    }
 	    else {
-	    	cmd = (request->flags & ADR_F_READ) ?
+		cmd = (request->flags & ADR_F_READ) ?
 		    ATA_C_READ_DMA : ATA_C_WRITE_DMA;
 
-		if (ata_command(adp->controller, adp->unit,
-				cmd, lba, count, 0, flags)) {
-		    printf("ad%d: error executing command", adp->lun);
+		if (ata_command(adp->device, cmd, lba, count, 0, flags)) {
+		    ata_prtdev(adp->device, "error executing command");
 		    goto transfer_failed;
 		}
 #if 0
 		/*
 		 * wait for data transfer phase
 		 *
-		 * well this should be here acording to specs, but
+		 * well this should be here acording to specs, but older
 		 * promise controllers doesn't like it, they lockup!
-		 * thats probably why tags doesn't work on the promise
-		 * as this is needed there...
 		 */
-		if (ata_wait(adp->controller, adp->unit, 
-		    	     ATA_S_READY | ATA_S_DRQ)) {
-		    printf("ad%d: timeout waiting for data phase\n", adp->lun);
+		if (ata_wait(adp->device, ATA_S_READY | ATA_S_DRQ)) {
+		    ata_prtdev(adp->device, "timeout waiting for data phase\n");
 		    goto transfer_failed;
 		}
 #endif
 	    }
 
 	    /* start transfer, return and wait for interrupt */
-	    ata_dmastart(adp->controller, adp->unit,
-	    		 request->dmatab, request->flags & ADR_F_READ);
+	    ata_dmastart(adp->device->channel, adp->device->unit,
+			 request->dmatab, request->flags & ADR_F_READ);
 	    return ATA_OP_CONTINUES;
 	}
 
@@ -524,8 +530,8 @@ ad_transfer(struct ad_request *request)
 	else
 	    cmd = request->flags&ADR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
-	if (ata_command(adp->controller, adp->unit, cmd, lba, count, 0, flags)){
-	    printf("ad%d: error executing command", adp->lun);
+	if (ata_command(adp->device, cmd, lba, count, 0, flags)){
+	    ata_prtdev(adp->device, "error executing command");
 	    goto transfer_failed;
 	}
     }
@@ -538,21 +544,20 @@ ad_transfer(struct ad_request *request)
 	return ATA_OP_CONTINUES;
 
     /* ready to write PIO data ? */
-    if (ata_wait(adp->controller, adp->unit, 
-		 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
-	printf("ad%d: timeout waiting for DRQ", adp->lun);
+    if (ata_wait(adp->device, (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
+	ata_prtdev(adp->device, "timeout waiting for DRQ");
 	goto transfer_failed;
     }
 
     /* output the data */
-    if (adp->controller->flags & ATA_USE_16BIT)
-	outsw(adp->controller->ioaddr + ATA_DATA,
-	      (void *)((uintptr_t)request->data + request->donecount),
-	      request->currentsize / sizeof(int16_t));
+    if (adp->device->channel->flags & ATA_USE_16BIT)
+	ATA_OUTSW(adp->device->channel->r_io, ATA_DATA,
+		  (void *)((uintptr_t)request->data + request->donecount),
+		  request->currentsize / sizeof(int16_t));
     else
-	outsl(adp->controller->ioaddr + ATA_DATA,
-	      (void *)((uintptr_t)request->data + request->donecount),
-	      request->currentsize / sizeof(int32_t));
+	ATA_OUTSL(adp->device->channel->r_io, ATA_DATA,
+		  (void *)((uintptr_t)request->data + request->donecount),
+		  request->currentsize / sizeof(int32_t));
     return ATA_OP_CONTINUES;
 
 transfer_failed:
@@ -562,7 +567,7 @@ transfer_failed:
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < AD_MAX_RETRIES)
-	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
     else {
 	/* retries all used up, return error */
 	request->bp->b_error = EIO;
@@ -572,53 +577,50 @@ transfer_failed:
 	biodone(request->bp);
 	ad_free(request);
     }
-    ata_reinit(adp->controller);
+    ata_reinit(adp->device->channel);
     return ATA_OP_CONTINUES;
 }
 
 int
 ad_interrupt(struct ad_request *request)
 {
-    struct ad_softc *adp = request->device;
+    struct ad_softc *adp = request->softc;
     int dma_stat = 0;
-
-    if (request->flags & ADR_F_FLUSHCACHE)
-        goto finish;
 
     /* finish DMA transfer */
     if (request->flags & ADR_F_DMA_USED)
-	dma_stat = ata_dmadone(adp->controller);
+	dma_stat = ata_dmadone(adp->device->channel);
 
     /* do we have a corrected soft error ? */
-    if (adp->controller->status & ATA_S_CORR)
-	diskerr(request->bp, "soft (ECC corrected)", LOG_PRINTF,
+    if (adp->device->channel->status & ATA_S_CORR)
+	diskerr(request->bp, "soft error (ECC corrected)", LOG_PRINTF,
 		request->blockaddr + (request->donecount / DEV_BSIZE),
 		&adp->disk.d_label);
 
     /* did any real errors happen ? */
-    if ((adp->controller->status & ATA_S_ERROR) ||
+    if ((adp->device->channel->status & ATA_S_ERROR) ||
 	(request->flags & ADR_F_DMA_USED && dma_stat & ATA_BMSTAT_ERROR)) {
-	adp->controller->error = inb(adp->controller->ioaddr + ATA_ERROR);
-	diskerr(request->bp,
-		(adp->controller->error & ATA_E_ICRC) ?
-		    "UDMA ICRC error" : "hard error",
-		LOG_PRINTF, request->blockaddr + (request->donecount/DEV_BSIZE),
+	adp->device->channel->error =
+	    ATA_INB(adp->device->channel->r_io, ATA_ERROR);
+	diskerr(request->bp, (adp->device->channel->error & ATA_E_ICRC) ?
+		"UDMA ICRC error" : "hard error", LOG_PRINTF,
+		request->blockaddr + (request->donecount / DEV_BSIZE),
 		&adp->disk.d_label);
 
 	/* if this is a UDMA CRC error, reinject request */
 	if (request->flags & ADR_F_DMA_USED &&
-	    adp->controller->error & ATA_E_ICRC) {
+	    adp->device->channel->error & ATA_E_ICRC) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 	    ad_invalidatequeue(adp, request);
 
 	    if (request->retries++ < AD_MAX_RETRIES)
 		printf(" retrying\n");
 	    else {
-		ata_dmainit(adp->controller, adp->unit, 
-			    ata_pmode(AD_PARAM), -1, -1);
+		ata_dmainit(adp->device->channel, adp->device->unit, 
+			    ata_pmode(adp->device->param), -1, -1);
 		printf(" falling back to PIO mode\n");
 	    }
-	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	    TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
 	    return ATA_OP_FINISHED;
 	}
 
@@ -626,46 +628,46 @@ ad_interrupt(struct ad_request *request)
 	if (request->flags & ADR_F_DMA_USED) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 	    ad_invalidatequeue(adp, request);
-	    ata_dmainit(adp->controller, adp->unit,
-	    		ata_pmode(AD_PARAM), -1, -1);
+	    ata_dmainit(adp->device->channel, adp->device->unit,
+			ata_pmode(adp->device->param), -1, -1);
 	    request->flags |= ADR_F_FORCE_PIO;
-	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	    printf(" trying PIO mode\n");
+	    TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
 	    return ATA_OP_FINISHED;
 	}
 
 	request->flags |= ADR_F_ERROR;
 	printf(" status=%02x error=%02x\n", 
-	       adp->controller->status, adp->controller->error);
+	       adp->device->channel->status, adp->device->channel->error);
     }
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
-    if (request->flags & ADR_F_FORCE_PIO)
-	printf("ad%d: DMA problem fallback to PIO mode\n", adp->lun);
+    if (request->flags & ADR_F_FORCE_PIO && !(request->flags & ADR_F_ERROR))
+	ata_prtdev(adp->device, "DMA problem fallback to PIO mode\n");
 
     /* if this was a PIO read operation, get the data */
     if (!(request->flags & ADR_F_DMA_USED) &&
 	(request->flags & (ADR_F_READ | ADR_F_ERROR)) == ADR_F_READ) {
 
 	/* ready to receive data? */
-	if ((adp->controller->status & (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
-	    != (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
-	    printf("ad%d: read interrupt arrived early", adp->lun);
+	if ((adp->device->channel->status & (ATA_S_READY|ATA_S_DSC|ATA_S_DRQ))
+	    != (ATA_S_READY|ATA_S_DSC|ATA_S_DRQ))
+	    ata_prtdev(adp->device, "read interrupt arrived early");
 
-	if (ata_wait(adp->controller, adp->unit, 
-		     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) != 0) {
-	    printf("ad%d: read error detected (too) late", adp->lun);
+	if (ata_wait(adp->device, (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) != 0) {
+	    ata_prtdev(adp->device, "read error detected (too) late");
 	    request->flags |= ADR_F_ERROR;
 	}
 	else {
 	    /* data ready, read in */
-	    if (adp->controller->flags & ATA_USE_16BIT)
-		insw(adp->controller->ioaddr + ATA_DATA,
-		     (void *)((uintptr_t)request->data + request->donecount), 
-		     request->currentsize / sizeof(int16_t));
+	    if (adp->device->channel->flags & ATA_USE_16BIT)
+		ATA_INSW(adp->device->channel->r_io, ATA_DATA,
+			 (void*)((uintptr_t)request->data + request->donecount),
+			 request->currentsize / sizeof(int16_t));
 	    else
-		insl(adp->controller->ioaddr + ATA_DATA,
-		     (void *)((uintptr_t)request->data + request->donecount), 
-		     request->currentsize / sizeof(int32_t));
+		ATA_INSL(adp->device->channel->r_io, ATA_DATA,
+			 (void*)((uintptr_t)request->data + request->donecount),
+			 request->currentsize / sizeof(int32_t));
 	}
     }
 
@@ -688,17 +690,6 @@ ad_interrupt(struct ad_request *request)
 
     request->bp->b_resid = request->bytecount;
 
-#ifdef ATA_FLUSHCACHE_ON 
-    if (request->bp->b_flags & B_ORDERED) {
-	request->flags |= ADR_F_FLUSHCACHE;
-	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
-			0, 0, 0, ATA_IMMEDIATE))
-	    printf("ad%d: flushing cache failed\n", adp->lun);
-	else
-	    return ATA_OP_CONTINUES;
-    }
-#endif
-finish:
     devstat_end_transaction_buf(&adp->stats, request->bp);
     biodone(request->bp);
     ad_free(request);
@@ -712,82 +703,86 @@ int
 ad_service(struct ad_softc *adp, int change)
 {
     /* do we have to check the other device on this channel ? */
-    if (adp->controller->flags & ATA_QUEUED && change) {
-	int device = adp->unit;
+    if (adp->device->channel->flags & ATA_QUEUED && change) {
+	int device = adp->device->unit;
 
-	if (adp->unit == ATA_MASTER) {
-	    if (adp->controller->devices & ATA_ATA_SLAVE &&
-	        ((struct ad_softc *)
-		 (adp->controller->dev_softc[ATA_DEV(ATA_SLAVE)]))->flags & 
-		AD_F_TAG_ENABLED)  
+	if (adp->device->unit == ATA_MASTER) {
+	    if (adp->device->channel->devices & ATA_ATA_SLAVE &&
+		((struct ad_softc *)
+		 (adp->device->channel->
+		  device[ATA_DEV(ATA_SLAVE)].driver))->flags&AD_F_TAG_ENABLED)
 		device = ATA_SLAVE;
 	}
 	else {
-	    if (adp->controller->devices & ATA_ATA_MASTER &&
-	        ((struct ad_softc *)
-		 (adp->controller->dev_softc[ATA_DEV(ATA_MASTER)]))->flags & 
-		AD_F_TAG_ENABLED)  
+	    if (adp->device->channel->devices & ATA_ATA_MASTER &&
+		((struct ad_softc *)
+		 (adp->device->channel->
+		  device[ATA_DEV(ATA_MASTER)].driver))->flags&AD_F_TAG_ENABLED)
 		device = ATA_MASTER;
 	}
-	if (device != adp->unit &&
+	if (device != adp->device->unit &&
 	    ((struct ad_softc *)
-	     (adp->controller->dev_softc[ATA_DEV(device)]))->outstanding > 0) {
-	    outb(adp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
-	    adp = adp->controller->dev_softc[ATA_DEV(device)];
+	     (adp->device->channel->
+	      device[ATA_DEV(device)].driver))->outstanding > 0) {
+	    ATA_OUTB(adp->device->channel->r_io, ATA_DRIVE, ATA_D_IBM | device);
+	    adp = adp->device->channel->device[ATA_DEV(device)].driver;
 	    DELAY(1);
 	}
     }
-    adp->controller->status = inb(adp->controller->altioaddr);
+    adp->device->channel->status =
+	ATA_INB(adp->device->channel->r_altio, ATA_ALTSTAT);
  
     /* do we have a SERVICE request from the drive ? */
     if (adp->flags & AD_F_TAG_ENABLED &&
 	adp->outstanding > 0 &&
-	adp->controller->status & ATA_S_SERVICE) {
+	adp->device->channel->status & ATA_S_SERVICE) {
 	struct ad_request *request;
 	int tag;
 
 	/* check for error */
-	if (adp->controller->status & ATA_S_ERROR) {
-	    printf("ad%d: Oops! controller says s=0x%02x e=0x%02x\n",
-	           adp->lun, adp->controller->status,  adp->controller->error);
+	if (adp->device->channel->status & ATA_S_ERROR) {
+	    ata_prtdev(adp->device, "Oops! controller says s=0x%02x e=0x%02x\n",
+		       adp->device->channel->status,
+		       adp->device->channel->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
 
 	/* issue SERVICE cmd */
-	if (ata_command(adp->controller, adp->unit, ATA_C_SERVICE, 
-	    		0, 0, 0, ATA_IMMEDIATE)) {
-	    printf("ad%d: problem executing SERVICE cmd\n", adp->lun);
+	if (ata_command(adp->device, ATA_C_SERVICE, 0, 0, 0, ATA_IMMEDIATE)) {
+	    ata_prtdev(adp->device, "problem executing SERVICE cmd\n");
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
 
 	/* setup the transfer environment when ready */
-	if (ata_wait(adp->controller, adp->unit, ATA_S_READY)) {
-	    printf("ad%d: problem issueing SERVICE tag=%d s=0x%02x e=0x%02x\n",
-	           adp->lun, inb(adp->controller->ioaddr + ATA_COUNT) >> 3,
-		   adp->controller->status, adp->controller->error);
+	if (ata_wait(adp->device, ATA_S_READY)) {
+	    ata_prtdev(adp->device, "SERVICE timeout tag=%d s=%02x e=%02x\n",
+		       ATA_INB(adp->device->channel->r_io, ATA_COUNT) >> 3,
+		       adp->device->channel->status,
+		       adp->device->channel->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	tag = inb(adp->controller->ioaddr + ATA_COUNT) >> 3;
+	tag = ATA_INB(adp->device->channel->r_io, ATA_COUNT) >> 3;
 	if (!(request = adp->tags[tag])) {
-	    printf("ad%d: no request for this tag=%d??\n", adp->lun, tag);	
+	    ata_prtdev(adp->device, "no request for tag=%d\n", tag);	
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	adp->controller->active = ATA_ACTIVE_ATA;
-	adp->controller->running = request;
+	ATA_FORCELOCK_CH(adp->device->channel, ATA_ACTIVE_ATA);
+	adp->device->channel->running = request;
 	request->serv++;
 
 	/* start DMA transfer when ready */
-	if (ata_wait(adp->controller, adp->unit, ATA_S_READY | ATA_S_DRQ)) {
-	    printf("ad%d: timeout waiting for data phase s=%02x e=%02x\n",
-		   adp->lun, adp->controller->status, adp->controller->error);
+	if (ata_wait(adp->device, ATA_S_READY | ATA_S_DRQ)) {
+	    ata_prtdev(adp->device, "timeout starting DMA s=%02x e=%02x\n",
+		       adp->device->channel->status,
+		       adp->device->channel->error);
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	ata_dmastart(adp->controller, adp->unit,
+	ata_dmastart(adp->device->channel, adp->device->unit,
 		     request->dmatab, request->flags & ADR_F_READ);
 	return ATA_OP_CONTINUES;
     }
@@ -797,14 +792,10 @@ ad_service(struct ad_softc *adp, int change)
 static void
 ad_free(struct ad_request *request)
 {
-    int s = splbio();
-
     if (request->dmatab)
 	free(request->dmatab, M_DEVBUF);
-    request->device->tags[request->tag] = NULL;
+    request->softc->tags[request->tag] = NULL;
     free(request, M_AD);
-
-    splx(s);
 }
 
 static void
@@ -815,18 +806,18 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 	struct ad_request *tmpreq;
 	int tag;
 
-        printf("ad%d: invalidating queued requests\n", adp->lun);
+	ata_prtdev(adp->device, "invalidating queued requests\n");
 	for (tag = 0; tag <= adp->num_tags; tag++) {
 	    tmpreq = adp->tags[tag];
 	    adp->tags[tag] = NULL;
 	    if (tmpreq == request || tmpreq == NULL)
 		continue;
-    	    untimeout((timeout_t *)ad_timeout, tmpreq, tmpreq->timeout_handle);
-	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, tmpreq, chain);
+	    untimeout((timeout_t *)ad_timeout, tmpreq, tmpreq->timeout_handle);
+	    TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, tmpreq, chain);
 	}
-	if (ata_command(adp->controller, adp->unit, ATA_C_NOP,
+	if (ata_command(adp->device, ATA_C_NOP,
 			0, 0, ATA_C_F_FLUSHQUEUE, ATA_WAIT_READY))
-	    printf("ad%d: flushing queue failed\n", adp->lun);
+	    ata_prtdev(adp->device, "flush queue failed\n");
 	adp->outstanding = 0;
     }
 }
@@ -834,22 +825,22 @@ ad_invalidatequeue(struct ad_softc *adp, struct ad_request *request)
 static int
 ad_tagsupported(struct ad_softc *adp)
 {
-    const char *drives[] = {"IBM-DPTA", "IBM-DTLA", NULL};
+    const char *good[] = {"IBM-DPTA", "IBM-DTLA", NULL};
     int i = 0;
 
-    switch (adp->controller->chiptype) {
+    switch (adp->device->channel->chiptype) {
     case 0x4d33105a: /* Promises before TX2 doesn't work with tagged queuing */
     case 0x4d38105a:
-    case 0x0d30105a:  
+    case 0x0d30105a:
     case 0x4d30105a:  
 	return 0;
     }
 
     /* check that drive does DMA, has tags enabled, and is one we know works */
-    if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA &&
-	AD_PARAM->support.queued && AD_PARAM->enabled.queued) {
-	while (drives[i] != NULL) {
-	    if (!strncmp(AD_PARAM->model, drives[i], strlen(drives[i])))
+    if (adp->device->mode >= ATA_DMA && adp->device->param->support.queued && 
+	adp->device->param->enabled.queued) {
+	while (good[i] != NULL) {
+	    if (!strncmp(adp->device->param->model, good[i], strlen(good[i])))
 		return 1;
 	    i++;
 	}
@@ -858,9 +849,9 @@ ad_tagsupported(struct ad_softc *adp)
 	 * we want "IC" (IBM CORP) and "AT" or "AV" (ATA interface)
 	 * but doesn't care about the other info (size, capacity etc)
 	 */
-	if (!strncmp(AD_PARAM->model, "IC", 2) &&
-	    (!strncmp(AD_PARAM->model + 8, "AT", 2) ||
-	     !strncmp(AD_PARAM->model + 8, "AV", 2)))
+	if (!strncmp(adp->device->param->model, "IC", 2) &&
+	    (!strncmp(adp->device->param->model + 8, "AT", 2) ||
+	     !strncmp(adp->device->param->model + 8, "AV", 2)))
 		return 1;
     }
     return 0;
@@ -869,28 +860,27 @@ ad_tagsupported(struct ad_softc *adp)
 static void
 ad_timeout(struct ad_request *request)
 {
-    struct ad_softc *adp = request->device;
-    int s = splbio();
+    struct ad_softc *adp = request->softc;
 
-    adp->controller->running = NULL;
-    printf("ad%d: %s command timeout tag=%d serv=%d - resetting\n",
-	   adp->lun, (request->flags & ADR_F_READ) ? "READ" : "WRITE",
-	   request->tag, request->serv);
+    adp->device->channel->running = NULL;
+    ata_prtdev(adp->device, "%s command timeout tag=%d serv=%d - resetting\n",
+	       (request->flags & ADR_F_READ) ? "READ" : "WRITE",
+	       request->tag, request->serv);
 
     if (request->flags & ADR_F_DMA_USED) {
-	ata_dmadone(adp->controller);
+	ata_dmadone(adp->device->channel);
 	ad_invalidatequeue(adp, request);
-        if (request->retries == AD_MAX_RETRIES) {
-	    ata_dmainit(adp->controller, adp->unit,
-	    		ata_pmode(AD_PARAM), -1, -1);
-	    printf("ad%d: trying fallback to PIO mode\n", adp->lun);
+	if (request->retries == AD_MAX_RETRIES) {
+	    ata_dmainit(adp->device->channel, adp->device->unit,
+			ata_pmode(adp->device->param), -1, -1);
+	    ata_prtdev(adp->device, "trying fallback to PIO mode\n");
 	    request->retries = 0;
 	}
     }
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < AD_MAX_RETRIES) {
-	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+	TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
     }
     else {
 	/* retries all used up, return error */
@@ -900,22 +890,70 @@ ad_timeout(struct ad_request *request)
 	biodone(request->bp);
 	ad_free(request);
     }
-    ata_reinit(adp->controller);
-    splx(s);
+    ata_reinit(adp->device->channel);
 }
 
 void
-ad_reinit(struct ad_softc *adp)
+ad_reinit(struct ata_device *atadev)
 {
+    struct ad_softc *adp = atadev->driver;
+
     /* reinit disk parameters */
-    ad_invalidatequeue(adp, NULL);
-    ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0,
+    ad_invalidatequeue(atadev->driver, NULL);
+    ata_command(atadev, ATA_C_SET_MULTI, 0,
 		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
-    if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA)
-	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
-		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+    if (adp->device->mode >= ATA_DMA)
+	ata_dmainit(atadev->channel, atadev->unit,
+		    ata_pmode(adp->device->param),
+		    ata_wmode(adp->device->param),
+		    ata_umode(adp->device->param));
     else
-	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1, -1);
+	ata_dmainit(atadev->channel, atadev->unit,
+		    ata_pmode(adp->device->param), -1, -1);
+}
+
+void
+ad_print(struct ad_softc *adp) 
+{
+    if (bootverbose) {
+	ata_prtdev(adp->device, "<%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
+		   adp->device->param->model, adp->device->param->revision,
+		   ad_version(adp->device->param->version_major), 
+		   device_get_unit(adp->device->channel->dev),
+		   (adp->device->unit == ATA_MASTER) ? "master" : "slave");
+
+	ata_prtdev(adp->device,
+		   "%lluMB (%llu sectors), %llu C, %u H, %u S, %u B\n",
+		   (unsigned long long)(adp->total_secs /
+		   ((1024L*1024L)/DEV_BSIZE)),
+		   (unsigned long long) adp->total_secs,
+		   (unsigned long long) (adp->total_secs /
+		    (adp->heads * adp->sectors)),
+		   adp->heads, adp->sectors, DEV_BSIZE);
+
+	ata_prtdev(adp->device, "%d secs/int, %d depth queue, %s%s\n", 
+		   adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
+		   ata_mode2str(adp->device->mode));
+
+	ata_prtdev(adp->device, "piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
+		   ata_pmode(adp->device->param), ata_wmode(adp->device->param),
+		   ata_umode(adp->device->param), 
+		   adp->device->param->hwres_cblid);
+
+    }
+    else
+	ata_prtdev(adp->device,"%lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n",
+		   (unsigned long long)(adp->total_secs /
+		   ((1024L * 1024L) / DEV_BSIZE)),
+		   adp->device->param->model,
+		   (unsigned long long)(adp->total_secs /
+		    (adp->heads*adp->sectors)),
+		   adp->heads, adp->sectors,
+		   device_get_unit(adp->device->channel->dev),
+		   (adp->device->unit == ATA_MASTER) ? "master" : "slave",
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
+		   ata_mode2str(adp->device->mode));
 }
 
 static int

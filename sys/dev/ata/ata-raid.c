@@ -28,10 +28,10 @@
  * $FreeBSD$
  */
 
-#include "opt_global.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h> 
+#include <sys/ata.h> 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
@@ -41,110 +41,208 @@
 #include <sys/devicestat.h>
 #include <sys/cons.h>
 #include <machine/bus.h>
+#include <sys/rman.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
 
 /* device structures */
-static d_open_t         aropen;
-static d_strategy_t     arstrategy;
+static d_open_t		aropen;
+static d_strategy_t	arstrategy;
 static struct cdevsw ar_cdevsw = {
-	/* open */      aropen,
-	/* close */     nullclose,
-	/* read */      physread,
-	/* write */     physwrite,
-	/* ioctl */     noioctl, 
-	/* poll */      nopoll,
-	/* mmap */      nommap,
-	/* strategy */  arstrategy,
-	/* name */      "ar",
-	/* maj */       157,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     D_DISK,
-	/* bmaj */      -1
+	/* open */	aropen,
+	/* close */	nullclose,
+	/* read */	physread,
+	/* write */	physwrite,
+	/* ioctl */	noioctl, 
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	arstrategy,
+	/* name */	"ar",
+	/* maj */	157,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_DISK,
+	/* bmaj */	-1
 };  
 static struct cdevsw ardisk_cdevsw;
 
 /* prototypes */
-static void ar_attach(struct ar_softc *);
 static void ar_done(struct buf *);
-static int ar_highpoint_conf(struct ad_softc *, struct ar_softc **);
-static int ar_promise_conf(struct ad_softc *, struct ar_softc **);
-static int ar_read(struct ad_softc *, u_int32_t, int, char *);
+static void ar_config_changed(struct ar_softc *, int);
+static int ar_rebuild(struct ar_softc *);
+static int ar_highpoint_read_conf(struct ad_softc *, struct ar_softc **);
+static int ar_highpoint_write_conf(struct ar_softc *);
+static int ar_promise_read_conf(struct ad_softc *, struct ar_softc **);
+static int ar_promise_write_conf(struct ar_softc *);
+static int ar_rw(struct ad_softc *, u_int32_t, int, caddr_t, int);
 
 /* internal vars */
-static int ar_init = 0;
-static struct ar_softc *ar_table[8];
-MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
-  
-/* defines */
-#define PRINT_AD(adp) \
-        printf("  ad%d: %lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s%s\n", \
-               adp->lun, \
-	       (unsigned long long)adp->total_secs / ((1024L*1024L)/DEV_BSIZE),\
-	       adp->controller->dev_param[ATA_DEV(adp->unit)]->model, \
-	       (unsigned long long)adp->total_secs / (adp->heads*adp->sectors),\
-               adp->heads, adp->sectors, device_get_unit(adp->controller->dev),\
-               (adp->unit == ATA_MASTER) ? "master" : "slave", \
-               (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "", \
-               ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]))
+static struct ar_softc **ar_table = NULL;
+static MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
 
 int
-ar_probe(struct ad_softc *adp)
+ata_raiddisk_attach(struct ad_softc *adp)
 {
-    if (!ar_init) {
-	bzero(&ar_table, sizeof(ar_table));
-	ar_init = 1;
+    struct ar_softc *rdp;
+    int array, disk;
+
+    switch(adp->device->channel->chiptype) {
+    default:
+	return 0;
+
+    case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
+    case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
+    case 0x00041103: case 0x00051103: case 0x00081103:
+    }
+    if (ar_table) {
+	for (array = 0; array < MAX_ARRAYS; array++) {
+	    if (!(rdp = ar_table[array]) || !rdp->flags)
+		continue;
+   
+	    for (disk = 0; disk < rdp->total_disks; disk++) {
+		if (rdp->disks[disk].device == adp->device) {
+		    ata_prtdev(rdp->disks[disk].device,
+			       "inserted into ar%d disk%d as spare\n",
+			       array, disk);
+		    rdp->disks[disk].flags = (AR_DF_PRESENT | AR_DF_SPARE);
+		    ar_config_changed(rdp, 1);
+		    return 1;
+		}
+	    }
+	}
     }
 
-    switch(adp->controller->chiptype) {
-    case 0x4d33105a:
-    case 0x4d38105a:
-    case 0x4d30105a:
-    case 0x0d30105a:
-    case 0x4d68105a:
-    case 0x6268105a:
-	return (ar_promise_conf(adp, ar_table));
-
-    case 0x00041103:
-	return (ar_highpoint_conf(adp, ar_table));
+    if (!ar_table)
+	ar_table = malloc(sizeof(struct ar_soft *) * MAX_ARRAYS,
+			  M_AR, M_NOWAIT | M_ZERO);
+    if (!ar_table) {
+	ata_prtdev(adp->device, "no memory for ATA raid array\n");
+	return 0;
     }
-    return 1;
+
+    switch(adp->device->channel->chiptype) {
+    case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
+    case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
+	/* test RAID bit in PCI reg XXX */
+	return (ar_promise_read_conf(adp, ar_table));
+
+    case 0x00041103: case 0x00051103: case 0x00081103:
+	return (ar_highpoint_read_conf(adp, ar_table));
+    }
+    return 0;
 }
 
-static void
-ar_attach(struct ar_softc *raid)
+int
+ata_raiddisk_detach(struct ad_softc *adp)
 {
-    dev_t dev;
-    int i;
+    struct ar_softc *rdp;
+    int array, disk;
 
-    printf("ar%d: %luMB <ATA ",
-	   raid->lun, raid->total_secs / ((1024L * 1024L) / DEV_BSIZE));
-    switch (raid->flags & (AR_F_RAID_0 | AR_F_RAID_1 | AR_F_SPAN)) {
-    case AR_F_RAID_0:
-        printf("RAID0 "); break;
-    case AR_F_RAID_1:
-        printf("RAID1 "); break;
-    case AR_F_SPAN:
-        printf("SPAN "); break;
-    case (AR_F_RAID_0 | AR_F_RAID_1):
-        printf("RAID0+1 "); break;
+    switch(adp->device->channel->chiptype) {
     default:
-    	printf("unknown array 0x%x ", raid->flags);
-	return;
-    }
-    printf("array> [%d/%d/%d] subdisks:\n",
-    	   raid->cylinders, raid->heads, raid->sectors);
-    for (i = 0; i < raid->num_subdisks; i++)
-	PRINT_AD(raid->subdisk[i]);
-    for (i = 0; i < raid->num_mirrordisks; i++)
-	PRINT_AD(raid->mirrordisk[i]);
+	return 0;
 
-    dev = disk_create(raid->lun, &raid->disk, 0, &ar_cdevsw, &ardisk_cdevsw);
-    dev->si_drv1 = raid;
-    dev->si_iosize_max = 256 * DEV_BSIZE;
-    raid->dev = dev;
+    case 0x4d33105a: case 0x4d38105a: case 0x4d30105a:
+    case 0x0d30105a: case 0x4d68105a: case 0x6268105a:
+    case 0x00041103: case 0x00051103: case 0x00081103:
+    }
+    if (ar_table) {
+	for (array = 0; array < MAX_ARRAYS; array++) {
+	    if (!(rdp = ar_table[array]) || !rdp->flags)
+		continue; 
+	    for (disk = 0; disk < rdp->total_disks; disk++) {
+		if (rdp->disks[disk].device == adp->device) {
+		    ata_prtdev(rdp->disks[disk].device,
+			       "deleted from ar%d disk%d\n", array, disk);
+		    rdp->disks[disk].flags &= ~(AR_DF_PRESENT | AR_DF_ONLINE);
+		    ar_config_changed(rdp, 1);
+		    return 1;
+		}
+	    }
+	}
+    }
+    return 0;
+}
+
+void
+ata_raid_attach()
+{
+    struct ar_softc *rdp;
+    dev_t dev;
+    int array, disk;
+
+    if (!ar_table)
+	return;
+
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!(rdp = ar_table[array]) || !rdp->flags)
+	    continue;
+   
+	ar_config_changed(rdp, 0);
+	dev = disk_create(rdp->lun, &rdp->disk, 0, &ar_cdevsw, &ardisk_cdevsw);
+	dev->si_drv1 = rdp;
+	dev->si_iosize_max = 256 * DEV_BSIZE;
+	rdp->dev = dev;
+
+	printf("ar%d: %lluMB <ATA ",
+	       rdp->lun, (unsigned long long)
+	       (rdp->total_sectors / ((1024L * 1024L) / DEV_BSIZE)));
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_RAID0:
+	    printf("RAID0 "); break;
+	case AR_F_RAID1:
+	    printf("RAID1 "); break;
+	case AR_F_SPAN:
+	    printf("SPAN "); break;
+	case (AR_F_RAID0 | AR_F_RAID1):
+	    printf("RAID0+1 "); break;
+	default:
+	    printf("unknown 0x%x> ", rdp->flags);
+	    return;
+	}
+	printf("array> [%d/%d/%d] status: ",
+	       rdp->cylinders, rdp->heads, rdp->sectors);
+	switch (rdp->flags & (AR_F_DEGRADED | AR_F_READY)) {
+	case AR_F_READY:
+	    printf("READY");
+	    break;
+	case (AR_F_DEGRADED | AR_F_READY):
+	    printf("DEGRADED");
+	    break;
+	default:
+	    printf("BROKEN");
+	    break;
+	}
+	printf(" subdisks:\n");
+	for (disk = 0; disk < rdp->total_disks; disk++) {
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		printf(" %d READY ", disk);
+	    else if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
+		printf(" %d DOWN  ", disk);
+	    else if (rdp->disks[disk].flags & AR_DF_SPARE)
+		printf(" %d SPARE ", disk);
+	    else if (rdp->disks[disk].flags & AR_DF_PRESENT)
+		printf(" %d FREE  ", disk);
+	    else
+		printf(" %d INVALID no RAID config info on this disk\n", disk);
+	    if (rdp->disks[disk].flags & AR_DF_PRESENT)
+		ad_print(AD_SOFTC(rdp->disks[disk]));
+	}
+    }
+}
+
+int
+ata_raid_rebuild(int array)
+{
+    struct ar_softc *rdp;
+
+    if (!ar_table || !(rdp = ar_table[array]))
+	return ENXIO;
+    if (rdp->flags & AR_F_REBUILDING)
+	return EBUSY;
+    /* create process here XXX SOS */
+    return ar_rebuild(rdp);
 }
 
 static int
@@ -152,7 +250,7 @@ aropen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct ar_softc *rdp = dev->si_drv1;
     struct disklabel *dl;
-        
+	
     dl = &rdp->disk.d_label;
     bzero(dl, sizeof *dl);
     dl->d_secsize = DEV_BSIZE;
@@ -160,7 +258,7 @@ aropen(dev_t dev, int flags, int fmt, struct proc *p)
     dl->d_ntracks = rdp->heads;
     dl->d_ncylinders = rdp->cylinders;
     dl->d_secpercyl = rdp->sectors * rdp->heads;
-    dl->d_secperunit = rdp->total_secs;
+    dl->d_secperunit = rdp->total_sectors;
     return 0;
 }
 
@@ -168,50 +266,67 @@ static void
 arstrategy(struct buf *bp)
 {
     struct ar_softc *rdp = bp->b_dev->si_drv1;
-    int lba, count, chunk;
+    int blkno, count, chunk, lba, lbs, tmplba;
+    int drv = 0, change = 0;
     caddr_t data;
 
-    /* if it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-	bp->b_resid = 0;
+    if (!(rdp->flags & AR_F_READY)) {
+	bp->b_flags |= B_ERROR;
+	bp->b_error = EIO;
 	biodone(bp);
 	return;
     }
 
     bp->b_resid = bp->b_bcount;
-    lba = bp->b_pblkno;
+    blkno = bp->b_pblkno;
     data = bp->b_data;
     for (count = howmany(bp->b_bcount, DEV_BSIZE); count > 0; 
-	 count -= chunk, lba += chunk, data += (chunk * DEV_BSIZE)) {
+	 count -= chunk, blkno += chunk, data += (chunk * DEV_BSIZE)) {
 	struct ar_buf *buf1, *buf2;
-	int plba;
 
-	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
-	bzero(buf1, sizeof(struct ar_buf));
-	if (rdp->flags & AR_F_SPAN) {
-	    plba = lba;
-	    while (plba >= (rdp->subdisk[buf1->drive]->total_secs-rdp->reserved)
-		   && buf1->drive < rdp->num_subdisks)
-		plba-=(rdp->subdisk[buf1->drive++]->total_secs-rdp->reserved);
-	    buf1->bp.b_pblkno = plba;
-	    chunk = min(rdp->subdisk[buf1->drive]->total_secs - 
-		        rdp->reserved - plba, count);
-	}
-	else if (rdp->flags & AR_F_RAID_0) {
-	    plba = lba / rdp->interleave;
-	    chunk = lba % rdp->interleave;
-	    buf1->drive = plba % rdp->num_subdisks;
-	    buf1->bp.b_pblkno = 
-		((plba / rdp->num_subdisks) * rdp->interleave) + chunk;
-	    chunk = min(rdp->interleave - chunk, count);
-	}
-	else {
-	    buf1->bp.b_pblkno = lba;
-	    buf1->drive = 0;
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_SPAN:
+	    lba = blkno;
+	    while (lba >= AD_SOFTC(rdp->disks[drv])->total_secs-rdp->reserved)
+		lba -= AD_SOFTC(rdp->disks[drv++])->total_secs-rdp->reserved;
+	    chunk = min(AD_SOFTC(rdp->disks[drv])->total_secs-rdp->reserved-lba,
+			count);
+	    break;
+	
+	case AR_F_RAID0:
+	case AR_F_RAID0 | AR_F_RAID1:
+	    tmplba = blkno / rdp->interleave;
+	    chunk = blkno % rdp->interleave;
+	    if (tmplba == rdp->total_sectors / rdp->interleave) {
+		lbs = (rdp->total_sectors-(tmplba*rdp->interleave))/rdp->width;
+		drv = chunk / lbs;
+		lba = ((tmplba/rdp->width)*rdp->interleave) + chunk%lbs;
+		chunk = min(count, lbs);
+	    }
+	    else {
+		drv = tmplba % rdp->width;
+		lba = ((tmplba / rdp->width) * rdp->interleave) + chunk;
+		chunk = min(count, rdp->interleave - chunk);
+	    }
+	    break;
+
+	case AR_F_RAID1:
+	    drv = 0;
+	    lba = blkno;
 	    chunk = count;
+	    break;
+
+	default:
+	    printf("ar%d: unknown array type in arstrategy\n", rdp->lun);
+	    bp->b_flags |= B_ERROR;
+	    bp->b_error = EIO;
+	    biodone(bp);
+	    return;
 	}
 
-	if (buf1->drive > 0)
+	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT | M_ZERO);
+	buf1->bp.b_pblkno = lba;
+	if ((buf1->drive = drv) > 0)
 	    buf1->bp.b_pblkno += rdp->offset;
 	buf1->bp.b_caller1 = (void *)rdp;
 	buf1->bp.b_bcount = chunk * DEV_BSIZE;
@@ -220,33 +335,93 @@ arstrategy(struct buf *bp)
 	buf1->bp.b_iodone = ar_done;
 	buf1->org = bp;
 
-	/* simpleminded load balancing on RAID1 arrays */
-	if (rdp->flags & AR_F_RAID_1 && bp->b_flags & B_READ) {
-	    if (buf1->bp.b_pblkno < 
-		(rdp->last_lba[buf1->drive][rdp->last_disk] - 100) ||
-		buf1->bp.b_pblkno > 
-		(rdp->last_lba[buf1->drive][rdp->last_disk] + 100)) {
-		rdp->last_disk = 1 - rdp->last_disk;
-		rdp->last_lba[buf1->drive][rdp->last_disk] = 
-		    buf1->bp.b_pblkno;
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_SPAN:
+	case AR_F_RAID0:
+	    if (rdp->disks[buf1->drive].flags & AR_DF_ONLINE &&
+		!AD_SOFTC(rdp->disks[buf1->drive])->dev->si_disk) {
+		rdp->disks[buf1->drive].flags &= ~AR_DF_ONLINE;
+		ar_config_changed(rdp, 1);
+		free(buf1, M_AR);
+		bp->b_flags |= B_ERROR;
+		bp->b_error = EIO;
+		biodone(bp);
+		return;
 	    }
-	    if (rdp->last_disk)
-	    	buf1->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev;
-	    else
-	    	buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev;
-	}
-	else
-	    buf1->bp.b_dev = rdp->subdisk[buf1->drive]->dev;
+	    buf1->bp.b_dev = AD_SOFTC(rdp->disks[buf1->drive])->dev;
+	    AR_STRATEGY((struct buf *)buf1);
+	    break;
 
-	if (rdp->flags & AR_F_RAID_1 && !(bp->b_flags & B_READ)) {
-	    buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
-	    bcopy(buf1, buf2, sizeof(struct ar_buf));
-	    buf2->bp.b_dev = rdp->mirrordisk[buf1->drive]->dev;
-	    buf2->mirror = buf1;
-	    buf1->mirror = buf2;
-	    buf2->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf2);
+	case AR_F_RAID1:
+	case AR_F_RAID0 | AR_F_RAID1:
+	    if (rdp->flags & AR_F_REBUILDING && !(bp->b_flags & B_READ)) {
+		if ((bp->b_pblkno >= rdp->lock_start &&
+		     bp->b_pblkno < rdp->lock_end) ||
+		    ((bp->b_pblkno + chunk) > rdp->lock_start &&
+		     (bp->b_pblkno + chunk) <= rdp->lock_end)) {
+		    tsleep(rdp, PRIBIO, "arwait", 0);
+		}
+	    }
+	    if (rdp->disks[buf1->drive].flags & AR_DF_ONLINE &&
+		!AD_SOFTC(rdp->disks[buf1->drive])->dev->si_disk) {
+		rdp->disks[buf1->drive].flags &= ~AR_DF_ONLINE;
+		change = 1;
+	    }
+	    if (rdp->disks[buf1->drive + rdp->width].flags & AR_DF_ONLINE &&
+		!AD_SOFTC(rdp->disks[buf1->drive + rdp->width])->dev->si_disk) {
+		rdp->disks[buf1->drive + rdp->width].flags &= ~AR_DF_ONLINE;
+		change = 1;
+	    }
+	    if (change)
+		ar_config_changed(rdp, 1);
+		
+	    if (!(rdp->flags & AR_F_READY)) {
+		free(buf1, M_AR);
+		bp->b_flags |= B_ERROR;
+		bp->b_error = EIO;
+		biodone(bp);
+		return;
+	    }
+	    if (bp->b_flags & B_READ) {
+		if ((buf1->bp.b_pblkno <
+		     (rdp->disks[buf1->drive].last_lba - AR_PROXIMITY) ||
+		     buf1->bp.b_pblkno >
+		     (rdp->disks[buf1->drive].last_lba + AR_PROXIMITY) ||
+		     !(rdp->disks[buf1->drive].flags & AR_DF_ONLINE)) &&
+		     (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE))
+			buf1->drive = buf1->drive + rdp->width;
+	    }
+	    else {
+		if ((rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE) ||
+		    ((rdp->flags & AR_F_REBUILDING) &&
+		     (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_SPARE) &&
+		     buf1->bp.b_pblkno < rdp->lock_start)) {
+		    if ((rdp->disks[buf1->drive].flags & AR_DF_ONLINE) ||
+			((rdp->flags & AR_F_REBUILDING) &&
+			 (rdp->disks[buf1->drive].flags & AR_DF_SPARE) &&
+			 buf1->bp.b_pblkno < rdp->lock_start)) {
+			buf2 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
+			bcopy(buf1, buf2, sizeof(struct ar_buf));
+			buf1->mirror = buf2;
+			buf2->mirror = buf1;
+			buf2->drive = buf1->drive + rdp->width;
+			buf2->bp.b_dev = AD_SOFTC(rdp->disks[buf2->drive])->dev;
+			AR_STRATEGY((struct buf *)buf2);
+			rdp->disks[buf2->drive].last_lba =
+			    buf2->bp.b_pblkno + chunk;
+		    }
+		    else
+			buf1->drive = buf1->drive + rdp->width;
+		}
+	    }
+	    buf1->bp.b_dev = AD_SOFTC(rdp->disks[buf1->drive])->dev;
+	    AR_STRATEGY((struct buf *)buf1);
+	    rdp->disks[buf1->drive].last_lba = buf1->bp.b_pblkno + chunk;
+	    break;
+
+	default:
+	    printf("ar%d: unknown array type in arstrategy\n", rdp->lun);
 	}
-	buf1->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf1);
     }
 }
 
@@ -255,296 +430,751 @@ ar_done(struct buf *bp)
 {
     struct ar_softc *rdp = (struct ar_softc *)bp->b_caller1;
     struct ar_buf *buf = (struct ar_buf *)bp;
-    int s;
 
-    s = splbio();
-
-    if (bp->b_flags & B_ERROR) {
-	if (!(bp->b_flags & B_READ) || buf->done || !(rdp->flags&AR_F_RAID_1)) {
+    switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+    case AR_F_SPAN:
+    case AR_F_RAID0:
+	if (buf->bp.b_flags & B_ERROR) {
+	    rdp->disks[buf->drive].flags &= ~AR_DF_ONLINE;
+	    ar_config_changed(rdp, 1);
 	    buf->org->b_flags |= B_ERROR;
-	    buf->org->b_error = bp->b_error;
-	}
-	printf("ar%d: subdisk error\n", rdp->lun);
-    }
-
-    if (rdp->flags & AR_F_RAID_1) {
-	if (!(bp->b_flags & B_READ)) {
-	    if (!buf->done) {
-		buf->mirror->done = 1;
-		goto done;
-	    }
+	    buf->org->b_error = EIO;
+	    biodone(buf->org);
 	}
 	else {
-	    if (!buf->done && bp->b_flags & B_ERROR) {
-		/* read error on this disk, try mirror */
-		buf->done = 1;
-	    	buf->bp.b_dev = rdp->mirrordisk[buf->drive]->dev;
-	    	buf->bp.b_dev->si_disk->d_devsw->d_strategy((struct buf *)buf);
-		return;
-	    }
+	    buf->org->b_resid -= buf->bp.b_bcount;
+	    if (buf->org->b_resid == 0)
+		biodone(buf->org);
 	}
+	break;
+
+    case AR_F_RAID1:
+    case AR_F_RAID0 | AR_F_RAID1:
+	if (buf->bp.b_flags & B_ERROR) {
+	    rdp->disks[buf->drive].flags &= ~AR_DF_ONLINE;
+	    ar_config_changed(rdp, 1);
+	    if (rdp->flags & AR_F_READY) {
+		if (buf->bp.b_flags & B_READ) {
+		    if (buf->drive < rdp->width)
+			buf->drive = buf->drive + rdp->width;
+		    else
+			buf->drive = buf->drive - rdp->width;
+		    buf->bp.b_dev = AD_SOFTC(rdp->disks[buf->drive])->dev;
+		    buf->bp.b_flags = buf->org->b_flags;
+		    buf->bp.b_error = 0;
+		    AR_STRATEGY((struct buf *)buf);
+		    return;
+		}
+		else {
+		    if (buf->flags & AB_F_DONE) {
+			buf->org->b_resid -= buf->bp.b_bcount;
+			if (buf->org->b_resid == 0)
+			    biodone(buf->org);
+		    }
+		    else
+			buf->mirror->flags |= AB_F_DONE;
+		}
+	    }
+	    else {
+		buf->org->b_flags |= B_ERROR;
+		buf->org->b_error = EIO;
+		biodone(buf->org);
+	    }
+	} 
+	else {
+	    if (!(buf->bp.b_flags & B_READ)) {
+		if (buf->mirror && !(buf->flags & AB_F_DONE)){
+		    buf->mirror->flags |= AB_F_DONE;
+		    break;
+		}
+	    }
+	    buf->org->b_resid -= buf->bp.b_bcount;
+	    if (buf->org->b_resid == 0)
+		biodone(buf->org);
+	}
+	break;
+	
+    default:
+	printf("ar%d: unknown array type in ar_done\n", rdp->lun);
     }
-    buf->org->b_resid -= bp->b_bcount;
-    if (buf->org->b_resid == 0)
-	biodone(buf->org);
-done:
     free(buf, M_AR);
-    splx(s);
 }
 
-/* read the RAID info from a disk on a HighPoint controller */
-static int
-ar_highpoint_conf(struct ad_softc *adp, struct ar_softc **raidp)
+static void
+ar_config_changed(struct ar_softc *rdp, int writeback)
 {
-    struct highpoint_raid_conf info;
-    struct ar_softc *raid;
-    int array;
+    int disk, flags;
 
-    if (ar_read(adp, 0x09, DEV_BSIZE, (char *)&info)) {
+    flags = rdp->flags;
+    rdp->flags |= AR_F_READY;
+    rdp->flags &= ~AR_F_DEGRADED;
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_SPAN:
+	case AR_F_RAID0:
+	    if (!(rdp->disks[disk].flags & AR_DF_ONLINE)) {
+		rdp->flags &= ~AR_F_READY;
+		printf("ar%d: ERROR - array broken\n", rdp->lun);
+	    }
+	    break;
+
+	case AR_F_RAID1:
+	case AR_F_RAID0 | AR_F_RAID1:
+	    if (disk < rdp->width) {
+		if (!(rdp->disks[disk].flags & AR_DF_ONLINE) &&
+		    !(rdp->disks[disk + rdp->width].flags & AR_DF_ONLINE)) {
+		    rdp->flags &= ~AR_F_READY;
+		    printf("ar%d: ERROR - array broken\n", rdp->lun);
+		}
+		else if (((rdp->disks[disk].flags & AR_DF_ONLINE) &&
+			  !(rdp->disks
+			    [disk + rdp->width].flags & AR_DF_ONLINE))||
+			 (!(rdp->disks[disk].flags & AR_DF_ONLINE) &&
+			  (rdp->disks
+			   [disk + rdp->width].flags & AR_DF_ONLINE))) {
+		    rdp->flags |= AR_F_DEGRADED;
+		    if (!(flags & AR_F_DEGRADED))
+			printf("ar%d: WARNING - mirror lost\n", rdp->lun);
+		}
+	    }
+	    break;
+	}
+	if ((rdp->disks[disk].flags & AR_DF_PRESENT) &&
+	    rdp->disks[disk].device) {
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		ata_drawerleds(rdp->disks[disk].device, ATA_LED_GREEN);
+	    else
+		ata_drawerleds(rdp->disks[disk].device, ATA_LED_RED);
+	}
+    }
+    if (writeback) {
+	if (rdp->flags & AR_F_PROMISE_RAID)
+	    ar_promise_write_conf(rdp);
+	if (rdp->flags & AR_F_HIGHPOINT_RAID)
+	    ar_highpoint_write_conf(rdp);
+    }
+}
+
+static int
+ar_rebuild(struct ar_softc *rdp)
+{
+    int disk, s, count = 0, error = 0;
+    caddr_t buffer;
+
+    if ((rdp->flags & (AR_F_READY|AR_F_DEGRADED)) != (AR_F_READY|AR_F_DEGRADED))
+	return EEXIST;
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (((rdp->disks[disk].flags&(AR_DF_PRESENT|AR_DF_ONLINE|AR_DF_SPARE))==
+	     (AR_DF_PRESENT | AR_DF_SPARE)) && rdp->disks[disk].device) {
+	    if (AD_SOFTC(rdp->disks[disk])->total_secs <
+		rdp->disks[disk].disk_sectors) {
+		ata_prtdev(rdp->disks[disk].device,
+			   "disk capacity too small for this RAID config\n");
+		rdp->disks[disk].flags &= ~AR_DF_SPARE;
+		continue;
+	    }
+	    ata_drawerleds(rdp->disks[disk].device, ATA_LED_ORANGE);
+	    count++;
+	}
+    }
+    if (!count)
+	return ENODEV;
+
+    /* setup start conditions */
+    s = splbio();
+    rdp->lock_start = 0;
+    rdp->lock_end = rdp->lock_start + 256;
+    rdp->flags |= AR_F_REBUILDING;
+    splx(s);
+    buffer = malloc(256 * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO);
+
+    /* now go copy entire disk(s) */
+    while (rdp->lock_end < (rdp->total_sectors / rdp->width)) {
+	int size = min(256, (rdp->total_sectors / rdp->width) - rdp->lock_end);
+
+	for (disk = 0; disk < rdp->width; disk++) {
+	    struct ad_softc *adp;
+
+	    if (((rdp->disks[disk].flags & AR_DF_ONLINE) &&
+		 (rdp->disks[disk + rdp->width].flags & AR_DF_ONLINE)) ||
+		((rdp->disks[disk].flags & AR_DF_ONLINE) && 
+		 !(rdp->disks[disk + rdp->width].flags & AR_DF_SPARE)) ||
+		((rdp->disks[disk + rdp->width].flags & AR_DF_ONLINE) &&
+		 !(rdp->disks[disk].flags & AR_DF_SPARE)))
+		continue;
+
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		adp = AD_SOFTC(rdp->disks[disk]);
+	    else
+		adp = AD_SOFTC(rdp->disks[disk + rdp->width]);
+	    if ((error = ar_rw(adp, rdp->lock_start,
+			       size * DEV_BSIZE, buffer, AR_READ | AR_WAIT)))
+		break;
+
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		adp = AD_SOFTC(rdp->disks[disk + rdp->width]);
+	    else
+		adp = AD_SOFTC(rdp->disks[disk]);
+	    if ((error = ar_rw(adp, rdp->lock_start,
+			       size * DEV_BSIZE, buffer, AR_WRITE | AR_WAIT)))
+		break;
+	}
+	if (error) {
+	    wakeup(rdp);
+	    free(buffer, M_AR);
+	    return error;
+	}
+	s = splbio();
+	rdp->lock_start = rdp->lock_end;
+	rdp->lock_end = rdp->lock_start + size;
+	splx(s);
+	wakeup(rdp);
+    }
+    free(buffer, M_AR);
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if ((rdp->disks[disk].flags&(AR_DF_PRESENT|AR_DF_ONLINE|AR_DF_SPARE))==
+	    (AR_DF_PRESENT | AR_DF_SPARE)) {
+	    rdp->disks[disk].flags &= ~AR_DF_SPARE;
+	    rdp->disks[disk].flags |= (AR_DF_ASSIGNED | AR_DF_ONLINE);
+	}
+    }
+    s = splbio();
+    rdp->lock_start = 0xffffffff;
+    rdp->lock_end = 0xffffffff;
+    rdp->flags &= ~AR_F_REBUILDING;
+    splx(s);
+    ar_config_changed(rdp, 1);
+    return 0;
+}
+
+static int
+ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
+{
+    struct highpoint_raid_conf *info;
+    struct ar_softc *raid = NULL;
+    int array, disk_number = 0, retval = 0;
+
+    if (!(info = (struct highpoint_raid_conf *)
+	  malloc(sizeof(struct highpoint_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return retval;
+
+    if (ar_rw(adp, HPT_LBA, sizeof(struct highpoint_raid_conf),
+	      (caddr_t)info, AR_READ | AR_WAIT)) {
 	if (bootverbose)
-	    printf("HighPoint read conf failed\n");
-	return 1;
+	    printf("ar: HighPoint read conf failed\n");
+	goto highpoint_out;
     }
 
     /* check if this is a HighPoint RAID struct */
-    if (info.magic != HPT_MAGIC_OK) {
+    if (info->magic != HPT_MAGIC_OK && info->magic != HPT_MAGIC_BAD) {
 	if (bootverbose)
-	    printf("HighPoint check1 failed\n");
-	return 1;
+	    printf("ar: HighPoint check1 failed\n");
+	goto highpoint_out;
+    }
+
+    /* is this disk defined, or an old leftover/spare ? */
+    if (!info->magic_0) {
+	if (bootverbose)
+	    printf("ar: HighPoint check2 failed\n");
+	goto highpoint_out;
     }
 
     /* now convert HighPoint config info into our generic form */
-    for (array = 0; array < 8; array++) {
+    for (array = 0; array < MAX_ARRAYS; array++) {
 	if (!raidp[array]) {
 	    raidp[array] = 
-	        (struct ar_softc*)malloc(sizeof(struct ar_softc),M_AR,M_NOWAIT);
+		(struct ar_softc*)malloc(sizeof(struct ar_softc), M_AR,
+					 M_NOWAIT | M_ZERO);
 	    if (!raidp[array]) {
-		printf("ar: failed to allocate raid config storage\n");
-		return 1;
+		printf("ar%d: failed to allocate raid config storage\n", array);
+		goto highpoint_out;
 	    }
-	    bzero(raidp[array], sizeof(struct ar_softc));
 	}
 	raid = raidp[array];
+	if (raid->flags & AR_F_PROMISE_RAID)
+	    continue;
 
-	switch (info.type) {
-	case HPT_T_RAID_0:
-	    /* check the order byte to determine what this really is */
-	    switch (info.order & (HPT_O_MIRROR | HPT_O_STRIPE)) {
-	    case HPT_O_MIRROR:
-	    	goto hpt_mirror;
-	    
-	    case HPT_O_STRIPE:
-		if (raid->magic_0 && raid->magic_0 != info.magic_0)
-		    continue;
-		raid->magic_0 = info.magic_0;
-		raid->flags |= (AR_F_RAID_0 | AR_F_RAID_1);
-		raid->interleave = 1 << info.raid0_shift;
-		raid->subdisk[info.disk_number] = adp;
-		raid->num_subdisks++;
-    		if ((raid->num_subdisks + raid->num_mirrordisks) == 
-		    (info.raid_disks * 2))
-		    raid->flags |= AR_F_CONF_DONE;
-		break;
-
-	    case (HPT_O_MIRROR | HPT_O_STRIPE):
-		if (raid->magic_1 && raid->magic_1 != info.magic_0)
-		    continue;
-		raid->magic_1 = info.magic_0;
-		raid->flags |= (AR_F_RAID_0 | AR_F_RAID_1);
-		raid->mirrordisk[info.disk_number] = adp;
-		raid->num_mirrordisks++;
-    		if ((raid->num_subdisks + raid->num_mirrordisks) ==
-		    (info.raid_disks * 2))
-		    raid->flags |= AR_F_CONF_DONE;
-		break;
-
-	    default:
-		if (raid->magic_0 && raid->magic_0 != info.magic_0)
-		    continue;
-		raid->magic_0 = info.magic_0;
-		raid->flags |= AR_F_RAID_0;
-		raid->interleave = 1 << info.raid0_shift;
-		raid->subdisk[info.disk_number] = adp;
-		raid->num_subdisks++;
-    		if (raid->num_subdisks == info.raid_disks)
-		    raid->flags |= AR_F_CONF_DONE;
-	    }
+	switch (info->type) {
+	case HPT_T_RAID0:
+	    if (info->order & (HPT_O_OK | HPT_O_RAID1))
+		goto highpoint_raid01;
+	    if (raid->magic_0 && raid->magic_0 != info->magic_0)
+		continue;
+	    raid->magic_0 = info->magic_0;
+	    raid->flags |= AR_F_RAID0;
+	    raid->interleave = 1 << info->stripe_shift;
+	    disk_number = info->disk_number;
+	    if (!(info->order & HPT_O_RAID0))
+		info->magic = 0;	/* mark bad */
 	    break;
 
-	case HPT_T_RAID_1:
-hpt_mirror:
-	    if (raid->magic_0 && raid->magic_0 != info.magic_0)
+	case HPT_T_RAID1:
+	    if (raid->magic_0 && raid->magic_0 != info->magic_0)
 		continue;
-	    raid->magic_0 = info.magic_0;
-	    raid->flags |= AR_F_RAID_1;
-	    if (info.disk_number == 0 && raid->num_subdisks == 0) {
-		raid->subdisk[raid->num_subdisks] = adp;
-		raid->num_subdisks = 1;
+	    raid->magic_0 = info->magic_0;
+	    raid->flags |= AR_F_RAID1;
+	    disk_number = (info->disk_number > 0);
+	    break;
+
+	case HPT_T_RAID01_RAID0:
+highpoint_raid01:
+	    if (info->order & HPT_O_OK) {
+		if ((raid->magic_0 && raid->magic_0 != info->magic_0) ||
+		    (raid->magic_1 && raid->magic_1 != info->magic_1))
+		    continue;
+		raid->magic_0 = info->magic_0;
+		raid->magic_1 = info->magic_1;
+		raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
+		raid->interleave = 1 << info->stripe_shift;
+		disk_number = info->disk_number;
 	    }
-	    if (info.disk_number != 0 && raid->num_mirrordisks == 0) {
-		raid->mirrordisk[raid->num_mirrordisks] = adp;
-		raid->num_mirrordisks = 1;
+	    else {
+		if (raid->magic_1 && raid->magic_1 != info->magic_1)
+		    continue;
+		raid->magic_1 = info->magic_1;
+		raid->flags |= (AR_F_RAID0 | AR_F_RAID1);
+		raid->interleave = 1 << info->stripe_shift;
+		disk_number = info->disk_number + info->array_width;
+		if (!(info->order & HPT_O_RAID1))
+		    info->magic = 0;	/* mark bad */
 	    }
-    	    if ((raid->num_subdisks + 
-		 raid->num_mirrordisks) == (info.raid_disks * 2))
-		raid->flags |= AR_F_CONF_DONE;
 	    break;
 
 	case HPT_T_SPAN:
-	    if (raid->magic_0 && raid->magic_0 != info.magic_0)
+	    if (raid->magic_0 && raid->magic_0 != info->magic_0)
 		continue;
-	    raid->magic_0 = info.magic_0;
+	    raid->magic_0 = info->magic_0;
 	    raid->flags |= AR_F_SPAN;
-	    raid->subdisk[info.disk_number] = adp;
-	    raid->num_subdisks++;
-    	    if (raid->num_subdisks == info.raid_disks)
-		raid->flags |= AR_F_CONF_DONE;
+	    disk_number = info->disk_number;
 	    break;
 
 	default:
-	    printf("HighPoint unknown RAID type 0x%02x\n", info.type);
+	    printf("ar%d: HighPoint unknown RAID type 0x%02x\n",
+		   array, info->type);
+	    goto highpoint_out;
 	}
 
-	/* do we have a complete array to attach to ? */
-	if (raid->flags & AR_F_CONF_DONE) {
-	    raid->lun = array;
+	raid->flags |= AR_F_HIGHPOINT_RAID;
+	raid->disks[disk_number].device = adp->device;
+	raid->disks[disk_number].flags = (AR_DF_PRESENT | AR_DF_ASSIGNED);
+	raid->lun = array;
+	if (info->magic == HPT_MAGIC_OK) {
+	    raid->disks[disk_number].flags |= AR_DF_ONLINE;
+	    raid->flags |= AR_F_READY;
+	    raid->width = info->array_width;
 	    raid->heads = 255;
 	    raid->sectors = 63;
-	    raid->cylinders = (info.total_secs - 9) / (63 * 255);
-	    raid->total_secs = info.total_secs - (9 * raid->num_subdisks);
-	    raid->offset = 10;
-	    raid->reserved = 10;
-	    ar_attach(raid);
+	    raid->cylinders = info->total_sectors / (63 * 255);
+	    raid->total_sectors = info->total_sectors;
+	    raid->offset = HPT_LBA + 1;
+	    raid->reserved = HPT_LBA + 1;
+	    raid->lock_start = raid->lock_end = info->rebuild_lba;
+	    raid->disks[disk_number].disk_sectors =
+		info->total_sectors / info->array_width;
 	}
-	return 0;
+	else
+	    raid->disks[disk_number].flags &= ~ AR_DF_ONLINE;
+
+	if ((raid->flags & AR_F_RAID0) && (raid->total_disks < raid->width))
+	    raid->total_disks = raid->width;
+	if (disk_number >= raid->total_disks)
+	    raid->total_disks = disk_number + 1;
+	retval = 1;
+	break;
     }
-    return 1;
+highpoint_out:
+    free(info, M_AR);
+    return retval;
 }
 
-/* read the RAID info from a disk on a Promise Fasttrak controller */
 static int
-ar_promise_conf(struct ad_softc *adp, struct ar_softc **raidp)
+ar_highpoint_write_conf(struct ar_softc *rdp)
 {
-    struct promise_raid_conf info;
+    struct highpoint_raid_conf *config;
+    struct timeval timestamp;
+    int disk;
+
+    microtime(&timestamp);
+    rdp->magic_0 = timestamp.tv_sec + 2;
+    rdp->magic_1 = timestamp.tv_sec;
+   
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (!(config = (struct highpoint_raid_conf *)
+	      malloc(sizeof(struct highpoint_raid_conf),
+		     M_AR, M_NOWAIT | M_ZERO))) {
+	    printf("ar%d: Highpoint write conf failed\n", rdp->lun);
+	    return -1;
+	}
+	if ((rdp->disks[disk].flags & (AR_DF_PRESENT | AR_DF_ONLINE)) ==
+	    (AR_DF_PRESENT | AR_DF_ONLINE))
+	    config->magic = HPT_MAGIC_OK;
+	if (rdp->disks[disk].flags & AR_DF_ASSIGNED) {
+	    config->magic_0 = rdp->magic_0;
+	    strcpy(config->name_1, "FreeBSD");
+	}
+	config->disk_number = disk;
+
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_RAID0:
+	    config->type = HPT_T_RAID0;
+	    strcpy(config->name_2, "RAID 0");
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		config->order = HPT_O_RAID0;
+	    break;
+
+	case AR_F_RAID1:
+	    config->type = HPT_T_RAID1;
+	    strcpy(config->name_2, "RAID 1");
+	    config->disk_number = (disk < rdp->width) ? disk : disk + 10;
+	    break;
+
+	case AR_F_RAID0 | AR_F_RAID1:
+	    config->type = HPT_T_RAID01_RAID0;
+	    strcpy(config->name_2, "RAID 0+1");
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE) {
+		if (disk < rdp->width) {
+		    config->order = (HPT_O_OK | HPT_O_RAID1);
+		    config->magic_0 = rdp->magic_0 - 1;
+		}
+		else {
+		    config->order = HPT_O_RAID1;
+		    config->disk_number -= rdp->width;
+		}
+	    }
+	    else
+		config->magic_0 = rdp->magic_0 - 1;
+	    config->magic_1 = rdp->magic_1;
+	    break;
+
+	case AR_F_SPAN:
+	    config->type = HPT_T_SPAN;
+	    strcpy(config->name_2, "SPAN");
+	    break;
+	}
+
+	config->array_width = rdp->width;
+	config->stripe_shift = (rdp->width > 1) ? (ffs(rdp->interleave)-1) : 0;
+	config->total_sectors = rdp->total_sectors;
+	config->rebuild_lba = rdp->lock_start;
+
+	if ((rdp->disks[disk].flags & AR_DF_PRESENT) &&
+	    rdp->disks[disk].device && rdp->disks[disk].device->driver &&
+	    !(rdp->disks[disk].device->flags & ATA_D_DETACHING)) {
+	    if (ar_rw(AD_SOFTC(rdp->disks[disk]), HPT_LBA,
+		      sizeof(struct highpoint_raid_conf),
+		      (caddr_t)config, AR_WRITE)) {
+		printf("ar%d: Highpoint write conf failed\n", rdp->lun);
+		return -1;
+	    }
+	}
+    }
+    return 0;
+}
+
+static int
+ar_promise_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
+{
+    struct promise_raid_conf *info;
     struct ar_softc *raid;
-    u_int32_t lba, magic;
-    u_int32_t cksum, *ckptr;
-    int count, disk_number, array; 
+    u_int32_t magic, cksum, *ckptr;
+    int array, count, disk, retval = 0; 
 
-    lba = ((adp->total_secs / (adp->heads * adp->sectors)) *
-	   adp->heads * adp->sectors) - adp->sectors;
+    if (!(info = (struct promise_raid_conf *)
+	  malloc(sizeof(struct promise_raid_conf), M_AR, M_NOWAIT | M_ZERO)))
+	return retval;
 
-    if (ar_read(adp, lba, 4 * DEV_BSIZE, (char *)&info)) {
+    if (ar_rw(adp, PR_LBA(adp), sizeof(struct promise_raid_conf),
+	      (caddr_t)info, AR_READ | AR_WAIT)) {
 	if (bootverbose)
-	    printf("Promise read conf failed\n");
-	return 1;
+	    printf("ar: Promise read conf failed\n");
+	goto promise_out;
     }
 
     /* check if this is a Promise RAID struct */
-    if (strncmp(info.promise_id, PR_MAGIC, sizeof(PR_MAGIC))) {
+    if (strncmp(info->promise_id, PR_MAGIC, sizeof(PR_MAGIC))) {
 	if (bootverbose)
-	    printf("Promise check1 failed\n");
-	return 1;
-    }   
+	    printf("ar: Promise check1 failed\n");
+	goto promise_out;
+    }	
 
     /* check if the checksum is OK */
-    for (cksum = 0, ckptr = (int32_t *)&info, count = 0; count < 511; count++)
+    for (cksum = 0, ckptr = (int32_t *)info, count = 0; count < 511; count++)
 	cksum += *ckptr++;
     if (cksum != *ckptr) {  
 	if (bootverbose)
-	    printf("Promise check2 failed\n");       
-	return 1;
+	    printf("ar: Promise check2 failed\n");	     
+	goto promise_out;
     }
 
     /* now convert Promise config info into our generic form */
-    if ((info.raid.flags != PR_F_CONFED) || 
-	(((info.raid.status & (PR_S_DEFINED|PR_S_ONLINE)) != 
-	  (PR_S_DEFINED|PR_S_ONLINE)))) {
-	return 1;
+    if (info->raid.integrity != PR_I_VALID) {
+	if (bootverbose)
+	    printf("ar: Promise check3 failed\n");	     
+	goto promise_out;
     }
 
-    magic = (adp->controller->chiptype >> 16) | info.raid.array_number << 16;
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!raidp[array]) {
+	    raidp[array] = 
+		(struct ar_softc*)malloc(sizeof(struct ar_softc), M_AR,
+					 M_NOWAIT | M_ZERO);
+	    if (!raidp[array]) {
+		printf("ar%d: failed to allocate raid config storage\n", array);
+		goto promise_out;
+	    }
+	}
+	raid = raidp[array];
+	if (raid->flags & AR_F_HIGHPOINT_RAID)
+	    continue;
 
-    array = info.raid.array_number;
-    if (raidp[array]) {
-	if (magic != raidp[array]->magic_0)
-	    return 1;
+	magic = (adp->device->channel->chiptype >> 16) |
+		(info->raid.array_number << 16);
+
+	if (raid->flags & AR_F_PROMISE_RAID && magic != raid->magic_0)
+	    continue;
+
+	/* update our knowledge about the array config based on generation */
+	if (!info->raid.generation || info->raid.generation > raid->generation){
+	    raid->generation = info->raid.generation;
+	    raid->flags = AR_F_PROMISE_RAID;
+	    raid->magic_0 = magic;
+	    raid->lun = array;
+	    if ((info->raid.status &
+		 (PR_S_VALID | PR_S_ONLINE | PR_S_INITED | PR_S_READY)) ==
+		(PR_S_VALID | PR_S_ONLINE | PR_S_INITED | PR_S_READY)) {
+		raid->flags |= AR_F_READY;
+		if (info->raid.status & PR_S_DEGRADED)
+		    raid->flags |= AR_F_DEGRADED;
+	    }
+	    else
+		raid->flags &= ~AR_F_READY;
+
+	    switch (info->raid.type) {
+	    case PR_T_RAID0:
+		raid->flags |= AR_F_RAID0;
+		break;
+
+	    case PR_T_RAID1:
+		raid->flags |= AR_F_RAID1;
+		if (info->raid.array_width > 1)
+		    raid->flags |= AR_F_RAID0;
+		break;
+
+	    case PR_T_SPAN:
+		raid->flags |= AR_F_SPAN;
+		break;
+
+	    default:
+		printf("ar%d: Promise unknown RAID type 0x%02x\n",
+		       array, info->raid.type);
+		goto promise_out;
+	    }
+	    raid->interleave = 1 << info->raid.stripe_shift;
+	    raid->width = info->raid.array_width;
+	    raid->total_disks = info->raid.total_disks;
+	    raid->heads = info->raid.heads + 1;
+	    raid->sectors = info->raid.sectors;
+	    raid->cylinders = info->raid.cylinders + 1;
+	    raid->total_sectors = info->raid.total_sectors;
+	    raid->offset = 0;
+	    raid->reserved = 63;
+	    raid->lock_start = raid->lock_end = info->raid.rebuild_lba;
+
+	    /* convert disk flags to our internal types */
+	    for (disk = 0; disk < info->raid.total_disks; disk++) {
+		raid->disks[disk].flags = 0;
+		if (info->raid.disk[disk].flags & PR_F_ONLINE)
+		    raid->disks[disk].flags |= AR_DF_ONLINE;
+		if (info->raid.disk[disk].flags & PR_F_ASSIGNED)
+		    raid->disks[disk].flags |= AR_DF_ASSIGNED;
+		if (info->raid.disk[disk].flags & PR_F_SPARE)
+		    raid->disks[disk].flags |= AR_DF_SPARE;
+		if (info->raid.disk[disk].flags & (PR_F_REDIR | PR_F_DOWN)) {
+		    raid->disks[disk].flags &= ~AR_DF_ONLINE;
+		    raid->disks[disk].flags |= AR_DF_PRESENT;
+		}
+	    }
+	}
+	if (raid->disks[info->raid.disk_number].flags && adp->device) {
+	    raid->disks[info->raid.disk_number].device = adp->device;
+	    raid->disks[info->raid.disk_number].flags |= AR_DF_PRESENT;
+	    raid->disks[info->raid.disk_number].disk_sectors =
+		info->raid.disk_sectors;
+	    retval = 1;
+	}
+	break;
     }
-    else {
-	if (!(raidp[array] = (struct ar_softc *)
-	      malloc(sizeof(struct ar_softc), M_AR, M_NOWAIT))) {
-	    printf("ar: failed to allocate raid config storage\n");
-	    return 1;
+promise_out:
+    free(info, M_AR);
+    return retval;
+}
+
+static int
+ar_promise_write_conf(struct ar_softc *rdp)
+{
+    struct promise_raid_conf *config;
+    struct timeval timestamp;
+    u_int32_t *ckptr;
+    int count, disk, drive;
+
+    rdp->generation++;
+    microtime(&timestamp);
+
+    for (disk = 0; disk < rdp->total_disks; disk++) {
+	if (!(config = (struct promise_raid_conf *)
+	      malloc(sizeof(struct promise_raid_conf), M_AR, M_NOWAIT))) {
+	    printf("ar%d: Promise write conf failed\n", rdp->lun);
+	    return -1;
+	}
+	for (count = 0; count < sizeof(struct promise_raid_conf); count++)
+	    *(((u_int8_t *)config) + count) = 255 - (count % 256);
+
+	bcopy(PR_MAGIC, config->promise_id, sizeof(PR_MAGIC));
+	config->dummy_0 = 0x00020000;
+	config->magic_0 = PR_MAGIC0(rdp->disks[disk]) | timestamp.tv_sec;
+	config->magic_1 = timestamp.tv_sec >> 16;
+	config->magic_2 = timestamp.tv_sec;
+
+	config->raid.integrity = PR_I_VALID;
+
+	config->raid.flags = 0;
+	if (rdp->disks[disk].flags & AR_DF_PRESENT)
+	    config->raid.flags |= PR_F_VALID;
+	if (rdp->disks[disk].flags & AR_DF_ASSIGNED)
+	    config->raid.flags |= PR_F_ASSIGNED;
+	if (rdp->disks[disk].flags & AR_DF_ONLINE)
+	    config->raid.flags |= PR_F_ONLINE;
+	else
+	    config->raid.flags |= PR_F_DOWN;
+	config->raid.disk_number = disk;
+	if (rdp->disks[disk].flags & AR_DF_PRESENT && rdp->disks[disk].device) {
+	    config->raid.channel = rdp->disks[disk].device->channel->unit;
+	    config->raid.device = (rdp->disks[disk].device->unit != 0);
+	    if (AD_SOFTC(rdp->disks[disk])->dev->si_disk)
+		config->raid.disk_sectors = PR_LBA(AD_SOFTC(rdp->disks[disk]));
+	    /*config->raid.disk_offset*/
+	}
+	config->raid.magic_0 = config->magic_0;
+	config->raid.rebuild_lba = rdp->lock_start;
+	config->raid.generation = rdp->generation;
+
+	if (rdp->flags & AR_F_READY) {
+	    config->raid.status = 
+		(PR_S_VALID | PR_S_ONLINE | PR_S_INITED | PR_S_READY);
+	    if (rdp->flags & AR_F_DEGRADED)
+		config->raid.status |= PR_S_DEGRADED;
+	    else
+		config->raid.status |= PR_S_FUNCTIONAL;
 	}
 	else
-	    bzero(raidp[array], sizeof(struct ar_softc));
-    }
-    raid = raidp[array];
-    raid->magic_0 = magic;
+	    config->raid.status = 0;
 
-    switch (info.raid.type) {
-    case PR_T_STRIPE:
-	raid->flags |= AR_F_RAID_0;
-	raid->interleave = 1 << info.raid.raid0_shift;
-	break;
-
-    case PR_T_MIRROR:
-	raid->flags |= AR_F_RAID_1;
-	break;
-
-    case PR_T_SPAN:
-	raid->flags |= AR_F_SPAN;
-	break;
-
-    default:
-	printf("Promise unknown RAID type 0x%02x\n", info.raid.type);
-	return 1;
-    }
-
-    /* find out where this disk is in the defined array */
-    disk_number = info.raid.disk_number;
-    if (disk_number < info.raid.raid0_disks) {
-	raid->subdisk[disk_number] = adp;
-	raid->num_subdisks++;
-	if (raid->num_subdisks > 1 && !(raid->flags & AR_F_SPAN)) {
-	    raid->flags |= AR_F_RAID_0;
-	    raid->interleave = 1 << info.raid.raid0_shift;
+	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
+	case AR_F_RAID0:
+	    config->raid.type = PR_T_RAID0;
+	    break;
+	case AR_F_RAID1:
+	    config->raid.type = PR_T_RAID1;
+	    break;
+	case AR_F_RAID0 | AR_F_RAID1:
+	    config->raid.type = PR_T_RAID1;
+	    break;
+	case AR_F_SPAN:
+	    config->raid.type = PR_T_SPAN;
+	    break;
 	}
-    }
-    else {
-	raid->mirrordisk[disk_number - info.raid.raid0_disks] = adp;
-	raid->num_mirrordisks++;
-    }
 
-    /* do we have a complete array to attach to ? */
-    if (raid->num_subdisks + raid->num_mirrordisks == info.raid.total_disks) {
-	raid->flags |= AR_F_CONF_DONE;
-	raid->lun = array;
-	raid->heads = info.raid.heads + 1;
-	raid->sectors = info.raid.sectors;
-	raid->cylinders = info.raid.cylinders + 1;
-	raid->total_secs = info.raid.total_secs;
-	raid->offset = 0;
-	raid->reserved = 63;
-	ar_attach(raid);
+	config->raid.total_disks = rdp->total_disks;
+	config->raid.stripe_shift = ffs(rdp->interleave) - 1;
+	config->raid.array_width = rdp->width;
+	config->raid.array_number = rdp->magic_0 >> 16;
+	config->raid.total_sectors = rdp->total_sectors;
+	config->raid.cylinders = rdp->cylinders - 1;
+	config->raid.heads = rdp->heads - 1;
+	config->raid.sectors = rdp->sectors;
+	config->raid.magic_1 = (u_int64_t)config->magic_2<<16 | config->magic_1;
+
+	bzero(&config->raid.disk, 8 * 12);
+	for (drive = 0; drive < rdp->total_disks; drive++) {
+	    config->raid.disk[drive].flags = 0;
+	    if (rdp->disks[drive].flags & AR_DF_PRESENT)
+		config->raid.disk[drive].flags |= PR_F_VALID;
+	    if (rdp->disks[drive].flags & AR_DF_ASSIGNED)
+		config->raid.disk[drive].flags |= PR_F_ASSIGNED;
+	    if (rdp->disks[drive].flags & AR_DF_ONLINE)
+		config->raid.disk[drive].flags |= PR_F_ONLINE;
+	    else
+		config->raid.disk[drive].flags = (PR_F_REDIR | PR_F_DOWN);
+	    if (rdp->disks[drive].flags & AR_DF_SPARE)
+		config->raid.disk[drive].flags |= PR_F_SPARE;
+	    config->raid.disk[drive].dummy_0 = 0x0;
+	    if (rdp->disks[drive].device) {
+		config->raid.disk[drive].channel =
+		    rdp->disks[drive].device->channel->unit;
+		config->raid.disk[drive].device =
+		    (rdp->disks[drive].device->unit != 0);
+	    }
+	    config->raid.disk[drive].magic_0 =
+		PR_MAGIC0(rdp->disks[drive]) | timestamp.tv_sec;
+	}
+
+	config->checksum = 0;
+	for (ckptr = (int32_t *)config, count = 0; count < 511; count++)
+	    config->checksum += *ckptr++;
+	if ((rdp->disks[disk].flags & AR_DF_PRESENT) &&
+	    rdp->disks[disk].device && rdp->disks[disk].device->driver &&
+	    !(rdp->disks[disk].device->flags & ATA_D_DETACHING)) {
+	    if (ar_rw(AD_SOFTC(rdp->disks[disk]),
+		      PR_LBA(AD_SOFTC(rdp->disks[disk])),
+		      sizeof(struct promise_raid_conf),
+		      (caddr_t)config, AR_WRITE)) {
+		printf("ar%d: Promise write conf failed\n", rdp->lun);
+		return -1;
+	    }
+	}
     }
     return 0;
 }
 
-int
-ar_read(struct ad_softc *adp, u_int32_t lba, int count, char *data)
+static void
+ar_rw_done(struct buf *bp)
 {
-    if (ata_command(adp->controller, adp->unit | ATA_D_LBA, 
-		    (count > DEV_BSIZE) ? ATA_C_READ_MUL : ATA_C_READ,
-		    lba, count / DEV_BSIZE, 0, ATA_WAIT_INTR)) {
-	ata_printf(adp->controller, adp->unit, "RAID read config failed\n");
-	return 1;
+    free(bp->b_data, M_AR);
+    free(bp, M_AR);
+}
+
+static int
+ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
+{
+    struct buf *bp;
+    int retry = 0, error = 0;
+
+    if (!(bp = (struct buf *)malloc(sizeof(struct buf), M_AR, M_NOWAIT|M_ZERO)))
+	return ENOMEM;
+    bp->b_dev = adp->dev;
+    bp->b_data = data;
+    bp->b_pblkno = lba;
+    bp->b_bcount = count;
+    if (flags & AR_WAIT)
+	bp->b_iodone = (void *)wakeup;
+    else
+	bp->b_iodone = ar_rw_done;
+    bp->b_flags = B_CALL;
+    if (flags & AR_READ)
+	bp->b_flags |= B_READ;
+    if (flags & AR_WRITE)
+	bp->b_flags |= B_WRITE;
+
+    AR_STRATEGY((struct buf *)bp);
+
+    if (flags & AR_WAIT) {
+	while ((retry++ < (15*hz/10)) && (error = !(bp->b_flags & B_DONE)))
+	    error = tsleep(bp, PRIBIO, "arrw", 10);
+	if (!error && bp->b_flags & B_ERROR)
+	    error = bp->b_error;
+	free(bp, M_AR);
     }
-    if (ata_wait(adp->controller, adp->unit, ATA_S_READY|ATA_S_DSC|ATA_S_DRQ)) {
-	ata_printf(adp->controller, adp->unit, "RAID read config timeout\n");
-	return 1;
-    }
-    insw(adp->controller->ioaddr + ATA_DATA, data, count/sizeof(int16_t));
-    inb(adp->controller->ioaddr + ATA_STATUS);
-    return 0;
+    return error;
 }

@@ -302,6 +302,7 @@ all)
 	sh MAKEDEV std					# standard
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
 	sh MAKEDEV da0 da1 da2 da3 			# bdev, SCSI disk
+	sh MAKEDEV ata					# cdev, ATA control
 	sh MAKEDEV ad0 ad1 ad2 ad3 			# bdev, ATA disk
 	sh MAKEDEV ar0 ar1				# bdev, ATA RAID disk
 	sh MAKEDEV acd0 afd0 ast0			# bdev, ATAPI devices
@@ -847,6 +848,9 @@ ch*)
 	umask 77
 	;;
 
+ata)
+	mknod ata c 159 0 root:operator
+	;;
 ast*)
 	umask 2 ;
 	unit=`expr $i : '...\(.*\)'`
@@ -914,7 +918,12 @@ acd*|cd*|mcd*|scd*)
 			dname=$name$i
 			rm -rf ${dname}* r${dname}*
 			mknod ${dname}a c $chr $(($i * 8)) root:operator
-			mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator
+			case $name in 
+			acd)
+				ln -f ${dname}a ${dname}c;;
+			*)
+				mknod ${dname}c c $chr $(($i * 8 + 2)) root:operator;;
+			esac
 			ln -f ${dname}a r${dname}a
 			ln -f ${dname}c r${dname}c
 			i=$(($i + 1))

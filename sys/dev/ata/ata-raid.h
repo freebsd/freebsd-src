@@ -28,43 +28,69 @@
  * $FreeBSD$
  */
 
+/* misc defines */
+#define MAX_ARRAYS	16
+#define MAX_DISKS	16
+#define AR_PROXIMITY	2048
+#define AR_READ		0x01
+#define AR_WRITE	0x02
+#define AR_WAIT		0x04
+#define AR_STRATEGY(x)	(x)->b_dev->si_disk->d_devsw->d_strategy((x))
+#define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
+
+struct ar_disk {
+    struct ata_device	*device;
+    u_int64_t		disk_sectors;	/* sectors on this disk */
+    off_t		last_lba;	/* last lba used */
+    int			flags;
+#define AR_DF_PRESENT		0x00000001
+#define AR_DF_ASSIGNED		0x00000002
+#define AR_DF_SPARE		0x00000004
+#define AR_DF_ONLINE		0x00000008
+};
+
 struct ar_softc {
-    int lun;
-    int32_t magic_0;
-    int32_t magic_1;
-    int flags;
-#define	AR_F_RAID_0	0x0001		/* STRIPE */
-#define	AR_F_RAID_1	0x0002		/* MIRROR */
-#define	AR_F_SPAN	0x0004		/* SPAN */
-#define	AR_F_CONF_DONE	0x0008
+    int			lun;
+    int32_t		magic_0;	/* ident for this array */
+    int32_t		magic_1;	/* ident for this array */
+    int			flags;
+#define AR_F_RAID0		0x0001	/* STRIPE */
+#define AR_F_RAID1		0x0002	/* MIRROR */
+#define AR_F_SPAN		0x0004	/* SPAN */
+#define AR_F_READY		0x0100
+#define AR_F_DEGRADED		0x0200
+#define AR_F_REBUILDING		0x0400
+#define AR_F_PROMISE_RAID	0x1000
+#define AR_F_HIGHPOINT_RAID	0x2000
     
-    int num_subdisks;
-    struct ad_softc *subdisk[8];
-    int num_mirrordisks;
-    struct ad_softc *mirrordisk[8];
-    int interleave;
-    int last_disk;
-    int32_t last_lba[8][2];
-
-    u_int16_t heads;
-    u_int16_t sectors;
-    u_int32_t cylinders;
-    u_int32_t total_secs;
-    int reserved;			/* sectors that are NOT to be used */
-    int offset;				/* offset from start of disk */
-
-    struct disk                 disk;	/* disklabel/slice stuff */
-    dev_t                       dev;	/* device place holder */
-
+    int			total_disks;	/* number of disks in this array */
+    int			generation;	/* generation of this array */
+    struct ar_disk	disks[MAX_DISKS+1]; /* ptr to each disk in array */
+    int			width;		/* array width in disks */
+    u_int16_t		heads;
+    u_int16_t		sectors;
+    u_int32_t		cylinders;
+    u_int64_t		total_sectors;
+    int			interleave;	/* interleave in bytes */
+    int			reserved;	/* sectors that are NOT to be used */
+    int			offset;		/* offset from start of disk */
+    u_int64_t		lock_start;	/* start of locked area for rebuild */
+    u_int64_t		lock_end;	/* end of locked area for rebuild */
+    struct disk		disk;		/* disklabel/slice stuff */
+    struct proc		*pid;
+    dev_t		dev;		/* device place holder */
 };
 
 struct ar_buf {
-    struct buf bp;
-    struct buf *org;
-    int drive;
-    struct ar_buf *mirror;
-    int done;
+    struct buf		bp;		/* must be first element! */
+    struct buf		*org;
+    struct ar_buf	*mirror;
+    int			drive;
+    int			flags;
+#define AB_F_DONE		0x01
 };
+
+#define HPT_LBA			9
 
 struct highpoint_raid_conf {
     int8_t		filler1[32];
@@ -75,24 +101,24 @@ struct highpoint_raid_conf {
     u_int32_t		magic_0;
     u_int32_t		magic_1;
     u_int32_t		order;
-#define HPT_O_MIRROR		0x01
-#define HPT_O_STRIPE		0x02
-#define HPT_O_OK		0x04
+#define HPT_O_OK		0x01
+#define HPT_O_RAID1		0x02
+#define HPT_O_RAID0		0x04
 
-    u_int8_t		raid_disks;
-    u_int8_t		raid0_shift;
+    u_int8_t		array_width;
+    u_int8_t		stripe_shift;
     u_int8_t		type;
-#define HPT_T_RAID_0		0x00
-#define HPT_T_RAID_1		0x01
-#define HPT_T_RAID_01_RAID_0	0x02
+#define HPT_T_RAID0		0x00
+#define HPT_T_RAID1		0x01
+#define HPT_T_RAID01_RAID0	0x02
 #define HPT_T_SPAN		0x03
 #define HPT_T_RAID_3		0x04
 #define HPT_T_RAID_5		0x05
 #define HPT_T_SINGLEDISK	0x06
-#define HPT_T_RAID_01_RAID_1	0x07
+#define HPT_T_RAID01_RAID1	0x07
 
     u_int8_t		disk_number;
-    u_int32_t		total_secs;
+    u_int32_t		total_sectors;
     u_int32_t		disk_mode;
     u_int32_t		boot_mode;
     u_int8_t		boot_disk;
@@ -102,73 +128,101 @@ struct highpoint_raid_conf {
     struct {
 	u_int32_t	timestamp;
 	u_int8_t	reason;
-#define	HPT_R_REMOVED		0xfe
-#define	HPT_R_BROKEN		0xff
+#define HPT_R_REMOVED		0xfe
+#define HPT_R_BROKEN		0xff
 	
 	u_int8_t	disk;
 	u_int8_t	status;
 	u_int8_t	sectors;
 	u_int32_t	lba;
     } errorlog[32];
-    int8_t		filler2[60];
-};
+    int8_t		filler2[16];
+    u_int32_t		rebuild_lba;
+    u_int8_t		dummy_1;
+    u_int8_t		name_1[15];
+    u_int8_t		dummy_2;
+    u_int8_t		name_2[15];
+    int8_t		filler3[8];
+} __attribute__((packed));
+
+
+#define PR_LBA(adp) \
+	(((adp->total_secs / (adp->heads * adp->sectors)) * \
+	  adp->heads * adp->sectors) - adp->sectors)
 
 struct promise_raid_conf {
     char		promise_id[24];
 #define PR_MAGIC	"Promise Technology, Inc."
 
-    int32_t		dummy_0;
-    int32_t		magic_0;
-    int32_t		dummy_1;
-    int32_t		magic_1;
-    int16_t		dummy_2;
-    int8_t		filler1[470];
+    u_int32_t		dummy_0;
+    u_int64_t		magic_0;
+#define PR_MAGIC0(x)	((u_int64_t)x.device->channel->unit << 48) | \
+			((u_int64_t)(x.device->unit != 0) << 56)
+    u_int16_t		magic_1;
+    u_int32_t		magic_2;
+    u_int8_t		filler1[470];
     struct {
-	int32_t	flags;				/* 0x200 */
-#define PR_F_CONFED		0x00000080
+	u_int32_t	integrity;		/* 0x200 */
+#define PR_I_VALID		0x00000080
 
-	int8_t		dummy_0;
-	int8_t		disk_number;
-	int8_t		channel;
-	int8_t		device;
-	int32_t		magic_0;
-	int32_t		dummy_1;
-	int32_t		dummy_2;		/* 0x210 */
-	int32_t		disk_secs;
-	int32_t		dummy_3;
-	int16_t		dummy_4;
-	int8_t		status;
-#define	PR_S_DEFINED		0x01
-#define	PR_S_ONLINE		0x02
-#define	PR_S_OFFLINE		0x10
+	u_int8_t	flags;
+#define PR_F_VALID		0x00000001
+#define PR_F_ONLINE		0x00000002
+#define PR_F_ASSIGNED		0x00000004
+#define PR_F_SPARE		0x00000008
+#define PR_F_DUPLICATE		0x00000010
+#define PR_F_REDIR		0x00000020
+#define PR_F_DOWN		0x00000040
+#define PR_F_READY		0x00000080
 
-	int8_t		type;
-#define	PR_T_STRIPE		0x00
-#define	PR_T_MIRROR		0x01
-#define	PR_T_STRIPE_MIRROR	0x04
-#define	PR_T_SPAN		0x08
+	u_int8_t	disk_number;
+	u_int8_t	channel;
+	u_int8_t	device;
+	u_int64_t	magic_0 __attribute__((packed));
+	u_int32_t	disk_offset;		/* 0x210 */
+	u_int32_t	disk_sectors;
+	u_int32_t	rebuild_lba;
+	u_int16_t	generation;
+	u_int8_t	status;
+#define PR_S_VALID		0x01
+#define PR_S_ONLINE		0x02
+#define PR_S_INITED		0x04
+#define PR_S_READY		0x08
+#define PR_S_DEGRADED		0x10
+#define PR_S_MARKED		0x20
+#define PR_S_FUNCTIONAL		0x80
+
+	u_int8_t	type;
+#define PR_T_RAID0		0x00
+#define PR_T_RAID1		0x01
+#define PR_T_RAID3		0x02
+#define PR_T_RAID5		0x04
+#define PR_T_SPAN		0x08
 
 	u_int8_t	total_disks;		/* 0x220 */
-	u_int8_t	raid0_shift;
-	u_int8_t	raid0_disks;
+	u_int8_t	stripe_shift;
+	u_int8_t	array_width;
 	u_int8_t	array_number;
-	u_int32_t	total_secs;
+	u_int32_t	total_sectors;
 	u_int16_t	cylinders;
 	u_int8_t	heads;
 	u_int8_t	sectors;
-	int32_t		magic_1;
-	int32_t		dummy_5;		/* 0x230 */
-	struct {
-	    int16_t	dummy_0;
-	    int8_t	channel;
-	    int8_t	device;
-	    int32_t	magic_0;
-	    int32_t	disk_number;
+	int64_t		magic_1 __attribute__((packed));
+	struct {				/* 0x240 */
+	    u_int8_t	flags;
+	    u_int8_t	dummy_0;
+	    u_int8_t	channel;
+	    u_int8_t	device;
+	    u_int64_t	magic_0 __attribute__((packed));
 	} disk[8];
     } raid;
     int32_t		filler2[346];
-    uint32_t		checksum;
-};
+    u_int32_t		checksum;
+} __attribute__((packed));
 
-int ar_probe(struct ad_softc *);
+int ata_raiddisk_probe(struct ad_softc *);
+int ata_raiddisk_attach(struct ad_softc *);
+int ata_raiddisk_detach(struct ad_softc *);
+void ata_raid_attach(void);
+int ata_raid_rebuild(int);
 

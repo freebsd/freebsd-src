@@ -34,13 +34,14 @@
 #include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
+#include <machine/clock.h>
 #ifdef __alpha__
 #include <machine/md_var.h>
 #endif
@@ -334,9 +335,7 @@ ata_pci_add_child(device_t dev, int unit)
 	    return ENOMEM;
     }
     else {
-	if (!(child =
-	      device_add_child(dev, "ata",
-			       devclass_find_free_unit(ata_devclass, 2))))
+	if (!(child = device_add_child(dev, "ata", 2)))
 	    return ENOMEM;
     }
     return 0;

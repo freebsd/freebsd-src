@@ -28,8 +28,10 @@
  * $FreeBSD$
  */
 
+#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/ata.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
@@ -61,7 +63,6 @@ static struct cdevsw ast_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TAPE | D_TRACKCLOSE,
-	/* bmaj */	-1
 };
 
 /* prototypes */
@@ -85,35 +86,29 @@ static u_int64_t ast_total = 0;
 static MALLOC_DEFINE(M_AST, "AST driver", "ATAPI tape driver buffers");
 
 int 
-astattach(struct atapi_softc *atp)
+astattach(struct ata_device *atadev)
 {
     struct ast_softc *stp;
     struct ast_readposition position;
     dev_t dev;
-    static int ast_cdev_done = 0;
-
-    if (!ast_cdev_done) {
-	cdevsw_add(&ast_cdevsw);
-	ast_cdev_done = 1;
-    }
 
     stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
-	printf("ast: out of memory\n");
+	ata_prtdev(atadev, "out of memory\n");
 	return -1;
     }
 
-    stp->atp = atp;
+    stp->device = atadev;
     stp->lun = ata_get_lun(&ast_lun_map);
-    bufq_init(&stp->bio_queue);
+    ata_set_name(atadev, "ast", stp->lun);
+    bufq_init(&stp->queue);
 
     if (ast_sense(stp)) {
 	free(stp, M_AST);
 	return -1;
     }
 
-    if (!strcmp(ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-		"OnStream DI-30")) {
+    if (!strcmp(atadev->param->model, "OnStream DI-30")) {
 	struct ast_transferpage transfer;
 	struct ast_identifypage identify;
 
@@ -143,25 +138,31 @@ astattach(struct atapi_softc *atp)
     dev->si_drv1 = stp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     stp->dev2 = dev;
-    stp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    stp->atp->driver = stp;
-    if ((stp->atp->devname = malloc(8, M_AST, M_NOWAIT)))
-        sprintf(stp->atp->devname, "ast%d", stp->lun);
+    stp->device->flags |= ATA_D_MEDIA_CHANGED;
     ast_describe(stp);
+    atadev->driver = stp;
     return 0;
 }
 
-void    
-astdetach(struct atapi_softc *atp)
+void	
+astdetach(struct ata_device *atadev)
 {   
-    struct ast_softc *stp = atp->driver;
+    struct ast_softc *stp = atadev->driver;
+    struct buf *bp;
     
+    while ((bp = bufq_first(&stp->queue))) {
+	bufq_remove(&stp->queue, bp);
+	bp->b_flags |= B_ERROR;
+	bp->b_error = ENXIO;
+	biodone(bp);
+    }
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
     devstat_remove_entry(&stp->stats);
-    free(stp->atp->devname, M_AST);
+    ata_free_name(atadev);
     ata_free_lun(&ast_lun_map, stp->lun);
     free(stp, M_AST);
+    atadev->driver = NULL;
 }
 
 static int
@@ -196,30 +197,27 @@ static void
 ast_describe(struct ast_softc *stp)
 {
     if (bootverbose) {
-	printf("ast%d: <%.40s/%.8s> tape drive at ata%d as %s\n",
-               stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-               ATA_PARAM(stp->atp->controller, stp->atp->unit)->revision,
-	       device_get_unit(stp->atp->controller->dev),
-	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave");
-	printf("ast%d: ", stp->lun);
-	printf("%dKB/s, ", stp->cap.max_speed);
+	ata_prtdev(stp->device, "<%.40s/%.8s> tape drive at ata%d as %s\n",
+		   stp->device->param->model, stp->device->param->revision,
+		   device_get_unit(stp->device->channel->dev),
+		   (stp->device->unit == ATA_MASTER) ? "master" : "slave");
+	ata_prtdev(stp->device, "%dKB/s, ", stp->cap.max_speed);
 	printf("transfer limit %d blk%s, ",
 	       stp->cap.ctl, (stp->cap.ctl > 1) ? "s" : "");
 	printf("%dKB buffer, ", (stp->cap.buffer_size * DEV_BSIZE) / 1024);
-	printf("%s\n", ata_mode2str(stp->atp->controller->mode[
-                                     ATA_DEV(stp->atp->unit)]));
-	printf("ast%d: ", stp->lun);
+	printf("%s\n", ata_mode2str(stp->device->mode));
+	ata_prtdev(stp->device, "Medium: ");
 	switch (stp->cap.medium_type) {
 	    case 0x00:
-		printf("Drive empty"); break;
+		printf("none"); break;
 	    case 0x17:
-		printf("Travan 1 (400 Mbyte) media"); break;
+		printf("Travan 1 (400 Mbyte)"); break;
 	    case 0xb6:
-		printf("Travan 4 (4 Gbyte) media"); break;
+		printf("Travan 4 (4 Gbyte)"); break;
 	    case 0xda:
-		printf("OnStream ADR (15Gyte) media"); break;
+		printf("OnStream ADR (15Gyte)"); break;
 	    default:
-		printf("Unknown media (0x%x)", stp->cap.medium_type);
+		printf("unknown (0x%x)", stp->cap.medium_type);
 	}
 	if (stp->cap.readonly) printf(", readonly");
 	if (stp->cap.reverse) printf(", reverse");
@@ -238,12 +236,11 @@ ast_describe(struct ast_softc *stp)
 	printf("\n");
     }
     else {
-	printf("ast%d: TAPE <%.40s> at ata%d-%s using %s\n",
-               stp->lun, ATA_PARAM(stp->atp->controller, stp->atp->unit)->model,
-	       device_get_unit(stp->atp->controller->dev),
-	       (stp->atp->unit == ATA_MASTER) ? "master" : "slave",
-	       ata_mode2str(stp->atp->controller->mode[ATA_DEV(stp->atp->unit)])
-	       );
+	ata_prtdev(stp->device, "TAPE <%.40s> at ata%d-%s %s\n",
+		   stp->device->param->model,
+		   device_get_unit(stp->device->channel->dev),
+		   (stp->device->unit == ATA_MASTER) ? "master" : "slave",
+		   ata_mode2str(stp->device->mode));
     }
 }
 
@@ -258,15 +255,15 @@ astopen(dev_t dev, int flags, int fmt, struct proc *p)
     if (count_dev(dev) > 1)
 	return EBUSY;
 
-    atapi_test_ready(stp->atp);
+    atapi_test_ready(stp->device);
 
     if (stp->cap.lock)
 	ast_prevent_allow(stp, 1);
 
     if (ast_sense(stp))
-	printf("ast%d: sense media type failed\n", stp->lun);
+	ata_prtdev(stp->device, "sense media type failed\n");
 
-    stp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
+    stp->device->flags &= ~ATA_D_MEDIA_CHANGED;
     stp->flags &= ~(F_DATA_WRITTEN | F_FM_WRITTEN);
     ast_total = 0;
     return 0;
@@ -295,7 +292,7 @@ astclose(dev_t dev, int flags, int fmt, struct proc *p)
 
     stp->flags &= F_CTL_WARN;
 #ifdef AST_DEBUG
-    printf("ast%d: %llu total bytes transferred\n", stp->lun, ast_total);
+    ata_prtdev(stp->device, "%llu total bytes transferred\n", ast_total);
 #endif
     return 0;
 }
@@ -418,6 +415,13 @@ aststrategy(struct buf *bp)
     struct ast_softc *stp = bp->b_dev->si_drv1;
     int s;
 
+    if (stp->device->flags & ATA_D_DETACHING) {
+	bp->b_flags |= B_ERROR;
+	bp->b_error = ENXIO;
+	biodone(bp);
+	return;
+    }
+
     /* if it's a null transfer, return immediatly. */
     if (bp->b_bcount == 0) {
 	bp->b_resid = 0;
@@ -425,42 +429,42 @@ aststrategy(struct buf *bp)
 	return;
     }
     if (!(bp->b_flags & B_READ) && stp->flags & F_WRITEPROTECT) {
-	bp->b_error = EPERM;
 	bp->b_flags |= B_ERROR;
+	bp->b_error = EPERM;
 	biodone(bp);
 	return;
     }
 	
     /* check for != blocksize requests */
     if (bp->b_bcount % stp->blksize) {
-	printf("ast%d: bad request, must be multiple of %d\n",
-	       stp->lun, stp->blksize);
-	bp->b_error = EIO;
+	ata_prtdev(stp->device, "transfers must be multiple of %d\n",
+		   stp->blksize);
 	bp->b_flags |= B_ERROR;
+	bp->b_error = EIO;
 	biodone(bp);
 	return;
     }
 
     /* warn about transfers bigger than the device suggests */
-    if (bp->b_bcount > stp->blksize * stp->cap.ctl) {  
+    if (bp->b_bcount > stp->blksize * stp->cap.ctl) {	 
 	if ((stp->flags & F_CTL_WARN) == 0) {
-	    printf("ast%d: WARNING: CTL exceeded %ld>%d\n", 
-		    stp->lun, bp->b_bcount, stp->blksize * stp->cap.ctl);
+	    ata_prtdev(stp->device, "WARNING: CTL exceeded %ld>%d\n",
+		       bp->b_bcount, stp->blksize * stp->cap.ctl);
 	    stp->flags |= F_CTL_WARN;
 	}
     }
 
     s = splbio();
-    bufq_insert_tail(&stp->bio_queue, bp);
-    ata_start(stp->atp->controller);
+    bufq_insert_tail(&stp->queue, bp);
     splx(s);
+    ata_start(stp->device->channel);
 }
 
 void 
-ast_start(struct atapi_softc *atp)
+ast_start(struct ata_device *atadev)
 {
-    struct ast_softc *stp = atp->driver;
-    struct buf *bp = bufq_first(&stp->bio_queue);
+    struct ast_softc *stp = atadev->driver;
+    struct buf *bp = bufq_first(&stp->queue);
     u_int32_t blkcount;
     int8_t ccb[16];
     
@@ -474,7 +478,7 @@ ast_start(struct atapi_softc *atp)
     else
 	ccb[0] = ATAPI_WRITE;
     
-    bufq_remove(&stp->bio_queue, bp);
+    bufq_remove(&stp->queue, bp);
     blkcount = bp->b_bcount / stp->blksize;
 
     ccb[1] = 1;
@@ -484,7 +488,7 @@ ast_start(struct atapi_softc *atp)
 
     devstat_start_transaction(&stp->stats);
 
-    atapi_queue_cmd(stp->atp, ccb, bp->b_data, blkcount * stp->blksize, 
+    atapi_queue_cmd(stp->device, ccb, bp->b_data, blkcount * stp->blksize, 
 		    (bp->b_flags & B_READ) ? ATPR_F_READ : 0,
 		    120, ast_done, bp);
 }
@@ -503,7 +507,7 @@ ast_done(struct atapi_request *request)
 	if (!(bp->b_flags & B_READ))
 	    stp->flags |= F_DATA_WRITTEN;
 	bp->b_resid = bp->b_bcount - request->donecount;
-        ast_total += (bp->b_bcount - bp->b_resid);
+	ast_total += (bp->b_bcount - bp->b_resid);
     }
     devstat_end_transaction_buf(&stp->stats, bp);
     biodone(bp);
@@ -517,8 +521,8 @@ ast_mode_sense(struct ast_softc *stp, int page, void *pagebuf, int pagesize)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
  
-    error = atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, ATPR_F_READ, 10, 
-			    NULL, NULL);
+    error = atapi_queue_cmd(stp->device, ccb, pagebuf, pagesize, ATPR_F_READ,
+			    10, NULL, NULL);
 #ifdef AST_DEBUG
     atapi_dump("ast: mode sense ", pagebuf, pagesize);
 #endif
@@ -532,11 +536,11 @@ ast_mode_select(struct ast_softc *stp, void *pagebuf, int pagesize)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
      
 #ifdef AST_DEBUG
-    printf("ast: modeselect pagesize=%d\n", pagesize);
-    atapi_dump("ast: mode select ", pagebuf, pagesize);
+    ata_prtdev(stp->device, "modeselect pagesize=%d\n", pagesize);
+    atapi_dump("mode select ", pagebuf, pagesize);
 #endif
-    return atapi_queue_cmd(stp->atp, ccb, pagebuf, pagesize, 0, 10,
-			   NULL, NULL);
+    return atapi_queue_cmd(stp->device, ccb, pagebuf, pagesize, 0,
+			   10, NULL, NULL);
 }
 
 static int
@@ -556,10 +560,10 @@ ast_write_filemark(struct ast_softc *stp, u_int8_t function)
 		stp->flags |= F_FM_WRITTEN;
 	}
     }
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+    error = atapi_queue_cmd(stp->device, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 10*60);
+    return atapi_wait_dsc(stp->device, 10*60);
 }
 
 static int
@@ -570,7 +574,7 @@ ast_read_position(struct ast_softc *stp, int hard,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, (caddr_t)position, 
+    error = atapi_queue_cmd(stp->device, ccb, (caddr_t)position, 
 			    sizeof(struct ast_readposition), ATPR_F_READ, 10,
 			    NULL, NULL);
     position->tape = ntohl(position->tape);
@@ -584,7 +588,7 @@ ast_space(struct ast_softc *stp, u_int8_t function, int32_t count)
     int8_t ccb[16] = { ATAPI_SPACE, function, count>>16, count>>8, count,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
+    return atapi_queue_cmd(stp->device, ccb, NULL, 0, 0, 60*60, NULL, NULL);
 }
 
 static int
@@ -595,10 +599,10 @@ ast_locate(struct ast_softc *stp, int hard, u_int32_t pos)
 		       0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+    error = atapi_queue_cmd(stp->device, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_wait_dsc(stp->device, 60*60);
 }
 
 static int
@@ -607,7 +611,7 @@ ast_prevent_allow(struct ast_softc *stp, int lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    return atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    return atapi_queue_cmd(stp->device, ccb, NULL, 0, 0,30, NULL, NULL);
 }
 
 static int
@@ -619,13 +623,13 @@ ast_load_unload(struct ast_softc *stp, u_int8_t function)
 
     if ((function & SS_EJECT) && !stp->cap.eject)
 	return 0;
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+    error = atapi_queue_cmd(stp->device, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
     tsleep((caddr_t)&error, PRIBIO, "astlu", 1 * hz);
     if (function == SS_EJECT)
 	return 0;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_wait_dsc(stp->device, 60*60);
 }
 
 static int
@@ -635,24 +639,21 @@ ast_rewind(struct ast_softc *stp)
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
+    error = atapi_queue_cmd(stp->device, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_wait_dsc(stp->device, 60*60);
 }
 
 static int
 ast_erase(struct ast_softc *stp)
 {
-    int8_t ccb[16] = { ATAPI_ERASE, 0x03, 0, 0, 0, 0, 0, 0,
+    int8_t ccb[16] = { ATAPI_ERASE, 3, 0, 0, 0, 0, 0, 0,
 		       0, 0, 0, 0, 0, 0, 0, 0 };
     int error;
 
     if ((error = ast_rewind(stp)))
 	return error;
 
-    error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
-    if (error)
-	return error;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_queue_cmd(stp->device, ccb, NULL, 0, 0, 60*60, NULL, NULL);
 }
