@@ -91,16 +91,12 @@
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
-#include <sys/protosw.h>
 #include <sys/systm.h>
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/ctype.h>	/* string functions */
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#if 0	/* XXX bridge+ipfilter not yet supported in RELENG_4 */
-#include <net/pfil.h>	/* for ipfilter */
-#endif
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
@@ -205,6 +201,11 @@ static void parse_bdg_cfg(void);
 
 static int bdg_ipf;		/* IPFilter enabled in bridge */
 static int bdg_ipfw;
+
+/*
+ * For IPFilter, declared in ip_input.c
+ */
+extern int (*fr_checkp)(struct ip *, int, struct ifnet *, int, struct mbuf **);
 
 #if 0 /* debugging only */
 static char *bdg_dst_names[] = {
@@ -801,10 +802,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
     int once = 0;      /* loop only once */
     struct ifnet *real_dst = dst ; /* real dst from ether_output */
     struct ip_fw_args args;
-#ifdef PFIL_HOOKS
-    struct packet_filter_hook *pfh;
-    int rv;
-#endif /* PFIL_HOOKS */
 
     /*
      * XXX eh is usually a pointer within the mbuf (some ethernet drivers
@@ -858,9 +855,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
      * and pkts already gone through a pipe.
      */
     if (src != NULL && (
-#ifdef PFIL_HOOKS
-	((pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh)) != NULL && bdg_ipf !=0) ||
-#endif
+	(fr_checkp != NULL && bdg_ipf != 0) ||
 	(IPFW_LOADED && bdg_ipfw != 0))) {
 
 	int i;
@@ -880,13 +875,12 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    }
 	}
 
-#ifdef PFIL_HOOKS
 	/*
-	 * NetBSD-style generic packet filter, pfil(9), hooks.
-	 * Enables ipf(8) in bridging.
+	 * IP Filter hook.
 	 */
-	if (m0->m_pkthdr.len >= sizeof(struct ip) &&
-		ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
+	if (fr_checkp != NULL && bdg_ipf &&
+	    m0->m_pkthdr.len >= sizeof(struct ip) &&
+	    ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
 	    /*
 	     * before calling the firewall, swap fields the same as IP does.
 	     * here we assume the pkt is an IP one and the header is contiguous
@@ -896,13 +890,9 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    ip->ip_len = ntohs(ip->ip_len);
 	    ip->ip_off = ntohs(ip->ip_off);
 
-	    for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
-		if (pfh->pfil_func) {
-		    rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
-		    if (rv != 0 || m0 == NULL)
-			return m0;
-		    ip = mtod(m0, struct ip *);
-		}
+	    if ((*fr_checkp)(ip, ip->ip_hl << 2, src, 0, &m0) || m0 == NULL)
+		return m0;
+
 	    /*
 	     * If we get here, the firewall has passed the pkt, but the mbuf
 	     * pointer might have changed. Restore ip and the fields ntohs()'d.
@@ -911,7 +901,6 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    ip->ip_len = htons(ip->ip_len);
 	    ip->ip_off = htons(ip->ip_off);
 	}
-#endif /* PFIL_HOOKS */
 
 	/*
 	 * Prepare arguments and call the firewall.
