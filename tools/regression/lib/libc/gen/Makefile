@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-wordexp
+TESTS=	test-fpclassify test-wordexp
 
 .PHONY: tests
 tests: ${TESTS}
