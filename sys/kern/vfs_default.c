@@ -391,28 +391,40 @@ vop_stdcreatevobject(ap)
 	struct vattr vat;
 	vm_object_t object;
 	int error = 0;
+	vm_ooffset_t size;
 
 	GIANT_REQUIRED;
 
 	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
 		return (0);
 
-retry:
-	if ((object = vp->v_object) == NULL) {
-		if (vp->v_type == VREG || vp->v_type == VDIR) {
-			if ((error = VOP_GETATTR(vp, &vat, cred, td)) != 0)
-				goto retn;
-			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
-		} else if (vn_isdisk(vp, NULL)) {
+	while ((object = vp->v_object) != NULL) {
+		VM_OBJECT_LOCK(object);
+		if (!(object->flags & OBJ_DEAD)) {
+			VM_OBJECT_UNLOCK(object);
+			break;
+		}
+		VOP_UNLOCK(vp, 0, td);
+		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
+		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vodead", 0);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	}
+
+	if (object == NULL) {
+		if (vn_isdisk(vp, NULL)) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a disk vnode.  This should be fixed, but doesn't
 			 * cause any problems (yet).
 			 */
-			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);
+			size = IDX_TO_OFF(INT_MAX);
 		} else {
-			goto retn;
+			if ((error = VOP_GETATTR(vp, &vat, cred, td)) != 0)
+				return (error);
+			size = vat.va_size;
 		}
+
+		object = vnode_pager_alloc(vp, size, 0, 0);
 		/*
 		 * Dereference the reference we just created.  This assumes
 		 * that the object is associated with the vp.
@@ -421,23 +433,11 @@ retry:
 		object->ref_count--;
 		VM_OBJECT_UNLOCK(object);
 		vrele(vp);
-	} else {
-		VM_OBJECT_LOCK(object);
-		if (object->flags & OBJ_DEAD) {
-			VOP_UNLOCK(vp, 0, td);
-			vm_object_set_flag(object, OBJ_DISCONNECTWNT);
-			msleep(object, VM_OBJECT_MTX(object), PDROP | PVM,
-			    "vodead", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-			goto retry;
-		}
-		VM_OBJECT_UNLOCK(object);
 	}
 
 	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
 	vp->v_vflag |= VV_OBJBUF;
 
-retn:
 	return (error);
 }
 
