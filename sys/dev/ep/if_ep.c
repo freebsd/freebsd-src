@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.82 1999/08/18 06:11:58 mdodd Exp $
+ *  $Id: if_ep.c,v 1.83 1999/08/18 22:14:20 mdodd Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -112,7 +112,7 @@ static struct ep_board * ep_look_for_board_at __P((struct isa_device *is));
 static	int ep_isa_attach __P((struct isa_device *));
 static	int epioctl __P((struct ifnet * ifp, u_long, caddr_t));
 
-static	void epinit __P((struct ep_softc *));
+static	void epinit __P((void *));
 static	ointhand2_t epintr;
 static	void epread __P((struct ep_softc *));
 void	epreset __P((int));
@@ -636,6 +636,7 @@ ep_attach(sc)
     ifp->if_start = epstart;
     ifp->if_ioctl = epioctl;
     ifp->if_watchdog = epwatchdog;
+    ifp->if_init = epinit;
 
     if (!attached) {
 	if_attach(ifp);
@@ -664,9 +665,10 @@ ep_attach(sc)
  * interrupts. ?!
  */
 static void
-epinit(sc)
-    struct ep_softc *sc;
+epinit(xsc)
+    void *xsc;
 {
+    struct ep_softc *sc = xsc;
     register struct ifnet *ifp = &sc->arpcom.ac_if;
     int s, i, j;
 
