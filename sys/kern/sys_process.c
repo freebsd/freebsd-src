@@ -420,8 +420,7 @@ ptrace(curp, uap)
 			return EFAULT;
 		}
 		if (ptrace_read_u_check(p,(vm_offset_t) uap->addr,
-					sizeof(int)) &&
-		    !procfs_kmemaccess(curp)) {
+					sizeof(int))) {
 			return EFAULT;
 		}
 		error = 0;

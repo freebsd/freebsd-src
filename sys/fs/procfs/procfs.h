@@ -90,19 +90,6 @@ struct pfsnode {
 
 #define KMEM_GROUP 2
 
-/*
- * Check to see whether access to target process is allowed
- * Evaluates to 1 if access is allowed.
- */
-#define CHECKIO(p1, p2) \
-     ((p1) == (p2) || \
-       (PRISON_CHECK(p1, p2) && \
-       ((((p1)->p_ucred->cr_uid == (p2)->p_cred->p_ruid) && \
-       ((p1)->p_cred->p_ruid == (p2)->p_cred->p_ruid) && \
-       ((p1)->p_cred->p_svuid == (p2)->p_cred->p_ruid) && \
-       ((p2)->p_flag & P_SUGID) == 0) || \
-	(suser_xxx(0, (p1), PRISON_ROOT) == 0))))
-      
 #define PROCFS_FILENO(pid, type) \
 	(((type) < Pproc) ? \
 			((type) + 2) : \

@@ -793,6 +793,31 @@ suser_xxx(cred, proc, flag)
 }
 
 /*
+ * Return zero if p1 can fondle p2, return errno (EPERM/ESRCH) otherwise.
+ */
+
+int
+p_trespass(struct proc *p1, struct proc *p2)
+{
+
+	if (p1 == p2)
+		return (0);
+	if (!PRISON_CHECK(p1, p2))
+		return (ESRCH);
+	if (p1->p_cred->p_ruid == p2->p_cred->p_ruid)
+		return (0);
+	if (p1->p_ucred->cr_uid == p2->p_cred->p_ruid)
+		return (0);
+	if (p1->p_cred->p_ruid == p2->p_ucred->cr_uid)
+		return (0);
+	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid)
+		return (0);
+	if (!suser_xxx(0, p1, PRISON_ROOT))
+		return (0);
+	return (EPERM);
+}
+
+/*
  * Allocate a zeroed cred structure.
  */
 struct ucred *

@@ -88,13 +88,9 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
 /*
  * Can process p, with pcred pc, send the signal sig to process q?
  */
-#define CANSIGNAL(p, pc, q, sig) \
-	(PRISON_CHECK(p, q) && ((pc)->pc_ucred->cr_uid == 0 || \
-	    (pc)->p_ruid == (q)->p_cred->p_ruid || \
-	    (pc)->pc_ucred->cr_uid == (q)->p_cred->p_ruid || \
-	    (pc)->p_ruid == (q)->p_ucred->cr_uid || \
-	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
-	    ((sig) == SIGCONT && (q)->p_session == (p)->p_session)))
+#define CANSIGNAL(p, q, sig) \
+	(!p_trespass(p, q) || \
+	((sig) == SIGCONT && (q)->p_session == (p)->p_session))
 
 /*
  * Policy -- Can real uid ruid with ucred uc send a signal to process q?
@@ -799,7 +795,6 @@ killpg1(cp, sig, pgid, all)
 	int sig, pgid, all;
 {
 	register struct proc *p;
-	register struct pcred *pc = cp->p_cred;
 	struct pgrp *pgrp;
 	int nfound = 0;
 
@@ -809,7 +804,7 @@ killpg1(cp, sig, pgid, all)
 		 */
 		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
-			    p == cp || !CANSIGNAL(cp, pc, p, sig))
+			    p == cp || !CANSIGNAL(cp, p, sig))
 				continue;
 			nfound++;
 			if (sig)
@@ -829,7 +824,7 @@ killpg1(cp, sig, pgid, all)
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p->p_stat == SZOMB ||
-			    !CANSIGNAL(cp, pc, p, sig))
+			    !CANSIGNAL(cp, p, sig))
 				continue;
 			nfound++;
 			if (sig)
@@ -852,7 +847,6 @@ kill(cp, uap)
 	register struct kill_args *uap;
 {
 	register struct proc *p;
-	register struct pcred *pc = cp->p_cred;
 
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
@@ -860,7 +854,7 @@ kill(cp, uap)
 		/* kill single process */
 		if ((p = pfind(uap->pid)) == NULL)
 			return (ESRCH);
-		if (!CANSIGNAL(cp, pc, p, uap->signum))
+		if (!CANSIGNAL(cp, p, uap->signum))
 			return (EPERM);
 		if (uap->signum)
 			psignal(p, uap->signum);
