@@ -20,7 +20,7 @@
 #define MAX_SEC_SIZE    2048  /* maximum sector size that is supported */
 #define MIN_SEC_SIZE	512   /* the sector size to end sensing at */
 
-static const enum platform {
+enum platform {
 	p_any,			/* for debugging ! */
 	p_alpha,
 	p_i386,
@@ -28,25 +28,8 @@ static const enum platform {
 	p_sparc64,
 	p_ia64,
 	p_ppc
-} platform =
-#if defined (P_DEBUG)
-	P_DEBUG
-#elif defined (PC98)
-	p_pc98
-#elif defined(__i386__)
-	p_i386
-#elif defined(__alpha__)
-	p_alpha
-#elif defined(__sparc64__)
-	p_sparc64
-#elif defined(__ia64__)
-	p_ia64
-#elif defined(__ppc__)
-	p_ppc
-#else
-	IHAVENOIDEA
-#endif
-	;
+};
+extern const enum platform platform;
 
 typedef enum {
 	whole,
