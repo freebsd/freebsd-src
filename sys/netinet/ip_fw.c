@@ -1470,8 +1470,12 @@ check_ports:
 			break;
 
 bogusfrag:
-		if (fw_verbose && ip != NULL)
-			ipfw_report(NULL, ip, offset, ip_len, rif, oif);
+		if (fw_verbose) {
+			if (ip != NULL)
+				ipfw_report(NULL, ip, offset, ip_len, rif, oif);
+			else
+				printf("pullup failed\n");
+		}
 		goto dropit;
 
 		}
