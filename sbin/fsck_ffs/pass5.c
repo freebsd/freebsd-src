@@ -377,7 +377,12 @@ check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
 	char buf[BUFSIZE];
 	long i, j, k, l, m, n, size;
 	int astart, aend, ustart, uend;
+	void (*msg) __P((const char *fmt, ...));
 
+	if (bkgrdflag)
+		msg = pfatal;
+	else
+		msg = pwarn;
 	astart = ustart = aend = uend = -1;
 	for (i = 0; i < mapsize; i++) {
 		j = *map1++;
@@ -398,10 +403,10 @@ check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
 					continue;
 				}
 				if (astart == aend)
-					pfatal("ALLOCATED %s %d MARKED FREE\n",
+					(*msg)("ALLOCATED %s %d MARKED FREE\n",
 					    name, astart);
 				else
-					pfatal("%s %sS %d-%d MARKED FREE\n",
+					(*msg)("%s %sS %d-%d MARKED FREE\n",
 					    "ALLOCATED", name, astart, aend);
 				astart = aend = n;
 			} else {
@@ -452,9 +457,9 @@ check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
 	}
 	if (astart != -1)
 		if (astart == aend)
-			pfatal("ALLOCATED %s %d MARKED FREE\n", name, astart);
+			(*msg)("ALLOCATED %s %d MARKED FREE\n", name, astart);
 		else
-			pfatal("ALLOCATED %sS %d-%d MARKED FREE\n",
+			(*msg)("ALLOCATED %sS %d-%d MARKED FREE\n",
 			    name, astart, aend);
 	if (ustart != -1) {
 		size = uend - ustart + 1;
