@@ -74,7 +74,9 @@ can be in terms of column position or in terms of fields delimited
 by a special character.
 Column numbering starts from 1.
 .Pp
+The
 .Ar list
+option argument
 is a comma or whitespace separated set of increasing numbers and/or
 number ranges.
 Number ranges consist of a number, a dash
@@ -128,6 +130,18 @@ if the
 option is specified.
 Their effect is described in
 .Xr environ 7 .
+.Sh EXAMPLES
+Extract users' login names and shells from the system
+.Xr passwd 5
+file as
+.Dq name:shell
+pairs:
+.Pp
+.Dl "cut -d : -f 1,7 /etc/passwd"
+.Pp
+Show the names and login times of the currently logged in users:
+.Pp
+.Dl "who | cut -c 1-16,26-38"
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
