@@ -168,7 +168,7 @@ through
 .Dv fxp3 :
 .Bd -literal -offset 0
   # Plumb nodes together
-  ngctl mkpeer fxp0: ng_one2many upper one
+  ngctl mkpeer fxp0: one2many upper one
   ngctl connect fxp0: fxp0:upper lower many0
   ngctl connect fxp1: fxp0:upper lower many1
   ngctl connect fxp2: fxp0:upper lower many2
