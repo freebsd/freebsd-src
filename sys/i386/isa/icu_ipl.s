@@ -39,73 +39,35 @@
 
 	.data
 	ALIGN_DATA
-vec:
-	.long	 vec0,  vec1,  vec2,  vec3,  vec4,  vec5,  vec6,  vec7
-	.long	 vec8,  vec9, vec10, vec11, vec12, vec13, vec14, vec15
 
 /* interrupt mask enable (all h/w off) */
 	.globl	_imen
 _imen:	.long	HWI_MASK
 
-
-/*
- * 
- */
 	.text
 	SUPERALIGN_TEXT
 
-/*
- * Fake clock interrupt(s) so that they appear to come from our caller instead
- * of from here, so that system profiling works.
- * XXX do this more generally (for all vectors; look up the C entry point).
- * XXX frame bogusness stops us from just jumping to the C entry point.
- */
-	ALIGN_TEXT
-vec0:
-	popl	%eax			/* return address */
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	MEXITCOUNT
-	jmp	_Xintr0			/* XXX might need _Xfastintr0 */
+#ifdef PC98
+#define MASK_OFFSET 2
+#else
+#define MASK_OFFSET 1
+#endif
 
-#ifndef PC98
-	ALIGN_TEXT
-vec8:
-	popl	%eax	
-	pushfl
-	pushl	$KCSEL
-	pushl	%eax
-	cli
-	MEXITCOUNT
-	jmp	_Xintr8			/* XXX might need _Xfastintr8 */
-#endif /* PC98 */
-
-/*
- * The 'generic' vector stubs.
- */
-
-#define BUILD_VEC(irq_num)			\
-	ALIGN_TEXT ;				\
-__CONCAT(vec,irq_num): ;			\
-	int	$ICU_OFFSET + (irq_num) ;	\
+ENTRY(INTREN)
+	movl	4(%esp), %eax
+	notl	%eax
+	andl	%eax, imen
+	movl	imen, %eax
+	outb	%al, $(IO_ICU1 + MASK_OFFSET)
+	shrl	$8, %eax
+	outb	%al, $(IO_ICU2 + MASK_OFFSET)
 	ret
 
-	BUILD_VEC(1)
-	BUILD_VEC(2)
-	BUILD_VEC(3)
-	BUILD_VEC(4)
-	BUILD_VEC(5)
-	BUILD_VEC(6)
-	BUILD_VEC(7)
-#ifdef PC98
-	BUILD_VEC(8)
-#endif
-	BUILD_VEC(9)
-	BUILD_VEC(10)
-	BUILD_VEC(11)
-	BUILD_VEC(12)
-	BUILD_VEC(13)
-	BUILD_VEC(14)
-	BUILD_VEC(15)
+ENTRY(INTRDIS)
+	movl	4(%esp), %eax
+	orl	%eax, imen
+	movl	imen, %eax
+	outb	%al, $(IO_ICU1 + MASK_OFFSET)
+	shrl	$8, %eax
+	outb	%al, $(IO_ICU2 + MASK_OFFSET)
+	ret

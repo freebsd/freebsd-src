@@ -78,7 +78,7 @@ extern u_int32_t		*io_apic_versions;
 extern int			cpu_num_to_apic_id[];
 extern int			io_num_to_apic_id[];
 extern int			apic_id_to_logical[];
-#define APIC_INTMAPSIZE 24
+#define APIC_INTMAPSIZE 32
 struct apic_intmapinfo {
   	int ioapic;
 	int int_pin;
@@ -143,11 +143,6 @@ int	io_apic_setup		__P((int));
 void	io_apic_set_id		__P((int, int));
 int	io_apic_get_id		__P((int));
 int	ext_int_setup		__P((int, int));
-
-#if defined(READY)
-void	clr_io_apic_mask24	__P((int, u_int32_t));
-void	set_io_apic_mask24	__P((int, u_int32_t));
-#endif /* READY */
 
 void	set_apic_timer		__P((int));
 int	read_apic_timer		__P((void));

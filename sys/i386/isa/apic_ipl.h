@@ -28,7 +28,7 @@
 #ifndef _I386_ISA_APIC_IPL_H_
 #define	_I386_ISA_APIC_IPL_H_
 
-#define	NHWI		24		/* number of h/w interrupts */
-#define	HWI_MASK	0x00ffffff	/* bits for h/w interrupts */
+#define	NHWI		32		/* number of h/w interrupts */
+#define	HWI_MASK	0xffffffff	/* bits for h/w interrupts */
 
 #endif /* !_I386_ISA_APIC_IPL_H_ */

@@ -1262,7 +1262,7 @@ setup_apic_irq_mapping(void)
 		}
 	}
 
-	/* Assign interrupts on first 24 intpins on IOAPIC #0 */
+	/* Assign first set of interrupts to intpins on IOAPIC #0 */
 	for (x = 0; x < nintrs; x++) {
 		int_vector = io_apic_ints[x].dst_apic_int;
 		if (int_vector < APIC_INTMAPSIZE &&

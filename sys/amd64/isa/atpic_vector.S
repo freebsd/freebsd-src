@@ -71,37 +71,6 @@ IDTVEC(vec_name) ; \
 	MEXITCOUNT ; \
 	jmp	_doreti
 
-#if 0
-; \
-	ALIGN_TEXT ; \
-2: ; \
-	cmpb	$3,_intr_nesting_level ;	/* is there enough stack? */ \
-	jae	1b ;		/* no, return */ \
-	movl	_cpl,%eax ; \
-	/* XXX next line is probably unnecessary now. */ \
-	movl	$HWI_MASK|SWI_MASK,_cpl ;	/* limit nesting ... */ \
-	incb	_intr_nesting_level ;	/* ... really limit it ... */ \
-	sti ;			/* ... to do this as early as possible */ \
-	MAYBE_POPL_ES ;		/* discard most of thin frame ... */ \
-	popl	%fs ; \
-	popl	%ecx ;		/* ... original %ds ... */ \
-	popl	%edx ; \
-	xchgl	%eax,4(%esp) ;	/* orig %eax; save cpl */ \
-	pushal ;		/* build fat frame (grrr) ... */ \
-	pushl	%ecx ;		/* ... actually %ds ... */ \
-	pushl	%es ; \
-	pushl	%fs ; \
-	mov	$KDSEL,%ax ; \
-	mov	%ax,%es ; \
-	mov	%ax,%fs ; \
-	movl	(3+8+0)*4(%esp),%ecx ;	/* ... %ecx from thin frame ... */ \
-	movl	%ecx,(3+6)*4(%esp) ;	/* ... to fat frame ... */ \
-	movl	(3+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
-	subl	$4,%esp ;	/* junk for unit number */ \
-	MEXITCOUNT ; \
-	jmp	_doreti
-#endif
-
 /* 
  * Slow, threaded interrupts.
  *
