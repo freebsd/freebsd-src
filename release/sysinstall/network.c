@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.16.2.12 1998/07/16 10:35:24 jkh Exp $
+ * $Id: network.c,v 1.16.2.13 1998/07/27 06:40:18 brian Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -132,7 +132,7 @@ mediaInitNetwork(Device *dev)
     }
     else {
 	msgNotify("Adding default route to %s.", rp);
-	vsystem("route add default %s", rp);
+	vsystem("route -n add default %s", rp);
     }
     if (isDebug())
 	msgDebug("Network initialized successfully.\n");
@@ -165,7 +165,7 @@ mediaShutdownNetwork(Device *dev)
 	cp = variable_get(VAR_GATEWAY);
 	if (cp) {
 	    msgNotify("Deleting default route.");
-	    vsystem("route delete default");
+	    vsystem("route -n delete default");
 	}
     }
     else if (pppPID) {

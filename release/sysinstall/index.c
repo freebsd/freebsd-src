@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.16 1998/07/23 19:33:05 jkh Exp $
+ * $Id: index.c,v 1.38.2.17 1998/07/24 04:57:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,7 +43,7 @@
 #include "sysinstall.h"
 
 /* Macros and magic values */
-#define MAX_MENU	8
+#define MAX_MENU	12
 #define _MAX_DESC	55
 
 static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
@@ -60,10 +60,7 @@ static char *descrs[] = {
     "already marked, it will be unmarked or deleted (if installed).\n"
     "To search for a package by name, press ESC.  To select a category,\n"
     "press RETURN.  NOTE:  The All category selection creates a very large\n"
-    "submenu.  If you select it, please be patient while it comes up.\n\n"
-    "If a package you're looking for is not listed here and you are\n"
-    "installing from CD, please check the other CD(s) after installation\n"
-    "since the sheer number of packages means they no longer all fit on one.\n",
+    "submenu.  If you select it, please be patient while it comes up.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
@@ -82,6 +79,7 @@ static char *descrs[] = {
     "databases", "Database software.",
     "devel", "Software development utilities and libraries.",
     "development", "Software development utilities and libraries.",
+    "deskutils", "Various Desktop utilities.",
     "documentation", "Document preparation utilities.",
     "editors", "Common text editors.",
     "emulation", "Utilities for emulating other OS types.",
@@ -131,6 +129,11 @@ static char *descrs[] = {
     "vietnamese", "Ported software for the Vietnamese market.",
     "www", "WEB utilities (browers, HTTP servers, etc).",
     "x11", "X Window System based utilities.",
+    "x11-clocks", "X Window System based clocks.",
+    "x11-fm", "X Window System based file managers.",
+    "x11-fonts", "X Window System fonts.",
+    "x11-toolkits", "X Window System based development toolkits.",
+    "x11-wm", "X Window System Window Managers.",
     NULL, NULL,
 };
 
@@ -598,7 +601,7 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 			msgConfirm("Loading of dependant package %s failed", cp);
 		}
 	    }
-	    else {
+	    else if (!package_exists(cp)) {
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Warning: %s is a required package but was not found.", cp);
 		else

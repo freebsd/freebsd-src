@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16.2.7 1998/02/11 15:43:14 jkh Exp $
+ * $Id: floppy.c,v 1.16.2.8 1998/07/18 09:35:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,11 +60,12 @@ mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
-    char *mountpoint = "/dist";
+    char *mountpoint;
 
     if (floppyMounted)
 	return TRUE;
 
+    mountpoint = (char *)dev->private;
     if (Mkdir(mountpoint)) {
 	msgConfirm("Unable to make %s directory mountpoint for %s!", mountpoint, dev->devname);
 	return FALSE;
@@ -108,10 +109,10 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
     FILE	*fp;
     int		nretries = 5;
 
-    snprintf(buf, PATH_MAX, "/dist/%s", file);
+    snprintf(buf, PATH_MAX, "%s/%s", (char *)dev->private, file);
 
     if (isDebug())
-	msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
+	msgDebug("Request for %s from floppy on %s, probe is %d.\n", buf, (char *)dev->private, probe);
     if (!file_readable(buf)) {
 	if (probe)
 	    return NULL;
@@ -135,7 +136,7 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownFloppy(Device *dev)
 {
-    char *mountpoint = "/dist";
+    char *mountpoint = (char *)dev->private;
 
     if (floppyMounted) {
 	if (unmount(mountpoint, MNT_FORCE) != 0)

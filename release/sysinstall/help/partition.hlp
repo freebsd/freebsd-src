@@ -118,18 +118,9 @@ parts.  Take a typical name like ``/dev/sd0s1a'':
       drive, but only the first one will be mapped to the compatibility
       slice!
 
-      The compatibility slice will eventually be phased out, but
-      it is still important right now for several reasons:
-
-              1. Some programs, as mentioned before, still don't work
-                 with the slice paradigm and need time to catch up.
-
-              2. The FreeBSD boot blocks are unable to look for
-                 a root file system in anything but a compatibility
-                 slice right now.  This means that our root will always
-                 show up on "sd0a" in the above scenario, even though
-                 it really lives over on sd0s1a and would otherwise be
-                 referred to by its full slice name.
+      The compatibility slice has essentially been phased out, but
+      it's important to be aware of when looking at or upgrading
+      older systems.
 
 Once you understand all this, then the purpose of the label editor
 becomes fairly clear:  You're carving up the FreeBSD slices displayed

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.70 1998/08/31 17:48:39 jkh Exp $
+ * $Id: install.c,v 1.134.2.71 1998/09/29 05:13:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -351,22 +351,18 @@ installFixitFloppy(dialogMenuItem *self)
 
     while (1) {
 	msgConfirm("Please insert a writable fixit floppy and press return");
-	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
-	    break;
-	msgConfirm("An attempt to mount the fixit floppy failed, maybe the filesystem\n"
-		   "is unclean.  Trying a forcible mount as a last resort...");
-	if (mount(MOUNT_UFS, "/mnt2", MNT_FORCE, (caddr_t)&args) != -1)
-	    break;
-	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?") != 0)
-	    return DITEM_FAILURE;
+	mediaDevice->private = "/mnt2";
+	if (!mediaDevice->init(mediaDevice)) {
+	    if (msgYesNo("The attempt to mount the fixit floppy failed, bad floppy\n"
+			 "or unclean filesystem.  Do you want to try again?"))
+		return DITEM_FAILURE;
+	}
     }
-
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
-
     fixit_common();
-
-    unmount("/mnt2", MNT_FORCE);
+    mediaDevice->shutdown(mediaDevice);
+    mediaDevice = NULL;
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
 }
@@ -742,15 +738,15 @@ installFixup(dialogMenuItem *self)
 
     if (!file_readable("/kernel")) {
 	if (file_readable("/kernel.GENERIC")) {
-#ifdef SAVE_USERCONFIG
-	    /* Snapshot any boot -c changes back to the GENERIC kernel */
-	    if (!variable_cmp(VAR_RELNAME, RELEASE_NAME))
-		save_userconfig_to_kernel("/kernel.GENERIC");
-#endif
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		msgConfirm("Unable to link /kernel into place!");
 		return DITEM_FAILURE;
 	    }
+#ifdef SAVE_USERCONFIG
+	    /* Snapshot any boot -c changes back to the new kernel */
+	    if (!variable_cmp(VAR_RELNAME, RELEASE_NAME))
+		save_userconfig_to_kernel("/kernel");
+#endif
 	}
 	else {
 	    msgConfirm("Can't find a kernel image to link to on the root file system!\n"
@@ -792,14 +788,19 @@ installFixup(dialogMenuItem *self)
 		}
 	    }
 	}
-	/* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
 
+	/* Do all the last ugly work-arounds here */
 	msgNotify("Fixing permissions..");
-	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
+	/* BOGON #1:  XFree86 requires various specialized fixups */
 	if (directory_exists("/usr/X11R6")) {
 	    vsystem("chmod -R a+r /usr/X11R6");
 	    vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
+
+	    /* Also do bogus minimal package registration so ports don't whine */
+	    if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz"))
+		vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
 	}
+
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
 
@@ -945,7 +946,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == rootdev)
 			    continue;
 
-			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgradding - are you SURE you want to newfs /dev/%s?", c2->name)))
+			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
