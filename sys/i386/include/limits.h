@@ -31,15 +31,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)limits.h	7.2 (Berkeley) 6/28/90
- *	$Id: limits.h,v 1.4 1993/12/19 05:14:46 alm Exp $
+ *	$Id: limits.h,v 1.5 1994/02/26 00:56:02 ache Exp $
  */
 
 #ifndef _MACHINE_LIMITS_H_
 #define _MACHINE_LIMITS_H_ 1
 
 #define	CHAR_BIT	8		/* number of bits in a char */
-#define	CLK_TCK		128		/* ticks per second */
-#define	MB_LEN_MAX	1		/* no multibyte characters */
+#define	MB_LEN_MAX	6		/* allow 21-bit UTF2 */
 
 #define SCHAR_MIN	(-0x7f-1)	/* max value for a signed char */
 #define	SCHAR_MAX	0x7f		/* min value for a signed char */
@@ -61,6 +60,7 @@
 #define	LONG_MIN	(-0x7fffffff-1)	/* min value for a long */
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+#define	CLK_TCK		128		/* ticks per second */
 #define	UQUAD_MAX	0xffffffffffffffffLL		/* max unsigned quad */
 #define	QUAD_MAX	0x7fffffffffffffffLL		/* max signed quad */
 #define	QUAD_MIN	(-0x7fffffffffffffffLL-1)	/* min signed quad */
