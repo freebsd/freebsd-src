@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.47 1996/04/29 05:09:23 jkh Exp $
+ * $Id: label.c,v 1.48 1996/05/09 09:42:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -400,7 +400,7 @@ print_label_chunks(void)
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    sz = space_free(label_chunk_info[i].c);
 	    if (i == here)
-		attrset(item_selected_attr);
+		attrset(tag_attr);
 	    mvprintw(srow++, 0, "Disk: %s\tPartition name: %s\tFree: %d blocks (%dMB)",
 		     label_chunk_info[i].c->disk->name, label_chunk_info[i].c->name, sz, (sz / ONE_MEG));
 	    attrset(A_NORMAL);
@@ -447,7 +447,7 @@ print_label_chunks(void)
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
 	    if (i == here)
-		wattrset(ChunkWin, item_selected_attr);
+		wattrset(ChunkWin, tag_attr);
 	    mvwaddstr(ChunkWin, prow, pcol, onestr);
 	    wattrset(ChunkWin, A_NORMAL);
 	    wrefresh(ChunkWin);
