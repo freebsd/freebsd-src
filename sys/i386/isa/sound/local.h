@@ -120,7 +120,11 @@
 
 #define CONFIG_MPU_EMU
 
+#ifdef PC98
+#define DSP_BUFFSIZE 61440
+#else
 #define DSP_BUFFSIZE 32768*2
+#endif
 /* #define SELECTED_SOUND_OPTIONS	0x0188090a */
 
 #ifndef TRIX_SB_BASE
