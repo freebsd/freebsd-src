@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd January 6, 2005
 .Dt BUS_PRINT_CHILD 9
 .Os
 .Sh NAME
@@ -40,7 +40,10 @@
 .Ft int
 .Fn BUS_PRINT_CHILD "device_t dev" "device_t child"
 .Sh DESCRIPTION
-This is called from system code which prints out a description of a
+The
+.Fn BUS_PRINT_CHILD
+method
+is called from system code which prints out a description of a
 device.
 It should describe the attachment that the child has with
 the parent.
@@ -49,7 +52,8 @@ device is attached to.
 Please see
 .Xr bus_generic_print_child 9
 for more information regarding the proper formatting of the messages
-printed by BUS_PRINT_CHILD.
+printed by
+.Fn BUS_PRINT_CHILD .
 .Sh SEE ALSO
 .Xr device 9 ,
 .Xr driver 9
