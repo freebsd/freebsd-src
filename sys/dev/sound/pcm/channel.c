@@ -273,7 +273,10 @@ chn_write(pcm_channel *c, struct uio *buf)
 		chn_dmaupdate(c);
 		splx(s);
 		if (b->fl < DMA_ALIGN_THRESHOLD) {
-			if (c->flags & CHN_F_NBIO) break;
+			if (c->flags & CHN_F_NBIO) {
+				ret = -1;
+				break;
+			}
 			timeout = (buf->uio_resid >= b->dl)? hz : 1;
 			ret = tsleep(b, PRIBIO | PCATCH, "pcmwr", timeout);
 			if (ret == EINTR) chn_abort(c);
@@ -283,7 +286,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 		}
 		/* ensure we always have a whole number of samples */
 		l = min(b->fl, b->bufsize - b->fp) & ~a;
-		if (l == 0) break;
+		if (l == 0) continue;
 		w = c->feeder->feed(c->feeder, c, b->buf + b->fp, l, buf);
 		if (w == 0) panic("no feed");
 		s = spltty();
@@ -300,7 +303,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 		c->smegcnt += l;
 	}
 	c->flags &= ~CHN_F_WRITING;
-	return ret;
+	return (ret > 0)? ret : 0;
 }
 
 /*
