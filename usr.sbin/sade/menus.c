@@ -517,8 +517,10 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org" },
       { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=other" },
-      { "Snapshots Server", "snapshots.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
+      { "Snapshots Server Japan", "snapshots.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://snapshots.jp.freebsd.org" },
+      { "Snapshots Server Sweden", "snapshots.se.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://snapshots.se.freebsd.org" },
 
       { "IPv6 Ireland", "ftp3.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ie.freebsd.org" },
