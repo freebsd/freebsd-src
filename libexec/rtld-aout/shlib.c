@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.13 1995/03/19 21:20:09 nate Exp $
+ *	$Id: shlib.c,v 1.14 1996/01/13 00:14:53 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -198,6 +198,32 @@ int	do_dot_a;
 			do_dot_a);
 		if(path != NULL)
 			return path;
+	}
+
+	return NULL;
+}
+
+/*
+ * Search library directories for a file with the given name.  The
+ * return value is a full pathname to the matching file.  The string
+ * is dynamically allocated.  If no matching file is found, the function
+ * returns NULL.
+ */
+
+char *
+find_lib_file(name)
+	char	*name;
+{
+	int		i;
+
+	for (i = 0; i < n_search_dirs; i++) {
+		char		*path = concat(search_dirs[i], "/", name);
+		struct stat	sb;
+
+		if (lstat(path, &sb) != -1)	/* We found it */
+			return path;
+
+		free(path);
 	}
 
 	return NULL;
