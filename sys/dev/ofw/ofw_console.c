@@ -82,6 +82,15 @@ static cn_putc_t	ofw_cons_putc;
 CONS_DRIVER(ofw, ofw_cons_probe, ofw_cons_init, NULL, ofw_cons_getc,
     ofw_cons_checkc, ofw_cons_putc, NULL);
 
+static void
+cn_drvinit(void *unused)
+{
+
+	make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ofwcons");
+}
+
+SYSINIT(cndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cn_drvinit,NULL)
+
 static int	stdin;
 static int	stdout;
 
@@ -254,7 +263,6 @@ ofw_cons_probe(struct consdev *cp)
 	cp->cn_dev = makedev(CDEV_MAJOR, 0);
 	cp->cn_pri = CN_INTERNAL;
 	cp->cn_tp = ofw_tp;
-	make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ofwcons");
 }
 
 static void
