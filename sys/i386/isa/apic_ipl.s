@@ -22,21 +22,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.28 1997/08/23 05:15:12 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.32 1997/08/29 18:39:36 smp Exp smp $
  */
 
 
-#if defined(SMP) && defined(REAL_AICPL)
+#ifdef REAL_AICPL
 
 #define AICPL_LOCK	SCPL_LOCK
 #define AICPL_UNLOCK	SCPL_UNLOCK
 
-#else /* SMP */
+#else /* REAL_AICPL */
 
 #define AICPL_LOCK
 #define AICPL_UNLOCK
 
-#endif /* SMP */
+#endif /* REAL_AICPL */
 
 	.data
 	ALIGN_DATA
@@ -44,6 +44,10 @@
 /* current INTerrupt level */
 	.globl	_cil
 _cil:	.long	0
+
+/* current INTerrupt level mask */
+	.globl	_cml
+_cml:	.long	0
 
 /* this allows us to change the 8254 APIC pin# assignment */
 	.globl _Xintr8254
@@ -107,6 +111,9 @@ ENTRY(splz)
 	 */
 	AICPL_LOCK
 	movl	_cpl,%eax
+#ifdef INTR_SIMPLELOCK
+	orl	_cml, %eax		/* add cml to cpl */
+#endif
 splz_next:
 	/*
 	 * We don't need any locking here.  (ipending & ~cpl) cannot grow 
@@ -137,6 +144,9 @@ splz_unpend:
 	 * frame.  Also, there's a problem determining the unit number.
 	 * We should change the interface so that the unit number is not
 	 * determined at config time.
+	 *
+	 * The vec[] routines build the proper frame on the stack,
+	 * then call one of _Xintr0 thru _Xintr23
 	 */
 	jmp	*_vec(,%ecx,4)
 
