@@ -43,7 +43,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.3 2000/08/07 14:54:05 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.5 2000/10/25 10:37:11 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -71,7 +71,7 @@ static	void	set_state __P((u_int)), showstats __P((friostat_t *));
 static	void	packetlogon __P((char *)), swapactive __P((void));
 static	int	opendevice __P((char *));
 static	void	closedevice __P((void));
-static	char	*getline __P((char *, size_t, FILE *));
+static	char	*getline __P((char *, size_t, FILE *, int *));
 static	char	*ipfname = IPL_NAME;
 static	void	usage __P((void));
 static	void	showversion __P((void));
@@ -252,8 +252,7 @@ char	*name, *file;
 		exit(1);
 	}
 
-	while (getline(line, sizeof(line), fp)) {
-	        linenum++;
+	while (getline(line, sizeof(line), fp, &linenum)) {
 		/*
 		 * treat CR as EOL.  LF is converted to NUL by getline().
 		 */
@@ -335,10 +334,11 @@ char	*name, *file;
  * Similar to fgets(3) but can handle '\\' and NL is converted to NUL.
  * Returns NULL if error occured, EOF encounterd or input line is too long.
  */
-static char *getline(str, size, file)
+static char *getline(str, size, file, linenum)
 register char	*str;
 size_t	size;
 FILE	*file;
+int	*linenum;
 {
 	char *p;
 	int s, len;
@@ -356,6 +356,7 @@ FILE	*file;
 				p[len] = '\0';
 				break;
 			}
+			(*linenum)++;
 			p[len - 1] = '\0';
 			if (len < 2 || p[len - 2] != '\\')
 				break;
@@ -568,7 +569,7 @@ static void showversion()
 	}
 
 	if (ioctl(vfd, SIOCGETFS, &fiop)) {
-		perror("ioctl(SIOCGETFS");
+		perror("ioctl(SIOCGETFS)");
 		close(vfd);
 		return;
 	}

@@ -6,12 +6,12 @@
  * to the original author and the contributors.
  *
  * @(#)ipl.h	1.21 6/5/96
- * $Id: ipl.h,v 2.15.2.10 2000/08/07 15:10:09 darrenr Exp $
+ * $Id: ipl.h,v 2.15.2.13 2000/10/25 11:08:41 darrenr Exp $
  */
 
 #ifndef	__IPL_H__
 #define	__IPL_H__
 
-#define	IPL_VERSION	"IP Filter: v3.4.9"
+#define	IPL_VERSION	"IP Filter: v3.4.12"
 
 #endif
