@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.1 1996/04/03 17:13:58 phk Exp $
+# $Id: rc.firewall,v 1.2 1996/04/12 09:16:42 phk Exp $
 
 ############
 #
@@ -28,6 +28,10 @@
 #	Addison-Wesley
 #	ISBN 0-201-6337-4
 #
+
+############
+# Flush out the list before we begin.
+/sbin/ipfw flush
 
 ############
 # If you just configured ipfw in the kernel as a tool to solve network
