@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.59 1997/06/17 02:04:51 brian Exp $
+ * $Id: command.c,v 1.60 1997/06/23 19:18:13 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -139,6 +139,7 @@ int argc;
 char **argv;
 {
   int tries;
+  int res;
 
   if (LcpFsm.state > ST_CLOSED) {
     if (VarTerm)
@@ -167,12 +168,13 @@ char **argv;
         fprintf(VarTerm, "Failed to open modem.\n");
       break;
     }
-    if (DialModem() == EX_DONE) {
+    if ((res = DialModem()) == EX_DONE) {
       sleep(1);
       ModemTimeout();
       PacketMode();
       break;
-    }
+    } else if (res == EX_SIG)
+      return 1;
   } while (VarDialTries == 0 || tries < VarDialTries);
 
   return 0;
