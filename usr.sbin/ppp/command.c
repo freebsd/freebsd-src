@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.199 1999/06/08 20:11:57 brian Exp $
+ * $Id: command.c,v 1.200 1999/06/09 08:47:32 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -133,17 +133,18 @@
 #define NEG_CHAP80	42
 #define NEG_CHAP80LM	43
 #define NEG_DEFLATE	44
-#define NEG_LQR		45
-#define NEG_PAP		46
-#define NEG_PPPDDEFLATE	47
-#define NEG_PRED1	48
-#define NEG_PROTOCOMP	49
-#define NEG_SHORTSEQ	50
-#define NEG_VJCOMP	51
-#define NEG_DNS		52
+#define NEG_DNS		45
+#define NEG_ENDDISC	46
+#define NEG_LQR		47
+#define NEG_PAP		48
+#define NEG_PPPDDEFLATE	49
+#define NEG_PRED1	50
+#define NEG_PROTOCOMP	51
+#define NEG_SHORTSEQ	52
+#define NEG_VJCOMP	53
 
 const char Version[] = "2.22";
-const char VersionDate[] = "$Date: 1999/06/08 20:11:57 $";
+const char VersionDate[] = "$Date: 1999/06/09 08:47:32 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -2221,6 +2222,10 @@ NegotiateSet(struct cmdargs const *arg)
       arg->bundle->ncp.ipcp.cfg.ns.dns_neg &= keep;
       arg->bundle->ncp.ipcp.cfg.ns.dns_neg |= add;
       break;
+    case NEG_ENDDISC:
+      arg->bundle->ncp.mp.cfg.negenddisc &= keep;
+      arg->bundle->ncp.mp.cfg.negenddisc |= add;
+      break;
     case NEG_LQR:
       cx->physical->link.lcp.cfg.lqr &= keep;
       cx->physical->link.lcp.cfg.lqr |= add;
@@ -2317,6 +2322,8 @@ static struct cmdtab const NegotiateCommands[] = {
   (const void *)NEG_PPPDDEFLATE},
   {"dns", NULL, NegotiateSet, LOCAL_AUTH,
   "DNS specification", "accept|deny|disable|enable", (const void *)NEG_DNS},
+  {"enddisc", NULL, NegotiateSet, LOCAL_AUTH, "ENDDISC negotiation",
+  "accept|deny|disable|enable", (const void *)NEG_ENDDISC},
   {"lqr", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,
   "Link Quality Reports", "accept|deny|disable|enable",
   (const void *)NEG_LQR},
