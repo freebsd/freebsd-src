@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.16 1996/11/30 22:41:48 dyson Exp $
+ * $Id: vm_map.h,v 1.17 1996/12/07 00:03:43 dyson Exp $
  */
 
 /*
@@ -108,7 +108,8 @@ struct vm_map_entry {
 	 is_sub_map:1,			/* Is "object" a submap? */
 	 copy_on_write:1,		/* is data copy-on-write */
 	 needs_copy:1,			/* does object need to be copied */
-	 nofault:1;			/* should never fault */
+	 nofault:1,			/* should never fault */
+	 user_wired:1;			/* wired by user */
 	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
@@ -210,6 +211,13 @@ typedef struct {
 #define MAP_COPY_ON_WRITE 0x2
 #define MAP_NOFAULT 0x4
 
+/*
+ * vm_fault option flags
+ */
+#define VM_FAULT_NORMAL 0
+#define VM_FAULT_CHANGE_WIRING 1
+#define VM_FAULT_USER_WIRE 2
+
 #ifdef KERNEL
 extern vm_offset_t kentry_data;
 extern vm_size_t kentry_data_size;
@@ -230,6 +238,7 @@ int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_
 void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
 boolean_t vm_map_lookup_entry __P((vm_map_t, vm_offset_t, vm_map_entry_t *));
 int vm_map_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
+int vm_map_user_pageable __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t));
 int vm_map_clean __P((vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t));
 int vm_map_protect __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_map_reference __P((vm_map_t));
