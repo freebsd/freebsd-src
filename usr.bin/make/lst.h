@@ -143,6 +143,7 @@ void	Lst_Concat(Lst *, Lst *, int);
 			    ? (LST)->lastPtr : NULL)
 /* Return successor to given element */
 #define	Lst_Succ(NODE)	(((NODE) == NULL) ? NULL : (NODE)->nextPtr)
+#define	LST_NEXT(NODE)	((NODE)->nextPtr)
 /* Get datum from LstNode */
 #define	Lst_Datum(NODE)	((NODE)->datum)
 
