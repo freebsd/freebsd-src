@@ -846,7 +846,7 @@ int cxrinta (cx_chan_t *c)
 	}
 
 	/* Discard exception characters. */
-	if ((risr & RISA_SCMASK) && (tp->t_iflag & IXON))
+	if ((risr & RISA_SCMASK) && tp && (tp->t_iflag & IXON))
 		reoir |= REOI_DISCEXC;
 
 	/* Handle received data. */
