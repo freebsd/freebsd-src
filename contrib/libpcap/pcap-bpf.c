@@ -20,7 +20,11 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.32 1999/10/19 15:18:30 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-bpf.c,v 1.44 2000/10/28 00:01:28 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>			/* optionally get BSD define */
@@ -42,7 +46,6 @@ static const char rcsid[] =
 
 #include "pcap-int.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -55,7 +58,8 @@ pcap_stats(pcap_t *p, struct pcap_stat *ps)
 	struct bpf_stat s;
 
 	if (ioctl(p->fd, BIOCGSTATS, (caddr_t)&s) < 0) {
-		sprintf(p->errbuf, "BIOCGSTATS: %s", pcap_strerror(errno));
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCGSTATS: %s",
+		    pcap_strerror(errno));
 		return (-1);
 	}
 
@@ -99,7 +103,8 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 				/* fall through */
 #endif
 			}
-			sprintf(p->errbuf, "read: %s", pcap_strerror(errno));
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "read: %s",
+			    pcap_strerror(errno));
 			return (-1);
 		}
 		bp = p->buffer;
@@ -136,13 +141,13 @@ bpf_open(pcap_t *p, char *errbuf)
 {
 	int fd;
 	int n = 0;
-	char device[sizeof "/dev/bpf000"];
+	char device[sizeof "/dev/bpf0000000000"];
 
 	/*
 	 * Go through all the minors and find one that isn't in use.
 	 */
 	do {
-		(void)sprintf(device, "/dev/bpf%d", n++);
+		(void)snprintf(device, sizeof(device), "/dev/bpf%d", n++);
 		fd = open(device, O_RDONLY);
 	} while (fd < 0 && errno == EBUSY);
 
@@ -150,7 +155,8 @@ bpf_open(pcap_t *p, char *errbuf)
 	 * XXX better message for all minors used
 	 */
 	if (fd < 0)
-		sprintf(errbuf, "%s: %s", device, pcap_strerror(errno));
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "(no devices found) %s: %s",
+		    device, pcap_strerror(errno));
 
 	return (fd);
 }
@@ -166,10 +172,11 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	p = (pcap_t *)malloc(sizeof(*p));
 	if (p == NULL) {
-		sprintf(ebuf, "malloc: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "malloc: %s",
+		    pcap_strerror(errno));
 		return (NULL);
 	}
-	bzero(p, sizeof(*p));
+	memset(p, 0, sizeof(*p));
 	fd = bpf_open(p, ebuf);
 	if (fd < 0)
 		goto bad;
@@ -178,35 +185,65 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	p->snapshot = snaplen;
 
 	if (ioctl(fd, BIOCVERSION, (caddr_t)&bv) < 0) {
-		sprintf(ebuf, "BIOCVERSION: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCVERSION: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	if (bv.bv_major != BPF_MAJOR_VERSION ||
 	    bv.bv_minor < BPF_MINOR_VERSION) {
-		sprintf(ebuf, "kernel bpf filter out of date");
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "kernel bpf filter out of date");
 		goto bad;
 	}
-	v = 32768;	/* XXX this should be a user-accessible hook */
-	/* Ignore the return value - this is because the call fails on
-	 * BPF systems that don't have kernel malloc.  And if the call
-	 * fails, it's no big deal, we just continue to use the standard
-	 * buffer size.
-	 */
-	(void) ioctl(fd, BIOCSBLEN, (caddr_t)&v);
 
-	(void)strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
-	if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) < 0) {
-		sprintf(ebuf, "%s: %s", device, pcap_strerror(errno));
+	/*
+	 * Try finding a good size for the buffer; 32768 may be too
+	 * big, so keep cutting it in half until we find a size
+	 * that works, or run out of sizes to try.
+	 *
+	 * XXX - there should be a user-accessible hook to set the
+	 * initial buffer size.
+	 */
+	for (v = 32768; v != 0; v >>= 1) {
+		/* Ignore the return value - this is because the call fails
+		 * on BPF systems that don't have kernel malloc.  And if
+		 * the call fails, it's no big deal, we just continue to
+		 * use the standard buffer size.
+		 */
+		(void) ioctl(fd, BIOCSBLEN, (caddr_t)&v);
+
+		(void)strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
+		if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) >= 0)
+			break;	/* that size worked; we're done */
+
+		if (errno != ENOBUFS) {
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCSETIF: %s: %s",
+			    device, pcap_strerror(errno));
+			goto bad;
+		}
+	}
+
+	if (v == 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+			 "BIOCSBLEN: %s: No buffer size worked", device);
 		goto bad;
 	}
+
 	/* Get the data link layer type. */
 	if (ioctl(fd, BIOCGDLT, (caddr_t)&v) < 0) {
-		sprintf(ebuf, "BIOCGDLT: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCGDLT: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 #ifdef __OpenBSD__
 	switch (v) {
 	case DLT_LOOP:
+		/*
+		 * XXX - DLT_LOOP has a network-byte-order, rather than
+		 * a host-byte-order, AF_ value as the link-layer
+		 * header; will the BPF code generator handle that
+		 * correctly on little-endian machines?
+		 */
 		v = DLT_NULL;
 		break;
 	}
@@ -240,23 +277,83 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		to.tv_sec = to_ms / 1000;
 		to.tv_usec = (to_ms * 1000) % 1000000;
 		if (ioctl(p->fd, BIOCSRTIMEOUT, (caddr_t)&to) < 0) {
-			sprintf(ebuf, "BIOCSRTIMEOUT: %s",
-				pcap_strerror(errno));
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCSRTIMEOUT: %s",
+			    pcap_strerror(errno));
 			goto bad;
 		}
 	}
+
+#ifdef _AIX
+#ifdef	BIOCIMMEDIATE
+	/*
+	 * Darren Reed notes that
+	 *
+	 *	On AIX (4.2 at least), if BIOCIMMEDIATE is not set, the
+	 *	timeout appears to be ignored and it waits until the buffer
+	 *	is filled before returning.  The result of not having it
+	 *	set is almost worse than useless if your BPF filter
+	 *	is reducing things to only a few packets (i.e. one every
+	 *	second or so).
+	 *
+	 * so we turn BIOCIMMEDIATE mode on if this is AIX.
+	 *
+	 * We don't turn it on for other platforms, as that means we
+	 * get woken up for every packet, which may not be what we want;
+	 * in the Winter 1993 USENIX paper on BPF, they say:
+	 *
+	 *	Since a process might want to look at every packet on a
+	 *	network and the time between packets can be only a few
+	 *	microseconds, it is not possible to do a read system call
+	 *	per packet and BPF must collect the data from several
+	 *	packets and return it as a unit when the monitoring
+	 *	application does a read.
+	 *
+	 * which I infer is the reason for the timeout - it means we
+	 * wait that amount of time, in the hopes that more packets
+	 * will arrive and we'll get them all with one read.
+	 *
+	 * Setting BIOCIMMEDIATE mode on FreeBSD (and probably other
+	 * BSDs) causes the timeout to be ignored.
+	 *
+	 * On the other hand, some platforms (e.g., Linux) don't support
+	 * timeouts, they just hand stuff to you as soon as it arrives;
+	 * if that doesn't cause a problem on those platforms, it may
+	 * be OK to have BIOCIMMEDIATE mode on BSD as well.
+	 *
+	 * (Note, though, that applications may depend on the read
+	 * completing, even if no packets have arrived, when the timeout
+	 * expires, e.g. GUI applications that have to check for input
+	 * while waiting for packets to arrive; a non-zero timeout
+	 * prevents "select()" from working right on FreeBSD and
+	 * possibly other BSDs, as the timer doesn't start until a
+	 * "read()" is done, so the timer isn't in effect if the
+	 * application is blocked on a "select()", and the "select()"
+	 * doesn't get woken up for a BPF device until the buffer
+	 * fills up.)
+	 */
+	v = 1;
+	if (ioctl(p->fd, BIOCIMMEDIATE, &v) < 0) {
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCIMMEDIATE: %s",
+		    pcap_strerror(errno));
+		goto bad;
+	}
+#endif	/* BIOCIMMEDIATE */
+#endif	/* _AIX */
+
 	if (promisc)
 		/* set promiscuous mode, okay if it fails */
 		(void)ioctl(p->fd, BIOCPROMISC, NULL);
 
 	if (ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0) {
-		sprintf(ebuf, "BIOCGBLEN: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "BIOCGBLEN: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	p->bufsize = v;
 	p->buffer = (u_char *)malloc(p->bufsize);
 	if (p->buffer == NULL) {
-		sprintf(ebuf, "malloc: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "malloc: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 
@@ -275,12 +372,15 @@ pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 	 * compatible with some of kernel BPF code (for example BSD/OS 3.1).
 	 * Take a safer side for now.
 	 */
-	if (no_optimize)
-		p->fcode = *fp;
-	else if (p->sf.rfile != NULL)
-		p->fcode = *fp;
-	else if (ioctl(p->fd, BIOCSETF, (caddr_t)fp) < 0) {
-		sprintf(p->errbuf, "BIOCSETF: %s", pcap_strerror(errno));
+	if (no_optimize) {
+		if (install_bpf_program(p, fp) < 0)
+			return (-1);
+	} else if (p->sf.rfile != NULL) {
+		if (install_bpf_program(p, fp) < 0)
+			return (-1);
+	} else if (ioctl(p->fd, BIOCSETF, (caddr_t)fp) < 0) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "BIOCSETF: %s",
+		    pcap_strerror(errno));
 		return (-1);
 	}
 	return (0);

@@ -22,7 +22,11 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/optimize.c,v 1.61 1999/10/19 15:18:30 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/optimize.c,v 1.67 2000/11/19 13:37:20 itojun Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -32,11 +36,12 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <memory.h>
 
+#include <errno.h>
+
 #include "pcap-int.h"
 
 #include "gencode.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -1481,6 +1486,8 @@ opt_blks(root, do_stmts)
 
 	init_val();
 	maxlevel = root->level;
+
+	find_inedges(root);
 	for (i = maxlevel; i >= 0; --i)
 		for (p = levels[i]; p; p = p->link)
 			opt_blk(p, do_stmts);
@@ -1498,6 +1505,8 @@ opt_blks(root, do_stmts)
 			opt_j(&p->ef);
 		}
 	}
+
+	find_inedges(root);
 	for (i = 1; i <= maxlevel; ++i) {
 		for (p = levels[i]; p; p = p->link) {
 			or_pullup(p);
@@ -1577,7 +1586,6 @@ opt_loop(root, do_stmts)
 		find_levels(root);
 		find_dom(root);
 		find_closure(root);
-		find_inedges(root);
 		find_ud(root);
 		find_edom(root);
 		opt_blks(root, do_stmts);
@@ -1777,6 +1785,20 @@ number_blks_r(p)
 /*
  * Return the number of stmts in the flowgraph reachable by 'p'.
  * The nodes should be unmarked before calling.
+ *
+ * Note that "stmts" means "instructions", and that this includes
+ *
+ *	side-effect statements in 'p' (slength(p->stmts));
+ *
+ *	statements in the true branch from 'p' (count_stmts(JT(p)));
+ *
+ *	statements in the false branch from 'p' (count_stmts(JF(p)));
+ *
+ *	the conditional jump itself (1);
+ *
+ *	an extra long jump if the true branch requires it (p->longjt);
+ *
+ *	an extra long jump if the false branch requires it (p->longjf).
  */
 static int
 count_stmts(p)
@@ -1788,7 +1810,7 @@ count_stmts(p)
 		return 0;
 	Mark(p);
 	n = count_stmts(JT(p)) + count_stmts(JF(p));
-	return slength(p->stmts) + n + 1;
+	return slength(p->stmts) + n + 1 + p->longjt + p->longjf;
 }
 
 /*
@@ -1864,7 +1886,7 @@ opt_init(root)
 	 */
 	maxval = 3 * max_stmts;
 	vmap = (struct vmapinfo *)malloc(maxval * sizeof(*vmap));
-	vnode_base = (struct valnode *)malloc(maxval * sizeof(*vmap));
+	vnode_base = (struct valnode *)malloc(maxval * sizeof(*vnode_base));
 }
 
 /*
@@ -1936,7 +1958,7 @@ convert_code_r(p)
 		dst->k = src->s.k;
 
 		/* fill block-local relative jump */
-		if (BPF_CLASS(src->s.code) != BPF_JMP || src->s.code == BPF_JMP|BPF_JA) {
+		if (BPF_CLASS(src->s.code) != BPF_JMP || src->s.code == (BPF_JMP|BPF_JA)) {
 #if 0
 			if (src->s.jt || src->s.jf) {
 				bpf_error("illegal jmp destination");
@@ -2072,6 +2094,36 @@ icode_to_fcode(root, lenp)
 	}
 
 	return fp;
+}
+
+/*
+ * Make a copy of a BPF program and put it in the "fcode" member of
+ * a "pcap_t".
+ *
+ * If we fail to allocate memory for the copy, fill in the "errbuf"
+ * member of the "pcap_t" with an error message, and return -1;
+ * otherwise, return 0.
+ */
+int
+install_bpf_program(pcap_t *p, struct bpf_program *fp)
+{
+	size_t prog_size;
+
+	/*
+	 * Free up any already installed program.
+	 */
+	pcap_freecode(&p->fcode);
+
+	prog_size = sizeof(*fp->bf_insns) * fp->bf_len;
+	p->fcode.bf_len = fp->bf_len;
+	p->fcode.bf_insns = (struct bpf_insn *)malloc(prog_size);
+	if (p->fcode.bf_insns == NULL) {
+		snprintf(p->errbuf, sizeof(p->errbuf),
+			 "malloc: %s", pcap_strerror(errno));
+		return (-1);
+	}
+	memcpy(p->fcode.bf_insns, fp->bf_insns, prog_size);
+	return (0);
 }
 
 #ifdef BDEBUG
