@@ -39,6 +39,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_sio.h"
+#include "card.h"
 #include "sio.h"
 
 /*
@@ -383,6 +384,7 @@ struct com_s {
 
 	struct resource *irqres;
 	struct resource *ioportres;
+	void *cookie;
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -425,7 +427,7 @@ static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 
 #if NCARD > 0
 static	int	sio_pccard_attach __P((device_t dev));
-static	void	sio_pccard_detach __P((device_t dev));
+static	int	sio_pccard_detach __P((device_t dev));
 static	int	sio_pccard_probe __P((device_t dev));
 #endif /* NCARD > 0 */
 
@@ -886,9 +888,8 @@ static int
 sio_pccard_probe(dev)
 	device_t	dev;
 {
-	/* Do not probe IRQ - pccardd has not arranged for it yet */
-	/* XXX Actually it has been asigned to you, but isn't activated   */
-	/* XXX until you specifically activate the resource for your use. */
+	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
+	/* until bus_setup_intr */
 	SET_FLAG(dev, COM_C_NOPROBE);
 
 	return (sioprobe(dev));
@@ -919,24 +920,30 @@ sio_pccard_detach(dev)
 	com = (struct com_s *) device_get_softc(dev);
 	if (!com) {
 		device_printf(dev, "NULL com in siounload\n");
-		return;
+		return (0);
 	}
 	if (!com->iobase) {
 		device_printf(dev, "already unloaded!\n");
-		return;
+		return (0);
 	}
+	com->gone = 1;
+	if (com->irqres) {
+		bus_teardown_intr(dev, com->irqres, com->cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, com->irqres);
+	}
+	if (com->ioportres)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, com->ioportres);
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
-		com->gone = 1;
 		device_printf(dev, "unload\n");
 		com->tp->t_gen++;
 		ttyclose(com->tp);
 		ttwakeup(com->tp);
 		ttwwakeup(com->tp);
+		device_printf(dev, "Was busy, so crash likely\n");
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
-		free(com, M_DEVBUF);
-		device_printf(dev, "unload,gone\n");
+		device_printf(dev, "unload, gone\n");
 	}
 	return (0);
 }
@@ -1557,7 +1564,6 @@ sioattach(dev)
 #endif
 	Port_t		iobase;
 	int		unit;
-	void		*ih;
 	u_int		flags;
 	int		rid;
 	struct resource *port;
@@ -1918,11 +1924,11 @@ determined_type: ;
 	if (com->irqres) {
 		ret = BUS_SETUP_INTR(device_get_parent(dev), dev, com->irqres,
 				     INTR_TYPE_TTY | INTR_TYPE_FAST,
-				     siointr, com, &ih);
+				     siointr, com, &com->cookie);
 		if (ret) {
 			ret = BUS_SETUP_INTR(device_get_parent(dev), dev,
 					     com->irqres, INTR_TYPE_TTY,
-					     siointr, com, &ih);
+					     siointr, com, &com->cookie);
 			if (ret == 0)
 				device_printf(dev, "unable to activate interrupt in fast mode - using normal mode");
 		}
