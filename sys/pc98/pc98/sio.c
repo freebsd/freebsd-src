@@ -65,41 +65,10 @@
  *  PC98 localization based on 386BSD(98) com driver. Using its PC98 local
  *  functions.
  *  This driver is under debugging,has bugs.
- *
- * 1) config
- *  options COM_MULTIPORT  #if using MC16550II
- *  device sio0 at nec? port 0x30  tty irq 4             #internal
- *  device sio1 at nec? port 0xd2  tty irq 5 flags 0x101 #mc1
- *  device sio2 at nec? port 0x8d2 tty flags 0x101       #mc2
- *                         # ~~~~~iobase        ~~multi port flag
- *                         #                   ~  master device is sio1
- * 2) device
- *  cd /dev; MAKEDEV ttyd0 ttyd1 ..
- * 3) /etc/rc.serial
- *  57600bps is too fast for sio0(internal8251)
- *  my ex.
- *    #set default speed 9600
- *    modem()
- *       :
- *      stty </dev/ttyid$i crtscts 9600
- *       :                 #       ~~~~ default speed(can change after init.)
- *    modem 0 1 2
- * 4) COMCONSOLE
- *  not changed.
- * 5) PC9861K,PIO9032B,B98_01
- *  not tested.
  */
 /*
  * modified for AIWA B98-01
  * by T.Hatanou <hatanou@yasuda.comm.waseda.ac.jp>  last update: 15 Sep.1995 
- *
- * How to configure...
- *   # options COM_MULTIPORT         # support for MICROCORE MC16550II
- *      ... comment-out this line, which will conflict with B98_01.
- *   options "B98_01"                # support for AIWA B98-01
- *   device  sio1 at nec? port 0x00d1 tty irq ?
- *   device  sio2 at nec? port 0x00d5 tty irq ?
- *      ... you can leave these lines `irq ?', irq will be autodetected.
  */
 /*
  * Modified by Y.Takahashi of Kogakuin University.
@@ -167,13 +136,32 @@
 #define	UNIT_TO_MINOR(unit)	((((unit) & ~0x1fU) << (8 + 3)) \
 				 | ((unit) & 0x1f))
 
+/*
+ * Meaning of flags:
+ *
+ * 0x00000001	shared IRQs
+ * 0x00000002	disable FIFO
+ * 0x00000008	recover sooner from lost output interrupts
+ * 0x00000010	device is potential system console
+ * 0x00000020	device is forced to become system console
+ * 0x00000040	device is reserved for low-level IO
+ * 0x00000080	use this port for remote kernel debugging
+ * 0x0000??00	minor number of master port
+ * 0x00010000	PPS timestamping on CTS instead of DCD
+ * 0x00080000	IIR_TXRDY bug
+ * 0x00400000	If no comconsole found then mark as a comconsole
+ * 0x1?000000	interface type
+ */
+
 #ifdef COM_MULTIPORT
 /* checks in flags for multiport and which is multiport "master chip"
  * for a given card
  */
 #define	COM_ISMULTIPORT(flags)	((flags) & 0x01)
 #define	COM_MPMASTER(flags)	(((flags) >> 8) & 0x0ff)
+#ifndef PC98
 #define	COM_NOTAST4(flags)	((flags) & 0x04)
+#endif
 #else
 #define	COM_ISMULTIPORT(flags)	(0)
 #endif /* COM_MULTIPORT */
@@ -181,17 +169,22 @@
 #define	COM_C_IIR_TXRDYBUG	0x80000
 #define	COM_CONSOLE(flags)	((flags) & 0x10)
 #define	COM_DEBUGGER(flags)	((flags) & 0x80)
+#ifndef PC98
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
+#endif
 #define	COM_FORCECONSOLE(flags)	((flags) & 0x20)
 #define	COM_IIR_TXRDYBUG(flags)	((flags) & COM_C_IIR_TXRDYBUG)
 #define	COM_LLCONSOLE(flags)	((flags) & 0x40)
 #define	COM_LOSESOUTINTS(flags)	((flags) & 0x08)
 #define	COM_NOFIFO(flags)	((flags) & 0x02)
-#define	COM_NOPROBE(flags)	((flags) & 0x40000)
+#ifndef PC98
 #define	COM_NOSCR(flags)	((flags) & 0x100000)
+#endif
 #define	COM_PPSCTS(flags)	((flags) & 0x10000)
+#ifndef PC98
 #define	COM_ST16650A(flags)	((flags) & 0x20000)
 #define	COM_TI16754(flags)	((flags) & 0x200000)
+#endif
 #define	COM_ALTCONSOLE(flags)	((flags) & 0x400000)
 
 #define	sio_getreg(com, off) \
