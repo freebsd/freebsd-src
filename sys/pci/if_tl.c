@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.24.2.1 1999/01/26 15:20:30 wpaul Exp $
+ *	$Id: if_tl.c,v 1.27 1999/03/30 17:07:20 wpaul Exp $
  */
 
 /*
@@ -201,6 +201,9 @@
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
+#include <machine/bus_memio.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -218,48 +221,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.24.2.1 1999/01/26 15:20:30 wpaul Exp $";
-#endif
-
-#ifdef TL_DEBUG
-#define EV_TXEOC 2
-#define EV_TXEOF 3
-#define EV_RXEOC 4
-#define EV_RXEOF 5
-#define EV_START_TX 6
-#define EV_START_Q 7
-#define EV_SETMODE 8
-#define EV_AUTONEG_XMIT 9
-#define EV_AUTONEG_FIN 10
-#define EV_START_TX_REAL 11
-#define EV_WATCHDOG 12
-#define EV_INIT	13
-
-static void evset(sc, e)
-	struct tl_softc		*sc;
-	int			e;
-{
-	int			i;
-
-	for (i = 19; i > 0; i--)
-		sc->tl_event[i] = sc->tl_event[i - 1];
-	sc->tl_event[0] = e;
-
-	return;
-}
-
-static void evshow(sc)
-	struct tl_softc		*sc;
-{
-	int			i;
-
-	printf("tl%d: events: ", sc->tl_unit);
-	for (i = 0; i < 20; i++)
-		printf(" %d", sc->tl_event[i]);
-	printf("\n");
-
-	return;
-}
+	"$Id: if_tl.c,v 1.27 1999/03/30 17:07:20 wpaul Exp $";
 #endif
 
 /*
@@ -933,9 +895,6 @@ static void tl_autoneg(sc, flag, verbose)
 		DELAY(5000000);
 		break;
 	case TL_FLAG_SCHEDDELAY:
-#ifdef TL_DEBUG
-		evset(sc, EV_AUTONEG_XMIT);
-#endif
 		/*
 		 * Wait for the transmitter to go idle before starting
 		 * an autoneg session, otherwise tl_start() may clobber
@@ -956,9 +915,6 @@ static void tl_autoneg(sc, flag, verbose)
 		sc->tl_want_auto = 0;
 		return;
 	case TL_FLAG_DELAYTIMEO:
-#ifdef TL_DEBUG
-		evset(sc, EV_AUTONEG_FIN);
-#endif
 		ifp->if_timer = 0;
 		sc->tl_autoneg = 0;
 		break;
@@ -1065,6 +1021,22 @@ static void tl_setmode(sc, media)
 	int			media;
 {
 	u_int16_t		bmcr;
+
+	if (sc->tl_bitrate) {
+		if (IFM_SUBTYPE(media) == IFM_10_5)
+			tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_MTXD1);
+		if (IFM_SUBTYPE(media) == IFM_10_T) {
+			tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_MTXD1);
+			if ((media & IFM_GMASK) == IFM_FDX) {
+				tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_MTXD3);
+				tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
+			} else {
+				tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_MTXD3);
+				tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
+			}
+		}
+		return;
+	}
 
 	bmcr = tl_phy_readreg(sc, PHY_BMCR);
 
@@ -1319,11 +1291,15 @@ static void tl_softreset(sc, internal)
 	 * one fragment mode.
 	 */
 	tl_dio_setbit16(sc, TL_NETCONFIG, TL_CFG_ONECHAN|TL_CFG_ONEFRAG);
-	if (internal) {
+	if (internal && !sc->tl_bitrate) {
 		tl_dio_setbit16(sc, TL_NETCONFIG, TL_CFG_PHYEN);
 	} else {
 		tl_dio_clrbit16(sc, TL_NETCONFIG, TL_CFG_PHYEN);
 	}
+
+	/* Handle cards with bitrate devices. */
+	if (sc->tl_bitrate)
+		tl_dio_setbit16(sc, TL_NETCONFIG, TL_CFG_BITRATE);
 
         /* Set PCI burst size */
 	tl_dio_write8(sc, TL_BSIZEREG, 0x33);
@@ -1585,7 +1561,20 @@ tl_attach(config_id, unit)
 		goto fail;
 	}
 
-	sc->iobase = pci_conf_read(config_id, TL_PCI_LOIO) & 0xFFFFFFFC;
+	if (!pci_map_port(config_id, TL_PCI_LOIO,
+	    (u_short *)&(sc->tl_bhandle))) {
+		if (!pci_map_port(config_id, TL_PCI_LOMEM,
+		    (u_short *)&(sc->tl_bhandle))) {
+			printf ("tl%d: couldn't map ports\n", unit);
+			goto fail;
+		}
+	}
+#ifdef __alpha__
+	sc->tl_btag = ALPHA_BUS_SPACE_IO;
+#endif
+#ifdef __i386__
+	sc->tl_btag = I386_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("tl%d: failed to enable memory mapping!\n", unit);
@@ -1593,11 +1582,19 @@ tl_attach(config_id, unit)
 	}
 
 	if (!pci_map_mem(config_id, TL_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("tl%d: couldn't map memory\n", unit);
-		goto fail;
+		if (!pci_map_mem(config_id, TL_PCI_LOIO, &vbase, &pbase)) {
+			printf ("tl%d: couldn't map memory\n", unit);
+			goto fail;
+		}
 	}
 
-	sc->csr = (volatile caddr_t)vbase;
+#ifdef __alpha__
+	sc->tl_btag = ALPHA_BUS_SPACE_MEM;
+#endif
+#ifdef __i386__
+	sc->tl_btag = I386_BUS_SPACE_MEM;
+#endif
+	sc->tl_bhandle = vbase;
 #endif
 
 #ifdef notdef
@@ -1753,9 +1750,24 @@ tl_attach(config_id, unit)
 			break;
 	}
 
+	/*
+	 * If no MII-based PHYs were detected, then this is a
+	 * TNETE110 device with a bit rate PHY. There's no autoneg
+	 * support, so just default to 10baseT mode.
+	 */
 	if (!phys) {
-		printf("tl%d: no physical interfaces attached!\n", unit);
-		goto fail;
+		struct ifmedia		*ifm;
+		sc->tl_bitrate = 1;
+		ifmedia_init(&sc->ifmedia, 0, tl_ifmedia_upd, tl_ifmedia_sts);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+		/* Reset again, this time setting bitrate mode. */
+		tl_softreset(sc, 1);
+		ifm = &sc->ifmedia;
+		ifm->ifm_media = ifm->ifm_cur->ifm_media;
+		tl_ifmedia_upd(ifp);
 	}
 
 	tl_intvec_adchk((void *)sc, 0);
@@ -1866,6 +1878,10 @@ static int tl_newbuf(sc, c)
 		return(ENOBUFS);
 	}
 
+#ifdef __alpha__
+	m_new->m_data += 2;
+#endif
+
 	c->tl_mbuf = m_new;
 	c->tl_next = NULL;
 	c->tl_ptr->tlist_frsize = MCLBYTES;
@@ -1912,10 +1928,6 @@ static int tl_intvec_rxeof(xsc, type)
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
-
-#ifdef TL_DEBUG
-	evset(sc, EV_RXEOF);
-#endif
 
 	while(sc->tl_cdata.tl_rx_head->tl_ptr->tlist_cstat & TL_CSTAT_FRAMECMP){
 		r++;
@@ -2000,10 +2012,6 @@ static int tl_intvec_rxeoc(xsc, type)
 
 	sc = xsc;
 
-#ifdef TL_DEBUG
-	evset(sc, EV_RXEOC);
-#endif
-
 	/* Flush out the receive queue and ack RXEOF interrupts. */
 	r = tl_intvec_rxeof(xsc, type);
 	CMD_PUT(sc, TL_CMD_ACK | r | (type & ~(0x00100000)));
@@ -2022,10 +2030,6 @@ static int tl_intvec_txeof(xsc, type)
 	struct tl_chain		*cur_tx;
 
 	sc = xsc;
-
-#ifdef TL_DEBUG
-	evset(sc, EV_TXEOF);
-#endif
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -2083,10 +2087,6 @@ static int tl_intvec_txeoc(xsc, type)
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
 
-#ifdef TL_DEBUG
-	evset(sc, EV_TXEOC);
-#endif
-
 	if (sc->tl_cdata.tl_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->tl_cdata.tl_tx_tail = NULL;
@@ -2131,9 +2131,6 @@ static int tl_intvec_adchk(xsc, type)
 	if (type)
 		printf("tl%d: adapter check: %x\n", sc->tl_unit,
 			(unsigned int)CSR_READ_4(sc, TL_CH_PARM));
-#ifdef TL_DEBUG
-	evshow(sc);
-#endif
 
 	/*
 	 * Before resetting the adapter, try reading the PHY
@@ -2141,6 +2138,7 @@ static int tl_intvec_adchk(xsc, type)
 	 * necessary to keep the chip operating at the same
 	 * speed and duplex settings after the reset completes.
 	 */
+	if (!sc->tl_bitrate) {
 	bmcr = tl_phy_readreg(sc, PHY_BMCR);
 	ctl = tl_phy_readreg(sc, TL_PHY_CTL);
 	tl_softreset(sc, 1);
@@ -2150,6 +2148,7 @@ static int tl_intvec_adchk(xsc, type)
 		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	} else {
 		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
+	}
 	}
 	tl_stop(sc);
 	tl_init(sc);
@@ -2456,14 +2455,8 @@ static void tl_start(ifp)
 	if (sc->tl_cdata.tl_tx_head == NULL) {
 		sc->tl_cdata.tl_tx_head = start_tx;
 		sc->tl_cdata.tl_tx_tail = cur_tx;
-#ifdef TL_DEBUG
-		evset(sc, EV_START_TX);
-#endif
 
 		if (sc->tl_txeoc) {
-#ifdef TL_DEBUG
-			evset(sc, EV_START_TX_REAL);
-#endif
 			sc->tl_txeoc = 0;
 			CSR_WRITE_4(sc, TL_CH_PARM, vtophys(start_tx->tl_ptr));
 			cmd = CSR_READ_4(sc, TL_HOSTCMD);
@@ -2472,9 +2465,6 @@ static void tl_start(ifp)
 			CMD_PUT(sc, cmd);
 		}
 	} else {
-#ifdef TL_DEBUG
-		evset(sc, EV_START_Q);
-#endif
 		sc->tl_cdata.tl_tx_tail->tl_next = start_tx;
 		sc->tl_cdata.tl_tx_tail = cur_tx;
 	}
@@ -2501,10 +2491,6 @@ static void tl_init(xsc)
 	s = splimp();
 
 	ifp = &sc->arpcom.ac_if;
-
-#ifdef TL_DEBUG
-	evset(sc, EV_INIT);
-#endif
 
 	/*
 	 * Cancel pending I/O.
@@ -2637,6 +2623,18 @@ static void tl_ifmedia_sts(ifp, ifmr)
 
 	ifmr->ifm_active = IFM_ETHER;
 
+	if (sc->tl_bitrate) {
+		if (tl_dio_read8(sc, TL_ACOMMIT) & TL_AC_MTXD1)
+			ifmr->ifm_active = IFM_ETHER|IFM_10_5;
+		else
+			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
+		if (tl_dio_read8(sc, TL_ACOMMIT) & TL_AC_MTXD3)
+			ifmr->ifm_active |= IFM_HDX;
+		else
+			ifmr->ifm_active |= IFM_FDX;
+		return;
+	}
+
 	phy_ctl = tl_phy_readreg(sc, PHY_BMCR);
 	phy_sts = tl_phy_readreg(sc, TL_PHY_CTL);
 
@@ -2715,10 +2713,6 @@ static void tl_watchdog(ifp)
 	u_int16_t		bmsr;
 
 	sc = ifp->if_softc;
-
-#ifdef TL_DEBUG
-	evset(sc, EV_WATCHDOG);
-#endif
 
 	if (sc->tl_autoneg) {
 		tl_autoneg(sc, TL_FLAG_DELAYTIMEO, 1);
