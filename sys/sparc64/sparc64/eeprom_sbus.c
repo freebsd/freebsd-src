@@ -71,7 +71,7 @@
 
 #include <machine/eeprom.h>
 
-#include <mk48txx/mk48txxreg.h>
+#include <dev/mk48txx/mk48txxreg.h>
 
 #include <sparc64/sbus/sbusvar.h>
 
