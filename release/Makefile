@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.11 1995/06/08 09:43:02 jkh Exp $
+#	$Id: Makefile,v 1.192.2.12 1995/06/08 23:32:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -85,7 +85,7 @@ release:
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs co -P src
 .else
-	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr ; cvs co -P -r ${RELEASETAG} src
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	mv newvers.sh foo && \
@@ -107,6 +107,10 @@ rerelease:
 	cd ${.CURDIR}/.. ; ${MAKE} -k install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
+	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
+	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
 	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
 	echo "make all install"			>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release/libdisk"	>> ${CHROOTDIR}/mk
@@ -118,12 +122,11 @@ rerelease:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
-	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs update -P -d -q src
 .else
-	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr ; cvs update -P -d -q -r ${RELEASETAG} src
 .endif
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
