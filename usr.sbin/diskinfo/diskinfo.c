@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
 #include <err.h>
 #include <sys/disk.h>
@@ -110,10 +111,13 @@ main(int argc, char **argv)
 				printf("\t%u", fwsectors);
 			} 
 		} else {
+			humanize_number(buf, 6 - (mediasize < 0 ? 0 : 1),
+			    (int64_t)mediasize, "",
+			    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 			printf("%s\n", argv[i]);
 			printf("\t%-12u\t# sectorsize\n", sectorsize);
-			printf("\t%-12jd\t# mediasize in bytes\n",
-			    (intmax_t)mediasize);
+			printf("\t%-12jd\t# mediasize in bytes (%s)\n",
+			    (intmax_t)mediasize, buf);
 			printf("\t%-12jd\t# mediasize in sectors\n",
 			    (intmax_t)mediasize/sectorsize);
 			if (fwsectors != 0 && fwheads != 0) {
