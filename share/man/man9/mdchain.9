@@ -121,7 +121,7 @@ appends a new mbuf chain using
 .Va m_nextpkt
 field to form a single linked list of mbuf chains.
 If the
-.Va mdp->md_top
+.Fa mdp->md_top
 field is
 .Dv NULL ,
 then this function behaves exactly as the
@@ -135,7 +135,7 @@ For a new mbuf chain it calls the
 .Fn md_initm
 function.
 If there is no data left the function returns
-.Dv ENOENT .
+.Er ENOENT .
 .Pp
 All
 .Fn md_get_*
@@ -144,7 +144,7 @@ Functions which have
 .Cm le
 or
 .Cm be
-suffixes will perform conversion to the little- or big-endian data formats.
+suffixes will perform conversion to the little\- or big\-endian data formats.
 .Pp
 .Fn md_get_mem
 function copies
@@ -172,7 +172,7 @@ loop which does not call any function.
 .El
 .Pp
 If
-.Ar target
+.Fa target
 is
 .Dv NULL ,
 an actual copy is not performed
@@ -194,7 +194,7 @@ struct mdchain *mdp;
 struct mbuf *m;
 u_int16_t length;
 u_int8_t byte;
-.Pp
+
 receive(so, &m);
 md_initm(mdp, m);
 if (md_get_uint8(mdp, &byte) != 0 ||
