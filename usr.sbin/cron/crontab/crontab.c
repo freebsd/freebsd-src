@@ -17,7 +17,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: crontab.c,v 1.4 1996/04/09 20:28:16 scrappy Exp $";
+static char rcsid[] = "$Id: crontab.c,v 1.5 1996/08/05 00:31:27 pst Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files
@@ -25,9 +25,7 @@ static char rcsid[] = "$Id: crontab.c,v 1.4 1996/04/09 20:28:16 scrappy Exp $";
  * vix 26jan87 [original]
  */
 
-
 #define	MAIN_PROGRAM
-
 
 #include "cron.h"
 #include <errno.h>
