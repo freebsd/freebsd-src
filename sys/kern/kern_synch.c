@@ -480,6 +480,8 @@ mi_switch(void)
 	bintime_add(&p->p_runtime, &new_switchtime);
 	bintime_sub(&p->p_runtime, PCPU_PTR(switchtime));
 
+	td->td_generation++;	/* bump preempt-detect counter */
+
 #ifdef DDB
 	/*
 	 * Don't perform context switches from the debugger.
