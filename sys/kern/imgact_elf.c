@@ -761,9 +761,10 @@ elf_coredump(p, vp, limit)
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = hdrsize;
 		for (i = 0;  i < seginfo.count;  i++) {
-			error = vn_rdwr(UIO_WRITE, vp, (caddr_t)php->p_vaddr,
+			error = vn_rdwr_inchunks(UIO_WRITE, vp, 
+			    (caddr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
-			    IO_NODELOCKED|IO_UNIT, cred, (int *)NULL, p);
+			    IO_UNIT, cred, (int *)NULL, p);
 			if (error != 0)
 				break;
 			offset += php->p_filesz;
@@ -914,8 +915,8 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 	elf_puthdr(p, hdr, &off, &status, &fpregset, &psinfo, numsegs);
 
 	/* Write it to the core file. */
-	return vn_rdwr(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
-	    UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, cred, NULL, p);
+	return vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
+	    UIO_SYSSPACE, IO_UNIT, cred, NULL, p);
 }
 
 static void

@@ -315,6 +315,45 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
 }
 
 /*
+ * Package up an I/O request on a vnode into a uio and do it.  The I/O
+ * request is split up into smaller chunks and we try to avoid saturating
+ * the buffer cache while potentially holding a vnode locked, so we 
+ * check bwillwrite() before calling vn_rdwr()
+ */
+int
+vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
+	enum uio_rw rw;
+	struct vnode *vp;
+	caddr_t base;
+	int len;
+	off_t offset;
+	enum uio_seg segflg;
+	int ioflg;
+	struct ucred *cred;
+	int *aresid;
+	struct proc *p;
+{
+	int error = 0;
+
+	do {
+		int chunk = (len > MAXBSIZE) ? MAXBSIZE : len;
+
+		if (rw != UIO_READ && vp->v_type == VREG)
+			bwillwrite();
+		error = vn_rdwr(rw, vp, base, chunk, offset, segflg,
+		    ioflg, cred, aresid, p);
+		len -= chunk;	/* aresid calc already includes length */
+		if (error)
+			break;
+		offset += chunk;
+		base += chunk;
+	} while (len);
+	if (aresid)
+		*aresid += len;
+	return (error);
+}
+
+/*
  * File table vnode read routine.
  */
 static int

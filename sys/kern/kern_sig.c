@@ -62,6 +62,7 @@
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/unistd.h>
 
 
 #include <machine/ipl.h>
@@ -1597,6 +1598,7 @@ coredump(p)
 {
 	register struct vnode *vp;
 	register struct ucred *cred = p->p_ucred;
+	struct flock lf;
 	struct nameidata nd;
 	struct vattr vattr;
 	int error, error1;
@@ -1629,11 +1631,20 @@ coredump(p)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
+	VOP_UNLOCK(vp, 0, p);
+	lf.l_whence = SEEK_SET;
+	lf.l_start = 0;
+	lf.l_len = 0;
+	lf.l_type = F_WRLCK;
+	error = VOP_ADVLOCK(vp, (caddr_t)p, F_SETLK, &lf, F_FLOCK);
+	if (error)
+		goto out2;
+
 	/* Don't dump to non-regular files or files with links. */
 	if (vp->v_type != VREG ||
 	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
 		error = EFAULT;
-		goto out;
+		goto out1;
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
@@ -1645,8 +1656,10 @@ coredump(p)
 	  p->p_sysent->sv_coredump(p, vp, limit) :
 	  ENOSYS;
 
-out:
-	VOP_UNLOCK(vp, 0, p);
+out1:
+	lf.l_type = F_UNLCK;
+	VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
+out2:
 	error1 = vn_close(vp, FWRITE, cred, p);
 	if (error == 0)
 		error = error1;
