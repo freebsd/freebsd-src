@@ -52,7 +52,7 @@
 #include <netatm/atm_stack.h>
 #include <netatm/atm_pcb.h>
 #include <netatm/atm_var.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <dev/hfa/fore.h>
 #include <dev/hfa/fore_aali.h>
 #include <dev/hfa/fore_slave.h>

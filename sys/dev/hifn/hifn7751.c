@@ -69,8 +69,8 @@
 #include <opencrypto/cryptodev.h>
 #include <sys/random.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #ifdef HIFN_RNDTEST
 #include <dev/rndtest/rndtest.h>

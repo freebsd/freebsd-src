@@ -38,7 +38,7 @@
  *  TODO:
  */
 
-#ident "$Id: iir_pci.c 1.1 2001/05/22 20:14:12 achim Exp $"
+#ident "$Id: iir_pci.c,v 1.8 2003/07/01 15:51:58 scottl Exp $"
 
 /* #include "opt_iir.h" */
 
@@ -58,8 +58,8 @@
 #include <machine/clock.h>
 #include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <cam/scsi/scsi_all.h>
 

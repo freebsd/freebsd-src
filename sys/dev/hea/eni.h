@@ -37,8 +37,8 @@
 #ifndef	_ENI_ENI_H
 #define	_ENI_ENI_H
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 /*
  * Physical device name - used to configure HARP devices
