@@ -511,7 +511,7 @@ gscattach(struct isa_device *isdp)
  * don't switch scanner on, wait until first read ioctls go before
  */
 
-int gscopen  (dev_t dev, int flag)
+int gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev)) & UNIT_MASK;
   struct gsc_unit *scu = unittab + unit;
@@ -564,7 +564,7 @@ int gscopen  (dev_t dev, int flag)
  * release the buffer
  */
 
-int gscclose (dev_t dev, int flag)
+int gscclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
@@ -597,7 +597,7 @@ int gscclose (dev_t dev, int flag)
  * gscread
  */
 
-int gscread  (dev_t dev, struct uio *uio)
+int gscread  (dev_t dev, struct uio *uio, int ioflag)
 {
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;

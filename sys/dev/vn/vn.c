@@ -129,12 +129,12 @@ u_long	vn_options;
 int	vnclose __P((dev_t dev, int flags, int mode, struct proc *p));
 int	vnopen __P((dev_t dev, int flags, int mode, struct proc *p));
 void	vnstrategy __P((struct buf *bp));
-int	vnioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+int	vnioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
 void	vniodone __P((struct buf *bp));
 int	vnsetcred __P((struct vn_softc *vn, struct ucred *cred));
 void	vnshutdown __P((void));
 void	vnclear __P((struct vn_softc *vn));
-size_t	vnsize __P((dev_t dev));
+int	vnsize __P((dev_t dev));
 int	vndump __P((dev_t dev));
 
 int
@@ -377,7 +377,7 @@ vniodone( struct buf *bp) {
 
 /* ARGSUSED */
 int
-vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct vn_softc *vn = vn_softc[vnunit(dev)];
 	struct vn_ioctl *vio;
@@ -577,7 +577,7 @@ vnclear(struct vn_softc *vn)
 			dsgone(&vn->sc_slices);
 }
 
-size_t
+int
 vnsize(dev_t dev)
 {
 	int unit = vnunit(dev);

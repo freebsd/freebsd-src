@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.2 1995/02/15 06:28:27 jkh Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.3 1995/03/28 07:54:40 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.2 1995/02/15 06:28:27 jkh Exp 
  *
  *******************************************************************************
  * $Log: iispy.c,v $
+ * Revision 1.3  1995/03/28  07:54:40  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.2  1995/02/15  06:28:27  jkh
  * Fix up include paths, nuke some warnings.
  *
@@ -104,7 +109,7 @@ ispy_input(int no, int len, char *buf, int out)
 }
 
 int
-ispyopen(dev_t dev, int flag)
+ispyopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int             err;
 	struct ispy_data *ispy;
@@ -121,7 +126,7 @@ ispyopen(dev_t dev, int flag)
 }
 
 int
-ispyclose(dev_t dev, int flag)
+ispyclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct ispy_data *ispy= &ispy_data[minor(dev)];
 
@@ -132,10 +137,7 @@ ispyclose(dev_t dev, int flag)
 }
 
 int
-ispyioctl (dev, cmd, data, flag)
-dev_t           dev;
-caddr_t         data;
-int cmd, flag;
+ispyioctl (dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
         int     unit = minor(dev);
 
@@ -147,7 +149,7 @@ int cmd, flag;
 }
 
 int
-ispyread(dev_t dev, struct uio * uio)
+ispyread(dev_t dev, struct uio * uio, int ioflag)
 {
 	int             x;
 	int             error = 0;

@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.5 1995/03/28 07:54:33 bde Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.6 1995/05/11 19:25:56 rgrimes Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.5 1995/03/28 07:54:33 bde E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.6  1995/05/11  19:25:56  rgrimes
+ * Fix -Wformat warnings from LINT kernel.
+ *
  * Revision 1.5  1995/03/28  07:54:33  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed
@@ -498,7 +501,7 @@ nnic_accept(int cn, int an, int rea)
 }
 
 int
-nnicopen(dev_t dev, int flag)
+nnicopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct nnic_softc *sc;
 	u_char          unit;
@@ -528,7 +531,7 @@ nnicopen(dev_t dev, int flag)
 }
 
 int
-nnicclose(dev_t dev, int flag)
+nnicclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct nnic_softc *sc = &nnic_sc[minor(dev)];
 
@@ -537,7 +540,7 @@ nnicclose(dev_t dev, int flag)
 }
 
 int
-nnicioctl(dev_t dev, int cmd, caddr_t data, int flag)
+nnicioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *pr)
 {
 	int             error;
 	int             i, x;

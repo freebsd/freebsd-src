@@ -156,7 +156,7 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 }
 
 int
-spigot_open(dev_t dev, int flag)
+spigot_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 
@@ -174,7 +174,7 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 }
 
 int
-spigot_close(dev_t dev, int flag)
+spigot_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
 

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.9 1995/07/16 10:13:08 bde Exp $
+ * $Id: bpf.c,v 1.10 1995/07/31 10:35:36 peter Exp $
  */
 
 #include "bpfilter.h"
@@ -308,9 +308,11 @@ bpf_detachd(d)
  */
 /* ARGSUSED */
 int
-bpfopen(dev, flag)
+bpfopen(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	register struct bpf_d *d;
 
@@ -338,9 +340,11 @@ bpfopen(dev, flag)
  */
 /* ARGSUSED */
 int
-bpfclose(dev, flag)
+bpfclose(dev, flags, fmt, p)
 	dev_t dev;
-	int flag;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	register struct bpf_d *d = &bpf_dtab[minor(dev)];
 	register int s;
@@ -408,9 +412,10 @@ bpf_sleep(d)
  *  bpfread - read next chunk of packets from buffers
  */
 int
-bpfread(dev, uio)
+bpfread(dev, uio, ioflag)
 	dev_t dev;
 	register struct uio *uio;
+	int ioflag;
 {
 	register struct bpf_d *d = &bpf_dtab[minor(dev)];
 	int error;
@@ -522,9 +527,10 @@ bpf_wakeup(d)
 }
 
 int
-bpfwrite(dev, uio)
+bpfwrite(dev, uio, ioflag)
 	dev_t dev;
 	struct uio *uio;
+	int ioflag;
 {
 	register struct bpf_d *d = &bpf_dtab[minor(dev)];
 	struct ifnet *ifp;
@@ -598,11 +604,12 @@ reset_d(d)
  */
 /* ARGSUSED */
 int
-bpfioctl(dev, cmd, addr, flag)
+bpfioctl(dev, cmd, addr, flags, p)
 	dev_t dev;
 	int cmd;
 	caddr_t addr;
-	int flag;
+	int flags;
+	struct proc *p;
 {
 	register struct bpf_d *d = &bpf_dtab[minor(dev)];
 	int s, error = 0;

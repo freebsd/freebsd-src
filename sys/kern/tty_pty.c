@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.17 1995/08/02 02:55:47 bde Exp $
+ * $Id: tty_pty.c,v 1.19 1995/08/02 11:26:50 ache Exp $
  */
 
 /*
@@ -296,8 +296,11 @@ ptcopen(dev, flag, devtype, p)
 }
 
 int
-ptcclose(dev)
+ptcclose(dev, flags, fmt, p)
 	dev_t dev;
+	int flags;
+	int fmt;
+	struct proc *p;
 {
 	register struct tty *tp;
 

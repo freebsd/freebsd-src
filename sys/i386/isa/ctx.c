@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.5 1995/04/12 20:47:40 wollman Exp $
+ *	$Id: ctx.c,v 1.6 1995/05/30 08:01:27 rgrimes Exp $
  */
 
 /*
@@ -206,7 +206,7 @@ ctxattach(struct isa_device * devp)
 }
 
 int
-ctxopen(dev_t dev, int flag)
+ctxopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct ctx_soft_registers *sr;
 	u_char  unit;
@@ -262,7 +262,7 @@ ctxopen(dev_t dev, int flag)
 }
 
 int
-ctxclose(dev_t dev, int flag)
+ctxclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int     unit;
 
@@ -275,7 +275,7 @@ ctxclose(dev_t dev, int flag)
 }
 
 int
-ctxwrite(dev_t dev, struct uio * uio)
+ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	int     unit, status = 0;
 	int     page, count, offset;
@@ -320,7 +320,7 @@ ctxwrite(dev_t dev, struct uio * uio)
 }
 
 int
-ctxread(dev_t dev, struct uio * uio)
+ctxread(dev_t dev, struct uio * uio, int ioflag)
 {
 	int     unit, status = 0;
 	int     page, count, offset;
@@ -363,7 +363,7 @@ ctxread(dev_t dev, struct uio * uio)
 }
 
 int
-ctxioctl(dev_t dev, int cmd, caddr_t data, int flag)
+ctxioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int     error;
 	int     unit, i;
