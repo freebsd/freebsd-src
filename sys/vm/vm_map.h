@@ -70,6 +70,7 @@
 #ifndef	_VM_MAP_
 #define	_VM_MAP_
 
+#include <sys/lock.h>
 #include <sys/lockmgr.h>
 
 #ifdef MAP_LOCK_DIAGNOSTIC
@@ -237,15 +238,29 @@ void vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior);
 	} while (0)
 #endif
 
-void vm_map_lock(vm_map_t map);
-void vm_map_unlock(vm_map_t map);
-void vm_map_lock_read(vm_map_t map);
-void vm_map_unlock_read(vm_map_t map);
-int vm_map_trylock(vm_map_t map);
-int vm_map_lock_upgrade(vm_map_t map);
-void vm_map_lock_downgrade(vm_map_t map);
-void vm_map_set_recursive(vm_map_t map);
-void vm_map_clear_recursive(vm_map_t map);
+void _vm_map_lock(vm_map_t map, const char *file, int line);
+void _vm_map_unlock(vm_map_t map, const char *file, int line);
+void _vm_map_lock_read(vm_map_t map, const char *file, int line);
+void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
+int _vm_map_trylock(vm_map_t map, const char *file, int line);
+int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
+void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
+void _vm_map_set_recursive(vm_map_t map, const char *file, int line);
+void _vm_map_clear_recursive(vm_map_t map, const char *file, int line);
+
+#define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_lock_read(map)	_vm_map_lock_read(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_unlock_read(map)	_vm_map_unlock_read(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_trylock(map)	_vm_map_trylock(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_lock_upgrade(map)	\
+			_vm_map_lock_upgrade(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_lock_downgrade(map)	\
+			_vm_map_lock_downgrade(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_set_recursive(map)	\
+			_vm_map_set_recursive(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_clear_recursive(map)	\
+			_vm_map_clear_recursive(map, LOCK_FILE, LOCK_LINE)
 
 struct pmap *vmspace_pmap(struct vmspace *vmspace);
 long vmspace_resident_count(struct vmspace *vmspace);
