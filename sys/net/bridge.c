@@ -1073,12 +1073,14 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	if (m0 != NULL)
 		EH_RESTORE(m0);	/* restore Ethernet header */
 
-	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
+	if (i == IP_FW_DENY) /* drop */
 	    return m0;
+
+	KASSERT(m0 != NULL, ("bdg_forward: m0 is NULL"));
 
 	if (i == 0) /* a PASS rule.  */
 	    goto forward;
-	if (DUMMYNET_LOADED && (i & IP_FW_PORT_DYNT_FLAG)) {
+	if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
 	    /*
 	     * Pass the pkt to dummynet, which consumes it.
 	     * If shared, make a copy and keep the original.
@@ -1095,7 +1097,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    }
 
 	    args.oif = real_dst;
-	    ip_dn_io_ptr(m, (i & 0xffff),DN_TO_BDG_FWD, &args);
+	    ip_dn_io_ptr(m, args.cookie, DN_TO_BDG_FWD, &args);
 	    return m0;
 	}
 	/*

@@ -1695,20 +1695,17 @@ check_uidgid(ipfw_insn_u32 *insn,
  *	args->rule	Pointer to the last matching rule (in/out)
  *	args->next_hop	Socket we are forwarding to (out).
  *	args->f_id	Addresses grabbed from the packet (out)
+ * 	args->cookie	a cookie depending on rule action
  *
  * Return value:
  *
- *	IP_FW_PORT_DENY_FLAG	the packet must be dropped.
- *	0	The packet is to be accepted and routed normally OR
- *      	the packet was denied/rejected and has been dropped;
- *		in the latter case, *m is equal to NULL upon return.
- *	port	Divert the packet to port, with these caveats:
+ *	IP_FW_PASS	the packet must be accepted
+ *	IP_FW_DENY	the packet must be dropped
+ *	IP_FW_DIVERT	divert packet, port in m_tag
+ *	IP_FW_TEE	tee packet, port in m_tag
+ *	IP_FW_DUMMYNET	to dummynet, pipe in args->cookie
+ *	IP_FW_NETGRAPH	into netgraph, cookie args->cookie
  *
- *		- If IP_FW_PORT_TEE_FLAG is set, tee the packet instead
- *		  of diverting it (ie, 'ipfw tee').
- *
- *		- If IP_FW_PORT_DYNT_FLAG is set, interpret the lower
- *		  16 bits as a dummynet pipe number instead of diverting
  */
 
 int
@@ -1806,7 +1803,7 @@ ipfw_chk(struct ip_fw_args *args)
 	struct m_tag *mtag;
 
 	if (m->m_flags & M_SKIP_FIREWALL)
-		return 0;	/* accept */
+		return (IP_FW_PASS);	/* accept */
 	/*
 	 * dyn_dir = MATCH_UNKNOWN when rules unchecked,
 	 * 	MATCH_NONE when checked and not matched (q = NULL),
@@ -1904,7 +1901,7 @@ after_ip_checks:
 		 */
 		if (fw_one_pass) {
 			IPFW_RUNLOCK(chain);
-			return 0;
+			return (IP_FW_PASS);
 		}
 
 		f = args->rule->next_rule;
@@ -1921,13 +1918,13 @@ after_ip_checks:
 		if (args->eh == NULL && skipto != 0) {
 			if (skipto >= IPFW_DEFAULT_RULE) {
 				IPFW_RUNLOCK(chain);
-				return(IP_FW_PORT_DENY_FLAG); /* invalid */
+				return (IP_FW_DENY); /* invalid */
 			}
 			while (f && f->rulenum <= skipto)
 				f = f->next;
 			if (f == NULL) {	/* drop packet */
 				IPFW_RUNLOCK(chain);
-				return(IP_FW_PORT_DENY_FLAG);
+				return (IP_FW_DENY);
 			}
 		}
 	}
@@ -2408,7 +2405,7 @@ check_body:
 			case O_KEEP_STATE:
 				if (install_state(f,
 				    (ipfw_insn_limit *)cmd, args)) {
-					retval = IP_FW_PORT_DENY_FLAG;
+					retval = IP_FW_DENY;
 					goto done; /* error/limit violation */
 				}
 				match = 1;
@@ -2460,7 +2457,8 @@ check_body:
 			case O_PIPE:
 			case O_QUEUE:
 				args->rule = f; /* report matching rule */
-				retval = cmd->arg1 | IP_FW_PORT_DYNT_FLAG;
+				args->cookie = cmd->arg1;
+				retval = IP_FW_DUMMYNET;
 				goto done;
 
 			case O_DIVERT:
@@ -2476,15 +2474,14 @@ check_body:
 					/* XXX statistic */
 					/* drop packet */
 					IPFW_RUNLOCK(chain);
-					return IP_FW_PORT_DENY_FLAG;
+					return (IP_FW_DENY);
 				}
 				dt = (struct divert_tag *)(mtag+1);
 				dt->cookie = f->rulenum;
-				dt->info = (cmd->opcode == O_DIVERT) ?
-				    cmd->arg1 :
-				    cmd->arg1 | IP_FW_PORT_TEE_FLAG;
+				dt->info = cmd->arg1;
 				m_tag_prepend(m, mtag);
-				retval = dt->info;
+				retval = (cmd->opcode == O_DIVERT) ?
+				    IP_FW_DIVERT : IP_FW_TEE;
 				goto done;
 			}
 
@@ -2518,7 +2515,7 @@ check_body:
 				}
 				/* FALLTHROUGH */
 			case O_DENY:
-				retval = IP_FW_PORT_DENY_FLAG;
+				retval = IP_FW_DENY;
 				goto done;
 
 			case O_FORWARD_IP:
@@ -2527,7 +2524,7 @@ check_body:
 				if (!q || dyn_dir == MATCH_FORWARD)
 					args->next_hop =
 					    &((ipfw_insn_sa *)cmd)->sa;
-				retval = 0;
+				retval = IP_FW_PASS;
 				goto done;
 
 			default:
@@ -2552,7 +2549,7 @@ next_rule:;		/* try next rule		*/
 	}		/* end of outer for, scan rules */
 	printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	IPFW_RUNLOCK(chain);
-	return(IP_FW_PORT_DENY_FLAG);
+	return (IP_FW_DENY);
 
 done:
 	/* Update statistics */
@@ -2560,12 +2557,12 @@ done:
 	f->bcnt += pktlen;
 	f->timestamp = time_second;
 	IPFW_RUNLOCK(chain);
-	return retval;
+	return (retval);
 
 pullup_failed:
 	if (fw_verbose)
 		printf("ipfw: pullup failed\n");
-	return(IP_FW_PORT_DENY_FLAG);
+	return (IP_FW_DENY);
 }
 
 /*
