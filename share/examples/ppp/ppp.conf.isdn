@@ -59,6 +59,7 @@ isdn:
  # Use the raw B-channel devices
  set device /dev/i4brbch0 /dev/i4brbch1
  set speed sync
+ set bandwidth 65536
 
  # How long does it take to connect with ISDN ?
  link * set cd 6
