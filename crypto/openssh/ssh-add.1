@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.24 2001/04/10 09:13:21 itojun Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.30 2002/02/04 20:41:16 stevesk Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -42,22 +42,29 @@
 .Os
 .Sh NAME
 .Nm ssh-add
-.Nd adds RSA or DSA identities for the authentication agent
+.Nd adds RSA or DSA identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
 .Op Fl lLdD
 .Op Ar
+.Nm ssh-add
+.Fl s Ar reader
+.Nm ssh-add
+.Fl e Ar reader
 .Sh DESCRIPTION
 .Nm
 adds RSA or DSA identities to the authentication agent,
 .Xr ssh-agent 1 .
-When run without arguments, it adds the file
+When run without arguments, it adds the files
+.Pa $HOME/.ssh/id_rsa ,
+.Pa $HOME/.ssh/id_dsa 
+and
 .Pa $HOME/.ssh/identity .
 Alternative file names can be given on the command line.
 If any file requires a passphrase,
 .Nm
 asks for the passphrase from the user.
-The Passphrase it is read from the user's tty.
+The passphrase is read from the user's tty.
 .Nm
 retries the last passphrase if multiple identity files are given.
 .Pp
@@ -76,26 +83,27 @@ Lists public key parameters of all identities currently represented by the agent
 Instead of adding the identity, removes the identity from the agent.
 .It Fl D
 Deletes all identities from the agent.
+.It Fl s Ar reader
+Add key in smartcard
+.Ar reader .
+.It Fl e Ar reader
+Remove key in smartcard
+.Ar reader .
 .El
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa $HOME/.ssh/identity
 Contains the protocol version 1 RSA authentication identity of the user.
-This file should not be readable by anyone but the user.
-Note that
-.Nm
-ignores this file if it is accessible by others.
-It is possible to
-specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file.
-This is the default file added by
-.Nm
-when no other files have been specified.
 .It Pa $HOME/.ssh/id_dsa
 Contains the protocol version 2 DSA authentication identity of the user.
 .It Pa $HOME/.ssh/id_rsa
 Contains the protocol version 2 RSA authentication identity of the user.
 .El
+.Pp
+Identity files should not be readable by anyone but the user.
+Note that
+.Nm
+ignores identity files if they are accessible by others.
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
 .It Ev "DISPLAY" and "SSH_ASKPASS"
@@ -122,6 +130,11 @@ may be necessary to redirect the input from
 .Pa /dev/null
 to make this work.)
 .El
+.Sh DIAGNOSTICS
+Exit status is 0 on success, 1 if the specified command fails,
+and 2 if
+.Nm
+is unable to contact the authentication agent.
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free
 ssh 1.2.12 release by Tatu Ylonen.
