@@ -4,13 +4,8 @@
  *	$Id: kerberos5.c,v 1.1 1997/09/04 06:11:15 markm Exp $
  */
 
-#if !defined(lint) && !defined(SABER)
-static
-#ifdef __STDC__
-const
-#endif
-char rcsid_kerberos5_c[] = "$FreeBSD$";
-#endif /* lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*-
  * Copyright (c) 1991, 1993
