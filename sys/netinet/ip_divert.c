@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.4 1997/09/30 16:25:06 davidg Exp $
+ *	$Id: ip_divert.c,v 1.1.2.5 1997/12/18 09:42:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -219,7 +219,11 @@ div_output(so, m, addr, control)
 		sin = mtod(addr, struct sockaddr_in *);
 
 	/* Loopback avoidance option */
-	ip_divert_ignore = ntohs(inp->inp_lport);
+	if (sin) {
+		ip_divert_ignore = ntohs(sin->sin_port);
+	} else {
+		ip_divert_ignore = 0;
+	}
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
