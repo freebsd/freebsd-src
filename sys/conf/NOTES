@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.585 1999/04/19 11:53:36 peter Exp $
+#	$Id: LINT,v 1.586 1999/04/19 14:19:50 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -267,7 +267,7 @@ options		"MD5"
 #
 # Allow processes to switch to vm86 mode, as well as enabling direct
 # user-mode access to the I/O port space.  This option is necessary for 
-# the doscmd emulator to run.
+# the doscmd emulator to run and the VESA modes in syscons to be available.
 #
 options		"VM86"
 
