@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/elf32.h>
 #include <sys/elf64.h>
+#include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <err.h>
@@ -917,17 +918,14 @@ u_int64_t
 elf_get_byte(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
-	u_char *p;
 
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = (char *)base + elf32_offsets[member];
-		val = *p;
+		val = ((char *)base)[elf32_offsets[member]];
 		break;
 	case ELFCLASS64:
-		p = (char *)base + elf64_offsets[member];
-		val = *p;
+		val = ((char *)base)[elf64_offsets[member]];
 		break;
 	case ELFCLASSNONE:
 		errx(1, "invalid class");
@@ -940,31 +938,30 @@ u_int64_t
 elf_get_quarter(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
-	u_char *p;
 
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = (char *)base + elf32_offsets[member];
+		base = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 8 | p[1];
+			val = be16dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[1] << 8 | p[0];
+			val = le16dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
 		}
 		break;
 	case ELFCLASS64:
-		p = (char *)base + elf64_offsets[member];
+		base = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 8 | p[1];
+			val = be16dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[1] << 8 | p[0];
+			val = le16dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
@@ -981,31 +978,30 @@ u_int64_t
 elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
-	u_char *p;
 
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = (char *)base + elf32_offsets[member];
+		base = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 8 | p[1];
+			val = be16dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[1] << 8 | p[0];
+			val = le16dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
 		}
 		break;
 	case ELFCLASS64:
-		p = (char *)base + elf64_offsets[member];
+		base = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+			val = be32dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[3] << 24 | p[2] << 16 | p[1] << 8 | p[0];
+			val = le32dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
@@ -1022,31 +1018,30 @@ u_int64_t
 elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
 	u_int64_t val;
-	u_char *p;
 
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = (char *)base + elf32_offsets[member];
+		base = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+			val = be32dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[3] << 24 | p[2] << 16 | p[1] << 8 | p[0];
+			val = le32dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
 		}
 		break;
 	case ELFCLASS64:
-		p = (char *)base + elf64_offsets[member];
+		base = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+			val = be32dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[3] << 24 | p[2] << 16 | p[1] << 8 | p[0];
+			val = le32dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
@@ -1062,38 +1057,31 @@ elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member)
 u_int64_t
 elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 {
-	u_int64_t high;
-	u_int64_t low;
 	u_int64_t val;
-	u_char *p;
 
 	val = 0;
 	switch (e->e_ident[EI_CLASS]) {
 	case ELFCLASS32:
-		p = (char *)base + elf32_offsets[member];
+		base = (char *)base + elf32_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			val = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
+			val = be32dec(base);
 			break;
 		case ELFDATA2LSB:
-			val = p[3] << 24 | p[2] << 16 | p[1] << 8 | p[0];
+			val = le32dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
 		}
 		break;
 	case ELFCLASS64:
-		p = (char *)base + elf64_offsets[member];
+		base = (char *)base + elf64_offsets[member];
 		switch (e->e_ident[EI_DATA]) {
 		case ELFDATA2MSB:
-			high = p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3];
-			low = p[4] << 24 | p[5] << 16 | p[6] << 8 | p[7];
-			val = high << 32 | low;
+			val = be64dec(base);
 			break;
 		case ELFDATA2LSB:
-			high = p[7] << 24 | p[6] << 16 | p[5] << 8 | p[4];
-			low = p[3] << 24 | p[2] << 16 | p[1] << 8 | p[0];
-			val = high << 32 | low;
+			val = le64dec(base);
 			break;
 		case ELFDATANONE:
 			errx(1, "invalid data format");
