@@ -230,12 +230,12 @@ void i4b_next_l2state(l2_softc_t *l2sc, int event)
 		panic("i4b_l2fsm.c: event >= N_EVENTS\n");
 
 	/* get current state and check it */
-	if((currstate = l2sc->Q921_state) > N_STATES) 	/* failsafe */
-		panic("i4b_l2fsm.c: currstate > N_STATES\n");	
+	if((currstate = l2sc->Q921_state) >= N_STATES) 	/* failsafe */
+		panic("i4b_l2fsm.c: currstate >= N_STATES\n");	
 
 	/* get new state and check it */
-	if((newstate = l2state_tab[event][currstate].newstate) > N_STATES)
-		panic("i4b_l2fsm.c: newstate > N_STATES\n");	
+	if((newstate = l2state_tab[event][currstate].newstate) >= N_STATES)
+		panic("i4b_l2fsm.c: newstate >= N_STATES\n");	
 	
 	
 	if(newstate != ST_SUBSET)
