@@ -31,10 +31,20 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 FreeBSD/ELF)");
 
+#define MASK_PROFILER_EPILOGUE	010000000000
+
+#define TARGET_PROFILER_EPILOGUE	(target_flags & MASK_PROFILER_EPILOGUE)
+
+#undef	SUBTARGET_SWITCHES
+#define SUBTARGET_SWITCHES					\
+     { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE},	\
+     { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE},
+
 /* The svr4 ABI for the i386 says that records and unions are returned
    in memory.  */
+/* On FreeBSD, we do not. */
 #undef DEFAULT_PCC_STRUCT_RETURN
-#define DEFAULT_PCC_STRUCT_RETURN 1
+#define DEFAULT_PCC_STRUCT_RETURN 0
 
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
@@ -115,22 +125,30 @@ Boston, MA 02111-1307, USA.  */
  : ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG) ? (n)+3 \
  : (-1))
 
+/* Tell final.c that we don't need a label passed to mcount.  */
+#define NO_PROFILE_DATA
+
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
+/* Redefine this to not pass an unused label in %edx.  */
 
 #undef FUNCTION_PROFILER
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
   if (flag_pic)								\
-    {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%edx\n",		\
-	       LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
-    }									\
+    fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
   else									\
+    fprintf (FILE, "\tcall mcount\n");					\
+}
+
+#define FUNCTION_PROFILER_EPILOGUE(FILE)  \
+{									\
+  if (TARGET_PROFILER_EPILOGUE)						\
     {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%edx\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall mcount\n");				\
+      if (flag_pic)							\
+	fprintf (FILE, "\tcall *mexitcount@GOT(%%ebx)\n");		\
+      else								\
+	fprintf (FILE, "\tcall mexitcount\n");				\
     }									\
 }
 
@@ -142,7 +160,9 @@ Boston, MA 02111-1307, USA.  */
   
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "int"
-   
+ 
+#define WCHAR_UNSIGNED 0
+
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
 
@@ -189,26 +209,14 @@ Boston, MA 02111-1307, USA.  */
 
 #undef CPP_SPEC
 #if TARGET_CPU_DEFAULT == 2
-#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{!m386:-D__i486__} %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{!m386:-D__i486__}"
 #else
-#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{m486:-D__i486__} %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{m486:-D__i486__}"
 #endif
 
-#undef	LIB_SPEC
-#if 1
-/* We no longer link with libc_p.a or libg.a by default. If you
- * want to profile or debug the C library, please add
- * -lc_p or -ggdb to LDFLAGS at the link time, respectively.
- */
-#define LIB_SPEC \
-  "%{!shared: %{mieee-fp:-lieee} %{p:-lgmon} %{pg:-lgmon} \
-     %{!ggdb:%{{!pthread:-lc}%{pthread:-lc_r}}} %{ggdb:-lg}}"
-#else
-#define LIB_SPEC \
-  "%{!shared: \
-     %{mieee-fp:-lieee} %{p:-lgmon -lc_p} %{pg:-lgmon -lc_p} \
-       %{!p:%{!pg:%{!g*:-lc} %{g*:-lg}}}}"
-#endif
+/* Like the default, except no -lg, and no -p.  */
+#undef LIB_SPEC
+#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:-lc}%{pthread:-lc_r}}%{pg:%{!pthread:-lc_p}%{pthread:-lc_r_p}}}"
 
 /* Provide a LINK_SPEC appropriate for FreeBSD.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -225,13 +233,23 @@ Boston, MA 02111-1307, USA.  */
    done.  */
 
 #undef	LINK_SPEC
-#define LINK_SPEC "-m elf_i386 %{shared:-shared} \
+#define LINK_SPEC \
+ "-m elf_i386 -L/usr/lib %{shared:-shared} \
   %{!shared: \
-    %{!ibcs: \
-      %{!static: \
-	%{rdynamic:-export-dynamic} \
-	%{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
-	%{static:-static}}}"
+    %{!static: \
+      %{rdynamic:-export-dynamic} \
+      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
+     %{static:-static}}"
 
 /* Get perform_* macros to build libgcc.a.  */
 #include "i386/perform.h"
+
+#define LINK_LIBGCC_SPECIAL_1	1
+
+/* This goes away when the math emulator is fixed.  */
+#undef TARGET_DEFAULT
+#define TARGET_DEFAULT	(MASK_NO_FANCY_MATH_387 | 0301)
+
+#define HAVE_ATEXIT
+#define HAVE_PUTENV
+
