@@ -267,10 +267,16 @@ exit1(p, rv)
 	lockmgr(&allproc_lock, LK_EXCLUSIVE, NULL, CURPROC);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
-	p->p_stat = SZOMB;
 
 	LIST_REMOVE(p, p_hash);
 	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	/*
+	 * We have to wait until after releasing this lock before
+	 * changing p_stat.  If we block on a mutex while waiting to
+	 * release the allproc_lock, then we will be back at SRUN when
+	 * we resume here and our parent will never harvest us.
+	 */
+	p->p_stat = SZOMB;
 
 	q = LIST_FIRST(&p->p_children);
 	if (q)		/* only need this if any child is S_ZOMB */
