@@ -1521,6 +1521,7 @@ vm_page_set_validclean(vm_page_t m, int base, int size)
 	int endoff;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (size == 0)	/* handle degenerate case */
 		return;
 
