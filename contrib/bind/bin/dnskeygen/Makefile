@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 1.5 1999/08/08 17:51:01 vixie Exp $
+# $Id: Makefile,v 1.6 2000/07/11 06:41:28 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -44,7 +44,8 @@ INSTALL_LIB=-o bin -g bin
 
 PS=ps
 LDFLAGS=
-CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+CFLAGS=	${CDEBUG}
+CPPFLAGS= -I${PORTINCL} -I${INCL}
 
 PROG= dnskeygen
 SRCS= dnskeygen.c

@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/prandom.c,v 1.8 1999/10/13 16:39:24 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/prandom.c,v 1.9 2000/07/17 07:36:53 vixie Exp $";
 #endif
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -20,6 +20,7 @@ static const char rcsid[] = "$Header: /proj/cvs/isc/bind/src/lib/dst/prandom.c,v
 
 #include "port_before.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -203,6 +204,7 @@ do_time(dst_work *work)
 	zone = (struct timezone *) tmp;
 	mtime = (struct timeval *)(tmp + sizeof(struct timezone));
 	gettimeofday(mtime, zone);
+	assert(mtime->tv_usec >= 0 && mtime->tv_usec < 1000000);
 	cnt = sizeof(tmp);
 	my_digest(work, tmp, sizeof(tmp));
 

@@ -1,4 +1,4 @@
-.\" $Id: nsupdate.8,v 8.4 1999/10/17 06:26:18 cyarnell Exp $
+.\" $Id: nsupdate.8,v 8.5 2000/02/29 03:50:48 vixie Exp $
 .\"
 .\"Copyright (c) 1999 by Internet Software Consortium
 .\"
@@ -47,6 +47,7 @@ Debug mode.
 .It Fl v
 Virtual circuit - use TCP to communication with server.
 Default is UDP.
+.El
 .Sh INPUT FORMAT
 .Ic Nsupdate
 reads input records, one per line,
@@ -79,7 +80,7 @@ will be performed.
 understands the following input record formats:
 .Pp
 
-.Bl -ohang
+.Bl -hang
 
 .It Ic prereq nxdomain Va domain-name
 Requires that no RR of any type exists with name
@@ -178,7 +179,7 @@ $ nsupdate -k /var/named/keys:mykey
 .Ed
 
 .Sh DIAGNOSTICS
-.Bl -ohang
+.Bl -hang
 
 .It Qq send error
 Typically indicates that the authoritative nameservers could not be reached
@@ -196,9 +197,11 @@ being performed.  The only way to determine if the update was performed
 is to use debug mode
 .Fl ( d )
 and examine the status field in the nameserver's reply.
-
+.El
 .Sh FILES
+.Bl -hang
 .It Pa /etc/resolv.conf
+.El
 initial domain name and name server addresses
 .Sh SEE ALSO
 .Xr @INDOT@named @SYS_OPS_EXT@ ,

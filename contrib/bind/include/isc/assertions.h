@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: assertions.h,v 8.2 1999/01/08 19:23:01 vixie Exp $
+ * $Id: assertions.h,v 8.3 2000/07/17 07:53:59 vixie Exp $
  */
 
 #ifndef ASSERTIONS_H
@@ -73,8 +73,8 @@ char *assertion_type_to_text(assertion_type type);
 		 ((__assertion_failed)(__FILE__, __LINE__, assert_require, \
 				       #cond, 1), 0)))
 #else
-#define REQUIRE(cond)		((void) 0)
-#define REQUIRE_ERR(cond)	((void) 0)
+#define REQUIRE(cond)		((void) (cond))
+#define REQUIRE_ERR(cond)	((void) (cond))
 #endif /* CHECK_REQUIRE */
 
 #if CHECK_ENSURE != 0
@@ -87,8 +87,8 @@ char *assertion_type_to_text(assertion_type type);
 		 ((__assertion_failed)(__FILE__, __LINE__, assert_ensure, \
 				       #cond, 1), 0)))
 #else
-#define ENSURE(cond)		((void) 0)
-#define ENSURE_ERR(cond)	((void) 0)
+#define ENSURE(cond)		((void) (cond))
+#define ENSURE_ERR(cond)	((void) (cond))
 #endif /* CHECK_ENSURE */
 
 #if CHECK_INSIST != 0
@@ -101,8 +101,8 @@ char *assertion_type_to_text(assertion_type type);
 		 ((__assertion_failed)(__FILE__, __LINE__, assert_insist, \
 				       #cond, 1), 0)))
 #else
-#define INSIST(cond)		((void) 0)
-#define INSIST_ERR(cond)	((void) 0)
+#define INSIST(cond)		((void) (cond))
+#define INSIST_ERR(cond)	((void) (cond))
 #endif /* CHECK_INSIST */
 
 #if CHECK_INVARIANT != 0
@@ -115,8 +115,8 @@ char *assertion_type_to_text(assertion_type type);
 		 ((__assertion_failed)(__FILE__, __LINE__, assert_invariant, \
 				       #cond, 1), 0)))
 #else
-#define INVARIANT(cond)		((void) 0)
-#define INVARIANT_ERR(cond)	((void) 0)
+#define INVARIANT(cond)		((void) (cond))
+#define INVARIANT_ERR(cond)	((void) (cond))
 #endif /* CHECK_INVARIANT */
 
 #endif /* ASSERTIONS_H */

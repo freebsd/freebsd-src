@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.22 1999/06/08 01:42:57 vixie Exp $
+# $Id: Makefile,v 8.23 2000/07/11 06:41:36 vixie Exp $
 
 SUBDIRS = resolv irs isc bsd inet nameser dst cylink dnssafe
 
@@ -51,7 +51,7 @@ MARGS =	"SYSTYPE=${SYSTYPE}" "SHELL=${SHELL}" "A=${A}" "O=${O}" \
 	"RANLIB=:" "AR=${AR}" "ARPREF=${ARPREF}" "ARSUFF=${ARSUFF}" \
 	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" "EXE=${EXE}" \
 	"LIBBIND=../${LIBBIND}" "LIBPORT=../${LIBPORT}" \
-	"INSTALL=${INSTALL}" "CPPFLAGS=${CPPFLAGS}" "TOP=../${TOP}" \
+	"INSTALL=${INSTALL}" "TOP=../${TOP}" \
 	"REENTRANT=${REENTRANT}" "INSTALL_LIB=${INSTALL_LIB}" \
 	"INSTALL_EXEC=${INSTALL_EXEC}" "BOUNDS=${BOUNDS}"
 

@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gen_gr.c,v 1.21 1999/10/13 16:39:29 vixie Exp $";
+static const char rcsid[] = "$Id: gen_gr.c,v 1.22 2000/07/11 05:51:56 vixie Exp $";
 #endif
 
 /* Imports */
@@ -325,7 +325,7 @@ static void
 grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 	struct pvt *pvt = (struct pvt *)this->private;
 	char *cp, **m, **p;
-	int n, ndst, nnew;
+	int n, ndst, nnew, memadj;
 
 	if (!preserve) {
 		pvt->group.gr_gid = src->gr_gid;
@@ -377,6 +377,7 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 		/* No harm done, no work done. */
 		return;
 	}
+	memadj = cp - pvt->membuf;
 	pvt->membuf = cp;
 	cp += pvt->membufsize;
 	pvt->membufsize += n;
@@ -391,7 +392,10 @@ grmerge(struct irs_gr *this, const struct group *src, int preserve) {
 			strcpy(cp, *m);
 			cp += strlen(cp) + 1;
 		}
-	if (!preserve) {
+	if (preserve) {
+		pvt->group.gr_name += memadj;
+		pvt->group.gr_passwd += memadj;
+	} else {
 		pvt->group.gr_name = cp;
 		strcpy(cp, src->gr_name);
 		cp += strlen(src->gr_name) + 1;

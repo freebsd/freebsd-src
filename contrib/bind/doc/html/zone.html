@@ -23,10 +23,10 @@ zone <VAR><A HREF="docdef.html">domain_name</A></VAR> [ ( in | hs | hesiod | cha
   [ allow-transfer { <VAR><A HREF="address_list.html">address_match_list</A></VAR> }; ]
   [ dialup <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
-  [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR>ip_addr</VAR>; ... ] };
+  [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR>ip_addr</VAR>; ... ] }; ]
   [ ixfr-base  <VAR><A HREF="docdef.html">path_name</A></VAR>; ]
   [ pubkey <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR>string</VAR>; ]
-};
+}; 
 
 zone <VAR><A HREF="docdef.html">domain_name</A></VAR> [ ( in | hs | hesiod | chaos ) ] { 
   type ( slave | stub );
@@ -43,7 +43,7 @@ zone <VAR><A HREF="docdef.html">domain_name</A></VAR> [ ( in | hs | hesiod | cha
   [ dialup <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ max-transfer-time-in <VAR>number</VAR>; ]
   [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
-  [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR>ip_addr</VAR>; ... ] };
+  [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR>ip_addr</VAR>; ... ] }; ]
   [ pubkey <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR>string</VAR>; ]
 };
 
@@ -238,7 +238,7 @@ string representing the key.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: zone.html,v 1.23 1999/09/30 17:58:41 cyarnell Exp $
+Last Updated: $Id: zone.html,v 1.24 2000/01/12 01:28:32 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>
