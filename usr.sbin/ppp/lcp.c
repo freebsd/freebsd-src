@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.37 1997/09/29 19:40:16 brian Exp $
+ * $Id: lcp.c,v 1.38 1997/10/05 15:00:10 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -352,6 +352,9 @@ LcpLayerFinish(struct fsm * fp)
   (void) OsInterfaceDown(0);
   /* We're down at last.  Lets tell background and direct mode to get out */
   NewPhase(PHASE_TERMINATE);
+  LcpInit();
+  IpcpInit();
+  CcpInit();
   Prompt();
 }
 
