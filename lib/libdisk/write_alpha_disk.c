@@ -67,33 +67,26 @@ Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const stru
 	return 0;
 }
 
-
-
 int
 Write_Disk(const struct disk *d1)
 {
-	int fd;
-	struct disk *old = NULL;
-	struct chunk *c1;
-	int ret = 0;
 	char device[64];
+	struct chunk *c1;
+	int fd, ret;
 
-	strcpy(device,_PATH_DEV);
-        strcat(device,d1->name);
+	strcpy(device, _PATH_DEV);
+	strcat(device, d1->name);
 
+	fd = open(device,O_RDWR);
+	if (fd < 0)
+                return (1);
 
-        fd = open(device,O_RDWR);
-        if (fd < 0)
-                return 1;
-
-	for (c1 = d1->chunks->part->part; c1; c1 = c1->next) {
-		if (c1->type == unused) continue;
-		if (!strcmp(c1->name, "X")) continue;
-		if (c1->type == freebsd)
-			ret += Write_FreeBSD(fd, d1, old, c1);
-
-	}
+	c1 = d1->chunks->part;
+	if (!strcmp(c1->name, "X") || c1->type != freebsd)
+		ret = 0;
+	else
+		ret = Write_FreeBSD(fd, d1, NULL, c1);
 
 	close(fd);
-	return 0;
+	return (ret);
 }
