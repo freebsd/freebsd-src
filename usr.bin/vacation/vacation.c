@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: vacation.c	8.2 (Berkeley) 1/26/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vacation.c,v 1.3.2.3 1997/12/29 07:09:39 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -114,7 +114,7 @@ main(argc, argv)
 
 	opterr = iflag = lflag = 0;
 	interval = -1;
-	while ((ch = getopt(argc, argv, "a:Iilr:")) !=  -1)
+	while ((ch = getopt(argc, argv, "a:Iilr:")) != -1)
 		switch((char)ch) {
 		case 'a':			/* alias */
 			if (!(cur = (ALIAS *)malloc((u_int)sizeof(ALIAS))))
@@ -299,7 +299,7 @@ junkmail()
 	} ignore[] = {
 		{"-request", 8},	{"postmaster", 10},	{"uucp", 4},
 		{"mailer-daemon", 13},	{"mailer", 6},		{"-relay", 6},
-		{NULL, NULL},
+		{NULL, 0},
 	};
 	register struct ignore *cur;
 	register int len;
