@@ -120,6 +120,17 @@
     <sect3>
       <title>Bootloader Changes</title>
 
+      <para arch="alpha">The alpha boot loader
+        (<filename>boot1</filename>) can now be called
+        <filename>boot</filename> for consistency with other
+        platforms.</para>
+
+      <para arch="i386">The two parts of the i386 boot loader
+        (<filename>boot1</filename> and <filename>boot2</filename>)
+        have been combined into a single <filename>boot</filename>
+        file, to simplify programs that need to write or otherwise
+        manipulate the boot loader.</para>
+
       <para arch="pc98">The PC98 bootloader now has support for
         booting from SCSI MO media. &merged;</para>
 
@@ -182,6 +193,16 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>The <option>-N</option> and <option>-W</option> flags to
+      &man.disklabel.8; have been retired.</para>
+
+    <para>&man.disklabel.8; is now only built for architectures where
+      it is useful (i386, pc98, alpha, and ia64).</para>
+
+    <para>The <option>-s</option> to &man.disklabel.8; has been
+      removed because the i386 boot loader now resides in a single
+      file.</para>
 
     <para>&man.dump.8; now supports caching of disk blocks with the
       <option>-C</option> option.  This can improve dump performance
