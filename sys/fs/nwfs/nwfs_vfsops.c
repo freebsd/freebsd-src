@@ -66,6 +66,8 @@ SYSCTL_NODE(_vfs, OID_AUTO, nwfs, CTLFLAG_RW, 0, "Netware file system");
 SYSCTL_INT(_vfs_nwfs, OID_AUTO, version, CTLFLAG_RD, &nwfs_version, 0, "");
 SYSCTL_INT(_vfs_nwfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nwfs_debuglevel, 0, "");
 
+MODULE_DEPEND(nwfs, ncp, 1, 1, 1);
+
 static int nwfs_mount __P((struct mount *, char *, caddr_t,
 			struct nameidata *, struct proc *));
 static int nwfs_quotactl __P((struct mount *, int, uid_t, caddr_t,
