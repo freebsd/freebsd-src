@@ -90,7 +90,8 @@ The
 function does not sleep waiting for memory resources to be freed up,
 but instead scans available physical memory a small number of times
 for a suitably sized free address range before giving up.
-Memory allocation is done on a first-fit basis.
+Memory allocation is done on a first-fit basis, starting from the
+top of the provided address range.
 .Sh RETURN VALUES
 The
 .Fn contigmalloc
@@ -120,11 +121,3 @@ is zero, or if
 or
 .Fa boundary
 is not a power of two.
-.Sh BUGS
-The
-.Fa type
-argument to
-.Fn contigmalloc
-and
-.Fn contigfree
-is ignored.
