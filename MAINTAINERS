@@ -1,0 +1,9 @@
+$FreeBSD$
+
+subsystem	login	notes
+-------------------------
+mergemaster	dougb	Prefers to pre-approve commits
+binutils	obrien	Insists to keep BU blocked from other's unapproved commits
+gcc			obrien	Do not commit w/o approval until Gcc 3.1 WIP completed
+ATA/IDE		sos		Prefers to pre-approve commits
+ahc(4)		gibbs	Prefers to pre-approve commits
