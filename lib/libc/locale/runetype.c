@@ -41,8 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <runetype.h>
 
 unsigned long
-___runetype(c)
-	__ct_rune_t c;
+___runetype(__ct_rune_t c)
 {
 	size_t lim;
 	_RuneRange *rr = &_CurrentRuneLocale->__runetype_ext;
