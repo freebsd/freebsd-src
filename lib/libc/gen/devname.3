@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)devname.3	8.1 (Berkeley) 6/4/93
+.\"     @(#)devname.3	8.2 (Berkeley) 4/29/95
 .\"
-.Dd June 4, 1993
+.Dd April 29, 1995
 .Dt DEVNAME 3
 .Os BSD 4.4
 .Sh NAME
@@ -53,9 +53,11 @@ and a file type matching the one encoded in
 .Fa type
 which must be one of S_IFBLK or S_IFCHR.
 If no device matches the specified values, or no information is
-available, the string
-.Dq ??
-is returned.
+available, NULL is returned.
+.Pp
+The traditional display for applications when no device is
+found is the string
+.Dq ?? .
 .Sh SEE ALSO
 .Xr stat 2 ,
 .Xr dev_mkdb 8
