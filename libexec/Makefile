@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.20 1996/09/22 21:51:36 wosch Exp $
+#	$Id: Makefile,v 1.20.2.1 1996/11/13 20:25:30 phk Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey mknetid named-xfer revnetgroup rexecd rlogind \
@@ -7,7 +7,7 @@ SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	rpc.rstatd rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd \
 	xtend ypxfr
 
-.if !exists(../eBones) || defined(NOSECURE)
+.if !exists(../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
 SUBDIR+=telnetd
 .else
 .if defined(RELEASEDIR)

@@ -30,7 +30,7 @@ SUBDIR+= libcrypt
 .endif
 .endif
 
-.if !exists(${.CURDIR}/../eBones) || defined(NOSECURE)
+.if !exists(${.CURDIR}/../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
 SUBDIR+= libtelnet
 .else
 .if defined(RELEASEDIR)
