@@ -33,6 +33,9 @@ sigset_t mask;
 	act.sa_handler = SIG_DFL;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
+#ifdef  SA_RESTART
+	act.sa_flags |= SA_RESTART;
+#endif
 	sigaction(SIGTSTP, &act, &oact);
 	kill(getpid(), SIGTSTP);
 
