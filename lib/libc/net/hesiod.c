@@ -162,7 +162,10 @@ hesiod_to_bind(void *context, const char *name, const char *type)
 	const char	*rhs;
 	int		 len;
 
-	strcpy(bindname, name);
+	if (strlcpy(bindname, name, sizeof(bindname)) >= sizeof(bindname)) {
+		errno = EMSGSIZE;
+		return NULL;
+	}
 
 		/*
 		 * Find the right right hand side to use, possibly
