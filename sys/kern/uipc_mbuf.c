@@ -309,10 +309,7 @@ m_mballoc(nmb, how)
  * still cannot get anything, then we wait for an mbuf to be freed for a 
  * designated (mbuf_wait) time. 
  *
- * Must be called with the mmbfree mutex held, and we will probably end
- * up recursing into that lock from some of the drain routines, but
- * this should be okay, as long as we don't block there, or attempt
- * to allocate from them (theoretically impossible).
+ * Must be called with the mmbfree mutex held.
  */
 struct mbuf *
 m_mballoc_wait(void)
@@ -321,8 +318,18 @@ m_mballoc_wait(void)
 
 	/*
 	 * See if we can drain some resources out of the protocols.
+	 * We drop the mmbfree mutex to avoid recursing into it in some of
+	 * the drain routines. Clearly, we're faced with a race here because
+	 * once something is freed during the drain, it may be grabbed right
+	 * from under us by some other thread. But we accept this possibility
+	 * in order to avoid a potentially large lock recursion and, more
+	 * importantly, to avoid a potential lock order reversal which may
+	 * result in deadlock (See comment above m_reclaim()).
 	 */
+	mtx_exit(&mmbfree.m_mtx, MTX_DEF);
 	m_reclaim();
+
+	mtx_enter(&mmbfree.m_mtx, MTX_DEF);
 	_MGET(p, M_DONTWAIT);
 
 	if (p == NULL) {
@@ -449,14 +456,10 @@ m_clalloc_wait(void)
 /*
  * m_reclaim: drain protocols in hopes to free up some resources...
  *
- * Should be called with mmbfree.m_mtx mutex held. We will most likely
- * recursively grab it from within some drain routines, but that's okay,
- * as the mutex will never be completely released until we let go of it
- * after our m_reclaim() is over.
- *
- * Note: Drain routines are only allowed to free mbufs (and mclusters,
- *	 as a consequence, if need be). They are not allowed to allocate
- *	 new ones (that would defeat the purpose, anyway).
+ * XXX: No locks should be held going in here. The drain routines have
+ * to presently acquire some locks which raises the possibility of lock
+ * order violation if we're holding any mutex if that mutex is acquired in
+ * reverse order relative to one of the locks in the drain routines.
  */
 static void
 m_reclaim()
