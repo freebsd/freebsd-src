@@ -318,6 +318,11 @@ coda_checkunmounting(mp)
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		if (vp->v_mount != mp)
 			continue;
+		VI_LOCK(vp);
+		if (vp->v_iflag & VI_XLOCK) {
+			VI_UNLOCK(vp);
+			continue;
+		}
 		cp = VTOC(vp);
 		count++;
 		if (!(cp->c_flags & C_UNMOUNTING)) {
@@ -325,6 +330,7 @@ coda_checkunmounting(mp)
 			printf("vp %p, cp %p missed\n", vp, cp);
 			cp->c_flags |= C_UNMOUNTING;
 		}
+		VI_UNLOCK(vp);
 	}
 	mtx_unlock(&mntvnode_mtx);
 }
