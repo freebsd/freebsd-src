@@ -3029,37 +3029,33 @@ enable_synaptics(struct psm_softc *sc)
     /* Just to be on the safe side */
     set_mouse_scaling(kbdc, 1);
  
+    /* Identify the Touchpad version */
     if (mouse_ext_command(kbdc, 0) == 0)
 	return (FALSE);
     if (get_mouse_status(kbdc, status, 0, 3) != 3)
 	return (FALSE);
-
-    /* If it is a Synaptics, byte 2 is 0x47. */
     if (status[1] != 0x47)
 	return (FALSE);
 
-    /*
-     * Identify the Touchpad version.  The first byte contains the minor
-     * version number, the lower 4 bits of the third byte contain infoMajor,
-     * and the upper 4 bits contain the (obsolete) infoModelCode.
-     */
     sc->synhw.infoMinor = status[0];
     sc->synhw.infoMajor = status[2] & 0x0f;
-    if (verbose >= 2) {
-	printf("Synaptics Touchpad:\n");
-	printf("  Version: %d.%d\n", sc->synhw.infoMajor, sc->synhw.infoMinor);
-    }
+
+    if (verbose >= 2)
+	printf("Synaptics Touchpad v%d.%d\n",
+	    sc->synhw.infoMajor, sc->synhw.infoMinor);
+
     if (sc->synhw.infoMajor < 4) {
-	printf("Synaptics Version less than 4 detected, not yet supported\n");
+	printf("  Unsupported (pre-v4) Touchpad detected\n");
 	return (FALSE);
     }
 
+    /* Get the Touchpad model information */
     if (mouse_ext_command(kbdc, 3) == 0)
 	return (FALSE);
     if (get_mouse_status(kbdc, status, 0, 3) != 3)
 	return (FALSE);
     if ((status[1] & 0x01) != 0) {
-	printf("  Could not read model id bytes from the Touchpad\n");
+	printf("  Failed to read model information\n");
 	return (FALSE);
     }
 
@@ -3071,67 +3067,82 @@ enable_synaptics(struct psm_softc *sc)
     sc->synhw.capPen       = (status[2] & 0x40) >> 6;
     sc->synhw.infoSimplC   = (status[2] & 0x20) >> 5;
     sc->synhw.infoGeometry =  status[2] & 0x0f;
+
     if (verbose >= 2) {
-	printf("  Model id: %02x %02x %02x\n", status[0] , status[1] ,
-	    status[2]);
-	printf(" infoRot180: %d\n",sc->synhw.infoRot180);
-	printf(" infoPortrait: %d\n",sc->synhw.infoPortrait);
-	printf(" infoSensor: %d\n",sc->synhw.infoSensor);
-	printf(" infoHardware: %d\n",sc->synhw.infoHardware);
-	printf(" infoNewAbs: %d\n",sc->synhw.infoNewAbs);
-	printf(" capPen: %d\n",sc->synhw.capPen);
-	printf(" infoSimplC: %d\n",sc->synhw.infoSimplC);
-	printf(" infoGeometry: %d\n",sc->synhw.infoGeometry);
+	printf("  Model information:\n");
+	printf("   infoRot180: %d\n", sc->synhw.infoRot180);
+	printf("   infoPortrait: %d\n", sc->synhw.infoPortrait);
+	printf("   infoSensor: %d\n", sc->synhw.infoSensor);
+	printf("   infoHardware: %d\n", sc->synhw.infoHardware);
+	printf("   infoNewAbs: %d\n", sc->synhw.infoNewAbs);
+	printf("   capPen: %d\n", sc->synhw.capPen);
+	printf("   infoSimplC: %d\n", sc->synhw.infoSimplC);
+	printf("   infoGeometry: %d\n", sc->synhw.infoGeometry);
     }
 
+    /* Read the extended capability bits */
     if (mouse_ext_command(kbdc, 2) == 0)
 	return (FALSE);
     if (get_mouse_status(kbdc, status, 0, 3) != 3)
 	return (FALSE);
     if (status[1] != 0x47) {
-	printf("  Could not read capabilities from the Touchpad\n");
+	printf("  Failed to read extended capability bits\n");
 	return (FALSE);
     }
-    sc->synhw.capExtended    = (status[0] & 0x80) >> 7;
-    sc->synhw.capPassthrough = (status[2] & 0x80) >> 7;
-    sc->synhw.capSleep       = (status[2] & 0x10) >> 4;
-    sc->synhw.capFourButtons = (status[2] & 0x08) >> 3;
-    sc->synhw.capMultiFinger = (status[2] & 0x02) >> 1;
-    sc->synhw.capPalmDetect  = (status[2] & 0x01);
-    if (verbose >= 2)
-	printf("  Capability Bytes: %02x %02x %02x\n", status[0], status[1],
-	    status[2]);
 
+    /* Set the different capabilities when they exist */
+    if ((status[0] & 0x80) >> 7) {
+	sc->synhw.capExtended    = (status[0] & 0x80) >> 7;
+    	sc->synhw.capPassthrough = (status[2] & 0x80) >> 7;
+    	sc->synhw.capSleep       = (status[2] & 0x10) >> 4;
+    	sc->synhw.capFourButtons = (status[2] & 0x08) >> 3;
+    	sc->synhw.capMultiFinger = (status[2] & 0x02) >> 1;
+    	sc->synhw.capPalmDetect  = (status[2] & 0x01);
+	
+	if (verbose >= 2) {
+	    printf("  Extended capabilities:\n");
+	    printf("   capExtended: %d\n", sc->synhw.capExtended);
+	    printf("   capPassthrough: %d\n", sc->synhw.capPassthrough);
+	    printf("   capSleep: %d\n", sc->synhw.capSleep);
+	    printf("   capFourButtons: %d\n", sc->synhw.capFourButtons);
+	    printf("   capMultiFinger: %d\n", sc->synhw.capMultiFinger);
+	    printf("   capPalmDetect: %d\n", sc->synhw.capPalmDetect);
+	}
+    } else {
+	sc->synhw.capExtended = 0;
+	    
+	if (verbose >= 2)
+	    printf("  No extended capabilities\n");
+    }
+
+    /*
+     * Read the mode byte
+     *
+     * XXX: Note the Synaptics documentation also defines the first
+     * byte of the response to this query to be a constant 0x3b, this
+     * does not appear to be true for Touchpads with guest devices.
+     */
     if (mouse_ext_command(kbdc, 1) == 0)
 	return (FALSE);
     if (get_mouse_status(kbdc, status, 0, 3) != 3)
 	return (FALSE);
-    if (status[0] != 0x3b || status[1] != 0x47) {
-	printf("  Could not read mode byte from the Touchpad\n");
+    if (status[1] != 0x47) {
+	printf("  Failed to read mode byte\n");
 	return (FALSE);
     }
-    if (verbose >= 2)
-	printf("  Mode byte set by BIOS: %02x\n", status[2]);
 
-    /*
-     * Mode byte values:
-     * 1 (absolute)
-     * 1 rate (0 = 40/1 = 80)
-     * 0
-     * 0 (reserved)
-     * 0 (Sleep (Only buttons))
-     * 0 DisGest (not for absolute Mode)
-     * 0 pktsize (0 for ps2)
-     * 1 wmode
-     */
-    sc->hw.buttons = 3;
+    /* Set the mode byte -- request wmode where available */
+    if (sc->synhw.capExtended)
+	mouse_ext_command(kbdc, 0xc1);
+    else
+	mouse_ext_command(kbdc, 0xc0);
 
-    /* Set encode mode byte and sampling rate. */
-    mouse_ext_command(kbdc, 0xc1);
+    /* Reset the sampling rate */
     set_mouse_sampling_rate(kbdc, 20);
 
     return (TRUE);
 }
+
 /* Interlink electronics VersaPad */
 static int
 enable_versapad(struct psm_softc *sc)
