@@ -344,6 +344,8 @@ void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 void	in_pcbrehash(struct inpcb *);
 int	in_setpeeraddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);
 int	in_setsockaddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);;
+struct sockaddr *
+	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbremlists(struct inpcb *inp);
 int	prison_xinpcb(struct thread *td, struct inpcb *inp);
 #endif /* _KERNEL */

@@ -577,6 +577,23 @@ in_pcbdetach(inp)
 	uma_zfree(ipi->ipi_zone, inp);
 }
 
+struct sockaddr *
+in_sockaddr(port, addr_p)
+	in_port_t port;
+	struct in_addr *addr_p;
+{
+	struct sockaddr_in *sin;
+
+	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+		M_WAITOK | M_ZERO);
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+	sin->sin_addr = *addr_p;
+	sin->sin_port = port;
+
+	return (struct sockaddr *)sin;
+}
+
 /*
  * The wrapper function will pass down the pcbinfo for this function to lock.
  * The socket must have a valid
@@ -593,15 +610,8 @@ in_setsockaddr(so, nam, pcbinfo)
 {
 	int s;
 	register struct inpcb *inp;
-	register struct sockaddr_in *sin;
-
-	/*
-	 * Do the malloc first in case it blocks.
-	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
-		M_WAITOK | M_ZERO);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
+	struct in_addr addr;
+	in_port_t port;
 
 	s = splnet();
 	INP_INFO_RLOCK(pcbinfo);
@@ -609,17 +619,16 @@ in_setsockaddr(so, nam, pcbinfo)
 	if (!inp) {
 		INP_INFO_RUNLOCK(pcbinfo);
 		splx(s);
-		free(sin, M_SONAME);
 		return ECONNRESET;
 	}
 	INP_LOCK(inp);
-	sin->sin_port = inp->inp_lport;
-	sin->sin_addr = inp->inp_laddr;
+	port = inp->inp_lport;
+	addr = inp->inp_laddr;
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(pcbinfo);
 	splx(s);
 
-	*nam = (struct sockaddr *)sin;
+	*nam = in_sockaddr(port, &addr);
 	return 0;
 }
 
@@ -634,15 +643,8 @@ in_setpeeraddr(so, nam, pcbinfo)
 {
 	int s;
 	register struct inpcb *inp;
-	register struct sockaddr_in *sin;
-
-	/*
-	 * Do the malloc first in case it blocks.
-	 */
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
-		M_WAITOK | M_ZERO);
-	sin->sin_family = AF_INET;
-	sin->sin_len = sizeof(*sin);
+	struct in_addr addr;
+	in_port_t port;
 
 	s = splnet();
 	INP_INFO_RLOCK(pcbinfo);
@@ -650,17 +652,16 @@ in_setpeeraddr(so, nam, pcbinfo)
 	if (!inp) {
 		INP_INFO_RUNLOCK(pcbinfo);
 		splx(s);
-		free(sin, M_SONAME);
 		return ECONNRESET;
 	}
 	INP_LOCK(inp);
-	sin->sin_port = inp->inp_fport;
-	sin->sin_addr = inp->inp_faddr;
+	port = inp->inp_fport;
+	addr = inp->inp_faddr;
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(pcbinfo);
 	splx(s);
 
-	*nam = (struct sockaddr *)sin;
+	*nam = in_sockaddr(port, &addr);
 	return 0;
 }
 
