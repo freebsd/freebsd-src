@@ -96,6 +96,10 @@ void
 setnetgrent(group)
 	char *group;
 {
+	/* Sanity check: no null group names allowed! */
+
+	if (group == NULL || *group == '\0')
+		return;
 	if (grouphead.gr == (struct netgrp *)0 ||
 		strcmp(group, grouphead.grname)) {
 		endnetgrent();
