@@ -480,7 +480,8 @@ acpi_print_fadt(struct FADTbody *fadt)
 	PRINTFLAG(fadt->iapc_boot_arch, LEGACY_DEV);
 	PRINTFLAG(fadt->iapc_boot_arch, 8042);
 	if (fadt->iapc_boot_arch != 0)
-		printf("}\n");
+		printf("}");
+	printf("\n");
 
 	printf("\tFlags=");
 	sep = '{';
