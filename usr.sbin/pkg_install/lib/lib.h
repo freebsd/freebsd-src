@@ -82,6 +82,15 @@
 /* The name of the "prefix" environment variable given to scripts */
 #define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
+/*
+ * Version of the package tools - increase only when some
+ * functionality used by bsd.port.mk is changed, added or removed
+ */
+#define PKG_INSTALL_VERSION	20020908
+
+#define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
+#define main(argc, argv)	real_main(argc, argv)
+
 /* Version numbers to assist with changes in package file format */
 #define PLIST_FMT_VER_MAJOR	1
 #define PLIST_FMT_VER_MINOR	1
@@ -190,6 +199,7 @@ Boolean 	make_preserve_name(char *, int, const char *, const char *);
 
 /* For all */
 int		pkg_perform(char **);
+int		real_main(int, char **);
 
 /* Query installed packages */
 char		**matchinstalled(match_t, char **, int *);

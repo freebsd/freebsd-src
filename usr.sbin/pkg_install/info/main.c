@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include "info.h"
 #include <err.h>
 
-static char Options[] = "acdDe:fgGhiIkl:LmoO:pqrRst:vVW:x";
+static char Options[] = "acdDe:fgGhiIkl:LmoO:pPqrRst:vVW:x";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -177,6 +177,10 @@ main(int argc, char **argv)
 		break;
 	    }
 
+	case 'P':
+	    Flags = SHOW_PTREV;
+	    break;
+
 	case 'h':
 	case '?':
 	default:
@@ -187,6 +191,13 @@ main(int argc, char **argv)
 
     argc -= optind;
     argv += optind;
+
+    if (Flags & SHOW_PTREV) {
+	if (!Quiet)
+	    printf("Package tools revision: ");
+	printf("%d\n", PKG_INSTALL_VERSION);
+	exit(0);
+    }
 
     /* Set some reasonable defaults */
     if (!Flags)
