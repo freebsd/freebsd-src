@@ -306,7 +306,7 @@ There is a new flag to fetch(1) which allows it to talk to certain
 broken HTTP implementations which react badly to a request message
 immediately followed by a close of the connection.
 
-netstat(1) now uses sysctl(3) to retrieve more statitistics groups, and
+netstat(1) now uses sysctl(3) to retrieve more statistics groups and
 uses the correct, unsigned format for printing most of them out.
 
 A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
