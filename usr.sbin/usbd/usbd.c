@@ -54,11 +54,14 @@
 #include <ctype.h>
 #include <signal.h>
 #include <paths.h>
+#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #include <regex.h>
 
