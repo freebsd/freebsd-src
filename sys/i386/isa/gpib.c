@@ -42,6 +42,7 @@
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 
+#define MIN(a,b) ((a < b) ? a : b)
 
 #define GPIBPRI  (PZERO+8)|PCATCH 
 #define SLEEP_MAX 1000
@@ -65,10 +66,8 @@ void devclear(unsigned char device);
 char spoll(unsigned char device);
 
 int gpprobe(struct isa_device *dvp);
+int gpattach();
 
-
-
-int gpprobe(), gpattach();
 struct   isa_driver gpdriver = {gpprobe, gpattach, "gp"};
 
 #define   BUFSIZE      1024
