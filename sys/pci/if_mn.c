@@ -175,10 +175,12 @@ static	int	mn_reset(struct softc *sc);
 static	struct trxd * mn_alloc_desc(void);
 static	void	mn_free_desc(struct trxd *dp);
 static	void	mn_intr(void *xsc);
+static	u_int32_t mn_parse_ts(const char *s);
+#ifdef notyet
 static	void	m32_dump(struct softc *sc);
 static	void	f54_dump(struct softc *sc);
-static	u_int32_t mn_parse_ts(const char *s);
 static	void	mn_fmt_ts(char *p, u_int32_t ts);
+#endif /* notyet */
 
 static	ng_constructor_t ngmn_constructor;
 static	ng_rcvmsg_t ngmn_rcvmsg;
@@ -454,6 +456,7 @@ mn_parse_ts(const char *s)
 	return (r);
 }
 
+#ifdef notyet
 static void
 mn_fmt_ts(char *p, u_int32_t ts)
 {
@@ -478,6 +481,7 @@ mn_fmt_ts(char *p, u_int32_t ts)
 		s = ",";
 	}
 }
+#endif /* notyet */
 
 /*
  * OUTPUT
@@ -709,6 +713,7 @@ mn_create_channel(struct softc *sc, int chan)
 	return;
 }
 
+#ifdef notyet
 /*
  * Dump Munich32x state
  */
@@ -759,6 +764,7 @@ f54_dump(struct softc *sc)
 		printf("\n");
 	}
 }
+#endif /* notyet */
 
 /*
  * Init Munich32x
