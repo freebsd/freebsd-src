@@ -320,6 +320,8 @@
             meteor
             ..
             mdoc
+		locale
+		..
             ..
             more
             ..
