@@ -4910,8 +4910,34 @@ This will allow
 to do the necessary address translations to enable the process that
 triggers the connection to connect once the link is up despite the
 peer assigning us a new (dynamic) IP address.
-.It set mppe {40|56|128}
-This option selects particular key length. Default is 128.
+.It set mppe Op 40|56|128|* Op stateless|statefull|*
+This option selects the encryption parameters used when negotiation
+MPPE.  MPPE can be disabled entirely with the
+.Dq disable mppe
+command.
+If no arguments are given,
+.Nm
+will attempt to negotiate a statefull link with a 128 bit key, but
+will agree to whatever the peer requests (including no encryption
+at all).
+.Pp
+If any arguments are given,
+.Nm
+will
+.Em insist
+on using MPPE and will close the link if it's rejected by the peer.
+.Pp
+The first argument specifies the number of bits that
+.Nm
+should insist on during negotiations and the second specifies whether
+.Nm
+should insist on statefull or stateless mode.  In stateless mode, the
+encryption dictionary is re-initialised with every packet according to
+an encryption key that is changed with every packet.  In statefull mode,
+the encryption dictionary is re-initialised every 256 packets or after
+the loss of any data and the key is changed every 256 packets.
+Stateless mode is less efficient but is better for unreliable transport
+layers.
 .It set mrru Op Ar value
 Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.

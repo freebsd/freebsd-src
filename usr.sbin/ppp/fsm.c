@@ -978,14 +978,15 @@ FsmRecvTimeRemain(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 static void
 FsmRecvResetReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
-  (*fp->fn->RecvResetReq)(fp);
-  /*
-   * All sendable compressed packets are queued in the first (lowest
-   * priority) modem output queue.... dump 'em to the priority queue
-   * so that they arrive at the peer before our ResetAck.
-   */
-  link_SequenceQueue(fp->link);
-  fsm_Output(fp, CODE_RESETACK, lhp->id, NULL, 0, MB_CCPOUT);
+  if ((*fp->fn->RecvResetReq)(fp)) {
+    /*
+     * All sendable compressed packets are queued in the first (lowest
+     * priority) modem output queue.... dump 'em to the priority queue
+     * so that they arrive at the peer before our ResetAck.
+     */
+    link_SequenceQueue(fp->link);
+    fsm_Output(fp, CODE_RESETACK, lhp->id, NULL, 0, MB_CCPOUT);
+  }
   m_freem(bp);
 }
 
@@ -1050,11 +1051,12 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   (*codep->recv)(fp, &lh, bp);
 }
 
-void
+int
 fsm_NullRecvResetReq(struct fsm *fp)
 {
   log_Printf(fp->LogLevel, "%s: Oops - received unexpected reset req\n",
             fp->link->name);
+  return 1;
 }
 
 void
