@@ -835,7 +835,7 @@ IFS=$OIFS
 
 # cat << EOF >.profile
 (
-echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:.:"
+echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/contrib/bin:/usr/distbin:.:"
 echo "export PATH"
 echo "HOME=/root"
 echo "export HOME"
@@ -860,6 +860,7 @@ echo "driveno=\${resp:-0}"
 echo "mount -t pcfs -o ro /dev/fd\${driveno}a /mnt"
 echo "mkdir -p /usr/distbin"
 echo "cp /mnt/* /usr/distbin/"
+echo "sync"
 echo "umount /mnt >/dev/null 2>&1"
 echo "echo"
 echo "echo    \"OK.  All of the base files are installed.\""
