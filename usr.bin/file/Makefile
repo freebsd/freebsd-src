@@ -1,6 +1,6 @@
+# $FreeBSD$
 # Makefile for file(1) cmd.
 # Copyright (c) Ian F. Darwin 86/09/01 - see LEGAL.NOTICE.
-# @(#)$FreeBSD$
 #
 # This software is not subject to any license of the American Telephone
 # and Telegraph Company or of the Regents of the University of California.
@@ -11,52 +11,55 @@
 #
 # 1. The author is not responsible for the consequences of use of this
 #    software, no matter how awful, even if they arise from flaws in it.
-#
 # 2. The origin of this software must not be misrepresented, either by
 #    explicit claim or by omission.  Since few users ever read sources,
 #    credits must appear in the documentation.
-#
 # 3. Altered versions must be plainly marked as such, and must not be
 #    misrepresented as being the original software.  Since few users
 #    ever read sources, credits must appear in the documentation.
-#
 # 4. This notice may not be removed or altered.
-#
-# Hacked and dismembered for bmake (Geoff Rehmet).
 
-MAGICFILE=	/usr/share/misc/magic
+SRCDIR=	${.CURDIR}/../../contrib/file
+.PATH: ${SRCDIR}
+
+PROG=	file
+MAN=	file.1 magic.5
+SRCS=	file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
+	compress.c is_tar.c  readelf.c print-hacked.c
+#	compress.c is_tar.c  readelf.c internat.c print.c
+
+MAGICPATH=	/usr/share/misc
 MAGICMODE=	444
 
-SRCDIR=		${.CURDIR}/../../contrib/file
-.PATH:		${SRCDIR}
+CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
+CFLAGS+= -I${.CURDIR} -I${SRCDIR}
 
-CFLAGS+=	-DMAGIC='"$(MAGICFILE)"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
-CFLAGS+=	-I${.CURDIR} -I${SRCDIR}
-
-PROG=		file
-SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  readelf.c print-hacked.c
-#		compress.c is_tar.c  readelf.c internat.c print.c
-
-MAN=		file.1 magic.5
-
-CLEANFILES+=	magic
+CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
 
 MAGFILES=	${SRCDIR}/Header\
 		${SRCDIR}/Localstuff\
 		${SRCDIR}/Magdir/[a-z]*
 
-all:	file magic
+all: file magic magic.mgc magic.mime.mgc
 
-magic:	$(MAGFILES)
-	cat $(MAGFILES) > $(.TARGET)
+magic: ${MAGFILES}
+	cat ${.ALLSRC} > ${.TARGET}
+
+magic.mgc: file magic
+	./${PROG} -C -m magic
+
+magic.mime.mgc: file magic.mime
+	ln -sf ${SRCDIR}/magic.mime magic.mime.PITA
+	./${PROG} -C -m magic.mime.PITA
+	mv magic.mime.PITA.mgc magic.mime.mgc
 
 CLEANFILES+=	print-hacked.c
 print-hacked.c: print.c
 	sed -e 's|daylight|0/*daylight*/|g' ${.ALLSRC} > ${.TARGET}
 
 beforeinstall:
-	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
-	    magic $(DESTDIR)$(MAGICFILE)
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MAGICMODE} \
+	    magic magic.mgc ${SRCDIR}/magic.mime magic.mime.mgc \
+	    ${DESTDIR}${MAGICPATH}
 
 .include <bsd.prog.mk>
