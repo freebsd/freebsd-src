@@ -1877,7 +1877,11 @@ aac_dequeue_fib(struct aac_softc *sc, int queue, u_int32_t *fib_size,
 		error = ENOENT;
 		goto out;
 	}
-	
+
+	/* wrap the pi so the following test works */
+	if (pi >= aac_qinfo[queue].size)
+		pi = 0;
+
 	notify = 0;
 	if (ci == pi + 1)
 		notify++;
