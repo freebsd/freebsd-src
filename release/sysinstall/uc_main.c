@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.21 1998/09/30 20:51:01 jkh Exp $
+ * $Id: uc_main.c,v 1.22 1998/09/30 20:54:34 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -45,6 +45,7 @@ static struct nlist _nl[] = {
     {"_isa_devtab_bio"},
     {"_isa_devtab_tty"},
     {"_isa_devtab_net"},
+    {"_isa_devtab_cam"},
     {"_isa_devtab_null"},
     {"_isa_biotab_wdc"},
     {"_isa_biotab_fdc"},

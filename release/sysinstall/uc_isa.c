@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_isa.c,v 1.4 1997/02/22 14:12:27 peter Exp $
  */
 
 #include <sys/types.h>
@@ -44,7 +44,8 @@ get_isa_info(struct kernel *kp){
   char *name;
 
   if(kp->nl[ISA_BIOTAB].n_value || kp->nl[ISA_TTYTAB].n_value || kp->nl[ISA_NETTAB].n_value ||
-     kp->nl[ISA_NULLTAB].n_value || kp->nl[ISA_WDCTAB].n_value || kp->nl[ISA_FDCTAB].n_value) {
+     kp->nl[ISA_CAMTAB].n_value || kp->nl[ISA_NULLTAB].n_value || 
+     kp->nl[ISA_WDCTAB].n_value || kp->nl[ISA_FDCTAB].n_value) {
 
     idp = kp->isa_devp = (struct uc_isa *)malloc(sizeof(struct uc_isa));
     total=0; /* a running total of the number of isa devices */
