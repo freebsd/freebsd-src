@@ -3,7 +3,7 @@
 OPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/apps
 LCRYPTO_SRC= ${.CURDIR}/../../../crypto/openssl/crypto
 
-.PATH:	${OPENSSL_SRC} ${OPENSSL_SRC}/../doc/apps/
+.PATH:	${OPENSSL_SRC} ${.CURDIR}/../../lib/libcrypto/man
 
 PROG=	openssl
 
@@ -27,11 +27,4 @@ SRCS=	app_rand.c apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c \
 	s_server.c s_socket.c s_time.c sess_id.c smime.c speed.c \
 	spkac.c verify.c version.c x509.o
 
-CLEANFILES=	openssl.1
-
 .include <bsd.prog.mk>
-
-.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S .pod
-
-.pod.1:
-	pod2man ${.IMPSRC} > ${.TARGET}

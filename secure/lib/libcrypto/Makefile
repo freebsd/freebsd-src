@@ -14,7 +14,7 @@
 	${LCRYPTO_SRC}/rc4 ${LCRYPTO_SRC}/rc5 ${LCRYPTO_SRC}/ripemd \
 	${LCRYPTO_SRC}/rsa ${LCRYPTO_SRC}/../rsaref ${LCRYPTO_SRC}/sha \
 	${LCRYPTO_SRC}/stack ${LCRYPTO_SRC}/txt_db ${LCRYPTO_SRC}/x509 \
-	${LCRYPTO_SRC}/x509v3
+	${LCRYPTO_SRC}/x509v3 ${.CURDIR}/man
 
 .if ${MACHINE_ARCH} == "i386"
 .PATH:	${.CURDIR}/i386
@@ -343,9 +343,6 @@ POD3+=	ssl/SSL_CIPHER_get_name.pod \
 .for pod in ${POD${section}}
 .for target in ${pod:T:S/.pod/.${section}/g}
 MAN+= ${target}
-CLEANFILES+= ${target}
-${target}: ${LCRYPTO_SRC}/../doc/${pod}
-	pod2man ${LCRYPTO_SRC}/../doc/${pod} > ${target}
 .endfor
 .endfor
 .endfor
