@@ -372,6 +372,7 @@ pdq_ifattach(
     ifp->if_ioctl = pdq_ifioctl;
     ifp->if_output = fddi_output;
     ifp->if_start = pdq_ifstart;
+    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 #warning "Implement fddi_resolvemulti!"
 /*    ifp->if_resolvemulti = ether_resolvemulti; XXX */
   
