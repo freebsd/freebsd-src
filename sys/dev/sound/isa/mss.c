@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2001 George Reid <greid@ukug.uk.freebsd.org>
  * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
  * Copyright Luigi Rizzo, 1997,1998
  * Copyright by Hannu Savolainen 1994, 1995
@@ -72,6 +73,11 @@ struct mss_info {
 		     */
     int opti_offset;		/* offset from config_base for opti931 */
     u_long  bd_flags;       /* board-specific flags */
+    int optibase;		/* base address for OPTi9xx config */
+    struct resource *indir;	/* Indirect register index address */
+    int indir_rid;
+    int password;		/* password for opti9xx cards */
+    int passwdreg;		/* password register */
     struct mss_chinfo pch, rch;
 };
 
@@ -82,6 +88,7 @@ static driver_intr_t 	mss_intr;
 
 /* prototypes for local functions */
 static int 		mss_detect(device_t dev, struct mss_info *mss);
+static int		opti_detect(device_t dev, struct mss_info *mss);
 static char 		*ymf_test(device_t dev, struct mss_info *mss);
 static void		ad_unmute(struct mss_info *mss);
 
@@ -96,6 +103,12 @@ static void 		ad_write(struct mss_info *mss, int reg, u_char data);
 static void 		ad_write_cnt(struct mss_info *mss, int reg, u_short data);
 static void    		ad_enter_MCE(struct mss_info *mss);
 static void             ad_leave_MCE(struct mss_info *mss);
+
+/* OPTi-specific functions */
+static void		opti_write(struct mss_info *mss, u_char reg,
+				   u_char data);
+static u_char		opti_read(struct mss_info *mss, u_char reg);
+static int		opti_init(device_t dev, struct mss_info *mss);
 
 /* io primitives */
 static void 		conf_wr(struct mss_info *mss, u_char reg, u_char data);
@@ -144,8 +157,10 @@ static pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
 #define MD_CS42XX	0xA1
+#define MD_OPTI930	0xB0
 #define	MD_OPTI931	0xB1
 #define MD_OPTI925	0xB2
+#define MD_OPTI924	0xB3
 #define	MD_GUSPNP	0xB8
 #define MD_GUSMAX	0xB9
 #define	MD_YM0020	0xC1
@@ -288,9 +303,9 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
         	mss->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &mss->drq2_rid,
 					       0, ~0, 1, RF_ACTIVE);
 
-    	if (!mss->io_base || !mss->drq1 || !mss->irq) ok = 0;
-    	if (mss->conf_rid >= 0 && !mss->conf_base) ok = 0;
-    	if (mss->drq2_rid >= 0 && !mss->drq2) ok = 0;
+	if (!mss->io_base || !mss->drq1 || !mss->irq) ok = 0;
+	if (mss->conf_rid >= 0 && !mss->conf_base) ok = 0;
+	if (mss->drq2_rid >= 0 && !mss->drq2) ok = 0;
 
 	if (ok) {
 		pdma = rman_get_start(mss->drq1);
@@ -344,8 +359,19 @@ static int
 mss_mixer_set(struct mss_info *mss, int dev, int left, int right)
 {
     	int        regoffs;
-    	mixer_tab *mix_d = (mss->bd_id == MD_OPTI931)? &opti931_devices : &mix_devices;
+    	mixer_tab *mix_d;
     	u_char     old, val;
+
+	switch (mss->bd_id) {
+		case MD_OPTI931:
+			mix_d = &opti931_devices;
+			break;
+		case MD_OPTI930:
+			mix_d = &opti930_devices;
+			break;
+		default:
+			mix_d = &mix_devices;
+	}
 
     	if ((*mix_d)[dev][LEFT_CHN].nbits == 0) {
 		DEB(printf("nbits = 0 for dev %d\n", dev));
@@ -390,6 +416,10 @@ mssmix_init(snd_mixer *m)
 	mix_setdevs(m, MODE2_MIXER_DEVICES);
 	mix_setrecdevs(m, MSS_REC_DEVICES);
 	switch(mss->bd_id) {
+	case MD_OPTI930:
+		mix_setdevs(m, OPTI930_MIXER_DEVICES);
+		break;
+
 	case MD_OPTI931:
 		mix_setdevs(m, OPTI931_MIXER_DEVICES);
 		ad_write(mss, 20, 0x88);
@@ -1241,7 +1271,21 @@ mss_detect(device_t dev, struct mss_info *mss)
     	name = "AD1848";
     	mss->bd_id = MD_AD1848; /* AD1848 or CS4248 */
 
-    	/*
+
+	if (opti_detect(dev, mss)) {
+		switch (mss->bd_id) {
+			case MD_OPTI924:
+				name = "OPTi924";
+				break;
+			case MD_OPTI930:
+				name = "OPTi930";
+				break;
+		}
+		printf("Found OPTi device %s\n", name);
+		if (opti_init(dev, mss) == 0) goto gotit;
+	}
+
+   	/*
      	* Check that the I/O address is in use.
      	*
      	* bit 7 of the base I/O port is known to be 0 after the chip has
@@ -1444,6 +1488,45 @@ gotit:
     	return 0;
 no:
     	return ENXIO;
+}
+
+static int
+opti_detect(device_t dev, struct mss_info *mss)
+{
+	int c;
+	static const struct opticard {
+		int boardid;
+		int passwdreg;
+		int password;
+		int base;
+		int indir_reg;
+	} cards[] = {
+		{ MD_OPTI930, 0, 0xe4, 0xf8f, 0xe0e },	/* 930 */
+		{ MD_OPTI924, 3, 0xe5, 0xf8c, 0,    },	/* 924 */
+		{ 0 },
+	};
+	mss->conf_rid = 3;
+	mss->indir_rid = 4;
+	for (c = 0; cards[c].base; c++) {
+		mss->optibase = cards[c].base;
+		mss->password = cards[c].password;
+		mss->passwdreg = cards[c].passwdreg;
+		mss->bd_id = cards[c].boardid;
+
+		if (cards[c].indir_reg)
+			mss->indir = bus_alloc_resource(dev, SYS_RES_IOPORT,
+				&mss->indir_rid, cards[c].indir_reg,
+				cards[c].indir_reg+1, 1, RF_ACTIVE);
+
+		mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->conf_rid, mss->optibase, mss->optibase+9,
+			9, RF_ACTIVE);
+
+		if (opti_read(mss, 1) != 0xff) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 static char *
@@ -1707,6 +1790,7 @@ static struct isa_pnp_id pnpmss_ids[] = {
 	{0x1110d315, "ENSONIQ SoundscapeVIVO"},		/* ENS1011 */
 	{0x1093143e, "OPTi931"},			/* OPT9310 */
 	{0x5092143e, "OPTi925"},			/* OPT9250 XXX guess */
+	{0x0000143e, "OPTi924"},			/* OPT0924 */
 	{0x1022b839, "Neomagic 256AV (non-ac97)"},	/* NMX2210 */
 #if 0
 	{0x0000561e, "GusPnP"},				/* GRV0000 */
@@ -1772,6 +1856,18 @@ pnpmss_attach(device_t dev)
 	    mss->bd_id = MD_OPTI925;
 	    break;
 
+	case 0x0000143e:			/* OPT0924 */
+	    mss->password = 0xe5;
+	    mss->passwdreg = 3;
+	    mss->optibase = 0xf0c;
+	    mss->io_rid = 2;
+	    mss->conf_rid = 3;
+	    mss->bd_id = MD_OPTI924;
+	    mss->bd_flags |= BD_F_924PNP;
+	    if(opti_init(dev, mss) != 0)
+		    return ENXIO;
+	    break;
+
 	case 0x1022b839:			/* NMX2210 */
 	    mss->io_rid = 1;
 	    break;
@@ -1796,6 +1892,147 @@ pnpmss_attach(device_t dev)
 	    break;
 	}
     	return mss_doattach(dev, mss);
+}
+
+static int
+opti_init(device_t dev, struct mss_info *mss)
+{
+	int flags = device_get_flags(dev);
+	int basebits = 0;
+
+	if (!mss->conf_base) {
+		bus_set_resource(dev, SYS_RES_IOPORT, mss->conf_rid,
+			mss->optibase, 0x9);
+
+		mss->conf_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->conf_rid, mss->optibase, mss->optibase+0x9,
+			0x9, RF_ACTIVE);
+	}
+
+	if (!mss->conf_base)
+		return ENXIO;
+
+	if (!mss->io_base)
+		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->io_rid, 0, ~0, 8, RF_ACTIVE);
+
+	if (!mss->io_base)	/* No hint specified, use 0x530 */
+		mss->io_base = bus_alloc_resource(dev, SYS_RES_IOPORT,
+			&mss->io_rid, 0x530, 0x537, 8, RF_ACTIVE);
+
+	if (!mss->io_base)
+		return ENXIO;
+
+	switch (rman_get_start(mss->io_base)) {
+		case 0x530:
+			basebits = 0x0;
+			break;
+		case 0xe80:
+			basebits = 0x10;
+			break;
+		case 0xf40:
+			basebits = 0x20;
+			break;
+		case 0x604:
+			basebits = 0x30;
+			break;
+		default:
+			printf("opti_init: invalid MSS base address!\n");
+			return ENXIO;
+	}
+
+
+	switch (mss->bd_id) {
+	case MD_OPTI924:
+		opti_write(mss, 1, 0x80 | basebits);	/* MSS mode */
+		opti_write(mss, 2, 0x00);	/* Disable CD */
+		opti_write(mss, 3, 0xf0);	/* Disable SB IRQ */
+		opti_write(mss, 4, 0xf0);
+		opti_write(mss, 5, 0x00);
+		opti_write(mss, 6, 0x02);	/* MPU stuff */
+		break;
+
+	case MD_OPTI930:
+		opti_write(mss, 1, 0x00 | basebits);
+		opti_write(mss, 3, 0x00);	/* Disable SB IRQ/DMA */
+		opti_write(mss, 4, 0x52);	/* Empty FIFO */
+		opti_write(mss, 5, 0x3c);	/* Mode 2 */
+		opti_write(mss, 6, 0x02);	/* Enable MSS */
+		break;
+	}
+
+	if (mss->bd_flags & BD_F_924PNP) {
+		u_int32_t irq = isa_get_irq(dev);
+		u_int32_t drq = isa_get_drq(dev);
+		bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
+		bus_set_resource(dev, SYS_RES_DRQ, mss->drq1_rid, drq, 1);
+		if (flags & DV_F_DUAL_DMA) {
+			bus_set_resource(dev, SYS_RES_DRQ, 1,
+				flags & DV_F_DRQ_MASK, 1);
+			mss->drq2_rid = 1;
+		}
+	}
+
+	/* OPTixxx has I/DRQ registers */
+
+	device_set_flags(dev, device_get_flags(dev) | DV_F_TRUE_MSS);
+
+	if (mss->indir) {
+		bus_release_resource(dev, SYS_RES_IOPORT, mss->indir_rid,
+			mss->indir);
+		mss->indir_rid = -1;
+	}
+
+	return 0;
+}
+
+static void
+opti_write(struct mss_info *mss, u_char reg, u_char val)
+{
+	port_wr(mss->conf_base, mss->passwdreg, mss->password);
+
+	switch(mss->bd_id) {
+	case MD_OPTI924:
+		if (reg > 7) {		/* Indirect register */
+			port_wr(mss->conf_base, mss->passwdreg, reg);
+			port_wr(mss->conf_base, mss->passwdreg,
+				mss->password);
+			port_wr(mss->conf_base, 9, val);
+			return;
+		}
+		port_wr(mss->conf_base, reg, val);
+		break;
+
+	case MD_OPTI930:	/* XXX should use proper bus calls */
+		port_wr(mss->indir, 0, reg);
+		port_wr(mss->conf_base, mss->passwdreg, mss->password);
+		port_wr(mss->indir, 1, val);
+		break;
+	}
+}
+
+u_char
+opti_read(struct mss_info *mss, u_char reg)
+{
+	port_wr(mss->conf_base, mss->passwdreg, mss->password);
+
+	switch(mss->bd_id) {
+	case MD_OPTI924:
+		if (reg > 7) {		/* Indirect register */
+			port_wr(mss->conf_base, mss->passwdreg, reg);
+			port_wr(mss->conf_base, mss->passwdreg, mss->password);
+			return(port_rd(mss->conf_base, 9));
+		}
+		return(port_rd(mss->conf_base, reg));
+		break;
+
+	case MD_OPTI930:
+		port_wr(mss->indir, 0, reg);
+		port_wr(mss->conf_base, mss->passwdreg, mss->password);
+		return port_rd(mss->indir, 1);
+		break;
+	}
+	return -1;
 }
 
 static device_method_t pnpmss_methods[] = {
