@@ -1,6 +1,15 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
+ * Copyright (c) 2002 Networks Associates Technologies, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert Watson for the TrustedBSD Project.
+ *
+ * This software was developed for the FreeBSD Project in part by NAI Labs,
+ * the Security Research Division of Network Associates, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
+ *
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -54,11 +63,10 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
+	size_t	 len;
 	char	*attrname;
-	char	buf[BUFSIZE];
-	char	visbuf[BUFSIZE*4];
-	int	error, i, arg_counter, attrnamespace;
-	int	ch;
+	char	*buf, *visbuf;
+	int	 ch, error, i, arg_counter, attrnamespace;
 
 	int	flag_as_string = 0;
 	int	flag_reverse = 0;
@@ -98,13 +106,28 @@ main(int argc, char *argv[])
 	 * truncating at BUFSIZE.
 	 */
 	for (arg_counter = 1; arg_counter < argc; arg_counter++) {
+		len = extattr_get_file(argv[arg_counter], attrnamespace,
+		    attrname, NULL, 0);
+		if (len == -1) {
+			perror(argv[arg_counter]);
+			continue;
+		}
+		buf = (char *)malloc(len);
+		if (buf == NULL) {
+			perror("malloc");
+			return (-1);
+		}
 		error = extattr_get_file(argv[arg_counter], attrnamespace,
 		    attrname, buf, BUFSIZE);
-
 		if (error == -1)
 			perror(argv[arg_counter]);
 		else {
 			if (flag_as_string) {
+				visbuf = (char *)malloc(len*4);
+				if (visbuf == NULL) {
+					perror("malloc");
+					return (-1);
+				}
 				strvisx(visbuf, buf, error, VIS_SAFE
 				    | VIS_WHITE);
 				if (flag_reverse) {
@@ -114,6 +137,7 @@ main(int argc, char *argv[])
 					printf("%s:", argv[arg_counter]);
 					printf(" \"%s\"\n", visbuf);
 				}
+				free(visbuf);
 			} else {
 				printf("%s:", argv[arg_counter]);
 				for (i = 0; i < error; i++)
@@ -126,6 +150,7 @@ main(int argc, char *argv[])
 				printf("\n");
 			}
 		}
+		free(buf);
 	}
 
 	return (0);
