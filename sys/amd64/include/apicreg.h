@@ -288,6 +288,7 @@ typedef struct IOAPIC ioapic_t;
 
 #define APIC_RESV2_MASK		0xfff00000
 
+#define	APIC_ICRLO_RESV_MASK	(APIC_RESV1_MASK | APIC_RESV2_MASK)
 
 /* fields in ICR_HIGH */
 #define APIC_ID_MASK		0xff000000
