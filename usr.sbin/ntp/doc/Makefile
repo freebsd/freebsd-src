@@ -17,6 +17,9 @@ HTMLS=	accopt.htm assoc.htm authopt.htm biblio.htm build.htm clockopt.htm \
 	pps.htm prefer.htm quick.htm rdebug.htm refclock.htm release.htm \
 	tickadj.htm vxworks.htm y2k.htm
 
+MAN8=	ntp_acc.8 ntp_auth.8 ntp_clock.8 ntp_conf.8 ntp_misc.8 \
+	ntp_mon.8 ntpd.8 ntpdate.8 ntpdc.8 ntpq.8 ntptime.8 ntptrace.8
+
 beforeinstall:
 .for file in ${HTMLS}
 	cd ${.CURDIR}/../../../contrib/ntp/html ; \

@@ -1,0 +1,180 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2000
+.Dt NTP_MISC 8
+.Os
+.Sh NAME
+.Nm ntp_misc
+.Nd NTP daemon miscellaneous options
+.Sh SYNOPSIS
+.Pa /etc/ntp.conf
+.Sh DESCRIPTION
+The following miscellaneous configuration options are available:
+.Bl -tag -width indent
+.It Ic broadcastdelay Ar seconds
+The broadcast and multicast modes require a special calibration
+to determine the network delay between the local and remote
+servers.
+Ordinarily, this is done automatically
+by the initial protocol exchanges
+between the local and remote servers.
+In some cases, the calibration procedure may fail
+due to network or server access controls, for example.
+This command specifies
+the default delay to be used under these circumstances.
+Typically (for Ethernet),
+a number between 0.003 and 0.007 seconds is appropriate.
+The default when this command is not used is 0.004 seconds.
+.It Xo Ic trap
+.Ar host_address
+.Op port Ar port_number
+.Op interface Ar interface_address
+.Xc
+This command configures a trap receiver
+at the given host address and port number
+for sending messages with the specified local interface address.
+If the port number is unspecified, a value of 18447 is used.
+If the interface address is not specified,
+the message is sent with a source address of the local interface
+the message is sent through.
+Note that on a multihomed host
+the interface used may vary from time to time
+with routing changes.
+The trap receiver will generally log event messages
+and other information from the server in a log file.
+While such monitor programs
+may also request their own trap dynamically,
+configuring a trap receiver
+will ensure that no messages are lost when the server is started.
+.It Ic setvar Ar variable Op default
+This command adds an additional system variable.
+These variables can be used
+to distribute additional information such as the access policy.
+If the variable of the form
+.Va name
+=
+.Ar value
+is followed by the default keyword,
+the variable will be listed
+as part of the default system variables
+(see the
+.Xr ntpq 8
+.Ic rv
+command).
+These additional variables serve informational purposes only.
+They are not related to the protocol
+other that they can be listed.
+The known protocol variables will always override any variables
+defined via the
+.Ic setvar
+mechanism.
+There are three special variables
+that contain the names of all variables of the same group.
+The
+.Va sys_var_list
+holds the names of all system variables.
+The
+.Va peer_var_list
+holds the names of all peer variables and the
+.Va clock_var_list
+holds the names of the reference clock variables.
+.It Ic logfile Ar logfile
+This command specifies the location of an alternate log file
+to be used instead of the default system
+.Xr syslog 3
+facility.
+.It Ic logconfig Ar configkeyword
+This command controls the amount and type of output
+written to the system
+.Xr syslog 3
+facility or the alternate
+.Ic logfile
+log file.
+By default, all output is turned on.
+All
+.Ar configkeyword
+keywords can be prefixed with =, + and -,
+where = sets the syslogmask,
++ adds and - removes messages.
+.Xr syslog 3
+messages can be controlled
+in four classes (clock, peer, sys and sync).
+Within these classes
+four types of messages can be controlled.
+Informational messages (info) control configuration information.
+Event messages (events) control logging of events
+(reachability, synchronization, alarm conditions).
+Statistical output is controlled with the
+.Ic statistics
+keyword.
+The final message group is the status messages.
+This describes mainly the synchronizations status.
+.Pp
+Configuration keywords are formed
+by concatenating the message class with the event class.
+The all prefix can be used instead of a message class.
+A message class may also be followed by the all keyword
+to enable/disable all messages of the respective message class.
+Thus, a minimal log configuration could look like this:
+.Pp
+.Dl logconfig = syncstatus +sysevents
+.Pp
+This would just list the synchronizations state of
+.Xr ntpd 8
+and the major system events.
+For a simple reference server,
+the following minimum message configuration could be useful:
+.Pp
+.Dl logconfig = syncall +clockall
+.Pp
+This configuration will list all clock information
+and synchronization information.
+All other events and messages about peers,
+system events and so on is suppressed.
+.El
+.Ss Variables
+Most variables used by the NTP protocol
+can be examined with
+.Xr ntpdc 8
+(mode 7 messages) and
+.Xr ntpq 8 (mode 6 messages).
+Currently, very few variables can be modified via mode 6 messages.
+These variables are either created with the
+.Ic setvar
+directive or the leap warning bits.
+The leap warning bits can be set in the
+.Va leapwarning
+variable up to one month ahead.
+Both the
+.Va leapwarning
+and
+.Va leapindication
+variables have a slightly different encoding
+than the usual leap bits interpretation:
+.Pp
+.Bl -tag -width indent -compact
+.It 00
+The daemon passes the leap bits of its synchronization source
+(usual mode of operation).
+.It 01
+.It 10
+A leap second is added/deleted (operator forced leap second).
+.It 11
+Leap information from the synchronizations source is ignored
+(thus
+.Dv LEAP_NOWARNING
+is passed on).
+.El
+.Sh SEE ALSO
+.Xr ntp_conf 8 ,
+.Xr ntpd 8 ,
+.Xr ntpdc 8 ,
+.Xr ntpq 8
+.Sh HISTORY
+Written by
+.An Dennis Ferguson
+at the University of Toronto.
+Text amended by
+.An David Mills
+at the University of Delaware.
