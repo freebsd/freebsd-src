@@ -1,10 +1,11 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/10/03 22:52:22 peter Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
 
-.PATH:	${GPPDIR}/libstdc++ ${GPPDIR}/libio ${GPPDIR}/libiberty
+.PATH:	${GPPDIR}/libstdc++ ${GPPDIR}/libstdc++/stl ${GPPDIR}/libio \
+	${GPPDIR}/libiberty
 
 LIB=		stdc++
 SHLIB_MAJOR=	2
@@ -42,6 +43,9 @@ STLHDRS=algo.h algobase.h bool.h bvector.h defalloc.h deque.h faralloc.h \
 SRCS+=	newi.cc cstringi.cc stddefi.cc typeinfoi.cc exceptioni.cc \
 	stdexcepti.cc cstdlibi.cc cmathi.cc
 
+# stl sources.
+SRCS+=	tempbuf.cc tree.cc random.cc
+
 # "standard" C parts of libiberty (strerror is a superset of the libc version)
 SRCS+=	insque.c strerror.c
 
@@ -65,6 +69,8 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 	ioignore.c iopadn.c iopopen.c ioprims.c ioprintf.c ioseekoff.c \
 	ioseekpos.c iostrerror.c ioungetc.c iovfprintf.c iovfscanf.c \
 	outfloat.c strops.c
+
+
 
 beforedepend:	config.h
 strerror.o:	config.h
