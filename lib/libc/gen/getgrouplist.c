@@ -70,8 +70,10 @@ getgrouplist(uname, agroup, groups, grpcnt)
 	 */
 	setgrent();
 	while (grp = getgrent()) {
-		if (grp->gr_gid == agroup)
-			continue;
+		for (i = 1; i < ngroups; i++) {
+			if (grp->gr_gid == groups[i])
+				goto skip;
+		}
 		if (ngroups >= maxgroups) {
 			ret = -1;
 			break;
@@ -82,6 +84,7 @@ getgrouplist(uname, agroup, groups, grpcnt)
 				break;
 			}
 		}
+skip:
 	}
 	endgrent();
 	*grpcnt = ngroups;
