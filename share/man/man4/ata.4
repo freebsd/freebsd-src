@@ -50,6 +50,16 @@ In
 .Cd hint.ata.1.port="0x170"
 .Cd hint.ata.1.irq="15"
 .Pp
+For PC98 based ATA/ATAPI support:
+.Cd device isa
+.Cd device ata
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.atacbus.0.at="isa"
+.Cd hint.atacbus.0.port="0x640"
+.Cd hint.atacbus.0.irq="9"
+.Pp
 For PCI based ATA/ATAPI support:
 .Cd device pci
 .Cd device ata
@@ -95,6 +105,12 @@ Ultra DMA 100 (UDMA5), 100 MB/sec (depending on model, max stated at boot)
 Ultra DMA 66 (UDMA4), 66 MB/sec
 .It AMD 766
 Ultra DMA 100 (UDMA5), 100 MB/sec
+.It Acard ATP850
+Ultra DMA 33 (UDMA2), 33 MB/sec
+.It Acard ATP860
+Ultra DMA 66 (UDMA4), 66 MB/sec
+.It Acard ATP865
+Ultra DMA 133 (UDMA6), 133 MB/sec
 .It CMD 646
 DMA 2 (WDMA2), 16 MB/sec
 .It CMD 648

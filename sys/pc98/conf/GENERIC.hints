@@ -1,4 +1,9 @@
 # $FreeBSD$
+
+hint.atacbus.0.at="isa"
+hint.atacbus.0.port="0x640"
+hint.atacbus.0.irq="9"
+
 hint.fdc.0.at="isa"
 hint.fdc.0.port="0x090"
 hint.fdc.0.irq="11"

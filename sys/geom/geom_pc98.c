@@ -190,6 +190,10 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		sectorsize = cp->provider->sectorsize;
 		if (sectorsize < 512)
 			break;
+		if (cp->provider->mediasize / sectorsize < 17 * 8 * 65536) {
+			fwsectors = 17;
+			fwheads = 8;
+		}
 		gsp->frontstuff = sectorsize * fwsectors;
 		spercyl = (off_t)fwsectors * fwheads * sectorsize;
 		buf = g_read_data(cp, 0,

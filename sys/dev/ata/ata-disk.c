@@ -268,6 +268,10 @@ adopen(dev_t dev, int flags, int fmt, struct thread *td)
 
     if (adp->flags & AD_F_RAID_SUBDISK)
 	return EBUSY;
+
+    /* hold off access to we are fully attached */
+    while (ata_delayed_attach)
+	tsleep(&ata_delayed_attach, PRIBIO, "adopn", 1);
     return 0;
 }
 
@@ -276,10 +280,12 @@ adclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ad_softc *adp = dev->si_drv1;
 
+    adp->device->channel->lock_func(adp->device->channel, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(adp->device->channel, ATA_CONTROL);
     if (ata_command(adp->device, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
 	ata_prtdev(adp->device, "flushing cache on close failed\n");
     ATA_UNLOCK_CH(adp->device->channel);
+    adp->device->channel->lock_func(adp->device->channel, ATA_LF_UNLOCK);
     return 0;
 }
 
@@ -312,7 +318,9 @@ addump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t leng
     if (!once) {
 	/* force PIO mode for dumps */
 	adp->device->mode = ATA_PIO;
+	adp->device->channel->lock_func(adp->device->channel, ATA_LF_LOCK);
 	ata_reinit(adp->device->channel);
+	adp->device->channel->lock_func(adp->device->channel, ATA_LF_UNLOCK);
 	once = 1;
     }
 

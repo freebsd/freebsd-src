@@ -225,6 +225,10 @@ afdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct afd_softc *fdp = dev->si_drv1;
 
+    /* hold off access to we are fully attached */
+    while (ata_delayed_attach)
+	tsleep(&ata_delayed_attach, PRIBIO, "afdopn", 1);
+
     atapi_test_ready(fdp->device);
 
     if (count_dev(dev) == 1)
