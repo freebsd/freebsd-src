@@ -113,6 +113,7 @@ struct fxp_softc {
 	device_t dev;
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended (APM) */
+	int cu_resume_bug;
 	int chip;
 	int flags;
 	u_int32_t saved_maps[5];	/* pci data */
@@ -131,6 +132,7 @@ struct fxp_softc {
 #define FXP_FLAG_SERIAL_MEDIA	0x0010	/* 10Mbps serial interface */
 #define FXP_FLAG_LONG_PKT_EN	0x0020	/* enable long packet reception */
 #define FXP_FLAG_ALL_MCAST	0x0040	/* accept all multicast frames */
+#define FXP_FLAG_CU_RESUME_BUG	0x0080	/* requires workaround for CU_RESUME */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)						\
