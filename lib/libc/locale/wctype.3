@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2002
+.Dd October 3, 2002
 .Dt WCTYPE 3
 .Os
 .Sh NAME
@@ -80,6 +80,20 @@ is invalid, otherwise it returns a value of type
 .Vt wctype_t
 that can be used in subsequent calls to
 .Fn iswctype .
+.Sh EXAMPLES
+Reimplement
+.Fn iswalpha
+in terms of
+.Fn iswctype
+and
+.Fn wctype :
+.Bd -literal -offset indent
+int
+myiswalpha(wint_t wc)
+{
+	return (iswctype(wc, wctype("alpha")));
+}
+.Ed
 .Sh SEE ALSO
 .Xr ctype 3
 .Sh STANDARDS
