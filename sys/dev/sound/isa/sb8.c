@@ -326,28 +326,28 @@ sbpromix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 	max = 7;
 	switch (dev) {
-	case SOUND_MASK_PCM:
+	case SOUND_MIXER_PCM:
 		reg = 0x04;
 		break;
 
-	case SOUND_MASK_MIC:
+	case SOUND_MIXER_MIC:
 		reg = 0x0a;
 		max = 3;
 		break;
 
-	case SOUND_MASK_VOLUME:
+	case SOUND_MIXER_VOLUME:
 		reg = 0x22;
 		break;
 
-	case SOUND_MASK_SYNTH:
+	case SOUND_MIXER_SYNTH:
 		reg = 0x26;
 		break;
 
-	case SOUND_MASK_CD:
+	case SOUND_MIXER_CD:
 		reg = 0x28;
 		break;
 
-	case SOUND_MASK_LINE:
+	case SOUND_MIXER_LINE:
 		reg = 0x2e;
 		break;
 
@@ -418,19 +418,19 @@ sbmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 
 	max = 7;
 	switch (dev) {
-	case SOUND_MASK_VOLUME:
+	case SOUND_MIXER_VOLUME:
 		reg = 0x2;
 		break;
 
-	case SOUND_MASK_SYNTH:
+	case SOUND_MIXER_SYNTH:
 		reg = 0x6;
 		break;
 
-	case SOUND_MASK_CD:
+	case SOUND_MIXER_CD:
 		reg = 0x8;
 		break;
 
-	case SOUND_MASK_PCM:
+	case SOUND_MIXER_PCM:
 		reg = 0x0a;
 		max = 3;
 		break;
