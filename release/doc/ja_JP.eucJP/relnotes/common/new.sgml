@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.205
+    Original revision: 1.239
 -->
 
 <articleinfo>
@@ -107,6 +107,10 @@
       IBM BIOS での起動に対応するための修正が行なわれました.
       <!-- hrs: need to be revised here --></para>
 
+    <para arch="i386">&os; ブートローダに, プローブの段階で
+      一行出力する毎にカーネルがちょっと止まるようにする
+      <option>-p</option> フラグが追加されました. &merged;</para>
+
     <para>出荷時の状態で USB デバイスをサポートするため,
       <filename>GENERIC</filename> カーネルと
       インストールプログラムに USB デバイスのサポートが加えられました.
@@ -182,10 +186,7 @@
 
     <para arch="alpha">Linux 互換機能が thread に対応しました.</para>
 
-    <para>PCI サブシステムに対して整頓と改良が数多く行なわれ,
-      <filename>/usr/share/misc/pci_vendors</filename>
-      には &man.pciconf.8;
-      で利用可能なベンダ/デバイスのデータベースが含まれるようになりました.</para>
+    <para>PCI サブシステムに対して整頓と改良が数多く行なわれました.</para>
 
     <para arch="i386">&man.spic.4; ドライバが追加されました.
       これは Sony
@@ -309,6 +310,13 @@
       また, <varname>hz</varname> パラメータも同様に変更可能になっています.
       &merged;</para>
 
+    <para>カーネル設定パラメータ <varname>maxusers</varname>
+      に <literal>0</literal> を指定すると,
+      ブート時に適切な値 (32 から 512 の間で, 搭載メモリ量に依存して)
+      を計算するようになりました
+      すべての <filename>GENERIC</filename> カーネルではこの値が
+      デフォルトとなりました. &merged;</para>
+
     <para>カーネル構築時に &man.config.8; の <literal>ENV</literal>
       指示子を用いることで, (調整可能な)
       カーネル環境変数を設定することができるようになりました.
@@ -373,10 +381,14 @@
     <para arch="alpha">コンソールドライバは TGA ベースのディスプレイ
       アダプタに対応しました.</para>
 
-    <para arch="i386">新しい CDROM 用の cdboot
+    <para arch="i386">新しい CDROM 用の <filename>cdboot</filename>
       ブートストラップユーティリティは, El Torito ブータブル CDROM
       標準に完全には準拠しないいくつかの BIOS 実装に対しても
-      うまく動作します.</para>
+      うまく動作します.
+      このブートローダは <quote>エミュレーションではない</quote>
+      モードのブートをサポートするので, ブータブル CDROM において
+      エミュレートされたフロッピーディスクイメージは必要ありません.
+      &merged;</para>
 
     <para arch="i386">NEC PC-98NOTE 用のパワーマネージメント
       コントローラである pmc ドライバが追加されました. &merged;</para>
@@ -411,6 +423,10 @@
       従来の UID ベースのセキュリティ機構に加えて使うことのできる
       セキュリティ機構です.
       この機能のスポンサーは DARPA と NAI Labs です.</para>
+
+    <para>&man.jail.2; 用の設定可能な sysctl 変数
+      が <varname>jail.*</varname> から
+      <varname>kern.security.*</varname> へと移動しました.</para>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -509,7 +525,7 @@
         Dell PowerEdge 2550 サーバの内蔵ギガビットイーサネット NIC
         などに使われている Broadcom BCM570x
         ファミリのギガビットイーサネットコントローラ用ドライバで,
-        TCP/IP チェックサムのオフロード,
+        出力 TCP/IP チェックサムのオフロード,
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています. &merged;</para>
 
@@ -544,8 +560,15 @@
       <para arch="i386">&man.el.4;
         ドライバがモジュールとしてロードできるようになりました.</para>
 
+      <para arch="i386">Intel 82542, 82543, 82544 ギガビット
+	イーサネットコントローラチップベースの NIC に対応する
+	&man.em.4; ドライバが追加されました.
+	ドライバは 82543, 82544 ベースのアダプタにおいて
+	送信/受信チェックサム offload とジャンボフレームに
+	対応しています. &merged;</para>
+
       <para>&man.faith.4; デバイスがロード/アンロード/クローニングに
-	対応しました.</para>
+	対応しました. &merged;</para>
 
       <para arch="i386">&man.fe.4; ドライバが富士通 MB86960A/MB86965A
         ベースのイーサネット PC カードに再び対応しました. &merged;</para>
@@ -616,10 +639,15 @@
         &man.raycontrol.8; で変更することが可能です.
         &merged;</para>
 
+      <para arch="i386">ISA/PCI の point-to-point 通信インターフェイス
+	である Granch SBNI12 シリーズ用の sbni ドライバが
+	追加されました. &merged;</para>
+
       <para>&man.sis.4; ドライバが
         National Semiconductor DP83815 チップセットベースの
         PCI イーサネットアダプタに対応しました.
-        これには NetGear FA311-TX および FA312-TX が含まれます.</para>
+        これには NetGear FA311-TX および FA312-TX が含まれます.
+	このデバイスは VLAN をサポートしています. &merged;</para>
 
       <para arch="i386">National Semiconductor
         DP8393X (SONIC) イーサネットコントローラに対応した
@@ -646,7 +674,8 @@
         ネットワークインターフェイスに対応しています.
         &merged;</para>
 
-      <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
+      <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに
+	対応しました. &merged;</para>
 
       <para>&man.xl.4; ドライバが
         ラップトップで使われている 3Com 3C556 および
@@ -664,23 +693,51 @@
 	受信側/送信側 TCP/IP のチェックサム offload に対応しました.
 	&merged;</para>
 
+      <para>統計情報が溢れた時の割り込みの扱いに関連して,
+	パケットレートが中から高の時に遅くなってしまうという
+	&man.xl.4; ドライバのバグが修正されました. &merged;</para>
+
       <para>インターフェイス毎に用意される
         <varname>ifnet</varname> 構造体に,
         ネットワークインターフェイスが対応している機能,
         および, そのうち有効化されている機能を格納する部分が追加されました.
-        また &man.ifconfig.8; が, その機能の検索に対応しています.</para>
+        また &man.ifconfig.8; が, その機能の検索に対応しています.
+	&merged;</para>
 
       <para>インターフェイス毎の <varname>if_inaddr</varname>
 	線形リストをハッシュテーブルで置き換えることにより,
-	IP エイリアスを多数持つホストでの性能が改善されました.</para>
+	IP エイリアスを多数持つホストでの性能が改善されました. &merged;</para>
 
-      <para>ネットワークデバイスは <filename>/dev</filename> 以下に
+      <para>ネットワークデバイスは特殊ファイルとして
+	<filename>/dev/net</filename> 以下に
 	自動的に作成されるようになりました.
 	<!-- XXX: kuriyama: should be translated -->
 	Interface hardware ioctls (not protocol or routing) can be
 	 performed on these devices.
 	 <varname>SIOCGIFCONF</varname> ioctl は特殊な
 	 <filename>/dev/network</filename> ノードで動作します.</para>
+
+      <para arch="i386">いくつかのネットワークドライバは,
+	システムが攻撃や過負荷により耐えられるように, 半ポーリング
+	モードを実装しました.
+	ポーリングを有効にするには, カーネル設定ファイルに
+	以下のオプションが必要です:
+
+	<programlisting>options DEVICE_POLLING
+options HZ=1000 # not compulsory but strongly recommended</programlisting>
+
+	そして <varname>kern.polling.enable</varname> sysctl 変数
+	によりポーリングモードを有効にし,
+	<varname>kern.polling.user_frac</varname> sysctl 変数
+	によりユーザランド側に確保しておく CPU 時間の割合を
+	指定します.
+	ポーリングをサポートしているデバイスは &man.dc.4;,
+	&man.fxp.4;, &man.sis.4; となっています.</para>
+
+      <para arch="i386">不必要なバッファのコピーを無くすことにより,
+	いくつかのネットワークドライバ (特に &man.dc.4; と
+	&man.sis.4;) におけるパケットフォワーディングの性能が向上
+	しました. &merged;</para>
     </sect3>
 
     <sect3>
@@ -812,7 +869,12 @@
       <para>sysctl 変数 <varname>net.inet.tcp.sendspace</varname> および
         <varname>net.inet.tcp.recvspace</varname>
         で制御されている TCP の標準バッファサイズがそれぞれ
-        32K と 64K に増やされました.</para>
+        32K と 64K に増やされました.
+	従来は両方とも 16K のバッファサイズでした.
+	輻輳の頻度が上がることを防ぐために,
+	<varname>net.inet.tcp.local_slowstart_flightsize</varname>
+	のデフォルトの値が無限から 4 に変更されました.
+	&merged;</para>
 
       <para>TCP が RFC 1948 (Defending Against Sequence
         Number Attacks) に対応しました.
@@ -827,10 +889,18 @@
 	入ってくる SYN セグメントは, TCP three-way handshake
 	が完了するまではキャッシュ内にエントリされ, 完了後に
 	通常通りコネクション用のメモリが確保されます.
-	この <quote>syncache</quote> により, ホストは
+	加えて, すべての TCP 初期シーケンス番号 (ISN) がクッキー
+	として使われ, エントリがキャッシュから消されてしまっても
+	対応する ACK を後で受け付けられるようにします.
+	この <quote>syncache</quote> と <quote>syncookies</quote>
+	の組合わせにより, ホストは
 	TCP ベースの Denial of Service 攻撃により耐えられるように
 	なります.
-	この機能のスポンサーは DARPA と NAI Labs です.</para>
+	この機能のスポンサーは DARPA と NAI Labs です. &merged;</para>
+
+      <para>TCP 実装において, 送信側が大きさ 0 のウィンドウ
+	を受け取ったときに接続が固まってしまうというバグが
+	修正されました. &merged;</para>
     </sect3>
 
     <sect3>
@@ -894,6 +964,9 @@
         ATA <quote>疑似</quote> RAID コントローラに対応しました.        
         &merged;</para>
 
+      <para>&man.ata.4; ドライバは Hardware Notes にも載っているように
+	様々な SiS チップセットに対応しました.</para>
+
       <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
 
@@ -908,6 +981,16 @@
         (Ports Collection の <port>sysutils/cdrtools</port> に含まれています)
         が対応しています.
         &merged;</para>
+
+      <para>SCSI-3 サポート用の共通インターフェイスデバイスである
+	ciss ドライバが追加されました.
+	このドライバは Compaq の SmartRAID 5* ファミリ RAID
+	コントローラ (5300, 532, 5i) をサポートしています. &merged;</para>
+
+      <para>&man.fdc.4; フロッピーディスクに多くの機能強化が
+	行なわれました.  一般的な設定における密度の選択は
+	自動化され, ドライバは様々なサブデバイスの密度設定
+	に柔軟に対応できるようになりました.</para>
 
       <para>ida ディスクドライバがクラッシュダンプに対応しました.
         &merged;</para>
@@ -943,6 +1026,7 @@
         ncv, nsp, stg ドライバが移植されました.
         これらは NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50
         ベースの PC-Card/ISA SCSI コントローラに対応しています.
+	これらのドライバはモジュールとして構築, ロードできます.
         &merged;</para>
 
       <para>&man.sa.4; エラー処理にあったいくつかの問題点が修正されました.
@@ -1032,14 +1116,22 @@
         <filename>/usr/src/sys/ufs/ufs/README.acls</filename>
         をご覧ください.</para>
 
-      <para>FFS のディレクトリ配置の優先アルゴリズムが変更され,
-        大きなファイルシステムにおける速度が改善されました.</para>
+      <para>FFS のディレクトリ配置の優先アルゴリズム
+	(<literal>dirprefs</literal>) が変更されました.
+	ディレクトリブロックをディスク内で分散させるのではなく,
+	ディレクトリブロックに関連したグループにまとめようと試みます.
+	&os; Ports ツリーのように巨大なディレクトリ階層を横断する
+	ような操作の速度がアップします.
+	この変更は表面的にはなんの影響も与えませんし,
+	新しいディレクトリに対しては自動的に適用されます. &merged;</para>
 
       <para arch="i386">カーネルが smbfs (CIFS) に対応しました.
-        ユーザランド側のファイルシステムマウントユーティリティは
-        &os; Ports Collection にある
-        <port>net/smbfs</port> の port に含まれています.
-        &merged;</para>
+	SMB 共有を扱うのにはユーザランドプログラムの
+	&man.smbutil.1; と &man.mount.smbfs.8; が利用できます.
+	&man.mount.smbfs.8; は <literal>LIBMCHAIN</literal> と
+	<literal>LIBICONV</literal> がカーネルに組み込まれて
+	いなくても, 自動的に smbfs モジュールをロードしてしまうことに
+	注意してください. &merged;</para>
 
       <para>一貫性を維持するため,
         fdesc, fifo, null, msdos, portal, umap, union
@@ -1056,17 +1148,27 @@
         &man.linprocfs.5; は pseudofs を利用するように変更されています.</para>
 
       <para>巨大なディレクトリ用に,
-        <literal>dirhash</literal>
-        と呼ばれる単純なハッシュをベースとした検索効率化処理が追加されました.
-        <literal>UFS_DIRHASH</literal>
-        カーネルオプションの設定により,
-        メモリを多少余分に使って巨大なディレクトリの操作速度を向上させることが可能です.
-        &merged;</para>
+        <literal>dirhash</literal> と呼ばれる単純なハッシュをベース
+	とした検索効率化処理が追加されました.
+        <literal>UFS_DIRHASH</literal> カーネルオプション 
+        (<filename>GENERIC</filename> カーネルでデフォルトでオン)
+	の設定により, メモリを多少余分に使って巨大なディレクトリの
+	操作速度を向上させることが可能です. &merged;</para>
 
       <para>VM サブシステムはデフォルトで UFS ディレクトリ用の
 	メモリ要求を担うようになりました
 	(この挙動は <varname>vfs.vmiodirenable</varname> sysctl 変数
 	で制御されます). &merged;</para>
+
+      <para>SCSI CDROM からルートファイルシステムがマウントできない
+	バグが修正されました (ATAPI CDROM は問題ありません)
+	&merged;</para>
+
+      <para>ファイルシステムテストツールを使うことにより発見された
+	いくつかのバグが修正されました.
+	ある状況下で (主に NFS を使っている際に)
+	これらのバグはデータの破壊やカーネルパニックを引き起こして
+	いました. &merged;</para>
     </sect3>
 
      <sect3>
@@ -1211,7 +1313,7 @@ hw.pcic.irq="0"</programlisting>
           &merged;</para> 
 
 	<para>&man.isic.4; ドライバは Compaq Microcom 610 ISDN
-	  ISA PnP カードに内応しました.</para>
+	  ISA PnP カードに内応しました. &merged;</para>
 
 	<para>&man.i4bcapi.4; および &man.iavc.4; ドライバにより
           AVM 製の Active CAPI ベースの ISDN カードに対応しました.
@@ -1227,7 +1329,7 @@ hw.pcic.irq="0"</programlisting>
 
 	<para>&man.isdnphone.8; はキーパッド経由でメッセージを PBX や
 	  exchange office に送るための <option>-k</option> オプションをサポート
-	  しました.</para>
+	  しました. &merged;</para>
 	<!-- XXX: kuriyama: exchange office って MS の? -->
       </sect4>
 
@@ -1559,6 +1661,14 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.semop.2;
       システムコールに存在していたバッファオーバフロー問題による
       セキュリティホールが修正されました.&merged;</para>
+
+    <para><literal>UseLogin yes</literal> が指定されているときに,
+      ユーザが任意の権限でコードを実行できるという
+      <application>OpenSSH</application> のセキュリティホールが
+      修正されました.
+      デフォルトでは <literal>UseLogin no</literal> という
+      設定になっています.
+      (セキュリティ勧告 FreeBSD-SA-01:63 参照). &merged;</para>
   </sect2>
 
   <sect2 id="userland">
@@ -1604,6 +1714,9 @@ hw.pcic.irq="0"</programlisting>
       (Disk At Once; DAO) モードに対応しました.
       オプション <option>-d</option>
       でこのモードを選ぶことが可能です.</para>
+
+    <para>&man.burncd.8; は VCD や SVCD に書き込めるように
+      なりました.</para>
 
     <para>&man.c89.1; がシェルスクリプトからバイナリ実行ファイルに置き換えられ,
       いくつかあった小さなバグが修正されました.
@@ -1844,7 +1957,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.groups.1; および &man.whoami.1; シェルスクリプトは
-      &man.id.1; へ完全に統合され, 両方とも廃止されました.</para>
+      &man.id.1; へ完全に統合され, 両方とも廃止されました. &merged;</para>
 
     <para>単にエミュレーションカーネルモジュールをロードするだけの機能を持つ
       &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, &man.svr4.8;
@@ -1914,6 +2027,9 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.ipfw.8; に特定のアドレス対におけるセション数を
       制限することができる <literal>limit</literal> タイプの
       ファイアウォールルールが追加されました. &merged;</para>
+
+    <para>&man.ipfw.8; フィルタルールは, IPv4 precedence フィールド
+      の値にマッチできるようになりました.</para>
 
     <para>&man.ip6fw.8;
       にファイル読み込み時のプリプロセッサ機能と
@@ -1991,7 +2107,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para><filename>libfetch</filename>
-      がコールバック認証に対応しました.</para>
+      がコールバック認証に対応しました. &merged;</para>
 
     <para><filename>libfetch</filename> が
       <envar>HTTP_USER_AGENT</envar> 環境変数に対応しました.
@@ -2115,9 +2231,6 @@ hw.pcic.irq="0"</programlisting>
       &man.mount.8; コマンドに関連するラッパで,
       廃止された &man.mount.mfs.8; コマンドのオプションが利用できます.</para>
 
-    <para>&man.mergemaster.8; に新たな機能の追加と整頓が行なわれました.
-      クロスプラットフォームでの利用がより容易になっています.</para>
-
     <para>&man.mergemaster.8; が
       <filename>/etc/mergemaster.rc</filename>
       ファイルを読み込むようになりました.
@@ -2178,6 +2291,13 @@ hw.pcic.irq="0"</programlisting>
       この変更により &man.fsck.8; の性能が改善され,
       フラグメンテーションが少なくなります. &merged;</para>
 
+    <para>&man.newfs.8; により作成される新しいファイルシステムの
+      デフォルトのブロックサイズ, フラグメントサイズは,
+      8192 バイトと 1024 バイトから 16384 バイトと 2048 バイトに
+      変更されました.
+      この変更によりいくらか性能が向上し, もう少しディスクスペースを
+      消費するようになります. &merged;</para>
+
     <para>&man.newsyslog.8; は &man.bzip2.1; を使って
       ログファイルを圧縮できるようになりました. &merged;</para>
 
@@ -2211,6 +2331,13 @@ hw.pcic.irq="0"</programlisting>
       <option>-z</option> オプションおよび
       <option>-Z</option> オプションの追加,
       バグ修正が含まれます.</para>
+
+    <para>&man.pciconf.8; は <option>-l</option> オプションと
+      連携して設定されたデバイスの vendor/device 情報を表示する
+      <option>-v</option> オプションに対応しました.
+      デフォルトの vendor/device データベースは
+      <filename>/usr/share/misc/pci_vendors</filename>
+      にあります. &merged;</para>
 
     <para>&man.periodic.8; の動作が
       <filename>/etc/defaults/periodic.conf</filename> および
@@ -2299,7 +2426,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.route.8; の <option>add</option> コマンドは
       <option>-ifp</option> と <option>-ifa</option> の修飾子
-      をサポートするようになりました.</para>
+      をサポートするようになりました. &merged;</para>
 
     <para>&man.portmap.8; が &man.rpcbind.8; に置き換えられました.</para>
 
@@ -2337,6 +2464,11 @@ hw.pcic.irq="0"</programlisting>
       <option>-E</option> オプションが追加されました.
       &merged;</para>
 
+    <para>&man.send-pr.1; に, 障害報告の <literal>Fix:</literal>
+      セクションにファイルを挿入するための
+      <option>-a</option> オプションが追加されました.
+      &merged;</para>
+
     <para>ファイルシステムの Access Control Lists を管理するコマンド
       &man.setfacl.1; および
       &man.getfacl.1; が追加されました.</para>
@@ -2347,8 +2479,9 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.sh.1; は効率をあげるために <command>test</command>
-      をビルトインコマンドとして実装しました.
-      また, 他のビルトインコマンドと比べてそれほど価値があるとは
+      をビルトインコマンドとして実装しました. &merged;</para>
+
+    <para>他のビルトインコマンドと比べてそれほど価値があるとは
       思えないため, &man.sh.1; はもはや <command>printf</command>
       をビルトインコマンドとして実装しません
       (もちろんこの機能は &man.printf.1; 外部コマンドとして
@@ -2410,7 +2543,7 @@ hw.pcic.irq="0"</programlisting>
       を使うようにする <option>-e</option> オプション
       に対応しました.
       これは出てきた出力をまた &man.sysctl.8; に戻す場合などに
-      有用です.</para>
+      有用です. &merged;</para>
 
     <para>&man.sysinstall.8; が, バイナリアップグレードの際に
       <filename>/etc/mail</filename> をきちんと保存するようになりました.
@@ -2431,6 +2564,10 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.sysinstall.8; がインストール中に KLD を
       ロードできるようになりました. &merged;</para>
+
+    <para>&man.sysinstall.8; がルートファイルシステムを除き,
+      作成する全てのファイルシステムにおいて Soft Updates を
+      デフォルトで有効にするようになりました. &merged;</para>
 
     <para>&man.syslogd.8; に新たなオプション
       <option>-n</option> が追加されました.
@@ -2551,6 +2688,9 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.wall.1; に新しいオプション <option>-g</option> が追加されました.
       これは指定したグループに属するユーザ全員にメッセージを送ります. &merged;</para>
+
+    <para>&man.watch.8; に &man.snp.4; デバイスを使うようにする
+      <option>-f</option> オプションが追加されました.</para>
 
     <para>Perl スクリプトだった &man.which.1; が
       C プログラムに変更されました.</para>
@@ -2718,12 +2858,19 @@ hw.pcic.irq="0"</programlisting>
         <filename>pam_rootok</filename>,
         <filename>pam_securetty</filename>,
         <filename>pam_wheel</filename> が追加されました.</para>
+
+      <para>&os; の &man.ftp.1; プログラムが
+	<application>lukemftp</application> に置き換えられました.
+	これにより, より自動化された動作や, 標準への準拠, 転送レート制御,
+	カスタマイズ可能なコマンドラインプロンプトなどが
+	提供されます.
+	いくつかの環境変数やコマンドライン引数が変更となっています.</para>
       
       <para><application>ncurses</application> がバージョン
         5.2-20010512 に更新されました.</para>
 
       <para><application>NTP</application> プログラムスイートがバージョン
-        4.1.0 に更新されました.</para>
+        4.1.0 に更新されました. &merged;</para>
 
       <para><application>OPIE</application>
         ワンタイムパスワードスイートがバージョン 2.32 に更新されました.
@@ -2736,6 +2883,10 @@ hw.pcic.irq="0"</programlisting>
 
       <para>&man.routed.8; がバージョン 2.22 に更新されました.
         &merged;</para>
+
+      <para arch="i386"><application>smbfs</application> ユーザランド
+	ユーティリティのバージョン 1.4.3 がインポートされました.
+	&merged;</para>
 
       <para><application>tcpdump</application> がバージョン
         3.6.3 に更新されました. &merged;</para>
