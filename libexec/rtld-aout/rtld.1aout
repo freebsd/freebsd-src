@@ -1,4 +1,4 @@
-.\"	$Id: rtld.1,v 1.6 1996/10/18 04:49:43 jdp Exp $
+.\"	$Id: rtld.1,v 1.7 1996/12/26 21:51:09 swallace Exp $
 .\"
 .\" Copyright (c) 1995 Paul Kranenburg
 .\" All rights reserved.
@@ -117,15 +117,25 @@ other shared libraries.  If the directory is not specified then
 the directories specified by LD_LIBRARY_PATH will be searched first
 followed by the set of built-in standard directories.
 This is ignored for set-user-ID and set-group-ID programs.
+.It Ev LD_BIND_NOW
+When set to a nonempty string, causes
+.Nm
+to relocate all external function calls before starting execution of the
+program.  Normally, function calls are bound lazily, at the first call
+of each function.
+.Ev LD_BIND_NOW
+increases the start-up time of a program, but it avoids run-time
+surprises caused by unexpectedly undefined functions.
 .It Ev LD_WARN_NON_PURE_CODE
-When set, issue a warning whenever a link-editing operation requires
-modification of the text segment of some loaded object. This is usually
-indicative of an incorrectly built library.
+When set to a nonempty string, issue a warning whenever a link-editing
+operation requires modification of the text segment of some loaded
+object. This is usually indicative of an incorrectly built library.
 .It Ev LD_SUPPRESS_WARNINGS
-When set, no warning messages of any kind are issued. Normally, a warning
-is given if satisfactorily versioned library could not be found.
+When set to a nonempty string, no warning messages of any kind are
+issued. Normally, a warning is given if satisfactorily versioned
+library could not be found.
 .It Ev LD_TRACE_LOADED_OBJECTS
-When set, causes
+When set to a nonempty string, causes
 .Nm
 to exit after loading the shared objects and printing a summary which includes
 the absolute pathnames of all objects, to standard output.
