@@ -137,6 +137,9 @@ smp_init_secondary(void)
 	 */
 	alpha_pal_wrval((u_int64_t) pcpup);
 
+	/* Clear userland thread pointer. */
+	alpha_pal_wrunique(0);
+
 	/*
 	 * Point interrupt/exception vectors to our own.
 	 */

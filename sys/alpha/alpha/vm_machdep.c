@@ -145,6 +145,7 @@ cpu_fork(td1, p2, td2, flags)
 	 */
 	bcopy(td1->td_pcb, td2->td_pcb, sizeof(struct pcb));
 	td2->td_pcb->pcb_hw.apcb_usp = alpha_pal_rdusp();
+	td2->td_pcb->pcb_hw.apcb_unique = 0;
 	td2->td_pcb->pcb_hw.apcb_flags &= ~ALPHA_PCB_FLAGS_FEN;
 
 	/*
