@@ -184,7 +184,7 @@ chn_wrfeed(struct pcm_channel *c)
 
 	amt = sndbuf_getfree(b);
 	ret = (amt > 0)? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
-	if (ret == 0)
+	if (ret == 0 && sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
 /*
 	if (!(irqc & 63) || (ret != 0))
@@ -724,9 +724,8 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 		c->speed = speed;
 		sndbuf_setspd(bs, speed);
 		RANGE(speed, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
-		sndbuf_setspd(b, speed);
-		DEB(printf("try speed %d, ", sndbuf_getspd(b)));
-		sndbuf_setspd(b, CHANNEL_SETSPEED(c->methods, c->devinfo, sndbuf_getspd(b)));
+		DEB(printf("try speed %d, ", speed));
+		sndbuf_setspd(b, CHANNEL_SETSPEED(c->methods, c->devinfo, speed));
 		DEB(printf("got speed %d, ", sndbuf_getspd(b)));
 
 		delta = sndbuf_getspd(b) - sndbuf_getspd(bs);
@@ -789,23 +788,17 @@ chn_tryformat(struct pcm_channel *c, u_int32_t fmt)
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
 	int r;
-	u_int32_t hwfmt;
 
 	CHN_LOCKASSERT(c);
 	if (CANCHANGE(c)) {
 		DEB(printf("want format %d\n", fmt));
 		c->format = fmt;
-		hwfmt = c->format;
-		c->feederflags &= ~(1 << FEEDER_FMT);
-		if (!fmtvalid(hwfmt, chn_getcaps(c)->fmtlist))
-			c->feederflags |= 1 << FEEDER_FMT;
 		r = chn_buildfeeder(c);
 		if (r == 0) {
-			hwfmt = c->feeder->desc->out;
-			sndbuf_setfmt(b, hwfmt);
+			sndbuf_setfmt(b, c->feeder->desc->out);
 			sndbuf_setfmt(bs, fmt);
 			chn_resetbuf(c);
-			CHANNEL_SETFORMAT(c->methods, c->devinfo, hwfmt);
+			CHANNEL_SETFORMAT(c->methods, c->devinfo, sndbuf_getfmt(b));
 			r = chn_tryspeed(c, c->speed);
 		}
 		return r;
@@ -958,24 +951,33 @@ chn_buildfeeder(struct pcm_channel *c)
 {
 	struct feeder_class *fc;
 	struct pcm_feederdesc desc;
-	u_int32_t tmp[2], src, dst, type, flags;
+	u_int32_t tmp[2], type, flags;
 
 	CHN_LOCKASSERT(c);
 	while (chn_removefeeder(c) == 0);
 	KASSERT((c->feeder == NULL), ("feeder chain not empty"));
+
 	c->align = sndbuf_getalign(c->bufsoft);
+
 	fc = feeder_getclass(NULL);
-	if (fc == NULL)
+	if (fc == NULL) {
+		DEB(printf("can't find root feeder\n"));
 		return EINVAL;
-	if (chn_addfeeder(c, fc, NULL))
+	}
+	if (chn_addfeeder(c, fc, NULL)) {
+		DEB(printf("can't add root feeder\n"));
 		return EINVAL;
+	}
 	c->feeder->desc->out = c->format;
 
 	flags = c->feederflags;
-	src = c->feeder->desc->out;
-	if ((c->flags & CHN_F_MAPPED) && (flags != 0))
+
+	if ((c->flags & CHN_F_MAPPED) && (flags != 0)) {
+		DEB(printf("can't build feeder chain on mapped channel\n"));
 		return EINVAL;
-	DEB(printf("not mapped, flags %x, ", flags));
+	}
+	DEB(printf("not mapped, flags %x\n", flags));
+
 	for (type = FEEDER_RATE; type <= FEEDER_LAST; type++) {
 		if (flags & (1 << type)) {
 			desc.type = type;
@@ -985,33 +987,38 @@ chn_buildfeeder(struct pcm_channel *c)
 			DEB(printf("find feeder type %d, ", type));
 			fc = feeder_getclass(&desc);
 			DEB(printf("got %p\n", fc));
-			if (fc == NULL)
+			if (fc == NULL) {
+				DEB(printf("can't find required feeder type %d\n", type));
 				return EINVAL;
-			dst = fc->desc->in;
-			if (src != dst) {
- 				DEB(printf("build fmtchain from %x to %x: ", src, dst));
-				tmp[0] = dst;
+			}
+
+			if (c->feeder->desc->out != fc->desc->in) {
+ 				DEB(printf("build fmtchain from %x to %x: ", c->feeder->desc->out, fc->desc->in));
+				tmp[0] = fc->desc->in;
 				tmp[1] = 0;
-				if (chn_fmtchain(c, tmp) == 0)
+				if (chn_fmtchain(c, tmp) == 0) {
+					DEB(printf("failed\n"));
 					return EINVAL;
+				}
  				DEB(printf("ok\n"));
 			}
-			if (chn_addfeeder(c, fc, fc->desc))
+
+			if (chn_addfeeder(c, fc, fc->desc)) {
+				DEB(printf("can't add feeder %p, output %x\n", fc, fc->desc->out));
 				return EINVAL;
-			src = fc->desc->out;
-			DEB(printf("added feeder %p, output %x\n", fc, src));
-			dst = 0;
-			flags &= ~(1 << type);
+			}
+			DEB(printf("added feeder %p, output %x\n", fc, c->feeder->desc->out));
 		}
 	}
-	if (!fmtvalid(src, chn_getcaps(c)->fmtlist)) {
-		if (chn_fmtchain(c, chn_getcaps(c)->fmtlist) == 0)
+
+	if (!fmtvalid(c->feeder->desc->out, chn_getcaps(c)->fmtlist)) {
+		if (chn_fmtchain(c, chn_getcaps(c)->fmtlist) == 0) {
+			DEB(printf("can't build fmtchain from %x\n", c->feeder->desc->out));
 			return EINVAL;
-		DEB(printf("built fmtchain from %x to %x\n", src, c->feeder->desc->out));
-		flags &= ~(1 << FEEDER_FMT);
+		}
+		DEB(printf("built fmtchain from %x\n", c->feeder->desc->out));
 	}
+
 	return 0;
 }
-
-
 

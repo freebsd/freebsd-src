@@ -33,19 +33,20 @@ struct pcm_feederdesc {
 	int idx;
 };
 
-struct pcm_feeder {
-    	KOBJ_FIELDS;
-	int align;
-	struct pcm_feederdesc *desc;
-	void *data;
-	struct pcm_feeder *source;
-};
-
 struct feeder_class {
 	KOBJ_CLASS_FIELDS;
 	int align;
 	struct pcm_feederdesc *desc;
 	void *data;
+};
+
+struct pcm_feeder {
+    	KOBJ_FIELDS;
+	int align;
+	struct pcm_feederdesc *desc;
+	void *data;
+	struct feeder_class *class;
+	struct pcm_feeder *source;
 };
 
 void feeder_register(void *p);

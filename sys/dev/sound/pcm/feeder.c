@@ -69,6 +69,7 @@ feeder_register(void *p)
 
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
+		printf("adding feeder %s, %x -> %x\n", fc->name, fc->desc[i].in, fc->desc[i].out);
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		fte->feederclass = fc;
 		fte->desc = &fc->desc[i];
@@ -132,8 +133,10 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 	}
 	f->data = fc->data;
 	f->source = NULL;
+	f->class = fc;
 	err = FEEDER_INIT(f);
 	if (err) {
+		printf("feeder_init(%p) on %s returned %d\n", f, fc->name, err);
 		feeder_destroy(f);
 		return NULL;
 	} else
@@ -230,9 +233,8 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 {
 	struct feedertab_entry *fte;
 	struct pcm_feeder *try, *ret;
-	struct pcm_feederdesc trydesc;
 
-	/* printf("trying %s...\n", source->name); */
+	/* printf("trying %s (%x -> %x)...\n", source->class->name, source->desc->in, source->desc->out); */
 	if (fmtvalid(source->desc->out, to)) {
 		/* printf("got it\n"); */
 		return source;
@@ -241,27 +243,24 @@ feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *sto
 	if (maxdepth < 0)
 		return NULL;
 
-	trydesc.type = FEEDER_FMT;
-	trydesc.in = source->desc->out;
-	trydesc.out = 0;
-	trydesc.flags = 0;
-	trydesc.idx = -1;
-
 	SLIST_FOREACH(fte, &feedertab, link) {
-		if ((fte->desc) && (fte->desc->in == source->desc->out)) {
-			trydesc.out = fte->desc->out;
-			trydesc.idx = fte->idx;
-			try = feeder_create(fte->feederclass, &trydesc);
-			if (try == NULL)
-				return NULL;
-			try->source = source;
-			ret = chainok(try, stop)? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
-			if (ret != NULL)
-				return ret;
-			feeder_destroy(try);
+		if (fte->desc == NULL)
+			goto no;
+		if (fte->desc->type != FEEDER_FMT)
+			goto no;
+		if (fte->desc->in == source->desc->out) {
+			try = feeder_create(fte->feederclass, fte->desc);
+			if (try) {
+				try->source = source;
+				ret = chainok(try, stop)? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
+				if (ret != NULL)
+					return ret;
+				feeder_destroy(try);
+			}
 		}
+no:
 	}
-	/* printf("giving up %s...\n", source->name); */
+	/* printf("giving up %s...\n", source->class->name); */
 	return NULL;
 }
 
@@ -287,7 +286,7 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 #endif
 	while (try && (try != stop)) {
 #ifdef FEEDER_DEBUG
-		printf("%s [%d]", try->name, try->desc->idx);
+		printf("%s [%d]", try->class->name, try->desc->idx);
 		if (try->source)
 			printf(" -> ");
 #endif
@@ -298,7 +297,7 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 		try = try->source;
 	}
 #ifdef FEEDER_DEBUG
-	printf("%s [%d]\n", try->name, try->desc->idx);
+	printf("%s [%d]\n", try->class->name, try->desc->idx);
 #endif
 	return c->feeder->desc->out;
 }
