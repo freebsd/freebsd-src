@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: cp.c,v 1.19 1999/05/08 10:19:27 kris Exp $";
+	"$Id: cp.c,v 1.20 1999/07/10 05:46:44 kris Exp $";
 #endif /* not lint */
 
 /*
@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -82,7 +83,7 @@ static const char rcsid[] =
 PATH_T to = { to.p_path, "", "" };
 
 uid_t myuid;
-int Rflag, iflag, pflag, rflag, fflag;
+int Rflag, iflag, pflag, rflag, fflag, vflag;
 int myumask;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
@@ -101,7 +102,7 @@ main(argc, argv)
 	char *target;
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfipr")) != -1)
+	while ((ch = getopt(argc, argv, "HLPRfiprv")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -131,6 +132,9 @@ main(argc, argv)
 			break;
 		case 'r':
 			rflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
 			break;
 		default:
 			usage();
@@ -374,6 +378,8 @@ copy(argv, type, fts_options)
 				if (mkdir(to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
 					err(1, "%s", to.p_path);
+				if (vflag)
+					printf("%s -> %s\n", curr->fts_path, to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
 				err(1, "%s", to.p_path);
