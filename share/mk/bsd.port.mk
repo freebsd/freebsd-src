@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.25 1997/04/15 08:38:36 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.26 1997/04/21 00:25:45 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -200,12 +200,8 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #
 # ECHO_MSG		- Used to print all the '===>' style prompts - override this
 #				  to turn them off (default: /bin/echo).
-# IS_DEPENDED_TARGET -
-#				  The target to execute when a port is called as a
-#				  dependency (default: install).  E.g., "make fetch
-#				  IS_DEPENDED_TARGET=fetch" will fetch all the distfiles,
-#				  including those of dependencies, without actually building
-#				  any of them).
+# DEPENDS_TARGET - The target to execute when a port is calling a
+#				  dependency (default: "install").
 # PATCH_DEBUG	- If set, print out more information about the patches as
 #				  it attempts to apply them.
 #
@@ -485,28 +481,36 @@ INSTALL_TARGET?=	install
 
 # Popular master sites
 MASTER_SITE_XCONTRIB+=	\
-	ftp://crl.dec.com/pub/X11/contrib/${MASTER_SITE_SUBDIR}/ \
-    ftp://ftp.eu.net/X11/contrib/${MASTER_SITE_SUBDIR}/
+	ftp://crl.dec.com/pub/X11/contrib/%SUBDIR%/ \
+    ftp://ftp.eu.net/X11/contrib/%SUBDIR%/
 
 MASTER_SITE_GNU+=	\
-	ftp://prep.ai.mit.edu/pub/gnu/${MASTER_SITE_SUBDIR}/ \
-	ftp://wuarchive.wustl.edu/systems/gnu/${MASTER_SITE_SUBDIR}/
+	ftp://prep.ai.mit.edu/pub/gnu/%SUBDIR%/ \
+	ftp://wuarchive.wustl.edu/systems/gnu/%SUBDIR%/
 
 MASTER_SITE_PERL_CPAN+=	\
-	ftp://ftp.digital.com/pub/plan/perl/CPAN/modules/by-module/${MASTER_SITE_SUBDIR}/ \
-	ftp://ftp.cdrom.com/pub/perl/CPAN/modules/by-module/${MASTER_SITE_SUBDIR}/
+	ftp://ftp.digital.com/pub/plan/perl/CPAN/modules/by-module/%SUBDIR%/ \
+	ftp://ftp.cdrom.com/pub/perl/CPAN/modules/by-module/%SUBDIR%/
 
 MASTER_SITE_TEX_CTAN+=  \
-        ftp://ftp.cdrom.com/pub/tex/ctan/${MASTER_SITE_SUBDIR}/  \
-        ftp://wuarchive.wustl.edu/packages/TeX/${MASTER_SITE_SUBDIR}/  \
-        ftp://ftp.funet.fi/pub/TeX/CTAN/${MASTER_SITE_SUBDIR}/  \
-        ftp://ftp.tex.ac.uk/public/ctan/tex-archive/${MASTER_SITE_SUBDIR}/  \
-        ftp://ftp.dante.de/tex-archive/${MASTER_SITE_SUBDIR}/
+        ftp://ftp.cdrom.com/pub/tex/ctan/%SUBDIR%/  \
+        ftp://wuarchive.wustl.edu/packages/TeX/%SUBDIR%/  \
+        ftp://ftp.funet.fi/pub/TeX/CTAN/%SUBDIR%/  \
+        ftp://ftp.tex.ac.uk/public/ctan/tex-archive/%SUBDIR%/  \
+        ftp://ftp.dante.de/tex-archive/%SUBDIR%/
 
 MASTER_SITE_SUNSITE+=	\
-	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
-	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/${MASTER_SITE_SUBDIR}/ \
-	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
+	ftp://sunsite.unc.edu/pub/Linux/%SUBDIR%/ \
+	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/%SUBDIR%/ \
+	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/%SUBDIR%/
+
+# Empty declaration to avoid "variable MASTER_SITES recursive" error
+MASTER_SITES?=
+PATCH_SITES?=
+
+# Substitute subdirectory names
+MASTER_SITES:=	${MASTER_SITES:S/%SUBDIR%/${MASTER_SITE_SUBDIR}/}
+PATCH_SITES:=	${PATCH_SITES:S/%SUBDIR%/${PATCH_SITE_SUBDIR}/}
 
 # The primary backup site.
 MASTER_SITE_BACKUP?=	\
@@ -517,9 +521,10 @@ MASTER_SITE_BACKUP?=	\
 MASTER_SITE_OVERRIDE=  ${MASTER_SITE_BACKUP}
 .endif
 
-# Empty declaration to avoid "variable MASTER_SITES recursive" error
-MASTER_SITES?=
-PATCH_SITES?=
+# Where to put distfiles that don't have any other master site
+MASTER_SITE_LOCAL?= \
+	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/LOCAL_PORTS/
+
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
@@ -729,12 +734,8 @@ all:
 all: build
 .endif
 
-.if !defined(IS_DEPENDED_TARGET)
-IS_DEPENDED_TARGET=	install
-.endif
-
-.if !target(is_depended)
-is_depended:	${IS_DEPENDED_TARGET}
+.if !defined(DEPENDS_TARGET)
+DEPENDS_TARGET=	install
 .endif
 
 ################################################################
@@ -1434,11 +1435,11 @@ _DEPENDS_USE:	.USE
 			fi; \
 		fi; \
 		if [ $$notfound != 0 ]; then \
-			${ECHO_MSG} "===>  Verifying build for $$prog in $$dir"; \
+			${ECHO_MSG} "===>  Verifying ${DEPENDS_TARGET} for $$prog in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$prog.  Skipping.."; \
 			else \
-				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
+				(cd $$dir; ${MAKE} ${.MAKEFLAGS} ${DEPENDS_TARGET}) ; \
 				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
@@ -1469,11 +1470,11 @@ lib-depends:
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - not found"; \
-			${ECHO_MSG} "===>  Verifying build for $$lib in $$dir"; \
+			${ECHO_MSG} "===>  Verifying ${DEPENDS_TARGET} for $$lib in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
 				${ECHO_MSG} ">> No directory for $$lib.  Skipping.."; \
 			else \
-				(cd $$dir; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
+				(cd $$dir; ${MAKE} ${.MAKEFLAGS} ${DEPENDS_TARGET}) ; \
 				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
@@ -1488,11 +1489,11 @@ misc-depends:
 	@${ECHO_MSG} "===>  ${PKGNAME} depends on:  ${DEPENDS}"
 .if !defined(NO_DEPENDS)
 	@for i in ${DEPENDS}; do \
-		${ECHO_MSG} "===>  Verifying build for $$i"; \
+		${ECHO_MSG} "===>  Verifying ${DEPENDS_TARGET} for $$i"; \
 		if [ ! -d $$i ]; then \
 			${ECHO_MSG} ">> No directory for $$i.  Skipping.."; \
 		else \
-			(cd $$i; ${MAKE} ${.MAKEFLAGS} is_depended) ; \
+			(cd $$i; ${MAKE} ${.MAKEFLAGS} ${DEPENDS_TARGET}) ; \
 		fi \
 	done
 	@${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"
@@ -1546,23 +1547,29 @@ depends-list:
 #
 .if !target(describe)
 describe:
-	@${ECHO} -n "${PKGNAME}|${.CURDIR}|"
-	@${ECHO} -n "${PREFIX}|"
-	@if [ -f ${COMMENT} ]; then \
+	@${ECHO} -n "${PKGNAME}|${.CURDIR}|"; \
+	${ECHO} -n "${PREFIX}|"; \
+	if [ -f ${COMMENT} ]; then \
 		${ECHO} -n "`${CAT} ${COMMENT}`"; \
 	else \
 		${ECHO} -n "** No Description"; \
-	fi
-	@if [ -f ${DESCR} ]; then \
+	fi; \
+	if [ -f ${DESCR} ]; then \
 		${ECHO} -n "|${DESCR}"; \
 	else \
 		${ECHO} -n "|/dev/null"; \
-	fi
-	@${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|"
-	@cd ${.CURDIR} && ${ECHO} -n `make depends-list|sort -u`
-	@${ECHO} -n "|"
-	@cd ${.CURDIR} && ${ECHO} -n `make package-depends|sort -u`
-	@${ECHO} ""
+	fi; \
+	${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|"; \
+	case "A${FETCH_DEPENDS}B${BUILD_DEPENDS}C${LIB_DEPENDS}D${DEPENDS}E" in \
+		ABCDE) ;; \
+		*) cd ${.CURDIR} && ${ECHO} -n `make depends-list|sort -u`;; \
+	esac; \
+	${ECHO} -n "|"; \
+	case "A${RUN_DEPENDS}B${LIB_DEPENDS}C${DEPENDS}D" in \
+		ABCD) ;; \
+		*) cd ${.CURDIR} && ${ECHO} -n `make package-depends|sort -u`;; \
+	esac; \
+	${ECHO} ""
 .endif
 
 .if !target(readmes)
