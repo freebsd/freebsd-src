@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_conv.3#3 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_conv.3#4 $
 .\"
 .Dd May 27, 2002
 .Dt PAM_CONV 3
@@ -77,9 +77,9 @@ The conversation function's first argument specifies the number of
 messages (up to
 .Dv PAM_NUM_MSG )
 to process.
-The second argument is a pointer to a contiguous array of
-.Vt struct pam_message
-containing the actual messages.
+The second argument is a pointer to an array of pointers to
+.Vt pam_message
+structures containing the actual messages.
 .Pp
 Each message can have one of four types, specified by the
 .Va msg_style

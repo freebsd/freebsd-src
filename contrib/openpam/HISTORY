@@ -1,3 +1,12 @@
+OpenPAM Eelgrass						2004-02-10
+
+ - BUGFIX: Correct array handling bugs in conversation code.
+
+ - BUGFIX: In openpam_ttyconv(3), don't strip trailing linear
+   whitespace from the user's response.
+
+ - BUGFIX: Many constness issues addressed.
+============================================================================
 OpenPAM Dogwood							2003-07-15
 
  - ENHANCE: Use the GNU autotools.
@@ -263,4 +272,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#21 $
+$P4: //depot/projects/openpam/HISTORY#22 $

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_user.c#18 $
+ * $P4: //depot/projects/openpam/lib/pam_get_user.c#19 $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@ pam_get_user(pam_handle_t *pamh,
 	const char **user,
 	const char *prompt)
 {
+	const void *promptp;
 	char *resp;
 	int r;
 
@@ -67,9 +68,11 @@ pam_get_user(pam_handle_t *pamh,
 	if (r == PAM_SUCCESS && *user != NULL)
 		RETURNC(PAM_SUCCESS);
 	if (prompt == NULL) {
-		r = pam_get_item(pamh, PAM_USER_PROMPT, (const void **)&prompt);
-		if (r != PAM_SUCCESS || prompt == NULL)
+		r = pam_get_item(pamh, PAM_USER_PROMPT, &promptp);
+		if (r != PAM_SUCCESS || promptp == NULL)
 			prompt = user_prompt;
+		else
+			prompt = promptp;
 	}
 	r = pam_prompt(pamh, PAM_PROMPT_ECHO_ON, &resp, "%s", prompt);
 	if (r != PAM_SUCCESS)
