@@ -546,10 +546,13 @@ sound_mem_init (void)
 	  if (sound_buffsizes[dev] > 65536)	/* Larger is not possible (yet) */
 	    sound_buffsizes[dev] = 65536;
 
+#if 0
 	  if (sound_dsp_dmachan[dev] > 3 && sound_buffsizes[dev] > 65536)
 	    dma_pagesize = 131072;	/* 128k */
 	  else
-	    dma_pagesize = /* 65536; */ 4096;	/* Be conservative for now! */
+	    dma_pagesize = 65536;
+#endif
+	  dma_pagesize = 4096;          /* use bounce buffer */
 
 	  /* More sanity checks */
 
