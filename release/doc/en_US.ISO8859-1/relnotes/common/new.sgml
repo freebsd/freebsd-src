@@ -3199,6 +3199,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.wc.1; now supports a <option>-m</option> flag to
       count characters, rather than bytes.</para>
 
+    <para>&man.whereis.1;, formerly a Perl script, has been
+      rewritten in C.  It now supports a <option>-x</option> flag to
+      suppress the run of &man.locate.1;, and a <option>-q</option>
+      flag suppresses the leading name of the query.</para>
+
     <para>&man.which.1; is now a C program, rather than a Perl
       script.</para>
 
@@ -3494,11 +3499,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para role="historic">The timezone database has been updated to the
 	<filename>tzdata2002c</filename> release. &merged;</para>
-
-      <para>&man.whereis.1;, formerly a Perl script, has been
-        rewritten in C.  It now supports a <option>-x</option> flag to
-        suppress the run of &man.locate.1;, and a <option>-q</option>
-        flag suppresses the leading name of the query.</para>
 
       <sect4>
 	<title>CVS</title>
