@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.87 1999/03/16 12:06:11 luigi Exp $
+ *	$Id: ip_output.c,v 1.88 1999/04/20 13:32:06 peter Exp $
  */
 
 #define _IP_VHL
@@ -451,7 +451,7 @@ sendit:
                      * XXX note: if the ifp or ro entry are deleted
                      * while a pkt is in dummynet, we are in trouble!
                      */ 
-                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,hlen,rule);
+                    dummynet_io(off & 0xffff, DN_TO_IP_OUT, m,ifp,ro,dst,rule);
 			goto done;
 		}
 #endif   
