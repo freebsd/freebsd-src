@@ -65,10 +65,10 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
-int	ffs_fsync __P((struct vop_fsync_args *));
-static int	ffs_getpages __P((struct vop_getpages_args *));
-static int	ffs_read __P((struct vop_read_args *));
-static int	ffs_write __P((struct vop_write_args *));
+int	ffs_fsync(struct vop_fsync_args *);
+static int	ffs_getpages(struct vop_getpages_args *);
+static int	ffs_read(struct vop_read_args *);
+static int	ffs_write(struct vop_write_args *);
 
 /* Global vfs data structures for ufs. */
 vop_t **ffs_vnodeop_p;

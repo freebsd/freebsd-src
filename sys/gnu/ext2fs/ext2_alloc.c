@@ -60,7 +60,7 @@
 #include <gnu/ext2fs/fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
 
-static void	ext2_fserr __P((struct ext2_sb_info *, u_int, char *));
+static void	ext2_fserr(struct ext2_sb_info *, u_int, char *);
 
 /*
  * Linux calls this functions at the following locations:
