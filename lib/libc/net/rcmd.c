@@ -127,14 +127,18 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	for (timo = 1, lport = IPPORT_RESERVED - 1;;) {
 		s = rresvport_af(&lport, ai->ai_family);
 		if (s < 0) {
+			if (errno != EAGAIN && ai->ai_next) {
+				ai = ai->ai_next;
+				continue;
+			}
 			if (errno == EAGAIN)
 				(void)fprintf(stderr,
 				    "rcmd: socket: All ports in use\n");
 			else
 				(void)fprintf(stderr, "rcmd: socket: %s\n",
 				    strerror(errno));
-			sigsetmask(oldmask);
 			freeaddrinfo(res);
+			sigsetmask(oldmask);
 			return (-1);
 		}
 		_fcntl(s, F_SETOWN, pid);
