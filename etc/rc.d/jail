@@ -138,13 +138,15 @@ jail_stop()
 	for _jail in ${jail_list}
 	do
 		init_variables $_jail
+		if checkyesno jail_fdescfs; then
+			if [ -d ${jail_fdescdir} ] ; then
+				umount -f ${jail_fdescdir} >/dev/null 2>&1
+			fi
+		fi
 		if checkyesno jail_devfs; then
 			if [ -d ${jail_devdir} ] ; then
 				umount -f ${jail_devdir} >/dev/null 2>&1
 			fi
-		fi
-		if checkyesno jail_fdescfs; then
-			umount -f ${jail_fdescdir} >/dev/null 2>&1
 		fi
 		if checkyesno jail_procfs; then
 			if [ -d ${jail_procdir} ] ; then
