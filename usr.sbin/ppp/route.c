@@ -314,7 +314,7 @@ Index2Nam(int idx)
     for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
       ifm = (struct if_msghdr *)ptr;
       if (ifm->ifm_type != RTM_IFINFO)
-        break;
+        continue;
       dl = (struct sockaddr_dl *)(ifm + 1);
       if (ifm->ifm_index > 0) {
         if (ifm->ifm_index > have) {
