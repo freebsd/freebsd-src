@@ -1,10 +1,32 @@
 /*
- * Copyright 1994, Massachusetts Institute of Technology.  All Rights Reserved.
+ * Copyright 1994, 1995 Massachusetts Institute of Technology
  *
- * You may copy this file verbatim until I find the official 
- * Institute boilerplate.
+ * Permission to use, copy, modify, and distribute this software and
+ * its documentation for any purpose and without fee is hereby
+ * granted, provided that both the above copyright notice and this
+ * permission notice appear in all copies, that both the above
+ * copyright notice and this permission notice appear in all
+ * supporting documentation, and that the name of M.I.T. not be used
+ * in advertising or publicity pertaining to distribution of the
+ * software without specific, written prior permission.  M.I.T. makes
+ * no representations about the suitability of this software for any
+ * purpose.  It is provided "as is" without express or implied
+ * warranty.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
+ * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT
+ * SHALL M.I.T. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.7 1994/12/21 17:25:52 wollman Exp $
+ * $Id: in_rmx.c,v 1.8 1995/01/23 02:02:50 wollman Exp $
  */
 
 /*
@@ -79,8 +101,9 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-#define RTQ_REALLYOLD	60*60	/* one hour is ``really old'' */
-int rtq_reallyold = RTQ_REALLYOLD;
+int rtq_reallyold = 60*60;	/* one hour is ``really old'' */
+int rtq_toomany = 128;		/* 128 cached routes is ``too many'' */
+int rtq_minreallyold = 10;	/* never automatically crank down to less */
 
 /*
  * On last reference drop, mark the route as belong to us so that it can be
@@ -101,8 +124,20 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	   != RTF_WASCLONED)
 		return;
 
-	rt->rt_flags |= RTPRF_OURS;
-	rt->rt_rmx.rmx_expire = time.tv_sec + rtq_reallyold;
+	/*
+	 * As requested by David Greenman:
+	 * If rtq_reallyold is 0, just delete the route without
+	 * waiting for a timeout cycle to kill it.
+	 */
+	if(rtq_reallyold != 0) {
+		rt->rt_flags |= RTPRF_OURS;
+		rt->rt_rmx.rmx_expire = time.tv_sec + rtq_reallyold;
+	} else {
+		rtrequest(RTM_DELETE,
+			  (struct sockaddr *)rt_key(rt),
+			  rt->rt_gateway, rt_mask(rt),
+			  rt->rt_flags, 0);
+	}
 }
 
 struct rtqk_arg {
@@ -128,7 +163,8 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	if(rt->rt_flags & RTPRF_OURS) {
 		ap->found++;
 
-		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec) {
+		if(ap->draining || rt->rt_rmx.rmx_expire <= time.tv_sec
+		   || (rt->rt_rmx.rmx_expire - time.tv_sec > rtq_reallyold)) {
 			if(rt->rt_refcnt > 0)
 				panic("rtqkill route really not free\n");
 
@@ -150,7 +186,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 	return 0;
 }
 
-#define RTQ_TIMEOUT	600	/* run no less than once every ten minutes */
+#define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
 int rtq_timeout = RTQ_TIMEOUT;
 
 static void
@@ -159,6 +195,7 @@ in_rtqtimo(void *rock)
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
 	struct timeval atv;
+	static time_t last_adjusted_timeout = 0;
 	int s;
 
 	arg.found = arg.killed = 0;
@@ -168,6 +205,32 @@ in_rtqtimo(void *rock)
 	s = splnet();
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
 	splx(s);
+
+	/*
+	 * Attempt to be somewhat dynamic about this:
+	 * If there are ``too many'' routes sitting around taking up space,
+	 * then crank down the timeout, and see if we can't make some more
+	 * go away.  However, we make sure that we will never adjust more
+	 * than once in rtq_timeout seconds, to keep from cranking down too
+	 * hard.
+	 */
+	if((arg.found - arg.killed > rtq_toomany)
+	   && (time.tv_sec - last_adjusted_timeout >= rtq_timeout)
+	   && rtq_reallyold > rtq_minreallyold) {
+		rtq_reallyold = 2*rtq_reallyold / 3;
+		if(rtq_reallyold < rtq_minreallyold) {
+			rtq_reallyold = rtq_minreallyold;
+		}
+
+		last_adjusted_timeout = time.tv_sec;
+		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d",
+		    rtq_reallyold);
+		arg.found = arg.killed = 0;
+		s = splnet();
+		rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+		splx(s);
+	}
+
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop;
 	timeout(in_rtqtimo, rock, hzto(&atv));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.5 1994/12/14 19:06:36 wollman Exp $
+ * $Id: in.h,v 1.6 1994/12/21 17:23:59 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -227,7 +227,9 @@ struct ip_mreq {
 #define	IPCTL_DEFMTU		4	/* default MTU */
 #endif
 #define IPCTL_RTEXPIRE		5	/* cloned route expiration time */
-#define	IPCTL_MAXID		6
+#define IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
+#define IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
+#define	IPCTL_MAXID		8
 
 #define	IPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -236,6 +238,8 @@ struct ip_mreq {
 	{ "ttl", CTLTYPE_INT }, \
 	{ "mtu", CTLTYPE_INT }, \
 	{ "rtexpire", CTLTYPE_INT }, \
+	{ "rtminexpire", CTLTYPE_INT }, \
+	{ "rtmaxcache", CTLTYPE_INT }, \
 }
 
 

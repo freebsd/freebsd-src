@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.15 1995/01/12 13:06:30 ugen Exp $
+ * $Id: ip_input.c,v 1.16 1995/02/07 20:30:42 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -1188,6 +1188,8 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	size_t newlen;
 {
 	extern int rtq_reallyold;	/* XXX */
+	extern int rtq_minreallyold; /* XXX */
+	extern int rtq_toomany;	/* XXX */
 
 	/* All sysctl names at this level are terminal. */
 	if (namelen != 1)
@@ -1206,7 +1208,14 @@ ip_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &ip_mtu));
 #endif
 	case IPCTL_RTEXPIRE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &rtq_reallyold));
+		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+				   &rtq_reallyold));
+	case IPCTL_RTMINEXPIRE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, 
+				   &rtq_minreallyold));
+	case IPCTL_RTMAXCACHE:
+		return (sysctl_int(oldp, oldlenp, newp, newlen,
+				   &rtq_toomany));
 	default:
 		return (EOPNOTSUPP);
 	}
