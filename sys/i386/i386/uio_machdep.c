@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sf_buf.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -84,7 +85,8 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			cnt = n;
 		page_offset = offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - page_offset);
-		sf = sf_buf_alloc(ma[offset >> PAGE_SHIFT], 0);
+		sched_pin();
+		sf = sf_buf_alloc(ma[offset >> PAGE_SHIFT], SFB_CPUPRIVATE);
 		cp = (char *)sf_buf_kva(sf) + page_offset;
 		switch (uio->uio_segflg) {
 		case UIO_USERSPACE:
@@ -96,6 +98,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error) {
 				sf_buf_free(sf);
+				sched_unpin();
 				goto out;
 			}
 			break;
@@ -109,6 +112,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			break;
 		}
 		sf_buf_free(sf);
+		sched_unpin();
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
