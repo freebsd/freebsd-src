@@ -68,6 +68,12 @@ test write, dont actually wirte on the media.
 may be one of:
 .Pp
 .Bl -tag -width XXXXXXXXXXXX
+.It Ar msinfo
+Show the first LBA of the last track on the media 
+and the next writeable address on the media for use with
+.Xr mkisofs 1
+.Ar -msinfo
+switch when adding additional data to ISO filesystems with extra sessions.
 .It Ar blank
 Blank a CD-RW medium.
 This uses the fast blanking method, so data are not physically overwritten, only those areas that make the media appear blank for further usage.
