@@ -101,6 +101,24 @@ static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 
 static int ehci_pci_attach(device_t self);
 static int ehci_pci_detach(device_t self);
+static int ehci_pci_shutdown(device_t self);
+static void ehci_pci_givecontroller(device_t self);
+static void ehci_pci_takecontroller(device_t self);
+
+static int
+ehci_pci_shutdown(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	int err;
+
+	err = bus_generic_shutdown(self);
+	if (err)
+		return (err);
+	ehci_shutdown(sc);
+	ehci_pci_givecontroller(self);
+
+	return 0;
+}
 
 static const char *
 ehci_pci_match(device_t self)
@@ -276,6 +294,7 @@ ehci_pci_attach(device_t self)
 	}
 	sc->sc_ncomp = ncomp;
 
+	ehci_pci_takecontroller(self);
 	err = ehci_init(sc);
 	if (!err)
 		err = device_probe_and_attach(sc->sc_bus.bdev);
@@ -332,11 +351,62 @@ ehci_pci_detach(device_t self)
 	return 0;
 }
 
+static void
+ehci_pci_takecontroller(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	u_int32_t cparams, eec, legsup;
+	int eecp, i;
+
+	cparams = EREAD4(sc, EHCI_HCCPARAMS);
+
+	/* Synchronise with the BIOS if it owns the controller. */
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
+			continue;
+		legsup = eec;
+		pci_write_config(self, eecp, legsup | EHCI_LEGSUP_OSOWNED, 4);
+		if (legsup & EHCI_LEGSUP_BIOSOWNED) {
+			printf("%s: waiting for BIOS to give up control\n",
+			    USBDEVNAME(sc->sc_bus.bdev));
+			for (i = 0; i < 5000; i++) {
+				legsup = pci_read_config(self, eecp, 4);
+				if ((legsup & EHCI_LEGSUP_BIOSOWNED) == 0)
+					break;
+				DELAY(1000);
+			}
+			if (legsup & EHCI_LEGSUP_BIOSOWNED)
+				printf("%s: timed out waiting for BIOS\n",
+				    USBDEVNAME(sc->sc_bus.bdev));
+		}
+	}
+}
+
+static void
+ehci_pci_givecontroller(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	u_int32_t cparams, eec, legsup;
+	int eecp;
+
+	cparams = EREAD4(sc, EHCI_HCCPARAMS);
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
+			continue;
+		legsup = eec;
+		pci_write_config(self, eecp, legsup & ~EHCI_LEGSUP_OSOWNED, 4);
+	}
+}
+
 static device_method_t ehci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ehci_pci_probe),
 	DEVMETHOD(device_attach, ehci_pci_attach),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_shutdown, ehci_pci_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),

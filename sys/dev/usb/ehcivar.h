@@ -165,6 +165,7 @@ int		ehci_intr(void *);
 int		ehci_detach(ehci_softc_t *, int);
 int		ehci_activate(device_ptr_t, enum devact);
 #endif
+void		ehci_shutdown(void *v);
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 
