@@ -240,7 +240,12 @@ SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
 /* Hook for calling soft updates */
 int (*softdep_process_worklist_hook)(struct mount *);
 
-#ifdef DEBUG_VFS_LOCKS
+/*
+ * This only exists to supress warnings from unlocked specfs accesses.  It is
+ * no longer ok to have an unlocked VFS.
+ */
+#define IGNORE_LOCK(vp) ((vp)->v_type == VCHR || (vp)->v_type == VBAD)
+
 /* Print lock violations */
 int vfs_badlock_print = 1;
 
@@ -250,16 +255,79 @@ int vfs_badlock_panic = 1;
 /* Check for interlock across VOPs */
 int vfs_badlock_mutex = 1;
 
+static void
+vfs_badlock(char *msg, char *str, struct vnode *vp)
+{
+	if (vfs_badlock_print)
+		printf("%s: %p %s\n", str, vp, msg);
+	if (vfs_badlock_panic)
+		Debugger("Lock violation.\n");
+}
+
+void
+assert_vi_unlocked(struct vnode *vp, char *str)
+{ 
+	if (vfs_badlock_mutex && mtx_owned(VI_MTX(vp)))
+		vfs_badlock("interlock is locked but should not be", str, vp);
+}
+
+void
+assert_vi_locked(struct vnode *vp, char *str)
+{
+	if (vfs_badlock_mutex && !mtx_owned(VI_MTX(vp)))
+		vfs_badlock("interlock is not locked but should be", str, vp);
+}
+
+void
+assert_vop_locked(struct vnode *vp, char *str)
+{
+	if (vp && !IGNORE_LOCK(vp) && !VOP_ISLOCKED(vp, NULL))
+		vfs_badlock("is not locked but should be", str, vp);
+}
+
+void
+assert_vop_unlocked(struct vnode *vp, char *str)
+{
+	if (vp && !IGNORE_LOCK(vp) &&
+	    VOP_ISLOCKED(vp, curthread) == LK_EXCLUSIVE)
+		vfs_badlock("is locked but should not be", str, vp);
+}
+
+void
+assert_vop_elocked(struct vnode *vp, char *str)
+{
+	if (vp && !IGNORE_LOCK(vp) &&
+	    VOP_ISLOCKED(vp, curthread) != LK_EXCLUSIVE)
+		vfs_badlock("is not exclusive locked but should be", str, vp);
+}
+
+void
+assert_vop_elocked_other(struct vnode *vp, char *str)
+{
+	if (vp && !IGNORE_LOCK(vp) &&
+	    VOP_ISLOCKED(vp, curthread) != LK_EXCLOTHER)
+		vfs_badlock("is not exclusive locked by another thread",
+		    str, vp);
+}
+
+void
+assert_vop_slocked(struct vnode *vp, char *str)
+{
+	if (vp && !IGNORE_LOCK(vp) &&
+	    VOP_ISLOCKED(vp, curthread) != LK_SHARED)
+		vfs_badlock("is not locked shared but should be", str, vp);
+}
+
 void
 vop_rename_pre(void *ap)
 {
 	struct vop_rename_args *a = ap;
 
 	if (a->a_tvp)
-		ASSERT_VI_UNLOCKED(a->a_tvp);
-	ASSERT_VI_UNLOCKED(a->a_tdvp);
-	ASSERT_VI_UNLOCKED(a->a_fvp);
-	ASSERT_VI_UNLOCKED(a->a_fdvp);
+		ASSERT_VI_UNLOCKED(a->a_tvp, "VOP_RENAME");
+	ASSERT_VI_UNLOCKED(a->a_tdvp, "VOP_RENAME");
+	ASSERT_VI_UNLOCKED(a->a_fvp, "VOP_RENAME");
+	ASSERT_VI_UNLOCKED(a->a_fdvp, "VOP_RENAME");
 
 	/* Check the source (from) */
 	if (a->a_tdvp != a->a_fdvp)
@@ -304,7 +372,7 @@ vop_lookup_pre(void *ap)
 
 	dvp = a->a_dvp;
 
-	ASSERT_VI_UNLOCKED(dvp);
+	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
 	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
 }
 
@@ -323,7 +391,7 @@ vop_lookup_post(void *ap, int rc)
 	flags = cnp->cn_flags;
 
 
-	ASSERT_VI_UNLOCKED(dvp);
+	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
 	/*
 	 * If this is the last path component for this lookup and LOCPARENT
 	 * is set, OR if there is an error the directory has to be locked.
@@ -337,11 +405,6 @@ vop_lookup_post(void *ap, int rc)
 
 	if (flags & PDIRUNLOCK)
 		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (PDIRUNLOCK)");
-
-	if (rc == 0) {
-		ASSERT_VI_UNLOCKED(vp);
-		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (vpp)");
-	}
 }
 
 void
@@ -350,7 +413,7 @@ vop_unlock_pre(void *ap)
 	struct vop_unlock_args *a = ap;
 
 	if (a->a_flags & LK_INTERLOCK)
-		ASSERT_VI_LOCKED(a->a_vp);
+		ASSERT_VI_LOCKED(a->a_vp, "VOP_UNLOCK");
 
 	ASSERT_VOP_LOCKED(a->a_vp, "VOP_UNLOCK");
 }
@@ -361,7 +424,7 @@ vop_unlock_post(void *ap, int rc)
 	struct vop_unlock_args *a = ap;
 
 	if (a->a_flags & LK_INTERLOCK)
-		ASSERT_VI_UNLOCKED(a->a_vp);
+		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_UNLOCK");
 }
 
 void
@@ -370,21 +433,21 @@ vop_lock_pre(void *ap)
 	struct vop_lock_args *a = ap;
 
 	if ((a->a_flags & LK_INTERLOCK) == 0)
-		ASSERT_VI_UNLOCKED(a->a_vp);
+		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	else
-		ASSERT_VI_LOCKED(a->a_vp);
+		ASSERT_VI_LOCKED(a->a_vp, "VOP_LOCK");
 }
 
 void
 vop_lock_post(void *ap, int rc)
 {
-	struct vop_lock_args *a = ap;
+	struct vop_lock_args *a;
 
-	ASSERT_VI_UNLOCKED(a->a_vp);
+	a = ap;
+
+	ASSERT_VI_UNLOCKED(a->a_vp, "VOP_LOCK");
 	ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
 }
-
-#endif	/* DEBUG_VFS_LOCKS */
 
 void
 v_addpollinfo(struct vnode *vp)
@@ -1121,7 +1184,7 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 	struct buf *bp, *nbp;
 	int found, error;
 
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "flushbuflist");
 
 	for (found = 0, bp = blist; bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
@@ -1370,7 +1433,7 @@ buf_vlist_remove(struct buf *bp)
 	struct vnode *vp = bp->b_vp;
 	struct buf *root;
 
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "buf_vlist_remove");
 	if (bp->b_xflags & BX_VNDIRTY) {
 		if (bp != vp->v_dirtyblkroot) {
 			root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_dirtyblkroot);
@@ -1414,7 +1477,7 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
 {
 	struct buf *root;
 
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "buf_vlist_add");
 	bp->b_xflags |= xflags;
 	if (xflags & BX_VNDIRTY) {
 		root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_dirtyblkroot);
@@ -1478,7 +1541,7 @@ gbincore(struct vnode *vp, daddr_t lblkno)
 
 	GIANT_REQUIRED;
 
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "gbincore");
 	bp = vp->v_cleanblkroot = buf_splay(lblkno, 0, vp->v_cleanblkroot);
 	if (bp && bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
 		return(bp);
@@ -1561,7 +1624,7 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 	int s, slot;
 
 	s = splbio();
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "vn_syncer_add_to_worklist");
 
 	mtx_lock(&sync_mtx);
 	if (vp->v_iflag & VI_ONWORKLST)
@@ -2383,7 +2446,7 @@ vclean(vp, flags, td)
 {
 	int active;
 
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "vclean");
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
 	 * before we clean it out so that its count cannot fall to zero and
@@ -2584,7 +2647,7 @@ vgonel(vp, td)
 	 * If a vgone (or vclean) is already in progress,
 	 * wait until it is done and return.
 	 */
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "vgonel");
 	if (vp->v_iflag & VI_XLOCK) {
 		vp->v_iflag |= VI_XWANT;
 		msleep(vp, VI_MTX(vp), PINOD | PDROP, "vgone", 0);
@@ -3134,7 +3197,7 @@ vfree(vp)
 {
 	int s;
 
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "vfree");
 	s = splbio();
 	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((vp->v_iflag & VI_FREE) == 0, ("vnode already free"));
@@ -3160,7 +3223,7 @@ vbusy(vp)
 	int s;
 
 	s = splbio();
-	ASSERT_VI_LOCKED(vp);
+	ASSERT_VI_LOCKED(vp, "vbusy");
 	KASSERT((vp->v_iflag & VI_FREE) != 0, ("vnode not free"));
 
 	mtx_lock(&vnode_free_list_mtx);
