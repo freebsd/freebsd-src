@@ -1,25 +1,48 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.4 1995/10/12 23:28:31 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.2.2.2 1995/10/13 03:41:22 davidg Exp $
  *
  *  Digiboard driver.
  *
  *  Stage 1. "Better than nothing".
  *
- *  Based on sio driver by Bruce Evans and on Linux driver by Troy 
- *  De Jongh <troyd@digibd.com> or <troyd@skypoint.com> 
- *  which is under GNU General Public License version 2 so this driver 
+ *  Based on sio driver by Bruce Evans and on Linux driver by Troy
+ *  De Jongh <troyd@digibd.com> or <troyd@skypoint.com>
+ *  which is under GNU General Public License version 2 so this driver
  *  is forced to be under GPL 2 too.
  *
  *  Written by Serge Babkin,
  *      Joint Stock Commercial Bank "Chelindbank"
  *      (Chelyabinsk, Russia)
  *      babkin@hq.icb.chel.su
+ *
+ *  Modified by Oleg Panashchenko
+ *	    helg@tav.kiev.ua
+ *      - read optimization
+ *      - corrections in data flow mechanism
+ *      - restoring board memory window state while returning from
+ *		  reentrable functions
+ *    1996/03/16:
+ *      - now several boards can coexist and share the same memory window
+ *    1996/03/24:
+ *      - eliminated 'b_to_q to a clist..' message while turning off modem 
+ *    1996/04/10
+ *      - 'static int nports'... - next attempt to drive several boards.
+ *        Reported that with this fix it works with 2 boards.
+ *    1996/04/20
+ *      - Overloading channel (ping -f host) caused 'No buffer space..'
+ *        state until slip unit restart. Fixed.
  */
 
 #include "dgb.h"
 
-#if NDGB > 0 
+#if NDGB > 0
 
+/* Helg: i.e.25 times per sec board will be polled */
+#define POLLSPERSEC 25
+/* How many charactes can we write to input tty rawq */
+#define DGB_IBUFSIZE (TTYHOG-100)
+
+/*#define HDEBUG*/
 /* the overall number of ports controlled by this driver */
 
 #ifndef NDGBPORTS
@@ -140,7 +163,7 @@ struct dgb_softc {
 	struct tty *ttys;	/* pointer to array of TTY structures */
 	volatile struct global_data *mailbox;
 	};
-	
+
 
 struct dgb_softc dgb_softc[NDGB];
 struct dgb_p dgb_ports[NDGBPORTS];
@@ -184,6 +207,7 @@ static	void	dgb_drain_or_flush	__P((struct dgb_p *port));
 static	int	dgbdrain	__P((struct dgb_p *port));
 static	void	dgb_pause	__P((void *chan));
 static	void	wakeflush	__P((void *p));
+static	void	disc_optim	__P((struct tty	*tp, struct termios *t));
 
 
 struct isa_driver	dgbdriver = {
@@ -229,32 +253,68 @@ static int setinitwin __P((struct dgb_softc *sc, unsigned addr));
 static void hidewin __P((struct dgb_softc *sc));
 static void towin __P((struct dgb_softc *sc, int win));
 
-static inline int 
+/*Helg: to allow recursive dgb...() calls */
+typedef struct
+  {                 /* If we were called and don't want to disturb we need: */
+	short port,       /* write to this port */
+	      data;       /* this data on exit */
+	                  /* or DATA_WINOFF  to close memory window on entry */
+  } BoardMemWinState; /* so several channels and even boards can coexist */
+#define DATA_WINOFF 0
+static BoardMemWinState bmws;
+
+/* return current memory window state and close window */
+static BoardMemWinState
+bmws_get()
+  {
+	BoardMemWinState bmwsRet=bmws;
+	if(bmws.data!=DATA_WINOFF)
+		{
+		bmws.data=DATA_WINOFF;
+		outb(bmws.port, DATA_WINOFF);
+		}
+	return bmwsRet;
+	}
+
+/* restore memory window state */
+static void
+bmws_set(BoardMemWinState ws)
+{
+	if( ws.data != bmws.data || ws.port!=bmws.port ) {
+		if(bmws.data!=DATA_WINOFF)
+		  outb(bmws.port,DATA_WINOFF);
+		if(ws.data!=DATA_WINOFF)
+			outb(ws.port, ws.data);
+		bmws=ws;
+	}
+}
+
+static inline int
 setwin(sc,addr)
 	struct dgb_softc *sc;
 	unsigned int addr;
 {
 	if(sc->type==PCXEVE) {
-		outb(sc->port+1, FEPWIN|(addr>>13));
+		outb(bmws.port=sc->port+1, bmws.data=(FEPWIN|(addr>>13)));
 		DPRINT3("dgb%d: switched to window 0x%x\n",sc->unit,addr>>13);
 		return (addr & 0x1FFF);
 	} else {
-		outb(sc->port,FEPMEM);
+		outb(bmws.port=sc->port,bmws.data=FEPMEM);
 		return addr;
 	}
 }
 
-static inline int 
+static inline int
 setinitwin(sc,addr)
 	struct dgb_softc *sc;
 	unsigned int addr;
 {
 	if(sc->type==PCXEVE) {
-		outb(sc->port+1, FEPWIN|(addr>>13));
+		outb(bmws.port=sc->port+1, bmws.data=(FEPWIN|(addr>>13)));
 		DPRINT3("dgb%d: switched to window 0x%x\n",sc->unit,addr>>13);
 		return (addr & 0x1FFF);
 	} else {
-		outb(sc->port,inb(sc->port)|FEPMEM);
+		outb(bmws.port=sc->port,bmws.data=(inb(sc->port)|FEPMEM));
 		return addr;
 	}
 }
@@ -264,9 +324,9 @@ hidewin(sc)
 	struct dgb_softc *sc;
 {
 	if(sc->type==PCXEVE)
-		outb(sc->port+1, 0);
+		outb(bmws.port=sc->port+1, bmws.data=0);
 	else
-		outb(sc->port,0);
+		outb(bmws.port=sc->port,bmws.data=0);
 }
 
 static inline void
@@ -275,9 +335,9 @@ towin(sc,win)
 	int win;
 {
 	if(sc->type==PCXEVE) {
-		outb(sc->port+1, win);
+		outb(bmws.port=sc->port+1, bmws.data=win);
 	} else {
-		outb(sc->port,FEPMEM);
+		outb(bmws.port=sc->port,bmws.data=FEPMEM);
 	}
 }
 
@@ -301,8 +361,8 @@ dgbprobe(dev)
 		sc->altpin=0;
 
 	/* left 24 bits only (ISA address) */
-	sc->pmem=((long)dev->id_maddr & 0xFFFFFF); 
-	
+	sc->pmem=((long)dev->id_maddr & 0xFFFFFF);
+
 	DPRINT4("dgb%d: port 0x%x mem 0x%x\n",unit,sc->port,sc->pmem);
 
 	outb(sc->port, FEPRST);
@@ -387,6 +447,7 @@ dgbprobe(dev)
 	dev->id_maddr=sc->vmem=pmap_mapdev(sc->pmem,dev->id_msize);
 
 	outb(sc->port, FEPCLR); /* drop RESET */
+  hidewin(sc); /* Helg: to set initial bmws state */
 
 	return 4; /* we need I/O space of 4 ports */
 }
@@ -436,7 +497,7 @@ dgbattach(dev)
 	int nfails;
 	ushort *pstat;
 	int lowwater;
-	int nports=0;
+	static int nports=0;
 
 	if(sc->status!=ENABLED) {
 		DPRINT2("dbg%d: try to attach a disabled card\n",unit);
@@ -534,7 +595,7 @@ dgbattach(dev)
 		hidewin(sc);
 		return 0;
 	}
-		
+
 	addr=setinitwin(sc,TOPWIN);
 	*(u_long *)(mem+addr) = 0x5AA5C33C;
 	if(*(u_long *)(mem+addr)!=0x5AA5C33C) {
@@ -543,13 +604,13 @@ dgbattach(dev)
 		hidewin(sc);
 		return 0;
 	}
-		
+
 	addr=setinitwin(sc,BIOSCODE+((0xF000-sc->mem_seg)<<4));
 	*(u_long *)(mem+addr) = 0x5AA5C33C;
 	if(*(u_long *)(mem+addr)!=0x5AA5C33C) {
 		printf("dgb%d: 3rd (BIOS) memory test failed\n",dev->id_unit);
 	}
-		
+
 	addr=setinitwin(sc,MISCGLOBAL);
 	for(i=0; i<16; i++) {
 		mem[addr+i]=0;
@@ -685,7 +746,7 @@ load_fep:
 	*(ushort *)(mem+addr+ 6)=FEPCODESEG;
 	*(ushort *)(mem+addr+ 8)=0;
 	*(ushort *)(mem+addr+10)=pcxx_ncook;
-	
+
 	outb(sc->port,FEPMEM|FEPINT); /* send interrupt to BIOS */
 	outb(sc->port,FEPMEM);
 
@@ -816,7 +877,7 @@ load_fep:
 		port->startca=bc->startca;
 		port->stopc=bc->stopc;
 		port->stopca=bc->stopca;
-			
+
 		port->close_delay=50;
 
 		/*
@@ -837,7 +898,7 @@ load_fep:
 	hidewin(sc);
 
 	/* register the polling function */
-	timeout(dgbpoll, (void *)unit, hz/25);
+	timeout(dgbpoll, (void *)unit, hz/POLLSPERSEC);
 
 	return 1;
 }
@@ -856,7 +917,7 @@ dgbopen(dev, flag, mode, p)
 	int mynor;
 	int pnum;
 	struct dgb_p *port;
-	int s;
+	int s,cs;
 	int error;
 	struct board_chan *bc;
 
@@ -891,7 +952,7 @@ dgbopen(dev, flag, mode, p)
 	bc=port->brdchan;
 
 open_top:
-	
+
 	s=spltty();
 
 	while(port->closing) {
@@ -950,12 +1011,16 @@ open_top:
 							port->it_out :
 							port->it_in;
 
+		cs=splclock();
 		setwin(sc,0);
 		port->imodem=bc->mstat;
 		bc->rout=bc->rin; /* clear input queue */
 		bc->idata=1;
-
+#ifdef PRINT_BUFSIZE
+		printf("dgb buffers tx=%x:%x rx=%x:%x\n",bc->tseg,bc->tmax,bc->rseg,bc->rmax);
+#endif
 		hidewin(sc);
+		splx(cs);
 
 		port->wopeners++;
 		error=dgbparam(tp, &tp->t_termios);
@@ -992,14 +1057,16 @@ open_top:
 		goto open_top;
 	}
 	error =	linesw[tp->t_line].l_open(dev, tp);
+	disc_optim(tp,&tp->t_termios);
 	DPRINT4("dgb%d: port %d: l_open error=%d\n",unit,pnum,error);
 
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		port->active_out = TRUE;
 
 	port->used=1;
-	
+
 out:
+	disc_optim(tp,&tp->t_termios);
 	splx(s);
 
 	if( !(tp->t_state & TS_ISOPEN) && port->wopeners==0 )
@@ -1042,6 +1109,8 @@ dgbclose(dev, flag, mode, p)
 
 	port->closing=1;
 	linesw[tp->t_line].l_close(tp,flag);
+	disc_optim(tp,&tp->t_termios);
+
 	dgb_drain_or_flush(port);
 	dgbhardclose(port);
 	ttyclose(tp);
@@ -1053,6 +1122,7 @@ dgbclose(dev, flag, mode, p)
 	wakeup(TSA_CARR_ON(tp));
 	wakeup(&port->active_out);
 	port->active_out=0;
+	disc_optim(tp,&tp->t_termios);
 
 	return 0;
 }
@@ -1063,8 +1133,9 @@ dgbhardclose(port)
 {
 	struct dgb_softc *sc=&dgb_softc[port->unit];
 	struct board_chan *bc=port->brdchan;
-	int s;
+	int cs;
 
+	cs=splclock();
 	setwin(sc,0);
 
 	bc->idata=0; bc->iempty=0; bc->ilow=0;
@@ -1074,12 +1145,13 @@ dgbhardclose(port)
 	}
 
 	hidewin(sc);
+	splx(cs);
 
 	timeout(dgb_pause, &port->brdchan, hz/2);
 	tsleep(&port->brdchan, TTIPRI | PCATCH, "dgclo", 0);
 }
 
-static void 
+static void
 dgb_pause(chan)
 	void *chan;
 {
@@ -1096,6 +1168,7 @@ dgbread(dev, uio, flag)
 	int		mynor;
 	struct tty	*tp;
 	int error, unit, pnum;
+
 
 	mynor=minor(dev);
 	if (mynor & CONTROL_MASK)
@@ -1120,6 +1193,7 @@ dgbwrite(dev, uio, flag)
 	int		mynor;
 	struct tty	*tp;
 	int error, unit, pnum;
+
 
 	mynor=minor(dev);
 	if (mynor & CONTROL_MASK)
@@ -1150,11 +1224,13 @@ void dgbpoll(unit_c)
 	struct tty *tp;
 	int rhead, rtail;
 	int whead, wtail;
-	int wrapmask;
 	int size;
 	int c=0;
 	u_char *ptr;
 	int ocount;
+	int ibuf_full,obuf_full;
+
+	BoardMemWinState ws=bmws_get();
 
 	if(sc->status==DISABLED) {
 		printf("dgb%d: polling of disabled board stopped\n",unit);
@@ -1166,11 +1242,13 @@ void dgbpoll(unit_c)
 	head=sc->mailbox->ein;
 	tail=sc->mailbox->eout;
 
+
 	while(head!=tail) {
 		if(head >= FEP_IMAX-FEP_ISTART 
 		|| tail >= FEP_IMAX-FEP_ISTART 
 		|| (head|tail) & 03 ) {
-			printf("dgb%d: event queue's head or tail is wrong!\n", unit);
+			/*if(tail!=0xffff)*/
+				printf("dgb%d: event queue's head or tail is wrong! hd=%d,tl=%d\n", unit,head,tail);
 			break;
 		}
 
@@ -1185,8 +1263,14 @@ void dgbpoll(unit_c)
 		tp=&sc->ttys[pnum];
 
 		if(pnum>=sc->numports || port->status==DISABLED) {
-			printf("dgb%d: port %d: got event on nonexisting port\n",unit,pnum);
+			{
+			/* Helg: special case to supress error message because of hardware err */
+			/*if(pnum!=0xff)*/
+				printf("dgb%d: port %d: got event on nonexisting port\n",unit,pnum);
+			}
 		} else if(port->used || port->wopeners>0 ) {
+
+			int wrapmask=port->rxbufsize-1;
 
 			if( !(event & ALL_IND) ) 
 				printf("dgb%d: port%d: ? event 0x%x mstat 0x%x lstat 0x%x\n",
@@ -1195,8 +1279,9 @@ void dgbpoll(unit_c)
 			if(event & DATA_IND) {
 				DPRINT3("dgb%d: port %d: DATA_IND\n",unit,pnum);
 
-				wrapmask=port->rxbufsize-1;
-
+#if 0
+				HPRINT4("dgb%d:port%d:wrapmask%d\n",unit,pnum,wrapmask);
+#endif
 				rhead=bc->rin & wrapmask; 
 				rtail=bc->rout & wrapmask;
 
@@ -1210,47 +1295,67 @@ void dgbpoll(unit_c)
 					bc->orun=0;
 				}
 
-				while(rhead!=rtail) {
+        if(!(tp->t_state & TS_ISOPEN))
+					goto end_of_data;
+				
+
+				for(ibuf_full=FALSE;rhead!=rtail && !ibuf_full;) {
 					DPRINT5("dgb%d: port %d: p rx head=%d tail=%d\n",
 						unit,pnum,rhead,rtail);
 
 					if(rhead>rtail)
-						size=rhead-rtail;
+						{size=rhead-rtail;}
 					else
-						size=port->rxbufsize-rtail;
+						{size=port->rxbufsize-rtail; }
 
 					ptr=port->rxptr+rtail;
 
-					for(c=0; c<size; c++) {
-						int chr;
+/* Helg: */
 
-						towin(sc,port->rxwin);
-						chr= *ptr++;
-
-#if 0
-						if(chr>=' ' && chr<127)
-							DPRINT4("dgb%d: port %d: got char '%c'\n",
-								unit,pnum,chr);
-						else
-							DPRINT4("dgb%d: port %d: got char 0x%x\n",
-								unit,pnum,chr);
-#endif
-
-						hidewin(sc);
-						linesw[tp->t_line].l_rint(chr, tp);
+					if( tp->t_rawq.c_cc + size > DGB_IBUFSIZE ) {
+					  size=DGB_IBUFSIZE-tp->t_rawq.c_cc;
+					  HPRINT1("*");
+					  ibuf_full=TRUE;
 					}
 
-					setwin(sc,0);
+					if(size) {
+						/*if (0) {*/
+						if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
+							HPRINT1("!");
+							towin(sc,port->rxwin);
+							tk_nin += size;
+							tk_rawcc += size;
+							tp->t_rawcc += size;
+							b_to_q(ptr,size,&tp->t_rawq);
+							setwin(sc,0);
+						} else {
+							int i=size;
+							unsigned char chr;
+							do {
+								towin(sc,port->rxwin);
+								chr=*ptr++;
+								hidewin(sc);
+								(*linesw[tp->t_line].l_rint)(chr, tp);
+							} while (--i > 0 );
+						setwin(sc,0);
+						}
+					}
+/*
+					HPRINT5("pnum%d:sz=%d head=%d tail=%d\n",pnum,size,rhead,rtail);
+*/
 					rtail= (rtail + size) & wrapmask;
 					bc->rout=rtail;
 					rhead=bc->rin & wrapmask; 
+					hidewin(sc);
+					ttwakeup(tp);
+					setwin(sc,0);
 				}
 					
 			end_of_data:
 			}
 
 			if(event & MODEMCHG_IND) {
-				DPRINT3("dgb%d: port %d: MODEMCHG_IND\n",unit,pnum);
+				HPRINT3("dgb%d: port %d: MODEMCHG_IND\n",unit,pnum);
 				port->imodem=mstat;
 				if(mstat & port->dcd) {
 					hidewin(sc);
@@ -1269,92 +1374,121 @@ void dgbpoll(unit_c)
 			}
 
 			if(event & BREAK_IND) {
+				if((tp->t_state & TS_ISOPEN) && (tp->t_iflag & IGNBRK))	{
 				DPRINT3("dgb%d: port %d: BREAK_IND\n",unit,pnum);
 				hidewin(sc);
 				linesw[tp->t_line].l_rint(TTY_BI, tp);
 				setwin(sc,0);
+				}
 			}
+
+/* Helg: with output flow control */
 
 			if(event & (LOWTX_IND | EMPTYTX_IND) ) {
 				DPRINT3("dgb%d: port %d: LOWTX_IND or EMPTYTX_IND\n",unit,pnum);
-
+				
 				if( (event & EMPTYTX_IND ) && tp->t_outq.c_cc==0
 				&& port->draining) {
 					port->draining=0;
 					wakeup(&port->draining);
 					bc->ilow=0; bc->iempty=0;
-				}
+				} else {
 
-				wrapmask=port->txbufsize;
+					int wrapmask=port->txbufsize-1;
 
-				while( tp->t_outq.c_cc!=0 ) {
+					for(obuf_full=FALSE; tp->t_outq.c_cc!=0 && !obuf_full; ) {
+						int s;
+						/* add "last-minute" data to write buffer */
+						if(!(tp->t_state & TS_BUSY)) {
+							hidewin(sc);
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
-					ttwwakeup(tp);
+							ttwwakeup(tp);
 #else
-					if(tp->t_outq.c_cc <= tp->t_lowat) {
+							if(tp->t_outq.c_cc <= tp->t_lowat) {
+								if(tp->t_state & TS_ASLEEP) {
+									tp->t_state &= ~TS_ASLEEP;
+									wakeup(TSA_OLOWAT(tp));
+								}
+								selwakeup(&tp->t_wsel);
+							}
+#endif
+							setwin(sc,0);
+						}
+						s=spltty();
+						
+						whead=bc->tin & wrapmask;
+						wtail=bc->tout & wrapmask;
+
+						if(whead<wtail)
+							size=wtail-whead-1;
+						else {
+							size=port->txbufsize-whead;
+							if(wtail==0)
+								size--;
+						}
+
+						HPRINT5("dgb: head=%d tail=%d size=%d full=%d\n",
+							whead,wtail,size,obuf_full);
+
+						if(size==0) { /* can't put all data to board now */ 
+							bc->iempty=1; bc->ilow=1;
+							obuf_full=TRUE;
+							splx(s);
+							break;
+						}
+
+						towin(sc,port->txwin);
+
+						ocount=q_to_b(&tp->t_outq, port->txptr+whead, size);
+						whead+=ocount;
+
+						setwin(sc,0);
+						bc->tin=whead & wrapmask;
+						splx(s);
+					}
+					
+					if(obuf_full) {
+						HPRINT1(" +BUSY\n");
+						tp->t_state|=TS_BUSY;
+					} else {
+						HPRINT1(" -BUSY\n");
+						hidewin(sc);
+#ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
+						/* should clear TS_BUSY before ttwwakeup */
+						if(tp->t_state & TS_BUSY)	{
+							tp->t_state &= ~TS_BUSY;
+							linesw[tp->t_line].l_start(tp);
+							ttwwakeup(tp);
+						}
+#else
 						if(tp->t_state & TS_ASLEEP) {
 							tp->t_state &= ~TS_ASLEEP;
 							wakeup(TSA_OLOWAT(tp));
 						}
-						selwakeup(&tp->t_wsel);
-					}
+						tp->t_state &= ~TS_BUSY;
 #endif
-					setwin(sc,0);
-
-					whead=bc->tin & wrapmask;
-					wtail=bc->tout & wrapmask;
-
-					DPRINT5("dgb%d: port%d: p tx head=%d tail=%d\n",
-						unit,pnum,whead,wtail);
-
-					if(whead<wtail)
-						size=wtail-whead-1;
-					else {
-						size=port->txbufsize-whead;
-						if(wtail==0)
-							size--;
+						setwin(sc,0);
 					}
-
-					if(size==0) {
-						bc->iempty=1; bc->ilow=1;
-						goto end_of_buffer;
-					}
-
-					towin(sc,port->txwin);
-
-					ocount=q_to_b(&tp->t_outq, port->txptr+whead, size);
-					whead+=ocount;
-
-					setwin(sc,0);
-					bc->tin=whead;
 				}
-#ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
-				ttwwakeup(tp);
-#else
-				if(tp->t_state & TS_ASLEEP) {
-					tp->t_state &= ~TS_ASLEEP;
-					wakeup(TSA_OLOWAT(tp));
-				}
-				tp->t_state &= ~TS_BUSY;
-#endif
 			end_of_buffer:
 			}
+
+		bc->idata=1; /* require event on incoming data */ 
 		} else {
+			bc=port->brdchan;
 			DPRINT4("dgb%d: port %d: got event 0x%x on closed port\n",
 				unit,pnum,event);
 			bc->rout=bc->rin;
 			bc->idata=bc->iempty=bc->ilow=0;
 		}
-			
-		bc->idata=1; 
 
 		tail= (tail+4) & (FEP_IMAX-FEP_ISTART-4);
 	}
 
 	sc->mailbox->eout=tail;
-	hidewin(sc);
+  bmws_set(ws);
 
-	timeout(dgbpoll, unit_c, hz/25);
+	timeout(dgbpoll, unit_c, hz/POLLSPERSEC);
 }
 
 void
@@ -1378,8 +1512,15 @@ dgbioctl(dev, cmd, data, flag, p)
 	struct tty *tp;
 	struct board_chan *bc;
 	int error;
-	int s;
+	int s,cs;
 	int tiocm_xxx;
+
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	int		oldcmd;
+	struct termios	term;
+#endif
+
+	BoardMemWinState ws=bmws_get();
 
 	mynor=minor(dev);
 	unit=MINOR_TO_UNIT(mynor);
@@ -1424,6 +1565,16 @@ dgbioctl(dev, cmd, data, flag, p)
 		}
 	}
 
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	term = tp->t_termios;
+	oldcmd = cmd;
+	error = ttsetcompat(tp, &cmd, data, &term);
+	if (error != 0)
+		return (error);
+	if (cmd != oldcmd)
+		data = (caddr_t)&term;
+#endif
+
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 		int	cc;
 		struct termios *dt = (struct termios *)data;
@@ -1448,14 +1599,18 @@ dgbioctl(dev, cmd, data, flag, p)
 	}
 
 	if(cmd==TIOCSTOP) {
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, PAUSETX, 0, 0, 0, 0);
-		hidewin(sc);
+		bmws_set(ws);
+		splx(cs);
 		return 0;
 	} else if(cmd==TIOCSTART) {
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, RESUMETX, 0, 0, 0, 0);
-		hidewin(sc);
+		bmws_set(ws);
+		splx(cs);
 		return 0;
 	}
 
@@ -1464,9 +1619,10 @@ dgbioctl(dev, cmd, data, flag, p)
 
 	error = linesw[tp->t_line].l_ioctl(tp, cmd, data, flag, p);
 
-	if (error >= 0)
+	if (error >= 0)	
 		return error;
 	error = ttioctl(tp, cmd, data, flag);
+	disc_optim(tp,&tp->t_termios);
 
 	port->mustdrain=0;
 
@@ -1475,13 +1631,14 @@ dgbioctl(dev, cmd, data, flag, p)
 	s = spltty();
 	switch (cmd) {
 	case TIOCSBRK:
-		error=dgbdrain(port);
+/* Helg: commented */
+/*		error=dgbdrain(port);*/
 
 		if(error!=0) {
 			splx(s);
 			return error;
 		}
-
+		cs=splclock();
 		setwin(sc,0);
 	
 		/* now it sends 250 millisecond break because I don't know */
@@ -1489,6 +1646,7 @@ dgbioctl(dev, cmd, data, flag, p)
 
 		fepcmd(port, SENDBREAK, 250, 0, 10, 0);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCCBRK:
 		/* now it's empty */
@@ -1496,6 +1654,7 @@ dgbioctl(dev, cmd, data, flag, p)
 	case TIOCSDTR:
 		DPRINT3("dgb%d: port %d: set DTR\n",unit,pnum);
 		port->omodem |= DTR;
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS, 0, 1);
 
@@ -1504,10 +1663,12 @@ dgbioctl(dev, cmd, data, flag, p)
 		}
 
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCCDTR:
 		DPRINT3("dgb%d: port %d: reset DTR\n",unit,pnum);
 		port->omodem &= ~DTR;
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 
@@ -1516,6 +1677,7 @@ dgbioctl(dev, cmd, data, flag, p)
 		}
 
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMSET:
 		if(*(int *)data & TIOCM_DTR)
@@ -1528,9 +1690,11 @@ dgbioctl(dev, cmd, data, flag, p)
 		else
 			port->omodem &=~RTS;
 
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMBIS:
 		if(*(int *)data & TIOCM_DTR)
@@ -1538,10 +1702,11 @@ dgbioctl(dev, cmd, data, flag, p)
 
 		if(*(int *)data & TIOCM_RTS)
 			port->omodem |=RTS;
-
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMBIC:
 		if(*(int *)data & TIOCM_DTR)
@@ -1549,10 +1714,11 @@ dgbioctl(dev, cmd, data, flag, p)
 
 		if(*(int *)data & TIOCM_RTS)
 			port->omodem &=~RTS;
-
+		cs=splclock();
 		setwin(sc,0);
 		fepcmd(port, SETMODEM, port->omodem, RTS|DTR, 0, 1);
 		hidewin(sc);
+		splx(cs);
 		break;
 	case TIOCMGET:
 		setwin(sc,0);
@@ -1591,10 +1757,13 @@ dgbioctl(dev, cmd, data, flag, p)
 		DPRINT1("--\n");
 		break;
 	default:
+		bmws_set(ws);
 		splx(s);
 		return ENOTTY;
 	}
+	bmws_set(ws);
 	splx(s);
+
 	return 0;
 }
 
@@ -1619,6 +1788,8 @@ dgbdrain(port)
 	int error;
 	int head, tail;
 
+	BoardMemWinState ws=bmws_get();
+	
 	setwin(sc,0);
 
 	bc->iempty=1;
@@ -1641,7 +1812,7 @@ dgbdrain(port)
 				port->unit,port->pnum,error);
 
 			bc->iempty=0;
-			hidewin(sc);
+			bmws_set(ws);
 			return error;
 		}
 
@@ -1650,7 +1821,7 @@ dgbdrain(port)
 	}
 	DPRINT5("dgb%d: port %d: drain: head=%d tail=%d\n",
 		port->unit, port->pnum, head, tail);
-
+	bmws_set(ws);
 	return 0;
 }
 
@@ -1731,8 +1902,10 @@ dgbparam(tp, t)
 	int mval;
 	int iflag;
 	int hflow;
-	int s;
+	int s,cs;
 
+	BoardMemWinState ws=bmws_get();
+	
 	DPRINT3("dgb%d: port%d: setting parameters\n",unit,pnum);
 
 	if(port->mustdrain) {
@@ -1748,7 +1921,7 @@ dgbparam(tp, t)
 	if (cflag < 0 || cflag > 0 && t->c_ispeed != t->c_ospeed)
 		return (EINVAL);
 
-	s=spltty();
+	cs=splclock();
 
 	setwin(sc,0);
 
@@ -1822,8 +1995,8 @@ dgbparam(tp, t)
 		fepcmd(port, SONOFFC, port->fepstartc, port->fepstopc, 0, 1);
 	}
 
-	hidewin(sc);
-	splx(s);
+	bmws_set(ws);
+	splx(cs);
 
 	return 0;
 
@@ -1842,7 +2015,9 @@ dgbstart(tp)
 	int size, ocount;
 	int s;
 	int wmask;
-
+	
+	BoardMemWinState ws=bmws_get();
+  
 	unit=MINOR_TO_UNIT(minor(tp->t_dev));
 	pnum=MINOR_TO_PORT(minor(tp->t_dev));
 	sc=&dgb_softc[unit];
@@ -1854,6 +2029,7 @@ dgbstart(tp)
 	s=spltty();
 
 	while( tp->t_outq.c_cc!=0 ) {
+		int cs;
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
 		ttwwakeup(tp);
 #else
@@ -1865,6 +2041,7 @@ dgbstart(tp)
 			selwakeup(&tp->t_wsel);
 		}
 #endif
+		cs=splclock();
 		setwin(sc,0);
 
 		head=bc->tin & wmask;
@@ -1872,6 +2049,17 @@ dgbstart(tp)
 
 		DPRINT5("dgb%d: port%d: s tx head=%d tail=%d\n",unit,pnum,head,tail);
 
+/*#define LEAVE_FREE_CHARS 16*/
+#ifdef LEAVE_FREE_CHARS 
+		if(tail>head) {
+			size=tail-head-LEAVE_FREE_CHARS;
+			if (size <0) size==0;
+		}	else {
+			size=port->txbufsize-head;
+			if(tail+port->txbufsize < head)
+				size==0;
+		}
+#else
 		if(tail>head)
 			size=tail-head-1;
 		else {
@@ -1879,10 +2067,11 @@ dgbstart(tp)
 			if(tail==0)
 				size--;
 		}
-
+#endif
 		if(size==0) {
 			bc->iempty=1; bc->ilow=1;
-			hidewin(sc);
+			splx(cs);
+			bmws_set(ws);
 			tp->t_state|=TS_BUSY;
 			splx(s);
 			return;
@@ -1892,13 +2081,24 @@ dgbstart(tp)
 
 		ocount=q_to_b(&tp->t_outq, port->txptr+head, size);
 		head+=ocount;
-
+		if(head>=port->txbufsize)
+		  head-=port->txbufsize;
+		
 		setwin(sc,0);
 		bc->tin=head;
+		hidewin(sc);
+		splx(cs);
 	}
 
+	bmws_set(ws);
+	splx(s);
+
 #ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
-	ttwwakeup(tp);
+	if(tp->t_state & TS_BUSY) {	
+		tp->t_state&=~TS_BUSY;
+		linesw[tp->t_line].l_start(tp);
+		ttwwakeup(tp);
+	}
 #else
 	if(tp->t_state & TS_ASLEEP) {
 		tp->t_state &= ~TS_ASLEEP;
@@ -1906,8 +2106,6 @@ dgbstart(tp)
 	}
 	tp->t_state&=~TS_BUSY;
 #endif
-	hidewin(sc);
-	splx(s);
 }
 
 void
@@ -1987,6 +2185,28 @@ fepcmd(port, cmd, op1, op2, ncmds, bytecmd)
 
 	printf("dgb%d(%d): timeout on FEP command\n",
 			port->unit, port->pnum);
+}
+
+static void
+disc_optim(tp, t)
+	struct tty	*tp;
+	struct termios	*t;
+{
+
+	/*
+	 * XXX can skip a lot more cases if Smarts.  Maybe
+	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
+	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
+	 */
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
+	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
+	    && (!(t->c_iflag & PARMRK)
+		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
+	    && linesw[tp->t_line].l_rint == ttyinput)
+		tp->t_state |= TS_CAN_BYPASS_L_RINT;
+	else
+		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 }
 
 #endif /* NDGB > 0 */
