@@ -51,7 +51,8 @@ nl_langinfo(nl_item item) {
 			if ((cs = strchr(s, '.')) != NULL)
 				ret = cs + 1;
 			else if (strcmp(s, "C") == 0 ||
-				 strcmp(s, "POSIX") == 0)
+				 strcmp(s, "POSIX") == 0 ||
+				 strstr(s, "ASCII") != NULL)
 				ret = "US-ASCII";
 		}
 		break;
