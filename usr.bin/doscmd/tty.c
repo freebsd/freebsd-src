@@ -1427,7 +1427,7 @@ tty_flush()
 }
 
 void
-tty_index()
+tty_index(int scroll)
 {
 	int i;
 
@@ -1435,9 +1435,11 @@ tty_index()
 		row = 0;
 	else if (++row >= height) {
 		row = height - 1;
-		memcpy(vmem, &vmem[width], 2 * width * (height - 1));
-		for (i = 0; i < width; ++i)
-		    vmem[(height - 1) * width + i] = vattr | ' ';
+		if (scroll) {
+			memcpy(vmem, &vmem[width], 2 * width * (height - 1));
+			for (i = 0; i < width; ++i)
+				vmem[(height - 1) * width + i] = vattr | ' ';
+		}
 	}
 	SetVREGCur();
 }
@@ -1479,19 +1481,19 @@ tty_write(int c, int attr)
 		col = (col + 8) & ~0x07;
 		if (col > width) {
 			col = 0;
-			tty_index();
+			tty_index(1);
 		}
 		break;
 	case '\r':
 		col = 0;
 		break;
 	case '\n':
-		tty_index();
+		tty_index(1);
 		break;
 	default:
 		if (col >= width) {
 			col = 0;
-			tty_index();
+			tty_index(1);
 		}
 		if (row > (height - 1))
 			row = 0;
@@ -1523,7 +1525,7 @@ tty_rwrite(int n, int c, int attr)
     while (n--) {
 	if (col >= width) {
 	    col = 0;
-	    tty_index();
+	    tty_index(0);
 	}
 	if (row > (height - 1))
 	    row = 0;
@@ -1554,7 +1556,7 @@ tty_rwrite_graphics(int n, int c, int attr)
     while (n--) {
 	if (col >= wd) {
 	    col = 0;
-	    /* tty_index(); *//* scroll up if last line is filled */
+	    /* tty_index(0); *//* scroll up if last line is filled */
 	}
 	if (row > (ht - 1))
 	    row = 0;
