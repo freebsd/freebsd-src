@@ -63,6 +63,7 @@ struct ip_fw {
 #define IP_FW_ICMPTYPES_DIM	(IP_FW_ICMPTYPES_MAX / (sizeof(unsigned) * 8))
 	unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
 	} fw_uar;
+    u_char fw_ipflg;			/* IP flags word */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
     long timestamp;			/* timestamp (tv_sec) of last match */
@@ -207,6 +208,12 @@ struct ipfw_dyn_rule {
 #define IP_FW_F_MASK	0x1FFFFFFF	/* All possible flag bits mask		*/
 
 /*
+ * Flags for the 'fw_ipflg' field, for comparing values of IP and its protocols
+ */
+#define	IP_FW_IF_TCPEST	0x00000020	/* established TCP connection */
+#define	IP_FW_IF_TCPMSK	0x00000020	/* mask of all TCP values */
+
+/*
  * For backwards compatibility with rules specifying "via iface" but
  * not restricted to only "in" or "out" packets, we define this combination
  * of bits to represent this configuration.
@@ -237,7 +244,6 @@ struct ipfw_dyn_rule {
 #define IP_FW_TCPF_PSH		TH_PUSH
 #define IP_FW_TCPF_ACK		TH_ACK
 #define IP_FW_TCPF_URG		TH_URG
-#define IP_FW_TCPF_ESTAB	0x40
 
 /*
  * Main firewall chains definitions and global var's definitions.

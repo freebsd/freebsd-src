@@ -424,7 +424,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		if (chain->fw_ipnopt & IP_FW_IPOPT_TS)   PRINTOPT("!ts");
 	} 
 
-	if (chain->fw_tcpf & IP_FW_TCPF_ESTAB) 
+	if (chain->fw_ipflg & IP_FW_IF_TCPEST)
 		printf(" established");
 	else if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
 	    chain->fw_tcpnf == IP_FW_TCPF_ACK)
@@ -1628,7 +1628,7 @@ badviacombo:
 		}
 		if (rule.fw_prot == IPPROTO_TCP) {
 			if (!strncmp(*av,"established",strlen(*av))) { 
-				rule.fw_tcpf  |= IP_FW_TCPF_ESTAB;
+				rule.fw_ipflg |= IP_FW_IF_TCPEST;
 				av++; ac--; continue;
 			}
 			if (!strncmp(*av,"setup",strlen(*av))) { 
