@@ -68,6 +68,8 @@
 
 #if PCVT_FREEBSD >= 200
 
+#include "opt_pcvt.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/ioctl.h>
