@@ -670,6 +670,9 @@ KBDIO_DEBUG		opt_kbd.h
 AH_SUPPORT_AR5210	opt_ah.h
 AH_SUPPORT_AR5211	opt_ah.h
 AH_SUPPORT_AR5212	opt_ah.h
+AH_SUPPORT_5111		opt_ah.h
+AH_SUPPORT_5112		opt_ah.h
+AH_SUPPORT_2413		opt_ah.h
 AH_DEBUG		opt_ah.h
 AH_DEBUG_ALQ		opt_ah.h
 AH_ASSERT		opt_ah.h
