@@ -10,7 +10,7 @@ uname -a > $T
 echo "" >> $T
 sed '1,/^$/d' < /etc/motd >> $T
 cp $T /etc/motd
-chmod 666 /etc/motd
+chmod 644 /etc/motd
 rm -f $T
 
 echo -n 'starting local daemons:'
