@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.169 1999/05/16 13:39:03 brian Exp $
+.\" $Id: ppp.8,v 1.170 1999/06/01 08:46:53 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -2473,6 +2473,41 @@ field, reporting the fact at the respective log level.  If
 is disabled,
 .Nm
 will ignore the identifier field.
+.It keep-session
+Default: Disabled.  When
+.Nm
+runs as a Multi-link server, a different
+.Nm
+instance initially receives each connection.  After determining that
+the link belongs to an already existing bundle (controlled by another
+.Nm
+invocation),
+.Nm
+will transfer the link to that process.
+.Pp
+If the link is a tty device or if this option is enabled,
+.Nm
+will not exit, but will change its process name to
+.Dq session owner
+and wait for the controlling
+.Nm
+to finish with the link and deliver a signal back to the idle process.
+This prevents the confusion that results from
+.Nm ppp Ns No 's
+parent considering the link resource available again.
+.Pp
+For tty devices that have entries in
+.Pa /etc/ttys ,
+this is necessary to prevent another
+.Xr getty 8
+from being started, and for program links such as
+.Xr sshd 8 ,
+it prevents
+.Xr sshd 8
+from exiting due to the death of its child.  As
+.Nm
+cannot determine its parents requirements (except for the tty case), this
+option must be enabled manually depending on the circumstances.
 .It loopback
 Default: Enabled.  When
 .Ar loopback
@@ -4535,6 +4570,7 @@ This socket is used to pass links between different instances of
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
 .Xr route 8 ,
+.Xr sshd 8 ,
 .Xr syslogd 8 ,
 .Xr traceroute 8 ,
 .Xr vipw 8
