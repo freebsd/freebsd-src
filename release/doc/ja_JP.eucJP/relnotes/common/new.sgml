@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.251
+    Original revision: 1.252
 -->
 
 <articleinfo>
@@ -111,6 +111,13 @@
     <para arch="i386">&os; ブートローダに, プローブの段階で
       一行出力する毎にカーネルがちょっと止まるようにする
       <option>-p</option> フラグが追加されました. &merged;</para>
+
+    <para arch="i386">&os; ブートローダは 16K ディスクブロックの
+      ファイルシステムからもブートできるようになりました (従来は 8K ま
+      ででした).</para>
+
+    <para arch="alpha">&os; ブートローダは 8K より大きなブロック
+      サイズのファイルシステムからもブートできるようになりました.</para>
 
     <para>出荷時の状態で USB デバイスをサポートするため,
       <filename>GENERIC</filename> カーネルと
@@ -658,10 +665,12 @@
 	<port>sysutil/sbniconfig</port> が利用できます. &merged;</para>
 
       <para>&man.sis.4; ドライバが
-        National Semiconductor DP83815 チップセットベースの
+	SiS 900, SiS 7016 ファストイーサネットコントローラチップ
+	(例えば SiS 635, 735 マザーボードチップセット上のものなど) と,
+        National Semiconductor DP83815 チップセット
+	(NetGear FA311-TX および FA312-TX を含む) の
         PCI イーサネットアダプタに対応しました.
-        これには NetGear FA311-TX および FA312-TX が含まれます.
-	このデバイスは VLAN をサポートしています. &merged;</para>
+        このデバイスは VLAN をサポートしています. &merged;</para>
 
       <para arch="i386">National Semiconductor
         DP8393X (SONIC) イーサネットコントローラに対応した
@@ -2970,6 +2979,13 @@ hw.pcic.irq="0"</programlisting>
         ただし <command>csh</command> というコマンド名はそのまま使用できます.
         <application>tcsh</application> はバージョン 6.11 に更新されました.
         &merged;</para>
+
+      <para><application>tcp_wrappers</application> の寄贈版
+	は &man.tcpd.8; ヘルパーデーモンを含むようになりました.
+	標準的な &os; インストールでは (&man.inetd.8; がすでに
+	この機能を統合しているため) これは必ずしも必要というわけでは
+	ありませんが, <application>xinetd</application> のような
+	&man.inetd.8; を置き換えるアプリケーションには有用です.</para>
 
       <para>&man.traceroute.8; は,
         デフォルトの最大 TTL 値を
