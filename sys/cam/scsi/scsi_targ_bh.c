@@ -399,10 +399,7 @@ targbhdislun(struct cam_periph *periph)
 static cam_status
 targbhctor(struct cam_periph *periph, void *arg)
 {
-	struct ccb_pathinq *cpi;
 	struct targbh_softc *softc;
-
-	cpi = (struct ccb_pathinq *)arg;
 
 	/* Allocate our per-instance private storage */
 	softc = (struct targbh_softc *)malloc(sizeof(*softc),
@@ -436,13 +433,13 @@ targbhdtor(struct cam_periph *periph)
 	targbhdislun(periph);
 
 	switch (softc->init_level) {
-	default:
-		/* FALLTHROUGH */
-	case 1:
-		free(softc, M_DEVBUF);
-		break;
 	case 0:
 		panic("targdtor - impossible init level");;
+	case 1:
+		/* FALLTHROUGH */
+	default:
+		free(softc, M_DEVBUF);
+		break;
 	}
 }
 
