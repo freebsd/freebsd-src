@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <unistd.h>
+#include <locale.h>
 
 static void __dead2
 usage(void)
@@ -135,6 +136,8 @@ main(int ac, char **av)
 	size_t		size;
 	int		matched;
 	int		killed = 0;
+
+	setlocale(LC_ALL, "");
 
 	av++;
 	ac--;
