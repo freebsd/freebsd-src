@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/pmap_rmt.h>
 #include <rpc/rpc_com.h>
 #include <rpcsvc/yp.h>
-struct dom_binding{};
 #include <rpcsvc/ypclnt.h>
 #include "yp_ping.h"
 
