@@ -90,6 +90,8 @@ agp_via_probe(device_t dev)
 {
 	const char *desc;
 
+	if (resource_disabled("agp", device_get_unit(dev)))
+		return (ENXIO);
 	desc = agp_via_match(dev);
 	if (desc) {
 		device_verbose(dev);

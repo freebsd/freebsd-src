@@ -127,6 +127,8 @@ agp_intel_probe(device_t dev)
 {
 	const char *desc;
 
+	if (resource_disabled("agp", device_get_unit(dev)))
+		return (ENXIO);
 	desc = agp_intel_match(dev);
 	if (desc) {
 		device_verbose(dev);
