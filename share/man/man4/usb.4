@@ -171,46 +171,56 @@ be filled by information about the device on that address.
 Should no such device exist an error is reported.
 .Bd -literal
 struct usb_device_info {
-        uByte   addr;           /* device address */
-        char    product[USB_MAX_STRING_LEN];
-        char    vendor[USB_MAX_STRING_LEN];
-        char    revision[8];
-        uByte   class;
-        uByte   config;
-        uByte   lowspeed;
-        int     power;
-        int     nports;
-        uByte   ports[16];
-#define USB_PORT_ENABLED 0xff
-#define USB_PORT_SUSPENDED 0xfe
-#define USB_PORT_POWERED 0xfd
-#define USB_PORT_DISABLED 0xfc
+        u_int8_t        bus;
+        u_int8_t        addr;
+#       define USBDEVNAME_NR  4
+#       define USBDEVNAME_LEN 10
+        char            devnames[USBDEVNAME_NR][USBDEVNAME_LEN];
+        char            product[USB_MAX_STRING_LEN];
+        char            vendor[USB_MAX_STRING_LEN];
+        char            release[8];
+        u_int16_t       productNo;
+        u_int16_t       vendorNo;
+        u_int16_t       releaseNo;
+        u_int8_t        class;
+        u_int8_t        subclass;
+        u_int8_t        protocol;
+        u_int8_t        config;
+        u_int8_t        lowspeed;
+        int             power;
+        int             nports;
+        u_int8_t        ports[16];
+#define USB_PORT_ENABLED      0xff
+#define USB_PORT_SUSPENDED    0xfe
+#define USB_PORT_POWERED      0xfd
+#define USB_PORT_DISABLED     0xfc
 };
 .Ed
 .Pp
-The
-.Va product ,
-.Va vendor ,
+.Va bus
 and
-.Va revision
-fields contain self-explanatory descriptions of the device.
-.Pp
+.Va addr
+contain the topological information for the device.
+.Va devnames
+contains the device names of the connected drivers. For example the
+third USB Zip drive connected will be
+.Li umass2 .
 The
-.Va class
-field contains the device class.
-.Pp
+.Va product , vendor
+and
+.Va release
+fields contain self-explanatory descriptions of the device.
+.Va productNo , vendorNo , releaseNo , class , subclass
+and
+.Va protocol
+contain the corresponding values from the device descriptors.
 The
 .Va config
 field shows the current configuration of the device.
 .Pp
-The
 .Va lowspeed
-field
-is set if the device is a
-.Tn USB
-low speed device.
-.Pp
-The
+indicates whether the device is a full speed (0) or low speed (1)
+device. The
 .Va power
 field shows the power consumption in milli-amps drawn at 5 volts,
 or zero if the device is self powered.
