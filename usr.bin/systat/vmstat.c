@@ -80,8 +80,8 @@ static struct Info {
 	long	*intrcnt;
 	int	bufspace;
 	int	desiredvnodes;
-	int	numvnodes;
-	int	freevnodes;
+	long	numvnodes;
+	long	freevnodes;
 	long	numdirtybuffers;
 } s, s1, s2, z;
 
