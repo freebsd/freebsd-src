@@ -73,6 +73,7 @@ struct kt {
 	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
 	{ "makeoptions", MAKEOPTIONS },
 	{ "maxusers",	MAXUSERS },
+	{ "nodevice",	NODEVICE },
 	{ "profile",	PROFILE },
 	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
@@ -109,7 +110,7 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 
 			if ((i = kw_lookup(yytext)) == -1)
 				REJECT;
-			if (i == DEVICE)
+			if (i == DEVICE || i == NODEVICE)
 				BEGIN NONUM;
 			return i;
 		}

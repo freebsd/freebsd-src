@@ -14,6 +14,7 @@
 %token	HINTS
 %token	IDENT
 %token	MAXUSERS
+%token	NODEVICE
 %token	PROFILE
 %token	OPTIONS
 %token	MAKEOPTIONS
@@ -242,6 +243,12 @@ Device_spec:
 		if ($3 == 0)
 			errx(1, "%s:%d: devices with zero units are not "
 			    "likely to be correct", yyfile, yyline);
+		} |
+	NODEVICE Dev
+	      = {
+		rmopt(&opt, devopt($2));
+		/* and the device part */
+		rmdev($2);
 		} ;
 
 %%
@@ -268,6 +275,27 @@ newdev(char *name, int count)
 	STAILQ_INSERT_TAIL(&dtab, np, d_next);
 }
 
+/*
+ * remove a device from the list of devices
+ */
+static void
+rmdev(char *name)
+{
+	struct device *dp, *rmdp;
+
+	STAILQ_FOREACH(dp, &dtab, d_next) {
+		if (eq(dp->d_name, name)) {
+			rmdp = dp;
+			dp = STAILQ_NEXT(dp, d_next);
+			STAILQ_REMOVE(&dtab, rmdp, device, d_next);
+			free(rmdp->d_name);
+			free(rmdp);
+			if (dp == NULL)
+				break;
+		}
+	}
+}
+
 static void
 newopt(struct opt_head *list, char *name, char *value)
 {
@@ -279,4 +307,23 @@ newopt(struct opt_head *list, char *name, char *value)
 	op->op_ownfile = 0;
 	op->op_value = value;
 	SLIST_INSERT_HEAD(list, op, op_next);
+}
+
+static void
+rmopt(struct opt_head *list, char *name)
+{
+	struct opt *op, *rmop;
+
+	SLIST_FOREACH(op, list, op_next) {
+		if (eq(op->op_name, name)) {
+			rmop = op;
+			op = SLIST_NEXT(op, op_next);
+			SLIST_REMOVE(list, rmop, opt, op_next);
+			free(rmop->op_name);
+			free(rmop->op_value);
+			free(rmop);
+			if (op == NULL)
+				break;
+		}
+	}
 }
