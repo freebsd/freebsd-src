@@ -144,7 +144,7 @@ this stores the internal debugging variable's value into it.
 .It Dv TUNSIFMODE
 The argument should be a pointer to an
 .Va int ;
-its value must be
+its value must be either
 .Dv IFF_POINTOPOINT
 or
 .Dv IFF_BROADCAST .
@@ -207,10 +207,9 @@ brought down
 .Dq ifconfig tun Ns Sy n No down
 .Pc .
 All queued packets are thrown away.
-.Po If the interface is up when the data device is not open
-output packets are always
-thrown away rather than letting them pile up
-.Pc .
+If the interface is up when the data device is not open
+output packets are always thrown away rather than letting
+them pile up.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr intro 4
