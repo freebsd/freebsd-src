@@ -1255,14 +1255,14 @@ static int vr_encap(sc, c, m_head)
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("vr%d: no memory for tx list", sc->vr_unit);
+			printf("vr%d: no memory for tx list\n", sc->vr_unit);
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
 			MCLGET(m_new, M_DONTWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
-				printf("vr%d: no memory for tx list",
+				printf("vr%d: no memory for tx list\n",
 						sc->vr_unit);
 				return(1);
 			}
@@ -1336,7 +1336,12 @@ static void vr_start(ifp)
 		sc->vr_cdata.vr_tx_free = cur_tx->vr_nextdesc;
 
 		/* Pack the data into the descriptor. */
-		vr_encap(sc, cur_tx, m_head);
+		if (vr_encap(sc, cur_tx, m_head)) {
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_flags |= IFF_OACTIVE;
+			cur_tx = NULL;
+			break;
+		}
 
 		if (cur_tx != start_tx)
 			VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;

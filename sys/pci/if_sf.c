@@ -1323,12 +1323,23 @@ static void sf_start(ifp)
 	i = SF_IDX_HI(txprod) >> 4;
 
 	while(sc->sf_ldata->sf_tx_dlist[i].sf_mbuf == NULL) {
+		if (sc->sf_tx_cnt == (SF_TX_DLIST_CNT - 2)) {
+			ifp->if_flags |= IFF_OACTIVE;
+			cur_tx = NULL;
+			break;
+		}
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
 
 		cur_tx = &sc->sf_ldata->sf_tx_dlist[i];
-		sf_encap(sc, cur_tx, m_head);
+		if (sf_encap(sc, cur_tx, m_head)) {
+			IF_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_flags |= IFF_OACTIVE;
+			cur_tx = NULL;
+			break;
+		}
+
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -1339,8 +1350,6 @@ static void sf_start(ifp)
 
 		SF_INC(i, SF_TX_DLIST_CNT);
 		sc->sf_tx_cnt++;
-		if (sc->sf_tx_cnt == (SF_TX_DLIST_CNT - 2))
-			break;
 	}
 
 	if (cur_tx == NULL)
