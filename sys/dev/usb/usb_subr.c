@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.86 2001/05/16 04:50:11 lukem Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.87 2001/08/15 00:04:59 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1166,6 +1166,18 @@ usbd_submatch(struct device *parent, void *match, void *aux)
 	     )
 	   )
 		return 0;
+	if (cf->uhubcf_vendor != UHUB_UNK_VENDOR &&
+	    cf->uhubcf_vendor == uaa->vendor &&
+	    cf->uhubcf_product != UHUB_UNK_PRODUCT &&
+	    cf->uhubcf_product == uaa->product) {
+		/* We have a vendor&product locator match */
+		if (cf->uhubcf_release != UHUB_UNK_RELEASE &&
+		    cf->uhubcf_release == uaa->release)
+			uaa->matchlvl = UMATCH_VENDOR_PRODUCT_REV;
+		else
+			uaa->matchlvl = UMATCH_VENDOR_PRODUCT;
+	} else
+		uaa->matchlvl = 0;
 	return ((*cf->cf_attach->ca_match)(parent, cf, aux));
 }
 
