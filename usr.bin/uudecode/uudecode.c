@@ -199,7 +199,7 @@ decode2(flag)
 			return(1);
 		}
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
-#define IS_DEC(c) ( (((c) - ' ') > 0) &&  (((c) - ' ') <= 077 + 1) )
+#define IS_DEC(c) ( (((c) - ' ') >= 0) &&  (((c) - ' ') <= 077 + 1) )
 /* #define IS_DEC(c) (1) */
 
 #define OUT_OF_RANGE \
