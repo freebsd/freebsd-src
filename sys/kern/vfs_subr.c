@@ -829,11 +829,15 @@ vcanrecycle(struct vnode *vp, struct mount **vnmpp)
 	/*
 	 * Don't recycle if we still have cached pages.
 	 */
-	if (VOP_GETVOBJECT(vp, &object) == 0 &&
-	     (object->resident_page_count ||
-	      object->ref_count)) {
-		error = EBUSY;
-		goto done;
+	if (VOP_GETVOBJECT(vp, &object) == 0) {
+		VM_OBJECT_LOCK(object);
+		if (object->resident_page_count ||
+		    object->ref_count) {
+			VM_OBJECT_UNLOCK(object);
+			error = EBUSY;
+			goto done;
+		}
+		VM_OBJECT_UNLOCK(object);
 	}
 	if (LIST_FIRST(&vp->v_cache_src)) {
 		/*
