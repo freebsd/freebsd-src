@@ -213,10 +213,17 @@ isp_reset(struct ispsoftc *isp)
 	 * Set up default request/response queue in-pointer/out-pointer
 	 * register indices.
 	 */
-	isp->isp_rqstinrp = INMAILBOX4;
-	isp->isp_rqstoutrp = OUTMAILBOX4;
-	isp->isp_respinrp = OUTMAILBOX5;
-	isp->isp_respoutrp = INMAILBOX5;
+	if (IS_2300(isp)) {
+		isp->isp_rqstinrp = BIU_REQINP;
+		isp->isp_rqstoutrp = BIU_REQOUTP;
+		isp->isp_respinrp = BIU_RSPINP;
+		isp->isp_respoutrp = BIU_RSPOUTP;
+	} else {
+		isp->isp_rqstinrp = INMAILBOX4;
+		isp->isp_rqstoutrp = OUTMAILBOX4;
+		isp->isp_respinrp = OUTMAILBOX5;
+		isp->isp_respoutrp = INMAILBOX5;
+	}
 
 	/*
 	 * Put the board into PAUSE mode (so we can read the SXP registers
@@ -233,10 +240,6 @@ isp_reset(struct ispsoftc *isp)
 			btype = "2200";
 			break;
 		case ISP_HA_FC_2300:
-			isp->isp_rqstinrp = BIU_REQINP;
-			isp->isp_rqstoutrp = BIU_REQOUTP;
-			isp->isp_respinrp = BIU_RSPINP;
-			isp->isp_respoutrp = BIU_RSPOUTP;
 			btype = "2300";
 			break;
 		default:
@@ -5520,5 +5523,6 @@ isp_parse_nvram_2100(struct ispsoftc *isp, u_int8_t *nvram_data)
 		ISP2100_NVRAM_EXECUTION_THROTTLE(nvram_data);
 	fcp->isp_fwoptions = ISP2100_NVRAM_OPTIONS(nvram_data);
 	isp_prt(isp, ISP_LOGDEBUG0,
-	    "fwoptions from nvram are 0x%x", fcp->isp_fwoptions);
+	    "NVRAM: maxfrmlen %d execthrottle %d fwoptions 0x%x",
+	    fcp->isp_maxfrmlen, fcp->isp_execthrottle, fcp->isp_fwoptions);
 }
