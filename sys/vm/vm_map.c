@@ -2778,7 +2778,8 @@ vmspace_exec(struct proc *p) {
 
 	newvmspace = vmspace_alloc(map->min_offset, map->max_offset);
 	bcopy(&oldvmspace->vm_startcopy, &newvmspace->vm_startcopy,
-	    (caddr_t) (newvmspace + 1) - (caddr_t) &newvmspace->vm_startcopy);
+	    (caddr_t) &newvmspace->vm_endcopy -
+	    (caddr_t) &newvmspace->vm_startcopy);
 	/*
 	 * This code is written like this for prototype purposes.  The
 	 * goal is to avoid running down the vmspace here, but let the
