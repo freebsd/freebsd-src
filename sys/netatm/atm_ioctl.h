@@ -376,13 +376,13 @@ struct air_version_rsp {
  */
 struct air_phy_stat_rsp {
 	char		app_intf[IFNAMSIZ];	/* Interface name */
-	long		app_ipdus;		/* PDUs received from I/F */
-	long		app_opdus;		/* PDUs sent to I/F */
-	long		app_ibytes;		/* Bytes received from I/F */
-	long		app_obytes;		/* Bytes sent to I/F */
-	long		app_ierrors;		/* Errors receiving from I/F */
-	long		app_oerrors;		/* Errors sending to I/F */
-	long		app_cmderrors;		/* I/F command errors */
+	u_quad_t	app_ipdus;		/* PDUs received from I/F */
+	u_quad_t	app_opdus;		/* PDUs sent to I/F */
+	u_quad_t	app_ibytes;		/* Bytes received from I/F */
+	u_quad_t	app_obytes;		/* Bytes sent to I/F */
+	u_quad_t	app_ierrors;		/* Errors receiving from I/F */
+	u_quad_t	app_oerrors;		/* Errors sending to I/F */
+	u_quad_t	app_cmderrors;		/* I/F command errors */
 };
 
 
