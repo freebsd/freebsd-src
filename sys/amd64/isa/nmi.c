@@ -39,6 +39,7 @@
 
 #include "opt_auto_eoi.h"
 #include "opt_isa.h"
+#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -84,8 +85,7 @@
 #include <machine/clock.h>
 #endif
 
-#include "mca.h"
-#if NMCA > 0
+#ifdef DEV_MCA
 #include <i386/isa/mca_machdep.h>
 #endif
 
@@ -237,7 +237,7 @@ isa_nmi(cd)
 	int eisa_port = inb(0x461);
 
 	log(LOG_CRIT, "NMI ISA %x, EISA %x\n", isa_port, eisa_port);
-#if NMCA > 0
+#ifdef DEV_MCA
 	if (MCA_system && mca_bus_nmi())
 		return(0);
 #endif
@@ -293,7 +293,7 @@ isa_defaultirq()
 		icu_unset(i, (driver_intr_t *)NULL);
 
 	/* initialize 8259's */
-#if NMCA > 0
+#ifdef DEV_MCA
 	if (MCA_system)
 		outb(IO_ICU1, 0x19);		/* reset; program device, four bytes */
 	else
@@ -321,7 +321,7 @@ isa_defaultirq()
 	outb(IO_ICU1, 0xc0 | (3 - 1));	/* pri order 3-7, 0-2 (com2 first) */
 #endif /* !PC98 */
 
-#if NMCA > 0
+#ifdef DEV_MCA
 	if (MCA_system)
 		outb(IO_ICU2, 0x19);		/* reset; program device, four bytes */
 	else

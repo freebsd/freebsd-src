@@ -50,6 +50,7 @@
 
 #include "opt_clock.h"
 #include "opt_apm.h"
+#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,8 +91,7 @@
 
 #include <i386/isa/intr_machdep.h>
 
-#include "mca.h"
-#if NMCA > 0
+#ifdef DEV_MCA
 #include <i386/isa/mca_machdep.h>
 #endif
 
@@ -263,7 +263,7 @@ clkintr(struct clockframe frame)
 		}
 		break;
 	}
-#if NMCA > 0
+#ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
 	if (MCA_system)
 		outb(0x61, inb(0x61) | 0x80);
