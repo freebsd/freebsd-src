@@ -54,8 +54,9 @@
 .Ft char *
 .Fn kvm_getfiles "kvm_t *kd" "int op" "int arg" "int *cnt"
 .Sh DESCRIPTION
+The
 .Fn kvm_getfiles
-returns a (sub-)set of the open files in the kernel indicated by
+function returns a (sub-)set of the open files in the kernel indicated by
 .Fa kd .
 The
 .Fa op
@@ -72,8 +73,9 @@ This memory is owned by kvm and is not guaranteed to be persistent across
 subsequent kvm library calls.  Data should be copied out if it needs to be
 saved.
 .Sh RETURN VALUES
+The
 .Fn kvm_getfiles
-will return NULL on failure.
+function will return NULL on failure.
 .Sh BUGS
 This routine does not belong in the kvm interface.
 .Sh SEE ALSO
