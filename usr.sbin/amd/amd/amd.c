@@ -37,7 +37,7 @@
  *
  *	@(#)amd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: amd.c,v 1.5 1997/02/22 16:01:26 peter Exp $
+ * $Id: amd.c,v 1.6 1997/09/02 06:35:01 charnier Exp $
  *
  */
 
@@ -72,6 +72,9 @@ char *op_sys = OS_REP;			/* Name of current op_sys */
 char *arch = ARCH_REP;			/* Name of current architecture */
 char *endian = ARCH_ENDIAN;		/* Big or Little endian */
 char *wire;
+unsigned long mysubnet;		        /* subnet address for my machine
+					   corresponding to "wire"
+					 */
 int foreground = 1;			/* This is the top-level server */
 int mypid;				/* Current process id */
 int immediate_abort;			/* Should close-down unmounts be retried */
@@ -271,7 +274,7 @@ char *argv[];
 	orig_umask = umask(0);
 
 	/*
-	 * Figure out primary network name
+	 * Figure out primary network name; side-effect: sets "mysubnet"
 	 */
 	wire = getwire();
 
