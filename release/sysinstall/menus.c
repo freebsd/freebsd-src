@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.139 1997/06/13 14:21:20 jkh Exp $
+ * $Id: menus.c,v 1.140 1997/06/21 15:45:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -274,7 +274,6 @@ DMenu MenuIndex = {
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router" },
-      { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
       { "Syscons",		"The system console configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { "Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
       { "Syscons, Keymap",	"The console keymap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
@@ -1152,8 +1151,6 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
       { "Anon FTP",	"This machine wishes to allow anonymous FTP.",
 	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
-      { "Samba",	"Install Samba for LanManager (NETBUI) access.",
-	dmenuVarCheck, configSamba, NULL, "samba" },
       { "PCNFSD",	"Run authentication server for clients with PC-NFS.",
 	dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { "Exit",		"Exit this menu (returning to previous)",

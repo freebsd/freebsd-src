@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.136 1997/06/21 15:45:15 jkh Exp $
+ * $Id: sysinstall.h,v 1.137 1997/06/22 09:45:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,7 +58,6 @@
 #define PACKAGE_GATED	"gated-3.5b3"
 #define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
-#define PACKAGE_SAMBA	"samba-1.9.16p11"
 #define PACKAGE_LYNX	"lynx-2.7.1"
 
 /* device limits */
@@ -149,7 +148,6 @@
 #define VAR_ROUTER			"router"
 #define VAR_ROUTER_ENABLE		"router_enable"
 #define VAR_ROUTERFLAGS			"routerflags"
-#define VAR_SAMBA_PKG			"samba_pkg"
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
@@ -427,7 +425,6 @@ extern int	configNTP(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
 extern int	configXEnvironment(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
-extern int	configSamba(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
