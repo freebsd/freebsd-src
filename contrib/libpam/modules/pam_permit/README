@@ -1,4 +1,0 @@
-# $Id: README,v 1.1 1996/03/16 18:12:51 morgan Exp $
-#
-
-this module always returns PAM_SUCCESS, it ignores all options.
