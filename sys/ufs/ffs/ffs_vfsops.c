@@ -778,6 +778,7 @@ ffs_mountfs(devvp, mp, td)
 out:
 	if (bp)
 		brelse(bp);
+	vinvalbuf(devvp, V_SAVE, NOCRED, td, 0, 0);
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
