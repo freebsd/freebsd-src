@@ -32,7 +32,7 @@
 .\"	@(#)tftpd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 14, 2000
 .Dt TFTPD 8
 .Os BSD 4.2
 .Sh NAME
@@ -41,16 +41,16 @@
 Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/tftpd
-.Op Fl l
-.Op Fl n
+.Op Fl ln
 .Op Fl s Ar directory
+.Op Fl u Ar user
 .Op Ar directory ...
 .Sh DESCRIPTION
 .Nm Tftpd
 is a server which supports the
 Internet Trivial File Transfer
-Protocol (\c
-.Tn RFC 783).
+Protocol
+.Pq Tn RFC 1350 .
 The
 .Tn TFTP
 server operates
@@ -90,25 +90,39 @@ names are prefixed by the one of the given directories.
 The given directories are also treated as a search path for 
 relative filename requests.
 .Pp
-The chroot option provides additional security by restricting access
-of
-.Nm
-to only a chroot'd file system.  This is useful when moving
-from an OS that supported
+The 
 .Fl s
-as a boot server.  Because chroot is restricted to root, you must run
+option provides additional security by changing 
+.Nm tftpd Ns No 's
+root directory, thereby prohibiting accesses outside of the specified
+.Ar directory .
+Because
+.Xr chroot 2
+requires super-user privileges,
 .Nm
-as root.  However, if you chroot, then
+must be run as root.
+However, after performing the
+.Fn chroot ,
 .Nm
-will set its user id to nobody.
+will set its user id to that of the specified
+.Ar user ,
+or
+.Dq nobody
+if no
+.Fl u
+option is specified.
 .Pp
 The options are:
 .Bl -tag -width Ds
 .It Fl l
 Log all requests using
 .Xr syslog 3 
-with the facility of LOG_FTP.  Note: Logging of LOG_FTP messages
-will also need to be enabled in the syslog configuration file 
+with the facility of 
+.Dv LOG_FTP .
+Note: Logging of
+.Dv LOG_FTP
+messages
+must also be enabled in the syslog configuration file,
 .Xr syslog.conf 5 .
 .It Fl n
 Suppress negative acknowledgement of requests for nonexistent
@@ -116,25 +130,42 @@ relative filenames.
 .It Fl s Ar directory
 Cause
 .Nm
-to chroot to
-.Pa directory
-before accepting commands.  In addition, the user id is set to
-nobody.
-.Pp
-If you are not running
-.Fl s ,
-no user id change will be
-attempted.  You should not run
+to change its root directory to
+.Pa directory .
+After changing roots but before accepting commands,
 .Nm
-as root unless you are using
-.Fl s .
+will switch credentials to an unprivileged user.
+.It Fl u Ar user
+Switch credentials to
+.Ar user
+(default
+.Dq nobody )
+when the
+.Fl s
+option is used.
+The user must be specified by name, not a numeric UID.
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,
+.Xr chroot 2 ,
 .Xr inetd 8 ,
 .Xr syslogd 8
+.Rs
+.%A K. R. Sollins
+.%T The TFTP Protocol (Revision 2)
+.%D July 1992
+.%O RFC 1350, STD 33
+.Re
 .Sh HISTORY
 The
 .Nm
 command appeared in
-.Bx 4.2 .
+.Bx 4.2 ;
+the
+.Fl s
+option was introduced in
+.Fx 2.2 ,
+and the
+.Fl u
+option was introduced in
+.Fx 4.2 .
