@@ -43,7 +43,9 @@ CPUTYPE = athlon
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon-tbird" || ${CPUTYPE} == "athlon"
+.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
+    ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon-tbird" || \
+    ${CPUTYPE} == "athlon"
 _CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2" || ${CPUTYPE} == "k6"
 _CPUCFLAGS = -march=${CPUTYPE}
@@ -87,7 +89,8 @@ _CPUCFLAGS = -mcpu=ev4
 # presence of a CPU feature.
 
 .if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || ${CPUTYPE} == "athlon-4"
+. if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || \
+    ${CPUTYPE} == "athlon-4"
 MACHINE_CPU = athlon-xp k7 3dnow sse mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "athlon" || ${CPUTYPE} == "athlon-tbird"
 MACHINE_CPU = athlon k7 3dnow mmx k6 k5 i586 i486 i386
