@@ -1502,7 +1502,9 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
 			PMAP_STATS_INC(pmap_enter_nreplace);
+			vm_page_lock_queues();
 			pmap_remove_tte(pm, NULL, tp, va);
+			vm_page_unlock_queues();
 			tlb_page_demap(pm, va);
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: new");
