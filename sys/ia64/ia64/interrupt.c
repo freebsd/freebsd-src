@@ -123,7 +123,8 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		critical_exit();
 #ifdef SMP
 	} else if (vector == mp_ipi_vector[IPI_AST]) {
-		ast(framep);
+		if ((framep->tf_cr_ipsr & IA64_PSR_CPL) == IA64_PSR_CPL_USER)
+			ast(framep);
 	} else if (vector == mp_ipi_vector[IPI_RENDEZVOUS]) {
 		smp_rendezvous_action();
 	} else if (vector == mp_ipi_vector[IPI_STOP]) {
