@@ -66,9 +66,7 @@ __FBSDID("$FreeBSD$");
 #       define malloc_pageshift		12U
 #       define malloc_minsize		16U
 #   endif
-#   if !defined(__NETBSD_SYSCALLS)
-#       define HAS_UTRACE
-#   endif
+#   define HAS_UTRACE
     /*
      * Make malloc/free/realloc thread-safe in libc for use with
      * kernel threads.

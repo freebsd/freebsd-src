@@ -95,7 +95,6 @@ getcwd(pt, size)
 			return (NULL);
 		ept = pt + ptsize;
 	}
-#if	!defined(__NETBSD_SYSCALLS)
 	if (__getcwd(pt, ept - pt) == 0) {
 		if (*pt != '/') {
 			bpt = pt;
@@ -108,7 +107,6 @@ getcwd(pt, size)
 		}
 		return (pt);
 	}
-#endif
 	bpt = ept - 1;
 	*bpt = '\0';
 
