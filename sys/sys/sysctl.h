@@ -260,8 +260,7 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
 #define	KERN_LOGSIGEXIT		34	/* int: do we log sigexit procs? */
-#define KERN_JAILCANSETHOSTNAME	35	/* int: jailed p can set hostname */
-#define KERN_MAXID		36      /* number of valid kern ids */
+#define KERN_MAXID		35      /* number of valid kern ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -299,7 +298,6 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 	{ "ps_strings", CTLTYPE_INT }, \
 	{ "usrstack", CTLTYPE_INT }, \
 	{ "logsigexit", CTLTYPE_INT }, \
-	{ "jailcansethostname", CTLTYPE_INT }, \
 }
 
 /*
