@@ -2225,10 +2225,10 @@ swaponvp(td, vp, dev, nblks)
 
 	sp->sw_blist = blist_create(nblks);
 	/*
-	 * Do not free the first block in order to avoid overwriting
+	 * Do not free the first two block in order to avoid overwriting
 	 * any bsd label at the front of the partition
 	 */
-	blist_free(sp->sw_blist, 1, nblks - 1);
+	blist_free(sp->sw_blist, 2, nblks - 2);
 
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
 	nswapdev++;
