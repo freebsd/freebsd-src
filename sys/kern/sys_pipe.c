@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.29 1997/08/05 00:01:26 dyson Exp $
+ * $Id: sys_pipe.c,v 1.30 1997/08/05 00:05:00 dyson Exp $
  */
 
 /*
@@ -166,8 +166,7 @@ pipe(p, uap, retval)
 	int fd, error;
 
 	if (pipe_zone == NULL)
-		pipe_zone = zinit("PIPE", sizeof (struct pipe), 0,
-			ZONE_WAIT, 4);
+		pipe_zone = zinit("PIPE", sizeof (struct pipe), 0, 0, 4);
 
 	rpipe = zalloc( pipe_zone);
 	pipeinit(rpipe);

@@ -6,19 +6,19 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
+ *	notice immediately at the beginning of the file, without modification,
+ *	this list of conditions, and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ *	notice, this list of conditions and the following disclaimer in the
+ *	documentation and/or other materials provided with the distribution.
  * 3. Absolutely no warranty of function or purpose is made by the author
- *    John S. Dyson.
+ *	John S. Dyson.
  * 4. This work was done expressly for inclusion into FreeBSD.  Other use
- *    is allowed if this notation is included.
+ *	is allowed if this notation is included.
  * 5. Modifications may be freely made to this file if the above conditions
- *    are met.
+ *	are met.
  *
- * $Id$
+ * $Id: vm_zone.c,v 1.1 1997/08/05 00:07:29 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -48,23 +48,44 @@
  * Note that the initial implementation of this had coloring, and
  * absolutely no improvement (actually perf degradation) occurred.
  *
- * _zinit, zinit, _zbootinit are the initialization routines.
+ * zinitna, zinit, zbootinit are the initialization routines.
  * zalloc, zfree, are the interrupt/lock unsafe allocation/free routines.
  * zalloci, zfreei, are the interrupt/lock safe allocation/free routines.
  */
 
+/*
+ * Create a zone, but don't allocate the zone structure.  If the
+ * zone had been previously created by the zone boot code, initialize
+ * various parts of the zone code.
+ *
+ * If waits are not allowed during allocation (e.g. during interrupt
+ * code), a-priori allocate the kernel virtual space, and allocate
+ * only pages when needed.
+ *
+ * Arguments:
+ * z		pointer to zone structure.
+ * obj		pointer to VM object (opt).
+ * name		name of zone.
+ * size		size of zone entries.
+ * nentries	number of zone entries allocated (only ZONE_INTERRUPT.)
+ * flags	ZONE_INTERRUPT --	items can be allocated at interrupt time.
+ * zalloc	number of pages allocated when memory is needed.
+ *
+ * Note that when using ZONE_INTERRUPT, the size of the zone is limited
+ * by the nentries argument.  The size of the memory allocatable is
+ * unlimited if ZONE_INTERRUPT is not set.
+ *
+ */
 int
-_zinit(vm_zone_t z, vm_object_t obj, char *name, int size,
+zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	int nentries, int flags, int zalloc) {
 	int totsize;
 
 	if ((z->zflags & ZONE_BOOT) == 0) {
-
 		z->zsize = size;
 		simple_lock_init(&z->zlock);
 		z->zfreecnt = 0;
 		z->zname = name;
-
 	}
 
 	z->zflags |= flags;
@@ -73,7 +94,7 @@ _zinit(vm_zone_t z, vm_object_t obj, char *name, int size,
 	 * If we cannot wait, allocate KVA space up front, and we will fill
 	 * in pages as needed.
 	 */
-	if ((z->zflags & ZONE_WAIT) == 0) {
+	if (z->zflags & ZONE_INTERRUPT) {
 
 		totsize = round_page(z->zsize * nentries);
 
@@ -89,16 +110,15 @@ _zinit(vm_zone_t z, vm_object_t obj, char *name, int size,
 			z->zobj = obj;
 			_vm_object_allocate(OBJT_DEFAULT, z->zpagemax, obj);
 		}
+		z->zallocflag = VM_ALLOC_INTERRUPT;
+	} else {
+		z->zallocflag = VM_ALLOC_SYSTEM;
 	}
 
 	if ( z->zsize > PAGE_SIZE)
 		z->zfreemin = 1;
 	else
 		z->zfreemin = PAGE_SIZE / z->zsize;
-
-	z->zallocflag = VM_ALLOC_SYSTEM;
-	if (z->zflags & ZONE_INTERRUPT)
-		z->zallocflag = VM_ALLOC_INTERRUPT;
 
 	z->zpagecount = 0;
 	if (zalloc)
@@ -109,6 +129,13 @@ _zinit(vm_zone_t z, vm_object_t obj, char *name, int size,
 	return 1;
 }
 
+/*
+ * Subroutine same as zinitna, except zone data structure is allocated
+ * automatically by malloc.  This routine should normally be used, except
+ * in certain tricky startup conditions in the VM system -- then
+ * zbootinit and zinitna can be used.  Zinit is the standard zone
+ * initialization call.
+ */
 vm_zone_t
 zinit(char *name, int size, int nentries, int flags, int zalloc) {
 	vm_zone_t z;
@@ -116,7 +143,8 @@ zinit(char *name, int size, int nentries, int flags, int zalloc) {
 	if (z == NULL)
 		return NULL;
 
-	if (_zinit(z, NULL, name, size, nentries, flags, zalloc) == 0) {
+	z->zflags = 0;
+	if (zinitna(z, NULL, name, size, nentries, flags, zalloc) == 0) {
 		free(z, M_ZONE);
 		return NULL;
 	}
@@ -124,8 +152,12 @@ zinit(char *name, int size, int nentries, int flags, int zalloc) {
 	return z;
 }
 
+/*
+ * Initialize a zone before the system is fully up.  This routine should
+ * only be called before full VM startup.
+ */
 void
-_zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
+zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
 
 	int i;
 
@@ -143,11 +175,14 @@ _zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
 	for (i = 0; i < nitems; i++) {
 		* (void **) item = z->zitems;
 		z->zitems = item;
-		++z->zfreecnt;
 		(char *) item += z->zsize;
 	}
+	z->zfreecnt += nitems;
 }
 
+/*
+ * Zone critical region locks.
+ */
 static inline int
 zlock(vm_zone_t z) {
 	int s;
@@ -162,13 +197,32 @@ zunlock(vm_zone_t z, int s) {
 	splx(s);
 }
 
+/*
+ * void *zalloc(vm_zone_t zone) --
+ *	Returns an item from a specified zone.
+ *
+ * void zfree(vm_zone_t zone, void *item) --
+ *  Frees an item back to a specified zone.
+ *
+ * void *zalloci(vm_zone_t zone) --
+ *	Returns an item from a specified zone, interrupt safe.
+ *
+ * void zfreei(vm_zone_t zone, void *item) --
+ *  Frees an item back to a specified zone, interrupt safe.
+ *
+ */
+
+/*
+ * Zone allocator/deallocator.  These are interrupt / (or potentially SMP)
+ * safe.  The raw zalloc/zfree routines are in the vm_zone header file,
+ * and are not interrupt safe, but are fast.
+ */
 void *
 zalloci(vm_zone_t z) {
 	int s;
 	void *item;
-
 	s = zlock(z);
-	item = zalloc(z);
+	item = _zalloc(z);
 	zunlock(z, s);
 	return item;
 }
@@ -176,21 +230,23 @@ zalloci(vm_zone_t z) {
 void
 zfreei(vm_zone_t z, void *item) {
 	int s;
-
 	s = zlock(z);
-	zfree(z, item);
+	_zfree(z, item);
 	zunlock(z, s);
 	return;
 }
 
+/*
+ * Internal zone routine.  Not to be called from external (non vm_zone) code.
+ */
 void *
-zget(vm_zone_t z, int s) {
+_zget(vm_zone_t z) {
 	int i;
 	vm_page_t m;
 	int nitems;
-	void *item, *litem;
+	void *item;
 
-	if ((z->zflags & ZONE_WAIT) == 0) {
+	if (z->zflags & ZONE_INTERRUPT) {
 		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
 		for( i = 0; ((i < z->zalloc) && (z->zpagecount < z->zpagemax)); i++) {
 
@@ -200,7 +256,7 @@ zget(vm_zone_t z, int s) {
 			}
 
 			pmap_kenter(z->zkva + z->zpagecount * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
-			++z->zpagecount;
+			z->zpagecount++;
 		}
 		nitems = (i * PAGE_SIZE) / z->zsize;
 	} else {
@@ -214,14 +270,22 @@ zget(vm_zone_t z, int s) {
 	/*
 	 * Save one for immediate allocation
 	 */
-	nitems -= 1;
-	for (i = 0; i < nitems; i++) {
-		* (void **) item = z->zitems;
-		z->zitems = item;
-		(char *) item += z->zsize;
-		++z->zfreecnt;
+	if (nitems != 0) {
+		nitems -= 1;
+		for (i = 0; i < nitems; i++) {
+			* (void **) item = z->zitems;
+			z->zitems = item;
+			(char *) item += z->zsize;
+		}
+		z->zfreecnt += nitems;
+	} else if (z->zfreecnt > 0) {
+		item = z->zitems;
+		z->zitems = *(void **) item;
+		z->zfreecnt--;
+	} else {
+		item = NULL;
 	}
-		 
+
 	return item;
 }
 
