@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.46 1998/06/07 17:12:12 dfr Exp $
+ * $Id: if_ether.c,v 1.47 1998/06/12 03:48:14 julian Exp $
  */
 
 /*
@@ -494,11 +494,28 @@ in_arpinput(m)
 	}
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
+		if (rt->rt_ifp != &ac->ac_if) {
+			log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
+			    inet_ntoa(isaddr),
+			    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
+			    ea->arp_sha, ":",
+			    ac->ac_if.if_name, ac->ac_if.if_unit);
+			goto reply;
+		}
 		if (sdl->sdl_alen &&
 		    bcmp((caddr_t)ea->arp_sha, LLADDR(sdl), sdl->sdl_alen))
-			log(LOG_INFO, "arp: %s moved from %6D to %6D\n",
-			    inet_ntoa(isaddr), (u_char *)LLADDR(sdl), ":",
-			    ea->arp_sha, ":");
+			if (rt->rt_expire)
+			    log(LOG_INFO, "arp: %s moved from %6D to %6D on %s%d\n",
+				inet_ntoa(isaddr), (u_char *)LLADDR(sdl), ":",
+				ea->arp_sha, ":",
+				ac->ac_if.if_name, ac->ac_if.if_unit);
+			else {
+			    log(LOG_ERR,
+				"arp: %6D attempts to modify permanent entry for %s on %s%d",
+				ea->arp_sha, ":", inet_ntoa(isaddr),
+				ac->ac_if.if_name, ac->ac_if.if_unit);
+			    goto reply;
+			}
 		(void)memcpy(LLADDR(sdl), ea->arp_sha, sizeof(ea->arp_sha));
 		sdl->sdl_alen = sizeof(ea->arp_sha);
 		if (rt->rt_expire)
