@@ -161,6 +161,10 @@ struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
 
+#ifdef DDB
+void	*ksym_start, *ksym_end;
+#endif
+
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -1134,6 +1138,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		kmdp = preload_search_by_type("elf64 kernel");
 	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *) + KERNBASE;
+	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, void *);
+	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, void *);
 
 	/* Init basic tunables, hz etc */
 	init_param1();
