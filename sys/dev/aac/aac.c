@@ -43,7 +43,11 @@
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
 #include <sys/poll.h>
+#if __FreeBSD_version >= 500005
 #include <sys/selinfo.h>
+#else
+#include <sys/select.h>
+#endif
 
 #include <dev/aac/aac_compat.h>
 
@@ -409,7 +413,7 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesponse *mir, int f)
 		co->co_found = f;
 		bcopy(&mir->MntTable[0], &co->co_mntobj,
 		      sizeof(struct aac_mntobj));
-		AAC_LOCK_AQUIRE(&sc->aac_container_lock);
+		AAC_LOCK_ACQUIRE(&sc->aac_container_lock);
 		TAILQ_INSERT_TAIL(&sc->aac_container_tqh, co, co_link);
 		AAC_LOCK_RELEASE(&sc->aac_container_lock);
 	}
@@ -2171,7 +2175,7 @@ aac_describe_code(struct aac_code_lookup *table, u_int32_t code)
  */
 
 static int
-aac_open(dev_t dev, int flags, int fmt, struct thread *td)
+aac_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_softc *sc;
 
@@ -2189,7 +2193,7 @@ aac_open(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-aac_close(dev_t dev, int flags, int fmt, struct thread *td)
+aac_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_softc *sc;
 
@@ -2204,7 +2208,7 @@ aac_close(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
+aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	union aac_statrequest *as;
 	struct aac_softc *sc;
@@ -2304,7 +2308,7 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-aac_poll(dev_t dev, int poll_events, struct thread *td)
+aac_poll(dev_t dev, int poll_events, d_thread_t *td)
 {
 	struct aac_softc *sc;
 	int revents;
@@ -2312,7 +2316,7 @@ aac_poll(dev_t dev, int poll_events, struct thread *td)
 	sc = dev->si_drv1;
 	revents = 0;
 
-	AAC_LOCK_AQUIRE(&sc->aac_aifq_lock);
+	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
 	if ((poll_events & (POLLRDNORM | POLLIN)) != 0) {
 		if (sc->aac_aifq_tail != sc->aac_aifq_head)
 			revents |= poll_events & (POLLIN | POLLRDNORM);
@@ -2495,7 +2499,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 					device_delete_child(sc->aac_dev,
 							    co->co_disk);
 					co_next = TAILQ_NEXT(co, co_link);
-					AAC_LOCK_AQUIRE(&sc->
+					AAC_LOCK_ACQUIRE(&sc->
 							aac_container_lock);
 					TAILQ_REMOVE(&sc->aac_container_tqh, co,
 						     co_link);
@@ -2524,7 +2528,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	}
 
 	/* Copy the AIF data to the AIF queue for ioctl retrieval */
-	AAC_LOCK_AQUIRE(&sc->aac_aifq_lock);
+	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
 	next = (sc->aac_aifq_head + 1) % AAC_AIFQ_LENGTH;
 	if (next != sc->aac_aifq_tail) {
 		bcopy(aif, &sc->aac_aifq[next], sizeof(struct aac_aif_command));
@@ -2677,7 +2681,7 @@ aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 
 	debug_called(2);
 
-	AAC_LOCK_AQUIRE(&sc->aac_aifq_lock);
+	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
 	if (sc->aac_aifq_tail == sc->aac_aifq_head) {
 		error = EAGAIN;
 	} else {
@@ -2719,7 +2723,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 	if (id == -1)
 		return (EINVAL);
 
-	AAC_LOCK_AQUIRE(&sc->aac_container_lock);
+	AAC_LOCK_ACQUIRE(&sc->aac_container_lock);
 	TAILQ_FOREACH(co, &sc->aac_container_tqh, co_link) {
 		if (co->co_mntobj.ObjectId == id)
 			break;
