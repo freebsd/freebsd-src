@@ -258,6 +258,11 @@ closem()
 {
     register int f;
 
+#ifdef NLS_BUGS
+#ifdef NLS_CATALOGS
+    (void)catclose(catd);
+#endif /* NLS_CATALOGS */
+#endif /* NLS_BUGS */
 #ifdef YPBUGS
     /* suggested by Justin Bur; thanks to Karl Kleinpaste */
     fix_yp_bugs();
@@ -276,6 +281,11 @@ closem()
 		(void) open(_PATH_DEVNULL, O_RDONLY);
 #endif /* NISPLUS */
 	  }
+#ifdef NLS_BUGS
+#ifdef NLS_CATALOGS
+    nlsinit();
+#endif /* NLS_CATALOGS */
+#endif /* NLS_BUGS */
 }
 
 #ifndef CLOSE_ON_EXEC
