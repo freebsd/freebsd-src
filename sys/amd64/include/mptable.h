@@ -22,23 +22,37 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.59 1997/10/28 15:58:10 bde Exp $
+ *	$Id: mp_machdep.c,v 1.40 1997/12/04 19:30:03 smp Exp smp $
  */
 
 #include "opt_smp.h"
 #include "opt_vm86.h"
+
+#ifdef SMP
+#include <machine/smptests.h>
+#else
+#error
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#ifdef BETTER_CLOCK
+#include <sys/dkstat.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#ifdef BETTER_CLOCK
+#include <sys/lock.h>
+#include <vm/vm_map.h>
+#include <sys/user.h>
+#endif
 
 #include <machine/smp.h>
 #include <machine/apic.h>
@@ -548,6 +562,16 @@ mp_enable(u_int boot_addr)
 	setidt(XINVLTLB_OFFSET, Xinvltlb,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
+#ifdef BETTER_CLOCK
+	/* install an inter-CPU IPI for reading processor state */
+	setidt(XCPUCHECKSTATE_OFFSET, Xcpucheckstate,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	
+	/* install an inter-CPU IPI for forcing an additional software trap */
+	setidt(XCPUAST_OFFSET, Xcpuast,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+#endif
+	
 	/* install an inter-CPU IPI for CPU stop/restart */
 	setidt(XCPUSTOP_OFFSET, Xcpustop,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
@@ -2051,3 +2075,293 @@ putfmtrr()
 		wrmsr(0x259, 0x0101010101010101LL);
 	}
 }
+
+
+#ifdef BETTER_CLOCK
+
+#define CHECKSTATE_USER	0
+#define CHECKSTATE_SYS	1
+#define CHECKSTATE_INTR	2
+
+struct proc*	checkstate_curproc[NCPU];
+int		checkstate_cpustate[NCPU];
+u_long		checkstate_pc[NCPU];
+
+extern long	cp_time[CPUSTATES];
+
+#define PC_TO_INDEX(pc, prof)				\
+        ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\
+            (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
+
+static void
+addupc_intr_forwarded(struct proc *p, int id, int *astmap)
+{
+	int i;
+	struct uprof *prof;
+	u_long pc;
+
+	pc = checkstate_pc[id];
+	prof = &p->p_stats->p_prof;
+	if (pc >= prof->pr_off &&
+	    (i = PC_TO_INDEX(pc, prof)) < prof->pr_size) {
+		if ((p->p_flag & P_OWEUPC) == 0) {
+			prof->pr_addr = pc;
+			prof->pr_ticks = 1;
+			p->p_flag |= P_OWEUPC;
+		}
+		*astmap |= (1 << id);
+	}
+}
+
+static void
+forwarded_statclock(int id, int pscnt, int *astmap)
+{
+	struct pstats *pstats;
+	long rss;
+	struct rusage *ru;
+	struct vmspace *vm;
+	int cpustate;
+	struct proc *p;
+#ifdef GPROF
+	register struct gmonparam *g;
+	int i;
+#endif
+
+	p = checkstate_curproc[id];
+	cpustate = checkstate_cpustate[id];
+
+	switch (cpustate) {
+	case CHECKSTATE_USER:
+		if (p->p_flag & P_PROFIL)
+			addupc_intr_forwarded(p, id, astmap);
+		if (pscnt > 1)
+			return;
+		p->p_uticks++;
+		if (p->p_nice > NZERO)
+			cp_time[CP_NICE]++;
+		else
+			cp_time[CP_USER]++;
+		break;
+	case CHECKSTATE_SYS:
+#ifdef GPROF
+		/*
+		 * Kernel statistics are just like addupc_intr, only easier.
+		 */
+		g = &_gmonparam;
+		if (g->state == GMON_PROF_ON) {
+			i = checkstate_pc[id] - g->lowpc;
+			if (i < g->textsize) {
+				i /= HISTFRACTION * sizeof(*g->kcount);
+				g->kcount[i]++;
+			}
+		}
+#endif
+		if (pscnt > 1)
+			return;
+
+		if (!p)
+			cp_time[CP_IDLE]++;
+		else {
+			p->p_sticks++;
+			cp_time[CP_SYS]++;
+		}
+		break;
+	case CHECKSTATE_INTR:
+	default:
+#ifdef GPROF
+		/*
+		 * Kernel statistics are just like addupc_intr, only easier.
+		 */
+		g = &_gmonparam;
+		if (g->state == GMON_PROF_ON) {
+			i = checkstate_pc[id] - g->lowpc;
+			if (i < g->textsize) {
+				i /= HISTFRACTION * sizeof(*g->kcount);
+				g->kcount[i]++;
+			}
+		}
+#endif
+		if (pscnt > 1)
+			return;
+		if (p)
+			p->p_iticks++;
+		cp_time[CP_INTR]++;
+	}
+	if (p != NULL) {
+		p->p_cpticks++;
+		if (++p->p_estcpu == 0)
+			p->p_estcpu--;
+		if ((p->p_estcpu & 3) == 0) {
+			resetpriority(p);
+			if (p->p_priority >= PUSER)
+				p->p_priority = p->p_usrpri;
+		}
+		
+		/* Update resource usage integrals and maximums. */
+		if ((pstats = p->p_stats) != NULL &&
+		    (ru = &pstats->p_ru) != NULL &&
+		    (vm = p->p_vmspace) != NULL) {
+			ru->ru_ixrss += vm->vm_tsize * PAGE_SIZE / 1024;
+			ru->ru_idrss += vm->vm_dsize * PAGE_SIZE / 1024;
+			ru->ru_isrss += vm->vm_ssize * PAGE_SIZE / 1024;
+			rss = vm->vm_pmap.pm_stats.resident_count *
+				PAGE_SIZE / 1024;
+			if (ru->ru_maxrss < rss)
+				ru->ru_maxrss = rss;
+        	}
+	}
+}
+
+void
+forward_statclock(int pscnt)
+{
+	int map;
+	int id;
+	int i;
+
+	/* Kludge. We don't yet have separate locks for the interrupts
+	 * and the kernel. This means that we cannot let the other processors
+	 * handle complex interrupts while inhibiting them from entering
+	 * the kernel in a non-interrupt context.
+	 *
+	 * What we can do, without changing the locking mechanisms yet,
+	 * is letting the other processors handle a very simple interrupt
+	 * (wich determines the processor states), and do the main
+	 * work ourself.
+	 */
+
+	if (!smp_started || !invltlb_ok)
+		return;
+
+	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle ) */
+	
+	map = other_cpus;
+	checkstate_probed_cpus = 0;
+	selected_apic_ipi(map, XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
+
+	i = 0;
+	while (checkstate_probed_cpus != map) {
+		/* spin */
+		i++;
+		if (i == 1000000) {
+			printf("forward_statclock: checkstate %x\n",
+			       checkstate_probed_cpus);
+		}
+	}
+
+	/*
+	 * Step 2: walk through other processors processes, update ticks and 
+	 * profiling info.
+	 */
+	
+	map = 0;
+	for (id = 0; id < mp_ncpus; id++) {
+		if (id == cpuid)
+			continue;
+		if (((1 << id) & checkstate_probed_cpus) == 0)
+			panic("state for cpu %d not available", cpuid);
+		forwarded_statclock(id, pscnt, &map);
+	}
+	if (map != 0) {
+		checkstate_need_ast |= map;
+		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+		i = 0;
+		while (checkstate_need_ast != 0) {
+			/* spin */
+			i++;
+			if (i > 1000000) { 
+				printf("forward_statclock: dropped ast 0x%x\n",
+				       checkstate_need_ast);
+				break;
+			}
+		}
+	}
+}
+
+void 
+forward_hardclock(int pscnt)
+{
+	int map;
+	int id;
+	struct proc *p;
+	struct pstats *pstats;
+	int i;
+
+	/* Kludge. We don't yet have separate locks for the interrupts
+	 * and the kernel. This means that we cannot let the other processors
+	 * handle complex interrupts while inhibiting them from entering
+	 * the kernel in a non-interrupt context.
+	 *
+	 * What we can do, without changing the locking mechanisms yet,
+	 * is letting the other processors handle a very simple interrupt
+	 * (wich determines the processor states), and do the main
+	 * work ourself.
+	 */
+
+	if (!smp_started || !invltlb_ok)
+		return;
+
+	/* Step 1: Probe state   (user, cpu, interrupt, spinlock, idle) */
+	
+	map = other_cpus;
+	checkstate_probed_cpus = 0;
+	selected_apic_ipi(map, XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
+
+	i = 0;
+	while (checkstate_probed_cpus != map) {
+		/* spin */
+		i++;
+		if (i == 1000000) {
+			printf("forward_hardclock: checkstate %x\n",
+			       checkstate_probed_cpus);
+		}
+	}
+
+	/*
+	 * Step 2: walk through other processors processes, update virtual 
+	 * timer and profiling timer. If stathz == 0, also update ticks and 
+	 * profiling info.
+	 */
+	
+	map = 0;
+	for (id = 0; id < mp_ncpus; id++) {
+		if (id == cpuid)
+			continue;
+		if (((1 << id) & checkstate_probed_cpus) == 0)
+			panic("state for cpu %d not available", cpuid);
+		p = checkstate_curproc[id];
+		if (p) {
+			pstats = p->p_stats;
+			if (checkstate_cpustate[id] == CHECKSTATE_USER &&
+			    timerisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
+			    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
+				psignal(p, SIGVTALRM);
+				map |= (1 << id);
+			}
+			if (timerisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
+			    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
+				psignal(p, SIGPROF);
+				map |= (1 << id);
+			}
+		}
+		if (stathz == 0) {
+			forwarded_statclock( id, pscnt, &map);
+		}
+	}
+	if (map != 0) {
+		checkstate_need_ast |= map;
+		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+		i = 0;
+		while (checkstate_need_ast != 0) {
+			/* spin */
+			i++;
+			if (i > 1000000) { 
+				printf("forward_hardclock: dropped ast 0x%x\n",
+				       checkstate_need_ast);
+				break;
+			}
+		}
+	}
+}
+
+#endif /* BETTER_CLOCK */

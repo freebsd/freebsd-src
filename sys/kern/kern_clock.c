@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.44 1997/11/18 12:24:22 bde Exp $
+ * $Id: kern_clock.c,v 1.45 1997/11/24 15:15:27 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -80,6 +80,10 @@
 #include <sys/gmon.h>
 #endif
 
+#if defined(SMP) && defined(BETTER_CLOCK)
+#include <machine/smp.h>
+#endif
+
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
@@ -91,7 +95,11 @@ struct callout_tailq *callwheel;
 
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
+#if defined(SMP) && defined(BETTER_CLOCK)
+long cp_time[CPUSTATES];
+#else
 static long cp_time[CPUSTATES];
+#endif
 long dk_seek[DK_NDRIVE];
 static long dk_time[DK_NDRIVE];	/* time busy (in statclock ticks) */
 long dk_wds[DK_NDRIVE];
@@ -471,6 +479,9 @@ hardclock(frame)
 			psignal(p, SIGPROF);
 	}
 
+#if defined(SMP) && defined(BETTER_CLOCK)
+	forward_hardclock(pscnt);
+#endif
 	/*
 	 * If no separate statistics clock is available, run it from here.
 	 */
@@ -971,6 +982,10 @@ statclock(frame)
 		p = curproc;
 		if (p->p_flag & P_PROFIL)
 			addupc_intr(p, CLKF_PC(frame), 1);
+#if defined(SMP) && defined(BETTER_CLOCK)
+		if (stathz != 0)
+			forward_statclock(pscnt);
+#endif
 		if (--pscnt > 0)
 			return;
 		/*
@@ -995,6 +1010,10 @@ statclock(frame)
 				g->kcount[i]++;
 			}
 		}
+#endif
+#if defined(SMP) && defined(BETTER_CLOCK)
+		if (stathz != 0)
+			forward_statclock(pscnt);
 #endif
 		if (--pscnt > 0)
 			return;
