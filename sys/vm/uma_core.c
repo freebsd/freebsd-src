@@ -197,7 +197,6 @@ bucket_enable(void)
 		bucketdisable = 1;
 	else
 		bucketdisable = 0;
-	bucketdisable = 1;
 }
 
 
