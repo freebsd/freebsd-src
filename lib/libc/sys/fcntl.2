@@ -147,6 +147,11 @@ corresponds to the
 .Dv O_APPEND
 flag of
 .Xr open 2 .
+.It Dv O_DIRECT
+Minimize or eliminate the cache effects of reading and writing.  The system
+will attempt to avoid caching the data you read or write.  If it cannot
+avoid caching the data, it will minimize the impact the data has on the cache.
+Use of this flag can drastically reduce performance if not used with care.
 .It Dv O_ASYNC
 Enable the
 .Dv SIGIO
