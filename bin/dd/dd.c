@@ -104,6 +104,16 @@ main(int argc __unused, char *argv[])
 	exit(0);
 }
 
+static int
+parity(u_char c)
+{
+	int i;
+
+	i = c ^ (c >> 1) ^ (c >> 2) ^ (c >> 3) ^ 
+	    (c >> 4) ^ (c >> 5) ^ (c >> 6) ^ (c >> 7);
+	return (i & 1);
+}
+
 static void
 setup(void)
 {
@@ -176,29 +186,52 @@ setup(void)
 		if (ftruncate(out.fd, out.offset * out.dbsz) == -1)
 			err(1, "truncating %s", out.name);
 
-	/*
-	 * If converting case at the same time as another conversion, build a
-	 * table that does both at once.  If just converting case, use the
-	 * built-in tables.
-	 */
-	if (ddflags & (C_LCASE | C_UCASE)) {
-		if (ddflags & (C_ASCII | C_EBCDIC)) {
-			if (ddflags & C_LCASE) {
-				for (cnt = 0; cnt <= 0377; ++cnt)
-					casetab[cnt] = tolower(ctab[cnt]);
-			} else {
-				for (cnt = 0; cnt <= 0377; ++cnt)
-					casetab[cnt] = toupper(ctab[cnt]);
-			}
+	if (ddflags & (C_LCASE  | C_UCASE | C_ASCII | C_EBCDIC | C_PARITY)) {
+		if (ctab != NULL) {
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				casetab[cnt] = ctab[cnt];
 		} else {
-			if (ddflags & C_LCASE) {
-				for (cnt = 0; cnt <= 0377; ++cnt)
-					casetab[cnt] = tolower((int)cnt);
-			} else {
-				for (cnt = 0; cnt <= 0377; ++cnt)
-					casetab[cnt] = toupper((int)cnt);
-			}
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				casetab[cnt] = cnt;
 		}
+		if ((ddflags & C_PARITY) && !(ddflags & C_ASCII)) {
+			/*
+			 * If the input is not EBCDIC, and we do parity
+			 * processing, strip input parity.
+			 */
+			for (cnt = 200; cnt <= 0377; ++cnt)
+				casetab[cnt] = casetab[cnt & 0x7f];
+		}
+		if (ddflags & C_LCASE) {
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				casetab[cnt] = tolower(casetab[cnt]);
+		} else if (ddflags & C_UCASE) {
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				casetab[cnt] = toupper(casetab[cnt]);
+		}
+		if ((ddflags & C_PARITY)) {
+			/*
+			 * This should strictly speaking be a no-op, but I
+			 * wonder what funny LANG settings could get us.
+			 */
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				casetab[cnt] = casetab[cnt] & 0x7f;
+		}
+		if ((ddflags & C_PARSET)) {
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				casetab[cnt] = casetab[cnt] | 0x80;
+		}
+		if ((ddflags & C_PAREVEN)) {
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				if (parity(casetab[cnt]))
+					casetab[cnt] = casetab[cnt] | 0x80;
+		}
+		if ((ddflags & C_PARODD)) {
+			for (cnt = 0; cnt <= 0377; ++cnt)
+				if (!parity(casetab[cnt]))
+					casetab[cnt] = casetab[cnt] | 0x80;
+		}
+
 		ctab = casetab;
 	}
 

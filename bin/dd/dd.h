@@ -95,3 +95,9 @@ typedef struct {
 #define	C_UNBLOCK	0x80000
 #define	C_OSYNC		0x100000
 #define	C_SPARSE	0x200000
+#define C_PAREVEN	0x400000
+#define C_PARODD	0x800000
+#define C_PARSET	0x1000000
+#define C_PARNONE	0x2000000
+
+#define C_PARITY	(C_PAREVEN|C_PARODD|C_PARSET|C_PARNONE)
