@@ -251,6 +251,16 @@ hw.ata.atapi_dma="1"</programlisting>
 
     <para>As of this writing, this issue is under continuing
       investigation.</para>
+
+    <para>Due to a bug in the release generation process, some of the
+      directories under <filename>/usr/share/examples</filename> are
+      empty (most notably
+      <filename>/usr/share/examples/cvsup</filename>).  A partial
+      workaround is to install the <filename>sshare</filename>
+      distribution via &man.sysinstall.8;.
+      <filename>/usr/src/share/examples</filename> will then contain 
+      the missing files.</para>
+
 ]]>
   </sect1>
 </article>
