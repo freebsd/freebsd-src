@@ -1,2 +1,0 @@
-/defaults       type:=host;fs:=${autodir}/${rhost};rhost:=${key}
-*               opts:=rw,grpid,resvport,nfsv2,nosuid,nodev

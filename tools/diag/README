@@ -1,9 +1,0 @@
-This directory is for diagnostic programs.
-
-A diagnostic program is one that will inform you that something is wrong
-somewhere, for instance by traversing a kernel-structure and verifying
-the integrity.
-
-Please make a subdir per program, and add a brief description to this file.
-
-ac 	check if the FreeBSD handbook is in sync with the committers list

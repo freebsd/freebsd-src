@@ -1,5 +1,0 @@
-        This subdirectory contains tools that can be used with CVS.
-Note that they will not necessarily be installed when you "make
-install" from the top-level of the CVS source tree.
-
-pcl-cvs ............................. an Emacs interface to CVS.
