@@ -227,12 +227,11 @@ linprocfs_ioctl(ap)
 
 	p = ap->a_p;
 	procp = pfind(pfs->pfs_pid);
-	if (procp == NULL) {
+	if (procp == NULL)
 		return ENOTTY;
-	}
 
-	if (p_can(p, procp, P_CAN_DEBUG, NULL))
-		return EPERM;
+	if ((error = p_can(p, procp, P_CAN_DEBUG, NULL)))
+		return (error == ESRCH ? ENOENT : error);
 
 	switch (ap->a_command) {
 	case PIOCBIS:
@@ -431,6 +430,9 @@ linprocfs_getattr(ap)
 		if (procp == 0 || procp->p_cred == NULL ||
 		    procp->p_ucred == NULL)
 			return (ENOENT);
+
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+			return (ENOENT);
 	}
 
 	error = 0;
@@ -580,10 +582,6 @@ linprocfs_setattr(ap)
 /*
  * implement access checking.
  *
- * something very similar to this code is duplicated
- * throughout the 4bsd kernel and should be moved
- * into kern/vfs_subr.c sometime.
- *
  * actually, the check for super-user is slightly
  * broken since it will allow read access to write-only
  * objects.  this doesn't cause any particular trouble
@@ -599,45 +597,34 @@ linprocfs_access(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
+	struct proc *procp;
 	struct vattr *vap;
 	struct vattr vattr;
 	int error;
 
-	/*
-	 * If you're the super-user,
-	 * you always get access.
-	 */
-	if (ap->a_cred->cr_uid == 0)
-		return (0);
+	switch (pfs->pfs_type) {
+	case Proot:
+	case Pself:
+	case Pmeminfo:
+	case Pcpuinfo:
+		break;
+	default:
+		procp = PFIND(pfs->pfs_pid);
+		if (procp == NULL)
+			return (ENOENT);
+		if (p_can(ap->a_p, procp, P_CAN_SEE, NULL))
+			return (ENOENT);
+	}
 
 	vap = &vattr;
-	error = VOP_GETATTR(ap->a_vp, vap, ap->a_cred, ap->a_p);
+	error = VOP_GETATTR(vp, vap, ap->a_cred, ap->a_p);
 	if (error)
 		return (error);
 
-	/*
-	 * Access check is based on only one of owner, group, public.
-	 * If not owner, then check group. If not a member of the
-	 * group, then check public access.
-	 */
-	if (ap->a_cred->cr_uid != vap->va_uid) {
-		gid_t *gp;
-		int i;
-
-		ap->a_mode >>= 3;
-		gp = ap->a_cred->cr_groups;
-		for (i = 0; i < ap->a_cred->cr_ngroups; i++, gp++)
-			if (vap->va_gid == *gp)
-				goto found;
-		ap->a_mode >>= 3;
-found:
-		;
-	}
-
-	if ((vap->va_mode & ap->a_mode) == ap->a_mode)
-		return (0);
-
-	return (EACCES);
+	return (vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
+	    ap->a_mode, ap->a_cred, NULL));
 }
 
 /*
@@ -658,6 +645,7 @@ linprocfs_lookup(ap)
 	} */ *ap;
 {
 	struct componentname *cnp = ap->a_cnp;
+	struct proc *curp = cnp->cn_proc;
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
@@ -699,6 +687,9 @@ linprocfs_lookup(ap)
 
 		p = PFIND(pid);
 		if (p == 0)
+			break;
+
+		if (p_can(curp, p, P_CAN_SEE, NULL))
 			break;
 
 		return (linprocfs_allocvp(dvp->v_mount, vpp, pid, Pproc));
