@@ -1,3 +1,6 @@
+/* @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC */
+/* @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro */
+
 /*
  * Network lock manager protocol definition
  * Copyright (C) 1986 Sun Microsystems, Inc.
@@ -11,7 +14,7 @@
 #else
 %#ifndef lint
 %static const char rcsid[] =
-%	"$Id: nlm_prot.x,v 1.5 1997/10/31 12:26:50 charnier Exp $";
+%	"$Id: nlm_prot.x,v 1.6 1997/11/20 07:18:03 charnier Exp $";
 %#endif /* not lint */
 #endif
 
