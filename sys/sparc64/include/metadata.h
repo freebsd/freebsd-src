@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 2001 Jake Burkholder.
  * All rights reserved.
  *
@@ -26,67 +26,11 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/interrupt.h>
-#include <sys/timetc.h>
+#ifndef _MACHINE_METADATA_H_
+#define	_MACHINE_METADATA_H_
 
-#include <machine/frame.h>
-#include <machine/intr_machdep.h>
-#include <machine/tick.h>
+#define	MODINFOMD_ENVP		0x1001
+#define	MODINFOMD_HOWTO		0x1002
+#define	MODINFOMD_KERNEND	0x1003
 
-extern u_long tick_increment;
-extern u_long tick_freq;
-extern u_long tick_MHz;
-
-int tick_missed;	/* statistics */
-
-#define	TICK_GRACE	1000
-
-void
-tick_hardclock(struct clockframe *cf)
-{
-	int missed;
-	u_long next;
-
-	hardclock(cf);
-	/*
-	 * Avoid stopping of hardclock in case we missed one tick period by
-	 * ensuring that the the value of the next tick is at least TICK_GRACE
-	 * ticks in the future.
-	 * Missed ticks need to be accounted for by repeatedly calling
-	 * hardclock.
-	 */
-	missed = 0;
-	next = rd(asr23) + tick_increment;
-	critical_enter();
-	while (next < rd(tick) + TICK_GRACE) {
-		next += tick_increment;
-		missed++;
-	}
-	atomic_add_int(&tick_missed, missed);
-	wr(asr23, next, 0);
-	critical_exit();
-	for (; missed > 0; missed--)
-		hardclock(cf);
-}
-
-void
-tick_start(u_long clock, tick_func_t *func)
-{
-	intr_setup(PIL_TICK, (ih_func_t *)func, -1, NULL, NULL);
-	tick_freq = clock;
-	tick_MHz = clock / 1000000;
-	tick_increment = clock / hz;
-	wrpr(tick, 0, 0);
-	wr(asr23, clock / hz, 0);
-}
-
-void
-tick_stop(void)
-{
-	wrpr(tick, 0, 0);
-	wr(asr23, 1L << 63, 0);
-}
+#endif /* !_MACHINE_METADATA_H_ */
