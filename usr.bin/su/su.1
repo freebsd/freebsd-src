@@ -42,27 +42,29 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl
-.Op Fl Kflm
+.Op Fl flm
 .Op Fl c Ar class 
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
 .Nm Su
-requests the Kerberos password for
+requests the superuser password for
 .Ar login
-(or for
-.Dq Ar login Ns .root ,
-if no login is provided), and switches to
-that user and group ID after obtaining a Kerberos ticket granting ticket.
+(or if Kerberos PAMs are used for
+.Dq Ar login Ns .root
+or
+.Dq Ar login Ns /root
+as appropriate),
+and switches to that user ID.
 A shell is then executed.
 .Nm Su
 will resort to the local password file to find the password for
 .Ar login
-if there is a Kerberos error.
+if there is a PAM error.
 If
 .Nm
 is executed by root, no password is requested and a shell
-with the appropriate user ID is executed; no additional Kerberos tickets
-are obtained.
+with the appropriate user ID is executed;
+no additional PAM work is done.
 .Pp
 By default, the environment is unmodified with the exception of
 .Ev USER ,
@@ -76,7 +78,7 @@ are set to the target login's default values.
 .Ev USER
 is set to the target login, unless the target login has a user ID of 0,
 in which case it is unmodified.
-The invoked shell is the target login's.
+The invoked shell is the one belonging to the target login.
 This is the traditional behavior of
 .Nm .
 Resource limits and session priority applicable to the original user's
@@ -86,8 +88,6 @@ are also normally retained unless the target login as a user ID of 0.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl K
-Do not attempt to use Kerberos to authenticate the user.
 .It Fl f
 If the invoked shell is
 .Xr csh 1 ,
@@ -190,7 +190,8 @@ entries with service name
 .Xr group 5 ,
 .Xr login.conf 5 ,
 .Xr passwd 5 ,
-.Xr environ 7
+.Xr environ 7 ,
+.Xr pam 8
 .Sh ENVIRONMENT
 Environment variables used by
 .Nm :
