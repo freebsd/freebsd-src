@@ -40,11 +40,11 @@
  * Enterprises, see ``http://www.vix.com''.
  */
 
-/* $FreeBSD$ */
 
 #ifndef lint
 static char copyright[] =
-"$Id: tables.c,v 1.13.2.4 1999/04/24 16:46:44 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: tables.c,v 1.13.2.4 1999/04/24 16:46:44 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n"
+"$FreeBSD$\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
