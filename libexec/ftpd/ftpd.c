@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ftpd.c,v 1.22 1996/08/09 09:02:26 markm Exp $
  */
 
 #if 0
@@ -152,6 +152,9 @@ char	*tty = ttyline;		/* for klogin */
 int	 klogin __P((struct passwd *, char *, char *, char *));
 #endif
 
+struct	in_addr bind_address;
+char	*pid_file = NULL;
+
 #if defined(KERBEROS)
 int	notickets = 1;
 int	noticketsdontcomplain = 1;
@@ -255,7 +258,8 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "dlDSUt:T:u:v")) != EOF) {
+	bind_address.s_addr = htonl(INADDR_ANY);
+	while ((ch = getopt(argc, argv, "dlDSUt:T:u:va:p:")) != EOF) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
@@ -291,6 +295,15 @@ main(argc, argv, envp)
 
 		case 'U':
 			restricted_data_ports = 0;
+			break;
+
+		case 'a':
+			if (!inet_aton(optarg, &bind_address))
+				errx(1, "invalid address for -a");
+			break;
+
+		case 'p':
+			pid_file = optarg;
 			break;
 
 		case 'u':
@@ -356,7 +369,7 @@ main(argc, argv, envp)
 		    (char *)&on, sizeof(on)) < 0)
 			syslog(LOG_ERR, "control setsockopt: %m");;
 		server_addr.sin_family = AF_INET;
-		server_addr.sin_addr.s_addr = INADDR_ANY;
+		server_addr.sin_addr = bind_address;
 		server_addr.sin_port = sv->s_port;
 		if (bind(ctl_sock, (struct sockaddr *)&server_addr, sizeof(server_addr))) {
 			syslog(LOG_ERR, "control bind: %m");
@@ -365,6 +378,27 @@ main(argc, argv, envp)
 		if (listen(ctl_sock, 32) < 0) {
 			syslog(LOG_ERR, "control listen: %m");
 			exit(1);
+		}
+		/*
+		 * Atomically write process ID
+		 */
+		if (pid_file)
+		{   
+			int fd;
+			char buf[20];
+
+			fd = open(pid_file, O_CREAT | O_WRONLY | O_TRUNC
+				| O_NONBLOCK | O_EXLOCK, 0644);
+			if (fd < 0)
+				if (errno == EAGAIN)
+					errx(1, "%s: file locked", pid_file);
+				else
+					err(1, "%s", pid_file);
+			snprintf(buf, sizeof(buf),
+				"%lu\n", (unsigned long) getpid());
+			if (write(fd, buf, strlen(buf)) < 0)
+				err(1, "%s: write", pid_file);
+			/* Leave the pid file open and locked */
 		}
 		/*
 		 * Loop forever accepting connection requests and forking off

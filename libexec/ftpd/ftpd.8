@@ -47,6 +47,8 @@ Internet File Transfer Protocol server
 .Op Fl U
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
+.Op Fl a Ar address
+.Op Fl p Ar file
 .Sh DESCRIPTION
 .Nm Ftpd
 is the
@@ -117,6 +119,16 @@ The default limit is 2 hours.
 The inactivity timeout period is set to
 .Ar timeout
 seconds (the default is 15 minutes).
+.It Fl a
+When
+.Fl D
+is specified, accept connections only on the specified
+.Ar address .
+.It Fl p
+When
+.Fl D
+is specified, write the daemon's process ID to
+.Ar file .
 .El
 .Pp
 The file
