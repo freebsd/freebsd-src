@@ -160,13 +160,16 @@ When declaring variables in structures, declare them sorted by use, then
 by size, and then by alphabetical order.  The first category normally
 doesn't apply, but there are exceptions.  Each one gets its own line.
 Try to make the structure
-readable by aligning the variable names using either one or two tabs
-depending upon your judgement. Names following extremely long types
-should be separated by a simple space, i.e. use
-.Ql int^I^Ix;
-.Ql struct foo^I*x; .
+readable by aligning the member names using either one or two tabs
+depending upon your judgement.
+You should use one tab if it suffices to align most of the member names.
+Names following extremely long types
+should be separated from it by a single space, i.e. use
+.Ql "int^I^Ix;"
 and
-.Ql struct verylongtypename *bar;
+.Ql "struct foo^I*x;"
+but
+.Ql "struct verylongtypename *baz;" .
 .Pp
 Major structures should be declared at the top of the file in which they
 are used, or in separate header files if they are used in multiple
@@ -174,12 +177,12 @@ source files.  Use of the structures should be by separate declarations
 and should be "extern" if they are declared in a header file.
 .Bd -literal
 struct foo {
-	struct foo	*next;		/* List of active foo */
-	struct mumble	amumble;	/* Comment for mumble */
-	int		bar;		/* Try align the comments */
-	struct verylongtypename *bar;	/* won't fit in 2 tabs */
+	struct foo	*next;		/* List of active foo. */
+	struct mumble	amumble;	/* Comment for mumble. */
+	int		bar;		/* Try to align the comments. */
+	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
 };
-struct foo *foohead;			/* Head of global foo list */
+struct foo *foohead;			/* Head of global foo list. */
 .Ed
 .Pp
 Use
@@ -189,12 +192,12 @@ the previous example would be better written:
 .Bd -literal
 #include <sys/queue.h>
 struct foo {
-	LIST_ENTRY(foo)	link;		/* Queue macro for foo lists */
-	struct mumble	amumble;	/* Comment for mumble */
-	int		bar;		/* Try align the comments */
-	struct verylongtypename *bar;	/* won't fit in 2 tabs */
+	LIST_ENTRY(foo)	link;		/* Queue macro for foo lists. */
+	struct mumble	amumble;	/* Comment for mumble. */
+	int		bar;		/* Try to align the comments. */
+	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
 };
-LIST_HEAD(, foo) foohead;		/* Head of global foo list */
+LIST_HEAD(, foo) foohead;		/* Head of global foo list. */
 .Ed
 .Pp
 Avoid using typedefs for structure types.  This makes it impossible
