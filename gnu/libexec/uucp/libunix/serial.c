@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.1 1993/08/04 19:32:52 jtc Exp $";
+const char serial_rcsid[] = "$Id: serial.c,v 1.26 1993/01/07 02:31:53 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -193,14 +193,24 @@ extern int t_nerr;
 		      | ECHONL | NOFLSH)
 #endif
 #if HAVE_POSIX_TERMIOS
+#ifdef IMAXBEL
+#define CI_ADD1 IMAXBEL
+#else
+#define CI_ADD1 0
+#endif
 #define ICLEAR_IFLAG (BRKINT | ICRNL | IGNBRK | IGNCR | IGNPAR \
 		      | INLCR | INPCK | ISTRIP | IXOFF | IXON \
-		      | PARMRK)
+		      | PARMRK | CI_ADD1)
 #define ICLEAR_OFLAG (OPOST)
 #define ICLEAR_CFLAG (CLOCAL | CSIZE | PARENB | PARODD)
 #define ISET_CFLAG (CS8 | CREAD | HUPCL)
+#ifdef PENDIN
+#define CL_ADD1 PENDIN
+#else
+#define CL_ADD1 0
+#endif
 #define ICLEAR_LFLAG (ECHO | ECHOE | ECHOK | ECHONL | ICANON | IEXTEN \
-		      | ISIG | NOFLSH | TOSTOP)
+		      | ISIG | NOFLSH | TOSTOP | CL_ADD1)
 #endif
 
 /* Local functions.  */
@@ -616,11 +626,11 @@ fsserial_lockfile (flok, qconn)
 	{
 	  if (lockttyexist (z))
 	    {
-	      ulog (LOG_NORMAL, "%s: port already locked");
+	      ulog (LOG_NORMAL, "%s: port already locked", z+5);
 	      fret = FALSE;
 	    }
 	  else
-	    fret = fscoherent_disable_tty (z, &qsysdep->zenable);
+	    fret = !(fscoherent_disable_tty (z, &qsysdep->zenable));
 	}
       else
 	{
@@ -925,11 +935,6 @@ fsserial_open (qconn, ibaud, fwait)
 	  ulog (LOG_ERROR, "fcntl (FD_CLOEXEC): %s", strerror (errno));
 	  return FALSE;
 	}
-
-#ifdef TIOCSCTTY
-      /* On BSD 4.4, make it our controlling terminal.  */
-      (void) ioctl (q->o, TIOCSCTTY, 0);
-#endif
     }
 
   /* Get the port flags, and make sure the ports are blocking.  */
@@ -1020,11 +1025,13 @@ fsserial_open (qconn, ibaud, fwait)
   q->snew.c_iflag &=~ ICLEAR_IFLAG;
   q->snew.c_oflag &=~ ICLEAR_OFLAG;
   q->snew.c_cflag &=~ ICLEAR_CFLAG;
+  if (!fwait)
+    q->snew.c_cflag |= CLOCAL;
   q->snew.c_cflag |= (ib | ISET_CFLAG);
   q->snew.c_lflag &=~ ICLEAR_LFLAG;
   cSmin = 1;
   q->snew.c_cc[VMIN] = cSmin;
-  q->snew.c_cc[VTIME] = 0;
+  q->snew.c_cc[VTIME] = 1;
 
 #ifdef TCFLSH
   /* Flush pending input.  */
@@ -1041,11 +1048,13 @@ fsserial_open (qconn, ibaud, fwait)
   q->snew.c_iflag &=~ ICLEAR_IFLAG;
   q->snew.c_oflag &=~ ICLEAR_OFLAG;
   q->snew.c_cflag &=~ ICLEAR_CFLAG;
+  if (!fwait)
+    q->snew.c_cflag |= CLOCAL;
   q->snew.c_cflag |= ISET_CFLAG;
   q->snew.c_lflag &=~ ICLEAR_LFLAG;
   cSmin = 1;
   q->snew.c_cc[VMIN] = cSmin;
-  q->snew.c_cc[VTIME] = 0;
+  q->snew.c_cc[VTIME] = 1;
 
   (void) cfsetospeed (&q->snew, ib);
   (void) cfsetispeed (&q->snew, ib);
@@ -1060,6 +1069,11 @@ fsserial_open (qconn, ibaud, fwait)
       ulog (LOG_ERROR, "Can't set terminal settings: %s", strerror (errno));
       return FALSE;
     }
+
+#ifdef TIOCSCTTY
+  /* On BSD 4.4, make it our controlling terminal.  */
+  (void) ioctl (q->o, TIOCSCTTY, 0);
+#endif
 
   if (ibaud != 0)
     q->ibaud = ibaud;
