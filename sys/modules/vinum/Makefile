@@ -1,7 +1,5 @@
 # $FreeBSD$ 
 
-MAINTAINER=  grog@FreeBSD.org
-
 .PATH: ${.CURDIR}/../../dev/vinum
 KMOD= vinum
 
