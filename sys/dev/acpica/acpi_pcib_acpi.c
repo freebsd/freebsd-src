@@ -164,10 +164,10 @@ acpi_pcib_acpi_attach(device_t dev)
 	    device_printf(dev, "could not evaluate _BBN - %s\n",
 		AcpiFormatException(status));
 	    return_VALUE(ENXIO);
+	} else {
+	    /* if it's not found, assume 0 */
+	    sc->ap_bus = 0;
 	}
-    } else {
-	/* if it's not found, assume 0 */
-	sc->ap_bus = 0;
     }
 
     /*
@@ -176,16 +176,15 @@ acpi_pcib_acpi_attach(device_t dev)
      */
     busok = 1;
     if (sc->ap_bus == 0 && devclass_get_device(pcib_devclass, 0) != dev) {
+	busok = 0;
 	status = acpi_EvaluateInteger(sc->ap_handle, "_ADR", &addr);
 	if (ACPI_FAILURE(status)) {
 	    if (status != AE_NOT_FOUND) {
 		device_printf(dev, "could not evaluate _ADR - %s\n",
 		    AcpiFormatException(status));
 		return_VALUE(ENXIO);
-	    } else {
+	    } else
 		device_printf(dev, "could not determine config space address\n");
-		busok = 0;
-	    }
 	} else {
 	    /* XXX: We assume bus 0. */
 	    slot = addr >> 16;
@@ -193,11 +192,11 @@ acpi_pcib_acpi_attach(device_t dev)
 	    if (bootverbose)
 		device_printf(dev, "reading config registers from 0:%d:%d\n",
 		    slot, func);
-	    if (host_pcib_get_busno(pci_cfgregread, 0, slot, func, &busno) == 0) {
+	    if (host_pcib_get_busno(pci_cfgregread, 0, slot, func, &busno) == 0)
 		device_printf(dev, "could not read bus number from config space\n");
-		busok = 0;
-	    } else {
+	    else {
 		sc->ap_bus = busno;
+		busok = 1;
 	    }
 	}
     }
