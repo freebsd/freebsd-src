@@ -20,7 +20,8 @@ MAN9=	MD5.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9
 
 MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
-	device_find_child.9 device_get_devclass.9 device_get_driver.9 \
+	device_find_child.9 device_get_children.9 \
+	device_get_devclass.9 device_get_driver.9 \
 	device_get_ivars.9 device_get_softc.9 device_get_state.9 \
 	device_get_unit.9 device_probe_and_attach.9 device_quiet.9 \
 	device_set_desc.9 device_set_flags.9 driver.9 \
