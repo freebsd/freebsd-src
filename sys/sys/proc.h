@@ -98,6 +98,16 @@ struct  pasleep {
 };
 
 /*
+ * pargs, used to hold a copy of the command line, if it had a sane
+ * length
+ */
+struct	pargs {
+	u_int	ar_ref;		/* Reference count */
+	u_int	ar_length;	/* Length */
+	u_char	ar_args[0];	/* Arguments */
+};
+
+/*
  * Description of a process.
  *
  * This structure contains the information needed to manage a thread of
@@ -211,7 +221,8 @@ struct	proc {
 	struct 	sysentvec *p_sysent; /* System call dispatch information. */
 
 	struct	rtprio p_rtprio;	/* Realtime priority. */
-	struct prison *p_prison;
+	struct	prison *p_prison;
+	struct	pargs *p_args;
 /* End area that is copied on creation. */
 #define	p_endcopy	p_addr
 	struct	user *p_addr;	/* Kernel virtual addr of u-area (PROC ONLY). */
@@ -299,6 +310,7 @@ struct	pcred {
 MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
 MALLOC_DECLARE(M_ZOMBIE);
+MALLOC_DECLARE(M_PARGS);
 #endif
 
 /* flags for suser_xxx() */
@@ -370,6 +382,8 @@ extern struct rq idqueues[];
 extern int	whichqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichrtqs;	/* Bit mask summary of non-empty Q's. */
 extern int	whichidqs;	/* Bit mask summary of non-empty Q's. */
+
+extern	u_long ps_arg_cache_limit;
 
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */

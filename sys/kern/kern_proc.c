@@ -38,8 +38,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
@@ -609,6 +609,57 @@ sysctl_kern_proc SYSCTL_HANDLER_ARGS
 	return (0);
 }
 
+/*
+ * This sysctl allows a process to retrieve the argument list or process
+ * title for another process without groping around in the address space
+ * of the other process.  It also allow a process to set its own "process 
+ * title to a string of its own choice.
+ */
+static int
+sysctl_kern_proc_args SYSCTL_HANDLER_ARGS
+{
+	int *name = (int*) arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	struct pargs *pa;
+	int error = 0;
+
+	if (namelen != 1) 
+		return (EINVAL);
+
+	p = pfind((pid_t)name[0]);
+	if (!p)
+		return (0);
+
+	if (!PRISON_CHECK(curproc, p))
+		return (0);
+
+	if (req->newptr && curproc != p)
+		return (EPERM);
+
+	if (req->oldptr && p->p_args != NULL)
+		error = SYSCTL_OUT(req, p->p_args->ar_args, p->p_args->ar_length);
+	if (req->newptr == NULL)
+		return (error);
+
+	if (p->p_args && --p->p_args->ar_ref == 0) 
+		FREE(p->p_args, M_PARGS);
+	p->p_args = NULL;
+
+	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
+		return (error);
+
+	MALLOC(pa, struct pargs *, sizeof(struct pargs) + req->newlen, 
+	    M_PARGS, M_WAITOK);
+	pa->ar_ref = 1;
+	pa->ar_length = req->newlen;
+	error = SYSCTL_IN(req, pa->ar_args, req->newlen);
+	if (!error)
+		p->p_args = pa;
+	else
+		FREE(pa, M_PARGS);
+	return (error);
+}
 
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
@@ -629,3 +680,6 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD,
 
 SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW,
+	sysctl_kern_proc_args, "Return process argument");

@@ -44,6 +44,7 @@ struct image_params {
 	const char *image_header; /* head of file to exec */
 	char *stringbase;	/* base address of tmp string storage */
 	char *stringp;		/* current 'end' pointer of tmp strings */
+	char *endargs;		/* end of argv vector */
 	int stringspace;	/* space left in tmp string storage area */
 	int argc, envc;		/* count of argument and environment strings */
 	char *argv0;		/* Replacement for argv[0] when interpreting */
