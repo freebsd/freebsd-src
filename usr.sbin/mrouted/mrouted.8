@@ -1,14 +1,12 @@
 '\"COPYRIGHT 1989 by The Board of Trustees of Leland Stanford Junior University.
-'\"$Id: mrouted.8,v 3.8 1995/11/29 22:37:21 fenner Rel $
+'\"mrouted.8,v 3.8.4.5 1998/03/01 01:50:28 fenner Exp
 .TH MROUTED 8
 .UC 5
 .SH NAME
 mrouted \- IP multicast routing daemon
 .SH SYNOPSIS
-.B /etc/mrouted 
+.B /usr/sbin/mrouted 
 [
-.B \-p
-] [
 .B \-c 
 .I config_file
 ] [
@@ -39,17 +37,17 @@ routers that do not support IP multicasting,
 .I mrouted 
 includes support for
 "tunnels", which are virtual point-to-point links between pairs of 
-.IR mrouted s
+multicast routers
 located anywhere in an internet.  IP multicast packets are encapsulated for
 transmission through tunnels, so that they look like normal unicast datagrams
 to intervening routers and subnets.  The encapsulation 
 is added on entry to a tunnel, and stripped off
 on exit from a tunnel.
-By default, the packets are encapsulated using the IP-in-IP protocol
+The packets are encapsulated using the IP-in-IP protocol
 (IP protocol number 4).
 Older versions of 
 .I mrouted
-tunnel using IP source routing, which puts a heavy load on some
+tunneled using IP source routing, which puts a heavy load on some
 types of routers.
 This version does not support IP source route tunnelling.
 .PP
@@ -75,136 +73,323 @@ to have access to more than one physical subnet
 in order to perform multicast forwarding.
 .br
 .ne 5
+.SH OPTIONS
+.TP 10
+.BI \-c " config_file"
+Specifies an alternate configuration file to read (normally /etc/mrouted.conf)
+.TP
+.BI \-d " debug_level"
+Turn on debugging;
+.I debug_level
+is a comma-seperated list of subsections to debug.
 .SH INVOCATION
 .PP
-If no "\-d" option is given, or if the debug level is specified as 0, 
+If no "\-d" option is given,
 .I mrouted
 detaches from the invoking terminal.  Otherwise, it remains attached to the
-invoking terminal and responsive to signals from that terminal.  If "\-d" is
-given with no argument, the debug level defaults to 2.  Regardless of the
-debug level, 
+invoking terminal and responsive to signals from that terminal.
+Regardless of the debug level, 
 .I mrouted 
 always writes warning and error messages to the system
-log demon.  Non-zero debug levels have the following effects:
-.IP "level 1"
-all syslog'ed messages are also printed to stderr.
-.IP "level 2"
-all level 1 messages plus notifications of "significant"
-events are printed to stderr.
-.IP "level 3"
-all level 2 messages plus notifications of all packet
-arrivals and departures are printed to stderr.
+log demon.  The
+.I debug-level
+argument is a comma-seperated list of any of the following:
+.TP 13
+packet
+Display the type, source and destination of all packets sent or received.
+.TP
+pruning
+Display more information about prunes sent or received.
+.TP
+routing
+Display more information about routing update packets sent or received.
+.TP
+route_detail
+Display routing updates in excruciating detail.  This is generally way too
+much information.
+.TP
+neighbors
+Display information about neighbor discovery.
+.TP
+cache
+Display insertions, deletions and refreshes of entries in
+the kernel forwarding cache.
+.TP
+timeout
+Debug timeouts and periodic processes.
+.TP
+interface
+Display information about interfaces and their configuration.
+.TP
+membership
+Display information about group memberships on physical interfaces.
+.TP
+traceroute
+Display information about multicast traceroute requests
+passing through this router.
+.TP
+igmp
+Display IGMP operation including group membership and querier election.
+.TP
+icmp
+Monitor ICMP handling.
+.TP
+rsrr
+Monitor RSRR operation.
 .PP
-Upon startup, mrouted writes its pid to the file /etc/mrouted.pid .
+Upon startup, mrouted writes its pid to the file /var/run/mrouted.pid .
 .SH CONFIGURATION
 .PP
 .I Mrouted 
 automatically configures itself to forward on all multicast-capable
 interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
-the loopback "interface"), and it finds other
-.IR mrouted s
-directly reachable
+the loopback "interface"), and it finds other DVMRP routers directly reachable
 via those interfaces.  To override the default configuration, or to add
-tunnel links to other
-.IR mrouted s,
+tunnel links to other multicast routers,
 configuration commands may be placed in
 /etc/mrouted.conf (or an alternative file, specified by the "\-c" option).
-There are four types of configuration commands:
-.nf
-
-    phyint <local-addr>   [disable]   [metric <m>]
-		 [threshold <t>] [rate_limit <b>]
-		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
-		   [altnet <network>/<mask-len>]
-
-    tunnel <local-addr> <remote-addr> [metric <m>]
-		 [threshold <t>] [rate_limit <b>]
-		   [boundary (<boundary-name>|<scoped-addr>/<mask-len>)]
-
-    cache_lifetime <ct>
-
-    pruning <off/on>
-
-    name <boundary-name> <scoped-addr>/<mask-len>
-
-.fi
 .PP
 The file format is free-form; whitespace (including newlines) is not
 significant.
-The
-.I boundary
-and
-.I altnet
-options may be specified as many times as necessary.
+The file begins with commands that apply to
+.IR mrouted 's
+overall operation or set defaults.
+.TP 15
+.BI cache_lifetime " secs"
+Specifies, in seconds, the lifetime of a multicast forwarding cache
+entry in the kernel.  Multicast forwarding cache entries in the kernel
+are checked every
+.I secs
+seconds, and are refreshed if the source is still
+active or deleted if not.  Care should be taken when setting this value,
+as a low value can keep the kernel cache small at the cost of "thrashing"
+the cache for periodic senders, but high values can cause the kernel
+cache to grow unacceptably large.  The default is 300 seconds (5 minutes).
+.TP
+.BI prune_lifetime " secs"
+Sepcifies, in seconds, the average lifetime of prunes that are sent towards
+parents.  The actual lifetimes will be randomized in the range
+[.5\fIsecs\fP,1.5\fIsecs\fP].  The default is 7200 (2 hours).  Smaller values
+cause less state to be kept both at this router and the parent, at the
+cost of more frequent broadcasts.  However, some routers (e.g. mrouted <3.3
+and all currently known versions of cisco's IOS) do not use the
+DVMRP generation ID to determine that a neighbor has rebooted.  Prunes
+sent towards these neighbors should be kept short, in order to shorten
+the time to recover from a reboot.  For use in this situation, the
+prune_lifetime keyword may be specified on an interface as described
+below.
+.TP
+.B noflood
+.I Mrouted
+uses a DVMRP optimization to prevent having to keep individual routing tables
+for each neighbor; part of this optimization is that
+.I mrouted
+assumes that it is the forwarder for each of its attached subnets on
+startup.  This can cause duplicates for a short period (approximately
+one full route report interval), since both the router that just
+started up and the proper forwarder will be forwarding traffic.  This
+behavior can be turned off with the noflood keyword;
+.I mrouted
+will not assume that it is the forwarder on startup.
+Turning on noflood can cause black holes on restart, which will generally
+last approximately one full route report interval.
+The noflood keyword can also be specified on individual interfaces.
+.TP
+.BI rexmit_prunes " [on|off]"
+.IR Mrouted 's
+default is to retransmit prunes on all point-to-point interfaces
+(including tunnels) but no multi-access interfaces.  This option
+may be used to make the default on (or off) for all interfaces.
+The rexmit_prunes keyword can also be specified on individual interfaces.
+.TP
+.BI name " boundary-name scoped-addr/mask-len"
+Associates
+.I boundary-name
+with the boundary described by
+.IR scoped-addr/mask-len ,
+to help make interface configurations
+more readable and reduce repetition in the configuration file.
 .PP
-The phyint command can be used to disable multicast routing on the physical
-interface identified by local IP address <local-addr>, or to associate a
-non-default metric or threshold with the specified physical interface.
-The local IP address <local-addr> may be replaced by the 
-interface name (e.g le0).
+The second section of the configuration file, which may optionally
+be empty, describes options that apply to physical interfaces.
+.TP 15
+.BI phyint " local-addr|ifname"
+The phyint command does nothing by itself; it is simply a place holder
+which interface-specific commands may follow.  An interface address or
+name may be specified.
+.TP
+.B disable
+Disables multicast forwarding on this interface.  By default,
+.I mrouted
+discovers all locally attached multicast capable interfaces and forwards
+on all of them.
+.TP
+.BI netmask " netmask"
+If the kernel's netmask does not accurately reflect
+the subnet (e.g. you're using proxy-ARP in lieu of IP subnetting), use the
+netmask command to describe the real netmask.
+.TP
+.BI altnet " network/mask-len"
 If a phyint is attached to multiple IP subnets, describe each additional subnet
-with the altnet keyword.
-Phyint commands must precede tunnel commands.
+with the altnet keyword.  This command may be specified multiple times
+to describe multiple subnets.
+.TP
+.B igmpv1
+If there are any IGMPv1 routers on the phyint, use the \fBigmpv1\fP
+keyword to force \fImrouted\fP into IGMPv1 mode.  All routers on the phyint
+must use the same version of IGMP.
+.TP
+.B force_leaf
+Force \fImrouted\fP to ignore other routers on this interface.
+mrouted will never send or accept neighbor probes or
+route reports on this interface.
 .PP
-The tunnel command can be used to establish a tunnel link between local
-IP address <local-addr> and remote IP address <remote-addr>, and to associate
-a non-default metric or threshold with that tunnel.
-The local IP address <local-addr> may be replaced by the
-interface name (e.g. le0).  The remote IP address <remote-addr> may
-be replaced by a host name, if and only if the host name has a single
-IP address associated with it.
-The tunnel must be set
-up in the mrouted.conf files of both routers before it can be used.
-'\"For backwards compatibility with older
-'\".IR mrouted s,
-'\"the srcrt keyword specifies 
-'\"encapsulation using IP source routing.
+In addition, the common vif commands described later may all be used on
+a phyint.
 .PP
-The cache_lifetime is a value that determines the amount of time that a
-cached multicast route stays in kernel before timing out. The value of this
-entry should lie between 300 (5 min) and 86400 (1 day). It defaults to 300.
+The third section of the configuration file, also optional, describes
+the configuration of any DVMRP tunnels this router might have.
+.TP 15
+.BI tunnel " local-addr|ifname remote-addr|remote-hostname"
+This command establishes a DVMRP tunnel between this host (on the interface
+described by
+.I local-addr
+or
+.IR ifname )
+and a remote host (identified by
+.I remote-addr
+or
+.IR remote-hostname ).
+A remote hostname may only be used if
+it maps to a single IP address.
+A tunnel must be configured on both routers before it can be used.
+
+Be careful that the unicast route to the remote address goes out the
+interface specified by the
+.I local-addr|ifname
+argument.  Some UNIX
+kernels rewrite the source address of
+.IR mrouted 's
+packets on their way out to contain the address of the transmission
+interface.  This is best assured via a static host route.
 .PP
-The pruning <off/on> option is provided for
-.IR mrouted
-to act as a non-pruning router. It is also possible to start 
-.IR mrouted
-in a non-pruning mode using the "-p" option on the command line. It is 
-expected that a router would be configured in this manner for test
-purposes only. The default mode is pruning enabled.
-.PP
-You may assign names to boundaries to make configuration easier with
-the name keyword.  The boundary option on phyint or tunnel commands
-can accept either a name or a boundary.
-.PP
-The metric is the "cost" associated with sending a datagram on the given
+The common vif commands described below
+may all be used on tunnels or phyints.
+.TP 15
+.BI metric " m"
+The metric is the "cost" associated with receiving a datagram on the given
 interface or tunnel; it may be used to influence the choice of routes.
 The metric defaults to 1.  Metrics should be kept as small as possible,
-because 
-.I mrouted
-cannot route along paths with a sum of metrics greater
+because DVMRP cannot route along paths with a sum of metrics greater
 than 31.
-.LP
+.TP
+.BI advert_metric " m"
+The advert_metric is the "cost" associated with sending a datagram
+on the given interface or tunnel; it may be used to influence the choice
+of routes.  The advert_metric defaults to 0.  Note that the effective
+metric of a link is one end's metric plus the other end's advert_metric.
+.TP
+.BI threshold " t"
 The threshold is the minimum IP time-to-live required for a multicast datagram
 to be forwarded to the given interface or tunnel.  It is used to control the
 scope of multicast datagrams.  (The TTL of forwarded packets is only compared
 to the threshold, it is not decremented by the threshold.  Every multicast
-router decrements the TTL by 1.)  The default threshold is 1.
+router decrements the TTL by exactly 1.)  The default threshold is 1.
 .LP
-In general, all
-.IR mrouted s
+In general, all multicast routers
 connected to a particular subnet or tunnel should
 use the same metric and threshold for that subnet or tunnel.
-.PP
+.TP 15
+.BI rate_limit " r"
 The rate_limit option allows the network administrator to specify a 
 certain bandwidth in Kbits/second which would be allocated to multicast
-traffic.  It defaults to 500Kbps on tunnels, and 0 (unlimited) on physical
-interfaces.
-.PP
+traffic.  It defaults 0 (unlimited).
+.TP
+.BI boundary " boundary-name|scoped-addr/mask-len"
 The boundary option allows an interface
 to be configured as an administrative boundary for the specified
 scoped address. Packets belonging to this address will not
 be forwarded on a scoped interface.  The boundary option accepts either
-a name or a boundary spec.
+a name or a boundary spec.  This command may be specified several times
+on an interface in order to describe multiple boundaries.
+.TP
+.B passive
+No packets will be sent on this link or tunnel until we hear from the other
+end.  This is useful for the "server" end of a tunnel that goes over
+a dial-on-demand link; configure the "server" end as passive and
+it will not send its periodic probes until it hears one from the other
+side, so will not keep the link up.  If this option is specified on both
+ends of a tunnel, the tunnel will never come up.
+.TP
+.B noflood
+As described above, but only applicable to this interface/tunnel.
+.TP
+.BI prune_lifetime " secs"
+As described above, but only applicable to this interface/tunnel.
+.TP
+.BI rexmit_prunes " [on|off]"
+As described above, but only applicable to this interface/tunnel.
+Recall that prune retransmission
+defaults to on on point-to-point links and tunnels, and off on
+multi-access links.
+.TP
+.B allow_nonpruners
+By default, \fImrouted\fP refuses to peer with DVMRP neighbors that
+do not claim to support pruning.  This option allows such peerings
+on this interface.
+.TP
+.B notransit
+A specialized case of route filtering; no route learned from an interface
+marked "notransit" will be advertised on another interface marked
+"notransit".  Marking only a single interface "notransit" has no meaning.
+.TP
+.BI accept|deny " (route/mask-len [exact])+ [bidir]"
+The
+.B accept
+and
+.B deny
+commands allow rudimentary route filtering.  The
+.B accept
+command causes
+.I mrouted
+to accept only the listed routes on the configured interface; the
+.B deny
+command causes
+.I mrouted
+to accept all but the listed routes.
+Only one of
+.B accept
+or
+.B deny
+commands may be used on a given interface.
+
+The list of routes follows the
+.B accept
+or
+.B deny
+keyword.  If the keyword
+.I exact
+follows a route, then only that route is matched; otherwise, that route
+and any more specific route is matched.  For example,
+.B deny 0/0
+denys all routes, while
+.B deny 0/0 exact
+denys only the default route.  The default route may also be specified
+with the
+.B default
+keyword.
+
+The
+.B bidir
+keyword enables bidirectional route filtering; the filter will be applied
+to routes on both output and input.  Without the
+.B bidir
+keyword,
+.B accept
+and 
+.B deny
+filters are only applied on input.  Poison reverse routes are never
+filtered out.
 .PP
 .I Mrouted
 will not initiate execution if it has fewer than two enabled vifs,
@@ -213,7 +398,7 @@ interface or a tunnel.  It will log a warning if all of its vifs are
 tunnels; such an 
 .I mrouted
 configuration would be better replaced by more
-direct tunnels (i.e., eliminate the middle man).
+direct tunnels (i.e. eliminate the middle man).
 .SH "EXAMPLE CONFIGURATION"
 .PP
 This is an example configuration for a mythical multicast router at a big
@@ -267,9 +452,9 @@ good-bye messages to all neighboring routers).
 .IP TERM
 same as INT
 .IP USR1
-dumps the internal routing tables to /usr/tmp/mrouted.dump.
+dumps the internal routing tables to /var/tmp/mrouted.dump.
 .IP USR2
-dumps the internal cache tables to /usr/tmp/mrouted.cache.
+dumps the internal cache tables to /var/tmp/mrouted.cache.
 .IP QUIT
 dumps the internal routing tables to stderr (only if
 .I mrouted 
@@ -277,22 +462,23 @@ was invoked with a non-zero debug level).
 .PP
 For convenience in sending signals,
 .I mrouted
-writes its pid to /etc/mrouted.pid upon startup.
+writes its pid to /var/run/mrouted.pid upon startup.
 .bp
 .SH EXAMPLE
 .PP
-The routing tables look like this:
+The routing tables dumped in /var/tmp/mrouted.dump look like this:
 .nf
+.ft C
 
 Virtual Interface Table
  Vif  Local-Address                    Metric  Thresh  Flags
-  0   36.2.0.8      subnet: 36.2          1       1    querier
+  0   36.2.0.8      subnet: 36.2/16       1       1    querier
                     groups: 224.0.2.1
                             224.0.0.4
                    pkts in: 3456
                   pkts out: 2322323
 
-  1   36.11.0.1     subnet: 36.11         1       1    querier
+  1   36.11.0.1     subnet: 36.11/16      1       1    querier
                     groups: 224.0.2.1      
                             224.0.1.0      
                             224.0.0.4      
@@ -300,9 +486,9 @@ Virtual Interface Table
                   pkts out: 3456
 
   2   36.2.0.8      tunnel: 36.8.0.77     3       1   
-                     peers: 36.8.0.77 (2.2)
-                boundaries: 239.0.1
-                          : 239.1.2
+                     peers: 36.8.0.77 (3.255)
+                boundaries: 239.0.1/24
+                          : 239.1.2/24
                    pkts in: 34545433
                   pkts out: 234342
 
@@ -318,6 +504,7 @@ Multicast Routing Table (1136 entries)
  .
 
 .fi
+.LP
 In this example, there are four vifs connecting to two subnets and two
 tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
 vif 1 subnets have some groups present; tunnels never have any groups.  This
@@ -344,8 +531,9 @@ also maintains a copy of the kernel forwarding cache table. Entries
 are created and deleted by 
 .I mrouted.
 .PP
-The cache tables look like this:
+The cache tables dumped in /var/tmp/mrouted.cache look like this:
 .nf
+.ft C
 
 Multicast Routing Cache Table (147 entries)
  Origin             Mcast-group     CTmr  Age Ptmr IVif Forwvifs
@@ -360,9 +548,11 @@ Multicast Routing Cache Table (147 entries)
 >198.106.194.22
 
 .fi 
+.LP
 Each entry is characterized by the origin subnet number and mask and the
 destination multicast group. The 'CTmr' field indicates the lifetime
 of the entry.  The entry is deleted from the cache table
+(or refreshed, if traffic is flowing)
 when the timer decrements to zero.  The 'Age' field is the time since
 this cache entry was originally created.  Since cache entries get refreshed
 if traffic is flowing, routing entries can grow very old.
@@ -377,21 +567,55 @@ subnet, a prune message is sent to the upstream router. They are
 indicated by a "P" after the vif number.  The Forwvifs field shows the
 interfaces along which datagrams belonging to the source-group are
 forwarded. A "p" indicates that no datagrams are being forwarded along
-that interface. An unlisted interface is a leaf subnet with are no
+that interface. An unlisted interface is a leaf subnet with no
 members of the particular group on that subnet. A "b" on an interface
 indicates that it is a boundary interface, i.e. traffic will not be
 forwarded on the scoped address on that interface.
 An additional line with a ">" as the first character is printed for
 each source on the subnet.  Note that there can be many sources in
 one subnet.
+An additional line with a "<" as the first character is printed
+describing any prunes received from downstream dependent neighbors
+for this subnet and group.
 .SH FILES
-/etc/mrouted.conf
-.br
-/etc/mrouted.pid
-.br
-/usr/tmp/mrouted.dump
-.br
-/usr/tmp/mrouted.cache
+.TP 25
+.B /etc/mrouted.conf
+.IR mrouted 's
+configuration file.
+.TP
+.B /var/run/mrouted.pid
+.IR mrouted 's
+PID file.
+.TP
+.B /var/tmp/mrouted.dump
+Where
+.I mrouted
+dumps its routing table when sent a SIGUSR1.
+.TP
+.B /var/tmp/mrouted.cache
+Where
+.I mrouted
+dumps its forwarding cache when sent a SIGUSR2.
+.PP
+Note that these files are located in the following places on pre-4.4BSD systems:
+.TP 25
+.B /etc/mrouted.conf
+.IR mrouted 's
+configuration file.
+.TP
+.B /etc/mrouted.pid
+.IR mrouted 's
+PID file.
+.TP
+.B /usr/tmp/mrouted.dump
+Where
+.I mrouted
+dumps its routing table when sent a SIGUSR1.
+.TP
+.B /usr/tmp/mrouted.cache
+Where
+.I mrouted
+dumps its forwarding cache when sent a SIGUSR2.
 .SH SEE ALSO
 .BR mrinfo (8) ,
 .BR mtrace (8) ,

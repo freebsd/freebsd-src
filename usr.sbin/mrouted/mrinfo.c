@@ -60,11 +60,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 3.8 1995/11/29 22:36:34 fenner Rel $";
-/*  original rcsid:
-    "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
-*/
+static char rcsid[] = "@(#) $Id: \
+mrinfo.c,v 3.8.4.7 1998/03/01 03:05:20 fenner Exp $";
 #endif
 
 #include <netdb.h>
@@ -236,13 +233,14 @@ accept_neighbors2(src, dst, p, datalen, level)
 	u_char *ep = p + datalen;
 	u_int broken_cisco = ((level & 0xffff) == 0x020a); /* 10.2 */
 	/* well, only possibly_broken_cisco, but that's too long to type. */
+	u_int majvers = level & 0xff;
+	u_int minvers = (level >> 8) & 0xff;
 
-	printf("%s (%s) [version %d.%d", inet_fmt(src, s1), inet_name(src),
-	       level & 0xff, (level >> 8) & 0xff);
-	if ((level >> 16) & NF_LEAF)   { printf (",leaf"); }
-	if ((level >> 16) & NF_PRUNE)  { printf (",prune"); }
-	if ((level >> 16) & NF_GENID)  { printf (",genid"); }
-	if ((level >> 16) & NF_MTRACE) { printf (",mtrace"); }
+	printf("%s (%s) [", inet_fmt(src, s1), inet_name(src));
+	if (majvers == 3 && minvers == 0xff)
+		printf("DVMRPv3 compliant");
+	else
+		printf("version %d.%d", majvers, minvers);
 	printf ("]:\n");
 	
 	while (p < ep) {
@@ -333,12 +331,16 @@ main(argc, argv)
 	char *host;
 	int curaddr;
 
-	setlinebuf(stderr);
-
 	if (geteuid() != 0) {
 		fprintf(stderr, "mrinfo: must be root\n");
 		exit(1);
 	}
+
+	init_igmp();
+	setuid(getuid());
+
+	setlinebuf(stderr);
+
 	argv++, argc--;
 	while (argc > 0 && argv[0][0] == '-') {
 		switch (argv[0][1]) {
@@ -386,8 +388,6 @@ main(argc, argv)
 	if (debug)
 		fprintf(stderr, "Debug level %u\n", debug);
 
-	init_igmp();
-
 	/* Check all addresses; mrouters often have unreachable interfaces */
 	for (curaddr = 0; hp->h_addr_list[curaddr] != NULL; curaddr++) {
 	    memcpy(&target_addr, hp->h_addr_list[curaddr], hp->h_length);
@@ -397,7 +397,7 @@ main(argc, argv)
 		int     addrlen = sizeof(addr);
 
 		addr.sin_family = AF_INET;
-#if (defined(BSD) && (BSD >= 199103))
+#ifdef HAVE_SA_LEN
 		addr.sin_len = sizeof addr;
 #endif
 		addr.sin_addr.s_addr = target_addr;
@@ -492,7 +492,11 @@ main(argc, argv)
 		src = ip->ip_src.s_addr;
 		dst = ip->ip_dst.s_addr;
 		iphdrlen = ip->ip_hl << 2;
+#ifdef RAW_INPUT_IS_RAW
+		ipdatalen = ntohs(ip->ip_len) - iphdrlen;
+#else
 		ipdatalen = ip->ip_len;
+#endif
 		if (iphdrlen + ipdatalen != recvlen) {
 		    log(LOG_WARNING, 0,
 		      "packet shorter (%u bytes) than hdr+data length (%u+%u)",
