@@ -43,21 +43,12 @@ struct fdescmount {
 	struct vnode	*f_root;	/* Root node */
 };
 
-#define FD_ROOT		2
-#define FD_DEVFD	3
-#define FD_STDIN	4
-#define FD_STDOUT	5
-#define FD_STDERR	6
-#define FD_CTTY		7
-#define FD_DESC		8
-#define FD_MAX		12
+#define FD_ROOT		1
+#define FD_DESC		3
 
 typedef enum {
 	Froot,
-	Fdevfd,
-	Fdesc,
-	Flink,
-	Fctty
+	Fdesc
 } fdntype;
 
 struct fdescnode {
@@ -72,7 +63,6 @@ struct fdescnode {
 #define VFSTOFDESC(mp)	((struct fdescmount *)((mp)->mnt_data))
 #define	VTOFDESC(vp) ((struct fdescnode *)(vp)->v_data)
 
-extern dev_t devctty;
 extern int fdesc_init __P((struct vfsconf *));
 extern int fdesc_root __P((struct mount *, struct vnode **));
 extern int fdesc_allocvp __P((fdntype, int, struct mount *, struct vnode **));
