@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.84 1996/01/19 03:58:08 dyson Exp $
+ * $Id: vfs_bio.c,v 1.85 1996/03/02 03:45:04 dyson Exp $
  */
 
 /*
@@ -104,7 +104,8 @@ caddr_t buffers_kva;
 vm_page_t bogus_page;
 static vm_offset_t bogus_offset;
 
-static int bufspace, maxbufspace;
+static int bufspace, maxbufspace, vmiospace, maxvmiobufspace,
+	bufmallocspace, maxbufmallocspace;
 
 static struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
 static struct bqueues bufqueues[BUFFER_QUEUES];
@@ -155,6 +156,18 @@ bufinit()
  * keeps the size of the buffer cache "in check" for big block filesystems.
  */
 	maxbufspace = 2 * (nbuf + 8) * PAGE_SIZE;
+/*
+ * reserve 1/3 of the buffers for metadata (VDIR) which might not be VMIO'ed
+ */
+	maxvmiobufspace = 2 * maxbufspace / 3;
+/*
+ * Limit the amount of malloc memory since it is wired permanently into
+ * the kernel space.  Even though this is accounted for in the buffer
+ * allocation, we don't want the malloced region to grow uncontrolled.
+ * The malloc scheme improves memory utilization significantly on average
+ * (small) directories.
+ */
+	maxbufmallocspace = maxbufspace / 20;
 
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	bogus_page = vm_page_alloc(kernel_object,
@@ -397,11 +410,6 @@ brelse(struct buf * bp)
 	/* anyone need a "free" block? */
 	s = splbio();
 
-	if (needsbuffer) {
-		needsbuffer = 0;
-		wakeup(&needsbuffer);
-	}
-
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~(B_WANTED | B_AGE);
@@ -505,6 +513,10 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
+		if (needsbuffer) {
+			wakeup(&needsbuffer);
+			needsbuffer=0;
+		}
 		/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
 		bp->b_qindex = QUEUE_AGE;
@@ -512,6 +524,10 @@ brelse(struct buf * bp)
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
+		if (needsbuffer) {
+			wakeup(&needsbuffer);
+			needsbuffer=0;
+		}
 		/* buffers that are locked */
 	} else if (bp->b_flags & B_LOCKED) {
 		bp->b_qindex = QUEUE_LOCKED;
@@ -520,10 +536,18 @@ brelse(struct buf * bp)
 	} else if (bp->b_flags & B_AGE) {
 		bp->b_qindex = QUEUE_AGE;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_AGE], bp, b_freelist);
+		if (needsbuffer) {
+			wakeup(&needsbuffer);
+			needsbuffer=0;
+		}
 		/* buffers with valid and quite potentially reuseable contents */
 	} else {
 		bp->b_qindex = QUEUE_LRU;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+		if (needsbuffer) {
+			wakeup(&needsbuffer);
+			needsbuffer=0;
+		}
 	}
 
 	/* unlock */
@@ -541,10 +565,6 @@ bqrelse(struct buf * bp)
 
 	s = splbio();
 
-	if (needsbuffer) {
-		needsbuffer = 0;
-		wakeup(&needsbuffer);
-	}
 
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
@@ -563,6 +583,10 @@ bqrelse(struct buf * bp)
 	} else {
 		bp->b_qindex = QUEUE_LRU;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+		if (needsbuffer) {
+			wakeup(&needsbuffer);
+			needsbuffer=0;
+		}
 	}
 
 	/* unlock */
@@ -602,6 +626,7 @@ vfs_vmio_release(bp)
 		}
 	}
 	bufspace -= bp->b_bufsize;
+	vmiospace -= bp->b_bufsize;
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	bp->b_npages = 0;
 	bp->b_bufsize = 0;
@@ -707,7 +732,6 @@ getnewbuf(int slpflag, int slptimeo, int doingvmio)
 	int s;
 	int nbyteswritten = 0;
 
-	s = splbio();
 start:
 	if (bufspace >= maxbufspace)
 		goto trytofreespace;
@@ -741,16 +765,28 @@ trytofreespace:
 		needsbuffer = 1;
 		tsleep(&needsbuffer,
 			(PRIBIO + 1) | slpflag, "newbuf", slptimeo);
-		splx(s);
 		return (0);
 	}
 
+	/*
+	 * We are fairly aggressive about freeing VMIO buffers, but since
+	 * the buffering is intact without buffer headers, there is not
+	 * much loss.  We gain by maintaining non-VMIOed metadata in buffers.
+	 */
 	if ((bp->b_qindex == QUEUE_LRU) && (bp->b_usecount > 0)) {
-		--bp->b_usecount;
-		TAILQ_REMOVE(&bufqueues[QUEUE_LRU], bp, b_freelist);
-		if (bufqueues[QUEUE_LRU].tqh_first != NULL) {
-			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
-			goto start;
+		if ((bp->b_flags & B_VMIO) == 0 ||
+			(vmiospace < maxvmiobufspace)) {
+			--bp->b_usecount;
+			TAILQ_REMOVE(&bufqueues[QUEUE_LRU], bp, b_freelist);
+			if (bufqueues[QUEUE_LRU].tqh_first != NULL) {
+				TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+				goto start;
+			}
+			/*
+			 * Make sure that the buffer is flagged as not being on a
+			 * queue.
+			 */
+			bp->b_qindex = QUEUE_NONE;
 		}
 	}
 
@@ -758,7 +794,6 @@ trytofreespace:
 	if ((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) {
 		nbyteswritten += vfs_bio_awrite(bp);
 		if (!slpflag && !slptimeo) {
-			splx(s);
 			return (0);
 		}
 		goto start;
@@ -790,7 +825,6 @@ fillbuf:
 
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
-	splx(s);
 	if (bp->b_bufsize) {
 		allocbuf(bp, 0);
 	}
@@ -808,7 +842,6 @@ fillbuf:
 	bp->b_validoff = bp->b_validend = 0;
 	bp->b_usecount = 2;
 	if (bufspace >= maxbufspace + nbyteswritten) {
-		s = splbio();
 		bp->b_flags |= B_INVAL;
 		brelse(bp);
 		goto trytofreespace;
@@ -1037,8 +1070,11 @@ struct buf *
 geteblk(int size)
 {
 	struct buf *bp;
+	int s;
 
+	s = splbio();
 	while ((bp = getnewbuf(0, 0, 0)) == 0);
+	splx(s);
 	allocbuf(bp, size);
 	bp->b_flags |= B_INVAL;
 	return (bp);
@@ -1068,22 +1104,80 @@ allocbuf(struct buf * bp, int size)
 		panic("allocbuf: buffer not busy");
 
 	if ((bp->b_flags & B_VMIO) == 0) {
+		caddr_t origbuf;
+		int origbufsize;
 		/*
 		 * Just get anonymous memory from the kernel
 		 */
 		mbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
-		newbsize = round_page(size);
+		if (bp->b_flags & B_MALLOC)
+			newbsize = mbsize;
+		else
+			newbsize = round_page(size);
 
 		if (newbsize < bp->b_bufsize) {
+			/*
+			 * malloced buffers are not shrunk
+			 */
+			if (bp->b_flags & B_MALLOC) {
+				if (newbsize) {
+					bp->b_bcount = size;
+				} else {
+					free(bp->b_data, M_TEMP);
+					bufspace -= bp->b_bufsize;
+					bufmallocspace -= bp->b_bufsize;
+					bp->b_data = (caddr_t) buffers_kva + (bp - buf) * MAXBSIZE;
+					bp->b_bufsize = 0;
+					bp->b_bcount = 0;
+					bp->b_flags &= ~B_MALLOC;
+				}
+				return 1;
+			}		
 			vm_hold_free_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + newbsize,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize);
 		} else if (newbsize > bp->b_bufsize) {
+			/*
+			 * We only use malloced memory on the first allocation.
+			 * and revert to page-allocated memory when the buffer grows.
+			 */
+			if ( (bufmallocspace < maxbufmallocspace) &&
+				(bp->b_bufsize == 0) &&
+				(mbsize <= PAGE_SIZE/2)) {
+
+				bp->b_data = malloc(mbsize, M_TEMP, M_WAITOK);
+				bp->b_bufsize = mbsize;
+				bp->b_bcount = size;
+				bp->b_flags |= B_MALLOC;
+				bufspace += mbsize;
+				bufmallocspace += mbsize;
+				return 1;
+			}
+			origbuf = NULL;
+			origbufsize = 0;
+			/*
+			 * If the buffer is growing on it's other-than-first allocation,
+			 * then we revert to the page-allocation scheme.
+			 */
+			if (bp->b_flags & B_MALLOC) {
+				origbuf = bp->b_data;
+				origbufsize = bp->b_bufsize;
+				bp->b_data = (caddr_t) buffers_kva + (bp - buf) * MAXBSIZE;
+				bufspace -= bp->b_bufsize;
+				bufmallocspace -= bp->b_bufsize;
+				bp->b_bufsize = 0;
+				bp->b_flags &= ~B_MALLOC;
+				newbsize = round_page(newbsize);
+			}
 			vm_hold_load_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize,
 			    (vm_offset_t) bp->b_data + newbsize);
+			if (origbuf) {
+				bcopy(origbuf, bp->b_data, origbufsize);
+				free(origbuf, M_TEMP);
+			}
 		}
 	} else {
 		vm_page_t m;
@@ -1091,6 +1185,9 @@ allocbuf(struct buf * bp, int size)
 
 		newbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		desiredpages = (round_page(newbsize) >> PAGE_SHIFT);
+
+		if (bp->b_flags & B_MALLOC)
+			panic("allocbuf: VMIO buffer can't be malloced");
 
 		if (newbsize < bp->b_bufsize) {
 			if (desiredpages < bp->b_npages) {
@@ -1206,9 +1303,6 @@ allocbuf(struct buf * bp, int size)
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
 				}
-/*
-				bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
-*/
 				bp->b_data = (caddr_t) trunc_page(bp->b_data);
 				bp->b_npages = curbpnpages;
 				pmap_qenter((vm_offset_t) bp->b_data,
@@ -1217,6 +1311,8 @@ allocbuf(struct buf * bp, int size)
 			}
 		}
 	}
+	if (bp->b_flags & B_VMIO)
+		vmiospace += bp->b_bufsize;
 	bufspace += (newbsize - bp->b_bufsize);
 	bp->b_bufsize = newbsize;
 	bp->b_bcount = size;
