@@ -121,9 +121,6 @@ MTX_SYSINIT(accept_mtx, &accept_mtx, "accept", MTX_DEF);
 /*
  * so_global_mtx protects so_gencnt, numopensockets, and the per-socket
  * so_gencnt field.
- *
- * XXXRW: These variables might be better manipulated using atomic operations
- * for improved efficiency.
  */
 static struct mtx so_global_mtx;
 MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
@@ -852,8 +849,8 @@ out:
  * data from a socket.  For more complete comments, see soreceive(), from
  * which this code originated.
  *
- * XXXRW: Note that soreceive_rcvoob(), unlike the remainder of soreiceve(),
- * is unable to return an mbuf chain to the caller.
+ * Note that soreceive_rcvoob(), unlike the remainder of soreiceve(), is
+ * unable to return an mbuf chain to the caller.
  */
 static int
 soreceive_rcvoob(so, uio, flags)
@@ -1420,8 +1417,8 @@ sorflush(so)
 	struct sockbuf asb;
 
 	/*
-	 * XXXRW: This is quite ugly.  The existing code made a copy of the
-	 * socket buffer, then zero'd the original to clear the buffer
+	 * XXXRW: This is quite ugly.  Previously, this code made a copy of
+	 * the socket buffer, then zero'd the original to clear the buffer
 	 * fields.  However, with mutexes in the socket buffer, this causes
 	 * problems.  We only clear the zeroable bits of the original;
 	 * however, we have to initialize and destroy the mutex in the copy
@@ -1877,11 +1874,6 @@ sogetopt(so, sopt)
 #endif
 
 		case SO_LINGER:
-			/*
-			 * XXXRW: We grab the lock here to get a consistent
-			 * snapshot of both fields.  This may not really
-			 * be necessary.
-			 */
 			SOCK_LOCK(so);
 			l.l_onoff = so->so_options & SO_LINGER;
 			l.l_linger = so->so_linger;
