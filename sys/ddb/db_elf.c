@@ -1,4 +1,4 @@
-/* $Id: db_elf.c,v 1.1 1998/06/28 00:57:27 dfr Exp $ */
+/* $Id: db_elf.c,v 1.2 1998/06/28 00:59:26 dfr Exp $ */
 /*	$NetBSD: db_elf.c,v 1.4 1998/05/03 18:49:54 thorpej Exp $	*/
 
 /*-
@@ -60,27 +60,12 @@
 
 #include <machine/elf.h>
 
-#define	CONCAT(x,y)	__CONCAT(x,y)
-#define	ELFDEFNAME(x)	CONCAT(Elf,CONCAT(ELFSIZE,CONCAT(_,x)))
-
 static char *db_elf_find_strtab __P((db_symtab_t *));
 
 #define	STAB_TO_SYMSTART(stab)	((Elf_Sym *)((stab)->start))
 #define	STAB_TO_SYMEND(stab)	((Elf_Sym *)((stab)->end))
 #define	STAB_TO_EHDR(stab)	((Elf_Ehdr *)((stab)->private))
 #define	STAB_TO_SHDR(stab, e)	((Elf_Shdr *)((stab)->private + (e)->e_shoff))
-
-#define Elf_Ehdr	ELFDEFNAME(Ehdr)
-#define Elf_Shdr	ELFDEFNAME(Shdr)
-#define Elf_Sym		ELFDEFNAME(Sym)
-
-#if ELFSIZE == 64
-#define ELF_ST_TYPE(x)	ELF64_ST_TYPE(x)
-#define ELF_ST_BIND(x)	ELF64_ST_BIND(x)
-#else
-#define ELF_ST_TYPE(x)	ELF32_ST_TYPE(x)
-#define ELF_ST_BIND(x)	ELF32_ST_BIND(x)
-#endif
 
 void X_db_sym_init(void *symtab, void *esymtab, char *name);
 
@@ -392,7 +377,7 @@ X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 extern void *ksym_start, *ksym_end;
 
 void
-kdb_init()
+kdb_init(void)
 {
 
 	if (ksym_end > ksym_start)
