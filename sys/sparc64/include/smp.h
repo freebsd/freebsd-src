@@ -200,7 +200,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 static __inline void
 ipi_wait(void *cookie)
 {
-	u_int *volatile mask;
+	volatile u_int *mask;
 
 	if ((mask = cookie) != NULL) {
 		atomic_clear_int(mask, PCPU_GET(cpumask));
