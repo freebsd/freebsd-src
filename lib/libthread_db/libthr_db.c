@@ -296,6 +296,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 	}
 	th->th_ta  = ta;
 	th->th_tid = id;
+	th->th_thread = pt;
 	return (TD_OK);
 }
 
@@ -333,6 +334,7 @@ pt_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwp, td_thrhandle_t *th)
 		return (TD_NOTHR);
 	th->th_ta  = ta;
 	th->th_tid = pt_map_thread(ta, lwp, pt);
+	th->th_thread = pt;
 	if (th->th_tid == -1)
 		return (TD_MALLOC);
 	return (TD_OK);
@@ -372,6 +374,7 @@ pt_ta_thr_iter(const td_thragent_t *ta,
 			if (tmp_lwp != 0) {
 				th.th_ta  = ta;
 				th.th_tid = pt_map_thread(ta, tmp_lwp, pt);
+				th.th_thread = pt;
 				if (th.th_tid == -1)
 					return (TD_MALLOC);
 				if ((*callback)(&th, cbdata_p))
@@ -518,6 +521,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		info->ti_tid = th->th_tid;
 		info->ti_state = TD_THR_RUN;
 		info->ti_type = TD_THR_SYSTEM;
+		info->ti_thread = NULL;
 		return (TD_OK);
 	}
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_state,
@@ -526,6 +530,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		return (P2T(ret));
 	info->ti_lid = ta->map[th->th_tid].lwp;
 	info->ti_tid = th->th_tid;
+	info->ti_thread = ta->map[th->th_tid].thr;
 	info->ti_ta_p = th->th_ta;
 	if (state == ta->thread_state_running)
 		info->ti_state = TD_THR_RUN;

@@ -176,6 +176,7 @@ typedef pthread_key_t thread_key_t;
 typedef struct {
 	const td_thragent_t *ti_ta_p;
 	thread_t	ti_tid;
+	psaddr_t	ti_thread;
 	td_thr_state_e	ti_state;
 	td_thr_type_e	ti_type;
 	td_thr_events_t	ti_events;
