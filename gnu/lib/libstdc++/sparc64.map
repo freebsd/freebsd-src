@@ -1,0 +1,3 @@
+# $FreeBSD$
+cpu/sparc/sparc64/bits/atomicity.h	bits/atomicity.h
+cpu/generic/bits/cpu_limits.h		bits/cpu_limits.h
