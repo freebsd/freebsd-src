@@ -326,6 +326,14 @@ make(1) has gained the :C/// (regexp substitution), :L (lowercase),
 and :U (uppercase) variable modifiers.  These were added to reduce the
 differences between the FreeBSD and OpenBSD/NetBSD make programs.
 
+fsck wrappers have been imported; this feature provides infrastructure
+for fsck(8) to work on different types of filesystems (analogous to
+mount(8) and mount_*(8)).
+
+ncurses has been updated to ncurses-5.1-20001009. [MERGED]
+
+gperf has been updated to 2.7.2.
+
 
 2. Supported Configurations
 ---------------------------
