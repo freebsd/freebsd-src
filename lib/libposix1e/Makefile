@@ -1,8 +1,7 @@
 #	$FreeBSD$
 
 LIB=	posix1e
-SRCS+=	acl_calc_mask.c			\
-	acl_delete.c			\
+SRCS+=	acl_delete.c			\
 	acl_free.c			\
 	acl_from_text.c			\
 	acl_get.c			\
@@ -11,5 +10,7 @@ SRCS+=	acl_calc_mask.c			\
 	acl_support.c			\
 	acl_to_text.c			\
 	acl_valid.c
+
+MAN3=	posix1e.3
 
 .include <bsd.lib.mk>
