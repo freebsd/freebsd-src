@@ -49,45 +49,53 @@ static const char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
  * unexpand - put tabs into a file replacing blanks
  */
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-char	genbuf[BUFSIZ];
-char	linebuf[BUFSIZ];
 int	all;
+int	nstops;
+int	tabstops[100];
 
+static void getstops(const char *);
 static void usage(void);
-void tabify(char);
+static void tabify(void);
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char *cp;
+	int ch;
 
-	argc--, argv++;
-	if (argc > 0 && argv[0][0] == '-') {
-		if (strcmp(argv[0], "-a") != 0)
+	nstops = 1;
+	tabstops[0] = 8;
+	while ((ch = getopt(argc, argv, "at:")) != -1) {
+		switch (ch) {
+		case 'a':	/* Un-expand all spaces, not just leading. */
+			all = 1;
+			break;
+		case 't':	/* Specify tab list, implies -a. */
+			getstops(optarg);
+			all = 1;
+			break;
+		default:
 			usage();
-		all++;
-		argc--, argv++;
+			/*NOTREACHED*/
+		}
 	}
+	argc -= optind;
+	argv += optind;
+
 	do {
 		if (argc > 0) {
 			if (freopen(argv[0], "r", stdin) == NULL)
 				err(1, "%s", argv[0]);
 			argc--, argv++;
 		}
-		while (fgets(genbuf, BUFSIZ, stdin) != NULL) {
-			for (cp = linebuf; *cp; cp++)
-				continue;
-			if (cp > linebuf)
-				cp[-1] = 0;
-			tabify(all);
-			printf("%s", linebuf);
-		}
+		tabify();
 	} while (argc > 0);
 	exit(0);
 }
@@ -95,52 +103,111 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: unexpand [-a] file ...\n");
+	fprintf(stderr, "usage: unexpand [-a] [-t tablist] [file ...]\n");
 	exit(1);
 }
 
-void
-tabify(c)
-	char c;
+static void
+tabify()
 {
-	register char *cp, *dp;
-	register int dcol;
-	int ocol;
+	int ch, dcol, doneline, limit, n, ocol;
 
-	ocol = 0;
-	dcol = 0;
-	cp = genbuf, dp = linebuf;
-	for (;;) {
-		switch (*cp) {
+	limit = nstops == 1 ? INT_MAX : tabstops[nstops - 1] - 1;
 
-		case ' ':
-			dcol++;
-			break;
+	doneline = ocol = dcol = 0;
+	while ((ch = getchar()) != EOF) {
+		if (ch == '\n') {
+			putchar('\n');
+			doneline = ocol = dcol = 0;
+			continue;
+		} else if (ch == ' ' && !doneline) {
+			if (++dcol >= limit)
+				doneline = 1;
+			continue;
+		} else if (ch == '\b' && dcol > 0) {
+			dcol--;
+		} else if (ch == '\t') {
+			if (nstops == 1) {
+				dcol = (1 + dcol / tabstops[0]) *
+				    tabstops[0];
+				continue;
+			} else {
+				for (n = 0; tabstops[n] - 1 < dcol &&
+				    n < nstops; n++)
+					;
+				if (n < nstops - 1 && tabstops[n] - 1 < limit) {
+					dcol = tabstops[n];
+					continue;
+				}
+				doneline = 1;
+			}
+		}
 
-		case '\t':
-			dcol += 8;
-			dcol &= ~07;
-			break;
-
-		default:
-			while (((ocol + 8) &~ 07) <= dcol) {
-				if (ocol + 1 == dcol)
+		/* Output maximal number of tabs. */
+		if (nstops == 1) {
+			while (((ocol + tabstops[0]) / tabstops[0])
+			    <= (dcol / tabstops[0])) {
+				if (dcol - ocol < 2)
 					break;
-				*dp++ = '\t';
-				ocol += 8;
-				ocol &= ~07;
+				putchar('\t');
+				ocol = (1 + ocol / tabstops[0]) *
+				    tabstops[0];
 			}
-			while (ocol < dcol) {
-				*dp++ = ' ';
-				ocol++;
+		} else {
+			for (n = 0; tabstops[n] - 1 < ocol && n < nstops; n++)
+				;
+			while (ocol < dcol && n < nstops && ocol < limit) {
+				putchar('\t');
+				ocol = tabstops[n++];
 			}
-			if (*cp == 0 || c == 0) {
-				strcpy(dp, cp);
-				return;
-			}
-			*dp++ = *cp;
+		}
+
+		/* Then spaces. */
+		while (ocol < dcol && ocol < limit) {
+			putchar(' ');
+			ocol++;
+		}
+
+		if (ch != ' ' || dcol > limit) {
+			putchar(ch);
 			ocol++, dcol++;
 		}
+
+		/*
+		 * Only processing leading blanks or we've gone past the
+		 * last tab stop. Emit remainder of this line unchanged.
+		 */
+		if (!all || dcol >= limit) {
+			while ((ch = getchar()) != '\n' && ch != EOF)
+				putchar(ch);
+			if (ch == '\n')
+				ungetc(ch, stdin);
+		}
+	}
+}
+
+static void
+getstops(cp)
+	const char *cp;
+{
+	int i;
+
+	nstops = 0;
+	for (;;) {
+		i = 0;
+		while (*cp >= '0' && *cp <= '9')
+			i = i * 10 + *cp++ - '0';
+		if (i <= 0)
+			errx(1, "bad tab stop spec");
+		if (nstops > 0 && i <= tabstops[nstops-1])
+			errx(1, "bad tab stop spec");
+		if (nstops == sizeof(tabstops) / sizeof(*tabstops))
+			errx(1, "too many tab stops");
+		tabstops[nstops++] = i;
+		if (*cp == 0)
+			break;
+		if (*cp != ',' && *cp != ' ')
+			errx(1, "bad tab stop spec");
 		cp++;
 	}
 }
