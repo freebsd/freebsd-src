@@ -1499,7 +1499,7 @@ trimthenstep6:
 	 *    SYN_RECEIVED STATE:
 	 *	If passive open, return to LISTEN state.
 	 *	If active open, inform user that connection was refused.
-	 *    ESTABLISHED, FIN_WAIT_1, FIN_WAIT2, CLOSE_WAIT STATES:
+	 *    ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2, CLOSE_WAIT STATES:
 	 *	Inform user that connection was reset, and close tcb.
 	 *    CLOSING, LAST_ACK STATES:
 	 *	Close the tcb.
