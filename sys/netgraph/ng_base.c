@@ -53,7 +53,6 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/ctype.h>
@@ -205,7 +204,6 @@ void	ng_destroy_hook(hook_p hook);
 node_p	ng_name2noderef(node_p node, const char *name);
 int	ng_path2noderef(node_p here, const char *path,
 	node_p *dest, hook_p *lasthook);
-struct	ng_type *ng_findtype(const char *type);
 int	ng_make_node(const char *type, node_p *nodepp);
 int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 void	ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3);
@@ -547,23 +545,11 @@ ng_make_node(const char *typename, node_p *nodepp)
 		return (EINVAL);
 	}
 
-	/* Locate the node type */
-	if ((type = ng_findtype(typename)) == NULL) {
-		char filename[NG_TYPESIZ + 3];
-		linker_file_t lf;
-		int error;
-
-		/* Not found, try to load it as a loadable module */
-		snprintf(filename, sizeof(filename), "ng_%s", typename);
-		error = linker_load_module(NULL, filename, NULL, NULL, &lf);
-		if (error != 0)
-			return (error);
-		lf->userrefs++;		/* pretend loaded by the syscall */
-
-		/* Try again, as now the type should have linked itself in */
-		if ((type = ng_findtype(typename)) == NULL)
-			return (ENXIO);
-	}
+	/* Locate the node type. If we fail we return. Do not try to load
+	 * module.
+	 */
+	if ((type = ng_findtype(typename)) == NULL)
+		return (ENXIO);
 
 	/*
 	 * If we have a constructor, then make the node and
