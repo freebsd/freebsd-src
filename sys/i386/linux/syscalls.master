@@ -65,7 +65,8 @@
 23	STD	LINUX	{ int linux_setuid16(l_uid16_t uid); }
 24	STD	LINUX	{ int linux_getuid16(void); }
 25	STD	LINUX	{ int linux_stime(void); }
-26	STD	LINUX	{ int linux_ptrace(void); }
+26	STD	LINUX	{ int linux_ptrace(l_long req, l_long pid, l_long addr, \
+                            l_long data); }
 27	STD	LINUX	{ int linux_alarm(l_uint secs); }
 28	STD	LINUX	{ int linux_fstat(l_uint fd, struct ostat *up); }
 29	STD	LINUX	{ int linux_pause(void); }
