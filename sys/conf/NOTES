@@ -540,8 +540,9 @@ options 	ATM_IP			#IP over ATM support
 options 	ATM_SIGPVC		#SIGPVC signalling manager
 options 	ATM_SPANS		#SPANS signalling manager
 options 	ATM_UNI			#UNI signalling manager
-device		hea			#Efficient ENI-155p ATM PCI
-device		hfa			#FORE PCA-200E ATM PCI
+# Broken:
+##device	hea			#Efficient ENI-155p ATM PCI
+##device	hfa			#FORE PCA-200E ATM PCI
 
 
 #####################################################################
