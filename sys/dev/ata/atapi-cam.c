@@ -57,7 +57,7 @@ struct atapi_hcb {
     int			lun;
     union ccb		*ccb;
     u_int8_t		cmd[CAM_MAX_CDBLEN];
-    int			lags;
+    int			flags;
 #define DOING_AUTOSENSE 1
 
     char		*dxfer_alloc;
