@@ -46,13 +46,10 @@
  * and the drivers are initialized.
  */
 #include "opt_bootp.h"
-#include "opt_ffs.h"
-#include "opt_cd9660.h"
 #include "opt_isa.h"
 #include "opt_nfs.h"
 #include "opt_nfsroot.h"
 #include "opt_bus.h"
-#include "opt_rootdevname.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
