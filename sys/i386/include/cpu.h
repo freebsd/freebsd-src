@@ -33,7 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)cpu.h	5.4 (Berkeley) 5/9/91
+ *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*
@@ -48,18 +49,6 @@
  */
 #undef	COPY_SIGCODE		/* don't copy sigcode above user stack in exec */
 
-/*
- * function vs. inline configuration;
- * these are defined to get generic functions
- * rather than inline or machine-dependent implementations
- */
-#if 0
-#define	NEED_MINMAX		/* need {,i,l,ul}{min,max} functions */
-#define	NEED_FFS		/* need ffs function */
-#define	NEED_BCMP		/* need bcmp function */
-#define	NEED_STRLEN		/* need strlen function */
-#endif
-
 #define	cpu_exec(p)	/* nothing */
 
 /*
@@ -72,8 +61,6 @@ typedef struct intrframe clockframe;
 #define	CLKF_USERMODE(framep)	(ISPL((framep)->if_cs) == SEL_UPL)
 #define	CLKF_BASEPRI(framep)	((framep)->if_ppl == 0)
 #define	CLKF_PC(framep)		((framep)->if_eip)
-
-#define	resettodr()	/* no todr to set */
 
 /*
  * Preempt the current process if in interrupt from user mode,
@@ -100,11 +87,17 @@ int	astpending;		/* need to trap before returning to user mode */
 int	want_resched;		/* resched() was called */
 
 /*
- * Kinds of processor
+ * pull in #defines for kinds of processors
  */
+#include "machine/cputypes.h"
 
-#define	CPU_386SX	0
-#define	CPU_386		1
-#define	CPU_486SX	2
-#define	CPU_486		3
-#define	CPU_586		4
+struct cpu_nameclass {
+	char *cpu_name;
+	int  cpu_class;
+};
+
+#ifdef KERNEL
+extern int cpu;
+extern int cpu_class;
+extern struct cpu_nameclass i386_cpus[];
+#endif
