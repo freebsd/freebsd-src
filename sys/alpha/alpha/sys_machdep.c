@@ -35,9 +35,12 @@
  *
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
@@ -113,6 +116,12 @@ alpha_sethae(struct thread *td, char *args)
 	error = copyin(args, &ua, sizeof(struct alpha_sethae_args));
 	if (error)
 		return (error);
+
+#ifdef MAC
+	error = mac_check_sysarch_ioperm(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 
 	error = securelevel_gt(td->td_ucred, 0);
 	if (error)
