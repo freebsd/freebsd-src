@@ -11,8 +11,8 @@ divert(-1)
 # the sendmail distribution.
 #
 #
-VERSIONID(`$Id: version.m4,v 1.1.1.12 2002/04/10 03:04:58 gshapiro Exp $')
+VERSIONID(`$Id: version.m4,v 8.92 2002/05/31 18:53:59 ca Exp $')
 #
 divert(0)
 # Configuration version number
-DZ8.12.3`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+DZ8.12.4`'ifdef(`confCF_VERSION', `/confCF_VERSION')

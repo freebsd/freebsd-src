@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: savemail.c,v 1.1.1.9 2002/02/17 21:56:41 gshapiro Exp $")
+SM_RCSID("@(#)$Id: savemail.c,v 8.299 2002/05/24 20:50:17 gshapiro Exp $")
 
 static void	errbody __P((MCI *, ENVELOPE *, char *));
 static bool	pruneroute __P((char *));
@@ -65,6 +65,7 @@ savemail(e, sendbody)
 	int flags;
 	long sff;
 	char buf[MAXLINE + 1];
+	char dlbuf[MAXPATHLEN];
 	SM_MBDB_T user;
 
 
@@ -365,20 +366,20 @@ savemail(e, sendbody)
 			p = macvalue('g', e);
 			macdefine(&e->e_macro, A_PERM, 'g', e->e_sender);
 
-			expand("\201z/dead.letter", buf, sizeof buf, e);
+			expand("\201z/dead.letter", dlbuf, sizeof dlbuf, e);
 			sff = SFF_CREAT|SFF_REGONLY|SFF_RUNASREALUID;
 			if (RealUid == 0)
 				sff |= SFF_ROOTOK;
-			e->e_to = buf;
-			if (writable(buf, NULL, sff) &&
-			    mailfile(buf, FileMailer, NULL, sff, e) == EX_OK)
+			e->e_to = dlbuf;
+			if (writable(dlbuf, NULL, sff) &&
+			    mailfile(dlbuf, FileMailer, NULL, sff, e) == EX_OK)
 			{
 				int oldverb = Verbose;
 
 				if (OpMode != MD_DAEMON && OpMode != MD_SMTP)
 					Verbose = 1;
 				if (Verbose > 0)
-					message("Saved message in %s", buf);
+					message("Saved message in %s", dlbuf);
 				Verbose = oldverb;
 				macdefine(&e->e_macro, A_PERM, 'g', p);
 				state = ESM_DONE;

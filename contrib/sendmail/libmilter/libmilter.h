@@ -19,7 +19,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # define INIT(x)	= x
-SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 1.1.1.6 2002/02/17 21:56:45 gshapiro Exp $")
+SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.33 2002/04/30 23:52:24 msk Exp $")
 #else /* _DEFINE */
 # define EXTERN extern
 # define INIT(x)
@@ -110,6 +110,7 @@ extern void	mi_clean_signals __P((void));
 extern struct hostent *mi_gethostbyname __P((char *, int));
 extern int	mi_inet_pton __P((int, const char *, void *));
 extern void	mi_closener __P((void));
+extern int	mi_opensocket __P((char *, int, int, smfiDesc_ptr));
 
 /* communication functions */
 extern char	*mi_rd_cmd __P((socket_t, struct timeval *, char *, size_t *, char *));

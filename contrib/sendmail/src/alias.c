@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: alias.c,v 1.1.1.7 2002/02/17 21:56:38 gshapiro Exp $")
+SM_RCSID("@(#)$Id: alias.c,v 8.214 2002/05/24 20:50:16 gshapiro Exp $")
 
 #define SEPARATOR ':'
 # define ALIAS_SPEC_SEPARATORS	" ,/:"
@@ -393,7 +393,7 @@ aliaswait(map, ext, isopen)
 	bool attimeout = false;
 	time_t mtime;
 	struct stat stb;
-	char buf[MAXNAME + 1];
+	char buf[MAXPATHLEN];
 
 	if (tTd(27, 3))
 		sm_dprintf("aliaswait(%s:%s)\n",
@@ -458,8 +458,17 @@ aliaswait(map, ext, isopen)
 		return isopen;
 	}
 	mtime = stb.st_mtime;
-	(void) sm_strlcpyn(buf, sizeof buf, 2,
-			   map->map_file, ext == NULL ? "" : ext);
+	if (sm_strlcpyn(buf, sizeof buf, 2,
+			map->map_file, ext == NULL ? "" : ext) >= sizeof buf)
+	{
+		if (LogLevel > 3)
+			sm_syslog(LOG_INFO, NOQID,
+				  "alias database %s%s name too long",
+				  map->map_file, ext == NULL ? "" : ext);
+		message("alias database %s%s name too long",
+			map->map_file, ext == NULL ? "" : ext);
+	}
+
 	if (stat(buf, &stb) < 0 || stb.st_mtime < mtime || attimeout)
 	{
 		if (LogLevel > 3)
@@ -913,7 +922,7 @@ forward(user, sendq, aliaslevel, e)
 	for (pp = ForwardPath; pp != NULL; pp = ep)
 	{
 		int err;
-		char buf[MAXPATHLEN + 1];
+		char buf[MAXPATHLEN];
 		struct stat st;
 
 		ep = strchr(pp, SEPARATOR);

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 1.1.1.11 2002/04/10 03:04:51 gshapiro Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.862 2002/05/09 23:51:53 ca Exp $")
 
 #include <dirent.h>
 
@@ -369,7 +369,7 @@ queueup(e, announce, msync)
 					if (LogLevel > 0 && (i % 32) == 0)
 						sm_syslog(LOG_ALERT, e->e_id,
 							  "queueup: cannot create %s, uid=%d: %s",
-							  tf, geteuid(),
+							  tf, (int) geteuid(),
 							  sm_errstring(errno));
 				}
 			}
@@ -405,7 +405,7 @@ queueup(e, announce, msync)
 			printopenfds(true);
 			errno = save_errno;
 			syserr("!queueup: cannot create queue temp file %s, uid=%d",
-				tf, geteuid());
+				tf, (int) geteuid());
 		}
 	}
 
@@ -449,7 +449,7 @@ queueup(e, announce, msync)
 		    errno != EINVAL)
 		{
 			syserr("!queueup: cannot commit data file %s, uid=%d",
-			       queuename(e, DATAFL_LETTER), geteuid());
+			       queuename(e, DATAFL_LETTER), (int) geteuid());
 		}
 		if (e->e_dfp != NULL &&
 		    SuperSafe == SAFE_INTERACTIVE && msync)
@@ -490,7 +490,7 @@ queueup(e, announce, msync)
 						 (void *) &dfd, SM_IO_WRONLY,
 						 NULL)) == NULL)
 			syserr("!queueup: cannot create data temp file %s, uid=%d",
-				df, geteuid());
+				df, (int) geteuid());
 		if (fstat(dfd, &stbuf) < 0)
 			e->e_dfino = -1;
 		else
@@ -524,7 +524,7 @@ queueup(e, announce, msync)
 
 		if (sm_io_close(dfp, SM_TIME_DEFAULT) < 0)
 			syserr("!queueup: cannot save data temp file %s, uid=%d",
-				df, geteuid());
+				df, (int) geteuid());
 		e->e_putbody = putbody;
 	}
 
@@ -831,7 +831,7 @@ queueup(e, announce, msync)
 				  sizeof qf);
 		if (rename(tf, qf) < 0)
 			syserr("cannot rename(%s, %s), uid=%d",
-				tf, qf, geteuid());
+				tf, qf, (int) geteuid());
 # if _FFR_QUARANTINE
 		else
 		{
@@ -4391,6 +4391,10 @@ readqf(e, openonly)
 			e->e_msgsize = st.st_size + hdrsize;
 			e->e_dfdev = st.st_dev;
 			e->e_dfino = ST_INODE(st);
+			(void) sm_snprintf(buf, sizeof buf, "%ld",
+					   e->e_msgsize);
+			macdefine(&e->e_macro, A_TEMP, macid("{msg_size}"),
+				  buf);
 		}
 	}
 
@@ -5402,7 +5406,7 @@ loseqfile(e, why)
 		p = queuename(e, LOSEQF_LETTER);
 		if (rename(buf, p) < 0)
 			syserr("cannot rename(%s, %s), uid=%d",
-			       buf, p, geteuid());
+			       buf, p, (int) geteuid());
 		else if (LogLevel > 0)
 			sm_syslog(LOG_ALERT, e->e_id,
 				  "Losing %s: %s", buf, why);
@@ -5742,9 +5746,18 @@ chkqdir(name, sff)
 	/* Print a warning if unsafe (but still use it) */
 	/* XXX do this only if we want the warning? */
 	i = safedirpath(name, RunAsUid, RunAsGid, NULL, sff, 0, 0);
-	if (i != 0 && tTd(41, 2))
-		sm_dprintf("chkqdir: \"%s\": Not safe: %s\n",
-			   name, sm_errstring(i));
+	if (i != 0)
+	{
+		if (tTd(41, 2))
+			sm_dprintf("chkqdir: \"%s\": Not safe: %s\n",
+				   name, sm_errstring(i));
+#if _FFR_CHK_QUEUE
+		if (LogLevel > 8)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "queue directory \"%s\": Not safe: %s",
+				  name, sm_errstring(i));
+#endif /* _FFR_CHK_QUEUE */
+	}
 	return true;
 }
 /*
@@ -5809,6 +5822,11 @@ multiqueue_cache(basedir, blen, qg, qn, phash)
 	/* If running as root, allow safedirpath() checks to use privs */
 	if (RunAsUid == 0)
 		sff |= SFF_ROOTOK;
+#if _FFR_CHK_QUEUE
+	sff |= SFF_SAFEDIRPATH|SFF_NOWWFILES;
+	if (!UseMSP)
+		sff |= SFF_NOGWFILES;
+#endif /* _FFR_CHK_QUEUE */
 
 	if (!SM_IS_DIR_START(qg->qg_qdir))
 	{
@@ -6825,7 +6843,7 @@ cleanup_shm(owner)
 	if (ShmId != SM_SHM_NO_ID)
 	{
 		if (sm_shmstop(Pshm, ShmId, owner) < 0 && LogLevel > 8)
-			sm_syslog(LOG_INFO, NOQID, "sh_shmstop failed=%s",
+			sm_syslog(LOG_INFO, NOQID, "sm_shmstop failed=%s",
 				  sm_errstring(errno));
 		Pshm = NULL;
 		ShmId = SM_SHM_NO_ID;
@@ -8246,7 +8264,7 @@ quarantine_queue_item(qgrp, qdir, e, reason)
 			}
 			break;
 
-		  case 'R':
+		  case 'S':
 			/*
 			**  If we are quarantining an unquarantined item,
 			**  need to put in a new 'q' line before it's
