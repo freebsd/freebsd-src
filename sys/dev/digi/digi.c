@@ -106,7 +106,7 @@ struct con_bios {
 };
 
 static struct con_bios *con_bios_list;
-static devclass_t	 digi_devclass;
+devclass_t	 digi_devclass;
 static char	 driver_name[] = "digi";
 unsigned 	 digi_debug = 0;
 
