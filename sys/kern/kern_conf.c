@@ -551,11 +551,11 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 static void
 idestroy_dev(struct cdev *dev)
 {
-	if (!(dev->si_flags & SI_NAMED)) {
-		printf( "WARNING: Driver mistake: destroy_dev on %d/%d\n",
-		    major(dev), minor(dev));
-		panic("don't do that");
-	}
+	struct cdevsw *csw;
+
+	KASSERT(dev->si_flags & SI_NAMED,
+	    ("WARNING: Driver mistake: destroy_dev on %d/%d\n",
+	    major(dev), minor(dev)));
 		
 	devfs_destroy(dev);
 
@@ -578,6 +578,19 @@ idestroy_dev(struct cdev *dev)
 		dev->si_flags &= ~SI_CLONELIST;
 	}
 
+	csw = dev->si_devsw;
+	dev->si_devsw = NULL;
+	while (csw->d_purge != NULL && dev->si_threadcount) {
+		printf("Purging %lu threads from %s\n",
+		    dev->si_threadcount, devtoname(dev));
+		csw->d_purge(dev);
+		msleep(csw, &devmtx, PRIBIO, "devprg", hz/10);
+	}
+
+	dev->si_drv1 = 0;
+	dev->si_drv2 = 0;
+	bzero(&dev->__si_u, sizeof(dev->__si_u));
+
 	if (!(dev->si_flags & SI_ALIAS)) {
 		/* Remove from cdevsw list */
 		LIST_REMOVE(dev, si_list);
@@ -588,11 +601,8 @@ idestroy_dev(struct cdev *dev)
 
 		LIST_REMOVE(dev, si_hash);
 	}
-	dev->si_drv1 = 0;
-	dev->si_drv2 = 0;
-	dev->si_devsw = NULL;
-	bzero(&dev->__si_u, sizeof(dev->__si_u));
 	dev->si_flags &= ~SI_ALIAS;
+
 	if (dev->si_refcount > 0) {
 		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
 	} else {
