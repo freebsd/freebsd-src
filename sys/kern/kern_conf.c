@@ -89,8 +89,6 @@ devsw(dev_t dev)
 int
 cdevsw_add(struct cdevsw *newentry)
 {
-	int i;
-	static int setup;
 
 	if (newentry->d_maj < 0 || newentry->d_maj >= NUMCDEVSW) {
 		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
