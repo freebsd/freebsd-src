@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.16.2.8 1998/05/24 03:13:00 steve Exp $	
+.\"	$Id: pkg_create.1,v 1.16.2.9 1998/07/06 12:15:21 jkoshy Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -397,18 +397,17 @@ is unsuitable.
 .Xr pkg_add 1 ,
 .Xr pkg_delete 1 ,
 .Xr pkg_info 1 ,
-.Xr sysconf 3 .
+.Xr sysconf 3
 .Sh HISTORY
 The
 .Nm
-command first appeared in FreeBSD.
+command first appeared in
+.Bx Free .
 .Sh AUTHORS
-.Bl -tag -width indent -compact
-.It "Jordan Hubbard"
-most of the work
-.It "John Kohl"
-refined it for NetBSD
-.El
+.An Jordan Hubbard
+for most of the work.
+.An John Kohl
+for NetBSD refinements.
 .Sh BUGS
 Hard links between files in a distribution must be bracketed by
 .Cm @cwd

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.15.2.6 1997/11/04 21:49:01 dima Exp $";
+	"$Id: inetd.c,v 1.15.2.7 1998/03/09 11:48:27 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
@@ -141,6 +142,17 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
+#ifndef	MAXCHILD
+#define	MAXCHILD	-1		/* maximum number of this service
+					   < 0 = no limit */
+#endif
+
+#ifndef	MAXCPM
+#define	MAXCPM		-1		/* rate limit invocations from a
+					   single remote address,
+					   < 0 = no limit */
+#endif
+
 #define	TOOMANY		256		/* don't start more than TOOMANY */
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
@@ -155,6 +167,8 @@ fd_set	allsock;
 int	options;
 int	timingout;
 int	toomany = TOOMANY;
+int	maxchild = MAXCPM;
+int	maxcpm = MAXCHILD;
 struct	servent *sp;
 struct	rpcent *rpc;
 struct	in_addr bind_address;
@@ -193,9 +207,11 @@ struct	servtab {
 #define NORM_TYPE	0
 #define MUX_TYPE	1
 #define MUXPLUS_TYPE	2
+#define TTCP_TYPE	3
 #define ISMUX(sep)	(((sep)->se_type == MUX_TYPE) || \
 			 ((sep)->se_type == MUXPLUS_TYPE))
 #define ISMUXPLUS(sep)	((sep)->se_type == MUXPLUS_TYPE)
+#define ISTTCP(sep)	((sep)->se_type == TTCP_TYPE)
 
 
 void		chargen_dg __P((int, struct servtab *));
@@ -273,6 +289,23 @@ char 	*LastArg;
 #endif
 
 int
+getvalue(arg, value, whine)
+	char *arg, *whine;
+	int  *value;
+{
+	int  tmp;
+	char *p;
+
+	tmp = strtol(arg, &p, 0);
+	if (tmp < 1 || *p) {
+		syslog(LOG_ERR, whine, arg);
+		return 1;			/* failure */
+	}
+	*value = tmp;
+	return 0;				/* success */
+}
+
+int
 main(argc, argv, envp)
 	int argc;
 	char *argv[], *envp[];
@@ -280,7 +313,7 @@ main(argc, argv, envp)
 	struct servtab *sep;
 	struct passwd *pwd;
 	struct group *grp;
-	struct sigvec sv;
+	struct sigaction sa, sapipe;
 	int tmpint, ch, dofork;
 	pid_t pid;
 	char buf[50];
@@ -303,7 +336,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlR:a:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dlR:a:c:C:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -312,18 +345,18 @@ main(argc, argv, envp)
 		case 'l':
 			log = 1;
 			break;
-		case 'R': {	/* invocation rate */
-			char *p;
-
-			tmpint = strtol(optarg, &p, 0);
-			if (tmpint < 1 || *p)
-				syslog(LOG_ERR,
-			         "-R %s: bad value for service invocation rate",
-					optarg);
-			else
-				toomany = tmpint;
+		case 'R':
+			getvalue(optarg, &toomany,
+				"-R %s: bad value for service invocation rate");
 			break;
-		}
+		case 'c':
+			getvalue(optarg, &maxchild,
+				"-c %s: bad value for maximum children");
+			break;
+		case 'C':
+			getvalue(optarg, &maxcpm,
+				"-C %s: bad value for maximum children/minute");
+			break;
 		case 'a':
 			if (!inet_aton(optarg, &bind_address)) {
 				syslog(LOG_ERR,
@@ -338,6 +371,7 @@ main(argc, argv, envp)
 		default:
 			syslog(LOG_ERR,
 				"usage: inetd [-dl] [-a address] [-R rate]"
+				" [-c maximum] [-C rate]"
 				" [-p pidfile] [conf-file]");
 			exit(EX_USAGE);
 		}
@@ -369,15 +403,20 @@ main(argc, argv, envp)
 			syslog(LOG_WARNING, "%s: %m", pid_file);
 		}
 	}
-	memset(&sv, 0, sizeof(sv));
-	sv.sv_mask = SIGBLOCK;
-	sv.sv_handler = retry;
-	sigvec(SIGALRM, &sv, (struct sigvec *)0);
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaddset(&sa.sa_mask, SIGALRM);
+	sigaddset(&sa.sa_mask, SIGCHLD);
+	sigaddset(&sa.sa_mask, SIGHUP);
+	sa.sa_handler = retry;
+	sigaction(SIGALRM, &sa, (struct sigaction *)0);
 	config(SIGHUP);
-	sv.sv_handler = config;
-	sigvec(SIGHUP, &sv, (struct sigvec *)0);
-	sv.sv_handler = reapchild;
-	sigvec(SIGCHLD, &sv, (struct sigvec *)0);
+	sa.sa_handler = config;
+	sigaction(SIGHUP, &sa, (struct sigaction *)0);
+	sa.sa_handler = reapchild;
+	sigaction(SIGCHLD, &sa, (struct sigaction *)0);
+	sa.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &sa, &sapipe);
 
 	{
 		/* space for daemons to overwrite environment for ps */
@@ -443,20 +482,6 @@ main(argc, argv, envp)
 					sep->se_service,
 					inet_ntoa(peer.sin_addr));
 			    }
-			    /*
-			     * Call tcpmux to find the real service to exec.
-			     */
-			    if (sep->se_bi &&
-				sep->se_bi->bi_fn == (void (*)()) tcpmux) {
-				    struct servtab *tsep;
-
-				    tsep = tcpmux(ctrl);
-				    if (tsep == NULL) {
-					    close(ctrl);
-					    continue;
-				    }
-				    sep = tsep;
-			    }
 		    } else
 			    ctrl = sep->se_fd;
 		    (void) sigblock(SIGBLOCK);
@@ -508,6 +533,17 @@ main(argc, argv, envp)
 				for (tmpint = maxsock; tmpint > 2; tmpint--)
 					if (tmpint != ctrl)
 						(void) close(tmpint);
+			    }
+			    /*
+			     * Call tcpmux to find the real service to exec.
+			     */
+			    if (sep->se_bi &&
+				sep->se_bi->bi_fn == (void (*)()) tcpmux) {
+				    sep = tcpmux(ctrl);
+				    if (sep == NULL) {
+					    close(ctrl);
+					    _exit(0);
+				    }
 			    }
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
@@ -592,6 +628,8 @@ main(argc, argv, envp)
 					}
 				}
 #endif
+				sigaction(SIGPIPE, &sapipe,
+				    (struct sigaction *)0);
 				execv(sep->se_server, sep->se_argv);
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
@@ -881,6 +919,10 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		syslog(LOG_ERR, "setsockopt (SO_PRIVSTATE): %m");
 #endif
 #undef turnon
+	if (sep->se_type == TTCP_TYPE)
+		if (setsockopt(sep->se_fd, IPPROTO_TCP, TCP_NOPUSH,
+		    (char *)&on, sizeof (on)) < 0)
+			syslog(LOG_ERR, "setsockopt (TCP_NOPUSH): %m");
 	if (bind(sep->se_fd, (struct sockaddr *)&sep->se_ctrladdr,
 	    sizeof (sep->se_ctrladdr)) < 0) {
 		if (debug)
@@ -1102,7 +1144,14 @@ more:
 		sep->se_socktype = SOCK_RAW;
 	else
 		sep->se_socktype = -1;
-	sep->se_proto = newstr(sskip(&cp));
+
+	arg = sskip(&cp);
+	if (strcmp(arg, "tcp/ttcp") == 0) {
+		sep->se_type = TTCP_TYPE;
+		sep->se_proto = newstr("tcp");
+	} else {
+		sep->se_proto = newstr(arg);
+	}
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
                 memmove(sep->se_proto, sep->se_proto + 4,
                     strlen(sep->se_proto) + 1 - 4);
@@ -1147,8 +1196,8 @@ more:
 			CONFIG, sep->se_service);
 		goto more;
 	}
-	sep->se_maxchild = -1;
-	sep->se_maxcpm = -1;
+	sep->se_maxchild = maxchild;
+	sep->se_maxcpm = maxcpm;
 	if ((s = strchr(arg, '/')) != NULL) {
 		char *eptr;
 		u_long val;
@@ -1711,9 +1760,16 @@ getline(fd, buf, len)
 	int len;
 {
 	int count = 0, n;
+	struct sigaction sa;
 
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGALRM, &sa, (struct sigaction *)0);
 	do {
+		alarm(10);
 		n = read(fd, buf, len-count);
+		alarm(0);
 		if (n == 0)
 			return (count);
 		if (n < 0)
@@ -1874,9 +1930,9 @@ cpmip(sep, ctrl)
 		if (cnt * (CHTSIZE * CHTGRAN) / 60 > sep->se_maxcpm) {
 			r = -1;
 			syslog(LOG_ERR,
-			    "%s from %s exceeded counts/min limit %d/%d",
-			    sep->se_service, inet_ntoa(rsin.sin_addr), cnt,
-			    sep->se_maxcpm );
+			    "%s from %s exceeded counts/min (limit %d/min)",
+			    sep->se_service, inet_ntoa(rsin.sin_addr), 
+			    sep->se_maxcpm);
 		}
 	}
 	return(r);

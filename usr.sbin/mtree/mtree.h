@@ -71,7 +71,9 @@ typedef struct _node {
 #define	F_UNAME	0x2000				/* user name */
 #define	F_VISIT	0x4000				/* file visited */
 #define F_MD5	0x8000				/* MD5 digest */
-	u_short	flags;				/* items set */
+#define F_NOCHANGE 0x10000			/* If owner/mode "wrong", do */
+						/* not change */
+	u_int	flags;				/* items set */
 
 #define	F_BLOCK	0x001				/* block special */
 #define	F_CHAR	0x002				/* char special */
