@@ -703,8 +703,11 @@ set_screen_size(struct video_state *svsp, int size)
 			svsp->scrr_len = svsp->screen_rows;
 			svsp->scrr_end = svsp->scrr_len - 1;
 
-			if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
+			if (svsp->vs_tty && svsp->vs_tty->t_pgrp) {
+				PGRP_LOCK(svsp->vs_tty->t_pgrp);
 				pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
+				PGRP_UNLOCK(svsp->vs_tty->t_pgrp);
+			}
 
 			reallocate_scrollbuffer(svsp, svsp->scrollback_pages);
 			break;

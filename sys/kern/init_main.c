@@ -305,12 +305,14 @@ proc0_init(void *dummy __unused)
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
+	mtx_init(&pgrp0.pg_mtx, "process group", MTX_DEF);
 	p->p_pgrp = &pgrp0;
 	LIST_INSERT_HEAD(PGRPHASH(0), &pgrp0, pg_hash);
 	LIST_INIT(&pgrp0.pg_members);
 	LIST_INSERT_HEAD(&pgrp0.pg_members, p, p_pglist);
 
 	pgrp0.pg_session = &session0;
+	mtx_init(&session0.s_mtx, "session", MTX_DEF);
 	session0.s_count = 1;
 	session0.s_leader = p;
 

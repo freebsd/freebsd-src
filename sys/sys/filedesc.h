@@ -110,17 +110,20 @@ struct filedesc0 {
  * on a device or socket.  The structure is placed on an SLIST belonging
  * to the proc or pgrp so that the entire list may be revoked when the
  * process exits or the process group disappears.
+ *
+ * (c)	const
+ * (pg)	locked by either the process or process group lock
  */
 struct sigio {
 	union {
-		struct	proc *siu_proc; /* process to receive SIGIO/SIGURG */
-		struct	pgrp *siu_pgrp; /* process group to receive ... */
+		struct	proc *siu_proc; /* (c)	process to receive SIGIO/SIGURG */
+		struct	pgrp *siu_pgrp; /* (c)	process group to receive ... */
 	} sio_u;
-	SLIST_ENTRY(sigio) sio_pgsigio;	/* sigio's for process or group */
-	struct	sigio **sio_myref;	/* location of the pointer that holds
-					 * the reference to this structure */
-	struct	ucred *sio_ucred;	/* current credentials */
-	pid_t	sio_pgid;		/* pgid for signals */
+	SLIST_ENTRY(sigio) sio_pgsigio;	/* (pg)	sigio's for process or group */
+	struct	sigio **sio_myref;	/* (c)	location of the pointer that holds
+					 * 	the reference to this structure */
+	struct	ucred *sio_ucred;	/* (c)	current credentials */
+	pid_t	sio_pgid;		/* (c)	pgid for signals */
 };
 #define	sio_proc	sio_u.siu_proc
 #define	sio_pgrp	sio_u.siu_pgrp

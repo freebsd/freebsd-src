@@ -83,6 +83,7 @@
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -1076,9 +1077,13 @@ sl_keepalive(chan)
 	struct sl_softc *sc = chan;
 
 	if (sc->sc_keepalive) {
-		if (sc->sc_flags & SC_KEEPALIVE)
-			pgsignal (sc->sc_ttyp->t_pgrp, SIGURG, 1);
-		else
+		if (sc->sc_flags & SC_KEEPALIVE) {
+			if (sc->sc_ttyp->t_pgrp != NULL) {
+				PGRP_LOCK(sc->sc_ttyp->t_pgrp);
+				pgsignal (sc->sc_ttyp->t_pgrp, SIGURG, 1);
+				PGRP_UNLOCK(sc->sc_ttyp->t_pgrp);
+			}
+		} else
 			sc->sc_flags |= SC_KEEPALIVE;
 		sc->sc_kahandle = timeout(sl_keepalive, sc, sc->sc_keepalive);
 	} else {

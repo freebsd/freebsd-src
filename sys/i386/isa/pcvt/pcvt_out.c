@@ -1582,8 +1582,11 @@ set_emulation_mode(struct video_state *svsp, int mode)
 		svsp->scrr_end = svsp->scrr_len - 1;
 	}
 
-	if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
+	if (svsp->vs_tty && svsp->vs_tty->t_pgrp) {
+		PGRP_LOCK(svsp->vs_tty->t_pgrp);
 		pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
+		PGRP_UNLOCK(svsp->vs_tty->t_pgrp);
+	}
 }
 
 /*---------------------------------------------------------------------------*
@@ -1867,8 +1870,11 @@ vt_col(struct video_state *svsp, int cols)
 			(cols == SCR_COL80)? 720: 1056;
 		svsp->vs_tty->t_winsize.ws_ypixel = 400;
 
-		if(svsp->vs_tty->t_pgrp)
+		if(svsp->vs_tty->t_pgrp) {
+			PGRP_LOCK(svsp->vs_tty->t_pgrp);
 			pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
+			PGRP_UNLOCK(svsp->vs_tty->t_pgrp);
+		}
 	}
 
 	reallocate_scrollbuffer(svsp, svsp->scrollback_pages);

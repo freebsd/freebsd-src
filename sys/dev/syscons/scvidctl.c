@@ -36,6 +36,11 @@
 #include <sys/kernel.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/filedesc.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
@@ -228,7 +233,11 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 	|| tp->t_winsize.ws_row != scp->ysize) {
 	tp->t_winsize.ws_col = scp->xsize;
 	tp->t_winsize.ws_row = scp->ysize;
-	pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	if (tp->t_pgrp != NULL) {
+	    PGRP_LOCK(tp->t_pgrp);
+	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	    PGRP_UNLOCK(tp->t_pgrp);
+	}
     }
 
     return 0;
@@ -291,7 +300,11 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
 	|| tp->t_winsize.ws_ypixel != scp->ypixel) {
 	tp->t_winsize.ws_xpixel = scp->xpixel;
 	tp->t_winsize.ws_ypixel = scp->ypixel;
-	pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	if (tp->t_pgrp != NULL) {
+	    PGRP_LOCK(tp->t_pgrp);
+	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	    PGRP_UNLOCK(tp->t_pgrp);
+	}
     }
 
     return 0;
@@ -423,7 +436,11 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	|| tp->t_winsize.ws_row != scp->ysize) {
 	tp->t_winsize.ws_col = scp->xsize;
 	tp->t_winsize.ws_row = scp->ysize;
-	pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	if (tp->t_pgrp != NULL) {
+	    PGRP_LOCK(tp->t_pgrp);
+	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	    PGRP_UNLOCK(tp->t_pgrp);
+	}
     }
 
     return 0;

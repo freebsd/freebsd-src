@@ -41,6 +41,9 @@
 #include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 #include <sys/ioctl_compat.h>
 #endif
@@ -237,11 +240,19 @@ ptsread(dev, uio, flag)
 again:
 	if (pti->pt_flags & PF_REMOTE) {
 		while (isbackground(p, tp)) {
+			PGRPSESS_SLOCK();
+			PROC_LOCK(p);
 			if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
 			    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
-			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT)
+			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT) {
+				PROC_UNLOCK(p);
 				return (EIO);
+			}
+			PROC_UNLOCK(p);
+			PGRP_LOCK(p->p_pgrp);
+			PGRPSESS_SUNLOCK();
 			pgsignal(p->p_pgrp, SIGTTIN, 1);
+			PGRP_UNLOCK(p->p_pgrp);
 			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
 					 0);
 			if (error)
@@ -715,7 +726,11 @@ ptyioctl(dev, cmd, data, flag, td)
 				return(EINVAL);
 			if ((tp->t_lflag&NOFLSH) == 0)
 				ttyflush(tp, FREAD|FWRITE);
-			pgsignal(tp->t_pgrp, *(unsigned int *)data, 1);
+			if (tp->t_pgrp != NULL) {
+				PGRP_LOCK(tp->t_pgrp);
+				pgsignal(tp->t_pgrp, *(unsigned int *)data, 1);
+				PGRP_UNLOCK(tp->t_pgrp);
+			}
 			if ((*(unsigned int *)data == SIGINFO) &&
 			    ((tp->t_lflag&NOKERNINFO) == 0))
 				ttyinfo(tp);

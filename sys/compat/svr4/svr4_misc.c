@@ -1017,7 +1017,9 @@ svr4_sys_pgrpsys(td, uap)
 		/*FALLTHROUGH*/
 
 	case 0:			/* getpgrp() */
+		PROC_LOCK(p);
 		*retval = p->p_pgrp->pg_id;
+		PROC_UNLOCK(p);
 		return 0;
 
 	case 2:			/* getsid(pid) */
@@ -1222,7 +1224,9 @@ svr4_sys_waitsys(td, uap)
 		break;
 
 	case SVR4_P_PGID:
+		PROC_LOCK(td->td_proc);
 		SCARG(uap, id) = -td->td_proc->p_pgid;
+		PROC_UNLOCK(td->td_proc);
 		break;
 
 	case SVR4_P_ALL:
@@ -1283,8 +1287,12 @@ loop:
 				if (q->p_oppid != q->p_pptr->p_pid) {
 					PROC_UNLOCK(q);
 					t = pfind(q->p_oppid);
+					if (t == NULL) {
+						t = initproc;
+						PROC_LOCK(initproc);
+					}
 					PROC_LOCK(q);
-					proc_reparent(q, t ? t : initproc);
+					proc_reparent(q, t);
  					q->p_oppid = 0;
 					q->p_flag &= ~(P_TRACED | P_WAITED);
 					PROC_UNLOCK(q);

@@ -43,6 +43,8 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/proc.h>
 #include <sys/ttycom.h>
 #include <sys/vnode.h>
@@ -80,8 +82,14 @@ cttyopen(dev, flag, mode, td)
 	int flag, mode;
 	struct thread *td;
 {
-	struct vnode *ttyvp = cttyvp(td);
+	struct vnode *ttyvp;
 	int error;
+
+	PROC_LOCK(td->td_proc);
+	SESS_LOCK(td->td_proc->p_session);
+	ttyvp = cttyvp(td);
+	SESS_UNLOCK(td->td_proc->p_session);
+	PROC_UNLOCK(td->td_proc);
 
 	if (ttyvp == NULL)
 		return (ENXIO);
@@ -99,8 +107,14 @@ cttyread(dev, uio, flag)
 	int flag;
 {
 	struct thread *td = uio->uio_td;
-	register struct vnode *ttyvp = cttyvp(td);
+	register struct vnode *ttyvp;
 	int error;
+
+	PROC_LOCK(td->td_proc);
+	SESS_LOCK(td->td_proc->p_session);
+	ttyvp = cttyvp(td);
+	SESS_UNLOCK(td->td_proc->p_session);
+	PROC_UNLOCK(td->td_proc);
 
 	if (ttyvp == NULL)
 		return (EIO);
@@ -118,9 +132,15 @@ cttywrite(dev, uio, flag)
 	int flag;
 {
 	struct thread *td = uio->uio_td;
-	struct vnode *ttyvp = cttyvp(uio->uio_td);
+	struct vnode *ttyvp;
 	struct mount *mp;
 	int error;
+
+	PROC_LOCK(td->td_proc);
+	SESS_LOCK(td->td_proc->p_session);
+	ttyvp = cttyvp(td);
+	SESS_UNLOCK(td->td_proc->p_session);
+	PROC_UNLOCK(td->td_proc);
 
 	if (ttyvp == NULL)
 		return (EIO);
@@ -144,18 +164,30 @@ cttyioctl(dev, cmd, addr, flag, td)
 	int flag;
 	struct thread *td;
 {
-	struct vnode *ttyvp = cttyvp(td);
+	struct vnode *ttyvp;
+	int error;
+
+	PROC_LOCK(td->td_proc);
+	SESS_LOCK(td->td_proc->p_session);
+	ttyvp = cttyvp(td);
+	SESS_UNLOCK(td->td_proc->p_session);
+	PROC_UNLOCK(td->td_proc);
 
 	if (ttyvp == NULL)
 		return (EIO);
 	if (cmd == TIOCSCTTY)  /* don't allow controlling tty to be set    */
 		return EINVAL; /* to controlling tty -- infinite recursion */
 	if (cmd == TIOCNOTTY) {
-		if (!SESS_LEADER(td->td_proc)) {
+		PROC_LOCK(td->td_proc);
+		SESS_LOCK(td->td_proc->p_session);
+		error = 0;
+		if (!SESS_LEADER(td->td_proc))
 			td->td_proc->p_flag &= ~P_CONTROLT;
-			return (0);
-		} else
-			return (EINVAL);
+		else
+			error = EINVAL;
+		SESS_UNLOCK(td->td_proc->p_session);
+		PROC_UNLOCK(td->td_proc);
+		return (error);
 	}
 	return (VOP_IOCTL(ttyvp, cmd, addr, flag, NOCRED, td));
 }
@@ -167,7 +199,13 @@ cttypoll(dev, events, td)
 	int events;
 	struct thread *td;
 {
-	struct vnode *ttyvp = cttyvp(td);
+	struct vnode *ttyvp;
+
+	PROC_LOCK(td->td_proc);
+	SESS_LOCK(td->td_proc->p_session);
+	ttyvp = cttyvp(td);
+	SESS_UNLOCK(td->td_proc->p_session);
+	PROC_UNLOCK(td->td_proc);
 
 	if (ttyvp == NULL)
 		/* try operation to get EOF/failure */
