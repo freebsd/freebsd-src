@@ -399,11 +399,11 @@ distMaybeSetCRYPTO(dialogMenuItem *self)
 		  "a second pass with the Custom Installation option.")) {
 	if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
 	    i = DITEM_FAILURE;
-	else
-	    USAResident = TRUE;
     }
-    else
-	USAResident = FALSE;
+
+    dialog_clear_norefresh();
+    USAResident = !msgYesNo("Are you actually resident in the United States?");
+
     distVerifyFlags();
     return i | DITEM_REDRAW | DITEM_RESTORE;
 }

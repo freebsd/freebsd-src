@@ -71,5 +71,5 @@ globalsInit(void)
     VarHead = NULL;
     mediaDevice = NULL;
     RunningAsInit = FALSE;
-    USAResident = TRUE;
+    USAResident = FALSE;
 }
