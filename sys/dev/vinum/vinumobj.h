@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
+ * $Id: vinumobj.h,v 1.1 2001/05/22 04:07:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -50,6 +50,41 @@
  * to perform this copy, vinumioctl must know both structures, so it
  * includes this file again with _KERNEL reset.
  */
+
+#ifndef _KERNEL
+/*
+ * Flags for all objects.  Most of them only apply
+ * to specific objects, but we currently have
+ * space for all in any 32 bit flags word.
+ */
+enum objflags {
+    VF_LOCKED = 1,					    /* somebody has locked access to this object */
+    VF_LOCKING = 2,					    /* we want access to this object */
+    VF_OPEN = 4,					    /* object has openers */
+    VF_WRITETHROUGH = 8,				    /* volume: write through */
+    VF_INITED = 0x10,					    /* unit has been initialized */
+    VF_WLABEL = 0x20,					    /* label area is writable */
+    VF_LABELLING = 0x40,				    /* unit is currently being labelled */
+    VF_WANTED = 0x80,					    /* someone is waiting to obtain a lock */
+    VF_RAW = 0x100,					    /* raw volume (no file system) */
+    VF_LOADED = 0x200,					    /* module is loaded */
+    VF_CONFIGURING = 0x400,				    /* somebody is changing the config */
+    VF_WILL_CONFIGURE = 0x800,				    /* somebody wants to change the config */
+    VF_CONFIG_INCOMPLETE = 0x1000,			    /* haven't finished changing the config */
+    VF_CONFIG_SETUPSTATE = 0x2000,			    /* set a volume up if all plexes are empty */
+    VF_READING_CONFIG = 0x4000,				    /* we're reading config database from disk */
+    VF_FORCECONFIG = 0x8000,				    /* configure drives even with different names */
+    VF_NEWBORN = 0x10000,				    /* for objects: we've just created it */
+    VF_CONFIGURED = 0x20000,				    /* for drives: we read the config */
+    VF_STOPPING = 0x40000,				    /* for vinum_conf: stop on last close */
+    VF_DAEMONOPEN = 0x80000,				    /* the daemon has us open (only superdev) */
+    VF_CREATED = 0x100000,				    /* for volumes: freshly created, more then new */
+    VF_HOTSPARE = 0x200000,				    /* for drives: use as hot spare */
+    VF_RETRYERRORS = 0x400000,				    /* don't down subdisks on I/O errors */
+    VF_HASDEBUG = 0x800000,				    /* set if we support debug */
+};
+
+#endif
 
 /* Global configuration information for the vinum subsystem */
 #ifdef _KERNEL
@@ -85,7 +120,7 @@ struct __vinum_conf
     int plexes_used;
     int volumes_used;
 
-    int flags;
+    int flags;						    /* see above */
 
 #define VINUM_MAXACTIVE  30000				    /* maximum number of active requests */
     int active;						    /* current number of requests outstanding */
