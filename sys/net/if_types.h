@@ -100,5 +100,6 @@
 #define	IFT_GIF		0x37
 #define	IFT_FAITH	0x38
 #define	IFT_STF		0x39
+#define	IFT_L2VLAN	0x87		/* Layer 2 Virtual LAN using 802.1Q */
 
 #endif
