@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.8 1995/03/16 18:15:36 bde Exp $
+ * $Id: nfs_node.c,v 1.9 1995/06/27 11:06:35 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -99,6 +99,8 @@ nfs_hash(fhp, fhsize)
  * In all cases, a pointer to a
  * nfsnode structure is returned.
  */
+int nfs_node_hash_lock;
+
 int
 nfs_nget(mntp, fhp, fhsize, npp)
 	struct mount *mntp;
@@ -124,8 +126,28 @@ loop:
 		*npp = np;
 		return(0);
 	}
+	/*
+	 * Obtain a lock to prevent a race condition if the getnewvnode
+	 * or malloc below happen to block.
+	 */
+	if (nfs_node_hash_lock) {
+		while (nfs_node_hash_lock) {
+			nfs_node_hash_lock = -1;
+			tsleep(&nfs_node_hash_lock, PVM, "ffsvgt", 0);
+		}
+		goto loop;
+	}
+	nfs_node_hash_lock = 1;
+		
 	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
+		/*
+		 * Wakeup anyone blocked on our lock.
+		 */
+		if (nfs_node_hash_lock < 0) {
+			wakeup(&nfs_node_hash_lock);
+		}
+		nfs_node_hash_lock = 0;
 		*npp = 0;
 		return (error);
 	}
@@ -145,6 +167,14 @@ loop:
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
 	*npp = np;
+
+	/*
+	 * Wakeup anyone blocked on our lock
+	 */
+	if (nfs_node_hash_lock < 0) {
+		wakeup(&nfs_node_hash_lock);
+	}
+	nfs_node_hash_lock = 0;
 
 	/*
 	 * Lock the new nfsnode.
