@@ -51,6 +51,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/if_llc.h>
@@ -116,10 +117,12 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
+#if defined(INET) || defined(INET6)
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, int shared);
 static int ether_ipfw;
+#endif
 
 /*
  * Ethernet output routine.
@@ -336,7 +339,11 @@ bad:			if (m != NULL)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
+#if defined(INET) || defined(INET6)
 	struct ip_fw *rule = ip_dn_claim_rule(m);
+#else
+	void *rule = NULL;
+#endif
 	int error;
 
 	if (rule == NULL && BDG_ACTIVE(ifp)) {
@@ -351,6 +358,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 			m_freem(m);
 		return (0);
 	}
+#if defined(INET) || defined(INET6)
 	if (IPFW_LOADED && ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
 			if (m) {
@@ -360,6 +368,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 				return 0;	/* consumed e.g. in a pipe */
 		}
 	}
+#endif
 
 	/*
 	 * Queue message on interface, update output statistics if
@@ -369,6 +378,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	return (error);
 }
 
+#if defined(INET) || defined(INET6)
 /*
  * ipfw processing for ethernet packets (in and out).
  * The second parameter is NULL from ether_demux, and ifp from
@@ -462,6 +472,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	 */
 	return 0;
 }
+#endif
 
 /*
  * Process a received Ethernet packet; the packet is in the
@@ -621,14 +632,18 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 #if defined(NETATALK)
 	struct llc *l;
 #endif
+#if defined(INET) || defined(INET6)
 	struct ip_fw *rule = ip_dn_claim_rule(m);
+#endif
 
 	KASSERT(ifp != NULL, ("ether_demux: NULL interface pointer"));
 
 	eh = mtod(m, struct ether_header *);
 
+#if defined(INET) || defined(INET6)
 	if (rule)	/* packet was already bridged */
 		goto post_stats;
+#endif
 
 	if (!(BDG_ACTIVE(ifp))) {
 		/*
@@ -662,6 +677,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_flags & (M_BCAST|M_MCAST))
 		ifp->if_imcasts++;
 
+#if defined(INET) || defined(INET6)
 post_stats:
 	if (IPFW_LOADED && ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {
@@ -670,6 +686,7 @@ post_stats:
 			return;
 		}
 	}
+#endif
 
 	/*
 	 * If VLANs are configured on the interface, check to
@@ -878,8 +895,10 @@ ether_ifdetach(struct ifnet *ifp)
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
+#if defined(INET) || defined(INET6)
 SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
 	    &ether_ipfw,0,"Pass ether pkts through firewall");
+#endif
 
 #if 0
 /*
@@ -1036,7 +1055,9 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
+#ifdef INET
 	struct sockaddr_in *sin;
+#endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
 #endif
