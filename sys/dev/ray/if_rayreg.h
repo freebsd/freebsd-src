@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_rayreg.h,v 1.2 2000/02/20 14:56:17 dmlb Exp $
  *
  */
 
@@ -65,13 +65,14 @@
 /*
  * CCR registers, appearing in the attribute memory space
  */
+/* XXX sort these offsets out*/
 #define RAY_CCR		0xf00	/* CCR register offset */
-#define RAY_COR		(RAY_CCR + (0x00 << 1))	/* config option register */
-#define	RAY_CCSR	(RAY_CCR + (0x01 << 1))	/* config/status register */
-#define	RAY_PIN		(RAY_CCR + (0x02 << 1))	/* not in hw */
-#define	RAY_SOCKETCOPY	(RAY_CCR + (0x03 << 1))	/* not used by hw */
-#define	RAY_HCSIR	(RAY_CCR + (0x05 << 1))	/* HCS intr register */
-#define	RAY_ECFIR	(RAY_CCR + (0x06 << 1))	/* ECF intr register */
+#define RAY_COR		(RAY_CCR + 0x00)	/* config option register */
+#define	RAY_CCSR	(RAY_CCR + 0x01)	/* config/status register */
+#define	RAY_PIN		(RAY_CCR + 0x02)	/* not in hw */
+#define	RAY_SOCKETCOPY	(RAY_CCR + 0x03)	/* not used by hw */
+#define	RAY_HCSIR	(RAY_CCR + 0x05)	/* HCS intr register */
+#define	RAY_ECFIR	(RAY_CCR + 0x06)	/* ECF intr register */
 /*
  * We don't seem to be able to access these in a simple manner
  */
@@ -110,7 +111,7 @@
 /*
  * ECFI register values
  */
-#define	RAY_ECSIR_IRQ		0x01	/* interrupt the card */
+#define	RAY_ECFIR_IRQ		0x01	/* interrupt the card */
 
 /*
  * authorization register 0 values
@@ -150,7 +151,7 @@
 /*
  * offsets into shared ram
  */
-#define	RAY_SCB_BASE		0x0	/* cfg/status/ctl area */
+#define	RAY_SCB_BASE		0x0000	/* cfg/status/ctl area */
 #define	RAY_STATUS_BASE		0x0100
 #define	RAY_HOST_TO_ECF_BASE	0x0200
 #define	RAY_ECF_TO_HOST_BASE	0x0300
@@ -165,6 +166,9 @@
 #define	RAY_RX_END		0xc000
 #define	RAY_RX_MASK		0x3fff
 
+/*
+ * Startup reporting stucture
+ */
 struct ray_ecf_startup_v4 {
 	u_int8_t	e_status;
 	u_int8_t	e_station_addr[ETHER_ADDR_LEN];
@@ -185,12 +189,12 @@ struct ray_ecf_startup_v5 {
 	u_int8_t	e_fw_build;
 	u_int8_t	e_fw_resv;
 	u_int8_t	e_asic_version;
-	u_int8_t	e_tib_size;
+	u_int8_t	e_tibsize;
 	u_int8_t	e_resv1[29];
 };
 
 /*
- * Status word result codes
+ * Startup status word result codes
  */
 #define	RAY_ECFS_RESERVED0		0x01
 #define	RAY_ECFS_PROC_SELF_TEST		0x02
@@ -207,3 +211,205 @@ struct ray_ecf_startup_v5 {
  */
 #define	RAY_ECFS_BUILD_4		0x55
 #define	RAY_ECFS_BUILD_5		0x5
+
+/*
+ * System Control Block
+ */
+#define	RAY_SCB_CCSI		0x00	/* host CCS index */
+#define	RAY_SCB_RCSI		0x01	/* ecf RCS index */
+
+/*
+ * command control structures (for CCSR commands)
+ */
+
+/*
+ * commands for CCSR
+ */
+#define	RAY_CMD_START_PARAMS	0x01	/* download start params */
+#define	RAY_CMD_UPDATE_PARAMS	0x02	/* update params */
+#define	RAY_CMD_REPORT_PARAMS	0x03	/* report params */
+#define	RAY_CMD_UPDATE_MCAST	0x04	/* update mcast list */
+#define	RAY_CMD_UPDATE_APM	0x05	/* update power saving mode */
+#define	RAY_CMD_START_NET	0x06
+#define	RAY_CMD_JOIN_NET	0x07
+#define	RAY_CMD_START_ASSOC	0x08
+#define	RAY_CMD_TX_REQ		0x09
+#define	RAY_CMD_TEST_MEM	0x0a
+#define	RAY_CMD_SHUTDOWN	0x0b
+#define	RAY_CMD_DUMP_MEM	0x0c
+#define	RAY_CMD_START_TIMER	0x0d
+#define	RAY_CMD_MAX		0x0e
+
+/*
+ * unsolicted commands from the ECF
+ */
+#define	RAY_ECMD_RX_DONE		0x80	/* process rx packet */
+#define	RAY_ECMD_REJOIN_DONE		0x81	/* rejoined the network */
+#define	RAY_ECMD_ROAM_START		0x82	/* romaining started */
+#define	RAY_ECMD_JAPAN_CALL_SIGNAL	0x83	/* japan test thing */
+
+/*
+ * CCS area
+ */
+#define	RAY_CCS_LINK_NULL	0xff
+#define	RAY_CCS_SIZE		16
+
+#define	RAY_CCS_TX_FIRST	0
+#define	RAY_CCS_TX_LAST		13
+#define	RAY_CCS_NTX		(RAY_CCS_TX_LAST - RAY_CCS_TX_FIRST + 1)
+#define	RAY_TX_BUF_SIZE		2048
+#define	RAY_CCS_CMD_FIRST	14
+#define	RAY_CCS_CMD_LAST	63
+#define	RAY_CCS_NCMD		(RAY_CCS_CMD_LAST - RAY_CCS_CMD_FIRST + 1)
+#define	RAY_CCS_LAST		63
+
+#define	RAY_CCS_INDEX(ccs)	(((ccs) - RAY_CCS_BASE) / RAY_CCS_SIZE)
+#define	RAY_CCS_ADDRESS(i)	(RAY_CCS_BASE + (i) * RAY_CCS_SIZE)
+
+/*
+ * RCS area
+ */
+#define	RAY_RCS_FIRST	64
+#define	RAY_RCS_LAST	127
+
+/*
+ * CCS commands
+ */
+struct ray_cmd {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+};
+
+#define	RAY_CCS_STATUS_FREE		0x0
+#define	RAY_CCS_STATUS_BUSY		0x1
+#define	RAY_CCS_STATUS_COMPLETE		0x2
+#define	RAY_CCS_STATUS_FAIL		0x3
+
+/* RAY_CMD_UPDATE_PARAMS */
+struct ray_cmd_update {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_paramid;
+	u_int8_t	c_nparam;
+	u_int8_t	c_failcause;
+};
+
+/* RAY_CMD_REPORT_PARAMS */
+struct ray_cmd_report {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_paramid;
+	u_int8_t	c_nparam;
+	u_int8_t	c_failcause;
+	u_int8_t	c_len;
+};
+
+/* RAY_CMD_UPDATE_MCAST */
+struct ray_cmd_update_mcast {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_nmcast;
+};
+
+/* RAY_CMD_UPDATE_APM */
+struct ray_cmd_udpate_apm {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_mode;
+};
+
+/* RAY_CMD_START_NET and RAY_CMD_JOIN_NET */
+struct ray_cmd_net {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_upd_param;
+	u_int8_t	c_bss_id[ETHER_ADDR_LEN];
+	u_int8_t	c_inited;
+	u_int8_t	c_def_txrate;
+	u_int8_t	c_encrypt;
+};
+
+/*
+ * Parameters passed in HOST_TO_ECF section when c_upd_param is set in
+ * ray_cmd_net.
+ */
+struct ray_net_params {
+	u_int8_t	p_net_type;
+	u_int8_t	p_ssid[32];
+	u_int8_t	p_privacy_must_start;
+	u_int8_t	p_privacy_can_join;
+};
+
+/* RAY_CMD_UPDATE_ASSOC */
+struct ray_cmd_update_assoc {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_astatus;
+	u_int8_t	c_aid[2];
+};
+
+/* RAY_CMD_TX_REQ */
+struct ray_cmd_tx {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_bufp[2];
+	u_int8_t	c_len[2];
+	u_int8_t	c_resv[5];
+	u_int8_t	c_tx_rate;
+	u_int8_t	c_apm_mode;
+	u_int8_t	c_nretry;
+	u_int8_t	c_antenna;
+};
+
+/* RAY_CMD_TX_REQ (for bulid 4) */
+struct ray_cmd_tx_4 {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_bufp[2];
+	u_int8_t	c_len[2];
+	u_int8_t	c_addr[ETHER_ADDR_LEN];
+	u_int8_t	c_apm_mode;
+	u_int8_t	c_nretry;
+	u_int8_t	c_antenna;
+};
+
+/* RAY_CMD_DUMP_MEM */
+struct ray_cmd_dump_mem {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_memtype;
+	u_int8_t	c_memp[2];
+	u_int8_t	c_len;
+};
+
+/* RAY_CMD_START_TIMER */
+struct ray_cmd_start_timer {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_duration[2];
+};
+
+struct ray_cmd_rx {
+	u_int8_t	c_status;		/* ccs generic header */
+	u_int8_t	c_cmd;			/* " */
+	u_int8_t	c_link;			/* " */
+	u_int8_t	c_bufp[2];	/* buffer pointer */
+	u_int8_t	c_len[2];	/* length */
+	u_int8_t	c_siglev;	/* signal level */
+	u_int8_t	c_nextfrag;	/* next fragment in packet */
+	u_int8_t	c_pktlen[2];	/* total packet length */
+	u_int8_t	c_antenna;	/* antenna with best reception */
+	u_int8_t	c_updbss;	/* only 1 for beacon messages */
+};
+
