@@ -411,6 +411,9 @@ buildkernel:
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} install
+reinstallkernel:
+	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
+	    ${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} reinstall
 
 #
 # kernel
