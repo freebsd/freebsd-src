@@ -26,6 +26,8 @@ SUBDIR=	${_3dfx} \
 	${_asr} \
 	ath \
 	${_ath_hal} \
+	ath_rate_amrr \
+	ath_rate_onoe \
 	aue \
 	${_auxio} \
 	${_awi} \
@@ -249,6 +251,10 @@ SUBDIR=	${_3dfx} \
 	wb \
 	${_wi} \
 	wlan \
+	wlan_ccmp \
+	wlan_tkip \
+	wlan_wep \
+	wlan_xauth \
 	${_xe} \
 	xl
 
