@@ -47,7 +47,7 @@
  *********************************************************************
  */
 
-/* #define AMD_DEBUG0           */
+/* #define AMD_DEBUG0		*/
 /* #define AMD_DEBUG_SCSI_PHASE */
 
 #include <sys/param.h>
@@ -76,7 +76,6 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-
 #include <dev/amd/amd.h>
 
 #define PCI_DEVICE_ID_AMD53C974 	0x20201022ul
@@ -119,6 +118,9 @@ static void amd_ResetSCSIBus(struct amd_softc *amd);
 static void RequestSense(struct amd_softc *amd, struct amd_srb *pSRB);
 static void amd_InvalidCmd(struct amd_softc *amd);
 
+static void amd_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegs,
+			  int error);
+
 #if 0
 static void amd_timeout(void *arg1);
 static void amd_reset(struct amd_softc *amd);
@@ -153,6 +155,30 @@ amd_clear_msg_state(struct amd_softc *amd)
 	amd->msgout_len = 0;
 	amd->msgout_index = 0;
 	amd->msgin_index = 0;
+}
+
+static __inline uint32_t
+amd_get_sense_bufaddr(struct amd_softc *amd, struct amd_srb *pSRB)
+{
+	int offset;
+
+	offset = pSRB->TagNumber;
+	return (amd->sense_busaddr + (offset * sizeof(struct scsi_sense_data)));
+}
+
+static __inline struct scsi_sense_data *
+amd_get_sense_buf(struct amd_softc *amd, struct amd_srb *pSRB)
+{
+	int offset;
+
+	offset = pSRB->TagNumber;
+	return (&amd->sense_buffers[offset]);
+}
+
+static __inline uint32_t
+amd_get_sense_bufsize(struct amd_softc *amd, struct amd_srb *pSRB)
+{
+	return (sizeof(struct scsi_sense_data));
 }
 
 /* CAM SIM entry points */
@@ -234,18 +260,15 @@ static void
 amdsetupcommand(struct amd_softc *amd, struct amd_srb *srb)
 {
 	struct scsi_request_sense sense_cmd;
-	struct ccb_scsiio *csio;
 	u_int8_t *cdb;
 	u_int cdb_len;
-
-	csio = &srb->pccb->csio;
 
 	if (srb->SRBFlag & AUTO_REQSENSE) {
 		sense_cmd.opcode = REQUEST_SENSE;
 		sense_cmd.byte2 = srb->pccb->ccb_h.target_lun << 5;
 		sense_cmd.unused[0] = 0;
 		sense_cmd.unused[1] = 0;
-		sense_cmd.length = csio->sense_len;
+		sense_cmd.length = sizeof(struct scsi_sense_data);
 		sense_cmd.control = 0;
 		cdb = &sense_cmd.opcode;
 		cdb_len = sizeof(sense_cmd);
@@ -711,6 +734,15 @@ phystovirt(struct amd_srb * pSRB, u_int32_t xferCnt)
 	}
 	dataPtr += (int) xferCnt;
 	return ((u_int8_t *) dataPtr);
+}
+
+static void
+amd_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	bus_addr_t *baddr;
+
+	baddr = (bus_addr_t *)arg;
+	*baddr = segs->ds_addr;
 }
 
 static void
@@ -1875,7 +1907,7 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 		pSRB->TargetStatus = SCSI_STATUS_CHECK_COND;
 
 		if (status == SCSI_STATUS_CHECK_COND) {
-			pccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			pccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
 			goto ckc_e;
 		}
 		*((u_int32_t *)&(pSRB->CmdBlock[0])) = pSRB->Segment0[0];
@@ -1892,7 +1924,10 @@ SRBdone(struct amd_softc *amd, struct amd_srb *pSRB)
 		} else {
 			pcsio->scsi_status = SCSI_STATUS_CHECK_COND;
 		}
-		pccb->ccb_h.status = CAM_AUTOSNS_VALID|CAM_SCSI_STATUS_ERROR;
+		bzero(&pcsio->sense_data, pcsio->sense_len);
+		bcopy(amd_get_sense_buf(amd, pSRB), &pcsio->sense_data,
+		      pcsio->sense_len);
+		pccb->ccb_h.status = CAM_AUTOSNS_VALID;
 		goto ckc_e;
 	}
 	if (status) {
@@ -2064,16 +2099,19 @@ RequestSense(struct amd_softc *amd, struct amd_srb *pSRB)
 	pSRB->AdaptStatus = 0;
 	pSRB->TargetStatus = 0;
 
-	pSRB->Segmentx.SGXPtr = (u_int32_t) vtophys(&pcsio->sense_data);
-	pSRB->Segmentx.SGXLen = (u_int32_t) pcsio->sense_len;
+	pSRB->Segmentx.SGXPtr = amd_get_sense_bufaddr(amd, pSRB);
+	pSRB->Segmentx.SGXLen = amd_get_sense_bufsize(amd, pSRB);
 
 	pSRB->pSGlist = &pSRB->Segmentx;
 	pSRB->SGcount = 1;
 	pSRB->SGIndex = 0;
 
-	*((u_int32_t *) & (pSRB->CmdBlock[0])) = 0x00000003;
+	pSRB->CmdBlock[0] = REQUEST_SENSE;
 	pSRB->CmdBlock[1] = pSRB->pccb->ccb_h.target_lun << 5;
-	*((u_int16_t *) & (pSRB->CmdBlock[4])) = pcsio->sense_len;
+	pSRB->CmdBlock[2] = 0;
+	pSRB->CmdBlock[3] = 0;
+	pSRB->CmdBlock[4] = pcsio->sense_len;
+	pSRB->CmdBlock[5] = 0;
 	pSRB->ScsiCmdLen = 6;
 
 	pSRB->TotalXferredLen = 0;
@@ -2281,6 +2319,31 @@ amd_init(device_t dev)
 			printf("amd_init: bus_dma_tag_create failure!\n");
 		return ENXIO;
         }
+
+	/* Create, allocate, and map DMA buffers for autosense data */
+	if (bus_dma_tag_create(/*parent_dmat*/NULL, /*alignment*/1,
+			       /*boundary*/0,
+			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+			       /*highaddr*/BUS_SPACE_MAXADDR,
+			       /*filter*/NULL, /*filterarg*/NULL,
+			       sizeof(struct scsi_sense_data) * MAX_SRB_CNT,
+			       /*nsegments*/1,
+			       /*maxsegsz*/AMD_MAXTRANSFER_SIZE,
+			       /*flags*/0, &amd->sense_dmat) != 0) {
+		if (bootverbose)
+			device_printf(dev, "cannot create sense buffer dmat\n");
+		return (ENXIO);
+	}
+
+	if (bus_dmamem_alloc(amd->sense_dmat, (void **)&amd->sense_buffers,
+			     BUS_DMA_NOWAIT, &amd->sense_dmamap) != 0)
+		return (ENOMEM);
+
+	bus_dmamap_load(amd->sense_dmat, amd->sense_dmamap,
+		       amd->sense_buffers,
+		       sizeof(struct scsi_sense_data) * MAX_SRB_CNT,
+		       amd_dmamap_cb, &amd->sense_busaddr, /*flags*/0);
+
 	TAILQ_INIT(&amd->free_srbs);
 	TAILQ_INIT(&amd->running_srbs);
 	TAILQ_INIT(&amd->waiting_srbs);

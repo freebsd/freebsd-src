@@ -197,6 +197,10 @@ struct amd_softc {
 	bus_space_tag_t		tag;
 	bus_space_handle_t	bsh;
 	bus_dma_tag_t		buffer_dmat;   /* dmat for buffer I/O */  
+	bus_dma_tag_t		sense_dmat;   /* dmat for sense buffer */  
+	bus_dmamap_t		sense_dmamap;
+	struct scsi_sense_data	*sense_buffers;
+	bus_addr_t		sense_busaddr;
 	int			unit;
 
 	int	   last_phase;
