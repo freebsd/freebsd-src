@@ -339,7 +339,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 			 * error.  Don't bother setting the error string, since
 			 * getnumdevs() has already done that for us.
 			 */
-			if ((dinfo->numdevs = devstat_getnumdevs(NULL)) < 0)
+			if ((dinfo->numdevs = devstat_getnumdevs(kd)) < 0)
 				return(-1);
 			
 			/*
@@ -374,7 +374,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 				 * No need to set the error string here, 
 				 * devstat_getnumdevs() will do that if it fails.
 				 */
-				if ((dinfo->numdevs = devstat_getnumdevs(NULL)) < 0)
+				if ((dinfo->numdevs = devstat_getnumdevs(kd)) < 0)
 					return(-1);
 
 				dssize = (dinfo->numdevs * 
@@ -404,7 +404,7 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 		 * This is of course non-atomic, but since we are working
 		 * on a core dump, the generation is unlikely to change
 		 */
-		if ((dinfo->numdevs = devstat_getnumdevs(NULL)) == -1)
+		if ((dinfo->numdevs = devstat_getnumdevs(kd)) == -1)
 			return(-1);
 		if ((dinfo->mem_ptr = get_devstat_kvm(kd)) == NULL)
 			return(-1);
@@ -431,8 +431,8 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 	 * necessary.
 	 */
 	if (oldgeneration != dinfo->generation) {
-		if (devstat_getnumdevs(NULL) != dinfo->numdevs) {
-			if ((dinfo->numdevs = devstat_getnumdevs(NULL)) < 0)
+		if (devstat_getnumdevs(kd) != dinfo->numdevs) {
+			if ((dinfo->numdevs = devstat_getnumdevs(kd)) < 0)
 				return(-1);
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
 				sizeof(long);
