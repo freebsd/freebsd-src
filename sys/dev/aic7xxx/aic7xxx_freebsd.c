@@ -265,8 +265,10 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 	LIST_REMOVE(scb, pending_links);
 	if ((scb->flags & SCB_UNTAGGEDQ) != 0) {
 		struct scb_tailq *untagged_q;
+		int target_offset;
 
-		untagged_q = &ahc->untagged_queues[ccb->ccb_h.target_id];
+		target_offset = SCB_GET_TARGET_OFFSET(ahc, scb);
+		untagged_q = &ahc->untagged_queues[target_offset];
 		TAILQ_REMOVE(untagged_q, scb, links.tqe);
 		scb->flags &= ~SCB_UNTAGGEDQ;
 		ahc_run_untagged_queue(ahc, untagged_q);
@@ -1223,8 +1225,10 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	if ((scb->hscb->control & (TARGET_SCB|TAG_ENB)) == 0
 	 && (ahc->flags & AHC_SCB_BTT) == 0) {
 		struct scb_tailq *untagged_q;
+		int target_offset;
 
-		untagged_q = &(ahc->untagged_queues[ccb->ccb_h.target_id]);
+		target_offset = SCB_GET_TARGET_OFFSET(ahc, scb);
+		untagged_q = &(ahc->untagged_queues[target_offset]);
 		TAILQ_INSERT_TAIL(untagged_q, scb, links.tqe);
 		scb->flags |= SCB_UNTAGGEDQ;
 		if (TAILQ_FIRST(untagged_q) != scb) {
