@@ -353,6 +353,11 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
  * device without changing STALL or toggle conditions.
  */
 
+/*
+ * XXX Pat LaVarre <LAVARRE@iomega.com> says that soft reset has been removed
+ * from current versions of the spec. We can remove it once that checks out.
+ */
+
 usbd_status
 umass_bulk_reset(umass_softc_t *sc, int flag)
 {
@@ -528,18 +533,18 @@ umass_bulk_transfer(umass_softc_t *sc, int lun, void *cmd, int cmdlen,
 					USBD_SHORT_XFER_OK, &n);
 		if (err)
 			DPRINTF(UDMASS_BULK, ("%s: failed to receive data, "
-				"(%d bytes, n = %d), %d(%s)\n", 
+				"(%d bytes, n = %d), %s\n", 
 				USBDEVNAME(sc->sc_dev),
-				datalen, n, err, usbd_errstr(err)));
+				datalen, n, usbd_errstr(err)));
 	} else if (dir == DIR_OUT) {
 		err = umass_usb_transfer(sc->sc_iface,
 					sc->sc_bulkout_pipe,
 					data, datalen, 0, &n);
 		if (err)
 			DPRINTF(UDMASS_BULK, ("%s: failed to send data, "
-				"(%d bytes, n = %d), %d(%s)\n", 
+				"(%d bytes, n = %d), %s\n", 
 				USBDEVNAME(sc->sc_dev),
-				datalen, n, err, usbd_errstr(err)));
+				datalen, n, usbd_errstr(err)));
 	}
 	if (err && err != USBD_STALLED)
 		return(USBD_IOERROR);
@@ -605,7 +610,14 @@ umass_bulk_transfer(umass_softc_t *sc, int lun, void *cmd, int cmdlen,
 			"residue = %d, n = %d\n",
 			USBDEVNAME(sc->sc_dev),
 			UGETDW(csw.dCSWDataResidue), n));
-		umass_bulk_reset(sc, URESET_SOFT);
+		/*
+		 * According to Pat LaVarre <LAVARRE@iomega.com> on the linux-usb
+		 * mailing list this reset is not necessary at all. It looks like
+		 * I have an old revision of the spec.
+		 */
+
+		/* umass_bulk_reset(sc, URESET_SOFT); */
+
 		*residue = UGETDW(csw.dCSWDataResidue);
 		return(USBD_COMMAND_FAILED);
 	}
