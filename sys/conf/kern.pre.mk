@@ -58,14 +58,20 @@ PROF+=	-mprofiler-epilogue
 .endif
 .endif
 
+#.if defined(NO_WERROR)
+#WERROR=
+#.else
+#WERROR?=	-Werror
+#.endif
+
 # Put configuration-specific C flags last (except for ${PROF}) so that they
 # can override the others.
 CFLAGS+=	${CONF_CFLAGS}
 
-NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
-NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
-NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${.IMPSRC}
-PROFILE_C= ${CC} -c ${CFLAGS} ${.IMPSRC}
+NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
+NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
+NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
 NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
 	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
