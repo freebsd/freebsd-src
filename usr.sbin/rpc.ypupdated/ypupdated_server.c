@@ -43,7 +43,6 @@ static const char rcsid[] =
 
 #include <stdio.h>
 #include <rpc/rpc.h>
-#include <rpc/auth_des.h>
 #include <rpc/key_prot.h>
 #include <sys/param.h>
 #include <sys/cdefs.h>

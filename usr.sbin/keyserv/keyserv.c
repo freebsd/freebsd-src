@@ -56,7 +56,6 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <rpc/rpc.h>
-#include <rpc/pmap_clnt.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <rpc/des_crypt.h>
@@ -162,45 +161,23 @@ main(argc, argv)
 	setmodulus(HEXMODULUS);
 	getrootkey(&masterkey, nflag);
 
-
-	/* Create services. */
-
-	(void) pmap_unset(KEY_PROG, KEY_VERS);
-	(void) pmap_unset(KEY_PROG, KEY_VERS2);
-	unlink(KEYSERVSOCK);
-
-	transp = svcudp_create(RPC_ANYSOCK);
-	if (transp == NULL)
-		errx(1, "cannot create udp service");
-	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, IPPROTO_UDP))
-		errx(1, "unable to register (KEY_PROG, KEY_VERS, udp)");
-	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, IPPROTO_UDP))
-		errx(1, "unable to register (KEY_PROG, KEY_VERS2, udp)");
-
-	transp = svctcp_create(RPC_ANYSOCK, 0, 0);
-	if (transp == NULL)
-		errx(1, "cannot create tcp service");
-	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, IPPROTO_TCP))
-		errx(1, "unable to register (KEY_PROG, KEY_VERS, tcp)");
-	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, IPPROTO_TCP))
-		errx(1, "unable to register (KEY_PROG, KEY_VERS2, tcp)");
-
-	transp = svcunix_create(sock, 0, 0, KEYSERVSOCK);
-	chmod(KEYSERVSOCK, 0666);
-	if (transp == NULL)
-		errx(1, "cannot create AF_UNIX service");
-	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, 0))
-		errx(1, "unable to register (KEY_PROG, KEY_VERS, unix)");
-	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, 0))
-		errx(1, "unable to register (KEY_PROG, KEY_VERS2, unix)");
-	if (!svc_register(transp, CRYPT_PROG, CRYPT_VERS, crypt_prog_1, 0))
-		errx(1, "unable to register (CRYPT_PROG, CRYPT_VERS, unix)");
+	if (svc_create(keyprogram, KEY_PROG, KEY_VERS,
+		"netpath") == 0) {
+		(void) fprintf(stderr,
+			"%s: unable to create service\n", argv[0]);
+		exit(1);
+	}
+ 
+	if (svc_create(keyprogram, KEY_PROG, KEY_VERS2,
+	"netpath") == 0) {
+		(void) fprintf(stderr,
+			"%s: unable to create service\n", argv[0]);
+		exit(1);
+	}
 
 	if (!debugging) {
 		daemon(0,0);
 	}
-
-	signal(SIGPIPE, SIG_IGN);
 
 	svc_run();
 	abort();

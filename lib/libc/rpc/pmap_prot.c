@@ -1,3 +1,5 @@
+/*	$NetBSD: pmap_prot.c,v 1.10 2000/01/22 22:19:18 mycroft Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -27,9 +29,10 @@
  * Mountain View, California  94043
  */
 
+#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)pmap_prot.c 1.17 87/08/11 Copyr 1984 Sun Micro";*/
-/*static char *sccsid = "from: @(#)pmap_prot.c	2.1 88/07/29 4.0 RPCSRC";*/
+static char *sccsid = "@(#)pmap_prot.c 1.17 87/08/11 Copyr 1984 Sun Micro";
+static char *sccsid = "@(#)pmap_prot.c	2.1 88/07/29 4.0 RPCSRC";
 static char *rcsid = "$FreeBSD$";
 #endif
 
@@ -40,9 +43,13 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
+#include <assert.h>
+
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/pmap_prot.h>
+#include "un-namespace.h"
 
 
 bool_t
@@ -50,6 +57,9 @@ xdr_pmap(xdrs, regs)
 	XDR *xdrs;
 	struct pmap *regs;
 {
+
+	assert(xdrs != NULL);
+	assert(regs != NULL);
 
 	if (xdr_u_long(xdrs, &regs->pm_prog) &&
 		xdr_u_long(xdrs, &regs->pm_vers) &&

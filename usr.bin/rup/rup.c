@@ -85,7 +85,7 @@ void remember_host(struct in_addr addr)
 }
 
 int
-rstat_reply(char *replyp, struct sockaddr_in *raddrp)
+rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 {
 	struct tm *tmp_time;
 	struct tm host_time;
@@ -180,7 +180,7 @@ onehost(char *host)
 	}
 
 	addr.sin_addr.s_addr = *(int *)hp->h_addr;
-	rstat_reply((char *)&host_stat, &addr);
+	rstat_reply((caddr_t)&host_stat, &addr);
 	return (0);
 }
 

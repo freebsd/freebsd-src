@@ -46,6 +46,8 @@
  *
  */
 
+#include "reentrant.h"
+#include "namespace.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -60,6 +62,7 @@
 #include <rpc/svc.h>
 #include <rpc/rpc_msg.h>
 #include <rpc/svc_auth.h>
+#include "libc_private.h"
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)svcauth_des.c	2.3 89/07/11 4.0 RPCSRC; from 1.15 88/02/08 SMI"; */
@@ -190,7 +193,7 @@ _svcauth_des(rqst, msg)
 		}
 	} else { /* ADN_NICKNAME */	
 		sid = (short)cred->adc_nickname;
-		if (sid >= AUTHDES_CACHESZ) {
+		if (sid < 0 || sid >= AUTHDES_CACHESZ) {
 			debug("bad nickname");
 			return (AUTH_BADCRED);	/* garbled credential */
 		}

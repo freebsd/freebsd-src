@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)netnamer.c 1.13 91/03/11 Copyr 1986 Sun Micro";
  * will work with any unix system that has adopted the sun NIS domain
  * architecture.
  */
+#include "namespace.h"
 #include <sys/param.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
@@ -52,6 +53,7 @@ static char sccsid[] = "@(#)netnamer.c 1.13 91/03/11 Copyr 1986 Sun Micro";
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 static char    *OPSYS = "unix";
 static char    *NETID = "netid.byname";

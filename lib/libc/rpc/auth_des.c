@@ -1,3 +1,4 @@
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -32,59 +33,58 @@
 /*
  * auth_des.c, client-side implementation of DES authentication
  */
+#include "reentrant.h"
+#include "namespace.h"
+#include <err.h>
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/cdefs.h>
 #include <rpc/des_crypt.h>
+#include <syslog.h>
 #include <rpc/types.h>
-#include <rpc/xdr.h>
 #include <rpc/auth.h>
 #include <rpc/auth_des.h>
+#include <rpc/clnt.h>
+#include <rpc/xdr.h>
 #include <netinet/in.h>	/* XXX: just to get htonl() and ntohl() */
 #include <sys/socket.h>
 #undef NIS
 #include <rpcsvc/nis.h>
+#include "un-namespace.h"
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from: static char sccsid[] = 	"@(#)auth_des.c	2.2 88/07/29 4.0 RPCSRC; from 1.9 88/02/08 SMI"; */
 static const char rcsid[] = "$FreeBSD$";
 #endif
 
-extern bool_t __rpc_get_time_offset __P(( struct timeval *, nis_server *,
-						char *, char **, struct sockaddr_in * ));
-extern int rtime __P(( struct sockaddr_in *, struct timeval *, struct timeval *));
-extern bool_t xdr_authdes_cred __P(( XDR *, struct authdes_cred * ));
-extern bool_t xdr_authdes_verf __P(( XDR *, struct authdes_verf * ));
-
-#define MILLION		1000000L
-#define RTIME_TIMEOUT 5		/* seconds to wait for sync */
+#define USEC_PER_SEC		1000000
+#define RTIME_TIMEOUT		5	/* seconds to wait for sync */
 
 #define AUTH_PRIVATE(auth)	(struct ad_private *) auth->ah_private
 #define ALLOC(object_type)	(object_type *) mem_alloc(sizeof(object_type))
 #define FREE(ptr, size)		mem_free((char *)(ptr), (int) size)
 #define ATTEMPT(xdr_op)		if (!(xdr_op)) return (FALSE)
 
-#define debug(msg)		 /*printf("%s\n", msg) */
+extern bool_t xdr_authdes_cred( XDR *, struct authdes_cred *);
+extern bool_t xdr_authdes_verf( XDR *, struct authdes_verf *);
+extern int key_encryptsession_pk();
+
+extern bool_t __rpc_get_time_offset(struct timeval *, nis_server *, char *,
+	char **, char **);
 
 /* 
  * DES authenticator operations vector
  */
-static void	authdes_nextverf();
-static bool_t	authdes_marshal();
-static bool_t	authdes_validate();
-static bool_t	authdes_refresh();
-static void	authdes_destroy();
-static struct auth_ops authdes_ops = {
-	authdes_nextverf,
-	authdes_marshal,
-	authdes_validate,
-	authdes_refresh,
-	authdes_destroy
-};
-#ifdef foo
-static bool_t	synchronize __P(( struct sockaddr *, struct timeval *));
-#endif
+static void	authdes_nextverf(AUTH *);
+static bool_t	authdes_marshal(AUTH *, XDR *);
+static bool_t	authdes_validate(AUTH *, struct opaque_auth *);
+static bool_t	authdes_refresh(AUTH *, void *);
+static void	authdes_destroy(AUTH *);
+
+static struct auth_ops *authdes_ops(void);
+
 /*
  * This struct is pointed to by the ah_private field of an "AUTH *"
  */
@@ -95,10 +95,10 @@ struct ad_private {
 	u_int ad_servernamelen;		/* length of name, rounded up */
 	u_int ad_window;	  	/* client specified window */
 	bool_t ad_dosync;		/* synchronize? */		
-	struct sockaddr ad_syncaddr;	/* remote host to synch with */
+	struct netbuf ad_syncaddr;	/* remote host to synch with */
 	char *ad_timehost;		/* remote host to synch with */
 	struct timeval ad_timediff;	/* server's time - client's time */
-	u_long ad_nickname;		/* server's nickname for client */
+	u_int ad_nickname;		/* server's nickname for client */
 	struct authdes_cred ad_cred;	/* storage for credential */
 	struct authdes_verf ad_verf;	/* storage for verifier */
 	struct timeval ad_timestamp;	/* timestamp sent */
@@ -108,106 +108,50 @@ struct ad_private {
 	char *ad_uaddr;			/* Timehost uaddr */
 	nis_server *ad_nis_srvr;	/* NIS+ server struct */
 };
+
+AUTH *authdes_pk_seccreate(const char *, netobj *, u_int, const char *,
+	const des_block *, nis_server *);
 	
-
 /*
- * Create the client des authentication object
- */	
+ * documented version of authdes_seccreate
+ */
+/*
+	servername:	network name of server
+	win:		time to live
+	timehost:	optional hostname to sync with
+	ckey:		optional conversation key to use
+*/
+
 AUTH *
-authdes_create(servername, window, syncaddr, ckey)
-	char *servername;		/* network name of server */
-	u_int window;			/* time to live */
-	struct sockaddr *syncaddr;	/* optional addr of host to sync with */
-	des_block *ckey;		/* optional conversation key to use*/
+authdes_seccreate(const char *servername, const u_int win,
+	const char *timehost, const des_block *ckey)
 {
+	u_char  pkey_data[1024];
+	netobj  pkey;
+	AUTH    *dummy;
 
-	AUTH *auth;
-	struct ad_private *ad;
-	char namebuf[MAXNETNAMELEN+1];
-	u_char	pkey_data[1024];
-
-	if (!getpublickey(servername, pkey_data))
-		return(NULL);
-
-	/*
- 	 * Allocate everything now
-	 */
-	auth = ALLOC(AUTH);
-	ad = ALLOC(struct ad_private);
-	(void) getnetname(namebuf);
-
-	ad->ad_fullnamelen = RNDUP(strlen(namebuf));
-	ad->ad_fullname = (char *)mem_alloc(ad->ad_fullnamelen + 1);
-
-	ad->ad_servernamelen = strlen(servername);
-	ad->ad_servername = (char *)mem_alloc(ad->ad_servernamelen + 1);
-
-	if (auth == NULL || ad == NULL || ad->ad_fullname == NULL ||
-	    ad->ad_servername == NULL) {
-		debug("authdes_create: out of memory");
-		goto failed;
+	if (! getpublickey(servername, (char *) pkey_data)) {
+		syslog(LOG_ERR,
+		    "authdes_seccreate: no public key found for %s",
+		    servername);
+		return (NULL);
 	}
 
-	/* 
-	 * Set up private data
-	 */
-	bcopy(namebuf, ad->ad_fullname, ad->ad_fullnamelen + 1);
-	bcopy(servername, ad->ad_servername, ad->ad_servernamelen + 1);
-	bcopy(pkey_data, ad->ad_pkey, strlen(pkey_data) + 1);
-	if (syncaddr != NULL) {
-		ad->ad_syncaddr = *syncaddr;
-		ad->ad_dosync = TRUE;
-	} else {
-		ad->ad_dosync = FALSE;
-	}
-	ad->ad_window = window;
-	if (ckey == NULL) {
-		if (key_gendes(&auth->ah_key) < 0) {
-			debug("authdes_create: unable to gen conversation key");
-			return (NULL);
-		}
-	} else {
-		auth->ah_key = *ckey;
-	}
-
-	/*
-	 * Set up auth handle
-	 */ 
-	auth->ah_cred.oa_flavor = AUTH_DES;
-	auth->ah_verf.oa_flavor = AUTH_DES;
-	auth->ah_ops = &authdes_ops;
-	auth->ah_private = (caddr_t)ad;
-
-	if (!authdes_refresh(auth)) {
-		goto failed;
-	}	
-	return (auth);
-
-failed:
-	if (auth != NULL) 
-		FREE(auth, sizeof(AUTH)); 
-	if (ad != NULL) 
-		FREE(ad, sizeof(struct ad_private));
-	if (ad->ad_fullname != NULL) 
-		FREE(ad->ad_fullname, ad->ad_fullnamelen + 1);
-	if (ad->ad_servername != NULL) 
-		FREE(ad->ad_servername, ad->ad_servernamelen + 1);
-	return (NULL);
+	pkey.n_bytes = (char *) pkey_data;
+	pkey.n_len = (u_int)strlen((char *)pkey_data) + 1;
+	dummy = authdes_pk_seccreate(servername, &pkey, win, timehost,
+	    ckey, NULL);
+	return (dummy);
 }
 
 /*
- * Slightly modified version of authdes_create which takes the public key
+ * Slightly modified version of authdessec_create which takes the public key
  * of the server principal as an argument. This spares us a call to
  * getpublickey() which in the nameserver context can cause a deadlock.
  */
 AUTH *
-authdes_pk_create(servername, pkey, window, timehost, ckey, srvr)
-	char *servername;		/* network name of server */
-	netobj *pkey;			/* public key of server */
-	u_int window;			/* time to live */
-	char *timehost;			/* optional hostname to sync with */
-	des_block *ckey;		/* optional conversation key to use */
-	nis_server *srvr;		/* optional NIS+ server struct */
+authdes_pk_seccreate(const char *servername, netobj *pkey, u_int window,
+	const char *timehost, const des_block *ckey, nis_server *srvr)
 {
 	AUTH *auth;
 	struct ad_private *ad;
@@ -218,12 +162,12 @@ authdes_pk_create(servername, pkey, window, timehost, ckey, srvr)
 	 */
 	auth = ALLOC(AUTH);
 	if (auth == NULL) {
-		debug("authdes_pk_create: out of memory");
+		syslog(LOG_ERR, "authdes_pk_seccreate: out of memory");
 		return (NULL);
 	}
 	ad = ALLOC(struct ad_private);
 	if (ad == NULL) {
-		debug("authdes_pk_create: out of memory");
+		syslog(LOG_ERR, "authdes_pk_seccreate: out of memory");
 		goto failed;
 	}
 	ad->ad_fullname = ad->ad_servername = NULL; /* Sanity reasons */
@@ -242,13 +186,13 @@ authdes_pk_create(servername, pkey, window, timehost, ckey, srvr)
 	ad->ad_servername = (char *)mem_alloc(ad->ad_servernamelen + 1);
 
 	if (ad->ad_fullname == NULL || ad->ad_servername == NULL) {
-		debug("authdes_pk_create: out of memory");
+		syslog(LOG_ERR, "authdes_seccreate: out of memory");
 		goto failed;
 	}
 	if (timehost != NULL) {
 		ad->ad_timehost = (char *)mem_alloc(strlen(timehost) + 1);
 		if (ad->ad_timehost == NULL) {
-			debug("authdes_pk_create: out of memory");
+			syslog(LOG_ERR, "authdes_seccreate: out of memory");
 			goto failed;
 		}
 		memcpy(ad->ad_timehost, timehost, strlen(timehost) + 1);
@@ -264,7 +208,8 @@ authdes_pk_create(servername, pkey, window, timehost, ckey, srvr)
 	ad->ad_window = window;
 	if (ckey == NULL) {
 		if (key_gendes(&auth->ah_key) < 0) {
-			debug("authdes_pk_create: unable to gen conversation key");
+			syslog(LOG_ERR,
+	    "authdes_seccreate: keyserv(1m) is unable to generate session key");
 			goto failed;
 		}
 	} else {
@@ -276,10 +221,10 @@ authdes_pk_create(servername, pkey, window, timehost, ckey, srvr)
 	 */
 	auth->ah_cred.oa_flavor = AUTH_DES;
 	auth->ah_verf.oa_flavor = AUTH_DES;
-	auth->ah_ops = &authdes_ops;
+	auth->ah_ops = authdes_ops();
 	auth->ah_private = (caddr_t)ad;
 
-	if (!authdes_refresh(auth)) {
+	if (!authdes_refresh(auth, NULL)) {
 		goto failed;
 	}
 	ad->ad_nis_srvr = NULL; /* not needed any longer */
@@ -296,13 +241,14 @@ failed:
 		if (ad->ad_timehost)
 			FREE(ad->ad_timehost, strlen(ad->ad_timehost) + 1);
 		if (ad->ad_netid)
-			free(ad->ad_netid);
+			FREE(ad->ad_netid, strlen(ad->ad_netid) + 1);
 		if (ad->ad_uaddr)
-			free(ad->ad_uaddr);
+			FREE(ad->ad_uaddr, strlen(ad->ad_uaddr) + 1);
 		FREE(ad, sizeof (struct ad_private));
 	}
 	return (NULL);
 }
+
 /*
  * Implement the five authentication operations
  */
@@ -313,30 +259,27 @@ failed:
  */	
 /*ARGSUSED*/
 static void
-authdes_nextverf(auth)
-	AUTH *auth;
+authdes_nextverf(AUTH *auth)
 {
 	/* what the heck am I supposed to do??? */
 }
-		
 
 
 /*
  * 2. Marshal
  */
 static bool_t
-authdes_marshal(auth, xdrs)
-	AUTH *auth;
-	XDR *xdrs;
+authdes_marshal(AUTH *auth, XDR *xdrs)
 {
+/* LINTED pointer alignment */
 	struct ad_private *ad = AUTH_PRIVATE(auth);
 	struct authdes_cred *cred = &ad->ad_cred;
 	struct authdes_verf *verf = &ad->ad_verf;
 	des_block cryptbuf[2];	
 	des_block ivec;
 	int status;
-	long len;
-	int32_t *ixdr;
+	int len;
+	register rpc_inline_t *ixdr;
 
 	/*
 	 * Figure out the "time", accounting for any time difference
@@ -345,30 +288,32 @@ authdes_marshal(auth, xdrs)
 	(void) gettimeofday(&ad->ad_timestamp, (struct timezone *)NULL);
 	ad->ad_timestamp.tv_sec += ad->ad_timediff.tv_sec;
 	ad->ad_timestamp.tv_usec += ad->ad_timediff.tv_usec;
-	if (ad->ad_timestamp.tv_usec >= MILLION) {
-		ad->ad_timestamp.tv_usec -= MILLION;
-		ad->ad_timestamp.tv_sec += 1;
+	while (ad->ad_timestamp.tv_usec >= USEC_PER_SEC) {
+		ad->ad_timestamp.tv_usec -= USEC_PER_SEC;
+		ad->ad_timestamp.tv_sec++;
 	}
 
 	/*
 	 * XDR the timestamp and possibly some other things, then
 	 * encrypt them.
 	 */
-	ixdr = (int32_t *)cryptbuf;
-	IXDR_PUT_LONG(ixdr, ad->ad_timestamp.tv_sec);
-	IXDR_PUT_LONG(ixdr, ad->ad_timestamp.tv_usec);
+	ixdr = (rpc_inline_t *)cryptbuf;
+	IXDR_PUT_INT32(ixdr, ad->ad_timestamp.tv_sec);
+	IXDR_PUT_INT32(ixdr, ad->ad_timestamp.tv_usec);
 	if (ad->ad_cred.adc_namekind == ADN_FULLNAME) {
-		IXDR_PUT_U_LONG(ixdr, ad->ad_window);
-		IXDR_PUT_U_LONG(ixdr, ad->ad_window - 1);
+		IXDR_PUT_U_INT32(ixdr, ad->ad_window);
+		IXDR_PUT_U_INT32(ixdr, ad->ad_window - 1);
 		ivec.key.high = ivec.key.low = 0;	
 		status = cbc_crypt((char *)&auth->ah_key, (char *)cryptbuf, 
-			2*sizeof(des_block), DES_ENCRYPT | DES_HW, (char *)&ivec);
+			(u_int) 2 * sizeof (des_block),
+			DES_ENCRYPT | DES_HW, (char *)&ivec);
 	} else {
 		status = ecb_crypt((char *)&auth->ah_key, (char *)cryptbuf, 
-			sizeof(des_block), DES_ENCRYPT | DES_HW);
+			(u_int) sizeof (des_block),
+			DES_ENCRYPT | DES_HW);
 	}
 	if (DES_FAILED(status)) {
-		debug("authdes_marshal: DES encryption failure");
+		syslog(LOG_ERR, "authdes_marshal: DES encryption failure");
 		return (FALSE);
 	}
 	ad->ad_verf.adv_xtimestamp = cryptbuf[0];
@@ -391,21 +336,21 @@ authdes_marshal(auth, xdrs)
 	}
 
 	if ((ixdr = xdr_inline(xdrs, 2*BYTES_PER_XDR_UNIT))) {
-		IXDR_PUT_LONG(ixdr, AUTH_DES);
-		IXDR_PUT_LONG(ixdr, len);
+		IXDR_PUT_INT32(ixdr, AUTH_DES);
+		IXDR_PUT_INT32(ixdr, len);
 	} else {
-		ATTEMPT(xdr_putlong(xdrs, (long *)&auth->ah_cred.oa_flavor)); 
-		ATTEMPT(xdr_putlong(xdrs, &len)); 
+		ATTEMPT(xdr_putint32(xdrs, (int *)&auth->ah_cred.oa_flavor));
+		ATTEMPT(xdr_putint32(xdrs, &len));
 	}
 	ATTEMPT(xdr_authdes_cred(xdrs, cred));
 
 	len = (2 + 1)*BYTES_PER_XDR_UNIT; 
 	if ((ixdr = xdr_inline(xdrs, 2*BYTES_PER_XDR_UNIT))) {
-		IXDR_PUT_LONG(ixdr, AUTH_DES);
-		IXDR_PUT_LONG(ixdr, len);
+		IXDR_PUT_INT32(ixdr, AUTH_DES);
+		IXDR_PUT_INT32(ixdr, len);
 	} else {
-		ATTEMPT(xdr_putlong(xdrs, (long *)&auth->ah_verf.oa_flavor)); 
-		ATTEMPT(xdr_putlong(xdrs, &len)); 
+		ATTEMPT(xdr_putint32(xdrs, (int *)&auth->ah_verf.oa_flavor));
+		ATTEMPT(xdr_putint32(xdrs, &len));
 	}
 	ATTEMPT(xdr_authdes_verf(xdrs, verf));
 	return (TRUE);
@@ -416,89 +361,92 @@ authdes_marshal(auth, xdrs)
  * 3. Validate
  */
 static bool_t
-authdes_validate(auth, rverf)
-	AUTH *auth;
-	struct opaque_auth *rverf;
+authdes_validate(AUTH *auth, struct opaque_auth *rverf)
 {
+/* LINTED pointer alignment */
 	struct ad_private *ad = AUTH_PRIVATE(auth);
 	struct authdes_verf verf;
 	int status;
-	register u_long *ixdr;
+	register uint32_t *ixdr;
+	des_block buf;
 
 	if (rverf->oa_length != (2 + 1) * BYTES_PER_XDR_UNIT) {
 		return (FALSE);
 	}
-	ixdr = (u_long *)rverf->oa_base;
-	verf.adv_xtimestamp.key.high = (u_long)*ixdr++;
-	verf.adv_xtimestamp.key.low = (u_long)*ixdr++;
-	verf.adv_int_u = (u_long)*ixdr++;	/* nickname not XDR'd ! */
+/* LINTED pointer alignment */
+	ixdr = (uint32_t *)rverf->oa_base;
+	buf.key.high = (uint32_t)*ixdr++;
+	buf.key.low = (uint32_t)*ixdr++;
+	verf.adv_int_u = (uint32_t)*ixdr++;
 
 	/*
 	 * Decrypt the timestamp
 	 */
-	status = ecb_crypt((char *)&auth->ah_key, (char *)&verf.adv_xtimestamp,
-		sizeof(des_block), DES_DECRYPT | DES_HW);
+	status = ecb_crypt((char *)&auth->ah_key, (char *)&buf,
+		(u_int)sizeof (des_block), DES_DECRYPT | DES_HW);
 
 	if (DES_FAILED(status)) {
-		debug("authdes_validate: DES decryption failure");
+		syslog(LOG_ERR, "authdes_validate: DES decryption failure");
 		return (FALSE);
 	}
 
 	/*
-	 * xdr the decrypted timestamp 
+	 * xdr the decrypted timestamp
 	 */
-	ixdr = (u_long *)verf.adv_xtimestamp.c;
-	verf.adv_timestamp.tv_sec = IXDR_GET_LONG(ixdr) + 1;
-	verf.adv_timestamp.tv_usec = IXDR_GET_LONG(ixdr);
+/* LINTED pointer alignment */
+	ixdr = (uint32_t *)buf.c;
+	verf.adv_timestamp.tv_sec = IXDR_GET_INT32(ixdr) + 1;
+	verf.adv_timestamp.tv_usec = IXDR_GET_INT32(ixdr);
 
 	/*
 	 * validate
 	 */
 	if (bcmp((char *)&ad->ad_timestamp, (char *)&verf.adv_timestamp,
 		 sizeof(struct timeval)) != 0) {
-		debug("authdes_validate: verifier mismatch\n");
+		syslog(LOG_DEBUG, "authdes_validate: verifier mismatch");
 		return (FALSE);
 	}
 
 	/*
 	 * We have a nickname now, let's use it
 	 */
-	ad->ad_nickname = verf.adv_nickname;	
-	ad->ad_cred.adc_namekind = ADN_NICKNAME; 
-	return (TRUE);	
+	ad->ad_nickname = verf.adv_nickname;
+	ad->ad_cred.adc_namekind = ADN_NICKNAME;
+	return (TRUE);
 }
 
 /*
  * 4. Refresh
  */
+/*ARGSUSED*/
 static bool_t
-authdes_refresh(auth)
-	AUTH *auth;
+authdes_refresh(AUTH *auth, void *dummy)
 {
+/* LINTED pointer alignment */
 	struct ad_private *ad = AUTH_PRIVATE(auth);
 	struct authdes_cred *cred = &ad->ad_cred;
+	int		ok;
 	netobj		pkey;
 
-	if (ad->ad_dosync &&
-#ifdef old
-			!synchronize(&ad->ad_syncaddr, &ad->ad_timediff)) {
-#else
-			!__rpc_get_time_offset(&ad->ad_timediff,ad->ad_nis_srvr,
-					       ad->ad_timehost, &(ad->ad_uaddr),
-				(struct sockaddr_in *)&(ad->ad_syncaddr))) {
-#endif
-		/*
-		 * Hope the clocks are synced!
-		 */
-		ad->ad_timediff.tv_sec = ad->ad_timediff.tv_usec = 0;
-		ad->ad_dosync = 0;
-		debug("authdes_refresh: unable to synchronize with server");
+	if (ad->ad_dosync) {
+                ok = __rpc_get_time_offset(&ad->ad_timediff, ad->ad_nis_srvr,
+		    ad->ad_timehost, &(ad->ad_uaddr),
+		    &(ad->ad_netid));
+		if (! ok) {
+			/*
+			 * Hope the clocks are synced!
+			 */
+			ad->ad_dosync = 0;
+			syslog(LOG_DEBUG,
+			    "authdes_refresh: unable to synchronize clock");
+		 }
 	}
 	ad->ad_xkey = auth->ah_key;
 	pkey.n_bytes = (char *)(ad->ad_pkey);
-	pkey.n_len = strlen((char *)ad->ad_pkey) + 1;
+	pkey.n_len = (u_int)strlen((char *)ad->ad_pkey) + 1;
 	if (key_encryptsession_pk(ad->ad_servername, &pkey, &ad->ad_xkey) < 0) {
-		debug("authdes_create: unable to encrypt conversation key");
+		syslog(LOG_INFO,
+		    "authdes_refresh: keyserv(1m) is unable to encrypt session key");
 		return (FALSE);
 	}
 	cred->adc_fullname.key = ad->ad_xkey;
@@ -512,43 +460,39 @@ authdes_refresh(auth)
  * 5. Destroy
  */
 static void
-authdes_destroy(auth)
-	AUTH *auth;
+authdes_destroy(AUTH *auth)
 {
+/* LINTED pointer alignment */
 	struct ad_private *ad = AUTH_PRIVATE(auth);
 
 	FREE(ad->ad_fullname, ad->ad_fullnamelen + 1);
 	FREE(ad->ad_servername, ad->ad_servernamelen + 1);
-	FREE(ad, sizeof(struct ad_private));
+	if (ad->ad_timehost)
+		FREE(ad->ad_timehost, strlen(ad->ad_timehost) + 1);
+	if (ad->ad_netid)
+		FREE(ad->ad_netid, strlen(ad->ad_netid) + 1);
+	if (ad->ad_uaddr)
+		FREE(ad->ad_uaddr, strlen(ad->ad_uaddr) + 1);
+	FREE(ad, sizeof (struct ad_private));
 	FREE(auth, sizeof(AUTH));
 }
-	
 
-#ifdef old
-/*
- * Synchronize with the server at the given address, that is,
- * adjust timep to reflect the delta between our clocks
- */
-static bool_t
-synchronize(syncaddr, timep)
-	struct sockaddr *syncaddr;
-	struct timeval *timep;
+static struct auth_ops *
+authdes_ops(void)
 {
-	struct timeval mytime;
-	struct timeval timeout;
+	static struct auth_ops ops;
+	extern mutex_t authdes_ops_lock;
 
-	timeout.tv_sec = RTIME_TIMEOUT;
-	timeout.tv_usec = 0;
-	if (rtime((struct sockaddr_in *)syncaddr, timep, NULL /*&timeout*/) < 0) {
-		return (FALSE);
-	}
-	(void) gettimeofday(&mytime, (struct timezone *)NULL);
-	timep->tv_sec -= mytime.tv_sec;
-	if (mytime.tv_usec > timep->tv_usec) {
-		timep->tv_sec -= 1;
-		timep->tv_usec += MILLION;
-	}
-	timep->tv_usec -= mytime.tv_usec;
-	return (TRUE);
+	/* VARIABLES PROTECTED BY ops_lock: ops */
+ 
+	mutex_lock(&authdes_ops_lock);
+	if (ops.ah_nextverf == NULL) {
+		ops.ah_nextverf = authdes_nextverf;
+		ops.ah_marshal = authdes_marshal;
+		ops.ah_validate = authdes_validate;
+		ops.ah_refresh = authdes_refresh;
+		ops.ah_destroy = authdes_destroy;
+        }
+	mutex_unlock(&authdes_ops_lock);
+	return (&ops);
 }
-#endif

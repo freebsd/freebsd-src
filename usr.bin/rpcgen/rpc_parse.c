@@ -1,3 +1,4 @@
+/*	$FreeBSD$ */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -593,7 +594,11 @@ get_type(prefixp, typep, dkind)
 		(void) peekscan(TOK_INT, &tok);
 		break;
 	case TOK_HYPER:
+#ifdef __FreeBSD__
 		*typep = "int64_t";
+#else
+		*typep = "longlong_t";
+#endif
 		(void) peekscan(TOK_INT, &tok);
 		break;
 
@@ -642,7 +647,12 @@ unsigned_dec(typep)
 		break;
 	case TOK_HYPER:
 		get_token(&tok);
+#ifdef __FreeBSD__
 		*typep = "u_int64_t";
+#else
+		*typep = "longlong_t";
+#endif
+
 		(void) peekscan(TOK_INT, &tok);
 		break;
 	case TOK_INT:

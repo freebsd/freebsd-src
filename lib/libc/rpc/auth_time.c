@@ -45,19 +45,10 @@
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
+#include <rpc/rpcb_prot.h>
 #undef NIS
 #include <rpcsvc/nis.h>
 #include "un-namespace.h"
-
-/*
- * FreeBSD currently uses RPC 4.0, which uses portmap rather than
- * rpcbind. Consequently, we need to fake up these values here.
- * Luckily, the RPCB_GETTIME procedure uses only base XDR data types
- * so we don't need anything besides these magic numbers.
- */
-#define RPCBPROG (u_long)100000
-#define RPCBVERS (u_long)3
-#define RPCBPROC_GETTIME (u_long)6
 
 #ifdef TESTING
 #define	msg(x)	printf("ERROR: %s\n", x)

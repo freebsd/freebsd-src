@@ -1,3 +1,5 @@
+/*	$NetBSD: rpc.h,v 1.13 2000/06/02 22:57:56 fvdl Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -41,6 +43,7 @@
 #define _RPC_RPC_H
 
 #include <rpc/types.h>		/* some typedefs */
+#include <sys/socket.h>
 #include <netinet/in.h>
 
 /* external data representation interfaces */
@@ -65,30 +68,40 @@
 #include <rpc/svc.h>		/* service manager and multiplexer */
 #include <rpc/svc_auth.h>	/* service side authenticator */
 
-/*
- * COMMENT OUT THE NEXT INCLUDE (or add to the #ifndef) IF RUNNING ON
- * A VERSION OF UNIX THAT USES SUN'S NFS SOURCE.  These systems will
- * already have the structures defined by <rpc/netdb.h> included in <netdb.h>.
- */
-/* routines for parsing /etc/rpc */
+/* Portmapper client, server, and protocol headers */
+#include <rpc/pmap_clnt.h>
+#include <rpc/pmap_prot.h>
 
-struct rpcent {
-      char    *r_name;        /* name of server for this rpc program */
-      char    **r_aliases;    /* alias list */
-      int     r_number;       /* rpc program number */
-};
+#include <rpc/rpcb_clnt.h>	/* rpcbind interface functions */
+
+#include <rpc/rpcent.h>
 
 __BEGIN_DECLS
-extern struct rpcent *getrpcbyname	__P((char *));
-extern struct rpcent *getrpcbynumber	__P((int));
-extern struct rpcent *getrpcent		__P((void));
-extern int getrpcport __P((char *host, int prognum, int versnum, int proto));
-extern void setrpcent __P((int));
-extern void endrpcent __P((void));
-
-extern int bindresvport __P((int, struct sockaddr_in *));
-extern int bindresvport_sa __P((int, struct sockaddr *));
 extern int get_myaddress __P((struct sockaddr_in *));
+extern int bindresvport __P((int, struct sockaddr_in *));
+extern int registerrpc __P((int, int, int, char *(*) __P((char [UDPMSGSIZE])),
+    xdrproc_t, xdrproc_t));
+extern int callrpc __P((char *, int, int, int, xdrproc_t, char *,
+    xdrproc_t , char *));
+extern int getrpcport __P((char *, int, int, int));
+
+char *taddr2uaddr __P((const struct netconfig *, const struct netbuf *));
+struct netbuf *uaddr2taddr __P((const struct netconfig *, const char *));
+
+struct sockaddr;
+extern int bindresvport_sa __P((int, struct sockaddr *));
+__END_DECLS
+
+/*
+ * The following are not exported interfaces, they are for internal library
+ * and rpcbind use only. Do not use, they may change without notice.
+ */
+__BEGIN_DECLS
+int __rpc_nconf2fd __P((const struct netconfig *));
+int __rpc_nconf2sockinfo __P((const struct netconfig *,
+			      struct __rpc_sockinfo *));
+int __rpc_fd2sockinfo __P((int, struct __rpc_sockinfo *));
+u_int __rpc_get_t_size __P((int, int, int));
 __END_DECLS
 
 #endif /* !_RPC_RPC_H */

@@ -1,3 +1,5 @@
+/*	$NetBSD: pmap_rmt.h,v 1.7 1998/02/11 23:01:23 lukem Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -38,8 +40,8 @@
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
 
-#ifndef _RPC_PMAPRMT_H
-#define _RPC_PMAPRMT_H
+#ifndef _RPC_PMAP_RMT_H
+#define _RPC_PMAP_RMT_H
 #include <sys/cdefs.h>
 
 struct rmtcallargs {
@@ -60,4 +62,4 @@ extern bool_t xdr_rmtcall_args	__P((XDR *, struct rmtcallargs *));
 extern bool_t xdr_rmtcallres	__P((XDR *, struct rmtcallres *));
 __END_DECLS
 
-#endif /* !_RPC_PMAPRMT_H */
+#endif /* !_RPC_PMAP_RMT_H */

@@ -28,15 +28,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
 #include <string.h>
 #include <rpcsvc/crypt.h>
+#include "un-namespace.h"
 
 #ifndef lint
 static const char rcsid[] = "$FreeBSD$";

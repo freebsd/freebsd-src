@@ -1,3 +1,5 @@
+/*	$NetBSD: pmap_prot2.c,v 1.14 2000/07/06 03:10:34 christos Exp $	*/
+
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -27,9 +29,10 @@
  * Mountain View, California  94043
  */
 
+#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-/*static char *sccsid = "from: @(#)pmap_prot2.c 1.3 87/08/11 Copyr 1984 Sun Micro";*/
-/*static char *sccsid = "from: @(#)pmap_prot2.c	2.1 88/07/29 4.0 RPCSRC";*/
+static char *sccsid = "@(#)pmap_prot2.c 1.3 87/08/11 Copyr 1984 Sun Micro";
+static char *sccsid = "@(#)pmap_prot2.c	2.1 88/07/29 4.0 RPCSRC";
 static char *rcsid = "$FreeBSD$";
 #endif
 
@@ -40,9 +43,13 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
+#include <assert.h>
+
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/pmap_prot.h>
+#include "un-namespace.h"
 
 
 /*
@@ -85,8 +92,8 @@ static char *rcsid = "$FreeBSD$";
  */
 bool_t
 xdr_pmaplist(xdrs, rp)
-	register XDR *xdrs;
-	register struct pmaplist **rp;
+	XDR *xdrs;
+	struct pmaplist **rp;
 {
 	/*
 	 * more_elements is pre-computed in case the direction is
@@ -94,10 +101,15 @@ xdr_pmaplist(xdrs, rp)
 	 * xdr_bool when the direction is XDR_DECODE.
 	 */
 	bool_t more_elements;
-	register int freeing = (xdrs->x_op == XDR_FREE);
-	register struct pmaplist **next = NULL;
+	int freeing;
+	struct pmaplist **next	= NULL; /* pacify gcc */
 
-	while (TRUE) {
+	assert(xdrs != NULL);
+	assert(rp != NULL);
+
+	freeing = (xdrs->x_op == XDR_FREE);
+
+	for (;;) {
 		more_elements = (bool_t)(*rp != NULL);
 		if (! xdr_bool(xdrs, &more_elements))
 			return (FALSE);
@@ -109,10 +121,23 @@ xdr_pmaplist(xdrs, rp)
 		 * before we free the current object ...
 		 */
 		if (freeing)
-			next = &((*rp)->pml_next);
+			next = &((*rp)->pml_next); 
 		if (! xdr_reference(xdrs, (caddr_t *)rp,
-		    (u_int)sizeof(struct pmaplist), xdr_pmap))
+		    (u_int)sizeof(struct pmaplist), (xdrproc_t)xdr_pmap))
 			return (FALSE);
 		rp = (freeing) ? next : &((*rp)->pml_next);
 	}
+}
+
+
+/*
+ * xdr_pmaplist_ptr() is specified to take a PMAPLIST *, but is identical in
+ * functionality to xdr_pmaplist().
+ */
+bool_t
+xdr_pmaplist_ptr(xdrs, rp)
+	XDR *xdrs;
+	struct pmaplist *rp;
+{
+	return xdr_pmaplist(xdrs, (struct pmaplist **)(void *)rp);
 }

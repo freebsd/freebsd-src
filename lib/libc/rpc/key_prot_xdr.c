@@ -3,7 +3,9 @@
  * It was generated using rpcgen.
  */
 
+#include "namespace.h"
 #include <rpc/key_prot.h>
+#include "un-namespace.h"
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -32,8 +34,8 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
-#pragma ident	"@(#)key_prot.x	1.7	94/04/29 SMI"
-
+/* From: #pragma ident	"@(#)key_prot.x	1.7	94/04/29 SMI" */
+/* $FreeBSD$ */
 /* Copyright (c)  1990, 1991 Sun Microsystems, Inc. */
 
 /* 

@@ -1,15 +1,17 @@
-# $FreeBSD$
+#	$FreeBSD$
+#	$NetBSD: Makefile,v 1.12 2000/08/07 16:23:31 thorpej Exp $
 
-PROG =	rpc.lockd
-SRCS =	nlm_prot_svc.c nlm_prot.h lockd.c procs.c
-MAN8 =	rpc.lockd.8
+PROG=	rpc.lockd
+SRCS=	nlm_prot_svc.c lockd.c lock_proc.c lockd_lock.c
+MAN8=	rpc.lockd.8
+MLINKS=	rpc.lockd.8 lockd.8
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+CFLAGS+= -I. -I${DESTDIR}/usr/include/rpcsvc
 
-CFLAGS+= -I.
+DPADD=	${LIBRPCSVC} ${LIBUTIL}
+LDADD=	-lrpcsvc -lutil
 
-CLEANFILES= nlm_prot_svc.c nlm_prot.h
+CLEANFILES= nlm_prot_svc.c nlm_prot.h test
 
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/nlm_prot.x
 RPCGEN= rpcgen -L -C
@@ -20,7 +22,7 @@ nlm_prot_svc.c: ${RPCSRC}
 nlm_prot.h: ${RPCSRC}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
 
-test: test.c
-	cc -o test test.c -lrpcsvc
+test: ${.CURDIR}/test.c
+	cc -o test ${.CURDIR}/test.c -lrpcsvc
 
 .include <bsd.prog.mk>
