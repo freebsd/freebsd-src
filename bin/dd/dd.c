@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.10 1997/02/22 14:02:44 peter Exp $
+ *	$Id: dd.c,v 1.11 1997/08/19 19:46:18 jlemon Exp $
  */
 
 #ifndef lint
@@ -75,6 +75,7 @@ IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
 void	(*cfunc) __P((void));	/* conversion function */
 u_long	cpy_cnt;		/* # of blocks to copy */
+u_long	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
 u_int	cbsz;			/* conversion block size */
 u_int	files_cnt = 1;		/* # of files to copy */
@@ -347,7 +348,7 @@ dd_close()
 			memset(out.dbp, 0, out.dbsz - out.dbcnt);
 		out.dbcnt = out.dbsz;
 	}
-	if (out.dbcnt)
+	if (out.dbcnt || pending)
 		dd_out(1);
 }
 
@@ -356,7 +357,7 @@ dd_out(force)
 	int force;
 {
 	static int warned;
-	int cnt, n, nw;
+	int cnt, n, nw, i, sparse;
 	u_char *outp;
 
 	/*
@@ -378,7 +379,35 @@ dd_out(force)
 	outp = out.db;
 	for (n = force ? out.dbcnt : out.dbsz;; n = out.dbsz) {
 		for (cnt = n;; cnt -= nw) {
-			nw = write(out.fd, outp, cnt);
+			sparse = 0;
+			if (ddflags & C_SPARSE) {
+				sparse = 1;	/* Is buffer sparse? */
+				for (i = 0; i < cnt; i++)
+					if (outp[i] != 0) {
+						sparse = 0;
+						break;
+					}
+			}
+			if (sparse && !force) {
+				pending += cnt;
+				nw = cnt;
+			} else {
+				if (pending != 0) {
+					if (force)
+						pending--;
+					if (lseek (out.fd, pending, SEEK_CUR) == -1)
+						err(2, "%s: seek error creating sparse file",
+						    out.name);
+					if (force)
+						write(out.fd, outp, 1);
+					pending = 0;
+				}
+				if (cnt)
+					nw = write(out.fd, outp, cnt);
+				else
+					return;
+			}
+
 			if (nw <= 0) {
 				if (nw == 0)
 					errx(1, "%s: end of device", out.name);
