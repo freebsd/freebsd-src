@@ -576,9 +576,19 @@ xmitfile(struct formats *pf)
 		(void)setjmp(timeoutbuf);
 
 send_data:
-		if (send(peer, dp, size + 4, 0) != size + 4) {
-			syslog(LOG_ERR, "write: %m");
-			goto abort;
+		{
+			int i, t = 1;
+			for (i = 0; ; i++){
+				if (send(peer, dp, size + 4, 0) != size + 4) {
+					sleep(t);
+					t = (t < 32) ? t<< 1 : t;
+					if (i >= 12) {
+						syslog(LOG_ERR, "write: %m");
+						goto abort;
+					}
+				}
+				break;
+			}
 		}
 		read_ahead(file, pf->f_convert);
 		for ( ; ; ) {
