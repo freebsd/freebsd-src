@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: btreg.h,v 1.2 1995/12/14 14:19:17 peter Exp $
+ *      $Id: btreg.h,v 1.3 1996/01/30 22:56:45 mpp Exp $
  */
 
 #ifndef _BTREG_H_
@@ -123,7 +123,7 @@ struct bt_ccb {
 };
 
 struct bt_data {
-	short	bt_base;			/* base port for each board */
+	int	bt_base;			/* base port for each board */
 	struct	bt_mbx bt_mbx;			/* all our mailboxes */
 	struct	bt_ccb *bt_ccb_free;		/* list of free CCBs */
 	struct	bt_ccb *ccbhash[CCB_HASH_SIZE];	/* phys to kv hash */
