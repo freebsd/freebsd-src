@@ -196,24 +196,18 @@ VarDestroy(Var *v, Boolean f)
 	free(v);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * VarCmp  --
- *	See if the given variable matches the named one. Called from
- *	Lst_Find when searching for a variable of a given name.
- *
- * Results:
- *	0 if they match. non-zero otherwise.
- *
- * Side Effects:
- *	none
- *-----------------------------------------------------------------------
+/*
+ * Find a variable in a variable list.
  */
-static int
-VarCmp(const void *v, const void *name)
+static Var *
+VarLookup(Lst *vlist, const char *name)
 {
+	LstNode	*ln;
 
-	return (strcmp(name, ((const Var *)v)->name));
+	LST_FOREACH(ln, vlist)
+		if (strcmp(((const Var *)Lst_Datum(ln))->name, name) == 0)
+			return (Lst_Datum(ln));
+	return (NULL);
 }
 
 /*-
@@ -261,7 +255,8 @@ static Var *
 VarFind(const char *name, GNode *ctxt, int flags)
 {
 	Boolean	localCheckEnvFirst;
-	LstNode	*var;
+	LstNode	*ln;
+	Var	*var;
 	char	*env;
 
 	/*
@@ -307,10 +302,12 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	 * Note whether this is one of the specific variables we were told
 	 * through the -E flag to use environment-variable-override for.
 	 */
-	if (Lst_Find(&envFirstVars, name, (CompareProc *)strcmp) != NULL) {
-		localCheckEnvFirst = TRUE;
-	} else {
-		localCheckEnvFirst = FALSE;
+	localCheckEnvFirst = FALSE;
+	LST_FOREACH(ln, &envFirstVars) {
+		if (strcmp(Lst_Datum(ln), name) == 0) {
+			localCheckEnvFirst = TRUE;
+			break;
+		}
 	}
 
 	/*
@@ -318,25 +315,25 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	 * look for it in VAR_CMD, VAR_GLOBAL and the environment,
 	 * in that order, depending on the FIND_* flags in 'flags'
 	 */
-	var = Lst_Find(&ctxt->context, name, VarCmp);
+	var = VarLookup(&ctxt->context, name);
 	if (var != NULL) {
 		/* got it */
-		return (Lst_Datum(var));
+		return (var);
 	}
 
 	/* not there - try command line context */
 	if ((flags & FIND_CMD) && (ctxt != VAR_CMD)) {
-		var = Lst_Find(&VAR_CMD->context, name, VarCmp);
+		var = VarLookup(&VAR_CMD->context, name);
 		if (var != NULL)
-			return (Lst_Datum(var));
+			return (var);
 	}
 
 	/* not there - try global context, but only if not -e/-E */
 	if ((flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL) &&
 	    !checkEnvFirst && !localCheckEnvFirst) {
-		var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
+		var = VarLookup(&VAR_GLOBAL->context, name);
 		if (var != NULL)
-			return (Lst_Datum(var));
+			return (var);
 	}
 
 	if (!(flags & FIND_ENV))
@@ -352,9 +349,9 @@ VarFind(const char *name, GNode *ctxt, int flags)
 	/* deferred check for the environment (in case of -e/-E) */
 	if ((checkEnvFirst || localCheckEnvFirst) &&
 	    (flags & FIND_GLOBAL) && (ctxt != VAR_GLOBAL)) {
-		var = Lst_Find(&VAR_GLOBAL->context, name, VarCmp);
+		var = VarLookup(&VAR_GLOBAL->context, name);
 		if (var != NULL)
-			return (Lst_Datum(var));
+			return (var);
 	}
 	return (NULL);
 }
@@ -400,10 +397,12 @@ Var_Delete(const char *name, GNode *ctxt)
 	LstNode *ln;
 
 	DEBUGF(VAR, ("%s:delete %s\n", ctxt->name, name));
-	ln = Lst_Find(&ctxt->context, name, VarCmp);
-	if (ln != NULL) {
-		VarDestroy(Lst_Datum(ln), TRUE);
-		Lst_Remove(&ctxt->context, ln);
+	LST_FOREACH(ln, &ctxt->context) {
+		if (strcmp(((const Var *)Lst_Datum(ln))->name, name) == 0) {
+			VarDestroy(Lst_Datum(ln), TRUE);
+			Lst_Remove(&ctxt->context, ln);
+			break;
+		}
 	}
 }
 
