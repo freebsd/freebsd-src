@@ -289,8 +289,7 @@ i4bisppp_start(struct ifnet *ifp)
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
 	{
 
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m);
+		BPF_MTAP(ifp, m);
 
 		microtime(&ifp->if_lastchange);
 
@@ -581,8 +580,7 @@ i4bisppp_rx_data_rdy(int unit)
 	printf("i4bisppp_rx_data_ready: received packet!\n");
 #endif
 
-	if(sc->sc_if.if_bpf)
-		bpf_mtap(&sc->sc_if, m);
+	BPF_MTAP(&sc->sc_if, m);
 
 	s = splimp();
 

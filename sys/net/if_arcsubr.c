@@ -211,8 +211,7 @@ arc_output(ifp, m, dst, rt0)
 	ah->arc_dhost = adst;
 	ah->arc_shost = *IF_LLADDR(ifp);
 
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
+	BPF_MTAP(ifp, m);
 
 #if __FreeBSD_version < 500000
 	s = splimp();
@@ -541,8 +540,7 @@ arc_input(ifp, m)
 	if (m == NULL)
 		return;
 
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m);
+	BPF_MTAP(ifp, m);
 
 	ah = mtod(m, struct arc_header *);
 

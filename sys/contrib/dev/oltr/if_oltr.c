@@ -56,6 +56,13 @@
 
 #if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
 #include <net/bpf.h>
+
+#ifndef BPF_MTAP
+#define	BPF_MTAP(_ifp, _m) do {				\
+	if ((_ifp)->if_bpf)				\
+		bpf_mtap((_ifp), (_m));			\
+} while (0)
+#endif
 #endif
 
 #include <vm/vm.h>              /* for vtophys */
@@ -760,8 +767,7 @@ outloop:
 	sc->tx_frame++;
 
 #if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
-	if (ifp->if_bpf)
-		bpf_mtap(ifp, m0);
+	BPF_MTAP(ifp, m0);
 #endif
 	/*ifp->if_opackets++;*/
 
@@ -1465,8 +1471,7 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 				}
 			}
 #if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
-			if (ifp->if_bpf)
-				bpf_mtap(ifp, m0);
+			BPF_MTAP(ifp, m0);
 #endif
 
 			/*if (ifp->if_flags & IFF_PROMISC) {*/

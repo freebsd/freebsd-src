@@ -103,8 +103,7 @@ struct bdg_stats {
 #ifdef _KERNEL
 typedef	struct ifnet *bridge_in_t(struct ifnet *, struct ether_header *);
 /* bdg_forward frees the mbuf if necessary, returning null */
-typedef	struct mbuf *bdg_forward_t(struct mbuf *, struct ether_header *const,
-		struct ifnet *);
+typedef	struct mbuf *bdg_forward_t(struct mbuf *, struct ifnet *);
 typedef	void bdgtakeifaces_t(void);
 extern	bridge_in_t *bridge_in_ptr;
 extern	bdg_forward_t *bdg_forward_ptr;

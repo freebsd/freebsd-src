@@ -487,7 +487,7 @@ tunoutput(
 		m.m_len = 4;
 		m.m_data = (char *)&af;
 
-		bpf_mtap(ifp, &m);
+		BPF_MTAP(ifp, &m);
 	}
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
@@ -772,7 +772,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 				return (ENOBUFS);
 			*mtod(top, u_int32_t *) =
 			    ntohl(*mtod(top, u_int32_t *));
-			bpf_mtap(ifp, top);
+			BPF_MTAP(ifp, top);
 			*mtod(top, u_int32_t *) =
 			    htonl(*mtod(top, u_int32_t *));
 		} else {
@@ -790,7 +790,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 			m.m_len = 4;
 			m.m_data = (char *)&af;
 
-			bpf_mtap(ifp, &m);
+			BPF_MTAP(ifp, &m);
 		}
 	}
 

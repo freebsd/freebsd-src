@@ -887,8 +887,7 @@ pppoutput(ifp, m0, dst, rtp)
     /*
      * See if bpf wants to look at the packet.
      */
-    if (ifp->if_bpf)
-	bpf_mtap(ifp, m0);
+    BPF_MTAP(ifp, m0);
 
     /*
      * Put the packet on the appropriate queue.
@@ -1519,8 +1518,7 @@ ppp_inproc(sc, m)
     }
 
     /* See if bpf wants to look at the packet. */
-    if (sc->sc_if.if_bpf)
-	bpf_mtap(&sc->sc_if, m);
+    BPF_MTAP(&sc->sc_if, m);
 
     rv = 0;
     switch (proto) {

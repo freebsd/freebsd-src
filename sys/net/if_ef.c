@@ -116,8 +116,8 @@ static int
 ef_attach(struct efnet *sc)
 {
 	struct ifnet *ifp = (struct ifnet*)&sc->ef_ac.ac_if;
-	struct ifaddr *ifa1, *ifa2;
-	struct sockaddr_dl *sdl1, *sdl2;
+	struct ifaddr *ifa2;
+	struct sockaddr_dl *sdl2;
 
 	ifp->if_output = ether_output;
 	ifp->if_start = ef_start;
@@ -128,19 +128,14 @@ ef_attach(struct efnet *sc)
 	/*
 	 * Attach the interface
 	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	ifa2 = ifaddr_byindex(sc->ef_ifp->if_index);
+	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
+	ether_ifattach(ifp, LLADDR(sdl2));
 
 	ifp->if_resolvemulti = 0;
 	ifp->if_type = IFT_XETHER;
 	ifp->if_flags |= IFF_RUNNING;
 
-	ifa1 = ifaddr_byindex(ifp->if_index);
-	ifa2 = ifaddr_byindex(sc->ef_ifp->if_index);
-	sdl1 = (struct sockaddr_dl *)ifa1->ifa_addr;
-	sdl2 = (struct sockaddr_dl *)ifa2->ifa_addr;
-	sdl1->sdl_type = IFT_ETHER;
-	sdl1->sdl_alen = ETHER_ADDR_LEN;
-	bcopy(LLADDR(sdl2), LLADDR(sdl1), ETHER_ADDR_LEN);
 	bcopy(LLADDR(sdl2), sc->ef_ac.ac_enaddr, ETHER_ADDR_LEN);
 
 	EFDEBUG("%s%d: attached\n", ifp->if_name, ifp->if_unit);
@@ -190,6 +185,9 @@ ef_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	error = 0;
 	s = splimp();
 	switch (cmd) {
+	    case SIOCSIFFLAGS:
+		error = 0;
+		break;
 	    case SIOCSIFADDR:
 		if (ifp->if_unit == ETHER_FT_8023 && 
 		    ifa->ifa_addr->sa_family != AF_IPX) {
@@ -198,15 +196,9 @@ ef_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		ifp->if_flags |= IFF_UP; 
 		/* FALL THROUGH */
-	    case SIOCGIFADDR:
-	    case SIOCSIFMTU:
+	    default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
-	    case SIOCSIFFLAGS:
-		error = 0;
-		break;
-	    default:
-		error = EINVAL;
 	}
 	splx(s);
 	return error;
@@ -231,8 +223,7 @@ ef_start(struct ifnet *ifp)
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
 			break;
-		if (ifp->if_bpf)
-			bpf_mtap(ifp, m);
+		BPF_MTAP(ifp, m);
 		if (! IF_HANDOFF(&p->if_snd, m, p)) {
 			ifp->if_oerrors++;
 			continue;
@@ -380,7 +371,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		m0.m_next = m;
 		m0.m_len = sizeof(struct ether_header);
 		m0.m_data = (char *)eh;
-		bpf_mtap(eifp, &m0);
+		BPF_MTAP(eifp, &m0);
 	}
 	/*
 	 * Now we ready to adjust mbufs and pass them to protocol intr's

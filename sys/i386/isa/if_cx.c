@@ -476,8 +476,7 @@ cxput (cx_chan_t *c, char b)
 		return;
 	}
 	m_copydata (m, 0, len, buf);
-	if (c->ifp->if_bpf)
-		bpf_mtap (c->ifp, m);
+	BPF_MTAP (c->ifp, m);
 	m_freem (m);
 
 	/* Start transmitter. */
@@ -802,8 +801,7 @@ cxinput (cx_chan_t *c, void *buf, unsigned len)
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf.
 	 */
-	if (c->ifp->if_bpf)
-		bpf_tap (c->ifp, buf, len);
+	BPF_TAP (c->ifp, buf, len);
 
 	/* Count the received bytes to the subchannel, not the master. */
 	c->master->if_ibytes -= len + 3;
