@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: iso3166,v 1.4 1997/10/28 15:45:09 wollman Exp $
 #
 # ISO 3166 country codes
 # Ths includes many places that are not legally independent countries,
@@ -12,7 +12,7 @@
 # names were capitalized, and most parenthetical designations have
 # been deleted unless necessary to distinguish two counties.
 #
-# Latest change: Thu Feb 10 10:20:28 MET 1994
+# Latest change: Thu Aug  7 17:59:51 MET DST 1997
 #
 # two	three	number	name
 AF	AFG	004	Afghanistan
@@ -63,7 +63,8 @@ CX	CXR	162	Christmas Island
 CC	CCK	166	Cocos (Keeling) Islands
 CO	COL	170	Colombia
 KM	COM	174	Comoros
-CG	COG	178	Congo
+CG	COG	178	Congo (Rep.)
+CD	COD	180	Congo (Dem. Rep.)
 CK	COK	184	Cook Islands
 CR	CRI	188	Costa Rica
 CI	CIV	384	Cote d'Ivoire
@@ -251,7 +252,6 @@ WF	WLF	876	Wallis and Futuna Islands
 EH	ESH	732	Western Sahara
 YE	YEM	887	Yemen
 YU	YUG	891	Yugoslavia
-ZR	ZAR	180	Zaire
 ZM	ZMB	894	Zambia
 ZW	ZWE	716	Zimbabwe
 #
@@ -458,3 +458,8 @@ ZW	ZWE	716	Zimbabwe
 # ordered from national standards institutions. The RIPE NCC will continue 
 # tracking changes.
 #
+# [deletia]
+# Newsletter IV-2 1997-07-14
+#  ZAIRE (ZA) changed to CONGO, THE DEMOCRATIC REPUBLIC OF THE  (CD)
+#  change of name, alpha-2 and alpha-3, numeric remains 180
+
