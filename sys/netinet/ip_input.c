@@ -1252,7 +1252,7 @@ ip_slowtimo()
 	 * (due to the limit being lowered), drain off
 	 * enough to get down to the new limit.
 	 */
-	if (maxnipq > 0 && nipq > maxnipq) {
+	if (maxnipq >= 0 && nipq > maxnipq) {
 		for (i = 0; i < IPREASS_NHASH; i++) {
 			while (nipq > maxnipq && !TAILQ_EMPTY(&ipq[i])) {
 				ipstat.ips_fragdropped +=
