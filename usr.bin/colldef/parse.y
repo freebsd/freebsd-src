@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.11 1998/12/06 22:58:17 archie Exp $
+ * $Id: parse.y,v 1.12 1999/02/12 20:39:05 ache Exp $
  */
 
 #include <err.h>
@@ -86,6 +86,10 @@ charmap : DEFN CHAR {
 substitute : SUBSTITUTE STRING WITH STRING {
 	u_char ch = $2[0];
 
+	if (strlen($2) > 1)
+		yyerror("Only characters can be substituted, not strings");
+	if (ch == '\0')
+		yyerror("NUL character can't be substituted");
 	if (strchr($4, ch) != NULL)
 		yyerror("Char 0x%02x substitution is recursive", ch);
 	strcpy(__collate_substitute_table[ch], $4);
@@ -93,14 +97,16 @@ substitute : SUBSTITUTE STRING WITH STRING {
 ;
 order : ORDER order_list {
 	FILE *fp;
-	int ch;
+	int ch, substed, ordered;
 
-	for (ch = 0; ch < UCHAR_MAX + 1; ch++)
-		if (   !__collate_char_pri_table[ch].prim
-		    && __collate_substitute_table[ch][0] == ch
-		    && __collate_substitute_table[ch][1] == '\0'
-		   )
+	for (ch = 0; ch < UCHAR_MAX + 1; ch++) {
+		substed = (__collate_substitute_table[ch][0] != ch);
+		ordered = !!__collate_char_pri_table[ch].prim;
+		if (!ordered && !substed)
 			yyerror("Char 0x%02x not found", ch);
+		if (substed && ordered)
+			yyerror("Char 0x%02x can't be ordered since substituted", ch);
+	}
 
 	fp = fopen(out_file, "w");
 	if(!fp)
