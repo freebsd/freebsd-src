@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.57 -->
+<!-- Original revision: 1.59 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -157,6 +157,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:guido@FreeBSD.ORG'
   name='&lt;guido@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.hanai  "²Ö°æ¹ÀÇ· 
+  <tt><htmlurl url='mailto:hanai@FreeBSD.ORG'
+  name='&lt;hanai@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.handy "Brian N. Handy
   <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
   name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
@@ -212,6 +216,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.jmb  "Jonathan M. Bresler
   <tt><htmlurl url='mailto:jmb@FreeBSD.ORG'
   name='&lt;jmb@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.jmg  "John-Mark Gurney
+  <tt><htmlurl url='mailto:jmg@FreeBSD.ORG'
+  name='&lt;jmg@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.jmz  "Jean-Marc Zucconi
   <tt><htmlurl url='mailto:jmz@FreeBSD.ORG'
