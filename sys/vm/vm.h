@@ -95,7 +95,7 @@ typedef struct vm_map *vm_map_t;
 struct vm_object;
 typedef struct vm_object *vm_object_t;
 
-#ifndef KERNEL
+#ifndef _KERNEL
 /*
  * This is defined in <sys/types.h> for the kernel so that non-vm kernel
  * sources (mainly Mach-derived ones such as ddb) don't have to include

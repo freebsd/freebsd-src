@@ -31,9 +31,9 @@
 #ifndef _CAM_CAM_H
 #define _CAM_CAM_H 1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <opt_cam.h>
-#endif /* KERNEL */
+#endif
 
 #include <sys/cdefs.h>
 
@@ -163,7 +163,7 @@ void	cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen);
 int	cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len);
 __END_DECLS
 
-#ifdef KERNEL
+#ifdef _KERNEL
 static __inline void cam_init_pinfo(cam_pinfo *pinfo);
 
 static __inline void cam_init_pinfo(cam_pinfo *pinfo)
@@ -171,6 +171,6 @@ static __inline void cam_init_pinfo(cam_pinfo *pinfo)
 	pinfo->priority = CAM_PRIORITY_NONE;	
 	pinfo->index = CAM_UNQUEUED_INDEX;
 }
-#endif /* KERNEL */
+#endif
 
 #endif /* _CAM_CAM_H */

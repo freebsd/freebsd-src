@@ -31,7 +31,7 @@
 #ifndef _CAM_CAM_CONF_H
 #define _CAM_CAM_CONF_H 1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define CAMCONF_UNSPEC 255
 #define CAMCONF_ANY 254
@@ -62,6 +62,6 @@ struct cam_periph_config
 extern struct cam_sim_config cam_sinit[];
 extern struct cam_periph_config cam_pinit[];
 
-#endif /* KERNEL */
+#endif
 
 #endif /* _CAM_CAM_CONF_H */

@@ -31,7 +31,7 @@
 #ifndef _CAM_CAM_QUEUE_H
 #define _CAM_CAM_QUEUE_H 1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/queue.h>
 
@@ -234,5 +234,5 @@ cam_ccbq_release_opening(struct cam_ccbq *ccbq)
 	ccbq->devq_openings++;
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif  /* _CAM_CAM_QUEUE_H */

@@ -33,7 +33,7 @@
 #ifndef	_PCCARD_CARDINFO_H_
 #define	_PCCARD_CARDINFO_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

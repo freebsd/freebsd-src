@@ -37,7 +37,7 @@
 #include <sys/param.h>
 #include <ufs/ffs/fs.h>
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <ufs/ufs/dinode.h>
 #else
 #include "opt_ddb.h"

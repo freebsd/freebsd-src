@@ -36,7 +36,7 @@ typedef void isa_config_cb(void *arg, struct isa_config *config, int enable);
 #include "isa_if.h"
 #include <isa/pnpvar.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * ISA devices are partially ordered to ensure that devices which are
@@ -157,6 +157,6 @@ extern void	isa_dma_release __P((int chan));
 extern int	isa_dmastatus __P((int chan));
 extern int	isa_dmastop __P((int chan));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_ISA_ISAVAR_H_ */

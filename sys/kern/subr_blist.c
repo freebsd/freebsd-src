@@ -63,7 +63,7 @@
  * $FreeBSD$
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -116,12 +116,12 @@ static void blst_copy(blmeta_t *scan, daddr_t blk, daddr_t radix,
 				daddr_t skip, blist_t dest, daddr_t count);
 static daddr_t	blst_radix_init(blmeta_t *scan, daddr_t radix, 
 						int skip, daddr_t count);
-#ifndef KERNEL
+#ifndef _KERNEL
 static void	blst_radix_print(blmeta_t *scan, daddr_t blk, 
 					daddr_t radix, int skip, int tab);
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 static MALLOC_DEFINE(M_SWAP, "SWAP", "Swap space");
 #endif
 

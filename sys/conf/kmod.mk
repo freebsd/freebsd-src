@@ -89,7 +89,7 @@ __initialized__:
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
-CFLAGS+=	${COPTS} -DKERNEL ${CWARNFLAGS}
+CFLAGS+=	${COPTS} -D_KERNEL ${CWARNFLAGS}
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.

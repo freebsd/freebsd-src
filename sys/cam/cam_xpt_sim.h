@@ -36,7 +36,7 @@
 #include <cam/cam_queue.h>
 
 /* Functions accessed by SIM drivers */
-#ifdef KERNEL
+#ifdef _KERNEL
 int32_t		xpt_bus_register(struct cam_sim *sim, u_int32_t bus);
 int32_t		xpt_bus_deregister(u_int8_t path_id);
 u_int32_t	xpt_freeze_simq(struct cam_sim *sim, u_int count);
@@ -45,7 +45,7 @@ u_int32_t	xpt_freeze_devq(struct cam_path *path, u_int count);
 void		xpt_release_devq(struct cam_path *path, u_int count,
 				 int run_queue);
 void		xpt_done(union ccb *done_ccb);
-#endif /* KERNEL */
+#endif
 
 #endif /* _CAM_CAM_XPT_SIM_H */
 

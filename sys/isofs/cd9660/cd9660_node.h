@@ -92,7 +92,7 @@ struct iso_node {
 #define VTOI(vp) ((struct iso_node *)(vp)->v_data)
 #define ITOV(ip) ((ip)->i_vnode)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ISOFSMNT);
@@ -123,4 +123,4 @@ void cd9660_ihashins __P((struct iso_node *));
 int cd9660_tstamp_conv7 __P((u_char *, struct timespec *, enum ISO_FTYPE));
 int cd9660_tstamp_conv17 __P((u_char *, struct timespec *));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

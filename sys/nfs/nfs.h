@@ -40,7 +40,7 @@
 #ifndef _NFS_NFS_H_
 #define _NFS_NFS_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include "opt_nfs.h"
 #endif
 
@@ -83,7 +83,7 @@
 #define NFS_GATHERDELAY		10	/* Default write gather delay (msec) */
 #endif
 #define	NFS_DIRBLKSIZ	4096		/* Must be a multiple of DIRBLKSIZ */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	DIRBLKSIZ	512		/* XXX we used to use ufs's DIRBLKSIZ */
 #endif
 
@@ -299,7 +299,7 @@ struct nfsstats {
 		       { "nfsprivport", CTLTYPE_INT }, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NFSREQ);
@@ -734,6 +734,6 @@ int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 struct proc *procp, struct mbuf **mrq));
 void	nfsrv_rcv __P((struct socket *so, void *arg, int waitflag));
 void	nfsrv_slpderef __P((struct nfssvc_sock *slp));
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif

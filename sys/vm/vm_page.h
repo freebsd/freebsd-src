@@ -247,7 +247,7 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
 #define PFCLUSTER_BEHIND	3
 #define PFCLUSTER_AHEAD		3
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Each pageable resident page falls into one of four lists:
  *
@@ -606,5 +606,5 @@ vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
 
 #endif
 
-#endif				/* KERNEL */
+#endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */

@@ -62,11 +62,11 @@ static const char rcsid[] =
 #include <sys/queue.h>
 #include <sys/pipe.h>
 #include <sys/conf.h>
-#define	KERNEL
+#define	_KERNEL
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#undef KERNEL
+#undef _KERNEL
 #include <sys/mount.h>
 #include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>

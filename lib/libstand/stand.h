@@ -74,9 +74,9 @@
 #endif
 
 /* Avoid unwanted userlandish components */
-#define KERNEL
+#define _KERNEL
 #include <sys/errno.h>
-#undef KERNEL
+#undef _KERNEL
 
 /* special stand error codes */
 #define	EADAPT	(ELAST+1)	/* bad adaptor */

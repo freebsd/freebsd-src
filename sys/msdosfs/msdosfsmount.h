@@ -51,7 +51,7 @@
 #ifndef _MSDOSFS_MSDOSFSMOUNT_H_
 #define	_MSDOSFS_MSDOSFSMOUNT_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MSDOSFSMNT);
@@ -193,7 +193,7 @@ struct msdosfsmount {
 int msdosfs_init __P((struct vfsconf *vfsp));
 int msdosfs_mountroot __P((void));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  *  Arguments to mount MSDOS filesystems.

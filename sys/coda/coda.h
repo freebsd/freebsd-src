@@ -53,7 +53,7 @@
 #endif
 
 #if defined(DJGPP) || defined(__CYGWIN32__)
-#ifdef KERNEL
+#ifdef _KERNEL
 typedef unsigned long u_long;
 typedef unsigned int u_int;
 typedef unsigned short u_short;
@@ -72,11 +72,11 @@ struct timespec {
         long       ts_sec;
         long       ts_nsec;
 };
-#else  /* DJGPP but not KERNEL */
+#else  /* DJGPP but not _KERNEL */
 #include <sys/types.h>
 #include <sys/time.h>
 typedef unsigned long long u_quad_t;
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 #endif /* !DJGPP */
 
 

@@ -95,12 +95,12 @@ struct	nfsmount {
 	u_int64_t nm_maxfilesize;	/* maximum file size */
 };
 
-#if defined(KERNEL) || defined(_KERNEL)
+#if defined(_KERNEL)
 /*
  * Convert mount ptr to nfsmount ptr.
  */
 #define VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
 
-#endif /* KERNEL */
+#endif
 
 #endif

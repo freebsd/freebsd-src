@@ -83,7 +83,7 @@ struct swblock {
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct pagerlst swap_pager_un_object_list;
 extern int swap_pager_full;
 extern struct blist *swapblist;

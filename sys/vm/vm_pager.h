@@ -82,7 +82,7 @@ struct pagerops {
 #define	VM_PAGER_PUT_SYNC	0x1
 #define	VM_PAGER_PUT_INVAL	0x2
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_VMPGDATA);
