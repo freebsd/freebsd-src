@@ -1,7 +1,7 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.7 2002/04/01 12:31:55 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.8 2002/05/26 17:27:52 mheinen Exp $
   basiert auf: 1.17
 -->
 
@@ -46,9 +46,9 @@
   </articleinfo>
 
   <abstract>
-    <para>Dieses Dokument enthält eine kurze Einführung zu &os;
-      &release.current;.  Es enthält einige Hinweise, wie Sie &os;
-      beziehen können; wie Kontakt zum &os; Project aufnehmen
+    <para>Dieses Dokument enth&auml;lt eine kurze Einf&uuml;hrung zu &os;
+      &release.current;.  Es enth&auml;lt einige Hinweise, wie Sie &os;
+      beziehen k&ouml;nnen; wie Kontakt zum &os; Project aufnehmen
       k&ouml;nnen, sowie Verweise auf zus&auml;tzliche
       Informationsquellen.</para>
   </abstract>
