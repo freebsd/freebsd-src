@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993 by Andrew A. Chernov, Moscow, Russia.
+ * Copyright (C) 1993, 1994 by Andrew A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,7 @@ char copyright[] =
 
 #include "pathnames.h"
 
+/*#define DEBUG*/
 #define REPORT_PERIOD (30*60)
 
 void fake() {}
@@ -129,13 +130,11 @@ again:
 	initial_sec = tv.tv_sec;
 	local = *localtime(&initial_sec);
 	utc = *gmtime(&initial_sec);
-	utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
-				       /* because it assumed local time */
 
 	/* calculate local CMOS diff from GMT */
 
-	utcsec = mktime(&utc);
-	localsec = mktime(&local);
+	utcsec = timelocal(&utc);
+	localsec = timelocal(&local);
 	if (utcsec == -1 || localsec == -1) {
 		/*
 		 * XXX user can only control local time, and it is
@@ -150,6 +149,9 @@ again:
 		goto again;
 	}
 	offset = utcsec - localsec;
+#ifdef DEBUG
+	fprintf(stderr, "Initial offset: %ld secs\n", offset);
+#endif
 
 	mib[0] = CTL_MACHDEP;
 	mib[1] = CPU_ADJKERNTZ;
@@ -168,7 +170,9 @@ again:
 	diff = offset - tz.tz_minuteswest * 60 - kern_offset;
 
 	if (diff != 0) {
-
+#ifdef DEBUG
+		fprintf(stderr, "Initial diff: %ld secs\n", diff);
+#endif
 		/* Yet one step for final time */
 
 		final_sec = tv.tv_sec + diff;
@@ -176,11 +180,9 @@ again:
 		/* get the actual local timezone difference */
 		local = *localtime(&final_sec);
 		utc = *gmtime(&final_sec);
-		utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
-					       /* because it assumed local time */
 
-		utcsec = mktime(&utc);
-		localsec = mktime(&local);
+		utcsec = timelocal(&utc);
+		localsec = timelocal(&local);
 		if (utcsec == -1 || localsec == -1) {
 			/*
 			 * XXX as above.  The user has even less control,
@@ -194,6 +196,9 @@ again:
 			goto again;
 		}
 		offset = utcsec - localsec;
+#ifdef DEBUG
+		fprintf(stderr, "Final offset: %ld secs\n", offset);
+#endif
 
 		/* correct the kerneltime for this diffs */
 		/* subtract kernel offset, if present, old offset too */
@@ -201,6 +206,9 @@ again:
 		diff = offset - tz.tz_minuteswest * 60 - kern_offset;
 
 		if (diff != 0) {
+#ifdef DEBUG
+			fprintf(stderr, "Final diff: %ld secs\n", diff);
+#endif
 			tv.tv_sec += diff;
 			tv.tv_usec = 0;       /* we are restarting here... */
 			stv = &tv;
