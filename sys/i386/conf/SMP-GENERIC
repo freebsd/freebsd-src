@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.3 1997/05/11 19:01:24 andreas Exp $
+#	$Id: SMP-GENERIC,v 1.4 1997/06/22 16:02:57 peter Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -38,6 +38,10 @@ options		APIC_IO			# Symmetric (APIC) I/O
 
 # SuperMicro P6DNxxx:
 #options                SMP_TIMER_NC            # 8254 NOT connected to APIC
+
+# Lets always enable the kernel debugger for SMP.
+#
+options		DDB
 
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
