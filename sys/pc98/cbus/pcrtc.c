@@ -256,6 +256,7 @@ clkintr(struct clockframe frame)
 	}
 }
 
+#if 0
 /*
  * The acquire and release functions must be called at ipl >= splclock().
  */
@@ -291,6 +292,7 @@ acquire_timer0(int rate, void (*function)(struct clockframe *frame))
 	old_rate = new_rate = rate;
 	return (0);
 }
+#endif
 
 int
 acquire_timer1(int mode)
@@ -332,8 +334,9 @@ acquire_timer2(int mode)
 	return (0);
 }
 
-int
-release_timer0()
+#if 0
+static int
+release_timer0(void)
 {
 	switch (timer0_state) {
 
@@ -351,6 +354,7 @@ release_timer0()
 	}
 	return (0);
 }
+#endif
 
 int
 release_timer1()
