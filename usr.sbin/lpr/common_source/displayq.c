@@ -95,10 +95,10 @@ displayq(pp, format)
 	struct printer *pp;
 	int format;
 {
-	register struct queue *q;
+	register struct jobqueue *q;
 	register int i, nitems, fd, ret;
 	register char	*cp;
-	struct queue **queue;
+	struct jobqueue **queue;
 	struct stat statb;
 	FILE *fp;
 	void (*savealrm)(int);
@@ -203,7 +203,7 @@ displayq(pp, format)
 			header();
 		for (i = 0; i < nitems; i++) {
 			q = queue[i];
-			inform(pp, q->q_name);
+			inform(pp, q->job_cfname);
 			free(q);
 		}
 		free(queue);
