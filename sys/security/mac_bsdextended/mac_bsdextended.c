@@ -96,6 +96,17 @@ static int mac_bsdextended_debugging;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, debugging, CTLFLAG_RW,
     &mac_bsdextended_debugging, 0, "Enable debugging on failure");
 
+/*
+ * This tunable is here for compatibility.  It will allow the user
+ * to switch between the new mode (first rule matches) and the old
+ * functionality (all rules match).
+ */
+static int
+mac_bsdextended_firstmatch_enabled;
+SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, firstmatch_enabled,
+	CTLFLAG_RW, &mac_bsdextended_firstmatch_enabled, 0,
+	"Disable/enable match first rule functionality");
+
 static int
 mac_bsdextended_rule_valid(struct mac_bsdextended_rule *rule)
 {
@@ -265,8 +276,14 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 			    acc_mode, object_uid, object_gid);
 		return (EACCES);
 	}
-
-	return (0);
+	/*
+	 * If the rule matched and allowed access and first match is
+	 * enabled, then return success.
+	 */
+	if (mac_bsdextended_firstmatch_enabled)
+		return (EJUSTRETURN);
+	else
+		return(0);
 }
 
 static int
@@ -293,6 +310,8 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 
 		error = mac_bsdextended_rulecheck(rules[i], cred, object_uid,
 		    object_gid, acc_mode);
+		if (error == EJUSTRETURN)
+			break;
 		if (error)
 			return (error);
 	}
