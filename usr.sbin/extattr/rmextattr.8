@@ -1,0 +1,115 @@
+.\"-
+.\" Copyright (c) 2000, 2001 Robert N. M. Watson
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning
+.\" Kamp and Network Associates Laboratories, the Security Research Division
+.\" of Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.\" ("CBOSS"), as part of the DARPA CHATS research program
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 30, 2000
+.Dt RMEXTATTR 8
+.Os
+.Sh NAME
+.Nm getextattr ,
+.Nm lsextattr ,
+.Nm rmextattr ,
+.Nm setextattr
+.Nd manipulated extended attributes
+.Sh SYNOPSIS
+.Nm getextattr
+.Op Fl fqsx
+.Ar attrnamespace
+.Ar attrname
+.Ar filename ...
+.Nm lsextattr
+.Op Fl fq
+.Ar attrnamespace
+.Ar filename ...
+.Nm rmextattr
+.Op Fl fq
+.Ar attrnamespace
+.Ar attrname
+.Ar filename ...
+.Nm setextattr
+.Op Fl fq
+.Ar attrnamespace
+.Ar attrname
+.Ar attrvalue
+.Ar filename ...
+.Sh DESCRIPTION
+These
+utilities
+are user tools to manipulated a named extended attributes on files and
+directories.
+The
+.Ar attrnamespace
+argument should be the namespace of the attribute to retrieve: legal
+values are "user" and "system".
+The
+.Ar attrname
+argument should be the name of the attribute,
+.Ar filename
+the name of the target file or directory,
+.Ar attrvalue
+a string to store in the attribute.
+.Pp
+The following options are available:
+.Bl -tag -width flag
+.It Fl -f
+(Force) Ignore errors on individual filenames and continue with
+the remaining arguments.
+.It Fl -q
+(Quiet) Do not print out the pathname and suppress error messages.
+.It Fl -s
+(Stringify) Escape nonprinting characters and put quotes around the output.
+.It Fl -x
+(Hex) Print the output in hexadecimal.
+.El
+.Sh EXAMPLES
+.Dl # setextattr system md5 `md5 -q /boot/kernel/kernel` /boot/kernel/kernel 
+.Dl # getextattr system md5 /boot/kernel/kernel
+.Dl # lsextattr system /boot/kernel/kernel
+.Dl # rmextattr system md5 /boot/kernel/kernel
+.Sh SEE ALSO
+.Xr extattr 2 ,
+.Xr extattr 3 ,
+.Xr extattrctl 8 ,
+.Xr extattr 9
+.Sh HISTORY
+Extended attribute support was developed as part of the TrustedBSD Project,
+and introduced in
+.Fx 5.0 .
+It was developed to support security extensions requiring additional labels
+to be associated with each file or directory.
+.Sh AUTHORS
+Robert N M Watson and
+Poul-Henning Kamp
+.Sh BUGS
+The
+.Nm setextattr
+utility can only be used to set attributes to strings.
