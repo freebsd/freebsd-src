@@ -275,6 +275,7 @@ struct _plex
 #ifdef _KERNEL
     struct rangelock *lock;				    /* ranges of locked addresses */
     struct mtx *lockmtx;				    /* lock mutex, one of plexmutex [] */
+    daddr_t last_addr;					    /* last address read from this plex */
     dev_t dev;						    /* associated device */
 #endif
 };
