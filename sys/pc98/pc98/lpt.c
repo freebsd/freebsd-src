@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.12 1997/04/21 12:33:26 kato Exp $
+ *	$Id: lpt.c,v 1.13 1997/07/21 13:11:06 kato Exp $
  */
 
 /*
@@ -130,6 +130,7 @@
 #include <i386/isa/lptreg.h>
 
 #ifdef INET
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
