@@ -212,12 +212,10 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_FLAGS, args->flags);
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
-	PROC_LOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_UID, imgp->proc->p_cred->p_ruid);
 	AUXARGS_ENTRY(pos, AT_EUID, imgp->proc->p_cred->p_svuid);
 	AUXARGS_ENTRY(pos, AT_GID, imgp->proc->p_cred->p_rgid);
 	AUXARGS_ENTRY(pos, AT_EGID, imgp->proc->p_cred->p_svgid);
-	PROC_UNLOCK(imgp->proc);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 	
 	free(imgp->auxargs, M_TEMP);      
@@ -251,7 +249,6 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 	struct nameidata	 ndroot;
 	struct vattr		 vat;
 	struct vattr		 vatroot;
-	struct ucred		*uc;
 	int			 error;
 	char			*ptr, *buf, *cp;
 	size_t			 sz, len;
@@ -332,20 +329,14 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		}
 		NDFREE(&ndroot, NDF_ONLY_PNBUF);
 
-		PROC_LOCK(p);
-		uc = p->p_ucred;
-		crhold(uc);
-		PROC_UNLOCK(p);
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, uc, p)) != 0) {
-			crfree(uc);
+		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
 			goto done;
 		}
 
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, uc, p)) != 0) {
-			crfree(uc);
+		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, p->p_ucred, p))
+		    != 0) {
 			goto done;
 		}
-		crfree(uc);
 
 		if (vat.va_fsid == vatroot.va_fsid &&
 		    vat.va_fileid == vatroot.va_fileid) {
