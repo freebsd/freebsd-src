@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id$
+ * $Id: systm.h,v 1.3 1994/08/02 07:53:44 davidg Exp $
  */
 
 #include <machine/cpufunc.h>
@@ -100,10 +100,6 @@ extern struct sysent {		/* system call table */
 } sysent[];
 
 extern int boothowto;		/* reboot flags, from console subsystem */
-
-/* casts to keep lint happy */
-#define	insque(q,p)	_insque((caddr_t)q,(caddr_t)p)
-#define	remque(q)	_remque((caddr_t)q)
 
 /*
  * General function declarations.
