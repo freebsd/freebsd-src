@@ -262,9 +262,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	case DIOCGFWHEADS:
 		error = g_io_getattr("GEOM::fwheads", cp, &i, data);
 		break;
-	case DIOCGFWCYLINDERS:
-		error = g_io_getattr("GEOM::fwcylinders", cp, &i, data);
-		break;
 	default:
 		gio = g_malloc(sizeof *gio, M_WAITOK);
 		gio->cmd = cmd;
