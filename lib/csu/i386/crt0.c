@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.15 1995/02/07 13:27:29 jkh Exp $
+ *	$Id: crt0.c,v 1.16 1995/02/24 07:51:13 phk Exp $
  */
 
 
@@ -194,6 +194,7 @@ __do_dynamic_link ()
 	struct exec	hdr;
 	char		*ldso;
 	int		(*entry)();
+	int		ret;
 
 #ifdef DEBUG
 	/* Provision for alternate ld.so - security risk! */
@@ -259,11 +260,16 @@ __do_dynamic_link ()
 	crt.crt_prog = __progname;
 
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
-	if ((*entry)(CRT_VERSION_BSD_3, &crt) == -1) {
+	ret = (*entry)(CRT_VERSION_BSD_3, &crt);
+	if (ret == -1) {
 		_FATAL("ld.so failed\n");
 	}
 
 	ld_entry = _DYNAMIC.d_entry;
+
+	if (ret >= LDSO_VERSION_HAS_DLEXIT)
+		atexit(ld_entry->dlexit);
+
 	return;
 }
 
