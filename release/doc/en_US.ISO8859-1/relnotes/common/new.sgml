@@ -1175,7 +1175,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	very large filesystems has been corrected. &merged;</para>
 
       <para role="historic">The ISO-9660 filesystem now has a hook that supports a
-      <para>The ISO-9660 filesystem now has a hook that supports a
 	loadable character conversion routine.  The
 	<filename role="package">sysutils/cd9660_unicode</filename>
 	port contains a set of common conversions. &merged;</para>
@@ -2220,8 +2219,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.ispppcontrol.8; has been deleted, and its functionality
       has been folded into &man.spppcontrol.8;. &merged;</para>
 
-    <para role="historic">&man.kenv.1;, a command to dump the kernel environment, has
-
     <para role="historic">&man.k5su.8; is no longer installed SUID
       <username>root</username> by default.  Users requiring this
       feature can either manually change the permissions on the
@@ -2230,7 +2227,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/make.conf</filename> before a source
       upgrade. &merged;</para>
 
-    <para>&man.kenv.1;, a command to dump the kernel environment, has
+    <para role="historic">&man.kenv.1;, a command to dump the kernel environment, has
       been added. &merged;</para>
 
     <para>&man.kenv.1; now has the ability to set or delete kernel
