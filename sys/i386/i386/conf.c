@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.11 1993/10/23 10:49:24 jkh Exp $
+ *	$Id: conf.c,v 1.12 1993/10/23 22:13:08 jkh Exp $
  */
 
 #include "param.h"
@@ -279,6 +279,17 @@ int     sbselect();
 #define sbselect       seltrue
 #endif
 
+#include "psm.h"
+#if NPSM > 0
+int	psmopen(),psmclose(),psmread(),psmselect(),psmioctl();
+#else
+#define psmopen		enxio
+#define psmclose	enxio
+#define psmread		enxio
+#define psmselect	enxio
+#define psmioctl	enxio
+#endif
+
 #include "snd.h"                 /* General Sound Driver */
 #if     NSND > 0
 int     sndopen(), sndclose(), sndioctl(), sndread(), sndwrite();
@@ -430,9 +441,9 @@ struct cdevsw	cdevsw[] =
 	{ sbopen,	sbclose,	sbread,		sbwrite,	/*20*/
 	  sbioctl,	enodev,		enodev,		NULL,	/* soundblaster*/
 	  sbselect,	enodev,		NULL },
-	{ enodev,	enodev,		enodev,		enodev,		/*21*/
-	  enodev,	enodev,		nullop,		NULL,	/* psm */
-	  enodev,	enodev,		enodev },
+	{ psmopen,	psmclose,	psmread,	nullop,		/*21*/
+	  psmioctl,	enodev,		nullop,		NULL,	/* psm mice */
+	  psmselect,	enodev,		NULL },
 	{ fdopen,	enxio,		enxio,		enxio,		/*22*/
 	  enxio,	enxio,		enxio,		NULL,	/* fd (!=Fd) */
 	  enxio,	enxio,		enxio },
