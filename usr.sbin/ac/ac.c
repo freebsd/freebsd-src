@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ac.c,v 1.4.2.2 1997/09/02 06:28:56 charnier Exp $";
+	"$Id: ac.c,v 1.4.2.3 1998/03/09 13:50:19 jkh Exp $";
 #endif
 
 #include <sys/types.h>
@@ -517,7 +517,8 @@ ac(fp)
 		}
 	}
 	(void)fclose(fp);
-	usr.ut_time = time((time_t *)0);
+	if (!(Flags & AC_W))
+		usr.ut_time = time((time_t *)0);
 	(void)strcpy(usr.ut_line, "~");
 
 	if (Flags & AC_D) {
