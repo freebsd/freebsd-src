@@ -75,7 +75,7 @@
 #include <machine/atomic.h>
 
 enum obj_type { OBJT_DEFAULT, OBJT_SWAP, OBJT_VNODE, OBJT_DEVICE, OBJT_DEAD };
-typedef enum obj_type objtype_t;
+typedef u_char objtype_t;
 
 /*
  *	Types defined:
@@ -90,11 +90,11 @@ struct vm_object {
 	TAILQ_ENTRY(vm_object) shadow_list; /* chain of shadow objects */
 	TAILQ_HEAD(, vm_page) memq;	/* list of resident pages */
 	int generation;			/* generation ID */
-	objtype_t type;			/* type of pager */
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
 	int hash_rand;			/* vm hash table randomizer	*/
+	objtype_t type;			/* type of pager */
 	u_short flags;			/* see below */
 	u_short pg_color;		/* color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
