@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.79 1996/03/23 07:28:22 jkh Exp $
+ * $Id: install.c,v 1.80 1996/03/24 09:43:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,7 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
+		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			if (c2->flags & CHUNK_IS_ROOT) {
 			    if (rootdev) {
 				dialog_clear();
@@ -95,7 +95,7 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 			    if (isDebug())
 				msgDebug("Found rootdev at %s!\n", rootdev->name);
 			}
-			else if (!strcmp(((PartInfo *)c2->private)->mountpoint, "/usr")) {
+			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/usr")) {
 			    if (usrdev) {
 				dialog_clear();
 				msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
@@ -639,7 +639,7 @@ installFilesystems(char *str)
     if (!(str && !strcmp(str, "script")) && !checkLabels(&rootdev, &swapdev, &usrdev))
 	return RET_FAIL;
 
-    root = (PartInfo *)rootdev->private;
+    root = (PartInfo *)rootdev->private_data;
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
@@ -726,8 +726,8 @@ installFilesystems(char *str)
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
-			PartInfo *tmp = (PartInfo *)c2->private;
+		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
+			PartInfo *tmp = (PartInfo *)c2->private_data;
 
 			/* Already did root */
 			if (c2 == rootdev)
@@ -756,10 +756,10 @@ installFilesystems(char *str)
 		    }
 		}
 	    }
-	    else if (c1->type == fat && c1->private && (root->newfs || upgrade)) {
+	    else if (c1->type == fat && c1->private_data && (root->newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
-		sprintf(name, "/mnt%s", ((PartInfo *)c1->private)->mountpoint);
+		sprintf(name, "/mnt%s", ((PartInfo *)c1->private_data)->mountpoint);
 		Mkdir(name, NULL);
 	    }
 	}
