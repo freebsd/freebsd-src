@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.12 1995/03/19 14:29:01 davidg Exp $
+ * $Id: in_rmx.c,v 1.13 1995/05/30 08:09:31 rgrimes Exp $
  */
 
 /*
@@ -181,7 +181,7 @@ in_rtqkill(struct radix_node *rn, void *rock)
 			}
 		} else {
 			if(ap->updating
-			   && (time.tv_sec - rt->rt_rmx.rmx_expire
+			   && (rt->rt_rmx.rmx_expire - time.tv_sec
 			       > rtq_reallyold)) {
 				rt->rt_rmx.rmx_expire = time.tv_sec
 					+ rtq_reallyold;
