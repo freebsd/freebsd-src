@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.148 1999/02/08 19:00:15 dillon Exp $
+ * $Id: vm_object.c,v 1.149 1999/02/12 09:51:43 dillon Exp $
  */
 
 /*
@@ -844,9 +844,15 @@ shadowlookup:
 			 * Specifically, we do not try to actually free
 			 * the page now nor do we try to put it in the
 			 * cache (which would cause a page fault on reuse).
+			 *
+			 * But we do make the page is freeable as we
+			 * can without actually taking the step of unmapping
+			 * it.
 			 */
 			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 			m->dirty = 0;
+			m->act_count = 0;
+			vm_page_deactivate(m);
 		}
 	}	
 }
