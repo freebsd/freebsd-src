@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.8 1995/06/11 19:30:46 rgrimes Exp $";
+	"$Id: mountd.c,v 1.9 1995/06/27 11:06:19 dfr Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -885,7 +885,7 @@ get_exportlist()
 			hpe = (struct hostent *)malloc(sizeof(struct hostent));
 			if (hpe == (struct hostent *)NULL)
 				out_of_mem();
-			hpe->h_name = "Default";
+			hpe->h_name = strdup("Default");
 			hpe->h_addrtype = AF_INET;
 			hpe->h_length = sizeof (u_long);
 			hpe->h_addr_list = (char **)NULL;
