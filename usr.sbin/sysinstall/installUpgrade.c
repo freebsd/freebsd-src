@@ -198,18 +198,16 @@ installUpgrade(dialogMenuItem *self)
 	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure will\n"
 		   "only upgrade those portions of the system for which a distribution has\n"
 		   "been selected.  In the next screen, we'll go to the Distributions menu\n"
-		   "to select those portions of 2.1 you wish to install on top of your 2.0.5\n"
-		   "system.");
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
+		   "to select those portions of the new system you wish to install on top of\n"
+		   "the old.");
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	dialog_clear_norefresh();
     }
-
-    /* No bin selected?  Not much of an upgrade.. */
-    if (!(Dists & DIST_BIN)) {
+    else if (!(Dists & DIST_BIN)) {	    /* No bin selected?  Not much of an upgrade.. */
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
 		     "This one is pretty vital to a successful upgrade.  Are you SURE you don't\n"
-		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
+		     "want to select the bin distribution?  Chose No to bring up the Distributions\n"
 		     "menu.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 		return DITEM_FAILURE | DITEM_RECREATE;
@@ -221,10 +219,16 @@ installUpgrade(dialogMenuItem *self)
     if (!(Dists & DIST_BIN))
 	extractingBin = FALSE;
 
-    if (!mediaDevice) {
+    if (!mediaVerify()) {
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
 	    return DITEM_FAILURE | DITEM_RECREATE;
+    }
+
+    if (!mediaDevice->init(mediaDevice)) {
+	msgConfirm("Couldn't initialize the media; upgrade aborted.  Please\n"
+		   "fix whatever the problem is and try again.");
+	return DITEM_FAILURE | DITEM_REDRAW;
     }
 
     if (RunningAsInit) {
@@ -316,16 +320,25 @@ installUpgrade(dialogMenuItem *self)
 
     msgNotify("Beginning extraction of distributions..");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
-	if (extractingBin && (Dists & DIST_BIN)) {
+	msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
+		   "should be considered a failure and started from the beginning, sorry!\n"
+		   "The system will reboot now.");
+	dialog_clear();
+	systemShutdown(1);
+    }
+    else {
+	if (extractingBin && !(Dists & DIST_BIN)) {
+	    msgConfirm("The extraction process seems to have had some problems, but we got most\n"
+		       "of the essentials.  We'll treat this as a warning since it may have been\n"
+		       "only non-essential distributions which failed to load.");
+	}
+	else {
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
 		       "should be considered a failure and started from the beginning, sorry!\n"
 		       "The system will reboot now.");
 	    dialog_clear();
 	    systemShutdown(1);
 	}
-	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
-		   "of the essentials.  We'll treat this as a warning since it may have been\n"
-		   "only non-essential distributions which failed to load.");
     }
 
     if (extractingBin) {
