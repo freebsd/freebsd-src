@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.43 1997/11/08 00:28:07 brian Exp $
+ * $Id: lcp.c,v 1.44 1997/11/11 13:08:12 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -74,9 +74,34 @@ static void LcpLayerFinish(struct fsm *);
 #define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
 static char *cftypes[] = {
-  "???", "MRU", "ACCMAP", "AUTHPROTO", "QUALPROTO", "MAGICNUM",
-  "RESERVED", "PROTOCOMP", "ACFCOMP", "FCSALT", "SDP",
+  /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
+  "???",
+  "MRU",	/* 1: Maximum-Receive-Unit */
+  "ACCMAP",	/* 2: Async-Control-Character-Map */
+  "AUTHPROTO",	/* 3: Authentication-Protocol */
+  "QUALPROTO",	/* 4: Quality-Protocol */
+  "MAGICNUM",	/* 5: Magic-Number */
+  "RESERVED",	/* 6: RESERVED */
+  "PROTOCOMP",	/* 7: Protocol-Field-Compression */
+  "ACFCOMP",	/* 8: Address-and-Control-Field-Compression */
+  "FCSALT",	/* 9: FCS-Alternatives */
+  "SDP",	/* 10: Self-Describing-Pad */
+  "NUMMODE",	/* 11: Numbered-Mode */
+  "MULTIPROC",	/* 12: Multi-Link-Procedure */
+  "CALLBACK",	/* 13: Callback */
+  "CONTIME",	/* 14: Connect-Time */
+  "COMPFRAME",	/* 15: Compound-Frames */
+  "NDE",	/* 16: Nominal-Data-Encapsulation */
+  "MULTIMRRU",	/* 17: Multilink-MRRU */
+  "MULTISSNH",	/* 18: Multilink-Short-Sequence-Number-Header */
+  "MULTIED",	/* 19: Multilink-Endpoint-Descriminator */
+  "PROPRIETRY",	/* 20: Proprietary */
+  "DCEID",	/* 21: DCE-Identifier */
+  "MULTIPP",	/* 22: Multi-Link-Plus-Procedure */
+  "LDBACP",	/* 23: Link Discriminator for BACP */
 };
+
+#define NCFTYPES (sizeof(cftypes)/sizeof(char *))
 
 struct fsm LcpFsm = {
   "LCP",			/* Name of protocol */
@@ -190,7 +215,8 @@ LcpInitRestartCounter(struct fsm * fp)
 }
 
 void
-PutConfValue(u_char ** cpp, char **types, u_char type, int len, u_long val)
+PutConfValue(int level, u_char ** cpp, char **types, u_char type, int len,
+             u_long val)
 {
   u_char *cp;
   struct in_addr ina;
@@ -201,15 +227,14 @@ PutConfValue(u_char ** cpp, char **types, u_char type, int len, u_long val)
   if (len == 6) {
     if (type == TY_IPADDR) {
       ina.s_addr = htonl(val);
-      LogPrintf(LogLCP, " %s [%d] %s\n",
+      LogPrintf(level, " %s [%d] %s\n",
 		types[type], len, inet_ntoa(ina));
-    } else {
-      LogPrintf(LogLCP, " %s [%d] %08x\n", types[type], len, val);
-    }
+    } else
+      LogPrintf(level, " %s [%d] %08x\n", types[type], len, val);
     *cp++ = (val >> 24) & 0377;
     *cp++ = (val >> 16) & 0377;
   } else
-    LogPrintf(LogLCP, " %s [%d] %d\n", types[type], len, val);
+    LogPrintf(level, " %s [%d] %d\n", types[type], len, val);
   *cp++ = (val >> 8) & 0377;
   *cp++ = val & 0377;
   *cpp = cp;
@@ -236,12 +261,12 @@ LcpSendConfigReq(struct fsm * fp)
       LogPrintf(LogLCP, " %s\n", cftypes[TY_PROTOCOMP]);
     }
     if (!REJECTED(lcp, TY_ACCMAP))
-      PutConfValue(&cp, cftypes, TY_ACCMAP, 6, lcp->want_accmap);
+      PutConfValue(LogLCP, &cp, cftypes, TY_ACCMAP, 6, lcp->want_accmap);
   }
   if (!REJECTED(lcp, TY_MRU))
-    PutConfValue(&cp, cftypes, TY_MRU, 4, lcp->want_mru);
+    PutConfValue(LogLCP, &cp, cftypes, TY_MRU, 4, lcp->want_mru);
   if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
-    PutConfValue(&cp, cftypes, TY_MAGICNUM, 6, lcp->want_magic);
+    PutConfValue(LogLCP, &cp, cftypes, TY_MAGICNUM, 6, lcp->want_magic);
   if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO)) {
     req = (struct lqrreq *) cp;
     req->type = TY_QUALPROTO;
@@ -253,10 +278,10 @@ LcpSendConfigReq(struct fsm * fp)
   }
   switch (lcp->want_auth) {
   case PROTO_PAP:
-    PutConfValue(&cp, cftypes, TY_AUTHPROTO, 4, lcp->want_auth);
+    PutConfValue(LogLCP, &cp, cftypes, TY_AUTHPROTO, 4, lcp->want_auth);
     break;
   case PROTO_CHAP:
-    PutConfValue(&cp, cftypes, TY_AUTHPROTO, 5, lcp->want_auth);
+    PutConfValue(LogLCP, &cp, cftypes, TY_AUTHPROTO, 5, lcp->want_auth);
 #ifdef HAVE_DES
     *cp++ = VarMSChap ? 0x80 : 0x05;	/* Use MSChap vs. RFC 1994 (MD5) */
 #else
@@ -402,7 +427,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
-    if (type <= TY_ACFCOMP)
+    if (type < NCFTYPES)
       request = cftypes[type];
     else
       request = "???";
@@ -657,7 +682,7 @@ LcpDecodeConfig(u_char * cp, int plen, int mode_type)
       }
       break;
     default:
-      LogPrintf(LogLCP, " ???[%02x]\n", type);
+      LogPrintf(LogLCP, " %s[02x]\n", request, type);
       if (mode_type == MODE_REQ) {
     reqreject:
 	memcpy(rejp, cp, length);
