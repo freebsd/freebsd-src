@@ -67,6 +67,9 @@ if [ -n "$LOGFILES" ]; then
 	/usr/bin/touch $LOGFILES
 fi
 
+echo "+++ create lastlog"
+/usr/bin/touch /var/log/lastlog
+
 mount -a       # chown and chgrp are in /usr
 
 #
