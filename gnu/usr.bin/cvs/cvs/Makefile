@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.21 1998/03/10 14:00:59 peter Exp $
+#	$Id: Makefile,v 1.22 1998/03/28 19:06:21 eivind Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -40,6 +40,7 @@ CFLAGS+= -DENCRYPTION
 # Regression test support
 #
 CLEANDIRS+=cvs-sanity
+.ifmake regress
 USERID!=id -u
 regress:
 	mkdir -p ${.OBJDIR}/cvs-sanity/tmp ${.OBJDIR}/cvs-sanity/work
@@ -55,6 +56,6 @@ regress:
 		cd ${.OBJDIR}/cvs-sanity/work;\
 		sh ${CVSDIR}/src/sanity.sh ${.OBJDIR}/cvs)
 .endif
-
+.endif
 
 .include <bsd.prog.mk>
