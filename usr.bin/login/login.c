@@ -714,6 +714,10 @@ auth_pam()
 		} else
 			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
 			    pam_strerror(pamh, e));
+		if ((e = pam_setcred(pamh, PAM_ESTABLISH_CRED)) !=
+		    PAM_SUCCESS)
+			syslog(LOG_ERR, "Couldn't establish credentials: %s",
+			    pam_strerror(pamh, e));
 		rval = 0;
 		break;
 
