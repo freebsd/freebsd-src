@@ -1,7 +1,12 @@
+#ifndef _DIALOG_H_INCLUDE
+#define _DIALOG_H_INCLUDE
+
 /*
  *  dialog.h -- common declarations for all dialog modules
  *
  *  AUTHOR: Savio Lam (lam836@cs.cuhk.hk)
+ *
+ *	Substantial rennovation:  12/18/95, Jordan K. Hubbard
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -32,6 +37,26 @@
 #endif
 
 #endif
+
+/* special return codes for `fire' actions */
+#define DITEM_SUCCESS		0
+#define DITEM_FAILURE		-1
+#define DITEM_LEAVE_MENU	-2
+#define DITEM_REDRAW		-3
+
+/* negative offsets for buttons in item lists, if specified */
+#define OK_BUTTON		-2
+#define CANCEL_BUTTON		-1
+
+/* for use in describing more exotic behaviors */
+typedef struct _dmenu_item {
+  char *prompt;
+  char *title;
+  int (*checked)(struct _dmenu_item *self);
+  int (*fire)(struct _dmenu_item *self);
+  void *data;
+  char lbra, mark, rbra;
+} dialogMenuItem;
 
 #define VERSION "0.4"
 #define MAX_LEN 2048
@@ -87,7 +112,7 @@ extern bool use_shadow;
 void draw_shadow(WINDOW *win, int y, int x, int height, int width);
 #endif
 void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chtype border);
-int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attrs, int first, unsigned char *result);
+int line_edit(WINDOW *dialog, int box_y, int box_x, int flen, int box_width, chtype attrs, int first, unsigned char *result);
 int     strheight(const char *p);
 int     strwidth(const char *p);
 
@@ -96,9 +121,12 @@ int dialog_yesno(unsigned char *title, unsigned char *prompt, int height, int wi
 int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, int width, int pause, int use_shell);
 int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int width, int pause);
 int dialog_textbox(unsigned char *title, unsigned char *file, int height, int width);
-int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height, int item_no, unsigned char **items, unsigned char *result, int *ch, int *sc);
-int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
-int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result);
+int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, int menu_height,
+		int item_no, void *itptr, unsigned char *result, int *ch, int *sc);
+int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height,
+		     int item_no, void *itptr, unsigned char *result);
+int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height,
+		     int item_no, void *itptr, unsigned char *result);
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result);
 void dialog_clear_norefresh(void);
 void dialog_clear(void);
@@ -115,5 +143,6 @@ void use_helpfile(char *helpfile);
 void use_helpline(char *helpline);
 char *get_helpline(void);
 void restore_helpline(char *helpline);
-void dialog_gauge(char *title, char *prompt, int y, int x,
-		  int height, int width, int perc);
+void dialog_gauge(char *title, char *prompt, int y, int x, int height, int width, int perc);
+
+#endif /* _DIALOG_H_INCLUDE */
