@@ -410,7 +410,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	bus_dmamem_free_size(dmat, vaddr, map, dmat->maxsize);
 }
 
-#define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
+#define BUS_DMAMAP_NSEGS ((64 * 1024 / PAGE_SIZE) + 1)
 
 /*
  * Map the buffer buf into bus space using the dmamap map.
