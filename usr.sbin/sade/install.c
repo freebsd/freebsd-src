@@ -66,12 +66,12 @@ static void	fixit_common(void);
 static void	installConfigure(void);
 
 Boolean
-checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **vtdev, Chunk **hdev)
+checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **tdev, Chunk **hdev)
 {
     Device **devs;
     Boolean status;
     Disk *disk;
-    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev, *vartmpdev, *homedev;
+    Chunk *c1, *c2, *rootdev, *swapdev, *usrdev, *vardev, *tmpdev, *homedev;
     int i;
 
     /* Don't allow whinging if noWarn is set */
@@ -87,11 +87,11 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	*udev = NULL;
     if (vdev)
 	*vdev = NULL;
-    if (vtdev)
-	*vtdev = NULL;
+    if (tdev)
+	*tdev = NULL;
     if (hdev)
 	*hdev = NULL;
-    rootdev = swapdev = usrdev = vardev = vartmpdev = homedev = NULL;
+    rootdev = swapdev = usrdev = vardev = tmpdev = homedev = NULL;
 
     /* We don't need to worry about root/usr/swap if we're already multiuser */
     if (!RunningAsInit)
@@ -148,17 +148,17 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 				if (isDebug())
 				    msgDebug("Found vardev at %s!\n", vardev->name);
 			    }
-			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/var/tmp")) {
-			    if (vartmpdev) {
+			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/tmp")) {
+			    if (tmpdev) {
 				if (whinge)
-				    msgConfirm("WARNING:  You have more than one /var/tmp filesystem.\n"
+				    msgConfirm("WARNING:  You have more than one /tmp filesystem.\n"
 					       "Using the first one found.");
 				continue;
 			    }
 			    else {
-				vartmpdev = c2;
+				tmpdev = c2;
 				if (isDebug())
-				    msgDebug("Found vartmpdev at %s!\n", vartmpdev->name);
+				    msgDebug("Found tmpdev at %s!\n", tmpdev->name);
 			    }
 			} else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/home")) {
 			    if (homedev) {
@@ -210,8 +210,8 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	*udev = usrdev;
     if (vdev)
 	*vdev = vardev;
-    if (vtdev)
-	*vtdev = vartmpdev;
+    if (tdev)
+	*tdev = tmpdev;
     if (hdev)
 	*hdev = homedev;
 
