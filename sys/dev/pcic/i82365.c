@@ -72,12 +72,15 @@ int	pcic_debug = 1;
 
 #define VERBOSE(arg) if (bootverbose) printf arg; else ;
 
+#define N(a)	(sizeof(a)/sizeof(a[0]))
+
 #define	PCIC_VENDOR_UNKNOWN		0
 #define	PCIC_VENDOR_I82365SLR0		1
 #define	PCIC_VENDOR_I82365SLR1		2
 #define	PCIC_VENDOR_CIRRUS_PD6710	3
 #define	PCIC_VENDOR_CIRRUS_PD672X	4
 
+#define PCIC_H2SOFTC(h) ((struct pcic_softc *)h->sc)
 /*
  * Individual drivers will allocate their own memory and io regions. Memory
  * regions must be a multiple of 4k, aligned on a 4k boundary.
@@ -86,7 +89,6 @@ int	pcic_debug = 1;
 #define	PCIC_MEM_ALIGN	PCIC_MEM_PAGESIZE
 
 static void	pcic_init_socket(struct pcic_handle *);
-
 static void	pcic_intr_socket(struct pcic_handle *);
 
 static int	pcic_activate(device_t dev);
@@ -286,7 +288,7 @@ pcic_attach(device_t dev)
 	/*
 	 * this could be done with a loop, but it would violate the
 	 * abstraction...  --- unknown
-	 * so? I don't see the abstraction... --imp
+	 * I don't see the abstraction... --imp
 	 */
 
 	count = 0;
@@ -374,8 +376,10 @@ pcic_attach(device_t dev)
 		sc->handle[3].flags = 0;
 	}
 
-	if (count == 0)
-		panic("pcic_attach: attach found no sockets");
+	if (count == 0) {
+		printf("pcic_attach: attach found no sockets\n");
+		return (ENXIO);
+	}
 
 	/* establish the interrupt */
 
@@ -483,8 +487,8 @@ pcic_create_event_thread(void *arg)
 	}
 
 	if (kthread_create(pcic_event_thread, h, &h->event_thread,
-	    RFTHREAD, "%s,%s", device_get_name(h->sc->dev), cs)) {
-		device_printf(h->sc->dev,
+	    RFTHREAD, "%s,%s", device_get_name(PCIC_H2SOFTC(h)->dev), cs)) {
+		device_printf(PCIC_H2SOFTC(h)->dev,
 		    "cannot create event thread for sock 0x%02x\n", h->sock);
 		panic("pcic_create_event_thread");
 	}
@@ -883,8 +887,7 @@ pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
 	int i, win;
 
 	win = -1;
-	for (i = 0; i < (sizeof(mem_map_index) / sizeof(mem_map_index[0]));
-	    i++) {
+	for (i = 0; i < N(mem_map_index); i++) {
 		if ((h->memalloc & (1 << i)) == 0) {
 			win = i;
 			h->memalloc |= (1 << i);
@@ -935,7 +938,7 @@ pcic_chip_mem_unmap(struct pcic_handle *h, int window)
 {
 	int reg;
 
-	if (window >= (sizeof(mem_map_index) / sizeof(mem_map_index[0])))
+	if (window >= N(mem_map_index))
 		panic("pcic_chip_mem_unmap: window out of range");
 
 	reg = pcic_read(h, PCIC_ADDRWIN_ENABLE);
@@ -953,14 +956,11 @@ pcic_chip_io_alloc(struct pcic_handle *h, bus_addr_t start, bus_size_t size,
 	bus_space_handle_t ioh;
 	bus_addr_t ioaddr;
 	int flags = 0;
-	struct pcic_softc *sc = h->sc;
 
 	/*
 	 * Allocate some arbitrary I/O space.
 	 */
-
-	iot = sc->iot;
-
+	iot = h->ph_bus_t;
 	ioaddr = start;
 	if (start) {
 		ioh = start;
@@ -1068,14 +1068,11 @@ pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
 #ifdef PCICDEBUG
 	static char *width_names[] = { "auto", "io8", "io16" };
 #endif
-#if 0
-	struct pcic_softc *sc = h->sc;
-#endif
 
 	/* XXX Sanity check offset/size. */
 
 	win = -1;
-	for (i = 0; i < (sizeof(io_map_index) / sizeof(io_map_index[0])); i++) {
+	for (i = 0; i < N(io_map_index); i++) {
 		if ((h->ioalloc & (1 << i)) == 0) {
 			win = i;
 			h->ioalloc |= (1 << i);
@@ -1105,7 +1102,7 @@ pcic_chip_io_unmap(struct pcic_handle *h, int window)
 {
 	int reg;
 
-	if (window >= (sizeof(io_map_index) / sizeof(io_map_index[0])))
+	if (window >= N(io_map_index))
 		panic("pcic_chip_io_unmap: window out of range");
 
 	reg = pcic_read(h, PCIC_ADDRWIN_ENABLE);
