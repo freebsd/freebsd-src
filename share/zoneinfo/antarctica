@@ -1,9 +1,16 @@
-# @(#)antarctica	7.8
+# @(#)antarctica	7.14
 
 # From Paul Eggert (1997-03-28):
 # To keep things manageable, we list only locations occupied year-round;
-# see <URL:http://earth.agu.org/amen/nations.html> (1996-05-24)
-# and <URL:http://www.spri.cam.ac.uk/bob/periant.htm> (1996-09-05).
+# see
+# <a href="http://earth.agu.org/amen/nations.html">
+# Antarctic Activities of Member Nations of the Antarctic Treaty (1996-05-24)
+# </a>
+# and
+# <a href="http://www.spri.cam.ac.uk/bob/periant.htm">
+# Summary of the Peri-Antarctic Islands (1996-09-05)
+# </a>
+# for information.
 # Unless otherwise specified, we have no time zone information.
 #
 # Except for the French entries,
@@ -34,17 +41,27 @@ Rule	ChileAQ	1970	max	-	Mar	Sun>=9	0:00	0	-
 #
 # year-round bases
 # Casey, Bailey Peninsula, since 1969
-# Davis, Vestfold Hills, since 1957-01-13 (except 1965-01 -  1969-02)
+# Davis, Vestfold Hills, since 1957-01-13 (except 1964-11 - 1969-02)
 # Mawson, Holme Bay, since 1954-02-13
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Antarctica/Casey	0	-	___	1969
 			8:00	-	WST	# Western (Aus) Standard Time
-#Zone Antartica/Davis	unknown
+Zone Antarctica/Davis	0	-	___	1957 Jan 13
+			7:00	-	DAVT	1964 Nov # Davis Time
+			0	-	___	1969 Feb
+			7:00	-	DAVT
 Zone Antarctica/Mawson	0	-	___	1954 Feb 13
 			6:00	-	MAWT	# Mawson Time
 # References:
-# <URL:http://www.antdiv.gov.au/aad/exop/sfo/casey/casey_aws.html> (1996-07-15)
-# <URL:http://www.antdiv.gov.au/aad/exop/sfo/mawson/video.html> (1996-04-19)
+# <a href="http://www.antdiv.gov.au/aad/exop/sfo/casey/casey_aws.html">
+# Casey Weather (1998-02-26)
+# </a>
+# <a href="http://www.antdiv.gov.au/aad/exop/sfo/davis/video.html">
+# Davis Station, Antarctica (1998-02-26)
+# </a>
+# <a href="http://www.antdiv.gov.au/aad/exop/sfo/mawson/video.html">
+# Mawson Station, Antarctica (1998-02-25)
+# </a>
 
 # Brazil - year-round base
 # Ferraz, King George Island, since 1983/4
@@ -92,7 +109,9 @@ Zone Antarctica/DumontDUrville 0 -	___	1947
 			0	-	___	1956 Nov
 			10:00	-	DDUT	# Dumont-d'Urville Time
 # Reference:
-# <URL:http://www.icair.iac.org.nz/science/reports/fr/IFRTP.html> (1996-09-10)
+# <a href="http://www.icair.iac.org.nz/science/reports/fr/IFRTP.html">
+# Support and Development of Polar Research and Technology (1997-02-03)
+# </a>
 
 
 # Germany - year-round base
@@ -198,8 +217,10 @@ Zone Antarctica/McMurdo	0	-	___	1956
 # which was on GMT+12 because New Zealand was on GMT+12 all year
 # at that time (1957).  (Source: Siple's book 90 degrees SOUTH.)
 #
-# From Susan Smith <URL:http://www.cybertours.com/whs/pole10.html>
-# (1995-11-13 16:24:56 +1300): We use the same time as McMurdo does.
+# From Susan Smith
+# http://www.cybertours.com/whs/pole10.html
+# (1995-11-13 16:24:56 +1300, no longer available):
+# We use the same time as McMurdo does.
 # And they use the same time as Christchurch, NZ does....
 # One last quirk about South Pole time.
 # All the electric clocks are usually wrong.

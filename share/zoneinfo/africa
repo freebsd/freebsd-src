@@ -1,4 +1,4 @@
-# @(#)africa	7.20
+# @(#)africa	7.26
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -105,9 +105,6 @@ Zone	Africa/Luanda	0:52:56	-	LMT	1892
 			0:52:04	-	LMT	1911 May 26 # Luanda Mean Time?
 			1:00	-	WAT
 
-# Bassas da India
-# uninhabited
-
 # Benin
 # Whitman says they switched to 1:00 in 1946, not 1934; go with Shanks.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -209,9 +206,10 @@ Rule	Egypt	1983	only	-	Jul	12	1:00	1:00	S
 Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	S
 Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
 Rule	Egypt	1990	1994	-	May	 1	1:00	1:00	S
-# IATA (after 1990) says transitions are at 0:00; go with Shanks.
-Rule	Egypt	1995	max	-	Apr	lastFri	1:00	1:00	S
-Rule	Egypt	1995	max	-	Sep	lastFri	3:00	0	-
+# IATA (after 1990) says transitions are at 0:00.
+# Go with IATA starting in 1995, except correct 1995 entry from 09-30 to 09-29.
+Rule	Egypt	1995	max	-	Apr	Fri>=22	 0:00s	1:00	S
+Rule	Egypt	1995	max	-	Sep	lastThu	23:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
@@ -240,9 +238,6 @@ Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
 			2:35:20	-	ADMT	1936 May 5    # Adis Dera MT
 			3:00	-	EAT
 
-# Europa Island
-# uninhabited
-
 # Gabon
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Libreville	0:37:48 -	LMT	1912
@@ -264,9 +259,6 @@ Rule	Ghana	1936	1942	-	Dec	31	0:00	0	GMT
 Zone	Africa/Accra	-0:00:52 -	LMT	1918
 			 0:00	Ghana	%s
 
-# Glorioso Is
-# uninhabited
-
 # Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Conakry	-0:54:52 -	LMT	1912
@@ -279,9 +271,6 @@ Zone	Africa/Conakry	-0:54:52 -	LMT	1912
 Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
 			-1:00	-	WAT	1975
 			 0:00	-	GMT
-
-# Juan de Nova
-# uninhabited
 
 # Kenya
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -301,7 +290,7 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 # Liberia
 # From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # In 1972 Liberia was the last country to switch
-# from a GMT offset that was not a multiple of 15 minutes.
+# from a UTC offset that was not a multiple of 15 minutes.
 # Howse reports that it was in honor of their president's birthday.
 # Shanks reports the date as May 1, whereas Howse reports Jan; go with Shanks.
 # For Liberia before 1972, Shanks reports -0:44, whereas Howse and Whitman
@@ -335,15 +324,16 @@ Rule	Libya	1987	1990	-	Oct	 1	0:00	0	-
 Rule	Libya	1990	only	-	May	 4	0:00	1:00	S
 Rule	Libya	1996	only	-	Mar	30	2:00s	1:00	S
 Rule	Libya	1996	only	-	Sep	30	2:00s	0	-
-Rule	Libya	1997	max	-	Mar	lastThu	2:00s	1:00	S
-Rule	Libya	1997	max	-	Oct	Thu>=1	2:00s	0	-
+Rule	Libya	1997	only	-	Apr	 4	0:00	1:00	S
+Rule	Libya	1997	only	-	Oct	 4	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tripoli	0:52:44 -	LMT	1920
 			1:00	Libya	CE%sT	1959
 			2:00	-	EET	1982
 			1:00	Libya	CE%sT	1991
 			2:00	-	EET	1996 Mar 30 3:00
-			1:00	Libya	CE%sT
+			1:00	Libya	CE%sT	1997 Oct  4 0:00
+			2:00	-	EET
 
 # Madagascar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -450,6 +440,19 @@ Zone	Africa/Lagos	0:13:36 -	LMT	1919 Sep
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# Saint-Denis
 			4:00	-	RET	# Reunion Time
+#
+# Scattered Islands (Iles Eparses) administered from Reunion are as follows.
+# The following information about them is taken from
+# <a href="http://www.outre-mer.gouv.fr/domtom/ile.htm">
+# Iles Eparses
+# </a>
+# (1997-07-22, in French).  We have no info about their time zone histories.
+#
+# Bassas da India - uninhabited
+# Europa Island - inhabited from 1905 to 1910 by two families
+# Glorioso Is - inhabited until at least 1958
+# Juan de Nova - uninhabited
+# Tromelin - inhabited until at least 1958
 
 # Rwanda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -552,9 +555,6 @@ Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Lome	0:04:52 -	LMT	1893
 			0:00	-	GMT
-
-# Tromelin
-# uninhabited
 
 # Tunisia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
