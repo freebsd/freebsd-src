@@ -103,6 +103,10 @@ SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RD,
 	
 #endif 
 
+static int	icmplim_output = 1;
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
+	&icmplim_output, 0, "");
+
 /*
  * ICMP broadcast echo sysctl
  */
@@ -861,7 +865,7 @@ badport_bandlim(int which)
 	 */
 
 	if ((unsigned int)dticks > hz) {
-		if (lpackets[which] > icmplim) {
+		if (lpackets[which] > icmplim && icmplim_output) {
 			printf("%s from %d to %d packets per second\n",
 				bandlimittype[which],
 				lpackets[which],
