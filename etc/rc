@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.116 1997/04/09 20:14:59 guido Exp $
+#	$Id: rc,v 1.117 1997/04/27 03:59:13 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -170,13 +170,12 @@ fi
 
 # snapshot any kernel -c changes back to disk
 echo 'recording kernel -c changes'
-/sbin/dset -q
+dset -q
 
+echo -n 'additional daemons:'
 # start system logging and name service (named needs to start before syslogd
 # if you don't have a /etc/resolv.conf)
 #
-echo -n starting system daemons:
-
 # If syslogdflags == NO, syslog isn't run
 if [ "X${syslogdflags}" != X"NO" ] ; then
 
@@ -188,8 +187,13 @@ if [ "X${syslogdflags}" != X"NO" ] ; then
 	fi
 
 	rm -f /var/run/log
-	echo 'Starting syslogd.';		syslogd ${syslogd_flags}
+	echo -n ' syslogd';		syslogd ${syslogd_flags}
 fi
+
+if [ "X${tickadj_enable}" = X"YES" ]; then
+	echo -n ' tickadj'; tickadj ${tickadj_flags--Aq}
+fi
+echo '.'
 
 if [ -n "$network_pass1_done" ]; then
     network_pass2
@@ -238,7 +242,7 @@ ldconfig ${_LDC}
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
-echo -n standard daemons:
+echo -n starting standard daemons:
 echo -n ' inetd';		inetd
 echo -n ' cron';		cron
 
