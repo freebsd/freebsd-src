@@ -82,6 +82,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	 * 6:	0x3f2-0x3f3,0x3f4-0x3f5,0x3f7	# becoming common
 	 * 7:	0x3f2-0x3f3,0x3f4-0x3f5		# rare
 	 * 8:	0x3f0-0x3f1,0x3f2-0x3f3,0x3f4-0x3f5,0x3f7
+	 * 9:	0x3f0-0x3f3,0x3f4-0x3f5,0x3f7
 	 *
 	 * The following code is generic for any value of 0x3fx :-)
 	 */
@@ -99,8 +100,7 @@ again_ioport:
 		    nports);
 		return (ENXIO);
 	}
-	if ((rman_get_start(fdc->res_ioport) & 0x7) == 0 &&
-	    rman_get_size(fdc->res_ioport) == 2) {
+	if ((rman_get_end(fdc->res_ioport) & 0x7) == 1) {
 		/* Case 8 */
 		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
 		    fdc->res_ioport);
@@ -116,9 +116,9 @@ again_ioport:
 	fdc->port_off = -(fdc->porth & 0x7);
 
 	/*
-	 * Deal with case 6, 7, and 8: FDSTS and FDSATA are in rid 1.
+	 * Deal with case 6-9: FDSTS and FDDATA.
 	 */
-	if (rman_get_size(fdc->res_ioport) == 2) {
+	if ((rman_get_end(fdc->res_ioport) & 0x7) == 3) {
 		fdc->rid_sts = fdc->rid_ioport + 1;
 		fdc->res_sts = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 		    &fdc->rid_sts, RF_ACTIVE);
