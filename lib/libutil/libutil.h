@@ -60,6 +60,9 @@ void	properties_free __P((properties list));
 char	*property_find __P((properties list, const char *name));
 char	*auth_getval __P((const char *name));
 int	realhostname __P((char *host, size_t hsize, const struct in_addr *ip));
+#ifdef _STDIO_H_	/* avoid adding new includes */
+char   *fparseln __P((FILE *, size_t *, size_t *, const char[3], int));
+#endif
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
@@ -77,5 +80,12 @@ __END_DECLS
 #define HOSTNAME_INCORRECTNAME	(1)
 #define HOSTNAME_INVALIDADDR	(2)
 #define HOSTNAME_INVALIDNAME	(3)
+
+/* fparseln(3) */
+#define	FPARSELN_UNESCESC	0x01
+#define	FPARSELN_UNESCCONT	0x02
+#define	FPARSELN_UNESCCOMM	0x04
+#define	FPARSELN_UNESCREST	0x08
+#define	FPARSELN_UNESCALL	0x0f
 
 #endif /* !_LIBUTIL_H_ */

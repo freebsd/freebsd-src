@@ -1,4 +1,5 @@
 /*	$NetBSD: fparseln.c,v 1.9 1999/09/20 04:48:06 lukem Exp $	*/
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1997 Christos Zoulas.  All rights reserved.
@@ -31,15 +32,16 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: fparseln.c,v 1.9 1999/09/20 04:48:06 lukem Exp $");
+__RCSID("$FreeBSD$");
 #endif
 
+#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <util.h>
+#include <libutil.h>
 
 static int isescaped __P((const char *, const char *, int));
 
@@ -55,8 +57,10 @@ isescaped(sp, p, esc)
 	const char     *cp;
 	size_t		ne;
 
+#if 0
 	_DIAGASSERT(sp != NULL);
 	_DIAGASSERT(p != NULL);
+#endif
 
 	/* No escape character */
 	if (esc == '\0')
@@ -92,7 +96,9 @@ fparseln(fp, size, lineno, str, flags)
 	int	cnt;
 	char	esc, con, nl, com;
 
+#if 0
 	_DIAGASSERT(fp != NULL);
+#endif
 
 	len = 0;
 	buf = NULL;
