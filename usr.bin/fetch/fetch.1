@@ -116,13 +116,10 @@ If the target is a file-scheme URL, make a symbolic link to the target
 rather than trying to copy it.
 .It Fl M
 .It Fl m
-Mirror mode: set the modification time of the local file to that of
-the remote file.
-If the file already exists locally and has the same size and
-modification time as the remote file, it will not be fetched.
+Mirror mode: if the file already exists locally and has the same size
+and modification time as the remote file, it will not be fetched.
 .It Fl n
-Don't preserve the modtime of the transfered file, use the current
-time.
+Don't preserve the modification time of the transferred file.
 .It Fl o Ar file
 Set the output file name to 
 .Ar file .
