@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_input.c,v 1.15.2.2 1997/08/21 05:51:56 joerg Exp $
  */
 
 /*
@@ -58,8 +58,9 @@ static char *	db_le;		/* one past last character */
  * Simple input line history support.
  */
 static char *	db_lhistory;
+static char	db_lhistory_buffer[2048];
 static int	db_lhistlsize, db_lhistidx, db_lhistcur;
-#define DB_LHIST_NLINES 10
+static int	db_lhist_nlines;
 
 #define	CTRL(c)		((c) & 0x1f)
 #define	isspace(c)	((c) == ' ' || (c) == '\t')
@@ -312,15 +313,14 @@ db_readline(lstart, lsize)
 {
 	if (db_lhistory && lsize != db_lhistlsize) {
 		/* Should not happen, but to be sane, throw history away. */
-		FREE(db_lhistory, M_TEMP);
-		db_lhistory = 0;
+		db_lhistory = NULL;
 	}
-	if (db_lhistory == 0) {
+	if (db_lhistory == NULL) {
 		/* Initialize input line history. */
+		db_lhistory = db_lhistory_buffer;
+		db_lhist_nlines = (sizeof db_lhistory_buffer) / lsize;
 		db_lhistlsize = lsize;
 		db_lhistidx = -1;
-		MALLOC(db_lhistory, char *, lsize * DB_LHIST_NLINES,
-		       M_TEMP, M_NOWAIT);
 	}
 	db_lhistcur = db_lhistidx;
 
@@ -337,12 +337,12 @@ db_readline(lstart, lsize)
 	db_printf("\n");	/* synch output position */
 	*db_le = 0;
 
-	if (db_le - db_lbuf_start > 1) {
+	if (db_lhistory && (db_le - db_lbuf_start > 1)) {
 	    /* Maintain input line history for non-empty lines. */
-	    if (++db_lhistidx == DB_LHIST_NLINES) {
+	    if (++db_lhistidx == db_lhist_nlines) {
 		/* Rotate history. */
 		ovbcopy(db_lhistory + db_lhistlsize, db_lhistory,
-			db_lhistlsize * (DB_LHIST_NLINES - 1));
+			db_lhistlsize * (db_lhist_nlines - 1));
 		db_lhistidx--;
 	    }
 	    bcopy(lstart, db_lhistory + (db_lhistidx * db_lhistlsize),
