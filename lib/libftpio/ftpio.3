@@ -56,7 +56,9 @@
 .Ft FILE *
 .Fn ftpPut "FILE *stream, char *file"
 .Ft int
-.Fn ftpBinary "FILE *stream, int status"
+.Fn ftpAscii "FILE *stream"
+.Ft int
+.Fn ftpBinary "FILE *stream"
 .Ft int
 .Fn ftpPassive "FILE *stream, int status"
 .Ft FILE *
@@ -128,11 +130,13 @@ and returns a new
 .Fa stream
 pointer for the file or NULL on failure.
 .Pp
+.Fn ftpAscii
+sets ascii mode for the current server connection named by
+.Fa stream .
+.Pp
 .Fn ftpBinary
 sets binary mode for the current server connection named by
-.Fa stream
-to boolean value
-.Fa status .
+.Fa stream .
 .Pp
 .Fn ftpPassive
 sets passive mode (for firewalls) for the current server connection named by
