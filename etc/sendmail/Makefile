@@ -95,6 +95,12 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF}
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
 		${DEST_CF}
 .endif
+.ifndef SENDMAIL_SET_USER_ID
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
+	    ${DESTDIR}/etc/mail/submit.mc
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
+	    ${DESTDIR}/etc/mail/submit.cf
+.endif
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SMDIR}/helpfile \
 	    ${DESTDIR}/etc/mail/helpfile
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
