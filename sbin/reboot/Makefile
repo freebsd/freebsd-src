@@ -14,4 +14,6 @@ MLINKS+= boot_${MACHINE}.8 boot.8
 LINKS=	${BINDIR}/reboot ${BINDIR}/halt ${BINDIR}/reboot ${BINDIR}/fastboot \
 	${BINDIR}/reboot ${BINDIR}/fasthalt
 
+SCRIPTS=	nextboot.sh
+
 .include <bsd.prog.mk>
