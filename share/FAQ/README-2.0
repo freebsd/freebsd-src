@@ -1,28 +1,29 @@
 Use PageUp, PageDown or Arrow keys to navigate this screen.
 
    -----------------------------------------
-       FreeBSD 2.0  ---  BETA Release                  ,        ,
+       FreeBSD 2.0  ---  RELEASE Version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the BETA release of FreeBSD 2.0 - the      /- _  `-/  '
+Welcome to the first public release of FreeBSD 2.0    /- _  `-/  '
 first public snapshot of our new 4.4BSD Lite based   (/\/ \ \   /\
-operating system environment.  This install proce-   / /   | `    \
-dure is also at the BETA stage, and contains only    O O   ) /    |
-the minimum functionality required by an             `-^--'`<     '
-*EXPERIENCED* person to install the system.         (_.)  _  )   /
-It is our hope, of course, that the feedback         `.___/`    /
-provided from this snapshot will                       `-----' /
-greatly assist us in making the release   <----.     __ / __   \
-of 2.0 much more user friendly.  Your     <----|====O)))==) \) /====
-comments and criticisms are very          <----'    `--' `.__,' \
-valuable to us, so please don't hesitate               |        |
-in contacting us!  Full details on where and            \       /	/\
-how to provide feedback are given below.           ______( (_  / \______/
-                                                 ,'  ,-----'   |
-This install procedure is BETA code, and         `--{__________)
-may very possibly *DESTROY* the contents of your
-ENTIRE DISK!  Please do not proceed with this installation
-unless you've adequately backed up your data first!
+operating system environment.  Our installation      / /   | `    \
+procedure has been completely revamped, and should   O O   ) /    |
+now be much easier for both the novice and           `-^--'`<     '
+experienced user alike.  We've also gone to some    (_.)  _  )   /
+care to make the process of installing the           `.___/`    /
+subsequent bindist and other miscellaneous             `-----' /
+distributions considerably more seamless  <----.     __ / __   \
+as well as offering a greater variety     <----|====O)))==) \) /====
+of installation methods and options.      <----'    `--' `.__,' \
+                                                       |        |
+We hope you'll find this new process as enjoyable       \       /	/\
+to use as it was to write!  (No, really, it        ______( (_  / \______/
+was! :-)                                         ,'  ,-----'   |
+                                                 `--{__________)
+Disclaimer:  Please note that despite numerous     
+safeguards, it's still more than possible to WIPE OUT YOUR ENTIRE DISK
+with this installation!  Please do not proceed unless you've
+adequately backed up any important data first!  We really mean it!
 
 If any errors occur during this installation, you can see them
 by toggling over to the alternate screen.  Type ALT-F2 to switch
