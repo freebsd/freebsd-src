@@ -275,7 +275,8 @@ udom_open(path, flags)
 	/*
 	 * Construct the unix domain socket address and attempt to connect
 	 */
-	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0) {
+	fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (fd >= 0) {
 		sou.sun_family = AF_UNIX;
 		snprintf(sou.sun_path, sizeof(sou.sun_path), "%s", path);
 		len = strlen(sou.sun_path);
@@ -293,10 +294,12 @@ udom_open(path, flags)
 	if (fd >= 0) {
 		switch(flags & O_ACCMODE) {
 		case O_RDONLY:
-			shutdown(fd, SHUT_WR);
+			if (shutdown(fd, SHUT_WR) == -1)
+				perror("cat");
 			break;
 		case O_WRONLY:
-			shutdown(fd, SHUT_RD);
+			if (shutdown(fd, SHUT_RD) == -1)
+				perror("cat");
 			break;
 		default:
 			break;
