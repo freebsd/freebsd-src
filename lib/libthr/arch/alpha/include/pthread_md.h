@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Suleiman Souhlal
+ * Copyright (c) 2003 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,37 +22,54 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _PTHREAD_MD_H_
+#define	_PTHREAD_MD_H_
 
+#include <stddef.h>
 #include <sys/types.h>
-#include <sys/ucontext.h>
 
-#include <pthread.h>
-#include "thr_private.h"
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
-register struct pthread *_curthread __asm("%r2");
+/*
+ * Variant I tcb. The structure layout is fixed, don't blindly
+ * change it!
+ */
+struct tcb {
+	void			*tcb_dtv;
+	struct pthread		*tcb_thread;
+};
 
-struct pthread *
+#define	_tp	__builtin_thread_pointer()
+#define	_tcb	((struct tcb *)_tp)
+
+struct tcb	*_tcb_ctor(struct pthread *, int);
+void		_tcb_dtor(struct tcb *);
+
+/* Called from the thread to set its private data. */
+static __inline void
+_tcb_set(struct tcb *tcb)
+{
+	__builtin_set_thread_pointer(tcb);
+}
+
+static __inline struct tcb *
+_tcb_get(void)
+{
+	return (_tcb);
+}
+
+extern struct pthread *_thr_initial;
+
+static __inline struct pthread *
 _get_curthread(void)
 {
-	return (_curthread);
-}
-
-void
-_retire_thread(void *v)
-{
-}
-
-void *
-_set_curthread(ucontext_t *uc, struct pthread *thread, int *err)
-{
-	*err = 0;
-	if (uc != NULL)
-		uc->uc_mcontext.mc_gpr[2] = (uint32_t)thread;
-	else
-		_curthread = thread;
+	if (_thr_initial)
+		return (_tcb->tcb_thread);
 	return (NULL);
 }
+
+#endif /* _PTHREAD_MD_H_ */

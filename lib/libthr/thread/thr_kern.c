@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2003 Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2005 David Xu <davidxu@freebsd.org>
+ * Copyright (C) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,120 +27,74 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
-#include <sys/time.h>
-#include <sys/timespec.h>
 #include <pthread.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
 
 #include "thr_private.h"
 
-/* XXX Why can't I get this from time.h? :-( */
-#define timespecsub(vvp, uvp)                                           \
-        do {                                                            \
-                (vvp)->tv_sec -= (uvp)->tv_sec;                         \
-                (vvp)->tv_nsec -= (uvp)->tv_nsec;                       \
-                if ((vvp)->tv_nsec < 0) {                               \
-                        (vvp)->tv_sec--;                                \
-                        (vvp)->tv_nsec += 1000000000;                   \
-                }                                                       \
-        } while (0)
+/*#define DEBUG_THREAD_KERN */
+#ifdef DEBUG_THREAD_KERN
+#define DBG_MSG		stdout_debug
+#else
+#define DBG_MSG(x...)
+#endif
 
-void
-_thread_critical_enter(pthread_t pthread)
+/*
+ * This is called when the first thread (other than the initial
+ * thread) is created.
+ */
+int
+_thr_setthreaded(int threaded)
 {
-	_thread_sigblock();
-	UMTX_LOCK(&pthread->lock);
+	if (((threaded == 0) ^ (__isthreaded == 0)) == 0)
+		return (0);
+
+	__isthreaded = threaded;
+#if 0
+	if (threaded != 0) {
+		_thr_rtld_init();
+	} else {
+		_thr_rtld_fini();
+	}
+#endif
+	return (0);
 }
 
 void
-_thread_critical_exit(pthread_t pthread)
-{
-	UMTX_UNLOCK(&pthread->lock);
-	_thread_sigunblock();
-}
-
-void
-_thread_sigblock()
+_thr_signal_block(struct pthread *curthread)
 {
 	sigset_t set;
-	sigset_t sav;
-
-	/*
-	 * Block all signals.
-	 */
+	
+	if (curthread->sigblock > 0) {
+		curthread->sigblock++;
+		return;
+	}
 	SIGFILLSET(set);
+	SIGDELSET(set, SIGBUS);
+	SIGDELSET(set, SIGILL);
+	SIGDELSET(set, SIGFPE);
+	SIGDELSET(set, SIGSEGV);
 	SIGDELSET(set, SIGTRAP);
-
-	/* If we have already blocked signals, just up the refcount */
-	if (++curthread->signest > 1)
-		return;
-	PTHREAD_ASSERT(curthread->signest == 1,
-	    ("Blocked signal nesting level must be 1!"));
-
-	if (__sys_sigprocmask(SIG_SETMASK, &set, &sav)) {
-		_thread_printf(STDERR_FILENO, "Critical Enter: sig err %d\n",
-		    errno);
-		abort();
-	}
-	curthread->savedsig = sav;
+	__sys_sigprocmask(SIG_BLOCK, &set, &curthread->sigmask);
+	curthread->sigblock++;
 }
 
 void
-_thread_sigunblock()
+_thr_signal_unblock(struct pthread *curthread)
 {
-	sigset_t set;
-
-	/* We might be in a nested 'blocked signal' section */
-	if (--curthread->signest > 0)
-		return;
-	PTHREAD_ASSERT(curthread->signest == 0,
-	    ("Non-Zero blocked signal nesting level."));
-
-	/*
-	 * Restore signals.
-	 */
-	set = curthread->savedsig;
-	if (__sys_sigprocmask(SIG_SETMASK, &set, NULL)) {
-		_thread_printf(STDERR_FILENO, "Critical Exit: sig err %d\n",
-		    errno);
-		abort();
-	}
+	if (--curthread->sigblock == 0)
+		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 }
 
 int
-_thread_suspend(pthread_t pthread, const struct timespec *abstime)
+_thr_send_sig(struct pthread *thread, int sig)
 {
-	struct timespec remaining;
-	struct timespec *ts;
-	int error;
+	return thr_kill(thread->tid, sig);
+}
 
-	/*
-	 * Compute the remainder of the run time.
-	 */
-	if (abstime) {
-		struct timespec now;
-		struct timeval tv;
-
-		GET_CURRENT_TOD(tv);
-		TIMEVAL_TO_TIMESPEC(&tv, &now);
-
-		remaining = *abstime;
-		timespecsub(&remaining, &now);
-		ts = &remaining;
-
-		/*
-		 * NOTE: timespecsub() makes sure the tv_nsec member >= 0.
-		 */
-		if (ts->tv_sec < 0)
-			return (ETIMEDOUT);
-	} else
-		ts = NULL;
-	error = thr_suspend(ts);
-	return (error == -1 ? errno : error);
+void
+_thr_assert_lock_level()
+{
+	PANIC("locklevel <= 0");
 }

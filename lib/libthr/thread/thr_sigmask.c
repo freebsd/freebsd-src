@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>
+ * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,28 +31,22 @@
  *
  * $FreeBSD$
  */
-#include <string.h>
-#include <stdlib.h>
+
 #include <errno.h>
+#include <signal.h>
 #include <pthread.h>
 #include "thr_private.h"
 
-__weak_reference(_pthread_condattr_init, pthread_condattr_init);
+__weak_reference(_pthread_sigmask, pthread_sigmask);
+
+extern int
+_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
 
 int
-_pthread_condattr_init(pthread_condattr_t *attr)
+_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	int ret;
-	pthread_condattr_t pattr;
-
-	if ((pattr = (pthread_condattr_t)
-			malloc(sizeof(struct pthread_cond_attr))) == NULL) {
-		ret = ENOMEM;
-	} else {
-		memcpy(pattr, &pthread_condattr_default,
-				sizeof(struct pthread_cond_attr));
-		*attr = pattr;
-		ret = 0;
-	}
-	return(ret);
+	/* use our overridden verion of _sigprocmask */
+	if (_sigprocmask(how, set, oset))
+		return (errno);
+	return (0);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Michael Telahun Makonnen <mtm@FreeBSD.Org>
+ * Copyright (c) 2003 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,104 +26,82 @@
  * $FreeBSD$
  */
 
-#include <pthread.h>
+#include <errno.h>
 #include <stdlib.h>
-#include <string.h>
+#include <pthread.h>
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_barrier_destroy, pthread_barrier_destroy);
-__weak_reference(_pthread_barrier_init, pthread_barrier_init);
-__weak_reference(_pthread_barrier_wait, pthread_barrier_wait);
+__weak_reference(_pthread_barrier_init,		pthread_barrier_init);
+__weak_reference(_pthread_barrier_wait,		pthread_barrier_wait);
+__weak_reference(_pthread_barrier_destroy,	pthread_barrier_destroy);
 
 int
 _pthread_barrier_destroy(pthread_barrier_t *barrier)
 {
-	if (*barrier == NULL)
+	pthread_barrier_t	bar;
+
+	if (barrier == NULL || *barrier == NULL)
 		return (EINVAL);
-	if ((*barrier)->b_subtotal > 0)
+
+	bar = *barrier;
+	if (bar->b_waiters > 0)
 		return (EBUSY);
-	PTHREAD_ASSERT((*barrier)->b_subtotal == 0,
-	    "barrier count must be zero when destroyed");
-	free(*barrier);
 	*barrier = NULL;
+	free(bar);
 	return (0);
 }
 
 int
 _pthread_barrier_init(pthread_barrier_t *barrier,
-    const pthread_barrierattr_t attr, unsigned int count)
+		      const pthread_barrierattr_t *attr, int count)
 {
-	if (count < 1)
+	pthread_barrier_t	bar;
+
+	if (barrier == NULL || count <= 0)
 		return (EINVAL);
-	*barrier =
-	    (struct pthread_barrier *)malloc(sizeof(struct pthread_barrier));
-	if (*barrier == NULL)
+
+	bar = malloc(sizeof(struct pthread_barrier));
+	if (bar == NULL)
 		return (ENOMEM);
-	memset((void *)*barrier, 0, sizeof(struct pthread_barrier));
-	(*barrier)->b_total = count;
-	TAILQ_INIT(&(*barrier)->b_barrq);
+
+	_thr_umtx_init(&bar->b_lock);
+	bar->b_cycle	= 0;
+	bar->b_waiters	= 0;
+	bar->b_count	= count;
+	*barrier	= bar;
+
 	return (0);
 }
 
 int
 _pthread_barrier_wait(pthread_barrier_t *barrier)
 {
-	struct pthread_barrier *b;
-	struct pthread	       *ptd;
-	int error;
+	struct pthread *curthread = _get_curthread();
+	pthread_barrier_t bar;
+	long cycle;
+	int ret;
 
-	if (*barrier == NULL)
+	if (barrier == NULL || *barrier == NULL)
 		return (EINVAL);
 
-	/*
-	 * Check if threads waiting on the barrier can be released. If
-	 * so, release them and make this last thread the special thread.
-	 */
-	error = 0;
-	b = *barrier;
-	UMTX_LOCK(&b->b_lock);
-	if (b->b_subtotal == (b->b_total - 1)) {
-		TAILQ_FOREACH(ptd, &b->b_barrq, sqe) {
-			PTHREAD_LOCK(ptd);
-			TAILQ_REMOVE(&b->b_barrq, ptd, sqe);
-			ptd->flags &= ~PTHREAD_FLAGS_IN_BARRQ;
-			ptd->flags |= PTHREAD_FLAGS_BARR_REL;
-			PTHREAD_WAKE(ptd);
-			PTHREAD_UNLOCK(ptd);
-		}
-		b->b_subtotal = 0;
-		UMTX_UNLOCK(&b->b_lock);
-		return (PTHREAD_BARRIER_SERIAL_THREAD);
+	bar = *barrier;
+	THR_UMTX_LOCK(curthread, &bar->b_lock);
+	if (++bar->b_waiters == bar->b_count) {
+		/* Current thread is lastest thread */
+		bar->b_waiters = 0;
+		bar->b_cycle++;
+		_thr_umtx_wake(&bar->b_cycle, bar->b_count);
+		THR_UMTX_UNLOCK(curthread, &bar->b_lock);
+		ret = PTHREAD_BARRIER_SERIAL_THREAD;
+	} else {
+		cycle = bar->b_cycle;
+		THR_UMTX_UNLOCK(curthread, &bar->b_lock);
+		do {
+			_thr_umtx_wait(&bar->b_cycle, cycle, NULL);
+			/* test cycle to avoid bogus wakeup */
+		} while (cycle == bar->b_cycle);
+		ret = 0;
 	}
-
-	/*
-	 * More threads need to reach the barrier. Suspend this thread.
-	 */
-	PTHREAD_LOCK(curthread);
-	TAILQ_INSERT_HEAD(&b->b_barrq, curthread, sqe);
-	curthread->flags |= PTHREAD_FLAGS_IN_BARRQ;
-	PTHREAD_UNLOCK(curthread);
-	b->b_subtotal++;
-	PTHREAD_ASSERT(b->b_subtotal < b->b_total,
-	    "the number of threads waiting at a barrier is too large");
-	UMTX_UNLOCK(&b->b_lock);
-	do {
-		error = _thread_suspend(curthread, NULL);
-		if (error == EINTR) {
-			/*
-			 * Make sure this thread wasn't released from
-			 * the barrier while it was handling the signal.
-			 */
-			PTHREAD_LOCK(curthread);
-			if ((curthread->flags & PTHREAD_FLAGS_BARR_REL) != 0) {
-				curthread->flags &= ~PTHREAD_FLAGS_BARR_REL;
-				PTHREAD_UNLOCK(curthread);
-				error = 0;
-				break;
-			}
-			PTHREAD_UNLOCK(curthread);
-		}
-	} while (error == EINTR);
-	return (error);
+	return (ret);
 }

@@ -23,16 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/queue.h>
-
 #include "thr_private.h"
 
 __weak_reference(_pthread_atfork, pthread_atfork);
@@ -41,20 +38,20 @@ int
 _pthread_atfork(void (*prepare)(void), void (*parent)(void),
     void (*child)(void))
 {
+	struct pthread *curthread;
 	struct pthread_atfork *af;
 
-	if (_thread_initial == NULL)
-		_thread_init();
+	_thr_check_init();
 
 	if ((af = malloc(sizeof(struct pthread_atfork))) == NULL)
 		return (ENOMEM);
 
+	curthread = _get_curthread();
 	af->prepare = prepare;
 	af->parent = parent;
 	af->child = child;
-	_pthread_mutex_lock(&_atfork_mutex);
-	TAILQ_INSERT_TAIL(&_atfork_list, af, qe);
-	_pthread_mutex_unlock(&_atfork_mutex);
+	THR_UMTX_LOCK(curthread, &_thr_atfork_lock);
+	TAILQ_INSERT_TAIL(&_thr_atfork_list, af, qe);
+	THR_UMTX_UNLOCK(curthread, &_thr_atfork_lock);
 	return (0);
 }
-

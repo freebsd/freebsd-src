@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2000 Jason Evans <jasone@freebsd.org>.
- * Copyright (c) 2002 Daniel M. Eischen <deischen@freebsd.org>
- * Copyright (c) 2003 Jeff Roberson <jeff@freebsd.org>
+ * Copyright (C) 2005 David Xu <davidxu@freebsd.org>.
+ * Copyright (c) 2003 Daniel Eischen <deischen@freebsd.org>.
+ * Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -64,24 +64,21 @@
  *
  */
 
-#include <sys/cdefs.h>
-#include <sys/fcntl.h>
+#include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/select.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
-
 #include <aio.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -89,33 +86,35 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "thr_private.h"
 
-extern spinlock_t *__malloc_lock;
-
 extern int __creat(const char *, mode_t);
-extern int __sleep(unsigned int);
-extern int __sys_nanosleep(const struct timespec *, struct timespec *);
-extern int __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-extern int __sys_sigaction(int, const struct sigaction *, struct sigaction *);
+extern int __pause(void);
+extern int __pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
+		const struct timespec *timo, const sigset_t *mask);
+extern unsigned int __sleep(unsigned int);
 extern int __system(const char *);
 extern int __tcdrain(int);
 extern pid_t __wait(int *);
 extern pid_t __sys_wait4(pid_t, int *, int, struct rusage *);
 extern pid_t __waitpid(pid_t, int *, int);
 
-__weak_reference(_accept, accept);
-
+__weak_reference(__accept, accept);
 int
-_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+__accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
+	struct pthread *curthread;
+	int oldcancel;
 	int ret;
 
-	_thread_enter_cancellation_point();
+	curthread = _get_curthread();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_accept(s, addr, addrlen);
-	_thread_leave_cancellation_point();
-	return (ret);
+	_thr_cancel_leave(curthread, oldcancel);
+
+ 	return (ret);
 }
 
 __weak_reference(_aio_suspend, aio_suspend);
@@ -124,222 +123,162 @@ int
 _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
     timespec *timeout)
 {
-	int	ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_aio_suspend(iocbs, niocb, timeout);
-	_thread_leave_cancellation_point();
-
-	return ret;
-}
-
-__weak_reference(_close, close);
-
-int
-_close(int fd)
-{
-	int	ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_close(fd);
-	_thread_leave_cancellation_point();
-	
-	return ret;
-}
-
-__weak_reference(_connect, connect);
-
-int
-_connect(int s, const struct sockaddr *n, socklen_t l)
-{
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	int ret;
 
-	_thread_enter_cancellation_point();
-	ret = __sys_connect(s, n, l);
-	_thread_leave_cancellation_point();
-	return ret;
+	oldcancel = _thr_cancel_enter(curthread);
+	ret = __sys_aio_suspend(iocbs, niocb, timeout);
+	_thr_cancel_leave(curthread, oldcancel);
+
+	return (ret);
 }
-	
-__weak_reference(_creat, creat);
+
+__weak_reference(__close, close);
 
 int
-_creat(const char *path, mode_t mode)
+__close(int fd)
 {
+	struct pthread	*curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
+	ret = __sys_close(fd);
+	_thr_cancel_leave(curthread, oldcancel);
+	
+	return (ret);
+}
+
+__weak_reference(__connect, connect);
+
+int
+__connect(int fd, const struct sockaddr *name, socklen_t namelen)
+{
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
+	int ret;
+
+	curthread = _get_curthread();
+	oldcancel = _thr_cancel_enter(curthread);
+	ret = __sys_connect(fd, name, namelen);
+	_thr_cancel_leave(curthread, oldcancel);
+
+ 	return (ret);
+}
+
+__weak_reference(___creat, creat);
+
+int
+___creat(const char *path, mode_t mode)
+{
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
+	int ret;
+
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __creat(path, mode);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	
 	return ret;
 }
 
-__weak_reference(_fcntl, fcntl);
+__weak_reference(__fcntl, fcntl);
 
 int
-_fcntl(int fd, int cmd,...)
+__fcntl(int fd, int cmd,...)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 	va_list	ap;
 	
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 
 	va_start(ap, cmd);
 	switch (cmd) {
-		case F_DUPFD:
-		case F_SETFD:
-		case F_SETFL:
-			ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
-			break;
-		case F_GETFD:
-		case F_GETFL:
-			ret = __sys_fcntl(fd, cmd);
-			break;
-		default:
-			ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
+	case F_DUPFD:
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
+		break;
+	case F_SETFD:
+	case F_SETFL:
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, int));
+		break;
+	case F_GETFD:
+	case F_GETFL:
+		ret = __sys_fcntl(fd, cmd);
+		break;
+	default:
+		ret = __sys_fcntl(fd, cmd, va_arg(ap, void *));
 	}
 	va_end(ap);
 
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
-	return ret;
+	return (ret);
 }
 
-__weak_reference(_fork, fork);
+__weak_reference(__fsync, fsync);
 
 int
-_fork(int fd)
+__fsync(int fd)
 {
-	int	ret;
-	struct pthread_atfork *af;
-
-	_pthread_mutex_lock(&_atfork_mutex);
-
-	/* Run down atfork prepare handlers. */
-	TAILQ_FOREACH_REVERSE(af, &_atfork_list, atfork_head, qe) {
-		if (af->prepare != NULL)
-			af->prepare();
-	}
-
- 	/*
-	 * Fork a new process.
-	 * XXX - The correct way to handle __malloc_lock is to have
-	 *	 the threads libraries (or libc) install fork handlers for it
-	 *	 in their initialization routine. We should probably
-	 *	 do that for all the locks in libc.
-	 */
-	if (__isthreaded && __malloc_lock != NULL)
-		_SPINLOCK(__malloc_lock);
-	ret = __sys_fork();
- 	if (ret == 0) {
-		__isthreaded = 0;
-		if (__malloc_lock != NULL)
-			memset(__malloc_lock, 0, sizeof(spinlock_t));
-		init_tdlist(curthread, 1);
-		init_td_common(curthread, NULL, 1);
-		_mutex_reinit(&_atfork_mutex);
-
-		/* Run down atfork child handlers. */
-		TAILQ_FOREACH(af, &_atfork_list, qe) {
-			if (af->child != NULL)
-				af->child();
-		}
- 	} else if (ret != -1) {
-		/* Run down atfork parent handlers. */
-		TAILQ_FOREACH(af, &_atfork_list, qe) {
-			if (af->parent != NULL)
-			af->parent();
-		}
-	}
-
-	if (ret != 0) {
-		if (__isthreaded && __malloc_lock != NULL)
-			_SPINUNLOCK(__malloc_lock);
-		_pthread_mutex_unlock(&_atfork_mutex);
-	}
-	return ret;
-}
-
-
-__weak_reference(_fsync, fsync);
-
-int
-_fsync(int fd)
-{
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_fsync(fd);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
-	return ret;
+	return (ret);
 }
 
-__weak_reference(_msgrcv, msgrcv);
+__weak_reference(__msync, msync);
 
 int
-_msgrcv(int id, void *p, size_t sz, long t, int f)
+__msync(void *addr, size_t len, int flags)
 {
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_msgrcv(id, p, sz, t, f);
-	_thread_leave_cancellation_point();
-	return ret;
-}
-
-__weak_reference(_msgsnd, msgsnd);
-
-int
-_msgsnd(int id, const void *p, size_t sz, int f)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_msgsnd(id, p, sz, f);
-	_thread_leave_cancellation_point();
-	return ret;
-}
-
-__weak_reference(_msync, msync);
-
-int
-_msync(void *addr, size_t len, int flags)
-{
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_msync(addr, len, flags);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-__weak_reference(_nanosleep, nanosleep);
+__weak_reference(__nanosleep, nanosleep);
 
 int
-_nanosleep(const struct timespec * time_to_sleep, struct timespec *
-    time_remaining)
+__nanosleep(const struct timespec *time_to_sleep,
+    struct timespec *time_remaining)
 {
-	int	ret;
+	struct pthread *curthread = _get_curthread();
+	int		oldcancel;
+	int		ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_nanosleep(time_to_sleep, time_remaining);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
-	return ret;
+	return (ret);
 }
 
-__weak_reference(_open, open);
+__weak_reference(__open, open);
 
 int
-_open(const char *path, int flags,...)
+__open(const char *path, int flags,...)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 	int	mode = 0;
 	va_list	ap;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	
 	/* Check if the file is being created: */
 	if (flags & O_CREAT) {
@@ -350,325 +289,202 @@ _open(const char *path, int flags,...)
 	}
 	
 	ret = __sys_open(path, flags, mode);
-	_thread_leave_cancellation_point();
+
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-/*
- * The implementation in libc calls sigpause(), which is also
- * a cancellation point.
- */
-#if 0
 __weak_reference(_pause, pause);
 
 int
 _pause(void)
 {
-	_thread_enter_cancellation_point();
-	__pause();
-	_thread_leave_cancellation_point();
-}
-#endif
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
+	int	ret;
 
-__weak_reference(_poll, poll);
+	oldcancel = _thr_cancel_enter(curthread);
+	ret = __pause();
+	_thr_cancel_leave(curthread, oldcancel);
+	
+	return ret;
+}
+
+__weak_reference(__poll, poll);
 
 int
-_poll(struct pollfd *fds, unsigned int nfds, int timeout)
+__poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	int ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_poll(fds, nfds, timeout);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-/* XXXFix */
-#if 0
-__weak_reference(_pread, pread);
-
-ssize_t
-_pread(int d, void *b, size_t n, off_t o)
-{
-	ssize_t ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_pread(d, b, n, o);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-#endif
-
-/* The libc version calls select(), which is also a cancellation point. */
-#if 0
-extern int __pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
-		const struct timespec *timo, const sigset_t *mask);
+__weak_reference(_pselect, pselect);
 
 int 
-pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
+_pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 	const struct timespec *timo, const sigset_t *mask)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	int ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __pselect(count, rfds, wfds, efds, timo, mask);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return (ret);
 }
-#endif
-
-/* XXXFix */
-#if 0
-__weak_reference(_pwrite, pwrite);
-
-ssize_t
-_pwrite(int d, const void *b, size_t n, off_t o)
-{
-	ssize_t ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_pwrite(d, b, n, o);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-#endif
 
 __weak_reference(_raise, raise);
 
 int
 _raise(int sig)
 {
-	int error;
+	int ret;
 
-	error = pthread_kill(pthread_self(), sig);
-	if (error != 0) {
-		errno = error;
-		error = -1;
+	if (!_thr_isthreaded())
+		ret = kill(getpid(), sig);
+	else {
+		ret = pthread_kill(pthread_self(), sig);
+		if (ret != 0) {
+			errno = ret;
+			ret = -1;
+		}
 	}
-	return (error);
+	return (ret);
 }
 
-__weak_reference(_read, read);
+__weak_reference(__read, read);
 
 ssize_t
-_read(int fd, void *buf, size_t nbytes)
+__read(int fd, void *buf, size_t nbytes)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	ssize_t	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_read(fd, buf, nbytes);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-__weak_reference(_readv, readv);
+__weak_reference(__readv, readv);
 
 ssize_t
-_readv(int fd, const struct iovec *iov, int iovcnt)
+__readv(int fd, const struct iovec *iov, int iovcnt)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	ssize_t ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_readv(fd, iov, iovcnt);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-/*
- * The libc implementation of recv() calls recvfrom, which
- * is also a cancellation point.
- */
-#if 0
-__weak_reference(_recv, recv);
+__weak_reference(__recvfrom, recvfrom);
 
 ssize_t
-_recv(int s, void *b, size_t l, int f)
-{
-	ssize_t ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_recv(s, b, l, f);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-#endif
-
-__weak_reference(_recvfrom, recvfrom);
-
-ssize_t
-_recvfrom(int s, void *b, size_t l, int f, struct sockaddr *from,
+__recvfrom(int s, void *b, size_t l, int f, struct sockaddr *from,
     socklen_t *fl)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	ssize_t ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_recvfrom(s, b, l, f, from, fl);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	return (ret);
 }
 
-__weak_reference(_recvmsg, recvmsg);
+__weak_reference(__recvmsg, recvmsg);
 
 ssize_t
-_recvmsg(int s, struct msghdr *m, int f)
+__recvmsg(int s, struct msghdr *m, int f)
 {
+	struct pthread *curthread = _get_curthread();
 	ssize_t ret;
+	int oldcancel;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_recvmsg(s, m, f);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	return (ret);
 }
 
-__weak_reference(_select, select);
+__weak_reference(__select, select);
 
 int 
-_select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+__select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	struct timeval *timeout)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	int ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_select(numfds, readfds, writefds, exceptfds, timeout);
-	_thread_leave_cancellation_point();
-
+	_thr_cancel_leave(curthread, oldcancel);
 	return ret;
 }
 
-/*
- * Libc implements this by calling _sendto(), which is also a
- * cancellation point.
- */
-#if 0
-__weak_reference(_send, send);
+__weak_reference(__sendmsg, sendmsg);
 
 ssize_t
-_send(int s, const void *m, size_t l, int f)
+__sendmsg(int s, const struct msghdr *m, int f)
 {
+	struct pthread *curthread = _get_curthread();
 	ssize_t ret;
+	int oldcancel;
 
-	_thread_enter_cancellation_point();
-	ret = _sendto(s, m, l, f, NULL, 0);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-#endif
-
-__weak_reference(_sendmsg, sendmsg);
-
-ssize_t
-_sendmsg(int s, const struct msghdr *m, int f)
-{
-	ssize_t ret;
-
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_sendmsg(s, m, f);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	return (ret);
 }
 
-__weak_reference(_sendto, sendto);
+__weak_reference(__sendto, sendto);
 
 ssize_t
-_sendto(int s, const void *m, size_t l, int f, const struct sockaddr *t,
+__sendto(int s, const void *m, size_t l, int f, const struct sockaddr *t,
     socklen_t tl)
 {
+	struct pthread *curthread = _get_curthread();
 	ssize_t ret;
+	int oldcancel;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_sendto(s, m, l, f, t, tl);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	return (ret);
 }
-
-/*
- * The implementation in libc calls sigsuspend(), which is also
- * a cancellation point.
- */
-#if 0
-__weak_reference(_sigpause, sigpause);
-
-int
-_sigpause(int m)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_sigpause(m);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-#endif
-
-__weak_reference(_sigsuspend, sigsuspend);
-
-int
-_sigsuspend(const sigset_t *m)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_sigsuspend(m);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-
-__weak_reference(_sigtimedwait, sigtimedwait);
-
-int
-_sigtimedwait(const sigset_t *s, siginfo_t *i, const struct timespec *t)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_sigtimedwait(s, i, t);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-
-__weak_reference(_sigwait, sigwait);
-
-int
-_sigwait(const sigset_t *s, int *i)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_sigwait(s, i);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-
-__weak_reference(_sigwaitinfo, sigwaitinfo);
-
-int
-_sigwaitinfo(const sigset_t *s, siginfo_t *i)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_sigwaitinfo(s, i);
-	_thread_leave_cancellation_point();
-	return (ret);
-}
-
-__weak_reference(_sleep, sleep);
 
 unsigned int
 _sleep(unsigned int seconds)
 {
+	struct pthread *curthread = _get_curthread();
+	int		oldcancel;
 	unsigned int	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sleep(seconds);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	
-	return ret;
+	return (ret);
 }
 
 __weak_reference(_system, system);
@@ -676,120 +492,117 @@ __weak_reference(_system, system);
 int
 _system(const char *string)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __system(string);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	
 	return ret;
 }
-
 
 __weak_reference(_tcdrain, tcdrain);
 
 int
 _tcdrain(int fd)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	int	ret;
 	
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __tcdrain(fd);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
-	return ret;
-}
-
-/*
- * The usleep() implementation calls nanosleep(), which is also
- * a cancellation point.
- */
-#if 0
-__weak_reference(_usleep, usleep);
-
-int
-_usleep(useconds_t u)
-{
-	int ret;
-
-	_thread_enter_cancellation_point();
-	ret = __sys_usleep(u);
-	_thread_leave_cancellation_point();
 	return (ret);
 }
-#endif
+
+__weak_reference(_vfork, vfork);
+
+int
+_vfork(void)
+{
+	return (fork());
+}
 
 __weak_reference(_wait, wait);
 
 pid_t
 _wait(int *istat)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	pid_t	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __wait(istat);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-__weak_reference(_wait4, wait4);
+__weak_reference(__wait4, wait4);
 
 pid_t
-_wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
+__wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
 {
+	struct pthread *curthread = _get_curthread();
+	int oldcancel;
 	pid_t ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_wait4(pid, istat, options, rusage);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-/*
- * The libc implementation of waitpid calls wait4().
- */
-#if 0
 __weak_reference(_waitpid, waitpid);
 
 pid_t
 _waitpid(pid_t wpid, int *status, int options)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	pid_t	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __waitpid(wpid, status, options);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 	
 	return ret;
 }
-#endif
 
-__weak_reference(_write, write);
+__weak_reference(__write, write);
 
 ssize_t
-_write(int fd, const void *buf, size_t nbytes)
+__write(int fd, const void *buf, size_t nbytes)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	ssize_t	ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_write(fd, buf, nbytes);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }
 
-__weak_reference(_writev, writev);
+__weak_reference(__writev, writev);
 
 ssize_t
-_writev(int fd, const struct iovec *iov, int iovcnt)
+__writev(int fd, const struct iovec *iov, int iovcnt)
 {
+	struct pthread *curthread = _get_curthread();
+	int	oldcancel;
 	ssize_t ret;
 
-	_thread_enter_cancellation_point();
+	oldcancel = _thr_cancel_enter(curthread);
 	ret = __sys_writev(fd, iov, iovcnt);
-	_thread_leave_cancellation_point();
+	_thr_cancel_leave(curthread, oldcancel);
 
 	return ret;
 }

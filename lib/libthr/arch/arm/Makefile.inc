@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+.PATH:	${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
+
+CFLAGS+= -DARM_HAS_ATOMIC_CMPSET_32
+
+SRCS+=	pthread_md.c

@@ -1,9 +1,12 @@
-/*
- * Copyright (c) 2003 The FreeBSD Project. All rights reserved.
+/*-
+ * Copyright (c) 2003 Jake Burkholder <jake@freebsd.org>.
+ * Copyright (c) 2003 Marcel Moolenaar
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
@@ -21,35 +24,64 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*
+ * Machine-dependent thread prototypes/definitions.
+ */
+#ifndef _PTHREAD_MD_H_
+#define	_PTHREAD_MD_H_
 
-#include <sys/types.h>
-#include <sys/ucontext.h>
+#include <stddef.h>
 
-#include <pthread.h>
-#include "thr_private.h"
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
-void *
-_set_curthread(ucontext_t *uc, struct pthread *thread, int *err)
+/*
+ * Variant II tcb, first two members are required by rtld.
+ * %g7 points to the structure.
+ */
+struct tcb {
+	struct tcb              *tcb_self;	/* required by rtld */
+	void                    *tcb_dtv;	/* required by rtld */
+	struct pthread          *tcb_thread;	/* our hook */
+	void			*tcb_spare[1];
+};
+
+register struct tcb *_tp __asm("%g7");
+
+#define _tcb	(_tp)
+
+/*
+ * The tcb constructors.
+ */
+struct tcb	*_tcb_ctor(struct pthread *, int);
+void		_tcb_dtor(struct tcb *);
+
+/* Called from the thread to set its private data. */
+static __inline void
+_tcb_set(struct tcb *tcb)
 {
-	*err = 0;
-	if (uc != NULL)
-		uc->uc_mcontext.mc_thrptr = (uint64_t)thread;
-	else
-		__builtin_set_thread_pointer(thread);
+	_tp = tcb;
+}
+
+/*
+ * Get the current tcb.
+ */
+static __inline struct tcb *
+_tcb_get(void)
+{
+	return (_tcb);
+}
+
+extern struct pthread *_thr_initial;
+
+static __inline struct pthread *
+_get_curthread(void)
+{
+	if (_thr_initial)
+		return (_tcb->tcb_thread);
 	return (NULL);
 }
 
-struct pthread *
-_get_curthread(void)
-{
-	return (__builtin_thread_pointer());
-}
-
-void
-_retire_thread(void *v)
-{
-}
+#endif /* _PTHREAD_MD_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 Jeffrey Hsu <hsu@freebsd.org>.
+ * Copyright (c) 2004 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,26 +31,29 @@
  *
  * $FreeBSD$
  */
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
+
+#include <stddef.h>
 #include <pthread.h>
+#include <rtld.h>
+
 #include "thr_private.h"
 
-__weak_reference(_pthread_mutexattr_init, pthread_mutexattr_init);
+/* A collection of symbols needed by debugger */
 
-int
-_pthread_mutexattr_init(pthread_mutexattr_t *attr)
-{
-	pthread_mutexattr_t pattr;
-
-	if ((pattr = (pthread_mutexattr_t)
-			malloc(sizeof(struct pthread_mutex_attr))) == NULL)
-		return (ENOMEM);
-
-	memcpy(pattr, &pthread_mutexattr_default,
-	    sizeof(struct pthread_mutex_attr));
-	*attr = pattr;
-
-	return (0);
-}
+/* int _libthr_debug */
+int _thread_off_tcb = offsetof(struct pthread, tcb);
+int _thread_off_tid = offsetof(struct pthread, tid);
+int _thread_off_next = offsetof(struct pthread, tle.tqe_next);
+int _thread_off_attr_flags = offsetof(struct pthread, attr.flags);
+int _thread_off_thr_locklevel = offsetof(struct pthread, locklevel);
+int _thread_off_linkmap = offsetof(Obj_Entry, linkmap);
+int _thread_off_tlsindex = offsetof(Obj_Entry, tlsindex);
+int _thread_off_isdead = offsetof(struct pthread, terminated);
+int _thread_size_key = sizeof(struct pthread_key);
+int _thread_off_key_allocated = offsetof(struct pthread_key, allocated);
+int _thread_off_key_destructor = offsetof(struct pthread_key, destructor);
+int _thread_max_keys = PTHREAD_KEYS_MAX;
+int _thread_off_dtv = DTV_OFFSET;
+int _thread_off_state = offsetof(struct pthread, state);
+int _thread_state_running = PS_RUNNING;
+int _thread_state_zoombie = PS_DEAD;
