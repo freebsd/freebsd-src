@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: mbr.c,v 1.7 1998/07/13 08:22:55 julian Exp $
+ *	$Id: mbr.c,v 1.8 1998/07/20 04:12:39 julian Exp $
  */
 
 #include <sys/param.h>
@@ -190,13 +190,16 @@ RR;
 		error = bp->b_error;
 		bp->b_flags |= B_INVAL | B_AGE;
 		brelse(bp);
+		if (bootverbose)
+			printf ("failed.. IO error ");
 		goto nope;
 	}
 	cp = bp->b_data;
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		bp->b_flags |= B_INVAL | B_AGE;
 		brelse(bp);
-		error = EINVAL;
+		if (bootverbose)
+			printf ("rejected.. bad magic ");
 		goto nope;
 	}
 	dp0 = (struct dos_partition *) (cp + DOSPARTOFF);
@@ -236,8 +239,6 @@ RR;
 		}
 	}
 
-
-
 	/*
 	 * The first block of the dos code is marked like a valid MBR.
 	 * Try to distinguish this case by doing a sanity check on the table.
@@ -248,18 +249,21 @@ RR;
 	 */
 	for (part = 0, dp = table; part < NDOSPART; part++, dp++) {
 		if (dp->dp_flag & 0x7f) {
-			printf ("rejected.. bad flag ");
+			if (bootverbose)
+				printf ("rejected.. bad flag ");
 			goto nope;
 		}
 		if ((dp->dp_typ) && (dp->dp_size) && (dp->dp_start == 0)) {
-			printf("rejected.. Slice includes MBR ");
+			if (bootverbose)
+				printf("rejected.. Slice includes MBR ");
 			goto nope;
 		}
 		if (dp->dp_flag == 0x80)
 			numactive++;
 	}
 	if (numactive > 1) {
-		printf ("rejected.. multiple active ");
+		if (bootverbose)
+			printf ("rejected.. multiple active ");
 		goto nope;
 	}
 	/*-
@@ -308,6 +312,8 @@ RR;
 	 * Be aware that this may queue up one (or more) IO requests
 	 * for each subslice created.
 	 */
+	if (bootverbose)
+		printf("yep \n");
 	dp = dp0;
 	for (part = 0; part < NDOSPART; part++, dp++) {
 		int i;
@@ -414,6 +420,7 @@ printf(" part %d, start=%d, size=%d\n", part + 1, dp->dp_start, dp->dp_size);
 	}
 	return (0);
 nope:
+	printf("nope\n");
 	mbr_revoke(pd);
 	return (error);
 }
