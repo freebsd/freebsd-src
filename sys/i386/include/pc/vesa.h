@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.h,v 1.3 1999/01/08 12:57:06 yokota Exp $
+ * $Id: vesa.h,v 1.4 1999/01/11 03:18:20 yokota Exp $
  */
 
 #ifndef _MACHINE_PC_VESA_H
@@ -105,7 +105,7 @@ struct vesa_mode
     /* 2.0 implementations */
     u_int32_t		v_lfb;
     u_int32_t		v_offscreen;
-    u_int8_t		v_offscreensize;
+    u_int16_t		v_offscreensize;
 };
 
 #ifdef KERNEL
