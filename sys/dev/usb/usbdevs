@@ -408,6 +408,7 @@ product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
 product INSYSTEM F5U002		0x0002	Parallel printer adapter
 product INSYSTEM ISD110		0x0200  IDE adapter ISD110
 product INSYSTEM ISD105		0x0202  IDE adapter ISD105
+product INSYSTEM USBCABLE	0x081a	USB cable
 
 /* Intel products */
 product INTEL TESTBOARD		0x9890	82930 test board
