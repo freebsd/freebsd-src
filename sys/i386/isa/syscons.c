@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.4 1996/11/19 17:25:31 nate Exp $
+ *  $Id: syscons.c,v 1.182.2.5 1996/12/03 10:47:43 phk Exp $
  */
 
 #include "sc.h"
@@ -2429,7 +2429,17 @@ static scr_stat
 static void
 init_scp(scr_stat *scp)
 {
-    scp->mode = M_VGA_C80x25;
+    if (crtc_vga)
+	if (crtc_addr == MONO_BASE)
+	    scp->mode = M_VGA_M80x25;
+	else
+	    scp->mode = M_VGA_C80x25;
+    else
+	if (crtc_addr == MONO_BASE)
+	    scp->mode = M_B80x25;
+	else
+	    scp->mode = M_C80x25;
+
     scp->font_size = FONT_16;
     scp->xsize = COL;
     scp->ysize = ROW;
@@ -3246,12 +3256,21 @@ set_normal_mode()
     outb(GDCIDX, 0x04); outb(GDCREG, modetable[0x04+55]);
     outb(GDCIDX, 0x05); outb(GDCREG, modetable[0x05+55]);
     outb(GDCIDX, 0x06); outb(GDCREG, modetable[0x06+55]);
+    if (crtc_addr == MONO_BASE) {
+	outb(GDCIDX, 0x06); outb(GDCREG,(modetable[0x06+55] & 0x03) | 0x08);
+    }
+    else {
+	outb(GDCIDX, 0x06); outb(GDCREG,(modetable[0x06+55] & 0x03) | 0x0c);
+    }
 #else
     outw(TSIDX, 0x0002 | (modetable[0x02+4]<<8));
     outw(TSIDX, 0x0004 | (modetable[0x04+4]<<8));
     outw(GDCIDX, 0x0004 | (modetable[0x04+55]<<8));
     outw(GDCIDX, 0x0005 | (modetable[0x05+55]<<8));
-    outw(GDCIDX, 0x0006 | (modetable[0x06+55]<<8));
+    if (crtc_addr == MONO_BASE)
+        outw(GDCIDX, 0x0006 | (((modetable[0x06+55] & 0x03) | 0x08)<<8));
+    else
+        outw(GDCIDX, 0x0006 | (((modetable[0x06+55] & 0x03) | 0x0c)<<8));
 #endif
     splx(s);
 }
