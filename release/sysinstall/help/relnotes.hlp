@@ -58,6 +58,10 @@ With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
 Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
 to the kernel, and BSD/OS's contributed dosemu has been ported.
 
+The SA_NOCLDWAIT flags has been implemented, featuring the System V
+option where a process can express its wish to never get zombies for
+dead children.
+
 
 SECURITY CHANGES:
 
