@@ -306,7 +306,7 @@ reinstall it either with /stand/sysinstall or with boot0cfg(8). See
 "man boot0cfg" for details.
 %
 Need to see the calendar for this month? Simply type "cal".  To see the 
-whole year, type "cal 2001". 
+whole year, type "cal -y". 
 		-- Dru <genesis@istar.ca>
 %
 Need to quickly return to your home directory? Type "cd". 
