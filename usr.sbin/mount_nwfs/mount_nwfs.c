@@ -79,7 +79,8 @@ main(int argc, char *argv[]) {
 	struct nw_entry_info einfo;
 	struct tm *tm;
 	time_t ltime;
-	int opt, error, mntflags, nlsopt, wall_clock, len;
+	int opt, error, mntflags, nlsopt, wall_clock;
+	size_t len;
 	int mib[2];
 	char *p, *p1, tmp[1024];
 	u_char *pv;
