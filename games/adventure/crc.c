@@ -113,14 +113,14 @@ u_long crcval;
 u_int step;
 
 void 
-crc_start()
+crc_start(void)
 {
 	crcval = step = 0;
 }
 
-u_long crc(ptr, nr) /* Process nr bytes at a time; ptr points to them */
-const char *ptr;
-int nr;
+/* Process nr bytes at a time; ptr points to them */
+u_long
+crc(const char *ptr, int nr)
 {
 	int 	i;
 	const char 	*p;

@@ -51,7 +51,7 @@ static const char rcsid[] =
 #include "hdr.h"
 
 int
-score()                                         /* sort of like 20000   */
+score(void)                                     /* sort of like 20000   */
 {       int scor,i;
 	mxscor=scor=0;
 	for (i=50; i<=maxtrs; i++)
@@ -87,9 +87,10 @@ score()                                         /* sort of like 20000   */
 	return(scor);
 }
 
+/* entry=1 means goto 13000 */  /* game is over         */
+/* entry=2 means goto 20000 */ /* 3=19000 */
 void
-done(entry)     /* entry=1 means goto 13000 */  /* game is over         */
-int entry;      /* entry=2 means goto 20000 */ /* 3=19000 */
+done(int entry)
 {       int i,sc;
 	if (entry==1) mspeak(1);
 	if (entry==3) rspeak(136);
@@ -117,8 +118,7 @@ int entry;      /* entry=2 means goto 20000 */ /* 3=19000 */
 
 
 void
-die(entry)                                      /* label 90             */
-int entry;
+die(int entry)                                  /* label 90             */
 {       int i;
 	if (entry != 99)
 	{       rspeak(23);
