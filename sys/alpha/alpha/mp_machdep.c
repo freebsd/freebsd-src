@@ -430,8 +430,6 @@ smp_invltlb()
         ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\
             (u_quad_t)((prof)->pr_scale)) >> 16) & ~1)
 
-extern long	cp_time[CPUSTATES];
-
 static void
 addugd_intr_forwarded(struct proc *p, int id, int *astmap)
 {
@@ -950,7 +948,7 @@ smp_ipi_selected(u_int32_t cpus, u_int64_t ipi)
 {
 	struct globaldata *globaldata;
 
-	CTR2(KTR_SMP, "smp_ipi_selected", cpus, ipi);
+	CTR2(KTR_SMP, "smp_ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
 	alpha_mb();
 	while (cpus) {
 		int cpuno = ffs(cpus) - 1;
@@ -1022,7 +1020,7 @@ smp_handle_ipi(struct trapframe *frame)
 	u_int64_t ipi;
 	int cpuno = PCPU_GET(cpuno);
 
-	CTR1(KTR_SMP, "smp_handle_ipi(), ipis=%x", ipis);
+	CTR1(KTR_SMP, "smp_handle_ipi(), ipis=%lx", ipis);
 	while (ipis) {
 		/*
 		 * Find the lowest set bit.
