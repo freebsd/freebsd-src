@@ -73,9 +73,6 @@ run_interrupt_driven_config_hooks(dummy)
 	     hook_entry != NULL;
 	     hook_entry = next_entry) {
 		next_entry = TAILQ_NEXT(hook_entry, ich_links);
-		printf("IDCH: %p(%p)\n",
-		     hook_entry->ich_func,
-		     hook_entry->ich_arg);
 		(*hook_entry->ich_func)(hook_entry->ich_arg);
 	}
 
