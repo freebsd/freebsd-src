@@ -398,13 +398,9 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	 * now rather than having to unravel this later.
 	 */
 	if (cp->geom->spoiled != NULL && cp->spoiled) {
-		KASSERT(dcr >= 0, ("spoiled but dcr = %d", dcr));
-		KASSERT(dcw >= 0, ("spoiled but dce = %d", dcw));
-		KASSERT(dce >= 0, ("spoiled but dcw = %d", dce));
-		KASSERT(cp->acr == 0, ("spoiled but cp->acr = %d", cp->acr));
-		KASSERT(cp->acw == 0, ("spoiled but cp->acw = %d", cp->acw));
-		KASSERT(cp->ace == 0, ("spoiled but cp->ace = %d", cp->ace));
-		return(ENXIO);
+		KASSERT(dcr <= 0, ("spoiled but dcr = %d", dcr));
+		KASSERT(dcw <= 0, ("spoiled but dce = %d", dcw));
+		KASSERT(dce <= 0, ("spoiled but dcw = %d", dce));
 	}
 
 	/*
