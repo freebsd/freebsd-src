@@ -4,7 +4,7 @@
 
 PROG=	a2p
 CFLAGS+=-I${PERL5SRC}/x2p -I${.OBJDIR} -I${.OBJDIR}/temp
-LDFLAGS+=-lperl
+LDFLAGS+=-lperl -lm -lcrypt
 SRCS=	a2p.c hash.c str.c util.c walk.c config.h
 
 beforedepend all: config.h temp
