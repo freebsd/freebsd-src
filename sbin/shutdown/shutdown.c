@@ -330,7 +330,7 @@ die_you_gravy_sucking_pig_dog()
 	(void)printf("\r\nSystem shutdown time has arrived\007\007\r\n");
 	if (killflg) {
 		(void)printf("\rbut you'll have to do it yourself\r\n");
-		finish(0);
+		exit(0);
 	}
 	if (dofast)
 		doitfast();
