@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.12 1997/10/08 15:31:27 jkh Exp $
+ * $Id: index.c,v 1.38.2.13 1997/11/13 11:44:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,6 +83,7 @@ static char *descrs[] = {
     "emulation", "Utilities for emulating other OS types.",
     "emulators", "Utilities for emulating other OS types.",
     "games", "Various and sundry amusements.",
+    "german", "Ported software for Germanic countries.",
     "graphics", "Graphics libraries and utilities.",
     "japanese", "Ported software for the Japanese market.",
     "korean", "Ported software for the Korean market.",
@@ -110,9 +111,12 @@ static char *descrs[] = {
     "textproc", "Text processing/search utilities.",
     "tcl75", "TCL v7.5 and packages which depend on it.",
     "tcl76", "TCL v7.6 and packages which depend on it.",
+    "tcl80", "TCL v8.0 and packages which depend on it.",
+    "tcl81", "TCL v8.1 and packages which depend on it.",
     "tk41", "Tk4.1 and packages which depend on it.",
     "tk42", "Tk4.2 and packages which depend on it.",
     "tk80", "Tk8.0 and packages which depend on it.",
+    "tk81", "Tk8.1 and packages which depend on it.",
     "troff", "TROFF Text formatting utilities.",
     "utils", "Various user utilities.",
     "utilities", "Various user utilities.",
