@@ -180,7 +180,7 @@ ar_attach_raid(struct ar_softc *rdp, int update)
     rdp->disk.d_mediasize = (off_t)rdp->total_sectors * DEV_BSIZE;
     rdp->disk.d_fwsectors = rdp->sectors;
     rdp->disk.d_fwheads = rdp->heads;
-    rdp->disk.d_maxsize = 256 * DEV_BSIZE;
+    rdp->disk.d_maxsize = 128 * DEV_BSIZE;
     rdp->disk.d_drv1 = rdp;
     disk_create(rdp->lun, &rdp->disk, 0, NULL, NULL);
 
