@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.8 1998/12/27 18:03:29 dfr Exp $
+ * $Id: pcibus.c,v 1.9 1999/04/16 21:21:39 peter Exp $
  *
  */
 
@@ -183,7 +183,10 @@ alpha_platform_setup_ide_intr(int chan, driver_intr_t *fn, void *arg)
 		void *junk;
 		struct resource *res;
 		res = isa_alloc_intr(0, 0, irqs[chan]);
-		return isa_setup_intr(0, 0, res, fn, arg, &junk);
+		if (res)
+			return isa_setup_intr(0, 0, res, fn, arg, &junk);
+		else
+			return ENOMEM;
 	}
 }
 
