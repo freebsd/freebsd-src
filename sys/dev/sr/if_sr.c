@@ -152,9 +152,7 @@ struct sr_softc {
 #define	SCF_RUNNING	0x01		/* board is active */
 #define	SCF_OACTIVE	0x02		/* output is active */
 	int		out_dog;	/* watchdog cycles output count-down */
-#if ( __FreeBSD__ >= 3 )
 	struct callout_handle handle;	/* timeout(9) handle */
-#endif
 	u_long		inbytes, outbytes;	/* stats */
 	u_long		lastinbytes, lastoutbytes; /* a second ago */
 	u_long		inrate, outrate;	/* highest rate seen */
