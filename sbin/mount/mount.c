@@ -108,6 +108,7 @@ static struct opt {
 	{ MNT_SUIDDIR,		"suiddir" },
 	{ MNT_SOFTDEP,		"soft-updates" },
 	{ MNT_MULTILABEL,	"multilabel" },
+	{ MNT_ACLS,		"acls" },
 	{ 0, NULL }
 };
 
@@ -764,6 +765,7 @@ flags2opts(flags)
 	if (flags & MNT_NOSYMFOLLOW)	res = catopt(res, "nosymfollow");
 	if (flags & MNT_SUIDDIR)	res = catopt(res, "suiddir");
 	if (flags & MNT_MULTILABEL)	res = catopt(res, "multilabel");
+	if (flags & MNT_ACLS)		res = catopt(res, "acls");
 
 	return res;
 }
