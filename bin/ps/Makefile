@@ -9,6 +9,7 @@ SRCS=	fmt.c keyword.c nlist.c print.c ps.c lomac.c
 # keep ps from being an unnecessary load
 # on large systems.
 #
+WFORMAT=0
 CFLAGS+=-DLAZY_PS
 DPADD=	${LIBM} ${LIBKVM}
 LDADD=	-lm -lkvm
