@@ -261,7 +261,7 @@ exit1(td, rv)
 	 * Close open files and release open-file table.
 	 * This may block!
 	 */
-	fdfree(td);
+	fdfree(td); /* XXXKSE *//* may not be the one in proc */
 
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
