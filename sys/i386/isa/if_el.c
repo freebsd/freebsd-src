@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.42 1999/08/18 06:11:58 mdodd Exp $
+ * $Id: if_el.c,v 1.43 1999/08/18 22:14:20 mdodd Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -62,19 +62,19 @@ static struct el_softc {
 
 /* Prototypes */
 static int el_attach(struct isa_device *);
-static void el_init(int);
+static void el_init(void *);
 static int el_ioctl(struct ifnet *,u_long,caddr_t);
 static int el_probe(struct isa_device *);
 static void el_start(struct ifnet *);
-static void el_reset(int);
+static void el_reset(void *);
 static void el_watchdog(struct ifnet *);
 
-static void el_stop(int);
+static void el_stop(void *);
 static int el_xmit(struct el_softc *,int);
 static ointhand2_t elintr;
 static __inline void elread(struct el_softc *,caddr_t,int);
 static struct mbuf *elget(caddr_t,int,int,struct ifnet *);
-static __inline void el_hardreset(int);
+static __inline void el_hardreset(void *);
 
 /* isa_driver structure for autoconf */
 struct isa_driver eldriver = {
@@ -137,13 +137,13 @@ el_probe(struct isa_device *idev)
 
 /* Do a hardware reset of the 3c501.  Do not call until after el_probe()! */
 static __inline void
-el_hardreset(int unit)
+el_hardreset(xsc)
+	void *xsc;
 {
-	register struct el_softc *sc;
+	register struct el_softc *sc = xsc;
 	register int base;
 	register int j;
 
-	sc = &el_softc[unit];
 	base = sc->el_base;
 
 	/* First reset the board */
@@ -179,7 +179,7 @@ el_attach(struct isa_device *idev)
 
 	/* Now reset the board */
 	dprintf(("Resetting board...\n"));
-	el_hardreset(idev->id_unit);
+	el_hardreset(sc);
 
 	/* Initialize ifnet structure */
 	ifp->if_softc = sc;
@@ -190,6 +190,7 @@ el_attach(struct isa_device *idev)
 	ifp->if_start = el_start;
 	ifp->if_ioctl = el_ioctl;
 	ifp->if_watchdog = el_watchdog;
+	ifp->if_init = el_init;
 	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
 
 	/* Now we can attach the interface */
@@ -213,36 +214,38 @@ el_attach(struct isa_device *idev)
 
 /* This routine resets the interface. */
 static void 
-el_reset(int unit)
+el_reset(xsc)
+	void *xsc;
 {
+	struct el_softc *sc = xsc;
 	int s;
 
 	dprintf(("elreset()\n"));
 	s = splimp();
-	el_stop(unit);
-	el_init(unit);
+	el_stop(sc);
+	el_init(sc);
 	splx(s);
 }
 
-static void el_stop(int unit)
+static void el_stop(xsc)
+	void *xsc;
 {
-	struct el_softc *sc;
+	struct el_softc *sc = xsc;
 
-	sc = &el_softc[unit];
 	outb(sc->el_base+EL_AC,0);
 }
 
 /* Initialize interface.  */
 static void 
-el_init(int unit)
+el_init(xse)
+	void *xsc;
 {
-	struct el_softc *sc;
+	struct el_softc *sc = xsc;
 	struct ifnet *ifp;
 	int s;
 	u_short base;
 
 	/* Set up pointers */
-	sc = &el_softc[unit];
 	ifp = &sc->arpcom.ac_if;
 	base = sc->el_base;
 
@@ -254,7 +257,7 @@ el_init(int unit)
 
 	/* First, reset the board. */
 	dprintf(("Resetting board...\n"));
-	el_hardreset(unit);
+	el_hardreset(sc);
 
 	/* Configure rx */
 	dprintf(("Configuring rx...\n"));
@@ -496,7 +499,7 @@ elintr(int unit)
 		/* If there's an overflow, reinit the board. */
 		if(!(rxstat & EL_RXS_NOFLOW)) {
 			dprintf(("overflow.\n"));
-			el_hardreset(unit);
+			el_hardreset(sc);
 			/* Put board back into receive mode */
 			if(sc->arpcom.ac_if.if_flags & IFF_PROMISC)
 				outb(base+EL_RXC,(EL_RXC_PROMISC|EL_RXC_AGF|EL_RXC_DSHORT|EL_RXC_DDRIB|EL_RXC_DOFLOW));
@@ -657,7 +660,7 @@ el_ioctl(ifp, command, data)
 		 */
 		if (((ifp->if_flags & IFF_UP) == 0) &&
 		    (ifp->if_flags & IFF_RUNNING)) {
-			el_stop(ifp->if_unit);
+			el_stop(ifp->if_softc);
 			ifp->if_flags &= ~IFF_RUNNING;
 		} else {
 		/*
@@ -665,7 +668,7 @@ el_ioctl(ifp, command, data)
 		 */
 			if ((ifp->if_flags & IFF_UP) &&
 		    	    ((ifp->if_flags & IFF_RUNNING) == 0))
-				el_init(ifp->if_unit);
+				el_init(ifp->if_softc);
 		}
 		break;
 	default:
@@ -681,5 +684,5 @@ el_watchdog(struct ifnet *ifp)
 {
 	log(LOG_ERR,"el%d: device timeout\n", ifp->if_unit);
 	ifp->if_oerrors++;
-	el_reset(ifp->if_unit);
+	el_reset(ifp->if_softc);
 }
