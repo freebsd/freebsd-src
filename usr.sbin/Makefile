@@ -29,6 +29,7 @@ SUBDIR=	IPXrouted \
 	fdcontrol \
 	fdformat \
 	fdwrite \
+	getextattr \
 	gifconfig \
 	ifmcstat \
 	inetd \
@@ -93,6 +94,7 @@ SUBDIR=	IPXrouted \
 	rtsold \
 	rwhod \
 	sa \
+	setextattr \
 	setkey \
 	sliplogin \
 	slstat \
