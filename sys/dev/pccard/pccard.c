@@ -335,7 +335,6 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 {
 	const struct pccard_product *ent;
 	int matches;
-	uint32_t fcn;
 	uint32_t vendor;
 	uint32_t prod;
 	const char *vendorstr;
@@ -351,8 +350,6 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 	if (pccard_get_vendor(dev, &vendor))
 		return (NULL);
 	if (pccard_get_product(dev, &prod))
-		return (NULL);
-	if (pccard_get_function_number(dev, &fcn))
 		return (NULL);
 	if (pccard_get_vendor_str(dev, &vendorstr))
 		return (NULL);
@@ -380,8 +377,6 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 			matches = 0;
 		if (matches && ent->pp_product != PCCARD_PRODUCT_ANY &&
 		    prod != ent->pp_product)
-			matches = 0;
-		if (matches && fcn != ent->pp_expfunc)
 			matches = 0;
 		if (matches && ent->pp_cis[0] &&
 		    (vendorstr == NULL ||
