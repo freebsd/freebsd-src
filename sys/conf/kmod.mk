@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.25 1996/08/31 14:46:58 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.26 1996/09/18 06:09:13 swallace Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -37,10 +37,14 @@
 #
 # LN_FLAGS	Flags for ln(1) (see variable LINKS)
 #
+# MODLOAD	Command to load a kernel module [/sbin/modload]
+#
+# MODUNLOAD	Command to unload a kernel module [/sbin/modunload]
+#
 # NOMAN		LKM does not have a manual page if set.
 #
 # PROG          The name of the loadable kernel module to build. 
-#		If not supplied, ${KMOD} is used.
+#		If not supplied, ${KMOD}.o is used.
 #
 # PSEUDO_LKM	???
 #
@@ -79,6 +83,9 @@
 # bsd.dep.mk: depend
 # bsd.man.mk: maninstall
 #
+
+MODLOAD?=	/sbin/modload
+MODUNLOAD?=	/sbin/modunload
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -193,12 +200,12 @@ tags: ${SRCS} _SUBDIR
 
 .if !target(load)
 load:	${PROG}
-	/sbin/modload -o ${KMOD} -e${KMOD} ${PROG}
+	${MODLOAD} -o ${KMOD} -e${KMOD} ${PROG}
 .endif
 
 .if !target(unload)
 unload:	${PROG}
-	/sbin/modunload -n ${KMOD}
+	${MODUNLOAD} -n ${KMOD}
 .endif
 
 KERN=	${.CURDIR}/../../sys/kern
