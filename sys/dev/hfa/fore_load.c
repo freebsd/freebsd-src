@@ -36,6 +36,9 @@
  */
 
 #include <dev/hfa/fore_include.h>
+#ifdef __FreeBSD__
+#include <sys/bus.h>
+#endif
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
@@ -828,6 +831,37 @@ fore_attach(devinfo_p)
 
 
 #ifdef __FreeBSD__
+
+SYSCTL_NODE(_hw, OID_AUTO, fore, CTLFLAG_RW, 0, "Fore ATM adapter");
+
+/*
+ * Sysctl handler for the traffic shaping option
+ */
+static int
+fore_sysctl_shape(SYSCTL_HANDLER_ARGS)
+{
+	Fore_unit *fup = arg1;
+	int error;
+	u_int new;
+
+	error = SYSCTL_OUT(req, &fup->fu_shape , sizeof(fup->fu_shape));
+	if (error != 0 || req->newptr == NULL) {
+		return (error);
+	}
+
+	error = SYSCTL_IN(req, &new, sizeof(new));
+	if (error != 0) {
+		return (error);
+	}
+
+	if (new > FUS_SHAPE_ALL) {
+		return (EINVAL);
+	}
+
+	fup->fu_shape = new;
+	return (0);
+}
+
 /*
  * Device probe routine
  * 
@@ -896,6 +930,8 @@ fore_pci_attach(config_id, unit)
 	pcidi_t		device_id;
 	long		val;
 	int		err_count = BOOT_LOOPS;
+	char		ifname[IFNAMSIZ];
+	struct sysctl_oid *oid;
 
 	/*
 	 * Just checking...
@@ -991,6 +1027,23 @@ fore_pci_attach(config_id, unit)
 			FORE_DEV_NAME, unit);
 		goto failed;
 	}
+
+	/*
+	 * Make the sysctl tree
+	 */
+	snprintf(ifname, sizeof(ifname), "%s%d", FORE_DEV_NAME, unit);
+	fup->sysctl_tree = SYSCTL_ADD_NODE(&fup->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_hw_fore), OID_AUTO,
+	    ifname, CTLFLAG_RW, 0, "");
+	if (fup->sysctl_tree == NULL)
+		goto failed;
+
+	oid = SYSCTL_ADD_PROC(&fup->sysctl_ctx,
+	    SYSCTL_CHILDREN(fup->sysctl_tree), OID_AUTO,
+	    "shape", CTLFLAG_RW | CTLTYPE_UINT, fup, 0,
+	    fore_sysctl_shape, "IU", "traffic shaping");
+	if (oid == NULL)
+		goto failed;
 
 	/*
 	 * Poke the hardware - boot the CP and prepare it for downloading

@@ -39,6 +39,9 @@
 #define _FORE_INCLUDE_H
 
 #include <netatm/kern_include.h>
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
 
 /*
  * If not specified elsewhere, guess which type of bus support we want
