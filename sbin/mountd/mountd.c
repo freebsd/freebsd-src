@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.32 1998/07/15 06:21:40 charnier Exp $";
+	"$Id: mountd.c,v 1.33 1998/08/02 16:06:34 bde Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -119,9 +119,9 @@ struct exportlist {
 #define	EX_LINKED	0x1
 
 struct netmsk {
-	u_long	nt_net;
-	u_long	nt_mask;
-	char *nt_name;
+	u_int32_t	nt_net;
+	u_int32_t	nt_mask;
+	char		*nt_name;
 };
 
 union grouptypes {
@@ -163,7 +163,7 @@ void	add_dlist __P((struct dirlist **, struct dirlist *,
 void	add_mlist __P((char *, char *));
 int	check_dirpath __P((char *));
 int	check_options __P((struct dirlist *));
-int	chk_host __P((struct dirlist *, u_long, int *, int *));
+int	chk_host __P((struct dirlist *, u_int32_t, int *, int *));
 void	del_mlist __P((char *, char *));
 struct dirlist *dirp_search __P((struct dirlist *, char *));
 int	do_mount __P((struct exportlist *, struct grouplist *, int,
@@ -192,7 +192,7 @@ void	nextfield __P((char **, char **));
 void	out_of_mem __P((void));
 void	parsecred __P((char *, struct ucred *));
 int	put_exlist __P((struct dirlist *, XDR *, struct dirlist *, int *));
-int	scan_tree __P((struct dirlist *, u_long));
+int	scan_tree __P((struct dirlist *, u_int32_t));
 void	send_umntall __P((void));
 int	umntall_each __P((caddr_t, struct sockaddr_in *));
 static void usage __P((void));
@@ -376,7 +376,7 @@ mntsrv(rqstp, transp)
 	struct statfs fsb;
 	struct hostent *hp;
 	struct in_addr saddrin;
-	u_long saddr;
+	u_int32_t saddr;
 	u_short sport;
 	char rpcpath[RPCMNT_PATHLEN + 1], dirpath[MAXPATHLEN];
 	int bad = 0, defset, hostset;
@@ -952,7 +952,7 @@ get_exportlist()
 				out_of_mem();
 			hpe->h_name = strdup("Default");
 			hpe->h_addrtype = AF_INET;
-			hpe->h_length = sizeof (u_long);
+			hpe->h_length = sizeof (u_int32_t);
 			hpe->h_addr_list = (char **)NULL;
 			grp->gr_ptr.gt_hostent = hpe;
 
@@ -1247,13 +1247,13 @@ dirp_search(dp, dirpath)
 int
 chk_host(dp, saddr, defsetp, hostsetp)
 	struct dirlist *dp;
-	u_long saddr;
+	u_int32_t saddr;
 	int *defsetp;
 	int *hostsetp;
 {
 	struct hostlist *hp;
 	struct grouplist *grp;
-	u_long **addrp;
+	u_int32_t **addrp;
 
 	if (dp) {
 		if (dp->dp_flag & DP_DEFSET)
@@ -1263,7 +1263,7 @@ chk_host(dp, saddr, defsetp, hostsetp)
 			grp = hp->ht_grp;
 			switch (grp->gr_type) {
 			case GT_HOST:
-			    addrp = (u_long **)
+			    addrp = (u_int32_t **)
 				grp->gr_ptr.gt_hostent->h_addr_list;
 			    while (*addrp) {
 				if (**addrp == saddr) {
@@ -1293,7 +1293,7 @@ chk_host(dp, saddr, defsetp, hostsetp)
 int
 scan_tree(dp, saddr)
 	struct dirlist *dp;
-	u_long saddr;
+	u_int32_t saddr;
 {
 	int defset, hostset;
 
@@ -1458,7 +1458,7 @@ get_host(cp, grp, tgrp)
 	char **addrp, **naddrp;
 	struct hostent t_host;
 	int i;
-	u_long saddr;
+	u_int32_t saddr;
 	char *aptr[2];
 
 	if (grp->gr_type != GT_NULL)
@@ -1475,7 +1475,7 @@ get_host(cp, grp, tgrp)
 				hp = &t_host;
 				hp->h_name = cp;
 				hp->h_addrtype = AF_INET;
-				hp->h_length = sizeof (u_long);
+				hp->h_length = sizeof (u_int32_t);
 				hp->h_addr_list = aptr;
 				aptr[0] = (char *)&saddr;
 				aptr[1] = (char *)NULL;
@@ -1494,8 +1494,8 @@ get_host(cp, grp, tgrp)
 		if (checkgrp->gr_type == GT_HOST &&
                     checkgrp->gr_ptr.gt_hostent != NULL &&
                     (!strcmp(checkgrp->gr_ptr.gt_hostent->h_name, hp->h_name)
-		|| *(unsigned long *)checkgrp->gr_ptr.gt_hostent->h_addr ==
-			*(unsigned long *)hp->h_addr)) {
+		|| *(u_int32_t *)checkgrp->gr_ptr.gt_hostent->h_addr ==
+			*(u_int32_t *)hp->h_addr)) {
                         grp->gr_type = GT_IGNORE;
 			return(0);
 		}
@@ -1640,7 +1640,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	struct statfs *fsb;
 {
 	char *cp = (char *)NULL;
-	u_long **addrp;
+	u_int32_t **addrp;
 	int done;
 	char savedc = '\0';
 	struct sockaddr_in sin, imask;
@@ -1652,7 +1652,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		struct msdosfs_args da;
 #endif
 	} args;
-	u_long net;
+	u_int32_t net;
 
 	args.ua.fspec = 0;
 	args.ua.export.ex_flags = exflags;
@@ -1665,9 +1665,9 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	imask.sin_family = AF_INET;
 	imask.sin_len = sizeof(sin);
 	if (grp->gr_type == GT_HOST)
-		addrp = (u_long **)grp->gr_ptr.gt_hostent->h_addr_list;
+		addrp = (u_int32_t **)grp->gr_ptr.gt_hostent->h_addr_list;
 	else
-		addrp = (u_long **)NULL;
+		addrp = (u_int32_t **)NULL;
 	done = FALSE;
 	while (!done) {
 		switch (grp->gr_type) {
@@ -1759,7 +1759,7 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 		}
 		if (addrp) {
 			++addrp;
-			if (*addrp == (u_long *)NULL)
+			if (*addrp == (u_int32_t *)NULL)
 				done = TRUE;
 		} else
 			done = TRUE;
