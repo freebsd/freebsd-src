@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.42 1996/08/21 21:37:04 sos Exp $
+ *	$Id: ip_output.c,v 1.43 1996/10/07 19:21:46 wollman Exp $
  */
 
 #define _IP_VHL
@@ -340,7 +340,7 @@ sendit:
 	 */ 
 
 #ifdef COMPAT_IPFW
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, IP_NAT_OUT)) {
+        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, ifp, IP_NAT_OUT)) {
 		error = EACCES; 
 		goto done;
 	}
