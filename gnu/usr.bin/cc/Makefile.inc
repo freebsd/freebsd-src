@@ -1,11 +1,10 @@
 #
-# $Id: Makefile.inc,v 1.24 1998/10/26 18:27:32 imp Exp $
+# $Id: Makefile.inc,v 1.28 1999/03/10 09:04:18 obrien Exp $
 #
 
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
-GCCDIR=		${.CURDIR}/../../../../contrib/gcc
-.PATH:		../cc_tools ${GCCDIR} ${GCCDIR}/cp ${GCCDIR}/objc
+GCCDIR=		${.CURDIR}/../../../../contrib/egcs/gcc
 
 BISON?=		bison
 
@@ -13,15 +12,39 @@ BISON?=		bison
 MD_FILE=	${GCCDIR}/config/${MACHINE_ARCH}/${MACHINE_ARCH}.md
 OUT_FILE=	${MACHINE_ARCH}.c
 OUT_OBJ=	${MACHINE_ARCH}
-.PATH:		${GCCDIR}/config/${MACHINE_ARCH}
 
+.if ${MACHINE_ARCH} != "i386"
+BINFORMAT=	elf
+.else
+BINFORMAT?=	elf
+.endif
+
+# same backend, just change compiled-in default.
+.if ${BINFORMAT} == aout
+CFLAGS+=	-DFREEBSD_AOUT
+target=		${MACHINE_ARCH}-unknown-freebsd-aout
+.endif
+.if ${BINFORMAT} == elf
+CFLAGS+=	-DFREEBSD_ELF
 target=		${MACHINE_ARCH}-unknown-freebsd
+.endif
+
+# These architectures are Cygnus's default for enabling Haifa
+.if (${MACHINE_ARCH} == "alpha") || (${MACHINE_ARCH} == "sparc")
+USE_EGCS_HAIFA=1
+.endif
+
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
+#version!=	sed -e 's/.*\(egcs-[0-9\.]*\).*/\1/' < ${GCCDIR}/version.c 
 
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 CFLAGS+=	-DFREEBSD_NATIVE
 CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
+
+.if defined(USE_EGCS_HAIFA)
+CFLAGS+=	-DHAIFA
+.endif
 
 .if exists(${.OBJDIR}/../cc_tools)
 CFLAGS+=	-I${.OBJDIR}/../cc_tools
@@ -31,10 +54,12 @@ CFLAGS+=	-I${.CURDIR}/../cc_tools
 
 .if exists(${.OBJDIR}/../cc_int)
 LIBDESTDIR=	${.OBJDIR}/../cc_int
+LIBCC_DRV=	${.OBJDIR}/../cc_drv/libcc_drv.a
 .else
 LIBDESTDIR=	${.CURDIR}/../cc_int
+LIBCC_DRV=	${.CURDIR}/../cc_drv/libcc_drv.a
 .endif
 
 LIBCC_INT=	${LIBDESTDIR}/libcc_int.a
 
-.endif
+.endif # !GCCDIR

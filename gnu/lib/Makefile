@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.19 1998/09/02 14:56:59 bde Exp $
+#	$Id: Makefile,v 1.20 1999/03/31 06:30:40 obrien Exp $
 
-SUBDIR= libdialog libg++ libgcc libgmp libmp libobjc libregex libreadline libstdc++
+SUBDIR= libdialog libgcc libgmp libmp libobjc libregex libreadline libstdc++
 
 .include <bsd.subdir.mk>
