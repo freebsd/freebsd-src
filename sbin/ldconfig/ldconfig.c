@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.8 1994/12/23 22:31:24 nate Exp $
+ *	$Id: ldconfig.c,v 1.8 1994/06/16 13:38:32 pk Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,7 @@ extern char			*__progname;
 static int			verbose;
 static int			nostd;
 static int			justread;
+static int			merge;
 
 struct shlib_list {
 	/* Internal list of shared libraries found */
@@ -75,8 +76,9 @@ static struct shlib_list	*shlib_head = NULL, **shlib_tail = &shlib_head;
 
 static void	enter __P((char *, char *, char *, int *, int));
 static int	dodir __P((char *, int));
-static int	build_hints __P((void));
-static int	listhints __P((void));
+static int	buildhints __P((void));
+static int	readhints __P((void));
+static void	listhints __P((void));
 
 int
 main(argc, argv)
@@ -86,27 +88,35 @@ char	*argv[];
 	int		i, c;
 	int		rval = 0;
 
-	while ((c = getopt(argc, argv, "rsv")) != EOF) {
+	while ((c = getopt(argc, argv, "mrsv")) != EOF) {
 		switch (c) {
-		case 'v':
-			verbose = 1;
-			break;
-		case 's':
-			nostd = 1;
+		case 'm':
+			merge = 1;
 			break;
 		case 'r':
 			justread = 1;
 			break;
+		case 's':
+			nostd = 1;
+			break;
+		case 'v':
+			verbose = 1;
+			break;
 		default:
-			fprintf(stderr, "Usage: %s [-r][-s][-v][dir ...]\n",
+			errx(1, "Usage: %s [-m][-r][-s][-v][dir ...]",
 				__progname);
-			exit(1);
 			break;
 		}
 	}
 
-	if (justread)
-		return listhints();
+	if (justread || merge) {
+		if ((rval = readhints()) != 0)
+			return rval;
+		if (justread) {
+			listhints();
+			return;
+		}
+	}
 
 	if (!nostd)
 		std_search_path();
@@ -117,7 +127,7 @@ char	*argv[];
 	for (i = optind; i < argc; i++)
 		rval |= dodir(argv[i], 0);
 
-	rval |= build_hints();
+	rval |= buildhints();
 
 	return rval;
 }
@@ -134,7 +144,7 @@ int	silent;
 
 	if ((dd = opendir(dir)) == NULL) {
 		if (!silent || errno != ENOENT)
-			perror(dir);
+			warn("%s", dir);
 		return -1;
 	}
 
@@ -228,7 +238,7 @@ int	vmajor;
 }
 
 int
-build_hints()
+buildhints()
 {
 	struct hints_header	hdr;
 	struct hints_bucket	*blist;
@@ -284,7 +294,7 @@ build_hints()
 					break;
 			}
 			if (i == hdr.hh_nbucket) {
-				fprintf(stderr, "Bummer!\n");
+				warnx("Bummer!");
 				return -1;
 			}
 			while (bp->hi_next != -1)
@@ -309,37 +319,37 @@ build_hints()
 
 	tmpfile = concat(_PATH_LD_HINTS, "+", "");
 	if ((fd = open(tmpfile, O_RDWR|O_CREAT|O_TRUNC, 0444)) == -1) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 
 	if (write(fd, &hdr, sizeof(struct hints_header)) !=
 						sizeof(struct hints_header)) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 	if (write(fd, blist, hdr.hh_nbucket * sizeof(struct hints_bucket)) !=
 				hdr.hh_nbucket * sizeof(struct hints_bucket)) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 	if (write(fd, strtab, strtab_sz) != strtab_sz) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 	if (close(fd) != 0) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 
 	/* Install it */
 	if (unlink(_PATH_LD_HINTS) != 0 && errno != ENOENT) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 
 	if (rename(tmpfile, _PATH_LD_HINTS) != 0) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 
@@ -347,7 +357,7 @@ build_hints()
 }
 
 static int
-listhints()
+readhints()
 {
 	int			fd;
 	caddr_t			addr;
@@ -355,10 +365,11 @@ listhints()
 	struct hints_header	*hdr;
 	struct hints_bucket	*blist;
 	char			*strtab;
+	struct shlib_list	*shp;
 	int			i;
 
 	if ((fd = open(_PATH_LD_HINTS, O_RDONLY, 0)) == -1) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 
@@ -366,19 +377,19 @@ listhints()
 	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
 
 	if (addr == (caddr_t)-1) {
-		perror(_PATH_LD_HINTS);
+		warn("%s", _PATH_LD_HINTS);
 		return -1;
 	}
 
 	hdr = (struct hints_header *)addr;
 	if (HH_BADMAG(*hdr)) {
-		fprintf(stderr, "%s: Bad magic: %o\n",
+		warnx("%s: Bad magic: %o",
 			_PATH_LD_HINTS, hdr->hh_magic);
 		return -1;
 	}
 
 	if (hdr->hh_version != LD_HINTS_VERSION_1) {
-		fprintf(stderr, "Unsupported version: %d\n", hdr->hh_version);
+		warnx("Unsupported version: %d", hdr->hh_version);
 		return -1;
 	}
 
@@ -387,7 +398,7 @@ listhints()
 				PROT_READ, MAP_COPY|MAP_FIXED,
 				fd, msize) != (caddr_t)(addr+msize)) {
 
-			perror(_PATH_LD_HINTS);
+			warn("%s", _PATH_LD_HINTS);
 			return -1;
 		}
 	}
@@ -396,29 +407,46 @@ listhints()
 	blist = (struct hints_bucket *)(addr + hdr->hh_hashtab);
 	strtab = (char *)(addr + hdr->hh_strtab);
 
-	printf("%s:\n", _PATH_LD_HINTS);
 	for (i = 0; i < hdr->hh_nbucket; i++) {
 		struct hints_bucket	*bp = &blist[i];
 
 		/* Sanity check */
 		if (bp->hi_namex >= hdr->hh_strtab_sz) {
-			fprintf(stderr, "Bad name index: %#x\n", bp->hi_namex);
+			warnx("Bad name index: %#x", bp->hi_namex);
 			return -1;
 		}
 		if (bp->hi_pathx >= hdr->hh_strtab_sz) {
-			fprintf(stderr, "Bad path index: %#x\n", bp->hi_pathx);
+			warnx("Bad path index: %#x", bp->hi_pathx);
 			return -1;
 		}
 
-		printf("\t%d:-l%s.%d.%d => %s (%d -> %d)\n",
-			i,
-			strtab + bp->hi_namex, bp->hi_major, bp->hi_minor,
-			strtab + bp->hi_pathx,
-			hinthash(strtab+bp->hi_namex, bp->hi_major)
-					% hdr->hh_nbucket,
-			bp->hi_next);
+		/* Allocate new list element */
+		shp = (struct shlib_list *)xmalloc(sizeof *shp);
+		shp->name = strdup(strtab + bp->hi_namex);
+		shp->path = strdup(strtab + bp->hi_pathx);
+		bcopy(bp->hi_dewey, shp->dewey, sizeof(shp->dewey));
+		shp->ndewey = bp->hi_ndewey;
+		shp->next = NULL;
+
+		*shlib_tail = shp;
+		shlib_tail = &shp->next;
 	}
 
 	return 0;
+}
+
+static void
+listhints()
+{
+	struct shlib_list	*shp;
+	int			i;
+
+	printf("%s:\n", _PATH_LD_HINTS);
+
+	for (i = 0, shp = shlib_head; shp; i++, shp = shp->next)
+		printf("\t%d:-l%s.%d.%d => %s\n",
+			i, shp->name, shp->major, shp->minor, shp->path);
+
+	return;
 }
 
