@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.10 1994/11/08 12:47:29 jkh Exp $
+ * $Id: ip_input.c,v 1.11 1994/11/16 10:17:08 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -240,7 +240,7 @@ next:
 
 #ifdef IPFIREWALL
         if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-        && !ip_fw_chk(ip,ip_fw_blk_chain) ) {
+        && !ip_fw_chk(ip,m->m_pkthdr.rcvif,ip_fw_blk_chain) ) {
                 goto bad;
         }
 #endif                            
@@ -364,7 +364,7 @@ ours:
 		 * Do not convert ip_len to host byte order when 
 		 * counting,ppl already made it for us before..
 		 */
-		ip_acct_cnt(ip,ip_acct_chain,0);
+		ip_acct_cnt(ip,m->m_pkthdr.rcvif,ip_acct_chain,0);
 #endif
 
 	/*
@@ -1051,7 +1051,7 @@ ip_forward(m, srcrt)
 
 #ifdef IPFIREWALL
 	if ( ((char *)&(ip->ip_dst.s_addr))[0] != 127
-	&& !ip_fw_chk(ip,ip_fw_fwd_chain) ) {
+	&& !ip_fw_chk(ip,m->m_pkthdr.rcvif,ip_fw_fwd_chain) ) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
 		return;
@@ -1139,11 +1139,6 @@ ip_forward(m, srcrt)
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
-#ifdef wrong
-#ifdef IPACCT
-		ip_acct_cnt(ip,ip_acct_chain);
-#endif
-#endif
 		ipstat.ips_forward++;
 		if (type)
 			ipstat.ips_redirectsent++;

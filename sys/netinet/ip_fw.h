@@ -26,6 +26,7 @@ struct ip_fw {
     struct ip_fw *next;			/* Next firewall on chain */
     struct in_addr src, dst;		/* Source and destination IP addr */
     struct in_addr src_mask, dst_mask;	/* Mask for src and dest IP addr */
+    struct in_addr via;			/* IP addr of interface "via" */
     u_short flags;			/* Flags word */
     u_short n_src_p, n_dst_p;           /* # of src ports and # of dst ports */
     					/* in ports array (dst ports follow */
@@ -70,8 +71,6 @@ struct ip_fw {
 
 #define IP_FW_ADD_BLK (IP_FW_BASE_CTL)
 #define IP_FW_ADD_FWD (IP_FW_BASE_CTL+1)   
-#define IP_FW_CHK_BLK (IP_FW_BASE_CTL+2)
-#define IP_FW_CHK_FWD (IP_FW_BASE_CTL+3)
 #define IP_FW_DEL_BLK (IP_FW_BASE_CTL+4)
 #define IP_FW_DEL_FWD (IP_FW_BASE_CTL+5)
 #define IP_FW_FLUSH   (IP_FW_BASE_CTL+6)
