@@ -36,11 +36,20 @@ static void at_aarpinput(struct arpcom *ac, struct mbuf *m);
 #define AARPTAB_SIZE	(AARPTAB_BSIZ * AARPTAB_NB)
 static struct aarptab	aarptab[AARPTAB_SIZE];
 
+static struct mtx aarptab_mtx;
+MTX_SYSINIT(aarptab_mtx, &aarptab_mtx, "aarptab_mtx", MTX_DEF);
+
+#define	AARPTAB_LOCK()		mtx_lock(&aarptab_mtx)
+#define	AARPTAB_UNLOCK()	mtx_unlock(&aarptab_mtx)
+#define	AARPTAB_LOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_OWNED)
+#define	AARPTAB_UNLOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_NOTOWNED)
+
 #define AARPTAB_HASH(a) \
     ((((a).s_net << 8) + (a).s_node) % AARPTAB_NB)
 
 #define AARPTAB_LOOK(aat, addr) { \
     int		n; \
+    AARPTAB_LOCK_ASSERT(); \
     aat = &aarptab[ AARPTAB_HASH(addr) * AARPTAB_BSIZ ]; \
     for (n = 0; n < AARPTAB_BSIZ; n++, aat++) \
 	if (aat->aat_ataddr.s_net == (addr).s_net && \
@@ -79,20 +88,20 @@ static void
 aarptimer(void *ignored)
 {
     struct aarptab	*aat;
-    int			i, s;
+    int			i;
 
     aarptimer_ch = timeout(aarptimer, (caddr_t)0, AARPT_AGE * hz);
     aat = aarptab;
+    AARPTAB_LOCK();
     for (i = 0; i < AARPTAB_SIZE; i++, aat++) {
 	if (aat->aat_flags == 0 || (aat->aat_flags & ATF_PERM))
 	    continue;
 	if (++aat->aat_timer < ((aat->aat_flags & ATF_COM) ?
 		AARPT_KILLC : AARPT_KILLI))
 	    continue;
-	s = splimp();
 	aarptfree(aat);
-	splx(s);
     }
+    AARPTAB_UNLOCK();
 }
 
 /* 
@@ -130,6 +139,7 @@ aarpwhohas(struct arpcom *ac, struct sockaddr_at *sat)
     struct llc		*llc;
     struct sockaddr	sa;
 
+    AARPTAB_UNLOCK_ASSERT();
     if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL) {
 	return;
     }
@@ -214,7 +224,6 @@ aarpresolve(ac, m, destsat, desten)
 {
     struct at_ifaddr	*aa;
     struct aarptab	*aat;
-    int			s;
 
     if (at_broadcast(destsat)) {
 	m->m_flags |= M_BCAST;
@@ -231,7 +240,7 @@ aarpresolve(ac, m, destsat, desten)
 	return (1);
     }
 
-    s = splimp();
+    AARPTAB_LOCK();
     AARPTAB_LOOK(aat, destsat->sat_addr);
     if (aat == NULL) {			/* No entry */
 	aat = aarptnew(&destsat->sat_addr);
@@ -239,8 +248,8 @@ aarpresolve(ac, m, destsat, desten)
 	    panic("aarpresolve: no free entry");
 	}
 	aat->aat_hold = m;
+	AARPTAB_UNLOCK();
 	aarpwhohas(ac, destsat);
-	splx(s);
 	return (0);
     }
     /* found an entry */
@@ -248,7 +257,7 @@ aarpresolve(ac, m, destsat, desten)
     if (aat->aat_flags & ATF_COM) {	/* entry is COMplete */
 	bcopy((caddr_t)aat->aat_enaddr, (caddr_t)desten,
 		sizeof(aat->aat_enaddr));
-	splx(s);
+	AARPTAB_UNLOCK();
 	return (1);
     }
     /* entry has not completed */
@@ -256,8 +265,8 @@ aarpresolve(ac, m, destsat, desten)
 	m_freem(aat->aat_hold);
     }
     aat->aat_hold = m;
+    AARPTAB_UNLOCK();
     aarpwhohas(ac, destsat);
-    splx(s);
     return (0);
 }
 
@@ -390,6 +399,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 	}
     }
 
+    AARPTAB_LOCK();
     AARPTAB_LOOK(aat, spa);
     if (aat != NULL) {
 	if (op == AARPOP_PROBE) {
@@ -399,6 +409,7 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 	     * to arp for him.
 	     */
 	    aarptfree(aat);
+	    AARPTAB_UNLOCK();
 	    m_freem(m);
 	    return;
 	}
@@ -409,12 +420,14 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 	if (aat->aat_hold) {
 	    struct mbuf *mhold = aat->aat_hold;
 	    aat->aat_hold = NULL;
+	    AARPTAB_UNLOCK();
 	    sat.sat_len = sizeof(struct sockaddr_at);
 	    sat.sat_family = AF_APPLETALK;
 	    sat.sat_addr = spa;
 	    (*ac->ac_if.if_output)(&ac->ac_if, mhold,
 		    (struct sockaddr *)&sat, NULL); /* XXX */
-	}
+	} else
+	    AARPTAB_UNLOCK();
     } else if ((tpa.s_net == ma.s_net)
 	   && (tpa.s_node == ma.s_node)
 	   && (op != AARPOP_PROBE)
@@ -422,7 +435,9 @@ at_aarpinput(struct arpcom *ac, struct mbuf *m)
 		bcopy((caddr_t)ea->aarp_sha, (caddr_t)aat->aat_enaddr,
 		    sizeof(ea->aarp_sha));
 		aat->aat_flags |= ATF_COM;
-    }
+	        AARPTAB_UNLOCK();
+    } else
+	AARPTAB_UNLOCK();
 
     /*
      * Don't respond to responses, and never respond if we're
@@ -477,6 +492,7 @@ static void
 aarptfree(struct aarptab *aat)
 {
 
+    AARPTAB_LOCK_ASSERT();
     if (aat->aat_hold)
 	m_freem(aat->aat_hold);
     aat->aat_hold = NULL;
@@ -485,7 +501,7 @@ aarptfree(struct aarptab *aat)
     aat->aat_ataddr.s_node = 0;
 }
 
-    struct aarptab *
+struct aarptab *
 aarptnew(addr)
     struct at_addr	*addr;
 {
@@ -494,6 +510,7 @@ aarptnew(addr)
     struct aarptab	*aat, *aato = NULL;
     static int		first = 1;
 
+    AARPTAB_LOCK_ASSERT();
     if (first) {
 	first = 0;
 	aarptimer_ch = timeout(aarptimer, (caddr_t)0, hz);
@@ -626,10 +643,12 @@ aarp_clean(void)
     int			i;
 
     untimeout(aarptimer, 0, aarptimer_ch);
+    AARPTAB_LOCK();
     for (i = 0, aat = aarptab; i < AARPTAB_SIZE; i++, aat++) {
 	if (aat->aat_hold) {
 	    m_freem(aat->aat_hold);
 	    aat->aat_hold = NULL;
 	}
     }
+    AARPTAB_UNLOCK();
 }
