@@ -65,23 +65,24 @@ MODULE_DEPEND(linux, osf1, 1, 1, 1);
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
 #if BYTE_ORDER == LITTLE_ENDIAN
-#define SHELLMAGIC      0x2123 /* #! */
+#define	SHELLMAGIC	0x2123 /* #! */
 #else
-#define SHELLMAGIC      0x2321
+#define	SHELLMAGIC	0x2321
 #endif
 
 
 extern struct linker_set linux_ioctl_handler_set;
 
 static int	elf_linux_fixup __P((long **stack_base,
-				     struct image_params *iparams));
+    struct image_params *iparams));
 
 static int
 elf_linux_fixup(long **stack_base, struct image_params *imgp)
 {
-	Elf64_Auxargs *args = (Elf64_Auxargs *)imgp->auxargs;
 	long *pos;
+	Elf64_Auxargs *args;
 
+	args = (Elf64_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);
 
 	if (args->trace) {
@@ -126,38 +127,42 @@ static int	exec_linux_imgact_try __P((struct image_params *iparams));
 
 static int
 exec_linux_imgact_try(imgp)
-    struct image_params *imgp;
+	struct image_params *imgp;
 {
-    const char *head = (const char *)imgp->image_header;
-    int error = -1;
+	const char *head;
+	int error;
 
-    /*
-     * The interpreter for shell scripts run from a linux binary needs
-     * to be located in /compat/linux if possible in order to recursively
-     * maintain linux path emulation.
-     */
-    if (((const short *)head)[0] == SHELLMAGIC) {
-	    /*
-	     * Run our normal shell image activator.  If it succeeds attempt
-	     * to use the alternate path for the interpreter.  If an alternate
-	     * path is found, use our stringspace to store it.
-	     */
-	    if ((error = exec_shell_imgact(imgp)) == 0) {
-		    char *rpath = NULL;
+	head = (const char *)imgp->image_header;
+	error = -1;
 
-		    linux_emul_find(imgp->proc, NULL, linux_emul_path, 
-			imgp->interpreter_name, &rpath, 0);
-		    if (rpath != imgp->interpreter_name) {
-			    int len = strlen(rpath) + 1;
+	/*
+	 * The interpreter for shell scripts run from a linux binary needs
+	 * to be located in /compat/linux if possible in order to recursively
+	 * maintain linux path emulation.
+	 */
+	if (((const short *)head)[0] == SHELLMAGIC) {
+		/*
+		 * Run our normal shell image activator.  If it succeeds
+		 * attempt to use the alternate path for the interpreter.  If
+		 * an alternate path is found, use our stringspace to store it.
+		 */
+		if ((error = exec_shell_imgact(imgp)) == 0) {
+			char *rpath = NULL;
 
-			    if (len <= MAXSHELLCMDLEN) {
-				memcpy(imgp->interpreter_name, rpath, len);
-			    }
-			    free(rpath, M_TEMP);
-		    }
-	    }
-    }
-    return(error);
+			linux_emul_find(imgp->proc, NULL, linux_emul_path, 
+			    imgp->interpreter_name, &rpath, 0);
+			if (rpath != imgp->interpreter_name) {
+				int len = strlen(rpath) + 1;
+
+				if (len <= MAXSHELLCMDLEN) {
+					memcpy(imgp->interpreter_name, rpath,
+					    len);
+				}
+				free(rpath, M_TEMP);
+			}
+		}
+	}
+	return(error);
 }
 
 /*
@@ -215,7 +220,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	switch(type) {
 	case MOD_LOAD:
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
-		     ++brandinfo)
+		    ++brandinfo)
 			if (elf_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
 		if (error)
@@ -229,13 +234,13 @@ linux_elf_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		linux_ioctl_unregister_handlers(&linux_ioctl_handler_set);
 		for (brandinfo = &linux_brandlist[0]; *brandinfo != NULL;
-		     ++brandinfo)
+		    ++brandinfo)
 			if (elf_brand_inuse(*brandinfo))
 				error = EBUSY;
 
 		if (error == 0) {
 			for (brandinfo = &linux_brandlist[0];
-			     *brandinfo != NULL; ++brandinfo)
+			    *brandinfo != NULL; ++brandinfo)
 				if (elf_remove_brand_entry(*brandinfo) < 0)
 					error = EINVAL;
 		}
