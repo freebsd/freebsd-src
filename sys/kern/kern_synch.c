@@ -43,9 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
-#ifdef __i386__
-#include "opt_swtch.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
