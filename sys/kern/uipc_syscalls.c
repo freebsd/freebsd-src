@@ -185,6 +185,7 @@ accept1(p, uap, compat)
 	} */ *uap;
 	int compat;
 {
+	struct filedesc *fdp = p->p_fd;
 	struct file *fp;
 	struct sockaddr *sa;
 	int namelen, error, s;
@@ -198,7 +199,7 @@ accept1(p, uap, compat)
 		if(error)
 			return (error);
 	}
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = getsock(fdp, uap->s, &fp);
 	if (error)
 		return (error);
 	s = splnet();
@@ -292,6 +293,10 @@ gotnoname:
 	}
 	if (sa)
 		FREE(sa, M_SONAME);
+	if (error) {
+		fdp->fd_ofiles[fd] = 0;
+		ffree(fp);
+	}
 	splx(s);
 	return (error);
 }
