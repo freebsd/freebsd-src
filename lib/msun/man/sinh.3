@@ -31,7 +31,7 @@
 .\"
 .\"	from: @(#)sinh.3	6.6 (Berkeley) 4/19/91
 .\" $FreeBSD$
-.Dd April 19, 1991
+.Dd January 14, 2005
 .Dt SINH 3
 .Os
 .Sh NAME
@@ -53,19 +53,6 @@ and the
 .Fn sinhf
 functions compute the hyperbolic sine of
 .Fa x .
-.Sh RETURN VALUES
-The
-.Fn sinh
-and the
-.Fn sinhf
-functions return the hyperbolic sine value unless
-the magnitude
-of
-.Fa x
-is too large; in this event, the global variable
-.Va errno
-is set to
-.Er ERANGE .
 .Sh SEE ALSO
 .Xr acos 3 ,
 .Xr asin 3 ,
