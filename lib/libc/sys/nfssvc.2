@@ -86,10 +86,13 @@ struct nfsd_cargs {
 	uid_t		ncd_authuid;	/* Effective uid */
 	int		ncd_authtype;	/* Type of authenticator */
 	int		ncd_authlen;	/* Length of authenticator string */
-	char		*ncd_authstr;	/* Authenticator string */
+	u_char		*ncd_authstr;	/* Authenticator string */
+	int		ncd_verflen;	/* and the verifier */
+	u_char		*ncd_verfstr;
+	NFSKERBKEY_T	ncd_key;	/* Session key */
 };
 .Ed
-.sp
+.Pp
 structure.
 The initial call has only the
 .Dv NFSSVC_MNTD
@@ -135,10 +138,15 @@ struct nfsd_srvargs {
 	u_long		nsd_haddr;	/* Ip address of client */
 	struct ucred	nsd_cr;		/* Cred. uid maps to */
 	int		nsd_authlen;	/* Length of auth string (ret) */
-	char		*nsd_authstr;	/* Auth string (ret) */
+	u_char		*nsd_authstr;	/* Auth string (ret) */
+	int		nsd_verflen;	/* and the verfier */
+	u_char		*nsd_verfstr;
+	struct timeval	nsd_timestamp;	/* timestamp from verifier */
+	u_long		nsd_ttl;	/* credential ttl (sec) */
+	NFSKERBKEY_T	nsd_key;	/* Session key */
 };
 .Ed
-.sp
+.Pp
 to enter the kernel as an
 .Xr nfsd 8
 daemon.
@@ -186,12 +194,12 @@ with the flag
 and a pointer to a
 .Bd -literal
 struct nfsd_args {
-	int	sock;		/* Socket to serve */
-	caddr_t	name;		/* Client address for connection based sockets */
-	int	namelen;	/* Length of name */
+	int	sock;	/* Socket to serve */
+	caddr_t	name;	/* Client address for connection based sockets */
+	int	namelen;/* Length of name */
 };
 .Ed
-.sp
+.Pp
 to pass a server side
 .Tn NFS
 socket into the kernel for servicing by the
