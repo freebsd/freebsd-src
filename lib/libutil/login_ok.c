@@ -101,7 +101,7 @@ login_timelist(login_cap_t *lc, char const *cap, int *ltno,
 	    ;
 	if (*ltno >= j)
 	    lt = *ltptr;
-	else if ((lt = realloc(*ltptr, j)) != NULL) {
+	else if ((lt = realloc(*ltptr, j * sizeof(struct login_time))) != NULL) {
 	    *ltno = j;
 	    *ltptr = lt;
 	}
@@ -188,7 +188,7 @@ login_hostok(login_cap_t *lc, const char *host, const char *ip,
 	    rc = 0;	/* host or IP not in allow list */
 	else {
 
-	    hl = login_getcaplist(lc, "host.deny", NULL);
+	    hl = login_getcaplist(lc, denycap, NULL);
 	    if (hl != NULL && login_str2inlist(hl, host, ip, FNM_CASEFOLD))
 		rc = 0; /* host or IP in deny list */
 	}
