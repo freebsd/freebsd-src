@@ -89,7 +89,14 @@
 #  define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
 				/* for some controllers 1MPBS instead */
 #endif /* FDC_500KBPS */
+#endif /* PC98 */
 
+/*
+ * this is the secret PIO data port (offset from base)
+ */
+#define FDC_YE_DATAPORT 6
+
+#ifndef PC98
 #define	FDIN	7	/* Digital Input Register (R) */
 #define	FDI_DCHG	0x80	/* diskette has been changed */
 				/* requires drive and motor being selected */

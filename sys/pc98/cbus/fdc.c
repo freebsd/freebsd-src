@@ -90,20 +90,12 @@
 #include <isa/rtc.h>
 #endif
 
-#ifdef FDC_YE
-#undef FDC_YE
-#warning "fix FDC_YE! - newbus casualty"
-#endif
-
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
 
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
-#ifdef FDC_YE
-#define FDC_IS_PCMCIA  (1 << 1)		/* if successful probe, then it's
-					   a PCMCIA device */
-#endif
+#define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
 
 /* internally used only, not really from CMOS: */
 #define RTCFDT_144M_PRETENDED	0x1000
@@ -117,8 +109,8 @@
 #define NUMTYPES 12
 #define NUMDENS  NUMTYPES
 #else
-#define NUMTYPES 14
-#define NUMDENS  (NUMTYPES - 6)
+#define NUMTYPES 17
+#define NUMDENS  (NUMTYPES - 7)
 #endif
 
 /* These defines (-1) must match index for fd_types */
@@ -132,10 +124,10 @@
 #define FD_800          6
 #define FD_720          7
 #define FD_360          8
-
-#ifdef PC98
 #define FD_640          9
 #define FD_1232         10
+
+#ifdef PC98
 #define FD_1280         11
 #define FD_1476         12
 
@@ -143,12 +135,13 @@
 #define FDT_12M 	1 /* 1M/640K FDD */
 #define FDT_144M	2 /* 1.44M/1M/640K FDD */
 #else
-#define FD_1480in5_25   9
-#define FD_1440in5_25   10
-#define FD_820in5_25    11
-#define FD_800in5_25    12
-#define FD_720in5_25    13
-#define FD_360in5_25    14
+#define FD_1480in5_25   11
+#define FD_1440in5_25   12
+#define FD_820in5_25    13
+#define FD_800in5_25    14
+#define FD_720in5_25    15
+#define FD_360in5_25    16
+#define FD_640in5_25    17
 #endif
 
 
@@ -163,9 +156,9 @@ static struct fd_type fd_types[NUMTYPES] =
 { 10,2,0xFF,0x10,80,1600,1,1,2,0x30,1 }, /* 800K */
 {  9,2,0xFF,0x20,80,1440,1,1,2,0x50,1 }, /* 720K */
 {  9,2,0xFF,0x20,40, 720,2,1,2,0x50,1 }, /* 360K */
-
 {  8,2,0xFF,0x2A,80,1280,1,1,2,0x50,1 }, /* 640K */
 {  8,3,0xFF,0x35,77,1232,1,0,2,0x74,1 }, /* 1.23M 1024/sec */
+
 {  8,3,0xFF,0x35,80,1280,1,0,2,0x74,1 }, /* 1.28M 1024/sec */
 {  9,3,0xFF,0x35,82,1476,1,0,2,0x47,1 }, /* 1.48M 1024/sec 9sec */
 #if 0
@@ -180,6 +173,8 @@ static struct fd_type fd_types[NUMTYPES] =
 { 10,2,0xFF,0x10,80,1600,1,FDC_250KBPS,2,0x2E,1 }, /*  800K in HD 3.5in */
 {  9,2,0xFF,0x20,80,1440,1,FDC_250KBPS,2,0x50,1 }, /*  720K in HD 3.5in */
 {  9,2,0xFF,0x2A,40, 720,1,FDC_250KBPS,2,0x50,1 }, /*  360K in DD 5.25in */
+{  8,2,0xFF,0x2A,80,1280,1,FDC_250KBPS,2,0x50,1 }, /*  640K in DD 5.25in */
+{  8,3,0xFF,0x35,77,1232,1,FDC_500KBPS,2,0x74,1 }, /* 1.23M in HD 5.25in */
 
 { 18,2,0xFF,0x02,82,2952,1,FDC_500KBPS,2,0x02,2 }, /* 1.48M in HD 5.25in */
 { 18,2,0xFF,0x02,80,2880,1,FDC_500KBPS,2,0x02,2 }, /* 1.44M in HD 5.25in */
@@ -187,6 +182,7 @@ static struct fd_type fd_types[NUMTYPES] =
 { 10,2,0xFF,0x10,80,1600,1,FDC_300KBPS,2,0x2E,1 }, /*  800K in HD 5.25in */
 {  9,2,0xFF,0x20,80,1440,1,FDC_300KBPS,2,0x50,1 }, /*  720K in HD 5.25in */
 {  9,2,0xFF,0x23,40, 720,2,FDC_300KBPS,2,0x50,1 }, /*  360K in HD 5.25in */
+{  8,2,0xFF,0x2A,80,1280,1,FDC_300KBPS,2,0x50,1 }, /*  640K in HD 5.25in */
 #endif
 };
 
@@ -228,6 +224,10 @@ struct fd_data {
 #endif
 	device_t dev;
 	fdu_t	fdu;
+};
+
+struct fdc_ivars {
+	int	fdunit;
 };
 static devclass_t fd_devclass;
 
@@ -295,17 +295,11 @@ nrd_info(addr)
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
 
-#ifdef FDC_YE
-#include "card.h"
-static int yeattach(struct isa_device *);
-#endif
-
 /* needed for ft driver, thus exported */
 int in_fdc(struct fdc_data *);
 int out_fdc(struct fdc_data *, int);
 
 /* internal functions */
-static	void fdc_add_device(device_t, const char *, int);
 static	void fdc_intr(void *);
 static void set_motor(struct fdc_data *, int, int);
 #  define TURNON 1
@@ -340,9 +334,7 @@ static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 #define	MOTORWAIT	10
 #define	IOTIMEDOUT	11
 #define	RESETCOMPLETE	12
-#ifdef FDC_YE
 #define PIOREAD		13
-#endif
 
 #ifdef	FDC_DEBUG
 static char const * const fdstates[] =
@@ -360,9 +352,7 @@ static char const * const fdstates[] =
 "MOTORWAIT",
 "IOTIMEDOUT",
 "RESETCOMPLETE",
-#ifdef FDC_YE
 "PIOREAD",
-#endif
 };
 
 /* CAUTION: fd_debug causes huge amounts of logging output */
@@ -402,10 +392,7 @@ fddata_rd(fdc_p fdc)
 static void
 fdctl_wr(fdc_p fdc, u_int8_t v)
 {
-	if (fdc->flags & FDC_ISPNP)
-		bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
-	else
-		bus_space_write_1(fdc->portt, fdc->porth, FDCTL, v);
+	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
 }
 #endif
 
@@ -435,11 +422,6 @@ static void yeunload(struct pccard_devinfo *); 		/* Disable driver */
 static int yeintr(struct pccard_devinfo *); 		/* Interrupt handler */
 
 PCCARD_MODULE(fdc, yeinit, yeunload, yeintr, 0, bio_imask);
-
-/*
- * this is the secret PIO data port (offset from base)
- */
-#define FDC_YE_DATAPORT 6
 
 /*
  *	Initialize the device - called from Slot manager.
@@ -530,13 +512,11 @@ fdc_err(struct fdc_data *fdc, const char *s)
 {
 	fdc->fdc_errs++;
 	if (s) {
-		if (fdc->fdc_errs < FDC_ERRMAX) {
-			device_print_prettyname(fdc->fdc_dev);
-			printf("%s", s);
-		} else if (fdc->fdc_errs == FDC_ERRMAX) {
-			device_print_prettyname(fdc->fdc_dev);
-			printf("too many errors, not logging any more\n");
-		}
+		if (fdc->fdc_errs < FDC_ERRMAX)
+			device_printf(fdc->fdc_dev, "%s", s);
+		else if (fdc->fdc_errs == FDC_ERRMAX)
+			device_printf(fdc->fdc_dev, "too many errors, not "
+						    "logging any more\n");
 	}
 
 	return FD_FAILED;
@@ -778,86 +758,80 @@ static int pc98_fd_check_ready(fdu_t fdu)
 }
 #endif
 
-static struct isa_pnp_id fdc_ids[] = {
-	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
-	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
-	{0}
-};
-
-
-/*
- * fdc controller section.
- */
 static int
-fdc_probe(device_t dev)
+fdc_alloc_resources(struct fdc_data *fdc)
 {
-	int	error, ispnp, ic_type;
-	struct	fdc_data *fdc;
+	device_t dev;
+	int ispnp;
 
-	/* Check pnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
-	if (error == ENXIO)
-		return ENXIO;
-	ispnp = (error == 0);
-
-	fdc = device_get_softc(dev);
-	bzero(fdc, sizeof *fdc);
-	fdc->fdc_dev = dev;
+	dev = fdc->fdc_dev;
+	ispnp = fdc->fdc_ispnp;
 	fdc->rid_ioport = fdc->rid_irq = fdc->rid_drq = 0;
 	fdc->res_ioport = fdc->res_irq = fdc->res_drq = 0;
 
+#ifdef PC98
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &fdc->rid_ioport, 0ul, ~0ul, 
 					     ispnp ? 1 : IO_FDCSIZE,
 					     RF_ACTIVE);
+#else
+	/*
+	 * We don't just use an 8 port range (e.g. 0x3f0-0x3f7) since that
+	 * covers an IDE control register at 0x3f6.
+	 * Isn't PC hardware wonderful.
+	 */
+	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
+					     &fdc->rid_ioport, 0ul, ~0ul, 
+					     ispnp ? 1 : 6, RF_ACTIVE);
+#endif
 	if (fdc->res_ioport == 0) {
 		device_printf(dev, "cannot reserve I/O port range\n");
-		error = ENXIO;
-		goto out;
+		return ENXIO;
 	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
 
 #ifndef PC98
 	/*
-	 * Some bios' report the device at 0x3f2-0x3f5,0x3f7 and some at
+	 * Some BIOSen report the device at 0x3f2-0x3f5,0x3f7 and some at
 	 * 0x3f0-0x3f5,0x3f7. We detect the former by checking the size
 	 * and adjust the port address accordingly.
+	 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
+		fdc->port_off = -2;
+
+	/*
+	 * Register the control port range as rid 1 if it isn't there
+	 * already. Most PnP BIOSen will have already done this but
+	 * non-PnP configurations don't.
 	 *
 	 * And some (!!) report 0x3f2-0x3f5 and completely leave out the
 	 * control register!  It seems that some non-antique controller chips
 	 * have a different method of programming the transfer speed which
 	 * doesn't require the control register, but it's mighty bogus as the
 	 * chip still responds to the address for the control register.
-	 * This hack is truely evil as we use the 6th port in a 4-port chunk.
 	 */
-	/* 0x3f2-0x3f5 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4 &&
-	    bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
-		fdc->port_off = -2;
-		ispnp = 0;	/* hack, don't reserve second port chunk */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
+		u_long ctlstart;
+
+		/* Find the control port, usually 0x3f7 */
+		ctlstart = rman_get_start(fdc->res_ioport) + fdc->port_off + 7;
+
+		bus_set_resource(dev, SYS_RES_IOPORT, 1, ctlstart, 1);
 	}
-	/* 0x3f0-0x3f5 */
-	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 6 &&
-	    bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
-		ispnp = 0;	/* hack, don't reserve second port chunk */
+
+	/*
+	 * Now (finally!) allocate the control port.
+	 */
+	fdc->rid_ctl = 1;
+	fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT, &fdc->rid_ctl,
+					  0ul, ~0ul, 1, RF_ACTIVE);
+	if (fdc->res_ctl == 0) {
+		device_printf(dev, "cannot reserve control I/O port range\n");
+		return ENXIO;
 	}
-	if (ispnp) {
-		if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
-			fdc->port_off = -2;
-		fdc->flags |= FDC_ISPNP;
-		fdc->rid_ctl = 1;
-		fdc->res_ctl = bus_alloc_resource(dev, SYS_RES_IOPORT,
-						  &fdc->rid_ctl, 0ul, ~0ul, 
-						  1, RF_ACTIVE);
-		if (fdc->res_ctl == 0) {
-			device_printf(dev, "cannot reserve I/O port range\n");
-			error = ENXIO;
-			goto out;
-		}
-		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
-		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
-	}
+	fdc->ctlt = rman_get_bustag(fdc->res_ctl);
+	fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
 #endif
 
 	fdc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ,
@@ -865,20 +839,102 @@ fdc_probe(device_t dev)
 					  RF_ACTIVE);
 	if (fdc->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt line\n");
-		error = ENXIO;
-		goto out;
+		return ENXIO;
 	}
 	fdc->res_drq = bus_alloc_resource(dev, SYS_RES_DRQ,
 					  &fdc->rid_drq, 0ul, ~0ul, 1, 
 					  RF_ACTIVE);
 	if (fdc->res_drq == 0) {
 		device_printf(dev, "cannot reserve DMA request line\n");
-		error = ENXIO;
-		goto out;
+		return ENXIO;
 	}
 	fdc->dmachan = fdc->res_drq->r_start;
-	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
-			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
+
+	return 0;
+}
+
+static void
+fdc_release_resources(struct fdc_data *fdc)
+{
+	device_t dev;
+
+	dev = fdc->fdc_dev;
+	if (fdc->res_irq != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
+					fdc->res_irq);
+		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
+				     fdc->res_irq);
+	}
+#ifndef PC98
+	if (fdc->res_ctl != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
+					fdc->res_ctl);
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
+				     fdc->res_ctl);
+	}
+#endif
+	if (fdc->res_ioport != 0) {
+		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
+					fdc->res_ioport);
+		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
+				     fdc->res_ioport);
+	}
+	if (fdc->res_drq != 0) {
+		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
+					fdc->res_drq);
+		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
+				     fdc->res_drq);
+	}
+}
+
+/****************************************************************************/
+/*                      autoconfiguration stuff                             */
+/****************************************************************************/
+
+static struct isa_pnp_id fdc_ids[] = {
+	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
+	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
+	{0}
+};
+
+static int
+fdc_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	struct fdc_ivars *ivars = device_get_ivars(child);
+
+	switch (which) {
+	case FDC_IVAR_FDUNIT:
+		*result = ivars->fdunit;
+		break;
+	default:
+		return ENOENT;
+	}
+	return 0;
+}
+
+/*
+ * fdc controller section.
+ */
+static int
+fdc_probe(device_t dev)
+{
+	int	error, ic_type;
+	struct	fdc_data *fdc;
+
+	fdc = device_get_softc(dev);
+	bzero(fdc, sizeof *fdc);
+	fdc->fdc_dev = dev;
+
+	/* Check pnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fdc_ids);
+	if (error == ENXIO)
+		return ENXIO;
+	fdc->fdc_ispnp = (error == 0);
+
+	/* Attempt to allocate our resources for the duration of the probe */
+	error = fdc_alloc_resources(fdc);
+	if (error)
+		goto out;
 
 #ifndef PC98
 	/* First - lets reset the floppy controller */
@@ -926,65 +982,31 @@ fdc_probe(device_t dev)
 	}
 #endif
 
-#ifdef FDC_YE
-	/*
-	 * don't succeed on probe; wait
-	 * for PCCARD subsystem to do it
-	 */
-	if (dev->id_flags & FDC_IS_PCMCIA)
-		return(0);
-#endif
-	return (0);
-
 out:
-	if (fdc->fdc_intr)
-		BUS_TEARDOWN_INTR(device_get_parent(dev), dev, fdc->res_irq,
-				  fdc->fdc_intr);
-	if (fdc->res_irq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-					fdc->res_irq);
-		bus_release_resource(dev, SYS_RES_IRQ, fdc->rid_irq,
-				     fdc->res_irq);
-	}
-	if (fdc->res_ctl != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-					fdc->res_ctl);
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ctl,
-				     fdc->res_ctl);
-	}
-	if (fdc->res_ioport != 0) {
-		bus_deactivate_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-					fdc->res_ioport);
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-				     fdc->res_ioport);
-	}
-	if (fdc->res_drq != 0) {
-		bus_deactivate_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-					fdc->res_drq);
-		bus_release_resource(dev, SYS_RES_DRQ, fdc->rid_drq,
-				     fdc->res_drq);
-	}
+	fdc_release_resources(fdc);
 	return (error);
 }
 
 /*
- * Aped dfr@freebsd.org's isa_add_device().
+ * Add a child device to the fdc controller.  It will then be probed etc.
  */
 static void
-fdc_add_device(device_t dev, const char *name, int unit)
+fdc_add_child(device_t dev, const char *name, int unit)
 {
-	int	disabled, *ivar;
+	int	disabled;
+	struct fdc_ivars *ivar;
 	device_t child;
 
 	ivar = malloc(sizeof *ivar, M_DEVBUF /* XXX */, M_NOWAIT);
-	if (ivar == 0)
+	if (ivar == NULL)
 		return;
-	if (resource_int_value(name, unit, "drive", ivar) != 0)
-		*ivar = 0;
+	bzero(ivar, sizeof *ivar);
+	if (resource_int_value(name, unit, "drive", &ivar->fdunit) != 0)
+		ivar->fdunit = 0;
 	child = device_add_child(dev, name, unit);
-	device_set_ivars(child, ivar);
-	if (child == 0)
+	if (child == NULL)
 		return;
+	device_set_ivars(child, ivar);
 	if (resource_int_value(name, unit, "disabled", &disabled) == 0
 	    && disabled != 0)
 		device_disable(child);
@@ -993,17 +1015,22 @@ fdc_add_device(device_t dev, const char *name, int unit)
 static int
 fdc_attach(device_t dev)
 {
-	struct	fdc_data *fdc = device_get_softc(dev);
-	fdcu_t	fdcu = device_get_unit(dev);
-	int	i;
+	struct	fdc_data *fdc;
+	int	i, error;
 
-	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
-	     i != -1;
-	     i = resource_query_string(i, "at", device_get_nameunit(dev)))
-		fdc_add_device(dev, resource_query_name(i),
-			       resource_query_unit(i));
-
-	fdc->fdcu = fdcu;
+	fdc = device_get_softc(dev);
+	error = fdc_alloc_resources(fdc);
+	if (error) {
+		device_printf(dev, "cannot re-aquire resources\n");
+		return error;
+	}
+	error = BUS_SETUP_INTR(device_get_parent(dev), dev, fdc->res_irq,
+			       INTR_TYPE_BIO, fdc_intr, fdc, &fdc->fdc_intr);
+	if (error) {
+		device_printf(dev, "cannot setup interrupt\n");
+		return error;
+	}
+	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_ATTACHED;
 
 	/* Acquire the DMA channel forever, The driver will do the rest */
@@ -1022,8 +1049,15 @@ fdc_attach(device_t dev)
 	bufq_init(&fdc->head);
 
 	/*
-	 * Probe and attach any children as were configured above.
+	 * Probe and attach any children.  We should probably detect
+	 * devices from the BIOS unless overridden.
 	 */
+	for (i = resource_query_string(-1, "at", device_get_nameunit(dev));
+	     i != -1;
+	     i = resource_query_string(i, "at", device_get_nameunit(dev)))
+		fdc_add_child(dev, resource_query_name(i),
+			       resource_query_unit(i));
+
 	return (bus_generic_attach(dev));
 }
 
@@ -1034,7 +1068,7 @@ fdc_print_child(device_t me, device_t child)
 
 	retval += bus_print_child_header(me, child);
 	retval += printf(" on %s drive %d\n", device_get_nameunit(me),
-	       *(int *)device_get_ivars(child));
+	       fdc_get_fdunit(child));
 	
 	return (retval);
 }
@@ -1050,6 +1084,7 @@ static device_method_t fdc_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	fdc_print_child),
+	DEVMETHOD(bus_read_ivar,	fdc_read_ivar),
 	/* Our children never use any other bus interface methods. */
 
 	{ 0, 0 }
@@ -1163,9 +1198,10 @@ fd_probe(device_t dev)
 
 	/* XXX This doesn't work before the first set_motor() */
 	if (fd_fifo == 0 && fdc->fdct != FDC_NE765 && fdc->fdct != FDC_UNKNOWN
+	    && (device_get_flags(fdc->fdc_dev) & FDC_NO_FIFO) == 0
 	    && enable_fifo(fdc) == 0) {
-		device_print_prettyname(device_get_parent(dev));
-		printf("FIFO enabled, %d bytes threshold\n", fifo_threshold);
+		device_printf(device_get_parent(dev),
+		    "FIFO enabled, %d bytes threshold\n", fifo_threshold);
 	}
 	fd_fifo = 1;
 
@@ -1298,7 +1334,7 @@ fd_attach(device_t dev)
 
 	fd = device_get_softc(dev);
 
-	cdevsw_add(&fd_cdevsw);	/* XXX fill in devices */
+	cdevsw_add(&fd_cdevsw);	/* XXX */
 	make_dev(&fd_cdevsw, (fd->fdu << 6),
 		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
 
@@ -1353,10 +1389,10 @@ static int yeattach(struct isa_device *dev)
 	int     st0, st3, i;
 	fdc->fdcu = fdcu;
 	/*
-	 * the FDC_PCMCIA flag is used to to indicate special PIO is used
+	 * the FDC_NODMA flag is used to to indicate special PIO is used
 	 * instead of DMA
 	 */
-	fdc->flags = FDC_ATTACHED|FDC_PCMCIA;
+	fdc->flags = FDC_ATTACHED|FDC_NODMA;
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	fdout_wr(fdc, ((fdc->fdout = 0)));
@@ -1689,6 +1725,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 			case FD_720:
 				if (   type != FD_820
 				    && type != FD_800
+				    && type != FD_640
 				   )
 					return (ENXIO);
 				break;
@@ -1700,6 +1737,8 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 				case FD_1440:
 					type = FD_1440in5_25;
 					break;
+				case FD_1232:
+					break;
 				case FD_820:
 					type = FD_820in5_25;
 					break;
@@ -1708,6 +1747,9 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 					break;
 				case FD_720:
 					type = FD_720in5_25;
+					break;
+				case FD_640:
+					type = FD_640in5_25;
 					break;
 				case FD_360:
 					type = FD_360in5_25;
@@ -1723,6 +1765,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 				    && type != FD_820
 				    && type != FD_800
 				    && type != FD_720
+				    && type != FD_640
 				    )
 					return(ENXIO);
 				break;
@@ -1769,17 +1812,11 @@ fdstrategy(struct buf *bp)
 		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
 		      (u_long)major(bp->b_dev), (u_long)minor(bp->b_dev));
 	fdc = fd->fdc;
-#ifdef FDC_YE
 	if (fd->type == NO_TYPE) {
 		bp->b_error = ENXIO;
 		bp->b_flags |= B_ERROR;
-		/*
-		 * I _refuse_ to use a goto
-		 */
-		biodone(bp);
-		return;
+		goto bad;
 	};
-#endif
 
 	fdblk = 128 << (fd->ft->secsize);
 	if (!(bp->b_flags & B_FORMAT)) {
@@ -1915,37 +1952,38 @@ fdc_intr(void *xfdc)
 		;
 }
 
-#ifdef FDC_YE
 /*
  * magic pseudo-DMA initialization for YE FDC. Sets count and
  * direction
  */
-#define SET_BCDR(wr,cnt,port) outb(port,(((cnt)-1) & 0xff)); \
-	outb(port+1,((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)))
+#define SET_BCDR(fdc,wr,cnt,port) \
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
+	    ((cnt)-1) & 0xff);						 \
+	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port + 1, \
+	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)));
 
 /*
  * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy
  */
-static int fdcpio(fdcu_t fdcu, long flags, caddr_t addr, u_int count)
+static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 {
 	u_char *cptr = (u_char *)addr;
-	fdc_p fdc = &fdc_data[fdcu];
-	int io = fdc->baseport;
 
 	if (flags & B_READ) {
 		if (fdc->state != PIOREAD) {
 			fdc->state = PIOREAD;
 			return(0);
 		};
-		SET_BCDR(0,count,io);
-		insb(io+FDC_YE_DATAPORT,cptr,count);
+		SET_BCDR(fdc, 0, count, 0);
+		bus_space_read_multi_1(fdc->portt, fdc->porth, fdc->port_off +
+		    FDC_YE_DATAPORT, cptr, count);
 	} else {
-		outsb(io+FDC_YE_DATAPORT,cptr,count);
-		SET_BCDR(0,count,io);
+		bus_space_write_multi_1(fdc->portt, fdc->porth, fdc->port_off +
+		    FDC_YE_DATAPORT, cptr, count);
+		SET_BCDR(fdc, 0, count, 0);
 	};
 	return(1);
 }
-#endif /* FDC_YE */
 
 /***********************************************************************\
 * The controller state machine.						*
@@ -1977,8 +2015,8 @@ fdstate(fdc_p fdc)
 		\***********************************************/
 		fdc->state = DEVIDLE;
 		if (fdc->fd) {
-			device_print_prettyname(fdc->fdc_dev);
-			printf("unexpected valid fd pointer\n");
+			device_printf(fdc->fdc_dev,
+			    "unexpected valid fd pointer\n");
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
 		}
@@ -1988,10 +2026,8 @@ fdstate(fdc_p fdc)
 	fdu = FDUNIT(minor(bp->b_dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
 	fdblk = 128 << fd->ft->secsize;
-	if (fdc->fd && (fd != fdc->fd)) {
-		device_print_prettyname(fd->dev);
-		printf("confused fd pointers\n");
-	}
+	if (fdc->fd && (fd != fdc->fd))
+		device_printf(fd->dev, "confused fd pointers\n");
 	read = bp->b_flags & B_READ;
 	format = bp->b_flags & B_FORMAT;
 	if (format) {
@@ -2186,9 +2222,7 @@ fdstate(fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-#ifdef FDC_YE
-		if (!(fdc->flags & FDC_PCMCIA))
-#endif
+		if (!(fdc->flags & FDC_NODMA))
 			isa_dmastart(bp->b_flags, bp->b_data+fd->skip,
 				format ? bp->b_bcount : fdblk, fdc->dmachan);
 		sectrac = fd->ft->sectrac;
@@ -2231,12 +2265,10 @@ fdstate(fdc_p fdc)
 		}
 
 		if (format) {
-#ifdef FDC_YE
-			if (fdc->flags & FDC_PCMCIA)
-				(void)fdcpio(fdcu,bp->b_flags,
+			if (fdc->flags & FDC_NODMA)
+				(void)fdcpio(fdc,bp->b_flags,
 					bp->b_data+fd->skip,
 					bp->b_bcount);
-#endif
 			/* formatting */
 			if(fd_cmd(fdc, 6,  NE7CMD_FORMAT, head << 2 | fdu,
 				  finfo->fd_formb_secshift,
@@ -2251,24 +2283,22 @@ fdstate(fdc_p fdc)
 				return (retrier(fdc));
 			}
 		} else {
-#ifdef FDC_YE
-			if (fdc->flags & FDC_PCMCIA) {
+			if (fdc->flags & FDC_NODMA) {
 				/*
 				 * this seems to be necessary even when
 				 * reading data
 				 */
-				SET_BCDR(1,fdblk,fdc->baseport);
+				SET_BCDR(fdc, 1, fdblk, 0);
 
 				/*
 				 * perform the write pseudo-DMA before
 				 * the WRITE command is sent
 				 */
 				if (!read)
-					(void)fdcpio(fdcu,bp->b_flags,
+					(void)fdcpio(fdc,bp->b_flags,
 					    bp->b_data+fd->skip,
 					    fdblk);
 			}
-#endif
 			if (fd_cmd(fdc, 9,
 				   (read ? NE7CMD_READ : NE7CMD_WRITE),
 				   head << 2 | fdu,  /* head & unit */
@@ -2288,16 +2318,14 @@ fdstate(fdc_p fdc)
 				return (retrier(fdc));
 			}
 		}
-#ifdef FDC_YE
-		if (fdc->flags & FDC_PCMCIA)
+		if (fdc->flags & FDC_NODMA)
 			/*
 			 * if this is a read, then simply await interrupt
 			 * before performing PIO
 			 */
-			if (read && !fdcpio(fdcu,bp->b_flags,
+			if (read && !fdcpio(fdc,bp->b_flags,
 			    bp->b_data+fd->skip,fdblk)) {
-				fd->tohandle = timeout(fd_iotimeout, 
-					(caddr_t)fdcu, hz);
+				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 				return(0);      /* will return later */
 			};
 
@@ -2305,7 +2333,6 @@ fdstate(fdc_p fdc)
 		 * write (or format) operation will fall through and
 		 * await completion interrupt
 		 */
-#endif
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 		return (0);	/* will return later */
@@ -2339,16 +2366,14 @@ fdstate(fdc_p fdc)
 			fdc->state = IOCOMPLETE;
 		}
 #endif
-#ifdef FDC_YE
 	case PIOREAD:
 		/* 
 		 * actually perform the PIO read.  The IOCOMPLETE case
 		 * removes the timeout for us.  
 		 */
-		(void)fdcpio(fdcu,bp->b_flags,bp->b_data+fd->skip,fdblk);
+		(void)fdcpio(fdc,bp->b_flags,bp->b_data+fd->skip,fdblk);
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
-#endif
 	case IOCOMPLETE: /* IO DONE, post-analyze */
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) 
@@ -2374,9 +2399,7 @@ fdstate(fdc_p fdc)
 #ifdef EPSON_NRDISK
 		if (fdu != nrdu) {
 #endif /* EPSON_NRDISK */
-#ifdef FDC_YE
-		if (!(fdc->flags & FDC_PCMCIA))
-#endif
+		if (!(fdc->flags & FDC_NODMA))
 			isa_dmadone(bp->b_flags, bp->b_data + fd->skip,
 				format ? bp->b_bcount : fdblk, fdc->dmachan);
 #ifdef EPSON_NRDISK
@@ -2507,8 +2530,7 @@ fdstate(fdc_p fdc)
 		}
 		return (1);	/* will return immediatly */
 	default:
-		device_print_prettyname(fdc->fdc_dev);
-		printf("unexpected FD int->");
+		device_printf(fdc->fdc_dev, "unexpected FD int->");
 		if (fd_read_status(fdc, fd->fdsu) == 0)
 			printf("FDC status :%x %x %x %x %x %x %x   ",
 			       fdc->status[0],
