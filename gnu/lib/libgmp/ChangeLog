@@ -1,0 +1,1347 @@
+Wed May 19 12:14:19 1993  Torbjorn Granlund  (tege@nada.kth.se)
+
+	* Many files: Call alloca(0) before function return.
+	* alloca.c: New file.
+	* Makefile (IMPL_SRCS): Add alloca.c.
+	(IMPL_OBJS): Add alloca.o.
+
+Fri May 14 00:52:01 1993  Torbjorn Granlund  (tege@nada.kth.se)
+
+	* mpz_iset_str.c: Fix header comment.
+
+	* gmp.h: Don't test just FILE, tests some variants of _STDIO_H for
+	machines were FILE is a typedef.
+
+Tue May 11 21:20:07 1993  Torbjorn Granlund  (tege@nada.kth.se)
+
+	* Makefile (realclean): Make it just be like clean.
+	(In particular, don't delete Makefile...)
+
+Thu May  6 14:31:02 1993  Torbjorn Granlund  (tege@nada.kth.se)
+
+	* mpn_mul.c (vsize < KARATSUBA_THRESHOLD): Eliminate unused
+	variable `c'.
+
+	* longlong.h (#if mc88110): Use local union to avoid explicit mov
+	insns.
+	* longlong.h (All union defs): Prepend __ before tags to avoid
+	conflicts.  Cleanup union definitions to look the same.
+
+	* mpz_inp_str.c: Pass BASE to char_ok_for_base. 
+
+Wed May  5 01:25:23 1993  Torbjorn Granlund  (tege@nada.kth.se)
+
+	* tests/tst-convert.c: Try base == 0.
+
+	* mpz_inp_str.c: Fix typo in assignment.
+
+    	* longlong.h: Adjust UMUL_TIME and UDIV_TIME for several archs.
+	(#if hppa): Remove udiv_qrnnd.
+	(#if vax): Define sdiv_qrnnd.  Use "g" constraint for umul_ppmm's
+	operand 0.
+
+Tue May  4 17:11:55 1993  Torbjorn Granlund  (tege@du.nada.kth.se)
+
+	* longlong.h (#if ns32000): Fix typo, udiv_qrnnd was div_qrnnd.
+
+Mon May  3 00:20:52 1993  Torbjorn Granlund  (tege@cyklop.nada.kth.se)
+
+	* Makefile: Add rule for mp_bases.o.
+
+	* _mpz_set_str.c: Make inp_digit an mp_limb.  Remove casts of
+	inp_digit to unsigned.
+
+	* mpn_dm_1.c: Use BITS_PER_MP_LIMB instead of 32.
+	* mpn_mod_1.c: Likewise.
+	* mpn_dm_1.c (udiv_qrnnd_preinv): Delete testing of overflow that
+	Peter Montgomery proved can't happen.
+
+	* tests/*.c: Include gmp-impl.h to make `inline' and `const' be
+	#define'd.
+
+	* Makefile: Update automatically generated dependencies.
+
+	* mpz_pow_ui: Don't include mp.h.
+	Use MP_INT instead of MINT even for rpow.
+
+Sun May  2 16:35:53 1993  Torbjorn Granlund  (tege@cyklop.nada.kth.se)
+
+	* tests/tst-convert.c, tests/tst-dm_ui.c, tests/tst-mdm.c,
+	tests/tst-mdm_ui.c: New files.
+	* tests/tst-dm.c: New name for tests/tst-divmod.c.
+	* tests/*.c: Include urandom.h.  Use urandom(), never random().
+	Restructure test code to be more consistent, define and use
+	dump_abort(), only dump input operands, generate negative operands
+	when allowed by the tested function, etc.
+	* tests/urandom.h: New file.
+	* tests/Makefile: Add new tests.  Update dependencies.
+	(CFLAGS): Pass `-I.'.
+	(tests) Don't print "The tests passed" since we don't correctly
+	detect failures.
+
+	* mpz_fac_ui: Fix some comments.
+
+	* mpz_random.c, mpz_random2.c: Declare random();
+	Define random to call mrand48 for __alpha__.
+
+	* All files: Use #ifdef instead if #if for testing __STDC__.
+
+	* longlong.h (#if sparc_v8): Define UMUL_TIME and UDIV_TIME.
+
+	* mpz_inp_str.c: If BASE is 0, try to determine the base from the
+	leading characters.  Restructure code.
+
+	* mpz_pprime_p.c: Include gmp-impl.h.
+
+Fri Apr 30 09:35:03 1993  Torbjorn Granlund  (tege@du.nada.kth.se)
+
+	* tests/Makefile: Set CC and OPT as in main Makefile.
+	Add copyright notice.
+
+	* gmp.h: Remove declaration of mpz_not.
+
+Thu Apr 29 19:51:34 1993  Torbjorn Granlund  (tege@du.nada.kth.se)
+
+	* mpq_cmp.c: Fix header comment.
+
+	From Anders Thulin:
+	* mpz_inp_str.c: Get condition for char_ok_for_base right.
+
+Tue Apr 27 12:30:48 1993  Torbjorn Granlund  (tege@du.nada.kth.se)
+
+	* Makefile (check): Pass OPT to recursive make.
+	* tests/Makefile (OPT): Set to default value.
+	(CFLAGS): Don't include -g.
+	(tst-mul): Pass $(CFLAGS) to $(CC).
+	(tst-divmod): Likewise.
+	(tst-gcd): Likewise.
+	(tst-sqrtrem): Likewise.
+
+	* mpz_gcd.c: Fix typo in comments.
+
+	* mpz_sqrtrem.c: Really divide by zero for negative operands.
+
+	* mpz_mul_ui.c: Fix header comment.
+
+	* mpz_get_si.c: Fix type typo in cast.
+
+Sun Apr 25 18:40:26 1993  Torbjorn Granlund  (tege@pde.nada.kth.se)
+
+	* memory.c: Use #if instead of #ifdef for __STDC__ for consistency.
+	* bsd/xtom.c: Likewise.
+
+	* cre-conv-tab.c: #include gmp.h and gmp-impl.h to get bit size
+	right for longlong.h.
+	* Makefile: Add new deps for `cre-conv-tab'.
+
+	* Makefile, tests/Makefile: Don't define or use srcdir.
+
+	* longlong.h (#if alpha): Define umul_ppmm.
+	Define UMUL_TIME and UDIV_TIME.
+	(#if i960): Define umul_ppmm and __umulsidi3.
+	(#if hppa): Define count_leading_zeros.
+	(#if IBMR2): Remove umul_ppmm.  Define smul_ppmm.
+	(#if 68020): Define smul_ppmm.
+	(#if mc88110): Define umul_ppmm and udiv_qrnnd.
+	(#if ns32000): Define umul_ppmm.
+	(#if pyr): Rewrite umul_ppmm.
+
+	* mpz_powm: `carry_digit' => `carry_limb'.
+	* sdiv.c: Clearify comment.
+
+Sat Apr 24 16:23:33 1993  Torbjorn Granlund  (tege@pde.nada.kth.se)
+
+	* tests: Update header comments.  Make default sizes 8, use SIZE
+	symbol to allow user override.  Increase default repetitions.
+
+	* longlong.h (__udiv_qrnnd_c):  Define this always.
+	Make all variables `unsigned long int'.
+	(__LLDEBUG__): Remove this conditional.
+
+	* gmp-impl.h: #define ABS.
+	* (Many files): Use ABS instead of abs.
+
+	* _mpz_get_str, mpn_sqrt, mpz_clrbit, mpz_get_si, mpz_mod_2exp,
+	mpz_pow_ui, mpz_random2: Cast 1 to mp_limb before shifting.
+
+	* gmp.h: mpn_add returns mp_limb.
+
+	* mpz_perfsqr: Use #if, not plain if for exclusion of code for
+	non-32-bit machines.
+
+Tue Apr 20 13:13:58 1993  Torbjorn Granlund  (tege@du.nada.kth.se)
+
+	* mpn_sqrt: Handle overflow for intermediate quotients by rounding
+	them down to fit.
+
+	* mpz_random2: Back to random(); rand() is so bad we get into cycles.
+
+	* mpz_perfsqr.c (PP): Define in hexadecimal to avoid GCC warnings.
+
+	* mpz_inp_str.c (char_ok_for_base): New function.
+	(mpz_inp_str): Use it.
+
+	* gmp.h: Add `const' to decl of mpz_probab_pripe_p.
+
+	* _mpz_set_str.c (char_type): Remove final `,'.
+	(ascii_to_num): Likewise.
+
+Sun Mar 28 21:54:06 1993  Torbjorn Granlund  (tege@cyklop.nada.kth.se)
+
+	* mpz_inp_raw: Allocate x_index, not xsize limbs.
+
+Mon Mar 15 11:44:06 1993  Torbjorn Granlund  (tege@pde.nada.kth.se)
+
+	* mpz_pprime_p.c: Declare param `const'.
+	* gmp.h: Add declarations for mpz_com.
+
+Thu Feb 18 14:10:34 1993  Torbjorn Granlund  (tege@pde.nada.kth.se)
+
+	* mpq_add, mpq_sub: Call mpz_clear for t.
+
+Fri Feb 12 20:27:34 1993  Torbjorn Granlund  (tege@cyklop.nada.kth.se)
+
+	* mpz_inp_str: Recog minus sign as first character.
+
+Wed Feb  3 01:36:02 1993  Torbjorn Granlund  (tege@cyklop.nada.kth.se)
+
+	* mpz_random.c (urandom): New conditionally defined local function.
+	Use it instead of random().
+	* mpz_random2: Use rand() instead of random() here, since we don't
+	care how many bits we get.
+
+	* mpz_iset: Handle 0 size.
+
+Tue Feb  2 13:03:33 1993  Torbjorn Granlund  (tege@cyklop.nada.kth.se)
+
+	* _mpz_get_str: Adjust for negative msize when returning str.
+
+	* mpz_mod_ui: Initialize dividend_size before it's used.
+
+Mon Jan  4 09:11:15 1993  Torbjorn Granlund  (tege@sics.se)
+
+	* itom: Declare param explicitly 'signed'.
+	* sdiv: Likewise.
+
+	* mpq_cmp: Remove unused variable tmp_size.
+	* mpz_powm_ui: Fix typo in esize==0 if stmt.
+	* mpz_powm: Likewise.
+
+Sun Nov 29 01:16:11 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_dm_1.c (mpn_divmod_1): Handle
+	divisor_limb == 1 << (BITS_PER_MP_LIMB - 1)
+	specifically.
+
+Sat Nov 28 17:19:40 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_div: Remove free_me and free_me_size and their usage.
+
+Wed Oct 28 17:40:04 1992  Torbjorn Granlund  (tege@jupiter.sics.se)
+
+	* longlong.h (__hppa umul_ppmm): Fix typos.
+	(__hppa sub_ddmmss): Swap input arguments.
+
+	* mpz_perfsqr.c (mpz_perfect_square_p): Avoid , before } in
+	initializator.
+
+Sun Oct 25 20:30:06 1992  Torbjorn Granlund  (tege@jupiter.sics.se)
+
+	* mpz_pprime_p.c (mpz_probab_prime_p): Handle numbers <= 3
+	specifically (used to consider all negative numbers prime).
+
+	* mpz_powm_ui: `carry_digit' => `carry_limb'.
+
+	* sdiv: Handle zero dividend specifically.  Replace most code in
+	this function with a call to mpn_divmod_1.
+
+	* mpn_add: Return type is mp_limb.
+
+	* _mpz_get_str: Assign and use MSIZE smarter, to avoid using
+	m->size.
+	* _mpz_get_str: Allocate extra STR space if (MSIZE < 0) for minus
+	sign.
+	* _mpz_get_str: Move string backwards smarter, avoid copying when
+	not needed.
+
+	* gmp.h (mpn_lshift, mpn_rshift, mpn_rshiftci): Remove `long' from
+	4:th arg.
+	* Makefile.in (MP_OBJS) : Include mpz_sizeinb.o.
+
+Fri Sep 11 22:15:55 1992  Torbjorn Granlund  (tege@tarrega.sics.se)
+
+	* mpq_clear: Don't free the MP_RAT!
+
+	* mpn_lshift, mpn_rshift, mpn_rshiftci: Remove `long' from 4:th arg.
+
+Thu Sep  3 01:47:07 1992  Torbjorn Granlund  (tege@jupiter.sics.se)
+
+	* mpn_mul: Rewrite code jumping between `carry case' and `noncarry
+	case' to avoid jumping.  Special case for V_LIMB being 0 ot 1.
+	* All files: Remove leading _ from mpn function names.
+
+Wed Sep  2 22:21:16 1992  Torbjorn Granlund  (tege@jupiter.sics.se)
+
+	Fix from Jan-Hein Buhrman:
+	* mpz_mdiv.c, mpz_mmod.c, mpz_mdm.c: Make them work as documented.
+
+	* mpz_mmod.c, mpz_mdm.c: Move decl of TEMP_DIVISOR to reflect its
+	life.
+
+Sun Aug 30 18:37:15 1992  Torbjorn Granlund  (tege@jupiter.sics.se)
+
+	* _mpz_get_str: Use mpz_sizeinbase for computing out_len.
+	* _mpz_get_str: Don't remove leading zeros.  Abort if there are some.
+
+Tue Feb 18 14:38:39 1992  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	longlong.h (hppa umul_ppmm): Add missing semicolon.  Declare type
+	of __w1 and __w0.
+
+Fri Feb 14 21:33:21 1992  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* longlong.h: Make default count_leading_zeros work for machines >
+	32 bits.  Prepend `__' before local variables to avoid conflicts
+	with users' variables.
+
+Thu Feb  6 15:10:42 1992  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpn_dm_1.c (_mpn_divmod_1): Add code for avoiding division by
+	pre-inverting divisor.
+
+Sun Feb  2 11:10:25 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Make __LLDEBUG__ work differently.
+	(_IBMR2): Reinsert old code.
+
+Sat Feb  1 16:43:00 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h (#ifdef _IBMR2): Replace udiv_qrnnd with new code
+	using floating point operations.  Don't define
+	UDIV_NEEDS_NORMALIZATION any longer.
+
+Fri Jan 31 15:09:13 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Define UMUL_TIME and UDIV_TIME for most machines.
+	* longlong.h (#ifdef __hppa): Define umul_ppmm.
+
+Wed Jan 29 16:41:36 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_cmp: Only one length parameter, assume operand lengths are
+	the same.  Don't require normalization.
+	* mpq_cmp, mpz_add, mpz_sub, mpz_gcd, mpn_mul, mpn_sqrt: Change for
+	new mpn_cmp definition.
+
+Tue Jan 28 11:18:55 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* _mpz_get_str: Fix typo in comment.
+
+Mon Jan 27 09:44:16 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* Makefile.in: Add new files.
+
+	* mpn_dm_1.c: New file with function _mpn_divmod_1.
+	* mpz_dm_ui.c (mpz_divmod_ui): Use _mpn_divmod_1.
+	* mpz_div_ui: Likewise.
+
+	* mpn_mod_1.c: New file with function _mpn_mod_1.
+	* mpz_mod_ui: Use _mpn_mod_1.
+
+Thu Jan 23 18:54:09 1992  Torbjorn Granlund  (tege@sics.se)
+
+	Bug found by Paul Zimmermann (zimmermann@inria.inria.fr):
+	* mpz_div_ui.c (mpz_div_ui), mpz_dm_ui.c (mpz_divmod_ui):
+	Handle dividend == 0.
+
+Wed Jan 22 12:02:26 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_pprime_p.c: Use "" for #include.
+
+Sun Jan 19 13:36:55 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_rshiftci.c (header): Correct comment.
+
+Wed Jan 15 18:56:04 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_powm, mpz_powm_ui (if (bsize > msize)): Do alloca (bsize + 1)
+	to make space for ignored quotient at the end.  (The quotient might
+	always be an extra limb.)
+
+Tue Jan 14 21:28:48 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_powm_ui: Fix comment.
+	* mpz_powm: Likewise.
+
+Mon Jan 13 18:16:25 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* tests/Makefile.in: Prepend $(TEST_PREFIX) to Makefile target.
+
+Sun Jan 12 13:54:28 1992  Torbjorn Granlund  (tege@sics.se)
+
+	Fixes from Kazumaro Aoki:
+	* mpz_out_raw: Take abs of size to handle negative values.
+	* mpz_inp_raw: Reallocate before reading ptr from X.
+	* mpz_inp_raw: Store, don't read, size to x->size.
+
+Tue Jan  7 17:50:25 1992  Torbjorn Granlund  (tege@sics.se)
+
+	* gmp.h, mp.h: Remove parameter names from prototypes.
+
+Sun Dec 15 00:09:36 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* tests/Makefile.in: Prepend "./" to file names when executing
+	tests.
+
+	* Makefile.in: Fix many problems.
+
+Sat Dec 14 01:00:02 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_sqrt.c: New file with _mpn_sqrt.
+	* mpz_sqrt, mpz_sqrtrem, mpz_perfect_square_p: Use _mpn_sqrt.
+	* msqrt.c: Delete.  Create from mpz_sqrtrem.c in Makefile.in.
+	* mpz_do_sqrt.c: Delete.
+	* Makefile.in: Update to reflect these changes.
+
+	* Makefile.in, configure, configure.subr: New files
+	(from bothner@cygnus.com).
+	* dist-Makefile: Delete.
+
+	* mpz_fac_ui: Fix comment.
+
+	* mpz_random2: Rewrite to make it possible for the most	significant
+	limb to be == 1.
+
+	* mpz_pprime_p.c (mpz_probab_prime_p): Remove \t\n.
+
+Fri Dec 13 23:10:02 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_do_sqrt: Simplify special case for U == 0.
+	* m*sqrt*.c, mpz_perfsqr.c (mpz_perfect_square_p):
+	  Rename _mpz_impl_sqrt to _mpz_do_sqrt.
+
+Fri Dec 13 12:52:28 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* gmp-impl.h (MPZ_TMP_INIT): Cast to the right type.
+
+Thu Dec 12 22:17:29 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_add, mpn_sub, mpn_mul, mpn_div: Change type of several
+	variables to mp_size.
+
+Wed Dec 11 22:00:34 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_rshift.c: Fix header comments.
+
+Mon Dec  9 17:46:10 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.2.
+
+	* gmp-impl.h (MPZ_TMP_INIT): Cast alloca return value.
+
+	* dist-Makefile: Add missing dependency for cre-mparam.
+
+	* mpz_mdiv.c, mpz_mmod.c, mpz_mdm.c, mpz_mdiv_ui.c,
+	  mpz_mmod_ui.c, mpz_mdm_ui.c: Remove obsolete comment.
+
+	* dist-Makefile (clean): clean in tests subdir too.
+	* tests/Makefile: Define default values for ROOT and SUB.
+
+	* longlong.h (__a29k__ udiv_qrnnd): Change "q" to "1" for operand
+	2 constraint.
+
+Mon Nov 11 00:06:05 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_sizeinb.c (mpz_sizeinbase): Special code for size == 0.
+
+Sat Nov  9 23:47:38 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.1.94.
+
+	* dist-Makefile, Makefile, tests/Makefile: Merge tests into
+	distribution.
+
+Fri Nov  8 22:57:19 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* gmp.h: Don't use keyword `signed' for non-ANSI compilers.
+
+Thu Nov  7 22:06:46 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Cosmetic changes to keep it identical to gcc2 version
+	of longlong.h.
+	* longlong.h (__ibm032__): Fix operand order for add_ssaaaa and
+	sub_ddmmss.
+
+Mon Nov  4 00:36:46 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_mul: Fix indentation.
+
+	* mpz_do_sqrt: Don't assume 32 bit limbs (had constant
+	4294967296.0).
+	* mpz_do_sqrt: Handle overflow in conversion from double returned
+	by SQRT to mp_limb.
+
+	* gmp.h: Add missing function definitions.
+
+Sun Nov  3 18:25:25 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_pow_ui: Change type of `i' to int.
+
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+	* ChangeLog: Add change log entry.
+Stack overflow.
+
+	* mpz_pow_ui.c: Fix typo in comment.
+
+	* dist-Makefile: Create rpow.c from mpz_powm_ui.c.
+	* mpz_powm_ui.c: Add code for rpow.
+	* rpow.c: Delete this file.  The rpow function is now implemented
+	in mpz_powm_ui.c.
+
+	* mpz_fac_ui.c: New file.
+	* gmp.h, dist-Makefile: Add stuff for mpz_fac_ui.
+
+	Bug found by John Amanatides (amana@sasquatch.cs.yorku.ca):
+	* mpz_powm_ui, mpz_powm: Call _mpn_mul in the right way, with
+	the first argument not smaller than the second.
+
+Tue Oct 29 13:56:55 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* cre-conv-tab.c (main), cre-mparam.c (main): Fix typo in output
+	header text.
+
+Mon Oct 28 00:35:29 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_random2: Handle size == 0.
+
+	* gmp-impl.h (struct __mp_bases): Rename chars_per_limb_exactly to
+	chars_per_bit_exactly, and change its definition.
+	* cre-conv-tab.c (main): Output field according to its new
+	definition.
+	* mpz_out_str, _mpz_get_str, mpz_sizeinb, mout:
+	Use chars_per_bit_exactly.
+
+	* mpz_random2: Change the loop termination condition in order to
+	get a large most significant limb with higher probability.
+
+	* gmp.h: Add declaration of new mpz_random2 and mpz_get_si.
+	* mpz_get_si.c: New file.
+	* dist-Makefile: Add mpz_random2 and mpz_get_si.
+
+	* mpz_sizeinb.c (mpz_sizeinbase): Special code for base being a
+	power of 2, giving exact result.
+
+	* mpn_mul: Fix MPN_MUL_VERIFY in various ways.
+	* mpn_mul: New macro KARATSUBA_THRESHOLD.
+	* mpn_mul (karatsuba's algorithm): Don't write intermediate results
+	to prodp, use temporary pp instead.  (Intermediate results can be
+	larger than the final result, possibly writing into hyperspace.)
+	* mpn_mul: Make smarter choice between Karatsuba's algorithm and the
+	shortcut algorithm.
+	* mpn_mul: Fix typo, cy instead of xcy.  Unify carry handling code.
+
+Sun Oct 27 19:57:32 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpn_mul: In non-classical case, choose Karatsuba's algorithm only
+	when usize > 1.5 vsize.
+
+	* mpn_mul: Break between classical and Karatsuba's algorithm at
+	KARATSUBA_THRESHOLD, if defined.  Default to 8.
+
+	* mpn_div: Kludge to fix stray memory read.
+
+Sat Oct 26 20:06:14 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_gcdext: Handle a = b = 0.  Remove memory leakage by calling
+	mpz_clear for all temporary variables.
+
+	* mpz_gcd: Reduce w_bcnt in _mpn_lshift call to hold that
+	function's argument constraints.  Compute wsize correctly.
+
+	* mpz_gcd: Fix typo in comment.
+
+	* memory.c (_mp_default_allocate, _mp_default_reallocate): Call
+	abort if allocation fails, don't just exit.
+
+Fri Oct 25 22:17:20 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_random2.c: New file.
+
+Thu Oct 17 18:06:42 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Bugs found by Pierre-Joseph Gailly (pjg@sunbim.be):
+	* mpq_cmp: Take sign into account, don't just compare the
+	magnitudes.
+	* mpq_cmp: Call _mpn_mul in the right way, with the first argument
+	not smaller than the second.
+
+Wed Oct 16 19:27:32 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_random: Ensure the result is normalized.
+
+Tue Oct 15 14:55:13 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_clrbit: Support non-ANSI compilers.
+
+Wed Oct  9 18:03:28 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h (68k add_ssaaaa, sub_ddmmss): Generalize constraints.
+
+Tue Oct  8 17:42:59 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_mdm_ui: Add comments.
+
+	* mpz_mdiv: Use MPZ_TMP_INIT instead of mpz_init.
+	* mpz_init_ui: Change spacing and header comment.
+
+Thu Oct  3 18:36:13 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* dist-Makefile: Prepend `./' before some filenames.
+
+Sun Sep 29 14:02:11 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.1 (public).
+
+	* mpz_com: New name of mpz_not.
+	* dist-Makefile: Change mpz_not to mpz_com.
+
+Tue Sep 24 12:44:11 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Fix header comment.
+
+Mon Sep  9 15:16:24 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.0.92.
+
+	* mpn_mul.c (_mpn_mul): Handle leading zero limbs in non-Karatsuba
+	case.
+
+	* longlong.h (m68000 umul_ppmm): Clobber one register less by
+	slightly rearranging the code.
+
+Sun Sep  1 18:53:25 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* dist-Makefile (stamp-stddefh): Fix typo.
+
+Sat Aug 31 20:41:31 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.0.91.
+
+	* mpz_mdiv.c, mpz_mmod.c, mpz_mdm.c, mpz_mdiv_ui.c,
+	  mpz_mmod_ui.c, mpz_mdm_ui.c: New files and functions.
+	* gmp.h, gmp.texi: Define the new functions.
+
+Fri Aug 30 08:32:56 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_gcdext: Compute t argument from the other quantities at the
+	  end, of the function, not in the loop.  New feature: Allow t to be
+	  NULL.
+
+	* mpz_add.c, mpz_sub.c, mpz_mul.c, mpz_powm.c, mpz_gcd.c: Don't
+	  include "mp.h".  Use type name `MP_INT' always.
+
+	* dist-Makefile, mpz_cmp.c: Merge mcmp.c from mpz_cmp.c.
+
+Wed Aug 28 00:45:11 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* dist-Makefile (documentation): Go via tmp.texi to avoid the
+	  creation of gmp.dvi if any errors occur.  Make tex read input
+	  from /dev/null.
+
+Fri Aug 23 15:58:52 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h (68020, i386): Don't define machine-dependent
+	  __umulsidi3 (so the default definition is used).
+	* longlong.h (all machines): Cast all operands, sources and
+	  destinations, to `unsigned long int'.
+	* longlong.h: Add gmicro support.
+
+Thu Aug 22 00:28:29 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Rename BITS_PER_LONG to LONG_TYPE_SIZE.
+	* longlong.h (__ibm032__): Define count_leading_zeros and umul_ppmm.
+	* longlong.h: Define UMUL_TIME and UDIV_TIME for some CPUs.
+	* _mpz_get_str.c: Add code to do division by big_base using only
+	  umul_qrnnd, if that is faster.  Use UMUL_TIME and UDIV_TIME to
+	  decide which variant to use.
+
+Wed Aug 21 15:45:23 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h (__sparc__ umul_ppmm): Move two insn from end to the
+	  nops.  (Saves two insn.)
+
+	* longlong.h (__sparc__ umul_ppmm): Rewrite in order to avoid
+	  branch, and to permit input/output register overlap.
+
+	* longlong.h (__29k__): Remove duplicated udiv_qrnnd definition.
+	* longlong.h (__29k__ umul_ppmm): Split asm instructions into two
+	  asm statements (gives better code if either the upper or lower
+	  part of the product is unused.
+
+Tue Aug 20 17:57:59 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* _mpz_get_str.c (outside of functions): Remove
+	  num_to_ascii_lower_case and num_to_ascii_upper_case.  Use string
+	  constants in the function instead.
+
+Mon Aug 19 00:37:42 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* cre-conv-tab.c (main): Output table in hex.  Output 4 fields, not
+	  3, for components 0 and 1.
+
+	* gmp.h: Add declaration of mpq_neg.
+
+	Released 1.0beta.13.
+
+	* _mpz_set_str.c (mpz_set_str): Cast EOF and SPC to char before
+	  comparing to enum literals SPC and EOF.  This makes the code work
+	  for compilers where `char' is unsigned.  (Bug found by Brian
+	  Beuning).
+
+	Released 1.0beta.12.
+
+	* mpz_mod_ui: Remove references to quot.  Remove quot_ptr, quot_size
+	  declarations and assignment code.
+
+Sun Aug 18 14:44:26 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_mod_ui: Handle dividend < 0.
+
+	Released 1.0beta.11.
+
+	* mpz_dm_ui, mpz_div_ui, mpz_mod_ui, sdiv: Make them share the same
+	  general structure, variable names, etc.
+
+	* sdiv: Un-normalize the remainder in n1 before it is negated.
+
+	* longlong.h: Mention UDIV_NEEDS_NORMALIZATION in description of
+	  udiv_qrnnd.
+
+	* mpz_dm_ui.c (mpz_divmod_ui), mpz_div_ui.c (mpz_div_ui): Increment
+	  the quotient size if the dividend size is incremented.  (Bug found
+	  by Brian Beuning.)
+
+	* mpz_mod_ui: Shift back the remainder, if UDIV_NEEDS_NORMALIZATION.
+	  (Bug found by Brian Beuning.)
+
+	* mpz_mod_ui: Replace "digit" by "limb".
+
+	* mpz_perfsqr.c (mpz_perfect_square_p): Disable second test case
+	  for non-32-bit machines (PP is hardwired for such machines).
+	* mpz_perfsqr.c (outside of functions): Define PP value with an L.
+
+	* mpn_mul.c (_mpn_mul): Add verification code that is activated if
+	  DEBUG is defined.  Replace "digit" by "limb".
+	* mpn_mul.c (_mpn_mul: Karatsuba's algorithm: 4.): Normalize temp
+	  after the addition.
+	* mpn_mul.c (_mpn_mul: Karatsuba's algorithm: 1.): Compare u0_size
+	  and v0_size, and according to the result, swap arguments in
+	  recursive call.  (Don't violate mpn_mul's own argument
+	  constraints.)
+
+Fri Aug 16 13:47:12 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.0beta.10.
+
+	* longlong.h (IBMR2): Add udiv_qrnnd.
+
+	* mpz_perfsqr: Remove unused variables.
+
+	* mpz_and (case for different signs): Initialize loop variable i!
+
+	* dist-Makefile: Update automatically generated dependencies.
+	* dist-Makefile (madd.c, msub.c, pow.c, mult.c, gcd.c): Add mp.h,
+	  etc to dependency file lists.
+
+	* longlong.h (add_ssaaaa, sub_ddmmss [C default versions]): Make __x
+	  `unsigned long int'.
+	* longlong.h: Add `int' after `unsigned' and `long' everywhere.
+
+Wed Aug 14 18:06:48 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Add ARM, i860 support.
+
+	* mpn_lshift, mpn_rshift, mpn_rshiftci: Rename *_word with *_limb.
+
+Tue Aug 13 21:57:43 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* _mpz_get_str.c, _mpz_set_str.c, mpz_sizeinb.c (mpz_sizeinbase),
+	  mpz_out_str.c, mout.c: Remove declaration of __mp_bases.
+	* gmp-impl.h: Put it here, and make it `const'.
+	* cre-conv-tab.c (main): Make struct __mp_bases `const'.
+
+Mon Aug 12 17:11:46 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* cre-conv-tab.c (main): Use %lu in printf for long ints.
+
+	* dist-Makefile: Fix cre-* dependencies.
+
+	* cre-conv-tab.c (main): Output field big_base_inverted.
+
+	* gmp-impl.h (struct bases): New field big_base_inverted.
+	* gmp-impl.h (struct bases): Change type of chars_per_limb_exactly
+	  to float (in order to keep the structure smaller).
+
+	* mp.h, gmp.h: Change names of macros for avoiding multiple
+	  includes.
+
+Fri Aug  9 18:01:36 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* _mpz_get_str: Only shift limb array if normalization_steps != 0
+	  (optimization).
+
+	* longlong.h (sparc umul_ppmm): Use __asm__, not asm.
+	* longlong.h (IBMR2 umul_ppmm): Refer to __m0 and __m1, not to m0
+	  and m1 (overlap between output and input operands did not work).
+	* longlong.h: Add VAX, ROMP and HP-PA support.
+	* longlong.h: Sort the machine dependent code in alphabetical order
+	  on the CPU name.
+	* longlong.h: Hack comments.
+
+Thu Aug  8 14:13:36 1991  Torbjorn Granlund  (tege@sics.se)
+
+	Released 1.0beta.9.
+
+	* longlong.h: Define BITS_PER_LONG to 32 if it's not already
+	  defined.
+	* Define __BITS4 to BITS_PER_LONG / 4.
+	* Don't assume 32 bit word size in "count_leading_zeros" C macro.
+	  Use __BITS4 and BITS_PER_LONG instead.
+
+	* longlong.h: Don't #undef internal macros (reverse change of Aug 3).
+
+	* longlong.h (68k): Define add_ssaaaa sub_ddmmss, and umul_ppmm
+	  even for plain mc68000.
+
+	* mpq_div: Flip the sign of the numerator *and* denominator of the
+	  result if the intermediate denominator is negative.
+
+	* mpz_and.c, mpz_ior.c: Use MPN_COPY for all copying operations.
+
+	* mpz_and.c: Compute the result size more conservatively.
+	* mpz_ior.c: Likewise.
+
+	* mpz_realloc: Never allocate zero space even if NEW_SIZE == 0.
+
+	* dist-Makefile: Remove madd.c, msub.c, pow.c, mult.c, gcd.c from
+	  BSDMP_SRCS.
+
+	* dist-Makefile: Create mult.c from mpz_mul.c.
+	* mult.c: Delete this file.
+
+	* _mpz_set_str: Normalize the result (for bases 2, 4, 8... it was
+	  not done properly if the input string had many leading zeros).
+
+Sun Aug  4 16:54:14 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* dist-Makefile (gcd.c, pow.c, madd.c, msub.c): Make these targets
+	  work with VPATH and GNU MP.
+
+	* mpz_gcd: Don't call mpz_set; inline its functionality.
+
+	* mpq_mul, mpq_div: Fix several serious typos.
+
+	* mpz_dmincl, mpz_div: Don't normalize the quotient if it's already
+	  zero.
+
+	* mpq_neg.c: New file.
+
+	* dist-Makefile: Remove obsolete dependencies.
+
+	* mpz_sub: Fix typo.
+
+	Bugs found by Pierre-Joseph Gailly (pjg@sunbim.be):
+	* mpq_mul, mpq_div: Initialize tmp[12] variables even when the gcd
+	  is just 1.
+	* mpz_gcd: Handle gcd(0,v) and gcd(u,0) in special cases.
+
+Sat Aug  3 23:45:28 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* longlong.h: Clean up comments.
+	* longlong.h: #undef internal macros.
+
+Fri Aug  2 18:29:11 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpq_set_si, mpq_set_ui: Canonicalize 0/x to 0/1.
+	* mpq_set_si, mpq_set_ui: Cosmetic formatting changes.
+
+	* mpz_dmincl.c: Normalize the remainder before shifting it back.
+
+	* mpz_dm_ui.c (mpz_divmod_ui): Handle rem == dividend.
+
+	* mpn_div.c: Fix comment.
+
+	* mpz_add.c, mpz_sub.c: Use __MP_INT (not MP_INT) for intermediate
+	  type, in order to work for both GNU and Berkeley functions.
+
+	* dist-Makefile: Create gcd.c from mpz_gcd.c, pow.c from mpz_powm,
+	  madd.c from mpz_add.c, msub.c from mpz_sub.c.
+	  respectively.
+	* pow.c, gcd.c, mpz_powmincl.c, madd.c, msub.c: Remove these.
+	* mpz_powm.c, mpz_gcd.c, mpz_add.c, mpz_sub.c: #ifdef for GNU and
+	  Berkeley function name variants.
+	* dist-Makefile: Add created files to "clean" target.
+
+Tue Jul 16 15:19:46 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpq_get_den: No need for absolute value of the size, the
+	  denominator is always positive.
+
+	* mpz_get_ui: If the operand is zero, return zero.  Don't read the
+	  limb array!
+
+	* mpz_dmincl.c: Don't ignore the return value from _mpn_rshift, it
+	  is the size of the remainder.
+
+Mon Jul 15 11:08:05 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* Several files: Remove unused variables and functions.
+
+	* gmp-impl.h: Declare _mpz_impl_sqrt.
+
+	* mpz_dm_ui (mpz_divmod_ui), sdiv: Shift back the remainder if
+	  UDIV_NEEDS_NORMALIZATION.  (Fix from Brian Beuning.)
+
+	* mpz_dm_ui.c, sdiv: Replace *digit with *limb.
+
+	* mpz_ior: Add missing else statement in -OP1 | -OP2 case.	
+	* mpz_ior: Add missing else statement in OP1 | -OP2 case.	
+	* mpz_ior: Swap also OP1 and OP2 pointers in -OP1 & OP2 case.
+	* mpz_ior: Duplicate _mpz_realloc code.
+
+	* mpz_and: Add missing else statement in -OP1 & -OP2 case.
+	* mpz_and: Rewrite OP1 & -OP2 case.
+	* mpz_and: Swap also OP1 and OP2 pointers in -OP1 & OP2 case.
+
+	* mpz_gcdext: Loop in d1.size (not b->size).  (Fix from Brian
+	  Beuning.)
+
+	* mpz_perfsqr: Fix argument order in _mpz_impl_sqrt call.  (Fix from
+	  Brian Beuning.)
+
+Fri Jul 12 17:10:33 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpq_set.c, mpq_set_ui.c, mpq_set_si.c, mpq_inv.c,
+	  mpq_get_num.c, mpq_get_den.c, mpq_set_num.c, mpq_set_den.c:
+	  New files.
+
+	* mpz_dmincl.c: Remove second re-allocation of rem->d.  It
+	  was never executed.
+
+	* dist-Makefile: Use `-r' instead of `-x' for test for ranlib (as
+	  some unixes' test doesn't have the -r option).
+
+	* *.*: Cast allocated pointers to the appropriate type (makes old C
+	  compilers happier).
+
+	* cre-conv-tab.c (main): Divide max_uli by 2 and multiply again
+	  after conversion to double.  (Kludge for broken C compilers.)
+
+	* dist-Makefile (stamp-stddefh): New target.  Test if "stddef.h"
+	  exists in the system and creates a minimal one if it does not
+	  exist.
+	* cre-stddefh.c: New file.
+	* dist-Makefile: Make libgmp.a and libmp.a depend on stamp-stddefh.
+	* dist-Makefile (clean): Add some more.
+	* gmp.h, mp.h: Unconditionally include "stddef.h".
+
+Thu Jul 11 10:08:21 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* min: Do ungetc of last read character.
+	* min.c: include stdio.h.
+
+	* dist-Makefile: Go via tmp- files for cre* redirection.
+	* dist-Makefile: Add tmp* to "clean" target.
+
+	* dist-Makefile: Use LOCAL_CC for cre*, to simplyfy cross
+	  compilation.
+
+	* gmp.h, mp.h: Don't define NULL here.
+	* gmp-impl.h: Define it here.
+
+Wed Jul 10 14:13:33 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_mod_2exp: Don't copy too much, overwriting most significant
+	  limb.
+
+	* mpz_and, mpz_ior: Don't read op[12]_ptr from op[12] when
+	  reallocating res, if op[12]_ptr got their value from alloca.
+
+	* mpz_and, mpz_ior: Clear up comments.
+
+	* cre-mparam.c: Output parameters for `short int' and `int'.
+
+	* mpz_and, mpz_ior: Negate negative op[12]_size in several places.
+
+Tue Jul  9 18:40:30 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* gmp.h, mp.h: Test for _SIZE_T defined before typedef'ing size_t.
+	  (Fix for Sun lossage.)
+
+	* gmp.h: Add declaration of mpq_clear.
+
+	* dist-Makefile: Chack if "ranlib" exists, before using it.
+	* dist-Makefile: Add mpz_sqrtrem.c and mpz_size.c.
+	* mpz_powm: Fix typo, "pow" instead of "mpz_powm".
+
+Fri Jul  5 19:08:09 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* move: Remove incorrect comment.
+
+	* mpz_free, mpq_free: Rename to *_clear.
+	* dist-Makefile: Likewise.
+	* mpq_add, mpq_sub, mpq_mul, mpq_div: Likewise.
+
+	* mpz_dmincl.c: Don't call "move", inline its functionality.
+
+Thu Jul  4 00:06:39 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* Makefile: Include dist-Makefile.  Fix dist target to include
+	  dist-Makefile (with the name "Makefile" in the archive).
+
+	* dist-Makefile: New file made from Makefile.  Add new mpz_...
+	  functions.
+
+	* mpz_powincl.c New file for mpz_powm (Berkeley MP pow)
+	  functionality.  Avoids code duplication.
+	* pow.c, mpz_powm.c: Include mpz_powincl.c
+
+	* mpz_dmincl.c: New file containing general division code.  Avoids
+	  code duplication.
+	* mpz_dm.c (mpz_divmod), mpz_mod.c (mpz_mod), mdiv.c (mdiv): Include
+	  mpz_dmincl.c.
+
+	* _mpz_get_str: Don't call memmove, unless HAS_MEMMOVE is defined.
+	  Instead, write the overlapping memory copying inline.
+
+	* mpz_dm_ui.c: New name for mpz_divmod_ui.c (SysV file name limit).
+
+	* longlong.h: Don't use #elif.
+	* mpz_do_sqrt.c: Likewise.
+
+	* longlong.h: Use __asm__ instead of asm.
+	* longlong.h (sparc udiv_qrnnd): Make it to one string over several
+	  lines.
+
+	* longlong.h: Preend __ll_ to B, highpart, and lowpart.
+
+	* longlong.h: Move array t in count_leading_zeros to the new file
+	  mp_clz_tab.c.  Rename the array __clz_tab.
+    	* All files: #ifdef for traditional C compatibillity.
+
+Wed Jul  3 11:42:14 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* mpz_and: Initialize res_ptr always (used to be initialized only
+	  when reallocating).
+
+	* longlong.h (umul_ppmm [C variant]): Make __ul...__vh
+	  `unsigned int', and cast the multiplications.  This way
+	  compilers more easily can choose cheaper multiplication
+	  instructions.
+
+	* mpz_mod_2exp: Handle input argument < modulo argument.
+	* mpz_many: Make sure mp_size is the type for sizes, not int.
+
+	* mpz_init, mpz_init_set*, mpq_init, mpq_add, mpq_sub, mpq_mul,
+	  mpq_div: Change mpz_init* interface.  Structure pointer as first
+	  arg to initialization function, no longer *return* struct.
+
+Sun Jun 30 19:21:44 1991  Torbjorn Granlund  (tege@sics.se)
+
+	* Rename mpz_impl_sqrt.c to mpz_do_sqrt.c to satisfy SysV 14
+	  character file name length limit.
+
+	* Most files: Rename MINT to MP_INT.  Rename MRAT to MP_RAT.
+	* mpz_sizeinb.c: New file with function mpz_sizeinbase.
+	* mp_bases.c: New file, with array __mp_bases.
+	* _mpz_get_str, _mpz_set_str: Remove struct bases, use extern
+	  __mp_bases instead.
+	* mout, mpz_out_str: Use array __mp_bases instead of function
+	  _mpz_get_cvtlen.
+	* mpz_get_cvtlen.c: Remove.
+	* Makefile: Update.
+
+Sat Jun 29 21:57:28 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* longlong.h (__sparc8__ umul_ppmm): Insert 3 nop:s for wr delay.
+	* longlong.h (___IBMR2__): Define umul_ppmm, add_ssaaaa, sub_ddmmss.
+	* longlong.h (__sparc__): Don't call .umul; expand asm instead.
+	  Don't define __umulsidi3 (i.e. use default definition).
+
+Mon Jun 24 17:37:23 1991  Torbjorn Granlund  (tege@amon.sics.se)
+
+	* _mpz_get_str.c (num_to_ascii_lower_case, num_to_ascii_upper_case):
+	  Swap 't' and 's'.
+
+Sat Jun 22 13:54:01 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpz_gcdext.c: New file.
+
+	* mpn_mul: Handle carry and unexpected operand sizes in last
+	  additions/subtractions.  (Bug trigged when v1_size == 1.)
+
+	* mp*_alloc*: Rename functions to mp*_init* (files to mp*_iset*.c).
+	* mpq_*: Call mpz_init*.
+
+	* mpz_pow_ui, rpow: Use _mpn_mul instead of mult.  Restructure.
+
+Wed May 29 20:32:33 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpz_get_cvtlen: multiply by size.
+
+Sun May 26 15:01:15 1991  Torbjorn Granlund  (tege@bella.nada.kth.se)
+
+	Alpha-release 0.95.
+
+	Fixes from Doug Lea (dl@g.oswego.edu):
+	* mpz_mul_ui: Loop to MULT_SIZE (not PROD_SIZE).  Adjust PROD_SIZE
+	  correctly.
+	* mpz_div: Prepend _ to mpz_realloc.
+	* mpz_set_xs, mpz_set_ds: Fix typos in function name.
+
+Sat May 25 22:51:16 1991  Torbjorn Granlund  (tege@bella.nada.kth.se)
+
+	* mpz_divmod_ui: New function.
+
+	* sdiv: Make the sign of the remainder correct.
+
+Thu May 23 15:28:24 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* Alpha-release 0.94.
+
+	* mpz_mul_ui: Include longlong.h.
+
+	* mpz_perfsqr.c (mpz_perfect_square_p): Call _mpz_impl_sqrt instead
+	  of msqrt.
+
+	* mpz_impl_sqrt: Don't call "move", inline its functionality.
+
+	* mdiv: Use MPN_COPY instead of memcpy.
+	* rpow, mpz_mul, mpz_mod_2exp: Likewise.
+	* pow.c: Likewise, and fix bug in the size arg.
+
+	* xtom: Don't use mpz_alloc, inline needed code instead.  Call
+	  _mpz_set_str instead of mpz_set_str.
+
+	* Makefile: Make two libraries, libmp.a and libgmp.a.
+
+Thu May 22 20:25:29 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* Add manual to distribution.
+	* Fold in many missing routines descibed in the manual.
+	* Update Makefile.
+
+Wed May 22 13:48:46 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpz_set_str: Make it handle 0x prefix OK.
+
+Sat May 18 18:31:02 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* memory.c (_mp_default_reallocate): Swap OLD_SIZE and NEW_SIZE
+	  arguments.
+	* mpz_realloc (_mpz_realloc): Swap in call to _mp_reallocate_func.
+	* min: Likewise.
+
+Thu May 16 20:43:05 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* memory.c: Make the default allocations functions global.
+	* mp_set_fns (mp_set_memory_functions): Make a NULL pointer mean the
+	  default memory function.
+
+Wed May  8 20:02:42 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpz_div: Handle DEN the same as QUOT correctly by copying DEN->D
+	  even if no normalization is needed.
+	* mpz_div: Rework reallocation scheme, to avoid excess copying.
+
+	* mpz_sub_ui.c, mpz_add_ui.c: New files.
+
+	* mpz_cmp.c, mpz_cmp_ui.c: New files.
+
+	* mpz_mul_2exp: Handle zero input MINT correctly.
+
+	* mpn_rshiftci:  Don't handle shift counts > BITS_PER_MP_DIGIT.
+
+	* mpz_out_raw.c, mpz_inp_raw.c: New files for raw I/O.
+
+Tue May  7 15:44:58 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpn_rshift: Don't handle shift counts > BITS_PER_MP_DIGIT.
+	* mpz_div_2exp: Don't call _mpn_rshift with cnt > BITS_PER_MP_DIGIT.
+	* gcd, mpz_gcd: Likewise.
+
+	* gcd, mpz_gcd: Handle common 2 factors correctly.
+
+Mon May  6 20:22:59 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* gmp-impl.h (MPN_COPY): Inline a loop instead of calling memcpy.
+
+	* gmp-impl.h, mpz_get_str, rpow: Swap DST and SRC in TMPCOPY* macros.
+
+Sun May  5 15:16:23 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpz_div: Remove test for QUOT == 0.
+
+Sun Apr 28 20:21:04 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* pow: Don't make MOD normalization in place, as it's a bad idea to
+	  write on an input parameter.
+	* pow: Reduce BASE if it's > MOD.
+	* pow, mult, mpz_mul: Simplify realloc code.
+
+Sat Apr 27 21:03:11 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* Install multplication using Karatsuba's algorithm as default.
+
+Fri Apr 26 01:03:57 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* msqrt: Store in ROOT even for U==0, to make msqrt(0) defined.
+
+	* mpz_div_2exp.c, mpz_mul_2exp.c: New files for shifting right and
+	  left, respectively.
+	* gmp.h: Add definitions for mpz_div_2exp and mpz_mul_2exp.
+
+	* mlshift.c, mrshift.c: Remove.
+
+Wed Apr 24 21:39:22 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* mpn_mul: Check only for m2_size == 0 in function header.
+
+Mon Apr 22 01:31:57 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* karatsuba.c: New file for Karatsuba's multplication algorithm.
+
+	* mpz_random, mpz_init, mpz_mod_2exp: New files and functions.
+
+	* mpn_cmp: Fix header comment.
+
+Sun Apr 21 00:10:44 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* pow: Switch off initial base reduction.
+
+Sat Apr 20 22:06:05 1991  Torbjorn Granlund  (tege@echnaton.sics.se)
+
+	* mpz_get_str: Don't generate initial zeros for initial word.
+	  Used to write outside of allocated storage.
+
+Mon Apr 15 15:48:08 1991  Torbjorn Granlund  (tege@zevs.sics.se)
+
+	* _mpz_realloc: Make it accept size in number of mp_digits.
+	* Most functions: Use new _mpz_realloc definition.
+
+	* mpz_set_str: Remove calls _mp_free_func.
+
+	* Most functions: Rename mpn_* to _mpn_*.  Rename mpz_realloc to
+	  _mpz_realloc.
+	* mpn_lshift: Redefine _mpn_lshift to only handle small shifts.
+	* mdiv, mpz_div, ...: Changes for new definition of _mpn_lshift.
+	* msqrt, mp*_*shift*: Define cnt as unsigned (for speed).
+
+Sat Apr  6 14:05:16 1991  Torbjorn Granlund  (tege@musta.nada.kth.se)
+
+	* mpn_mul: Multiply by the first digit in M2 in a special
+	  loop instead of zeroing the product area.
+
+	* mpz_abs.c: New file.
+
+	* sdiv: Implement as mpz_div_si for speed.
+
+	* mpn_add: Make it work for second source operand == 0.
+
+	* msub: Negate the correct operand, i.e. V before swapping, not
+	  the smaller of U and V!
+	* madd, msub: Update abs_* when swapping operands, and not after
+	  (optimization).
+
+Fri Apr  5 00:19:36 1991  Torbjorn Granlund  (tege@black.nada.kth.se)
+
+	* mpn_sub: Make it work for subtrahend == 0.
+
+	* madd, msub: Rewrite to minimize mpn_cmp calls.  Ensure
+	  mpn_cmp is called with positive sizes (used to be called
+	  incorrectly with negative sizes sometimes).
+
+	* msqrt: Make it divide by zero if fed with a negative number.
+	* Remove if statement at end of precision calculation that was
+	  never true.
+
+	* itom, mp.h: The argument is of type short, not int.
+
+	* mpz_realloc, gmp.h: Make mpz_realloc return the new digit pointer.
+
+	* mpz_get_str.c, mpz_set_str.c, mpz_new_str.c: Don't include mp.h.
+
+	* Add COPYING to distribution.
+
+	* mpz_div_ui.c, mpz_div_si.c, mpz_new_ui.c, mpz_new_si.c: New files.
+
+Fri Mar 15 00:26:29 1991  Torbjorn Granlund  (tege@musta.nada.kth.se)
+
+	* Add Copyleft headers to all files.
+
+	* mpn_mul.c, mpn_div.c: Add header comments.
+	* mult.c, mdiv.c: Update header comments.
+
+	* mpq_add.c, mpq_sub.c, mpq_div.c, mpq_new.c, mpq_new_ui.c,
+	  mpq_free.c: New files for rational arithmetics.
+
+	* mpn_lshift.c: Avoid writing the most significant word if it is 0.
+
+	* mdiv.c: Call mpn_lshift for the normalization.
+	* mdiv.c: Remove #ifdefs.
+
+	* Makefile: Add ChangeLog to DISTFILES.
+
+	* mpn_div.c: Make the add_back code work (by removing abort()).
+	* mpn_div.c: Make it return if the quotient is size as compared
+	  with the difference NSIZE - DSIZE.  If the stored quotient is
+	  larger than that, return 1, otherwise 0.
+	* gmp.h: Fix mpn_div declaration.
+	* mdiv.c: Adopt call to mpn_div.
+	* mpz_div.c: New file (developed from mdiv.c).
+
+	* README: Update routine names.
+
+Thu Mar 14 18:45:28 1991  Torbjorn Granlund  (tege@musta.nada.kth.se)
+
+	* mpq_mul.c: New file for rational multplication.
+
+	* gmp.h: Add definitions for rational arithmetics.
+
+	* mpn_div: Kludge the case where the high numerator digit > the
+	  high denominator digit.  (This code is going to be optimized later.)
+
+	* New files: gmp.h for GNU specific functions, gmp-common.h for
+	  definitions common for mp.h and gmp.h.
+
+	* Ensure mp.h just defines what BSD mp.h defines.
+
+	* pow.c: Fix typo for bp allocation.
+
+	* Rename natural number functions to mpn_*, integer functions to
+	  mpz_*.
+
+Tue Mar  5 18:47:04 1991  Torbjorn Granlund  (tege@musta.nada.kth.se)
+
+	* mdiv.c (_mp_divide, case 2): Change test for estimate of Q from
+	  "n0 >= r" to "n0 > r".
+
+	* msqrt: Tune the increasing precision scheme, to do fewer steps.
+
+Tue Mar  3 18:50:10 1991  Torbjorn Granlund  (tege@musta.nada.kth.se)
+
+	* msqrt: Use the low level routines.  Use low precision in the
+	beginning, and increase the precision as the result converges.
+	(This optimization gave a 6-fold speedup.)
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+fill-column: 75
+version-control: never
+End:
