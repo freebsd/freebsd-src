@@ -77,6 +77,7 @@ typedef struct prog {
 
 /* global state */
 
+strlst_t *buildopts = NULL;
 strlst_t *srcdirs = NULL;
 strlst_t *libs    = NULL;
 prog_t   *progs   = NULL;
@@ -198,6 +199,7 @@ void add_srcdirs(int argc, char **argv);
 void add_progs(int argc, char **argv);
 void add_link(int argc, char **argv);
 void add_libs(int argc, char **argv);
+void add_buildopts(int argc, char **argv);
 void add_special(int argc, char **argv);
 
 prog_t *find_prog(char *str);
@@ -242,6 +244,7 @@ void parse_one_file(char *filename)
 	else if(!strcmp(fieldv[0], "progs"))    f = add_progs;
 	else if(!strcmp(fieldv[0], "ln"))	f = add_link;
 	else if(!strcmp(fieldv[0], "libs"))	f = add_libs;
+	else if(!strcmp(fieldv[0], "buildopts")) f = add_buildopts;
 	else if(!strcmp(fieldv[0], "special"))	f = add_special;
 	else {
 	    warnx("%s:%d: skipping unknown command `%s'",
@@ -365,6 +368,15 @@ void add_libs(int argc, char **argv)
 
     for(i=1;i<argc;i++)
 	add_string(&libs, argv[i]);
+}
+
+
+void add_buildopts(int argc, char **argv)
+{
+    int i;
+
+    for (i = 1; i < argc; i++)
+	add_string(&buildopts, argv[i]);
 }
 
 
@@ -579,12 +591,16 @@ void fillin_program_objs(prog_t *p, char *path)
     if (outhdrname[0] != '\0')
 	fprintf(f, ".include \"%s\"\n", outhdrname);
     fprintf(f, ".include \"%s\"\n", path);
+    if (buildopts) {
+        fprintf(f, "BUILDOPTS+=");
+        output_strlst(f, buildopts);
+    }
     fprintf(f, ".if defined(PROG) && !defined(%s)\n", objvar);
     fprintf(f, "%s=${PROG}.o\n", objvar);
     fprintf(f, ".endif\n");
     fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
 
-    fprintf(f, "crunchgen_objs:\n\t@make -f %s $(OPTS) $(%s_OPTS)",
+    fprintf(f, "crunchgen_objs:\n\t@make -f %s $(BUILDOPTS) $(%s_OPTS)",
 	tempfname, p->ident);
     for (s = p->buildopts; s != NULL; s = s->next)
         fprintf(f, " %s", s->str);
@@ -788,6 +804,11 @@ void top_makefile_rules(FILE *outmk)
     fprintf(outmk, "LIBS=");
     output_strlst(outmk, libs);
 
+    if (buildopts) {
+	fprintf(outmk, "BUILDOPTS+=");
+	output_strlst(outmk, buildopts);
+    }
+
     fprintf(outmk, "CRUNCHED_OBJS=");
     for(p = progs; p != NULL; p = p->next)
 	fprintf(outmk, " %s.lo", p->name);
@@ -834,8 +855,8 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	if (makeobj)
 		fprintf(outmk, "make obj && ");
 	fprintf(outmk, "\\\n");
-	fprintf(outmk, "\t\tmake $(OPTS) $(%s_OPTS) depend && \\\n"
-		"\t\tmake $(OPTS) $(%s_OPTS) $(%s_OBJS))\n",
+	fprintf(outmk, "\t\tmake $(BUILDOPTS) $(%s_OPTS) depend && \\\n"
+		"\t\tmake $(BUILDOPTS) $(%s_OPTS) $(%s_OBJS))\n",
 		p->ident, p->ident, p->ident);
 	fprintf(outmk, "%s_clean:\n", p->ident);
 	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make clean)\n\n", p->ident);
