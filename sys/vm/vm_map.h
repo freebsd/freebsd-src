@@ -214,6 +214,7 @@ struct vmspace {
 
 /* #define MAP_LOCK_DIAGNOSTIC 1 */
 #ifdef MAP_LOCK_DIAGNOSTIC
+#include <sys/systm.h>
 #define vm_map_printf(str, arg)	printf(str,arg)
 #else
 #define vm_map_printf(str, arg)
@@ -221,7 +222,7 @@ struct vmspace {
 
 #define	vm_map_lock(map) \
 	do { \
-		vm_map_printf("locking map LK_EXCLUSIVE: 0x%x\n", map); \
+		vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map); \
 		KASSERT(lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) == 0, \
 			("vm_map_lock: failed to get lock")); \
 		(map)->timestamp++; \
@@ -229,19 +230,19 @@ struct vmspace {
 
 #define	vm_map_unlock(map) \
 	do { \
-		vm_map_printf("locking map LK_RELEASE: 0x%x\n", map); \
+		vm_map_printf("locking map LK_RELEASE: %p\n", map); \
 		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
 	} while (0)
 
 #define	vm_map_lock_read(map) \
 	do { \
-		vm_map_printf("locking map LK_SHARED: 0x%x\n", map); \
+		vm_map_printf("locking map LK_SHARED: %p\n", map); \
 		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc); \
 	} while (0)
 
 #define	vm_map_unlock_read(map) \
 	do { \
-		vm_map_printf("locking map LK_RELEASE: 0x%x\n", map); \
+		vm_map_printf("locking map LK_RELEASE: %p\n", map); \
 		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
 	} while (0)
 
@@ -249,7 +250,7 @@ static __inline__ int
 _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 	int error;
 
-	vm_map_printf("locking map LK_EXCLUPGRADE: 0x%x\n", map); 
+	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
 	error = lockmgr(&map->lock, LK_EXCLUPGRADE, (void *)0, p);
 	if (error == 0)
 		map->timestamp++;
@@ -260,7 +261,7 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 
 #define vm_map_lock_downgrade(map) \
 	do { \
-		vm_map_printf("locking map LK_DOWNGRADE: 0x%x\n", map); \
+		vm_map_printf("locking map LK_DOWNGRADE: %p\n", map); \
 		lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc); \
 	} while (0)
 
