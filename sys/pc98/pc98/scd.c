@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.3 1996/07/30 18:56:08 asami Exp $ */
+/* $Id: scd.c,v 1.4 1996/08/31 15:07:16 asami Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -72,11 +72,7 @@
 #include <machine/clock.h>
 #include <machine/stdarg.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_device.h>
-#else
 #include <i386/isa/isa_device.h>
-#endif
 #include <i386/isa/scdreg.h>
 
 
@@ -205,15 +201,9 @@ static struct bdevsw scd_bdevsw =
 
 static struct kern_devconf kdc_scd[NSCD] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"scd", 0, { MDDT_PC98, 0, "bio" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"scd", 0, { MDDT_ISA, 0, "bio" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* status */
 	"Sony CD-ROM drive",	/* properly filled later */
@@ -226,11 +216,7 @@ scd_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_scd[id->id_unit] = kdc_scd[0];
 	kdc_scd[id->id_unit].kdc_unit = id->id_unit;
-#ifdef PC98
-	kdc_scd[id->id_unit].kdc_pc98 = id;
-#else
 	kdc_scd[id->id_unit].kdc_isa = id;
-#endif
 	dev_attach(&kdc_scd[id->id_unit]);
 }
 

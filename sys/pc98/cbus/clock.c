@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.2 1996/07/23 07:46:07 asami Exp $
+ *	$Id: clock.c,v 1.3 1996/08/30 10:42:58 asami Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
 
 /*
  * modified for PC98
- *	$Id: clock.c,v 1.2 1996/07/23 07:46:07 asami Exp $
+ *	$Id: clock.c,v 1.3 1996/08/30 10:42:58 asami Exp $
  */
 
 /*
@@ -72,7 +72,7 @@
 #include <sys/syslog.h>
 #include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/timerreg.h>
 #else
 #include <i386/isa/icu.h>

@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.2 1996/07/23 07:46:26 asami Exp $
+ *	$Id: npx.c,v 1.3 1996/08/31 15:07:03 asami Exp $
  */
 
 #include "npx.h"
@@ -61,7 +61,7 @@
 
 #ifdef PC98
 #include <pc98/pc98/icu.h>
-#include <pc98/pc98/pc98_device.h>
+#include <i386/isa/isa_device.h>
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/icu.h>
@@ -175,15 +175,9 @@ _probetrap:
 
 static struct kern_devconf kdc_npx[NNPX] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"npx", 0, { MDDT_PC98, 0 },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"npx", 0, { MDDT_ISA, 0 },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* state */
 	"Floating-point unit",
@@ -199,11 +193,7 @@ npx_registerdev(struct isa_device *id)
 	if (unit != 0)
 		kdc_npx[unit] = kdc_npx[0];
 	kdc_npx[unit].kdc_unit = unit;
-#ifdef PC98
-	kdc_npx[unit].kdc_pc98 = id;
-#else
 	kdc_npx[unit].kdc_isa = id;
-#endif
 	dev_attach(&kdc_npx[unit]);
 }
 

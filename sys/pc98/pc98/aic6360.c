@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.1.1.1 1996/06/14 10:04:42 asami Exp $
+ * $Id: aic6360.c,v 1.2 1996/08/31 15:06:38 asami Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -130,11 +130,7 @@
 
 #include <sys/devconf.h>
 #include <machine/clock.h>
-#ifdef PC98
-#include <pc98/pc98/pc98_device.h>
-#else
 #include <i386/isa/isa_device.h>
-#endif
 
 #include <sys/kernel.h>
 
@@ -740,15 +736,9 @@ static struct scsi_device aic_dev = {
 
 static struct kern_devconf kdc_aic[NAIC] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-#ifdef PC98
-	"aic", 0, { MDDT_PC98, 0, "bio" },
-	pc98_generic_externalize, 0, 0, PC98_EXTERNALLEN,
-	&kdc_nec0,		/* parent */
-#else
 	"aic", 0, { MDDT_ISA, 0, "bio" },
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
-#endif
 	0,			/* parentdata */
 	DC_UNCONFIGURED,	/* start out in unconfig state */
 	"Adaptec AIC-6360 SCSI host adapter chipset",
