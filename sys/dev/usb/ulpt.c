@@ -1,5 +1,5 @@
 /*	$NetBSD: ulpt.c,v 1.10 1999/01/08 11:58:25 augustss Exp $	*/
-/*	FreeBSD $Id: ulpt.c,v 1.4 1999/01/07 23:31:35 n_hibma Exp $ */
+/*	FreeBSD $Id: ulpt.c,v 1.5 1999/01/10 18:42:52 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -99,22 +99,53 @@ struct ulpt_softc {
 #define	ULPT_OBUSY	0x02	/* printer is busy doing output */
 #define	ULPT_INIT	0x04	/* waiting to initialize for open */
 	u_char sc_flags;
+#if defined(__NetBSD__)
 #define	ULPT_NOPRIME	0x40	/* don't prime on open */
+#elif defined(__FreeBSD__)
+/* values taken from i386/isa/lpt.c */
+#define ULPT_POS_INIT	0x04    /* if we are a postive init signal */
+#define ULPT_POS_ACK	0x08    /* if we are a positive going ack */
+#define ULPT_NOPRIME	0x10    /* don't prime the printer at all */
+#define ULPT_PRIMEOPEN	0x20    /* prime on every open */
+#define ULPT_AUTOLF	0x40    /* tell printer to do an automatic lf */
+#define ULPT_BYPASS	0x80    /* bypass  printer ready checks */
+#endif
 	u_char sc_laststatus;
 };
 
+#if defined(__NetBSD__)
 int ulptopen __P((dev_t, int, int, struct proc *));
 int ulptclose __P((dev_t, int, int, struct proc *p));
 int ulptwrite __P((dev_t, struct uio *uio, int));
 int ulptioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
-void ulpt_disco __P((void *));
+#elif defined(__FreeBSD__)
+static d_open_t ulptopen;
+static d_close_t ulptclose;
+static d_write_t ulptwrite;
+static d_ioctl_t ulptioctl;
+
+#define ULPT_CDEV_MAJOR 113
+
+static struct  cdevsw ulpt_cdevsw = {
+	ulptopen,	ulptclose,	noread,		ulptwrite,
+	ulptioctl,	nostop,		nullreset,	nodevtotty,
+	seltrue,	nommap,		nostrat,
+	"ulpt",		NULL,		-1
+};
+#endif
 
 int ulpt_status __P((struct ulpt_softc *));
 void ulpt_reset __P((struct ulpt_softc *));
 int ulpt_statusmsg __P((u_char, struct ulpt_softc *));
 
+#if defined(__NetBSD__)
 #define	ULPTUNIT(s)	(minor(s) & 0x1f)
 #define	ULPTFLAGS(s)	(minor(s) & 0xe0)
+#elif defined(__FreeBSD__)
+/* defines taken from i386/isa/lpt.c */
+#define	ULPTUNIT(s)	(minor(s) & 0x03)
+#define	ULPTFLAGS(s)	(minor(s) & 0xfc)
+#endif
 
 USB_DECLARE_DRIVER(ulpt);
 
@@ -269,6 +300,12 @@ ulptopen(dev, flag, mode, p)
 	sc->sc_flags = flags;
 	DPRINTF(("ulptopen: flags=0x%x\n", (unsigned)flags));
 
+#if USB_DEBUG && defined(__FreeBSD__)
+	/* Ignoring these flags might not be a good idea */
+	if ((flags ^ ULPT_NOPRIME) != 0)
+		DPRINTF(("flags ignored: %b\n", flags,
+			"\20\3POS_INIT\4POS_ACK\6PRIME_OPEN\7AUTOLF\10BYPASS"));
+#endif
 	if ((flags & ULPT_NOPRIME) == 0)
 		ulpt_reset(sc);
 
