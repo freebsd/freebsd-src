@@ -172,7 +172,7 @@ typedef union {
 
 } alpha_instruction;
 
-#endif	!defined(ASSEMBLER)
+#endif /* !defined(ASSEMBLER) */
 
 /*
  *
