@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2002
+.Dd June 9, 2004
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -41,6 +41,15 @@
 .Cm set swap Ar number number
 .Nm
 .Cm set show
+.Pp
+.Nm
+.Cm table Ar number Cm add Ar addr Ns Oo / Ns Ar masklen Oc Op Ar value
+.Nm
+.Cm table Ar number Cm delete Ar addr Ns Op / Ns Ar masklen
+.Nm
+.Cm table Ar number Cm flush
+.Nm
+.Cm table Ar number Cm list
 .Pp
 .Nm
 .Brq Cm pipe | queue
@@ -754,13 +763,26 @@ The second format (
 .Em or-block
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
-.It Ar addr : Oo Cm not Oc Brq Cm any | me | Ar addr-list | Ar addr-set
+.It Ar addr : Oo Cm not Oc Bro
+.Cm any | me |
+.Cm table Ns Pq Ar number Ns Op , Ns Ar value
+.Ar | addr-list | addr-set
+.Brc
 .It Cm any
 matches any IP address.
 .It Cm me
 matches any IP address configured on an interface in the system.
 The address list is evaluated at the time the packet is
 analysed.
+.It Cm table Ns Pq Ar number Ns Op , Ns Ar value
+Matches any IP address for which an entry exists in the lookup table
+.Ar number .
+If an optional 32-bit unsigned
+.Ar value
+is also specified, an entry will match only if it has this value.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
 .It Ar addr-list : ip-addr Ns Op Ns , Ns Ar addr-list
 .It Ar ip-addr :
 A host or subnet address specified in one of the following ways:
@@ -1221,6 +1243,43 @@ the Cisco IOS command:
 .Pp
 This option can be used to make anti-spoofing rules.
 .El
+.Sh LOOKUP TABLES
+Lookup tables are useful to handle large sparse address sets,
+typically from a hundred to several thousands of entries.
+There could be 128 different lookup tables, numbered 0 to 127.
+.Pp
+Each entry is represented by an
+.Ar addr Ns Op / Ns Ar masklen
+and will match all addresses with base
+.Ar addr
+(specified as a dotted quad or a hostname)
+and mask width of
+.Ar masklen
+bits.
+If
+.Ar masklen
+is not specified, it defaults to 32.
+When looking up an IP address in a table, the most specific
+entry will match.
+Associated with each entry is a 32-bit unsigned
+.Ar value ,
+which can optionally be checked by a rule matching code.
+When adding an entry, if
+.Ar value
+is not specified, it defaults to 0.
+.Pp
+An entry can be added to a table
+.Pq Cm add ,
+removed from a table
+.Pq Cm delete ,
+a table can be examined
+.Pq Cm list
+or flushed
+.Pq Cm flush .
+.Pp
+Internally, each table is stored in a Radix tree, the same way as
+the routing table (see
+.Xr route 4 ) .
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
 .Em sets

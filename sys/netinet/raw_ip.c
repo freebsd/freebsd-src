@@ -324,6 +324,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 		case IP_FW_ADD: /* ADD actually returns the body... */
 		case IP_FW_GET:
+		case IP_FW_TABLE_GETSIZE:
+		case IP_FW_TABLE_LIST:
 			if (IPFW_LOADED)
 				error = ip_fw_ctl_ptr(sopt);
 			else
@@ -377,6 +379,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_FLUSH:
 		case IP_FW_ZERO:
 		case IP_FW_RESETLOG:
+		case IP_FW_TABLE_ADD:
+		case IP_FW_TABLE_DEL:
+		case IP_FW_TABLE_FLUSH:
 			if (IPFW_LOADED)
 				error = ip_fw_ctl_ptr(sopt);
 			else

@@ -125,6 +125,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	 * More opcodes.
 	 */
 	O_IPSEC,		/* has ipsec history		*/
+	O_IP_SRC_LOOKUP,	/* arg1=table number, u32=value	*/
+	O_IP_DST_LOOKUP,	/* arg1=table number, u32=value	*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -373,6 +375,23 @@ struct _ipfw_dyn_rule {
 #define	IP_FW_TCPOPT_CC		0x10
 
 #define	ICMP_REJECT_RST		0x100	/* fake ICMP code (send a TCP RST) */
+
+/*
+ * These are used for lookup tables.
+ */
+typedef struct	_ipfw_table_entry {
+	in_addr_t	addr;		/* network address		*/
+	u_int32_t	value;		/* value			*/
+	u_int16_t	tbl;		/* table number			*/
+	u_int8_t	masklen;	/* mask length			*/
+} ipfw_table_entry;
+
+typedef struct	_ipfw_table {
+	u_int32_t	size;		/* size of entries in bytes	*/
+	u_int32_t	cnt;		/* # of entries			*/
+	u_int16_t	tbl;		/* table number			*/
+	ipfw_table_entry ent[0];	/* entries			*/
+} ipfw_table;
 
 /*
  * Main firewall chains definitions and global var's definitions.

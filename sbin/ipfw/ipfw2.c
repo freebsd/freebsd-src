@@ -377,7 +377,8 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 		err(EX_UNAVAILABLE, "socket");
 
 	if (optname == IP_FW_GET || optname == IP_DUMMYNET_GET ||
-	    optname == IP_FW_ADD)
+	    optname == IP_FW_ADD || optname == IP_FW_TABLE_LIST ||
+	    optname == IP_FW_TABLE_GETSIZE)
 		i = getsockopt(s, IPPROTO_IP, optname, optval,
 			(socklen_t *)optlen);
 	else
@@ -704,6 +705,14 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
 		printf("me");
+		return;
+	}
+	if (cmd->o.opcode == O_IP_SRC_LOOKUP ||
+	    cmd->o.opcode == O_IP_DST_LOOKUP) {
+		printf("table(%u", ((ipfw_insn *)cmd)->arg1);
+		if (len == F_INSN_SIZE(ipfw_insn_u32))
+			printf(",%u", *a);
+		printf(")");
 		return;
 	}
 	if (cmd->o.opcode == O_IP_SRC_SET || cmd->o.opcode == O_IP_DST_SET) {
@@ -1068,6 +1077,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_IP_SRC:
+		case O_IP_SRC_LOOKUP:
 		case O_IP_SRC_MASK:
 		case O_IP_SRC_ME:
 		case O_IP_SRC_SET:
@@ -1082,6 +1092,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_IP_DST:
+		case O_IP_DST_LOOKUP:
 		case O_IP_DST_MASK:
 		case O_IP_DST_ME:
 		case O_IP_DST_SET:
@@ -1850,13 +1861,14 @@ help(void)
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
+"table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [LOG] | ACTION [LOG] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | reject | skipto N |\n"
 "		{divert|tee} PORT | forward ADDR | pipe N | queue N\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
-"IPADDR:	[not] { any | me | ip/bits{x,y,z} | IPLIST }\n"
+"IPADDR:	[not] { any | me | ip/bits{x,y,z} | table(t[,v]) | IPLIST }\n"
 "IPLIST:	{ ip | ip/bits | ip:mask }[,IPLIST]\n"
 "OPTION_LIST:	OPTION [OPTION_LIST]\n"
 "OPTION:	bridged | {dst-ip|src-ip} ADDR | {dst-port|src-port} LIST |\n"
@@ -1909,6 +1921,21 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 
 	if (!strncmp(av, "me", strlen(av))) {
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		return;
+	}
+
+	if (!strncmp(av, "table(", 6)) {
+		char *p = strchr(av + 6, ',');
+
+		if (p)
+			*p++ = '\0';
+		cmd->o.opcode = O_IP_DST_LOOKUP;
+		cmd->o.arg1 = strtoul(av + 6, NULL, 0);
+		if (p) {
+			cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
+			d[0] = strtoul(p, NULL, 0);
+		} else
+			cmd->o.len |= F_INSN_SIZE(ipfw_insn);
 		return;
 	}
 
@@ -2654,6 +2681,8 @@ add_srcip(ipfw_insn *cmd, char *av)
 	fill_ip((ipfw_insn_ip *)cmd, av);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		cmd->opcode = O_IP_SRC_SET;
+	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
+		cmd->opcode = O_IP_SRC_LOOKUP;
 	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn))		/* me */
 		cmd->opcode = O_IP_SRC_ME;
 	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))	/* one IP */
@@ -2668,6 +2697,8 @@ add_dstip(ipfw_insn *cmd, char *av)
 {
 	fill_ip((ipfw_insn_ip *)cmd, av);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
+		;
+	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
 		;
 	else if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn))		/* me */
 		cmd->opcode = O_IP_DST_ME;
@@ -3582,6 +3613,79 @@ free_args(int ac, char **av)
 }
 
 /*
+ * This one handles all table-related commands
+ * 	ipfw table N add addr[/masklen] [value]
+ * 	ipfw table N delete addr[/masklen]
+ * 	ipfw table N flush
+ * 	ipfw table N list
+ */
+static void
+table_handler(int ac, char *av[])
+{
+	ipfw_table_entry ent;
+	ipfw_table *tbl;
+	int do_add;
+	char *p;
+	socklen_t l;
+	uint32_t a;
+
+	ac--; av++;
+	if (ac && isdigit(**av)) {
+		ent.tbl = atoi(*av);
+		ac--; av++;
+	} else
+		errx(EX_USAGE, "table number required");
+	NEED1("table needs command");
+	if (strncmp(*av, "add", strlen(*av)) == 0 ||
+	    strncmp(*av, "delete", strlen(*av)) == 0) {
+		do_add = **av == 'a';
+		ac--; av++;
+		if (!ac)
+			errx(EX_USAGE, "IP address required");
+		p = strchr(*av, '/');
+		if (p) {
+			*p++ = '\0';
+			ent.masklen = atoi(p);
+			if (ent.masklen > 32)
+				errx(EX_DATAERR, "bad width ``%s''", p);
+		} else
+			ent.masklen = 32;
+		if (lookup_host(*av, (struct in_addr *)&ent.addr) != 0)
+			errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
+		ac--; av++;
+		if (do_add && ac)
+			ent.value = strtoul(*av, NULL, 0);
+		else
+			ent.value = 0;
+		if (do_cmd(do_add ? IP_FW_TABLE_ADD : IP_FW_TABLE_DEL,
+		    &ent, sizeof(ent)) < 0)
+			err(EX_OSERR, "setsockopt(IP_FW_TABLE_%s)",
+			    do_add ? "ADD" : "DEL");
+	} else if (strncmp(*av, "flush", strlen(*av)) == 0) {
+		if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl, sizeof(ent.tbl)) < 0)
+			err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");
+	} else if (strncmp(*av, "list", strlen(*av)) == 0) {
+		a = ent.tbl;
+		l = sizeof(a);
+		if (do_cmd(IP_FW_TABLE_GETSIZE, &a, (uintptr_t)&l) < 0)
+			err(EX_OSERR, "getsockopt(IP_FW_TABLE_GETSIZE)");
+		l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
+		tbl = malloc(l);
+		if (tbl == NULL)
+			err(EX_OSERR, "malloc");
+		tbl->tbl = ent.tbl;
+		if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
+			err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
+		for (a = 0; a < tbl->cnt; a++) {
+			printf("%s/%u %u\n",
+			    inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
+			    tbl->ent[a].masklen, tbl->ent[a].value);
+		}
+	} else
+		errx(EX_USAGE, "invalid table command %s", *av);
+}
+
+/*
  * Called with the arguments (excluding program name).
  * Returns 0 if successful, 1 if empty command, errx() in case of errors.
  */
@@ -3806,6 +3910,8 @@ ipfw_main(int oldac, char **oldav)
 		list(ac, av, do_acct);
 	else if (!strncmp(*av, "set", strlen(*av)))
 		sets_handler(ac, av);
+	else if (!strncmp(*av, "table", strlen(*av)))
+		table_handler(ac, av);
 	else if (!strncmp(*av, "enable", strlen(*av)))
 		sysctl_handler(ac, av, 1);
 	else if (!strncmp(*av, "disable", strlen(*av)))
