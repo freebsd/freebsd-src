@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#50 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.seq#52 $"
 PATCH_ARG_LIST = "struct ahc_softc *ahc"
 PREFIX = "ahc_"
 
@@ -306,7 +306,7 @@ ident_messages_done:
 		} else {
 			mvi	DFDAT, SCB_LIST_NULL;
 		}
-		or	SEQ_FLAGS, TARG_CMD_PENDING|IDENTIFY_SEEN;
+		mvi	SEQ_FLAGS, TARG_CMD_PENDING;
 		test	SEQ_FLAGS2, TARGET_MSG_PENDING
 			jnz target_mesgout_pending;
 		test	SCSISIGI, ATNI jnz target_mesgout_continue;
@@ -648,7 +648,7 @@ initiator_select:
 	 * asserted.
 	 */
 	mvi	MSG_OUT, MSG_IDENTIFYFLAG;
-	or	SEQ_FLAGS, IDENTIFY_SEEN;
+	mvi	SEQ_FLAGS, NO_CDB_SENT;
 	mvi	CLRSINT0, CLRSELDO;
 
 	/*
@@ -707,7 +707,7 @@ clear_target_state:
 	}
 	mvi	LASTPHASE, P_BUSFREE;
 	/* clear target specific flags */
-	clr	SEQ_FLAGS ret;
+	mvi	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT ret;
 
 sg_advance:
 	clr	A;			/* add sizeof(struct scatter) */
@@ -821,9 +821,9 @@ calc_mwi_residual_final:
 }
 
 p_data:
-	test	SEQ_FLAGS,IDENTIFY_SEEN	jnz p_data_okay;
-	mvi	NO_IDENT jmp set_seqint;
-p_data_okay:
+	test	SEQ_FLAGS,NOT_IDENTIFIED|NO_CDB_SENT jz p_data_allowed;
+	mvi	PROTO_VIOLATION call set_seqint;
+p_data_allowed:
 	if ((ahc->features & AHC_ULTRA2) != 0) {
 		mvi	DMAPARAMS, PRELOADEN|SCSIEN|HDMAEN;
 	} else {
@@ -1367,8 +1367,8 @@ if ((ahc->flags & AHC_INITIATORROLE) != 0) {
  * Command phase.  Set up the DMA registers and let 'er rip.
  */
 p_command:
-	test	SEQ_FLAGS,IDENTIFY_SEEN	jnz p_command_okay;
-	mvi	NO_IDENT jmp set_seqint;
+	test	SEQ_FLAGS, NOT_IDENTIFIED jz p_command_okay;
+	mvi	PROTO_VIOLATION call set_seqint;
 p_command_okay:
 
 	if ((ahc->features & AHC_ULTRA2) != 0) {
@@ -1400,7 +1400,7 @@ p_command_from_host:
 		}
 		mvi	DFCNTRL, (SCSIEN|SDMAEN|HDMAEN|DIRECTION|FIFORESET);
 	}
-	jmp	p_command_loop;
+	jmp	p_command_xfer;
 p_command_embedded:
 	/*
 	 * The data fifo seems to require 4 byte aligned
@@ -1438,24 +1438,28 @@ p_command_embedded:
 		call	copy_to_fifo_6;
 		or	DFCNTRL, FIFOFLUSH;
 	}
-p_command_loop:
+p_command_xfer:
+	and	SEQ_FLAGS, ~NO_CDB_SENT;
 	if ((ahc->features & AHC_DT) == 0) {
 		test	SSTAT0, SDONE jnz . + 2;
-		test    SSTAT1, PHASEMIS jz p_command_loop;
+		test    SSTAT1, PHASEMIS jz . - 1;
 		/*
 		 * Wait for our ACK to go-away on it's own
 		 * instead of being killed by SCSIEN getting cleared.
 		 */
 		test	SCSISIGI, ACKI jnz .;
 	} else {
-		test	DFCNTRL, SCSIEN jnz p_command_loop;
+		test	DFCNTRL, SCSIEN jnz .;
 	}
+	test	SSTAT0, SDONE jnz p_command_successful;
+	/*
+	 * Don't allow a data phase if the command
+	 * was not fully transferred.
+	 */
+	or	SEQ_FLAGS, NO_CDB_SENT;
+p_command_successful:
 	and	DFCNTRL, ~(SCSIEN|SDMAEN|HDMAEN);
 	test	DFCNTRL, (SCSIEN|SDMAEN|HDMAEN) jnz .;
-	if ((ahc->features & AHC_ULTRA2) != 0) {
-		/* Drop any residual from the S/G Preload queue */
-		or	SXFRCTL0, CLRSTCNT;
-	}
 	jmp	ITloop;
 
 /*
@@ -1463,10 +1467,10 @@ p_command_loop:
  * and store it into the SCB.
  */
 p_status:
-	test	SEQ_FLAGS,IDENTIFY_SEEN	jnz p_status_okay;
-	mvi	NO_IDENT jmp set_seqint;
+	test	SEQ_FLAGS, NOT_IDENTIFIED jnz mesgin_proto_violation;
 p_status_okay:
 	mov	SCB_SCSI_STATUS, SCSIDATL;
+	or	SCB_CONTROL, STATUS_RCVD;
 	jmp	ITloop;
 
 /*
@@ -1587,13 +1591,15 @@ if ((ahc->features & AHC_WIDE) != 0) {
 	jmp	mesgin_done;
 }
 
+mesgin_proto_violation:
+	mvi	PROTO_VIOLATION call set_seqint;
+	jmp	mesgin_done;
 mesgin_reject:
 	mvi	MSG_MESSAGE_REJECT	call mk_mesg;
 mesgin_done:
 	mov	NONE,SCSIDATL;		/*dummy read from latch to ACK*/
 	jmp	ITloop;
 
-mesgin_complete:
 /*
  * We received a "command complete" message.  Put the SCB_TAG into the QOUTFIFO,
  * and trigger a completion interrupt.  Before doing so, check to see if there
@@ -1606,27 +1612,49 @@ mesgin_complete:
  * it to the QINFIFO and tell us not to post to the QOUTFIFO by setting 
  * RETURN_1 to SEND_SENSE.
  */
+mesgin_complete:
 
-/*
- * If ATN is raised, we still want to give the target a message.
- * Perhaps there was a parity error on this last message byte.
- * Either way, the target should take us to message out phase
- * and then attempt to complete the command again.  We should use a
- * critical section here to guard against a timeout triggering
- * for this command and setting ATN while we are still processing
- * the completion.
+	/*
+	 * If ATN is raised, we still want to give the target a message.
+	 * Perhaps there was a parity error on this last message byte.
+	 * Either way, the target should take us to message out phase
+	 * and then attempt to complete the command again.  We should use a
+	 * critical section here to guard against a timeout triggering
+	 * for this command and setting ATN while we are still processing
+	 * the completion.
 	test	SCSISIGI, ATNI jnz mesgin_done;
- */
+	 */
 
-/*
- * See if we attempted to deliver a message but the target ingnored us.
- */
+	/*
+	 * If we are identified and have successfully sent the CDB,
+	 * any status will do.  Optimize this fast path.
+	 */
+	test	SCB_CONTROL, STATUS_RCVD jz mesgin_proto_violation;
+	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT jz complete_accepted; 
+
+	/*
+	 * If the target never sent an identify message but instead went
+	 * to mesgin to give an invalid message, let the host abort us.
+	 */
+	test	SEQ_FLAGS, NOT_IDENTIFIED jnz mesgin_proto_violation;
+
+	/*
+	 * If we recevied good status but never successfully sent the
+	 * cdb, abort the command.
+	 */
+	test	SCB_SCSI_STATUS,0xff	jnz complete_accepted;
+	test	SEQ_FLAGS, NO_CDB_SENT jnz mesgin_proto_violation;
+
+complete_accepted:
+	/*
+	 * See if we attempted to deliver a message but the target ingnored us.
+	 */
 	test	SCB_CONTROL, MK_MESSAGE jz . + 2;
 	mvi	MKMSG_FAILED call set_seqint;
 
-/*
- * Check for residuals
- */
+	/*
+	 * Check for residuals
+	 */
 	test	SCB_SGPTR, SG_LIST_NULL jnz check_status;/* No xfer */
 	test	SCB_SGPTR, SG_FULL_RESID jnz upload_scb;/* Never xfered */
 	test	SCB_RESIDUAL_SGPTR, SG_LIST_NULL jz upload_scb;
@@ -1679,7 +1707,8 @@ mesgin_disconnect:
 	 * XXX - Wait for more testing.
 	test	SCSISIGI, ATNI jnz mesgin_done;
 	 */
-
+	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT
+		jnz mesgin_proto_violation;
 	or	SCB_CONTROL,DISCONNECTED;
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 		call	add_scb_to_disc_list;
@@ -1747,7 +1776,8 @@ mesgin_sdptrs_full:
  * Restore pointers message?  Data pointers are recopied from the
  * SCB anytime we enter a data phase for the first time, so all
  * we need to do is clear the DPHASE flag and let the data phase
- * code do the rest.
+ * code do the rest.  We also reset/reallocate the FIFO to make
+ * sure we have a clean start for the next data or command phase.
  */
 mesgin_rdptrs:
 	and	SEQ_FLAGS, ~DPHASE;		/*
@@ -1755,6 +1785,7 @@ mesgin_rdptrs:
 						 * the next time through
 						 * the dataphase.
 						 */
+	or	SXFRCTL0, CLRSTCNT|CLRCHN;
 	jmp	mesgin_done;
 
 /*
@@ -1903,7 +1934,7 @@ setup_SCB_id_lun_okay:
 		mov	SCBPTR, A;
 	}
 setup_SCB_tagged:
-	mvi	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
+	clr	SEQ_FLAGS;	/* make note of IDENTIFY */
 	call	set_transfer_settings;
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
