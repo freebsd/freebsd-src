@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.11 1997/04/06 11:07:01 dufault Exp $
+ *	$Id: star_saver.c,v 1.12 1997/07/15 14:49:39 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -35,7 +35,7 @@
 #include <sys/lkm.h>
 
 #include <machine/md_var.h>
-#include <i386/include/pc/display.h>
+#include <machine/pc/display.h>
 
 #include <saver.h>
 

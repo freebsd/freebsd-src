@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.14 1997/04/06 10:49:22 dufault Exp $
+ *	$Id: snake_saver.c,v 1.15 1997/07/15 14:49:35 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -38,7 +38,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/md_var.h>
-#include <i386/include/pc/display.h>
+#include <machine/pc/display.h>
 
 #include <saver.h>
 
