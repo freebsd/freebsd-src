@@ -7,7 +7,7 @@ for you. You can use this driver as a starting point for
 writing drivers for your own devices. They have all the hooks needed
 for intiialisation, probing, attaching, as well as DEVFS
 node creation. They also create sample ioctl commands and a sample
-ioctl definition .h file in /sys/sys. In othe rwords they are fully
+ioctl definition .h file in /sys/sys. In other words they are fully
 functional in a 'skeleton' sort of a way. They support multiple devices
 so that you may have several of your 'foobar' devices probed and atached
 at once.
