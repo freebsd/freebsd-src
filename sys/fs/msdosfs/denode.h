@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.7 1995/10/29 15:31:43 phk Exp $ */
+/*	$Id: denode.h,v 1.8 1995/11/09 08:17:21 bde Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -186,6 +186,7 @@ struct denode {
 
 #define DE_EXTERNALIZE(dp, dep)				\
 	(bcopy((dep)->de_Name, (dp)->deName, 11),	\
+	 bzero((dp)->deReserved, 10),                   \
 	 (dp)->deAttributes = (dep)->de_Attributes,	\
 	 putushort((dp)->deTime, (dep)->de_Time),	\
 	 putushort((dp)->deDate, (dep)->de_Date),	\
