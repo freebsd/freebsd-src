@@ -296,7 +296,7 @@ matchdir(pattern)
 	char *pattern;
 {
 	struct stat stb;
-	register struct direct *dp;
+	register struct dirent *dp;
 	DIR *dirp;
 
 	dirp = opendir(path);

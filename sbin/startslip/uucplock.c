@@ -37,7 +37,7 @@ static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/types.h>
 #include <sys/file.h>
-#include <sys/dir.h>
+#include <dirent.h>
 #include <errno.h>
 #ifndef USE_PERROR
 #include <syslog.h>
