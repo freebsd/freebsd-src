@@ -1,4 +1,4 @@
-.\"	$Id: rtld.1,v 1.2 1995/10/05 05:16:52 nate Exp $
+.\"	$Id: rtld.1,v 1.1.2.1 1995/10/05 19:59:15 davidg Exp $
 .\"
 .\" Copyright (c) 1995 Paul Kranenburg
 .\" All rights reserved.
@@ -110,6 +110,13 @@ its behaviour as follows:
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
+This is ignored for set-user-ID and set-group-ID programs.
+.It Ev LD_PRELOAD
+A colon separated list of shared libraries, to be linked in before any
+other shared libraries.  If the directory is not specified then
+the directories specified by LD_LIBRARY_PATH will be searched first
+followed by the set of built-in standard directories.
+This is ignored for set-user-ID and set-group-ID programs.
 .It Ev LD_WARN_NON_PURE_CODE
 When set, issue a warning whenever a link-editing operation requires
 modification of the text segment of some loaded object. This is usually
@@ -122,15 +129,6 @@ When set, causes
 .Nm
 to exit after loading the shared objects and printing a summary which includes
 the absolute pathnames of all objects, to standard output.
-.It Ev LD_NO_INTERN_SEARCH
-When set,
-.Nm
-does not process any internal search paths that were recorded in the
-executable.
-.It Ev LD_NOSTD_PATH
-When set, do not include a set of built-in standard directory paths for
-searching. This might be useful when running on a system with a completely
-non-standard filesystem layout.
 .El
 .Pp
 .Sh FILES
