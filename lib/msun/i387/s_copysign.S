@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asm.h>
+#include <machine/asmacros.h>
 
-RCSID("$Id: s_copysign.S,v 1.2 1994/08/19 11:14:22 jkh Exp $")
+RCSID("$Id: s_copysign.S,v 1.2.8.1 1997/12/08 01:07:30 steve Exp $")
 
 ENTRY(copysign)
 	movl	16(%esp),%edx

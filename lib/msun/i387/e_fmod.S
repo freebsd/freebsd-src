@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asm.h>
+#include <machine/asmacros.h>
 
-RCSID("$Id: e_fmod.S,v 1.2 1994/08/19 11:14:15 jkh Exp $")
+RCSID("$Id: e_fmod.S,v 1.2.8.1 1997/12/08 01:07:23 steve Exp $")
 
 ENTRY(__ieee754_fmod)
 	fldl	12(%esp)
