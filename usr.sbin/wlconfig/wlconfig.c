@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: wlconfig.c,v 1.2 1997/05/23 21:46:50 trost Exp $
+ * $Id: wlconfig.c,v 1.3 1997/08/01 03:50:23 msmith Exp $
  *
  */
 /*
@@ -64,7 +64,9 @@
 #include <machine/if_wl_wavelan.h>
 
 #include <net/if.h>
+#if __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 extern struct ether_addr *ether_aton(char *a);
