@@ -239,7 +239,7 @@ major(struct cdev *x)
 {
 	if (x == NULL)
 		return NODEV;
-	return((x->si_udev >> 8) & 0xff);
+	return((x->si_drv0 >> 8) & 0xff);
 }
 
 int
@@ -247,7 +247,7 @@ minor(struct cdev *x)
 {
 	if (x == NULL)
 		return NODEV;
-	return(x->si_udev & MAXMINOR);
+	return(x->si_drv0 & MAXMINOR);
 }
 
 int
@@ -300,12 +300,12 @@ newdev(int x, int y, struct cdev *si)
 	udev = (x << 8) | y;
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si2, &dev_hash[hash], si_hash) {
-		if (si2->si_udev == udev) {
+		if (si2->si_drv0 == udev) {
 			freedev(si);
 			return (si2);
 		}
 	}
-	si->si_udev = udev;
+	si->si_drv0 = udev;
 	LIST_INSERT_HEAD(&dev_hash[hash], si, si_hash);
 	return (si);
 }
@@ -329,7 +329,7 @@ findcdev(dev_t udev)
 	dev_lock();
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
-		if (si->si_udev == udev)
+		if (si->si_drv0 == udev)
 			break;
 	}
 	dev_unlock();
@@ -777,7 +777,7 @@ clone_cleanup(struct clonedevs **cdp)
 		KASSERT(dev->si_flags & SI_CLONELIST,
 		    ("Dev %p(%s) should be on clonelist", dev, dev->si_name));
 		KASSERT(dev->si_flags & SI_NAMED,
-		    ("Driver has goofed in cloning underways udev %x", dev->si_udev));
+		    ("Driver has goofed in cloning underways udev %x", dev->si_drv0));
 		destroy_devl(dev);
 	}
 	dev_unlock();
