@@ -97,13 +97,14 @@
 #	spigot	Video Spigot video acquisition card
 #	ctx*    Cortex-I video acquisition card
 #	meteor*	Matrox Meteor video acquisition card (pci)
+#	bktr*	Bt848 based video acquisition card (pci) 
 #	qcam*	Connectix QuickCam(tm) parallel port camera
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.127.2.9 1997/03/11 11:15:39 joerg Exp $
+#	$Id: MAKEDEV,v 1.127.2.10 1997/04/15 18:07:06 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -1096,6 +1097,15 @@ meteor?)
 	chmod 444 meteor$unit
 	;;
 
+bktr?)  
+	unit=`expr $i : 'bktr\(.*\)'`
+	rm -f bktr$unit tuner$unit
+	mknod bktr$unit c 79 $unit
+	mknod tuner$unit c 79 $((16 + $unit ))
+	chown root.wheel bktr$unit tuner$unit
+	chmod 444 bktr$unit tuner$unit
+	;;
+ 
 tun*)
 	ntun=`expr $i : 'tun\(.*\)$'`
 	unit=0
