@@ -31,14 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_cksum.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_cksum.c,v 1.3 1995/05/30 08:15:14 rgrimes Exp $
+ * $Id: lfs_cksum.c,v 1.4 1995/12/03 11:16:39 bde Exp $
  */
 
+#ifdef KERNEL
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
 #include <ufs/lfs/lfs.h>
+#else
+#include <sys/types.h>
+#endif
+
 #include <ufs/lfs/lfs_extern.h>
 
 /*
