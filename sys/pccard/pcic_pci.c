@@ -1144,19 +1144,18 @@ pcic_pci_attach(device_t dev)
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if (sc->iores == NULL)
 			return (ENOMEM);
-		sp->bst = rman_get_bustag(sc->iores);
-		sp->bsh = rman_get_bushandle(sc->iores);
-		sp->controller = PCIC_PD672X;
-		sp->revision = 0;
 		sc->flags = PCIC_PD_POWER;
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		for (i = 0; i < 2; i++) {
+			sp[i].bst = rman_get_bustag(sc->iores);
+			sp[i].bsh = rman_get_bushandle(sc->iores);
+			sp[i].sc = sc;
+			sp[i].revision = 0;
 			sp[i].getb = pcic_getb_io;
 			sp[i].putb = pcic_putb_io;
 			sp[i].offset = i * PCIC_SLOT_SIZE;
 			sp[i].controller = PCIC_PD672X;
-			printf("ID is 0x%x\n", sp[i].getb(sp, PCIC_ID_REV));
-			if ((sp[i].getb(sp, PCIC_ID_REV) & 0xc0) == 0x80)
+			if ((sp[i].getb(&sp[i], PCIC_ID_REV) & 0xc0) == 0x80)
 				sp[i].slt = (struct slot *) 1;
 		}
 		/*
