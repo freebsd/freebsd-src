@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 Joerg Wunsch
+ * Copyright (c) 1995, 1996 Joerg Wunsch
  *
  * All rights reserved.
  *
@@ -29,16 +29,18 @@
 /*
  * Create an MS-DOS (FAT) file system.
  *
- * $Id$
+ * $Id: mkdosfs.c,v 1.1.1.1 1995/11/05 16:02:04 joerg Exp $
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <memory.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 
 #include "bootcode.h"
@@ -71,22 +73,23 @@ struct descrip
 static struct descrip
 table[] = 
 {
+  /* NB: must be sorted, starting with the largest format! */
   /*
    * kilobytes
    * sec cls res fat  rot   tot   med fsz spt hds hid
    * tot phs ebt    label          fsysid
    */
-  { 720,
-     512,  2,  1,  2, 112, 1440, 0xf9,  3,  9,  2,  0,
-       0,  0,  0,  "4.4BSD     ", "FAT12   "},
   {1440,
      512,  1,  1,  2, 224, 2880, 0xf0,  9, 18,  2,  0,    
        0,  0,  0,  "4.4BSD     ", "FAT12   "},
-  { 360,
-     512,  2,  1,  2, 112,  720, 0xfd,  2,  9,  2,  0,    
-       0,  0,  0,  "4.4BSD     ", "FAT12   "},
   {1200,
      512,  1,  1,  2, 224, 2400, 0xf9,  7, 15,  2,  0,    
+       0,  0,  0,  "4.4BSD     ", "FAT12   "},
+  { 720,
+     512,  2,  1,  2, 112, 1440, 0xf9,  3,  9,  2,  0,
+       0,  0,  0,  "4.4BSD     ", "FAT12   "},
+  { 360,
+     512,  2,  1,  2, 112,  720, 0xfd,  2,  9,  2,  0,    
        0,  0,  0,  "4.4BSD     ", "FAT12   "},
 };
 
@@ -96,6 +99,64 @@ usage(void)
   fprintf(stderr, "usage: ");
   errx(2, "[-f kbytes] [-L label] device");
 }
+
+unsigned
+findformat(int fd)
+{
+  struct stat sb;
+
+  /*
+   * This is a bit tricky.  If the argument is a regular file, we can
+   * lseek() to its end and get the size reported.  If it's a device
+   * however, lseeking doesn't report us any useful number.  Instead,
+   * we try to seek just to the end of the device and try reading a
+   * block there.  In the case where we've hit exactly the device
+   * boundary, we get a zero read, and thus have found the size.
+   * Since our knowledge of distinct formats is limited anyway, this
+   * is not a big deal at all.
+   */
+
+  if(fstat(fd, &sb) == -1)
+    err(1, "Huh? Cannot fstat()"); /* Cannot happen */
+  if(S_ISREG(sb.st_mode))
+    {
+      off_t o;
+      if(lseek(fd, (off_t)0, SEEK_END) == -1 ||
+	 (o = lseek(fd, (off_t)0, SEEK_CUR)) == -1)
+	/* Hmm, hmm.  Hard luck. */
+	return 0;
+      return (int)(o / 1024);
+    }
+  else if(S_ISCHR(sb.st_mode) || S_ISBLK(sb.st_mode))
+    {
+      char b[512];
+      int i, rv;
+      struct descrip *dp;
+
+      for(i = 0, dp = table;
+	  i < sizeof table / sizeof(struct descrip);
+	  i++, dp++)
+	{
+	  if(lseek(fd, (off_t)(dp->kilobytes * 1024), SEEK_SET) == 1)
+	    /* Uh-oh, lseek() is not supposed to fail. */
+	    return 0;
+	  if((rv = read(fd, b, 512)) == 0)
+	    break;
+	  /* XXX The ENOSPC is for the bogus fd(4) driver return value. */
+	  if(rv == -1 && errno != EINVAL && errno != ENOSPC)
+	    return 0;
+	  /* else: continue */
+	}
+      if(i == sizeof table / sizeof(struct descrip))
+	return 0;
+      (void)lseek(fd, (off_t)0, SEEK_SET);
+      return dp->kilobytes;
+    }
+  else
+    /* Outta luck. */
+    return 0;
+}
+  
 
 void
 setup_boot_sector_from_template(union bootsector *bs, struct descrip *dp)
@@ -166,14 +227,23 @@ main(int argc, char **argv)
   if(argc != 1)
     usage();
 
+  if((fd = open(argv[0], O_RDWR|O_EXCL, 0)) == -1)
+    err(1, "open(%s)", argv[0]);
+
+  if(format == 0)
+    {
+      /*
+       * No format specified, try to figure it out.
+       */
+      if((format = findformat(fd)) == 0)
+	errx(1, "cannot determine size, must use -f format");
+    }
+
   for(i = 0, dp = table; i < sizeof table / sizeof(struct descrip); i++, dp++)
     if(dp->kilobytes == format)
       break;
   if(i == sizeof table / sizeof(struct descrip))
     errx(1, "cannot find format description for %d KB", format);
-  
-  if((fd = open(argv[0], O_RDWR|O_EXCL, 0)) == -1)
-    err(1, "open(%s)", argv[0]);
 
   /* prepare and write the boot sector */
   setup_boot_sector_from_template(&bs, dp);
