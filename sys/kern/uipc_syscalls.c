@@ -1729,7 +1729,7 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	struct sf_hdtr hdtr;
 	struct uio hdr_uio;
 	off_t off, xfsize, hdtr_size, sbytes = 0;
-	int error, s, headersize = 0, headersent = 0;
+	int error, headersize = 0, headersent = 0;
 	struct iovec *hdr_iov = NULL;
 
 	mtx_lock(&Giant);
@@ -2003,7 +2003,6 @@ retry_lookup:
 		/*
 		 * Add the buffer to the socket buffer chain.
 		 */
-		s = splnet();
 		SOCKBUF_LOCK(&so->so_snd);
 retry_space:
 		/*
@@ -2028,7 +2027,6 @@ retry_space:
 			m_freem(m);
 			sbunlock(&so->so_snd);
 			SOCKBUF_UNLOCK(&so->so_snd);
-			splx(s);
 			goto done;
 		}
 		/*
@@ -2041,7 +2039,6 @@ retry_space:
 				m_freem(m);
 				sbunlock(&so->so_snd);
 				SOCKBUF_UNLOCK(&so->so_snd);
-				splx(s);
 				error = EAGAIN;
 				goto done;
 			}
@@ -2055,14 +2052,12 @@ retry_space:
 				m_freem(m);
 				sbunlock(&so->so_snd);
 				SOCKBUF_UNLOCK(&so->so_snd);
-				splx(s);
 				goto done;
 			}
 			goto retry_space;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
 		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, td);
-		splx(s);
 		if (error) {
 			SOCKBUF_LOCK(&so->so_snd);
 			sbunlock(&so->so_snd);
