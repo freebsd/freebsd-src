@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.230 1999/03/28 18:57:20 sos Exp $
+#	$Id: files.i386,v 1.231 1999/03/29 17:56:28 ken Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -154,9 +154,8 @@ i386/isa/if_sr.c		optional	sr	device-driver
 i386/isa/if_wl.c		optional	wl	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
-contrib/dev/oltr/if_oltr.c	optional	oltr	device-driver	\
-	dependency	"contrib/dev/oltr/trlld.o"
-contrib/dev/oltr/trlld.o	optional	oltr	device-driver	\
+contrib/dev/oltr/if_oltr.c	optional	oltr	device-driver
+trlld.o				optional	oltr	device-driver	\
 	dependency	"$S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu" \
 	compile-with	"uudecode < $S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu"	\
 	no-implicit-rule
