@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # Copyright (c) 1992, 1993
-#	The Regents of the University of California.  All rights reserved.
+#        The Regents of the University of California.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,8 +13,8 @@
 #    documentation and/or other materials provided with the distribution.
 # 3. All advertising materials mentioning features or use of this software
 #    must display the following acknowledgement:
-#	This product includes software developed by the University of
-#	California, Berkeley and its contributors.
+#        This product includes software developed by the University of
+#        California, Berkeley and its contributors.
 # 4. Neither the name of the University nor the names of its contributors
 #    may be used to endorse or promote products derived from this software
 #    without specific prior written permission.
@@ -31,11 +31,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# From @(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
+# From @(#)vnode_if.sh        8.1 (Berkeley) 6/10/93
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
 #
-# $Id: makedevops.pl,v 1.8 1999/05/10 17:45:49 n_hibma Exp $
+# $Id: makedevops.pl,v 1.9 1999/08/18 08:39:14 n_hibma Exp $
 
 #
 # Script to produce device front-end sugar.
@@ -98,8 +98,8 @@ where -c   produce only .c files
       -l   set line width for output files [80]
       -d   switch on debugging
 "
-	unless ($cfile or $hfile)
-	   and $#filenames != -1;
+        unless ($cfile or $hfile)
+           and $#filenames != -1;
 
 # FIXME should be able to do this more easily
 #
@@ -220,16 +220,33 @@ foreach $src ( @filenames ) {
             if $cfile;
 
       } elsif ( $line =~ m/^CODE\s*{$/i ) {
-	 $code = "";
-	 $line = <SRC>;
+         $code = "";
+         $line = <SRC>;
+         $line =~ m/^(\s*)/;
+         $indent = $1;           # find the indent used
          while ( $line !~ m/^}/ ) {
-	    $code .= $line;
-	    $line = <SRC>;
+            $line =~ s/^$indent//g; # remove the indent
+            $code .= $line;
+            $line = <SRC>;
             $lineno++
-	 }
-	 if ( $cfile ) {
-	     print CFILE $code;
-	 }
+         }
+         if ( $cfile ) {
+             print CFILE "\n".$code."\n";
+         }
+      } elsif ( $line =~ m/^HEADER\s*{$/i ) {
+         $header = "";
+         $line = <SRC>;
+         $line =~ m/^(\s*)/;
+         $indent = $1;              # find the indent used
+         while ( $line !~ m/^}/ ) {
+            $line =~ s/^$indent//g; # remove the indent
+            $header .= $line;
+            $line = <SRC>;
+            $lineno++
+         }
+         if ( $hfile ) {
+             print CFILE $header;
+         }
       } elsif ( $line =~ m/^(STATIC|)METHOD/i ) {
          # Get the return type function name and delete that from
          # the line. What is left is the possibly first function argument
@@ -241,7 +258,7 @@ foreach $src ( @filenames ) {
             last LINE;
          }
          $line =~ s/^(STATIC|)METHOD\s+([^{]+?)\s*{\s*//i;
-	 $static = $1;						    
+         $static = $1;                                                    
          @ret = split m/\s+/, $2;
          $name = pop @ret;          # last element is name of method
          $ret = join(" ", @ret);    # return type
@@ -275,22 +292,22 @@ foreach $src ( @filenames ) {
 
          while ( $line !~ m/}/ and $line .= <SRC> ) {
             $lineno++
-	 }
+         }
 
-	 $default = "";
-	 if ( $line !~ s/};?(.*)// ) { # remove first '}' and trailing garbage
-	    # The '}' was not there (the rest is optional), so complain
-	    warn "$src:$lineno: Premature end of file";
-	    $error = 1;
-	    last LINE;
-	 }
-	 $extra = $1;
-	 if ( $extra =~ /\s*DEFAULT\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*;/ ) {
-	    $default = $1;
-	 } else {
-	    warn "$src:$lineno: Ignored '$1'"  # warn about garbage at end of line
-	       if $debug and $1;
-	 }
+         $default = "";
+         if ( $line !~ s/};?(.*)// ) { # remove first '}' and trailing garbage
+            # The '}' was not there (the rest is optional), so complain
+            warn "$src:$lineno: Premature end of file";
+            $error = 1;
+            last LINE;
+         }
+         $extra = $1;
+         if ( $extra =~ /\s*DEFAULT\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*;/ ) {
+            $default = $1;
+         } else {
+            warn "$src:$lineno: Ignored '$1'"  # warn about garbage at end of line
+               if $debug and $1;
+         }
 
          # Create a list of variables without the types prepended
          #
@@ -354,15 +371,15 @@ foreach $src ( @filenames ) {
                               ',', ' ' x length("$ret $umname(")) . "\n";
             }
             print CFILE "{\n";
-	    if ($static) {
-	      print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DRVOPMETH(driver, $mname);",
-				       $line_width-8, ' = ', ' =', "\t\t")
-		. "\n";
-	    } else {
-	      print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DEVOPMETH(dev, $mname);",
-				       $line_width-8, ' = ', ' =', "\t\t")
-		. "\n";
-	    }
+            if ($static) {
+              print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DRVOPMETH(driver, $mname);",
+                                       $line_width-8, ' = ', ' =', "\t\t")
+                . "\n";
+            } else {
+              print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DEVOPMETH(dev, $mname);",
+                                       $line_width-8, ' = ', ' =', "\t\t")
+                . "\n";
+            }
             print CFILE "\t".($ret eq 'void'? '':'return ') . "m($varnames);\n";
             print CFILE "}\n\n";
          }
