@@ -83,6 +83,7 @@
 #define Am79C961  0x2260
 #define Am79C965  0x2430
 #define Am79C970  0x0242
+#define HITACHI_Am79C970  0x2621
 
 /* Board types */
 #define UNKNOWN         0
