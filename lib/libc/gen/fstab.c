@@ -32,7 +32,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fstab.c	8.1 (Berkeley) 6/4/93";
+#else
+static char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -71,7 +76,8 @@ fixfsfile()
 	else
 		strcpy(buf, _PATH_DEV);
 	strcat(buf, sf.f_mntfromname);
-	if (stat(buf, &sb) != 0 || !S_ISBLK(sb.st_mode))
+	if (stat(buf, &sb) != 0 ||
+	    (!S_ISBLK(sb.st_mode) && !S_ISCHR(sb.st_mode)))
 		return;
 	_fs_fstab.fs_spec = buf;
 }
