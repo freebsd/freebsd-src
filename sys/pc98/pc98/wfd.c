@@ -715,10 +715,3 @@ static int wfd_eject (struct wfd *t, int closeit)
 	return wfd_request_wait (t, ATAPI_START_STOP,
 		0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0);
 }
-
-static void 	wfd_drvinit(void *unused)
-{
-	cdevsw_add(&wfd_cdevsw);
-}
-
-SYSINIT(wfddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wfd_drvinit,NULL)

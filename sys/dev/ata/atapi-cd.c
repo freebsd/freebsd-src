@@ -109,12 +109,6 @@ acdattach(struct atapi_softc *atp)
 {
     struct acd_softc *cdp;
     struct changer *chp;
-    static int acd_cdev_done = 0;
-
-    if (!acd_cdev_done) {
-	cdevsw_add(&acd_cdevsw);
-	acd_cdev_done++;
-    }
 
     if ((cdp = acd_init_lun(atp, NULL)) == NULL) {
 	ata_printf(atp->controller, atp->unit, "acd: out of memory\n");
