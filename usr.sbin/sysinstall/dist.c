@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.7 1995/05/18 09:01:52 jkh Exp $
+ * $Id: dist.c,v 1.8 1995/05/19 16:58:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -190,7 +190,7 @@ static Distribution XF86ServerDistTable[] = {
 { "X311P9K",	&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
 { "X311S3",	&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
 { "X311SVGA",	&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
-{ "X311VGA16",	&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
+{ "X311VG16",	&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
 { "X311W32",	&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
 { "X311nest",	&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
 { NULL },
