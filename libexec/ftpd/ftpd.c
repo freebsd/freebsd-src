@@ -1190,6 +1190,7 @@ auth_pam(struct passwd **ppw, const char *pass)
 		break;
 
 	case PAM_AUTH_ERR:
+	case PAM_CRED_ERR:
 	case PAM_USER_UNKNOWN:
 	case PAM_MAXTRIES:
 		rval = 1;
