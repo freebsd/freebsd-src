@@ -4,7 +4,7 @@
    $FreeBSD$
    $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/readme/article.sgml,v 1.9 2004/09/13 09:24:01 den Exp $
 
-   Original revision: 1.35
+   Original revision: 1.36
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -318,14 +318,6 @@
 	    <para><filename>README.TXT</filename>: Этот файл.  Дает
 	      некоторую общую информацию о &os;, а также указания
 	      по получению дистрибутива.</para>
-	  </listitem>
-
-	  <listitem>
-	    <para><filename>EARLY.TXT</filename>: Руководство для
-	      новых пользователей &os; &release.current;.  Настоятельно
-	      рекомендуется к прочтению новыми пользователями &os;
-	      &release.branch; и/или серии релизов
-	      6.<replaceable>X</replaceable>.</para>
 	  </listitem>
 
 	  <listitem>
