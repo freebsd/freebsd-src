@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -29,22 +29,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/5/93";
-#endif
-static const char rcsid[] =
-	"$Id$";
-#endif /* not lint */
 
 #include "defs.h"
 
+#if !defined(sgi) && !defined(__NetBSD__)
+static char sccsid[] __attribute__((unused)) = "@(#)input.c	8.1 (Berkeley) 6/5/93";
+#elif defined(__NetBSD__)
+#include <sys/cdefs.h>
+__RCSID("$NetBSD$");
+#endif
+#ident "$Revision: 2.17 $"
+
 static void input(struct sockaddr_in *, struct interface *, struct interface *,
 		  struct rip *, int);
-static void input_route(struct interface *, naddr,
-			naddr, naddr, naddr, struct netinfo *);
+static void input_route(naddr, naddr, struct rt_spare *, struct netinfo *);
 static int ck_passwd(struct interface *, struct rip *, void *,
 		     naddr, struct msg_limit *);
 
@@ -141,14 +142,17 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 {
 #	define FROM_NADDR from->sin_addr.s_addr
 	static struct msg_limit use_auth, bad_len, bad_mask;
-	static struct msg_limit  unk_router, bad_router, bad_nhop;
+	static struct msg_limit unk_router, bad_router, bad_nhop;
 
 	struct rt_entry *rt;
+	struct rt_spare new;
 	struct netinfo *n, *lim;
 	struct interface *ifp1;
-	naddr gate, mask, v1_mask, dst, ddst_h;
+	naddr gate, mask, v1_mask, dst, ddst_h = 0;
 	struct auth *ap;
-	int i;
+	struct tgate *tg = 0;
+	struct tgate_net *tn;
+	int i, j;
 
 	/* Notice when we hear from a remote gateway
 	 */
@@ -166,7 +170,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 	} else if (rip->rip_vers > RIPv2) {
 		rip->rip_vers = RIPv2;
 	}
-	if (cc > OVER_MAXPACKETSIZE) {
+	if (cc > (int)OVER_MAXPACKETSIZE) {
 		msglim(&bad_router, FROM_NADDR,
 		       "packet at least %d bytes too long received from %s",
 		       cc-MAXPACKETSIZE, naddr_ntoa(FROM_NADDR));
@@ -283,10 +287,10 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 */
 			if (n->n_family == RIP_AF_UNSPEC
 			    && n->n_metric == HOPCNT_INFINITY) {
+				/* Answer a query from a utility program
+				 * with all we know.
+				 */
 				if (from->sin_port != htons(RIP_PORT)) {
-					/* Answer a query from a utility
-					 * program with all we know.
-					 */
 					supply(from, aifp, OUT_QUERY, 0,
 					       rip->rip_vers, ap != 0);
 					return;
@@ -298,11 +302,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				 *
 				 * Only answer a router if we are a supplier
 				 * to keep an unwary host that is just starting
-				 * from picking us as a router.  Respond with
-				 * RIPv1 instead of RIPv2 if that is what we
-				 * are broadcasting on the interface to keep
-				 * the remote router from getting the wrong
-				 * initial idea of the routes we send.
+				 * from picking us as a router.
 				 */
 				if (aifp == 0) {
 					trace_pkt("ignore distant router");
@@ -314,8 +314,36 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 					return;
 				}
 
+				/* Do not answer a RIPv1 router if
+				 * we are sending RIPv2.  But do offer
+				 * poor man's router discovery.
+				 */
+				if ((aifp->int_state & IS_NO_RIPV1_OUT)
+				    && rip->rip_vers == RIPv1) {
+					if (!(aifp->int_state & IS_PM_RDISC)) {
+					    trace_pkt("ignore; sending RIPv2");
+					    return;
+					}
+
+					v12buf.n->n_family = RIP_AF_INET;
+					v12buf.n->n_dst = RIP_DEFAULT;
+					i = aifp->int_d_metric;
+					if (0 != (rt = rtget(RIP_DEFAULT, 0)))
+					    i = MIN(i, (rt->rt_metric
+							+aifp->int_metric+1));
+					v12buf.n->n_metric = htonl(i);
+					v12buf.n++;
+					break;
+				}
+
+				/* Respond with RIPv1 instead of RIPv2 if
+				 * that is what we are broadcasting on the
+				 * interface to keep the remote router from
+				 * getting the wrong initial idea of the
+				 * routes we send.
+				 */
 				supply(from, aifp, OUT_UNICAST, 0,
-				       (aifp->int_state&IS_NO_RIPV1_OUT)
+				       (aifp->int_state & IS_NO_RIPV1_OUT)
 				       ? RIPv2 : RIPv1,
 				       ap != 0);
 				return;
@@ -327,8 +355,8 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 			if (n->n_family != RIP_AF_INET) {
 				msglim(&bad_router, FROM_NADDR,
-				       "request from %s for unsupported (af"
-				       " %d) %s",
+				       "request from %s for unsupported"
+				       " (af %d) %s",
 				       naddr_ntoa(FROM_NADDR),
 				       ntohs(n->n_family),
 				       naddr_ntoa(n->n_dst));
@@ -418,7 +446,13 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 	case RIPCMD_TRACEON:
 	case RIPCMD_TRACEOFF:
-		/* verify message came from a privileged port */
+		/* Notice that trace messages are turned off for all possible
+		 * abuse if _PATH_TRACE is undefined in pathnames.h.
+		 * Notice also that because of the way the trace file is
+		 * handled in trace.c, no abuse is plausible even if
+		 * _PATH_TRACE_ is defined.
+		 *
+		 * First verify message came from a privileged port. */
 		if (ntohs(from->sin_port) > IPPORT_RESERVED) {
 			msglog("trace command from untrusted port on %s",
 			       naddr_ntoa(FROM_NADDR));
@@ -434,7 +468,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			set_tracefile((char*)rip->rip_tracefile,
 				      "trace command: %s\n", 0);
 		} else {
-			trace_off("tracing turned off by %s\n",
+			trace_off("tracing turned off by %s",
 				  naddr_ntoa(FROM_NADDR));
 		}
 		return;
@@ -512,7 +546,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		/* Ignore routes via dead interface.
 		 */
 		if (aifp->int_state & IS_BROKE) {
-			trace_pkt("%sdiscard response via broken interface %s",
+			trace_pkt("discard response via broken interface %s",
 				  aifp->int_name);
 			return;
 		}
@@ -522,7 +556,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		 * happens, it happens frequently.
 		 */
 		if (aifp->int_state & IS_DISTRUST) {
-			struct tgate *tg = tgates;
+			tg = tgates;
 			while (tg->tgate_addr != FROM_NADDR) {
 				tg = tg->tgate_next;
 				if (tg == 0) {
@@ -582,7 +616,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 */
 			gate = FROM_NADDR;
 			if (n->n_nhop != 0) {
-				if (rip->rip_vers == RIPv2) {
+				if (rip->rip_vers == RIPv1) {
 					n->n_nhop = 0;
 				} else {
 				    /* Use it only if it is valid. */
@@ -608,9 +642,9 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			} else if ((ntohl(dst) & ~mask) != 0) {
 				msglim(&bad_mask, FROM_NADDR,
 				       "router %s sent bad netmask"
-				       " %#x with %s",
+				       " %#lx with %s",
 				       naddr_ntoa(FROM_NADDR),
-				       mask,
+				       (u_long)mask,
 				       naddr_ntoa(dst));
 				continue;
 			}
@@ -623,6 +657,20 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			if (n->n_metric > HOPCNT_INFINITY)
 				n->n_metric = HOPCNT_INFINITY;
 
+			/* Should we trust this route from this router? */
+			if (tg && (tn = tg->tgate_nets)->mask != 0) {
+				for (i = 0; i < MAX_TGATE_NETS; i++, tn++) {
+					if (on_net(dst, tn->net, tn->mask)
+					    && tn->mask <= mask)
+					    break;
+				}
+				if (i >= MAX_TGATE_NETS || tn->mask == 0) {
+					trace_pkt("   ignored unauthorized %s",
+						  addrname(dst,mask,0));
+					continue;
+				}
+			}
+
 			/* Recognize and ignore a default route we faked
 			 * which is being sent back to us by a machine with
 			 * broken split-horizon.
@@ -631,7 +679,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 */
 			if (aifp->int_d_metric != 0
 			    && dst == RIP_DEFAULT
-			    && n->n_metric >= aifp->int_d_metric)
+			    && (int)n->n_metric >= aifp->int_d_metric)
 				continue;
 
 			/* We can receive aggregated RIPv2 routes that must
@@ -664,13 +712,12 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 					/* Punt if we would have to generate
 					 * an unreasonable number of routes.
 					 */
-#ifdef DEBUG
-					msglog("accept %s from %s as 1"
-					       " instead of %d routes",
-					       addrname(dst,mask,0),
-					       naddr_ntoa(FROM_NADDR),
-					       i+1);
-#endif
+					if (TRACECONTENTS)
+					    trace_misc("accept %s-->%s as 1"
+						       " instead of %d routes",
+						       addrname(dst,mask,0),
+						       naddr_ntoa(FROM_NADDR),
+						       i+1);
 					i = 0;
 				} else {
 					mask = v1_mask;
@@ -679,10 +726,17 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				i = 0;
 			}
 
+			new.rts_gate = gate;
+			new.rts_router = FROM_NADDR;
+			new.rts_metric = n->n_metric;
+			new.rts_tag = n->n_tag;
+			new.rts_time = now.tv_sec;
+			new.rts_ifp = aifp;
+			new.rts_de_ag = i;
+			j = 0;
 			for (;;) {
-				input_route(aifp, FROM_NADDR,
-					    dst, mask, gate, n);
-				if (i-- == 0)
+				input_route(dst, mask, &new, n);
+				if (++j > i)
 					break;
 				dst = htonl(ntohl(dst) + ddst_h);
 			}
@@ -696,18 +750,15 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 /* Process a single input route.
  */
 static void
-input_route(struct interface *ifp,
-	    naddr from,
-	    naddr dst,
+input_route(naddr dst,			/* network order */
 	    naddr mask,
-	    naddr gate,
+	    struct rt_spare *new,
 	    struct netinfo *n)
 {
 	int i;
 	struct rt_entry *rt;
 	struct rt_spare *rts, *rts0;
 	struct interface *ifp1;
-	time_t new_time;
 
 
 	/* See if the other guy is telling us to send our packets to him.
@@ -731,7 +782,7 @@ input_route(struct interface *ifp,
 	if (rt == 0) {
 		/* Ignore unknown routes being poisoned.
 		 */
-		if (n->n_metric == HOPCNT_INFINITY)
+		if (new->rts_metric == HOPCNT_INFINITY)
 			return;
 
 		/* Ignore the route if it points to us */
@@ -743,8 +794,7 @@ input_route(struct interface *ifp,
 		 * our memory, accept the new route.
 		 */
 		if (total_routes < MAX_ROUTES)
-			rtadd(dst, mask, gate, from, n->n_metric,
-			      n->n_tag, 0, ifp);
+			rtadd(dst, mask, 0, new);
 		return;
 	}
 
@@ -769,7 +819,7 @@ input_route(struct interface *ifp,
 
 	rts0 = rt->rt_spares;
 	for (rts = rts0, i = NUM_SPARES; i != 0; i--, rts++) {
-		if (rts->rts_router == from)
+		if (rts->rts_router == new->rts_router)
 			break;
 		/* Note the worst slot to reuse,
 		 * other than the current slot.
@@ -779,26 +829,34 @@ input_route(struct interface *ifp,
 			rts0 = rts;
 	}
 	if (i != 0) {
-		/* Found the router
+		/* Found a route from the router already in the table.
 		 */
-		int old_metric = rts->rts_metric;
+
+		/* If the new route is a route broken down from an
+		 * aggregated route, and if the previous route is either
+		 * not a broken down route or was broken down from a finer
+		 * netmask, and if the previous route is current,
+		 * then forget this one.
+		 */
+		if (new->rts_de_ag > rts->rts_de_ag
+		    && now_stale <= rts->rts_time)
+			return;
 
 		/* Keep poisoned routes around only long enough to pass
-		 * the poison on.  Get a new timestamp for good routes.
+		 * the poison on.  Use a new timestamp for good routes.
 		 */
-		new_time =((old_metric == HOPCNT_INFINITY)
-			   ? rts->rts_time
-			   : now.tv_sec);
+		if (rts->rts_metric == HOPCNT_INFINITY
+		    && new->rts_metric == HOPCNT_INFINITY)
+			new->rts_time = rts->rts_time;
 
 		/* If this is an update for the router we currently prefer,
 		 * then note it.
 		 */
 		if (i == NUM_SPARES) {
-			rtchange(rt,rt->rt_state, gate,rt->rt_router,
-				 n->n_metric, n->n_tag, ifp, new_time, 0);
+			rtchange(rt, rt->rt_state, new, 0);
 			/* If the route got worse, check for something better.
 			 */
-			if (n->n_metric > old_metric)
+			if (new->rts_metric > rts->rts_metric)
 				rtswitch(rt, 0);
 			return;
 		}
@@ -806,10 +864,17 @@ input_route(struct interface *ifp,
 		/* This is an update for a spare route.
 		 * Finished if the route is unchanged.
 		 */
-		if (rts->rts_gate == gate
-		    && old_metric == n->n_metric
-		    && rts->rts_tag == n->n_tag) {
-			rts->rts_time = new_time;
+		if (rts->rts_gate == new->rts_gate
+		    && rts->rts_metric == new->rts_metric
+		    && rts->rts_tag == new->rts_tag) {
+			trace_upslot(rt, rts, new);
+			*rts = *new;
+			return;
+		}
+		/* Forget it if it has gone bad.
+		 */
+		if (new->rts_metric == HOPCNT_INFINITY) {
+			rts_delete(rt, rts);
 			return;
 		}
 
@@ -823,6 +888,7 @@ input_route(struct interface *ifp,
 		    && 0 != ifwithaddr(n->n_nhop, 1, 0))
 			return;
 
+		/* the loop above set rts0=worst spare */
 		rts = rts0;
 
 		/* Save the route as a spare only if it has
@@ -830,20 +896,12 @@ input_route(struct interface *ifp,
 		 * This also ignores poisoned routes (those
 		 * received with metric HOPCNT_INFINITY).
 		 */
-		if (n->n_metric >= rts->rts_metric)
+		if (new->rts_metric >= rts->rts_metric)
 			return;
-
-		new_time = now.tv_sec;
 	}
 
-	trace_upslot(rt, rts, gate, from, ifp, n->n_metric,n->n_tag, new_time);
-
-	rts->rts_gate = gate;
-	rts->rts_router = from;
-	rts->rts_metric = n->n_metric;
-	rts->rts_tag = n->n_tag;
-	rts->rts_time = new_time;
-	rts->rts_ifp = ifp;
+	trace_upslot(rt, rts, new);
+	*rts = *new;
 
 	/* try to switch to a better route */
 	rtswitch(rt, rts);
@@ -862,7 +920,7 @@ ck_passwd(struct interface *aifp,
 	struct auth *ap;
 	MD5_CTX md5_ctx;
 	u_char hash[RIP_AUTH_PW_LEN];
-	int i;
+	int i, len;
 
 
 	if ((void *)NA >= lim || NA->a_family != RIP_AF_AUTH) {
@@ -880,7 +938,7 @@ ck_passwd(struct interface *aifp,
 			continue;
 
 		if (NA->a_type == RIP_AUTH_PW) {
-			if (!bcmp(NA->au.au_pw, ap->key, RIP_AUTH_PW_LEN))
+			if (!memcmp(NA->au.au_pw, ap->key, RIP_AUTH_PW_LEN))
 				return 1;
 
 		} else {
@@ -889,28 +947,52 @@ ck_passwd(struct interface *aifp,
 			if (NA->au.a_md5.md5_keyid != ap->keyid)
 				continue;
 
-			na2 = (struct netauth *)((char *)(NA+1)
-						 + NA->au.a_md5.md5_pkt_len);
-			if (NA->au.a_md5.md5_pkt_len % sizeof(*NA) != 0
-			    || lim < (void *)(na2+1)) {
+			len = ntohs(NA->au.a_md5.md5_pkt_len);
+			if ((len-sizeof(*rip)) % sizeof(*NA) != 0
+			    || len != (char *)lim-(char*)rip-(int)sizeof(*NA)) {
 				msglim(use_authp, from,
-				       "bad MD5 RIP-II pkt length %d from %s",
-				       NA->au.a_md5.md5_pkt_len,
+				       "wrong MD5 RIPv2 packet length of %d"
+				       " instead of %d from %s",
+				       len, (int)((char *)lim-(char *)rip
+						  -sizeof(*NA)),
 				       naddr_ntoa(from));
 				return 0;
 			}
+			na2 = (struct netauth *)((char *)rip+len);
+
+			/* Given a good hash value, these are not security
+			 * problems so be generous and accept the routes,
+			 * after complaining.
+			 */
+			if (TRACEPACKETS) {
+				if (NA->au.a_md5.md5_auth_len
+				    != RIP_AUTH_MD5_LEN)
+					msglim(use_authp, from,
+					       "unknown MD5 RIPv2 auth len %#x"
+					       " instead of %#x from %s",
+					       NA->au.a_md5.md5_auth_len,
+					       RIP_AUTH_MD5_LEN,
+					       naddr_ntoa(from));
+				if (na2->a_family != RIP_AF_AUTH)
+					msglim(use_authp, from,
+					       "unknown MD5 RIPv2 family %#x"
+					       " instead of %#x from %s",
+					       na2->a_family, RIP_AF_AUTH,
+					       naddr_ntoa(from));
+				if (na2->a_type != ntohs(1))
+					msglim(use_authp, from,
+					       "MD5 RIPv2 hash has %#x"
+					       " instead of %#x from %s",
+					       na2->a_type, ntohs(1),
+					       naddr_ntoa(from));
+			}
+
 			MD5Init(&md5_ctx);
-			MD5Update(&md5_ctx, (u_char *)NA,
-				  (char *)na2->au.au_pw - (char *)NA);
-			MD5Update(&md5_ctx,
-				  (u_char *)ap->key, sizeof(ap->key));
+			MD5Update(&md5_ctx, (u_char *)rip, len);
+			MD5Update(&md5_ctx, ap->key, RIP_AUTH_MD5_LEN);
 			MD5Final(hash, &md5_ctx);
-			if (na2->a_family != RIP_AF_AUTH
-			    || na2->a_type != 1
-			    || NA->au.a_md5.md5_auth_len != RIP_AUTH_PW_LEN
-			    || bcmp(hash, na2->au.au_pw, sizeof(hash)))
-				return 0;
-			return 1;
+			if (!memcmp(hash, na2->au.au_pw, sizeof(hash)))
+				return 1;
 		}
 	}
 

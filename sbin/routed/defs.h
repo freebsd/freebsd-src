@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -31,8 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id: defs.h,v 1.9 1997/02/22 14:33:11 peter Exp $
+ *
+ *	$Id$
  */
+
+#ifdef  sgi
+#ident "$Revision: 2.17 $"
+#endif
 
 /* Definitions for RIPv2 routing process.
  *
@@ -72,16 +77,20 @@
 #include <stdarg.h>
 #include <syslog.h>
 #include <time.h>
+#include <sys/cdefs.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #ifdef sgi
+#define _USER_ROUTE_TREE
 #include <net/radix.h>
 #else
 #include "radix.h"
+#define UNUSED __attribute__((unused))
+#define PATTRIB(f,l) __attribute__((format (printf,f,l)))
 #endif
 #include <net/if.h>
 #include <net/route.h>
@@ -99,13 +108,13 @@
  * It should be defined somewhere netinet/in.h, but it is not.
  */
 #ifdef sgi
-#define naddr __uint32_t
-#else
-#ifdef __NetBSD__
 #define naddr u_int32_t
+#elif defined (__NetBSD__)
+#define naddr u_int32_t
+#define _HAVE_SA_LEN
+#define _HAVE_SIN_LEN
 #else
 #define naddr u_long
-#endif
 #define _HAVE_SA_LEN
 #define _HAVE_SIN_LEN
 #endif
@@ -113,7 +122,9 @@
 /* Turn on if IP_DROP_MEMBERSHIP and IP_ADD_MEMBERSHIP do not look at
  * the dstaddr of point-to-point interfaces.
  */
-/* #define MCAST_PPP_BUG */
+#ifdef __NetBSD__
+#define MCAST_PPP_BUG
+#endif
 
 #define DAY (24*60*60)
 #define NEVER DAY			/* a long time */
@@ -165,6 +176,9 @@ union pkt_buf {
 	struct	rip rip;
 };
 
+#define GNAME_LEN   64			/* assumed=64 in parms.c */
+/* bigger than IFNAMSIZ, with room for "external()" or "remote()" */
+#define IF_NAME_LEN (GNAME_LEN+15)
 
 /* No more routes than this, to protect ourself in case something goes
  * whacko and starts broadcasting zillions of bogus routes.
@@ -195,19 +209,21 @@ struct rt_entry {
 	    char    rts_metric;
 	    u_short rts_tag;
 	    time_t  rts_time;		/* timer to junk stale routes */
+	    u_int   rts_de_ag;		/* de-aggregation level */
 #define NUM_SPARES 4
 	} rt_spares[NUM_SPARES];
 	u_int	rt_seqno;		/* when last changed */
 	char	rt_poison_metric;	/* to notice maximum recently */
 	time_t	rt_poison_time;		/*	advertised metric */
 };
-#define rt_dst	rt_dst_sock.sin_addr.s_addr
-#define rt_ifp	rt_spares[0].rts_ifp
-#define rt_gate	rt_spares[0].rts_gate
-#define rt_router rt_spares[0].rts_router
-#define rt_metric rt_spares[0].rts_metric
-#define rt_tag	rt_spares[0].rts_tag
-#define rt_time	rt_spares[0].rts_time
+#define rt_dst	    rt_dst_sock.sin_addr.s_addr
+#define rt_ifp	    rt_spares[0].rts_ifp
+#define rt_gate	    rt_spares[0].rts_gate
+#define rt_router   rt_spares[0].rts_router
+#define rt_metric   rt_spares[0].rts_metric
+#define rt_tag	    rt_spares[0].rts_tag
+#define rt_time	    rt_spares[0].rts_time
+#define rt_de_ag    rt_spares[0].rts_de_ag
 
 #define HOST_MASK	0xffffffff
 #define RT_ISHOST(rt)	((rt)->rt_mask == HOST_MASK)
@@ -235,7 +251,7 @@ struct rt_entry {
  *		- or the current route is equal but stale
  *		- or it is a host route advertised by a system for itself
  */
-#define BETTER_LINK(rt,A,B) ((A)->rts_metric < HOPCNT_INFINITY	\
+#define BETTER_LINK(rt,A,B) ((A)->rts_metric < HOPCNT_INFINITY		\
 			     && now_stale <= (A)->rts_time		\
 			     && ((A)->rts_metric < (B)->rts_metric	\
 				 || ((A)->rts_gate == (A)->rts_router	\
@@ -256,7 +272,7 @@ struct interface {
 	struct interface *int_bhash, **int_bhash_prev;
 	struct interface *int_rlink, **int_rlink_prev;
 	struct interface *int_nhash, **int_nhash_prev;
-	char	int_name[IFNAMSIZ+15+1];    /* big enough for IS_REMOTE */
+	char	int_name[IF_NAME_LEN+1];
 	u_short	int_index;
 	naddr	int_addr;		/* address on this host (net order) */
 	naddr	int_brdaddr;		/* broadcast address (n) */
@@ -287,12 +303,13 @@ struct interface {
 	} int_data;
 #	define MAX_AUTH_KEYS 5
 	struct auth {			/* authentication info */
-	    u_char  type;
-	    u_char	key[RIP_AUTH_PW_LEN];
+	    u_int16_t type;
+	    u_char  key[RIP_AUTH_PW_LEN];
 	    u_char  keyid;
 	    time_t  start, end;
 	} int_auth[MAX_AUTH_KEYS];
-	int	int_rdisc_pref;		/* advertised rdisc preference */
+	/* router discovery parameters */
+	int	int_rdisc_pref;		/* signed preference to advertise */
 	int	int_rdisc_int;		/* MaxAdvertiseInterval */
 	int	int_rdisc_cnt;
 	struct timeval int_rdisc_timer;
@@ -325,23 +342,19 @@ struct interface {
 #define IS_NO_RIP	(IS_NO_RIP_OUT | IS_NO_RIP_IN)
 #define IS_RIP_OUT_OFF(s) (((s) & IS_NO_RIP_OUT) == IS_NO_RIP_OUT)
 #define IS_RIP_OFF(s)	(((s) & IS_NO_RIP) == IS_NO_RIP)
-#define IS_NO_ADV_IN	    0x0100000
-#define IS_NO_SOL_OUT	    0x0200000	/* no solicitations */
-#define IS_SOL_OUT	    0x0400000	/* send solicitations */
-#define GROUP_IS_SOL	(IS_NO_ADV_IN|IS_NO_SOL_OUT)
-#define IS_NO_ADV_OUT	    0x0800000	/* do not advertise rdisc */
-#define IS_ADV_OUT	    0x1000000	/* advertise rdisc */
-#define GROUP_IS_ADV	(IS_NO_ADV_OUT|IS_ADV_OUT)
-#define IS_BCAST_RDISC	    0x2000000	/* broadcast instead of multicast */
+#define	IS_NO_RIP_MCAST	    0x0100000	/* broadcast RIPv2 */
+#define IS_NO_ADV_IN	    0x0200000	/* do not listen to advertisements */
+#define IS_NO_SOL_OUT	    0x0400000	/* send no solicitations */
+#define IS_SOL_OUT	    0x0800000	/* send solicitations */
+#define GROUP_IS_SOL_OUT (IS_SOL_OUT | IS_NO_SOL_OUT)
+#define IS_NO_ADV_OUT	    0x1000000	/* do not advertise rdisc */
+#define IS_ADV_OUT	    0x2000000	/* advertise rdisc */
+#define GROUP_IS_ADV_OUT (IS_NO_ADV_OUT | IS_ADV_OUT)
+#define IS_BCAST_RDISC	    0x4000000	/* broadcast instead of multicast */
 #define IS_NO_RDISC	(IS_NO_ADV_IN | IS_NO_SOL_OUT | IS_NO_ADV_OUT)
-#define IS_PM_RDISC	    0x4000000	/* poor-man's router discovery */
+#define IS_PM_RDISC	    0x8000000	/* poor-man's router discovery */
 
-#ifdef sgi
-#define IFF_UP_RUNNING (IFF_RUNNING|IFF_UP)
-#else
-#define IFF_UP_RUNNING IFF_UP
-#endif
-#define iff_alive(f) (((f) & IFF_UP_RUNNING) == IFF_UP_RUNNING)
+#define iff_up(f) ((f) & IFF_UP)
 
 
 /* Information for aggregating routes */
@@ -359,7 +372,7 @@ struct ag_info {
 	u_short	ag_tag;
 	u_short	ag_state;
 #define	    AGS_SUPPRESS    0x001	/* combine with coarser mask */
-#define	    AGS_PROMOTE	    0x002	/* synthesize combined routes */
+#define	    AGS_AGGREGATE   0x002	/* synthesize combined routes */
 #define	    AGS_REDUN0	    0x004	/* redundant, finer routes output */
 #define	    AGS_REDUN1	    0x008
 #define	    AG_IS_REDUN(state) (((state) & (AGS_REDUN0 | AGS_REDUN1)) \
@@ -374,37 +387,50 @@ struct ag_info {
 #define	    AGS_SPLIT_HZ    0x200	/* suppress for split horizon */
 
 	/* some bits are set if they are set on either route */
-#define	    AGS_PROMOTE_EITHER (AGS_RIPV2 | AGS_GATEWAY |   \
-				AGS_SUPPRESS | AGS_CORS_GATE)
+#define	    AGS_AGGREGATE_EITHER (AGS_RIPV2 | AGS_GATEWAY |   \
+				  AGS_SUPPRESS | AGS_CORS_GATE)
 };
 
 
 /* parameters for interfaces */
 extern struct parm {
 	struct parm *parm_next;
-	char	parm_name[IFNAMSIZ+1];
+	char	parm_name[IF_NAME_LEN+1];
 	naddr	parm_net;
 	naddr	parm_mask;
 
 	char	parm_d_metric;
 	u_int	parm_int_state;
-	int	parm_rdisc_pref;
-	int	parm_rdisc_int;
+	int	parm_rdisc_pref;	/* signed IRDP preference */
+	int	parm_rdisc_int;		/* IRDP advertising interval */
 	struct auth parm_auth[MAX_AUTH_KEYS];
 } *parms;
 
 /* authority for internal networks */
 extern struct intnet {
 	struct intnet *intnet_next;
-	naddr	intnet_addr;
+	naddr	intnet_addr;		/* network byte order */
 	naddr	intnet_mask;
 	char	intnet_metric;
 } *intnets;
+
+/* defined RIPv1 netmasks */
+extern struct r1net {
+	struct r1net *r1net_next;
+	naddr	r1net_net;		/* host order */
+	naddr	r1net_match;
+	naddr	r1net_mask;
+} *r1nets;
 
 /* trusted routers */
 extern struct tgate {
 	struct tgate *tgate_next;
 	naddr	tgate_addr;
+#define	    MAX_TGATE_NETS 32
+	struct tgate_net {
+	    naddr   net;		/* host order */
+	    naddr   mask;
+	} tgate_nets[MAX_TGATE_NETS];
 } *tgates;
 
 enum output_type {OUT_QUERY, OUT_UNICAST, OUT_BROADCAST, OUT_MULTICAST,
@@ -433,8 +459,8 @@ extern int	rdisc_sock;		/* router-discovery raw socket */
 
 extern int	seqno;			/* sequence number for messages */
 extern int	supplier;		/* process should supply updates */
-extern int	lookforinterfaces;	/* 1=probe for new up interfaces */
 extern int	supplier_set;		/* -s or -q requested */
+extern int	lookforinterfaces;	/* 1=probe for new up interfaces */
 extern int	ridhosts;		/* 1=reduce host routes */
 extern int	mhome;			/* 1=want multi-homed host route */
 extern int	advertise_mhome;	/* 1=must continue advertising it */
@@ -464,7 +490,7 @@ extern int	have_ripv1_out;		/* have a RIPv1 interface */
 extern int	have_ripv1_in;
 extern int	need_flash;		/* flash update needed */
 extern struct timeval need_kern;	/* need to update kernel table */
-extern int	update_seqno;		/* a route has changed */
+extern u_int	update_seqno;		/* a route has changed */
 
 extern int	tracelevel, new_tracelevel;
 #define MAX_TRACELEVEL 4
@@ -483,7 +509,7 @@ extern struct radix_node_head *rhead;
 #define	dup2(x,y)		BSDdup2(x,y)
 #endif /* sgi */
 
-extern void fix_sock(int, char *);
+extern void fix_sock(int, const char *);
 extern void fix_select(void);
 extern void rip_off(void);
 extern void rip_on(struct interface *);
@@ -497,7 +523,7 @@ extern void rip_bcast(int);
 extern void supply(struct sockaddr_in *, struct interface *,
 		   enum output_type, int, int, int);
 
-extern void	msglog(char *, ...);
+extern void	msglog(const char *, ...) PATTRIB(1,2);
 struct msg_limit {
     time_t	reuse;
     struct msg_sub {
@@ -506,9 +532,10 @@ struct msg_limit {
 #   define MSG_SUBJECT_N 8
     } subs[MSG_SUBJECT_N];
 };
-extern void	msglim(struct msg_limit *, naddr, char *, ...);
+extern void	msglim(struct msg_limit *, naddr,
+		       const char *, ...) PATTRIB(3,4);
 #define	LOGERR(msg) msglog(msg ": %s", strerror(errno))
-extern void	logbad(int, char *, ...);
+extern void	logbad(int, const char *, ...) PATTRIB(2,3);
 #define	BADERR(dump,msg) logbad(dump,msg ": %s", strerror(errno))
 #ifdef DEBUG
 #define	DBGERR(dump,msg) BADERR(dump,msg)
@@ -516,37 +543,38 @@ extern void	logbad(int, char *, ...);
 #define	DBGERR(dump,msg) LOGERR(msg)
 #endif
 extern	char	*naddr_ntoa(naddr);
-extern	char	*saddr_ntoa(struct sockaddr *);
+extern const char *saddr_ntoa(struct sockaddr *);
 
-extern void	*rtmalloc(size_t, char *);
+extern void	*rtmalloc(size_t, const char *);
 extern void	timevaladd(struct timeval *, struct timeval *);
 extern void	intvl_random(struct timeval *, u_long, u_long);
 extern int	getnet(char *, naddr *, naddr *);
 extern int	gethost(char *, naddr *);
 extern void	gwkludge(void);
-extern char	*parse_parms(char *, int);
-extern char	*check_parms(struct parm *);
+extern const char *parse_parms(char *, int);
+extern const char *check_parms(struct parm *);
 extern void	get_parms(struct interface *);
 
 extern void	lastlog(void);
-extern void	set_tracefile(char *, char *, int);
-extern void	tracelevel_msg(char *, int);
-extern void	trace_off(char*, ...);
+extern void	trace_close(int);
+extern void	set_tracefile(const char *, const char *, int);
+extern void	tracelevel_msg(const char *, int);
+extern void	trace_off(const char*, ...) PATTRIB(1,2);
 extern void	set_tracelevel(void);
 extern void	trace_flush(void);
-extern void	trace_kernel(char *, ...);
-extern void	trace_act(char *, ...);
-extern void	trace_pkt(char *, ...);
-extern void	trace_add_del(char *, struct rt_entry *);
-extern void	trace_change(struct rt_entry *, u_int, naddr, naddr, int,
-			     u_short, struct interface *, time_t, char *);
-extern void	trace_if(char *, struct interface *);
+extern void	trace_misc(const char *, ...) PATTRIB(1,2);
+extern void	trace_act(const char *, ...) PATTRIB(1,2);
+extern void	trace_pkt(const char *, ...) PATTRIB(1,2);
+extern void	trace_add_del(const char *, struct rt_entry *);
+extern void	trace_change(struct rt_entry *, u_int, struct rt_spare *,
+			     const char *);
+extern void	trace_if(const char *, struct interface *);
 extern void	trace_upslot(struct rt_entry *, struct rt_spare *,
-			     naddr, naddr,
-			     struct interface *, int, u_short, time_t);
-extern void	trace_rip(char*, char*, struct sockaddr_in *,
+			     struct rt_spare *);
+extern void	trace_rip(const char*, const char*, struct sockaddr_in *,
 			  struct interface *, struct rip *, int);
 extern char	*addrname(naddr, naddr, int);
+extern char	*rtname(naddr, naddr, naddr);
 
 extern void	rdisc_age(naddr);
 extern void	set_rdisc_mg(struct interface *, int);
@@ -571,20 +599,18 @@ extern void	age(naddr);
 extern void	ag_flush(naddr, naddr, void (*)(struct ag_info *));
 extern void	ag_check(naddr, naddr, naddr, naddr, char, char, u_int,
 			 u_short, u_short, void (*)(struct ag_info *));
-extern void	del_static(naddr, naddr, int);
+extern void	del_static(naddr, naddr, naddr, int);
 extern void	del_redirects(naddr, time_t);
 extern struct rt_entry *rtget(naddr, naddr);
 extern struct rt_entry *rtfind(naddr);
 extern void	rtinit(void);
-extern void	rtadd(naddr, naddr, naddr, naddr,
-		      int, u_short, u_int, struct interface *);
-extern void	rtchange(struct rt_entry *, u_int, naddr,naddr, int, u_short,
-			 struct interface *ifp, time_t, char *);
+extern void	rtadd(naddr, naddr, u_int, struct rt_spare *);
+extern void	rtchange(struct rt_entry *, u_int, struct rt_spare *, char *);
 extern void	rtdelete(struct rt_entry *);
+extern void	rts_delete(struct rt_entry *, struct rt_spare *);
 extern void	rtbad_sub(struct rt_entry *);
 extern void	rtswitch(struct rt_entry *, struct rt_spare *);
 extern void	rtbad(struct rt_entry *);
-
 
 #define S_ADDR(x)	(((struct sockaddr_in *)(x))->sin_addr.s_addr)
 #define INFO_DST(I)	((I)->rti_info[RTAX_DST])
@@ -604,19 +630,27 @@ extern naddr	ripv1_mask_host(naddr,struct interface *);
 extern int	check_dst(naddr);
 extern struct interface *check_dup(naddr, naddr, naddr, int);
 extern int	check_remote(struct interface *);
-extern int	addrouteforif(register struct interface *);
+extern int	addrouteforif(struct interface *);
 extern void	ifinit(void);
 extern int	walk_bad(struct radix_node *, struct walkarg *);
-extern int	if_ok(struct interface *, char *);
+extern int	if_ok(struct interface *, const char *);
 extern void	if_sick(struct interface *);
 extern void	if_bad(struct interface *);
 extern void	if_link(struct interface *);
 extern struct interface *ifwithaddr(naddr, int, int);
 extern struct interface *ifwithname(char *, naddr);
-extern struct interface *ifwithindex(u_short);
+extern struct interface *ifwithindex(u_short, int);
 extern struct interface *iflookup(naddr);
 
 extern struct auth *find_auth(struct interface *);
 extern void end_md5_auth(struct ws_buf *, struct auth *);
 
-#include <md5.h>
+#define MD5_DIGEST_LEN 16
+typedef struct {
+	u_int32_t state[4];		/* state (ABCD) */
+	u_int32_t count[2];		/* # of bits, modulo 2^64 (LSB 1st) */
+	unsigned char buffer[64];	/* input buffer */
+} MD5_CTX;
+extern void MD5Init(MD5_CTX*);
+extern void MD5Update(MD5_CTX*, u_char*, u_int);
+extern void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);

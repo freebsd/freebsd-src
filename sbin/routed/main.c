@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -29,32 +29,38 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
-#ifndef lint
-char copyright[] =
-"@(#) Copyright (c) 1983, 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
-#endif
-static const char rcsid[] =
-	"$Id$";
-#endif /* not lint */
-
 #include "defs.h"
+#include "pathnames.h"
 #ifdef sgi
 #include "math.h"
 #endif
+#include <signal.h>
 #include <fcntl.h>
+#include <sys/file.h>
+
+#if !defined(sgi) && !defined(__NetBSD__)
+char copyright[] =
+"@(#) Copyright (c) 1983, 1988, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
+static char sccsid[] __attribute__((unused)) = "@(#)main.c	8.1 (Berkeley) 6/5/93";
+#elif defined(__NetBSD__)
+__RCSID("$NetBSD$");
+__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n");
+#endif
+#ident "$Revision: 2.17 $"
+
 
 pid_t	mypid;
 
 naddr	myaddr;				/* system address */
 char	myname[MAXHOSTNAMELEN+1];
+
+int	verbose;
 
 int	supplier;			/* supply or broadcast updates */
 int	supplier_set;
@@ -69,6 +75,7 @@ int	auth_ok = 1;			/* 1=ignore auth if we do not care */
 
 struct timeval epoch;			/* when started */
 struct timeval clk, prev_clk;
+static int usec_fudge;
 struct timeval now;			/* current idea of time */
 time_t	now_stale;
 time_t	now_expire;
@@ -76,6 +83,8 @@ time_t	now_garbage;
 
 struct timeval next_bcast;		/* next general broadcast */
 struct timeval no_flash = {EPOCH+SUPPLY_INTERVAL};  /* inhibit flash update */
+
+struct timeval flush_kern_timer;
 
 fd_set	fdbits;
 int	sock_max;
@@ -95,6 +104,7 @@ main(int argc,
 	int n, mib[4], off;
 	size_t len;
 	char *p, *q;
+	const char *cp;
 	struct timeval wtime, t2;
 	time_t dt;
 	fd_set ibits;
@@ -125,7 +135,7 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmAtT:F:P:")) != -1) {
+	while ((n = getopt(argc, argv, "sqdghmpAtvT:F:P:")) != -1) {
 		switch (n) {
 		case 's':
 			supplier = 1;
@@ -142,11 +152,11 @@ main(int argc,
 			break;
 
 		case 'g':
-			bzero(&parm, sizeof(parm));
+			memset(&parm, 0, sizeof(parm));
 			parm.parm_d_metric = 1;
-			p = check_parms(&parm);
-			if (p != 0)
-				msglog("bad -g: %s", p);
+			cp = check_parms(&parm);
+			if (cp != 0)
+				msglog("bad -g: %s", cp);
 			else
 				default_gateway = 1;
 			break;
@@ -189,26 +199,29 @@ main(int argc,
 				       optarg);
 				break;
 			}
-			bzero(&parm, sizeof(parm));
+			memset(&parm, 0, sizeof(parm));
 			parm.parm_net = p_net;
 			parm.parm_mask = p_mask;
 			parm.parm_d_metric = n;
-			p = check_parms(&parm);
-			if (p != 0)
-				msglog("bad -F: %s", p);
+			cp = check_parms(&parm);
+			if (cp != 0)
+				msglog("bad -F: %s", cp);
 			break;
 
 		case 'P':
-			/* handle arbitrary, (usually) per-interface
-			 * parameters.
+			/* handle arbitrary parameters.
 			 */
-			p = parse_parms(optarg, 0);
-			if (p != 0) {
-				if (strcasecmp(p,optarg))
-					msglog("%s in \"%s\"", p, optarg);
-				else
-					msglog("bad \"-P %s\"", optarg);
-			}
+			q = strdup(optarg);
+			cp = parse_parms(q, 0);
+			if (cp != 0)
+				msglog("%s in \"-P %s\"", cp, optarg);
+			free(q);
+			break;
+
+		case 'v':
+			/* display version */
+			verbose++;
+			msglog("version 2.17");
 			break;
 
 		default:
@@ -226,11 +239,14 @@ main(int argc,
 		goto usage;
 	if (argc != 0) {
 usage:
-		logbad(0, "usage: routed [-sqdghmpAt] [-T tracefile]"
-		       " [-F net[/mask[,metric]]] [-P parms]");
+		logbad(0, "usage: routed [-sqdghmpAtv] [-T tracefile]"
+		       " [-F net[,metric]] [-P parms]");
 	}
-	if (geteuid() != 0)
+	if (geteuid() != 0) {
+		if (verbose)
+			exit(0);
 		logbad(0, "requires UID 0");
+	}
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_INET;
@@ -271,12 +287,10 @@ usage:
 	/* get into the background */
 #ifdef sgi
 	if (0 > _daemonize(background ? 0 : (_DF_NOCHDIR|_DF_NOFORK),
-			   new_tracelevel == 0 ? -1 : STDOUT_FILENO,
-			   new_tracelevel == 0 ? -1 : STDERR_FILENO,
-			   -1))
+			   STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO))
 		BADERR(0, "_daemonize()");
 #else
-	if (background && daemon(0, new_tracelevel) < 0)
+	if (background && daemon(0, 1) < 0)
 		BADERR(0,"daemon()");
 #endif
 
@@ -298,13 +312,11 @@ usage:
 	fix_select();
 
 
-	if (background && new_tracelevel == 0)
-		ftrace = 0;
 	if (tracename != 0) {
 		strncpy(inittracename, tracename, sizeof(inittracename)-1);
-		set_tracefile(inittracename, "%s\n", -1);
+		set_tracefile(inittracename, "%s", -1);
 	} else {
-		tracelevel_msg("%s\n", -1); /* turn on tracing to stdio */
+		tracelevel_msg("%s", -1);   /* turn on tracing to stdio */
 	}
 
 	bufinit();
@@ -330,28 +342,45 @@ usage:
 	 */
 	gwkludge();
 	ifinit();
-	flush_kern();
 
 	/* Ask for routes */
 	rip_query();
 	rdisc_sol();
+
+	/* Now turn off stdio if not tracing */
+	if (new_tracelevel == 0)
+		trace_close(background);
 
 	/* Loop forever, listening and broadcasting.
 	 */
 	for (;;) {
 		prev_clk = clk;
 		gettimeofday(&clk, 0);
-		timevalsub(&t2, &clk, &prev_clk);
-		if (t2.tv_sec < 0
-		    || t2.tv_sec > wtime.tv_sec + 5) {
-			/* Deal with time changes before other housekeeping to
-			 * keep everything straight.
+		if (prev_clk.tv_sec == clk.tv_sec
+		    && prev_clk.tv_usec == clk.tv_usec+usec_fudge) {
+			/* Much of `routed` depends on time always advancing.
+			 * On systems that do not guarantee that gettimeofday()
+			 * produces unique timestamps even if called within
+			 * a single tick, use trickery like that in classic
+			 * BSD kernels.
 			 */
-			dt = t2.tv_sec;
-			if (dt > 0)
-				dt -= wtime.tv_sec;
-			trace_act("time changed by %d sec", dt);
-			epoch.tv_sec += dt;
+			clk.tv_usec += ++usec_fudge;
+
+		} else {
+			usec_fudge = 0;
+
+			timevalsub(&t2, &clk, &prev_clk);
+			if (t2.tv_sec < 0
+			    || t2.tv_sec > wtime.tv_sec + 5) {
+				/* Deal with time changes before other
+				 * housekeeping to keep everything straight.
+				 */
+				dt = t2.tv_sec;
+				if (dt > 0)
+					dt -= wtime.tv_sec;
+				trace_act("time changed by %d sec", (int)dt);
+				epoch.tv_sec += dt;
+			}
 		}
 		timevalsub(&now, &clk, &epoch);
 		now_stale = now.tv_sec - STALE_TIME;
@@ -364,7 +393,7 @@ usage:
 		if (stopint != 0) {
 			rip_bcast(0);
 			rdisc_adv();
-			trace_off("exiting with signal %d\n", stopint);
+			trace_off("exiting with signal %d", stopint);
 			exit(stopint | 128);
 		}
 
@@ -376,6 +405,19 @@ usage:
 			rip_query();
 			continue;
 		}
+
+		/* Check the kernel table occassionally for mysteriously
+		 * evaporated routes
+		 */
+		timevalsub(&t2, &flush_kern_timer, &now);
+		if (t2.tv_sec <= 0) {
+			flush_kern();
+			flush_kern_timer.tv_sec = (now.tv_sec
+						   + CHECK_QUIET_INTERVAL);
+			continue;
+		}
+		if (timercmp(&t2, &wtime, <))
+			wtime = t2;
 
 		/* If it is time, then broadcast our routes.
 		 */
@@ -447,7 +489,7 @@ usage:
 			wtime = t2;
 
 		/* take care of router discovery,
-		 * but do it to the millisecond
+		 * but do it in the correct the millisecond
 		 */
 		if (!timercmp(&rdisc_timer, &now, >)) {
 			rdisc_age(0);
@@ -495,7 +537,7 @@ usage:
 
 /* ARGSUSED */
 void
-sigalrm(int s)
+sigalrm(int s UNUSED)
 {
 	/* Historically, SIGALRM would cause the daemon to check for
 	 * new and broken interfaces.
@@ -548,7 +590,7 @@ fix_select(void)
 
 void
 fix_sock(int sock,
-	 char *name)
+	 const char *name)
 {
 	int on;
 #define MIN_SOCKBUF (4*1024)
@@ -604,14 +646,14 @@ get_rip_sock(naddr addr,
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 		BADERR(1,"rip_sock = socket()");
 
-	bzero(&sin,sizeof(sin));
+	memset(&sin, 0, sizeof(sin));
 #ifdef _HAVE_SIN_LEN
 	sin.sin_len = sizeof(sin);
 #endif
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(RIP_PORT);
 	sin.sin_addr.s_addr = addr;
-	if (bind(s, (struct sockaddr *)&sin,sizeof(sin)) < 0) {
+	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
 		if (serious)
 			BADERR(errno != EADDRINUSE, "bind(rip_sock)");
 		return -1;
@@ -632,7 +674,7 @@ void
 rip_off(void)
 {
 	struct interface *ifp;
-	register naddr addr;
+	naddr addr;
 
 
 	if (rip_sock >= 0 && !mhome) {
@@ -701,8 +743,10 @@ rip_on(struct interface *ifp)
 
 	/* If the main RIP socket is off and it makes sense to turn it on,
 	 * then turn it on for all of the interfaces.
+	 * It makes sense if either router discovery is off, or if
+	 * router discover is on and at most one interface is doing RIP.
 	 */
-	if (rip_interfaces > 0 && !rdisc_ok) {
+	if (rip_interfaces > 0 && (!rdisc_ok || rip_interfaces > 1)) {
 		trace_act("turn on RIP");
 
 		/* Close all of the query sockets so that we can open
@@ -748,11 +792,11 @@ rip_on(struct interface *ifp)
  */
 void *
 rtmalloc(size_t size,
-	 char *msg)
+	 const char *msg)
 {
 	void *p = malloc(size);
-	if (p == NULL)
-		logbad(1,"malloc() failed in %s", msg);
+	if (p == 0)
+		logbad(1,"malloc(%lu) failed in %s", (u_long)size, msg);
 	return p;
 }
 
@@ -802,7 +846,7 @@ timevalsub(struct timeval *t1,
 /* put a message into the system log
  */
 void
-msglog(char *p, ...)
+msglog(const char *p, ...)
 {
 	va_list args;
 
@@ -828,12 +872,12 @@ msglog(char *p, ...)
  * For example, there can be many systems with the wrong password.
  */
 void
-msglim(struct msg_limit *lim, naddr addr, char *p, ...)
+msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 {
 	va_list args;
 	int i;
 	struct msg_sub *ms1, *ms;
-	char *p1;
+	const char *p1;
 
 	va_start(args, p);
 
@@ -883,7 +927,7 @@ msglim(struct msg_limit *lim, naddr addr, char *p, ...)
 
 
 void
-logbad(int dump, char *p, ...)
+logbad(int dump, const char *p, ...)
 {
 	va_list args;
 
