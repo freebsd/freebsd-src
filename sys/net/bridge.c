@@ -127,7 +127,7 @@
 static void bdginit(void *);
 static void flush_table(void);
 
-SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, bdginit, NULL)
+SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_SECOND, bdginit, NULL)
 
 static int bdg_ipfw = 0 ;
 int do_bridge = 0;
@@ -282,18 +282,22 @@ int bdg_ports ;
 
 /*
  * initialization of bridge code.
+ *
+ * This will have to change to support kldload.
  */
 static void
 bdginit(dummy)
 	void *dummy;
 {
-    int i ;
+    int i, s;
     struct ifnet *ifp;
     struct arpcom *ac ;
     u_char *eth_addr ;
+
     /*
      * initialization of bridge code
      */
+    s = splimp();	/* XXX does this matter? */
     if (bdg_table == NULL)
 	bdg_table = (struct hash_table *)
 		malloc(HASH_SIZE * sizeof(struct hash_table),
@@ -332,6 +336,7 @@ bdginit(dummy)
     }
     bdg_timeout(0);
     do_bridge=0;
+    splx(s);
 }
 
 /*
