@@ -204,6 +204,7 @@ SUBDIR+=3dfx \
 SUBDIR+=aac \
 	acpi \
 	asr \
+	bios \
 	cardbus \
 	cbb \
 	ciss \
@@ -213,7 +214,6 @@ SUBDIR+=aac \
 	iir \
 	mly \
 	s3 \
-	smapi \
 	vesa
 	
 .elif ${MACHINE} == "pc98"
