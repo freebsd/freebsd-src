@@ -77,7 +77,7 @@ checkdirty(int fs, struct bootblock *boot)
 	u_char *buffer;
 	int ret = 0;
 
-	if (boot->ClustMask == CLUST12_MASK)
+	if (boot->ClustMask != CLUST16_MASK && boot->ClustMask != CLUST32_MASK)
 		return 0;
 
 	off = boot->ResSectors;
@@ -99,14 +99,32 @@ checkdirty(int fs, struct bootblock *boot)
 		goto err;
 	}
 
-	if (buffer[0] == boot->Media && buffer[1] == 0xff && buffer[2] == 0xff
-	    && ((boot->ClustMask == CLUST16_MASK && buffer[3] == 0x7f)
-		|| (boot->ClustMask == CLUST32_MASK && buffer[3] == 0x0f
-		    && buffer[4] == 0xff && buffer[5] == 0xff
-		    && buffer[6] == 0xff && buffer[7] == 0x07)))
-		ret = 0;
-	else
-		ret = 1;
+	/*
+	 * If we don't understand the FAT, then the file system must be
+	 * assumed to be unclean.
+	 */
+	if (buffer[0] != boot->Media || buffer[1] != 0xff)
+		goto err;
+	if (boot->ClustMask == CLUST16_MASK) {
+		if ((buffer[2] & 0xf8) != 0xf8 || (buffer[3] & 0x3f) != 0x3f)
+			goto err;
+	} else {
+		if (buffer[2] != 0xff || (buffer[3] & 0x0f) != 0x0f
+		    || (buffer[4] & 0xf8) != 0xf8 || buffer[5] != 0xff
+		    || buffer[6] != 0xff || (buffer[7] & 0x03) != 0x03)
+			goto err;
+	}
+
+	/*
+	 * Now check the actual clean flag (and the no-error flag).
+	 */
+	if (boot->ClustMask == CLUST16_MASK) {
+		if ((buffer[3] & 0xc0) == 0xc0)
+			ret = 1;
+	} else {
+		if ((buffer[7] & 0x0c) == 0x0c)
+			ret = 1;
+	}
 
 err:
 	free(buffer);
