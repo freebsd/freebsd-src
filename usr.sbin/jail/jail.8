@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2001
+.Dd April 8, 2003
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Nd "imprison process and its descendants"
 .Sh SYNOPSIS
 .Nm
+.Op Fl i
 .Op Fl u Ar username
 .Ar path hostname ip-number command ...
 .Sh DESCRIPTION
@@ -50,6 +51,8 @@ utility imprisons a process and all future descendants.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl u Ar username"
+.It Fl i
+Output the jail identifier of the newly created jail.
 .It Fl u Ar username
 The user name as whom the
 .Ar command
@@ -275,6 +278,9 @@ and other processes running within the jail using
 with the
 .Ql J
 flag appearing beside jailed processes.
+To see an active list of jails, use the
+.Xr jls 8
+utility.
 You should also be able to
 .Xr telnet 1
 to the hostname or IP address of the jailed environment, and log
@@ -304,12 +310,16 @@ Depending on
 the intended use of the jail, you may also want to run
 .Pa /etc/rc.shutdown
 from within the jail.
-Currently there is no way to insert new processes
-into a jail, so you must first log into the jail before performing these
-actions.
+To kill processes from outside the jail, use the
+.Xr jexec 8
+utility in conjuction with the one of the
+.Xr kill 1
+commands above, or use the
+.Xr killall 1
+utility with the
+.Fl j
+option.
 .Pp
-To kill processes from outside the jail, you must individually identify the
-PID of each process to be killed.
 The
 .Pa /proc/ Ns Ar pid Ns Pa /status
 file contains, as its last field, the hostname of the jail in which the
@@ -335,11 +345,6 @@ Just add the following line to
 .Pa /etc/sysctl.conf :
 .Pp
 .Dl security.jail.set_hostname_allowed=0
-.Pp
-In a future version of
-.Fx ,
-the mechanisms for managing jails will be
-more refined.
 .Ss "Sysctl MIB Entries"
 Certain aspects of the jail containments environment may be modified from
 the host environment using
@@ -388,15 +393,19 @@ As such, this functionality is disabled by default, but can be enabled
 by setting this MIB entry to 1.
 .El
 .Sh SEE ALSO
+.Xr killall 1 ,
 .Xr newaliases 1 ,
 .Xr ps 1 ,
 .Xr chroot 2 ,
 .Xr jail 2 ,
+.Xr jail_attach 2 ,
 .Xr procfs 5 ,
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr halt 8 ,
 .Xr inetd 8 ,
+.Xr jexec 8 ,
+.Xr jls 8 ,
 .Xr mount_devfs 8 ,
 .Xr named 8 ,
 .Xr reboot 8 ,
@@ -423,8 +432,7 @@ who contributed it to
 wrote the extended documentation, found a few bugs, added
 a few new features, and cleaned up the userland jail environment.
 .Sh BUGS
-Jail currently lacks strong management functionality, such as the ability
-to deliver signals to all processes in a jail, and to allow access to
+Jail currently lacks the ability to allow access to
 specific jail information via
 .Xr ps 1
 as opposed to

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 1995
+.Dd April 8, 2003
 .Os
 .Dt KILLALL 1
 .Sh NAME
@@ -39,6 +39,7 @@
 .Op Fl m
 .Op Fl s
 .Op Fl z
+.Op Fl j Ar jid
 .Op Fl u Ar user
 .Op Fl t Ar tty
 .Op Fl c Ar procname
@@ -89,6 +90,9 @@ The signal may be specified either as a name
 (with or without a leading
 .Dv SIG ) ,
 or numerically.
+.It Fl j Ar jid
+Kill processes in the jail specified by
+.Ar jid .
 .It Fl u Ar user
 Limit potentially matching processes to those belonging to
 the specified
@@ -133,7 +137,8 @@ Diagnostic messages will only be printed if requested by
 options.
 .Sh SEE ALSO
 .Xr kill 1 ,
-.Xr sysctl 3
+.Xr sysctl 3 ,
+.Xr jail 8
 .Sh HISTORY
 The
 .Nm

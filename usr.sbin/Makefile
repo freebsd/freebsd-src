@@ -45,6 +45,8 @@ SUBDIR=	IPXrouted \
 	inetd \
 	iostat \
 	jail \
+	jexec \
+	jls \
 	kbdcontrol \
 	kbdmap \
 	kernbb \
