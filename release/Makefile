@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.395 1998/10/01 09:27:02 jkh Exp $
+#	$Id: Makefile,v 1.396 1998/10/04 02:01:03 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -607,11 +607,9 @@ doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 		release.6 release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.5 \
-		release.6 release.7
+.elif ${MACHINE_ARCH} == "alpha"
+doRELEASE:  release.1 release.2 release.3 release.4 release.5 \
+		release.6 release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 .endif
@@ -697,6 +695,9 @@ doMFSKERN:
 	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
 	@echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
+.if ${MACHINE_ARCH} == "alpha"
+	@echo "options	MFS_AUTOLOAD"
+.endif
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/boot.${FSIMAGE}
 	@mkdir  ${RD}/boot.${FSIMAGE}
@@ -712,7 +713,7 @@ doMFSKERN:
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} != "alpha"
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 .else
