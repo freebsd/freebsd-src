@@ -683,6 +683,10 @@ including the following:
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
 
+National Semiconductor DP8393X (SONIC) Ethernet cards
+    NEC PC-9801-83, -84, -103, and -104
+    NEC PC-9801N-25 and -J02R
+
 
 4.3.    USB
 ----    ---
