@@ -88,6 +88,7 @@ pusage()
 	while (O_cont)			\
 	    switch (*++*argv)		\
 		{			\
+		default:		\
 		case '-':		\
 		    usage();		\
 		case '\0':		\
@@ -130,8 +131,6 @@ pusage()
 
 #define ENDOPTS				\
 		    break;		\
-		default:		\
-		    usage();		\
 		}			\
 	}				\
     *--argv = O_name;			\

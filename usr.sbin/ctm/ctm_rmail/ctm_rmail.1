@@ -135,7 +135,7 @@ and processed with a single command.
 .Sh FILE FORMAT
 Following are the important parts of an actual (very small) delta piece:
 .Bd -literal
-From: src-cur-owner
+From: owner-src-cur
 To: src-cur
 Subject: ctm-mail src-cur.0003.gz 1/4
 
@@ -160,7 +160,7 @@ If the delta exceeds
 .Ar maxctmsize ,
 then a message like this will be received instead:
 .Bd -literal
-From: src-cur-owner
+From: owner-src-cur
 To: src-cur
 Subject: ctm-notice src-cur.0999.gz
 
