@@ -386,6 +386,7 @@ NETGRAPH_BLUETOOTH_UBTBCMFW	opt_netgraph.h
 NETGRAPH_BPF		opt_netgraph.h
 NETGRAPH_BRIDGE		opt_netgraph.h
 NETGRAPH_CISCO		opt_netgraph.h
+NETGRAPH_DEVICE		opt_netgraph.h
 NETGRAPH_ECHO		opt_netgraph.h
 NETGRAPH_EIFACE		opt_netgraph.h
 NETGRAPH_ETHER		opt_netgraph.h
