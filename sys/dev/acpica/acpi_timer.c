@@ -110,14 +110,13 @@ acpi_timer_read()
 static void
 acpi_timer_identify(driver_t *driver, device_t parent)
 {
-    device_t	dev;
-    char	desc[40];
-    u_long	rlen, rstart;
-    int		i, j, rid, rtype;
+    device_t dev;
+    u_long rlen, rstart;
+    int rid, rtype;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    if (acpi_disabled("timer") || AcpiGbl_FADT == NULL)
+    if (acpi_disabled("timer") || AcpiGbl_FADT == NULL || acpi_timer_dev)
 	return_VOID;
 
     if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_timer", 0)) == NULL) {
@@ -127,19 +126,37 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     acpi_timer_dev = dev;
 
     rid = 0;
+    rtype = AcpiGbl_FADT->XPmTmrBlk.AddressSpaceId ?
+	SYS_RES_IOPORT : SYS_RES_MEMORY;
     rlen = AcpiGbl_FADT->PmTmLen;
-    rtype = (AcpiGbl_FADT->XPmTmrBlk.AddressSpaceId)
-      ? SYS_RES_IOPORT : SYS_RES_MEMORY;
     rstart = AcpiGbl_FADT->XPmTmrBlk.Address;
-    bus_set_resource(dev, rtype, rid, rstart, rlen);
+    if (bus_set_resource(dev, rtype, rid, rstart, rlen))
+	device_printf(dev, "couldn't set resource (%s 0x%lx+0x%lx)\n",
+	    (rtype == SYS_RES_IOPORT) ? "port" : "mem", rstart, rlen);
+    return_VOID;
+}
+
+static int
+acpi_timer_probe(device_t dev)
+{
+    char desc[40];
+    int i, j, rid, rtype;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    if (dev != acpi_timer_dev)
+	return (ENXIO);
+
+    rid = 0;
+    rtype = AcpiGbl_FADT->XPmTmrBlk.AddressSpaceId ?
+	SYS_RES_IOPORT : SYS_RES_MEMORY;
     acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (acpi_timer_reg == NULL) {
-	device_printf(dev, "couldn't allocate I/O resource (%s 0x%lx)\n",
-		      rtype == SYS_RES_IOPORT ? "port" : "mem", rstart);
-	return_VOID;
+	device_printf(dev, "couldn't allocate resource (%s 0x%lx)\n",
+	    (rtype == SYS_RES_IOPORT) ? "port" : "mem",
+	    (u_long)AcpiGbl_FADT->XPmTmrBlk.Address);
+	return (ENXIO);
     }
-    acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
-    acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
     if (AcpiGbl_FADT->TmrValExt != 0)
 	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
     else
@@ -166,24 +183,29 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     tc_init(&acpi_timer_timecounter);
 
     sprintf(desc, "%d-bit timer at 3.579545MHz",
-	    AcpiGbl_FADT->TmrValExt ? 32 : 24);
+	AcpiGbl_FADT->TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
 
-    return_VOID;
-}
-
-static int
-acpi_timer_probe(device_t dev)
-{
-    if (dev == acpi_timer_dev)
-	return (0);
-
-    return (ENXIO);
+    /* Release the resource, we'll allocate it again during attach. */
+    bus_release_resource(dev, rtype, rid, acpi_timer_reg);
+    return (0);
 }
 
 static int
 acpi_timer_attach(device_t dev)
 {
+    int rid, rtype;
+
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+    rid = 0;
+    rtype = AcpiGbl_FADT->XPmTmrBlk.AddressSpaceId ?
+	SYS_RES_IOPORT : SYS_RES_MEMORY;
+    acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
+    if (acpi_timer_reg == NULL)
+	return (ENXIO);
+    acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
+    acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
     return (0);
 }
 
