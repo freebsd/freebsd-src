@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.5 1997/07/06 23:50:12 fsmp Exp $
+ * $Id: mplock.s,v 1.3 1997/07/08 23:35:01 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -25,10 +25,12 @@
  * these are all temps for debugging CPUSTOP code
  * they will (hopefully) go away soon...
  */
-#define MARK_HITS_NOT
-#define ADJUST_TPR_NOT
+#define MARK_HITS
+#define ADJUST_TPR
 #define ADJUST_IPL_NOT
-#define REALLY_STI_NOT
+#define REALLY_STI
+
+#define IPI_LEVEL	0x3f
 
 #ifdef MARK_HITS
 #define MARK_HIT(X)				\
@@ -175,7 +177,7 @@ NON_GPROF_ENTRY(get_mplock)
 	btl	$9, (%esp)		/* test EI bit */
 	jc	1f			/* INTs currently enabled */
 	andl	$0xffffff00, %eax	/* clear task priority field */
-	orl	$0x50, %eax		/* only allow IPIs
+	orl	$IPI_LEVEL, %eax	/* only allow IPIs
 	movl	%eax, lapic_tpr		/* set it */
 #endif /* ADJUST_TPR */
 
