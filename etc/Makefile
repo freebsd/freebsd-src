@@ -95,13 +95,13 @@ distribution: distrib-dirs
 .if ${MACHINE} == "i386"
 	(cd ../sys/i386/boot; make depend all install cleandir; \
 	 cd /usr/mdec; find . | cpio -pdalmuv ${DESTDIR}/usr/mdec)
-	(cd ../include; make copies)
 	(cd ../usr.sbin/sendmail/src; make install; \
 	 cd ../cf/cf; make tcpproto.cf; \
 	    install -o root -g wheel -m 644 tcpproto.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ../; install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ..; make install)
+	(cd ../include; make copies)
 .endif
 
 hcx9-distribution:
