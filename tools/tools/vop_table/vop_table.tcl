@@ -1,5 +1,7 @@
-#!/usr/local/bin/tclsh8.2
+#!/usr/local/bin/tclsh8.3
 # $FreeBSD$
+
+set fo [open _.html w]
 
 proc do_file {file} {
 	global names ops op
@@ -53,7 +55,7 @@ while {[gets $fi a] >= 0} {
 }
 close $fi
 
-puts {<HTML>
+puts $fo {<HTML>
 <HEAD></HEAD><BODY>
 <TABLE BORDER WIDTH="100%" NOSAVE>
 }
@@ -75,55 +77,43 @@ foreach i $opn {
 
 lappend fl [format "%12s" default]
 
-puts {<TR>}
-puts {<TD>}
-puts {</TD>}
-puts "<TR>"
-        puts "<TD></TD>"
+puts $fo {<TR>}
+puts $fo {<TD>}
+puts $fo {</TD>}
+puts $fo "<TR>"
+        puts $fo "<TD></TD>"
 	foreach j $fl {
-		puts "<TD>"
+		puts $fo "<TD>"
 
 		for {set i 0} {$i < 12} {incr i} {
-			puts "[string index $j $i]<BR>"
+			puts $fo "[string index $j $i]<BR>"
 		}
-		puts "</TD>"
+		puts $fo "</TD>"
 	}
-puts "</TR>"
+puts $fo "</TR>"
 
 set fnames(vop_defaultop) *
+
 set fnames(vop_null) -
+set fnames(vop_ebadf) b
+set fnames(vop_einval) i
+set fnames(vop_enotty) t
 set fnames(vop_panic) !
 set fnames(vfs_cache_lookup) C
-if {0} {
-set fnames(vop_nolock) nl
-set fnames(vop_noislocked) ni
-set fnames(vop_nounlock) nu
-set fnames(vop_stdlock) sl
-set fnames(vop_stdislocked) si
-set fnames(vop_stdunlock) su
-set fnames(vop_einval) I
-set fnames(vop_enotty) T
-set fnames(vop_eopnotsupp) S
-set fnames(ufs_missingop) M
-set fnames(vop_nopoll) np
-set fnames(vop_nostrategy) ns
-set fnames(vop_revoke) vr
-set fnames(vop_stdpathconf) pc
-set fnames(vop_stdbwrite) bw
-}
+set fnames(vop_eopnotsupp) *
 
 set fn 0
 set nop(aa) 0
 unset nop(aa)
 foreach i $tbn {
-	puts {<TR>}
-	puts "<TD>$i</TD>"
+	puts $fo {<TR>}
+	puts $fo "<TD>$i</TD>"
 	set pfx [lindex [split $i _] 0]
 	foreach j $opn {
 		if {$j == "vop_default"} continue
 		set sfx [lindex [split $j _] 1]
 		if {![info exists op([list $i $j])]} {
-			puts "<TD BGCOLOR=\"#d0d0d0\"></TD>"
+			puts $fo "<TD BGCOLOR=\"#d0d0d0\"></TD>"
 			continue
 		}
 		set t $op([list $i $j])
@@ -150,45 +140,74 @@ foreach i $tbn {
 			}
 			incr use($nop($t))
 			set t "<FONT SIZE=-1>$nop($t)</FONT>"
-			set c "#00ffff"
+			set c "#ffff00"
 		}
-		puts "<TD BGCOLOR=\"$c\">$t</TD>"
+		puts $fo "<TD BGCOLOR=\"$c\">$t</TD>"
 	}
 	set j vop_default
 	if {![info exists op([list $i $j])]} {
-		puts "<TD></TD>"
+		puts $fo "<TD></TD>"
 		continue
 	}
-	puts "<TD>$op([list $i $j])</TD>"
+	puts $fo "<TD>$op([list $i $j])</TD>"
 
-	puts "</TR>"
+	puts $fo "</TR>"
 }
-puts "</TABLE>"
-puts "<HR>"
-puts {<PRE>}
+puts $fo "</TABLE>"
+puts $fo "<HR>"
+puts $fo {<PRE>}
 foreach i [lsort [array names fnames]] {
-	puts [format "%-2s %s" $fnames($i)  $i]
+	puts $fo [format "%-2s %s" $fnames($i)  $i]
 }
-puts {
+puts $fo [format "%-2s %s" "F" "<fs>_<vop>"]
+puts $fo [format "%-2s %s" "V" "vop_<vop>"]
+puts $fo [format "%-2s %s" "N" "vop_no<vop>"]
+puts $fo [format "%-2s %s" "S" "vop_std<vop>"]
+puts $fo [format "%-2s %s" "L" "<fs>_lookup"]
+puts $fo {
 </PRE>
 }
-puts "<HR>"
-puts "<HR>"
-puts {<TABLE BORDER NOSAVE>}
+puts $fo "<HR>"
+puts $fo {<TABLE BORDER NOSAVE>}
 set m 8
 for {set i 1} {$i <= $fn} {incr i $m} {
-	puts "<TR>"
+	puts $fo "<TR>"
 	for {set j 0} {$j < $m} {incr j} {
 		set k [expr $i + $j]
 		if {$k <= $fn} {
-			#puts "<TD>$k</TD><TD><FONT SIZE=-1>$nfn($k)/$use($k)</FONT></TD>"
-			puts "<TD>$k</TD><TD><FONT SIZE=-1>$nfn($k)</FONT></TD>"
+			#puts $fo "<TD>$k</TD><TD><FONT SIZE=-1>$nfn($k)/$use($k)</FONT></TD>"
+			puts $fo "<TD>$k</TD><TD><FONT SIZE=-1>$nfn($k)</FONT></TD>"
 		}
 	}
-	puts "</TR>"
+	puts $fo "</TR>"
 }
-puts "</TABLE>"
+puts $fo "</TABLE>"
 
-puts "</TABLE>"
-puts "</BODY>"
-puts "</HTML>"
+puts $fo "</TABLE>"
+puts $fo "</BODY>"
+puts $fo "</HTML>"
+foreach i $tbn {
+	if {$i == "default_vnodeop"} {
+		continue
+	}
+	foreach j $opn {
+		set sfx [lindex [split $j _] 1]
+		if {![info exists op([list $i $j])]} {
+			continue
+		}
+		set v $op([list $i $j])
+		if {$v != "vop_std$sfx"} {
+			continue
+		}
+		if {![info exists op([list default_vnodeop $j])]} {
+			continue
+		}
+		if {$op([list default_vnodeop $j]) != $v} {
+			continue
+		}
+		if {$op([list $i vop_default]) != "vop_defaultop"} {
+			continue
+		}
+		puts "Suspect: uses explicit default, $i $j $v $op([list $i vop_default])"
+	}
+}
