@@ -36,7 +36,7 @@
 #include <alpha/linux/linux.h>
 #include <alpha/linux/linux_proto.h>
 
-#define DUMMY(s) 							\
+#define	DUMMY(s) 							\
 int									\
 linux_ ## s(struct proc *p, struct linux_ ## s ## _args *args)		\
 {									\
@@ -48,7 +48,7 @@ static int
 unsupported_msg(struct proc *p, const char *fname)
 {
 	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
-	       fname, (long)p->p_pid);
+	    fname, (long)p->p_pid);
 	return (ENOSYS);
 }
 
