@@ -233,7 +233,7 @@ spans_send_open_req(spp, svp)
 	/*
 	 * Get memory for a request message
 	 */
-	req = (spans_msg *)atm_allocate(&spans_msgpool);
+	req = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (req == NULL) {
 		err = ENOBUFS;
 		goto done;
@@ -256,8 +256,7 @@ spans_send_open_req(spp, svp)
 	 * Send the request
 	 */
 	err = spans_send_msg(spp, req);
-	atm_free(req);
-
+	uma_zfree(spans_msg_zone, req);
 done:
 	return(err);
 }
@@ -292,7 +291,7 @@ spans_send_open_rsp(spp, svp, result)
 	/*
 	 * Get memory for a response message
 	 */
-	rsp = (spans_msg *)atm_allocate(&spans_msgpool);
+	rsp = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp == NULL)
 		return(ENOBUFS);
 
@@ -311,8 +310,7 @@ spans_send_open_rsp(spp, svp, result)
 	 * Send the response
 	 */
 	rc = spans_send_msg(spp, rsp);
-	atm_free(rsp);
-
+	uma_zfree(spans_msg_zone, rsp);
 	return(rc);
 }
 
@@ -343,7 +341,7 @@ spans_send_close_req(spp, svp)
 	/*
 	 * Get memory for a close request
 	 */
-	req = (spans_msg *)atm_allocate(&spans_msgpool);
+	req = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (req == NULL) {
 		err = ENOBUFS;
 		goto done;
@@ -373,7 +371,7 @@ spans_send_close_req(spp, svp)
 
 done:
 	if (req)
-		atm_free(req);
+		uma_zfree(spans_msg_zone, req);
 
 	return(err);
 }
@@ -471,7 +469,7 @@ spans_status_ind(spp, msg)
 	 * Respond to the status request or indication with a
 	 * status response
 	 */
-	rsp_msg = (spans_msg *)atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 	rsp_msg->sm_vers = SPANS_VERS_1_0;
@@ -480,7 +478,7 @@ spans_status_ind(spp, msg)
 	spans_addr_copy(spp->sp_addr.address,
 			&rsp_msg->sm_stat_rsp.strsp_es_addr);
 	spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -661,7 +659,7 @@ spans_open_req(spp, msg)
 	/*
 	 * Get a new VCCB for the connection
 	 */
-	svp = (struct spans_vccb *)atm_allocate(&spans_vcpool);
+	svp = uma_zalloc(spans_vc_zone, M_WAITOK);
 	if (svp == NULL) {
 		ATM_DEBUG0("spans_open_req: VCCB pool empty\n");
 		result = SPANS_NORSC;
@@ -804,14 +802,14 @@ response:
 	if (svp) {
 		DEQUEUE(svp, struct spans_vccb, sv_sigelem,
 				spp->sp_vccq);
-		atm_free(svp);
+		uma_zfree(spans_vc_zone, svp);
 	}
 
 	/*
 	 * Some problem was detected with the request.  Send a SPANS
 	 * message rejecting the connection.
 	 */
-	rsp_msg = (spans_msg *) atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 
@@ -828,7 +826,7 @@ response:
 	 * Send the Open Response
 	 */
 	spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1037,7 +1035,7 @@ response:
 	/*
 	 * Respond to the SPANS_CLOSE_IND with a SPANS_CLOSE_RSP
 	 */
-	rsp_msg = (spans_msg *)atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 	rsp_msg->sm_vers = SPANS_VERS_1_0;
@@ -1050,7 +1048,7 @@ response:
 	rsp_msg->sm_close_rsp.clrsp_conn = msg->sm_close_req.clreq_conn;
 	rsp_msg->sm_close_rsp.clrsp_result = result;
 	spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1172,7 +1170,7 @@ spans_multi_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_MULTI_RSP message.
 	 */
-	rsp_msg = (spans_msg *) atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1190,7 +1188,7 @@ spans_multi_req(spp, msg)
 	 * Send the response and free the message.
 	 */
 	(void) spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1218,7 +1216,7 @@ spans_add_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_ADD_RSP message.
 	 */
-	rsp_msg = (spans_msg *) atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1237,7 +1235,7 @@ spans_add_req(spp, msg)
 	 * Send the response and free the message.
 	 */
 	(void) spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1265,7 +1263,7 @@ spans_join_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_JOIN_CNF message.
 	 */
-	rsp_msg = (spans_msg *) atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1282,7 +1280,7 @@ spans_join_req(spp, msg)
 	 * Send the response and free the message.
 	 */
 	(void) spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1310,7 +1308,7 @@ spans_leave_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_LEAVE_CNF message.
 	 */
-	rsp_msg = (spans_msg *) atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1327,7 +1325,7 @@ spans_leave_req(spp, msg)
 	 * Send the response and free the message.
 	 */
 	(void) spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1404,7 +1402,7 @@ spans_query_req(spp, msg)
 	/*
 	 * Get memory for a SPANS_QUERY_RSP message.
 	 */
-	rsp_msg = (spans_msg *) atm_allocate(&spans_msgpool);
+	rsp_msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 	if (rsp_msg == NULL)
 		return;
 
@@ -1447,7 +1445,7 @@ spans_query_req(spp, msg)
 			/*
 			 * VCCB is for a PVC (shouldn't happen)
 			 */
-			atm_free(rsp_msg);
+			uma_zfree(spans_msg_zone, rsp_msg);
 			return;
 		}
 	} else {
@@ -1461,7 +1459,7 @@ spans_query_req(spp, msg)
 	 * Send the response and free the message.
 	 */
 	(void) spans_send_msg(spp, rsp_msg);
-	atm_free(rsp_msg);
+	uma_zfree(spans_msg_zone, rsp_msg);
 }
 
 
@@ -1492,10 +1490,9 @@ spans_rcv_msg(spp, m)
 	/*
 	 * Get storage for the message
 	 */
-	msg = (spans_msg *)atm_allocate(&spans_msgpool);
-	if (msg == NULL) {
+	msg = uma_zalloc(spans_msg_zone, M_WAITOK);
+	if (msg == NULL)
 		return;
-	}
 
 	/*
 	 * Convert the message from network order to internal format
@@ -1648,7 +1645,7 @@ done:
 	 * necessary.
 	 */
 	if (msg)
-		atm_free(msg);
+		uma_zfree(spans_msg_zone, msg);
 	if (m)
 		KB_FREEALL(m);
 }

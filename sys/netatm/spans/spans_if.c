@@ -76,19 +76,8 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Global variables
  */
-struct sp_info	spans_vcpool = {
-	"spans vcc pool",		/* si_name */
-	sizeof(struct spans_vccb),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	50				/* si_maxallow */
-};
-
-struct sp_info	spans_msgpool = {
-	"spans message pool",		/* si_name */
-	sizeof(spans_msg),		/* si_blksiz */
-	10,				/* si_blkcnt */
-	50				/* si_maxallow */
-};
+uma_zone_t	spans_vc_zone;
+uma_zone_t	spans_msg_zone;
 
 /*
  * Local functions
@@ -141,6 +130,14 @@ spans_start()
 		return (EINVAL);
 	}
 
+	spans_vc_zone = uma_zcreate("spans vc", sizeof(struct spans_vccb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(spans_vc_zone, 50);
+
+	spans_msg_zone = uma_zcreate("spans msg", sizeof(spans_msg), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_zone_set_max(spans_msg_zone, 50);
+
 	/*
 	 * Allocate protocol definition structure
 	 */
@@ -169,6 +166,11 @@ spans_start()
 	err = atm_sigmgr_register(spans_mgr);
 	if (err)
 		goto done;
+
+	/*
+	 * Start the arp service
+	 */
+	spansarp_start();
 
 	/*
 	 * Start up Connectionless Service
@@ -237,8 +239,8 @@ spans_stop()
 		/*
 		 * Free up our storage pools
 		 */
-		atm_release_pool(&spans_vcpool);
-		atm_release_pool(&spans_msgpool);
+		uma_zdestroy(spans_vc_zone);
+		uma_zdestroy(spans_msg_zone);
 	} else
 		err = ENXIO;
 
@@ -860,7 +862,7 @@ spans_free(vcp)
 	 */
 	vcp->vc_ustate = VCCU_NULL;
 	vcp->vc_sstate = SPANS_VC_NULL;
-	atm_free((caddr_t)vcp);
+	uma_zfree(spans_vc_zone, vcp);
 
 	/*
 	 * If we're detaching and this was the last VCC queued,
