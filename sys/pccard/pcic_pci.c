@@ -257,10 +257,10 @@ pcic_pci_oz68xx_init(device_t dev)
 static void
 pcic_pci_pd67xx_init(device_t dev)
 {
-	/*
-	 * This is incomplete.
-	 */
-	device_printf(dev, "Warning: CL-PD67xx chips may not work\n");
+	struct pcic_softc *sc = device_get_softc(dev);
+
+	if (sc->csc_route == pcic_iw_pci || sc->func_route == pcic_iw_pci)
+		device_printf(dev, "CL-PD67xx broken for PCI routing.\n");
 }
 
 /*
@@ -727,7 +727,6 @@ pcic_pci_attach(device_t dev)
 	sp->sc = sc;
 	sockbase = pci_read_config(dev, 0x10, 4);
 	if (sockbase & 0x1) {
-		device_printf(dev, "I/O mapped device, might not work.\n");
 		sc->iorid = CB_PCI_SOCKET_BASE;
 		sc->iores = bus_alloc_resource(dev, SYS_RES_IOPORT,
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
