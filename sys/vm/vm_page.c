@@ -805,7 +805,7 @@ loop:
 			if (cnt.v_cache_count > 0)
 				printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
 #endif
-			vm_pageout_deficit++;
+			atomic_add_int(&vm_pageout_deficit, 1);
 			pagedaemon_wakeup();
 			return (NULL);
 		}
@@ -821,7 +821,7 @@ loop:
 		 */
 		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		splx(s);
-		vm_pageout_deficit++;
+		atomic_add_int(&vm_pageout_deficit, 1);
 		pagedaemon_wakeup();
 		return (NULL);
 	}
