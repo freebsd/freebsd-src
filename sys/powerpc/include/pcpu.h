@@ -34,13 +34,25 @@
 #include <machine/cpufunc.h>
 
 struct pmap;
+#define	CPUSAVE_LEN	8
 
 #define	PCPU_MD_FIELDS							\
 	int		pc_inside_intr;					\
-	u_int32_t	pc_next_asn;		/* next ASN to alloc */	\
-	u_int32_t	pc_current_asngen;	/* ASN rollover check */\
 	struct pmap	*pc_curpmap;		/* current pmap */	\
-	struct thread	*pc_fputhread		/* current user of the fpu */
+        struct thread   *pc_fputhread;          /* current fpu user */  \
+	register_t	pc_tempsave[CPUSAVE_LEN];			\
+	register_t	pc_disisave[CPUSAVE_LEN];			\
+	register_t	pc_ddbsave[CPUSAVE_LEN];
+
+/* Definitions for register offsets within the exception tmp save areas */
+#define	CPUSAVE_R28	0		/* where r28 gets saved */
+#define	CPUSAVE_R29	1		/* where r29 gets saved */
+#define	CPUSAVE_R30	2		/* where r30 gets saved */
+#define	CPUSAVE_R31	3		/* where r31 gets saved */
+#define	CPUSAVE_DAR	4		/* where SPR_DAR gets saved */
+#define	CPUSAVE_DSISR	5		/* where SPR_DSISR gets saved */
+#define	CPUSAVE_SRR0	6		/* where SRR0 gets saved */
+#define	CPUSAVE_SRR1	7		/* where SRR1 gets saved */
 
 #define PCPUP	((struct pcpu *) powerpc_get_pcpup())
 
