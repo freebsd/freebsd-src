@@ -1,0 +1,192 @@
+.\" Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: nslookup.1,v 1.1.6.2 2004/08/20 02:29:39 marka Exp $
+.\"
+.TH "NSLOOKUP" "1" "Jun 30, 2000" "BIND9" ""
+.SH NAME
+nslookup \- query Internet name servers interactively
+.SH SYNOPSIS
+.sp
+\fBnslookup\fR [ \fB-option\fR ]  [ \fBname | -\fR ]  [ \fBserver\fR ] 
+.SH "DESCRIPTION"
+.PP
+\fBNslookup\fR
+is a program to query Internet domain name servers. \fBNslookup\fR
+has two modes: interactive and non-interactive. Interactive mode allows
+the user to query name servers for information about various hosts and
+domains or to print a list of hosts in a domain. Non-interactive mode is
+used to print just the name and requested information for a host or
+domain.
+.SH "ARGUMENTS"
+.PP
+Interactive mode is entered in the following cases:
+.IP 1. 
+when no arguments are given (the default name server will be used)
+.IP 2. 
+when the first argument is a hyphen (-) and the second argument is
+the host name or Internet address of a name server.
+.PP
+Non-interactive mode is used when the name or Internet address of the
+host to be looked up is given as the first argument. The optional second
+argument specifies the host name or address of a name server.
+.PP
+Options can also be specified on the command line if they precede the
+arguments and are prefixed with a hyphen. For example, to
+change the default query type to host information, and the initial timeout to 10 seconds, type:
+.PP
+.sp
+.nf
+nslookup -query=hinfo  -timeout=10
+.sp
+.fi
+.SH "INTERACTIVE COMMANDS"
+.TP
+\fBhost [server]\fR
+Look up information for host using the current default server or
+using server, if specified. If host is an Internet address and
+the query type is A or PTR, the name of the host is returned.
+If host is a name and does not have a trailing period, the
+search list is used to qualify the name.
+
+To look up a host not in the current domain, append a period to
+the name.
+.TP
+\fBserver \fIdomain\fB\fR
+.TP
+\fBlserver \fIdomain\fB\fR
+Change the default server to \fIdomain\fR; lserver uses the initial
+server to look up information about \fIdomain\fR, while server uses
+the current default server. If an authoritative answer can't be
+found, the names of servers that might have the answer are
+returned.
+.TP
+\fBroot\fR
+not implemented
+.TP
+\fBfinger\fR
+not implemented
+.TP
+\fBls\fR
+not implemented
+.TP
+\fBview\fR
+not implemented
+.TP
+\fBhelp\fR
+not implemented
+.TP
+\fB?\fR
+not implemented
+.TP
+\fBexit\fR
+Exits the program.
+.TP
+\fBset \fIkeyword[=value]\fB\fR
+This command is used to change state information that affects
+the lookups. Valid keywords are:
+.RS
+.TP
+\fBall\fR
+Prints the current values of the frequently used
+options to \fBset\fR. Information about the current default
+server and host is also printed.
+.TP
+\fBclass=\fIvalue\fB\fR
+Change the query class to one of:
+.RS
+.TP
+\fBIN\fR
+the Internet class
+.TP
+\fBCH\fR
+the Chaos class
+.TP
+\fBHS\fR
+the Hesiod class
+.TP
+\fBANY\fR
+wildcard
+.RE
+.PP
+The class specifies the protocol group of the information.
+
+(Default = IN; abbreviation = cl)
+.TP
+\fB\fI[no]\fBdebug\fR
+Turn debugging mode on. A lot more information is
+printed about the packet sent to the server and the
+resulting answer.
+
+(Default = nodebug; abbreviation = [no]deb)
+.TP
+\fB\fI[no]\fBd2\fR
+Turn debugging mode on. A lot more information is
+printed about the packet sent to the server and the
+resulting answer.
+
+(Default = nod2)
+.TP
+\fBdomain=\fIname\fB\fR
+Sets the search list to \fIname\fR.
+.TP
+\fB\fI[no]\fBsearch\fR
+If the lookup request contains at least one period but
+doesn't end with a trailing period, append the domain
+names in the domain search list to the request until an
+answer is received.
+
+(Default = search)
+.TP
+\fBport=\fIvalue\fB\fR
+Change the default TCP/UDP name server port to \fIvalue\fR.
+
+(Default = 53; abbreviation = po)
+.TP
+\fBquerytype=\fIvalue\fB\fR
+.TP
+\fBtype=\fIvalue\fB\fR
+Change the top of the information query.
+
+(Default = A; abbreviations = q, ty)
+.TP
+\fB\fI[no]\fBrecurse\fR
+Tell the name server to query other servers if it does not have the
+information.
+
+(Default = recurse; abbreviation = [no]rec)
+.TP
+\fBretry=\fInumber\fB\fR
+Set the number of retries to number.
+.TP
+\fBtimeout=\fInumber\fB\fR
+Change the initial timeout interval for waiting for a
+reply to number seconds.
+.TP
+\fB\fI[no]\fBvc\fR
+Always use a virtual circuit when sending requests to the server.
+
+(Default = novc)
+.RE
+.SH "FILES"
+.PP
+\fI/etc/resolv.conf\fR
+.SH "SEE ALSO"
+.PP
+\fBdig\fR(1),
+\fBhost\fR(1),
+\fBnamed\fR(8).
+.SH "AUTHOR"
+.PP
+Andrew Cherenson
