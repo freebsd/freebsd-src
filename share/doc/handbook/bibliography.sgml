@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.22 1997/03/19 04:08:34 obrien Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.23 1997/03/19 04:23:12 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -269,6 +269,13 @@
 	      With Source Code</em>.
 	      ITP Media Group, 1996.
 	      <newline>ISBN 1573980137</item>
+
+	    <item>Raymond, Eric s. <em>The New Hacker's Dictonary,
+	      3rd edition</em>.  MIT Press, 1996.
+	      <newline>ISBN 0-262-68092-0
+	      <newline>Also known as the
+	      <htmlurl url="http://www.ccil.org/jargon/jargon.html"
+	      name="Jargon File"></item>
 
 	    <item>Salus, Peter H. <em>A quarter century of UNIX</em>.
 	      Addison-Wesley Publishing Company, Inc., 1994.
