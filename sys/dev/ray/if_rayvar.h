@@ -202,6 +202,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #define RAY_COM_FWAIT		0x0008		/* Do not run the queue */
 #define RAY_COM_FCHKRUNNING	0x0010		/* Check IFF_RUNNING	*/
 #define RAY_COM_FDETACHED	0x0020		/* Card is gone		*/
+#define RAY_COM_FWOKEN		0x0040		/* Woken by detach	*/
 #define RAY_COM_FLAGS_PRINTFB	\
 	"\020"			\
 	"\001WOK"		\
@@ -253,6 +254,27 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 
 #define RAY_COM_MALLOC(function, flags)	\
     ray_com_malloc((function), (flags), __STRING(function));
+
+#define RAY_COM_FREE(com, ncom)	do {					\
+    int i;								\
+    for (i = 0; i < ncom; i++)						\
+	    FREE(com[i], M_RAYCOM);					\
+} while (0)
+
+/*
+ * This macro handles adding commands to the runq and quickly
+ * getting away when the card is detached. The macro returns
+ * from the current function with ENXIO.
+ */
+#define RAY_COM_RUNQ(sc, com, ncom, mesg, error) do {			\
+    (error) = ray_com_runq_add((sc), (com), (ncom), (mesg));		\
+    if ((error) == ENXIO) {						\
+	    RAY_COM_FREE((com), (ncom));				\
+	    return (error);						\
+    } else if ((error) && ((error) != ENXIO))				\
+	    RAY_PRINTF(sc, "got error from runq 0x%x", (error));	\
+} while (0)
+
 
 #define RAY_COM_INIT(com, function, flags)	\
     ray_com_init((com), (function), (flags), __STRING(function));
