@@ -286,6 +286,8 @@ nexus_print_child(device_t bus, device_t child)
 	retval += nexus_print_all_resources(child);
 	if (ndev->nx_pcibus != -1)
 		retval += printf(" pcibus %d", ndev->nx_pcibus);
+	if (device_get_flags(child))
+		retval += printf(" flags %#x", device_get_flags(child));
 	retval += printf(" on motherboard\n");	/* XXX "motherboard", ick */
 
 	return (retval);
