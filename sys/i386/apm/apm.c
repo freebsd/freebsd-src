@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.43 1996/06/04 17:50:28 nate Exp $
+ *	$Id: apm.c,v 1.44 1996/06/18 01:21:54 bde Exp $
  */
 
 #include "apm.h"
@@ -700,8 +700,8 @@ apmattach(struct isa_device *dvp)
 	sc->active = 0;
 
 	/* setup APM parameters */
-	sc->cs16_base = (apm_cs32_base << 4) + APM_KERNBASE;
-	sc->cs32_base = (apm_cs16_base << 4) + APM_KERNBASE;
+	sc->cs16_base = (apm_cs16_base << 4) + APM_KERNBASE;
+	sc->cs32_base = (apm_cs32_base << 4) + APM_KERNBASE;
 	sc->ds_base = (apm_ds_base << 4) + APM_KERNBASE;
 	sc->cs_limit = apm_cs_limit;
 	sc->ds_limit = apm_ds_limit;
