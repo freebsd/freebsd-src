@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.65 1999/02/16 11:15:21 kato Exp $
+#	$Id: GENERIC98,v 1.66 1999/02/25 13:41:54 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -93,6 +93,7 @@ device		acd0		#IDE CD-ROM
 controller	ncr0
 controller	ahc0
 controller	isp0
+controller	adv0
 
 #
 # WD33C93 SCSI card (55/92 like board)
