@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.3 1993/11/07 17:42:52 wollman Exp $
+ *	$Id: endian.h,v 1.4 1993/12/19 05:14:45 alm Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
@@ -59,33 +59,33 @@
 
 #define __word_swap_long(x) \
 ({ register u_long X = (x); \
-   asm ("rorl $16, %1" \
+   __asm ("rorl $16, %1" \
 	: "=r" (X) \
 	: "0" (X)); \
    X; })
 #if __GNUC__ >= 2
 #define __byte_swap_long(x) \
 ({ register u_long X = (x); \
-   asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1" \
+   __asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1" \
 	: "=q" (X) \
 	: "0" (X)); \
    X; })
 #define __byte_swap_word(x) \
 ({ register u_short X = (x); \
-   asm ("xchgb %h1, %b1" \
+   __asm ("xchgb %h1, %b1" \
 	: "=q" (X) \
 	: "0" (X)); \
    X; })
 #else /* __GNUC__ >= 2 */
 #define __byte_swap_long(x) \
 ({ register u_long X = (x); \
-   asm ("rorw $8, %w1\n\trorl $16, %1\n\trorw $8, %w1" \
+   __asm ("rorw $8, %w1\n\trorl $16, %1\n\trorw $8, %w1" \
 	: "=r" (X) \
 	: "0" (X)); \
    X; })
 #define __byte_swap_word(x) \
 ({ register u_short X = (x); \
-   asm ("rorw $8, %w1" \
+   __asm ("rorw $8, %w1" \
 	: "=r" (X) \
 	: "0" (X)); \
    X; })
