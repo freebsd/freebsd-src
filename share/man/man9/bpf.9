@@ -38,7 +38,9 @@
 .Ft void
 .Fn bpfattach "struct ifnet *ifp" "u_int dlt" "u_int hdrlen"
 .Ft void
-.Fn bpfattach2 "struct ifnet *ifp" "u_int dlt" "u_int hdrlen" "struct bpf_if **driverp"
+.Fo bpfattach2
+.Fa "struct ifnet *ifp" "u_int dlt" "u_int hdrlen" "struct bpf_if **driverp"
+.Fc
 .Ft void
 .Fn bpfdetach "struct ifnet *ifp"
 .Ft void
@@ -48,7 +50,9 @@
 .Ft void
 .Fn bpf_mtap2 "struct ifnet *bp" "void *data" "u_int dlen" "struct mbuf *m"
 .Ft u_int
-.Fn bpf_filter "const struct bpf_insn *pc " "u_char *pkt" "u_int *wirelen" "u_int *buflen"
+.Fo bpf_filter
+.Fa "const struct bpf_insn *pc " "u_char *pkt" "u_int *wirelen" "u_int *buflen"
+.Fc
 .Ft int
 .Fn bpf_validate "const struct bpf_insn *fcode" "int flen"
 .\"
@@ -60,8 +64,12 @@ It allows all packets on the network,
 even those destined for other hosts,
 to be passed from a network interface to user programs.
 Each program may specify a filter,
-in the form of a bpf filter machine program.
+in the form of a
+.Nm
+filter machine program.
+The
 .Xr bpf 4
+man page
 describes the interface used by user programs.
 This man page describes the functions used by interfaces to pass packets to
 .Nm
@@ -69,80 +77,102 @@ and the functions for testing and running
 .Nm
 filter machine programs.
 .Pp
+The
 .Fn bpfattach
+function
 attaches a network interface to
 .Nm .
-.Em ifp
+The
+.Fa ifp
+argument
 is a pointer to the structure that defines the interface to be
 attached to an interface.
-.Em dlt
+The
+.Fa dlt
+argument
 is the data link-layer type:
-DLT_NULL
-.Po no link-layer encapsulation
-.Pc ,
-DLT_EN10MB
-.Po Ethernet
-.Pc ,
-DLT_IEEE802_11
-.Po 802.11 wireless networks
-.Pc ,
+.Dv DLT_NULL
+(no link-layer encapsulation),
+.Dv DLT_EN10MB
+(Ethernet),
+.Dv DLT_IEEE802_11
+(802.11 wireless networks),
 etc.
 The rest of the link layer types can be found in
-.Pa /usr/src/sys/net/bpf.h .
-.Em hdrlen
+.In net/bpf.h .
+The
+.Fa hdrlen
+argument
 is the fixed size of the link header;
 variable length headers are not yet supported.
 The
 .Nm
 system will hold a pointer to
-.Em ifp->if_bpf .
-This variable will set to a non-NULL value when
+.Fa ifp->if_bpf .
+This variable will set to a
+.Pf non- Dv NULL
+value when
 .Nm
 requires packets from this interface to be tapped using the functions below.
 .Pp
+The
 .Fn bpfattach2
-allows multiple bpf instances to be attached to a single interface,
+function
+allows multiple
+.Nm
+instances to be attached to a single interface,
 by registering an explicit
-.Em if_bpf
+.Fa if_bpf
 rather than using
-.Em ifp->if_bpf .
+.Fa ifp->if_bpf .
 It is then possible to run
 .Xr tcpdump 1
 on the interface for any data link-layer types attached.
 .Pp
+The
 .Fn bpfdetach
-detaches a
+function detaches a
 .Nm
 instance from an interface,
 specified by
-.Em ifp .
+.Fa ifp .
+The
 .Fn bpfdetach
+function
 should be called once for each
-.Nm bpf
+.Nm
 instance attached.
 .Pp
+The
 .Fn bpf_tap
+function
 is used by an interface to pass the packet to
 .Nm .
 The packet data (including link-header),
 pointed to by
-.Em pkt ,
+.Fa pkt ,
 is of length
-.Em pktlen ,
+.Fa pktlen ,
 which must be a contiguous buffer.
-.Em ifp
+The
+.Fa ifp
+argument
 is a pointer to the structure that defines the interface to be tapped.
 The packet is parsed by each processes filter,
 and if accepted,
 it is buffered for the process to read.
 .Pp
+The
 .Fn bpf_mtap
-is
-like
+function is like
 .Fn bpf_tap
-except that it is used to tap packets that are in an mbuf chain,
-.Em m .
-.Em ifp
+except that it is used to tap packets that are in an
+.Vt mbuf
+chain,
+.Fa m .
+The
+.Fa ifp
+argument
 is a pointer to the structure that defines the interface to be tapped.
 Like
 .Fn bpf_tap ,
@@ -150,49 +180,64 @@ Like
 requires a link-header for whatever data link layer type is specified.
 Note that
 .Nm
-only reads from the mbuf chain,
+only reads from the
+.Vt mbuf
+chain,
 it does not free it or keep a pointer to it.
-This means that a mbuf containing the link-header
+This means that an
+.Vt mbuf
+containing the link-header
 can be prepended to the chain if necessary.
 A cleaner interface to achieve this is provided by
 .Fn bpf_mtap2 .
 .Pp
+The
 .Fn bpf_mtap2
+function
 allows the user to pass a link-header
-.Em data ,
+.Fa data ,
 of length
-.Em dlen ,
-independent of the mbuf
-.Em m ,
+.Fa dlen ,
+independent of the
+.Vt mbuf
+.Fa m ,
 containing the packet.
 This simplifies the passing of some link-headers.
 .Pp
+The
 .Fn bpf_filter
+function
 executes the filter program starting at
-.Em pc
+.Fa pc
 on the packet
-.Em pkt .
-.Em wirelen
+.Fa pkt .
+The
+.Fa wirelen
+argument
 is the length of the original packet and
-.Em buflen
+.Fa buflen
 is the amount of data present.
 .Pp
+The
 .Fn bpf_validate
+function
 checks that the filter code
-.Em fcode ,
+.Fa fcode ,
 of length
-.Em flen ,
+.Fa flen ,
 is valid.
 .\"
 .Sh RETURN VALUES
+The
 .Fn bpf_filter
-returns -1
-.Po cast to an unsigned integer
-.Pc
+function returns \-1
+(cast to an unsigned integer)
 if there is no filter.
 Otherwise, it returns the result of the filter program.
 .Pp
+The
 .Fn bpf_validate
+function
 returns 0 when the program is not a valid filter program.
 .\"
 .Sh SEE ALSO
@@ -214,8 +259,8 @@ a
 .Tn STREAMS
 .Tn NIT
 module under
-.Tn SunOS 4.1 ,
-and
+.Tn SunOS
+4.1, and
 .Tn BPF .
 .\"
 .Sh AUTHORS
@@ -224,5 +269,5 @@ and
 of Lawrence Berkeley Laboratory, implemented BPF in Summer 1990.
 Much of the design is due to
 .An Van Jacobson .
-This manpage by was written by
+This manpage was written by
 .An Orla McGann .
