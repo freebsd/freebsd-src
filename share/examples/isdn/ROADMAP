@@ -4,24 +4,36 @@
 
  $FreeBSD$
 
-	last edit-date: [Mon Jan 18 14:47:09 1999]
+	last edit-date: [Sat Jun  2 13:46:20 2001]
 
 
 1.	Documentation
 ---------------------
 
+	The i4b handbook which describes the setup and configuration of
+	isdn4bsd under FreeBSD in detail can be found at 
+	http://people.freebsd.org/~hm/
+
+	The i4b homepage is http://www.freebsd-support.de/i4b/
+
 	The command "apropos isdn" will list all manpages available for 
 	isdn4bsd. Two more manual pages of interest to syncronous PPP 
-	over ISDN users are the pages for sppp and spppcontrol.
+	over ISDN users are the pages for sppp and ispppcontrol.
 
 	Under directory /usr/share/examples/isdn, you will find:
 
 	FAQ		- isdn4bsd Frequently Asked Questions
-	Overview	- short technical overview (a bit outdated)
+	KERNEL		- kernel config(8) file fragment to add ISDN support
+	Overview	- short technical overview (outdated)
 	README		- the original isdn4bsd README file
 	ROADMAP		- this file
-	Resources	- some more information about ISDN
-	isdnd_acct	- perl script to produce accounting reports
+	ReleaseNotes	- list of major changes 
+	Resources	- where to get more information about ISDN
+	SupportedCards	- list of supported ISDN cards
+	ThankYou	- contributors to isdn4bsd
+
+	contrib		- contributed examples and code
+	v21		- V.21 (300Bd) soft modem emulator
 
 
 2.	Configuration
@@ -29,20 +41,18 @@
 
 	Configuration of the isdn4bsd package consists of:
 
-	- configuring a kernel suitable for running isdn4bsd. An
-	  example kernel configuration can be found in the file
-	  /usr/src/sys/i386/conf/LINT. The options available for
-	  isic device driver in the kernel configuration file are
-	  described in the output of "man isic".
+	- configuring a kernel suitable for running isdn4bsd. All
+	  kernel configuration statements for isdn4bsd can be found 
+	  in the file /usr/src/sys/i386/conf/NOTES - another way to
+	  get started is taking the GENERIC configuration file and
+	  appending the KERNEL file mentioned above.
 
 	- configuring the network interfaces iprX and/or ispX; the
 	  former are used for "IP over raw HDLC" and the latter are
 	  used for "sync PPP over ISDN". To configure the ipr-
 	  interfaces, read the output of "man i4bipr", to configure
 	  the isp-interfaces, read the output of "man i4bisppp",
-	  "man sppp" and "man spppcontrol" carefully.
-	  Most of this configuration is now available thru the ISDN
-	  and spppcontrol sections in /etc/rc.conf.
+	  "man sppp" and "man ispppcontrol" carefully.
 
 	- writing a configuration file /etc/isdn/isdnd.rc for the
 	  isdn daemon isdnd(8) which is responsible for the ISDN
@@ -59,6 +69,7 @@
 	/usr/src/usr.sbin/i4b and get installed under /usr/sbin.
 
 	Isdntest will not be installed by default.
+	Isdnphone is experimental and may not run with your soundcard.
 
 
 3.	Kernel part
