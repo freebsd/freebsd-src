@@ -376,7 +376,7 @@
 
       <para arch="i386">The &man.amdpm.4; driver has been added to
       provide access to the system monitoring functions of the AMD 756
-      chipset.</para>
+      chipset. &merged;</para>
 
       <para>The kernel is now aware of the concept that there are
       smaller units of scheduling than a process (but only one thread
@@ -1439,7 +1439,7 @@
     filesystem parameters.  It can be overridden with the
     <option>-c</option>.  Formerly, the default was fixed at 16.  This
     change leads to better &man.fsck.8; performance and reduced
-    fragmentation.</para>
+    fragmentation. &merged;</para>
 
     <para>A number of buffer overflows in &man.config.8; have been
     fixed. &merged;</para>
