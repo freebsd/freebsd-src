@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.11 1998/11/04 07:04:00 msmith Exp $
+ *	$Id: stand.h,v 1.12 1998/11/04 07:39:53 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -220,7 +220,7 @@ extern u_long	random(void);
 extern long	strtol(const char *, char **, int);
 extern char *	strerror(int err);
 extern char	*optarg;			/* getopt(3) external variables */
-extern int	optind, opterr, optopt;
+extern int	optind, opterr, optopt, optreset;
 extern int	getopt(int, char * const [], const char *);
 
 /* pager.c */
