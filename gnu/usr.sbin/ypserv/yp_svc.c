@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id: yp_svc.c,v 1.2 1995/04/05 03:23:38 wpaul Exp $
+ *	$Id: yp_svc.c,v 1.3 1995/05/30 05:05:37 rgrimes Exp $
  */
 
 #include "system.h"
@@ -23,6 +23,7 @@
 #include <syslog.h>
 #include <errno.h>
 #include <paths.h>
+#include <signal.h>
 
 extern int errno;
 extern void Perror();
@@ -313,6 +314,12 @@ int main(int argc, char **argv)
 	Perror("%s: chdir: %", argv[0], strerror(errno));
 	exit(1);
     }
+
+    /*
+     * Ignore SIGPIPEs. They can hurt us is someone does a ypcat
+     * and then hits CTRL-C before it terminales.
+     */
+    signal(SIGPIPE, SIG_IGN);
 
     (void) pmap_unset(YPPROG, YPVERS);
     if (sunos_4_kludge)
