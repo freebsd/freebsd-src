@@ -259,7 +259,7 @@ hifn_attach(device_t dev)
 	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "crypto driver", MTX_DEF);
+	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "hifn driver", MTX_DEF);
 
 	/* XXX handle power management */
 
@@ -423,7 +423,7 @@ hifn_attach(device_t dev)
 	 * NB: Network code assumes we are blocked with splimp()
 	 *     so make sure the IRQ is marked appropriately.
 	 */
-	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
+	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
 			   hifn_intr, sc, &sc->sc_intrhand)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto fail_intr2;
@@ -524,7 +524,8 @@ hifn_detach(device_t dev)
 
 	KASSERT(sc != NULL, ("hifn_detach: null software carrier!"));
 
-	HIFN_LOCK(sc);
+	/* disable interrupts */
+	WRITE_REG_1(sc, HIFN_1_DMA_IER, 0);
 
 	/*XXX other resources */
 	callout_stop(&sc->sc_tickto);
@@ -549,8 +550,6 @@ hifn_detach(device_t dev)
 
 	bus_release_resource(dev, SYS_RES_MEMORY, HIFN_BAR1, sc->sc_bar1res);
 	bus_release_resource(dev, SYS_RES_MEMORY, HIFN_BAR0, sc->sc_bar0res);
-
-	HIFN_UNLOCK(sc);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -1627,6 +1626,7 @@ hifn_crypto(
 	 *
 	 * NB: check this first since it's easy.
 	 */
+	HIFN_LOCK(sc);
 	if ((dma->cmdu + 1) > HIFN_D_CMD_RSIZE ||
 	    (dma->resu + 1) > HIFN_D_RES_RSIZE) {
 #ifdef HIFN_DEBUG
@@ -1637,11 +1637,13 @@ hifn_crypto(
 		}
 #endif
 		hifnstats.hst_nomem_cr++;
+		HIFN_UNLOCK(sc);
 		return (ERESTART);
 	}
 
 	if (bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT, &cmd->src_map)) {
 		hifnstats.hst_nomem_map++;
+		HIFN_UNLOCK(sc);
 		return (ENOMEM);
 	}
 
@@ -1912,6 +1914,7 @@ hifn_crypto(
 #endif
 
 	sc->sc_active = 5;
+	HIFN_UNLOCK(sc);
 	KASSERT(err == 0, ("hifn_crypto: success with error %u", err));
 	return (err);		/* success */
 
@@ -1929,6 +1932,7 @@ err_srcmap:
 	bus_dmamap_unload(sc->sc_dmat, cmd->src_map);
 err_srcmap1:
 	bus_dmamap_destroy(sc->sc_dmat, cmd->src_map);
+	HIFN_UNLOCK(sc);
 	return (err);
 }
 
@@ -1974,10 +1978,15 @@ hifn_intr(void *arg)
 	u_int32_t dmacsr, restart;
 	int i, u;
 
-	HIFN_LOCK(sc);
-	dma = sc->sc_dma;
-
 	dmacsr = READ_REG_1(sc, HIFN_1_DMA_CSR);
+
+	/* Nothing in the DMA unit interrupted */
+	if ((dmacsr & sc->sc_dmaier) == 0)
+		return;
+
+	HIFN_LOCK(sc);
+
+	dma = sc->sc_dma;
 
 #ifdef HIFN_DEBUG
 	if (hifn_debug) {
@@ -1989,13 +1998,6 @@ hifn_intr(void *arg)
 		    dma->cmdu, dma->srcu, dma->dstu, dma->resu);
 	}
 #endif
-
-	/* Nothing in the DMA unit interrupted */
-	if ((dmacsr & sc->sc_dmaier) == 0) {
-		hifnstats.hst_noirq++;
-		HIFN_UNLOCK(sc);
-		return;
-	}
 
 	WRITE_REG_1(sc, HIFN_1_DMA_CSR, dmacsr & sc->sc_dmaier);
 
@@ -2104,6 +2106,8 @@ hifn_intr(void *arg)
 	}
 	dma->cmdk = i; dma->cmdu = u;
 
+	HIFN_UNLOCK(sc);
+
 	if (sc->sc_needwakeup) {		/* XXX check high watermark */
 		int wakeup = sc->sc_needwakeup & (CRYPTO_SYMQ|CRYPTO_ASYMQ);
 #ifdef HIFN_DEBUG
@@ -2116,7 +2120,6 @@ hifn_intr(void *arg)
 		sc->sc_needwakeup &= ~wakeup;
 		crypto_unblock(sc->sc_cid, wakeup);
 	}
-	HIFN_UNLOCK(sc);
 }
 
 /*
