@@ -73,7 +73,7 @@ typedef _IO_fpos_t _IO_pos_t;
 #ifndef __STDC__
 #define const
 #endif
-#define USE_DTOA
+#define _IO_USE_DTOA
 
 #if 0
 #ifdef _IO_NEED_STDARG_H
@@ -235,6 +235,9 @@ extern unsigned __adjust_column __P((unsigned start, const char *line, int count
    (((_fp)->_IO_write_ptr >= (_fp)->_IO_write_end) \
     ? __overflow(_fp, (unsigned char)(_ch)) \
     : (unsigned char)(*(_fp)->_IO_write_ptr++ = (_ch)))
+
+#define _IO_feof(__fp) (((__fp)->_flags & _IO_EOF_SEEN) != 0)
+#define _IO_ferror(__fp) (((__fp)->_flags & _IO_ERR_SEEN) != 0)
 
 /* This one is for Emacs. */
 #define _IO_PENDING_OUTPUT_COUNT(_fp)	\

@@ -130,7 +130,7 @@ public:
     omanip(ostream& (*f)(ostream&, TP), TP a) : _f(f), _a(a) {}
     //
     friend
-      ostream& operator<<(ostream& o, omanip<TP>& m)
+      ostream& operator<<(ostream& o, const omanip<TP>& m)
 	{ return (*m._f)(o, m._a); }
 };
 

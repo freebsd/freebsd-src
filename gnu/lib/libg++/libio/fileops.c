@@ -44,7 +44,8 @@ extern int errno;
 
    The position in the buffer that corresponds to the position
    in external file system is file_ptr().
-   This is normally egptr(), except in putback mode, when it is _save_egptr.
+   This is normally _IO_read_end, except in putback mode,
+   when it is _IO_save_end.
    If the field _fb._offset is >= 0, it gives the offset in
    the file as a whole corresponding to eGptr(). (???)
 
@@ -238,7 +239,7 @@ _IO_do_write(fp, data, to_do)
     fp->_cur_column = _IO_adjust_column(fp->_cur_column - 1, data, to_do) + 1;
   _IO_setg(fp, fp->_IO_buf_base, fp->_IO_buf_base, fp->_IO_buf_base);
   fp->_IO_write_base = fp->_IO_write_ptr = fp->_IO_buf_base;
-  fp->_IO_write_end = (fp->_flags & _IO_LINE_BUF+_IO_UNBUFFERED) ? fp->_IO_buf_base
+  fp->_IO_write_end = (fp->_flags & (_IO_LINE_BUF+_IO_UNBUFFERED)) ? fp->_IO_buf_base
     : fp->_IO_buf_end;
   return count != to_do ? EOF : 0;
 }
@@ -311,7 +312,7 @@ int _IO_file_overflow (f, ch)
       f->_IO_write_end = f->_IO_buf_end;
       f->_IO_read_base = f->_IO_read_ptr = f->_IO_read_end;
 
-      if (f->_flags & _IO_LINE_BUF+_IO_UNBUFFERED)
+      if (f->_flags & (_IO_LINE_BUF+_IO_UNBUFFERED))
 	f->_IO_write_end = f->_IO_write_ptr;
       f->_flags |= _IO_CURRENTLY_PUTTING;
     }
@@ -389,10 +390,10 @@ _IO_file_seekoff(fp, offset, mode)
   switch (dir)
     {
     case _IO_seek_cur:
-      if (fp->_offset == _IO_pos_BAD)
-	goto dumb;
       /* Adjust for read-ahead (bytes is buffer). */
       offset -= fp->_IO_read_end - fp->_IO_read_ptr;
+      if (fp->_offset == _IO_pos_BAD)
+	goto dumb;
       /* Make offset absolute, assuming current pointer is file_ptr(). */
       offset += _IO_pos_as_off(fp->_offset);
 
@@ -414,24 +415,27 @@ _IO_file_seekoff(fp, offset, mode)
     }
   /* At this point, dir==_IO_seek_set. */
 
-#ifdef TODO
   /* If destination is within current buffer, optimize: */
-  if (fp->_offset != IO_pos_BAD && fp->_IO_read_base != NULL)
+  if (fp->_offset != _IO_pos_BAD && fp->_IO_read_base != NULL
+      && !_IO_in_backup (fp))
     {
       /* Offset relative to start of main get area. */
-      _IO_pos_t rel_offset = offset - _fb._offset
-	+ (eGptr()-Gbase());
+      _IO_pos_t rel_offset = offset - fp->_offset
+	+ (fp->_IO_read_end - fp->_IO_read_base);
       if (rel_offset >= 0)
 	{
+#if 0
 	  if (_IO_in_backup(fp))
 	    _IO_switch_to_main_get_area(fp);
-	  if (rel_offset <= _IO_read_end - _IO_read_base)
+#endif
+	  if (rel_offset <= fp->_IO_read_end - fp->_IO_read_base)
 	    {
-	      _IO_setg(fp->_IO_buf_base, fp->_IO_buf_base + rel_offset,
+	      _IO_setg(fp, fp->_IO_buf_base, fp->_IO_buf_base + rel_offset,
 		       fp->_IO_read_end);
-	      _IO_setp(fp->_IO_buf_base, fp->_IO_buf_base);
+	      _IO_setp(fp, fp->_IO_buf_base, fp->_IO_buf_base);
 	      return offset;
 	    }
+#ifdef TODO
 	    /* If we have streammarkers, seek forward by reading ahead. */
 	    if (_IO_have_markers(fp))
 	      {
@@ -441,7 +445,9 @@ _IO_file_seekoff(fp, offset, mode)
 		  goto dumb;
 		return offset;
 	      }
+#endif
 	}
+#ifdef TODO
       if (rel_offset < 0 && rel_offset >= Bbase() - Bptr())
 	{
 	  if (!_IO_in_backup(fp))
@@ -449,8 +455,10 @@ _IO_file_seekoff(fp, offset, mode)
 	  gbump(fp->_IO_read_end + rel_offset - fp->_IO_read_ptr);
 	  return offset;
 	}
+#endif
     }
 
+#ifdef TODO
   _IO_unsave_markers(fp);
 #endif
 

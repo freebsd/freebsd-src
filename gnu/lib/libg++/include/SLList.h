@@ -64,10 +64,10 @@ class BaseSLList {
     void clear();
     Pix                   prepend(BaseSLNode*);
     Pix                   append(BaseSLNode*);
-    int                   OK();
-    void                  error(const char* msg);
+    int                   OK() const;
+    void                  error(const char* msg) const;
     void                  del_after(Pix p);
-    int                   owns(Pix p);
+    int                   owns(Pix p) const;
     void                  del_front();
 };
 
@@ -95,9 +95,12 @@ public:
     T& operator () (Pix p) {
 	if (p == 0) error("null Pix");
 	return ((SLNode<T>*)(p))->hd; }
-    inline Pix first() { return (last == 0)? 0 : Pix(last->tl); }
-    void next(Pix& p)
-	{ p = (p == 0 || p == last)? 0 : Pix(((SLNode<T>*)(p))->tl); }
+    const T& operator () (Pix p) const {
+	if (p == 0) error("null Pix");
+	return ((SLNode<T>*)(p))->hd; }
+    inline Pix first() const { return (last == 0) ? 0 : Pix(last->tl); }
+    void next(Pix& p) const
+	{ p = (p == 0 || p == last) ? 0 : Pix(((SLNode<T>*)(p))->tl); }
     Pix ins_after(Pix p, const T& item)
       { return BaseSLList::ins_after(p, &item); }
     void join(SLList<T>& a) { BaseSLList::join(a); }
@@ -106,6 +109,12 @@ public:
 	if (last == 0) error("front: empty list");
 	return ((SLNode<T>*)last->tl)->hd; }
     T& rear() {
+	if (last == 0) error("rear: empty list");
+	return ((SLNode<T>*)last)->hd; }
+    const T& front() const {
+	if (last == 0) error("front: empty list");
+	return ((SLNode<T>*)last->tl)->hd; }
+    const T& rear() const {
 	if (last == 0) error("rear: empty list");
 	return ((SLNode<T>*)last)->hd; }
     int remove_front(T& x) { return BaseSLList::remove_front(&x); }

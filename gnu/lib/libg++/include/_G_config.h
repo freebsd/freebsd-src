@@ -1,9 +1,10 @@
 /* AUTOMATICALLY GENERATED; DO NOT EDIT! */ 
+#include <sys/types.h>
 #ifndef _G_config_h
 #define _G_config_h
-#define _G_LIB_VERSION "0.65"
+#define _G_LIB_VERSION "0.66"
 #define _G_NAMES_HAVE_UNDERSCORE 1
-#define _G_VTABLE_LABEL_HAS_LENGTH 0
+#define _G_VTABLE_LABEL_HAS_LENGTH 1
 #define _G_VTABLE_LABEL_PREFIX "__vt$"
 #define _G_HAVE_ST_BLKSIZE 1
 typedef unsigned long _G_clock_t;
@@ -31,7 +32,7 @@ typedef unsigned long _G_uid_t;
 #endif
 typedef __WCHAR_TYPE__ _G_wchar_t;
 typedef int _G_ssize_t;
-typedef int _G_wint_t;
+typedef int /* default */ _G_wint_t;
 typedef char* /* default */ _G_va_list;
 #define _G_signal_return_type void
 #define _G_sprintf_return_type int
@@ -55,8 +56,11 @@ typedef unsigned  _G_uint64_t;
 #else
 #define _G_ARGS(ARGLIST) ()
 #endif
-#if defined (__GNUG__) && defined (__STRICT_ANSI__)
+#if !defined (__GNUG__) || defined (__STRICT_ANSI__)
 #define _G_NO_NRV
+#endif
+#if !defined (__GNUG__)
+#define _G_NO_EXTERN_TEMPLATES
 #endif
 #define _G_HAVE_ATEXIT 1
 #define _G_HAVE_SYS_RESOURCE 0
@@ -66,5 +70,5 @@ typedef unsigned  _G_uint64_t;
 #define _G_HAVE_DIRENT 1
 #define _G_HAVE_CURSES 1
 #define _G_MATH_H_INLINES 0
-#define _G_HAVE_BOOL 0
+#define _G_HAVE_BOOL 1
 #endif /* !_G_config_h */

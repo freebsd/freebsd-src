@@ -105,7 +105,7 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 extern u_long strtoul __P((const char*, char**, int));
 extern long strtol __P((const char*, char**, int));
 static const u_char *__sccl __P((char *tab, const u_char *fmt));
-#ifndef USE_DTOA
+#ifndef _IO_USE_DTOA
 extern double atof();
 #endif
 
@@ -655,7 +655,7 @@ literal:
 			if ((flags & SUPPRESS) == 0) {
 				double res;
 				*p = 0;
-#ifdef USE_DTOA
+#ifdef _IO_USE_DTOA
 				res = _IO_strtod(buf, NULL);
 #else
 				res = atof(buf);

@@ -26,7 +26,7 @@ typedef _VOLATILE_VOID (*NoReturnFunc)(void);
 This is to avoid a warning from g++ that a `volatile' function does return. */
 #define ABORT() ((NoReturnFunc)abort)()
 #else
-#define ABORT abort()
+#define ABORT() abort()
 #endif
 
 _VOLATILE_VOID default_one_arg_error_handler(const char* msg)
