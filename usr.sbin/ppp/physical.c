@@ -758,6 +758,12 @@ physical_IsSync(struct physical *p)
    return p->cfg.speed == 0;
 }
 
+u_short
+physical_DeviceMTU(struct physical *p)
+{
+  return p->handler ? p->handler->mtu : 0;
+}
+
 const char *physical_GetDevice(struct physical *p)
 {
    return p->name.full;
