@@ -12,7 +12,8 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	kexdhs.c kexgexs.c \
 	auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
-	loginrec.c auth-pam.c auth-sia.c md5crypt.c
+	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
+	gss-genr.c
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR}
 
