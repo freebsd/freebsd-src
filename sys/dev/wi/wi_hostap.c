@@ -504,7 +504,7 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	u_int16_t		seq;
 	u_int16_t		status;
 	int			i, challenge_len;
-	u_int8_t		challenge[128];
+	u_int8_t		challenge[32];
 
 	struct wi_80211_hdr	*resp_hdr;
 
@@ -675,7 +675,7 @@ wihap_assoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	u_int16_t		lstintvl;
 	u_int8_t		rates[8];
 	int			ssid_len, rates_len;
-	struct ieee80211_nwid	ssid;
+	char			ssid[33];
 	u_int16_t		status;
 	u_int16_t		asid = 0;
 
@@ -686,9 +686,9 @@ wihap_assoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	capinfo = take_hword(&pkt, &len);
 	lstintvl = take_hword(&pkt, &len);
 	if ((ssid_len = take_tlv(&pkt, &len, IEEE80211_ELEMID_SSID,
-	    ssid.i_nwid, sizeof(ssid)))<0)
+	    ssid, sizeof(ssid) - 1))<0)
 		return;
-	ssid.i_len = ssid_len;
+	ssid[ssid_len] = '\0';
 	if ((rates_len = take_tlv(&pkt, &len, IEEE80211_ELEMID_RATES,
 	    rates, sizeof(rates)))<0)
 		return;
@@ -705,10 +705,10 @@ wihap_assoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 		    rxfrm->wi_addr2, ":");
 
 	/* If SSID doesn't match, simply drop. */
-	if (strcmp(sc->wi_net_name, ssid.i_nwid) != 0) {
+	if (strcmp(sc->wi_net_name, ssid) != 0) {
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
 			printf("wihap_assoc_req: bad ssid: '%s' != '%s'\n",
-			    ssid.i_nwid, sc->wi_net_name);
+			    ssid, sc->wi_net_name);
 		return;
 	}
 
