@@ -41,7 +41,7 @@ i386_set_watch(int watchnum, unsigned int watchaddr, int size,
 
 	if (watchnum == -1) {
 		for (i = 0, mask = 0x3; i < 4; i++, mask <<= 2)
-			if ((d->dr7 & mask) == 0)
+			if ((DBREG_DRX(d,7) & mask) == 0)
 				break;
 		if (i < 4)
 			watchnum = i;
@@ -72,13 +72,13 @@ i386_set_watch(int watchnum, unsigned int watchaddr, int size,
 	mask |= access;
 
 	/* clear the bits we are about to affect */
-	d->dr7 &= ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
+	DBREG_DRX(d,7) &= ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
 
 	/* set drN register to the address, N=watchnum */
 	DBREG_DRX(d,watchnum) = watchaddr;
 
 	/* enable the watchpoint */
-	d->dr7 |= (0x2 << (watchnum*2)) | (mask << (watchnum*4+16));
+	DBREG_DRX(d,7) |= (0x2 << (watchnum*2)) | (mask << (watchnum*4+16));
 
 	return watchnum;
 }
