@@ -252,7 +252,8 @@ smbfs_closel(struct vop_close_args *ap)
 	struct vattr vattr;
 	int error;
 
-	SMBVDEBUG("name=%s, pid=%d, c=%d\n",np->n_name, td->td_pid, np->n_opencount);
+	SMBVDEBUG("name=%s, pid=%d, c=%d\n", np->n_name, td->td_proc->p_pid,
+	    np->n_opencount);
 
 	smb_makescred(&scred, td, ap->a_cred);
 
