@@ -51,10 +51,6 @@
 #include "i4bing.h"
 #include "i4bisppp.h"
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
@@ -100,14 +96,6 @@ static struct cdevsw i4b_cdevsw = {
 
 static void i4battach(void *);
 PSEUDO_SET(i4battach, i4b_i4bdrv);
-
-static void
-i4b_drvinit(void *unused)
-{
-	cdevsw_add(&i4b_cdevsw);
-}
-
-SYSINIT(i4bdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,i4b_drvinit,NULL)
 
 /*---------------------------------------------------------------------------*
  *	interface attach routine

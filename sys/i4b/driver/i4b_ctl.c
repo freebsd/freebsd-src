@@ -41,10 +41,6 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
-
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 
@@ -80,17 +76,6 @@ static struct cdevsw i4bctl_cdevsw = {
 
 static void i4bctlattach(void *);
 PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
-
-/*---------------------------------------------------------------------------*
- *	initialization at kernel load time
- *---------------------------------------------------------------------------*/
-static void
-i4bctlinit(void *unused)
-{
-	cdevsw_add(&i4bctl_cdevsw);
-}
-
-SYSINIT(i4bctldev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, &i4bctlinit, NULL);
 
 /*---------------------------------------------------------------------------*
  *	interface attach routine
