@@ -120,8 +120,8 @@ xenix_ftime(td, uap)
 	microtime(&tv);
 	itb.time = tv.tv_sec;
 	itb.millitm = (tv.tv_usec / 1000);
-	itb.timezone = tz.tz_minuteswest;
-	itb.dstflag = tz.tz_dsttime != DST_NONE;
+	itb.timezone = tz_minuteswest;
+	itb.dstflag = tz_dsttime != DST_NONE;
 
 	return copyout((caddr_t)&itb, (caddr_t)uap->tp,
 		       sizeof(struct ibcs2_timeb));

@@ -1200,7 +1200,7 @@ inittodr(time_t base)
 	   in the local time zone */
 #endif
 
-	sec += tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
+	sec += tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
 	y = time_second - sec;
 	if (y <= -2 || y >= 2) {
@@ -1241,7 +1241,7 @@ resettodr()
 
 	/* Calculate local time	to put in RTC */
 
-	tm -= tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
+	tm -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
 	rtc_outb(bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
 	rtc_outb(bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
@@ -1279,7 +1279,7 @@ resettodr()
 
 	/* Calculate local time to put in RTC */
 
-	tm -= tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
+	tm -= tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
 	writertc(RTC_SEC, bin2bcd(tm%60)); tm /= 60;	/* Write back Seconds */
 	writertc(RTC_MIN, bin2bcd(tm%60)); tm /= 60;	/* Write back Minutes */
