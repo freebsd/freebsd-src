@@ -312,8 +312,8 @@ vendor HP2		0xf003	Hewlett Packard
 /* 3Com products */
 product 3COM HOMECONN		0x009d	HomeConnect USB Camera
 product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
-product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 product 3COM 3C460		0x11f8	HomeConnect Ethernet USB Adapter
+product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 
 product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
 product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
@@ -541,6 +541,7 @@ product HP 4200C		0x0105	ScanJet 4200C
 product HP 6200C		0x0201	ScanJet 6200C
 product HP S20b			0x0202	PhotoSmart S20
 product HP 3300C		0x0205	ScanJet 3300C
+product HP 4300C		0x0305	ScanJet 4300C
 product HP 5200C		0x0401	Scanjet 5200C
 product HP 3400C		0x0405	ScanJet 3400C
 product HP 6300C		0x0601	Scanjet 6300C
