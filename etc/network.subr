@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.13 1997/12/01 06:11:34 obrien Exp $
+#	$Id: rc.network,v 1.14 1998/01/10 03:33:39 alex Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -138,7 +138,7 @@ network_pass1() {
 network_pass2() {
     echo -n 'Doing additional network setup:'
     if [ "X${named_enable}" = X"YES" ]; then
-	    echo -n ' named';		named ${named_flags}
+	    echo -n ' named';		${named_program-"named"} ${named_flags}
     fi
 
     if [ "X${ntpdate_enable}" = X"YES" ]; then
