@@ -1,6 +1,6 @@
 LIB=	alias
 SHLIB_MAJOR= 2
-SHLIB_MINOR= 3
+SHLIB_MINOR= 4
 CFLAGS+=-Wall -I${.CURDIR}
 SRCS=	alias.c alias_db.c alias_ftp.c alias_irc.c alias_util.c alias_old.c
 MAN3=libalias.3 
