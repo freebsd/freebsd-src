@@ -521,27 +521,29 @@ assign_driver(struct slot *sp, struct card *cp)
 	res.type = SYS_RES_IRQ;
 	res.size = 1;
 	if (conf->irq == 0) {
-		for (i = 1; i < 16; i++) {
-			/*
-			 * The foloowing code will properly implement sanpai's
-			 * -I option.  However, it will break everyone that
-			 * I told to use this as a workaround for my pccard
-			 * patches testing.
-			 */
-			if (!use_kern_irq && pool_irq[i]) {
-				conf->irq = i;
-				pool_irq[i] = 0;
-				break;
-			}
-			res.min = i;
-			res.max = i;
-			if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
-				err(1, "ioctl (PIOCSRESOURCE)");
-			if (res.resource_addr == ~0ul)
-				continue;
+		res.min = 0;
+		res.max = 0;
+		if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+			err(1, "ioctl (PIOCSRESOURCE)");
+		if (res.resource_addr != ~0ul) {
 			conf->irq = res.resource_addr;
 			pool_irq[conf->irq] = 0;
-			break;
+		} else {
+			for (i = 1; i < 16; i++) {
+				if (!use_kern_irq && pool_irq[i]) {
+					conf->irq = i;
+					pool_irq[i] = 0;
+					break;
+				}
+				res.min = i;
+				res.max = i;
+				if (ioctl(sp->fd, PIOCSRESOURCE, &res) < 0)
+					err(1, "ioctl (PIOCSRESOURCE)");
+				if (res.resource_addr == ~0ul)
+					continue;
+				conf->irq = res.resource_addr;
+				pool_irq[conf->irq] = 0;
+			}
 		}
 		if (conf->irq == 0) {
 			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
