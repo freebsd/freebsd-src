@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.7 1994/04/19 17:15:55 jkh Exp $
+#	$Id: bsd.doc.mk,v 1.2 1994/08/04 21:09:22 wollman Exp $
 
 PRINTER?=	ps
 
@@ -39,7 +39,7 @@ obj:
 	here=`pwd`; subdir=`echo $$here | sed 's,^/usr/src/,,'`; \
 	if test $$here != $$subdir ; then \
 		dest=/usr/obj/$$subdir ; \
-		echo "$$here -> $$dest"; ln -s $$dest obj; \
+		${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
 		if test -d /usr/obj -a ! -d $$dest; then \
 			mkdir -p $$dest; \
 		else \
@@ -48,7 +48,7 @@ obj:
 	else \
 		true ; \
 		dest=$$here/obj ; \
-		echo "making $$here/obj" ; \
+		${ECHO} "making $$here/obj" ; \
 		if test ! -d obj ; then \
 			mkdir $$here/obj; \
 		fi ; \
