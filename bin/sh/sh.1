@@ -32,32 +32,37 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.9.2.1 1997/02/28 07:54:45 mpp Exp $
+.\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
+.\"	$Id: sh.1,v 1.14 1997/05/07 11:42:00 steve Exp $
 .\"
-.na
-.TH SH 1
-.SH NAME
-sh \- command interpreter (shell)
-.SH SYNOPSIS
-sh [-/+aCefnpuvxIimsVEb] [-/+o longname] [arg ...]
-.SH DESCRIPTION
-.LP
-Sh is the standard command interpreter for the system.
-The current version of sh is in the process of being changed to
-conform with the POSIX 1003.2 and 1003.2a specifications for
-the shell.  This version has many features which make it appear
+.Dd May 5, 1995
+.Dt SH 1
+.Os BSD 4
+.Sh NAME
+.Nm sh
+.Nd command interpreter (shell)
+.Sh SYNOPSIS
+.Nm
+.Op Fl /+abCEefIimnpsuVvx
+.Op Fl /+o Ar longname
+.Op Ar arg ...
+.Sh DESCRIPTION
+.Nm sh
+is the standard command interpreter for the system.
+The current version of
+.Nm
+is in the process of being changed to
+conform with the
+.St -p1003.2
+specification for the shell.  This version has many features which make
+it appear
 similar in some respects to the Korn shell, but it is not a Korn
 shell clone (run GNU's bash if you want that).  Only features
 designated by POSIX, plus a few Berkeley extensions, are being
-incorporated into this shell.  We expect POSIX conformance by the
-time 4.4 BSD is released.
+incorporated into this shell.
 This man page is not intended to be a tutorial or a complete
 specification of the shell.
-.sp 2
-.B Overview
-.sp
-.LP
+.Ss Overview
 The shell is a command that reads lines from
 either a file or the terminal, interprets them, and
 generally executes other commands. It is the program that is running
