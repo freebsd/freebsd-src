@@ -700,7 +700,10 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		error = (ioctl(td, (struct ioctl_args *)args));
 		break;
 
-	/* LINUX_TIOCSCTTY */
+	case LINUX_TIOCSCTTY:
+		args->cmd = TIOCSCTTY;
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_TIOCGPGRP:
 		args->cmd = TIOCGPGRP;
