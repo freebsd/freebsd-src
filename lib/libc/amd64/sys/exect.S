@@ -44,12 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 
 ENTRY(exect)
-	mov	$SYS_execve,%eax
-	pushf
-	popl	%edx
-	orl	$ PSL_T,%edx
-	pushl	%edx
-	popf
+	movq	$SYS_execve,%rax
+	pushfq
+	popq	%r8
+	orq	$PSL_T,%r8
+	pushq	%r8
+	popfq
 	KERNCALL
-	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))	/* exect(file, argv, env); */

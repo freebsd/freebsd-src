@@ -45,14 +45,5 @@ __FBSDID("$FreeBSD$");
 .globl	CNAME(_logname_valid)		/* in _getlogin() */
 
 SYSCALL(setlogin)
-#ifdef PIC
-	PIC_PROLOGUE
-	pushl	%eax
-	movl	PIC_GOT(CNAME(_logname_valid)),%eax
-	movl	$0,(%eax)
-	popl	%eax
-	PIC_EPILOGUE
-#else
-	movl	$0,CNAME(_logname_valid)
-#endif
+	movl	$0,PIC_GOT(CNAME(_logname_valid))
 	ret				/* setlogin(name) */
