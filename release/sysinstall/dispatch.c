@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.10 1997/02/22 14:11:26 peter Exp $
+ * $Id: dispatch.c,v 1.11 1997/03/09 22:25:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,6 +86,7 @@ static struct _word {
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
     { "optionsEditor",		optionsEditor		},
+    { "register",		configRegister		},	/* Alias */
     { "addGroup",		userAddGroup		},
     { "addUser",		userAddUser		},
     { "shutdown",		_shutdown 		},
