@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.43 1997/04/27 21:18:58 fsmp Exp $
+ * $Id: if_ze.c,v 1.44 1997/07/20 14:10:02 bde Exp $
  */
 
 /* XXX - Don't mix different PCCARD support code */
@@ -735,11 +735,16 @@ ze_watchdog(ifp)
 
     /* read interrupt mask register */
     imr = inb (sc->nic_addr + ED_P2_IMR) & 0xff;
-
+#ifdef SMP
+    /* INTRGET() is NOT MP_SAFE, forgo printing it for now... */
+    log (LOG_ERR, "ze%d: device timeout, isr=%02x, imr=%02x\n",
+	 ifp->if_unit, isr, imr);
+#else
     imask = INTRGET();
 
     log (LOG_ERR, "ze%d: device timeout, isr=%02x, imr=%02x, imask=%04x\n",
 	 ifp->if_unit, isr, imr, imask);
+#endif /* SMP */
 #else
     log(LOG_ERR, "ze%d: device timeout\n", ifp->if_unit);
 #endif
