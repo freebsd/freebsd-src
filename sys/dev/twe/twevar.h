@@ -240,7 +240,7 @@ twe_initq_bio(struct twe_softc *sc)
 }
 
 static __inline void
-twe_enqueue_bio(struct twe_softc *sc, struct bio *bp)
+twe_enqueue_bio(struct twe_softc *sc, twe_bio *bp)
 {
     int		s;
 
@@ -250,11 +250,11 @@ twe_enqueue_bio(struct twe_softc *sc, struct bio *bp)
     splx(s);
 }
 
-static __inline struct bio *
+static __inline twe_bio *
 twe_dequeue_bio(struct twe_softc *sc)
 {
     int		s;
-    struct bio	*bp;
+    twe_bio	*bp;
 
     s = splbio();
     if ((bp = TWE_BIO_QFIRST(sc->twe_bioq)) != NULL) {
