@@ -613,7 +613,14 @@ devfs_remove(ap)
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 	dd = ap->a_dvp->v_data;
 	de = vp->v_data;
-	de->de_flags |= DE_WHITEOUT;
+	if (de->de_dirent->d_type == DT_LNK) {
+		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
+		if (de->de_vnode)
+			de->de_vnode->v_data = NULL;
+		FREE(de, M_DEVFS);
+	} else {
+		de->de_flags |= DE_WHITEOUT;
+	}
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
 	return (0);
 }
