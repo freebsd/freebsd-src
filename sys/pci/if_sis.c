@@ -667,6 +667,16 @@ static void sis_reset(sc)
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
+
+	/*
+	 * If this is a NetSemi chip, make sure to clear
+	 * PME mode.
+	 */
+	if (sc->sis_type == SIS_TYPE_83815) {
+		CSR_WRITE_4(sc, NS_CLKRUN, NS_CLKRUN_PMESTS);
+		CSR_WRITE_4(sc, NS_CLKRUN, 0);
+	}
+
         return;
 }
 
