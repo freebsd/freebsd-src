@@ -596,7 +596,7 @@ aio_process(struct aiocblist *aiocbe)
 		return;
 	}
 
-	aiov.iov_base = cb->aio_buf;
+	aiov.iov_base = (void *)(uintptr_t)cb->aio_buf;
 	aiov.iov_len = cb->aio_nbytes;
 
 	auio.uio_iov = &aiov;
@@ -1035,7 +1035,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	bp->b_flags = B_PHYS;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
-	bp->b_data = cb->aio_buf;
+	bp->b_data = (void *)(uintptr_t)cb->aio_buf;
 	bp->b_blkno = btodb(cb->aio_offset);
 
 	if (cb->aio_lio_opcode == LIO_WRITE) {
@@ -2297,10 +2297,8 @@ static void
 filt_aiodetach(struct knote *kn)
 {
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
-	int s = splhigh();	 /* XXX no clue, so overkill */
 
 	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
-	splx(s);
 }
 
 /*ARGSUSED*/
@@ -2309,7 +2307,7 @@ filt_aio(struct knote *kn, long hint)
 {
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
 
-	kn->kn_data = 0;		/* XXX data returned? */
+	kn->kn_data = aiocbe->uaiocb._aiocb_private.error;
 	if (aiocbe->jobstate != JOBST_JOBFINISHED &&
 	    aiocbe->jobstate != JOBST_JOBBFINISHED)
 		return (0);
