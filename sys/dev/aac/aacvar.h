@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
+ * Copyright (c) 2001 Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,11 +29,11 @@
  *	$FreeBSD$
  */
 
-/********************************************************************************
- ********************************************************************************
-                                                     Driver Parameter Definitions
- ********************************************************************************
- ********************************************************************************/
+/******************************************************************************
+ ******************************************************************************
+			Driver Parameter Definitions
+ ******************************************************************************
+ ******************************************************************************/
 
 /*
  * The firmware interface allows for a 16-bit s/g list length.  We limit 
@@ -53,8 +55,8 @@
 #define AAC_FIB_COUNT		128
 
 /*
- * The controller reports status events in AIFs.  We hang on to a number of these
- * in order to pass them out to user-space management tools.
+ * The controller reports status events in AIFs.  We hang on to a number of
+ * these in order to pass them out to user-space management tools.
  */
 #define AAC_AIFQ_LENGTH		64
 
@@ -64,7 +66,8 @@
 #define AAC_PRINTF_BUFSIZE	256
 
 /*
- * We wait this many seconds for the adapter to come ready if it is still booting
+ * We wait this many seconds for the adapter to come ready if it is still 
+ * booting
  */
 #define AAC_BOOT_TIMEOUT	(3 * 60)
 
@@ -89,11 +92,11 @@
  */
 #define AAC_DISK_MAJOR	200
 
-/********************************************************************************
- ********************************************************************************
-                                                      Driver Variable Definitions
- ********************************************************************************
- ********************************************************************************/
+/******************************************************************************
+ ******************************************************************************
+			Driver Variable Definitions
+ ******************************************************************************
+ ******************************************************************************/
 
 #include "opt_aac.h"
 
@@ -139,17 +142,23 @@ struct aac_command
 
     struct aac_softc		*cm_sc;		/* controller that owns us */
 
-    struct aac_fib		*cm_fib;	/* FIB associated with this command */
+    struct aac_fib		*cm_fib;	/* FIB associated with this
+						 * command */
     u_int32_t			cm_fibphys;	/* bus address of the FIB */
-    struct bio			*cm_data;	/* pointer to data in kernel space */
+    struct bio			*cm_data;	/* pointer to data in kernel
+						 * space */
     u_int32_t			cm_datalen;	/* data length */
     bus_dmamap_t		cm_datamap;	/* DMA map for bio data */
-    struct aac_sg_table		*cm_sgtable;	/* pointer to s/g table in command */
+    struct aac_sg_table		*cm_sgtable;	/* pointer to s/g table in
+						 * command */
 
     int				cm_flags;
-#define AAC_CMD_MAPPED		(1<<0)		/* command has had its data mapped */
-#define AAC_CMD_DATAIN		(1<<1)		/* command involves data moving from controller to host */
-#define AAC_CMD_DATAOUT		(1<<2)		/* command involves data moving from host to controller */
+#define AAC_CMD_MAPPED		(1<<0)		/* command has had its data
+						 * mapped */
+#define AAC_CMD_DATAIN		(1<<1)		/* command involves data moving
+						 * from controller to host */
+#define AAC_CMD_DATAOUT		(1<<2)		/* command involves data moving
+						 * from host to controller */
 #define AAC_CMD_COMPLETED	(1<<3)		/* command has been completed */
 #define AAC_CMD_TIMEDOUT	(1<<4)		/* command taken too long */
 
@@ -179,7 +188,8 @@ struct aac_common {
     struct aac_adapter_init	ac_init;
 
     /* arena within which the queue structures are kept */
-    u_int8_t			ac_qbuf[sizeof(struct aac_queue_table) + AAC_QUEUE_ALIGN];
+    u_int8_t			ac_qbuf[sizeof(struct aac_queue_table) +
+					AAC_QUEUE_ALIGN];
 
     /* buffer for text messages from the controller */
     char		       	ac_printf[AAC_PRINTF_BUFSIZE];
@@ -198,7 +208,8 @@ struct aac_interface
     int		(* aif_get_istatus)(struct aac_softc *sc);
     void	(* aif_set_istatus)(struct aac_softc *sc, int mask);
     void	(* aif_set_mailbox)(struct aac_softc *sc, u_int32_t command,
-				    u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3);
+				    u_int32_t arg0, u_int32_t arg1,
+				    u_int32_t arg2, u_int32_t arg3);
     int		(* aif_get_mailboxstatus)(struct aac_softc *sc);
     void	(* aif_set_interrupts)(struct aac_softc *sc, int enable);
 };
@@ -208,19 +219,27 @@ extern struct aac_interface	aac_sa_interface;
 #define AAC_GET_FWSTATUS(sc)		((sc)->aac_if.aif_get_fwstatus((sc)))
 #define AAC_QNOTIFY(sc, qbit)		((sc)->aac_if.aif_qnotify((sc), (qbit)))
 #define AAC_GET_ISTATUS(sc)		((sc)->aac_if.aif_get_istatus((sc)))
-#define AAC_CLEAR_ISTATUS(sc, mask)	((sc)->aac_if.aif_set_istatus((sc), (mask)))
+#define AAC_CLEAR_ISTATUS(sc, mask)	((sc)->aac_if.aif_set_istatus((sc), \
+					(mask)))
 #define AAC_SET_MAILBOX(sc, command, arg0, arg1, arg2, arg3) \
-	((sc)->aac_if.aif_set_mailbox((sc), (command), (arg0), (arg1), (arg2), (arg3)))
+	((sc)->aac_if.aif_set_mailbox((sc), (command), (arg0), (arg1), (arg2), \
+	(arg3)))
 #define AAC_GET_MAILBOXSTATUS(sc)	((sc)->aac_if.aif_get_mailboxstatus((sc)))
 #define	AAC_MASK_INTERRUPTS(sc)		((sc)->aac_if.aif_set_interrupts((sc), 0))
 #define AAC_UNMASK_INTERRUPTS(sc)	((sc)->aac_if.aif_set_interrupts((sc), 1))
 
-#define AAC_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag, sc->aac_bhandle, reg, val)
-#define AAC_GETREG4(sc, reg)		bus_space_read_4 (sc->aac_btag, sc->aac_bhandle, reg)
-#define AAC_SETREG2(sc, reg, val)	bus_space_write_2(sc->aac_btag, sc->aac_bhandle, reg, val)
-#define AAC_GETREG2(sc, reg)		bus_space_read_2 (sc->aac_btag, sc->aac_bhandle, reg)
-#define AAC_SETREG1(sc, reg, val)	bus_space_write_1(sc->aac_btag, sc->aac_bhandle, reg, val)
-#define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, sc->aac_bhandle, reg)
+#define AAC_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag, \
+					sc->aac_bhandle, reg, val)
+#define AAC_GETREG4(sc, reg)		bus_space_read_4 (sc->aac_btag, \
+					sc->aac_bhandle, reg)
+#define AAC_SETREG2(sc, reg, val)	bus_space_write_2(sc->aac_btag, \
+					sc->aac_bhandle, reg, val)
+#define AAC_GETREG2(sc, reg)		bus_space_read_2 (sc->aac_btag, \
+					sc->aac_bhandle, reg)
+#define AAC_SETREG1(sc, reg, val)	bus_space_write_1(sc->aac_btag, \
+					sc->aac_bhandle, reg, val)
+#define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, \
+					sc->aac_bhandle, reg)
 
 /*
  * Per-controller structure.
@@ -229,12 +248,14 @@ struct aac_softc
 {
     /* bus connections */
     device_t			aac_dev;
-    struct resource		*aac_regs_resource;	/* register interface window */
+    struct resource		*aac_regs_resource;	/* register interface
+							 * window */
     int				aac_regs_rid;		/* resource ID */
     bus_space_handle_t		aac_bhandle;		/* bus space handle */
     bus_space_tag_t		aac_btag;		/* bus space tag */
     bus_dma_tag_t		aac_parent_dmat;	/* parent DMA tag */
-    bus_dma_tag_t		aac_buffer_dmat;	/* data buffer/command DMA tag */
+    bus_dma_tag_t		aac_buffer_dmat;	/* data buffer/command
+							 * DMA tag */
     struct resource		*aac_irq;		/* interrupt */
     int				aac_irq_rid;
     void			*aac_intr;		/* interrupt handle */
@@ -252,24 +273,29 @@ struct aac_softc
 #define AAC_HWIF_I960RX		0
 #define AAC_HWIF_STRONGARM	1
 #define AAC_HWIF_UNKNOWN	-1
-    bus_dma_tag_t		aac_common_dmat;	/* common structure DMA tag */
-    bus_dmamap_t		aac_common_dmamap;	/* common structure DMA map */
+    bus_dma_tag_t		aac_common_dmat;	/* common structure
+							 * DMA tag */
+    bus_dmamap_t		aac_common_dmamap;	/* common structure
+							 * DMA map */
     struct aac_common		*aac_common;
     u_int32_t			aac_common_busaddr;
     struct aac_interface	aac_if;
 
     /* command/fib resources */
-    bus_dma_tag_t		aac_fib_dmat;	/* DMA tag for allocating FIBs */
+    bus_dma_tag_t		aac_fib_dmat;	/* DMA tag for allocing FIBs */
     struct aac_fib		*aac_fibs;
     bus_dmamap_t		aac_fibmap;
     u_int32_t			aac_fibphys;
     struct aac_command		aac_command[AAC_FIB_COUNT];
 
     /* command management */
-    TAILQ_HEAD(,aac_command)	aac_free;	/* command structures available for reuse */
-    TAILQ_HEAD(,aac_command)	aac_ready;	/* commands on hold for controller resources */
+    TAILQ_HEAD(,aac_command)	aac_free;	/* command structures 
+						 * available for reuse */
+    TAILQ_HEAD(,aac_command)	aac_ready;	/* commands on hold for
+						 * controller resources */
     TAILQ_HEAD(,aac_command)	aac_busy;
-    TAILQ_HEAD(,aac_command)	aac_complete;	/* commands which have been returned by the controller */
+    TAILQ_HEAD(,aac_command)	aac_complete;	/* commands which have been
+						 * returned by the controller */
     struct bio_queue_head	aac_bioq;
     struct aac_queue_table	*aac_queues;
     struct aac_queue_entry	*aac_qentries[AAC_QUEUE_COUNT];
@@ -281,7 +307,8 @@ struct aac_softc
 
     /* delayed activity infrastructure */
 #if __FreeBSD_version >= 500005
-    struct task			aac_task_complete;	/* deferred-completion task */
+    struct task			aac_task_complete;	/* deferred-completion
+							 * task */
 #endif
     struct intr_config_hook	aac_ich;
 
@@ -314,9 +341,9 @@ extern void		aac_biodone(struct bio *bp);
  *  2 - extremely noisy, emit trace items in loops, etc.
  */
 #ifdef AAC_DEBUG
-# define debug(level, fmt, args...)						\
-    do {									\
-	if (level <= AAC_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);	\
+# define debug(level, fmt, args...)					\
+    do {								\
+	if (level <=AAC_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); \
     } while(0)
 # define debug_called(level)						\
     do {								\
@@ -325,8 +352,10 @@ extern void		aac_biodone(struct bio *bp);
 
 extern void	aac_print_queues(struct aac_softc *sc);
 extern void	aac_panic(struct aac_softc *sc, char *reason);
-extern void	aac_print_fib(struct aac_softc *sc, struct aac_fib *fib, char *caller);
-extern void	aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif);
+extern void	aac_print_fib(struct aac_softc *sc, struct aac_fib *fib,
+			      char *caller);
+extern void	aac_print_aif(struct aac_softc *sc,
+			      struct aac_aif_command *aif);
 
 # define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __FUNCTION__)
 
@@ -346,7 +375,7 @@ struct aac_code_lookup {
     u_int32_t	code;
 };
 
-/********************************************************************************
+/******************************************************************************
  * Queue primitives for driver queues.
  */
 #define AACQ_ADD(sc, qname)					\

@@ -1,7 +1,8 @@
 /*-
  * Copyright (c) 2000 Michael Smith
- * Copyright (c) 2000 Scott Long
+ * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
+ * Copyright (c) 2001 Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,13 +36,13 @@
  * two slightly easier.
  */
 
-/********************************************************************************
+/******************************************************************************
  * Misc. magic numbers.
  */
 #define AAC_MAX_CONTAINERS	64
 #define AAC_BLOCK_SIZE		512
 
-/********************************************************************************
+/******************************************************************************
  * Communications interface.
  *
  * Where datastructure layouts are closely parallel to the Adaptec sample code,
@@ -52,14 +53,22 @@
  * We establish 4 command queues and matching response queues.  Queues must
  * be 16-byte aligned, and are sized as follows:
  */
-#define AAC_HOST_NORM_CMD_ENTRIES	8	/* command adapter->host, normal priority */
-#define AAC_HOST_HIGH_CMD_ENTRIES	4	/* command adapter->host, high priority */
-#define AAC_ADAP_NORM_CMD_ENTRIES	512	/* command host->adapter, normal priority */
-#define AAC_ADAP_HIGH_CMD_ENTRIES	4	/* command host->adapter, high priority */
-#define AAC_HOST_NORM_RESP_ENTRIES	512	/* response, adapter->host, normal priority */
-#define AAC_HOST_HIGH_RESP_ENTRIES	4	/* response, adapter->host, high priority */
-#define AAC_ADAP_NORM_RESP_ENTRIES	8	/* response, host->adapter, normal priority */
-#define AAC_ADAP_HIGH_RESP_ENTRIES	4	/* response, host->adapter, high priority */
+#define AAC_HOST_NORM_CMD_ENTRIES	8	/* command adapter->host,
+						 * normal priority */
+#define AAC_HOST_HIGH_CMD_ENTRIES	4	/* command adapter->host,
+						 * high priority */
+#define AAC_ADAP_NORM_CMD_ENTRIES	512	/* command host->adapter,
+						 * normal priority */
+#define AAC_ADAP_HIGH_CMD_ENTRIES	4	/* command host->adapter,
+						 * high priority */
+#define AAC_HOST_NORM_RESP_ENTRIES	512	/* response, adapter->host,
+						 * normal priority */
+#define AAC_HOST_HIGH_RESP_ENTRIES	4	/* response, adapter->host,
+						 * high priority */
+#define AAC_ADAP_NORM_RESP_ENTRIES	8	/* response, host->adapter,
+						 * normal priority */
+#define AAC_ADAP_HIGH_RESP_ENTRIES	4	/* response, host->adapter,
+						 * high priority */
 
 #define AAC_TOTALQ_LENGTH	(AAC_HOST_HIGH_CMD_ENTRIES +	\
 				 AAC_HOST_NORM_CMD_ENTRIES +	\
@@ -89,14 +98,14 @@ struct aac_queue_table {
     u_int32_t			qt_qindex[AAC_QUEUE_COUNT][2];
 
     /* queue entry structures (layout mandated by adapter) */
-    struct aac_queue_entry	qt_HostNormCmdQueue [AAC_HOST_NORM_CMD_ENTRIES];
-    struct aac_queue_entry	qt_HostHighCmdQueue [AAC_HOST_HIGH_CMD_ENTRIES];
-    struct aac_queue_entry	qt_AdapNormCmdQueue [AAC_ADAP_NORM_CMD_ENTRIES];
-    struct aac_queue_entry	qt_AdapHighCmdQueue [AAC_ADAP_HIGH_CMD_ENTRIES];
-    struct aac_queue_entry	qt_HostNormRespQueue[AAC_HOST_NORM_RESP_ENTRIES];
-    struct aac_queue_entry	qt_HostHighRespQueue[AAC_HOST_HIGH_RESP_ENTRIES];
-    struct aac_queue_entry	qt_AdapNormRespQueue[AAC_ADAP_NORM_RESP_ENTRIES];
-    struct aac_queue_entry	qt_AdapHighRespQueue[AAC_ADAP_HIGH_RESP_ENTRIES];
+    struct aac_queue_entry     qt_HostNormCmdQueue [AAC_HOST_NORM_CMD_ENTRIES];
+    struct aac_queue_entry     qt_HostHighCmdQueue [AAC_HOST_HIGH_CMD_ENTRIES];
+    struct aac_queue_entry     qt_AdapNormCmdQueue [AAC_ADAP_NORM_CMD_ENTRIES];
+    struct aac_queue_entry     qt_AdapHighCmdQueue [AAC_ADAP_HIGH_CMD_ENTRIES];
+    struct aac_queue_entry     qt_HostNormRespQueue[AAC_HOST_NORM_RESP_ENTRIES];
+    struct aac_queue_entry     qt_HostHighRespQueue[AAC_HOST_HIGH_RESP_ENTRIES];
+    struct aac_queue_entry     qt_AdapNormRespQueue[AAC_ADAP_NORM_RESP_ENTRIES];
+    struct aac_queue_entry     qt_AdapHighRespQueue[AAC_ADAP_HIGH_RESP_ENTRIES];
 } __attribute__ ((packed));
 
 /*
@@ -218,28 +227,28 @@ typedef enum {
 /*
  * FIB transfer state
  */
-#define AAC_FIBSTATE_HOSTOWNED			(1<<0)	/* owned by the host */
-#define AAC_FIBSTATE_ADAPTEROWNED		(1<<1)	/* owned by the adapter */
-#define AAC_FIBSTATE_INITIALISED		(1<<2)	/* initialised */
-#define AAC_FIBSTATE_EMPTY			(1<<3)	/* empty */
-#define AAC_FIBSTATE_FROMPOOL			(1<<4)	/* allocated from pool */
-#define AAC_FIBSTATE_FROMHOST			(1<<5)	/* sent from the host */
-#define AAC_FIBSTATE_FROMADAP			(1<<6)	/* sent from the adapter */
-#define AAC_FIBSTATE_REXPECTED			(1<<7)	/* response is expected */
-#define AAC_FIBSTATE_RNOTEXPECTED		(1<<8)	/* response is not expected */
-#define AAC_FIBSTATE_DONEADAP			(1<<9)	/* processed by the adapter */
-#define AAC_FIBSTATE_DONEHOST			(1<<10)	/* processed by the host */
-#define AAC_FIBSTATE_HIGH			(1<<11)	/* high priority */
-#define AAC_FIBSTATE_NORM			(1<<12)	/* normal priority */
-#define AAC_FIBSTATE_ASYNC			(1<<13)
-#define AAC_FIBSTATE_ASYNCIO			(1<<13)	/* to be removed */
-#define AAC_FIBSTATE_PAGEFILEIO			(1<<14)	/* to be removed */
-#define AAC_FIBSTATE_SHUTDOWN			(1<<15)
-#define AAC_FIBSTATE_LAZYWRITE			(1<<16)	/* to be removed */
-#define AAC_FIBSTATE_ADAPMICROFIB		(1<<17)
-#define AAC_FIBSTATE_BIOSFIB			(1<<18)
-#define AAC_FIBSTATE_FAST_RESPONSE		(1<<19)	/* fast response capable */
-#define AAC_FIBSTATE_APIFIB			(1<<20)
+#define AAC_FIBSTATE_HOSTOWNED		(1<<0)	/* owned by the host */
+#define AAC_FIBSTATE_ADAPTEROWNED	(1<<1)	/* owned by the adapter */
+#define AAC_FIBSTATE_INITIALISED	(1<<2)	/* initialised */
+#define AAC_FIBSTATE_EMPTY		(1<<3)	/* empty */
+#define AAC_FIBSTATE_FROMPOOL		(1<<4)	/* allocated from pool */
+#define AAC_FIBSTATE_FROMHOST		(1<<5)	/* sent from the host */
+#define AAC_FIBSTATE_FROMADAP		(1<<6)	/* sent from the adapter */
+#define AAC_FIBSTATE_REXPECTED		(1<<7)	/* response is expected */
+#define AAC_FIBSTATE_RNOTEXPECTED	(1<<8)	/* response is not expected */
+#define AAC_FIBSTATE_DONEADAP		(1<<9)	/* processed by the adapter */
+#define AAC_FIBSTATE_DONEHOST		(1<<10)	/* processed by the host */
+#define AAC_FIBSTATE_HIGH		(1<<11)	/* high priority */
+#define AAC_FIBSTATE_NORM		(1<<12)	/* normal priority */
+#define AAC_FIBSTATE_ASYNC		(1<<13)
+#define AAC_FIBSTATE_ASYNCIO		(1<<13)	/* to be removed */
+#define AAC_FIBSTATE_PAGEFILEIO		(1<<14)	/* to be removed */
+#define AAC_FIBSTATE_SHUTDOWN		(1<<15)
+#define AAC_FIBSTATE_LAZYWRITE		(1<<16)	/* to be removed */
+#define AAC_FIBSTATE_ADAPMICROFIB	(1<<17)
+#define AAC_FIBSTATE_BIOSFIB		(1<<18)
+#define AAC_FIBSTATE_FAST_RESPONSE	(1<<19)	/* fast response capable */
+#define AAC_FIBSTATE_APIFIB		(1<<20)
 
 /*
  * FIB error values
@@ -275,7 +284,7 @@ struct aac_adapter_init {
     u_int32_t	HostElapsedSeconds;
 } __attribute__ ((packed));
 
-/********************************************************************************
+/******************************************************************************
  * Shared data types
  */
 /*
@@ -312,7 +321,8 @@ typedef enum {
     FT_FILESYS,     /* ADAPTEC's "FSA"(tm) filesystem */
     FT_DRIVE,       /* physical disk - addressable in scsi by bus/target/lun */
     FT_SLICE,       /* virtual disk - raw volume - slice */
-    FT_PARTITION,   /* FSA partition - carved out of a slice - building block for containers */
+    FT_PARTITION,   /* FSA partition - carved out of a slice - building block
+		     * for containers */
     FT_VOLUME,      /* Container - Volume Set */
     FT_STRIPE,      /* Container - Stripe Set */
     FT_MIRROR,      /* Container - Mirror Set */
@@ -359,7 +369,7 @@ struct aac_container_creation {
     u_int64_t	ViaAdapterSerialNumber;
 } __attribute__ ((packed));
 
-/********************************************************************************
+/******************************************************************************
  * Revision number handling
  */
 
@@ -388,7 +398,7 @@ struct FsaRevision {
     u_int32_t	buildNumber;
 }  __attribute__ ((packed));
 
-/********************************************************************************
+/******************************************************************************
  * Adapter Information
  */
 
@@ -488,18 +498,20 @@ struct aac_adapter_info {
     u_int32_t		BufferMem;       /* adapter Data Memory */
     u_int32_t		TotalMem;        /* adapter Total Memory */
     struct FsaRevision	KernelRevision;  /* adapter Kernel Software Revision */
-    struct FsaRevision	MonitorRevision; /* adapter Monitor/Diagnostic Software Revision */
+    struct FsaRevision	MonitorRevision; /* adapter Monitor/Diagnostic
+					  * Software Revision */
     struct FsaRevision	HardwareRevision;/* TBD */
     struct FsaRevision	BIOSRevision;    /* adapter BIOS Revision */
     u_int32_t		ClusteringEnabled;
     u_int32_t		ClusterChannelMask;
     u_int64_t		SerialNumber;
     AAC_BatteryPlatform	batteryPlatform;
-    u_int32_t		SupportedOptions; /* supported features of this controller */
+    u_int32_t		SupportedOptions; /* supported features of this
+					   * controller */
     AAC_OemFlavor	OemVariant;
 } __attribute__ ((packed));
 
-/********************************************************************************
+/******************************************************************************
  * Monitor/Kernel interface.
  */
 
@@ -525,7 +537,7 @@ struct aac_adapter_info {
 #define AAC_UP_AND_RUNNING	0x00000080
 #define AAC_KERNEL_PANIC	0x00000100
 
-/********************************************************************************
+/******************************************************************************
  * Data types relating to control and monitoring of the NVRAM/WriteCache 
  * subsystem.
  */
@@ -576,21 +588,26 @@ struct aac_nvramdevinfo {
 } __attribute__ ((packed));
 
 struct aac_nvraminfo {
-    AAC_NVSTATUS		NV_Status;			/* nvram subsystem status */
-    AAC_NVBATTSTATUS		NV_BattStatus;			/* battery status */
-    u_int32_t			NV_Size;			/* size of WriteCache NVRAM in bytes */
-    u_int32_t			NV_BufSize;			/* size of NVRAM buffers in bytes */
-    u_int32_t			NV_NBufs;			/* number of NVRAM buffers */
-    u_int32_t			NV_NDirty;			/* count of dirty NVRAM buffers */
-    u_int32_t			NV_NClean;			/* count of clean NVRAM buffers */
-    u_int32_t			NV_NActive;			/* count of NVRAM buffers being written */
-    u_int32_t			NV_NBrokered;			/* count of brokered NVRAM buffers */
-    struct aac_nvramdevinfo	NV_DevInfo[AAC_NFILESYS];	/* per device info */
+    AAC_NVSTATUS		NV_Status;	/* nvram subsystem status */
+    AAC_NVBATTSTATUS		NV_BattStatus;	/* battery status */
+    u_int32_t			NV_Size;	/* size of WriteCache NVRAM in
+						 * bytes */
+    u_int32_t			NV_BufSize;	/* size of NVRAM buffers in
+						 * bytes */
+    u_int32_t			NV_NBufs;	/* number of NVRAM buffers */
+    u_int32_t			NV_NDirty;	/* Num dirty NVRAM buffers */
+    u_int32_t			NV_NClean;	/* Num clean NVRAM buffers */
+    u_int32_t			NV_NActive;	/* Num NVRAM buffers being
+						 * written */
+    u_int32_t			NV_NBrokered;	/* Num brokered NVRAM buffers */
+    struct aac_nvramdevinfo	NV_DevInfo[AAC_NFILESYS];	/* per device
+								 * info */
     u_int32_t			NV_BattNeedsReconditioning;	/* boolean */
-    u_int32_t			NV_TotalSize;			/* size of all non-volatile memories in bytes */
+    u_int32_t			NV_TotalSize;	/* size of all non-volatile
+						 * memories in bytes */
 } __attribute__ ((packed));
 
-/********************************************************************************
+/******************************************************************************
  * Data types relating to adapter-initiated FIBs
  *
  * Based on types and structures in <aifstruc.h>
@@ -612,9 +629,11 @@ typedef enum {
 typedef enum {
     AifJobScsiMin = 1,			/* Minimum value for Scsi operation */
     AifJobScsiZero,			/* SCSI device clear operation */
-    AifJobScsiVerify,			/* SCSI device Verify operation NO REPAIR */
+    AifJobScsiVerify,			/* SCSI device Verify operation NO
+					 * REPAIR */
     AifJobScsiExercise,			/* SCSI device Exercise operation */
-    AifJobScsiVerifyRepair,		/* SCSI device Verify operation WITH repair */
+    AifJobScsiVerifyRepair,		/* SCSI device Verify operation WITH
+					 * repair */
     AifJobScsiMax = 99,			/* Max Scsi value */
     AifJobCtrMin,			/* Min Ctr op value */
     AifJobCtrZero,			/* Container clear operation */
@@ -636,7 +655,8 @@ typedef enum {
     AifJobFsMax = 299,			/* Max Fs type operation */
     AifJobApiFormatNTFS,		/* Format a drive to NTFS */
     AifJobApiFormatFAT,			/* Format a drive to FAT */
-    AifJobApiUpdateSnapshot,		/* update the read/write half of a snapshot */
+    AifJobApiUpdateSnapshot,		/* update the read/write half of a
+					 * snapshot */
     AifJobApiFormatFAT32,		/* Format a drive to FAT32 */
     AifJobApiMax = 399,			/* Max API type operation */
     AifJobCtlContinuousCtrVerify,	/* Adapter operation */
@@ -649,13 +669,16 @@ struct aac_AifContainers {
 } __attribute__ ((packed));
 
 union aac_AifJobClient {
-    struct aac_AifContainers	container;	/* For Container and file system progress ops; */
+    struct aac_AifContainers	container;	/* For Container and file
+						 * system progress ops; */
     int32_t			scsi_dh;	/* For SCSI progress ops */
 };
 
 struct aac_AifJobDesc {
-    u_int32_t			jobID;		/* DO NOT FILL IN! Will be filled in by AIF */
-    AAC_AifJobType		type;		/* Operation that is being performed */
+    u_int32_t			jobID;		/* DO NOT FILL IN! Will be
+						 * filled in by AIF */
+    AAC_AifJobType		type;		/* Operation that is being
+						 * performed */
     union aac_AifJobClient	client;		/* Details */
 } __attribute__ ((packed));
 
@@ -675,8 +698,9 @@ typedef enum {
     /* General application notifies start here */
     AifEnGeneric = 1,			/* Generic notification */
     AifEnTaskComplete,			/* Task has completed */
-    AifEnConfigChange,			/* Adapter configuration change occurred */
-    AifEnContainerChange,		/* Adapter specific container configuration change */
+    AifEnConfigChange,			/* Adapter config change occurred */
+    AifEnContainerChange,		/* Adapter specific container 
+					 * configuration change */
     AifEnDeviceFailure,			/* SCSI device failed */
     AifEnMirrorFailover,		/* Mirror failover started */
     AifEnContainerEvent,		/* Significant container event */
@@ -714,7 +738,8 @@ struct aac_AifEnsMirrorFailover {
 } __attribute__ ((packed));
 
 struct aac_AifEnsContainerChange {
-    u_int32_t	container[2];		/* container that changed, -1 if no container */
+    u_int32_t	container[2];		/* container that changed, -1 if no
+					 * container */
 } __attribute__ ((packed));
 
 struct aac_AifEnsContainerEvent {
@@ -723,15 +748,16 @@ struct aac_AifEnsContainerEvent {
 } __attribute__ ((packed));
 
 struct aac_AifEnsEnclosureEvent {
-    u_int32_t	empID;			/* enclosure management processor number  */
-    u_int32_t	unitID;			/* unitId, fan id, power supply id, slot id, tempsensor id.  */
+    u_int32_t	empID;			/* enclosure management proc number  */
+    u_int32_t	unitID;			/* unitId, fan id, power supply id,
+					 * slot id, tempsensor id.  */
     u_int32_t	eventType;		/* event type */
 } __attribute__ ((packed));
 
 struct aac_AifEnsBatteryEvent {
-    AAC_NVBATT_TRANSITION	transition_type;	/* e.g. from low to ok */
-    AAC_NVBATTSTATUS		current_state;		/* current battery state */
-    AAC_NVBATTSTATUS		prior_state;		/* previous battery state */
+    AAC_NVBATT_TRANSITION	transition_type;	/* eg from low to ok */
+    AAC_NVBATTSTATUS		current_state;		/* current batt state */
+    AAC_NVBATTSTATUS		prior_state;		/* prev batt state */
 } __attribute__ ((packed));
 
 struct aac_AifEnsDiskSetEvent {
@@ -742,9 +768,11 @@ struct aac_AifEnsDiskSetEvent {
 
 typedef enum {
     CLUSTER_NULL_EVENT = 0,
-    CLUSTER_PARTNER_NAME_EVENT,		/* change in partner hostname or adaptername from NULL to non-NULL */
+    CLUSTER_PARTNER_NAME_EVENT,		/* change in partner hostname or
+					 * adaptername from NULL to non-NULL */
     /* (partner's agent may be up) */
-    CLUSTER_PARTNER_NULL_NAME_EVENT	/* change in partner hostname or adaptername from non-null to NULL */
+    CLUSTER_PARTNER_NULL_NAME_EVENT	/* change in partner hostname or
+					 * adaptername from non-null to NULL */
     /* (partner has rebooted) */
 } AAC_ClusterAifEvent;
 
@@ -783,7 +811,7 @@ typedef enum {
     AifReqJobList = 100,	/* Gets back complete job list */
     AifReqJobsForCtr,		/* Gets back jobs for specific container */
     AifReqJobsForScsi,		/* Gets back jobs for specific SCSI device */
-    AifReqJobReport,		/* Gets back a specific job report or list of them */
+    AifReqJobReport,		/* Gets back a specific job report or list */
     AifReqTerminateJob,		/* Terminates job */
     AifReqSuspendJob,		/* Suspends a job */
     AifReqResumeJob,		/* Resumes a job */
@@ -794,8 +822,10 @@ typedef enum {
 } AAC_AifCommand;
 
 struct aac_aif_command {
-    AAC_AifCommand	command;		/* Tell host what type of notify this is */
-    u_int32_t		seqNumber;		/* To allow ordering of reports (if necessary) */
+    AAC_AifCommand	command;		/* Tell host what type of
+						 * notify this is */
+    u_int32_t		seqNumber;		/* To allow ordering of
+						 * reports (if necessary) */
     union {
 	struct aac_AifEventNotify	EN;	/* Event notify structure */
 	struct aac_AifJobProgressReport	PR[1];	/* Progress report */
@@ -803,7 +833,7 @@ struct aac_aif_command {
     } data;
 } __attribute__ ((packed));
 
-/********************************************************************************
+/******************************************************************************
  * Filesystem commands/data
  *
  * The adapter has a very complex filesystem interface, most of which we ignore.
@@ -931,7 +961,8 @@ struct aac_mntobj {
     AAC_FSAVolType			VolType;
     AAC_FType				ObjType;
     u_int32_t				ContentState;
-#define FSCS_READONLY		0x0002		/* XXX need more information than this */
+#define FSCS_READONLY		0x0002		/* XXX need more information
+						 * than this */
     union {
 	u_int32_t	pad[8];
     } ObjExtension;
@@ -1019,7 +1050,7 @@ struct aac_close_command {
     u_int32_t          ContainerId;
 };
 
-/********************************************************************************
+/******************************************************************************
  * Register definitions for the Adaptec AAC-364 'Jalapeno I/II' adapters, based
  * on the SA110 'StrongArm'.
  */
@@ -1038,33 +1069,33 @@ struct aac_close_command {
 #define AAC_SA_MAILBOX			0xa8	/* mailbox (20 bytes) */
 #define AAC_SA_FWSTATUS			0xc4
 
-/********************************************************************************
+/******************************************************************************
  * Register definitions for the Adaptec 'Pablano' adapters, based on the i960Rx,
  * and other related adapters.
  */
 
-#define AAC_RX_IDBR			0x20	/* inbound doorbell register */
-#define AAC_RX_IISR			0x24	/* inbound interrupt status register */
-#define AAC_RX_IIMR			0x28	/* inbound interrupt mask register */
-#define AAC_RX_ODBR			0x2c	/* outbound doorbell register */
-#define AAC_RX_OISR			0x30	/* outbound interrupt status register */
-#define AAC_RX_OIMR			0x34	/* outbound interrupt mask register */
+#define AAC_RX_IDBR		0x20	/* inbound doorbell register */
+#define AAC_RX_IISR		0x24	/* inbound interrupt status register */
+#define AAC_RX_IIMR		0x28	/* inbound interrupt mask register */
+#define AAC_RX_ODBR		0x2c	/* outbound doorbell register */
+#define AAC_RX_OISR		0x30	/* outbound interrupt status register */
+#define AAC_RX_OIMR		0x34	/* outbound interrupt mask register */
 
-#define AAC_RX_MAILBOX			0x50	/* mailbox (20 bytes) */
-#define AAC_RX_FWSTATUS			0x6c
+#define AAC_RX_MAILBOX		0x50	/* mailbox (20 bytes) */
+#define AAC_RX_FWSTATUS		0x6c
 
-/********************************************************************************
+/******************************************************************************
  * Common bit definitions for the doorbell registers.
  */
 
 /*
  * Status bits in the doorbell registers.
  */
-#define AAC_DB_SYNC_COMMAND		(1<<0)	/* send/completed synchronous FIB */
-#define AAC_DB_COMMAND_READY		(1<<1)	/* posted one or more commands */
-#define AAC_DB_RESPONSE_READY		(1<<2)	/* one or more commands complete */
-#define AAC_DB_COMMAND_NOT_FULL		(1<<3)	/* command queue not full */
-#define AAC_DB_RESPONSE_NOT_FULL	(1<<4)	/* response queue not full */
+#define AAC_DB_SYNC_COMMAND	(1<<0)	/* send/completed synchronous FIB */
+#define AAC_DB_COMMAND_READY	(1<<1)	/* posted one or more commands */
+#define AAC_DB_RESPONSE_READY	(1<<2)	/* one or more commands complete */
+#define AAC_DB_COMMAND_NOT_FULL	(1<<3)	/* command queue not full */
+#define AAC_DB_RESPONSE_NOT_FULL (1<<4)	/* response queue not full */
 
 /*
  * The adapter can request the host print a message by setting the
@@ -1073,10 +1104,10 @@ struct aac_close_command {
  * DOORBELL0 and setting it in DOORBELL1.
  * (ODBR and IDBR respectively for the i960Rx adapters)
  */
-#define AAC_DB_PRINTF			(1<<5)		/* adapter requests host printf */
+#define AAC_DB_PRINTF		(1<<5)	/* adapter requests host printf */
 
 /*
- * Mask containing the interrupt bits we care about.  We don't anticipate (or want)
- * interrupts not in this mask.
+ * Mask containing the interrupt bits we care about.  We don't anticipate (or
+ * want) interrupts not in this mask.
  */
 #define AAC_DB_INTERRUPTS	(AAC_DB_COMMAND_READY | AAC_DB_RESPONSE_READY | AAC_DB_PRINTF)
