@@ -914,6 +914,8 @@ apm_probe(device_t dev)
 	if ((vmf.vmf_cx & APM_32BIT_SUPPORT) == 0)
 		return ENXIO;
 	rid = 0;
+	bus_set_resource(dev, SYS_RES_IOPORT, rid,
+			 APM_NECSMM_PORT, APM_NECSMM_PORTSZ);
 	sc->sc_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 			 APM_NECSMM_PORT, ~0, APM_NECSMM_PORTSZ, RF_ACTIVE);
 	if (sc->sc_res == NULL) {
