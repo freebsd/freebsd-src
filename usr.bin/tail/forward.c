@@ -94,10 +94,11 @@ forward(fp, style, off, sbp)
 	off_t off;
 	struct stat *sbp;
 {
-	int ch, kq = -1;
+	int ch, n, kq = -1;
 	int action = USE_SLEEP;
 	struct kevent ev[2];
 	struct stat sb2;
+	struct timespec ts;
 
 	switch(style) {
 	case FBYTES:
@@ -193,9 +194,10 @@ forward(fp, style, off, sbp)
 		clearerr(fp);
 
 		switch (action) {
-		case ADD_EVENTS: {
-			int n = 0;
-			struct timespec ts = { 0, 0 };
+		case ADD_EVENTS:
+			n = 0;
+			ts.tv_sec = 0;
+			ts.tv_nsec = 0;
 
 			if (Fflag && fileno(fp) != STDIN_FILENO) {
 				EV_SET(&ev[n], fileno(fp), EVFILT_VNODE,
@@ -208,24 +210,27 @@ forward(fp, style, off, sbp)
 			n++;
 
 			if (kevent(kq, ev, n, NULL, 0, &ts) < 0) {
-				close(kq);
-				kq = -1;
 				action = USE_SLEEP;
 			} else {
 				action = USE_KQUEUE;
 			}
 			break;
-		}
 
 		case USE_KQUEUE:
-			if (kevent(kq, NULL, 0, ev, 1, NULL) < 0)
+			ts.tv_sec = 1;
+			ts.tv_nsec = 0;
+			/*
+			 * In the -F case we set a timeout to ensure that
+			 * we re-stat the file at least once every second.
+			 */
+			n = kevent(kq, NULL, 0, ev, 1, Fflag ? &ts : NULL);
+			if (n < 0)
 				err(1, "kevent");
-
-			if (ev->filter == EVFILT_VNODE) {
-				/* file was rotated, wait until it reappears */
-				action = USE_SLEEP;
-			} else if (ev->data < 0) {
-				/* file shrank, reposition to end */
+			if (n == 0) {
+				/* timeout */
+				break;
+			} else if (ev->filter == EVFILT_READ && ev->data < 0) {
+				 /* file shrank, reposition to end */
 				if (fseeko(fp, (off_t)0, SEEK_END) == -1) {
 					ierr();
 					return;
@@ -236,26 +241,25 @@ forward(fp, style, off, sbp)
 		case USE_SLEEP:
                 	(void) usleep(250000);
 	                clearerr(fp);
+			break;
+		}
 
-			if (Fflag && fileno(fp) != STDIN_FILENO &&
-			    stat(fname, &sb2) != -1) {
-				if (sb2.st_ino != sbp->st_ino ||
-				    sb2.st_dev != sbp->st_dev ||
-				    sb2.st_rdev != sbp->st_rdev ||
-				    sb2.st_nlink == 0) {
-					fp = freopen(fname, "r", fp);
-					if (fp == NULL) {
-						ierr();
-						break;
-					}
+		if (Fflag && fileno(fp) != STDIN_FILENO) {
+			while (stat(fname, &sb2) != 0)
+				/* file was rotated, wait until it reappears */
+				(void)sleep(1);
+			if (sb2.st_ino != sbp->st_ino ||
+			    sb2.st_dev != sbp->st_dev ||
+			    sb2.st_rdev != sbp->st_rdev ||
+			    sb2.st_nlink == 0) {
+				fp = freopen(fname, "r", fp);
+				if (fp == NULL) {
+					ierr();
+				} else {
 					*sbp = sb2;
-					if (kq != -1)
-						action = ADD_EVENTS;
-				} else if (kq != -1) {
-					action = USE_KQUEUE;
+					action = ADD_EVENTS;
 				}
 			}
-			break;
 		}
 	}
 }
