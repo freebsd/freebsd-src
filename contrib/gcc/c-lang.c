@@ -1,5 +1,5 @@
 /* Language-specific hook definitions for C front end.
-   Copyright (C) 1991, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1995, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,27 +20,39 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "config.h"
+#include "system.h"
 #include "tree.h"
-#include <stdio.h>
 #include "input.h"
+#include "c-tree.h"
+#include "c-lex.h"
+#include "toplev.h"
+#include "output.h"
 
 /* Each of the functions defined here
    is an alternative to a function in objc-actions.c.  */
    
 int
-lang_decode_option (p)
-     char *p;
+lang_decode_option (argc, argv)
+     int argc;
+     char **argv;
 {
-  return c_decode_option (p);
+  return c_decode_option (argc, argv);
+}
+
+void
+lang_init_options ()
+{
 }
 
 void
 lang_init ()
 {
+#if !USE_CPPLIB
   /* the beginning of the file is a new line; check for # */
   /* With luck, we discover the real source file's name from that
      and put it in input_filename.  */
   ungetc (check_newline (), finput);
+#endif
 }
 
 void
@@ -59,39 +71,50 @@ print_lang_statistics ()
 {
 }
 
+/* used by print-tree.c */
+
+void
+lang_print_xnode (file, node, indent)
+     FILE *file ATTRIBUTE_UNUSED;
+     tree node ATTRIBUTE_UNUSED;
+     int indent ATTRIBUTE_UNUSED;
+{
+}
+
 /* Used by c-lex.c, but only for objc.  */
 
 tree
 lookup_interface (arg)
-     tree arg;
+     tree arg ATTRIBUTE_UNUSED;
 {
   return 0;
 }
 
 tree
 is_class_name (arg)
-    tree arg;
+    tree arg ATTRIBUTE_UNUSED;
 {
   return 0;
 }
 
 void
 maybe_objc_check_decl (decl)
-     tree decl;
+     tree decl ATTRIBUTE_UNUSED;
 {
 }
 
 int
 maybe_objc_comptypes (lhs, rhs, reflexive)
-     tree lhs, rhs;
-     int reflexive;
+     tree lhs ATTRIBUTE_UNUSED;
+     tree rhs ATTRIBUTE_UNUSED;
+     int reflexive ATTRIBUTE_UNUSED;
 {
   return -1;
 }
 
 tree
 maybe_objc_method_name (decl)
-    tree decl;
+    tree decl ATTRIBUTE_UNUSED;
 {
   return 0;
 }
@@ -110,33 +133,28 @@ recognize_objc_keyword ()
 
 tree
 build_objc_string (len, str)
-    int len;
-    char *str;
+    int len ATTRIBUTE_UNUSED;
+    char *str ATTRIBUTE_UNUSED;
 {
   abort ();
   return NULL_TREE;
 }
 
-void
-GNU_xref_begin ()
-{
-  fatal ("GCC does not yet support XREF");
-}
+/* Called at end of parsing, but before end-of-file processing.  */
 
-void
-GNU_xref_end ()
-{
-  fatal ("GCC does not yet support XREF");
-}
-
-/* called at end of parsing, but before end-of-file processing.  */
 void
 finish_file ()
 {
-  extern tree static_ctors, static_dtors;
-  extern tree get_file_function_name ();
+#ifndef ASM_OUTPUT_CONSTRUCTOR
+  extern tree static_ctors;
+#endif
+#ifndef ASM_OUTPUT_DESTRUCTOR
+  extern tree static_dtors;
+#endif
   extern tree build_function_call                 PROTO((tree, tree));
+#if !defined(ASM_OUTPUT_CONSTRUCTOR) || !defined(ASM_OUTPUT_DESTRUCTOR)
   tree void_list_node = build_tree_list (NULL_TREE, void_type_node);
+#endif
 #ifndef ASM_OUTPUT_CONSTRUCTOR
   if (static_ctors)
     {

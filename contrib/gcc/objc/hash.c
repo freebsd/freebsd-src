@@ -1,5 +1,5 @@
 /* Hash tables for Objective C internal structures
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1996, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -27,7 +27,6 @@ Boston, MA 02111-1307, USA.  */
 #include "assert.h"
 
 #include "objc/hash.h"
-#include "objc/objc.h"
 
 #include "runtime.h"		/* for DEBUG_PRINTF */
 
@@ -39,8 +38,6 @@ Boston, MA 02111-1307, USA.  */
    ((((cache)->size * 75) / 100) <= (cache)->used)
 #define EXPANSION(cache) \
   ((cache)->size * 2)
-
-void *__objc_xcalloc (size_t, size_t);
 
 cache_ptr
 hash_new (unsigned int size, hash_func_type hash_func,
@@ -54,13 +51,13 @@ hash_new (unsigned int size, hash_func_type hash_func,
 
   /* Allocate the cache structure.  calloc insures
      its initialization for default values.  */
-  cache = (cache_ptr) __objc_xcalloc (1, sizeof (struct cache));
+  cache = (cache_ptr) objc_calloc (1, sizeof (struct cache));
   assert (cache);
 
   /* Allocate the array of buckets for the cache.
      calloc initializes all of the pointers to NULL.  */
   cache->node_table
-    = (node_ptr *) __objc_xcalloc (size, sizeof (node_ptr));
+    = (node_ptr *) objc_calloc (size, sizeof (node_ptr));
   assert (cache->node_table);
 
   cache->size  = size;
@@ -83,15 +80,28 @@ void
 hash_delete (cache_ptr cache)
 {
   node_ptr node;
-
+  node_ptr next_node;
+  unsigned int i;
 
   /* Purge all key/value pairs from the table.  */
-  while ((node = hash_next (cache, NULL)))
-    hash_remove (cache, node->key);
+  /* Step through the nodes one by one and remove every node WITHOUT
+     using hash_next. this makes hash_delete much more efficient. */
+  for (i = 0;i < cache->size;i++) {
+    if ((node = cache->node_table[i])) {
+      /* an entry in the hash table has been found, now step through the
+	 nodes next in the list and free them. */
+      while ((next_node = node->next)) {
+	hash_remove (cache,node->key);
+	node = next_node;
+      }
+
+      hash_remove (cache,node->key);
+    }
+  }
 
   /* Release the array of nodes and the cache itself.  */
-  free (cache->node_table);
-  free (cache);
+  objc_free(cache->node_table);
+  objc_free(cache);
 }
 
 
@@ -99,7 +109,7 @@ void
 hash_add (cache_ptr *cachep, const void *key, void *value)
 {
   size_t indx = (*(*cachep)->hash_func)(*cachep, key);
-  node_ptr node = (node_ptr) __objc_xcalloc (1, sizeof (struct cache_node));
+  node_ptr node = (node_ptr) objc_calloc (1, sizeof (struct cache_node));
 
 
   assert (node);
@@ -172,7 +182,7 @@ hash_remove (cache_ptr cache, const void *key)
   /* Special case.  First element is the key/value pair to be removed.  */
   if ((*cache->compare_func)(node->key, key)) {
     cache->node_table[indx] = node->next;
-    free (node);
+    objc_free(node);
   } else {
 
     /* Otherwise, find the hash entry.  */
@@ -183,7 +193,7 @@ hash_remove (cache_ptr cache, const void *key)
 
       if ((*cache->compare_func)(node->key, key)) {
         prev->next = node->next, removed = YES;
-        free (node);
+        objc_free(node);
       } else
         prev = node, node = node->next;
     } while (!removed && node);
@@ -251,4 +261,23 @@ hash_value_for_key (cache_ptr cache, const void *key)
     } while (!retval && node);
 
   return retval;
+}
+
+/* Given KEY, return YES if it exists in the CACHE.
+   Return NO if it does not */
+
+BOOL
+hash_is_key_in_hash (cache_ptr cache, const void *key)
+{
+  node_ptr node = cache->node_table[(*cache->hash_func)(cache, key)];
+
+  if (node)
+    do {
+      if ((*cache->compare_func)(node->key, key))
+	  return YES;
+      else
+        node = node->next;
+    } while (node);
+
+  return NO;
 }

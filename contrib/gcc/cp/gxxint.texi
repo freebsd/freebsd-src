@@ -9,7 +9,7 @@
 @chapter Internal Architecture of the Compiler
 
 This is meant to describe the C++ front-end for gcc in detail.
-Questions and comments to mrs@@cygnus.com.
+Questions and comments to Benjamin Kosnik @code{<bkoz@@cygnus.com>}.
 
 @menu
 * Limitations of g++::          
@@ -26,6 +26,7 @@ Questions and comments to mrs@@cygnus.com.
 * Copying Objects::             
 * Exception Handling::          
 * Free Store::                  
+* Mangling::  Function name mangling for C++ and Java
 * Concept Index::               
 @end menu
 
@@ -52,38 +53,6 @@ Access checking is unimplemented for nested types.
 @cindex @code{volatile}
 @item
 @code{volatile} is not implemented in general.
-
-@cindex pointers to members
-@item
-Pointers to members are only minimally supported, and there are places
-where the grammar doesn't even properly accept them yet.
-
-@cindex multiple inheritance
-@item
-@code{this} will be wrong in virtual members functions defined in a
-virtual base class, when they are overridden in a derived class, when
-called via a non-left most object.
-
-An example would be:
-
-@example
-extern "C" int printf(const char*, ...);
-struct A @{ virtual void f() @{ @} @};
-struct B : virtual A @{ int b; B() : b(0) @{@} void f() @{ b++; @} @};
-struct C : B @{@};
-struct D : B @{@};
-struct E : C, D @{@};
-int main()
-@{
-  E e;
-  C& c = e; D& d = e;
-  c.f(); d.f();
-  printf ("C::b = %d, D::b = %d\n", e.C::b, e.D::b);
-  return 0;
-@}
-@end example
-
-This will print out 2, 0, instead of 1,1.
 
 @end itemize
 
@@ -269,6 +238,13 @@ The functions @code{convert_to_aggr} and @code{build_method_call} use
 a given candidate function (that's how we get the list of candidates for
 @code{ideal_candidate}).
 
+@item The Explicit Keyword
+
+The use of @code{explicit} on a constructor is used by @code{grokdeclarator}
+to set the field @code{DECL_NONCONVERTING_P}.  That value is used by
+@code{build_method_call} and @code{build_user_type_conversion_1} to decide
+if a particular constructor should be used as a candidate for conversions.
+
 @end itemize
 
 @node Glossary, Macros, Implementation Specifics, Top
@@ -310,9 +286,7 @@ vtables.  See also vtable and vfield.
 
 This section describes some of the macros used on trees.  The list
 should be alphabetical.  Eventually all macros should be documented
-here.  There are some postscript drawings that can be used to better
-understand from of the more complex data structures, contact Mike Stump
-(@code{mrs@@cygnus.com}) for information about them.
+here.
 
 @table @code
 @item BINFO_BASETYPES
@@ -521,18 +495,6 @@ FIELD_DECLs
 @end display
 
 
-@item DECL_NESTED_TYPENAME
-Holds the fully qualified type name.  Example, Base::Derived.
-
-Has values of:
-
-	IDENTIFIER_NODEs
-
-What things can this be used on:
-
-	TYPE_DECLs
-
-
 @item DECL_NAME
 
 Has values of:
@@ -680,6 +642,15 @@ A flag that is set for any type that has a constructor.
 They seem a kludge way to track recursion, poping, and pushing.  They only
 appear in cp-decl.c and cp-decl2.c, so the are a good candidate for
 proper fixing, and removal.
+
+
+@item TREE_HAS_CONSTRUCTOR
+A flag to indicate when a CALL_EXPR represents a call to a constructor.
+If set, we know that the type of the object, is the complete type of the
+object, and that the value returned is nonnull.  When used in this
+fashion, it is an optimization.  Can also be used on SAVE_EXPRs to
+indicate when they are of fixed type and nonnull.  Can also be used on
+INDIRECT_EXPRs on CALL_EXPRs that represent a call to a constructor.
 
 
 @item TREE_PRIVATE
@@ -859,7 +830,7 @@ get_binfo (VF_BASETYPE_VALUE (vfield), t, 0)
 @end example
 
 @noindent
-will return the binfo for the the given vfield.
+will return the binfo for the given vfield.
 
 May or may not be set at @code{modify_vtable_entries} time.  Set at
 @code{finish_base_struct} time.
@@ -871,7 +842,7 @@ What things can this be used on:
 
 @item VF_DERIVED_VALUE
 Identifies the type of the most derived class of the vfield, excluding
-the the class this vfield is for.
+the class this vfield is for.
 
 Set at @code{finish_base_struct} time.
 
@@ -1217,24 +1188,32 @@ The below points out some things that work in g++'s exception handling.
 All completely constructed temps and local variables are cleaned up in
 all unwinded scopes.  Completely constructed parts of partially
 constructed objects are cleaned up.  This includes partially built
-arrays.  Exception specifications are now handled.
+arrays.  Exception specifications are now handled.  Thrown objects are
+now cleaned up all the time.  We can now tell if we have an active
+exception being thrown or not (__eh_type != 0).  We use this to call
+terminate if someone does a throw; without there being an active
+exception object.  uncaught_exception () works.  Exception handling
+should work right if you optimize.  Exception handling should work with
+-fpic or -fPIC.
 
 The below points out some flaws in g++'s exception handling, as it now
 stands.
 
 Only exact type matching or reference matching of throw types works when
--fno-rtti is used.  Only works on a SPARC (like Suns), i386, arm and
-rs6000 machines.  Partial support is in for all other machines, but a
-stack unwinder called __unwind_function has to be written, and added to
-libgcc2 for them.  See below for details on __unwind_function.  Don't
-expect exception handling to work right if you optimize, in fact the
-compiler will probably core dump.  RTL_EXPRs for EH cond variables for
-&& and || exprs should probably be wrapped in UNSAVE_EXPRs, and
-RTL_EXPRs tweaked so that they can be unsaved, and the UNSAVE_EXPR code
-should be in the backend, or alternatively, UNSAVE_EXPR should be ripped
-out and exactly one finalization allowed to be expanded by the backend.
-I talked with kenner about this, and we have to allow multiple
-expansions.
+-fno-rtti is used.  Only works on a SPARC (like Suns) (both -mflat and
+-mno-flat models work), SPARClite, Hitachi SH, i386, arm, rs6000,
+PowerPC, Alpha, mips, VAX, m68k and z8k machines.  SPARC v9 may not
+work.  HPPA is mostly done, but throwing between a shared library and
+user code doesn't yet work.  Some targets have support for data-driven
+unwinding.  Partial support is in for all other machines, but a stack
+unwinder called __unwind_function has to be written, and added to
+libgcc2 for them.  The new EH code doesn't rely upon the
+__unwind_function for C++ code, instead it creates per function
+unwinders right inside the function, unfortunately, on many platforms
+the definition of RETURN_ADDR_RTX in the tm.h file for the machine port
+is wrong.  See below for details on __unwind_function.  RTL_EXPRs for EH
+cond variables for && and || exprs should probably be wrapped in
+UNSAVE_EXPRs, and RTL_EXPRs tweaked so that they can be unsaved.
 
 We only do pointer conversions on exception matching a la 15.3 p2 case
 3: `A handler with type T, const T, T&, or const T& is a match for a
@@ -1266,12 +1245,13 @@ build_exception_variant should sort the incoming list, so that it
 implements set compares, not exact list equality.  Type smashing should
 smash exception specifications using set union.
 
-Thrown objects are usually allocated on the heap, in the usual way, but
-they are never deleted.  They should be deleted by the catch clauses.
-If one runs out of heap space, throwing an object will probably never
-work.  This could be relaxed some by passing an __in_chrg parameter to
-track who has control over the exception object.  Thrown objects are not
-allocated on the heap when they are pointer to object types.
+Thrown objects are usually allocated on the heap, in the usual way.  If
+one runs out of heap space, throwing an object will probably never work.
+This could be relaxed some by passing an __in_chrg parameter to track
+who has control over the exception object.  Thrown objects are not
+allocated on the heap when they are pointer to object types.  We should
+extend it so that all small (<4*sizeof(void*)) objects are stored
+directly, instead of allocated on the heap.
 
 When the backend returns a value, it can create new exception regions
 that need protecting.  The new region should rethrow the object in
@@ -1285,13 +1265,13 @@ Ln:					throw value;
         copy value onto heap
         jump throw (Ln, id, address of copy of value on heap)
 
-                                        try {
+                                        try @{
 +Lstart:	the start of the main EH region
 |...						...
 +Lend:		the end of the main EH region
-                                        } catch (T o) {
+                                        @} catch (T o) @{
 						...1
-                                        }
+                                        @}
 Lresume:
         nop	used to make sure there is something before
                 the next region ends, if there is one
@@ -1312,7 +1292,7 @@ Lover:
 [
  [
         call throw_type_match
-        if (eq) {
+        if (eq) @{
  ] these lines disappear when there is no catch condition
 +Lsregion2:
 |	...1
@@ -1320,7 +1300,7 @@ Lover:
 |Lhandler:	handler for the region Lsregion2-Leregion2
 |	rethrow (Lresume, same id, same obj);
 +Leregion2
-        }
+        @}
 ] there are zero or more of these sections, depending upon how many
   catch clauses there are
 ----------------------------- expand_end_all_catch --------------------------
@@ -1336,7 +1316,7 @@ Ldone:
 
 start_all_catch emits labels: Lresume, 
 
-#end example
+@end example
 
 The __unwind_function takes a pointer to the throw handler, and is
 expected to pop the stack frame that was built to call it, as well as
@@ -1346,7 +1326,7 @@ machine state as determined by the context in which we are unwinding
 into.  The way I normally start is to compile:
 
         void *g;
-        foo(void* a) { g = a; }
+        foo(void* a) @{ g = a; @}
 
 with -S, and change the thing that alters the PC (return, or ret
 usually) to not alter the PC, making sure to leave all other semantics
@@ -1423,6 +1403,33 @@ things: first, a way to figure out where the frame pointer was stored,
 and second, a functional @code{__builtin_return_address} implementation
 for except.c to be able to use it.
 
+Or just support DWARF 2 unwind info.
+
+@subsection New Backend Exception Support
+
+This subsection discusses various aspects of the design of the
+data-driven model being implemented for the exception handling backend.
+
+The goal is to generate enough data during the compilation of user code,
+such that we can dynamically unwind through functions at run time with a
+single routine (@code{__throw}) that lives in libgcc.a, built by the
+compiler, and dispatch into associated exception handlers.
+
+This information is generated by the DWARF 2 debugging backend, and
+includes all of the information __throw needs to unwind an arbitrary
+frame.  It specifies where all of the saved registers and the return
+address can be found at any point in the function.
+
+Major disadvantages when enabling exceptions are:
+
+@itemize @bullet
+@item
+Code that uses caller saved registers, can't, when flow can be
+transferred into that code from an exception handler.  In high performance
+code this should not usually be true, so the effects should be minimal.
+
+@end itemize
+
 @subsection Backend Exception Support
 
 The backend must be extended to fully support exceptions.  Right now
@@ -1453,7 +1460,7 @@ descriptor that refers to fully contained code that has been eliminated
 should also be removed, although not doing this is harmless in terms of
 semantics.
 
-#end itemize
+@end itemize
 
 The above is not meant to be exhaustive, but does include all things I
 have thought of so far.  I am sure other limitations exist.
@@ -1469,9 +1476,9 @@ required to call them in pairs.  When marking the end of a region, an
 argument can be passed to indicate the handler for the marked region.
 This can be passed in many ways, currently a tree is used.  Another
 possibility would be insns for the handler, or a label that denotes a
-handler.  I have a feeling insns might be the the best way to pass it.
+handler.  I have a feeling insns might be the best way to pass it.
 Semantics are, if an exception is thrown inside the region, control is
-transfered unconditionally to the handler.  If control passes through
+transferred unconditionally to the handler.  If control passes through
 the handler, then the backend is to rethrow the exception, in the
 context of the end of the original region.  The handler is protected by
 the conventional mechanisms; it is the frontend's responsibility to
@@ -1490,21 +1497,6 @@ between a cleanup-rethrower, and a real handler, if would also have to
 have a way to know if a handler `matches' a thrown exception, and this
 is frontend specific.
 
-The UNSAVE_EXPR tree code has to be migrated to the backend.  Exprs such
-as TARGET_EXPRs, WITH_CLEANUP_EXPRs, CALL_EXPRs and RTL_EXPRs have to be
-changed to support unsaving.  This is meant to be a complete list.
-SAVE_EXPRs can be unsaved already.  expand_decl_cleanup should be
-changed to unsave it's argument, if needed.  See
-cp/tree.c:cp_expand_decl_cleanup, unsave_expr_now, unsave_expr, and
-cp/expr.c:cplus_expand_expr(case UNSAVE_EXPR:) for the UNSAVE_EXPR code.
-Now, as to why...  because kenner already tripped over the exact same
-problem in Ada, we talked about it, he didn't like any of the solution,
-but yet, didn't like no solution either.  He was willing to live with
-the drawbacks of this solution.  The drawback is unsave_expr_now.  It
-should have a callback into the frontend, to allow the unsaveing of
-frontend special codes.  The callback goes in, inplace of the call to
-my_friendly_abort.
-
 The stack unwinder is one of the hardest parts to do.  It is highly
 machine dependent.  The form that kenner seems to like was a couple of
 macros, that would do the machine dependent grunt work.  One preexisting
@@ -1513,31 +1505,15 @@ macro he seemed to want was __builtin_return_address, and the other
 would do the hard work of fixing up the registers, adjusting the stack
 pointer, frame pointer, arg pointer and so on.
 
-The eh archive (~mrs/eh) might be good reading for understanding the Ada
-perspective, and some of kenners mindset, and a detailed explanation
-(Message-Id: <9308301130.AA10543@vlsi1.ultra.nyu.edu>) of the concepts
-involved.
 
-Here is a guide to existing backend type code.  It is all in
-cp/except.c.  Check out do_unwind, and expand_builtin_throw for current
-code on how to figure out what handler matches an exception,
-emit_exception_table for code on emitting the PC range table that is
-built during compilation, expand_exception_blocks for code that emits
-all the handlers at the end of a functions, end_protect to mark the end
-of an exception region, start_protect to mark the start of an exception
-region, lang_interim_eh is the master hook used by the backend into the
-EH backend that now exists in the frontend, and expand_internal_throw to
-raise an exception.
-
-
-@node Free Store, Concept Index, Exception Handling, Top
+@node Free Store, Mangling, Exception Handling, Top
 @section Free Store
 
-operator new [] adds a magic cookie to the beginning of arrays for which
-the number of elements will be needed by operator delete [].  These are
-arrays of objects with destructors and arrays of objects that define
-operator delete [] with the optional size_t argument.  This cookie can
-be examined from a program as follows:
+@code{operator new []} adds a magic cookie to the beginning of arrays
+for which the number of elements will be needed by @code{operator delete
+[]}.  These are arrays of objects with destructors and arrays of objects
+that define @code{operator delete []} with the optional size_t argument.
+This cookie can be examined from a program as follows:
 
 @example
 typedef unsigned long size_t;
@@ -1576,8 +1552,373 @@ The linkage code in g++ is horribly twisted in order to meet two design goals:
 To meet the first goal, we defer emission of inlines and vtables until
 the end of the translation unit, where we can decide whether or not they
 are needed, and how to emit them if they are.
+        
+@node Mangling, Concept Index, Free Store, Top
+@section Function name mangling for C++ and Java
 
-@node Concept Index,  , Free Store, Top
+Both C++ and Jave provide overloaded function and methods,
+which are methods with the same types but different parameter lists.
+Selecting the correct version is done at compile time.
+Though the overloaded functions have the same name in the source code,
+they need to be translated into different assembler-level names,
+since typical assemblers and linkers cannot handle overloading.
+This process of encoding the parameter types with the method name
+into a unique name is called @dfn{name mangling}.  The inverse
+process is called @dfn{demangling}.
+
+It is convenient that C++ and Java use compatible mangling schemes,
+since the makes life easier for tools such as gdb, and it eases
+integration between C++ and Java.
+
+Note there is also a standard "Jave Native Interface" (JNI) which
+implements a different calling convention, and uses a different
+mangling scheme.  The JNI is a rather abstract ABI so Java can call methods
+written in C or C++; 
+we are concerned here about a lower-level interface primarily
+intended for methods written in Java, but that can also be used for C++
+(and less easily C).
+
+Note that on systems that follow BSD tradition, a C identifier @code{var}
+would get "mangled" into the assembler name @samp{_var}.  On such
+systems, all other mangled names are also prefixed by a @samp{_}
+which is not shown in the following examples.
+
+@subsection Method name mangling
+
+C++ mangles a method by emitting the function name, followed by @code{__},
+followed by encodings of any method qualifiers (such as @code{const}),
+followed by the mangling of the method's class,
+followed by the mangling of the parameters, in order.
+
+For example @code{Foo::bar(int, long) const} is mangled
+as @samp{bar__C3Fooil}.
+
+For a constructor, the method name is left out.
+That is @code{Foo::Foo(int, long) const}  is mangled 
+as @samp{__C3Fooil}. 
+
+GNU Java does the same.
+
+@subsection Primitive types
+
+The C++ types @code{int}, @code{long}, @code{short}, @code{char},
+and @code{long long} are mangled as @samp{i}, @samp{l},
+@samp{s}, @samp{c}, and @samp{x}, respectively.
+The corresponding unsigned types have @samp{U} prefixed
+to the mangling.  The type @code{signed char} is mangled @samp{Sc}.
+
+The C++ and Java floating-point types @code{float} and @code{double}
+are mangled as @samp{f} and @samp{d} respectively.
+
+The C++ @code{bool} type and the Java @code{boolean} type are
+mangled as @samp{b}.
+
+The C++ @code{wchar_t} and the Java @code{char} types are
+mangled as @samp{w}.
+
+The Java integral types @code{byte}, @code{short}, @code{int}
+and @code{long} are mangled as @samp{c}, @samp{s}, @samp{i},
+and @samp{x}, respectively.
+
+C++ code that has included @code{javatypes.h} will mangle
+the typedefs  @code{jbyte}, @code{jshort}, @code{jint}
+and @code{jlong} as respectively @samp{c}, @samp{s}, @samp{i},
+and @samp{x}.  (This has not been implemented yet.)
+
+@subsection Mangling of simple names
+
+A simple class, package, template, or namespace name is
+encoded as the number of characters in the name, followed by
+the actual characters.  Thus the class @code{Foo}
+is encoded as @samp{3Foo}.
+
+If any of the characters in the name are not alphanumeric
+(i.e not one of the standard ASCII letters, digits, or '_'),
+or the initial character is a digit, then the name is
+mangled as a sequence of encoded Unicode letters.
+A Unicode encoding starts with a @samp{U} to indicate
+that Unicode escapes are used, followed by the number of
+bytes used by the Unicode encoding, followed by the bytes
+representing the encoding.  ASSCI letters and
+non-initial digits are encoded without change.  However, all
+other characters (including underscore and initial digits) are
+translated into a sequence starting with an underscore,
+followed by the big-endian 4-hex-digit lower-case encoding of the character.
+
+If a method name contains Unicode-escaped characters, the
+entire mangled method name is followed by a @samp{U}.
+
+For example, the method @code{X\u0319::M\u002B(int)} is encoded as
+@samp{M_002b__U6X_0319iU}.
+
+
+@subsection Pointer and reference types
+
+A C++ pointer type is mangled as @samp{P} followed by the
+mangling of the type pointed to.
+
+A C++ reference type as mangled as @samp{R} followed by the
+mangling of the type referenced.
+
+A Java object reference type is equivalent
+to a C++ pointer parameter, so we mangle such an parameter type
+as @samp{P} followed by the mangling of the class name.
+
+@subsection Squangled type compression
+
+Squangling (enabled with the @samp{-fsquangle} option), utilizes 
+the @samp{B} code to indicate reuse of a previously
+seen type within an indentifier. Types are recognized in a left to
+right manner and given increasing values, which are
+appended to the code in the standard manner. Ie, multiple digit numbers
+are delimited by @samp{_} characters. A type is considered to be any 
+non primitive type, regardless of whether its a parameter, template
+parameter, or entire template. Certain codes are considered modifiers
+of a type, and are not included as part of the type. These are the
+@samp{C}, @samp{V}, @samp{P}, @samp{A}, @samp{R}, and @samp{U} codes, 
+denoting constant, volatile, pointer, array, reference, and unsigned. 
+These codes may precede a @samp{B} type in order to make the required 
+modifications to the type.
+
+For example:
+@example
+template <class T> class class1 @{ @};
+
+template <class T> class class2 @{ @};
+
+class class3 @{ @};
+
+int f(class2<class1<class3> > a ,int b, const class1<class3>&c, class3 *d) @{ @}
+
+    B0 -> class2<class1<class3>
+    B1 -> class1<class3>
+    B2 -> class3
+@end example
+Produces the mangled name @samp{f__FGt6class21Zt6class11Z6class3iRCB1PB2}.
+The int parameter is a basic type, and does not receive a B encoding...
+
+@subsection Qualified names
+
+Both C++ and Java allow a class to be lexically nested inside another
+class.  C++ also supports namespaces (not yet implemented by G++).
+Java also supports packages.
+
+These are all mangled the same way:  First the letter @samp{Q}
+indicates that we are emitting a qualified name.
+That is followed by the number of parts in the qualified name.
+If that number is 9 or less, it is emitted with no delimiters.
+Otherwise, an underscore is written before and after the count.
+Then follows each part of the qualified name, as described above.
+
+For example @code{Foo::\u0319::Bar} is encoded as
+@samp{Q33FooU5_03193Bar}.
+
+Squangling utilizes the the letter @samp{K} to indicate a 
+remembered portion of a qualified name. As qualified names are processed
+for an identifier, the names are numbered and remembered in a 
+manner similar to the @samp{B} type compression code. 
+Names are recognized left to right, and given increasing values, which are
+appended to the code in the standard manner. ie, multiple digit numbers
+are delimited by @samp{_} characters.
+
+For example 
+@example
+class Andrew 
+@{
+  class WasHere 
+  @{
+      class AndHereToo 
+      @{
+      @};
+  @};
+@};
+
+f(Andrew&r1, Andrew::WasHere& r2, Andrew::WasHere::AndHereToo& r3) @{ @}
+
+   K0 ->  Andrew
+   K1 ->  Andrew::WasHere
+   K2 ->  Andrew::WasHere::AndHereToo
+@end example
+Function @samp{f()} would be mangled as : 
+@samp{f__FR6AndrewRQ2K07WasHereRQ2K110AndHereToo}
+
+There are some occasions when either a @samp{B} or @samp{K} code could
+be chosen, preference is always given to the @samp{B} code. Ie, the example
+in the section on @samp{B} mangling could have used a @samp{K} code 
+instead of @samp{B2}.
+
+@subsection Templates
+
+A class template instantiation is encoded as the letter @samp{t},
+followed by the encoding of the template name, followed
+the number of template parameters, followed by encoding of the template
+parameters.  If a template parameter is a type, it is written
+as a @samp{Z} followed by the encoding of the type.
+
+A function template specialization (either an instantiation or an
+explicit specialization) is encoded by an @samp{H} followed by the
+encoding of the template parameters, as described above, followed by an
+@samp{_}, the encoding of the argument types to the template function
+(not the specialization), another @samp{_}, and the return type.  (Like
+the argument types, the return type is the return type of the function
+template, not the specialization.)  Template parameters in the argument
+and return types are encoded by an @samp{X} for type parameters, or a
+@samp{Y} for constant parameters, an index indicating their position
+in the template parameter list declaration, and their template depth.
+
+@subsection Arrays
+
+C++ array types are mangled by emitting @samp{A}, followed by
+the length of the array, followed by an @samp{_}, followed by
+the mangling of the element type.  Of course, normally
+array parameter types decay into a pointer types, so you
+don't see this.
+
+Java arrays are objects.  A Java type @code{T[]} is mangled
+as if it were the C++ type @code{JArray<T>}.
+For example @code{java.lang.String[]} is encoded as
+@samp{Pt6JArray1ZPQ34java4lang6String}.
+
+@subsection Static fields
+
+Both C++ and Java classes can have static fields.
+These are allocated statically, and are shared among all instances.
+
+The mangling starts with a prefix (@samp{_} in most systems), which is
+followed by the mangling
+of the class name, followed by the "joiner" and finally the field name.
+The joiner (see @code{JOINER} in @code{cp-tree.h}) is a special
+separator character.  For historical reasons (and idiosyncracies
+of assembler syntax) it can @samp{$} or @samp{.} (or even
+@samp{_} on a few systems).  If the joiner is @samp{_} then the prefix
+is @samp{__static_} instead of just @samp{_}.
+
+For example @code{Foo::Bar::var} (or @code{Foo.Bar.var} in Java syntax)
+would be encoded as @samp{_Q23Foo3Bar$var} or @samp{_Q23Foo3Bar.var}
+(or rarely @samp{__static_Q23Foo3Bar_var}).
+
+If the name of a static variable needs Unicode escapes,
+the Unicode indicator @samp{U} comes before the "joiner".
+This @code{\u1234Foo::var\u3445} becomes @code{_U8_1234FooU.var_3445}.
+
+@subsection Table of demangling code characters
+
+The following special characters are used in mangling:
+
+@table @samp
+@item A
+Indicates a C++ array type.
+
+@item b
+Encodes the C++ @code{bool} type,
+and the Java @code{boolean} type.
+
+@item B
+Used for squangling. Similar in concept to the 'T' non-squangled code.
+
+@item c
+Encodes the C++ @code{char} type, and the Java @code{byte} type.
+
+@item C
+A modifier to indicate a @code{const} type.
+Also used to indicate a @code{const} member function
+(in which cases it precedes the encoding of the method's class).
+
+@item d
+Encodes the C++ and Java @code{double} types.
+
+@item e
+Indicates extra unknown arguments @code{...}.
+
+@item E
+Indicates the opening parenthesis of an expression.
+
+@item f
+Encodes the C++ and Java @code{float} types.
+
+@item F
+Used to indicate a function type.
+
+@item H
+Used to indicate a template function.
+
+@item i
+Encodes the C++ and Java @code{int} types.
+
+@item J
+Indicates a complex type.
+
+@item K
+Used by squangling to compress qualified names.
+
+@item l
+Encodes the C++ @code{long} type.
+
+@item P
+Indicates a pointer type.  Followed by the type pointed to.
+
+@item Q
+Used to mangle qualified names, which arise from nested classes.
+Should also be used for namespaces (?).
+In Java used to mangle package-qualified names, and inner classes.
+
+@item r
+Encodes the GNU C++ @code{long double} type.
+
+@item R
+Indicates a reference type.  Followed by the referenced type.
+
+@item s
+Encodes the C++ and java @code{short} types.
+
+@item S
+A modifier that indicates that the following integer type is signed.
+Only used with @code{char}.
+
+Also used as a modifier to indicate a static member function.
+
+@item t
+Indicates a template instantiation.
+
+@item T
+A back reference to a previously seen type.
+
+@item U
+A modifier that indicates that the following integer type is unsigned.
+Also used to indicate that the following class or namespace name
+is encoded using Unicode-mangling.
+
+@item v
+Encodes the C++ and Java @code{void} types.
+
+@item V
+A modified for a @code{const} type or method.
+
+@item w
+Encodes the C++ @code{wchar_t} type, and the Java @code{char} types.
+
+@item W
+Indicates the closing parenthesis of an expression.
+
+@item x
+Encodes the GNU C++ @code{long long} type, and the Java @code{long} type.
+
+@item X
+Encodes a template type parameter, when part of a function type.
+
+@item Y
+Encodes a template constant parameter, when part of a function type.
+
+@item Z
+Used for template type parameters. 
+
+@end table
+
+The letters @samp{G}, @samp{M}, @samp{O}, and @samp{p}
+also seem to be used for obscure purposes ...
+
+@node Concept Index,  , Mangling, Top
+
 @section Concept Index
 
 @printindex cp

@@ -1,8 +1,5 @@
 #include "i386/xm-i386.h"
 
-/* Inhibit cccp.c's definition of putenv.  */
-#define HAVE_PUTENV
-
 /* Use semicolons to separate elements of a path.  */
 #define PATH_SEPARATOR ';'
 
@@ -15,6 +12,3 @@
 #define MKTEMP_EACH_FILE 1
 
 #define NO_PRECOMPILES 1
-
-/* sys_errlist proto in cccp.c doesn't match djgpp */
-#define HAVE_STRERROR

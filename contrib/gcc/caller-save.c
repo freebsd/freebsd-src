@@ -1,5 +1,5 @@
 /* Save and restore call-clobbered registers which are live across a call.
-   Copyright (C) 1989, 1992, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1989, 1992, 94-95, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,6 +19,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
+#include "system.h"
 #include "rtl.h"
 #include "insn-config.h"
 #include "flags.h"
@@ -28,6 +29,7 @@ Boston, MA 02111-1307, USA.  */
 #include "basic-block.h"
 #include "reload.h"
 #include "expr.h"
+#include "toplev.h"
 
 #ifndef MAX_MOVE_MAX
 #define MAX_MOVE_MAX MOVE_MAX
@@ -143,11 +145,11 @@ init_caller_save ()
   if (i == FIRST_PSEUDO_REGISTER)
     abort ();
 
-  addr_reg = gen_rtx (REG, Pmode, i);
+  addr_reg = gen_rtx_REG (Pmode, i);
 
   for (offset = 1 << (HOST_BITS_PER_INT / 2); offset; offset >>= 1)
     {
-      address = gen_rtx (PLUS, Pmode, addr_reg, GEN_INT (offset));
+      address = gen_rtx_PLUS (Pmode, addr_reg, GEN_INT (offset));
 
       for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
 	if (regno_save_mode[i][1] != VOIDmode
@@ -171,10 +173,10 @@ init_caller_save ()
     for (j = 1; j <= MOVE_MAX / UNITS_PER_WORD; j++)
       if (regno_save_mode[i][j] != VOIDmode)
         {
-	  rtx mem = gen_rtx (MEM, regno_save_mode[i][j], address);
-	  rtx reg = gen_rtx (REG, regno_save_mode[i][j], i);
-	  rtx savepat = gen_rtx (SET, VOIDmode, mem, reg);
-	  rtx restpat = gen_rtx (SET, VOIDmode, reg, mem);
+	  rtx mem = gen_rtx_MEM (regno_save_mode[i][j], address);
+	  rtx reg = gen_rtx_REG (regno_save_mode[i][j], i);
+	  rtx savepat = gen_rtx_SET (VOIDmode, mem, reg);
+	  rtx restpat = gen_rtx_SET (VOIDmode, reg, mem);
 	  rtx saveinsn = emit_insn (savepat);
 	  rtx restinsn = emit_insn (restpat);
 	  int ok;
@@ -182,7 +184,8 @@ init_caller_save ()
 	  reg_save_code[i][j] = recog_memoized (saveinsn);
 	  reg_restore_code[i][j] = recog_memoized (restinsn);
 
-	  /* Now extract both insns and see if we can meet their constraints. */
+	  /* Now extract both insns and see if we can meet their
+             constraints.  */
 	  ok = (reg_save_code[i][j] != -1 && reg_restore_code[i][j] != -1);
 	  if (ok)
 	    {
@@ -261,7 +264,7 @@ setup_save_areas (pchanged)
   /* Find and record all call-used hard-registers in this function.  */
   CLEAR_HARD_REG_SET (hard_regs_used);
   for (i = FIRST_PSEUDO_REGISTER; i < max_regno; i++)
-    if (reg_renumber[i] >= 0 && reg_n_calls_crossed[i] > 0)
+    if (reg_renumber[i] >= 0 && REG_N_CALLS_CROSSED (i) > 0)
       {
 	int regno = reg_renumber[i];
 	int endregno 
@@ -307,7 +310,7 @@ setup_save_areas (pchanged)
 	      ok &= (TEST_HARD_REG_BIT (hard_regs_used, regno) != 0);
 	    }
 
-	/* We have found an acceptable mode to store in. */
+	/* We have found an acceptable mode to store in.  */
 	if (ok)
 	  {
 
@@ -315,13 +318,13 @@ setup_save_areas (pchanged)
 	      = assign_stack_local (regno_save_mode[i][j],
 				    GET_MODE_SIZE (regno_save_mode[i][j]), 0);
 
-	    /* Setup single word save area just in case... */
+	    /* Setup single word save area just in case...  */
 	    for (k = 0; k < j; k++)
 	      {
 		/* This should not depend on WORDS_BIG_ENDIAN.
 		   The order of words in regs is the same as in memory.  */
-		rtx temp = gen_rtx (MEM, regno_save_mode[i+k][1], 
-				    XEXP (regno_save_mem[i][j], 0));
+		rtx temp = gen_rtx_MEM (regno_save_mode[i+k][1], 
+					XEXP (regno_save_mem[i][j], 0));
 
 		regno_save_mem[i+k][1] 
 		  = adj_offsettable_operand (temp, k * UNITS_PER_WORD);
@@ -356,8 +359,7 @@ save_call_clobbered_regs (insn_mode)
     {
       regset regs_live = basic_block_live_at_start[b];
       rtx prev_block_last = PREV_INSN (basic_block_head[b]);
-      REGSET_ELT_TYPE bit;
-      int offset, i, j;
+      int i, j;
       int regno;
 
       /* Compute hard regs live at start of block -- this is the
@@ -366,31 +368,20 @@ save_call_clobbered_regs (insn_mode)
 	 saved because we restore all of them before the end of the basic
 	 block.  */
 
-#ifdef HARD_REG_SET
-      hard_regs_live = *regs_live;
-#else
-      COPY_HARD_REG_SET (hard_regs_live, regs_live);
-#endif
-
+      REG_SET_TO_HARD_REG_SET (hard_regs_live, regs_live);
       CLEAR_HARD_REG_SET (hard_regs_saved);
       CLEAR_HARD_REG_SET (hard_regs_need_restore);
       n_regs_saved = 0;
 
-      for (offset = 0, i = 0; offset < regset_size; offset++)
-	{
-	  if (regs_live[offset] == 0)
-	    i += REGSET_ELT_BITS;
-	  else
-	    for (bit = 1; bit && i < max_regno; bit <<= 1, i++)
-	      if ((regs_live[offset] & bit)
-		  && (regno = reg_renumber[i]) >= 0)
-		for (j = regno;
-		     j < regno + HARD_REGNO_NREGS (regno,
-						   PSEUDO_REGNO_MODE (i));
-		     j++)
-		  SET_HARD_REG_BIT (hard_regs_live, j);
-
-	}
+      EXECUTE_IF_SET_IN_REG_SET (regs_live, 0, i,
+				 {
+				   if ((regno = reg_renumber[i]) >= 0)
+				     for (j = regno;
+					  j < regno + HARD_REGNO_NREGS (regno,
+									PSEUDO_REGNO_MODE (i));
+					  j++)
+				       SET_HARD_REG_BIT (hard_regs_live, j);
+				 });
 
       /* Now scan the insns in the block, keeping track of what hard
 	 regs are live as we go.  When we see a call, save the live
@@ -515,7 +506,8 @@ save_call_clobbered_regs (insn_mode)
 
 static void
 set_reg_live (reg, setter)
-     rtx reg, setter;
+     rtx reg;
+     rtx setter ATTRIBUTE_UNUSED;
 {
   register int regno, endregno, i;
   enum machine_mode mode = GET_MODE (reg);
@@ -650,9 +642,9 @@ insert_save_restore (insn, save_p, regno, insn_mode, maxrestore)
      enum machine_mode insn_mode;
      int maxrestore;
 {
-  rtx pat;
-  enum insn_code code;
-  int i, numregs;
+  rtx pat = NULL_RTX;
+  enum insn_code code = CODE_FOR_nothing;
+  int numregs = 0;
 
   /* A common failure mode if register status is not correct in the RTL
      is for this routine to be called with a REGNO we didn't expect to
@@ -702,8 +694,9 @@ insert_save_restore (insn, save_p, regno, insn_mode, maxrestore)
 	  if (! ok)
 	    continue;
 
-          pat = gen_rtx (SET, VOIDmode, regno_save_mem[regno][i],
-		     gen_rtx (REG, GET_MODE (regno_save_mem[regno][i]), regno));
+          pat = gen_rtx_SET (VOIDmode, regno_save_mem[regno][i],
+			     gen_rtx_REG (GET_MODE (regno_save_mem[regno][i]),
+					  regno));
           code = reg_save_code[regno][i];
 
 	  /* Set hard_regs_saved for all the registers we saved.  */
@@ -741,9 +734,9 @@ insert_save_restore (insn, save_p, regno, insn_mode, maxrestore)
 	  if (! ok)
 	    continue;
 	    
-          pat = gen_rtx (SET, VOIDmode,
-		         gen_rtx (REG, GET_MODE (regno_save_mem[regno][i]), 
-				  regno), 
+          pat = gen_rtx_SET (VOIDmode,
+			     gen_rtx_REG (GET_MODE (regno_save_mem[regno][i]), 
+					  regno), 
 			 regno_save_mem[regno][i]);
           code = reg_restore_code[regno][i];
 

@@ -84,10 +84,10 @@ monstartup(lowpc, highpc)
 	 *	so the rest of the scaling (here and in gprof) stays in ints.
 	 */
     lowpc = (char *)
-	    ROUNDDOWN((unsigned)lowpc, HISTFRACTION*sizeof(HISTCOUNTER));
+	    ROUNDDOWN((unsigned) lowpc, HISTFRACTION*sizeof(HISTCOUNTER));
     s_lowpc = lowpc;
     highpc = (char *)
-	    ROUNDUP((unsigned)highpc, HISTFRACTION*sizeof(HISTCOUNTER));
+	    ROUNDUP((unsigned) highpc, HISTFRACTION*sizeof(HISTCOUNTER));
     s_highpc = highpc;
     s_textsize = highpc - lowpc;
     monsize = (s_textsize / HISTFRACTION) + sizeof(struct phdr);
@@ -220,12 +220,12 @@ mcount()
 	 *	for example:	signal catchers get called from the stack,
 	 *			not from text space.  too bad.
 	 */
-	frompcindex = (unsigned short *)((long)frompcindex - (long)s_lowpc);
-	if ((unsigned long)frompcindex > s_textsize) {
+	frompcindex = (unsigned short *) ((long) frompcindex - (long) s_lowpc);
+	if ((unsigned long) frompcindex > s_textsize) {
 		goto done;
 	}
 	frompcindex =
-	    &froms[((long)frompcindex) / (HASHFRACTION * sizeof(*froms))];
+	    &froms[((long) frompcindex) / (HASHFRACTION * sizeof(*froms))];
 	toindex = *frompcindex;
 	if (toindex == 0) {
 		/*
@@ -308,11 +308,10 @@ overflow:
 	goto out;
 }
 
-/*
- * Control profiling
- *	profiling is what mcount checks to see if
- *	all the data structures are ready.
- */
+/* Control profiling;
+  	profiling is what mcount checks to see if
+  	all the data structures are ready.  */
+
 moncontrol(mode)
     int mode;
 {
@@ -323,7 +322,7 @@ moncontrol(mode)
 	profiling = 0;
     } else {
 	/* stop */
-	profil((char *)0, 0, 0, 0);
+	profil((char *) 0, 0, 0, 0);
 	profiling = 3;
     }
 }

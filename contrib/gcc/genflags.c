@@ -2,7 +2,7 @@
 
    - some flags HAVE_... saying which simple standard instructions are
    available for this machine.
-   Copyright (C) 1987, 1991, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1995, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -22,8 +22,13 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -33,12 +38,9 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free ();
-extern rtx read_rtx ();
-
-char *xmalloc ();
-static void fatal ();
-void fancy_abort ();
+char *xmalloc PROTO((unsigned));
+static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
+void fancy_abort PROTO((void));
 
 /* Names for patterns.  Need to allow linking with print-rtl.  */
 char **insn_name_ptr;
@@ -49,7 +51,14 @@ static struct obstack call_obstack, normal_obstack;
 /* Max size of names encountered.  */
 static int max_id_len;
 
+static int num_operands PROTO((rtx));
+static void gen_proto PROTO((rtx));
+static void gen_nonproto PROTO((rtx));
+static void gen_insn PROTO((rtx));
+
+
 /* Count the number of match_operand's found.  */
+
 static int
 num_operands (x)
      rtx x;
@@ -87,6 +96,7 @@ num_operands (x)
 }
 
 /* Print out prototype information for a function.  */
+
 static void
 gen_proto (insn)
      rtx insn;
@@ -108,6 +118,7 @@ gen_proto (insn)
 }
 
 /* Print out a function declaration without a prototype.  */
+
 static void
 gen_nonproto (insn)
      rtx insn;
@@ -193,11 +204,22 @@ xrealloc (ptr, size)
 }
 
 static void
-fatal (s, a1, a2)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genflags: ");
-  fprintf (stderr, s, a1, a2);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   exit (FATAL_EXIT_CODE);
 }
@@ -258,7 +280,7 @@ from the machine description file `md'.  */\n\n");
     }
 
   /* Print out the prototypes now.  */
-  dummy = (rtx)0;
+  dummy = (rtx) 0;
   obstack_grow (&call_obstack, &dummy, sizeof (rtx));
   call_insns = (rtx *) obstack_finish (&call_obstack);
 

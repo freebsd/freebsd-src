@@ -2,15 +2,12 @@
 @setfilename cpp.info
 @settitle The C Preprocessor
 
-@ignore
 @ifinfo
-@format
-START-INFO-DIR-ENTRY
-* Cpp: (cpp).			The C preprocessor.
-END-INFO-DIR-ENTRY
-@end format
+@dircategory Programming
+@direntry
+* Cpp: (cpp).		       The GNU C preprocessor.
+@end direntry
 @end ifinfo
-@end ignore
 
 @c @smallbook
 @c @cropmarks
@@ -45,7 +42,7 @@ into another language, under the above conditions for modified versions.
 @titlepage
 @c @finalout
 @title The C Preprocessor
-@subtitle Last revised July 1992
+@subtitle Last revised March 1997
 @subtitle for GCC version 2
 @author Richard M. Stallman
 @page
@@ -54,7 +51,7 @@ This booklet is eventually intended to form the first chapter of a GNU
 C Language manual.
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1987, 1989, 1991, 1992, 1993, 1994, 1995 Free
+Copyright @copyright{} 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997 Free
 Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
@@ -105,7 +102,7 @@ to inform the compiler of where each source line originally came from.
 
 C preprocessors vary in some details.  This manual discusses the GNU C
 preprocessor, the C Compatible Compiler Preprocessor.  The GNU C
-preprocessor provides a superset of the features of ANSI Standard C.
+preprocessor provides a superset of the features of ANSI Standard C@.
 
 ANSI Standard C requires the rejection of many harmless constructs commonly
 used by today's C programs.  Such incompatibility would be inconvenient for
@@ -114,6 +111,12 @@ by default.  Strictly speaking, to get ANSI Standard C, you must use the
 options @samp{-trigraphs}, @samp{-undef} and @samp{-pedantic}, but in
 practice the consequences of having strict ANSI Standard C make it
 undesirable to do this.  @xref{Invocation}.
+
+The C preprocessor is designed for C-like languages; you may run into
+problems if you apply it to other kinds of languages, because it assumes
+that it is dealing with C@.  For example, the C preprocessor sometimes
+outputs extra white space to avoid inadvertent C token concatenation,
+and this may cause problems with other languages.
 
 @menu
 * Global Actions::    Actions made uniformly on all input files.
@@ -490,14 +493,14 @@ names, then inheritance is straightforward: simply write @samp{#include
 Sometimes it is necessary to give the inheriting file the same name as
 the base file.  This is less straightforward.
 
-For example, suppose an application program uses the system header file
+For example, suppose an application program uses the system header
 @file{sys/signal.h}, but the version of @file{/usr/include/sys/signal.h}
 on a particular system doesn't do what the application program expects.
 It might be convenient to define a ``local'' version, perhaps under the
 name @file{/usr/local/include/sys/signal.h}, to override or add to the
 one supplied by the system.
 
-You can do this by using the option @samp{-I.} for compilation, and
+You can do this by compiling with the option @samp{-I.}, and
 writing a file @file{sys/signal.h} that does what the application
 program expects.  But making this file include the standard
 @file{sys/signal.h} is not so easy---writing @samp{#include
@@ -521,8 +524,8 @@ file directories @emph{after} the directory in which the current file
 was found.
 
 Suppose you specify @samp{-I /usr/local/include}, and the list of
-directories to search also includes @file{/usr/include}; and suppose that
-both directories contain a file named @file{sys/signal.h}.  Ordinary
+directories to search also includes @file{/usr/include}; and suppose
+both directories contain @file{sys/signal.h}.  Ordinary
 @samp{#include <sys/signal.h>} finds the file under
 @file{/usr/local/include}.  If that file contains @samp{#include_next
 <sys/signal.h>}, it starts searching after that directory, and finds the
@@ -671,7 +674,7 @@ values, as it is defined in many C programs:
 @end example
 
 @noindent
-(This is not the best way to define a ``minimum'' macro in GNU C.
+(This is not the best way to define a ``minimum'' macro in GNU C@.
 @xref{Side Effects}, for more information.)
 
 To use a macro that expects arguments, you write the name of the macro
@@ -814,7 +817,7 @@ system-specific macros.
 @cindex standard predefined macros
 
 The standard predefined macros are available with the same meanings
-regardless of the machine or operating system on which you are using GNU C.
+regardless of the machine or operating system on which you are using GNU C@.
 Their names all start and end with double underscores.  Those preceding
 @code{__GNUC__} in this table are standardized by ANSI C; the rest are
 GNU C extensions.
@@ -859,8 +862,9 @@ if a @samp{#line} directive is used.  @xref{Combining Sources}.
 @findex __DATE__
 This macro expands to a string constant that describes the date on
 which the preprocessor is being run.  The string constant contains
-eleven characters and looks like @samp{"Jan 29 1987"} or @w{@samp{"Apr
-1 1905"}}.
+eleven characters and looks like @w{@samp{"Feb  1 1996"}}.
+@c After reformatting the above, check that the date remains `Feb  1 1996',
+@c all on one line, with two spaces between the `Feb' and the `1'.
 
 @item __TIME__
 @findex __TIME__
@@ -871,8 +875,16 @@ eight characters and looks like @samp{"23:59:01"}.
 @item __STDC__
 @findex __STDC__
 This macro expands to the constant 1, to signify that this is ANSI
-Standard C.  (Whether that is actually true depends on what C compiler
+Standard C@.  (Whether that is actually true depends on what C compiler
 will operate on the output from the preprocessor.)
+
+On some hosts, system include files use a different convention, where
+@samp{__STDC__} is normally 0, but is 1 if the user specifies strict
+conformance to the C Standard.  The preprocessor follows the host convention
+when processing system include files, but when processing user files it follows
+the usual GNU C convention.
+
+This macro is not defined if the @samp{-traditional} option is used.
 
 @item __STDC_VERSION__
 @findex __STDC_VERSION__
@@ -884,9 +896,11 @@ Like @samp{__STDC__}, whether this version number is accurate
 for the entire implementation depends on what C compiler
 will operate on the output from the preprocessor.
 
+This macro is not defined if the @samp{-traditional} option is used.
+
 @item __GNUC__
 @findex __GNUC__
-This macro is defined if and only if this is GNU C.  This macro is
+This macro is defined if and only if this is GNU C@.  This macro is
 defined only when the entire GNU C compiler is in use; if you invoke the
 preprocessor directly, @samp{__GNUC__} is undefined.  The value
 identifies the major version number of GNU CC (@samp{1} for GNU CC
@@ -917,11 +931,11 @@ to test whether a header is compiled by a C compiler or a C++ compiler.
 
 @item __STRICT_ANSI__
 @findex __STRICT_ANSI__
-This macro is defined if and only if the @samp{-ansi} switch was
+GNU C defines this macro if and only if the @samp{-ansi} switch was
 specified when GNU C was invoked.  Its definition is the null string.
 This macro exists primarily to direct certain GNU header files not to
 define certain traditional Unix constructs which are incompatible with
-ANSI C.
+ANSI C@.
 
 @item __BASE_FILE__
 @findex __BASE_FILE__
@@ -939,46 +953,46 @@ the nesting level is zero.
 
 @item __VERSION__
 @findex __VERSION__
-This macro expands to a string which describes the version number of
-GNU C.  The string is normally a sequence of decimal numbers separated
-by periods, such as @samp{"2.6.0"}.  The only reasonable use of this
-macro is to incorporate it into a string constant.
+This macro expands to a string constant which describes the version number of
+GNU C@.  The string is normally a sequence of decimal numbers separated
+by periods, such as @samp{"2.6.0"}.
 
 @item __OPTIMIZE__
 @findex __OPTIMIZE__
-This macro is defined in optimizing compilations.  It causes certain
-GNU header files to define alternative macro definitions for some
-system library functions.  It is unwise to refer to or test the
-definition of this macro unless you make very sure that programs will
-execute with the same effect regardless.
+GNU CC defines this macro in optimizing compilations.  It causes certain
+GNU header files to define alternative macro definitions for some system
+library functions.  You should not refer to or test the definition of
+this macro unless you make very sure that programs will execute with the
+same effect regardless.
 
 @item __CHAR_UNSIGNED__
 @findex __CHAR_UNSIGNED__
-This macro is defined if and only if the data type @code{char} is
-unsigned on the target machine.  It exists to cause the standard
-header file @file{limit.h} to work correctly.  It is bad practice
-to refer to this macro yourself; instead, refer to the standard
-macros defined in @file{limit.h}.  The preprocessor uses
-this macro to determine whether or not to sign-extend large character
-constants written in octal; see @ref{#if Directive,,The @samp{#if} Directive}.
+GNU C defines this macro if and only if the data type @code{char} is
+unsigned on the target machine.  It exists to cause the standard header
+file @file{limits.h} to work correctly.  You should not refer to this
+macro yourself; instead, refer to the standard macros defined in
+@file{limits.h}.  The preprocessor uses this macro to determine whether
+or not to sign-extend large character constants written in octal; see
+@ref{#if Directive,,The @samp{#if} Directive}.
 
 @item __REGISTER_PREFIX__
 @findex __REGISTER_PREFIX__
-This macro expands to a string describing the prefix applied to cpu
-registers in assembler code.  It can be used to write assembler code
-that is usable in multiple environments.  For example, in the
-@samp{m68k-aout} environment it expands to the string @samp{""},
-but in the @samp{m68k-coff} environment it expands to the string
-@samp{"%"}.
+This macro expands to a string (not a string constant) describing the
+prefix applied to CPU registers in assembler code.  You can use it to
+write assembler code that is usable in multiple environments.  For
+example, in the @samp{m68k-aout} environment it expands to the null
+string, but in the @samp{m68k-coff} environment it expands to the string
+@samp{%}.
 
 @item __USER_LABEL_PREFIX__
 @findex __USER_LABEL_PREFIX__
-This macro expands to a string describing the prefix applied to
-user generated labels in assembler code.  It can be used to write
-assembler code that is usable in multiple environments.
-For example, in the @samp{m68k-aout} environment it expands to the
-string @samp{"_"}, but in the @samp{m68k-coff} environment it expands
-to the string @samp{""}.
+Similar to @code{__REGISTER_PREFIX__}, but describes the prefix applied
+to user generated labels in assembler code.  For example, in the
+@samp{m68k-aout} environment it expands to the string @samp{_}, but in
+the @samp{m68k-coff} environment it expands to the null string.  This
+does not work with the @samp{-mno-underscores} option that the i386
+OSF/rose and m88k targets provide nor with the @samp{-mcall*} options of
+the rs6000 System V Release 4 target.
 @end table
 
 @node Nonstandard Predefined,, Standard Predefined, Predefined
@@ -1237,7 +1251,7 @@ possible to piece together a string constant.  However, two pieces of text
 that don't together form a valid lexical unit cannot be concatenated.  For
 example, concatenation with @samp{x} on one side and @samp{+} on the other
 is not meaningful because those two characters can't fit together in any
-lexical unit of C.  The ANSI standard says that such attempts at
+lexical unit of C@.  The ANSI standard says that such attempts at
 concatenation are undefined, but in the GNU C preprocessor it is well
 defined: it puts the @samp{x} and @samp{+} side by side with no particular
 special results.
@@ -1437,7 +1451,7 @@ Defining the macro as
 @noindent
 provides the desired result.
 
-However, unintended grouping can result in another way.  Consider
+Unintended grouping can result in another way.  Consider
 @samp{sizeof ceil_div(1, 2)}.  That has the appearance of a C expression
 that would compute the size of the type of @samp{ceil_div (1, 2)}, but in
 fact it means something very different.  Here is what it expands to:
@@ -1958,7 +1972,7 @@ practice because it helps people match the @samp{#endif} to the
 corresponding @samp{#if}.  Such comments should always be used, except in
 short conditionals that are not nested.  In fact, you can put anything at
 all after the @samp{#endif} and it will be ignored by the GNU C preprocessor,
-but only comments are acceptable in ANSI Standard C.
+but only comments are acceptable in ANSI Standard C@.
 
 @var{expression} is a C expression of integer type, subject to stringent
 restrictions.  It may contain
@@ -2327,7 +2341,7 @@ when you run @code{gcc} or @code{cpp}.  @xref{Invocation}.
 @findex #error
 The directive @samp{#error} causes the preprocessor to report a fatal
 error.  The rest of the line that follows @samp{#error} is used as the
-error message.
+error message.  The line must consist of complete tokens.
 
 You would use @samp{#error} inside of a conditional that detects a
 combination of parameters which you know the program does not properly
@@ -2337,7 +2351,7 @@ properly on a Vax, you might write
 @smallexample
 @group
 #ifdef __vax__
-#error Won't work on Vaxen.  See comments at get_last_object.
+#error "Won't work on Vaxen.  See comments at get_last_object."
 #endif
 @end group
 @end smallexample
@@ -2441,8 +2455,8 @@ rather than a line of output containing just a @samp{#}.  Supposedly
 some old C programs contain such lines.
 
 @findex #pragma
-The ANSI standard specifies that the @samp{#pragma} directive has an
-arbitrary, implementation-defined effect.  In the GNU C preprocessor,
+The ANSI standard specifies that the effect of the @samp{#pragma}
+directive is implementation-defined.  In the GNU C preprocessor,
 @samp{#pragma} directives are not used, except for @samp{#pragma once}
 (@pxref{Once-Only}).  However, they are left in the preprocessor output,
 so they are available to the compilation pass.
@@ -2462,7 +2476,8 @@ where it is meaningful.
 The output from the C preprocessor looks much like the input, except
 that all preprocessing directive lines have been replaced with blank lines
 and all comments with spaces.  Whitespace within a line is not altered;
-however, a space is inserted after the expansions of most macro calls.
+however, unless @samp{-traditional} is used, spaces may be inserted into
+the expansions of macro calls to prevent tokens from being concatenated.
 
 Source file name and line number information is conveyed by lines of
 the form
@@ -2489,7 +2504,7 @@ This indicates returning to a file (after having included another file).
 This indicates that the following text comes from a system header file,
 so certain warnings should be suppressed.
 @item 4
-This indicates that the following text should be treated as C.
+This indicates that the following text should be treated as C@.
 @c maybe cross reference NO_IMPLICIT_EXTERN_C
 @end table
 
@@ -2534,7 +2549,7 @@ output before the expansion of the macro call.
 
 @item -traditional
 @findex -traditional
-Try to imitate the behavior of old-fashioned C, as opposed to ANSI C.
+Try to imitate the behavior of old-fashioned C, as opposed to ANSI C@.
 
 @itemize @bullet
 @item
@@ -2562,17 +2577,17 @@ It considers @samp{1.0e+4} to be three tokens: @samp{1.0e}, @samp{+},
 and @samp{4}.
 
 @item
-A macro is not suppressed within its own definition, in traditional C.
+A macro is not suppressed within its own definition, in traditional C@.
 Thus, any macro that is used recursively inevitably causes an error.
 
 @item
 The character @samp{#} has no special meaning within a macro definition
-in traditional C.
+in traditional C@.
 
 @item
 In traditional C, the text at the end of a macro expansion can run
 together with the text after the macro call, to produce a single token.
-(This is impossible in ANSI C.)
+(This is impossible in ANSI C@.)
 
 @item
 Traditionally, @samp{\} inside a macro argument suppresses the syntactic
@@ -2614,17 +2629,22 @@ Warn if any trigraphs are encountered (assuming they are enabled).
 @itemx -Wcomments
 (Both forms have the same effect).
 @end ignore
-Warn whenever a comment-start sequence @samp{/*} appears in a comment.
+Warn whenever a comment-start sequence @samp{/*} appears in a @samp{/*}
+comment, or whenever a Backslash-Newline appears in a @samp{//} comment.
 
 @item -Wall
 @findex -Wall
 Requests both @samp{-Wtrigraphs} and @samp{-Wcomment} (but not
-@samp{-Wtraditional}). 
+@samp{-Wtraditional} or @samp{-Wundef}). 
 
 @item -Wtraditional
 @findex -Wtraditional
 Warn about certain constructs that behave differently in traditional and
-ANSI C.
+ANSI C@.
+
+@item -Wundef
+@findex -Wundef
+Warn if an undefined identifier is evaluated in an @samp{#if} directive.
 
 @item -I @var{directory}
 @findex -I
@@ -2662,7 +2682,16 @@ Only the directories you have specified with @samp{-I} options
 @findex -nostdinc++
 Do not search for header files in the C++-specific standard directories,
 but do still search the other standard directories.
-(This option is used when building libg++.)
+(This option is used when building the C++ library.)
+
+@item -remap
+@findex -remap
+When searching for a header file in a directory, remap file names if a
+file named @file{header.gcc} exists in that directory.  This can be used
+to work around limitations of file systems with file name restrictions.
+The @file{header.gcc} file should contain a series of lines with two
+tokens on each line: the first token is the name to map, and the second
+token is the actual name to use.
 
 @item -D @var{name}
 @findex -D
@@ -2717,6 +2746,10 @@ Like @samp{-dM} except in two respects: it does @emph{not} include the
 predefined macros, and it outputs @emph{both} the @samp{#define}
 directives and the result of preprocessing.  Both kinds of output go to
 the standard output file.
+
+@item -dI
+@findex -dI
+Output @samp{#include} directives in addition to the result of preprocessing.
 
 @item -M [-MG]
 @findex -M
@@ -2813,9 +2846,10 @@ is applied to the standard system directories.
 @findex -lang-objc++
 Specify the source language.  @samp{-lang-c} is the default; it
 allows recognition of C++ comments (comments that begin with
-@samp{//} and end at end of line), since this is
-a common feature and it will most likely be in the next C standard.
-@samp{-lang-c89} disables recognition of C++ comments.  @samp{-lang-c++}
+@samp{//} and end at end of line) and hexadecimal floating-point constants,
+since these features will most likely appear in the next C standard.
+@samp{-lang-c89} disables recognition of C++ comments and
+hexadecimal floating-point constants.  @samp{-lang-c++}
 handles C++ comment syntax and includes extra default include
 directories for C++.  @samp{-lang-objc} enables the Objective C
 @samp{#import} directive.  @samp{-lang-objc++} enables both C++ and Objective C
@@ -2836,11 +2870,12 @@ This option is available only when you call @code{cpp} directly;
 
 @item -$
 @findex -$
-Forbid the use of @samp{$} in identifiers.  This is required for ANSI
-conformance.  @code{gcc} automatically supplies this option to the
-preprocessor if you specify @samp{-ansi}, but @code{gcc} doesn't
-recognize the @samp{-$} option itself---to use it without the other
-effects of @samp{-ansi}, you must call the preprocessor directly.
+Forbid the use of @samp{$} in identifiers.  This was formerly required
+for strict conformance to the C Standard before the standard was
+corrected.
+
+This option is available only when you call @code{cpp} directly;
+@code{gcc} will not pass it from its command line.
 
 @end table
 

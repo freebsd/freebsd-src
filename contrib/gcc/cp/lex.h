@@ -62,8 +62,10 @@ enum rid
   RID_SIGNED,
   RID_AUTO,
   RID_MUTABLE,
+  RID_COMPLEX,
 
-  /* This is where grokdeclarator ends its search when setting the specbits. */
+  /* This is where grokdeclarator ends its search when setting the
+     specbits.  */
 
   RID_PUBLIC,
   RID_PRIVATE,
@@ -71,22 +73,23 @@ enum rid
   RID_EXCEPTION,
   RID_TEMPLATE,
   RID_SIGNATURE,
+  RID_NULL,
   /* Before adding enough to get up to 64, the RIDBIT_* macros
-     will have to be changed a little. */
+     will have to be changed a little.  */
   RID_MAX
 };
 
 #define NORID RID_UNUSED
 
 #define RID_FIRST_MODIFIER RID_EXTERN
-#define RID_LAST_MODIFIER RID_MUTABLE
+#define RID_LAST_MODIFIER RID_COMPLEX
 
 /* The type that can represent all values of RIDBIT.  */
-/* We assume that we can stick in at least 32 bits into this. */
+/* We assume that we can stick in at least 32 bits into this.  */
 typedef struct { unsigned long idata[2]; }
      RID_BIT_TYPE;
 
-/* Be careful, all these modify N twice. */
+/* Be careful, all these modify N twice.  */
 #define RIDBIT_SETP(N, V) (((unsigned long)1 << (int) ((N)%32))		      \
 			    & (V).idata[(N)/32])
 #define RIDBIT_NOTSETP(NN, VV) (! RIDBIT_SETP (NN, VV))
@@ -129,7 +132,4 @@ extern tree got_object;
    Positive is push count, negative is pop count.  */
 extern int pending_lang_change;
 
-extern tree make_pointer_declarator (), make_reference_declarator ();
-extern void reinit_parse_for_function ();
-extern void reinit_parse_for_method ();
-extern int yylex ();
+extern int yylex PROTO((void));

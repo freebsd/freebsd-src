@@ -251,8 +251,8 @@ display_problems ()
   first_err = 1;
   for (i=0; i<ecount-1; i++)
     {
-      if ((strcmp (elist[i]->dos_name, elist[i+1]->dos_name) == 0) &&
-	  (strcmp (elist[i]->path, elist[i+1]->path) == 0))
+      if ((strcmp (elist[i]->dos_name, elist[i+1]->dos_name) == 0)
+	  && (strcmp (elist[i]->path, elist[i+1]->path) == 0))
 	{
 	  if (first_err)
 	    {
@@ -280,8 +280,8 @@ display_problems ()
   first_err = 1;
   for (i=0; i<ecount-1; i++)
     {
-      if ((strncmp (elist[i]->full_name, elist[i+1]->full_name, 14) == 0) &&
-	  (strcmp (elist[i]->path, elist[i+1]->path) == 0))
+      if ((strncmp (elist[i]->full_name, elist[i+1]->full_name, 14) == 0)
+	  && (strcmp (elist[i]->path, elist[i+1]->path) == 0))
 	{
 	  if (first_err)
 	    {
