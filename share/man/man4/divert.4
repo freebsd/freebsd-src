@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2004
+.Dd October 22, 2004
 .Dt DIVERT 4
 .Os
 .Sh NAME
@@ -115,12 +115,22 @@ to avoid loops, where the same packet is diverted more than once at the
 same rule.
 .Sh DETAILS
 To enable divert sockets, your kernel must be compiled with the option
-.Dv IPDIVERT .
+.Dv IPDIVERT
+or you have to load the
+.Dv IPDIVERT
+module.
+.Pp
+You can load the
+.Dv IPDIVERT
+module at runtime by issuing the following command:
+.Bd -literal -offset indent
+kldload ipdivert
+.Ed
 .Pp
 If a packet is diverted but no socket is bound to the
 port, or if
 .Dv IPDIVERT
-is not enabled in the kernel, the packet is dropped.
+is not enabled or loaded in the kernel, the packet is dropped.
 .Pp
 Incoming packet fragments which get diverted are fully reassembled
 before delivery; the diversion of any one fragment causes the entire
