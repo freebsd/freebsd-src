@@ -68,6 +68,7 @@ static char rcsid[] = "$Id";
 void	sighup_handler();	/* SIGHUP handler */
 void	sigint_handler();	/* SIGINT handler */
 void	sigterm_handler();	/* SIGTERM handler */
+void    sigurg_handler();       /* SIGURG handler */
 void	exit_handler(int ret);	/* run exit_cmd iff specified upon exit. */
 void	setup_line(int cflag);	/* configure terminal settings */
 void	slip_discipline();	/* switch to slip line discipline */
@@ -80,10 +81,13 @@ int	flow_control = 0;	/* non-zero to enable hardware flow control. */
 int	modem_control =	HUPCL;	/* !CLOCAL+HUPCL iff we	watch carrier. */
 int	comstate;		/* TIOCMGET current state of serial driver */
 int	redial_on_startup = 0;	/* iff non-zero execute redial_cmd on startup */
-int	speed = DEFAULT_BAUD;	/* baud rate of tty */
+speed_t speed = DEFAULT_BAUD;   /* baud rate of tty */
 int	slflags = 0;		/* compression flags */
 int	unit = -1;		/* slip device unit number */
 int	foreground = 0;		/* act as demon if zero, else don't fork. */
+int     keepal = 0;             /* keepalive timeout */
+int     outfill = 0;            /* outfill timeout */
+int     sl_unit = -1;           /* unit number */
 int	exiting = 0;		/* allready running exit_handler */
 
 struct	termios tty;		/* tty configuration/state */
@@ -95,7 +99,8 @@ char	*config_cmd = 0;	/* command to exec if slip unit changes. */
 char	*exit_cmd = 0;		/* command to exec before exiting. */
 
 static char usage_str[] = "\
-usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] device\n\
+usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] \\\n\
+	  [-K timeout] [-O timeout] [-U unit] device\n\
   -a      -- autoenable VJ compression\n\
   -c      -- enable VJ compression\n\
   -e ECMD -- run ECMD before exiting\n\
@@ -106,7 +111,11 @@ usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] device\n\
   -r RCMD -- run RCMD upon loss of carrier\n\
   -s #    -- set baud rate (default 9600)\n\
   -u UCMD -- run 'UCMD <old sl#> <new sl#>' before switch to slip discipline\n\
-  -z      -- run RCMD upon startup irrespective of carrier\n";
+  -z      -- run RCMD upon startup irrespective of carrier\n\
+  -K #    -- set SLIP \"keep alive\" timeout (default 0)\n\
+  -O #    -- set SLIP \"out fill\" timeout (default 0)\n\
+  -U #    -- set SLIP unit number (default is dynamic)\n\
+";
 
 int main(int argc, char **argv)
 {
@@ -115,7 +124,7 @@ int main(int argc, char **argv)
 	extern int optind;
 	char *cp;
 
-	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:z")) != EOF) {
+	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zK:O:U:")) != EOF) {
 		switch (option) {
 		case 'a':
 			slflags |= IFF_LINK2;
@@ -151,6 +160,15 @@ int main(int argc, char **argv)
 			break;
 		case 'z':
 			redial_on_startup = 1;
+			break;
+		case 'K':
+			keepal = atoi(optarg);
+			break;
+		case 'O':
+			outfill = atoi(optarg);
+			break;
+		case 'U':
+			sl_unit = atoi(optarg);
 			break;
 		default:
 			fprintf(stderr, "%s: Invalid option -- '%c'\n",
@@ -282,7 +300,7 @@ void setup_line(int cflag)
 {
 	tty.c_lflag = tty.c_iflag = tty.c_oflag = 0;
 	tty.c_cflag = CREAD | CS8 | flow_control | modem_control | cflag;
-	tty.c_ispeed = tty.c_ospeed = speed;
+	cfsetspeed(&tty, speed);
 	/* set the line speed and flow control */
 	if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
 		syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
@@ -308,6 +326,11 @@ void slip_discipline()
 		exit_handler(1);
 	}
 
+	if (sl_unit >= 0 && ioctl(fd, SLIOCSUNIT, &sl_unit) < 0) {
+		syslog(LOG_ERR, "ioctl(SLIOCSUNIT): %m");
+                exit_handler(1);
+        }
+
 	/* find out what unit number we were assigned */
         if (ioctl(fd, SLIOCGUNIT, (caddr_t)&tmp_unit) < 0) {
                 syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
@@ -316,6 +339,18 @@ void slip_discipline()
 
 	if (tmp_unit < 0) {
 		syslog(LOG_ERR, "bad unit (%d) from ioctl(SLIOCGUNIT)",tmp_unit);
+		exit_handler(1);
+	}
+
+	if (keepal > 0) {
+		signal(SIGURG, sigurg_handler);
+		if (ioctl(fd, SLIOCSKEEPAL, &keepal) < 0) {
+			syslog(LOG_ERR, "ioctl(SLIOCSKEEPAL): %m");
+			exit_handler(1);
+		}
+	}
+	if (outfill > 0 && ioctl(fd, SLIOCSOUTFILL, &outfill) < 0) {
+		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
 		exit_handler(1);
 	}
 
@@ -379,6 +414,8 @@ void configure_network()
 /* signup_handler() is invoked when carrier drops, eg. before redial. */
 void sighup_handler()
 {
+	int ttydisc = TTYDISC;
+
 	if(exiting) return;
 again:
 	/* invoke a shell for redial_cmd or punt. */
@@ -401,8 +438,14 @@ again:
 				/* force a redial if no carrier */
 				goto again;
 			}
-		}
+		} else
+			setup_line(0);
 	} else {
+		if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
+			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+			exit_handler(1);
+		}
+		setup_line(0);  /* restore ospeed from hangup (B0) */
 		/* If modem control, just wait for carrier before attaching.
 		   If no modem control, just fall through immediately. */
 		if (!(modem_control & CLOCAL)) {
@@ -421,7 +464,6 @@ again:
 			       dev, unit);
 		}
 	}
-	setup_line(0);
 	slip_discipline();
 	configure_network();
 }
@@ -431,6 +473,28 @@ void sigint_handler()
 	if(exiting) return;
 	syslog(LOG_NOTICE,"SIGINT on %s (sl%d); exiting",dev,unit);
 	exit_handler(0);
+}
+/* Signal handler for SIGURG. */
+void sigurg_handler()
+{
+	int ttydisc = TTYDISC;
+
+	signal(SIGURG, SIG_IGN);
+	if(exiting) return;
+	syslog(LOG_NOTICE,"SIGURG on %s (sl%d); hangup",dev,unit);
+	if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
+		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+		exit_handler(1);
+	}
+	cfsetospeed(&tty, B0);
+	if (tcsetattr(fd, TCSANOW, &tty) < 0) {
+		syslog(LOG_ERR, "tcsetattr(TCSANOW): %m");
+		exit_handler(1);
+	}
+	/* Need to go to sighup handler in any case */
+	if (modem_control & CLOCAL)
+		kill (getpid(), SIGHUP);
+
 }
 /* Signal handler for SIGTERM.  We just log and exit. */
 void sigterm_handler()
