@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.46 1999/08/18 03:56:57 mjacob Exp $
+ * $Id: vm_map.h,v 1.47 1999/08/23 18:08:34 alc Exp $
  */
 
 /*
@@ -156,7 +156,7 @@ struct vm_map {
 	struct lock lock;		/* Lock for map data */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
-	unsigned char	system_map;			/* Am I a system map? */
+	u_char system_map;		/* Am I a system map? */
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	unsigned int timestamp;		/* Version number */
 	vm_map_entry_t first_free;	/* First free space hint */
