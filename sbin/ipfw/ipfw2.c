@@ -198,6 +198,8 @@ enum tokens {
 	TOK_QUEUE,
 	TOK_DIVERT,
 	TOK_TEE,
+	TOK_NETGRAPH,
+	TOK_NGTEE,
 	TOK_FORWARD,
 	TOK_SKIPTO,
 	TOK_DENY,
@@ -300,6 +302,8 @@ struct _s_x rule_actions[] = {
 	{ "queue",		TOK_QUEUE },
 	{ "divert",		TOK_DIVERT },
 	{ "tee",		TOK_TEE },
+	{ "netgraph",		TOK_NETGRAPH },
+	{ "ngtee",		TOK_NGTEE },
 	{ "fwd",		TOK_FORWARD },
 	{ "forward",		TOK_FORWARD },
 	{ "skipto",		TOK_SKIPTO },
@@ -1191,6 +1195,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 		case O_TEE:
 			printf("tee %u", cmd->arg1);
+			break;
+
+		case O_NETGRAPH:
+			printf("netgraph %u", cmd->arg1);
+			break;
+
+		case O_NGTEE:
+			printf("ngtee %u", cmd->arg1);
 			break;
 
 		case O_FORWARD_IP:
@@ -3120,6 +3132,16 @@ add(int ac, char *av[])
 			else
 				errx(EX_DATAERR, "illegal divert/tee port");
 		}
+		ac--; av++;
+		break;
+
+	case TOK_NETGRAPH:
+	case TOK_NGTEE:
+		action->opcode = (i == TOK_NETGRAPH ) ? O_NETGRAPH : O_NGTEE;
+		NEED1("missing netgraph cookie");
+		action->arg1 = strtoul(*av, NULL, 0);
+		if (action->arg1 == 0)
+			errx(EX_DATAERR, "illegal netgraph cookie");
 		ac--; av++;
 		break;
 
