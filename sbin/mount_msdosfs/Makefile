@@ -8,7 +8,7 @@ MAN8=	mount_msdos.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 
-MOUNT=	${.CURDIR}/../../mount
+MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
