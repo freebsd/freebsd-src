@@ -39,3 +39,4 @@
 503 TEMP	Service Unavailable
 504 TIMEOUT	Gateway Time-out
 505 PROTO	HTTP Version not supported
+999 PROTO	Protocol error
