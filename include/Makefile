@@ -105,7 +105,7 @@ compat:
 .endif
 
 copies:
-.for i in ${LDIRS} ${LSUBDIRS} crypto machine machine/pc
+.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} altq crypto machine machine/pc
 .if exists(${DESTDIR}${INCLUDEDIR}/$i)
 	cd ${DESTDIR}${INCLUDEDIR}/$i; \
 	for h in *.h; do \
