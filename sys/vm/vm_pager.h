@@ -60,7 +60,6 @@ struct pagerops {
 	void (*pgo_putpages)(vm_object_t, vm_page_t *, int, int, int *); /* Put (write) page. */
 	boolean_t (*pgo_haspage)(vm_object_t, vm_pindex_t, int *, int *); /* Does pager have page? */
 	void (*pgo_pageunswapped)(vm_page_t);
-	void (*pgo_strategy)(vm_object_t, struct bio *);
 };
 
 extern struct pagerops defaultpagerops;
@@ -109,7 +108,6 @@ void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
 vm_offset_t vm_pager_map_page(vm_page_t);
 void vm_pager_unmap_page(vm_offset_t);
-void vm_pager_strategy(vm_object_t object, struct bio *bp);
 
 /*
  *	vm_page_get_pages:
