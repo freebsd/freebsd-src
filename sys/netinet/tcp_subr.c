@@ -220,8 +220,11 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 	struct route sro;
 
 	if (tp) {
-		if (!(flags & TH_RST))
+		if (!(flags & TH_RST)) {
 			win = sbspace(&tp->t_inpcb->inp_socket->so_rcv);
+			if (win > (long)TCP_MAXWIN << tp->rcv_scale)
+				win = (long)TCP_MAXWIN << tp->rcv_scale;
+		}
 		ro = &tp->t_inpcb->inp_route;
 	} else {
 		ro = &sro;
