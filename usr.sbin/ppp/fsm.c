@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.30 1998/06/16 19:40:36 brian Exp $
+ * $Id: fsm.c,v 1.31 1998/06/20 00:19:36 brian Exp $
  *
  *  TODO:
  */
@@ -652,6 +652,7 @@ FsmRecvTermReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   case ST_OPENED:
     (*fp->fn->LayerDown)(fp);
     (*fp->fn->SendTerminateAck)(fp, lhp->id);
+    FsmInitRestartCounter(fp);
     timer_Start(&fp->FsmTimer);	/* Start restart timer */
     fp->restart = 0;
     NewState(fp, ST_STOPPING);
