@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
+#include <md4.h>
 
 static void an_getval		__P((const char *, struct an_req *));
 static void an_setval		__P((const char *, struct an_req *));
@@ -83,6 +84,7 @@ static int an_hex2int		__P((char));
 static void an_str2key		__P((char *, struct an_ltv_key *));
 static void an_setkeys		__P((const char *, char *, int));
 static void an_enable_tx_key	__P((const char *, char *));
+static void an_enable_leap_mode __P((const char *, char *));
 static void usage		__P((char *));
 int main			__P((int, char **));
 
@@ -126,6 +128,7 @@ int main			__P((int, char **));
 #define ACT_SET_KEYS 35
 #define ACT_ENABLE_TX_KEY 36
 #define ACT_SET_MONITOR_MODE 37
+#define ACT_SET_LEAP_MODE 38
 
 static void an_getval(iface, areq)
 	const char		*iface;
@@ -277,6 +280,8 @@ static void an_dumpstatus(iface)
 		printf("synced ");
 	if (sts->an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 		printf("associated ");
+	if (sts->an_opmode & AN_STATUS_OPMODE_LEAP)
+		printf("LEAP ");
 	if (sts->an_opmode & AN_STATUS_OPMODE_ERROR)
 		printf("error ");
 	printf("]\n");
@@ -285,6 +290,7 @@ static void an_dumpstatus(iface)
 	printf("\nSignal quality:\t\t");
 	an_printhex((char *)&sts->an_cur_signal_quality, 1);
 	printf("\nSignal strength:\t[ %d%% ]",sts->an_normalized_rssi);
+	printf("\nMax Noise:\t\t[ %d%% ]",sts->an_avg_noise_prev_min);
 	/*
 	 * XXX: This uses the old definition of the rate field (units of
 	 * 500kbps).  Technically the new definition is that this field
@@ -707,7 +713,9 @@ static void an_dumpconfig(iface)
 	printf("\nWEP enabled:\t\t\t\t[ ");
 	if (cfg->an_authtype & AN_AUTHTYPE_PRIVACY_IN_USE)
 	{
-		if (cfg->an_authtype & AN_AUTHTYPE_ALLOW_UNENCRYPTED)
+		if (cfg->an_authtype & AN_AUTHTYPE_LEAP)
+			 printf("LEAP");
+		else if (cfg->an_authtype & AN_AUTHTYPE_ALLOW_UNENCRYPTED)
 			 printf("mixed cell");
 		else
 			 printf("full");
@@ -805,6 +813,12 @@ static void an_dumpconfig(iface)
 	an_printwords(&cfg->an_arl_decay, 1);
 	printf("\nARL delay:\t\t\t\t");
 	an_printwords(&cfg->an_arl_delay, 1);
+	printf("\nConfiguration:\t\t\t\t[ ");
+	if (cfg->an_home_product & AN_HOME_NETWORK)
+		printf("Home Configuration");
+	else
+		printf("Enterprise Configuration");
+	printf(" ]");
 
 	printf("\n");
 	printf("\n");
@@ -842,6 +856,7 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -f val (set frag threshold)\n", p);
 	fprintf(stderr, "\t%s -i iface -r val (set RTS threshold)\n", p);
 	fprintf(stderr, "\t%s -i iface -M 0-15 (set monitor mode)\n", p);
+	fprintf(stderr, "\t%s -i iface -L user (enter LEAP authentication mode)\n", p);
 #ifdef ANCACHE
 	fprintf(stderr, "\t%s -i iface -Q print signal quality cache\n", p);
 	fprintf(stderr, "\t%s -i iface -Z zero out signal cache\n", p);
@@ -962,12 +977,14 @@ static void an_setconfig(iface, act, arg)
 		case 0:
 			/* no WEP */
 			cfg->an_authtype &= ~(AN_AUTHTYPE_PRIVACY_IN_USE 
-					| AN_AUTHTYPE_ALLOW_UNENCRYPTED);
+					| AN_AUTHTYPE_ALLOW_UNENCRYPTED
+					| AN_AUTHTYPE_LEAP);
 			break;
 		case 1:
 			/* full WEP */
 			cfg->an_authtype |= AN_AUTHTYPE_PRIVACY_IN_USE;
 			cfg->an_authtype &= ~AN_AUTHTYPE_ALLOW_UNENCRYPTED;
+			cfg->an_authtype &= ~AN_AUTHTYPE_LEAP;
 			break;
 		case 2:
 			/* mixed cell */
@@ -1261,7 +1278,7 @@ static void an_setkeys(iface, key, keytype)
 	k->mac[4]=0;
 	k->mac[5]=0;
 
-	switch(keytype & 1){
+	switch(keytype & 1) {
 	case 0:
 	  areq.an_len = sizeof(struct an_ltv_key);
 	  areq.an_type = AN_RID_WEP_PERM;
@@ -1289,12 +1306,12 @@ static void an_readkeyinfo(iface)
 
 	printf("WEP Key status:\n");
 	areq.an_type = AN_RID_WEP_TEMP;  	/* read first key */
-	for(i=0; i<5; i++){
+	for(i=0; i<5; i++) {
 		areq.an_len = sizeof(struct an_ltv_key);
 		an_getval(iface, &areq);
-       		if(k->kindex == 0xffff)
+       		if (k->kindex == 0xffff)
 			break;
-		switch (k->klen){
+		switch (k->klen) {
 		case 0:
 			printf("\tKey %d is unset\n",k->kindex);
 			break;
@@ -1325,8 +1342,24 @@ static void an_enable_tx_key(iface, arg)
 {
 	struct an_req		areq;
 	struct an_ltv_key	*k;
+	struct an_ltv_genconfig *config;
 
 	bzero((char *)&areq, sizeof(areq));
+
+	/* set home or not home mode */
+	areq.an_len  = sizeof(struct an_ltv_genconfig);
+	areq.an_type = AN_RID_GENCONFIG;
+	an_getval(iface, &areq);
+	config = (struct an_ltv_genconfig *)&areq;
+	if (atoi(arg) == 4) {
+		config->an_home_product |= AN_HOME_NETWORK;
+	}else{
+		config->an_home_product &= ~AN_HOME_NETWORK;
+	}
+	an_setval(iface, &areq);
+
+	bzero((char *)&areq, sizeof(areq));
+
 	k = (struct an_ltv_key *)&areq;
 
 	/* From a Cisco engineer write the transmit key to use in the
@@ -1346,6 +1379,102 @@ static void an_enable_tx_key(iface, arg)
 	an_setval(iface, &areq);
 	  
 	return;
+}
+
+static void an_enable_leap_mode(iface, username)
+	const char		*iface;
+	char			*username;
+{
+	struct an_req		areq;
+	struct an_ltv_status	*sts;
+	struct an_ltv_genconfig	*cfg;
+	struct an_ltv_caps	*caps;
+	struct an_ltv_leap_username an_username;
+	struct an_ltv_leap_password an_password;
+	char *password;
+	MD4_CTX context;
+	int len;
+	int i;
+	char unicode_password[LEAP_PASSWORD_MAX * 2];
+
+	areq.an_len = sizeof(areq);
+	areq.an_type = AN_RID_CAPABILITIES;
+
+	an_getval(iface, &areq);
+
+	caps = (struct an_ltv_caps *)&areq;
+
+	if (!caps->an_softcaps & AN_AUTHTYPE_LEAP) {
+		fprintf(stderr, "Firmware does not support LEAP\n");
+		exit(1);
+	}
+
+	bzero(&an_username, sizeof(an_username));
+	bzero(&an_password, sizeof(an_password));
+
+	len = strlen(username);
+	if (len > LEAP_USERNAME_MAX) {
+		printf("Username too long (max %d)\n", LEAP_USERNAME_MAX);
+		exit(1);
+	}
+	strncpy(an_username.an_username, username, len);
+	an_username.an_username_len = len;
+	an_username.an_len  = sizeof(an_username);	
+	an_username.an_type = AN_RID_LEAPUSERNAME;
+
+	password = getpass("Enter LEAP password:");
+
+	len = strlen(password);
+	if (len > LEAP_PASSWORD_MAX) {
+		printf("Password too long (max %d)\n", LEAP_PASSWORD_MAX);
+		exit(1);
+	}
+	
+	bzero(&unicode_password, sizeof(unicode_password));
+	for(i = 0; i < len; i++) {
+		unicode_password[i * 2] = *password++;
+	}
+	
+	/* First half */
+	MD4Init(&context);
+	MD4Update(&context, unicode_password, len * 2);
+	MD4Final(&an_password.an_password[0], &context);
+	
+	/* Second half */
+	MD4Init (&context);
+	MD4Update (&context, &an_password.an_password[0], 16);
+	MD4Final (&an_password.an_password[16], &context);
+
+	an_password.an_password_len = 32;
+	an_password.an_len  = sizeof(an_password);	
+	an_password.an_type = AN_RID_LEAPPASSWORD;	
+
+	an_setval(iface, (struct an_req *)&an_username);
+	an_setval(iface, (struct an_req *)&an_password);
+	
+	areq.an_len = sizeof(areq);
+	areq.an_type = AN_RID_GENCONFIG;
+	an_getval(iface, &areq);
+	cfg = (struct an_ltv_genconfig *)&areq;
+	cfg->an_authtype = (AN_AUTHTYPE_PRIVACY_IN_USE | AN_AUTHTYPE_LEAP);
+	an_setval(iface, &areq);
+
+	sts = (struct an_ltv_status *)&areq;
+	areq.an_type = AN_RID_STATUS;
+	
+	for (i = 60; i > 0; i--) {
+		an_getval(iface, &areq);
+		if (sts->an_opmode & AN_STATUS_OPMODE_LEAP) {
+			printf("Authenticated\n");
+			break;
+		}
+		sleep(1);
+	}
+
+	if (i == 0) {
+		fprintf(stderr, "Failed LEAP authentication\n");
+		exit(1);
+	}
 }
 
 int main(argc, argv)
@@ -1378,7 +1507,7 @@ int main(argc, argv)
 	opterr = 1;
 
 	while ((ch = getopt(argc, argv,
-	    "ANISCTht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZM:")) != -1) {
+	    "ANISCTht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZM:L:")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
@@ -1545,6 +1674,10 @@ int main(argc, argv)
 			act = ACT_SET_MONITOR_MODE;
 			arg = optarg;
 			break;
+		case 'L':
+			act = ACT_SET_LEAP_MODE;
+			arg = optarg;
+			break;
 		case 'h':
 		default:
 			usage(p);
@@ -1601,6 +1734,9 @@ int main(argc, argv)
 		break;
 	case ACT_ENABLE_TX_KEY:
 		an_enable_tx_key(iface, arg);
+		break;
+	case ACT_SET_LEAP_MODE:
+		an_enable_leap_mode(iface, arg);
 		break;
 	default:
 		an_setconfig(iface, act, arg);
