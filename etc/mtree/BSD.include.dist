@@ -92,6 +92,8 @@
         ..
         nop
         ..
+        raid3
+        ..
         stripe
         ..
     ..
