@@ -2,7 +2,7 @@
 
 PROG=	kldxref
 MAN=	kldxref.8
-SRCS=	kldxref.c ef.c
+SRCS=	kldxref.c ef.c ef_obj.c
 
 WARNS?=	2
 
