@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.107 1999/01/10 01:58:28 eivind Exp $
+ * $Id: swap_pager.c,v 1.108 1999/01/21 08:29:09 dillon Exp $
  */
 
 #include <sys/param.h>
