@@ -50,7 +50,7 @@
 .Bk -words
 .Op Fl Ar column
 .Ek
-.Op Fl adFmrt
+.Op Fl adFfmprt
 .Bk -words
 .Oo
 .Op Fl e
@@ -197,6 +197,10 @@ instead of the default behavior that uses a
 sequence of
 .Em <newline>
 characters.
+.It Fl f
+Same as
+.Fl F
+but pause before beginning the first page if standard output is a terminal.
 .It Fl h Ar header
 Use the string
 .Ar header
@@ -293,6 +297,11 @@ If the
 .Fl o
 option is not specified, the default is zero.
 The space taken is in addition to the output line width.
+.It Fl p
+Pause before each page if the standard output is a terminal.
+.Nm
+will write an alert character to standard error and wait for a carriage
+return to be read on the terminal.
 .It Fl r
 Write no diagnostic reports on failure to open a file.
 .It Fl s Ar char
@@ -373,7 +382,7 @@ file printing is complete (when printing to a terminal).
 The
 .Nm
 utility is
-.St -p1003.2
+.St -p1003.1-2001
 compatible.
 .Sh HISTORY
 A
