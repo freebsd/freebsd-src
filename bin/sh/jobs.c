@@ -330,9 +330,9 @@ showjob(struct job *jp, int sformat, int lformat)
 		}
 		if (!lformat && ps != jp->ps)
 			goto skip;
-		if (jobno == curr)
+		if (jobno == curr && ps == jp->ps)
 			c = '+';
-		else if (jobno == prev)
+		else if (jobno == prev && ps == jp->ps)
 			c = '-';
 		else
 			c = ' ';
@@ -348,7 +348,9 @@ showjob(struct job *jp, int sformat, int lformat)
 			col += strlen(s);
 		}
 		s[0] = '\0';
-		if (ps->status == -1) {
+		if (ps != jp->ps) {
+			*s = '\0';
+		} else if (ps->status == -1) {
 			strcpy(s, "Running");
 		} else if (WIFEXITED(ps->status)) {
 			fmtstr(s, 64, "Exit %d", WEXITSTATUS(ps->status));
