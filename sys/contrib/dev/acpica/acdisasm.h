@@ -226,10 +226,6 @@ void
 AcpiDmDecodeInternalObject (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
-void
-AcpiDmDecodeNode (
-    ACPI_NAMESPACE_NODE     *Node);
-
 UINT32
 AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op);
