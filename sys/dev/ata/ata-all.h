@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@
 #define		ATA_C_READ		0x20	/* read command */
 #define		ATA_C_READ48		0x24	/* read command */
 #define		ATA_C_READ_DMA48	0x25	/* read w/DMA command */
-#define		ATA_C_READ_DMA_QUEUED48	0x26	/* read w/DMA QUEUED command */
+#define		ATA_C_READ_DMA_QUEUED48 0x26	/* read w/DMA QUEUED command */
 #define		ATA_C_READ_MUL48	0x29	/* read multi command */
 #define		ATA_C_WRITE		0x30	/* write command */
 #define		ATA_C_WRITE48		0x34	/* write command */
@@ -88,13 +88,13 @@
 #define		ATA_C_ATA_IDENTIFY	0xec	/* get ATA params */
 #define		ATA_C_SETFEATURES	0xef	/* features command */
 #define		    ATA_C_F_SETXFER	0x03	/* set transfer mode */
-#define		    ATA_C_F_ENAB_WCACHE	0x02	/* enable write cache */
+#define		    ATA_C_F_ENAB_WCACHE 0x02	/* enable write cache */
 #define		    ATA_C_F_DIS_WCACHE	0x82	/* disable write cache */
-#define		    ATA_C_F_ENAB_RCACHE	0xaa	/* enable readahead cache */
+#define		    ATA_C_F_ENAB_RCACHE 0xaa	/* enable readahead cache */
 #define		    ATA_C_F_DIS_RCACHE	0x55	/* disable readahead cache */
-#define		    ATA_C_F_ENAB_RELIRQ	0x5d	/* enable release interrupt */
+#define		    ATA_C_F_ENAB_RELIRQ 0x5d	/* enable release interrupt */
 #define		    ATA_C_F_DIS_RELIRQ	0xdd	/* disable release interrupt */
-#define		    ATA_C_F_ENAB_SRVIRQ	0x5e	/* enable service interrupt */
+#define		    ATA_C_F_ENAB_SRVIRQ 0x5e	/* enable service interrupt */
 #define		    ATA_C_F_DIS_SRVIRQ	0xde	/* disable service interrupt */
 
 #define ATA_STATUS			0x07	/* status register */
@@ -119,20 +119,16 @@
 /* misc defines */
 #define ATA_PRIMARY			0x1f0
 #define ATA_SECONDARY			0x170
-#define ATA_MASTER			0x00
-#define ATA_SLAVE			0x10
 #define ATA_IOSIZE			0x08
 #define ATA_ALTIOSIZE			0x01
 #define ATA_BMIOSIZE			0x08
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
-#define ATA_DEV(device)			((device == ATA_MASTER) ? 0 : 1)
-#define ATA_PARAM(scp, device)		(scp->dev_param[ATA_DEV(device)])
-
 #define ATA_IOADDR_RID			0
 #define ATA_ALTADDR_RID			1
 #define ATA_BMADDR_RID			2
 #define ATA_IRQ_RID			0
+#define ATA_DEV(device)			((device == ATA_MASTER) ? 0 : 1)
 
 /* busmaster DMA related defines */
 #define ATA_DMA_ENTRIES			256
@@ -162,28 +158,48 @@ struct ata_dmaentry {
     u_int32_t count;
 };  
 
-/* structure describing an ATA device */
-struct ata_softc {
+/* structure describing an ATA/ATAPI device */
+struct ata_device {
+    struct ata_channel		*channel;
+    int				unit;		/* unit number */
+#define ATA_MASTER			0x00
+#define ATA_SLAVE			0x10
+
+    char			*name;		/* device name */
+    struct ata_params		*param;		/* ata param structure */
+    void			*driver;	/* ptr to driver for device */
+    int				flags;
+#define		ATA_D_USE_CHS		0x0001
+#define		ATA_D_DETACHING		0x0002
+#define		ATA_D_MEDIA_CHANGED	0x0004
+
+    int				mode;		/* transfermode */
+    int				cmd;		/* last cmd executed */
+    void			*result;	/* misc data */
+};
+
+/* structure describing an ATA channel */
+struct ata_channel {
     struct device		*dev;		/* device handle */
-    int				channel;	/* channel on this controller */
+    int				unit;		/* channel number */
     struct resource		*r_io;		/* io addr resource handle */
     struct resource		*r_altio;	/* altio addr resource handle */
     struct resource		*r_bmio;	/* bmio addr resource handle */
     struct resource		*r_irq;		/* interrupt of this channel */
     void			*ih;		/* interrupt handle */
-    int (*intr_func)(struct ata_softc *);	/* interrupt function */
+    int (*intr_func)(struct ata_channel *);	/* interrupt function */
     u_int32_t			chiptype;	/* pciid of controller chip */
     u_int32_t			alignment;	/* dma engine min alignment */
-    char			*dev_name[2];	/* name of device */
-    struct ata_params		*dev_param[2];	/* ptr to devices params */
-    void			*dev_softc[2];	/* ptr to devices softc's */
-    int 			mode[2];	/* transfer mode for devices */
     int				flags;		/* controller flags */
 #define		ATA_NO_SLAVE		0x01
 #define		ATA_USE_16BIT		0x02
 #define		ATA_ATAPI_DMA_RO	0x04
 #define		ATA_QUEUED		0x08
 #define		ATA_DMA_ACTIVE		0x10
+
+    struct ata_device		device[2];	/* devices on this channel */
+#define		MASTER			0x00
+#define		SLAVE			0x01
 
     int				devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
@@ -199,7 +215,6 @@ struct ata_softc {
 #define		ATA_WAIT_INTR		0x0002
 #define		ATA_WAIT_READY		0x0004
 #define		ATA_WAIT_MASK		0x0007
-#define 	ATA_USE_CHS		0x0008
 #define		ATA_ACTIVE		0x0010
 #define		ATA_ACTIVE_ATA		0x0020
 #define		ATA_ACTIVE_ATAPI	0x0040
@@ -210,6 +225,12 @@ struct ata_softc {
     void			*running;	/* currently running request */
 };
 
+/* disk bay/drawer related */
+#define		ATA_LED_OFF		0x00
+#define		ATA_LED_RED		0x01
+#define		ATA_LED_GREEN		0x02
+#define		ATA_LED_ORANGE		0x03
+
 /* externs */
 extern devclass_t ata_devclass;
  
@@ -219,14 +240,16 @@ int ata_attach(device_t);
 int ata_detach(device_t);
 int ata_resume(device_t);
 
-void ata_start(struct ata_softc *);
-void ata_reset(struct ata_softc *);
-int ata_reinit(struct ata_softc *);
-int ata_wait(struct ata_softc *, int, u_int8_t);
-int ata_command(struct ata_softc *, int, u_int8_t, u_int64_t, u_int16_t, u_int8_t, int);
-int ata_printf(struct ata_softc *, int, const char *, ...) __printflike(3, 4);
-void ata_set_name(struct ata_softc *, int, char *, int);
-void ata_free_name(struct ata_softc *, int);
+void ata_start(struct ata_channel *);
+void ata_reset(struct ata_channel *);
+int ata_reinit(struct ata_channel *);
+int ata_wait(struct ata_device *, u_int8_t);
+int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int8_t, int);
+void ata_drawerleds(struct ata_device *, u_int8_t);
+int ata_printf(struct ata_channel *, int, const char *, ...) __printflike(3, 4);
+int ata_prtdev(struct ata_device *, const char *, ...) __printflike(2, 3);
+void ata_set_name(struct ata_device *, char *, int);
+void ata_free_name(struct ata_device *);
 int ata_get_lun(u_int32_t *);
 int ata_test_lun(u_int32_t *, int);
 void ata_free_lun(u_int32_t *, int);
@@ -236,12 +259,12 @@ int ata_wmode(struct ata_params *);
 int ata_umode(struct ata_params *);
 int ata_find_dev(device_t, u_int32_t, u_int32_t);
 
-void *ata_dmaalloc(struct ata_softc *, int);
-void ata_dmainit(struct ata_softc *, int, int, int, int);
-int ata_dmasetup(struct ata_softc *, int, struct ata_dmaentry *, caddr_t, int);
-void ata_dmastart(struct ata_softc *, int, struct ata_dmaentry *, int);
-int ata_dmastatus(struct ata_softc *);
-int ata_dmadone(struct ata_softc *);
+void *ata_dmaalloc(struct ata_channel *, int);
+void ata_dmainit(struct ata_channel *, int, int, int, int);
+int ata_dmasetup(struct ata_channel *, int, struct ata_dmaentry *, caddr_t, int);
+void ata_dmastart(struct ata_channel *, int, struct ata_dmaentry *, int);
+int ata_dmastatus(struct ata_channel *);
+int ata_dmadone(struct ata_channel *);
 
 /* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \
