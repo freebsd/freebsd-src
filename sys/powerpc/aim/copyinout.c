@@ -233,13 +233,6 @@ subyte(void *addr, int byte)
 }
 
 int
-suibyte(void *addr, int byte)
-{
-
-	return (subyte(addr, byte));
-}
-
-int
 suword(void *addr, long word)
 {
 	struct		thread *td;

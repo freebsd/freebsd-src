@@ -1204,9 +1204,9 @@ ENTRY(fuswintr)
 	ret
 
 /*
- * fusword - MP SAFE
+ * fuword16 - MP SAFE
  */
-ENTRY(fusword)
+ENTRY(fuword16)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -1293,9 +1293,9 @@ ENTRY(suword32)
 	jmp	suword
 
 /*
- * susword - MP SAFE (if not I386_CPU)
+ * suword16 - MP SAFE (if not I386_CPU)
  */
-ENTRY(susword)
+ENTRY(suword16)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -1339,9 +1339,8 @@ ENTRY(susword)
 	ret
 
 /*
- * su[i]byte - MP SAFE (if not I386_CPU)
+ * subyte - MP SAFE (if not I386_CPU)
  */
-ALTENTRY(suibyte)
 ENTRY(subyte)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)

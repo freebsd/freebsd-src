@@ -150,11 +150,6 @@
 	RET
 	END(fubyte)
 	
-	LEAF(suibyte, 2)
-	ldiq	v0, -1
-	RET
-	END(suibyte)
-
 	LEAF(fusufault, 0)
 	ldq	t0, PC_CURTHREAD(pcpup)
 	ldq	t0, TD_PCB(t0)
