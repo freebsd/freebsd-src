@@ -42,7 +42,7 @@ void cpu_critical_fork_exit(void);
 static __inline void
 cpu_critical_enter(struct thread *td)
 {
-	cd->td_md.md_savecrit = disable_interrupts(I32_bit | F32_bit);
+	td->td_md.md_savecrit = disable_interrupts(I32_bit | F32_bit);
 }
 
 static __inline void
