@@ -227,7 +227,7 @@ mpt_reset(mpt_softc_t *mpt)
 void
 mpt_free_request(mpt_softc_t *mpt, request_t *req)
 {
-	if (req == NULL || req != &mpt->requests[req->index]) {
+	if (req == NULL || req != &mpt->request_pool[req->index]) {
 		panic("mpt_free_request bad req ptr\n");
 		return;
 	}
@@ -244,7 +244,7 @@ mpt_get_request(mpt_softc_t *mpt)
 	request_t *req;
 	req = SLIST_FIRST(&mpt->request_free_list);
 	if (req != NULL) {
-		if (req != &mpt->requests[req->index]) {
+		if (req != &mpt->request_pool[req->index]) {
 			panic("mpt_get_request: corrupted request free list\n");
 		}
 		if (req->ccb != NULL) {
@@ -991,7 +991,7 @@ mpt_send_port_enable(mpt_softc_t *mpt, int port)
 	do {
 		DELAY(500);
 		mpt_intr(mpt);
-		if (++count == 1000) {
+		if (++count == 100000) {
 			device_printf(mpt->dev, "port enable timed out\n");
 			return (-1);
 		}
@@ -1064,8 +1064,8 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 	/* Put all request buffers (back) on the free list */
         SLIST_INIT(&mpt->request_free_list);
-	for (val = 0; val < MPT_MAX_REQUESTS; val++) {
-		mpt_free_request(mpt, &mpt->requests[val]);
+	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
+		mpt_free_request(mpt, &mpt->request_pool[val]);
 	}
 
 	if (mpt->verbose > 1) {
@@ -1111,7 +1111,7 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 		if (mpt->verbose > 1) {
 			device_printf(mpt->dev,
-			    "mpt_get_iocfacts: GlobalCredits=%d BlockSize=%u "
+			    "IOCFACTS: GlobalCredits=%d BlockSize=%u "
 			    "Request Frame Size %u\n", facts.GlobalCredits,
 			    facts.BlockSize, facts.RequestFrameSize);
 		}
@@ -1125,8 +1125,9 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 		if (mpt->verbose > 1) {
 			device_printf(mpt->dev,
-			    "mpt_get_portfacts: Type %x PFlags %x IID %d\n",
-			    pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID);
+			    "PORTFACTS: Type %x PFlags %x IID %d MaxDev %d\n",
+			    pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID,
+			    pfp.MaxDevices);
 		}
 
 		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&

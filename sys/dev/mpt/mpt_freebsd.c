@@ -47,8 +47,8 @@ mpt_cam_attach(mpt_softc_t *mpt)
 	int maxq;
 
 	mpt->bus = 0;
-	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS)?
-	    mpt->mpt_global_credits : MPT_MAX_REQUESTS;
+	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS(mpt))?
+	    mpt->mpt_global_credits : MPT_MAX_REQUESTS(mpt);
 
 
 	/*
@@ -156,6 +156,7 @@ mpttimeout(void *arg)
 	(void) timeout(mpttimeout2, (caddr_t)req, hz / 10);
 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
 	ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+	mpt->outofbeer = 0;
 	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
 	CAMLOCK_2_MPTLOCK(mpt);
@@ -213,7 +214,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			else
 				ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 		}
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		CAMLOCK_2_MPTLOCK(mpt);
@@ -358,8 +358,6 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
 		MPTLOCK_2_CAMLOCK(mpt);
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
 		return;
 	}
@@ -379,9 +377,7 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	MPTLOCK_2_CAMLOCK(mpt);
 }
 
-/* Convert a CAM SCSI I/O ccb into a MPT request to pass the FC Chip */
-/* Including building a Scatter gather list of physical page to transfer */
-static int
+static void
 mpt_start(union ccb *ccb)
 {
 	request_t *req;
@@ -396,8 +392,17 @@ mpt_start(union ccb *ccb)
 	CAMLOCK_2_MPTLOCK(mpt);
 	/* Get a request structure off the free list */
 	if ((req = mpt_get_request(mpt)) == NULL) {
+		if (mpt->outofbeer == 0) {
+			mpt->outofbeer = 1;
+			xpt_freeze_simq(mpt->sim, 1);
+			if (mpt->verbose > 1) {
+				device_printf(mpt->dev, "FREEZEQ\n");
+			}
+		}
 		MPTLOCK_2_CAMLOCK(mpt);
-		return (CAM_REQUEUE_REQ);
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		xpt_done(ccb);
+		return;
 	}
 	MPTLOCK_2_CAMLOCK(mpt);
 
@@ -533,7 +538,6 @@ mpt_start(union ccb *ccb)
 	} else {
 		mpt_execute_req(req, NULL, 0, 0);
 	}
-	return (CAM_REQ_INPROG);
 }
 
 static int
@@ -602,11 +606,6 @@ mpt_ctlop(mpt_softc_t *mpt, void *vmsg, u_int32_t reply)
 		mpt_event_notify_reply(mpt, vmsg);
 		mpt_free_reply(mpt, (reply << 1));
 	} else if (dmsg->Function == MPI_FUNCTION_EVENT_ACK) {
-		MSG_EVENT_ACK_REPLY *evar = vmsg;
-
-device_printf(mpt->dev, "ack response reply context %x, status %x\n", 
-evar->MsgContext, evar->IOCStatus);
-
 		mpt_free_reply(mpt, (reply << 1));
 	} else if (dmsg->Function == MPI_FUNCTION_PORT_ENABLE) {
 		MSG_PORT_ENABLE_REPLY *msg = vmsg;
@@ -615,16 +614,16 @@ evar->MsgContext, evar->IOCStatus);
 			device_printf(mpt->dev, "enable port reply idx %d\n",
 			    index);
 		}
-		if (index >= 0 && index < MPT_MAX_REQUESTS) {
-			request_t *req = &mpt->requests[index];
+		if (index >= 0 && index < MPT_MAX_REQUESTS(mpt)) {
+			request_t *req = &mpt->request_pool[index];
 			req->debug = REQ_DONE;
 		}
 		mpt_free_reply(mpt, (reply << 1));
 	} else if (dmsg->Function == MPI_FUNCTION_CONFIG) {
 		MSG_CONFIG_REPLY *msg = vmsg;
 		int index = msg->MsgContext & ~0x80000000;
-		if (index >= 0 && index < MPT_MAX_REQUESTS) {
-			request_t *req = &mpt->requests[index];
+		if (index >= 0 && index < MPT_MAX_REQUESTS(mpt)) {
+			request_t *req = &mpt->request_pool[index];
 			req->debug = REQ_DONE;
 			req->sequence = reply;
 		} else {
@@ -765,8 +764,6 @@ mpt_event_notify_reply(mpt_softc_t *mpt, MSG_EVENT_NOTIFY_REPLY *msg)
 	if (msg->AckRequired) {
 		MSG_EVENT_ACK *ackp;
 		request_t *req;
-device_printf(mpt->dev, "ack required for event %x context %x\n", 
-msg->Event, msg->EventContext);
 		if ((req = mpt_get_request(mpt)) == NULL) {
 			panic("unable to get request to acknowledge notify");
 		}
@@ -775,7 +772,7 @@ msg->Event, msg->EventContext);
 		ackp->Function = MPI_FUNCTION_EVENT_ACK;
 		ackp->Event = msg->Event;
 		ackp->EventContext = msg->EventContext;
-		ackp->MsgContext = req->index | 0x8000000;
+		ackp->MsgContext = req->index | 0x80000000;
 		mpt_check_doorbell(mpt);
 		mpt_send_cmd(mpt, req);
 	}
@@ -832,12 +829,12 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 	}
 
 	/* Did we end up with a valid index into the table? */
-	if (index < 0 || index >= MPT_MAX_REQUESTS) {
+	if (index < 0 || index >= MPT_MAX_REQUESTS(mpt)) {
 		printf("mpt_done: invalid index (%x) in reply\n", index);
 		return;
 	}
 
-	req = &mpt->requests[index];
+	req = &mpt->request_pool[index];
 
 	/* Make sure memory hasn't been trashed */
 	if (req->index != index) {
@@ -907,6 +904,13 @@ mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+		if (mpt->outofbeer) {
+			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+			mpt->outofbeer = 0;
+			if (mpt->verbose > 1) {
+				device_printf(mpt->dev, "THAWQ\n");
+			}
+		}
 		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
 		CAMLOCK_2_MPTLOCK(mpt);
@@ -1004,15 +1008,6 @@ device_printf(mpt->dev, "underrun, scsi status is %x\n", ccb->csio.scsi_status);
 		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 	}
 
-	/*
-	 * I don't see the point of this
-	 */
-#if	0
-	if ((mpt_reply->MsgFlags & 0x80) == 0) {
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-	}
-#endif
-
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			ccb->ccb_h.status |= CAM_DEV_QFRZN;
@@ -1022,6 +1017,13 @@ device_printf(mpt->dev, "underrun, scsi status is %x\n", ccb->csio.scsi_status);
 
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+	if (mpt->outofbeer) {
+		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		mpt->outofbeer = 0;
+		if (mpt->verbose > 1) {
+			device_printf(mpt->dev, "THAWQ\n");
+		}
+	}
 	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
 	CAMLOCK_2_MPTLOCK(mpt);
@@ -1055,26 +1057,40 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		    device_printf(mpt->dev, "XPT_RESET_BUS\n");
 		CAMLOCK_2_MPTLOCK(mpt);
 		error = mpt_bus_reset(ccb);
-		MPTLOCK_2_CAMLOCK(mpt);
 		switch (error) {
 		case CAM_REQ_INPROG:
-			ccb->ccb_h.status |= CAM_SIM_QUEUED;
+			MPTLOCK_2_CAMLOCK(mpt);
 			break;
 		case CAM_REQUEUE_REQ:
-device_printf(mpt->dev, "CAM_REQUEUE_REQ on bus reset");
-			xpt_freeze_simq(sim, 1);
+			if (mpt->outofbeer == 0) {
+				mpt->outofbeer = 1;
+				xpt_freeze_simq(sim, 1);
+				if (mpt->verbose > 1) {
+					device_printf(mpt->dev, "FREEZEQ\n");
+				}
+			}
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
+			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			break;
 
 		case CAM_REQ_CMP:
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			ccb->ccb_h.status |= CAM_REQ_CMP;
+			if (mpt->outofbeer) {
+				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+				mpt->outofbeer = 0;
+				if (mpt->verbose > 1) {
+					device_printf(mpt->dev, "THAWQ\n");
+				}
+			}
+			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 			break;
 
 		default:
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
 		}
 		break;
@@ -1091,35 +1107,14 @@ device_printf(mpt->dev, "CAM_REQUEUE_REQ on bus reset");
 			}
 		}
 		/* Max supported CDB length is 16 bytes */
-		if (ccb->csio.cdb_len > 16) {
+		if (ccb->csio.cdb_len >
+		    sizeof (((PTR_MSG_SCSI_IO_REQUEST)0)->CDB)) {
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			return;
 		}
-
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
-		error = mpt_start(ccb);
-		switch (error) {
-		case CAM_REQ_INPROG:
-			ccb->ccb_h.status |= CAM_SIM_QUEUED;
-			break;
-
-		case CAM_REQUEUE_REQ:
-device_printf(mpt->dev, "CAM_REQUEUE_REQ on SCSI_IO");
-			xpt_freeze_simq(sim, 1);
-			ccb->ccb_h.status = CAM_REQUEUE_REQ;
-			xpt_done(ccb);
-			break;
-
-		case CAM_REQ_CMP:
-			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-			xpt_done(ccb);
-			break;
-
-		default:
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-			xpt_done(ccb);
-		}
+		mpt_start(ccb);
 		break;
 
 	case XPT_ABORT:
