@@ -508,9 +508,12 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID Enterprise 1300
     MegaRAID Enterprise 1400
     MegaRAID Enterprise 1500
+    MegaRAID Enterprise 1600
     MegaRAID Elite 1500
+    MegaRAID Elite 1600
     MegaRAID Express 200
     MegaRAID Express 300
+    MegaRAID Express 500
     Dell PERC
     Dell PERC 2/SC
     Dell PERC 2/DC
