@@ -43,24 +43,30 @@ DPADD+= ${TELNETOBJDIR}/libtelnet.a
 
 #ifdef	ENCRYPTION
 
-CFLAGS+=-DAUTHENTICATION -DENCRYPTION
+CFLAGS += -DENCRYPTION
 
-.if exists(/usr/lib/libkrb.a)
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_EBONES) \
+	|| defined(MAKE_KERBEROS))
+CFLAGS+=-DAUTHENTICATION
 CFLAGS+= -DKRB4
 LDADD+= -ldes -lkrb
+DPADD+= ${LIBDES} ${LIBKRB}
 .endif
 
-.if exists(/usr/lib/libkrb5.a)
-CFLAGS+= -DKRB5 -DFORWARD
-LDADD+=  -ldes -lkrb5
-.endif
+#.if exists(${DESTDIR}/usr/lib/libkrb5.a) && (defined(MAKE_EBONES) \
+#       || defined(MAKE_KERBEROS))
+#CFLAGS+=-DAUTHENTICATION
+#CFLAGS+= -DKRB5 -DFORWARD
+#LDADD+= -ldes -lkrb5
+#DPADD+= ${LIBDES}
+#.endif
 
 # Used only in krb4encpwd.c and rsaencpwd.c (libtelnet), not yet active
 #LDADD+= -ldescrypt
 
 #endif	/* ENCRYPTION */
 
-DPADD=	${LIBTERMCAP}
+DPADD+=  ${LIBTERMCAP}
 
 SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
 	terminal.c tn3270.c utilities.c
