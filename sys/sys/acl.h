@@ -133,7 +133,9 @@ __END_DECLS
  * ACL type for different file systems (i.e., AFS).
  */
 __BEGIN_DECLS
+int	acl_calc_mask(acl_t *acl_p);
 int	acl_delete_fd_np(int _filedes, acl_type_t _type);
+int	acl_delete_entry(acl_t acl, acl_entry_t entry_d);
 int	acl_delete_file_np(const char *_path_p, acl_type_t _type);
 int	acl_delete_def_file(const char *_path_p);
 acl_t	acl_dup(acl_t _acl);

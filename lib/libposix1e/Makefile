@@ -4,7 +4,9 @@ MAINTAINER=	rwatson@FreeBSD.org
 LIB=	posix1e
 SHLIB_MAJOR= 2 
 SHLIB_MINOR= 0
-SRCS+=	acl_delete.c			\
+SRCS+=	acl_calc_mask.c			\
+	acl_delete.c			\
+	acl_delete_entry.c		\
 	acl_free.c			\
 	acl_from_text.c			\
 	acl_get.c			\
@@ -29,7 +31,9 @@ SRCS+=	acl_delete.c			\
 
 
 MAN3=	acl.3				\
+	acl_calc_mask.3			\
 	acl_delete.3			\
+	acl_delete_entry.3		\
 	acl_dup.3			\
 	acl_free.3			\
 	acl_from_text.3			\
