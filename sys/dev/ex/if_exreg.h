@@ -35,6 +35,9 @@
  * Several constants.
  */
 
+#define CARD_TYPE_EX_10         1
+#define CARD_TYPE_EX_10_PLUS    2
+
 /* Length of an ethernet address. */
 #define ETHER_ADDR_LEN 6
 /* Default RAM size in board. */
@@ -126,11 +129,57 @@
 
 /* EEPROM memory positions (16-bit wide). */
 
+#define EE_W0			0x00
+# define EE_W0_PNP		0x0001
+# define EE_W0_BUS16		0x0004
+# define EE_W0_FLASH_ADDR_MASK	0x0038
+# define EE_W0_FLASH_ADDR_SHIFT	3
+# define EE_W0_AUTO_IO		0x0040
+# define EE_W0_FLASH		0x0100
+# define EE_W0_AUTO_NEG		0x0200
+# define EE_W0_IO_MASK		0xFC00
+# define EE_W0_IO_SHIFT		10
+
 #define EE_IRQ_No 1
 #define IRQ_No_Mask 0x07
+
+#define EE_W1			0x01
+# define EE_W1_INT_SEL		0x0007
+# define EE_W1_NO_LINK_INT	0x0008	/* Link Integrity Off		*/
+# define EE_W1_NO_POLARITY	0x0010	/* Polarity Correction Off	*/
+# define EE_W1_TPE_AUI		0x0020	/* 1 = TPE, 0 = AUI		*/
+# define EE_W1_NO_JABBER_PREV	0x0040	/* Jabber prevention Off	*/
+# define EE_W1_NO_AUTO_SELECT	0x0080	/* Auto Port Selection Off	*/
+# define EE_W1_SMOUT		0x0100	/* SMout Pin Control 0= Input	*/
+# define EE_W1_PROM		0x0200	/* Flash = 0, PROM = 1		*/
+# define EE_W1_ALT_READY	0x2000	/* Alternate Ready, 0=normal	*/
+# define EE_W1_FULL_DUPLEX	0x8000
+
+#define EE_W2			0x02
+#define EE_W3			0x03
+#define EE_W4			0x04
+
 #define EE_Eth_Addr_Lo 2
 #define EE_Eth_Addr_Mid 3
 #define EE_Eth_Addr_Hi 4
+
+#define EE_W5			0x05
+# define EE_W5_BNC_TPE		0x0001	/* 0 = TPE, 1 = BNC		*/
+# define EE_W5_BOOT_IPX		0x0002
+# define EE_W5_BOOT_ODI		0x0004
+# define EE_W5_BOOT_NDIS	(EE_W5_BOOT_IPX|EE_W5_BOOT_ODI)
+# define EE_W5_NUM_CONN		0x0008	/* 0 = 2, 1 = 3			*/
+# define EE_W5_NOFLASH		0x0010	/* No flash socket present	*/
+# define EE_W5_PORT_TPE		0x0020	/* TPE present			*/
+# define EE_W5_PORT_BNC		0x0040	/* BNC present			*/
+# define EE_W5_PORT_AUI		0x0080	/* AUI present			*/
+# define EE_W5_PWR_MGT		0x0100	/* Power Management		*/
+# define EE_W5_CP		0x0200	/* COncurrent Processing	*/
+
+#define EE_W6			0x05
+# define EE_W6_STEP_MASK	0x000F
+# define EE_W6_BOARD_MASK	0xFFF0
+# define EE_W6_BOARD_SHIFT	4
 
 /* EEPROM serial interface. */
 

@@ -38,12 +38,9 @@
  * 30-Oct-1996: first beta version. Inet and BPF supported, but no multicast.
  */
 
-#include "ex.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -55,20 +52,21 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_media.h> 
+#include <net/ethernet.h>
+#include <net/bpf.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <net/bpf.h>
-
-#include <machine/clock.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
 #include <dev/ex/if_exreg.h>
+#include <dev/ex/if_exvar.h>
 
 #ifdef EXDEBUG
 # define Start_End 1
@@ -82,63 +80,15 @@ static int exintr_count = 0;
 # define DODEBUG(level, action)
 #endif
 
-#define Conn_BNC 1
-#define Conn_TPE 2
-#define Conn_AUI 3
-
-#define CARD_TYPE_EX_10		1
-#define CARD_TYPE_EX_10_PLUS	2	
-
-struct ex_softc {
-  	struct arpcom	arpcom;		/* Ethernet common data */
-
-	device_t	dev;
-	struct resource *ioport;
-	struct resource *irq;
-
-	u_int		iobase;		/* I/O base address. */
-	u_short		irq_no;		/* IRQ number. */
-
-	char *		irq2ee;		/* irq <-> internal		*/
-	u_char *	ee2irq;		/* representation conversion	*/
-
-	u_short		connector;	/* Connector type. */
-
-	u_int		mem_size;	/* Total memory size, in bytes. */
-	u_int		rx_mem_size;	/* Rx memory size (by default,	*/
-					/* first 3/4 of total memory).	*/
-
-	u_int		rx_lower_limit;	/* Lower and upper limits of	*/
-	u_int		rx_upper_limit;	/* receive buffer.		*/
-
-	u_int		rx_head;	/* Head of receive ring buffer. */
-	u_int		tx_mem_size;	/* Tx memory size (by default,	*/
-					/* last quarter of total memory).*/
-
-	u_int		tx_lower_limit;	/* Lower and upper limits of	*/
-	u_int		tx_upper_limit;	/* transmit buffer.		*/
-
-	u_int		tx_head;	/* Head and tail of 		*/
-	u_int		tx_tail;	/* transmit ring buffer.	*/
-
-	u_int		tx_last;	/* Pointer to beginning of last	*/
-					/* frame in the chain.		*/
-};
-
-static char irq2eemap[] =
+char irq2eemap[] =
 	{ -1, -1, 0, 1, -1, 2, -1, -1, -1, 0, 3, 4, -1, -1, -1, -1 };
-static u_char ee2irqmap[] =
+u_char ee2irqmap[] =
 	{ 9, 3, 5, 10, 11, 0, 0, 0 };
-
-static char plus_irq2eemap[] =
+                
+char plus_irq2eemap[] =
 	{ -1, -1, -1, 0, 1, 2, -1, 3, -1, 4, 5, 6, 7, -1, -1, -1 };
-static u_char plus_ee2irqmap[] =
+u_char plus_ee2irqmap[] =
 	{ 3, 4, 5, 7, 9, 10, 11, 12 };
-
-/* Bus Front End Functions */
-static void	ex_isa_identify	__P((driver_t *, device_t));
-static int	ex_isa_probe	__P((device_t));
-static int	ex_isa_attach	__P((device_t));
 
 /* Network Interface Functions */
 static void	ex_init		__P((void *));
@@ -146,42 +96,19 @@ static void	ex_start	__P((struct ifnet *));
 static int	ex_ioctl	__P((struct ifnet *, u_long, caddr_t));
 static void	ex_watchdog	__P((struct ifnet *));
 
-static void	ex_stop		__P((struct ex_softc *));
+/* ifmedia Functions	*/
+static int	ex_ifmedia_upd	__P((struct ifnet *));
+static void	ex_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+
+static int	ex_get_media	__P((u_int32_t iobase));
+
 static void	ex_reset	__P((struct ex_softc *));
 
-static driver_intr_t	ex_intr;
 static void	ex_tx_intr	__P((struct ex_softc *));
 static void	ex_rx_intr	__P((struct ex_softc *));
 
-static u_short	eeprom_read	__P((int, int));
-
-static device_method_t ex_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,	ex_isa_identify),
-	DEVMETHOD(device_probe,		ex_isa_probe),
-	DEVMETHOD(device_attach,	ex_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t ex_driver = {
-	"ex",
-	ex_methods,
-	sizeof(struct ex_softc),
-};
-
-static devclass_t ex_devclass;
-
-DRIVER_MODULE(ex, isa, ex_driver, ex_devclass, 0, 0);
-
-static struct isa_pnp_id ex_ids[] = {
-	{ 0x3110d425,	NULL },	/* INT1031 */
-	{ 0x3010d425,	NULL },	/* INT1030 */
-	{ 0,		NULL },
-};
-
-static int
-look_for_card (u_int iobase)
+int
+look_for_card (u_int32_t iobase)
 {
 	int count1, count2;
 
@@ -198,24 +125,7 @@ look_for_card (u_int iobase)
 	return((count2 & Counter_bits) == ((count1 + 0xc0) & Counter_bits));
 }
 
-static int
-ex_get_media (u_int32_t iobase)
-{
-	int	tmp;
-
-	outb(iobase + CMD_REG, Bank2_Sel);
-	tmp = inb(iobase + REG3);
-	outb(iobase + CMD_REG, Bank0_Sel);
-
-	if (tmp & TPE_bit)
-		return(Conn_TPE);
-	if (tmp & BNC_bit)
-		return(Conn_BNC);
-
-	return (Conn_AUI);
-}
-
-static void
+void
 ex_get_address (u_int32_t iobase, u_char *enaddr)
 {
 	u_int16_t	eaddr_tmp;
@@ -233,7 +143,7 @@ ex_get_address (u_int32_t iobase, u_char *enaddr)
 	return;
 }
 
-static int
+int
 ex_card_type (u_char *enaddr)
 {
 	if ((enaddr[0] == 0x00) && (enaddr[1] == 0xA0) && (enaddr[2] == 0xC9))
@@ -243,182 +153,69 @@ ex_card_type (u_char *enaddr)
 }
 
 /*
- * Non-destructive identify.
+ * Caller is responsible for eventually calling
+ * ex_release_resources() on failure.
  */
-static void
-ex_isa_identify (driver_t *driver, device_t parent)
+int
+ex_alloc_resources (device_t dev)
 {
-	device_t	child;
-	u_int32_t	ioport;
-	u_char 		enaddr[6];
-	u_int		irq;
-	int		tmp;
-	const char *	desc;
+	struct ex_softc *	sc = device_get_softc(dev);
+	int			error = 0;
 
-	for (ioport = 0x200; ioport < 0x3a0; ioport += 0x10) {
+	sc->ioport = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->ioport_rid,
+					0, ~0, 1, RF_ACTIVE);
+	if (!sc->ioport) {
+		device_printf(dev, "No I/O space?!\n");
+		error = ENOMEM;
+		goto bad;
+	}
 
-		/* No board found at address */
-		if (!look_for_card(ioport)) {
-			continue;
-		}
+	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
+					0, ~0, 1, RF_ACTIVE);
 
-		/* Board in PnP mode */
-		if (eeprom_read(ioport, 0) & 0x01) {
-			continue;
-		}
+	if (!sc->irq) {
+		device_printf(dev, "No IRQ?!\n");
+		error = ENOMEM;
+		goto bad;
+	}
 
-		bzero(enaddr, sizeof(enaddr));
+bad:
+	return (error);
+}
 
-		/* Reset the card. */
-		outb(ioport + CMD_REG, Reset_CMD);
-		DELAY(400);
+void
+ex_release_resources (device_t dev)
+{
+	struct ex_softc *	sc = device_get_softc(dev);
 
-		ex_get_address(ioport, enaddr);
-		tmp = eeprom_read(ioport, EE_IRQ_No) & IRQ_No_Mask;
+	if (sc->ih) {
+		bus_teardown_intr(dev, sc->irq, sc->ih);
+		sc->ih = NULL;
+	}
 
-		/* work out which set of irq <-> internal tables to use */
-		if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
-			irq  = plus_ee2irqmap[tmp];
-			desc = "Intel Pro/10+";
-		} else {
-			irq = ee2irqmap[tmp];
-			desc = "Intel Pro/10";
-		}
+	if (sc->ioport) {
+		bus_release_resource(dev, SYS_RES_IOPORT,
+					sc->ioport_rid, sc->ioport);
+		sc->ioport = NULL;
+	}
 
-		child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "ex", -1);
-		device_set_desc_copy(child, desc);
-		device_set_driver(child, driver);
-		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
-		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EX_IOSIZE);
+	if (sc->irq) {
+		bus_release_resource(dev, SYS_RES_IRQ,
+					sc->irq_rid, sc->irq);
+		sc->irq = NULL;
 	}
 
 	return;
 }
 
-static int
-ex_isa_probe(device_t dev)
-{
-	u_int		iobase;
-	u_int		irq;
-	char *		irq2ee;
-	u_char *	ee2irq;
-	u_char 		enaddr[6];
-	int		tmp;
-	int		error;
-
-	DODEBUG(Start_End, printf("ex_probe: start\n"););
-
-	/* Check isapnp ids */
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ex_ids);
-
-	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO) {
-		return(error);
-	}
-
-	/* If we had some other problem. */
-	if (!(error == 0 || error == ENOENT)) {
-		return(error);
-	}
-
-	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
-	if (iobase && !look_for_card(iobase)) {
-		printf("ex: no card found at 0x%03x\n", iobase);
-		return(ENXIO);
-	}
-
-	/*
-	 * Reset the card.
-	 */
-	outb(iobase + CMD_REG, Reset_CMD);
-	DELAY(400);
-
-	ex_get_address(iobase, enaddr);
-
-	/* work out which set of irq <-> internal tables to use */
-	if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
-		irq2ee = plus_irq2eemap;
-		ee2irq = plus_ee2irqmap;
-	} else {
-		irq2ee = irq2eemap;
-		ee2irq = ee2irqmap;
-	}
-
-	tmp = eeprom_read(iobase, EE_IRQ_No) & IRQ_No_Mask;
-	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
-
-	if (irq > 0) {
-		/* This will happen if board is in PnP mode. */
-		if (ee2irq[tmp] != irq) {
-			printf("ex: WARNING: board's EEPROM is configured"
-				" for IRQ %d, using %d\n",
-				ee2irq[tmp], irq);
-		}
-	} else {
-		irq = ee2irq[tmp];
-		bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
-	}
-
-	if (irq == 0) {
-		printf("ex: invalid IRQ.\n");
-		return(ENXIO);
-	}
-
-	DODEBUG(Start_End, printf("ex_probe: finish\n"););
-
-	return(0);
-}
-
-static int
-ex_isa_attach(device_t dev)
+int
+ex_attach(device_t dev)
 {
 	struct ex_softc *	sc = device_get_softc(dev);
 	struct ifnet *		ifp = &sc->arpcom.ac_if;
+	struct ifmedia *	ifm;
 	int			unit = device_get_unit(dev);
-	int			error;
-	int			rid;
-	void *			ih;
-
-	DODEBUG(Start_End, device_printf(dev, "start\n"););
-
-	rid = 0;
-	sc->ioport  = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-					 0, ~0, 1, RF_ACTIVE);
-
-	if (!sc->ioport) {
-		device_printf(dev, "No I/O space?!\n");
-		goto bad;
-	}
-
-	rid = 0;
-	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-				     0, ~0, 1, RF_ACTIVE);
-
-	if (!sc->irq) {
-		device_printf(dev, "No IRQ?!\n");
-		goto bad;
-	}
-
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       ex_intr, (void *)sc, &ih);
-
-	if (error) {
-		device_printf(dev, "bus_setup_intr() failed!\n");
-		goto bad;
-	}
-
-	/*
-	 * Fill in several fields of the softc structure:
-	 *	- I/O base address.
-	 *	- Hardware Ethernet address.
-	 *	- IRQ number (if not supplied in config file, read it from EEPROM).
-	 *	- Connector type.
-	 */
-	sc->dev = dev;
-	sc->iobase = rman_get_start(sc->ioport);
-	sc->irq_no = rman_get_start(sc->irq);
-
-	ex_get_address(sc->iobase, sc->arpcom.ac_enaddr);
+	u_int16_t		temp;
 
 	/* work out which set of irq <-> internal tables to use */
 	if (ex_card_type(sc->arpcom.ac_enaddr) == CARD_TYPE_EX_10_PLUS) {
@@ -429,7 +226,6 @@ ex_isa_attach(device_t dev)
 		sc->ee2irq = ee2irqmap;
 	}
 
-	sc->connector = ex_get_media(sc->iobase);
 	sc->mem_size = CARD_RAM_SIZE;	/* XXX This should be read from the card itself. */
 
 	/*
@@ -447,6 +243,22 @@ ex_isa_attach(device_t dev)
 	ifp->if_init = ex_init;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
+	ifmedia_init(&sc->ifmedia, 0, ex_ifmedia_upd, ex_ifmedia_sts);
+
+	temp = eeprom_read(sc->iobase, EE_W5);
+	if (temp & EE_W5_PORT_TPE)
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+	if (temp & EE_W5_PORT_BNC)
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_2, 0, NULL);
+	if (temp & EE_W5_PORT_AUI)
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
+
+	ifmedia_set(&sc->ifmedia, ex_get_media(sc->iobase));
+
+	ifm = &sc->ifmedia;
+	ifm->ifm_media = ifm->ifm_cur->ifm_media;
+	ex_ifmedia_upd(ifp);
+
 	/*
 	 * Attach the interface.
 	 */
@@ -455,19 +267,8 @@ ex_isa_attach(device_t dev)
 	device_printf(sc->dev, "Ethernet address %6D\n",
 			sc->arpcom.ac_enaddr, ":");
 
-	DODEBUG(Start_End, printf("ex_isa_attach%d: finish\n", unit););
-
 	return(0);
-bad:
-
-	if (sc->ioport)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->ioport);
-	if (sc->irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
-
-	return (-1);
 }
-
 
 static void
 ex_init(void *xsc)
@@ -481,11 +282,11 @@ ex_init(void *xsc)
 
 	DODEBUG(Start_End, printf("ex_init%d: start\n", ifp->if_unit););
 
-	if (ifp->if_addrhead.tqh_first == NULL) {
+	if (TAILQ_FIRST(&ifp->if_addrhead) == NULL) {
 		return;
 	}
 	s = splimp();
-	sc->arpcom.ac_if.if_timer = 0;
+	ifp->if_timer = 0;
 
 	/*
 	 * Load the ethernet address into the card.
@@ -740,7 +541,7 @@ ex_start(struct ifnet *ifp)
 	DODEBUG(Start_End, printf("ex_start%d: finish\n", unit););
 }
 
-static void
+void
 ex_stop(struct ex_softc *sc)
 {
 	int iobase = sc->iobase;
@@ -770,8 +571,7 @@ ex_stop(struct ex_softc *sc)
 	return;
 }
 
-
-static void
+void
 ex_intr(void *arg)
 {
 	struct ex_softc *	sc = (struct ex_softc *)arg;
@@ -978,6 +778,7 @@ static int
 ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ex_softc *	sc = ifp->if_softc;
+	struct ifreq *		ifr = (struct ifreq *)data;
 	int			s;
 	int			error = 0;
 
@@ -1017,6 +818,10 @@ ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* XXX Support not done yet. */
 			error = EINVAL;
 			break;
+		case SIOCSIFMEDIA:
+		case SIOCGIFMEDIA:
+			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, cmd);
+			break;
 		default:
 			DODEBUG(Start_End, printf("unknown"););
 			error = EINVAL;
@@ -1049,7 +854,6 @@ ex_reset(struct ex_softc *sc)
 	return;
 }
 
-
 static void
 ex_watchdog(struct ifnet *ifp)
 {
@@ -1070,9 +874,45 @@ ex_watchdog(struct ifnet *ifp)
 	return;
 }
 
+static int
+ex_get_media (u_int32_t iobase)
+{
+	int	tmp;
 
-static u_short
-eeprom_read(int iobase, int location)
+	outb(iobase + CMD_REG, Bank2_Sel);
+	tmp = inb(iobase + REG3);
+	outb(iobase + CMD_REG, Bank0_Sel);
+
+	if (tmp & TPE_bit)
+		return(IFM_ETHER|IFM_10_T);
+	if (tmp & BNC_bit)
+		return(IFM_ETHER|IFM_10_2);
+
+	return (IFM_ETHER|IFM_10_5);
+}
+
+static int
+ex_ifmedia_upd (ifp)
+	struct ifnet *		ifp;
+{
+
+	return (0);
+}
+
+static void
+ex_ifmedia_sts(ifp, ifmr)
+	struct ifnet *          ifp;
+	struct ifmediareq *     ifmr;
+{
+	struct ex_softc *       sc = ifp->if_softc;
+
+	ifmr->ifm_active = ex_get_media(sc->iobase);
+
+	return;
+}
+
+u_short
+eeprom_read(u_int32_t iobase, int location)
 {
 	int i;
 	u_short data = 0;
