@@ -12,8 +12,10 @@ with same winsize structure: it does nothing expect polling
 process from background. Look tcsh_hack.readme for details.
 
 Here is megred version with readline comes from gdb4.11
-and with readline 2.0 comes from bash
+and with readline 2.0 comes from bash1.13.1.CWRU
 
-I make this version 8-bit clean
+If you want 8-bit clean version, put
+	set convert-meta off
+in your ~/.inputrc file
 
 ache@astral.msk.su
