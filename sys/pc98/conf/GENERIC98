@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.40 1998/06/05 08:29:55 kato Exp $
+#	$Id: GENERIC98,v 1.41 1998/08/19 02:40:36 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -21,7 +21,7 @@ cpu		"I486_CPU"
 cpu		"I586_CPU"
 cpu		"I686_CPU"
 ident		"GENERIC98"
-maxusers	10
+maxusers	32
 
 options		"PC98"			#PC98
 options		MATH_EMULATE		#Support for x87 emulation
