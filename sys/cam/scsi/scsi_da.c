@@ -327,14 +327,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NO BRAND", "PEN DRIVE", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
  	},
- 	{
-		/*
-		 * FujiFilm Camera
-		 */
- 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJIFILMUSB-DRIVEUNIT",
-		 "USB-DRIVEUNIT", "*"},
- 		/*quirks*/ DA_Q_NO_SYNC_CACHE
- 	},
 	{
 		/*
 		 * Minolta Dimage E203
