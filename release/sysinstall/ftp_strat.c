@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.26 1996/10/02 02:28:21 jkh Exp $
+ * $Id: ftp_strat.c,v 1.27 1996/10/02 08:25:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@ mediaInitFTP(Device *dev)
 try:
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	msgConfirm("You haven't specified an FTP server!  Please visit\nthe Options editor and select a Media type.");
+	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL)
 	return FALSE;
     }
 
@@ -166,6 +166,7 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
 	    char *cp = variable_get(VAR_FTP_PATH);
 
 	    dev->shutdown(dev);
+	    variable_unset(VAR_FTP_PATH);
 	    /* If we can't re-initialize, just forget it */
 	    if (!dev->init(dev))
 		return IO_ERROR;
@@ -225,7 +226,6 @@ mediaShutdownFTP(Device *dev)
 	FtpClose(ftp);
 	ftp = NULL;
     }
-    variable_unset(VAR_FTP_PATH);
     /* (*netdev->shutdown)(netdev); */
     ftpInitted = FALSE;
 }
