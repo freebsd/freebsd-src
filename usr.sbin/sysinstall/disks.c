@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.84 1997/05/05 05:16:00 pst Exp $
+ * $Id: disks.c,v 1.85 1997/05/10 17:11:24 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,8 @@
 /* Where we keep track of MBR chunks */
 static struct chunk *chunk_info[16];
 static int current_chunk;
+
+static void	diskPartitionNonInteractive(Device *dev, Disk *d);
 
 static void
 record_chunks(Disk *d)
@@ -509,7 +511,10 @@ diskPartitionEditor(dialogMenuItem *self)
     }
     else if (cnt == 1) {
 	devs[0]->enabled = TRUE;
-	diskPartition(devs[0], (Disk *)devs[0]->private);
+	if (variable_get(VAR_NONINTERACTIVE))
+	    diskPartitionNonInteractive(devs[0], (Disk *)devs[0]->private);
+	else
+	    diskPartition(devs[0], (Disk *)devs[0]->private);
 	i = DITEM_SUCCESS;
     }
     else {
@@ -586,4 +591,90 @@ diskPartitionWrite(dialogMenuItem *self)
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written");
     return DITEM_SUCCESS;
+}
+
+/* Partition a disk based wholly on which variables are set */
+static void
+diskPartitionNonInteractive(Device *dev, Disk *d)
+{
+    char *cp;
+    int i, sz;
+
+    record_chunks(d);
+    cp = variable_get(VAR_GEOMETRY);
+    if (cp) {
+	msgDebug("Setting geometry from script to: %s\n", cp);
+	d->bios_cyl = strtol(cp, &cp, 0);
+	d->bios_hd = strtol(cp + 1, &cp, 0);
+	d->bios_sect = strtol(cp + 1, 0, 0);
+    }
+
+    cp = variable_get(VAR_PARTITION);
+    if (cp) {
+	if (!strcmp(cp, "free")) {
+	    /* Do free disk space case */
+	    for (i = 0; chunk_info[i]; i++) {
+		/* If a chunk is at least 10MB in size, use it. */
+		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
+		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size, freebsd, 3,
+				 (chunk_info[i]->flags & CHUNK_ALIGN));
+		    variable_set2(DISK_PARTITIONED, "yes");
+		    break;
+		}
+	    }
+	    if (!chunk_info[i]) {
+		dialog_clear();
+		msgConfirm("Unable to find any free space on this disk!");
+		return;
+	    }
+	}
+	else if (!strcmp(cp, "all")) {
+	    /* Do all disk space case */
+	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
+
+	    All_FreeBSD(d, FALSE);
+	}
+	else if (!strcmp(cp, "exclusive")) {
+	    /* Do really-all-the-disk-space case */
+	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
+
+	    All_FreeBSD(d, TRUE);
+	}
+	else if ((sz = strtol(cp, &cp, 0))) {
+	    /* Look for sz bytes free */
+	    if (*cp && toupper(*cp) == 'M')
+		sz *= ONE_MEG;
+	    for (i = 0; chunk_info[i]; i++) {
+		/* If a chunk is at least sz MB, use it. */
+		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
+		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3, (chunk_info[i]->flags & CHUNK_ALIGN));
+		    variable_set2(DISK_PARTITIONED, "yes");
+		    break;
+		}
+	    }
+	    if (!chunk_info[i]) {
+		dialog_clear();
+		msgConfirm("Unable to find %d free blocks on this disk!", sz);
+		return;
+	    }
+	}
+	else if (!strcmp(cp, "existing")) {
+	    /* Do existing FreeBSD case */
+	    for (i = 0; chunk_info[i]; i++) {
+		if (chunk_info[i]->type == freebsd)
+		    break;
+	    }
+	    if (!chunk_info[i]) {
+		dialog_clear();
+		msgConfirm("Unable to find any existing FreeBSD partitions on this disk!");
+		return;
+	    }
+	}
+	else {
+	    dialog_clear();
+	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_PARTITION);
+	    return;
+	}
+	variable_set2(DISK_PARTITIONED, "yes");
+    }
 }
