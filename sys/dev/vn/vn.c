@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.66 1998/07/13 08:22:58 julian Exp $
+ *	$Id: vn.c,v 1.67 1998/07/30 15:16:04 bde Exp $
  */
 
 /*
@@ -408,6 +408,7 @@ vnstrategy(struct buf *bp)
 				nbp->b_dev = NODEV;
 			nbp->b_data = addr;
 			nbp->b_blkno = nbn + btodb(off);
+			nbp->b_offset = dbtob(nbn) + off;
 			nbp->b_proc = bp->b_proc;
 			nbp->b_iodone = vniodone;
 			nbp->b_vp = vp;
@@ -582,6 +583,7 @@ nvsIOreq(void *private ,struct buf *bp)
 				nbp->b_dev = NODEV;
 			nbp->b_data = addr;
 			nbp->b_blkno = nbn + btodb(off);
+			nbp->b_offset = dbtob(nbn) + off;
 			nbp->b_proc = bp->b_proc;
 			nbp->b_iodone = vniodone;
 			nbp->b_vp = vp;
