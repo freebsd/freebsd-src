@@ -867,7 +867,7 @@ main(argc, argv)
 						print(&rcvmhdr, cc);
 						lastaddr = Rcv.sin6_addr;
 					}
-					Printf("  %g ms", deltaT(&t1, &t2));
+					Printf("  %.3f ms", deltaT(&t1, &t2));
 					switch(i - 1) {
 					case ICMP6_DST_UNREACH_NOROUTE:
 						++unreachable;

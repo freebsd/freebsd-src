@@ -1481,7 +1481,7 @@ pr_pack(buf, cc, mhdr)
 				    sizeof(dstsa)));
 			}
 			if (timing)
-				(void)printf(" time=%g ms", triptime);
+				(void)printf(" time=%.3f ms", triptime);
 			if (dupflag)
 				(void)printf("(DUP!)");
 			/* check the data */
