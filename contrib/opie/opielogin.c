@@ -291,7 +291,7 @@ static VOIDRET getloginname FUNCTION_NOARGS
 	flags = 4;
 	first--;
       } else
-	printf(ttyprompt);
+	printf("%s", ttyprompt);
     } else
       printf("login: ");
     fflush(stdout);
