@@ -43,13 +43,10 @@ SUBDIR+= libcrypt
 SUBDIR+= libtelnet
 .endif
 
-# Don't want to build libm on alpha just yet
-.if ${MACHINE} != "alpha"
 .if defined(WANT_CSRG_LIBM)
 SUBDIR+= libm
 .else
 SUBDIR+= msun
-.endif
 .endif
 
 SUBDIR+= compat
