@@ -202,7 +202,7 @@ every five minutes.
 This implies that the granularity of
 .Nm
 might not be optimal for every deployment.
-If a finer granularity is needed the system crontab at
+If a finer granularity is needed, the system crontab at
 .Pa /etc/crontab
 needs to be changed.
 .Sh OPTIONS
@@ -240,7 +240,8 @@ Read the job from
 .Ar file
 rather than standard input.
 .It Fl l
-With no arguments, list all jobs for the invoking user. If one or more
+With no arguments, list all jobs for the invoking user.
+If one or more
 job numbers are given, list only those jobs.
 .It Fl d
 Is an alias for
