@@ -44,8 +44,8 @@
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <sys/callout.h>		/* For struct callout. */
+#include <sys/event.h>			/* For struct klist. */
 #include <sys/filedesc.h>
-#include <sys/lock.h>			/* For lockmgr. */
 #include <sys/queue.h>
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/signal.h>
@@ -53,7 +53,6 @@
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
-#include <sys/event.h>			/* For struct klist */
 
 /*
  * One structure allocated per session.
@@ -63,8 +62,9 @@ struct	session {
 	struct	proc *s_leader;		/* Session leader. */
 	struct	vnode *s_ttyvp;		/* Vnode of controlling terminal. */
 	struct	tty *s_ttyp;		/* Controlling terminal. */
-	pid_t	s_sid;			/* Session ID */
-	char	s_login[roundup(MAXLOGNAME, sizeof(long))];	/* Setlogin() name. */
+	pid_t	s_sid;			/* Session ID. */
+					/* Setlogin() name: */
+	char	s_login[roundup(MAXLOGNAME, sizeof(long))];
 };
 
 /*
@@ -82,8 +82,8 @@ struct	pgrp {
 struct	procsig {
 	sigset_t ps_sigignore;	/* Signals being ignored. */
 	sigset_t ps_sigcatch;	/* Signals being caught by user. */
-	int      ps_flag;
-	struct	 sigacts *ps_sigacts;
+	int	 ps_flag;
+	struct	 sigacts *ps_sigacts;	/* Signal actions, state. */
 	int	 ps_refcnt;
 };
 
@@ -94,19 +94,18 @@ struct	procsig {
  * pasleep structure, used by asleep() syscall to hold requested priority
  * and timeout values for await().
  */
-struct  pasleep {
+struct	pasleep {
 	int	as_priority;	/* Async priority. */
 	int	as_timo;	/* Async timeout. */
 };
 
 /*
- * pargs, used to hold a copy of the command line, if it had a sane
- * length
+ * pargs, used to hold a copy of the command line, if it had a sane length.
  */
 struct	pargs {
-	u_int	ar_ref;		/* Reference count */
-	u_int	ar_length;	/* Length */
-	u_char	ar_args[0];	/* Arguments */
+	u_int	ar_ref;		/* Reference count. */
+	u_int	ar_length;	/* Length. */
+	u_char	ar_args[0];	/* Arguments. */
 };
 
 /*
@@ -120,16 +119,9 @@ struct	pargs {
  * which might be addressable only on a processor on which the process
  * is running.
  */
-
-struct jail;
-
-struct mtx;
-
-struct ithd;
-
 struct	proc {
-	TAILQ_ENTRY(proc) p_procq;	/* run/mutex queue. */
-	TAILQ_ENTRY(proc) p_slpq;	/* sleep queue. */
+	TAILQ_ENTRY(proc) p_procq;	/* Run/mutex queue. */
+	TAILQ_ENTRY(proc) p_slpq;	/* Sleep queue. */
 	LIST_ENTRY(proc) p_list;	/* List of all processes. */
 
 	/* substructures: */
@@ -137,11 +129,11 @@ struct	proc {
 	struct	filedesc *p_fd;		/* Ptr to open files structure. */
 	struct	pstats *p_stats;	/* Accounting/statistics (PROC ONLY). */
 	struct	plimit *p_limit;	/* Process limits. */
-	struct	vm_object *p_upages_obj;/* Upages object */
-	struct	procsig *p_procsig;
-#define p_sigacts	p_procsig->ps_sigacts
-#define p_sigignore	p_procsig->ps_sigignore
-#define p_sigcatch	p_procsig->ps_sigcatch
+	struct	vm_object *p_upages_obj;/* Upages object. */
+	struct	procsig *p_procsig;	/* Signal actions, state (PROC ONLY). */
+#define	p_sigacts	p_procsig->ps_sigacts
+#define	p_sigignore	p_procsig->ps_sigignore
+#define	p_sigcatch	p_procsig->ps_sigcatch
 
 #define	p_ucred		p_cred->pc_ucred
 #define	p_rlimit	p_limit->pl_rlimit
@@ -153,7 +145,7 @@ struct	proc {
 	pid_t	p_pid;			/* Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* List of processes in pgrp. */
-	struct	proc *p_pptr;	 	/* Pointer to parent process. */
+	struct	proc *p_pptr;		/* Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* Pointer to list of children. */
 
@@ -162,7 +154,6 @@ struct	proc {
 
 	pid_t	p_oppid;	 /* Save parent pid during ptrace. XXX */
 	int	p_dupfd;	 /* Sideways return value from fdopen. XXX */
-
 	struct	vmspace *p_vmspace;	/* Address space. */
 
 	/* scheduling */
@@ -194,28 +185,28 @@ struct	proc {
 
 	char	p_lock;			/* Process lock (prevent swap) count. */
 	struct	mtx p_mtx;		/* Process stucture lock.  */
-	u_char	p_oncpu;		/* Which cpu we are on */
-	u_char	p_lastcpu;		/* Last cpu we were on */
-	char	p_rqindex;		/* Run queue index */
+	u_char	p_oncpu;		/* Which cpu we are on. */
+	u_char	p_lastcpu;		/* Last cpu we were on. */
+	char	p_rqindex;		/* Run queue index. */
 
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
 	short	p_simple_locks;		/* DEBUG: count of held simple locks */
-	unsigned int	p_stops;	/* procfs event bitmask */
-	unsigned int	p_stype;	/* procfs stop event type */
-	char	p_step;			/* procfs stop *once* flag */
-	unsigned char	p_pfsflags;	/* procfs flags */
-	char	p_pad3[2];		/* padding for alignment */
-	register_t p_retval[2];		/* syscall aux returns */
-	struct	sigiolst p_sigiolst;	/* list of sigio sources */
-	int	p_sigparent;		/* signal to parent on exit */
-	sigset_t p_oldsigmask;		/* saved mask from before sigpause */
-	int	p_sig;			/* for core dump/debugger XXX */
-        u_long	p_code;	  	        /* for core dump/debugger XXX */
-	struct	klist p_klist;		/* knotes attached to this process */
-	LIST_HEAD(, mtx) p_heldmtx;	/* for debugging code */
-	struct mtx *p_blocked;		/* Mutex process is blocked on */
-	const char *p_mtxname;		/* Name of mutex blocked on */
-	LIST_HEAD(, mtx) p_contested;	/* contested locks */
+	u_int	p_stops;		/* Procfs event bitmask. */
+	u_int	p_stype;		/* Procfs stop event type. */
+	char	p_step;			/* Procfs stop *once* flag. */
+	u_char	p_pfsflags;		/* Procfs flags. */
+	char	p_pad3[2];		/* Alignment. */
+	register_t p_retval[2];		/* Syscall aux returns. */
+	struct	sigiolst p_sigiolst;	/* List of sigio sources. */
+	int	p_sigparent;		/* Signal to parent on exit. */
+	sigset_t p_oldsigmask;		/* Saved mask from before sigpause. */
+	int	p_sig;			/* For core dump/debugger XXX. */
+	u_long	p_code;			/* For core dump/debugger XXX. */
+	struct	klist p_klist;		/* Knotes attached to this process. */
+	LIST_HEAD(, mtx) p_heldmtx;	/* For debugging code. */
+	struct mtx *p_blocked;		/* Mutex process is blocked on. */
+	const char *p_mtxname;		/* Name of mutex blocked on. */
+	LIST_HEAD(, mtx) p_contested;	/* Contested locks. */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
@@ -224,7 +215,7 @@ struct	proc {
 #define	p_startcopy	p_sigmask
 
 	sigset_t p_sigmask;	/* Current signal mask. */
-	stack_t	p_sigstk;	/* sp & on stack state variable */
+	stack_t	p_sigstk;	/* Stack pointer and on-stack state variable. */
 
 	int	p_magic;	/* Magic number. */
 	u_char	p_priority;	/* Process priority. */
@@ -234,14 +225,14 @@ struct	proc {
 	char	p_comm[MAXCOMLEN+1];
 
 	struct 	pgrp *p_pgrp;	/* Pointer to process group. */
-
 	struct 	sysentvec *p_sysent; /* System call dispatch information. */
-
 	struct	rtprio p_rtprio;	/* Realtime priority. */
 	struct	prison *p_prison;
 	struct	pargs *p_args;
+
 /* End area that is copied on creation. */
 #define	p_endcopy	p_addr
+
 	struct	user *p_addr;	/* Kernel virtual addr of u-area (PROC ONLY). */
 	struct	mdproc p_md;	/* Any machine-dependent fields. */
 
@@ -249,18 +240,18 @@ struct	proc {
 	u_short	p_acflag;	/* Accounting flags. */
 	struct	rusage *p_ru;	/* Exit information. XXX */
 
-	void	*p_aioinfo;	/* ASYNC I/O info */
+	void	*p_aioinfo;	/* ASYNC I/O info. */
 	struct proc *p_peers;	
 	struct proc *p_leader;
 	struct	pasleep p_asleep;	/* Used by asleep()/await(). */
-	void	*p_emuldata;	/* process-specific emulator state data */
-	struct ithd *p_ithd;	/* for interrupt threads only */
+	void	*p_emuldata;	/* Emulator state data. */
+	struct ithd *p_ithd;	/* For interrupt threads only. */
 };
 
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 
-/* Status values (p_stat) */
+/* Status values (p_stat). */
 #define	SIDL	1		/* Process being created by fork. */
 #define	SRUN	2		/* Currently runnable. */
 #define	SSLEEP	3		/* Sleeping on an address. */
@@ -269,11 +260,11 @@ struct	proc {
 #define	SWAIT	6		/* Waiting for interrupt. */
 #define	SMTX	7		/* Blocked on a mutex. */
 
-/* These flags are kept in p_flags. */
+/* These flags are kept in p_flag. */
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_INMEM		0x00004	/* Loaded into memory. */
-#define P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
+#define	P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
@@ -288,24 +279,19 @@ struct	proc {
 #define	P_ALRMPEND	0x08000 /* Pending SIGVTALRM needs to be posted. */
 #define	P_PROFPEND	0x10000 /* Pending SIGPROF needs to be posted. */
 
-/* Should probably be changed into a hold count. */
-/* was	P_NOSWAP	0x08000	was: Do not swap upages; p->p_hold */
-/* was	P_PHYSIO	0x10000	was: Doing physical I/O; use p->p_hold */
-
 /* Should be moved to machine-dependent areas. */
 #define	P_OWEUPC	0x20000	/* Owe process an addupc() call at next ast. */
 
 #define	P_SWAPPING	0x40000	/* Process is being swapped. */
-#define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup */
+#define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup. */
+#define	P_BUFEXHAUST	0x100000 /* Dirty buffers flush is in progress. */
+#define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
-#define	P_BUFEXHAUST	0x100000 /* dirty buffers flush is in progress */
-#define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress */
+#define	P_DEADLKTREAT   0x800000 /* Lock aquisition - deadlock treatment. */
 
-#define	P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
-
-#define	P_JAILED	0x1000000 /* Process is in jail */
-#define	P_OLDMASK	0x2000000 /* need to restore mask before pause */
-#define	P_ALTSTACK	0x4000000 /* have alternate signal stack */
+#define	P_JAILED	0x1000000 /* Process is in jail. */
+#define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
+#define	P_ALTSTACK	0x4000000 /* Have alternate signal stack. */
 
 #define	P_MAGIC		0xbeefface
 
@@ -328,7 +314,7 @@ struct	pcred {
 	gid_t	p_rgid;			/* Real group id. */
 	gid_t	p_svgid;		/* Saved effective group id. */
 	int	p_refcnt;		/* Number of references. */
-	struct	uidinfo *p_uidinfo;	/* Per uid resource consumption */
+	struct	uidinfo *p_uidinfo;	/* Per uid resource consumption. */
 };
 
 /*
@@ -336,60 +322,23 @@ struct	pcred {
  * this a superset of struct proc, i.e. it_proc is the struct itself and not a
  * pointer.  We point in both directions, because it feels good that way.
  */
-struct ithd {
-	struct proc	*it_proc;	/* interrupt process */
-
-	LIST_HEAD(ihhead, intrhand) it_ihhead;
-	LIST_HEAD(srchead, isrc) it_isrchead;
-
-	/* Fields used by all interrupt threads */
-	LIST_ENTRY(ithd) it_list;	/* All interrupt threads */
-	int		it_need;	/* Needs service */
-	int		irq;		/* irq */
-	struct intrhand	*it_ih;		/* head of handler queue */
-	struct ithd	*it_interrupted; /* Who we interrupted */
-
-	/* Fields used only for hard interrupt threads */
-	int		it_stray;	/* Stray interrupts */
-
-#ifdef APIC_IO
-	/* Used by APIC interrupt sources */
-	int		it_needeoi;	/* An EOI is needed */
-	int		it_blocked;	/* at least 1 blocked apic src */
-#endif
-
-	/* stats */
-#ifdef SMP_DEBUG
-	int		it_busy;	/* failed attempts on runlock */
-	int		it_lostneeded;	/* Number of it_need races lost */
-	int		it_invprio;	/* Startup priority inversions */
-#endif
-#ifdef NEEDED
-	/*
-	 * These are in the BSD/OS i386 sources only, not in SPARC.
-	 * I'm not yet sure we need them.
-	 */
-	LIST_HEAD(ihhead, intrhand) it_ihhead;
-	LIST_HEAD(srchead, isrc) it_isrchead;
-
-	/* Fields used by all interrupt threads */
-	LIST_ENTRY(ithd) it_list;	/* All interrupt threads */
-
-	/* Fields user only for soft interrupt threads */
-	sifunc_t	it_service;	/* service routine */
-	int		it_cnt;		/* number of schedule events */
-
-#endif
-	void		*it_md;		/* hook for MD interrupt code */
+struct	ithd {
+	struct	proc *it_proc;		/* Interrupt process. */
+	LIST_ENTRY(ithd) it_list;	/* All interrupt threads. */
+	int	it_need;		/* Needs service. */
+	int	irq;			/* Vector. */
+	struct	intrhand *it_ih;	/* Interrupt handlers. */
+	struct	ithd *it_interrupted;	/* Who we interrupted. */
+	void	*it_md;			/* Hook for MD interrupt code. */
 };
 
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_PARGS);
 MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
 MALLOC_DECLARE(M_ZOMBIE);
-MALLOC_DECLARE(M_PARGS);
 #endif
 
 static __inline int
@@ -407,10 +356,9 @@ sigonstack(size_t sp)
 	    : 0);
 }
 
-/* Handy macro to determine of p1 can mangle p2 */
-
+/* Handy macro to determine if p1 can mangle p2. */
 #define PRISON_CHECK(p1, p2) \
-	((!(p1)->p_prison) || (p1)->p_prison == (p2)->p_prison)
+	((p1)->p_prison == NULL || (p1)->p_prison == (p2)->p_prison)
 
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
@@ -426,20 +374,16 @@ sigonstack(size_t sp)
 		FREE(s, M_SESSION);					\
 }
 
-/*
- * STOPEVENT is MP SAFE.
- */
-extern void stopevent(struct proc*, unsigned int, unsigned int);
-#define	STOPEVENT(p,e,v)				\
-	do {						\
-		if ((p)->p_stops & (e)) {		\
-			mtx_enter(&Giant, MTX_DEF);	\
-			stopevent(p,e,v);		\
-			mtx_exit(&Giant, MTX_DEF);	\
-		}					\
-	} while (0)
+/* STOPEVENT() is MP safe. */
+#define	STOPEVENT(p,e,v) do {						\
+	if ((p)->p_stops & (e)) {					\
+		mtx_enter(&Giant, MTX_DEF);				\
+		stopevent(p,e,v);					\
+		mtx_exit(&Giant, MTX_DEF);				\
+	}								\
+} while (0)
 
-/* hold process U-area in memory, normally for ptrace/procfs work */
+/* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define PHOLD(p) do {							\
 	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0)		\
 		faultin(p);						\
@@ -454,23 +398,30 @@ extern u_long pidhash;
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
+extern struct lock allproc_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
-extern int sched_quantum;		/* Scheduling quantum in ticks */
+extern u_long ps_arg_cache_limit;
+extern int ps_argsopen;
+extern int ps_showallprocs;
+extern int sched_quantum;		/* Scheduling quantum in ticks. */
 
 LIST_HEAD(proclist, proc);
 extern struct proclist allproc;		/* List of all processes. */
 extern struct proclist zombproc;	/* List of zombie processes. */
-extern struct proc *initproc, *pageproc, *updateproc; /* Process slots for init, pager. */
+extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
+extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
 #define	NQS	32			/* 32 run queues. */
+
 TAILQ_HEAD(rq, proc);
 extern struct rq itqueues[];
 extern struct rq rtqueues[];
 extern struct rq queues[];
 extern struct rq idqueues[];
+extern struct vm_zone *proc_zone;
 
 /*
  * XXX macros for scheduler.  Shouldn't be here, but currently needed for
@@ -478,61 +429,53 @@ extern struct rq idqueues[];
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
  * the range 100-256 Hz (approximately).
  */
+#define	ESTCPULIM(e) \
+    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) \
+	     - PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level) */
 #define	NICE_WEIGHT	1		/* priorities per nice level */
 #define	PPQ		(128 / NQS)	/* priorities per queue */
-#define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * PRIO_TOTAL - PPQ) + \
-	INVERSE_ESTCPU_WEIGHT - 1)
 
-extern	u_long ps_arg_cache_limit;
-extern	int ps_argsopen;
-extern	int ps_showallprocs;
+struct mtx;
 
-struct proc *pfind __P((pid_t));	/* Find process by id. */
-struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
+struct	proc *pfind __P((pid_t));	/* Find process by id. */
+struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
 
-struct vm_zone;
-extern struct vm_zone *proc_zone;
-
-extern struct lock allproc_lock;
-
+struct	proc *chooseproc __P((void));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
+void	faultin __P((struct proc *p));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
+int	fork1 __P((struct proc *, int, struct proc **));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
 int	p_can __P((const struct proc *p1, const struct proc *p2, int operation,
-    int *privused));
-void	proc_reparent __P((struct proc *child, struct proc *newparent));
+	    int *privused));
+int	p_trespass __P((struct proc *p1, struct proc *p2));
 void	procinit __P((void));
-
+void	proc_reparent __P((struct proc *child, struct proc *newparent));
+u_int32_t procrunnable __P((void));
+void	remrunqueue __P((struct proc *));
 void	resetpriority __P((struct proc *));
 int	roundrobin_interval __P((void));
 void	schedclock __P((struct proc *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
+void	setsugid __P((struct proc *p));
 void	sleepinit __P((void));
-void	remrunqueue __P((struct proc *));
+void	stopevent __P((struct proc *, u_int, u_int));
+void	cpu_idle __P((void));
 void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;
-void	cpu_idle __P((void));
 void	unsleep __P((struct proc *));
 
 void	cpu_exit __P((struct proc *)) __dead2;
 void	exit1 __P((struct proc *, int)) __dead2;
 void	cpu_fork __P((struct proc *, struct proc *, int));
 void	cpu_set_fork_handler __P((struct proc *, void (*)(void *), void *));
-int	fork1 __P((struct proc *, int, struct proc **));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
-void	setsugid __P((struct proc *p));
-void	faultin __P((struct proc *p));
-
-struct proc *	chooseproc __P((void));
-u_int32_t	procrunnable __P((void));
-
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
