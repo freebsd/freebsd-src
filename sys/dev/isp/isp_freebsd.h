@@ -1,4 +1,5 @@
 /* $FreeBSD$ */
+
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
