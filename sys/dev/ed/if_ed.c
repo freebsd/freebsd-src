@@ -44,7 +44,6 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
-#include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>

@@ -36,13 +36,11 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_mib.h>
 
 #include <isa/isavar.h>
-#include <isa/pnpvar.h>
 
 #include <dev/ed/if_edvar.h>
 
