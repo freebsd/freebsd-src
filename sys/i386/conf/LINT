@@ -1771,7 +1771,7 @@ device		pci
 # Deskpro systems. It also supports several Olicom 10Mbps and 10/100
 # boards.
 #
-# The `tx' device provides support for the SMC 9432 TX, BTX and TX_2 cards.
+# The `tx' device provides support for the SMC 9432 TX, BTX and FTX cards.
 #
 # The `vr' device provides support for various fast ethernet adapters
 # based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
