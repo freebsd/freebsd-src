@@ -96,9 +96,3 @@ its per-process locked memory limit.
 Some portion of the indicated address range is not allocated.
 There was an error faulting/mapping a page.
 .El
-.Sh BUGS
-The
-.Fn vslock
-function does not prevent memory from being unmapped out from underneath.
-This can lead to system instability and blocking conditions where they
-are required not to occur when accessing the locked memory.
