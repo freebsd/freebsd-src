@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/reboot.h>
 #include <sys/sleepqueue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -1742,6 +1743,8 @@ syncer_shutdown(void *arg, int howto)
 {
 	struct thread *td;
 
+	if (howto & RB_NOSYNC)
+		return;
 	td = FIRST_THREAD_IN_PROC(updateproc);
 	sleepq_remove(td, &lbolt);
 	mtx_lock(&sync_mtx);
