@@ -1406,6 +1406,7 @@ build_pdu ( hdr, type )
 	Resp_Buf[0] = pdulen;
 
 	hdr->pdutype = type;
+	hdr->pdulen = pdulen;
 
 	return;
 }
