@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.h,v 1.4 1999/08/17 07:10:34 msmith Exp $
+ *      $Id: bios.h,v 1.5 1999/08/18 02:20:04 msmith Exp $
  */
 
 /* 
@@ -102,7 +102,6 @@ struct segment_info {
 #define BIOSARGS_FLAG	0x08
 
 struct bios_segments {
-	u_int 	generation;
 	struct	segment_info code32;		/* 32-bit code (mandatory) */
 	struct	segment_info code16;		/* 16-bit code */
 	struct	segment_info data;		/* 16-bit data */

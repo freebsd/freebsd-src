@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.20 1999/08/25 06:44:32 peter Exp $
+ *      $Id: bios.c,v 1.21 1999/08/25 06:56:36 msmith Exp $
  */
 
 /*
@@ -237,7 +237,6 @@ union {
 void
 set_bios_selectors(struct bios_segments *seg, int flags)
 {
-    static u_int curgen = 1;
     struct soft_segment_descriptor ssd = {
 	0,			/* segment base address (overwritten) */
 	0,			/* length (overwritten) */
@@ -248,41 +247,42 @@ set_bios_selectors(struct bios_segments *seg, int flags)
 	1,			/* descriptor size (overwritten) */
 	0			/* granularity == byte units */
     };
+    union descriptor *p_gdt;
 
-    if (seg->generation == curgen)
-	return;
-    if (++curgen == 0)
-	curgen = 1;
-    seg->generation = curgen;
+#ifdef SMP
+    p_gdt = &gdt[cpuid];
+#else
+    p_gdt = gdt;
+#endif
 	
     ssd.ssd_base = seg->code32.base;
     ssd.ssd_limit = seg->code32.limit;
-    ssdtosd(&ssd, &gdt[GBIOSCODE32_SEL].sd);
+    ssdtosd(&ssd, &p_gdt[GBIOSCODE32_SEL].sd);
 
     ssd.ssd_def32 = 0;
     if (flags & BIOSCODE_FLAG) {
 	ssd.ssd_base = seg->code16.base;
 	ssd.ssd_limit = seg->code16.limit;
-	ssdtosd(&ssd, &gdt[GBIOSCODE16_SEL].sd);
+	ssdtosd(&ssd, &p_gdt[GBIOSCODE16_SEL].sd);
     }
 
     ssd.ssd_type = SDT_MEMRWA;
     if (flags & BIOSDATA_FLAG) {
 	ssd.ssd_base = seg->data.base;
 	ssd.ssd_limit = seg->data.limit;
-	ssdtosd(&ssd, &gdt[GBIOSDATA_SEL].sd);
+	ssdtosd(&ssd, &p_gdt[GBIOSDATA_SEL].sd);
     }
 
     if (flags & BIOSUTIL_FLAG) {
 	ssd.ssd_base = seg->util.base;
 	ssd.ssd_limit = seg->util.limit;
-	ssdtosd(&ssd, &gdt[GBIOSUTIL_SEL].sd);
+	ssdtosd(&ssd, &p_gdt[GBIOSUTIL_SEL].sd);
     }
 
     if (flags & BIOSARGS_FLAG) {
 	ssd.ssd_base = seg->args.base;
 	ssd.ssd_limit = seg->args.limit;
-	ssdtosd(&ssd, &gdt[GBIOSARGS_SEL].sd);
+	ssdtosd(&ssd, &p_gdt[GBIOSARGS_SEL].sd);
     }
 }
 
@@ -432,7 +432,6 @@ bios16(struct bios_args *args, char *fmt, ...)
 	}
     }
 
-    args->seg.generation = 0;			/* reload selectors */
     set_bios_selectors(&args->seg, flags);
     bioscall_vector.vec16.offset = (u_short)args->entry;
     bioscall_vector.vec16.segment = GSEL(GBIOSCODE16_SEL, SEL_KPL);
