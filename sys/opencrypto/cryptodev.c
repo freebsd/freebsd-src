@@ -694,8 +694,6 @@ csefree(struct csession *cse)
 static int
 cryptoopen(dev_t dev, int oflags, int devtype, struct thread *td)
 {
-	if (crypto_usercrypto == 0)
-		return (ENXIO);
 	return (0);
 }
 
