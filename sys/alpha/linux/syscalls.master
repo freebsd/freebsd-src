@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.6 1997/12/17 03:12:35 kato Exp $
+	$Id: syscalls.master,v 1.7 1998/03/28 11:49:43 dufault Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -47,6 +47,7 @@
 13	STD	LINUX	{ int linux_time(linux_time_t *tm); }
 14	STD	LINUX	{ int linux_mknod(char *path, int mode, int dev); }
 15	STD	LINUX	{ int linux_chmod(char *path, int mode); }
+; XXX linux_chown is really meant to be linux_lchown
 16	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
 17	STD	LINUX	{ int linux_break(char *nsize); }
 18	STD	LINUX	{ int linux_stat(char *path, struct ostat *up); }
@@ -233,3 +234,24 @@
 
 162	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
 			    struct timespec *rmtp); }
+
+163	UNIMPL	LINUX	mremap
+164	UNIMPL	LINUX	setresuid
+165	UNIMPL	LINUX	getresuid
+166	UNIMPL	LINUX	new_vm86
+167	UNIMPL	LINUX	query_module
+168	UNIMPL	LINUX	poll
+169	UNIMPL	LINUX	nfsservctl
+170	UNIMPL	LINUX	setresgid
+171	UNIMPL	LINUX	getresgid
+172	UNIMPL	LINUX	prctl
+173	UNIMPL	LINUX	rt_sigreturn
+174	UNIMPL	LINUX	rt_sigaction
+175	UNIMPL	LINUX	rt_sigprocmask
+176	UNIMPL	LINUX	rt_sigpending
+177	UNIMPL	LINUX	rt_sigtimedwait
+178	UNIMPL	LINUX	rt_sigqueueinfo
+179	UNIMPL	LINUX	rt_sigsuspend
+180	UNIMPL	LINUX	pread
+181	UNIMPL	LINUX	pwrite
+182	UNIMPL	LINUX	chown
