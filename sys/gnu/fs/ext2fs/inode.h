@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.19 1997/12/05 13:43:47 jkh Exp $
+ * $Id: inode.h,v 1.20 1998/01/30 11:34:02 phk Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -44,6 +44,11 @@
 
 #include <sys/lock.h>
 #include <ufs/ufs/dinode.h>
+
+/*
+ * The size of a logical block number.
+ */
+typedef long ufs_lbn_t;
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
@@ -67,6 +72,7 @@ struct inode {
 	u_int32_t i_flag;	/* flags, see below */
 	dev_t	  i_dev;	/* Device associated with the inode. */
 	ino_t	  i_number;	/* The identity of the inode. */
+	int	  i_effnlink;	/* i_nlink when I/O completes */
 
 	union {			/* Associated filesystem. */
 		struct	fs *fs;		/* FFS */
@@ -159,6 +165,9 @@ struct indir {
 		(ip)->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);	\
 	}								\
 }
+
+/* Determine if soft dependencies are being done */
+#define DOINGSOFTDEP(vp)	((vp)->v_mount->mnt_flag & MNT_SOFTDEP)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {

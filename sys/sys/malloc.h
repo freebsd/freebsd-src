@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.35 1997/12/05 19:14:36 bde Exp $
+ * $Id: malloc.h,v 1.36 1997/12/27 09:42:03 bde Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
 #define	_SYS_MALLOC_H_
+
+#define splmem splhigh
 
 #define KMEMSTATS
 
@@ -165,7 +167,7 @@ struct kmembuckets {
 #else /* do not collect statistics */
 #define	MALLOC(space, cast, size, type, flags) do { \
 	register struct kmembuckets *kbp = &bucket[BUCKETINDX(size)]; \
-	long s = splimp(); \
+	long s = splmem(); \
 	if (kbp->kb_next == NULL) { \
 		(space) = (cast)malloc((u_long)(size), type, flags); \
 	} else { \
@@ -178,7 +180,7 @@ struct kmembuckets {
 #define	FREE(addr, type) do { \
 	register struct kmembuckets *kbp; \
 	register struct kmemusage *kup = btokup(addr); \
-	long s = splimp(); \
+	long s = splmem(); \
 	if (1 << kup->ku_indx > MAXALLOCSAVE) { \
 		free((addr), type); \
 	} else { \

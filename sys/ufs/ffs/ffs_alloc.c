@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.46 1998/02/04 22:33:27 eivind Exp $
+ * $Id: ffs_alloc.c,v 1.47 1998/02/06 12:14:13 eivind Exp $
  */
 
 #include "opt_quota.h"
@@ -57,7 +57,8 @@ typedef ufs_daddr_t allocfcn_t __P((struct inode *ip, int cg, ufs_daddr_t bpref,
 				  int size));
 
 static ufs_daddr_t ffs_alloccg __P((struct inode *, int, ufs_daddr_t, int));
-static ufs_daddr_t ffs_alloccgblk __P((struct fs *, struct cg *, ufs_daddr_t));
+static ufs_daddr_t
+	      ffs_alloccgblk __P((struct inode *, struct buf *, ufs_daddr_t));
 #ifdef DIAGNOSTIC
 static int	ffs_checkblk __P((struct inode *, ufs_daddr_t, long));
 #endif
@@ -292,7 +293,8 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 					 ffs_alloccg);
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
-		ffs_blkfree(ip, bprev, (long)osize);
+		if (!DOINGSOFTDEP(ITOV(ip)))
+			ffs_blkfree(ip, bprev, (long)osize);
 		if (nsize < request)
 			ffs_blkfree(ip, bno + numfrags(fs, nsize),
 			    (long)(request - nsize));
@@ -455,8 +457,10 @@ ffs_reallocblks(ap)
 #endif
 	blkno = newblk;
 	for (bap = &sbap[soff], i = 0; i < len; i++, blkno += fs->fs_frag) {
-		if (i == ssize)
+		if (i == ssize) {
 			bap = ebap;
+			soff = -i;
+		}
 #ifdef DIAGNOSTIC
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
@@ -468,6 +472,16 @@ ffs_reallocblks(ap)
 		if (prtrealloc)
 			printf(" %d,", *bap);
 #endif
+		if (DOINGSOFTDEP(vp)) {
+			if (sbap == &ip->i_db[0] && i < ssize)
+				softdep_setup_allocdirect(ip, start_lbn + i,
+				    blkno, *bap, fs->fs_bsize, fs->fs_bsize,
+				    buflist->bs_children[i]);
+			else
+				softdep_setup_allocindir_page(ip, start_lbn + i,
+				    i < ssize ? sbp : ebp, soff + i, blkno,
+				    *bap, buflist->bs_children[i]);
+		}
 		*bap++ = blkno;
 	}
 	/*
@@ -509,8 +523,10 @@ ffs_reallocblks(ap)
 		printf("\n\tnew:");
 #endif
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->fs_frag) {
-		ffs_blkfree(ip, dbtofsb(fs, buflist->bs_children[i]->b_blkno),
-		    fs->fs_bsize);
+		if (!DOINGSOFTDEP(vp))
+			ffs_blkfree(ip,
+			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
+			    fs->fs_bsize);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
 #ifdef DEBUG
 		if (!ffs_checkblk(ip,
@@ -847,6 +863,8 @@ ffs_fragextend(ip, cg, bprev, osize, nsize)
 		fs->fs_cs(fs, cg).cs_nffree--;
 	}
 	fs->fs_fmod = 1;
+	if (DOINGSOFTDEP(ITOV(ip)))
+		softdep_setup_blkmapdep(bp, fs, bprev);
 	bdwrite(bp);
 	return (bprev);
 }
@@ -868,7 +886,8 @@ ffs_alloccg(ip, cg, bpref, size)
 	register struct cg *cgp;
 	struct buf *bp;
 	register int i;
-	int error, bno, frags, allocsiz;
+	ufs_daddr_t bno, blkno;
+	int allocsiz, error, frags;
 
 	fs = ip->i_fs;
 	if (fs->fs_cs(fs, cg).cs_nbfree == 0 && size == fs->fs_bsize)
@@ -887,7 +906,7 @@ ffs_alloccg(ip, cg, bpref, size)
 	}
 	cgp->cg_time = time.tv_sec;
 	if (size == fs->fs_bsize) {
-		bno = ffs_alloccgblk(fs, cgp, bpref);
+		bno = ffs_alloccgblk(ip, bp, bpref);
 		bdwrite(bp);
 		return (bno);
 	}
@@ -909,7 +928,7 @@ ffs_alloccg(ip, cg, bpref, size)
 			brelse(bp);
 			return (0);
 		}
-		bno = ffs_alloccgblk(fs, cgp, bpref);
+		bno = ffs_alloccgblk(ip, bp, bpref);
 		bpref = dtogd(fs, bno);
 		for (i = frags; i < fs->fs_frag; i++)
 			setbit(cg_blksfree(cgp), bpref + i);
@@ -936,8 +955,11 @@ ffs_alloccg(ip, cg, bpref, size)
 	cgp->cg_frsum[allocsiz]--;
 	if (frags != allocsiz)
 		cgp->cg_frsum[allocsiz - frags]++;
+	blkno = cg * fs->fs_fpg + bno;
+	if (DOINGSOFTDEP(ITOV(ip)))
+		softdep_setup_blkmapdep(bp, fs, blkno);
 	bdwrite(bp);
-	return (cg * fs->fs_fpg + bno);
+	return ((u_long)blkno);
 }
 
 /*
@@ -952,16 +974,20 @@ ffs_alloccg(ip, cg, bpref, size)
  * blocks may be fragmented by the routine that allocates them.
  */
 static ufs_daddr_t
-ffs_alloccgblk(fs, cgp, bpref)
-	register struct fs *fs;
-	register struct cg *cgp;
+ffs_alloccgblk(ip, bp, bpref)
+	struct inode *ip;
+	struct buf *bp;
 	ufs_daddr_t bpref;
 {
+	struct fs *fs;
+	struct cg *cgp;
 	ufs_daddr_t bno, blkno;
 	int cylno, pos, delta;
 	short *cylbp;
 	register int i;
 
+	fs = ip->i_fs;
+	cgp = (struct cg *)bp->b_data;
 	if (bpref == 0 || dtog(fs, bpref) != cgp->cg_cgx) {
 		bpref = cgp->cg_rotor;
 		goto norot;
@@ -1052,7 +1078,10 @@ gotit:
 	cg_blks(fs, cgp, cylno)[cbtorpos(fs, bno)]--;
 	cg_blktot(cgp)[cylno]--;
 	fs->fs_fmod = 1;
-	return (cgp->cg_cgx * fs->fs_fpg + bno);
+	blkno = cgp->cg_cgx * fs->fs_fpg + bno;
+	if (DOINGSOFTDEP(ITOV(ip)))
+		softdep_setup_blkmapdep(bp, fs, blkno);
+	return (blkno);
 }
 
 #ifdef notyet
@@ -1155,7 +1184,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 		panic("ffs_clusteralloc: allocated out of group");
 	len = blkstofrags(fs, len);
 	for (i = 0; i < len; i += fs->fs_frag)
-		if ((got = ffs_alloccgblk(fs, cgp, bno + i)) != bno + i)
+		if ((got = ffs_alloccgblk(ip, bp, bno + i)) != bno + i)
 			panic("ffs_clusteralloc: lost block");
 	bdwrite(bp);
 	return (bno);
@@ -1234,6 +1263,8 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 	panic("ffs_nodealloccg: block not in map");
 	/* NOTREACHED */
 gotit:
+	if (DOINGSOFTDEP(ITOV(ip)))
+		softdep_setup_inomapdep(bp, ip, cg * fs->fs_ipg + ipref);
 	setbit(cg_inosused(cgp), ipref);
 	cgp->cg_cs.cs_nifree--;
 	fs->fs_cstotal.cs_nifree--;
@@ -1268,9 +1299,10 @@ ffs_blkfree(ip, bno, size)
 	int i, error, cg, blk, frags, bbase;
 
 	fs = ip->i_fs;
-	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
-		printf("dev = 0x%lx, bsize = %ld, size = %ld, fs = %s\n",
-		    (u_long)ip->i_dev, fs->fs_bsize, size, fs->fs_fsmnt);
+	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
+	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
+		printf("dev=0x%lx, bno = %d, bsize = %d, size = %ld, fs = %s\n",
+		    (u_long)ip->i_dev, bno, fs->fs_bsize, size, fs->fs_fsmnt);
 		panic("ffs_blkfree: bad size");
 	}
 	cg = dtog(fs, bno);
@@ -1294,7 +1326,7 @@ ffs_blkfree(ip, bno, size)
 	bno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
 		blkno = fragstoblks(fs, bno);
-		if (ffs_isblock(fs, cg_blksfree(cgp), blkno)) {
+		if (!ffs_isfreeblock(fs, cg_blksfree(cgp), blkno)) {
 			printf("dev = 0x%lx, block = %ld, fs = %s\n",
 			    (u_long) ip->i_dev, bno, fs->fs_fsmnt);
 			panic("ffs_blkfree: freeing free block");
@@ -1404,11 +1436,26 @@ ffs_checkblk(ip, bno, size)
 
 /*
  * Free an inode.
- *
- * The specified inode is placed back in the free map.
  */
 int
-ffs_vfree(pvp, ino, mode)
+ffs_vfree( pvp, ino, mode)
+	struct vnode *pvp;
+	ino_t ino;
+	int mode;
+{
+	if (DOINGSOFTDEP(pvp)) {
+		softdep_freefile(pvp, ino, mode);
+		return (0);
+	}
+	return (ffs_freefile(pvp, ino, mode));
+}
+
+/*
+ * Do the actual free operation.
+ * The specified inode is placed back in the free map.
+ */
+ int
+ ffs_freefile( pvp, ino, mode)
 	struct vnode *pvp;
 	ino_t ino;
 	int mode;
@@ -1429,7 +1476,7 @@ ffs_vfree(pvp, ino, mode)
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
-		return (0);
+		return (error);
 	}
 	cgp = (struct cg *)bp->b_data;
 	if (!cg_chkmagic(cgp)) {

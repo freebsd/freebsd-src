@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.34 1998/02/06 12:14:14 eivind Exp $
+ * $Id: ffs_inode.c,v 1.35 1998/03/07 21:36:33 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -87,8 +87,9 @@ ffs_update(vp, access, modify, waitfor)
 		    ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 		return (0);
 	}
-	if ((ip->i_flag &
-	    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0)
+	if (((ip->i_flag &
+	      (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
+	    (waitfor != MNT_WAIT))
 		return (0);
 	/*
 	 * Use a copy of the current time to get consistent timestamps
@@ -129,11 +130,15 @@ ffs_update(vp, access, modify, waitfor)
 		brelse(bp);
 		return (error);
 	}
+	if (DOINGSOFTDEP(vp))
+		softdep_update_inodeblock(ip, bp, waitfor);
+	else if (ip->i_effnlink != ip->i_nlink)
+		panic("ffs_update: bad link cnt");
 	*((struct dinode *)bp->b_data +
 	    ino_to_fsbo(fs, ip->i_number)) = ip->i_din;
-	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
+	if (waitfor && (vp->v_mount->mnt_flag & MNT_ASYNC) == 0) {
 		return (bwrite(bp));
-	else {
+	} else {
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
 		bdwrite(bp);
@@ -171,6 +176,8 @@ ffs_truncate(vp, length, flags, cred, p)
 	off_t osize;
 
 	oip = VTOI(ovp);
+	if (oip->i_size == length)
+		return (0);
 	fs = oip->i_fs;
 	if (length < 0)
 		return (EINVAL);
@@ -197,6 +204,31 @@ ffs_truncate(vp, length, flags, cred, p)
 	if (error)
 		return (error);
 #endif
+	ovp->v_lasta = ovp->v_clen = ovp->v_cstart = ovp->v_lastw = 0;
+	if (DOINGSOFTDEP(ovp)) {
+		if (length > 0) {
+			/*
+			 * If a file is only partially truncated, then
+			 * we have to clean up the data structures
+			 * describing the allocation past the truncation
+			 * point. Finding and deallocating those structures
+			 * is a lot of work. Since partial truncation occurs
+			 * rarely, we solve the problem by syncing the file
+			 * so that it will have no data structures left.
+			 */
+			if ((error = VOP_FSYNC(ovp, cred, MNT_WAIT,
+			    p)) != 0)
+				return (error);
+		} else {
+#ifdef QUOTA
+			(void) chkdq(oip, -oip->i_blocks, NOCRED, 0);
+#endif
+			softdep_setup_freeblocks(oip, length);
+			(void) vinvalbuf(ovp, 0, cred, p, 0, 0);
+			oip->i_flag |= IN_CHANGE | IN_UPDATE;
+			return (ffs_update(ovp, &tv, &tv, 0));
+		}
+	}
 	osize = oip->i_size;
 	/*
 	 * Lengthen the size of the file. We must ensure that the
@@ -205,13 +237,15 @@ ffs_truncate(vp, length, flags, cred, p)
 	 */
 	if (osize < length) {
 		vnode_pager_setsize(ovp, length);
+#if 0
 		offset = blkoff(fs, length - 1);
 		lbn = lblkno(fs, length - 1);
+#endif
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		error = ffs_balloc(oip, lbn, offset + 1, cred,
-		    &bp, aflags);
+		error = VOP_BALLOC(ovp, length - 1, 1,
+		    cred, aflags, &bp);
 		if (error)
 			return (error);
 		oip->i_size = length;
@@ -241,9 +275,13 @@ ffs_truncate(vp, length, flags, cred, p)
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
-		error = ffs_balloc(oip, lbn, offset, cred, &bp, aflags);
-		if (error)
+		error = VOP_BALLOC(ovp, length - 1, 1, cred, aflags, &bp);
+		if (error) {
+#if 0	/* kirk's version had this */
+			vnode_pager_setsize(ovp, (u_long)osize);
+#endif
 			return (error);
+		}
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));

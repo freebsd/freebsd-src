@@ -255,8 +255,10 @@ setup(dev)
 		    fsbtodb(&sblock, sblock.fs_csaddr + j * sblock.fs_frag),
 		    size) != 0 && !asked) {
 			pfatal("BAD SUMMARY INFORMATION");
-			if (reply("CONTINUE") == 0)
+			if (reply("CONTINUE") == 0) {
+				ckfini(0);
 				exit(EEXIT);
+			}
 			asked++;
 		}
 	}
@@ -311,6 +313,10 @@ setup(dev)
 		goto badsb;
 	}
 	bufinit();
+	if (sblock.fs_flags & FS_DOSOFTDEP)
+		usedsoftdep = 1;
+	else
+		usedsoftdep = 0;
 	return (1);
 
 badsb:

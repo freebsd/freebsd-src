@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.153 1998/03/04 03:17:30 dyson Exp $
+ * $Id: vfs_bio.c,v 1.154 1998/03/07 21:35:24 dyson Exp $
  */
 
 /*
@@ -37,6 +37,7 @@
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
+#include <miscfs/specfs/specdev.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
@@ -53,6 +54,9 @@
 
 static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
+struct	bio_ops bioops;		/* I/O operation notification */
+
+#if 0 	/* replaced bu sched_sync */
 static void vfs_update __P((void));
 static struct	proc *updateproc;
 static struct kproc_desc up_kp = {
@@ -61,6 +65,7 @@ static struct kproc_desc up_kp = {
 	&updateproc
 };
 SYSINIT_KT(update, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
+#endif
 
 struct buf *buf;		/* buffer header pool */
 struct swqueue bswlist;
@@ -179,6 +184,7 @@ bufinit()
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vnbufs.le_next = NOLIST;
 		bp->b_generation = 0;
+		LIST_INIT(&bp->b_dep);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
@@ -362,6 +368,9 @@ int
 bwrite(struct buf * bp)
 {
 	int oldflags = bp->b_flags;
+	struct vnode *vp;
+	struct mount *mp;
+
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -385,6 +394,23 @@ bwrite(struct buf * bp)
 	if (curproc != NULL)
 		curproc->p_stats->p_ru.ru_oublock++;
 	VOP_STRATEGY(bp);
+
+	/*
+	 * Collect statistics on synchronous and asynchronous writes.
+	 * Writes to block devices are charged to their associated
+	 * filesystem (if any).
+	 */
+	if ((vp = bp->b_vp) != NULL) {
+		if (vp->v_type == VBLK)
+			mp = vp->v_specmountpoint;
+		else
+			mp = vp->v_mount;
+		if (mp != NULL)
+			if ((oldflags & B_ASYNC) == 0)
+				mp->mnt_stat.f_syncwrites++;
+			else
+				mp->mnt_stat.f_asyncwrites++;
+	}
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
@@ -420,6 +446,8 @@ vfs_bio_need_satisfy(void) {
 void
 bdwrite(struct buf * bp)
 {
+	int s;
+	struct vnode *vp;
 
 #if !defined(MAX_PERF)
 	if ((bp->b_flags & B_BUSY) == 0) {
@@ -438,7 +466,9 @@ bdwrite(struct buf * bp)
 	bp->b_flags &= ~(B_READ|B_RELBUF);
 	if ((bp->b_flags & B_DELWRI) == 0) {
 		bp->b_flags |= B_DONE | B_DELWRI;
+		s = splbio();
 		reassignbuf(bp, bp->b_vp);
+		splx(s);
 		++numdirtybuffers;
 	}
 
@@ -470,10 +500,43 @@ bdwrite(struct buf * bp)
 	vfs_clean_pages(bp);
 	bqrelse(bp);
 
+	/*
+	 * XXX The soft dependency code is not prepared to
+	 * have I/O done when a bdwrite is requested. For
+	 * now we just let the write be delayed if it is
+	 * requested by the soft dependency code.
+	 */
+	if ((vp = bp->b_vp) &&
+	    (vp->v_type == VBLK && vp->v_specmountpoint &&
+	    (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP)) ||
+	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP)))
+		return;
+
 	if (numdirtybuffers >= hidirtybuffers)
 		flushdirtybuffers(0, 0);
 
 	return;
+}
+
+
+/*
+ * Same as first half of bdwrite, mark buffer dirty, but do not release it.
+ * Check how this compares with vfs_setdirty(); XXX [JRE]
+ */
+void
+bdirty(bp)
+      struct buf *bp;
+{
+	int s;
+	
+	bp->b_flags &= ~(B_READ|B_RELBUF); /* XXX ??? check this */
+	if ((bp->b_flags & B_DELWRI) == 0) {
+		bp->b_flags |= B_DONE | B_DELWRI; /* why done? XXX JRE */
+		s = splbio();
+		reassignbuf(bp, bp->b_vp);
+		splx(s);
+		++numdirtybuffers;
+	}
 }
 
 /*
@@ -535,6 +598,8 @@ brelse(struct buf * bp)
 	if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR)) ||
 	    (bp->b_bufsize <= 0)) {
 		bp->b_flags |= B_INVAL;
+		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
+			(*bioops.io_deallocate)(bp);
 		if (bp->b_flags & B_DELWRI)
 			--numdirtybuffers;
 		bp->b_flags &= ~(B_DELWRI | B_CACHE);
@@ -1065,6 +1130,9 @@ fillbuf:
 		crfree(bp->b_wcred);
 		bp->b_wcred = NOCRED;
 	}
+	if (LIST_FIRST(&bp->b_dep) != NULL &&
+	    bioops.io_deallocate)
+		(*bioops.io_deallocate)(bp);
 
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
@@ -1083,6 +1151,8 @@ fillbuf:
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
 	bp->b_usecount = 5;
+	/* Here, not kern_physio.c, is where this should be done*/
+	LIST_INIT(&bp->b_dep);
 
 	maxsize = (maxsize + PAGE_MASK) & ~PAGE_MASK;
 
@@ -1799,6 +1869,9 @@ biodone(register struct buf * bp)
 		splx(s);
 		return;
 	}
+	if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_complete)
+		(*bioops.io_complete)(bp);
+
 	if (bp->b_flags & B_VMIO) {
 		int i, resid;
 		vm_ooffset_t foff;
@@ -1944,6 +2017,7 @@ count_lock_queue()
 	return (count);
 }
 
+#if 0	/* not with kirks code */
 static int vfs_update_interval = 30;
 
 static void
@@ -1969,6 +2043,8 @@ sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
 	&vfs_update_interval, 0, sysctl_kern_updateinterval, "I", "");
+
+#endif
 
 
 /*

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
- * $Id: ufs_quota.c,v 1.18 1998/02/06 12:14:18 eivind Exp $
+ * $Id: ufs_quota.c,v 1.19 1998/02/09 06:11:12 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -425,7 +425,7 @@ quotaon(p, mp, type, fname)
 again:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
 		nextvp = vp->v_mntvnodes.le_next;
-		if (vp->v_writecount == 0)
+		if (vp->v_type == VNON || vp->v_writecount == 0)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))
 			goto again;
@@ -470,6 +470,8 @@ quotaoff(p, mp, type)
 again:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
 		nextvp = vp->v_mntvnodes.le_next;
+		if (vp->v_type == VNON)
+			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))
 			goto again;
 		ip = VTOI(vp);
@@ -657,6 +659,8 @@ again:
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = vp->v_mntvnodes.le_next;
+		if (vp->v_type == VNON)
+			continue;
 		simple_lock(&vp->v_interlock);
 		simple_unlock(&mntvnode_slock);
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.66 1998/01/24 02:01:31 dyson Exp $
+ * $Id: vnode.h,v 1.67 1998/03/07 21:36:27 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -61,7 +61,7 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
 enum vtagtype	{
 	VT_NON, VT_UFS, VT_NFS, VT_MFS, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
 	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
-	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS
+	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS
 };
 
 /*
@@ -94,6 +94,7 @@ struct vnode {
 	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
 	struct	buflists v_cleanblkhd;		/* clean blocklist head */
 	struct	buflists v_dirtyblkhd;		/* dirty blocklist head */
+	LIST_ENTRY(vnode) v_synclist;		/* vnodes with dirty buffers */
 	long	v_numoutput;			/* num of writes in progress */
 	enum	vtype v_type;			/* vnode type */
 	union {
@@ -154,7 +155,8 @@ struct vnode {
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
-#define	VTBFREE		0x100000	/* This vnode is no the to be freelist */
+#define	VTBFREE		0x100000 /* This vnode is on the to-be-freelist */
+#define	VONWORKLST	0x200000 /* On syncer work-list */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -243,6 +245,7 @@ extern int		vttoif_tab[];
 
 #define	VREF(vp)	vref(vp)
 
+
 #ifdef DIAGNOSTIC
 #define	VATTR_NULL(vap)	vattr_null(vap)
 #else
@@ -262,6 +265,8 @@ extern int		vttoif_tab[];
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
+extern	time_t syncdelay;		/* time to delay syncing vnodes */
+extern	int rushjob;		/* # of slots filesys_syncer should run ASAP */
 extern	struct vm_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
@@ -499,6 +504,7 @@ int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *cred, int *aresid, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
+void	vn_syncer_add_to_worklist __P((struct vnode *vp, int delay));
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,
                 struct ucred *cred, int waslocked));
