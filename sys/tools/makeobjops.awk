@@ -474,9 +474,9 @@ for (file_i = 0; file_i < num_files; file_i++) {
 	}
 	else {
 		if (opt_c)
-			system_check("mv " ctmpfilename " " cfilename);
+			system_check("mv -f " ctmpfilename " " cfilename);
 		if (opt_h)
-			system_check("mv " htmpfilename " " hfilename);
+			system_check("mv -f " htmpfilename " " hfilename);
 	}
 }
 
