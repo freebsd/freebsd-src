@@ -212,19 +212,6 @@
 /*
  * Chip ID values.
  */
-/* Chip types */
-#define LANCE           1        /* Am7990   */
-#define C_LANCE         2        /* Am79C90  */
-#define PCnet_ISA       3        /* Am79C960 */
-#define PCnet_ISAplus   4        /* Am79C961 */
-#define PCnet_ISA_II    5        /* Am79C961A */
-#define PCnet_32        6        /* Am79C965 */
-#define PCnet_PCI       7        /* Am79C970 */
-#define PCnet_PCI_II    8        /* Am79C970A */
-#define PCnet_FAST      9        /* Am79C971 */
-#define PCnet_FASTplus  10       /* Am79C972 */
-#define PCnet_Home      11       /* Am79C978 */
-
 /* CSR88-89: Chip ID masks */
 #define AMD_MASK  0x003
 #define PART_MASK 0xffff
@@ -238,6 +225,7 @@
 #define Am79C972  0x2624
 #define Am79C973  0x2625
 #define Am79C978  0x2626
+#define Am79C976  0x2628
 
 /*
  * Advanced feature control (CSR122)
