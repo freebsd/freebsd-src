@@ -1074,6 +1074,7 @@ unp_init(void)
 {
 	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(unp_zone, nmbclusters);
 	if (unp_zone == 0)
 		panic("unp_init");
 	LIST_INIT(&unp_dhead);

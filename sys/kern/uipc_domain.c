@@ -127,6 +127,7 @@ domaininit(void *dummy)
 
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(socket_zone, maxsockets);
 
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
