@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.28 1997/05/02 11:22:51 gj Exp $
+#	$Id: Makefile,v 1.29 1997/10/05 09:39:10 jkh Exp $
 
 PROG = gdb
 
@@ -43,34 +43,21 @@ CLEANFILES+=	c-exp.c f-exp.c m2-exp.c init.c y.tab.h init.c-tmp
 .ORDER:	c-exp.c f-exp.c m2-exp.c
 
 .if exists(${.OBJDIR}/../bfd)
-LDADD+=   -L${.OBJDIR}/../bfd -lbfd
-DPADD+=   ${.OBJDIR}/../bfd/libbfd.a
+LIBBFD=	${.OBJDIR}/../bfd/libbfd.a
 .else
-LDADD+=   -L${.CURDIR}/../bfd/ -lbfd
-DPADD+=   ${.CURDIR}/../bfd/libbfd.a
+LIBBFD=	${.CURDIR}/../bfd/libbfd.a
 .endif
-
-DPADD+= ${LIBREADLINE} ${LIBGNUREGEX}
-LDADD+= -lreadline  -lgnuregex
 
 .if exists(${.OBJDIR}/../libiberty)
-LDADD+=   -L${.OBJDIR}/../libiberty -liberty
-DPADD+=   ${.OBJDIR}/../libiberty/libiberty.a
+LIBIBERTY= ${.OBJDIR}/../libiberty/libiberty.a
 .else
-LDADD+=   -L${.CURDIR}/../libiberty/ -liberty
-DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
+LIBIBERTY= ${.CURDIR}/../libiberty/libiberty.a
 .endif
 
-DPADD+= ${LIBTERMCAP}
-LDADD+= -ltermcap
-
-.if exists(${.OBJDIR}/../libiberty)
-LDADD+=   -L${.OBJDIR}/../libiberty -liberty
-DPADD+=   ${.OBJDIR}/../libiberty/libiberty.a
-.else
-LDADD+=   -L${.CURDIR}/../libiberty/ -liberty
-DPADD+=   ${.CURDIR}/../libiberty/libiberty.a
-.endif
+DPADD=	${LIBBFD} ${LIBREADLINE} ${LIBGNUREGEX} ${LIBIBERTY} ${LIBTERMCAP}
+LDADD=	${LIBBFD} -lreadline     -lgnuregex     ${LIBIBERTY} -ltermcap
+DPADD+=	${LIBIBERTY}
+LDADD+=	${LIBIBERTY}
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
