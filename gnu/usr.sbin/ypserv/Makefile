@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1995/02/01 01:59:57 wpaul Exp $
+# $Id: Makefile,v 1.3 1995/02/03 03:41:38 wpaul Exp $
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	ypserv
@@ -12,6 +12,7 @@ MAN8=
 afterinstall: /var/yp/Makefile /usr/libexec/mknetid
 
 /var/yp/Makefile: ${.CURDIR}/Makefile.yp
+        @if [ ! -d /var/yp ]; then mkdir /var/yp; fi
 	install -c -o bin -g bin -m 444 ${.CURDIR}/Makefile.yp /var/yp/Makefile
 
 /usr/libexec/mknetid: ${.CURDIR}/mknetid
