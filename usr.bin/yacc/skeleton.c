@@ -56,7 +56,7 @@ char *banner[] =
 {
     "#ifndef lint",
     "static char const ",
-	"_yacc_parser_rcsid[] = \"$Id: skeleton.c,v 1.21 1999/07/30 13:04:19 hoek Exp $\";",
+    "yyrcsid[] = \"$Id: skeleton.c,v 1.19 1999/07/30 06:40:00 obrien Exp $\";",
     "#endif",
     "#include <stdlib.h>",
     "#define YYBYACC 1",
