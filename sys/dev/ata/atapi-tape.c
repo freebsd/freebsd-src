@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.6 1999/04/10 18:53:35 sos Exp $
+ *	$Id: atapi-tape.c,v 1.7 1999/05/07 07:03:15 phk Exp $
  */
 
 #include "ata.h"
@@ -422,7 +422,7 @@ ast_done(struct atapi_request *request)
     struct buf *bp = request->bp;
     struct ast_softc *stp = request->driver;
 
-    devstat_end_transaction(&stp->stats, bp->b_bcount-request->bytecount,
+    devstat_end_transaction(&stp->stats, request->donecount,
                             DEVSTAT_TAG_NONE,
                             (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
  
