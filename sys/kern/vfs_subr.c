@@ -2780,9 +2780,6 @@ vn_pollevent(vp, events)
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 }
 
-#define VN_KNOTE(vp, b) \
-	KNOTE((struct klist *)&vp->v_pollinfo->vpi_selinfo.si_note, (b))
-
 /*
  * Wake up anyone polling on vp because it is being revoked.
  * This depends on dead_poll() returning POLLHUP for correct
