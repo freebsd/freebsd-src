@@ -1,4 +1,3 @@
-#define ISDEBUG
 /*
  * Isolan AT 4141-0 Ethernet driver
  * Isolink 4110 
@@ -24,6 +23,8 @@
 
 #include "is.h"
 #if NIS > 0
+
+#include "bpfilter.h"
 
 #include "param.h"
 #include "systm.h"
@@ -52,7 +53,6 @@
 #endif
 
 #if NBPFILTER > 0
-#include "bpfilter.h"
 #include "net/bpf.h"
 #include "net/bpfdesc.h"
 #endif
