@@ -76,7 +76,8 @@
 #define DPRINTF(x)	if (uscannerdebug) logprintf x
 #define DPRINTFN(n,x)	if (uscannerdebug>(n)) logprintf x
 int	uscannerdebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, uscanner, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uscanner, CTLFLAG_RW, 0, "USB uscanner");
+SYSCTL_INT(_hw_usb_uscanner, OID_AUTO, debug, CTLFLAG_RW,
 	   &uscannerdebug, 0, "uscanner debug level");
 #else
 #define DPRINTF(x)

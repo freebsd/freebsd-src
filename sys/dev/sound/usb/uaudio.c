@@ -90,7 +90,8 @@
 #define DPRINTF(x)	if (uaudiodebug) logprintf x
 #define DPRINTFN(n,x)	if (uaudiodebug>(n)) logprintf x
 int	uaudiodebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, uaudio, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
 	   &uaudiodebug, 0, "uaudio debug level");
 #else
 #define DPRINTF(x)
