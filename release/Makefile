@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.171 1995/05/23 07:20:35 gpalmer Exp $
+#	$Id: Makefile,v 1.172 1995/05/23 21:33:53 jkh Exp $
 #
 # How to roll a release:
 #
@@ -313,7 +313,6 @@ release.8:
 			cd ${.CURDIR} ; \
 				$(MAKE) doTARBALL SD=${RD}/trees/$${i} \
 					TN=$$i TD=$$i ARG="." ; \
-			( cd ${RD}/dists/$${i}; \
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done                                                 
@@ -335,7 +334,7 @@ release.9:
 	done
 	( cd ${RD}/dists/src && \
 	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
-	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi && \
+	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
 	@echo "src distribution is finished."
 	touch release.9
 
