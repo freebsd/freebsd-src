@@ -391,21 +391,14 @@ distMaybeSetCRYPTO(dialogMenuItem *self)
 		  "If you choose No, FreeBSD will use an MD5-based password scheme which,\n"
 		  "while more secure, is not interoperable with the traditional\n"
 		  "DES-based passwords used on other Unix systems.\n\n"
-		  "Please do NOT choose Yes at this point if you are outside the United\n"
-		  "States and Canada and are installing from a U.S. FTP server (installing\n"
-		  "from the CD is fine). Instead, install everything but the crypto bits\n"
-		  "from the U.S. site and then switch to an international FTP server to\n"
-		  "install crypto on a second pass with the Custom Installation option.\n\n"
 		  "Note that the international crypto distribution has a better\n"
-		  "implementation of the RSA algorithm, which cannot be used in the U.S.\n"
-		  "for patent reasons.\n")) {
+		  "implementation of the RSA algorithm, which is patented in the U.S.\n"
+		  "If you are in the USA, use crypto + the rsaref port/package\n.")) {
 	if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
 	    i = DITEM_FAILURE;
     }
 
     dialog_clear_norefresh();
-    USAResident = !msgYesNo("Are you actually resident in the United States?");
-
     distVerifyFlags();
     return i | DITEM_REDRAW | DITEM_RESTORE;
 }
