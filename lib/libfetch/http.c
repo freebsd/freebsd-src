@@ -304,7 +304,7 @@ _http_funopen(conn_t *conn, int chunked)
 	struct httpio *io;
 	FILE *f;
 
-	if ((io = calloc(1, sizeof *io)) == NULL) {
+	if ((io = calloc(1, sizeof(*io))) == NULL) {
 		_fetch_syserr();
 		return (NULL);
 	}
@@ -470,7 +470,7 @@ _http_parse_mtime(const char *p, time_t *mtime)
 	char locale[64], *r;
 	struct tm tm;
 
-	strncpy(locale, setlocale(LC_TIME, NULL), sizeof locale);
+	strncpy(locale, setlocale(LC_TIME, NULL), sizeof(locale));
 	setlocale(LC_TIME, "C");
 	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
 	/* XXX should add support for date-2 and date-3 */

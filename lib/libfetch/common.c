@@ -205,7 +205,7 @@ _fetch_reopen(int sd)
 	conn_t *conn;
 
 	/* allocate and fill connection structure */
-	if ((conn = calloc(1, sizeof *conn)) == NULL)
+	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
 	conn->sd = sd;
 	++conn->ref;
@@ -551,7 +551,7 @@ _fetch_putln(conn_t *conn, const char *str, size_t len)
 	iov[0].iov_base = str;
 	iov[0].iov_len = len;
 	iov[1].iov_base = ENDL;
-	iov[1].iov_len = sizeof ENDL;
+	iov[1].iov_len = sizeof(ENDL);
 	if (len == 0)
 		ret = _fetch_writev(conn, &iov[1], 1);
 	else
@@ -592,7 +592,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 	}
 
 	if (*len >= *size - 1) {
-		tmp = realloc(*p, (*size * 2 + 1) * sizeof **p);
+		tmp = realloc(*p, (*size * 2 + 1) * sizeof(**p));
 		if (tmp == NULL) {
 			errno = ENOMEM;
 			_fetch_syserr();
@@ -604,7 +604,7 @@ _fetch_add_entry(struct url_ent **p, int *size, int *len,
 
 	tmp = *p + *len;
 	snprintf(tmp->name, PATH_MAX, "%s", name);
-	bcopy(us, &tmp->stat, sizeof *us);
+	bcopy(us, &tmp->stat, sizeof(*us));
 
 	(*len)++;
 	(++tmp)->name[0] = 0;
