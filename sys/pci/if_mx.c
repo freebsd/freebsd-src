@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.6 1998/12/24 19:10:05 wpaul Exp $
+ *	$Id: if_mx.c,v 1.33 1999/01/06 17:22:40 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.6 1998/12/24 19:10:05 wpaul Exp $";
+	"$Id: if_mx.c,v 1.33 1999/01/06 17:22:40 wpaul Exp $";
 #endif
 
 /*
@@ -441,9 +441,11 @@ static int mx_mii_readreg(sc, frame)
 	mx_mii_send(sc, frame->mii_phyaddr, 5);
 	mx_mii_send(sc, frame->mii_regaddr, 5);
 
+#ifdef notdef
 	/* Idle bit */
 	mx_mii_writebit(sc, 1);
 	mx_mii_writebit(sc, 0);
+#endif
 
 	/* Check for ack */
 	ack = mx_mii_readbit(sc);
@@ -523,12 +525,16 @@ static u_int16_t mx_phy_readreg(sc, reg)
 	int			reg;
 {
 	struct mx_mii_frame	frame;
+	u_int32_t		cfg;
 
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = sc->mx_phy_addr;
 	frame.mii_regaddr = reg;
+	cfg = CSR_READ_4(sc, MX_NETCFG);
+	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
 	mx_mii_readreg(sc, &frame);
+	CSR_WRITE_4(sc, MX_NETCFG, cfg);
 
 	return(frame.mii_data);
 }
@@ -539,6 +545,7 @@ static void mx_phy_writereg(sc, reg, data)
 	u_int16_t		data;
 {
 	struct mx_mii_frame	frame;
+	u_int32_t		cfg;
 
 	bzero((char *)&frame, sizeof(frame));
 
@@ -546,7 +553,10 @@ static void mx_phy_writereg(sc, reg, data)
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
+	cfg = CSR_READ_4(sc, MX_NETCFG);
+	MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL);
 	mx_mii_writereg(sc, &frame);
+	CSR_WRITE_4(sc, MX_NETCFG, cfg);
 
 	return;
 }
@@ -1179,9 +1189,13 @@ static void mx_setcfg(sc, bmcr)
 
 	}
 
-	if (bmcr & PHY_BMCR_SPEEDSEL)
+	if (bmcr & PHY_BMCR_SPEEDSEL) {
 		MX_CLRBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
-	else
+		if (sc->mx_phy_addr == 0) {
+			MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_PORTSEL|
+				MX_NETCFG_PCS|MX_NETCFG_SCRAMBLER);
+		}
+	} else
 		MX_SETBIT(sc, MX_NETCFG, MX_NETCFG_SPEEDSEL);
 
 	if (bmcr & PHY_BMCR_DUPLEX)
