@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.51 1996/09/18 14:44:31 davidg Exp $
+ * $Id: if_de.c,v 1.52 1996/09/20 04:35:15 davidg Exp $
  *
  */
 
@@ -52,8 +52,9 @@
 #endif
 
 #include <net/if.h>
-#include <net/if_types.h>
 #include <net/if_dl.h>
+#include <net/if_mib.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <net/netisr.h>
 
@@ -519,7 +520,7 @@ struct _tulip_softc_t {
 #endif
     struct ifqueue tulip_txq;
     struct ifqueue tulip_rxq;
-    tulip_dot3_stats_t tulip_dot3stats;
+    struct ifmib_iso_8802_3 tulip_dot3stats;
     tulip_ringinfo_t tulip_rxinfo;
     tulip_ringinfo_t tulip_txinfo;
     tulip_desc_t tulip_rxdescs[TULIP_RXDESCS];
@@ -538,6 +539,13 @@ static const char * const tulip_chipdescs[] = {
     "DC21140A [10-100Mb/s]",
     "DC21142 [10-100Mb/s]",
 };
+
+#define chip(x) DOT3CHIPSET(dot3VendorDigital, dot3ChipSetDigital##x)
+static u_int32_t const tulip_chip2mib[] = {
+	chip(DC21040), chip(DC21040), chip(DC21041), chip(DC21140),
+	chip(DC21140A), chip(DC21142)
+};
+#undef chip
 
 static const char * const tulip_mediums[] = {
     "unknown",			/* TULIP_MEDIA_UNKNOWN */
@@ -3771,6 +3779,9 @@ tulip_attach(
 	   TULIP_EADDR_ARGS(sc->tulip_hwaddr));
 #endif
 
+    sc->tulip_dot3stats.dot3Compliance = DOT3COMPLIANCE_STATS;
+    sc->tulip_dot3stats.dot3StatsEtherChipSet = 
+	    tulip_chip2mib[sc->tulip_chipid];
 
     if (sc->tulip_boardsw->bd_mii_probe != NULL)
 	(*sc->tulip_boardsw->bd_mii_probe)(sc);
@@ -3784,6 +3795,9 @@ tulip_attach(
     sc->tulip_flags |= TULIP_DEVICEPROBE;
     tulip_reset(sc);
     sc->tulip_flags &= ~TULIP_DEVICEPROBE;
+
+    ifp->if_linkmib = &sc->tulip_dot3stats;
+    ifp->if_linkmiblen = sizeof sc->tulip_dot3stats;
 
 #if defined(__bsdi__) && _BSDI_VERSION >= 199510
     sc->tulip_pf = printf;
