@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.8 1998/02/16 00:00:19 brian Exp $
+ * $Id: lcp.h,v 1.16.2.9 1998/02/17 19:29:14 brian Exp $
  *
  *	TODO:
  */
@@ -47,7 +47,6 @@ struct lcp {
   u_short auth_ineed;		/* I require that the peer authenticates */
 
   int LcpFailedMagic;		/* Number of `magic is same' errors */
-  struct pppTimer ReportTimer;	/* Moan about hdlc errors every 60 seconds */
 };
 
 #define	LCP_MAXCODE	CODE_DISCREQ
