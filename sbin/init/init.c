@@ -623,12 +623,6 @@ single_user()
 	char altshell[128];
 #endif
 
-	/*
-	 * If the kernel is in secure mode, downgrade it to insecure mode.
-	 */
-	if (getsecuritylevel() > 0)
-		setsecuritylevel(0);
-
 	if (Reboot) {
 		/* Instead of going single user, let's reboot the machine */
 		sync();
