@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.11 1995/02/02 23:09:30 jkh Exp $
+# $Id: instdist.sh,v 1.12 1995/02/02 23:13:26 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -108,9 +108,9 @@ Please select the site closest to you or \"other\" if you'd like\n\
 to specify another choice.  Also note that not all sites carry\n\
 every possible distribution!  Distributions other than the basic\n\
 binary set are only guaranteed to be available from the Primary site.\n\
-If the first site selected doesn't respond, try one of the alternates.\n\
+If the first site selected doesn't respond, try one of the alternates.\n\n\
 Please use arrow keys to scroll through all items." \
--1 -1 5 \
+-1 -1 7 \
   "Primary" "ftp.freebsd.org" \
   "Secondary" "freefall.cdrom.com" \
   "Australia" "ftp.physics.usyd.edu.au" \
@@ -372,12 +372,12 @@ simply press ESC twice to get a subshell and proceed manually on your own.\n\
 If you are already finished with the installation process, select cancel\n\
 to proceed." -1 -1 7 \
 	"?Kern" "Please show me the kernel boot messages again!" \
-	"Tape" "Load distribution from SCSI, QIC-02 or floppy tape" \
-	"CDROM" "Load distribution from SCSI or Mitsumi CDROM" \
-	"DOS" "Load from DOS floppies or a DOS hard disk partition" \
-	"FTP" "Load distribution using FTP" \
-	"UFS" "Load the distribution from existing UFS partition" \
-	"NFS" "Load the distribution over NFS" 2> ${TMP}/menu.tmp.$$
+	"Tape" "Load distribution from tape" \
+	"CDROM" "Load distribution from CDROM" \
+	"DOS" "Load from DOS (floppies or hard disk partition)" \
+	"FTP" "Load distribution over FTP" \
+	"UFS" "Load distribution from an existing UFS partition" \
+	"NFS" "Load distribution over NFS" 2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
 	CHOICE=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
