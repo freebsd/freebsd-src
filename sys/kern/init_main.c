@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.119 1999/05/07 17:37:08 des Exp $
+ * $Id: init_main.c,v 1.120 1999/05/09 19:01:44 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -441,14 +441,11 @@ proc0_init(dummy)
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);
 	p->p_addr = proc0paddr;				/* XXX */
 
-#ifndef __alpha__		/* XXX what is this? */
-#define INCOMPAT_LITES2
-#ifdef INCOMPAT_LITES2
+#ifdef cpu_set_init_frame
 	/*
 	 * proc0 needs to have a coherent frame base in its stack.
 	 */
 	cpu_set_init_frame(p, init_framep);			/* XXX! */
-#endif	/* INCOMPAT_LITES2*/
 #endif
 
 	/*
