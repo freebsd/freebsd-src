@@ -8,7 +8,10 @@ extern	kmutex_t	ipf_rw;
 #endif
 
 #define	isdigit(x)	((x) >= '0' && (x) <= '9')
-#define	isupper(x)	((unsigned)((x) - 'A') <= 'Z' - 'A')
+#define	isupper(x)	(((unsigned)(x) >= 'A') && ((unsigned)(x) <= 'Z'))
+#define	islower(x)	(((unsigned)(x) >= 'a') && ((unsigned)(x) <= 'z'))
+#define	isalpha(x)	(isupper(x) || islower(x))
+#define	toupper(x)	(isupper(x) ? (x) : (x) - 'a' + 'A')
 
 #define	IPF_FTP_PROXY
 
@@ -34,6 +37,7 @@ u_short ippr_ftp_atoi __P((char **));
 
 static	frentry_t	natfr;
 int	ippr_ftp_pasvonly = 0;
+int	ippr_ftp_insecure = 0;
 
 
 /*
@@ -96,21 +100,12 @@ int dlen;
 #endif
 
 	tcp = (tcphdr_t *)fin->fin_dp;
-	off = f->ftps_seq - ntohl(tcp->th_seq);
-	if (off < 0)
-		return 0;
 	/*
 	 * Check for client sending out PORT message.
 	 */
 	if (dlen < IPF_MINPORTLEN)
 		return 0;
-	/*
-	 * Count the number of bytes in the PORT message is.
-	 */
-	if (off < 0)
-		return 0;
-
-	off += fin->fin_hlen + (tcp->th_off << 2);
+	off = fin->fin_hlen + (tcp->th_off << 2);
 	/*
 	 * Skip the PORT command + space
 	 */
@@ -200,6 +195,10 @@ int dlen;
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
 	m_copyback(m, off, nlen, newbuf);
+# ifdef	M_PKTHDR
+	if (!(m->m_flags & M_PKTHDR))
+		m->m_pkthdr.len += inc;
+# endif
 #endif
 	if (inc != 0) {
 #if SOLARIS || defined(__sgi)
@@ -274,27 +273,39 @@ ftpinfo_t *ftp;
 ip_t *ip;
 int dlen;
 {
-	char *rptr, *wptr;
+	char *rptr, *wptr, cmd[6], c;
 	ftpside_t *f;
-	int inc;
+	int inc, i;
 
 	inc = 0;
 	f = &ftp->ftp_side[0];
 	rptr = f->ftps_rptr;
 	wptr = f->ftps_wptr;
 
-	if ((ftp->ftp_passok == 0) && !strncmp(rptr, "USER ", 5))
+	for (i = 0; (i < 5) && (i < dlen); i++) {
+		c = rptr[i];
+		if (isalpha(c)) {
+			cmd[i] = toupper(c);
+		} else {
+			cmd[i] = c;
+		}
+	}
+	cmd[i] = '\0';
+
+	if ((ftp->ftp_passok == 0) && !strncmp(cmd, "USER ", 5))
 		 ftp->ftp_passok = 1;
-	else if ((ftp->ftp_passok == 2) && !strncmp(rptr, "PASS ", 5))
+	else if ((ftp->ftp_passok == 2) && !strncmp(cmd, "PASS ", 5))
 		 ftp->ftp_passok = 3;
 	else if ((ftp->ftp_passok == 4) && !ippr_ftp_pasvonly &&
-		 !strncmp(rptr, "PORT ", 5)) {
+		 !strncmp(cmd, "PORT ", 5)) {
+		inc = ippr_ftp_port(fin, ip, nat, f, dlen);
+	} else if (ippr_ftp_insecure && !ippr_ftp_pasvonly &&
+		   !strncmp(cmd, "PORT ", 5)) {
 		inc = ippr_ftp_port(fin, ip, nat, f, dlen);
 	}
 
 	while ((*rptr++ != '\n') && (rptr < wptr))
 		;
-	f->ftps_seq += rptr - f->ftps_rptr;
 	f->ftps_rptr = rptr;
 	return inc;
 }
@@ -312,8 +323,8 @@ int dlen;
 	u_short a5, a6, sp, dp;
 	u_int a1, a2, a3, a4;
 	fr_info_t fi;
-	int inc, off;
 	nat_t *ipn;
+	int inc;
 	char *s;
 
 	/*
@@ -324,15 +335,8 @@ int dlen;
 	else if (strncmp(f->ftps_rptr, "227 Entering Passive Mode", 25))
 		return 0;
 
-	/*
-	 * Count the number of bytes in the 227 reply is.
-	 */
 	tcp = (tcphdr_t *)fin->fin_dp;
-	off = f->ftps_seq - ntohl(tcp->th_seq);
-	if (off < 0)
-		return 0;
 
-	off += fin->fin_hlen + (tcp->th_off << 2);
 	/*
 	 * Skip the PORT command + space
 	 */
@@ -416,13 +420,13 @@ int dlen;
 		m1->b_wptr += inc;
 	}
 	/*copyin_mblk(m, off, nlen, newbuf);*/
-#else
+#else /* SOLARIS */
 	m = *((mb_t **)fin->fin_mp);
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
 	/*m_copyback(m, off, nlen, newbuf);*/
-#endif
+#endif /* SOLARIS */
 	if (inc != 0) {
 #if SOLARIS || defined(__sgi)
 		register u_32_t	sum1, sum2;
@@ -437,10 +441,10 @@ int dlen;
 		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
 
 		fix_outcksum(&ip->ip_sum, sum2, 0);
-#endif
+#endif /* SOLARIS || defined(__sgi) */
 		ip->ip_len += inc;
 	}
-#endif
+#endif /* 0 */
 
 	/*
 	 * Add skeleton NAT entry for connection which will come back the
@@ -506,10 +510,11 @@ int dlen;
 		 ftp->ftp_passok = 0;
 	else if ((ftp->ftp_passok == 4) && !strncmp(rptr, "227 ", 4)) {
 		inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
+	} else if (ippr_ftp_insecure && !strncmp(rptr, "227 ", 4)) {
+		inc = ippr_ftp_pasv(fin, ip, nat, f, dlen);
 	}
 	while ((*rptr++ != '\n') && (rptr < wptr))
 		;
-	f->ftps_seq += rptr - f->ftps_rptr;
 	f->ftps_rptr = rptr;
 	return inc;
 }
@@ -547,16 +552,16 @@ size_t len;
 				return 1;
 		} else
 			return 1;
-	} else if (isupper(c)) {
+	} else if (isalpha(c)) {
 		c = *s++;
 		i--;
-		if (isupper(c)) {
+		if (isalpha(c)) {
 			c = *s++;
 			i--;
-			if (isupper(c)) {
+			if (isalpha(c)) {
 				c = *s++;
 				i--;
-				if (isupper(c)) {
+				if (isalpha(c)) {
 					c = *s++;
 					i--;
 					if ((c != ' ') && (c != '\r'))
@@ -585,10 +590,10 @@ nat_t *nat;
 ftpinfo_t *ftp;
 int rv;
 {
-	int mlen, len, off, inc, i;
+	int mlen, len, off, inc, i, sel;
 	char *rptr, *wptr;
+	ftpside_t *f, *t;
 	tcphdr_t *tcp;
-	ftpside_t *f;
 	mb_t *m;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
@@ -605,23 +610,29 @@ int rv;
 #else
 	mlen = mbufchainlen(m) - off;
 #endif
-	if (!mlen)
+	t = &ftp->ftp_side[1 - rv];
+	if (!mlen) {
+		t->ftps_seq = ntohl(tcp->th_ack);
 		return 0;
+	}
 
 	inc = 0;
 	f = &ftp->ftp_side[rv];
 	rptr = f->ftps_rptr;
 	wptr = f->ftps_wptr;
-	if ((wptr == f->ftps_buf) && (f->ftps_seq <= ntohl(tcp->th_seq)))
-		f->ftps_seq = ntohl(tcp->th_seq);
 
+	sel = nat->nat_aps->aps_sel[1 - rv];
+	if (rv)
+		i = nat->nat_aps->aps_ackoff[sel];
+	else
+		i = nat->nat_aps->aps_seqoff[sel];
 	/*
 	 * XXX - Ideally, this packet should get dropped because we now know
 	 * that it is out of order (and there is no real danger in doing so
 	 * apart from causing packets to go through here ordered).
 	 */
-	if (ntohl(tcp->th_seq) != f->ftps_seq + (wptr - rptr)) {
-		return APR_ERR(0);
+	if (ntohl(tcp->th_seq) + i != f->ftps_seq) {
+		return APR_ERR(-1);
 	}
 
 	while (mlen > 0) {
@@ -665,7 +676,6 @@ int rv;
 				} else
 					rptr++;
 			}
-			f->ftps_seq += rptr - f->ftps_rptr;
 			f->ftps_rptr = rptr;
 		}
 
@@ -676,7 +686,6 @@ int rv;
 				i = wptr - rptr;
 				if ((rptr == f->ftps_buf) ||
 				    (wptr - rptr > FTP_BUFSZ / 2)) {
-					f->ftps_seq += i;
 					f->ftps_junk = 1;
 					rptr = wptr = f->ftps_buf;
 				} else {
@@ -690,6 +699,7 @@ int rv;
 		}
 	}
 
+	t->ftps_seq = ntohl(tcp->th_ack);
 	f->ftps_rptr = rptr;
 	f->ftps_wptr = wptr;
 	return inc;
