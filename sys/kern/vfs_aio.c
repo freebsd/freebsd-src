@@ -47,6 +47,7 @@
 #include <sys/aio.h>
 
 #include <machine/limits.h>
+#include "opt_vfs_aio.h"
 
 static	long jobrefid;
 
@@ -1389,6 +1390,9 @@ aio_aqueue(struct proc *p, struct aiocb *job, int type)
 int
 aio_return(struct proc *p, struct aio_return_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	int s;
 	int jobref;
 	struct aiocblist *cb, *ncb;
@@ -1449,6 +1453,7 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 	splx(s);
 
 	return (EINVAL);
+#endif /* VFS_AIO */
 }
 
 /*
@@ -1457,6 +1462,9 @@ aio_return(struct proc *p, struct aio_return_args *uap)
 int
 aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	struct timeval atv;
 	struct timespec ts;
 	struct aiocb *const *cbptr, *cbp;
@@ -1561,16 +1569,130 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 
 /* NOTREACHED */
 	return EINVAL;
+#endif /* VFS_AIO */
 }
 
 /*
- * aio_cancel at the kernel level is a NOOP right now.  It might be possible to
- * support it partially in user mode, or in kernel mode later on.
+ * aio_cancel cancels any non-physio aio operations not currently in
+ * progress.
  */
 int
 aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 {
-      return ENOSYS;
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
+	struct kaioinfo *ki;
+	struct aiocblist *cbe, *cbn;
+	struct file *fp;
+	struct filedesc *fdp;
+	struct socket *so;
+	struct proc *po;
+	int s,error;
+	int cancelled=0;
+	int notcancelled=0;
+	struct vnode *vp;
+
+	fdp = p->p_fd;
+
+	fp = fdp->fd_ofiles[uap->fd];
+
+	if (fp == NULL) {
+		return EBADF;
+	}
+
+        if (fp->f_type == DTYPE_VNODE) {
+		vp = (struct vnode *)fp->f_data;
+		
+		if (vn_isdisk(vp,&error)) {
+			p->p_retval[0] = AIO_NOTCANCELED;
+        	        return 0;
+		}
+	} else if (fp->f_type == DTYPE_SOCKET) {
+		so = (struct socket *)fp->f_data;
+
+		s = splnet();
+
+		for (cbe = TAILQ_FIRST(&so->so_aiojobq); cbe; cbe = cbn) {
+			cbn = TAILQ_NEXT(cbe, list);
+			if ((uap->aiocbp == NULL) ||
+				(uap->aiocbp == cbe->uuaiocb) ) {
+				po = cbe->userproc;
+				ki = po->p_aioinfo;
+				TAILQ_REMOVE(&so->so_aiojobq, cbe, list);
+				TAILQ_REMOVE(&ki->kaio_sockqueue, cbe, plist);
+				TAILQ_INSERT_TAIL(&ki->kaio_jobdone, cbe, plist);
+				if (ki->kaio_flags & KAIO_WAKEUP) {
+					wakeup(po);
+				}
+				cbe->jobstate = JOBST_JOBFINISHED;
+				cbe->uaiocb._aiocb_private.status=-1;
+				cbe->uaiocb._aiocb_private.error=ECANCELED;
+				cancelled++;
+			        if (cbe->uaiocb.aio_sigevent.sigev_notify ==
+				    SIGEV_SIGNAL)
+					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
+				if (uap->aiocbp) 
+					break;
+			}
+		}
+	
+		splx(s);
+
+		if ((cancelled) && (uap->aiocbp)) {
+			p->p_retval[0] = AIO_CANCELED;
+			return 0;
+		}
+
+	}
+
+	ki=p->p_aioinfo;
+		
+	s = splnet();
+
+	for (cbe = TAILQ_FIRST(&ki->kaio_jobqueue); cbe; cbe = cbn) {
+		cbn = TAILQ_NEXT(cbe, plist);
+
+		if ((uap->fd == cbe->uaiocb.aio_fildes) &&
+		    ((uap->aiocbp == NULL ) || 
+		     (uap->aiocbp == cbe->uuaiocb))) {
+			
+			if (cbe->jobstate == JOBST_JOBQGLOBAL) {
+				TAILQ_REMOVE(&aio_jobs, cbe, list);
+                                TAILQ_REMOVE(&ki->kaio_jobqueue, cbe, plist);
+                                TAILQ_INSERT_TAIL(&ki->kaio_jobdone, cbe,
+                                    plist);
+				cancelled++;
+				ki->kaio_queue_finished_count++;
+				cbe->jobstate = JOBST_JOBFINISHED;
+				cbe->uaiocb._aiocb_private.status = -1;
+				cbe->uaiocb._aiocb_private.error = ECANCELED;
+			        if (cbe->uaiocb.aio_sigevent.sigev_notify ==
+				    SIGEV_SIGNAL)
+					psignal(cbe->userproc, cbe->uaiocb.aio_sigevent.sigev_signo);
+			} else {
+				notcancelled++;
+			}
+		}
+	}
+
+	splx(s);
+		
+
+	if (notcancelled) {
+		p->p_retval[0] = AIO_NOTCANCELED;
+		return 0;
+	}
+
+	if (cancelled) {
+		p->p_retval[0] = AIO_CANCELED;
+		return 0;
+	}
+
+	p->p_retval[0] = AIO_ALLDONE;
+
+	return 0;
+#endif /* VFS_AIO */
 }
 
 /*
@@ -1581,6 +1703,9 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap)
 int
 aio_error(struct proc *p, struct aio_error_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	int s;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
@@ -1657,11 +1782,15 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 		return fuword(&uap->aiocbp->_aiocb_private.error);
 #endif
 	return EINVAL;
+#endif /* VFS_AIO */
 }
 
 int
 aio_read(struct proc *p, struct aio_read_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	struct filedesc *fdp;
 	struct file *fp;
 	struct uio auio;
@@ -1723,11 +1852,15 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 	return error;
+#endif /* VFS_AIO */
 }
 
 int
 aio_write(struct proc *p, struct aio_write_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	struct filedesc *fdp;
 	struct file *fp;
 	struct uio auio;
@@ -1792,11 +1925,15 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 	return error;
+#endif /* VFS_AIO */
 }
 
 int
 lio_listio(struct proc *p, struct lio_listio_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	int nent, nentqueued;
 	struct aiocb *iocb, * const *cbptr;
 	struct aiocblist *cb;
@@ -1956,6 +2093,7 @@ lio_listio(struct proc *p, struct lio_listio_args *uap)
 	}
 
 	return runningcode;
+#endif /* VFS_AIO */
 }
 
 /*
@@ -2053,6 +2191,9 @@ aio_physwakeup(struct buf *bp)
 int
 aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 {
+#ifndef VFS_AIO
+	return ENOSYS;
+#else
 	struct timeval atv;
 	struct timespec ts;
 	struct aiocb **cbptr;
@@ -2060,6 +2201,8 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 	struct aiocblist *cb = NULL;
 	int error, s, timo;
 	
+	suword(uap->aiocbp, (int)NULL);
+
 	timo = 0;
 	if (uap->timeout) {
 		/* Get timespec struct. */
@@ -2097,7 +2240,7 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 				cb->inputcharge = 0;
 			}
 			aio_free_entry(cb);
-			return 0;
+			return cb->uaiocb._aiocb_private.error;
 		}
 
 		s = splbio();
@@ -2106,18 +2249,21 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 			suword(uap->aiocbp, (int)cb->uuaiocb);
 			p->p_retval[0] = cb->uaiocb._aiocb_private.status;
 			aio_free_entry(cb);
-			return 0;
+			return cb->uaiocb._aiocb_private.error;
 		}
-		splx(s);
 
 		ki->kaio_flags |= KAIO_WAKEUP;
 		error = tsleep(p, PRIBIO | PCATCH, "aiowc", timo);
+		splx(s);
 
-		if (error < 0)
+		if (error == ERESTART)
+			return EINTR;
+		else if (error < 0)
 			return error;
 		else if (error == EINTR)
 			return EINTR;
 		else if (error == EWOULDBLOCK)
 			return EAGAIN;
 	}
+#endif /* VFS_AIO */
 }
