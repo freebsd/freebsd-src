@@ -85,12 +85,7 @@ respectively.  If unsuccessful, they shall return a value of -1 and set
 .Fa errno
 to indicate the error.
 .Pp
-If successful, the
-.Fn sched_rr_get_interval
-function will return 0.  Otherwise, it will
-return a value of -1 and set
-.Fa errno
-to indicate the error.
+.Rv -std sched_rr_get_interval
 .Sh ERRORS
 On failure
 .Va errno
