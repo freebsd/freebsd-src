@@ -49,6 +49,8 @@ static char sccsid[] = "@(#)kvm_proc.c	8.3 (Berkeley) 9/23/93";
  */
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
