@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.16 1995/02/02 13:12:15 davidg Exp $
+**  $Id: ncr.c,v 1.17 1995/02/02 15:50:57 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl6 95/02/02"
+#define	NCR_PATCHLEVEL	"pl8 95/02/04"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -1121,7 +1121,7 @@ struct script {
 	ncrcmd	prepare2	[ 24];
 	ncrcmd	setmsg		[  5];
 	ncrcmd  clrack		[  2];
-	ncrcmd  dispatch	[ 31];
+	ncrcmd  dispatch	[ 33];
 	ncrcmd	no_data		[ 17];
 	ncrcmd  checkatn        [ 10];
 	ncrcmd  command		[ 15];
@@ -1231,7 +1231,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.16 1995/02/02 13:12:15 davidg Exp $\n";
+	"\n$Id: ncr.c,v 1.17 1995/02/02 15:50:57 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1689,6 +1689,11 @@ static	struct script script0 = {
 		0,
 	SCR_INT ^ IFTRUE (DATA (HS_NEGOTIATE)),
 		SIR_NEGO_FAILED,
+	/*
+	**	remove bogus output signals
+	*/
+	SCR_REG_REG (socl, SCR_AND, CACK|CATN),
+		0,
 	SCR_RETURN ^ IFTRUE (WHEN (SCR_DATA_OUT)),
 		0,
 	SCR_RETURN ^ IFTRUE (IF (SCR_DATA_IN)),
@@ -3232,6 +3237,19 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	bzero (np, sizeof (*np));
 	np->unit = unit;
+
+	/*
+	**	Enables:
+	**		response to memory addresses.
+	**		devices bus master ability.
+	**
+	**	DISABLEs:
+	**		response to io addresses.
+	**		usage of "Write and invalidate" cycles.
+	*/
+
+	(void) pci_conf_write (config_id, PCI_COMMAND_STATUS_REG,
+		PCI_COMMAND_MEM_ENABLE|PCI_COMMAND_MASTER_ENABLE);
 
 	/*
 	**	Try to map the controller chip to
