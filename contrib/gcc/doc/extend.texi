@@ -1,5 +1,5 @@
-@c Copyright (C) 1988,1989,1992,1993,1994,1996,1998,1999,2000,2001,2002,
-@c 2003 Free Software Foundation, Inc.
+@c Copyright (C) 1988,1989,1992,1993,1994,1996,1998,1999,2000,2001,2002, 2003
+@c Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -1371,7 +1371,8 @@ struct empty @{
 @end example
 
 The structure will have size zero.  In C++, empty structures are part
-of the language, and the language standard says they have size 1.
+of the language.  G++ treats empty structures as if they had a single
+member of type @code{char}.
 
 @node Variable Length
 @section Arrays of Variable Length
@@ -1527,8 +1528,8 @@ argument, these arguments are not macro expanded.
 
 Recently, the preprocessor has relaxed its treatment of escaped
 newlines.  Previously, the newline had to immediately follow a
-backslash.  The current implementation allows whitespace in the form of
-spaces, horizontal and vertical tabs, and form feeds between the
+backslash.  The current implementation allows whitespace in the form
+of spaces, horizontal and vertical tabs, and form feeds between the
 backslash and the subsequent newline.  The preprocessor issues a
 warning, but treats it as a valid escaped newline and combines the two
 lines to form a single logical line.  This works within comments and
@@ -2104,6 +2105,9 @@ functions where the arguments are not available to be checked (such as
 @code{vprintf}), specify the third parameter as zero.  In this case the
 compiler only checks the format string for consistency.  For
 @code{strftime} formats, the third parameter is required to be zero.
+Since non-static C++ methods have an implicit @code{this} argument, the
+arguments of such methods should be counted from two, not one, when
+giving values for @var{string-index} and @var{first-to-check}.
 
 In the example above, the format string (@code{my_format}) is the second
 argument of the function @code{my_print}, and the arguments to check
@@ -2156,7 +2160,9 @@ string argument is not constant; this would generate a warning when
 without the attribute.
 
 The parameter @var{string-index} specifies which argument is the format
-string argument (starting from 1).
+string argument (starting from one).  Since non-static C++ methods have
+an implicit @code{this} argument, the arguments of such methods should
+be counted from two.
 
 The @code{format-arg} attribute allows you to identify your own
 functions which modify format strings, so that GCC can check the
@@ -2286,7 +2292,7 @@ and linker.
 @cindex @code{malloc} attribute
 The @code{malloc} attribute is used to tell the compiler that a function
 may be treated as if it were the malloc function.  The compiler assumes
-that calls to malloc result in a pointers that cannot alias anything.
+that calls to malloc result in pointers that cannot alias anything.
 This will often improve optimization.
 
 @item alias ("@var{target}")
@@ -2338,7 +2344,7 @@ by another module.
 Internal visibility is like hidden visibility, but with additional
 processor specific semantics.  Unless otherwise specified by the psABI,
 gcc defines internal visibility to mean that the function is @emph{never}
-called from another module.  Note that hidden symbols, while then cannot
+called from another module.  Note that hidden symbols, while they cannot
 be referenced directly by other modules, can be referenced indirectly via
 function pointers.  By indicating that a symbol cannot be called from
 outside the module, gcc may for instance omit the load of a PIC register
@@ -2346,15 +2352,6 @@ since it is known that the calling function loaded the correct value.
 @end table
 
 Not all ELF targets support this attribute.
-
-@item tls_model ("@var{tls_model}")
-@cindex @code{tls_model} attribute
-The @code{tls_model} attribute sets thread-local storage model
-(@pxref{Thread-Local}) of a particular @code{__thread} variable,
-overriding @code{-ftls-model=} command line switch on a per-variable
-basis.
-The @var{tls_model} argument should be one of @code{global-dynamic},
-@code{local-dynamic}, @code{initial-exec} or @code{local-exec}.
 
 @item regparm (@var{number})
 @cindex @code{regparm} attribute
@@ -2381,8 +2378,6 @@ On the Intel 386, the @code{stdcall} attribute causes the compiler to
 assume that the called function will pop off the stack space used to
 pass arguments, unless it takes a variable number of arguments.
 
-The PowerPC compiler for Windows NT currently ignores the @code{stdcall}
-attribute.
 
 @item cdecl
 @cindex functions that do pop the argument stack on the 386
@@ -2391,9 +2386,6 @@ On the Intel 386, the @code{cdecl} attribute causes the compiler to
 assume that the calling function will pop off the stack space used to
 pass arguments.  This is
 useful to override the effects of the @option{-mrtd} switch.
-
-The PowerPC compiler for Windows NT currently ignores the @code{cdecl}
-attribute.
 
 @item longcall/shortcall
 @cindex functions called via pointer on the RS/6000 and PowerPC
@@ -2404,12 +2396,12 @@ attribute causes the compiler not to do this.  These attributes override
 both the @option{-mlongcall} switch and the @code{#pragma longcall}
 setting.
 
-@xref{RS/6000 and PowerPC Options}, for more information on when long
-calls are and are not necessary.
+@xref{RS/6000 and PowerPC Options}, for more information on whether long
+calls are necessary.
 
 @item long_call/short_call
 @cindex indirect calls on ARM
-This attribute allows to specify how to call a particular function on
+This attribute specifies how a particular function is called on
 ARM@.  Both attributes override the @option{-mlong-calls} (@pxref{ARM Options})
 command line switch and @code{#pragma long_calls} settings.  The
 @code{long_call} attribute causes the compiler to always call the
@@ -2417,31 +2409,6 @@ function by first loading its address into a register and then using the
 contents of that register.   The @code{short_call} attribute always places
 the offset to the function from the call site into the @samp{BL}
 instruction directly.
-
-@item dllimport
-@cindex functions which are imported from a dll on PowerPC Windows NT
-On the PowerPC running Windows NT, the @code{dllimport} attribute causes
-the compiler to call the function via a global pointer to the function
-pointer that is set up by the Windows NT dll library.  The pointer name
-is formed by combining @code{__imp_} and the function name.
-
-@item dllexport
-@cindex functions which are exported from a dll on PowerPC Windows NT
-On the PowerPC running Windows NT, the @code{dllexport} attribute causes
-the compiler to provide a global pointer to the function pointer, so
-that it can be called with the @code{dllimport} attribute.  The pointer
-name is formed by combining @code{__imp_} and the function name.
-
-@item exception (@var{except-func} [, @var{except-arg}])
-@cindex functions which specify exception handling on PowerPC Windows NT
-On the PowerPC running Windows NT, the @code{exception} attribute causes
-the compiler to modify the structured exception table entry it emits for
-the declared function.  The string or identifier @var{except-func} is
-placed in the third entry of the structured exception table.  It
-represents a function, which is called by the exception handling
-mechanism if an exception occurs.  If it was specified, the string or
-identifier @var{except-arg} is placed in the fourth entry of the
-structured exception table.
 
 @item function_vector
 @cindex calling functions through the function vector on the H8/300 processors
@@ -2464,9 +2431,9 @@ interrupt handler when this attribute is present.
 Note, interrupt handlers for the H8/300, H8/300H and SH processors can
 be specified via the @code{interrupt_handler} attribute.
 
-Note, on the AVR interrupts will be enabled inside the function.
+Note, on the AVR, interrupts will be enabled inside the function.
 
-Note, for the ARM you can specify the kind of interrupt to be handled by
+Note, for the ARM, you can specify the kind of interrupt to be handled by
 adding an optional parameter to the interrupt attribute like this:
 
 @smallexample
@@ -2521,20 +2488,20 @@ slightly under 32kbytes of data.
 @item signal
 @cindex signal handler functions on the AVR processors
 Use this attribute on the AVR to indicate that the specified
-function is an signal handler.  The compiler will generate function
-entry and exit sequences suitable for use in an signal handler when this
-attribute is present.  Interrupts will be disabled inside function.
+function is a signal handler.  The compiler will generate function
+entry and exit sequences suitable for use in a signal handler when this
+attribute is present.  Interrupts will be disabled inside the function.
 
 @item naked
 @cindex function without a prologue/epilogue code
 Use this attribute on the ARM, AVR and IP2K ports to indicate that the
-specified function do not need prologue/epilogue sequences generated by
+specified function does not need prologue/epilogue sequences generated by
 the compiler.  It is up to the programmer to provide these sequences.
 
 @item model (@var{model-name})
 @cindex function addressability on the M32R/D
 Use this attribute on the M32R/D to set the addressability of an object,
-and the code generated for a function.
+and of the code generated for a function.
 The identifier @var{model-name} is one of @code{small}, @code{medium},
 or @code{large}, representing each of the code models.
 
@@ -2574,6 +2541,67 @@ On 68HC11 and 68HC12 the @code{near} attribute causes the compiler to
 use the normal calling convention based on @code{jsr} and @code{rts}.
 This attribute can be used to cancel the effect of the @option{-mlong-calls}
 option.
+
+@item dllimport
+@cindex @code{__declspec(dllimport)}
+On Windows targets, the @code{dllimport} attribute causes the compiler
+to reference a function or variable via a global pointer to a pointer
+that is set up by the Windows dll library. The pointer name is formed by
+combining @code{_imp__} and the function or variable name. The attribute
+implies @code{extern} storage.
+
+Currently, the attribute is ignored for inlined functions. If the
+attribute is applied to a symbol @emph{definition}, an error is reported.
+If a symbol previously declared @code{dllimport} is later defined, the
+attribute is ignored in subsequent references, and a warning is emitted.
+The attribute is also overriden by a subsequent declaration as
+@code{dllexport}. 
+
+When applied to C++ classes, the attribute marks non-inlined
+member functions and static data members as imports.  However, the
+attribute is ignored for virtual methods to allow creation of vtables
+using thunks.
+
+On cygwin, mingw and arm-pe targets, @code{__declspec(dllimport)} is
+recognized as a synonym for @code{__attribute__ ((dllimport))} for
+compatibility with other Windows compilers.
+
+The use of the @code{dllimport} attribute on functions is not necessary,
+but provides a small performance benefit by eliminating a thunk in the
+dll. The use of the @code{dllimport} attribute on imported variables was
+required on older versions of GNU ld, but can now be avoided by passing
+the @option{--enable-auto-import} switch to ld. As with functions, using
+the attribute for a variable eliminates a thunk in the dll. 
+
+One drawback to using this attribute is that a pointer to a function or
+variable marked as dllimport cannot be used as a constant address. The
+attribute can be disabled for functions by setting the
+@option{-mnop-fun-dllimport} flag.
+
+@item dllexport
+@cindex @code{__declspec(dllexport)}
+On Windows targets the @code{dllexport} attribute causes the compiler to
+provide a global pointer to a pointer in a dll, so that it can be
+referenced with the @code{dllimport} attribute. The pointer name is
+formed by combining @code{_imp__} and the function or variable name.
+
+Currently, the @code{dllexport}attribute is ignored for inlined
+functions, but export can be forced by using the
+@option{-fkeep-inline-functions} flag. The attribute is also ignored for
+undefined symbols.
+
+When applied to C++ classes. the attribute marks defined non-inlined
+member functions and static data members as exports. Static consts
+initialized in-class are not marked unless they are also defined
+out-of-class.
+
+On cygwin, mingw and arm-pe targets, @code{__declspec(dllexport)} is
+recognized as a synonym for @code{__attribute__ ((dllexport))} for
+compatibility with other Windows compilers.
+
+Alternative methods for including the symbol in the dll's export table
+are to use a .def file with an @code{EXPORTS} section or, with GNU ld,
+using the @option{--export-all} linker flag.
 
 @end table
 
@@ -2946,7 +2974,7 @@ This is true on many RISC machines.  On more traditional machine
 designs, @code{__alignof__ (double)} is 4 or even 2.
 
 Some machines never actually require alignment; they allow reference to any
-data type even at an odd addresses.  For these machines, @code{__alignof__}
+data type even at an odd address.  For these machines, @code{__alignof__}
 reports the @emph{recommended} alignment of a type.
 
 If the operand of @code{__alignof__} is an lvalue rather than a type,
@@ -2972,15 +3000,13 @@ It is an error to ask for the alignment of an incomplete type.
 
 The keyword @code{__attribute__} allows you to specify special
 attributes of variables or structure fields.  This keyword is followed
-by an attribute specification inside double parentheses.  Ten
-attributes are currently defined for variables: @code{aligned},
-@code{mode}, @code{nocommon}, @code{packed}, @code{section},
-@code{transparent_union}, @code{unused}, @code{deprecated},
-@code{vector_size}, and @code{weak}.  Some other attributes are defined
-for variables on particular target systems.  Other attributes are
-available for functions (@pxref{Function Attributes}) and for types
-(@pxref{Type Attributes}).  Other front ends might define more
-attributes (@pxref{C++ Extensions,,Extensions to the C++ Language}).
+by an attribute specification inside double parentheses.  Some
+attributes are currently defined generically for variables.
+Other attributes are defined for variables on particular target
+systems.  Other attributes are available for functions
+(@pxref{Function Attributes}) and for types (@pxref{Type Attributes}).
+Other front ends might define more attributes
+(@pxref{C++ Extensions,,Extensions to the C++ Language}).
 
 You may also specify attributes with @samp{__} preceding and following
 each keyword.  This allows you to use them in header files without
@@ -3064,6 +3090,40 @@ does not allow the exception to be caught, only to perform an action.
 It is undefined what happens if @var{cleanup_function} does not
 return normally.
 
+@item common
+@itemx nocommon
+@cindex @code{common} attribute
+@cindex @code{nocommon} attribute
+@opindex fcommon
+@opindex fno-common
+The @code{common} attribute requests GCC to place a variable in
+``common'' storage.  The @code{nocommon} attribute requests the
+opposite -- to allocate space for it directly.
+
+These attributes override the default chosen by the 
+@option{-fno-common} and @option{-fcommon} flags respectively.
+
+@item deprecated
+@cindex @code{deprecated} attribute
+The @code{deprecated} attribute results in a warning if the variable
+is used anywhere in the source file.  This is useful when identifying
+variables that are expected to be removed in a future version of a
+program.  The warning also includes the location of the declaration
+of the deprecated variable, to enable users to easily find further
+information about why the variable is deprecated, or what they should
+do instead.  Note that the warning only occurs for uses:
+
+@smallexample
+extern int old_var __attribute__ ((deprecated));
+extern int old_var;
+int new_fn () @{ return old_var; @}
+@end smallexample
+
+results in a warning on line 3 but not line 2.
+
+The @code{deprecated} attribute can also be used for functions and
+types (@pxref{Function Attributes}, @pxref{Type Attributes}.)
+
 @item mode (@var{mode})
 @cindex @code{mode} attribute
 This attribute specifies the data type for the declaration---whichever
@@ -3074,18 +3134,6 @@ You may also specify a mode of @samp{byte} or @samp{__byte__} to
 indicate the mode corresponding to a one-byte integer, @samp{word} or
 @samp{__word__} for the mode of a one-word integer, and @samp{pointer}
 or @samp{__pointer__} for the mode used to represent pointers.
-
-@item nocommon
-@cindex @code{nocommon} attribute
-@opindex fno-common
-This attribute specifies requests GCC not to place a variable
-``common'' but instead to allocate space for it directly.  If you
-specify the @option{-fno-common} flag, GCC will do this for all
-variables.
-
-Specifying the @code{nocommon} attribute for a variable provides an
-initialization of zeros.  A variable may only be initialized in one
-source file.
 
 @item packed
 @cindex @code{packed} attribute
@@ -3155,7 +3203,7 @@ section, consider using the facilities of the linker instead.
 
 @item shared
 @cindex @code{shared} variable attribute
-On Windows NT, in addition to putting variable definitions in a named
+On Windows, in addition to putting variable definitions in a named
 section, the section can also be shared among all running copies of an
 executable or DLL@.  For example, this small program defines shared data
 by putting it in a named section @code{shared} and marking the section
@@ -3178,7 +3226,18 @@ You may only use the @code{shared} attribute along with @code{section}
 attribute with a fully initialized global definition because of the way
 linkers work.  See @code{section} attribute for more information.
 
-The @code{shared} attribute is only available on Windows NT@.
+The @code{shared} attribute is only available on Windows@.
+
+@item tls_model ("@var{tls_model}")
+@cindex @code{tls_model} attribute
+The @code{tls_model} attribute sets thread-local storage model
+(@pxref{Thread-Local}) of a particular @code{__thread} variable,
+overriding @code{-ftls-model=} command line switch on a per-variable
+basis.
+The @var{tls_model} argument should be one of @code{global-dynamic},
+@code{local-dynamic}, @code{initial-exec} or @code{local-exec}.
+
+Not all targets support this attribute.
 
 @item transparent_union
 This attribute, attached to a function parameter which is a union, means
@@ -3192,26 +3251,6 @@ applies to all function parameters with that type.
 This attribute, attached to a variable, means that the variable is meant
 to be possibly unused.  GCC will not produce a warning for this
 variable.
-
-@item deprecated
-The @code{deprecated} attribute results in a warning if the variable
-is used anywhere in the source file.  This is useful when identifying
-variables that are expected to be removed in a future version of a
-program.  The warning also includes the location of the declaration
-of the deprecated variable, to enable users to easily find further
-information about why the variable is deprecated, or what they should
-do instead.  Note that the warnings only occurs for uses:
-
-@smallexample
-extern int old_var __attribute__ ((deprecated));
-extern int old_var;
-int new_fn () @{ return old_var; @}
-@end smallexample
-
-results in a warning on line 3 but not line 2.
-
-The @code{deprecated} attribute can also be used for functions and
-types (@pxref{Function Attributes}, @pxref{Type Attributes}.)
 
 @item vector_size (@var{bytes})
 This attribute specifies the vector size for the variable, measured in
@@ -3257,6 +3296,12 @@ addresses can be loaded with the @code{ld24} instruction).
 Medium and large model objects may live anywhere in the 32-bit address space
 (the compiler will generate @code{seth/add3} instructions to load their
 addresses).
+
+@item dllimport
+The @code{dllimport} attribute is described in @xref{Function Attributes}.
+
+@item dlexport
+The @code{dllexport} attribute is described in @xref{Function Attributes}.
 
 @end table
 
@@ -3378,7 +3423,7 @@ alignment.  See your linker documentation for further information.
 
 @item packed
 This attribute, attached to an @code{enum}, @code{struct}, or
-@code{union} type definition, specified that the minimum required memory
+@code{union} type definition, specifies that the minimum required memory
 be used to represent the type.
 
 @opindex fshort-enums
@@ -3407,7 +3452,7 @@ the referenced type must be respected, just as with normal pointer
 conversions.
 
 Second, the argument is passed to the function using the calling
-conventions of first member of the transparent union, not the calling
+conventions of the first member of the transparent union, not the calling
 conventions of the union itself.  All members of the union must have the
 same machine representation; this is necessary for this argument passing
 to work properly.
@@ -3619,8 +3664,9 @@ The definition in the header file will cause most calls to the function
 to be inlined.  If any uses of the function remain, they will refer to
 the single copy in the library.
 
-For future compatibility with when GCC implements ISO C99 semantics for
-inline functions, it is best to use @code{static inline} only.  (The
+Since GCC eventually will implement ISO C99 semantics for
+inline functions, it is best to use @code{static inline} only
+to guarentee compatibility.  (The
 existing semantics will remain available when @option{-std=gnu89} is
 specified, but eventually the default will be @option{-std=gnu99} and
 that will implement the C99 semantics, though it does not do so yet.)
@@ -3692,7 +3738,7 @@ asm ("fsinx %[angle],%[output]"
 @noindent
 Note that the symbolic operand names have no relation whatsoever to
 other C identifiers.  You may use any name you like, even those of
-existing C symbols, but must ensure that no two operands within the same
+existing C symbols, but you must ensure that no two operands within the same
 assembler construct use the same symbolic name.
 
 Output operand expressions must be lvalues; the compiler can check this.
@@ -5689,9 +5735,7 @@ vector unsigned int vec_mulo (vector unsigned short,
 vector signed int vec_mulo (vector signed short, vector signed short);
 
 vector float vec_nmsub (vector float, vector float, vector float);
-@end smallexample
 
-@smallexample
 vector float vec_nor (vector float, vector float);
 vector signed int vec_nor (vector signed int, vector signed int);
 vector unsigned int vec_nor (vector unsigned int, vector unsigned int);
@@ -6257,9 +6301,7 @@ vector signed int vec_any_eq (vector signed char, vector unsigned char);
 
 vector signed int vec_any_eq (vector signed char, vector signed char);
 vector signed int vec_any_eq (vector unsigned char, vector signed char);
-@end smallexample
 
-@smallexample
 vector signed int vec_any_eq (vector unsigned char,
                               vector unsigned char);
 vector signed int vec_any_eq (vector signed short,
@@ -6712,6 +6754,7 @@ The following are a set of changes to ISO/IEC 14882:1998 (aka C++98)
 that document the exact semantics of the language extension.
 
 @itemize @bullet
+@item
 @b{[intro.execution]}
 
 New text after paragraph 4

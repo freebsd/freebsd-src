@@ -128,7 +128,7 @@ static tree retrieve_specialization PARAMS ((tree, tree));
 static tree retrieve_local_specialization PARAMS ((tree));
 static tree register_specialization PARAMS ((tree, tree, tree));
 static void register_local_specialization PARAMS ((tree, tree));
-static int unregister_specialization PARAMS ((tree, tree));
+static int reregister_specialization PARAMS ((tree, tree, tree));
 static tree reduce_template_parm_level PARAMS ((tree, tree, int));
 static tree build_template_decl PARAMS ((tree, tree));
 static int mark_template_parm PARAMS ((tree, void *));
@@ -1041,13 +1041,11 @@ register_specialization (spec, tmpl, args)
 }
 
 /* Unregister the specialization SPEC as a specialization of TMPL.
-   Returns nonzero if the SPEC was listed as a specialization of
-   TMPL.  */
+   Replace it with NEW_SPEC, if NEW_SPEC is non-NULL.  Returns true
+   if the SPEC was listed as a specialization of TMPL.  */
 
 static int
-unregister_specialization (spec, tmpl)
-     tree spec;
-     tree tmpl;
+reregister_specialization (tree spec, tree tmpl, tree new_spec)
 {
   tree* s;
 
@@ -1056,7 +1054,10 @@ unregister_specialization (spec, tmpl)
        s = &TREE_CHAIN (*s))
     if (TREE_VALUE (*s) == spec)
       {
-	*s = TREE_CHAIN (*s);
+	if (!new_spec)
+	  *s = TREE_CHAIN (*s);
+	else
+	  TREE_VALUE (*s) = new_spec;
 	return 1;
       }
 
@@ -4086,10 +4087,20 @@ lookup_template_class (d1, arglist, in_decl, context, entering_scope, complain)
 	}
       if (template)
 	context = DECL_CONTEXT (template);
+      if (template
+	  && TREE_CODE (template) == TYPE_DECL
+	  && IS_AGGR_TYPE (TREE_TYPE (template))
+	  && TREE_CODE (TREE_TYPE (template)) != TEMPLATE_TYPE_PARM)
+	{
+	  d1 = template;
+	  goto type_decl;
+	}
     }
   else if (TREE_CODE (d1) == TYPE_DECL && IS_AGGR_TYPE (TREE_TYPE (d1)))
     {
-      tree type = TREE_TYPE (d1);
+      tree type;
+    type_decl:
+      type = TREE_TYPE (d1);
 
       /* If we are declaring a constructor, say A<T>::A<T>, we will get
 	 an implicit typename for the second A.  Deal with it.  */
@@ -4997,8 +5008,9 @@ tsubst_friend_function (decl, args)
 	      DECL_TEMPLATE_INFO (old_decl) = new_friend_template_info;
 
 	      if (TREE_CODE (old_decl) != TEMPLATE_DECL)
-		/* duplicate_decls will take care of this case.  */
-		;
+		reregister_specialization (new_friend,
+					   most_general_template (old_decl),
+					   old_decl);
 	      else 
 		{
 		  tree t;
@@ -6340,6 +6352,8 @@ tsubst_decl (t, args, type, complain)
 	r = copy_decl (t);
 	if (TREE_CODE (r) == VAR_DECL)
 	  type = complete_type (type);
+	else if (DECL_SELF_REFERENCE_P (t))
+	  SET_DECL_SELF_REFERENCE_P (r);
 	TREE_TYPE (r) = type;
 	c_apply_type_quals_to_decl (cp_type_quals (type), r);
 	DECL_CONTEXT (r) = ctx;
@@ -9450,22 +9464,25 @@ more_specialized (pat1, pat2, deduce, len)
 
    1 if PAT1 is more specialized than PAT2 as described in [temp.class.order].
    -1 if PAT2 is more specialized than PAT1.
-   0 if neither is more specialized.  */
+   0 if neither is more specialized.
+
+   FULL_ARGS is the full set of template arguments that triggers this
+   partial ordering.  */
    
 int
-more_specialized_class (pat1, pat2)
-     tree pat1, pat2;
+more_specialized_class (pat1, pat2, full_args)
+     tree pat1, pat2, full_args;
 {
   tree targs;
   int winner = 0;
 
   targs = get_class_bindings (TREE_VALUE (pat1), TREE_PURPOSE (pat1),
-			      TREE_PURPOSE (pat2));
+			      add_outermost_template_args (full_args, TREE_PURPOSE (pat2)));
   if (targs)
     --winner;
 
   targs = get_class_bindings (TREE_VALUE (pat2), TREE_PURPOSE (pat2),
-			      TREE_PURPOSE (pat1));
+			      add_outermost_template_args (full_args, TREE_PURPOSE (pat1)));
   if (targs)
     ++winner;
 
@@ -9751,7 +9768,7 @@ most_specialized_class (tmpl, args)
   t = TREE_CHAIN (t);
   for (; t; t = TREE_CHAIN (t))
     {
-      fate = more_specialized_class (champ, t);
+      fate = more_specialized_class (champ, t, args);
       if (fate == 1)
 	;
       else
@@ -9768,7 +9785,7 @@ most_specialized_class (tmpl, args)
 
   for (t = list; t && t != champ; t = TREE_CHAIN (t))
     {
-      fate = more_specialized_class (champ, t);
+      fate = more_specialized_class (champ, t, args);
       if (fate != 1)
 	return error_mark_node;
     }
@@ -10106,7 +10123,7 @@ regenerate_decl_from_template (decl, tmpl)
      instantiation.  */
   gen_tmpl = most_general_template (tmpl);
   push_access_scope_real (gen_tmpl, args, DECL_CONTEXT (decl));
-  unregistered = unregister_specialization (decl, gen_tmpl);
+  unregistered = reregister_specialization (decl, gen_tmpl, NULL_TREE);
 
   /* If the DECL was not unregistered then something peculiar is
      happening: we created a specialization but did not call
