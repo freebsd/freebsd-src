@@ -296,16 +296,14 @@ If the
 .Pa lost+found
 directory does not exist, it is created.
 If there is insufficient space its size is increased.
-.Sh RETURN VALUES
-.Nm
-returns the value 0 if successful;
-otherwise the various non-zero values are returned to indicate the error.
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
 contains default list of filesystems to check.
 .El
 .Sh DIAGNOSTICS
+.Ex -std
+.Pp
 The diagnostics produced by
 .Nm
 are fully enumerated and explained in Appendix A of
