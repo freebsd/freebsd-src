@@ -206,6 +206,7 @@ donice(curp, chgp, n)
 	register int n;
 {
 	register struct pcred *pcred = curp->p_cred;
+	int s;
 
 	if (pcred->pc_ucred->cr_uid && pcred->p_ruid &&
 	    pcred->pc_ucred->cr_uid != chgp->p_ucred->cr_uid &&
@@ -218,7 +219,11 @@ donice(curp, chgp, n)
 	if (n < chgp->p_nice && suser(curp))
 		return (EACCES);
 	chgp->p_nice = n;
+	s = splstatclock();
 	(void)resetpriority(chgp);
+	if (chgp->p_priority >= PUSER)
+		chgp->p_priority = chgp->p_usrpri;
+	splx(s);
 	return (0);
 }
 
