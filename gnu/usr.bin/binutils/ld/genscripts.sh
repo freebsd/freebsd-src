@@ -73,39 +73,39 @@ DATA_ALIGNMENT_u="${DATA_ALIGNMENT_u-${DATA_ALIGNMENT_r}}"
 LD_FLAG=r
 DATA_ALIGNMENT=${DATA_ALIGNMENT_r}
 DEFAULT_DATA_ALIGNMENT="ALIGN(${SEGMENT_SIZE})"
-(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' > \
-  ldscripts/${EMULATION_NAME}.xr
+(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' \
+  > ldscripts/${EMULATION_NAME}.xr
 
 LD_FLAG=u
 DATA_ALIGNMENT=${DATA_ALIGNMENT_u}
 CONSTRUCTING=" "
-(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' > \
-  ldscripts/${EMULATION_NAME}.xu
+(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' \
+  > ldscripts/${EMULATION_NAME}.xu
 
 LD_FLAG=
 DATA_ALIGNMENT=${DATA_ALIGNMENT_}
 RELOCATING=" "
-(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' > \
-  ldscripts/${EMULATION_NAME}.x
+(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' \
+  > ldscripts/${EMULATION_NAME}.x
 
 LD_FLAG=n
 DATA_ALIGNMENT=${DATA_ALIGNMENT_n}
 TEXT_START_ADDR=${NONPAGED_TEXT_START_ADDR-${TEXT_START_ADDR}}
-(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' > \
-  ldscripts/${EMULATION_NAME}.xn
+(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' \
+  > ldscripts/${EMULATION_NAME}.xn
 
 LD_FLAG=N
 DATA_ALIGNMENT=${DATA_ALIGNMENT_N}
-(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' > \
-  ldscripts/${EMULATION_NAME}.xbn
+(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' \
+  > ldscripts/${EMULATION_NAME}.xbn
 
 if test -n "$GENERATE_SHLIB_SCRIPT"; then
   LD_FLAG=shared
   DATA_ALIGNMENT=${DATA_ALIGNMENT_s-${DATA_ALIGNMENT_}}
   CREATE_SHLIB=" "
   # Note that TEXT_START_ADDR is set to NONPAGED_TEXT_START_ADDR.
-  (. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' > \
-    ldscripts/${EMULATION_NAME}.xs
+  (. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc) | sed -e '/^ *$/d' \
+    > ldscripts/${EMULATION_NAME}.xs
 fi
 
 for i in $EMULATION_LIBPATH ; do
