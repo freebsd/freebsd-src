@@ -17,7 +17,7 @@ SRCS=	ftime.c gtty.c stty.c
 SRCS+=	reset.s
 .endif
 
-MAN3+=	ftime.0 getpw.0 stty.0 vlimit.0 vtimes.0
+MAN3+=	4.1/ftime.3 4.1/getpw.3 4.1/stty.3 4.1/vlimit.3 4.1/vtimes.3
 
 MLINKS+=stty.3 gtty.3
 
@@ -40,7 +40,7 @@ SRCS+=	nargs.s insque.s remque.s
 .endif
 
 # XXX MISSING:	ecvt.0
-MAN3+=	insque.0 lsearch.0 re_comp.0 rexec.0
+MAN3+=	4.3/insque.3 4.3/lsearch.3 4.3/re_comp.3 4.3/rexec.3
 
 # XXX MISSING:	ecvt.3, so can't MLINK
 #MLINKS+=ecvt.3 fcvt.3 ecvt.3 gcvt.3
@@ -53,7 +53,7 @@ SRCS+=	cuserid.c
 # regexp sources
 SRCS+=	regerror.c regexp.c regsub.c
 
-MAN3+=	regexp.0
+MAN3+=	regexp/regexp.3
 
 MLINKS+=regexp.3 regcomp.3 regexp.3 regexec.3 regexp.3 regsub.3 \
 	regexp.3 regerror.3
