@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_softdep.c	9.23 (McKusick) 2/20/98
- *	$Id: ffs_softdep.c,v 1.7 1998/05/27 03:32:23 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.8 1998/06/10 20:03:16 julian Exp $
  */
 
 /*
@@ -2355,27 +2355,34 @@ newdirrem(bp, dp, ip, isrmdir)
 	if (pagedep_lookup(dp, lbn, DEPALLOC, &pagedep) == 0)
 		WORKLIST_INSERT(&bp->b_dep, &pagedep->pd_list);
 	dirrem->dm_pagedep = pagedep;
+	/*
+	 * Check for a diradd dependency for the same directory entry.
+	 * If present, then both dependencies become obsolete and can
+	 * be de-allocated. Check for an entry on both the pd_dirraddhd
+	 * list and the pd_pendinghd list.
+	 */
 	for (dap = LIST_FIRST(&pagedep->pd_diraddhd[DIRADDHASH(offset)]);
-	     dap; dap = LIST_NEXT(dap, da_pdlist)) {
-		/*
-		 * Check for a diradd dependency for the same directory entry.
-		 * If present, then both dependencies become obsolete and can
-		 * be de-allocated.
-		 */
-		if (dap->da_offset != offset)
-			continue;
-		/*
-		 * Must be ATTACHED at this point, so just delete it.
-		 */
-		if ((dap->da_state & ATTACHED) == 0)
-			panic("newdirrem: not ATTACHED");
-		if (dap->da_newinum != ip->i_number)
-			panic("newdirrem: inum %d should be %d",
-			    ip->i_number, dap->da_newinum);
-		free_diradd(dap);
-		dirrem->dm_state |= COMPLETE;
-		break;
+	     dap; dap = LIST_NEXT(dap, da_pdlist))
+		if (dap->da_offset == offset)
+			break;
+	if (dap == NULL) {
+		for (dap = LIST_FIRST(&pagedep->pd_pendinghd);
+		     dap; dap = LIST_NEXT(dap, da_pdlist))
+			if (dap->da_offset == offset)
+				break;
+		if (dap == NULL)
+			return (dirrem);
 	}
+	/*
+	 * Must be ATTACHED at this point, so just delete it.
+	 */
+	if ((dap->da_state & ATTACHED) == 0)
+		panic("newdirrem: not ATTACHED");
+	if (dap->da_newinum != ip->i_number)
+		panic("newdirrem: inum %d should be %d",
+		    ip->i_number, dap->da_newinum);
+	free_diradd(dap);
+	dirrem->dm_state |= COMPLETE;
 	return (dirrem);
 }
 
