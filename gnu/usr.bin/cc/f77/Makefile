@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1999/04/18 09:22:56 obrien Exp $
+# $Id: Makefile,v 1.6 1999/04/18 09:39:37 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -9,7 +9,7 @@
 PROG=	f77
 SRCS=	gcc.c g77spec.c version.c
 
-CFLAGS+=	-DLANG_SPECIFIC_DRIVER -DHAVE_CONFIG_H
+CFLAGS+=	-DLANG_SPECIFIC_DRIVER
 
 DPADD=	${LIBCC_DRV} 
 LDADD=	${LIBCC_DRV}
