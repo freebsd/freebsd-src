@@ -1049,8 +1049,8 @@ pass:
 				while (m2->m_next != NULL)
 					m2 = m2->m_next;
 				m2->m_next = m1;
+				m->m_pkthdr.len = tmp;
 			}
-			m->m_pkthdr.len = tmp;
 		}
 #endif
 		error = (*ifp->if_output)(ifp, m,
