@@ -29,7 +29,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: pdb.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
+static char rcsid[] = "$Id: pdb.c,v 1.2 1995/05/30 03:51:41 rgrimes Exp $";
 #endif
 
 #include <sys/types.h>
@@ -38,6 +38,7 @@ static char rcsid[] = "$Id: pdb.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include "extern.h"
 #include "pathnames.h"
 
@@ -402,7 +403,7 @@ print_ci(cip, totalcip)
 		if (!uflow)
 			printf("%8.2fre/cp ", cip->ci_etime / (double) (cip->ci_utime + cip->ci_stime));
 		else
-			printf("%8 ", "*ignore*");
+			printf("*ignore*      ");
 
 	if (Dflag)
 		printf("%10qutio ", cip->ci_io);
