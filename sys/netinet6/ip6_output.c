@@ -661,6 +661,25 @@ skip_ipsec2:;
 			 * forbid loopback, loop back a copy.
 			 */
 			ip6_mloopback(ifp, m, dst);
+		} else {
+			/*
+			 * If we are acting as a multicast router, perform
+			 * multicast forwarding as if the packet had just
+			 * arrived on the interface to which we are about
+			 * to send.  The multicast forwarding function
+			 * recursively calls this function, using the
+			 * IPV6_FORWARDING flag to prevent infinite recursion.
+			 *
+			 * Multicasts that are looped back by ip6_mloopback(),
+			 * above, will be forwarded by the ip6_input() routine,
+			 * if necessary.
+			 */
+			if (ip6_mrouter && (flags & IPV6_FORWARDING) == 0) {
+				if (ip6_mforward(ip6, ifp, m) != NULL) {
+					m_freem(m);
+					goto done;
+				}
+			}
 		}
 		/*
 		 * Multicasts with a hoplimit of zero may be looped back,

@@ -403,7 +403,7 @@ ip6_input(m)
 		IN6_LOOKUP_MULTI(ip6->ip6_dst, m->m_pkthdr.rcvif, in6m);
 		if (in6m)
 			ours = 1;
-		else {
+		else if (!ip6_mrouter) {
 			ip6stat.ip6s_notmember++;
 			ip6stat.ip6s_cantforward++;
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
@@ -539,6 +539,19 @@ ip6_input(m)
 	 * Forward if desirable.
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		/*
+		 * If we are acting as a multicast router, all
+		 * incoming multicast packets are passed to the
+		 * kernel-level multicast forwarding function.
+		 * The packet is returned (relatively) intact; if
+		 * ip6_mforward() returns a non-zero value, the packet
+		 * must be discarded, else it may be accepted below.
+		 */
+		if (ip6_mrouter && ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
+			ip6stat.ip6s_cantforward++;
+			m_freem(m);
+			return;
+		}
 		if (!ours) {
 			m_freem(m);
 			return;
