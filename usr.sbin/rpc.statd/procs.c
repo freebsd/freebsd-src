@@ -151,7 +151,7 @@ struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
     {
       syslog(LOG_DEBUG, "monitor request for host %s", arg->mon_id.mon_name);
       syslog(LOG_DEBUG, "recall host: %s prog: %d ver: %d proc: %d",
-      arg->mon_id.mon_name, arg->mon_id.my_id.my_name,
+      arg->mon_id.mon_name,
       arg->mon_id.my_id.my_prog, arg->mon_id.my_id.my_vers,
       arg->mon_id.my_id.my_proc);
     }
@@ -246,8 +246,8 @@ struct sm_stat *sm_unmon_1_svc(mon_id *arg, struct svc_req *req)
   {
     syslog(LOG_DEBUG, "un-monitor request for host %s", arg->mon_name);
     syslog(LOG_DEBUG, "recall host: %s prog: %d ver: %d proc: %d",
-      arg->mon_name, arg->my_id.my_name, arg->my_id.my_prog,
-      arg->my_id.my_vers, arg->my_id.my_proc);
+      arg->mon_name,
+      arg->my_id.my_prog, arg->my_id.my_vers, arg->my_id.my_proc);
   }
 
   if ((hp = find_host(arg->mon_name, FALSE)))
