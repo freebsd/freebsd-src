@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 1.3 1995/05/30 06:30:50 rgrimes Exp $";
+static char rcsid[] = "$Id: host.c,v 1.3.4.1 1995/08/30 04:06:18 davidg Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -125,6 +125,7 @@ char *pr_class(), *pr_rr(), *pr_type();
 extern char *hostalias();
 
 main(c, v)
+	int c;
 	char **v;
 {
 	unsigned addr;
@@ -216,8 +217,8 @@ main(c, v)
 		_res.nscount = 1;
 		_res.retry = 2;
 	      }
-	if (strcmp (v[1], ".") == 0 ||
-	    !inet_aton(v[1], (struct in_addr *)&addr))
+	if (c > 1 && (strcmp (v[1], ".") == 0 ||
+	    !inet_aton(v[1], (struct in_addr *)&addr)))
 		addr = -1;
 	hp = NULL;
 	h_errno = TRY_AGAIN;
@@ -242,6 +243,7 @@ main(c, v)
 		  printf("Too many cnames.  Possible loop.\n");
 		  exit(1);
 		}
+		strcat(cname, ".");
 		oldcname = cname;
 		hp = NULL;
 		h_errno = TRY_AGAIN;
@@ -539,6 +541,7 @@ getdomaininfo(name, domain)
 
 getinfo(name, domain, type)
 	char *name, *domain;
+	int type;
 {
 
 	HEADER *hp;
@@ -810,7 +813,7 @@ pr_rr(cp, msg, file, filter)
 	case T_AFSDB:
 	case T_RT:
 		if (doprint)
-		  if (type == T_MX)
+		  if (type == T_MX && !verbose)
 		    fprintf(file," (pri=%d) by ", _getshort(cp));
 		  else
 		    if (verbose)
