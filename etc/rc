@@ -445,7 +445,7 @@ case ${syslogd_enable} in
 [Yy][Ee][Ss])
 	# Transitional symlink (for the next couple of years :) until all
 	# binaries have had a chance to move towards /var/run/log.
-	if [ ! -h /dev/log ]; then
+	if [ ! -L /dev/log ]; then
 		# might complain for r/o root f/s
 		ln -sf /var/run/log /dev/log
 	fi
