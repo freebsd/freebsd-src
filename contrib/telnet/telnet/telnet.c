@@ -95,7 +95,7 @@ int
 	connected,
 	showoptions,
 	ISend,		/* trying to send network data in */
-	debug = 0,
+	telnet_debug = 0,
 	crmod,
 	netdata,	/* Print out network data flow */
 	crlf,		/* Should '\r' be mapped to <CR><LF> (or <CR><NUL>)? */

@@ -213,7 +213,7 @@ main(int argc, char *argv[])
 			skiprc = 1;
 			break;
 		case 'd':
-			debug = 1;
+			telnet_debug = 1;
 			break;
 		case 'e':
 			set_escape_char(optarg);
