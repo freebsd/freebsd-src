@@ -103,6 +103,7 @@ badcred:
 	PROC_UNLOCK(p);
 	crfree(newcred);
 bail:
+	mtx_destroy(&pr->pr_mtx);
 	FREE(pr, M_PRISON);
 	return (error);
 }
