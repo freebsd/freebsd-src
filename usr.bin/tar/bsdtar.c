@@ -74,7 +74,7 @@ static char **		 rewrite_argv(struct bsdtar *,
  * non-option.  Otherwise, GNU getopt() permutes the arguments and
  * screws up -C processing.
  */
-const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
+static const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
 
 /*
  * Most of these long options are deliberately not documented.  They
@@ -100,7 +100,7 @@ const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
 #define	OPTION_NULL 7
 #define	OPTION_ONE_FILE_SYSTEM 8
 
-const struct option tar_longopts[] = {
+static const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
 	{ "append",             no_argument,       NULL, 'r' },
 	{ "block-size",         required_argument, NULL, 'b' },
@@ -201,7 +201,7 @@ main(int argc, char **argv)
 	bsdtar->argc = argc;
 
 	/* Process all remaining arguments now. */
-        while ((opt = bsdtar_getopt(bsdtar, tar_opts, &option)) != -1) {
+	while ((opt = bsdtar_getopt(bsdtar, tar_opts, &option)) != -1) {
 		switch (opt) {
 		case 'B': /* GNU tar */
 			/* libarchive doesn't need this; just ignore it. */
@@ -441,8 +441,8 @@ main(int argc, char **argv)
 		only_mode(bsdtar, mode, buff, "cru");
 	}
 
-        bsdtar->argc -= optind;
-        bsdtar->argv += optind;
+	bsdtar->argc -= optind;
+	bsdtar->argv += optind;
 
 	switch(mode) {
 	case 'c':
@@ -497,7 +497,7 @@ only_mode(struct bsdtar *bsdtar, char mode,
  * It is used to determine which option letters have trailing arguments.
  */
 char **
-rewrite_argv(struct bsdtar *bsdtar, int *argc, char ** src_argv,
+rewrite_argv(struct bsdtar *bsdtar, int *argc, char **src_argv,
     const char *optstring)
 {
 	char **new_argv, **dest_argv;
@@ -565,35 +565,33 @@ usage(struct bsdtar *bsdtar)
 	exit(1);
 }
 
-static const char *long_help_msg[] = {
-	"First option must be a mode specifier:\n",
-	"  -c Create  -r Add/Replace  -t List  -u Update  -x Extract\n",
-	"Common Options:\n",
-	"  -b #  Use # 512-byte records per I/O block\n",
-	"  -f <filename>  Location of archive (default " _PATH_DEFTAPE ")\n",
-	"  -v    Verbose\n",
-	"  -w    Interactive\n",
-	"Create: %p -c [options] [<file> | <dir> | @<archive> | C=<dir> ]\n",
-	"  <file>, <dir>  add these items to archive\n",
-	"  -z, -j  Compress archive with gzip/bzip2\n",
-	"  -F {ustar|pax|cpio|shar}  Select archive format\n",
+static const char *long_help_msg =
+	"First option must be a mode specifier:\n"
+	"  -c Create  -r Add/Replace  -t List  -u Update  -x Extract\n"
+	"Common Options:\n"
+	"  -b #  Use # 512-byte records per I/O block\n"
+	"  -f <filename>  Location of archive (default " _PATH_DEFTAPE ")\n"
+	"  -v    Verbose\n"
+	"  -w    Interactive\n"
+	"Create: %p -c [options] [<file> | <dir> | @<archive> | C=<dir> ]\n"
+	"  <file>, <dir>  add these items to archive\n"
+	"  -z, -j  Compress archive with gzip/bzip2\n"
+	"  -F {ustar|pax|cpio|shar}  Select archive format\n"
 #ifdef HAVE_GETOPT_LONG
-	"  --exclude <pattern>  Skip files that match pattern\n",
+	"  --exclude <pattern>  Skip files that match pattern\n"
 #else
-	"  -W exclude=<pattern>  Skip files that match pattern\n",
+	"  -W exclude=<pattern>  Skip files that match pattern\n"
 #endif
-	"  C=<dir>  Change to <dir> before processing remaining files\n",
-	"  @<archive>  Add entries from <archive> to output\n",
-	"List: %p -t [options] [<patterns>]\n",
-	"  <patterns>  If specified, list only entries that match\n",
-	"Extract: %p -x [options] [<patterns>]\n",
-	"  <patterns>  If specified, extract only entries that match\n",
-	"  -k    Keep (don't overwrite) existing files\n",
-	"  -m    Don't restore modification times\n",
-	"  -O    Write entries to stdout, don't restore to disk\n",
-	"  -p    Restore permissions (including ACLs, owner, file flags)\n",
-	NULL
-};
+	"  C=<dir>  Change to <dir> before processing remaining files\n"
+	"  @<archive>  Add entries from <archive> to output\n"
+	"List: %p -t [options] [<patterns>]\n"
+	"  <patterns>  If specified, list only entries that match\n"
+	"Extract: %p -x [options] [<patterns>]\n"
+	"  <patterns>  If specified, extract only entries that match\n"
+	"  -k    Keep (don't overwrite) existing files\n"
+	"  -m    Don't restore modification times\n"
+	"  -O    Write entries to stdout, don't restore to disk\n"
+	"  -p    Restore permissions (including ACLs, owner, file flags)\n";
 
 
 /*
@@ -611,32 +609,25 @@ long_help(struct bsdtar *bsdtar)
 {
 	const char	*prog;
 	const char	*p;
-	const char	**msg;
 
 	prog = bsdtar->progname;
 
 	fflush(stderr);
-	if (strcmp(prog,"bsdtar")!=0)
-		p = "(bsdtar)";
-	else
-		p = "";
 
+	p = (strcmp(prog,"bsdtar")!=0) ? "(bsdtar)" : "";
 	fprintf(stdout, "%s%s: manipulate archive files\n", prog, p);
 
-	for (msg = long_help_msg; *msg != NULL; msg++) {
-		for (p = *msg; p != NULL; p++) {
-			if (*p == '\0')
-				break;
-			else if (*p == '%') {
-				if (p[1] == 'p') {
-					fputs(prog, stdout);
-					p++;
-				} else
-					putchar('%');
+	for (p = long_help_msg; *p != '\0'; p++) {
+		if (*p == '%') {
+			if (p[1] == 'p') {
+				fputs(prog, stdout);
+				p++;
 			} else
-				putchar(*p);
-		}
+				putchar('%');
+		} else
+			putchar(*p);
 	}
+	fprintf(stdout, "\n%s\n", archive_version());
 	fflush(stderr);
 }
 
