@@ -181,7 +181,7 @@ wi_pccard_match(dev)
 	    sizeof(wi_pccard_products[0]), NULL)) != NULL) {
 		if (pp->pp_name != NULL)
 			device_set_desc(dev, pp->pp_name);
-		return (-100);
+		return (0);
 	}
 	return (ENXIO);
 }
@@ -208,7 +208,7 @@ wi_pccard_probe(dev)
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
-	return (-100);
+	return (0);
 }
 
 static int
