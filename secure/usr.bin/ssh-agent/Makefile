@@ -16,7 +16,3 @@ SRCS=	ssh-agent.c log-client.c
 
 LDADD+=	-L${.OBJDIR}/../../lib/libssh -lssh -lcrypto -lcrypt -lutil -lz
 DPADD+=	${LIBCRYPTO} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
-.if defined(RSAREF) && ${RSAREF} == YES
-LDADD+=	-lRSAglue
-DPADD+= ${LIBRSAGLUE}
-.endif
