@@ -373,6 +373,10 @@ disitrap:
 
 	/* Now convert this DSI into a DDB trap.  */
 	GET_CPUINFO(%r1)
+	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_DAR)(%r1) /* get DAR */
+	stw	%r30,(PC_DBSAVE  +CPUSAVE_DAR)(%r1) /* save DAR */
+	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_DSISR)(%r1) /* get DSISR */
+	lwz	%r30,(PC_DBSAVE  +CPUSAVE_DSISR)(%r1) /* save DSISR */
 	lwz	%r30,(PC_DISISAVE+CPUSAVE_R28)(%r1) /* get  r28 */
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R28)(%r1) /* save r28 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R29)(%r1) /* get  r29 */
