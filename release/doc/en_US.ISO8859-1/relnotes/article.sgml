@@ -229,12 +229,24 @@
 	has been added.  This setting allows USB keyboards to work
 	if no PS/2 keyboard is attached.</para>
 
+      <para>The beastie boot menu has been disabled by default.</para>
+
       <!-- Above this line, order boot loader changes by keyword-->
 
     </sect3>
 
     <sect3 id="proc">
       <title>Hardware Support</title>
+
+      <para arch="i386,amd64">The &man.acpi.4; driver now turns
+	the ACPI and PCI devices off or to a lower power state
+	in suspend, and back on again in resume.
+	This behavior can be disabled by
+	setting <varname>debug.acpi.do_powerstate</varname> and
+	<varname>hw.pci.do_powerstate</varname> sysctls.</para>
+
+      <para arch="i386,amd64">The acpi_ibm driver for IBM laptops
+	has been added.</para>
 
       <para arch="i386,amd64">The acpi_snc driver,
 	which supports the Sony Notebook Controller on various
@@ -321,6 +333,9 @@
 
 	<para>The &man.dc.4; driver now supports the &man.altq.4; framework.</para>
 
+	<para>The &man.ed.4; driver now supports the &man.altq.4;
+	  framework.  &merged;</para>
+
 	<para>In the &man.em.4; driver, hardware support for VLAN
 	  tagging is now disabled by default due to some interactions
 	  between this feature and promiscuous mode. &merged;</para>
@@ -387,6 +402,12 @@
 	install <literal>divert</literal> rules and &man.natd.8;
 	will return the error message <quote>protocol not supported</quote>.</para>
 
+      <para>The &man.ipfw.4; can work with
+	<varname>debug.mpsafenet</varname>=<literal>1</literal>
+	(this tunable is <literal>1</literal> by default)
+	when the <literal>gid</literal>, <literal>jail</literal>,
+	and/or <literal>uid</literal> rule options are used.</para>
+
       <para>&man.ipfw.8; now supports classification and tagging
 	of &man.altq.4; packets via a divert socket,
 	as well as the TCP data length.</para>
@@ -423,6 +444,9 @@
 	permit denial-of-service attacks.  This TCP
 	extension has been considered a defective one in
 	a recent Internet Draft.</para>
+
+      <para>The KAME IPv4 IPsec implementation integrated
+	in &os; now supports TCP-MD5.  &merged;</para>
 
       <para>Random ephemeral port number allocation has led to some
         problems with port reuse at high connection rates.  This
@@ -519,10 +543,22 @@
       <command>eject</command>) to take place after fixating a
       disk.</para>
 
+    <para>The &man.ftpd.8; program now uses <literal>212</literal>
+      and <literal>213</literal> status code for directory
+      and file status correctly (<literal>211</literal> is used in
+      the previous versions).  This behavior is described in RFC 959.
+      &merged;</para>
+
     <para>The <literal>create</literal> command of the &man.gpt.8;
       utility now supports a <option>-f</option> command-line flag to
       force creation of a GPT even when there is an MBR record on a
       disk. &merged;</para>
+
+    <para>The gvinum(8) utility now supports
+      <command>checkparity</command>,
+      <command>rebuildparity</command>, and
+      <command>setstate</command>
+      subcommands.  &merged;</para>
 
     <para>The &man.ifconfig.8; utility has been restructured.  It is
       now more modular and flexible with respect to supporting
@@ -632,12 +668,28 @@
       complete list of these variables; it also implements some
       temporary backward compatibility for the old names.</para>
 
+    <para>The &man.periodic.8; security output now supports to display
+      information about blocked packet counts by &man.pf.4;.  &merged;</para>
+
     <para>The &man.ppp.8; program now implements an
       <option>echo</option> parameter, which allows LCP ECHOs to be
       enabled independently of LQR reports.  Older versions of
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
       echo</command> to get this behavior. &merged;</para>
+
+    <para><option>disable NAS-IP-Address</option> and
+      <option>disable NAS-Identifier</option> options
+      which support pre-RFC 2865 RADIUS servers
+      have been added to the &man.ppp.8; program.</para>
+
+    <para>Two bugs in the &man.pppd.8; program has been fixed.
+      They may result in an incorrect CBCP response
+      which violates the Microsoft PPP Callback Control Protocol
+      section 3.2.</para>
+
+    <para>The &man.rescue.8; utilities in the <filename>/rescue</filename>
+      directory now includes &man.bsdtar.1; instead of GNU tar.</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
@@ -678,7 +730,7 @@
       local denial-of-service attack. &merged;</para>
 
     <para>The &man.systat.1; <option>-netstat</option> display is now
-      IPv6-aware. &merged;<para>
+      IPv6-aware. &merged;</para>
 
     <para>The <option>-f</option> option of &man.tail.1; utility
       now supports more than one file at a time. &merged;</para>
@@ -713,7 +765,7 @@
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
       <para>&man.rc.conf.5; now supports changes of network interface names
-	at boot time.  For example:</para>
+	at boot time. &merged;  For example:</para>
 
       <programlisting>ifconfig_fxp0_name="net0"
 ifconfig_net0="inet 10.0.0.1/16"</programlisting>
