@@ -1,4 +1,4 @@
-ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.8 1997/01/03 06:38:29 jkh Exp $
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.9 1997/01/15 07:44:48 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -65,7 +65,7 @@ uha0    330     dyn     6       dyn     Ultrastore 14f
 aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
-amd0	n/a	n/a	n/a	n/a	Tekram DC-390(T) / AMD 53c974 PCI SCSI
+amd0    n/a     n/a     n/a     n/a     Tekram DC-390(T) / AMD 53c974 PCI SCSI
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
 nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
@@ -93,6 +93,7 @@ ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
 ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
+ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
