@@ -277,6 +277,7 @@ void
 vm_object_pip_subtract(vm_object_t object, short i)
 {
 	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	object->paging_in_progress -= i;
 }
 
