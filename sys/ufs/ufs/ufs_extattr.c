@@ -1084,7 +1084,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	 */
 	if (attribute->uele_backing_vnode != vp)
 		vn_lock(attribute->uele_backing_vnode, 
-		    LK_EXCLUSIVE LK_RETRY, td);
+		    LK_EXCLUSIVE | LK_RETRY, td);
 
 	ioflag = IO_NODELOCKED;
 	if (ufs_extattr_sync)
