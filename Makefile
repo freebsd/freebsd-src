@@ -104,19 +104,34 @@ buildworld: upgrade_checks
 .endif
 
 #
-# This 'realclean' target is not included in TGTS, because it is not
-# a recursive target.  All of the work for it is done right here.
-# The first 'rm' will usually remove all files and directories.  If
-# it does not, then there are probably some files with chflags set.
-# Unset all special chflags, and try the 'rm' a second time.
-realclean :
-	-rm -Rf ${.OBJDIR}/* 2>/dev/null
-	@-if [ "`echo ${.OBJDIR}/*`" != "${.OBJDIR}/*" ] ; then \
-	    echo "chflags -R 0 ${.OBJDIR}/*" ; \
-	    chflags -R 0 ${.OBJDIR}/* ;  \
-	    echo "rm -Rf ${.OBJDIR}/*" ; \
-	    rm -Rf ${.OBJDIR}/* ; \
-	fi
+# This 'realclean' target is not included in TGTS, because it is not a
+# recursive target.  All of the work for it is done right here.   It is
+# expected that BW_CANONICALOBJDIR == the CANONICALOBJDIR as would be
+# created by bsd.obj.mk, except that we don't want to .include that file
+# in this makefile.  
+#
+# In the following, the first 'rm' in a series will usually remove all
+# files and directories.  If it does not, then there are probably some
+# files with chflags set, so this unsets them and tries the 'rm' a
+# second time.  There are situations where this target will be cleaning
+# some directories via more than one method, but that duplication is
+# needed to correctly handle all the possible situations.
+#
+BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
+realclean:
+.if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
+.if exists(${BW_CANONICALOBJDIR}/)
+	-rm -rf ${BW_CANONICALOBJDIR}/*
+	chflags -R 0 ${BW_CANONICALOBJDIR}
+	rm -rf ${BW_CANONICALOBJDIR}/*
+.endif
+	#   To be safe in this case, fall back to a 'make cleandir'
+	@cd ${.CURDIR}; ${_MAKE} cleandir
+.else
+	-rm -rf ${.OBJDIR}/*
+	chflags -R 0 ${.OBJDIR}
+	rm -rf ${.OBJDIR}/*
+.endif
 
 #
 # Handle the user-driven targets, using the source relative mk files.
