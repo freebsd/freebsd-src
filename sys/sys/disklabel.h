@@ -202,6 +202,7 @@ dkcksum(struct disklabel *lp)
 #define	DTYPE_CCD		11		/* concatenated disk */
 #define	DTYPE_VINUM		12		/* vinum volume */
 #define	DTYPE_DOC2K		13		/* Msys DiskOnChip */
+#define	DTYPE_RAID		14		/* CMU RAIDFrame */
 #define	DTYPE_JFS2		16		/* IBM JFS 2 */
 
 #ifdef DKTYPENAMES
@@ -220,7 +221,7 @@ static const char *dktypenames[] = {
 	"CCD",
 	"Vinum",
 	"DOC2K",
-	"?",
+	"Raid",
 	"?",
 	"jfs",
 	NULL
@@ -248,6 +249,7 @@ static const char *dktypenames[] = {
 #define	FS_ISO9660	12		/* ISO 9660, normally CD-ROM */
 #define	FS_BOOT		13		/* partition contains bootstrap */
 #define	FS_VINUM	14		/* Vinum drive */
+#define	FS_RAID		15		/* RAIDFrame drive */
 #define	FS_JFS2		21		/* IBM JFS2 */
 
 #ifdef	FSTYPENAMES
@@ -267,8 +269,7 @@ static const char *fstypenames[] = {
 	"ISO9660",
 	"boot",
 	"vinum",
-	"?",
-	"?",
+	"raid",
 	"?",
 	"?",
 	"?",

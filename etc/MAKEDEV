@@ -446,8 +446,12 @@ wt*)
 	umask 77
 	;;
 
+raidctl)
+	mknod raidctl c 201 0 root:operator
+	;;
+
 # Individual slices.
-aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|wd*s*|wfd*s*|raid*s*)
 	umask $disk_umask
 	case $i in
 	aacd*s*) name=aacd; chr=151;;
@@ -463,9 +467,10 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|wd
 	twed*s*) name=twed; chr=147;;
 	wd*s*) name=wd;  chr=3;;
 	wfd*s*) name=wfd; chr=87;;
+	raid*s*) name=raid; chr=200;;
 	esac
 	case $i in
-	aacd*s*|amrd*s*|idad*s*|mlxd*s*|twed*s*)
+	aacd*s*|amrd*s*|idad*s*|mlxd*s*|twed*s*|raid*s*)
 		unit=`expr $i : '....\([0-9]*\)s'`
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
@@ -552,7 +557,7 @@ ata)
 	;;
 	
 
-aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|wd*|wfd*)
+aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|wd*|wfd*|raid*)
 	umask $disk_umask
 	case $i in
 	aacd*) name=aacd; chr=151;;
@@ -568,9 +573,10 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|wd*|wfd*)
 	twed*) name=twed; chr=147;;
 	wd*) name=wd;  chr=3;;
 	wfd*) name=wfd; chr=87;;
+	raid*) name=raid; chr=200;;
 	esac
 	case $i in
-	aacd*|amrd*|idad*|mlxd*|twed*)
+	aacd*|amrd*|idad*|mlxd*|twed*|raid*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
 	afd*|fla*|wfd*)
