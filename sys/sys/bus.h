@@ -421,6 +421,33 @@ int	bus_data_generation_check(int generation);
 void	bus_data_generation_update(void);
 
 /**
+ * Some convenience defines for probe routines to return.  These are just
+ * suggested values, and there's nothing magical about them.
+ * BUS_PROBE_SPECIFIC is for devices that cannot be reprobed, and that no
+ * possible other driver may exist (typically legacy drivers who don't fallow
+ * all the rules, or special needs drivers).  BUS_PROBE_VENDOR is the
+ * suggested value that vendor supplied drivers use.  This is for source or
+ * binary drivers that are not yet integrated into the FreeBSD tree.  Its use
+ * in the base OS is prohibited.  BUS_PROBE_DEFAULT is the normal return value
+ * for drivers to use.  It is intended that nearly all of the drivers in the
+ * tree should return this value.  BUS_PROBE_LOW_PRIORITY are for drivers that
+ * have special requirements like when there are two drivers that support
+ * overlapping series of hardware devices.  In this case the one that supports
+ * the older part of the line would return this value, while the one that
+ * supports the newer ones would return BUS_PROBE_DEFAULT.  BUS_PROBE_GENERIC
+ * is for drivers that wish to have a generic form and a specialized form,
+ * like is done with the pci bus and the acpi pci bus.  BUS_PROBE_HOOVER is
+ * for those busses that implement a generic device place-holder for devices on
+ * the bus that have no more specific driver for them (aka ugen).
+ */
+#define BUS_PROBE_SPECIFIC	0	/* Only I can use this device */
+#define BUS_PROBE_VENDOR	(-10)	/* Vendor supplied driver */
+#define BUS_PROBE_DEFAULT	(-20)	/* Base OS default driver */
+#define BUS_PROBE_LOW_PRIORITY	(-40)	/* Older, less desirable drivers */
+#define BUS_PROBE_GENERIC	(-100)	/* generic driver for dev */
+#define BUS_PROBE_HOOVER	(-500)	/* Generic dev for all devs on bus */
+
+/**
  * Shorthand for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
