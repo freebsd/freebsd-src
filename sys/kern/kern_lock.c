@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.8 1997/08/18 02:06:35 dyson Exp $
+ * $Id: kern_lock.c,v 1.9 1997/08/18 03:29:15 fsmp Exp $
  */
 
 #include <sys/param.h>
@@ -239,8 +239,9 @@ lockmgr(lkp, flags, interlkp, p)
 
 	error = 0;
 	if (p == NULL)
-		panic("lockmgr: called with null process");
-	pid = p->p_pid;
+		pid = LK_KERNPROC;
+	else
+		pid = p->p_pid;
 
 	simple_lock(&lkp->lk_interlock);
 	if (flags & LK_INTERLOCK)
