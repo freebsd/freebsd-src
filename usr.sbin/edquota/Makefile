@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	edquota
+WARNS?=	2
 MAN=	edquota.8
 
 .include <bsd.prog.mk>

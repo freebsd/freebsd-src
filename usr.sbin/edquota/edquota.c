@@ -69,9 +69,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include "pathnames.h"
 
-char *qfname = QUOTAFILENAME;
-char *qfextension[] = INITQFNAMES;
-char *quotagroup = QUOTAGROUP;
+const char *qfname = QUOTAFILENAME;
+const char *qfextension[] = INITQFNAMES;
+const char *quotagroup = QUOTAGROUP;
 char tmpfil[] = _PATH_TMP;
 
 struct quotause {
@@ -83,12 +83,12 @@ struct quotause {
 };
 #define	FOUND	0x01
 
-int alldigits __P((char *s));
+int alldigits __P((const char *s));
 int cvtatos __P((time_t, char *, time_t *));
 char *cvtstoa __P((time_t));
 int editit __P((char *));
 void freeprivs __P((struct quotause *));
-int getentry __P((char *, int));
+int getentry __P((const char *, int));
 struct quotause *getprivs __P((long, int, char *));
 int hasquota __P((struct fstab *, int, char **));
 void putprivs __P((long, int, struct quotause *));
@@ -220,7 +220,7 @@ usage()
  */
 int
 getentry(name, quotatype)
-	char *name;
+	const char *name;
 	int quotatype;
 {
 	struct passwd *pw;
@@ -364,11 +364,11 @@ putprivs(id, quotatype, quplist)
  * Take a list of priviledges and get it edited.
  */
 int
-editit(tmpfile)
-	char *tmpfile;
+editit(tmpf)
+	char *tmpf;
 {
 	long omask;
-	int pid, stat;
+	int pid, status;
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
  top:
@@ -386,19 +386,19 @@ editit(tmpfile)
 		return (0);
 	}
 	if (pid == 0) {
-		register char *ed;
+		register const char *ed;
 
 		sigsetmask(omask);
 		setgid(getgid());
 		setuid(getuid());
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = _PATH_VI;
-		execlp(ed, ed, tmpfile, 0);
+		execlp(ed, ed, tmpf, (char *)0);
 		err(1, "%s", ed);
 	}
-	waitpid(pid, &stat, 0);
+	waitpid(pid, &status, 0);
 	sigsetmask(omask);
-	if (!WIFEXITED(stat) || WEXITSTATUS(stat) != 0)
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
 		return (0);
 	return (1);
 }
@@ -422,14 +422,16 @@ writeprivs(quplist, outfd, name, quotatype)
 		err(1, "%s", tmpfil);
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
-		fprintf(fd, "%s: %s %u, limits (soft = %u, hard = %u)\n",
+		fprintf(fd, "%s: %s %lu, limits (soft = %lu, hard = %lu)\n",
 		    qup->fsname, "blocks in use:",
 		    (unsigned long)(dbtob(qup->dqblk.dqb_curblocks) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bsoftlimit) / 1024),
 		    (unsigned long)(dbtob(qup->dqblk.dqb_bhardlimit) / 1024));
-		fprintf(fd, "%s %u, limits (soft = %u, hard = %u)\n",
-		    "\tinodes in use:", qup->dqblk.dqb_curinodes,
-		    qup->dqblk.dqb_isoftlimit, qup->dqblk.dqb_ihardlimit);
+		fprintf(fd, "%s %lu, limits (soft = %lu, hard = %lu)\n",
+		    "\tinodes in use:",
+		    (unsigned long)qup->dqblk.dqb_curinodes,
+		    (unsigned long)qup->dqblk.dqb_isoftlimit,
+		    (unsigned long)qup->dqblk.dqb_ihardlimit);
 	}
 	fclose(fd);
 	return (1);
@@ -445,6 +447,8 @@ readprivs(quplist, inname)
 {
 	register struct quotause *qup;
 	FILE *fd;
+	unsigned long bhardlimit, bsoftlimit, curblocks;
+	unsigned long ihardlimit, isoftlimit, curinodes;
 	int cnt;
 	register char *cp;
 	struct dqblk dqblk;
@@ -470,30 +474,29 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " blocks in use: %u, limits (soft = %u, hard = %u)",
-		    &dqblk.dqb_curblocks, &dqblk.dqb_bsoftlimit,
-		    &dqblk.dqb_bhardlimit);
+		    " blocks in use: %lu, limits (soft = %lu, hard = %lu)",
+		    &curblocks, &bsoftlimit, &bhardlimit);
 		if (cnt != 3) {
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
-		dqblk.dqb_curblocks = btodb((off_t)dqblk.dqb_curblocks * 1024);
-		dqblk.dqb_bsoftlimit = btodb((off_t)dqblk.dqb_bsoftlimit
-		    * 1024);
-		dqblk.dqb_bhardlimit = btodb((off_t)dqblk.dqb_bhardlimit
-		    * 1024);
+		dqblk.dqb_curblocks = btodb((off_t)curblocks * 1024);
+		dqblk.dqb_bsoftlimit = btodb((off_t)bsoftlimit * 1024);
+		dqblk.dqb_bhardlimit = btodb((off_t)bhardlimit * 1024);
 		if ((cp = strtok(line2, "\n")) == NULL) {
 			warnx("%s: %s: bad format", fsp, line2);
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    "\tinodes in use: %u, limits (soft = %u, hard = %u)",
-		    &dqblk.dqb_curinodes, &dqblk.dqb_isoftlimit,
-		    &dqblk.dqb_ihardlimit);
+		    "\tinodes in use: %lu, limits (soft = %lu, hard = %lu)",
+		    &curinodes, &isoftlimit, &ihardlimit);
 		if (cnt != 3) {
 			warnx("%s: %s: bad format", fsp, line2);
 			return (0);
 		}
+		dqblk.dqb_curinodes = curinodes;
+		dqblk.dqb_isoftlimit = isoftlimit;
+		dqblk.dqb_ihardlimit = ihardlimit;
 		for (qup = quplist; qup; qup = qup->next) {
 			if (strcmp(fsp, qup->fsname))
 				continue;
@@ -586,6 +589,7 @@ readtimes(quplist, inname)
 	int cnt;
 	register char *cp;
 	time_t itime, btime, iseconds, bseconds;
+	long l_itime, l_btime;
 	char *fsp, bunits[10], iunits[10], line1[BUFSIZ];
 
 	fd = fopen(inname, "r");
@@ -609,11 +613,13 @@ readtimes(quplist, inname)
 		}
 		cnt = sscanf(cp,
 		    " block grace period: %ld %s file grace period: %ld %s",
-		    &btime, bunits, &itime, iunits);
+		    &l_btime, bunits, &l_itime, iunits);
 		if (cnt != 4) {
 			warnx("%s:%s: bad format", fsp, cp);
 			return (0);
 		}
+		btime = l_btime;
+		itime = l_itime;
 		if (cvtatos(btime, bunits, &bseconds) == 0)
 			return (0);
 		if (cvtatos(itime, iunits, &iseconds) == 0)
@@ -647,22 +653,22 @@ readtimes(quplist, inname)
  * Convert seconds to ASCII times.
  */
 char *
-cvtstoa(time)
-	time_t time;
+cvtstoa(secs)
+	time_t secs;
 {
 	static char buf[20];
 
-	if (time % (24 * 60 * 60) == 0) {
-		time /= 24 * 60 * 60;
-		sprintf(buf, "%ld day%s", time, time == 1 ? "" : "s");
-	} else if (time % (60 * 60) == 0) {
-		time /= 60 * 60;
-		sprintf(buf, "%ld hour%s", time, time == 1 ? "" : "s");
-	} else if (time % 60 == 0) {
-		time /= 60;
-		sprintf(buf, "%ld minute%s", time, time == 1 ? "" : "s");
+	if (secs % (24 * 60 * 60) == 0) {
+		secs /= 24 * 60 * 60;
+		sprintf(buf, "%ld day%s", (long)secs, secs == 1 ? "" : "s");
+	} else if (secs % (60 * 60) == 0) {
+		secs /= 60 * 60;
+		sprintf(buf, "%ld hour%s", (long)secs, secs == 1 ? "" : "s");
+	} else if (secs % 60 == 0) {
+		secs /= 60;
+		sprintf(buf, "%ld minute%s", (long)secs, secs == 1 ? "" : "s");
 	} else
-		sprintf(buf, "%ld second%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld second%s", (long)secs, secs == 1 ? "" : "s");
 	return (buf);
 }
 
@@ -670,20 +676,20 @@ cvtstoa(time)
  * Convert ASCII input times to seconds.
  */
 int
-cvtatos(time, units, seconds)
-	time_t time;
+cvtatos(period, units, seconds)
+	time_t period;
 	char *units;
 	time_t *seconds;
 {
 
 	if (bcmp(units, "second", 6) == 0)
-		*seconds = time;
+		*seconds = period;
 	else if (bcmp(units, "minute", 6) == 0)
-		*seconds = time * 60;
+		*seconds = period * 60;
 	else if (bcmp(units, "hour", 4) == 0)
-		*seconds = time * 60 * 60;
+		*seconds = period * 60 * 60;
 	else if (bcmp(units, "day", 3) == 0)
-		*seconds = time * 24 * 60 * 60;
+		*seconds = period * 24 * 60 * 60;
 	else {
 		printf("%s: bad units, specify %s\n", units,
 		    "days, hours, minutes, or seconds");
@@ -712,9 +718,9 @@ freeprivs(quplist)
  */
 int
 alldigits(s)
-	register char *s;
+	register const char *s;
 {
-	register c;
+	register int c;
 
 	c = *s++;
 	do {
