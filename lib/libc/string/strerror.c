@@ -38,10 +38,10 @@ static char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #if defined(NLS)
-#include <limits.h>
 #include <nl_types.h>
 #endif
 
+#include <limits.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
