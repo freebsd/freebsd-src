@@ -191,7 +191,6 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 		proto->d_ioctl = diskioctl;
 		proto->d_strategy = diskstrategy;
 		proto->d_psize = diskpsize;
-		cdevsw_add(proto);
 	}
 
 	if (bootverbose)
