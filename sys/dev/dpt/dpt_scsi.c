@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.10 1998/08/10 17:06:28 bde Exp $"
+#ident "$Id: dpt_scsi.c,v 1.11 1998/08/16 23:37:54 bde Exp $"
 
 #define _DPT_C_
 
@@ -669,12 +669,12 @@ valid_unit:
 static void
 dpt_target_done(dpt_softc_t * dpt, int bus, dpt_ccb_t * ccb)
 {
-	int             ospl = splsoftcam();
+	int             ospl;
 	eata_ccb_t     *cp;
 
 	cp = &ccb->eata_ccb;
 
-	/**
+	/*
 	 * Remove the CCB from the waiting queue.
 	 *  We do NOT put it back on the free, etc., queues as it is a special
 	 * ccb, owned by the dpt_softc of this unit.
