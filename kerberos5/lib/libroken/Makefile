@@ -8,7 +8,9 @@ CFLAGS+=	-I${KRB5DIR}/include \
 
 SRCS=		\
 	base64.c		\
+	bswap.c			\
 	concat.c		\
+	ecalloc.c		\
 	emalloc.c		\
 	environment.c		\
 	eread.c			\
@@ -21,6 +23,7 @@ SRCS=		\
 	get_window_size.c	\
 	getarg.c		\
 	getnameinfo_verified.c	\
+	hostent_find_fqdn.c	\
 	issuid.c		\
 	k_getpwnam.c		\
 	k_getpwuid.c		\
@@ -60,3 +63,5 @@ INCLUDES= roken.h ${KRB5DIR}/lib/roken/roken-common.h
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/roken
+
+build-tools:	make-roken
