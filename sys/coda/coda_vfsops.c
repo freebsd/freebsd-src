@@ -53,6 +53,8 @@
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/namei.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 
 #include <coda/coda.h>
