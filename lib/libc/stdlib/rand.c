@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  * Posix rand_r function added May 1999 by Wes Peters <wes@softweyr.com>.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -47,7 +49,31 @@ static char sccsid[] = "@(#)rand.c	8.1 (Berkeley) 6/14/93";
 static int
 do_rand(unsigned long *ctx)
 {
+#ifdef  USE_WEAK_SEEDING
+/*
+ * Historic implementation compatibility.
+ * The random sequences do not vary much with the seed,
+ * even with overflowing.
+ */
 	return ((*ctx = *ctx * 1103515245 + 12345) % ((u_long)RAND_MAX + 1));
+#else   /* !USE_WEAK_SEEDING */
+/*
+ * Compute x = (7^5 * x) mod (2^31 - 1)
+ * wihout overflowing 31 bits:
+ *      (2^31 - 1) = 127773 * (7^5) + 2836
+ * From "Random number generators: good ones are hard to find",
+ * Park and Miller, Communications of the ACM, vol. 31, no. 10,
+ * October 1988, p. 1195.
+ */
+	long hi, lo, x;
+
+	hi = *ctx / 127773;
+	lo = *ctx % 127773;
+	x = 16807 * lo - 2836 * hi;
+	if (x <= 0)
+		x += 0x7fffffff;
+	return ((*ctx = x) % ((u_long)RAND_MAX + 1));
+#endif  /* !USE_WEAK_SEEDING */
 }
 
 
