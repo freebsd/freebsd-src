@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: swapon.c,v 1.4.2.1 1997/06/23 06:35:35 charnier Exp $
  */
 
 #ifndef lint
@@ -64,7 +64,7 @@ main(int argc, char **argv)
 	int ch, doall;
 
 	doall = 0;
-	while ((ch = getopt(argc, argv, "a")) != EOF)
+	while ((ch = getopt(argc, argv, "a")) != -1)
 		switch((char)ch) {
 		case 'a':
 			doall = 1;
