@@ -239,30 +239,64 @@ struct psycho_strayclr {
  * We really should attach handlers for each.
  */
 #define	OFW_PCI_TYPE		"pci"
-#define OFW_SABRE_MODEL		"SUNW,sabre"
-#define OFW_SABRE_COMPAT	"pci108e,a001"
-#define OFW_SIMBA_MODEL		"SUNW,simba"
-#define OFW_PSYCHO_MODEL	"SUNW,psycho"
+
+struct psycho_desc {
+	char	*pd_string;
+	int	pd_mode;
+	char	*pd_name;
+};
+
+static struct psycho_desc psycho_compats[] = {
+	{ "pci108e,8000", PSYCHO_MODE_PSYCHO,	"Psycho compatible" },
+	{ "pci108e,a000", PSYCHO_MODE_SABRE,	"Sabre (US-IIi) compatible" },
+	{ "pci108e,a001", PSYCHO_MODE_SABRE,	"Sabre (US-IIe) compatible" },
+	{ NULL,		  0,			NULL }
+};
+
+static struct psycho_desc psycho_models[] = {
+	{ "SUNW,psycho",  PSYCHO_MODE_PSYCHO,	"Psycho" },
+	{ "SUNW,sabre",   PSYCHO_MODE_SABRE,	"Sabre" },
+	{ NULL,		  0,			NULL }
+};
+
+static struct psycho_desc *
+psycho_find_desc(struct psycho_desc *table, char *string)
+{
+	struct psycho_desc *desc;
+
+	for (desc = table; desc->pd_string != NULL; desc++) {
+		if (strcmp(desc->pd_string, string) == 0)
+			return (desc);
+	}
+	return (NULL);
+}
+
+static struct psycho_desc *
+psycho_get_desc(phandle_t node, char *model)
+{
+	struct psycho_desc *rv;
+	char compat[32];
+
+	rv = NULL;
+	if (model != NULL)
+		rv = psycho_find_desc(psycho_models, model);
+	if (rv == NULL &&
+	    OF_getprop(node, "compatible", compat, sizeof(compat)) != -1)
+		rv = psycho_find_desc(psycho_compats, compat);
+	return (rv);
+}
 
 static int
 psycho_probe(device_t dev)
 {
 	phandle_t node;
-	char *dtype, *model;
-	static char compat[32];
+	char *dtype;
 
 	node = nexus_get_node(dev);
-	if (OF_getprop(node, "compatible", compat, sizeof(compat)) == -1)
-		compat[0] = '\0';
-
 	dtype = nexus_get_device_type(dev);
-	model = nexus_get_model(dev);
-	/* match on a type of "pci" and a sabre or a psycho */
 	if (nexus_get_reg(dev) != NULL && dtype != NULL &&
 	    strcmp(dtype, OFW_PCI_TYPE) == 0 &&
-	    ((model != NULL && (strcmp(model, OFW_SABRE_MODEL) == 0 ||
-	      strcmp(model, OFW_PSYCHO_MODEL) == 0)) ||
-	      strcmp(compat, OFW_SABRE_COMPAT) == 0)) {
+	    psycho_get_desc(node, nexus_get_model(dev)) != NULL) {
 		device_set_desc(dev, "U2P UPA-PCI bridge");
 		return (0);
 	}
@@ -290,8 +324,7 @@ psycho_attach(device_t dev)
 	struct psycho_softc *asc;
 	struct upa_regs *reg;
 	struct ofw_pci_bdesc obd;
-	char compat[32];
-	char *model;
+	struct psycho_desc *desc;
 	phandle_t node;
 	u_int64_t csr;
 	u_long pcictl_offs, mlen;
@@ -307,28 +340,12 @@ psycho_attach(device_t dev)
 
 	node = nexus_get_node(dev);
 	sc = device_get_softc(dev);
-	if (OF_getprop(node, "compatible", compat, sizeof(compat)) == -1)
-		compat[0] = '\0';
+	desc = psycho_get_desc(node, nexus_get_model(dev));
 
 	sc->sc_node = node;
 	sc->sc_dev = dev;
 	sc->sc_dmatag = nexus_get_dmatag(dev);
-
-	/*
-	 * call the model-specific initialisation routine.
-	 */
-	model = nexus_get_model(dev);
-	if ((model != NULL &&
-	     strcmp(model, OFW_SABRE_MODEL) == 0) ||
-	    strcmp(compat, OFW_SABRE_COMPAT) == 0) {
-		sc->sc_mode = PSYCHO_MODE_SABRE;
-		if (model == NULL)
-			model = "sabre";
-	} else if (model != NULL &&
-	    strcmp(model, OFW_PSYCHO_MODEL) == 0)
-		sc->sc_mode = PSYCHO_MODE_PSYCHO;
-	else
-		panic("psycho_attach: unknown model!");
+	sc->sc_mode = desc->pd_mode;
 
 	/*
 	 * The psycho gets three register banks:
@@ -396,9 +413,9 @@ psycho_attach(device_t dev)
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO)
 		sc->sc_ign = PSYCHO_GCSR_IGN(csr) << 6;
 
-	device_printf(dev, "%s: impl %d, version %d: ign %x ",
-		model, (int)PSYCHO_GCSR_IMPL(csr), (int)PSYCHO_GCSR_VERS(csr),
-		sc->sc_ign);
+	device_printf(dev, "%s, impl %d, version %d, ign %x ",
+	    desc->pd_name, (int)PSYCHO_GCSR_IMPL(csr),
+	    (int)PSYCHO_GCSR_VERS(csr), sc->sc_ign);
 
 	/*
 	 * Setup the PCI control register
