@@ -155,5 +155,6 @@ chrdev	name		comments
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
 138	usio		USB Serial support <n_hibma>
+139	wanrouter	Sangoma Technologies Inc. (al.feldman@sangoma.com)
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
