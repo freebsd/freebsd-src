@@ -31,10 +31,11 @@
 #include <pthread_np.h>
 #include "pthread_private.h"
 
+__weak_reference(_pthread_main_np, pthread_main_np);
+
 /*
  * Provide the equivelant to Solaris thr_main() function
  */
-#pragma weak    pthread_main_np=_pthread_main_np
 int
 _pthread_main_np()
 {

@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-#pragma weak __cap_set_fd=___cap_set_fd
+__weak_reference(___cap_set_fd, __cap_set_fd);
 
 int
 ___cap_set_fd(int fd, cap_t cap_p)
