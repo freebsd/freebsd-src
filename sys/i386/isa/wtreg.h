@@ -6,8 +6,6 @@
  *      Sergey Ryzhkov       <sir@kiae.su>
  *      Serge Vakulenko      <vak@zebub.msk.su>
  *
- * Version 1.1, Fri Sep 24 02:14:42 MSD 1993
- *
  * Placed in the public domain with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
@@ -19,6 +17,9 @@
  * made by Robert Baron at CMU, based on Intel sources.
  * Authors thank Robert Baron, CMU and Intel and retain here
  * the original CMU copyright notice.
+ *
+ *	from: Version 1.1, Fri Sep 24 02:14:42 MSD 1993
+ *	$Id$
  */
 
 /*

@@ -30,14 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)fdreg.h	7.1 (Berkeley) 5/9/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00153
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Julian Elischer		Heavily re worked, see notes below
+ *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
+ *	$Id$
  */
 
 /*
