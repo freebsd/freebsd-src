@@ -169,7 +169,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
-FIXCRYPTO=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump 
+FIXCRYPTO=	sbin/init bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump 
 .if !defined(NO_SENDMAIL)
 FIXCRYPTO+=	usr.sbin/sendmail
 .endif
