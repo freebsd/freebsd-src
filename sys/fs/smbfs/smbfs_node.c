@@ -317,20 +317,13 @@ smbfs_reclaim(ap)
 	if (np->n_name)
 		smbfs_name_free(np->n_name);
 	FREE(np, M_SMBNODE);
-	if (dvp) {
-		VI_LOCK(dvp);
-		if (dvp->v_usecount >= 1) {
-			VI_UNLOCK(dvp);
-			vrele(dvp);
-			/*
-			 * Indicate that we released something; see comment
-			 * in smbfs_unmount().
-			 */
-			smp->sm_didrele = 1;
-		} else {
-			VI_UNLOCK(dvp);
-			SMBERROR("BUG: negative use count for parent!\n");
-		}
+	if (dvp != NULL) {
+		vrele(dvp);
+		/*
+		 * Indicate that we released something; see comment
+		 * in smbfs_unmount().
+		 */
+		smp->sm_didrele = 1;
 	}
 	return 0;
 }
