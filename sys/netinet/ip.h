@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id$
+ *	$Id: ip.h,v 1.12 1997/02/22 09:41:31 peter Exp $
  */
 
 #ifndef _NETINET_IP_H_
@@ -45,10 +45,6 @@
 
 /*
  * Structure of an internet header, naked of options.
- *
- * We declare ip_len and ip_off to be short, rather than u_short
- * pragmatically since otherwise unsigned comparisons can result
- * against negative integers quite easily, and fail in subtle ways.
  */
 struct ip {
 #ifdef _IP_VHL
