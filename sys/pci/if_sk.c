@@ -156,6 +156,11 @@ static struct sk_type sk_devs[] = {
 		"Marvell Gigabit Ethernet"
 	},
 	{
+		VENDORID_MARVELL,
+		DEVICEID_BELKIN_5005,
+		"Belkin F5D5005 Gigabit Ethernet"
+	},
+	{
 		VENDORID_3COM,
 		DEVICEID_3COM_3C940,
 		"3Com 3C940 Gigabit Ethernet"
@@ -1532,6 +1537,7 @@ skc_attach(dev)
 		sc->sk_type = SK_GENESIS;
 		break;
 	case DEVICEID_SK_V2:
+	case DEVICEID_BELKIN_5005:
 	case DEVICEID_3COM_3C940:
 	case DEVICEID_LINKSYS_EG1032:
 	case DEVICEID_DLINK_DGE530T:
@@ -2357,7 +2363,8 @@ sk_init_xmac(sc_if)
 	return;
 }
 
-static void sk_init_yukon(sc_if)
+static void
+sk_init_yukon(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	u_int32_t		phy;
