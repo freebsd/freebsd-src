@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.103 1995/08/05 21:32:52 peter Exp $
+#	$Id: files.i386,v 1.104 1995/08/18 11:26:19 jkh Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -135,7 +135,7 @@ i386/isa/sound/sound_timer.c	optional	gus	device-driver
 i386/isa/sound/midi_synth.c	optional	gus	device-driver
 i386/isa/sound/midibuf.c	optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
-i386/isa/sound/ad1848.c		optional	gusmax	device-driver
+i386/isa/sound/ad1848.c		optional	gus	device-driver
 i386/isa/sound/ad1848.c		optional	mss	device-driver
 i386/isa/sound/midi_synth.c	optional	mss	device-driver
 i386/isa/sound/midibuf.c	optional	mss	device-driver
