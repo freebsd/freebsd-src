@@ -45,6 +45,13 @@ The probe method will have been called and will have indicated that
 the device exists.
 This routine should initialise the hardware and allocate other
 system resources (such as devfs entries).
+.Pp
+Devices which implement busses should use this method to probe for
+the existence of devices attached to the bus and add them as
+children.
+If this is combined with the use of
+.Xr bus_generic_attach 9
+the child devices will be automatically probed and attached.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.
 .Sh SEE ALSO
