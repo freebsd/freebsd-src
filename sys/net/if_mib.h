@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_mib.h,v 1.1 1996/07/30 19:17:01 wollman Exp $
+ *	$Id: if_mib.h,v 1.2 1996/08/28 18:32:19 wollman Exp $
  */
 
 #ifndef _NET_IF_MIB_H
@@ -124,7 +124,7 @@ enum dot3Vendors {
 	dot3VendorNational = 4,
 	dot3VendorFujitsu = 5,
 	dot3VendorDigital = 6,
-	dot3VendorWesternDigital = 7,
+	dot3VendorWesternDigital = 7
 };
 
 /* Driver writers!  Add your chipsets here! */
