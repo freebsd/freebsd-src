@@ -20,7 +20,8 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <stdlib.h>
 # include <string.h>
 #endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
+#if ((defined(KERNEL) && (__FreeBSD_version >= 220000)) || \
+     (defined(_KERNEL) && (__FreeBSD_version >= 40013)))
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -31,7 +32,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/protosw.h>
 #endif
 #include <sys/socket.h>
-#if (defined(_KERNEL) || defined(KERNEL)) && !defined(linux)
+#if defined(_KERNEL) && !defined(linux)
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -125,10 +126,10 @@ int	fr_authsize = FR_NUMAUTH;
 int	fr_authused = 0;
 int	fr_defaultauthage = 600;
 fr_authstat_t	fr_authstats;
-static frauth_t fr_auth[FR_NUMAUTH];
+frauth_t fr_auth[FR_NUMAUTH];
 mb_t	*fr_authpkts[FR_NUMAUTH];
-static int	fr_authstart = 0, fr_authend = 0, fr_authnext = 0;
-static frauthent_t	*fae_list = NULL;
+int	fr_authstart = 0, fr_authend = 0, fr_authnext = 0;
+frauthent_t	*fae_list = NULL;
 frentry_t	*ipauth = NULL;
 
 
@@ -273,7 +274,7 @@ ip_t *ip;
 
 int fr_auth_ioctl(data, cmd, fr, frptr)
 caddr_t data;
-#if defined(__NetBSD__) || defined(__OpenBSD__) || (FreeBSD_version >= 300003)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 u_long cmd;
 #else
 int cmd;

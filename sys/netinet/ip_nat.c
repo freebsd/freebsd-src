@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-/*static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.2.2.5 1999/10/05 12:58:33 darrenr Exp $";*/
+/*static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.2.2.11 1999/12/17 13:05:40 darrenr Exp $";*/
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -31,7 +31,8 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <string.h>
 # include <stdlib.h>
 #endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
+#if ((defined(KERNEL) && (__FreeBSD_version >= 220000)) || \
+     (defined(_KERNEL) && (__FreeBSD_version >= 40013)))
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -114,11 +115,7 @@ extern struct ifnet vpnif;
 
 nat_t	**nat_table[2] = { NULL, NULL },
 	*nat_instances = NULL;
-#if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 ipnat_t	*nat_list = NULL;
-#else
-static	ipnat_t	*nat_list = NULL;
-#endif
 u_int	ipf_nattable_sz = NAT_TABLE_SZ;
 u_int	ipf_natrules_sz = NAT_SIZE;
 u_int	ipf_rdrrules_sz = RDR_SIZE;
@@ -129,7 +126,7 @@ ipnat_t	**rdr_rules = NULL;
 
 u_long	fr_defnatage = DEF_NAT_AGE,
 	fr_defnaticmpage = 6;		/* 3 seconds */
-static natstat_t nat_stats;
+natstat_t nat_stats;
 #if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
 extern	KRWLOCK_T	ipf_nat;
@@ -203,15 +200,22 @@ ipnat_t *n;
 }
 
 
-void fix_outcksum(sp, n)
+void fix_outcksum(sp, n , len)
 u_short *sp;
 u_32_t n;
+int len;
 {
 	register u_short sumshort;
 	register u_32_t sum1;
 
 	if (!n)
 		return;
+#if SOLARIS2 >= 6
+	else if (n & NAT_HW_CKSUM) {
+		*sp = n & 0xffff;
+		return;
+	}
+#endif
 	sum1 = (~ntohs(*sp)) & 0xffff;
 	sum1 += (n);
 	sum1 = (sum1 >> 16) + (sum1 & 0xffff);
@@ -222,15 +226,22 @@ u_32_t n;
 }
 
 
-void fix_incksum(sp, n)
+void fix_incksum(sp, n , len)
 u_short *sp;
 u_32_t n;
+int len;
 {
 	register u_short sumshort;
 	register u_32_t sum1;
 
 	if (!n)
 		return;
+#if SOLARIS2 >= 6
+	else if (n & NAT_HW_CKSUM) {
+		*sp = n & 0xffff;
+		return;
+	}
+#endif
 #ifdef sparc
 	sum1 = (~(*sp)) & 0xffff;
 #else
@@ -270,7 +281,7 @@ u_32_t n;
  * Handle ioctls which manipulate the NAT.
  */
 int nat_ioctl(data, cmd, mode)
-#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 u_long cmd;
 #else
 int cmd;
@@ -317,6 +328,14 @@ int mode;
 
 	switch (cmd)
 	{
+#ifdef  IPFILTER_LOG
+	case SIOCIPFFB :
+		if (!(mode & FWRITE))
+			error = EPERM;
+		else
+			*(int *)data = ipflog_clear(IPL_LOGNAT);
+		break;
+#endif
 	case SIOCADNAT :
 		if (!(mode & FWRITE)) {
 			error = EPERM;
@@ -669,6 +688,9 @@ int direction;
 	tcphdr_t *tcp = NULL;
 	u_short nflags;
 	u_int hv;
+#if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
+	qif_t *qf = fin->fin_qif;
+#endif
 
 	nflags = flags & np->in_flags;
 	if (flags & IPN_TCPUDP) {
@@ -761,6 +783,7 @@ int direction;
 					KFREE(nat);
 					return NULL;
 				}
+				in.s_addr = ntohl(in.s_addr);
 			} else if (!in.s_addr && !np->in_outmsk) {
 				/*
 				 * 0/0 - use the original source address/port.
@@ -832,7 +855,7 @@ int direction;
 			 * this is appropriate.
 			 */
 			inb.s_addr = htonl(in.s_addr);
-			natl = nat_inlookup(fin->fin_ifp, flags,
+			natl = nat_inlookup(fin->fin_ifp, flags & ~FI_WILD,
 					    (u_int)ip->ip_p, ip->ip_dst, inb,
 					    (port << 16) | dport);
 
@@ -901,7 +924,21 @@ int direction;
 	}
 
 	CALC_SUMD(sum1, sum2, sumd);
-	nat->nat_sumd = (sumd & 0xffff) + (sumd >> 16);
+	nat->nat_sumd[0] = (sumd & 0xffff) + (sumd >> 16);
+#if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6)
+	if ((flags == IPN_TCP) && dohwcksum &&
+	    (qf->qf_ill->ill_ick.ick_magic == ICK_M_CTL_MAGIC)) {
+		if (direction == NAT_OUTBOUND)
+			sum1 = LONG_SUM(ntohl(in.s_addr));
+		else
+			sum1 = LONG_SUM(ntohl(ip->ip_src.s_addr));
+		sum1 += LONG_SUM(ntohl(ip->ip_dst.s_addr));
+		sum1 += 30;
+		sum1 = (sum1 & 0xffff) + (sum1 >> 16);
+		nat->nat_sumd[1] = NAT_HW_CKSUM|(sum1 & 0xffff);
+	} else
+#endif
+		nat->nat_sumd[1] = nat->nat_sumd[0];
 
 	if ((flags & IPN_TCPUDP) && ((sport != port) || (dport != nport))) {
 		if (direction == NAT_OUTBOUND)
@@ -914,7 +951,7 @@ int direction;
 		CALC_SUMD(sum1, sum2, sumd);
 		nat->nat_ipsumd = (sumd & 0xffff) + (sumd >> 16);
 	} else
-		nat->nat_ipsumd = nat->nat_sumd;
+		nat->nat_ipsumd = nat->nat_sumd[0];
 
 	in.s_addr = htonl(in.s_addr);
 	nat->nat_next = nat_instances;
@@ -1047,19 +1084,19 @@ u_int *nflags;
 	CALC_SUMD(sum1, sum2, sumd);
 
 	if (nat->nat_dir == NAT_OUTBOUND) {
-		fix_incksum(&oip->ip_sum, sumd);
+		fix_incksum(&oip->ip_sum, sumd, 0);
 
 		sumd += (sumd & 0xffff);
 		while (sumd > 0xffff)
 			sumd = (sumd & 0xffff) + (sumd >> 16);
-		fix_outcksum(&icmp->icmp_cksum, sumd);
+		fix_outcksum(&icmp->icmp_cksum, sumd, 0);
 	} else {
-		fix_outcksum(&oip->ip_sum, sumd);
+		fix_outcksum(&oip->ip_sum, sumd, 0);
 
 		sumd += (sumd & 0xffff);
 		while (sumd > 0xffff)
 			sumd = (sumd & 0xffff) + (sumd >> 16);
-		fix_incksum(&icmp->icmp_cksum, sumd);
+		fix_incksum(&icmp->icmp_cksum, sumd, 0);
 	}
 
 
@@ -1075,7 +1112,7 @@ u_int *nflags;
 				sum2 = ntohs(nat->nat_inport);
 				CALC_SUMD(sum1, sum2, sumd);
 				tcp->th_sport = nat->nat_inport;
-				fix_outcksum(&icmp->icmp_cksum, sumd);
+				fix_outcksum(&icmp->icmp_cksum, sumd, 0);
 			}
 		} else {
 			if (tcp->th_dport != nat->nat_outport) {
@@ -1083,7 +1120,7 @@ u_int *nflags;
 				sum2 = ntohs(nat->nat_outport);
 				CALC_SUMD(sum1, sum2, sumd);
 				tcp->th_dport = nat->nat_outport;
-				fix_incksum(&icmp->icmp_cksum, sumd);
+				fix_incksum(&icmp->icmp_cksum, sumd, 0);
 			}
 		}
 	}
@@ -1356,9 +1393,9 @@ maskloop:
 		 */
 #if SOLARIS || defined(__sgi)
 		if (nat->nat_dir == NAT_OUTBOUND)
-			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd);
+			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd, 0);
 		else
-			fix_incksum(&ip->ip_sum, nat->nat_ipsumd);
+			fix_incksum(&ip->ip_sum, nat->nat_ipsumd, 0);
 #endif
 
 		if (!(ip->ip_off & IP_OFFMASK) &&
@@ -1397,9 +1434,11 @@ maskloop:
 			}
 			if (csump) {
 				if (nat->nat_dir == NAT_OUTBOUND)
-					fix_outcksum(csump, nat->nat_sumd);
+					fix_outcksum(csump, nat->nat_sumd[1],
+						     ip->ip_len);
 				else
-					fix_incksum(csump, nat->nat_sumd);
+					fix_incksum(csump, nat->nat_sumd[1],
+						     ip->ip_len);
 			}
 		}
 		if ((np->in_apr != NULL) && (np->in_dport == 0 ||
@@ -1489,7 +1528,8 @@ maskloop:
 			    ((in.s_addr & np->in_outmsk) == np->in_outip) &&
 			    ((src.s_addr & np->in_srcmsk) == np->in_srcip) &&
 			    (np->in_redir & NAT_REDIRECT) &&
-			     (!np->in_pmin || np->in_pmin == dport)) {
+			    (!np->in_pmin || np->in_pmin == dport) &&
+			    (!np->in_p || np->in_p == ip->ip_p)) {
 				if ((nat = nat_new(np, ip, fin, nflags,
 						    NAT_INBOUND))) {
 					np->in_hits++;
@@ -1534,9 +1574,9 @@ maskloop:
 		 */
 #if SOLARIS || defined(__sgi)
 		if (nat->nat_dir == NAT_OUTBOUND)
-			fix_incksum(&ip->ip_sum, nat->nat_ipsumd);
+			fix_incksum(&ip->ip_sum, nat->nat_ipsumd, 0);
 		else
-			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd);
+			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd, 0);
 #endif
 		if (!(ip->ip_off & IP_OFFMASK) &&
 		    !(fin->fin_fi.fi_fl & FI_SHORT)) {
@@ -1574,9 +1614,9 @@ maskloop:
 			}
 			if (csump) {
 				if (nat->nat_dir == NAT_OUTBOUND)
-					fix_incksum(csump, nat->nat_sumd);
+					fix_incksum(csump, nat->nat_sumd[0], 0);
 				else
-					fix_outcksum(csump, nat->nat_sumd);
+					fix_outcksum(csump, nat->nat_sumd[0], 0);
 			}
 		}
 		ATOMIC_INC(nat_stats.ns_mapped[0]);
@@ -1680,7 +1720,7 @@ void *ifp;
 			 */
 			sum1 = nat->nat_outip.s_addr;
 			if (fr_ifpaddr(ifp2, &in) != -1)
-				nat->nat_outip.s_addr = htonl(in.s_addr);
+				nat->nat_outip = in;
 			sum2 = nat->nat_outip.s_addr;
 
 			if (sum1 == sum2)
@@ -1690,13 +1730,20 @@ void *ifp;
 			 * account the new IP#.
 			 */
 			CALC_SUMD(sum1, sum2, sumd);
-			sumd += nat->nat_sumd;
-			nat->nat_sumd = (sumd & 0xffff) + (sumd >> 16);
+			/* XXX - dont change for TCP when solaris does
+			 * hardware checksumming.
+			 */
+			sumd += nat->nat_sumd[0];
+			nat->nat_sumd[0] = (sumd & 0xffff) + (sumd >> 16);
+			nat->nat_sumd[1] = nat->nat_sumd[0];
 		}
 
 	for (n = nat_list; (n != NULL); n = n->in_next)
-		if (n->in_ifp == ifp)
+		if (n->in_ifp == ifp) {
 			n->in_ifp = (void *)GETUNIT(n->in_ifname);
+			if (!n->in_ifp)
+				n->in_ifp = (void *)-1;
+		}
 	RWLOCK_EXIT(&ipf_nat);
 	SPL_X(s);
 }
