@@ -367,7 +367,6 @@ g_md_start(struct bio *bp)
 
 	sc = bp->bio_to->geom->softc;
 
-	bp->bio_blkno = bp->bio_offset >> DEV_BSHIFT;
 	bp->bio_pblkno = bp->bio_offset / sc->secsize;
 	bp->bio_bcount = bp->bio_length;
 	mtx_lock(&sc->queue_mtx);
