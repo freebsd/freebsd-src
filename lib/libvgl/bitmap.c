@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: bitmap.c,v 1.8 1997/08/15 12:32:59 sos Exp $
+ *  $Id: bitmap.c,v 1.1 1997/08/17 21:09:34 sos Exp $
  */
 
 #include <sys/types.h>
@@ -89,14 +89,15 @@ WriteVerticalLine(VGLBitmap *dst, int x, int y, int width, byte *line)
     }
     break;
   case VIDBUF8X:
-    address = dst->Bitmap + ((dst->Xsize * y) + x)/2;
+    address = dst->Bitmap + (dst->Xsize/2 * y) + x/4;
     for (i=0; i<4; i++) {
       outb(0x3c4, 0x02);
-      outb(0x3c5, 0x01<<i);
-      pos = i;
-      for (planepos=0; planepos<width/4; planepos++, pos+=4)
+      outb(0x3c5, 0x01 << ((x + i)%4));
+      for (planepos=0, pos=i; pos<width; planepos++, pos+=4)
         address[planepos] = line[pos];
-    } 
+      if ((x + i)%4 == 3)
+	++address;
+    }
     break;
   case VIDBUF8:
   case MEMBUF:
@@ -145,14 +146,15 @@ ReadVerticalLine(VGLBitmap *src, int x, int y, int width, byte *line)
     }
     break;
   case VIDBUF8X:
-    address = src->Bitmap + ((src->Xsize * y) + x)/2;
+    address = src->Bitmap + (src->Xsize/2 * y) + x/4;
     for (i=0; i<4; i++) {
       outb(0x3ce, 0x04);
-      outb(0x3cf, i);
-      pos = i;
-      for (planepos=0; planepos<width/4; planepos++, pos+=4)
+      outb(0x3cf, (x + i)%4);
+      for (planepos=0, pos=i; pos<width; planepos++, pos+=4)
         line[pos] = address[planepos];
-    } 
+      if ((x + i)%4 == 3)
+	++address;
+    }
     break;
   case VIDBUF8:
   case MEMBUF:
@@ -169,7 +171,7 @@ __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy,
 {
   int srcline, dstline;
 
-  if (srcx>src->Xsize||srcy>src->Ysize||dsty>dst->Xsize||dsty>dst->Ysize)
+  if (srcx>src->Xsize||srcy>src->Ysize||dstx>dst->Xsize||dsty>dst->Ysize)
     return -1;  
   if (srcx < 0) {
     width=width+srcx; dstx-=srcx; srcx=0;    
