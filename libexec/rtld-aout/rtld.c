@@ -1711,6 +1711,10 @@ findhint(name, major, minorp)
 		 */
 		if (strcmp(name, hstrtab + bp->hi_namex) == 0 &&
 		    bp->hi_major == major) {
+			struct stat s;
+
+			if (stat(hstrtab + bp->hi_pathx, &s) == -1)
+				return NULL;  /* Doesn't actually exist */
 			*minorp = bp->hi_ndewey >= 2 ? bp->hi_minor : -1;
 			return strdup(hstrtab + bp->hi_pathx);
 		}
