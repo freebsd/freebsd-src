@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
 #include <time.h>
 #include <unistd.h>
 #include <vis.h>
+#include <locale.h>
 
 struct nlist nl[] = {
 #define	X_MSGBUF	0
@@ -77,6 +78,7 @@ main(argc, argv)
 	kvm_t *kd;
 	char buf[5];
 
+	(void) setlocale(LC_CTYPE, "");
 	memf = nlistf = NULL;
 	while ((ch = getopt(argc, argv, "M:N:")) != EOF)
 		switch(ch) {
