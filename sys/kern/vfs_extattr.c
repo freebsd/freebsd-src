@@ -571,8 +571,7 @@ update:
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
-	} else
-		vfs_freeopts(mp->mnt_optnew);
+	}
 	/*
 	 * Prevent external consumers of mount
 	 * options to read mnt_optnew.
