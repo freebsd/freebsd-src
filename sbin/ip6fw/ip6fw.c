@@ -153,11 +153,11 @@ print_port(prot, port, comma)
 static void
 print_iface(char *key, union ip6_fw_if *un, int byname)
 {
-	char ifnb[FW_IFNLEN+1];
+	char ifnb[IP6FW_IFNLEN+1];
 
 	if (byname) {
-		strncpy(ifnb, un->fu_via_if.name, FW_IFNLEN);
-		ifnb[FW_IFNLEN]='\0';
+		strncpy(ifnb, un->fu_via_if.name, IP6FW_IFNLEN);
+		ifnb[IP6FW_IFNLEN]='\0';
 		if (un->fu_via_if.unit == -1)
 			printf(" %s %s*", key, ifnb);
 		else

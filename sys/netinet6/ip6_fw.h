@@ -37,8 +37,8 @@
 union ip6_fw_if {
     struct in6_addr fu_via_ip6;	/* Specified by IPv6 address */
     struct {			/* Specified by interface name */
-#define FW_IFNLEN     IFNAMSIZ
-	    char  name[FW_IFNLEN];
+#define IP6FW_IFNLEN     IFNAMSIZ
+	    char  name[IP6FW_IFNLEN];
 	    short unit;		/* -1 means match any unit */
     } fu_via_if;
 };
