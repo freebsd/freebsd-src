@@ -46,6 +46,7 @@ SUBDIR=	accf_data \
 	iir \
 	ip6fw \
 	ipfw \
+	ips \
 	ispfw \
 	joy \
 	kue \

@@ -129,6 +129,7 @@ device		twa		# 3ware 9000 series PATA/SATA RAID
 device		aac		# Adaptec FSA RAID, Dell PERC2/PERC3
 #device		aacp		# SCSI passthrough for aac (requires CAM)
 device		ida		# Compaq Smart RAID
+device		ips		# IBM/Adaptec ServeRAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
 device		pst		# Promise Supertrak SX6000

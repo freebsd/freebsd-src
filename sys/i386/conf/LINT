@@ -1261,6 +1261,10 @@ device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
+# IBM (now Adaptec) ServeRAID controllers
+device		ips
+
+#
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
 # one entry is needed; the code will find and configure all supported
 # controllers.

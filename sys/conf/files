@@ -396,6 +396,11 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
+dev/ips/ips.c		optional ips
+dev/ips/ips_pci.c	optional ips pci
+dev/ips/ips_disk.c	optional ips
+dev/ips/ips_commands.c	optional ips
+dev/ips/ips_ioctl.c	optional ips
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
 dev/isp/isp_pci.c	optional isp

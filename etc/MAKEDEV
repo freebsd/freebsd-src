@@ -460,7 +460,7 @@ wt*)
 	;;
 
 # Individual slices.
-aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|pst*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|ipsd*s*|md*s*|mlxd*s*|pst*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	aacd*s*) name=aacd; chr=151;;
@@ -471,6 +471,7 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|pst*s*|twe
 	da*s*) name=da;  chr=13;;
 	fla*s*) name=fla; chr=102;;
 	idad*s*) name=idad; chr=109;;
+	ipsd*s*) name=ipsd; chr=176;;
 	md*s*) name=md;  chr=95;;
 	mlxd*s*) name=mlxd; chr=131;;
 	pst*s*) name=pst; chr=168;;
@@ -480,7 +481,7 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|pst*s*|twe
 	wfd*s*) name=wfd; chr=87;;
 	esac
 	case $i in
-	aacd*s*|amrd*s*|idad*s*|mlxd*s*|twed*s*)
+	aacd*s*|amrd*s*|idad*s*|ips*s*|mlxd*s*|twed*s*)
 		unit=`expr $i : '....\([0-9]*\)s'`
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
@@ -645,7 +646,7 @@ fd*)
 	umask 77
 	;;
 
-aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
+aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|ips*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	aacd*) name=aacd; chr=151;;
@@ -656,6 +657,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	da*) name=da;  chr=13;;
 	fla*) name=fla; chr=102;;
 	idad*) name=idad; chr=109;;
+	ipsd*) name=ipsd; char=176;;
 	md*) name=md; chr=95;;
 	mlxd*) name=mlxd; chr=131;;
 	pst*) name=pst; chr=168;;
@@ -665,7 +667,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	wfd*) name=wfd; chr=87;;
 	esac
 	case $i in
-	aacd*|amrd*|idad*|mlxd*|twed*)
+	aacd*|amrd*|idad*|ipsd*|mlxd*|twed*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
 	afd*|fla*|pst*|wfd*)
@@ -1890,6 +1892,11 @@ aac*)
 	mknod aac$unit c 150 `unit2minor $unit`
 	ln -fs aac$unit afa$unit
 	ln -fs aac$unit hpn$unit
+	;;
+
+ips*)
+	unit=`expr $i : 'ips\(.*\)'`
+	mknod ips$unit c 175 `unit2minor $unit`
 	;;
 
 mlx*)
