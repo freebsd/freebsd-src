@@ -62,7 +62,7 @@ The
 driver supports physical devices that do
 the VLAN demultiplexing in firmware.
 The
-.Ar link0
+.Cm link0
 flag should be set on a
 .Nm
 interface
@@ -103,7 +103,7 @@ connectivity problems due to massive, inadequate
 filtering that breaks the Path MTU Discovery mechanism.
 .Pp
 The NICs that support oversized frames are as follows:
-.Bl -tag -width "fxp(4)" -compact -offset indent
+.Bl -tag -width ".Xr fxp 4 " -offset indent
 .It Xr de 4
 requires defining
 .Dv BIG_PACKET
@@ -123,8 +123,9 @@ does support long frames.
 may begin supporting long frames soon.
 .It Xr xl 4
 supports long frames only if the card is built on a newer chip
-.Pq Cyclone and above .
+(Cyclone and above).
 .El
+.Pp
 Note:
 Except for
 .Xr fxp 4 ,
@@ -133,7 +134,7 @@ none of the above drivers inform the
 driver about their support for long frames.
 Just fix the MTU of a
 .Nm
-interface if it appears to be lower that 1500 bytes after
+interface if it appears to be lower than 1500 bytes after
 attaching the
 .Nm
 to a parent interface that is known to support long frames.
