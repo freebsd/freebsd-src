@@ -48,7 +48,6 @@ static int ata_generic_transaction(struct ata_request *);
 static void ata_generic_interrupt(void *);
 static void ata_generic_reset(struct ata_channel *);
 static int ata_wait(struct ata_device *, u_int8_t);
-/*static int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t);*/
 static void ata_pio_read(struct ata_request *, int);
 static void ata_pio_write(struct ata_request *, int);
 
