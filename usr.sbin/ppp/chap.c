@@ -549,7 +549,7 @@ chap_Success(struct authinfo *authp)
 #endif
     msg = "Welcome!!";
 
-  ChapOutput(authp->physical, CHAP_SUCCESS, authp->id, msg, strlen(msg) + 1,
+  ChapOutput(authp->physical, CHAP_SUCCESS, authp->id, msg, strlen(msg),
              NULL);
 
   authp->physical->link.lcp.auth_ineed = 0;
@@ -744,6 +744,11 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
         }
         *ans = chap->auth.id;
         bp = mbuf_Read(bp, ans + 1, alen);
+        if (p->link.lcp.want_authtype == 0x81 && ans[alen] != '\0') {
+          log_Printf(LogWARN, "%s: Compensating for corrupt (Win98/WinME?) "
+                     "CHAP81 RESPONSE\n", l->name);
+          ans[alen] = '\0';
+        }
         ans[alen+1] = '\0';
         bp = auth_ReadName(&chap->auth, bp, len);
 #ifdef HAVE_DES
@@ -897,8 +902,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
             if (p->link.lcp.his_authtype == 0x81) {
               if (strncmp(ans, chap->authresponse, 42)) {
                 datalink_AuthNotOk(p->dl);
-	        log_Printf(LogDEBUG, "CHAP81: AuthenticatorResponse: (%s)"
-                           " != ans: (%s)\n", chap->authresponse, ans);
+	        log_Printf(LogWARN, "CHAP81: AuthenticatorResponse: (%.42s)"
+                           " != ans: (%.42s)\n", chap->authresponse, ans);
                 
               } else {
                 /* Successful login */
