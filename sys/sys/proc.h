@@ -259,7 +259,7 @@ struct thread {
 
 	/* The two queues below should someday be merged */
 	TAILQ_ENTRY(thread) td_slpq; 	/* (j) Sleep queue. XXXKSE */ 
-	TAILQ_ENTRY(thread) td_blkq; 	/* (j) Mutex queue. XXXKSE */ 
+	TAILQ_ENTRY(thread) td_lockq; 	/* (j) Lock queue. XXXKSE */ 
 	TAILQ_ENTRY(thread) td_runq; 	/* (j) Run queue(s). XXXKSE */ 
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
@@ -279,7 +279,7 @@ struct thread {
 	short		td_locks;	/* (k) DEBUG: lockmgr count of locks */
 	struct mtx	*td_blocked;	/* (j) Mutex process is blocked on. */
 	struct ithd	*td_ithd;	/* (b) For interrupt threads only. */
-	const char	*td_mtxname;	/* (j) Name of mutex blocked on. */
+	const char	*td_lockname;	/* (j) Name of lock blocked on. */
 	LIST_HEAD(, mtx) td_contested;	/* (j) Contested locks. */
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
@@ -335,7 +335,7 @@ struct thread {
 #define	TDI_SUSPENDED	0x01	/* On suspension queue. */
 #define	TDI_SLEEPING	0x02	/* Actually asleep! (tricky). */
 #define	TDI_SWAPPED	0x04	/* Stack not in mem.. bad juju if run. */
-#define	TDI_MUTEX	0x08	/* Stopped on a mutex. */
+#define	TDI_LOCK	0x08	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x10	/* Awaiting interrupt. */
 #define	TDI_LOAN	0x20	/* bound thread's KSE is lent */
 
@@ -343,7 +343,7 @@ struct thread {
 #define	TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
 #define	TD_IS_SUSPENDED(td)	((td)->td_inhibitors & TDI_SUSPENDED)
 #define	TD_IS_SWAPPED(td)	((td)->td_inhibitors & TDI_SWAPPED)
-#define	TD_ON_MUTEX(td)		((td)->td_inhibitors & TDI_MUTEX)
+#define	TD_ON_LOCK(td)		((td)->td_inhibitors & TDI_LOCK)
 #define	TD_AWAITING_INTR(td)	((td)->td_inhibitors & TDI_IWAIT)
 #define	TD_IS_RUNNING(td)	((td)->td_state == TDS_RUNNING)
 #define	TD_ON_RUNQ(td)		((td)->td_state == TDS_RUNQ)
@@ -363,14 +363,14 @@ struct thread {
 
 #define	TD_SET_SLEEPING(td)	TD_SET_INHIB((td), TDI_SLEEPING)
 #define	TD_SET_SWAPPED(td)	TD_SET_INHIB((td), TDI_SWAPPED)
-#define	TD_SET_MUTEX(td)	TD_SET_INHIB((td), TDI_MUTEX)
+#define	TD_SET_LOCK(td)		TD_SET_INHIB((td), TDI_LOCK)
 #define	TD_SET_SUSPENDED(td)	TD_SET_INHIB((td), TDI_SUSPENDED)
 #define	TD_SET_IWAIT(td)	TD_SET_INHIB((td), TDI_IWAIT)
 #define	TD_SET_LOAN(td)		TD_SET_INHIB((td), TDI_LOAN)
 
 #define	TD_CLR_SLEEPING(td)	TD_CLR_INHIB((td), TDI_SLEEPING)
 #define	TD_CLR_SWAPPED(td)	TD_CLR_INHIB((td), TDI_SWAPPED)
-#define	TD_CLR_MUTEX(td)	TD_CLR_INHIB((td), TDI_MUTEX)
+#define	TD_CLR_LOCK(td)		TD_CLR_INHIB((td), TDI_LOCK)
 #define	TD_CLR_SUSPENDED(td)	TD_CLR_INHIB((td), TDI_SUSPENDED)
 #define	TD_CLR_IWAIT(td)	TD_CLR_INHIB((td), TDI_IWAIT)
 #define	TD_CLR_LOAN(td)		TD_CLR_INHIB((td), TDI_LOAN)
@@ -650,7 +650,7 @@ struct proc {
 #define	SSTOP	4		/* Process debugging or suspension. */
 #define	SZOMB	5		/* Awaiting collection by parent. */
 #define	SWAIT	6		/* Waiting for interrupt. */
-#define	SMTX	7		/* Blocked on a mutex. */
+#define	SLOCK	7		/* Blocked on a lock. */
 
 #define	P_MAGIC		0xbeefface
 
