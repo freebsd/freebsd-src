@@ -106,15 +106,17 @@ __FBSDID("$FreeBSD$");
 #define	MC_R15		(15 * 8)
 #define	MC_FLAGS	(18 * 8)
 #define	MC_RIP		(20 * 8)
+#define	MC_CS		(21 * 8)
 #define	MC_RFLAGS	(22 * 8)
 #define	MC_RSP		(23 * 8)
+#define	MC_SS		(24 * 8)
 
 #define	REDZONE		128		/* size of the red zone */
 
 /*
  * _amd64_ctx_save(mcontext_t *mcp)
  *
- * No values are saved to mc_trapno, mc_addr, mc_err, mc_cs, or mc_ss.
+ * No values are saved to mc_trapno, mc_addr, mc_err and mc_cs.
  * For the FPU state, only the floating point control word is stored.
  */
 ENTRY(_amd64_save_context)
@@ -145,9 +147,10 @@ ENTRY(_amd64_save_context)
 	movq	%rsp, %rax		/* setcontext pushes the return */
 	addq	$8, %rax		/*   address onto the stack; */
 	movq	%rax, MC_RSP(%rdi)	/*   account for this -- ???. */
+	movw	%ss, MC_SS(%rdi)
 	fnstcw	MC_FP_CW_OFFSET(%rdi)	/* save FPU control word */
 	movq	$MC_OWNEDFP_NONE, MC_OWNEDFP_OFFSET(%rdi) /* no FP */
-	/*movq	$MC_FPFMT_NODEV, MC_FPFMT_OFFSET(%rdi)*/ /* unused for amd64 */
+	movq	$MC_FPFMT_NODEV, MC_FPFMT_OFFSET(%rdi)
 	movq	$MC_SIZE, MC_LEN_OFFSET(%rdi)
 	xorq	%rax, %rax		/* return 0 */
 2:	ret
