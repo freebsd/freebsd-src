@@ -74,6 +74,7 @@
 /* Globals */
 
 extern int packetAliasMode;
+extern unsigned int skinnyPort;
 
 /* Prototypes */
 
@@ -211,6 +212,9 @@ int	 AliasHandleUdpNbtNS(struct ip *_pip, struct alias_link *_link,
 /* CUSeeMe routines */
 void	 AliasHandleCUSeeMeOut(struct ip *_pip, struct alias_link *_link);
 void	 AliasHandleCUSeeMeIn(struct ip *_pip, struct in_addr _original_addr);
+
+/* Skinny routines */
+void	 AliasHandleSkinny(struct ip *_pip, struct alias_link *_link);
 
 /* Transparent proxy routines */
 int	 ProxyCheck(struct ip *_pip, struct in_addr *_proxy_server_addr,

@@ -3470,6 +3470,14 @@ The range will be cleared when the
 command is run.
 .Pp
 If no arguments are given, firewall punching is disabled.
+.It nat skinny_port Op Ar port
+This command tells
+.Nm
+which TCP port is used by the Skinny Station protocol.  Skinny is used by
+Cisco IP phones to communicate with Cisco Call Managers to setup voice
+over IP calls.  The typical port used by Skinny is 2000.
+.Pp
+If no argument is given, skinny aliasing is disabled.
 .It nat same_ports yes|no
 When enabled, this command will tell the network address translation engine to
 attempt to avoid changing the port number on outgoing packets.
