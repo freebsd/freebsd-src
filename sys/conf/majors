@@ -1,5 +1,8 @@
 # $FreeBSD$
 #
+# Major numbers are now assigned in RELENG_4.  This file is left to
+# rot in peace in 5.x/6.x.
+#
 # This list is semi-obsoleted by DEVFS, but for now it still contains
 # the current allocation of device major numbers.
 #
