@@ -18,10 +18,6 @@
 /* Define if you can safely include both <sys/time.h> and <time.h>.  */
 #define TIME_WITH_SYS_TIME 1
 
-/* Define if your processor stores words with the most significant
-   byte first (like Motorola and SPARC, unlike Intel and VAX).  */
-/* #undef WORDS_BIGENDIAN */
-
 /* Define if you have SSLeay 0.9.0b with the buggy cast128. */
 /* #undef HAVE_BUGGY_CAST128 */
 
@@ -65,8 +61,8 @@
 /* define if you have struct sockaddr_storage */
 #define HAVE_SOCKADDR_STORAGE 1
 
-/* define if you have both getipnodebyname() and getipnodebyaddr() */
-#define USE_GETIPNODEBY 1
+/* define if you have ether_ntohost() and it works */
+#define USE_ETHER_NTOHOST 1
 
 /* define if unaligned memory accesses fail */
 /* #undef LBL_ALIGN */
@@ -91,6 +87,17 @@
 /* #undef u_int32_t */
 /* #undef u_int8_t */
 
+/* Whether or not to include the possibly-buggy SMB printer */
+#define TCPDUMP_DO_SMB 1
+
+/* Long story short: aclocal.m4 depends on autoconf 2.13
+ * implementation details wrt "const"; newer versions
+ * have different implementation details so for now we
+ * put "const" here.  This may cause duplicate definitions
+ * in config.h but that should be OK since they're the same.
+ */
+/* #undef const */
+
 /* The number of bytes in a char.  */
 #define SIZEOF_CHAR 1
 
@@ -109,17 +116,8 @@
 /* Define if you have the ether_ntohost function.  */
 #define HAVE_ETHER_NTOHOST 1
 
-/* Define if you have the freeaddrinfo function.  */
-#define HAVE_FREEADDRINFO 1
-
 /* Define if you have the getaddrinfo function.  */
 #define HAVE_GETADDRINFO 1
-
-/* Define if you have the getipnodebyaddr function.  */
-#define HAVE_GETIPNODEBYADDR 1
-
-/* Define if you have the getipnodebyname function.  */
-#define HAVE_GETIPNODEBYNAME 1
 
 /* Define if you have the getnameinfo function.  */
 #define HAVE_GETNAMEINFO 1
@@ -150,6 +148,9 @@
 
 /* Define if you have the strcasecmp function.  */
 #define HAVE_STRCASECMP 1
+ 
+/* Define if you have the strdup function.  */
+#define HAVE_STRDUP 1
 
 /* Define if you have the strlcat function.  */
 #define HAVE_STRLCAT 1
@@ -177,7 +178,7 @@
 /* #undef HAVE_RC5_H */
 
 /* Define if you have the <rpc/rpcent.h> header file.  */
-/* #undef HAVE_RPC_RPCENT_H */
+#define HAVE_RPC_RPCENT_H 1
 
 /* Define if you have the <smi.h> header file.  */
 /* #undef HAVE_SMI_H */
@@ -189,23 +190,11 @@
 /* Define if you have the dnet library (-ldnet).  */
 /* #undef HAVE_LIBDNET */
 
-/* Define if you have the nsl library (-lnsl).  */
-/* #undef HAVE_LIBNSL */
-
-/* Define if you have the resolv library (-lresolv).  */
-/* #undef HAVE_LIBRESOLV */
-
 /* Define if you have the rpc library (-lrpc).  */
 /* #undef HAVE_LIBRPC */
 
 /* Define if you have the smi library (-lsmi).  */
 /* #undef HAVE_LIBSMI */
-
-/* Define if you have the socket library (-lsocket).  */
-/* #undef HAVE_LIBSOCKET */
-
-/* Define if you have the str library (-lstr).  */
-/* #undef HAVE_LIBSTR */
 
 /* define if your compiler has __attribute__ */
 #define HAVE___ATTRIBUTE__ 1
