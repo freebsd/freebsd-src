@@ -1292,11 +1292,6 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 
 	KASSERT(!(bp->b_flags & B_DONE), ("nfs_doio: bp %p already marked done", bp));
 
-	/*
-	 * Historically, paging was done with physio, but no more.
-	 */
-	KASSERT(!(bp->b_flags & B_PHYS), ("B_PHYS in nfs_doio"));
-
 	if (bp->b_iocmd == BIO_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
