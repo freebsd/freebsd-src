@@ -130,6 +130,7 @@ int	paranoid = 1;	  /* be extra careful about security */
 int	anon_only = 0;    /* Only anonymous ftp allowed */
 int	guest;
 int	dochroot;
+char	*chrootdir;
 int	dowtmp = 1;
 int	stats;
 int	statfd = -1;
@@ -1328,7 +1329,6 @@ pass(char *passwd)
 #ifdef USE_PAM
 	int e;
 #endif
-	char *chrootdir;
 	char *residue = NULL;
 	char *xpasswd;
 
@@ -1468,7 +1468,7 @@ skip:
 		if (chrootdir[0] != '/')
 			asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
 		else
-			chrootdir = strdup(chrootdir); /* so it can be freed */
+			chrootdir = strdup(chrootdir); /* make it permanent */
 		if (chrootdir == NULL)
 			fatalerror("Ran out of memory.");
 	}
@@ -1487,9 +1487,6 @@ skip:
 		if ((homedir = strstr(chrootdir, "/./")) != NULL) {
 			*(homedir++) = '\0';	/* wipe '/' */
 			homedir++;		/* skip '.' */
-			/* so chrootdir can be freed later */
-			if ((homedir = strdup(homedir)) == NULL)
-				fatalerror("Ran out of memory.");
 		} else {
 			/*
 			 * We MUST do a chdir() after the chroot. Otherwise
@@ -1593,8 +1590,6 @@ skip:
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
-	if (chrootdir)
-		free(chrootdir);
 	if (residue)
 		free(residue);
 	return;
@@ -1603,8 +1598,6 @@ bad:
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
-	if (chrootdir)
-		free(chrootdir);
 	if (residue)
 		free(residue);
 	end_login();
@@ -3188,6 +3181,8 @@ logcmd(char *cmd, char *file1, char *file2, off_t cnt)
 		appendf(&msg, " = %jd bytes", (intmax_t)cnt);
 	if (wd[0])
 		appendf(&msg, " (wd: %s)", wd);
+	if (guest || dochroot)
+		appendf(&msg, " (chroot: %s)", chrootdir);
 	syslog(LOG_INFO, "%s", msg);
 	free(msg);
 }
