@@ -1599,6 +1599,10 @@ integer:
 			break;
 		case SO_LABEL:
 #ifdef MAC
+			error = sooptcopyin(sopt, &extmac, sizeof(extmac),
+			    sizeof(extmac));
+			if (error)
+				return (error);
 			error = mac_getsockopt_label_get(
 			    sopt->sopt_td->td_ucred, so, &extmac);
 			if (error)
@@ -1610,6 +1614,10 @@ integer:
 			break;
 		case SO_PEERLABEL:
 #ifdef MAC
+			error = sooptcopyin(sopt, &extmac, sizeof(extmac),
+			    sizeof(extmac));
+			if (error)
+				return (error);
 			error = mac_getsockopt_peerlabel_get(
 			    sopt->sopt_td->td_ucred, so, &extmac);
 			if (error)
