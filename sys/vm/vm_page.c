@@ -263,7 +263,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Construct the free queue(s) in descending order (by physical
 	 * address) so that the first 16MB of physical memory is allocated
 	 * last rather than first.  On large-memory machines, this avoids
-	 * the exhaustion of low physical memory before isa_dmainit has run.
+	 * the exhaustion of low physical memory before isa_dma_init has run.
 	 */
 	cnt.v_page_count = 0;
 	cnt.v_free_count = 0;
