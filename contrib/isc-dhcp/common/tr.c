@@ -1,7 +1,44 @@
+/* tr.c
+
+   token ring interface support
+   Contributed in May of 1999 by Andrew Chittenden */
+
 /*
- * packet_tr.c - token ring interface code, contributed in May of 1999
- * by Andrew Chittenden
+ * Copyright (c) 1996-2000 Internet Software Consortium.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of The Internet Software Consortium nor the names
+ *    of its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
+ * CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+ * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+ * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
+
+#ifndef lint
+static char copyright[] =
+"$Id: tr.c,v 1.7 2001/04/27 22:23:02 mellon Exp $ Copyright (c) 1996-2000 The Internet Software Consortium.  All rights reserved.\n";
+#endif /* not lint */
 
 #include "dhcpd.h"
 
@@ -44,7 +81,7 @@ static struct timeval routing_timer;
 void assemble_tr_header (interface, buf, bufix, to)
 	struct interface_info *interface;
 	unsigned char *buf;
-	int *bufix;
+	unsigned *bufix;
 	struct hardware *to;
 {
         struct trh_hdr *trh;
@@ -54,14 +91,14 @@ void assemble_tr_header (interface, buf, bufix, to)
 
         /* set up the token header */
         trh = (struct trh_hdr *) &buf[*bufix];
-        if (interface -> hw_address.hlen == sizeof (trh->saddr))
-                memcpy (trh->saddr, interface -> hw_address.haddr,
+        if (interface -> hw_address.hlen - 1 == sizeof (trh->saddr))
+                memcpy (trh->saddr, &interface -> hw_address.hbuf [1],
                                     sizeof (trh->saddr));
         else
                 memset (trh->saddr, 0x00, sizeof (trh->saddr));
 
-        if (to && to -> hlen == 6) /* XXX */
-                memcpy (trh->daddr, to -> haddr, sizeof trh->daddr);
+        if (to && to -> hlen == 7) /* XXX */
+                memcpy (trh->daddr, &to -> hbuf [1], sizeof trh->daddr);
         else
                 memset (trh->daddr, 0xff, sizeof (trh->daddr));
 
@@ -97,7 +134,7 @@ static unsigned char tr_broadcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 ssize_t decode_tr_header (interface, buf, bufix, from)
         struct interface_info *interface;
         unsigned char *buf;
-        int bufix;
+        unsigned bufix;
         struct hardware *from;
 {
         struct trh_hdr *trh = (struct trh_hdr *) buf + bufix;
@@ -143,14 +180,14 @@ ssize_t decode_tr_header (interface, buf, bufix, from)
          * filter code in bpf.c */
         llc = (struct trllc *)(buf + bufix + hdr_len);
         ip = (struct ip *) (llc + 1);
-        udp = (struct udphdr *) ((unsigned char*) ip + ip->ip_hl * 4);
+        udp = (struct udphdr *) ((unsigned char*) ip + IP_HL (ip));
 
         /* make sure it is a snap encoded, IP, UDP, unfragmented packet sent
          * to our port */
         if (llc->dsap != EXTENDED_SAP
                         || ntohs(llc->ethertype) != ETHERTYPE_IP
                         || ip->ip_p != IPPROTO_UDP
-                        || (ip->ip_off & IP_OFFMASK) != 0
+                        || (ntohs (ip->ip_off) & IP_OFFMASK) != 0
                         || udp->uh_dport != local_port)
                 return -1;
 
@@ -241,8 +278,8 @@ static void save_source_routing(trh, interface)
 
         /* found an entry so update it with fresh information */
         if (rover != NULL) {
-                if ((trh->saddr[0] & TR_RII)
-		    && (((ntohs(trh->rcf) & TR_RCF_LEN_MASK) >> 8) > 2)) {
+                if ((trh->saddr[0] & TR_RII) &&
+		    ((ntohs(trh->rcf) & TR_RCF_LEN_MASK) >> 8) > 2) {
                         rcf = ntohs(trh->rcf);
                         rcf &= ~TR_RCF_BROADCAST_MASK;
                         memcpy(rover->rseg, trh->rseg, sizeof(rover->rseg));
@@ -253,7 +290,7 @@ static void save_source_routing(trh, interface)
         }
 
         /* no entry found, so create one */
-        rover = malloc(sizeof(struct routing_entry));
+        rover = dmalloc (sizeof (struct routing_entry), MDL);
         if (rover == NULL) {
                 fprintf(stderr,
 			"%s: unable to save source routing information\n",
@@ -294,7 +331,7 @@ static void expire_routes()
         while((rover = *prover) != NULL) {
                 if ((now.tv_sec - rover->access_time) > routing_timeout) {
                         *prover = rover->next;
-                        free(rover);
+                        dfree (rover, MDL);
                 } else
                         prover = &rover->next;
         }
