@@ -1,21 +1,22 @@
 /*
- * 
+ *
  * clientloop.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
- * 
+ *
+ *
  * Created: Sat Sep 23 12:23:57 1995 ylo
- * 
+ *
  * The main loop for the interactive session (client side).
- * 
+ *
+ * SSH2 support added by Markus Friedl.
  */
 
 #include "includes.h"
-RCSID("$Id: clientloop.c,v 1.14 1999/12/06 20:15:26 deraadt Exp $");
+RCSID("$Id: clientloop.c,v 1.26 2000/05/08 17:42:24 markus Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -23,6 +24,12 @@ RCSID("$Id: clientloop.c,v 1.14 1999/12/06 20:15:26 deraadt Exp $");
 #include "buffer.h"
 #include "authfd.h"
 #include "readconf.h"
+
+#include "ssh2.h"
+#include "compat.h"
+#include "channels.h"
+#include "dispatch.h"
+
 
 /* Flag indicating that stdin should be redirected from /dev/null. */
 extern int stdin_null_flag;
@@ -70,9 +77,13 @@ static unsigned long stdin_bytes, stdout_bytes, stderr_bytes;
 static int quit_pending;	/* Set to non-zero to quit the client loop. */
 static int escape_char;		/* Escape character. */
 
+
+void	client_init_dispatch(void);
+int	session_ident = -1;
+
 /* Returns the user\'s terminal to normal mode if it had been put in raw mode. */
 
-void 
+void
 leave_raw_mode()
 {
 	if (!in_raw_mode)
@@ -86,7 +97,7 @@ leave_raw_mode()
 
 /* Puts the user\'s terminal in raw mode. */
 
-void 
+void
 enter_raw_mode()
 {
 	struct termios tio;
@@ -112,7 +123,7 @@ enter_raw_mode()
 
 /* Restores stdin to blocking mode. */
 
-void 
+void
 leave_non_blocking()
 {
 	if (in_non_blocking_mode) {
@@ -124,7 +135,7 @@ leave_non_blocking()
 
 /* Puts stdin terminal in non-blocking mode. */
 
-void 
+void
 enter_non_blocking()
 {
 	in_non_blocking_mode = 1;
@@ -137,7 +148,7 @@ enter_non_blocking()
  * flag indicating that the window has changed.
  */
 
-void 
+void
 window_change_handler(int sig)
 {
 	received_window_change_signal = 1;
@@ -149,7 +160,7 @@ window_change_handler(int sig)
  * signals must be trapped to restore terminal modes.
  */
 
-void 
+void
 signal_handler(int sig)
 {
 	if (in_raw_mode)
@@ -166,7 +177,7 @@ signal_handler(int sig)
  * available resolution.
  */
 
-double 
+double
 get_current_time()
 {
 	struct timeval tv;
@@ -180,7 +191,7 @@ get_current_time()
  * not appear to wake up when redirecting from /dev/null.
  */
 
-void 
+void
 client_check_initial_eof_on_stdin()
 {
 	int len;
@@ -228,115 +239,13 @@ client_check_initial_eof_on_stdin()
 	}
 }
 
-/*
- * Get packets from the connection input buffer, and process them as long as
- * there are packets available.
- */
-
-void 
-client_process_buffered_input_packets()
-{
-	int type;
-	char *data;
-	unsigned int data_len;
-	int payload_len;
-
-	/* Process any buffered packets from the server. */
-	while (!quit_pending &&
-	       (type = packet_read_poll(&payload_len)) != SSH_MSG_NONE) {
-		switch (type) {
-
-		case SSH_SMSG_STDOUT_DATA:
-			data = packet_get_string(&data_len);
-			packet_integrity_check(payload_len, 4 + data_len, type);
-			buffer_append(&stdout_buffer, data, data_len);
-			stdout_bytes += data_len;
-			memset(data, 0, data_len);
-			xfree(data);
-			break;
-
-		case SSH_SMSG_STDERR_DATA:
-			data = packet_get_string(&data_len);
-			packet_integrity_check(payload_len, 4 + data_len, type);
-			buffer_append(&stderr_buffer, data, data_len);
-			stdout_bytes += data_len;
-			memset(data, 0, data_len);
-			xfree(data);
-			break;
-
-		case SSH_SMSG_EXITSTATUS:
-			packet_integrity_check(payload_len, 4, type);
-			exit_status = packet_get_int();
-			/* Acknowledge the exit. */
-			packet_start(SSH_CMSG_EXIT_CONFIRMATION);
-			packet_send();
-			/*
-			 * Must wait for packet to be sent since we are
-			 * exiting the loop.
-			 */
-			packet_write_wait();
-			/* Flag that we want to exit. */
-			quit_pending = 1;
-			break;
-
-		case SSH_SMSG_X11_OPEN:
-			x11_input_open(payload_len);
-			break;
-
-		case SSH_MSG_PORT_OPEN:
-			channel_input_port_open(payload_len);
-			break;
-
-		case SSH_SMSG_AGENT_OPEN:
-			packet_integrity_check(payload_len, 4, type);
-			auth_input_open_request();
-			break;
-
-		case SSH_MSG_CHANNEL_OPEN_CONFIRMATION:
-			packet_integrity_check(payload_len, 4 + 4, type);
-			channel_input_open_confirmation();
-			break;
-
-		case SSH_MSG_CHANNEL_OPEN_FAILURE:
-			packet_integrity_check(payload_len, 4, type);
-			channel_input_open_failure();
-			break;
-
-		case SSH_MSG_CHANNEL_DATA:
-			channel_input_data(payload_len);
-			break;
-
-		case SSH_MSG_CHANNEL_CLOSE:
-			packet_integrity_check(payload_len, 4, type);
-			channel_input_close();
-			break;
-
-		case SSH_MSG_CHANNEL_CLOSE_CONFIRMATION:
-			packet_integrity_check(payload_len, 4, type);
-			channel_input_close_confirmation();
-			break;
-
-		default:
-			/*
-			 * Any unknown packets received during the actual
-			 * session cause the session to terminate.  This is
-			 * intended to make debugging easier since no
-			 * confirmations are sent.  Any compatible protocol
-			 * extensions must be negotiated during the
-			 * preparatory phase.
-			 */
-			packet_disconnect("Protocol error during session: type %d",
-					  type);
-		}
-	}
-}
 
 /*
  * Make packets from buffered stdin data, and buffer them for sending to the
  * connection.
  */
 
-void 
+void
 client_make_packets_from_stdin_data()
 {
 	unsigned int len;
@@ -367,26 +276,35 @@ client_make_packets_from_stdin_data()
  * appropriate.
  */
 
-void 
+void
 client_check_window_change()
 {
-	/* Send possible window change message to the server. */
-	if (received_window_change_signal) {
-		struct winsize ws;
+	struct winsize ws;
 
-		/* Clear the window change indicator. */
-		received_window_change_signal = 0;
+	if (! received_window_change_signal)
+		return;
+	/** XXX race */
+	received_window_change_signal = 0;
 
-		/* Read new window size. */
-		if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) >= 0) {
-			/* Successful, send the packet now. */
-			packet_start(SSH_CMSG_WINDOW_SIZE);
-			packet_put_int(ws.ws_row);
-			packet_put_int(ws.ws_col);
-			packet_put_int(ws.ws_xpixel);
-			packet_put_int(ws.ws_ypixel);
-			packet_send();
-		}
+	if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) < 0)
+		return;
+
+	debug("client_check_window_change: changed");
+
+	if (compat20) {
+		channel_request_start(session_ident, "window-change", 0);
+		packet_put_int(ws.ws_col);
+		packet_put_int(ws.ws_row);
+		packet_put_int(ws.ws_xpixel);
+		packet_put_int(ws.ws_ypixel);
+		packet_send();
+	} else {
+		packet_start(SSH_CMSG_WINDOW_SIZE);
+		packet_put_int(ws.ws_row);
+		packet_put_int(ws.ws_col);
+		packet_put_int(ws.ws_xpixel);
+		packet_put_int(ws.ws_ypixel);
+		packet_send();
 	}
 }
 
@@ -395,26 +313,36 @@ client_check_window_change()
  * one of the file descriptors).
  */
 
-void 
+void
 client_wait_until_can_do_something(fd_set * readset, fd_set * writeset)
 {
+	/*debug("client_wait_until_can_do_something"); */
+
 	/* Initialize select masks. */
 	FD_ZERO(readset);
-
-	/* Read from the connection, unless our buffers are full. */
-	if (buffer_len(&stdout_buffer) < buffer_high &&
-	    buffer_len(&stderr_buffer) < buffer_high &&
-	    channel_not_very_much_buffered_data())
-		FD_SET(connection_in, readset);
-
-	/*
-	 * Read from stdin, unless we have seen EOF or have very much
-	 * buffered data to send to the server.
-	 */
-	if (!stdin_eof && packet_not_very_much_data_to_write())
-		FD_SET(fileno(stdin), readset);
-
 	FD_ZERO(writeset);
+
+	if (!compat20) {
+		/* Read from the connection, unless our buffers are full. */
+		if (buffer_len(&stdout_buffer) < buffer_high &&
+		    buffer_len(&stderr_buffer) < buffer_high &&
+		    channel_not_very_much_buffered_data())
+			FD_SET(connection_in, readset);
+		/*
+		 * Read from stdin, unless we have seen EOF or have very much
+		 * buffered data to send to the server.
+		 */
+		if (!stdin_eof && packet_not_very_much_data_to_write())
+			FD_SET(fileno(stdin), readset);
+
+		/* Select stdout/stderr if have data in buffer. */
+		if (buffer_len(&stdout_buffer) > 0)
+			FD_SET(fileno(stdout), writeset);
+		if (buffer_len(&stderr_buffer) > 0)
+			FD_SET(fileno(stderr), writeset);
+	} else {
+		FD_SET(connection_in, readset);
+	}
 
 	/* Add any selections by the channel mechanism. */
 	channel_prepare_select(readset, writeset);
@@ -423,14 +351,7 @@ client_wait_until_can_do_something(fd_set * readset, fd_set * writeset)
 	if (packet_have_data_to_write())
 		FD_SET(connection_out, writeset);
 
-	/* Select stdout if have data in buffer. */
-	if (buffer_len(&stdout_buffer) > 0)
-		FD_SET(fileno(stdout), writeset);
-
-	/* Select stderr if have data in buffer. */
-	if (buffer_len(&stderr_buffer) > 0)
-		FD_SET(fileno(stderr), writeset);
-
+/* move UP XXX */
 	/* Update maximum file descriptor number, if appropriate. */
 	if (channel_max_fd() > max_fd)
 		max_fd = channel_max_fd();
@@ -459,7 +380,7 @@ client_wait_until_can_do_something(fd_set * readset, fd_set * writeset)
 	}
 }
 
-void 
+void
 client_suspend_self()
 {
 	struct winsize oldws, newws;
@@ -504,11 +425,11 @@ client_suspend_self()
 	enter_raw_mode();
 }
 
-void 
-client_process_input(fd_set * readset)
+void
+client_process_net_input(fd_set * readset)
 {
-	int len, pid;
-	char buf[8192], *s;
+	int len;
+	char buf[8192];
 
 	/*
 	 * Read input from the server, and add any such data to the buffer of
@@ -517,6 +438,7 @@ client_process_input(fd_set * readset)
 	if (FD_ISSET(connection_in, readset)) {
 		/* Read as much as possible. */
 		len = read(connection_in, buf, sizeof(buf));
+/*debug("read connection_in len %d", len); XXX */
 		if (len == 0) {
 			/* Received EOF.  The remote host has closed the connection. */
 			snprintf(buf, sizeof buf, "Connection to %.300s closed by remote host.\r\n",
@@ -544,6 +466,15 @@ client_process_input(fd_set * readset)
 		}
 		packet_process_incoming(buf, len);
 	}
+}
+
+void
+client_process_input(fd_set * readset)
+{
+	int len;
+	pid_t pid;
+	char buf[8192], *s;
+
 	/* Read input from stdin. */
 	if (FD_ISSET(fileno(stdin), readset)) {
 		/* Read as much as possible. */
@@ -727,7 +658,7 @@ Supported escape sequences:\r\n\
 	}
 }
 
-void 
+void
 client_process_output(fd_set * writeset)
 {
 	int len;
@@ -776,13 +707,31 @@ client_process_output(fd_set * writeset)
 }
 
 /*
+ * Get packets from the connection input buffer, and process them as long as
+ * there are packets available.
+ *
+ * Any unknown packets received during the actual
+ * session cause the session to terminate.  This is
+ * intended to make debugging easier since no
+ * confirmations are sent.  Any compatible protocol
+ * extensions must be negotiated during the
+ * preparatory phase.
+ */
+
+void
+client_process_buffered_input_packets()
+{
+	dispatch_run(DISPATCH_NONBLOCK, &quit_pending);
+}
+
+/*
  * Implements the interactive session with the server.  This is called after
  * the user has been authenticated, and a command has been started on the
  * remote host.  If escape_char != -1, it is the character used as an escape
  * character for terminating or suspending the session.
  */
 
-int 
+int
 client_loop(int have_pty, int escape_char_arg)
 {
 	extern Options options;
@@ -816,6 +765,8 @@ client_loop(int have_pty, int escape_char_arg)
 	buffer_init(&stdout_buffer);
 	buffer_init(&stderr_buffer);
 
+	client_init_dispatch();
+
 	/* Set signal handlers to restore non-blocking mode.  */
 	signal(SIGINT, signal_handler);
 	signal(SIGQUIT, signal_handler);
@@ -828,7 +779,8 @@ client_loop(int have_pty, int escape_char_arg)
 		enter_raw_mode();
 
 	/* Check if we should immediately send of on stdin. */
-	client_check_initial_eof_on_stdin();
+	if (!compat20)
+		client_check_initial_eof_on_stdin();
 
 	/* Main loop of the client for the interactive session mode. */
 	while (!quit_pending) {
@@ -837,11 +789,17 @@ client_loop(int have_pty, int escape_char_arg)
 		/* Process buffered packets sent by the server. */
 		client_process_buffered_input_packets();
 
+		if (compat20 && !channel_still_open()) {
+			debug("!channel_still_open.");
+			break;
+		}
+
 		/*
 		 * Make packets of buffered stdin data, and buffer them for
 		 * sending to the server.
 		 */
-		client_make_packets_from_stdin_data();
+		if (!compat20)
+			client_make_packets_from_stdin_data();
 
 		/*
 		 * Make packets from buffered channel data, and buffer them
@@ -871,17 +829,21 @@ client_loop(int have_pty, int escape_char_arg)
 		/* Do channel operations. */
 		channel_after_select(&readset, &writeset);
 
-		/*
-		 * Process input from the connection and from stdin. Buffer
-		 * any data that is available.
-		 */
-		client_process_input(&readset);
+		/* Buffer input from the connection.  */
+		client_process_net_input(&readset);
 
-		/*
-		 * Process output to stdout and stderr.   Output to the
-		 * connection is processed elsewhere (above).
-		 */
-		client_process_output(&writeset);
+		if (quit_pending)
+			break;
+
+		if (!compat20) {
+			/* Buffer data from stdin */
+			client_process_input(&readset);
+			/*
+			 * Process output to stdout and stderr.  Output to
+			 * the connection is processed elsewhere (above).
+			 */
+			client_process_output(&writeset);
+		}
 
 		/* Send as much buffered packet data as possible to the sender. */
 		if (FD_ISSET(connection_out, &writeset))
@@ -949,4 +911,207 @@ client_loop(int have_pty, int escape_char_arg)
 	/* Return the exit status of the program. */
 	debug("Exit status %d", exit_status);
 	return exit_status;
+}
+
+/*********/
+
+void
+client_input_stdout_data(int type, int plen)
+{
+	unsigned int data_len;
+	char *data = packet_get_string(&data_len);
+	packet_integrity_check(plen, 4 + data_len, type);
+	buffer_append(&stdout_buffer, data, data_len);
+	stdout_bytes += data_len;
+	memset(data, 0, data_len);
+	xfree(data);
+}
+void
+client_input_stderr_data(int type, int plen)
+{
+	unsigned int data_len;
+	char *data = packet_get_string(&data_len);
+	packet_integrity_check(plen, 4 + data_len, type);
+	buffer_append(&stderr_buffer, data, data_len);
+	stdout_bytes += data_len;
+	memset(data, 0, data_len);
+	xfree(data);
+}
+void
+client_input_exit_status(int type, int plen)
+{
+	packet_integrity_check(plen, 4, type);
+	exit_status = packet_get_int();
+	/* Acknowledge the exit. */
+	packet_start(SSH_CMSG_EXIT_CONFIRMATION);
+	packet_send();
+	/*
+	 * Must wait for packet to be sent since we are
+	 * exiting the loop.
+	 */
+	packet_write_wait();
+	/* Flag that we want to exit. */
+	quit_pending = 1;
+}
+
+/* XXXX move to generic input handler */
+void
+client_input_channel_open(int type, int plen)
+{
+	Channel *c = NULL;
+	char *ctype;
+	int id;
+	unsigned int len;
+	int rchan;
+	int rmaxpack;
+	int rwindow;
+
+	ctype = packet_get_string(&len);
+	rchan = packet_get_int();
+	rwindow = packet_get_int();
+	rmaxpack = packet_get_int();
+
+	debug("client_input_channel_open: ctype %s rchan %d win %d max %d",
+	    ctype, rchan, rwindow, rmaxpack);
+
+	if (strcmp(ctype, "x11") == 0) {
+		int sock;
+		char *originator;
+		int originator_port;
+		originator = packet_get_string(NULL);
+		if (datafellows & SSH_BUG_X11FWD) {
+			debug("buggy server: x11 request w/o originator_port");
+			originator_port = 0;
+		} else {
+			originator_port = packet_get_int();
+		}
+		packet_done();
+		/* XXX check permission */
+		xfree(originator);
+		/* XXX move to channels.c */
+		sock = x11_connect_display();
+		if (sock >= 0) {
+			id = channel_new("x11", SSH_CHANNEL_X11_OPEN,
+			    sock, sock, -1, 4*1024, 32*1024, 0,
+			    xstrdup("x11"));
+			c = channel_lookup(id);
+		}
+	}
+/* XXX duplicate : */
+	if (c != NULL) {
+		debug("confirm %s", ctype);
+		c->remote_id = rchan;
+		c->remote_window = rwindow;
+		c->remote_maxpacket = rmaxpack;
+
+		packet_start(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
+		packet_put_int(c->remote_id);
+		packet_put_int(c->self);
+		packet_put_int(c->local_window);
+		packet_put_int(c->local_maxpacket);
+		packet_send();
+	} else {
+		debug("failure %s", ctype);
+		packet_start(SSH2_MSG_CHANNEL_OPEN_FAILURE);
+		packet_put_int(rchan);
+		packet_put_int(SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED);
+		packet_put_cstring("bla bla");
+		packet_put_cstring("");
+		packet_send();
+	}
+	xfree(ctype);
+}
+
+void
+client_init_dispatch_20()
+{
+	dispatch_init(&dispatch_protocol_error);
+	dispatch_set(SSH2_MSG_CHANNEL_CLOSE, &channel_input_oclose);
+	dispatch_set(SSH2_MSG_CHANNEL_DATA, &channel_input_data);
+	dispatch_set(SSH2_MSG_CHANNEL_EOF, &channel_input_ieof);
+	dispatch_set(SSH2_MSG_CHANNEL_EXTENDED_DATA, &channel_input_extended_data);
+	dispatch_set(SSH2_MSG_CHANNEL_OPEN, &client_input_channel_open);
+	dispatch_set(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION, &channel_input_open_confirmation);
+	dispatch_set(SSH2_MSG_CHANNEL_OPEN_FAILURE, &channel_input_open_failure);
+	dispatch_set(SSH2_MSG_CHANNEL_REQUEST, &channel_input_channel_request);
+	dispatch_set(SSH2_MSG_CHANNEL_WINDOW_ADJUST, &channel_input_window_adjust);
+}
+void
+client_init_dispatch_13()
+{
+	dispatch_init(NULL);
+	dispatch_set(SSH_MSG_CHANNEL_CLOSE, &channel_input_close);
+	dispatch_set(SSH_MSG_CHANNEL_CLOSE_CONFIRMATION, &channel_input_close_confirmation);
+	dispatch_set(SSH_MSG_CHANNEL_DATA, &channel_input_data);
+	dispatch_set(SSH_MSG_CHANNEL_OPEN_CONFIRMATION, &channel_input_open_confirmation);
+	dispatch_set(SSH_MSG_CHANNEL_OPEN_FAILURE, &channel_input_open_failure);
+	dispatch_set(SSH_MSG_PORT_OPEN, &channel_input_port_open);
+	dispatch_set(SSH_SMSG_AGENT_OPEN, &auth_input_open_request);
+	dispatch_set(SSH_SMSG_EXITSTATUS, &client_input_exit_status);
+	dispatch_set(SSH_SMSG_STDERR_DATA, &client_input_stderr_data);
+	dispatch_set(SSH_SMSG_STDOUT_DATA, &client_input_stdout_data);
+	dispatch_set(SSH_SMSG_X11_OPEN, &x11_input_open);
+}
+void
+client_init_dispatch_15()
+{
+	client_init_dispatch_13();
+	dispatch_set(SSH_MSG_CHANNEL_CLOSE, &channel_input_ieof);
+	dispatch_set(SSH_MSG_CHANNEL_CLOSE_CONFIRMATION, & channel_input_oclose);
+}
+void
+client_init_dispatch()
+{
+	if (compat20)
+		client_init_dispatch_20();
+	else if (compat13)
+		client_init_dispatch_13();
+	else
+		client_init_dispatch_15();
+}
+
+void
+client_input_channel_req(int id, void *arg)
+{
+	Channel *c = NULL;
+	unsigned int len;
+	int success = 0;
+	int reply;
+	char *rtype;
+
+	rtype = packet_get_string(&len);
+	reply = packet_get_char();
+
+	debug("client_input_channel_req: rtype %s reply %d", rtype, reply);
+
+	c = channel_lookup(id);
+	if (c == NULL)
+		fatal("session_input_channel_req: channel %d: bad channel", id);
+
+	if (session_ident == -1) {
+		error("client_input_channel_req: no channel %d", id);
+	} else if (id != session_ident) {
+		error("client_input_channel_req: bad channel %d != %d",
+		    id, session_ident);
+	} else if (strcmp(rtype, "exit-status") == 0) {
+		success = 1;
+		exit_status = packet_get_int();
+		packet_done();
+	}
+	if (reply) {
+		packet_start(success ?
+		    SSH2_MSG_CHANNEL_SUCCESS : SSH2_MSG_CHANNEL_FAILURE);
+		packet_put_int(c->remote_id);
+		packet_send();
+	}
+	xfree(rtype);
+}
+
+void
+client_set_session_ident(int id)
+{
+	debug("client_set_session_ident: id %d", id);
+	session_ident = id;
+	channel_register_callback(id, SSH2_MSG_CHANNEL_REQUEST,
+	    client_input_channel_req, (void *)0);
 }

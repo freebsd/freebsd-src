@@ -10,7 +10,7 @@
 typedef enum {
 	HOST_OK, HOST_NEW, HOST_CHANGED
 }       HostStatus;
-HostStatus 
+HostStatus
 check_host_in_hostfile(const char *filename, const char *host, Key *key, Key *found);
 
 /*

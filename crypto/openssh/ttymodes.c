@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ttymodes.c,v 1.5 1999/11/24 19:53:54 markus Exp $");
+RCSID("$Id: ttymodes.c,v 1.6 2000/04/14 10:30:34 markus Exp $");
 
 #include "packet.h"
 #include "ssh.h"
@@ -23,7 +23,7 @@ RCSID("$Id: ttymodes.c,v 1.5 1999/11/24 19:53:54 markus Exp $");
  * Converts POSIX speed_t to a baud rate.  The values of the
  * constants for speed_t are not themselves portable.
  */
-static int 
+static int
 speed_to_baud(speed_t speed)
 {
 	switch (speed) {
@@ -112,7 +112,7 @@ speed_to_baud(speed_t speed)
 /*
  * Converts a numeric baud rate to a POSIX speed_t.
  */
-static speed_t 
+static speed_t
 baud_to_speed(int baud)
 {
 	switch (baud) {
@@ -203,7 +203,7 @@ baud_to_speed(int baud)
  * in a portable manner, and appends the modes to a packet
  * being constructed.
  */
-void 
+void
 tty_make_modes(int fd)
 {
 	struct termios tio;
@@ -247,7 +247,7 @@ tty_make_modes(int fd)
  * Decodes terminal modes for the terminal referenced by fd in a portable
  * manner from a packet being read.
  */
-void 
+void
 tty_parse_modes(int fd, int *n_bytes_ptr)
 {
 	struct termios tio;

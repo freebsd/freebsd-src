@@ -7,20 +7,23 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ssh-keygen.c,v 1.17 2000/03/16 20:56:14 markus Exp $");
+RCSID("$Id: ssh-keygen.c,v 1.25 2000/05/08 18:23:07 markus Exp $");
 
-#include "rsa.h"
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
+
 #include "ssh.h"
 #include "xmalloc.h"
 #include "fingerprint.h"
+#include "key.h"
+#include "rsa.h"
+#include "dsa.h"
+#include "authfile.h"
+#include "uuencode.h"
 
-/* Generated private key. */
-RSA *private_key;
-
-/* Generated public key. */
-RSA *public_key;
-
-/* Number of bits in the RSA key.  This value can be changed on the command line. */
+/* Number of bits in the RSA/DSA key.  This value can be changed on the command line. */
 int bits = 1024;
 
 /*
@@ -53,15 +56,24 @@ char *identity_new_passphrase = NULL;
 /* This is set to the new comment if given on the command line. */
 char *identity_comment = NULL;
 
+/* Dump public key file in format used by real and the original SSH 2 */
+int convert_to_ssh2 = 0;
+int convert_from_ssh2 = 0;
+int print_public = 0;
+int dsa_mode = 0;
+
 /* argv0 */
 extern char *__progname;
+
+char hostname[MAXHOSTNAMELEN];
 
 void
 ask_filename(struct passwd *pw, const char *prompt)
 {
 	char buf[1024];
 	snprintf(identity_file, sizeof(identity_file), "%s/%s",
-		 pw->pw_dir, SSH_CLIENT_IDENTITY);
+	    pw->pw_dir,
+	    dsa_mode ? SSH_CLIENT_ID_DSA: SSH_CLIENT_IDENTITY);
 	printf("%s (%s): ", prompt, identity_file);
 	fflush(stdout);
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
@@ -73,12 +85,148 @@ ask_filename(struct passwd *pw, const char *prompt)
 	have_identity = 1;
 }
 
+int
+try_load_key(char *filename, Key *k)
+{
+	int success = 1;
+	if (!load_private_key(filename, "", k, NULL)) {
+		char *pass = read_passphrase("Enter passphrase: ", 1);
+		if (!load_private_key(filename, pass, k, NULL)) {
+			success = 0;
+		}
+		memset(pass, 0, strlen(pass));
+		xfree(pass);
+	}
+	return success;
+}
+
+#define SSH_COM_MAGIC_BEGIN "---- BEGIN SSH2 PUBLIC KEY ----"
+#define SSH_COM_MAGIC_END   "---- END SSH2 PUBLIC KEY ----"
+
+void
+do_convert_to_ssh2(struct passwd *pw)
+{
+	Key *k;
+	int len;
+	unsigned char *blob;
+	struct stat st;
+
+	if (!have_identity)
+		ask_filename(pw, "Enter file in which the key is");
+	if (stat(identity_file, &st) < 0) {
+		perror(identity_file);
+		exit(1);
+	}
+	k = key_new(KEY_DSA);
+	if (!try_load_key(identity_file, k)) {
+		fprintf(stderr, "load failed\n");
+		exit(1);
+	}
+	dsa_make_key_blob(k, &blob, &len);
+	fprintf(stdout, SSH_COM_MAGIC_BEGIN "\n");
+	fprintf(stdout,
+	    "Comment: \"%d-bit DSA, converted from openssh by %s@%s\"\n",
+	    BN_num_bits(k->dsa->p),
+	    pw->pw_name, hostname);
+	dump_base64(stdout, blob, len);
+	fprintf(stdout, SSH_COM_MAGIC_END "\n");
+	key_free(k);
+	xfree(blob);
+	exit(0);
+}
+
+void
+do_convert_from_ssh2(struct passwd *pw)
+{
+	Key *k;
+	int blen;
+	char line[1024], *p;
+	char blob[8096];
+	char encoded[8096];
+	struct stat st;
+	int escaped = 0;
+	FILE *fp;
+
+	if (!have_identity)
+		ask_filename(pw, "Enter file in which the key is");
+	if (stat(identity_file, &st) < 0) {
+		perror(identity_file);
+		exit(1);
+	}
+	fp = fopen(identity_file, "r");
+	if (fp == NULL) {
+		perror(identity_file);
+		exit(1);
+	}
+	encoded[0] = '\0';
+	while (fgets(line, sizeof(line), fp)) {
+		if (!(p = strchr(line, '\n'))) {
+			fprintf(stderr, "input line too long.\n");
+			exit(1);
+		}
+		if (p > line && p[-1] == '\\')
+			escaped++;
+		if (strncmp(line, "----", 4) == 0 ||
+		    strstr(line, ": ") != NULL) {
+			fprintf(stderr, "ignore: %s", line);
+			continue;
+		}
+		if (escaped) {
+			escaped--;
+			fprintf(stderr, "escaped: %s", line);
+			continue;
+		}
+		*p = '\0';
+		strlcat(encoded, line, sizeof(encoded));
+	}
+	blen = uudecode(encoded, (unsigned char *)blob, sizeof(blob));
+	if (blen < 0) {
+		fprintf(stderr, "uudecode failed.\n");
+		exit(1);
+	}
+	k = dsa_key_from_blob(blob, blen);
+	if (!key_write(k, stdout))
+		fprintf(stderr, "key_write failed");
+	key_free(k);
+	fprintf(stdout, "\n");
+	fclose(fp);
+	exit(0);
+}
+
+void
+do_print_public(struct passwd *pw)
+{
+	Key *k;
+	int len;
+	unsigned char *blob;
+	struct stat st;
+
+	if (!have_identity)
+		ask_filename(pw, "Enter file in which the key is");
+	if (stat(identity_file, &st) < 0) {
+		perror(identity_file);
+		exit(1);
+	}
+	k = key_new(KEY_DSA);
+	if (!try_load_key(identity_file, k)) {
+		fprintf(stderr, "load failed\n");
+		exit(1);
+	}
+	dsa_make_key_blob(k, &blob, &len);
+	if (!key_write(k, stdout))
+		fprintf(stderr, "key_write failed");
+	key_free(k);
+	xfree(blob);
+	fprintf(stdout, "\n");
+	exit(0);
+}
+
 void
 do_fingerprint(struct passwd *pw)
 {
 	FILE *f;
 	BIGNUM *e, *n;
-	RSA *public_key;
+	Key *public;
 	char *comment = NULL, *cp, *ep, line[16*1024];
 	int i, skip = 0, num = 1, invalid = 1;
 	unsigned int ignore;
@@ -90,17 +238,16 @@ do_fingerprint(struct passwd *pw)
 		perror(identity_file);
 		exit(1);
 	}
-	
-	public_key = RSA_new();
-	if (load_public_key(identity_file, public_key, &comment)) {
-		printf("%d %s %s\n", BN_num_bits(public_key->n),
-		    fingerprint(public_key->e, public_key->n),
-		    comment);
-		RSA_free(public_key);
+	public = key_new(KEY_RSA);
+	if (load_public_key(identity_file, public, &comment)) {
+		printf("%d %s %s\n", BN_num_bits(public->rsa->n),
+		    key_fingerprint(public), comment);
+		key_free(public);
 		exit(0);
 	}
-	RSA_free(public_key);
+	key_free(public);
 
+	/* XXX */
 	f = fopen(identity_file, "r");
 	if (f != NULL) {
 		n = BN_new();
@@ -168,7 +315,9 @@ do_change_passphrase(struct passwd *pw)
 	char *comment;
 	char *old_passphrase, *passphrase1, *passphrase2;
 	struct stat st;
-	RSA *private_key;
+	Key *private;
+	Key *public;
+	int type = dsa_mode ? KEY_DSA : KEY_RSA;
 
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which the key is");
@@ -176,22 +325,26 @@ do_change_passphrase(struct passwd *pw)
 		perror(identity_file);
 		exit(1);
 	}
-	public_key = RSA_new();
-	if (!load_public_key(identity_file, public_key, NULL)) {
-		printf("%s is not a valid key file.\n", identity_file);
-		exit(1);
+
+	if (type == KEY_RSA) {
+		/* XXX this works currently only for RSA */
+		public = key_new(type);
+		if (!load_public_key(identity_file, public, NULL)) {
+			printf("%s is not a valid key file.\n", identity_file);
+			exit(1);
+		}
+		/* Clear the public key since we are just about to load the whole file. */
+		key_free(public);
 	}
-	/* Clear the public key since we are just about to load the whole file. */
-	RSA_free(public_key);
 
 	/* Try to load the file with empty passphrase. */
-	private_key = RSA_new();
-	if (!load_private_key(identity_file, "", private_key, &comment)) {
+	private = key_new(type);
+	if (!load_private_key(identity_file, "", private, &comment)) {
 		if (identity_passphrase)
 			old_passphrase = xstrdup(identity_passphrase);
 		else
 			old_passphrase = read_passphrase("Enter old passphrase: ", 1);
-		if (!load_private_key(identity_file, old_passphrase, private_key, &comment)) {
+		if (!load_private_key(identity_file, old_passphrase, private, &comment)) {
 			memset(old_passphrase, 0, strlen(old_passphrase));
 			xfree(old_passphrase);
 			printf("Bad passphrase.\n");
@@ -226,19 +379,19 @@ do_change_passphrase(struct passwd *pw)
 	}
 
 	/* Save the file using the new passphrase. */
-	if (!save_private_key(identity_file, passphrase1, private_key, comment)) {
+	if (!save_private_key(identity_file, passphrase1, private, comment)) {
 		printf("Saving the key failed: %s: %s.\n",
 		       identity_file, strerror(errno));
 		memset(passphrase1, 0, strlen(passphrase1));
 		xfree(passphrase1);
-		RSA_free(private_key);
+		key_free(private);
 		xfree(comment);
 		exit(1);
 	}
 	/* Destroy the passphrase and the copy of the key in memory. */
 	memset(passphrase1, 0, strlen(passphrase1));
 	xfree(passphrase1);
-	RSA_free(private_key);	/* Destroys contents */
+	key_free(private);		 /* Destroys contents */
 	xfree(comment);
 
 	printf("Your identification has been saved with the new passphrase.\n");
@@ -252,11 +405,11 @@ void
 do_change_comment(struct passwd *pw)
 {
 	char new_comment[1024], *comment;
-	RSA *private_key;
+	Key *private;
+	Key *public;
 	char *passphrase;
 	struct stat st;
 	FILE *f;
-	char *tmpbuf;
 
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which the key is");
@@ -268,14 +421,14 @@ do_change_comment(struct passwd *pw)
 	 * Try to load the public key from the file the verify that it is
 	 * readable and of the proper format.
 	 */
-	public_key = RSA_new();
-	if (!load_public_key(identity_file, public_key, NULL)) {
+	public = key_new(KEY_RSA);
+	if (!load_public_key(identity_file, public, NULL)) {
 		printf("%s is not a valid key file.\n", identity_file);
 		exit(1);
 	}
-	private_key = RSA_new();
 
-	if (load_private_key(identity_file, "", private_key, &comment))
+	private = key_new(KEY_RSA);
+	if (load_private_key(identity_file, "", private, &comment))
 		passphrase = xstrdup("");
 	else {
 		if (identity_passphrase)
@@ -285,7 +438,7 @@ do_change_comment(struct passwd *pw)
 		else
 			passphrase = read_passphrase("Enter passphrase: ", 1);
 		/* Try to load using the passphrase. */
-		if (!load_private_key(identity_file, passphrase, private_key, &comment)) {
+		if (!load_private_key(identity_file, passphrase, private, &comment)) {
 			memset(passphrase, 0, strlen(passphrase));
 			xfree(passphrase);
 			printf("Bad passphrase.\n");
@@ -301,7 +454,7 @@ do_change_comment(struct passwd *pw)
 		fflush(stdout);
 		if (!fgets(new_comment, sizeof(new_comment), stdin)) {
 			memset(passphrase, 0, strlen(passphrase));
-			RSA_free(private_key);
+			key_free(private);
 			exit(1);
 		}
 		if (strchr(new_comment, '\n'))
@@ -309,18 +462,18 @@ do_change_comment(struct passwd *pw)
 	}
 
 	/* Save the file using the new passphrase. */
-	if (!save_private_key(identity_file, passphrase, private_key, new_comment)) {
+	if (!save_private_key(identity_file, passphrase, private, new_comment)) {
 		printf("Saving the key failed: %s: %s.\n",
 		       identity_file, strerror(errno));
 		memset(passphrase, 0, strlen(passphrase));
 		xfree(passphrase);
-		RSA_free(private_key);
+		key_free(private);
 		xfree(comment);
 		exit(1);
 	}
 	memset(passphrase, 0, strlen(passphrase));
 	xfree(passphrase);
-	RSA_free(private_key);
+	key_free(private);
 
 	strlcat(identity_file, ".pub", sizeof(identity_file));
 	f = fopen(identity_file, "w");
@@ -328,13 +481,10 @@ do_change_comment(struct passwd *pw)
 		printf("Could not save your public key in %s\n", identity_file);
 		exit(1);
 	}
-	fprintf(f, "%d ", BN_num_bits(public_key->n));
-	tmpbuf = BN_bn2dec(public_key->e);
-	fprintf(f, "%s ", tmpbuf);
-	free(tmpbuf);
-	tmpbuf = BN_bn2dec(public_key->n);
-	fprintf(f, "%s %s\n", tmpbuf, new_comment);
-	free(tmpbuf);
+	if (!key_write(public, f))
+		fprintf(stderr, "write key failed");
+	key_free(public);
+	fprintf(f, " %s\n", new_comment);
 	fclose(f);
 
 	xfree(comment);
@@ -346,8 +496,7 @@ do_change_comment(struct passwd *pw)
 void
 usage(void)
 {
-	printf("ssh-keygen version %s\n", SSH_VERSION);
-	printf("Usage: %s [-b bits] [-p] [-c] [-l] [-f file] [-P pass] [-N new-pass] [-C comment]\n", __progname);
+	printf("Usage: %s [-lpqxXydc] [-b bits] [-f file] [-C comment] [-N new-pass] [-P pass]\n", __progname);
 	exit(1);
 }
 
@@ -359,29 +508,28 @@ main(int ac, char **av)
 {
 	char dotsshdir[16 * 1024], comment[1024], *passphrase1, *passphrase2;
 	struct passwd *pw;
-	char *tmpbuf;
 	int opt;
 	struct stat st;
 	FILE *f;
-	char hostname[MAXHOSTNAMELEN];
+	Key *private;
+	Key *public;
 	extern int optind;
 	extern char *optarg;
 
-	/* check if RSA support exists */
-	if (rsa_alive() == 0) {
-		fprintf(stderr,
-			"%s: no RSA support in libssl and libcrypto.  See ssl(8).\n",
-			__progname);
-		exit(1);
-	}
+	OpenSSL_add_all_algorithms();
+
 	/* we need this for the home * directory.  */
 	pw = getpwuid(getuid());
 	if (!pw) {
 		printf("You don't exist, go away!\n");
 		exit(1);
 	}
+	if (gethostname(hostname, sizeof(hostname)) < 0) {
+		perror("gethostname");
+		exit(1);
+	}
 
-	while ((opt = getopt(ac, av, "qpclb:f:P:N:C:")) != EOF) {
+	while ((opt = getopt(ac, av, "dqpclRxXyb:f:P:N:C:")) != EOF) {
 		switch (opt) {
 		case 'b':
 			bits = atoi(optarg);
@@ -424,6 +572,29 @@ main(int ac, char **av)
 			quiet = 1;
 			break;
 
+		case 'R':
+			if (rsa_alive() == 0)
+				exit(1);
+			else
+				exit(0);
+			break;
+
+		case 'x':
+			convert_to_ssh2 = 1;
+			break;
+
+		case 'X':
+			convert_from_ssh2 = 1;
+			break;
+
+		case 'y':
+			print_public = 1;
+			break;
+
+		case 'd':
+			dsa_mode = 1;
+			break;
+
 		case '?':
 		default:
 			usage();
@@ -437,22 +608,44 @@ main(int ac, char **av)
 		printf("Can only have one of -p and -c.\n");
 		usage();
 	}
+	/* check if RSA support is needed and exists */
+	if (dsa_mode == 0 && rsa_alive() == 0) {
+		fprintf(stderr,
+			"%s: no RSA support in libssl and libcrypto.  See ssl(8).\n",
+			__progname);
+		exit(1);
+	}
 	if (print_fingerprint)
 		do_fingerprint(pw);
 	if (change_passphrase)
 		do_change_passphrase(pw);
 	if (change_comment)
 		do_change_comment(pw);
+	if (convert_to_ssh2)
+		do_convert_to_ssh2(pw);
+	if (convert_from_ssh2)
+		do_convert_from_ssh2(pw);
+	if (print_public)
+		do_print_public(pw);
 
 	arc4random_stir();
 
-	if (quiet)
-		rsa_set_verbose(0);
-
-	/* Generate the rsa key pair. */
-	private_key = RSA_new();
-	public_key = RSA_new();
-	rsa_generate_key(private_key, public_key, bits);
+	if (dsa_mode != 0) {
+		if (!quiet)
+			printf("Generating DSA parameter and key.\n");
+		public = private = dsa_generate_key(bits);
+		if (private == NULL) {
+			fprintf(stderr, "dsa_generate_keys failed");
+			exit(1);
+		}
+	} else {
+		if (quiet)
+			rsa_set_verbose(0);
+		/* Generate the rsa key pair. */
+		public = key_new(KEY_RSA);
+		private = key_new(KEY_RSA);
+		rsa_generate_key(private->rsa, public->rsa, bits);
+	}
 
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which to save the key");
@@ -504,18 +697,14 @@ passphrase_again:
 	if (identity_comment) {
 		strlcpy(comment, identity_comment, sizeof(comment));
 	} else {
-	  	/* Create default commend field for the passphrase. */
-		if (gethostname(hostname, sizeof(hostname)) < 0) {
-			perror("gethostname");
-			exit(1);
-		}
+		/* Create default commend field for the passphrase. */
 		snprintf(comment, sizeof comment, "%s@%s", pw->pw_name, hostname);
 	}
 
 	/* Save the key with the given passphrase and comment. */
-	if (!save_private_key(identity_file, passphrase1, private_key, comment)) {
+	if (!save_private_key(identity_file, passphrase1, private, comment)) {
 		printf("Saving the key failed: %s: %s.\n",
-		       identity_file, strerror(errno));
+		    identity_file, strerror(errno));
 		memset(passphrase1, 0, strlen(passphrase1));
 		xfree(passphrase1);
 		exit(1);
@@ -525,7 +714,9 @@ passphrase_again:
 	xfree(passphrase1);
 
 	/* Clear the private key and the random number generator. */
-	RSA_free(private_key);
+	if (private != public) {
+		key_free(private);
+	}
 	arc4random_stir();
 
 	if (!quiet)
@@ -537,21 +728,18 @@ passphrase_again:
 		printf("Could not save your public key in %s\n", identity_file);
 		exit(1);
 	}
-	fprintf(f, "%d ", BN_num_bits(public_key->n));
-	tmpbuf = BN_bn2dec(public_key->e);
-	fprintf(f, "%s ", tmpbuf);
-	free(tmpbuf);
-	tmpbuf = BN_bn2dec(public_key->n);
-	fprintf(f, "%s %s\n", tmpbuf, comment);
-	free(tmpbuf);
+	if (!key_write(public, f))
+		fprintf(stderr, "write key failed");
+	fprintf(f, " %s\n", comment);
 	fclose(f);
 
 	if (!quiet) {
-		printf("Your public key has been saved in %s.\n", identity_file);
+		printf("Your public key has been saved in %s.\n",
+		    identity_file);
 		printf("The key fingerprint is:\n");
-		printf("%d %s %s\n", BN_num_bits(public_key->n),
-		       fingerprint(public_key->e, public_key->n),
-		       comment);
+		printf("%s %s\n", key_fingerprint(public), comment);
 	}
+
+	key_free(public);
 	exit(0);
 }
