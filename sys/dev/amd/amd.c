@@ -76,7 +76,8 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-#include <pci/amd.h>
+
+#include <dev/amd/amd.h>
 
 #define PCI_DEVICE_ID_AMD53C974 	0x20201022ul
 #define PCI_BASE_ADDR0	    		0x10
