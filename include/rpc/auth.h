@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.6 1996/12/30 13:59:37 peter Exp $
+ *	$Id: auth.h,v 1.13 1997/05/28 04:45:06 wpaul Exp $
  */
 
 /*
@@ -250,9 +250,7 @@ extern int getsecretkey __P(( char *, char *, char * ));
 __END_DECLS
 
 
-#ifndef AUTH_NONE /* Protect against <login_cap.h> */
 #define AUTH_NONE	0		/* no authentication */
-#endif
 #define	AUTH_NULL	0		/* backward compatibility */
 #define	AUTH_UNIX	1		/* unix style (uid, gids) */
 #define	AUTH_SYS	1		/* forward compatibility */
