@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_CONCAT, "concat data", "GEOM_CONCAT Data");
 
+SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, concat, CTLFLAG_RW, 0, "GEOM_CONCAT stuff");
 static u_int g_concat_debug = 0;
 SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RW, &g_concat_debug, 0,
@@ -73,7 +74,7 @@ g_concat_nvalid(struct g_concat_softc *sc)
 
 	no = 0;
 	for (i = 0; i < sc->sc_ndisks; i++) {
-		if (sc->sc_disks[i].d_valid)
+		if (sc->sc_disks[i].d_consumer != NULL)
 			no++;
 	}
 
@@ -86,14 +87,14 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	struct g_consumer *cp;
 	struct g_concat_softc *sc;
 
-	KASSERT(disk->d_valid, ("Non-valid disk in %s.", __func__));
+	KASSERT(disk->d_consumer != NULL, ("Non-valid disk in %s.", __func__));
 	sc = disk->d_softc;
 	cp = disk->d_consumer;
 
 	G_CONCAT_DEBUG(1, "Removing disk %s from %s.", cp->provider->name,
 	    sc->sc_provider->name);
 
-	disk->d_valid = 0;
+	disk->d_consumer = NULL;
 
 	g_error_provider(sc->sc_provider, ENXIO);
 
@@ -341,7 +342,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 
 	disk = &sc->sc_disks[no];
 	/* Check if disk is not already attached. */
-	if (disk->d_valid)
+	if (disk->d_consumer != NULL)
 		return (EEXIST);
 
 	ourpp = sc->sc_provider;
@@ -382,7 +383,6 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_softc = sc;
 	disk->d_start = 0;	/* not yet */
 	disk->d_end = 0;	/* not yet */
-	disk->d_valid = 1;
 
 	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, gp->name);
 
@@ -445,7 +445,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	sc->sc_disks = malloc(sizeof(struct g_concat_disk) * sc->sc_ndisks,
 	    M_CONCAT, M_WAITOK | M_ZERO);
 	for (no = 0; no < sc->sc_ndisks; no++)
-		sc->sc_disks[no].d_valid = 0;
+		sc->sc_disks[no].d_consumer = NULL;
 	sc->sc_type = type;
 
 	gp->softc = sc;
@@ -492,7 +492,7 @@ g_concat_destroy(struct g_concat_softc *sc, boolean_t force)
 	g_error_provider(pp, ENXIO);
 
 	for (no = 0; no < sc->sc_ndisks; no++) {
-		if (sc->sc_disks[no].d_valid)
+		if (sc->sc_disks[no].d_consumer != NULL)
 			g_concat_remove_disk(&sc->sc_disks[no]);
 	}
 
