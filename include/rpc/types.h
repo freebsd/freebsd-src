@@ -40,6 +40,7 @@
 #define _RPC_TYPES_H
 
 #include <sys/types.h>
+#include <sys/_null.h>
 
 typedef int32_t bool_t;
 typedef int32_t enum_t;
@@ -58,9 +59,6 @@ typedef   int32_t rpc_inline_t;
 #endif
 #ifndef TRUE
 #	define TRUE	(1)
-#endif
-#ifndef NULL
-#	define NULL	0
 #endif
 
 #define mem_alloc(bsize)	calloc(1, bsize)

@@ -42,6 +42,8 @@
 #ifndef _SYS_PARAM_H_
 #define _SYS_PARAM_H_
 
+#include <sys/_null.h>
+
 #define	BSD	199506		/* System version (year & month). */
 #define BSD4_3	1
 #define BSD4_4	1
@@ -58,10 +60,6 @@
  */
 #undef __FreeBSD_version
 #define __FreeBSD_version 502100	/* Master, propagated to newvers */
-
-#ifndef NULL
-#define	NULL	0
-#endif
 
 #ifndef LOCORE
 #include <sys/types.h>
