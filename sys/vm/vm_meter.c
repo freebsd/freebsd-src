@@ -85,8 +85,24 @@ SYSCTL_UINT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
 SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
 	CTLFLAG_RW, &cnt.v_free_severe, 0, "");
 
-SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD, 
-    &averunnable, loadavg, "Machine loadaverage history");
+static int
+sysctl_vm_loadavg(SYSCTL_HANDLER_ARGS)
+{
+#ifdef SCTL_MASK32
+	u_int32_t la[4];
+
+	if (req->flags & SCTL_MASK32) {
+		la[0] = averunnable.ldavg[0];
+		la[1] = averunnable.ldavg[1];
+		la[2] = averunnable.ldavg[2];
+		la[3] = averunnable.fscale;
+		return SYSCTL_OUT(req, la, sizeof(la));
+	} else
+#endif
+		return SYSCTL_OUT(req, &averunnable, sizeof(averunnable));
+}
+SYSCTL_PROC(_vm, VM_LOADAVG, loadavg, CTLTYPE_STRUCT|CTLFLAG_RD, 
+    NULL, 0, sysctl_vm_loadavg, "S,loadavg", "Machine loadaverage history");
 
 static int
 vmtotal(SYSCTL_HANDLER_ARGS)
