@@ -256,7 +256,7 @@ ntfs_mount (
 	
 		/* Get vnode for root device*/
 		if( bdevvp( rootdev, &rootvp))
-			panic("ffs_mountroot: can't setup bdevvp for root");
+			panic("ntfs_mountroot: can't setup bdevvp for root");
 
 		/*
 		 * FS specific handling
