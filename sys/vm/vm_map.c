@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.72 1997/02/22 09:48:23 peter Exp $
+ * $Id: vm_map.c,v 1.73 1997/04/06 02:29:43 dyson Exp $
  */
 
 /*
@@ -1178,10 +1178,12 @@ vm_map_protect(map, start, end, new_prot, set_max)
 #undef	max
 #undef	MASK
 		}
+
+		vm_map_simplify_entry(map, current);
+
 		current = current->next;
 	}
 
-	vm_map_simplify_entry(map, entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
