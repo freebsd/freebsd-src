@@ -418,12 +418,8 @@ main(argc, argv)
 		}
 	}
 	if (finet >= 0 && SecureMode) {
-		int bufsize;
-	    
-		bufsize = 1;
-		if (setsockopt(finet, SOL_SOCKET, SO_RCVBUF,
-			       &bufsize, sizeof bufsize) < 0) {
-			logerror("setsockopt");
+		if (shutdown(finet, SHUT_RD) < 0) {
+			logerror("shutdown");
 			if (!Debug)
 				die(0);
 		}
