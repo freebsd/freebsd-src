@@ -21,9 +21,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.8 1994/08/05 20:20:54 thomas Exp $
+ * $Id: if_le.c,v 1.1 1994/08/12 06:51:10 davidg Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.1  1994/08/12  06:51:10  davidg
+ * New ethernet device driver from Matt Thomas:
+ *
+ * This driver supports all the DEC EtherWORKS III NICs (DE203, DE204,
+ * and DE205) and the later DEC EtherWORKS II NICs (DE200, DE201, DE202,
+ * DE422).  DEPCA-style boards prior to the DE200 have not been tested
+ * and may not work.
+ *
+ * Submitted by:	Matt Thomas (thomas@lkg.dec.com)
+ *
  * Revision 1.8  1994/08/05  20:20:54  thomas
  * Enable change log
  *
@@ -776,7 +786,11 @@ le_multi_op(
 static int  lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void lemac_init(int unit);
 static void lemac_start(struct ifnet *ifp);
+#if __FreeBSD__ > 1
+static void lemac_reset(int unit);
+#else
 static void lemac_reset(int unit, int dummy);
+#endif
 static void lemac_intr(le_softc_t *sc);
 static void lemac_rne_intr(le_softc_t *sc);
 static void lemac_tne_intr(le_softc_t *sc);
@@ -849,7 +863,11 @@ lemac_probe(
      * Try to reset the unit
      */
     sc->lemac_memmode = 2;
+#if __FreeBSD__ > 1
+    lemac_reset(LE_IFP(sc)->if_unit);
+#else
     lemac_reset(LE_IFP(sc)->if_unit, 0);
+#endif
     if ((sc->le_flags & IFF_UP) == 0)
 	return 0;
 
@@ -880,9 +898,11 @@ lemac_probe(
  * Do a hard reset of the board;
  */
 static void
-lemac_reset(
-    int unit,
-    int dummy)
+#if __FreeBSD__ > 1
+lemac_reset(int unit)
+#else
+lemac_reset(int unit, int dummy)
+#endif
 {
     le_softc_t *sc = &le_softc[unit];
     int portval, cksum;
@@ -1109,7 +1129,11 @@ lemac_rxd_intr(
     printf("%s%d: fatal RXD error, attempting recovery\n",
 	   LE_IFP(sc)->if_name, LE_IFP(sc)->if_unit);
 
+#if __FreeBSD__ > 1
+    lemac_reset(LE_IFP(sc)->if_unit);
+#else
     lemac_reset(LE_IFP(sc)->if_unit, 0);
+#endif
     if (sc->le_flags & IFF_UP) {
 	lemac_init(LE_IFP(sc)->if_unit);
 	return;
@@ -1301,7 +1325,11 @@ static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
 			    unsigned ndescs, unsigned bufoffset,
 			    unsigned descoffset);
 static void lance_init(int unit);
+#if __FreeBSD__ > 1
+static void lance_reset(int unit);
+#else
 static void lance_reset(int unit, int dummy);
+#endif
 static void lance_intr(le_softc_t *sc);
 static int  lance_rx_intr(le_softc_t *sc);
 static void lance_start(struct ifnet *ifp);
@@ -1519,7 +1547,11 @@ depca_probe(
 	return 0;
 
     DEPCA_WRNICSR(sc, DEPCA_NICSR_SHE | DEPCA_NICSR_ENABINTR);
+#if __FreeBSD__ > 1
+    lance_reset(LE_IFP(sc)->if_unit);
+#else
     lance_reset(LE_IFP(sc)->if_unit, 0);
+#endif
 
     LN_STAT(low_txfree = sc->lance_txinfo.ri_max);
     LN_STAT(low_txheapsize = 0xFFFFFFFF);
@@ -1674,9 +1706,11 @@ lance_dumpcsrs(
 }
 
 static void
-lance_reset(
-    int unit,
-    int dummy)
+#if __FreeBSD__ > 1
+lance_reset(int unit)
+#else
+lance_reset(int unit, int dummy)
+#endif
 {
     le_softc_t *sc = &le_softc[unit];
     register int cnt, csr;
@@ -1750,7 +1784,11 @@ lance_init(
 
     LN_STAT(inits++);
     if (LE_IFP(sc)->if_flags & IFF_RUNNING) {
+#if __FreeBSD__ > 1
+	lance_reset(unit);
+#else
 	lance_reset(unit, 0);
+#endif
 	lance_tx_intr(sc);
 	/*
 	 * If we were running, requeue any pending transmits.
@@ -1767,7 +1805,11 @@ lance_init(
 	    ri->ri_free++;
 	}
     } else {
+#if __FreeBSD__ > 1
+	lance_reset(unit);
+#else
 	lance_reset(unit, 0);
+#endif
     }
 
     /*
