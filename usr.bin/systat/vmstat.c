@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vmstat.c,v 1.22 1997/08/13 06:45:11 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -81,7 +81,10 @@ static struct Info {
 	struct	nchstats nchstats;
 	long	nchcount;
 	long	*intrcnt;
-	int		bufspace;
+	int	bufspace;
+	int	desiredvnodes;
+	int	numvnodes;
+	int	freevnodes;
 } s, s1, s2, z;
 
 #define	cnt s.Cnt
@@ -163,6 +166,12 @@ static struct nlist namelist[] = {
 	{ "_intrcnt" },
 #define	X_EINTRCNT	12
 	{ "_eintrcnt" },
+#define	X_DESIREDVNODES	13
+	{ "_desiredvnodes" },
+#define	X_NUMVNODES	14
+	{ "_numvnodes" },
+#define	X_FREEVNODES	15
+	{ "_freevnodes" },
 	{ "" },
 };
 
@@ -315,6 +324,10 @@ labelkre()
 	mvprintw(VMSTATROW + 12, VMSTATCOL + 10, "intrn");
 	mvprintw(VMSTATROW + 13, VMSTATCOL + 10, "buf");
 
+	mvprintw(VMSTATROW + 14, VMSTATCOL + 10, "desiredvnodes");
+	mvprintw(VMSTATROW + 15, VMSTATCOL + 10, "numvnodes");
+	mvprintw(VMSTATROW + 16, VMSTATCOL + 10, "freevnodes");
+
 	mvprintw(GENSTATROW, GENSTATCOL, "  Csw  Trp  Sys  Int  Sof  Flt");
 
 	mvprintw(GRAPHROW, GRAPHCOL,
@@ -463,6 +476,9 @@ showkre()
 	PUTRATE(Cnt.v_pdpages, VMSTATROW + 11, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_intrans, VMSTATROW + 12, VMSTATCOL, 9);
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
+	putint(s.desiredvnodes, VMSTATROW + 14, VMSTATCOL, 9);
+	putint(s.numvnodes, VMSTATROW + 15, VMSTATCOL, 9);
+	putint(s.freevnodes, VMSTATROW + 16, VMSTATCOL, 9);
 	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
 	PUTRATE(Cnt.v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
 	PUTRATE(Cnt.v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
@@ -609,6 +625,9 @@ getinfo(s, st)
 	NREAD(X_CPTIME, s->time, sizeof s->time);
 	NREAD(X_CNT, &s->Cnt, sizeof s->Cnt);
 	NREAD(X_BUFFERSPACE, &s->bufspace, LONG);
+	NREAD(X_DESIREDVNODES, &s->desiredvnodes, LONG);
+	NREAD(X_NUMVNODES, &s->numvnodes, LONG);
+	NREAD(X_FREEVNODES, &s->freevnodes, LONG);
 	NREAD(X_DK_BUSY, &s->dk_busy, LONG);
 	NREAD(X_DK_TIME, s->dk_time, dk_ndrive * LONG);
 	NREAD(X_DK_XFER, s->dk_xfer, dk_ndrive * LONG);
