@@ -56,27 +56,20 @@
  * a closing quote.  In this case, tokenize() returns -1. 
  */
 
-#ifdef KERNEL
-#include "opt_vinum.h"
-#endif
-
 #include <sys/param.h>
-#ifdef KERNEL
-#undef KERNEL						    /* XXX */
-#define REALLYKERNEL
-#include "opt_vinum.h"
-#else
+#ifndef KERNEL
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #endif
+#include <machine/setjmp.h>
 /* All this mess for a single struct definition */
 #include <sys/uio.h>
 #include <sys/namei.h>
 #include <sys/disklabel.h>
 #include <sys/mount.h>
+#include <sys/conf.h>
 #include <sys/device.h>
-#include <sys/disk.h>
 #include <sys/buf.h>
 
 #include <dev/vinum/vinumvar.h>
@@ -84,7 +77,7 @@
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumext.h>
 
-#ifdef REALLYKERNEL
+#ifdef KERNEL
 #define isspace(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
 #else /* get it from the headers */
 #include <ctype.h>

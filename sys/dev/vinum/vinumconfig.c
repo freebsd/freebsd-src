@@ -50,8 +50,6 @@
 
 #define STATIC static
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
