@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 #ifndef TEST
 #include <sys/systm.h>
 #endif
@@ -46,19 +47,20 @@ static MALLOC_DEFINE(M_KOBJ, "kobj", "Kernel object structures");
 
 #ifdef KOBJ_STATS
 
-#include <sys/sysctl.h>
-
 u_int kobj_lookup_hits;
 u_int kobj_lookup_misses;
 
 SYSCTL_UINT(_kern, OID_AUTO, kobj_hits, CTLFLAG_RD,
-	   &kobj_lookup_hits, 0, "")
+	   &kobj_lookup_hits, 0, "");
 SYSCTL_UINT(_kern, OID_AUTO, kobj_misses, CTLFLAG_RD,
-	   &kobj_lookup_misses, 0, "")
+	   &kobj_lookup_misses, 0, "");
 
 #endif
 
 static int kobj_next_id = 1;
+
+SYSCTL_UINT(_kern, OID_AUTO, kobj_methodcount, CTLFLAG_RD,
+	   &kobj_next_id, 0, "");
 
 static int
 kobj_error_method(void)
@@ -69,8 +71,10 @@ kobj_error_method(void)
 static void
 kobj_register_method(struct kobjop_desc *desc)
 {
-	if (desc->id == 0)
+	if (desc->id == 0) {
+		KASSERT((kobj_next_id < KOBJ_CACHE_SIZE), ("kobj method table overflow"));
 		desc->id = kobj_next_id++;
+	}
 }
 
 static void
