@@ -20,6 +20,6 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 WARNS=	0
 SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c cache.c
 MAN=	dump.8
-MLINKS+=dump.8 rdump.8
+MLINKS=	dump.8 rdump.8
 
 .include <bsd.prog.mk>
