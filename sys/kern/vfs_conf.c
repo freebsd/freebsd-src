@@ -167,8 +167,10 @@ vfs_mountroot_try(char *mountfrom)
 	int		error;
 	char		patt[32];
 
-	vfsname = path = mp = NULL;
-	error = EINVAL;
+	vfsname = NULL;
+	path    = NULL;
+	mp      = NULL;
+	error   = EINVAL;
 
 	if (mountfrom == NULL)
 		goto done;
