@@ -250,6 +250,10 @@
       has been improved, by replacing the per-interface
       <varname>if_inaddr</varname> linear list with a hash table.</para>
 
+      <para arch="i386">The packet-forwarding performance of certain
+      network drivers (specifically &man.dc.4; and &man.sis.4;) has
+      been enhanced by the elimination of unnecessary buffer
+      copies.</para>
     </sect3>
 
     <sect3>
