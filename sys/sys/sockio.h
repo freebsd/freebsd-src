@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sockio.h	8.1 (Berkeley) 3/28/94
- * $Id: sockio.h,v 1.5 1994/12/21 22:57:05 wollman Exp $
+ * $Id: sockio.h,v 1.6 1996/05/18 20:33:42 fenner Exp $
  */
 
 #ifndef	_SYS_SOCKIO_H_
@@ -50,8 +50,8 @@
 
 #define	SIOCADDRT	 _IOW('r', 10, struct ortentry)	/* add route */
 #define	SIOCDELRT	 _IOW('r', 11, struct ortentry)	/* delete route */
-#define SIOCGETVIFCNT	_IOWR('r', 15, struct sioc_vif_req)/* get vif pkt cnt */
-#define SIOCGETSGCNT	_IOWR('r', 16, struct sioc_sg_req) /* get s,g pkt cnt */
+#define	SIOCGETVIFCNT	_IOWR('r', 15, struct sioc_vif_req)/* get vif pkt cnt */
+#define	SIOCGETSGCNT	_IOWR('r', 16, struct sioc_sg_req) /* get s,g pkt cnt */
 
 #define	SIOCSIFADDR	 _IOW('i', 12, struct ifreq)	/* set ifnet address */
 #define	OSIOCGIFADDR	_IOWR('i', 13, struct ifreq)	/* get ifnet address */
@@ -76,9 +76,9 @@
 
 #define	SIOCADDMULTI	 _IOW('i', 49, struct ifreq)	/* add m'cast addr */
 #define	SIOCDELMULTI	 _IOW('i', 50, struct ifreq)	/* del m'cast addr */
-#define SIOCGIFMTU	_IOWR('i', 51, struct ifreq)	/* get IF mtu */
-#define SIOCSIFMTU	 _IOW('i', 52, struct ifreq)	/* set IF mtu */
-#define SIOCGIFPHYS	_IOWR('i', 53, struct ifreq)	/* get IF wire */
-#define SIOCSIFPHYS	 _IOW('i', 54, struct ifreq)	/* set IF wire */
+#define	SIOCGIFMTU	_IOWR('i', 51, struct ifreq)	/* get IF mtu */
+#define	SIOCSIFMTU	 _IOW('i', 52, struct ifreq)	/* set IF mtu */
+#define	SIOCGIFPHYS	_IOWR('i', 53, struct ifreq)	/* get IF wire */
+#define	SIOCSIFPHYS	 _IOW('i', 54, struct ifreq)	/* set IF wire */
 
 #endif /* !_SYS_SOCKIO_H_ */
