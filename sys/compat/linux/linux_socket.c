@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.3 1995/12/15 03:06:57 peter Exp $
+ *  $Id: linux_socket.c,v 1.4 1996/03/02 19:37:59 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -82,6 +82,19 @@ static int linux_to_bsd_ip_sockopt(int opt)
 	return IP_TOS;
     case LINUX_IP_TTL:
 	return IP_TTL;
+    case LINUX_IP_OPTIONS:
+	return IP_OPTIONS;
+    case LINUX_IP_MULTICAST_IF:
+	return IP_MULTICAST_IF;
+    case LINUX_IP_MULTICAST_TTL:
+	return IP_MULTICAST_TTL;
+    case LINUX_IP_MULTICAST_LOOP:
+	return IP_MULTICAST_LOOP;
+    case LINUX_IP_ADD_MEMBERSHIP:
+	return IP_ADD_MEMBERSHIP;
+    case LINUX_IP_DROP_MEMBERSHIP:
+	return IP_DROP_MEMBERSHIP;
+    case LINUX_IP_HDRINCL:
     default:
 	return -1;
     }
