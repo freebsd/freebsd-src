@@ -106,7 +106,7 @@ int ssl23_connect(SSL *s)
 	int ret= -1;
 	int new_state,state;
 
-	RAND_seed(&Time,sizeof(Time));
+	RAND_add(&Time,sizeof(Time),0);
 	ERR_clear_error();
 	clear_sys_error();
 
@@ -226,7 +226,7 @@ static int ssl23_client_hello(SSL *s)
 #endif
 
 		p=s->s3->client_random;
-		RAND_bytes(p,SSL3_RANDOM_SIZE);
+		RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE);
 
 		/* Do the message type and length last */
 		d= &(buf[2]);
@@ -287,7 +287,7 @@ static int ssl23_client_hello(SSL *s)
 			i=ch_len;
 		s2n(i,d);
 		memset(&(s->s3->client_random[0]),0,SSL3_RANDOM_SIZE);
-		RAND_bytes(&(s->s3->client_random[SSL3_RANDOM_SIZE-i]),i);
+		RAND_pseudo_bytes(&(s->s3->client_random[SSL3_RANDOM_SIZE-i]),i);
 		memcpy(p,&(s->s3->client_random[SSL3_RANDOM_SIZE-i]),i);
 		p+=i;
 
@@ -311,7 +311,7 @@ static int ssl23_get_server_hello(SSL *s)
 	{
 	char buf[8];
 	unsigned char *p;
-	int i,ch_len;
+	int i;
 	int n;
 
 	n=ssl23_read_bytes(s,7);
@@ -325,12 +325,13 @@ static int ssl23_get_server_hello(SSL *s)
 		(p[5] == 0x00) && (p[6] == 0x02))
 		{
 #ifdef NO_SSL2
-			SSLerr(SSL_F_SSL23_GET_SERVER_HELLO,SSL_R_UNSUPPORTED_PROTOCOL);
-			goto err;
+		SSLerr(SSL_F_SSL23_GET_SERVER_HELLO,SSL_R_UNSUPPORTED_PROTOCOL);
+		goto err;
 #else
 		/* we are talking sslv2 */
 		/* we need to clean up the SSLv3 setup and put in the
 		 * sslv2 stuff. */
+		int ch_len;
 
 		if (s->options & SSL_OP_NO_SSLv2)
 			{
