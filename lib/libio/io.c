@@ -119,17 +119,38 @@ readl(void *handle, u_int32_t offset)
 void
 writeb(void *handle, u_int32_t offset, u_int8_t val)
 {
-    return ops->writeb(handle, offset, val);
+    ops->writeb(handle, offset, val);
+    __asm__ __volatile__ ("mb");
 }
 
 void
 writew(void *handle, u_int32_t offset, u_int16_t val)
 {
-    return ops->writew(handle, offset, val);
+    ops->writew(handle, offset, val);
+    __asm__ __volatile__ ("mb");
 }
 
 void
 writel(void *handle, u_int32_t offset, u_int32_t val)
+{
+    ops->writel(handle, offset, val);
+    __asm__ __volatile__ ("mb");
+}
+
+void
+writeb_nb(void *handle, u_int32_t offset, u_int8_t val)
+{
+    return ops->writeb(handle, offset, val);
+}
+
+void
+writew_nb(void *handle, u_int32_t offset, u_int16_t val)
+{
+    return ops->writew(handle, offset, val);
+}
+
+void
+writel_nb(void *handle, u_int32_t offset, u_int32_t val)
 {
     return ops->writel(handle, offset, val);
 }
