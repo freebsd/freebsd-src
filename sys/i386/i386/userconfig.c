@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.41 1996/04/07 17:56:53 bde Exp $
+ **      $Id: userconfig.c,v 1.42 1996/04/13 18:33:04 bde Exp $
  **/
 
 /**
@@ -1453,7 +1453,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    break;				/* nope, drop through */
 	
 	case 1:					/* there was an escape prefix */
-	    if (c == '[')			/* second character in sequence */
+	    if (c == '[' || c == 'O')		/* second character in sequence */
 	    {
 		extended = 2;
 		continue;
@@ -1855,6 +1855,7 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
 		break;
 		    
 	    case '[':				/* cheat : always preceeds cursor move */
+	    case 'O':				/* ANSI application key mode */
 		if (extended==1)
 		    extended=2;
 		else
@@ -2150,7 +2151,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.41 1996/04/07 17:56:53 bde Exp $
+ *      $Id: userconfig.c,v 1.42 1996/04/13 18:33:04 bde Exp $
  */
 
 #include "scbus.h"
