@@ -572,13 +572,20 @@ g_bde_worker(void *arg)
 			} 
 			switch(wp->bp->bio_cmd) {
 			case BIO_READ:
-				if (wp->ksp != NULL && wp->sp->error == 0) {
-					mtx_unlock(&sc->worklist_mutex);
-					g_bde_crypt_read(wp);
-					mtx_lock(&sc->worklist_mutex);
+				if (wp->ksp == NULL) {
+					KASSERT(wp->error != 0,
+					    ("BIO_READ, no ksp and no error"));
+					g_bde_contribute(wp->bp, wp->length,
+						    wp->error);
+				} else {
+					if (wp->sp->error == 0) {
+						mtx_unlock(&sc->worklist_mutex);
+						g_bde_crypt_read(wp);
+						mtx_lock(&sc->worklist_mutex);
+					}
+					g_bde_contribute(wp->bp, wp->length,
+						    wp->sp->error);
 				}
-				g_bde_contribute(wp->bp, wp->length,
-					    wp->sp->error);
 				g_bde_delete_sector(sc, wp->sp);
 				if (wp->ksp != NULL)
 					g_bde_release_keysector(wp);
