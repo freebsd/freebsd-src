@@ -55,7 +55,8 @@ static int	find_compare __P((const FTSENT **s1, const FTSENT **s2));
 /*
  * find_compare --
  *	tell fts_open() how to order the traversal of the hierarchy. 
- *	This variant gives lexicographical order in each directory.
+ *	This variant gives lexicographical order, i.e., alphabetical
+ *	order within each directory.
  */
 static int
 find_compare(s1, s2)
