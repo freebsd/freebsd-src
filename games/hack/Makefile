@@ -29,14 +29,16 @@ makedefs: makedefs.c
 	${CC} ${CFLAGS} -o ${.TARGET} ${.CURDIR}/${.PREFIX}.c
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} /dev/null \
 	    ${DESTDIR}/var/games/hackdir/perm
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 /dev/null \
+	${INSTALL} -c -o bin -g ${BINGRP} -m 460 /dev/null \
 	    ${DESTDIR}/var/games/hackdir/record
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 ${.CURDIR}/rumors \
+	${INSTALL} -c -o bin -g ${BINGRP} -m 440 ${.CURDIR}/rumors \
 	    ${DESTDIR}/var/games/hackdir/rumors
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/help \
-	    ${.CURDIR}/hh ${.CURDIR}/data ${DESTDIR}/var/games/hackdir
-	rm -f ${DESTDIR}/var/games/hackdir/bones*
+	${INSTALL} -c -o bin -g bin -m ${NOBINMODE} \
+		${.CURDIR}/help  ${.CURDIR}/hh ${.CURDIR}/data \
+		${DESTDIR}/var/games/hackdir
+	rm -f ${DESTDIR}/var/games/hackdir/bones* \
+	      ${DESTDIR}/var/games/hackdir/save/*
 
 .include <bsd.prog.mk>

@@ -36,10 +36,10 @@ CLEANFILES+=${BLDS}
 all: ${FILES} ${BLDS}
 
 install:
-	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${FILES} ${DESTDIR}/usr/share/games/fortune)
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${BLDS} \
-	    ${DESTDIR}/usr/share/games/fortune
+	(cd ${.CURDIR} && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
+		-m ${NOBINMODE} ${FILES} ${DESTDIR}${SHAREDIR}/games/fortune)
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} ${BLDS} \
+	    ${DESTDIR}${SHAREDIR}/games/fortune
 
 fortunes.dat fortunes2.dat fortunes2-o.dat limerick.dat startrek.dat zippy.dat:
 	${STRFILE} -rs ${.CURDIR}/${.TARGET:R} ${.TARGET}

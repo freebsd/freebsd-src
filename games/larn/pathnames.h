@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	5.1 (Berkeley) 5/2/90
+ *	@(#)pathnames.h	5.2 (Berkeley) 5/27/95
  */
 
 #define	_PATH_LOG		"/var/games/larn/llog12.0"
@@ -38,4 +38,4 @@
 #define	_PATH_HELP		"/usr/share/games/larn/larn.help"
 #define	_PATH_LEVELS		"/usr/share/games/larn/larnmaze"
 #define	_PATH_FORTS		"/usr/share/games/larn/lfortune"
-#define	_PATH_PLAYERIDS		"/usr/share/games/larn/playerids"
+#define	_PATH_PLAYERIDS		"/var/games/larn/playerids"

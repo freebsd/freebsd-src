@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "hack.h"
 
 #ifdef QUEST
@@ -11,10 +13,9 @@
 #define	gamename	"hack"
 #endif
 
-extern char *getlogin(), *getenv();
 extern char plname[PL_NSIZ], pl_character[PL_CSIZ];
 extern struct permonst mons[CMNUM+2];
-extern char genocided[], fut_geno[];
+extern char genocided[60], fut_geno[];
 
 int (*afternmv)();
 int (*occupation)();
@@ -116,6 +117,7 @@ char *argv[];
 	 */
 	gettty();
 	setbuf(stdout,obuf);
+	umask(007);
 	setrandom();
 	startup();
 	cls();
@@ -232,7 +234,7 @@ char *argv[];
 				}
 				*gp = 0;
 			} else
-				(void) strcpy(genocided, sfoo);
+				(void) strncpy(genocided, sfoo, sizeof(genocided)-1);
 			(void) strcpy(fut_geno, genocided);
 		}
 	}
@@ -458,8 +460,8 @@ boolean wr;
 	       && strcmp(dir, HACKDIR)		/* and not the default? */
 #endif
 		) {
-		(void) setuid(getuid());		/* Ron Wessels */
-		(void) setgid(getgid());
+		/* revoke */
+		setgid(getgid());
 	}
 #endif
 

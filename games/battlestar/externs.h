@@ -33,14 +33,16 @@
  *	@(#)externs.h	8.1 (Berkeley) 5/31/93
  */
 
+#include <errno.h>
 #include <sys/param.h>
 #include <sys/signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define BITS (8)
 
 #define OUTSIDE		(position > 68 && position < 246 && position != 218)
-#define rnd(x)		(rand() % (x))
+#define rnd(x)          (random() % (x))
 #define max(a,b)	((a) < (b) ? (b) : (a))
 #define testbit(array, index)	(array[index/BITS] & (1 << (index % BITS)))
 #ifndef setbit
@@ -298,3 +300,5 @@ struct objs {
 };
 struct objs dayobjs[];
 struct objs nightobjs[];
+
+gid_t	egid;

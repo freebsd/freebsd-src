@@ -614,12 +614,12 @@ init_term()
 	switch (tgetent(termbuf, term = getenv("TERM")))
 		{
 		case -1:
-			write(2, "Cannot open termcap file.\n", 26); exit();
+			write(2, "Cannot open termcap file.\n", 26); exit(1);
 		case 0:
 			write(2, "Cannot find entry of ", 21);
 			write(2, term, strlen (term));
 			write(2, " in termcap\n", 12);
-			exit();
+			exit(1);
 		};
 
 	if (gtty(0, &tt) == 0)
@@ -640,19 +640,19 @@ init_term()
 		{
 		write(2, "Sorry, for a ",13);		write(2, term, strlen(term));
 		write(2, ", I can't find the cursor motion entry in termcap\n",50);
-		exit();
+		exit(1);
 		}
 	if (!CE)	/* can't find clear to end of line entry */
 		{
 		write(2, "Sorry, for a ",13);		write(2, term, strlen(term));
 		write(2,", I can't find the clear to end of line entry in termcap\n",57);
-		exit();
+		exit(1);
 		}
 	if (!CL)	/* can't find clear entire screen entry */
 		{
 		write(2, "Sorry, for a ",13);		write(2, term, strlen(term));
 		write(2, ", I can't find the clear entire screen entry in termcap\n",56);
-		exit();
+		exit(1);
 		}
 	if ((outbuf=malloc(BUFBIG+16))==0) /* get memory for decoded output buffer*/
 		{
@@ -852,15 +852,15 @@ lflush()
 #endif VT100
 
 #ifndef VT100
-static int index=0;
+static int pindex=0;
 /*
  * putchar(ch)		Print one character in decoded output buffer.
  */
 int putchar(c)
 int c;
 	{
-	outbuf[index++] = c;
-	if (index >= BUFBIG)  flush_buf();
+	outbuf[pindex++] = c;
+	if (pindex >= BUFBIG)  flush_buf();
 	}
 
 /*
@@ -868,8 +868,8 @@ int c;
  */
 flush_buf()
 	{
-	if (index) write(lfd, outbuf, index);
-	index = 0;
+	if (pindex) write(lfd, outbuf, pindex);
+	pindex = 0;
 	}
 
 /*

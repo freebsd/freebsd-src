@@ -47,6 +47,8 @@
 static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 5/31/93";
 #endif not lint
 
+#include <stdlib.h>
+#include <string.h>
 #include "include.h"
 #include "pathnames.h"
 
@@ -319,9 +321,10 @@ gettoken()
 #endif
 			if (fork() == 0)	/* child */
 			{
-				char *shell, *base, *getenv(), *strrchr();
+				char *shell, *base;
 
-				setuid(getuid()); /* turn off setuid bit */
+				/* revoke */
+				setgid(getgid());
 				done_screen();
 
 						 /* run user's favorite shell */
@@ -410,7 +413,7 @@ right(c)
 {
 	dir = D_RIGHT;
 	p.new_dir = p.dir + 1;
-	if (p.new_dir > MAXDIR)
+	if (p.new_dir >= MAXDIR)
 		p.new_dir -= MAXDIR;
 	return (NULL);
 }
@@ -428,7 +431,7 @@ char	*
 Right(c)
 {
 	p.new_dir = p.dir + 2;
-	if (p.new_dir > MAXDIR)
+	if (p.new_dir >= MAXDIR)
 		p.new_dir -= MAXDIR;
 	return (NULL);
 }

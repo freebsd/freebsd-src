@@ -52,6 +52,7 @@
  */
 
 /* hdr.h: included by c advent files */
+#include <sys/types.h>
 
 int datfd;                              /* message file descriptor      */
 int delhit;
@@ -128,7 +129,7 @@ int hntmax;
 int hints[20][5];                       /* info on hints                */
 int hinted[20],hintlc[20];
 
-int place[101], prop[101],link[201];
+int place[101], prop[101],linkx[201];
 int abb[LOCSIZ];
 
 int maxtrs,tally,tally2;                /* treasure values              */
@@ -161,3 +162,5 @@ unsigned long crc();
 
 /* We need to get a little tricky to avoid strings */
 #define DECR(a,b,c,d,e) decr('a'+'+','b'+'-','c'+'#','d'+'&','e'+'%')
+
+gid_t	egid;

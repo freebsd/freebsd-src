@@ -1202,6 +1202,9 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
+    /* revoke */
+    setgid(getgid());
+
     do_options(argc, argv);
 
     intro();

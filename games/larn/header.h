@@ -1,5 +1,11 @@
 /*	header.h		Larn is copyrighted 1986 by Noah Morgan. */
 
+#include <stdlib.h>
+#include <string.h>
+#include <termcap.h>
+#include <time.h>
+#include <unistd.h>
+
 #define MAXLEVEL 11
 	/*	max # levels in the dungeon			*/
 #define MAXVLEVEL 3
@@ -345,17 +351,15 @@ extern short iarg[MAXX][MAXY],ivenarg[],lasthx,lasthy,lastnum,lastpx,lastpy;
 extern short nobeep,oldx,oldy,playerx,playery;
 extern int dayplay,enable_scroll,srcount,yrepcount,userid,wisid,lfd,fd;
 extern long initialtime,outstanding_taxes,skill[],gtime,c[],cbak[];
-extern unsigned long randx;
 extern struct cel *cell;
 extern struct monst monster[];
 extern struct sphere *spheres;
 extern struct _itm itm[];
 
-char *fortune(),*getenv(),*getlogin(),*lgetw(),*lgetl(),*ctime();
-char *tmcapcnv(),*tgetstr(),*tgoto();
-long paytaxes(),lgetc(),lrint(),time();
+char *fortune(),*lgetw(),*lgetl();
+char *tmcapcnv();
+long paytaxes(),lgetc(),lrint();
 unsigned long readnum();
-void *malloc();
 
 	/* macro to create scroll #'s with probability of occurrence */
 #define newscroll() (scprob[rund(81)])
@@ -415,9 +419,10 @@ void *malloc();
 	/* macro to output one byte to the output buffer */
 #define lprc(ch) ((lpnt>=lpend)?(*lpnt++ =(ch), lflush()):(*lpnt++ =(ch)))
 
+#ifdef MACRORND
+extern unsigned long randx;
 	/* macro to seed the random number generator */
 #define srand(x) (randx=x)
-#ifdef MACRORND
 	/* macros to generate random numbers   1<=rnd(N)<=N   0<=rund(N)<=N-1 */
 #define rnd(x)  ((((randx=randx*1103515245+12345)>>7)%(x))+1)
 #define rund(x) ((((randx=randx*1103515245+12345)>>7)%(x))  )

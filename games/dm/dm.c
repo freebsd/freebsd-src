@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)dm.c	8.1 (Berkeley) 5/31/93";
 #include <sys/resource.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <nlist.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -71,7 +72,7 @@ main(argc, argv)
 	char *cp;
 
 	nogamefile();
-	game = (cp = rindex(*argv, '/')) ? ++cp : *argv;
+	game = (cp = strrchr(*argv, '/')) ? ++cp : *argv;
 
 	if (!strcmp(game, "dm"))
 		exit(0);
@@ -95,11 +96,15 @@ play(args)
 {
 	char pbuf[MAXPATHLEN];
 
+	if (sizeof(_PATH_HIDE) + strlen(game) > sizeof(pbuf)) {
+		(void)fprintf(stderr, "dm: %s/%s: %s\n", _PATH_HIDE, game,
+			strerror(ENAMETOOLONG));
+		exit(1);
+	}
 	(void)strcpy(pbuf, _PATH_HIDE);
 	(void)strcpy(pbuf + sizeof(_PATH_HIDE) - 1, game);
 	if (priority > 0)	/* < 0 requires root */
 		(void)setpriority(PRIO_PROCESS, 0, priority);
-	setgid(getgid());	/* we run setgid kmem; lose it */
 	execv(pbuf, args);
 	(void)fprintf(stderr, "dm: %s: %s\n", pbuf, strerror(errno));
 	exit(1);
@@ -162,11 +167,11 @@ c_day(s_day, s_start, s_stop)
 	start = atoi(s_start);
 	stop = atoi(s_stop);
 	if (ct->tm_hour >= start && ct->tm_hour < stop) {
-		fputs("dm: Sorry, games are not available from ", stderr);
+		(void)fputs("dm: Sorry, games are not available from ", stderr);
 		hour(start);
-		fputs(" to ", stderr);
+		(void)fputs(" to ", stderr);
 		hour(stop);
-		fputs(" today.\n", stderr);
+		(void)fputs(" today.\n", stderr);
 		exit(0);
 	}
 }
@@ -182,12 +187,12 @@ c_tty(tty)
 	static char *p_tty;
 
 	if (first) {
-		p_tty = rindex(gametty, '/');
+		p_tty = strrchr(gametty, '/');
 		first = 0;
 	}
 
 	if (!strcmp(gametty, tty) || p_tty && !strcmp(p_tty, tty)) {
-		fprintf(stderr, "dm: Sorry, you may not play games on %s.\n", gametty);
+		(void)fprintf(stderr, "dm: Sorry, you may not play games on %s.\n", gametty);
 		exit(0);
 	}
 }
@@ -208,11 +213,11 @@ c_game(s_game, s_load, s_users, s_priority)
 		return;
 	++found;
 	if (isdigit(*s_load) && atoi(s_load) < load()) {
-		fputs("dm: Sorry, the load average is too high right now.\n", stderr);
+		(void)fputs("dm: Sorry, the load average is too high right now.\n", stderr);
 		exit(0);
 	}
 	if (isdigit(*s_users) && atoi(s_users) <= users()) {
-		fputs("dm: Sorry, there are too many users logged on right now.\n", stderr);
+		(void)fputs("dm: Sorry, there are too many users logged on right now.\n", stderr);
 		exit(0);
 	}
 	if (isdigit(*s_priority))
@@ -229,7 +234,7 @@ load()
 	double avenrun[3];
 
 	if (getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0])) < 0) {
-		fputs("dm: getloadavg() failed.\n", stderr);
+		(void)fputs("dm: getloadavg() failed.\n", stderr);
 		exit(1);
 	}
 	return(avenrun[2]);
@@ -281,16 +286,16 @@ hour(h)
 {
 	switch(h) {
 	case 0:
-		fputs("midnight", stderr);
+		(void)fputs("midnight", stderr);
 		break;
 	case 12:
-		fputs("noon", stderr);
+		(void)fputs("noon", stderr);
 		break;
 	default:
 		if (h > 12)
-			fprintf(stderr, "%dpm", h - 12);
+			(void)fprintf(stderr, "%dpm", h - 12);
 		else
-			fprintf(stderr, "%dam", h);
+			(void)fprintf(stderr, "%dam", h);
 	}
 }
 

@@ -91,10 +91,17 @@ live()
 
 #include <sys/time.h>
 
+static FILE *score_fp;
+
+open_score_file()
+{
+	if ((score_fp = fopen(_PATH_SCORE,"a")) == NULL)
+		perror(_PATH_SCORE);
+}
+
 post(ch)
 char ch;
 {
-	FILE *fp;
 	struct timeval tv;
 	char *date, *ctime();
 	int s = sigblock(sigmask(SIGINT));
@@ -102,16 +109,15 @@ char ch;
 	gettimeofday(&tv, (struct timezone *)0);	/* can't call time */
 	date = ctime(&tv.tv_sec);
 	date[24] = '\0';
-	if (fp = fopen(_PATH_SCORE,"a")) {
-		fprintf(fp, "%s  %8s  %c%20s", date, uname, ch, rate());
-		if (wiz)
-			fprintf(fp, "   wizard\n");
-		else if (tempwiz)
-			fprintf(fp, "   WIZARD!\n");
-		else
-			fprintf(fp, "\n");
-	} else
-		perror(_PATH_SCORE);
+
+	fprintf(score_fp, "%s  %8s  %c%20s", date, uname, ch, rate());
+	if (wiz)
+		fprintf(score_fp, "   wizard\n");
+	else if (tempwiz)
+		fprintf(score_fp, "   WIZARD!\n");
+	else
+		fprintf(score_fp, "\n");
+
 	sigsetmask(s);
 }
 

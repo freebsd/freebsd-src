@@ -10,6 +10,6 @@ CFLAGS+= -Wall
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/rot13.sh ${DESTDIR}/usr/games/rot13
+	    ${.CURDIR}/rot13.sh ${DESTDIR}${BINDIR}/rot13
 
 .include <bsd.prog.mk>
