@@ -604,7 +604,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	sprintf (user, "%.*s", (strchr(result, ':') - result), result);
-	_pw_passwd.pw_fields = 0;
+	_pw_passwd.pw_fields = -1; /* Impossible value */
 	if (_minuscnt && _minushead) {
 		m = _minushead;
 		while (m) {
@@ -633,6 +633,9 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		}
 	}
 	free(result);
+	/* No hits in the plus or minus lists: Bzzt! reject. */
+	if (_pw_passwd.pw_fields == -1)
+		return(0);
 	result = resultbuf;
 	_pw_breakout_yp(pw, resultbuf, gotmaster);
 
@@ -694,7 +697,7 @@ unpack:
 
 		strcpy(resultbuf, result);
 		sprintf(user, "%.*s", (strchr(result, ':') - result), result);
-		_pw_passwd.pw_fields = 0;
+		_pw_passwd.pw_fields = -1; /* Impossible value */
 		if (_minuscnt && _minushead) {
 			m = _minushead;
 			while (m) {
@@ -723,6 +726,9 @@ unpack:
 			}
 		}
 		free(result);
+		/* No plus or minus hits: Bzzzt! reject. */
+		if (_pw_passwd.pw_fields == -1)
+			goto tryagain;
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
 		_pw_breakout_yp(pw, resultbuf, gotmaster);
 	}
