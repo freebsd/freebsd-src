@@ -93,6 +93,10 @@
 
 #include <pc98/pc98/atapi.h>
 
+#ifndef COMPAT_OLDISA
+#error "The wdc device requires the old isa compatibility shims"
+#endif
+
 extern void wdstart(int ctrlr);
 
 #ifdef IDE_DELAY
@@ -238,10 +242,12 @@ static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
 
 struct isa_driver wdcdriver = {
-	wdprobe, wdattach, "wdc",
+	INTR_TYPE_BIO,
+	wdprobe,
+	wdattach,
+	"wdc",
 };
-
-
+COMPAT_ISA_DRIVER(wdc, wdcdriver);
 
 static	d_open_t	wdopen;
 static	d_close_t	wdclose;

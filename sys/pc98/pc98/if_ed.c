@@ -99,6 +99,10 @@
 #include <i386/isa/icu.h>
 #include <dev/ed/if_edreg.h>
 
+#ifndef COMPAT_OLDISA
+#error "The ed device requires the old isa compatibility shims"
+#endif
+
 #ifdef PC98
 /* register offsets */
 struct pc98_edregister {
@@ -322,11 +326,13 @@ card_intr(struct pccard_devinfo *devi)
 #endif /* NCARD > 0 */
 
 struct isa_driver eddriver = {
+	INTR_TYPE_NET,
 	ed_probe,
 	ed_attach_isa,
 	"ed",
 	1		/* We are ultra sensitive */
 };
+COMPAT_ISA_DRIVER(ed, eddriver);
 
 /*
  * Interrupt conversion table for WD/SMC ASIC/83C584
