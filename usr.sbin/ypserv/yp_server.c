@@ -45,12 +45,16 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.2 1995/12/23 21:35:35 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.3 1996/02/26 02:23:39 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
 int children = 0;
 DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
+
+/*
+ * NIS v2 support. This is where most of the action happens.
+ */
 
 void *
 ypproc_null_2_svc(void *argp, struct svc_req *rqstp)
@@ -695,6 +699,201 @@ ypproc_maplist_2_svc(domainname *argp, struct svc_req *rqstp)
 		return(&result);
 	} else
 		result.stat = YP_TRUE;
+
+	return (&result);
+}
+
+/*
+ * NIS v1 support. The nullproc, domain and domain_nonack
+ * functions from v1 are identical to those in v2, so all
+ * we have to do is hand off to them.
+ *
+ * The other functions are mostly just wrappers around their v2
+ * counterparts. For example, for the v1 'match' procedure, we
+ * crack open the argument structure, make a request to the v2
+ * 'match' function, repackage the data into a v1 response and
+ * then send it on its way.
+ *
+ * Note that we don't support the pull, push and get procedures.
+ * There's little documentation available to show what they
+ * do, and I suspect they're meant largely for map transfers
+ * between master and slave servers.
+ */
+
+void *
+ypoldproc_null_1_svc(void *argp, struct svc_req *rqstp)
+{
+	return(ypproc_null_2_svc(argp, rqstp));
+}
+
+bool_t *
+ypoldproc_domain_1_svc(domainname *argp, struct svc_req *rqstp)
+{
+	return(ypproc_domain_2_svc(argp, rqstp));
+}
+
+bool_t *
+ypoldproc_domain_nonack_1_svc(domainname *argp, struct svc_req *rqstp)
+{
+	return (ypproc_domain_nonack_2_svc(argp, rqstp));
+}
+
+ypresponse *
+ypoldproc_match_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+	ypresp_val *v2_result;
+
+	result.yp_resptype = YPRESP_VAL;
+
+	if (argp->yp_reqtype != YPREQ_KEY) {
+		result.ypresponse_u.yp_resp_valtype.stat = YP_BADARGS;
+		return(&result);
+	}
+
+	v2_result = ypproc_match_2_svc(&argp->yprequest_u.yp_req_keytype,rqstp);
+	if (v2_result == NULL)
+		return(NULL);
+
+	bcopy((char *)v2_result,
+	      (char *)&result.ypresponse_u.yp_resp_valtype,
+	      sizeof(ypresp_val));
+
+	return (&result);
+}
+
+ypresponse *
+ypoldproc_first_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+	ypresp_key_val *v2_result;
+
+	result.yp_resptype = YPRESP_KEY_VAL;
+
+	if (argp->yp_reqtype != YPREQ_NOKEY) {
+		result.ypresponse_u.yp_resp_key_valtype.stat = YP_BADARGS;
+		return(&result);
+	}
+
+	v2_result = ypproc_first_2_svc(&argp->yprequest_u.yp_req_nokeytype,
+									rqstp);
+	if (v2_result == NULL)
+		return(NULL);
+
+	bcopy((char *)v2_result,
+	      (char *)&result.ypresponse_u.yp_resp_key_valtype,
+	      sizeof(ypresp_key_val));
+
+	return (&result);
+}
+
+ypresponse *
+ypoldproc_next_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+	ypresp_key_val *v2_result;
+
+	result.yp_resptype = YPRESP_KEY_VAL;
+
+	if (argp->yp_reqtype != YPREQ_KEY) {
+		result.ypresponse_u.yp_resp_key_valtype.stat = YP_BADARGS;
+		return(&result);
+	}
+
+	v2_result = ypproc_next_2_svc(&argp->yprequest_u.yp_req_keytype,rqstp);
+	if (v2_result == NULL)
+		return(NULL);
+
+	bcopy((char *)v2_result,
+	      (char *)&result.ypresponse_u.yp_resp_key_valtype,
+	      sizeof(ypresp_key_val));
+
+	return (&result);
+}
+
+ypresponse *
+ypoldproc_poll_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+	ypresp_master *v2_result1;
+	ypresp_order *v2_result2;
+
+	result.yp_resptype = YPRESP_MAP_PARMS;
+	result.ypresponse_u.yp_resp_map_parmstype.domain =
+		argp->yprequest_u.yp_req_nokeytype.domain;
+	result.ypresponse_u.yp_resp_map_parmstype.map =
+		argp->yprequest_u.yp_req_nokeytype.map;
+	/*
+	 * Hmm... there is no 'status' value in the
+	 * yp_resp_map_parmstype structure, so I have to
+	 * guess at what to do to indicate a failure.
+	 * I hope this is right.
+	 */
+	result.ypresponse_u.yp_resp_map_parmstype.ordernum = 0;
+	result.ypresponse_u.yp_resp_map_parmstype.peer = "";
+
+	if (argp->yp_reqtype != YPREQ_MAP_PARMS) {
+		return(&result);
+	}
+
+	v2_result1 = ypproc_master_2_svc(&argp->yprequest_u.yp_req_nokeytype,
+									rqstp);
+	if (v2_result1 == NULL)
+		return(NULL);
+
+	if (v2_result1->stat != YP_TRUE) {
+		return(&result);
+	}
+
+	v2_result2 = ypproc_order_2_svc(&argp->yprequest_u.yp_req_nokeytype,
+									rqstp);
+	if (v2_result2 == NULL)
+		return(NULL);
+
+	if (v2_result2->stat != YP_TRUE) {
+		return(&result);
+	}
+
+	result.ypresponse_u.yp_resp_map_parmstype.peer =
+		v2_result1->peer;
+	result.ypresponse_u.yp_resp_map_parmstype.ordernum =
+		v2_result2->ordernum;
+
+	return (&result);
+}
+
+ypresponse *
+ypoldproc_push_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+
+	/*
+	 * Not implemented.
+	 */
+
+	return (&result);
+}
+
+ypresponse *
+ypoldproc_pull_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+
+	/*
+	 * Not implemented.
+	 */
+
+	return (&result);
+}
+
+ypresponse *
+ypoldproc_get_1_svc(yprequest *argp, struct svc_req *rqstp)
+{
+	static ypresponse  result;
+
+	/*
+	 * Not implemented.
+	 */
 
 	return (&result);
 }
