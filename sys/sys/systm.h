@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.21 1995/05/14 03:00:06 davidg Exp $
+ * $Id: systm.h,v 1.22 1995/05/30 08:14:38 rgrimes Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -89,7 +89,6 @@ extern int selwait;		/* select timeout address */
 
 extern u_char curpriority;	/* priority of current process */
 
-extern int maxmem;		/* max memory per process */
 extern int physmem;		/* physical memory */
 
 extern dev_t dumpdev;		/* dump device */
