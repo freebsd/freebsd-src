@@ -220,8 +220,15 @@ cputime()
 
 #ifndef SMP
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
-		count = (u_int)rdtsc();
-		delta = (int)(count - prev_count);
+		/*
+		 * Scale the TSC a little to make cputime()'s frequency
+		 * fit in an int, assuming that the TSC frequency fits
+		 * in a u_int.  Use a fixed scale since dynamic scaling
+		 * would be slower and we can't really use the low bit
+		 * of precision.
+		 */
+		count = (u_int)rdtsc() & ~1u;
+		delta = (int)(count - prev_count) >> 1;
 		prev_count = count;
 		return (delta);
 	}
@@ -330,7 +337,7 @@ startguprof(gp)
 	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #ifndef SMP
 	if (cputime_clock == CPUTIME_CLOCK_TSC)
-		gp->profrate = tsc_freq;
+		gp->profrate = tsc_freq >> 1;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
 	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
