@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id$
+#	$Id: rc,v 1.4 1993/11/07 01:19:06 wollman Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -74,6 +74,10 @@ rm -f /etc/nologin
 rm -f /var/spool/uucp/LCK.*
 rm -f /var/spool/uucp/STST/*
 (cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
+
+if [ -x /sbin/ldconfig ]; then
+	ldconfig /usr/X386/lib
+fi
 
 echo -n 'starting system logger'
 rm -f /dev/log
