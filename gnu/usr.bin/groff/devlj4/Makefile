@@ -14,7 +14,7 @@ DESC: DESC.in
 	-rm -f DESC
 	echo "res $(LJ4RES)" >DESC
 	echo "unitwidth `expr 7620000 / $(LJ4RES)`" >>DESC
-	cat ${DISTDIR}/DESC.in >>DESC
+	cat ${DIST_DIR}/DESC.in >>DESC
 	if test "$(PAGE)" = A4; then \
 	  echo "papersize a4" >>DESC; \
 	else \
@@ -23,8 +23,8 @@ DESC: DESC.in
 	test -z '$(LJ4PRINT)' || echo print '$(LJ4PRINT)' >>DESC
 
 fonts:	DESC
-	$(MAKE) -f ${DISTDIR}/generate/Makefile \
-		srcdir=${DISTDIR}/generate DESC=${DISTDIR}/DESC.in \
+	$(MAKE) -f ${DIST_DIR}/generate/Makefile \
+		srcdir=${DIST_DIR}/generate DESC=${DIST_DIR}/DESC.in \
 	  	HPFTODIT=${.CURDIR}/../hpftodit/hpftodit
 
 .include "../Makefile.dev"

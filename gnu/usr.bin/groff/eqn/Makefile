@@ -12,7 +12,7 @@ MANDEPEND=	eqn.1
 CLEANFILES+=	eqn.cc eqn.tab.h neqn ${MANDEPEND}
 
 neqn:
-	sed -e 's/@g@/${g}/g' ${DISTDIR}/neqn.sh > neqn
+	sed -e 's/@g@/${g}/g' ${DIST_DIR}/neqn.sh > neqn
 
 afterinstall:	neqn
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \

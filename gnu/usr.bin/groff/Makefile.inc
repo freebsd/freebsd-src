@@ -1,4 +1,4 @@
 GROFF_DIST?=	${.CURDIR}/../../../../contrib/groff
-DISTDIR=	${GROFF_DIST}/${.CURDIR:T}
+DIST_DIR=	${GROFF_DIST}/${.CURDIR:T}
 
-.PATH: ${DISTDIR}
+.PATH: ${DIST_DIR}

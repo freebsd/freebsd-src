@@ -42,7 +42,7 @@ $(FONTS): R.proto
 	     -e "/^internalname/s/B/2/" \
 	     -e "/^internalname/s/I/1/" \
 	     -e "/^internalname .*[^ 0-9]/d" \
-	     ${DISTDIR}/R.proto >$@)
+	     ${DIST_DIR}/R.proto >$@)
 
 DESC: DESC.proto
 	@${ECHO} Making $@
@@ -50,6 +50,6 @@ DESC: DESC.proto
 	    -e "s/^hor .*$$/hor `echo $(RES) / $(CPI) | bc`/" \
 	    -e "s/^vert .*$$/vert `echo $(RES) / $(LPI) | bc`/" \
 	    -e "s/^fonts .*$$/fonts `set $(FONTS); echo $$#` $(FONTS)/" \
-	    ${DISTDIR}/DESC.proto >$@
+	    ${DIST_DIR}/DESC.proto >$@
 
 beforeinstall:: ${DEVFILES}
