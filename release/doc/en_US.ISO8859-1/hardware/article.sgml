@@ -679,9 +679,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
-    driver)</para>
-
     <para arch="i386,pc98,alpha,sparc64,amd64">RealTek 8129/8139 Fast Ethernet NICs (&man.rl.4; driver)
     </para>
 
@@ -731,9 +728,6 @@
 
     <para arch="i386,pc98,amd64">Davicom DM9601-based USB Ethernet
       NICs (&man.udav.4; driver)</para>
-
-    <para arch="i386">DEC EtherWORKS II and III NICs (&man.le.4; driver)
-    </para>
 
     <para arch="i386,pc98,alpha,amd64">DEC DC21040, DC21041, DC21140, DC21141, DC21142, and DC21143
     based NICs (&man.de.4; driver)
@@ -1164,10 +1158,6 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Stallion Technologies multiport serial boards
-      (&man.stl.4; and &man.stli.4; drivers)
-    </para>
-
     <para arch="i386,amd64">Specialix SI/XIO/SX multiport serial cards, with both the
     older SIHOST2.x and the new <quote>enhanced</quote> (transputer
     based, aka JET) host cards (ISA, EISA and PCI are supported)
@@ -1387,8 +1377,6 @@
     driver)
     </para>      
     <para arch="i386">Connectix QuickCam</para>
-    <para arch="i386">Cortex1 frame grabber (ctx driver)</para>
-    <para arch="i386">Creative Labs Video Spigot frame grabber (spigot driver)</para>
   </sect2>
 
   <sect2 id="usb">
@@ -1692,8 +1680,6 @@
     </para>
 
     <para arch="i386,pc98,alpha,amd64">Floppy drives (&man.fdc.4; driver)</para>
-    <para arch="i386">Genius and Mustek hand scanners</para>
-    <para arch="i386">GPB and Transputer drivers</para>
 
     <para arch="i386,alpha,ia64,amd64">VGA-compatible video cards
       (&man.vga.4; driver)
