@@ -12,7 +12,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.237 (Berkeley) 12/17/1998')
+VERSIONID(`@(#)proto.m4	8.243 (Berkeley) 2/2/1999')
 
 MAILER(local)dnl
 
@@ -478,9 +478,9 @@ ifdef(`confMAX_MIME_HEADER_LENGTH',
 `# Maximum MIME header length to protect MUAs
 O MaxMimeHeaderLength=confMAX_MIME_HEADER_LENGTH
 ')
-ifdef(`confMAX_HEADER_LINES',
-`# Maximum number of header lines and header line length limit
-O MaxHeaderLines=confMAX_HEADER_LINES
+ifdef(`confMAX_HEADERS_LENGTH',
+`# Maximum length of the sum of all headers
+O MaxHeadersLength=confMAX_HEADERS_LENGTH
 ')
 
 ###########################
@@ -789,7 +789,7 @@ ifdef(`MAILER_TABLE', `dnl
 R$* <@ $+ > $*		$: < $2 > $1 < @ $2 > $3	extract host name
 R< $+ . > $*		$: < $1 > $2			strip trailing dot
 R< $+ > $*		$: < $(mailertable $1 $) > $2	lookup
-R< $~[ : $+ > $* 	$>95 < $1 : $2 > $3		check -- resolved?
+R< $~[ : $* > $* 	$>95 < $1 : $2 > $3		check -- resolved?
 R< $+ > $*		$: $>90 <$1> $2			try domain',
 `dnl')
 undivert(4)dnl
@@ -877,7 +877,9 @@ R< > $+			$: < > < $1 $&h >		nope, restore +detail
 R< > < $+ + $* > $*	   < > < $1 > + $2 $3		find the user part
 R< > < $+ > + $*	$#_LOCAL_ $@ $2 $: @ $1		strip the extra +
 R< > < $+ >		$@ $1				no +detail
-R$+			$: $1 $&h			add +detail back in
+R$+			$: $1 <> $&h			add +detail back in
+R$+ <> + $*		$: $1 + $2			check whether +detail
+R$+ <> $*		$: $1				else discard
 R< local : $* > $*	$: $>95 < local : $1 > $2	no host extension
 R< error : $* > $*	$: $>95 < error : $1 > $2	no host extension
 R< $- : $+ > $+		$: $>95 < $1 : $2 > $3 < @ $2 >
@@ -890,10 +892,10 @@ ifdef(`MAILER_TABLE', `dnl
 
 S90
 R$* <$- . $+ > $*	$: $1$2 < $(mailertable .$3 $@ $1$2 $@ $2 $) > $4
-R$* <$~[ : $+ > $*	$>95 < $2 : $3 > $4		check -- resolved?
+R$* <$~[ : $* > $*	$>95 < $2 : $3 > $4		check -- resolved?
 R$* < . $+ > $* 	$@ $>90 $1 . <$2> $3		no -- strip & try again
 R$* < $* > $*		$: < $(mailertable . $@ $1$2 $) > $3	try "."
-R< $~[ : $+ > $*	$>95 < $1 : $2 > $3		"." found?
+R< $~[ : $* > $*	$>95 < $1 : $2 > $3		"." found?
 R< $* > $*		$@ $2				no mailertable match',
 `dnl')
 
@@ -915,6 +917,10 @@ R< $+ > $*			$#_RELAY_ $@ $1 $: $2	use unqualified mailer
 ###################################################################
 
 SCanonLocal
+# strip local host from routed addresses
+R< $* > < @ $+ > : $+		$@ $>97 $3
+R< $* > $+ $=O $+ < @ $+ >	$@ $>97 $2 $3 $4
+
 # strip trailing dot from any host name that may appear
 R< $* > $* < @ $* . >		$: < $1 > $2 < @ $3 >
 
@@ -1212,7 +1218,7 @@ ifelse(_BESTMX_IS_LOCAL_, `', `dnl
 R$* < @ $* > $*			$: $1 < @ $2 @@ $(bestmx $2 $) > $3',
 `dnl
 # limit bestmx to $=B
-R$* < @ $* $=B > $*		$: $1 < @ $2 $3 . @@ $(bestmx $2 $3 $) > $4')
+R$* < @ $* $=B > $*		$: $1 < @ $2 $3 @@ $(bestmx $2 $3 $) > $4')
 R$* $=O $* < @ $* @@ $=w . > $*	$@ $>Basic_check_rcpt $1 $2 $3
 R$* < @ $* @@ $=w . > $*	$: $1 < @ $3 > $4
 R$* < @ $* @@ $* > $*		$: $1 < @ $2 > $4')

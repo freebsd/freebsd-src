@@ -149,5 +149,37 @@ This list is not guaranteed to be complete.
   long for ruleset parsing.  This can have an adverse effect on the
   relay_based_on_MX feature.
 
+* Saving to ~sender/dead.letter fails if su'ed to root
 
-(Version 8.34, last updated 12/17/1998)
+  If ErrorMode is set to print and an error in sending mail occurs,
+  the normal action is to print a message to the screen and append
+  the message to a dead.letter file in the sender's home directory.
+  In the case where the sender is using su to act as root, the file
+  safety checks prevent sendmail from saving the dead.letter file
+  because the sender's uid and the current real uid do not match.
+  
+* Berkeley DB 2.X race condition with fcntl() locking
+
+  There is a race condition for Berkeley DB 2.X databases on
+  operating systems which use fcntl() style locking, such as
+  Solaris.  Sendmail locks the map before calling db_open() to
+  prevent others from modifying the map while it is being opened.
+  Unfortunately, Berkeley DB opens the map, closes it, and then
+  reopens it.  fcntl() locking drops the lock when any file
+  descriptor pointing to the file is closed, even if it is a
+  different file descriptor than the one used to initially lock
+  the file.  As a result there is a possibility that entries in a
+  map might not be found during a map rebuild.  As a workaround,
+  you can use makemap to build a map with a new name and then
+  "mv" the new db file to replace the old one.
+
+* File open timeouts not available on hard mounted NFS file systems
+
+  Since SIGALRM does not interrupt an RPC call for hard mounted
+  NFS file systems, it is impossible to implement a timeout on a file
+  open operation.  Therefore, while the NFS server is not responding,
+  attempts to open a file on that server will hang.  Systems with
+  local mail delivery and NFS hard mounted home directories should be
+  avoided, as attempts to open the forward files could hang.
+
+(Version 8.36, last updated 2/4/1999)

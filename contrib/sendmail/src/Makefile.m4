@@ -2,7 +2,7 @@
 #  This Makefile is designed to work on any reasonably current version of
 #  "make" program.
 #
-#	@(#)Makefile.m4	8.25 (Berkeley) 10/5/1998
+#	@(#)Makefile.m4	8.26 (Berkeley) 1/23/1999
 #
 
 # C compiler
@@ -103,15 +103,17 @@ MAN8=	${MANROOT}ifdef(`confMAN8', `confMAN8', `8')
 MAN8EXT=ifdef(`confMAN8EXT', `confMAN8EXT', `8')
 MAN8SRC=ifdef(`confMAN8SRC', `confMAN8SRC', `0')
 
-ALL=	sendmail aliases.${MAN5SRC} mailq.${MAN1SRC} newaliases.${MAN1SRC} sendmail.${MAN8SRC}
+ALL=	sendmail sendmail.st aliases.${MAN5SRC} mailq.${MAN1SRC} newaliases.${MAN1SRC} sendmail.${MAN8SRC}
 
 all: ${ALL}
 
 sendmail: ${BEFORE} ${OBJS}
 	${CC} -o sendmail ${LDOPTS} ${LIBDIRS} ${OBJS} ${LIBS}
-	cp /dev/null sendmail.st
 
 undivert(3)
+
+sendmail.st:
+	cp /dev/null sendmail.st
 
 aliases.${MAN5SRC}: aliases.5
 	${NROFF} ${MANDOC} aliases.5 > aliases.${MAN5SRC}

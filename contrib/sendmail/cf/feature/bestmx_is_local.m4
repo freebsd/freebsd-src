@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)bestmx_is_local.m4	8.13 (Berkeley) 8/13/1998')
+VERSIONID(`@(#)bestmx_is_local.m4	8.14 (Berkeley) 1/25/1999')
 divert(-1)
 
 define(_BESTMX_IS_LOCAL_, _ARG_)
@@ -44,5 +44,6 @@ R$* < @ $* > $*			$: $1 < @ $2 @@ $(bestmx $2 $) > $3',
 # limit bestmx to $=B
 R$* < @ $* $=B . > $*		$: $1 < @ $2 $3 . @@ $(bestmx $2 $3 . $) > $4')
 R$* $=O $* < @ $* @@ $=w . > $*	$@ $>97 $1 $2 $3
+R< @ $* @@ $=w . > : $*		$@ $>97 $3
 R$* < @ $* @@ $=w . > $*	$#local $: $1
 R$* < @ $* @@ $* > $*		$: $1 < @ $2 > $4
