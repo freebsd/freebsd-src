@@ -84,6 +84,7 @@ MAN=	aac.4 \
 	gx.4 \
 	harp.4 \
 	hatm.4 \
+	hfa.4 \
 	hifn.4 \
 	hme.4 \
 	ichsmb.4 \
