@@ -13,6 +13,7 @@ SUBDIR=	3dfx \
 	an \
 	aue \
 	bge \
+	bridge \
 	cam \
 	ccd \
 	cd9660 \
@@ -21,6 +22,7 @@ SUBDIR=	3dfx \
 	dc \
 	de \
 	digi \
+	dummynet \
 	ed \
 	fdescfs \
 	fdc \
