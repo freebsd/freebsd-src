@@ -57,11 +57,13 @@
 
 #include <netatm/sigpvc/sigpvc_var.h>
 
+#include <vm/uma.h>
+
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-extern struct sp_info sigpvc_vcpool;
+extern uma_zone_t	sigpvc_vc_zone;
 
 /*
  * Create a SigPVC Permanent Virtual Channel
@@ -127,7 +129,7 @@ sigpvc_create_pvc(pvp, cvp, errp)
 	/*
 	 * Allocate control block for PVC
 	 */
-	vcp = (struct vccb *)atm_allocate(&sigpvc_vcpool);
+	vcp = uma_zalloc(sigpvc_vc_zone, M_WAITOK | M_ZERO);
 	if (vcp == NULL) {
 		*errp = ENOMEM;
 		return (CALL_FAILED);
