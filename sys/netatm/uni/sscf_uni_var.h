@@ -87,7 +87,7 @@ struct univcc {
 #define	UVF_NOESTIND	0x0001		/* Don't process ESTABLISH_IND */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Global function declarations
  */
@@ -110,6 +110,6 @@ void		sscf_uni_upper __P((int, void *, int, int));
  */
 extern int		sscf_uni_vccnt;
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _UNI_SSCF_UNI_VAR_H */

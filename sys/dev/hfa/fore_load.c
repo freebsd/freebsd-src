@@ -520,26 +520,6 @@ fore_reset(fup)
 
 		switch (fup->fu_config.ac_device) {
 
-#ifdef FORE_SBUS
-		case DEV_FORE_SBA200E:
-			/*
-			 * Reset i960 by setting and clearing RESET
-			 */
-			SBA200E_HCR_INIT(*fup->fu_ctlreg, SBA200E_RESET);
-			SBA200E_HCR_CLR(*fup->fu_ctlreg, SBA200E_RESET);
-			break;
-
-		case DEV_FORE_SBA200:
-			/*
-			 * Reset i960 by setting and clearing RESET
-			 *
-			 * SBA200 will NOT reset if bit is OR'd in!
-			 */
-			*fup->fu_ctlreg = SBA200_RESET;
-			*fup->fu_ctlreg = SBA200_RESET_CLR;
-			break;
-#endif	/* FORE_SBUS */
-#ifdef FORE_PCI
 		case DEV_FORE_PCA200E:
 			/*
 			 * Reset i960 by setting and clearing RESET
@@ -549,7 +529,6 @@ fore_reset(fup)
 			PCA200E_HCR_CLR(*fup->fu_ctlreg, PCA200E_RESET);
 			break;
 
-#endif
 		}
 	}
 

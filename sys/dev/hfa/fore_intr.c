@@ -129,11 +129,7 @@ fore_intr(arg)
 	/*
 	 * Has this card issued an interrupt??
 	 */
-#ifdef FORE_PCI
 	if (*fup->fu_psr) {
-#else
-	if (aap->aali_intr_sent) {
-#endif
 
 		/*
 		 * Indicate that we've serviced an interrupt. 
@@ -147,20 +143,9 @@ fore_intr(arg)
 		 */
 		switch (fup->fu_config.ac_device) {
 
-#ifdef FORE_SBUS
-		case DEV_FORE_SBA200E:
-			SBA200E_HCR_SET(*fup->fu_ctlreg, SBA200E_CLR_SBUS_INTR);
-			break;
-
-		case DEV_FORE_SBA200:
-			*fup->fu_ctlreg = SBA200_CLR_SBUS_INTR;
-			break;
-#endif
-#ifdef FORE_PCI
 		case DEV_FORE_PCA200E:
 			PCA200E_HCR_SET(*fup->fu_ctlreg, PCA200E_CLR_HBUS_INT);
 			break;
-#endif
 
 		}
 		aap->aali_intr_sent = CP_WRITE(0);

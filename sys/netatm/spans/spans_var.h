@@ -38,7 +38,7 @@
 #ifndef _SPANS_SPANS_VAR_H
 #define _SPANS_SPANS_VAR_H
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Constants to indicate the state of the signalling interface
  */
@@ -74,7 +74,7 @@ struct	spans {
 #define sp_vccq		sp_inst.si_vccq
 #define sp_state	sp_inst.si_state
 #define sp_ipserv	sp_inst.si_ipserv
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * SPANS Protocol States
@@ -89,7 +89,7 @@ struct	spans {
 #define	SPANS_PROBE_ERR_WAIT	(3 * ATM_HZ)	/* Time to wait if send probe fails */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * SPANS Virtual Channel Connection control block.  All information
  * regarding the state of a SPANS-controlled VCC will be recorded here.
@@ -130,7 +130,7 @@ struct spans_vccb {
 #define SV_MAX_RETRY	3
 #define SV_TIMEOUT	(ATM_HZ)
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 
 /*
@@ -147,7 +147,7 @@ struct spans_vccb {
 #define	SPANS_VC_FREE		8	/* Waiting for user to free resources */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Macro to compare two SPANS addresses.  
  *
@@ -254,6 +254,6 @@ extern struct sp_info		spans_vcpool;
 extern struct sp_info		spans_msgpool;
 extern struct t_atm_cause	spans_cause;
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _SPANS_SPANS_VAR_H */

@@ -43,7 +43,7 @@
 #define	FALSE	0
 #endif
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure containing state information for each UNI protocol
  * instance.  There will be one instance for each ATM device interface
@@ -68,7 +68,7 @@ struct	unisig {
 #define	us_vccq		us_inst.si_vccq
 #define	us_state	us_inst.si_state
 #define	us_ipserv	us_inst.si_ipserv
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * Signalling manager states
@@ -99,7 +99,7 @@ struct	unisig {
 #define	UNISIG_SSCF_TIMEOUT	(3 * ATM_HZ)
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * UNI Virtual Channel Connection control block.  All information
  * regarding the state of a UNI-controlled VCC will be recorded here.
@@ -130,7 +130,7 @@ struct unisig_vccb {
 #define	uv_ierrors	vcp_hdr.vc_ierrors
 #define	uv_oerrors	vcp_hdr.vc_oerrors
 #define	uv_tstamp	vcp_hdr.vc_tstamp
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * UNI VCC protocol states.  Taken from The ATM Forum UNI 3.0 (section
@@ -182,7 +182,7 @@ struct unisig_vccb {
 #define	UNI_VC_SAAL_ESTAB	20	/* Signalling AAL back up */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * UNI Timer Values.  These values (except for T317) are taken from
  * The ATM Forum UNI 3.0 (section 5.7.2).
@@ -318,6 +318,6 @@ extern struct sp_info	unisig_vcpool;
 extern struct sp_info	unisig_msgpool;
 extern struct sp_info	unisig_iepool;
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _UNISIG_VAR_H */

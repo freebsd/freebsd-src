@@ -38,7 +38,7 @@
 #ifndef _SIGPVC_SIGPVC_VAR_H
 #define _SIGPVC_SIGPVC_VAR_H
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure containing state information for each SigPVC protocol instance.
  * There will be one instance for each ATM device interface using the SigPVC
@@ -52,7 +52,7 @@ struct	sigpvc {
 #define	pv_addr		pv_inst.si_addr
 #define	pv_vccq		pv_inst.si_vccq
 #define	pv_state	pv_inst.si_state
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * SigPVC Protocol States
@@ -61,7 +61,7 @@ struct	sigpvc {
 #define	SIGPVC_DETACH	2		/* Detach in progress */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * SigPVC Virtual Channel Connection control block.  All information regarding
  * the state of a SigPVC controlled VCC will be recorded here.  There will be
@@ -70,7 +70,7 @@ struct	sigpvc {
 struct sigpvc_vccb {
 	struct vccb	vcp_hdr;	/* Generic vccb */
 };
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * SigPVC VCC Signalling Protocol States
@@ -80,7 +80,7 @@ struct sigpvc_vccb {
 #define	VCCS_FREE	2		/* Waiting for user to free resources */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Global function declarations
  */
@@ -90,6 +90,6 @@ struct sigpvc_vccb {
 int		sigpvc_create_pvc __P((struct sigpvc *, Atm_connvc *, int *));
 void		sigpvc_close_vcc __P((struct vccb *));
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _SIGPVC_SIGPVC_VAR_H */

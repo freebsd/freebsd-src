@@ -39,7 +39,7 @@
 #define _NETATM_ATM_VAR_H
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Global variable declarations
  */
@@ -203,6 +203,6 @@ int		atm_dgram_usrreq __P((struct socket *, int, KBuffer *,
 			KBuffer *, KBuffer *));
 #endif
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_VAR_H */

@@ -41,19 +41,6 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-
-/*
- * Supported device models
- */
-Fore_device	fore_devices[] = {
-#ifdef FORE_SBUS
-	{SBA200E_PROM_NAME, DEV_FORE_SBA200E},
-	{SBA200_PROM_NAME, DEV_FORE_SBA200},
-#endif
-	{""}
-};
-
-
 /*
  * Device unit table
  */
