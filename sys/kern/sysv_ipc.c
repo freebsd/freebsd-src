@@ -1,4 +1,4 @@
-/*	$Id: sysv_ipc.c,v 1.9 1999/01/30 12:21:48 phk Exp $ */
+/*	$Id: sysv_ipc.c,v 1.10 1999/04/27 11:16:15 phk Exp $ */
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 
 /*
@@ -35,25 +35,24 @@
 
 #include <sys/param.h>
 #include <sys/ipc.h>
+#include <sys/proc.h>
 #include <sys/ucred.h>
 
 #if defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG)
 
 /*
  * Check for ipc permission
- *
- * XXX: Should pass proc argument so that we can pass 
- * XXX: proc->p_acflag to suser_xxx()
  */
 
 int
-ipcperm(cred, perm, mode)
-	struct ucred *cred;
+ipcperm(p, perm, mode)
+	struct proc *p;
 	struct ipc_perm *perm;
 	int mode;
 {
+	struct ucred *cred = p->p_ucred;
 
-	if (suser_xxx(cred, (u_short *)NULL))
+	if (suser(p))
 		return (0);
 
 	/* Check for user match. */
