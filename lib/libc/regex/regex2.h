@@ -87,7 +87,7 @@ typedef long sopno;
 /* operators			   meaning	operand			*/
 /*						(back, fwd are offsets)	*/
 #define	OEND	(1L<<OPSHIFT)	/* endmarker	-			*/
-#define	OCHAR	(2L<<OPSHIFT)	/* character	unsigned char		*/
+#define	OCHAR	(2L<<OPSHIFT)	/* character	wide character		*/
 #define	OBOL	(3L<<OPSHIFT)	/* left anchor	-			*/
 #define	OEOL	(4L<<OPSHIFT)	/* right anchor	-			*/
 #define	OANY	(5L<<OPSHIFT)	/* .		-			*/
@@ -108,21 +108,63 @@ typedef long sopno;
 #define	OEOW	(20L<<OPSHIFT)	/* end word	-			*/
 
 /*
- * Structure for [] character-set representation.  Character sets are
- * done as bit vectors, grouped 8 to a byte vector for compactness.
- * The individual set therefore has both a pointer to the byte vector
- * and a mask to pick out the relevant bit of each byte.  A hash code
- * simplifies testing whether two sets could be identical.
+ * Structures for [] character-set representation.
  */
 typedef struct {
-	uch *ptr;		/* -> uch [csetsize] */
-	uch mask;		/* bit within array */
-	short hash;             /* hash code */
+	wint_t		min;
+	wint_t		max;
+} crange;
+typedef struct {
+	unsigned char	bmp[NC / 8];
+	wctype_t	*types;
+	int		ntypes;
+	wint_t		*wides;
+	int		nwides;
+	crange		*ranges;
+	int		nranges;
+	int		invert;
+	int		icase;
 } cset;
-/* note that CHadd and CHsub are unsafe, and CHIN doesn't yield 0/1 */
-#define CHadd(cs, c)    ((cs)->ptr[(uch)(c)] |= (cs)->mask, (cs)->hash += (uch)(c))
-#define CHsub(cs, c)    ((cs)->ptr[(uch)(c)] &= ~(cs)->mask, (cs)->hash -= (uch)(c))
-#define	CHIN(cs, c)	((cs)->ptr[(uch)(c)] & (cs)->mask)
+
+static int
+CHIN1(cs, ch)
+cset *cs;
+wint_t ch;
+{
+	int i;
+
+	assert(ch >= 0);
+	if (ch < NC)
+		return (((cs->bmp[ch >> 3] & (1 << (ch & 7))) != 0) ^
+		    cs->invert);
+	for (i = 0; i < cs->nwides; i++)
+		if (ch == cs->wides[i])
+			return (!cs->invert);
+	for (i = 0; i < cs->nranges; i++)
+		if (cs->ranges[i].min <= ch && ch <= cs->ranges[i].max)
+			return (!cs->invert);
+	for (i = 0; i < cs->ntypes; i++)
+		if (iswctype(ch, cs->types[i]))
+			return (!cs->invert);
+	return (cs->invert);
+}
+
+static __inline int
+CHIN(cs, ch)
+cset *cs;
+wint_t ch;
+{
+
+	assert(ch >= 0);
+	if (ch < NC)
+		return (((cs->bmp[ch >> 3] & (1 << (ch & 7))) != 0) ^
+		    cs->invert);
+	else if (cs->icase)
+		return (CHIN1(cs, ch) || CHIN1(cs, towlower(ch)) ||
+		    CHIN1(cs, towupper(ch)));
+	else
+		return (CHIN1(cs, ch));
+}
 
 /*
  * main compiled-expression structure
@@ -131,10 +173,8 @@ struct re_guts {
 	int magic;
 #		define	MAGIC2	((('R'^0200)<<8)|'E')
 	sop *strip;		/* malloced area for strip */
-	int csetsize;		/* number of bits in a cset vector */
 	int ncsets;		/* number of csets in use */
 	cset *sets;		/* -> cset [ncsets] */
-	uch *setbits;		/* -> uch[csetsize][ncsets/CHAR_BIT] */
 	int cflags;		/* copy of regcomp() cflags argument */
 	sopno nstates;		/* = number of sops */
 	sopno firststate;	/* the initial OEND (normally 0) */
@@ -156,5 +196,5 @@ struct re_guts {
 };
 
 /* misc utilities */
-#define	OUT	(CHAR_MAX+1)	/* a non-character value */
-#define ISWORD(c)       (isalnum((uch)(c)) || (c) == '_')
+#define	OUT	(-2)	/* a non-character value */
+#define ISWORD(c)       (iswalnum((uch)(c)) || (c) == '_')
