@@ -31,11 +31,8 @@
 #include "opt_cpu.h"
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
-#include <sys/syscallsubr.h>
 #include <sys/systm.h>
 
 #include <machine/md_var.h>
@@ -220,38 +217,34 @@ struct linux_pt_fpxreg {
 
 #ifdef CPU_ENABLE_SSE
 static int
-linux_proc_read_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
+linux_proc_read_fpxregs(struct proc *p, struct linux_pt_fpxreg *fpxregs)
 {
 	int error;
 
 	error = 0;
-	mtx_lock_spin(&sched_lock);
-	if (cpu_fxsr == 0 || (td->td_proc->p_sflag & PS_INMEM) == 0)
+	if (cpu_fxsr == 0 || (p->p_sflag & PS_INMEM) == 0)
 		error = EIO;
 	else
-		bcopy(&td->td_pcb->pcb_save.sv_xmm, fpxregs, sizeof(*fpxregs));
-	mtx_unlock_spin(&sched_lock);
+		bcopy(&p->p_pcb->pcb_save.sv_xmm, fpxregs, sizeof(*fpxregs));
 	return (error);
 }
 
 static int
-linux_proc_write_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
+linux_proc_write_fpxregs(struct proc *p, struct linux_pt_fpxreg *fpxregs)
 {
 	int error;
 
 	error = 0;
-	mtx_lock_spin(&sched_lock);
-	if (cpu_fxsr == 0 || (td->td_proc->p_sflag & PS_INMEM) == 0)
+	if (cpu_fxsr == 0 || (p->p_sflag & PS_INMEM) == 0)
 		error = EIO;
 	else
-		bcopy(fpxregs, &td->td_pcb->pcb_save.sv_xmm, sizeof(*fpxregs));
-	mtx_unlock_spin(&sched_lock);
+		bcopy(fpxregs, &p->p_pcb->pcb_save.sv_xmm, sizeof(*fpxregs));
 	return (error);
 }
 #endif
 
 int
-linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
+linux_ptrace(struct proc *curp, struct linux_ptrace_args *uap)
 {
 	union {
 		struct linux_pt_reg	reg;
@@ -279,34 +272,34 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	case PTRACE_POKETEXT:
 	case PTRACE_POKEDATA:
 	case PTRACE_KILL:
-		error = kern_ptrace(td, req, pid, addr, uap->data);
+		error = kern_ptrace(curp, req, pid, addr, uap->data);
 		break;
 	case PTRACE_PEEKTEXT:
 	case PTRACE_PEEKDATA: {
 		/* need to preserve return value */
-		int rval = td->td_retval[0];
-		error = kern_ptrace(td, req, pid, addr, 0);
+		int rval = curp->p_retval[0];
+		error = kern_ptrace(curp, req, pid, addr, 0);
 		if (error == 0)
-			error = copyout(td->td_retval, (caddr_t)uap->data,
+			error = copyout(curp->p_retval, (caddr_t)uap->data,
 			    sizeof(l_int));
-		td->td_retval[0] = rval;
+		curp->p_retval[0] = rval;
 		break;
 	}
 	case PTRACE_DETACH:
-		error = kern_ptrace(td, PT_DETACH, pid, (void *)1,
+		error = kern_ptrace(curp, PT_DETACH, pid, (void *)1,
 		     map_signum(uap->data));
 		break;
 	case PTRACE_SINGLESTEP:
 	case PTRACE_CONT:
-		error = kern_ptrace(td, req, pid, (void *)1,
+		error = kern_ptrace(curp, req, pid, (void *)1,
 		     map_signum(uap->data));
 		break;
 	case PTRACE_ATTACH:
-		error = kern_ptrace(td, PT_ATTACH, pid, addr, uap->data);
+		error = kern_ptrace(curp, PT_ATTACH, pid, addr, uap->data);
 		break;
 	case PTRACE_GETREGS:
 		/* Linux is using data where FreeBSD is using addr */
-		error = kern_ptrace(td, PT_GETREGS, pid, &u.bsd_reg, 0);
+		error = kern_ptrace(curp, PT_GETREGS, pid, &u.bsd_reg, 0);
 		if (error == 0) {
 			map_regs_to_linux(&u.bsd_reg, &r.reg);
 			error = copyout(&r.reg, (caddr_t)uap->data,
@@ -318,12 +311,12 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = copyin((caddr_t)uap->data, &r.reg, sizeof(r.reg));
 		if (error == 0) {
 			map_regs_from_linux(&u.bsd_reg, &r.reg);
-			error = kern_ptrace(td, PT_SETREGS, pid, &u.bsd_reg, 0);
+			error = kern_ptrace(curp, PT_SETREGS, pid, &u.bsd_reg, 0);
 		}
 		break;
 	case PTRACE_GETFPREGS:
 		/* Linux is using data where FreeBSD is using addr */
-		error = kern_ptrace(td, PT_GETFPREGS, pid, &u.bsd_fpreg, 0);
+		error = kern_ptrace(curp, PT_GETFPREGS, pid, &u.bsd_fpreg, 0);
 		if (error == 0) {
 			map_fpregs_to_linux(&u.bsd_fpreg, &r.fpreg);
 			error = copyout(&r.fpreg, (caddr_t)uap->data,
@@ -335,7 +328,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = copyin((caddr_t)uap->data, &r.fpreg, sizeof(r.fpreg));
 		if (error == 0) {
 			map_fpregs_from_linux(&u.bsd_fpreg, &r.fpreg);
-			error = kern_ptrace(td, PT_SETFPREGS, pid,
+			error = kern_ptrace(curp, PT_SETFPREGS, pid,
 			    &u.bsd_fpreg, 0);
 		}
 		break;
@@ -347,10 +340,9 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			break;
 #endif
 		/* FALL THROUGH */
-	case PTRACE_GETFPXREGS: {	
+	case PTRACE_GETFPXREGS: {
 #ifdef CPU_ENABLE_SSE
 		struct proc *p;
-		struct thread *td2;
 
 		if (sizeof(struct linux_pt_fpxreg) != sizeof(struct savexmm)) {
 			static int once = 0;
@@ -367,7 +359,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			break;
 		}
 
-		if ((error = p_candebug(td, p)) != 0)
+		if ((error = p_candebug(curp, p)) != 0)
 			goto fail;
 
 		/* System processes can't be debugged. */
@@ -383,7 +375,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		}
 
 		/* not being traced by YOU */
-		if (p->p_pptr != td->td_proc) {
+		if (p->p_pptr != curp) {
 			error = EBUSY;
 			goto fail;
 		}
@@ -394,27 +386,23 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			goto fail;
 		}
 
-		td2 = FIRST_THREAD_IN_PROC(p);
 		if (req == PTRACE_GETFPXREGS) {
-			_PHOLD(p);
-			error = linux_proc_read_fpxregs(td2, &r.fpxreg);
-			_PRELE(p);
-			PROC_UNLOCK(p);
+			PHOLD(p);
+			error = linux_proc_read_fpxregs(p, &r.fpxreg);
+			PRELE(p);
 			if (error == 0)
 				error = copyout(&r.fpxreg, (caddr_t)uap->data,
 				    sizeof(r.fpxreg));
 		} else {
 			/* clear dangerous bits exactly as Linux does*/
 			r.fpxreg.mxcsr &= 0xffbf;
-			_PHOLD(p);
-			error = linux_proc_write_fpxregs(td2, &r.fpxreg);
-			_PRELE(p);
-			PROC_UNLOCK(p);
+			PHOLD(p);
+			error = linux_proc_write_fpxregs(p, &r.fpxreg);
+			PRELE(p);
 		}
 		break;
 
 	fail:
-		PROC_UNLOCK(p);
 #else
 		error = EIO;
 #endif
@@ -433,7 +421,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		 * as necessary.
 		 */
 		if (uap->addr < sizeof(struct linux_pt_reg)) {
-			error = kern_ptrace(td, PT_GETREGS, pid, &u.bsd_reg, 0);
+			error = kern_ptrace(curp, PT_GETREGS, pid, &u.bsd_reg, 0);
 			if (error != 0)
 				break;
 
@@ -448,19 +436,19 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 			    (l_int)uap->data;
 
 			map_regs_from_linux(&u.bsd_reg, &r.reg);
-			error = kern_ptrace(td, PT_SETREGS, pid, &u.bsd_reg, 0);
+			error = kern_ptrace(curp, PT_SETREGS, pid, &u.bsd_reg, 0);
 		}
-		
+
 		/*
 		 * Simulate debug registers access
 		 */
 		if (uap->addr >= LINUX_DBREG_OFFSET &&
 		    uap->addr <= LINUX_DBREG_OFFSET + LINUX_DBREG_SIZE) {
-			error = kern_ptrace(td, PT_GETDBREGS, pid, &u.bsd_dbreg,
+			error = kern_ptrace(curp, PT_GETDBREGS, pid, &u.bsd_dbreg,
 			    0);
 			if (error != 0)
 				break;
-			
+
 			uap->addr -= LINUX_DBREG_OFFSET;
 			if (req == PTRACE_PEEKUSR) {
 				error = copyout((char *)&u.bsd_dbreg +
@@ -471,7 +459,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 
 			*(l_int *)((char *)&u.bsd_dbreg + uap->addr) =
 			     uap->data;
-			error = kern_ptrace(td, PT_SETDBREGS, pid,
+			error = kern_ptrace(curp, PT_SETDBREGS, pid,
 			    &u.bsd_dbreg, 0);
 		}
 

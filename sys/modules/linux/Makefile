@@ -13,7 +13,7 @@ OBJS=	linux_locore.o
 MAN=	linux.8
 
 .if ${MACHINE_ARCH} == "i386"
-SRCS+=	linux_uid16.c imgact_linux.c
+SRCS+=	linux_ptrace.c linux_uid16.c imgact_linux.c opt_cpu.h
 .endif
 
 CLEANFILES=	linux_assym.h linux_genassym.o
