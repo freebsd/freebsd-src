@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539 1999/01/20 14:49:10 eivind Exp $
+#	$Id: LINT,v 1.539.2.1 1999/01/31 12:42:56 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1089,7 +1089,7 @@ disk		fd1	at fdc0 drive 1
 #
 # Other standard PC hardware: `lpt', `mse', `sio', etc.
 #
-# lpt: printer port
+# lpt: printer port (deprecated, use ppbus instead)
 #	lpt specials:
 #		The port may be specified as ?.  This will cause the
 #		driver to scan the BIOS port list.
