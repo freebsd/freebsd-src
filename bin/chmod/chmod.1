@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
-.\"	$Id: chmod.1,v 1.10 1998/05/19 06:24:50 jkoshy Exp $
+.\"	$Id: chmod.1,v 1.12 1999/08/08 21:08:05 chris Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHMOD 1
@@ -44,6 +44,7 @@
 .Sh SYNOPSIS
 .Nm chmod
 .Oo
+.Fl f
 .Fl R
 .Op Fl H | Fl L | Fl P
 .Oc
@@ -75,6 +76,11 @@ option is specified, no symbolic links are followed.
 .It Fl R
 Change the modes of the file hierarchies rooted in the files
 instead of just the files themselves.
+.It Fl f
+Do not display a diagnostic message if
+.Nm
+could not modify the mode for
+.Va file .
 .El
 .Pp
 Symbolic links do not have modes, so unless the
