@@ -1,3 +1,4 @@
+/* $Id$ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +31,9 @@
 #define WAVELAN_MTU		1500	/* Maximum size of Wavelan packet */
 
 /* Modem Management Controler write commands */
-
+#define MMC_ENCR_KEY		0x00	/* to 0x07 */
+#define MMC_ENCR_ENABLE		0x08
+#define MMC_DES_IO_INVERT	0x0a
 #define MMC_LOOPT_SEL		0x10
 #define MMC_JABBER_ENABLE	0x11
 #define MMC_FREEZE		0x12
@@ -45,12 +48,23 @@
 #define MMC_NETW_ID_L		0x1c
 #define MMC_NETW_ID_H		0x1d
 #define MMC_MODE_SEL		0x1e
-#define MMC_ENCR_KEY		0x00	/* to 0x07 */
-#define MMC_ENCR_ENABLE		0x08
-#define MMC_DES_IO_INVERT	0x0a
+#define	MMC_EECTRL		0x20	/* 2.4 Gz */
+#define	MMC_EEADDR		0x21	/* 2.4 Gz */
+#define MMC_EEDATAL		0x22	/* 2.4 Gz */
+#define	MMC_EEDATAH		0x23	/* 2.4 Gz */
+#define	MMC_ANALCTRL		0x24	/* 2.4 Gz */
+
+/* fields in MMC registers that relate to EEPROM in WaveMODEM daughtercard */
+#define MMC_EECTRL_EEPRE	0x10	/* 2.4 Gz EEPROM Protect Reg Enable */
+#define MMC_EECTRL_DWLD		0x08	/* 2.4 Gz EEPROM Download Synths   */
+#define	MMC_EECTRL_EEOP		0x07	/* 2.4 Gz EEPROM Opcode mask	 */
+#define MMC_EECTRL_EEOP_READ	0x06	/* 2.4 Gz EEPROM Read Opcode	 */
+#define	MMC_EEADDR_CHAN		0xf0	/* 2.4 Gz EEPROM Channel # mask	 */
+#define	MMC_EEADDR_WDCNT	0x0f	/* 2.4 Gz EEPROM DNLD WordCount-1 */
+#define	MMC_ANALCTRL_ANTPOL	0x02	/* 2.4 Gz Antenna Polarity mask	 */
+#define	MMC_ANALCTRL_EXTANT	0x01	/* 2.4 Gz External Antenna mask	 */
 
 /* MMC read register names */
-
 #define MMC_DCE_STATUS		0x10
 #define MMC_CORRECT_NWID_L	0x14
 #define MMC_CORRECT_NWID_H	0x15
@@ -61,7 +75,14 @@
 #define MMC_SILENCE_LVL		0x1a
 #define MMC_SIGN_QUAL		0x1b
 #define MMC_DES_AVAIL		0x09
+#define	MMC_EECTRLstat		0x20	/* 2.4 Gz  EEPROM r/w/dwld status */
+#define	MMC_EEDATALrv		0x22	/* 2.4 Gz  EEPROM read value	  */
+#define	MMC_EEDATAHrv		0x23	/* 2.4 Gz  EEPROM read value	  */
 
+/* fields in MMC registers that relate to EEPROM in WaveMODEM daughtercard */
+#define	MMC_EECTRLstat_ID24	0xf0	/* 2.4 Gz  =A0 rev-A, =B0 rev-B   */
+#define	MMC_EECTRLstat_DWLD	0x08	/* 2.4 Gz  Synth/Tx-Pwr DWLD busy */
+#define	MMC_EECTRLstat_EEBUSY	0x04	/* 2.4 Gz  EEPROM busy		  */
 
 #endif	_CHIPS_WAVELAN_H
 
@@ -74,6 +95,11 @@
 #define SIOCSWLCNWID	_IOWR('i', 61, struct ifreq)	/* set wlan current nwid */
 #define SIOCGWLPSA	_IOWR('i', 62, struct ifreq)	/* get wlan PSA (all) */
 #define SIOCSWLPSA	_IOWR('i', 63, struct ifreq)	/* set wlan PSA (all) */
+#define	SIOCDWLCACHE	_IOW('i',  64, struct ifreq)	/* clear SNR cache    */
+#define SIOCSWLTHR	_IOW('i',  65, struct ifreq)	/* set new quality threshold */
+#define	SIOCGWLEEPROM	_IOWR('i', 66, struct ifreq)	/* get modem EEPROM   */
+#define	SIOCGWLCACHE	_IOWR('i', 67, struct ifreq)	/* get SNR cache */
+#define	SIOCGWLCITEM	_IOWR('i', 68, struct ifreq)	/* get cache element count */
 
 /* PSA address definitions */
 #define WLPSA_ID		0x0	/* ID byte (0 for ISA, 0x14 for MCA) */
@@ -105,6 +131,8 @@
 #define WLPSA_CRCHIGH		0x3e	/*        (highbyte) */
 #define WLPSA_CRCOK		0x3f	/* CRC OK flag */
 
+#define WLPSA_COMPATNO_WL24B	0x04	/* 2.4 Gz WaveMODEM ISA rev-B  */
+
 /* 
  * signal strength cache
  *
@@ -134,6 +162,6 @@ struct w_sigcache {
         int    signal;    /* signal strength of the packet */
         int    silence;   /* silence of the packet */
         int    quality;   /* quality of the packet */
-        int    age;       /* packet has unique age between 1 to MAX_AGE - 1 */
+        int    snr;       /* packet has unique age between 1 to MAX_AGE - 1 */
 };
 
