@@ -2,64 +2,53 @@
 #	$Id: Makefile.inc,v 1.45 1998/01/31 05:53:57 imp Exp $
 
 # sys sources
-.PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
 
-.include "${.CURDIR}/../libc/${MACHINE}/sys/Makefile.inc"
+# Include the generated makefile containing the *complete* list
+# of syscall names in MIASM.
+.if defined(NETBSD_SYSCALLS)
+.include "${.CURDIR}/../../sys/sys/netbsd_syscall.mk"
+.else
+.include "${.CURDIR}/../../sys/sys/syscall.mk"
+.endif
 
-# modules with non-default implementations on at least one architecture:
-SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
-	rfork.S sbrk.S setlogin.S sigpending.S sigprocmask.S sigreturn.S \
-	sigsuspend.S syscall.S
+# Include machine dependent definitions.
+#
+# MDASM names override the default syscall names in MIASM.
+# NOASM will prevent the default syscall code from being generated.
+#
+.include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
 
-# glue to provide compatibility between GCC 1.X and 2.X
-SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
+# If using the NetBSD syscall interface add sources that convert
+# the NetBSD interface to the one FreeBSD expects:
+.if defined(NETBSD_SYSCALLS)
+SRCS+=	netbsd_getdirentries.c netbsd_stat.c
+.endif
 
-# modules with default implementations on all architectures:
-ASM=	__getcwd.o __syscall.o __sysctl.o \
-	access.o acct.o adjtime.o \
-	aio_cancel.o aio_error.o aio_read.o aio_return.o aio_suspend.o \
-	aio_write.o \
-	chdir.o chflags.o chmod.o chown.o chroot.o \
-	clock_getres.o clock_gettime.o clock_settime.o \
-	getdtablesize.o getegid.o \
-	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
-	getpgrp.o getpgid.o getpid.o getppid.o getpriority.o \
-	getrlimit.o getrusage.o getsid.o gettimeofday.o \
-	getuid.o issetugid.o kill.o \
-	kldfind.o kldfirstmod.o kldload.o kldnext.o kldstat.o kldunload.o \
-	ktrace.o lchown.o \
-	link.o lio_listio.o lstat.o \
-	madvise.o mincore.o minherit.o mkdir.o mlock.o \
-	modfind.o modfnext.o modnext.o modstat.o \
-	mount.o \
-	mprotect.o msgsys.o msync.o munlock.o munmap.o \
-	ntp_adjtime.o pathconf.o profil.o quotactl.o \
-	readlink.o rename.o revoke.o rmdir.o \
-	rtprio.o semsys.o setegid.o seteuid.o setgid.o \
-	setgroups.o setitimer.o	setpgid.o setpriority.o	\
-	setregid.o setreuid.o setrlimit.o \
-	setsid.o settimeofday.o setuid.o shmsys.o \
-	stat.o statfs.o \
-	swapon.o symlink.o sync.o sysarch.o \
-	umask.o undelete.o unlink.o unmount.o utimes.o utrace.o \
-	vadvise.o
+# Sources common to both syscall interfaces:
+SRCS+=	__error.c ftruncate.c lseek.c mmap.c truncate.c
 
-# Syscalls renamed as _thread_sys_{syscall} when building libc_r.
-ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
-	execve.o fchdir.o fchflags.o fchmod.o fchown.o fcntl.o \
-	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
-	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
-	mkfifo.o mknod.o nanosleep.o nfssvc.o open.o poll.o read.o readv.o \
-	recvfrom.o recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
-	shutdown.o sigaction.o sigaltstack.o signanosleep.o socket.o \
-	socketpair.o \
-	wait4.o write.o writev.o
+# Add machine dependent asm sources:
+SRCS+=${MDASM}
 
-PSEUDO=	_getlogin.o
+# Look though the complete list of syscalls (MIASM) for names that are
+# not defined with machine dependent implementations (MDASM) and are
+# not declared for no generation of default code (NOASM). If the
+# syscall is not hidden, add it to the ASM list, otherwise add it
+# to the ASMR list.
+.for _asm in ${MIASM}
+.if (${MDASM:R:M${_asm:R}} == "")
+.if (${NOASM:R:M${_asm:R}} == "")
+.if (${HIDDEN_SYSCALLS:R:M${_asm:R}} == "")
+ASM+=$(_asm)
+.else
+ASMR+=$(_asm)
+.endif
+.endif
+.endif
+.endfor
 
-# Pseudo syscalls that are renamed as _thread_sys_{pseudo} when
-# building libc_r.
-PSEUDOR=	_exit.o
+OBJS+=	${ASM} ${ASMR} ${PSEUDO} ${PSEUDOR}
 
 SASM=	${ASM:S/.o/.S/}
 
