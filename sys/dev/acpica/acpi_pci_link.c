@@ -88,7 +88,9 @@ struct link;
 
 struct acpi_pci_link_softc {
 	int	pl_num_links;
+	int	pl_crs_bad;
 	struct link *pl_links;
+	device_t pl_dev;
 };
 
 struct link {
@@ -302,7 +304,13 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		KASSERT(req->link_index < req->sc->pl_num_links,
 		    ("%s: array boundary violation", __func__));
 		link = &req->sc->pl_links[req->link_index];
+		if (link->l_res_index == -1) {
+			KASSERT(req->sc->pl_crs_bad,
+			    ("res_index should be set"));
+			link->l_res_index = req->res_index;
+		}
 		req->link_index++;
+		req->res_index++;
 
 		/*
 		 * Stash a copy of the resource for later use when doing
@@ -334,6 +342,14 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 				link->l_isa_irq = FALSE;
 		}
 		break;
+	default:
+		if (req->in_dpf == DPF_IGNORE)
+			break;
+		if (req->sc->pl_crs_bad)
+			device_printf(req->sc->pl_dev,
+		    "Warning: possible resource %d will be lost during _SRS\n",
+			    req->res_index);
+		req->res_index++;
 	}
 	return (AE_OK);
 }
@@ -396,21 +412,35 @@ acpi_pci_link_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
+	sc->pl_dev = dev;
 	ACPI_SERIAL_BEGIN(pci_link);
 
 	/*
 	 * Count the number of current resources so we know how big of
-	 * a link array to allocate.
+	 * a link array to allocate.  On some systems, _CRS is broken,
+	 * so for those systems try to derive the count from _PRS instead.
 	 */
 	creq.in_dpf = DPF_OUTSIDE;
 	creq.count = 0;
 	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
 	    acpi_count_irq_resources, &creq);
-	if (ACPI_FAILURE(status))
-		return (ENXIO);
+	sc->pl_crs_bad = ACPI_FAILURE(status);
+	if (sc->pl_crs_bad) {
+		creq.in_dpf = DPF_OUTSIDE;
+		creq.count = 0;
+		status = AcpiWalkResources(acpi_get_handle(dev), "_PRS",
+		    acpi_count_irq_resources, &creq);
+		if (ACPI_FAILURE(status)) {
+			device_printf(dev,
+			    "Unable to parse _CRS or _PRS: %s\n",
+			    AcpiFormatException(status));
+			ACPI_SERIAL_END(pci_link);
+			return (ENXIO);
+		}
+	}
+	sc->pl_num_links = creq.count;
 	if (creq.count == 0)
 		return (0);
-	sc->pl_num_links = creq.count;
 	sc->pl_links = malloc(sizeof(struct link) * sc->pl_num_links,
 	    M_PCI_LINK, M_WAITOK | M_ZERO);
 
@@ -420,22 +450,41 @@ acpi_pci_link_attach(device_t dev)
 		sc->pl_links[i].l_bios_irq = PCI_INVALID_IRQ;
 		sc->pl_links[i].l_sc = sc;
 		sc->pl_links[i].l_isa_irq = FALSE;
+		sc->pl_links[i].l_res_index = -1;
 	}
+
+	/* Try to read the current settings from _CRS if it is valid. */
+	if (!sc->pl_crs_bad) {
+		rreq.in_dpf = DPF_OUTSIDE;
+		rreq.link_index = 0;
+		rreq.res_index = 0;
+		rreq.sc = sc;
+		status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
+		    link_add_crs, &rreq);
+		if (ACPI_FAILURE(status)) {
+			device_printf(dev, "Unable to parse _CRS: %s\n",
+			    AcpiFormatException(status));
+			goto fail;
+		}
+	}
+
+	/*
+	 * Try to read the possible settings from _PRS.  Note that if the
+	 * _CRS is toast, we depend on having a working _PRS.  However, if
+	 * _CRS works, then it is ok for _PRS to be missing.
+	 */
 	rreq.in_dpf = DPF_OUTSIDE;
 	rreq.link_index = 0;
 	rreq.res_index = 0;
 	rreq.sc = sc;
-	status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
-	    link_add_crs, &rreq);
-	if (ACPI_FAILURE(status))
-		goto fail;
-	rreq.in_dpf = DPF_OUTSIDE;
-	rreq.link_index = 0;
-	rreq.res_index = 0;
 	status = AcpiWalkResources(acpi_get_handle(dev), "_PRS",
 	    link_add_prs, &rreq);
-	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
+	if (ACPI_FAILURE(status) &&
+	    (status != AE_NOT_FOUND || sc->pl_crs_bad)) {
+		device_printf(dev, "Unable to parse _PRS: %s\n",
+		    AcpiFormatException(status));
 		goto fail;
+	}
 	if (bootverbose) {
 		device_printf(dev, "Links after initial probe:\n");
 		acpi_pci_link_dump(sc);
@@ -589,33 +638,31 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 }
 
 static ACPI_STATUS
-acpi_pci_link_route_irqs(device_t dev)
+acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 {
-	struct acpi_pci_link_softc *sc;
 	ACPI_RESOURCE *resource, *end, newres, *resptr;
-	ACPI_BUFFER crsbuf, srsbuf;
+	ACPI_BUFFER crsbuf;
 	ACPI_STATUS status;
 	struct link *link;
 	int i, in_dpf;
 
 	/* Fetch the _CRS. */
 	ACPI_SERIAL_ASSERT(pci_link);
-	sc = device_get_softc(dev);
 	crsbuf.Pointer = NULL;
 	crsbuf.Length = ACPI_ALLOCATE_BUFFER;
-	status = AcpiGetCurrentResources(acpi_get_handle(dev), &crsbuf);
+	status = AcpiGetCurrentResources(acpi_get_handle(sc->pl_dev), &crsbuf);
 	if (ACPI_SUCCESS(status) && crsbuf.Pointer == NULL)
 		status = AE_NO_MEMORY;
 	if (ACPI_FAILURE(status)) {
 		if (bootverbose)
-			device_printf(dev,
+			device_printf(sc->pl_dev,
 			    "Unable to fetch current resources: %s\n",
 			    AcpiFormatException(status));
 		return (status);
 	}
 
 	/* Fill in IRQ resources via link structures. */
-	srsbuf.Pointer = NULL;
+	srsbuf->Pointer = NULL;
 	link = sc->pl_links;
 	i = 0;
 	in_dpf = DPF_OUTSIDE;
@@ -668,10 +715,10 @@ acpi_pci_link_route_irqs(device_t dev)
 			resptr = &newres;
 			resptr->Data.ExtendedIrq.NumberOfInterrupts = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq))
-				resource->Data.ExtendedIrq.Interrupts[0] =
+				resptr->Data.ExtendedIrq.Interrupts[0] =
 				    link->l_irq;
 			else
-				resource->Data.ExtendedIrq.Interrupts[0] = 0;
+				resptr->Data.ExtendedIrq.Interrupts[0] = 0;
 			link++;
 			i++;
 			break;
@@ -679,13 +726,13 @@ acpi_pci_link_route_irqs(device_t dev)
 			resptr = resource;
 		}
 		if (resptr != NULL) {
-			status = acpi_AppendBufferResource(&srsbuf, resptr);
+			status = acpi_AppendBufferResource(srsbuf, resptr);
 			if (ACPI_FAILURE(status)) {
-				device_printf(dev,
-				    "Unable to build reousrces: %s\n",
+				device_printf(sc->pl_dev,
+				    "Unable to build resources: %s\n",
 				    AcpiFormatException(status));
-				if (srsbuf.Pointer != NULL)
-					AcpiOsFree(srsbuf.Pointer);
+				if (srsbuf->Pointer != NULL)
+					AcpiOsFree(srsbuf->Pointer);
 				AcpiOsFree(crsbuf.Pointer);
 				return (status);
 			}
@@ -696,17 +743,88 @@ acpi_pci_link_route_irqs(device_t dev)
 		if (resource >= end)
 			break;
 	}
+	AcpiOsFree(crsbuf.Pointer);
+	return (AE_OK);
+}
+
+static ACPI_STATUS
+acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
+    ACPI_BUFFER *srsbuf)
+{
+	ACPI_RESOURCE newres;
+	ACPI_STATUS status;
+	struct link *link;
+	int i;
+
+	/* Start off with an empty buffer. */
+	srsbuf->Pointer = NULL;
+	link = sc->pl_links;
+	for (i = 0; i < sc->pl_num_links; i++) {
+
+		/* Add a new IRQ resource from each link. */
+		link = &sc->pl_links[i];
+		newres = link->l_prs_template;
+		if (newres.Id == ACPI_RSTYPE_IRQ) {
+
+			/* Build an IRQ resource. */
+			newres.Data.Irq.NumberOfInterrupts = 1;
+			if (PCI_INTERRUPT_VALID(link->l_irq)) {
+				KASSERT(link->l_irq < NUM_ISA_INTERRUPTS,
+		("%s: can't put non-ISA IRQ %d in legacy IRQ resource type",
+				    __func__, link->l_irq));
+				newres.Data.Irq.Interrupts[0] = link->l_irq;
+			} else
+				newres.Data.Irq.Interrupts[0] = 0;
+		} else {
+
+			/* Build an ExtIRQ resuorce. */
+			newres.Data.ExtendedIrq.NumberOfInterrupts = 1;
+			if (PCI_INTERRUPT_VALID(link->l_irq))
+				newres.Data.ExtendedIrq.Interrupts[0] =
+				    link->l_irq;
+			else
+				newres.Data.ExtendedIrq.Interrupts[0] = 0;
+		}
+
+		/* Add the new resource to the end of the _SRS buffer. */
+		status = acpi_AppendBufferResource(srsbuf, &newres);
+		if (ACPI_FAILURE(status)) {
+			device_printf(sc->pl_dev,
+			    "Unable to build resources: %s\n",
+			    AcpiFormatException(status));
+			if (srsbuf->Pointer != NULL)
+				AcpiOsFree(srsbuf->Pointer);
+			return (status);
+		}
+	}
+	return (AE_OK);
+}
+
+static ACPI_STATUS
+acpi_pci_link_route_irqs(device_t dev)
+{
+	struct acpi_pci_link_softc *sc;
+	ACPI_RESOURCE *resource, *end;
+	ACPI_BUFFER srsbuf;
+	ACPI_STATUS status;
+	struct link *link;
+	int i;
+
+	ACPI_SERIAL_ASSERT(pci_link);
+	sc = device_get_softc(dev);
+	if (sc->pl_crs_bad)
+		status = acpi_pci_link_srs_from_links(sc, &srsbuf);
+	else
+		status = acpi_pci_link_srs_from_crs(sc, &srsbuf);
 
 	/* Write out new resources via _SRS. */
 	status = AcpiSetCurrentResources(acpi_get_handle(dev), &srsbuf);
 	if (ACPI_FAILURE(status)) {
 		device_printf(dev, "Unable to route IRQs: %s\n",
 		    AcpiFormatException(status));
-		AcpiOsFree(crsbuf.Pointer);
 		AcpiOsFree(srsbuf.Pointer);
 		return (status);
 	}
-	AcpiOsFree(crsbuf.Pointer);
 
 	/*
 	 * Perform acpi_config_intr() on each IRQ resource if it was just
@@ -715,6 +833,7 @@ acpi_pci_link_route_irqs(device_t dev)
 	link = sc->pl_links;
 	i = 0;
 	resource = (ACPI_RESOURCE *)srsbuf.Pointer;
+	end = (ACPI_RESOURCE *)((char *)srsbuf.Pointer + srsbuf.Length);
 	for (;;) {
 		if (resource->Id == ACPI_RSTYPE_END_TAG)
 			break;
