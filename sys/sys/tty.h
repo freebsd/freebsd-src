@@ -97,6 +97,10 @@ struct tty {
 	void	(*t_stop)(struct tty *, int);
 					/* Set hardware state. */
 	int	(*t_param)(struct tty *, struct termios *);
+					/* Set modem state */
+	int	(*t_modem)(struct tty *, int, int);
+					/* Set break state */
+	int	(*t_break)(struct tty *, int);
 	void	*t_sc;			/* XXX: net/if_sl.c:sl_softc. */
 	int	t_column;		/* Tty output column. */
 	int	t_rocount, t_rocol;	/* Tty. */
