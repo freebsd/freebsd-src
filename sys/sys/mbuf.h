@@ -470,14 +470,14 @@ void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
 void		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*free)(void *, void *), void *, int, int);
+		    void (*)(void *, void *), void *, int, int);
 void		 m_copyback(struct mbuf *, int, int, caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct	mbuf	*m_copym(struct mbuf *, int, int, int);
 struct	mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct	mbuf	*m_devget(char *, int, int, struct ifnet *,
-		    void (*copy)(char *, caddr_t, u_int));
+		    void (*)(char *, caddr_t, u_int));
 struct	mbuf	*m_dup(struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct	mbuf	*m_free(struct mbuf *);
