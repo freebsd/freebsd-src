@@ -31,9 +31,10 @@
 #include <sys/stat.h>
 #include <sys/syslimits.h>
 #include <fcntl.h>
-#include "un-namespace.h"
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include "un-namespace.h"
 #include "setlocale.h"
 #include "ldpart.h"
 
