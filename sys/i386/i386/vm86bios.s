@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.3 1998/07/27 16:45:05 jlemon Exp $
+ *	$Id: vm86bios.s,v 1.4 1998/09/10 12:16:06 yokota Exp $
  */
 
 #include "opt_vm86.h"
@@ -132,12 +132,14 @@ ENTRY(vm86_bioscall)
 	movl	%cr3,%eax
 	pushl	%eax			/* save address space */
 #ifdef SMP
+	movl	_cpuid, %ecx
+	movl	CNAME(IdlePTDS)(,%ecx,4), %ebx
 	movl	_my_idlePTD,%ecx
 #else
 	movl	_IdlePTD,%ecx
-#endif
 	movl	%ecx,%ebx
 	addl	$KERNBASE,%ebx		/* va of Idle PTD */
+#endif
 	movl	0(%ebx),%eax
 	pushl	%eax			/* old ptde != 0 when booting */
 	pushl	%ebx			/* keep for reuse */

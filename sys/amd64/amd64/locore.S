@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.111 1998/07/27 16:45:01 jlemon Exp $
+ *	$Id: locore.s,v 1.112 1998/08/03 21:31:32 msmith Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -925,6 +925,9 @@ map_read_write:
 	movl	R(cpu0pp), %eax
 	movl	R(_IdlePTD), %ecx
 	movl	%ecx,GD_MY_IDLEPTD(%eax)
+/* Initialize IdlePTDS[0] */
+	addl	$KERNBASE, %ecx
+	movl	%ecx, R(CNAME(IdlePTDS))
 		
 #endif	/* SMP */
 
