@@ -1,0 +1,3 @@
+#define MULTILIB_SELECT "\
+. ;\
+"
