@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.285 1996/10/20 18:35:14 phk Exp $
+#	$Id: LINT,v 1.286 1996/10/23 07:29:34 pst Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -35,11 +35,15 @@ ident		LINT
 maxusers	10
 
 #
-# Under some circumstances it is necessary to make the default max
-# number of processes per user and open files per user more than the
-# defaults on bootup.  (an example is a large news server in which
-# the uid, news, can sometimes need > 100 simultaneous processes running,
-# or perhaps a user using lots of windows under X).
+# Under some circumstances it is convenient to increase the defaults
+# for the maximum number of processes per user and the maximum number
+# of open files files per user.  E.g., (1) in a large news server, user
+# `news' may need more than 100 concurrent processes.  (2) a user may
+# need lots of windows under X.  In both cases, it may be inconvenient
+# to start all the processes from a parent whose soft rlimit on the
+# number of processes is large enough.  The following options work by
+# changing the soft rlimits for init.
+#
 options		CHILD_MAX=128
 options		OPEN_MAX=128
 
@@ -173,20 +177,21 @@ options		VISUAL_USERCONFIG	#visual boot -c editor
 #
 # Protocol families:
 #  Only the INET (Internet) family is officially supported in FreeBSD.
-#  Source code for the NS (Xerox Network Service), ISO (OSI), and
-#  CCITT (X.25) families is provided for amusement value, although we
-#  try to ensure that it actually compiles.
+#  Source code for the NS (Xerox Network Service) is provided for amusement
+#  value.
 #
 options		INET			#Internet communications protocols
 
 options		IPX			#IPX/SPX communications protocols
-#options	NS			#NS communications protocols
 options		IPXIP			#IPX in IP encapsulation (not available)
 options		IPTUNNEL		#IP in IPX encapsulation (not available)
 options		IPXPRINTFS=0		#IPX/SPX Console Debugging Information
 options		IPX_ERRPRINTFS=0	#IPX/SPX Console Debugging Information
 
 options		NETATALK		#Appletalk communications protocols
+
+# These are currently broken but are shipped due to interest.
+#options		NS			#Xerox NS protocols
 
 # These are currently broken and are no longer shipped due to lack
 # of interest.
@@ -197,7 +202,6 @@ options		NETATALK		#Appletalk communications protocols
 #options		LLC			#X.25 link layer for Ethernets
 #options		HDLC			#X.25 link layer for serial lines
 #options		EON			#ISO CLNP over IP
-#options		NS			#Xerox NS protocols
 #options		NSIP			#XNS over IP
 
 #
@@ -921,7 +925,7 @@ options	AHC_TAGENABLE
 #
 controller	pci0
 controller	ahc1
-device		ncr0
+controller	ncr0
 device		de0
 device		fxp0
 device		vx0
@@ -956,10 +960,13 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 options		CLK_CALIBRATION_LOOP
 options		"CLK_USE_I8254_CALIBRATION"
 options		"CLK_USE_I586_CALIBRATION"
-options		DEBUG
-options		"EXT2FS"
-options		"IBCS2"
 options		COMPAT_LINUX
+options		DEBUG
+options		DEVFS_ROOT
+options		"EXT2FS"
+options		"I586_CTR_GUPROF"
+options		"I586_PMC_GUPROF=0x70000"
+options		"IBCS2"
 options		"SCSI_2_DEF"
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options		SI_DEBUG
