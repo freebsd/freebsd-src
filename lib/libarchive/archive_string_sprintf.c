@@ -47,19 +47,22 @@ __archive_string_vsprintf(struct archive_string *as, const char *fmt,
     va_list ap)
 {
 	size_t l;
+	va_list ap1;
 
 	if (fmt == NULL) {
 		as->s[0] = 0;
 		return;
 	}
 
+	va_copy(ap1, ap);
 	l = vsnprintf(as->s, as->buffer_length, fmt, ap);
 	/* If output is bigger than the buffer, resize and try again. */
 	if (l+1 >= as->buffer_length) {
 		__archive_string_ensure(as, l + 1);
-		l = vsnprintf(as->s, as->buffer_length, fmt, ap);
+		l = vsnprintf(as->s, as->buffer_length, fmt, ap1);
 	}
 	as->length = l;
+	va_end(ap1);
 }
 
 /*
