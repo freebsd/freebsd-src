@@ -84,25 +84,25 @@ static char prefix[MAXPATHLEN];
 static int is_comment;	/* flag for comments */
 static char line[LINE_MAX];
 
-void	cleanup __P((void));
-void	error __P((char *));
-void	cp __P((char *, char *, mode_t mode));
-void	mv __P((char *, char *));
-int	scan __P((FILE *, struct passwd *));
-static void	usage __P((void));
+void	cleanup(void);
+void	error(const char *);
+void	cp(char *, char *, mode_t mode);
+void	mv(char *, char *);
+int	scan(FILE *, struct passwd *);
+static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	DB *dp, *sdp, *pw_db;
 	DBT data, sdata, key;
 	FILE *fp, *oldfp;
 	sigset_t set;
-	int ch, cnt, ypcnt, len, makeold, tfd, yp_enabled = 0;
+	int ch, cnt, ypcnt, makeold, tfd, yp_enabled = 0;
+	unsigned int len;
 	int32_t pw_change, pw_expire;
-	char *p, *t;
+	const char *t;
+	char *p;
 	char buf[MAX(MAXPATHLEN, LINE_MAX * 2)], tbuf[1024];
 	char sbuf[MAX(MAXPATHLEN, LINE_MAX * 2)];
 	char buf2[MAXPATHLEN];
@@ -584,7 +584,7 @@ mv(from, to)
 
 void
 error(name)
-	char *name;
+	const char *name;
 {
 
 	warn("%s", name);
