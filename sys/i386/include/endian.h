@@ -66,6 +66,8 @@ unsigned long	ntohl __P((unsigned long));
 unsigned short	ntohs __P((unsigned short));
 __END_DECLS
 
+#ifdef __GNUC__
+
 static __inline uint32_t
 __uint16_swap_uint32(uint32_t __x)
 {
@@ -97,12 +99,12 @@ __uint8_swap_uint16(uint16_t __x)
 /*
  * Macros for network/external number representation conversion.
  */
-#ifdef __GNUC__
 #define	ntohl	__uint8_swap_uint32
 #define	ntohs	__uint8_swap_uint16
 #define	htonl	__uint8_swap_uint32
 #define	htons	__uint8_swap_uint16
-#endif
+
+#endif	/* __GNUC__ */
 
 #define	NTOHL(x)	((x) = ntohl(x))
 #define	NTOHS(x)	((x) = ntohs(x))
