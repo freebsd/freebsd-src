@@ -27,6 +27,8 @@
  * Copyright (c) 2000 Andrew Miklic, Andrew Gallatin, and Thomas V. Crimi
  */
 
+#include "opt_fb.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -67,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #endif /* __alpha__ */
-
-#include "opt_fb.h"
 
 #if 0
 static devclass_t gfb_devclass;
