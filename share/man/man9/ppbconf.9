@@ -22,6 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
 .\"
 .Dd April 5, 1998
 .Dt PPBCONF 9
@@ -82,12 +83,14 @@ struct ppb_adapter {
 .Pp
 This structure is the interface between
 .Xr ppc 4
-layer and upper ppbus system levels. For each ppc device, this
+layer and upper ppbus system levels.
+For each ppc device, this
 structure is filled with generic i/o functions that may be redefined if
 needed for particular chipsets.
 .Pp
 Developers are really encouraged to use the
-exec_microseq entry to avoid indirect function call overhead. See
+exec_microseq entry to avoid indirect function call overhead.
+See
 .Xr microseq 9
 for more info.
 .Ss The ppbus layer

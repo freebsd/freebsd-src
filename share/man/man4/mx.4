@@ -44,21 +44,27 @@ The
 .Nm
 driver provides support for PCI ethernet adapters and embedded
 controllers based on the Macronix 98713, 98713A, 98715, 98715A and
-98725 fast ethernet controller chips. This includes the NDC
+98725 fast ethernet controller chips.
+This includes the NDC
 Communications SOHOware SFA110, the SVEC PN102-TX
-fast ethernet card, and various other adapters. The
+fast ethernet card, and various other adapters.
+The
 .Nm
 driver also supports the Lite-On 82c115 PNIC II chip, which is
 actually similar in design to the Macronix 98715A with the addition
-of wake on LAN support. Supported PNIC II cards include the
+of wake on LAN support.
+Supported PNIC II cards include the
 LinkSys LNE100TX Version 2.
 .Pp
 The Macronix chips use bus master DMA and are designed to be
-DEC 'tulip' workalikes. The original 98713 had an MII bus for
+DEC 'tulip' workalikes.
+The original 98713 had an MII bus for
 controlling an external PHY, however the 98713A and up use an
-internal transceiver with NWAY support. The Macronix parts are
+internal transceiver with NWAY support.
+The Macronix parts are
 advertised as being register compatible with the DEC 21x4x
-controllers. All of the Macronix controllers support both
+controllers.
+All of the Macronix controllers support both
 10 and 100Mbps speeds in either full or half duplex.
 .Pp
 The
@@ -73,14 +79,16 @@ the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 file.
 .It 10baseT/UTP
-Set 10Mbps operation. The
+Set 10Mbps operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
 or
 .Ar half-duplex modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation. The
+Set 100Mbps (fast ethernet) operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
@@ -120,20 +128,25 @@ The driver failed to allocate an mbuf for the transmitter ring when
 allocating a pad buffer or collapsing an mbuf chain into a cluster.
 .It "mx%d: chip is in D3 power state -- setting to D0"
 This message applies only to adapters which support power
-management. Some operating systems place the controller in low power
+management.
+Some operating systems place the controller in low power
 mode when shutting down, and some PCI BIOSes fail to bring the chip
-out of this state before configuring it. The controller loses all of
+out of this state before configuring it.
+The controller loses all of
 its PCI configuration in the D3 state, so if the BIOS does not set
 it back to full power mode in time, it won't be able to configure it
-correctly. The driver tries to detect this condition and bring
+correctly.
+The driver tries to detect this condition and bring
 the adapter back to the D0 (full power) state, but this may not be
-enough to return the driver to a fully operational condition. If
+enough to return the driver to a fully operational condition.
+If
 you see this message at boot time and the driver fails to attach
 the device as a network interface, you will have to perform second
 warm boot to have the device properly configured.
 .Pp
 Note that this condition only occurs when warm booting from another
-operating system. If you power down your system prior to booting
+operating system.
+If you power down your system prior to booting
 .Fx ,
 the card should be configured correctly.
 .El
@@ -162,11 +175,14 @@ driver was written by
 .Sh BUGS
 The Macronix application notes claim that in order to put the
 chips in normal operation, the driver must write a certian magic
-number into the CSR16 register. The numbers are documented in
+number into the CSR16 register.
+The numbers are documented in
 the app notes, but the exact meaning of the bits is not.
 .Pp
 The 98713A seems to have a problem with 10Mbps full duplex mode.
 The transmitter works but the receiver tends to produce many
-unexplained errors leading to very poor overall performance. The
-98715A does not exhibit this problem. All other modes on the
+unexplained errors leading to very poor overall performance.
+The
+98715A does not exhibit this problem.
+All other modes on the
 98713A seem to work correctly.

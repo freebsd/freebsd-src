@@ -128,12 +128,14 @@ searches the root directory of the filesystem to
 be mounted for any existing Win'95 long filenames.
 If no such entries are found, but short DOS filenames are found,
 .Fl s
-is the default. Otherwise
+is the default.
+Otherwise
 .Fl l
 is assumed.
 .It Fl 9
 Ignore the special Win'95 directory entries even
-if deleting or renaming a file. This forces
+if deleting or renaming a file.
+This forces
 .Fl s .
 .\".It Fl G
 .\"This option causes the filesystem to be interpreted as an Atari-Gemdos
@@ -154,10 +156,12 @@ If some code not present in Unicode, use
 0x003F code ('?') as replacement.
 .It
 DOS to local character set conversion table (upper half) for DOS names,
-128 character codes. Code 0x3F ('?') used for impossible translations.
+128 character codes.
+Code 0x3F ('?') used for impossible translations.
 .It
 Local character set to DOS conversion table (upper half) for DOS names,
-128 character codes. Some codes have special meaning:
+128 character codes.
+Some codes have special meaning:
 .Bl -hang
 .It 0x00
 character disallowed in DOS file name;

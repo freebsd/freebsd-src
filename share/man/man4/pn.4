@@ -44,19 +44,24 @@ The
 .Nm
 driver provides support for PCI ethernet adapters and embedded
 controllers based on the Lite-On 82c168 and 82c169 fast ethernet
-controller chips. This includes the LinkSys LNE100TX, the
+controller chips.
+This includes the LinkSys LNE100TX, the
 Bay Networks Netgear FA310TX revision D1, the Matrox Networks
 FastNIC 10/100, certain adapters manufactured by D-Link and
 Trendware, and various other commodity fast ethernet cards.
 .Pp
 The Lite-On chips use bus master DMA and are designed to be
-DEC 'tulip' workalikes. Many vendors that formerly based their
+DEC 'tulip' workalikes.
+Many vendors that formerly based their
 designs around the DEC 21x4x devices are now using the PNIC
-instead. The chips support both an internal transceiver
-and external transceivers via an MII bus. The Lite-On parts are
+instead.
+The chips support both an internal transceiver
+and external transceivers via an MII bus.
+The Lite-On parts are
 advertised as being register compatible with the DEC 21x4x
 controllers, however there are some differences in the way the
-EEPROM and MII access is done. The PNIC controllers support both
+EEPROM and MII access is done.
+The PNIC controllers support both
 10 and 100Mbps speeds in either full or half duplex.
 .Pp
 The
@@ -71,14 +76,16 @@ the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 fine.
 .It 10baseT/UTP
-Set 10Mbps operation. The
+Set 10Mbps operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
 or
 .Ar half-duplex modes.
 .It 100baseTX
-Set 100Mbps (fast ethernet) operation. The
+Set 100Mbps (fast ethernet) operation.
+The
 .Ar mediaopt
 option can also be used to select either
 .Ar full-duplex
@@ -118,20 +125,25 @@ The driver failed to allocate an mbuf for the transmitter ring when
 allocating a pad buffer or collapsing an mbuf chain into a cluster.
 .It "pn%d: chip is in D3 power state -- setting to D0"
 This message applies only to adapters which support power
-management. Some operating systems place the controller in low power
+management.
+Some operating systems place the controller in low power
 mode when shutting down, and some PCI BIOSes fail to bring the chip
-out of this state before configuring it. The controller loses all of
+out of this state before configuring it.
+The controller loses all of
 its PCI configuration in the D3 state, so if the BIOS does not set
 it back to full power mode in time, it won't be able to configure it
-correctly. The driver tries to detect this condition and bring
+correctly.
+The driver tries to detect this condition and bring
 the adapter back to the D0 (full power) state, but this may not be
-enough to return the driver to a fully operational condition. If
+enough to return the driver to a fully operational condition.
+If
 you see this message at boot time and the driver fails to attach
 the device as a network interface, you will have to perform second
 warm boot to have the device properly configured.
 .Pp
 Note that this condition only occurs when warm booting from another
-operating system. If you power down your system prior to booting
+operating system.
+If you power down your system prior to booting
 .Fx ,
 the card should be configured correctly.
 .El
@@ -152,9 +164,11 @@ driver was written by
 .Sh BUGS
 The internal NWAY support on the 82c168 chip is horribly broken, which
 means that autoselection will not work, except maybe for half-duplex
-10Mbps links. In order to use other modes (e.g. 100Mbps) it will be
+10Mbps links.
+In order to use other modes (e.g. 100Mbps) it will be
 necessary to
 use
 .Xr ifconfig 8
-to set the interface manually. Autoselection for 82c169 boards using
+to set the interface manually.
+Autoselection for 82c169 boards using
 MII transceivers should work correctly.

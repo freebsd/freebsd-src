@@ -32,6 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fpr.1	8.1 (Berkeley) 6/6/93
+.\" $FreeBSD$
 .\"
 .Dd June 6, 1993
 .Dt FPR 1
@@ -65,9 +66,12 @@ The first character of each line determines the vertical spacing as follows:
 .Ed
 .Pp
 A blank line is treated as if its first
-character is a blank. A blank that appears as a carriage control
-character is deleted. A zero is changed to a newline.  A one is
-changed to a form feed. The effects of a "+" are simulated using
+character is a blank.
+A blank that appears as a carriage control
+character is deleted.
+A zero is changed to a newline.  A one is
+changed to a form feed.
+The effects of a "+" are simulated using
 backspaces.
 .Sh EXAMPLES
 .Dl a.out \&| fpr \&| lpr
