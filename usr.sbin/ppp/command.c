@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.159 1998/08/07 18:42:48 brian Exp $
+ * $Id: command.c,v 1.160 1998/08/25 17:48:42 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -53,13 +53,13 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
+#include "lqr.h"
+#include "hdlc.h"
 #include "ipcp.h"
 #include "modem.h"
 #ifndef NOALIAS
 #include "alias_cmd.h"
 #endif
-#include "lqr.h"
-#include "hdlc.h"
 #include "systems.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -126,7 +126,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/08/07 18:42:48 $";
+const char VersionDate[] = "$Date: 1998/08/25 17:48:42 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
