@@ -1605,7 +1605,7 @@ physmap_done:
 #endif
 
 	/*
-	 * hw.maxmem is a size in bytes; we also allow k, m, and g suffixes
+	 * hw.physmem is a size in bytes; we also allow k, m, and g suffixes
 	 * for the appropriate modifiers.  This overrides MAXMEM.
 	 */
 	if ((cp = getenv("hw.physmem")) != NULL) {
