@@ -40,8 +40,8 @@
 .Dt STRTOL 3
 .Os
 .Sh NAME
-.Nm strtol , strtoq
-.Nd convert string value to a long or quad_t integer
+.Nm strtol , strtoll , strtoq
+.Nd convert string value to a long , long long , or quad_t integer
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,6 +49,8 @@
 .Fd #include <limits.h>
 .Ft long
 .Fn strtol "const char *nptr" "char **endptr" "int base"
+.Ft long long
+.Fn strtoll "const char *nptr" "char **endptr" "int base"
 .Fd #include <sys/types.h>
 .Fd #include <stdlib.h>
 .Fd #include <limits.h>
@@ -62,6 +64,14 @@ converts the string in
 .Fa nptr
 to a
 .Em long
+value.
+The
+.Fn strtoll
+function
+converts the string in
+.Fa nptr
+to a
+.Em long long
 value.
 The
 .Fn strtoq
@@ -145,7 +155,20 @@ If an overflow occurs,
 .Fn strtol
 returns
 .Dv LONG_MAX .
-In both cases,
+The
+.Fn strtoll
+function
+returns the result of the conversion,
+unless the value would underflow or overflow.
+If an underflow occurs,
+.Fn strtoll
+returns
+.Dv LLONG_MIN .
+If an overflow occurs,
+.Fn strtoll
+returns
+.Dv LLONG_MAX .
+In all cases,
 .Va errno
 is set to
 .Er ERANGE .
@@ -166,5 +189,13 @@ The
 function
 conforms to
 .St -isoC .
+The
+.Fn strtoll
+function
+conforms to
+.St -isoC-99 .
+The BSD
+.Fn strtoq
+function is deprecated.
 .Sh BUGS
 Ignores the current locale.

@@ -104,8 +104,12 @@ void	*realloc __P((void *, size_t));
 void	 srand __P((unsigned));
 double	 strtod __P((const char *, char **));
 long	 strtol __P((const char *, char **, int));
+long long	 
+	 strtoll __P((const char *, char **, int));
 unsigned long
 	 strtoul __P((const char *, char **, int));
+unsigned long long
+	 strtoull __P((const char *, char **, int));
 int	 system __P((const char *));
 
 int	 mblen __P((const char *, size_t));
