@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.99 1999/08/14 18:39:40 iwasaki Exp $
+ *	$Id: apm.c,v 1.100 1999/08/21 06:24:11 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -37,6 +37,7 @@
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
 #include <machine/clock.h>
@@ -65,8 +66,10 @@ struct apm_softc {
 	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
+	int	standby_countdown, suspend_countdown;
 	u_int	minorversion, majorversion;
 	u_int	intversion, connectmode;
+	u_int	standbys, suspends;
 	struct bios_args bios;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
@@ -128,6 +131,12 @@ static struct cdevsw apm_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+
+static int apm_suspend_delay = 1;
+static int apm_standby_delay = 1;
+
+SYSCTL_INT(_machdep, OID_AUTO, apm_suspend_delay, CTLFLAG_RW, &apm_suspend_delay, 1, "");
+SYSCTL_INT(_machdep, OID_AUTO, apm_standby_delay, CTLFLAG_RW, &apm_standby_delay, 1, "");
 
 /*
  * return  0 if the function successfull,
@@ -481,6 +490,58 @@ static void apm_processevent(void);
 static u_int apm_op_inprog = 0;
 
 static void
+apm_do_suspend(void)
+{
+	struct apm_softc *sc = &apm_softc;
+	int error;
+
+	if (!sc)
+		return;
+
+	apm_op_inprog = 0;
+	sc->suspends = sc->suspend_countdown = 0;
+
+	if (sc->initialized) {
+		error = DEVICE_SUSPEND(root_bus);
+		/*
+		 * XXX Shouldn't ignore the error like this, but should
+		 * instead fix the newbus code.  Until that happens,
+		 * I'm doing this to get suspend working again.
+		 */
+		if (error)
+			printf("DEVICE_SUSPEND error %d, ignored\n", error);
+		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
+		if (apm_suspend_system(PMST_SUSPEND) == 0)
+			apm_processevent();
+		else
+			/* Failure, 'resume' the system again */
+			apm_execute_hook(hook[APM_HOOK_RESUME]);
+	}
+}
+
+static void
+apm_do_standby(void)
+{
+	struct apm_softc *sc = &apm_softc;
+
+	if (!sc)
+		return;
+
+	apm_op_inprog = 0;
+	sc->standbys = sc->standby_countdown = 0;
+
+	if (sc->initialized) {
+		/*
+		 * As far as standby, we don't need to execute 
+		 * all of suspend hooks.
+		 */
+		apm_default_suspend(&apm_softc);
+		if (apm_suspend_system(PMST_STANDBY) == 0)
+			apm_processevent();
+	}
+}
+
+static void
 apm_lastreq_notify(void)
 {
 	struct apm_softc *sc = &apm_softc;
@@ -527,29 +588,27 @@ void
 apm_suspend(int state)
 {
 	struct apm_softc *sc = &apm_softc;
-	int error;
 
-	if (!sc)
+	switch (state) {
+	case PMST_SUSPEND:
+		if (sc->suspends)
+			return;
+		sc->suspends++;
+		sc->suspend_countdown = apm_suspend_delay;
+		break;
+	case PMST_STANDBY:
+		if (sc->standbys)
+			return;
+		sc->standbys++;
+		sc->standby_countdown = apm_standby_delay;
+		break;
+	default:
+		printf("apm_suspend: Unknown Suspend state 0x%x\n", state);
 		return;
-
-	apm_op_inprog = 0;
-
-	if (sc->initialized) {
-		error = DEVICE_SUSPEND(root_bus);
-		/*
-		 * XXX Shouldn't ignore the error like this, but should
-		 * instead fix the newbus code.  Until that happens,
-		 * I'm doing this to get suspend working again.
-		 */
-		if (error)
-			printf("DEVICE_SUSPEND error %d, ignored\n", error);
-		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
-		if (apm_suspend_system(state) == 0)
-			apm_processevent();
-		else
-			/* Failure, 'resume' the system again */
-			apm_execute_hook(hook[APM_HOOK_RESUME]);
 	}
+
+	apm_op_inprog++;
+	apm_lastreq_notify();
 }
 
 void
@@ -673,6 +732,12 @@ apm_timeout(void *dummy)
 
 	if (apm_op_inprog)
 		apm_lastreq_notify();
+
+	if (sc->standbys && sc->standby_countdown-- <= 0)
+		apm_do_standby();
+
+	if (sc->suspends && sc->suspend_countdown-- <= 0)
+		apm_do_suspend();
 
 	if (!sc->bios_busy)
 		apm_processevent();
@@ -875,7 +940,7 @@ apm_processevent(void)
 			if (apm_op_inprog == 0) {
 			    apm_op_inprog++;
 			    if (apm_record_event(sc, apm_event)) {
-				apm_suspend(PMST_SUSPEND);
+				apm_do_suspend();
 			    }
 			}
 			return; /* XXX skip the rest */
@@ -884,12 +949,12 @@ apm_processevent(void)
 			if (apm_op_inprog == 0) {
 			    apm_op_inprog++;
 			    if (apm_record_event(sc, apm_event)) {
-				apm_suspend(PMST_SUSPEND);
+				apm_do_suspend();
 			    }
 			}
 			return; /* XXX skip the rest */
 		    OPMEV_DEBUGMESSAGE(PMEV_CRITSUSPEND);
-			apm_suspend(PMST_SUSPEND);
+			apm_do_suspend();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_NORMRESUME);
 			apm_record_event(sc, apm_event);
