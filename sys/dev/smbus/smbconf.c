@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.c,v 1.3 1998/11/22 22:01:42 nsouch Exp $
+ *	$Id: smbconf.c,v 1.4 1999/01/09 18:08:23 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -104,16 +104,12 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 	int s, error = 0;
 
 	/* first, ask the underlying layers if the request is ok */
-	do {
-		error = SMBUS_CALLBACK(device_get_parent(bus),
-						SMB_REQUEST_BUS, (caddr_t)&how);
-		if (error)
-			error = smbus_poll(sc, how);
-	} while (error);
+	error = SMBUS_CALLBACK(device_get_parent(bus), SMB_REQUEST_BUS,
+				(caddr_t)&how);
 
 	while (!error) {
 		s = splhigh();	
-		if (sc->owner) {
+		if (sc->owner && sc->owner != dev) {
 			splx(s);
 
 			error = smbus_poll(sc, how);
@@ -123,6 +119,11 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 			splx(s);
 			return (0);
 		}
+
+		/* free any allocated resource */
+		if (error)
+			SMBUS_CALLBACK(device_get_parent(bus), SMB_RELEASE_BUS,
+					(caddr_t)&how);
 	}
 
 	return (error);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbconf.h,v 1.2 1998/10/31 11:39:54 nsouch Exp $
+ *	$Id: smbconf.h,v 1.3 1999/01/27 19:58:53 dillon Exp $
  */
 #ifndef __SMBONF_H
 #define __SMBONF_H
@@ -54,7 +54,11 @@
 #define SMB_ENOERR	0x0
 #define SMB_EBUSERR	0x1
 #define SMB_ENOTSUPP	0x2
-#define SMB_ENOACK	0x3
+#define SMB_ENOACK	0x4
+#define SMB_ECOLLI	0x8
+#define SMB_EABORT	0x10
+#define SMB_ETIMEOUT	0x20
+#define SMB_EBUSY	0x40
 
 /*
  * How Quick command is executed
