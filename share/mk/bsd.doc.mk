@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.34 1997/03/02 15:52:34 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.35 1997/03/08 23:46:49 wosch Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -39,7 +39,7 @@ TRFLAGS+=	-p
 TRFLAGS+=	-s
 .endif
 .if defined(USE_REFER)
-TRFALGS+=	-R
+TRFLAGS+=	-R
 .endif
 
 DCOMPRESS_EXT?=	${COMPRESS_EXT}
