@@ -86,7 +86,7 @@
 #include <dev/pci/pcivar.h>
 
 #define TXP_USEIOSPACE
-/*#define __STRICT_ALIGNMENT*/
+#define __STRICT_ALIGNMENT
 
 #include <dev/txp/if_txpreg.h>
 #include <dev/txp/3c990img.h>
