@@ -238,6 +238,15 @@ isa_compat_probe(device_t dev)
 	return ENXIO;
 }
 
+static void
+isa_compat_intr(void *arg)
+{
+	struct isa_device *dvp;
+
+	dvp = (struct isa_device *)arg;
+	dvp->id_ointr(dvp->id_unit);
+}
+
 static int
 isa_compat_attach(device_t dev)
 {
@@ -254,9 +263,7 @@ isa_compat_attach(device_t dev)
 
 		error = BUS_SETUP_INTR(device_get_parent(dev), dev,
 				       res.irq, dvp->id_driver->intrflags,
-				       dvp->id_intr,
-				       (void *)(uintptr_t)dvp->id_unit,
-				       &ih);
+				       isa_compat_intr, dvp, &ih);
 		if (error)
 			printf("isa_compat_attach: failed to setup intr: %d\n",
 			       error);
