@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.31 1998/10/11 18:39:38 rnordier Exp $
+#	$Id: Makefile.inc1,v 1.32 1998/10/11 19:02:27 rnordier Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -940,10 +940,12 @@ legacy-install:
 	cd ${.CURDIR}/lkm; ${MAKE} -DNOMAN install
 	@echo
 .endif
+.if ${MACHINE_ARCH} != "alpha"
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/sys/${MACHINE}/boot && ${MAKE} -DNOMAN install
+.endif
 .endif
 
 
