@@ -120,8 +120,8 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 {
 	struct ktr_entry *entry;
 	int newindex, saveindex;
-	critical_t savecrit;
 	struct thread *td;
+	int cpu;
 #ifdef KTR_EXTEND
 	va_list ap;
 #endif
@@ -133,19 +133,16 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	td = curthread;
 	if (td->td_inktr)
 		return;
-	savecrit = cpu_critical_enter();
-	if (((1 << KTR_CPU) & ktr_cpumask) == 0) {
-		cpu_critical_exit(savecrit);
+	cpu = KTR_CPU;
+	if (((1 << cpu) & ktr_cpumask) == 0)
 		return;
-	}
 	td->td_inktr++;
 	do {
 		saveindex = ktr_idx;
 		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
-	entry->ktr_cpu = KTR_CPU;
-	cpu_critical_exit(savecrit);
+	entry->ktr_cpu = cpu;
 	nanotime(&entry->ktr_tv);
 #ifdef KTR_EXTEND
 	entry->ktr_filename = filename;
