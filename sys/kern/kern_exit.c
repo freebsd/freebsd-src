@@ -75,17 +75,20 @@
 /* Required to be non-static for SysVR4 emulator */
 MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
+static MALLOC_DEFINE(M_ATEXIT, "atexit", "atexit callback");
+
 static int wait1 __P((struct proc *, struct wait_args *, int));
 
 /*
  * callout list for things to do at exit time
  */
-typedef struct exit_list_element {
-	struct exit_list_element *next;
+struct exitlist {
 	exitlist_fn function;
-} *ele_p;
+	TAILQ_ENTRY(exitlist) next;
+};
 
-static ele_p exit_list;
+TAILQ_HEAD(exit_list_head, exitlist);
+static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
 
 /*
  * exit --
@@ -115,7 +118,7 @@ exit1(p, rv)
 {
 	register struct proc *q, *nq;
 	register struct vmspace *vm;
-	ele_p ep = exit_list;
+	struct exitlist *ep;
 
 	if (p->p_pid == 1) {
 		printf("init died (signal %d, exit %d)\n",
@@ -154,10 +157,8 @@ exit1(p, rv)
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
-	while (ep) {
+	TAILQ_FOREACH(ep, &exit_list, next) 
 		(*ep->function)(p);
-		ep = ep->next;
-	}
 
 	if (p->p_flag & P_PROFIL)
 		stopprofclock(p);
@@ -580,49 +581,45 @@ proc_reparent(child, parent)
  * However first make sure that it's not already there.
  * returns 0 on success.
  */
+
 int
 at_exit(function)
 	exitlist_fn function;
 {
-	ele_p ep;
+	struct exitlist *ep;
 
+#ifdef INVARIANTS
 	/* Be noisy if the programmer has lost track of things */
 	if (rm_at_exit(function)) 
-		printf("exit callout entry already present\n");
-	ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
+		printf("WARNING: exit callout entry (%p) already present\n",
+		    function);
+#endif
+	ep = malloc(sizeof(*ep), M_ATEXIT, M_NOWAIT);
 	if (ep == NULL)
 		return (ENOMEM);
-	ep->next = exit_list;
 	ep->function = function;
-	exit_list = ep;
+	TAILQ_INSERT_TAIL(&exit_list, ep, next);
 	return (0);
 }
+
 /*
- * Scan the exit callout list for the given items and remove them.
- * Returns the number of items removed.
- * Logically this can only be 0 or 1.
+ * Scan the exit callout list for the given item and remove it.
+ * Returns the number of items removed (0 or 1)
  */
 int
 rm_at_exit(function)
 	exitlist_fn function;
 {
-	ele_p *epp, ep;
-	int count;
+	struct exitlist *ep;
 
-	count = 0;
-	epp = &exit_list;
-	ep = *epp;
-	while (ep) {
+	TAILQ_FOREACH(ep, &exit_list, next) {
 		if (ep->function == function) {
-			*epp = ep->next;
-			free(ep, M_TEMP);
-			count++;
-		} else {
-			epp = &ep->next;
+			TAILQ_REMOVE(&exit_list, ep, next);
+			free(ep, M_ATEXIT);
+			return(1);
 		}
-		ep = *epp;
-	}
-	return (count);
+	}	
+	return (0);
 }
 
 void check_sigacts (void)

@@ -65,6 +65,8 @@
 
 #include <sys/user.h>
 
+static MALLOC_DEFINE(M_ATFORK, "atfork", "atfork callback");
+
 static int	fast_vfork = 1;
 SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
 
@@ -72,12 +74,13 @@ SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
  * These are the stuctures used to create a callout list for things to do
  * when forking a process
  */
-typedef struct fork_list_element {
-	struct fork_list_element *next;
+struct forklist {
 	forklist_fn function;
-} *fle_p;
+	TAILQ_ENTRY(forklist) next;
+};
 
-static fle_p	fork_list;
+TAILQ_HEAD(forklist_head, forklist);
+static struct forklist_head fork_list = TAILQ_HEAD_INITIALIZER(fork_list);
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -150,9 +153,7 @@ fork1(p1, flags, procp)
 	struct proc *newproc;
 	int count;
 	static int pidchecked = 0;
-	fle_p ep ;
-
-	ep = fork_list;
+	struct forklist *ep;
 
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
@@ -461,9 +462,8 @@ again:
 	 * to adjust anything.
 	 *   What if they have an error? XXX
 	 */
-	while (ep) {
+	TAILQ_FOREACH(ep, &fork_list, next) {
 		(*ep->function)(p1, p2, flags);
-		ep = ep->next;
 	}
 
 	/*
@@ -505,48 +505,44 @@ again:
  * However first make sure that it's not already there.
  * Returns 0 on success or a standard error number.
  */
+
 int
 at_fork(function)
 	forklist_fn function;
 {
-	fle_p ep;
+	struct forklist *ep;
 
+#ifdef INVARIANTS
 	/* let the programmer know if he's been stupid */
 	if (rm_at_fork(function)) 
-		printf("fork callout entry already present\n");
-	ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
+		printf("WARNING: fork callout entry (%p) already present\n",
+		    function);
+#endif
+	ep = malloc(sizeof(*ep), M_ATFORK, M_NOWAIT);
 	if (ep == NULL)
 		return (ENOMEM);
-	ep->next = fork_list;
 	ep->function = function;
-	fork_list = ep;
+	TAILQ_INSERT_TAIL(&fork_list, ep, next);
 	return (0);
 }
 
 /*
- * Scan the exit callout list for the given items and remove them.
- * Returns the number of items removed.
- * Theoretically this value can only be 0 or 1.
+ * Scan the exit callout list for the given item and remove it..
+ * Returns the number of items removed (0 or 1)
  */
+
 int
 rm_at_fork(function)
 	forklist_fn function;
 {
-	fle_p *epp, ep;
-	int count;
+	struct forklist *ep;
 
-	count= 0;
-	epp = &fork_list;
-	ep = *epp;
-	while (ep) {
+	TAILQ_FOREACH(ep, &fork_list, next) {
 		if (ep->function == function) {
-			*epp = ep->next;
-			free(ep, M_TEMP);
-			count++;
-		} else {
-			epp = &ep->next;
+			TAILQ_REMOVE(&fork_list, ep, next);
+			free(ep, M_ATFORK);
+			return(1);
 		}
-		ep = *epp;
-	}
-	return (count);
+	}	
+	return (0);
 }
