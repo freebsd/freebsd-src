@@ -1687,7 +1687,7 @@
     (&man.bge.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>3Com 3c996-T</para>
+	  <para>3Com 3c996-SX, 3c996-T</para>
         </listitem>
         <listitem>
 	  <para>Netgear GA302T</para>
@@ -2451,6 +2451,16 @@
         <listitem>
 	  <para>Entrega USB-to-parallel printer adapter</para>
 	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Serial devices
+      <itemizedlist>
+        <listitem>
+	  <para>Prolific PL-2303 serial adapter (uplcom driver)</para>
+        </listitem>
+        <listitem>
+	  <para>SUNTAC Slipper U VS-10U (uvscom driver)</para>
+        </listitem>
       </itemizedlist>
     </para>
     <para arch="i386">Scanners (through SANE) (&man.uscanner.4; driver)
