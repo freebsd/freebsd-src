@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.15 1995/12/14 08:31:45 phk Exp $
+ *	$Id: subr_rlist.c,v 1.16 1996/03/02 22:57:45 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -72,9 +72,8 @@
  */
 
 #define RLIST_MIN 128
-static int rlist_count=0, rlist_desired=0;
+static int rlist_count=0;
 static struct rlist *rlfree;
-static int rlist_active;
 
 static struct rlist	*rlist_malloc __P((void));
 
@@ -115,19 +114,20 @@ rlist_mfree( struct rlist *rl)
 }
 
 void
-rlist_free(rlp, start, end)
-	struct rlist **rlp;
+rlist_free(rlh, start, end)
+	struct rlisthdr *rlh;
 	u_int start, end;
 {
+	struct rlist **rlp = &rlh->rlh_list;
 	struct rlist *prev_rlp = NULL, *cur_rlp = *rlp, *next_rlp = NULL;
 	int s;
 
 	s = splhigh();
-	while (rlist_active) {
-		rlist_desired = 1;
-		tsleep((caddr_t)&rlist_active, PSWP, "rlistf", 0);
+	while (rlh->rlh_lock & RLH_LOCKED) {
+		rlh->rlh_lock |= RLH_DESIRED;
+		tsleep(rlh, PSWP, "rlistf", 0);
 	}
-	rlist_active = 1;
+	rlh->rlh_lock |= RLH_LOCKED;
 	splx(s);
 
 	/*
@@ -217,10 +217,10 @@ rlist_free(rlp, start, end)
 	}
 
 done:
-	rlist_active = 0;
-	if (rlist_desired) {
-		wakeup((caddr_t)&rlist_active);
-		rlist_desired = 0;
+	rlh->rlh_lock &= ~RLH_LOCKED;
+	if (rlh->rlh_lock & RLH_DESIRED) {
+		wakeup(rlh);
+		rlh->rlh_lock &= ~RLH_DESIRED;
 	}
 	return;
 }
@@ -232,20 +232,21 @@ done:
  * "*loc". (Note: loc can be zero if we don't wish the value)
  */
 int
-rlist_alloc (rlp, size, loc)
-	struct rlist **rlp;
+rlist_alloc (rlh, size, loc)
+	struct rlisthdr *rlh;
 	unsigned size, *loc;
 {
+	struct rlist **rlp = &rlh->rlh_list;
 	register struct rlist *lp;
 	int s;
 	register struct rlist *olp = 0;
 
 	s = splhigh();
-	while( rlist_active) {
-		rlist_desired = 1;
-		tsleep((caddr_t)&rlist_active, PSWP, "rlista", 0);
+	while (rlh->rlh_lock & RLH_LOCKED) {
+		rlh->rlh_lock |= RLH_DESIRED;
+		tsleep(rlh, PSWP, "rlistf", 0);
 	}
-	rlist_active = 1;
+	rlh->rlh_lock |= RLH_LOCKED;
 	splx(s);
 
 	/* walk list, allocating first thing that's big enough (first fit) */
@@ -271,20 +272,20 @@ rlist_alloc (rlp, size, loc)
 				}
 			}
 
-			rlist_active = 0;
-			if( rlist_desired) {
-				rlist_desired = 0;
-				wakeup((caddr_t)&rlist_active);
+			rlh->rlh_lock &= ~RLH_LOCKED;
+			if (rlh->rlh_lock & RLH_DESIRED) {
+				wakeup(rlh);
+				rlh->rlh_lock &= ~RLH_DESIRED;
 			}
 			return (1);
 		} else {
 			olp = *rlp;
 		}
 
-	rlist_active = 0;
-	if( rlist_desired) {
-		rlist_desired = 0;
-		wakeup((caddr_t)&rlist_active);
+	rlh->rlh_lock &= ~RLH_LOCKED;
+	if (rlh->rlh_lock & RLH_DESIRED) {
+		wakeup(rlh);
+		rlh->rlh_lock &= ~RLH_DESIRED;
 	}
 	/* nothing in list that's big enough */
 	return (0);
@@ -295,9 +296,10 @@ rlist_alloc (rlp, size, loc)
  * mark it as being empty.
  */
 void
-rlist_destroy (rlp)
-	struct rlist **rlp;
+rlist_destroy (rlh)
+	struct rlisthdr *rlh;
 {
+	struct rlist **rlp = &rlh->rlh_list;
 	struct rlist *lp, *nlp;
 
 	lp = *rlp;

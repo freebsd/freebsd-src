@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.60 1996/01/31 13:14:21 davidg Exp $
+ * $Id: swap_pager.c,v 1.61 1996/03/02 02:54:17 dyson Exp $
  */
 
 /*
@@ -80,7 +80,7 @@ static int nswiodone;
 int swap_pager_full;
 extern int vm_swap_size;
 static int no_swap_space = 1;
-struct rlist *swaplist;
+struct rlisthdr swaplist;
 
 #define MAX_PAGEOUT_CLUSTER 16
 
