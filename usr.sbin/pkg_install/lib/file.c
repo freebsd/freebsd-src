@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.18 1995/10/31 20:30:18 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.19 1995/11/12 04:55:38 jkh Exp $";
 #endif
 
 /*
@@ -436,6 +436,7 @@ unpack(char *pkg, char *flist)
      * Figure out by a crude heuristic whether this or not this is probably
      * compressed.
      */
+    args[0] = '\0';
     cp = rindex(pkg, '.');
     if (cp) {
 	strcpy(suffix, cp + 1);
