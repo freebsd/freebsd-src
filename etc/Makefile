@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.117.4.1 1995/08/30 06:05:42 davidg Exp $
+#	$Id: Makefile,v 1.117.4.2 1995/10/05 09:31:19 davidg Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -8,8 +8,8 @@ BINGRP= wheel
 BIN1=   aliases csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
 	inetd.conf login.access motd modems netstart \
-	networks phones printcap profile protocols \
-	rc rc.local rc.serial etc.${MACHINE}/rc.${MACHINE} \
+	networks pccard.conf.sample phones printcap profile protocols \
+	rc rc.local rc.pccard rc.serial etc.${MACHINE}/rc.${MACHINE} \
 	remote security services sysconfig shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
@@ -19,7 +19,7 @@ BIN1=   aliases csh.cshrc csh.login csh.logout dm.conf \
 BIN2=	motd
 
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
-BIN3=	daily weekly monthly
+BIN3=	daily weekly monthly pccard_ether
 
 CLEANFILES+=	*.c *.o *.lo
 CLEANFILES+=	filesystem filesystem.cache filesystem.mk
