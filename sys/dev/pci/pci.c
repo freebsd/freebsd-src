@@ -53,8 +53,9 @@
 #include <machine/resource.h>
 
 #include <sys/pciio.h>
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pci_private.h>
 
 #include "pcib_if.h"
 #include "pci_if.h"
@@ -66,10 +67,8 @@ static int		pci_maprange(unsigned mapreg);
 static void		pci_fixancient(pcicfgregs *cfg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
 					pcicfgregs *cfg);
-static struct pci_devinfo *pci_read_device(device_t pcib, int b, int s, int f);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
 
-static void		pci_print_verbose(struct pci_devinfo *dinfo);
 static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
 static int		pci_add_map(device_t pcib, int b, int s, int f, int reg, 
@@ -78,36 +77,9 @@ static void		pci_add_resources(device_t pcib, int b, int s, int f,
 					  device_t dev);
 static void		pci_add_children(device_t dev, int busno);
 static int		pci_probe(device_t dev);
-static int		pci_print_child(device_t dev, device_t child);
-static void		pci_probe_nomatch(device_t dev, device_t child);
 static int		pci_describe_parse_line(char **ptr, int *vendor, 
 						int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
-static int		pci_read_ivar(device_t dev, device_t child, int which,
-				      uintptr_t *result);
-static int		pci_write_ivar(device_t dev, device_t child, int which,
-				       uintptr_t value);
-static struct resource	*pci_alloc_resource(device_t dev, device_t child, 
-					    int type, int *rid, u_long start,
-					    u_long end, u_long count, u_int flags);
-static void		pci_delete_resource(device_t dev, device_t child, 
-					    int type, int rid);
-static struct resource_list *pci_get_resource_list (device_t dev, device_t child);
-static u_int32_t	pci_read_config_method(device_t dev, device_t child, 
-					       int reg, int width);
-static void		pci_write_config_method(device_t dev, device_t child, 
-						int reg, u_int32_t val, int width);
-static void		pci_enable_busmaster_method(device_t dev,
-						    device_t child);
-static void		pci_disable_busmaster_method(device_t dev,
-						     device_t child);
-static void		pci_enable_io_method(device_t dev, device_t child,
-					     int space);
-static void		pci_disable_io_method(device_t dev, device_t child,
-					      int space);
-static int		pci_set_powerstate_method(device_t dev, device_t child,
-						  int state);
-static int		pci_get_powerstate_method(device_t dev, device_t child);
 static int		pci_modevent(module_t mod, int what, void *arg);
 
 static device_method_t pci_methods[] = {
@@ -337,7 +309,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 
 /* read configuration header into pcicfgregs structure */
 
-static struct pci_devinfo *
+struct pci_devinfo *
 pci_read_device(device_t pcib, int b, int s, int f)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
@@ -460,18 +432,15 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 #undef REG
 }
 
-#if 0
 /* free pcicfgregs structure and all depending data structures */
 
-static int
+int
 pci_freecfg(struct pci_devinfo *dinfo)
 {
 	struct devlist *devlist_head;
 
 	devlist_head = &pci_devq;
 
-	if (dinfo->cfg.map != NULL)
-		free(dinfo->cfg.map, M_DEVBUF);
 	/* XXX this hasn't been tested */
 	STAILQ_REMOVE(devlist_head, dinfo, pci_devinfo, pci_links);
 	free(dinfo, M_DEVBUF);
@@ -483,12 +452,11 @@ pci_freecfg(struct pci_devinfo *dinfo)
 	pci_numdevs--;
 	return (0);
 }
-#endif
 
 /*
  * PCI power manangement
  */
-static int
+int
 pci_set_powerstate_method(device_t dev, device_t child, int state)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -531,7 +499,7 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 	return(result);
 }
 
-static int
+int
 pci_get_powerstate_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -589,19 +557,19 @@ pci_clear_command_bit(device_t dev, device_t child, u_int16_t bit)
     PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
 }
 
-static void
+void
 pci_enable_busmaster_method(device_t dev, device_t child)
 {
     pci_set_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
 }
 
-static void
+void
 pci_disable_busmaster_method(device_t dev, device_t child)
 {
     pci_clear_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
 }
 
-static void
+void
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
     switch(space) {
@@ -614,7 +582,7 @@ pci_enable_io_method(device_t dev, device_t child, int space)
     }
 }
 
-static void
+void
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
     switch(space) {
@@ -632,7 +600,7 @@ pci_disable_io_method(device_t dev, device_t child, int space)
  * pci-pci-bridge.  Both kinds are represented by instances of pcib.
  */
 
-static void
+void
 pci_print_verbose(struct pci_devinfo *dinfo)
 {
 	if (bootverbose) {
@@ -865,7 +833,7 @@ pci_probe(device_t dev)
 	return 0;
 }
 
-static int
+int
 pci_print_child(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo;
@@ -956,7 +924,7 @@ static struct
 	{0, 0,		NULL}
 };
 
-static void
+void
 pci_probe_nomatch(device_t dev, device_t child)
 {
 	int	i;
@@ -1118,7 +1086,7 @@ pci_describe_device(device_t dev)
 	return(desc);
 }
 
-static int
+int
 pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct pci_devinfo *dinfo;
@@ -1176,7 +1144,7 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return 0;
 }
 
-static int
+int
 pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
 	struct pci_devinfo *dinfo;
@@ -1208,7 +1176,7 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return 0;
 }
 
-static struct resource *
+struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		   u_long start, u_long end, u_long count, u_int flags)
 {
@@ -1241,13 +1209,40 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				   start, end, count, flags);
 }
 
-static void
+void
 pci_delete_resource(device_t dev, device_t child, int type, int rid)
 {
-	printf("pci_delete_resource: PCI resources can not be deleted\n");
+	struct pci_devinfo *dinfo;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+
+	if (device_get_parent(child) != dev)
+		return;
+
+	dinfo = device_get_ivars(child);
+	rl = &dinfo->resources;
+	rle = resource_list_find(rl, type, rid);
+	if (rle) {
+		if (rle->res) {
+			if (rle->res->r_dev != dev ||
+			    rman_get_flags(rle->res) & RF_ACTIVE) {
+				device_printf(dev, "delete_resource: "
+				    "Resource still owned by child, oops. "
+				    "(type=%d, rid=%d, addr=%lx)\n",
+				    rle->type, rle->rid,
+				    rman_get_start(rle->res));
+				return;
+			}
+			bus_release_resource(dev, type, rid, rle->res);
+		}
+		resource_list_delete(rl, type, rid);
+	}
+	/* I don't understand the next line */
+	pci_write_config(child, rid, 0, 4);
+	BUS_DELETE_RESOURCE(device_get_parent(dev), child, type, rid);
 }
 
-static struct resource_list *
+struct resource_list *
 pci_get_resource_list (device_t dev, device_t child)
 {
 	struct pci_devinfo *	dinfo = device_get_ivars(child);
@@ -1259,7 +1254,7 @@ pci_get_resource_list (device_t dev, device_t child)
 	return (rl);
 }
 
-static u_int32_t
+u_int32_t
 pci_read_config_method(device_t dev, device_t child, int reg, int width)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -1270,7 +1265,7 @@ pci_read_config_method(device_t dev, device_t child, int reg, int width)
 				reg, width);
 }
 
-static void
+void
 pci_write_config_method(device_t dev, device_t child, int reg,
 			u_int32_t val, int width)
 {
