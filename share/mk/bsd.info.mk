@@ -160,24 +160,24 @@ ${INFO}.texi: ${SRCS}
 .endif
 
 # tex garbage
-.if ${FORMATS:Mps} || ${FORMATS:Mdvi} || ${FORMATS:Mlatin1}
+.if !empty(FORMATS:Mps) || !empty(FORMATS:Mdvi) || !empty(FORMATS:Mlatin1)
 .for _f in aux cp fn ky log out pg toc tp vr dvi
 CLEANFILES+=	${INFO:S/$/.${_f}/} ${INFO:S/$/-la.${_f}/}
 .endfor
 CLEANFILES+=	${INFO:S/$/-la.texi/}
 .endif
 
-.if ${FORMATS:Mhtml}
+.if !empty(FORMATS:Mhtml)
 CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .endif
 
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS}
-.if ${IFILES:N*.html}
+.if !empty(IFILES:N*.html)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		${IFILES:N*.html} ${DESTDIR}${INFODIR}
 .endif
-.if ${FORMATS:Mhtml}
+.if !empty(FORMATS:Mhtml)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
 		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
 .endif
