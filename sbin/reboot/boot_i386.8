@@ -6,6 +6,8 @@
 .\"
 .\" Almost completely rewritten for FreeBSD 2.1 by Joerg Wunsch.
 .\"
+.\" Substantially revised for FreeBSD 3.1 by Robert Nordier.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -36,7 +38,7 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
-.\" $Id: boot_i386.8,v 1.16 1999/01/19 09:04:18 rnordier Exp $
+.\" $Id: boot_i386.8,v 1.17 1999/03/16 13:16:11 rnordier Exp $
 .\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
@@ -249,6 +251,42 @@ typical non-default kernel (optional)
 .Xr loader 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8
+.Sh DIAGNOSTICS
+When disk-related errors occur, these are reported by the second-stage
+bootstrap using the same error codes returned by the BIOS, for example
+``Disk error 0x1 (lba=0x12345678)''.  Here is a partial list of these
+error codes:
+.Bl -tag -width "0x80" -compat
+.It 0x1
+Invalid argument
+.It 0x2
+Address mark not found
+.It 0x4
+Sector not found
+.It 0x8
+DMA overrun
+.It 0x9
+DMA attempt across 64K boundary
+.It 0xc
+Invalid media
+.It 0x10
+Uncorrectable CRC/ECC error
+.It 0x20
+Controller failure
+.It 0x40
+Seek failed
+.It 0x80
+Timeout
+.El
+.Pp
+IMPORTANT NOTE: Because of limitations imposed by the conventional
+disk interface provided by the BIOS, all boot-related files and
+structures (including the kernel) that need to be accessed during the
+boot phase must reside on the disk at or below cylinder 1023 (as the
+BIOS understands the geometry).  When a
+.Dq Disk error 0x1
+is reported by the second-stage bootstrap, it generally means that this
+requirement has not been adhered to.
 .Sh BUGS
 The disklabel format used by this version of
 .Bx
