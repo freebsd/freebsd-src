@@ -58,9 +58,11 @@ br275.cp850.kbd:es:Brasileño 275 Codepage 850
 
 ce.iso2.kbd:en:Central European ISO-8859-2
 ce.iso2.kbd:de:Zentral Europäisch ISO-8859-2
+ce.iso2.kbd:es:Centroeuropeo ISO-8859-2
 
 cz.iso2.kbd:en:Czech ISO-8859-2
 cz.iso2.kbd:de:Tschechisch ISO-8859-2
+cz.iso2.kbd:es:Checo ISO-8859-2
 
 danish.iso.kbd:en:Danish ISO-8859-1
 danish.iso.kbd:da:Dansk ISO-8859-1
@@ -78,18 +80,23 @@ danish.cp865.kbd:es:Danés Codepage 865
 
 estonian.iso.kbd:en:Estonian ISO-8859-1
 estonian.iso.kbd:de:Estnisch ISO-8859-1
+estonian.iso.kbd:es:Estonio ISO-8859-1
 
 estonian.iso15.kbd:en:Estonian ISO-8859-15
 estonian.iso15.kbd:de:Estnisch ISO-8859-15
+estonian.iso15.kbd:es:Estonio ISO-8859-15
 
 estonian.cp850.kbd:en:Estonian Codepage 850
 estonian.cp850.kbd:de:Estnisch Codeseite 850
+estonian.cp850.kbd:es:Estonio Codepage 850
 
 finnish.iso.kbd:en:Finnish ISO-8859-1
 finnish.iso.kbd:de:Finnisch ISO-8859-1
+finnish.iso.kbd:es:Finlandés ISO-8859-1
 
 finnish.cp850.kbd:en:Finnish Codepage 850
 finnish.cp850.kbd:de:Finnisch Codeseite 850
+finnish.cp850.kbd:es:Finlandés Codepage 850
 
 fr.iso.kbd:en:French ISO-8859-1
 fr.iso.kbd:de:Französisch ISO-8859-1
@@ -104,7 +111,8 @@ fr.iso.acc.kbd:pt:Francês ISO-8859-1 (com acentos)
 fr.iso.acc.kbd:es:Francés ISO-8859-1 (con acentos)
 
 fr_CA.iso.acc.kbd:en:French Canadian ISO-8859-1 (accent keys)
-fr_CA.iso.acc.kbd:en:Französisch Kanada ISO-8859-1 (mit Akzenten)
+fr_CA.iso.acc.kbd:de:Französisch Kanada ISO-8859-1 (mit Akzenten)
+fr_CA.iso.acc.kbd:es:Francocanadiense ISO-8859-1 (con acentos)
 
 german.iso.kbd:en:German ISO-8859-1
 german.iso.kbd:de:Deutsch ISO-8859-1
@@ -120,6 +128,7 @@ german.cp850.kbd:es:Alemán Codepage 850
 
 hr.iso.kbd:en:Croatian ISO-8859-2
 hr.iso.kbd:de:Kroatisch ISO-8859-2
+hr.iso.kbd:es:Croata ISO-8859-2
 
 hu.iso2.101keys.kbd:en:Hungarian 101 ISO-8859-2
 hu.iso2.101keys.kbd:de:Ungarisch 101 ISO-8859-2
@@ -217,6 +226,7 @@ si.iso.kbd:es:Esloveno ISO-8859-2
 
 sk.iso2.kbd:en:Slovak ISO-8859-2
 sk.iso2.kbd:de:Slovakisch ISO-8859-2
+sk.iso2.kbd:es:Eslovaco ISO-8859-2
 
 swedish.iso.kbd:en:Swedish ISO-8859-1
 swedish.iso.kbd:de:Schwedisch ISO-8859-1
@@ -231,84 +241,86 @@ swedish.cp850.kbd:pt,es:Sueco Codepage 850
 swissfrench.iso.kbd:en:Swiss-French ISO-8859-1
 swissfrench.iso.kbd:de:Schweiz-Französisch ISO-8859-1
 swissfrench.iso.kbd:fr:Suisse-Français ISO-8859-1
-swissfrench.iso.kbd:es:Suizo-Francés ISO-8859-1
+swissfrench.iso.kbd:es:Francosuizo ISO-8859-1
+
+swissfrench.iso.acc.kbd:en:Swiss-French ISO-8859-1 (accent keys)
+swissfrench.iso.acc.kbd:de:Schweiz-Französisch ISO-8859-1 (mit Akzenten)
+swissfrench.iso.acc.kbd:fr:Suisse-Français ISO-8859-1 (avec accents)
+swissfrench.iso.acc.kbd:es:Francosuizo ISO-8859-1 (con acentos)
+
+swissfrench.cp850.kbd:en:Swiss-French Codepage 850
+swissfrench.cp850.kbd:de:Schweiz-Französisch Codeseite 850
+swissfrench.cp850.kbd:fr:Suisse-Français Code Page 850
+swissfrench.cp850.kbd:es:Francosuizo Codepage 850
 
 swissgerman.iso.kbd:en:Swiss-German ISO-8859-1
 swissgerman.iso.kbd:de:Schweiz-Deutsch ISO-8859-1
 swissgerman.iso.kbd:fr:Suisse-Allemand ISO-8859-1
 swissgerman.iso.kbd:pt:Suiço-Alemão ISO-8859-1
-swissgerman.iso.kbd:es:Suizo-Alemán ISO-8859-1
-
-swissfrench.iso.acc.kbd:en:Swiss-French ISO-8859-1 (accent keys)
-swissfrench.iso.acc.kbd:de:Schweiz-Französisch ISO-8859-1 (mit Akzenten)
-swissfrench.iso.acc.kbd:fr:Suisse-Français ISO-8859-1 (avec accents)
-swissfrench.iso.acc.kbd:es:Suizo-Francés ISO-8859-1 (con acentos)
+swissgerman.iso.kbd:es:Germanosuizo ISO-8859-1
 
 swissgerman.iso.acc.kbd:en:Swiss-German ISO-8859-1 (accent keys)
 swissgerman.iso.acc.kbd:de:Schweiz-Deutsch ISO-8859-1 (mit Akzenten)
 swissgerman.iso.acc.kbd:fr:Suisse-Allemand ISO-8859-1 (avec accents)
 swissgerman.iso.acc.kbd:pt:Suiço-Alemão ISO-8859-1 (com acentos)
-swissgerman.iso.acc.kbd:es:Suizo-Alemán ISO-8859-1 (con acentos)
-
-swissfrench.cp850.kbd:en:Swiss-French Codepage 850
-swissfrench.cp850.kbd:de:Schweiz-Französisch Codeseite 850
-swissfrench.cp850.kbd:fr:Suisse-Français Code Page 850
-swissfrench.cp850.kbd:es:Suizo-Francés Codepage 850
+swissgerman.iso.acc.kbd:es:Germanosuizo ISO-8859-1 (con acentos)
 
 swissgerman.cp850.kbd:en:Swiss-German Codepage 850
 swissgerman.cp850.kbd:de:Schweiz-Deutsch Codeseite 850
 swissgerman.cp850.kbd:fr:Suisse-Allemand Code Page 850
 swissgerman.cp850.kbd:pt:Suiço-Alemão Codepage 850
-swissgerman.cp850.kbd:es:Suizo-Alemán Codepage 850
+swissgerman.cp850.kbd:es:Germanosuizo Codepage 850
 
 uk.iso.kbd:en:United Kingdom ISO-8859-1
 uk.iso.kbd:de:Vereinigtes Königreich ISO-8859-1
 uk.iso.kbd:fr:Royaume Uni ISO-8859-1
-uk.iso.kbd:pt,es:Reino Unido ISO-8859-1
+uk.iso.kbd:pt:Reino Unido ISO-8859-1
+uk.iso.kbd:es:Británico ISO-8859-1
 
 uk.cp850.kbd:en:United Kingdom Codepage 850
 uk.cp850.kbd:de:Vereinigtes Königreich Codeseite 850
 uk.cp850.kbd:fr:Royaume Uni Code page 850
-uk.cp850.kbd:pt,es:Reino Unido Codepage 850
+uk.cp850.kbd:pt:Reino Unido Codepage 850
+uk.cp850.kbd:es:Británico Codepage 850
 
 us.iso.kbd:en:United States of America ISO-8859-1
 us.iso.kbd:de:US-amerikanisch ISO-8859-1
 us.iso.kbd:fr:États Unis  d'Amérique ISO-8859-1
 us.iso.kbd:pt:Estados Unidos da América ISO-8859-1
-us.iso.kbd:es:Estados Unidos de América ISO-8859-1
+us.iso.kbd:es:Estadounidense ISO-8859-1
 
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:de:US-amerikanisch dvorak
 us.dvorak.kbd:fr:États Unis  d'Amérique dvorak
 us.dvorak.kbd:pt:Estados Unidos da América dvorak
-us.dvorak.kbd:es:Estados Unidos de América dvorak
+us.dvorak.kbd:es:Estadounidense dvorak
 
 us.dvorakr.kbd:en:United States of America righthand dvorak
 us.dvorakr.kbd:de:US-amerikanisch dvorak rechte Hand
 us.dvorakr.kbd:fr:États Unis  d'Amérique dvorakr
 us.dvorakr.kbd:pt:Estados Unidos da América dvorakr
-us.dvorakr.kbd:es:Estados Unidos de América dvorakr
+us.dvorakr.kbd:es:Estadounidense dvorak diestro
 
 us.dvorakl.kbd:en:United States of America lefthand dvorak
 us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand 
 us.dvorakl.kbd:fr:États Unis  d'Amérique dvorakl
 us.dvorakl.kbd:pt:Estados Unidos da América dvorakl
-us.dvorakl.kbd:es:Estados Unidos de América dvorakl
+us.dvorakl.kbd:es:Estadounidense dvorak zurdo
 
 us.dvorakx.kbd:en:United States of America dvorakx
 us.dvorakx.kbd:de:US-amerikanisch dvorakx
 us.dvorakx.kbd:fr:États Unis  d'Amérique dvorakx
 us.dvorakx.kbd:pt:Estados Unidos da América dvorakx
-us.dvorakx.kbd:es:Estados Unidos de América dvorakx
+us.dvorakx.kbd:es:Estadounidense dvorakx
 
 us.emacs.kbd:en:United States of America Emacs optimized layout
 us.emacs.kbd:de:US-amerikanisch für Emacs optimiert
 us.emacs.kbd:fr:États Unis  d'Amérique emacs
 us.emacs.kbd:pt:Estados Unidos da América emacs
-us.emacs.kbd:es:Estados Unidos de América emacs
+us.emacs.kbd:es:Estadounidense optimizado para Emacs
 
 us.unix.kbd:en:United States of America Traditional Unix Workstation
 us.unix.kbd:de:US-amerikanisch traditionelles Unix Layout
 us.unix.kbd:fr:États Unis  d'Amérique unix
 us.unix.kbd:pt:Estados Unidos da América unix
-us.unix.kbd:es:Estados Unidos de América unix
+us.unix.kbd:es:Estadounidense Unix tradicional
