@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf.h,v 1.3 1998/08/16 03:03:31 jdp Exp $
+ *      $Id: elf.h,v 1.4 1998/09/14 20:30:12 jdp Exp $
  */
 
 #ifndef _MACHINE_ELF_H_
@@ -39,6 +39,8 @@
 #include <sys/elf_generic.h>
 
 #define ELF_ARCH	EM_386
+
+#define ELF_MACHINE_OK(x) ((x) == EM_386 || (x) == EM_486)
 
 /*
  * Auxiliary vector entries for passing information to the interpreter.
