@@ -47,6 +47,8 @@ struct	ifvlan {
 		u_int16_t ifvm_tag; /* tag to apply on packets leaving if */
 	}	ifv_mib;
 	SLIST_HEAD(__vlan_mchead, vlan_mc_entry)	vlan_mc_listhead;
+	LIST_ENTRY(ifvlan) ifv_list;
+	struct resource *r_unit;	/* resource allocated for this unit */
 };
 #define	ifv_if	ifv_ac.ac_if
 #define	ifv_tag	ifv_mib.ifvm_tag
@@ -77,13 +79,5 @@ struct	vlanreq {
 };
 #define	SIOCSETVLAN	SIOCSIFGENERIC
 #define	SIOCGETVLAN	SIOCGIFGENERIC
-
-#ifdef _KERNEL
-/* shared with if_ethersubr.c: */
-extern	u_int vlan_proto;
-extern	int vlan_input(struct ether_header *eh, struct mbuf *m);
-extern	int vlan_input_tag(struct ether_header *eh,
-			struct mbuf *m, u_int16_t t);
-#endif
 
 #endif /* _NET_IF_VLAN_VAR_H_ */

@@ -32,8 +32,6 @@
  * Intel EtherExpress Pro/100B PCI Fast Ethernet driver
  */
 
-#include "vlan.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -66,10 +64,8 @@
 #include <vm/pmap.h>		/* for vtophys */
 #include <machine/clock.h>	/* for DELAY */
 
-#if NVLAN > 0
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#endif
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>		/* for PCIM_CMD_xxx */
@@ -588,10 +584,9 @@ fxp_attach(device_t dev)
 
 		/* turn on the extended TxCB feature */
 		sc->flags |= FXP_FLAG_EXT_TXCB;
-#if NVLAN > 0
+
 		/* enable reception of long frames for VLAN */
 		sc->flags |= FXP_FLAG_LONG_PKT_EN;
-#endif
 	}
 
 	/*
@@ -651,12 +646,10 @@ fxp_attach(device_t dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
-#if NVLAN > 0
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
-#endif
 
 	/*
 	 * Let the system queue as many packets as we have available
@@ -1315,7 +1308,7 @@ rcvloop:
 						m_freem(m);
 						goto rcvloop;
 					}
-#if NVLAN > 0
+
 					/*
 					 * Drop the packet if it has CRC
 					 * errors.  This test is only needed
@@ -1327,7 +1320,7 @@ rcvloop:
 						m_freem(m);
 						goto rcvloop;
 					}
-#endif
+
 					m->m_pkthdr.rcvif = ifp;
 					m->m_pkthdr.len = m->m_len = total_len;
 					eh = mtod(m, struct ether_header *);
@@ -1615,11 +1608,7 @@ fxp_init(void *xsc)
 	cbp->ext_txcb_dis = 	sc->flags & FXP_FLAG_EXT_TXCB ? 0 : 1;
 	cbp->ext_stats_dis = 	1;	/* disable extended counters */
 	cbp->keep_overrun_rx = 	0;	/* don't pass overrun frames to host */
-#if NVLAN > 0
 	cbp->save_bf =		sc->revision == FXP_REV_82557 ? 1 : prm;
-#else
-	cbp->save_bf =		prm;	/* save bad frames */
-#endif
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (once) on DMA underrun */
 	cbp->two_frames =	0;	/* do not limit FIFO to 2 frames */

@@ -29,8 +29,6 @@
  * $FreeBSD$
  */
 
-#include "vlan.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -73,8 +71,6 @@
 
 #include <dev/gx/if_gxreg.h>
 #include <dev/gx/if_gxvar.h>
-
-#define VLAN_INPUT_TAG(ifp, eh, m, tag)		vlan_input_tag(eh, m, tag)
 
 MODULE_DEPEND(gx, miibus, 1, 1, 1);
 #include "miibus_if.h"
@@ -1301,16 +1297,16 @@ gx_rxeof(struct gx_softc *gx)
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
-#if NVLAN > 0
+
 		/*
 		 * If we received a packet with a vlan tag, pass it
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (staterr & GX_RXSTAT_VLAN_PKT) {
-			VLAN_INPUT_TAG(ifp, eh, m, rx->rx_special);
+			VLAN_INPUT_TAG(eh, m, rx->rx_special);
 			continue;
 		}
-#endif
+
 		ether_input(ifp, eh, m);
 		continue;
 

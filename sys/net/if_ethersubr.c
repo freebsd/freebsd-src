@@ -97,11 +97,6 @@ extern u_char	at_org_code[3];
 extern u_char	aarp_org_code[3];
 #endif /* NETATALK */
 
-#include "vlan.h"
-#if NVLAN > 0
-#include <net/if_vlan_var.h>
-#endif /* NVLAN > 0 */
-
 /* netgraph node hooks for ng_ether(4) */
 void	(*ng_ether_input_p)(struct ifnet *ifp,
 		struct mbuf **mp, struct ether_header *eh);
@@ -117,6 +112,10 @@ bridge_in_t *bridge_in_ptr;
 bdg_forward_t *bdg_forward_ptr;
 bdgtakeifaces_t *bdgtakeifaces_ptr;
 struct bdg_softc *ifp2sc = NULL;
+
+int	(*vlan_input_p)(struct ether_header *eh, struct mbuf *m);
+int	(*vlan_input_tag_p)(struct ether_header *eh, struct mbuf *m,
+		u_int16_t t);
 
 static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				    struct sockaddr *));
@@ -536,14 +535,6 @@ ether_demux(ifp, eh, m)
 
 	ether_type = ntohs(eh->ether_type);
 
-#if NVLAN > 0
-	if (ether_type == vlan_proto) {
-		if (vlan_input(eh, m) < 0)
-			ifp->if_data.ifi_noproto++;
-		return;
-	}
-#endif /* NVLAN > 0 */
-
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
@@ -594,6 +585,9 @@ ether_demux(ifp, eh, m)
                 aarpinput(IFP2AC(ifp), m); /* XXX */
                 return;
 #endif NETATALK
+	case ETHERTYPE_VLAN:
+		VLAN_INPUT(eh, m);
+		return;
 	default:
 #ifdef IPX
 		if (ef_inputp && ef_inputp(ifp, eh, m) == 0)

@@ -70,8 +70,6 @@
  * ring.
  */
 
-#include "vlan.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -89,10 +87,8 @@
 
 #include <net/bpf.h>
 
-#if NVLAN > 0
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -1901,10 +1897,8 @@ bge_rxeof(sc)
 		u_int32_t		rxidx;
 		struct ether_header	*eh;
 		struct mbuf		*m = NULL;
-#if NVLAN > 0
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
-#endif
 
 		cur_rx =
 	    &sc->bge_rdata->bge_rx_return_ring[sc->bge_rx_saved_considx];
@@ -1912,12 +1906,10 @@ bge_rxeof(sc)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(sc->bge_rx_saved_considx, BGE_RETURN_RING_CNT);
 
-#if NVLAN > 0
 		if (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
 		}
-#endif
 
 		if (cur_rx->bge_flags & BGE_RXBDFLAG_JUMBO_RING) {
 			BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
@@ -1972,17 +1964,16 @@ bge_rxeof(sc)
 			}
 		}
 
-#if NVLAN > 0
 		/*
 		 * If we received a packet with a vlan tag, pass it
 		 * to vlan_input() instead of ether_input().
 		 */
 		if (have_tag) {
-			vlan_input_tag(eh, m, vlan_tag);
+			VLAN_INPUT_TAG(eh, m, vlan_tag);
 			have_tag = vlan_tag = 0;
 			continue;
 		}
-#endif
+
 		ether_input(ifp, eh, m);
 	}
 
@@ -2181,14 +2172,12 @@ bge_encap(sc, m_head, txidx)
 	struct mbuf		*m;
 	u_int32_t		frag, cur, cnt = 0;
 	u_int16_t		csum_flags = 0;
-#if NVLAN > 0
 	struct ifvlan		*ifv = NULL;
 
 	if ((m_head->m_flags & (M_PROTO1|M_PKTHDR)) == (M_PROTO1|M_PKTHDR) &&
 	    m_head->m_pkthdr.rcvif != NULL &&
 	    m_head->m_pkthdr.rcvif->if_type == IFT_L2VLAN)
 		ifv = m_head->m_pkthdr.rcvif->if_softc;
-#endif
 
 	m = m_head;
 	cur = frag = *txidx;
@@ -2217,14 +2206,12 @@ bge_encap(sc, m_head, txidx)
 			   vtophys(mtod(m, vm_offset_t));
 			f->bge_len = m->m_len;
 			f->bge_flags = csum_flags;
-#if NVLAN > 0
 			if (ifv != NULL) {
 				f->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
 				f->bge_vlan_tag = ifv->ifv_tag;
 			} else {
 				f->bge_vlan_tag = 0;
 			}
-#endif
 			/*
 			 * Sanity check: avoid coming within 16 descriptors
 			 * of the end of the ring.

@@ -80,10 +80,7 @@ driver supports the VLAN operation (using
 .Xr vlan 4
 inteface) without decreasing the MTU on the 
 .Xr vlan 4
-interfaces. This support must be enabled by adding ``pseudo-device vlan''
-to the kernel configuration file (if compiling staticaly) or inserting 
-the ``#define NVLAN 1'' line into the sys/modules/tx/vlan.h (if compiling
-as KLD)
+interfaces.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "tx%d: device timeout %d packets"
