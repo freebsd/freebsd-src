@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.62 1996/03/17 08:39:50 jkh Exp $
+#	$Id: GENERIC,v 1.63 1996/03/20 10:42:56 jkh Exp $
 #
 
 machine		"i386"
@@ -100,6 +100,7 @@ device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
 device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port? tty
 device		lpt2	at isa? port? tty
+device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
