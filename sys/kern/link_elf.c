@@ -831,7 +831,7 @@ link_elf_unload_file(linker_file_t file)
 #ifdef DDB
     if (ef->gdb.l_ld) {
 	GDB_STATE(RT_DELETE);
-	free((void *)ef->gdb.l_name, M_LINKER);
+	free((void *)(uintptr_t)ef->gdb.l_name, M_LINKER);
 	link_elf_delete_gdb(&ef->gdb);
 	GDB_STATE(RT_CONSISTENT);
     }
