@@ -28,6 +28,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Cyclades Y ISA serial interface driver
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -45,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cy/cyreg.h>
 #include <dev/cy/cyvar.h>
 
-static	int	cy_isa_attach(device_t dev);
-static	int	cy_isa_probe(device_t dev);
+static int	cy_isa_attach(device_t dev);
+static int	cy_isa_probe(device_t dev);
 
 static device_method_t cy_isa_methods[] = {
 	/* Device interface. */
@@ -85,7 +89,7 @@ cy_isa_probe(device_t dev)
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET, 0);	/* XXX? */
-	DELAY(500);	/* wait for the board to get its act together */
+	DELAY(500);		/* wait for the board to get its act together */
 
 	/* this is needed to get the board out of reset */
 	cy_outb(iobase, CY_CLEAR_INTR, 0, 0);
