@@ -194,6 +194,8 @@ static pthread_func_t jmp_table[][2] = {
 
 int _pthread_guard_default;
 int _pthread_page_size;
+int _pthread_stack_default;
+int _pthread_stack_initial;
 
 /*
  * Threaded process initialization
@@ -223,8 +225,17 @@ _thread_init(void)
 	_pthread_page_size = getpagesize();;
 	_pthread_guard_default = _pthread_page_size;
 	sched_stack_size = 4 * _pthread_page_size;
+	if (sizeof(void *) == 8) {
+		_pthread_stack_default = PTHREAD_STACK64_DEFAULT;
+		_pthread_stack_initial = PTHREAD_STACK64_INITIAL;
+	}
+	else {
+		_pthread_stack_default = PTHREAD_STACK32_DEFAULT;
+		_pthread_stack_initial = PTHREAD_STACK32_INITIAL;
+	}
 
 	_pthread_attr_default.guardsize_attr = _pthread_guard_default;
+	_pthread_attr_default.stacksize_attr = _pthread_stack_default;
 
 	/*
 	 * Make gcc quiescent about {,libgcc_}references not being
@@ -361,17 +372,17 @@ _thread_init(void)
 		 * this stack needs an explicitly mapped red zone to protect the
 		 * thread stack that is just beyond.
 		 */
-		if (mmap(_usrstack - PTHREAD_STACK_INITIAL -
+		if (mmap(_usrstack - _pthread_stack_initial -
 		    _pthread_guard_default, _pthread_guard_default, 0,
 		    MAP_ANON, -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
 
 		/* Set the main thread stack pointer. */
-		_thread_initial->stack = _usrstack - PTHREAD_STACK_INITIAL;
+		_thread_initial->stack = _usrstack - _pthread_stack_initial;
 
 		/* Set the stack attributes: */
 		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
-		_thread_initial->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
+		_thread_initial->attr.stacksize_attr = _pthread_stack_initial;
 
 		/* Setup the context for the scheduler: */
 		_setjmp(_thread_kern_sched_jb);
