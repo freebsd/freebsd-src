@@ -2,7 +2,7 @@ dir /usr/src/sys/modules/vinum
 dir /usr/src/sys/i386/conf
 dir /usr/src/sys
 define asf
-   set $file = files.tqh_first
+   set $file = linker_files.tqh_first
    set $found = 0
    while ($found == 0)
      if (*$file->filename == 'v')
