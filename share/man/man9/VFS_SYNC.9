@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VFS_SYNC.9,v 1.1 1997/03/03 17:59:57 dfr Exp $
+.\" $Id: VFS_SYNC.9,v 1.2 1997/03/04 10:01:57 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -58,11 +58,11 @@ This would normally call
 .Xr VOP_FSYNC 9
 for all the vnodes in the filesystem.
 .Sh SEE ALSO
-.Xr vnode 9 ,
-.Xr VFS 9 ,
-.Xr VOP_FSYNC 9 ,
+.Xr fsync 2 ,
 .Xr sync 2 ,
-.Xr fsync 2
+.Xr VFS 9 ,
+.Xr vnode 9 ,
+.Xr VOP_FSYNC 9
 .Sh AUTHORS
 This man page was written by Doug Rabson.
 
