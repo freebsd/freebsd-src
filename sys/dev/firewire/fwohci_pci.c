@@ -65,7 +65,7 @@ fwohci_pci_probe( device_t dev )
 #if 1
 	u_int32_t id;
 
-	id = (pci_get_vendor(dev) << 16) | pci_get_device(dev);
+	id = pci_get_devid(dev);
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD861)) {
 		device_set_desc(dev, "NEC uPD72861");
 		return 0;
