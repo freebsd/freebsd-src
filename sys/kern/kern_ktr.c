@@ -46,7 +46,8 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/time.h>
-#include <machine/stdarg.h>
+
+#include <machine/cpu.h>
 
 #include <ddb/ddb.h>
 
@@ -62,22 +63,12 @@
 #define	KTR_CPUMASK	(~0)
 #endif
 
-#ifdef SMP
-#define KTR_CPU		PCPU_GET(cpuid)
-#else
-#define KTR_CPU		0
+#ifndef KTR_TIME
+#define	KTR_TIME	get_cyclecount()
 #endif
 
-#ifdef KTR_EXTEND
-#define KTR_EXTEND_DEFAULT	1
-#else
-#define KTR_EXTEND_DEFAULT	0
-#endif
-
-#ifdef KTR_VERBOSE
-#define KTR_VERBOSE_DEFAULT	1
-#else
-#define KTR_VERBOSE_DEFAULT	0
+#ifndef KTR_CPU
+#define	KTR_CPU		PCPU_GET(cpuid)
 #endif
 
 SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
@@ -86,9 +77,6 @@ SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
  * This variable is used only by gdb to work out what fields are in
  * ktr_entry.
  */
-int     ktr_extend = KTR_EXTEND_DEFAULT;
-SYSCTL_INT(_debug_ktr, OID_AUTO, extend, CTLFLAG_RD, &ktr_extend, 0, "");
-
 int	ktr_cpumask = KTR_CPUMASK;
 TUNABLE_INT("debug.ktr.cpumask", &ktr_cpumask);
 SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW, &ktr_cpumask, 0, "");
@@ -100,77 +88,75 @@ SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RW, &ktr_mask, 0, "");
 int	ktr_entries = KTR_ENTRIES;
 SYSCTL_INT(_debug_ktr, OID_AUTO, entries, CTLFLAG_RD, &ktr_entries, 0, "");
 
+int	ktr_version = KTR_VERSION;
+SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD, &ktr_version, 0, "");
+
 volatile int	ktr_idx = 0;
 struct	ktr_entry ktr_buf[KTR_ENTRIES];
 
-int	ktr_verbose = KTR_VERBOSE_DEFAULT;
+#ifdef KTR_VERBOSE
+int	ktr_verbose = KTR_VERBOSE;
 TUNABLE_INT("debug.ktr.verbose", &ktr_verbose);
 SYSCTL_INT(_debug_ktr, OID_AUTO, verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
-
-#ifdef KTR
-#ifdef KTR_EXTEND
-void
-ktr_tracepoint(u_int mask, const char *filename, u_int line,
-	       const char *format, ...)
-#else
-void
-ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
-	       u_long arg3, u_long arg4, u_long arg5, u_long arg6)
 #endif
+
+void
+ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
+    u_long arg1, u_long arg2, u_long arg3, u_long arg4, u_long arg5,
+    u_long arg6)
 {
 	struct ktr_entry *entry;
 	int newindex, saveindex;
+#ifdef KTR_VERBOSE
 	struct thread *td;
-	int cpu;
-#ifdef KTR_EXTEND
-	va_list ap;
 #endif
+	int cpu;
 
 	if (panicstr)
 		return;
 	if ((ktr_mask & mask) == 0)
 		return;
-	td = curthread;
-	if (td->td_inktr)
-		return;
 	cpu = KTR_CPU;
 	if (((1 << cpu) & ktr_cpumask) == 0)
 		return;
+#ifdef KTR_VERBOSE
+	td = curthread;
+	if (td->td_inktr)
+		return;
 	td->td_inktr++;
+#endif
 	do {
 		saveindex = ktr_idx;
 		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
+	entry->ktr_timestamp = KTR_TIME;
 	entry->ktr_cpu = cpu;
-	nanotime(&entry->ktr_tv);
-#ifdef KTR_EXTEND
-	entry->ktr_filename = filename;
+	entry->ktr_file = file;
 	entry->ktr_line = line;
-	va_start(ap, format);
-	vsnprintf(entry->ktr_desc, KTRDESCSIZE, format, ap);
-	va_end(ap);
+#ifdef KTR_VERBOSE
 	if (ktr_verbose) {
 #ifdef SMP
-		printf("cpu%d ", entry->ktr_cpu);
+		printf("cpu%d ", cpu);
 #endif
-		if (ktr_verbose > 1)
-			printf("%s.%d\t", entry->ktr_filename, entry->ktr_line);
-		va_start(ap, format);
-		vprintf(format, ap);
+		if (ktr_verbose > 1) {
+			printf("%s.%d\t", entry->ktr_file,
+			    entry->ktr_line);
+		}
+		printf(format, arg1, arg2, arg3, arg4, arg5, arg6);
 		printf("\n");
-		va_end(ap);
 	}
-#else
-	entry->ktr_desc = format;
-	entry->ktr_parm1 = arg1;
-	entry->ktr_parm2 = arg2;
-	entry->ktr_parm3 = arg3;
-	entry->ktr_parm4 = arg4;
-	entry->ktr_parm5 = arg5;
-	entry->ktr_parm6 = arg6;
 #endif
+	entry->ktr_desc = format;
+	entry->ktr_parms[0] = arg1;
+	entry->ktr_parms[1] = arg2;
+	entry->ktr_parms[2] = arg3;
+	entry->ktr_parms[3] = arg4;
+	entry->ktr_parms[4] = arg5;
+	entry->ktr_parms[5] = arg6;
+#ifdef KTR_VERBOSE
 	td->td_inktr--;
+#endif
 }
 
 #ifdef DDB
@@ -227,29 +213,21 @@ db_mach_vtrace(void)
 	kp = &ktr_buf[tstate.cur];
 
 	/* Skip over unused entries. */
-#ifdef KTR_EXTEND
-	if (kp->ktr_desc[0] == '\0') {
-#else
 	if (kp->ktr_desc == NULL) {
-#endif
 		db_printf("--- End of trace buffer ---\n");
 		return (0);
 	}
 	db_printf("%d: ", tstate.cur);
-	if (db_ktr_verbose)
-		db_printf("%4ld.%06ld ", (long)kp->ktr_tv.tv_sec,
-		    kp->ktr_tv.tv_nsec / 1000);
-#ifdef KTR_EXTEND
 #ifdef SMP
 	db_printf("cpu%d ", kp->ktr_cpu);
 #endif
-	if (db_ktr_verbose)
-		db_printf("%s.%d\t", kp->ktr_filename, kp->ktr_line);
-	db_printf("%s", kp->ktr_desc);
-#else
-	db_printf(kp->ktr_desc, kp->ktr_parm1, kp->ktr_parm2, kp->ktr_parm3,
-	    kp->ktr_parm4, kp->ktr_parm5, kp->ktr_parm6);
-#endif
+	if (db_ktr_verbose) {
+		db_printf("%10.10lld %s.%d\t", (long long)kp->ktr_timestamp,
+		    kp->ktr_file, kp->ktr_line);
+	}
+	db_printf(kp->ktr_desc, kp->ktr_parms[0], kp->ktr_parms[1],
+	    kp->ktr_parms[2], kp->ktr_parms[3], kp->ktr_parms[4],
+	    kp->ktr_parms[5]);
 	db_printf("\n");
 
 	if (tstate.first == -1)
@@ -262,4 +240,3 @@ db_mach_vtrace(void)
 }
 
 #endif	/* DDB */
-#endif	/* KTR */
