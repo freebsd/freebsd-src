@@ -2018,7 +2018,11 @@ frdest_t *fdp;
 		error = ip6_getpmtu(ro_pmtu, ro, ifp, &finaldst, &mtu);
 		if (error == 0) {
 #else
+#ifdef ND_IFINFO
+			mtu = ND_IFINFO(ifp)->linkmtu;
+#else
 			mtu = nd_ifinfo[ifp->if_index].linkmtu;
+#endif
 #endif
 			if (m0->m_pkthdr.len <= mtu)
 				error = nd6_output(ifp, fin->fin_ifp, m0,
