@@ -54,7 +54,8 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl t
 Set the modification time of the __.SYMDEF file.
-This time is compared by the loader with the modification time of the
+Some loaders (but not the FreeBSD one)
+compared this time with the modification time of the
 archive to verify that the table is up-to-date with respect to the
 archive.
 If the modification time has been changed without any change to the
