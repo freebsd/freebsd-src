@@ -192,6 +192,11 @@ static	char *pktdata;
 static	int pktdatasize;
 
 /*
+ * These are used to help the magic with old and new versions of ntpd.
+ */
+static int req_pkt_size = REQ_LEN_NOMAC;
+
+/*
  * For commands typed on the command line (with the -c option)
  */
 static	int numcmds = 0;
@@ -474,6 +479,7 @@ openhost(
 	    error("connect", "", "");
 	
 	havehost = 1;
+	req_pkt_size = REQ_LEN_NOMAC;
 	return 1;
 }
 
@@ -770,11 +776,15 @@ sendrequest(
 
 	if (!auth) {
 		qpkt.auth_seq = AUTH_SEQ(0, 0);
-		return sendpkt((char *)&qpkt, REQ_LEN_NOMAC);
+		return sendpkt((char *)&qpkt, req_pkt_size);
 	} else {
 		l_fp ts;
 		int maclen = 0;
 		const char *pass = "\0";
+		struct req_pkt_tail *qpktail;
+
+		qpktail = (struct req_pkt_tail *)((char *)&qpkt + req_pkt_size
+		    + MAX_MAC_LEN - sizeof(struct req_pkt_tail));
 
 		if (info_auth_keyid == 0) {
 			maclen = getkeyid("Keyid: ");
@@ -797,17 +807,17 @@ sendrequest(
 		authusekey(info_auth_keyid, info_auth_keytype, (const u_char *)pass);
 		authtrust(info_auth_keyid, 1);
 		qpkt.auth_seq = AUTH_SEQ(1, 0);
-		qpkt.keyid = htonl(info_auth_keyid);
+		qpktail->keyid = htonl(info_auth_keyid);
 		get_systime(&ts);
 		L_ADD(&ts, &delay_time);
-		HTONL_FP(&ts, &qpkt.tstamp);
+		HTONL_FP(&ts, &qpktail->tstamp);
 		maclen = authencrypt(info_auth_keyid, (u_int32 *)&qpkt,
-		    REQ_LEN_NOMAC);
+		    req_pkt_size);
 		if (maclen == 0) {  
 			(void) fprintf(stderr, "Key not found\n");
 			return (1);
 		}
-		return sendpkt((char *)&qpkt, (int)(REQ_LEN_NOMAC + maclen));
+		return sendpkt((char *)&qpkt, (int)(req_pkt_size + maclen));
 	}
 	/*NOTREACHED*/
 }
@@ -846,6 +856,7 @@ doquery(
 	/*
 	 * Poll the socket and clear out any pending data
 	 */
+again:
 	do {
 		tvzero.tv_sec = tvzero.tv_usec = 0;
 		FD_ZERO(&fds);
@@ -872,6 +883,26 @@ doquery(
 	 * Get the response.  If we got a standard error, print a message
 	 */
 	res = getresponse(implcode, reqcode, ritems, rsize, rdata);
+
+	/*
+	 * Try to be compatible with older implementations of ntpd.
+	 */
+	if (res == INFO_ERR_FMT && req_pkt_size != 48) {
+		int oldsize;
+
+		oldsize = req_pkt_size;
+
+		switch(req_pkt_size) {
+		case REQ_LEN_NOMAC:
+			req_pkt_size = 48;
+			break;
+		}
+
+		fprintf(stderr,
+		    "***Warning changing the request packet size from %d to %d\n",
+		    oldsize, req_pkt_size);
+		goto again;
+	}
 
  	/* log error message if not told to be quiet */
  	if ((res > 0) && (((1 << res) & quiet_mask) == 0)) {

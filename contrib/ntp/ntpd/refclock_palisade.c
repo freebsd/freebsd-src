@@ -878,4 +878,6 @@ getint (
 return (short) (bp[1] + (bp[0] << 8));
 }
 
+#else
+int refclock_palisade_bs;
 #endif /* REFCLOCK */

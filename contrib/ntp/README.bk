@@ -1,0 +1,62 @@
+In order to use the BitKeeper repository version of NTP you will have
+to have the following tools installed:
+
+	autoconf	2.50 or later (we use 2.52)
+	automake	(we use 1.5)
+	lynx
+
+Lynx is used to generate the COPYRIGHT file.  Don't ask.
+
+You can get bitkeeper by visiting:
+
+	http://www.bitkeeper.com/ 
+
+We are using bitkeeper under their free license program.  You can use
+bitkeeper for free to access NTP, too.  If you have questions about this,
+please ask.  The license is pretty easy to read.
+ 
+Once you have installed bitkeeper, you can clone any NTP repository.
+
+You can get the ntp-stable repository by either of the following commands:
+
+     bk clone bk://www.ntp.org/home/bk/ntp-stable ntp-stable
+
+     bk clone bk://ntp.bkserver.net/ntp-stable ntp-stable
+
+You can get the ntp-dev repository by either of the following commands:
+
+     bk clone bk://www.ntp.org/home/bk/ntp-dev ntp-dev
+
+     bk clone bk://ntp.bkserver.net/ntp-dev ntp-dev
+
+The IPV6 patch has been applied:
+
+     bk clone bk://www.ntp.org/home/bk/ntp-dev-ipv6 ntp-dev-ipv6
+
+     bk clone bk://ntp.bkserver.net/ntp-dev-ipv6 ntp-dev-ipv6
+
+The ntp-dev-ipv6 repository will be merged back in to the ntp-dev repo
+as soon as the code is stable.
+
+If you are stuck behind a firewall that blocks access to the default port
+used by bitkeeper (14690) but you can use port 80 instead, you can use
+http as a bk transport mechanism.  Just use:
+
+     bk clone http://ntp.bkserver.net/REPO REPO
+
+Finally, it's possible to use SMTP as a bk transport mechanism.  So far, we
+haven't tried this.
+
+Once you have obtained the sources, do the following:
+
+	cd REPO
+	bk -r edit		to check out the files
+	autoreconf -f -i	generates configure and Makefile.in's
+
+and you should be ready to go.  You will get some warning messages from
+autoreconf.  Ignore these messages.
+
+You can update your repository by incanting:
+
+	cd REPO
+	bk pull

@@ -10,6 +10,7 @@
 #include <netinfo/ni.h>
 #endif
 
+#include "ntp_machine.h"
 #include "ntp_fp.h"
 #include "ntp.h"
 #include "ntp_io.h"
@@ -32,7 +33,11 @@
 #endif
 #ifndef SYS_WINNT
 # include <netdb.h>
-# include <sys/signal.h>
+# ifdef HAVE_SYS_SIGNAL_H
+#  include <sys/signal.h>
+# else
+#  include <signal.h>
+# endif
 # ifdef HAVE_SYS_IOCTL_H
 #  include <sys/ioctl.h>
 # endif
@@ -423,7 +428,7 @@ ntpdatemain (
 	
 	if (errflg) {
 		(void) fprintf(stderr,
-				   "usage: %s [-bBdqsv] [-a key#] [-e delay] [-k file] [-p samples] [-o version#] [-r rate] [-t timeo] server ...\n",
+				   "usage: %s [-bBdqsuv] [-a key#] [-e delay] [-k file] [-p samples] [-o version#] [-r rate] [-t timeo] server ...\n",
 				   progname);
 		exit(2);
 	}
@@ -735,7 +740,7 @@ receive(
 	register struct pkt *rpkt;
 	register struct server *server;
 	register s_fp di;
-	l_fp t10, t23;
+	l_fp t10, t23, tmp;
 	l_fp org;
 	l_fp rec;
 	l_fp ci;
@@ -857,9 +862,15 @@ receive(
 	L_SUB(&t23, &org);		/* pkt->org == t3 */
 
 	/* now have (t2 - t3) and (t0 - t1).	Calculate (ci) and (di) */
+	/*
+	 * Calculate (ci) = ((t1 - t0) / 2) + ((t2 - t3) / 2)
+	 * For large offsets this may prevent an overflow on '+'
+	 */
 	ci = t10;
-	L_ADD(&ci, &t23);
 	L_RSHIFT(&ci);
+	tmp = t23;
+	L_RSHIFT(&tmp);
+	L_ADD(&ci, &tmp);
 
 	/*
 	 * Calculate di in t23 in full precision, then truncate
@@ -1015,23 +1026,44 @@ clock_select(void)
 	 */
 	nlist = 0;	/* none yet */
 	for (server = sys_servers; server != NULL; server = server->next_server) {
-		if (server->delay == 0)
-			continue;	/* no data */
-		if (server->stratum > NTP_INFIN)
-			continue;	/* stratum no good */
-		if (server->delay > NTP_MAXWGT) {
-			continue;	/* too far away */
+		if (server->delay == 0) {
+			if (debug)
+				printf("%s: Server dropped: no data\n", ntoa(&server->srcadr));
+			continue;   /* no data */
 		}
-		if (server->leap == LEAP_NOTINSYNC)
-			continue;	/* he's in trouble */
+		if (server->stratum > NTP_INFIN) {
+			if (debug)
+				printf("%s: Server dropped: strata too high\n", ntoa(&server->srcadr));
+			continue;   /* stratum no good */
+		}
+		if (server->delay > NTP_MAXWGT) {
+			if (debug)
+				printf("%s: Server dropped: server too far away\n", 
+				       ntoa(&server->srcadr));
+			continue;   /* too far away */
+		}
+		if (server->leap == LEAP_NOTINSYNC) {
+			if (debug)
+				printf("%s: Server dropped: Leap not in sync\n", ntoa(&server->srcadr));
+			continue;   /* he's in trouble */
+		}
 		if (!L_ISHIS(&server->org, &server->reftime)) {
-			continue;	/* very broken host */
+			if (debug)
+				printf("%s: Server dropped: server is very broken\n", 
+				       ntoa(&server->srcadr));
+			continue;   /* very broken host */
 		}
 		if ((server->org.l_ui - server->reftime.l_ui)
-			>= NTP_MAXAGE) {
+		    >= NTP_MAXAGE) {
+			if (debug)
+				printf("%s: Server dropped: Server has gone too long without sync\n", 
+				       ntoa(&server->srcadr));
 			continue;	/* too long without sync */
 		}
 		if (server->trust != 0) {
+			if (debug)
+				printf("%s: Server dropped: Server is untrusted\n",
+				       ntoa(&server->srcadr));
 			continue;
 		}
 

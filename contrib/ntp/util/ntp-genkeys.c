@@ -10,6 +10,7 @@
 #include <netinfo/ni.h>
 #endif
 
+#include "ntp_machine.h"
 #include "ntpd.h"
 #include "ntp_stdlib.h"
 #include "ntp_string.h"
@@ -17,6 +18,10 @@
 #include "ntp_unixtime.h"
 #include "ntp_config.h"
 #include "ntp_cmdargs.h"
+
+#ifndef GETTIMEOFDAY
+# define GETTIMEOFDAY gettimeofday
+#endif
 
 #include <stdio.h>
 #include <unistd.h>
@@ -26,6 +31,8 @@
 #ifdef PUBKEY
 # include "ntp_crypto.h"
 #endif
+
+#include "l_stdlib.h"
 
 #ifndef PATH_MAX
 # ifdef _POSIX_PATH_MAX
@@ -164,7 +171,6 @@ char *f3_dhparms;
 u_long	sys_automax;		/* maximum session key lifetime */
 int	sys_bclient;		/* we set our time to broadcasts */
 int	sys_manycastserver;	/* 1 => respond to manycast client pkts */
-u_long	client_limit_period;
 char *	req_file;		/* name of the file with configuration info */
 keyid_t	ctl_auth_keyid;		/* keyid used for authenticating write requests */
 struct interface *any_interface;	/* default interface */
@@ -752,7 +758,7 @@ main(
 	char pathbuf[PATH_MAX];
 
 	gethostname(hostname, sizeof(hostname));
-	gettimeofday(&tv, 0);
+	GETTIMEOFDAY(&tv, 0);
 	ntptime = tv.tv_sec + JAN_1970;
 
 	/* Initialize config_file */
@@ -886,13 +892,13 @@ main(
 		printf("Generating MD5 key file...\n");
 		str = newfile(f1_keys, f2_keys, sec_mask, f3_keys);
 		if (!memorex) {
-			srandom((u_int)tv.tv_usec);
+			SRANDOM((u_int)tv.tv_usec);
 			fprintf(str, "# MD5 key file %s\n# %s", f2_keys,
 				ctime((const time_t *) &tv.tv_sec));
 			for (i = 1; i <= 16; i++) {
 				for (j = 0; j < 16; j++) {
 					while (1) {
-						temp = random() & 0xff;
+						temp = RANDOM & 0xff;
 						/*
 						** Harlan says Karnaugh maps
 						** are not his friend, and
@@ -929,7 +935,7 @@ main(
 			R_RandomInit(&randomstr);
 			R_GetRandomBytesNeeded(&len, &randomstr);
 			for (i = 0; i < len; i++) {
-				temp = random();
+				temp = RANDOM;
 				R_RandomUpdate(&randomstr, (u_char *)&temp, 1);
 			}
 			rval = R_GeneratePEMKeys(&rsaref_public,
@@ -998,7 +1004,7 @@ main(
 			R_RandomInit(&randomstr);
 			R_GetRandomBytesNeeded(&len, &randomstr);
 			for (i = 0; i < len; i++) {
-				temp = random();
+				temp = RANDOM;
 				R_RandomUpdate(&randomstr, (u_char *)&temp, 1);
 			}
 

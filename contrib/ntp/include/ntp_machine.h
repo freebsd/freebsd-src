@@ -434,6 +434,48 @@ struct servent *getservbyname P((char *name, char *type));
 # endif
 #endif	/* NTP_SYSCALLS_STD */
 
+#ifdef MPE
+# include <sys/types.h>
+# include <netinet/in.h>
+# include <stdio.h>
+# include <time.h>
+
+/* missing functions that are easily renamed */
+
+# define _getch getchar
+
+/* special functions that require MPE-specific wrappers */
+
+# define bind	__ntp_mpe_bind
+# define fcntl	__ntp_mpe_fcntl
+
+/* standard macros missing from MPE include files */
+
+# define IN_CLASSD(i)	((((long)(i))&0xf0000000)==0xe0000000)
+# define IN_MULTICAST IN_CLASSD
+# define ITIMER_REAL 0
+# define MAXHOSTNAMELEN 64
+
+/* standard structures missing from MPE include files */
+
+struct itimerval { 
+        struct timeval it_interval;    /* timer interval */
+        struct timeval it_value;       /* current value */
+};
+
+/* various declarations to make gcc stop complaining */
+
+extern int __filbuf(FILE *);
+extern int __flsbuf(int, FILE *);
+extern int gethostname(char *, int);
+extern unsigned long inet_addr(char *);
+extern char *strdup(const char *);
+
+/* miscellaneous NTP macros */
+
+# define HAVE_NO_NICE
+#endif /* MPE */
+
 #ifdef HAVE_RTPRIO
 # define HAVE_NO_NICE
 #else
