@@ -242,7 +242,6 @@ struct mtx_pool *mtx_pool_create(const char *mtx_name, int pool_size, int opts);
 void mtx_pool_destroy(struct mtx_pool **poolp);
 struct mtx *mtx_pool_find(struct mtx_pool *pool, void *ptr);
 struct mtx *mtx_pool_alloc(struct mtx_pool *pool);
-struct mtx *mtx_pool_alloc_spin(struct mtx_pool *pool);
 #define mtx_pool_lock(pool, ptr)					\
 	mtx_lock(mtx_pool_find((pool), (ptr)))
 #define mtx_pool_lock_spin(pool, ptr)					\
