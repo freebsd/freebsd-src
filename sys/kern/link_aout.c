@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.18 1999/01/25 08:42:24 dfr Exp $
+ *	$Id: link_aout.c,v 1.19 1999/01/28 00:57:47 dillon Exp $
  */
 
 #ifndef __alpha__
@@ -109,11 +109,8 @@ link_aout_init(void* arg)
 	    linker_make_file(kernelname, af, &link_aout_file_ops);
 	if (linker_kernel_file == NULL)
 	    panic("link_aout_init: Can't create linker structures for kernel");
-	/*
-	 * XXX there must be a better way of getting these constants.
-	 */
-	linker_kernel_file->address = (caddr_t) 0xf0100000;
-	linker_kernel_file->size = -0xf0100000;
+	linker_kernel_file->address = (caddr_t) KERNBASE;
+	linker_kernel_file->size = -(long)linker_kernel_file->address;
 	linker_current_file = linker_kernel_file;
 	linker_kernel_file->flags |= LINKER_FILE_LINKED;
     }
