@@ -1112,7 +1112,7 @@ osf1_setgid(td, uap)
 	oldcred = p->p_ucred;
 
 	if (((error = suser_xxx(p->p_ucred, NULL, PRISON_ROOT)) != 0 ) &&
-		gid != oldcred->cr_rgid && gid != oldcred->cr_svgid)
+	    gid != oldcred->cr_rgid && gid != oldcred->cr_svgid)
 		return (error);
 
 	newcred = crdup(oldcred);
