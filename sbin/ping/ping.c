@@ -100,7 +100,7 @@ static const char rcsid[] =
 #define	TIMEVAL_LEN	((int)sizeof(struct timeval))
 #define	MASK_LEN	(ICMP_MASKLEN - ICMP_MINLEN)
 #define	TS_LEN		(ICMP_TSLEN - ICMP_MINLEN)
-#define	DEFDATALEN	64		/* default data length */
+#define	DEFDATALEN	56		/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
 					/* runs out of buffer space */
 #define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
