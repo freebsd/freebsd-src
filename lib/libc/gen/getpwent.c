@@ -1136,6 +1136,7 @@ fin:
 		pwd->pw_fields |= _PWF_NIS;
 		if (retval != NULL)
 			*(struct passwd **)retval = pwd;
+		rv = NS_SUCCESS;
 	}
 	return (rv);
 erange:
