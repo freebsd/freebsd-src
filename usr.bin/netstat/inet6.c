@@ -72,8 +72,8 @@ static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
 
 struct	socket sockb;
 
-char	*inet6name __P((struct in6_addr *));
-void	inet6print __P((struct in6_addr *, int, char *, int));
+char	*inet6name (struct in6_addr *);
+void	inet6print (struct in6_addr *, int, char *, int);
 
 static char ntop_buf[INET6_ADDRSTRLEN];
 
@@ -340,9 +340,7 @@ static	char *ip6nh[] = {
  * Dump IP6 statistics structure.
  */
 void
-ip6_stats(off, name)
-	u_long off;
-	char *name;
+ip6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct ip6stat ip6stat;
 	int first, i;
@@ -500,8 +498,7 @@ ip6_stats(off, name)
  * Dump IPv6 per-interface statistics based on RFC 2465.
  */
 void
-ip6_ifstats(ifname)
-	char *ifname;
+ip6_ifstats(char *ifname)
 {
 	struct in6_ifreq ifr;
 	int s;
@@ -816,9 +813,7 @@ static	char *icmp6names[] = {
  * Dump ICMP6 statistics.
  */
 void
-icmp6_stats(off, name)
-	u_long off;
-	char *name;
+icmp6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct icmp6stat icmp6stat;
 	register int i, first;
@@ -903,8 +898,7 @@ icmp6_stats(off, name)
  * Dump ICMPv6 per-interface statistics based on RFC 2466.
  */
 void
-icmp6_ifstats(ifname)
-	char *ifname;
+icmp6_ifstats(char *ifname)
 {
 	struct in6_ifreq ifr;
 	int s;
@@ -969,9 +963,7 @@ icmp6_ifstats(ifname)
  * Dump PIM statistics structure.
  */
 void
-pim6_stats(off, name)
-	u_long off;
-	char *name;
+pim6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct pim6stat pim6stat;
 
@@ -996,9 +988,7 @@ pim6_stats(off, name)
  * Dump raw ip6 statistics structure.
  */
 void
-rip6_stats(off, name)
-	u_long off;
-	char *name;
+rip6_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct rip6stat rip6stat;
 	u_quad_t delivered;
@@ -1053,11 +1043,7 @@ rip6_stats(off, name)
 };
 
 void
-inet6print(in6, port, proto, numeric)
-	register struct in6_addr *in6;
-	int port;
-	char *proto;
-	int numeric;
+inet6print(struct in6_addr *in6, int port, char *proto, int numeric)
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -1083,8 +1069,7 @@ inet6print(in6, port, proto, numeric)
  */
 
 char *
-inet6name(in6p)
-	struct in6_addr *in6p;
+inet6name(struct in6_addr *in6p)
 {
 	register char *cp;
 	static char line[50];

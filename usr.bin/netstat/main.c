@@ -145,6 +145,16 @@ static struct nlist nl[] = {
 	{ "_mif6table" },
 #define N_PFKEYSTAT	37
 	{ "_pfkeystat" },
+#define N_MBSTAT	38
+	{ "_mbstat" },
+#define N_MBTYPES	39
+	{ "_mbtypes" },
+#define N_NMBCLUSTERS	40
+	{ "_nmbclusters" },
+#define N_NMBUFS	41
+	{ "_nmbufs" },
+#define	N_RTTRASH	42
+	{ "_rttrash" },
 	{ "" },
 };
 
@@ -152,9 +162,11 @@ struct protox {
 	u_char	pr_index;		/* index into nlist of cb head */
 	u_char	pr_sindex;		/* index into nlist of stat block */
 	u_char	pr_wanted;		/* 1 if wanted, 0 otherwise */
-	void	(*pr_cblocks)();	/* control blocks printing routine */
-	void	(*pr_stats)();		/* statistics printing routine */
-	void	(*pr_istats)();		/* per/if statistics printing routine */
+	void	(*pr_cblocks)(u_long, char *, int);
+					/* control blocks printing routine */
+	void	(*pr_stats)(u_long, char *, int);
+					/* statistics printing routine */
+	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
 	char	*pr_name;		/* well-known name */
 	int	pr_usesysctl;		/* true if we use sysctl, not kvm */
 } protox[] = {
@@ -286,10 +298,10 @@ struct protox *protoprotox[] = {
 #endif
 					 NULL };
 
-static void printproto __P((struct protox *, char *));
-static void usage __P((void));
-static struct protox *name2protox __P((char *));
-static struct protox *knownname __P((char *));
+static void printproto (struct protox *, char *);
+static void usage (void);
+static struct protox *name2protox (char *);
+static struct protox *knownname (char *);
 
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
@@ -304,7 +316,7 @@ int	lflag;		/* show routing table with use and ref */
 int	Lflag;		/* show size of listen queues */
 int	mflag;		/* show memory stats */
 int	nflag;		/* show addresses numerically */
-int	pflag;		/* show given protocol */
+static int pflag;	/* show given protocol */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	tflag;		/* show i/f watchdog timers */
@@ -327,7 +339,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:lLiM:mN:np:rstuWw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:gI:iLlM:mN:np:rstuWw:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -467,26 +479,14 @@ main(argc, argv)
 		setgid(getgid());
 
 	if (mflag) {
-		mbpr();
-		exit(0);
-	}
-	if (pflag) {
-		if (iflag && tp->pr_istats) {
-			kread(0, 0, 0);
-			intpr(interval, nl[N_IFNET].n_value, tp->pr_istats);
-			exit(0);
-		}
-		if (!tp->pr_stats) {
-			printf("%s: no stats routine\n", tp->pr_name);
-			exit(0);
-		}
-		if (tp->pr_usesysctl) {
-			(*tp->pr_stats)(tp->pr_usesysctl, tp->pr_name);
-		} else {
-			kread(0, 0, 0);
-			(*tp->pr_stats)(nl[tp->pr_sindex].n_value,
-					tp->pr_name);
-		}
+		if (memf != NULL) {
+			if (kread(0, 0, 0) == 0)
+				mbpr(nl[N_MBSTAT].n_value,
+				    nl[N_MBTYPES].n_value,
+				    nl[N_NMBCLUSTERS].n_value,
+				    nl[N_NMBUFS].n_value);
+		} else
+			mbpr(0, 0, 0, 0);
 		exit(0);
 	}
 #if 0
@@ -503,10 +503,7 @@ main(argc, argv)
 	 * used for the queries, which is slower.
 	 */
 #endif
-	if (iflag) {
-		if (sflag && af != AF_UNSPEC)
-			goto protostat;
-
+	if (iflag && !sflag) {
 		kread(0, 0, 0);
 		intpr(interval, nl[N_IFNET].n_value, NULL);
 		exit(0);
@@ -514,7 +511,7 @@ main(argc, argv)
 	if (rflag) {
 		kread(0, 0, 0);
 		if (sflag)
-			rt_stats(nl[N_RTSTAT].n_value);
+			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
 		else
 			routepr(nl[N_RTREE].n_value);
 		exit(0);
@@ -541,8 +538,11 @@ main(argc, argv)
 		exit(0);
 	}
 
-  protostat:
 	kread(0, 0, 0);
+	if (tp) {
+		printproto(tp, tp->pr_name);
+		exit(0);
+	}
 	if (af == AF_INET || af == AF_UNSPEC)
 		for (tp = protox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
@@ -592,7 +592,7 @@ printproto(tp, name)
 	register struct protox *tp;
 	char *name;
 {
-	void (*pr)();
+	void (*pr)(u_long, char *, int);
 	u_long off;
 
 	if (sflag) {
@@ -600,15 +600,29 @@ printproto(tp, name)
 			if (tp->pr_istats)
 				intpr(interval, nl[N_IFNET].n_value,
 				      tp->pr_istats);
+			else if (pflag)
+				printf("%s: no per-interface stats routine\n",
+				    tp->pr_name);
 			return;
 		}
 		else {
 			pr = tp->pr_stats;
+			if (!pr) {
+				if (pflag)
+					printf("%s: no stats routine\n",
+					    tp->pr_name);
+				return;
+			}
 			off = tp->pr_usesysctl ? tp->pr_usesysctl 
 				: nl[tp->pr_sindex].n_value;
 		}
 	} else {
 		pr = tp->pr_cblocks;
+		if (!pr) {
+			if (pflag)
+				printf("%s: no PCB routine\n", tp->pr_name);
+			return;
+		}
 		off = tp->pr_usesysctl ? tp->pr_usesysctl
 			: nl[tp->pr_index].n_value;
 	}
@@ -620,10 +634,7 @@ printproto(tp, name)
  * Read kernel memory, return 0 on success.
  */
 int
-kread(addr, buf, size)
-	u_long addr;
-	char *buf;
-	int size;
+kread(u_long addr, char *buf, int size)
 {
 	if (kvmd == 0) {
 		/*
@@ -660,15 +671,13 @@ kread(addr, buf, size)
 }
 
 char *
-plural(n)
-	int n;
+plural(int n)
 {
 	return (n != 1 ? "s" : "");
 }
 
 char *
-plurales(n)
-	int n;
+plurales(int n)
 {
 	return (n != 1 ? "es" : "");
 }
@@ -677,8 +686,7 @@ plurales(n)
  * Find the protox for the given "well-known" name.
  */
 static struct protox *
-knownname(name)
-	char *name;
+knownname(char *name)
 {
 	struct protox **tpp, *tp;
 
@@ -693,8 +701,7 @@ knownname(name)
  * Find the protox corresponding to name.
  */
 static struct protox *
-name2protox(name)
-	char *name;
+name2protox(char *name)
 {
 	struct protox *tp;
 	char **alias;			/* alias from p->aliases */
@@ -721,12 +728,13 @@ name2protox(name)
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLlnW] [-f address_family] [-M core] [-N system]",
-"       netstat [-abdghilmnrs] [-f address_family] [-M core] [-N system]",
+"       netstat [-abdgilnrs] [-f address_family] [-M core] [-N system]",
 "       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
+"       netstat -m [-M core] [-N system]",
 "       netstat [-M core] [-N system] [-p protocol]");
 	exit(1);
 }

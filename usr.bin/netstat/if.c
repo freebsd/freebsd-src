@@ -76,17 +76,18 @@ static const char rcsid[] =
 #define	YES	1
 #define	NO	0
 
-static void sidewaysintpr __P((u_int, u_long));
-static void catchalarm __P((int));
+static void sidewaysintpr (u_int, u_long);
+static void catchalarm (int);
 
 #ifdef INET6
-char *netname6 __P((struct sockaddr_in6 *, struct in6_addr *));
+char *netname6 (struct sockaddr_in6 *, struct in6_addr *);
 static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 static int bdg_done;
 #endif
 
+/* print bridge statistics */
 void
-bdg_stats(u_long dummy, char *name) /* print bridge statistics */
+bdg_stats(u_long dummy __unused, char *name, int af __unused)
 {
     int i;
     size_t slen ;
@@ -131,12 +132,8 @@ bdg_stats(u_long dummy, char *name) /* print bridge statistics */
 /*
  * Display a formatted value, or a '-' in the same space.
  */
-void
-show_stat(fmt, width, value, showvalue)
-	char *fmt;
-	int width;
-	u_long value;
-	short showvalue;
+static void
+show_stat(const char *fmt, int width, u_long value, short showvalue)
 {
 	char newfmt[32];
 
@@ -156,10 +153,7 @@ show_stat(fmt, width, value, showvalue)
  * Print a description of the network interfaces.
  */
 void
-intpr(interval, ifnetaddr, pfunc)
-	int interval;
-	u_long ifnetaddr;
-	void (*pfunc)(char *);
+intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 {
 	struct ifnet ifnet;
 	struct ifnethead ifnethead;
@@ -208,7 +202,7 @@ intpr(interval, ifnetaddr, pfunc)
 	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
 		return;
 
-	if ((!sflag || iflag) && !pflag) {
+	if (!pfunc) {
 		printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
 		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 		if (bflag)
@@ -515,9 +509,7 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * XXX - should be rewritten to use ifmib(4).
  */
 static void
-sidewaysintpr(interval, off)
-	unsigned interval;
-	u_long off;
+sidewaysintpr(unsigned interval, u_long off)
 {
 	struct ifnet ifnet;
 	u_long firstifnet;
@@ -680,8 +672,7 @@ loop:
  * Sets a flag to not wait for the alarm.
  */
 static void
-catchalarm(signo)
-	int signo;
+catchalarm(int signo __unused)
 {
 	signalled = YES;
 }

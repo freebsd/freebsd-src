@@ -91,11 +91,8 @@
 #define	WID_ORG	(lflag ? 39 : (nflag ? 29 : 18)) /* width of origin column */
 #define	WID_GRP	(lflag ? 18 : (nflag ? 16 : 18)) /* width of group column */
 
-extern char	*routename6 __P((struct sockaddr_in6 *));
-
 void
-mroute6pr(mfcaddr, mifaddr)
-	u_long mfcaddr, mifaddr;
+mroute6pr(u_long mfcaddr, u_long mifaddr)
 {
 	struct mf6c *mf6ctable[MF6CTBLSIZ], *mfcp;
 	struct mif6 mif6table[MAXMIFS];
@@ -196,8 +193,7 @@ mroute6pr(mfcaddr, mifaddr)
 }
 
 void
-mrt6_stats(mstaddr)
-	u_long mstaddr;
+mrt6_stats(u_long mstaddr)
 {
 	struct mrt6stat mrtstat;
 

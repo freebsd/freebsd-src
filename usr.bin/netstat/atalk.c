@@ -50,8 +50,9 @@ static const char rcsid[] =
 #include <netatalk/at.h>
 #include <netatalk/ddp_var.h>
 
-#include <nlist.h>
 #include <errno.h>
+#include <nlist.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include "netstat.h"
@@ -102,10 +103,11 @@ static	char mybuf[50];
 	return mybuf;
 }
 
-char *
+static char *
 at_pr_port(struct sockaddr_at *sat)
 {
 static	char mybuf[50];
+	struct servent *serv;
 
 	switch(sat->sat_port) {
 	case ATADDR_ANYPORT:
@@ -113,7 +115,18 @@ static	char mybuf[50];
 	case 0xff:
 		return "????";
 	default:
-		sprintf(mybuf,"%d",(unsigned int)sat->sat_port);
+		if (nflag) {
+			(void)snprintf(mybuf, sizeof(mybuf), "%d",
+			    (unsigned int)sat->sat_port);
+		} else {
+			serv = getservbyport(sat->sat_port, "ddp");
+			if (serv == NULL)
+				(void)snprintf(mybuf, sizeof(mybuf), "%d",
+				    (unsigned int) sat->sat_port);
+			else
+				(void) snprintf(mybuf, sizeof(mybuf), "%s",
+				    serv->s_name);
+		}
 	}
 	return mybuf;
 }
@@ -142,8 +155,7 @@ static	char mybuf[50];
 /*         4 for port */
 /*         8 for numeric only */
 char *
-atalk_print(sa,what)
-	register struct sockaddr *sa;
+atalk_print(struct sockaddr *sa, int what)
 {
 	struct sockaddr_at *sat = (struct sockaddr_at *)sa;
 	static	char mybuf[50];
@@ -200,9 +212,7 @@ atalk_print2(struct sockaddr *sa, struct sockaddr *mask, int what)
 }
 
 void
-atalkprotopr(off, name)
-	u_long off;
-	char *name;
+atalkprotopr(u_long off __unused, char *name, int af __unused)
 {
 	struct ddpcb *this, *next;
 
@@ -244,16 +254,14 @@ atalkprotopr(off, name)
 	}
 }
 
-#define ANY(x,y,z) \
-	((x) ? printf("\t%lu %s%s%s\n",x,y,plural(x),z) : 0)
+#define ANY(x,y,z) if (x || sflag <= 1) \
+	printf("\t%lu %s%s%s\n",x,y,plural(x),z)
 
 /*
  * Dump DDP statistics structure.
  */
 void
-ddp_stats(off, name)
-	u_long off;
-	char *name;
+ddp_stats(u_long off __unused, char *name, int af __unused)
 {
 	struct ddpstat ddpstat;
 
