@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.168 1997/07/25 11:53:20 phk Exp $
+#	$Id: files.i386,v 1.169 1997/07/29 12:57:16 sos Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -48,6 +48,8 @@ i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/eisa/if_fea.c		optional	fea	device-driver
 i386/i386/autoconf.c		standard	device-driver
+i386/i386/bios.c		standard
+i386/i386/bioscall.s		standard
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
 i386/i386/db_interface.c	optional	ddb
