@@ -54,13 +54,27 @@
 .Nm ancontrol
 .Fl i Ar iface Fl s Ar 0|1|2|3
 .Nm ancontrol
-.Fl i Ar iface Fl a Ar AP
+.Fl i Ar iface 
 .Op Fl v Ar 1|2|3|4
+.Fl a Ar AP
 .Nm ancontrol
 .Fl i Ar iface Fl b Ar beacon period
 .Nm ancontrol
-.Fl i Ar iface Fl d Ar 0|1|2|3
+.Fl i Ar iface 
 .Op v Ar 0|1
+.Fl d Ar 0|1|2|3
+.Nm ancontrol
+.Fl i Ar iface Fl e Ar 0|1
+.Nm ancontrol
+.Fl i Ar iface 
+.Op Fl v Ar 0|1
+.Fl k Ar key
+.Nm ancontrol
+.Fl i Ar iface 
+.Fl K Ar mode
+.Nm ancontrol
+.Fl i Ar iface 
+.Fl W Ar mode
 .Nm ancontrol
 .Fl i Ar iface Fl j Ar netjoin timeout
 .Nm ancontrol
@@ -68,8 +82,9 @@
 .Nm ancontrol
 .Fl i Ar iface Fl m Ar mac address
 .Nm ancontrol
-.Fl i Ar iface Fl n Ar SSID
+.Fl i Ar iface 
 .Op Fl v Ar 1|2|3
+.Fl n Ar SSID
 .Nm ancontrol
 .Fl i Ar iface Fl o Ar 0|1
 .Nm ancontrol
@@ -184,7 +199,7 @@ Valid selections are as follows:
 .Pp
 Note that for IBSS (ad-hoc) mode, only PSP mode is supported, and only
 if the ATIM window is non-zero.
-.It Fl i Ar iface Fl a Ar AP "[-v 1|2|3|4]"
+.It Fl i Ar iface "[-v 1|2|3|4]" Fl a Ar AP 
 Set prefered access point.
 The
 .Ar AP
@@ -205,7 +220,7 @@ Set the ad-hoc mode beacon period.
 The becon period is specified in
 milliseconds.
 The default is 100ms.
-.It Fl i Ar iface Fl d Ar 0|1|2|3 "-v 0|1"
+.It Fl i Ar iface "-v 0|1" Fl d Ar 0|1|2|3 
 Select the antenna diversity.
 Aironet devices can be configured with up
 to two antennas, and transmit and receive diversity can be configured
@@ -230,6 +245,16 @@ option: selection
 sets the receive diversity and
 .Ar 1
 sets the transmit diversity.
+.It Fl i Ar iface "[ -v 0|1 ]" Fl k Ar key
+Set the WEP key.  For 40 bit prefix 10 hex character with 0x.
+For 128 bit prefix 26 hex character with 0x.
+Supports 4 keys, use even numbers are permanet and odd number 
+are temporary keys for example "-v 1" sets the first temporary key.
+.It Fl i Ar iface Fl K Ar 0|1|2|4
+Set authorization type. Use 0 for none, 1 for "Open", 
+2 for "Shared Key", 4 for "Exclude unencrypted".
+.It Fl i Ar iface Fl W Ar 0|1
+Enable WEP. Use 1 to enable, 0 for disable.
 .It Fl i Ar iface Fl j Ar netjoin timeout
 Set the ad-hoc network join timeout.
 When a station is first activated
@@ -257,7 +282,7 @@ is specified as a series of six hexadecimal values separated by colons,
 e.g.: 00:60:1d:12:34:56.
 This programs the new address into the card
 and updates the interface as well.
-.It Fl i Ar iface Fl n Ar SSID "[-v 1|2|3]"
+.It Fl i Ar iface "[-v 1|2|3]" Fl n Ar SSID 
 Set the desired SSID (network name). There are three SSIDs which allows
 the NIC to work with access points at several locations without needing
 to be reconfigured.

@@ -273,7 +273,10 @@ struct an_ltv_genconfig {
 	u_int16_t		an_diversity;		/* 0x72 */
 	u_int16_t		an_tx_power;		/* 0x74 */
 	u_int16_t		an_rss_thresh;		/* 0x76 */
-	u_int16_t		an_rsvd6[4];		/* 0x78 */
+	u_int16_t		an_modulation_type;	/* 0x78 */
+	u_int16_t		an_short_preamble;	/* 0x7A */
+	u_int16_t		an_home_product;	/* 0x7C */
+	u_int16_t		an_rsvd6;		/* 0x7E */
 	/* Aironet extensions. */
 	u_int8_t		an_nodename[16];	/* 0x80 */
 	u_int16_t		an_arl_thresh;		/* 0x90 */
@@ -416,6 +419,9 @@ struct an_rid_encap {
 #define AN_TXENCAP_RFC1024	0x0000
 #define AN_TXENCAP_80211	0x0002
 
+#define AN_RID_WEP_TEMP	        0xFF15
+#define AN_RID_WEP_PERM	        0xFF16
+
 /*
  * Actual config, same structure as general config (read only).
  */
@@ -451,6 +457,7 @@ struct an_ltv_caps {
 	u_int16_t		an_ifacerev;		/* 0x7A */
 	u_int16_t		an_softcaps;		/* 0x7C */
 	u_int16_t		an_bootblockrev;	/* 0x7E */
+	u_int16_t		an_req_hw_support;	/* 0x80 */
 };
 
 /*
@@ -492,7 +499,7 @@ struct an_ltv_status {
 	u_int8_t		an_macaddr[6];		/* 0x02 */
 	u_int16_t		an_opmode;		/* 0x08 */
 	u_int16_t		an_errcode;		/* 0x0A */
-	u_int16_t		an_cur_signal_quality;	/* 0x0C */
+	u_int16_t		an_cur_signal_strength;	/* 0x0C */
 	u_int16_t		an_ssidlen;		/* 0x0E */
 	u_int8_t		an_ssid[32];		/* 0x10 */
 	u_int8_t		an_ap_name[16];		/* 0x30 */
@@ -510,7 +517,16 @@ struct an_ltv_status {
 	u_int16_t		an_ap_total_load;	/* 0x66 */
 	u_int16_t		an_our_generated_load;	/* 0x68 */
 	u_int16_t		an_accumulated_arl;	/* 0x6A */
-	u_int16_t		an_rsvd0[10];		/* 0x6C */
+	u_int16_t		an_cur_signal_quality;	/* 0x6C */
+	u_int16_t		an_current_tx_rate;	/* 0x6E */
+	u_int16_t		an_ap_device;		/* 0x70 */
+	u_int16_t		an_normalized_rssi;	/* 0x72 */
+	u_int16_t		an_short_pre_in_use;	/* 0x74 */
+	u_int8_t		an_ap_ip_addr[4];	/* 0x76 */
+	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
+	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
+	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
+	u_int16_t		an_spare[2];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
@@ -639,6 +655,25 @@ struct an_ltv_stats {
 	u_int32_t		an_lostsync_better_ap;	/* 0x180 */
 	u_int32_t		an_rsvd[10];
 };
+
+/*
+ * Volatile WEP Key
+ */
+#define AN_RID_WEP_VOLATILE	0xFF15	/* Volatile WEP Key */
+struct an_ltv_wepkey {
+	u_int16_t		an_len;			/* 0x00 */
+	u_int16_t		an_type;		/* 0xXX */
+	u_int16_t		an_key_index;		/* 0x02 */
+	u_int8_t		an_mac_addr[6];		/* 0x04 */
+	u_int16_t		an_key_len;		/* 0x0A */
+	u_int8_t		an_key[13];		/* 0x0C */
+};
+
+/*
+ * Persistent WEP Key
+ */
+#define AN_RID_WEP_PERSISTENT	0xFF16	/* Persistent WEP Key */
+
 
 /*
  * Receive frame structure.
@@ -786,6 +821,8 @@ struct an_softc	{
 	struct an_ltv_caps	an_caps;
 	struct an_ltv_ssidlist	an_ssidlist;
 	struct an_ltv_aplist	an_aplist;
+        struct an_ltv_key	an_temp_keys;
+        struct an_ltv_key	an_perm_keys;
 	int			an_tx_rate;
 	int			an_rxmode;
 	int			an_gone;
@@ -854,3 +891,5 @@ driver_intr_t	an_intr;
 #define AN_SNAP_WORD0		(AN_SNAP_K1 | (AN_SNAP_K1 << 8))
 #define AN_SNAP_WORD1		(AN_SNAP_K2 | (AN_SNAP_CONTROL << 8))
 #define AN_SNAPHDR_LEN		0x6
+
+
