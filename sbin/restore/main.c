@@ -97,8 +97,7 @@ main(int argc, char *argv[])
 	if ((inputdev = getenv("TAPE")) == NULL)
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
-#define	optlist "b:df:himNRrs:tuvxy"
-	while ((ch = getopt(argc, argv, optlist)) != -1)
+	while ((ch = getopt(argc, argv, "b:df:himNRrs:tuvxy")) != -1)
 		switch(ch) {
 		case 'b':
 			/* Change default tape blocksize. */
@@ -280,11 +279,11 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n\t%s\n",
-	  "restore -i [-cdhkmNuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -r [-cdkNuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -R [-cdkNuvy] [-b blocksize] [-f file] [-s fileno]",
-	  "restore -x [-cdhkmNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
-	  "restore -t [-cdhkNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
+	  "restore -i [-cdhmNuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -r [-cdNuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -R [-cdNuvy] [-b blocksize] [-f file] [-s fileno]",
+	  "restore -x [-cdhmNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]",
+	  "restore -t [-cdhNuvy] [-b blocksize] [-f file] [-s fileno] [file ...]");
 	done(1);
 }
 

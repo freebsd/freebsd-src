@@ -126,9 +126,8 @@ main(int argc, char *argv[])
 		usage();
 
 	obsolete(&argc, &argv);
-#define optstring "0123456789aB:b:C:cD:d:f:h:LnSs:T:uWw"
-	while ((ch = getopt(argc, argv, optstring)) != -1)
-#undef optstring
+	while ((ch = getopt(argc, argv,
+	    "0123456789aB:b:C:cD:d:f:h:LnSs:T:uWw")) != -1)
 		switch (ch) {
 		/* dump level */
 		case '0': case '1': case '2': case '3': case '4':
@@ -561,8 +560,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"usage: dump [-0123456789ac"
-		"LnSu] [-B records] [-b blocksize] [-C cachesize]\n"
+		"usage: dump [-0123456789acLnSu] [-B records] [-b blocksize] [-C cachesize]\n"
 		"            [-D dumpdates] [-d density] [-f file] [-h level] [-s feet]\n"
 		"            [-T date] filesystem\n"
 		"       dump -W | -w\n");
