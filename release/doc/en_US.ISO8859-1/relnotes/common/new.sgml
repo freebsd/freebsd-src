@@ -3,6 +3,8 @@
 
   <corpauthor>The FreeBSD Project</corpauthor>
 
+  <pubdate>$FreeBSD$</pubdate>
+
   <copyright>
     <year>2000</year>
     <year>2001</year>
@@ -56,10 +58,6 @@
 -->
 
 <sect1>
-  <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
-
   <title>What's New</title>
 
   <para>This section describes the most user-visible new or changed
