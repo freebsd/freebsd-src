@@ -47,7 +47,8 @@ nanosleep(const struct timespec * time_to_sleep,
 	struct timeval  tv;
 
 	/* Check if the time to sleep is legal: */
-	if (time_to_sleep == NULL || time_to_sleep->tv_nsec < 0 || time_to_sleep->tv_nsec > 1000000000) {
+	if (time_to_sleep == NULL || time_to_sleep->tv_sec < 0 ||
+		time_to_sleep->tv_nsec < 0 || time_to_sleep->tv_nsec >= 1000000000) {
 		/* Return an EINVAL error : */
 		errno = EINVAL;
 		ret = -1;
