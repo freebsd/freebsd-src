@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.8 1994/11/18 08:22:04 jkh Exp $
+ *	$Id: isa.h,v 1.9 1994/11/18 19:01:25 gibbs Exp $
  */
 
 #ifndef _I386_ISA_ISA_H_
@@ -175,5 +175,7 @@
 #define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
 #define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
 #endif	COMPAQ_RAMRELOC
+
+extern u_int atdevbase;       /* offset in virtual memory of ISA io mem */
 
 #endif /* !_I386_ISA_ISA_H_ */
