@@ -14,7 +14,7 @@ SECRPCSRCS= secretkey.c xcrypt.c
 
 RPCCOM = rpcgen -C
 
-INCDIRS= -I${DESTDIR}/usr/include/rpcsvc -I${DESTDIR}/usr/include
+INCDIRS= -I${DESTDIR}/usr/include/rpcsvc
 
 CFLAGS+= -DYP ${INCDIRS}
 
