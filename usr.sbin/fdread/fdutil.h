@@ -26,4 +26,12 @@
  * $FreeBSD$
  */
 
+
 void	printstatus(struct fdc_status *fdcsp, int terse);
+void	parse_fmt(const char *, enum fd_drivetype,
+		     struct fd_type, struct fd_type *);
+struct	fd_type *get_fmt(int, enum fd_drivetype);
+void	print_fmt(struct fd_type);
+int	getnum(const char *, int *);
+void	getname(enum fd_drivetype, const char **, const char **);
+
