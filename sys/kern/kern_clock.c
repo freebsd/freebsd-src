@@ -67,6 +67,11 @@
 #include <sys/gmon.h>
 #endif
 
+#ifdef DEVICE_POLLING
+extern void init_device_poll(void);
+extern void hardclock_device_poll(void);
+#endif /* DEVICE_POLLING */
+
 /*
  * Number of timecounters used to implement stable storage
  */
@@ -187,6 +192,10 @@ initclocks(dummy)
 	psdiv = pscnt = 1;
 	cpu_initclocks();
 
+#ifdef DEVICE_POLLING
+	init_device_poll();
+#endif
+
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
 	 */
@@ -234,6 +243,10 @@ hardclock(frame)
 
 	tco_forward(0);
 	ticks++;
+
+#ifdef DEVICE_POLLING
+	hardclock_device_poll();	/* this is very short and quick */
+#endif /* DEVICE_POLLING */
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the

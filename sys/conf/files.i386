@@ -459,6 +459,7 @@ isa/psm.c			optional	psm
 isa/sio.c			optional	sio
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/kern_poll.c		optional	device_polling
 kern/md4c.c			optional	netsmb
 kern/subr_diskmbr.c		standard
 libkern/divdi3.c		standard

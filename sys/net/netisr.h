@@ -52,6 +52,7 @@
  * interrupt used for scheduling the network code to calls
  * on the lowest level routine of each protocol.
  */
+#define	NETISR_POLL	0		/* polling callback */
 #define	NETISR_IP	2		/* same as AF_INET */
 #define	NETISR_NS	6		/* same as AF_NS */
 #define	NETISR_ATALK    16              /* same as AF_APPLETALK */
@@ -61,7 +62,8 @@
 #define	NETISR_PPP	27		/* PPP soft interrupt */
 #define	NETISR_IPV6	28		/* same as AF_INET6 */
 #define	NETISR_NATM	29		/* same as AF_NATM */
-#define	NETISR_NETGRAPH	31		/* same as AF_NETGRAPH */
+#define	NETISR_NETGRAPH	30		/* same as AF_NETGRAPH */
+#define	NETISR_POLLMORE	31		/* check if we need more polling */
 
 
 #ifndef LOCORE
