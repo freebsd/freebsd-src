@@ -4,20 +4,20 @@
    Contributed by Kresten Krab Thorup
    Bitfield support by Ovidiu Predescu
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -27,7 +27,11 @@ Boston, MA 02111-1307, USA.  */
    This exception does not however invalidate any other reasons why
    the executable file might be covered by the GNU General Public License.  */
 
+/* FIXME: This file has no business including tm.h.  */
+
 #include "tconfig.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "objc-api.h"
 #include "encoding.h"
 #include <stdlib.h>
@@ -83,6 +87,17 @@ Boston, MA 02111-1307, USA.  */
 /* ??? FIXME: As of 2002-06-21, the attribute `unused' doesn't seem to
    eliminate the warning.  */
 static int __attribute__ ((__unused__)) target_flags = 0;
+
+
+/*  FIXME: while this file has no business including tm.h, this
+    definitely has no business defining this macro but it
+    is only way around without really rewritting this file,
+    should look after the branch of 3.4 to fix this.  */
+#define rs6000_special_round_type_align(STRUCT, COMPUTED, SPECIFIED)	\
+  ((TYPE_FIELDS (STRUCT) != 0						\
+    && DECL_MODE (TYPE_FIELDS (STRUCT)) == DFmode)			\
+   ? MAX (MAX (COMPUTED, SPECIFIED), 64)				\
+   : MAX (COMPUTED, SPECIFIED))
 
 /*
   return the size of an object specified by type
