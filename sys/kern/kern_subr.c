@@ -56,32 +56,27 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#ifdef ZERO_COPY_SOCKETS
+#include <vm/vm_param.h>
+#endif
+#if defined(ZERO_COPY_SOCKETS) || defined(ENABLE_VFS_IOOPT)
+#include <vm/vm_object.h>
+#endif
 
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV, 
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
-#ifdef ZERO_COPY_SOCKETS
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <vm/vm_page.h>
-#include <vm/vm_object.h>
-#include <vm/vm_pager.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/swap_pager.h>
-#include <sys/mbuf.h>
-#include <machine/cpu.h>
+#if defined(ZERO_COPY_SOCKETS) || defined(ENABLE_VFS_IOOPT)
+static int userspaceco(caddr_t cp, u_int cnt, struct uio *uio,
+		       struct vm_object *obj, int disposable);
+#endif
 
+#ifdef ZERO_COPY_SOCKETS
 /* Declared in uipc_socket.c */
 extern int so_zero_copy_receive;
 
 static int vm_pgmoveco(vm_map_t mapa, vm_object_t srcobj, vm_offset_t kaddr,
 		       vm_offset_t uaddr);
-static int userspaceco(caddr_t cp, u_int cnt, struct uio *uio,
-			    struct vm_object *obj, int disposable);
 
 static int
 vm_pgmoveco(mapa, srcobj,  kaddr, uaddr)
