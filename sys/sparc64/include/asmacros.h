@@ -37,7 +37,10 @@
 	.register %g7,#ignore
 
 #define	PCPU(member)	%g7 + GD_ ## member
+#define	PCPU_ADDR(member, reg) add %g7, GD_ ## member, reg
+
 #define	DEBUGGER()	ta %xcc, 1
+
 #define	PANIC(msg, reg) \
 	.sect	.rodata ; \
 9:	.asciz	msg ; \
@@ -58,7 +61,7 @@ name ## :
 
 #define	ENTRY(name) \
 	.text ; \
-	.align	4 ; \
+	.align	16 ; \
 	.globl	name ; \
 	.type	name, @function ; \
 name ## :
