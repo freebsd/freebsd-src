@@ -36,14 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.155 1998/06/10 18:13:19 julian Exp $
+ * $Id: vfs_subr.c,v 1.156 1998/06/10 22:02:14 julian Exp $
  */
 
 /*
  * External virtual filesystem routines
  */
 #include "opt_ddb.h"
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,9 +70,6 @@
 #include <vm/vm_zone.h>
 #include <sys/sysctl.h>
 
-#if defined(DEVFS)
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 #include <miscfs/specfs/specdev.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");

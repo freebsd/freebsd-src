@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.27 1997/11/07 09:20:30 phk Exp $
+ * $Id: seagate.c,v 1.28 1998/04/15 17:26:17 bde Exp $
  */
 
 /*
@@ -125,8 +125,6 @@
 #include <i386/isa/isa_device.h>
 
 #include <scsi/scsiconf.h>
-
-#include "ioconf.h"
 
 #ifdef DEBUG
 #   define PRINT(s)     printf s

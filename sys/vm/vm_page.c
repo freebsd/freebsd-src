@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.100 1998/06/02 05:50:08 dyson Exp $
+ *	$Id: vm_page.c,v 1.101 1998/06/07 17:13:13 dfr Exp $
  */
 
 /*
@@ -74,7 +74,6 @@
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
-#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.5 1998/06/08 06:18:52 bde Exp $
+ *	$Id: wst.c,v 1.6 1998/06/08 09:47:37 bde Exp $
  */
 
 #include "wdc.h"
@@ -39,7 +39,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/mtio.h>
