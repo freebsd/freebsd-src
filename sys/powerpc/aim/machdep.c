@@ -162,9 +162,7 @@ struct bat	battable[16];
 
 static void	identifycpu(void);
 
-static vm_offset_t	buffer_sva, buffer_eva;
-vm_offset_t		clean_sva, clean_eva;
-static vm_offset_t	pager_sva, pager_eva;
+struct kva_md_info kmi;
 
 static void
 powerpc_ofw_shutdown(void *junk, int howto)
@@ -177,14 +175,6 @@ powerpc_ofw_shutdown(void *junk, int howto)
 static void
 cpu_startup(void *dummy)
 {
-	unsigned int	i;
-	caddr_t		v;
-	vm_offset_t	maxaddr;
-	vm_size_t	size;
-	vm_offset_t	firstaddr;
-	vm_offset_t	minaddr;
-
-	size = 0;
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -214,113 +204,7 @@ cpu_startup(void *dummy)
 		}
 	}
 
-	/*
-	 * Calculate callout wheel size
-	 */
-	for (callwheelsize = 1, callwheelbits = 0;
-	     callwheelsize < ncallout;
-	     callwheelsize <<= 1, ++callwheelbits)
-		;
-	callwheelmask = callwheelsize - 1;
-
-	/*
-	 * Allocate space for system data structures.
-	 * The first available kernel virtual address is in "v".
-	 * As pages of kernel virtual memory are allocated, "v" is incremented.
-	 * As pages of memory are allocated and cleared,
-	 * "firstaddr" is incremented.
-	 * An index into the kernel page table corresponding to the
-	 * virtual memory address maintained in "v" is kept in "mapaddr".
-	 */
-
-	/*
-	 * Make two passes.  The first pass calculates how much memory is
-	 * needed and allocates it.  The second pass assigns virtual
-	 * addresses to the various data structures.
-	 */
-	firstaddr = 0;
-again:
-	v = (caddr_t)firstaddr;
-
-#define	valloc(name, type, num) \
-	    (name) = (type *)v; v = (caddr_t)((name)+(num))
-#define	valloclim(name, type, num, lim) \
-	    (name) = (type *)v; v = (caddr_t)((lim) = ((name)+(num)))
-
-	valloc(callout, struct callout, ncallout);
-	valloc(callwheel, struct callout_tailq, callwheelsize);
-
-	/*
-	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
-	 * For the first 64MB of ram nominally allocate sufficient buffers to
-	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
-	 * buffers to cover 1/20 of our ram over 64MB.
-	 */
-
-	if (nbuf == 0) {
-		int factor;
-
-		factor = 4 * BKVASIZE / PAGE_SIZE;
-		nbuf = 50;
-		if (Maxmem > 1024)
-			nbuf += min((Maxmem - 1024) / factor, 16384 / factor);
-		if (Maxmem > 16384)
-			nbuf += (Maxmem - 16384) * 2 / (factor * 5);
-	}
-	nswbuf = max(min(nbuf/4, 64), 16);
-
-	valloc(swbuf, struct buf, nswbuf);
-	valloc(buf, struct buf, nbuf);
-	v = bufhashinit(v);
-
-	/*
-	 * End of first pass, size has been calculated so allocate memory
-	 */
-	if (firstaddr == 0) {
-		size = (vm_size_t)(v - firstaddr);
-		firstaddr = (vm_offset_t)kmem_alloc(kernel_map,
-		    round_page(size));
-		if (firstaddr == 0)
-			panic("startup: no room for tables");
-		goto again;
-	}
-
-	/*
-	 * End of second pass, addresses have been assigned
-	 */
-	if ((vm_size_t)(v - firstaddr) != size)
-		panic("startup: table size inconsistency");
-
-	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-	    (nbuf*BKVASIZE) + (nswbuf*MAXPHYS) + pager_map_size);
-	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
-	    (nbuf*BKVASIZE));
-	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
-	    (nswbuf*MAXPHYS) + pager_map_size);
-	pager_map->system_map = 1;
-	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-	    (16*(ARG_MAX+(PAGE_SIZE*3))));
-
-	/*
-	 * XXX: Mbuf system machine-specific initializations should
-	 *      go here, if anywhere.
-	 */
-
-	/*
-	 * Initialize callouts
-	 */
-	SLIST_INIT(&callfree);
-	for (i = 0; i < ncallout; i++) {
-		callout_init(&callout[i], 0);
-		callout[i].c_flags = CALLOUT_LOCAL_ALLOC;
-		SLIST_INSERT_HEAD(&callfree, &callout[i], c_links.sle);
-	}
-
-	for (i = 0; i < callwheelsize; i++) {
-		TAILQ_INIT(&callwheel[i]);
-	}
-
-	mtx_init(&callout_lock, "callout", MTX_SPIN);
+	vm_ksubmap_init(&kmi);
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
