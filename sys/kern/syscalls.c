@@ -255,7 +255,6 @@ char *syscallnames[] = {
 	"#207",			/* 207 = nosys */
 	"#208",			/* 208 = nosys */
 	"#209",			/* 209 = nosys */
-#ifdef LKM
 	"lkmnosys",			/* 210 = lkmnosys */
 	"lkmnosys",			/* 211 = lkmnosys */
 	"lkmnosys",			/* 212 = lkmnosys */
@@ -266,16 +265,4 @@ char *syscallnames[] = {
 	"lkmnosys",			/* 217 = lkmnosys */
 	"lkmnosys",			/* 218 = lkmnosys */
 	"lkmnosys",			/* 219 = lkmnosys */
-#else
-	"#210",			/* 210 = nosys */
-	"#211",			/* 211 = nosys */
-	"#212",			/* 212 = nosys */
-	"#213",			/* 213 = nosys */
-	"#214",			/* 214 = nosys */
-	"#215",			/* 215 = nosys */
-	"#216",			/* 216 = nosys */
-	"#217",			/* 217 = nosys */
-	"#218",			/* 218 = nosys */
-	"#219",			/* 219 = nosys */
-#endif
 };
