@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.105 1995/02/26 20:29:37 ache Exp $
+#	$Id: Makefile,v 1.106 1995/03/10 08:42:07 rgrimes Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -438,27 +438,19 @@ des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
-	#
-	# XXX The mtree commands need to be redone so that a status of 0 or
-	# 2 is okay, but a status of 1 causes the make to abort.
-	#
-	# XXX This will currently error out if you have a procfs mounted,
-	# unmount it to get past this problem until procfs is fixed.
-	#
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
-	cd ${DESTDIR}/usr/share/locale; \
-	for l in ${LATIN1LINKS} ; do \
-		rm -f $$l.ISO8859-1; \
-		ln -s lt_LN.ISO8859-1 $$l.ISO8859-1; \
-		chown ${BINOWN}.${BINGRP} $$l.ISO8859-1; \
-		chmod 755 $$l.ISO8859-1; \
-	done
+	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
+		-p ${DESTDIR}/usr/include
 .if defined(MAKE_LOCAL)
 	mtree -deU -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
+	cd ${DESTDIR}/usr/share/locale; \
+	for l in ${LATIN1LINKS} ; do \
+		ln -sf lt_LN.ISO8859-1 $$l.ISO8859-1; \
+	done
 
 floppies:	kcopy.flp filesyst.flp cpio.flp cdins.flp
 
