@@ -124,9 +124,9 @@ SMP support has been largely reworked, incorporating code from BSD/OS
 The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
 adapters used on some laptops. [MERGED]
 
-The boot loader has been updated.  The new default kernel is now 
-/boot/kernel/kernel.  The new default module location is 
-/boot/kernel/.
+The kernel and modules have been moved to the directory /boot/kernel,
+so they can be easily manipulated together.  The boot loader has been
+updated to make this change as seamless as possible.
 
 A filesystem snapshot capability has been added to FFS.  Details can 
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
