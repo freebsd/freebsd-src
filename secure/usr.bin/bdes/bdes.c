@@ -164,28 +164,15 @@ static int tobinhex(char, int);
 static void usage(void);
 
 int
-main(int ac, char *av[])
+main(int argc, char *argv[])
 {
 	extern char *optarg;		/* argument to option if any */
 	int i;				/* counter in a for loop */
 	char *p;			/* used to obtain the key */
 	DES_cblock msgbuf;		/* I/O buffer */
 	int kflag;			/* command-line encryptiooon key */
-	int argc;			/* the real arg count */
-	char **argv;			/* the real argument vector */
 
-	/*
-	 * Hide the arguments from ps(1) by making private copies of them
-	 * and clobbering the global (visible to ps(1)) ones.
-	 */
-	argc = ac;
-	ac = 1;
-	argv = malloc((argc + 1) * sizeof(char *));
-	for (i = 0; i < argc; ++i) {
-		argv[i] = strdup(av[i]);
-		MEMZERO(av[i], strlen(av[i]));
-	}
-	argv[argc] = NULL;
+	setproctitle("-");		/* Hide command-line arguments */
 
 	/* initialize the initialization vctor */
 	MEMZERO(ivec, 8);
