@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.100 1997/09/07 13:49:49 bde Exp $
+ * $Id: vfs_subr.c,v 1.101 1997/09/07 16:20:46 bde Exp $
  */
 
 /*
@@ -918,7 +918,7 @@ vop_sharedlock(ap)
 		return (0);
 	case LK_RELEASE:
 	default:
-		panic("vop_nolock: bad operation %d", flags & LK_TYPE_MASK);
+		panic("vop_sharedlock: bad operation %d", flags & LK_TYPE_MASK);
 	}
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
