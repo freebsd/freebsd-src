@@ -1,7 +1,8 @@
-#	$Id$
+#	$Id: options.alpha,v 1.1 1998/06/10 10:54:14 dfr Exp $
 
 EV5			opt_global.h
 DEC_KN8AE		opt_cpu.h
+DEC_EB164		opt_cpu.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
