@@ -64,8 +64,8 @@ env_getenv(const char *name)
  * If (value) is NULL, the variable is set but has no value.
  */
 int
-env_setenv(const char *name, int flags, void *value, ev_sethook_t sethook, 
-	   ev_unsethook_t unsethook)
+env_setenv(const char *name, int flags, const void *value,
+	   ev_sethook_t sethook, ev_unsethook_t unsethook)
 {
     struct env_var	*ev, *curr, *last;
 
@@ -150,7 +150,7 @@ getenv(const char *name)
 }
 
 int
-setenv(const char *name, char *value, int overwrite)
+setenv(const char *name, const char *value, int overwrite)
 {
     /* No guarantees about state, always assume volatile */
     if (overwrite || (env_getenv(name) == NULL))

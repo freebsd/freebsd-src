@@ -36,6 +36,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #define NETIF_DEBUG 1
@@ -110,6 +112,9 @@ ssize_t	sendrecv(struct iodesc *,
 			void *, size_t,
 		        ssize_t (*)(struct iodesc *, void *, size_t, time_t),
 			void *, size_t);
+
+/* bootp/DHCP */
+void	bootp(int);
 
 /* Utilities: */
 char	*ether_sprintf(u_char *);
