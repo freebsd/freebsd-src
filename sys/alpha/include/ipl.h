@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.3 1998/07/12 16:32:08 dfr Exp $
+ *	$Id: ipl.h,v 1.4 1998/07/22 08:28:24 dfr Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -42,8 +42,10 @@
 extern int splsoft(void);
 extern int splsoftclock(void);
 extern int splsoftnet(void);
+extern int splsoftcam(void);
 extern int splnet(void);
 extern int splbio(void);
+extern int splcam(void);
 extern int splimp(void);
 extern int spltty(void);
 extern int splvm(void);
