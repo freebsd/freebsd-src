@@ -828,6 +828,9 @@
 	  <para>Allied Telesyn AT2500TX</para>
         </listitem>
 	<listitem>
+	  <para>D-Link DFS-538TX</para>
+	</listitem>
+	<listitem>
 	  <para>Genius GF100TXR (RTL8139)</para>
         </listitem>
 	<listitem>
@@ -1492,7 +1495,7 @@
     LXT1001 NetCellerator controller (&man.lge.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>D-Link DGE=500SX</para>
+	  <para>D-Link DGE-500SX</para>
 	</listitem>
         <listitem>
 	  <para>SMC TigerCard 1000 (SMC9462SX)</para>
