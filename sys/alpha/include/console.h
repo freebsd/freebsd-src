@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.23 1996/06/25 08:54:34 sos Exp $
+ *	$Id: console.h,v 1.24 1996/09/21 14:57:54 bde Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -98,6 +98,7 @@
 
 #define VT_AUTO		0		/* switching is automatic 	*/
 #define VT_PROCESS	1		/* switching controlled by prog */
+#define VT_KERNEL	255		/* switching controlled in kernel */
 
 struct vt_mode {
 	char	mode;
@@ -262,6 +263,7 @@ typedef struct ssaver ssaver_t;
 #define RBT		0x85		/* boot machine			*/
 #define DBG		0x86		/* call debugger		*/
 #define SUSP		0x87		/* suspend power (APM)		*/
+#define SPSC		0x88		/* toggle splash/text screen	*/
 
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)

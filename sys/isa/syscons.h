@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.19 1996/06/26 13:04:53 sos Exp $
+ *	$Id: syscons.h,v 1.20 1996/09/01 18:16:06 sos Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -140,8 +140,10 @@ typedef struct scr_stat {
 	u_short 	*scr_buf;		/* buffer when off screen */
 	int 		xpos;			/* current X position */
 	int 		ypos;			/* current Y position */
-	int 		xsize;			/* X size */
-	int 		ysize;			/* Y size */
+	int 		xsize;			/* X text size */
+	int 		ysize;			/* Y text size */
+	int 		xpixel;			/* X graphics size */
+	int 		ypixel;			/* Y graphics size */
 	int		font_size;		/* fontsize in Y direction */
 	int		start;			/* modified area start */
 	int		end;			/* modified area end */
