@@ -31,7 +31,7 @@
  *
  *	BSDI int21.c,v 2.2 1996/04/08 19:32:51 bostic Exp
  *
- * $Id: dos.c,v 1.1 1997/08/09 01:42:40 dyson Exp $
+ * $Id: dos.c,v 1.2 1998/07/01 19:56:13 imp Exp $
  */
 
 #include "doscmd.h"
@@ -1345,7 +1345,7 @@ int21_42(regcontext_t *REGS)
     int		whence;
     off_t	offset;
     
-    offset = ((off_t)R_CX << 16) + R_DX;
+    offset = (off_t) ((int) (R_CX << 16) + R_DX);
     switch (R_AL) {
     case 0:
 	whence = SEEK_SET;
