@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.34 1997/02/12 16:19:11 mpp Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.35 1997/02/24 17:08:49 bde Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -9,17 +9,14 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
-#include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
 #include <sys/stat.h>
-#include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/mount.h>
+#include <sys/time.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h>/* definitions of spec functions we use */
-#include <sys/malloc.h>
-#include <sys/dir.h>		/* defines dirent structure		*/
+#include <sys/dirent.h>
 #include <miscfs/devfs/devfsdefs.h>
 
 /*
@@ -1447,7 +1444,7 @@ DBPRINT(("readdir\n"));
 			}
 		}
 
-		reclen = dirent.d_reclen = DIRSIZ (&dirent);
+		reclen = dirent.d_reclen = GENERIC_DIRSIZ(&dirent);
 
 		if(pos >= startpos)	/* made it to the offset yet? */
 		{
