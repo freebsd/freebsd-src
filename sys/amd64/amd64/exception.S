@@ -332,7 +332,7 @@ doreti:
 doreti_ast:
 	/*
 	 * Check for ASTs atomically with returning.  Disabling CPU
-	 * interrupts provides sufficient locking evein the SMP case,
+	 * interrupts provides sufficient locking eve in the SMP case,
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
 	cli
