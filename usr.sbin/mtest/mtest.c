@@ -5,6 +5,7 @@
  * Written by Steve Deering, Stanford University, February 1989.
  */
 
+#include <err.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 
+int
 main( argc, argv )
     int argc;
     char **argv;
@@ -27,10 +29,7 @@ main( argc, argv )
     unsigned e1, e2, e3, e4, e5, e6;
 
     if( (so = socket( AF_INET, SOCK_DGRAM, 0 )) == -1)
-      {
-	perror( "can't open socket" );
-	exit( 1 );
-      }
+	err( 1, "can't open socket" );
 
     printf( "multicast membership test program; " );
     printf( "enter ? for list of commands\n" );
@@ -58,7 +57,7 @@ main( argc, argv )
 	      {
 		++lineptr;
 		while( *lineptr == ' ' || *lineptr == '\t' ) ++lineptr;
-		if( (n = sscanf( lineptr, "%u.%u.%u.%u %u.%u.%u.%u %u",
+		if( (n = sscanf( lineptr, "%u.%u.%u.%u %u.%u.%u.%u",
 		    &g1, &g2, &g3, &g4, &i1, &i2, &i3, &i4 )) != 8 )
 		  {
 		    printf( "bad args\n" );
@@ -70,7 +69,7 @@ main( argc, argv )
 		imr.imr_interface.s_addr = htonl(imr.imr_interface.s_addr);
 		if( setsockopt( so, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 				&imr, sizeof(struct ip_mreq) ) == -1 )
-		     perror( "can't join group" );
+		     warn( "can't join group" );
 		else printf( "group joined\n" );
 		break;
 	      }	    
@@ -79,7 +78,7 @@ main( argc, argv )
 	      {
 		++lineptr;
 		while( *lineptr == ' ' || *lineptr == '\t' ) ++lineptr;
-		if( (n = sscanf( lineptr, "%u.%u.%u.%u %u.%u.%u.%u %u",
+		if( (n = sscanf( lineptr, "%u.%u.%u.%u %u.%u.%u.%u",
 		    &g1, &g2, &g3, &g4, &i1, &i2, &i3, &i4 )) != 8 )
 		  {
 		    printf( "bad args\n" );
@@ -91,7 +90,7 @@ main( argc, argv )
 		imr.imr_interface.s_addr = htonl(imr.imr_interface.s_addr);
 		if( setsockopt( so, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 				&imr, sizeof(struct ip_mreq) ) == -1 )
-		     perror( "can't leave group" );
+		     warn( "can't leave group" );
 		else printf( "group left\n" );
 		break;
 	      }	    
@@ -114,7 +113,7 @@ main( argc, argv )
 		ifr.ifr_addr.sa_data[4] = e5;
 		ifr.ifr_addr.sa_data[5] = e6;
 		if( ioctl( so, SIOCADDMULTI, &ifr ) == -1 )
-		     perror( "can't add ether adress" );
+		     warn( "can't add ether address" );
 		else printf( "ether address added\n" );
 		break;
 	      }	    
@@ -137,7 +136,7 @@ main( argc, argv )
 		ifr.ifr_addr.sa_data[4] = e5;
 		ifr.ifr_addr.sa_data[5] = e6;
 		if( ioctl( so, SIOCDELMULTI, &ifr ) == -1 )
-		     perror( "can't delete ether adress" );
+		     warn( "can't delete ether address" );
 		else printf( "ether address deleted\n" );
 		break;
 	      }	    
@@ -153,7 +152,7 @@ main( argc, argv )
 		  }
 		if( ioctl( so, SIOCGIFFLAGS, &ifr ) == -1 )
 		  {
-		    perror( "can't get interface flags" );
+		    warn( "can't get interface flags" );
 		    break;
 		  }
 		printf( "interface flags %x, ", ifr.ifr_flags );
@@ -161,7 +160,7 @@ main( argc, argv )
 		if( f ) ifr.ifr_flags |=  IFF_ALLMULTI;
 		else    ifr.ifr_flags &= ~IFF_ALLMULTI;
 		if( ioctl( so, SIOCSIFFLAGS, &ifr ) == -1 )
-		     perror( "can't set" );
+		     warn( "can't set" );
 		else printf( "changed to %x\n", ifr.ifr_flags );
 		break;
 	      }	    
@@ -177,7 +176,7 @@ main( argc, argv )
 		  }
 		if( ioctl( so, SIOCGIFFLAGS, &ifr ) == -1 )
 		  {
-		    perror( "can't get interface flags" );
+		    warn( "can't get interface flags" );
 		    break;
 		  }
 		printf( "interface flags %x, ", ifr.ifr_flags );
@@ -185,7 +184,7 @@ main( argc, argv )
 		if( f ) ifr.ifr_flags |=  IFF_PROMISC;
 		else    ifr.ifr_flags &= ~IFF_PROMISC;
 		if( ioctl( so, SIOCSIFFLAGS, &ifr ) == -1 )
-		     perror( "can't set" );
+		     warn( "can't set" );
 		else printf( "changed to %x\n", ifr.ifr_flags );
 		break;
 	      }	    
@@ -202,4 +201,5 @@ main( argc, argv )
 	      }
 	  }
       }
+  return(0);
   }
