@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.5 1994/09/22 02:49:15 phk Exp $
+# $Id: Makefile,v 1.6 1994/10/24 20:09:18 phk Exp $
 #
 
 PROG=		ctm
@@ -18,5 +18,7 @@ DPADD+=		${LIBMD}
 NOMAN=		1
 CFLAGS+=	-Wall -g
 
-.include "../../Makefile.inc"
+.if exists(${.CURDIR}/../../Makefile.inc)
+.include "${.CURDIR}/../../Makefile.inc"
+.endif
 .include <bsd.prog.mk>
