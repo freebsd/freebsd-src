@@ -808,8 +808,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     bp->b_iocmd = ubp->b_iocmd;
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
-
-    bp->b_iodone = complete_rqe;			    /* by calling us here */
+    bp->b_iodone = complete_rqe;
     /*
      * You'd think that we wouldn't need to even
      * build the request buffer for a dead subdisk,
