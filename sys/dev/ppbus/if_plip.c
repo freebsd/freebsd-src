@@ -146,8 +146,6 @@ static int volatile lptflag = 0;
 #endif
 
 struct lp_data {
-	unsigned short lp_unit;
-
 	struct  ifnet	sc_if;
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
@@ -222,7 +220,6 @@ lp_probe(device_t dev)
 	/*
 	 * lp dependent initialisation.
 	 */
-	lp->lp_unit = device_get_unit(dev);
 
 	device_set_desc(dev, "PLIP network interface");
 
