@@ -40,7 +40,7 @@
 
 #include "acpi.h"
 
-#include <acpica/acpivar.h>
+#include <dev/acpica/acpivar.h>
 #include <pci/pcivar.h>
 
 /*
