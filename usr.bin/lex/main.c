@@ -1006,7 +1006,7 @@ _( "Variable trailing context rules entail a large performance penalty\n" ) );
 
 	if ( C_plus_plus )
 		{
-		outn( "\n#include <g++/FlexLexer.h>" );
+		outn( "\n#include <FlexLexer.h>" );
 
 		if ( yyclass )
 			{
