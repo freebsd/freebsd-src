@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.5 1995/05/31 20:55:27 jkh Exp $
+ * $Id: menus.c,v 1.41.2.6 1995/06/01 04:30:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -593,6 +593,8 @@ servers support it, firewall or no).",
 	DMENU_SET_VARIABLE,	"ftpRetryType=abort", 0, 0	},
       { "FTP passive", "Use \"passive mode\" for firewalled FTP",
 	DMENU_SET_VARIABLE,	"ftpPassive=yes", 0, 0		},
+      { "FTP userpass", "Specify username and password instead of anon",
+	DMENU_CALL, mediaFtpSetUserPass, 0, 0			},
       { NULL } },
 };
 
