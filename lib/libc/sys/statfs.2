@@ -32,7 +32,7 @@
 .\"	@(#)statfs.2	8.5 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd May 24, 1995
+.Dd November 16, 2003
 .Dt STATFS 2
 .Os
 .Sh NAME
@@ -66,33 +66,39 @@ structure defined as follows:
 typedef struct fsid { int32_t val[2]; } fsid_t; /* file system id type */
 
 /*
- * file system statistics
+ * filesystem statistics
  */
 
-#define MFSNAMELEN 16	/* length of fs type name, including null */
-#define MNAMELEN   90	/* length of buffer for returned name */
+#define	MFSNAMELEN	16		/* length of type name including null */
+#define	MNAMELEN	88		/* size of on/from name bufs */
+#define	STATFS_VERSION	0x20030518	/* current version number */
 
 struct statfs {
-long	f_bsize;	  /* fundamental file system block size */
-long	f_iosize;	  /* optimal transfer block size */
-long	f_blocks;	  /* total data blocks in file system */
-long	f_bfree;	  /* free blocks in fs */
-long	f_bavail;	  /* free blocks avail to non-superuser */
-long	f_files;	  /* total file nodes in file system */
-long	f_ffree;	  /* free file nodes in fs */
-fsid_t	f_fsid;		  /* file system id */
-uid_t	f_owner;	  /* user that mounted the file system */
-int	f_type;		  /* type of file system */
-int	f_flags;	  /* copy of mount flags */
-long    f_syncwrites;	  /* count of sync writes since mount */
-long    f_asyncwrites;	  /* count of async writes since mount */
-char	f_fstypename[MFSNAMELEN];/* fs type name */
-char	f_mntonname[MNAMELEN];	 /* mount point */
-long    f_syncreads;		 /* count of sync reads since mount */
-long    f_asyncreads;		 /* count of async reads since mount */
-char	f_mntfromname[MNAMELEN]; /* mounted file system */
+uint32_t f_version;		/* structure version number */
+uint32_t f_type;		/* type of filesystem */
+uint64_t f_flags;		/* copy of mount exported flags */
+uint64_t f_bsize;		/* filesystem fragment size */
+uint64_t f_iosize;		/* optimal transfer block size */
+uint64_t f_blocks;		/* total data blocks in filesystem */
+uint64_t f_bfree;		/* free blocks in filesystem */
+int64_t	 f_bavail;		/* free blocks avail to non-superuser */
+uint64_t f_files;		/* total file nodes in filesystem */
+int64_t	 f_ffree;		/* free nodes avail to non-superuser */
+uint64_t f_syncwrites;		/* count of sync writes since mount */
+uint64_t f_asyncwrites;		/* count of async writes since mount */
+uint64_t f_syncreads;		/* count of sync reads since mount */
+uint64_t f_asyncreads;		/* count of async reads since mount */
+uint64_t f_spare[10];		/* unused spare */
+uint32_t f_namemax;		/* maximum filename length */
+uid_t	  f_owner;		/* user that mounted the filesystem */
+fsid_t	  f_fsid;		/* filesystem id */
+char	  f_charspare[80];	    /* spare string space */
+char	  f_fstypename[MFSNAMELEN]; /* filesystem type name */
+char	  f_mntfromname[MNAMELEN];  /* mounted filesystem */
+char	  f_mntonname[MNAMELEN];    /* directory on which mounted */
 };
 .Ed
+.Pp
 The flags that may be returned include:
 .Bl -tag -width MNT_SYNCHRONOUS
 .It Dv MNT_RDONLY
@@ -108,6 +114,27 @@ Special files in the file system may not be opened.
 All I/O to the file system is done synchronously.
 .It Dv MNT_ASYNC
 No file system I/O is done synchronously.
+.It Dv MNT_SOFTDEP
+Soft updates being done (see
+.Xr ffs 7).
+.It Dv MNT_SUIDDIR
+Special handling of SUID bit on directories.
+.It Dv MNT_UNION
+Union with underlying filesystem.
+.It Dv MNT_NOSYMFOLLOW
+Symbolic links are not followed.
+.It Dv MNT_NOCLUSTERR
+Read clustering is disabled.
+.It Dv MNT_NOCLUSTERW
+Write clustering is disabled.
+.\".It Dv MNT_JAILDEVFS
+.\"XXX
+.It Dv MNT_MULTILABEL
+Mandatory Access Control (MAC) support for individual objects
+(see
+.Xr mac 4).
+.It Dv MNT_ACLS
+Access Control List (ACL) support enabled.
 .It Dv MNT_LOCAL
 The file system resides locally.
 .It Dv MNT_QUOTA
@@ -116,6 +143,12 @@ The file system has quotas enabled on it.
 Identifies the root file system.
 .It Dv MNT_EXRDONLY
 The file system is exported read-only.
+.It Dv MNT_NOATIME
+Updating of file access times is disabled.
+.It Dv MNT_USER
+The file system has been mounted by a user.
+.\".It Dv MNT_IGNORE
+.\"XXX
 .It Dv MNT_EXPORTED
 The file system is exported for both reading and writing.
 .It Dv MNT_DEFEXPORTED
@@ -124,6 +157,8 @@ The file system is exported for both reading and writing to any Internet host.
 The file system maps all remote accesses to the anonymous user.
 .It Dv MNT_EXKERB
 The file system is exported with Kerberos uid mapping.
+.It Dv MNT_EXPUBLIC
+The file system is exported publicly (WebNFS).
 .El
 .Pp
 Fields that are undefined for a particular file system are set to -1.
