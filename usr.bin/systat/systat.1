@@ -38,7 +38,7 @@
 .Nm systat
 .Nd display system statistics on a crt
 .Sh SYNOPSIS
-.Nm systat
+.Nm
 .Op Fl display
 .Op Ar refresh-interval
 .Sh DESCRIPTION
@@ -48,7 +48,7 @@ using the curses screen display library,
 .Xr curses 3 .
 .Pp
 While
-.Nm systat
+.Nm
 is running the screen is usually divided into two windows (an exception
 is the vmstat display which uses the entire screen).  The
 upper window depicts the current system load average.  The
@@ -57,7 +57,7 @@ user commands.  The last line on the screen is reserved for user
 input and error messages.
 .Pp
 By default
-.Nm systat
+.Nm
 displays the processes getting the largest percentage of the processor
 in the lower window.  Other displays show swap space usage, disk
 .Tn I/O
@@ -164,7 +164,7 @@ on disk throughput show, for each drive, kilobytes of data transferred,
 number of disk transactions performed, and average seek time
 (in milliseconds).  This information may be displayed as
 bar graphs or as rows of numbers which scroll downward.  Bar
-graphs are shown by default;
+graphs are shown by default.
 .Pp
 The following commands are specific to the
 .Ic iostat
@@ -247,8 +247,9 @@ of kilobyte blocks transferred per second averaged over the
 refresh period of the display (by default, five seconds).
 For some disks it also reports the average milliseconds per seek.
 Note that the system only keeps statistics on at most eight disks
-(this is controlled by the constant DK_NDRIVE in /sys/dkstat.h as
-a kernel compile-time constant).
+(this is controlled by the constant DK_NDRIVE in
+.Pa /usr/include/sys/dkstat.h
+as a kernel compile-time constant).
 .Pp
 Under the date in the upper right hand quadrant are statistics
 on paging and swapping activity.
@@ -414,7 +415,7 @@ For port names.
 .El
 .Sh HISTORY
 The
-.Nm systat
+.Nm
 program appeared in
 .Bx 4.3 .
 .Sh BUGS
