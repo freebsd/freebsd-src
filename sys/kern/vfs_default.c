@@ -109,6 +109,11 @@ static struct vnodeopv_desc default_vnodeop_opv_desc =
 
 VNODEOP_SET(default_vnodeop_opv_desc);
 
+/*
+ * Series of placeholder functions for various error returns for
+ * VOPs.
+ */
+
 int
 vop_eopnotsupp(struct vop_generic_args *ap)
 {
@@ -147,6 +152,9 @@ vop_null(struct vop_generic_args *ap)
 	return (0);
 }
 
+/*
+ * Used to make a defined VOP fall back to the default VOP.
+ */
 int
 vop_defaultop(struct vop_generic_args *ap)
 {
@@ -154,6 +162,9 @@ vop_defaultop(struct vop_generic_args *ap)
 	return (VOCALL(default_vnodeop_p, ap->a_desc->vdesc_offset, ap));
 }
 
+/*
+ * Helper function to panic on some bad VOPs in some filesystems.
+ */
 int
 vop_panic(struct vop_generic_args *ap)
 {
@@ -161,6 +172,18 @@ vop_panic(struct vop_generic_args *ap)
 	panic("filesystem goof: vop_panic[%s]", ap->a_desc->vdesc_name);
 }
 
+/*
+ * vop_std<something> and vop_no<something> are default functions for use by
+ * filesystems that need the "default reasonable" implementation for a
+ * particular operation.
+ *
+ * The documentation for the operations they implement exists (if it exists)
+ * in the VOP_<SOMETHING>(9) manpage (all uppercase).
+ */
+
+/*
+ * Default vop for filesystems that do not support name lookup
+ */
 static int
 vop_nolookup(ap)
 	struct vop_lookup_args /* {
@@ -198,6 +221,14 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	return (EOPNOTSUPP);
 }
 
+/*
+ * vop_stdpathconf:
+ * 
+ * Standard implementation of POSIX pathconf, to get information about limits
+ * for a filesystem.
+ * Override per filesystem for the case where the filesystem has smaller
+ * limits.
+ */
 int
 vop_stdpathconf(ap)
 	struct vop_pathconf_args /* {
@@ -256,6 +287,7 @@ vop_stdlock(ap)
 #endif
 }
 
+/* See above. */
 int
 vop_stdunlock(ap)
 	struct vop_unlock_args /* {
@@ -270,6 +302,7 @@ vop_stdunlock(ap)
 	    ap->a_td));
 }
 
+/* See above. */
 int
 vop_stdislocked(ap)
 	struct vop_islocked_args /* {
@@ -281,6 +314,7 @@ vop_stdislocked(ap)
 	return (lockstatus(&ap->a_vp->v_lock, ap->a_td));
 }
 
+/* Mark the vnode inactive */
 int
 vop_stdinactive(ap)
 	struct vop_inactive_args /* {
@@ -512,6 +546,7 @@ vop_stdgetwritemount(ap)
 	return (0);
 }
 
+/* Create the VM system backing object for this vnode */
 int
 vop_stdcreatevobject(ap)
 	struct vop_createvobject_args /* {
@@ -570,6 +605,7 @@ retn:
 	return (error);
 }
 
+/* Destroy the VM system object associated with this vnode */
 int
 vop_stddestroyvobject(ap)
 	struct vop_destroyvobject_args /* {
@@ -627,6 +663,7 @@ vop_stdgetvobject(ap)
 	return (vp->v_object ? 0 : EINVAL);
 }
 
+/* XXX Needs good comment and VOP_BMAP(9) manpage */
 int
 vop_stdbmap(ap)
 	struct vop_bmap_args /* {  
@@ -650,6 +687,7 @@ vop_stdbmap(ap)
 	return (0);
 }
 
+/* XXX Needs good comment and more info in the manpage (VOP_GETPAGES(9)). */
 int
 vop_stdgetpages(ap)
 	struct vop_getpages_args /* {
@@ -665,6 +703,7 @@ vop_stdgetpages(ap)
 	    ap->a_count, ap->a_reqpage);
 }
 
+/* XXX Needs good comment and more info in the manpage (VOP_PUTPAGES(9)). */
 int
 vop_stdputpages(ap)
 	struct vop_putpages_args /* {
@@ -685,7 +724,7 @@ vop_stdputpages(ap)
 
 /* 
  * vfs default ops
- * used to fill the vfs fucntion table to get reasonable default return values.
+ * used to fill the vfs function table to get reasonable default return values.
  */
 int 
 vfs_stdmount (mp, path, data, ndp, td)
@@ -698,7 +737,7 @@ vfs_stdmount (mp, path, data, ndp, td)
 	return (0);
 }
 
-int	
+int
 vfs_stdunmount (mp, mntflags, td)
 	struct mount *mp;
 	int mntflags;
@@ -707,7 +746,7 @@ vfs_stdunmount (mp, mntflags, td)
 	return (0);
 }
 
-int	
+int
 vfs_stdroot (mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
@@ -715,7 +754,7 @@ vfs_stdroot (mp, vpp)
 	return (EOPNOTSUPP);
 }
 
-int	
+int
 vfs_stdstatfs (mp, sbp, td)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -732,7 +771,7 @@ vfs_stdvptofh (vp, fhp)
 	return (EOPNOTSUPP);
 }
 
-int	
+int
 vfs_stdstart (mp, flags, td)
 	struct mount *mp;
 	int flags;
