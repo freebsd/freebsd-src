@@ -202,17 +202,19 @@ draw:
 	
 	/* Shortcut to OK? */
 	if (toupper(key) == okButton) {
-	    if (ditems && result && ditems[OK_BUTTON].fire) {
-		int st;
-		WINDOW *save;
+	    if (ditems) {
+		if (result && ditems[OK_BUTTON].fire) {
+		    int st;
+		    WINDOW *save;
 
-		save = dupwin(newscr);
-		st = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
-		if (st & DITEM_RESTORE) {
-		    touchwin(save);
-		    wrefresh(save);
+		    save = dupwin(newscr);
+		    st = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
+		    if (st & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
+		    }
+		    delwin(save);
 		}
-		delwin(save);
 	    }
 	    else if (result) {
 		*result = '\0';
@@ -457,8 +459,8 @@ draw:
 	    /* Select either the OK or Cancel button */
 	case '\n':
 	case '\r':
-	    if (ditems && result) {
-		if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
+	    if (ditems) {
+		if (result && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
 		    int st;
 		    WINDOW *save = dupwin(newscr);
 
