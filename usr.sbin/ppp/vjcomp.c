@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.29 1999/05/09 20:02:29 brian Exp $
+ * $Id: vjcomp.c,v 1.30 1999/05/12 09:49:12 brian Exp $
  *
  *  TODO:
  */
@@ -81,11 +81,13 @@ vj_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp, int pri,
     case TYPE_UNCOMPRESSED_TCP:
       *proto = PROTO_VJUNCOMP;
       log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
+      mbuf_SetType(bp, MB_VJOUT);
       break;
 
     case TYPE_COMPRESSED_TCP:
       *proto = PROTO_VJCOMP;
       log_Printf(LogDEBUG, "vj_LayerPush: PROTO_IP -> PROTO_VJUNCOMP\n");
+      mbuf_SetType(bp, MB_VJOUT);
       break;
 
     default:
@@ -119,7 +121,8 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
     if (len <= 0) {
       mbuf_Free(bp);
       bp = NULL;
-    }
+    } else
+      mbuf_SetType(bp, MB_VJIN);
     return bp;
   }
 
@@ -141,8 +144,9 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
   }
   len -= olen;
   len += rlen;
-  nbp = mbuf_Alloc(len, MB_VJCOMP);
+  nbp = mbuf_Alloc(len, MB_VJIN);
   memcpy(MBUF_CTOP(nbp), bufp, len);
+  mbuf_SetType(bp, MB_VJIN);
   nbp->next = bp;
   return nbp;
 }

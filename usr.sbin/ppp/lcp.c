@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.73 1999/05/08 11:06:51 brian Exp $
+ * $Id: lcp.c,v 1.74 1999/05/09 20:02:21 brian Exp $
  *
  */
 
@@ -430,14 +430,16 @@ LcpSendConfigReq(struct fsm *fp)
     INC_LCP_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
   }
 
-  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff,
+             MB_LCPOUT);
 }
 
 void
 lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 {
   /* Don't understand `option' */
-  fsm_Output(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count);
+  fsm_Output(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count,
+             MB_LCPOUT);
 }
 
 static void
@@ -455,7 +457,7 @@ LcpSendTerminateAck(struct fsm *fp, u_char id)
   if (p && p->dl->state == DATALINK_CBCP)
     cbcp_ReceiveTerminateReq(p);
 
-  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0, MB_LCPOUT);
 }
 
 static void
@@ -1148,6 +1150,7 @@ extern struct mbuf *
 lcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
+  mbuf_SetType(bp, MB_LCPIN);
   fsm_Input(&l->lcp.fsm, bp);
   return NULL;
 }

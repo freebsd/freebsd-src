@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.24 1999/05/08 11:05:59 brian Exp $
+ *	$Id: alias_cmd.c,v 1.25 1999/05/12 09:48:39 brian Exp $
  */
 
 #include <sys/param.h>
@@ -313,6 +313,7 @@ alias_PadMbuf(struct mbuf *bp, int type)
   struct mbuf **last;
   int len;
 
+  mbuf_SetType(bp, type);
   for (last = &bp, len = 0; *last != NULL; last = &(*last)->next)
     len += (*last)->cnt;
 
@@ -330,7 +331,7 @@ alias_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
     return bp;
 
   log_Printf(LogDEBUG, "alias_LayerPush: PROTO_IP -> PROTO_IP\n");
-  bp = mbuf_Contiguous(alias_PadMbuf(bp, MB_IPQ));
+  bp = mbuf_Contiguous(alias_PadMbuf(bp, MB_ALIASOUT));
   PacketAliasOut(MBUF_CTOP(bp), bp->cnt);
   bp->cnt = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
 
@@ -350,7 +351,7 @@ alias_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
     return bp;
 
   log_Printf(LogDEBUG, "alias_LayerPull: PROTO_IP -> PROTO_IP\n");
-  bp = mbuf_Contiguous(alias_PadMbuf(bp, MB_IPIN));
+  bp = mbuf_Contiguous(alias_PadMbuf(bp, MB_ALIASIN));
   pip = (struct ip *)MBUF_CTOP(bp);
   piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
 
@@ -383,7 +384,7 @@ alias_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
       last = &bp->pnext;
       while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
 	PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
-        *last = mbuf_Alloc(ntohs(((struct ip *)fptr)->ip_len), MB_IPIN);
+        *last = mbuf_Alloc(ntohs(((struct ip *)fptr)->ip_len), MB_ALIASIN);
         memcpy(MBUF_CTOP(*last), fptr, (*last)->cnt);
         free(fptr);
         last = &(*last)->pnext;
