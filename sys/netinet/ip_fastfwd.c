@@ -36,8 +36,10 @@
  * driver calls ip_fastforward, we do our routing table lookup and directly
  * send it off to the outgoing interface which DMAs the packet to the
  * network card. The only part of the packet we touch with the CPU is the
- * IP header. We are essentially limited by bus bandwidth and how fast the
- * network card/driver can set up receives and transmits.
+ * IP header (unless there are complex firewall rules touching other parts
+ * of the packet, but that is up to you). We are essentially limited by bus
+ * bandwidth and how fast the network card/driver can set up receives and
+ * transmits.
  *
  * We handle basic errors, ip header errors, checksum errors,
  * destination unreachable, fragmentation and fragmentation needed and
@@ -344,7 +346,6 @@ fallback:
 	if (fw_enable && IPFW_LOADED) {
 		bzero(&args, sizeof(args));
 		args.m = m;
-		ipfw = 0;
 
 		ipfw = ip_fw_chk_ptr(&args);
 		m = args.m;
@@ -528,10 +529,9 @@ passin:
 	dest = ip->ip_dst.s_addr;
 #endif
 	if (fw_enable && IPFW_LOADED && !args.next_hop) {
-                bzero(&args, sizeof(args));
+		bzero(&args, sizeof(args));
 		args.m = m;
 		args.oif = ifp;
-                ipfw = 0;
 
 		ipfw = ip_fw_chk_ptr(&args);
 		m = args.m;
@@ -567,7 +567,7 @@ passin:
 					goto drop;
 				}
 				tag->m_flags = PACKET_TAG_DIVERT;
-				tag->m_data = (caddr_t)(u_int32_t)args.divert_rule;
+				tag->m_data = (caddr_t)(u_long)args.divert_rule;
 				tag->m_next = m;
 				/* XXX: really bloody hack, see ip_input */
 				tag->m_nextpkt = (struct mbuf *)1;
