@@ -1234,7 +1234,10 @@ sis_attach(dev)
 	}
 
 	sc->sis_unit = unit;
-	callout_init(&sc->sis_stat_ch, CALLOUT_MPSAFE);
+	if (debug_mpsafenet)
+		callout_init(&sc->sis_stat_ch, CALLOUT_MPSAFE);
+	else
+		callout_init(&sc->sis_stat_ch, 0);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
