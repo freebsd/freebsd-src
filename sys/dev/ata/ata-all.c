@@ -96,7 +96,7 @@ static devclass_t ata_devclass;
 static devclass_t ata_pci_devclass;
 static struct intr_config_hook *ata_delayed_attach = NULL;
 static char ata_conf[256];
-MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
+static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
 #if NISA > 0
 static struct isa_pnp_id ata_ids[] = {

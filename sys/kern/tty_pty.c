@@ -54,7 +54,7 @@
 #include <sys/signalvar.h>
 #include <sys/malloc.h>
 
-MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
+static MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
 static void ptsstart __P((struct tty *tp));
 static void ptsstop __P((struct tty *tp, int rw));

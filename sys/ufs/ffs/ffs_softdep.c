@@ -77,19 +77,19 @@
 /*
  * malloc types defined for the softdep system.
  */
-MALLOC_DEFINE(M_PAGEDEP, "pagedep","File page dependencies");
-MALLOC_DEFINE(M_INODEDEP, "inodedep","Inode dependencies");
-MALLOC_DEFINE(M_NEWBLK, "newblk","New block allocation");
-MALLOC_DEFINE(M_BMSAFEMAP, "bmsafemap","Block or frag allocated from cyl group map");
-MALLOC_DEFINE(M_ALLOCDIRECT, "allocdirect","Block or frag dependency for an inode");
-MALLOC_DEFINE(M_INDIRDEP, "indirdep","Indirect block dependencies");
-MALLOC_DEFINE(M_ALLOCINDIR, "allocindir","Block dependency for an indirect block");
-MALLOC_DEFINE(M_FREEFRAG, "freefrag","Previously used frag for an inode");
-MALLOC_DEFINE(M_FREEBLKS, "freeblks","Blocks freed from an inode");
-MALLOC_DEFINE(M_FREEFILE, "freefile","Inode deallocated");
-MALLOC_DEFINE(M_DIRADD, "diradd","New directory entry");
-MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
-MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
+static MALLOC_DEFINE(M_PAGEDEP, "pagedep","File page dependencies");
+static MALLOC_DEFINE(M_INODEDEP, "inodedep","Inode dependencies");
+static MALLOC_DEFINE(M_NEWBLK, "newblk","New block allocation");
+static MALLOC_DEFINE(M_BMSAFEMAP, "bmsafemap","Block or frag allocated from cyl group map");
+static MALLOC_DEFINE(M_ALLOCDIRECT, "allocdirect","Block or frag dependency for an inode");
+static MALLOC_DEFINE(M_INDIRDEP, "indirdep","Indirect block dependencies");
+static MALLOC_DEFINE(M_ALLOCINDIR, "allocindir","Block dependency for an indirect block");
+static MALLOC_DEFINE(M_FREEFRAG, "freefrag","Previously used frag for an inode");
+static MALLOC_DEFINE(M_FREEBLKS, "freeblks","Blocks freed from an inode");
+static MALLOC_DEFINE(M_FREEFILE, "freefile","Inode deallocated");
+static MALLOC_DEFINE(M_DIRADD, "diradd","New directory entry");
+static MALLOC_DEFINE(M_MKDIR, "mkdir","New directory");
+static MALLOC_DEFINE(M_DIRREM, "dirrem","Directory entry deleted");
 
 #define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
 

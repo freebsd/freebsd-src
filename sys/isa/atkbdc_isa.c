@@ -43,7 +43,7 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
-MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
+static MALLOC_DEFINE(M_ATKBDDEV, "atkbddev", "AT Keyboard device");
 
 /* children */
 typedef struct atkbdc_device {

@@ -80,7 +80,7 @@ static int ad_version(u_int16_t);
 
 /* internal vars */
 static u_int32_t adp_lun_map = 0;
-MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
+static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");
 
 /* defines */
 #define	AD_MAX_RETRIES	3

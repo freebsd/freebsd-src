@@ -54,7 +54,7 @@ static struct cdevsw spkr_cdevsw = {
 	/* bmaj */	-1
 };
 
-MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
+static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *

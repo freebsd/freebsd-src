@@ -78,7 +78,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
+static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #if NBPF > 0
 

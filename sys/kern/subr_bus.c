@@ -41,7 +41,7 @@
 #include <sys/rman.h>
 #include <machine/stdarg.h>	/* for device_printf() */
 
-MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
+static MALLOC_DEFINE(M_BUS, "bus", "Bus data structures");
 
 #ifdef BUS_DEBUG
 

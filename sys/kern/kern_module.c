@@ -37,7 +37,7 @@
 #include <sys/linker.h>
 #include <sys/proc.h>
 
-MALLOC_DEFINE(M_MODULE, "module", "module data structures");
+static MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
 typedef TAILQ_HEAD(, module) modulelist_t;
 struct module {
