@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.12 1995/06/19 16:45:33 wollman Exp $
+ * $Id: tcp_subr.c,v 1.13 1995/06/29 18:11:23 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -429,6 +429,10 @@ tcp_notify(inp, error)
 	sowwakeup(so);
 }
 
+#ifdef MTUDISC
+static void tcp_mtudisc __P((struct inpcb *, int));
+#endif /* MTUDISC */
+
 void
 tcp_ctlinput(cmd, sa, ip)
 	int cmd;
@@ -440,6 +444,10 @@ tcp_ctlinput(cmd, sa, ip)
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
+#ifdef MTUDISC
+	else if (cmd == PRC_MSGSIZE)
+		notify = tcp_mtudisc;
+#endif /* MTUDISC */
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
 		return;
@@ -465,6 +473,26 @@ tcp_quench(inp, errno)
 	if (tp)
 		tp->snd_cwnd = tp->t_maxseg;
 }
+
+#ifdef MTUDISC
+/*
+ * When `need fragmentation' ICMP is received, update our idea of the MSS
+ * based on the new value in the route.  Also nudge TCP to send something,
+ * since we know the packet we just sent was dropped.
+ */
+static void
+tcp_mtudisc(inp, errno)
+	struct inpcb *inp;
+	int errno;
+{
+	struct tcpcb *tp = intotcpcb(inp);
+
+#if 0
+	if (tp)
+		;		/* XXX implement */
+#endif
+}
+#endif /* MTUDISC */
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route
