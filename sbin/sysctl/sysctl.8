@@ -134,6 +134,16 @@ purpose programs such as
 and
 .Nm netstat .
 .Pp
+Some of the variables which cannot be modified during normal system
+operation can be initialized via
+.Xr loader 8
+tunables.
+This can for example be done by setting them in
+.Xr loader.conf 5 .
+Please refer to
+.Xr loader.conf 5
+for more information on which tunables are available and how to set them.
+.Pp
 The string and integer information is summarized below.
 For a detailed description of these variable see
 .Xr sysctl 3 .
@@ -270,7 +280,9 @@ The
 option has been deprecated and is silently ignored.
 .Sh SEE ALSO
 .Xr sysctl 3 ,
-.Xr sysctl.conf 5
+.Xr loader.conf 5 ,
+.Xr sysctl.conf 5 ,
+.Xr loader 8
 .Sh BUGS
 The
 .Nm
