@@ -33,19 +33,17 @@
 #include <sys/random.h>
 #include <sys/types.h>
 
-#include <crypto/blowfish/blowfish.h>
+#include <crypto/rijndael/rijndael.h>
 
 #include <dev/random/hash.h>
 
-/* initialise the hash by copying in some supplied data */
+/* initialise the hash by zeroing it */
 void
-yarrow_hash_init(struct yarrowhash *context, void *data, size_t size)
+yarrow_hash_init(struct yarrowhash *context)
 {
-	size_t count;
-
-	count = size > KEYSIZE ? KEYSIZE : size;
-	memset(context->hash, 0xff, KEYSIZE);
-	memcpy(context->hash, data, count);
+	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
+	bzero(context->hash, KEYSIZE);
+	context->partial = 0;
 }
 
 /* Do a Davies-Meyer hash using a block cipher.
@@ -55,65 +53,65 @@ yarrow_hash_init(struct yarrowhash *context, void *data, size_t size)
 void
 yarrow_hash_iterate(struct yarrowhash *context, void *data, size_t size)
 {
-	u_char keybuffer[KEYSIZE], temp[KEYSIZE];
-	size_t count;
-	int iteration, last, i;
+	u_char temp[KEYSIZE];
+	u_int i, j;
 
-	iteration = 0;
-	last = 0;
-	for (;;) {
-		if (size <= KEYSIZE)
-			last = 1;
-		count = size > KEYSIZE ? KEYSIZE : size;
-		memcpy(keybuffer, &((u_char *)data)[iteration], count);
-		memset(&keybuffer[KEYSIZE - count], 0xff, count);
-		BF_set_key(&context->hashkey, count,
-			&((u_char *)data)[iteration]);
-		BF_cbc_encrypt(context->hash, temp, KEYSIZE, &context->hashkey,
-			context->ivec, BF_ENCRYPT);
-		for (i = 0; i < KEYSIZE; i++)
-			context->hash[i] ^= temp[i];
-		if (last)
-			break;
-		iteration += KEYSIZE;
-		size -= KEYSIZE;
+	for (i = 0; i < size; i++) {
+		context->accum[context->partial++] = ((u_char *)(data))[i];
+		if (context->partial == (KEYSIZE - 1)) {
+			rijndael_makeKey(&context->hashkey, DIR_ENCRYPT,
+				KEYSIZE*8, context->accum);
+			rijndael_blockEncrypt(&context->cipher,
+				&context->hashkey, context->hash,
+				KEYSIZE*8, temp);
+			for (j = 0; j < KEYSIZE; j++)
+				context->hash[j] ^= temp[j];
+			bzero(context->accum, KEYSIZE);
+			context->partial = 0;
+		}
 	}
 }
 
-/* Conclude by returning a pointer to the data */
+/* Conclude by returning the hash in the supplied /buf/ which must be
+ * KEYSIZE bytes long. Trailing data (less than KEYSIZE bytes) are
+ * not forgotten.
+ */
 void
 yarrow_hash_finish(struct yarrowhash *context, void *buf)
 {
-	memcpy(buf, context->hash, sizeof(context->hash));
-}
+	u_char temp[KEYSIZE];
+	int i;
 
-/* Initialise the encryption routine by setting up the key schedule */
-void
-yarrow_encrypt_init(struct yarrowkey *context, void *data, size_t size)
-{
-	size_t count;
-
-	count = size > KEYSIZE ? KEYSIZE : size;
-	BF_set_key(&context->key, count, data);
-}
-
-/* Encrypt the supplied data using the key schedule preset in the context */
-void
-yarrow_encrypt(struct yarrowkey *context, void *d_in, void *d_out, size_t size)
-{
-	size_t count;
-	int iteration, last;
-
-	last = 0;
-	for (iteration = 0;; iteration += KEYSIZE) {
-		if (size <= KEYSIZE)
-			last = 1;
-		count = size > KEYSIZE ? KEYSIZE : size;
-		BF_cbc_encrypt(&((u_char *)d_in)[iteration],
-			&((u_char *)d_out)[iteration], count, &context->key,
-			context->ivec, BF_ENCRYPT);
-		if (last)
-			break;
-		size -= KEYSIZE;
+	if (context->partial) {
+		rijndael_makeKey(&context->hashkey, DIR_ENCRYPT,
+			KEYSIZE*8, context->accum);
+		rijndael_blockEncrypt(&context->cipher,
+			&context->hashkey, context->hash,
+			KEYSIZE*8, temp);
+		for (i = 0; i < KEYSIZE; i++)
+			context->hash[i] ^= temp[i];
 	}
+	memcpy(buf, context->hash, KEYSIZE);
+	bzero(context->hash, KEYSIZE);
+}
+
+/* Initialise the encryption routine by setting up the key schedule
+ * from the supplied /key/ which must be KEYSIZE bytes of binary
+ * data.
+ */
+void
+yarrow_encrypt_init(struct yarrowkey *context, void *data)
+{
+	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
+	rijndael_makeKey(&context->key, DIR_ENCRYPT, KEYSIZE*8, data);
+}
+
+/* Encrypt the supplied data using the key schedule preset in the context.
+ * KEYSIZE bytes are encrypted from /d_in/ to /d_out/.
+ */
+void
+yarrow_encrypt(struct yarrowkey *context, void *d_in, void *d_out)
+{
+	rijndael_blockEncrypt(&context->cipher, &context->key, d_in,
+		KEYSIZE*8, d_out);
 }
