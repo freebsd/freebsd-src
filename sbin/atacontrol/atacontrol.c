@@ -197,6 +197,9 @@ ata_cap_print(int fd, int channel, int device)
 {
 	struct ata_cmd iocmd;
 
+	if (device < 0 || device > 1)
+		return ENXIO;
+
 	bzero(&iocmd, sizeof(struct ata_cmd));
 
 	iocmd.channel = channel;
