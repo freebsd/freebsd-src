@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.101 1997/07/25 11:53:20 phk Exp $
+#	$Id: Makefile.i386,v 1.102 1997/10/10 09:43:55 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -15,6 +15,9 @@
 #	/sys/i386/conf/Makefile.i386
 # after which config should be rerun for all machines.
 #
+
+# Which version of config(8) is required.
+%VERSREQ=	300002
 
 BINFORMAT?=	aout
 #BINFORMAT?=	aoutkld
