@@ -46,6 +46,7 @@ Local Changes:
 	  r1.6 - document -D option.
           - remove dhcpd from SEE ALSO section.
 	client/dhclient.c
+	  r1.35 - interface polling
 	  r1.32 - interface polling
 	  r1.31 - interface polling
 	  r1.30 - interface polling

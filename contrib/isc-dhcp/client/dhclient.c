@@ -1773,6 +1773,19 @@ void send_request (cpp)
 			client -> packet.secs = htons (65535);
 	}
 
+
+	/*
+	 * Only try the first ten seconds to renew a lease from a
+	 * given dhcp-server adress. After that, fall back to use
+	 * state_reboot with INADDR_BROADCAST.
+	 */
+	if (destination.sin_addr.s_addr != INADDR_BROADCAST &&
+	   (client -> state == S_RENEWING || client -> state == S_REBINDING)) {
+		if (client -> active && client -> active -> expiry > cur_time &&
+			interval >= 10)
+			goto cancel;
+	}
+
 	log_info ("DHCPREQUEST on %s to %s port %d",
 	      client -> name ? client -> name : client -> interface -> name,
 	      inet_ntoa (destination.sin_addr),
@@ -1793,6 +1806,16 @@ void send_request (cpp)
 				      client -> packet_length,
 				      from, &destination,
 				      (struct hardware *)0);
+
+	/*
+	 * If sendto() for a direct request fails, fall back to use
+	 * state_reboot with INADDR_BROADCAST.
+	 */
+	if (result == -1 && destination.sin_addr.s_addr != INADDR_BROADCAST &&
+	   (client -> state == S_RENEWING || client -> state == S_REBINDING)) {
+		if (client -> active && client -> active -> expiry > cur_time)
+			goto cancel;
+	}
 
 	add_timeout (cur_time + client -> interval,
 		     send_request, client, 0, 0);
@@ -3413,9 +3436,9 @@ void state_polling (cpp)
 					printf ("%s: Found Link on interface\n", ip -> name);
 #endif
 				/*
-				 * Set the interface to state_reboot. But of
-				 * course we can not be sure that we really got link,
-				 * we just assume it.
+				 * Set the interface to state_bound. We assume that we have
+				 * a working link. If we cannot reach the server directly,
+				 * INADDR_BROADCAST is used.
 				 */
 				for (client = ip -> client;
 				     client; client = client -> next) {
@@ -3423,7 +3446,7 @@ void state_polling (cpp)
 						cancel_timeout (state_reboot, client);
 						cancel_timeout (state_selecting, client);
 						add_timeout (cur_time + random () % 5,
-							    state_reboot, client, 0, 0);
+					    		    state_bound, client, 0, 0);
 				}
 				ip -> linkstate = HAVELINK;
 			} else {
