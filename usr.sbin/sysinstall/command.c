@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.7 1995/05/18 23:36:21 gpalmer Exp $
+ * $Id: command.c,v 1.8 1995/05/19 21:30:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -165,7 +165,7 @@ command_execute(void)
 	for (j = 0; j < commandStack[i]->ncmds; j++) {
 	    /* If it's a shell command, run system on it */
 	    if (commandStack[i]->cmds[j].type == CMD_SHELL) {
-		msgNotify("Executing command: %s", commandStack[i]->cmds[j].ptr);
+		msgNotify("Doing %s", commandStack[i]->cmds[j].ptr);
 		ret = vsystem((char *)commandStack[i]->cmds[j].ptr);
 		msgDebug("Command `%s' returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
 	    }
