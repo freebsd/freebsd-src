@@ -327,6 +327,19 @@ if at least all of the bits in the mode are set in the file's mode bits.
 If the mode is not preceded by a dash, this primary evaluates to true if
 the bits in the mode exactly match the file's mode bits.
 Note, the first character of a symbolic mode may not be a dash (``\-'').
+.It Ic -flags Op Fl Ns Ar flags
+This primary evaluates to true if exactly those flags of the file are
+set which are also set using the specified
+.Ar flags
+(if these are not preceded by a dash (``\-''),
+or if they match the specified flags (if these are preceded by a dash).
+The
+.Ar flags
+are specified using symbolic names (see
+.Xr chflags 1  ).
+Note that this is different from
+.Ic -perm  ,
+which only allows you to specify flags which are set.
 .It Ic -print
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output.
@@ -458,6 +471,7 @@ Print out a list of all the files that are either owned by ``wnj'' or
 that are newer than ``ttt''.
 .El
 .Sh SEE ALSO
+.Xr chflags 1 ,
 .Xr chmod 1 ,
 .Xr locate 1 ,
 .Xr whereis 1 ,
