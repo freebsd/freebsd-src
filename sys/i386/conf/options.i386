@@ -1,3 +1,4 @@
+#	$Id$
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -9,3 +10,4 @@ PANIC_REBOOT_WAIT_TIME	opt_machdep.h
 LARGEMEM		opt_machdep.h
 MAXMEM			opt_machdep.h
 LINUX			opt_linux.h
+PERFMON			opt_perfmon.h
