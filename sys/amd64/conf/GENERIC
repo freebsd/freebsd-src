@@ -66,7 +66,6 @@ device		isa
 device		eisa
 device		pci
 options 	COMPAT_OLDISA		# compatability shims for lnc, le
-options 	COMPAT_OLDPCI		# compatability shims for lnc
 
 # Floppy drives
 device		fdc
@@ -197,7 +196,7 @@ device		xe		# Xircom pccard ethernet
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie
 device		le
-device		lnc
+#device		lnc
 
 # Wireless NIC cards
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
