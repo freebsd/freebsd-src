@@ -41,6 +41,7 @@ int line_no = 1, save_no;
 u_char buf[STR_LEN], *ptr;
 FILE *map_fp;
 extern char map_name[];
+extern u_char charmap_table[UCHAR_MAX + 1][STR_LEN];
 YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
 YYSTYPE yylval;
@@ -137,13 +138,21 @@ YYSTYPE yylval;
 	*ptr++ = '"';
 }
 <name>\>		{
+	u_int i;
+
 	if (ptr == buf)
-		errx(EX_UNAVAILABLE, "name expected near line %u",
+		errx(EX_UNAVAILABLE, "non-empty name expected near line %u",
 		     line_no);
 	*ptr = '\0';
-	strcpy(yylval.str, buf);
+	for (i = 0; i <= UCHAR_MAX; i++)
+		if (strcmp(charmap_table[i], buf) == 0)
+			goto findit;
+	errx(EX_UNAVAILABLE, "name <%s> not 'charmap'-defined near line %u",
+		buf, line_no);
+	findit:
+	yylval.ch = i;
 	BEGIN(INITIAL);
-	return NAME;
+	return CHAR;
 }
 <string>\"		{
 	*ptr = '\0';
