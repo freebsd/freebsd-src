@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.55 1996/01/07 19:22:33 gibbs Exp $
+ *      $Id: aha1542.c,v 1.56 1996/03/10 07:04:42 gibbs Exp $
  */
 
 /*
@@ -33,6 +33,7 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>	/* XXX for bootverbose: a funny place */
+#include <machine/stdarg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -326,12 +327,8 @@ static struct aha_data {
 static u_int32_t	aha_adapter_info __P((int unit));
 static int	ahaattach __P((struct isa_device *dev));
 static int	aha_bus_speed_check __P((struct aha_data *aha, int speed));
-#ifdef notyet
 static int	aha_cmd __P((struct aha_data *aha, int icnt, int ocnt, int wait,
-			     u_char *retval, unsigned opcode, ...));
-#else
-static int	aha_cmd();
-#endif
+			     u_char *retval, u_char opcode, ...));
 static void	aha_done __P((struct aha_data *aha, struct aha_ccb *ccb));
 static int	aha_escape __P((struct scsi_xfer *xs, struct aha_ccb *ccb));
 static void	aha_free_ccb __P((struct aha_data *aha, struct aha_ccb *ccb,
@@ -428,34 +425,41 @@ main()
 #else /*KERNEL */
 
 /*
- * aha_cmd(struct aha_data *aha,icnt, ocnt,wait, retval, opcode, args)
+ * aha_cmd(struct aha_data *aha,icnt, ocnt,wait, retval, opcode, ...)
  * Activate Adapter command
  *    icnt:   number of args (outbound bytes written after opcode)
  *    ocnt:   number of expected returned bytes
  *    wait:   number of seconds to wait for response
  *    retval: buffer where to place returned bytes
- *    opcode: opcode AHA_NOP, AHA_MBX_INIT, AHA_START_SCSI ...
- *    args:   parameters
+ *    opcode: opcode AHA_NOP, AHA_MBX_INIT, AHA_START_SCSI, etc
+ *    ...   : parameters to the command specified by opcode
  *
  * Performs an adapter command through the ports. Not to be confused
  * with a scsi command, which is read in via the dma.  One of the adapter
  * commands tells it to read in a scsi command but that one is done
  * separately.  This is only called during set-up.
+ *
  */
 static int
-aha_cmd(aha, icnt, ocnt, wait, retval, opcode, args)
-	struct aha_data *aha;
-	int icnt;
-	int ocnt;
-	int wait;
-	u_char *retval;
-	unsigned opcode;
-	u_char  args;
+#ifdef __STDC__
+aha_cmd(struct aha_data *aha, int icnt, int ocnt, int wait, u_char *retval,
+	u_char opcode, ... )
+#else
+aha_cmd(aha, icnt, ocnt, wait, retval, opcode, va_alist)
+	struct aha_data *aha,
+	int icnt,
+	int ocnt,
+	int wait,
+	u_char *retval,
+	u_char opcode,
+	va_dcl
+#endif
 {
-	unsigned *ic = &opcode;
-	u_char  oc;
+	va_list	 ap;
+	u_char   oc;
+	u_char	 data;
 	register i;
-	int     sts;
+	int      sts;
 
 	/*
 	 * multiply the wait argument by a big constant
@@ -497,9 +501,8 @@ aha_cmd(aha, icnt, ocnt, wait, retval, opcode, args)
 	 * Output the command and the number of arguments given
 	 * for each byte, first check the port is empty.
 	 */
-	icnt++;
-	/* include the command */
-	while (icnt--) {
+	va_start(ap, opcode);
+	for(data = opcode; icnt >=0; icnt--, data = (u_char)va_arg(ap, int)) {
 		sts = inb(AHA_CTRL_STAT_PORT);
 		for (i = wait; i; i--) {
 			sts = inb(AHA_CTRL_STAT_PORT);
@@ -513,7 +516,7 @@ aha_cmd(aha, icnt, ocnt, wait, retval, opcode, args)
 			outb(AHA_CTRL_STAT_PORT, AHA_SRST);
 			return (ENXIO);
 		}
-		outb(AHA_CMD_DATA_PORT, (u_char) (*ic++));
+		outb(AHA_CMD_DATA_PORT, data);
 	}
 	/*
 	 * If we expect input, loop that many times, each time,
@@ -929,8 +932,10 @@ aha_done(aha, ccb)
 				ccb->host_stat));
 			switch (ccb->host_stat) {
 			case AHA_ABORTED:
-			case AHA_SEL_TIMEOUT:	/* No response */
 				xs->error = XS_TIMEOUT;
+				break;
+			case AHA_SEL_TIMEOUT:
+				xs->error = XS_SELTIMEOUT;
 				break;
 
 			case	AHA_OVER_UNDER:		/* Over run / under run */
@@ -1073,7 +1078,8 @@ aha_init(aha)
 	 * command fails, blatter about it, nuke the boardid so the 1542C
 	 * stuff gets skipped over, and reset the board again.
 	 */
-	if(aha_cmd(aha, 0, sizeof(inquire), 1 ,&inquire, AHA_INQUIRE)) {
+	if(aha_cmd(aha, 0, sizeof(inquire), 1,
+		   (u_char *)&inquire, AHA_INQUIRE)) {
 		/*
 		 * Blah.. not a real adaptec board!!!
 		 * Seems that the Buslogic 545S and the DTC3290 both get
@@ -1130,7 +1136,8 @@ aha_init(aha)
 	if (PROBABLY_NEW_BOARD(inquire.boardid) ||
 		(inquire.boardid == 0x41
 		&& inquire.revision_1 == 0x31 && inquire.revision_2 == 0x34)) {
-		aha_cmd(aha, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
+		aha_cmd(aha, 0, sizeof(extbios), 0,
+			(u_char *)&extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", aha->unit, extbios.flags);
 #endif	/* AHADEBUG */
@@ -1177,7 +1184,7 @@ aha_init(aha)
 		DELAY(1000);		/* for Bustek 545 */
 	}
 
-	aha_cmd(aha, 0, sizeof(conf), 0, &conf, AHA_CONF_GET);
+	aha_cmd(aha, 0, sizeof(conf), 0, (u_char *)&conf, AHA_CONF_GET);
 	switch (conf.chan) {
 	case CHAN0:
 		outb(0x0b, 0x0c);
