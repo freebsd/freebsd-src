@@ -16,7 +16,7 @@ DFLAGS= -D_PATH_TCSHELL='"/rescue/${PROG}"'
 DFLAGS= -D_PATH_TCSHELL='"/bin/${PROG}"'
 .endif
 CFLAGS+= -I. -I${.CURDIR} -I${TCSHDIR} ${DFLAGS}
-WARNS=	2
+WARNS=	0
 SRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
 	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
 	sh.lex.c sh.misc.c sh.parse.c sh.print.c sh.proc.c sh.sem.c \
