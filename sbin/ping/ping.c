@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.30 1998/04/01 00:32:18 imp Exp $";
+	"$Id: ping.c,v 1.31 1998/04/02 01:12:55 eivind Exp $";
 #endif /* not lint */
 
 /*
@@ -261,6 +261,7 @@ main(argc, argv)
 				errno = EPERM;
 				err(EX_NOPERM, "-l flag");
 			}
+			options |= F_FLOOD;
 			preload = ultmp;
 			break;
 		case 'L':
