@@ -1418,6 +1418,9 @@ pcic_pci_gen_mapirq(struct pcic_slot *sp, int irq)
 	 * do a thing to get the IRQ mapped into the system.  However,
 	 * for other controllers that are PCI, but not yetna compliant, we
 	 * need to do some special mapping.
+	 *
+	 * XXX Maybe we shouldn't assume INTA#, but rather as the function
+	 * XXX what Intline to use.
 	 */
 	if (sp->controller == PCIC_PD6729) {
 		/*
