@@ -1,6 +1,8 @@
 /* inftrees.h -- header to use inftrees.c
  * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
+ *
+ * $FreeBSD$
  */
 
 /* WARNING: this file should *not* be used by applications. It is
@@ -19,17 +21,15 @@ struct inflate_huft_s {
       Byte Exop;        /* number of extra bits or operation */
       Byte Bits;        /* number of bits in this code or subcode */
     } what;
-    Bytef *pad;         /* pad structure to a power of 2 (4 bytes for */
-  } word;               /*  16-bit, 8 bytes for 32-bit machines) */
-  union {
-    uInt Base;          /* literal, length base, or distance base */
-    inflate_huft *Next; /* pointer to next level of table */
-  } more;
+    uInt pad;           /* pad structure to a power of 2 (4 bytes for */
+  } word;               /*  16-bit, 8 bytes for 32-bit int's) */
+  uInt base;            /* literal, length base, distance base,
+                           or table offset */
 };
 
 /* Maximum size of dynamic tree.  The maximum found in a long but non-
-   exhaustive search was 1041 huft structures (875 for length/literals
-   and 166 for distances, the latter actually the result of an
+   exhaustive search was 1004 huft structures (850 for length/literals
+   and 154 for distances, the latter actually the result of an
    exhaustive search).  The actual maximum is not known, but the
    value below is more than safe. */
 #define MANY 1440

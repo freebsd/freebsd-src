@@ -1,6 +1,8 @@
 /* maketree.c -- make inffixed.h table for decoding fixed codes
  * Copyright (C) 1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
+ *
+ * $FreeBSD$
  */
 
 /* WARNING: this file should *not* be used by applications. It is

@@ -8,7 +8,7 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* $FreeBSD$ */
+/* @(#) $FreeBSD$ */
 
 #ifndef _DEFLATE_H
 #define _DEFLATE_H
@@ -230,12 +230,12 @@ typedef struct internal_state {
 
     ulg opt_len;        /* bit length of current block with optimal trees */
     ulg static_len;     /* bit length of current block with static trees */
-    ulg compressed_len; /* total bit length of compressed file */
     uInt matches;       /* number of string matches in current block */
     int last_eob_len;   /* bit length of EOB code for last block */
 
 #ifdef DEBUG
-    ulg bits_sent;      /* bit length of the compressed data */
+    ulg compressed_len; /* total bit length of compressed file mod 2^32 */
+    ulg bits_sent;      /* bit length of compressed data sent mod 2^32 */
 #endif
 
     ush bi_buf;
@@ -268,7 +268,7 @@ typedef struct internal_state {
         /* in trees.c */
 void _tr_init         OF((deflate_state *s));
 int  _tr_tally        OF((deflate_state *s, unsigned dist, unsigned lc));
-ulg  _tr_flush_block  OF((deflate_state *s, charf *buf, ulg stored_len,
+void _tr_flush_block  OF((deflate_state *s, charf *buf, ulg stored_len,
 			  int eof));
 void _tr_align        OF((deflate_state *s));
 void _tr_stored_block OF((deflate_state *s, charf *buf, ulg stored_len,

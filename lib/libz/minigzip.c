@@ -13,7 +13,7 @@
  * or in pipe mode.
  */
 
-/* $FreeBSD$ */
+/* @(#) $FreeBSD$ */
 
 #include <stdio.h>
 #include "zlib.h"
@@ -47,6 +47,9 @@
 #  define unlink remove
 #  define GZ_SUFFIX "-gz"
 #  define fileno(file) file->__file
+#endif
+#if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+#  include <unix.h> /* for fileno */
 #endif
 
 #ifndef WIN32 /* unlink already in stdio.h for WIN32 */
@@ -270,15 +273,25 @@ int main(argc, argv)
 {
     int uncompr = 0;
     gzFile file;
-    char outmode[20];
+    char *bname, outmode[20];
 
     strcpy(outmode, "wb6 ");
 
     prog = argv[0];
+    bname = strrchr(argv[0], '/');
+    if (bname)
+      bname++;
+    else
+      bname = argv[0];
     argc--, argv++;
 
+    if (!strcmp(bname, "gunzip") || !strcmp(bname, "zcat"))
+      uncompr = 1;
+
     while (argc > 0) {
-      if (strcmp(*argv, "-d") == 0)
+      if (strcmp(*argv, "-c") == 0)
+	; /* Just for compatability with gzip */
+      else if (strcmp(*argv, "-d") == 0)
 	uncompr = 1;
       else if (strcmp(*argv, "-f") == 0)
 	outmode[3] = 'f';

@@ -1,5 +1,7 @@
 /* inffixed.h -- table for decoding fixed codes
  * Generated automatically by the maketree.c program
+ *
+ * $FreeBSD$
  */
 
 /* WARNING: this file should *not* be used by applications. It is

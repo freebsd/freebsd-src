@@ -1,13 +1,19 @@
 /* inftrees.c -- generate Huffman trees for efficient decoding
  * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
+ *
+ * $FreeBSD$
  */
 
 #include "zutil.h"
 #include "inftrees.h"
 
+#if !defined(BUILDFIXED) && !defined(STDC)
+#  define BUILDFIXED   /* non ANSI compilers may not accept inffixed.h */
+#endif
+
 const char inflate_copyright[] =
-   " inflate 1.1.1 Copyright 1995-1998 Mark Adler ";
+   " inflate 1.1.3 Copyright 1995-1998 Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -17,8 +23,6 @@ const char inflate_copyright[] =
 struct internal_state  {int dummy;}; /* for buggy compilers */
 
 /* simplify the use of the inflate_huft type with some defines */
-#define base more.Base
-#define next more.Next
 #define exop word.what.Exop
 #define bits word.what.Bits
 
@@ -232,11 +236,6 @@ uIntf *v;               /* working area: values in order of bit length */
           return Z_MEM_ERROR;   /* not enough memory */
         u[h] = q = hp + *hn;
         *hn += z;
-        if (t != Z_NULL)        /* first table is returned result */
-        {
-          *t = q;
-          t = Z_NULL;
-        }
 
         /* connect to last table, if there is one */
         if (h)
@@ -244,10 +243,12 @@ uIntf *v;               /* working area: values in order of bit length */
           x[h] = i;             /* save pattern for backing up */
           r.bits = (Byte)l;     /* bits to dump before this table */
           r.exop = (Byte)j;     /* bits in this table */
-          r.next = q;           /* pointer to this table */
-          j = i >> (w - l);     /* (get around Turbo C bug) */
+          j = i >> (w - l);
+          r.base = (uInt)(q - u[h-1] - j);   /* offset to this table */
           u[h-1][j] = r;        /* connect to last table */
         }
+        else
+          *t = q;               /* first table is returned result */
       }
 
       /* set up table entry in r */
@@ -384,13 +385,17 @@ z_streamp z;            /* for messages */
 
 
 /* build fixed tables only once--keep them here */
+#ifdef BUILDFIXED
 local int fixed_built = 0;
-#define FIXEDH 424      /* number of hufts used by fixed tables */
+#define FIXEDH 544      /* number of hufts used by fixed tables */
 local inflate_huft fixed_mem[FIXEDH];
 local uInt fixed_bl;
 local uInt fixed_bd;
 local inflate_huft *fixed_tl;
 local inflate_huft *fixed_td;
+#else
+#include "inffixed.h"
+#endif
 
 
 int inflate_trees_fixed(bl, bd, tl, td, z)
@@ -400,7 +405,8 @@ inflate_huft * FAR *tl;  /* literal/length tree result */
 inflate_huft * FAR *td;  /* distance tree result */
 z_streamp z;             /* for memory allocation */
 {
-  /* build fixed tables if not already (multiple overlapped executions ok) */
+#ifdef BUILDFIXED
+  /* build fixed tables if not already */
   if (!fixed_built)
   {
     int k;              /* temporary variable */
@@ -426,7 +432,7 @@ z_streamp z;             /* for memory allocation */
       c[k] = 7;
     for (; k < 288; k++)
       c[k] = 8;
-    fixed_bl = 7;
+    fixed_bl = 9;
     huft_build(c, 288, 257, cplens, cplext, &fixed_tl, &fixed_bl,
                fixed_mem, &f, v);
 
@@ -442,6 +448,7 @@ z_streamp z;             /* for memory allocation */
     ZFREE(z, c);
     fixed_built = 1;
   }
+#endif
   *bl = fixed_bl;
   *bd = fixed_bd;
   *tl = fixed_tl;

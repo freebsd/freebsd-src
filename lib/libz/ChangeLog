@@ -1,5 +1,73 @@
+$FreeBSD$
 
 		ChangeLog file for zlib
+
+Changes in 1.1.3 (9 July 1998)
+- fix "an inflate input buffer bug that shows up on rare but persistent
+  occasions" (Mark)
+- fix gzread and gztell for concatenated .gz files (Didier Le Botlan)
+- fix gzseek(..., SEEK_SET) in write mode
+- fix crc check after a gzeek (Frank Faubert)
+- fix miniunzip when the last entry in a zip file is itself a zip file
+  (J Lillge)
+- add contrib/asm586 and contrib/asm686 (Brian Raiter)
+  See http://www.muppetlabs.com/~breadbox/software/assembly.html
+- add support for Delphi 3 in contrib/delphi (Bob Dellaca)
+- add support for C++Builder 3 and Delphi 3 in contrib/delphi2 (Davide Moretti)
+- do not exit prematurely in untgz if 0 at start of block (Magnus Holmgren)
+- use macro EXTERN instead of extern to support DLL for BeOS (Sander Stoks)
+- added a FAQ file
+
+- Support gzdopen on Mac with Metrowerks (Jason Linhart)
+- Do not redefine Byte on Mac (Brad Pettit & Jason Linhart)
+- define SEEK_END too if SEEK_SET is not defined (Albert Chin-A-Young)
+- avoid some warnings with Borland C (Tom Tanner)
+- fix a problem in contrib/minizip/zip.c for 16-bit MSDOS (Gilles Vollant)
+- emulate utime() for WIN32 in contrib/untgz  (Gilles Vollant)
+- allow several arguments to configure (Tim Mooney, Frodo Looijaard)
+- use libdir and includedir in Makefile.in (Tim Mooney)
+- support shared libraries on OSF1 V4 (Tim Mooney)
+- remove so_locations in "make clean"  (Tim Mooney)
+- fix maketree.c compilation error (Glenn, Mark)
+- Python interface to zlib now in Python 1.5 (Jeremy Hylton)
+- new Makefile.riscos (Rich Walker)
+- initialize static descriptors in trees.c for embedded targets (Nick Smith)
+- use "foo-gz" in example.c for RISCOS and VMS (Nick Smith)
+- add the OS/2 files in Makefile.in too (Andrew Zabolotny)
+- fix fdopen and halloc macros for Microsoft C 6.0 (Tom Lane)
+- fix maketree.c to allow clean compilation of inffixed.h (Mark)
+- fix parameter check in deflateCopy (Gunther Nikl)
+- cleanup trees.c, use compressed_len only in debug mode (Christian Spieler)
+- Many portability patches by Christian Spieler:
+  . zutil.c, zutil.h: added "const" for zmem*
+  . Make_vms.com: fixed some typos
+  . Make_vms.com: msdos/Makefile.*: removed zutil.h from some dependency lists
+  . msdos/Makefile.msc: remove "default rtl link library" info from obj files
+  . msdos/Makefile.*: use model-dependent name for the built zlib library
+  . msdos/Makefile.emx, nt/Makefile.emx, nt/Makefile.gcc:
+     new makefiles, for emx (DOS/OS2), emx&rsxnt and mingw32 (Windows 9x / NT)
+- use define instead of typedef for Bytef also for MSC small/medium (Tom Lane)
+- replace __far with _far for better portability (Christian Spieler, Tom Lane)
+- fix test for errno.h in configure (Tim Newsham)
+
+Changes in 1.1.2 (19 March 98)
+- added contrib/minzip, mini zip and unzip based on zlib (Gilles Vollant)
+  See http://www.winimage.com/zLibDll/unzip.html
+- preinitialize the inflate tables for fixed codes, to make the code
+  completely thread safe (Mark)
+- some simplifications and slight speed-up to the inflate code (Mark)
+- fix gzeof on non-compressed files (Allan Schrum)
+- add -std1 option in configure for OSF1 to fix gzprintf (Martin Mokrejs)
+- use default value of 4K for Z_BUFSIZE for 16-bit MSDOS (Tim Wegner + Glenn)
+- added os2/Makefile.def and os2/zlib.def (Andrew Zabolotny)
+- add shared lib support for UNIX_SV4.2MP (MATSUURA Takanori)
+- do not wrap extern "C" around system includes (Tom Lane)
+- mention zlib binding for TCL in README (Andreas Kupries)
+- added amiga/Makefile.pup for Amiga powerUP SAS/C PPC (Andreas Kleinert)
+- allow "make install prefix=..." even after configure (Glenn Randers-Pehrson)
+- allow "configure --prefix $HOME" (Tim Mooney)
+- remove warnings in example.c and gzio.c (Glenn Randers-Pehrson)
+- move Makefile.sas to amiga/Makefile.sas
 
 Changes in 1.1.1 (27 Feb 98)
 - fix macros _tr_tally_* in deflate.h for debug mode  (Glenn Randers-Pehrson)
@@ -138,7 +206,7 @@ Changes in 1.0.6 (19 Jan 1998)
 - allow compilation with ANSI keywords only enabled for TurboC in large model
 - avoid "versionString"[0] (Borland bug)
 - add NEED_DUMMY_RETURN for Borland
-- use variable z_verbose for tracing in debug mode (Peter Deutsch).
+- use variable z_verbose for tracing in debug mode (L. Peter Deutsch).
 - allow compilation with CC
 - defined STDC for OS/2 (David Charlap)	
 - limit external names to 8 chars for MVS (Thomas Lund)
@@ -148,7 +216,7 @@ Changes in 1.0.6 (19 Jan 1998)
 - use _fdopen instead of fdopen for MSC >= 6.0 (Thomas Fanslau)
 - added makelcc.bat for lcc-win32 (Tom St Denis)
 - in Makefile.dj2, use copy and del instead of install and rm (Frank Donahoe)
-- Avoid expanded $FreeBSD$. Use "rcs -kb" or "cvs admin -kb" to avoid Id expansion.
+- Avoid expanded $Id$. Use "rcs -kb" or "cvs admin -kb" to avoid Id expansion.
 - check for unistd.h in configure (for off_t)
 - remove useless check parameter in inflate_blocks_free
 - avoid useless assignment of s->check to itself in inflate_blocks_new

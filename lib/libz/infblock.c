@@ -1,6 +1,8 @@
 /* infblock.c -- interpret and process block types to last block
  * Copyright (C) 1995-1998 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
+ *
+ * $FreeBSD$
  */
 
 #include "zutil.h"
@@ -10,6 +12,10 @@
 #include "infutil.h"
 
 struct inflate_codes_state {int dummy;}; /* for buggy compilers */
+
+/* simplify the use of the inflate_huft type with some defines */
+#define exop word.what.Exop
+#define bits word.what.Bits
 
 /* Table for deflate from PKZIP's appnote.txt. */
 local const uInt border[] = { /* Order of the bit length code lengths */
@@ -264,8 +270,8 @@ int r;
         t = s->sub.trees.bb;
         NEEDBITS(t)
         h = s->sub.trees.tb + ((uInt)b & inflate_mask[t]);
-        t = h->word.what.Bits;
-        c = h->more.Base;
+        t = h->bits;
+        c = h->base;
         if (c < 16)
         {
           DUMPBITS(t)
@@ -340,13 +346,6 @@ int r;
       {
         s->mode = TYPE;
         break;
-      }
-      if (k > 7)              /* return unused byte, if any */
-      {
-        Assert(k < 16, "inflate_codes grabbed too many bytes")
-        k -= 8;
-        n++;
-        p--;                    /* can always return one */
       }
       s->mode = DRY;
     case DRY:

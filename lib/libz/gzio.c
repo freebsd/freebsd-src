@@ -5,7 +5,7 @@
  * Compile this file with -DNO_DEFLATE to avoid the compression code.
  */
 
-/* $FreeBSD$ */
+/* @(#) $FreeBSD$ */
 
 #include <stdio.h>
 
@@ -13,8 +13,16 @@
 
 struct internal_state {int dummy;}; /* for buggy compilers */
 
-#define Z_BUFSIZE       16384
-#define Z_PRINTF_BUFSIZE 4096
+#ifndef Z_BUFSIZE
+#  ifdef MAXSEG_64K
+#    define Z_BUFSIZE 4096 /* minimize memory usage for 16-bit DOS */
+#  else
+#    define Z_BUFSIZE 16384
+#  endif
+#endif
+#ifndef Z_PRINTF_BUFSIZE
+#  define Z_PRINTF_BUFSIZE 4096
+#endif
 
 #define ALLOC(size) malloc(size)
 #define TRYFREE(p) {if (p) free(p);}
@@ -132,8 +140,12 @@ local gzFile gz_open (path, mode, fd)
         s->stream.next_in  = s->inbuf = (Byte*)ALLOC(Z_BUFSIZE);
 
         err = inflateInit2(&(s->stream), -MAX_WBITS);
-        /* windowBits is passed < 0 to tell that there is no zlib header */
-
+        /* windowBits is passed < 0 to tell that there is no zlib header.
+         * Note that in this case inflate *requires* an extra "dummy" byte
+         * after the compressed stream in order to complete decompression and
+         * return Z_STREAM_END. Here the gzip CRC32 ensures that 4 bytes are
+         * present after the compressed stream.
+         */
         if (err != Z_OK || s->inbuf == Z_NULL) {
             return destroy(s), (gzFile)Z_NULL;
         }
@@ -379,6 +391,7 @@ int ZEXPORT gzread (file, buf, len)
 	    len -= s->stream.avail_out;
 	    s->stream.total_in  += (uLong)len;
 	    s->stream.total_out += (uLong)len;
+            if (len == 0) s->z_eof = 1;
 	    return (int)len;
 	}
         if (s->stream.avail_in == 0 && !s->z_eof) {
@@ -401,10 +414,14 @@ int ZEXPORT gzread (file, buf, len)
 	    s->crc = crc32(s->crc, start, (uInt)(s->stream.next_out - start));
 	    start = s->stream.next_out;
 
-	    if (getLong(s) != s->crc || getLong(s) != s->stream.total_out) {
+	    if (getLong(s) != s->crc) {
 		s->z_err = Z_DATA_ERROR;
 	    } else {
-		/* Check for concatenated .gz files: */
+	        (void)getLong(s);
+                /* The uncompressed length returned by above getlong() may
+                 * be different from s->stream.total_out) in case of
+		 * concatenated .gz files. Check for such files:
+		 */
 		check_header(s);
 		if (s->z_err == Z_OK) {
 		    uLong total_in = s->stream.total_in;
@@ -572,7 +589,7 @@ int ZEXPORT gzputs(file, s)
     gzFile file;
     const char *s;
 {
-    return gzwrite(file, (const voidp)s, (unsigned)strlen(s));
+    return gzwrite(file, (char*)s, (unsigned)strlen(s));
 }
 
 
@@ -657,7 +674,7 @@ z_off_t ZEXPORT gzseek (file, offset, whence)
 	return -1L;
 #else
 	if (whence == SEEK_SET) {
-	    offset -= s->stream.total_out;
+	    offset -= s->stream.total_in;
 	}
 	if (offset < 0) return -1L;
 
@@ -732,6 +749,7 @@ int ZEXPORT gzrewind (file)
     s->z_eof = 0;
     s->stream.avail_in = 0;
     s->stream.next_in = s->inbuf;
+    s->crc = crc32(0L, Z_NULL, 0);
 	
     if (s->startpos == 0) { /* not a compressed file */
 	rewind(s->file);
@@ -780,7 +798,8 @@ local void putLong (file, x)
 }
 
 /* ===========================================================================
-   Reads a long in LSB order from the given gz_stream. Sets 
+   Reads a long in LSB order from the given gz_stream. Sets z_err in case
+   of error.
 */
 local uLong getLong (s)
     gz_stream *s;

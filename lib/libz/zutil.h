@@ -8,7 +8,7 @@
    subject to change. Applications should only use zlib.h.
  */
 
-/* $FreeBSD$ */
+/* @(#) $FreeBSD$ */
 
 #ifndef _Z_UTIL_H
 #define _Z_UTIL_H
@@ -75,7 +75,7 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #ifdef MSDOS
 #  define OS_CODE  0x00
-#  ifdef __TURBOC__
+#  if defined(__TURBOC__) || defined(__BORLANDC__)
 #    if(__STDC__ == 1) && (defined(__LARGE__) || defined(__COMPACT__))
        /* Allow compilation with ANSI keywords only enabled */
        void _Cdecl farfree( void *block );
@@ -112,13 +112,12 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 
 #if defined(MACOS) || defined(TARGET_OS_MAC)
 #  define OS_CODE  0x07
-#  ifndef fdopen
-#    define fdopen(fd,mode) NULL /* No fdopen() */
-#  endif
-#endif
-#if defined(__MWERKS__) && !defined(fdopen)
-#  if __dest_os != __be_os && __dest_os != __win32_os
-#    define fdopen(fd,mode) NULL
+#  if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+#    include <unix.h> /* for fdopen */
+#  else
+#    ifndef fdopen
+#      define fdopen(fd,mode) NULL /* No fdopen() */
+#    endif
 #  endif
 #endif
 
@@ -134,7 +133,7 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define fdopen(fd,mode) NULL /* No fdopen() */
 #endif
 
-#if (defined(_MSC_VER) && (_MSC_VER >= 600))
+#if (defined(_MSC_VER) && (_MSC_VER > 600))
 #  define fdopen(fd,type)  _fdopen(fd,type)
 #endif
 
@@ -182,8 +181,8 @@ extern const char *z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemzero(dest, len) memset(dest, 0, len)
 #  endif
 #else
-   extern void zmemcpy  OF((Bytef* dest, Bytef* source, uInt len));
-   extern int  zmemcmp  OF((Bytef* s1,   Bytef* s2, uInt len));
+   extern void zmemcpy  OF((Bytef* dest, const Bytef* source, uInt len));
+   extern int  zmemcmp  OF((const Bytef* s1, const Bytef* s2, uInt len));
    extern void zmemzero OF((Bytef* dest, uInt len));
 #endif
 
