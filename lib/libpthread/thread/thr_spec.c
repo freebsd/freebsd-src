@@ -146,7 +146,7 @@ pthread_setspecific(pthread_key_t key, const void *value)
 
 	if ((pthread->specific_data) ||
 	    (pthread->specific_data = pthread_key_allocate_data())) {
-		if ((key < PTHREAD_KEYS_MAX) && (key_table)) {
+		if (key < PTHREAD_KEYS_MAX) {
 			/* Lock the key table entry: */
 			_spinlock(&key_table[key].access_lock);
 
