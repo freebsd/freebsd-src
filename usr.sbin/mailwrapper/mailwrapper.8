@@ -112,6 +112,16 @@ based on configuration information placed in
 .Pa /etc/mail/mailer.conf .
 This permits the administrator to configure which MTA is to be invoked on
 the system at run time.
+.Pp
+Other configuration files may need to be altered when replacing
+.Xr sendmail 8 .
+For example, if the replacement MTA doesn't support the
+.Fl A
+option with
+.Xr mailq 1 ,
+.Va daily_status_include_submit_mailq
+should be turned off in
+.Pa /etc/periodic.conf .
 .Sh FILES
 Configuration for
 .Nm
@@ -133,6 +143,7 @@ was invoked.
 .Xr mailq 1 ,
 .Xr newaliases 1 ,
 .Xr mailer.conf 5 ,
+.Xr periodic.conf 5 ,
 .Xr sendmail 8
 .Sh HISTORY
 .Nm
