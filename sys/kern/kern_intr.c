@@ -275,6 +275,33 @@ legacy_setsoftnet()
 void	(*netisrs[32]) __P((void));
 u_int	netisr;
 
+int
+register_netisr(num, handler)
+	int num;
+	netisr_t *handler;
+{
+	
+	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
+		printf("register_netisr: bad isr number: %d\n", num);
+		return (EINVAL);
+	}
+	netisrs[num] = handler;
+	return (0);
+}
+
+int
+unregister_netisr(num)
+	int num;
+{
+	
+	if (num < 0 || num >= (sizeof(netisrs)/sizeof(*netisrs)) ) {
+		printf("unregister_netisr: bad isr number: %d\n", num);
+		return (EINVAL);
+	}
+	netisrs[num] = NULL;
+	return (0);
+}
+
 static void
 swi_net(void *dummy)
 {

@@ -252,8 +252,6 @@
 #define	__mtx_exit_giant_def		_mtx_exit_giant_def
 #define _mul64				mul64
 #define _net_imask			net_imask
-#define _netisr				netisr
-#define _netisrs			netisrs
 #define _nfs_diskless			nfs_diskless
 #define _nfs_diskless_valid		nfs_diskless_valid
 #define _normalize			normalize

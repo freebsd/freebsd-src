@@ -68,25 +68,6 @@ _softnet_imask:	.long	0
 	.globl	_softtty_imask
 _softtty_imask:	.long	0
 
-/* pending software interrupts */
-	.globl	_spending
-_spending:	.long	0
-
-/* set with bits for which queue to service */
-	.globl	_netisr
-_netisr:	.long	0
-
-	.globl _netisrs
-_netisrs:
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-	.long	dummynetisr, dummynetisr, dummynetisr, dummynetisr
-
 	.text
 
 /*
@@ -172,13 +153,6 @@ doreti_ast:
 	call	_ast
 	movb	$1,_intr_nesting_level	/* for doreti_next to decrement */
 	jmp	doreti_next
-
-	ALIGN_TEXT
-dummynetisr:
-	MCOUNT
-	ret	
-
-
 
 #ifdef APIC_IO
 #include "i386/isa/apic_ipl.s"
