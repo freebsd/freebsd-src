@@ -58,7 +58,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.66 2002/07/03 19:00:41 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.68 2003/02/08 18:33:53 christos Exp $")
 #endif	/* lint */
 
 
@@ -88,7 +88,8 @@ int 			/* Global command-line options 		*/
 	zflag = 0,	/* follow (uncompress) compressed files */
 	sflag = 0,	/* read block special files		*/
 	iflag = 0,
-	nobuffer = 0,   /* Do not buffer stdout */
+	nopad = 0,	/* Don't pad output			*/
+	nobuffer = 0,   /* Do not buffer stdout 		*/
 	kflag = 0;	/* Keep going after the first match	*/
 
 int			/* Misc globals				*/
@@ -99,13 +100,15 @@ struct  magic *magic;	/* array of magic entries		*/
 const char *magicfile = 0;	/* where the magic is		*/
 const char *default_magicfile = MAGIC;
 
+char separator = ':';	/* Default field separator		*/
+
 char *progname;		/* used throughout 			*/
 int lineno;		/* line number in the magic file	*/
 
 
 static void	unwrap(char *fn);
 static void	usage(void);
-#ifdef HAVE_GETOPT_H
+#ifdef HAVE_GETOPT_LONG
 static void	help(void);
 #endif
 #if 0
@@ -125,8 +128,8 @@ main(int argc, char **argv)
 	int action = 0, didsomefiles = 0, errflg = 0, ret = 0, app = 0;
 	char *mime, *home, *usermagic;
 	struct stat sb;
-#define OPTSTRING	"bcdf:ikm:nsvzCL"
-#ifdef HAVE_GETOPT_H
+#define OPTSTRING	"bcdf:F:ikm:nNsvzCL"
+#ifdef HAVE_GETOPT_LONG
 	int longindex;
 	static struct option long_options[] =
 	{
@@ -136,6 +139,7 @@ main(int argc, char **argv)
 		{"checking-printout", 0, 0, 'c'},
 		{"debug", 0, 0, 'd'},
 		{"files-from", 1, 0, 'f'},
+		{"separator", 1, 0, 'F'},
 		{"mime", 0, 0, 'i'},
 		{"keep-going", 0, 0, 'k'},
 #ifdef S_IFLNK
@@ -144,6 +148,7 @@ main(int argc, char **argv)
 		{"magic-file", 1, 0, 'm'},
 		{"uncompress", 0, 0, 'z'},
 		{"no-buffer", 0, 0, 'n'},
+		{"no-pad", 0, 0, 'N'},
 		{"special-files", 0, 0, 's'},
 		{"compile", 0, 0, 'C'},
 		{0, 0, 0, 0},
@@ -179,14 +184,14 @@ main(int argc, char **argv)
 			}
 		}
 
-#ifndef HAVE_GETOPT_H
+#ifndef HAVE_GETOPT_LONG
 	while ((c = getopt(argc, argv, OPTSTRING)) != -1)
 #else
 	while ((c = getopt_long(argc, argv, OPTSTRING, long_options,
 	    &longindex)) != -1)
 #endif
 		switch (c) {
-#ifdef HAVE_GETOPT_H
+#ifdef HAVE_GETOPT_LONG
 		case 0 :
 			if (longindex == 1)
 				help();
@@ -214,6 +219,9 @@ main(int argc, char **argv)
 			unwrap(optarg);
 			++didsomefiles;
 			break;
+		case 'F':
+			separator = *optarg;
+			break;
 		case 'i':
 			iflag++;
 			if ((mime = malloc(strlen(magicfile) + 6)) != NULL) {
@@ -230,6 +238,9 @@ main(int argc, char **argv)
 			break;
 		case 'n':
 			++nobuffer;
+			break;
+		case 'N':
+			++nopad;
 			break;
 		case 's':
 			sflag++;
@@ -404,8 +415,8 @@ process(const char *inname, int wid)
 	}
 
 	if (wid > 0 && !bflag)
-	     (void) printf("%s:%*s ", inname, 
-			   (int) (wid - strlen(inname)), "");
+	     (void) printf("%s%c%*s", inname, separator,
+			   (int) (nopad ? 0 : 1 + (wid - strlen(inname))), "");
 
 	if (inname != stdname) {
 		/*
@@ -523,13 +534,13 @@ usage(void)
 {
 	(void)fprintf(stderr, USAGE, progname);
 	(void)fprintf(stderr, "Usage: %s -C [-m magic]\n", progname);
-#ifdef HAVE_GETOPT_H
+#ifdef HAVE_GETOPT_LONG
 	(void)fputs("Try `file --help' for more information.\n", stderr);
 #endif
 	exit(1);
 }
 
-#ifdef HAVE_GETOPT_H
+#ifdef HAVE_GETOPT_LONG
 static void
 help(void)
 {

@@ -116,7 +116,6 @@ Magdir/ibm370 \
 Magdir/ibm6000 \
 Magdir/iff \
 Magdir/images \
-Magdir/impulse \
 Magdir/intel \
 Magdir/interleaf \
 Magdir/island \

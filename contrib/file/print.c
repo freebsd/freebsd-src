@@ -27,11 +27,7 @@
 
 #include "file.h"
 #include <string.h>
-#ifdef __STDC__
-# include <stdarg.h>
-#else
-# include <varargs.h>
-#endif
+#include <stdarg.h>
 #include <stdlib.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -39,7 +35,7 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: print.c,v 1.38 2002/07/03 18:37:44 christos Exp $")
+FILE_RCSID("@(#)$Id: print.c,v 1.39 2002/07/09 15:46:23 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))

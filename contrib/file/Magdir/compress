@@ -152,3 +152,20 @@
 # 4.3BSD-Quasijarus Strong Compression
 # http://minnie.tuhs.org/Quasijarus/compress.html
 0	string		\037\241	Quasijarus strong compressed data
+
+# From: Cory Dikkers <cdikkers@swbell.net>
+0	string		XPKF		Amiga xpkf.library compressed data
+0	string		PP11		Power Packer 1.1 compressed data
+0	string		PP20		Power Packer 2.0 compressed data,
+>4	belong		0x09090909	fast compression
+>4	belong		0x090A0A0A	mediocre compression
+>4	belong		0x090A0B0B	good compression
+>4	belong		0x090A0C0C	very good compression
+>4	belong		0x090A0C0D	best compression
+
+# 7z archiver, from Thomas Klausner (wiz@danbala.tuwien.ac.at)
+# http://www.7-zip.org or DOC/7zFormat.txt 
+#
+0	string		7z\274\257\047\034	7z archive data,
+>6	byte		x			version %d
+>7	byte		x			\b.%d
