@@ -188,7 +188,7 @@ getpacket (char *buffer)
   unsigned char ch;
   int s;
 
-  s = splhigh ();
+  s = spltty ();
   do
     {
       /* wait around for the start character, ignore all other characters */
@@ -253,7 +253,7 @@ putpacket (char *buffer)
   int s;
 
   /*  $<packet info>#<checksum>. */
-  s = splhigh ();
+  s = spltty ();
   do
     {
 /*
