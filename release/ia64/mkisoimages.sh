@@ -78,7 +78,7 @@ if [ $bootable = yes ]; then
 	dd if=/dev/${md}p1 of=$BASE/$EFIPART
 	mdconfig -d -u $md
     else
-	EFISZ=10240
+	EFISZ=20480
 	MNT=/mnt
 	dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
 	md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
