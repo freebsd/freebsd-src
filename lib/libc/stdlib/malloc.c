@@ -72,7 +72,7 @@
     static int fdzero;
 #   define MMAP_FD	fdzero
 #   define INIT_MMAP() \
-	{ if ((fdzero = _open("/dev/zero", O_RDWR, 0000)) == -1) \
+	{ if ((fdzero = _open(_PATH_DEVZERO, O_RDWR, 0000)) == -1) \
 	    wrterror("open of /dev/zero"); }
 #   define MADV_FREE			MADV_DONTNEED
 #endif /* __sparc__ */
@@ -91,6 +91,7 @@
 #include <sys/mman.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

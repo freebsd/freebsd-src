@@ -31,6 +31,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <syslog.h>
 #include <string.h>
 #include <netdb.h>
+#include <paths.h>
 #include <pwd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -80,7 +81,7 @@ int	dflag = 0;		/* Tell libpcap we want debugging */
 int	debug = 0;		/* Debug flag */
 int	kdebugflag = 0;		/* Tell kernel to print debug messages */
 int	default_device = 1;	/* Using /dev/tty or equivalent */
-char	devnam[MAXPATHLEN] = "/dev/tty";	/* Device name */
+char	devnam[MAXPATHLEN] = _PATH_TTY;	/* Device name */
 int	crtscts = 0;		/* Use hardware flow control */
 int	modem = 1;		/* Use modem control lines */
 int	inspeed = 0;		/* Input/Output speed requested */
@@ -694,7 +695,7 @@ options_for_tty()
     int ret;
 
     dev = devnam;
-    if (strncmp(dev, "/dev/", 5) == 0)
+    if (strncmp(dev, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
 	dev += 5;
     if (strcmp(dev, "tty") == 0)
 	return 1;		/* don't look for /etc/ppp/options.tty */
@@ -1671,9 +1672,9 @@ setdevname(cp, quiet)
     if (*cp == 0)
 	return 0;
 
-    if (strncmp("/dev/", cp, 5) != 0) {
-	strcpy(dev, "/dev/");
-	strncat(dev, cp, MAXPATHLEN - 5);
+    if (strncmp(_PATH_DEV, cp, sizeof _PATH_DEV - 1) != 0) {
+	strcpy(dev, _PATH_DEV);
+	strncat(dev, cp, MAXPATHLEN - sizeof _PATH_DEV - 1);
 	dev[MAXPATHLEN-1] = 0;
 	cp = dev;
     }

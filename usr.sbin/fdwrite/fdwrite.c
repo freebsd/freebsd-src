@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -106,9 +107,9 @@ main(int argc, char **argv)
     if(optind < argc)
 	    usage();
 
-    tty = fopen("/dev/tty","r+");
+    tty = fopen(_PATH_TTY,"r+");
     if(!tty)
-	    err(1, "/dev/tty");
+	    err(1, _PATH_TTY);
     setbuf(tty,0);
 
     for(j=1;j > 0;) {

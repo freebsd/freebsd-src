@@ -31,6 +31,7 @@ static const char rcsid[] =
 #include "cron.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #ifdef USE_UTIMES
@@ -287,8 +288,8 @@ edit_cmd() {
 		if (errno != ENOENT)
 			err(ERROR_EXIT, "%s", n);
 		warnx("no crontab for %s - using an empty one", User);
-		if (!(f = fopen("/dev/null", "r")))
-			err(ERROR_EXIT, "/dev/null");
+		if (!(f = fopen(_PATH_DEVNULL, "r")))
+			err(ERROR_EXIT, _PATH_DEVNULL);
 	}
 
 	um = umask(077);

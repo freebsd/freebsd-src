@@ -32,6 +32,7 @@ static char rcsid[] = "$FreeBSD$";
 # include <sys/ioctl.h>
 #endif
 #include <errno.h>
+#include <paths.h>
 
 
 /* the code does not depend on any of vfork's
@@ -109,7 +110,7 @@ setsid()
 #  else
 	newpgrp = setpgrp(0, getpid());
 #  endif
-	if ((fd = open("/dev/tty", 2)) >= 0)
+	if ((fd = open(_PATH_TTY, 2)) >= 0)
 	{
 		(void) ioctl(fd, TIOCNOTTY, (char*)0);
 		(void) close(fd);
@@ -117,9 +118,9 @@ setsid()
 # else /*BSD*/
 	newpgrp = setpgrp();
 
-	(void) close(STDIN);	(void) open("/dev/null", 0);
-	(void) close(STDOUT);	(void) open("/dev/null", 1);
-	(void) close(STDERR);	(void) open("/dev/null", 2);
+	(void) close(STDIN);	(void) open(_PATH_DEVNULL, 0);
+	(void) close(STDOUT);	(void) open(_PATH_DEVNULL, 1);
+	(void) close(STDERR);	(void) open(_PATH_DEVNULL, 2);
 # endif /*BSD*/
 	return newpgrp;
 }

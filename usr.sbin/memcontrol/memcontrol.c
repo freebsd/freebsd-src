@@ -32,6 +32,7 @@
 
 #include <err.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -107,8 +108,8 @@ main(int argc, char *argv[])
     if (argc < 2) {
 	help(NULL);
     } else {
-	if ((memfd = open("/dev/mem", O_RDONLY)) == -1)
-	    err(1, "can't open /dev/mem");
+	if ((memfd = open(_PATH_MEM, O_RDONLY)) == -1)
+	    err(1, "can't open %s", _PATH_MEM);
 
 	for (i = 0; functions[i].cmd != NULL; i++)
 	    if (!strcmp(argv[1], functions[i].cmd))

@@ -23,12 +23,15 @@
    c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
+/* $FreeBSD$ */
+
 #include "uucp.h"
 
 #include "uudefs.h"
 #include "sysdep.h"
 
 #include <errno.h>
+#include <paths.h>
 
 #if HAVE_FCNTL_H
 #include <fcntl.h>
@@ -210,7 +213,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 	{
 	  if (onull < 0)
 	    {
-	      onull = open ((char *) "/dev/null", O_RDWR);
+	      onull = open ((char *) _PATH_DEVNULL, O_RDWR);
 	      if (onull < 0
 		  || fcntl (onull, F_SETFD,
 			    fcntl (onull, F_GETFD, 0) | FD_CLOEXEC) < 0)

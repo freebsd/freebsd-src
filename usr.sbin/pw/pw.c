@@ -206,7 +206,7 @@ main(int argc, char *argv[])
 	 * don't bother with extraneous errors
 	 */
 	if (getarg(&arglist, 'q') != NULL)
-		freopen("/dev/null", "w", stderr);
+		freopen(_PATH_DEVNULL, "w", stderr);
 
 	/*
 	 * Set our base working path if not overridden

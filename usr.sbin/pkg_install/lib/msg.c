@@ -25,6 +25,7 @@ static const char rcsid[] =
  */
 
 #include <err.h>
+#include <paths.h>
 #include "lib.h"
 
 /* Die a relatively simple death */
@@ -51,10 +52,10 @@ y_or_n(Boolean def, const char *msg, ...)
      * Need to open /dev/tty because file collection may have been
      * collected on stdin
      */
-    tty = fopen("/dev/tty", "r");
+    tty = fopen(_PATH_TTY, "r");
     if (!tty) {
 	cleanup(0);
-	errx(2, "can't open /dev/tty!");
+	errx(2, "can't open %s!", _PATH_TTY);
     }
     while (ch != 'Y' && ch != 'N') {
 	vfprintf(stderr, msg, args);

@@ -2,6 +2,8 @@
    Hemedinger <bob@dalek.mwc.com> of Mark Williams Corporation and
    lightly edited by Ian Lance Taylor.  */
 
+/* $FreeBSD$ */
+
 /* The bottom part of this file is lock.c.
  * This is a hacked lock.c. A full lock.c can be found in the libmisc sources 
  * under /usr/src/misc.tar.Z.
@@ -29,6 +31,7 @@
 
 #include <ctype.h>
 #include <access.h>
+#include <paths.h>
 
 /* fscoherent_disable_tty() is a COHERENT specific function. It takes the name
  * of a serial device and then scans /etc/ttys for a match. If it finds one,
@@ -139,9 +142,10 @@ char enable_device[16];			/* this will hold our device name
 				    x = ixswait ((unsigned long) ipid,
 						 (const char *) NULL);
 				}
-				*pzenable = zbufalc (sizeof "/dev/"
+				*pzenable = zbufalc (sizeof _PATH_DEV
 						     + strlen (enable_device));
-				sprintf(*pzenable,"/dev/%s", enable_device);
+				sprintf(*pzenable,"%s%s",_PATH_DEV,
+					enable_device);
 /*				ulog(LOG_NORMAL,"Enable string is {%s}",*pzenable); */
 				return TRUE;
 			}else{
@@ -246,7 +250,7 @@ const char *ttyn;
 	char resource[LOKFLEN];
 	char filename[LOKFLEN];
 
-	sprintf(filename, "/dev/%s", ttyn);
+	sprintf(filename, "%s%s", _PATH_DEV, ttyn);
 	if (NULL == gen_res_name(filename, resource)){
 		return(0);	/* Non-existent tty can not be locked :-) */
 	}

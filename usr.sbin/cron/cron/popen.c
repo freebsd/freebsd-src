@@ -34,6 +34,7 @@ static const char rcsid[] =
 #include "cron.h"
 #include <sys/signal.h>
 #include <fcntl.h>
+#include <paths.h>
 #if defined(SYSLOG)
 # include <syslog.h>
 #endif
@@ -130,7 +131,7 @@ cron_popen(program, type, e)
 		if (*type == 'r') {
 			/* Do not share our parent's stdin */
 			(void)close(0);
-			(void)open("/dev/null", O_RDWR);
+			(void)open(_PATH_DEVNULL, O_RDWR);
 			if (pdes[1] != 1) {
 				dup2(pdes[1], 1);
 				dup2(pdes[1], 2);	/* stderr, too! */
@@ -144,9 +145,9 @@ cron_popen(program, type, e)
 			}
 			/* Hack: stdout gets revoked */
 			(void)close(1);
-			(void)open("/dev/null", O_RDWR);
+			(void)open(_PATH_DEVNULL, O_RDWR);
 			(void)close(2);
-			(void)open("/dev/null", O_RDWR);
+			(void)open(_PATH_DEVNULL, O_RDWR);
 			(void)close(pdes[1]);
 		}
 # if defined(LOGIN_CAP)
