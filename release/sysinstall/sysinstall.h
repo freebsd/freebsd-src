@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.145 1998/03/23 06:08:55 yokota Exp $
+ * $Id: sysinstall.h,v 1.146 1998/05/24 20:01:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,6 +39,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,6 +144,7 @@
 #define VAR_NO_CONFIRM			"noConfirm"
 #define VAR_NO_ERROR			"noError"
 #define VAR_NO_WARN			"noWarn"
+#define VAR_NO_USR			"noUsr"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
 #define VAR_NTPDATE_FLAGS		"ntpdate_flags"
@@ -725,6 +727,7 @@ extern int 	variable_cmp(char *var, char *value);
 extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt);
 extern int 	variable_check(char *data);
+extern int	dump_variables(dialogMenuItem *self);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);

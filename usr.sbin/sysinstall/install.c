@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.207 1998/03/10 13:42:01 jkh Exp $
+ * $Id: install.c,v 1.208 1998/03/24 09:51:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -94,7 +94,7 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
-			if (c2->flags & CHUNK_IS_ROOT) {
+			if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/")) {
 			    if (rootdev) {
 				if (whinge)
 				    msgConfirm("WARNING:  You have more than one root device set?!\n"
@@ -177,7 +177,7 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 		   "swap partition.");
 	status = FALSE;
     }
-    if (!usrdev && whinge) {
+    if (!usrdev && whinge && !variable_get(VAR_NO_USR)) {
 	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
@@ -212,11 +212,13 @@ installInitial(void)
 
     /* If we refuse to proceed, bail. */
     dialog_clear_norefresh();
-    if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\n"
-		 "If you're running this on a disk with data you wish to save\n"
-		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
-		 "proceeding!\n\n"
-		 "We can take no responsibility for lost disk contents!") != 0)
+    if (!variable_get(VAR_NO_WARN))
+	if (msgYesNo(
+	    "Last Chance!  Are you SURE you want continue the installation?\n\n"
+	     "If you're running this on a disk with data you wish to save\n"
+	     "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
+	     "proceeding!\n\n"
+	     "We can take no responsibility for lost disk contents!") != 0)
 	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
@@ -337,9 +339,17 @@ installFixitFloppy(dialogMenuItem *self)
 	return DITEM_SUCCESS;
 
     variable_set2(SYSTEM_STATE, "fixit");
-    memset(&args, 0, sizeof(args));
-    args.fspec = "/dev/fd0";
     Mkdir("/mnt2");
+
+    /* Try to open the floppy drive */
+    if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
+	msgConfirm("Unable to set media device to floppy.");
+	mediaClose();
+	return DITEM_FAILURE;
+    }
+
+    memset(&args, 0, sizeof(args));
+    args.fspec = mediaDevice->devname;
 
     while (1) {
 	msgConfirm("Please insert a writable fixit floppy and press return");
