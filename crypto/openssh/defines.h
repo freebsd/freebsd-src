@@ -1,7 +1,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.90 2002/06/07 03:19:36 mouring Exp $ */
+/* $Id: defines.h,v 1.92 2002/06/24 16:26:49 stevesk Exp $ */
 
 
 /* Constants */
@@ -316,14 +316,6 @@ struct winsize {
 # define _PATH_MAILDIR MAILDIR
 #endif /* !defined(_PATH_MAILDIR) && defined(MAILDIR) */
 
-#ifndef _PATH_RSH
-# ifdef RSH_PATH
-#  define _PATH_RSH RSH_PATH
-# else /* RSH_PATH */
-#  define _PATH_RSH "/usr/bin/rsh"
-# endif /* RSH_PATH */
-#endif /* _PATH_RSH */
-
 #ifndef _PATH_NOLOGIN
 # define _PATH_NOLOGIN "/etc/nologin"
 #endif
@@ -417,7 +409,18 @@ struct winsize {
 #endif
 
 #ifndef HAVE_GETOPT_OPTRESET
-#define getopt(ac, av, o)  BSDgetopt(ac, av, o)
+# undef getopt
+# undef opterr
+# undef optind
+# undef optopt
+# undef optreset
+# undef optarg
+# define getopt(ac, av, o)  BSDgetopt(ac, av, o)
+# define opterr             BSDopterr
+# define optind             BSDoptind
+# define optopt             BSDoptopt
+# define optreset           BSDoptreset
+# define optarg             BSDoptarg
 #endif
 
 /* In older versions of libpam, pam_strerror takes a single argument */

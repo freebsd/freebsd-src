@@ -1,6 +1,169 @@
+20020626
+ - (stevesk) [monitor.c] remove duplicate proto15 dispatch entry for PAM
+ - (bal) OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2002/06/23 21:34:07
+     [channels.c]
+     tcode is u_int
+   - markus@cvs.openbsd.org 2002/06/24 13:12:23
+     [ssh-agent.1]
+     the socket name contains ssh-agent's ppid; via mpech@ from form@
+   - markus@cvs.openbsd.org 2002/06/24 14:33:27
+     [channels.c channels.h clientloop.c serverloop.c]
+     move channel counter to u_int
+   - markus@cvs.openbsd.org 2002/06/24 14:55:38
+     [authfile.c kex.c ssh-agent.c]
+     cat to (void) when output from buffer_get_X is ignored
+   - itojun@cvs.openbsd.org 2002/06/24 15:49:22
+     [msg.c]
+     printf type pedant
+   - deraadt@cvs.openbsd.org 2002/06/24 17:57:20
+     [sftp-server.c sshpty.c]
+     explicit (u_int) for uid and gid
+   - markus@cvs.openbsd.org 2002/06/25 16:22:42
+     [authfd.c]
+     unnecessary cast
+   - markus@cvs.openbsd.org 2002/06/25 18:51:04
+     [sshd.c]
+     lightweight do_setusercontext after chroot()
+ - (bal) Updated AIX package build.  Patch by dtucker@zip.com.au
+ - (tim) [Makefile.in] fix test on installing ssh-rand-helper.8
+ - (bal) added back in error check for mmap().  I screwed up, Pointed
+   out by stevesk@
+ - (tim) [README.privsep] UnixWare tip no longer needed.
+ - (bal) fixed NeXTStep missing munmap() issue. It defines HAVE_MMAP,
+   but it all damned lies.
+ - (stevesk) [README.privsep] more for sshd pseudo-account.
+ - (tim) [contrib/caldera/openssh.spec] add support for privsep
+ - (djm) setlogin needs pgid==pid on BSD/OS; from itojun@
+ - (djm) OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2002/06/26 08:53:12
+     [bufaux.c]
+     limit size of BNs to 8KB; ok provos/deraadt
+   - markus@cvs.openbsd.org 2002/06/26 08:54:18
+     [buffer.c]
+     limit append to 1MB and buffers to 10MB
+   - markus@cvs.openbsd.org 2002/06/26 08:55:02
+     [channels.c]
+     limit # of channels to 10000
+   - markus@cvs.openbsd.org 2002/06/26 08:58:26
+     [session.c]
+     limit # of env vars to 1000; ok deraadt/djm
+   - deraadt@cvs.openbsd.org 2002/06/26 13:20:57
+     [monitor.c]
+     be careful in mm_zalloc
+   - deraadt@cvs.openbsd.org 2002/06/26 13:49:26
+     [session.c]
+     disclose less information from environment files; based on input 
+     from djm, and dschultz@uclink.Berkeley.EDU
+   - markus@cvs.openbsd.org 2002/06/26 13:55:37
+     [auth2-chall.c]
+     make sure # of response matches # of queries, fixes int overflow; 
+     from ISS
+   - markus@cvs.openbsd.org 2002/06/26 13:56:27
+     [version.h]
+     3.4
+ - (djm) Require krb5 devel for RPM build w/ KrbV 
+ - (djm) Improve PAMAuthenticationViaKbdInt text from Nalin Dahyabhai 
+   <nalin@redhat.com>
+ - (djm) Update spec files for release 
+ - (djm) Fix int overflow in auth2-pam.c, similar to one discovered by ISS
+ - (djm) Release 3.4p1
+
+20020625
+ - (stevesk) [INSTALL acconfig.h configure.ac defines.h] remove --with-rsh
+ - (stevesk) [README.privsep] minor updates
+ - (djm) Create privsep directory and warn if privsep user is missing 
+   during make install
+ - (bal) Started list of PrivSep issues in TODO
+ - (bal) if mmap() is substandard, don't allow compression on server side.
+   Post 'event' we will add more options.
+ - (tim) [contrib/caldera/openssh.spec] Sync with Caldera
+ - (bal) moved aix_usrinfo() and noted not setting real TTY.  Patch by
+   dtucker@zip.com.au
+ - (tim) [acconfig.h configure.ac sshd.c] BROKEN_FD_PASSING fix from Markus
+   for Cygwin, Cray, & SCO
+
+20020624
+ - OpenBSD CVS Sync
+   - deraadt@cvs.openbsd.org 2002/06/23 03:25:50
+     [tildexpand.c]
+     KNF
+   - deraadt@cvs.openbsd.org 2002/06/23 03:26:19
+     [cipher.c key.c]
+     KNF
+   - deraadt@cvs.openbsd.org 2002/06/23 03:30:58
+     [scard.c ssh-dss.c ssh-rsa.c sshconnect.c sshconnect2.c sshd.c sshlogin.c
+      sshpty.c]
+     various KNF and %d for unsigned
+   - deraadt@cvs.openbsd.org 2002/06/23 09:30:14
+     [sftp-client.c sftp-client.h sftp-common.c sftp-int.c sftp-server.c
+      sftp.c]
+     bunch of u_int vs int stuff
+   - deraadt@cvs.openbsd.org 2002/06/23 09:39:55
+     [ssh-keygen.c]
+     u_int stuff
+   - deraadt@cvs.openbsd.org 2002/06/23 09:46:51
+     [bufaux.c servconf.c]
+     minor KNF.  things the fingers do while you read
+   - deraadt@cvs.openbsd.org 2002/06/23 10:29:52
+     [ssh-agent.c sshd.c]
+     some minor KNF and %u
+   - deraadt@cvs.openbsd.org 2002/06/23 20:39:45
+     [session.c]
+     compression_level is u_int
+   - deraadt@cvs.openbsd.org 2002/06/23 21:06:13
+     [sshpty.c]
+     KNF
+   - deraadt@cvs.openbsd.org 2002/06/23 21:06:41
+     [channels.c channels.h session.c session.h]
+     display, screen, row, col, xpixel, ypixel are u_int; markus ok
+   - deraadt@cvs.openbsd.org 2002/06/23 21:10:02
+     [packet.c]
+     packet_get_int() returns unsigned for reason & seqnr
+  - (bal) Also fixed IPADDR_IN_DISPLAY case where display, screen, row, col,
+    xpixel are u_int.
+
+
+20020623
+ - (stevesk) [configure.ac] bug #255 LOGIN_NEEDS_UTMPX for AIX.
+ - (bal) removed GNUism for getops in ssh-agent since glibc lacks optreset.
+ - (bal) add extern char *getopt.  Based on report by dtucker@zip.com.au 
+ - OpenBSD CVS Sync
+   - stevesk@cvs.openbsd.org 2002/06/22 02:00:29
+     [ssh.h]
+     correct comment
+   - stevesk@cvs.openbsd.org 2002/06/22 02:40:23
+     [ssh.1]
+     section 5 not 4 for ssh_config
+   - naddy@cvs.openbsd.org 2002/06/22 11:51:39
+     [ssh.1]
+     typo
+   - stevesk@cvs.openbsd.org 2002/06/22 16:32:54
+     [sshd.8]
+     add /var/empty in FILES section
+   - stevesk@cvs.openbsd.org 2002/06/22 16:40:19
+     [sshd.c]
+     check /var/empty owner mode; ok provos@
+   - stevesk@cvs.openbsd.org 2002/06/22 16:41:57
+     [scp.1]
+     typo
+   - stevesk@cvs.openbsd.org 2002/06/22 16:45:29
+     [ssh-agent.1 sshd.8 sshd_config.5]
+     use process ID vs. pid/PID/process identifier
+   - stevesk@cvs.openbsd.org 2002/06/22 20:05:27
+     [sshd.c]
+     don't call setsid() if debugging or run from inetd; no "Operation not
+     permitted" errors now; ok millert@ markus@
+   - stevesk@cvs.openbsd.org 2002/06/22 23:09:51
+     [monitor.c]
+     save auth method before monitor_reset_key_state(); bugzilla bug #284;
+     ok provos@
+
 20020622
  - (djm) Update README.privsep; spotted by fries@
  - (djm) Release 3.3p1
+ - (bal) getopt now can be staticly compiled on those platforms missing
+   optreset.  Patch by binder@arago.de
 
 20020621
  - (djm) Sync:
@@ -1004,4 +1167,4 @@
  - (stevesk) entropy.c: typo in debug message
  - (djm) ssh-keygen -i needs seeded RNG; report from markus@
 
-$Id: ChangeLog,v 1.2240 2002/06/21 15:44:45 djm Exp $
+$Id: ChangeLog,v 1.2301 2002/06/26 13:59:10 djm Exp $
