@@ -75,7 +75,8 @@
 #define	KTR_UMA		0x01000000		/* UMA slab allocator */
 #define	KTR_CALLOUT	0x02000000		/* Callouts and timeouts */
 #define	KTR_GEOM	0x04000000		/* GEOM I/O events */
-#define	KTR_ALL		0x04ffffff
+#define	KTR_BUSDMA	0x08000000		/* busdma(9) events */
+#define	KTR_ALL		0x0fffffff
 
 /*
  * Trace classes which can be assigned to particular use at compile time
