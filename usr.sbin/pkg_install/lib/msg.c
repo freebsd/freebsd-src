@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -17,12 +12,14 @@ static const char rcsid[] =
  *    documentation and/or other materials provided with the distribution.
  *
  * Jordan K. Hubbard
-
  * 18 July 1993
  *
  * Miscellaneous message routines.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>

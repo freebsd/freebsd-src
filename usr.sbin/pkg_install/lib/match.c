@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -22,6 +17,9 @@ static const char rcsid[] =
  * Routines used to query installed packages.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
@@ -88,7 +86,7 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
 	for (len = 0; patterns[len]; len++) {}
 	lmatched = alloca(sizeof(*lmatched) * len);
 	if (lmatched == NULL) {
-	    warnx("%s(): alloca() failed", __FUNCTION__);
+	    warnx("%s(): alloca() failed", __func__);
 	    if (retval != NULL)
 		*retval = 1;
 	    return NULL;
@@ -322,14 +320,14 @@ storeappend(struct store *store, const char *item)
 				store->currlen * sizeof(*(store->store)));
 	if (store->store == NULL) {
 	    store->currlen = 0;
-	    warnx("%s(): reallocf() failed", __FUNCTION__);
+	    warnx("%s(): reallocf() failed", __func__);
 	    return 1;
 	}
     }
 
     asprintf(&(store->store[store->used]), "%s", item);
     if (store->store[store->used] == NULL) {
-	warnx("%s(): malloc() failed", __FUNCTION__);
+	warnx("%s(): malloc() failed", __func__);
 	return 1;
     }
     store->used++;
