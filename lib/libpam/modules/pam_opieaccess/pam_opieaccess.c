@@ -67,7 +67,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		return (PAM_SERVICE_ERR);
 
 	pwent = getpwnam(luser);
-	if (pwent == NULL || opielookup(&opie, luser) != 0)
+	if (pwent == NULL || opielookup(&opie, __DECONST(char *, luser)) != 0)
 		return (PAM_SUCCESS);
 
 	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
@@ -77,7 +77,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		rhost = openpam_get_option(pamh, "allow_local") ?
 		    "" : "localhost";
 
-	if (opieaccessfile(rhost) != 0 && opiealways(pwent->pw_dir) != 0)
+	if (opieaccessfile(__DECONST(char *, rhost)) != 0 &&
+	    opiealways(pwent->pw_dir) != 0)
 		return (PAM_SUCCESS);
 
 	PAM_VERBOSE_ERROR("Refused; remote host is not in opieaccess");
