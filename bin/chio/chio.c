@@ -32,6 +32,7 @@
  */
 /*
  * Additional Copyright (c) 1997, by Matthew Jacob, for NASA/Ames Research Ctr.
+ * Addidional Copyright (c) 2000, by C. Stephen Gunn, Waterspout Communications
  */
 
 #ifndef lint
@@ -64,6 +65,9 @@ static	int parse_special __P((char *));
 static	int is_special __P((char *));
 static	const char *bits_to_string __P((int, const char *));
 
+static	void find_element __P((char *, u_int16_t *, u_int16_t *));
+static	struct changer_element_status *get_element_status __P((u_int16_t, u_int16_t));
+
 static	int do_move __P((char *, int, char **));
 static	int do_exchange __P((char *, int, char **));
 static	int do_position __P((char *, int, char **));
@@ -72,7 +76,12 @@ static	int do_getpicker __P((char *, int, char **));
 static	int do_setpicker __P((char *, int, char **));
 static	int do_status __P((char *, int, char **));
 static	int do_ielem __P((char *, int, char **));
+static	int do_return __P((char *, int, char **));
 static	int do_voltag __P((char *, int, char **));
+
+#ifndef CHET_VT
+#define	CHET_VT		10			/* Completely Arbitrary */
+#endif
 
 /* Valid changer element types. */
 const struct element_type elements[] = {
@@ -80,6 +89,7 @@ const struct element_type elements[] = {
 	{ "picker",		CHET_MT },
 	{ "portal",		CHET_IE },
 	{ "slot",		CHET_ST },
+	{ "voltag",		CHET_VT },	/* Select tapes by barcode */
 	{ NULL,			0 },
 };
 
@@ -93,6 +103,7 @@ const struct changer_command commands[] = {
 	{ "position",		do_position },
 	{ "setpicker",		do_setpicker },
 	{ "status",		do_status },
+	{ "return",		do_return },
 	{ "voltag",		do_voltag },
 	{ NULL,			0 },
 };
@@ -195,13 +206,23 @@ do_move(cname, argc, argv)
 	cmd.cm_fromtype = parse_element_type(*argv);
 	++argv; --argc;
 
-	/* <from EU> */
-	cmd.cm_fromunit = parse_element_unit(*argv);
+	/* Check for voltag virtual type */
+	if (CHET_VT == cmd.cm_fromtype) {
+		find_element(*argv, &cmd.cm_fromtype, &cmd.cm_fromunit);
+	} else {
+		/* <from EU> */
+		cmd.cm_fromunit = parse_element_unit(*argv);
+	}
 	++argv; --argc;
 
 	/* <to ET> */
 	cmd.cm_totype = parse_element_type(*argv);
 	++argv; --argc;
+
+	/* Check for voltag virtual type, and report error */
+	if (CHET_VT == cmd.cm_totype)
+		errx(1,"%s: voltag only makes sense as an element source",
+		     cname);
 
 	/* <to EU> */
 	cmd.cm_tounit = parse_element_unit(*argv);
@@ -266,16 +287,26 @@ do_exchange(cname, argc, argv)
 	cmd.ce_srctype = parse_element_type(*argv);
 	++argv; --argc;
 
-	/* <src EU> */
-	cmd.ce_srcunit = parse_element_unit(*argv);
+	/* Check for voltag virtual type */
+	if (CHET_VT == cmd.ce_srctype) {
+		find_element(*argv, &cmd.ce_srctype, &cmd.ce_srcunit);
+	} else {
+		/* <from EU> */
+		cmd.ce_srcunit = parse_element_unit(*argv);
+	}
 	++argv; --argc;
 
 	/* <dst1 ET> */
 	cmd.ce_fdsttype = parse_element_type(*argv);
 	++argv; --argc;
 
-	/* <dst1 EU> */
-	cmd.ce_fdstunit = parse_element_unit(*argv);
+	/* Check for voltag virtual type */
+	if (CHET_VT == cmd.ce_fdsttype) {
+		find_element(*argv, &cmd.ce_fdsttype, &cmd.ce_fdstunit);
+	} else {
+		/* <from EU> */
+		cmd.ce_fdstunit = parse_element_unit(*argv);
+	}
 	++argv; --argc;
 
 	/*
@@ -292,6 +323,10 @@ do_exchange(cname, argc, argv)
 	/* <dst2 ET> */
 	cmd.ce_sdsttype = parse_element_type(*argv);
 	++argv; --argc;
+
+	if (CHET_VT == cmd.ce_sdsttype)
+		errx(1,"%s %s: voltag only makes sense as an element source",
+		     cname, *argv);
 
 	/* <dst2 EU> */
 	cmd.ce_sdstunit = parse_element_unit(*argv);
@@ -652,9 +687,9 @@ do_status(cname, argc, argv)
 		cesr.cesr_element_base = base;
 		cesr.cesr_element_count = count;
 		/* Allocate storage for the status structures. */
-		cesr.cesr_element_status
-		  = (struct changer_element_status *) 
-		  malloc(count * sizeof(struct changer_element_status));
+		cesr.cesr_element_status =
+		  (struct changer_element_status *) 
+		  calloc(count, sizeof(struct changer_element_status));
 		
 		if (!cesr.cesr_element_status)
 			errx(1, "can't allocate status storage");
@@ -933,6 +968,236 @@ bits_to_string(v, cp)
 		*bp = '>';
 
 	return (buf);
+}
+/*
+ * do_return()
+ * 
+ * Given an element reference, ask the changer/picker to move that
+ * element back to its source slot.
+ */
+static int
+do_return(cname, argc, argv)
+	char *cname;
+	int  argc;
+	char **argv;
+{
+	struct changer_element_status *ces;
+	struct changer_move cmd;
+	u_int16_t	type, element;
+
+	++argv; --argc;
+
+	if (argc < 2) {
+		warnx("%s: too few arguments", cname);
+		goto usage;
+	} else if (argc > 3) {
+		warnx("%s: too many arguments", cname);
+		goto usage;
+	}
+
+	type = parse_element_type(*argv);
+	++argv; --argc;
+	
+	/* Handle voltag virtual Changer Element Type */
+	if (CHET_VT == type) {
+		find_element(*argv, &type, &element);
+	} else {
+		element = parse_element_unit(*argv);
+	}
+	++argv; --argc;
+
+	ces = get_element_status(type, element);	/* Get the status */
+
+	if (NULL == ces)
+		errx(1, "%s: null element status pointer", cname);
+
+	if (!(ces->ces_flags & CES_SOURCE_VALID))
+		errx(1, "%s: no source information", cname);
+
+	(void) memset(&cmd, 0, sizeof(cmd));
+
+	cmd.cm_fromtype = type;
+	cmd.cm_fromunit = element;
+	cmd.cm_totype = ces->ces_source_type;
+	cmd.cm_tounit = ces->ces_source_addr;
+
+	if (ioctl(changer_fd, CHIOMOVE, &cmd) == -1)
+		err(1, "%s: CHIOMOVE", changer_name);
+	free(ces);
+
+	return(0);
+
+usage:
+	(void) fprintf(stderr, "usage: %s %s "
+	    "<from ET> <from EU>\n", __progname, cname);
+	return(1);
+}
+
+/*
+ * get_element_status()
+ *
+ * return a *cesr for the specified changer element.  This
+ * routing will malloc()/calloc() the memory.  The caller
+ * should free() it when done.
+ */
+static struct changer_element_status *
+get_element_status(type, element)
+	u_int16_t	type;
+	u_int16_t	element;
+{
+	struct changer_element_status_request cesr;
+	struct changer_element_status *ces;
+	
+	ces = (struct changer_element_status *)
+	    calloc(1, sizeof(struct changer_element_status));
+
+	if (NULL == ces)
+		errx(1, "can't allocate status storage");
+
+	(void)memset(&cesr, 0, sizeof(cesr));
+
+	cesr.cesr_element_type = type;
+	cesr.cesr_element_base = element;
+	cesr.cesr_element_count = 1;		/* Only this one element */
+	cesr.cesr_flags |= CESR_VOLTAGS;	/* Grab voltags as well */
+	cesr.cesr_element_status = ces;
+
+	if (ioctl(changer_fd, CHIOGSTATUS, (char *)&cesr) == -1) {
+		free(ces);
+		err(1, "%s: CHIOGSTATUS", changer_name);
+		/* NOTREACHED */
+	}
+
+	return ces;
+}
+
+
+/*
+ * find_element()
+ * 
+ * Given a <voltag> find the chager element and unit, or exit
+ * with an error if it isn't found.  We grab the changer status
+ * and iterate until we find a match, or crap out.
+ */
+static void
+find_element(voltag, et, eu)
+	char *voltag;
+	u_int16_t *et;
+	u_int16_t *eu;
+{
+	struct changer_params cp;
+	struct changer_element_status_request cesr;
+	struct changer_element_status *ch_ces, *ces;
+	int elem, total_elem, found = 0;
+
+	/*
+	 * Get the changer parameters, we're interested in the counts
+	 * for all types of elements to perform our search.
+	 */
+	if (ioctl(changer_fd, CHIOGPARAMS, (char *)&cp))
+		err(1, "%s: CHIOGPARAMS", changer_name);
+
+	/* Allocate some memory for the results */
+	total_elem = (cp.cp_nslots + cp.cp_ndrives
+	    + cp.cp_npickers + cp.cp_nportals);
+	
+	ch_ces = (struct changer_element_status *)
+	    calloc(total_elem, sizeof(struct changer_element_status));
+
+	if (NULL == ch_ces)
+		errx(1, "can't allocate status storage");
+
+	ces = ch_ces;
+
+	/* Read in the changer slots */
+	if (cp.cp_nslots > 0) {
+		cesr.cesr_element_type = CHET_ST;
+		cesr.cesr_element_base = 0;
+		cesr.cesr_element_count = cp.cp_nslots;
+		cesr.cesr_flags |= CESR_VOLTAGS;
+		cesr.cesr_element_status = ces;
+
+		if (ioctl(changer_fd, CHIOGSTATUS, (char *)&cesr) == -1) {
+			free(ch_ces);
+			err(1, "%s: CHIOGSTATUS", changer_name);
+		}
+		ces += cp.cp_nslots;
+	}	
+
+	/* Read in the drive information */
+	if (cp.cp_ndrives > 0 ) {
+
+		(void) memset(&cesr, 0, sizeof(cesr));
+		cesr.cesr_element_type = CHET_DT;
+		cesr.cesr_element_base = 0;
+		cesr.cesr_element_count = cp.cp_ndrives;
+		cesr.cesr_flags |= CESR_VOLTAGS;
+		cesr.cesr_element_status = ces;
+
+		if (ioctl(changer_fd, CHIOGSTATUS, (char *)&cesr) == -1) {
+			free(ch_ces);
+			err(1, "%s: CHIOGSTATUS", changer_name);
+		}
+		ces += cp.cp_ndrives;
+	}
+
+	/* Read in the portal information */
+	if (cp.cp_nportals > 0 ) {
+		(void) memset(&cesr, 0, sizeof(cesr));
+		cesr.cesr_element_type = CHET_IE;
+		cesr.cesr_element_base = 0;
+		cesr.cesr_element_count = cp.cp_nportals;
+		cesr.cesr_flags |= CESR_VOLTAGS;
+		cesr.cesr_element_status = ces;
+
+		if (ioctl(changer_fd, CHIOGSTATUS, (char *)&cesr) == -1) {
+			free(ch_ces);
+			err(1, "%s: CHIOGSTATUS", changer_name);
+		}
+		ces += cp.cp_nportals;
+	}
+
+	/* Read in the picker information */
+	if (cp.cp_npickers > 0) {
+		(void) memset(&cesr, 0, sizeof(cesr));
+		cesr.cesr_element_type = CHET_MT;
+		cesr.cesr_element_base = 0;
+		cesr.cesr_element_count = cp.cp_npickers;
+		cesr.cesr_flags |= CESR_VOLTAGS;
+		cesr.cesr_element_status = ces;
+
+		if (ioctl(changer_fd, CHIOGSTATUS, (char *)&cesr) == -1) {
+			free(ch_ces);
+			err(1, "%s: CHIOGSTATUS", changer_name);
+		}
+	}
+
+	/*
+	 * Now search the list the specified <voltag>
+	 */	
+	for (elem = 0; elem <= total_elem; ++elem) {
+
+		ces = &ch_ces[elem];
+
+		/* Make sure we have a tape in this element */
+		if ((ces->ces_flags & (CES_STATUS_ACCESS|CES_STATUS_FULL))
+		    != (CES_STATUS_ACCESS|CES_STATUS_FULL))
+			continue;
+
+		/* Check to see if it is our target */
+		if (strcasecmp(voltag, ces->ces_pvoltag.cv_volid) == 0) {
+			*et = ces->ces_type;
+			*eu = ces->ces_addr;
+			++found;
+			break;
+		}
+	}
+	if (!found) {
+		errx(1, "%s: unable to locate voltag: %s", changer_name,
+		     voltag);
+	}
+	free(ch_ces);
+	return;
 }
 
 static void
