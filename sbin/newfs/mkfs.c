@@ -207,7 +207,7 @@ mkfs(pp, fsys, fi, fo)
 	if (fssize <= 0)
 		printf("preposterous size %d\n", fssize), exit(13);
 	wtfs(fssize - (realsectorsize / DEV_BSIZE), realsectorsize,
-		(char *)&sblock);
+	    (char *)&sblock);
 	/*
 	 * collect and verify the sector and track info
 	 */
@@ -254,8 +254,9 @@ mkfs(pp, fsys, fi, fo)
 		exit(19);
 	}
 	if (sblock.fs_bsize < sblock.fs_fsize) {
-		printf("block size (%d) cannot be smaller than "
-		    "fragment size (%d)\n", sblock.fs_bsize, sblock.fs_fsize);
+		printf(
+		"block size (%d) cannot be smaller than fragment size (%d)\n",
+		    sblock.fs_bsize, sblock.fs_fsize);
 		exit(20);
 	}
 	sblock.fs_bmask = ~(sblock.fs_bsize - 1);
@@ -270,8 +271,9 @@ mkfs(pp, fsys, fi, fo)
 	for (sblock.fs_fragshift = 0, i = sblock.fs_frag; i > 1; i >>= 1)
 		sblock.fs_fragshift++;
 	if (sblock.fs_frag > MAXFRAG) {
-		printf("fragment size %d is too small, minimum with "
-		    "block size %d is %d\n", sblock.fs_fsize, sblock.fs_bsize,
+		printf(
+	"fragment size %d is too small, minimum with block size %d is %d\n",
+		    sblock.fs_fsize, sblock.fs_bsize,
 		    sblock.fs_bsize / MAXFRAG);
 		exit(21);
 	}
@@ -565,12 +567,13 @@ next:
 			    (cgdmin(&sblock, 0) + 3 * sblock.fs_frag));
 			exit(30);
 		}
-		printf("Warning: inode blocks/cyl group (%ld) >= "
-		    "data blocks (%ld) in last\n",
+		printf(
+"Warning: inode blocks/cyl group (%ld) >= data blocks (%ld) in last\n",
 		    (cgdmin(&sblock, j) - cgbase(&sblock, j)) / sblock.fs_frag,
 		    i / sblock.fs_frag);
-		printf("    cylinder group. This implies %ld sector(s) "
-		    "cannot be allocated.\n", i * NSPF(&sblock));
+		printf(
+"    cylinder group. This implies %ld sector(s) cannot be allocated.\n",
+		    i * NSPF(&sblock));
 		sblock.fs_ncg--;
 		sblock.fs_ncyl -= sblock.fs_ncyl % sblock.fs_cpg;
 		sblock.fs_size = fssize = sblock.fs_ncyl * sblock.fs_spc /
@@ -737,7 +740,8 @@ initcg(cylno, utime)
 	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
 	if (sblock.fs_contigsumsize <= 0) {
 		acg.cg_nextfreeoff = acg.cg_freeoff +
-		howmany(sblock.fs_cpg * sblock.fs_spc / NSPF(&sblock), NBBY);
+		    howmany(sblock.fs_cpg * sblock.fs_spc / NSPF(&sblock),
+		    NBBY);
 	} else {
 		acg.cg_clustersumoff = acg.cg_freeoff + howmany
 		    (sblock.fs_cpg * sblock.fs_spc / NSPF(&sblock), NBBY) -
@@ -749,8 +753,8 @@ initcg(cylno, utime)
 		acg.cg_nextfreeoff = acg.cg_clusteroff + howmany
 		    (sblock.fs_cpg * sblock.fs_spc / NSPB(&sblock), NBBY);
 	}
-	if (acg.cg_nextfreeoff - (long)(&acg.cg_firstfield) > sblock.fs_cgsize)
-	{
+	if (acg.cg_nextfreeoff - (long)(&acg.cg_firstfield) >
+	    sblock.fs_cgsize) {
 		printf("Panic: cylinder group too big\n");
 		exit(37);
 	}
