@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id$
+ *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
+ * $Id: vfs_cache.c,v 1.23 1997/02/22 09:39:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -75,14 +75,15 @@
  * Structures associated with name cacheing.
  */
 #define NCHHASH(dvp, cnp) \
-	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) & nchash])
+	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) % nchash])
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
-static u_long nchash;			/* size of hash table - 1 */
-static int doingcache = 1;			/* 1 => enable the cache */
-SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
-static u_long numcache;			/* number of cache entries allocated */
+static u_long	nchash;			/* size of hash table */
+static u_long	numcache;		/* number of cache entries allocated */
 static TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
 struct	nchstats nchstats;		/* cache effectiveness statistics */
+
+static int	doingcache = 1;		/* 1 => enable the cache */
+SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
 
 #ifdef NCH_STATISTICS
 u_long	nchnbr;
@@ -117,9 +118,9 @@ u_long	nchnbr;
 }
 
 /*
- * Lookup an entry in the cache 
+ * Lookup an entry in the cache
  *
- * We don't do this if the segment name is long, simply so the cache 
+ * We don't do this if the segment name is long, simply so the cache
  * can avoid holding long names (which would either waste space, or
  * add greatly to the complexity).
  *
@@ -144,7 +145,6 @@ cache_lookup(dvp, vpp, cnp)
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
-
 	if (cnp->cn_namelen > NCHNAMLEN) {
 		nchstats.ncs_long++;
 		cnp->cn_flags &= ~MAKEENTRY;
@@ -181,7 +181,7 @@ cache_lookup(dvp, vpp, cnp)
 		nchstats.ncs_badhits++;
 		PURGE(ncp);
 		return (0);
-	} 
+	}
 
 	/* We found a "positive" match, return the vnode */
         if (ncp->nc_vp) {
@@ -225,12 +225,10 @@ cache_enter(dvp, vp, cnp)
 	if (!doingcache)
 		return;
 
-#ifdef DIAGNOSTIC
 	if (cnp->cn_namelen > NCHNAMLEN) {
 		printf("cache_enter: name too long");
 		return;
 	}
-#endif
 
 	/*
 	 * We allocate a new entry if we are less than the maximum
@@ -256,6 +254,7 @@ cache_enter(dvp, vp, cnp)
 		/* give up */
 		return;
 	}
+
 	/*
 	 * Fill in cache info, if vp is NULL this is a "negative" cache entry.
 	 * For negative entries, we have to record whether it is a whiteout.
@@ -284,13 +283,14 @@ cache_enter(dvp, vp, cnp)
 void
 nchinit()
 {
+
 	TAILQ_INIT(&nclruhead);
 	nchashtbl = phashinit(desiredvnodes, M_CACHE, &nchash);
 }
 
 /*
  * Invalidate all entries to particular vnode.
- * 
+ *
  * We actually just increment the v_id, that will do it. The stale entries
  * will be purged by lookup as they get found. If the v_id wraps around, we
  * need to ditch the entire cache, to avoid confusion. No valid vnode will
