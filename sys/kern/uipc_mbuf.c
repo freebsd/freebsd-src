@@ -35,6 +35,7 @@
  */
 
 #include "opt_param.h"
+#include "opt_mbuf_stress_test.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -69,6 +70,9 @@ int	m_defragpackets;
 int	m_defragbytes;
 int	m_defraguseless;
 int	m_defragfailure;
+#ifdef MBUF_STRESS_TEST
+int	m_defragrandomfailures;
+#endif
 
 int	nmbclusters;
 int	nmbufs;
@@ -100,6 +104,10 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defraguseless, CTLFLAG_RD,
 	   &m_defraguseless, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragfailure, CTLFLAG_RD,
 	   &m_defragfailure, 0, "");
+#ifdef MBUF_STRESS_TEST
+SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
+	   &m_defragrandomfailures, 0, "");
+#endif
 
 static void	m_reclaim __P((void));
 
@@ -1480,6 +1488,13 @@ m_defrag(struct mbuf *m0, int how)
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
 
+#ifdef MBUF_STRESS_TEST
+	if (m_defragrandomfailures) {
+		int temp = arc4random() & 0xff;
+		if (temp == 0xba)
+			goto nospace;
+	}
+#endif
 	
 	if (m0->m_pkthdr.len > MHLEN)
 		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
