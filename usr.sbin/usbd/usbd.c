@@ -926,8 +926,6 @@ main(int argc, char **argv)
 {
 	int error, i;
 	int ch;			/* getopt option */
-	extern char *optarg;	/* from getopt */
-	extern int optind;	/* from getopt */
 	int debug = 0;		/* print debugging output */
 	int explore_once = 0;	/* don't do only explore */
 	int handle_events = 1;	/* do handle the event queue */
