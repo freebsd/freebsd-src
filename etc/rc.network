@@ -40,8 +40,8 @@ network_pass1() {
 
 	# Set the host name if it is not already set
 	#
-	if [ -z "`hostname -s`" ]; then
-		hostname ${hostname}
+	if [ -z "`/bin/hostname -s`" ]; then
+		/bin/hostname ${hostname}
 		echo -n ' hostname'
 	fi
 
