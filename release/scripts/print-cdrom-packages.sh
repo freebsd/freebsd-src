@@ -67,93 +67,104 @@ extract-names()
 
 
 ## Start of set for CDROM #1
-# This is the set required by sysinstall.
 CDROM_SET_1=""
-if [ "X${PKG_ARCH}" = "Xalpha" ]; then
-CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
-elif [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
-fi
-CDROM_SET_1="${CDROM_SET_1} lang/perl5.8"
-CDROM_SET_1="${CDROM_SET_1} mail/exim"
-CDROM_SET_1="${CDROM_SET_1} mail/postfix"
-CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-100dpi"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-75dpi"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-cyrillic"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-encodings"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-miscbitmaps"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-truetype"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-type1"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-fontserver"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-nestserver"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-printserver"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-server"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-vfbserver"
-CDROM_SET_1="${CDROM_SET_1} x11-wm/afterstep"
-CDROM_SET_1="${CDROM_SET_1} x11-wm/enlightenment"
-CDROM_SET_1="${CDROM_SET_1} x11-wm/fvwm2"
-CDROM_SET_1="${CDROM_SET_1} x11-wm/sawfish2"
-CDROM_SET_1="${CDROM_SET_1} x11-wm/windowmaker"
-CDROM_SET_1="${CDROM_SET_1} x11/xorg"
-CDROM_SET_1="${CDROM_SET_1} x11/xorg-clients"
-CDROM_SET_1="${CDROM_SET_1} x11/xorg-documents"
-CDROM_SET_1="${CDROM_SET_1} x11/xorg-libraries"
-CDROM_SET_1="${CDROM_SET_1} x11/xorg-manpages"
-CDROM_SET_1="${CDROM_SET_1} x11/gnome2-lite"
-CDROM_SET_1="${CDROM_SET_1} x11/kde-lite"
-CDROM_SET_1="${CDROM_SET_1} www/links"
+if [ "X${PKG_ARCH}" = "Xia64" ]; then
+	CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
+	CDROM_SET_1="${CDROM_SET_1} devel/gmake"
+	CDROM_SET_1="${CDROM_SET_1} lang/perl5.8"
+	CDROM_SET_1="${CDROM_SET_1} security/sudo"
+	CDROM_SET_1="${CDROM_SET_1} shells/bash2"
+	CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
+	CDROM_SET_1="${CDROM_SET_1} shells/zsh"
+	CDROM_SET_1="${CDROM_SET_1} x11/gnome2-lite"
+	CDROM_SET_1="${CDROM_SET_1} x11/kde-lite"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg-manpages"
+else
+	# This is the set required by sysinstall.
+	if [ "X${PKG_ARCH}" = "Xalpha" ]; then
+		CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
+	elif [ "X${PKG_ARCH}" = "Xi386" ]; then
+		CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
+	fi
+	CDROM_SET_1="${CDROM_SET_1} lang/perl5.8"
+	CDROM_SET_1="${CDROM_SET_1} mail/exim"
+	CDROM_SET_1="${CDROM_SET_1} mail/postfix"
+	CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-100dpi"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-75dpi"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-cyrillic"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-encodings"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-miscbitmaps"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-truetype"
+	CDROM_SET_1="${CDROM_SET_1} x11-fonts/xorg-fonts-type1"
+	CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-fontserver"
+	CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-nestserver"
+	CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-printserver"
+	CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-server"
+	CDROM_SET_1="${CDROM_SET_1} x11-servers/xorg-vfbserver"
+	CDROM_SET_1="${CDROM_SET_1} x11-wm/afterstep"
+	CDROM_SET_1="${CDROM_SET_1} x11-wm/enlightenment"
+	CDROM_SET_1="${CDROM_SET_1} x11-wm/fvwm2"
+	CDROM_SET_1="${CDROM_SET_1} x11-wm/sawfish2"
+	CDROM_SET_1="${CDROM_SET_1} x11-wm/windowmaker"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg-clients"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg-documents"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg-libraries"
+	CDROM_SET_1="${CDROM_SET_1} x11/xorg-manpages"
+	CDROM_SET_1="${CDROM_SET_1} x11/gnome2-lite"
+	CDROM_SET_1="${CDROM_SET_1} x11/kde-lite"
+	CDROM_SET_1="${CDROM_SET_1} www/links"
 
-# This is the set of "people really want these" packages.  Please add to
-# this list.
-CDROM_SET_1="${CDROM_SET_1} astro/xearth"
-CDROM_SET_1="${CDROM_SET_1} editors/emacs"
-CDROM_SET_1="${CDROM_SET_1} editors/vim"
-CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
-CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
-CDROM_SET_1="${CDROM_SET_1} graphics/xv"
-CDROM_SET_1="${CDROM_SET_1} irc/xchat2"
-CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
-CDROM_SET_1="${CDROM_SET_1} mail/mutt"
-CDROM_SET_1="${CDROM_SET_1} mail/pine4"
-CDROM_SET_1="${CDROM_SET_1} mail/popd"
-CDROM_SET_1="${CDROM_SET_1} mail/xfmail"
-CDROM_SET_1="${CDROM_SET_1} misc/bsdiff"
-CDROM_SET_1="${CDROM_SET_1} net/cvsup"
-CDROM_SET_1="${CDROM_SET_1} net/rsync"
-CDROM_SET_1="${CDROM_SET_1} net/samba"
-CDROM_SET_1="${CDROM_SET_1} news/slrn"
-CDROM_SET_1="${CDROM_SET_1} news/tin"
-CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
-if [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} print/acroread5"
-fi
-CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
-CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
-CDROM_SET_1="${CDROM_SET_1} print/gv"
-CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
-if [ ! "X${PKG_ARCH}" = "Xia64" ]; then
-CDROM_SET_1="${CDROM_SET_1} security/freebsd-update"
-fi
-CDROM_SET_1="${CDROM_SET_1} security/sudo"
-CDROM_SET_1="${CDROM_SET_1} shells/bash2"
-CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
-CDROM_SET_1="${CDROM_SET_1} shells/zsh"
-CDROM_SET_1="${CDROM_SET_1} sysutils/portupgrade"
-CDROM_SET_1="${CDROM_SET_1} www/lynx"
-if [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} www/opera"
-fi
-CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
+	# This is the set of "people really want these" packages.  Please
+	# add to this list.
+	CDROM_SET_1="${CDROM_SET_1} astro/xearth"
+	CDROM_SET_1="${CDROM_SET_1} editors/emacs"
+	CDROM_SET_1="${CDROM_SET_1} editors/vim"
+	CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
+	CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
+	CDROM_SET_1="${CDROM_SET_1} graphics/xv"
+	CDROM_SET_1="${CDROM_SET_1} irc/xchat2"
+	CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
+	CDROM_SET_1="${CDROM_SET_1} mail/mutt"
+	CDROM_SET_1="${CDROM_SET_1} mail/pine4"
+	CDROM_SET_1="${CDROM_SET_1} mail/popd"
+	CDROM_SET_1="${CDROM_SET_1} mail/xfmail"
+	CDROM_SET_1="${CDROM_SET_1} misc/bsdiff"
+	CDROM_SET_1="${CDROM_SET_1} net/cvsup"
+	CDROM_SET_1="${CDROM_SET_1} net/rsync"
+	CDROM_SET_1="${CDROM_SET_1} net/samba"
+	CDROM_SET_1="${CDROM_SET_1} news/slrn"
+	CDROM_SET_1="${CDROM_SET_1} news/tin"
+	CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
+	if [ "X${PKG_ARCH}" = "Xi386" ]; then
+		CDROM_SET_1="${CDROM_SET_1} print/acroread5"
+	fi
+	CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
+	CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
+	CDROM_SET_1="${CDROM_SET_1} print/gv"
+	CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
+	CDROM_SET_1="${CDROM_SET_1} security/freebsd-update"
+	CDROM_SET_1="${CDROM_SET_1} security/sudo"
+	CDROM_SET_1="${CDROM_SET_1} shells/bash2"
+	CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
+	CDROM_SET_1="${CDROM_SET_1} shells/zsh"
+	CDROM_SET_1="${CDROM_SET_1} sysutils/portupgrade"
+	CDROM_SET_1="${CDROM_SET_1} www/lynx"
+	if [ "X${PKG_ARCH}" = "Xi386" ]; then
+		CDROM_SET_1="${CDROM_SET_1} www/opera"
+	fi
+	CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
-# VERY common build dependencies
-CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
-CDROM_SET_1="${CDROM_SET_1} devel/gmake"
-CDROM_SET_1="${CDROM_SET_1} graphics/png"
-if [ "X${PKG_ARCH}" = "Xi386" -o "X${PKG_ARCH}" = "Xalpha" ]; then
-CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
+	# VERY common build dependencies
+	CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
+	CDROM_SET_1="${CDROM_SET_1} devel/gmake"
+	CDROM_SET_1="${CDROM_SET_1} graphics/png"
+	if [ "X${PKG_ARCH}" = "Xi386" -o "X${PKG_ARCH}" = "Xalpha" ]; then
+		CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
+	fi
 fi
-
 ## End of set for CDROM #1
 
 ## Start of set for CDROM #2
