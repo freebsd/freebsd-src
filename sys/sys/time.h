@@ -89,35 +89,17 @@ struct bintime {
 static __inline void
 bintime_addx(struct bintime *bt, u_int64_t x)
 {
-#ifdef __i386
-	__asm(	"
-		addl %%eax,4(%%ecx)
-		adcl %%edx,8(%%ecx)
-		adcl $0,0(%%ecx)
-		" : : "A" (x), "c" (bt));
-#else
 	u_int64_t u;
 
 	u = bt->frac;
 	bt->frac += x;
 	if (u > bt->frac)
 		bt->sec++;
-#endif
 }
 
 static __inline void
 bintime_add(struct bintime *bt, struct bintime *bt2)
 {
-#ifdef __i386
-	__asm(	"
-		movl 4(%%edx),%%eax
-		addl %%eax,4(%%ecx)
-		movl 8(%%edx),%%eax
-		adcl %%eax,8(%%ecx)
-		movl 0(%%edx),%%eax
-		adcl %%eax,0(%%ecx)
-		" : : "c" (bt), "d" (bt2));
-#else
 	u_int64_t u;
 
 	u = bt->frac;
@@ -125,22 +107,11 @@ bintime_add(struct bintime *bt, struct bintime *bt2)
 	if (u > bt->frac)
 		bt->sec++;
 	bt->sec += bt2->sec;
-#endif
 }
 
 static __inline void
 bintime_sub(struct bintime *bt, struct bintime *bt2)
 {
-#ifdef __i386
-	__asm(	"
-		movl 4(%%edx),%%eax
-		subl %%eax,4(%%ecx)
-		movl 8(%%edx),%%eax
-		sbbl %%eax,8(%%ecx)
-		movl 0(%%edx),%%eax
-		sbbl %%eax,0(%%ecx)
-		" : : "c" (bt), "d" (bt2));
-#else
 	u_int64_t u;
 
 	u = bt->frac;
@@ -148,7 +119,6 @@ bintime_sub(struct bintime *bt, struct bintime *bt2)
 	if (u < bt->frac)
 		bt->sec--;
 	bt->sec -= bt2->sec;
-#endif
 }
 
 static __inline void
