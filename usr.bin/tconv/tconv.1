@@ -1,179 +1,165 @@
 .\" @(#) mytinfo tconv.1 3.2 92/02/01 public domain, By Ross Ridge
-.\" $Id$
+.\" $Id: tconv.1,v 1.5 1996/10/05 22:27:20 wosch Exp $
 .\"
-.TH TCONV 1 "92/02/01" "mytinfo"
-.SH NAME
-tconv \- convert between termcap, terminfo source and terminfo binary
-.SH SYNOPSIS
-.B tconv
-[\fB\-b\fR]
-[\fB\-c\fR\ [\fB\-OUGd\fR]]
-[\fB\-i\fR]
-[\fB\-B\fR\ [\fB\-D\fR\ dir]]
-[\fB\-I\fR]
-[\fB\-k\fR]
-[\fB\-V\fR]
-[\fB\-t\fR\ term]
-[file]
-.br
-.B tic
-[file]
-.br
-.B captoinfo
-[\fB\-t\fR\ term]
-[\fB\-OUGdk\fR]]
-[file]
-.SH DESCRIPTION
-.I tconv
+.Dd February 1, 1992
+.Dt TCONV 1
+.Os
+.Sh NAME
+.Nm tconv
+.Nd convert between termcap, terminfo source and terminfo binary
+.Sh SYNOPSIS
+.Nm tconv
+.Op Fl b
+.Op Fl c Op Fl OUGd
+.Op Fl i
+.Op Fl B Op Fl D Ar dir
+.Op Fl I
+.Op Fl k
+.Op Fl V
+.Op Fl t Ar term
+.Op Ar file
+.Nm tic
+.Op Ar file
+.Nm captoinfo
+.Op Fl t Ar term
+.Op Fl OUGdk
+.Op Ar file
+.Sh DESCRIPTION
+.Nm Tconv
 converts between the three terminal descriptions,
 termcap, terminfo source, and terminfo binary,
 that the
-.I tinfo
+.Em tinfo
 library uses.
 It performs the same functions of
-.IR captoinfo (1M)
+.Xr captoinfo 1
 and 
-.IR tic (1M)
+.Xr tic 1
 of System V.
 It also can be used to generate a terminfo source listing from a terminfo
 binary, one of the functions of System V's
-.IR infocmp (1M).
-.SS Translation Options
-.PD 0
-.TP
-.B \-c
-convert from termcap
-.TP
-.B \-i
-convert from terminfo source
-.TP
-.B \-b
-convert from terminfo binary
-.TP
-.B \-B
-convert to terminfo binary
-.TP
-.B \-I
-convert to terminfo source
-.PD
-.PP
+.Xr infocmp 1 .
+.Pp
+Translation options:
+.Bl -tag -width indent
+.It Fl c
+Convert from termcap.
+.It Fl i
+Convert from terminfo source.
+.It Fl b
+Convert from terminfo binary.
+.It Fl B
+Convert to terminfo binary.
+.It Fl I
+Convert to terminfo source.
+.El
+.Pp
 If a file is specified, one of
-.B \-c
+.Fl c
 or
-.B \-i
+.Fl i
 must specified and the whole file while be translated.
 If no file is specified then the input options will only restrict looking
 for the terminal to be translated in places likely have descriptions
 of the desired type
 (ie. with the
-.B -c
+.Fl c
 option in the
-.B TERMCAP
+.Ev TERMCAP
 environment variable, and in
-.IR /usr/share/misc/termcap ,
+.Pa /usr/share/misc/termcap ,
 with the
-.B -i
+.Fl i
 option in the
-.B TERMINFO
+.Ev TERMINFO
 environment variable, and in
-.IR /usr/lib/terminfo ),
+.Pa /usr/lib/terminfo Ns ),
 otherwise
-.I tconv
+.Nm
 will look in all available databases.
 If neither 
-.B \-I
+.Fl I
 or
-.B \-B
+.Fl B
 are given the
-.B \-I
+.Fl I
 option will be assumed.
 If the 
-.B \-B
+.Fl B
 option is used, the compiled output will be put in the
 terminfo database, otherwise standard output is used.
-.PP
+.Pp
 You cannot translate from terminfo binary to terminfo binary.
 Translating from terminfo source to terminfo source is possible, 
 but not of much use in most cases, as 
-.B use=
+.Em use=
 fields will be followed and incorporated into the output terminal
 description. 
-.PP
-.I tconv
+.Pp
+.Nm Tconv
 should be able translate all standard termcap parameterized strings
 terminfo format, but complex strings using GNU's %a code may be
 too hard to translate.
 If
-.I tconv
+.Nm
 thinks a termcap string is already in terminfo format (if a %p
 code appears in the string), it won't try to translate it.
 String capabilities that don't take parameters won't be translated.
-.PP
-.B 
-.SS Termcap options
-The following options are available when translating termcap entries 
-(\fB\-c\fR options is used).
-.PP
-.PD 0
-.TP 
-.B \-d
-don't supply any defaults for missing capabilities
-.TP
-.B \-O
-include obsolete termcap capabilities
-.TP
-.B \-G
-include GNU capabilities
-.TP
-.B \-U
-include UW capabilities
-.PD
-.SS Other Options
-.PD 0
-.TP
-.B \-k
-keep comments when translating a file
-.TP
-.B \-V
-print version information and exit
-.TP
-.BI \-D " " dir
-directory to put terminfo binaries in
-.TP
-.BI \-t " " term
-terminal name to translate
-.PD
-.PP
+.Pp
+Termcap options: the following options are available when translating termcap
+entries (
+.Fl c
+option is used).
+.Bl -tag -width indent
+.It Fl d
+Don't supply any defaults for missing capabilities.
+.It Fl O
+Include obsolete termcap capabilities.
+.It Fl G
+Include GNU capabilities.
+.It Fl U
+Include UW capabilities.
+.El
+.Pp
+Other options:
+.Bl -tag -width indent
+.It Fl k
+Keep comments when translating a file.
+.It Fl V
+Print version information and exit.
+.It Fl D Ar dir
+Directory to put terminfo binaries in.
+.It Fl t Ar term
+Terminal name to translate.
+.El
+.Pp
 If no terminal specified with the
-.B \-t
+.Fl t
 option, then the terminal name to to translate will be taken from the
 environment variable
-.BR TERM .
-.SH FILES
-.PD 0
-.TP 2i
-.B /usr/lib/terminfo
+.Ev TERM .
+.Sh FILES
+.Bl -tag -width /usr/lib/terminfo/terminfo.src -compact
+.It Pa /usr/lib/terminfo
 The default location to get and put terminfo binaries.
-.TP
-.B /usr/lib/terminfo/terminfo.src
+.It Pa /usr/lib/terminfo/terminfo.src
 The default filename of the terminfo source file.
-.TP
-.B /etc/termcap
+.It Pa /etc/termcap
 The default filename of the termcap database.
-.PD
-.SH "SEE ALSO"
-termcap(3),
-curses(3),
-term(5),
-termcap(5),
-terminfo(5).
-.SH DIAGNOSTICS
+.El
+.Sh SEE ALSO
+.Xr curses 3 ,
+.Xr termcap 3 ,
+.Xr term 5 ,
+.Xr termcap 5 ,
+.Xr terminfo 5 .
+.Sh DIAGNOSTICS
 The line number of a warning message when translating a file
 may refer to the last line of an entry instead of the line in the entry 
 that generated the warning.
-.SH BUGS
+.Sh BUGS
 More warning messages could be generated.
-.I tconv
+.Nm Tconv
 can't translate to termcap.  Binaries generated will have canceled
 capabilities marked as canceled, which is incompatible with
 System V Release 2.0 terminfo.

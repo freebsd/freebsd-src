@@ -55,10 +55,11 @@
 #endif
 
 #ifndef lint
-static const char SCCSid[] = "@(#) mytinfo tconv.c 3.2 92/02/01 public domain, By Ross Ridge";
+static const char SCCSid[] =
+	"@(#) mytinfo tconv.c 3.2 92/02/01 public domain, By Ross Ridge";
+static const char rcsid[] =
+	"$Id$";
 #endif
-
-extern int errno;
 
 /* the right margin of the output */
 #define LINELEN 76
@@ -155,7 +156,7 @@ void
 push() {
 	if (stackptr > MAX_PUSHED) {
 		warn();
-		fprintf(stderr, "string to complex to covert\n");
+		fprintf(stderr, "string to complex to convert\n");
 	} else
 		stack[stackptr++] = onstack;
 }
@@ -1189,9 +1190,11 @@ int e; {
 void
 usage(e)
 int e; {
-	fprintf(stderr,
-"usage: %s [-b] [-c [-OUGd]] [-i] [-B [-D dir]] [-I] [-k] [-V]\n\t[-t term] [file]\n",
-		prg_name);
+	fprintf(stderr, "%s\n%s\n%s\n%s\n", 
+		"usage: tconv [-b] [-c [-OUGd]] [-i] [-B [-D dir]] [-I] [-k] [-V]",
+		"             [-t term] [file]",
+		"       tic [file]",
+		"       captoinfo [-t term] [-OUGdk] [file]");
 	return;
 }
 
