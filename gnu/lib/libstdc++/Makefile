@@ -2,7 +2,7 @@
 
 SRCDIR=	${.CURDIR}/../../../contrib/libstdc++-v3/src
 .PATH: ${SRCDIR}/src ${SRCDIR}/libmath ${SRCDIR}/config/io \
-       ${SRCDIR}/config/locale/generic ${SRCDIR}
+       ${SRCDIR}/config/locale/generic ${SRCDIR} ${SRCDIR}/std
 
 SUBDIR=	doc
 
@@ -87,19 +87,10 @@ THDHDRS=gthr.h gthr-single.h gthr-posix.h gthr-default.h
 BASEDHDRS_renamed=	${BASEDHDRS:Mstd_*:S/std_//g:S/.h//g}
 STDHDRS_renamed=	${STDHDRS:Mstd_*:S/std_//g:S/.h//g}
 
-#------------------------------------------------------------------------------
+INCS=		_G_config.h ${HDRS:S;^;${SRCDIR}/;} ${IHDRS} ${STLHDRS}
 
-# gxx_include_dir = $(prefix)/include/g++-v3
-beforeinstall:
-	mkdir -p ${DESTDIR}/usr/include/g++/{backward,ext}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/_G_config.h \
-	    ${HDRS:S;^;${SRCDIR}/;} \
-	    ${IHDRS:S;^;${SRCDIR}/../libio/;} \
-	    ${STLHDRS:S;^;${SRCDIR}/stl/;} \
-	    ${DESTDIR}/usr/include/g++
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${STDHDRS:S;^;${SRCDIR}/std/;} \
-	    ${DESTDIR}/usr/include/g++/std
+INCSGROUPS=	INCS STDHDRS
+INCSDIR=	${INCLUDEDIR}/g++
+STDHDRSDIR=	${INCLUDEDIR}/g++/std
 
 .include <bsd.lib.mk>

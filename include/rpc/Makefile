@@ -22,14 +22,8 @@ HFILES+= auth_kerb.h
 
 CLEANFILES+= ${HDRS}
 
-all: ${HDRS}
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HFILES:S;^;${.CURDIR}/;} \
-		${XFILES:S;^;${.CURDIR}/;} \
-		${HDRS} \
-		${DESTDIR}/usr/include/rpc
+INCS=	${HFILES} ${XFILES} ${HDRS}
+INCSDIR=${INCLUDEDIR}/rpc
 
 .x.h:
 	${RPCCOM} -h -DWANT_NFS3 ${.IMPSRC} -o ${.TARGET}
