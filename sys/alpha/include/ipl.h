@@ -23,53 +23,46 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ipl.h,v 1.1 1998/06/10 10:55:05 dfr Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
 #define	_MACHINE_IPL_H_
 
-#include <machine/alpha_cpu.h>
-
-/* IPL-lowering/restoring macros */
-#define splx(s)								\
-    ((s) == ALPHA_PSL_IPL_0 ? spl0() : alpha_pal_swpipl(s))
-#define splsoft()               alpha_pal_swpipl(ALPHA_PSL_IPL_SOFT)
-#define splsoftclock()          splsoft()
-#define splsoftnet()            splsoft()
-
-/* IPL-raising functions/macros */
-static __inline int _splraise __P((int)) __attribute__ ((unused));
-static __inline int
-_splraise(s)
-	int s;
-{
-	int cur = alpha_pal_rdps() & ALPHA_PSL_IPL_MASK;
-	return (s > cur ? alpha_pal_swpipl(s) : cur);
-}
-#define splnet()                _splraise(ALPHA_PSL_IPL_IO)
-#define splbio()                _splraise(ALPHA_PSL_IPL_IO)
-#define splimp()                _splraise(ALPHA_PSL_IPL_IO)
-#define spltty()                _splraise(ALPHA_PSL_IPL_IO)
-#define splvm()                _splraise(ALPHA_PSL_IPL_IO)
-#define splclock()              _splraise(ALPHA_PSL_IPL_CLOCK)
-#define splstatclock()          _splraise(ALPHA_PSL_IPL_CLOCK)
-#define splhigh()               _splraise(ALPHA_PSL_IPL_HIGH)
-
 /*
- * simulated software interrupt register
+ * Software interrupt bit numbers
  */
-extern u_int64_t ssir;
+#define SWI_TTY		0
+#define SWI_NET		1
+#define SWI_CAMNET	2
+#define SWI_CAMBIO	3
+#define SWI_VM		4
+#define SWI_CLOCK	5
 
-#define	SIR_NET		0x1
-#define	SIR_CLOCK	0x2
+extern int splsoftclock(void);
+extern int splsoftnet(void);
+extern int splnet(void);
+extern int splbio(void);
+extern int splimp(void);
+extern int spltty(void);
+extern int splvm(void);
+extern int splclock(void);
+extern int splstatclock(void);
+extern int splhigh(void);
 
-#define	setsoftnet()	ssir |= SIR_NET
-#define	setsoftclock()	ssir |= SIR_CLOCK
+extern void setsofttty(void);
+extern void setsoftnet(void);
+extern void setsoftcamnet(void);
+extern void setsoftcambio(void);
+extern void setsoftvm(void);
+extern void setsoftclock(void);
 
-extern void	spl0(void);
+extern void spl0(void);
+extern void splx(int);
 
+#if 0
 /* XXX bogus */
 extern		unsigned cpl;	/* current priority level mask */
+#endif
 
 #endif /* !_MACHINE_MD_VAR_H_ */
