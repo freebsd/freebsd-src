@@ -585,7 +585,7 @@ esp_output(m, nexthdrp, md, isr, af)
 		goto noantireplay;
 	if (!sav->key_auth)
 		goto noantireplay;
-	if (sav->key_auth == SADB_AALG_NONE)
+	if (sav->alg_auth == SADB_AALG_NONE)
 		goto noantireplay;
 
     {
