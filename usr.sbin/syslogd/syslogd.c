@@ -822,6 +822,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		f->f_file = open(ctty, O_WRONLY, 0);
 
 		if (f->f_file >= 0) {
+			(void)strlcpy(f->f_lasttime, timestamp,
+				sizeof(f->f_lasttime));
 			fprintlog(f, flags, msg);
 			(void)close(f->f_file);
 		}
@@ -882,7 +884,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		    (flags & MARK) == 0 && msglen == f->f_prevlen &&
 		    !strcmp(msg, f->f_prevline) &&
 		    !strcasecmp(from, f->f_prevhost)) {
-			(void)strlcpy(f->f_lasttime, timestamp, 16);
+			(void)strlcpy(f->f_lasttime, timestamp,
+				sizeof(f->f_lasttime));
 			f->f_prevcount++;
 			dprintf("msg repeated %d times, %ld sec of %d\n",
 			    f->f_prevcount, (long)(now - f->f_time),
@@ -903,7 +906,8 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 				fprintlog(f, 0, (char *)NULL);
 			f->f_repeatcount = 0;
 			f->f_prevpri = pri;
-			(void)strlcpy(f->f_lasttime, timestamp, 16);
+			(void)strlcpy(f->f_lasttime, timestamp,
+				sizeof(f->f_lasttime));
 			(void)strlcpy(f->f_prevhost, from,
 			    sizeof(f->f_prevhost));
 			if (msglen < MAXSVLINE) {
