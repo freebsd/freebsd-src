@@ -121,6 +121,8 @@ static const struct ed_product {
 #define	NE2000DVF_DL10019	0x0001		/* chip is D-Link DL10019 */
 #define	NE2000DVF_AX88190	0x0002		/* chip is ASIX AX88190 */
 } ed_pccard_products[] = {
+	{ PCMCIA_CARD(EDIMAX, EP4000A, 0),
+	  -1, { 0x00, 0xa0, 0x0c } },
 	{ PCMCIA_CARD(SYNERGY21, S21810, 0),
 	  -1, { 0x00, 0x48, 0x54} },
 	{ PCMCIA_CARD(AMBICOM, AMB8002T, 0),
