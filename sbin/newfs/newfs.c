@@ -556,11 +556,13 @@ main(argc, argv)
 		vfc = getvfsbyname("mfs");
 		if(!vfc && vfsisloadable("mfs")) {
 			if(vfsload("mfs")) {
-				err(1, "vfsload(mfs)");
+				fatal("vfsload(mfs)");
 			}
 			endvfsent();	/* flush cache */
 			vfc = getvfsbyname("mfs");
 		}
+		if (!vfc)
+			fatal("mfs filesystem not available");
 
 		if (mount(vfc ? vfc->vfc_index : MOUNT_MFS, argv[1], mntflags,
 				&args) < 0)
