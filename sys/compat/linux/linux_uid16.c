@@ -33,6 +33,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <machine/../linux/linux.h>
@@ -44,48 +45,43 @@ DUMMY(setfsgid16);
 DUMMY(getresuid16);
 DUMMY(getresgid16);
 
-#define	CAST_NOCHG(x)	(x == 0xFFFF) ? -1 : x;
+#define	CAST_NOCHG(x)	((x == 0xFFFF) ? -1 : x)
 
 int
 linux_chown16(struct thread *td, struct linux_chown16_args *args)
 {
-	struct chown_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(chown16))
-		printf(ARGS(chown16, "%s, %d, %d"), args->path, args->uid,
-		    args->gid);
+		printf(ARGS(chown16, "%s, %d, %d"), path, args->uid, args->gid);
 #endif
-
-	bsd.path = args->path;
-	bsd.uid = CAST_NOCHG(args->uid);
-	bsd.gid = CAST_NOCHG(args->gid);
-	return (chown(td, &bsd));
+	error = kern_chown(td, path, UIO_SYSSPACE, CAST_NOCHG(args->uid),
+	    CAST_NOCHG(args->gid));
+	LFREEPATH(path);
+	return (error);
 }
 
 int
 linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
 {
-	struct lchown_args bsd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(lchown16))
-		printf(ARGS(lchown16, "%s, %d, %d"), args->path, args->uid,
+		printf(ARGS(lchown16, "%s, %d, %d"), path, args->uid,
 		    args->gid);
 #endif
-
-	bsd.path = args->path;
-	bsd.uid = CAST_NOCHG(args->uid);
-	bsd.gid = CAST_NOCHG(args->gid);
-	return (lchown(td, &bsd));
+	error = kern_lchown(td, path, UIO_SYSSPACE, CAST_NOCHG(args->uid),
+	    CAST_NOCHG(args->gid));
+	LFREEPATH(path);
+	return (error);
 }
 
 int

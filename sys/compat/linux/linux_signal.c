@@ -34,6 +34,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
 #include <machine/../linux/linux.h>
@@ -134,36 +135,27 @@ int
 linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 		   l_sigaction_t *linux_osa)
 {
-	struct sigaction *nsa, *osa;
-	struct sigaction_args sa_args;
-	int error;
-	caddr_t sg = stackgap_init();
+	struct sigaction act, oact, *nsa, *osa;
+	int error, sig;
 
 	if (linux_sig <= 0 || linux_sig > LINUX_NSIG)
 		return (EINVAL);
 
-	if (linux_osa != NULL)
-		osa = stackgap_alloc(&sg, sizeof(struct sigaction));
-	else
-		osa = NULL;
-
+	osa = (linux_osa != NULL) ? &oact : NULL;
 	if (linux_nsa != NULL) {
-		nsa = stackgap_alloc(&sg, sizeof(struct sigaction));
+		nsa = &act;
 		linux_to_bsd_sigaction(linux_nsa, nsa);
-	}
-	else
+	} else
 		nsa = NULL;
 
 #ifndef __alpha__
 	if (linux_sig <= LINUX_SIGTBLSZ)
-		sa_args.sig = linux_to_bsd_signal[_SIG_IDX(linux_sig)];
+		sig = linux_to_bsd_signal[_SIG_IDX(linux_sig)];
 	else
 #endif
-		sa_args.sig = linux_sig;
+		sig = linux_sig;
 
-	sa_args.act = nsa;
-	sa_args.oact = osa;
-	error = sigaction(td, &sa_args);
+	error = kern_sigaction(td, sig, nsa, osa, 0);
 	if (error)
 		return (error);
 

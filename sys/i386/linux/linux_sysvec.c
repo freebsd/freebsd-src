@@ -45,6 +45,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
@@ -597,14 +598,12 @@ linux_rt_sigreturn(td, args)
 	struct linux_rt_sigreturn_args *args;
 {
 	struct proc *p = td->td_proc;
-	struct sigaltstack_args sasargs;
 	struct l_ucontext uc;
 	struct l_sigcontext *context;
 	l_stack_t *lss;
-	stack_t *ss;
+	stack_t ss;
 	register struct trapframe *regs;
 	int eflags;
-	caddr_t sg = stackgap_init();
 
 	regs = td->td_frame;
 
@@ -681,20 +680,17 @@ linux_rt_sigreturn(td, args)
 	/*
 	 * call sigaltstack & ignore results..
 	 */
-	ss = stackgap_alloc(&sg, sizeof(stack_t));
 	lss = &uc.uc_stack;
-	ss->ss_sp = lss->ss_sp;
-	ss->ss_size = lss->ss_size;
-	ss->ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
+	ss.ss_sp = lss->ss_sp;
+	ss.ss_size = lss->ss_size;
+	ss.ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
 
 #ifdef DEBUG
 	if (ldebug(rt_sigreturn))
 		printf(LMSG("rt_sigret flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
-		    ss->ss_flags, ss->ss_sp, ss->ss_size, context->sc_mask);
+		    ss.ss_flags, ss.ss_sp, ss.ss_size, context->sc_mask);
 #endif
-	sasargs.ss = ss;
-	sasargs.oss = NULL;
-	(void) sigaltstack(td, &sasargs);
+	(void)kern_sigaltstack(td, &ss, NULL);
 
 	return (EJUSTRETURN);
 }

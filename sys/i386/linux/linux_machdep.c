@@ -36,6 +36,7 @@
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
 
@@ -685,22 +686,18 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 int
 linux_sigsuspend(struct thread *td, struct linux_sigsuspend_args *args)
 {
-	struct sigsuspend_args bsd;
-	sigset_t *sigmask;
+	sigset_t sigmask;
 	l_sigset_t mask;
-	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
 	if (ldebug(sigsuspend))
 		printf(ARGS(sigsuspend, "%08lx"), (unsigned long)args->mask);
 #endif
 
-	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
 	LINUX_SIGEMPTYSET(mask);
 	mask.__bits[0] = args->mask;
-	linux_to_bsd_sigset(&mask, sigmask);
-	bsd.sigmask = sigmask;
-	return (sigsuspend(td, &bsd));
+	linux_to_bsd_sigset(&mask, &sigmask);
+	return (kern_sigsuspend(td, sigmask));
 }
 
 int
@@ -709,9 +706,7 @@ linux_rt_sigsuspend(td, uap)
 	struct linux_rt_sigsuspend_args *uap;
 {
 	l_sigset_t lmask;
-	sigset_t *bmask;
-	struct sigsuspend_args bsd;
-	caddr_t sg = stackgap_init();
+	sigset_t sigmask;
 	int error;
 
 #ifdef DEBUG
@@ -727,71 +722,54 @@ linux_rt_sigsuspend(td, uap)
 	if (error)
 		return (error);
 
-	bmask = stackgap_alloc(&sg, sizeof(sigset_t));
-	linux_to_bsd_sigset(&lmask, bmask);
-	bsd.sigmask = bmask;
-	return (sigsuspend(td, &bsd));
+	linux_to_bsd_sigset(&lmask, &sigmask);
+	return (kern_sigsuspend(td, sigmask));
 }
 
 int
 linux_pause(struct thread *td, struct linux_pause_args *args)
 {
 	struct proc *p = td->td_proc;
-	struct sigsuspend_args bsd;
-	sigset_t *sigmask;
-	caddr_t sg = stackgap_init();
+	sigset_t sigmask;
 
 #ifdef DEBUG
 	if (ldebug(pause))
 		printf(ARGS(pause, ""));
 #endif
 
-	sigmask = stackgap_alloc(&sg, sizeof(sigset_t));
 	PROC_LOCK(p);
-	*sigmask = p->p_sigmask;
+	sigmask = p->p_sigmask;
 	PROC_UNLOCK(p);
-	bsd.sigmask = sigmask;
-	return (sigsuspend(td, &bsd));
+	return (kern_sigsuspend(td, sigmask));
 }
 
 int
 linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 {
-	struct sigaltstack_args bsd;
-	stack_t *ss, *oss;
+	stack_t ss, oss;
 	l_stack_t lss;
 	int error;
-	caddr_t sg = stackgap_init();
 
 #ifdef DEBUG
 	if (ldebug(sigaltstack))
 		printf(ARGS(sigaltstack, "%p, %p"), uap->uss, uap->uoss);
 #endif
 
-	if (uap->uss == NULL) {
-		ss = NULL;
-	} else {
+	if (uap->uss != NULL) {
 		error = copyin(uap->uss, &lss, sizeof(l_stack_t));
 		if (error)
 			return (error);
 
-		ss = stackgap_alloc(&sg, sizeof(stack_t));
-		ss->ss_sp = lss.ss_sp;
-		ss->ss_size = lss.ss_size;
-		ss->ss_flags = linux_to_bsd_sigaltstack(lss.ss_flags);
+		ss.ss_sp = lss.ss_sp;
+		ss.ss_size = lss.ss_size;
+		ss.ss_flags = linux_to_bsd_sigaltstack(lss.ss_flags);
 	}
-	oss = (uap->uoss != NULL)
-	    ? stackgap_alloc(&sg, sizeof(stack_t))
-	    : NULL;
-
-	bsd.ss = ss;
-	bsd.oss = oss;
-	error = sigaltstack(td, &bsd);
-
-	if (!error && oss != NULL) {
-		lss.ss_sp = oss->ss_sp;
-		lss.ss_size = oss->ss_size;
-		lss.ss_flags = bsd_to_linux_sigaltstack(oss->ss_flags);
+	error = kern_sigaltstack(td, (uap->uoss != NULL) ? &oss : NULL,
+	    (uap->uss != NULL) ? &ss : NULL);
+	if (!error && uap->uoss != NULL) {
+		lss.ss_sp = oss.ss_sp;
+		lss.ss_size = oss.ss_size;
+		lss.ss_flags = bsd_to_linux_sigaltstack(oss.ss_flags);
 		error = copyout(&lss, uap->uoss, sizeof(l_stack_t));
 	}
 
