@@ -35,9 +35,18 @@
  *
  */
 
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+
 #include <netatm/kern_include.h>
 
 #include <netatm/uni/unisig_var.h>
+
+/*
+ * net.harp.uni
+ */
+SYSCTL_NODE(_net_harp, OID_AUTO, uni, CTLFLAG_RW, 0, "UNI");
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");

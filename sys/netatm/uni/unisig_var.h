@@ -310,6 +310,9 @@ int		unisig_vc_state __P((struct unisig *,
 				int,
 				struct unisig_msg *));
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp_uni);
+#endif
 
 /*
  * External variables
