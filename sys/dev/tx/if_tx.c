@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $ */
+/*	$Id: if_tx.c,v 1.16 1998/11/01 07:44:33 semenu Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -138,7 +138,11 @@
 #endif
 
 #if defined(__FreeBSD__)
+#if __FreeBSD_version >= 300000
+#define EPIC_IFIOCTL_CMD_TYPE u_long
+#else
 #define EPIC_IFIOCTL_CMD_TYPE int
+#endif
 #define EPIC_INTR_RET_TYPE void
 #else /* __OpenBSD__ */
 #define EPIC_IFIOCTL_CMD_TYPE u_long
