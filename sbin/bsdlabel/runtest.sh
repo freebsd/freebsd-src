@@ -3,7 +3,7 @@
 
 TMP=/tmp/$$.
 set -e
-for ARCH in i386 alpha
+for ARCH in i386 alpha pc98
 do
 	echo "ARCH $ARCH"
 	MD=`mdconfig -a -t malloc -s 2m`
@@ -140,7 +140,7 @@ do
 	fi
 
 	exec 7> /dev/${MD}c
-	if ktrace ./bsdlabel -m ${ARCH} -B -b ${TMP}b0 ${MD} ; then
+	if ./bsdlabel -m ${ARCH} -B -b ${TMP}b0 ${MD} ; then
 		if [ ! -c /dev/${MD}a ] ; then
 			echo "FAILED: Writing bootcode killed ...a" 1>&2
 			exit 2
