@@ -5,7 +5,7 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/rmail
 
 # Not much point this being static. It calls a shared sendmail...
-NOSHARED?= NO
+NO_SHARED?= NO
 
 PROG=	rmail
 SRCS=	rmail.c
