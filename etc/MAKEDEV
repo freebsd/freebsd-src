@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.20 1993/12/21 05:49:28 ache Exp $
+#	$Id: MAKEDEV,v 1.21 1993/12/24 11:36:28 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -444,11 +444,12 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-sio*|tty*)
+sio*|tty*|cua*)
 	unit=`expr $i : '...\(.*\)'`
-	rm -f tty0$unit
+	rm -f tty0$unit cua0$unit
 	mknod tty0$unit c 28 $unit
-	chown uucp.wheel tty0$unit
+	mknod cua0$unit c 28 `expr $unit + 128`
+	chown uucp.wheel tty0$unit cua0$unit
 	;;
 
 mse*)
