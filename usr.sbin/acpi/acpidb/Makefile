@@ -18,7 +18,7 @@ SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c \
 	exoparg2.c exoparg3.c exoparg6.c exprep.c \
 	exregion.c exresnte.c exresolv.c exresop.c \
 	exstore.c exstoren.c exstorob.c exsystem.c exutils.c \
-	hwacpi.c hwgpe.c hwregs.c \
+	hwacpi.c hwgpe.c hwregs.c hwsleep.c \
 	nsaccess.c nsalloc.c nsdump.c nseval.c \
 	nsinit.c nsload.c nsnames.c nsobject.c \
 	nsparse.c nssearch.c nsutils.c nswalk.c \
