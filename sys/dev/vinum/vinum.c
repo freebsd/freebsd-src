@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.5 1998/12/28 04:56:24 peter Exp $
+ * $Id: vinum.c,v 1.23 1999/01/15 05:03:15 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -46,19 +46,8 @@
 #include <sys/reboot.h>
 int debug = 0;
 #endif
+#include <dev/vinum/request.h>
 
-/* pointer to ioctl p parameter, to save passing it around */
-struct proc *myproc;
-
-#if __FreeBSD__ < 3
-STATIC struct cdevsw vinum_cdevsw;
-STATIC struct bdevsw vinum_bdevsw =
-{
-    vinumopen, vinumclose, vinumstrategy, vinumioctl,
-    vinumdump, vinumsize, 0,
-    "vinum", &vinum_cdevsw, -1
-};
-#else /* goodbye, bdevsw */
 STATIC struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, vinumread, vinumwrite,
@@ -67,13 +56,11 @@ STATIC struct cdevsw vinum_cdevsw =
     NULL, -1, vinumdump, vinumsize,
     D_DISK, 0, -1
 };
-#endif
 
 /* Called by main() during pseudo-device attachment. */
 STATIC void vinumattach(void *);
 
 STATIC void vinumgetdisklabel(dev_t);
-void vinum_scandisk(void);
 int vinum_inactive(void);
 void free_vinum(int);
 
@@ -81,11 +68,9 @@ void free_vinum(int);
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
 #endif
 
-#if __FreeBSD__ >= 3
 /* Why aren't these declared anywhere? XXX */
 int setjmp(jmp_buf);
 void longjmp(jmp_buf, int);
-#endif
 
 extern jmp_buf command_fail;				    /* return here if config fails */
 
@@ -101,8 +86,7 @@ STATIC int vinum_devsw_installed = 0;
 void
 vinumattach(void *dummy)
 {
-    BROKEN_GDB;
-    char *buf;						    /* pointer to temporary buffer */
+	char *buf;					    /* pointer to temporary buffer */
     struct _ioctl_reply *ioctl_reply;			    /* struct to return */
     struct uio uio;
     struct iovec iovec;
@@ -114,13 +98,10 @@ vinumattach(void *dummy)
     printf("vinum: loaded\n");
     vinum_conf.flags |= VF_LOADED;			    /* we're loaded now */
 
-    /* We don't have a p pointer here, so take it from curproc */
-    myproc = curproc;
-#if __FreeBSD__ < 3
-    bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vinum_bdevsw);
-#else
+    daemonq = NULL;					    /* initialize daemon's work queue */
+    dqend = NULL;
+
     cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vinum_cdevsw);
-#endif
 #ifdef DEVFS
 #error DEVFS not finished yet
 #endif
@@ -170,13 +151,12 @@ vinumattach(void *dummy)
 int 
 vinum_inactive(void)
 {
-    BROKEN_GDB;
     int i;
     int can_do = 1;					    /* assume we can do it */
 
     lock_config();
     for (i = 0; i < vinum_conf.volumes_used; i++) {
-	if (VOL[i].pid != NULL) {			    /* volume is open */
+	if (VOL[i].opencount != 0) {			    /* volume is open */
 	    can_do = 0;
 	    break;
 	}
@@ -194,7 +174,6 @@ vinum_inactive(void)
 void 
 free_vinum(int cleardrive)
 {
-    BROKEN_GDB;
     int i;
 
     if (cleardrive) {
@@ -208,6 +187,7 @@ free_vinum(int cleardrive)
 	    Free(DRIVE);
 	}
     }
+    queue_daemon_request(daemonrq_return, NULL);	    /* tell daemon to stop */
     if (SD != NULL)
 	Free(SD);
     if (PLEX != NULL) {
@@ -217,10 +197,6 @@ free_vinum(int cleardrive)
 	    if (plex->state != plex_unallocated) {	    /* we have real data there */
 		if (plex->sdnos)
 		    Free(plex->sdnos);
-		if (plex->unmapped_regions)
-		    Free(plex->unmapped_region);
-		if (plex->defective_regions)
-		    Free(plex->defective_region);
 	    }
 	}
 	Free(PLEX);
@@ -228,6 +204,9 @@ free_vinum(int cleardrive)
     if (VOL != NULL)
 	Free(VOL);
     bzero(&vinum_conf, sizeof(vinum_conf));
+    while ((daemon_options & daemon_stopped) == 0)	    /* daemon hasn't stopped yet, */
+	tsleep(&vinum_daemon, PRIBIO, "vdaemn", 10 * hz);   /* wait for it to stop */
+    tsleep(&vinum_daemon, PRIBIO, "diedie", 3 * hz);	    /* and wait another 3 secs XXX */
 }
 
 #ifdef ACTUALLY_LKM_NOT_KERNEL				    /* stuff for LKMs */
@@ -241,8 +220,7 @@ MOD_MISC(vinum);
 STATIC int 
 vinum_load(struct lkm_table *lkmtp, int cmd)
 {
-    BROKEN_GDB;
-    vinumattach(NULL);
+   vinumattach(NULL);
     return 0;						    /* OK */
 }
 
@@ -252,24 +230,13 @@ vinum_load(struct lkm_table *lkmtp, int cmd)
 STATIC int 
 vinum_unload(struct lkm_table *lkmtp, int cmd)
 {
-    BROKEN_GDB;
-    if (vinum_inactive()) {				    /* is anything open? */
+	if (vinum_inactive()) {				    /* is anything open? */
 	struct sync_args dummyarg =
 	{0};
-#if __FreeBSD__ < 3
-	int retval;
-#endif
 
 	printf("vinum: unloaded\n");
-#if __FreeBSD__ < 3
-	sync(curproc, &dummyarg, &retval);		    /* write out buffers */
-#else
 	sync(curproc, &dummyarg);			    /* write out buffers */
-#endif
 	free_vinum(0);					    /* no: clean up */
-#if __FreeBSD__ < 3
-	bdevsw[BDEV_MAJOR] = NULL;			    /* clear bdevsw */
-#endif
 	cdevsw[CDEV_MAJOR] = NULL;			    /* and cdevsw */
 	return 0;
     } else
@@ -282,8 +249,7 @@ vinum_unload(struct lkm_table *lkmtp, int cmd)
 int 
 vinum_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-    BROKEN_GDB;
-    MOD_DISPATCH(vinum,					    /* module name */
+	MOD_DISPATCH(vinum,				    /* module name */
 	lkmtp,						    /* LKM table */
 	cmd,						    /* command */
 	ver,
@@ -300,7 +266,6 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
     struct sync_args dummyarg =
     {0};
 
-    BROKEN_GDB;
     switch (type) {
     case MOD_LOAD:
 	vinumattach(NULL);
@@ -340,7 +305,6 @@ vinumopen(dev_t dev,
     int fmt,
     struct proc *p)
 {
-    BROKEN_GDB;
     int s;						    /* spl */
     int error;
     unsigned int index;
@@ -355,7 +319,7 @@ vinumopen(dev_t dev,
     /* First, decide what we're looking at */
     switch (device->type) {
     case VINUM_VOLUME_TYPE:
-	index = VOLNO(dev);
+	index = Volno(dev);
 	if (index >= vinum_conf.volumes_used)
 	    return ENXIO;				    /* no such device */
 	vol = &VOL[index];
@@ -366,14 +330,8 @@ vinumopen(dev_t dev,
 	    return ENXIO;
 
 	case volume_up:
-	    s = splhigh();				    /* quick lock */
-	    if (error)
-		return error;
-	    if (vol->opencount == 0)
-		vol->openflags = flags;			    /* set our flags */
-	    vol->opencount++;
+	    vol->opencount = 1;
 	    vol->pid = p->p_pid;			    /* and say who we are (do we need this? XXX) */
-	    splx(s);
 	    return 0;
 
 	case volume_down:
@@ -384,9 +342,9 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_PLEX_TYPE:
-	if (VOLNO(dev) >= vinum_conf.volumes_used)
+	if (Volno(dev) >= vinum_conf.volumes_used)
 	    return ENXIO;
-	index = PLEXNO(dev);				    /* get plex index in vinum_conf */
+	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_used)
 	    return ENXIO;				    /* no such device */
 	plex = &PLEX[index];
@@ -408,10 +366,10 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_SD_TYPE:
-	if ((VOLNO(dev) >= vinum_conf.volumes_used) ||	    /* no such volume */
-	    (PLEXNO(dev) >= vinum_conf.plexes_used))	    /* or no such plex */
+	if ((Volno(dev) >= vinum_conf.volumes_used) ||	    /* no such volume */
+	    (Plexno(dev) >= vinum_conf.plexes_used))	    /* or no such plex */
 	    return ENXIO;				    /* no such device */
-	index = SDNO(dev);				    /* get the subdisk number */
+	index = Sdno(dev);				    /* get the subdisk number */
 	if (index >= vinum_conf.subdisks_used)
 	    return ENXIO;				    /* no such device */
 	sd = &SD[index];
@@ -441,7 +399,7 @@ vinumopen(dev_t dev,
 
     case VINUM_SUPERDEV_TYPE:
 	if (p->p_ucred->cr_uid == 0) {			    /* root calling, */
-	    vinum_conf.opencount++;			    /* one more opener */
+	    vinum_conf.opencount = 1;			    /* we're open */
 	    return 0;					    /* no worries opening super dev */
 	} else
 	    return EPERM;				    /* you can't do that! */
@@ -455,14 +413,13 @@ vinumclose(dev_t dev,
     int fmt,
     struct proc *p)
 {
-    BROKEN_GDB;
     unsigned int index;
     struct volume *vol;
     struct plex *plex;
     struct sd *sd;
     struct devcode *device = (struct devcode *) &dev;
 
-    index = VOLNO(dev);
+    index = Volno(dev);
     /* First, decide what we're looking at */
     switch (device->type) {
     case VINUM_VOLUME_TYPE:
@@ -488,9 +445,9 @@ vinumclose(dev_t dev,
 	}
 
     case VINUM_PLEX_TYPE:
-	if (VOLNO(dev) >= vinum_conf.volumes_used)
+	if (Volno(dev) >= vinum_conf.volumes_used)
 	    return ENXIO;
-	index = PLEXNO(dev);				    /* get plex index in vinum_conf */
+	index = Plexno(dev);				    /* get plex index in vinum_conf */
 	if (index >= vinum_conf.plexes_used)
 	    return ENXIO;				    /* no such device */
 	plex = &PLEX[index];
@@ -498,10 +455,10 @@ vinumclose(dev_t dev,
 	return 0;
 
     case VINUM_SD_TYPE:
-	if ((VOLNO(dev) >= vinum_conf.volumes_used) ||	    /* no such volume */
-	    (PLEXNO(dev) >= vinum_conf.plexes_used))	    /* or no such plex */
+	if ((Volno(dev) >= vinum_conf.volumes_used) ||	    /* no such volume */
+	    (Plexno(dev) >= vinum_conf.plexes_used))	    /* or no such plex */
 	    return ENXIO;				    /* no such device */
-	index = SDNO(dev);				    /* get the subdisk number */
+	index = Sdno(dev);				    /* get the subdisk number */
 	if (index >= vinum_conf.subdisks_used)
 	    return ENXIO;				    /* no such device */
 	sd = &SD[index];
@@ -510,7 +467,7 @@ vinumclose(dev_t dev,
 
     case VINUM_SUPERDEV_TYPE:
 	if (p->p_ucred->cr_uid == 0)			    /* root calling, */
-	    vinum_conf.opencount--;			    /* one less opener */
+	    vinum_conf.opencount = 0;			    /* no longer open */
 	return 0;					    /* no worries closing super dev */
 
     case VINUM_DRIVE_TYPE:
@@ -523,11 +480,10 @@ vinumclose(dev_t dev,
 int 
 vinumsize(dev_t dev)
 {
-    BROKEN_GDB;
     struct volume *vol;
     int size;
 
-    vol = &VOL[VOLNO(dev)];
+    vol = &VOL[Volno(dev)];
 
     if (vol->state == volume_up)
 	size = vol->size;
