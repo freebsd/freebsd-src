@@ -24,6 +24,9 @@ CFLAGS+= -DKRB4
 CFLAGS+= -DKRB5
 .endif # MAKE_KERBEROS5
 
+DPADD=	${LIBCRYPTO} ${LIBZ}
+LDADD=	-lcrypto -lz
+
 .include <bsd.lib.mk>
 
 .PATH:	${SSHDIR} ${SSHDIR}/lib
