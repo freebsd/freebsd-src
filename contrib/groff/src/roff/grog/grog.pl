@@ -19,13 +19,9 @@ while ($ARGV[0] =~ /^-./) {
     push(@command, $arg);
 }
 
-if (@ARGV) {
-    foreach $arg (@ARGV) {
-	&process($arg, 0);
-    }
-}
-else {
-    &process("-", 0);
+@ARGV = ('-') unless @ARGV;
+foreach $arg (@ARGV) {
+    &process($arg, 0);
 }
 
 sub process {
@@ -81,8 +77,16 @@ sub process {
 		}
 	    }
 	}
-	elsif (/^\.R1$sp/ || /^\.\[$sp/) {
+	elsif (/^\.R1$sp/) {
 	    $refer++;
+	    $soelim++ if $level;
+	}
+	elsif (/^\.\[/) {
+	    $refer_open++;
+	    $soelim++ if $level;
+	}
+	elsif (/^\.\]/) {
+	    $refer_close++;
 	    $soelim++ if $level;
 	}
 	elsif (/^\.[PLI]P$sp/) {
@@ -144,6 +148,9 @@ sub process {
 	    }
 	    redo;
 	}
+	elsif (/^\.(PRINTSTYLE|START)$sp/) {
+	    $mom++;
+	}
 	if (/^\.so$sp/) {
 	    chop;
 	    s/^.so *//;
@@ -166,6 +173,8 @@ sub help {
     exit 0;
 }
 
+$refer ||= $refer_open && $refer_close;
+
 if ($pic || $tbl || $eqn || $grn || $grap || $refer) {
     $s = "-";
     $s .= "s" if $soelim;
@@ -184,6 +193,9 @@ if ($me > 0) {
 }
 elsif ($SH > 0 && $TH > 0) {
     push(@command, "-man");
+}
+else ($mom > 0) {
+    push(@command, "-mom");
 }
 elsif ($PP > 0) {
     push(@command, "-ms");

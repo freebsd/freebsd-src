@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -67,6 +67,7 @@ public:
   const char *contents() const;
   int search(char) const;
   char *extract() const;
+  void remove_spaces();
   void clear();
   void move(string &);
 
@@ -122,7 +123,7 @@ inline int string::operator*() const
 
 inline const char *string::contents() const
 {
-  return  ptr;
+  return ptr;
 }
 
 inline string operator+(const string &s1, const string &s2)

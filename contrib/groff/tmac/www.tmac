@@ -1,157 +1,541 @@
 .\" www.tmac
 .\"
 .\" A simple set of macros to provide HTML documents with basic
-.\" www functionality.  It will work with any macro set.
+.\" www functionality.  It should work with any macro set.
 .\"
 .nr _C \n(.C
 .cp 0
+.
 .nr www-html 0
-.if '\*(.T'html' .nr www-html 1
+.if '\*[.T]'html' .nr www-html 1
+.
+.\" set up www-image-template
+.\" (cannot do this in html.tmac as the image device must
+.\"  also know about this string)
+.
+.if !d www-image-template \
+.  ds www-image-template
+.
+.if r ps4html \{\
+.  \" remove the title command when we are generating images for html
+.  \" (stops a title accidentally appearing inside an image)
+.  di www-notitle
+.  tl ''''
+.  di
+.  rm tl
+.  de tl
+.  .
+.\}
+.
+.de www-error
+.  tm \\n[.F]:\\n[.c]: macro error: \\$*
+..
 .\"
-.\"
+.\" the main auxiliary macro for the HTML interface
 .\"
 .de HTML
 .  if \\n[www-html] \{\
-.\" the following line makes the vertical mode leave, so to say
-\&
-\X^html:\\$*^
+.    \" the following line makes the vertical mode leave, so to say
+.    nop \&
+.    nop \X^html:\\$*^
 .  \}
 ..
-.de HTMLINDEX
-.  if \\n[www-html] \X^index:\\$*^
+.\"
+.\" an auxiliary macro for HTML (without following space)
+.\"
+.de HTML-NS
+.  if \\n[www-html] \
+.    nop \X^html:\\$*^\c
 ..
 .\"
-.\"  BODYCOLOR - $1 is foreground color
-.\"              $2 is background color
-.\"              $3 is the color of an active hypertext link
-.\"              $4 is the color of a hypertext link not yet visited
-.\"              $5 is the color of a visited hypertext link
+.\" HX n
 .\"
-.de BODYCOLOR
+.\"   Automatic heading level cut off.
+.\"
+.\"   N is the depth limit of automatically linked headings.  So a depth
+.\"   of 2 would cause grohtml to generate a list of links for `.NH 1' and
+.\"   `.NH 2' but not for `.NH 3'.
+.\"
+.de HX
+.  if \\n[www-html] \
+.    nop \X^index:\\$*^
+..
+.\"
+.\" BCL foreground background active not-visited visited
+.\"
+.de BCL
 .  HTML <body text=\\$1 bgcolor=\\$2 link=\\$3 alink=\\$4 vlink=\\$5>
 ..
 .\"
-.\" BACKGROUND - $1 is the background image file
+.\" BGIMG imagefile
 .\"
-.de BACKGROUND
+.de BGIMG
 .  HTML <body background=\\$1>
 ..
 .\"
-.\"  URL - $1 is the classical underlined blue text
-.\"        $2 is the url
-.\"        $3 is optional stuff printed immediately after $3
+.\" URL url description [after]
 .\"
 .de URL
+.  ie \\n[www-html] \
+.    HTML <a href="\\$1">\\$2</a>\\$3
+.  el \
+.    nop \m[blue]\\$2\m[] \%\[la]\f[C]\\$1\f[]\[ra]\\$3
+..
+.\"
+.\" FTP url description [after]
+.\"
+.\"   Same as UTL.
+.\"
+.als FTP URL
+.\"
+.\" MTO address description [after]
+.\"
+.\"   ADDRESS is the email address (without the `mailto:' prefix).
+.\"
+.\"   DESCRIPTION is the optional name.  If an empty argument is given,
+.\"   ADDRESS is used instead.
+.\"
+.\"   AFTER is optional stuff printed immediately after ADDRESS
+.\"   (resp. DESCRIPTION).
+.\"
+.\"     Example:
+.\"
+.\"       Foobar has been written by
+.\"       .MTO fred@foo.bar "Fredrick Bloggs" .
+.\"
+.de MTO
 .  ie \\n[www-html] \{\
-.    HTML <a href="\\$2">\\$1</a>\\$3
+.    ie '\\$2'' \
+.      URL mailto:\\$1 \\$1 "\\$3"
+.    el \
+.      URL mailto:\\$1 "\\$2" "\\$3"
 .  \}
 .  el \{\
-\\$1 \%\(la\fC\\$2\fP\(ra\\$3
+.    ie '\\$2'' \
+.      nop \%\m[blue]\f[C]\\$1\f[]\m[]\\$3
+.    el \
+.      nop \m[blue]\\$2\m[] \%\[la]\f[C]\\$1\f[]\[ra]\\$3
 .  \}
 ..
 .\"
-.\"  FTP - $1 is the classical underlined blue text
-.\"        $2 is the ftp url
-.\"        $3 is optional stuff printed immediately after $2
-.de FTP
-.  ie \\n[www-html] \{\
-.    HTML <a href=\\$2>\\$1</a>\\$3
-.  \}
-.  el \{\
-\\$1 \%\(la\fC\\$2\fP\(ra\\$3
-.  \}
-..
+.\" TAG name
 .\"
-.\" MAILTO - generate html email reference
-.\"          $1 is the email address (without the `mailto:' prefix)
-.\"          $2 is the optional name
-.\"          $3 is optional stuff printed immediately after $2 (resp. $1)
-.\"
-.\"          example:
-.\"
-.\"            Foobar has been written by
-.\"            .MAILTO fred@foo.bar "Fredrick Bloggs" .
-.\"
-.de MAILTO
-.\"
-.\" force reset after a potential heading by performing some motion..
-.\" how do we do this --fixme--
-.\"  \h'\w' ''\h'-\w' '' doesn't work..
-.  ie \\n[www-html] \{\
-.    ie '\\$2'' \{\
-.      HTML "<a href=mailto:\\$1>\\$1</a>\\$3"
-.    \}
-.    el \{\
-.      HTML "<a href=mailto:\\$1>\\$2</a>\\$3"
-.    \}
-.  \}
-.  el \{\
-.    ie '\\$2'' \{\
-\fC\\$1\fP\\$3
-.    \}
-.    el \{\
-\\$2 \%\(la\fC\\$1\fP\(ra\\$3
-.    \}
-.  \}
-..
-.\"
-.\" TAG - generate an html name $1
+.\"   Generate an html name NAME.
 .\"
 .de TAG
 .  HTML <a name="\\$1"></a>
 ..
 .\"
-.\" IMAGE - reference an image
-.\"         $1 is the image file
-.\"         $2 is the alignment r, l or c  (center by default)
-.\"         $3 is the x width (default if absent 400 pixels)
-.\"         $4 is the y width (default if absent is the x value)
+.\" IMG [-R|-L|-C] filename [width] [height]
 .\"
-.de IMAGE
+.\"   Include an image of any type (will only work for -Thtml).
+.\"
+.\"   Alignment is centered by default (-C).
+.\"   Default value for WIDTH is 1i.
+.\"   If HEIGHT is not given, WIDTH is used as the height.
+.\"
+.de IMG
 .  ie \\n[www-html] \{\
-.    ie '\\$2'r' .HTML-TAG ".right-image"
+.    ie '\\$2'-R' \
+.      HTML-TAG ".right-image"
 .    el \{\
-.      ie '\\$2'l' .HTML-TAG ".left-image"
-.      el .HTML-TAG ".centered-image"
+.      ie '\\$2'-L' \
+.        HTML-TAG ".left-image"
+.      el \
+.        HTML-TAG ".centered-image"
 .    \}
-.    nr HTMLWIDTH 400
-.    if !'\\$3'' \{\
-.      nr HTMLWIDTH \\$3
-.    \}
-.    nr HTMLHEIGHT \\n[HTMLWIDTH]
-.    if !'\\$4'' \{\
-.      nr HTMLHEIGHT \\$4
-.    \}
-.    HTML <img src="\\$1" width=\\n[HTMLWIDTH] height=\\n[HTMLHEIGHT]>
+.    nr www-width 100
+.    if !'\\$3'' \
+.      nr www-width \\$3
+.    nr www-height \\n[www-width]
+.    if !'\\$4'' \
+.      nr www-height \\$4
+.    HTML <img src="\\$1" width=\\n[www-width] height=\\n[www-height]>
 .  \}
-.  el \{\
-.    B1
-\(la\fC\\$1\fP\(ra
-.    B2
-.  \}
+.  el \
+.    nop \[la]\f[C]\\$1\f[]\[ra]
 ..
-.\" HTML-TAG - emit a tag for the new grohtml
+.\"
+.\" HTML-TAG
+.\"
+.\"   Emit a tag for grohtml.  This is an internal macro.
+.\"
 .de HTML-TAG
 .  if \\n[www-html] \{\
-.\" the following line makes the vertical mode leave, so to say
-\&
-\X^html-tag:\\$*^
+.    \" the following line makes the vertical mode leave, so to say
+.    nop \&
+.    nop \X^html-tag:\\$*^
 .  \}
 ..
-.\" LINKS - emit the automatically collected links derived from section/numbered
-.\"         headings at this position.
-.de LINKS
-.   HTML-TAG ".links"
+.\"
+.\" HTML-TAG-NS
+.\"
+.\"   Emit a tag for grohtml (without a space).  This is an internal macro.
+.\"
+.de HTML-TAG-NS
+.  if \\n[www-html] \
+.    nop \X^html-tag:\\$*^\c
 ..
 .\"
-.\" LINE - produce a horizontal line
-.\" 
-.de LINE
+.\" PIMG  [-R|-L|-C] filename [width] [height]
+.\"
+.\"   Include a png image.  It will work for -Tps and -Thtml.
+.\"   The default value for WIDTH and HEIGHT is zero; the default
+.\"   alignment is centering (-C).
+.\"
+.\" Note: This macro can only be used with the `-U' option of groff,
+.\"       activating unsafe mode, if not used with -Thtml; the PNG image
+.\"       is then converted to the EPS format using netpbm utilities.
+.\"
+.de PIMG
+.  ie \\n[www-html] \{\
+.    ie '\\$1'-R' \
+.      HTML-TAG ".right-image"
+.    el \{\
+.      ie '\\$1'-L' \
+.        HTML-TAG ".left-image"
+.      el \
+.        HTML-TAG ".centered-image"
+.    \}
+.    nr www-width 0
+.    nr www-height 0
+.    if !'\\$3'' \
+.      nr www-width (\\$3 * 100 / 240)
+.    if !'\\$4'' \
+.      nr www-height (\\$4 * 100 / 240)
+.    ie (\\n[www-width] == 0) \{\
+.      ie (\\n[www-height] == 0) \
+.        HTML <img src="\\$2">
+.      el \
+.        HTML <img src="\\$1" height=\\n[www-height]>
+.    \}
+.    el \{\
+.      ie (\\n[www-height] == 0) \
+.        HTML <img src="\\$2" width=\\n[www-width]>
+.      el \
+.        HTML <img src="\\$2" width=\\n[www-width] height=\\n[www-height]>
+.    \}
+.  \}
+.  el \{\
+.    if !r ps4html \{\
+.      www-make-unique-name
+.      sy pngtopnm \\$2 | pnmcrop -white | pnmtops -noturn > \\*[www-unique-name].eps
+.      ie '\\$1'-C' \
+.        PSPIC \\*[www-unique-name].eps \\$3 \\$4
+.      el \
+.        PSPIC \\$1 \\*[www-unique-name].eps \\$3 \\$4
+.    \}
+.  \}
+..
+.
+.nr www-left-ll-trap 0
+.nr www-left-po-trap 0
+.nr www-right-ll-trap 0
+.
+.de www-finish-left-po
+.  po -\\n[www-left-indent]u
+.  wh \\n[www-left-po-trap]u
+.  nr www-left-indent 0
+..
+.
+.de www-finish-right-ll
+.  ll +\\n[www-right-indent]u
+.  \" now see whether we need to inline www-finish-left-ll
+.  if (\\n[www-left-ll-trap]u > 0) \
+.    if ((\\n[www-right-ll-trap]u + 1v) >= \\n[www-left-ll-trap]u) \{\
+.      mk www-left-po-trap
+.      nr www-left-po-trap +1v
+.      wh \\n[www-left-po-trap]u www-finish-left-po
+.      ll +\\n[www-left-indent]u
+.      wh \\n[www-left-ll-trap]u
+.      nr www-left-ll-trap 0
+.    \}
+.  \" and see whether we need to inline www-finish-left-po
+.  if (\\n[www-left-po-trap]u > 0) \
+.    if ((\\n[www-right-ll-trap]u + 1v) >= \\n[www-left-po-trap]u) \{\
+.      po -\\n[www-left-indent]u
+.      wh \\n[www-left-po-trap]u
+.      nr www-left-indent 0
+.    \}
+.  wh \\n[www-right-ll-trap]u
+.  nr www-right-ll-trap 0
+..
+.
+.de www-finish-left-ll
+.  if (\\n[www-right-ll-trap] > 0) \
+.    if ((\\n[www-left-ll-trap] + 1v) >= \\n[www-right-ll-trap]) \{\
+.      ll +\\n[www-right-indent]u
+.      nr www-right-ll-trap 0
+.    \}
+.  mk www-left-po-trap
+.  nr www-left-po-trap +1v
+.  wh \\n[www-left-po-trap]u www-finish-left-po
+.  ll +\\n[www-left-indent]u
+.  wh \\n[www-left-ll-trap]u
+.  nr www-left-ll-trap 0
+..
+.\"
+.\" MPIMG [-R|-L] filename [width] [height]
+.\"
+.\"   Include a png image and wrap text around it.  It will work for
+.\"   -Tps and -Thtml.  The default value for WIDTH is 1i; default value
+.\"   for HEIGHT is WIDTH; the default alignment is left (-L).
+.\"
+.\" Note: This macro can only be used with the `-U' option of groff,
+.\"       activating unsafe mode, if not used with -Thtml; the PNG image
+.\"       is then converted to the EPS format using netpbm utilities.
+.\"
+.de MPIMG
+.  nr www-width 1i
+.  if !'\\$3'' \
+.    nr www-width \\$3
+.  nr www-height \\n[www-width]
+.  if !'\\$4'' \
+.    nr www-height \\$4
+.  nr www-width (\\n[www-width] * 100 / 240)
+.  nr www-height (\\n[www-height] * 100 / 240)
+.  ie \\n[www-html] \{\
+.    ie '\\$1'-R' \
+.      HTML <img src="\\$2" align=right width=\\n[www-width] height=\\n[www-height]>
+.    el \
+.      HTML <img src="\\$2" align=left width=\\n[www-width] height=\\n[www-height]>
+.  \}
+.  el \{\
+.    if !r ps4html \{\
+.      www-make-unique-name
+.      sy pngtopnm \\$2 | pnmcrop -white | pnmtops -noturn > \\*[www-unique-name].eps
+.      ie '\\$1'-R' \{\
+.        \" we must now disable a possible left image trap
+.        sp -1
+.        if (\\n[www-left-ll-trap] > 0) \
+.          wh \\n[www-left-ll-trap]u
+.        if (\\n[www-left-po-trap] > 0) \
+.          wh \\n[www-left-po-trap]u
+.        PSPIC -R \\*[www-unique-name].eps \\$3 \\$4
+.        sp -\\n[ps-desht]u
+.        nr www-right-indent \\n[ps-deswid]u
+.        ll -\\n[www-right-indent]u
+.        mk www-right-ll-trap
+.        nr www-right-ll-trap +(\\n[ps-desht]u - 1v)
+.        wh \\n[www-right-ll-trap]u www-finish-right-ll
+.        \" now restore possible left trap
+.        if (\\n[www-left-ll-trap] > 0) \
+.          wh \\n[www-left-ll-trap]u www-finish-left-ll
+.        if (\\n[www-left-po-trap] > 0) \
+.          wh \\n[www-left-po-trap]u
+.      \}
+.      el \{\
+.        \" we must now disable a possible right image trap
+.        if (\\n[www-right-ll-trap] > 0) \
+.          wh \\n[www-right-ll-trap]u
+.        PSPIC -L \\*[www-unique-name].eps \\$3 \\$4
+.        sp -\\n[ps-desht]u
+.        nr www-left-indent \\n[ps-deswid]u
+.        po +\\n[www-left-indent]u
+.        ll -\\n[www-left-indent]u
+.        mk www-left-ll-trap
+.        nr www-left-ll-trap +(\\n[ps-desht]u - 1v)
+.        wh \\n[www-left-ll-trap]u www-finish-left-ll
+.        \" now restore possible right trap
+.        if (\\n[www-right-ll-trap] > 0) \
+.          wh \\n[www-right-ll-trap]u www-finish-right-ll
+.      \}
+.    \}
+.  \}
+..
+.\"
+.\" HnS n
+.\"
+.\"   Begin heading.  Heading level is N.
+.\"
+.\" HnE
+.\"
+.\"   End heading.
+.\"
+.\" If your heading contains URL, FTP, MTO macros you might wish to
+.\" disable automatic links to headings.  This can be done via `-P-l'
+.\" from the command line or by using a cakk to `.HX 0'.
+.\"
+.nr www-heading-no -1
+.
+.de HnS
+.  ie '\\$1'' \
+.    nr www-heading-no 1
+.  el \
+.    nr www-heading-no \\$1
+.  HTML-TAG ".NH \\n[www-heading-no]"
+..
+.
+.de HnE
+.  if (\\n[www-heading-no] == -1) \
+.    www-error "HnE found without a corresponding HnS"
+.  br
+..
+.\"
+.\" LK
+.\"
+.\"   Emit the automatically collected links derived from
+.\"   section/numbered headings at this position.
+.\"
+.de LK
+.  HTML-TAG ".links"
+..
+.\"
+.\" HR
+.\"
+.\"   Produce a horizontal line
+.\"
+.de HR
+.  ie \\n[www-html] \{\
 .    ti 0
-.    HTML <hr>
+.    HTML-NS <hr>
+.  \}
+.  el \
+.    sp
 ..
 .\"
-.\" supplimentary macros used by other macro sets
+.\" NHR
+.\"
+.\"  Suppresses the generation of the top and bottom rules which grohtml
+.\"  emits by default.
+.\"
+.de NHR
+.  HTML-TAG ".no-auto-rule"
+..
+.\"
+.\" www-end-nowhere - end of input trap called to finish diversion.
+.\"
+.de www-end-nowhere
+.  di
+..
+.\"
+.\" HTL
+.\"
+.\"   Generate an HTML title only.  This differs from the -ms .TL macro
+.\"   which generates both an HTML title and a H1 heading.
+.\"
+.\"   This is useful when an author wishes to use a HTML title as search
+.\"   engine fodder but a graphic title in the document.
+.\"
+.\"   The macro terminates when a space or break is seen (.sp, .br).
+.\"
+.de HTL
+.  HTML-TAG ".html-tl"
+.  if !\\n[www-html] \{\
+.    di www-nowhere
+.    it 2 www-end-nowhere
+.  \}
+..
+.
+.ds www-level1 \[bu]\ \ \"
+.ds www-level2 \[sq]\ \ \"
+.ds www-level3 \[ci]\ \ \"
+.nr www-level 0
+.nr www-depth 0
+.
+.\"
+.\" Auxiliary macro for ULS.
+.\"
+.de www-push-level
+.  nr www-level +1
+.  if (\\n[www-level] > 3) \
+.    www-error "too many levels of indentation (\\n[www-level])"
+..
+.\"
+.\" Auxiliary macro for ULE.
+.\"
+.de www-pop-level
+.  if !\\n[www-level] \
+.    www-error "trying to terminate a list which does not exist"
+.  nr www-level -1
+..
+.\"
+.\" ULS
+.\"
+.\"   Start an unordered list.
+.\"
+.de ULS
+.  www-push-level
+.  ie \\n[www-html] \
+.    HTML "<ul>"
+.  el \{\
+.    if (\\n[www-level] == 1) \
+.      nr www-depth \\n[.i]
+.    nr www-depth +\w'\\*[www-level\\n[www-level]]'u
+.  \}
+..
+.\"
+.\" ULE
+.\"
+.\"   End an unordered list.
+.\"
+.de ULE
+.  ie \\n[www-html] \
+.    HTML "</ul>"
+.  el \{\
+.    nr www-depth -\w'\\*[www-level\\n[www-level]]'u
+.    in \\n[www-depth]
+.  \}
+.  www-pop-level
+..
+.\"
+.\" LI
+.\"
+.\"   Insert a list item.
+.\"
+.de LI
+.  ie \\n[www-html] \
+.    HTML "<li>"
+.  el \{\
+.    in \\n[www-depth]u
+.    ti -\w'\\*[www-level\\n[www-level]]'u
+.    nop \\*[www-level\\n[www-level]]\c
+.  \}
+..
+.\"
+.\" DC l text [color]
+.\"
+.\"   L is the letter to be dropped and enlarged.
+.\"
+.\"   TEXT is the following text whose height the first letter should not
+.\"   exceed.
+.\"
+.\"   COLOR is the optional color of the dropped letter (default black).
+.\"
+.de DC
+.  ds www-dropcolor black
+.  if !'\\$3'' \
+.    ds www-dropcolor \\$3
+.  ie '\*(.T'html' \{\
+.    www-make-unique-name
+.    MPIMG -L \\*[www-unique-name].png "(\\n[.v] * 2u)"
+.  \}
+.  el \{\
+.    ie r ps4html \{\
+.      www-make-unique-name
+.      nop \O[5i\\*[www-unique-name].png]\O[1]
+.      nop \m[\\*[www-dropcolor]]\s[40]\O[3]\\$1\O[4]\s0\m[]
+.      nop \O[2]\O[1]
+.    \}
+.    el \{\
+.      nr dummy \w'\\$1'u
+.      nr dcht ((\\n[.v] + \\n[rst]) * \\n[.ps] / \\n[rst])
+.      char \[dcap] \m[\\*[www-dropcolor]]\s'\\n[dcht]u'\\$1
+.      nop \v'\\n[.v]u'\\[dcap]\v'-\\n[.v]u'\c
+'      ti \w'\\[dcap]'u
+.    \}
+.  \}
+.  nop \\$2
+..
+.\"
+.\" now set up TS, TE, EQ, EN default macros
+.\"
+.do if !d TS .do ds TS HTML-IMAGE
+.do if !d TE .do ds TE HTML-IMAGE-END
+.do if !d EQ .do ds EQ HTML-IMAGE
+.do if !d EN .do ds EN HTML-IMAGE-END
+.\"
+.\" supplementary macros used by other macro sets
 .\"
 .\" here are some tags specially for -Tps or -Thtml when invoked by pre-html
 .\" to generate png images from postscript.
@@ -160,59 +544,61 @@
 .\"                 read back by pre-html
 .\"
 .de HTML-DO-IMAGE
-.  if r ps4html .begin \{\
-.         image \\$2 \\$1.png
-.         bp
-.         tl ''''
-\O[0]\O[1]
-.  \}
-.  if \\n[www-html] .begin \{\
-.         image \\$2 \\$1.png
-\O[0]
-.  \}
+.  if r ps4html \
+.    nop \O[5\\$2\\$1.png]\O[1]\O[3]
+.  if \\n[www-html] \
+.    nop \O[5\\$2\\$1.png]\O[0]\O[3]
 ..
 .\"
 .\" HTML-IMAGE-END - terminates an image for html
 .\"
 .de HTML-IMAGE-END
-.  if r ps4html    \O[2]\O[1]\O[4]
-.  if \\n[www-html] \O[2]\O[1]\O[4]
+.  if r ps4html \
+.    nop \O[4]\O[2]\O[0]
+.  if \\n[www-html] \
+.    nop \O[4]\O[2]\O[1]
 ..
-.nr png-no 0
+.
+.nr www-png-no 0
+.
 .\"
-.\" MAKE-UNIQUE-NAME - generates another unique name
+.\" www-make-unique-name - generates another unique name in string
+.\"                        `www-unique-name'
 .\"
-.de MAKE-UNIQUE-NAME
-.   nr png-no  \\n[png-no]+1
-.   ds HTML-UNIQUE-NAME \\n(.F-auto-\\n[png-no]
+.de www-make-unique-name
+.  nr www-png-no +1
+.  ds www-unique-name \\*[www-image-template]\\n[www-png-no]
 ..
 .\"
-.\" HTML-IMAGE - is the same name as a tag generated from eqn/tbl/pic.
-.\"              Although the tags generated via the preprocessor
-.\"              are given image names by pre-html and troff.
-.\"              The macros below can only be invoked by *other macro sets*
-.\"              not user troff input since the contents of macro sets are
-.\"              not seen by pre-html.
+.\" HTML-IMAGE and friends tell grohtml that this region of text needs
+.\"            to be rendered as an image.
 .\"
 .de HTML-IMAGE
-.\" generates a centered image
-.   MAKE-UNIQUE-NAME
-.   HTML-DO-IMAGE \\*[HTML-UNIQUE-NAME] c
+.  \" generates a centered image
+.  www-make-unique-name
+.  HTML-DO-IMAGE \\*[www-unique-name] c
 ..
+.
 .de HTML-IMAGE-RIGHT
-.   MAKE-UNIQUE-NAME
-.   HTML-DO-IMAGE \\*[HTML-UNIQUE-NAME] r
+.  www-make-unique-name
+.  HTML-DO-IMAGE \\*[www-unique-name] r
 ..
+.
 .de HTML-IMAGE-LEFT
-.   MAKE-UNIQUE-NAME
-.   HTML-DO-IMAGE \\*[HTML-UNIQUE-NAME] l
+.  www-make-unique-name
+.  HTML-DO-IMAGE \\*[www-unique-name] l
 ..
+.
 .de HTML-IMAGE-INLINE
-.   MAKE-UNIQUE-NAME
-.   HTML-DO-IMAGE \\*[HTML-UNIQUE-NAME] i
+.  www-make-unique-name
+.  HTML-DO-IMAGE \\*[www-unique-name] i
 ..
+.
 .if \n[www-html] \{\
 .   nh
 .   nr HY 0
 .\}
+.if r ps4html .nop \O[0]
 .cp \n(_C
+.
+.\" EOF

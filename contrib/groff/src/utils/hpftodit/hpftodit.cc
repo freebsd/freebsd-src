@@ -28,13 +28,12 @@ make it work with TrueType fonts
 put filename in error messages (or fix lib)
 */
 
-#include <stdio.h>
+#include "lib.h"
+
 #include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include <errno.h>
 #include "assert.h"
-#include "lib.h"
 #include "posix.h"
 #include "errarg.h"
 #include "error.h"
@@ -309,24 +308,6 @@ File::File(const char *s)
     fatal("read unexpected number of bytes");
   ptr_ = buf_;
   end_ = buf_ + sb.st_size;
-  // These are actually text files, so we must get rid of the `\r'
-  // characters.  This is also enabled for Posix systems, in case the
-  // input came from Windows...
-  unsigned char *p = buf_, *q = buf_;
-  while (q < end_)
-    {
-      if (*q == '\r')
-	{
-	  if (*++q != '\n')
-	    *p++ = '\r';
-	}
-#if defined(__MSDOS__) || defined(_MSC_VER)
-      if (*q == '\032')	// ^Z means ``software EOF''
-	break;
-#endif
-      *p++ = *q++;
-    }
-  end_ = p;
 }
 
 void File::skip(int n)

@@ -82,7 +82,7 @@
 82	gtreqless
 83	lesseqqgtr
 84	gtreqqless
-85	yen Ye char165
+85	yen Ye
 86	Rrightarrow
 87	Lleftarrow
 88	checkmark OK
@@ -111,7 +111,7 @@
 111	ggg
 112	ulcorner
 113	urcorner
-114	circledR char174 rg
+114	circledR rg
 115	circledS
 116	pitchfork
 117	dotplus

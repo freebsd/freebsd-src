@@ -1,17 +1,18 @@
 #! /bin/sh
 # This script runs groff without requiring that it be installed.
-# The current directory must be the build directory.
+# The current directory must be the top build directory.
 
 builddir=./src
 srcdir=`echo $0 | sed -e 's;/[^/]*$;;'`
 
-if test ! -d $builddir/roff/groff || test ! -r $builddir/roff/groff/groff
-then
-	echo $0 must be run with the build directory as the current directory 2>&1
-	exit 1
+if test ! -d $builddir/roff/groff || \
+   test ! -r $builddir/roff/groff/groff; then
+  echo $0 must be run with the top build directory as the current directory 2>&1
+  exit 1
 fi
 
 GROFF_BIN_PATH=\
+$builddir/roff/groff:\
 $builddir/roff/troff:\
 $builddir/preproc/pic:\
 $builddir/preproc/eqn:\
@@ -34,7 +35,7 @@ XENVIRONMENT=`cd $srcdir; pwd`/src/xditview/GXditview.ad
 export XENVIRONMENT
 
 GROFF_COMMAND_PREFIX=
-GROFF_FONT_PATH=$builddir:$srcdir/font
+GROFF_FONT_PATH=$builddir/../font:$srcdir/font
 GROFF_TMAC_PATH=$srcdir/tmac
 export GROFF_BIN_PATH GROFF_COMMAND_PREFIX GROFF_FONT_PATH GROFF_TMAC_PATH
 

@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1999-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1999-2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -23,8 +23,10 @@ the original English.
 .el .TP "\\$1"
 ..
 .TH GROHTML @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
 .SH NAME
 grohtml \- html driver for groff
+.
 .SH SYNOPSIS
 .nr a \n(.j
 .ad l
@@ -36,17 +38,25 @@ grohtml \- html driver for groff
 .ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
 .el .RB "[\ " "\\$1" "\ ]"
 ..
-.OP \-v?lrn
+.OP \-vhlrn
 .OP \-D dir
 .OP \-F dir
 .OP \-i resolution
-.OP \-I image stem
-.OP \-o image vertical offset
+.OP \-I \%image-stem
+.OP \-o \%image-vertical-offset
+.OP \-a \%aa-text-bits
+.OP \-a \%aa-graphic-bits
 .RI "[\ " files\|.\|.\|. "\ ]"
 .br
 .ad \na
+.
 .SH DESCRIPTION
+The
 .B grohtml
+front end (which consists of a preprocessor,
+.BR pre-grohtml ,
+and a device driver,
+.BR post-grohtml )
 translates the output of GNU
 .B troff
 to html.
@@ -76,11 +86,51 @@ using
 option.
 .SH OPTIONS
 .TP
-.B \-v
-Displays the version.
+.BI \-a aa-text-bits
+Number of bits of antialiasing information to be used by
+.I text
+when generating png images.
+The default is\~4 but legal values are 0, 1, 2, and\~4.
+Note your version of
+.B gs
+needs to support the
+.B \%\-dTextAlphaBits
+and
+.B \%\-dGraphicAlphaBits
+options in order to exploit antialiasing.
+A value of\~0 stops
+.B grohtml
+from issuing antialiasing commands to
+.BR gs .
 .TP
-.B \-?
-Emits a usage synopsis.
+.BI \-g aa-graphic-bits
+Number of bits of antialiasing information to be used by
+.I graphics
+when generating png images.
+The default is\~4 but legal values are 0, 1, 2, and\~4.
+Note your version of
+.B gs
+needs to support the
+.B \%\-dTextAlphaBits
+and
+.B \%\-dGraphicAlphaBits
+options in order to exploit antialiasing.
+A value of\~0 stops
+.B grohtml
+from issuing antialiasing commands to
+.BR gs .
+.TP
+.B -b
+Initialize the background color to white.
+.TP
+.B -h
+Generates section and number headings by using
+.BR <B> .\|.\|. </B>
+and increasing the font size, rather than using the
+.BI <H n >\c
+\&.\|.\|.\c
+.BI </H n >
+tags.
 .TP
 .B -l
 Turns off the production of automatic section links at the top of the document.
@@ -91,9 +141,14 @@ Turns off the automatic header and footer line (html rule).
 .B -n
 Generate simple heading anchors whenever a section/number heading is found.
 Without the option the anchor value is the textual heading.
-This can cause problems when a heading contains a `?' on some brousers
+This can cause problems when a heading contains a `?' on some browsers
 (netscape).
 This flag is automatically turned on if a heading contains an image.
+.TP
+.B -p
+Display page rendering progress to stderr.
+.B grohtml
+only displays a page number when an image is required.
 .TP
 .BI \-F dir
 Prepend directory
@@ -105,8 +160,8 @@ is the name of the device, usually
 .TP
 .BI \-i resolution
 Select the resolution for all images.
-By default this is 80 pixels per inch.
-Example: -i100 indicates 100 pixels per inch.
+By default this is 100 pixels per inch.
+Example: -i200 indicates 200 pixels per inch.
 .TP
 .BI \-I stem
 Determine the image stem name.
@@ -114,6 +169,9 @@ If omitted grohtml uses
 .BI grohtml- XXX
 .RI ( XXX
 is the process ID).
+.TP
+.BI \-o vertical-offset
+Specify the vertical offset of images in points.
 .TP
 .BI \-D dir
 Inform
@@ -123,9 +181,7 @@ to place all image files into directory
 .TP
 .B \-v
 Print the version number.
-.TP
-.B \-?
-Display usage.
+.
 .SH USAGE
 There are styles called
 .BR R ,
@@ -137,9 +193,19 @@ mounted at font positions 1 to 4.
 .SH DEPENDENCIES
 .B grohtml
 is dependent upon the png utilities
-.RB ( \&\%pnmcut ,\  \%pnmtopng )
+.RB ( \&\%pnmcut ,\  \%pnmcrop ,\  \%pnmtopng )
 and GhostScript
 .RB ( gs ).
+.B \%pnmtopng
+(version 2.37.6 or greater)
+and
+.B \%pnmcut
+from the netpbm package (version 9.16 or greater) will work also.
+It is also dependent upon
+.B \%psselect
+from the
+.B PSUtils
+package.
 Images are generated whenever a table, picture, equation or line is
 encountered.
 .SH BUGS

@@ -1,9 +1,94 @@
+Wed Sep 09:53:06 2002  Joergen Haegg <jh@axis.com>
+
+	* added implicit -mm to mmroff, it's now possible
+	  to use mmroff with or without -mm as argument.
+
+Thu Aug 08 00:31:00  Bob Diertens <bobd@science.uva.nl>
+
+	* m.tmac (VM): Add missing backslash.
+
+Fri Jun 10:37:58 2002  Joergen Haegg <jh@axis.com>
+
+	* added init@reset for LT-macros so .S works for letters
+
+Thu May 06:30:06 2002  Joergen Haegg <jh@axis.com>
+
+	* adding -T to VM for setting the total
+	  header and footer size.
+	* changing pg*extra-header-size unit from v to u in DS-size
+	  calculation
+
+Mon May 05:40:16 2002  Joergen Haegg <jh@axis.com>
+
+	* All lists now get an empty line before the list
+	  even if there is no empty lines between the items (bug in LB)
+
+Sat May 07:36:08 2002  Joergen Haegg <jh@axis.com>
+
+	* PIC is now drawn 1v higher, making it
+	  possible to put a picture at 0,0.
+	* Indentbug in P fixed, Pt=2 now behaves as it should
+
+Wed May 10:18:26 2002  Joergen Haegg <jh@axis.com>
+
+	* added L, W and O in groff_mm.man
+	* extra space in expression removed in EPIC
+	* EPIC can leftadjust with -L
+	* EPIC was drawing 1v down
+	* forgot to add mmse.tmac and mm.tmac to cvs
+
+Fri May 20:35:32 2002  Joergen Haegg <jh@axis.com>
+
+	* Clarified manual about INITR
+	* Added mm.tmac and mmse.tmac wrappers
+	* Fixed bug in mmroff so a .qrf-file always will be created
+	* .EQ mark was not correctly positioned anymore.
+	* changed SP to sp in DS/DE to further correct .EQ
+
+Sun Dec 9 00:00:00 2001 Werner LEMBERG  (wl@gnu.org)
+
+	* Makefile.sim, groff_mm.man, groff_mmse.man: Minor fixes.
+	* mmroff.man: This is a section 1 man page.
+	Minor fixes.
+	* Makefile.sub: Install mmroff.man in section 1.
+
+Wed Nov 28 00:00:00 2001 Werner LEMBERG (wl@gnu.org)
+
+	* m.tmac: Assure that the macro package is loaded only once.
+
+Wed Sep 5 00:00:00 2001 Werner LEMBERG (wl@gnu.org)
+
+	* m.tmac: Enable all warnings only if no -W or -w option is given on
+	  the command line (or rather, if only the default warnings are
+	  set).
+
+Mon Sep 3 00:00:00 2001 Werner LEMBERG (wl@gnu.org)
+
+	* groff_mm.man: Don't use .ne for TTY devices.
+
+Thu Jul 26 00:00:00 2001 Werner LEMBERG (wl@gnu.org)
+
+	* groff_mm.man: Start always a new line after end of sentence.  Add
+	  some compatibility info to the HF variable.
+
+Thu Jul 26 00:00:00 2001 Larry Jones (larry.jones@sdrc.com)
+
+	* m.tmac: Fix initialization of Hps1 and Hps2.
+
+Wed May 16 00:00:00 2001 Bruce Lilly (blilly@erols.com)
+
+	* m.tmac (TH): Fix incorrect error message.
+
+Thu Apr 12 00:00:00 2001 Ruslan Ermilov (ru@FreeBSD.org)
+
+	* groff_mm.man: Fixing some typos.
+
 Mon Mar 5 09:30:18 2001 Jörgen Hägg (jh@axis.com)
 
 	* S didn't reset to default point size
 	* (dummy line to force cvs update...)
 
-Sat Jan 06 10:30:00 2001 Werner Lemberg (wl@gnu.org)
+Sat Jan 06 10:30:00 2001 Werner LEMBERG (wl@gnu.org)
 
 	* Fixed assignment of page offset given as a command line argument.
 
@@ -17,6 +102,11 @@ Thu Sep 14 05:52:48 2000 Jörgen Hägg (jh@axis.com)
 	  Easier for other to use. (Somehow I didn't really
 	  understand why the e-mail address was supposed to be
 	  'jh at axis.com' in the Changelog. :-)
+
+Mon Aug 28 00:00:00 2000 Bruno Haible (haible at clisp.cons.org)
+
+	* Makefile.sub: New target 'all', makes all prerequisites of
+	'install'.
 
 Thu Sep 7 06:17:42 2000 Jörgen Hägg (jh at axis.com)
 
@@ -33,6 +123,10 @@ Sat Jun 17 23:00:00 2000 Eli Zaretskii (eliz@is.elta.co.il)
 Sun Jun 4 21:39:00 2000 Kaneda Hiroshi (vanitas at ma3.seikyou.ne.jp)
 
 	* Fixing a lot of typos in groff_mm.man
+
+Tue Mar 7 00:00:00 2000 OKAZAKI Tetsurou (okazaki at be.to)
+
+	* Makefile.sub: Use $(INSTALL_SCRIPT) for script files.
 
 Sun Jan 30 22:52:20 2000 Jörgen Hägg (jh at axis.com)
 

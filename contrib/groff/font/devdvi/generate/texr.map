@@ -17,19 +17,19 @@
 16 .i
 17 .j
 18 ga
-19 aa char180
+19 aa
 20 ah
 21 ab
-22 a- char175
+22 a-
 23 ao
-24 ac char184
-25 ss char223
-26 ae char230
+24 ac
+25 ss
+26 ae
 27 oe
-28 /o char248
-29 AE char198
+28 /o
+29 AE
 30 OE
-31 /O char216
+31 /O
 33 !
 34 rq
 35 # sh
@@ -42,7 +42,7 @@
 42 *
 43 + pl
 44 ,
-45 - hy char173
+45 - hy
 46 .
 47 / sl
 48 0
@@ -57,9 +57,9 @@
 57 9
 58 :
 59 ;
-60 r! char161
+60 r!
 61 = eq
-62 r? char191
+62 r?
 63 ?
 64 @ at
 65 A *A
@@ -124,4 +124,4 @@
 124 em
 125 a"
 126 a~ ~
-127 ad char168
+127 ad
