@@ -171,8 +171,7 @@ ata_kauai_probe(device_t dev)
 	ch = device_get_softc(dev);
 
         rid = PCIR_BARS;
-        mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~1, 1,
-            RF_ACTIVE);
+	mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
         if (mem == NULL) {
                 device_printf(dev, "could not allocate memory\n");
                 return (ENXIO);
