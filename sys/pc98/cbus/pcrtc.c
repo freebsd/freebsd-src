@@ -48,6 +48,7 @@
  * modified for PC98 by Kakefuda
  */
 
+#include "opt_apic.h"
 #include "opt_clock.h"
 #include "opt_isa.h"
 #include "opt_mca.h"
@@ -74,8 +75,8 @@
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-#if defined(SMP)
-#include <machine/smp.h>
+#ifdef DEV_APIC
+#include <machine/apicvar.h>
 #endif
 #include <machine/specialreg.h>
 
@@ -134,6 +135,7 @@ static	u_int	hardclock_max_count;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	i8254_ticked;
+static	int	using_lapic_timer;
 static	struct intsrc *i8254_intsrc;
 #ifndef BURN_BRIDGES
 /*
@@ -189,11 +191,8 @@ clkintr(struct clockframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	timer_func(frame);
-#ifdef SMP
-	if (timer_func == hardclock)
-		forward_hardclock();
-#endif
+	if (timer_func != hardclock || !using_lapic_timer)
+		timer_func(frame);
 #ifndef BURN_BRIDGES
 	switch (timer0_state) {
 
@@ -201,13 +200,12 @@ clkintr(struct clockframe *frame)
 		break;
 
 	case ACQUIRED:
+		if (using_lapic_timer)
+			break;
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			timer0_prescaler_count -= hardclock_max_count;
 			hardclock(frame);
-#ifdef SMP
-			forward_hardclock();
-#endif
 		}
 		break;
 
@@ -239,10 +237,8 @@ clkintr(struct clockframe *frame)
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
-			hardclock(frame);
-#ifdef SMP
-			forward_hardclock();
-#endif
+			if (!using_lapic_timer)
+				hardclock(frame);
 		}
 		break;
 	}
@@ -899,9 +895,13 @@ void
 cpu_initclocks()
 {
 
+#ifdef DEV_APIC
+	using_lapic_timer = lapic_setup_clock();
+#endif
 	/* Finish initializing 8254 timer 0. */
 	intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
 	    INTR_TYPE_CLK | INTR_FAST, NULL);
+	i8254_intsrc = intr_lookup_source(0);
 
 	init_TSC_tc();
 }
