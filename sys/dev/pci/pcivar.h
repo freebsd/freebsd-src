@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.22 1998/10/06 14:18:40 dfr Exp $
+ * $Id: pcivar.h,v 1.23 1998/12/14 05:47:29 dillon Exp $
  *
  */
 
@@ -223,7 +223,10 @@ int pci_map_port (pcici_t tag, u_long reg, pci_port_t* pa);
 int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_dense (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_bwx (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
-int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr);
+int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
+		 intrmask_t *maskptr);
+int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
+		      intrmask_t *maskptr, u_int flags);
 int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
