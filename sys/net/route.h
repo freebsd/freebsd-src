@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)route.h	8.3 (Berkeley) 4/19/94
+ *	@(#)route.h	8.5 (Berkeley) 2/8/95
  */
 
 /*
@@ -235,6 +235,8 @@ struct	route_cb route_cb;
 struct	rtstat	rtstat;
 struct	radix_node_head *rt_tables[AF_MAX+1];
 
+struct socket;
+
 void	 route_init __P((void));
 int	 route_output __P((struct mbuf *, struct socket *));
 int	 route_usrreq __P((struct socket *,
@@ -253,7 +255,7 @@ struct rtentry *
 	 rtalloc1 __P((struct sockaddr *, int));
 void	 rtfree __P((struct rtentry *));
 int	 rtinit __P((struct ifaddr *, int, int));
-int	 rtioctl __P((int, caddr_t, struct proc *));
+int	 rtioctl __P((u_long, caddr_t, struct proc *));
 int	 rtredirect __P((struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, struct rtentry **));
 int	 rtrequest __P((int, struct sockaddr *,

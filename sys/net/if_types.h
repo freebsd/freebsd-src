@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_types.h	8.2 (Berkeley) 4/20/94
+ *	@(#)if_types.h	8.3 (Berkeley) 4/28/95
  */
 
 /*
@@ -51,7 +51,7 @@
 #define	IFT_ISO88026	0xa		/* MAN */
 #define	IFT_STARLAN	0xb
 #define	IFT_P10		0xc		/* Proteon 10MBit ring */
-#define	IFT_P80		0xd		/* Proteon 10MBit ring */
+#define	IFT_P80		0xd		/* Proteon 80MBit ring */
 #define	IFT_HY		0xe		/* Hyperchannel */
 #define	IFT_FDDI	0xf
 #define	IFT_LAPB	0x10

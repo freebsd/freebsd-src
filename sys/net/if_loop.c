@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
+ *	@(#)if_loop.c	8.2 (Berkeley) 1/9/95
  */
 
 /*
@@ -201,7 +201,7 @@ lortrequest(cmd, rt, sa)
 int
 loioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 {
 	register struct ifaddr *ifa;

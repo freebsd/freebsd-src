@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if.h	8.1 (Berkeley) 6/10/93
+ *	@(#)if.h	8.3 (Berkeley) 2/9/95
  */
 
 /*
@@ -124,7 +124,7 @@ struct ifnet {
 	int	(*if_done)		/* output complete routine */
 		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
 	int	(*if_ioctl)		/* ioctl routine */
-		__P((struct ifnet *, int, caddr_t));
+		__P((struct ifnet *, u_long, caddr_t));
 	int	(*if_reset)	
 		__P((int));		/* new autoconfig will permit removal */
 	int	(*if_watchdog)		/* timer routine */
@@ -341,7 +341,7 @@ void	ifubareset __P((int));
 #endif
 int	ifconf __P((int, caddr_t));
 void	ifinit __P((void));
-int	ifioctl __P((struct socket *, int, caddr_t, struct proc *));
+int	ifioctl __P((struct socket *, u_long, caddr_t, struct proc *));
 int	ifpromisc __P((struct ifnet *, int));
 struct	ifnet *ifunit __P((char *));
 
@@ -355,7 +355,7 @@ struct	ifaddr *ifaof_ifpforaddr __P((struct sockaddr *, struct ifnet *));
 void	ifafree __P((struct ifaddr *));
 void	link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 
-int	loioctl __P((struct ifnet *, int, caddr_t));
+int	loioctl __P((struct ifnet *, u_long, caddr_t));
 void	loopattach __P((int));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
