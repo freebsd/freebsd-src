@@ -60,6 +60,11 @@
 #define VENDORID_SK		0x1148
 
 /*
+ * Marvell PCI vendor ID
+ */
+#define VENDORID_MARVELL	0x11AB
+
+/*
  * SK-NET gigabit ethernet device IDs
  */
 #define DEVICEID_SK_V1		0x4300
