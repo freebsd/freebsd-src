@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.30 1995/10/11 20:45:51 jkh Exp $
+#	$Id: Makefile,v 1.193.2.31 1995/10/14 19:15:10 jkh Exp $
 #
 # How to roll a release:
 #
@@ -437,7 +437,7 @@ ftp.1:
 	mkdir ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	cd ${RD}/trees/bin/usr/share/FAQ/Text && ln -f ${FAQS} ${FD}
+	cd ${.CURDIR} && ln -f ${FAQS} ${FD}
 
 	# This rule makes ${CHROOTDIR}/R/ftp a suitable anon ftp for testing.
 ftp.2:
