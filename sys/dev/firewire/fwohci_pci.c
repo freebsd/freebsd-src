@@ -282,8 +282,10 @@ fwohci_pci_attach(device_t self)
 	}
 #endif
 
+#if 0
 	if (bootverbose)
 		firewire_debug = bootverbose;
+#endif
 
 	fwohci_pci_init(self);
 
