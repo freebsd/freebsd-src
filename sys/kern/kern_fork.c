@@ -460,7 +460,7 @@ again:
 
 	/* Allocate and switch to an alternate kstack if specified */
 	if (pages != 0)
-		pmap_new_altkstack(td2, pages);
+		vm_thread_new_altkstack(td2, pages);
 
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
