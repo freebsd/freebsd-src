@@ -608,11 +608,7 @@ network_pass3() {
 		if [ ! -f /etc/ssh/ssh_host_key ]; then
 			echo creating ssh host key
 			/usr/bin/ssh-keygen -N "" -f /etc/ssh/ssh_host_key
-			echo now starting sshd
-		else
-			echo -n ' sshd';
 		fi
-		${sshd_program:-/usr/sbin/sshd} ${sshd_flags}
 		;;
 	esac
 
