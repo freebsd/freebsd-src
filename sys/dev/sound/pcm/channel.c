@@ -188,6 +188,8 @@ chn_wrfeed(struct pcm_channel *c)
 	})
 
 	amt = sndbuf_getfree(b);
+	if (sndbuf_getready(bs) < amt)
+		c->xruns++;
 	ret = (amt > 0)? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
 	if (ret == 0 && sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
@@ -216,7 +218,7 @@ chn_wrintr(struct pcm_channel *c)
 }
 
 /*
- * user write routine - uiomove data into secondary bufhard, trigger if necessary
+ * user write routine - uiomove data into secondary buffer, trigger if necessary
  * if blocking, sleep, rinse and repeat.
  *
  * called externally, so must handle locking
@@ -293,7 +295,7 @@ chn_rddump(struct pcm_channel *c, unsigned int cnt)
 }
 
 /*
- * Feed new data from the read bufhard. Can be called in the bottom half.
+ * Feed new data from the read buffer. Can be called in the bottom half.
  * Hence must be called at spltty.
  */
 int
@@ -301,7 +303,7 @@ chn_rdfeed(struct pcm_channel *c)
 {
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
-	int ret;
+	unsigned int ret, amt;
 
 	CHN_LOCKASSERT(c);
     	DEB(
@@ -310,10 +312,16 @@ chn_rdfeed(struct pcm_channel *c)
 		sndbuf_dump(bs, "bs", 0x02);
 	})
 
-	ret = sndbuf_feed(b, bs, c, c->feeder, sndbuf_getblksz(b));
+	amt = sndbuf_getready(b);
+	if (sndbuf_getfree(bs) < amt)
+		c->xruns++;
+	ret = (amt > 0)? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
 
-	if (ret == 0)
-		chn_wakeup(c);
+	amt -= sndbuf_getready(b);
+	if (amt > 0)
+		chn_rddump(c, amt);
+
+	chn_wakeup(c);
 
 	return ret;
 }
@@ -340,18 +348,15 @@ chn_rdupdate(struct pcm_channel *c)
 static void
 chn_rdintr(struct pcm_channel *c)
 {
-    	struct snd_dbuf *b = c->bufhard;
 	int ret;
 
 	CHN_LOCKASSERT(c);
-	/* tell the driver to update the primary bufhard if non-dma */
+	/* tell the driver to update the primary buffer if non-dma */
 	chn_trigger(c, PCMTRIG_EMLDMARD);
 	/* update pointers in primary bufhard */
 	chn_dmaupdate(c);
 	/* ...and feed from primary to secondary */
 	ret = chn_rdfeed(c);
-	if (ret)
-		chn_rddump(c, sndbuf_getblksz(b));
 }
 
 /*
@@ -406,6 +411,7 @@ void
 chn_intr(struct pcm_channel *c)
 {
 	CHN_LOCK(c);
+	c->interrupts++;
 	if (c->direction == PCMDIR_PLAY)
 		chn_wrintr(c);
 	else
@@ -603,6 +609,8 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 
 	CHN_LOCKASSERT(c);
 	c->flags &= CHN_F_RESET;
+	c->interrupts = 0;
+	c->xruns = 0;
 	CHANNEL_RESET(c->methods, c->devinfo);
 	if (fmt) {
 		hwspd = DSP_DEFAULT_SPEED;
@@ -633,7 +641,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 
 	chn_lockinit(c);
 	CHN_LOCK(c);
-	/* Initialize the hardware and DMA bufhard first. */
+
 	c->feeder = NULL;
 	fc = feeder_getclass(NULL);
 	if (fc == NULL)
