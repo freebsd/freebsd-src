@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.143 1995/04/24 04:06:30 phk Exp $
+#	$Id: Makefile,v 1.144 1995/04/30 09:02:08 phk Exp $
 #
 # How to roll a release:
 #
@@ -19,7 +19,7 @@ BUILDNAME=SOME_RANDOM_BUILD
 # Things which without too much trouble can be considered variables
 
 EXPORT_DISTS=	games manpages proflibs dict info
-EXTRA_DISTS=	secure ${EXPORT_DISTS}
+EXTRA_DISTS=	DES ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
 CPIO1=	etc/services etc/protocols etc/sysconfig
@@ -264,7 +264,7 @@ release.7:
 		> ${RD}/floppies/cpio.flp
 	touch release.7
 
-# Make binary dists, notice that secure dist isn't finished yet.
+# Make binary dists, notice that DES dist isn't finished yet.
 release.8:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
@@ -285,7 +285,7 @@ release.8:
 	touch release.8
 
 
-# Make source dists, and finish of secure too
+# Make source dists, and finish of DES too
 release.9:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
@@ -299,12 +299,12 @@ release.9:
 		fi ; \
 	done
 	( cd ${RD}/dists/src && \
-	if [ -f ssecure.aa ] ; then mv ssecure.* ../secure ; fi && \
-	if [ -f sebones.aa ] ; then mv sebones.* ../secure ; fi && \
+	if [ -f sDES.aa ] ; then mv sDES.* ../DES ; fi && \
+	if [ -f sebones.aa ] ; then mv sebones.* ../DES ; fi && \
 	sh -e ${.CURDIR}/scripts/mkchecksums.sh )
 	cp ${.CURDIR}/scripts/extract_src.sh ${RD}/dists/src/extract.sh
-	if [ -d ${RD}/dists/secure ] ; then \
-	( cd ${RD}/dists/secure && sh -e ${.CURDIR}/scripts/mkchecksums.sh );\
+	if [ -d ${RD}/dists/DES ] ; then \
+	( cd ${RD}/dists/DES && sh -e ${.CURDIR}/scripts/mkchecksums.sh );\
 	fi
 	@echo "src distribution is finished."
 	touch release.9
