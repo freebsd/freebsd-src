@@ -102,17 +102,24 @@ case ${local_startup} in
 [Nn][Oo] | '')
 	;;
 *)
+	slist=""
 	for dir in ${local_startup}; do
 		if [ -d "${dir}" ]; then
 			for script in ${dir}/*.sh; do
-				if [ -x "${script}" ]; then
-					(set -T
-					 trap 'exit 1' 2
-					 ${script} stop)
-				fi
+				slist="${script}${script_name_sep}${slist}"
 			done
 		fi
 	done
+	script_save_sep="$IFS"
+	IFS="${script_name_sep}"
+	for script in ${slist}; do
+		if [ -x "${script}" ]; then
+			(set -T
+			trap 'exit 1' 2
+			${script} stop)
+		fi
+	done
+	IFS="${script_save_sep}"
 	echo '.'
 	;;
 esac
