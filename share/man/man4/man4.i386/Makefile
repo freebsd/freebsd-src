@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.45 1996/03/26 20:57:26 wollman Exp $
 
 MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 gsc.4 fdc.4 fe.4 ie.4 io.4 \
@@ -36,7 +36,7 @@ MLINKS+=	mse.4 ../mse.4
 MLINKS+=	mtio.4 ../mtio.4
 MLINKS+=	nca.4 ../nca.4
 MLINKS+=	npx.4 ../npx.4
-MLINKS+=	pcvt.4 ../pcvt.4
+MLINKS+=	pcvt.4 vt.4 pcvt.4 ../pcvt.4 pcvt.4 ../vt.4
 MLINKS+=	perfmon.4 ../perfmon.4
 MLINKS+=	qcam.4 ../qcam.4
 MLINKS+=	scd.4 ../scd.4
