@@ -31,7 +31,7 @@ WD?=	${.OBJDIR}/_.w
 #
 # The final resulting image is in ${.OBJDIR}/_.i and the single slice
 # image in ${.OBJDIR}/_.i.s1
-
+#
 
 # Main target
 all:	buildworld installworld buildimage
@@ -48,10 +48,10 @@ _.cs:	_.iw _.di _.ik _.di
 	sed -i "" -e /beastie/d ${WD}/boot/loader.rc
 	sed -i "" -e /ttyd0/s/off/on/ ${WD}/etc/ttys
 	echo " -h" > ${WD}/boot.config
-.elif exists(${CUSTOMIZE})
-	sh -e ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
 .elif exists(${.CURDIR}/${CUSTOMIZE})
 	sh -e ${.CURDIR}/${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
+.elif exists(${CUSTOMIZE})
+	sh -e ${CUSTOMIZE} ${WD} ${WORLDDIR} ${.CURDIR}
 .else
 	echo "CUSTOMIZE script not found" 1>&2
 	false
