@@ -140,7 +140,7 @@ static const char *
 		    KINFO *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
-static char	*kludge_oldps_options(const char *opts, char *, const char *);
+static char	*kludge_oldps_options(const char *, char *, const char *);
 static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
@@ -678,20 +678,20 @@ addelem_pid(struct listinfo *inf, const char *elem)
 		warnx("Invalid (zero-length) process id");
 		optfatal = 1;
 		return (0);		/* Do not add this value. */
-	} else {
-		errno = 0;
-		tempid = strtol(elem, &endp, 10);
-		if (*endp != '\0' || tempid < 0 || elem == endp) {
-			warnx("Invalid %s: %s", inf->lname, elem);
-			errno = ERANGE;
-		} else if (errno != 0 || tempid > BSD_PID_MAX) {
-			warnx("%s too large: %s", inf->lname, elem);
-			errno = ERANGE;
-		}
-		if (errno == ERANGE) {
-			optfatal = 1;
-			return (0);	/* Do not add this value. */
-		}
+	}
+
+	errno = 0;
+	tempid = strtol(elem, &endp, 10);
+	if (*endp != '\0' || tempid < 0 || elem == endp) {
+		warnx("Invalid %s: %s", inf->lname, elem);
+		errno = ERANGE;
+	} else if (errno != 0 || tempid > BSD_PID_MAX) {
+		warnx("%s too large: %s", inf->lname, elem);
+		errno = ERANGE;
+	}
+	if (errno == ERANGE) {
+		optfatal = 1;
+		return (0);		/* Do not add this value. */
 	}
 
 	if (inf->count >= inf->maxcount)
@@ -791,7 +791,6 @@ add_list(struct listinfo *inf, const char *argp)
 
 	if (*argp == 0)
 		    inf->addelem(inf, elemcopy);
-
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
 			argp++;
