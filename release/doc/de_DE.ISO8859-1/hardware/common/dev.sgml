@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.20 2002/10/16 11:52:26 ue Exp $
-	basiert auf: 1.13.2.69
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.21 2002/10/22 21:22:11 ue Exp $
+	basiert auf: 1.13.2.70
 -->
 
 <sect1>
@@ -3126,6 +3126,10 @@
         <listitem>
           <para>Microsoft Tastatur</para>
         </listitem>
+
+        <listitem>
+	  <para>Sun Microsystems USB-Tastatur Typ 6</para>
+        </listitem>
       </itemizedlist>
     </para>
 
@@ -3202,6 +3206,10 @@
 
         <listitem>
           <para>Microsoft IntelliMouse (3 Tasten)</para>
+        </listitem>
+
+        <listitem>
+          <para>Sun Microsystems USB-Maus, Typ 6</para>
         </listitem>
 
         <listitem>
