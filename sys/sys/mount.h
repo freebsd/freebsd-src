@@ -125,6 +125,7 @@ struct ostatfs {
 #define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
 
 TAILQ_HEAD(vnodelst, vnode);
+
 struct vfsoptlist;
 struct vfsopt;
 
@@ -144,7 +145,7 @@ struct mount {
 	struct lock	mnt_lock;		/* mount structure lock */
 	struct mtx	mnt_mtx;		/* mount structure interlock */
 	int		mnt_writeopcount;	/* write syscalls in progress */
-	int		mnt_flag;		/* flags shared with user */
+	u_int		mnt_flag;		/* flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_kern_flag;		/* kernel only flags */
@@ -264,7 +265,6 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 #define MNTK_UNMOUNTF	0x00000001	/* forced unmount in progress */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
-#define MNTK_WANTRDWR	0x04000000	/* upgrade to read/write requested */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
 
@@ -462,8 +462,6 @@ struct sysctl_req;
 struct mntarg;
 
 typedef int vfs_cmount_t(struct mntarg *ma, void *data, int flags, struct thread *td);
-typedef int vfs_omount_t(struct mount *mp, char *path, caddr_t data,
-			 struct thread *td);
 typedef int vfs_start_t(struct mount *mp, int flags, struct thread *td);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags, struct thread *td);
 typedef int vfs_root_t(struct mount *mp, struct vnode **vpp, struct thread *td);
@@ -490,7 +488,6 @@ typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
-	vfs_omount_t		*vfs_omount;
 	vfs_cmount_t		*vfs_cmount;
 	vfs_start_t		*vfs_start;
 	vfs_unmount_t		*vfs_unmount;
@@ -511,8 +508,6 @@ struct vfsops {
 vfs_statfs_t	__vfs_statfs;
 
 #define VFS_MOUNT(MP, P)    (*(MP)->mnt_op->vfs_mount)(MP, P)
-#define VFS_OMOUNT(MP, PATH, DATA, P) \
-	(*(MP)->mnt_op->vfs_omount)(MP, PATH, DATA, P)
 #define VFS_START(MP, FLAGS, P)	  (*(MP)->mnt_op->vfs_start)(MP, FLAGS, P)
 #define VFS_UNMOUNT(MP, FORCE, P) (*(MP)->mnt_op->vfs_unmount)(MP, FORCE, P)
 #define VFS_ROOT(MP, VPP, P)	  (*(MP)->mnt_op->vfs_root)(MP, VPP, P)
@@ -559,13 +554,14 @@ extern	char *mountrootfsname;
 /*
  * exported vnode operations
  */
+
 int	dounmount(struct mount *, int, struct thread *);
 
 void free_mntarg(struct mntarg *ma);
-struct mntarg *mount_argb(struct mntarg *ma, int flag, const char *name);
 int	kernel_mount(struct mntarg *ma, int flags);
 int	kernel_vmount(int flags, ...);
 struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
+struct mntarg *mount_argb(struct mntarg *ma, int flag, const char *name);
 struct mntarg *mount_argf(struct mntarg *ma, const char *name, const char *fmt, ...);
 struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val, int len);
 struct vfsconf *vfs_byname(const char *);

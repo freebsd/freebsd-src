@@ -62,7 +62,6 @@ extern struct cv selwait;	/* select conditional variable */
 
 extern long physmem;		/* physical memory */
 
-extern struct cdev *rootdev;		/* root device */
 extern char *rootdevnames[2];	/* names of possible root devices */
 
 extern int boothowto;		/* reboot flags, from console subsystem */
@@ -298,6 +297,7 @@ void	wakeup_one(void *chan) __nonnull(1);
  * Common `struct cdev *' stuff are declared here to avoid #include poisoning
  */
 
+struct cdev;
 int major(struct cdev *x);
 int minor(struct cdev *x);
 dev_t dev2udev(struct cdev *x);

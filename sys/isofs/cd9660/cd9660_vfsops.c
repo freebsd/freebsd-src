@@ -67,7 +67,8 @@ MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
 
 struct iconv_functions *cd9660_iconv = NULL;
 
-static vfs_omount_t	cd9660_omount;
+static vfs_mount_t	cd9660_mount;
+static vfs_cmount_t	cd9660_cmount;
 static vfs_unmount_t	cd9660_unmount;
 static vfs_root_t	cd9660_root;
 static vfs_statfs_t	cd9660_statfs;
@@ -78,7 +79,8 @@ static vfs_vptofh_t	cd9660_vptofh;
 static struct vfsops cd9660_vfsops = {
 	.vfs_fhtovp =		cd9660_fhtovp,
 	.vfs_init =		cd9660_init,
-	.vfs_omount =		cd9660_omount,
+	.vfs_mount =		cd9660_mount,
+	.vfs_cmount =		cd9660_cmount,
 	.vfs_root =		cd9660_root,
 	.vfs_statfs =		cd9660_statfs,
 	.vfs_uninit =		cd9660_uninit,
@@ -89,140 +91,79 @@ static struct vfsops cd9660_vfsops = {
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
 
-/*
- * Called by vfs_mountroot when iso is going to be mounted as root.
- */
-
-static int iso_get_ssector(struct cdev *dev, struct thread *td);
 static int iso_mountfs(struct vnode *devvp, struct mount *mp,
-		       struct thread *td, struct iso_args *argp);
-
-/*
- * Try to find the start of the last data track on this CD-ROM.  This
- * is used to mount the last session of a multi-session CD.  Bail out
- * and return 0 if we fail, this is always a safe bet.
- */
-static int
-iso_get_ssector(dev, td)
-	struct cdev *dev;
-	struct thread *td;
-{
-	struct ioc_toc_header h;
-	struct ioc_read_toc_single_entry t;
-	int i, error;
-	struct cdevsw *bd;
-	d_ioctl_t *ioctlp;
-
-	bd = dev_refthread(dev);
-	if (bd == NULL)
-		return 0;
-	ioctlp = bd->d_ioctl;
-
-	error = ioctlp(dev, CDIOREADTOCHEADER, (caddr_t)&h, FREAD, td);
-	if (error) {
-		dev_relthread(dev);
-		return 0;
-	}
-
-	for (i = h.ending_track; i >= 0; i--) {
-		t.address_format = CD_LBA_FORMAT;
-		t.track = i;
-		error = ioctlp(dev, CDIOREADTOCENTRY, (caddr_t)&t, FREAD, td);
-		if (error) {
-			dev_relthread(dev);
-			return 0;
-		}
-		if ((t.entry.control & 4) != 0)
-			/* found a data track */
-			break;
-	}
-	dev_relthread(dev);
-
-	if (i < 0)
-		return 0;
-
-	return ntohl(t.entry.addr.lba);
-}
-
-static int iso_mountroot(struct mount *mp, struct thread *td);
-
-static int
-iso_mountroot(mp, td)
-	struct mount *mp;
-	struct thread *td;
-{
-	struct iso_args args;
-	struct vnode *rootvp;
-	int error;
-
-	if ((error = bdevvp(rootdev, &rootvp))) {
-		printf("iso_mountroot: can't find rootvp\n");
-		return (error);
-	}
-	args.flags = ISOFSMNT_ROOT;
-
-	vn_lock(rootvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(rootvp, FREAD, FSCRED, td, -1);
-	VOP_UNLOCK(rootvp, 0, td);
-	if (error)
-		return error;
-
-	args.ssector = iso_get_ssector(rootdev, td);
-
-	(void)VOP_CLOSE(rootvp, FREAD, NOCRED, td);
-
-	if (bootverbose)
-		printf("iso_mountroot(): using session at block %d\n",
-		       args.ssector);
-	if ((error = iso_mountfs(rootvp, mp, td, &args)) != 0)
-		return (error);
-
-	(void)cd9660_statfs(mp, &mp->mnt_stat, td);
-	return (0);
-}
+		       struct thread *td);
 
 /*
  * VFS Operations.
- *
- * mount system call
  */
+
 static int
-cd9660_omount(mp, path, data, td)
-	struct mount *mp;
-	char *path;
-	caddr_t data;
-	struct thread *td;
+cd9660_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	struct iso_args args;
+	int error;
+
+	error = copyin(data, &args, sizeof args);
+	if (error)
+		return (error);
+
+	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
+	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_argsu(ma, "cs_disk", args.cs_disk, 64);
+	ma = mount_argsu(ma, "cs_local", args.cs_local, 64);
+	ma = mount_argf(ma, "ssector", "%u", args.ssector);
+	ma = mount_argb(ma, !(args.flags & ISOFSMNT_NORRIP), "norrip");
+	ma = mount_argb(ma, args.flags & ISOFSMNT_GENS, "nogens");
+	ma = mount_argb(ma, args.flags & ISOFSMNT_EXTATT, "noextatt");
+	ma = mount_argb(ma, !(args.flags & ISOFSMNT_NOJOLIET), "nojoliet");
+	ma = mount_argb(ma,
+	    args.flags & ISOFSMNT_BROKENJOLIET, "nobrokenjoliet");
+	ma = mount_argb(ma, args.flags & ISOFSMNT_KICONV, "nokiconv");
+	ma = mount_argb(ma, args.flags & ISOFSMNT_EXTATT, "nogens");
+
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
+
+static int
+cd9660_mount(struct mount *mp, struct thread *td)
 {
 	struct vnode *devvp;
-	struct iso_args args;
-	size_t size;
-	int error;
+	struct export_args *export;
+	char *fspec;
+	int error, len;
 	mode_t accessmode;
-	struct iso_mnt *imp = 0;
 	struct nameidata ndp;
-
-	if (mp->mnt_flag & MNT_ROOTFS)
-		return (iso_mountroot(mp, td));
-	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
-		return (error);
+	struct iso_mnt *imp = 0;
 
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EROFS);
 
+	fspec = vfs_getopts(mp->mnt_optnew, "from", &error);
+	if (error)
+		return (error);
+
+	imp = VFSTOISOFS(mp);
 	/*
 	 * If updating, check whether changing from read-only to
 	 * read/write; if there is no device name, that's all we do.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
-		imp = VFSTOISOFS(mp);
-		if (args.fspec == 0)
-			return (vfs_export(mp, &args.export));
+		if (fspec == NULL) {
+			error = vfs_getopt(mp->mnt_optnew,
+			    "export", (void **)&export, &len);
+			if (error || len != sizeof *export)
+				return (EINVAL);
+			return (vfs_export(mp, export));
+		}
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(&ndp)))
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
@@ -249,7 +190,7 @@ cd9660_omount(mp, path, data, td)
 	VOP_UNLOCK(devvp, 0, td);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		error = iso_mountfs(devvp, mp, td, &args);
+		error = iso_mountfs(devvp, mp, td);
 	} else {
 		if (devvp != imp->im_devvp)
 			error = EINVAL;	/* needs translation */
@@ -260,11 +201,7 @@ cd9660_omount(mp, path, data, td)
 		vrele(devvp);
 		return error;
 	}
-	imp = VFSTOISOFS(mp);
-	(void) copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1,
-	    &size);
-	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void) cd9660_statfs(mp, &mp->mnt_stat, td);
+	vfs_mountedfrom(mp, fspec);
 	return 0;
 }
 
@@ -272,11 +209,10 @@ cd9660_omount(mp, path, data, td)
  * Common code for mount and mountroot
  */
 static int
-iso_mountfs(devvp, mp, td, argp)
+iso_mountfs(devvp, mp, td)
 	struct vnode *devvp;
 	struct mount *mp;
 	struct thread *td;
-	struct iso_args *argp;
 {
 	struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
@@ -292,12 +228,10 @@ iso_mountfs(devvp, mp, td, argp)
 	struct iso_sierra_primary_descriptor *pri_sierra = NULL;
 	struct iso_supplementary_descriptor *sup = NULL;
 	struct iso_directory_record *rootp;
-	int logical_block_size;
+	int logical_block_size, ssector;
 	struct g_consumer *cp;
 	struct bufobj *bo;
-
-	if (!(mp->mnt_flag & MNT_RDONLY))
-		return EROFS;
+	char *cs_local, *cs_disk;
 
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	DROP_GIANT();
@@ -324,8 +258,10 @@ iso_mountfs(devvp, mp, td, argp)
 	iso_bsize = ISO_DEFAULT_BLOCK_SIZE;
 
 	joliet_level = 0;
-	for (iso_blknum = 16 + argp->ssector;
-	     iso_blknum < 100 + argp->ssector;
+	if (1 != vfs_scanopt(mp->mnt_optnew, "ssector", "%d", &ssector))
+		ssector = 0;
+	for (iso_blknum = 16 + ssector;
+	     iso_blknum < 100 + ssector;
 	     iso_blknum++) {
 		if ((error = bread(devvp, iso_blknum * btodb(iso_bsize),
 				  iso_bsize, NOCRED, &bp)) != 0)
@@ -357,7 +293,7 @@ iso_mountfs(devvp, mp, td, argp)
 				bp = NULL;
 				sup = (struct iso_supplementary_descriptor *)vdp;
 
-				if (!(argp->flags & ISOFSMNT_NOJOLIET)) {
+				if (vfs_flagopt(mp->mnt_optnew, "joliet", NULL, 0)) {
 					if (bcmp(sup->escape, "%/@", 3) == 0)
 						joliet_level = 1;
 					if (bcmp(sup->escape, "%/C", 3) == 0)
@@ -366,7 +302,7 @@ iso_mountfs(devvp, mp, td, argp)
 						joliet_level = 3;
 
 					if ((isonum_711 (sup->flags) & 1) &&
-					    (argp->flags & ISOFSMNT_BROKENJOLIET) == 0)
+					    !vfs_flagopt(mp->mnt_optnew, "brokenjoliet", NULL, 0))
 						joliet_level = 0;
 				}
 			}
@@ -427,7 +363,7 @@ iso_mountfs(devvp, mp, td, argp)
 	 * can't do much better.  This is also important for the NFS
 	 * filehandle validation.
 	 */
-	isomp->volume_space_size += argp->ssector;
+	isomp->volume_space_size += ssector;
 	bcopy (rootp, isomp->root, sizeof isomp->root);
 	isomp->root_extent = isonum_733 (rootp->extent);
 	isomp->root_size = isonum_733 (rootp->size);
@@ -448,8 +384,14 @@ iso_mountfs(devvp, mp, td, argp)
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
 
+	vfs_flagopt(mp->mnt_optnew, "rrip", &isomp->im_flags, ISOFSMNT_NORRIP);
+	vfs_flagopt(mp->mnt_optnew, "gens", &isomp->im_flags, ISOFSMNT_GENS);
+	vfs_flagopt(mp->mnt_optnew, "extatt", &isomp->im_flags, ISOFSMNT_EXTATT);
+	vfs_flagopt(mp->mnt_optnew, "joliet", &isomp->im_flags, ISOFSMNT_NOJOLIET);
+	vfs_flagopt(mp->mnt_optnew, "kiconv", &isomp->im_flags, ISOFSMNT_KICONV);
+	isomp->im_flags ^= (ISOFSMNT_NORRIP | ISOFSMNT_NOJOLIET);
 	/* Check the Rock Ridge Extention support */
-	if (!(argp->flags & ISOFSMNT_NORRIP)) {
+	if (vfs_flagopt(mp->mnt_optnew, "rrip", NULL, 0)) {
 		if ((error = bread(isomp->im_devvp,
 				  (isomp->root_extent + isonum_711(rootp->ext_attr_length)) <<
 				  (isomp->im_bshift - DEV_BSHIFT),
@@ -459,9 +401,9 @@ iso_mountfs(devvp, mp, td, argp)
 		rootp = (struct iso_directory_record *)bp->b_data;
 
 		if ((isomp->rr_skip = cd9660_rrip_offset(rootp,isomp)) < 0) {
-		    argp->flags	 |= ISOFSMNT_NORRIP;
+		    isomp->im_flags |= ISOFSMNT_NORRIP;
 		} else {
-		    argp->flags	 &= ~ISOFSMNT_GENS;
+		    isomp->im_flags &= ~ISOFSMNT_GENS;
 		}
 
 		/*
@@ -472,13 +414,16 @@ iso_mountfs(devvp, mp, td, argp)
 		brelse(bp);
 		bp = NULL;
 	}
-	isomp->im_flags = argp->flags & (ISOFSMNT_NORRIP | ISOFSMNT_GENS |
-					 ISOFSMNT_EXTATT | ISOFSMNT_NOJOLIET |
-					 ISOFSMNT_KICONV);
 
 	if (isomp->im_flags & ISOFSMNT_KICONV && cd9660_iconv) {
-		cd9660_iconv->open(argp->cs_local, argp->cs_disk, &isomp->im_d2l);
-		cd9660_iconv->open(argp->cs_disk, argp->cs_local, &isomp->im_l2d);
+		cs_local = vfs_getopts(mp->mnt_optnew, "cs_local", &error);
+		if (error)
+			goto out;
+		cs_disk = vfs_getopts(mp->mnt_optnew, "cs_disk", &error);
+		if (error)
+			goto out;
+		cd9660_iconv->open(cs_local, cs_disk, &isomp->im_d2l);
+		cd9660_iconv->open(cs_disk, cs_local, &isomp->im_l2d);
 	} else {
 		isomp->im_d2l = NULL;
 		isomp->im_l2d = NULL;
