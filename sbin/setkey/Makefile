@@ -29,7 +29,7 @@
 PROG=	setkey
 SRCS=	setkey.c parse.y token.l
 CFLAGS+=-g
-CFLAGS+=-I${.CURDIR}/../../lib/libipsec
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libipsec
 DPADD=	${LIBL} ${LIBY}
 LDADD=	-ll -ly
 CLEANFILES+=	y.tab.c y.tab.h key_test.o keytest

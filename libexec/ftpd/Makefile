@@ -7,6 +7,7 @@ SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c skey-stuff.c
 
 CFLAGS+=-DSETPROCTITLE -DSKEY -DLOGIN_CAP -DVIRTUAL_HOSTING -Wall
 CFLAGS+=-DINET6
+CFLAGS+=-I${.CURDIR}
 YFLAGS=
 
 LDADD=	-lskey -lmd -lcrypt -lutil

@@ -11,6 +11,7 @@ SRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c commands.l
 MAN8=	nslookup.8
 
 CFLAGS+=-D_PATH_HELPFILE=\"${DESTHELP}/nslookup.help\"
+CFLAGS+=-I${.CURDIR}/../../contrib/bind/bin/nslookup
 LDADD+=	-ll -ledit -ltermcap
 DPADD+=	${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 

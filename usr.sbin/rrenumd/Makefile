@@ -17,7 +17,7 @@ PROG=	rrenumd
 SRCS=	rrenumd.c  parser.y lexer.l
 YFLAGS+=	-d
 
-CFLAGS+= -DINET6 -DIPSEC -I${.OBJDIR}
+CFLAGS+= -DINET6 -DIPSEC -I${.CURDIR} -I${.OBJDIR}
 LDADD=	-lipsec -lcompat -ll -ly
 DPADD=	${LIBIPSEC} ${LIBCOMPAT} ${LIBL} ${LIBY}
 
