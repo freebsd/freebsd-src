@@ -487,6 +487,7 @@
 #define	USB_PRODUCT_EPSON_636	0x0101		/* Perfection 636U / 636Photo scanner */
 #define	USB_PRODUCT_EPSON_610	0x0103		/* Perfection 610 scanner */
 #define	USB_PRODUCT_EPSON_1200	0x0104		/* Perfection 1200U / 1200Photo scanner */
+#define	USB_PRODUCT_EPSON_1240	0x010b		/* Perfection 1240U / 1240Photo scanner */
 #define	USB_PRODUCT_EPSON_1600	0x0107		/* Expression 1600 scanner */
 #define	USB_PRODUCT_EPSON_1640	0x010a		/* Perfection 1640SU scanner */
 

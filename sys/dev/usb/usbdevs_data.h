@@ -598,6 +598,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Perfection 1200U / 1200Photo scanner",
 	},
 	{
+	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1240,
+	    0,
+	    "Seiko Epson Corp.",
+	    "Perfection 1240U / 1240Photo scanner",
+	},
+	{
 	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1600,
 	    0,
 	    "Seiko Epson Corp.",
