@@ -120,6 +120,7 @@ SUBDIR=	apply \
 	pagesize \
 	passwd \
 	paste \
+	pathchk \
 	pr \
 	printenv \
 	printf \
