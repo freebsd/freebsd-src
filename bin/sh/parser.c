@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.13 1996/09/03 14:15:57 peter Exp $
+ *	$Id$
  */
 
 #ifndef lint
@@ -1141,6 +1141,7 @@ parsesub: {
 #ifndef GDB_HACK
 	static const char types[] = "}-+?=";
 #endif
+       int bracketed_name = 0; /* used to handle ${[0-9]*} variables */
 
 	c = pgetc();
 	if (c != '(' && c != '{' && !is_name(c) && !is_special(c)) {
@@ -1159,6 +1160,7 @@ parsesub: {
 		USTPUTC(VSNORMAL, out);
 		subtype = VSNORMAL;
 		if (c == '{') {
+			bracketed_name = 1;
 			c = pgetc();
 			if (c == '#') {
 				if ((c = pgetc()) == '}')
@@ -1174,6 +1176,16 @@ parsesub: {
 				STPUTC(c, out);
 				c = pgetc();
 			} while (is_in_name(c));
+		} else if (is_digit(c)) {
+			if (bracketed_name) {
+				do {
+					STPUTC(c, out);
+					c = pgetc();
+				} while (is_digit(c));
+			} else {
+				STPUTC(c, out);
+				c = pgetc();
+			}
 		} else {
 			if (! is_special(c))
 badsub:				synerror("Bad substitution");
