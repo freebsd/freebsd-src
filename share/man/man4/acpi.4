@@ -294,8 +294,32 @@ and
 utilities from the
 .Pa devel/acpicatools
 port, and some ACPI knowledge.
+.Sh TUNABLES
+.Bl -tag -width children
+.It Li acpi_dsdt_load
+Enables loading of a custom acpi DSDT.
+.It Li acpi_dsdt_name
+Name of the DSTS table to load, if loading is enabled.
+.It Li debug.acpi.disable
+Selectively disables portions of ACPI for debugging purposes.
+.It Li hint.acpi.0.disabled
+Disables all of ACPI
+.It Li hw.acpi.cpu.performance_speed
+Sets the speed of the CPU, if it supports multiple speeds, while in
+the performance power profile.
+.It Li hw.acpi.cpu.economy_speed
+Sets the speed of the CPU, if it supports multiple speeds, while in
+the economy power profile.
+.It Li hw.acpi.ec.event_driven
+Enables or disables the event driven model for the embedded controller
+driver.
+.It Li hw.acpi.pci.link.%d.%d.%d.irq
+Override the interrupt to use.
+.It Li hw.acpi.verbose
+Turn on verbose debugging information about what ACPI is doing.
+.El
 .Sh COMPATIBILITY
-ACPI is only found/supported on Intel platforms (i386/IA32 and IA64).
+ACPI is only found/supported on i386/ia32, ia64 and amd64.
 .Sh SEE ALSO
 .Xr loader.conf 5 ,
 .Xr acpiconf 8 ,
