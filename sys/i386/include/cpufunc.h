@@ -61,7 +61,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *	$Id: cpufunc.h,v 1.26 1994/09/25 20:03:41 davidg Exp $
+ *	$Id: cpufunc.h,v 1.27 1994/09/25 21:31:55 davidg Exp $
  */
 
 
@@ -77,6 +77,8 @@
 #include <sys/types.h>
 
 #include <machine/spl.h>
+
+extern u_int atdevbase;       /* offset in virtual memory of ISA io mem */
 
 #ifdef	__GNUC__
 
