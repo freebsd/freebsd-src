@@ -204,6 +204,12 @@ The
 160-1
 .Pq Dq Tn SHA-1
 message digest of the file.
+.It Cm sha256digest
+The
+.Tn FIPS
+180-2
+.Pq Dq Tn SHA-256
+message digest of the file.
 .It Cm ripemd160digest
 The
 .Tn RIPEMD160
@@ -317,21 +323,21 @@ To detect system binaries that have been ``trojan horsed'', it is recommended
 that
 .Nm
 .Fl K
-.Cm sha1digest
+.Cm sha256digest
 be run on the file systems, and a copy of the results stored on a different
 machine, or, at least, in encrypted form.
 The output file itself should be digested using the
-.Xr md5 1
+.Xr sha256 1
 utility.
 Then, periodically,
 .Nm
 and
-.Xr md5 1
+.Xr sha256 1
 should be run against the on-line specifications.
 While it is possible for the bad guys to change the on-line specifications
 to conform to their modified binaries, it is believed to be
 impractical for them to create a modified specification which has
-the same MD5 digest as the original.
+the same SHA-256 digest as the original.
 .Pp
 The
 .Fl d
@@ -372,6 +378,10 @@ digests were added in
 .Fx 4.0 ,
 as new attacks have demonstrated weaknesses in
 .Tn MD5 .
+The
+.Tn SHA-256
+digest was added in
+.Fx 6.0 .
 Support for file flags was added in
 .Fx 4.0 ,
 and mostly comes from

@@ -72,6 +72,9 @@ static KEY keylist[] = {
 #ifdef SHA1
 	{"sha1digest",	F_SHA1,		NEEDVALUE},
 #endif
+#ifdef SHA256
+	{"sha256digest",	F_SHA256,		NEEDVALUE},
+#endif
 	{"size",	F_SIZE,		NEEDVALUE},
 	{"time",	F_TIME,		NEEDVALUE},
 	{"type",	F_TYPE,		NEEDVALUE},
