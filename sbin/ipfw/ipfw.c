@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.2 1997/02/22 20:12:46 joerg Exp $
+ * $Id: ipfw.c,v 1.34.2.3 1997/03/05 12:30:08 bde Exp $
  *
  */
 
@@ -32,18 +32,22 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 
-int 	lineno = -1;
-char 		progname[BUFSIZ];		/* Program name for errors */
+int 		lineno = -1;
 
 int 		s;				/* main RAW socket 	   */
 int 		do_resolv=0;			/* Would try to resolv all */
@@ -52,9 +56,33 @@ int		do_time=0;			/* Show time stamps        */
 int		do_quiet=0;			/* Be quiet in add and flush  */
 int		do_force=0;			/* Don't ask for confirmation */
 
-int
-mask_bits(m_ad)
-	struct in_addr m_ad;
+struct icmpcode {
+	int	code;
+	char	*str;
+};
+
+static struct icmpcode icmpcodes[] = {
+      { ICMP_UNREACH_NET,		"net" },
+      { ICMP_UNREACH_HOST,		"host" },
+      { ICMP_UNREACH_PROTOCOL,		"protocol" },
+      { ICMP_UNREACH_PORT,		"port" },
+      { ICMP_UNREACH_NEEDFRAG,		"needfrag" },
+      { ICMP_UNREACH_SRCFAIL,		"srcfail" },
+      { ICMP_UNREACH_NET_UNKNOWN,	"net-unknown" },
+      { ICMP_UNREACH_HOST_UNKNOWN,	"host-unknown" },
+      { ICMP_UNREACH_ISOLATED,		"isolated" },
+      { ICMP_UNREACH_NET_PROHIB,	"net-prohib" },
+      { ICMP_UNREACH_HOST_PROHIB,	"host-prohib" },
+      { ICMP_UNREACH_TOSNET,		"tosnet" },
+      { ICMP_UNREACH_TOSHOST,		"toshost" },
+      { ICMP_UNREACH_FILTER_PROHIB,	"filter-prohib" },
+      { ICMP_UNREACH_HOST_PRECEDENCE,	"host-precedence" },
+      { ICMP_UNREACH_PRECEDENCE_CUTOFF,	"precedence-cutoff" },
+      { 0, NULL }
+};
+
+static int
+mask_bits(struct in_addr m_ad)
 {
 	int h_fnd=0,h_num=0,i;
 	u_long mask;
@@ -101,15 +129,47 @@ print_port(prot, port, comma)
 		printf("%s%d",comma,port);
 }
 
-void
-show_ipfw(chain)
-	struct ip_fw *chain;
+static void
+print_iface(char *key, union ip_fw_if *un, int byname)
+{
+	char ifnb[FW_IFNLEN+1];
+
+	if (byname) {
+		strncpy(ifnb, un->fu_via_if.name, FW_IFNLEN);
+		ifnb[FW_IFNLEN]='\0';
+		if (un->fu_via_if.unit == -1)
+			printf(" %s %s*", key, ifnb);
+		else 
+			printf(" %s %s%d", key, ifnb, un->fu_via_if.unit);
+	} else if (un->fu_via_ip.s_addr != 0) {
+		printf(" %s %s", key, inet_ntoa(un->fu_via_ip));
+	} else
+		printf(" %s any", key);
+}
+
+static void
+print_reject_code(int code)
+{
+	struct icmpcode *ic;
+
+	for (ic = icmpcodes; ic->str; ic++)
+		if (ic->code == code) {
+			printf("%s", ic->str);
+			return;
+		}
+	printf("%u", code);
+}
+
+static void
+show_ipfw(struct ip_fw *chain)
 {
 	char *comma;
 	u_long adrt;
 	struct hostent *he;
 	struct protoent *pe;
 	int i, mb;
+	int nsp = IP_FW_GETNSRCP(chain);
+	int ndp = IP_FW_GETNDSTP(chain);
 
 	if (do_resolv)
 		setservent(1/*stayopen*/);
@@ -138,17 +198,28 @@ show_ipfw(chain)
 		case IP_FW_F_ACCEPT:
 			printf("allow");
 			break;
-		case IP_FW_F_DIVERT:
-			printf("divert %u", chain->fw_divert_port);
+		case IP_FW_F_DENY:
+			printf("deny");
 			break;
 		case IP_FW_F_COUNT:
 			printf("count");
 			break;
-		case IP_FW_F_DENY:
-			if (chain->fw_flg & IP_FW_F_ICMPRPL)
-				printf("reject");
-			else
-				printf("deny");
+		case IP_FW_F_DIVERT:
+			printf("divert %u", chain->fw_divert_port);
+			break;
+		case IP_FW_F_TEE:
+			printf("tee %u", chain->fw_divert_port);
+			break;
+		case IP_FW_F_SKIPTO:
+			printf("skipto %u", chain->fw_skipto_rule);
+			break;
+		case IP_FW_F_REJECT:
+			if (chain->fw_reject_code == IP_FW_REJECT_RST)
+				printf("reset");
+			else {
+				printf("unreach ");
+				print_reject_code(chain->fw_reject_code);
+			}
 			break;
 		default:
 			errx(1, "impossible");
@@ -161,7 +232,7 @@ show_ipfw(chain)
 	if (pe)
 		printf(" %s", pe->p_name);
 	else
-		printf("%u", chain->fw_prot);
+		printf(" %u", chain->fw_prot);
 
 	printf(" from %s", chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
 
@@ -192,9 +263,9 @@ show_ipfw(chain)
 			printf(inet_ntoa(chain->fw_src));
 	}
 
-	if (chain->fw_prot != IPPROTO_IP) {
+	if (chain->fw_prot == IPPROTO_TCP || chain->fw_prot == IPPROTO_UDP) {
 		comma = " ";
-		for (i=0;i<chain->fw_nsp; i++ ) {
+		for (i = 0; i < nsp; i++) {
 			print_port(chain->fw_prot, chain->fw_pts[i], comma);
 			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
 				comma = "-";
@@ -232,35 +303,36 @@ show_ipfw(chain)
 			printf(inet_ntoa(chain->fw_dst));
 	}
 
-	comma = " ";
-	for (i=0;i<chain->fw_ndp;i++) {
-		print_port(chain->fw_prot, chain->fw_pts[chain->fw_nsp+i],
-			   comma);
-		if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
-			comma = "-";
-		else
-		    comma = ",";
-	    }
+	if (chain->fw_prot == IPPROTO_TCP || chain->fw_prot == IPPROTO_UDP) {
+		comma = " ";
+		for (i = 0; i < ndp; i++) {
+			print_port(chain->fw_prot, chain->fw_pts[nsp+i], comma);
+			if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
+				comma = "-";
+			else
+				comma = ",";
+		}
+	}
 
-	if ((chain->fw_flg & IP_FW_F_IN) && (chain->fw_flg & IP_FW_F_OUT))
-		; 
-	else if (chain->fw_flg & IP_FW_F_IN)
+	/* Direction */
+	if ((chain->fw_flg & IP_FW_F_IN) && !(chain->fw_flg & IP_FW_F_OUT))
 		printf(" in");
-	else if (chain->fw_flg & IP_FW_F_OUT)
+	if (!(chain->fw_flg & IP_FW_F_IN) && (chain->fw_flg & IP_FW_F_OUT))
 		printf(" out");
 
-	if (chain->fw_flg&IP_FW_F_IFNAME && chain->fw_via_name[0]) {
-		char ifnb[FW_IFNLEN+1];
-		printf(" via ");
-		strncpy(ifnb,chain->fw_via_name,FW_IFNLEN);
-		ifnb[FW_IFNLEN]='\0';
-		if (chain->fw_flg & IP_FW_F_IFUWILD)
-			printf("%s*",ifnb);
-		else 
-			printf("%s%d",ifnb,chain->fw_via_unit);
-	} else if (chain->fw_via_ip.s_addr) {
-		printf(" via ");
-		printf(inet_ntoa(chain->fw_via_ip));
+	/* Handle hack for "via" backwards compatibility */
+	if ((chain->fw_flg & IF_FW_F_VIAHACK) == IF_FW_F_VIAHACK) {
+		print_iface("via",
+		    &chain->fw_in_if, chain->fw_flg & IP_FW_F_IIFNAME);
+	} else {
+		/* Receive interface specified */
+		if (chain->fw_flg & IP_FW_F_IIFACE)
+			print_iface("recv", &chain->fw_in_if,
+			    chain->fw_flg & IP_FW_F_IIFNAME);
+		/* Transmit interface specified */
+		if (chain->fw_flg & IP_FW_F_OIFACE)
+			print_iface("xmit", &chain->fw_out_if,
+			    chain->fw_flg & IP_FW_F_OIFNAME);
 	}
 
 	if (chain->fw_flg & IP_FW_F_FRAG)
@@ -342,44 +414,46 @@ list(ac, av)
 		show_ipfw(r);
 }
 
-void
-show_usage(str)
-	char	*str;
+static void
+show_usage(const char *fmt, ...)
 {
-	if (str)
-		fprintf(stderr,"%s: ERROR - %s\n",progname,str);
-	fprintf(stderr,
-"Usage:\n"
-"\t%s [options]\n"
-"\t\tflush\n"
-"\t\tadd [number] rule\n"
-"\t\tdelete number\n"
-"\t\tlist [number]\n"
-"\t\tshow [number]\n"
-"\t\tzero [number]\n"
-"\trule:\taction proto src dst extras...\n"
-"\t\taction: {allow|deny|reject|count|divert port} [log]\n"
-"\t\tproto: {ip|tcp|udp|icmp|<number>}}\n"
-"\t\tsrc: from {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
-"\t\tdst: to {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
-"\textras:\n"
-"\t\tfragment\n"
-"\t\t{in|out|inout}\n"
-"\t\tvia {ifname|ip}\n"
-"\t\t{established|setup}\n"
-"\t\ttcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
-"\t\tipoptions [!]{ssrr|lsrr|rr|ts},...\n"
-"\t\ticmptypes {type},...\n"
-"\t\tproto {ipproto},...\n"
-, progname
-);
+	if (fmt) {
+		char buf[100];
+		va_list args;
 
-		
-	fprintf(stderr,"See man %s(8) for proper usage.\n",progname);
-	exit (1);
+		va_start(args, fmt);
+		vsnprintf(buf, sizeof(buf), fmt, args);
+		va_end(args);
+		warnx("error: %s", buf);
+	}
+	fprintf(stderr, "usage: ipfw [options]\n"
+"    flush\n"
+"    add [number] rule\n"
+"    delete number ...\n"
+"    list [number]\n"
+"    show [number]\n"
+"    zero [number ...]\n"
+"  rule:  action proto src dst extras...\n"
+"    action:\n"
+"      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
+"       reset|count|skipto num|divert port|tee port} [log]\n"
+"    proto: {ip|tcp|udp|icmp|<number>}\n"
+"    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
+"    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
+"  extras:\n"
+"    fragment\n"
+"    in\n"
+"    out\n"
+"    {xmit|recv|via} {iface|ip|any}\n"
+"    {established|setup}\n"
+"    tcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
+"    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
+"    icmptypes {type[,type]}...\n");
+
+	exit(1);
 }
 
-int
+static int
 lookup_host (host, ipaddr)
 	char *host;
 	struct in_addr *ipaddr;
@@ -415,22 +489,25 @@ fill_ip(ipno, mask, acp, avp)
 			*p++ = '\0'; 
 		}
 
-		if (lookup_host(*av,ipno) != 0)
-			show_usage("ip number\n");
+		if (lookup_host(*av, ipno) != 0)
+			show_usage("hostname ``%s'' unknown", *av);
 		switch (md) {
 			case ':':
 				if (!inet_aton(p,mask))
-					show_usage("ip number\n");
+					show_usage("bad netmask ``%s''", p);
 				break;
 			case '/':
 				if (atoi(p) == 0) {
 					mask->s_addr = 0;
+				} else if (atoi(p) > 32) {
+					show_usage("bad width ``%s''", p);
 				} else {
-					mask->s_addr = htonl(0xffffffff << (32 - atoi(p)));
+					mask->s_addr =
+					    htonl(~0 << (32 - atoi(p)));
 				}
 				break;
 			default:
-				mask->s_addr = htonl(0xffffffff);
+				mask->s_addr = htonl(~0);
 				break;
 		}
 		ipno->s_addr &= mask->s_addr;
@@ -441,7 +518,27 @@ fill_ip(ipno, mask, acp, avp)
 	*avp = av;
 }
 
-void
+static void
+fill_reject_code(u_short *codep, char *str)
+{
+	struct icmpcode *ic;
+	u_long val;
+	char *s;
+
+	val = strtoul(str, &s, 0);
+	if (s != str && *s == '\0' && val < 0x100) {
+		*codep = val;
+		return;
+	}
+	for (ic = icmpcodes; ic->str; ic++)
+		if (!strcasecmp(str, ic->str)) {
+			*codep = ic->code;
+			return;
+		}
+	show_usage("unknown ICMP unreachable code ``%s''", str);
+}
+
+static void
 add_port(cnt, ptr, off, port)
 	u_short *cnt, *ptr, off, port;
 {
@@ -520,15 +617,13 @@ fill_tcpflag(set, reset, vp)
 				break;
 			}
 		if (i == sizeof(flags) / sizeof(flags[0]))
-			show_usage("invalid tcp flag\n");
+			show_usage("invalid tcp flag ``%s''", p);
 		p = q;
 	}
 }
 
-void
-fill_ipopt(set, reset, vp)
-	u_char *set, *reset;
-	char **vp;
+static void
+fill_ipopt(u_char *set, u_char *reset, char **vp)
 {
 	char *p = *vp,*q;
 	u_char *d;
@@ -593,18 +688,16 @@ delete(ac,av)
 	av++; ac--;
 
 	/* Rule number */
-	if (ac && isdigit(**av)) {
+	while (ac && isdigit(**av)) {
 		rule.fw_number = atoi(*av); av++; ac--;
+		i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
+		if (i)
+			warn("setsockopt(%s)", "IP_FW_DEL");
 	}
-
-	i = setsockopt(s, IPPROTO_IP, IP_FW_DEL, &rule, sizeof rule);
-	if (i)
-		err(1,"setsockopt(IP_FW_DEL)");
 }
 
-int
-verify_interface(rule)
-	struct ip_fw *rule;
+static void
+verify_interface(union ip_fw_if *ifu)
 {
 	struct ifreq ifr;
 
@@ -613,16 +706,42 @@ verify_interface(rule)
 	 *	If a wildcard was specified, check for unit 0.
 	 */
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s%d", 
-			 rule->fw_via_name,
-			 rule->fw_flg & IP_FW_F_IFUWILD ? 0 : rule->fw_via_unit);
+			 ifu->fu_via_if.name,
+			 ifu->fu_via_if.unit == -1 ? 0 : ifu->fu_via_if.unit);
 
 	if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
-		return(-1);	/* interface isn't recognized by the kernel */
-
-	return(0); /* interface exists */
+		warnx("warning: interface ``%s'' does not exist", ifr.ifr_name);
 }
 
-void
+static void
+fill_iface(char *which, union ip_fw_if *ifu, int *byname, int ac, char *arg)
+{
+	if (!ac)
+	    show_usage("missing argument for ``%s''", which);
+
+	/* Parse the interface or address */
+	if (!strcmp(arg, "any")) {
+		ifu->fu_via_ip.s_addr = 0;
+		*byname = 0;
+	} else if (!isdigit(*arg)) {
+		char *q;
+
+		*byname = 1;
+		strncpy(ifu->fu_via_if.name, arg, sizeof(ifu->fu_via_if.name));
+		ifu->fu_via_if.name[sizeof(ifu->fu_via_if.name) - 1] = '\0';
+		for (q = ifu->fu_via_if.name;
+		    *q && !isdigit(*q) && *q != '*'; q++)
+			continue;
+		ifu->fu_via_if.unit = (*q == '*') ? -1 : atoi(q);
+		*q = '\0';
+		verify_interface(ifu);
+	} else if (!inet_aton(arg, &ifu->fu_via_ip)) {
+		show_usage("bad ip address ``%s''", arg);
+	} else
+		*byname = 0;
+}
+
+static void
 add(ac,av)
 	int ac;
 	char **av;
@@ -631,6 +750,7 @@ add(ac,av)
 	int i;
 	u_char proto;
 	struct protoent *pe;
+	int saw_xmrc = 0, saw_via = 0;
 	
 	memset(&rule, 0, sizeof rule);
 
@@ -642,26 +762,48 @@ add(ac,av)
 	}
 
 	/* Action */
-	if (ac && (!strncmp(*av,"accept",strlen(*av))
+	if (ac == 0)
+		show_usage("missing action");
+	if (!strncmp(*av,"accept",strlen(*av))
 		    || !strncmp(*av,"pass",strlen(*av))
 		    || !strncmp(*av,"allow",strlen(*av))
-		    || !strncmp(*av,"permit",strlen(*av)))) {
+		    || !strncmp(*av,"permit",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
-	} else if (ac && !strncmp(*av,"count",strlen(*av))) {
+	} else if (!strncmp(*av,"count",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_COUNT; av++; ac--;
-	} else if (ac && !strncmp(*av,"divert",strlen(*av))) {
+	} else if (!strncmp(*av,"divert",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_DIVERT; av++; ac--;
 		if (!ac)
 			show_usage("missing divert port");
 		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
 		if (rule.fw_divert_port == 0)
 			show_usage("illegal divert port");
-	} else if (ac && (!strncmp(*av,"deny",strlen(*av)))) {
+	} else if (!strncmp(*av,"tee",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_TEE; av++; ac--;
+		if (!ac)
+			show_usage("missing divert port");
+		rule.fw_divert_port = strtoul(*av, NULL, 0); av++; ac--;
+		if (rule.fw_divert_port == 0)
+			show_usage("illegal divert port");
+	} else if (!strncmp(*av,"skipto",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_SKIPTO; av++; ac--;
+		if (!ac)
+			show_usage("missing skipto rule number");
+		rule.fw_skipto_rule = strtoul(*av, NULL, 0); av++; ac--;
+	} else if ((!strncmp(*av,"deny",strlen(*av))
+		    || !strncmp(*av,"drop",strlen(*av)))) {
 		rule.fw_flg |= IP_FW_F_DENY; av++; ac--;
-	} else if (ac && !strncmp(*av,"reject",strlen(*av))) {
-		rule.fw_flg |= IP_FW_F_DENY|IP_FW_F_ICMPRPL; av++; ac--;
+	} else if (!strncmp(*av,"reject",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_REJECT; av++; ac--;
+		rule.fw_reject_code = ICMP_UNREACH_HOST;
+	} else if (!strncmp(*av,"reset",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_REJECT; av++; ac--;
+		rule.fw_reject_code = IP_FW_REJECT_RST;	/* check TCP later */
+	} else if (!strncmp(*av,"unreach",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_REJECT; av++; ac--;
+		fill_reject_code(&rule.fw_reject_code, *av); av++; ac--;
 	} else {
-		show_usage("missing/unrecognized action\n");
+		show_usage("invalid action ``%s''", *av);
 	}
 
 	/* [log] */
@@ -670,103 +812,142 @@ add(ac,av)
 	}
 
 	/* protocol */
-	if (ac) {
-		if ((proto = atoi(*av)) > 0) {
-			rule.fw_prot = proto; av++; ac--;
-		} else if (!strncmp(*av,"all",strlen(*av))) {
-			rule.fw_prot = IPPROTO_IP; av++; ac--;
-		} else if ((pe = getprotobyname(*av)) != NULL) {
-			rule.fw_prot = pe->p_proto; av++; ac--;
-		} else {
-			show_usage("invalid protocol\n");
-		}
-	} else
-		show_usage("missing protocol\n");
+	if (ac == 0)
+		show_usage("missing protocol");
+	if ((proto = atoi(*av)) > 0) {
+		rule.fw_prot = proto; av++; ac--;
+	} else if (!strncmp(*av,"all",strlen(*av))) {
+		rule.fw_prot = IPPROTO_IP; av++; ac--;
+	} else if ((pe = getprotobyname(*av)) != NULL) {
+		rule.fw_prot = pe->p_proto; av++; ac--;
+	} else {
+		show_usage("invalid protocol ``%s''", *av);
+	}
+
+	if (rule.fw_prot != IPPROTO_TCP
+	    && (rule.fw_flg & IP_FW_F_COMMAND) == IP_FW_F_REJECT
+	    && rule.fw_reject_code == IP_FW_REJECT_RST)
+		show_usage("``reset'' is only valid for tcp packets");
 
 	/* from */
 	if (ac && !strncmp(*av,"from",strlen(*av))) { av++; ac--; }
-	else show_usage("missing ``from''\n");
+	else
+		show_usage("missing ``from''");
 
 	if (ac && !strncmp(*av,"not",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_INVSRC;
 		av++; ac--;
 	}
-	if (!ac) show_usage("Missing arguments\n");
+	if (!ac)
+		show_usage("missing arguments");
 
 	fill_ip(&rule.fw_src, &rule.fw_smsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_nsp, &rule.fw_pts, 0, *av, 0))
+		u_short nports = 0;
+
+		if (fill_port(&nports, rule.fw_pts, 0, *av))
 			rule.fw_flg |= IP_FW_F_SRNG;
+		IP_FW_SETNSRCP(&rule, nports);
 		av++; ac--;
 	}
 
 	/* to */
 	if (ac && !strncmp(*av,"to",strlen(*av))) { av++; ac--; }
-	else show_usage("missing ``to''\n");
+	else
+		show_usage("missing ``to''");
 
 	if (ac && !strncmp(*av,"not",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_INVDST;
 		av++; ac--;
 	}
-	if (!ac) show_usage("Missing arguments\n");
+	if (!ac)
+		show_usage("missing arguments");
 
 	fill_ip(&rule.fw_dst, &rule.fw_dmsk, &ac, &av);
 
 	if (ac && isdigit(**av)) {
-		if (fill_port(&rule.fw_ndp, &rule.fw_pts, rule.fw_nsp, *av, 0))
+		u_short	nports = 0;
+
+		if (fill_port(&nports,
+		    rule.fw_pts, IP_FW_GETNSRCP(&rule), *av))
 			rule.fw_flg |= IP_FW_F_DRNG;
+		IP_FW_SETNDSTP(&rule, nports);
 		av++; ac--;
 	}
 
-	if ((rule.fw_prot != IPPROTO_TCP) &&
-	    (rule.fw_prot != IPPROTO_UDP) &&
-	    (rule.fw_nsp || rule.fw_ndp)) {
-		show_usage("only TCP and UDP protocols are valid with port specifications");
+	if ((rule.fw_prot != IPPROTO_TCP) && (rule.fw_prot != IPPROTO_UDP)
+	    && (IP_FW_GETNSRCP(&rule) || IP_FW_GETNDSTP(&rule))) {
+		show_usage("only TCP and UDP protocols are valid"
+		    " with port specifications");
 	}
 
 	while (ac) {
-		if (ac && !strncmp(*av,"via",strlen(*av))) {
-			if (rule.fw_via_ip.s_addr || (rule.fw_flg & IP_FW_F_IFNAME)) {
-				show_usage("multiple 'via' options specified");
-			}
-
-			av++; ac--; 
-			if (!ac) {
-				show_usage("'via' option specified with no interface.");
-			}
-			if (!isdigit(**av)) {
-				char *q;
-
-				strncpy(rule.fw_via_name, *av, sizeof(rule.fw_via_name));
-				rule.fw_via_name[sizeof(rule.fw_via_name) - 1] = '\0';
-				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
-					continue;
-				if (*q == '*')
-					rule.fw_flg |= IP_FW_F_IFUWILD;
-				else
-					rule.fw_via_unit = atoi(q);
-				*q = '\0';
-				rule.fw_flg |= IP_FW_F_IFNAME;
-				if (verify_interface(&rule) != 0)
-					fprintf(stderr, "Warning: interface does not exist\n");
-			} else if (inet_aton(*av,&rule.fw_via_ip) == INADDR_NONE) {
-				show_usage("bad IP# after via\n");
-			}
-			av++; ac--; 
-			continue;
-		}
-		if (!strncmp(*av,"fragment",strlen(*av))) { 
-			rule.fw_flg |= IP_FW_F_FRAG; av++; ac--; continue;
-		}
 		if (!strncmp(*av,"in",strlen(*av))) { 
-			rule.fw_flg |= IP_FW_F_IN; av++; ac--; continue;
+			rule.fw_flg |= IP_FW_F_IN;
+			av++; ac--; continue;
 		}
 		if (!strncmp(*av,"out",strlen(*av))) { 
-			rule.fw_flg |= IP_FW_F_OUT; av++; ac--; continue;
+			rule.fw_flg |= IP_FW_F_OUT;
+			av++; ac--; continue;
 		}
-		if (ac > 1 && !strncmp(*av,"ipoptions",strlen(*av))) { 
+		if (ac && !strncmp(*av,"xmit",strlen(*av))) {
+			union ip_fw_if ifu;
+			int byname;
+
+			if (saw_via) {
+badviacombo:
+				show_usage("``via'' is incompatible"
+				    " with ``xmit'' and ``recv''");
+			}
+			saw_xmrc = 1;
 			av++; ac--; 
+			fill_iface("xmit", &ifu, &byname, ac, *av);
+			rule.fw_out_if = ifu;
+			rule.fw_flg |= IP_FW_F_OIFACE;
+			if (byname)
+				rule.fw_flg |= IP_FW_F_OIFNAME;
+			av++; ac--; continue;
+		}
+		if (ac && !strncmp(*av,"recv",strlen(*av))) {
+			union ip_fw_if ifu;
+			int byname;
+
+			if (saw_via)
+				goto badviacombo;
+			saw_xmrc = 1;
+			av++; ac--; 
+			fill_iface("recv", &ifu, &byname, ac, *av);
+			rule.fw_in_if = ifu;
+			rule.fw_flg |= IP_FW_F_IIFACE;
+			if (byname)
+				rule.fw_flg |= IP_FW_F_IIFNAME;
+			av++; ac--; continue;
+		}
+		if (ac && !strncmp(*av,"via",strlen(*av))) {
+			union ip_fw_if ifu;
+			int byname = 0;
+
+			if (saw_xmrc)
+				goto badviacombo;
+			saw_via = 1;
+			av++; ac--; 
+			fill_iface("via", &ifu, &byname, ac, *av);
+			rule.fw_out_if = rule.fw_in_if = ifu;
+			if (byname)
+				rule.fw_flg |=
+				    (IP_FW_F_IIFNAME | IP_FW_F_OIFNAME);
+			av++; ac--; continue;
+		}
+		if (!strncmp(*av,"fragment",strlen(*av))) {
+			rule.fw_flg |= IP_FW_F_FRAG;
+			av++; ac--; continue;
+		}
+		if (!strncmp(*av,"ipoptions",strlen(*av))) { 
+			av++; ac--; 
+			if (!ac)
+				show_usage("missing argument"
+				    " for ``ipoptions''");
 			fill_ipopt(&rule.fw_ipopt, &rule.fw_ipnopt, av);
 			av++; ac--; continue;
 		}
@@ -780,31 +961,50 @@ add(ac,av)
 				rule.fw_tcpnf  |= IP_FW_TCPF_ACK;
 				av++; ac--; continue;
 			}
-			if (ac > 1 && !strncmp(*av,"tcpflags",strlen(*av))) { 
+			if (!strncmp(*av,"tcpflags",strlen(*av))) { 
 				av++; ac--; 
+				if (!ac)
+					show_usage("missing argument"
+					    " for ``tcpflags''");
 				fill_tcpflag(&rule.fw_tcpf, &rule.fw_tcpnf, av);
 				av++; ac--; continue;
 			}
 		}
 		if (rule.fw_prot == IPPROTO_ICMP) {
-			if (ac > 1 && !strncmp(*av,"icmptypes",strlen(*av))) {
+			if (!strncmp(*av,"icmptypes",strlen(*av))) {
 				av++; ac--;
-				fill_icmptypes(rule.fw_icmptypes, av, &rule.fw_flg);
+				if (!ac)
+					show_usage("missing argument"
+					    " for ``icmptypes''");
+				fill_icmptypes(rule.fw_icmptypes,
+				    av, &rule.fw_flg);
 				av++; ac--; continue;
 			}
 		}
-		printf("%d %s\n",ac,*av);
-		show_usage("Unknown argument\n");
+		show_usage("unknown argument ``%s''", *av);
 	}
+
+	/* No direction specified -> do both directions */
+	if (!(rule.fw_flg & (IP_FW_F_OUT|IP_FW_F_IN)))
+		rule.fw_flg |= (IP_FW_F_OUT|IP_FW_F_IN);
+
+	/* Sanity check interface check, but handle "via" case separately */
+	if (saw_via) {
+		if (rule.fw_flg & IP_FW_F_IN)
+			rule.fw_flg |= IP_FW_F_IIFACE;
+		if (rule.fw_flg & IP_FW_F_OUT)
+			rule.fw_flg |= IP_FW_F_OIFACE;
+	} else if ((rule.fw_flg & IP_FW_F_OIFACE) && (rule.fw_flg & IP_FW_F_IN))
+		show_usage("can't check xmit interface of incoming packets");
 
 	if (!do_quiet)
 		show_ipfw(&rule);
 	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
 	if (i)
-		err(1,"setsockopt(IP_FW_ADD)");
+		err(1, "setsockopt(%s)", "IP_FW_ADD");
 }
 
-void
+static void
 zero (ac, av)
 	int ac;
 	char **av;
@@ -813,28 +1013,26 @@ zero (ac, av)
 
 	if (!ac) {
 		/* clear all entries */
-		if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} 
+		if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0)
+			err(1, "setsockopt(%s)", "IP_FW_ZERO");
 		if (!do_quiet)
 			printf("Accounting cleared.\n");
 	} else {
-		/* clear a specific entry */
 		struct ip_fw rule;
 
 		memset(&rule, 0, sizeof rule);
-
-		/* Rule number */
-		if (isdigit(**av)) {
-			rule.fw_number = atoi(*av); av++; ac--;
-
-			if (setsockopt(s, IPPROTO_IP, IP_FW_ZERO, &rule, sizeof rule))
-				err(1, "setsockopt(Zero)");
-			printf("Entry %d cleared\n", rule.fw_number);
-		}
-		else {
-			show_usage("expected number");
+		while (ac) {
+			/* Rule number */
+			if (isdigit(**av)) {
+				rule.fw_number = atoi(*av); av++; ac--;
+				if (setsockopt(s, IPPROTO_IP,
+				    IP_FW_ZERO, &rule, sizeof rule))
+					warn("setsockopt(%s)", "IP_FW_ZERO");
+				else
+					printf("Entry %d cleared\n",
+					    rule.fw_number);
+			} else
+				show_usage("invalid rule number ``%s''", *av);
 		}
 	}
 }
@@ -856,7 +1054,7 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	while ((ch = getopt(ac, av ,"afqtN")) != EOF)
+	while ((ch = getopt(ac, av ,"afqtN")) != -1)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
@@ -874,7 +1072,7 @@ ipfw_main(ac,av)
 	 		do_resolv=1;
 			break;
 		default:
-			show_usage("Unrecognised switch");
+			show_usage(NULL);
 	}
 
 	ac -= optind;
@@ -908,10 +1106,8 @@ ipfw_main(ac,av)
 				do_flush = 1;
 		}
 		if ( do_flush ) {
-			if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0)<0) {
-				fprintf(stderr,"%s: setsockopt failed.\n",progname);
-				exit(1);
-			}
+			if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0) < 0)
+				err(1, "setsockopt(%s)", "IP_FW_FLUSH");
 			if (!do_quiet)
 				printf("Flushed all rules.\n");
 		}
@@ -936,47 +1132,34 @@ main(ac, av)
 	char	**av;
 {
 #define MAX_ARGS	32
+#define WHITESP		" \t\f\v\n\r"
 	char	buf[BUFSIZ];
-	char	*args[MAX_ARGS];
+	char	*a, *args[MAX_ARGS];
 	char	linename[10];
 	int 	i;
 	FILE	*f;
 
-	strncpy(progname,*av, sizeof(progname));
-	progname[sizeof(progname) - 1] = '\0';
-
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
-	if ( s < 0 ) {
-		fprintf(stderr,"%s: Can't open raw socket.\n"
-			"Must be root to use this program.\n",progname);
-		exit(1);
-	}
+	if ( s < 0 )
+		err(1, "socket");
 
 	setbuf(stdout,0);
 
 	if (av[1] && !access(av[1], R_OK)) {
 		lineno = 0;
-		f = fopen(av[1], "r");
+		if ((f = fopen(av[1], "r")) == NULL)
+			err(1, "fopen: %s", av[1]);
 		while (fgets(buf, BUFSIZ, f)) {
-			if (buf[strlen(buf)-1]=='\n')
-				buf[strlen(buf)-1] = 0;
 
 			lineno++;
 			sprintf(linename, "Line %d", lineno);
 			args[0] = linename;
 
-			args[1] = buf;
-			while(*args[1] == ' ')
-				args[1]++;
-			i = 2;
-			while((args[i] = strchr(args[i-1],' '))) {
-				*(args[i]++) = 0;
-				while(*args[i] == ' ')
-					args[i]++;
-				i++;
-			}
-			if (*args[i-1] == 0)
-				i--;
+			for (i = 1, a = strtok(buf, WHITESP);
+			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
+				args[i] = a;
+			if (i == MAX_ARGS)
+				errx(1, "%s: too many arguments", linename);
 			args[i] = NULL;
 
 			ipfw_main(i, args); 
