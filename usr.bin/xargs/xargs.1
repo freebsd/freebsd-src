@@ -200,7 +200,7 @@ causes the command to be executed, any other response causes it to be
 skipped.
 .It Fl R Ar replacements
 This option specifies the maximum number of arguments that 
-.Op I
+.Fl I
 will do replacement in.
 .It Fl s Ar size
 Set the maximum number of bytes for the command line length provided to
@@ -272,9 +272,11 @@ utility is expected to be
 compliant.
 The
 .Fl J
-option is a non-standard
+and
+.Fl R
+options are non-standard
 .Fx
-extension which may not be available on other operating systems.
+extensions which may not be available on other operating systems.
 .Sh BUGS
 If
 .Ar utility
