@@ -1,0 +1,20 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$weekly_status_pkg_enable" in
+    [Yy][Ee][Ss])
+	echo ""
+	echo "Check for out of date packages:"
+
+	pkg_version -v | sed -n 's/^\([^ ]*\)  *<  */  \1 /p';;
+esac
