@@ -528,6 +528,9 @@ mac_check_structmac_consistent(struct mac *mac)
 	return (0);
 }
 
+/*
+ * MPSAFE
+ */
 int
 __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 {
@@ -717,7 +720,6 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	mtx_lock(&Giant);				/* VFS */
 	error = fget(td, uap->fd, &fp);
 	if (error)
 		goto out;
@@ -727,55 +729,38 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
 		vp = fp->f_vnode;
-
 		intlabel = mac_vnode_label_alloc();
-
+		mtx_lock(&Giant);				/* VFS */
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		mac_copy_vnode_label(vp->v_label, intlabel);
 		VOP_UNLOCK(vp, 0, td);
-
+		mtx_unlock(&Giant);				/* VFS */
+		error = mac_externalize_vnode_label(intlabel, elements,
+		    buffer, mac.m_buflen);
+		mac_vnode_label_free(intlabel);
 		break;
+
 	case DTYPE_PIPE:
 		pipe = fp->f_data;
-
 		intlabel = mac_pipe_label_alloc();
-
 		PIPE_LOCK(pipe);
 		mac_copy_pipe_label(pipe->pipe_label, intlabel);
 		PIPE_UNLOCK(pipe);
-		break;
-	default:
-		error = EINVAL;
-		fdrop(fp, td);
-		goto out;
-	}
-	fdrop(fp, td);
-
-	switch (label_type) {
-	case DTYPE_FIFO:
-	case DTYPE_VNODE:
-		if (error == 0)
-			error = mac_externalize_vnode_label(intlabel,
-			    elements, buffer, mac.m_buflen);
-		mac_vnode_label_free(intlabel);
-		break;
-	case DTYPE_PIPE:
 		error = mac_externalize_pipe_label(intlabel, elements,
 		    buffer, mac.m_buflen);
 		mac_pipe_label_free(intlabel);
 		break;
-	default:
-		panic("__mac_get_fd: corrupted label_type");
-	}
 
+	default:
+		error = EINVAL;
+	}
+	fdrop(fp, td);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
 
 out:
-	mtx_unlock(&Giant);				/* VFS */
 	free(buffer, M_MACTEMP);
 	free(elements, M_MACTEMP);
-
 	return (error);
 }
 
@@ -918,8 +903,6 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		return (error);
 	}
 
-	mtx_lock(&Giant);				/* VFS */
-
 	error = fget(td, uap->fd, &fp);
 	if (error)
 		goto out;
@@ -933,19 +916,19 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			mac_vnode_label_free(intlabel);
 			break;
 		}
-
 		vp = fp->f_vnode;
+		mtx_lock(&Giant);				/* VFS */
 		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 		if (error != 0) {
+			mtx_unlock(&Giant);			/* VFS */
 			mac_vnode_label_free(intlabel);
 			break;
 		}
-
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = vn_setlabel(vp, intlabel, td->td_ucred);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
-
+		mtx_unlock(&Giant);				/* VFS */
 		mac_vnode_label_free(intlabel);
 		break;
 
@@ -959,20 +942,15 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			    intlabel);
 			PIPE_UNLOCK(pipe);
 		}
-
 		mac_pipe_label_free(intlabel);
 		break;
 
 	default:
 		error = EINVAL;
 	}
-
 	fdrop(fp, td);
 out:
-	mtx_unlock(&Giant);				/* VFS */
-
 	free(buffer, M_MACTEMP);
-
 	return (error);
 }
 
