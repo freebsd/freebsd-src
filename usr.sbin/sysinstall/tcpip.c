@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: tcpip.c,v 1.1 1995/05/16 02:53:28 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -47,10 +47,11 @@
 #include "dialog.priv.h"
 #include "colors.h"
 #include "rc.h"
+#include "sysinstall.h"
 
 static char		hostname[256], domainname[256],
 			ipaddr[32], netmask[32], gateway[32],
-			dns[32], extras[256];
+			nameserver[32], extras[256], iface[4];
 static int		okbutton, cancelbutton;
 
 #define TCP_DIALOG_Y		0
@@ -59,30 +60,32 @@ static int		okbutton, cancelbutton;
 #define TCP_DIALOG_HEIGHT	LINES - 2
 
 /* The names of the available interfaces, for the list */
-char *iface_names[MAX_INTERFACE];
+char *iface_names[INTERFACE_MAX];
 
 typedef struct _interface {
-    char *name;
+  
+    char netmask[32];
+    char ifconfig_extras[256];
     Device *dev;
 } Interface;
 
 typedef struct _layout {
-    int     y;
-    int     x;
-    int     len;
-    int     maxlen;
-    char    *prompt;
-    char    *help;
-    void    *var;
-    int type;
-    void *obj;
+    int		y;
+    int		x;
+    int		len;
+    int		maxlen;
+    char	*prompt;
+    char	*help;
+    void	*var;
+    int		type;
+    void	*obj;
 } Layout;
 
 static Layout layout[] = {
-{ 2, 2, 25, 255,
+{ 1, 2, 25, 255,
       "Host name:", "The name of your machine on a network, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
-{ 2, 35, 20, 255,
+{ 1, 35, 20, 255,
       "Domain name:",
       "The name of the domain that your machine is in, e.g. bar.com",
       domainname, STRINGOBJ, NULL },
@@ -92,26 +95,26 @@ static Layout layout[] = {
       gateway, STRINGOBJ, NULL },
 { 5, 35, 18, 15,
       "Name server:", "IP address of your local DNS server",
-      dns, STRINGOBJ, NULL },
-{ 8, 2, 10, 6,
+      nameserver, STRINGOBJ, NULL },
+{ 9, 2, 9, 6,
       "Interface:", "One of potentially several network interfaces",
-      ifaces, LISTOBJ, NULL },
-{ 14, 2, 18, 15,
+      iface, LISTOBJ, NULL },
+{ 10, 18, 18, 15,
       "IP Address:",
       "The IP address to be used for your host - use 127.0.0.1 for loopback",
       ipaddr, STRINGOBJ, NULL },
-{ 14, 35, 18, 15,
+{ 10, 37, 18, 15,
       "Netmask:",
       "The netmask for your network, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
-{ 16, 2, 50, 255,
-      "Extra options:",
+{ 14, 18, 37, 255,
+      "Extra options to ifconfig:",
       "Any options to ifconfig you'd like to specify manually",
       extras, STRINGOBJ, NULL },
-{ 18, 2, 0, 0,
+{ 19, 10, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
-{ 18, 15, 0, 0,
+{ 19, 30, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
 { NULL },
@@ -123,9 +126,7 @@ static void
 feepout(char *msg)
 {
     beep();
-    msgConfirm(msg);
-    dialog_clear();
-    refresh();
+    dialog_notify(msg);
 }
 
 static int
@@ -150,7 +151,7 @@ verifySettings(void)
 	feepout("Invalid or missing value for IP address");
     else if (gateway[0] && !verifyIP(gateway))
 	feepout("Invalid gateway IP address specified");
-    else if (dns[0] && !verifyIP(dns))
+    else if (nameserver[0] && !verifyIP(nameserver))
 	feepout("Invalid name server IP address specified");
     else if (netmask[0] < '0' || netmask[0] > '9')
 	feepout("Invalid or missing netmask");
@@ -159,30 +160,48 @@ verifySettings(void)
     return 0;
 }
 
-/* Call this to initialize the TCP dialog */
-void
 /* This is it - how to get TCP setup values */
-void
-tcpOpenDialog(void)
+int
+tcpOpenDialog(char *str)
 {
     WINDOW              *ds_win;
     ComposeObj          *obj = NULL;
     ComposeObj		*first, *last;
     int                 n=0, quit=FALSE, cancel=FALSE, ret,
-    max;
+    			max, n_iface;
     char                *tmp;
+    Device		**devs;
+    char		old_iface[4];
 
     ds_win = newwin(LINES, COLS, 0, 0);
-    if (ds_win == 0) {
+    if (ds_win == 0)
 	msgFatal("Cannot open TCP/IP dialog window!!");
-	exit(1);
+
+    devs = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+    if (!devs) {
+	msgConfirm("Couldn't find any potential network devices!");
+	return 0;
     }
+
+    while (devs[n] != NULL) {
+	iface_names[n] = (devs[n])->name;
+	++n;
+    }
+    n_iface = --n;
+
     draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X,
 	     TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH,
 	     dialog_attr, border_attr);
     wattrset(ds_win, dialog_attr);
     mvwaddstr(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X + 20,
 	      " Network Configuration ");
+    draw_box(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 16,
+	     TCP_DIALOG_HEIGHT - 13, TCP_DIALOG_WIDTH - 21,
+	     dialog_attr, border_attr);
+    wattrset(ds_win, dialog_attr);
+    mvwaddstr(ds_win, TCP_DIALOG_Y + 9, TCP_DIALOG_X + 24,
+	      " Per Interface Configuration ");
+
 
     bzero(ipaddr, sizeof(ipaddr));
     bzero(netmask, sizeof(netmask));
@@ -205,10 +224,11 @@ tcpOpenDialog(void)
 	bzero(gateway, sizeof(gateway));
     tmp = getenv(VAR_NAMESERVER);
     if (tmp)
-	strcpy(dns, tmp);
+	strcpy(nameserver, tmp);
     else
-	bzero(dns, sizeof(dns));
+	bzero(nameserver, sizeof(nameserver));
 
+    n=0;
 #define lt layout[n]
     while (lt.help != NULL) {
 	switch (lt.type) {
@@ -224,13 +244,12 @@ tcpOpenDialog(void)
 	    break;
 
 	case LISTOBJ:
-	    lt.obj = NewListObj(ds_win, lt.prompt, lt.var, "lo0",
-				lt.y + TCP_DIALOG_Y, lt.x + TCP_DIALOG_X,
-				4, 12, 1);
+	    lt.obj = NewListObj(ds_win, lt.prompt, (char **) iface_names,
+				lt.var, lt.y + TCP_DIALOG_Y,
+				lt.x + TCP_DIALOG_X, lt.len, 12, n_iface);
+	    break;
 	default:
-	    printf("Don't support this object yet!\n");
-	    end_dialog();
-	    exit(1);
+	    msgFatal("Don't support this object yet!");
 	}
 	AddObj(&obj, lt.type, (void *) lt.obj);
 	n++;
@@ -245,9 +264,12 @@ tcpOpenDialog(void)
     first = obj;
     while (first->prev)
 	first = first->prev;
-    
+
     n = 0;
-    while (quit != TRUE) {
+    cancelbutton = okbutton = 0;
+    strcpy(old_iface, iface);
+
+    while (!quit) {
 	char help_line[80];
 	int i, len = strlen(lt.help);
 
@@ -261,8 +283,7 @@ tcpOpenDialog(void)
 
 	switch (ret) {
 	case SEL_ESC:
-	    quit=TRUE;
-	    cancel=TRUE;
+	    quit = TRUE, cancel=TRUE;
 	    break;
 
 	case KEY_UP:
@@ -283,17 +304,38 @@ tcpOpenDialog(void)
 	    }
 	    else {
 		obj = first;
-		n=0;
+		n = 0;
 	    }
 	    break;
 
 	case SEL_BUTTON:
-	    if (verifySettings())
-		quit=TRUE;
+	    if (cancelbutton) {
+		cancel = TRUE, quit = TRUE;
+	    }
+	    else {
+		if (verifySettings())
+		    quit = TRUE;
+	    }
 	    break;
 
 	case SEL_CR:
 	case SEL_TAB:
+	    if (strcmp(old_iface, iface)) {
+	      n_iface=0;
+	      while(strcmp(iface, iface_names[n_iface]) &&
+		    iface_names[n_iface])
+		n_iface++;
+	      
+	      if (iface_names[n_iface]) {
+		msgFatal("Erk - run off the end of the list of interfaces!");
+		exit(1);
+	      }
+
+	      strcpy(ipaddr, 
+	      
+	      strcpy(old_iface, iface);
+	    }
+
 	    if (n < max)
 		++n;
 	    else
@@ -318,9 +360,19 @@ tcpOpenDialog(void)
 	    }
 	}
     }
+
+    dialog_clear();
+    refresh();
+
     if (!cancel) {
-	variable_set2("hostname", hostname);
-	variable_set2("domainname", domainname);
-	variable_set2("ip_addr", ipaddr);
-	variable_set2("ip_gateway", gateway);
+	variable_set2(VAR_HOSTNAME, hostname);
+	variable_set2(VAR_DOMAINNAME, domainname);
+	if (gateway[0])
+	    variable_set2(VAR_GATEWAY, gateway);
+	if (nameserver[0])
+	    variable_set2(VAR_NAMESERVER, nameserver);
+	return 1;
+    }
+
+    return 0;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.15 1995/05/10 07:45:00 jkh Exp $
+ * $Id: sysinstall.h,v 1.16 1995/05/16 02:53:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,12 +81,13 @@
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
-#define VAR_IPADDR		"ip_addr"
 #define VAR_NAMESERVER		"nameserver"
+#define VAR_GATEWAY		"gateway"
 
+/* per-interface flags */
 #define VAR_IFCONFIG_ARGS	"if_flags"
 #define VAR_NETMASK		"netmask"
-#define VAR_GATEWAY		"gateway"
+#define VAR_IPADDR		"ip_addr"
 
 
 /*** Types ***/
@@ -145,12 +146,13 @@ typedef enum {
 /* A "device" from sysinstall's point of view */
 typedef struct _device {
     char name[DEV_NAME_MAX];
+    char *description;
     DeviceType type;
     Boolean enabled;
-    int (*deviceInit)(void);
-    int (*deviceGet)(char *fname);
-    int (*deviceClose)(void);
-    void *devicePrivate;
+    Boolean (*init)(struct _device *);
+    Boolean (*get)(char *fname);
+    void (*close)(struct _device *);
+    void *private;
 } Device;
 
 /* Some internal representations of partitions */
@@ -189,7 +191,6 @@ extern unsigned int	SrcDists; /* Which src distributions we want    */
 extern unsigned int	XF86Dists;/* Which XFree86 dists we want	*/
 extern unsigned int	XF86ServerDists; /* The XFree86 servers we want */
 extern unsigned int	XF86FontDists; /* The XFree86 fonts we want     */
-extern Device		*Devices[]; /* The devices we have to work with	*/
 
 /*** Prototypes ***/
 
@@ -207,10 +208,11 @@ extern Boolean	decode_and_dispatch_multiple(DMenu *menu, char *names);
 
 /* devices.c */
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
-extern Device	*deviceGetInfo(DeviceType which);
+extern void	deviceGetAll(void);
+extern Device	**deviceFind(char *name, DeviceType type);
 
 /* disks.c */
-extern int	diskPartitionEditor(Disk *disk);
+extern int	diskPartitionEditor(char *unused);
 
 /* dist.c */
 extern int	distSetDeveloper(char *str);
@@ -231,9 +233,7 @@ extern void	dmenuOpenSimple(DMenu *menu);
 extern void	globalsInit(void);
 
 /* install.c */
-extern int	installCustom(char *str);
-extern int	installExpress(char *str);
-extern int	installMaint(char *str);
+extern int	installCommit(char *str);
 
 /* lang.c */
 extern void	lang_set_Danish(char *str);
@@ -271,6 +271,22 @@ extern int	mediaSetDOS(char *str);
 extern int	mediaSetTape(char *str);
 extern int	mediaSetFTP(char *str);
 extern int	mediaSetFS(char *str);
+extern FILE	*mediaOpen(char *parent, char *me);
+extern Boolean	mediaGetType(void);
+extern Boolean	mediaExtractDist(FILE *fp);
+extern Boolean	mediaVerify(void);
+extern Boolean	mediaInitUFS(Device *dev);
+extern Boolean	mediaGetUFS(char *dist);
+extern Boolean	mediaInitCDROM(Device *dev);
+extern Boolean	mediaGetCDROM(char *dist);
+extern Boolean	mediaInitTape(Device *dev);
+extern Boolean	mediaGetTape(char *dist);
+extern Boolean	mediaInitNetwork(Device *dev);
+extern Boolean	mediaGetNetwork(char *dist);
+extern void	mediaCloseTape(Device *dev);
+extern void	mediaCloseCDROM(Device *dev);
+extern void	mediaCloseNetwork(Device *dev);
+
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
@@ -285,6 +301,8 @@ extern char	**item_add(char **list, char *item, int *curr, int *max);
 extern char	**item_add_pair(char **list, char *item1, char *item2,
 				int *curr, int *max);
 extern void	items_free(char **list, int *curr, int *max);
+extern int	Mkdir(char *, void *data);
+extern int	Mount(char *, void *data);
 
 /* msg.c */
 extern void	msgInfo(char *fmt, ...);
@@ -312,6 +330,9 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
 				     char *mono, const u_char m_termcap[]);
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
+
+/* tcpip.c */
+extern int	tcpOpenDialog(char *);
 
 /* termcap.c */
 extern int	set_termcap(void);

@@ -11,7 +11,8 @@ SRCS=	globals.c	main.c		dmenu.c		menus.c	\
 	disks.c		command.c	decode.c	label.c \
 	tcpip.c
 
-CFLAGS += -Wall -g -I${.CURDIR}/../libdisk
+CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
+		-I${.CURDIR}/../../gnu/lib/libdialog
 
 LDADD=  -ldialog -lncurses -lmytinfo
 .if exists(${.CURDIR}/../libdisk/obj)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.17 1995/05/11 09:01:28 jkh Exp $
+ * $Id: label.c,v 1.1 1995/05/16 02:53:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -116,6 +116,7 @@ record_label_chunks()
     int i, j, p;
     struct chunk *c1, *c2;
     Device **devs;
+    Disk *d;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -124,23 +125,31 @@ record_label_chunks()
     }
 
     j = p = 0;
+    /* First buzz through and pick up the FreeBSD slices */
     for (i = 0; devs[i]; i++) {
-	if (!((Disk *)devs[i]->private)->chunks)
-	    msgFatal("No chunk list found for %s!", ((Disk *)devs[i]->private)->name);
+	if (!devs[i]->enabled)
+	    continue;
+	d = (Disk *)devs[i]->private;
+	if (!d->chunks)
+	    msgFatal("No chunk list found for %s!", d->name);
 
-	/* Put the freebsd chunks first */
-	for (c1 = ((Disk *)devs[i]->private)->chunks->part; c1; c1 = c1->next) {
+	/* Put the slice entries first */
+	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		label_chunk_info[j].type = PART_SLICE;
-		label_chunk_info[j].d = ((Disk *)devs[i]->private);
+		label_chunk_info[j].d = d;
 		label_chunk_info[j].c = c1;
 		++j;
 	    }
 	}
     }
-    for (i = 0; ((Disk *)devs[i]->private); i++) {
+    /* Now run through again and get the FreeBSD partition entries */
+    for (i = 0; devs[i]; i++) {
+	if (!devs[i]->enabled)
+	    continue;
+	d = (Disk *)devs[i]->private;
 	/* Then buzz through and pick up the partitions */
-	for (c1 = ((Disk *)devs[i]->private)->chunks->part; c1; c1 = c1->next) {
+	for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part) {
@@ -148,7 +157,7 @@ record_label_chunks()
 			    label_chunk_info[j].type = PART_SWAP;
 			else
 			    label_chunk_info[j].type = PART_FILESYSTEM;
-			label_chunk_info[j].d = ((Disk *)devs[i]->private);
+			label_chunk_info[j].d = d;
 			label_chunk_info[j].c = c2;
 			++j;
 		    }
@@ -156,7 +165,7 @@ record_label_chunks()
 	    }
 	    else if (c1->type == fat) {
 		label_chunk_info[j].type = PART_FAT;
-		label_chunk_info[j].d = ((Disk *)devs[i]->private);
+		label_chunk_info[j].d = d;
 		label_chunk_info[j].c = c1;
 	    }
 	}
@@ -281,6 +290,7 @@ print_label_chunks(void)
     int i, j, srow, prow, pcol;
     int sz;
 
+    clear();
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
@@ -389,7 +399,7 @@ print_command_summary()
     mvprintw(17, 0,
 	     "The following commands are valid here (upper or lower case):");
     mvprintw(19, 0, "C = Create Partition   D = Delete Partition   M = Mount Partition");
-    mvprintw(20, 0, "N = Newfs Options      T = Toggle Newfs       ESC = Finish Partitioning");
+    mvprintw(20, 0, "N = Newfs Options      T = Toggle Newfs       ESC = Exit this screen");
     mvprintw(21, 0, "The default target will be displayed in ");
 
     attrset(A_REVERSE);
@@ -408,13 +418,11 @@ diskLabelEditor(char *str)
     PartInfo *p;
     PartType type;
 
-    dialog_clear();
     labeling = TRUE;
     keypad(stdscr, TRUE);
     record_label_chunks();
 
     while (labeling) {
-	clear();
 	print_label_chunks();
 	print_command_summary();
 	if (msg) {
@@ -528,7 +536,7 @@ diskLabelEditor(char *str)
 		msg = "You don't need to specify a mountpoint for a swap partition.";
 		break;
 
-	    case PART_DOS:
+	    case PART_FAT:
 	    case PART_FILESYSTEM:
 		p = get_mountpoint(NULL, label_chunk_info[here].c);
 		if (p) {
@@ -565,7 +573,6 @@ diskLabelEditor(char *str)
 		int i;
 		Device **devs;
 
-		clear();
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
@@ -576,7 +583,6 @@ diskLabelEditor(char *str)
 		}
 		for (i = 0; ((Disk *)devs[i]->private); i++)
 		    slice_wizard(((Disk *)devs[i]->private));
-		clear();
 		dialog_clear();
 		DialogActive = TRUE;
 		record_label_chunks();
@@ -596,6 +602,8 @@ diskLabelEditor(char *str)
 	}
     }
     variable_set2(DISK_LABELLED, "yes");
+    clear();
+    refresh();
 }
 
 
