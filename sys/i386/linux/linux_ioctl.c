@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.9 1996/03/10 22:30:53 peter Exp $
+ *  $Id: linux_ioctl.c,v 1.10 1996/06/12 05:06:27 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <net/if.h>
 #include <sys/sockio.h>
 
-#include <machine/console.h>
 #include <machine/soundcard.h>
 
 #include <i386/linux/linux.h>
