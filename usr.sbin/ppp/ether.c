@@ -457,7 +457,7 @@ ether_Create(struct physical *p)
      */
 
     /* Create a socket node */
-    if (NgMkSockNode(NULL, &dev->cs, &p->fd) == -1) {
+    if (ID0NgMkSockNode(NULL, &dev->cs, &p->fd) == -1) {
       log_Printf(LogWARN, "Cannot create netgraph socket node: %s\n",
                  strerror(errno));
       free(dev);
