@@ -43,7 +43,7 @@
 
 ENTRY(labs)
 	movl	4(%esp),%eax
-	cmpl	$0,%eax
-	jge	1f
+	testl	%eax,%eax
+	jns	1f
 	negl	%eax
 1:	ret
