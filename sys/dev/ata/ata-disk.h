@@ -149,6 +149,7 @@ struct ad_request {
     u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			currentsize;	/* size of current transfer */
     struct callout_handle       timeout_handle; /* handle for untimeout */ 
+    int32_t			retries;	/* retry count */
     int32_t			flags;
 #define		AR_F_READ		0x0001
 #define		AR_F_ERROR		0x0002

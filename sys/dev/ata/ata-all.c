@@ -202,6 +202,8 @@ ata_pcimatch(device_t dev)
 	    return "Promise Ultra/66 IDE controller";
 	case 0x522910b9:
 	    return "AcerLabs Aladdin IDE controller";
+	case 0x00041103:
+	    return "HighPoint HPT366 IDE controller";
 	case 0x05711106: /* 82c586 */
 	case 0x05961106: /* 82c596 */
 	    return "VIA Apollo IDE controller (generic mode)";
@@ -623,10 +625,8 @@ ata_start(struct ata_softc *scp)
 		}
 	    }
 	}
-	if (!atapi_request) {
-	    timeout((timeout_t*)ata_start, scp, 1);
-	    return;
-	}
+	if (!atapi_request)
+	    atapi_request = TAILQ_FIRST(&scp->atapi_queue);
 	TAILQ_REMOVE(&scp->atapi_queue, atapi_request, chain);
 	scp->active = ATA_ACTIVE_ATAPI;
 	scp->running = atapi_request;
