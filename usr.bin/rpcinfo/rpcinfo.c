@@ -1,5 +1,4 @@
 /*	$NetBSD: rpcinfo.c,v 1.15 2000/10/04 20:09:05 mjl Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -41,6 +40,9 @@
 static char sccsid[] = "@(#)rpcinfo.c 1.16 89/04/05 Copyr 1986 Sun Micro";
 #endif
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpcinfo: ping a particular rpc program
@@ -201,12 +203,8 @@ main(int argc, char **argv)
 
 		case 'n':
 			portnum = (u_short) strtol(optarg, &strptr, 10);
-			if (strptr == optarg || *strptr != '\0') {
-				fprintf(stderr,
-			"rpcinfo: %s is illegal port number\n",
-					optarg);
-				exit(1);
-			}
+			if (strptr == optarg || *strptr != '\0')
+				errx(1, "%s is illegal port number", optarg);
 			break;
 #endif
 		case 'a':
@@ -260,10 +258,8 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (errflg || ((function == ADDRPING) && !netid)) {
+	if (errflg || ((function == ADDRPING) && !netid))
 		usage();
-		return (1);
-	}
 
 	if (function == NONE) {
 		if (argc - optind > 1)
@@ -275,10 +271,8 @@ main(int argc, char **argv)
 	switch (function) {
 #ifdef PORTMAP
 	case PMAPDUMP:
-		if (portnum != 0) {
+		if (portnum != 0)
 			usage();
-			return (1);
-		}
 		pmapdump(argc - optind, argv + optind);
 		break;
 
@@ -386,10 +380,8 @@ ip_ping(u_short portnum, char *trans, int argc, char **argv)
 	struct rpc_err rpcerr;
 	int failure = 0;
 
-	if (argc < 2 || argc > 3) {
+	if (argc < 2 || argc > 3)
 		usage();
-		exit(1);
-	}
 	to.tv_sec = 10;
 	to.tv_usec = 0;
 	prognum = getprognum(argv[1]);
@@ -486,10 +478,8 @@ pmapdump(int argc, char **argv)
 	struct rpc_err err;
 	char *host;
 
-	if (argc > 1) {
+	if (argc > 1)
 		usage();
-		exit(1);
-	}
 	if (argc == 1) {
 		host = argv[0];
 		get_inet_address(&server_addr, host);
@@ -524,8 +514,8 @@ pmapdump(int argc, char **argv)
 		    (clnt_st == RPC_PROGUNAVAIL)) {
 			CLNT_GETERR(client, &err);
 			if (err.re_vers.low > PMAPVERS)
-				fprintf(stderr,
-		"%s does not support portmapper.  Try rpcinfo %s instead\n",
+				warnx(
+		"%s does not support portmapper.  Try rpcinfo %s instead",
 					host, host);
 			exit(1);
 		}
@@ -569,19 +559,15 @@ get_inet_address(struct sockaddr_in *addr, char *host)
 	addr->sin_addr.s_addr = inet_addr(host);
 	if (addr->sin_addr.s_addr == -1 || addr->sin_addr.s_addr == 0) {
 		if ((nconf = __rpc_getconfip("udp")) == NULL &&
-		    (nconf = __rpc_getconfip("tcp")) == NULL) {
-			fprintf(stderr,
-			"rpcinfo: couldn't find a suitable transport\n");
-			exit(1);
-		} else {
+		    (nconf = __rpc_getconfip("tcp")) == NULL)
+			errx(1, "couldn't find a suitable transport");
+		else {
 			memset(&hints, 0, sizeof hints);
 			hints.ai_family = AF_INET;
 			if ((error = getaddrinfo(host, "rpcbind", &hints, &res))
-			    != 0) {
-				fprintf(stderr, "rpcinfo: %s: %s\n",
-				    host, gai_strerror(error));
-				exit(1);
-			} else {
+			    != 0)
+				errx(1, "%s: %s", host, gai_strerror(error));
+			else {
 				memcpy(addr, res->ai_addr, res->ai_addrlen);
 				freeaddrinfo(res);
 			}
@@ -631,20 +617,15 @@ brdcst(int argc, char **argv)
 	enum clnt_stat rpc_stat;
 	u_long prognum, vers;
 
-	if (argc != 2) {
+	if (argc != 2)
 		usage();
-		exit(1);
-	}
 	prognum = getprognum(argv[0]);
 	vers = getvers(argv[1]);
 	rpc_stat = rpc_broadcast(prognum, vers, NULLPROC,
 		(xdrproc_t) xdr_void, (char *)NULL, (xdrproc_t) xdr_void,
 		(char *)NULL, (resultproc_t) reply_proc, NULL);
-	if ((rpc_stat != RPC_SUCCESS) && (rpc_stat != RPC_TIMEDOUT)) {
-		fprintf(stderr, "rpcinfo: broadcast failed: %s\n",
-			clnt_sperrno(rpc_stat));
-		exit(1);
-	}
+	if ((rpc_stat != RPC_SUCCESS) && (rpc_stat != RPC_TIMEDOUT))
+		errx(1, "broadcast failed: %s", clnt_sperrno(rpc_stat));
 	exit(0);
 }
 
@@ -702,10 +683,8 @@ rpcbdump(int dumptype, char *netid, int argc, char **argv)
 	struct rpc_err err;
 	struct rpcbdump_short *rs_head = NULL;
 
-	if (argc > 1) {
+	if (argc > 1)
 		usage();
-		exit(1);
-	}
 	if (argc == 1) {
 		host = argv[0];
 		if (netid == NULL) {
@@ -884,7 +863,7 @@ failed:
 	}
 	clnt_destroy(client);
 	return;
-error:	fprintf(stderr, "rpcinfo: no memory\n");
+error:	warnx("no memory");
 	return;
 }
 
@@ -901,10 +880,8 @@ rpcbaddrlist(char *netid, int argc, char **argv)
 	RPCB parms;
 	struct netbuf *targaddr;
 
-	if (argc != 3) {
+	if (argc != 3)
 		usage();
-		exit(1);
-	}
 	host = argv[0];
 	if (netid == NULL) {
 		client = clnt_rpcbind_create(host, RPCBVERS4, &targaddr);
@@ -1226,24 +1203,17 @@ deletereg(char *netid, int argc, char **argv)
 {
 	struct netconfig *nconf = NULL;
 
-	if (argc != 2) {
+	if (argc != 2)
 		usage();
-		exit(1);
-	}
 	if (netid) {
 		nconf = getnetconfigent(netid);
-		if (nconf == NULL) {
-			fprintf(stderr, "rpcinfo: netid %s not supported\n",
-					netid);
-			exit(1);
-		}
+		if (nconf == NULL)
+			errx(1, "netid %s not supported", netid);
 	}
-	if ((rpcb_unset(getprognum(argv[0]), getvers(argv[1]), nconf)) == 0) {
-		fprintf(stderr,
-	"rpcinfo: Could not delete registration for prog %s version %s\n",
+	if ((rpcb_unset(getprognum(argv[0]), getvers(argv[1]), nconf)) == 0)
+		errx(1,
+	"could not delete registration for prog %s version %s",
 			argv[0], argv[1]);
-		exit(1);
-	}
 }
 
 /*
@@ -1266,10 +1236,8 @@ clnt_addr_create(char *address, struct netconfig *nconf,
 		}
 		/* Convert the uaddr to taddr */
 		nbuf = uaddr2taddr(nconf, address);
-		if (nbuf == NULL) {
-			errx(1, "rpcinfo: no address for client handle");
-			exit(1);
-		}
+		if (nbuf == NULL)
+			errx(1, "no address for client handle");
 	}
 	client = clnt_tli_create(fd, nconf, nbuf, prog, vers, 0, 0);
 	if (client == (CLIENT *)NULL) {
@@ -1297,15 +1265,11 @@ addrping(char *address, char *netid, int argc, char **argv)
 	struct netconfig *nconf;
 	int fd;
 
-	if (argc < 1 || argc > 2 || (netid == NULL)) {
+	if (argc < 1 || argc > 2 || (netid == NULL))
 		usage();
-		exit(1);
-	}
 	nconf = getnetconfigent(netid);
-	if (nconf == (struct netconfig *)NULL) {
-		fprintf(stderr, "rpcinfo: Could not find %s\n", netid);
-		exit(1);
-	}
+	if (nconf == (struct netconfig *)NULL)
+		errx(1, "could not find %s", netid);
 	to.tv_sec = 10;
 	to.tv_usec = 0;
 	prognum = getprognum(argv[0]);
@@ -1402,10 +1366,8 @@ progping(char *netid, int argc, char **argv)
 	int failure = 0;
 	struct netconfig *nconf;
 
-	if (argc < 2 || argc > 3 || (netid == NULL)) {
+	if (argc < 2 || argc > 3 || (netid == NULL))
 		usage();
-		exit(1);
-	}
 	prognum = getprognum(argv[1]);
 	if (argc == 2) { /* Version number not known */
 		/*
@@ -1418,10 +1380,8 @@ progping(char *netid, int argc, char **argv)
 	}
 	if (netid) {
 		nconf = getnetconfigent(netid);
-		if (nconf == (struct netconfig *)NULL) {
-			fprintf(stderr, "rpcinfo: Could not find %s\n", netid);
-			exit(1);
-		}
+		if (nconf == (struct netconfig *)NULL)
+			errx(1, "could not find %s", netid);
 		client = clnt_tp_create(argv[0], prognum, versnum, nconf);
 	} else {
 		client = clnt_create(argv[0], prognum, versnum, "NETPATH");
@@ -1511,6 +1471,7 @@ usage()
 "       rpcinfo -a serv_address -T netid prognum [version]\n");
 	fprintf(stderr, "       rpcinfo -b prognum versnum\n");
 	fprintf(stderr, "       rpcinfo -d [-T netid] prognum versnum\n");
+	exit(1);
 }
 
 static u_long
@@ -1524,19 +1485,13 @@ getprognum (char *arg)
 	while (*tptr && isdigit(*tptr++));
 	if (*tptr || isalpha(*(tptr - 1))) {
 		rpc = getrpcbyname(arg);
-		if (rpc == NULL) {
-			fprintf(stderr, "rpcinfo: %s is unknown service\n",
-				arg);
-			exit(1);
-		}
+		if (rpc == NULL)
+			errx(1, "%s is unknown service", arg);
 		prognum = rpc->r_number;
 	} else {
 		prognum = strtol(arg, &strptr, 10);
-		if (strptr == arg || *strptr != '\0') {
-			fprintf(stderr,
-		"rpcinfo: %s is illegal program number\n", arg);
-			exit(1);
-		}
+		if (strptr == arg || *strptr != '\0')
+			errx(1, "%s is illegal program number", arg);
 	}
 	return (prognum);
 }
@@ -1548,11 +1503,8 @@ getvers(char *arg)
 	register u_long vers;
 
 	vers = (int) strtol(arg, &strptr, 10);
-	if (strptr == arg || *strptr != '\0') {
-		fprintf(stderr, "rpcinfo: %s is illegal version number\n",
-			arg);
-		exit(1);
-	}
+	if (strptr == arg || *strptr != '\0')
+		errx(1, "%s is illegal version number", arg);
 	return (vers);
 }
 
