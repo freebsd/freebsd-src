@@ -4,7 +4,6 @@ PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c
 MAN1=	vgrind.1
 MAN5=	vgrindefs.5
-BINDIR=	/usr/libexec
 EXTRA=	vgrindefs.src.db
 CLEANFILES+=	${EXTRA}
 
@@ -15,7 +14,7 @@ ${EXTRA}: ${.CURDIR}/vgrindefs.src
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/vgrind.sh ${DESTDIR}/usr/bin/vgrind
+	    ${.CURDIR}/vgrind.sh ${DESTDIR}${BINDIR}/vgrind
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/vgrindefs.src \
 	    ${DESTDIR}/usr/share/misc/vgrindefs
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
