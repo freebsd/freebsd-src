@@ -36,11 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.5 1994/09/13 16:03:35 davidg Exp $
+ * $Id: tty.h,v 1.6 1994/10/02 17:25:02 phk Exp $
  */
 
 #ifndef _SYS_TTY_H_
-#define _SYS_TTY_H_
+#define	_SYS_TTY_H_
 
 #include <sys/termios.h>
 #include <sys/select.h>		/* For struct selinfo. */
@@ -51,6 +51,9 @@
  */
 struct clist {
 	int	c_cc;		/* Number of characters in the clist. */
+	int	c_cbcount;	/* Number of cblocks. */
+	int	c_cbmax;	/* Max # cblocks allowed for this clist. */
+	int	c_cbreserved;	/* # cblocks reserved for this clist. */
 	char	*c_cf;		/* Pointer to the first cblock. */
 	char	*c_cl;		/* Pointer to the last cblock. */
 };
@@ -179,10 +182,10 @@ extern	struct ttychars ttydefaults;
 /* Symbolic sleep message strings. */
 extern	 char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
 
-void	 cblock_alloc_cblocks __P((int));
-void	 cblock_free_cblocks __P((int));
 int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
+void	 clist_alloc_cblocks __P((struct clist *q, int ccmax, int ccres));
+void	 clist_free_cblocks __P((struct clist *q));
 /* void	 clist_init __P((void)); */ /* defined in systm.h for main() */
 int	 getc __P((struct clist *q));
 void	 ndflush __P((struct clist *q, int cc));
@@ -220,6 +223,6 @@ int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
 int	 ttywflush __P((struct tty *tp));
-#endif
+#endif /* KERNEL */
 
-#endif
+#endif /* !_SYS_TTY_H_ */

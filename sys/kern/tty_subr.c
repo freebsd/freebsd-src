@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.7 1994/09/25 19:33:50 phk Exp $
+ * $Id: tty_subr.c,v 1.8 1994/10/30 19:43:49 bde Exp $
  */
 
 /*
@@ -22,17 +22,25 @@
 
 struct cblock *cfreelist = 0;
 int cfreecount = 0;
+static int cslushcount;
+static int ctotcount;
 
 #ifndef INITIAL_CBLOCKS
-#define INITIAL_CBLOCKS 50
+#define	INITIAL_CBLOCKS 50
 #endif
 
-#define MBUF_DIAG
-#ifdef MBUF_DIAG
-void
-print_nblocks()
+static void cblock_alloc_cblocks __P((int number));
+static void cblock_free_cblocks __P((int number));
+
+#define	CBLOCK_DIAG
+#ifdef CBLOCK_DIAG
+static void
+cbstat()
 {
-	printf("There are currently %d bytes in cblocks\n", cfreecount);
+	printf(
+	"tot = %d (active = %d, free = %d (reserved = %d, slush = %d))\n",
+	       ctotcount * CBSIZE, ctotcount * CBSIZE - cfreecount, cfreecount,
+	       cfreecount - cslushcount * CBSIZE, cslushcount * CBSIZE);
 }
 #endif
 
@@ -44,10 +52,13 @@ clist_init()
 {
 	/*
 	 * Allocate an initial base set of cblocks as a 'slush'.
-	 * We allocate more with each ttyopen().
+	 * We allocate non-slush cblocks with each initial ttyopen() and
+	 * deallocate them with each ttyclose().
+	 * We should adjust the slush allocation.  This can't be done in
+	 * the i/o routines because they are sometimes called from
+	 * interrupt handlers when it may be unsafe to call malloc().
 	 */
-	cblock_alloc_cblocks(INITIAL_CBLOCKS);
-	return;
+	cblock_alloc_cblocks(cslushcount = INITIAL_CBLOCKS);
 }
 
 /*
@@ -60,10 +71,8 @@ cblock_alloc()
 	struct cblock *cblockp;
 
 	cblockp = cfreelist;
-	if (!cblockp) {
-		/* XXX should syslog a message that we're out! */
-		return (0);
-	}
+	if (cblockp == NULL)
+		panic("clist reservation botch");
 	cfreelist = cblockp->c_next;
 	cblockp->c_next = NULL;
 	cfreecount -= CBSIZE;
@@ -80,13 +89,12 @@ cblock_free(cblockp)
 	cblockp->c_next = cfreelist;
 	cfreelist = cblockp;
 	cfreecount += CBSIZE;
-	return;
 }
 
 /*
  * Allocate some cblocks for the cfreelist queue.
  */
-void
+static void
 cblock_alloc_cblocks(number)
 	int number;
 {
@@ -94,36 +102,66 @@ cblock_alloc_cblocks(number)
 	struct cblock *tmp;
 
 	for (i = 0; i < number; ++i) {
-		tmp = malloc(sizeof(struct cblock), M_TTYS, M_NOWAIT);
-		if (!tmp) {
-			printf("cblock_alloc_cblocks: could not malloc cblock");
-			break;
-		}
+		tmp = malloc(sizeof(struct cblock), M_TTYS, M_WAITOK);
 		bzero((char *)tmp, sizeof(struct cblock));
 		cblock_free(tmp);
 	}
-	return;
+	ctotcount += number;
+}
+
+/*
+ * Set the cblock allocation policy for a a clist.
+ * Must be called at spltty().
+ */
+void
+clist_alloc_cblocks(clistp, ccmax, ccreserved)
+	struct clist *clistp;
+	int ccmax;
+	int ccreserved;
+{
+	int dcbr;
+
+	clistp->c_cbmax = roundup(ccmax, CBSIZE) / CBSIZE;
+	dcbr = roundup(ccreserved, CBSIZE) / CBSIZE - clistp->c_cbreserved;
+	if (dcbr >= 0)
+		cblock_alloc_cblocks(dcbr);
+	else {
+		if (clistp->c_cbreserved + dcbr < clistp->c_cbcount)
+			dcbr = clistp->c_cbcount - clistp->c_cbreserved;
+		cblock_free_cblocks(-dcbr);
+	}
+	clistp->c_cbreserved += dcbr;
 }
 
 /*
  * Free some cblocks from the cfreelist queue back to the
  * system malloc pool.
  */
-void
+static void
 cblock_free_cblocks(number)
 	int number;
 {
 	int i;
-	struct cblock *tmp;
 
-	for (i = 0; i < number; ++i) {
-		tmp = cblock_alloc();
-		if (tmp == NULL)
-			return;
-		free(tmp, M_TTYS);
-	}
+	for (i = 0; i < number; ++i)
+		free(cblock_alloc(), M_TTYS);
+	ctotcount -= number;
 }
 
+/*
+ * Free the cblocks reserved for a clist.
+ * Must be called at spltty().
+ */
+void
+clist_free_cblocks(clistp)
+	struct clist *clistp;
+{
+	if (clistp->c_cbcount != 0)
+		panic("freeing active clist cblocks");
+	cblock_free_cblocks(clistp->c_cbreserved);
+	clistp->c_cbmax = 0;
+	clistp->c_cbreserved = 0;
+}
 
 /*
  * Get a character from the head of a clist.
@@ -168,6 +206,8 @@ getc(clistp)
 				clistp->c_cf = clistp->c_cl = NULL;
 			}
 			cblock_free(cblockp);
+			if (--clistp->c_cbcount >= clistp->c_cbreserved)
+				++cslushcount;
 		}
 	}
 
@@ -217,6 +257,8 @@ q_to_b(clistp, dest, amount)
 				clistp->c_cf = clistp->c_cl = NULL;
 			}
 			cblock_free(cblockp);
+			if (--clistp->c_cbcount >= clistp->c_cbreserved)
+				++cslushcount;
 		}
 	}
 
@@ -260,11 +302,12 @@ ndflush(clistp, amount)
 				clistp->c_cf = clistp->c_cl = NULL;
 			}
 			cblock_free(cblockp);
+			if (--clistp->c_cbcount >= clistp->c_cbreserved)
+				++cslushcount;
 		}
 	}
 
 	splx(s);
-	return;
 }
 
 /*
@@ -281,28 +324,30 @@ putc(chr, clistp)
 
 	s = spltty();
 
-	cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
-
 	if (clistp->c_cl == NULL) {
+		if (clistp->c_cbreserved < 1)
+			panic("putc to a clist with no reserved cblocks");
 		cblockp = cblock_alloc();
-		if (cblockp) {
-			clistp->c_cf = clistp->c_cl = cblockp->c_info;
-			clistp->c_cc = 0;
-		} else {
-			splx(s);
-			return (-1);
-		}
+		clistp->c_cbcount = 1;
+		clistp->c_cf = clistp->c_cl = cblockp->c_info;
+		clistp->c_cc = 0;
 	} else {
+		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
 		if (((long)clistp->c_cl & CROUND) == 0) {
 			struct cblock *prev = (cblockp - 1);
-			cblockp = cblock_alloc();
-			if (cblockp) {
-				prev->c_next = cblockp;
-				clistp->c_cl = cblockp->c_info;
-			} else {
-				splx(s);
-				return (-1);
+
+			if (clistp->c_cbcount >= clistp->c_cbreserved) {
+				if (clistp->c_cbcount >= clistp->c_cbmax
+				    || cslushcount <= 0) {
+					splx(s);
+					return (-1);
+				}
+				--cslushcount;
 			}
+			cblockp = cblock_alloc();
+			clistp->c_cbcount++;
+			prev->c_next = cblockp;
+			clistp->c_cl = cblockp->c_info;
 		}
 	}
 
@@ -337,6 +382,13 @@ b_to_q(src, amount, clistp)
 	int startbit, endbit, num_between, numc;
 	int s;
 
+	/*
+	 * Avoid allocating an initial cblock and then not using it.
+	 * c_cc == 0 must imply c_cbount == 0.
+	 */
+	if (amount <= 0)
+		return (amount);
+
 	s = spltty();
 
 	/*
@@ -344,14 +396,12 @@ b_to_q(src, amount, clistp)
 	 * then get one.
 	 */
 	if (clistp->c_cl == NULL) {
+		if (clistp->c_cbreserved < 1)
+			panic("b_to_q to a clist with no reserved cblocks");
 		cblockp = cblock_alloc();
-		if (cblockp) {
-			clistp->c_cf = clistp->c_cl = cblockp->c_info;
-			clistp->c_cc = 0;
-		} else {
-			splx(s);
-			return (amount);
-		}
+		clistp->c_cbcount = 1;
+		clistp->c_cf = clistp->c_cl = cblockp->c_info;
+		clistp->c_cc = 0;
 	} else {
 		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
 	}
@@ -362,14 +412,19 @@ b_to_q(src, amount, clistp)
 		 */
 		if (((long)clistp->c_cl & CROUND) == 0) {
 			struct cblock *prev = cblockp - 1;
-			cblockp = cblock_alloc();
-			if (cblockp) {
-				prev->c_next = cblockp;
-				clistp->c_cl = cblockp->c_info;
-			} else {
-				splx(s);
-				return (amount);
+
+			if (clistp->c_cbcount >= clistp->c_cbreserved) {
+				if (clistp->c_cbcount >= clistp->c_cbmax
+				    || cslushcount <= 0) {
+					splx(s);
+					return (amount);
+				}
+				--cslushcount;
 			}
+			cblockp = cblock_alloc();
+			clistp->c_cbcount++;
+			prev->c_next = cblockp;
+			clistp->c_cl = cblockp->c_info;
 		}
 
 		/*
@@ -515,6 +570,8 @@ unputc(clistp)
 			 */
 			clistp->c_cl = (char *)(cbp+1);
 			cblock_free(cblockp);
+			if (--clistp->c_cbcount >= clistp->c_cbreserved)
+				++cslushcount;
 			cbp->c_next = NULL;
 		}
 	}
@@ -526,6 +583,8 @@ unputc(clistp)
 	if ((clistp->c_cc == 0) && clistp->c_cl) {
 		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
 		cblock_free(cblockp);
+		if (--clistp->c_cbcount >= clistp->c_cbreserved)
+			++cslushcount;
 		clistp->c_cf = clistp->c_cl = NULL;
 	}
 
@@ -546,19 +605,25 @@ catq(src_clistp, dest_clistp)
 	s = spltty();
 	/*
 	 * If the destination clist is empty (has no cblocks atttached),
+	 * and there are no possible complications with the resource counters,
 	 * then we simply assign the current clist to the destination.
 	 */
-	if (!dest_clistp->c_cf) {
+	if (!dest_clistp->c_cf
+	    && src_clistp->c_cbcount <= src_clistp->c_cbmax
+	    && src_clistp->c_cbcount <= dest_clistp->c_cbmax) {
 		dest_clistp->c_cf = src_clistp->c_cf;
 		dest_clistp->c_cl = src_clistp->c_cl;
 		src_clistp->c_cf = src_clistp->c_cl = NULL;
 
 		dest_clistp->c_cc = src_clistp->c_cc;
 		src_clistp->c_cc = 0;
+		dest_clistp->c_cbcount = src_clistp->c_cbcount;
+		src_clistp->c_cbcount = 0;
 
 		splx(s);
 		return;
 	}
+
 	splx(s);
 
 	/*
@@ -567,6 +632,4 @@ catq(src_clistp, dest_clistp)
 	 */
 	while ((chr = getc(src_clistp)) != -1)
 		putc(chr, dest_clistp);
-
-	return;
 }

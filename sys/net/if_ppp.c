@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.6 1994/11/01 22:18:34 wollman Exp $ */
+/* $Id: if_ppp.c,v 1.7 1994/11/23 08:29:44 ugen Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -127,6 +127,7 @@
 #define CCOUNT(q)	((q)->c_cc)
 
 #define	PPP_HIWAT	400	/* Don't start a new packet if HIWAT on que */
+#define	PPP_MAXMTU	16384	/* Largest MTU we allow */
 
 struct ppp_softc ppp_softc[NPPP];
 
@@ -319,6 +320,15 @@ pppopen(dev, tp)
 
     tp->t_sc = (caddr_t) sc;
     ttyflush(tp, FREAD | FWRITE);
+    /*
+     * XXX we fudge t_canq to avoid providing pppselect() and FIONREAD.
+     * I hope one char is enough.  The following actually gives CBSIZE
+     * chars.
+     */
+    clist_alloc_cblocks(&tp->t_canq, 1, 1);
+    clist_alloc_cblocks(&tp->t_outq, sc->sc_if.if_mtu + PPP_HIWAT,
+			sc->sc_if.if_mtu + PPP_HIWAT);
+    clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 
     return (0);
 }
@@ -339,6 +349,7 @@ pppclose(tp, flag)
 
     ttywflush(tp);
     s = splimp();		/* paranoid; splnet probably ok */
+    clist_free_cblocks(&tp->t_outq);
     tp->t_line = 0;
     sc = (struct ppp_softc *)tp->t_sc;
     if (sc != NULL) {
@@ -1494,7 +1505,14 @@ pppioctl(ifp, cmd, data)
     case SIOCSIFMTU:
 	if (error = suser(p->p_ucred, &p->p_acflag))
 	    return (error);
-	sc->sc_if.if_mtu = ifr->ifr_mtu;
+	if (ifr->ifr_mtu > PPP_MAXMTU)
+		error = EINVAL;
+	else {
+		sc->sc_if.if_mtu = ifr->ifr_mtu;
+		clist_alloc_cblocks(&((struct tty *) sc->sc_devp)->t_outq,
+				    sc->sc_if.if_mtu + PPP_HIWAT,
+				    sc->sc_if.if_mtu + PPP_HIWAT);
+	}
 	break;
 
     case SIOCGIFMTU:
