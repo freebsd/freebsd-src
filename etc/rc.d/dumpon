@@ -4,8 +4,8 @@
 #
 
 # PROVIDE: dumpon
-# REQUIRE: initrandom
-# BEFORE: disks savecore
+# REQUIRE: rcconf
+# BEFORE: disks savecore initrandom
 # KEYWORD: nojail
 
 . /etc/rc.subr
