@@ -508,6 +508,7 @@ nodisks:
 	return DITEM_FAILURE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
+	dialog_clear();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
@@ -517,7 +518,7 @@ nodisks:
 
     }
     else {
-	dialog_clear_norefresh();
+	dialog_clear();
 	msgConfirm("Congratulations!  You now have FreeBSD installed on your system.\n\n"
 		   "We will now move on to the final configuration questions.\n"
 		   "For any option you do not wish to configure, simply select\n"
@@ -533,6 +534,7 @@ nodisks:
 		if (!tmp->init(tmp))
 		    msgConfirm("Initialization of %s device failed.", tmp->name);
 	}
+	dialog_clear_norefresh();
     }
 
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
@@ -545,20 +547,24 @@ nodisks:
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	configNFSServer(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client_enable", "YES", 1);
 
     if (!msgYesNo("Would you like to customize your system console settings?"))
 	dmenuOpenSimple(&MenuSyscons, FALSE);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to set this machine's time zone now?"))
 	systemExecute("tzsetup");
 
 #ifdef __i386__
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
 	(void)configLinux(self);
 #endif
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
 
@@ -567,10 +573,12 @@ nodisks:
     sync();
 
     if (directory_exists("/usr/X11R6")) {
+	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
 	    (void)configXSetup(self);
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of hundreds of ready-to-run\n"
 		  "applications, from text editors to games to WEB servers and more.  Would you\n"
 		  "like to browse the collection now?")) {
@@ -591,6 +599,7 @@ nodisks:
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Give user the option of one last configuration spree */
+    dialog_clear_norefresh();
     installConfigure();
     return DITEM_LEAVE_MENU;
 }
