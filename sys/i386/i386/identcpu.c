@@ -546,7 +546,17 @@ printcpuinfo(void)
 			strcpy(cpu_model, "VIA C3 Ezra-T");
 			break;
 		case 0x690:
-			strcpy(cpu_model, "VIA C3 Nehemiah");
+			do_cpuid(0xc0000000, regs);
+			if (regs[0] == 0xc0000001) {
+				do_cpuid(0xc0000001, regs);
+				strcpy(cpu_model, "VIA C3 Nehemiah");
+				if ((cpu_id & 0xf) >= 3)
+					if ((regs[3] & 0x0c) == 0x0c)
+						strcat(cpu_model, "+RNG");
+				if ((cpu_id & 0xf) >= 8)
+					if ((regs[3] & 0xc0) == 0xc0)
+						strcat(cpu_model, "+ACE");
+			}
 			break;
 		default:
 			strcpy(cpu_model, "VIA/IDT Unknown");
