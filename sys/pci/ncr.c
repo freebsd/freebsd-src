@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.49 1995/09/21 17:27:28 se Exp $
+**  $Id: ncr.c,v 1.37.4.4 1995/10/10 00:28:31 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1251,7 +1251,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.49 1995/09/21 17:27:28 se Exp $\n";
+	"\n$Id: ncr.c,v 1.37.4.4 1995/10/10 00:28:31 davidg Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3707,7 +3707,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 		if (!tp->period) {
 			if (SCSI_NCR_MAX_SYNC 
-#if defined (CDROM_ASYNC) || defined (GENERIC)
+#if defined (CDROM_ASYNC) || defined (GENERIC) || defined (BOOTMFS)
 			    && ((tp->inqdata[0] & 0x1f) != 5)
 #endif
 			    && (tp->inqdata[7] & INQ7_SYNC)) {
