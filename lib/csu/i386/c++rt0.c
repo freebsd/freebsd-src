@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: c++rt0.c,v 1.1 1994/03/09 17:12:59 nate Exp $
+ *	$Id: c++rt0.c,v 1.2 1995/05/30 05:39:36 rgrimes Exp $
  */
 
 /*
@@ -61,6 +61,7 @@ __ctors(void)
 }
 
 extern void __init() asm(".init");
+extern void __fini() asm(".fini");
 
 void
 __init(void)
@@ -74,7 +75,12 @@ __init(void)
 	if (!initialized) {
 		initialized = 1;
 		__ctors();
-		atexit(__dtors);
 	}
 
+}
+
+void
+__fini(void)
+{
+	__dtors();
 }

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.3 1995/02/07 13:26:39 jkh Exp $
+ *	$Id: link.h,v 1.4 1995/03/04 17:49:20 nate Exp $
  */
 
 /*
@@ -163,13 +163,22 @@ struct so_debug {
 };
 
 /*
+ * Version returned to crt0 from ld.so
+ */
+#define LDSO_VERSION_NONE	0	/* FreeBSD2.0, 2.0.5 */
+#define LDSO_VERSION_HAS_DLEXIT	1	/* includes dlexit in ld_entry */
+
+/*
  * Entry points into ld.so - user interface to the run-time linker.
+ * Entries are valid for the given version numbers returned by ld.so
+ * to crt0.
  */
 struct ld_entry {
-	void	*(*dlopen) __P((char *, int));
-	int	(*dlclose) __P((void *));
-	void	*(*dlsym) __P((void *, char *));
-	char	*(*dlerror) __P((void));
+	void	*(*dlopen) __P((char *, int));		/* NONE */
+	int	(*dlclose) __P((void *));		/* NONE */
+	void	*(*dlsym) __P((void *, char *));	/* NONE */
+	char	*(*dlerror) __P((void));		/* NONE */
+	void	(*dlexit) __P((void));			/* HAS_DLEXIT */
 };
 
 /*
@@ -245,7 +254,6 @@ struct crt_ldso {
 #define CRT_VERSION_BSD_2	2
 #define CRT_VERSION_BSD_3	3
 #define CRT_VERSION_BSD_4	4
-
 
 /*
  * Maximum number of recognized shared object version numbers.
