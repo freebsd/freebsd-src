@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.11 1998/04/29 09:58:27 jb Exp $
+#	$Id: Makefile.inc,v 1.12 1998/05/31 23:48:26 jb Exp $
 
 # uthread sources
 .PATH: ${.CURDIR}/uthread
@@ -64,13 +64,11 @@ SRCS+= \
 	uthread_queue.c \
 	uthread_read.c \
 	uthread_readv.c \
-	uthread_recv.c \
 	uthread_recvfrom.c \
 	uthread_recvmsg.c \
 	uthread_resume_np.c \
 	uthread_select.c \
 	uthread_self.c \
-	uthread_send.c \
 	uthread_sendmsg.c \
 	uthread_sendto.c \
 	uthread_seterrno.c \
