@@ -32,6 +32,9 @@ RCSID("$FreeBSD$");
 #include "readconf.h"
 #include "atomicio.h"
 #include "misc.h"
+#include "auth.h"
+#include "ssh1.h"
+#include "canohost.h"
 
 char *client_version_string = NULL;
 char *server_version_string = NULL;
@@ -761,7 +764,7 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
      goto out;
   }
   
-  remotehost = get_canonical_hostname();
+  remotehost = get_canonical_hostname(1);
   
   problem = krb5_mk_req(*context, auth_context, AP_OPTS_MUTUAL_REQUIRED,
 			"host", remotehost, NULL, ccache, &ap);
@@ -832,7 +835,7 @@ send_krb5_tgt(krb5_context context, krb5_auth_context auth_context)
   krb5_ccache ccache = NULL;
   krb5_creds creds; 
   krb5_kdc_flags flags; 
-  const char* remotehost = get_canonical_hostname(); 
+  const char *remotehost = get_canonical_hostname(1);
  
   memset(&creds, 0, sizeof(creds)); 
   memset(&outbuf, 0, sizeof(outbuf));
