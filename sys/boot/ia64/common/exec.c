@@ -148,20 +148,23 @@ elf_exec(struct preloaded_file *fp)
 		return(EFTYPE);			/* XXX actually EFUCKUP */
 	hdr = (Elf_Ehdr *)&(md->md_data);
 
-	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
+	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
+	    EFI_SIZE_TO_PAGES(sizeof(struct bootinfo)), (void*)&bi);
+	if (EFI_ERROR(status)) {
+		printf("unable to create bootinfo block (status=0x%lx)\n",
+		    (long)status);
+		return (ENOMEM);
+	}
 
-	/*
-	 * Ugly hack, similar to linux. Dump the bootinfo into a
-	 * special page reserved in the link map.
-	 */
-	bi = (struct bootinfo *) 0x508000;
 	bzero(bi, sizeof(struct bootinfo));
 	bi_load(bi, fp, &mapkey);
+
+	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
 
 	status = BS->ExitBootServices(IH, mapkey);
 	if (EFI_ERROR(status)) {
 		printf("ExitBootServices returned 0x%lx\n", status);
-		return;
+		return (EINVAL);
 	}
 
 	psr = disable_ic();
