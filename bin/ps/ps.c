@@ -94,6 +94,12 @@ __FBSDID("$FreeBSD$");
 #define	OPT_LAZY_f		/* I.e., the `-f' option is not added. */
 #endif
 
+/*
+ * isdigit takes an `int', but expects values in the range of unsigned char.
+ * This wrapper ensures that values from a 'char' end up in the correct range.
+ */
+#define	isdigitch(Anychar) isdigit((u_char)(Anychar))
+
 int	 cflag;			/* -c */
 int	 eval;			/* Exit value */
 time_t	 now;			/* Current time(3) value */
@@ -144,7 +150,7 @@ static const char *
 		    KINFO *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
-static char	*kludge_oldps_options(char *);
+static char	*kludge_oldps_options(const char *, char *, const char *);
 static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
@@ -171,9 +177,9 @@ main(int argc, char *argv[])
 	struct kinfo_proc *kp;
 	struct varent *vent;
 	struct winsize ws;
-	const char *cp, *nlistf, *memf;
+	const char *nlistf, *memf;
 	int all, ch, dropgid, elem, flag, _fmt, i, lineno;
-	int nentries, nocludge, nkept, nselectors;
+	int nentries, nkept, nselectors;
 	int prtheader, showthreads, wflag, what, xkeep, xkeep_implied;
 	char errbuf[_POSIX2_LINE_MAX];
 
@@ -189,24 +195,11 @@ main(int argc, char *argv[])
 		termwidth = ws.ws_col - 1;
 
 	/*
-	 * Don't apply a kludge if the first argument is an option taking an
-	 * argument
+	 * Hide a number of option-processing kludges in a separate routine,
+	 * to support some historical BSD behaviors, such as `ps axu'.
 	 */
-	if (argc > 1) {
-		nocludge = 0;
-		if (argv[1][0] == '-') {
-			for (cp = PS_ARGS; *cp != '\0'; cp++) {
-				if (*cp != ':')
-					continue;
-				if (*(cp - 1) == argv[1][1]) {
-					nocludge = 1;
-					break;
-				}
-			}
-		}
-		if (nocludge == 0)
-			argv[1] = kludge_oldps_options(argv[1]);
-	}
+	if (argc > 1)
+		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
 
 	all = dropgid = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
@@ -220,7 +213,7 @@ main(int argc, char *argv[])
 	init_list(&uidlist, addelem_uid, sizeof(uid_t), "user");
 	memf = nlistf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
-		switch((char)ch) {
+		switch ((char)ch) {
 		case 'A':
 			/*
 			 * Exactly the same as `-ax'.   This has been
@@ -415,12 +408,30 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
+
+#define	BACKWARD_COMPATIBILITY
+#ifndef BACKWARD_COMPATIBILITY		/* This is the 5.x behavior. */
+	/*
+	 * If there arguments after processing all the options, attempt
+	 * to treat them as a list of process ids.
+	 */
+	while (*argv) {
+		if (!isdigitch(**argv))
+			break;
+		add_list(&pidlist, *argv);
+		argv++;
+	}
+	if (*argv) {
+		fprintf(stderr, "%s: illegal argument: %s\n",
+		    getprogname(), *argv);
+		usage();
+	}
+#endif
 	if (optfatal)
 		exit(1);		/* Error messages already printed. */
 	if (xkeep < 0)			/* Neither -X nor -x was specified. */
 		xkeep = xkeep_implied;
 
-#define	BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
 		nlistf = *argv;
@@ -432,10 +443,8 @@ main(int argc, char *argv[])
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (dropgid) {
+	if (dropgid)
 		setgid(getgid());
-		setuid(getuid());
-	}
 
 	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 	if (kd == 0)
@@ -671,9 +680,8 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	if (grp == NULL) {
 		warnx("No %s %s '%s'", inf->lname, nameorID, elem);
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.gids[(inf->count)++] = grp->gr_gid;
@@ -687,24 +695,25 @@ addelem_pid(struct listinfo *inf, const char *elem)
 	char *endp;
 	long tempid;
 
-	if (*elem == '\0')
-		tempid = 0L;
-	else {
-		errno = 0;
-		tempid = strtol(elem, &endp, 10);
-		if (*endp != '\0' || tempid < 0 || elem == endp) {
-			warnx("Invalid %s: %s", inf->lname, elem);
-			errno = ERANGE;
-		} else if (errno != 0 || tempid > BSD_PID_MAX) {
-			warnx("%s too large: %s", inf->lname, elem);
-			errno = ERANGE;
-		}
-		if (errno == ERANGE) {
-			optfatal = 1;
-			return (0);	/* Do not add this value. */
-		}
+	if (*elem == '\0') {
+		warnx("Invalid (zero-length) process id");
+		optfatal = 1;
+		return (0);		/* Do not add this value. */
 	}
 
+	errno = 0;
+	tempid = strtol(elem, &endp, 10);
+	if (*endp != '\0' || tempid < 0 || elem == endp) {
+		warnx("Invalid %s: %s", inf->lname, elem);
+		errno = ERANGE;
+	} else if (errno != 0 || tempid > BSD_PID_MAX) {
+		warnx("%s too large: %s", inf->lname, elem);
+		errno = ERANGE;
+	}
+	if (errno == ERANGE) {
+		optfatal = 1;
+		return (0);
+	}
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.pids[(inf->count)++] = tempid;
@@ -732,14 +741,13 @@ addelem_tty(struct listinfo *inf, const char *elem)
 	if (stat(ttypath, &sb) == -1) {
 		warn("%s", ttypath);
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
 	if (!S_ISCHR(sb.st_mode)) {
 		warn("%s: Not a terminal", ttypath);
 		optfatal = 1;
-		return (0);		/* Do not add this value. */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.ttys[(inf->count)++] = sb.st_rdev;
@@ -788,9 +796,8 @@ addelem_uid(struct listinfo *inf, const char *elem)
 	}
 	if (pwd == NULL) {
 		/* XXX: optfatal = 1;		-- (see the above XXX) */
-		return (0);			/* Do not add this value */
+		return (0);
 	}
-
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
 	inf->l.uids[(inf->count)++] = pwd->pw_uid;
@@ -805,6 +812,8 @@ add_list(struct listinfo *inf, const char *argp)
 	int toolong;
 	char elemcopy[PATH_MAX];
 
+	if (*argp == 0)
+		inf->addelem(inf, elemcopy);
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
 			argp++;
@@ -821,35 +830,10 @@ add_list(struct listinfo *inf, const char *argp)
 		}
 		if (!toolong) {
 			*cp = '\0';
-#ifndef ADD_PS_LISTRESET
 			/*
-			 * This is how the standard expects lists to
-			 * be handled.
+			 * Add this single element to the given list.
 			 */
 			inf->addelem(inf, elemcopy);
-#else
-			/*-
-			 * This would add a simple non-standard-but-convienent
-			 * feature.
-			 *
-			 * XXX - The first time I tried to add this check,
-			 *	it increased the total size of `ps' by 3940
-			 *	bytes on i386!  That's 12% of the entire
-			 *	program!  The `ps.o' file grew by only about
-			 *	40 bytes, but the final (stripped) executable
-			 *	in /bin/ps grew by 12%.  I have not had time
-			 *	to investigate, so skip the feature for now.
-			 */
-			/*
-			 * We now have a single element.  Add it to the
-			 * list, unless the element is ":".  In that case,
-			 * reset the list so previous entries are ignored.
-			 */
-			if (strcmp(elemcopy, ":") == 0)
-				inf->count = 0;
-			else
-				inf->addelem(inf, elemcopy);
-#endif
 		} else {
 			/*
 			 * The string is too long to copy.  Find the end
@@ -888,8 +872,7 @@ expand_list(struct listinfo *inf)
 	newlist = realloc(inf->l.ptr, newmax * inf->elemsize);
 	if (newlist == NULL) {
 		free(inf->l.ptr);
-		errx(1, "realloc to %d %ss failed", newmax,
-		    inf->lname);
+		errx(1, "realloc to %d %ss failed", newmax, inf->lname);
 	}
 	inf->maxcount = newmax;
 	inf->l.ptr = newlist;
@@ -1073,54 +1056,90 @@ pscomp(const void *a, const void *b)
  * feature is available with the option 'T', which takes no argument.
  */
 static char *
-kludge_oldps_options(char *s)
+kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 {
 	size_t len;
-	char *newopts, *ns, *cp;
+	char *argp, *cp, *newopts, *ns, *optp, *pidp;
 
-	len = strlen(s);
-	if ((newopts = ns = malloc(len + 2)) == NULL)
-		errx(1, "malloc failed");
 	/*
-	 * options begin with '-'
+	 * See if the original value includes any option which takes an
+	 * argument (and will thus use up the remainder of the string).
 	 */
-	if (*s != '-')
-		*ns++ = '-';	/* add option flag */
-	/*
-	 * gaze to end of argv[1]
-	 */
-	cp = s + len - 1;
+	argp = NULL;
+	if (optlist != NULL) {
+		for (cp = origval; *cp != '\0'; cp++) {
+			optp = strchr(optlist, *cp);
+			if ((optp != NULL) && *(optp + 1) == ':') {
+				argp = cp;
+				break;
+			}
+		}
+	}
+	if (argp != NULL && *origval == '-')
+		return (origval);
+
 	/*
 	 * if last letter is a 't' flag with no argument (in the context
 	 * of the oldps options -- option string NOT starting with a '-' --
 	 * then convert to 'T' (meaning *this* terminal, i.e. ttyname(0)).
 	 *
-	 * However, if a flag accepting a string argument is found in the
-	 * option string, the remainder of the string is the argument to
-	 * that flag; do not modify that argument.
+	 * However, if a flag accepting a string argument is found earlier
+	 * in the option string (including a possible `t' flag), then the
+	 * remainder of the string must be the argument to that flag; so
+	 * do not modify that argument.  Note that a trailing `t' would
+	 * cause argp to be set, if argp was not already set by some
+	 * earlier option.
 	 */
-	if (strcspn(s, "MNOoU") == len && *cp == 't' && *s != '-')
-		*cp = 'T';
+	len = strlen(origval);
+	cp = origval + len - 1;
+	pidp = NULL;
+	if (*cp == 't' && *origval != '-' && cp == argp) {
+		if (nextarg == NULL || *nextarg == '-' || isdigitch(*nextarg))
+			*cp = 'T';
+	} else if (argp == NULL) {
+		/*
+		 * The original value did not include any option which takes
+		 * an argument (and that would include `p' and `t'), so check
+		 * the value for trailing number, or comma-separated list of
+		 * numbers, which we will treat as a pid request.
+		 */
+		if (isdigitch(*cp)) {
+			while (cp >= origval && (*cp == ',' || isdigitch(*cp)))
+				--cp;
+			pidp = cp + 1;
+		}
+	}
+
+	/*
+	 * If nothing needs to be added to the string, then return
+	 * the "original" (although possibly modified) value.
+	 */
+	if (*origval == '-' && pidp == NULL)
+		return (origval);
+
+	/*
+	 * Create a copy of the string to add '-' and/or 'p' to the
+	 * original value.
+	 */
+	if ((newopts = ns = malloc(len + 3)) == NULL)
+		errx(1, "malloc failed");
+
+	if (*origval != '-')
+		*ns++ = '-';	/* add option flag */
+
+	if (pidp == NULL)
+		strcpy(ns, origval);
 	else {
 		/*
-		 * otherwise check for trailing number, which *may* be a
-		 * pid.
+		 * Copy everything before the pid string, add the `p',
+		 * and then copy the pid string.
 		 */
-		while (cp >= s && isdigit(*cp))
-			--cp;
-	}
-	cp++;
-	memmove(ns, s, (size_t)(cp - s));	/* copy up to trailing number */
-	ns += cp - s;
-	/*
-	 * if there's a trailing number, and not a preceding 'p' (pid) or
-	 * 't' (tty) flag, then assume it's a pid and insert a 'p' flag.
-	 */
-	if (isdigit(*cp) &&
-	    (cp == s || (cp[-1] != 't' && cp[-1] != 'p')) &&
-	    (cp - 1 == s || cp[-2] != 't'))
+		len = pidp - origval;
+		memcpy(ns, origval, len);
+		ns += len;
 		*ns++ = 'p';
-	(void)strcpy(ns, cp);		/* and append the number */
+		strcpy(ns, pidp);
+	}
 
 	return (newopts);
 }
