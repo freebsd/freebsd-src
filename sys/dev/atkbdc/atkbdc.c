@@ -31,7 +31,6 @@
  * from kbdio.c,v 1.13 1998/09/25 11:55:46 yokota Exp
  */
 
-#include "atkbdc.h"
 #include "opt_kbd.h"
 
 #include <sys/param.h>
@@ -51,7 +50,7 @@
 
 /* constants */
 
-#define MAXKBDC		MAX(NATKBDC, 1)		/* XXX */
+#define MAXKBDC		1		/* XXX */
 
 /* macros */
 
