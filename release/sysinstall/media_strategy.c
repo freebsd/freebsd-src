@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.20 1995/05/24 22:37:42 jkh Exp $
+ * $Id: media_strategy.c,v 1.21 1995/05/25 06:15:38 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -250,28 +250,51 @@ genericGetDist(char *path, struct attribs *dist_attrib, Boolean prompt)
 
 	dup2(pfd[1], 1); close(pfd[1]);
 	close(pfd[0]);
-
+	
 	for (chunk = 0; chunk < numchunks; chunk++) {
-	    int		fd;
-
+	    int			fd;
+	    unsigned long	len, val;
+	    
+	    retval = stat(buf, &sb);
+	    if ((retval != 0) && (prompt != TRUE))
+	    {
+		msgConfirm("Cannot find file(s) for distribution in ``%s''!\n", path);
+		return -1;
+	    } else {
+		char *tmp = index(buf, '/');
+		tmp++;
+		    
+		while (retval != 0)
+		{
+		    msgConfirm("Please insert the disk with the `%s' file on it\n", tmp);
+		    retval = stat(buf, &sb);
+		}
+	    }
+	    
 	    snprintf(buf, 512, "%s.%c%c", path, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if ((fd = open(buf, O_RDONLY)) == -1)
 		msgFatal("Cannot find file `%s'!", buf);
-
+	    
+	    if (prompt == TRUE)
+	    {
+		crc(fd, &val, &len);
+		msgDebug("crc for %s is %lu %lu\n", buf, val, len);
+	    }
+	    
 	    fstat(fd, &sb);
 	    msgDebug("mmap()ing %s (%d)\n", buf, fd);
 	    memory = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t) 0);
 	    if (memory == (caddr_t) -1)
 		msgFatal("mmap error: %s\n", strerror(errno));
-
- 	    retval = write(1, memory, sb.st_size);
+	
+	    retval = write(1, memory, sb.st_size);
 	    if (retval != sb.st_size)
 	    {
 		msgConfirm("write didn't write out the complete file!\n(wrote %d bytes of %d bytes)", retval,
 			   sb.st_size);
 		exit(1);
 	    }
-
+	    
 	    retval = munmap(memory, sb.st_size);
 	    if (retval != 0)
 	    {
@@ -391,6 +414,7 @@ int
 mediaGetFloppy(char *dist)
 {
     char		buf[PATH_MAX];
+    char		*fname;
     struct attribs	*dist_attr;
     int			retval;
 
@@ -403,7 +427,8 @@ mediaGetFloppy(char *dist)
 	return FALSE;
     }
    
-    snprintf(buf, PATH_MAX, "/mnt/%s", dist);
+    fname = index(dist, '/') + 1;
+    snprintf(buf, PATH_MAX, "/mnt/%s", fname);
 
     retval = genericGetDist(buf, dist_attr, TRUE);
     free(dist_attr);

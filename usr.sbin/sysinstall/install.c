@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.53 1995/05/25 01:22:15 jkh Exp $
+ * $Id: install.c,v 1.54 1995/05/25 01:52:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,6 +44,7 @@
 #include "sysinstall.h"
 #include <sys/disklabel.h>
 #include <sys/errno.h>
+#include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -52,7 +53,7 @@ Boolean SystemWasInstalled;
 
 static void	make_filesystems(void);
 static void	copy_self(void);
-static void	cpio_extract(void);
+static void	root_extract(void);
 
 static Disk *rootdisk;
 static Chunk *rootdev;
@@ -196,7 +197,20 @@ installInitial(void)
     chroot("/mnt");
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
-    cpio_extract();
+    /* If we're running as init, stick a shell over on the 4th VTY */
+    if (RunningAsInit && !fork()) {
+	int i, fd;
+
+	for (i = 0; i < 64; i++)
+	    close(i);
+	fd = open("/dev/ttyv3", O_RDWR);
+	ioctl(0, TIOCSCTTY, &fd);
+	dup2(0, 1);
+	dup2(0, 2);
+	execlp("sh", "-sh", 0);
+	exit(1);
+    }
+    root_extract();
     alreadyDone = TRUE;
     return TRUE;
 }
@@ -374,7 +388,7 @@ floppyChoiceHook(char *str)
 }
 
 static void
-cpio_extract(void)
+root_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
     Boolean onCDROM = FALSE;
@@ -382,9 +396,9 @@ cpio_extract(void)
     if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM) {
 	if (mediaDevice->init) {
 	    if ((*mediaDevice->init)(mediaDevice)) {
-		CpioFD = open("/cdrom/floppies/cpio.flp", O_RDONLY);
-		if (CpioFD != -1) {
-		    msgNotify("Loading CPIO floppy from CDROM");
+		RootFD = open("/cdrom/floppies/root.flp", O_RDONLY);
+		if (RootFD != -1) {
+		    msgNotify("Loading root floppy from CDROM");
 		    onCDROM = TRUE;
 		}
 	    }
@@ -392,7 +406,7 @@ cpio_extract(void)
     }
 
  tryagain:
-    while (CpioFD == -1) {
+    while (RootFD == -1) {
 	if (!floppyDev) {
 	    Device **devs;
 	    int cnt;
@@ -415,20 +429,20 @@ cpio_extract(void)
 		continue;
 	}
 	dialog_clear();
-	msgConfirm("Please Insert CPIO floppy in %s", floppyDev->description);
-	CpioFD = open(floppyDev->devname, O_RDONLY);
-	if (CpioFD >= 0)
+	msgConfirm("Please Insert ROOT floppy in %s", floppyDev->description);
+	RootFD = open(floppyDev->devname, O_RDONLY);
+	if (RootFD >= 0)
 	    break;
-	msgDebug("Error on open of cpio floppy: %s (%d)\n", strerror(errno), errno);
+	msgDebug("Error on open of root floppy: %s (%d)\n", strerror(errno), errno);
     }
     j = fork();
     if (!j) {
 	chdir("/");
-	msgWeHaveOutput("Extracting contents of CPIO floppy...");
+	msgWeHaveOutput("Extracting contents of root floppy...");
 	pipe(pfd);
 	zpid = fork();
 	if (!zpid) {
-	    dup2(CpioFD, 0); close(CpioFD);
+	    dup2(RootFD, 0); close(RootFD);
 	    dup2(pfd[1], 1); close(pfd[1]);
 	    if (DebugFD != -1)
 		dup2(DebugFD, 2);
@@ -440,7 +454,7 @@ cpio_extract(void)
 	cpid = fork();
 	if (!cpid) {
 	    dup2(pfd[0], 0); close(pfd[0]);
-	    close(CpioFD);
+	    close(RootFD);
 	    close(pfd[1]);
 	    if (DebugFD != -1) {
 		dup2(DebugFD, 1);
@@ -456,7 +470,7 @@ cpio_extract(void)
 	}
 	close(pfd[0]);
 	close(pfd[1]);
-	close(CpioFD);
+	close(RootFD);
 
 	i = waitpid(zpid, &j, 0);
 	if (i < 0) {	/* Don't check status - gunzip seems to return a bogus one! */
@@ -476,13 +490,13 @@ cpio_extract(void)
 	i = wait(&j);
     if (i < 0 || WEXITSTATUS(j) || access("/OK", R_OK) == -1) {
 	dialog_clear();
-	msgConfirm("CPIO floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
-	close(CpioFD);
-	CpioFD = -1;
+	msgConfirm("Root floppy did not extract properly!  Please verify\nthat your media is correct and try again.");
+	close(RootFD);
+	RootFD = -1;
 	dialog_clear();
 	goto tryagain;
     }
     unlink("/OK");
     if (!onCDROM)
-	msgConfirm("Please remove the CPIO floppy from the drive");
+	msgConfirm("Please remove all floppies in any drives at this time.\nThey are no longer needed.");
 }
