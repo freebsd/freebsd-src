@@ -86,6 +86,8 @@
 /* config registers for header type 0 devices */
 
 #define PCIR_MAPS	0x10
+#define PCIR_BARS	PCIR_MAPS
+#define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
 #define PCIR_CARDBUSCIS	0x28
 #define PCIR_SUBVEND_0	0x2c
 #define PCIR_SUBDEV_0	0x2e
