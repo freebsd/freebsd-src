@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: error.c,v 1.3 1995/05/30 00:07:10 rgrimes Exp $
+ *	$Id: error.c,v 1.4 1996/09/01 10:19:53 peter Exp $
  */
 
 #ifndef lint
@@ -110,14 +110,6 @@ onint() {
 		_exit(128 + SIGINT);
 }
 
-
-
-void
-error2(a, b)
-	char *a, *b;
-	{
-	error("%s: %s", a, b);
-}
 
 
 /*

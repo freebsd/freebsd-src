@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: show.c,v 1.2 1994/09/24 02:58:16 davidg Exp $
+ *	$Id: show.c,v 1.3 1996/09/01 10:21:43 peter Exp $
  */
 
 #ifndef lint
@@ -341,6 +341,7 @@ trputs(s)
 }
 
 
+#ifdef DEBUG
 static void
 trstring(s)
 	char *s;
@@ -348,7 +349,6 @@ trstring(s)
 	register char *p;
 	char c;
 
-#ifdef DEBUG
 	if (tracefile == NULL)
 		return;
 	putc('"', tracefile);
@@ -380,8 +380,8 @@ backslash:	  putc('\\', tracefile);
 		}
 	}
 	putc('"', tracefile);
-#endif
 }
+#endif
 
 
 void
@@ -405,13 +405,13 @@ trargs(ap)
 
 void
 opentrace() {
+#ifdef DEBUG
 	char s[100];
 	char *getenv();
 #ifdef O_APPEND
 	int flags;
 #endif
 
-#ifdef DEBUG
 	if (!debug)
 		return;
 #ifdef not_this_way

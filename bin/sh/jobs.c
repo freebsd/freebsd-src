@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.5 1996/09/01 10:20:24 peter Exp $
+ *	$Id: jobs.c,v 1.6 1996/09/03 13:35:09 peter Exp $
  */
 
 #ifndef lint
@@ -52,6 +52,7 @@ static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
+#include <sys/ioctl.h>
 
 #include "shell.h"
 #if JOBS

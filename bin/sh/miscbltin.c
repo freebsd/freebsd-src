@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: miscbltin.c,v 1.5 1996/09/01 10:20:46 peter Exp $
+ *	$Id: miscbltin.c,v 1.6 1996/09/03 13:35:10 peter Exp $
  */
 
 #ifndef lint
@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include "shell.h"
 #include "options.h"
@@ -292,7 +293,7 @@ ulimitcmd(argc, argv)
 	char **argv;
 {
 	register int	c;
-	quad_t val;
+	quad_t val = 0;
 	enum { SOFT = 0x1, HARD = 0x2 }
 			how = SOFT | HARD;
 	const struct limits	*l;
@@ -365,7 +366,7 @@ ulimitcmd(argc, argv)
 			else
 			{
 				val /= l->factor;
-				out1fmt("%ld\n", (long) val);
+				out1fmt("%qd\n", (quad_t) val);
 			}
 		}
 		return 0;
@@ -393,7 +394,7 @@ ulimitcmd(argc, argv)
 		else
 		{
 			val /= l->factor;
-			out1fmt("%ld\n", (long) val);
+			out1fmt("%qd\n", (quad_t) val);
 		}
 	}
 	return 0;

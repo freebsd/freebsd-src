@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: input.c,v 1.4 1995/11/03 18:50:14 peter Exp $
+ *	$Id: input.c,v 1.5 1996/09/01 10:20:18 peter Exp $
  */
 
 #ifndef lint
@@ -178,14 +178,13 @@ pread()
 retry:
 	if (parsefile->fd == 0 && el) {
 		const char *rl_cp;
-		int len;
 
 		rl_cp = el_gets(el, &nr);
 		if (rl_cp == NULL)
 			nr = 0;
 		else {
 			/* XXX - BUFSIZE should redesign so not necessary */
-			strcpy(parsenextc, rl_cp);
+			(void)strcpy(parsenextc, rl_cp);
 		}
 
 	} else {
@@ -286,13 +285,13 @@ check:
 	savec = *q;
 	*q = '\0';
 
-
+#ifndef NO_HISTORY
 	if (parsefile->fd == 0 && hist && something) {
 		INTOFF;
 		history(hist, whichprompt == 1 ? H_ENTER : H_ADD, parsenextc);
 		INTON;
 	}
-
+#endif
 
 	if (vflag) {
 		out2str(parsenextc);
