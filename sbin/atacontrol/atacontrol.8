@@ -52,6 +52,9 @@
 .Ic delete
 .Ar raid
 .Nm
+.Ic addspare
+.Ar raid disk
+.Nm
 .Ic rebuild
 .Ar raid
 .Nm
@@ -152,6 +155,8 @@ the partition to boot must
 reside on the first disk in the SPAN.
 .It Ic delete
 Delete a RAID array on a RAID capable ATA controller.
+.It Ic addspare
+Add a spare disk to an existing RAID.
 .It Ic rebuild
 Rebuild a RAID1 array on a RAID capable ATA controller.
 .It Ic status
