@@ -62,6 +62,7 @@ SET_DECLARE(db_show_cmd_set, struct command);
 
 static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
+static db_cmdfcn_t	db_reset;
 
 /* XXX this is actually forward-static. */
 extern struct command	db_show_cmds[];
@@ -415,6 +416,7 @@ static struct command db_command_table[] = {
 	{ "show",	0,			0,	db_show_cmds },
 	{ "ps",		db_ps,			0,	0 },
 	{ "gdb",	db_gdb,			0,	0 },
+	{ "reset",	db_reset,		0,	0 },
 	{ (char *)0, }
 };
 
@@ -568,4 +570,15 @@ db_gdb (dummy1, dummy2, dummy3, dummy4)
 	db_printf("Next trap will enter %s\n",
 		   boothowto & RB_GDB ? "GDB remote protocol mode"
 				      : "DDB debugger");
+}
+
+static void
+db_reset(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
+{
+
+	cpu_reset();
 }
