@@ -22,9 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isic.4,v 1.16 1999/02/14 09:45:02 hm Exp $
+.\"	$Id: isic.4,v 1.18 1999/05/03 08:48:25 hm Exp $
 .\"
-.\"	last edit-date: [Sun Feb 14 10:37:21 1999]
+.\"	last edit-date: [Tue Apr 20 14:08:35 1999]
 .\"
 .Dd December 22, 1998
 .Dt isic 4
@@ -169,7 +169,7 @@ For an ELSA QuickStep 1000pro (PCI version)
 Cards on the PCMCIA or PCCARD bus:
 .Pp
 For an AVM Fritz!Card PCMCIA
-.Cd options \&"AVM_PCMCIA\&"
+.Cd options \&"AVM_A1_PCMCIA\&"
 .Cd "isic* at pcmcia? function ?"
 .Pp
 For an ELSA MicroLink ISDN/MC
@@ -347,6 +347,7 @@ value is 18.
 Valid i/o port values must be in the range (<unknown>).
 .Pp
 Valid interrupt configurations are (<unknown>).
+.El
 .Pp
 .Sh CAVEATS
 Note that all of the boards with I/O ports actually use several ranges

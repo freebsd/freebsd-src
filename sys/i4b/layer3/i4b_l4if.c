@@ -27,9 +27,9 @@
  *	i4b_l4if.c - Layer 3 interface to Layer 4
  *	-------------------------------------------
  *
- *	$Id: i4b_l4if.c,v 1.18 1999/02/14 09:45:01 hm Exp $ 
+ *	$Id: i4b_l4if.c,v 1.19 1999/04/27 14:47:58 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:33:44 1999]
+ *      last edit-date: [Tue Apr 27 16:46:51 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -304,7 +304,7 @@ n_connect_response(u_int cdid, int response, int cause)
 	}
 	else
 	{
-		DBGL3(L3_ERR, "n_connect_response", ("ERROR, invalid channel %d\n", cd->channelid));
+		DBGL3(L3_MSG, "n_connect_response", ("Warning, invalid channelid %d, response = %d\n", cd->channelid, response));
 	}
 }
 

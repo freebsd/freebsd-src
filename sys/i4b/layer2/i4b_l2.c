@@ -27,9 +27,9 @@
  *      i4b_l2.c - ISDN layer 2 (Q.921)
  *	-------------------------------
  *
- *	$Id: i4b_l2.c,v 1.24 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: i4b_l2.c,v 1.26 1999/04/15 09:53:55 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:31:25 1999]
+ *      last edit-date: [Thu Apr 15 11:32:11 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -156,7 +156,7 @@ int i4b_dl_unit_data_req(int unit, struct mbuf *m)
 int i4b_dl_data_req(int unit, struct mbuf *m)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
-	int x;
+
 #ifdef NOTDEF
 	DBGL2(L2_PRIM, "DL-DATA-REQ", ("unit %d\n",unit));
 #endif
@@ -173,9 +173,12 @@ int i4b_dl_data_req(int unit, struct mbuf *m)
 		        }
 		        else
 		        {
-			        x = splimp();		        	
+		        	CRIT_VAR;
+
+		        	CRIT_BEG;
 				IF_ENQUEUE(&l2sc->i_queue, m);
-				splx(x);
+				CRIT_END;
+
 				i4b_i_frame_queued_up(l2sc);
 			}
 			break;
@@ -222,7 +225,9 @@ static void
 i4b_l2_unit_init(int unit)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
+	CRIT_VAR;
 
+	CRIT_BEG;
 	l2sc->Q921_state = ST_TEI_UNAS;
 	l2sc->tei_valid = TEI_INVALID;
 	l2sc->vr = 0;
@@ -251,7 +256,9 @@ i4b_l2_unit_init(int unit)
 
 	i4b_T200_stop(l2sc);
 	i4b_T202_stop(l2sc);
-	i4b_T203_stop(l2sc);	
+	i4b_T203_stop(l2sc);
+
+	CRIT_END;	
 }
 
 /*---------------------------------------------------------------------------*
@@ -261,9 +268,10 @@ int
 i4b_mph_status_ind(int unit, int status, int parm)
 {
 	l2_softc_t *l2sc = &l2_softc[unit];
+	CRIT_VAR;
 	int sendup = 1;
-
-	int x = SPLI4B();
+	
+	CRIT_BEG;
 
 	DBGL1(L1_PRIM, "MPH-STATUS-IND", ("unit %d, status=%d, parm=%d\n", unit, status, parm));
 
@@ -280,6 +288,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			callout_handle_init(&l2sc->T200_callout);
 			callout_handle_init(&l2sc->T202_callout);
 			callout_handle_init(&l2sc->T203_callout);
+			callout_handle_init(&l2sc->IFQU_callout);
 #endif
 			break;
 
@@ -312,7 +321,7 @@ i4b_mph_status_ind(int unit, int status, int parm)
 	if(sendup)
 		MDL_Status_Ind(unit, status, parm);  /* send up to layer 3 */
 
-	splx(x);
+	CRIT_END;
 	
 	return(0);
 }

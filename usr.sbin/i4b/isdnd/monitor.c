@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
- *	$Id: monitor.c,v 1.8 1999/02/15 16:48:04 hm Exp $
+ *	$Id: monitor.c,v 1.9 1999/05/06 08:24:45 hm Exp $
  *
  *      last edit-date: [Mon Feb 15 16:42:18 1999]
  *
@@ -351,10 +351,11 @@ int monitor_create_local_socket()
 	sa.sun_len = sizeof sa;
 	sa.sun_family = AF_LOCAL;
 	strcpy(sa.sun_path, VARA_AT(rights, local_rights).name);
-	if (bind(s, (struct sockaddr *)&sa, sizeof sa)) {
+	if (bind(s, (struct sockaddr *)&sa, SUN_LEN(&sa))) {
 		log(LL_ERR, "could not bind local monitor socket [%s], errno = %d", VARA_AT(rights, local_rights).name, errno);
 		exit(1);
 	}
+	chmod(VARA_AT(rights, local_rights).name, 0500);
 	if (listen(s, 0)) {
 		log(LL_ERR, "could not listen on local monitor socket, errno = %d", errno);
 		exit(1);

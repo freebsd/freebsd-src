@@ -33,9 +33,9 @@
  *	Fritz!Card pcmcia specific routines for isic driver
  *	---------------------------------------------------
  *
- *	$Id: i4b_avm_fritz_pcmcia.c,v 1.2 1999/03/07 16:08:15 hm Exp $ 
+ *	$Id: i4b_avm_fritz_pcmcia.c,v 1.12 1999/05/03 08:48:25 hm Exp $ 
  *
- *      last edit-date: [Tue Mar 16 10:49:53 1999]
+ *      last edit-date: [Sun May  2 12:01:16 1999]
  *
  *	-ap	added support for AVM PCMCIA Fritz!Card
  *	-mh	split into separate file
@@ -80,7 +80,6 @@
 #include <i4b/i4b_ioctl.h>
 #include <dev/pcmcia/pcmciareg.h>
 #include <dev/pcmcia/pcmciavar.h>
-#include <i4b/layer1/pcmcia_isic.h>
 #endif
 
 #include <i4b/layer1/i4b_l1.h>
@@ -88,6 +87,8 @@
 #include <i4b/layer1/i4b_hscx.h>
 
 #ifndef __FreeBSD__
+#include <i4b/layer1/pcmcia_isic.h>
+
 /* PCMCIA support routines */
 static u_int8_t avma1_pcmcia_read_reg __P((struct isic_softc *sc, int what, bus_size_t offs));
 static void avma1_pcmcia_write_reg __P((struct isic_softc *sc, int what, bus_size_t offs, u_int8_t data));
@@ -390,7 +391,7 @@ isic_probe_avma1_pcmcia(struct isa_device *dev)
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
 int
-isic_attach_fritz(struct isa_device *dev)
+isic_attach_fritzpcmcia(struct isa_device *dev)
 {
 	/* ResetController again just to make sure... */
 

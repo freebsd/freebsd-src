@@ -27,9 +27,9 @@
  *	i4b_l4.h - kernel interface to userland header file
  *	---------------------------------------------------
  *
- *	$Id: i4b_l4.h,v 1.14 1999/02/14 09:45:02 hm Exp $ 
+ *	$Id: i4b_l4.h,v 1.15 1999/03/18 14:33:41 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:35:08 1999]
+ *      last edit-date: [Wed Mar 17 16:20:10 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,6 +46,7 @@ extern void i4b_l4_connect_ind ( call_desc_t *cd );
 extern void i4b_l4_daemon_attached(void);
 extern void i4b_l4_daemon_detached(void);
 extern void i4b_l4_dialout( int driver, int driver_unit );
+extern void i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd);
 extern void i4b_l4_disconnect_ind ( call_desc_t *cd );
 extern void i4b_l4_drvrdisc (int driver, int driver_unit );
 extern void i4b_l4_negcomplete( call_desc_t *cd );

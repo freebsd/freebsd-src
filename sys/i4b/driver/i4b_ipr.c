@@ -27,9 +27,9 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.2 1999/03/07 16:08:13 hm Exp $
+ *	$Id: i4b_ipr.c,v 1.51 1999/05/06 08:24:45 hm Exp $
  *
- *	last edit-date: [Sun Feb 14 10:02:36 1999]
+ *	last edit-date: [Thu May  6 10:09:20 1999]
  *
  *---------------------------------------------------------------------------*
  *
@@ -207,11 +207,21 @@ enum ipr_states {
 	ST_CONNECTED_A,			/* connected to remote		*/
 };
 
+#if defined(__FreeBSD__) || defined(__bsdi__)
+#define	THE_UNIT	sc->sc_if.if_unit
+#else
+#define	THE_UNIT	sc->sc_unit
+#endif
+
 #ifdef __FreeBSD__
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 #  define IOCTL_CMD_T u_long
 #else
+#ifdef __NetBSD__
+#  define IOCTL_CMD_T u_long
+#else
 #  define IOCTL_CMD_T int
+#endif
 #endif
 PDEVSTATIC void i4biprattach(void *);
 PSEUDO_SET(i4biprattach, i4b_ipr);
@@ -571,7 +581,12 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case IPRIOCSMAXCID:
 			{
 			struct proc *p = curproc;	/* XXX */
+
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 400005
 			if((error = suser(p)) != 0)
+#else
+			if((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+#endif
 				return (error);
 		        sl_compress_setup(sc->sc_compr, *(int *)data);
 			}
@@ -686,15 +701,14 @@ iprwatchdog(struct ifnet *ifp)
  *	start transmitting after connect
  *---------------------------------------------------------------------------*/
 static void
-i4bipr_connect_startio(int unit)
+i4bipr_connect_startio(struct ipr_softc *sc)
 {
-	struct ipr_softc *sc = &ipr_softc[unit];
 	int s = SPLI4B();
 	
 	if(sc->sc_state == ST_CONNECTED_W)
 	{
 		sc->sc_state = ST_CONNECTED_A;
-		ipr_tx_queue_empty(unit);
+		ipr_tx_queue_empty(THE_UNIT);
 	}
 
 	splx(s);
@@ -748,7 +762,7 @@ ipr_connect(int unit, void *cdp)
 
 	if(sc->sc_cdp->isdntxdelay > 0)
 	{
-		timeout((TIMEOUT_FUNC_T)i4bipr_connect_startio, (void *)unit, sc->sc_cdp->isdntxdelay /* hz*1 */);
+		timeout((TIMEOUT_FUNC_T)i4bipr_connect_startio, (void *)sc, sc->sc_cdp->isdntxdelay /* hz*1 */);
 	}
 	else
 	{
@@ -803,13 +817,19 @@ ipr_disconnect(int unit, void *cdp)
  *	in case of dial problems
  *---------------------------------------------------------------------------*/
 static void
-ipr_dialresponse(int unit, int status)
+ipr_dialresponse(int unit, int status, cause_t cause)
 {
 	struct ipr_softc *sc = &ipr_softc[unit];
 	sc->sc_dialresp = status;
 
 	DBGL4(L4_IPRDBG, "ipr_dialresponse", ("ipr%d: last=%d, this=%d\n",
 		unit, sc->sc_lastdialresp, sc->sc_dialresp));
+
+	if(status != DSTAT_NONE)
+	{
+		DBGL4(L4_IPRDBG, "ipr_dialresponse", ("ipr%d: clearing queues\n", unit));
+		iprclearqueues(sc);
+	}
 }
 	
 /*---------------------------------------------------------------------------*
@@ -1076,12 +1096,20 @@ ipr_tx_queue_empty(int unit)
 		}
 #endif
 		x = 1;
-			
-		IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 
-		sc->sc_if.if_obytes += m->m_pkthdr.len;
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		{
+			DBGL4(L4_IPRDBG, "ipr_rx_data_rdy", ("ipr%d: tx queue full!\n", unit));
+			m_freem(m);
+		}
+		else
+		{
+			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
 
-		sc->sc_if.if_opackets++;
+			sc->sc_if.if_obytes += m->m_pkthdr.len;
+
+			sc->sc_if.if_opackets++;
+		}
 	}
 
 	if(x)

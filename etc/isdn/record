@@ -4,13 +4,18 @@
 #	answer and record message script for i4b isdnd
 #	----------------------------------------------
 #
-#	$Id: record,v 1.3 1998/12/18 17:17:57 hm Exp $
+#	$Id: record,v 1.5 1999/04/23 09:42:05 hm Exp $
 #
-#	last edit-date: [Fri Dec 18 18:05:31 1998]
+#	last edit-date: [Thu May 20 11:45:10 1999]
 #
 #---------------------------------------------------------------------------
 VARDIR=/var/isdn
-LIBDIR=/usr/local/lib/isdn
+
+#FreeBSD < 3.1, NetBSD, OpenBSD, BSD/OS
+#LIBDIR=/usr/local/lib/isdn
+#FreeBSD 3.1 and up
+LIBDIR=/usr/share/isdn
+
 LOGFILE=/tmp/answer.log
 NCALLFILE=$VARDIR/ncall
 DATE=`date +%d%H`
@@ -86,19 +91,19 @@ then
 	echo "To: $DEST" >> $VARDIR/I.$NCALL.$DATE
 fi
 
-if [ -f $LIBDIR/beep.g711a ]
+if [ -f $LIBDIR/beep.al ]
 then
-	dd of=$DEVICE if=$LIBDIR/beep.g711a bs=2k >/dev/null 2>&1 
+	dd of=$DEVICE if=$LIBDIR/beep.al bs=2k >/dev/null 2>&1 
 fi
 
-if [ -f $LIBDIR/msg.g711a ]
+if [ -f $LIBDIR/msg.al ]
 then
-	dd of=$DEVICE if=$LIBDIR/msg.g711a bs=2k >/dev/null 2>&1
+	dd of=$DEVICE if=$LIBDIR/msg.al bs=2k >/dev/null 2>&1
 fi
 
-if [ -f $LIBDIR/beep.g711a ]
+if [ -f $LIBDIR/beep.al ]
 then
-	dd of=$DEVICE if=$LIBDIR/beep.g711a bs=2k >/dev/null 2>&1
+	dd of=$DEVICE if=$LIBDIR/beep.al bs=2k >/dev/null 2>&1
 fi
 
 dd if=$DEVICE of=$VARDIR/R.$NCALL.$DATE bs=2k >/dev/null 2>&1

@@ -27,16 +27,13 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- *	$Id: support.c,v 1.48 1999/02/17 14:31:42 hm Exp $ 
+ *	$Id: support.c,v 1.56 1999/04/28 15:37:02 hm Exp $ 
  *
- *      last edit-date: [Mon Feb 15 16:40:05 1999]
+ *      last edit-date: [Wed Apr 28 17:13:36 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "isdnd.h"
-
-#define SRC (aliasing == 0 ? mp->src_telno : src_tela)
-#define DST (aliasing == 0 ? mp->dst_telno : dst_tela)
 	
 /*---------------------------------------------------------------------------*
  *	find an active entry by driver type and driver unit
@@ -132,6 +129,76 @@ find_by_device_for_dialout(int drivertype, int driverunit)
 /*---------------------------------------------------------------------------*
  *	find entry by drivertype and driverunit and setup for dialing out
  *---------------------------------------------------------------------------*/
+cfg_entry_t *
+find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, char *cmd)
+{
+	cfg_entry_t *cep = NULL;
+	int i, j;
+
+	for(i=0; i < nentries; i++)
+	{
+		cep = &cfg_entry_tab[i];	/* ptr to config entry */
+
+		/* compare driver type and unit */
+
+		if(!((cep->usrdevicename == drivertype) &&
+		     (cep->usrdeviceunit == driverunit)))
+		{
+			continue;
+		}
+
+		/* found, check if already reserved */
+		
+		if(cep->cdid == CDID_RESERVED)
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, cdid reserved!", i)));
+			return(NULL);
+		}
+
+		/* check if this entry is already in use ? */
+		
+		if(cep->cdid != CDID_UNUSED)	
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, cdid in use", i)));
+			return(NULL);
+		}
+
+		/* check number and copy to cep->remote_numbers[] */
+		
+		for(j = 0; j < cmdlen; j++)
+		{
+			if(!(isdigit(*(cmd+j))))
+			{
+				DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, dial string contains non-digit at pos %d", i, j)));
+				return(NULL);
+			}
+			/* fill in number to dial */
+			cep->remote_numbers[0].number[j] = *(cmd+j);
+		}				
+		cep->remote_numbers[0].number[j] = '\0';
+		cep->remote_numbers_count = 1;
+
+		if((setup_dialout(cep)) == GOOD)
+		{
+			/* found an entry to be used for calling out */
+		
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: found entry %d!", i)));
+			return(cep);
+		}
+		else
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, setup_dialout() failed!", i)));
+			return(NULL);
+		}
+	}
+
+	DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: no entry found!")));
+	return(NULL);
+}
+
+/*---------------------------------------------------------------------------*
+ *	find entry by drivertype and driverunit and setup for dialing out
+ *---------------------------------------------------------------------------*/
 int
 setup_dialout(cfg_entry_t *cep)
 {
@@ -221,9 +288,30 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 {
 	cfg_entry_t *cep = NULL;
 	int i;
-	char *src_tela = "ERROR-src_tela";
-	char *dst_tela = "ERROR-dst_tela";
 
+	/* check for CW (call waiting) early */
+
+	if(mp->channel == CHAN_NO)
+	{
+		if(aliasing)
+	        {
+			char *src_tela = "ERROR-src_tela";
+			char *dst_tela = "ERROR-dst_tela";
+	
+	                src_tela = get_alias(mp->src_telno);
+	                dst_tela = get_alias(mp->dst_telno);
+	
+			log(LL_CHD, "%05d <unknown> CW from %s to %s (no channel free)",
+				mp->header.cdid, src_tela, dst_tela);
+		}
+		else
+		{
+			log(LL_CHD, "%05d <unknown> call waiting from %s to %s (no channel free)",
+				mp->header.cdid, mp->src_telno, mp->dst_telno);
+		}
+		return(NULL);
+	}
+	
 	for(i=0; i < nentries; i++)
 	{
 		int n;
@@ -427,21 +515,20 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 	if(aliasing)
         {
+		char *src_tela = "ERROR-src_tela";
+		char *dst_tela = "ERROR-dst_tela";
+
                 src_tela = get_alias(mp->src_telno);
                 dst_tela = get_alias(mp->dst_telno);
-        }
-	log(LL_CHD,	/* A number not listed in /etc/isdn/isdnd.rc */
-		( (!aliasing) ?
-			"%05d <unknown> incoming call from %s to %s" :
-				/* Probably a phone call, likely from someone
-				   in phone book /etc/isdn/isdntel.alias, so
-				   avoid looking silly by saying "unknown",
-				   & allow more space to print names. 
-				*/
-			"%05d Call from %s to %s" 
-		) ,
-		mp->header.cdid, SRC, DST, mp->dst_telno);
 
+		log(LL_CHD, "%05d Call from %s to %s",
+			mp->header.cdid, src_tela, dst_tela);
+	}
+	else
+	{
+		log(LL_CHD, "%05d <unknown> incoming call from %s to %s",
+			mp->header.cdid, mp->src_telno, mp->dst_telno);
+	}
 	return(NULL);
 }
 
@@ -504,7 +591,7 @@ name_of_controller(int ctrl_type, int card_type)
 		"Dr. Neuhaus NICCY Go@",
 		"Sedlbauer win speed",
  		"Dynalink IS64PH",
-		"ISDN Master or Blaster",
+		"ISDN Master, MasterII or Blaster",
 		"AVM PCMCIA Fritz!Card",
 		"ELSA QuickStep 1000pro/ISA",
 		"ELSA QuickStep 1000pro/PCI",
@@ -512,8 +599,10 @@ name_of_controller(int ctrl_type, int card_type)
 		"ELSA MicroLink ISDN/MC",
 		"ELSA MicroLink MCall",
  		"ITK ix1 micro",
-		"AVM Fritz!Card PCI"
+		"AVM Fritz!Card PCI",
+		"ELSA PCC-16"
 	};
+
 	static char *daic_card[] = {
 		"EICON.Diehl S",
 		"EICON.Diehl SX/SXn",
@@ -521,14 +610,21 @@ name_of_controller(int ctrl_type, int card_type)
 		"EICON.Diehl QUADRO",
 	};
 
-	if (ctrl_type == CTRL_PASSIVE) {
+	if(ctrl_type == CTRL_PASSIVE)
+	{
 		int index = card_type - CARD_TYPEP_8;
 		if (index >= 0 && index < (sizeof passive_card / sizeof passive_card[0]))
 			return passive_card[index];
-	} else if (ctrl_type == CTRL_DAIC) {
+	}
+	else if(ctrl_type == CTRL_DAIC)
+	{
 		int index = card_type - CARD_TYPEA_DAIC_S;
 		if (index >= 0 && index < (sizeof daic_card / sizeof daic_card[0] ))
 			return daic_card[index];
+	}
+	else if(ctrl_type == CTRL_TINADD)
+	{
+		return "Stollmann tina-dd";
 	}
 
 	return "unknown card type";
@@ -651,38 +747,36 @@ handle_charge(cfg_entry_t *cep)
 }
 
 /*---------------------------------------------------------------------------*
- *
+ *	update kernel idle_time, earlyhup_time and unitlen_time
  *---------------------------------------------------------------------------*/
 void
 unitlen_chkupd(cfg_entry_t *cep)
 {
 	msg_timeout_upd_t tupd;
 
-/* XXX check if the values are possible, if not, adjust them */
-	
 	tupd.cdid = cep->cdid;
 
 	/* init the short hold data based on the shorthold algorithm type */
 	
-	switch( cep->shorthold_algorithm )
+	switch(cep->shorthold_algorithm)
 	{
+		case SHA_FIXU:
+			tupd.shorthold_data.shorthold_algorithm = SHA_FIXU;
+			tupd.shorthold_data.unitlen_time = cep->unitlength;
+			tupd.shorthold_data.idle_time = cep->idle_time_out;
+			tupd.shorthold_data.earlyhup_time = cep->earlyhangup;
+			break;
 
-	case msg_alg__fix_unit_size:
-		tupd.shorthold_data.shorthold_algorithm = msg_alg__fix_unit_size;
-		tupd.shorthold_data.unitlen_time = cep->unitlength;
-		tupd.shorthold_data.idle_time = cep->idle_time_out;
-		tupd.shorthold_data.earlyhup_time = cep->earlyhangup;
-		break;
-
-	case msg_alg__var_unit_size:
-		tupd.shorthold_data.shorthold_algorithm = msg_alg__var_unit_size;
-		tupd.shorthold_data.unitlen_time = cep->unitlength;
-		tupd.shorthold_data.idle_time = cep->idle_time_out;
-		tupd.shorthold_data.earlyhup_time = 0;
-		break;
-	default:
-		log(LL_ERR, "unitlen_chkupd bad shorthold_algorithm %d", cep->shorthold_algorithm );
-
+		case SHA_VARU:
+			tupd.shorthold_data.shorthold_algorithm = SHA_VARU;
+			tupd.shorthold_data.unitlen_time = cep->unitlength;
+			tupd.shorthold_data.idle_time = cep->idle_time_out;
+			tupd.shorthold_data.earlyhup_time = 0;
+			break;
+		default:
+			log(LL_ERR, "unitlen_chkupd bad shorthold_algorithm %d", cep->shorthold_algorithm );
+			return;
+			break;			
 	}
 
 	if((ioctl(isdnfd, I4B_TIMEOUT_UPD, &tupd)) < 0)
@@ -840,6 +934,7 @@ dialresponse(cfg_entry_t *cep, int dstat)
 	mdr.driver = cep->usrdevicename;
 	mdr.driver_unit = cep->usrdeviceunit;
 	mdr.stat = dstat;
+	mdr.cause = cep->disc_cause;	
 	
 	if((ioctl(isdnfd, I4B_DIALOUT_RESP, &mdr)) < 0)
 	{

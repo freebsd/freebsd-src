@@ -27,7 +27,7 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- *	$Id: i4b_isic.c,v 1.46 1999/02/14 19:51:02 hm Exp $ 
+ *	$Id: i4b_isic.c,v 1.47 1999/04/20 09:34:14 hm Exp $ 
  *
  *      last edit-date: [Sun Feb 14 10:27:20 1999]
  *
@@ -209,7 +209,7 @@ isicintr(void *arg)
 				was_isac_irq = 1;
 			}
 		}
-#ifndef amiga /* XXX should be: #if INTERUPTS_ARE_SHARED */
+#if !defined(amiga) && !defined(atari) /* XXX should be: #if INTS_ARE_SHARED */
 #ifdef ELSA_QS1ISA
 		if(sc->sc_cardtyp != CARD_TYPEP_ELSAQS1ISA)
 		{
@@ -219,7 +219,7 @@ isicintr(void *arg)
 #ifdef ELSA_QS1ISA
 		}
 #endif	
-#endif /* AMIGA */
+#endif /* !AMIGA && !ATARI */
 			
 		HSCX_WRITE(0, H_MASK, 0xff);
 		ISAC_WRITE(I_MASK, 0xff);

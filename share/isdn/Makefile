@@ -1,8 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.8 1998/01/03 14:13:46 wosch Exp $
+#	$Id: Makefile,v 1.1 1998/12/27 21:46:39 phk Exp $
 
-FILES=	0.g711a 1.g711a 2.g711a 3.g711a 4.g711a 5.g711a 6.g711a 7.g711a \
-	8.g711a 9.g711a beep.g711a msg.g711a
+FILES=	0.al 1.al 2.al 3.al 4.al 5.al 6.al 7.al 8.al 9.al beep.al msg.al
 
 CLEANFILES+=	${FILES}
 

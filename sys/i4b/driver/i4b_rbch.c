@@ -27,9 +27,9 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.25 1999/02/14 19:51:01 hm Exp $
+ *	$Id: i4b_rbch.c,v 1.31 1999/05/06 13:07:59 hm Exp $
  *
- *	last edit-date: [Sun Feb 14 10:02:49 1999]
+ *	last edit-date: [Thu May  6 13:40:22 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -39,18 +39,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || (!defined(__FreeBSD__) && !defined(__bsdi__))
-#include <sys/ioccom.h>
-#include <sys/poll.h>
-#else
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#endif
-
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001)
-#include <sys/filio.h>
-#endif
 
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -100,6 +88,19 @@ extern cc_t ttydefchars;
 int bootverbose = 0;
 #endif
 
+#ifdef OS_USES_POLL
+#include <sys/ioccom.h>
+#include <sys/poll.h>
+#else
+#include <sys/fcntl.h>
+#include <sys/ioctl.h>
+#endif
+
+#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001)
+#include <sys/filio.h>
+#endif
+
+
 static drvr_link_t rbch_drvr_linktab[NI4BRBCH];
 static isdn_link_t *isdn_linktab[NI4BRBCH];
 
@@ -143,7 +144,12 @@ int i4brbchclose __P((dev_t dev, int flag, int fmt, struct proc *p));
 int i4brbchread __P((dev_t dev, struct uio *uio, int ioflag));
 int i4brbchwrite __P((dev_t dev, struct uio *uio, int ioflag));
 int i4brbchioctl __P((dev_t dev, IOCTL_CMD_T cmd, caddr_t arg, int flag, struct proc* pr));
+#ifdef OS_USES_POLL
 int i4brbchpoll __P((dev_t dev, int events, struct proc *p));
+#else
+/* XXX fix "static" to PDEVSTATIC */
+static int i4brbchselect __P((dev_t dev, int rw, struct proc *p));
+#endif
 #endif
 
 #if BSD > 199306 && defined(__FreeBSD__)
@@ -160,7 +166,7 @@ PDEVSTATIC d_read_t i4brbchread;
 PDEVSTATIC d_read_t i4brbchwrite;
 PDEVSTATIC d_ioctl_t i4brbchioctl;
 
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || !defined(__FreeBSD__)
+#ifdef OS_USES_POLL
 PDEVSTATIC d_poll_t i4brbchpoll;
 #else
 PDEVSTATIC d_select_t i4brbchselect;
@@ -170,7 +176,7 @@ PDEVSTATIC d_select_t i4brbchselect;
 static struct cdevsw i4brbch_cdevsw = {
 	i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
   	i4brbchioctl,	nostop,		noreset,	nodevtotty,
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+#ifdef OS_USES_POLL
  	i4brbchpoll,	nommap, 	NULL, "i4brbch", NULL, -1
 #else
 	i4brbchselect,	nommap, 	NULL, "i4brbch", NULL, -1
@@ -486,7 +492,14 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 		
 		error = uiomove(m->m_data, m->m_len, uio);
 
-		IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+		if(IF_QFULL(isdn_linktab[unit]->tx_queue))
+		{
+			m_freem(m);			
+		}
+		else
+		{
+			IF_ENQUEUE(isdn_linktab[unit]->tx_queue, m);
+		}
 
 		(*isdn_linktab[unit]->bch_tx_start)(isdn_linktab[unit]->unit, isdn_linktab[unit]->channel);
 	}
@@ -556,11 +569,11 @@ if(bootverbose)printf("EE-rbch%d: attempting dialout (DTR)\n", unit);
 	return(error);
 }
 
+#ifdef OS_USES_POLL
+
 /*---------------------------------------------------------------------------*
  *	device driver poll
  *---------------------------------------------------------------------------*/
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || (!defined(__FreeBSD__) && !defined(__bsdi__))
-
 PDEVSTATIC int
 i4brbchpoll(dev_t dev, int events, struct proc *p)
 {
@@ -570,9 +583,6 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 
 	/* We can't check for anything but IN or OUT */
 
-	if((events & (POLLIN|POLLOUT)) == 0)
-		return(POLLNVAL);
-	
 	s = splhigh();
 
 	if(!(rbch_softc[unit].sc_devstate & ST_ISOPEN))
@@ -586,16 +596,16 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
          * transmit queue can take them
 	 */
 	 
-	if((events & POLLOUT) &&
+	if((events & (POLLOUT|POLLWRNORM)) &&
 	   (rbch_softc[unit].sc_devstate & ST_CONNECTED) &&
 	   !IF_QFULL(isdn_linktab[unit]->tx_queue))
 	{
-		revents |= POLLOUT;
+		revents |= (events & (POLLOUT|POLLWRNORM));
 	}
 	
 	/* ... while reads are OK if we have any data */
 
-	if((events & POLLIN) &&
+	if((events & (POLLIN|POLLRDNORM)) &&
 	   (rbch_softc[unit].sc_devstate & ST_CONNECTED))
 	{
 		struct ifqueue *iqp;
@@ -606,7 +616,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 			iqp = isdn_linktab[unit]->rx_queue;	
 
 		if(!IF_QEMPTY(iqp))
-			revents |= POLLIN;
+			revents |= (events & (POLLIN|POLLRDNORM));
 	}
 		
 	if(revents == 0)
@@ -616,11 +626,12 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 	return(revents);
 }
 
-#else
+#else /* OS_USES_POLL */
 
 /*---------------------------------------------------------------------------*
  *	device driver select
  *---------------------------------------------------------------------------*/
+/* XXX fix "static" to PDEVSTATIC */
 static int
 i4brbchselect(dev_t dev, int rw, struct proc *p)
 {
@@ -649,23 +660,31 @@ i4brbchselect(dev_t dev, int rw, struct proc *p)
 					iqp = isdn_linktab[unit]->rx_queue;	
 
 				if(!IF_QEMPTY(iqp))
+				{
+					splx(s);
 					return(1);
+				}
 				break;
 
 			case FWRITE:
 				if(!IF_QFULL(isdn_linktab[unit]->rx_queue))
+				{
+					splx(s);
 					return(1);
+				}
 				break;
 
 			default:
+				splx(s);
 				return 0;
 		}
 	}
 	selrecord(p, &rbch_softc[unit].selp);
+	splx(s);
 	return(0);
 }
 
-#endif /* defined(__FreeBSD_version) && __FreeBSD_version >= 300001 */
+#endif /* OS_USES_POLL */
 
 /*===========================================================================*
  *			ISDN INTERFACE ROUTINES
@@ -707,7 +726,7 @@ rbch_disconnect(int unit, void *cdp)
  *	feedback from daemon in case of dial problems
  *---------------------------------------------------------------------------*/
 static void
-rbch_dialresponse(int unit, int status)
+rbch_dialresponse(int unit, int status, cause_t cause)
 {
 }
 	
