@@ -11,7 +11,7 @@
  * - added Z_PACKET_FLUSH (see zlib.h for details)
  * - added inflateIncomp
  *
- * $Id: zlib.c,v 1.1.2.1 1997/07/01 20:44:10 peter Exp $
+ * $Id: zlib.c,v 1.3 1997/08/19 14:10:48 peter Exp $
  */
 
 /* 
@@ -93,7 +93,6 @@ extern char *z_errmsg[]; /* indexed by 1-zlib_error */
 
 #if defined(KERNEL) || defined(_KERNEL)
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/systm.h>
 #  define zmemcpy(d, s, n)	bcopy((s), (d), (n))
 #  define zmemzero		bzero
