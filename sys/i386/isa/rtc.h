@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtc.h	7.1 (Berkeley) 5/12/91
- *	$Id: rtc.h,v 1.3 1993/11/07 17:44:34 wollman Exp $
+ *	$Id: rtc.h,v 1.4 1993/12/18 01:12:47 ache Exp $
  */
 
 #ifndef _I386_ISA_RTC_H_
@@ -54,10 +54,28 @@
 #define RTC_DAY		0x07	/* day of month */
 #define RTC_MONTH	0x08	/* month of year */
 #define RTC_YEAR	0x09	/* month of year */
+
 #define RTC_STATUSA	0x0a	/* status register A */
 #define  RTCSA_TUP	 0x80	/* time update, don't look now */
+#define  RTCSA_DIVIDER   0x20   /* divider correct for 32768 Hz */
+#define  RTCSA_8192      0x03
+#define  RTCSA_4096      0x04
+#define  RTCSA_2048      0x05
+#define  RTCSA_1024      0x06	/* default for profiling */
+#define  RTCSA_PROF      RTCSA_1024
+#define  RTC_PROFRATE    1024
+#define  RTCSA_512       0x07
+#define  RTCSA_256       0x08
+#define  RTCSA_128       0x09
+#define  RTCSA_NOPROF	 RTCSA_128
+#define  RTC_NOPROFRATE  128
+#define  RTCSA_64        0x0a
+#define  RTCSA_32        0x0b
 
 #define RTC_STATUSB	0x0b	/* status register B */
+#define  RTCSB_HALT      0x80	/* stop clock updates */
+#define  RTCSB_PINTR     0x40	/* periodic clock interrupt */
+#define  RTCSB_24HR      0x02	/* 24-hour mode */
 
 #define RTC_INTR	0x0c	/* status register C (R) interrupt source */
 #define  RTCIR_UPDATE	 0x10	/* update intr */
