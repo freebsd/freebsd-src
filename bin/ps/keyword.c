@@ -246,7 +246,10 @@ parsefmt(const char *p)
 			continue;
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
 			err(1, NULL);
-		vent->var = v;
+		vent->var = malloc(sizeof(*vent->var));
+		if (vent->var == NULL)
+			err(1, NULL);
+		memcpy(vent->var, v, sizeof(*vent->var));
 		vent->next = NULL;
 		if (vhead == NULL)
 			vhead = vtail = vent;
