@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 1.3 1999/01/10 21:53:45 ezk Exp $
+ * $Id: get_args.c,v 1.4 1999/09/30 21:01:31 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -100,7 +100,7 @@ get_version_string(void)
 	  cpu, endian, gopt.arch, gopt.karch);
   strcat(vers, tmpbuf);
   sprintf(tmpbuf, "full_os=%s, os=%s, osver=%s, vendor=%s.\n",
-	  HOST_OS, gopt.op_sys, gopt.op_sys_ver, HOST_VENDOR);
+	  gopt.op_sys_full, gopt.op_sys, gopt.op_sys_ver, gopt.op_sys_vendor);
   strcat(vers, tmpbuf);
 
   strcat(vers, "Map support for: ");
