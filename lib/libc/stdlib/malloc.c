@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.5 1995/10/08 18:44:20 phk Exp $
+ * $Id: malloc.c,v 1.6 1995/10/22 14:47:00 phk Exp $
  *
  */
 
@@ -15,6 +15,17 @@
  * to internal conditions and consistency in malloc.c
  */
 #undef EXTRA_SANITY
+
+/*
+ * Defining MALLOC_STATS will enable you to call malloc_dump() and set
+ * the [dD] options in the MALLOC_OPTIONS environment variable.
+ * It has no run-time performance hit.
+ */
+#define MALLOC_STATS
+
+#if defined(EXTRA_SANITY) && !defined(MALLOC_STATS)
+# define MALLOC_STATS	/* required for EXTRA_SANITY */
+#endif
 
 /*
  * What to use for Junk
@@ -213,12 +224,12 @@ static int malloc_abort;
  */
 static int suicide;
 
-#ifdef EXTRA_SANITY
+#ifdef MALLOC_STATS
 /*
  * dump statistics
  */
 static int malloc_stats;
-#endif /* EXTRA_SANITY */
+#endif /* MALLOC_STATS */
 
 /*
  * always realloc ?
@@ -250,7 +261,7 @@ static struct pgfree *px;
  */
 static int extend_pgdir(u_long index);
 
-#ifdef EXTRA_SANITY
+#ifdef MALLOC_STATS
 void
 malloc_dump(FILE *fd)
 {
@@ -306,7 +317,7 @@ malloc_dump(FILE *fd)
 	(last_index + malloc_pageshift) << malloc_pageshift);
     fprintf(fd,"Break\t%ld\n",(u_long)sbrk(0) >> malloc_pageshift);
 }
-#endif /* EXTRA_SANITY */
+#endif /* MALLOC_STATS */
 
 static void
 wrterror(char *p)
@@ -315,10 +326,10 @@ wrterror(char *p)
     suicide = 1;
     write(2,q,strlen(q));
     write(2,p,strlen(p));
-#ifdef EXTRA_SANITY
+#ifdef MALLOC_STATS
     if (malloc_stats)
 	malloc_dump(stderr);
-#endif /* EXTRA_SANITY */
+#endif /* MALLOC_STATS */
     abort();
 }
 
@@ -428,20 +439,38 @@ static int
 extend_pgdir(u_long index)
 {
     struct  pginfo **new,**old;
-    int i;
+    int i, oldlen;
 
     /* Make it this many pages */
     i = index * sizeof *page_dir;
     i /= malloc_pagesize;
     i += 2;
 
+    /* remember the old mapping size */
+    oldlen = malloc_ninfo * sizeof *page_dir;
+
+    /*
+     * NOTE: we allocate new pages and copy the directory rather than tempt
+     * fate by trying to "grow" the region.. There is nothing to prevent
+     * us from accidently re-mapping space that's been allocated by our caller
+     * via dlopen() or other mmap().
+     *
+     * The copy problem is not too bad, as there is 4K of page index per
+     * 4MB of malloc arena.
+     *
+     * We can totally avoid the copy if we open a file descriptor to associate
+     * the anon mappings with.  Then, when we remap the pages at the new
+     * address, the old pages will be "magically" remapped..  But this means
+     * keeping open a "secret" file descriptor.....
+     */
+
     /* Get new pages */
-    new = (struct pginfo**) map_pages(i,0);
-    if (!new)
+    new = (struct pginfo**) mmap(0, i * malloc_pagesize, PROT_READ|PROT_WRITE,
+				 MAP_ANON|MAP_PRIVATE, -1, 0);
+    if (new == (struct pginfo **)-1)
 	return 0;
 
     /* Copy the old stuff */
-    memset(new, 0, i * malloc_pagesize);
     memcpy(new, page_dir,
 	    malloc_ninfo * sizeof *page_dir);
 
@@ -452,15 +481,8 @@ extend_pgdir(u_long index)
     old = page_dir;
     page_dir = new;
 
-    /* Mark the pages */
-    index = ptr2index(new);
-    page_dir[index] = MALLOC_FIRST;
-    while (--i) {
-	page_dir[++index] = MALLOC_FOLLOW;
-    }
-
     /* Now free the old stuff */
-    free(old);
+    munmap((caddr_t)old, oldlen);
     return 1;
 }
 
@@ -480,10 +502,10 @@ malloc_init ()
 	switch (*p) {
 	    case 'a': malloc_abort   = 0; break;
 	    case 'A': malloc_abort   = 1; break;
-#ifdef EXTRA_SANITY
+#ifdef MALLOC_STATS
 	    case 'd': malloc_stats   = 0; break;
 	    case 'D': malloc_stats   = 1; break;
-#endif /* EXTRA_SANITY */
+#endif /* MALLOC_STATS */
 	    case 'r': malloc_realloc = 0; break;
 	    case 'R': malloc_realloc = 1; break;
 	    case 'j': malloc_junk    = 0; break;
@@ -557,23 +579,19 @@ malloc_init ()
 #endif /* malloc_minsize */
 
     /* Allocate one page for the page directory */
-    page_dir = (struct pginfo **) map_pages(1,0);
-    if (!page_dir)
+    page_dir = (struct pginfo **) mmap(0, malloc_pagesize, PROT_READ|PROT_WRITE,
+				       MAP_ANON|MAP_PRIVATE, -1, 0);
+    if (page_dir == (struct pginfo **) -1)
 	wrterror("(Init) my first mmap failed.  (check limits ?)\n");
 
     /*
      * We need a maximum of malloc_pageshift buckets, steal these from the
      * front of the page_directory;
      */
-    malloc_origo = (u_long) page_dir >> malloc_pageshift;
+    malloc_origo = ((u_long)pageround((u_long)sbrk(0))) >> malloc_pageshift;
     malloc_origo -= malloc_pageshift;
 
-    memset(page_dir,0,malloc_pagesize);
-
     malloc_ninfo = malloc_pagesize / sizeof *page_dir;
-
-    /* Plug the page directory into itself */
-    page_dir[ptr2index(page_dir)] = MALLOC_FIRST;
 
     /* Been here, done that */
     initialized++;
