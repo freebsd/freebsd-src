@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.95 1999/04/07 03:59:13 msmith Exp $
+**  $Id: pcisupport.c,v 1.96 1999/04/16 21:22:52 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -929,6 +929,10 @@ isab_match(device_t dev)
 		return("AcerLabs M1533 portable PCI-ISA bridge");
 	case 0x154310b9:
 		return("AcerLabs M1543 desktop PCI-ISA bridge");
+
+	/* SiS -- vendor 0x1039 */
+	case 0x00081039:
+		return ("SiS 85c503 PCI-ISA bridge");
 	}
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1050,8 +1054,6 @@ chip_match(device_t dev)
 		return ("SiS 85c496");
 	case 0x04061039:
 		return ("SiS 85c501");
-	case 0x00081039:
-		return ("SiS 85c503");
 	case 0x06011039:
 		return ("SiS 85c601");
 	
