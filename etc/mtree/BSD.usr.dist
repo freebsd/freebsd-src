@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.usr.dist,v 1.22 1994/09/19 01:40:39 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -21,8 +21,6 @@
             ..
         ..
         kerberosIV     
-        ..
-        md             
         ..
         objc           
         ..
