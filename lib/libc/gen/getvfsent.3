@@ -114,10 +114,14 @@ loaded, or non-zero otherwise.  It should only be called in the
 following circumstances:
 .Bl -enum
 .It
+The
 .Fn getvfsbyname
+function
 has been called and returned a non-zero value.
 .It
+The
 .Fn vfsisloadable
+function
 has been called and returned a non-zero value.
 .El
 .Pp

@@ -65,7 +65,9 @@ setproctitle("talking to %s", inet_ntoa(addr));
 .Xr kvm_getargv 3 ,
 .Xr printf 3
 .Sh STANDARDS
+The
 .Fn setproctitle
+function
 is implicitly non-standard.  Other methods of causing the
 .Xr ps 1
 command line to change, including copying over the argv[0] string are
@@ -86,7 +88,9 @@ including
 and
 .Bsx .
 .Sh HISTORY
+The
 .Fn setproctitle
+function
 first appeared in
 .Fx 2.2 .
 Other operating systems have

@@ -233,18 +233,19 @@ Each time it runs,
 gets the list of debugging variables from the kernel and
 displays their current values.
 The system defines twenty
-.Ns ( Va struct ctldebug )
+.Pq Vt "struct ctldebug"
 variables named
-.Nm debug0
+.Va debug0
 through
-.Nm debug19 .
+.Va debug19 .
 They are declared as separate variables so that they can be
 individually initialized at the location of their associated variable.
 The loader prevents multiple use of the same variable by issuing errors
 if a variable is initialized in more than one place.
 For example, to export the variable
-.Nm dospecialcheck
+.Va dospecialcheck
 as a debugging variable, the following declaration would be used:
+.Pp
 .Bd -literal -offset indent -compact
 int dospecialcheck = 1;
 struct ctldebug debug5 = { "dospecialcheck", &dospecialcheck };
