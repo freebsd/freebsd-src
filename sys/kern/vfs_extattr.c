@@ -151,7 +151,7 @@ finish:
 int
 vfs_mount(p, fstype, fspath, fsflags, fsdata)
 	struct proc *p;
-	char *fstype;
+	const char *fstype;
 	char *fspath;
 	int fsflags;
 	void *fsdata;
