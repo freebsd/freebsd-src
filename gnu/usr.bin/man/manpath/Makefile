@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 PROG=	manpath
 SRCS=	manpath.c
 MAN1=	manpath.1
@@ -12,9 +14,7 @@ MANDEPEND+=	${MAN1}
 
 ${MAN1}: ${.CURDIR}/manpath.man
 	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
-	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
-	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
-	    -e 's,%manpath_config_file%,${manpath_config_file},' \
+	sed -e 's,%manpath_config_file%,/etc/manpath.config,' \
 	${.CURDIR}/manpath.man > ${MAN1}
 
 .include <bsd.prog.mk>
