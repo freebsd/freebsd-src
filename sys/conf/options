@@ -1,4 +1,4 @@
-#	$Id: options,v 1.121.2.6 1999/05/25 13:24:24 des Exp $
+#	$Id: options,v 1.121.2.7 1999/05/25 20:25:40 gibbs Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -318,14 +318,26 @@ NFS_MUIDHASHSIZ		opt_nfs.h
 NFS_NOSERVER		opt_nfs.h
 NFS_DEBUG		opt_nfs.h
 
-# give bktr an opt_bktr.h file
-OVERRIDE_CARD		opt_bktr.h
-OVERRIDE_TUNER		opt_bktr.h
-OVERRIDE_DBX		opt_bktr.h
-OVERRIDE_MSP		opt_bktr.h
-BROOKTREE_SYSTEM_DEFAULT opt_bktr.h
-BKTR_USE_PLL		opt_bktr.h
-
+# For the Bt848/Bt848A/Bt849/Bt878/Bt879 driver
+OVERRIDE_CARD		opt_bktr.h	#Override the bootup card detection
+OVERRIDE_TUNER		opt_bktr.h	#Override the bootup tuner detection
+OVERRIDE_DBX		opt_bktr.h	#Override the bootup DBX detection
+OVERRIDE_MSP		opt_bktr.h	#Override the bootup MSP detection
+BROOKTREE_SYSTEM_DEFAULT opt_bktr.h	#Set to BROOKTREE_PAL or BROOKTREE_NTSC
+					#can prevent hang with Captivator card
+BKTR_USE_PLL		opt_bktr.h	#Use PLL mode for PAL users
+					#handy for newer bt878 cards for PAL
+BKTR_GPIO_ACCESS	opt_bktr.h	#Enable IOCTLs which give user level
+					#access to the GPIO port.
+BKTR_NO_MSP_RESET	opt_bktr.h	#Prevent MSP34xx reset. Handy if you
+					#initialise the chip in another OS first
+BKTR_430_FX_MODE	opt_bktr.h	#Switch Bt878 cards into Intel 430FX
+					#chipset compatibility mode
+BKTR_SIS_VIA_MODE	opt_bktr.h	#Switch Bt878 cards into SIS/VIA chipset
+					#compatibility mode. Good for older
+					#SiS/VIA chipsets, older OPTi chipsets
+					#and those with bad PCI 2.1 support.
+					#As a rough guess, old = before mid 1998
 
 # meteor opt_meteor.h
 METEOR_ALLOC_PAGES	opt_meteor.h
