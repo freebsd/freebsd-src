@@ -16,8 +16,8 @@ Thu Dec 11 09:00:15 1997  Michael Meissner  <meissner@cygnus.com>
 	d30velf_o to d30v_o to work in DOS environments.
 	* Makefile.{am,in}: Ditto.
 
-	* emulparams/d30v_{o,e}: Rename from d30velf_{o,e}.
-	* emulparams/d30velf_{o,e}: Deleted.
+	* emulparams/d30v_{o,e}.sh: Rename from d30velf_{o,e}.
+	* emulparams/d30velf_{o,e}.sh: Deleted.
 
 Wed Dec 10 17:40:08 1997  Nick Clifton  <nickc@cygnus.com>
 
@@ -907,7 +907,7 @@ Fri Nov  1 10:01:27 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Thu Oct 31 09:28:59 1996  Jeffrey A Law  (law@cygnus.com)
 
-	* scriptempl/v850.sc (zdata): Handle reszdata, romzdata and
+	* scripttempl/v850.sc (zdata): Handle reszdata, romzdata and
 	romzbss too.
 
 Tue Oct 29 12:33:05 1996  Martin M. Hunt  <hunt@pizza.cygnus.com>
@@ -925,9 +925,9 @@ Mon Oct 28 15:37:00 1996  Doug Evans  <dje@canuck.cygnus.com>
 
 Wed Oct 23 16:17:22 1996  Jeffrey A Law  (law@cygnus.com)
 
-	* scriptempl/v850.sc (zdata): Fix typo "zrodata" -> "rozdata".
+	* scripttempl/v850.sc (zdata): Fix typo "zrodata" -> "rozdata".
 
-	* scriptempl/v850.sc (zdata): Make sure this stays
+	* scripttempl/v850.sc (zdata): Make sure this stays
 	in lo-memory.
 
 Tue Oct 22 11:36:47 1996  Jeffrey A Law  (law@cygnus.com)
@@ -935,7 +935,7 @@ Tue Oct 22 11:36:47 1996  Jeffrey A Law  (law@cygnus.com)
 	* scripttempl/v850.sc (__ep): Put it at the start
 	of the tda section.
 
-	* scriptempl/v850.sc: Move all "normal" sections into
+	* scripttempl/v850.sc: Move all "normal" sections into
 	the external memory region (0x100000 - 0x200000).
 
 Mon Oct 21 17:16:59 1996  Michael Meissner  <meissner@wogglebug.tiac.net>
@@ -1050,7 +1050,7 @@ Thu Oct  3 15:41:24 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
 
 Wed Oct  2 23:45:25 1996  Geoffrey Noer  <noer@cygnus.com>
 
-	* emultmpl/pe.em: increase size of stack reserve to 0x2000000
+	* emultempl/pe.em: increase size of stack reserve to 0x2000000
 	(necessary in order to compile parse.c in gcc sources under NT)
 
 Wed Oct  2 14:49:10 1996  Ian Lance Taylor  <ian@cygnus.com>
@@ -1690,7 +1690,7 @@ Thu May  9 08:52:23 1996  Rob Savoye  <rob@chinadoll.cygnus.com>
 
 Tue May  7 10:56:11 1996  Doug Evans  <dje@canuck.cygnus.com>
 
-	* scripttempl/pe.em (gld${EMULATION_NAME}_place_orphan): New function.
+	* emultempl/pe.em (gld${EMULATION_NAME}_place_orphan): New function.
 	(gld${EMULATION_NAME}_place_section): New function.
 	(hold_{section,use,text,rdata,data}): New static locals.
 	(ld_${EMULATION_NAME}_emulation): Update orphan field.
@@ -2036,8 +2036,8 @@ Wed Mar  6 18:08:18 1996  Ian Lance Taylor  <ian@cygnus.com>
 	* ldemul.c (ldemul_unrecognized_file): New function.
 	* ldlang.c (load_symbols): If a file can not be recognized, call
 	ldemul_unrecognized_file before trying it as a linker script.
-	* aix.em (gld${EMULATION_NAME}_unrecognized_file): New static
-	function.
+	* emultempl/aix.em (gld${EMULATION_NAME}_unrecognized_file): New
+	static function.
 	(gld${EMULATION_NAME}_read_file): Use FOPEN_RT, not "r".
 	(ld_${EMULATION_NAME}_emulation): Initialize unrecognized_file.
 
@@ -2787,9 +2787,9 @@ Mon Oct 16 19:11:13 1995  Ian Lance Taylor  <ian@cygnus.com>
 	* Makefile.in (ALL_EMULATIONS): Add eaixppc.o and eaixrs6.o.
 	(eaixppc.c, eaixrs6.c): New targets.
 
-Fri Oct 13 14:00:37 1995  steve chamberlain  <sac@slash.cygnus.com>
+Fri Oct 13 14:00:37 1995  Steve Chamberlain  <sac@slash.cygnus.com>
 
-	* scripttemp/pe.sc (.reloc): Move to the end.
+	* scripttempl/pe.sc (.reloc): Move to the end.
 
 Tue Oct 10 17:53:22 1995  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -2819,7 +2819,7 @@ Fri Oct  6 16:26:16 1995  Ken Raeburn  <raeburn@cygnus.com>
 
 	Mon Sep 25 22:49:32 1995  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
 
-	* ld/ld.1: Fix formatting bugs.
+	* ld.1: Fix formatting bugs.
 
 Wed Oct  4 17:37:46 1995  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -2947,7 +2947,7 @@ Fri Sep 15 23:28:05 1995  Andrew Cagney  <cagney@highland.com.au>
 
 Thu Sep 12 12:50:49 1995  steve chamberlain  <sac@slash.cygnus.com>
 
-	* scripttemp/pe.sc:  Allow both spellings of .ctors/.dtors.
+	* scripttempl/pe.sc:  Allow both spellings of .ctors/.dtors.
 	Start .text section on the right boundary. Always align
 	stabs.
 
@@ -3026,7 +3026,7 @@ Wed Sep  6 14:42:11 1995  Ian Lance Taylor  <ian@cygnus.com>
 	* dep-in.sed: Use @SRCDIR@, not @srcdir@.
 	* genscripts.sh: Create ldscripts if it does not exist.
 	* ldemul.c, lexsup.c, mpw-emipsidt.c: Don't include "config.h".
-	* mpw-esh.c, emultemp/*.em: Likewise.
+	* mpw-esh.c, emultempl/*.em: Likewise.
 	* ldmain.c: Likewise.  Include <ctype.h>.  Don't try to set
 	HAVE_SBRK here.
 	* config/*.mt, config/*.mh: Remove.
@@ -3408,7 +3408,7 @@ Sun Jun 11 15:20:46 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
 Thu Jun  8 14:17:33 1995  Steve Chamberlain  <sac@slash.cygnus.com>
 
-	* emulparams/armpe.sh, scriptempl/armpe.sc: Add end and stack.
+	* emulparams/armpe.sh, scripttempl/armpe.sc: Add end and stack.
 
 Mon Jun  5 02:16:24 1995  Ken Raeburn  <raeburn@kr-laptop.cygnus.com>
 
@@ -4060,8 +4060,11 @@ Tue Sep 27 14:56:20 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
 	instead of RUNTEST_CC, and likewise for CXX.
 	(cdtest targets): Comment out.
 	* config/solaris2.mh (HOSTING_LIBS): Only mention crtend.o once.
-	* cdtest-bar.cc, cdtest-foo.cc, cdtest-foo.h: Remove.
-	* cdtest-main.cc, cdtest.exp: Remove.
+	* testsuite/ld-cdtest/cdtest-bar.cc,
+	testsuite/ld-cdtest/cdtest-foo.cc,
+	testsuite/ld-cdtest/cdtest-foo.h,
+	testsuite/ld-cdtest/cdtest-main.cc,
+	testsuite/ld-cdtest/cdtest.exp: Remove.
 
 Mon Sep 26 11:40:30 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
 
@@ -4659,8 +4662,8 @@ Thu Jun  9 00:17:20 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 Thu Jun  2 17:24:08 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	Add support for SunOS shared libraries.
-	* aout.sc: Don't define __DYNAMIC here.  Add new sections used by
-	shared library support code.
+	* scripttempl/aout.sc: Don't define __DYNAMIC here.  Add new
+	sections used by shared library support code.
 	* emultempl/sunos.em: New file.
 	* emulparams/sun4.sh (TEMPLATE_NAME): Define as sunos.
 	* emulparams/sun3.sh (TEMPLATE_NAME): Likewise.
@@ -4709,7 +4712,7 @@ Fri May 27 12:25:33 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
 	* emultempl/generic.em: Find emultempl/stringify.sed in ${srcdir}.
 
-	* cdtest-bar.cc: Renamed from cdtest-func.cc.
+	* testsuite/ld-cdtest/cdtest-bar.cc: Renamed from cdtest-func.cc. 
 	* Makefile.in: Noted change.
 
 	* scripttempl/a29k.sc: Don't include /lab3/u3/..../segments.o; I
@@ -4718,14 +4721,14 @@ Fri May 27 12:25:33 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
 	Wed May 11 22:32:00 1994  DJ Delorie (dj@ctron.com)
 
-	* configure.bat: update to latest makefile.in
-	* emulpara/go32.sh: set to coff-go32 not aout
-	* emultemp/generic.em: strength-reduce the structure of
+	* configure.bat: update to latest Makefile.in
+	* emulparams/go32.sh: set to coff-go32 not aout
+	* emultempl/generic.em: strength-reduce the structure of
 	  this shell script, since the only available shell for
 	  DOS can't handle complex syntax.
-	* emultemp/stringify.sed: for "sed -f" instead of inline.
-	* makefile.in: depend on stringify.sed as well as genscripts.sh
-	* scripttemp/go32coff.sc: correct for djgpp 1.11's COFF format
+	* emultempl/stringify.sed: for "sed -f" instead of inline.
+	* Makefile.in: depend on stringify.sed as well as genscripts.sh
+	* scripttempl/go32coff.sc: correct for djgpp 1.11's COFF format
 	* genscripts.sh: empty variables aren't always considered "set",
 	  so set them to "y" instead.
 
@@ -4799,8 +4802,9 @@ Wed May 11 18:16:46 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
 	* ldver.c (ldversion): Updated version number.
 
-	* cdtest-foo.cc: Use explicit "#pragma implementation".
-	* cdtest-bar.cc: Renamed from cdtest-func.cc.
+	* testsuite/ld-cdtest/cdtest-foo.cc: Use explicit "#pragma
+	implementation".
+	* testsuite/ld-cdtest/cdtest-bar.cc: Renamed from cdtest-func.cc.
 	* Makefile.in: References to cdtest-func.o changed to
 	cdtest-bar.o.
 
@@ -5026,7 +5030,7 @@ Wed Mar 23 14:15:44 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	lang_do_assignments and lang_size_sections until relax_again
 	becomes false.
 
-	* emultemp/gld960.em: Include libiberty.h
+	* emultempl/gld960.em: Include libiberty.h
 	(gld960_before_parse): Pass NULL as final argument to concat.
 
 Tue Mar 22 13:08:28 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
@@ -5074,7 +5078,7 @@ Mon Mar 21 18:28:37 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	(cdtest-ur, cdtest-ur.out): New targets.
 	(check-cdtest): Now also check that -Ur works correctly.
 
-	* scripttemp/alpha.sc: Align all sections to 16 byte boundaries.
+	* scripttempl/alpha.sc: Align all sections to 16 byte boundaries.
 
 Thu Mar 17 12:45:41 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
@@ -5097,8 +5101,8 @@ Tue Mar  8 04:22:27 1994  David J. Mackenzie  (djm@rtl.cygnus.com)
 
 Mon Mar  7 15:23:24 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
-	* elf.sc: Permit TEXT_START_SYMBOLS and DATA_START_SYMBOLS to be
-	defined.
+	* scripttempl/elf.sc: Permit TEXT_START_SYMBOLS and
+	DATA_START_SYMBOLS to be defined.
 	* emulparams/elf32mipb.s (TEXT_START_SYMBOLS): Define _ftext.
 	(DATA_START_SYMBOLS): Define _fdata.
 
@@ -5432,7 +5436,7 @@ Mon Jan 10 19:49:05 1994  David J. Mackenzie  (djm@thepub.cygnus.com)
 
 Fri Jan  7 20:00:24 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
-	* scripttempl/elf.c: Define __bss_start before the .sbss section.
+	* scripttempl/elf.sc: Define __bss_start before the .sbss section.
 
 Thu Jan  6 00:13:10 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
@@ -5591,10 +5595,10 @@ Thu Dec 16 21:19:57 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
 	* ldsym.c (write_file_locals): Use strncmp rather than a character
 	comparison for lprefix.
 
-	* emultmpl/m88kbcs.em (before_parse): Set lprefix and lprefix_len
+	* emultempl/m88kbcs.em (before_parse): Set lprefix and lprefix_len
 	correctly.
 
-	* emultmpl/hppaosf.em: Include ldexp.h.
+	* emultempl/hppaosf.em: Include ldexp.h.
 	(before_parse): Set lprefix and lprefix_len correctly.
 
 Tue Dec 14 17:19:03 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
@@ -6323,10 +6327,12 @@ Wed Jun 16 11:45:32 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
 	* Move *.em to emultempl/*.em.  Move *.sh to emulparams/*.sh.
 	Move *.sc-sh to scripttempl/*.sc.
 	* {emultempl,emulparams,scripttempl}/README: New files.
-	* sh.em, st2000.em, z8ksim.em, h8300hms.em, h8500hms.em: Files
-	removed, replaced with generic.em.
-	* h8300.sh, h8500.sh, h8300.sc, h8500.sc: Renamed from
-	 h8[35]00hms.s[ch].  Change their contents to omit the "hms".
+	* emultempl/sh.em, emultempl/st2000.em, emultempl/z8ksim.em,
+	emultempl/h8300hms.em, emultempl/h8500hms.em: Files removed,
+	replaced with generic.em.
+	* emulparams/h8300.sh, emulparams/h8500.sh, scripttempl/h8300.sc,
+	scripttempl/h8500.sc: Renamed from h8[35]00hms.s[ch].  Change
+	their contents to omit the "hms".
 
 	* *.em (*_get_script): Return script name instead of script contents.
 	* ldlang.c (lang_process): Change caller.
@@ -6354,9 +6360,10 @@ Tue Jun 15 23:04:46 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
 	* Makefile.in (INCLUDES): Look in ../include, not ../bfd.
 
-	* aout.sc-sh: Add SHLIB_PATH like STACKZERO.  Make STACKZERO
-	dependent on RELOCATING, not RELOCATION.
-	* hp3hpux.sh (SHLIB_PATH): Define it.
+	* scripttempl/aout.sc, emulparams/aout.sh: Add SHLIB_PATH like
+	STACKZERO.  Make STACKZERO dependent on RELOCATING, not
+	RELOCATION.
+	* emulparams/hp3hpux.sh (SHLIB_PATH): Define it.
 
 Mon Jun 14 19:06:15 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
 
@@ -6374,10 +6381,12 @@ Thu Jun 10 14:00:06 1993  Ian Lance Taylor  (ian@cygnus.com)
 	* ldgram.y (statement_list_opt): New nonterminal, either empty or
 	statement_list.
 	(section): Use statement_list_opt, not statement_list.
-	* m68kcoff.sc-sh: Gather constructors and destructors and define
-	__CTOR_LIST__ and __DTOR_LIST__ appropriately.
-	* sa29200.sc-sh: Gather constructors and destructors and define
-	___CTOR_LIST__ and ___DTOR_LIST__ appropriately.
+	* scripttempl/m68kcoff.sc, emulparams/m68kcoff.sh: Gather
+	constructors and destructors and define __CTOR_LIST__ and
+	__DTOR_LIST__ appropriately.
+	* scripttempl/sa29200.sc, emulparams/sa29200.sh: Gather
+	constructors and destructors and define ___CTOR_LIST__ and
+	___DTOR_LIST__ appropriately.
 
 Mon Jun  7 12:53:28 1993  Per Bothner  (bothner@rtl.cygnus.com)
 
@@ -6395,7 +6404,8 @@ Fri Jun  4 08:50:14 1993  Ian Lance Taylor  (ian@cygnus.com)
 	* configure.in (mips-idt-ecoffl*): New target; use mips-idtl.
 	(mips-idt-ecoff*): Added trailing '*'.
 	* config/mips-idtl.mt: New file; use EMUL of mipsidtl.
-	* mipsidtl.sh: New file; like mipsidt.sh, but little endian.
+	* emulparams/mipsidtl.sh: New file; like mipsidt.sh, but little
+	endian.
 	* Makefile.in (ALL_EMULATIONS): Added em_mipsidtl.o.
 
 	* config/sun3.mh (HOSTING_LIBS, HOSTING_EMU): Removed obsolete and
@@ -6415,16 +6425,17 @@ Tue May 25 15:34:25 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 Thu May 20 13:56:16 1993  Per Bothner  (bothner@deneb.cygnus.com)
 
-	* mips.sc-sh:  Define _etext, _edata, and _end, in addition
-	to etext, edata, and end.  Needed for IRIX 4.0.5F.
-	Patch from mwp@iconix.oz.au (Michael Paddon).
+	* scripttempl/mips.sc, emulparams/mips.sh: Define _etext, _edata,
+	and _end, in addition to etext, edata, and end.  Needed for IRIX
+	4.0.5F. Patch from mwp@iconix.oz.au (Michael Paddon).
 
 	* Version 2.2.1 released.
 
 Thu May 20 11:42:06 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
-	* mipsbsd.sc-sh: Renamed from aout-mipsbsd.sc-sh.
-	* mipsbsd.sh (EMULATION_NAME): Use new file name.
+	* scripttempl/mipsbsd.sc, emulparams/mipsbsd.sh: Renamed from
+	aout-mipsbsd.sc-sh.
+	* emulparams/mipsbsd.sh (EMULATION_NAME): Use new file name.
 
 Tue May 18 17:10:24 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
@@ -6443,7 +6454,8 @@ Mon May 17 12:44:31 1993  Per Bothner  (bothner@cygnus.com)
 
 Fri May 14 11:26:24 1993  Ian Lance Taylor  (ian@cygnus.com)
 
-	* mips.sc-sh: Don't define BSS_VAR unless relocating.
+	* scripttempl/mips.sc, emulparams/mips.sh: Don't define BSS_VAR
+	unless relocating.
 
 Wed May 12 13:33:29 1993  Ian Lance Taylor  (ian@cygnus.com)
 
@@ -6455,11 +6467,12 @@ Tue May  4 21:58:56 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 	* configure.in: Look for ${target_makefile_frag} relative to
 	${srcdir}, not relative to build directory.
 
-	* hppaosf.em, hppaosf.sc-sh, hppaosf.sh: New files.
+	* emultempl/hppaosf.em, scripttempl/hppaosf.sc,
+	emulparams/hppaosf.sh: New files.
 	* configure.in: Recognize hppa*-hp-osf.
 	* Makefile.in (ALL_EMULATIONS): Include hppaosf emulation.
 	(em_hppaosf.c): Build it.
-	* config/hppaosf.mh, hppaosf.mt: New files.
+	* config/hppaosf.mh, config/hppaosf.mt: New files.
 
 	* ld.h (ALIGN_N): Renamed from ALIGN, because that conflicted with
 	some system header files.  All uses changed.
@@ -6468,26 +6481,27 @@ Tue May  4 21:58:56 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 	targets.
 
 	* configure.in: Recognize m68*-*-hpux.
-	* aout.sc-sh: If STACKZERO and RELOCATING are both defined, output
+	* scripttempl/aout.sc: If STACKZERO and RELOCATING are both defined, output
 	the value of STACKZERO.
 	* Makefile.in (ALL_EMULATIONS): Include hp300-hpux emulation.
 	(em_hp3hpux.c): Build it.
-	* hp3hpux.sh, config/hp300hpux.mt: New files.
+	* emulparams/hp3hpux.sh, config/hp300hpux.mt: New files.
 
 Tue May  4 12:37:35 1993  Ian Lance Taylor  (ian@cygnus.com)
 
-	* mips.sc-sh: Put constructors in the .data section.
+	* scripttempl/mips.sc: Put constructors in the .data section.
 	* Makefile.in (cdtest): Added dependency on ld.new.
 
 Mon May  3 19:43:39 1993  Per Bothner  (bothner@cygnus.com)
 
 	* Makefile.in:  Change definition of $(tooldir) to match FSF.
-	* vax.sh, config/vax.mt, configure.in, Makefile.in:
+	* emulparams/vax.sh, config/vax.mt, configure.in, Makefile.in:
 	Support VAX Ultrix and BSD.
 
 Mon Apr 26 18:35:47 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* sh.em, sh.sh, sh.sc-sh: New files supporting Hitachi SH.
+	* emultempl/sh.em, emulparams/sh.sh, scripttempl/sh.sc: New
+	files supporting Hitachi SH.
 
 Wed Apr 14 21:01:51 1993  John Gilmore  (gnu@cygnus.com)
 
@@ -6559,7 +6573,7 @@ Thu Mar  4 12:44:33 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 	* mips.sc-sh: Added variables which may be overridden by a
 	specific emulation.
-	* mipsidt.sh: New file; emulation for IDT MIPS board.
+	* emulparams/mipsidt.sh: New file; emulation for IDT MIPS board.
 	* Makefile.in (ALL_EMULATIONS): Added em_mipsidt.o.
 	(em_mipsidt.c): New target.  Uses mipsidt.sh and mips.sc-sh.
 	* config/mips-idt.mt: New file; sets EMUL to mipsidt.
@@ -6567,9 +6581,9 @@ Thu Mar  4 12:44:33 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 Sat Feb 27 00:00:14 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
-	* aout-mipsbsd.sc-sh, mipsbsd.sh: New files from Ralph Campbell,
-	ralphc@pyramid.com.
-	* i386bsd.sh, config/i386bsd.mt: New files.
+	* aout-mipsbsd.sc-sh, emulparams/mipsbsd.sh: New files from Ralph
+	Campbell, ralphc@pyramid.com.
+	* emulparams/i386bsd.sh, config/i386bsd.mt: New files.
 	* configure.in, Makefile.in: Added support for mipsbsd and 386bsd.
 
 Thu Feb 25 15:33:10 1993  Per Bothner  (bothner@rtl.cygnus.com)
@@ -6596,7 +6610,7 @@ Thu Feb 18 17:58:45 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
 Wed Feb  3 09:05:56 1993  Ian Lance Taylor  (ian@cygnus.com)
 
-	* mipsbig.sh: New file.  Big endian MIPS emulation.
+	* emulparams/mipsbig.sh: New file.  Big endian MIPS emulation.
 	* config/mips-big.mt: New file.  Use mipsbig emulation.
 	* configure.in (mips-sgi-irix*): Use target mips-big.
 	* Makefile.in (ALL_EMULATIONS): Added em_mipsbig.o.
@@ -6638,7 +6652,7 @@ Fri Jan 22 14:22:44 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 	* mips.sc-sh: New file.  Ultrix, and hopefully other MIPS ECOFF
 	targets, linker script.
-	* mipslit.sh: New file.  Little endian MIPS emulation.
+	* emulparams/mipslit.sh: New file.  Little endian MIPS emulation.
 	* config/mips-lit.mt: New file.  Use mipslit emulation.
 	* configure.in (mips-dec-ultrix*): Use target mips-lit.
 	* Makefile.in (ALL_EMULATIONS): Added em_mipslit.o.
@@ -6692,8 +6706,8 @@ Wed Jan  6 01:08:37 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
 Mon Dec 28 11:15:35 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* m68kcoff.sc-sh: define _end as well as end, for consistency with
-	aout.sc-sh.
+	* scripttempl/m68kcoff.sc, emulparams/m68kcoff.sh: define _end as
+	well as end, for consistency with aout.sc-sh.
 
 	* configure.in: accept *-ericsson-ose for any m68k CPU.
 
@@ -6705,7 +6719,7 @@ Mon Dec 21 16:06:59 1992  Per Bothner  (bothner@rtl.cygnus.com)
 	* ldexp.c, ldlang.c, ldmain.c, ldsym.c, ldwarn.c:  Use new
 	macro bfd_asymbol_bfd as appropriate.
 	* Makefile.in:  Un-duplicate ldlex.c dependency.
-	* condigure.in:  Replace my_host case table by sourcing
+	* configure.in:  Replace my_host case table by sourcing
 	../bfd/configure.host.  Allow std-host as the default.
 	* ldmisc.c:  Change logic for C++ name demangling:  There is
 	no initial '_' to remove from stab-derived function names.
@@ -6757,8 +6771,8 @@ Thu Nov  5 05:43:01 1992  John Gilmore  (gnu@cygnus.com)
 
 Tue Oct 20 10:56:06 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* m68kcoff.sc-sh: don't use initial underscores for etext, edata
-	and end.
+	* scripttempl/m68kcoff.sc, emulparams/m68kcoff.sh: don't use
+	initial underscores for etext, edata and end.
 
 Mon Oct 19 09:45:38 1992  Ian Lance Taylor  (ian@cygnus.com)
 
@@ -6792,8 +6806,9 @@ Tue Oct  6 13:08:54 1992  Ian Lance Taylor  (ian@cygnus.com)
 
 Mon Oct  5 14:07:37 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* aout.sc-sh, m68kcoff.sc-sh: set __bss_start to the start of the
-	.bss segment.
+	* scripttempl/aout.sc, emulparams/aout.sh,
+	scripttempl/m68kcoff.sc, emulparams/m68kcoff.sh: set __bss_start
+	to the start of the .bss segment.
 
 Mon Oct  5 08:55:14 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
@@ -6832,7 +6847,8 @@ Fri Sep 25 13:49:52 1992  Ken Raeburn  (raeburn@kyriath.cygnus.com)
 Fri Sep 25 11:08:01 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 	Added initial support for the z8k
-	* z8ksim.em, z8ksim.sc-sh, z8ksim.sh: new files
+	* emultempl/z8ksim.em, z8ksim.sc-sh, emulparams/z8ksim.sh: new
+	files.
 	* configure.in, Makefile.in: modified to reflect above
 
 	* ldlang.c (lang_check): when linking conflicting architectures,
@@ -6850,16 +6866,18 @@ Fri Sep 11 10:24:22 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 Wed Sep  9 11:52:58 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* Makefile.in, m68kcoff.sh, m68kcoff.sc-sh, config/m68k-coff.mt:
-	added m68k-coff emulation mode, stolen from a29k emulation.
-	Almost certainly wrong, but perhaps better than sun3.
+	* Makefile.in, emulparams/m68kcoff.sh, scripttempl/m68kcoff.sc,
+	emulparmas/m68kcoff.sh, config/m68k-coff.mt: added m68k-coff
+	emulation mode, stolen from a29k emulation. Almost certainly
+	wrong, but perhaps better than sun3.
 
 Thu Sep  3 14:19:30 1992  Per Bothner  (bothner@rtl.cygnus.com)
 
-	* Makefile.in, Makefile.dos, generic.em, genscripts.sh,
-	gld960.em, h8300hms.em, h8300xray.em, lnk960.em, st2000.em,
-	vanilla.em:  Rename all (generated) ld__*.c files to em_.c.
-	This is one character shorter, and lets people build on
+	* Makefile.in, Makefile.dos, emultempl/generic.em, genscripts.sh,
+	emultempl/gld960.em, emultempl/h8300hms.em,
+	emultempl/h8300xray.em, emultempl/lnk960.em, emultempl/st2000.em,
+	emultempl/vanilla.em:  Rename all (generated) ld__*.c files to
+	em_.c.  This is one character shorter, and lets people build on
 	SVR3 system. (ld__h8300xray.[co] was the killer there;
 	h8300xray.sc-sh is also overlong, but seems harmless.)
 	Based on a patch from Jonathan Ryshpan <hitachi!amito!jon>.
@@ -6904,8 +6922,8 @@ Sun Aug 30 18:12:13 1992  Per Bothner  (bothner@rtl.cygnus.com)
 
 Thu Aug 27 16:38:42 1992  Ian Lance Taylor  (ian@cygnus.com)
 
-	* gld960.em (gld960_choose_target): default to little endian, not
-	big endian.
+	* emultempl/gld960.em (gld960_choose_target): default to little
+	endian, not big endian.
 
 Wed Aug 26 17:28:51 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
@@ -6913,7 +6931,7 @@ Wed Aug 26 17:28:51 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 	abs_output_section is what is required.
 	* ldwrite.c (ldwrite): use malloc to allocate the largest space
 	used, and pass that down.
-	* relax.c,relax.h (write_relaxnorel): use the passed malloc area rather
+	* relax.c, relax.h (write_relaxnorel): use the passed malloc area rather
 	than alloca.
 
 Mon Aug 24 14:42:06 1992  Ian Lance Taylor  (ian@cygnus.com)
@@ -6951,7 +6969,8 @@ Fri Aug  7 12:31:10 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 	(lang_enter_output_section_statement): set the field from the
 	NOLOAD keyword
 	* ldgram.y: new synax for NOLOAD. Removes a shift/reduce too.
-	* h8300hms.sc-sh, h8300hms.em: get -r right.
+	* scripttempl/h8300hms.sc, emulparams/h8300.sh,
+	emultempl/h8300hms.em: get -r right.
 
 Thu Aug  6 18:35:21 1992  Per Bothner  (bothner@rtl.cygnus.com)
 
@@ -6960,10 +6979,13 @@ Thu Aug  6 18:35:21 1992  Per Bothner  (bothner@rtl.cygnus.com)
 
 Tue Aug  4 21:12:29 1992  Per Bothner  (bothner@rtl.cygnus.com)
 
-	* cdtest-main.cc, cdtest-func.cc, cdtest-foo.h, cdtest-foo.cc,
-	cdtest.exp:  A test program (copied from libg++/test-install)
-	that tests that constructor and destructors are handled
-	corrrectly.
+	* testsuite/ld-cdtest/cdtest-main.cc,
+	testsuite/ld-cdtest/cdtest-func.cc,
+	testsuite/ld-cdtest/cdtest-foo.h,
+	testsuite/ld-cdtest/cdtest-foo.cc,
+	testsuite/ld-cdtest/cdtest.exp:  A test program (copied from
+	libg++/test-install) that tests that constructor and destructors
+	are handled corrrectly.
 
 Mon Aug  3 14:58:19 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
@@ -7006,8 +7028,9 @@ Wed Jul  1 17:51:19 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 Thu Jun 18 09:38:56 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
-	* h8300hms.em, h8300hms.sc-sh:  do the right thing for -r
-	* ldexp.c:  lint
+	* emultempl/h8300hms.em, scripttempl/h8300hms.sc,
+	emulparams/h83000.sh:  do the right thing for -r
+	* ldexp.c: lint
 	* ldlang.c(open_output): set the target arch and machine as soon
 	as we can. (lang_size_sections): use new macros for setting vma
 	* ldwrite.c: lint
@@ -7166,11 +7189,12 @@ Sat Apr  4 17:44:06 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 	* ldlex.l, ldgram.y, ldlex.h: Rewrote lexer. Now it's much nicer.
 	* h8300*: fix bit rot and add support for h8300xray target
-	* go32.sh: target emulation for go32.
+	* emulparams/go32.sh: target emulation for go32.
 
 Mon Mar 16 14:53:29 1992  Steve Chamberlain  (sac@rtl.cygnus.com)
 
-	* gld960.em, i960.sc-sh. Fix i960 bit rot
+	* emultempl/gld960.em, scripttempl/i960.sc,
+	emulparamns/i960.sh. Fix i960 bit rot
 
 Fri Mar 13 19:47:22 1992  K. Richard Pixley  (rich@cygnus.com)
 
@@ -7375,7 +7399,8 @@ Mon Dec  9 16:26:43 1991  Per Bothner  (bothner at cygnus.com)
 
 	* Makefile.in:  Pass -y to bison.  (Again;
 	accidentally deleted by Rich.)
-	* news.sc, ldgld68k.sc:  Define __end as well as _end.
+	* scripttempl/news.sc, scripttempl/ldgld68k.sc:  Define __end as
+	well as _end.
 
 Sat Dec  7 17:19:26 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
 
@@ -7434,7 +7459,7 @@ Wed Nov 13 15:17:43 1991  Per Bothner  (bothner at cygnus.com)
 Tue Nov 12 18:36:50 1991  Steve Chamberlain  (sac at cygnus.com)
 
 	* Makefile.in: Take out the version number for install
-	* m88kbcs.sc: put in contructor blocks.
+	* scripttempl/m88kbcs.sc: put in contructor blocks.
 
 Mon Nov 11 18:47:33 1991  Per Bothner  (bothner at cygnus.com)
 
@@ -7500,7 +7525,7 @@ Fri Oct 11 22:40:46 1991  John Gilmore  (gnu at cygnus.com)
 
 Fri Oct 11 16:42:22 1991  Per Bothner  (bothner at cygnus.com)
 
-	* news.sc: Add alignment for data segment.
+	* scripttempl/news.sc: Add alignment for data segment.
 	* ldtemplate: Add (yet another) script to get for -n or -N
 	options.  (These need different alignment than ZMAGIC files.)
 	* Makefile.in:  Add stuff for new foo.xn scripts.
@@ -7534,7 +7559,6 @@ Fri Oct 11 04:24:45 1991  John Gilmore  (gnu at cygnus.com)
 
 	Restructure configuration scheme for bfd, binutils, ld.
 
-	* include/sys/h-*.h:  Move to bfd/hosts/h-*.h.
 	* configure.in:  Revise to symlink sysdep.h to ../bfd/hosts/h-xxx.h.
 	Change some config names to match other dirs.
 	* *.c:  Include bfd.h before sysdep.h, so ansidecl and PROTO()
@@ -7552,8 +7576,9 @@ Tue Oct  8 16:00:57 1991  Per Bothner  (bothner at cygnus.com)
 	This is primarily intended for cross-linking, where you would
 	place libaries in a different place than native libraries.
 	Also, emulations made from ldtemplate now use $(srcdir).
-	* ldglda29k.sc:  Change SEARCH_DIR commands to a conventional
-	form; people can use the Makefile's LIB_PATH to override.
+	* scripttempl/ldglda29k.sc:  Change SEARCH_DIR commands to a
+	conventional form; people can use the Makefile's LIB_PATH to
+	override.
 
 Tue Oct  8 14:51:21 1991  Roland H. Pesch  (pesch at cygnus.com)
 

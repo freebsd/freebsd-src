@@ -582,9 +582,9 @@ struct bfd_strtab_hash *
 _bfd_stringtab_init ()
 {
   struct bfd_strtab_hash *table;
+  bfd_size_type amt = sizeof (struct bfd_strtab_hash);
 
-  table = ((struct bfd_strtab_hash *)
-	   bfd_malloc (sizeof (struct bfd_strtab_hash)));
+  table = (struct bfd_strtab_hash *) bfd_malloc (amt);
   if (table == NULL)
     return NULL;
 
@@ -711,8 +711,8 @@ _bfd_stringtab_emit (abfd, tab)
 
   for (entry = tab->first; entry != NULL; entry = entry->next)
     {
-      register const char *str;
-      register size_t len;
+      const char *str;
+      size_t len;
 
       str = entry->root.string;
       len = strlen (str) + 1;
@@ -722,12 +722,12 @@ _bfd_stringtab_emit (abfd, tab)
 	  bfd_byte buf[2];
 
 	  /* The output length includes the null byte.  */
-	  bfd_put_16 (abfd, len, buf);
-	  if (bfd_write ((PTR) buf, 1, 2, abfd) != 2)
+	  bfd_put_16 (abfd, (bfd_vma) len, buf);
+	  if (bfd_bwrite ((PTR) buf, (bfd_size_type) 2, abfd) != 2)
 	    return false;
 	}
 
-      if (bfd_write ((PTR) str, 1, len, abfd) != len)
+      if (bfd_bwrite ((PTR) str, (bfd_size_type) len, abfd) != len)
 	return false;
     }
 

@@ -17,6 +17,7 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+#include "sysdep.h"
 #include <stdio.h>
 #include "ansidecl.h"
 #include "opcode/arc.h"
@@ -1148,14 +1149,6 @@ insert_st_syntax (insn, operand, mods, reg, value, errmsg)
   if (ST_SYNTAX(OP_SHIMM,OP_LIMM,OP_NONE))
     {
       limm += arc_limm_fixup_adjust(insn);
-    }
-  if (ST_SYNTAX(OP_LIMM,OP_SHIMM,OP_SHIMM) && (shimm * 2 == limm))
-    {
-      insn &= ~C(-1);
-      limm_p = 0;
-      limm = 0;
-      insn |= C(ARC_REG_SHIMM);
-      ls_operand[LS_VALUE] = OP_SHIMM;
     }
   if (!(ST_SYNTAX(OP_REG,OP_REG,OP_NONE)
 	|| ST_SYNTAX(OP_REG,OP_LIMM,OP_NONE)

@@ -1,6 +1,7 @@
 %{ /* deffilep.y - parser for .def files */
 
-/*   Copyright 1995, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+/*   Copyright 1995, 1997, 1998, 1999, 2000, 2001
+     Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -19,8 +20,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include "libiberty.h"
+#include "safe-ctype.h"
 #include "bfd.h"
 #include "sysdep.h"
 #include "ld.h"
@@ -77,14 +78,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define yytable	 def_yytable
 #define yycheck	 def_yycheck
 
-static int def_lex ();
-
 static void def_description PARAMS ((const char *));
 static void def_exports PARAMS ((const char *, const char *, int, int));
 static void def_heapsize PARAMS ((int, int));
 static void def_import
   PARAMS ((const char *, const char *, const char *, const char *, int));
 static void def_library PARAMS ((const char *, int));
+static def_file_module *def_stash_module PARAMS ((def_file *, const char *));
 static void def_name PARAMS ((const char *, int));
 static void def_section PARAMS ((const char *, int));
 static void def_section_alt PARAMS ((const char *, const char *));
@@ -93,6 +93,9 @@ static void def_version PARAMS ((int, int));
 static void def_directive PARAMS ((char *));
 static int def_parse PARAMS ((void));
 static int def_error PARAMS ((const char *));
+static void put_buf PARAMS ((char));
+static int def_getc PARAMS ((void));
+static int def_ungetc PARAMS ((int));
 static int def_lex PARAMS ((void));
 
 static int lex_forced_token = 0;
@@ -493,7 +496,7 @@ def_file_add_export (def, external_name, internal_name, ordinal)
 static def_file_module *
 def_stash_module (def, name)
      def_file *def;
-     char *name;
+     const char *name;
 {
   def_file_module *s;
   for (s=def->modules; s; s=s->next)
@@ -530,7 +533,7 @@ def_file_add_import (def, name, module, ordinal, internal_name)
   if (name)
     i->name = xstrdup (name);
   if (module)
-    i->module = def_stash_module(def, module);
+    i->module = def_stash_module (def, module);
   i->ordinal = ordinal;
   if (internal_name)
     i->internal_name = xstrdup (internal_name);
@@ -569,10 +572,10 @@ def_file_add_directive (my_def, param, len)
 
   while (param < pend)
     {
-      while (param < pend && isspace (*param))
+      while (param < pend && ISSPACE (*param))
 	param++;
       for (tend = param + 1;
-	   tend < pend && !(isspace (tend[-1]) && *tend == '-');
+	   tend < pend && !(ISSPACE (tend[-1]) && *tend == '-');
 	   tend++);
 
       for (i = 0; diropts[i].param; i++)
@@ -946,10 +949,10 @@ def_lex ()
   /* must be something else */
   saw_newline = 0;
 
-  if (isdigit (c))
+  if (ISDIGIT (c))
     {
       bufptr = 0;
-      while (c != EOF && (isxdigit (c) || (c == 'x')))
+      while (c != EOF && (ISXDIGIT (c) || (c == 'x')))
 	{
 	  put_buf (c);
 	  c = def_getc ();
@@ -963,10 +966,10 @@ def_lex ()
       return NUMBER;
     }
 
-  if (isalpha (c) || strchr ("$:-_?", c))
+  if (ISALPHA (c) || strchr ("$:-_?", c))
     {
       bufptr = 0;
-      while (c != EOF && (isalnum (c) || strchr ("$:-_?/@", c)))
+      while (c != EOF && (ISALNUM (c) || strchr ("$:-_?/@", c)))
 	{
 	  put_buf (c);
 	  c = def_getc ();

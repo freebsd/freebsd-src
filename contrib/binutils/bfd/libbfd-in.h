@@ -5,10 +5,6 @@
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
-** NOTE: libbfd.h is a GENERATED file.  Don't change it; instead,
-** change libbfd-in.h or the other BFD source files processed to
-** generate this file.
-
 This file is part of BFD, the Binary File Descriptor library.
 
 This program is free software; you can redistribute it and/or modify
@@ -29,9 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    E.g. align to an 8-byte boundary with argument of 8.  Take care never
    to wrap around if the address is within boundary-1 of the end of the
    address space.  */
-#define BFD_ALIGN(this, boundary)					\
-  ((((bfd_vma) (this) + (boundary) - 1) >= (bfd_vma) (this))		\
-   ? (((bfd_vma) (this) + ((boundary) - 1)) & (~((boundary)-1)))	\
+#define BFD_ALIGN(this, boundary)					  \
+  ((((bfd_vma) (this) + (boundary) - 1) >= (bfd_vma) (this))		  \
+   ? (((bfd_vma) (this) + ((boundary) - 1)) & ~ (bfd_vma) ((boundary)-1)) \
    : ~ (bfd_vma) 0)
 
 /* If you want to read and write large blocks, you might want to do it
@@ -87,20 +83,20 @@ struct areltdata {
 
 #define arelt_size(bfd) (((struct areltdata *)((bfd)->arelt_data))->parsed_size)
 
-extern PTR bfd_malloc PARAMS ((size_t));
-extern PTR bfd_realloc PARAMS ((PTR, size_t));
-extern PTR bfd_zmalloc PARAMS ((size_t));
+extern PTR bfd_malloc PARAMS ((bfd_size_type));
+extern PTR bfd_realloc PARAMS ((PTR, bfd_size_type));
+extern PTR bfd_zmalloc PARAMS ((bfd_size_type));
 
 extern bfd_error_handler_type _bfd_error_handler;
 
 /* These routines allocate and free things on the BFD's objalloc.  */
 
-extern PTR bfd_alloc PARAMS ((bfd *, size_t));
-extern PTR bfd_zalloc PARAMS ((bfd *, size_t));
+extern PTR bfd_alloc PARAMS ((bfd *, bfd_size_type));
+extern PTR bfd_zalloc PARAMS ((bfd *, bfd_size_type));
 extern void bfd_release PARAMS ((bfd *, PTR));
 
 bfd *	_bfd_create_empty_archive_element_shell PARAMS ((bfd *obfd));
-bfd *	_bfd_look_for_bfd_in_cache PARAMS ((bfd *arch_bfd, file_ptr index));
+bfd *	_bfd_look_for_bfd_in_cache PARAMS ((bfd *, file_ptr));
 boolean _bfd_add_bfd_to_archive_cache PARAMS ((bfd *, file_ptr, bfd *));
 boolean	_bfd_generic_mkarchive PARAMS ((bfd *abfd));
 const bfd_target *bfd_generic_archive_p PARAMS ((bfd *abfd));
@@ -116,6 +112,7 @@ boolean _bfd_compute_and_write_armap PARAMS ((bfd *, unsigned int elength));
 bfd *_bfd_get_elt_at_filepos PARAMS ((bfd *archive, file_ptr filepos));
 extern bfd *_bfd_generic_get_elt_at_index PARAMS ((bfd *, symindex));
 bfd * _bfd_new_bfd PARAMS ((void));
+void _bfd_delete_bfd PARAMS ((bfd *));
 
 boolean	bfd_false PARAMS ((bfd *ignore));
 boolean	bfd_true PARAMS ((bfd *ignore));
@@ -162,8 +159,7 @@ int	bfd_generic_stat_arch_elt PARAMS ((bfd *, struct stat *));
 #define _bfd_generic_new_section_hook \
   ((boolean (*) PARAMS ((bfd *, asection *))) bfd_true)
 extern boolean _bfd_generic_get_section_contents
-  PARAMS ((bfd *, asection *, PTR location, file_ptr offset,
-	   bfd_size_type count));
+  PARAMS ((bfd *, asection *, PTR, file_ptr, bfd_size_type));
 extern boolean _bfd_generic_get_section_contents_in_window
   PARAMS ((bfd *, asection *, bfd_window *, file_ptr, bfd_size_type));
 
@@ -255,8 +251,7 @@ extern boolean _bfd_archive_coff_construct_extended_name_table
 #define _bfd_nosymbols_get_symtab_upper_bound _bfd_n1
 #define _bfd_nosymbols_get_symtab \
   ((long (*) PARAMS ((bfd *, asymbol **))) _bfd_n1)
-#define _bfd_nosymbols_make_empty_symbol \
-  ((asymbol *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
+#define _bfd_nosymbols_make_empty_symbol _bfd_generic_make_empty_symbol
 #define _bfd_nosymbols_print_symbol \
   ((void (*) PARAMS ((bfd *, PTR, asymbol *, bfd_print_symbol_type))) bfd_void)
 #define _bfd_nosymbols_get_symbol_info \
@@ -323,6 +318,10 @@ extern boolean _bfd_generic_set_section_contents
   ((boolean (*) \
     PARAMS ((bfd *, struct bfd_link_info *))) \
    bfd_false)
+#define _bfd_nolink_bfd_merge_sections \
+  ((boolean (*) \
+    PARAMS ((bfd *, struct bfd_link_info *))) \
+   bfd_false)
 #define _bfd_nolink_bfd_link_hash_table_create \
   ((struct bfd_link_hash_table *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
 #define _bfd_nolink_bfd_link_add_symbols \
@@ -368,6 +367,10 @@ extern boolean _bfd_dwarf2_find_nearest_line
   PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
 	   const char **, unsigned int *, unsigned int,
 	   PTR *));
+
+/* Create a new section entry.  */
+extern struct bfd_hash_entry *bfd_section_hash_newfunc
+  PARAMS ((struct bfd_hash_entry *, struct bfd_hash_table *, const char *));
 
 /* A routine to create entries for a bfd_link_hash_table.  */
 extern struct bfd_hash_entry *_bfd_link_hash_newfunc
@@ -436,7 +439,7 @@ extern unsigned int _bfd_count_link_order_relocs
 /* Final link relocation routine.  */
 extern bfd_reloc_status_type _bfd_final_link_relocate
   PARAMS ((reloc_howto_type *, bfd *, asection *, bfd_byte *,
-	   bfd_vma address, bfd_vma value, bfd_vma addend));
+	   bfd_vma, bfd_vma, bfd_vma));
 
 /* Relocate a particular location by a howto and a value.  */
 extern bfd_reloc_status_type _bfd_relocate_contents
@@ -446,6 +449,11 @@ extern bfd_reloc_status_type _bfd_relocate_contents
 
 extern boolean _bfd_link_section_stabs
   PARAMS ((bfd *, PTR *, asection *, asection *, PTR *));
+
+/* Eliminate stabs for discarded functions and symbols.  */
+extern boolean _bfd_discard_section_stabs
+  PARAMS ((bfd *, asection *, PTR,
+	   boolean (*) (bfd_vma, PTR), PTR));
 
 /* Write out the .stab section when linking stabs in sections.  */
 
@@ -461,6 +469,26 @@ extern boolean _bfd_write_stab_strings PARAMS ((bfd *, PTR *));
 
 extern bfd_vma _bfd_stab_section_offset
   PARAMS ((bfd *, PTR *, asection *, PTR *, bfd_vma));
+
+/* Attempt to merge a SEC_MERGE section.  */
+
+extern boolean _bfd_merge_section
+  PARAMS ((bfd *, PTR *, asection *, PTR *));
+
+/* Attempt to merge SEC_MERGE sections.  */
+
+extern boolean _bfd_merge_sections
+  PARAMS ((bfd *, PTR, void (*)(bfd *, asection *)));
+
+/* Write out a merged section.  */
+
+extern boolean _bfd_write_merged_section
+  PARAMS ((bfd *, asection *, PTR));
+
+/* Find an offset within a modified SEC_MERGE section.  */
+
+extern bfd_vma _bfd_merged_section_offset
+  PARAMS ((bfd *, asection **, PTR, bfd_vma, bfd_vma));
 
 /* Create a string table.  */
 extern struct bfd_strtab_hash *_bfd_stringtab_init PARAMS ((void));

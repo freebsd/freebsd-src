@@ -23,6 +23,7 @@
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/arc.h"
+#include "libiberty.h"
 
 static reloc_howto_type *bfd_elf32_bfd_reloc_type_lookup
   PARAMS ((bfd *abfd, bfd_reloc_code_real_type code));
@@ -32,6 +33,8 @@ static boolean arc_elf_object_p
   PARAMS ((bfd *));
 static void arc_elf_final_write_processing
   PARAMS ((bfd *, boolean));
+static bfd_reloc_status_type arc_elf_b22_pcrel
+  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
 
 /* Try to minimize the amount of space occupied by relocation tables
    on the ROM (not that the ROM won't be swamped by other ELF overhead).  */
@@ -50,7 +53,7 @@ static reloc_howto_type elf_arc_howto_table[] =
 	 complain_overflow_bitfield, /* complain_on_overflow  */
 	 bfd_elf_generic_reloc,	/* special_function  */
 	 "R_ARC_NONE",		/* name  */
-	 false,			/* partial_inplace  */
+	 true,			/* partial_inplace  */
 	 0,			/* src_mask  */
 	 0,			/* dst_mask  */
 	 false),		/* pcrel_offset  */
@@ -65,7 +68,7 @@ static reloc_howto_type elf_arc_howto_table[] =
 	 complain_overflow_bitfield, /* complain_on_overflow  */
 	 bfd_elf_generic_reloc,	/* special_function  */
 	 "R_ARC_32",		/* name  */
-	 false,			/* partial_inplace  */
+	 true,			/* partial_inplace  */
 	 0xffffffff,		/* src_mask  */
 	 0xffffffff,		/* dst_mask  */
 	 false),		/* pcrel_offset  */
@@ -80,7 +83,7 @@ static reloc_howto_type elf_arc_howto_table[] =
 	 complain_overflow_bitfield, /* complain_on_overflow  */
 	 bfd_elf_generic_reloc,	/* special_function  */
 	 "R_ARC_B26",		/* name  */
-	 false,			/* partial_inplace  */
+	 true,			/* partial_inplace  */
 	 0x00ffffff,		/* src_mask  */
 	 0x00ffffff,		/* dst_mask  */
 	 false),		/* pcrel_offset  */
@@ -93,13 +96,12 @@ static reloc_howto_type elf_arc_howto_table[] =
 	 true,			/* pc_relative  */
 	 7,			/* bitpos  */
 	 complain_overflow_signed, /* complain_on_overflow  */
-	 bfd_elf_generic_reloc,	/* special_function  */
+	 arc_elf_b22_pcrel,	/* special_function  */
 	 "R_ARC_B22_PCREL",	/* name  */
-	 false,			/* partial_inplace  */
+	 true,			/* partial_inplace  */
 	 0x07ffff80,		/* src_mask  */
 	 0x07ffff80,		/* dst_mask  */
-	 true),			/* pcrel_offset  */
-
+	 false),		/* pcrel_offset  */
 };
 
 /* Map BFD reloc types to ARC ELF reloc types.  */
@@ -126,11 +128,10 @@ bfd_elf32_bfd_reloc_type_lookup (abfd, code)
 {
   unsigned int i;
 
-  for (i = 0; i < sizeof (arc_reloc_map) / sizeof (struct arc_reloc_map); i++)
-    {
-      if (arc_reloc_map[i].bfd_reloc_val == code)
-	return &elf_arc_howto_table[arc_reloc_map[i].elf_reloc_val];
-    }
+  for (i = ARRAY_SIZE (arc_reloc_map); i--;)
+    if (arc_reloc_map[i].bfd_reloc_val == code)
+      return elf_arc_howto_table + arc_reloc_map[i].elf_reloc_val;
+
   return NULL;
 }
 
@@ -155,7 +156,7 @@ static boolean
 arc_elf_object_p (abfd)
      bfd *abfd;
 {
-  int mach = bfd_mach_arc_6;
+  unsigned int mach = bfd_mach_arc_6;
 
   if (elf_elfheader(abfd)->e_machine == EM_ARC)
     {
@@ -207,11 +208,34 @@ arc_elf_final_write_processing (abfd, linker)
       val = E_ARC_MACH_ARC8;
       break;
     }
-  elf_elfheader (abfd)->e_machine = EM_ARC;
   elf_elfheader (abfd)->e_flags &=~ EF_ARC_MACH;
   elf_elfheader (abfd)->e_flags |= val;
 }
 
+bfd_reloc_status_type
+arc_elf_b22_pcrel (abfd, reloc_entry, symbol, data, input_section,
+		   output_bfd, error_message)
+     bfd * abfd;
+     arelent * reloc_entry;
+     asymbol * symbol;
+     PTR data;
+     asection * input_section;
+     bfd * output_bfd;
+     char ** error_message;
+{
+  /* If linking, back up the final symbol address by the address of the
+     reloc.  This cannot be accomplished by setting the pcrel_offset
+     field to true, as bfd_install_relocation will detect this and refuse
+     to install the offset in the first place, but bfd_perform_relocation
+     will still insist on removing it.  */
+  if (output_bfd == (bfd *) NULL)
+    reloc_entry->addend -= reloc_entry->address;
+
+  /* Fall through to the default elf reloc handler.  */
+  return bfd_elf_generic_reloc (abfd, reloc_entry, symbol, data,
+				input_section, output_bfd, error_message);
+}
+  
 #define TARGET_LITTLE_SYM bfd_elf32_littlearc_vec
 #define TARGET_LITTLE_NAME "elf32-littlearc"
 #define TARGET_BIG_SYM bfd_elf32_bigarc_vec

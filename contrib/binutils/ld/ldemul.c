@@ -169,15 +169,20 @@ ldemul_recognized_file (entry)
 }
 
 char *
-ldemul_choose_target ()
+ldemul_choose_target (argc, argv)
+      int argc;
+      char **argv;
 {
-  return ld_emulation->choose_target ();
+  return ld_emulation->choose_target (argc, argv);
 }
+
 
 /* The default choose_target function.  */
 
 char *
-ldemul_default_target ()
+ldemul_default_target (argc, argv)
+     int argc ATTRIBUTE_UNUSED;
+     char **argv ATTRIBUTE_UNUSED;
 {
   char *from_outside = getenv (TARGET_ENVIRON);
   if (from_outside != (char *) NULL)

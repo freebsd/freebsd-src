@@ -78,9 +78,11 @@ static const char symbol_chars[] =
 #ifdef DOUBLEBAR_PARALLEL
 #define LEX_IS_DOUBLEBAR_1ST		13
 #endif
+#define LEX_IS_PARALLEL_SEPARATOR	14
 #define IS_SYMBOL_COMPONENT(c)		(lex[c] == LEX_IS_SYMBOL_COMPONENT)
 #define IS_WHITESPACE(c)		(lex[c] == LEX_IS_WHITESPACE)
 #define IS_LINE_SEPARATOR(c)		(lex[c] == LEX_IS_LINE_SEPARATOR)
+#define IS_PARALLEL_SEPARATOR(c)	(lex[c] == LEX_IS_PARALLEL_SEPARATOR)
 #define IS_COMMENT(c)			(lex[c] == LEX_IS_COMMENT_START)
 #define IS_LINE_COMMENT(c)		(lex[c] == LEX_IS_LINE_COMMENT_START)
 #define	IS_NEWLINE(c)			(lex[c] == LEX_IS_NEWLINE)
@@ -163,6 +165,15 @@ do_scrub_begin (m68k_mri)
     {
       lex[(unsigned char) *p] = LEX_IS_LINE_SEPARATOR;
     }				/* declare line separators */
+
+#ifdef tc_parallel_separator_chars
+  /* This macro permits the processor to specify all characters which
+     separate parallel insns on the same line.  */
+  for (p = tc_parallel_separator_chars; *p; p++)
+    {
+      lex[(unsigned char) *p] = LEX_IS_PARALLEL_SEPARATOR;
+    }				/* declare parallel separators */
+#endif
 
   /* Only allow slash-star comments if slash is not in use.
      FIXME: This isn't right.  We should always permit them.  */
@@ -376,7 +387,7 @@ do_scrub_chars (get, tostart, tolen)
   /* I added states 9 and 10 because the MIPS ECOFF assembler uses
      constructs like ``.loc 1 20''.  This was turning into ``.loc
      120''.  States 9 and 10 ensure that a space is never dropped in
-     between characters which could appear in a identifier.  Ian
+     between characters which could appear in an identifier.  Ian
      Taylor, ian@cygnus.com.
 
      I added state 11 so that something like "Lfoo add %r25,%r26,%r27" works
@@ -555,7 +566,7 @@ do_scrub_chars (get, tostart, tolen)
 	  ch = GET ();
 	  if (ch == EOF)
 	    {
-	      as_warn (_("end of file in string: inserted '\"'"));
+	      as_warn (_("end of file in string; inserted '\"'"));
 	      state = old_state;
 	      UNGET ('\n');
 	      PUT ('"');
@@ -621,7 +632,7 @@ do_scrub_chars (get, tostart, tolen)
 	      break;
 #if defined(IGNORE_NONSTANDARD_ESCAPES) | defined(ONLY_STANDARD_ESCAPES)
 	    default:
-	      as_warn (_("Unknown escape '\\%c' in string: Ignored"), ch);
+	      as_warn (_("unknown escape '\\%c' in string; ignored"), ch);
 	      break;
 #else  /* ONLY_STANDARD_ESCAPES */
 	    default:
@@ -630,7 +641,7 @@ do_scrub_chars (get, tostart, tolen)
 #endif /* ONLY_STANDARD_ESCAPES */
 
 	    case EOF:
-	      as_warn (_("End of file in string: '\"' inserted"));
+	      as_warn (_("end of file in string; '\"' inserted"));
 	      PUT ('"');
 	      continue;
 	    }
@@ -796,7 +807,8 @@ do_scrub_chars (get, tostart, tolen)
 #endif
 	  if (IS_COMMENT (ch)
 	      || ch == '/'
-	      || IS_LINE_SEPARATOR (ch))
+	      || IS_LINE_SEPARATOR (ch)
+	      || IS_PARALLEL_SEPARATOR (ch))
 	    {
 	      if (scrub_m68k_mri)
 		{
@@ -992,7 +1004,7 @@ do_scrub_chars (get, tostart, tolen)
 	  if ((ch = GET ()) != '\'')
 	    {
 #ifdef REQUIRE_CHAR_CLOSE_QUOTE
-	      as_warn (_("Missing close quote: (assumed)"));
+	      as_warn (_("missing close quote; (assumed)"));
 #else
 	      if (ch != EOF)
 		UNGET (ch);
@@ -1036,6 +1048,11 @@ do_scrub_chars (get, tostart, tolen)
 
 	case LEX_IS_LINE_SEPARATOR:
 	  state = 0;
+	  PUT (ch);
+	  break;
+
+	case LEX_IS_PARALLEL_SEPARATOR:
+	  state = 1;
 	  PUT (ch);
 	  break;
 
@@ -1119,7 +1136,7 @@ do_scrub_chars (get, tostart, tolen)
 		  while (ch != EOF && !IS_NEWLINE (ch))
 		    ch = GET ();
 		  if (ch == EOF)
-		    as_warn (_("EOF in Comment: Newline inserted"));
+		    as_warn (_("end of file in comment; newline inserted"));
 		  state = 0;
 		  PUT ('\n');
 		  break;

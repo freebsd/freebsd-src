@@ -1,4 +1,4 @@
-/* ARC target-dependent stuff. Extension structure access functions 
+/* ARC target-dependent stuff. Extension structure access functions
    Copyright 1995, 1997, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -17,6 +17,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+#include "sysdep.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "bfd.h"
@@ -29,9 +30,9 @@ static struct arcExtMap arc_extension_map;
 /* Get the name of an extension instruction.  */
 
 const char *
-arcExtMap_instName(int opcode, int minor, int *flags) 
+arcExtMap_instName(int opcode, int minor, int *flags)
 {
-    if (opcode == 3) 
+    if (opcode == 3)
       {
 	/* FIXME: ??? need to also check 0/1/2 in bit0 for (3f) brk/sleep/swi  */
 	if (minor < 0x09 || minor == 0x3f)
@@ -53,7 +54,7 @@ arcExtMap_instName(int opcode, int minor, int *flags)
 /* Get the name of an extension core register.  */
 
 const char *
-arcExtMap_coreRegName(int value) 
+arcExtMap_coreRegName(int value)
 {
   if (value < 32)
     return 0;
@@ -63,7 +64,7 @@ arcExtMap_coreRegName(int value)
 /* Get the name of an extension condition code.  */
 
 const char *
-arcExtMap_condCodeName(int value) 
+arcExtMap_condCodeName(int value)
 {
   if (value < 16)
     return 0;
@@ -88,7 +89,7 @@ arcExtMap_auxRegName(long address)
 /* Recursively free auxilliary register strcture pointers until
    the list is empty.  */
 
-static void 
+static void
 clean_aux_registers(struct ExtAuxRegister *r)
 {
   if (r -> next)
@@ -98,14 +99,14 @@ clean_aux_registers(struct ExtAuxRegister *r)
       free(r -> next);
       r ->next = NULL;
     }
-  else 
+  else
     free(r -> name);
 }
-	      
+
 /* Free memory that has been allocated for the extensions.  */
 
-static void 
-cleanup_ext_map(void) 
+static void
+cleanup_ext_map(void)
 {
   struct ExtAuxRegister *r;
   struct ExtInstruction *insn;
@@ -113,45 +114,45 @@ cleanup_ext_map(void)
 
   /* clean aux reg structure  */
   r = arc_extension_map.auxRegisters;
-  if (r) 
+  if (r)
     {
       (clean_aux_registers(r));
       free(r);
     }
-  
+
   /* clean instructions  */
-  for (i = 0; i < NUM_EXT_INST; i++) 
+  for (i = 0; i < NUM_EXT_INST; i++)
     {
       insn = arc_extension_map.instructions[i];
       if (insn)
 	free(insn->name);
     }
-  
+
   /* clean core reg struct  */
-  for (i = 0; i < NUM_EXT_CORE; i++) 
+  for (i = 0; i < NUM_EXT_CORE; i++)
     {
       if (arc_extension_map.coreRegisters[i])
 	free(arc_extension_map.coreRegisters[i]);
     }
-  
+
   for (i = 0; i < NUM_EXT_COND; i++) {
     if (arc_extension_map.condCodes[i])
       free(arc_extension_map.condCodes[i]);
   }
-  
-  memset(&arc_extension_map, 0, sizeof(struct arcExtMap));  
+
+  memset(&arc_extension_map, 0, sizeof(struct arcExtMap));
 }
 
-int 
-arcExtMap_add(void *base, unsigned long length) 
+int
+arcExtMap_add(void *base, unsigned long length)
 {
   unsigned char *block = base;
   unsigned char *p = block;
-  
+
   /* Clean up and reset everything if needed.  */
   cleanup_ext_map();
 
-  while (p && p < (block + length)) 
+  while (p && p < (block + length))
     {
       /* p[0] == length of record
 	 p[1] == type of record
@@ -170,7 +171,7 @@ arcExtMap_add(void *base, unsigned long length)
 
       if (p[0] == 0)
 	return -1;
-      
+
       switch (p[1])
 	{
 	case EXT_INSTRUCTION:
@@ -178,9 +179,9 @@ arcExtMap_add(void *base, unsigned long length)
 	    char opcode = p[2];
 	    char minor  = p[3];
 	    char * insn_name = (char *) xmalloc(( (int)*p-5) * sizeof(char));
-	    struct ExtInstruction * insn = 
+	    struct ExtInstruction * insn =
 	      (struct ExtInstruction *) xmalloc(sizeof(struct ExtInstruction));
-	    
+
 	    if (opcode==3)
 	      opcode = 0x1f - 0x10 + minor - 0x09 + 1;
 	    else
@@ -191,8 +192,8 @@ arcExtMap_add(void *base, unsigned long length)
 	    arc_extension_map.instructions[(int) opcode] = insn;
 	  }
 	  break;
-	
-	case EXT_CORE_REGISTER: 
+
+	case EXT_CORE_REGISTER:
 	  {
 	    char * core_name = (char *) xmalloc(((int)*p-3) * sizeof(char));
 
@@ -200,19 +201,19 @@ arcExtMap_add(void *base, unsigned long length)
 	    arc_extension_map.coreRegisters[p[2]-32] = core_name;
 	  }
 	  break;
-	  
-	case EXT_COND_CODE: 
+
+	case EXT_COND_CODE:
 	  {
 	    char * cc_name = (char *) xmalloc( ((int)*p-3) * sizeof(char));
 	    strcpy(cc_name, (p+3));
 	    arc_extension_map.condCodes[p[2]-16] = cc_name;
-	  }	
+	  }
 	  break;
-	  
-	case EXT_AUX_REGISTER: 
+
+	case EXT_AUX_REGISTER:
 	  {
 	    /* trickier -- need to store linked list to these  */
-	    struct ExtAuxRegister *newAuxRegister = 
+	    struct ExtAuxRegister *newAuxRegister =
 	      (struct ExtAuxRegister *)malloc(sizeof(struct ExtAuxRegister));
 	    char * aux_name = (char *) xmalloc ( ((int)*p-6) * sizeof(char));
 
@@ -223,14 +224,14 @@ arcExtMap_add(void *base, unsigned long length)
 	    arc_extension_map.auxRegisters = newAuxRegister;
 	  }
 	  break;
-	  
+
 	default:
 	  return -1;
-	  
+
 	}
       p += p[0]; /* move to next record  */
     }
-  
+
   return 0;
 }
 

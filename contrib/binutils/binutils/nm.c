@@ -152,7 +152,7 @@ print_symbol_filename_posix PARAMS ((bfd * archive_bfd, bfd * abfd));
 
 
 static void
-print_value PARAMS ((bfd_vma));
+print_value PARAMS ((bfd *, bfd_vma));
 
 static void
 print_symbol_info_bsd PARAMS ((symbol_info * info, bfd * abfd));
@@ -245,6 +245,11 @@ static char value_format[] = "%016lx";
 /* We don't use value_format for this case.  */
 #endif
 #endif
+#ifdef BFD64
+static int print_width = 16;
+#else
+static int print_width = 8;
+#endif
 static int print_radix = 16;
 /* Print formats for printing stab info.  */
 static char other_format[] = "%02x";
@@ -292,9 +297,9 @@ usage (stream, status)
      FILE *stream;
      int status;
 {
-  fprintf (stream, _("Usage: %s [OPTION]... [FILE]...\n"), program_name);
-  fprintf (stream, _("List symbols from FILEs (a.out by default).\n"));
-  fprintf (stream, _("\n\
+  fprintf (stream, _("Usage: %s [option(s)] [file(s)]\n"), program_name);
+  fprintf (stream, _(" List symbols in [file(s)] (a.out by default).\n"));
+  fprintf (stream, _(" The options are:\n\
   -a, --debug-syms       Display debugger-only symbols\n\
   -A, --print-file-name  Print name of the input file before every symbol\n\
   -B                     Same as --format=bsd\n\
@@ -308,7 +313,6 @@ usage (stream, status)
   -f, --format=FORMAT    Use the output format FORMAT.  FORMAT can be `bsd',\n\
                            `sysv' or `posix'.  The default is `bsd'\n\
   -g, --extern-only      Display only external symbols\n\
-  -h, --help             Display this information\n\
   -l, --line-numbers     Use debugging information to find a filename and\n\
                            line number for each symbol\n\
   -n, --numeric-sort     Sort symbols numerically by address\n\
@@ -321,8 +325,9 @@ usage (stream, status)
   -t, --radix=RADIX      Use RADIX for printing symbol values\n\
       --target=BFDNAME   Specify the target object format as BFDNAME\n\
   -u, --undefined-only   Display only undefined symbols\n\
-  -V, --version          Display this program's version number\n\
   -X 32_64               (ignored)\n\
+  -h, --help             Display this information\n\
+  -V, --version          Display this program's version number\n\
 \n"));
   list_supported_targets (program_name, stream);
   if (status == 0)
@@ -389,6 +394,8 @@ set_output_format (f)
   format = &formats[i];
 }
 
+int main PARAMS ((int, char **));
+
 int
 main (argc, argv)
      int argc;
@@ -399,6 +406,9 @@ main (argc, argv)
 
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
+#endif
+#if defined (HAVE_SETLOCALE)
+  setlocale (LC_CTYPE, "");
 #endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
@@ -411,7 +421,7 @@ main (argc, argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "aABCDef:glnopPrst:uvVX:",
+  while ((c = getopt_long (argc, argv, "aABCDef:gHhlnopPrst:uvVvX:",
 			   long_options, (int *) 0)) != EOF)
     {
       switch (c)
@@ -452,6 +462,7 @@ main (argc, argv)
 	case 'g':
 	  external_only = 1;
 	  break;
+	case 'H':
 	case 'h':
 	  usage (stdout, 0);
 	case 'l':
@@ -939,6 +950,7 @@ display_rel_file (abfd, archive_bfd)
   PTR minisyms;
   unsigned int size;
   struct size_sym *symsizes;
+  char buf[30];
 
   if (! dynamic)
     {
@@ -958,6 +970,9 @@ display_rel_file (abfd, archive_bfd)
       non_fatal (_("%s: no symbols"), bfd_get_filename (abfd));
       return;
     }
+
+  bfd_sprintf_vma (abfd, buf, (bfd_vma) -1);
+  print_width = strlen (buf);
 
   /* Discard the symbols we don't want to print.
      It's OK to do this in place; we'll free the storage anyway
@@ -1437,7 +1452,8 @@ print_symbol_filename_posix (archive_bfd, abfd)
 /* Print a symbol value.  */
 
 static void
-print_value (val)
+print_value (abfd, val)
+     bfd *abfd;
      bfd_vma val;
 {
 #if ! defined (BFD64) || BFD_HOST_64BIT_LONG
@@ -1445,7 +1461,7 @@ print_value (val)
 #else
   /* We have a 64 bit value to print, but the host is only 32 bit.  */
   if (print_radix == 16)
-    fprintf_vma (stdout, val);
+    bfd_fprintf_vma (abfd, stdout, val);
   else
     {
       char buf[30];
@@ -1474,13 +1490,12 @@ print_symbol_info_bsd (info, abfd)
 {
   if (bfd_is_undefined_symclass (info->type))
     {
-#ifdef BFD64
-      printf ("        ");
-#endif
+      if (print_width == 16)
+	printf ("        ");
       printf ("        ");
     }
   else
-    print_value (info->value);
+    print_value (abfd, info->value);
   printf (" %c", info->type);
   if (info->type == '-')
     {
@@ -1503,7 +1518,7 @@ print_symbol_info_sysv (info, abfd)
   if (bfd_is_undefined_symclass (info->type))
     printf ("        ");	/* Value */
   else
-    print_value (info->value);
+    print_value (abfd, info->value);
   printf ("|   %c  |", info->type);	/* Class */
   if (info->type == '-')
     {
@@ -1526,7 +1541,7 @@ print_symbol_info_posix (info, abfd)
   if (bfd_is_undefined_symclass (info->type))
     printf ("        ");
   else
-    print_value (info->value);
+    print_value (abfd, info->value);
   /* POSIX.2 wants the symbol size printed here, when applicable;
      BFD currently doesn't provide it, so we take the easy way out by
      considering it to never be applicable.  */

@@ -1480,7 +1480,7 @@ Wed Oct  2 23:28:42 1996  Jeffrey A Law  (law@cygnus.com)
 
 	* mn10x00-opc.c, mn10x00-dis.c: New files for Matsushita
 	MN10x00 processors.
-	* disassemble (ARCH_mn10x00): Define.
+	* disassemble.c (ARCH_mn10x00): Define.
 	(disassembler): Handle bfd_arch_mn10x00.
 	* configure.in: Recognize bfd_mn10x00_arch.
 	* configure: Rebuilt.
@@ -2982,7 +2982,7 @@ Wed Jul 13 18:01:58 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
 
 Sun Jul 10 00:27:47 1994  Ian Dall  (dall@hfrd.dsto.gov.au)
 
-	* opcodes/ns32k-dis.c: Semi-new file.  Had apparently been dropped
+	* ns32k-dis.c: Semi-new file.  Had apparently been dropped
 	from distribution. A ns32k-dis.c from a previous distribution has
 	been brought up to date and supports the new interface.
 
@@ -3217,7 +3217,7 @@ Wed Jan  5 11:56:21 1994  David J. Mackenzie  (djm@thepub.cygnus.com)
 
 Wed Nov 17 17:20:12 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
-	* mips-opc.h: Use macro for j instruction, to support SVR4 PIC.
+	* mips-opc.c: Use macro for j instruction, to support SVR4 PIC.
 	Removed t,A case for la; always use t,A(b) case.
 
 Mon Nov  8 12:37:36 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
@@ -3618,7 +3618,7 @@ Wed Mar 31 10:07:04 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
 	    for a preceding `sethi' in order to print an absolute address.
 	    * (print_insn):  Disassembly prefers real instructions.
 	    (is_delayed_branch):  Speed up.
-	    * sparc-opcode.h: Add ALIAS bit to aliases.  Fix up opcode tables.
+	    * sparc-opc.c: Add ALIAS bit to aliases.  Fix up opcode tables.
 	    Still missing some float ops, and needs testing.
 	    * sparc-pinsn.c (print_insn): Eliminate 'set' test, subsumed by
 	    F_ALIAS.  Use printf, not fprintf, when not passing a file
@@ -3735,7 +3735,7 @@ Wed Sep 30 07:42:17 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 Tue Sep 29 12:20:21 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 	* z8k-dis.c (unparse_instr): prettier tabs
-	* z8kgen.c -> z8k-opc.h: bug fixes in tables
+	* z8kgen.c z8k-opc.h: bug fixes in tables
 
 Fri Sep 25 12:50:32 1992  Stu Grossman  (grossman at cygnus.com)
 
@@ -3784,6 +3784,12 @@ Mon Aug 31 13:47:35 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
 
 	* z8k-dis.c: knows how to disassemble z8k stuff
 	* z8k-opc.h: new file full of z8000 opcodes
+
+Fri Aug 28 15:38:03 1992  Ken Raeburn  (raeburn@cygnus.com)
+
+	* Renamed opc-sparc.c to sparc-opc.c for systems with short
+	filename constraints.
+	* Makefile.in: Updated to reflect change.
 
 
 Local Variables:
