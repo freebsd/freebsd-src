@@ -1,0 +1,41 @@
+# $Id: Makefile.in,v 1.9 1997/03/23 13:03:54 assar Exp $
+
+srcdir		= @srcdir@
+top_srcdir	= @top_srcdir@
+VPATH		= @srcdir@
+
+SHELL		= /bin/sh
+
+@SET_MAKE@
+
+CC 	= @CC@
+RANLIB 	= @RANLIB@
+DEFS 	= @DEFS@
+CFLAGS 	= @CFLAGS@
+
+INSTALL = @INSTALL@
+
+prefix 	= @prefix@
+
+SUBDIRS=common ftp ftpd
+
+all:
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) all); done
+
+install: all
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) install); done
+
+uninstall:
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) uninstall); done
+
+clean cleandir:
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) clean); done
+
+distclean: 
+	for i in $(SUBDIRS); \
+	do (cd $$i && $(MAKE) $(MFLAGS) distclean); done
+	rm -f Makefile *~
