@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: builtins.c,v 1.2 1999/07/22 21:11:40 green Exp $
  *
  */
 
@@ -319,7 +319,7 @@ ident_stream(s, sep)		/* Ident service */
 	for (av = sep->se_argv; *av; av++)
 		argc++;
 	if (argc) {
-		while ((c = getopt(argc, sep->se_argv, "fro:")) != -1)
+		while ((c = getopt(argc, sep->se_argv, "fro:t:")) != -1)
 			switch (c) {
 			case 'f':
 				fflag = 1;
@@ -330,6 +330,22 @@ ident_stream(s, sep)		/* Ident service */
 			case 'o':
 				osname = optarg;
 				break;
+			case 't':
+				do {
+					int sec, usec;
+
+					switch (sscanf(optarg, "%d.%d", &sec,
+					    &usec)) {
+					case 1:
+						tv.tv_sec = sec;
+						break;
+					case 2:
+						tv.tv_usec = usec;
+						break;
+					default:
+						break;
+					}
+				} while (0);
 			default:
 				break;
 			}
