@@ -5,6 +5,13 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011207:
+	Daily security checks have been split out to use the periodic(8)
+	scripts.  Some change in configuration may be necessary.  Please
+	see 
+http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjclark.org>
+	for details.
+
 20011204:
 	sos added VCD/SVCD support to ata driver and that needs the
 	kernel and burncd to be in sync.
