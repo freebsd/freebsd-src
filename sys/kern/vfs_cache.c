@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.8 1995/03/09 20:23:45 phk Exp $
+ * $Id: vfs_cache.c,v 1.9 1995/03/10 20:26:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -203,7 +203,7 @@ cache_enter(dvp, vp, cnp)
 		return;
 	}
 
-	if (numcache < numvnodes || numvnodes < desiredvnodes) {
+	if (numcache < numvnodes) {
 		/* Add one more entry */
 		ncp = (struct namecache *)
 			malloc((u_long)sizeof *ncp, M_CACHE, M_WAITOK);
