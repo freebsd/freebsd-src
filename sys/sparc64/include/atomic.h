@@ -269,11 +269,11 @@ atomic_store_rel_ ## name(volatile ptype p, vtype v)			\
 	atomic_store_rel(p, v, sz);					\
 }
 
-ATOMIC_GEN(int, int *, int, int, 32);
-ATOMIC_GEN(32, int *, int, int, 32);
+ATOMIC_GEN(int, u_int *, u_int, u_int, 32);
+ATOMIC_GEN(32, uint32_t *, uint32_t, uint32_t, 32);
 
-ATOMIC_GEN(long, long *, long, long, 64);
-ATOMIC_GEN(64, long *, long, long, 64);
+ATOMIC_GEN(long, u_long *, u_long, u_long, 64);
+ATOMIC_GEN(64, uint64_t *, uint64_t, uint64_t, 64);
 
 ATOMIC_GEN(ptr, void *, void *, uintptr_t, 64);
 
