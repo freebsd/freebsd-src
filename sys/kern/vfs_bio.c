@@ -3185,7 +3185,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 {
 	vm_ooffset_t soff, eoff;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Start and end offsets in buffer.  eoff - soff may not cross a
 	 * page boundry or cross the end of the buffer.  The end of the
@@ -3305,6 +3305,7 @@ vfs_clean_pages(struct buf * bp)
 		foff = bp->b_offset;
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("vfs_clean_pages: no buffer offset"));
+		vm_page_lock_queues();
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
 			vm_ooffset_t noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
@@ -3316,6 +3317,7 @@ vfs_clean_pages(struct buf * bp)
 			/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
 			foff = noff;
 		}
+		vm_page_unlock_queues();
 	}
 }
 
@@ -3344,6 +3346,7 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 		base += (bp->b_offset & PAGE_MASK);
 		n = PAGE_SIZE - (base & PAGE_MASK);
 
+		vm_page_lock_queues();
 		for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 			vm_page_t m = bp->b_pages[i];
 
@@ -3355,6 +3358,7 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 			size -= n;
 			n = PAGE_SIZE;
 		}
+		vm_page_unlock_queues();
 	}
 }
 
