@@ -224,8 +224,8 @@ sysvsem_modload(struct module *module, int cmd, void *arg)
 	return (error);
 }
 
-static moduledata_t sysvsem_moduledata = {
-	"sysvsem_mod",
+static moduledata_t sysvsem_mod = {
+	"sysvsem",
 	&sysvsem_modload,
 	NULL
 };
@@ -235,8 +235,9 @@ SYSCALL_MODULE_HELPER(__semctl, 4);
 SYSCALL_MODULE_HELPER(semget, 3);
 SYSCALL_MODULE_HELPER(semop, 3);
 
-DECLARE_MODULE(sysvsem_mod, sysvsem_moduledata,
+DECLARE_MODULE(sysvsem, sysvsem_mod,
 	SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
+MODULE_VERSION(sysvsem, 1);
 
 /*
  * Entry point for all SEM calls
