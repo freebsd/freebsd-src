@@ -1,4 +1,5 @@
 /* header for the des routines that we will use */
+/* $FreeBSD$ */
 
 typedef unsigned char byte, DesData[ 8], IdeaData[16];
 #if 0
