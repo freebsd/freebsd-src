@@ -365,6 +365,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	exit(0);
     }
 
+    if (getenv("LD_DUMP_REL_PRE") != NULL) {
+       dump_relocations(obj_main);
+       exit (0);
+    }
+
     if (relocate_objects(obj_main,
 	ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld) == -1)
 	die();
@@ -372,6 +377,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dbg("doing copy relocations");
     if (do_copy_relocations(obj_main) == -1)
 	die();
+
+    if (getenv("LD_DUMP_REL_POST") != NULL) {
+       dump_relocations(obj_main);
+       exit (0);
+    }
 
     dbg("initializing key program variables");
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
