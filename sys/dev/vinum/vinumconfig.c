@@ -240,12 +240,12 @@ my_sd(int plexno, int sdno)
 }
 
 /* Check that this operation is being done in the kernel.
- * longjmp out if not.  op the name of the operation. */
+ * longjmp out if not.  op is the name of the operation. */
 void 
 checkkernel(char *op)
 {
-    if (vinum_conf.flags & VF_KERNELOP == 0)
-    throw_rude_remark(EPERM, "Can't perform '%s' from user space", op);
+    if ((vinum_conf.flags & VF_KERNELOP) == 0)
+	throw_rude_remark(EPERM, "Can't perform '%s' from user space", op);
 }
 
 /* Add plex to the volume if possible */
@@ -267,7 +267,7 @@ give_plex_to_volume(int volno, int plexno)
 	    "Too many plexes for volume %s",
 	    vol->name);
     else if ((vol->plexes > 0)				    /* we have other plexes */
-    &&(vol->flags & VF_CONFIG_SETUPSTATE == 0))		    /* and we're not setting up state */
+    &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
 	invalidate_subdisks(&PLEX[plexno], sd_stale);	    /* make the subdisks invalid */
     vol->plex[vol->plexes] = plexno;			    /* this one */
     vol->plexes++;					    /* add another plex */
