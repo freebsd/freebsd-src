@@ -714,24 +714,31 @@ netname(u_long in, u_long mask)
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
-	u_long net, omask, dmask;
+	u_long dmask;
 	register u_long i;
+
+#define	NSHIFT(m) (							\
+	(m) == IN_CLASSA_NET ? IN_CLASSA_NSHIFT :			\
+	(m) == IN_CLASSB_NET ? IN_CLASSB_NSHIFT :			\
+	(m) == IN_CLASSC_NET ? IN_CLASSC_NSHIFT :			\
+	0)
 
 	i = ntohl(in);
 	dmask = forgemask(i);
-	omask = mask;
 	if (!numeric_addr && i) {
-		net = i & dmask;
-		if (!(np = getnetbyaddr(i, AF_INET)) && net != i)
-			np = getnetbyaddr(net, AF_INET);
-		if (np) {
+		np = getnetbyaddr(i >> NSHIFT(mask), AF_INET);
+		if (np == NULL && mask == 0)
+			np = getnetbyaddr(i >> NSHIFT(dmask), AF_INET);
+		if (np != NULL) {
 			cp = np->n_name;
 			trimdomain(cp, strlen(cp));
 		}
 	}
-	if (cp)
+#undef NSHIFT
+	if (cp != NULL) {
 		strncpy(line, cp, sizeof(line) - 1);
-	else {
+		line[sizeof(line) - 1] = '\0';
+	} else {
 		switch (dmask) {
 		case IN_CLASSA_NET:
 			if ((i & IN_CLASSA_HOST) == 0) {
@@ -759,7 +766,7 @@ netname(u_long in, u_long mask)
 			break;
 		}
 	}
-	domask(line+strlen(line), i, omask);
+	domask(line + strlen(line), i, mask);
 	return (line);
 }
 
