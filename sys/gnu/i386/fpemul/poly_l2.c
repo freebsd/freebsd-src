@@ -46,7 +46,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- *     $Id:$
+ *     $Id: poly_l2.c,v 1.3 1994/04/29 21:23:28 gclarkii Exp $
  *
  */
 
@@ -286,7 +286,7 @@ poly_l2p1(FPU_REG * arg, FPU_REG * result)
 	poly_div16(&Xsq);
 
 	/* Do the basic fixed point polynomial evaluation */
-	polynomial((u_int *) &accum.sigl), (unsigned *) &Xsq, lterms, HIPOWER - 1);
+	polynomial((u_int *) &accum.sigl, (unsigned *) &Xsq, lterms, HIPOWER - 1);
 
 	accum.tag = TW_Valid;	/* set the tags to Valid */
 	accum.sign = SIGN_POS;	/* and make accum positive */
