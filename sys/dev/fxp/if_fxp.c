@@ -180,6 +180,7 @@ static int		fxp_ioctl(struct ifnet *ifp, u_long command,
 			    caddr_t data);
 static void 		fxp_watchdog(struct ifnet *ifp);
 static int		fxp_add_rfabuf(struct fxp_softc *sc, struct mbuf *oldm);
+static int		fxp_mc_addrs(struct fxp_softc *sc);
 static void		fxp_mc_setup(struct fxp_softc *sc);
 static u_int16_t	fxp_eeprom_getword(struct fxp_softc *sc, int offset,
 			    int autosize);
@@ -1471,7 +1472,7 @@ fxp_stop(struct fxp_softc *sc)
 	 * Issue software reset, which also unloads the microcode.
 	 */
 	sc->flags &= ~FXP_FLAG_UCODE;
-	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
+	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
 	DELAY(50);
 
 	/*
@@ -1532,6 +1533,7 @@ fxp_init(void *xsc)
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
+	struct fxp_cb_mcs *mcsp;
 	int i, prm, s;
 
 	s = splimp();
@@ -1564,6 +1566,24 @@ fxp_init(void *xsc)
 	 */
 	if (ifp->if_flags & IFF_LINK0 && (sc->flags & FXP_FLAG_UCODE) == 0)
 		fxp_load_ucode(sc);
+
+	/*
+	 * Initialize the multicast address list.
+	 */
+	if (fxp_mc_addrs(sc)) {
+		mcsp = sc->mcsp;
+		mcsp->cb_status = 0;
+		mcsp->cb_command = FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_EL;
+		mcsp->link_addr = -1;
+		/*
+	 	 * Start the multicast setup command.
+		 */
+		fxp_scb_wait(sc);
+		CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, vtophys(&mcsp->cb_status));
+		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
+		/* ...and wait for it to complete. */
+		fxp_dma_wait(&mcsp->cb_status, sc);
+	}
 
 	/*
 	 * We temporarily use memory that contains the TxCB list to
@@ -1995,6 +2015,41 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 /*
+ * Fill in the multicast address list and return number of entries.
+ */
+static int
+fxp_mc_addrs(struct fxp_softc *sc)
+{
+	struct fxp_cb_mcs *mcsp = sc->mcsp;
+	struct ifnet *ifp = &sc->sc_if;
+	struct ifmultiaddr *ifma;
+	int nmcasts;
+
+	nmcasts = 0;
+	if ((sc->flags & FXP_FLAG_ALL_MCAST) == 0) {
+#if __FreeBSD_version < 500000
+		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#else
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+#endif
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			if (nmcasts >= MAXMCADDR) {
+				sc->flags |= FXP_FLAG_ALL_MCAST;
+				nmcasts = 0;
+				break;
+			}
+			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+			    (void *)(uintptr_t)(volatile void *)
+				&sc->mcsp->mc_addr[nmcasts][0], 6);
+			nmcasts++;
+		}
+	}
+	mcsp->mc_cnt = nmcasts * 6;
+	return (nmcasts);
+}
+
+/*
  * Program the multicast filter.
  *
  * We have an artificial restriction that the multicast setup command
@@ -2013,8 +2068,6 @@ fxp_mc_setup(struct fxp_softc *sc)
 {
 	struct fxp_cb_mcs *mcsp = sc->mcsp;
 	struct ifnet *ifp = &sc->sc_if;
-	struct ifmultiaddr *ifma;
-	int nmcasts;
 	int count;
 
 	/*
@@ -2074,28 +2127,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 	mcsp->cb_command = FXP_CB_COMMAND_MCAS |
 	    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I;
 	mcsp->link_addr = vtophys(&sc->cbl_base->cb_status);
-
-	nmcasts = 0;
-	if ((sc->flags & FXP_FLAG_ALL_MCAST) == 0) {
-#if __FreeBSD_version < 500000
-		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#else
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#endif
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			if (nmcasts >= MAXMCADDR) {
-				sc->flags |= FXP_FLAG_ALL_MCAST;
-				nmcasts = 0;
-				break;
-			}
-			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    (void *)(uintptr_t)(volatile void *)
-				&sc->mcsp->mc_addr[nmcasts][0], 6);
-			nmcasts++;
-		}
-	}
-	mcsp->mc_cnt = nmcasts * 6;
+	(void) fxp_mc_addrs(sc);
 	sc->cbl_first = sc->cbl_last = (struct fxp_cb_tx *) mcsp;
 	sc->tx_queued = 1;
 
