@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.3 1998/11/14 03:13:32 obrien Exp $
+ * $Id: am_defs.h,v 1.4 1999/01/13 20:03:59 obrien Exp $
  *
  */
 
@@ -1054,7 +1054,7 @@ extern char *nc_sperror(void);
  * Actions to take if <ufs/ufs_mount.h> exists.
  */
 #ifdef HAVE_UFS_UFS_MOUNT_H
-# include <ufs/ufs_mount.h>
+# include <ufs/ufs/ufsmount.h>
 #endif /* HAVE_UFS_UFS_MOUNT_H */
 
 /*
