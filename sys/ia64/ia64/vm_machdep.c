@@ -329,19 +329,15 @@ static void
 sf_buf_init(void *arg)
 {
 	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
 	int i;
 
 	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INIT(&sf_freelist.sf_head);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
-	}
+	for (i = 0; i < nsfbufs; i++)
+		SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf_bufs+i, free_list);
 	sf_buf_alloc_want = 0;
 	mtx_unlock(&sf_freelist.sf_lock);
 }
@@ -362,23 +358,21 @@ sf_buf_alloc(struct vm_page *m)
 		    "sfbufa", 0);
 		sf_buf_alloc_want--;
 
-		/*
-		 * If we got a signal, don't risk going back to sleep. 
-		 */
+		/* If we got a signal, don't risk going back to sleep. */
 		if (error)
 			break;
 	}
 	if (sf != NULL) {
 		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
 		sf->m = m;
-		pmap_qenter(sf->kva, &sf->m, 1);
+		sf->kva = IA64_PHYS_TO_RR7(m->phys_addr);
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
 }
 
 /*
- * Detatch mapped page and release resources back to the system.
+ * Detach mapped page and release resources back to the system.
  */
 void
 sf_buf_free(void *addr, void *args)
@@ -387,14 +381,13 @@ sf_buf_free(void *addr, void *args)
 	struct vm_page *m;
 
 	sf = args;
-	pmap_qremove((vm_offset_t)addr, 1);
 	m = sf->m;
 	vm_page_lock_queues();
 	vm_page_unwire(m, 0);
 	/*
-	 * Check for the object going away on us. This can
-	 * happen since we don't hold a reference to it.
-	 * If so, we're responsible for freeing the page.
+	 * Check for the object going away on us. This can happen since we
+	 * don't hold a reference to it. If so, we're responsible for freeing
+	 * the page.
 	 */
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
