@@ -50,7 +50,7 @@
 .\" SOFTWARE.
 .\" -
 .\" --Copyright--
-.\" $Id: host.1,v 8.4 2000/02/29 03:50:47 vixie Exp $
+.\" $Id: host.1,v 8.6 2001/08/10 00:14:47 cyarnell Exp $
 .\" $FreeBSD$
 .\"
 .Dd December 15, 1994
@@ -70,7 +70,7 @@
 .Ic Host
 looks for information about Internet hosts.  It gets this information
 from a set of interconnected servers that are spread across the
-country.  By default, it simply converts between host names and
+world.  By default, it simply converts between host names and
 Internet addresses.  However, with the 
 .Dq Fl t 
 or 
@@ -265,7 +265,7 @@ will give a complete download of the zone data for rutgers.edu,
 in the official master file format.  (However the SOA record is
 listed twice, for arcane reasons.)  
 .Pp
-.Sy NOTE: 
+.Sy NOTE :
 .Dq Fl l 
 is implemented by
 doing a complete zone transfer and then filtering out the information
@@ -289,21 +289,17 @@ host name.  The name file must be contained in the
 .Ev HOSTALIASES 
 environment variable.
 .Sh ENVIRONMENT
-.Bl -tag -width "/etc/resolv.conf  " -compress
+.Bl -tag -width "/etc/resolv.conf  " -compact
 .It Ev HOSTALIASES
 Name of file containing
 .Pq Ar host alias , full hostname
 pairs.
 .El
 .Sh FILES
-.Bl -tag -width "/etc/resolv.conf  " -compress
+.Bl -tag -width "/etc/resolv.conf  " -compact
 .It Pa /etc/resolv.conf 
 See
 .Xr resolver @FORMAT_EXT@ .
-.It Ev HOSTALIASES
-Name of file containing
-.Pq Ar host alias , full hostname
-pairs.
 .El
 .Sh SEE ALSO
 .Xr @INDOT@named  @SYS_OPS_EXT@ , 
