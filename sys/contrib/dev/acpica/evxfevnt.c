@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 74 $
+ *              $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -337,18 +337,33 @@ AcpiEnableGpe (
         goto UnlockAndExit;
     }
 
-    /* Enable the requested GPE number */
-
-    Status = AcpiHwEnableGpe (GpeEventInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        goto UnlockAndExit;
-    }
+    /* Check for Wake vs Runtime GPE */
 
     if (Flags & ACPI_EVENT_WAKE_ENABLE)
     {
+        /* Ensure the requested wake GPE is disabled */
+
+        Status = AcpiHwDisableGpe (GpeEventInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            goto UnlockAndExit;
+        }
+
+        /* Defer Enable of Wake GPE until sleep time */
+
         AcpiHwEnableGpeForWakeup (GpeEventInfo);
     }
+    else
+    {
+        /* Enable the requested runtime GPE  */
+
+        Status = AcpiHwEnableGpe (GpeEventInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            goto UnlockAndExit;
+        }
+    }
+
 
 UnlockAndExit:
     if (Flags & ACPI_NOT_ISR)

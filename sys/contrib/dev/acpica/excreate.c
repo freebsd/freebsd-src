@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 102 $
+ *              $Revision: 103 $
  *
  *****************************************************************************/
 
@@ -159,7 +159,8 @@ AcpiExCreateAlias (
     AliasNode =  (ACPI_NAMESPACE_NODE *) WalkState->Operands[0];
     TargetNode = (ACPI_NAMESPACE_NODE *) WalkState->Operands[1];
 
-    if (TargetNode->Type == ACPI_TYPE_LOCAL_ALIAS)
+    if ((TargetNode->Type == ACPI_TYPE_LOCAL_ALIAS)  ||
+        (TargetNode->Type == ACPI_TYPE_LOCAL_METHOD_ALIAS))
     {
         /*
          * Dereference an existing alias so that we don't create a chain
@@ -167,7 +168,7 @@ AcpiExCreateAlias (
          * always exactly one level of indirection away from the
          * actual aliased name.
          */
-        TargetNode = (ACPI_NAMESPACE_NODE *) TargetNode->Object;
+        TargetNode = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, TargetNode->Object);
     }
 
     /*
@@ -191,6 +192,17 @@ AcpiExCreateAlias (
          * types, the object can change dynamically via a Store.
          */
         AliasNode->Type = ACPI_TYPE_LOCAL_ALIAS;
+        AliasNode->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
+        break;
+
+    case ACPI_TYPE_METHOD:
+
+        /*
+         * The new alias has the type ALIAS and points to the original
+         * NS node, not the object itself.  This is because for these
+         * types, the object can change dynamically via a Store.
+         */
+        AliasNode->Type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
         AliasNode->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
         break;
 

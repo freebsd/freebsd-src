@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 148 $
+ *       $Revision: 152 $
  *
  *****************************************************************************/
 
@@ -119,15 +119,17 @@
 
 
 /*
- * Ensure that the globals are actually defined only once.
+ * Ensure that the globals are actually defined and initialized only once.
  *
- * The use of these defines allows a single list of globals (here) in order
+ * The use of these macros allows a single list of globals (here) in order
  * to simplify maintenance of the code.
  */
 #ifdef DEFINE_ACPI_GLOBALS
 #define ACPI_EXTERN
+#define ACPI_INIT_GLOBAL(a,b) a=b
 #else
 #define ACPI_EXTERN extern
+#define ACPI_INIT_GLOBAL(a,b) a
 #endif
 
 /* 
@@ -136,6 +138,7 @@
  */
 ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1aEnable;
 ACPI_EXTERN ACPI_GENERIC_ADDRESS        AcpiGbl_XPm1bEnable;
+
 
 /*****************************************************************************
  *
@@ -152,14 +155,35 @@ extern      UINT32                      AcpiDbgLayer;
 
 extern      UINT32                      AcpiGbl_NestingLevel;
 
+
 /*****************************************************************************
  *
- * Runtime configuration
+ * Runtime configuration (static defaults that can be overriden at runtime)
  *
  ****************************************************************************/
 
-ACPI_EXTERN UINT8                       AcpiGbl_CreateOsiMethod;
-ACPI_EXTERN UINT8                       AcpiGbl_AllMethodsSerialized;
+/*
+ * Create the predefined _OSI method in the namespace? Default is TRUE
+ * because ACPI CA is fully compatible with other ACPI implementations.
+ * Changing this will revert ACPI CA (and machine ASL) to pre-OSI behavior.
+ */
+ACPI_EXTERN UINT8       ACPI_INIT_GLOBAL (AcpiGbl_CreateOsiMethod, TRUE);
+
+/*
+ * Automatically serialize ALL control methods? Default is FALSE, meaning
+ * to use the Serialized/NotSerialized method flags on a per method basis.
+ * Only change this if the ASL code is poorly written and cannot handle
+ * reentrancy even though methods are marked "NotSerialized".
+ */
+ACPI_EXTERN UINT8       ACPI_INIT_GLOBAL (AcpiGbl_AllMethodsSerialized, FALSE);
+
+/*
+ * Disable wakeup GPEs during runtime? Default is TRUE because WAKE and
+ * RUNTIME GPEs should never be shared, and WAKE GPEs should typically only
+ * be enabled just before going to sleep.
+ */
+ACPI_EXTERN UINT8       ACPI_INIT_GLOBAL (AcpiGbl_LeaveWakeGpesDisabled, TRUE);
+
 
 /*****************************************************************************
  *
@@ -174,7 +198,6 @@ ACPI_EXTERN UINT8                       AcpiGbl_AllMethodsSerialized;
  *
  * These tables are single-table only; meaning that there can be at most one
  * of each in the system.  Each global points to the actual table.
- *
  */
 ACPI_EXTERN UINT32                      AcpiGbl_TableFlags;
 ACPI_EXTERN UINT32                      AcpiGbl_RsdtTableCount;
@@ -269,6 +292,7 @@ extern const char                      *AcpiGbl_ValidOsiStrings[ACPI_NUM_OSI_STR
 
 ACPI_EXTERN ACPI_NAMESPACE_NODE         AcpiGbl_RootNodeStruct;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_RootNode;
+ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_FadtGpeDevice;
 
 extern const UINT8                      AcpiGbl_NsProperties[NUM_NS_TYPES];
 extern const ACPI_PREDEFINED_NAMES      AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpe - General Purpose Event handling and dispatch
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -176,9 +176,8 @@ AcpiEvGetGpeEventInfo (
         return (NULL);
     }
 
-    /*
-     * A Non-null GpeDevice means this is a GPE Block Device.
-     */
+    /* A Non-NULL GpeDevice means this is a GPE Block Device */
+
     ObjDesc = AcpiNsGetAttachedObject ((ACPI_NAMESPACE_NODE *) GpeDevice);
     if (!ObjDesc ||
         !ObjDesc->Device.GpeBlock)
@@ -389,7 +388,7 @@ AcpiEvAsynchExecuteGpeMethod (
         }
     }
 
-    if (LocalGpeEventInfo.Flags & ACPI_EVENT_LEVEL_TRIGGERED)
+    if ((LocalGpeEventInfo.Flags & ACPI_GPE_XRUPT_TYPE_MASK) == ACPI_GPE_LEVEL_TRIGGERED)
     {
         /*
          * GPE is level-triggered, we clear the GPE status bit after handling
@@ -440,7 +439,7 @@ AcpiEvGpeDispatch (
      * If edge-triggered, clear the GPE status bit now.  Note that
      * level-triggered events are cleared after the GPE is serviced.
      */
-    if (GpeEventInfo->Flags & ACPI_EVENT_EDGE_TRIGGERED)
+    if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) == ACPI_GPE_EDGE_TRIGGERED)
     {
         Status = AcpiHwClearGpe (GpeEventInfo);
         if (ACPI_FAILURE (Status))
@@ -466,7 +465,7 @@ AcpiEvGpeDispatch (
 
         /* It is now safe to clear level-triggered events. */
 
-        if (GpeEventInfo->Flags & ACPI_EVENT_LEVEL_TRIGGERED)
+        if ((GpeEventInfo->Flags & ACPI_GPE_XRUPT_TYPE_MASK) == ACPI_GPE_LEVEL_TRIGGERED)
         {
             Status = AcpiHwClearGpe (GpeEventInfo);
             if (ACPI_FAILURE (Status))

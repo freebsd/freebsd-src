@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 147 $
+ *       $Revision: 148 $
  *
  *****************************************************************************/
 
@@ -636,8 +636,11 @@ ACPI_STATUS
 AcpiExStoreObjectToNode (
     ACPI_OPERAND_OBJECT     *SourceDesc,
     ACPI_NAMESPACE_NODE     *Node,
-    ACPI_WALK_STATE         *WalkState);
+    ACPI_WALK_STATE         *WalkState,
+    UINT8                   ImplicitConversion);
 
+#define ACPI_IMPLICIT_CONVERSION        TRUE
+#define ACPI_NO_IMPLICIT_CONVERSION     FALSE
 
 /*
  * exstoren

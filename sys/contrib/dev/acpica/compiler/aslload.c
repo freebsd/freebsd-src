@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 60 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -518,14 +518,19 @@ LdNamespace1Begin (
              * Which is used to workaround the fact that the MS interpreter
              * does not allow Scope() forward references.
              */
-            sprintf (MsgBuffer, "%s, %s, Changing type to (Scope)",
+            sprintf (MsgBuffer, "%s [%s], changing type to [Scope]",
                 Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
             AslError (ASL_REMARK, ASL_MSG_SCOPE_TYPE, Op, MsgBuffer);
 
             /*
-             * Switch the type
+             * Switch the type to scope, open the new scope
              */
-            Node->Type = ACPI_TYPE_ANY;
+            Node->Type = ACPI_TYPE_LOCAL_SCOPE;
+            Status = AcpiDsScopeStackPush (Node, ACPI_TYPE_LOCAL_SCOPE, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
             break;
 
         default:
@@ -533,15 +538,20 @@ LdNamespace1Begin (
             /*
              * All other types are an error
              */
-            sprintf (MsgBuffer, "%s, %s", Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
+            sprintf (MsgBuffer, "%s [%s]", Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
             AslError (ASL_ERROR, ASL_MSG_SCOPE_TYPE, Op, MsgBuffer);
 
             /*
              * However, switch the type to be an actual scope so
              * that compilation can continue without generating a whole
-             * cascade of additional errors.
+             * cascade of additional errors.  Open the new scope.
              */
-            Node->Type = ACPI_TYPE_ANY;
+            Node->Type = ACPI_TYPE_LOCAL_SCOPE;
+            Status = AcpiDsScopeStackPush (Node, ACPI_TYPE_LOCAL_SCOPE, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
             break;
         }
 

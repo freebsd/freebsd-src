@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 172 $
+ *              $Revision: 173 $
  *
  *****************************************************************************/
 
@@ -881,6 +881,7 @@ AcpiExDumpObjectDescriptor (
 
 
     case ACPI_TYPE_LOCAL_ALIAS:
+    case ACPI_TYPE_LOCAL_METHOD_ALIAS:
     case ACPI_TYPE_LOCAL_EXTRA:
     case ACPI_TYPE_LOCAL_DATA:
     default:

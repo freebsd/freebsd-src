@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 179 $
+ *              $Revision: 180 $
  *
  ******************************************************************************/
 
@@ -335,6 +335,15 @@ AcpiNsRootInitialize (void)
 
 UnlockAndExit:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+
+    /* Save a handle to "_GPE", it is always present */
+
+    if (ACPI_SUCCESS (Status))
+    {
+        Status = AcpiNsGetNodeByPath ("\\_GPE", NULL, ACPI_NS_NO_UPSEARCH,
+                        &AcpiGbl_FadtGpeDevice);
+    }
+
     return_ACPI_STATUS (Status);
 }
 
@@ -685,6 +694,7 @@ AcpiNsLookup (
         if ((NumSegments        == 0)                               &&
             (TypeToCheckFor     != ACPI_TYPE_ANY)                   &&
             (TypeToCheckFor     != ACPI_TYPE_LOCAL_ALIAS)           &&
+            (TypeToCheckFor     != ACPI_TYPE_LOCAL_METHOD_ALIAS)    &&
             (TypeToCheckFor     != ACPI_TYPE_LOCAL_SCOPE)           &&
             (ThisNode->Type     != ACPI_TYPE_ANY)                   &&
             (ThisNode->Type     != TypeToCheckFor))
