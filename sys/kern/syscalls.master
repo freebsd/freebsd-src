@@ -77,13 +77,13 @@
 25	MSTD	POSIX	{ uid_t geteuid(void); }
 26	STD	BSD	{ int ptrace(int req, pid_t pid, caddr_t addr, \
 			    int data); }
-27	STD	BSD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
-28	STD	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
-29	STD	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
+27	MSTD	BSD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
+28	MSTD	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
+29	MSTD	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t from, int *fromlenaddr); }
-30	STD	BSD	{ int accept(int s, caddr_t name, int *anamelen); }
-31	STD	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
-32	STD	BSD	{ int getsockname(int fdes, caddr_t asa, int *alen); }
+30	MSTD	BSD	{ int accept(int s, caddr_t name, int *anamelen); }
+31	MSTD	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
+32	MSTD	BSD	{ int getsockname(int fdes, caddr_t asa, int *alen); }
 33	STD	POSIX	{ int access(char *path, int flags); }
 34	STD	BSD	{ int chflags(char *path, int flags); }
 35	STD	BSD	{ int fchflags(int fd, int flags); }
@@ -165,18 +165,18 @@
 94	UNIMPL	BSD	setdopt
 95	STD	POSIX	{ int fsync(int fd); }
 96	STD	BSD	{ int setpriority(int which, int who, int prio); }
-97	STD	BSD	{ int socket(int domain, int type, int protocol); }
-98	STD	BSD	{ int connect(int s, caddr_t name, int namelen); }
-99	CPT_NOA	BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
+97	MSTD	BSD	{ int socket(int domain, int type, int protocol); }
+98	MSTD	BSD	{ int connect(int s, caddr_t name, int namelen); }
+99	MCPT_NOA BSD	{ int accept(int s, caddr_t name, int *anamelen); } \
 			    accept accept_args int
 100	STD	BSD	{ int getpriority(int which, int who); }
-101	COMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
-102	COMPAT	BSD	{ int recv(int s, caddr_t buf, int len, int flags); }
+101	MCOMPAT	BSD	{ int send(int s, caddr_t buf, int len, int flags); }
+102	MCOMPAT	BSD	{ int recv(int s, caddr_t buf, int len, int flags); }
 103	COMPAT	BSD	{ int sigreturn(struct osigcontext *sigcntxp); }
-104	STD	BSD	{ int bind(int s, caddr_t name, int namelen); }
-105	STD	BSD	{ int setsockopt(int s, int level, int name, \
+104	MSTD	BSD	{ int bind(int s, caddr_t name, int namelen); }
+105	MSTD	BSD	{ int setsockopt(int s, int level, int name, \
 			    caddr_t val, int valsize); }
-106	STD	BSD	{ int listen(int s, int backlog); }
+106	MSTD	BSD	{ int listen(int s, int backlog); }
 107	OBSOL	NOHIDE	vtimes
 108	COMPAT	BSD	{ int sigvec(int signum, struct sigvec *nsv, \
 			    struct sigvec *osv); }
@@ -187,13 +187,13 @@
 ; us the mask, not a pointer to it.
 112	COMPAT	BSD	{ int sigstack(struct sigstack *nss, \
 			    struct sigstack *oss); }
-113	COMPAT	BSD	{ int recvmsg(int s, struct omsghdr *msg, int flags); }
-114	COMPAT	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
+113	MCOMPAT	BSD	{ int recvmsg(int s, struct omsghdr *msg, int flags); }
+114	MCOMPAT	BSD	{ int sendmsg(int s, caddr_t msg, int flags); }
 115	OBSOL	NOHIDE	vtrace
 116	MSTD	BSD	{ int gettimeofday(struct timeval *tp, \
 			    struct timezone *tzp); }
 117	STD	BSD	{ int getrusage(int who, struct rusage *rusage); }
-118	STD	BSD	{ int getsockopt(int s, int level, int name, \
+118	MSTD	BSD	{ int getsockopt(int s, int level, int name, \
 			    caddr_t val, int *avalsize); }
 119	UNIMPL	NOHIDE	resuba (BSD/OS 2.x)
 120	STD	BSD	{ int readv(int fd, struct iovec *iovp, u_int iovcnt); }
@@ -203,7 +203,7 @@
 			    struct timezone *tzp); }
 123	STD	BSD	{ int fchown(int fd, int uid, int gid); }
 124	STD	BSD	{ int fchmod(int fd, int mode); }
-125	CPT_NOA	BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
+125	MCPT_NOA BSD	{ int recvfrom(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t from, int *fromlenaddr); } \
 			    recvfrom recvfrom_args int
 126	STD	BSD	{ int setreuid(int ruid, int euid); }
@@ -213,10 +213,10 @@
 130	COMPAT	BSD	{ int ftruncate(int fd, long length); }
 131	STD	BSD	{ int flock(int fd, int how); }
 132	STD	POSIX	{ int mkfifo(char *path, int mode); }
-133	STD	BSD	{ int sendto(int s, caddr_t buf, size_t len, \
+133	MSTD	BSD	{ int sendto(int s, caddr_t buf, size_t len, \
 			    int flags, caddr_t to, int tolen); }
-134	STD	BSD	{ int shutdown(int s, int how); }
-135	STD	BSD	{ int socketpair(int domain, int type, int protocol, \
+134	MSTD	BSD	{ int shutdown(int s, int how); }
+135	MSTD	BSD	{ int socketpair(int domain, int type, int protocol, \
 			    int *rsv); }
 136	STD	POSIX	{ int mkdir(char *path, int mode); }
 137	STD	POSIX	{ int rmdir(char *path); }
@@ -224,7 +224,7 @@
 139	OBSOL	NOHIDE	4.2 sigreturn
 140	STD	BSD	{ int adjtime(struct timeval *delta, \
 			    struct timeval *olddelta); }
-141	COMPAT	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
+141	MCOMPAT	BSD	{ int getpeername(int fdes, caddr_t asa, int *alen); }
 142	COMPAT	BSD	{ long gethostid(void); }
 143	COMPAT	BSD	{ int sethostid(long hostid); }
 144	COMPAT	BSD	{ int getrlimit(u_int which, struct orlimit *rlp); }
@@ -234,7 +234,7 @@
 148	STD	BSD	{ int quotactl(char *path, int cmd, int uid, \
 			    caddr_t arg); }
 149	COMPAT	BSD	{ int quota(void); }
-150	CPT_NOA	BSD	{ int getsockname(int fdec, caddr_t asa, int *alen); }\
+150	MCPT_NOA BSD	{ int getsockname(int fdec, caddr_t asa, int *alen); }\
 			    getsockname getsockname_args int
 
 ; Syscalls 151-180 inclusive are reserved for vendor-specific
@@ -479,7 +479,7 @@
 333     STD     POSIX   { int sched_get_priority_min (int policy); }
 334     STD     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 335	STD	BSD	{ int utrace(const void *addr, size_t len); }
-336	STD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
+336	MSTD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
 338	STD	BSD	{ int jail(struct jail *jail); }
