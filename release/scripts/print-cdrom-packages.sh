@@ -98,9 +98,11 @@ CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
 CDROM_SET_1="${CDROM_SET_1} editors/vim5"
 CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
 CDROM_SET_1="${CDROM_SET_1} ftp/ncftp"
+CDROM_SET_1="${CDROM_SET_1} graphics/gimp1"
 CDROM_SET_1="${CDROM_SET_1} graphics/xpdf"
 CDROM_SET_1="${CDROM_SET_1} graphics/xv"
 CDROM_SET_1="${CDROM_SET_1} irc/xchat"
+CDROM_SET_1="${CDROM_SET_1} lang/gnat"
 CDROM_SET_1="${CDROM_SET_1} mail/exim"
 CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
 CDROM_SET_1="${CDROM_SET_1} mail/mutt"
@@ -129,8 +131,6 @@ CDROM_SET_1="${CDROM_SET_1} www/lynx"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
-CDROM_SET_1="${CDROM_SET_1} graphics/gimp1"
-CDROM_SET_1="${CDROM_SET_1} lang/gnat"
 
 # VERY common build dependencies
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
@@ -149,9 +149,9 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 ## End of set for CDROM #2
 
 ## Start of set for CDROM #3
+CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj"
-CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
 
 ## End of set for CDROM #3
 
