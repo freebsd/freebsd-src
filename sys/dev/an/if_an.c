@@ -154,7 +154,6 @@ static int an_cmd_struct	__P((struct an_softc *, struct an_command *,
 					struct an_reply *));
 static int an_read_record	__P((struct an_softc *, struct an_ltv_gen *));
 static int an_write_record	__P((struct an_softc *, struct an_ltv_gen *));
-static void an_kick		__P((struct an_softc *));
 static int an_read_data		__P((struct an_softc *, int,
 					int, caddr_t, int));
 static int an_write_data	__P((struct an_softc *, int,
@@ -208,7 +207,7 @@ static char an_conf_cache[256];
 
 /* sysctl vars */
 
-SYSCTL_NODE(_machdep, OID_AUTO, an, CTLFLAG_RD, 0, "dump RID");
+SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD, 0, "Wireless driver parameters");
 
 static int
 sysctl_an_dump(SYSCTL_HANDLER_ARGS)
@@ -263,7 +262,7 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
+SYSCTL_PROC(_hw_an, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
             0, sizeof(an_conf), sysctl_an_dump, "A", "");
 
 static int
@@ -301,7 +300,7 @@ sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
 	return error;
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
+SYSCTL_PROC(_hw_an, OID_AUTO, an_cache_mode, CTLTYPE_STRING | CTLFLAG_RW,
             0, sizeof(an_conf_cache), sysctl_an_cache_mode, "A", "");
 
 /*
@@ -1219,32 +1218,6 @@ an_intr(xsc)
 	return;
 }
 
-static void
-an_kick(sc)
-        struct an_softc         *sc;
-{
-        int i;
-
-        CSR_WRITE_2(sc, AN_COMMAND(sc->mpi350),  AN_CMD_NOOP2);
-
-        if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
-                CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
-        } else {
-                for (i = 0; i < AN_TIMEOUT; i++) {
-                        if (CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350)) 
-			    & AN_EV_CMD)
-                                break;
-                }
-                if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
-                        CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
-                }
-                CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), AN_EV_CMD);
-                if (i == AN_TIMEOUT) {
-			printf ("COULDN'T CLEAR\n");
-                }
-        }
-}
-
 static int
 an_cmd_struct(sc, cmd, reply)
 	struct an_softc		*sc;
@@ -1255,7 +1228,7 @@ an_cmd_struct(sc, cmd, reply)
 
 	for (i = 0; i != AN_TIMEOUT; i++) {
 		if (CSR_READ_2(sc, AN_COMMAND(sc->mpi350)) & AN_CMD_BUSY) {
-			DELAY(10);
+			DELAY(1000);
 		} else
 			break;
 	}
@@ -1272,10 +1245,8 @@ an_cmd_struct(sc, cmd, reply)
 	for (i = 0; i < AN_TIMEOUT; i++) {
 		if (CSR_READ_2(sc, AN_EVENT_STAT(sc->mpi350)) & AN_EV_CMD)
 			break;
+		DELAY(1000);
 	}
-
-	if (i == AN_TIMEOUT)
-		an_kick(sc);
 
 	reply->an_resp0 = CSR_READ_2(sc, AN_RESP0(sc->mpi350));
 	reply->an_resp1 = CSR_READ_2(sc, AN_RESP1(sc->mpi350));
@@ -1539,7 +1510,7 @@ an_write_record(sc, ltv)
 					    ((u_int32_t*)&an_rid_desc)[i]);
 
 		if ((i = an_cmd_struct(sc, &cmd, &reply))) {
-			printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
+			printf("an%d: failed to write RID 1 %x %x %x %x %x, %d\n", 
 			    sc->an_unit, ltv->an_type, 
 			    reply.an_status,
 			    reply.an_resp0,
@@ -1552,7 +1523,7 @@ an_write_record(sc, ltv)
 		ptr = (u_int16_t *)buf;
 
 		if (reply.an_status & AN_CMD_QUAL_MASK) {
-			printf("an%d: failed to write RID %x %x %x %x %x, %d\n", 
+			printf("an%d: failed to write RID 2 %x %x %x %x %x, %d\n", 
 			    sc->an_unit, ltv->an_type, 
 			    reply.an_status,
 			    reply.an_resp0,
@@ -1780,8 +1751,26 @@ an_setdef(sc, areq)
 	case AN_RID_TX_SPEED:
 		sp = (struct an_ltv_gen *)areq;
 		sc->an_tx_rate = sp->an_val;
+
+		/* Read the current configuration */
+		sc->an_config.an_type = AN_RID_GENCONFIG;
+		sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
+		an_read_record(sc, (struct an_ltv_gen *)&sc->an_config);
+		cfg = &sc->an_config;
+
+		/* clear other rates and set the only one we want */
+		bzero(cfg->an_rates, sizeof(cfg->an_rates));
+		cfg->an_rates[0] = sc->an_tx_rate;
+
+		/* Save the new rate */
+		sc->an_config.an_type = AN_RID_GENCONFIG;
+		sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
 		break;
 	case AN_RID_WEP_TEMP:
+		/* Cache the temp keys */
+		bcopy(areq, 
+		    &sc->an_temp_keys[((struct an_ltv_key *)areq)->kindex], 
+		    sizeof(struct an_ltv_key));
 	case AN_RID_WEP_PERM:
 	case AN_RID_LEAPUSERNAME:
 	case AN_RID_LEAPPASSWORD:
@@ -2290,7 +2279,7 @@ an_ioctl(ifp, command, data)
 			}
 			break;
 		case IEEE80211_IOC_WEPKEY:
-			if (ireq->i_val < 0 || ireq->i_val > 7 ||
+			if (ireq->i_val < 0 || ireq->i_val > 8 ||
 			    ireq->i_len > 13) {
 				error = EINVAL;
 				break;
@@ -2298,27 +2287,35 @@ an_ioctl(ifp, command, data)
 			error = copyin(ireq->i_data, tmpstr, 13);
 			if (error != 0)
 				break;
+			/*
+			 * Map the 9th key into the home mode
+			 * since that is how it is stored on
+			 * the card
+			 */
 			bzero(&sc->areq, sizeof(struct an_ltv_key));
 			sc->areq.an_len = sizeof(struct an_ltv_key);
 			key->mac[0] = 1;	/* The others are 0. */
-			key->kindex = ireq->i_val % 4;
-			if (ireq->i_val < 4)
+			if (ireq->i_val < 4) {
 				sc->areq.an_type = AN_RID_WEP_TEMP;
-			else
+				key->kindex = ireq->i_val;
+			} else {
 				sc->areq.an_type = AN_RID_WEP_PERM;
+				key->kindex = ireq->i_val - 4;
+			}
 			key->klen = ireq->i_len;
 			bcopy(tmpstr, key->key, key->klen);
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
+			if (ireq->i_val < 0 || ireq->i_val > 4) {
+				error = EINVAL;
+				break;
+			}
+
 			/*
 			 * Map the 5th key into the home mode
 			 * since that is how it is stored on
 			 * the card
 			 */
-			if (ireq->i_val < 0 || ireq->i_val > 4) {
-				error = EINVAL;
-				break;
-			}
 			sc->areq.an_len  = sizeof(struct an_ltv_genconfig);
 			sc->areq.an_type = AN_RID_ACTUALCFG;
 			if (an_read_record(sc,
@@ -2335,7 +2332,9 @@ an_ioctl(ifp, command, data)
 
 			sc->an_config.an_home_product
 				= config->an_home_product;
-			an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
+
+			/* update configuration */
+			an_init(sc);
 
 			bzero(&sc->areq, sizeof(struct an_ltv_key));
 			sc->areq.an_len = sizeof(struct an_ltv_key);
@@ -2812,6 +2811,37 @@ an_shutdown(dev)
 	return;
 }
 
+void
+an_resume(dev)
+	device_t		dev;
+{
+	struct an_softc		*sc;
+	struct ifnet		*ifp;
+	int			i;
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	an_reset(sc);
+	if (sc->mpi350)
+		an_init_mpi350_desc(sc);	
+	an_init(sc);
+
+	/* Recovery temporary keys */
+	for (i = 0; i < 4; i++) {
+		sc->areq.an_type = AN_RID_WEP_TEMP;
+		sc->areq.an_len = sizeof(struct an_ltv_key);		
+		bcopy(&sc->an_temp_keys[i],
+		    &sc->areq, sizeof(struct an_ltv_key));
+		an_setdef(sc, &sc->areq);
+	}
+
+	if (ifp->if_flags & IFF_UP)
+		an_start(ifp);
+
+	return;
+}
+
 #ifdef ANCACHE
 /* Aironet signal strength cache code.
  * store signal/noise/quality on per MAC src basis in
@@ -2859,13 +2889,13 @@ int an_nextitem;                                /*  index/# of entries */
  * so ping/unicast anll work say anth pt. to pt. antennae setup.
  */
 static int an_cache_mcastonly = 0;
-SYSCTL_INT(_machdep, OID_AUTO, an_cache_mcastonly, CTLFLAG_RW,
+SYSCTL_INT(_hw_an, OID_AUTO, an_cache_mcastonly, CTLFLAG_RW,
 	&an_cache_mcastonly, 0, "");
 
 /* set true if you want to limit cache items to IP packets only
 */
 static int an_cache_iponly = 1;
-SYSCTL_INT(_machdep, OID_AUTO, an_cache_iponly, CTLFLAG_RW,
+SYSCTL_INT(_hw_an, OID_AUTO, an_cache_iponly, CTLFLAG_RW,
 	&an_cache_iponly, 0, "");
 
 /*
@@ -3032,6 +3062,7 @@ an_media_change(ifp)
 	struct ifnet		*ifp;
 {
 	struct an_softc *sc = ifp->if_softc;
+	struct an_ltv_genconfig	*cfg;
 	int otype = sc->an_config.an_opmode;
 	int orate = sc->an_tx_rate;
 
@@ -3056,6 +3087,22 @@ an_media_change(ifp)
 	case IFM_AUTO:
 		sc->an_tx_rate = 0;
 		break;
+	}
+
+	if (orate != sc->an_tx_rate) {
+		/* Read the current configuration */
+		sc->an_config.an_type = AN_RID_GENCONFIG;
+		sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
+		an_read_record(sc, (struct an_ltv_gen *)&sc->an_config);
+		cfg = &sc->an_config;
+
+		/* clear other rates and set the only one we want */
+		bzero(cfg->an_rates, sizeof(cfg->an_rates));
+		cfg->an_rates[0] = sc->an_tx_rate;
+
+		/* Save the new rate */
+		sc->an_config.an_type = AN_RID_GENCONFIG;
+		sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
 	}
 
 	if (otype != sc->an_config.an_opmode ||
