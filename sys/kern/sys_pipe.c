@@ -103,7 +103,7 @@ static int pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 		struct thread *td);
 static int pipe_kqfilter(struct file *fp, struct knote *kn);
 static int pipe_stat(struct file *fp, struct stat *sb,
-		struct ucred *active_cred,  struct thread *td);
+		struct ucred *active_cred, struct thread *td);
 static int pipe_ioctl(struct file *fp, u_long cmd, void *data,
 		struct thread *td);
 
