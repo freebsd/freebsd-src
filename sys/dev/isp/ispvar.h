@@ -1,5 +1,5 @@
-/* $Id: ispvar.h,v 1.8 1999/01/10 02:51:48 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: ispvar.h,v 1.9 1999/01/30 07:29:00 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -48,7 +48,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	5
+#define	ISP_CORE_VERSION_MINOR	6
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -139,7 +139,7 @@ typedef struct {
 #define	DPARM_RENEG	0x0100
 #define	DPARM_NARROW	0x0080	/* Possibly only available with >= 7.55 fw */
 #define	DPARM_ASYNC	0x0040	/* Possibly only available with >= 7.55 fw */
-#define	DPARM_DEFAULT	(0xFFFF & ~DPARM_QFRZ)
+#define	DPARM_DEFAULT	(0xFF00 & ~DPARM_QFRZ)
 #define	DPARM_SAFE_DFLT	(DPARM_DEFAULT & ~(DPARM_WIDE|DPARM_SYNC|DPARM_TQING))
 
 
@@ -321,6 +321,7 @@ struct ispsoftc {
  * ISP Configuration Options
  */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
+#define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 
 #define	ISP_FW_REV(maj, min)	((maj) << 10| (min))
 
@@ -437,7 +438,9 @@ int isp_control __P((struct ispsoftc *, ispctl_t, void *));
  */
 
 typedef enum {
-	ISPASYNC_NEW_TGT_PARAMS	
+	ISPASYNC_NEW_TGT_PARAMS,
+	ISPASYNC_LOOP_DOWN,		/* Obvious FC only */
+	ISPASYNC_LOOP_UP		/* Obvious FC only */
 } ispasync_t;
 int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 
