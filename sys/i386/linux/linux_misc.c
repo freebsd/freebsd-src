@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.10 1996/01/14 10:59:57 sos Exp $
+ *  $Id: linux_misc.c,v 1.11 1996/01/19 22:59:24 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -173,26 +173,33 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
 {
     struct nameidata ni;
     struct vnode *vp;
-    struct exec *a_out = 0;
+    struct exec *a_out;
     struct vattr attr;
-    unsigned long vmaddr, virtual_offset, file_offset;
+    unsigned long vmaddr, file_offset;
     unsigned long buffer, bss_size;
     char *ptr;
     char path[MAXPATHLEN];
     const char *prefix = "/compat/linux";
     size_t sz, len;
     int error;
+    int locked;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): uselib(%s)\n", p->p_pid, args->library);
 #endif
 
+    a_out = NULL;
+    locked = 0;
+    vp = NULL;
+
     for (ptr = path; (*ptr = *prefix) != '\0'; ptr++, prefix++) ;
     sz = MAXPATHLEN - (ptr - path);
     if (error = copyinstr(args->library, ptr, sz, &len))
-	return error;
-    if (*ptr != '/')
-	return EINVAL;
+	goto cleanup;
+    if (*ptr != '/') {
+	error = EINVAL;
+	goto cleanup;
+    }
 
 #ifdef DEBUG
     printf("Linux-emul(%d): uselib(%s)\n", p->p_pid, path);
@@ -200,75 +207,128 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
 
     NDINIT(&ni, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, path, p);
     if (error = namei(&ni))
-	return error;
+	goto cleanup;
 
     vp = ni.ni_vp;
-    if (vp == NULL)
-	    return ENOEXEC;
+    if (vp == NULL) {
+	error = ENOEXEC;	/* ?? */
+	goto cleanup;
+    }
 
+    /*
+     * From here on down, we have a locked vnode that must be unlocked.
+     */
+    locked++;
+
+    /*
+     * Writable?
+     */
     if (vp->v_writecount) {
-	    VOP_UNLOCK(vp);
-	    return ETXTBSY;
+	error = ETXTBSY;
+	goto cleanup;
     }
 
-    if (error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) {
-	    VOP_UNLOCK(vp);
-	    return error;
+    /*
+     * Executable?
+     */
+    if (error = VOP_GETATTR(vp, &attr, p->p_ucred, p))
+	goto cleanup;
+
+    if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
+	((attr.va_mode & 0111) == 0) ||
+	(attr.va_type != VREG)) {
+	    error = ENOEXEC;
+	    goto cleanup;
     }
 
-    if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
-	|| ((attr.va_mode & 0111) == 0)
-	|| (attr.va_type != VREG)) {
-	    VOP_UNLOCK(vp);
-	    return ENOEXEC;
-    }
-
+    /*
+     * Sensible size?
+     */
     if (attr.va_size == 0) {
-	    VOP_UNLOCK(vp);
-	    return ENOEXEC;
+	error = ENOEXEC;
+	goto cleanup;
     }
 
-    if (error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p)) {
-	VOP_UNLOCK(vp);
-	return error;
-    }
+    /*
+     * Can we access it?
+     */
+    if (error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p))
+	goto cleanup;
 
-    if (error = VOP_OPEN(vp, FREAD, p->p_ucred, p)) {
-	VOP_UNLOCK(vp);
-	return error;
-    }
+    if (error = VOP_OPEN(vp, FREAD, p->p_ucred, p))
+	goto cleanup;
 
-    VOP_UNLOCK(vp);	/* lock no longer needed */
+    /*
+     * Lock no longer needed
+     */
+    VOP_UNLOCK(vp);
+    locked = 0;
 
-    error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, 1024,
+    /*
+     * Pull in executable header into kernel_map
+     */
+    error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, PAGE_SIZE,
 	    	    VM_PROT_READ, VM_PROT_READ, 0, (caddr_t)vp, 0);
     if (error)
-	return (error);
+	goto cleanup;
 
     /*
      * Is it a Linux binary ?
      */
-    if (((a_out->a_magic >> 16) & 0xff) != 0x64)
-	return ENOEXEC;
+    if (((a_out->a_magic >> 16) & 0xff) != 0x64) {
+	error = ENOEXEC;
+	goto cleanup;
+    }
+
+    /* While we are here, we should REALLY do some more checks */
 
     /*
      * Set file/virtual offset based on a.out variant.
      */
     switch ((int)(a_out->a_magic & 0xffff)) {
     case 0413:	/* ZMAGIC */
-	virtual_offset = 0;	/* actually aout->a_entry */
 	file_offset = 1024;
 	break;
     case 0314:	/* QMAGIC */
-	virtual_offset = 0;	/* actually aout->a_entry */
 	file_offset = 0;
 	break;
     default:
-	return ENOEXEC;
+	error = ENOEXEC;
+	goto cleanup;
     }
 
-    vp->v_flag |= VTEXT;
     bss_size = round_page(a_out->a_bss);
+
+    /*
+     * Check various fields in header for validity/bounds.
+     */
+    if (a_out->a_text % NBPG || a_out->a_data % NBPG) {
+	error = ENOEXEC;
+	goto cleanup;
+    }
+
+    /* text + data can't exceed file size */
+    if (a_out->a_data + a_out->a_text > attr.va_size) {
+	error = EFAULT;
+	goto cleanup;
+    }
+
+    /*
+     * text/data/bss must not exceed limits
+     * XXX: this is not complete. it should check current usage PLUS
+     * the resources needed by this library.
+     */
+    if (a_out->a_text > MAXTSIZ || a_out->a_data + bss_size > MAXDSIZ ||
+	a_out->a_data+bss_size > p->p_rlimit[RLIMIT_DATA].rlim_cur) {
+	error = ENOMEM;
+	goto cleanup;
+    }
+
+    /*
+     * prevent more writers
+     */
+    vp->v_flag |= VTEXT;
+
     /*
      * Check if file_offset page aligned,.
      * Currently we cannot handle misalinged file offsets,
@@ -281,63 +341,90 @@ printf("uselib: Non page aligned binary %d\n", file_offset);
 	/*
 	 * Map text+data read/write/execute
 	 */
-	vmaddr = virtual_offset + round_page(a_out->a_entry);
-	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr,
-		    	    round_page(a_out->a_text + a_out->a_data), FALSE,
-				VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (error)
-	    return error;
 
+	/* a_entry is the load address and is page aligned */
+	vmaddr = trunc_page(a_out->a_entry);
+
+	/* get anon user mapping, read+write+execute */
+	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr,
+		    	    a_out->a_text + a_out->a_data, FALSE,
+			    VM_PROT_ALL, VM_PROT_ALL, 0);
+	if (error)
+	    goto cleanup;
+
+	/* map file into kernel_map */
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_text + a_out->a_data + file_offset),
 		   	VM_PROT_READ, VM_PROT_READ, MAP_FILE,
 			(caddr_t)vp, trunc_page(file_offset));
 	if (error)
-	    return error;
+	    goto cleanup;
 
+	/* copy from kernel VM space to user space */
 	error = copyout((caddr_t)(buffer + file_offset), (caddr_t)vmaddr, 
 			a_out->a_text + a_out->a_data);
-	if (error)
-	    return error;
 
-	vm_map_remove(kernel_map, trunc_page(vmaddr),
+	/* release temporary kernel space */
+	vm_map_remove(kernel_map, buffer,
 		      round_page(a_out->a_text + a_out->a_data + file_offset));
 
-	error = vm_map_protect(&p->p_vmspace->vm_map, vmaddr,
-		   	       round_page(a_out->a_text + a_out->a_data),
-		   	       VM_PROT_ALL, TRUE);
 	if (error)
-	    return error;
+	    goto cleanup;
     }
     else {
 #ifdef DEBUG
 printf("uselib: Page aligned binary %d\n", file_offset);
 #endif
-	vmaddr = virtual_offset + trunc_page(a_out->a_entry);
+	/*
+	 * for QMAGIC, a_entry is 20 bytes beyond the load address
+	 * to skip the executable header
+	 */
+	vmaddr = trunc_page(a_out->a_entry);
+
+	/*
+	 * Map it all into the process's space as a single copy-on-write
+	 * "data" segment.
+	 */
 	error = vm_mmap(&p->p_vmspace->vm_map, &vmaddr,
-			a_out->a_text + a_out->a_data,
+		   	a_out->a_text + a_out->a_data,
 			VM_PROT_ALL, VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
 			(caddr_t)vp, file_offset);
 	if (error)
-	    return (error);
+	    goto cleanup;
     }
 #ifdef DEBUG
 printf("mem=%08x = %08x %08x\n", vmaddr, ((int*)vmaddr)[0], ((int*)vmaddr)[1]);
 #endif
     if (bss_size != 0) {
-	vmaddr = virtual_offset + round_page(a_out->a_entry) +
-		 round_page(a_out->a_text + a_out->a_data);
+        /*
+	 * Calculate BSS start address
+	 */
+	vmaddr = trunc_page(a_out->a_entry) + a_out->a_text + a_out->a_data;
+
+	/*
+	 * allocate some 'anon' space
+	 */
 	error = vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &vmaddr, 
 			    bss_size, FALSE,
-				VM_PROT_ALL, VM_PROT_ALL, 0);
+			    VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error)
-	    return error;
-	error = vm_map_protect(&p->p_vmspace->vm_map, vmaddr, bss_size,
-		   	       VM_PROT_ALL, TRUE);
-	if (error)
-	    return error;
+	    goto cleanup;
     }
-    return 0;
+
+cleanup:
+    /*
+     * Unlock vnode if needed
+     */
+    if (locked)
+	VOP_UNLOCK(vp);
+
+    /*
+     * Release the kernel mapping.
+     */
+    if (a_out)
+	vm_map_remove(kernel_map, (vm_offset_t)a_out, PAGE_SIZE);
+
+    return error;
 }
 
 struct linux_select_args {
