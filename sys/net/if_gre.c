@@ -63,6 +63,7 @@ __RCSID("@(#) $FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <machine/cpu.h>
 
