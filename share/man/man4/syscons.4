@@ -429,7 +429,7 @@ the kernel configuration file should contain the following lines.
 .Bd -literal -offset indent
 device atkbdc0 at isa? port IO_KBD
 device atkbd0 at atkbdc? irq 1
-device vga0 at isa? conflicts
+device vga0 at isa?
 device sc0 at isa?
 
 pseudo-device splash

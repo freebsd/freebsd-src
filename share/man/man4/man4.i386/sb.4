@@ -50,15 +50,11 @@ This driver covers the SoundBlaster family of cards including the
 SoundBlaster 1.0 to the SoundBlaster 16/SoundBlaster 32.  The awe driver
 provides AWE32/64 functionality.  This driver is provided in
 .Fx
-versions 2.0-current through 3.0-current.  You can also configure more
-then one card on a single DMA using the conflicts keyword in your
-configuration file.  This is useful for boards with more then one type of
-emulation.
+versions 2.0-current through 3.0-current.
 .Sh BUGS
 Since the SB16 uses the same IRQ and addresses for
 the different drivers, some of the snd drivers will not be probed because
-the kernel thinks there is a conflict.  This can be worked-around by
-using the "conflicts" keyword on the sb16's device line.
+the kernel thinks there is a conflict.
 .Pp
 Current version doesn't support mode changes without closing and reopening
 the device.
