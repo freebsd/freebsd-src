@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.3 1994/08/02 07:52:18 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.4 1994/08/08 17:30:53 davidg Exp $
  */
 
 /*
@@ -339,11 +339,10 @@ nfs_open(ap)
 
 	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EACCES);
-	if (vp->v_flag & VTEXT) {
-	    /*
-	     * Get a valid lease. If cached data is stale, flush it.
-	     */
-	    if (nmp->nm_flag & NFSMNT_NQNFS) {
+	/*
+	 * Get a valid lease. If cached data is stale, flush it.
+	 */
+	if (nmp->nm_flag & NFSMNT_NQNFS) {
 		if (NQNFS_CKINVALID(vp, np, NQL_READ)) {
 		    do {
 			error = nqnfs_getlease(vp, NQL_READ, ap->a_cred, ap->a_p);
@@ -355,16 +354,14 @@ nfs_open(ap)
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 				ap->a_p, 1)) == EINTR)
 				return (error);
-			(void) vnode_pager_uncache(vp);
 			np->n_brev = np->n_lrev;
 		    }
 		}
-	    } else {
+	} else {
 		if (np->n_flag & NMODIFIED) {
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 				ap->a_p, 1)) == EINTR)
 				return (error);
-			(void) vnode_pager_uncache(vp);
 			np->n_attrstamp = 0;
 			np->n_direofoffset = 0;
 			if (error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p))
@@ -378,12 +375,11 @@ nfs_open(ap)
 				if ((error = nfs_vinvalbuf(vp, V_SAVE,
 					ap->a_cred, ap->a_p, 1)) == EINTR)
 					return (error);
-				(void) vnode_pager_uncache(vp);
 				np->n_mtime = vattr.va_mtime.ts_sec;
 			}
 		}
-	    }
-	} else if ((nmp->nm_flag & NFSMNT_NQNFS) == 0)
+	}
+	if ((nmp->nm_flag & NFSMNT_NQNFS) == 0)
 		np->n_attrstamp = 0; /* For Open/Close consistency */
 	return (0);
 }
