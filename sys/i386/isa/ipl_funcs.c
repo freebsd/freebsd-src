@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.9 1997/09/21 21:41:16 gibbs Exp $
+ *	$Id: ipl_funcs.c,v 1.11 1997/09/28 19:34:48 fsmp Exp $
  */
 
 #include <sys/types.h>
@@ -49,11 +49,13 @@ DO_SETBITS(setsoftnet,   &ipending, SWI_NET_PENDING)
 DO_SETBITS(setsofttty,   &ipending, SWI_TTY_PENDING)
 DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
+DO_SETBITS(setsoftvm,	 &ipending, SWI_VM_PENDING)
 
 DO_SETBITS(schedsoftnet, &idelayed, SWI_NET_PENDING)
 DO_SETBITS(schedsofttty, &idelayed, SWI_TTY_PENDING)
 DO_SETBITS(schedsoftcamnet, &idelayed, SWI_CAMNET_PENDING)
 DO_SETBITS(schedsoftcambio, &idelayed, SWI_CAMBIO_PENDING)
+DO_SETBITS(schedsoftvm,	&idelayed, SWI_VM_PENDING)
 
 unsigned
 softclockpending(void)
@@ -85,6 +87,7 @@ GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)
 GENSPL(spltty, cpl |= tty_imask)
 GENSPL(splvm, cpl |= net_imask | bio_imask)
+GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
 
 void
 spl0(void)
@@ -137,11 +140,13 @@ DO_SETBITS(setsoftnet,   &ipending, SWI_NET_PENDING)
 DO_SETBITS(setsofttty,   &ipending, SWI_TTY_PENDING)
 DO_SETBITS(setsoftcamnet,&ipending, SWI_CAMNET_PENDING)
 DO_SETBITS(setsoftcambio,&ipending, SWI_CAMBIO_PENDING)
+DO_SETBITS(setsoftvm,	 &ipending, SWI_VM_PENDING)
 
 DO_SETBITS(schedsoftnet, &idelayed, SWI_NET_PENDING)
 DO_SETBITS(schedsofttty, &idelayed, SWI_TTY_PENDING)
 DO_SETBITS(schedsoftcamnet, &idelayed, SWI_CAMNET_PENDING)
 DO_SETBITS(schedsoftcambio, &idelayed, SWI_CAMBIO_PENDING)
+DO_SETBITS(schedsoftvm,	&idelayed, SWI_VM_PENDING)
 
 unsigned
 softclockpending(void)
@@ -243,6 +248,7 @@ GENSPL(splsofttty,	|=,	SWI_TTY_MASK,				12)
 GENSPL(splstatclock,	|=,	stat_imask,				13)
 GENSPL(spltty,		|=,	tty_imask,				14)
 GENSPL(splvm,		|=,	net_imask | bio_imask,			15)
+GENSPL(splsoftvm,	|=,	SWI_VM_MASK,				16)
 
 #else /* INTR_SPL */
 
@@ -279,6 +285,7 @@ GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
 GENSPL(splstatclock, cpl |= stat_imask)
 GENSPL(spltty, cpl |= tty_imask)
 GENSPL(splvm, cpl |= net_imask | bio_imask)
+GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
 
 #endif /* INTR_SPL */
 
