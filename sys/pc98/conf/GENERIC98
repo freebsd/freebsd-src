@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.70 1996/05/13 04:29:13 nate Exp $
+#	$Id: GENERIC98,v 1.1.1.1 1996/06/14 10:04:40 asami Exp $
 #
 
 # GENERIC98 -- Generic PC98 machine with WD/SBIC55 disks
@@ -62,14 +62,8 @@ options		COM_MULTIPORT
 #	It is highly recomended to compile with following options, and to
 #	record the panic messages and the result of trace command brefore 
 #	reporting a problem.
-#
-#	If you need more information for the kernel, KTRACE option may help
-#	you.
-#
 options		DDB
 options		DIAGNOSTIC
-#options	KTRACE
-
 
 config		kernel	root on wd0
 
@@ -138,7 +132,7 @@ device		sio2	at nec? port 0x8d2 tty flags 0x101 vector siointr
 device ed0 at nec? port 0x00d0 net irq 6 vector edintr
 device ed1 at nec? port 0x56d0 net irq 5 vector edintr
 device ed2 at nec? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 vector edintr
-device fe0 at nec? prot 0x00d0 net irq 3 vector feintr
+device fe0 at nec? port 0x00d0 net irq 3 vector feintr
 device zp0 at nec? port 0x0300 net irq 10 iomem 0xe0000 vector zpintr 
 device ep0 at nec? port 0x00d0 net irq 6 vector epintr
 
@@ -160,5 +154,10 @@ pseudo-device	sl	2
 #pseudo-device	ppp	1
 pseudo-device	tun	1
 pseudo-device	pty	16
-# keep this if you want to be able to continue to use /stand/sysinstall
 pseudo-device	gzip		# Exec gzipped a.out's
+
+# KTRACE enables the system-call tracing facility ktrace(2).
+# This adds 4 KB bloat to your kernel, and slightly increases
+# the costs of each syscall.
+options		KTRACE		#kernel tracing
+

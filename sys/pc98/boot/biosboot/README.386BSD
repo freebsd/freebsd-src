@@ -1,3 +1,6 @@
+Note: all my original references to 386BSD also refer to freeBSD and NetBSD
+which in some ways are derived from 386BSD.  --julian@freebsd.org
+
 This Boot code is different from the original boot code that came with
 386BSD in that it uses the BIOS to load the kernel and to provide all i/o
 services. The advantage ofthis is that the same boot code exactly, can run
@@ -15,46 +18,60 @@ following operations occur:
 1/ the BIOS loads the first block of the disk (called the Master Boot Record
 or MBR) and if it has the correct magic numbers, jumps into it:
 
-2/ The  MBR code, looks at the Partition table that is embedded within it,
+2/ The MBR code, looks at the Partition table that is embedded within it,
 to determine which is the partition to boot from.  If you install the
 boot manager when FreeBSD is first installed, it will also give you a nice
 menu for switching between operating systems.
 
-3/ The MBR will load  the first record of the selected partition and
+3/ The MBR will load the first record of the selected partition and
 if it has (the same) magic numbers, jumps into it. In 386bsd this is the
 first stage boot, (or boot1) it is represented in /usr/mdec by
 wdboot, asboot and sdboot. If the disk has been set up without DOS partitioning
 then this block will be at block zero, and will have been loaded directly by
-the BIOS.
+the BIOS. This is the usual case with floppies.
 
 4/ Boot1 will look at block0 (which might be itself if there are no DOS
-partitions) and will find the 386bsd partition, and using the information
-regarding the start position of that partition, will load the next 13 sectors
-or so, to around 90000 (640k - 64k). and will jump into it at the appropriate
-entry point. Since boot1 and boot2 were compiled together as one file
-and then split later, boot1 knows the exact position within boot2 of the
-entry point.
+partitions) and will find the 386bsd partition,
 
 Boot 1 also contains a compiled in DOS partition table
 (in case it is at block 0), which contains a 386bsd partition starting
 at 0. This ensures that the same code can work whether or not
 boot1 is at block 0.
 
+4A/ IF the NAMEBLOCK option is compiled into the bootcode, then the 
+boot1 code will load and examine block1 (usually unused) and
+look for a default boot string to use later (if the correct magic number
+is present). If the option NAMEBLOCK_WRITEBACK is also defined, then
+it will zero out that name after finding it, and write the block back,
+having "used up" that name. The block may contain multiple different
+boot strings which will be "used up" one after the other (one per boot)
+They are set using the "nextboot" utility.
+
+4B/ Using the information found in step 4, regarding the start position
+of the BSD partition, boot1 will load the first 16 sectors of that partition,
+to around 0x10000 (64k) and will jump into it at the appropriate entry point.
+Since boot1 and boot2 were compiled together as one file and then split
+later, boot1 knows the exact position within boot2 of the entry point.
+
 5/ Boot2 asks the user for a boot device, partition and filename, and then
 loads the MBR of the selected device. This may or may not be the device
 which was originally used to boot the first MBR. The partition table
 of the new MBR is searched for a 386bsd partition, and if one is found,
 that is then in turn searched for the disklabel. This could all be on the
-second disk at this point, if the user selected it.
+second disk at this point, if the user selected it. If the user makes no
+actions then a default string will be used.
 
-6/On finding the disklabel, boot2 can find the correct unix partition
-within the 386bsd partition, and using cutdown filesystem code,
-look for the file to boot (e.g. 386bsd).
+If the NAMEBLOCK option is used, then the default string may have been
+loaded from block2. If none was found then a compiled in default will be used.
+
+6/On finding the disklabel, on the disk the user spacified, boot2 can find
+the correct unix partition within the 386bsd partition, and using cutdown
+filesystem code, look for the file to boot (e.g., 386bsd).
 
 7/ Boot2 loads this file starting at the location specified by the a.out header,
 (see later) and leaps into it at the location specified in he header.
 
-if the file does not exist or cannot be loaded, boot2 goes back to  step 5.
+if the file does not exist or cannot be loaded, boot2 goes back to step 5.
 
 386bsd is now running and will hopefully start vm etc. and get to multi-user
 mode.
@@ -78,10 +95,12 @@ partition, and you can change it to a 386BSD partition later. If you use
 no DOS partitioning, then the compiled in table in Boot1 will do just fine.
 
 If you want to do it by hand remember that BIOS counts sectors starting at 1.
-(cylinders and heads start at 0  (??))
+(cylinders and heads start at 0 (??))
 
 2/ you cannot overwrite the bottom 4k of ram until you have finished ALL
 bios calls, as BIOS uses this area as scratch memory.
+This is no longer really a problem as we no-longer support loading the kernel
+at location 0.
 
 3/ Since BIOS runs in REAL mode, and Boot2 runs in protected mode,
 Boot 2 switches back to real mode just before each BIOS call and then
@@ -90,8 +109,10 @@ back to protected mode on each return. Touch this at your peril.!
 #########################################################################
 In answering the prompt from Boot2:
 you can, 
-1/ leave it alone.. it will boot the indicated file from the first 
+1/ leave it alone. It will boot the indicated file from the first 
 partition of the first drive seen by the BIOS (C:)
+If the NAMEBLOCK option is in use, the default name might be taken from block1
+(2nd block) on that drive (the drive on which boot 1 was loaded).
 
 2/ enter only "-s" to boot the default to single user mode
 
@@ -148,4 +169,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id: README.386BSD,v 1.4 1996/04/07 14:27:57 bde Exp $
+$Id: README.386BSD,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $

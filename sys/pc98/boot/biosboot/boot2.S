@@ -50,6 +50,7 @@
 
 /*
  * boot2() -- second stage boot
+ * SP points to default string if found
  */
 
 ENTRY(boot2)
@@ -60,6 +61,11 @@ ENTRY(boot2)
 	mov	%ax, %es
 	data32
 	shll	$4, %eax
+#ifdef NAMEBLOCK
+	addr32
+	data32
+	movl	%esp, EXT(dflt_name)
+#endif
 
 	/* fix up GDT entries for bootstrap */
 #define FIXUP(gdt_index) \

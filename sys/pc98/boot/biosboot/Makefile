@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.40 1996/05/11 04:27:23 bde Exp $
+#	$Id: Makefile,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
 #
 
 PROG=	boot
@@ -19,6 +19,11 @@ CFLAGS+=	-DCOMCONSOLE=0x30 -DCOMCONSOLE_CLK=16 -DCOMCONSOLE_MODE=0x0c
 # Force use of the serial console (after probing the keyboard if
 # PROBE_KEYBOARD is defined).
 #CFLAGS+=	-DFORCE_COMCONSOLE
+
+# Enable code to take the default boot string from a fixed location on the
+# disk.  See nextboot(8) and README.386BSD for more info.
+#CFLAGS+=	-DNAMEBLOCK
+#CFLAGS+=	-DNAMEBLOCK_WRITEBACK
 
 # Bias the conversion from the BIOS drive number to the FreeBSD unit number
 # for hard disks.  This may be useful for people booting in a mixed IDE/SCSI

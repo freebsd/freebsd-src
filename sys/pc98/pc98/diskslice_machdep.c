@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.20 1996/04/07 17:32:09 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.1.1.1 1996/06/14 10:04:43 asami Exp $
  */
 
 /*
@@ -238,14 +238,15 @@ dsinit(dname, dev, strat, lp, sspp)
 	sp[WHOLE_DISK_SLICE].ds_size = lp->d_secperunit;
 
 	mbr_offset = DOSBBSECTOR;
-reread_mbr:
-	/* Read master boot record. */
 #ifdef PC98
+	/* Read master boot record. */
 	if ((int)lp->d_secsize < 1024)
 		bp = geteblk((int)1024);
 	else
 		bp = geteblk((int)lp->d_secsize);
 #else
+reread_mbr:
+	/* Read master boot record. */
 	bp = geteblk((int)lp->d_secsize);
 #endif
 	bp->b_dev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);

@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.43 1996/06/04 17:50:28 nate Exp $
+ *	$Id: apm.c,v 1.1.1.1 1996/06/14 10:04:36 asami Exp $
  */
 
 #include "apm.h"
@@ -36,10 +36,8 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #ifdef PC98
-#include "pc98/pc98/pc98.h"
 #include "pc98/pc98/pc98_device.h"
 #else
-#include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #endif
 #include <machine/apm_bios.h>
@@ -710,6 +708,11 @@ apmattach(struct isa_device *dvp)
 #ifdef APM_DSVALUE_BUG
 	caddr_t apm_bios_work;
 
+	/*
+	 * XXX - Malloc enough space for the APM DS, and then copy the
+	 * current DS into the new space since the DS setup by the
+	 * APM bios is going to get wiped out.
+	 */
 	apm_bios_work = (caddr_t)malloc(apm_ds_limit, M_DEVBUF, M_NOWAIT);
 	bcopy((caddr_t)((apm_ds_base << 4) + APM_KERNBASE), apm_bios_work,
 		apm_ds_limit);
@@ -721,14 +724,15 @@ apmattach(struct isa_device *dvp)
 	sc->active = 0;
 
 	/* setup APM parameters */
-	sc->cs16_base = (apm_cs32_base << 4) + APM_KERNBASE;
-	sc->cs32_base = (apm_cs16_base << 4) + APM_KERNBASE;
+	sc->cs16_base = (apm_cs16_base << 4) + APM_KERNBASE;
+	sc->cs32_base = (apm_cs32_base << 4) + APM_KERNBASE;
 	sc->ds_base = (apm_ds_base << 4) + APM_KERNBASE;
 	sc->cs_limit = apm_cs_limit;
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
 
 #ifdef APM_DSVALUE_BUG
+	/* Set the DS base to point to the newly made copy of the APM DS */
 	sc->ds_base = (u_int)apm_bios_work;
 #endif /* APM_DSVALUE_BUG */
 
@@ -747,10 +751,11 @@ apmattach(struct isa_device *dvp)
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
 		sc->cs_entry, is_enabled(sc->slow_idle_cpu),
 		is_enabled(!sc->disabled));
-	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
+	printf("apm: CS_limit=0x%x, DS_limit=0x%x\n",
+		sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
-#ifdef APM_DEBUG
+#ifdef 0
 	/* Workaround for some buggy APM BIOS implementations */
 	sc->cs_limit = 0xffff;
 	sc->ds_limit = 0xffff;

@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.13 1996/02/28 17:19:04 gibbs Exp $
+ *  $Id: if_epreg.h,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -41,6 +41,12 @@
  *          Serge Babkin
  *          Chelindbank (Chelyabinsk, Russia)
  *          babkin@hq.icb.chel.su
+ */
+
+/*
+ * Pccard support for 3C589 by:
+ *		HAMADA Naoki
+ *		nao@tom-yam.or.jp
  */
 
 /*
@@ -64,6 +70,7 @@ struct ep_softc {
     u_short ep_connectors;	/* Connectors on this card.	 */
     u_char ep_connector;	/* Configured connector.	 */
     int stat;			/* some flags */
+    int gone;			/* adapter is not present (for PCCARD) */
 #define         F_RX_FIRST   0x1
 #define         F_WAIT_TRAIL 0x2
 #define         F_RX_TRAILER 0x4
@@ -363,7 +370,9 @@ struct ep_board {
  *
  */
 
-#define SET_IRQ(i)	(((i)<<12) | 0xF00) /* set IRQ i */
+#define SET_IRQ(base,irq)     outw((base) + EP_W0_RESOURCE_CFG, \
+                              ((inw((base) + EP_W0_RESOURCE_CFG) & 0x0fff) | \
+                              ((u_short)(irq)<<12))  ) /* set IRQ i */
 
 /*
  * FIFO Registers.
