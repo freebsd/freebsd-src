@@ -68,7 +68,8 @@ static const char rcsid[] =
 #define	BOLD	020	/* Bold */
 
 int	must_use_uc, must_overstrike;
-char	*CURS_UP, *CURS_RIGHT, *CURS_LEFT,
+const char
+	*CURS_UP, *CURS_RIGHT, *CURS_LEFT,
 	*ENTER_STANDOUT, *EXIT_STANDOUT, *ENTER_UNDERLINE, *EXIT_UNDERLINE,
 	*ENTER_DIM, *ENTER_BOLD, *ENTER_REVERSE, *UNDER_CHAR, *EXIT_ATTRIBUTES;
 
@@ -105,7 +106,7 @@ main(argc, argv)
 	char **argv;
 {
 	int c;
-	char *termtype;
+	const char *termtype;
 	FILE *f;
 	char termcap[1024];
 
@@ -117,7 +118,7 @@ main(argc, argv)
 
 		case 't':
 		case 'T': /* for nroff compatibility */
-				termtype = optarg;
+			termtype = optarg;
 			break;
 		case 'i':
 			iflag = 1;
@@ -168,7 +169,7 @@ void
 filter(f)
 	FILE *f;
 {
-	register c;
+	int c;
 
 	while ((c = getc(f)) != EOF && col < MAXBUF) switch(c) {
 
@@ -278,8 +279,8 @@ filter(f)
 void
 flushln()
 {
-	register lastmode;
-	register i;
+	int lastmode;
+	int i;
 	int hadmodes = 0;
 
 	lastmode = NORMAL;
@@ -390,7 +391,7 @@ initbuf()
 void
 fwd()
 {
-	register oldcol, oldmax;
+	int oldcol, oldmax;
 
 	oldcol = col;
 	oldmax = maxcol;
