@@ -66,6 +66,10 @@ move the disk to the AS4100. Once installed FreeBSD runs fine.
 AlphaServer 2100A (Lynx) is not supported in this release. Note that
 AlphaServer 2100 (Sable) works fine.
 
+Machines that have onboard IDE interfaces that their SRM can boot from 
+are now supported with the IDE disk being the root/boot device. See
+HARDWARE.TXT for machine specifics like speed, use of DMA etc.
+
 Note that TGA consoles (either builtin or on TGA expansion cards) will
 not work. You will need to use a serial console or install a VGA card.
 
@@ -136,13 +140,7 @@ state of affairs for Alpha machines/mainboards.
 IDE
 ATA
 
-Adaptec 1535 ISA SCSI controllers
-Adaptec 154x series ISA SCSI controllers
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
-Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-and SoundBlaster SCSI cards.
 
 AdvanSys SCSI controllers (all models).
 
@@ -173,6 +171,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID Enterprise 1200 (428)
     MegaRAID Enterprise 1300
     MegaRAID Enterprise 1400
+A
     MegaRAID Enterprise 1500
     MegaRAID Elite 1500
     MegaRAID Express 200
@@ -210,6 +209,8 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
         Symbios cards (all)
         Tekram DC390W, 390U and 390F
         Tyan S1365
+Symbios boot support depends on your SRM / machine type. Check HARDWARE.TXT
+too.
 
 QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
 QLogic 2100 Fibre Channel Adapters (private loop only).
@@ -224,9 +225,6 @@ writing support is provided by cdrecord, which is in the ports tree.
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
         SoundBlaster SCSI)
-(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
-        interface (562/563 models)
-(scd)   Sony proprietary interface (all models)
 (acd)   ATAPI IDE interface
 
 2.2. Ethernet cards
@@ -389,9 +387,6 @@ Toshiba Ethernet cards
 Crystal Semiconductor CS89x0-based NICs, including:
   IBM Etherjet ISA
 
-PCMCIA ethernet cards from IBM and National Semiconductor are also
-supported.
-
 Note that NO token ring cards are supported at this time as we're
 still waiting for someone to donate a driver for one of them.  Any
 takers?
@@ -487,7 +482,7 @@ the HOT1 from Virtual Computers (www.vcc.com)
 
 Support for Dave Mills experimental Loran-C receiver.
 
-Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+Lucent Technologies WaveLAN/IEEE 802.11 ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
 (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
 ISA versions of these adapters are actually PCMCIA cards combined with
