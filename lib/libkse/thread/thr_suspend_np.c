@@ -91,13 +91,23 @@ pthread_suspend_np(pthread_t thread)
 			break;
 
 		case PS_MUTEX_WAIT:
+			/* Mark the thread as suspended and still in a queue. */
+			thread->suspended = SUSP_MUTEX_WAIT;
+
+			PTHREAD_SET_STATE(thread, PS_SUSPENDED);
+			break;
 		case PS_COND_WAIT:
+			/* Mark the thread as suspended and still in a queue. */
+			thread->suspended = SUSP_COND_WAIT;
+
+			PTHREAD_SET_STATE(thread, PS_SUSPENDED);
+			break;
 		case PS_FDLR_WAIT:
 		case PS_FDLW_WAIT:
 		case PS_FILE_WAIT:
 		case PS_JOIN:
 			/* Mark the thread as suspended: */
-			thread->suspended = 1;
+			thread->suspended = SUSP_YES;
 
 			/*
 			 * Threads in these states may be in queues.
@@ -134,7 +144,7 @@ pthread_suspend_np(pthread_t thread)
 static void
 finish_suspension(void *arg)
 {
-	if (_thread_run->suspended != 0)
+	if (_thread_run->suspended != SUSP_NO)
 		_thread_kern_sched_state(PS_SUSPENDED, __FILE__, __LINE__);
 }
 
