@@ -10,10 +10,10 @@ CFLAGS+=		-mno-fp-regs
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=		-mpreferred-stack-boundary=2
 .endif
-.ifmake testmain
 .if HAVE_PNP
-CFLAGS+=			-DHAVE_PNP
+CFLAGS+=		-DHAVE_PNP
 .endif
+.ifmake testmain
 CFLAGS+=			-DTESTMAIN -D_TESTMAIN
 SRCS+=				testmain.c
 PROG=			testmain
