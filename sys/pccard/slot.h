@@ -7,7 +7,9 @@
  *	controller slot number to allow multiple controllers
  *	to be accessed.
  *-------------------------------------------------------------------------
- *
+ */
+
+/*-
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

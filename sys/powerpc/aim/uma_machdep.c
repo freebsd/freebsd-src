@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 The FreeBSD Project
  * All rights reserved.
  *

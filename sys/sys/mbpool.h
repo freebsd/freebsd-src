@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  * 	All rights reserved.
@@ -25,7 +25,9 @@
  * SUCH DAMAGE.
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
- *
+ */
+
+/*
  * This implements pools of DMA-able buffers that conserve DMA address space
  * by putting several buffers into one page and that allow to map between
  * 32-bit handles for the buffer and buffer addresses (to use 32-bit network
