@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.1 (Berkeley) 1/21/94
- * $Id: cd9660_util.c,v 1.3 1994/08/02 07:41:31 davidg Exp $
+ * $Id: cd9660_util.c,v 1.4 1995/05/30 08:05:02 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -220,6 +220,7 @@ isofntrans(unsigned char *infn,int infnlen,
 	if (assoc) {
 		*outfn++ = ASSOCCHAR;
 		fnidx++;
+		infnlen++;
 	}
 	for (; fnidx < infnlen; fnidx++) {
 		char c = *infn++;
