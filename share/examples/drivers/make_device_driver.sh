@@ -29,7 +29,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_device_driver.sh,v 1.2 1997/12/30 03:23:12 julian Exp $"
+# \$Id: make_device_driver.sh,v 1.3 1998/01/12 07:47:03 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +37,7 @@ grep -v GENERIC < GENERIC >>${UPPER}
 cat >>${UPPER} <<DONE
 # trust me, you'll need this
 options	DDB		
-device ${1}0 at isa? port 0x234 bio irq 5 vector ${1}intr
+device ${1}0 at isa? port 0x234 bio irq 5
 DONE
 
 cat >../isa/${1}.c <<DONE
@@ -45,7 +45,7 @@ cat >../isa/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_device_driver.sh,v 1.2 1997/12/30 03:23:12 julian Exp $
+ * \$Id: make_device_driver.sh,v 1.3 1998/01/12 07:47:03 julian Exp $
  */
 
 
@@ -65,7 +65,7 @@ cat >../isa/${1}.c <<DONE
 
 
 
-/* Function prototypes (these should all be static  except for ${1}intr()) */
+/* Function prototypes (these should all be static) */
 static  d_open_t	${1}open;
 static  d_close_t	${1}close;
 static  d_read_t	${1}read;
@@ -76,7 +76,7 @@ static  d_poll_t	${1}poll;
 static	int		${1}probe (struct isa_device *);
 static	int		${1}attach (struct isa_device *);
 #ifdef ${UPPER}_MODULE
-void ${1}intr(int unit); /* actually defined in ioconf.h (generated file) */
+static	ointhand2_t	${1}intr; /* should actually have type inthand2_t */
 #endif
  
 #define CDEV_MAJOR 20
@@ -172,7 +172,13 @@ ${1}attach (struct isa_device *dev)
 {
 	int unit = dev->id_unit;
 	sc_p scp  = sca[unit];
-	
+
+	/*
+	 * Attach our interrupt handler to the device struct.  Our caller
+	 * will attach it to the hardware soon after we return.
+	 */
+	dev->id_ointr = ${1}intr;
+
 	/* 
 	 * Allocate storage for this instance .
 	 */
@@ -219,7 +225,7 @@ do { /* the do-while is a safe way to do this grouping */	\
 #define	CHECKUNIT_DIAG(RETVAL)
 #endif 	/* DIAGNOSTIC */
 
-void
+static void
 ${1}intr(int unit)
 {
 	sc_p scp  = sca[unit];
