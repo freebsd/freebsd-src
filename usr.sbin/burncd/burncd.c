@@ -151,7 +151,7 @@ main(int argc, char **argv)
 			fprintf(stderr, "writing from file %s size %d KB\n",
 				argv[arg], stat.st_size / 1024);
 		}
-		lseek(fd, 0, SEEK_SET);
+		lseek(fd, addr * block_size, SEEK_SET);
 		size = 0;
 
 		while ((count = read(file, buf, block_size * BLOCKS)) > 0) {	
