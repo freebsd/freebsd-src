@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt.c,v 1.7 1996/02/18 07:45:36 gibbs Exp $
+ *      $Id: bt.c,v 1.8 1996/03/10 07:11:45 gibbs Exp $
  */
 
 /*
@@ -40,6 +40,7 @@
 #include <sys/sysctl.h>
  
 #include <machine/clock.h>
+#include <machine/stdarg.h>
  
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -222,12 +223,8 @@ SYSCTL_INT(_debug, OID_AUTO, bt_debug, CTLFLAG_RW, &bt_debug, 0, "");
 static u_int32_t bt_adapter_info __P((int unit));
 static struct bt_ccb *
 		bt_ccb_phys_kv __P((struct bt_data *bt, physaddr ccb_phys));
-#ifdef notyet
-static int	bt_cmd __P((int unit, int icnt, int ocnt, int wait,
-			    u_char *retval, unsigned opcode, ...));
-#else
-static int	bt_cmd();
-#endif
+static int	bt_cmd __P((struct bt_data *bt, int icnt, int ocnt, int wait,
+			    u_char *retval, u_char opcode, ...));
 static void	bt_done __P((struct bt_data *bt, struct bt_ccb *ccb));
 static void	bt_free_ccb __P((struct bt_data *bt, struct bt_ccb *ccb,
 				 int flags));
@@ -299,7 +296,7 @@ static struct scsi_device bt_dev =
 #define BT_RESET_TIMEOUT 1000
 
 /*
- * bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
+ * bt_cmd(bt, icnt, ocnt, wait, retval, opcode, ...)
  *
  * Activate Adapter command
  *    icnt:   number of args (outbound bytes written after opcode)
@@ -307,23 +304,27 @@ static struct scsi_device bt_dev =
  *    wait:   number of seconds to wait for response
  *    retval: buffer where to place returned bytes
  *    opcode: opcode BT_NOP, BT_MBX_INIT, BT_START_SCSI ...
- *    args:   parameters
+ *    ...:    parameters to the command specified by opcode
  *
  * Performs an adapter command through the ports.  Not to be confused with a
  * scsi command, which is read in via the dma; one of the adapter commands
  * tells it to read in a scsi command.
  */
 static int
-bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
-	struct bt_data* bt;
-	int icnt;
-	int ocnt;
-	int wait;
-	u_char		*retval;
-	unsigned	opcode;
-	u_char		args;
+#ifdef __STDC__         
+bt_cmd(struct bt_data *bt, int icnt, int ocnt, int wait, u_char *retval,
+       u_char opcode, ...)
+#else           
+bt_cmd(bt, icnt, ocnt, wait, retval, opcode, va_alist)
+	struct bt_data *bt;
+	int icnt, ocnt, wait;   
+	u_char *retval;
+	u_char opcode;
+	va_dcl  
+#endif
 {
-	unsigned	*ic = &opcode;
+	va_list ap;
+	u_char data;
 	u_char		oc;
 	register	i;
 	int		sts;
@@ -368,9 +369,9 @@ bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
 	 * Output the command and the number of arguments given
 	 * for each byte, first check the port is empty.
 	 */
-	icnt++;
-				/* include the command */
-	while (icnt--) {
+	va_start(ap, opcode);
+	/* test icnt >= 0, to include the command in data sent */
+	for (data = opcode; icnt >= 0; icnt--, data = (u_char)va_arg(ap, int)) {
 		sts = inb(BT_CTRL_STAT_PORT);
 		for (i = wait; i; i--) {
 			sts = inb(BT_CTRL_STAT_PORT);
@@ -385,8 +386,9 @@ bt_cmd(bt, icnt, ocnt, wait, retval, opcode, args)
 			outb(BT_CTRL_STAT_PORT, BT_SRST);
 			return (ENXIO);
 		}
-		outb(BT_CMD_DATA_PORT, (u_char) (*ic++));
+		outb(BT_CMD_DATA_PORT, data);
 	}
+	va_end(ap);
 	/*
 	 * If we expect input, loop that many times, each time,
 	 * looking for the data register to have valid data
@@ -864,10 +866,14 @@ bt_done(bt, ccb)
 		if (ccb->host_stat) {
 			switch (ccb->host_stat) {
 			case BT_ABORTED:	/* No response */
-			case BT_SEL_TIMEOUT:	/* No response */
 				SC_DEBUG(xs->sc_link, SDEV_DB3,
 				    ("timeout reported back\n"));
 				xs->error = XS_TIMEOUT;
+				break;
+			case BT_SEL_TIMEOUT:
+				SC_DEBUG(xs->sc_link, SDEV_DB3,
+				    ("selection timeout reported back\n"));
+				xs->error = XS_SELTIMEOUT;
 				break;
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
@@ -941,7 +947,7 @@ bt_init(bt)
          *                                   94/05/18 amurai@spec.co.jp
          */
 	i = bt_cmd(bt, 1, sizeof(binfo),0,
-		&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
+		(u_char *)&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
 	if(i)
 		return i;
 	printf("bt%d: Bt%c%c%c%c/%c%d-", bt->unit,
@@ -959,7 +965,8 @@ bt_init(bt)
          *   in Extended mailbox and ccb structure.
          *                                   94/05/18 amurai@spec.co.jp
          */
-	bt_cmd(bt, 1, sizeof(info),0,&info, BT_INQUIRE_EXTENDED,sizeof(info));
+	bt_cmd(bt, 1, sizeof(info),0, (u_char *)&info, BT_INQUIRE_EXTENDED,
+		sizeof(info));
 	switch (info.bus_type) {
 		case BT_BUS_TYPE_24bit:		/* PC/AT 24 bit address bus */
 			printf("ISA(24bit) bus\n");
@@ -1010,7 +1017,7 @@ bt_init(bt)
 	 */
 	printf("bt%d: reading board settings, ", bt->unit);
 
-	bt_cmd(bt, 0, sizeof(conf), 0, &conf, BT_CONF_GET);
+	bt_cmd(bt, 0, sizeof(conf), 0, (u_char *)&conf, BT_CONF_GET);
 	switch (conf.chan) {
 	case BUSDMA:
 		bt->bt_dma = -1;
@@ -1137,13 +1144,13 @@ bt_inquire_setup_information(bt, info)
         }
 	if ( info->s.sync ) {
         	bt_cmd(bt, 1, sizeof(sync), 100,
-				&sync,BT_GET_SYNC_VALUE,sizeof(sync));
+			(u_char *)&sync,BT_GET_SYNC_VALUE,sizeof(sync));
 	}
 
 	/*
 	 * Inquire Board ID to board for firmware version
 	 */
-	bt_cmd(bt, 0, sizeof(bID), 0, &bID, BT_INQUIRE);
+	bt_cmd(bt, 0, sizeof(bID), 0, (u_char *)&bID, BT_INQUIRE);
 	bt_cmd(bt, 0, 1, 0, &sub_ver[0], BT_INQUIRE_REV_THIRD );
 	i = ((int)(bID.firm_revision-'0')) * 10 + (int)(bID.firm_version-'0');
 	if ( i >= 33 ) {
@@ -1164,7 +1171,8 @@ bt_inquire_setup_information(bt, info)
 	/*
 	 * Obtain setup information from board.
 	 */
-	bt_cmd(bt, 1, sizeof(setup), 0, &setup, BT_SETUP_GET, sizeof(setup));
+	bt_cmd(bt, 1, sizeof(setup), 0, (u_char *)&setup, BT_SETUP_GET,
+		sizeof(setup));
 
 	if (setup.sync_neg && info->s.sync ) {
 		if ( info->s.maxsync ) {
