@@ -97,16 +97,6 @@ SYSCTL_DECL(_security);
 
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
-SYSCTL_NODE(_security_mac, OID_AUTO, debug, CTLFLAG_RW, 0,
-    "TrustedBSD MAC debug info");
-
-static int	mac_debug_label_fallback = 0;
-SYSCTL_INT(_security_mac_debug, OID_AUTO, label_fallback, CTLFLAG_RW,
-    &mac_debug_label_fallback, 0, "Filesystems should fall back to fs label"
-    "when label is corrupted.");
-TUNABLE_INT("security.mac.debug_label_fallback",
-    &mac_debug_label_fallback);
-
 #ifndef MAC_MAX_POLICIES
 #define	MAC_MAX_POLICIES	8
 #endif
@@ -177,6 +167,16 @@ SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     "copy-on-write semantics, or by removing all write access");
 
 #ifdef MAC_DEBUG
+SYSCTL_NODE(_security_mac, OID_AUTO, debug, CTLFLAG_RW, 0,
+    "TrustedBSD MAC debug info");
+
+static int	mac_debug_label_fallback = 0;
+SYSCTL_INT(_security_mac_debug, OID_AUTO, label_fallback, CTLFLAG_RW,
+    &mac_debug_label_fallback, 0, "Filesystems should fall back to fs label"
+    "when label is corrupted.");
+TUNABLE_INT("security.mac.debug_label_fallback",
+    &mac_debug_label_fallback);
+
 static unsigned int nmacmbufs, nmaccreds, nmacifnets, nmacbpfdescs,
     nmacsockets, nmacmounts, nmactemp, nmacvnodes, nmacdevfsdirents,
     nmacipqs, nmacpipes;
@@ -1082,14 +1082,18 @@ vop_stdrefreshlabel_ea(struct vop_refreshlabel_args *ap)
 		    vp->v_mount->mnt_stat.f_mntonname);
 		if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread) == 0)
 			printf(" inum %ld", va.va_fileid);
+#ifdef MAC_DEBUG
 		if (mac_debug_label_fallback) {
 			printf(", falling back.\n");
 			mac_update_vnode_from_mount(vp, vp->v_mount);
 			error = 0;
 		} else {
+#endif
 			printf(".\n");
 			error = EPERM;
+#ifdef MAC_DEBUG
 		}
+#endif
 	}
 
 	return (error);
