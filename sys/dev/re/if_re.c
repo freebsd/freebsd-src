@@ -168,6 +168,8 @@ static struct rl_type re_devs[] = {
 		"RealTek 8169S Single-chip Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8110S,
 		"RealTek 8110S Single-chip Gigabit Ethernet" },
+	{ COREGA_VENDORID, COREGA_DEVICEID_CGLAPCIGT, RL_HWREV_8169S,
+		"Corega CG-LAPCIGT (RTL8169S) Gigabit Ethernet" },
 	{ 0, 0, 0, NULL }
 };
 
