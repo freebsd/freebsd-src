@@ -274,6 +274,8 @@ MAN=	aac.4 \
 	snd_sbc.4 \
 	snd_solo.4 \
 	snd_uaudio.4 \
+	snd_via82c686.4 \
+	snd_vibes.4 \
 	snp.4 \
 	spic.4 \
 	splash.4 \
