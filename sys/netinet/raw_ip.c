@@ -244,14 +244,9 @@ int
 rip_output(struct mbuf *m, struct socket *so, u_long dst)
 {
 	struct ip *ip;
+	int error;
 	struct inpcb *inp = sotoinpcb(so);
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
-
-#ifdef MAC
-	INP_LOCK(inp);
-	mac_create_mbuf_from_inpcb(inp, m);
-	INP_UNLOCK(inp);
-#endif
 
 	/*
 	 * If the user handed us a complete IP packet, use it.
@@ -265,6 +260,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		M_PREPEND(m, sizeof(struct ip), M_TRYWAIT);
 		if (m == NULL)
 			return(ENOBUFS);
+
+		INP_LOCK(inp);
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = inp->inp_ip_tos;
 		ip->ip_off = 0;
@@ -282,10 +279,12 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			m_freem(m);
 			return(EMSGSIZE);
 		}
+		INP_LOCK(inp);
 		ip = mtod(m, struct ip *);
 		if (jailed(inp->inp_socket->so_cred)) {
 			if (ip->ip_src.s_addr !=
 			    htonl(prison_getip(inp->inp_socket->so_cred))) {
+				INP_UNLOCK(inp);
 				m_freem(m);
 				return (EPERM);
 			}
@@ -296,6 +295,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		     && inp->inp_options)
 		    || (ip->ip_len > m->m_pkthdr.len)
 		    || (ip->ip_len < (ip->ip_hl << 2))) {
+			INP_UNLOCK(inp);
 			m_freem(m);
 			return EINVAL;
 		}
@@ -313,8 +313,14 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 	if (inp->inp_flags & INP_ONESBCAST)
 		flags |= IP_SENDONES;
 
-	return (ip_output(m, inp->inp_options, NULL, flags,
-			  inp->inp_moptions, inp));
+#ifdef MAC
+	mac_create_mbuf_from_inpcb(inp, m);
+#endif
+
+	error = ip_output(m, inp->inp_options, NULL, flags,
+	    inp->inp_moptions, inp);
+	INP_UNLOCK(inp);
+	return error;
 }
 
 /*
@@ -739,9 +745,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		}
 		dst = ((struct sockaddr_in *)nam)->sin_addr.s_addr;
 	}
-	INP_LOCK(inp);
 	ret = rip_output(m, so, dst);
-	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return ret;
 }
