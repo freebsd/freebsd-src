@@ -66,10 +66,11 @@
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
-#define MAJ_WD		0
-#define MAJ_WFD 	1
-#define MAJ_FD		2
-#define MAJ_DA		4
+#define TYPE_AD		0
+#define TYPE_WD		1
+#define TYPE_WFD 	2
+#define TYPE_FD		3
+#define TYPE_DA		4
 
 extern uint32_t _end;
 
@@ -88,7 +89,8 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-static const char *const dev_nm[] = {"wd", "  ", "fd", "  ", "da"};
+static const char *const dev_nm[] = {"ad", "wd", "  ", "fd", "da"};
+static const unsigned dev_maj[] = {30, 0, 1, 2, 4};
 
 static struct dsk {
     unsigned drive;
@@ -140,7 +142,7 @@ main(void)
 
     v86.ctl = V86_FLAGS;
     dsk.drive = *(uint8_t *)PTOV(ARGS);
-    dsk.type = dsk.drive & DRV_HARD ? MAJ_WD : MAJ_FD;
+    dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
     dsk.unit = dsk.drive & DRV_MASK;
     dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     bootinfo.bi_version = BOOTINFO_VERSION;
@@ -285,7 +287,7 @@ load(const char *fname)
     bootinfo.bi_kernelname = VTOP(fname);
     bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
-	   MAKEBOOTDEV(dsk.type, 0, dsk.slice, dsk.unit, dsk.part),
+	   MAKEBOOTDEV(dev_maj[dsk.type], 0, dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
 }
 
@@ -355,8 +357,9 @@ parse(char *arg)
 		arg += 2;
 		if (drv == -1)
 		    drv = dsk.unit;
-		dsk.drive = (dsk.type == MAJ_WD ||
-			     dsk.type == MAJ_DA ? DRV_HARD : 0) + drv;
+		dsk.drive = (dsk.type == TYPE_WD ||
+			     dsk.type == TYPE_AD ||
+			     dsk.type == TYPE_DA ? DRV_HARD : 0) + drv;
 		dsk.meta = 0;
 		fsread(0, NULL, 0);
 	    }
@@ -568,7 +571,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	} else {
 	    if (!dsk.init) {
 		if (d->d_type == DTYPE_SCSI)
-		    dsk.type = MAJ_DA;
+		    dsk.type = TYPE_DA;
 		dsk.init++;
 	    }
 	    if (dsk.part >= d->d_npartitions ||
