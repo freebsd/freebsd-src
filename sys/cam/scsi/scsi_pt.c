@@ -1,4 +1,4 @@
-/*
+/*-
  * Implementation of SCSI Processor Target Peripheral driver for CAM.
  *
  * Copyright (c) 1998 Justin T. Gibbs.
