@@ -1614,6 +1614,22 @@ mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 int
+mac_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+    int attrnamespace, const char *name)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_deleteextattr");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	MAC_CHECK(check_vnode_deleteextattr, cred, vp, &vp->v_label,
+	    attrnamespace, name);
+	return (error);
+}
+
+int
 mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct image_params *imgp)
 {
@@ -1674,6 +1690,22 @@ mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 
 	MAC_CHECK(check_vnode_link, cred, dvp, &dvp->v_label, vp,
 	    &vp->v_label, cnp);
+	return (error);
+}
+
+int
+mac_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+    int attrnamespace)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_listextattr");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	MAC_CHECK(check_vnode_listextattr, cred, vp, &vp->v_label,
+	    attrnamespace);
 	return (error);
 }
 
