@@ -789,7 +789,10 @@ SRM quirks:
 PC164 the SRM sometimes seems to loose its variable settings. 
 "For PC164, current superstition says that, to avoid losing settings,
 you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
-Other PC164 owners report they have never seen the problem. 
+One sample error that was observed was: "ERROR: ISA table corrupt!".
+A sequence of a downgrade to SRM4.9, an 'isacfg -init' and an 'init'
+made the problem go away. Some PC164 owners report they have never seen 
+the problem. 
 
 On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
 be used as console on the next power up. This selection does not appear to
