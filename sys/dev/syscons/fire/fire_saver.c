@@ -39,96 +39,157 @@
 #include <sys/module.h>
 #include <sys/syslog.h>
 #include <sys/consio.h>
+#include <sys/malloc.h>
 #include <sys/fbio.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>
 #include <dev/syscons/syscons.h>
 
-#define X_SIZE 320
-#define Y_SIZE 200
+#define SAVER_NAME	 "fire_saver"
 
-static int      blanked;
-static u_char   fire_pal[768];
-static u_char   buf[X_SIZE * (Y_SIZE + 1)];
-static u_char  *vid;
+#define RED(n)		 ((n) * 3 + 0)
+#define GREEN(n)	 ((n) * 3 + 1)
+#define BLUE(n)		 ((n) * 3 + 2)
+
+static u_char		*buf;
+static u_char		*vid;
+static int		 banksize, scrmode, bpsl, scrw, scrh;
+static u_char		 fire_pal[768];
+static int		 blanked;
+
+static void
+fire_update(video_adapter_t *adp)
+{
+	int x, y;
+	int o, p;
+
+	/* make a new bottom line */
+	for (x = 0, y = scrh; x < scrw; x++)
+		buf[x + (y * bpsl)] = random() % 160 + 96;
+
+	/* fade the flames out */
+	for (y = 0; y < scrh; y++) {
+		for (x = 0; x < scrw; x++) {
+			buf[x + (y * scrw)] =
+			    (buf[(x + 0) + ((y + 0) * scrw)] +
+			     buf[(x - 1) + ((y + 1) * scrw)] +
+			     buf[(x + 0) + ((y + 1) * scrw)] +
+			     buf[(x + 1) + ((y + 1) * scrw)]) / 4;
+			if (buf[x + (y * scrw)] > 0)
+				buf[x + (y * scrw)]--;
+		}
+	}
+
+	/* blit our buffer into video ram */
+	for (y = 0, p = 0, o = 0; y < scrh; y++, p += bpsl) {
+		while (p > banksize) {
+			p -= banksize;
+			o += banksize;
+		}
+		set_origin(adp, o);
+		if (p + scrw < banksize) {
+			bcopy(buf + y * scrw, vid + p, scrw);
+		} else {
+			bcopy(buf + y * scrw, vid + p, banksize - p);
+			set_origin(adp, o + banksize);
+			bcopy(buf + y * scrw + (banksize - p), vid,
+			      scrw - (banksize - p));
+			p -= banksize;
+			o += banksize;
+		}
+	}
+
+}
 
 static int
 fire_saver(video_adapter_t *adp, int blank)
 {
-    int             x, y;
+	int i, pl;
 
-    if (blank) {
-	if (blanked <= 0) {
-	    int             red, green, blue;
-	    int             palette_index;
+	if (blank) {
+		/* switch to graphics mode */
+      		if (blanked <= 0) {
+			pl = splhigh();
+			set_video_mode(adp, scrmode);
+			load_palette(adp, fire_pal);
+			blanked++;
+			vid = (u_char *)adp->va_window;
+			banksize = adp->va_window_size;
+			bpsl = adp->va_line_width;
+			splx(pl);
+			for (i = 0; i < bpsl * scrh; i += banksize) {
+				set_origin(adp, i);
+				bzero(vid, banksize);
+			}
+		}
+		fire_update(adp);
+	} else {
+		blanked = 0;
+	}
 
-	    set_video_mode(adp, M_VGA_CG320);
+    return 0;
+}
 
-	    /* build and load palette */
-	    red = green = blue = 0;
-	    for (palette_index = 0; palette_index < 256; palette_index++) {
+static int
+fire_init(video_adapter_t *adp)
+{
+	video_info_t info;
+	int i, red, green, blue;
+
+	if (!get_mode_info(adp, M_VGA_CG320, &info)) {
+		scrmode = M_VGA_CG320;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x480, &info)) {
+		scrmode = M_PC98_PEGC640x480;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x400, &info)) {
+		scrmode = M_PC98_PEGC640x400;
+	} else {
+		log(LOG_NOTICE,
+		    "%s: the console does not support M_VGA_CG320\n",
+		    SAVER_NAME);
+		return (ENODEV);
+	}
+    
+	scrw = info.vi_width;
+	scrh = info.vi_height;
+
+	buf = (u_char *)malloc(scrw * (scrh + 1), M_DEVBUF, M_NOWAIT);
+	if (buf) {
+		bzero(buf, scrw * (scrh + 1));
+	} else {
+		log(LOG_NOTICE,
+		    "%s: buffer allocation is failed\n",
+		    SAVER_NAME);
+		return (ENODEV);
+	}
+
+	/* intialize the palette */
+	red = green = blue = 0;
+	for (i = 0; i < 256; i++) {
 		red++;
 		if (red > 128)
-		    green += 2;
-
-		fire_pal[(palette_index * 3) + 0] = red;
-		fire_pal[(palette_index * 3) + 1] = green;
-		fire_pal[(palette_index * 3) + 2] = blue;
-	    }
-	    load_palette(adp, fire_pal);
-
-	    blanked++;
-	    vid = (u_char *) adp->va_window;
-	}
-	/* make a new bottom line */
-	for (x = 0, y = Y_SIZE; x < X_SIZE; x++)
-	    buf[x + (y * X_SIZE)] = random() % 160 + 96;
-
-	/* fade the flames out */
-	for (y = 0; y < Y_SIZE; y++) {
-	    for (x = 0; x < X_SIZE; x++) {
-		buf[x + (y * X_SIZE)] = (buf[(x + 0) + ((y + 0) * X_SIZE)] +
-					 buf[(x - 1) + ((y + 1) * X_SIZE)] +
-					 buf[(x + 0) + ((y + 1) * X_SIZE)] +
-				     buf[(x + 1) + ((y + 1) * X_SIZE)]) / 4;
-		if (buf[x + (y * X_SIZE)] > 0)
-		    buf[x + (y * X_SIZE)]--;
-	    }
+			green += 2;
+		fire_pal[RED(i)] = red;
+		fire_pal[GREEN(i)] = green;
+		fire_pal[BLUE(i)] = blue;
 	}
 
-	/* blit our buffer into video ram */
-	memcpy(vid, buf, X_SIZE * Y_SIZE);
-    } else {
-	blanked = 0;
-    }
-
-    return 0;
+	return (0);
 }
 
 static int
-fire_initialise(video_adapter_t *adp)
+fire_term(video_adapter_t *adp)
 {
-    video_info_t    info;
-
-    /* check that the console is capable of running in 320x200x256 */
-    if (get_mode_info(adp, M_VGA_CG320, &info)) {
-	log(LOG_NOTICE, "fire_saver: the console does not support M_VGA_CG320\n");
-	return (ENODEV);
-    }
-    blanked = 0;
-
-    return 0;
-}
-
-static int
-fire_terminate(video_adapter_t *adp)
-{
-    return 0;
+	free(buf, M_DEVBUF);
+	return (0);
 }
 
 static scrn_saver_t fire_module = {
-    "fire_saver", fire_initialise, fire_terminate, fire_saver, NULL
+	SAVER_NAME,
+	fire_init,
+	fire_term,
+	fire_saver,
+	NULL
 };
 
 SAVER_MODULE(fire_saver, fire_module);

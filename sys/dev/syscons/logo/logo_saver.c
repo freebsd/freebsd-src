@@ -136,6 +136,10 @@ logo_init(video_adapter_t *adp)
 		scrmode = M_VESA_CG800x600;
 	} else if (!get_mode_info(adp, M_VGA_CG320, &info)) {
 		scrmode = M_VGA_CG320;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x480, &info)) {
+		scrmode = M_PC98_PEGC640x480;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x400, &info)) {
+		scrmode = M_PC98_PEGC640x400;
 	} else {
 		log(LOG_NOTICE,
 		    "%s: the console does not support M_VGA_CG320\n",

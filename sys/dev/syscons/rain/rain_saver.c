@@ -41,8 +41,6 @@
 #include <dev/syscons/syscons.h>
 
 #define SAVER_NAME	 "rain_saver"
-#define SCRW		 320
-#define SCRH		 200
 #define MAX		 63	/* number of colors (in addition to black) */
 #define INCREMENT	 4	/* increment between colors */
 
@@ -51,6 +49,7 @@
 #define BLUE(n)		 ((n) * 3 + 2)
 
 static u_char		*vid;
+static int		 banksize, scrmode, bpsl, scrw, scrh;
 static u_char		 rain_pal[768];
 static int		 blanked;
 
@@ -69,25 +68,53 @@ rain_update(video_adapter_t *adp)
 static int
 rain_saver(video_adapter_t *adp, int blank)
 {
-	int i, j, k, pl;
-	
+	int i, j, k, o, p, pl;
+	u_char temp;
+
 	if (blank) {
 		/* switch to graphics mode */
 		if (blanked <= 0) {
 			pl = splhigh();
-			set_video_mode(adp, M_VGA_CG320);
+			set_video_mode(adp, scrmode);
 			load_palette(adp, rain_pal);
 			set_border(adp, 0);
 			blanked++;
 			vid = (u_char *)adp->va_window;
+			banksize = adp->va_window_size;
+			bpsl = adp->va_line_width;
 			splx(pl);
-			bzero(vid, SCRW * SCRH);
-			for (i = 0; i < SCRW; i += 2)
-				vid[i] = 1 + (random() % MAX);
-			for (j = 1, k = SCRW; j < SCRH; j++)
-				for (i = 0; i < SCRW; i += 2, k += 2)
-					vid[k] = (vid[k - SCRW] < MAX) ?
-					    1 + vid[k - SCRW] : 1;
+			for (i = 0; i < bpsl*scrh; i += banksize) {
+				set_origin(adp, i);
+				if ((bpsl * scrh - i) < banksize)
+					bzero(vid, bpsl * scrh - i);
+				else
+					bzero(vid, banksize);
+			}
+			set_origin(adp, 0);
+			for (i = 0, o = 0, p = 0; i < scrw; i += 2, p += 2) {
+				if (p > banksize) {
+					p -= banksize;
+					o += banksize;
+					set_origin(adp, o);
+				}
+				vid[p] = 1 + (random() % MAX);
+			}
+			o = 0; p = 0;
+			for (j = 1; j < scrh; j++)
+			  for (i = 0, p = bpsl * (j - 1) - o; i < scrw; i += 2, p+= 2) {
+			  	while (p > banksize) {
+					p -= banksize;
+					o += banksize;
+				}
+				set_origin(adp, o);
+				temp = (vid[p] < MAX) ? 1 + vid[p] : 1;
+				if (p + bpsl < banksize) {
+					vid[p + bpsl] = temp;
+				} else {
+					set_origin(adp, o + banksize);
+					vid[p + bpsl - banksize] = temp;
+				}
+			  }
 		}
 		
 		/* update display */
@@ -104,14 +131,22 @@ rain_init(video_adapter_t *adp)
 	video_info_t info;
 	int i;
 	
-	/* check that the console is capable of running in 320x200x256 */
-	if (get_mode_info(adp, M_VGA_CG320, &info)) {
+	if (!get_mode_info(adp, M_VGA_CG320, &info)) {
+		scrmode = M_VGA_CG320;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x480, &info)) {
+		scrmode = M_PC98_PEGC640x480;
+	} else if (!get_mode_info(adp, M_PC98_PEGC640x400, &info)) {
+		scrmode = M_PC98_PEGC640x400;
+	} else {
 		log(LOG_NOTICE,
 		    "%s: the console does not support M_VGA_CG320\n",
 		    SAVER_NAME);
 		return (ENODEV);
 	}
 	
+	scrw = info.vi_width;
+	scrh = info.vi_height;
+
 	/* intialize the palette */
 	for (i = 1; i < MAX; i++)
 		rain_pal[BLUE(i)] = rain_pal[BLUE(i - 1)] + INCREMENT;
