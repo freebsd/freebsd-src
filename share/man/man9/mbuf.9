@@ -123,6 +123,10 @@
 .Fn m_length "struct mbuf *mbuf" "struct mbuf **last"
 .Ft struct mbuf *
 .Fn m_split "struct mbuf *mbuf" "int len" "int how"
+.Ft int
+.Fn m_apply "struct mbuf *mbuf" "int off" "int len" "int (*f)(void *arg, void *data, u_int len)" "void *arg"
+.Ft struct mbuf *
+.Fn m_getptr "struct mbuf *mbuf" "int loc" "int *off"
 .\"
 .Sh DESCRIPTION
 An
@@ -765,6 +769,44 @@ In case of failure, it returns
 and attempts to restore the
 .Vt mbuf chain
 to its original state.
+.\"
+.It Fn m_apply mbuf off len f arg
+Apply a function to an
+.Vt mbuf chain ,
+at offset
+.Fa off ,
+for length
+.Fa len bytes .
+Typically used to avoid calls to
+.Fn m_pullup
+which would otherwise be unnecessary or undesirable.
+.Fa arg
+is a convenience argument which is passed to the callback function
+.Fa f .
+.Pp
+Each time
+.Fn f
+is called, it will be passed
+.Fa arg ,
+a pointer to the
+.Fa data
+in the current mbuf, and the length
+.Fa len
+of the data in this mbuf to which the function should be applied.
+.Pp
+The function should return zero to indicate success;
+otherwise, if an error is indicated, then
+.Fn m_apply
+will return the error and stop iterating through the
+.Vt mbuf chain .
+.\"
+.It Fn m_getptr mbuf loc off
+Return a pointer to the mbuf containing the data located at
+.Fa loc
+bytes from the beginning of the
+.Vt mbuf chain .
+The corresponding offset into the mbuf will be stored in
+.Fa *off .
 .El
 .Sh HARDWARE-ASSISTED CHECKSUM CALCULATION
 This section currently applies to TCP/IP only.
