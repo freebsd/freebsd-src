@@ -278,8 +278,11 @@ udom_open(const char *path, int flags)
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd >= 0) {
 		sou.sun_family = AF_UNIX;
-		snprintf(sou.sun_path, sizeof(sou.sun_path), "%s", path);
-		len = strlen(sou.sun_path);
+		if ((len = strlcpy(sou.sun_path, path,
+		    sizeof(sou.sun_path))) >= sizeof(sou.sun_path)) {
+			errno = ENAMETOOLONG;
+			return (-1);
+		}
 		len = offsetof(struct sockaddr_un, sun_path[len+1]);
 
 		if (connect(fd, (void *)&sou, len) < 0) {
