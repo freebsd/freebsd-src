@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: spp_debug.c,v 1.2 1994/08/02 07:51:57 davidg Exp $
+ * $Id: spp_debug.c,v 1.3 1995/07/29 11:41:57 bde Exp $
  */
 
 #include <sys/param.h>
@@ -133,7 +133,8 @@ spp_trace(act, ostate, sp, si, req)
 		if (flags) {
 			char *cp = "<";
 #ifndef lint
-#define pf(f) { if (flags&SP_/**/f) { printf("%s%s", cp, "f"); cp = ","; } }
+#define pf(f) { if (flags & __CONCAT(SP_,f)) \
+		{ printf("%s%s", cp, __STRING(f)); cp = ","; } }
 			pf(SP); pf(SA); pf(OB); pf(EM);
 #else
 			cp = cp;
@@ -141,7 +142,7 @@ spp_trace(act, ostate, sp, si, req)
 			printf(">");
 		}
 #ifndef lint
-#define p2(f)  { printf("%s = %x, ", "f", si->si_/**/f); }
+#define p2(f)  { printf("%s = %x, ", __STRING(f), si->__CONCAT(si_,f)); }
 		p2(sid);p2(did);p2(dt);p2(pt);
 #endif
 		ns_printhost(&si->si_sna);
@@ -166,7 +167,7 @@ spp_trace(act, ostate, sp, si, req)
 	if (sp == 0)
 		return;
 #ifndef lint
-#define p3(f)  { printf("%s = %x, ", "f", sp->s_/**/f); }
+#define p3(f)  { printf("%s = %x, ", __STRING(f), sp->__CONCAT(s_,f)); }
 	printf("\t"); p3(rack);p3(ralo);p3(smax);p3(flags); printf("\n");
 #endif
 #endif
