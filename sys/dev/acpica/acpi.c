@@ -129,7 +129,6 @@ static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 			void *context, void **status);
 static void	acpi_shutdown_final(void *arg, int howto);
-static void	acpi_shutdown_poweroff(void *arg);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static int	acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
 static ACPI_STATUS acpi_wake_limit(ACPI_HANDLE h, UINT32 level, void *context,
@@ -1282,9 +1281,9 @@ acpi_shutdown_final(void *arg, int howto)
     ACPI_STATUS	status;
 
     /*
-     * If powering off, run the actual shutdown code on each processor.
-     * It will only perform the shutdown on the BSP.  Some chipsets do
-     * not power off the system correctly if called from an AP.
+     * XXX Shutdown code should only run on the BSP (cpuid 0).
+     * Some chipsets do not power off the system correctly if called from
+     * an AP.
      */
     if ((howto & RB_POWEROFF) != 0) {
 	status = AcpiEnterSleepStatePrep(ACPI_STATE_S5);
@@ -1294,33 +1293,17 @@ acpi_shutdown_final(void *arg, int howto)
 	    return;
 	}
 	printf("Powering system off using ACPI\n");
-	smp_rendezvous(NULL, acpi_shutdown_poweroff, NULL, NULL);
+	ACPI_DISABLE_IRQS();
+	status = AcpiEnterSleepState(ACPI_STATE_S5);
+	if (ACPI_FAILURE(status)) {
+	    printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
+	} else {
+	    DELAY(1000000);
+	    printf("ACPI power-off failed - timeout\n");
+	}
     } else {
 	printf("Shutting down ACPI\n");
 	AcpiTerminate();
-    }
-}
-
-/*
- * Since this function may be called with locks held or in an unknown
- * context, it cannot allocate memory, acquire locks, sleep, etc.
- */
-static void
-acpi_shutdown_poweroff(void *arg)
-{
-    ACPI_STATUS	status;
-
-    /* Only attempt to power off if this is the BSP (cpuid 0). */
-    if (PCPU_GET(cpuid) != 0)
-	return;
-
-    ACPI_DISABLE_IRQS();
-    status = AcpiEnterSleepState(ACPI_STATE_S5);
-    if (ACPI_FAILURE(status)) {
-	printf("ACPI power-off failed - %s\n", AcpiFormatException(status));
-    } else {
-	DELAY(1000000);
-	printf("ACPI power-off failed - timeout\n");
     }
 }
 
