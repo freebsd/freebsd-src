@@ -62,7 +62,7 @@ main(int argc, char *argv[])
 		for (j = 0; j < 256; j++)
 			assert(tran[i].func(j) == towctrans(j, t));
 	}
-	t = wctype("elephant");
+	t = wctrans("elephant");
 	assert(t == 0);
 	for (i = 0; i < 256; i++)
 		assert(towctrans(i, t) == i);
@@ -77,7 +77,7 @@ main(int argc, char *argv[])
 		for (j = 0; j < 65536; j++)
 			assert(tran[i].func(j) == towctrans(j, t));
 	}
-	t = wctype("elephant");
+	t = wctrans("elephant");
 	assert(t == 0);
 	for (i = 0; i < 65536; i++)
 		assert(towctrans(i, t) == i);
