@@ -1,29 +1,62 @@
+set -e
+
+# Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
-# XXX does -I$DESTDIR/usr/include actually work?
-(echo "#include <sys/ioctl.h>"
- echo "#include <sys/ioctl_compat.h>"
-) | cpp -I$DESTDIR/usr/include -dM | awk '
+# XXX netipx conflicts with netns (leave out netns).
+ioctl_includes=`
+	cd $DESTDIR/usr/include
+	find * -name '*.h' -follow |
+		egrep -v '^(netns)/' |
+		xargs egrep -l \
+'^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-0_]*[ 	]+_IO[^a-z0-9_]' |
+		sed -e 's/^/#include </' -e s'/$/>/'
+`
+
+echo "$ioctl_includes" |
+	cpp -I$DESTDIR/usr/include -dM |
+	awk -v ioctl_includes="$ioctl_includes" '
 BEGIN {
-	print "#include <sys/param.h>"
-	print "#include <sys/queue.h>"
-	print "#include <sys/socket.h>"
-	print "#include <sys/socketvar.h>"
-	print "#include <sys/time.h>"
-	print "#include <net/route.h>"
-	print "#include <net/if.h>"
-	print "#include <netinet/in.h>"
-	print "#include <netinet/ip_mroute.h>"
-	print "#include <sys/termios.h>"
+	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
-	print "#include <sys/ioctl.h>"
+	print "#include <sys/param.h>"
+	print "#include <sys/device.h>"
+	print "#include <sys/devicestat.h>"
+	print "#include <sys/disklabel.h>"
+	print "#include <sys/disk.h>"
+	print "#include <sys/dkbad.h>"
+	print "#include <sys/socket.h>"
+	print "#include <sys/time.h>"
+	print "#include <sys/tty.h>"
+	print "#include <net/if.h>"
+	print "#include <net/if_var.h>"
+	print "#include <net/route.h>"
+	print "#include <netatm/atm.h>"
+	print "#include <netatm/atm_if.h>"
+	print "#include <netatm/atm_sap.h>"
+	print "#include <netatm/atm_sys.h>"
+	print "#include <netinet/in.h>"
+	print "#include <netinet/ip_compat.h>"
+	print "#include <netinet/ip_fil.h>"
+	print "#include <netinet/ip_auth.h>"
+	print "#include <netinet/ip_nat.h>"
+	print "#include <netinet/ip_frag.h>"
+	print "#include <netinet/ip_mroute.h>"
+	print "#include <netinet/ip_state.h>"
+	print "#include <cam/cam.h>"
+	print "#include <stdio.h>"
+	print ""
+	print ioctl_includes
 	print ""
 	print "char *"
 	print "ioctlname(val)"
 	print "{"
 	print ""
+	generate_case_statement = 0
+	if (generate_case_statement)
+		print "\tswitch(val) {"
 }
 
-/^#[ 	]*define[ 	]*(TIO|FIO|SIO|OSIO)[A-Z]*[ 	]*_IO/ {
+/^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO/ {
 	
 	# find where the name starts
 	for (i = 1; i <= NF; i++)
@@ -31,10 +64,15 @@ BEGIN {
 			break;
 	++i;
 	# 
-	printf("\tif (val ==  %s)\n\t\treturn(\"%s\");\n", $i, $i);
+	if (generate_case_statement)
+		printf("\tcase %s:\n\t\treturn(\"%s\");\n", $i, $i);
+	else
+		printf("\tif (val ==  %s)\n\t\treturn(\"%s\");\n", $i, $i);
 
 }
 END {
+	if (generate_case_statement)
+		print "\t}"
 	print "\n\treturn(NULL);"
 	print "}"
 }
