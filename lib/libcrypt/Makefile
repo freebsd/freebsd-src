@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.12 1998/08/30 01:48:55 jb Exp $
+# $Id: Makefile,v 1.13 1998/08/30 02:43:45 jb Exp $
 #
 
 LCRYPTBASE= 	libcrypt
@@ -35,7 +35,7 @@ afterinstall:
 	fi
 .endif
 .if !defined(NOPIC) && ${OBJFORMAT} == elf
-	@cd  ${DESTDIR}${LIBDIR}; \
+	@cd ${DESTDIR}${SHLIBDIR}; \
 	if [ ! -e ${LCRYPTBASE}.so ]; then \
 	rm -f ${LCRYPTBASE}.so; \
 	ln -s ${LSCRYPTBASE}.so libcrypt.so; \
