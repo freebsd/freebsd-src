@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.80 1999/01/07 21:23:50 julian Exp $
+ * $Id: vm_glue.c,v 1.80.2.1 1999/01/27 20:51:43 julian Exp $
  */
 
 #include "opt_rlimit.h"
@@ -220,6 +220,8 @@ vm_fork(p1, p2, flags)
 
 	if ((flags & RFMEM) == 0) {
 		p2->p_vmspace = vmspace_fork(p1->p_vmspace);
+
+		pmap_pinit2(vmspace_pmap(p2->p_vmspace));
 
 		if (p1->p_vmspace->vm_shm)
 			shmfork(p1, p2);
