@@ -4,19 +4,15 @@ CFLAGS+= -DCAP -DHAS_NCURSES -DHAS_UNISTD -DHAS_STDARG -DHAS_STDLIB \
 PROG=	ee
 SRCS=	ee.c
 LINKS=	${BINDIR}/ee ${BINDIR}/ree
-DPADD=	ee.cat ${LIBNCURSES} ${LIBMYTINFO}
+DPADD=	${LIBNCURSES} ${LIBMYTINFO}
 LDADD=	-lncurses -lmytinfo
-CLEANFILES+=	ee.cat
 
-# I'm not sure if this is kosher, but I don't see any system default just
-# now.
-LANG?=	en_US.ISO_8859-1
+LANGS=	en_US.ISO_8859-1
 
-ee.cat:	${.CURDIR}/ee.msg
-	gencat -new ee.cat ${.CURDIR}/ee.msg
-
-afterinstall: ee.cat
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ee.cat \
-		${DESTDIR}/usr/share/nls/${LANG}/ee.cat
+afterinstall:
+	@for i in ${LANGS}; do \
+	  gencat -new ${DESTDIR}/usr/share/nls/$$i/ee.cat ${.CURDIR}/nls/$$i/ee.msg; \
+	  chmod 444 ${.CURDIR}/nls/$$i/ee.msg; \
+	done
 
 .include <bsd.prog.mk>
