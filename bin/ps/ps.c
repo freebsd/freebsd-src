@@ -977,19 +977,27 @@ saveuser(KINFO *ki)
 	/*
 	 * save arguments if needed
 	 */
-	if (needcomm && (UREADOK(ki) || (ki->ki_p->ki_args != NULL))) {
-		ki->ki_args = strdup(fmt(kvm_getargv, ki, ki->ki_p->ki_comm,
-		    MAXCOMLEN));
-	} else if (needcomm) {
-		asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
+	if (needcomm) {
+		if (ki->ki_p->ki_stat == SZOMB)
+			ki->ki_args = strdup("<defunct>");
+		else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL))
+			ki->ki_args = strdup(fmt(kvm_getargv, ki,
+			    ki->ki_p->ki_comm, MAXCOMLEN));
+		else
+			asprintf(&ki->ki_args, "(%s)", ki->ki_p->ki_comm);
+		if (ki->ki_env == NULL)
+			errx(1, "malloc failed");
 	} else {
 		ki->ki_args = NULL;
 	}
-	if (needenv && UREADOK(ki)) {
-		ki->ki_env = strdup(fmt(kvm_getenvv, ki, (char *)NULL, 0));
-	} else if (needenv) {
-		ki->ki_env = malloc(3);
-		strcpy(ki->ki_env, "()");
+	if (needenv) {
+		if (UREADOK(ki))
+			ki->ki_env = strdup(fmt(kvm_getenvv, ki,
+			    (char *)NULL, 0));
+		else
+			ki->ki_env = strdup("()");
+		if (ki->ki_env == NULL)
+			errx(1, "malloc failed");
 	} else {
 		ki->ki_env = NULL;
 	}
