@@ -360,14 +360,16 @@ printtype(mode)
 }
 
 #ifdef COLORLS
-int putch(c)
+static int
+putch(c)
 	int c;
 {
 	(void) putchar(c);
 	return 0;
 }
 
-int writech(c)
+static int
+writech(c)
 	int c;
 {
 	char tmp = c;
@@ -376,7 +378,7 @@ int writech(c)
 	return 0;
 }
 
-void
+static void
 printcolor(c)
        Colors c;
 {
@@ -478,7 +480,8 @@ char *cs;
 	}
 }
 
-void colorquit(sig)
+void
+colorquit(sig)
 	int sig;
 {
 	endcolor(sig);
