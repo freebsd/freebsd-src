@@ -110,8 +110,14 @@ write_file(char *name, char *str)
 void
 copy_file(char *dir, char *fname, char *to)
 {
-    if (vsystem("cp -p -r %s/%s %s", dir, fname, to))
-	barf("Couldn't copy %s/%s to %s!", dir, fname, to);
+    char cmd[FILENAME_MAX];
+
+    if (fname[0] == '/')
+	sprintf(cmd, "cp -p -r %s %s", fname, to);
+    else
+	sprintf(cmd, "cp -p -r %s/%s %s", dir, fname, to);
+    if (vsystem(cmd))
+	barf("Couldn't perform '%s'", cmd);
 }
 
 /*
