@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.21 1999/06/19 13:12:51 dfr Exp $
+#	$Id: files.alpha,v 1.22 1999/06/22 14:13:18 yokota Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -11,14 +11,14 @@
 font8x16.o			optional	std8x16font		\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c" \
 	no-implicit-rule before-depend \
-	clean		"${STD8X16FONT}-8x16 font8x16.c" 
+	clean		"${STD8X16FONT}-8x16 font8x16.c"
 #
 atkbdmap.h			optional	atkbd_dflt_keymap	\
 	compile-with	"kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"				\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
-alpha/alpha/autoconf.c		standard	device-driver
+alpha/alpha/autoconf.c		standard
 alpha/alpha/cpuconf.c		standard
 alpha/alpha/atomic.s		standard
 alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
@@ -92,13 +92,13 @@ alpha/tc/tcasic.c		optional	tcasic
 alpha/tc/tc.c			optional	tc
 alpha/tc/ioasic.c		optional	tc
 alpha/tc/mcclock_ioasic.c	optional	tc
-alpha/tc/if_le_ioasic.c		optional	le device-driver
-alpha/tc/if_le_dec.c		optional	le device-driver
-alpha/tc/am7990.c		optional	le device-driver
-alpha/tc/tcds.c			optional	tcds device-driver
-alpha/tc/tcds_dma.c		optional	tcds device-driver
-alpha/tc/esp.c			optional	esp device-driver
-dev/dec/mcclock.c		optional	mcclock device-driver
+alpha/tc/if_le_ioasic.c		optional	le
+alpha/tc/if_le_dec.c		optional	le
+alpha/tc/am7990.c		optional	le
+alpha/tc/tcds.c			optional	tcds
+alpha/tc/tcds_dma.c		optional	tcds
+alpha/tc/esp.c			optional	esp
+dev/dec/mcclock.c		optional	mcclock
 mcclock_if.o			optional	mcclock			\
 	dependency	"mcclock_if.c"					\
 	compile-with	"${NORMAL_C}"					\
@@ -149,32 +149,32 @@ libkern/alpha/htonl.S		standard
 libkern/alpha/htons.S		standard
 libkern/alpha/ntohl.S		standard
 libkern/alpha/ntohs.S		standard
-isa/sio.c			optional	sio device-driver
-dev/fb/fb.c			optional	fb	device-driver
-dev/fb/fb.c			optional	vga	device-driver
-dev/fb/vga.c			optional	vga	device-driver
-isa/vga_isa.c			optional	vga	device-driver
+isa/sio.c			optional	sio
+dev/fb/fb.c			optional	fb
+dev/fb/fb.c			optional	vga
+dev/fb/vga.c			optional	vga
+isa/vga_isa.c			optional	vga
 dev/fb/splash.c			optional	splash
-dev/kbd/atkbd.c			optional	atkbd	device-driver
-isa/atkbd_isa.c			optional	atkbd	device-driver
-dev/kbd/atkbdc.c		optional	atkbdc	device-driver
-isa/atkbdc_isa.c		optional	atkbdc	device-driver
-dev/kbd/kbd.c			optional	atkbd	device-driver
-dev/kbd/kbd.c			optional	kbd	device-driver
-dev/kbd/kbd.c			optional	ukbd	device-driver
-dev/syscons/syscons.c		optional	sc	device-driver
-dev/syscons/schistory.c		optional	sc	device-driver
-dev/syscons/scmouse.c		optional	sc	device-driver
-dev/syscons/scvgarndr.c		optional	sc	device-driver
-dev/syscons/scvidctl.c		optional	sc	device-driver
-dev/syscons/scvtb.c		optional	sc	device-driver
-isa/syscons_isa.c		optional	sc	device-driver
-isa/psm.c			optional	psm	device-driver
-isa/fd.c			optional	fd	device-driver
-dev/ata/ata-all.c		optional	ata	device-driver
-dev/ata/ata-dma.c		optional	ata	device-driver
-dev/ata/atapi-all.c		optional	ata	device-driver
-dev/ata/ata-disk.c		optional	atadisk	device-driver
-dev/ata/atapi-cd.c		optional	atapicd	device-driver
-dev/ata/atapi-fd.c		optional	atapifd	device-driver
-dev/ata/atapi-tape.c		optional	atapist	device-driver
+dev/kbd/atkbd.c			optional	atkbd
+isa/atkbd_isa.c			optional	atkbd
+dev/kbd/atkbdc.c		optional	atkbdc
+isa/atkbdc_isa.c		optional	atkbdc
+dev/kbd/kbd.c			optional	atkbd
+dev/kbd/kbd.c			optional	kbd
+dev/kbd/kbd.c			optional	ukbd
+dev/syscons/syscons.c		optional	sc
+dev/syscons/schistory.c		optional	sc
+dev/syscons/scmouse.c		optional	sc
+dev/syscons/scvgarndr.c		optional	sc
+dev/syscons/scvidctl.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+isa/syscons_isa.c		optional	sc
+isa/psm.c			optional	psm
+isa/fd.c			optional	fd
+dev/ata/ata-all.c		optional	ata
+dev/ata/ata-dma.c		optional	ata
+dev/ata/atapi-all.c		optional	ata
+dev/ata/ata-disk.c		optional	atadisk
+dev/ata/atapi-cd.c		optional	atapicd
+dev/ata/atapi-fd.c		optional	atapifd
+dev/ata/atapi-tape.c		optional	atapist
