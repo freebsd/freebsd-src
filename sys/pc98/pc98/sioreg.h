@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id: sioreg.h,v 1.4 1997/02/22 09:43:45 peter Exp $
+ *	$Id: sioreg.h,v 1.5 1997/04/05 15:05:16 kato Exp $
  */
 
 
@@ -110,6 +110,5 @@
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
 
-#ifndef CONSPEED
-#define CONSPEED (9600)
-#endif
+/* speed to initialize to during chip tests */
+#define	SIO_TEST_SPEED	9600
