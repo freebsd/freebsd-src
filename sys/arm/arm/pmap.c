@@ -2666,9 +2666,8 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 		m->md.pv_list_count--;
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL) {
-			vm_page_flag_clear(m, PG_REFERENCED);
-		}
+		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
+			vm_page_flag_clear(m, PG_WRITEABLE);
 
 		pmap_free_l2_bucket(pv->pv_pmap, l2b, 1);
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
