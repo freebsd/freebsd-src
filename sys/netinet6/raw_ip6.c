@@ -87,6 +87,7 @@
 #include <netinet/in_systm.h>
 #include <netinet6/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/ip6_mroute.h>
 #include <netinet6/icmp6.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
@@ -419,6 +420,15 @@ rip6_ctloutput(so, sopt)
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
+		case MRT6_INIT:
+		case MRT6_DONE:
+		case MRT6_ADD_MIF:
+		case MRT6_DEL_MIF:
+		case MRT6_ADD_MFC:
+		case MRT6_DEL_MFC:
+		case MRT6_PIM:
+			error = ip6_mrouter_get(so, sopt);
+			break;
 		default:
 			error = ip6_ctloutput(so, sopt);
 			break;
@@ -427,6 +437,15 @@ rip6_ctloutput(so, sopt)
 
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
+		case MRT6_INIT:
+		case MRT6_DONE:
+		case MRT6_ADD_MIF:
+		case MRT6_DEL_MIF:
+		case MRT6_ADD_MFC:
+		case MRT6_DEL_MFC:
+		case MRT6_PIM:
+			error = ip6_mrouter_set(so, sopt);
+			break;
 		default:
 			error = ip6_ctloutput(so, sopt);
 			break;
