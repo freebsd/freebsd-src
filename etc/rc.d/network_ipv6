@@ -100,6 +100,23 @@ network6_pass1() {
 		sleep `sysctl -n net.inet6.ip6.dad_count`
 		sleep 1
 
+		# Filter out interfaces on which IPv6 addr init failed.
+		ipv6_working_interfaces=""
+		for i in ${ipv6_network_interfaces}; do
+			laddr=`ifconfig $i inet6 2>/dev/null | \
+				grep 'inet6 fe80:' | \
+				head -1 | grep -v tentative`
+			case ${laddr} in
+			'')
+				;;
+			*)
+				ipv6_working_interfaces="$i \
+					${ipv6_working_interfaces}"
+				;;
+			esac
+		done
+		ipv6_network_interfaces=${ipv6_working_interfaces}
+
 		# gifconfig
 		network6_gif_setup
 
@@ -139,11 +156,11 @@ network6_pass1() {
 			# Enable Router Renumbering, unicast case
 			# (use correct src/dst addr)
 			# rtadvd -P "in ipsec ah/transport/fec0:0:0:1::1-fec0:0:0:10::1/require" \
-				${ipv6_network_interfaces}
+			#	${ipv6_network_interfaces}
 			# Enable Router Renumbering, multicast case
 			# (use correct src addr)
 			# rtadvd -P "in ipsec ah/transport/ff05::2-fec0:0:0:10::1/require" \
-				${ipv6_network_interfaces}
+			#	${ipv6_network_interfaces}
 			;;
 		esac
 
@@ -213,7 +230,8 @@ network6_default_interface_setup() {
 	case ${ipv6_default_interface} in
 	'')
 		for i in ${ipv6_network_interfaces}; do
-			laddr=`ifconfig $i inet6 | grep 'inet6 fe80:' | \
+			laddr=`ifconfig $i inet6 2>/dev/null \
+				| grep 'inet6 fe80:' | \
 				head -1 | grep -v tentative`
 			case ${laddr} in
 			'')
