@@ -2633,8 +2633,9 @@ loop:
 		if (vmio) {
 			bp->b_flags |= B_VMIO;
 #if defined(VFS_BIO_DEBUG)
-			if (vp->v_type != VREG)
-				printf("getblk: vmioing file type %d???\n", vp->v_type);
+			if (vn_canvmio(vp) != TRUE)
+				printf("getblk: VMIO on vnode type %d\n",
+					vp->v_type);
 #endif
 			VOP_GETVOBJECT(vp, &bp->b_object);
 		} else {
