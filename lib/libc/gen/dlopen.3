@@ -73,12 +73,6 @@ When an object is first loaded into the address space in this way, its
 function
 .Fn _init ,
 if any, is called by the dynamic linker.
-(Note that
-.Ql _init
-is the name as expressed in the C language.
-From assembly language, the name would appear as
-.Ql __init
-instead.)
 If
 .Fa path
 has already been placed in the address space in a previous call to
@@ -124,19 +118,6 @@ character string
 .Fa symbol ,
 as it occurs in the shared object identified by
 .Fa handle .
-Note that
-.Fa symbol
-is the assembly language representation of the symbol name.
-The assembly language representation of a C language symbol contains an
-extra underscore at the beginning.
-For example, the symbol
-.Ql foo
-in C would appear as
-.Ql _foo
-in assembly language, and in the
-.Fa symbol
-argument to
-.Fn dlsym .
 The symbols exported by objects added to the address space by 
 .Fn dlopen
 can be accessed only through calls to
@@ -174,7 +155,7 @@ could access the
 .Dq real
 .Fn getpid
 with
-.Li dlsym(RTLD_NEXT, \&"_getpid\&") .
+.Li dlsym(RTLD_NEXT, \&"getpid\&") .
 .Pp
 .Fn dlerror
 returns a null-terminated character string describing the last error that
@@ -205,10 +186,6 @@ Just before removing a shared object in this way, the dynamic linker
 calls the object's
 .Fn _fini
 function, if such a function is defined by the object.
-As with
-.Ql _init ,
-.Ql _fini
-is the C language name of the function.
 If 
 .Fn dlclose
 is successful, it returns a value of 0.
@@ -229,6 +206,13 @@ option to
 .Xr ld 1
 for symbols defined in the executable to become visible to 
 .Fn dlsym .
+.Pp
+In previous implementations, it was necessary to prepend an underscore
+to all external symbols in order to gain symbol
+compatibility with object code compiled from the C language.  This is
+still the case when using the (obsolete)
+.Fl aout
+option to the C language compiler.
 .Sh ERRORS
 .Fn dlopen
 and
