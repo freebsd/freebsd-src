@@ -560,11 +560,13 @@
 	Ultra 2, Ultra 60, Enterprise 220R, and
 	Enterprise 420R.</para>
 
-      <para arch="i386" role="historic">On some systems, the BIOS does not activate
+      <para arch="i386">On some systems, the BIOS does not activate
 	the I/O ports and memory of PC devices, thus making them
-	unusable.  The <literal>PCI_ENABLE_IO_MODES</literal> kernel
-	option forces &os; to enable these devices so that they can be
-	used. &merged;</para>
+	unusable.  The <varname>hw.pci.enable_io_modes</varname>
+	sysctl/boot loader variable (which defaults to
+	<literal>1</literal>, for <quote>enabled</quote>)
+	forces &os; to enable these devices so that they can be
+	used.</para>
 
     </sect3>
 
@@ -2096,6 +2098,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       source file used <literal>//</literal> (C++-style)
       comments. &merged;</para>
 
+    <para>&man.ctags.1; now creates tags for typedefs, structs,
+      unions, and enums by default (implying the <option>-t</option>
+      option).  The new <option>-T</option> reverts to the old
+      behavior.</para>
+
     <para>The &man.daemon.8; program, a command-line interface to
       &man.daemon.3;, has been added.  It detaches itself from its
       controlling terminal and executes a program specified on the
@@ -2209,6 +2216,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.finger.1; now supports a <option>-g</option> flag to
       restrict the printing of GECOS information to the user's full
       name only. &merged;</para>
+
+    <para>&man.finger.1; now supports the <option>-4</option> and
+      <option>-6</option> flags to specify an address family for
+      remote queries. &merged;</para>
 
     <para role="historic">&man.fmt.1; has been rewritten; the rewrite fixes a number
       of bugs compared to its prior behavior. &merged;</para>
@@ -2568,7 +2579,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       flag to list files across a page, a <option>-p</option> flag to
       force printing of a <literal>/</literal> after directories, and
       a <option>-x</option> flag to sort filenames across a
-      page.</para>
+      page. &merged;</para>
 
     <para role="historic">&man.m4.1; now accepts a <option>-s</option> flag to cause
       it to emit <literal>#line</literal> directives for use by
@@ -2911,8 +2922,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       avoid the need to implement complex stack swap
       code. &merged;</para>
 
-    <para>The <option>-v</option> option to &man.rm.1; now displays
-      the entire pathname of a file being removed.</para>
+    <para role="historic">The <option>-v</option> option to &man.rm.1; now displays
+      the entire pathname of a file being removed. &merged;</para>
 
     <para role="historic">&man.route.8; is now more verbose when changing indirect
       routes, in the case of a gateway route that is the same route as
@@ -2994,7 +3005,26 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.sh.1; now supports a <option>-C</option> option to
       prevent existing regular files from being overwritten by output
       redirection, and a <option>-u</option> to give an error if an
-      unset variable is expanded.</para>
+      unset variable is expanded. &merged;</para>
+
+    <para>The &man.sh.1; built-in <command>cd</command> command now
+      supports <option>-L</option> and <option>-P</option> flags to
+      invoke logical or physical modes of operation, respectively.
+      Logical mode is the default, but the default can be changed with
+      the <varname>physical</varname> &man.sh.1; option. &merged;</para>
+
+    <para>The &man.sh.1; built-in <command>jobs</command> command now
+      supports a <option>-s</option> flag to output PIDs only and a
+      <option>-l</option> flag to add PIDs to the output. &merged;</para>
+
+    <para>&man.sh.1; now supports a <command>bind</command> built-in
+      command, which allows the key bindings for the shell's line editor
+      to be changed.</para>
+
+    <para>The &man.sh.1; built-in <command>export</command> and
+      <command>readonly</command> commands now support a
+      <option>-p</option> flag to print their output in
+      <quote>portable</quote> format. &merged;</para>
 
     <para role="historic">&man.sockstat.1; now has <option>-c</option> and
       <option>-l</option> flags for listing connected and listening
@@ -3008,7 +3038,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.split.1; now supports a <option>-a</option> option to
       specify the number of letters to use for the suffix of split
-      files.</para>
+      files. &merged;</para>
 
     <para>In preparation for meeting SUSv2/POSIX
       <filename>&lt;sys/select.h&gt;</filename> requirements,
