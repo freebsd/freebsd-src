@@ -1408,6 +1408,6 @@ usage()
 #ifndef	NO_REGEX
 	(void) fprintf(stderr, " [-m pattern]");
 #endif	/* NO_REGEX */
-	(void) fprintf(stderr, "[ [#%%] file/directory/all]\n");
+	(void) fprintf(stderr, "[[#%%] file/directory/all]\n");
 	exit(1);
 }
