@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/event.h>
 #include <sys/eventhandler.h>
 #include <sys/extattr.h>
 #include <sys/fcntl.h>
@@ -3906,3 +3907,64 @@ vop_unlock_post(void *ap, int rc)
 		ASSERT_VI_UNLOCKED(a->a_vp, "VOP_UNLOCK");
 }
 #endif /* DEBUG_VFS_LOCKS */
+
+static struct klist fs_klist = SLIST_HEAD_INITIALIZER(&fs_klist);
+
+void
+vfs_event_signal(fsid_t *fsid, u_int32_t event, void *data __unused)
+{
+
+	KNOTE(&fs_klist, event);
+}
+
+static int	filt_fsattach(struct knote *kn);
+static void	filt_fsdetach(struct knote *kn);
+static int	filt_fsevent(struct knote *kn, long hint);
+
+struct filterops fs_filtops =
+	{ 0, filt_fsattach, filt_fsdetach, filt_fsevent };
+
+static int
+filt_fsattach(struct knote *kn)
+{
+
+	kn->kn_flags |= EV_CLEAR;
+	SLIST_INSERT_HEAD(&fs_klist, kn, kn_selnext);
+	return (0);
+}
+
+static void
+filt_fsdetach(struct knote *kn)
+{
+
+	SLIST_REMOVE(&fs_klist, kn, knote, kn_selnext);
+}
+
+static int
+filt_fsevent(struct knote *kn, long hint)
+{
+
+	kn->kn_fflags |= hint;
+	return (kn->kn_fflags != 0);
+}
+
+static int
+sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
+{
+	struct vfsidctl vc;
+	int error;
+	struct mount *mp;
+
+	error = SYSCTL_IN(req, &vc, sizeof(vc));
+	if (error)
+		return (error);
+
+	mp = vfs_getvfs(&vc.vc_fsid);
+	if (mp == NULL)
+		return (ENOENT);
+	VCTLTOREQ(&vc, req);
+	return (VFS_SYSCTL(mp, req));
+}
+
+SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_RD,
+        NULL, 0, sysctl_vfs_ctl, "", "Message queue IDs");
