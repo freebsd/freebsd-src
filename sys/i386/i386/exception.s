@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.61 1999/06/01 18:19:36 jlemon Exp $
+ *	$Id: exception.s,v 1.62 1999/06/27 21:31:43 alc Exp $
  */
 
 #include "npx.h"
@@ -142,9 +142,8 @@ IDTVEC(fpu)
 	/*
 	 * Handle like an interrupt (except for accounting) so that we can
 	 * call npx_intr to clear the error.  It would be better to handle
-	 * npx interrupts as traps.  This used to be difficult for nested
-	 * interrupts, but now it is fairly easy - mask nested ones the
-	 * same as SWI_AST's.
+	 * npx interrupts as traps.  Nested interrupts would probably have
+	 * to be converted to ASTs.
 	 */
 	pushl	$0			/* dummy error code */
 	pushl	$0			/* dummy trap type */
@@ -166,13 +165,9 @@ IDTVEC(fpu)
 #ifdef CPL_AND_CML
 	movl	_cml,%eax
 	pushl	%eax			/* save original cml */
-	orl	$SWI_AST_MASK,%eax
-	movl	%eax,_cml
 #else
 	movl	_cpl,%eax
 	pushl	%eax			/* save original cpl */
-	orl	$SWI_AST_MASK,%eax
-	movl	%eax,_cpl
 #endif /* CPL_AND_CML */
 	ECPL_UNLOCK
 	pushl	$0			/* dummy unit to finish intr frame */
@@ -181,8 +176,6 @@ IDTVEC(fpu)
 	pushl	%eax
 	pushl	$0			/* dummy unit to finish intr frame */
 	incl	_cnt+V_TRAP
-	orl	$SWI_AST_MASK,%eax
-	movl	%eax,_cpl
 #endif /* SMP */
 
 	call	_npx_intr
@@ -218,15 +211,9 @@ calltrap:
 	ALIGN_LOCK
 	ECPL_LOCK
 #ifdef CPL_AND_CML
-	movl	_cml,%eax
-	movl	%eax,%ebx		/* keep orig. cml here during trap() */
-	orl	$SWI_AST_MASK,%eax
-	movl	%eax,_cml
+	movl	_cml,%ebx		/* keep orig. cml here during trap() */
 #else
-	movl	_cpl,%eax
-	movl	%eax,%ebx		/* keep orig. cpl here during trap() */
-	orl	$SWI_AST_MASK,%eax
-	movl	%eax,_cpl
+	movl	_cpl,%ebx		/* keep orig. cpl here during trap() */
 #endif
 	ECPL_UNLOCK
 	call	_trap
@@ -270,17 +257,6 @@ IDTVEC(syscall)
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
 	SYSCALL_LOCK
-#if 0
-	ECPL_LOCK			/* restore the locking if ... */
-#endif
-#ifdef CPL_AND_CML
-	movl	$SWI_AST_MASK,_cml
-#else
-	movl	$SWI_AST_MASK,_cpl	/* this critical sections expands */
-#endif
-#if 0
-	ECPL_UNLOCK
-#endif
 	call	_syscall
 
 	/*
@@ -311,17 +287,6 @@ IDTVEC(int0x80_syscall)
 	FAKE_MCOUNT(13*4(%esp))
 	MPLOCKED incl _cnt+V_SYSCALL
 	ALTSYSCALL_LOCK
-#if 0
-	ECPL_LOCK			/* restore the locking if ... */
-#endif
-#ifdef CPL_AND_CML
-	movl	$SWI_AST_MASK,_cml
-#else
-	movl	$SWI_AST_MASK,_cpl	/* this critical sections expands */
-#endif
-#if 0
-	ECPL_UNLOCK
-#endif
 	call	_syscall
 
 	/*

@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.28 1999/06/01 18:20:15 jlemon Exp $
+ *	$Id: ipl.s,v 1.29 1999/07/03 06:33:48 alc Exp $
  */
 
 
@@ -67,6 +67,8 @@ _softnet_imask:	.long	SWI_NET_MASK
 	.globl	_softtty_imask
 _softtty_imask:	.long	SWI_TTY_MASK
 
+	.globl	_astpending
+_astpending:	.long	0
 
 /* pending interrupts blocked by splxxx() */
 	.globl	_ipending
@@ -143,7 +145,6 @@ doreti_next2:
 #endif
 	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
 	jne	doreti_unpend
-doreti_exit:
 #ifdef SMP
 	TEST_CIL
 #endif
@@ -154,32 +155,19 @@ doreti_exit:
 #endif
 	FAST_ICPL_UNLOCK		/* preserves %eax */
 	MPLOCKED decb _intr_nesting_level
-	MEXITCOUNT
-#ifdef CPL_AND_CML
-	/* XXX CPL_AND_CML needs work */
-#error not ready for vm86
-#endif
+
+	/* Check for ASTs that can be handled now. */
+	cmpb	$0,_astpending
+	je	doreti_exit
+	testb	$SEL_RPL_MASK,TF_CS(%esp)
+	jne	doreti_ast
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	je	doreti_exit
 	cmpl	$1,_in_vm86call
-	je	1f			/* want cpl == SWI_AST_PENDING */
-	/*
-	 * XXX
-	 * Sometimes when attempting to return to vm86 mode, cpl is not
-	 * being reset to 0, so here we force it to 0 before returning to
-	 * vm86 mode.  doreti_stop is a convenient place to set a breakpoint.
-	 * When the cpl problem is solved, this code can disappear.
-	 */
-	ICPL_LOCK
-	cmpl	$0,_cpl				/* cpl == 0, skip it */
-	je	1f
-	testl	$PSL_VM,TF_EFLAGS(%esp)		/* going to VM86 mode? */
-	jne	doreti_stop
-	testb	$SEL_RPL_MASK,TF_CS(%esp)	/* to user mode? */
-	je	1f
-doreti_stop:
-	movl	$0,_cpl
-	nop
-1:
-	FAST_ICPL_UNLOCK		/* preserves %eax */
+	jne	doreti_ast
+
+doreti_exit:
+	MEXITCOUNT
 
 #ifdef SMP
 #ifdef INTR_SIMPLELOCK
@@ -310,8 +298,8 @@ doreti_swi:
 #endif
 	pushl	%eax
 	/*
-	 * The SWI_AST handler has to run at cpl = SWI_AST_MASK and the
-	 * SWI_CLOCK handler at cpl = SWI_CLOCK_MASK, so we have to restore
+	 * At least the SWI_CLOCK handler has to run at a possibly strictly
+	 * lower cpl, so we have to restore
 	 * all the h/w bits in cpl now and have to worry about stack growth.
 	 * The worst case is currently (30 Jan 1994) 2 SWI handlers nested
 	 * in dying interrupt frames and about 12 HWIs nested in active
@@ -343,15 +331,10 @@ doreti_swi:
 	jmp	doreti_next
 
 	ALIGN_TEXT
-swi_ast:
-	addl	$8,%esp			/* discard raddr & cpl to get trap frame */
-	cmpl	$1,_in_vm86call
-	je	1f			/* stay in kernel mode */
-	testb	$SEL_RPL_MASK,TF_CS(%esp)
-	je	swi_ast_phantom
-swi_ast_user:
+doreti_ast:
+	movl	$0,_astpending
+	sti
 	movl	$T_ASTFLT,TF_TRAPNO(%esp)
-	movb	$0,_intr_nesting_level	/* finish becoming a trap handler */
 	call	_trap
 	subl	%eax,%eax		/* recover cpl|cml */
 #ifdef CPL_AND_CML
@@ -359,33 +342,6 @@ swi_ast_user:
 #endif
 	movb	$1,_intr_nesting_level	/* for doreti_next to decrement */
 	jmp	doreti_next
-
-	ALIGN_TEXT
-swi_ast_phantom:
-	/*
-	 * check for ast from vm86 mode.  Placed down here so the jumps do
-	 * not get taken for mainline code.
-	 */
-	testl	$PSL_VM,TF_EFLAGS(%esp)
-	jne	swi_ast_user
-1:
-	/*
-	 * These happen when there is an interrupt in a trap handler before
-	 * ASTs can be masked or in an lcall handler before they can be
-	 * masked or after they are unmasked.  They could be avoided for
-	 * trap entries by using interrupt gates, and for lcall exits by
-	 * using by using cli, but they are unavoidable for lcall entries.
-	 */
-	cli
-	ICPL_LOCK
-	MPLOCKED orl $SWI_AST_PENDING, _ipending
-	/* cpl is unlocked in doreti_exit */
-	subl	%eax,%eax
-#ifdef CPL_AND_CML
-	movl	%eax, _cpl
-#endif
-	jmp	doreti_exit	/* SWI_AST is highest so we must be done */
-
 
 	ALIGN_TEXT
 swi_net:

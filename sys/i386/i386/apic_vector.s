@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.40 1999/06/16 03:53:52 tegge Exp $
+ *	$Id: apic_vector.s,v 1.41 1999/07/03 06:33:47 alc Exp $
  */
 
 
@@ -705,8 +705,7 @@ _Xcpuast:
 	movl	_cpl, %eax
 #endif
 	pushl	%eax
-	lock
-	orl	$SWI_AST_PENDING, _ipending
+	movl	$1, _astpending		/* XXX */
 	AVCPL_UNLOCK
 	lock
 	incb	_intr_nesting_level
@@ -976,13 +975,13 @@ _ihandlers:
  *  apic_ipl.s:	splz_unpend
  */
 	.long	_swi_null, swi_net, _swi_null, _swi_null
-	.long	_swi_vm, _swi_null, _softclock, swi_ast
+	.long	_swi_vm, _swi_null, _softclock, _swi_null
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
 	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
-	.long	SWI_VM_MASK, 0, SWI_CLOCK_MASK, SWI_AST_MASK
+	.long	SWI_VM_MASK, 0, SWI_CLOCK_MASK, 0
 
 /* active flag for lazy masking */
 iactive:
