@@ -106,6 +106,7 @@ pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo)
 	}
 	ch = (dir == PCMDIR_PLAY)? &d->play[d->playcount] : &d->rec[d->reccount];
 	*ch = *templ;
+	ch->parent = d;
 	if (chn_init(ch, devinfo, dir)) {
 		device_printf(dev, "chn_init() for %s:%d failed\n",
 		              (dir == PCMDIR_PLAY)? "play" : "record",
@@ -174,6 +175,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
 
+	d->dev = dev;
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
     	sz = (numplay + numrec) * sizeof(pcm_channel *);

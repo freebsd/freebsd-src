@@ -41,7 +41,7 @@ allocchn(snddev_info *d, int direction)
 	pcm_channel *chns = (direction == PCMDIR_PLAY)? d->play : d->rec;
 	int i, cnt = (direction == PCMDIR_PLAY)? d->playcount : d->reccount;
 	for (i = 0; i < cnt; i++) {
-		if (!(chns[i].flags & CHN_F_BUSY)) {
+		if (!(chns[i].flags & (CHN_F_BUSY | CHN_F_DEAD))) {
 			chns[i].flags |= CHN_F_BUSY;
 			return &chns[i];
 		}
@@ -94,8 +94,9 @@ dsp_open(snddev_info *d, int chan, int oflags, int devtype)
 	if (oflags & FWRITE) {
 		if (wrch == NULL) {
 			wrch = allocchn(d, PCMDIR_PLAY);
-			if (!wrch && (oflags & FREAD)) {
-				rdch->flags &= ~CHN_F_BUSY;
+			if (!wrch) {
+				if (rdch && (oflags & FREAD))
+					rdch->flags &= ~CHN_F_BUSY;
 				return EBUSY;
 			}
 		} else return EBUSY;
@@ -171,7 +172,7 @@ dsp_read(snddev_info *d, int chan, struct uio *buf, int flag)
 	getchns(d, chan, &rdch, &wrch);
 	KASSERT(rdch, ("dsp_read: nonexistant channel"));
 	KASSERT(rdch->flags & CHN_F_BUSY, ("dsp_read: nonbusy channel"));
-	if (rdch->flags & CHN_F_MAPPED) return EINVAL;
+	if (rdch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) return EINVAL;
 	if (!(rdch->flags & CHN_F_RUNNING))
 		rdch->flags |= CHN_F_RUNNING;
 	return chn_read(rdch, buf);
@@ -187,7 +188,7 @@ dsp_write(snddev_info *d, int chan, struct uio *buf, int flag)
 	getchns(d, chan, &rdch, &wrch);
 	KASSERT(wrch, ("dsp_write: nonexistant channel"));
 	KASSERT(wrch->flags & CHN_F_BUSY, ("dsp_write: nonbusy channel"));
-	if (wrch->flags & CHN_F_MAPPED) return EINVAL;
+	if (wrch->flags & (CHN_F_MAPPED | CHN_F_DEAD)) return EINVAL;
 	if (!(wrch->flags & CHN_F_RUNNING))
 		wrch->flags |= CHN_F_RUNNING;
 	return chn_write(wrch, buf);
@@ -203,6 +204,12 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 	rdch = d->arec[chan];
 	wrch = d->aplay[chan];
 
+	if (rdch && (rdch->flags & CHN_F_DEAD))
+		rdch = NULL;
+	if (wrch && (wrch->flags & CHN_F_DEAD))
+		wrch = NULL;
+	if (!(rdch || wrch))
+		return EINVAL;
     	/*
      	 * all routines are called with int. blocked. Make sure that
      	 * ints are re-enabled when calling slow or blocking functions!
