@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.19 1996/03/27 21:40:55 ache Exp $
+ * $Id: modem.c,v 1.20 1996/03/27 22:28:19 ache Exp $
  *
  *  TODO:
  */
@@ -449,7 +449,9 @@ int mode;
     rstio.c_cflag |= CLOCAL | CCTS_OFLOW|CRTS_IFLOW;
 #else
     rstio.c_cflag |= CLOCAL;
+    rstio.c_iflag |= IXOFF;
 #endif
+    rstio.c_iflag |= IXON;
     if (!(mode & MODE_DEDICATED))
       rstio.c_cflag |= HUPCL;
     if ((mode & MODE_DIRECT) == 0) {
