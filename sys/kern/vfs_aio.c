@@ -184,7 +184,6 @@ struct aiocblist {
 
 /* jobflags */
 #define AIOCBLIST_RUNDOWN       0x4
-#define AIOCBLIST_ASYNCFREE     0x8
 #define AIOCBLIST_DONE          0x10
 
 /*
@@ -429,13 +428,9 @@ aio_free_entry(struct aiocblist *aiocbe)
 		panic("aio_free_entry: missing p->p_aioinfo");
 
 	while (aiocbe->jobstate == JOBST_JOBRUNNING) {
-		if (aiocbe->jobflags & AIOCBLIST_ASYNCFREE)
-			return 0;
 		aiocbe->jobflags |= AIOCBLIST_RUNDOWN;
 		tsleep(aiocbe, PRIBIO, "jobwai", 0);
 	}
-	aiocbe->jobflags &= ~AIOCBLIST_ASYNCFREE;
-
 	if (aiocbe->bp == NULL) {
 		if (ki->kaio_queue_count <= 0)
 			panic("aio_free_entry: process queue size <= 0");
@@ -913,21 +908,9 @@ aio_daemon(void *uproc)
 
 			aiocbe->jobstate = JOBST_JOBFINISHED;
 
-			/*
-			 * If the I/O request should be automatically rundown,
-			 * do the needed cleanup.  Otherwise, place the queue
-			 * entry for the just finished I/O request into the done
-			 * queue for the associated client.
-			 */
 			s = splnet();
-			if (aiocbe->jobflags & AIOCBLIST_ASYNCFREE) {
-				aiocbe->jobflags &= ~AIOCBLIST_ASYNCFREE;
-				uma_zfree(aiocb_zone, aiocbe);
-			} else {
-				TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
-				TAILQ_INSERT_TAIL(&ki->kaio_jobdone, aiocbe,
-				    plist);
-			}
+			TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
+			TAILQ_INSERT_TAIL(&ki->kaio_jobdone, aiocbe, plist);
 			splx(s);
 			KNOTE(&aiocbe->klist, 0);
 
