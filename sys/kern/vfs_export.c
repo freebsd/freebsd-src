@@ -113,6 +113,9 @@ SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 
 static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
 
+int enable_userblk_io = 1;
+SYSCTL_INT(_vfs, OID_AUTO, enable_userblk_io, CTLFLAG_RW, &enable_userblk_io, 0, "");
+
 #ifdef ENABLE_VFS_IOOPT
 int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
