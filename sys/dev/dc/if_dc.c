@@ -3539,7 +3539,8 @@ dc_stop(struct dc_softc *sc)
 	 */
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
 		if (cd->dc_tx_chain[i] != NULL) {
-			if (ld->dc_tx_list[i].dc_ctl & DC_TXCTL_SETUP) {
+			if ((ld->dc_tx_list[i].dc_ctl & DC_TXCTL_SETUP) ||
+			    !(ld->dc_tx_list[i].dc_ctl & DC_TXCTL_LASTFRAG)) {
 				cd->dc_tx_chain[i] = NULL;
 				continue;
 			}
