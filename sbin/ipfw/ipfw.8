@@ -13,7 +13,7 @@
 .Cm add
 .Ar rule
 .Nm
-.Op Fl acdeftNS
+.Op Fl acdeftnNS
 .Brq Cm list | show
 .Op Ar number ...
 .Nm
@@ -54,7 +54,7 @@
 .Op Ar number ...
 .Pp
 .Nm
-.Op Fl q
+.Op Fl nq
 .Oo
 .Fl p Ar preproc
 .Oo
@@ -220,6 +220,9 @@ Don't ask for confirmation for commands that can cause problems
 if misused,
 .No i.e. Cm flush .
 If there is no tty associated with the process, this is implied.
+.It Fl n
+Only check syntax of the command strings, without actually passing
+them to the kernel.
 .It Fl N
 Try to resolve addresses and service names in output.
 .It Fl q
@@ -385,6 +388,24 @@ ipfw add 10 skipto 4000 all from any to any layer2 out
 .Pp
 (yes, at the moment there is no way to differentiate between
 ether_demux and bdg_forward).
+.Sh SYNTAX
+In general, each keyword or argument must be provided as
+a separate command line argument, with no leading or trailing
+spaces. Keywords are case-sensitive, whereas arguments may
+or may not be case-sensitive depending on their nature
+(e.g. uid's are, hostnames are not).
+.Pp
+In
+.Nm ipfw2
+you can introduce spaces after commas ',' to make
+the line more readable. You can also put the entire
+command (including flags) into a single argument.
+E.g. the following forms are equivalent:
+.Bd -literal -offset indent
+ipfw -q add deny src-ip 10.0.0.0/24,127.0.0.1/8
+ipfw -q add deny src-ip 10.0.0.0/24, 127.0.0.1/8
+ipfw "-q add deny src-ip 10.0.0.0/24, 127.0.0.1/8"
+.Ed
 .Sh RULE FORMAT
 The format of
 .Nm
@@ -684,7 +705,7 @@ The rule body has the following format:
 .Op Ar options
 .Ed
 .Pp
-The first part (protocol from src to dst) is for backward
+The first part (proto from src to dst) is for backward
 compatibility with
 .Nm ipfw1 .
 In
@@ -697,9 +718,8 @@ section.
 Rule fields have the following meaning:
 .Bl -tag -width indent
 .It Ar proto : protocol | Cm { Ar protocol Cm or ... }
-An IPv4 protocol (or an
-.Em or-block
-with multiple protocols) specified by number or name
+.It Ar protocol : Oo Cm not Oc Ar protocol-name | protocol-number
+An IPv4 protocol specified by number or name
 (for a complete list see
 .Pa /etc/protocols ) .
 The
@@ -707,27 +727,33 @@ The
 or
 .Cm all
 keywords mean any protocol will match.
-.It Ar src No and Ar dst : ip-address | Cm { Ar ip-address Cm or ... } Op Oo Cm not Oc Ar ports
-A single
-.Ar ip-address
-, or an
-.Em or-block
-containing one or more of them,
+.Pp
+The
+.Cm { Ar protocol Cm or ... }
+format (an
+.Em or-block )
+is provided for convenience only but its use is deprecated.
+.It Ar src No and Ar dst : Bro Cm addr | Cm { Ar addr Cm or ... } Brc Op Oo Cm not Oc Ar ports
+An address (or a list, see below)
 optionally followed by
 .Ar ports
 specifiers.
-.It Ar ip-address :
-An address (or set of addresses) specified in one of the following
-ways, optionally preceded by a
-.Cm not
-operator:
-.Bl -tag -width indent
+.Pp
+The second format (
+.Em or-block
+with multiple addresses) is provided for convenience only and
+its use is discouraged.
+.It Ar addr : Oo Cm not Oc Brq Cm any | me | Ar addr-list | Ar addr-set
 .It Cm any
 matches any IP address.
 .It Cm me
 matches any IP address configured on an interface in the system.
 The address list is evaluated at the time the packet is
 analysed.
+.It Ar addr-list : ip-addr Ns Op Ns , Ns Ar addr-list
+.It Ar ip-addr :
+A host or subnet address specified in one of the following ways:
+.Bl -tag -width indent
 .It Ar numeric-ip | hostname
 Matches a single IPv4 address, specified as dotted-quad or a hostname.
 Hostnames are resolved at the time the rule is added to the firewall list.
@@ -740,27 +766,6 @@ and mask width of
 bits.
 As an example, 1.2.3.4/25 will match
 all IP numbers from 1.2.3.0 to 1.2.3.127 .
-.It Ar addr Ns / Ns Ar masklen Ns Cm { Ns Ar num,num,... Ns Cm }
-Matches all addresses with base address
-.Ar addr
-(specified as a dotted quad or a hostname)
-and whose last byte is in the list between braces { } .
-Note that there must be no spaces between braces, commas and
-numbers.
-The
-.Ar masklen
-field is used to limit the size of the set of addresses,
-and can have any value between 24 and 32.
-.br
-As an example, an address specified as 1.2.3.4/24{128,35,55,89}
-will match the following IP addresses:
-.br
-1.2.3.128 1.2.3.35 1.2.3.55 1.2.3.89 .
-.br
-This format is particularly useful to handle sparse address sets
-within a single rule. Because the matching occurs using a
-bitmask, it takes constant time and dramatically reduces
-the complexity of rulesets.
 .It Ar addr Ns : Ns Ar mask
 Matches all addresses with base
 .Ar addr
@@ -776,7 +781,32 @@ masks, and resort to the
 format for contiguous masks, which is more compact and less
 error-prone.
 .El
-.It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ports
+.It Ar addr-set : addr Ns Oo Ns / Ns Ar masklen Oc Ns Cm { Ns Ar list Ns Cm }
+.It Ar list : Bro Ar num | num-num Brc Ns Op Ns , Ns Ar list
+Matches all addresses with base address
+.Ar addr
+(specified as a dotted quad or a hostname)
+and whose last byte is in the list between braces { } .
+Note that there must be no spaces between braces and
+numbers (spaces after commas are allowed).
+Elements of the list can be specified as single entries
+or ranges.
+The
+.Ar masklen
+field is used to limit the size of the set of addresses,
+and can have any value between 24 and 32. If not specified,
+it will be assumed as 24.
+.br
+This format is particularly useful to handle sparse address sets
+within a single rule. Because the matching occurs using a
+bitmask, it takes constant time and dramatically reduces
+the complexity of rulesets.
+.br
+As an example, an address specified as 1.2.3.4/24{128,35-55,89}
+will match the following IP addresses:
+.br
+1.2.3.128, 1.2.3.35 to 1.2.3.55, 1.2.3.89 .
+.It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Ns Op , Ns Ar ports
 For protocols which support port numbers (such as TCP and UDP), optional
 .Cm ports
 may be specified as one or more ports or port ranges, separated
@@ -1704,6 +1734,11 @@ have in writing your rulesets.
 You might want to consider using these features in order to
 write your rulesets in a more efficient way.
 .Bl -tag -width indent
+.It Syntax and flags
+.Nm ipfw1
+does not support the -n flag (only test syntax),
+nor it allows spaces after commas or supports all
+rule fields in a single argument.
 .It Handling of non-IPv4 packets
 .Nm ipfw1
 will silently accept all non-IPv4 packets (which
@@ -1728,11 +1763,9 @@ so the
 pattern will always fail on them, and the
 .Cm not
 operator will make this rule into a pass-all.
-.It Address sets
+.It Addresses
 .Nm ipfw1
-does not supports address sets (those in the form
-.Ar addr/masklen{num,num,...}
-).
+does not supports address sets or lists of addresses.
 .Pp
 .It Port specifications
 .Nm ipfw1
