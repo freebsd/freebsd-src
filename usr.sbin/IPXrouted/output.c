@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: output.c,v 1.6 1997/02/22 16:00:58 peter Exp $
  */
 
 #ifndef lint
@@ -55,9 +55,10 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
  * the output to the known router.
  */
 void
-toall(f, except)
-	void (*f)(struct sockaddr *, int, struct interface *);
+toall(f, except, changesonly)
+	void (*f)(struct sockaddr *, int, struct interface *, int);
 	struct rt_entry *except;
+	int changesonly;
 {
 	register struct interface *ifp;
 	register struct sockaddr *dst;
@@ -89,7 +90,7 @@ toall(f, except)
 		      ifp->int_flags & IFF_POINTOPOINT ? &ifp->int_dstaddr :
 		      &ifp->int_addr;
 		flags = ifp->int_flags & IFF_INTERFACE ? MSG_DONTROUTE : 0;
-		(*f)(dst, flags, ifp);
+		(*f)(dst, flags, ifp, changesonly);
 	}
 }
 
@@ -97,10 +98,11 @@ toall(f, except)
  * Output a preformed packet.
  */
 void
-sndmsg(dst, flags, ifp)
+sndmsg(dst, flags, ifp, changesonly)
 	struct sockaddr *dst;
 	int flags;
 	struct interface *ifp;
+	int changesonly;
 {
 
 	(*afswitch[dst->sa_family].af_output)
@@ -120,20 +122,20 @@ sndmsg(dst, flags, ifp)
  *    clones.
  */
 void
-supply(dst, flags, ifp)
+supply(dst, flags, ifp, changesonly)
 	struct sockaddr *dst;
 	int flags;
 	struct interface *ifp;
+	int changesonly;
 {
 	register struct rt_entry *rt;
 	register struct rt_entry *crt; /* Clone route */
 	register struct rthash *rh;
 	register struct netinfo *nn;
 	register struct netinfo *n = msg->rip_nets;
-	struct rthash *base = hosthash;
 	struct sockaddr_ipx *sipx =  (struct sockaddr_ipx *) dst;
 	af_output_t *output = afswitch[dst->sa_family].af_output;
-	int doinghost = 1, size, metric, ticks;
+	int size, metric, ticks;
 	union ipx_net net;
 	int delay = 0;
 
@@ -141,8 +143,7 @@ supply(dst, flags, ifp)
 		sipx->sipx_port = htons(IPXPORT_RIP);
 
 	msg->rip_cmd = ntohs(RIPCMD_RESPONSE);
-again:
-	for (rh = base; rh < &base[ROUTEHASHSIZ]; rh++)
+	for (rh = nethash; rh < &nethash[ROUTEHASHSIZ]; rh++)
 	for (rt = rh->rt_forw; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
 		size = (char *)n - (char *)msg;
 		if (size >= ((MAXRIPNETS * sizeof (struct netinfo)) +
@@ -152,10 +153,13 @@ again:
 			n = msg->rip_nets;
 			delay++; 
 			if(delay == 2) {
-				usleep(20000);
+				usleep(50000);
 				delay = 0;
 			}
 		}
+
+		if (changesonly && !(rt->rt_state & RTS_CHANGED))
+			continue;
 
 		/*
 		 * This should do rule one and two of the split horizon
@@ -218,11 +222,6 @@ again:
 		n->rip_ticks = htons(ticks);
 		n++;
 	next:;
-	}
-	if (doinghost) {
-		doinghost = 0;
-		base = nethash;
-		goto again;
 	}
 	if (n != msg->rip_nets) {
 		size = (char *)n - (char *)msg;

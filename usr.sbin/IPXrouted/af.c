@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: af.c,v 1.4 1997/02/22 16:00:54 peter Exp $
  */
 
 #ifndef lint
@@ -93,14 +93,32 @@ ipxnet_hash(sipx, hp)
 	register struct sockaddr_ipx *sipx;
 	struct afhash *hp;
 {
-	register long hash = 0;
-	register u_short *s = sipx->sipx_addr.x_host.s_host;
-	union ipx_net_u net;
+	long hash;
+#if 0
+	u_short *s = sipx->sipx_addr.x_host.s_host;
+#endif
+	u_char *c;
 
-	net.net_e = sipx->sipx_addr.x_net;
-	hp->afh_nethash = net.long_e;
+	c = sipx->sipx_addr.x_net.c_net;
+
+#define IMVAL	33
+	hash = 0;
+	hash = hash * IMVAL + *c++;
+	hash = hash * IMVAL + *c++;
+	hash = hash * IMVAL + *c++;
+	hash = hash * IMVAL + *c++;
+#undef IMVAL
+
+	hp->afh_nethash = hash;
+	hp->afh_nethash ^= (hash >> 8);
+	hp->afh_nethash ^= (hash >> 16);
+	hp->afh_nethash ^= (hash >> 24);
+
+#if 0
+	hash = 0;
 	hash = *s++; hash <<= 8; hash += *s++; hash <<= 8; hash += *s;
 	hp->afh_hosthash = hash;
+#endif
 }
 
 int

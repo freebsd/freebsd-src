@@ -36,7 +36,7 @@
  *
  *	@(#)table.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id$
+ *	$Id: table.h,v 1.4 1997/02/22 16:01:02 peter Exp $
  */
 
 /*
@@ -91,7 +91,7 @@ struct rt_entry {
 #define	rt_ticks	rt_rtu.rtu_entry.rtu_ticks	/* time of route */
 #define	rt_ifp		rt_rtu.rtu_entry.rtu_ifp	/* interface to take */
 
-#define	ROUTEHASHSIZ	32		/* must be a power of 2 */
+#define	ROUTEHASHSIZ	128		/* must be a power of 2 */
 #define	ROUTEHASHMASK	(ROUTEHASHSIZ - 1)
 
 /*
@@ -103,7 +103,6 @@ struct rt_entry {
 #define	RTS_REMOTE	IFF_REMOTE	/* route is for ``remote'' entity */
 
 extern struct	rthash nethash[ROUTEHASHSIZ];
-extern struct	rthash hosthash[ROUTEHASHSIZ];
 struct	rt_entry *rtlookup(struct sockaddr *);
 struct	rt_entry *rtfind(struct sockaddr *);
 void	rtadd(struct sockaddr *, struct sockaddr *, short, short, int);

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: main.c,v 1.6 1997/02/22 16:00:57 peter Exp $
  */
 
 #ifndef lint
@@ -85,6 +85,8 @@ char	**argv0;
 
 int	supplier = -1;		/* process should supply updates */
 int	dosap = 1;		/* By default do SAP services. */
+int	dobcast = 1;		/* A RIP/SAP broadcast is needed. */
+time_t	lastbcast;		/* Time of last RIP/SAP broadcast */
 
 struct	rip *msg = (struct rip *) &packet[sizeof (struct ipx)]; 
 struct	sap_packet *sap_msg = 
@@ -93,6 +95,7 @@ void	hup(), fkexit(), timer();
 void	process(int fd, int pkt_type);
 int	getsocket(int type, int proto, struct sockaddr_ipx *sipx);
 void	getinfo();
+void	catchtimer();
 
 int
 main(argc, argv)
@@ -101,6 +104,8 @@ main(argc, argv)
 {
 	int nfds;
 	fd_set fdvar;
+	time_t ttime;
+	struct itimerval tval;
 
 	argv0 = argv;
 	argv++, argc--;
@@ -203,24 +208,35 @@ main(argc, argv)
 	msg->rip_nets[0].rip_dst = ipx_anynet;
 	msg->rip_nets[0].rip_metric =  htons(HOPCNT_INFINITY);
 	msg->rip_nets[0].rip_ticks =  htons(-1);
-	toall(sndmsg, NULL);
+	toall(sndmsg, NULL, 0);
 
 	if (dosap) {
 		sap_msg->sap_cmd = htons(SAP_REQ);
 		sap_msg->sap[0].ServType = htons(SAP_WILDCARD);
-		toall(sapsndmsg, NULL);
+		toall(sapsndmsg, NULL, 0);
 	}
 
-	signal(SIGALRM, timer);
+	signal(SIGALRM, catchtimer);
 	signal(SIGHUP, hup);
 	signal(SIGINT, hup);
 	signal(SIGEMT, fkexit);
 	signal(SIGINFO, getinfo);
-	timer();
-	
+ 
+	tval.it_interval.tv_sec = TIMER_RATE;
+	tval.it_interval.tv_usec = 0;
+	tval.it_value.tv_sec = TIMER_RATE;
+	tval.it_value.tv_usec = 0;
+	setitimer(ITIMER_REAL, &tval, NULL);
+
 	nfds = 1 + max(sapsock, ripsock);
 
 	for (;;) {
+		if (dobcast) {
+			dobcast = 0;
+			lastbcast = time(NULL);
+			timer();
+		}
+
 		FD_ZERO(&fdvar);
 		if (dosap) {
 			FD_SET(sapsock, &fdvar);
@@ -240,6 +256,12 @@ main(argc, argv)
 
 		if(dosap && FD_ISSET(sapsock, &fdvar))
 			process(sapsock, SAP_PKT);
+
+		ttime = time(NULL);
+		if (ttime > (lastbcast + TIMER_RATE + (TIMER_RATE * 2 / 3))) {
+			dobcast = 1;
+			syslog(LOG_ERR, "Missed alarm");
+		}
 	}
 }
 
@@ -319,7 +341,11 @@ getsocket(type, proto, sipx)
 		if (ntohs(sipx->sipx_addr.x_port) == IPXPORT_RIP)
 			ipxdp.ipx_pt = IPXPROTO_RI;
 		else if (ntohs(sipx->sipx_addr.x_port) == IPXPORT_SAP)
+#ifdef IPXPROTO_SAP
 			ipxdp.ipx_pt = IPXPROTO_SAP;
+#else
+			ipxdp.ipx_pt = IPXPROTO_PXP;
+#endif
 		else {
 			syslog(LOG_ERR, "port should be either RIP or SAP");
 			exit(1);
@@ -344,6 +370,12 @@ fkexit()
 {
 	if (fork() == 0)
 		exit(0);
+}
+
+void
+catchtimer()
+{
+	dobcast = 1;
 }
 
 void
