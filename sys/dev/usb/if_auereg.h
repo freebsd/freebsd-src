@@ -59,6 +59,8 @@
 #define AUE_UR_READREG		0xF0
 #define AUE_UR_WRITEREG		0xF1
 
+#define AUE_CONFIG_NO		1
+
 /*
  * Note that while the ADMtek technically has four
  * endpoints, the control endpoint (endpoint 0) is
@@ -203,7 +205,6 @@ struct aue_rxpkt {
 struct aue_type {
 	u_int16_t		aue_vid;
 	u_int16_t		aue_did;
-	char			*aue_name;
 };
 
 #define AUE_TX_LIST_CNT		1

@@ -121,6 +121,8 @@ struct kue_ether_desc {
 #define KUE_CTL_READ		0x01
 #define KUE_CTL_WRITE		0x02
 
+#define KUE_CONFIG_NO		1
+
 /*
  * The interrupt endpoint is currently unused
  * by the KLSI part.
@@ -133,7 +135,6 @@ struct kue_ether_desc {
 struct kue_type {
 	u_int16_t		kue_vid;
 	u_int16_t		kue_did;
-	char			*kue_name;
 };
 
 struct kue_softc;
