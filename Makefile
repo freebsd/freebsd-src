@@ -56,13 +56,6 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If -DWANT_AOUT is specified, a `make world' with OBJFORMAT=elf will
-# update the legacy support for aout. This includes all libraries, ld.so
-# and boot objects. This part of build should be regarded as
-# deprecated and you should _not_ expect to be able to do this past the
-# release of 4.0. You have exactly one major release to move entirely
-# to elf.
-#
 # If TARGET_ARCH=arch (e.g. ia64, sparc64, ...) is specified you can
 # cross build world for other architectures using the buildworld target,
 # and once the world is built you can cross build a kernel using the
@@ -86,9 +79,6 @@
 # several times. On each occasion, you can type Ctrl-C to abort the
 # upgrade.  Optionally, you can also start it with NOCONFIRM=yes and skip
 # the confirmation steps.
-#
-# At the end of the upgrade procedure, /etc/objformat is created or
-# updated to contain OBJFORMAT=elf. From then on, you're elf by default.
 #
 # ----------------------------------------------------------------------------
 #
@@ -132,7 +122,7 @@ STARTTIME!= LC_ALL=C date
 #
 world: upgrade_checks
 	@echo "--------------------------------------------------------------"
-	@echo ">>> ${OBJFORMAT} make world started on ${STARTTIME}"
+	@echo ">>> elf make world started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .if target(pre-world)
 	@echo
@@ -152,7 +142,7 @@ world: upgrade_checks
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@printf ">>> ${OBJFORMAT} make world completed on `LC_ALL=C date`\n                       (started ${STARTTIME})\n"
+	@printf ">>> elf make world completed on `LC_ALL=C date`\n                       (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
 
 #

@@ -698,18 +698,14 @@ case ${ldconfig_insecure} in
 	;;
 esac
 if [ -x /sbin/ldconfig ]; then
-	case `/usr/bin/objformat` in
-	elf)
-		_LDC=/usr/lib
-		for i in ${ldconfig_paths}; do
-			if [ -d "${i}" ]; then
-				_LDC="${_LDC} ${i}"
-			fi
-		done
-		echo 'ELF ldconfig path:' ${_LDC}
-		${ldconfig} -elf ${_LDC}
-		;;
-	esac
+	_LDC=/usr/lib
+	for i in ${ldconfig_paths}; do
+		if [ -d "${i}" ]; then
+			_LDC="${_LDC} ${i}"
+		fi
+	done
+	echo 'ELF ldconfig path:' ${_LDC}
+	${ldconfig} ${_LDC}
 
 	# Legacy aout support for i386 only
 	case `sysctl -n hw.machine_arch` in

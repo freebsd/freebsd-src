@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-#if defined(__ELF__) && (defined(__i386__) || defined(__sparc64__))
+#if defined(__i386__) || defined(__sparc64__)
 extern char *minbrk asm (".minbrk");
 #else
 extern char *minbrk asm ("minbrk");

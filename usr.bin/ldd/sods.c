@@ -34,14 +34,12 @@ __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
 
-#define FREEBSD_AOUT
-
 #include <a.out.h>
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
-#include <link.h>
+#include <sys/link_aout.h>
 #include <stab.h>
 #include <stdio.h>
 #include <stdlib.h>

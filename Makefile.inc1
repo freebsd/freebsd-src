@@ -156,7 +156,6 @@ WORLDTMP=	${OBJTREE}${.CURDIR}/${MACHINE_ARCH}
 # /usr/games added for fortune which depend on strfile
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
-OBJFORMAT_PATH?=	/usr/libexec
 
 INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 
@@ -186,7 +185,6 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		CPUTYPE=${TARGET_CPUTYPE} \
-		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
@@ -222,11 +220,10 @@ IMAKEENV=	${CROSSENV} \
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 # kernel stage
-KMAKEENV=	${WMAKEENV} \
-		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec:${OBJFORMAT_PATH}
+KMAKEENV=	${WMAKEENV}
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
-		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc \
+		usr/libexec usr/sbin usr/share/misc \
 		usr/share/dict \
 		usr/share/groff_font/devX100 \
 		usr/share/groff_font/devX100-12 \
@@ -654,7 +651,7 @@ _xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
 
 cross-tools:
 .for _tool in ${_btxld} ${_elf2aout} ${_elf2exe} \
-    gnu/usr.bin/binutils usr.bin/objformat usr.sbin/crunch/crunchide \
+    gnu/usr.bin/binutils usr.sbin/crunch/crunchide \
     gnu/usr.bin/cc ${_xlint}
 	${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
@@ -689,8 +686,8 @@ libraries:
 # shared libraries for ELF.
 #
 _startup_libs=	gnu/lib/csu gnu/lib/libgcc
-.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-${OBJFORMAT})
-_startup_libs+=	lib/csu/${MACHINE_ARCH}-${OBJFORMAT}
+.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
+_startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
 .else
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
 .endif

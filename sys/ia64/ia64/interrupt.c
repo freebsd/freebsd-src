@@ -37,8 +37,6 @@
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 
-/* __KERNEL_RCSID(0, "$NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $");*/
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

@@ -23,6 +23,7 @@ SUBDIR=	atrun \
 	rpc.rwalld \
 	rpc.sprayd \
 	rshd \
+	rtld-elf \
 	save-entropy \
 	talkd \
 	tcpd \
@@ -38,13 +39,6 @@ SUBDIR+=named-xfer
 SUBDIR+=mail.local smrsh
 .endif
 
-.if ${OBJFORMAT} == aout
-SUBDIR+=rtld-aout
-.endif
-
-.if ${OBJFORMAT} == elf
-SUBDIR+=rtld-elf
-.endif
 
 .if defined(RELEASEDIR) || \
     (!exists(${.CURDIR}/../secure) && !exists(${.CURDIR}/../kerberosIV)) || \

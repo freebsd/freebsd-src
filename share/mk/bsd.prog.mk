@@ -82,14 +82,9 @@ CLEANFILES+= ${PROG} ${OBJS}
 
 .if defined(PROG)
 _EXTRADEPEND:
-.if ${OBJFORMAT} == aout
-	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} \
-	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
-.else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX)
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
-.endif
 .endif
 .endif
 
@@ -186,9 +181,7 @@ tags: ${SRCS}
 .include <bsd.man.mk>
 .endif
 
-.if ${OBJFORMAT} != aout || make(checkdpadd) || defined(NEED_LIBNAMES)
 .include <bsd.libnames.mk>
-.endif
 
 .include <bsd.dep.mk>
 

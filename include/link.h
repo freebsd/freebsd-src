@@ -30,8 +30,4 @@
  * $FreeBSD$
  */
 
-#if (defined(FREEBSD_ELF) || defined(__ELF__)) && !defined(FREEBSD_AOUT)
 #include <sys/link_elf.h>
-#else
-#include <sys/link_aout.h>
-#endif

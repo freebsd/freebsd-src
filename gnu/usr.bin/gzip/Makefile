@@ -31,7 +31,7 @@ MLINKS+= zgrep.1 zfgrep.1 zgrep.1 zegrep.1
 .endif
 
 match.o: ${.CURDIR}/match.S
-	$(CC) -E -traditional ${.CURDIR}/match.S >_match.s
+	$(CC) -E -DNO_UNDERLINE -traditional ${.CURDIR}/match.S >_match.s
 	$(CC) -c _match.s
 	mv -f _match.o match.o
 	rm -f _match.s

@@ -227,17 +227,11 @@ SUBDIR+=vacation
 
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
-SUBDIR+=ar \
-	doscmd \
+SUBDIR+=doscmd \
 	ncplist \
 	ncplogin \
-	nm \
-	ranlib \
 	sasc \
-	size \
-	smbutil \
-	strings \
-	strip
+	smbutil
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"

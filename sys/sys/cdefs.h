@@ -184,7 +184,6 @@
 #ifdef __GNUC__
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)));
-#ifdef __ELF__
 #ifdef __STDC__
 #define	__weak_reference(sym,alias)	\
 	__asm__(".weak " #alias);	\
@@ -202,31 +201,10 @@
 	__asm__(".asciz \"msg\"");	\
 	__asm__(".previous")
 #endif	/* __STDC__ */
-#else	/* !__ELF__ */
-#ifdef __STDC__
-#define	__weak_reference(sym,alias)	\
-	__asm__(".stabs \"_" #alias "\",11,0,0,0");	\
-	__asm__(".stabs \"_" #sym "\",1,0,0,0")
-#define	__warn_references(sym,msg)	\
-	__asm__(".stabs \"" msg "\",30,0,0,0");		\
-	__asm__(".stabs \"_" #sym "\",1,0,0,0")
-#else
-#define	__weak_reference(sym,alias)	\
-	__asm__(".stabs \"_/**/alias\",11,0,0,0");	\
-	__asm__(".stabs \"_/**/sym\",1,0,0,0")
-#define	__warn_references(sym,msg)	\
-	__asm__(".stabs msg,30,0,0,0");			\
-	__asm__(".stabs \"_/**/sym\",1,0,0,0")
-#endif	/* __STDC__ */
-#endif	/* __ELF__ */
 #endif	/* __GNUC__ */
 
 #ifdef __GNUC__
-#ifdef __ELF__
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
-#else
-#define	__IDSTRING(name,string)	__asm__(".data\n\t.asciz\t\"" string "\"\n\t.previous")
-#endif
 #else
 /*
  * This doesn't work in header files. But it may be better than nothing.

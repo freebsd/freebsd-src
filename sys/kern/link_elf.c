@@ -55,9 +55,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-#ifdef __AOUT__
-#include <sys/nlist_aout.h>
-#endif
 #include <sys/link_elf.h>
 
 #include "linker_if.h"
@@ -177,7 +174,6 @@ extern struct _dynamic _DYNAMIC;
 static void
 link_elf_init(void* arg)
 {
-#ifdef __ELF__
     Elf_Dyn	*dp;
     caddr_t	modptr, baseptr, sizeptr;
     elf_file_t	ef;
@@ -185,11 +181,9 @@ link_elf_init(void* arg)
 #ifdef DDB
     char *newfilename;
 #endif
-#endif
 
     linker_add_class(&link_elf_class);
 
-#ifdef __ELF__
     dp = (Elf_Dyn*) &_DYNAMIC;
     modname = NULL;
     modptr = preload_search_by_type("elf kernel");
@@ -239,8 +233,6 @@ link_elf_init(void* arg)
     r_debug.r_state = RT_CONSISTENT;
 
     r_debug_state(NULL, NULL);	/* say hello to gdb! */
-#endif
-
 #endif
 }
 

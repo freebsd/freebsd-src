@@ -13,11 +13,10 @@ CFLAGS+= -I. -I${.CURDIR}
 LINTFLAGS=-aehpz
 
 BINDIR=	/usr/libexec
-OBJFORMAT_PATH?= ${BINDIR}	# src/Makefile.inc1 sets this
 
 .PATH: ${.CURDIR}/../common
 
 lint.7: makeman
-	sh ${.CURDIR}/makeman ${OBJFORMAT_PATH}/${PROG} -m >${.TARGET}
+	sh ${.CURDIR}/makeman ${BINDIR}/${PROG} -m >${.TARGET}
 
 .include <bsd.prog.mk>

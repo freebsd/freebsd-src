@@ -32,8 +32,8 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libstand ${_libtelnet} libufs libugidfw libusbhid ${_libvgl} \
 	libwrap libxpg4 liby libz
 
-.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
-_csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
+.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
+_csu=csu/${MACHINE_ARCH}-elf
 .elif exists(${.CURDIR}/csu/${MACHINE_ARCH}/Makefile)
 _csu=csu/${MACHINE_ARCH}
 .else

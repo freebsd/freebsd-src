@@ -29,11 +29,11 @@
 
 		.set SIO_PRT,SIOPRT		# Base port
 
-		.globl _(sio_putchr)
+		.globl sio_putchr
 
 # void sio_putchr(int c)
 
-_(sio_putchr):	movw $SIO_PRT+0x5,%dx		# Line status reg
+sio_putchr:	movw $SIO_PRT+0x5,%dx		# Line status reg
 		xor %ecx,%ecx			# Timeout
 		movb $0x40,%ch			#  counter
 sio_putchr.1:	inb %dx,%al			# Transmitter
