@@ -9,12 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by Bill Paul.
-.\" 4. Neither the name of the author nor the names of any co-contributors
-.\"    may be used to endorse or promote products derived from this software
-.\"   without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY Sam Leffler AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -35,14 +29,18 @@
 .Os
 .Sh NAME
 .Nm "Fast IPsec"
-.Nd Hardware-accelerated IP Security Protocols
+.Nd hardware-accelerated IP Security Protocols
 .Sh SYNOPSIS
 .Cd "options FAST_IPSEC"
 .Cd "device crypto"
 .Pp
-.Cd net.inet.esp.enable
-.Cd net.inet.ah.enable
-.Cd net.inet.ipcomp.enable
+.Bl -item -compact
+.It
+.Va net.inet.esp.enable
+.It
+.Va net.inet.ah.enable
+.It
+.Va net.inet.ipcomp.enable
 .El
 .Sh DESCRIPTION
 .Tn IPsec
@@ -55,51 +53,64 @@ and
 .Tn IPComp
 (for IP Payload Compression Protocol)
 that provide security services for IP datagrams.
-.Tn Fast IPsec
+.Nm
 is an experimental implementation of these protocols that uses the
 .Xr crypto 4
 subsystem to carry out cryptographic operations.
-This means, in particular, that cryptograph hardware devices are
+This means, in particular, that cryptographic hardware devices are
 employed whenever possible to optimize the performance of these protocols.
 .Pp
-In general the
-.Tn Fast IPsec
+In general, the
+.Nm
 implementation is intended to be compatible with the
-KAME
-.Tn IPsec
+.Tn KAME IPsec
 implementation.
 This documentation concentrates on differences from that software.
 The user should refer to
 .Xr ipsec 4
 for basic information on setting up and using these protocols.
 .Pp
-System configuration requires the crypto subsystem.
+System configuration requires the
+.Xr crypto 4
+subsystem.
 When the
-.Tn Fast IPsec
-protocols are configured for use all protocols are included in the system.
-To selectively enable/disable protocols use
+.Nm
+protocols are configured for use, all protocols are included in the system.
+To selectively enable/disable protocols, use
 .Xr sysctl 8 .
 .Sh DIAGNOSTICS
 To be added.
 .Sh BUGS
 There is presently no support for IPv6.
-The IPcomp protocol support does not work.
+.Pp
+The
+.Tn IPcomp
+protocol support does not work.
+.Pp
 Certain legacy authentication algorithms are not supported because of
-issues with the crypto subsystem.
+issues with the
+.Xr crypto 4
+subsystem.
+.Pp
 This documentation is incomplete.
 .Sh SEE ALSO
+.Xr crypto 4 ,
 .Xr ipsec 4 ,
 .Xr setkey 8 ,
 .Xr sysctl 8
 .Sh HISTORY
-The protocols draw heavily on the OpenBSD implementation of the
+The protocols draw heavily on the
+.Ox
+implementation of the
 .Tn IPsec
 protocols.
-The policy management code is derived from the KAME implementation found
+The policy management code is derived from the
+.Tn KAME
+implementation found
 in their
 .Tn IPsec
 protocols.
 The
-.Tn Fast IPsec
+.Nm
 protocols first appeared in
 .Fx 5.0 .
