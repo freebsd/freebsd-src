@@ -69,6 +69,12 @@ struct ipcp {
       struct in_addr nbns[2];		/* NetBIOS NS addresses offered */
     } ns;
 
+    struct {
+      unsigned nports;			/* How many urgent ports */
+      unsigned maxports;		/* How many allocated urgent ports */
+      u_short *port;			/* The urgent ports */
+    } urgent;
+
     struct fsm_retry fsm;	/* How often/frequently to resend requests */
   } cfg;
 
@@ -93,10 +99,11 @@ struct ipcp {
   u_int32_t my_reject;			/* Request codes I have rejected */
 
   struct pppThroughput throughput;	/* throughput statistics */
-  struct mqueue Queue[PRI_FAST + 1];	/* Output packet queues */
+  struct mqueue Queue[3];		/* Output packet queues */
 };
 
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
+#define IPCP_QUEUES(ipcp) (sizeof ipcp->Queue / sizeof ipcp->Queue[0])
 
 struct bundle;
 struct link;
@@ -104,6 +111,7 @@ struct cmdargs;
 
 extern void ipcp_Init(struct ipcp *, struct bundle *, struct link *,
                       const struct fsm_parent *);
+extern void ipcp_Destroy(struct ipcp *);
 extern void ipcp_Setup(struct ipcp *, u_int32_t);
 extern void ipcp_SetLink(struct ipcp *, struct link *);
 
@@ -116,4 +124,8 @@ extern int  ipcp_UseHisaddr(struct bundle *, const char *, int);
 extern int  ipcp_vjset(struct cmdargs const *);
 extern void ipcp_CleanInterface(struct ipcp *);
 extern int  ipcp_InterfaceUp(struct ipcp *);
+extern int  ipcp_IsUrgentPort(struct ipcp *, u_short, u_short);
+extern void ipcp_AddUrgentPort(struct ipcp *, u_short);
+extern void ipcp_RemoveUrgentPort(struct ipcp *, u_short);
+extern void ipcp_ClearUrgentPorts(struct ipcp *);
 extern struct in_addr addr2mask(struct in_addr);
