@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces 
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.2 1995/02/04 21:32:02 wpaul Exp $
+**	$Id: server.c,v 1.3 1995/02/07 05:04:53 wpaul Exp $
 **
 */
 
@@ -96,7 +96,7 @@ void verr(fmt, ap)
     if (debug_flag)
 	vfprintf(stderr, fmt, ap);
     else
-	vsyslog(LOG_AUTH, fmt, ap);
+	vsyslog(LOG_NOTICE, fmt, ap);
 }
 
 void
