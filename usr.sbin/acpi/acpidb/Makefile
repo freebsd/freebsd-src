@@ -35,6 +35,7 @@ SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c \
 	utmisc.c utobject.c utxface.c
 
 MAN=	acpidb.8
+WARNS?=	2
 
 CFLAGS+= -DACPI_APPLICATION -DACPI_DEBUG_OUTPUT -DACPI_DEBUGGER \
 	-DACPI_DISASSEMBLER
