@@ -565,7 +565,7 @@ pcic_probe ()
 		/*
 		 *	Check for a card in this slot.
 		 */
-		setb (sp, PCIC_POWER, PCIC_APSENA | PCIC_DISRST);
+		setb (sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
 		if ((getb (sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
 			slotp->laststate = slotp->state = empty;
 		} else {
@@ -615,7 +615,7 @@ pcic_ioctl(struct slot *slotp, int cmd, caddr_t data)
 static int
 pcic_power(struct slot *slotp)
 {
-	unsigned char reg = PCIC_DISRST|PCIC_APSENA;
+	unsigned char reg = PCIC_DISRST|PCIC_PCPWRE;
 	struct pcic_slot *sp = slotp->cdata;
 
 	switch(sp->controller) {
