@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.22 1999/04/04 20:41:50 obrien Exp $
+# $Id: Makefile,v 1.23 1999/04/04 20:47:33 obrien Exp $
 #
 
 GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
@@ -82,7 +82,8 @@ NEW2POBJS=	${NEW2FUNCS:S/$/.po/}
 OBJS=		${LIB1OBJS} ${LIB2OBJS} ${NEW1OBJS} ${NEW2OBJS}
 
 config.h:
-	echo '#include "${MACHINE_ARCH}/xm-freebsd.h"' > ${.TARGET}
+	echo '#include <${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h>' > ${.TARGET}
+	echo '#include <xm-freebsd.h>' >> ${.TARGET}
 
 tconfig.h:
 	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' > ${.TARGET}
