@@ -41,64 +41,39 @@
 # Script to produce device front-end sugar.
 #
 
-$debug = 0;
-$cfile = 0;          # by default do not produce any file type
-$hfile = 0;
-
-$keepcurrentdir = 1;
+use Getopt::Std;
 
 $line_width = 80;
 
 # Process the command line
 #
-while ( $arg = shift @ARGV ) {
-   if ( $arg eq '-c' ) {
-      warn "Producing .c output files"
-         if $debug;
-      $cfile = 1;
-   } elsif ( $arg eq '-h' ) {
-      warn "Producing .h output files"
-         if $debug;
-      $hfile = 1;
-   } elsif ( $arg eq '-ch' || $arg eq '-hc' ) {
-      warn "Producing .c and .h output files"
-         if $debug;
-      $cfile = 1;
-      $hfile = 1;
-   } elsif ( $arg eq '-d' ) {
-      $debug = 1;
-   } elsif ( $arg eq '-p' ) {
-      warn "Will produce files in original not in current directory"
-         if $debug;
-      $keepcurrentdir = 0;
-   } elsif ( $arg eq '-l' ) {
-      if ( $line_width = shift @ARGV and $line_width > 0 ) {
-         warn "Line width set to $line_width"
-            if $debug;
-      } else {
-         die "Please specify a valid line width after -l";
-      }
-   } elsif ( $arg =~ m/\.m$/ ) {
-      warn "Filename: $arg"
-         if $debug;
-      push @filenames, $arg;
-   } else {
-      warn "$arg ignored"
-         if $debug;
-   }
+getopts('cdhl:p')
+   or usage();
+
+warn "Will produce files in original not in current directory"
+   if $opt_d && $opt_p;
+
+if (defined($opt_l)) {
+   die("Invalid line width '$opt_l'\n")
+      unless ($opt_l =~ m/^\d*$/ && $opt_l > 0);
+   $line_width = $opt_l;
+   warn "Line width set to $line_width"
+      if $opt_d;
+}
+
+foreach $arg (@ARGV) {
+   die("Invalid filename '$arg'\n")
+      unless ($arg =~ m/\.m$/);
+   warn "Filename: $arg"
+      if $opt_d;
+   push @filenames, $arg;
 }
 
 
 # Validate the command line parameters
 #
-die "usage: $0 [-d] [-p] [-l <nr>] [-c|-h] srcfile
-where -c   produce only .c files
-      -h   produce only .h files
-      -p   use the path component in the source file for destination dir
-      -l   set line width for output files [80]
-      -d   switch on debugging
-"
-        unless ($cfile or $hfile)
+&usage()
+   unless ($opt_c or $opt_h)
            and $#filenames != -1;
 
 # FIXME should be able to do this more easily
@@ -124,21 +99,21 @@ foreach $src ( @filenames ) {
 
    ($name, $path, $suffix) = &fileparse($src, '.m');
    $path = '.'
-      if $keepcurrentdir;
+      unless $opt_p;
    $cfilename="$path/$name.c";
    $hfilename="$path/$name.h";
 
    warn "Processing from $src to $cfilename / $hfilename via $ctmpname / $htmpname"
-      if $debug;
+      if $opt_d;
 
    die "Could not open $src, $!"
       if !open SRC, "$src";
    die "Could not open $ctmpname, $!"
-      if $cfile and !open CFILE, ">$ctmpname";
+      if $opt_c and !open CFILE, ">$ctmpname";
    die "Could not open $htmpname, $!"
-      if $hfile and !open HFILE, ">$htmpname";
+      if $opt_h and !open HFILE, ">$htmpname";
 
-   if ( $cfile ) {
+   if ( $opt_c ) {
       # Produce the header of the C file
       #
       print CFILE "/*\n";
@@ -159,7 +134,7 @@ foreach $src ( @filenames ) {
       print CFILE "#include <sys/bus_private.h>\n";
    }
 
-   if ( $hfile ) {
+   if ( $opt_h ) {
       # Produce the header of the H file
       #
       print HFILE "/*\n";
@@ -187,9 +162,9 @@ foreach $src ( @filenames ) {
       #
       if ( $line =~ m/^#\s*include\s+(["<])([^">]+)([">]).*/i ) {
          warn "Included file: $1$2" . ($1 eq '<'? '>':'"')
-            if $debug;
+            if $opt_d;
          print CFILE "#include $1$2" . ($1 eq '<'? '>':'"') . "\n"
-            if $cfile;
+            if $opt_c;
       }
 
       $line =~ s/#.*//;                # remove comments
@@ -203,7 +178,7 @@ foreach $src ( @filenames ) {
          $semicolon = $2;
          unless ( $intname =~ m/^[a-z_][a-z0-9_]*$/ ) {
             warn $line
-               if $debug;
+               if $opt_d;
             warn "$src:$lineno: Invalid interface name '$intname', use [a-z_][a-z0-9_]*";
             $error = 1;
             last LINE;
@@ -213,14 +188,14 @@ foreach $src ( @filenames ) {
             if $semicolon !~ s/;$//;
 
          warn "Interface $intname"
-            if $debug;
+            if $opt_d;
 
          print HFILE '#ifndef _'.$intname."_if_h_\n"
-            if $hfile;
+            if $opt_h;
          print HFILE '#define _'.$intname."_if_h_\n\n"
-            if $hfile;
+            if $opt_h;
          print CFILE '#include "'.$intname.'_if.h"'."\n\n"
-            if $cfile;
+            if $opt_c;
       } elsif ( $line =~ m/^CODE\s*{$/i ) {
          $code = "";
          $line = <SRC>;
@@ -232,7 +207,7 @@ foreach $src ( @filenames ) {
             $line = <SRC>;
             $lineno++
          }
-         if ( $cfile ) {
+         if ( $opt_c ) {
              print CFILE "\n".$code."\n";
          }
       } elsif ( $line =~ m/^HEADER\s*{$/i ) {
@@ -246,7 +221,7 @@ foreach $src ( @filenames ) {
             $line = <SRC>;
             $lineno++
          }
-         if ( $hfile ) {
+         if ( $opt_h ) {
              print HFILE $header;
          }
       } elsif ( $line =~ m/^(STATIC|)METHOD/i ) {
@@ -266,11 +241,11 @@ foreach $src ( @filenames ) {
          $ret = join(" ", @ret);    # return type
 
          warn "Method: name=$name return type=$ret"
-            if $debug;
+            if $opt_d;
          
          if ( !$name or !$ret ) {
             warn $line
-               if $debug;
+               if $opt_d;
             warn "$src:$lineno: Invalid method specification";
             $error = 1;
             last LINE;
@@ -278,7 +253,7 @@ foreach $src ( @filenames ) {
 
          unless ( $name =~ m/^[a-z_][a-z_0-9]*$/ ) {
             warn $line
-               if $debug;
+               if $opt_d;
             warn "$src:$lineno: Invalid method name '$name', use [a-z_][a-z0-9_]*";
             $error = 1;
             last LINE;
@@ -308,7 +283,7 @@ foreach $src ( @filenames ) {
             $default = $1;
          } else {
             warn "$src:$lineno: Ignored '$1'"  # warn about garbage at end of line
-               if $debug and $1;
+               if $opt_d and $1;
          }
 
          # Create a list of variables without the types prepended
@@ -335,7 +310,7 @@ foreach $src ( @filenames ) {
 
          warn 'Arguments: ' . join(', ', @arguments) . "\n"
             . 'Varnames: ' . join(', ', @varnames)
-            if $debug;
+            if $opt_d;
 
          $mname = $intname.'_'.$name;  # method name
          $umname = uc($mname);         # uppercase method name
@@ -345,11 +320,11 @@ foreach $src ( @filenames ) {
 
          $default = "0" if $default eq "";
 
-         if ( $hfile ) {
+         if ( $opt_h ) {
             # the method description 
             print HFILE "extern struct device_op_desc $mname\_desc;\n";
             # the method typedef
-	    my $prototype = "typedef $ret $mname\_t(";
+            my $prototype = "typedef $ret $mname\_t(";
             print HFILE &format_line("$prototype$arguments);",
                               $line_width, ', ', ',',' ' x length($prototype))
                       . "\n";
@@ -357,7 +332,7 @@ foreach $src ( @filenames ) {
             print HFILE "$mname\_t $umname;\n\n";
          }
 
-         if ( $cfile ) {
+         if ( $opt_c ) {
             # Print out the method desc
             print CFILE "struct device_op_desc $mname\_desc = {\n";
             print CFILE "\t0, 0, (devop_t) $default, \"$mname\"\n";
@@ -368,10 +343,10 @@ foreach $src ( @filenames ) {
                print CFILE "$ret $umname($varnames)\n";
                print CFILE "\t".join(";\n\t", @arguments).";\n";
             } else {
-	       my $prototype = "$ret $umname(";
+               my $prototype = "$ret $umname(";
                print CFILE &format_line("$prototype$arguments)",
                               $line_width, ', ', ',', ' ' x length($prototype))
-			 . "\n";
+                         . "\n";
             }
             print CFILE "{\n";
             if ($static) {
@@ -388,7 +363,7 @@ foreach $src ( @filenames ) {
          }
       } else {
          warn $line
-            if $debug;
+            if $opt_d;
          warn "$src:$lineno: Invalid line encountered";
          $error = 1;
          last LINE;
@@ -398,21 +373,21 @@ foreach $src ( @filenames ) {
    # print the final '#endif' in the header file
    #
    print HFILE "#endif /* _".$intname."_if_h_ */\n"
-      if $hfile;
+      if $opt_h;
 
    close SRC;
    close CFILE
-      if $cfile;
+      if $opt_c;
    close HFILE
-      if $hfile;
+      if $opt_h;
 
    if ( !$error ) {
-      if ( $cfile ) {
+      if ( $opt_c ) {
          ($rc = system("mv $ctmpname $cfilename"))
             and warn "mv $ctmpname $cfilename failed, $rc";
       }
 
-      if ( $hfile ) {
+      if ( $opt_h ) {
          ($rc = system("mv $htmpname $hfilename"))
             and warn "mv $htmpname $hfilename failed, $rc";
       }
@@ -426,6 +401,17 @@ foreach $src ( @filenames ) {
 
 exit $gerror;
 
+
+sub usage {
+    die join("\n", @_,
+        "usage: $0 [-d] [-p] [-l <nr>] [-c|-h] srcfile",
+        "where -c   produce only .c files",
+        "      -h   produce only .h files",
+        "      -p   use the path component in the source file for destination dir",
+        "      -l   set line width for output files [80]",
+        "      -d   switch on debugging")
+        . "\n";
+}
 
 sub format_line {
    my ($line, $maxlength, $break, $new_end, $new_start) = @_;
