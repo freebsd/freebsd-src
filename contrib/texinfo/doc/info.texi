@@ -1,9 +1,9 @@
 \input texinfo    @c -*-texinfo-*-
-@comment %**start of header 
+@comment %**start of header
 @setfilename info.info
-@settitle Info 1.0
-@comment %**end of header 
-@comment $Id: info.texi,v 1.4 1997/07/10 21:58:11 karl Exp $
+@settitle Info
+@comment %**end of header
+@comment $Id: info.texi,v 1.11 1999/04/19 21:37:23 karl Exp $
 
 @dircategory Texinfo documentation system
 @direntry
@@ -11,10 +11,10 @@
 @end direntry
 
 @ifinfo
-This file describes how to use Info, 
-the on-line, menu-driven GNU documentation system.
+This file describes how to use Info, the on-line, menu-driven GNU
+documentation system.
 
-Copyright (C) 1989, 92, 96, 97 Free Software Foundation, Inc.
+Copyright (C) 1989, 92, 96, 97, 98, 99 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -44,10 +44,9 @@ by the Free Software Foundation.
 @author Brian Fox
 @page
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1989, 1992, 1993, 1996, 1997 Free Software
+Copyright @copyright{} 1989, 92, 93, 96, 97, 98, 99 Free Software
 Foundation, Inc.
 @sp 2
-
 Published by the Free Software Foundation @*
 59 Temple Place - Suite 330 @*
 Boston, MA 02111-1307, USA.
@@ -67,31 +66,20 @@ except that this permission notice may be stated in a translation approved
 by the Free Software Foundation.
 @end titlepage
 
-@ifinfo
-@node Top, Getting Started, , (dir)
+@ifnottex
+@node Top
 @top Info: An Introduction
 
 Info is a program for reading documentation, which you are using now.
 
 To learn how to use Info, type the command @kbd{h}.  It brings you
 to a programmed instruction sequence.
-
-@c Need to make sure that `Info-help' goes to the right node, 
-@c which is the first node of the first chapter. (It should.) 
-@c   (Info-find-node "info"
-@c                (if (< (window-height) 23)
-@c                    "Help-Small-Screen"
-@c                  "Help")))
-
-To learn advanced Info commands, type @kbd{n} twice.  This brings you to
-@cite{Info for Experts}, skipping over the `Getting Started' chapter.
-@end ifinfo
+@end ifnottex
 
 @menu
 * Getting Started::             Getting started using an Info reader.
 * Advanced Info::               Advanced commands within Info.
-* Create an Info File::         How to make your own Info file.
-* The Standalone Info Program: (info-stnd.info).
+* Creating an Info File::       How to make your own Info file.
 @end menu
 
 @node Getting Started, Advanced Info, Top, Top
@@ -101,7 +89,7 @@ To learn advanced Info commands, type @kbd{n} twice.  This brings you to
 This first part of the Info manual describes how to get around inside
 of Info.  The second part of the manual describes various advanced
 Info commands, and how to write an Info as distinct from a Texinfo
-file.  The third part is about how to generate Info files from 
+file.  The third part is about how to generate Info files from
 Texinfo files.
 
 @iftex
@@ -110,7 +98,7 @@ try Info commands while reading about them.  Reading it on paper is less
 effective, since you must take it on faith that the commands described
 really do what the manual says.  By all means go through this manual now
 that you have it; but please try going through the on-line version as
-well.  
+well.
 
 There are two ways of looking at the online version of this manual:
 
@@ -340,7 +328,7 @@ Info can interpret it.  The beginning of a menu is always identified
 by a line which starts with @samp{* Menu:}.  A node contains a menu if and
 only if it has a line in it which starts that way.  The only menu you
 can use at any moment is the one in the node you are in.  To use a
-menu in any other node, you must move to that node first. 
+menu in any other node, you must move to that node first.
 
   After the start of the menu, each line that starts with a @samp{*}
 identifies one subtopic.  The line usually contains a brief name
@@ -427,16 +415,14 @@ what you have entered.
 not need to type the argument: you just type a Return, and it stands for
 the subtopic of the line you are on.
 
-Here is a menu to give you a chance to practice.
+Here is a menu to give you a chance to practice.  This menu gives you
+three ways of going to one place, Help-FOO:
 
-* Menu:    The menu starts here.
-
-This menu gives you three ways of going to one place, Help-FOO.
-
-* Foo:  Help-FOO.       A node you can visit for fun.@*
-* Bar:  Help-FOO.       Strange!  two ways to get to the same place.@*
-* Help-FOO::            And yet another!@*
-
+@menu
+* Foo:  Help-FOO.       A node you can visit for fun.
+* Bar:  Help-FOO.       Strange!  two ways to get to the same place.
+* Help-FOO::            And yet another!
+@end menu
 
 >>  Now type just an @kbd{m} and see what happens:
 
@@ -559,17 +545,16 @@ to cancel the @samp{f}.
 @c It is an accident of the menu updating command.
 
 @node Help-Cross,  ,  , Help-Adv
-@comment  node-name,  next,  previous,  up
-@unnumberedsubsec The node reached by the cross reference in Info
+@subsection The node reached by the cross reference in Info
 
   This is the node reached by the cross reference named @samp{Cross}.
 
   While this node is specifically intended to be reached by a cross
-reference, most cross references lead to nodes that ``belong''
-someplace else far away in the structure of Info.  So you cannot expect
-the footnote to have a @samp{Next}, @samp{Previous} or @samp{Up} pointing back to
-where you came from.  In general, the @kbd{l} (el) command is the only
-way to get back there.
+reference, most cross references lead to nodes that ``belong'' someplace
+else far away in the structure of Info.  So you cannot expect the
+footnote to have a @samp{Next}, @samp{Previous} or @samp{Up} pointing
+back to where you came from.  In general, the @kbd{l} (el) command is
+the only way to get back there.
 
 >> Type @kbd{l} to return to the node where the cross reference was.
 
@@ -590,15 +575,15 @@ manner.
    @samp{mInfo} and Return, to get to the node about Info and
    see what other help is available.
 
-@node Advanced Info, Create an Info File, Getting Started, Top
-@comment  node-name,  next,  previous,  up
+
+@node Advanced Info
 @chapter Info for Experts
 
 This chapter describes various advanced Info commands, and how to write
 an Info as distinct from a Texinfo file.  (However, in most cases, writing a
 Texinfo file is better, since you can use it @emph{both} to generate an
 Info file and to make a printed manual.  @xref{Top,, Overview of
-Texinfo, texinfo, Texinfo: The GNU Documentation Format}.)
+Texinfo, texinfo, Texinfo}.)
 
 @menu
 * Expert::               Advanced Info commands: g, s, e, and 1 - 5.
@@ -639,12 +624,12 @@ type @kbd{s} followed by the string to search for, terminated by
 @key{RET}.  To search for the same string again, just @kbd{s} followed
 by @key{RET} will do.  The file's nodes are scanned in the order
 they are in in the file, which has no necessary relationship to the
-order that they may be in in the tree structure of menus and @samp{next} pointers.
-But normally the two orders are not very different.  In any case,
-you can always do a @kbd{b} to find out what node you have reached, if
-the header is not visible (this can happen, because @kbd{s} puts your
-cursor at the occurrence of the string, not at the beginning of the
-node).
+order that they may be in in the tree structure of menus and @samp{next}
+pointers.  But normally the two orders are not very different.  In any
+case, you can always do a @kbd{b} to find out what node you have
+reached, if the header is not visible (this can happen, because @kbd{s}
+puts your cursor at the occurrence of the string, not at the beginning
+of the node).
 
 If you grudge the system each character of type-in it requires, you
 might like to use the commands @kbd{1}, @kbd{2}, @kbd{3}, @kbd{4}, ...
@@ -652,9 +637,9 @@ might like to use the commands @kbd{1}, @kbd{2}, @kbd{3}, @kbd{4}, ...
 argument.  @kbd{1} goes through the first item in the current node's
 menu; @kbd{2} goes through the second item, etc.
 
-If you display supports multiple fonts, and you are using Emacs' Info
+If your display supports multiple fonts, and you are using Emacs' Info
 mode to read Info files, the @samp{*} for the fifth menu item is
-underlines, and so is the @samp{*} for the ninth item; these underlines
+underlined, and so is the @samp{*} for the ninth item; these underlines
 make it easy to see at a glance which number to use for an item.
 
 On ordinary terminals, you won't have underlining.  If you need to
@@ -678,12 +663,12 @@ Create some nodes, in some file, to document that topic.
 Put that topic in the menu in the directory.  @xref{Menus, Menu}.
 @end enumerate
 
-Usually, the way to create the nodes is with Texinfo @pxref{Top,, Overview of
-Texinfo, texinfo, Texinfo: The GNU Documentation Format}); this has the
-advantage that you can also make a printed manual from them.  However,
-if hyou want to edit an Info file, here is how.
+Usually, the way to create the nodes is with Texinfo (@pxref{Top,,
+Overview of Texinfo, texinfo, Texinfo}); this has the advantage that you
+can also make a printed manual from them.  However, if you want to edit
+an Info file, here is how.
 
-  The new node can live in an existing documentation file, or in a new
+The new node can live in an existing documentation file, or in a new
 one.  It must have a @key{^_} character before it (invisible to the
 user; this node has one but you cannot see it), and it ends with either
 a @key{^_}, a @key{^L}, or the end of file.  Note: If you put in a
@@ -693,12 +678,12 @@ Also, a nicer way to make a node boundary be a page boundary as well
 is to put a @key{^L} @emph{right after} the @key{^_}.
 
   The @key{^_} starting a node must be followed by a newline or a
-@key{^L} newline, after which comes the node's header line.  The
-header line must give the node's name (by which Info finds it),
-and state the names of the @samp{Next}, @samp{Previous}, and @samp{Up} nodes (if
-there are any).  As you can see, this node's @samp{Up} node is the node
-@samp{Top}, which points at all the documentation for Info.  The @samp{Next}
-node is @samp{Menus}.
+@key{^L} newline, after which comes the node's header line.  The header
+line must give the node's name (by which Info finds it), and state the
+names of the @samp{Next}, @samp{Previous}, and @samp{Up} nodes (if there
+are any).  As you can see, this node's @samp{Up} node is the node
+@samp{Top}, which points at all the documentation for Info.  The
+@samp{Next} node is @samp{Menus}.
 
   The keywords @dfn{Node}, @dfn{Previous}, @dfn{Up}, and @dfn{Next},
 may appear in any order, anywhere in the header line, but the
@@ -728,10 +713,10 @@ node @kbd{*} is to make it possible to make old-fashioned,
 unstructured files into nodes of the tree.
 
   The @samp{Node:} name, in which a node states its own name, must not
-contain a filename, since Info when searching for a node does not
-expect one to be there.  The @samp{Next}, @samp{Previous} and @samp{Up} names may
-contain them.  In this node, since the @samp{Up} node is in the same file,
-it was not necessary to use one.
+contain a filename, since Info when searching for a node does not expect
+one to be there.  The @samp{Next}, @samp{Previous} and @samp{Up} names
+may contain them.  In this node, since the @samp{Up} node is in the same
+file, it was not necessary to use one.
 
   Note that the nodes in this file have a file name in the header
 line.  The file names are ignored by Info, but they serve as comments
@@ -741,7 +726,7 @@ to help identify the node for the user.
 @comment  node-name,  next,  previous,  up
 @section How to Create Menus
 
-  Any node in the Info hierarchy may have a @dfn{menu}---a list of subnodes. 
+  Any node in the Info hierarchy may have a @dfn{menu}---a list of subnodes.
 The @kbd{m} command searches the current node's menu for the topic which it
 reads from the terminal.
 
@@ -766,11 +751,11 @@ short abbreviations.  In a long menu, it is a good idea to capitalize
 the beginning of each item name which is the minimum acceptable
 abbreviation for it (a long menu is more than 5 or so entries).
 
-  The nodes listed in a node's menu are called its ``subnodes'', and
-it is their ``superior''.  They should each have an @samp{Up:} pointing at
-the superior.  It is often useful to arrange all or most of the
-subnodes in a sequence of @samp{Next} and @samp{Previous} pointers so that someone who
-wants to see them all need not keep revisiting the Menu.
+  The nodes listed in a node's menu are called its ``subnodes'', and it
+is their ``superior''.  They should each have an @samp{Up:} pointing at
+the superior.  It is often useful to arrange all or most of the subnodes
+in a sequence of @samp{Next} and @samp{Previous} pointers so that
+someone who wants to see them all need not keep revisiting the Menu.
 
   The Info Directory is simply the menu of the node @samp{(dir)Top}---that
 is, node @samp{Top} in file @file{.../info/dir}.  You can put new entries
@@ -816,7 +801,7 @@ They are just examples.  The places they ``lead to'' do not really exist!
 
   You can speed up the access to nodes of a large Info file by giving
 it a tag table.  Unlike the tag table for a program, the tag table for
-an Info file lives inside the file itself and is used 
+an Info file lives inside the file itself and is used
 automatically whenever Info reads in the file.
 
   To make a tag table, go to a node in the file using Emacs Info mode and type
@@ -847,24 +832,24 @@ the beginning of the node's header (ending just after the node name),
 a Delete character, and the character position in the file of the
 beginning of the node.
 
+
 @node Checking, Emacs Info Variables, Tags, Advanced Info
-@comment  node-name,  next,  previous,  up
 @section Checking an Info File
 
-  When creating an Info file, it is easy to forget the name of a node
-when you are making a pointer to it from another node.  If you put in
-the wrong name for a node, this is not detected until someone
-tries to go through the pointer using Info.  Verification of the Info
-file is an automatic process which checks all pointers to nodes and
-reports any pointers which are invalid.  Every @samp{Next}, @samp{Previous}, and
+When creating an Info file, it is easy to forget the name of a node when
+you are making a pointer to it from another node.  If you put in the
+wrong name for a node, this is not detected until someone tries to go
+through the pointer using Info.  Verification of the Info file is an
+automatic process which checks all pointers to nodes and reports any
+pointers which are invalid.  Every @samp{Next}, @samp{Previous}, and
 @samp{Up} is checked, as is every menu item and every cross reference.  In
-addition, any @samp{Next} which does not have a @samp{Previous} pointing back is
-reported.  Only pointers within the file are checked, because checking
-pointers to other files would be terribly slow.  But those are usually
-few.
+addition, any @samp{Next} which does not have a @samp{Previous} pointing
+back is reported.  Only pointers within the file are checked, because
+checking pointers to other files would be terribly slow.  But those are
+usually few.
 
-  To check an Info file, do @kbd{M-x Info-validate} while looking at
-any node of the file with Emacs Info mode.
+To check an Info file, do @kbd{M-x Info-validate} while looking at any
+node of the file with Emacs Info mode.
 
 @node Emacs Info Variables, , Checking, Advanced Info
 @section Emacs Info-mode Variables
@@ -894,18 +879,17 @@ The standard directory for Info documentation files.  Only used when the
 function @code{Info-directory} is called.
 @end vtable
 
-@node Create an Info File,  , Advanced Info, Top
-@comment  node-name,  next,  previous,  up
-@chapter Creating an Info File from a Makeinfo file
 
-@code{makeinfo} is a utility that converts a Texinfo file into an Info
-file; @code{texinfo-format-region} and @code{texinfo-format-buffer} are
-GNU Emacs functions that do the same.
+@node Creating an Info File
+@chapter Creating an Info File
 
-@xref{Create an Info File, , Creating an Info File, texinfo, the Texinfo
-Manual}, to learn how to create an Info file from a Texinfo file.
+@xref{Top,, Overview of Texinfo, texinfo, Texinfo}, to learn how to
+write a Texinfo file.
 
-@xref{Top,, Overview of Texinfo, texinfo, Texinfo: The GNU Documentation
-Format}, to learn how to write a Texinfo file.
+@xref{Creating an Info File,,, texinfo, Texinfo}, to learn how to create
+an Info file from a Texinfo file.
+
+@xref{Installing an Info File,,, texinfo, Texinfo}, to learn how to
+install an Info file after you have created one.
 
 @bye

@@ -1,7 +1,7 @@
-/* echo-area.c -- How to read a line in the echo area.
-   $Id: echo-area.c,v 1.10 1998/02/26 22:47:02 karl Exp $
+/* echo-area.c -- how to read a line in the echo area.
+   $Id: echo-area.c,v 1.12 1999/03/03 22:22:14 karl Exp $
 
-   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -940,7 +940,8 @@ DECLARE_INFO_COMMAND (ea_possible_completions, _("List possible completions"))
       initialize_message_buffer ();
       printf_to_message_buffer (completions_found_index == 1
                                 ? _("One completion:\n")
-                                : _("%d completions:\n"));
+                                : _("%d completions:\n"),
+				completions_found_index);
 
       /* Find the maximum length of a label. */
       for (i = 0; i < completions_found_index; i++)
@@ -1462,7 +1463,7 @@ echo_area_stack_contains_completions_p ()
 static void
 pause_or_input ()
 {
-#if defined (FD_SET)
+#ifdef FD_SET
   struct timeval timer;
   fd_set readfds;
   int ready;
@@ -1470,14 +1471,14 @@ pause_or_input ()
   FD_ZERO (&readfds);
   FD_SET (fileno (stdin), &readfds);
   timer.tv_sec = 2;
-  timer.tv_usec = 750;
+  timer.tv_usec = 0;
   ready = select (fileno (stdin) + 1, &readfds, (fd_set *) NULL,
                   (fd_set *) NULL, &timer);
 #endif /* FD_SET */
 }
 
 /* Print MESSAGE right after the end of the current line, and wait
-   for input or 2.75 seconds, whichever comes first.  Then flush the
+   for input or a couple of seconds, whichever comes first.  Then flush the
    informational message that was printed. */
 void
 inform_in_echo_area (message)
@@ -1487,8 +1488,9 @@ inform_in_echo_area (message)
   char *text;
 
   text = xstrdup (message);
-  for (i = 0; text[i] && text[i] != '\n'; i++);
-  text[i] = '\0';
+  for (i = 0; text[i] && text[i] != '\n'; i++)
+    ;
+  text[i] = 0;
 
   echo_area_initialize_node ();
   sprintf (&input_line[input_line_end], "%s[%s]\n",

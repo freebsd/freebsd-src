@@ -1,7 +1,7 @@
 /* infodoc.c -- Functions which build documentation nodes.
-   $Id: infodoc.c,v 1.4 1997/07/25 21:08:40 karl Exp $
+   $Id: infodoc.c,v 1.23 1999/09/25 16:10:04 karl Exp $
 
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,14 +21,9 @@
 
 #include "info.h"
 
-/* Normally we do not define HELP_NODE_GETS_REGENERATED because the
-   contents of the help node currently can never change once an info
-   session has been started.   You should consider defining this in
-   the case that you place information about dynamic variables in the
-   help text.  When that happens, the contents of the help node will
-   change dependent on the value of those variables, and the user will
-   expect to see those changes. */
-/* #define HELP_NODE_GETS_REGENERATED 1 */
+/* HELP_NODE_GETS_REGENERATED is always defined now that keys may get
+   rebound, or other changes in the help text may occur.  */
+#define HELP_NODE_GETS_REGENERATED 1
 
 /* **************************************************************** */
 /*                                                                  */
@@ -47,40 +42,94 @@ static char *internal_info_help_node_contents = (char *)NULL;
 
 /* The static text which appears in the internal info help node. */
 static char *info_internal_help_text[] = {
-  N_ ("Basic Commands in Info Windows"),
-  "******************************",
-  "",
-  "  h          Invoke the Info tutorial.",
-  "  CTRL-x 0   Quit this help.",
-  "  q          Quit Info altogether.",
-  "",
-  "Selecting other nodes:",
-  "----------------------",
-  "  n   Move to the \"next\" node of this node.",
-  "  p   Move to the \"previous\" node of this node.",
-  "  u   Move \"up\" from this node.",
-  "  m   Pick menu item specified by name.",
-  "      Picking a menu item causes another node to be selected.",
-  "  f   Follow a cross reference.  Reads name of reference.",
-  "  l   Move to the last node seen in this window.",
-  "  d   Move to the `directory' node.  Equivalent to `g(DIR)'.",
-  "",
-  "Moving within a node:",
-  "---------------------",
-  "  SPC Scroll forward a page.",
-  "  DEL Scroll backward a page.",
-  "  b   Go to the beginning of this node.",
-  "  e   Go to the end of this node.",
-  "",
-  "Other commands:",
-  "--------------------",
-  "  1   Pick first item in node's menu.",
-  "  2-9 Pick second ... ninth item in node's menu.",
-  "  0   Pick last item in node's menu.",
-  "  g   Move to node specified by name.",
-  "      You may include a filename as well, as in (FILENAME)NODENAME.",
-  "  s   Search through this Info file for a specified string,",
-  "      and select the node in which the next occurrence is found.",
+  N_("Basic Commands in Info Windows\n"),
+  N_("******************************\n"),
+  "\n",
+  N_("  %-10s  Quit this help.\n"),
+  N_("  %-10s  Quit Info altogether.\n"),
+  N_("  %-10s  Invoke the Info tutorial.\n"),
+  "\n",
+  N_("Moving within a node:\n"),
+  N_("---------------------\n"),
+  N_("  %-10s  Scroll forward a page.\n"),
+  N_("  %-10s  Scroll backward a page.\n"),
+  N_("  %-10s  Go to the beginning of this node.\n"),
+  N_("  %-10s  Go to the end of this node.\n"),
+  N_("  %-10s  Scroll forward 1 line.\n"),
+  N_("  %-10s  Scroll backward 1 line.\n"),
+  "\n",
+  N_("Selecting other nodes:\n"),
+  N_("----------------------\n"),
+  N_("  %-10s  Move to the `next' node of this node.\n"),
+  N_("  %-10s  Move to the `previous' node of this node.\n"),
+  N_("  %-10s  Move `up' from this node.\n"),
+  N_("  %-10s  Pick menu item specified by name.\n"),
+  N_("              Picking a menu item causes another node to be selected.\n"),
+  N_("  %-10s  Follow a cross reference.  Reads name of reference.\n"),
+  N_("  %-10s  Move to the last node seen in this window.\n"),
+  N_("  %-10s  Skip to next hypertext link within this node.\n"),
+  N_("  %-10s  Follow the hypertext link under cursor.\n"),
+  N_("  %-10s  Move to the `directory' node.  Equivalent to `g (DIR)'.\n"),
+  N_("  %-10s  Move to the Top node.  Equivalent to `g Top'.\n"),
+  "\n",
+  N_("Other commands:\n"),
+  N_("---------------\n"),
+  N_("  %-10s  Pick first ... ninth item in node's menu.\n"),
+  N_("  %-10s  Pick last item in node's menu.\n"),
+  N_("  %-10s  Search for a specified string in the index entries of this Info\n"),
+  N_("              file, and select the node referenced by the first entry found.\n"),
+  N_("  %-10s  Move to node specified by name.\n"),
+  N_("              You may include a filename as well, as in (FILENAME)NODENAME.\n"),
+  N_("  %-10s  Search forward through this Info file for a specified string,\n"),
+  N_("              and select the node in which the next occurrence is found.\n"),
+  N_("  %-10s  Search backward in this Info file for a specified string,\n"),
+  N_("              and select the node in which the next occurrence is found.\n"),
+  NULL
+};
+
+static char *info_help_keys_text[][2] = {
+  { "", "" },
+  { "", "" },
+  { "", "" },
+  { "CTRL-x 0", "CTRL-x 0" },
+  { "q", "q" },
+  { "h", "ESC h" },
+  { "", "" },
+  { "", "" },
+  { "", "" },
+  { "SPC", "SPC" },
+  { "DEL", "b" },
+  { "b", "ESC b" },
+  { "e", "ESC e" },
+  { "ESC 1 SPC", "RET" },
+  { "ESC 1 DEL", "y" },
+  { "", "" },
+  { "", "" },
+  { "", "" },
+  { "n", "CTRL-x n" },
+  { "p", "CTRL-x p" },
+  { "u", "CTRL-x u" },
+  { "m", "ESC m" },
+  { "", "" },
+  { "f", "ESC f" },
+  { "l", "l" },
+  { "TAB", "TAB" },
+  { "RET", "CTRL-x RET" },
+  { "d", "ESC d" },
+  { "t", "ESC t" },
+  { "", "" },
+  { "", "" },
+  { "", "" },
+  { "1-9", "ESC 1-9" },
+  { "0", "ESC 0" },
+  { "i", "CTRL-x i" },
+  { "", "" },
+  { "g", "CTRL-x g" },
+  { "", "" },
+  { "s", "/" },
+  { "", "" },
+  { "ESC - s", "?" },
+  { "", "" },
   NULL
 };
 
@@ -163,15 +212,21 @@ dump_map_to_message_buffer (prefix, map)
     }
 }
 
-/* How to create internal_info_help_node. */
+/* How to create internal_info_help_node.  HELP_IS_ONLY_WINDOW_P says
+   whether we're going to end up in a second (or more) window of our
+   own, or whether there's only one window and we're going to usurp it.
+   This determines how to quit the help window.  Maybe we should just
+   make q do the right thing in both cases.  */
+
 static void
-create_internal_info_help_node ()
+create_internal_info_help_node (help_is_only_window_p)
+     int help_is_only_window_p;
 {
   register int i;
-  char *contents = (char *)NULL;
   NODE *node;
+  char *contents = NULL;
 
-#if !defined (HELP_NODE_GETS_REGENERATED)
+#ifndef HELP_NODE_GETS_REGENERATED
   if (internal_info_help_node_contents)
     contents = internal_info_help_node_contents;
 #endif /* !HELP_NODE_GETS_REGENERATED */
@@ -183,16 +238,30 @@ create_internal_info_help_node ()
       initialize_message_buffer ();
 
       for (i = 0; info_internal_help_text[i]; i++)
-        printf_to_message_buffer ("%s\n", info_internal_help_text[i]);
+        {
+          /* Don't translate blank lines, gettext outputs the po file
+             header in that case.  We want a blank line.  */
+          char *msg = *(info_internal_help_text[i])
+                      ? _(info_internal_help_text[i])
+                      : info_internal_help_text[i];
+          char *key = info_help_keys_text[i][vi_keys_p];
+          
+          /* If we have only one window (because the window size was too
+             small to split it), CTRL-x 0 doesn't work to `quit' help.  */
+          if (STREQ (key, "CTRL-x 0") && help_is_only_window_p)
+            key = "l";
+
+          printf_to_message_buffer (msg, key);
+        }
 
       printf_to_message_buffer ("---------------------\n\n");
-      printf_to_message_buffer ("The current search path is:\n");
-      printf_to_message_buffer ("  \"%s\"\n", infopath);
+      printf_to_message_buffer (_("The current search path is:\n"));
+      printf_to_message_buffer ("  %s\n", infopath);
       printf_to_message_buffer ("---------------------\n\n");
-      printf_to_message_buffer ("Commands available in Info windows:\n\n");
+      printf_to_message_buffer (_("Commands available in Info windows:\n\n"));
       dump_map_to_message_buffer ("", info_keymap);
       printf_to_message_buffer ("---------------------\n\n");
-      printf_to_message_buffer ("Commands available in the echo area:\n\n");
+      printf_to_message_buffer (_("Commands available in the echo area:\n\n"));
       dump_map_to_message_buffer ("", echo_area_keymap);
 
 #if defined (NAMED_FUNCTIONS)
@@ -215,7 +284,11 @@ create_internal_info_help_node ()
               printf_to_message_buffer
                 ("M-x %s\n     %s\n",
                  function_doc_array[i].func_name,
-                 replace_in_documentation (function_doc_array[i].doc));
+                 replace_in_documentation (strlen (function_doc_array[i].doc)
+                                           == 0
+					   ? function_doc_array[i].doc
+					   : _(function_doc_array[i].doc)));
+
             }
         }
 
@@ -258,17 +331,22 @@ create_internal_info_help_node ()
 }
 
 /* Return a window which is the window showing help in this Info. */
+
+/* If the eligible window's height is >= this, split it to make the help
+   window.  Otherwise display the help window in the current window.  */
+#define HELP_SPLIT_SIZE 24
+
 static WINDOW *
 info_find_or_create_help_window ()
 {
-  WINDOW *help_window, *eligible, *window;
-
-  eligible = (WINDOW *)NULL;
-  help_window = get_internal_info_window (info_help_nodename);
+  int help_is_only_window_p;
+  WINDOW *eligible = NULL;
+  WINDOW *help_window = get_window_of_node (internal_info_help_node);
 
   /* If we couldn't find the help window, then make it. */
   if (!help_window)
     {
+      WINDOW *window;
       int max = 0;
 
       for (window = windows; window; window = window->next)
@@ -281,23 +359,29 @@ info_find_or_create_help_window ()
         }
 
       if (!eligible)
-        return ((WINDOW *)NULL);
+        return NULL;
     }
-#if !defined (HELP_NODE_GETS_REGENERATED)
+#ifndef HELP_NODE_GETS_REGENERATED
   else
-    return (help_window);
-#endif /* !HELP_NODE_GETS_REGENERATED */
+    /* help window is static, just return it.  */
+    return help_window;
+#endif /* not HELP_NODE_GETS_REGENERATED */
 
-  /* Make sure that we have a node containing the help text. */
-  create_internal_info_help_node ();
+  /* Make sure that we have a node containing the help text.  The
+     argument is false if help will be the only window (so l must be used
+     to quit help), true if help will be one of several visible windows
+     (so CTRL-x 0 must be used to quit help).  */
+  help_is_only_window_p
+     = (help_window && !windows->next
+        || !help_window && eligible->height < HELP_SPLIT_SIZE);
+  create_internal_info_help_node (help_is_only_window_p);
 
   /* Either use the existing window to display the help node, or create
      a new window if there was no existing help window. */
   if (!help_window)
-    {
-      /* Split the largest window into 2 windows, and show the help text
+    { /* Split the largest window into 2 windows, and show the help text
          in that window. */
-      if (eligible->height > 30)
+      if (eligible->height >= HELP_SPLIT_SIZE)
         {
           active_window = eligible;
           help_window = window_make_window (internal_info_help_node);
@@ -310,8 +394,7 @@ info_find_or_create_help_window ()
         }
     }
   else
-    {
-      /* Case where help node always gets regenerated, and we have an
+    { /* Case where help node always gets regenerated, and we have an
          existing window in which to place the node. */
       if (active_window != help_window)
         {
@@ -321,7 +404,7 @@ info_find_or_create_help_window ()
       window_set_node_of_window (active_window, internal_info_help_node);
     }
   remember_window_and_node (help_window, help_window->node);
-  return (help_window);
+  return help_window;
 }
 
 /* Create or move to the help window. */
@@ -337,7 +420,7 @@ DECLARE_INFO_COMMAND (info_get_help_window, _("Display help message"))
     }
   else
     {
-      info_error (CANT_MAKE_HELP);
+      info_error (msg_cant_make_help);
     }
 }
 
@@ -381,7 +464,7 @@ DECLARE_INFO_COMMAND (info_get_info_help_node, _("Visit Info node `(info)Help'")
       if (info_recent_file_error)
         info_error (info_recent_file_error);
       else
-        info_error (CANT_FILE_NODE, "Info", nodename);
+        info_error (msg_cant_file_node, "Info", nodename);
     }
   else
     {
@@ -418,7 +501,9 @@ function_documentation (function)
     if (function == function_doc_array[i].func)
       break;
 
-  return (replace_in_documentation (function_doc_array[i].doc));
+  return replace_in_documentation ((strlen (function_doc_array[i].doc) == 0)
+                                   ? function_doc_array[i].doc
+                                   : _(function_doc_array[i].doc));
 }
 
 #if defined (NAMED_FUNCTIONS)
@@ -475,21 +560,21 @@ DECLARE_INFO_COMMAND (describe_key, _("Print documentation for KEY"))
   char *rep;
   Keymap map;
 
-  keyname[0] = '\0';
+  keyname[0] = 0;
   map = window->keymap;
 
-  while (1)
+  for (;;)
     {
       message_in_echo_area (_("Describe key: %s"), keyname);
       keystroke = info_get_input_char ();
       unmessage_in_echo_area ();
 
-      if (Meta_p (keystroke) && (!ISO_Latin_p || key < 160))
+      if (Meta_p (keystroke))
         {
           if (map[ESC].type != ISKMAP)
             {
               window_message_in_echo_area
-                (_("ESC %s is undefined."), pretty_keyname (UnMeta (keystroke)));
+              (_("ESC %s is undefined."), pretty_keyname (UnMeta (keystroke)));
               return;
             }
 
@@ -627,7 +712,7 @@ replace_in_documentation (string)
           /* Find a key which invokes this function in the info_keymap. */
           function = named_function (fun_name);
 
-          /* If the internal documentation string fails, there is a 
+          /* If the internal documentation string fails, there is a
              serious problem with the associated command's documentation.
              We croak so that it can be fixed immediately. */
           if (!function)
@@ -687,7 +772,7 @@ where_is_internal (map, function)
      VFunction *function;
 {
   register int i;
-  
+
   /* If the function is directly invokable in MAP, return the representation
      of that keystroke. */
   for (i = 0; i < 256; i++)
@@ -718,13 +803,13 @@ where_is_internal (map, function)
         }
     }
 
-  return ((char *)NULL);
+  return NULL;
 }
 
 extern char *read_function_name ();
 
 DECLARE_INFO_COMMAND (info_where_is,
-   "Show what to type to execute a given command")
+   _("Show what to type to execute a given command"))
 {
   char *command_name;
 
