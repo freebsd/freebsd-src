@@ -123,16 +123,14 @@ static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 /*
  * Setup a DMA channel's bounce buffer.
  */
-void
-isa_dmainit(chan, bouncebufsize)
-	int chan;
-	u_int bouncebufsize;
+int
+isa_dma_init(int chan, u_int bouncebufsize, int flag)
 {
 	void *buf;
 
 #ifndef PC98
 	/*
-	 * If a DMA channel is shared, both drivers have to call isa_dmainit
+	 * If a DMA channel is shared, both drivers have to call isa_dma_init
 	 * since they don't know that the other driver will do it.
 	 * Just return if we're already set up good.
 	 * XXX: this only works if they agree on the bouncebuf size.  This
@@ -140,35 +138,35 @@ isa_dmainit(chan, bouncebufsize)
 	 * XXX: the same driver.
 	 */
 	if (dma_bouncebuf[chan] != NULL)
-		return;
+		return (0);
 #endif
 
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
-		panic("isa_dmainit: channel out of range");
+		panic("isa_dma_init: channel out of range");
 #ifdef PC98
 	if (dma_bouncebuf[chan] != NULL)
-		panic("isa_dmainit: impossible request"); 
+		panic("isa_dma_init: impossible request"); 
 #endif
 #endif
 
 	dma_bouncebufsize[chan] = bouncebufsize;
 
 	/* Try malloc() first.  It works better if it works. */
-	buf = malloc(bouncebufsize, M_DEVBUF, M_NOWAIT);
+	buf = malloc(bouncebufsize, M_DEVBUF, flag);
 	if (buf != NULL) {
 		if (isa_dmarangecheck(buf, bouncebufsize, chan) == 0) {
 			dma_bouncebuf[chan] = buf;
-			return;
+			return (0);
 		}
 		free(buf, M_DEVBUF);
 	}
-	buf = contigmalloc(bouncebufsize, M_DEVBUF, M_NOWAIT, 0ul, 0xfffffful,
+	buf = contigmalloc(bouncebufsize, M_DEVBUF, flag, 0ul, 0xfffffful,
 			   1ul, chan & 4 ? 0x20000ul : 0x10000ul);
 	if (buf == NULL)
-		printf("isa_dmainit(%d, %d) failed\n", chan, bouncebufsize);
-	else
-		dma_bouncebuf[chan] = buf;
+		return (ENOMEM);
+	dma_bouncebuf[chan] = buf;
+	return (0);
 }
 
 /*
