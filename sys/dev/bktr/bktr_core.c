@@ -702,11 +702,11 @@ common_bktr_intr( void *arg )
 
 
 	/*
-	 * Process the VBI data if it is being captured. We do this once
+	 * Process the VBI data if /dev/vbi is open. We do this after 
 	 * both Odd and Even VBI data is captured. Therefore we do this
 	 * in the Even field interrupt handler.
 	 */
-	if ((bktr->vbiflags & VBI_CAPTURE)&&(field==EVEN_F)) {
+	if ((bktr->vbiflags & VBI_OPEN)&&(field==EVEN_F)) {
 		/* Put VBI data into circular buffer */
                	vbidecode(bktr);
 
@@ -2527,7 +2527,8 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 	 flag = OP_SOL | OP_EOL;
        } else if (bktr->current_col == 0 ) {
 	    flag  = OP_SOL;
-       } else if (bktr->current_col == cols) {
+       } else if (bktr->current_col == cols 
+       		|| bktr->current_col + width >= cols) {
 	    flag = OP_EOL;
        } else flag = 0;	
 
@@ -2553,7 +2554,8 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
         } else if (bktr->current_col == 0 ) {
 	    flag = OP_SOL;
 	    flag2 = 0;
-	} else if (bktr->current_col >= cols)  {
+	} else if (bktr->current_col >= cols 
+		|| bktr->current_col + width >= cols)  {
 	    flag =  0;
 	    flag2 = OP_EOL;
 	} else {
@@ -2676,7 +2678,7 @@ rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 		*dma_prog++ = OP_SYNC  | BKTR_FM1;
 		*dma_prog++ = 0;  /* NULL WORD */
 		width = cols;
-		for (i = 0; i < (rows/interlace); i++) {
+		for (i = 0; i < rows; i += interlace) {
 		    target = target_buffer;
 		    if ( notclipped(bktr, i, width)) {
 			split(bktr, (volatile u_long **) &dma_prog,
@@ -2733,7 +2735,7 @@ rgb_vbi_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 		*dma_prog++ = OP_SYNC | BKTR_FM1;
 		*dma_prog++ = 0;  /* NULL WORD */
 		width = cols;
-		for (i = 0; i < (rows/interlace); i++) {
+		for (i = 1; i < rows; i += interlace) {
 		    target = target_buffer;
 		    if ( notclipped(bktr, i, width)) {
 			split(bktr, (volatile u_long **) &dma_prog,
@@ -2834,7 +2836,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 	/* sync, mode indicator packed data */
 	*dma_prog++ = 0;  /* NULL WORD */
 	width = cols;
-	for (i = 0; i < (rows/interlace); i++) {
+	for (i = 0; i < rows; i += interlace) {
 	    target = target_buffer;
 	    if ( notclipped(bktr, i, width)) {
 		split(bktr, (volatile u_long **) &dma_prog,
@@ -2900,7 +2902,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols, int rows, int interlace )
 		*dma_prog++ = OP_SYNC | BKTR_RESYNC | BKTR_FM1;
 		*dma_prog++ = 0;  /* NULL WORD */
                 width = cols;
-		for (i = 0; i < (rows/interlace); i++) {
+		for (i = 1; i < rows; i += interlace) {
 		    target = target_buffer;
 		    if ( notclipped(bktr, i, width)) {
 			split(bktr, (volatile u_long **) &dma_prog,
@@ -3448,18 +3450,10 @@ build_dma_prog( bktr_ptr_t bktr, char i_flag )
 	rows = bktr->rows;
 	cols = bktr->cols;
 
-	bktr->vbiflags &= ~VBI_CAPTURE;	/* default - no vbi capture */
-
 	/* If /dev/vbi is already open, then use the rgb_vbi RISC program */
-	if ( (pf_int->public.type == METEOR_PIXTYPE_RGB)
-           &&(bktr->vbiflags & VBI_OPEN) ) {
-		if (i_flag==1) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_EVEN;
-		if (i_flag==2) bktr->bktr_cap_ctl |= BT848_CAP_CTL_VBI_ODD;
-		if (i_flag==3) bktr->bktr_cap_ctl |=
-		                BT848_CAP_CTL_VBI_EVEN | BT848_CAP_CTL_VBI_ODD;
+	if (pf_int->public.type == METEOR_PIXTYPE_RGB) {
 		bktr->bktr_cap_ctl |=
 		                BT848_CAP_CTL_VBI_EVEN | BT848_CAP_CTL_VBI_ODD;
-		bktr->vbiflags |= VBI_CAPTURE;
 		rgb_vbi_prog(bktr, i_flag, cols, rows, interlace);
 		return;
 	}
