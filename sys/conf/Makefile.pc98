@@ -271,6 +271,7 @@ reinstall reinstall.debug: modules-reinstall
 .endif
 
 MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+MKMODULESENV+=	MACHINE=pc98
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
