@@ -1,4 +1,4 @@
-# @(#)australasia	7.66
+# @(#)australasia	7.67
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -737,6 +737,38 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # From Arthur David Olson (1992-03-08):
 # The chosen rules the union of the 1971/1972 change and the 1989-1992 changes.
+
+# From Rives McDow (2002-04-09):
+# The most interesting region I have found consists of three towns on the 
+# southern coast of Australia, population 10 at last report, along with 
+# 50,000 sheep, about 100 kilometers long and 40 kilometers into the 
+# continent.  The primary town is Madura, with the other towns being 
+# Mundrabilla and Eucla.  According to the sheriff of Madura, the 
+# residents got tired of having to change the time so often, as they are 
+# located in a strip overlapping the border of South Australia and Western 
+# Australia.  South Australia observes daylight saving time; Western 
+# Australia does not.  The two states are one and a half hours apart.  The 
+# residents decided to forget about this nonsense of changing the clock so 
+# much and set the local time 20 hours and 45 minutes from the 
+# international date line, or right in the middle of the time of South 
+# Australia and Western Australia.  As it only affects about 10 people and 
+# tourists staying at the Madura Motel, it has never really made as big an 
+# impact as Broken Hill.  However, as tourist visiting there or anyone 
+# calling the local sheriff will attest, they do keep time in this way.
+#
+# From Paul Eggert (2002-04-09):
+# This is confirmed by the section entitled
+# "What's the deal with time zones???" in
+# <http://www.earthsci.unimelb.edu.au/~awatkins/null.html>,
+# which says a few other things:
+#
+# * Border Village, SA also is 45 minutes ahead of Perth.
+# * The locals call this time zone "central W.A. Time" (presumably "CWAT").
+# * The locals also call Western Australia time "Perth time".
+#
+# It's not clear from context whether everyone in Western Australia
+# knows of this naming convention, or whether it's just the people in
+# this subregion.
 
 # South Australia, Tasmania, Victoria
 
