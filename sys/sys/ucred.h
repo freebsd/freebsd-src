@@ -44,7 +44,6 @@
  * Only the suser() or suser_cred() function should be used for this.
  */
 #if defined(_KERNEL) || defined(_WANT_UCRED)
-
 struct ucred {
 	u_int	cr_ref;			/* reference count */
 #define	cr_startcopy cr_uid
@@ -84,9 +83,6 @@ struct xucred {
 #ifdef _KERNEL
 struct thread;
 
-#ifdef DIAGNOSTIC
-void	cred_free_thread(struct thread *td);
-#endif
 void	change_egid(struct ucred *newcred, gid_t egid);
 void	change_euid(struct ucred *newcred, struct uidinfo *euip);
 void	change_rgid(struct ucred *newcred, gid_t rgid);
@@ -95,6 +91,9 @@ void	change_svgid(struct ucred *newcred, gid_t svgid);
 void	change_svuid(struct ucred *newcred, uid_t svuid);
 void	crcopy(struct ucred *dest, struct ucred *src);
 struct ucred	*crdup(struct ucred *cr);
+#ifdef DIAGNOSTIC
+void	cred_free_thread(struct thread *td);
+#endif
 void	cred_update_thread(struct thread *td);
 void	crfree(struct ucred *cr);
 struct ucred	*crget(void);
