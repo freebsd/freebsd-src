@@ -36,22 +36,20 @@ static char sccsid[] = "@(#)ranf.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 # include	<stdio.h>
+# include       <stdlib.h>
 
 ranf(max)
 int	max;
 {
-	register int	t;
-
 	if (max <= 0)
 		return (0);
-	t = rand() >> 5;
-	return (t % max);
+	return (random() % max);
 }
 
 
 double franf()
 {
 	double		t;
-	t = rand() & 077777;
+	t = random() & 077777;
 	return (t / 32767.0);
 }

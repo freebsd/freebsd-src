@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 # include	<stdio.h>
 # include	<sgtty.h>
 # include	<setjmp.h>
+# include       <stdlib.h>
 
 # define	PRIO		00	/* default priority */
 
@@ -153,7 +154,6 @@ main(argc, argv)
 int	argc;
 char	**argv;
 {
-	long			vect;
 	/* extern FILE		*f_log; */
 	register char		opencode;
 	int			prio;
@@ -167,8 +167,7 @@ char	**argv;
 	av = argv;
 	ac = argc;
 	av++;
-	time(&vect);
-	srand(vect);
+	srandomdev();
 	opencode = 'w';
 	prio = PRIO;
 	if (gtty(1, &argp) == 0)
