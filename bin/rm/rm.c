@@ -42,12 +42,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #else
 static const char rcsid[] =
-	"$Id: rm.c,v 1.18 1997/08/07 21:37:39 steve Exp $";
+	"$Id: rm.c,v 1.19 1999/02/25 22:18:08 jkh Exp $";
 #endif
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -330,9 +332,10 @@ rm_overwrite(file, sbp)
 	struct stat *sbp;
 {
 	struct stat sb;
+	struct statfs fsb;
 	off_t len;
-	int fd, wlen;
-	char buf[8 * 1024];
+	int bsize, fd, wlen;
+	char *buf = NULL;
 
 	fd = -1;
 	if (sbp == NULL) {
@@ -344,11 +347,16 @@ rm_overwrite(file, sbp)
 		return;
 	if ((fd = open(file, O_WRONLY, 0)) == -1)
 		goto err;
+	if (fstatfs(fd, &fsb) == -1)
+		goto err;
+	bsize = MAX(fsb.f_iosize, 1024);
+	if ((buf = malloc(bsize)) == NULL)
+		err(1, "malloc");
 
 #define	PASS(byte) {							\
-	memset(buf, byte, sizeof(buf));					\
+	memset(buf, byte, bsize);					\
 	for (len = sbp->st_size; len > 0; len -= wlen) {		\
-		wlen = len < sizeof(buf) ? len : sizeof(buf);		\
+		wlen = len < bsize ? len : bsize;			\
 		if (write(fd, buf, wlen) != wlen)			\
 			goto err;					\
 	}								\
@@ -360,10 +368,14 @@ rm_overwrite(file, sbp)
 	if (fsync(fd) || lseek(fd, (off_t)0, SEEK_SET))
 		goto err;
 	PASS(0xff);
-	if (!fsync(fd) && !close(fd))
+	if (!fsync(fd) && !close(fd)) {
+		free(buf);
 		return;
+	}
 
 err:	eval = 1;
+	if (buf)
+		free(buf);
 	warn("%s", file);
 }
 
