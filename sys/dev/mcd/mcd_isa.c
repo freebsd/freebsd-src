@@ -2,9 +2,6 @@
  * $FreeBSD$
  */
 
-#include "opt_geom.h"
-#ifdef NO_GEOM
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -113,9 +110,7 @@ mcd_isa_detach (device_t dev)
 	sc = device_get_softc(dev);
 	error = 0;
 
-	destroy_dev(sc->mcd_dev_t[2]);
-	destroy_dev(sc->mcd_dev_t[1]);
-	destroy_dev(sc->mcd_dev_t[0]);
+	destroy_dev(sc->mcd_dev_t);
 
 	mcd_release_resources(dev);
 
@@ -212,5 +207,3 @@ static driver_t mcd_isa_driver = {
 static devclass_t	mcd_devclass;
 
 DRIVER_MODULE(mcd, isa, mcd_isa_driver, mcd_devclass, NULL, 0);
-
-#endif /* GEOM */
