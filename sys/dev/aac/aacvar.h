@@ -572,5 +572,6 @@ aac_print_printf(struct aac_softc *sc)
 	 */
 	device_printf(sc->aac_dev, "**Monitor** %.*s", AAC_PRINTF_BUFSIZE,
 		      sc->aac_common->ac_printf);
+	sc->aac_common->ac_printf[0] = 0;
 	AAC_QNOTIFY(sc, AAC_DB_PRINTF);
 }
