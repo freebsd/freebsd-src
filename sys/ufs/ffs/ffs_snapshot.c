@@ -424,6 +424,15 @@ loop:
 			MNT_ILOCK(mp);
 			continue;
 		}
+		/*
+		 * We can skip parent directory vnode because it must have
+		 * this snapshot file in it.
+		 */
+		if (xvp == nd.ni_dvp) {
+			VI_UNLOCK(xvp);
+			MNT_ILOCK(mp);
+			continue;
+		}
 		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0) {
 			MNT_ILOCK(mp);
 			goto loop;
