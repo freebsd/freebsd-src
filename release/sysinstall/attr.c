@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.8.2.7 1997/03/28 12:14:14 jkh Exp $
+ * $Id: attr.c,v 1.8.2.8 1997/03/28 23:07:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,15 +69,16 @@ attr_parse(Attribs *attr, FILE *fp)
     n = v = num_attribs = bp = max = 0;
     state = LOOK;
     while (state != STOP) {
-	if (bp == max)
-	    state = FILL;
-	else
-	    ch = buf[bp++];
+	if (state != COMMIT) {
+	    if (bp == max)
+		state = FILL;
+	    else
+		ch = buf[bp++];
+	}
 	switch(state) {
 	case FILL:
 	    if ((max = fread(buf, 1, sizeof buf, fp)) <= 0) {
-		if (state != COMMIT)
-		    state = STOP;
+		state = STOP;
 		break;
 	    }
 	    else {
