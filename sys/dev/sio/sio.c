@@ -1980,6 +1980,8 @@ siointr1(com)
 /* XXX - needs to go away when alpha gets ithreads */
 #ifdef __alpha__
 				schedsofttty();
+#else
+				setsofttty();
 #endif
 #if 0 /* for testing input latency vs efficiency */
 if (com->iptr - com->ibuf == 8)
