@@ -1,7 +1,8 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
 # $FreeBSD$
 #
-# The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
+# The include file <bsd.kmod.mk> handles installing Kernel Loadable Device
+# drivers (KLD's).
 #
 #
 # +++ variables +++
@@ -12,31 +13,30 @@
 #
 # KERN		Main Kernel source directory. [${.CURDIR}/../../sys/kern]
 #
-# KMOD          The name of the loadable kernel module to build.
+# KMOD          The name of the kernel module to build.
 #
-# KMODDIR	Base path for loadable kernel modules
-#		(see kld(4)). [/modules]
+# KMODDIR	Base path for kernel modules (see kld(4)). [/modules]
 #
-# KMODOWN	LKM owner. [${BINOWN}]
+# KMODOWN	KLD owner. [${BINOWN}]
 #
-# KMODGRP	LKM group. [${BINGRP}]
+# KMODGRP	KLD group. [${BINGRP}]
 #
-# KMODMODE	LKM mode. [${BINMODE}]
+# KMODMODE	KLD mode. [${BINMODE}]
 #
-# LINKS		The list of LKM links; should be full pathnames, the
+# LINKS		The list of KLD links; should be full pathnames, the
 #               linked-to file coming first, followed by the linked
 #               file.  The files are hard-linked.  For example, to link
 #               /modules/master and /modules/meister, use:
 #
 #			LINKS=  /modules/master /modules/meister
 #
-# MODLOAD	Command to load a kernel module [/sbin/modload]
+# KMODLOAD	Command to load a kernel module [/sbin/kldload]
 #
-# MODUNLOAD	Command to unload a kernel module [/sbin/modunload]
+# KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
 #
-# NOMAN		LKM does not have a manual page if set.
+# NOMAN		KLD does not have a manual page if set.
 #
-# PROG          The name of the loadable kernel module to build. 
+# PROG          The name of the kernel module to build. 
 #		If not supplied, ${KMOD}.o is used.
 #
 # SRCS          List of source files 
@@ -67,18 +67,18 @@
 #		is executed.
 #
 # 	load:	
-#		Load LKM.
+#		Load KLD.
 #
 # 	unload:
-#		Unload LKM.
+#		Unload KLD.
 #
 # bsd.obj.mk: clean, cleandir and obj
 # bsd.dep.mk: cleandepend, depend and tags
 # bsd.man.mk: maninstall
 #
 
-MODLOAD?=	/sbin/modload
-MODUNLOAD?=	/sbin/modunload
+KMODLOAD?=	/sbin/kldload
+KMODUNLOAD?=	/sbin/kldunload
 
 .if !target(__initialized__)
 __initialized__:
@@ -99,7 +99,7 @@ CFLAGS+=	-DKLD_MODULE
 _ICFLAGS:=	${CFLAGS:M-I*}
 CFLAGS+=	-nostdinc -I- ${_ICFLAGS}
 
-# Add -I paths for system headers.  Individual LKM makefiles don't
+# Add -I paths for system headers.  Individual KLD makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
 CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
@@ -246,13 +246,13 @@ distribute: _SUBDIR
 .endif
 
 .if !target(load)
-load:	${PROG}
-	${MODLOAD} -o ${KMOD} -e${KMOD} ${PROG}
+load:	${PROG} install
+	${KMODLOAD} ${KMOD}
 .endif
 
 .if !target(unload)
-unload:	${PROG}
-	${MODUNLOAD} -n ${KMOD}
+unload:
+	${KMODUNLOAD} ${KMOD}
 .endif
 
 .if exists(${.CURDIR}/../../kern)
