@@ -3,12 +3,14 @@
 PROG=	nfsd
 CFLAGS+=-DNFS
 MAN8=	nfsd.8
+DPADD+=	${LIBUTIL}
+LDADD+=	-lutil
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
 	|| defined(MAKE_EBONES))
 CFLAGS+=-DKERBEROS
-DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-lkrb -ldes
+DPADD+=	${LIBKRB} ${LIBDES}
+LDADD+=	-lkrb -ldes
 DISTRIBUTION=	krb
 .endif
 
