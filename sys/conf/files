@@ -522,6 +522,11 @@ dev/si/si3_t225.c	optional si
 dev/si/si_eisa.c	optional si eisa
 dev/si/si_isa.c		optional si isa
 dev/si/si_pci.c		optional si pci
+dev/sio/sio_isa.c	optional sio isa
+dev/sio/sio_pccard.c	optional sio card
+dev/sio/sio_pccard.c	optional sio pccard
+dev/sio/sio_pci.c	optional sio pci
+dev/sio/sio_puc.c	optional sio puc pci
 dev/smbus/smbus_if.m	optional smbus
 dev/smbus/smb.c		optional smb
 dev/smbus/smbconf.c	optional smbus
