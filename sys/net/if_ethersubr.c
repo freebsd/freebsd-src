@@ -820,6 +820,16 @@ ether_resolvemulti(ifp, llsa, sa)
 #ifdef INET6
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)sa;
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+			/*
+			 * An IP6 address of 0 means listen to all
+			 * of the Ethernet multicast address used for IP6.
+			 * (This is used for multicast routers.)
+			 */
+			ifp->if_flags |= IFF_ALLMULTI;
+			*llsa = 0;
+			return 0;
+		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
