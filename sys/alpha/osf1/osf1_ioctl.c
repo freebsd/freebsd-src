@@ -207,7 +207,7 @@ osf1_ioctl_i(td, uap, cmd, dir, len)
 			 * because osf/1 doesn't know about most of them.
 			 */
 			if (ifp->if_type == IFT_ETHER 
-			    && strcmp(ifp->if_name, "ti")) {	/* looks good */
+			    && strcmp(ifp->if_name, "ti") != 0) {	/* looks good */
 				/* walk the address list */
 				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 					if ((sdl = (struct sockaddr_dl *)ifa->ifa_addr)	/* we have an address structure */
