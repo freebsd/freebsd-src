@@ -100,6 +100,10 @@ struct tty {
 	struct	selinfo t_rsel;		/* Tty read/oob select. */
 	struct	selinfo t_wsel;		/* Tty write select. */
 	struct	termios t_termios;	/* Termios state. */
+	struct	termios t_init_in;	/* ... init ingoing */
+	struct	termios t_init_out;	/* ... outgoing */
+	struct	termios t_lock_in;	/* ... lock ingoing */
+	struct	termios t_lock_out;	/* ... outgoing */
 	struct	winsize t_winsize;	/* Window size. */
 	void	*t_sc;			/* driver private softc pointer. */
 	int	t_column;		/* Tty output column. */
