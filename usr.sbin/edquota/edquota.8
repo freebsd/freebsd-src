@@ -48,9 +48,19 @@
 .Op Fl p Ar proto-username
 .Ar username ...
 .Nm
+.Op Fl u
+.Fl e Ar fspath Ns Op : Ns Ar bslim Ns Op : Ns Ar bhlim Ns Op : Ns Ar islim Ns Op : Ns Ar ihlim
+.Op Fl e Ar ...
+.Ar username ...
+.Nm
 .Fl g
 .Op Fl f Ar fspath
 .Op Fl p Ar proto-groupname
+.Ar groupname ...
+.Nm
+.Fl g
+.Fl e Ar fspath Ns Op : Ns Ar bslim Ns Op : Ns Ar bhlim Ns Op : Ns Ar islim Ns Op : Ns Ar ihlim
+.Op Fl e Ar ...
 .Ar groupname ...
 .Nm
 .Fl t
@@ -118,6 +128,34 @@ for easy setup of default quotas for a group of users.
 The uids in question do not have to be currently assigned in
 .Pa /etc/passwd .
 .Pp
+If one or more
+.Fl e Ar fspath Ns Op : Ns Ar bslim Ns Op : Ns Ar bhlim Ns Op : Ns Ar islim Ns Op : Ns Ar ihlim
+options are specified,
+.Nm
+will non-interactively set quotas defined by
+.Ar bslim ,
+.Ar bhlim ,
+.Ar islim and
+.Ar ihlim
+on each particular filesystem referenced by
+.Ar fspath .
+Here
+.Ar bslim
+is soft limit on number of blocks,
+.Ar bslim
+is hard limit on number of blocks,
+.Ar islim
+is soft limit on number of files and
+.Ar ihlim
+is hard limit on number of files.
+If any of the
+.Ar bslim ,
+.Ar bhlim ,
+.Ar islim and
+.Ar ihlim
+values are omitted, it is assumed to be zero, therefore
+indicating that no quota should be imposed.
+.Pp
 If invoked with the
 .Fl f
 option,
@@ -147,6 +185,13 @@ the
 .Fl g
 flag to specify a prototypical group
 to be duplicated among the listed set of groups.
+Similarly,
+.Fl e
+flag can be specified in conjunction with
+the
+.Fl g
+flag to non-interactively set-up quotas on the listed set
+of groups.
 .Pp
 Users are permitted to exceed their soft limits
 for a grace period that may be specified per filesystem.
