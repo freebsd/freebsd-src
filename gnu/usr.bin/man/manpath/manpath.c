@@ -147,6 +147,7 @@ manpath (perrs)
   if (get_dirlist ())
       gripe_reading_mp_config (config_file);
 
+#ifdef MAIN
   if (locale)
     {
       if ((manpathlist = getenv ("MANLOCALES")) != NULL)
@@ -160,6 +161,7 @@ manpath (perrs)
 	}
       return (man_locales ? man_locales : "");
     }
+#endif /* MAIN */
 
   if ((manpathlist = getenv ("MANPATH")) != NULL)
     /*
@@ -279,6 +281,7 @@ get_dirlist ()
 	    fprintf (stderr, "found manpath map %s --> %s\n",
 		     dlp->bin, dlp->mandir);
 	}
+#ifdef MAIN
       else if (!strncmp ("MANLOCALES", bp, 10))
 	{
 	  if ((p = strchr (bp, ' ')) == NULL &&
@@ -310,6 +313,7 @@ get_dirlist ()
 	    fprintf (stderr, "found man locales: %s\n",
 			     man_locales);
 	}
+#endif  /* MAIN */
       else
 	{
 	  gripe_reading_mp_config (config_file);
