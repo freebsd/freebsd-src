@@ -374,6 +374,12 @@ Keep a circular buffer of last requests.
 .It DEBUG_REVIVECONFLICT (16)
 .br
 Print info about revive conflicts.
+.It DEBUG_EOFINFO (32)
+.br
+Print information about internal state when returning an EOF on a striped plex.
+.It DEBUG_MEMFREE (64)
+.br
+Maintain a circular list of the last memory areas freed by the memory allocator.
 .It DEBUG_REMOTEGDB (256)
 .br
 Go into remote
@@ -668,14 +674,8 @@ the configuration in order from the most recently updated to least recently
 updated configuration.
 .Nm
 maintains an up-to-date copy of all configuration information on each disk
-partition.  You must specify all of the partitions in a configuration as the
+partition.  You must specify all of the slices in a configuration as the
 parameter to this command.
-.Nm
-.Nm read
-accepts the names of non-Vinum partitions, so you can specify all partitions
-upon which a
-.Nm
-partition might be resident to this command.
 .Pp
 The
 .Nm read
@@ -1018,8 +1018,9 @@ integer), and it must be a multiple of a disk sector (512 bytes).
 .sp
 For optimum performance, stripes should be at least 128 kB in size: anything
 smaller will result in a significant increase in I/O activity due to mapping of
-individual requests over multiple disks.  The increase in concurrency due to
-this mapping will not make up for the increase in latency.  A good guideline for
+individual requests over multiple disks.  The performance improvement due to the
+increased number of concurrent transfers caused by this mapping will not make up
+for the performance drop due to the increase in latency.  A good guideline for
 stripe size is between 256 kB and 512 kB.
 .Pp
 A striped plex must have at least two subdisks (otherwise it is a concatenated
