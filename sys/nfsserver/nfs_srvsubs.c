@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.43 1997/09/21 04:23:51 dyson Exp $
+ * $Id: nfs_subs.c,v 1.44 1997/10/26 20:13:52 phk Exp $
  */
 
 /*
@@ -65,8 +65,8 @@
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfsnode.h>
 #include <nfs/nfs.h>
+#include <nfs/nfsnode.h>
 #include <nfs/xdr_subs.h>
 #include <nfs/nfsm_subs.h>
 #include <nfs/nfsmount.h>

@@ -34,14 +34,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $Id: nfsnode.h,v 1.22 1997/10/15 07:42:34 phk Exp $
+ * $Id: nfsnode.h,v 1.23 1997/10/16 10:49:05 phk Exp $
  */
 
 
 #ifndef _NFS_NFSNODE_H_
 #define _NFS_NFSNODE_H_
 
-#ifndef _NFS_NFS_H_
+#if !defined(_NFS_NFS_H_) && !defined(KERNEL)
 #include <nfs/nfs.h>
 #endif
 
