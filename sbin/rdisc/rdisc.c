@@ -48,6 +48,16 @@
 
 #include <string.h>
 #include <syslog.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <err.h>
+#include <sys/cdefs.h>
+
+#if __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
 /*
  * TBD
@@ -55,30 +65,12 @@
  *	address.
  */
 
-char *malloc();
-void exit();
-long gethostid();
-long random();
-time_t time();
-long strtol();
-
 #ifdef lint
 #define ALLIGN(ptr)	(ptr ? 0 : 0)
 #else
 #define ALLIGN(ptr)	(ptr)
 #endif
 
-#ifdef SYSV
-#define signal(s,f)	sigset(s,f)
-#define random()	rand()
-#endif
-
-void solicitor(), advertise(), pr_pack(), init();
-void bzero(), initlog(), logerr(), logtrace(), logdebug(), logperror();
-void age_table(), record_router(), add_route(), del_route(), rtioctl();
-int support_multicast(), sendbcast(), sendmcast(), sendbcastif(), sendmcastif();
-int ismulticast(), isbroadcast(), in_cksum(), is_directly_connected();
-static int join();
 
 #define ICMP_ROUTER_ADVERTISEMENT	9
 #define ICMP_ROUTER_SOLICITATION	10
@@ -120,8 +112,6 @@ int interfaces_size;			/* Number of elements in interfaces */
 #define	MAXPACKET	4096	/* max packet size */
 u_char	packet[MAXPACKET];
 
-/* fraser */
-int debugfile;
 char usage[] =
 "Usage:	rdisc [-s] [-v] [-f] [-a] [send_address] [receive_address]\n\
         rdisc -r [-v] [-p <preference>] [-T <secs>] \n\
@@ -158,11 +148,45 @@ int best_preference = 1;  	/* Set to record only the router(s) with the
 				   best preference in the kernel. Not set
 				   puts all routes in the kernel. */
 
+/* Prototypes */
+void	do_fork		__P((void));
+int	main		__P((int, char **));
+void	timer		__P((int));
+void	solicitor	__P((struct sockaddr_in *));
+void	advertise	__P((struct sockaddr_in *));
+char *	pr_type		__P((int));
+char *	pr_name		__P((struct in_addr));
+void	pr_pack		__P((char *, int, struct sockaddr_in *));
+int	in_cksum	__P((u_short *, int));
+void	finish		__P((int));
+int	isbroadcast	__P((struct sockaddr_in *));
+int	ismulticast	__P((struct sockaddr_in *));
+int	sendbcast	__P((int, char *, int));
+int	sendbcastif	__P((int, char *, int, struct interface *));
+int	sendmcast	__P((int, char *, int, struct sockaddr_in *));
+int	sendmcastif	__P((int, char *, int, struct sockaddr_in *, struct interface *));
+void	init		__P((void));
+void	initifs		__P((int));
+int	support_multicast	__P((void));
+int	is_directly_connected	__P((struct in_addr));
+struct table * find_router	__P((struct in_addr));
+int	max_preference	__P((void));
+void	age_table	__P((int));
+void	record_router	__P((struct in_addr, long, int));
+void	add_route	__P((struct in_addr));
+void	del_route	__P((struct in_addr));
+void	rtioctl		__P((struct in_addr, int));
+void	initlog		__P((void));
+void	logerr		__P((char *fmt, ...));
+void	logtrace	__P((char *fmt, ...));
+void	logdebug	__P((char *fmt, ...));
+void	logperror	__P((char *str));
+void	prusage		__P((void));
+int	join		__P((int sock, struct sockaddr_in *sin));
 
-void finish(), catcher(), timer(), initifs();
-char *pr_name();
 
-static void prusage()
+void
+prusage()
 {
 	(void) fprintf(stderr, usage);
 	exit(1);
@@ -177,22 +201,15 @@ do_fork()
 	if (trace)
 		return;
 
-	if (pid =fork())
+	if ((pid = fork()))
 		exit(0);
 
 	for (t = 0; t < 20; t++)
 		if (t != s)
 			(void) close(t);
 
-#ifndef SYSV
-	t = open("/dev/tty", 2);
-	if (t >= 0) {
-		(void) ioctl(t, TIOCNOTTY, (char *)0);
-		(void) close(t);
-	}
-#else
-	(void) setpgrp ();
-#endif
+	(void) setsid ();
+
 	initlog();
 }
 
@@ -201,24 +218,23 @@ do_fork()
  */
 char    *sendaddress, *recvaddress;
 
+int
 main(argc, argv)
-char *argv[];
+	int argc;
+	char *argv[];
 {
-#ifndef SYSV
-	struct sigvec sv;
-#endif
+	struct sigaction sa;
 	struct sockaddr_in from;
-	char **av = argv;
 	struct sockaddr_in *to = &whereto;
 	struct sockaddr_in joinaddr;
 	int val;
+	int c;
 
 	min_adv_int =( max_adv_int * 3 / 4);
 	lifetime = (3*max_adv_int);
 
-	argc--, av++;
-	while (argc > 0 && *av[0] == '-') {
-		while (*++av[0]) switch (*av[0]) {
+	while ((c = getopt(argc, argv, "dtvsrabfT:p:")) != EOF) {
+		switch(c) {
 		case 'd':
 			debug = 1;
 			break;
@@ -244,39 +260,28 @@ char *argv[];
 			forever = 1;
 			break;
 		case 'T':
-			argc--, av++;
-			if (argc != 0) {
-				val = strtol(av[0], (char **)NULL, 0);
-				if (val < 4 || val > 1800) {
-					(void) fprintf(stderr,
-				          "Bad Max Advertizement Interval\n");
-					exit(1);
-				}
-				max_adv_int = val;
-				min_adv_int =( max_adv_int * 3 / 4);
-				lifetime = (3*max_adv_int);
-			} else {
-				prusage();
-				/* NOTREACHED*/
+			val = strtol(optarg, (char **)NULL, 0);
+			if (val < 4 || val > 1800) {
+				(void) fprintf(stderr,
+			          "Bad Max Advertizement Interval\n");
+				exit(1);
 			}
-			goto next;
+			max_adv_int = val;
+			min_adv_int =( max_adv_int * 3 / 4);
+			lifetime = (3*max_adv_int);
+			break;
 		case 'p':
-			argc--, av++;
-			if (argc != 0) {
-				val = strtol(av[0], (char **)NULL, 0);
-				preference = val;
-			} else {
-				prusage();
-				/* NOTREACHED*/
-			}
-			goto next;
+			val = strtol(optarg, (char **)NULL, 0);
+			preference = val;
+			break;
 		default:
 			prusage();
 			/* NOTREACHED*/
 		}
-	next:
-		argc--, av++;
 	}
+	argc -= optind;
+	argv += optind;
+
 	if( argc < 1)  {
 		if (support_multicast()) {
 			if (responder)
@@ -286,8 +291,8 @@ char *argv[];
 		} else
 			sendaddress = "255.255.255.255";
 	} else {
-		sendaddress = av[0];
-		argc--;
+		sendaddress = argv[0];
+		argc--; argv++;
 	}
 
 	if (argc < 1) {
@@ -299,8 +304,8 @@ char *argv[];
 		} else
 			recvaddress = "255.255.255.255";
 	} else {
-		recvaddress = av[0];
-		argc--;
+		recvaddress = argv[0];
+		argc--; argv++;
 	}
 	if (argc != 0) {
 		(void) fprintf(stderr, "Extra paramaters\n");
@@ -331,12 +336,8 @@ char *argv[];
 	joinaddr.sin_addr.s_addr = inet_addr(recvaddress);
 
 	if (responder) {
-#ifdef SYSV
 		/* TBD fix this to be more random */
-		srand((u_int)time((time_t *)NULL));
-#else
-		srandom((int)gethostid());
-#endif
+		srandom((int)gethostid()+(int)time((time_t *)NULL));
 	}
 
 	if ((s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0) {
@@ -344,11 +345,7 @@ char *argv[];
 		exit(5);
 	}
 
-#ifdef SYSV
 	setvbuf( stdout, NULL, _IOLBF, 0 );
-#else
-	setlinebuf( stdout );
-#endif
 
 	(void) signal( SIGINT, finish );
 	(void) signal( SIGTERM, finish );
@@ -361,19 +358,16 @@ char *argv[];
 	}
 
 
-#ifdef SYSV
-	(void) sigset(SIGALRM, timer);
-#else
 	/*
 	 * Make sure that this signal actually interrupts (rather than
 	 * restarts) the recvfrom call below.
 	 */
-	sv.sv_handler = timer;
-	sv.sv_mask = 0;
-	sv.sv_flags = SV_INTERRUPT;
-	(void) sigvec(SIGALRM, &sv, (struct sigvec *)NULL);
-#endif
-	timer();	/* start things going */
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = timer;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;	/* note: no SA_RESTART */
+	(void) sigaction(SIGALRM, &sa, (struct sigaction *)NULL);
+	timer(0);	/* start things going */
 
 	for (;;) {
 		int len = sizeof (packet);
@@ -395,24 +389,21 @@ char *argv[];
 #define TIMER_INTERVAL 	3
 #define GETIFCONF_TIMER	30
 
-static left_until_advertise;
+int left_until_advertise;
 
 /* Called every TIMER_INTERVAL */
-void timer()
+void timer(sig)
+     int sig;
 {
-	static time;
-	static left_until_getifconf;
-	static left_until_solicit;
-
-
-	time += TIMER_INTERVAL;
+	static int left_until_getifconf;
+	static int left_until_solicit;
 
 	left_until_getifconf -= TIMER_INTERVAL;
 	left_until_advertise -= TIMER_INTERVAL;
 	left_until_solicit -= TIMER_INTERVAL;
 
 	if (left_until_getifconf < 0) {
-		initifs();
+		initifs(0);
 		left_until_getifconf = GETIFCONF_TIMER;
 	}
 	if (responder && left_until_advertise <= 0) {
@@ -841,7 +832,7 @@ struct sockaddr_in *from;
 		advertise(&sin);
 		break;
 	}
-	}
+	} /* end switch */
 }
 
 
@@ -851,6 +842,7 @@ struct sockaddr_in *from;
  * Checksum routine for Internet Protocol family headers (C Version)
  *
  */
+int
 in_cksum(addr, len)
 u_short *addr;
 int len;
@@ -897,7 +889,8 @@ int len;
  * the statistics output from becomming intermingled.
  */
 void
-finish()
+finish(sig)
+	int sig;
 {
 	if (responder) {
 		int i;
@@ -957,12 +950,14 @@ unsigned char *data;
 }
 #endif notdef
 
+int
 isbroadcast(sin)
 	struct sockaddr_in *sin;
 {
 	return (sin->sin_addr.s_addr == INADDR_BROADCAST);
 }
 
+int
 ismulticast(sin)
 	struct sockaddr_in *sin;
 {
@@ -1082,13 +1077,14 @@ init()
 {
 	int i;
 
-	initifs();
+	initifs(0);
 	for (i = 0; i < interfaces_size; i++)
 		interfaces[i].preference = preference;
 }
 
 void
-initifs()
+initifs(sig)
+	int sig;
 {
 	int	sock;
 	struct ifconf ifc;
@@ -1147,6 +1143,7 @@ initifs()
 		ifreq = *ifrp;
 		if (ioctl(sock, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
 			logperror("initifs: ioctl (get interface flags)");
+			n = 0;
 			continue;
 		}
 		n = ifrp->ifr_addr.sa_len + sizeof(ifrp->ifr_name);
@@ -1212,7 +1209,7 @@ initifs()
 	(void) free(buf);
 }
 
-static int
+int
 join(sock, sin)
 	int sock;
 	struct sockaddr_in *sin;
@@ -1444,11 +1441,7 @@ add_route(addr)
 {
 	if (debug)
 		logdebug("Add default route to %s\n", pr_name(addr));
-#if 1
 	rtioctl(addr, RTM_ADD);
-#else
-	rtioctl(addr, SIOCADDRT);
-#endif
 }
 
 void
@@ -1457,11 +1450,7 @@ del_route(addr)
 {
 	if (debug)
 		logdebug("Delete default route to %s\n", pr_name(addr));
-#if 1
 	rtioctl(addr, RTM_DELETE);
-#else
-	rtioctl(addr, SIOCDELRT);
-#endif
 }
 
 void
@@ -1470,7 +1459,6 @@ rtioctl(addr, op)
 	int	op;
 {
 	int sock;
-#if 1
 	struct {
 		struct rt_msghdr m_rtm;
 		struct sockaddr_in m_dst;
@@ -1480,23 +1468,30 @@ rtioctl(addr, op)
 	static int seq = 0;
 
 	bzero(&m_rtmsg, sizeof(m_rtmsg));
-#define rtm m_rtmsg.m_rtm
-	rtm.rtm_type = op;
-	rtm.rtm_flags = RTF_GATEWAY | RTF_UP;		/* XXX more? */
-	rtm.rtm_version = RTM_VERSION;
-	rtm.rtm_seq = ++seq;
-	rtm.rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
-	bzero(&rtm.rtm_rmx, sizeof(rtm.rtm_rmx));	/* XXX ??? */
-	rtm.rtm_inits = 0;
-	rtm.rtm_msglen = sizeof(m_rtmsg);
 
-	m_rtmsg.m_dst.sin_len = m_rtmsg.m_gateway.sin_len =
-					sizeof(struct sockaddr_in);
-	m_rtmsg.m_netmask.sin_len = 0;
-	m_rtmsg.m_dst.sin_family = m_rtmsg.m_gateway.sin_family =
-		m_rtmsg.m_netmask.sin_family = AF_INET;
+	m_rtmsg.m_rtm.rtm_type = op;
+	m_rtmsg.m_rtm.rtm_flags = RTF_GATEWAY | RTF_UP;		/* XXX more? */
+	m_rtmsg.m_rtm.rtm_version = RTM_VERSION;
+	m_rtmsg.m_rtm.rtm_seq = ++seq;
+	m_rtmsg.m_rtm.rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
+
+	/* initialise route metrics to zero.. tcp may fill these in */
+	bzero(&m_rtmsg.m_rtm.rtm_rmx, sizeof(m_rtmsg.m_rtm.rtm_rmx));
+
+	m_rtmsg.m_rtm.rtm_inits = 0;
+	m_rtmsg.m_rtm.rtm_msglen = sizeof(m_rtmsg);
+
+	m_rtmsg.m_dst.sin_len = sizeof(struct sockaddr_in);
+	m_rtmsg.m_dst.sin_family = AF_INET;
 	m_rtmsg.m_dst.sin_addr.s_addr = 0;		/* default */
+
+	/* XXX: is setting a zero length right? */
+	m_rtmsg.m_netmask.sin_len = 0;
+	m_rtmsg.m_netmask.sin_family = AF_INET;
 	m_rtmsg.m_netmask.sin_addr.s_addr = 0;		/* default */
+
+	m_rtmsg.m_gateway.sin_len = sizeof(struct sockaddr_in);
+	m_rtmsg.m_gateway.sin_family = AF_INET;
 	m_rtmsg.m_gateway.sin_addr = addr;		/* gateway */
 
 	sock = socket(PF_ROUTE, SOCK_RAW, 0);
@@ -1505,32 +1500,10 @@ rtioctl(addr, op)
 		return;
 	}
 	if (write(sock, &m_rtmsg, sizeof(m_rtmsg)) != sizeof(m_rtmsg)) {
-		logperror("rtioctl: write");
-		return;
+		if (!(op == RTM_ADD && errno == EEXIST))
+			logperror("rtioctl: write");
 	}
 	close(sock);
-#else
-	struct rtentry rt;
-
-	struct sockaddr_in *sin;
-	bzero((char *)&rt, sizeof(struct rtentry));
-	rt.rt_dst.sa_family = AF_INET;
-	rt.rt_gateway.sa_family = AF_INET;
-	sin = (struct sockaddr_in *)ALLIGN(&rt.rt_gateway);
-	sin->sin_addr = addr;
-	rt.rt_flags = RTF_UP | RTF_GATEWAY;
-
-	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock < 0) {
-		logperror("rtioctl: socket");
-		return;
-	}
-	if (ioctl(sock, op, (char *)&rt) < 0) {
-		if (!(op == SIOCADDRT && errno == EEXIST))
-			logperror("ioctl (add/delete route)");
-	}
-	(void) close(sock);
-#endif
 }
 
 
@@ -1540,73 +1513,99 @@ rtioctl(addr, op)
  */
 
 
-static logging = 0;
+static int logging = 0;
 
 void
 initlog()
 {
 	logging++;
-	openlog("in.rdiscd", LOG_PID | LOG_CONS, LOG_DAEMON);
+	openlog("rdisc", LOG_PID | LOG_CONS, LOG_DAEMON);
 }
 
 /* VARARGS1 */
 void
-logerr(fmt, a,b,c,d,e,f,g,h)
+#if __STDC__
+logerr(char *fmt, ...)
+#else
+logerr(fmt, va_alist)
 	char *fmt;
+	va_dcl
+#endif
 {
-	if (logging)
-		syslog(LOG_ERR, fmt, a,b,c,d,e,f,g,h);
-	else
-		(void) fprintf(stderr, fmt, a,b,c,d,e,f,g,h);
-}
+	va_list ap;
 
-/* VARARGS1 */
-void
-logtrace(fmt, a,b,c,d,e,f,g,h)
-	char *fmt;
-{
-	if (logging)
-		syslog(LOG_INFO, fmt, a,b,c,d,e,f,g,h);
-	else
-		(void) fprintf(stdout, fmt, a,b,c,d,e,f,g,h);
-}
-
-/* VARARGS1 */
-void
-logdebug(fmt, a,b,c,d,e,f,g,h)
-	char *fmt;
-{
-	if (logging)
-		syslog(LOG_DEBUG, fmt, a,b,c,d,e,f,g,h);
-	else
-		(void) fprintf(stdout, fmt, a,b,c,d,e,f,g,h);
-}
-
-#if 0
-extern char *sys_errlist[];
+#if __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
 #endif
 
-extern int errno;
+	if (logging)
+		vsyslog(LOG_ERR, fmt, ap);
+	else
+		(void) vfprintf(stderr, fmt, ap);
+
+	va_end(ap);
+}
+
+/* VARARGS1 */
+void
+#if __STDC__
+logtrace(char *fmt, ...)
+#else
+logtrace(fmt, va_alist)
+	char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+
+#if __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+
+	if (logging)
+		vsyslog(LOG_INFO, fmt, ap);
+	else
+		(void) vfprintf(stdout, fmt, ap);
+
+	va_end(ap);
+}
+
+/* VARARGS1 */
+void
+#if __STDC__
+logdebug(char *fmt, ...)
+#else
+logdebug(fmt, va_alist)
+	char *fmt;
+	va_dcl
+#endif
+{
+	va_list ap;
+
+#if __STDC__
+	va_start(ap, fmt);
+#else
+	va_start(ap);
+#endif
+
+	if (logging)
+		vsyslog(LOG_DEBUG, fmt, ap);
+	else
+		(void) vfprintf(stdout, fmt, ap);
+
+	va_end(ap);
+}
 
 void
 logperror(str)
 	char *str;
 {
 	if (logging)
-		syslog(LOG_ERR, "%s: %s\n", str, sys_errlist[errno]);
+		syslog(LOG_ERR, "%s: %m", str);
 	else
-		(void) fprintf(stderr, "%s: %s\n", str, sys_errlist[errno]);
+		(void) warn("%s", str);
 }
-
-
-#ifdef SYSV
-void
-bzero(cp, len)
-	char *cp;
-	int len;
-{
-	while (--len>=0)
-		*cp++ = 0;
-}
-#endif
-
