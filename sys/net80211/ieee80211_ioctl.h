@@ -167,6 +167,7 @@ struct ieee80211_stats {
 	u_int32_t	is_crypto_attachfail;	/* cipher attach failed */
 	u_int32_t	is_crypto_swfallback;	/* cipher fallback to s/w */
 	u_int32_t	is_crypto_keyfail;	/* driver key alloc failed */
+	u_int32_t	is_crypto_enmicfail;	/* en-MIC failed */
 	u_int32_t	is_ibss_capmismatch;	/* merge failed-cap mismatch */
 	u_int32_t	is_ibss_norate;		/* merge failed-rate mismatch */
 	u_int32_t	is_ps_unassoc;		/* ps-poll for unassoc. sta */
