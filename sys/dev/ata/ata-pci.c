@@ -451,6 +451,7 @@ ata_pci_dmastart(struct ata_channel *ch)
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
+		 (ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_WRITE_READ) |
 		 ((ch->dma->flags & ATA_DMA_READ) ? ATA_BMCMD_WRITE_READ : 0) |
 		 ATA_BMCMD_START_STOP);
     return 0;
