@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.49 1999/01/21 16:15:53 peter Exp $
+ * $Id: conf.h,v 1.50 1999/02/25 05:22:28 dillon Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -128,8 +128,19 @@ struct cdevsw {
 };
 
 #ifdef KERNEL
-extern struct cdevsw *bdevsw[];
 extern struct cdevsw *cdevsw[];
+extern int bmaj2cmaj[];
+
+static __inline
+struct cdevsw *
+bdevsw(int maj)
+{
+	struct cdevsw *c = cdevsw[bmaj2cmaj[maj]];
+	/* CMAJ zero is the console, which has no strategy so this works */
+	if (c->d_strategy)
+		return (c);
+	return (0);
+}
 #endif
 
 /*
@@ -207,14 +218,7 @@ l_write_t	l_nowrite;
 
 struct module;
 
-struct cdevsw_module_data {
-	int	(*chainevh)(struct module *, int, void *); /* next handler */
-	void	*chainarg;	/* arg for next event handler */
-	dev_t	dev;		/* device major to use */
-	struct	cdevsw *cdevsw; /* device functions */
-};
-
-struct bdevsw_module_data {
+struct devsw_module_data {
 	int	(*chainevh)(struct module *, int, void *); /* next handler */
 	void	*chainarg;	/* arg for next event handler */
 	int	bdev;		/* device major to use */
@@ -222,33 +226,20 @@ struct bdevsw_module_data {
 	struct	cdevsw *cdevsw;	/* device functions */
 };
 
-#define CDEV_MODULE(name, major, devsw, evh, arg)			\
-static struct cdevsw_module_data name##_cdevsw_mod = {			\
-    evh, arg, major == NODEV ? NODEV : makedev(major, 0), &devsw	\
+#define DEV_MODULE(name, cmaj, bmaj, devsw, evh, arg)			\
+static struct devsw_module_data name##_devsw_mod = {			\
+    evh, arg, bmaj == NODEV ? NODEV : makedev(bmaj, 0),			\
+    cmaj == NODEV ? NODEV :  makedev(cmaj, 0), &devsw			\
 };									\
 									\
 static moduledata_t name##_mod = {					\
     #name,								\
-    cdevsw_module_handler,						\
-    &name##_cdevsw_mod							\
+    devsw_module_handler,						\
+    &name##_devsw_mod							\
 };									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+major)
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cmaj*256+bmaj)
 
-#define BDEV_MODULE(name, bdev, cdev, devsw, evh, arg)			\
-static struct bdevsw_module_data name##_bdevsw_mod = {			\
-    evh, arg, bdev == NODEV ? NODEV : makedev(bdev, 0),			\
-    cdev == NODEV ? NODEV :  makedev(cdev, 0), &devsw			\
-};									\
-									\
-static moduledata_t name##_mod = {					\
-    #name,								\
-    bdevsw_module_handler,						\
-    &name##_bdevsw_mod							\
-};									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cdev)
-
-int	cdevsw_module_handler __P((struct module *mod, int what, void *arg));
-int	bdevsw_module_handler __P((struct module *mod, int what, void *arg));
+int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
 void	cdevsw_add_generic __P((int bdev, int cdev, struct cdevsw *cdevsw));

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.19 1999/03/23 02:57:04 grog Exp grog $
+ * $Id: vinumext.h,v 1.15 1999/05/07 08:07:09 grog Exp $
  */
 
 /* vinumext.h: external definitions */
@@ -132,8 +132,6 @@ d_strategy_t vinumstrategy;
 d_ioctl_t vinumioctl;
 d_dump_t vinumdump;
 d_psize_t vinumsize;
-d_read_t physread;
-d_write_t physwrite;
 
 int vinumstart(struct buf *bp, int reviveok);
 int launch_requests(struct request *rq, int reviveok);

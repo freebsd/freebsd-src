@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
+ * $Id: vinumio.c,v 1.23 1999/05/07 01:32:09 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -285,7 +285,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	bp->b_bcount = len;
 	bp->b_bufsize = len;
 
-	(*bdevsw[major(bp->b_dev)]->d_strategy) (bp);	    /* initiate the transfer */
+	(*bdevsw(major(bp->b_dev))->d_strategy) (bp);	    /* initiate the transfer */
 
 	error = biowait(bp);
 	printf("driveio: %s dev 0x%x, block 0x%x, len 0x%lx, error %d\n", /* XXX */
