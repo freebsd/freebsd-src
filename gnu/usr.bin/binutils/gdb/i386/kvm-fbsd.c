@@ -30,6 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "frame.h"  /* required by inferior.h */
 #include "inferior.h"
 #include "symtab.h"
+#include "symfile.h"
+#include "objfiles.h"
 #include "command.h"
 #include "bfd.h"
 #include "target.h"
@@ -339,13 +341,18 @@ kcore_open (filename, from_tty)
       *cp = '\0';
       if (buf[0] != '\0')
 	printf ("panicstr: %s\n", buf);
+    }
 
+  /* Print all the panic messages if possible. */
+  if (symfile_objfile != NULL)
+    {
       printf ("panic messages:\n---\n");
       snprintf (buf, sizeof buf,
-		"/sbin/dmesg -M %s | \
+		"/sbin/dmesg -N %s -M %s | \
 		 /usr/bin/awk '/^(panic:|Fatal trap) / { printing = 1 } \
 			       { if (printing) print $0 }'",
-		 filename);
+		symfile_objfile->name, filename);
+      fflush(stdout);
       system (buf);
       printf ("---\n");
     }
