@@ -194,6 +194,8 @@ static struct dc_type dc_devs[] = {
 		"Conexant LANfinity MiniPCI 10/100BaseTX" },
 	{ DC_VENDORID_HAWKING, DC_DEVICEID_HAWKING_PN672TX,
 		"Hawking CB102 CardBus 10/100" },
+	{ DC_VENDORID_PLANEX, DC_DEVICEID_FNW3602T,
+		"PlaneX FNW-3602-T CardBus 10/100" },
 	{ 0, 0, NULL }
 };
 
