@@ -1,183 +1,305 @@
 /*
- * Copyright (c) 1993 Daniel Boulet
- * Copyright (c) 1994 Ugen J.S.Antsilevich
+ * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
  *
- * Redistribution and use in source forms, with and without modification,
- * are permitted provided that this entire comment appears intact.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * Redistribution in binary form may occur without any restrictions.
- * Obviously, it would be nice if you gave credit where credit is due
- * but requiring it would be too onerous.
- *
- * This software is provided ``AS IS'' without any warranties of any kind.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  * $FreeBSD$
  */
 
-#ifndef _IP_FW_H
-#define _IP_FW_H
-
-#include <sys/queue.h>
+#ifndef _IPFW2_H
+#define _IPFW2_H
 
 /*
- * This union structure identifies an interface, either explicitly
- * by name or implicitly by IP address. The flags IP_FW_F_IIFNAME
- * and IP_FW_F_OIFNAME say how to interpret this structure. An
- * interface unit number of -1 matches any unit number, while an
- * IP address of 0.0.0.0 indicates matches any interface.
+ * The kernel representation of ipfw rules is made of a list of
+ * 'instructions' (for all practical purposes equivalent to BPF
+ * instructions), which specify which fields of the packet
+ * (or its metatada) should be analysed.
  *
- * The receive and transmit interfaces are only compared against the
- * the packet if the corresponding bit (IP_FW_F_IIFACE or IP_FW_F_OIFACE)
- * is set. Note some packets lack a receive or transmit interface
- * (in which case the missing "interface" never matches).
+ * Each instruction is stored in a structure which begins with
+ * "ipfw_insn", and can contain extra fields depending on the
+ * instruction type (listed below).
+ *
+ * "enum ipfw_opcodes" are the opcodes supported. We can have up
+ * to 256 different opcodes.
  */
 
-union ip_fw_if {
-	struct in_addr	fu_via_ip;	/* Specified by IP address */
-	struct {			/* Specified by interface name */
-#define FW_IFNLEN	10		/* need room ! was IFNAMSIZ */
-		char	name[FW_IFNLEN];
-		short	unit;		/* -1 means match any unit */
-	} fu_via_if;
+enum ipfw_opcodes {		/* arguments (4 byte each)	*/
+	O_NOP,
+
+	O_IP_SRC,		/* u32 = IP			*/
+	O_IP_SRC_MASK,		/* ip = IP/mask			*/
+	O_IP_SRC_ME,		/* none				*/
+	O_IP_SRC_SET,		/* u32=base, arg1=len, bitmap	*/
+
+	O_IP_DST,		/* u32 = IP			*/
+	O_IP_DST_MASK,		/* ip = IP/mask			*/
+	O_IP_DST_ME,		/* none				*/
+	O_IP_DST_SET,		/* u32=base, arg1=len, bitmap	*/
+
+	O_IP_SRCPORT,		/* (n)port list:mask 4 byte ea	*/
+	O_IP_DSTPORT,		/* (n)port list:mask 4 byte ea	*/
+	O_PROTO,		/* arg1=protocol		*/
+
+	O_MACADDR2,		/* 2 mac addr:mask		*/
+	O_MAC_TYPE,		/* same as srcport		*/
+
+	O_LAYER2,		/* none				*/
+	O_IN,			/* none				*/
+	O_FRAG,			/* none				*/
+
+	O_RECV,			/* none				*/
+	O_XMIT,			/* none				*/
+	O_VIA,			/* none				*/
+
+	O_IPOPT,		/* arg1 = 2*u8 bitmap		*/
+	O_IPLEN,		/* arg1 = len			*/
+	O_IPID,			/* arg1 = id			*/
+
+	O_IPPRE,		/* arg1 = id			*/
+	O_IPTOS,		/* arg1 = id			*/
+	O_IPTTL,		/* arg1 = TTL			*/
+
+	O_IPVER,		/* arg1 = version		*/
+	O_UID,			/* u32 = id			*/
+	O_GID,			/* u32 = id			*/
+	O_ESTAB,		/* none (tcp established)	*/
+	O_TCPFLAGS,		/* arg1 = 2*u8 bitmap		*/
+	O_TCPWIN,		/* arg1 = desired win		*/
+	O_TCPSEQ,		/* u32 = desired seq.		*/
+	O_TCPACK,		/* u32 = desired seq.		*/
+	O_ICMPTYPE,		/* u32 = icmp bitmap		*/
+	O_TCPOPTS,		/* arg1 = 2*u8 bitmap		*/
+	O_IPOPTS,		/* arg1 = 2*u8 bitmap		*/
+
+	O_PROBE_STATE,		/* none				*/
+	O_KEEP_STATE,		/* none				*/
+	O_LIMIT,		/* ipfw_insn_limit		*/
+	O_LIMIT_PARENT,		/* dyn_type, not an opcode.	*/
+	/*
+	 * these are really 'actions', and must be last in the list.
+	 */
+
+	O_LOG,			/* ipfw_insn_log		*/
+	O_PROB,			/* u32 = match probability	*/
+
+	O_CHECK_STATE,		/* none				*/
+	O_ACCEPT,		/* none				*/
+	O_DENY,			/* none 			*/
+	O_REJECT,		/* arg1=icmp arg (same as deny)	*/
+	O_COUNT,		/* none				*/
+	O_SKIPTO,		/* arg1=next rule number	*/
+	O_PIPE,			/* arg1=pipe number		*/
+	O_QUEUE,		/* arg1=queue number		*/
+	O_DIVERT,		/* arg1=port number		*/
+	O_TEE,			/* arg1=port number		*/
+	O_FORWARD_IP,		/* fwd sockaddr			*/
+	O_FORWARD_MAC,		/* fwd mac			*/
+	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
 /*
- * Format of an IP firewall descriptor
+ * Template for instructions.
  *
- * fw_src, fw_dst, fw_smsk, fw_dmsk are always stored in network byte order.
- * fw_flg and fw_n*p are stored in host byte order (of course).
- * Port numbers are stored in HOST byte order.
+ * ipfw_insn is used for all instructions which require no operands,
+ * a single 16-bit value (arg1), or a couple of 8-bit values.
+ *
+ * For other instructions which require different/larger arguments
+ * we have derived structures, ipfw_insn_*.
+ *
+ * The size of the instruction (in 32-bit words) is in the low
+ * 6 bits of "len". The 2 remaining bits are used to implement
+ * NOT and OR on individual instructions. Given a type, you can
+ * compute the length to be put in "len" using F_INSN_SIZE(t)
+ *
+ * F_NOT	negates the match result of the instruction.
+ *
+ * F_OR		is used to build or blocks. By default, instructions
+ *		are evaluated as part of a logical AND. An "or" block
+ *		{ X or Y or Z } contains F_OR set in all but the last
+ *		instruction of the block. A match will cause the code
+ *		to skip past the last instruction of the block.
+ *
+ * NOTA BENE: in a couple of places we assume that
+ *	sizeof(ipfw_insn) == sizeof(u_int32_t)
+ * this needs to be fixed.
+ *
  */
+typedef struct	_ipfw_insn {	/* template for instructions */
+	enum ipfw_opcodes	opcode:8;
+	u_int8_t	len;	/* numer of 32-byte words */
+#define	F_NOT		0x80
+#define	F_OR		0x40
+#define	F_LEN_MASK	0x3f
+#define	F_LEN(cmd)	((cmd)->len & F_LEN_MASK)
+
+	u_int16_t	arg1;
+} ipfw_insn;
 
 /*
- * To match MAC headers:
- *     12 bytes at fw_mac_hdr contain the dst-src MAC address after masking.
- *     12 bytes at fw_mac_mask contain the mask to apply to dst-src
- *     2 bytes at fw_mac_type contain the mac type after mask (in net format)
- *     2 bytes at fw_mac_type_mask contain the mac type mask
- *         If IP_FW_F_SRNG, the two contain the low-high of a range of types.
- *     IP_FW_F_DRNG is used to indicare we want to match a vlan.
+ * The F_INSN_SIZE(type) computes the size, in 4-byte words, of
+ * a given type.
  */
-#define	fw_mac_hdr		fw_src
-#define	fw_mac_mask		fw_uar
-#define	fw_mac_type		fw_iplen
-#define	fw_mac_mask_type	fw_ipid
+#define	F_INSN_SIZE(t)	((sizeof (t))/sizeof(u_int32_t))
 
-struct ip_fw {
-	LIST_ENTRY(ip_fw) next;		/* bidirectional list of rules */
-	u_int		fw_flg;		/* Operational Flags word */
-	u_int64_t	fw_pcnt;	/* Packet counters */
-	u_int64_t	fw_bcnt;	/* Byte counters */
+/*
+ * This is used to store an array of 16-bit entries (ports etc.)
+ */
+typedef struct	_ipfw_insn_u16 {
+	ipfw_insn o;
+	u_int16_t ports[2];	/* there may be more */
+} ipfw_insn_u16;
 
-	struct in_addr	fw_src;		/* Source IP address */
-	struct in_addr	fw_dst;		/* Destination IP address */
-	struct in_addr	fw_smsk;	/* Mask for source IP address */
-	struct in_addr	fw_dmsk;	/* Mask for destination address */
-	u_short		fw_number;	/* Rule number */
-	u_char		fw_prot;	/* IP protocol */
-#if 1
-	u_char		fw_nports;	/* # of src/dst port in array */
-#define	IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
-#define	IP_FW_SETNSRCP(rule, n)		do {				\
-					    (rule)->fw_nports &= ~0x0f;	\
-					    (rule)->fw_nports |= (n);	\
-					} while (0)
-#define	IP_FW_GETNDSTP(rule)		((rule)->fw_nports >> 4)
-#define	IP_FW_SETNDSTP(rule, n)		do {				  \
-					    (rule)->fw_nports &= ~0xf0;	  \
-					    (rule)->fw_nports |= (n) << 4;\
-					} while (0)
-#define	IP_FW_HAVEPORTS(rule)		((rule)->fw_nports != 0)
-#else
-	u_char		__pad[1];
-	u_int		_nsrcp;
-	u_int		_ndstp;
-#define	IP_FW_GETNSRCP(rule)		(rule)->_nsrcp
-#define	IP_FW_SETNSRCP(rule,n)		(rule)->_nsrcp = n
-#define	IP_FW_GETNDSTP(rule)		(rule)->_ndstp
-#define	IP_FW_SETNDSTP(rule,n)		(rule)->_ndstp = n
-#define	IP_FW_HAVEPORTS(rule)		((rule)->_ndstp + (rule)->_nsrcp != 0)
-#endif
-#define	IP_FW_MAX_PORTS	10		/* A reasonable maximum */
-    union {
-	u_short		fw_pts[IP_FW_MAX_PORTS]; /* port numbers to match */
-#define	IP_FW_ICMPTYPES_MAX	128
-#define	IP_FW_ICMPTYPES_DIM	(IP_FW_ICMPTYPES_MAX / (sizeof(unsigned) * 8))
-	unsigned	fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /*ICMP types bitmap*/
-    } fw_uar;
+/*
+ * This is used to store an array of 32-bit entries
+ * (uid, single IPv4 addresses etc.)
+ */
+typedef struct	_ipfw_insn_u32 {
+	ipfw_insn o;
+	u_int32_t d[1];	/* one or more */
+} ipfw_insn_u32;
 
-	u_int		fw_ipflg;	/* IP flags word */
-	u_short		fw_iplen;	/* IP length */
-	u_short		fw_ipid;	/* Identification */
-	u_char		fw_ipopt;	/* IP options set */
-	u_char		fw_ipnopt;	/* IP options unset */
-	u_char		fw_iptos;	/* IP type of service set */
-	u_char		fw_ipntos;	/* IP type of service unset */
-	u_char		fw_ipttl;	/* IP time to live */
-	u_int		fw_ipver:4;	/* IP version */
-	u_char		fw_tcpopt;	/* TCP options set */
-	u_char		fw_tcpnopt;	/* TCP options unset */
-	u_char		fw_tcpf;	/* TCP flags set */
-	u_char		fw_tcpnf;	/* TCP flags unset */
-	u_short		fw_tcpwin;	/* TCP window size */
-	u_int32_t	fw_tcpseq;	/* TCP sequence */
-	u_int32_t	fw_tcpack;	/* TCP acknowledgement */
-	long		timestamp;	/* timestamp (tv_sec) of last match */
-	union ip_fw_if	fw_in_if;	/* Incoming interfaces */
-	union ip_fw_if	fw_out_if;	/* Outgoing interfaces */
-    union {
-	u_short		fu_divert_port;	/* Divert/tee port (options IPDIVERT) */
-	u_short		fu_pipe_nr;	/* queue number (option DUMMYNET) */
-	u_short		fu_skipto_rule;	/* SKIPTO command rule number */
-	u_short		fu_reject_code;	/* REJECT response code */
-	struct sockaddr_in fu_fwd_ip;
-    } fw_un;
-	void		*pipe_ptr;	/* flow_set ptr for dummynet pipe */
-	void		*next_rule_ptr;	/* next rule in case of match */
-	uid_t		fw_uid;		/* uid to match */
-	gid_t		fw_gid;		/* gid to match */
-	int		fw_logamount;	/* amount to log */
-	u_int64_t	fw_loghighest;	/* highest number packet to log */
+/*
+ * This is used to store IP addr-mask pairs.
+ */
+typedef struct	_ipfw_insn_ip {
+	ipfw_insn o;
+	struct in_addr	addr;
+	struct in_addr	mask;
+} ipfw_insn_ip;
 
-	long		dont_match_prob; /* 0x7fffffff means 1.0, always fail */
-	u_char		dyn_type;	/* type for dynamic rule */
+/*
+ * This is used to forward to a given address (ip)
+ */
+typedef struct  _ipfw_insn_sa {
+	ipfw_insn o;
+	struct sockaddr_in sa;
+} ipfw_insn_sa;
 
-#define	DYN_KEEP_STATE	0	/* type for keep-state rules	*/
-#define	DYN_LIMIT	1	/* type for limit connection rules */
-#define	DYN_LIMIT_PARENT 2	/* parent entry for limit connection rules */
+/*
+ * This is used for MAC addr-mask pairs.
+ */
+typedef struct	_ipfw_insn_mac {
+	ipfw_insn o;
+	u_char addr[12];	/* dst[6] + src[6] */
+	u_char mask[12];	/* dst[6] + src[6] */
+} ipfw_insn_mac;
 
-	/* following two fields are used to limit number of connections
-	 * basing on either src, srcport, dst, dstport.
-	 */
-	u_char		limit_mask;	/* mask type for limit rule, can
-					 * have many.
-					 */
+/*
+ * This is used for interface match rules (recv xx, xmit xx)
+ */
+typedef struct	_ipfw_insn_if {
+	ipfw_insn o;
+	union {
+		struct in_addr ip;
+		int unit;
+	} p;
+	char name[IFNAMSIZ];
+} ipfw_insn_if;
+
+/*
+ * This is used for pipe and queue actions, which need to store
+ * a single pointer (which can have different size on different
+ * architectures.
+ */
+typedef struct	_ipfw_insn_pipe {
+	ipfw_insn	o;
+	void		*pipe_ptr;
+} ipfw_insn_pipe;
+
+/*
+ * This is used for limit rules.
+ */
+typedef struct	_ipfw_insn_limit {
+	ipfw_insn o;
+	u_int8_t _pad;
+	u_int8_t limit_mask;	/* combination of DYN_* below	*/
 #define	DYN_SRC_ADDR	0x1
 #define	DYN_SRC_PORT	0x2
 #define	DYN_DST_ADDR	0x4
 #define	DYN_DST_PORT	0x8
 
-	u_short		conn_limit;	/* # of connections for limit rule */
-};
-
-#define	fw_divert_port	fw_un.fu_divert_port
-#define	fw_skipto_rule	fw_un.fu_skipto_rule
-#define	fw_reject_code	fw_un.fu_reject_code
-#define	fw_pipe_nr	fw_un.fu_pipe_nr
-#define	fw_fwd_ip	fw_un.fu_fwd_ip
+	u_int16_t conn_limit;
+} ipfw_insn_limit;
 
 /*
+ * This is used for log instructions
+ */
+typedef struct  _ipfw_insn_log {
+        ipfw_insn o;
+	u_int32_t max_log;	/* how many do we log -- 0 = all */
+	u_int32_t log_left;	/* how many left to log 	*/
+} ipfw_insn_log;
+
+/*
+ * Here we have the structure representing an ipfw rule.
  *
- *   rule_ptr  -------------+
- *                          V
- *     [ next.le_next ]---->[ next.le_next ]---- [ next.le_next ]--->
- *     [ next.le_prev ]<----[ next.le_prev ]<----[ next.le_prev ]<---
- *     [ <ip_fw> body ]     [ <ip_fw> body ]     [ <ip_fw> body ]
+ * It starts with a general area (with link fields and counters)
+ * followed by an array of one or more instructions, which the code
+ * accesses as an array of 32-bit values.
  *
+ * Given a rule pointer  r:
+ *
+ *  r->cmd		is the start of the first instruction.
+ *  ACTION_PTR(r)	is the start of the first action (things to do
+ *			once a rule matched).
+ *
+ * When assembling instruction, remember the following:
+ *
+ *  + if a rule has a "keep-state" (or "limit") option, then the
+ *	first instruction (at r->cmd) MUST BE an O_PROBE_STATE
+ *  + if a rule has a "log" option, then the first action
+ *	(at ACTION_PTR(r)) MUST be O_LOG
+ *
+ * NOTE: we use a simple linked list of rules because we never need
+ * 	to delete a rule without scanning the list. We do not use
+ *	queue(3) macros for portability and readability.
  */
 
+struct ip_fw {
+	struct ip_fw	*next;		/* linked list of rules	*/
+	u_int16_t	act_ofs;	/* offset of action in 32-bit units */
+	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	u_int16_t	rulenum;	/* rule number			*/
+	u_int16_t	_pad;		/* padding			*/
+
+	/* These fields are present in all rules.			*/
+	u_int64_t	pcnt;		/* Packet counter		*/
+	u_int64_t	bcnt;		/* Byte counter			*/
+	u_int32_t	timestamp;	/* tv_sec of last match		*/
+
+	struct ip_fw *next_rule;	/* ptr to next rule		*/
+
+	ipfw_insn	cmd[1];		/* storage for commands		*/
+};
+
+#define ACTION_PTR(rule)				\
+	(ipfw_insn *)( (u_int32_t *)((rule)->cmd) + ((rule)->act_ofs) )
+
+#define RULESIZE(rule)  (sizeof(struct ip_fw) + \
+	((struct ip_fw *)(rule))->cmd_len * 4 - 4)
+
 /*
- * Flow mask/flow id for each queue.
+ * This structure is used as a flow mask and a flow id for various
+ * parts of the code.
  */
 struct ipfw_flow_id {
 	u_int32_t	dst_ip;
@@ -191,106 +313,23 @@ struct ipfw_flow_id {
 /*
  * dynamic ipfw rule
  */
-struct ipfw_dyn_rule {
-	struct ipfw_dyn_rule *next;
-	struct ipfw_flow_id id;		/* (masked) flow id */
-	struct ip_fw	*rule;		/* pointer to rule */
-	struct ipfw_dyn_rule *parent;	/* pointer to parent rule */
-	u_int32_t	expire;		/* expire time */
-	u_int64_t	pcnt;		/* packet match counters */
-	u_int64_t	bcnt;		/* byte match counters */
-	u_int32_t	bucket;		/* which bucket in hash table */
+typedef struct _ipfw_dyn_rule ipfw_dyn_rule;
+
+struct _ipfw_dyn_rule {
+	ipfw_dyn_rule	*next;		/* linked list of rules.	*/
+	struct ipfw_flow_id id;		/* (masked) flow id		*/
+	struct ip_fw *rule;		/* pointer to rule		*/
+	ipfw_dyn_rule *parent;		/* pointer to parent rule	*/
+	u_int32_t	expire;		/* expire time			*/
+	u_int64_t	pcnt;		/* packet match counter		*/
+	u_int64_t	bcnt;		/* byte match counter		*/
+	u_int32_t	bucket;		/* which bucket in hash table	*/
 	u_int32_t	state;		/* state of this rule (typically a
 					 * combination of TCP flags)
 					 */
-	u_int16_t	dyn_type;	/* rule type */
-	u_int16_t	count;		/* refcount */
+	u_int16_t	dyn_type;	/* rule type			*/
+	u_int16_t	count;		/* refcount			*/
 };
-
-/*
- * Values for "flags" field .
- */
-#define	IP_FW_F_COMMAND	0x000000ff	/* Mask for type of chain entry: */
-#define	IP_FW_F_DENY	0x00000000	/* This is a deny rule */
-#define	IP_FW_F_REJECT	0x00000001	/* Deny and send a response packet */
-#define	IP_FW_F_ACCEPT	0x00000002	/* This is an accept rule */
-#define	IP_FW_F_COUNT	0x00000003	/* This is a count rule */
-#define	IP_FW_F_DIVERT	0x00000004	/* This is a divert rule */
-#define	IP_FW_F_TEE	0x00000005	/* This is a tee rule */
-#define	IP_FW_F_SKIPTO	0x00000006	/* This is a skipto rule */
-#define	IP_FW_F_FWD	0x00000007	/* This is a "change forwarding
-					 * address" rule
-					 */
-#define	IP_FW_F_PIPE	0x00000008	/* This is a dummynet rule */
-#define	IP_FW_F_QUEUE	0x00000009	/* This is a dummynet queue */
-
-#define	IP_FW_F_IN	0x00000100	/* Check inbound packets */
-#define	IP_FW_F_OUT	0x00000200	/* Check outbound packets */
-#define	IP_FW_F_IIFACE	0x00000400	/* Apply inbound interface test */
-#define	IP_FW_F_OIFACE	0x00000800	/* Apply outbound interface test */
-#define	IP_FW_F_PRN	0x00001000	/* Print if this rule matches */
-#define	IP_FW_F_SRNG	0x00002000	/* The first two src ports are a min
-					 * and max range (stored in host byte
-					 * order).
-					 */
-#define	IP_FW_F_DRNG	0x00004000	/* The first two dst ports are a min
-					 * and max range (stored in host byte
-					 * order).
-					 */
-#define	IP_FW_F_FRAG	0x00008000	/* Fragment */
-#define	IP_FW_F_IIFNAME	0x00010000	/* In interface by name/unit (not IP) */
-#define	IP_FW_F_OIFNAME	0x00020000	/* Out interface by name/unit (not IP)*/
-#define	IP_FW_F_INVSRC	0x00040000	/* Invert sense of src check */
-#define	IP_FW_F_INVDST	0x00080000	/* Invert sense of dst check */
-#define	IP_FW_F_ICMPBIT	0x00100000	/* ICMP type bitmap is valid */
-#define	IP_FW_F_UID	0x00200000	/* filter by uid */
-#define	IP_FW_F_GID	0x00400000	/* filter by gid */
-#define	IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match */
-#define	IP_FW_F_SMSK	0x01000000	/* src-port + mask */
-#define	IP_FW_F_DMSK	0x02000000	/* dst-port + mask */
-#define	IP_FW_BRIDGED	0x04000000	/* only match bridged packets */
-#define	IP_FW_F_KEEP_S	0x08000000	/* keep state */
-#define	IP_FW_F_CHECK_S	0x10000000	/* check state */
-#define	IP_FW_F_SME	0x20000000	/* source = me */
-#define	IP_FW_F_DME	0x40000000	/* destination = me */
-#define	IP_FW_F_MAC	0x80000000	/* match MAC header */
-
-#define	IP_FW_F_MASK	0xFFFFFFFF	/* All possible flag bits mask */
-
-/*
- * Flags for the 'fw_ipflg' field, for comparing values
- * of ip and its protocols.
- */
-#define	IP_FW_IF_TCPOPT	0x00000001	/* tcp options */
-#define	IP_FW_IF_TCPFLG	0x00000002	/* tcp flags */
-#define	IP_FW_IF_TCPSEQ	0x00000004	/* tcp sequence number */
-#define	IP_FW_IF_TCPACK	0x00000008	/* tcp acknowledgement number */
-#define	IP_FW_IF_TCPWIN	0x00000010	/* tcp window size */
-#define	IP_FW_IF_TCPEST	0x00000020	/* established TCP connection */
-#define	IP_FW_IF_TCPMSK	0x0000003f	/* mask of all tcp values */
-#define	IP_FW_IF_IPOPT	0x00000100	/* ip options */
-#define	IP_FW_IF_IPLEN	0x00000200	/* ip length */
-#define	IP_FW_IF_IPID	0x00000400	/* ip identification */
-#define	IP_FW_IF_IPTOS	0x00000800	/* ip type of service */
-#define	IP_FW_IF_IPTTL	0x00001000	/* ip time to live */
-#define	IP_FW_IF_IPVER	0x00002000	/* ip version */
-#define	IP_FW_IF_IPPRE	0x00004000	/* ip precedence */
-#define	IP_FW_IF_IPMSK	0x00007f00	/* mask of all ip values */
-#define	IP_FW_IF_MSK	0x0000ffff	/* All possible bits mask */
-
-/*
- * For backwards compatibility with rules specifying "via iface" but
- * not restricted to only "in" or "out" packets, we define this combination
- * of bits to represent this configuration.
- */
-
-#define	IF_FW_F_VIAHACK	(IP_FW_F_IN|IP_FW_F_OUT|IP_FW_F_IIFACE|IP_FW_F_OIFACE)
-
-/*
- * Definitions for REJECT response codes.
- * Values less than 256 correspond to ICMP unreachable codes.
- */
-#define	IP_FW_REJECT_RST	0x0100	/* TCP packets: send RST */
 
 /*
  * Definitions for IP option names.
@@ -309,6 +348,8 @@ struct ipfw_dyn_rule {
 #define	IP_FW_TCPOPT_TS		0x08
 #define	IP_FW_TCPOPT_CC		0x10
 
+#define	ICMP_REJECT_RST		0x100	/* fake ICMP code (send a TCP RST) */
+
 /*
  * Main firewall chains definitions and global var's definitions.
  */
@@ -319,7 +360,7 @@ struct ipfw_dyn_rule {
 #define	IP_FW_PORT_DENY_FLAG	0x40000
 
 /*
- * arguments for calling ip_fw_chk() and dummynet_io(). We put them
+ * arguments for calling ipfw_chk() and dummynet_io(). We put them
  * all into a structure because this way it is easier and more
  * efficient to pass variables around and extend the interface.
  */
@@ -342,11 +383,13 @@ struct ip_fw_args {
 /*
  * Function definitions.
  */
-void ip_fw_init(void);
 
 /* Firewall hooks */
-struct ip;
 struct sockopt;
+struct dn_flow_set;
+
+void flush_pipe_ptrs(struct dn_flow_set *match); /* used by dummynet */
+
 typedef int ip_fw_chk_t (struct ip_fw_args *args);
 typedef int ip_fw_ctl_t (struct sockopt *);
 extern ip_fw_chk_t *ip_fw_chk_ptr;
@@ -356,4 +399,4 @@ extern int fw_enable;
 #define	IPFW_LOADED	(ip_fw_chk_ptr != NULL)
 #endif /* _KERNEL */
 
-#endif /* _IP_FW_H */
+#endif /* _IPFW2_H */
