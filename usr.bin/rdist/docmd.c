@@ -32,12 +32,15 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)docmd.c	8.1 (Berkeley) 6/9/93";
+/*static char sccsid[] = "From: @(#)docmd.c	8.1 (Berkeley) 6/9/93";*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "defs.h"
 #include <setjmp.h>
 #include <netdb.h>
+#include <regex.h>
 
 FILE	*lfp;			/* log file for recording files updated */
 struct	subcmd *subcmds;	/* list of sub-commands for current cmd */
@@ -592,6 +595,8 @@ except(file)
 {
 	register struct	subcmd *sc;
 	register struct	namelist *nl;
+	regex_t rx;
+	int val;
 
 	if (debug)
 		printf("except(%s)\n", file);
@@ -605,9 +610,13 @@ except(file)
 					return(1);
 				continue;
 			}
-			re_comp(nl->n_name);
-			if (re_exec(file) > 0)
-				return(1);
+			val = regcomp(&rx, nl->n_name, 
+				      REG_EXTENDED | REG_NOSUB);
+			if (!regexec(&rx, file, 0, 0, 0)) {
+				regfree(&rx);
+				return 1;
+			}
+			regfree(&rx);
 		}
 	}
 	return(0);
