@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 static int uart_sa1110_probe(device_t dev);
 
+extern struct uart_class uart_sa1110_class;
+
 static device_method_t uart_sa1110_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		uart_sa1110_probe),
