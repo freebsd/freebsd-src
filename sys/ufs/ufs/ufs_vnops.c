@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.17 1995/03/16 18:17:01 bde Exp $
+ * $Id: ufs_vnops.c,v 1.18 1995/03/19 09:47:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -1588,11 +1588,9 @@ ufs_unlock(ap)
 		panic("ufs_unlock NOT LOCKED");
 	}
 	if (p && p->p_pid != ip->i_lockholder && p->p_pid > -1 &&
-	    ip->i_lockholder > -1 && lockcount++ < 100) {
-		printf("unlocker (%d) != lock holder (%d)\n",
+	    ip->i_lockholder > -1 && lockcount++ < 100)
+		panic("unlocker (%d) != lock holder (%d)",
 		    p->p_pid, ip->i_lockholder);
-		panic("ufs_unlock: bad unlock request");
-	}
 	ip->i_lockholder = 0;
 #endif
 	ip->i_flag &= ~IN_LOCKED;
