@@ -2382,7 +2382,7 @@ _thr_alloc(struct pthread *curthread)
 	if ((thread == NULL) &&
 	    ((thread = malloc(sizeof(struct pthread))) != NULL)) {
 		bzero(thread, sizeof(struct pthread));
-		if ((thread->tcb = _tcb_ctor(thread)) == NULL) {
+		if ((thread->tcb = _tcb_ctor(thread, curthread == NULL)) == NULL) {
 			free(thread);
 			thread = NULL;
 		} else {

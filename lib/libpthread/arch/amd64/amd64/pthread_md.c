@@ -28,29 +28,37 @@
 
 #include <stdlib.h>
 #include <strings.h>
+#include "rtld_tls.h"
 #include "pthread_md.h"
 
 /*
  * The constructors.
  */
 struct tcb *
-_tcb_ctor(struct pthread *thread)
+_tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
+	void *oldtls;
 
-	if ((tcb = malloc(sizeof(struct tcb))) != NULL) {
-		bzero(tcb, sizeof(struct tcb));
-		tcb->tcb_thread = thread;
-		/* Allocate TDV */
+	if (initial) {
+		__asm __volatile("movq %%fs:0, %0" : "=r" (oldtls));
+	} else {
+		oldtls = NULL;
 	}
+
+	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
+	if (tcb) {
+		tcb->tcb_thread = thread;
+		bzero(&tcb->tcb_tmbx, sizeof(tcb->tcb_tmbx));
+	}
+
 	return (tcb);
 }
 
 void
 _tcb_dtor(struct tcb *tcb)
 {
-	/* Free TDV */
-	free(tcb);
+	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }
 
 struct kcb *
