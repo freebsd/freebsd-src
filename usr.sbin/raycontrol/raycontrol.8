@@ -143,10 +143,10 @@ legal transmit rate settings and the corresponding transmit speeds:
 4	High (2Mbps)
 .El
 .Pp
-The version 4 firmware may ignore this setting. Note, that the IEEE802.11
+The version 4 firmware may ignore this setting. Note, that the IEEE 802.11
 standard
 only allows 1Mbps or 2Mbps operation, and that the generally accepted
-reading of the IEEE802.11 standard is that 2Mbps is only allowed in
+reading of the IEEE 802.11 standard is that 2Mbps is only allowed in
 infrastructure mode.
 .It Fl i Ar iface Fl n Ar network name
 Set the name of the service set that this station wishes to
@@ -162,7 +162,7 @@ Set the
 for a specified interface.
 The legal values for
 .Ar port type
-are 0 (ad-hoc mode) and 1 (infrastructure) mode.
+are 0 (ad-hoc mode) and 1 (infrastructure mode).
 In ad-hoc mode, the station can
 communicate directly with any other stations within direct radio range
 (provided that they are also operating in ad-hoc mode). In inrastructure mode,
@@ -177,7 +177,7 @@ specified by the
 option if it cannot find an existing network of that name on the
 currently configured hopset (see the
 .Fl f
-option.)
+option).
 .It Fl i Ar iface Fl m Ar mac address
 Set the station address for the specified interface.
 The
@@ -199,7 +199,7 @@ number of bytes used for the RTS/CTS handshake boundary.
 The
 .Ar RTS threshold
 can be any value between -1 and 2047.
-The default is -1 (disable.)
+The default is -1 (disable).
 .It Fl i Ar iface Fl f Ar hopset
 Set the radio hopset of a given interface.
 The
@@ -225,7 +225,7 @@ by regional authorities.
 Whilst the card can be programmed to work with any hopset it makes
 sense to use the hopset for your own region to avoid interference from
 and interfering with other users of the RF spectrum (in places like
-France this is the military.)
+France this is the military).
 .Pp
 Note that all stations must be set to the same hopset in order to
 communicate.
