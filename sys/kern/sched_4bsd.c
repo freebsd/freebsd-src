@@ -156,7 +156,7 @@ SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD, 0, "SCHED");
 
 #define SCHD_NAME	"4bsd"
 #define SCHD_NAME_LEN	4
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFALG_RO, SCHD_NAME, SCHD_NAME_LEN,
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFALG_RD, SCHD_NAME, SCHD_NAME_LEN,
 	      "System is using the 4BSD scheduler");
 
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
