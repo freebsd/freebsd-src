@@ -1,6 +1,6 @@
 # ex:ts=8
 #
-# $Id: Makefile.inc,v 1.1 1998/08/27 08:09:38 obrien Exp $
+# $Id: Makefile.inc,v 1.2 1998/08/30 19:59:35 gpalmer Exp $
 #
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.
@@ -11,7 +11,7 @@
 #
 
 #INCGEN!=	cd ${.CURDIR}/../include; \
-#		printf 'xwhere: .MAKE\n\t@echo \$${.OBJDIR}\n' | ${MAKE} -s -f-
+#		printf 'xwhere: .MAKE\n\t@echo \$${.OBJDIR}\n' | ${MAKE} -Bs -f-
 
 #CFLAGS+=	-I${INCGEN}
 CFLAGS+=	-I. -I${.CURDIR} 
@@ -40,10 +40,10 @@ SRCS+=		mount.h nfs_prot.h
 CLEANFILES+=	mount.h nfs_prot.h
 
 mount.h: ${MOUNT_X}
-	${RPCCOM} -h -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
+	${RPCCOM} -h -C -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
 nfs_prot.h: ${NFS_PROT_X}
-	${RPCCOM} -h ${NFS_PROT_X} -o ${.TARGET}
+	${RPCCOM} -h -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
 
 
 .if exists(${.CURDIR}/../../Makefile.inc)
