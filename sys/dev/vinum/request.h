@@ -74,8 +74,7 @@ enum xferinfo {
  * struct buf in order to be able to locate the
  * high-level request when it completes.
  *
- * All offsets and lengths are in "blocks",
- * i.e. sectors.
+ * All offsets and lengths are in sectors.
  */
 
 struct rqelement {
@@ -118,6 +117,7 @@ struct rqgroup {
     int badsdno;					    /* index of bad subdisk or -1 */
     enum xferinfo flags;				    /* description of transfer */
     struct rqelement rqe[0];				    /* and the elements of this request */
+    struct rangelock *lock;				    /* lock for this transfer */
 };
 
 /*
@@ -175,12 +175,16 @@ enum rqinfo_type {
     loginfo_rqe,					    /* user RQE */
     loginfo_iodone,					    /* iodone */
     loginfo_raid5_data,					    /* write RAID-5 data block */
-    loginfo_raid5_parity				    /* write RAID-5 parity block */
+    loginfo_raid5_parity,				    /* write RAID-5 parity block */
+    loginfo_lockwait,					    /* wait for range lock */
+    loginfo_lock,					    /* lock range */
+    loginfo_unlock,					    /* unlock range */
 };
 
 union rqinfou {						    /* info to pass to logrq */
     struct buf *bp;
     struct rqelement *rqe;				    /* address of request, for correlation */
+    struct rangelock *lockinfo;
 };
 
 struct rqinfo {
@@ -192,6 +196,7 @@ struct rqinfo {
     union {
 	struct buf b;					    /* yup, the *whole* buffer header */
 	struct rqelement rqe;				    /* and the whole rqe */
+	struct rangelock lockinfo;
     } info;
 };
 
@@ -238,3 +243,9 @@ enum daemon_option {
     daemon_stopped = 2,
     daemon_noupdate = 4,				    /* don't update the disk config, for recovery */
 };
+
+void freerq(struct request *rq);
+void unlockrange(struct rqgroup *rqg);
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
