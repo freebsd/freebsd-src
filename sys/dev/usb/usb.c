@@ -658,7 +658,7 @@ usbd_add_drv_event(int type, usbd_device_handle udev, device_ptr_t dev)
 void
 usb_add_event(int type, struct usb_event *uep)
 {
-	struct usb_event_q *ueq, *ueq_next;
+	struct usb_event_q *ueq;
 	struct usb_event ue;
 	struct timeval thetime;
 	int s;
@@ -671,14 +671,16 @@ usb_add_event(int type, struct usb_event *uep)
 
 	s = splusb();
 	if (USB_EVENT_IS_DETACH(type)) {
-		for (ueq = TAILQ_FIRST(&usb_events); ueq; ueq = ueq_next) {
-			ueq_next = TAILQ_NEXT(ueq, next);
-			if (ueq->ue.u.ue_driver.ue_cookie.cookie ==
+		struct usb_event_q *ueqi, *ueqi_next;
+
+		for (ueqi = TAILQ_FIRST(&usb_events); ueqi; ueqi = ueqi_next) {
+			ueqi_next = TAILQ_NEXT(ueqi, next);
+			if (ueqi->ue.u.ue_driver.ue_cookie.cookie ==
 			    uep->u.ue_device.cookie.cookie) {
-				TAILQ_REMOVE(&usb_events, ueq, next);
-				free(ueq, M_USBDEV);
+				TAILQ_REMOVE(&usb_events, ueqi, next);
+				free(ueqi, M_USBDEV);
 				usb_nevents--;
-				ueq_next = TAILQ_FIRST(&usb_events);
+				ueqi_next = TAILQ_FIRST(&usb_events);
 			}
 		}
 	}
