@@ -138,7 +138,7 @@ static __inline int bus_space_subregion(bus_space_tag_t t,
 
 static __inline int
 bus_space_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
-		    bus_size_t offset, bus_size_t site,
+		    bus_size_t offset, bus_size_t size,
 		    bus_space_handle_t *nbshp)
 {
 
