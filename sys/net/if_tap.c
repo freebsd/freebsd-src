@@ -768,7 +768,7 @@ tapread(dev, uio, flag)
 {
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = &tp->tap_if;
-	struct mbuf		*m = NULL, *m0 = NULL;
+	struct mbuf		*m = NULL;
 	int			 error = 0, len, s;
 
 	TAPDEBUG("%s%d reading, minor = %#x\n", 
@@ -786,10 +786,10 @@ tapread(dev, uio, flag)
 	/* sleep until we get a packet */
 	do {
 		s = splimp();
-		IF_DEQUEUE(&ifp->if_snd, m0);
+		IF_DEQUEUE(&ifp->if_snd, m);
 		splx(s);
 
-		if (m0 == NULL) {
+		if (m == NULL) {
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
 			
@@ -798,27 +798,26 @@ tapread(dev, uio, flag)
 			if (error)
 				return (error);
 		}
-	} while (m0 == NULL);
+	} while (m == NULL);
 
 	/* feed packet to bpf */
 	if (ifp->if_bpf != NULL)
-		bpf_mtap(ifp, m0);
+		bpf_mtap(ifp, m);
 
 	/* xfer packet to user space */
-	while ((m0 != NULL) && (uio->uio_resid > 0) && (error == 0)) {
-		len = min(uio->uio_resid, m0->m_len);
+	while ((m != NULL) && (uio->uio_resid > 0) && (error == 0)) {
+		len = min(uio->uio_resid, m->m_len);
 		if (len == 0)
 			break;
 
-		error = uiomove(mtod(m0, caddr_t), len, uio);
-		MFREE(m0, m);
-		m0 = m;
+		error = uiomove(mtod(m, caddr_t), len, uio);
+		m = m_free(m);
 	}
 
-	if (m0 != NULL) {
+	if (m != NULL) {
 		TAPDEBUG("%s%d dropping mbuf, minor = %#x\n", ifp->if_name, 
 			ifp->if_unit, minor(dev));
-		m_freem(m0);
+		m_freem(m);
 	}
 
 	return (error);

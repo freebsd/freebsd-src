@@ -869,12 +869,11 @@ cnw_start(ifp)
  * Transmit a packet.
  */
 void
-cnw_transmit(sc, m0)
+cnw_transmit(sc, m)
 	struct cnw_softc *sc;
-	struct mbuf *m0;
+	struct mbuf *m;
 {
 	int buffer, bufsize, bufoffset, bufptr, bufspace, len, mbytes, n;
-	struct mbuf *m;
 	u_int8_t *mptr;
 
 	/* Get buffer info from card */
@@ -891,7 +890,7 @@ cnw_transmit(sc, m0)
 	bufptr = sc->sc_memoff + buffer + bufoffset;
 	bufspace = bufsize;
 	len = 0;
-	for (m = m0; m; ) {
+	while (m) {
 		mptr = mtod(m, u_int8_t *);
 		mbytes = m->m_len;
 		len += mbytes;
@@ -914,8 +913,7 @@ cnw_transmit(sc, m0)
 			mptr += n;
 			mbytes -= n;
 		}
-		MFREE(m, m0);
-		m = m0;
+		m = m_free(m);
 	}
 
 	/* Issue transmit command */

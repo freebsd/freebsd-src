@@ -1401,9 +1401,10 @@ ppp_inproc(sc, m)
 	if (m->m_len <= M_TRAILINGSPACE(mp)) {
 	    bcopy(mtod(m, u_char *), mtod(mp, u_char *) + mp->m_len, m->m_len);
 	    mp->m_len += m->m_len;
-	    MFREE(m, mp->m_next);
-	} else
+	    mp->m_next = m_free(m);
+	} else {
 	    mp->m_next = m;
+	}
 	m = mp;
 	ilen += hlen - xlen;
 
