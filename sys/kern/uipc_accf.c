@@ -195,34 +195,12 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 		return (0);
 	}
 
-	newaf = NULL;
-	afap = NULL;
-
 	/*
-	 * XXXRW: Configuring accept filters should be an atomic test-and-set
-	 * operation to prevent races during setup and attach.  There may be
-	 * more general issues of racing and ordering here that are not yet
-	 * addressed by locking.
-	 */
-	/* do not set/remove accept filters on non listen sockets */
-	SOCK_LOCK(so);
-	if ((so->so_options & SO_ACCEPTCONN) == 0) {
-		SOCK_UNLOCK(so);
-		return (EINVAL);
-	}
-	SOCK_UNLOCK(so);
-
-	/*-
-	 * Adding a filter.
-	 *
-	 * Do memory allocation, copyin, and filter lookup now while we're
-	 * not holding any locks.  Avoids sleeping with a mutex, as well as
-	 * introducing a lock order between accept filter locks and socket
-	 * locks here.
+	 * Pre-allocate any memory we may need later to avoid blocking at
+	 * untimely moments.  This does not optimize for invalid arguments.
 	 */
 	MALLOC(afap, struct accept_filter_arg *, sizeof(*afap), M_TEMP,
 	    M_WAITOK);
-	/* don't put large objects on the kernel stack */
 	error = sooptcopyin(sopt, afap, sizeof *afap, sizeof *afap);
 	afap->af_name[sizeof(afap->af_name)-1] = '\0';
 	afap->af_arg[sizeof(afap->af_arg)-1] = '\0';
@@ -235,11 +213,11 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 		FREE(afap, M_TEMP);
 		return (ENOENT);
 	}
-
 	/*
-	 * Allocate the new accept filter instance storage.  We may have to
-	 * free it again later if we fail to attach it.  If attached
-	 * properly, 'newaf' is NULLed to avoid a free() while in use.
+	 * Allocate the new accept filter instance storage.  We may
+	 * have to free it again later if we fail to attach it.  If
+	 * attached properly, 'newaf' is NULLed to avoid a free()
+	 * while in use.
 	 */
 	MALLOC(newaf, struct so_accf *, sizeof(*newaf), M_ACCF, M_WAITOK |
 	    M_ZERO);
@@ -250,17 +228,21 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 		strcpy(newaf->so_accept_filter_str, afap->af_name);
 	}
 
+	/*
+	 * Require a listen socket; don't try to replace an existing filter
+	 * without first removing it.
+	 */
 	SOCK_LOCK(so);
-	/* must remove previous filter first */
-	if (so->so_accf != NULL) {
+	if (((so->so_options & SO_ACCEPTCONN) == 0) ||
+	    (so->so_accf != NULL)) {
 		error = EINVAL;
 		goto out;
 	}
+
 	/*
-	 * Invoke the accf_create() method of the filter if required.
-	 * XXXRW: the socket mutex is held over this call, so the create
-	 * method cannot block.  This may be something we have to change, but
-	 * it would require addressing possible races.
+	 * Invoke the accf_create() method of the filter if required.  The
+	 * socket mutex is held over this call, so create methods for filters
+	 * can't block.
 	 */
 	if (afp->accf_create != NULL) {
 		newaf->so_accept_filter_arg =
