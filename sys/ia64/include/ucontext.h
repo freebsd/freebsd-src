@@ -34,10 +34,10 @@
 #include <machine/_regset.h>
 
 typedef struct __mcontext {
-	uint64_t		mc_flags;
+	unsigned long		mc_flags;
 #define	IA64_MC_FLAGS_SCRATCH_VALID	1
 #define	IA64_MC_FLAGS_HIGHFP_VALID	2
-	uint64_t		_reserved_;
+	unsigned long		_reserved_;
 	struct _special		mc_special;
 	struct _callee_saved	mc_preserved;
 	struct _callee_saved_fp	mc_preserved_fp;
