@@ -72,7 +72,7 @@ CDROM_SET_1="${CDROM_SET_1} devel/pcre"
 if [ "X${PKG_ARCH}" = "Xalpha" ]; then
 CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
 elif [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
+CDROM_SET_1="${CDROM_SET_1} emulators/linux_base-8"
 fi
 CDROM_SET_1="${CDROM_SET_1} mail/exim"
 CDROM_SET_1="${CDROM_SET_1} mail/postfix"
@@ -91,44 +91,64 @@ CDROM_SET_1="${CDROM_SET_1} x11-servers/XFree86-4-VirtualFramebufferServer"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/afterstep"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/enlightenment"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/fvwm2"
+CDROM_SET_1="${CDROM_SET_1} x11-wm/sawfish2"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/windowmaker"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-clients"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-documents"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-libraries"
 CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-manuals"
+if [ "X${PKG_WINDOW}" = "Xgnome" ]; then
 CDROM_SET_1="${CDROM_SET_1} x11/gnome2-lite"
+elif [ "X${PKG_WINDOW}" = "Xkde" ]; then
 CDROM_SET_1="${CDROM_SET_1} x11/kde-lite"
+fi
 CDROM_SET_1="${CDROM_SET_1} www/links"
 
 # This is the set of "people really want these" packages.  Please add to
 # this list.
+CDROM_SET_1="${CDROM_SET_1} astro/xearth"
 CDROM_SET_1="${CDROM_SET_1} editors/emacs"
 CDROM_SET_1="${CDROM_SET_1} editors/vim"
+CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
 CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
+CDROM_SET_1="${CDROM_SET_1} graphics/gimp"
 CDROM_SET_1="${CDROM_SET_1} graphics/xv"
 CDROM_SET_1="${CDROM_SET_1} irc/xchat2"
 CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
 CDROM_SET_1="${CDROM_SET_1} mail/mutt"
 CDROM_SET_1="${CDROM_SET_1} mail/pine4"
+CDROM_SET_1="${CDROM_SET_1} mail/popd"
+CDROM_SET_1="${CDROM_SET_1} mail/xfmail"
+CDROM_SET_1="${CDROM_SET_1} misc/bsdiff"
 CDROM_SET_1="${CDROM_SET_1} net/cvsup-without-gui"
 CDROM_SET_1="${CDROM_SET_1} net/rsync"
 CDROM_SET_1="${CDROM_SET_1} net/samba"
 CDROM_SET_1="${CDROM_SET_1} news/slrn"
 CDROM_SET_1="${CDROM_SET_1} news/tin"
 CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
+if [ "X${PKG_ARCH}" = "Xi386" ]; then
+CDROM_SET_1="${CDROM_SET_1} print/acroread"
+fi
 CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
-CDROM_SET_1="${CDROM_SET_1} security/sudo"
 if [ "X${PKG_ARCH}" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} security/freebsd-update"
 fi
+CDROM_SET_1="${CDROM_SET_1} security/portaudit"
+CDROM_SET_1="${CDROM_SET_1} security/sudo"
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
 CDROM_SET_1="${CDROM_SET_1} sysutils/portupgrade"
+CDROM_SET_1="${CDROM_SET_1} www/lynx"
+CDROM_SET_1="${CDROM_SET_1} www/mozilla"
+if [ "X${PKG_ARCH}" = "Xi386" ]; then
+CDROM_SET_1="${CDROM_SET_1} www/opera"
+fi
+CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
 # VERY common build dependencies
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
@@ -148,11 +168,9 @@ fi
 
 ## Start of set for CDROM #3
 CDROM_SET_3="${CDROM_SET_3} editors/xemacs21"
-CDROM_SET_3="${CDROM_SET_3} graphics/gimp1"
 CDROM_SET_3="${CDROM_SET_3} lang/gnat"
-CDROM_SET_3="${CDROM_SET_3} net/cvsup-without-gui"
+CDROM_SET_3="${CDROM_SET_3} net/cvsup"
 CDROM_SET_3="${CDROM_SET_3} print/teTeX"
-CDROM_SET_3="${CDROM_SET_3} security/portaudit"
 CDROM_SET_3="${CDROM_SET_3} textproc/docproj-jadetex"
 
 ## End of set for CDROM #3
