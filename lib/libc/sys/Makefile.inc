@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.20.2.5 1997/09/03 06:58:46 peter Exp $
+#	$Id: Makefile.inc,v 1.20.2.6 1998/06/29 19:18:06 dt Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -19,7 +19,7 @@ SRCS+=	__error.c
 
 # modules with default implementations on all architectures:
 ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
-	chown.o chroot.o \
+	chown.o chroot.o fchdir.o \
 	getdtablesize.o getegid.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
 	getpgrp.o getpid.o getppid.o getpriority.o \
@@ -27,7 +27,7 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	getuid.o issetugid.o kill.o ktrace.o lchown.o \
 	lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o lstat.o \
-	madvise.o mincore.o minherit.o mkdir.o mlock.o \
+	madvise.o mincore.o minherit.o mkdir.o mkfifo.o mlock.o \
 	mount.o \
 	mprotect.o msgsys.o msync.o munlock.o munmap.o \
 	ntp_adjtime.o pathconf.o profil.o quotactl.o \
@@ -42,14 +42,17 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	umask.o unlink.o unmount.o utimes.o utrace.o \
 	vadvise.o __syscall.o __sysctl.o
 
+# Syscalls that should be in ASMR but for which there are no wrappers (yet).
+ASM+=	fchflags.o fpathconf.o mknod.o nfssvc.o sigaltstack.o
+
 # Syscalls renamed as _thread_sys_{syscall} when building libc_r.
 ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
-	execve.o fchdir.o fchflags.o fchmod.o fchown.o fcntl.o \
-	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
+	execve.o fchmod.o fchown.o fcntl.o \
+	flock.o fstat.o fstatfs.o fsync.o getdirentries.o \
 	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
-	mkfifo.o mknod.o nfssvc.o open.o read.o readv.o recvfrom.o \
+	open.o read.o readv.o recvfrom.o \
 	recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
-	shutdown.o sigaction.o sigaltstack.o socket.o socketpair.o \
+	shutdown.o sigaction.o socket.o socketpair.o \
 	wait4.o write.o writev.o
 
 PSEUDO=	_getlogin.o
