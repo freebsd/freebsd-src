@@ -690,7 +690,7 @@ sendit(td, s, mp, flags)
 		control = NULL;
 	}
 
-	error = kern_sendit(td, s, mp, flags, control);
+	error = kern_sendit(td, s, mp, flags, control, UIO_USERSPACE);
 
 bad:
 	if (to)
@@ -699,12 +699,13 @@ bad:
 }
 
 int
-kern_sendit(td, s, mp, flags, control)
+kern_sendit(td, s, mp, flags, control, segflg)
 	struct thread *td;
 	int s;
 	struct msghdr *mp;
 	int flags;
 	struct mbuf *control;
+	enum uio_seg segflg;
 {
 	struct file *fp;
 	struct uio auio;
@@ -732,7 +733,7 @@ kern_sendit(td, s, mp, flags, control)
 
 	auio.uio_iov = mp->msg_iov;
 	auio.uio_iovcnt = mp->msg_iovlen;
-	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_segflg = segflg;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_td = td;
 	auio.uio_offset = 0;			/* XXX */

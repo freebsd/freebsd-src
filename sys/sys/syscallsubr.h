@@ -90,7 +90,7 @@ int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
-	    struct mbuf *control);
+	    struct mbuf *control, enum uio_seg segflg);
 int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
 int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
