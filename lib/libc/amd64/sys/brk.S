@@ -58,7 +58,7 @@ ENTRY(brk)
 	movl	(%ecx),%eax
 	movl	%eax,4(%esp)
 ok:
-	lea	SYS_break,%eax
+	mov	$SYS_break,%eax
 	KERNCALL
 	jb	err
 	movl	4(%esp),%eax
@@ -77,7 +77,7 @@ err:
 	movl	HIDENAME(minbrk),%eax
 	movl	%eax,4(%esp)
 ok:
-	lea	SYS_break,%eax
+	mov	$SYS_break,%eax
 	KERNCALL
 	jb	err
 	movl	4(%esp),%eax

@@ -47,7 +47,7 @@
 	.set	vfork,__sys_vfork
 ENTRY(__sys_vfork)
 	popl	%ecx		/* my rta into ecx */
-	lea	SYS_vfork,%eax
+	mov	$SYS_vfork,%eax
 	KERNCALL
 	jb	1f
 	jmp	*%ecx

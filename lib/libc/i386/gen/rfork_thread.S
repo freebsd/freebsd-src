@@ -65,7 +65,7 @@ ENTRY(rfork_thread)
 	 */
 	pushl	8(%ebp)
 	pushl	$0
-	leal	SYS_rfork, %eax
+	movl	$SYS_rfork, %eax
 	KERNCALL
 	jb 	2f
 
@@ -98,9 +98,9 @@ ENTRY(rfork_thread)
 	pushl	%eax
 	pushl	$0
 #ifdef SYS_exit
-	leal	SYS_exit, %eax
+	movl	$SYS_exit, %eax
 #else
-	leal	SYS_sys_exit, %eax
+	movl	$SYS_sys_exit, %eax
 #endif
 	KERNCALL
 
