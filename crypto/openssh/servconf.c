@@ -113,7 +113,7 @@ fill_default_server_options(ServerOptions *options)
 	if (options->print_motd == -1)
 		options->print_motd = 1;
 	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 0;
+		options->x11_forwarding = 1;
 	if (options->x11_display_offset == -1)
 		options->x11_display_offset = 10;
 	if (options->strict_modes == -1)
