@@ -9,7 +9,7 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id$
+# $Id: extract_xf86311.sh,v 1.1 1995/02/02 14:18:04 jkh Exp $
 
 # Handle the return value from a dialog, doing some pre-processing
 # so that each client doesn't have to.
@@ -33,7 +33,7 @@ do_selected_install()
 	for xx in ${SELECTIONS}; do
 	   DIST=`eval echo \`echo $xx\``
 	   dialog --infobox "Installing XFree86 3.1.1 component: ${DIST}" -1 -1
-	   tar zxpf ${DIST}.tgz -C /usr
+	   tar --unlink -zxpf ${DIST}.tgz -C /usr
 	done
 }
 
