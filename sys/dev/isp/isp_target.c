@@ -159,6 +159,7 @@ isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 		isp_get_atio2(isp, at2iop, (at2_entry_t *) local);
 		isp_handle_atio2(isp, (at2_entry_t *) local);
 		break;
+	case RQSTYPE_CTIO3:
 	case RQSTYPE_CTIO2:
 		isp_get_ctio2(isp, ct2iop, (ct2_entry_t *) local);
 		isp_handle_ctio2(isp, (ct2_entry_t *) local);
@@ -1152,7 +1153,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		 * order we got them.
 		 */
 		if (ct->ct_syshandle == 0) {
-			if ((ct->ct_flags & CT_SENDSTATUS) == 0) {
+			if ((ct->ct_flags & CT2_SENDSTATUS) == 0) {
 				isp_prt(isp, pl,
 				    "intermediate CTIO completed ok");
 			} else {
@@ -1168,7 +1169,7 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 		if ((ct->ct_flags & CT2_DATAMASK) != CT2_NO_DATA) {
 			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
 		}
-		if (ct->ct_flags & CT_SENDSTATUS) {
+		if (ct->ct_flags & CT2_SENDSTATUS) {
 			/*
 			 * Sent status and command complete.
 			 *
