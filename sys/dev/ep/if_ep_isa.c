@@ -46,16 +46,20 @@
 #include <net/if_arp.h>
 #include <net/if_media.h> 
 
-
 #include <isa/isavar.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
+
+#ifdef __i386__
 #include <i386/isa/elink.h>
+#endif
 
 static u_int16_t	get_eeprom_data	(int, int);
 
+#ifdef __i386__
 static void		ep_isa_identify	(driver_t *, device_t);
+#endif
 static int		ep_isa_probe	(device_t);
 static int		ep_isa_attach	(device_t);
 
@@ -151,6 +155,7 @@ ep_isa_match_id (id, isa_devs)
 	return (NULL);
 }
 
+#ifdef __i386__
 static void
 ep_isa_identify (driver_t *driver, device_t parent)
 {
@@ -286,6 +291,7 @@ ep_isa_identify (driver_t *driver, device_t parent)
 
 	return;
 }
+#endif
 
 static int
 ep_isa_probe (device_t dev)
@@ -349,7 +355,9 @@ bad:
 
 static device_method_t ep_isa_methods[] = {
 	/* Device interface */
+#ifdef __i386__
 	DEVMETHOD(device_identify,	ep_isa_identify),
+#endif
 	DEVMETHOD(device_probe,		ep_isa_probe),
 	DEVMETHOD(device_attach,	ep_isa_attach),
 
