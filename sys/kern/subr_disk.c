@@ -78,6 +78,8 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 			}
 			if (name[i] == '\0')
 				;
+			else if (name[i + 1] != '\0')
+				return;
 			else if (name[i] < 'a' || name[i] > 'h')
 				continue;
 			else
