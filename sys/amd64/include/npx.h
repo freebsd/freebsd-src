@@ -73,7 +73,7 @@ struct fpacc87 {
 struct save87 {
 	struct	env87 sv_env;	/* floating point control/status */
 	struct	fpacc87	sv_ac[8];	/* accumulator contents, 0-7 */
-	u_long	sv_ex_sw;	/* status word for last exception */
+	u_char	sv_pad0[4];	/* padding for (now unused) saved status word */
 	/*
 	 * Bogus padding for emulators.  Emulators should use their own
 	 * struct and arrange to store into this struct (ending here)
@@ -112,8 +112,7 @@ struct  savexmm {
 		u_char		fp_pad[6];      /* padding */
 	} sv_fp[8];
 	struct xmmacc	sv_xmm[8];
-	u_long sv_ex_sw;	/* status word for last exception */
-	u_char sv_pad[220];
+	u_char sv_pad[224];
 } __attribute__((aligned(16)));
 
 union	savefpu {
@@ -142,9 +141,13 @@ union	savefpu {
 
 #ifdef _KERNEL
 int	npxdna(void);
+void	npxdrop(void);
 void	npxexit(struct thread *td);
-void	npxinit(int control);
+int	npxformat(void);
+int	npxgetregs(struct thread *td, union savefpu *addr);
+void	npxinit(u_short control);
 void	npxsave(union savefpu *addr);
+void	npxsetregs(struct thread *td, union savefpu *addr);
 int	npxtrap(void);
 #endif
 
