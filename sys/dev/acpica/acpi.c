@@ -262,6 +262,8 @@ acpi_Startup(void)
 
     /* Set up any quirks we have for this XSDT. */
     acpi_quirks_set();
+    if (acpi_disabled("acpi"))
+	return_VALUE (AE_ERROR);
 
     return_VALUE (AE_OK);
 }
@@ -283,9 +285,6 @@ acpi_identify(driver_t *driver, device_t parent)
     if (resource_disabled("acpi", 0))
 	return_VOID;
 
-    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "0x%x",
-	     ACPI_CA_VERSION);
-
     /* Make sure we're not being doubly invoked. */
     if (device_find_child(parent, "acpi", 0) != NULL)
 	return_VOID;
@@ -293,6 +292,8 @@ acpi_identify(driver_t *driver, device_t parent)
     /* Initialize ACPI-CA. */
     if (ACPI_FAILURE(acpi_Startup()))
 	return_VOID;
+
+    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "%#x", ACPI_CA_VERSION);
 
     /* Attach the actual ACPI device. */
     if ((child = BUS_ADD_CHILD(parent, 0, "acpi", 0)) == NULL) {
@@ -583,10 +584,19 @@ acpi_quirks_set()
     char *env, *tmp;
     int len;
 
-    /* If the user specifies "noquirks", leave the settings alone. */
+    /*
+     * If the user loaded a custom table or disabled "quirks", leave
+     * the settings alone.
+     */
     len = 0;
+    if ((env = getenv("acpi_dsdt_load")) != NULL) {
+	/* XXX No strcasecmp but this is good enough. */
+	if (*env == 'Y' || *env == 'y')
+	    goto out;
+	freeenv(env);
+    }
     if ((env = getenv("debug.acpi.disabled")) != NULL) {
-	if (strstr("noquirks", env) != NULL)
+	if (strstr("quirks", env) != NULL)
 	    goto out;
 	len = strlen(env);
     }
