@@ -61,7 +61,14 @@
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 
-struct ke_sched *kse0_sched = NULL;
+struct ke_sched {
+	int	ske_cpticks;	/* (j) Ticks of cpu time. */
+	fixpt_t	ske_pctcpu;	/* (j) %cpu during p_swtime. */
+};
+
+struct ke_sched ke_sched;
+
+struct ke_sched *kse0_sched = &ke_sched;
 struct kg_sched *ksegrp0_sched = NULL;
 struct p_sched *proc0_sched = NULL;
 struct td_sched *thread0_sched = NULL;
@@ -278,27 +285,28 @@ schedcpu(void *arg)
 				 * Do it per kse.. and add them up at the end?
 				 * XXXKSE
 				 */
-				ke->ke_pctcpu
-				    = (ke->ke_pctcpu * ccpu) >> FSHIFT;
+				ke->ke_sched->ske_pctcpu
+				    = (ke->ke_sched->ske_pctcpu * ccpu) >>
+				    FSHIFT;
 				/*
 				 * If the kse has been idle the entire second,
 				 * stop recalculating its priority until
 				 * it wakes up.
 				 */
-				if (ke->ke_cpticks == 0)
+				if (ke->ke_sched->ske_cpticks == 0)
 					continue;
 #if	(FSHIFT >= CCPU_SHIFT)
-				ke->ke_pctcpu += (realstathz == 100) ?
-				    ((fixpt_t) ke->ke_cpticks) <<
+				ke->ke_sched->ske_pctcpu += (realstathz == 100)
+				    ? ((fixpt_t) ke->ke_sched->ske_cpticks) <<
 				    (FSHIFT - CCPU_SHIFT) :
-				    100 * (((fixpt_t) ke->ke_cpticks) <<
-				    (FSHIFT - CCPU_SHIFT)) / realstathz;
+				    100 * (((fixpt_t) ke->ke_sched->ske_cpticks)
+				    << (FSHIFT - CCPU_SHIFT)) / realstathz;
 #else
-				ke->ke_pctcpu += ((FSCALE - ccpu) *
-				    (ke->ke_cpticks * FSCALE / realstathz)) >>
-				    FSHIFT;
+				ke->ke_sched->ske_pctcpu += ((FSCALE - ccpu) *
+				    (ke->ke_sched->ske_cpticks *
+				    FSCALE / realstathz)) >> FSHIFT;
 #endif
-				ke->ke_cpticks = 0;
+				ke->ke_sched->ske_cpticks = 0;
 			} /* end of kse loop */
 			/* 
 			 * If there are ANY running threads in this KSEGRP,
@@ -439,7 +447,7 @@ sched_clock(struct thread *td)
 	KASSERT((td != NULL), ("schedclock: null thread pointer"));
 	ke = td->td_kse;
 	kg = td->td_ksegrp;
-	ke->ke_cpticks++;
+	ke->ke_sched->ske_cpticks++;
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
 	if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(kg);
@@ -464,11 +472,18 @@ sched_exit(struct ksegrp *kg, struct ksegrp *child)
 void
 sched_fork(struct ksegrp *kg, struct ksegrp *child)
 {
+	struct kse *ke;
+
 	/*
 	 * set priority of child to be that of parent.
 	 * XXXKSE this needs redefining..
 	 */     
 	child->kg_estcpu = kg->kg_estcpu;
+
+	/* Set up scheduler specific data */
+	ke = FIRST_KSE_IN_KSEGRP(kg);
+	ke->ke_sched->ske_pctcpu = 0;
+	ke->ke_sched->ske_cpticks = 0;
 }
 
 void
@@ -631,7 +646,7 @@ sched_userret(struct thread *td)
 int
 sched_sizeof_kse(void)
 {
-	return (sizeof(struct kse));
+	return (sizeof(struct kse) + sizeof(struct ke_sched));
 }
 int
 sched_sizeof_ksegrp(void)
@@ -652,5 +667,5 @@ sched_sizeof_thread(void)
 fixpt_t
 sched_pctcpu(struct kse *ke)
 {
-	return (ke->ke_pctcpu);
+	return (ke->ke_sched->ske_pctcpu);
 }
