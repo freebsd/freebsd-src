@@ -11,14 +11,14 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: safefile.c,v 8.81.4.10 2001/07/20 04:19:36 gshapiro Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
+#include <sm/io.h>
+#include <sm/errstring.h>
+
+SM_RCSID("@(#)$Id: safefile.c,v 8.121 2001/10/11 21:46:13 gshapiro Exp $")
 
 
-/*
+/*
 **  SAFEFILE -- return 0 if a file exists and is safe for a user.
 **
 **	Parameters:
@@ -61,18 +61,18 @@ safefile(fn, uid, gid, user, flags, mode, st)
 	char fbuf[MAXPATHLEN + 1];
 
 	if (tTd(44, 4))
-		dprintf("safefile(%s, uid=%d, gid=%d, flags=%lx, mode=%o):\n",
+		sm_dprintf("safefile(%s, uid=%d, gid=%d, flags=%lx, mode=%o):\n",
 			fn, (int) uid, (int) gid, flags, mode);
 	errno = 0;
-	if (st == NULL)
-		st = &fstbuf;
-	if (strlcpy(fbuf, fn, sizeof fbuf) >= sizeof fbuf)
+	if (sm_strlcpy(fbuf, fn, sizeof fbuf) >= sizeof fbuf)
 	{
 		if (tTd(44, 4))
-			dprintf("\tpathname too long\n");
+			sm_dprintf("\tpathname too long\n");
 		return ENAMETOOLONG;
 	}
 	fn = fbuf;
+	if (st == NULL)
+		st = &fstbuf;
 
 	/* ignore SFF_SAFEDIRPATH if we are debugging */
 	if (RealUid != 0 && RunAsUid == RealUid)
@@ -93,7 +93,7 @@ safefile(fn, uid, gid, user, flags, mode, st)
 		 S_ISREG(st->st_mode))
 	{
 		/*
-		**  If final file is setuid, run as the owner of that
+		**  If final file is set-user-ID, run as the owner of that
 		**  file.  Gotta be careful not to reveal anything too
 		**  soon here!
 		*/
@@ -139,7 +139,7 @@ safefile(fn, uid, gid, user, flags, mode, st)
 		if (ret == 0)
 		{
 			/* directory is safe */
-			checkpath = FALSE;
+			checkpath = false;
 		}
 		else
 		{
@@ -149,7 +149,7 @@ safefile(fn, uid, gid, user, flags, mode, st)
 			{
 				ret = errno;
 				if (tTd(44, 4))
-					dprintf("\t%s\n", errstring(ret));
+					sm_dprintf("\t%s\n", sm_errstring(ret));
 				return ret;
 			}
 # endif /* HASLSTAT */
@@ -188,7 +188,7 @@ safefile(fn, uid, gid, user, flags, mode, st)
 		char *dir = fn;
 
 		if (tTd(44, 4))
-			dprintf("\t%s\n", errstring(ret));
+			sm_dprintf("\t%s\n", sm_errstring(ret));
 
 		errno = 0;
 		if (!bitset(SFF_CREAT, flags) || file_errno != ENOENT)
@@ -206,6 +206,7 @@ safefile(fn, uid, gid, user, flags, mode, st)
 		{
 			int md = S_IWRITE|S_IEXEC;
 
+			ret = 0;
 			if (stbuf.st_uid == uid)
 				/* EMPTY */
 				;
@@ -237,13 +238,15 @@ safefile(fn, uid, gid, user, flags, mode, st)
 					md >>= 3;
 			}
 			if ((stbuf.st_mode & md) != md)
-				errno = EACCES;
+				ret = errno = EACCES;
 		}
-		ret = errno;
+		else
+			ret = errno;
 		if (tTd(44, 4))
-			dprintf("\t[final dir %s uid %d mode %lo] %s\n",
-				dir, (int) stbuf.st_uid, (u_long) stbuf.st_mode,
-				errstring(ret));
+			sm_dprintf("\t[final dir %s uid %d mode %lo] %s\n",
+				dir, (int) stbuf.st_uid,
+				(unsigned long) stbuf.st_mode,
+				sm_errstring(ret));
 		if (p != NULL)
 			*p = '/';
 		st->st_mode = ST_MODE_NOFILE;
@@ -254,46 +257,46 @@ safefile(fn, uid, gid, user, flags, mode, st)
 	if (bitset(SFF_NOSLINK, flags) && S_ISLNK(st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[slink mode %lo]\tE_SM_NOSLINK\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[slink mode %lo]\tE_SM_NOSLINK\n",
+				(unsigned long) st->st_mode);
 		return E_SM_NOSLINK;
 	}
 # endif /* S_ISLNK */
 	if (bitset(SFF_REGONLY, flags) && !S_ISREG(st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[non-reg mode %lo]\tE_SM_REGONLY\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[non-reg mode %lo]\tE_SM_REGONLY\n",
+				(unsigned long) st->st_mode);
 		return E_SM_REGONLY;
 	}
 	if (bitset(SFF_NOGWFILES, flags) &&
 	    bitset(S_IWGRP, st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[write bits %lo]\tE_SM_GWFILE\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[write bits %lo]\tE_SM_GWFILE\n",
+				(unsigned long) st->st_mode);
 		return E_SM_GWFILE;
 	}
 	if (bitset(SFF_NOWWFILES, flags) &&
 	    bitset(S_IWOTH, st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[write bits %lo]\tE_SM_WWFILE\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[write bits %lo]\tE_SM_WWFILE\n",
+				(unsigned long) st->st_mode);
 		return E_SM_WWFILE;
 	}
 	if (bitset(SFF_NOGRFILES, flags) && bitset(S_IRGRP, st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[read bits %lo]\tE_SM_GRFILE\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[read bits %lo]\tE_SM_GRFILE\n",
+				(unsigned long) st->st_mode);
 		return E_SM_GRFILE;
 	}
 	if (bitset(SFF_NOWRFILES, flags) && bitset(S_IROTH, st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[read bits %lo]\tE_SM_WRFILE\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[read bits %lo]\tE_SM_WRFILE\n",
+				(unsigned long) st->st_mode);
 		return E_SM_WRFILE;
 	}
 	if (!bitset(SFF_EXECOK, flags) &&
@@ -301,14 +304,14 @@ safefile(fn, uid, gid, user, flags, mode, st)
 	    bitset(S_IXUSR|S_IXGRP|S_IXOTH, st->st_mode))
 	{
 		if (tTd(44, 4))
-			dprintf("\t[exec bits %lo]\tE_SM_ISEXEC]\n",
-				(u_long) st->st_mode);
+			sm_dprintf("\t[exec bits %lo]\tE_SM_ISEXEC]\n",
+				(unsigned long) st->st_mode);
 		return E_SM_ISEXEC;
 	}
 	if (bitset(SFF_NOHLINK, flags) && st->st_nlink != 1)
 	{
 		if (tTd(44, 4))
-			dprintf("\t[link count %d]\tE_SM_NOHLINK\n",
+			sm_dprintf("\t[link count %d]\tE_SM_NOHLINK\n",
 				(int) st->st_nlink);
 		return E_SM_NOHLINK;
 	}
@@ -348,23 +351,23 @@ safefile(fn, uid, gid, user, flags, mode, st)
 			mode >>= 3;
 	}
 	if (tTd(44, 4))
-		dprintf("\t[uid %d, nlink %d, stat %lo, mode %lo] ",
+		sm_dprintf("\t[uid %d, nlink %d, stat %lo, mode %lo] ",
 			(int) st->st_uid, (int) st->st_nlink,
-			(u_long) st->st_mode, (u_long) mode);
+			(unsigned long) st->st_mode, (unsigned long) mode);
 	if ((st->st_uid == uid || st->st_uid == 0 ||
 	     st->st_uid == TrustedUid ||
 	     !bitset(SFF_MUSTOWN, flags)) &&
 	    (st->st_mode & mode) == mode)
 	{
 		if (tTd(44, 4))
-			dprintf("\tOK\n");
+			sm_dprintf("\tOK\n");
 		return 0;
 	}
 	if (tTd(44, 4))
-		dprintf("\tEACCES\n");
+		sm_dprintf("\tEACCES\n");
 	return EACCES;
 }
-/*
+/*
 **  SAFEDIRPATH -- check to make sure a path to a directory is safe
 **
 **	Safe means not writable and owned by the right folks.
@@ -410,19 +413,22 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 	if (level > MAXSYMLINKS)
 		return ELOOP;
 
+	if (level < 0 || offset < 0 || offset > strlen(fn))
+		return EINVAL;
+
 	/* special case root directory */
 	if (*fn == '\0')
 		fn = "/";
 
 	if (tTd(44, 4))
-		dprintf("safedirpath(%s, uid=%ld, gid=%ld, flags=%lx, level=%d, offset=%d):\n",
+		sm_dprintf("safedirpath(%s, uid=%ld, gid=%ld, flags=%lx, level=%d, offset=%d):\n",
 			fn, (long) uid, (long) gid, flags, level, offset);
 
 	if (!bitnset(DBS_GROUPWRITABLEDIRPATHSAFE, DontBlameSendmail))
 		mode |= S_IWGRP;
 
 	/* Make a modifiable copy of the filename */
-	if (strlcpy(s, fn, sizeof s) >= sizeof s)
+	if (sm_strlcpy(s, fn, sizeof s) >= sizeof s)
 		return EINVAL;
 
 	p = s + offset;
@@ -463,7 +469,7 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 			continue;
 
 		if (tTd(44, 20))
-			dprintf("\t[dir %s]\n", s);
+			sm_dprintf("\t[dir %s]\n", s);
 
 # if HASLSTAT
 		ret = lstat(s, &stbuf);
@@ -537,25 +543,28 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 				{
 					*sptr = '\0';
 					offset = sptr + 1 - s;
-					if ((strlen(s) + 1 +
-					     strlen(buf) + 1) > sizeof fullbuf)
+					if (sm_strlcpyn(fullbuf,
+							sizeof fullbuf, 2,
+							s, "/") >=
+						sizeof fullbuf ||
+					    sm_strlcat(fullbuf, buf,
+						       sizeof fullbuf) >=
+						sizeof fullbuf)
 					{
 						ret = EINVAL;
 						break;
 					}
-					snprintf(fullbuf, sizeof fullbuf,
-						 "%s/%s", s, buf);
 					*sptr = '/';
 				}
 				else
 				{
-					if (strlen(buf) + 1 > sizeof fullbuf)
+					if (sm_strlcpy(fullbuf, buf,
+						       sizeof fullbuf) >=
+						sizeof fullbuf)
 					{
 						ret = EINVAL;
 						break;
 					}
-					(void) strlcpy(fullbuf, buf,
-						       sizeof fullbuf);
 				}
 				target = fullbuf;
 			}
@@ -577,8 +586,8 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 		    bitset(mode, stbuf.st_mode))
 		{
 			if (tTd(44, 4))
-				dprintf("\t[dir %s] mode %lo ",
-					s, (u_long) stbuf.st_mode);
+				sm_dprintf("\t[dir %s] mode %lo ",
+					s, (unsigned long) stbuf.st_mode);
 			if (bitset(SFF_SAFEDIRPATH, flags))
 			{
 				if (bitset(S_IWOTH, stbuf.st_mode))
@@ -586,11 +595,11 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 				else
 					ret = E_SM_GWDIR;
 				if (tTd(44, 4))
-					dprintf("FATAL\n");
+					sm_dprintf("FATAL\n");
 				break;
 			}
 			if (tTd(44, 4))
-				dprintf("WARNING\n");
+				sm_dprintf("WARNING\n");
 			if (Verbose > 1)
 				message("051 WARNING: %s writable directory %s",
 					bitset(S_IWOTH, stbuf.st_mode)
@@ -643,11 +652,11 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 		}
 	}
 	if (tTd(44, 4))
-		dprintf("\t[dir %s] %s\n", fn,
-			ret == 0 ? "OK" : errstring(ret));
+		sm_dprintf("\t[dir %s] %s\n", fn,
+			ret == 0 ? "OK" : sm_errstring(ret));
 	return ret;
 }
-/*
+/*
 **  SAFEOPEN -- do a file open with extra checking
 **
 **	Parameters:
@@ -673,8 +682,8 @@ safeopen(fn, omode, cmode, sff)
 	struct stat stb;
 
 	if (tTd(44, 10))
-		printf("safeopen: fn=%s, omode=%x, cmode=%x, sff=%lx\n",
-		       fn, omode, cmode, sff);
+		sm_dprintf("safeopen: fn=%s, omode=%x, cmode=%x, sff=%lx\n",
+			   fn, omode, cmode, sff);
 
 	if (bitset(O_CREAT, omode))
 		sff |= SFF_CREAT;
@@ -730,7 +739,83 @@ safeopen(fn, omode, cmode, sff)
 	}
 	return fd;
 }
-/*
+/*
+**  SAFEFOPEN -- do a file open with extra checking
+**
+**	Parameters:
+**		fn -- the file name to open.
+**		omode -- the open-style mode flags.
+**		cmode -- the create-style mode flags.
+**		sff -- safefile flags.
+**
+**	Returns:
+**		Same as fopen.
+*/
+
+SM_FILE_T *
+safefopen(fn, omode, cmode, sff)
+	char *fn;
+	int omode;
+	int cmode;
+	long sff;
+{
+	int fd;
+	int save_errno;
+	SM_FILE_T *fp;
+	int fmode;
+
+	switch (omode & O_ACCMODE)
+	{
+	  case O_RDONLY:
+		fmode = SM_IO_RDONLY;
+		break;
+
+	  case O_WRONLY:
+		if (bitset(O_APPEND, omode))
+			fmode = SM_IO_APPEND;
+		else
+			fmode = SM_IO_WRONLY;
+		break;
+
+	  case O_RDWR:
+		if (bitset(O_TRUNC, omode))
+			fmode = SM_IO_RDWRTR;
+		else if (bitset(O_APPEND, omode))
+			fmode = SM_IO_APPENDRW;
+		else
+			fmode = SM_IO_RDWR;
+		break;
+
+	  default:
+		syserr("554 5.3.5 safefopen: unknown omode %o", omode);
+		fmode = 0;
+	}
+	fd = safeopen(fn, omode, cmode, sff);
+	if (fd < 0)
+	{
+		save_errno = errno;
+		if (tTd(44, 10))
+			sm_dprintf("safefopen: safeopen failed: %s\n",
+				   sm_errstring(errno));
+		errno = save_errno;
+		return NULL;
+	}
+	fp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
+			(void *) &fd, fmode, NULL);
+	if (fp != NULL)
+		return fp;
+
+	save_errno = errno;
+	if (tTd(44, 10))
+	{
+		sm_dprintf("safefopen: fdopen(%s, %d) failed: omode=%x, sff=%lx, err=%s\n",
+			   fn, fmode, omode, sff, sm_errstring(errno));
+	}
+	(void) close(fd);
+	errno = save_errno;
+	return NULL;
+}
+/*
 **  FILECHANGED -- check to see if file changed after being opened
 **
 **	Parameters:
@@ -739,8 +824,8 @@ safeopen(fn, omode, cmode, sff)
 **		stb -- stat structure from before open.
 **
 **	Returns:
-**		TRUE -- if a problem was detected.
-**		FALSE -- if this file is still the same.
+**		true -- if a problem was detected.
+**		false -- if this file is still the same.
 */
 
 bool
@@ -756,13 +841,13 @@ filechanged(fn, fd, stb)
 # if HASLSTAT && BOGUS_O_EXCL
 		/* only necessary if exclusive open follows symbolic links */
 		if (lstat(fn, stb) < 0 || stb->st_nlink != 1)
-			return TRUE;
+			return true;
 # else /* HASLSTAT && BOGUS_O_EXCL */
-		return FALSE;
+		return false;
 # endif /* HASLSTAT && BOGUS_O_EXCL */
 	}
 	if (fstat(fd, &sta) < 0)
-		return TRUE;
+		return true;
 
 	if (sta.st_nlink != stb->st_nlink ||
 	    sta.st_dev != stb->st_dev ||
@@ -775,37 +860,29 @@ filechanged(fn, fd, stb)
 	{
 		if (tTd(44, 8))
 		{
-			dprintf("File changed after opening:\n");
-			dprintf(" nlink	= %ld/%ld\n",
+			sm_dprintf("File changed after opening:\n");
+			sm_dprintf(" nlink	= %ld/%ld\n",
 				(long) stb->st_nlink, (long) sta.st_nlink);
-			dprintf(" dev	= %ld/%ld\n",
+			sm_dprintf(" dev	= %ld/%ld\n",
 				(long) stb->st_dev, (long) sta.st_dev);
-			if (sizeof sta.st_ino > sizeof (long))
-			{
-				dprintf(" ino	= %s/",
-					quad_to_string(stb->st_ino));
-				dprintf("%s\n",
-					quad_to_string(sta.st_ino));
-			}
-			else
-				dprintf(" ino	= %lu/%lu\n",
-					(unsigned long) stb->st_ino,
-					(unsigned long) sta.st_ino);
+			sm_dprintf(" ino	= %llu/%llu\n",
+				(ULONGLONG_T) stb->st_ino,
+				(ULONGLONG_T) sta.st_ino);
 # if HAS_ST_GEN
-			dprintf(" gen	= %ld/%ld\n",
+			sm_dprintf(" gen	= %ld/%ld\n",
 				(long) stb->st_gen, (long) sta.st_gen);
 # endif /* HAS_ST_GEN */
-			dprintf(" uid	= %ld/%ld\n",
+			sm_dprintf(" uid	= %ld/%ld\n",
 				(long) stb->st_uid, (long) sta.st_uid);
-			dprintf(" gid	= %ld/%ld\n",
+			sm_dprintf(" gid	= %ld/%ld\n",
 				(long) stb->st_gid, (long) sta.st_gid);
 		}
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
-/*
+/*
 **  DFOPEN -- determined file open
 **
 **	This routine has the semantics of open, except that it will

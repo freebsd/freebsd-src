@@ -11,11 +11,9 @@
  *
  */
 
-#ifndef lint
-static char id[] = "@(#)$Id: headers.c,v 8.203.4.13 2001/05/03 17:24:06 gshapiro Exp $";
-#endif /* ! lint */
-
 #include <sendmail.h>
+
+SM_RCSID("@(#)$Id: headers.c,v 8.266 2001/10/12 01:50:12 gshapiro Exp $")
 
 static size_t	fix_mime_header __P((char *));
 static int	priencode __P((char *));
@@ -44,7 +42,7 @@ setupheaders()
 		s->s_header.hi_ruleset = NULL;
 	}
 }
-/*
+/*
 **  CHOMPHEADER -- process and save a header line.
 **
 **	Called by collect, readcf, and readqf to deal with header lines.
@@ -65,32 +63,32 @@ setupheaders()
 
 static struct hdrinfo	NormalHeader =	{ NULL, 0, NULL };
 
-u_long
+unsigned long
 chompheader(line, pflag, hdrp, e)
 	char *line;
 	int pflag;
 	HDR **hdrp;
 	register ENVELOPE *e;
 {
-	u_char mid = '\0';
+	unsigned char mid = '\0';
 	register char *p;
 	register HDR *h;
 	HDR **hp;
 	char *fname;
 	char *fvalue;
-	bool cond = FALSE;
+	bool cond = false;
 	bool dropfrom;
 	bool headeronly;
 	STAB *s;
 	struct hdrinfo *hi;
-	bool nullheader = FALSE;
+	bool nullheader = false;
 	BITMAP256 mopts;
 
 	if (tTd(31, 6))
 	{
-		dprintf("chompheader: ");
+		sm_dprintf("chompheader: ");
 		xputs(line);
-		dprintf("\n");
+		sm_dprintf("\n");
 	}
 
 	headeronly = hdrp != NULL;
@@ -122,7 +120,7 @@ chompheader(line, pflag, hdrp, e)
 				goto hse;
 			}
 
-			mid = (u_char) *p++;
+			mid = (unsigned char) *p++;
 
 			/* catch ?$abc? */
 			if (*p != '\0')
@@ -140,7 +138,7 @@ chompheader(line, pflag, hdrp, e)
 				goto hse;
 			}
 
-			mid = (u_char)macid(p, NULL);
+			mid = (unsigned char) macid(p);
 			if (bitset(0200, mid))
 				p += strlen(macname(mid)) + 2;
 			else
@@ -152,7 +150,6 @@ chompheader(line, pflag, hdrp, e)
 				*q = '?';
 				goto hse;
 			}
-
 		}
 		else
 		{
@@ -165,7 +162,7 @@ chompheader(line, pflag, hdrp, e)
 				}
 
 				setbitn(bitidx(*p), mopts);
-				cond = TRUE;
+				cond = true;
 				p++;
 			}
 		}
@@ -196,7 +193,7 @@ hse:
 	while (isascii(*p) && isspace(*p))
 		p++;
 	if (*p == '\0')
-		nullheader = TRUE;
+		nullheader = true;
 
 	/* security scan: long field names are end-of-header */
 	if (strlen(fname) > 100)
@@ -222,6 +219,12 @@ hse:
 			{
 				*endp = '\0';
 				s = stab(fname, ST_HEADER, ST_ENTER);
+				if (LogLevel > 9 &&
+				    s->s_header.hi_ruleset != NULL)
+					sm_syslog(LOG_WARNING, NOQID,
+						  "Warning: redefined ruleset for header=%s, old=%s, new=%s",
+						  fname,
+						  s->s_header.hi_ruleset, p);
 				s->s_header.hi_ruleset = newstr(p);
 				if (!strc)
 					s->s_header.hi_flags |= H_STRIPCOMM;
@@ -240,11 +243,12 @@ hse:
 	if (tTd(31, 9))
 	{
 		if (s == NULL)
-			dprintf("no header flags match\n");
+			sm_dprintf("no header flags match\n");
 		else
-			dprintf("header match, flags=%lx, ruleset=%s\n",
-				hi->hi_flags,
-				hi->hi_ruleset == NULL ? "<NULL>" : hi->hi_ruleset);
+			sm_dprintf("header match, flags=%lx, ruleset=%s\n",
+				   hi->hi_flags,
+				   hi->hi_ruleset == NULL ? "<NULL>"
+							  : hi->hi_ruleset);
 	}
 
 	/* see if this is a resent message */
@@ -281,7 +285,7 @@ hse:
 
 	if (bitset(pflag, CHHDR_CHECK))
 	{
-		bool stripcom = FALSE;
+		bool stripcom = false;
 		char *rs;
 
 		/* no ruleset? look for default */
@@ -300,52 +304,70 @@ hse:
 			stripcom = bitset(hi->hi_flags, H_STRIPCOMM);
 		if (rs != NULL)
 		{
-			int l;
+			int l, k;
 			char qval[MAXNAME];
-			char hlen[16];
-			char *sp, *dp;
 
-			dp = qval;
 			l = 0;
-			dp[l++] = '"';
-			for (sp = fvalue; *sp != '\0' && l < MAXNAME - 3; sp++)
+			qval[l++] = '"';
+
+			/* - 3 to avoid problems with " at the end */
+			for (k = 0; fvalue[k] != '\0' && l < MAXNAME - 3; k++)
 			{
-				switch(*sp)
+				switch (fvalue[k])
 				{
+				  /* XXX other control chars? */
 				  case '\011': /* ht */
 				  case '\012': /* nl */
 				  case '\013': /* vt */
 				  case '\014': /* np */
 				  case '\015': /* cr */
-					dp[l++] = ' ';
+					qval[l++] = ' ';
 					break;
 				  case '"':
-					dp[l++] = '\\';
+					qval[l++] = '\\';
 					/* FALLTHROUGH */
 				  default:
-					dp[l++] = *sp;
+					qval[l++] = fvalue[k];
 					break;
 				}
 			}
-			dp[l++] = '"';
-			dp[l++] = '\0';
-			l = strlen(fvalue);
-			snprintf(hlen, sizeof hlen, "%d", l);
-			define(macid("{hdrlen}", NULL), newstr(hlen), e);
-			if (l >= MAXNAME)
+			qval[l++] = '"';
+			qval[l] = '\0';
+			k += strlen(fvalue + k);
+			if (k >= MAXNAME)
 			{
 				if (LogLevel > 9)
 					sm_syslog(LOG_WARNING, e->e_id,
 						  "Warning: truncated header '%s' before check with '%s' len=%d max=%d",
-						  fname, rs, l, MAXNAME - 1);
+						  fname, rs, k, MAXNAME - 1);
 			}
-			if ((sp = macvalue(macid("{currHeader}", NULL), e)) !=
-			    NULL)
-				sm_free(sp);
-			define(macid("{currHeader}", NULL), newstr(qval), e);
-			define(macid("{hdr_name}", NULL), newstr(fname), e);
-			(void) rscheck(rs, fvalue, NULL, e, stripcom, TRUE, 4,
-				       NULL);
+			macdefine(&e->e_macro, A_TEMP,
+				macid("{currHeader}"), qval);
+			macdefine(&e->e_macro, A_TEMP,
+				macid("{hdr_name}"), fname);
+
+			(void) sm_snprintf(qval, sizeof qval, "%d", k);
+			macdefine(&e->e_macro, A_TEMP, macid("{hdrlen}"), qval);
+#if _FFR_HDR_TYPE
+			/*
+			**  XXX: h isn't set yet
+			**  If we really want to be precise then we have
+			**  to lookup the header (see below).
+			**  It's probably not worth the effort.
+			*/
+
+			if (bitset(H_FROM, h->h_flags))
+				macdefine(&e->e_macro, A_PERM,
+					macid("{addr_type}"), "h s");
+			else if (bitset(H_RCPT, h->h_flags))
+				macdefine(&e->e_macro, A_PERM,
+					macid("{addr_type}"), "h r");
+			else
+#endif /* _FFR_HDR_TYPE */
+				macdefine(&e->e_macro, A_PERM,
+					macid("{addr_type}"), "h");
+			(void) rscheck(rs, fvalue, NULL, e, stripcom, true, 3,
+				       NULL, e->e_id);
 		}
 	}
 
@@ -355,16 +377,16 @@ hse:
 	**  insert the full name information in all circumstances.
 	*/
 
-	dropfrom = FALSE;
+	dropfrom = false;
 	p = "resent-from";
 	if (!bitset(EF_RESENT, e->e_flags))
 		p += 7;
 	if (!bitset(pflag, CHHDR_DEF) && !headeronly &&
-	    !bitset(EF_QUEUERUN, e->e_flags) && strcasecmp(fname, p) == 0)
+	    !bitset(EF_QUEUERUN, e->e_flags) && sm_strcasecmp(fname, p) == 0)
 	{
 		if (tTd(31, 2))
 		{
-			dprintf("comparing header from (%s) against default (%s or %s)\n",
+			sm_dprintf("comparing header from (%s) against default (%s or %s)\n",
 				fvalue, e->e_from.q_paddr, e->e_from.q_user);
 		}
 		if (e->e_from.q_paddr != NULL &&
@@ -372,13 +394,13 @@ hse:
 		    bitnset(M_LOCALMAILER, e->e_from.q_mailer->m_flags) &&
 		    (strcmp(fvalue, e->e_from.q_paddr) == 0 ||
 		     strcmp(fvalue, e->e_from.q_user) == 0))
-			dropfrom = TRUE;
+			dropfrom = true;
 	}
 
 	/* delete default value for this header */
 	for (hp = hdrp; (h = *hp) != NULL; hp = &h->h_link)
 	{
-		if (strcasecmp(fname, h->h_field) == 0 &&
+		if (sm_strcasecmp(fname, h->h_field) == 0 &&
 		    !bitset(H_USER, h->h_flags) &&
 		    !bitset(H_FORCE, h->h_flags))
 		{
@@ -397,7 +419,7 @@ hse:
 			if (!cond)
 			{
 				/* copy conditions from default case */
-				memmove((char *)mopts, (char *)h->h_mflags,
+				memmove((char *) mopts, (char *) h->h_mflags,
 					sizeof mopts);
 			}
 			h->h_macro = mid;
@@ -405,9 +427,9 @@ hse:
 	}
 
 	/* create a new node */
-	h = (HDR *) xalloc(sizeof *h);
-	h->h_field = newstr(fname);
-	h->h_value = newstr(fvalue);
+	h = (HDR *) sm_rpool_malloc_x(e->e_rpool, sizeof *h);
+	h->h_field = sm_rpool_strdup_x(e->e_rpool, fname);
+	h->h_value = sm_rpool_strdup_x(e->e_rpool, fvalue);
 	h->h_link = NULL;
 	memmove((char *) h->h_mflags, (char *) mopts, sizeof mopts);
 	h->h_macro = mid;
@@ -435,7 +457,7 @@ hse:
 
 	return h->h_flags;
 }
-/*
+/*
 **  ADDHEADER -- add a header entry to the end of the queue.
 **
 **	This bypasses the special checking of chompheader.
@@ -444,7 +466,7 @@ hse:
 **		field -- the name of the header field.
 **		value -- the value of the field.
 **		flags -- flags to add to h_flags.
-**		hdrlist -- an indirect pointer to the header structure list.
+**		e -- envelope.
 **
 **	Returns:
 **		none.
@@ -454,15 +476,16 @@ hse:
 */
 
 void
-addheader(field, value, flags, hdrlist)
+addheader(field, value, flags, e)
 	char *field;
 	char *value;
 	int flags;
-	HDR **hdrlist;
+	ENVELOPE *e;
 {
 	register HDR *h;
 	STAB *s;
 	HDR **hp;
+	HDR **hdrlist = &e->e_header;
 
 	/* find info struct */
 	s = stab(field, ST_HEADER, ST_FIND);
@@ -470,14 +493,14 @@ addheader(field, value, flags, hdrlist)
 	/* find current place in list -- keep back pointer? */
 	for (hp = hdrlist; (h = *hp) != NULL; hp = &h->h_link)
 	{
-		if (strcasecmp(field, h->h_field) == 0)
+		if (sm_strcasecmp(field, h->h_field) == 0)
 			break;
 	}
 
 	/* allocate space for new header */
-	h = (HDR *) xalloc(sizeof *h);
+	h = (HDR *) sm_rpool_malloc_x(e->e_rpool, sizeof *h);
 	h->h_field = field;
-	h->h_value = newstr(value);
+	h->h_value = sm_rpool_strdup_x(e->e_rpool, value);
 	h->h_link = *hp;
 	h->h_flags = flags;
 	if (s != NULL)
@@ -486,7 +509,7 @@ addheader(field, value, flags, hdrlist)
 	h->h_macro = '\0';
 	*hp = h;
 }
-/*
+/*
 **  HVALUE -- return value of a header.
 **
 **	Only "real" fields (i.e., ones that have not been supplied
@@ -514,12 +537,12 @@ hvalue(field, header)
 	for (h = header; h != NULL; h = h->h_link)
 	{
 		if (!bitset(H_DEFAULT, h->h_flags) &&
-		    strcasecmp(h->h_field, field) == 0)
+		    sm_strcasecmp(h->h_field, field) == 0)
 			return h->h_value;
 	}
 	return NULL;
 }
-/*
+/*
 **  ISHEADER -- predicate telling if argument is a header.
 **
 **	A line is a header if it has a single word followed by
@@ -535,8 +558,8 @@ hvalue(field, header)
 **		h -- string to check for possible headerness.
 **
 **	Returns:
-**		TRUE if h is a header.
-**		FALSE otherwise.
+**		true if h is a header.
+**		false otherwise.
 **
 **	Side Effects:
 **		none.
@@ -549,13 +572,13 @@ isheader(h)
 	register char *s = h;
 
 	if (s[0] == '-' && s[1] == '-')
-		return FALSE;
+		return false;
 
 	while (*s > ' ' && *s != ':' && *s != '\0')
 		s++;
 
 	if (h == s)
-		return FALSE;
+		return false;
 
 	/* following technically violates RFC822 */
 	while (isascii(*s) && isspace(*s))
@@ -563,7 +586,7 @@ isheader(h)
 
 	return (*s == ':');
 }
-/*
+/*
 **  EATHEADER -- run through the stored header and extract info.
 **
 **	Parameters:
@@ -572,6 +595,7 @@ isheader(h)
 **			message priority).  This should not be set
 **			when reading a queue file because some info
 **			needed to compute the priority is wrong.
+**		log -- call logsender()?
 **
 **	Returns:
 **		none.
@@ -579,30 +603,29 @@ isheader(h)
 **	Side Effects:
 **		Sets a bunch of global variables from information
 **			in the collected header.
-**		Aborts the message if the hop count is exceeded.
 */
 
 void
-eatheader(e, full)
+eatheader(e, full, log)
 	register ENVELOPE *e;
 	bool full;
+	bool log;
 {
 	register HDR *h;
 	register char *p;
 	int hopcnt = 0;
-	char *msgid;
 	char buf[MAXLINE];
 
 	/*
 	**  Set up macros for possible expansion in headers.
 	*/
 
-	define('f', e->e_sender, e);
-	define('g', e->e_sender, e);
+	macdefine(&e->e_macro, A_PERM, 'f', e->e_sender);
+	macdefine(&e->e_macro, A_PERM, 'g', e->e_sender);
 	if (e->e_origrcpt != NULL && *e->e_origrcpt != '\0')
-		define('u', e->e_origrcpt, e);
+		macdefine(&e->e_macro, A_PERM, 'u', e->e_origrcpt);
 	else
-		define('u', NULL, e);
+		macdefine(&e->e_macro, A_PERM, 'u', NULL);
 
 	/* full name of from person */
 	p = hvalue("full-name", e->e_header);
@@ -615,22 +638,23 @@ eatheader(e, full)
 			**  as a comment so crackaddr() doesn't destroy
 			**  the name portion of the address.
 			*/
-			p = addquotes(p);
+
+			p = addquotes(p, e->e_rpool);
 		}
-		define('x', p, e);
+		macdefine(&e->e_macro, A_PERM, 'x', p);
 	}
 
 	if (tTd(32, 1))
-		dprintf("----- collected header -----\n");
-	msgid = NULL;
+		sm_dprintf("----- collected header -----\n");
+	e->e_msgid = NULL;
 	for (h = e->e_header; h != NULL; h = h->h_link)
 	{
 		if (tTd(32, 1))
-			dprintf("%s: ", h->h_field);
+			sm_dprintf("%s: ", h->h_field);
 		if (h->h_value == NULL)
 		{
 			if (tTd(32, 1))
-				dprintf("<NULL>\n");
+				sm_dprintf("<NULL>\n");
 			continue;
 		}
 
@@ -640,24 +664,24 @@ eatheader(e, full)
 		{
 			if (tTd(32, 1))
 			{
-				dprintf("(");
+				sm_dprintf("(");
 				xputs(h->h_value);
-				dprintf(") ");
+				sm_dprintf(") ");
 			}
 			expand(h->h_value, buf, sizeof buf, e);
 			if (buf[0] != '\0')
 			{
 				if (bitset(H_FROM, h->h_flags))
-					expand(crackaddr(buf), buf, sizeof buf, e);
-				h->h_value = newstr(buf);
+					expand(crackaddr(buf), buf, sizeof buf,
+					       e);
+				h->h_value = sm_rpool_strdup_x(e->e_rpool, buf);
 				h->h_flags &= ~H_DEFAULT;
 			}
 		}
-
 		if (tTd(32, 1))
 		{
 			xputs(h->h_value);
-			dprintf("\n");
+			sm_dprintf("\n");
 		}
 
 		/* count the number of times it has been processed */
@@ -667,14 +691,15 @@ eatheader(e, full)
 		/* send to this person if we so desire */
 		if (GrabTo && bitset(H_RCPT, h->h_flags) &&
 		    !bitset(H_DEFAULT, h->h_flags) &&
-		    (!bitset(EF_RESENT, e->e_flags) || bitset(H_RESENT, h->h_flags)))
+		    (!bitset(EF_RESENT, e->e_flags) ||
+		     bitset(H_RESENT, h->h_flags)))
 		{
 #if 0
 			int saveflags = e->e_flags;
 #endif /* 0 */
 
-			(void) sendtolist(h->h_value, NULLADDR,
-					  &e->e_sendqueue, 0, e);
+			(void) sendtolist(denlstring(h->h_value, true, false),
+					  NULLADDR, &e->e_sendqueue, 0, e);
 
 #if 0
 			/*
@@ -692,15 +717,15 @@ eatheader(e, full)
 		p = "resent-message-id";
 		if (!bitset(EF_RESENT, e->e_flags))
 			p += 7;
-		if (strcasecmp(h->h_field, p) == 0)
+		if (sm_strcasecmp(h->h_field, p) == 0)
 		{
-			msgid = h->h_value;
-			while (isascii(*msgid) && isspace(*msgid))
-				msgid++;
+			e->e_msgid = h->h_value;
+			while (isascii(*e->e_msgid) && isspace(*e->e_msgid))
+				e->e_msgid++;
 		}
 	}
 	if (tTd(32, 1))
-		dprintf("----------------------------\n");
+		sm_dprintf("----------------------------\n");
 
 	/* if we are just verifying (that is, sendmail -t -bv), drop out now */
 	if (OpMode == MD_VERIFY)
@@ -708,7 +733,11 @@ eatheader(e, full)
 
 	/* store hop count */
 	if (hopcnt > e->e_hopcount)
+	{
 		e->e_hopcount = hopcnt;
+		(void) sm_snprintf(buf, sizeof buf, "%d", e->e_hopcount);
+		macdefine(&e->e_macro, A_TEMP, 'c', buf);
+	}
 
 	/* message priority */
 	p = hvalue("precedence", e->e_header);
@@ -730,11 +759,11 @@ eatheader(e, full)
 	if (p != NULL)
 	{
 		/* (this should be in the configuration file) */
-		if (strcasecmp(p, "urgent") == 0)
+		if (sm_strcasecmp(p, "urgent") == 0)
 			e->e_timeoutclass = TOC_URGENT;
-		else if (strcasecmp(p, "normal") == 0)
+		else if (sm_strcasecmp(p, "normal") == 0)
 			e->e_timeoutclass = TOC_NORMAL;
-		else if (strcasecmp(p, "non-urgent") == 0)
+		else if (sm_strcasecmp(p, "non-urgent") == 0)
 			e->e_timeoutclass = TOC_NONURGENT;
 	}
 
@@ -743,11 +772,11 @@ eatheader(e, full)
 	if (p == NULL)
 		p = hvalue("date", e->e_header);
 	if (p != NULL)
-		define('a', p, e);
+		macdefine(&e->e_macro, A_PERM, 'a', p);
 
 	/* check to see if this is a MIME message */
 	if ((e->e_bodytype != NULL &&
-	     strcasecmp(e->e_bodytype, "8BITMIME") == 0) ||
+	     sm_strcasecmp(e->e_bodytype, "8BITMIME") == 0) ||
 	    hvalue("MIME-Version", e->e_header) != NULL)
 	{
 		e->e_flags |= EF_IS_MIME;
@@ -785,9 +814,9 @@ eatheader(e, full)
 		if (hi->hi_field != NULL)
 		{
 			if (tTd(32, 2))
-				dprintf("eatheader: setsender(*%s == %s)\n",
+				sm_dprintf("eatheader: setsender(*%s == %s)\n",
 					hi->hi_field, p);
-			setsender(p, e, NULL, '\0', TRUE);
+			setsender(p, e, NULL, '\0', true);
 		}
 	}
 
@@ -795,11 +824,13 @@ eatheader(e, full)
 	**  Log collection information.
 	*/
 
-	if (bitset(EF_LOGSENDER, e->e_flags) && LogLevel > 4)
-		logsender(e, msgid);
-	e->e_flags &= ~EF_LOGSENDER;
+	if (log && bitset(EF_LOGSENDER, e->e_flags) && LogLevel > 4)
+	{
+		logsender(e, e->e_msgid);
+		e->e_flags &= ~EF_LOGSENDER;
+	}
 }
-/*
+/*
 **  LOGSENDER -- log sender information
 **
 **	Parameters:
@@ -824,6 +855,7 @@ logsender(e, msgid)
 	char mbuf[MAXNAME + 1];
 
 	/* don't allow newlines in the message-id */
+	/* XXX do we still need this? sm_syslog() replaces control chars */
 	if (msgid != NULL)
 	{
 		l = strlen(msgid);
@@ -848,70 +880,59 @@ logsender(e, msgid)
 	else
 	{
 		name = hbuf;
-		(void) snprintf(hbuf, sizeof hbuf, "%.80s", RealHostName);
+		(void) sm_snprintf(hbuf, sizeof hbuf, "%.80s", RealHostName);
 		if (RealHostAddr.sa.sa_family != 0)
 		{
 			p = &hbuf[strlen(hbuf)];
-			(void) snprintf(p, SPACELEFT(hbuf, p), " (%.100s)",
-				anynet_ntoa(&RealHostAddr));
+			(void) sm_snprintf(p, SPACELEFT(hbuf, p),
+					   " (%.100s)",
+					   anynet_ntoa(&RealHostAddr));
 		}
 	}
 
 	/* some versions of syslog only take 5 printf args */
 #if (SYSLOG_BUFSIZE) >= 256
 	sbp = sbuf;
-	snprintf(sbp, SPACELEFT(sbuf, sbp),
-	    "from=%.200s, size=%ld, class=%d, nrcpts=%d",
-	    e->e_from.q_paddr == NULL ? "<NONE>" : e->e_from.q_paddr,
-	    e->e_msgsize, e->e_class, e->e_nrcpts);
+	(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+		"from=%.200s, size=%ld, class=%d, nrcpts=%d",
+		e->e_from.q_paddr == NULL ? "<NONE>" : e->e_from.q_paddr,
+		e->e_msgsize, e->e_class, e->e_nrcpts);
 	sbp += strlen(sbp);
 	if (msgid != NULL)
 	{
-		snprintf(sbp, SPACELEFT(sbuf, sbp), ", msgid=%.100s", mbuf);
+		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+				", msgid=%.100s", mbuf);
 		sbp += strlen(sbp);
 	}
 	if (e->e_bodytype != NULL)
 	{
-		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", bodytype=%.20s",
-			e->e_bodytype);
+		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+				", bodytype=%.20s", e->e_bodytype);
 		sbp += strlen(sbp);
 	}
 	p = macvalue('r', e);
 	if (p != NULL)
 	{
-		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", proto=%.20s", p);
+		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+				", proto=%.20s", p);
 		sbp += strlen(sbp);
 	}
-	p = macvalue(macid("{daemon_name}", NULL), e);
+	p = macvalue(macid("{daemon_name}"), e);
 	if (p != NULL)
 	{
-		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", daemon=%.20s", p);
+		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+				", daemon=%.20s", p);
 		sbp += strlen(sbp);
 	}
-# if SASL
-	p = macvalue(macid("{auth_type}", NULL), e);
-	if (p != NULL)
-	{
-		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", mech=%.12s", p);
-		sbp += strlen(sbp);
-	}
-	p = macvalue(macid("{auth_author}", NULL), e);
-	if (p != NULL)
-	{
-		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", auth=%.30s", p);
-		sbp += strlen(sbp);
-	}
-# endif /* SASL */
-	sm_syslog(LOG_INFO, e->e_id,
-		  "%.850s, relay=%.100s",
-		  sbuf, name);
+	sm_syslog(LOG_INFO, e->e_id, "%.850s, relay=%.100s", sbuf, name);
 
 #else /* (SYSLOG_BUFSIZE) >= 256 */
 
 	sm_syslog(LOG_INFO, e->e_id,
 		  "from=%s",
 		  e->e_from.q_paddr == NULL ? "<NONE>"
-					    : shortenstring(e->e_from.q_paddr, 83));
+					    : shortenstring(e->e_from.q_paddr,
+							    83));
 	sm_syslog(LOG_INFO, e->e_id,
 		  "size=%ld, class=%ld, nrcpts=%d",
 		  e->e_msgsize, e->e_class, e->e_nrcpts);
@@ -923,20 +944,22 @@ logsender(e, msgid)
 	*sbp = '\0';
 	if (e->e_bodytype != NULL)
 	{
-		snprintf(sbp, SPACELEFT(sbuf, sbp), "bodytype=%.20s, ", e->e_bodytype);
+		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+				"bodytype=%.20s, ", e->e_bodytype);
 		sbp += strlen(sbp);
 	}
 	p = macvalue('r', e);
 	if (p != NULL)
 	{
-		snprintf(sbp, SPACELEFT(sbuf, sbp), "proto=%.20s, ", p);
+		(void) sm_snprintf(sbp, SPACELEFT(sbuf, sbp),
+				"proto=%.20s, ", p);
 		sbp += strlen(sbp);
 	}
 	sm_syslog(LOG_INFO, e->e_id,
 		  "%.400srelay=%.100s", sbuf, name);
 #endif /* (SYSLOG_BUFSIZE) >= 256 */
 }
-/*
+/*
 **  PRIENCODE -- encode external priority names into internal values.
 **
 **	Parameters:
@@ -957,14 +980,14 @@ priencode(p)
 
 	for (i = 0; i < NumPriorities; i++)
 	{
-		if (strcasecmp(p, Priorities[i].pri_name) == 0)
+		if (sm_strcasecmp(p, Priorities[i].pri_name) == 0)
 			return Priorities[i].pri_val;
 	}
 
 	/* unknown priority */
 	return 0;
 }
-/*
+/*
 **  CRACKADDR -- parse an address and turn it into a macro
 **
 **	This doesn't actually parse the address -- it just extracts
@@ -1006,10 +1029,10 @@ crackaddr(addr)
 	bool qmode;
 	bool realqmode;
 	bool skipping;
-	bool putgmac = FALSE;
-	bool quoteit = FALSE;
-	bool gotangle = FALSE;
-	bool gotcolon = FALSE;
+	bool putgmac = false;
+	bool quoteit = false;
+	bool gotangle = false;
+	bool gotcolon = false;
 	register char *bp;
 	char *buflim;
 	char *bufhead;
@@ -1017,7 +1040,7 @@ crackaddr(addr)
 	static char buf[MAXNAME + 1];
 
 	if (tTd(33, 1))
-		dprintf("crackaddr(%s)\n", addr);
+		sm_dprintf("crackaddr(%s)\n", addr);
 
 	/* strip leading spaces */
 	while (*addr != '\0' && isascii(*addr) && isspace(*addr))
@@ -1033,7 +1056,7 @@ crackaddr(addr)
 	p = addrhead = addr;
 	copylev = anglelev = realanglelev = cmtlev = realcmtlev = 0;
 	bracklev = 0;
-	qmode = realqmode = FALSE;
+	qmode = realqmode = false;
 
 	while ((c = *p++) != '\0')
 	{
@@ -1053,7 +1076,7 @@ crackaddr(addr)
 		{
 			/* arrange to quote the address */
 			if (cmtlev <= 0 && !qmode)
-				quoteit = TRUE;
+				quoteit = true;
 
 			if ((c = *p++) == '\0')
 			{
@@ -1138,7 +1161,7 @@ crackaddr(addr)
 			if (*p == ':' || *p == '.')
 			{
 				if (cmtlev <= 0 && !qmode)
-					quoteit = TRUE;
+					quoteit = true;
 				if (copylev > 0 && !skipping)
 				{
 					*bp++ = c;
@@ -1148,7 +1171,7 @@ crackaddr(addr)
 				goto putg;
 			}
 
-			gotcolon = TRUE;
+			gotcolon = true;
 
 			bp = bufhead;
 			if (quoteit)
@@ -1189,7 +1212,7 @@ crackaddr(addr)
 			while (isascii(*p) && isspace(*p) && bp < buflim)
 				*bp++ = *p++;
 			copylev = 0;
-			putgmac = quoteit = FALSE;
+			putgmac = quoteit = false;
 			bufhead = bp;
 			addrhead = p;
 			continue;
@@ -1212,7 +1235,7 @@ crackaddr(addr)
 			*/
 
 			if (cmtlev <= 0 && !qmode)
-				quoteit = TRUE;
+				quoteit = true;
 		}
 
 		/* check for angle brackets */
@@ -1222,8 +1245,8 @@ crackaddr(addr)
 
 			/* assume first of two angles is bogus */
 			if (gotangle)
-				quoteit = TRUE;
-			gotangle = TRUE;
+				quoteit = true;
+			gotangle = true;
 
 			/* oops -- have to change our mind */
 			anglelev = 1;
@@ -1265,7 +1288,7 @@ crackaddr(addr)
 				*bp++ = c;
 			}
 			copylev = 0;
-			putgmac = quoteit = FALSE;
+			putgmac = quoteit = false;
 			continue;
 		}
 
@@ -1285,7 +1308,7 @@ crackaddr(addr)
 				/* syntax error: unmatched > */
 				if (copylev > 0)
 					bp--;
-				quoteit = TRUE;
+				quoteit = true;
 				continue;
 			}
 			if (copylev++ <= 0)
@@ -1301,7 +1324,7 @@ crackaddr(addr)
 				*bp++ = ' ';
 			*bp++ = MACROEXPAND;
 			*bp++ = 'g';
-			putgmac = TRUE;
+			putgmac = true;
 		}
 	}
 
@@ -1316,14 +1339,14 @@ crackaddr(addr)
 
 	if (tTd(33, 1))
 	{
-		dprintf("crackaddr=>`");
+		sm_dprintf("crackaddr=>`");
 		xputs(buf);
-		dprintf("'\n");
+		sm_dprintf("'\n");
 	}
 
 	return buf;
 }
-/*
+/*
 **  PUTHEADER -- put the header part of a message from the in-core copy
 **
 **	Parameters:
@@ -1339,13 +1362,6 @@ crackaddr(addr)
 **		none.
 */
 
-/*
- * Macro for fast max (not available in e.g. DG/UX, 386/ix).
- */
-#ifndef MAX
-# define MAX(a,b) (((a)>(b))?(a):(b))
-#endif /* ! MAX */
-
 void
 putheader(mci, hdr, e, flags)
 	register MCI *mci;
@@ -1354,11 +1370,11 @@ putheader(mci, hdr, e, flags)
 	int flags;
 {
 	register HDR *h;
-	char buf[MAX(MAXLINE,BUFSIZ)];
+	char buf[SM_MAX(MAXLINE,BUFSIZ)];
 	char obuf[MAXLINE];
 
 	if (tTd(34, 1))
-		dprintf("--- putheader, mailer = %s ---\n",
+		sm_dprintf("--- putheader, mailer = %s ---\n",
 			mci->mci_mailer->m_name);
 
 	/*
@@ -1373,10 +1389,11 @@ putheader(mci, hdr, e, flags)
 	for (h = hdr; h != NULL; h = h->h_link)
 	{
 		register char *p = h->h_value;
+		char *q;
 
 		if (tTd(34, 11))
 		{
-			dprintf("  %s: ", h->h_field);
+			sm_dprintf("  %s: ", h->h_field);
 			xputs(p);
 		}
 
@@ -1387,7 +1404,7 @@ putheader(mci, hdr, e, flags)
 		/* heuristic shortening of MIME fields to avoid MUA overflows */
 		if (MaxMimeFieldLength > 0 &&
 		    wordinclass(h->h_field,
-				macid("{checkMIMEFieldHeaders}", NULL)))
+				macid("{checkMIMEFieldHeaders}")))
 		{
 			size_t len;
 
@@ -1398,15 +1415,15 @@ putheader(mci, hdr, e, flags)
 					  "Truncated MIME %s header due to field size (length = %ld) (possible attack)",
 					  h->h_field, (unsigned long) len);
 				if (tTd(34, 11))
-					dprintf("  truncated MIME %s header due to field size  (length = %ld) (possible attack)\n",
-						h->h_field,
-						(unsigned long) len);
+					sm_dprintf("  truncated MIME %s header due to field size  (length = %ld) (possible attack)\n",
+						   h->h_field,
+						   (unsigned long) len);
 			}
 		}
 
 		if (MaxMimeHeaderLength > 0 &&
 		    wordinclass(h->h_field,
-				macid("{checkMIMETextHeaders}", NULL)))
+				macid("{checkMIMETextHeaders}")))
 		{
 			size_t len;
 
@@ -1418,15 +1435,15 @@ putheader(mci, hdr, e, flags)
 					  "Truncated long MIME %s header (length = %ld) (possible attack)",
 					  h->h_field, (unsigned long) len);
 				if (tTd(34, 11))
-					dprintf("  truncated long MIME %s header (length = %ld) (possible attack)\n",
-						h->h_field,
-						(unsigned long) len);
+					sm_dprintf("  truncated long MIME %s header (length = %ld) (possible attack)\n",
+						   h->h_field,
+						   (unsigned long) len);
 			}
 		}
 
 		if (MaxMimeHeaderLength > 0 &&
 		    wordinclass(h->h_field,
-				macid("{checkMIMEHeaders}", NULL)))
+				macid("{checkMIMEHeaders}")))
 		{
 			size_t len;
 
@@ -1438,9 +1455,9 @@ putheader(mci, hdr, e, flags)
 					  "Truncated long MIME %s header (length = %ld) (possible attack)",
 					  h->h_field, (unsigned long) len);
 				if (tTd(34, 11))
-					dprintf("  truncated long MIME %s header (length = %ld) (possible attack)\n",
-						h->h_field,
-						(unsigned long) len);
+					sm_dprintf("  truncated long MIME %s header (length = %ld) (possible attack)\n",
+						   h->h_field,
+						   (unsigned long) len);
 			}
 		}
 
@@ -1450,20 +1467,21 @@ putheader(mci, hdr, e, flags)
 		**  MIME.  If converting, add a new CTE header in
 		**  mime8to7().
 		*/
+
 		if (bitset(H_CTE, h->h_flags) &&
 		    bitset(MCIF_CVT8TO7|MCIF_CVT7TO8|MCIF_INMIME,
 			   mci->mci_flags) &&
 		    !bitset(M87F_NO8TO7, flags))
 		{
 			if (tTd(34, 11))
-				dprintf(" (skipped (content-transfer-encoding))\n");
+				sm_dprintf(" (skipped (content-transfer-encoding))\n");
 			continue;
 		}
 
 		if (bitset(MCIF_INMIME, mci->mci_flags))
 		{
 			if (tTd(34, 11))
-				dprintf("\n");
+				sm_dprintf("\n");
 			put_vanilla_header(h, p, mci);
 			continue;
 		}
@@ -1471,10 +1489,11 @@ putheader(mci, hdr, e, flags)
 		if (bitset(H_CHECK|H_ACHECK, h->h_flags) &&
 		    !bitintersect(h->h_mflags, mci->mci_mailer->m_flags) &&
 		    (h->h_macro == '\0' ||
-		     macvalue(bitidx(h->h_macro), e) == NULL))
+		     (q = macvalue(bitidx(h->h_macro), e)) == NULL ||
+		     *q == '\0'))
 		{
 			if (tTd(34, 11))
-				dprintf(" (skipped)\n");
+				sm_dprintf(" (skipped)\n");
 			continue;
 		}
 
@@ -1482,7 +1501,7 @@ putheader(mci, hdr, e, flags)
 		if (bitset(H_RESENT, h->h_flags) && !bitset(EF_RESENT, e->e_flags))
 		{
 			if (tTd(34, 11))
-				dprintf(" (skipped (resent))\n");
+				sm_dprintf(" (skipped (resent))\n");
 			continue;
 		}
 
@@ -1491,7 +1510,7 @@ putheader(mci, hdr, e, flags)
 		    (RrtImpliesDsn || bitset(EF_NORECEIPT, e->e_flags)))
 		{
 			if (tTd(34, 11))
-				dprintf(" (skipped (receipt))\n");
+				sm_dprintf(" (skipped (receipt))\n");
 			continue;
 		}
 
@@ -1504,7 +1523,7 @@ putheader(mci, hdr, e, flags)
 			if (*p == '\0')
 			{
 				if (tTd(34, 11))
-					dprintf(" (skipped -- null value)\n");
+					sm_dprintf(" (skipped -- null value)\n");
 				continue;
 			}
 		}
@@ -1515,20 +1534,20 @@ putheader(mci, hdr, e, flags)
 			if (bitset(EF_DELETE_BCC, e->e_flags))
 			{
 				if (tTd(34, 11))
-					dprintf(" (skipped -- bcc)\n");
+					sm_dprintf(" (skipped -- bcc)\n");
 			}
 			else
 			{
 				/* no other recipient headers: truncate value */
-				(void) snprintf(obuf, sizeof obuf, "%s:",
-					h->h_field);
+				(void) sm_strlcpyn(obuf, sizeof obuf, 2,
+						   h->h_field, ":");
 				putline(obuf, mci);
 			}
 			continue;
 		}
 
 		if (tTd(34, 11))
-			dprintf("\n");
+			sm_dprintf("\n");
 
 		if (bitset(H_FROM|H_RCPT, h->h_flags))
 		{
@@ -1536,7 +1555,7 @@ putheader(mci, hdr, e, flags)
 			bool oldstyle = bitset(EF_OLDSTYLE, e->e_flags);
 
 			if (bitset(H_FROM, h->h_flags))
-				oldstyle = FALSE;
+				oldstyle = false;
 			commaize(h, p, oldstyle, mci, e);
 		}
 		else
@@ -1561,9 +1580,9 @@ putheader(mci, hdr, e, flags)
 		putline("MIME-Version: 1.0", mci);
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
-			snprintf(obuf, sizeof obuf,
-				"Content-Type: text/plain; charset=%s",
-				defcharset(e));
+			(void) sm_snprintf(obuf, sizeof obuf,
+					"Content-Type: text/plain; charset=%s",
+					defcharset(e));
 			putline(obuf, mci);
 		}
 		if (hvalue("Content-Transfer-Encoding", e->e_header) == NULL)
@@ -1571,7 +1590,7 @@ putheader(mci, hdr, e, flags)
 	}
 #endif /* MIME8TO7 */
 }
-/*
+/*
 **  PUT_VANILLA_HEADER -- output a fairly ordinary header
 **
 **	Parameters:
@@ -1597,34 +1616,34 @@ put_vanilla_header(h, v, mci)
 	putflags = PXLF_HEADER;
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
-	(void) snprintf(obuf, sizeof obuf, "%.200s: ", h->h_field);
+	(void) sm_snprintf(obuf, sizeof obuf, "%.200s: ", h->h_field);
 	obp = obuf + strlen(obuf);
 	while ((nlp = strchr(v, '\n')) != NULL)
 	{
 		int l;
 
 		l = nlp - v;
-		if (SPACELEFT(obuf, obp) - 1 < (size_t)l)
+		if (SPACELEFT(obuf, obp) - 1 < (size_t) l)
 			l = SPACELEFT(obuf, obp) - 1;
 
-		snprintf(obp, SPACELEFT(obuf, obp), "%.*s", l, v);
+		(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.*s", l, v);
 		putxline(obuf, strlen(obuf), mci, putflags);
 		v += l + 1;
 		obp = obuf;
 		if (*v != ' ' && *v != '\t')
 			*obp++ = ' ';
 	}
-	snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
-		(int) sizeof obuf - (obp - obuf) - 1, v);
+	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
+			   (int) (SPACELEFT(obuf, obp) - 1), v);
 	putxline(obuf, strlen(obuf), mci, putflags);
 }
-/*
+/*
 **  COMMAIZE -- output a header field, making a comma-translated list.
 **
 **	Parameters:
 **		h -- the header field to output.
 **		p -- the value to put in it.
-**		oldstyle -- TRUE if this is an old style header.
+**		oldstyle -- true if this is an old style header.
 **		mci -- the connection information.
 **		e -- the envelope containing the message.
 **
@@ -1646,7 +1665,7 @@ commaize(h, p, oldstyle, mci, e)
 	register char *obp;
 	int opos;
 	int omax;
-	bool firstone = TRUE;
+	bool firstone = true;
 	int putflags = PXLF_HEADER;
 	char obuf[MAXLINE + 3];
 
@@ -1656,13 +1675,14 @@ commaize(h, p, oldstyle, mci, e)
 	*/
 
 	if (tTd(14, 2))
-		dprintf("commaize(%s: %s)\n", h->h_field, p);
+		sm_dprintf("commaize(%s: %s)\n", h->h_field, p);
 
 	if (bitnset(M_7BITHDRS, mci->mci_mailer->m_flags))
 		putflags |= PXLF_STRIP8BIT;
 
 	obp = obuf;
-	(void) snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ", h->h_field);
+	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ",
+			h->h_field);
 	opos = strlen(h->h_field) + 2;
 	if (opos > 202)
 		opos = 202;
@@ -1713,7 +1733,7 @@ commaize(h, p, oldstyle, mci, e)
 				p = oldp;
 				break;
 			}
-			p += *p == '@' ? 1 : 2;
+			++p;
 			while (*p != '\0' && isascii(*p) && isspace(*p))
 				p++;
 		}
@@ -1738,7 +1758,7 @@ commaize(h, p, oldstyle, mci, e)
 		{
 			char *q;
 
-			q = udbsender(name);
+			q = udbsender(name, e->e_rpool);
 			if (q != NULL)
 				name = q;
 		}
@@ -1750,14 +1770,14 @@ commaize(h, p, oldstyle, mci, e)
 			*p = savechar;
 			continue;
 		}
-		name = denlstring(name, FALSE, TRUE);
+		name = denlstring(name, false, true);
 
 		/*
 		**  record data progress so DNS timeouts
 		**  don't cause DATA timeouts
 		*/
 
-		DataProgress = TRUE;
+		DataProgress = true;
 
 		/* output the name with nice formatting */
 		opos += strlen(name);
@@ -1765,35 +1785,36 @@ commaize(h, p, oldstyle, mci, e)
 			opos += 2;
 		if (opos > omax && !firstone)
 		{
-			snprintf(obp, SPACELEFT(obuf, obp), ",\n");
+			(void) sm_strlcpy(obp, ",\n", SPACELEFT(obuf, obp));
 			putxline(obuf, strlen(obuf), mci, putflags);
 			obp = obuf;
-			(void) strlcpy(obp, "        ", sizeof obp);
+			(void) sm_strlcpy(obp, "        ", sizeof obp);
 			opos = strlen(obp);
 			obp += opos;
 			opos += strlen(name);
 		}
 		else if (!firstone)
 		{
-			snprintf(obp, SPACELEFT(obuf, obp), ", ");
+			(void) sm_strlcpy(obp, ", ", SPACELEFT(obuf, obp));
 			obp += 2;
 		}
 
 		while ((c = *name++) != '\0' && obp < &obuf[MAXLINE])
 			*obp++ = c;
-		firstone = FALSE;
+		firstone = false;
 		*p = savechar;
 	}
 	*obp = '\0';
 	putxline(obuf, strlen(obuf), mci, putflags);
 }
-/*
+/*
 **  COPYHEADER -- copy header list
 **
 **	This routine is the equivalent of newstr for header lists
 **
 **	Parameters:
 **		header -- list of header structures to copy.
+**		rpool -- resource pool, or NULL
 **
 **	Returns:
 **		a copy of 'header'.
@@ -1803,8 +1824,9 @@ commaize(h, p, oldstyle, mci, e)
 */
 
 HDR *
-copyheader(header)
+copyheader(header, rpool)
 	register HDR *header;
+	SM_RPOOL_T *rpool;
 {
 	register HDR *newhdr;
 	HDR *ret;
@@ -1812,7 +1834,7 @@ copyheader(header)
 
 	while (header != NULL)
 	{
-		newhdr = (HDR *) xalloc(sizeof *newhdr);
+		newhdr = (HDR *) sm_rpool_malloc_x(rpool, sizeof *newhdr);
 		STRUCTCOPY(*header, *newhdr);
 		*tail = newhdr;
 		tail = &newhdr->h_link;
@@ -1822,7 +1844,7 @@ copyheader(header)
 
 	return ret;
 }
-/*
+/*
 **  FIX_MIME_HEADER -- possibly truncate/rebalance parameters in a MIME header
 **
 **	Run through all of the parameters of a MIME header and

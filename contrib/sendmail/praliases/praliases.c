@@ -11,18 +11,16 @@
  *
  */
 
-#ifndef lint
-static char copyright[] =
+#include <sm/gen.h>
+
+SM_IDSTR(copyright,
 "@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* ! lint */
+	The Regents of the University of California.  All rights reserved.\n")
 
-#ifndef lint
-static char id[] = "@(#)$Id: praliases.c,v 8.59.4.19 2001/02/28 02:37:57 ca Exp $";
-#endif /* ! lint */
+SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.93 2001/09/11 04:05:07 gshapiro Exp $")
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -50,11 +48,9 @@ uid_t	RunAsUid;
 uid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
-bool	DontInitGroups = FALSE;
+bool	DontInitGroups = false;
 uid_t	TrustedUid = 0;
 BITMAP256 DontBlameSendmail;
-
-extern void	syserr __P((const char *, ...));
 
 # define DELIMITERS		" ,/"
 # define PATH_SEPARATOR		':'
@@ -66,7 +62,7 @@ main(argc, argv)
 {
 	char *cfile;
 	char *filename = NULL;
-	FILE *cfp;
+	SM_FILE_T *cfp;
 	int ch;
 	char afilebuf[MAXLINE];
 	char buf[MAXLINE];
@@ -74,7 +70,6 @@ main(argc, argv)
 	static char rnamebuf[MAXNAME];
 	extern char *optarg;
 	extern int optind;
-
 
 	clrbitmap(DontBlameSendmail);
 	RunAsUid = RealUid = getuid();
@@ -84,14 +79,14 @@ main(argc, argv)
 	{
 		if (strlen(pw->pw_name) > MAXNAME - 1)
 			pw->pw_name[MAXNAME] = 0;
-		snprintf(rnamebuf, sizeof rnamebuf, "%s", pw->pw_name);
+		sm_snprintf(rnamebuf, sizeof rnamebuf, "%s", pw->pw_name);
 	}
 	else
-		(void) snprintf(rnamebuf, sizeof rnamebuf, "Unknown UID %d",
-				(int) RealUid);
+		(void) sm_snprintf(rnamebuf, sizeof rnamebuf,
+		    "Unknown UID %d", (int) RealUid);
 	RunAsUserName = RealUserName = rnamebuf;
 
-	cfile = _PATH_SENDMAILCF;
+	cfile = getcfname(0, 0, SM_GET_SENDMAIL_CF, NULL);
 	while ((ch = getopt(argc, argv, "C:f:")) != -1)
 	{
 		switch ((char)ch) {
@@ -103,8 +98,8 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr,
-				      "usage: praliases [-C cffile] [-f aliasfile]\n");
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+			    "usage: praliases [-C cffile] [-f aliasfile]\n");
 			exit(EX_USAGE);
 		}
 	}
@@ -117,14 +112,16 @@ main(argc, argv)
 		exit(EX_OK);
 	}
 
-	if ((cfp = fopen(cfile, "r")) == NULL)
+	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
+			      NULL)) == NULL)
 	{
-		fprintf(stderr, "praliases: %s: %s\n",
-			cfile, errstring(errno));
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "praliases: %s: %s\n", cfile,
+				     sm_errstring(errno));
 		exit(EX_NOINPUT);
 	}
 
-	while (fgets(buf, sizeof(buf), cfp) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
 	{
 		register char *b, *p;
 
@@ -136,7 +133,7 @@ main(argc, argv)
 		switch (*b++)
 		{
 		  case 'O':		/* option -- see if alias file */
-			if (strncasecmp(b, " AliasFile", 10) == 0 &&
+			if (sm_strncasecmp(b, " AliasFile", 10) == 0 &&
 			    !(isascii(b[10]) && isalnum(b[10])))
 			{
 				/* new form -- find value */
@@ -153,13 +150,13 @@ main(argc, argv)
 			}
 
 			/* this is the A or AliasFile option -- save it */
-			if (strlcpy(afilebuf, b, sizeof afilebuf) >=
+			if (sm_strlcpy(afilebuf, b, sizeof afilebuf) >=
 			    sizeof afilebuf)
 			{
-				fprintf(stderr,
-					"praliases: AliasFile filename too long: %.30s\n",
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				    "praliases: AliasFile filename too long: %.30s\n",
 					b);
-				(void) fclose(cfp);
+				(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 				exit(EX_CONFIG);
 			}
 			b = afilebuf;
@@ -177,7 +174,7 @@ main(argc, argv)
 				/* find end of spec */
 				if (p != NULL)
 				{
-					bool quoted = FALSE;
+					bool quoted = false;
 
 					for (; *p != '\0'; p++)
 					{
@@ -224,7 +221,7 @@ main(argc, argv)
 			continue;
 		}
 	}
-	(void) fclose(cfp);
+	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 	exit(EX_OK);
 	/* NOTREACHED */
 	return EX_OK;
@@ -280,8 +277,8 @@ praliases(filename, argc, argv)
 		    strcmp(db_type, "btree") != 0 &&
 		    strcmp(db_type, "dbm") != 0)
 		{
-			fprintf(stderr,
-				"praliases: Skipping non-file based alias type %s\n",
+			sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				      "praliases: Skipping non-file based alias type %s\n",
 				db_type);
 			return;
 		}
@@ -291,8 +288,8 @@ praliases(filename, argc, argv)
 	{
 		if (colon != NULL)
 			*colon = ':';
-		fprintf(stderr,	"praliases: illegal alias specification: %s\n",
-			filename);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+		    "praliases: illegal alias specification: %s\n", filename);
 		goto fatal;
 	}
 
@@ -301,14 +298,16 @@ praliases(filename, argc, argv)
 
 	user_info.smdbu_id = RunAsUid;
 	user_info.smdbu_group_id = RunAsGid;
-	strlcpy(user_info.smdbu_name, RunAsUserName, SMDB_MAX_USER_NAME_LEN);
+	(void) sm_strlcpy(user_info.smdbu_name, RunAsUserName,
+			  SMDB_MAX_USER_NAME_LEN);
 
 	result = smdb_open_database(&database, db_name, O_RDONLY, 0,
 				    SFF_ROOTOK, db_type, &user_info, &params);
 	if (result != SMDBE_OK)
 	{
-		fprintf(stderr, "praliases: %s: open: %s\n",
-			db_name, errstring(result));
+		sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+			      "praliases: %s: open: %s\n",
+			      db_name, sm_errstring(result));
 		goto fatal;
 	}
 
@@ -320,8 +319,9 @@ praliases(filename, argc, argv)
 		result = database->smdb_cursor(database, &cursor, 0);
 		if (result != SMDBE_OK)
 		{
-			fprintf(stderr, "praliases: %s: set cursor: %s\n",
-				db_name, errstring(result));
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+			    "praliases: %s: set cursor: %s\n", db_name,
+			    sm_errstring(result));
 			goto fatal;
 		}
 
@@ -340,18 +340,19 @@ praliases(filename, argc, argv)
 				continue;
 #endif /* 0 */
 
-			printf("%.*s:%.*s\n",
-			       (int) db_key.size,
-			       (char *) db_key.data,
-			       (int) db_value.size,
-			       (char *) db_value.data);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "%.*s:%.*s\n",
+					     (int) db_key.size,
+					     (char *) db_key.data,
+					     (int) db_value.size,
+					     (char *) db_value.data);
 		}
 
 		if (result != SMDBE_OK && result != SMDBE_LAST_ENTRY)
 		{
-			fprintf(stderr,
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 				"praliases: %s: get value at cursor: %s\n",
-				db_name, errstring(result));
+				db_name, sm_errstring(result));
 			goto fatal;
 		}
 	}
@@ -372,14 +373,17 @@ praliases(filename, argc, argv)
 		}
 		if (get_res == SMDBE_OK)
 		{
-			printf("%.*s:%.*s\n",
-			       (int) db_key.size,
-			       (char *) db_key.data,
-			       (int) db_value.size,
-			       (char *) db_value.data);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "%.*s:%.*s\n",
+					     (int) db_key.size,
+					     (char *) db_key.data,
+					     (int) db_value.size,
+					     (char *) db_value.data);
 		}
 		else
-			printf("%s: No such key\n", (char *) db_key.data);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "%s: No such key\n",
+					     (char *)db_key.data);
 	}
 
  fatal:
@@ -390,52 +394,4 @@ praliases(filename, argc, argv)
 	if (colon != NULL)
 		*colon = ':';
 	return;
-}
-
-/*VARARGS1*/
-void
-#ifdef __STDC__
-message(const char *msg, ...)
-#else /* __STDC__ */
-message(msg, va_alist)
-	const char *msg;
-	va_dcl
-#endif /* __STDC__ */
-{
-	const char *m;
-	VA_LOCAL_DECL
-
-	m = msg;
-	if (isascii(m[0]) && isdigit(m[0]) &&
-	    isascii(m[1]) && isdigit(m[1]) &&
-	    isascii(m[2]) && isdigit(m[2]) && m[3] == ' ')
-		m += 4;
-	VA_START(msg);
-	(void) vfprintf(stderr, m, ap);
-	VA_END;
-	(void) fprintf(stderr, "\n");
-}
-
-/*VARARGS1*/
-void
-#ifdef __STDC__
-syserr(const char *msg, ...)
-#else /* __STDC__ */
-syserr(msg, va_alist)
-	const char *msg;
-	va_dcl
-#endif /* __STDC__ */
-{
-	const char *m;
-	VA_LOCAL_DECL
-
-	m = msg;
-	if (isascii(m[0]) && isdigit(m[0]) &&
-	    isascii(m[1]) && isdigit(m[1]) &&
-	    isascii(m[2]) && isdigit(m[2]) && m[3] == ' ')
-		m += 4;
-	VA_START(msg);
-	(void) vfprintf(stderr, m, ap);
-	VA_END;
-	(void) fprintf(stderr, "\n");
 }

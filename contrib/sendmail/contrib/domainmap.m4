@@ -46,7 +46,7 @@ divert(-1)changequote(<<, >>)<<
    in the sendmail source tree.  For more information, please see the
    following URL:
 
-      http://www-wsg.cso.uiuc.edu/sendmail/patches/domainmap.html
+      http://www-dev.cso.uiuc.edu/sendmail/domainmap/
 
    Feedback is welcome.
 
@@ -69,14 +69,16 @@ LOCAL_RULESETS
 SDomainMapLookup
 R $=L <@ $=w .>		$@ $1 <@ $2 .>		weed out local users, in case
 #						Cw contains a mapped domain
+R $+ <@ $+>		$: $1 <@ $2 > <$&{addr_type}>	check if sender
+R $+ <@ $+> <e s>	$#smtp $@ $2 $: $1 @ $2		do not process sender
 ifdef(`DOMAINMAP_NO_REGEX',`dnl
-R $+ <@ $+>		$: $1 <@ $2> <$2>	find domain
+R $+ <@ $+> <$*>	$: $1 <@ $2> <$2>	find domain
 R $+ <$+> <$+ . $+>	$1 <$2> < $(dequote $3 "_" $4 $) >
 #						change "." to "_"
 R $+ <$+> <$+ .>	$: $1 <$2> < $(dequote "domain_" $3 $) >
 #						prepend "domain_"
 dnl',`dnl
-R $+ <@ $+>		$: $1 <@ $2> <$2 :NOTDONE:>	find domain
+R $+ <@ $+> <$*>	$: $1 <@ $2> <$2 :NOTDONE:>	find domain
 R $+ <$+> <$+ . :NOTDONE:>	$1 <$2> < $(domainmap_regex $3 $: $3 $) >
 #						change "." and "-" to "_"
 R $+ <$+> <$+>		$: $1 <$2> < $(dequote "domain_" $3 $) >

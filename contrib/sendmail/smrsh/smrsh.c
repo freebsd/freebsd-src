@@ -11,18 +11,16 @@
  *
  */
 
-#ifndef lint
-static char copyright[] =
+#include <sm/gen.h>
+
+SM_IDSTR(copyright,
 "@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1993 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* ! lint */
+	The Regents of the University of California.  All rights reserved.\n")
 
-#ifndef lint
-static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.9 2001/04/24 04:11:51 ca Exp $";
-#endif /* ! lint */
+SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.55 2001/09/11 04:05:22 gshapiro Exp $")
 
 /*
 **  SMRSH -- sendmail restricted shell
@@ -55,7 +53,8 @@ static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.9 2001/04/24 04:11:51 ca Exp $";
 */
 
 #include <unistd.h>
-#include <stdio.h>
+#include <sm/io.h>
+#include <sm/string.h>
 #include <sys/file.h>
 #include <string.h>
 #include <ctype.h>
@@ -67,18 +66,16 @@ static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.9 2001/04/24 04:11:51 ca Exp $";
 #include <syslog.h>
 #include <stdlib.h>
 
-#ifndef TRUE
-# define TRUE	1
-# define FALSE	0
-#endif /* ! TRUE */
+#include <sm/conf.h>
+#include <sm/errstring.h>
 
 /* directory in which all commands must reside */
 #ifndef CMDDIR
-# if defined(HPUX10) || defined(HPUX11) || SOLARIS >= 20800
-#  define CMDDIR	"/var/adm/sm.bin"
-# else /* HPUX10 || HPUX11 || SOLARIS >= 20800 */
+# ifdef SMRSH_CMDDIR
+#  define CMDDIR	SMRSH_CMDDIR
+# else /* SMRSH_CMDDIR */
 #  define CMDDIR	"/usr/adm/sm.bin"
-# endif /* HPUX10 || HPUX11 || SOLARIS >= 20800 */
+# endif /* SMRSH_CMDDIR */
 #endif /* ! CMDDIR */
 
 /* characters disallowed in the shell "-c" argument */
@@ -86,15 +83,12 @@ static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.9 2001/04/24 04:11:51 ca Exp $";
 
 /* default search path */
 #ifndef PATH
-# define PATH		"/bin:/usr/bin:/usr/ucb"
+# ifdef SMRSH_PATH
+#  define PATH		SMRSH_PATH
+# else /* SMRSH_PATH */
+#  define PATH		"/bin:/usr/bin:/usr/ucb"
+# endif /* SMRSH_PATH */
 #endif /* ! PATH */
-
-#ifndef __P
-# include "sendmail/cdefs.h"
-#endif /* ! __P */
-
-extern size_t	strlcpy __P((char *, const char *, size_t));
-extern size_t	strlcat __P((char *, const char *, size_t));
 
 char newcmdbuf[1000];
 char *prg, *par;
@@ -115,8 +109,8 @@ char *prg, *par;
 void
 addcmd(s, cmd, len)
 	char *s;
-	int cmd;
-	int len;
+	bool cmd;
+	size_t len;
 {
 	if (s == NULL || *s == '\0')
 		return;
@@ -124,7 +118,8 @@ addcmd(s, cmd, len)
 	if (sizeof newcmdbuf - strlen(newcmdbuf) <=
 	    len + (cmd ? (strlen(CMDDIR) + 1) : 0))
 	{
-		fprintf(stderr, "%s: command too long: %s\n", prg, par);
+		(void)sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				    "%s: command too long: %s\n", prg, par);
 #ifndef DEBUG
 		syslog(LOG_WARNING, "command too long: %.40s", par);
 #endif /* ! DEBUG */
@@ -132,10 +127,10 @@ addcmd(s, cmd, len)
 	}
 	if (cmd)
 	{
-		(void) strlcat(newcmdbuf, CMDDIR, sizeof newcmdbuf);
-		(void) strlcat(newcmdbuf, "/", sizeof newcmdbuf);
+		(void) sm_strlcat(newcmdbuf, CMDDIR, sizeof newcmdbuf);
+		(void) sm_strlcat(newcmdbuf, "/", sizeof newcmdbuf);
 	}
-	(void) strlcat(newcmdbuf, s, sizeof newcmdbuf);
+	(void) sm_strlcat(newcmdbuf, s, sizeof newcmdbuf);
 }
 
 int
@@ -147,7 +142,6 @@ main(argc, argv)
 	register char *q;
 	register char *r;
 	register char *cmd;
-	int i;
 	int isexec;
 	int save_errno;
 	char *newenv[2];
@@ -163,8 +157,8 @@ main(argc, argv)
 # endif /* ! LOG_MAIL */
 #endif /* ! DEBUG */
 
-	(void) strlcpy(pathbuf, "PATH=", sizeof pathbuf);
-	(void) strlcat(pathbuf, PATH, sizeof pathbuf);
+	(void) sm_strlcpy(pathbuf, "PATH=", sizeof pathbuf);
+	(void) sm_strlcat(pathbuf, PATH, sizeof pathbuf);
 	newenv[0] = pathbuf;
 	newenv[1] = NULL;
 
@@ -176,7 +170,8 @@ main(argc, argv)
 
 	if (argc != 3 || strcmp(argv[1], "-c") != 0)
 	{
-		fprintf(stderr, "Usage: %s -c command\n", prg);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "Usage: %s -c command\n", prg);
 #ifndef DEBUG
 		syslog(LOG_ERR, "usage");
 #endif /* ! DEBUG */
@@ -199,19 +194,19 @@ main(argc, argv)
 #endif /* ! DEBUG */
 		exit(EX_UNAVAILABLE);
 	}
-	(void) strlcpy(specialbuf, SPECIALS, sizeof specialbuf);
+	(void) sm_strlcpy(specialbuf, SPECIALS, sizeof specialbuf);
 	for (p = specialbuf; *p != '\0'; p++)
 		*p |= '\200';
-	(void) strlcat(specialbuf, SPECIALS, sizeof specialbuf);
+	(void) sm_strlcat(specialbuf, SPECIALS, sizeof specialbuf);
 
 	/*
 	**  Do a quick sanity check on command line length.
 	*/
 
-	i = strlen(par);
-	if (i > (sizeof newcmdbuf - sizeof CMDDIR - 2))
+	if (strlen(par) > (sizeof newcmdbuf - sizeof CMDDIR - 2))
 	{
-		fprintf(stderr, "%s: command too long: %s\n", prg, par);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "%s: command too long: %s\n", prg, par);
 #ifndef DEBUG
 		syslog(LOG_WARNING, "command too long: %.40s", par);
 #endif /* ! DEBUG */
@@ -220,7 +215,7 @@ main(argc, argv)
 
 	q = par;
 	newcmdbuf[0] = '\0';
-	isexec = FALSE;
+	isexec = false;
 
 	while (*q)
 	{
@@ -236,10 +231,11 @@ main(argc, argv)
 		{
 			if (isexec)
 			{
-				fprintf(stderr, "%s: missing command to exec\n",
-					prg);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: missing command to exec\n",
+						     prg);
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: missing command to exec", getuid());
+				syslog(LOG_CRIT, "uid %d: missing command to exec", (int) getuid());
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);
 			}
@@ -269,15 +265,15 @@ main(argc, argv)
 		/* allow a few shell builtins */
 		if (strcmp(q, "exec") == 0 && p != NULL)
 		{
-			addcmd("exec ", FALSE, strlen("exec "));
+			addcmd("exec ", false, strlen("exec "));
 			/* test _next_ arg */
 			q = ++p;
-			isexec = TRUE;
+			isexec = true;
 			continue;
 		}
 		else if (strcmp(q, "exit") == 0 || strcmp(q, "echo") == 0)
 		{
-			addcmd(cmd, FALSE, strlen(cmd));
+			addcmd(cmd, false, strlen(cmd));
 			/* test following chars */
 		}
 		else
@@ -285,23 +281,24 @@ main(argc, argv)
 			/*
 			**  Check to see if the command name is legal.
 			*/
-			(void) strlcpy(cmdbuf, CMDDIR, sizeof cmdbuf);
-			(void) strlcat(cmdbuf, "/", sizeof cmdbuf);
-			(void) strlcat(cmdbuf, cmd, sizeof cmdbuf);
+			(void) sm_strlcpy(cmdbuf, CMDDIR, sizeof cmdbuf);
+			(void) sm_strlcat(cmdbuf, "/", sizeof cmdbuf);
+			(void) sm_strlcat(cmdbuf, cmd, sizeof cmdbuf);
 #ifdef DEBUG
-			printf("Trying %s\n", cmdbuf);
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+					     "Trying %s\n", cmdbuf);
 #endif /* DEBUG */
 			if (access(cmdbuf, X_OK) < 0)
 			{
 				/* oops....  crack attack possiblity */
-				fprintf(stderr,
-					"%s: %s not available for sendmail programs\n",
-					prg, cmd);
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+						     "%s: %s not available for sendmail programs\n",
+						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
 				syslog(LOG_CRIT, "uid %d: attempt to use %s",
-				       getuid(), cmd);
+				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);
 			}
@@ -310,9 +307,9 @@ main(argc, argv)
 			**  Create the actual shell input.
 			*/
 
-			addcmd(cmd, TRUE, strlen(cmd));
+			addcmd(cmd, true, strlen(cmd));
 		}
-		isexec = FALSE;
+		isexec = false;
 
 		if (p != NULL)
 			*p = ' ';
@@ -320,13 +317,15 @@ main(argc, argv)
 			break;
 
 		r = strpbrk(p, specialbuf);
-		if (r == NULL) {
-			addcmd(p, FALSE, strlen(p));
+		if (r == NULL)
+		{
+			addcmd(p, false, strlen(p));
 			break;
 		}
 #if ALLOWSEMI
-		if (*r == ';') {
-			addcmd(p, FALSE,  r - p + 1);
+		if (*r == ';')
+		{
+			addcmd(p, false,  r - p + 1);
 			q = r + 1;
 			continue;
 		}
@@ -334,30 +333,34 @@ main(argc, argv)
 		if ((*r == '&' && *(r + 1) == '&') ||
 		    (*r == '|' && *(r + 1) == '|'))
 		{
-			addcmd(p, FALSE,  r - p + 2);
+			addcmd(p, false,  r - p + 2);
 			q = r + 2;
 			continue;
 		}
 
-		fprintf(stderr, "%s: cannot use %c in command\n", prg, *r);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "%s: cannot use %c in command\n", prg, *r);
 #ifndef DEBUG
 		syslog(LOG_CRIT, "uid %d: attempt to use %c in command: %s",
-			getuid(), *r, par);
+		       (int) getuid(), *r, par);
 #endif /* ! DEBUG */
 		exit(EX_UNAVAILABLE);
 	}		/* end of while *q */
 	if (isexec)
 	{
-		fprintf(stderr, "%s: missing command to exec\n", prg);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "%s: missing command to exec\n", prg);
 #ifndef DEBUG
-		syslog(LOG_CRIT, "uid %d: missing command to exec", getuid());
+		syslog(LOG_CRIT, "uid %d: missing command to exec",
+		       (int) getuid());
 #endif /* ! DEBUG */
 		exit(EX_UNAVAILABLE);
 	}
 	/* make sure we created something */
 	if (newcmdbuf[0] == '\0')
 	{
-		fprintf(stderr, "Usage: %s -c command\n", prg);
+		(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "Usage: %s -c command\n", prg);
 #ifndef DEBUG
 		syslog(LOG_ERR, "usage");
 #endif /* ! DEBUG */
@@ -369,15 +372,15 @@ main(argc, argv)
 	*/
 
 #ifdef DEBUG
-	printf("%s\n", newcmdbuf);
+	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n", newcmdbuf);
 #endif /* DEBUG */
 	(void) execle("/bin/sh", "/bin/sh", "-c", newcmdbuf, NULL, newenv);
 	save_errno = errno;
 #ifndef DEBUG
-	syslog(LOG_CRIT, "Cannot exec /bin/sh: %m");
+	syslog(LOG_CRIT, "Cannot exec /bin/sh: %s", sm_errstring(errno));
 #endif /* ! DEBUG */
 	errno = save_errno;
-	perror("/bin/sh");
+	sm_perror("/bin/sh");
 	exit(EX_OSFILE);
 	/* NOTREACHED */
 	return EX_OSFILE;
