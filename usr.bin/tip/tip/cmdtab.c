@@ -32,14 +32,18 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tipconf.h"
 #include "tip.h"
 
 extern	int shell(), getfl(), sendfile(), chdirectory();
-extern	int finish(), help(), pipefile(), pipeout(), consh(), variable();
+extern	int finish(), help(), pipefile(), pipeout(), variable();
 extern	int cu_take(), cu_put(), dollar(), genbrk(), suspend();
 
 esctable_t etable[] = {

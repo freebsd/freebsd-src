@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)acu.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "tipconf.h"
@@ -106,7 +110,7 @@ connect()
 			if (*cp)
 				*cp++ = '\0';
 
-			if (conflag = (*acu->acu_dialer)(phnum, CU)) {
+			if ((conflag = (*acu->acu_dialer)(phnum, CU))) {
 				if (CM != NOSTR)
 					pwrite(FD, CM, size(CM));
 				logent(value(HOST), phnum, acu->acu_name,
@@ -143,7 +147,7 @@ connect()
 			if (*cp)
 				*cp++ = '\0';
 
-			if (conflag = (*acu->acu_dialer)(phnum, CU)) {
+			if ((conflag = (*acu->acu_dialer)(phnum, CU))) {
 				fclose(fd);
 				if (CM != NOSTR)
 					pwrite(FD, CM, size(CM));
@@ -164,6 +168,7 @@ connect()
 	return (tried ? "call failed" : "missing phone number");
 }
 
+void
 disconnect(reason)
 	char *reason;
 {

@@ -33,16 +33,21 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)remote.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/syslimits.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -67,6 +72,8 @@ static char *capstrings[] = {
 static char	*db_array[3] = { _PATH_REMOTE, 0, 0 };
 
 #define cgetflag(f)	(cgetcap(bp, f, ':') != NULL)
+
+static void getremcap __P((char *));
 
 /*
 	Expand the start tilde sequence at the start of the
@@ -99,9 +106,10 @@ expand_tilde (char **path, void (*free) (char *p))
 		}
 		return rc;
 	}
+	return (-1);
 }
 
-static
+static void
 getremcap(host)
 	register char *host;
 {
@@ -122,7 +130,7 @@ getremcap(host)
 
 	if ((stat = cgetent(&bp, db_array, host)) < 0) {
 		if (DV ||
-		    host[0] == '/' && access(DV = host, R_OK | W_OK) == 0) {
+		    (host[0] == '/' && access(DV = host, R_OK | W_OK) == 0)) {
 			CU = DV;
 			HO = host;
 			HW = 1;
@@ -134,15 +142,13 @@ getremcap(host)
 		}
 		switch(stat) {
 		case -1:
-			fprintf(stderr, "tip: unknown host %s\n", host);
+			warnx("unknown host %s", host);
 			break;
 		case -2:
-			fprintf(stderr,
-			    "tip: can't open host description file\n");
+			warnx("can't open host description file");
 			break;
 		case -3:
-			fprintf(stderr,
-			    "tip: possible reference loop in host description file\n");
+			warnx("possible reference loop in host description file");
 			break;
 		}
 		exit(3);
@@ -260,10 +266,8 @@ getremote(host)
 	static int lookedup = 0;
 
 	if (!lookedup) {
-		if (host == NOSTR && (host = getenv("HOST")) == NOSTR) {
-			fprintf(stderr, "tip: no host specified\n");
-			exit(3);
-		}
+		if (host == NOSTR && (host = getenv("HOST")) == NOSTR)
+			errx(3, "no host specified");
 		getremcap(host);
 		next = DV;
 		lookedup++;
