@@ -973,10 +973,10 @@ fw_xfer_alloc_buf(struct malloc_type *type, int send_len, int recv_len)
 	struct fw_xfer *xfer;
 
 	xfer = fw_xfer_alloc(type);
-	xfer->send.pay_len = send_len;
-	xfer->recv.pay_len = recv_len;
 	if (xfer == NULL)
 		return(NULL);
+	xfer->send.pay_len = send_len;
+	xfer->recv.pay_len = recv_len;
 	if (send_len > 0) {
 		xfer->send.payload = malloc(send_len, type, M_NOWAIT | M_ZERO);
 		if (xfer->send.payload == NULL) {
