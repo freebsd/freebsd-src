@@ -89,8 +89,8 @@ static char *tiplist[] = {
      and/or use EMACS-style (or maybe VI-style) commands to edit the line.",
 #endif
 
-    "You can get the newest version of NcFTP from cse.unl.edu, in the\n\
-     /pub/mgleason/ncftp directory, AFTER business hours.",
+    "You can get the newest version of NcFTP from ftp.cs.unl.edu, in the\n\
+     /pub/ncftp directory, AFTER business hours.",
 
     "The type of progress-meter that will be used depends if the remote host\n\
      supports the SIZE command, and whether your terminal is capable of ANSI\n\
@@ -105,8 +105,8 @@ static char *tiplist[] = {
      the rc file, while still letting you use sitename abbreviations.",
 
     "You can use World Wide Web style paths instead of colon-mode paths.\n\
-     For example, if the colon-mode path was 'cse.unl.edu:pub/mgleason/ncftp',\n\
-     the WWW-style path would be 'ftp://cse.unl.edu/pub/mgleason/ncftp'.",
+     For example, if the colon-mode path was 'ftp.cs.unl.edu:pub/ncftp',\n\
+     the WWW-style path would be 'ftp://ftp.cs.unl.edu/pub/ncftp'.",
 
     "Sick and tired of these tips?  Put '#unset tips' in your .ncftprc."
 };

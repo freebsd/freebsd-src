@@ -1,6 +1,18 @@
+v1.9.0 - December 22, 1994.  The program won't exit from the interactive shell
+  if it's working from a tty.  For example, it won't exit if you do an mget
+  on a pattern that won't match anything.  Added padding around jmp_buf's
+  for SunOS.  SunOS needs sigjmp_buf's, but plenty of OS's don't support
+  sigjmp_buf's yet.  Fixed the tips to reflect the new archive site.
+
+v1.8.9 - December 20, 1994.  Can now set "passive" user variable, or use
+  passive command to toggle PASV/PORT ftp.  Debug mode now prints remote
+  responses.  Can now get around buggy FTP servers like boombox.micro.umn.edu,
+  that give back invalid port numbers to PASV.
+
+v1.8.8 - December 19, 1994.  Now falls back to port FTP if passive FTP fails.
+
 v1.8.7 - December 11, 1994.  Tweaks for FreeBSD.  Passive mode enabled and
-  turned on by default.  This should be the last version of ncftp before
-  version 2.
+  turned on by default.
 
 v1.8.6 - October 30, 1994.  Tweaks for Solaris in sys.h.
 
