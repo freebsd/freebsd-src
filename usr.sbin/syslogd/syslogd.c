@@ -32,13 +32,14 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
+/*
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -103,10 +104,10 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #define SYSLOG_NAMES
 #include <sys/syslog.h>
 
-char	*LogName = _PATH_LOG;
-char	*ConfFile = _PATH_LOGCONF;
-char	*PidFile = _PATH_LOGPID;
-char	ctty[] = _PATH_CONSOLE;
+const char	*LogName = _PATH_LOG;
+const char	*ConfFile = _PATH_LOGCONF;
+const char	*PidFile = _PATH_LOGPID;
+const char	ctty[] = _PATH_CONSOLE;
 
 #define FDMASK(fd)	(1 << (fd))
 
@@ -213,19 +214,24 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, funix, i, inetm, fklog, klogm, len;
+	int ch, funix, i, inetm, fklog, klogm, len, noudp;
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
 	char *p, line[MSG_BSIZE + 1];
 
-	while ((ch = getopt(argc, argv, "df:m:p:")) != EOF)
+	noudp = 0;
+
+	while ((ch = getopt(argc, argv, "df:Im:p:")) != EOF)
 		switch(ch) {
 		case 'd':		/* debug */
 			Debug++;
 			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
+			break;
+		case 'I':		/* disable logging from UDP packets */
+			noudp = 1;
 			break;
 		case 'm':		/* mark interval */
 			MarkInterval = atoi(optarg) * 60;
@@ -276,7 +282,8 @@ main(argc, argv)
 		die(0);
 	} else
 		created_lsock = 1;
-	finet = socket(AF_INET, SOCK_DGRAM, 0);
+
+	finet = noudp ? -1 : socket(AF_INET, SOCK_DGRAM, 0);
 	inetm = 0;
 	if (finet >= 0) {
 		struct servent *sp;
@@ -370,8 +377,9 @@ void
 usage()
 {
 
-	(void)fprintf(stderr,
-	    "usage: syslogd [-f conffile] [-m markinterval] [-p logpath]\n");
+	fprintf(stderr,
+		"usage: syslogd [-di] [-f conffile] [-m markinterval]"
+		" [-p logpath]\n");
 	exit(1);
 }
 

@@ -30,8 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
-.Dd June 6, 1993
+.Dd October 12, 1995
 .Dt SYSLOGD 8
 .Os BSD 4.2
 .Sh NAME
@@ -39,6 +40,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm syslogd
+.Op Fl dI
 .Op Fl f Ar config_file
 .Op Fl m Ar mark_interval
 .Op Fl p Ar log_socket
@@ -48,10 +50,17 @@ reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl d
+Put
+.Nm syslogd
+into debugging mode.  This is probably only of use to developers working on
+.Nm syslogd .
 .It Fl f
 Specify the pathname of an alternate configuration file;
 the default is
 .Pa /etc/syslog.conf .
+.It Fl I
+Do not log messages received in UDP packets.
 .It Fl m
 Select the number of minutes between ``mark'' messages;
 the default is 20 minutes.
@@ -120,3 +129,10 @@ The
 .Nm
 command appeared in
 .Bx 4.3 .
+.Sh BUGS
+The ability to log messages received in UDP packets is equivalent to
+an unauthenticated remote disk-filling service, and should probably be
+disabled by default.  Some sort of
+.No inter- Ns Nm syslogd
+authentication mechanism ought to be worked out.
+
