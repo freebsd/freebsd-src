@@ -246,11 +246,21 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 	struct	mtx ipi_mtx;
 };
 
+/*
+ * NB: We cannot enable assertions when IPv6 is configured as
+ *     this code is shared by both IPv4 and IPv6 and IPv6 is
+ *     not properly locked.
+ */
 #define INP_LOCK_INIT(inp, d) \
 	mtx_init(&(inp)->inp_mtx, (d), NULL, MTX_DEF | MTX_RECURSE | MTX_DUPOK)
 #define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
 #define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
 #define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
+#ifndef INET6
+#define INP_LOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_OWNED)
+#else
+#define INP_LOCK_ASSERT(inp)
+#endif
 
 #define INP_INFO_LOCK_INIT(ipi, d) \
 	mtx_init(&(ipi)->ipi_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
@@ -258,6 +268,13 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
 #define INP_INFO_RUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
 #define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
+#ifndef INET6
+#define INP_INFO_RLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED)
+#define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_mtx, MA_OWNED)
+#else
+#define INP_INFO_RLOCK_ASSERT(ipi)
+#define INP_INFO_WLOCK_ASSERT(ipi)
+#endif
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
