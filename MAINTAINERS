@@ -78,6 +78,7 @@ fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
 libc		nectar	Opportuntity for pre-commit review appreciated for
 			nsdispatch(3) and its consumers.
+unifdef(1)	fanf	Pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
@@ -158,7 +159,6 @@ usr.bin/bzip2/Makefile:MAINTAINER=	obrien@FreeBSD.org
 usr.bin/bzip2recover/Makefile:MAINTAINER=	obrien@FreeBSD.org
 usr.bin/chat/Makefile:MAINTAINER=	peter@freebsd.org
 usr.bin/locate/Makefile:MAINTAINER=	wosch@FreeBSD.org
-usr.bin/unifdef/Makefile:MAINTAINER=	fanf@FreeBSD.org
 usr.bin/vacation/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
 usr.bin/whois/Makefile:MAINTAINER=	mike@FreeBSD.org
 usr.sbin/editmap/Makefile:MAINTAINER=	gshapiro@FreeBSD.org
