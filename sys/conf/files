@@ -51,7 +51,6 @@ kern/kern_acct.c	standard
 kern/kern_clock.c	standard
 kern/kern_conf.c	standard
 kern/kern_descrip.c	standard
-kern/kern_devconf.c	standard
 kern/kern_exec.c	standard
 kern/kern_exit.c	standard
 kern/kern_fork.c	standard
