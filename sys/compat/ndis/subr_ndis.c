@@ -230,6 +230,8 @@ __stdcall static void ndis_time(uint64_t *);
 __stdcall static void ndis_uptime(uint32_t *);
 __stdcall static void ndis_init_string(ndis_unicode_string **, char *);
 __stdcall static void ndis_init_ansi_string(ndis_ansi_string *, char *);
+__stdcall static void ndis_init_unicode_string(ndis_unicode_string *,
+	uint16_t *);
 __stdcall static void ndis_free_string(ndis_unicode_string *);
 __stdcall static ndis_status ndis_remove_miniport(ndis_handle *);
 __stdcall static void ndis_termwrap(ndis_handle, void *);
@@ -2166,6 +2168,31 @@ ndis_init_ansi_string(dst, src)
 	return;
 }
 
+__stdcall static void
+ndis_init_unicode_string(dst, src)
+	ndis_unicode_string	*dst;
+	uint16_t		*src;
+{
+	ndis_unicode_string	*u;
+	int			i;
+
+	u = dst;
+	if (u == NULL)
+		return;
+	if (src == NULL) {
+		u->nus_len = u->nus_maxlen = 0;
+		u->nus_buf = NULL;
+	} else {
+		i = 0;
+		while(src[i] != 0)
+			i++;
+		u->nus_buf = src;
+		u->nus_len = u->nus_maxlen = i * 2;
+	}
+
+	return;
+}
+
 __stdcall static void ndis_get_devprop(adapter, phydevobj,
 	funcdevobj, nextdevobj, resources, transresources)
 	ndis_handle		adapter;
@@ -2284,6 +2311,7 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisGetBufferPhysicalArraySize", (FUNC)ndis_buf_physpages },
 	{ "NdisMGetDeviceProperty",	(FUNC)ndis_get_devprop },
 	{ "NdisInitAnsiString",		(FUNC)ndis_init_ansi_string },
+	{ "NdisInitUnicodeString",	(FUNC)ndis_init_unicode_string },
 	{ "NdisWriteConfiguration",	(FUNC)ndis_write_cfg },
 	{ "NdisAnsiStringToUnicodeString", (FUNC)ndis_ansi2unicode },
 	{ "NdisTerminateWrapper",	(FUNC)ndis_termwrap },
