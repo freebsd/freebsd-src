@@ -125,6 +125,7 @@ procfs_read_fpregs(p, fpregs)
 	if ((p->p_sflag & PS_INMEM) == 0) {
 		mtx_exit(&sched_lock, MTX_SPIN);
 		return (EIO);
+	}
 	return (fill_fpregs(p, fpregs));
 }
 
