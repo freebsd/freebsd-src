@@ -163,20 +163,6 @@ lint: ${SRCS:M*.c}
 .endif
 .endif
 
-.if defined(NOTAGS)
-tags:
-.endif
-
-.if !target(tags)
-tags: ${SRCS}
-.if defined(PROG)
-	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
-.if defined(HTML)
-	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
-.endif
-.endif
-.endif
-
 .if !defined(NOMAN)
 .include <bsd.man.mk>
 .endif

@@ -5,7 +5,15 @@
 #
 # +++ variables +++
 #
+# CTAGS		A tags file generation program [gtags]
+#
+# CTAGSFLAGS	Options for ctags(1) [not set]
+#
 # DEPENDFILE	dependencies file [.depend]
+#
+# GTAGSFLAGS	Options for gtags(1) [-o]
+#
+# HTAGSFLAGS	Options for htags(1) [not set]
 #
 # MKDEP		Options for ${MKDEPCMD} [not set]
 #
@@ -24,12 +32,19 @@
 #		them in the file ${DEPENDFILE}.
 #
 #	tags:
-#		Create a (GLOBAL) gtags file for the source files.
-#		If HTML is defined, htags is also run after gtags.
+#		In "ctags" mode, create a tags file for the source files.
+#		In "gtags" mode, create a (GLOBAL) gtags file for the
+#		source files.  If HTML is defined, htags(1) is also run
+#		after gtags(1).
 
 .if !target(__<bsd.init.mk>__)
 .error bsd.dep.mk cannot be included directly.
 .endif
+
+CTAGS?=		gtags
+CTAGSFLAGS?=
+GTAGSFLAGS?=	-o
+HTAGSFLAGS?=
 
 .if ${CC} != "cc"
 MKDEPCMD?=	CC='${CC}' mkdep
@@ -37,6 +52,20 @@ MKDEPCMD?=	CC='${CC}' mkdep
 MKDEPCMD?=	mkdep
 .endif
 DEPENDFILE?=	.depend
+
+# Keep `tags' here, before SRCS are mangled below for `depend'.
+.if !target(tags) && defined(SRCS) && !defined(NOTAGS)
+tags: ${SRCS}
+.if ${CTAGS:T} == "ctags"
+	@${CTAGS} ${CTAGSFLAGS} -f /dev/stdout \
+	    ${.ALLSRC:N*.h} | sed "s;${.CURDIR}/;;" > ${.TARGET}
+.elif ${CTAGS:T} == "gtags"
+	@cd ${.CURDIR} && ${CTAGS} ${GTAGSFLAGS} ${.OBJDIR}
+.if defined(HTML)
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
+.endif
+.endif
+.endif
 
 .if defined(SRCS)
 CLEANFILES?=
@@ -128,25 +157,16 @@ afterdepend:
 .endif
 .endif
 
-.if defined(NOTAGS)
-tags:
-.endif
-
-.if !target(tags)
-tags: ${SRCS}
-	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
-.if defined(HTML)
-	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
-.endif
-.endif
-
 .if !target(cleandepend)
 cleandepend:
 .if defined(SRCS)
-	rm -f ${DEPENDFILE} ${.OBJDIR}/GPATH ${.OBJDIR}/GRTAGS \
-		${.OBJDIR}/GSYMS ${.OBJDIR}/GTAGS
+.if ${CTAGS:T} == "ctags"
+	rm -f ${DEPENDFILE} tags
+.elif ${CTAGS:T} == "gtags"
+	rm -f ${DEPENDFILE} GPATH GRTAGS GSYMS GTAGS
 .if defined(HTML)
-	rm -rf ${.OBJDIR}/HTML
+	rm -rf HTML
+.endif
 .endif
 .endif
 .endif
