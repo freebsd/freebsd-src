@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.122 2001/03/01 06:26:31 marka Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.122.2.4 2001/08/10 03:00:11 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -897,7 +897,7 @@ startxfer(struct zoneinfo *zp) {
 			curr++;
 		}
 		*curr = '\0';
-		ns_debug(ns_log_xfer_in, 1, buffer);
+		ns_debug(ns_log_xfer_in, 1, "%s", buffer);
 	}
 #endif /* DEBUG */
 
