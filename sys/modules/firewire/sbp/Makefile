@@ -10,6 +10,7 @@ SRCS	= bus_if.h device_if.h \
 	  sbp.c \
 	  firewire.h firewirereg.h \
 	  iec13213.h
+KMODDEPS = firewire
 
 .include <bsd.kmod.mk>
 

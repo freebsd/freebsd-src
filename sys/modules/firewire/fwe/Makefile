@@ -10,6 +10,7 @@ SRCS	= bus_if.h device_if.h \
 	  if_fwe.c if_fwevar.h \
 	  firewire.h firewirereg.h
 #CFLAGS += -DDEVICE_POLLING
+KMODDEPS = firewire
 
 .include <bsd.kmod.mk>
 
