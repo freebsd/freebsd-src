@@ -25,15 +25,43 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
- *
- *	from: @(#)rpc_scan.h 1.3 87/03/09 (C) 1987 SMI
- *	from: @(#)rpc_scan.h	2.1 88/08/01 4.0 RPCSRC
- *	$Id: rpc_scan.h,v 1.1 1993/09/13 23:20:18 jtc Exp $
  */
+#pragma ident   "@(#)rpc_scan.h 1.11     94/05/15 SMI"
+
+/*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
+/*	  All Rights Reserved  	*/
+
+/*	THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF AT&T	*/
+/*	The copyright notice above does not evidence any   	*/
+/*	actual or intended publication of such source code.	*/
+
+
+
+/*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*	PROPRIETARY NOTICE (Combined)
+*
+* This source code is unpublished proprietary information
+* constituting, or derived under license from AT&T's UNIX(r) System V.
+* In addition, portions of such source code were derived from Berkeley
+* 4.3 BSD under license from the Regents of the University of
+* California.
+*
+*
+*
+*	Copyright Notice 
+*
+* Notice of copyright on this source code product does not indicate 
+*  publication.
+*
+*	(c) 1986,1987,1988.1989  Sun Microsystems, Inc
+*	(c) 1983,1984,1985,1986,1987,1988,1989  AT&T.
+*          All rights reserved.
+*/ 
+
+/*      @(#)rpc_scan.h  1.3  90/08/29  (C) 1987 SMI   */
 
 /*
  * rpc_scan.h, Definitions for the RPCL scanner 
- * Copyright (C) 1987, Sun Microsystems, Inc. 
  */
 
 /*
@@ -41,6 +69,7 @@
  */
 enum tok_kind {
 	TOK_IDENT,
+	TOK_CHARCONST,
 	TOK_STRCONST,
 	TOK_LPAREN,
 	TOK_RPAREN,
@@ -66,9 +95,11 @@ enum tok_kind {
 	TOK_INT,
 	TOK_SHORT,
 	TOK_LONG,
+	TOK_HYPER,
 	TOK_UNSIGNED,
 	TOK_FLOAT,
 	TOK_DOUBLE,
+	TOK_QUAD,
 	TOK_OPAQUE,
 	TOK_CHAR,
 	TOK_STRING,
@@ -93,7 +124,6 @@ typedef struct token token;
 /*
  * routine interface 
  */
-void scanprint();
 void scan();
 void scan2();
 void scan3();
