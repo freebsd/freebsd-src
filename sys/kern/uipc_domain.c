@@ -134,8 +134,13 @@ domaininit(void *dummy)
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
 
-	callout_init(&pffast_callout, 0);
-	callout_init(&pfslow_callout, 0);
+	if (debug_mpsafenet) {
+		callout_init(&pffast_callout, CALLOUT_MPSAFE);
+		callout_init(&pfslow_callout, CALLOUT_MPSAFE);
+	} else {
+		callout_init(&pffast_callout, 0);
+		callout_init(&pfslow_callout, 0);
+	}
 
 	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
 	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
@@ -236,6 +241,8 @@ pfslowtimo(arg)
 	register struct domain *dp;
 	register struct protosw *pr;
 
+	NET_ASSERT_GIANT();
+
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_slowtimo)
@@ -249,6 +256,8 @@ pffasttimo(arg)
 {
 	register struct domain *dp;
 	register struct protosw *pr;
+
+	NET_ASSERT_GIANT();
 
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
