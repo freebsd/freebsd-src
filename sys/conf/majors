@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.69 1999/03/21 21:53:09 jkh Exp $
+$Id: majors.i386,v 1.70 1999/05/02 21:52:15 n_hibma Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -170,5 +170,6 @@ chrdev	name		comments
 118	afd		ATAPI floppy
 119	ast		ATAPI tape
 120	aud		Audit Device <robert+freebsd@cyrus.watson.org>
+121	onew		Dallas Semiconductor One-Wire bus <phk@freebsd.org>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
