@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 24 09:23:24 2001]
+ *      last edit-date: [Fri Jan 26 13:55:12 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -323,5 +323,7 @@ extern int  isic_attach_sws(device_t dev);
 extern int  isic_attach_siemens_isurf(device_t dev);
 extern int  isic_attach_asi(device_t dev);
 extern int  isic_attach_Dyn(device_t dev);
+extern int  isic_attach_diva(device_t dev);
+extern int  isic_attach_diva_ipac(device_t dev);
 
 #endif /* _I4B_ISIC_H_ */
