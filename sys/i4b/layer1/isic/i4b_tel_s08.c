@@ -3,7 +3,7 @@
  *
  *   Copyright (c) 1996 Gary Jennejohn. All rights reserved. 
  *
- *   Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -37,11 +37,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for Teles S0/8 and clones
  *	================================================================
  *
- *	$Id: i4b_tel_s08.c,v 1.3 2000/05/29 15:41:41 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 16:01:42 2000]
+ *      last edit-date: [Wed Jan 24 09:27:58 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -53,13 +51,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
-#include <machine/md_var.h>
-
 #include <net/if.h>
 
+#include <machine/md_var.h>
 #include <machine/i4b_ioctl.h>
+#include <machine/i4b_trace.h>
 
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
@@ -143,10 +141,7 @@ isic_probe_s08(device_t dev)
 	}
 
 	sc = &l1_sc[unit];		/* get pointer to softc */
-
 	sc->sc_unit = unit;		/* set unit */
-
-	sc->sc_flags = FLAG_TELES_S0_8;	/* set flags */
 
 	/* see if an io base was supplied */
 

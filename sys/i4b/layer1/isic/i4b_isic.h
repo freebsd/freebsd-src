@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- *	$Id: i4b_isic.h,v 1.4 2000/09/04 09:17:26 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Sep  4 09:34:38 2000]
+ *      last edit-date: [Wed Jan 24 09:23:24 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -54,40 +52,7 @@
  *      as one is able to set 3 (sometimes 4) different configurations by
  *      jumpers so a maximum of 3 (4) cards per ISA bus is possible.
  *---------------------------------------------------------------------------*/
- #define ISIC_MAXUNIT    3               /* max no of supported units 0..3 */
-
-/*---------------------------------------------------------------------------
- *	kernel config file flags definition
- *---------------------------------------------------------------------------*/
-#define FLAG_TELES_S0_8		1
-#define FLAG_TELES_S0_16	2
-#define FLAG_TELES_S0_163	3
-#define FLAG_AVM_A1		4
-#define FLAG_TELES_S0_163_PnP	5
-#define FLAG_CREATIX_S0_PnP	6
-#define FLAG_USR_ISDN_TA_INT	7
-#define FLAG_DRN_NGO		8
-#define FLAG_SWS		9
-#define FLAG_AVM_A1_PCMCIA	10
-#define FLAG_DYNALINK		11
-#define FLAG_BLMASTER		12
-#define FLAG_ELSA_QS1P_ISA	13
-#define FLAG_ELSA_QS1P_PCI	14
-#define FLAG_SIEMENS_ITALK	15
-#define	FLAG_ELSA_MLIMC		16
-#define	FLAG_ELSA_MLMCALL	17
-#define FLAG_ITK_IX1		18
-#define FLAG_AVMA1PCI     	19
-#define FLAG_ELSA_PCC16		20
-#define FLAG_AVM_PNP		21
-#define FLAG_SIEMENS_ISURF2	22
-#define FLAG_ASUSCOM_IPAC	23
-
-#define SEC_DELAY		1000000	/* one second DELAY for DELAY*/
-
-#define MAX_DFRAME_LEN		264	/* max length of a D frame */
-
-#define min(a,b)		((a)<(b)?(a):(b))
+#define ISIC_MAXUNIT	3	/* max no of supported units 0..3 */
 
 #define INFO_IO_BASES	50	/* 49 needed for USR */
 
@@ -164,7 +129,6 @@ struct l1_softc
 	int		sc_unit;	/* unit number		*/
 	int		sc_irq;		/* interrupt vector	*/
 	struct i4b_info	sc_resources;
-	int		sc_flags;
 
 	int		sc_port;	/* port base address	*/
 

@@ -44,11 +44,9 @@
  *	isic - I4B Siemens ISDN Chipset Driver for SWS cards
  *	====================================================
  *
- *	$Id: i4b_sws.c,v 1.3 2000/05/29 15:41:41 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Oct 13 16:01:10 2000]
+ *	last edit-date: [Wed Jan 24 08:58:57 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -70,12 +68,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
-
 #include <net/if.h>
 
 #include <machine/i4b_ioctl.h>
-
+#include <machine/i4b_trace.h>
+#include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 

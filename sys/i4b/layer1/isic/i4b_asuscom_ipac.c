@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 1999 Ari Suutari. All rights reserved.
  *
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,11 +40,9 @@
  *	code is modeled after Linux i4l driver written by Karsten
  *	Keil.
  *
- *	$Id: i4b_asuscom_ipac.c,v 1.3 2000/05/29 15:41:41 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 15:59:33 2000]
+ *      last edit-date: [Wed Jan 24 09:06:30 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -56,12 +54,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
-
 #include <net/if.h>
 
 #include <machine/i4b_ioctl.h>
-
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_ipac.h>
 

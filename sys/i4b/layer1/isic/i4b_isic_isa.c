@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_isic_isa.c - ISA bus interface
  *	==================================
  *
- *	$Id: i4b_isic_isa.c,v 1.3 2000/05/29 15:41:41 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 16:00:46 2000]
+ *      last edit-date: [Wed Jan 24 09:30:19 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -45,7 +43,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
 
 #include <machine/i4b_ioctl.h>
 
@@ -89,43 +86,43 @@ isic_isa_probe(device_t dev)
 	switch(device_get_flags(dev))
 	{
 #ifdef TEL_S0_16
-		case FLAG_TELES_S0_16:
+		case CARD_TYPEP_16:
 			ret = isic_probe_s016(dev);
 			break;
 #endif
 
 #ifdef TEL_S0_8
-		case FLAG_TELES_S0_8:
+		case CARD_TYPEP_8:
 			ret = isic_probe_s08(dev);
 			break;
 #endif
 
 #ifdef ELSA_PCC16
-		case FLAG_ELSA_PCC16:
+		case CARD_TYPEP_PCC16:
 			ret = isic_probe_Epcc16(dev);
 			break;
 #endif
 
 #ifdef TEL_S0_16_3
-		case FLAG_TELES_S0_163:
+		case CARD_TYPEP_16_3:
 			ret = isic_probe_s0163(dev);		
 			break;
 #endif
 
 #ifdef AVM_A1
-		case FLAG_AVM_A1:
+		case CARD_TYPEP_AVMA1:
 			ret = isic_probe_avma1(dev);
 			break;
 #endif
 
 #ifdef USR_STI
-		case FLAG_USR_ISDN_TA_INT:
+		case CARD_TYPEP_USRTA:
 			ret = isic_probe_usrtai(dev);		
 			break;
 #endif
 
 #ifdef ITKIX1
-		case FLAG_ITK_IX1:
+		case CARD_TYPEP_ITKIX1:
 			ret = isic_probe_itkix1(dev);
 			break;
 #endif
@@ -152,46 +149,46 @@ isic_isa_attach(device_t dev)
 	
 	/* card dependent setup */
 
-	switch(sc->sc_flags)
+	switch(sc->sc_cardtyp)
 	{
 #ifdef TEL_S0_16
-		case FLAG_TELES_S0_16:
+		case CARD_TYPEP_16:
 			ret = isic_attach_s016(dev);
 			break;
 #endif
 
 #ifdef TEL_S0_8
-		case FLAG_TELES_S0_8:
+		case CARD_TYPEP_8:
 			ret = isic_attach_s08(dev);
 			break;
 #endif
 
 #ifdef ELSA_PCC16
-		case FLAG_ELSA_PCC16:
+		case CARD_TYPEP_PCC16:
 			ret = isic_attach_Epcc16(dev);
 			break;
 #endif
 
 #ifdef TEL_S0_16_3
-		case FLAG_TELES_S0_163:
+		case CARD_TYPEP_16_3:
 			ret = isic_attach_s0163(dev);
 			break;
 #endif
 
 #ifdef AVM_A1
-		case FLAG_AVM_A1:
+		case CARD_TYPEP_AVMA1:
 			ret = isic_attach_avma1(dev);
 			break;
 #endif
 
 #ifdef USR_STI
-		case FLAG_USR_ISDN_TA_INT:
+		case CARD_TYPEP_USRTA:
 			ret = isic_attach_usrtai(dev);		
 			break;
 #endif
 
 #ifdef ITKIX1
-		case FLAG_ITK_IX1:
+		case CARD_TYPEP_ITKIX1:
 			ret = isic_attach_itkix1(dev);
 			break;
 #endif
