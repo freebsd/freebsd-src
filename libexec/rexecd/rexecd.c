@@ -135,7 +135,9 @@ doit(struct sockaddr *fromp)
 	char *cmdbuf, *cp;
 	int maxcmdlen;
 	char user[16], pass[16];
-	struct passwd *pwd;
+	struct passwd *pwd, pwd_storage;
+	char *pwdbuf;
+	int pwdbuflen;
 	int fd, r, sd;
 	u_short port;
 	int pv[2], pid, cc, nfds;
@@ -190,7 +192,20 @@ doit(struct sockaddr *fromp)
 	getstr(cmdbuf, maxcmdlen, "command");
 	(void) alarm(0);
 
-	if ((pwd = getpwnam(user))  == NULL || (pwd->pw_uid = 0 && no_uid_0) ||
+	pwdbuflen = BUFSIZ;
+	pwdbuf = NULL;
+	pwd = NULL;
+	r = ERANGE;
+	while (pwd == NULL && r == ERANGE) {
+		pwdbuflen <<= 1;
+		if ((pwdbuf = reallocf(pwdbuf, pwdbuflen)) == NULL) {
+			syslog(LOG_ERR, "Cannot allocate memory");
+			error("Cannot allocate memory.\n");
+			exit(1);
+		}
+		r = getpwnam_r(user, &pwd_storage, pwdbuf, pwdbuflen, &pwd);
+	}
+	if (pwd == NULL || (pwd->pw_uid == 0 && no_uid_0) ||
 	    !pam_ok(pam_start("rexecd", user, &pamc, &pamh)) ||
 	    !pam_ok(pam_set_item(pamh, PAM_RHOST, remote)) ||
 	    !pam_ok(pam_set_item(pamh, PAM_AUTHTOK, pass)) ||
