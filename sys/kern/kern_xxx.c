@@ -144,11 +144,12 @@ osethostid(td, uap)
 {
 	int error;
 
-	mtx_lock(&Giant);
 	if ((error = suser(td)))
-		hostid = uap->hostid;
+		return (error);
+	mtx_lock(&Giant);
+	hostid = uap->hostid;
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 /*
