@@ -132,11 +132,9 @@ nsgphy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const struct mii_phydesc *mpd;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
-	mpd = mii_phy_match(ma, gphyters);
 	if (bootverbose)
 		device_printf(dev, "<rev. %d>\n", MII_REV(ma->mii_id2));
 	device_printf(dev, " ");

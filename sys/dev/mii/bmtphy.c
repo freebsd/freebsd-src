@@ -146,7 +146,6 @@ bmtphy_probe(device_t dev)
 		break;
 	default:
 		return (ENXIO);
-		break;
 	}
 
 	return (rval);

@@ -239,7 +239,7 @@ lxtphy_service(sc, mii, cmd)
 
 		case IFM_100_FX:
 			lxtphy_set_fx(sc);
-
+			/* XXX: fall though intentional ?? */
 		default:
 			/*
 			 * BMCR data is stored in the ifmedia entry.
