@@ -105,9 +105,6 @@ csa_probe(device_t dev)
 	case CS4615_PCI_ID:
 		s = "Crystal Semiconductor CS4615 Audio accelerator";
 		break;
-	case CS4281_PCI_ID:
-		s = "Crystal Semiconductor CS4281 Audio controller";
-		break;
 	}
 
 	if (s != NULL) {
@@ -564,7 +561,7 @@ csa_initialize(sc_p scp)
 #endif /* notdef */
 
 	/*
-	 * Turn off the Processor by turning off the software clock enable flag in 
+	 * Turn off the Processor by turning off the software clock enable flag in
 	 * the clock control register.
 	 */
 #if notdef
