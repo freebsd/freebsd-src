@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.2 1997/04/27 21:17:56 fsmp Exp $
+ *	$Id: smptests.h,v 1.3 1997/04/28 01:08:47 fsmp Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -41,15 +41,6 @@
  *
  */
 #define TEST_LOPRIO
-
-
-/*
- * count INT hits by CPU
- *
- * i386/isa/vector.s
- *
- */
-#define TEST_CPUHITS
 
 
 /*
