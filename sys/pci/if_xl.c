@@ -1944,7 +1944,7 @@ xl_newbuf(sc, c)
 	    MCLBYTES, xl_dma_map_addr, &c->xl_ptr->xl_frag.xl_addr, 0);
 	if (error) {
 		m_freem(m_new);
-		printf("xl%d: can't map mbuf\n", sc->xl_unit);
+		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
 		return(error);
 	}
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
@@ -2386,9 +2386,14 @@ xl_encap(sc, c, m_head)
 	 * the fragment pointers. Stop when we run out
  	 * of fragments or hit the end of the mbuf chain.
 	 */
-
 	error = bus_dmamap_load_mbuf(sc->xl_mtag, c->xl_map, m_head,
 	    xl_dma_map_txbuf, c->xl_ptr, 0);
+
+	if (error && error != EFBIG) {
+		m_freem(m_head);
+		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
+		return(1);
+	}
 
 	/*
 	 * Handle special case: we used up all 63 fragments,
@@ -2398,15 +2403,12 @@ xl_encap(sc, c, m_head)
 	 * pointers/counters; it wouldn't gain us anything,
 	 * and would waste cycles.
 	 */
-	/*
-	 * XXX It's not really possible to tell if the error
-	 * we got was because we had more than 63 mbufs.
-	 */
 	if (error) {
 		struct mbuf		*m_new = NULL;
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
+			m_freem(m_head);
 			printf("xl%d: no memory for tx list\n", sc->xl_unit);
 			return(1);
 		}
@@ -2414,6 +2416,7 @@ xl_encap(sc, c, m_head)
 			MCLGET(m_new, M_DONTWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
+				m_freem(m_head);
 				printf("xl%d: no memory for tx list\n",
 						sc->xl_unit);
 				return(1);
@@ -2430,7 +2433,8 @@ xl_encap(sc, c, m_head)
 		    &f->xl_addr, 0);
 		if (error) {
 			m_freem(m_new);
-			printf("xl%d: can't map mbuf\n", sc->xl_unit);
+			printf("xl%d: can't map mbuf (error %d)\n",
+			    sc->xl_unit, error);
 			return(1);
 		}
 		f->xl_len = m_new->m_len | XL_LAST_FRAG;
@@ -2469,6 +2473,7 @@ xl_start(ifp)
 	struct xl_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	int			error;
 
 	sc = ifp->if_softc;
 	XL_LOCK(sc);
@@ -2495,12 +2500,14 @@ xl_start(ifp)
 
 		/* Pick a descriptor off the free list. */
 		cur_tx = sc->xl_cdata.xl_tx_free;
-		sc->xl_cdata.xl_tx_free = cur_tx->xl_next;
-
-		cur_tx->xl_next = NULL;
 
 		/* Pack the data into the descriptor. */
-		xl_encap(sc, cur_tx, m_head);
+		error = xl_encap(sc, cur_tx, m_head);
+		if (error)
+			continue;
+
+		sc->xl_cdata.xl_tx_free = cur_tx->xl_next;
+		cur_tx->xl_next = NULL;
 
 		/* Chain it together. */
 		if (prev != NULL) {
@@ -2591,7 +2598,7 @@ xl_start_90xB(ifp)
 	struct xl_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
-	int			idx;
+	int			error, idx;
 
 	sc = ifp->if_softc;
 	XL_LOCK(sc);
@@ -2618,7 +2625,9 @@ xl_start_90xB(ifp)
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
-		xl_encap(sc, cur_tx, m_head);
+		error = xl_encap(sc, cur_tx, m_head);
+		if (error)
+			continue;
 
 		/* Chain it together. */
 		if (prev != NULL)
