@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_init.c,v 1.11 1999/06/20 08:28:28 jb Exp $
  */
 
 /* Allocate space for global thread variables here: */
@@ -84,7 +84,7 @@ _thread_init(void)
 	int		fd;
 	int             flags;
 	int             i;
-	int		len;
+	size_t		len;
 	int		mib[2];
 	struct clockinfo clockinfo;
 	struct sigaction act;
