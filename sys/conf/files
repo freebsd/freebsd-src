@@ -605,6 +605,7 @@ pci/if_mx.c		optional mx
 pci/if_pn.c		optional pn
 pci/if_fpa.c		optional fpa pci
 pci/if_rl.c		optional rl
+pci/if_sk.c		optional sk
 pci/if_sr_p.c		optional sr pci
 pci/if_ti.c		optional ti
 pci/if_tl.c		optional tl
