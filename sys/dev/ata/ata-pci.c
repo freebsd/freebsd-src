@@ -129,7 +129,8 @@ ata_pci_match(device_t dev)
 	    return "VIA 82C596 ATA66 controller";
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
-	if (ata_find_dev(dev, 0x06861106, 0x40))
+	if (ata_find_dev(dev, 0x06861106, 0x40) ||
+	    ata_find_dev(dev, 0x30741106, 0))
 	    return "VIA 82C686 ATA100 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
 	    return "VIA 82C686 ATA66 controller";
@@ -335,11 +336,11 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 
-	/* prepare for ATA-66 on the 82C686 and rev 0x12 and newer 82C596's */
-	if (ata_find_dev(dev, 0x06861106, 0) || 
+	/* prepare for ATA-66 on the 82C686a and rev 0x12 and newer 82C596's */
+	if ((ata_find_dev(dev, 0x06861106, 0) && 
+	     !ata_find_dev(dev, 0x06861106, 0x40)) || 
 	    ata_find_dev(dev, 0x05961106, 0x12))
 	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
-
 	break;
 
     case 0x10001042:   /* RZ 100? known bad, no DMA */
