@@ -118,7 +118,10 @@ nl_langinfo(nl_item item) {
 		ret = "";
 		break;
 	case CRNCYSTR:          /* deprecated */
-		ret = (char*) __get_current_monetary_locale()->currency_symbol;
+		/* XXX: need to be implemented */
+		/* __get_current_monetary_locale()->currency_symbol    */
+		/* but requare special +-. prefixes according to SUSV2 */
+		ret = "";
 		break;
 	default:
 		ret = "";
