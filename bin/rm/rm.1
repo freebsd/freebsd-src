@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
-.\"	$Id: rm.1,v 1.12 1998/05/18 06:37:35 charnier Exp $
+.\"	$Id: rm.1,v 1.13 1999/01/28 17:41:02 wollman Exp $
 .\"
 .Dd January 28, 1999
 .Dt RM 1
@@ -109,7 +109,10 @@ The
 .Nm
 utility removes symbolic links, not the files referenced by the links.
 .Pp
-It is an error to attempt to remove the files ``.'' and ``..''.
+It is an error to attempt to remove the files
+.Dq \&.
+or
+.Dq .. .
 .Pp
 The
 .Nm
