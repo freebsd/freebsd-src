@@ -178,7 +178,7 @@ kernel-install:
 	fi
 .if exists(${DESTDIR}${KODIR})
 	-thiskernel=`sysctl -n kern.bootfile` ; \
-	if [ "$$thiskernel" = ${DESTDIR}${KODIR}.old/${KERNEL_KO} ] ; then \
+	if [ "`dirname "$$thiskernel"`" != ${DESTDIR}${KODIR} ] ; then \
 		chflags -R noschg ${DESTDIR}${KODIR} ; \
 		rm -rf ${DESTDIR}${KODIR} ; \
 	else \
@@ -187,9 +187,7 @@ kernel-install:
 			rm -rf ${DESTDIR}${KODIR}.old ; \
 		fi ; \
 		mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old ; \
-		if [ "$$thiskernel" = ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
-			sysctl kern.bootfile=${DESTDIR}${KODIR}.old/${KERNEL_KO} ; \
-		fi; \
+		sysctl kern.bootfile=${DESTDIR}${KODIR}.old/"`basename "$$thiskernel"`" ; \
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
