@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.8 2004/08/03 12:53:41 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.9 2004/08/11 10:04:30 den Exp $
 
-     Original revision: 1.757
+     Original revision: 1.758
 -->
 
 <articleinfo>
@@ -238,13 +238,11 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para arch="i386">Был добавлен драйвер &man.acpi.asus.4; для использования
       на лэптопах ASUSTek управляемых ACPI аппаратных возможностей, таких как
-      горячие клавиши и LCD.</para>
+      горячие клавиши и LED.</para>
 
     <para arch="i386">Был добавлен драйвер &man.acpi.toshiba.4;,
       использующий аппаратный интерфейс Toshiba для управления определенными
-      аппаратными возможностями на лэптопах Toshiba.</para>
-
-    <para arch="i386">Драйвер &man.acpi.toshiba.4; теперь поддерживает
+      аппаратными возможностями на лэптопах Toshiba, такие как
       переключение видео вывода.</para>
 
     <para>Добавлен драйвер &man.acpi.video.4; для обеспечения управления
@@ -262,8 +260,8 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       может быть изменено путем установки переменной loader
       <varname>hint.acpi.0.disabled</varname> в <literal>0</literal>.</para>
 
-    <para>&man.bus.dma.9; теперь прозрачно поддерживает выравнивание и
-      установление границ в теге dma при загрузке буферов, и
+    <para>Интерфейс &man.bus.dma.9; теперь прозрачно поддерживает
+      выравнивание и установление границ в теге DMA при загрузке буферов, и
       <function>bus_dmamap_load()</function> будет автоматически использовать
       сброс буферов когда это необходимо.  Кроме того, был добавлен набор
       переменных sysctl <varname>hw.busdma.*</varname> для статистики
@@ -394,7 +392,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para>&man.nmdm.4; был переписан для увеличения надежности.</para>
 
-    <para>Драйвер raid(4), диск RAIDframe из NetBSD, был удален.  В настоящее
+    <para>Драйвер raid(4) (диск RAIDframe из NetBSD) был удален.  В настоящее
       время он не функционален, и потребует дополнительного объема работы,
       чтобы стать работоспособным под существующим &man.geom.4; API
       в 5-CURRENT.</para>
@@ -403,7 +401,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <filename>/boot/device.hints</filename> при запуске, чтобы сделать
       возможной установку значений по умолчанию для mixer каналов.</para>
 
-    <para arch="sparc64">&man.sab.4; теперь поддерживает параметр ядра
+    <para arch="sparc64">Драйвер &man.sab.4; теперь поддерживает параметр ядра
       <literal>BREAK_TO_DEBUGGER</literal>.</para>
 
     <para>Драйверы для различных звуковых карт были реорганизованы;
@@ -426,7 +424,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <varname>kern.quantum</varname> была перемещена в
       <varname>kern.sched.quantum</varname>.</para>
 
-    <para arch="alpha,amd64,i386">Добавлены переменные окружения
+    <para arch="alpha,amd64,i386">Добавлены переменные ядра
       для <varname>hw.uart.console</varname> и
       <varname>hw.uart.dbgport</varname> для устройства &man.uart.4;.
       Они могут быть использованы соответственно для выбора последовательной

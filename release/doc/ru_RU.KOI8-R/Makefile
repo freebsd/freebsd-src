@@ -1,9 +1,9 @@
 # The FreeBSD Russian Documentation Project
 #
-# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/Makefile,v 1.6 2004/06/28 13:24:45 den Exp $
+# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/Makefile,v 1.7 2004/08/11 10:04:25 den Exp $
 # $FreeBSD$
 # 
-# Original revision: 1.3
+# Original revision: 1.5
 #
 
 RELN_ROOT?= ${.CURDIR}/..
