@@ -553,6 +553,7 @@ in_arpinput(m)
 	u_int8_t *enaddr = NULL;
 	int op, rif_len;
 	int req_len;
+	int carp_match = 0;
 
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
 	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
@@ -574,14 +575,19 @@ in_arpinput(m)
 	 * request for the virtual host ip.
 	 * XXX: This is really ugly!
 	 */
-	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash)
-		if ((do_bridge || (ia->ia_ifp == ifp)
-#ifdef DEV_CARP
-		    || (ifp->if_carp
-		    && carp_iamatch(ifp->if_carp, ia, &isaddr, &enaddr))
-#endif
-		    ) && itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
+	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
+		if ((do_bridge || (ia->ia_ifp == ifp)) &&
+		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
+#ifdef DEV_CARP
+		if (ifp->if_carp != NULL &&
+		    carp_iamatch(ifp->if_carp, ia, &isaddr, &enaddr) &&
+		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
+			carp_match = 1;
+			goto match;
+		}
+#endif
+	}
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
 		if ((do_bridge || (ia->ia_ifp == ifp)) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
@@ -631,7 +637,8 @@ match:
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 		/* the following is not an error when doing bridging */
-		if (!do_bridge && rt->rt_ifp != ifp) {
+		if (!do_bridge && rt->rt_ifp != ifp &&
+		    !(ifp->if_type == IFT_CARP && carp_match)) {
 			if (log_arp_wrong_iface)
 				log(LOG_ERR, "arp: %s is on %s but got reply from %*D on %s\n",
 				    inet_ntoa(isaddr),
