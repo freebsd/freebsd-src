@@ -146,12 +146,13 @@ typedef enum {
 
 typedef enum {
 	SA_QUIRK_NONE		= 0x00,
-	SA_QUIRK_NOCOMP		= 0x01,	/* can't deal with compression at all */
-	SA_QUIRK_FIXED		= 0x02,	/* force fixed mode */
-	SA_QUIRK_VARIABLE	= 0x04,	/* force variable mode */
+	SA_QUIRK_NOCOMP		= 0x01,	/* Can't deal with compression at all */
+	SA_QUIRK_FIXED		= 0x02,	/* Force fixed mode */
+	SA_QUIRK_VARIABLE	= 0x04,	/* Force variable mode */
 	SA_QUIRK_2FM		= 0x08,	/* Needs Two File Marks at EOD */
 	SA_QUIRK_1FM		= 0x10,	/* No more than 1 File Mark at EOD */
-	SA_QUIRK_NODREAD	= 0x20	/* Don't try and dummy read density */
+	SA_QUIRK_NODREAD	= 0x20,	/* Don't try and dummy read density */
+	SA_QUIRK_NO_MODESEL	= 0x40	/* Don't do mode select at all */
 } sa_quirks;
 
 /* units are bits 4-7, 16-21 (1024 units) */
@@ -251,6 +252,11 @@ struct sa_quirk_entry {
 
 static struct sa_quirk_entry sa_quirk_table[] =
 {
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "OnStream",
+		  "ADR*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_NODREAD |
+		   SA_QUIRK_1FM|SA_QUIRK_NO_MODESEL, 32768
+	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
 		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP|SA_QUIRK_NODREAD, 0
@@ -2032,6 +2038,7 @@ tryagain:
 		 * or min_blk if that's larger.
 		 */
 		if ((softc->quirks & SA_QUIRK_FIXED) &&
+		    (softc->quirks & SA_QUIRK_NO_MODESEL) == 0 &&
 		    (softc->media_blksize != softc->last_media_blksize)) {
 			softc->media_blksize = softc->last_media_blksize;
 			if (softc->media_blksize == 0) {
@@ -2121,11 +2128,15 @@ tryagain:
 		} else
 			softc->flags |= SA_FLAG_COMP_UNSUPP;
 
-		if (softc->buffer_mode == SMH_SA_BUF_MODE_NOBUF) {
+		if ((softc->buffer_mode == SMH_SA_BUF_MODE_NOBUF) &&
+		    (softc->quirks & SA_QUIRK_NO_MODESEL) == 0) {
 			error = sasetparams(periph, SA_PARAM_BUFF_MODE, 0,
 			    0, 0, SF_NO_PRINT);
 			if (error == 0)
 				softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
+			xpt_print_path(ccb->ccb_h.path);
+			printf("unable to set buffered mode\n");
+			error = 0;	/* not an error */
 		}
 
 
