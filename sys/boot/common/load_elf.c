@@ -241,10 +241,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     int		ret;
     vm_offset_t firstaddr;
     vm_offset_t lastaddr;
-    void	*buf;
-    size_t	resid, chunk;
+    size_t	chunk;
     ssize_t	result;
-    vm_offset_t	dest;
     Elf_Addr	ssym, esym;
     Elf_Dyn	*dp;
     Elf_Addr	adp;
@@ -305,14 +303,10 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 			       phdr[i].p_vaddr + off, fpcopy);
 	}
 	if (phdr[i].p_filesz > fpcopy) {
-	    if (lseek(ef->fd, (off_t)(phdr[i].p_offset + fpcopy),
-		      SEEK_SET) == -1) {
-		printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadexec: cannot seek\n");
-		goto out;
-	    }
-	    if (archsw.arch_readin(ef->fd, phdr[i].p_vaddr + off + fpcopy,
-		phdr[i].p_filesz - fpcopy) != (ssize_t)(phdr[i].p_filesz - fpcopy)) {
-		printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadexec: archsw.readin failed\n");
+	    if (kern_pread(ef->fd, phdr[i].p_vaddr + off + fpcopy,
+		phdr[i].p_filesz - fpcopy, phdr[i].p_offset + fpcopy) != 0) {
+		printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+		    "_loadimage: read failed\n");
 		goto out;
 	    }
 	}
@@ -324,22 +318,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 		(long)(phdr[i].p_vaddr + off + phdr[i].p_memsz - 1));
 #endif
 
-	    /* no archsw.arch_bzero */
-	    buf = malloc(PAGE_SIZE);
-	    if (buf == NULL) {
-		printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: malloc() failed\n");
-		goto out;
-	    }
-	    bzero(buf, PAGE_SIZE);
-	    resid = phdr[i].p_memsz - phdr[i].p_filesz;
-	    dest = phdr[i].p_vaddr + off + phdr[i].p_filesz;
-	    while (resid > 0) {
-		chunk = min(PAGE_SIZE, resid);
-		archsw.arch_copyin(buf, dest, chunk);
-		resid -= chunk;
-		dest += chunk;
-	    }
-	    free(buf);
+	    kern_bzero(phdr[i].p_vaddr + off + phdr[i].p_filesz,
+		phdr[i].p_memsz - phdr[i].p_filesz);
 	}
 #ifdef ELF_VERBOSE
 	printf("\n");
@@ -361,16 +341,10 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     chunk = ehdr->e_shnum * ehdr->e_shentsize;
     if (chunk == 0 || ehdr->e_shoff == 0)
 	goto nosyms;
-    shdr = malloc(chunk);
-    if (shdr == NULL)
-	goto nosyms;
-    if (lseek(ef->fd, (off_t)ehdr->e_shoff, SEEK_SET) == -1) {
-	printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: cannot lseek() to section headers");
-	goto nosyms;
-    }
-    result = read(ef->fd, shdr, chunk);
-    if (result < 0 || (size_t)result != chunk) {
-	printf("\nelf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: read section headers failed");
+    shdr = alloc_pread(ef->fd, ehdr->e_shoff, chunk);
+    if (shdr == NULL) {
+	printf("\nelf" __XSTRING(__ELF_WORD_SIZE)
+	    "_loadimage: failed to read section headers");
 	goto nosyms;
     }
     symtabindex = -1;

@@ -76,6 +76,9 @@ char	*unargv(int argc, char *argv[]);
 void	hexdump(caddr_t region, size_t len);
 size_t	strlenout(vm_offset_t str);
 char	*strdupout(vm_offset_t str);
+void	kern_bzero(vm_offset_t dest, size_t len);
+int	kern_pread(int fd, vm_offset_t dest, size_t len, off_t off);
+void	*alloc_pread(int fd, off_t off, size_t len);
 
 /* bcache.c */
 int	bcache_init(u_int nblks, size_t bsize);
