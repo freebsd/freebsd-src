@@ -186,6 +186,9 @@ USB_ATTACH(ugen)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
+#ifdef __FreeBSD__
+	cdevsw_add(&ugen_cdevsw);
+#endif
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -1149,5 +1152,5 @@ ugenpoll(dev, events, p)
 }
 
 #if defined(__FreeBSD__)
-DEV_DRIVER_MODULE(ugen, uhub, ugen_driver, ugen_devclass, ugen_cdevsw, usbd_driver_load, 0);
+DRIVER_MODULE(ugen, uhub, ugen_driver, ugen_devclass, usbd_driver_load, 0);
 #endif
