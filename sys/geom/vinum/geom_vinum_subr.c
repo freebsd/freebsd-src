@@ -472,7 +472,8 @@ gv_sd_to_drive(struct gv_softc *sc, struct gv_drive *d, struct gv_sd *s,
 	KASSERT(d != NULL, ("gv_sd_to_drive: NULL drive"));
 	KASSERT(s != NULL, ("gv_sd_to_drive: NULL subdisk"));
 	KASSERT(errstr != NULL, ("gv_sd_to_drive: NULL errstr"));
-	KASSERT(errlen >= ERRBUFSIZ, ("gv_sd_to_drive: short errlen", errlen));
+	KASSERT(errlen >= ERRBUFSIZ, ("gv_sd_to_drive: short errlen (%d)",
+	    errlen));
 
 	/* Check if this subdisk was already given to this drive. */
 	if (s->drive_sc == d)
