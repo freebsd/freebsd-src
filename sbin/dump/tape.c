@@ -381,7 +381,7 @@ close_rewind()
 	(void)time((time_t *)&(tstart_changevol));
 	if (!nogripe) {
 		msg("Change Volumes: Mount volume #%d\n", tapeno+1);
-		broadcast("CHANGE DUMP VOLUMES!\7\7\n");
+		broadcast("CHANGE DUMP VOLUMES!\a\a\n");
 	}
 	while (!query("Is the new volume mounted and ready to go?"))
 		if (query("Do you want to abort?")) {
