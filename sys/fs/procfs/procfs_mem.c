@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.7 1995/05/30 08:07:09 rgrimes Exp $
+ *	$Id: procfs_mem.c,v 1.8 1995/06/28 04:51:06 davidg Exp $
  */
 
 /*
@@ -152,7 +152,7 @@ procfs_rwmem(p, uio)
 		/*
 		 * Fault the page in...
 		 */
-		if (!error && writing && object->shadow) {
+		if (!error && writing && object->backing_object) {
 			m = vm_page_lookup(object, off);
 			if (m == 0 || (m->flags & PG_COPYONWRITE))
 				error = vm_fault(map, pageno,

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.13 1995/06/28 12:32:47 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.14 1995/07/09 06:57:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -151,14 +151,10 @@ vn_open(ndp, fmode, cmode)
 	error = VOP_OPEN(vp, fmode, cred, p);
 	if (error)
 		goto bad;
-	if (fmode & FWRITE)
-		vp->v_writecount++;
 	/*
 	 * this is here for VMIO support
 	 */
 	if (vp->v_type == VREG) {
-		vm_object_t object;
-		vm_pager_t pager;
 retry:
 		if ((vp->v_flag & VVMIO) == 0) {
 			error = VOP_GETATTR(vp, vap, cred, p);
@@ -168,6 +164,7 @@ retry:
 				panic("vn_open: failed to allocate object");
 			vp->v_flag |= VVMIO;
 		} else {
+			vm_object_t object;
 			if ((object = vp->v_object) &&
 				(object->flags & OBJ_DEAD)) {
 				VOP_UNLOCK(vp);
@@ -177,12 +174,11 @@ retry:
 			}
 			if (!object)
 				panic("vn_open: VMIO object missing");
-			pager = object->pager;
-			if (!pager)
-				panic("vn_open: VMIO pager missing");
-			(void) vm_object_lookup(pager);
+			vm_object_reference(object);
 		}
 	}
+	if (fmode & FWRITE)
+		vp->v_writecount++;
 	return (0);
 bad:
 	vput(vp);

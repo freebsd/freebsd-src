@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.18 1995/06/28 12:01:05 davidg Exp $
+ * $Id: nfs_subs.c,v 1.19 1995/07/09 06:57:59 davidg Exp $
  */
 
 /*
@@ -59,6 +59,7 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vnode_pager.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -71,8 +72,6 @@
 #include <nfs/nfsrtt.h>
 
 #include <miscfs/specfs/specdev.h>
-
-#include <vm/vnode_pager.h>
 
 #include <netinet/in.h>
 #ifdef ISO
@@ -1898,7 +1897,6 @@ nfsrv_errmap(nd, err)
 int
 nfsrv_vmio(struct vnode *vp) {
 	vm_object_t object;
-	vm_pager_t pager;
 
 	if ((vp == NULL) || (vp->v_type != VREG))
 		return 1;
@@ -1923,10 +1921,7 @@ retry:
 		}
 		if (!object)
 			panic("nfsrv_vmio: VMIO object missing");
-		pager = object->pager;
-		if (!pager)
-			panic("nfsrv_vmio: VMIO pager missing");
-		(void) vm_object_lookup(pager);
+		vm_object_reference(object);
 	}
 	return 0;
 }

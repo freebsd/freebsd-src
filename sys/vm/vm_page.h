@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.17 1995/03/26 23:33:14 davidg Exp $
+ * $Id: vm_page.h,v 1.18 1995/04/23 08:05:49 bde Exp $
  */
 
 /*
@@ -136,34 +136,38 @@ struct vm_page {
 #define	PG_CACHE	0x4000		/* On VMIO cache */
 #define	PG_FREE		0x8000		/* page is in free list */
 
-#if	VM_PAGE_DEBUG
-#define	VM_PAGE_CHECK(mem) { \
-	if ((((unsigned int) mem) < ((unsigned int) &vm_page_array[0])) || \
-	    (((unsigned int) mem) > \
-		((unsigned int) &vm_page_array[last_page-first_page])) || \
-	    ((mem->flags & (PG_ACTIVE | PG_INACTIVE)) == \
-		(PG_ACTIVE | PG_INACTIVE))) \
-		panic("vm_page_check: not valid!"); \
-}
-#else				/* VM_PAGE_DEBUG */
-#define	VM_PAGE_CHECK(mem)
-#endif				/* VM_PAGE_DEBUG */
+/*
+ * Misc constants.
+ */
+
+#define ACT_DECLINE		1
+#define ACT_ADVANCE		3
+#define ACT_MAX			100
+#define PFCLUSTER_BEHIND	3
+#define PFCLUSTER_AHEAD		3
 
 #ifdef KERNEL
 /*
- *	Each pageable resident page falls into one of three lists:
+ * Each pageable resident page falls into one of four lists:
  *
  *	free
  *		Available for allocation now.
+ *
+ * The following are all LRU sorted:
+ *
+ *	cache
+ *		Almost available for allocation. Still in an
+ *		object, but clean and immediately freeable at
+ *		non-interrupt times.
+ *
  *	inactive
- *		Not referenced in any map, but still has an
- *		object/offset-page mapping, and may be dirty.
+ *		Low activity, candidates for reclaimation.
  *		This is the list of pages that should be
  *		paged out next.
+ *
  *	active
- *		A list of pages which have been placed in
- *		at least one physical map.  This list is
- *		ordered, in LRU-like fashion.
+ *		Pages that are "active" i.e. they have been
+ *		recently referenced.
  */
 
 extern struct pglist vm_page_queue_free;	/* memory free queue */
@@ -190,9 +194,6 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 #define PHYS_TO_VM_PAGE(pa) \
 		(&vm_page_array[atop(pa) - first_page ])
 
-extern simple_lock_data_t vm_page_queue_lock;	/* lock on active and inactive page queues */
-extern simple_lock_data_t vm_page_queue_free_lock; /* lock on free page queue */
-
 /*
  *	Functions implemented as macros
  */
@@ -209,9 +210,6 @@ extern simple_lock_data_t vm_page_queue_free_lock; /* lock on free page queue */
 					wakeup((caddr_t) (m)); \
 				} \
 			}
-
-#define	vm_page_lock_queues()	simple_lock(&vm_page_queue_lock)
-#define	vm_page_unlock_queues()	simple_unlock(&vm_page_queue_lock)
 
 #if PAGE_SIZE == 4096
 #define VM_PAGE_BITS_ALL 0xff
@@ -293,9 +291,4 @@ vm_page_protect(vm_page_t mem, int prot)
 
 
 #endif				/* KERNEL */
-
-#define ACT_DECLINE	1
-#define ACT_ADVANCE	3
-#define ACT_MAX		100
-
 #endif				/* !_VM_PAGE_ */

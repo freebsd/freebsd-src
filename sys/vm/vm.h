@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $Id: vm.h,v 1.3 1994/08/02 07:55:16 davidg Exp $
+ * $Id: vm.h,v 1.4 1995/01/09 16:05:37 davidg Exp $
  */
 
 #ifndef VM_H
@@ -53,9 +53,6 @@ typedef struct vm_object *vm_object_t;
 
 struct vm_page;
 typedef struct vm_page *vm_page_t;
-
-struct pager_struct;
-typedef struct pager_struct *vm_pager_t;
 
 #include <sys/vmmeter.h>
 #include <sys/queue.h>

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.129 1995/06/26 07:39:52 bde Exp $
+ *	$Id: machdep.c,v 1.130 1995/06/28 04:46:11 davidg Exp $
  */
 
 #include "npx.h"
@@ -77,6 +77,7 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <sys/exec.h>
 #include <sys/vnode.h>

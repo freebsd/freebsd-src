@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.11 1995/04/09 06:03:55 davidg Exp $
+ * $Id: vm_pageout.h,v 1.12 1995/05/30 08:16:20 rgrimes Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -77,7 +77,6 @@
 
 extern int vm_page_max_wired;
 extern int vm_pages_needed;	/* should be some "event" structure */
-simple_lock_data_t vm_pages_needed_lock;
 extern int vm_pageout_pages_needed;
 
 #define VM_PAGEOUT_ASYNC 0
@@ -97,7 +96,7 @@ pagedaemon_wakeup()
 {
 	if (!vm_pages_needed && curproc != pageproc) {
 		vm_pages_needed++;
-		wakeup((caddr_t) &vm_pages_needed);
+		wakeup(&vm_pages_needed);
 	}
 }
 
@@ -111,13 +110,13 @@ vm_wait()
 	s = splhigh();
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		tsleep((caddr_t) &vm_pageout_pages_needed, PSWP, "vmwait", 0);
+		tsleep(&vm_pageout_pages_needed, PSWP, "vmwait", 0);
 	} else {
 		if (!vm_pages_needed) {
 			vm_pages_needed++;
-			wakeup((caddr_t) &vm_pages_needed);
+			wakeup(&vm_pages_needed);
 		}
-		tsleep((caddr_t) &cnt.v_free_count, PVM, "vmwait", 0);
+		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
 	}
 	splx(s);
 }

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.21 1995/04/16 12:56:17 davidg Exp $
+ * $Id: vm_map.c,v 1.22 1995/05/30 08:16:07 rgrimes Exp $
  */
 
 /*
@@ -77,6 +77,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_pager.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -290,8 +291,6 @@ vm_map_init(map, min, max, pageable)
 	map->hint = &map->header;
 	map->timestamp = 0;
 	lock_init(&map->lock, TRUE);
-	simple_lock_init(&map->ref_lock);
-	simple_lock_init(&map->hint_lock);
 }
 
 /*
@@ -436,9 +435,7 @@ vm_map_reference(map)
 	if (map == NULL)
 		return;
 
-	simple_lock(&map->ref_lock);
 	map->ref_count++;
-	simple_unlock(&map->ref_lock);
 }
 
 /*
@@ -457,16 +454,14 @@ vm_map_deallocate(map)
 	if (map == NULL)
 		return;
 
-	simple_lock(&map->ref_lock);
 	c = map->ref_count;
-	simple_unlock(&map->ref_lock);
 
 	if (c == 0)
 		panic("vm_map_deallocate: deallocating already freed map");
 
 	if (c != 1) {
 		--map->ref_count;
-		wakeup((caddr_t) &map->ref_count);
+		wakeup(&map->ref_count);
 		return;
 	}
 	/*
@@ -609,12 +604,10 @@ vm_map_insert(map, object, offset, start, end)
  *	SAVE_HINT:
  *
  *	Saves the specified entry as the hint for
- *	future lookups.  Performs necessary interlocks.
+ *	future lookups.
  */
 #define	SAVE_HINT(map,value) \
-		simple_lock(&(map)->hint_lock); \
-		(map)->hint = (value); \
-		simple_unlock(&(map)->hint_lock);
+		(map)->hint = (value);
 
 /*
  *	vm_map_lookup_entry:	[ internal use only ]
@@ -639,9 +632,7 @@ vm_map_lookup_entry(map, address, entry)
 	 * Start looking either from the head of the list, or from the hint.
 	 */
 
-	simple_lock(&map->hint_lock);
 	cur = map->hint;
-	simple_unlock(&map->hint_lock);
 
 	if (cur == &map->header)
 		cur = cur->next;
@@ -828,9 +819,7 @@ vm_map_simplify_entry(map, entry)
 		int count;
 
 		my_share_map = entry->object.share_map;
-		simple_lock(&my_share_map->ref_lock);
 		count = my_share_map->ref_count;
-		simple_unlock(&my_share_map->ref_lock);
 
 		if (count == 1) {
 			/*
@@ -1291,7 +1280,7 @@ vm_map_pageable(map, start, end, new_pageable)
 		 * 1).
 		 *
 		 * Downgrading to a read lock for vm_fault_wire avoids a possible
-		 * deadlock with another thread that may have faulted on one
+		 * deadlock with another process that may have faulted on one
 		 * of the pages to be wired (it would mark the page busy,
 		 * blocking us, then in turn block on the map lock that we
 		 * hold).  Because of problems in the recursive lock package,
@@ -1329,7 +1318,7 @@ vm_map_pageable(map, start, end, new_pageable)
 						entry->needs_copy = FALSE;
 					} else if (entry->object.vm_object == NULL) {
 						entry->object.vm_object =
-						    vm_object_allocate((vm_size_t) (entry->end
+						    vm_object_allocate(OBJT_DEFAULT, (vm_size_t) (entry->end
 							- entry->start));
 						entry->offset = (vm_offset_t) 0;
 					}
@@ -1367,12 +1356,12 @@ vm_map_pageable(map, start, end, new_pageable)
 		/*
 		 * HACK HACK HACK HACK
 		 *
-		 * If we are wiring in the kernel map or a submap of it, unlock
-		 * the map to avoid deadlocks.  We trust that the kernel
-		 * threads are well-behaved, and therefore will not do
-		 * anything destructive to this region of the map while we
-		 * have it unlocked.  We cannot trust user threads to do the
-		 * same.
+		 * If we are wiring in the kernel map or a submap of it,
+		 * unlock the map to avoid deadlocks.  We trust that the
+		 * kernel is well-behaved, and therefore will not do
+		 * anything destructive to this region of the map while
+		 * we have it unlocked.  We cannot trust user processes
+		 * to do the same.
 		 *
 		 * HACK HACK HACK HACK
 		 */
@@ -1493,9 +1482,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 		} else {
 			object = current->object.vm_object;
 		}
-		if (object && (object->pager != NULL) &&
-		    (object->pager->pg_type == PG_VNODE)) {
-			vm_object_lock(object);
+		if (object && (object->type == OBJT_VNODE)) {
 			/*
 			 * Flush pages if writing is allowed. XXX should we continue
 			 * on an error?
@@ -1505,10 +1492,9 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 *     idea.
 			 */
 			if (current->protection & VM_PROT_WRITE)
-		   	    	vm_object_page_clean(object, offset, offset + size, syncio);
+		   	    	vm_object_page_clean(object, offset, offset + size, syncio, TRUE);
 			if (invalidate)
 				vm_object_page_remove(object, offset, offset + size, FALSE);
-			vm_object_unlock(object);
 		}
 		start += size;
 	}
@@ -1746,9 +1732,8 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	if (src_entry->is_sub_map || dst_entry->is_sub_map)
 		return;
 
-	if (dst_entry->object.vm_object != NULL &&
-	    (dst_entry->object.vm_object->flags & OBJ_INTERNAL) == 0)
-		printf("vm_map_copy_entry: copying over permanent data!\n");
+	if (dst_entry->object.vm_object != NULL)
+		printf("vm_map_copy_entry: dst_entry object not NULL!\n");
 
 	/*
 	 * If our destination map was wired down, unwire it now.
@@ -1788,9 +1773,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 			 * just protect the virtual address range.
 			 */
 			if (!(su = src_map->is_main_map)) {
-				simple_lock(&src_map->ref_lock);
 				su = (src_map->ref_count == 1);
-				simple_unlock(&src_map->ref_lock);
 			}
 			if (su) {
 				pmap_protect(src_map->pmap,
@@ -1807,7 +1790,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 		/*
 		 * Make a copy of the object.
 		 */
-		temp_object = dst_entry->object.vm_object;
 		vm_object_copy(src_entry->object.vm_object,
 		    src_entry->offset,
 		    (vm_size_t) (src_entry->end -
@@ -1834,10 +1816,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 		 */
 		src_entry->copy_on_write = TRUE;
 		dst_entry->copy_on_write = TRUE;
-		/*
-		 * Get rid of the old object.
-		 */
-		vm_object_deallocate(temp_object);
 
 		pmap_copy(dst_map->pmap, src_map->pmap, dst_entry->start,
 		    dst_entry->end - dst_entry->start, src_entry->start);
@@ -1849,292 +1827,6 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 		 */
 		vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry);
 	}
-}
-
-/*
- *	vm_map_copy:
- *
- *	Perform a virtual memory copy from the source
- *	address map/range to the destination map/range.
- *
- *	If src_destroy or dst_alloc is requested,
- *	the source and destination regions should be
- *	disjoint, not only in the top-level map, but
- *	in the sharing maps as well.  [The best way
- *	to guarantee this is to use a new intermediate
- *	map to make copies.  This also reduces map
- *	fragmentation.]
- */
-int
-vm_map_copy(dst_map, src_map,
-    dst_addr, len, src_addr,
-    dst_alloc, src_destroy)
-	vm_map_t dst_map;
-	vm_map_t src_map;
-	vm_offset_t dst_addr;
-	vm_size_t len;
-	vm_offset_t src_addr;
-	boolean_t dst_alloc;
-	boolean_t src_destroy;
-{
-	register
-	vm_map_entry_t src_entry;
-	register
-	vm_map_entry_t dst_entry;
-	vm_map_entry_t tmp_entry;
-	vm_offset_t src_start;
-	vm_offset_t src_end;
-	vm_offset_t dst_start;
-	vm_offset_t dst_end;
-	vm_offset_t src_clip;
-	vm_offset_t dst_clip;
-	int result;
-	boolean_t old_src_destroy;
-
-	/*
-	 * XXX While we figure out why src_destroy screws up, we'll do it by
-	 * explicitly vm_map_delete'ing at the end.
-	 */
-
-	old_src_destroy = src_destroy;
-	src_destroy = FALSE;
-
-	/*
-	 * Compute start and end of region in both maps
-	 */
-
-	src_start = src_addr;
-	src_end = src_start + len;
-	dst_start = dst_addr;
-	dst_end = dst_start + len;
-
-	/*
-	 * Check that the region can exist in both source and destination.
-	 */
-
-	if ((dst_end < dst_start) || (src_end < src_start))
-		return (KERN_NO_SPACE);
-
-	/*
-	 * Lock the maps in question -- we avoid deadlock by ordering lock
-	 * acquisition by map value
-	 */
-
-	if (src_map == dst_map) {
-		vm_map_lock(src_map);
-	} else if ((int) src_map < (int) dst_map) {
-		vm_map_lock(src_map);
-		vm_map_lock(dst_map);
-	} else {
-		vm_map_lock(dst_map);
-		vm_map_lock(src_map);
-	}
-
-	result = KERN_SUCCESS;
-
-	/*
-	 * Check protections... source must be completely readable and
-	 * destination must be completely writable.  [Note that if we're
-	 * allocating the destination region, we don't have to worry about
-	 * protection, but instead about whether the region exists.]
-	 */
-
-	if (src_map->is_main_map && dst_map->is_main_map) {
-		if (!vm_map_check_protection(src_map, src_start, src_end,
-			VM_PROT_READ)) {
-			result = KERN_PROTECTION_FAILURE;
-			goto Return;
-		}
-		if (dst_alloc) {
-			/* XXX Consider making this a vm_map_find instead */
-			if ((result = vm_map_insert(dst_map, NULL,
-				    (vm_offset_t) 0, dst_start, dst_end)) != KERN_SUCCESS)
-				goto Return;
-		} else if (!vm_map_check_protection(dst_map, dst_start, dst_end,
-			VM_PROT_WRITE)) {
-			result = KERN_PROTECTION_FAILURE;
-			goto Return;
-		}
-	}
-	/*
-	 * Find the start entries and clip.
-	 *
-	 * Note that checking protection asserts that the lookup cannot fail.
-	 *
-	 * Also note that we wait to do the second lookup until we have done the
-	 * first clip, as the clip may affect which entry we get!
-	 */
-
-	(void) vm_map_lookup_entry(src_map, src_addr, &tmp_entry);
-	src_entry = tmp_entry;
-	vm_map_clip_start(src_map, src_entry, src_start);
-
-	(void) vm_map_lookup_entry(dst_map, dst_addr, &tmp_entry);
-	dst_entry = tmp_entry;
-	vm_map_clip_start(dst_map, dst_entry, dst_start);
-
-	/*
-	 * If both source and destination entries are the same, retry the
-	 * first lookup, as it may have changed.
-	 */
-
-	if (src_entry == dst_entry) {
-		(void) vm_map_lookup_entry(src_map, src_addr, &tmp_entry);
-		src_entry = tmp_entry;
-	}
-	/*
-	 * If source and destination entries are still the same, a null copy
-	 * is being performed.
-	 */
-
-	if (src_entry == dst_entry)
-		goto Return;
-
-	/*
-	 * Go through entries until we get to the end of the region.
-	 */
-
-	while (src_start < src_end) {
-		/*
-		 * Clip the entries to the endpoint of the entire region.
-		 */
-
-		vm_map_clip_end(src_map, src_entry, src_end);
-		vm_map_clip_end(dst_map, dst_entry, dst_end);
-
-		/*
-		 * Clip each entry to the endpoint of the other entry.
-		 */
-
-		src_clip = src_entry->start + (dst_entry->end - dst_entry->start);
-		vm_map_clip_end(src_map, src_entry, src_clip);
-
-		dst_clip = dst_entry->start + (src_entry->end - src_entry->start);
-		vm_map_clip_end(dst_map, dst_entry, dst_clip);
-
-		/*
-		 * Both entries now match in size and relative endpoints.
-		 *
-		 * If both entries refer to a VM object, we can deal with them
-		 * now.
-		 */
-
-		if (!src_entry->is_a_map && !dst_entry->is_a_map) {
-			vm_map_copy_entry(src_map, dst_map, src_entry,
-			    dst_entry);
-		} else {
-			register vm_map_t new_dst_map;
-			vm_offset_t new_dst_start;
-			vm_size_t new_size;
-			vm_map_t new_src_map;
-			vm_offset_t new_src_start;
-
-			/*
-			 * We have to follow at least one sharing map.
-			 */
-
-			new_size = (dst_entry->end - dst_entry->start);
-
-			if (src_entry->is_a_map) {
-				new_src_map = src_entry->object.share_map;
-				new_src_start = src_entry->offset;
-			} else {
-				new_src_map = src_map;
-				new_src_start = src_entry->start;
-				lock_set_recursive(&src_map->lock);
-			}
-
-			if (dst_entry->is_a_map) {
-				vm_offset_t new_dst_end;
-
-				new_dst_map = dst_entry->object.share_map;
-				new_dst_start = dst_entry->offset;
-
-				/*
-				 * Since the destination sharing entries will
-				 * be merely deallocated, we can do that now,
-				 * and replace the region with a null object.
-				 * [This prevents splitting the source map to
-				 * match the form of the destination map.]
-				 * Note that we can only do so if the source
-				 * and destination do not overlap.
-				 */
-
-				new_dst_end = new_dst_start + new_size;
-
-				if (new_dst_map != new_src_map) {
-					vm_map_lock(new_dst_map);
-					(void) vm_map_delete(new_dst_map,
-					    new_dst_start,
-					    new_dst_end);
-					(void) vm_map_insert(new_dst_map,
-					    NULL,
-					    (vm_offset_t) 0,
-					    new_dst_start,
-					    new_dst_end);
-					vm_map_unlock(new_dst_map);
-				}
-			} else {
-				new_dst_map = dst_map;
-				new_dst_start = dst_entry->start;
-				lock_set_recursive(&dst_map->lock);
-			}
-
-			/*
-			 * Recursively copy the sharing map.
-			 */
-
-			(void) vm_map_copy(new_dst_map, new_src_map,
-			    new_dst_start, new_size, new_src_start,
-			    FALSE, FALSE);
-
-			if (dst_map == new_dst_map)
-				lock_clear_recursive(&dst_map->lock);
-			if (src_map == new_src_map)
-				lock_clear_recursive(&src_map->lock);
-		}
-
-		/*
-		 * Update variables for next pass through the loop.
-		 */
-
-		src_start = src_entry->end;
-		src_entry = src_entry->next;
-		dst_start = dst_entry->end;
-		dst_entry = dst_entry->next;
-
-		/*
-		 * If the source is to be destroyed, here is the place to do
-		 * it.
-		 */
-
-		if (src_destroy && src_map->is_main_map &&
-		    dst_map->is_main_map)
-			vm_map_entry_delete(src_map, src_entry->prev);
-	}
-
-	/*
-	 * Update the physical maps as appropriate
-	 */
-
-	if (src_map->is_main_map && dst_map->is_main_map) {
-		if (src_destroy)
-			pmap_remove(src_map->pmap, src_addr, src_addr + len);
-	}
-	/*
-	 * Unlock the maps
-	 */
-
-Return:;
-
-	if (old_src_destroy)
-		vm_map_delete(src_map, src_addr, src_addr + len);
-
-	vm_map_unlock(src_map);
-	if (src_map != dst_map)
-		vm_map_unlock(dst_map);
-
-	return (result);
 }
 
 /*
@@ -2178,58 +1870,12 @@ vmspace_fork(vm1)
 
 		case VM_INHERIT_SHARE:
 			/*
-			 * If we don't already have a sharing map:
-			 */
-
-			if (!old_entry->is_a_map) {
-				vm_map_t new_share_map;
-				vm_map_entry_t new_share_entry;
-
-				/*
-				 * Create a new sharing map
-				 */
-
-				new_share_map = vm_map_create(NULL,
-				    old_entry->start,
-				    old_entry->end,
-				    TRUE);
-				new_share_map->is_main_map = FALSE;
-
-				/*
-				 * Create the only sharing entry from the old
-				 * task map entry.
-				 */
-
-				new_share_entry =
-				    vm_map_entry_create(new_share_map);
-				*new_share_entry = *old_entry;
-				new_share_entry->wired_count = 0;
-
-				/*
-				 * Insert the entry into the new sharing map
-				 */
-
-				vm_map_entry_link(new_share_map,
-				    new_share_map->header.prev,
-				    new_share_entry);
-
-				/*
-				 * Fix up the task map entry to refer to the
-				 * sharing map now.
-				 */
-
-				old_entry->is_a_map = TRUE;
-				old_entry->object.share_map = new_share_map;
-				old_entry->offset = old_entry->start;
-			}
-			/*
 			 * Clone the entry, referencing the sharing map.
 			 */
-
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
-			vm_map_reference(new_entry->object.share_map);
+			++new_entry->object.vm_object->ref_count;
 
 			/*
 			 * Insert the entry into the new map -- we know we're
@@ -2261,22 +1907,7 @@ vmspace_fork(vm1)
 			new_entry->is_a_map = FALSE;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
-			if (old_entry->is_a_map) {
-				int check;
-
-				check = vm_map_copy(new_map,
-				    old_entry->object.share_map,
-				    new_entry->start,
-				    (vm_size_t) (new_entry->end -
-					new_entry->start),
-				    old_entry->offset,
-				    FALSE, FALSE);
-				if (check != KERN_SUCCESS)
-					printf("vm_map_fork: copy in share_map region failed\n");
-			} else {
-				vm_map_copy_entry(old_map, new_map, old_entry,
-				    new_entry);
-			}
+			vm_map_copy_entry(old_map, new_map, old_entry, new_entry);
 			break;
 		}
 		old_entry = old_entry->next;
@@ -2350,9 +1981,7 @@ RetryLookup:;
 	 * blown lookup routine.
 	 */
 
-	simple_lock(&map->hint_lock);
 	entry = map->hint;
-	simple_unlock(&map->hint_lock);
 
 	*out_entry = entry;
 
@@ -2483,7 +2112,7 @@ RetryLookup:;
 				vm_map_unlock_read(map);
 			goto RetryLookup;
 		}
-		entry->object.vm_object = vm_object_allocate(
+		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    (vm_size_t) (entry->end - entry->start));
 		entry->offset = 0;
 		lock_write_to_read(&share_map->lock);
@@ -2501,9 +2130,7 @@ RetryLookup:;
 	 */
 
 	if (!su) {
-		simple_lock(&share_map->ref_lock);
 		su = (share_map->ref_count == 1);
-		simple_unlock(&share_map->ref_lock);
 	}
 	*out_prot = prot;
 	*single_use = su;
