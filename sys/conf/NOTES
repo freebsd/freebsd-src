@@ -2420,13 +2420,13 @@ options 	PANIC_REBOOT_WAIT_TIME=16
 # file.  Both offset and length of the read operation must be
 # multiples of the physical media sector size.
 #
-#options 	DIRECTIO
+options 	DIRECTIO
 
 # Specify a lower limit for the number of swap I/O buffers.  They are
 # (among other things) used when bypassing the buffer cache due to
 # DIRECTIO kernel option enabled and O_DIRECT flag set on file.
 #
-#options 	NSWBUF_MIN=120
+options 	NSWBUF_MIN=120
 
 #####################################################################
 
