@@ -93,13 +93,6 @@ main(int argc, char **argv)
     if (!RunningAsInit) {
 	int i, start_arg;
 
-	/* Try to set ourselves up as a CDROM if we can do that first */
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_SUCCESS) {
-	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
-	    if (!mediaDevice->init(mediaDevice))
-		mediaDevice = NULL;
-	}
-
 	if (!strstr(argv[0], "sysinstall"))
 	    start_arg = 0;
 	else if (Fake)
