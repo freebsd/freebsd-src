@@ -127,6 +127,7 @@ device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 
 # Serial (COM) ports
 #device		sio		# 8250, 16[45]50 based serial ports
+#device		se		# Siemens SAB82532 based serial ports
 
 ## Parallel port
 #device		ppc
