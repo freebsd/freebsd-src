@@ -50,6 +50,7 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
+#include "smbus.h"
 #endif /* __FreeBSD__ */
 
 #include "opt_bktr.h"		/* include any kernel config options */
