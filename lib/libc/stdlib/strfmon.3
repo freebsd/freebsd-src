@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In monetary.h
 .Ft ssize_t
-.Fn strfmon "char *s" "size_t maxsize" "const char *format" "..."
+.Fn strfmon "char * restrict s" "size_t maxsize" "const char * restrict format" "..."
 .Sh DESCRIPTION
 The
 .Fn strfmon
