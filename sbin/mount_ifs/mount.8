@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.14 1997/02/22 14:32:43 peter Exp $
+.\"	$Id: mount.8,v 1.15 1997/03/11 12:27:58 peter Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -52,7 +52,7 @@
 .Ar special node
 .Sh DESCRIPTION
 The
-.Nm mount
+.Nm
 command
 calls the
 .Xr mount 2
@@ -70,7 +70,7 @@ file.
 .Pp
 The system maintains a list of currently mounted file systems.
 If no arguments are given to
-.Nm mount,
+.Nm mount ,
 this list is printed.
 .Pp
 The options are as follows:
@@ -88,7 +88,7 @@ This option is useful in conjunction with the
 .Fl v
 flag to
 determine what the
-.Nm mount
+.Nm
 command is trying to do.
 .It Fl f
 Forces the revocation of write access when trying to downgrade
@@ -138,7 +138,7 @@ binaries for architectures other than its own.
 Do not allow set-user-identifier or set-group-identifier bits to take effect.
 Note: this option is worthless if a public available suid or sgid
 wrapper like
-.Xr suidperl
+.Xr suidperl 1
 is installed on your system.
 .It rdonly
 The same as
@@ -169,13 +169,15 @@ distinguished by a leading
 .Dq \&-
 (dash).
 Options that take a value are specified using the syntax -option=value.
-For example, the mount command:
+For example, the
+.Nm
+command:
 .Bd -literal -offset indent
 mount -t mfs -o nosuid,-N,-s=4000 /dev/dk0b /tmp
 .Ed
 .Pp
 causes
-.Nm mount
+.Nm
 to execute the equivalent of:
 .Bd -literal -offset indent
 /sbin/mount_mfs -o nosuid -N -s 4000 /dev/dk0b /tmp
@@ -211,7 +213,7 @@ to specify the filesystem types for which action should
 .Em not
 be taken.
 For example, the
-.Nm mount
+.Nm
 command:
 .Bd -literal -offset indent
 mount -a -t nonfs,mfs
@@ -223,7 +225,8 @@ and
 .Tn MFS .
 .Pp
 If the type is not one of the internally known types,
-mount will attempt to execute a program in
+.Nm
+will attempt to execute a program in
 .Pa /sbin/mount_ Ns Em XXX
 where
 .Em XXX
@@ -261,7 +264,7 @@ files on the filesystem are currently open for writing unless the
 flag is also specified.
 The set of options is determined by first extracting the options
 for the file system from the
-.Xr fstab
+.Xr fstab 5
 table,
 then applying any options specified by the
 .Fl o
@@ -305,6 +308,6 @@ file system table
 It is possible for a corrupted file system to cause a crash.
 .Sh HISTORY
 A
-.Nm mount
+.Nm
 command appeared in
 .At v1 .
