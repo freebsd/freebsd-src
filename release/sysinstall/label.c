@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.59 1996/10/01 12:13:13 jkh Exp $
+ * $Id: label.c,v 1.60 1996/10/01 14:08:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -802,7 +802,7 @@ diskLabel(char *str)
 		}
 		variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
-		clear();
+		clear_wins();
 		break;
 
 	    default:
@@ -817,6 +817,7 @@ diskLabel(char *str)
 		getNewfsCmd(label_chunk_info[here].c->private_data);
 	    else
 		msg = MSG_NOT_APPLICABLE;
+	    clear_wins();
 	    break;
 
 	case 'T':	/* Toggle newfs state */
@@ -850,7 +851,7 @@ diskLabel(char *str)
 		}
 	    }
 	    record_label_chunks(devs);
-	    clear();
+	    clear_wins();
 	    break;
 
 	case 'W':
@@ -861,7 +862,7 @@ diskLabel(char *str)
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
 	    }
-	    clear();
+	    clear_wins();
 	    break;
 
 	case '|':
@@ -886,7 +887,7 @@ diskLabel(char *str)
 		variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
 		record_label_chunks(devs);
-		clear();
+		clear_wins();
 	    }
 	    else
 		msg = "A most prudent choice!";
