@@ -441,8 +441,6 @@ struct kse {
 	int		ke_flags;	/* (j) KEF_* flags. */
 	struct thread	*ke_thread;	/* Active associated thread. */
 	struct thread	*ke_owner;	/* Always points to the owner */
-	int		ke_cpticks;	/* (j) Ticks of cpu time. */
-	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_int64_t	ke_uu;		/* (j) Previous user time in usec. */
 	u_int64_t	ke_su;		/* (j) Previous system time in usec. */
 	u_int64_t	ke_iu;		/* (j) Previous intr time in usec. */
