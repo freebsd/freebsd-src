@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.25 1997/04/26 05:04:10 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.26 1997/08/13 18:56:54 gibbs Exp $
  */
 /*
  * TODO:
@@ -177,18 +177,7 @@ static inline void unpause_sequencer __P((struct ahc_softc *ahc,
 					  int unpause_always));
 static inline void restart_sequencer __P((struct ahc_softc *ahc));
 
-static int	timeouts_work;		/*
-					 * Boolean that lets the driver know
-					 * that it can safely use timeouts
-					 * for event scheduling.  Timeouts
-					 * don't work early in the boot
-					 * process.
-					 */
-
 #define AHC_BUSRESET_DELAY	1000	/* Reset delay in us */
-#define AHC_BUSSETTLE_DELAY (100 * 1000)/* Delay before taking commands
-					 * after a reset in us
-					 */
 
 static struct scsi_adapter ahc_switch =
 {
@@ -317,15 +306,6 @@ static timeout_t
 #elif defined(__NetBSD__)
 static void	ahc_timeout __P((void *));
 #endif
-
-static timeout_t
-		ahc_first_timeout;
-
-static timeout_t
-		ahc_busreset_complete;
-
-static timeout_t
-		ahc_busreset_settle_complete;
 
 static u_int8_t	ahc_index_busy_target __P((struct ahc_softc *ahc, int target,
 					   char channel, int unbusy));
@@ -490,11 +470,6 @@ ahc_construct(ahc, bc, ioh, maddr, type, flags)
 	ahc->unpause = (ahc_inb(ahc, HCNTRL) & IRQMS) | INTEN;
 	ahc->pause = ahc->unpause | PAUSE;
 
-	ahc->busreset_args.ahc = ahc;
-	ahc->busreset_args.bus = 'A';
-	ahc->busreset_args_b.ahc = ahc;
-	ahc->busreset_args_b.bus = 'B';
-
 #if defined(__FreeBSD__)
 	return (ahc);
 #endif
@@ -604,7 +579,7 @@ ahc_scsirate(ahc, scsirate, period, offset, channel, target )
 		ultra_enb_addr++;
 	ultra_enb = ahc_inb(ahc, ultra_enb_addr);	
 	sxfrctl0 = ahc_inb(ahc, SXFRCTL0);
-	if (*scsirate != 0 && ahc_syncrates[i].sxfr & ULTRA_SXFR) {
+	if (*scsirate != 0 && (ahc_syncrates[i].sxfr & ULTRA_SXFR)) {
 		ultra_enb |= 0x01 << (target & 0x07);
 		sxfrctl0 |= FAST20;
 	} else {
@@ -693,7 +668,7 @@ ahc_attach(ahc)
 	scbus = NULL;	/* Upper-level SCSI code owns this now */
 
 	if (ahc->type & AHC_TWIN) {
-		scbus =  scsi_alloc_bus();
+		scbus = scsi_alloc_bus();
 		if (!scbus) 
 			return 0;
 		scbus->adapter_link = (ahc->flags & AHC_CHANNEL_B_PRIMARY) ? 
@@ -779,7 +754,7 @@ ahc_intr(arg)
 		int	 int_cleared;
 
 		int_cleared = 0;
-		while (qoutcnt = (ahc_inb(ahc, QOUTCNT) & ahc->qcntmask)) {
+		while ((qoutcnt = (ahc_inb(ahc, QOUTCNT) & ahc->qcntmask)) != 0) {
 			ahc->cmdoutcnt += qoutcnt;
 			for (; qoutcnt > 0; qoutcnt--) {
 				scb_index = ahc_inb(ahc, QOUTFIFO);
@@ -966,7 +941,6 @@ ahc_handle_seqint(ahc, intstat)
 		 * to happen.
 		 */
 		u_int8_t scb_index;
-		u_int8_t busy_scbindex;
 
 		scb_index = ahc_inb(ahc, CUR_SCBID);
 		scb = ahc->scb_data->scbarray[scb_index];
@@ -1939,7 +1913,7 @@ ahc_done(ahc, scb)
 		}
 	}
 #endif /* AHC_TAGENABLE */
-	if ((scb->flags & SCB_MSGOUT_WDTR|SCB_MSGOUT_SDTR) != 0) {
+	if ((scb->flags & (SCB_MSGOUT_WDTR|SCB_MSGOUT_SDTR)) != 0) {
 		/*
 		 * Turn off the pending flags for any DTR messages
 		 * regardless of whether they completed successfully 
@@ -2279,7 +2253,7 @@ ahc_init(ahc)
 	
 		if (ahc->scb_data->hscbs == NULL) {
 			printf("%s: unable to allocate hardware SCB array.  "
-			       "Failing attach\n");
+			       "Failing attach\n", ahc_name(ahc));
 			return (-1);
 		}
 		/* At least the control byte of each hscb needs to be zeroed */
@@ -2347,9 +2321,6 @@ ahc_init(ahc)
 
 	unpause_sequencer(ahc, /*unpause_always*/TRUE);
 
-	/* Notify us when the system can handle timeouts */
-	timeout(ahc_first_timeout, NULL, 0);
-
 	/*
 	 * Note that we are going and return (to probe)
 	 */
@@ -2397,23 +2368,6 @@ ahc_scsi_cmd(xs)
 			 | (IS_SCSIBUS_B(ahc, xs->sc_link) ? SELBUSB : 0)));
 	SC_DEBUG(xs->sc_link, SDEV_DB2, ("ahc_scsi_cmd\n"));
 	flags = xs->flags;
-
-	if (ahc->in_reset != 0) {
-		/*
-		 * If we are still in a reset, send the transaction
-		 * back indicating that it was aborted due to a
-		 * reset.
-		 */
-		if ((IS_SCSIBUS_B(ahc, xs->sc_link)
-		  && (ahc->in_reset & CHANNEL_B_RESET) != 0)
-		 || (!IS_SCSIBUS_B(ahc, xs->sc_link)
-		  && (ahc->in_reset & CHANNEL_A_RESET) != 0)) {
-			/* Ick, but I don't want it to abort this */
-			xs->retries++;
-		 	xs->error = XS_BUSY;
-			return(COMPLETE);
-		}
-	}
 
 	/*
 	 * get an scb to use. If the transfer
@@ -2913,19 +2867,6 @@ ahc_poll(ahc, wait)
 	return (0);
 }
 
-/*
- * Handler to register that the system is capable of
- * delivering timeouts.  We register this timeout in
- * ahc_init and it should go off as soon as we're through
- * the boot process.
- */
-static void
-ahc_first_timeout(arg)
-	void	*arg;
-{
-	timeouts_work = 1;
-}
-
 static void
 ahc_timeout(arg)
 	void	*arg;
@@ -3330,13 +3271,19 @@ ahc_reset_device(ahc, target, channel, lun, tag, xs_error)
 				break;
 			case ALL_CHANNELS:
 				min_target = 0;
-				max_target = ahc->type & AHC_WIDE|AHC_TWIN
-					     ? 15 : 7;
+				max_target = ahc->type & (AHC_WIDE|AHC_TWIN)
+					   ? 15 : 7;
 				break;
+			default:
+				/* Shutup warning */
+				min_target = 0;
+				max_target = 0;
+				panic("ahc_reset_device: Bogus Channel");
+				/* NOTREACHED */
 			}
 		} else {
-			min_target = max_target = target
-						  + channel == 'B' ? 8 : 0;
+			min_target = max_target
+				   = target + (channel == 'B' ? 8 : 0);
 		}
 
 		for (i = min_target; i <= max_target; i++) {
@@ -3564,8 +3511,6 @@ ahc_abort_wscb (ahc, scbp, scbpos, prev, xs_error)
 	u_int32_t xs_error;
 {       
 	u_int8_t curscb, next;
-	int target = ((scbp->hscb->tcl >> 4) & 0x0f);
-	char channel = (scbp->hscb->tcl & SELBUSB) ? 'B' : 'A';
 	/*
 	 * Select the SCB we want to abort and
 	 * pull the next pointer out of it.
@@ -3638,7 +3583,6 @@ ahc_busy_target(ahc, target, channel, scbid)
 {
 	u_int8_t  active_scb;
 	u_int8_t  info_scb;
-	u_int8_t  busy_scbid;
 	u_int32_t scb_offset;
 
 	info_scb = target / 4;
@@ -3669,104 +3613,21 @@ ahc_reset_current_bus(ahc)
 	struct ahc_softc *ahc;
 {
 	u_int8_t scsiseq;
-	u_int8_t sblkctl;
-
+ 
 	ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) & ~ENSCSIRST);
-	scsiseq = ahc_inb(ahc, SCSISEQ);
+	scsiseq = ahc_inb(ahc, SCSISEQ); 
 	ahc_outb(ahc, SCSISEQ, scsiseq | SCSIRSTO);
-	if (timeouts_work != 0) {
-		struct ahc_busreset_args *args;
-
-		sblkctl = ahc_inb(ahc, SBLKCTL);
-		args = (sblkctl & SELBUSB) ? &ahc->busreset_args_b
-					   : &ahc->busreset_args;
-		ahc->in_reset |= (args->bus == 'A' ? CHANNEL_A_RESET
-						   : CHANNEL_B_RESET);
-		timeout(ahc_busreset_complete, args,
-			MAX((AHC_BUSRESET_DELAY * hz) / 1000000, 1));
-	} else {
-		DELAY(AHC_BUSRESET_DELAY);
-		/* Turn off the bus reset */
-		ahc_outb(ahc, SCSISEQ, scsiseq & ~SCSIRSTO);
-
-		ahc_clear_intstat(ahc);
-
-		/* Re-enable reset interrupts */
-		ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) | ENSCSIRST);
-
-		/* Wait a minimal bus settle delay */
-		DELAY(AHC_BUSSETTLE_DELAY);
-
-		ahc_run_done_queue(ahc);
-	}
-}
-
-static void
-ahc_busreset_complete(arg)
-	void	*arg;
-{
-	struct	 ahc_busreset_args *args;
-	struct	 ahc_softc *ahc;
-	int	 s;
-	u_int8_t scsiseq;
-	u_int8_t sblkctl;
-
-	args = (struct ahc_busreset_args *)arg;
-	ahc = (struct ahc_softc *)args->ahc;
-
-	s = splbio();
-	pause_sequencer(ahc);
-
-	/* Save the current block control state */
-	sblkctl = ahc_inb(ahc, SBLKCTL);
-
-	/* Switch to the right bus */
-	if (args->bus == 'A')
-		ahc_outb(ahc, SBLKCTL, sblkctl & ~SELBUSB);
-	else
-		ahc_outb(ahc, SBLKCTL, sblkctl | SELBUSB);
-
+ 
+	DELAY(AHC_BUSRESET_DELAY);
 	/* Turn off the bus reset */
-	printf("Clearing bus reset\n");
-	scsiseq = ahc_inb(ahc, SCSISEQ);
 	ahc_outb(ahc, SCSISEQ, scsiseq & ~SCSIRSTO);
-
+ 
 	ahc_clear_intstat(ahc);
-
+ 
 	/* Re-enable reset interrupts */
 	ahc_outb(ahc, SIMODE1, ahc_inb(ahc, SIMODE1) | ENSCSIRST);
 
-	/*
-	 * Set a 100ms timeout to clear our in_reset flag.
-	 * It will be *at-least* that long before any targets
-	 * respond to real commands on the bus.
-	 */
-	timeout(ahc_busreset_settle_complete, args,
-		(AHC_BUSSETTLE_DELAY * hz) / 1000000);
-
-	/* Restore the original channel */
-	ahc_outb(ahc, SBLKCTL, sblkctl);
-	unpause_sequencer(ahc, /*unpause_always*/FALSE);
-	splx(s);
-}
-
-static void
-ahc_busreset_settle_complete(arg)
-	void	*arg;
-{
-	struct	ahc_busreset_args *args;
-	struct	ahc_softc *ahc;
-	int	s;
-
-	args = (struct ahc_busreset_args *)arg;
-	ahc = (struct ahc_softc *)args->ahc;
-	/* Clear the reset flag */
-	s = splbio();
-	printf("Clearing 'in-reset' flag\n");
-	ahc->in_reset &= (args->bus == 'A' ? ~CHANNEL_A_RESET
-					   : ~CHANNEL_B_RESET);
 	ahc_run_done_queue(ahc);
-	splx(s);
 }
 
 static int
@@ -3778,7 +3639,6 @@ ahc_reset_channel(ahc, channel, xs_error, initiate_reset)
 {
 	u_int32_t offset, offset_max;
 	int	  found;
-	int	  target;
 	u_int8_t  sblkctl;
 	char	  cur_channel;
 
