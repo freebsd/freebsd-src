@@ -77,7 +77,7 @@ acl_valid_file(const char *pathp, acl_type_t type, acl_t acl)
 		}
 	}
 
-	return (acl_syscall_aclcheck_file(pathp, type, acl));
+	return (__acl_aclcheck_file(pathp, type, acl));
 }
 
 
@@ -94,5 +94,5 @@ acl_valid_fd(int fd, acl_type_t type, acl_t acl)
 		}
 	}
 
-	return (acl_syscall_aclcheck_fd(fd, type, acl));
+	return (__acl_aclcheck_fd(fd, type, acl));
 }

@@ -37,7 +37,7 @@ int
 acl_delete_def_fd(int filedes)
 {
 
-        return (acl_syscall_delete_fd(filedes, ACL_TYPE_DEFAULT));
+        return (__acl_delete_fd(filedes, ACL_TYPE_DEFAULT));
 }
 
 
@@ -45,7 +45,7 @@ int
 acl_delete_def_file(const char *path_p)
 {
 
-	return (acl_syscall_delete_file(path_p, ACL_TYPE_DEFAULT));
+	return (__acl_delete_file(path_p, ACL_TYPE_DEFAULT));
 }
 
 
@@ -53,7 +53,7 @@ int
 acl_delete_file(const char *path_p, acl_type_t type)
 {
 
-	return (acl_syscall_delete_file(path_p, type));
+	return (__acl_delete_file(path_p, type));
 }
 
 
@@ -61,5 +61,5 @@ int
 acl_delete_fd(int filedes, acl_type_t type)
 {
 
-	return (acl_syscall_delete_fd(filedes, type));
+	return (__acl_delete_fd(filedes, type));
 }
