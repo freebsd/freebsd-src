@@ -457,6 +457,13 @@
 	kernel option has been added, which attempts to enable the SSE
 	feature bit on newer Athlon CPUs if the BIOS has forgotten to
 	enable it.</para>
+
+      <para arch="sparc64">The UltraSPARC platform is now supported by
+	&os;.  The following machines are supported to at least some
+	degree:  Ultra 1, Ultra 2, Ultra 5/10, Ultra60, and Blade
+	100.  SMP is supported, and has been tested on the
+	dual-processor Ultra 2 and dual-processor Ultra 60.</para>
+
     </sect3>
 
     <sect3>
@@ -1258,7 +1265,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	volume control.</para>
 
       <para arch="i386">A driver for the Intel 443MX, 810, 815, and
-	815E integrated sound devices has been added.</para>
+	815E integrated sound devices has been added. &merged;</para>
+
+      <para arch="i386">The via82c686 sound driver now supports the VIA
+	VT8233. &merged;</para>
+
+      <para arch="i386">The ich sound driver now support the SiS
+	7012 chipset. &merged;</para>
 
     </sect3>
 
@@ -2755,6 +2768,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>libreadline</application> has been updated to
 	4.2.</para>
+
+      <para><application>libz</application> has been updated to
+	1.1.4.</para>
 
       <para><application>lint</application> has been updated to
 	snapshot of NetBSD &man.lint.1; as of 3 March 2002.</para>
