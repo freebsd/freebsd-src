@@ -3141,7 +3141,7 @@ handle_workitem_remove(dirrem, xp)
 		panic("handle_workitem_remove: bad dir delta");
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	FREE_LOCK(&lk);
-	if ((error = UFS_TRUNCATE(vp, (off_t)0, 0, td->td_ucred, td)) != 0)
+	if ((error = ffs_truncate(vp, (off_t)0, 0, td->td_ucred, td)) != 0)
 		softdep_error("handle_workitem_remove: truncate", error);
 	ACQUIRE_LOCK(&lk);
 	/*
