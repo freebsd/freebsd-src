@@ -750,9 +750,8 @@ get_volume_label(char *name, int plexes, u_int64_t size, struct disklabel *lp)
      * swap, c is nothing.
      */
     lp->d_partitions[0].p_size = size;
-    lp->d_partitions[0].p_fsize = 1024;
     lp->d_partitions[0].p_fstype = FS_BSDFFS;		    /* FreeBSD File System :-) */
-    lp->d_partitions[0].p_fsize = 1024;			    /* FS fragment size */
+    lp->d_partitions[0].p_fsize = 2048;			    /* FS fragment size */
     lp->d_partitions[0].p_frag = 8;			    /* and fragments per block */
     lp->d_partitions[SWAP_PART].p_size = size;
     lp->d_partitions[SWAP_PART].p_fstype = FS_SWAP;	    /* swap partition */
