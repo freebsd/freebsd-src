@@ -33,96 +33,168 @@
 #   floppy.tree.${site}/ same as above, site specific.
 
 #
-#--- here are various functions used by the script.
 #--- The main entry point is at the end.
 #
 
-# initialize some shell variables used by the script.
-# This must be done after option parsing so user-specified values
-# are used to compute dependent ones. Make sure to use the
-# VAR=${VAR:-value} construct for those variables which can
-# be overridden from the command line.
+# There are two set of initialization. The first one (set_defaults)
+# is done on entry to the script, and is used to set default values
+# for all variables which do not depend on floppy type and source tree.
+#
+# The second set is done after command line parsing, e.g.
+# to resolve dependencies on the source tree.
+#
+# Naming:
+# + variables that control operation (e.g. verbosity) and are generally
+#   set from the command line have o_ ("option") as a name prefix
+#
+# + variables which contain pathnames and values that should not change
+#   have c_ ("constant") as a name prefix
+#
+# + variables exported to Makefiles and subshells are CAPITAL
+#
+# + variables local to the script are lowercase, possibly with
+#   an l_ ("local") prefix
 
-init_vars() {	# OK
-    # if you include the floppy tree in the mfs, you
-    # can boot from the image via diskless. Default to yes.
-    INCLUDE_FLOPPY_IN_MFS=${INCLUDE_FLOPPY_IN_MFS:-yes}
+# SRC points to your FreeBSD source tree.
+# l_usrtree points to the /usr subdir for the source tree.
+#     Normally /usr or ${SRC}/../usr
+# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico
+# PICO_TREE is where standard picobsd stuff resides.
+#     Normally ${SRC}/release/picobsd
+# You can set SRC with --src <directory>
+# It is not recommended to override the other variables.
 
-    # SRC points to your FreeBSD source tree.
-    # OBJ points to the obj tree. Normally /usr/obj-pico.
-    # PICO_TREE is where standard picobsd stuff resides.
-    # MY_TREE (set later) is where this floppy type resides.
-    # START_DIR is the directory where we start
-    # BUILDDIR is the build directory, which is the current one.
+# MY_TREE (set later) is where this floppy type resides.
+# BUILDDIR is the build directory
 
-    SRC=${SRC:-/usr/src}
-    OBJ=${OBJ:-${SRC}/usr/obj-pico}
-    PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
-    START_DIR=`pwd`
-
-
-    # Various temporary files and directories.
-    # User replies will be put in $RISU
-    RISU=${RISU:-`mktemp "/tmp/reply.XXXXXXXXXX"`}
-    MFS_MOUNTPOINT=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
-
-    MFS_NAME=fs.PICOBSD
-
-    # EDITOR is the editor you use
-    # SITE is site_name above.
-    # FLOPPY_SIZE  floppy size in KB (default to 1440). You can use 1480,
-    #	1720, 2880, etc. but beware that only 1440 and 1480 will boot
-    #	from 1.44M floppy drives (1480 will not work on vmware).
-    EDITOR=${EDITOR:-vi}
-    SITE=${SITE:-}
-    FLOPPY_SIZE=${FLOPPY_SIZE:-1440}
-
-    NO_DEVFS=yes # DEVFS is currently broken. Always set this.
-
-    # Find a suitable vnode
-    VNUM=`mount | awk "/${VN}/ { num++ } END { printf \"%d\", num }"`
-    VNDEV=${VN}${VNUM}
-    log "---> Using ${VNDEV}..."
-
-    # Location of the boot blocks (in case you want them custom-built)
-    boot1=/boot/boot1
-    boot2=/boot/boot2
-
-    makeopts=${MAKEOPTS:--s}	# be silent by default
-    # abort in case of error...
-    set -e
-
-    trap fail 2	# catch user interrupt
-    free_vnode
-}
+# set some default values for variables.
+# needs to be done as the first thing in the script.
 
 # log something on stdout if verbose.
+o_verbose=0	# this needs to be here!
 log() {
-    if [ "$verbose" != "" ] ; then
-	printf "%s\n" "$*"
-	read -p "(log) enter to continue" foo
+    if [ ${o_verbose} -gt 0 ] ; then
+	printf "\n*** %s\n" "$*"
+	if [ ${o_verbose}  -gt 1 ] ; then
+	    read -p "=== Press enter to continue" foo
+	fi
     fi
 }
 
-# set_type <type> looks for the floppy type specified as
-# first argument in user- or standard- directory.
-# If found set variables accordingly.
+set_defaults() {
+    # no way to use logging in this function, variable not set yet.
 
-set_type() {		# OK
+    # EDITOR is the editor you use
+    # fd_size  floppy size in KB (default to 1440). You can use 1480,
+    #	1720, 2880, etc. but beware that only 1440 and 1480 will boot
+    #	from 1.44M floppy drives (1480 will not work on vmware).
+    EDITOR=${EDITOR:-vi}
+    fd_size=${fd_size:-1440}
+
+    o_all_in_mfs="yes"		# put all files in mfs so you can boot and run
+				# the image via diskless boot.
+    o_clean=""			# do not clean
+    o_interactive=""		# default is interactive
+    o_verbose=0			# verbose level, 0 is silent
+    o_tarv=""			# tar verbose flag, "" or "v"
+    o_init_src=""		# non "" if we need to init libs and includes.
+    o_makeopts=${MAKEOPTS:--s}	# make options, be silent by default
+    o_no_devfs=yes		# we do not want devfs
+
+    SRC="/usr/src"		# default location for sources
+    c_startdir=`pwd`	# directory where we start
+			# used to lookup config and create BUILDDIR
+
+    c_boot1=/boot/boot1	# boot blocks (in case you want custom ones)
+    c_boot2=/boot/boot2
+
+    c_reply=${c_reply:-`mktemp "/tmp/reply.XXXXXXXXXX"`}
+    			# file where User replies will be put
+    c_mnt=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
+    			# mountpoint used to build memory filesystems
+    c_fs=fs.PICOBSD	# filename used for the memory filesystem
+    c_img=picobsd.bin	# filename used for the picobsd image
+
+    # select the right memory disk name
+    case `uname -r` in
+	5.*)
+	    l_vn="md"
+	    l_makedev="${SRC}/etc/MAKEDEV"
+	    ;;
+	*)
+	    l_vn="vn"
+	    l_makedev="/dev/MAKEDEV"
+    esac
+    # Find a suitable vnode
+    l_vnum=`mount | awk "/${l_vn}/ { num++ } END { printf \"%d\", num }"`
+    l_vndev=${l_vn}${l_vnum}
+
+    set -e
+
+    trap fail 2
+    #trap fail 3
+    #trap fail 6
+    trap fail 15
+    free_vnode			# cleanup old vnodes
+}
+
+create_includes_and_libraries() {
+    log "create_includes_and_libraries() for ${SRC}"
+    # Optionally creates include directory and libraries.
+    mkdir -p ${l_usrtree}/include		# the include directory...
+    mkdir -p ${l_usrtree}/share/misc	# a few things go here
+    mkdir -p ${l_usrtree}/lib		# libraries
+    mkdir -p ${l_usrtree}/sbin		# some binaries
+    (cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${SRC}/.. \
+		make includes ) || fail $? includes
+    # libraries already have the include path in the Makefile
+    CFLAGS="-nostdinc" ; export CFLAGS
+
+    (cd ${SRC}
+	# $e is the invocation of make with correct environment
+	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
+	    INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${SRC}/.. \
+	    make -DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
+	# need to 'make obj' in a few places. This is very
+	# version-specific... The following works for 5.0
+	for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
+		gnu/usr.bin/perl usr.bin/lex usr.sbin/config ; do
+	    (cd ${i}; eval $e obj)
+	done
+	# now make the static libraries
+	eval $e -DNOPROFILE -DNOPIC libraries
+	(cd ${SRC}/usr.sbin/config
+	eval $e		# build binary
+	eval $e	install	# install it
+	)
+    ) || fail $? "libraries"
+    log "Libraries done"
+}
+
+# set_type <type> looks in user or system directories for the floppy type
+# specified as first argument, and sets variables according to the config.
+# file. Also sets MY_TREE and BUILDDIR and SITE
+
+set_type() {
+    local a
+
+    log "set_type()"
+    THETYPE=$1
+    SITE=$2
     a=$1
-    for i in ${START_DIR}/${a} ${PICO_TREE}/${a} ; do
+    for i in ${c_startdir}/${a} ${PICO_TREE}/${a} ; do
 	log "set_type: checking $i"
 	if [ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ] ; then
 	    set -- `cat $i/PICOBSD | \
 	    awk '/^#PicoBSD/ {print $2, $3, $4, $5, $6}'`
 	    if [ "$1" != "" ]; then
-		MFS_SIZE=$1 ; INIT=$2
-		MFS_INODES=$3 ; FLOPPY_INODES=$4
+		MFS_SIZE=$1 ; init_name=$2
+		mfs_inodes=$3 ; fd_inodes=$4
 		name=`(cd $i ; pwd) `
 		name=`basename $name`
 		MY_TREE=$i
-		BUILDDIR=${START_DIR}/build_dir-${name}
-		log "---> Matching file $name in $i"
+		BUILDDIR=${c_startdir}/build_dir-${name}
+		log "Matching file $name in $i"
 		return ;
 	    fi
 	fi
@@ -131,8 +203,9 @@ set_type() {		# OK
 }
 
 clean_tree() {
+    log "clean_tree()"
     if [ "${name}" = "" ] ; then
-	echo "---> wrong floppy type"
+	echo "---> Wrong floppy type"
 	exit 3
     fi
     rm -rf ${BUILDDIR}
@@ -140,18 +213,20 @@ clean_tree() {
 
 # free as much as possible from the vnode
 free_vnode() {
-    log "free_vnode, VN is ${VN} "
-    umount ${MFS_MOUNTPOINT}    2> /dev/null || true
-    umount /dev/${VNDEV}       2> /dev/null || true
-    if [ "${VN}" = "vn" ] ; then
-	vnconfig -u ${VNDEV} 2> /dev/null || true
+    log "free_vnode() ${l_vndev} "
+    umount ${c_mnt}    2> /dev/null || true
+    umount /dev/${l_vndev}       2> /dev/null || true
+    if [ "${l_vn}" = "vn" ] ; then
+	vnconfig -u ${l_vndev} 2> /dev/null || true
     else
-	mdconfig -d -u ${VNUM} 2> /dev/null || true
+	mdconfig -d -u ${l_vnum} 2> /dev/null || true
     fi
 }
 
 # prepare a message to be printed in the dialog menus.
 set_msgs() {		# OK
+    log "set_msgs()"
+
     MSG1="Type: ${THETYPE} name $name"
 
     MSG="PicoBSD build -- Current parameters:\n\n\t1.  ${MSG1}\n\
@@ -162,30 +237,44 @@ set_msgs() {		# OK
 
 # Main build procedure.
 build_image() {
-    if [ "${name}" = "" ] ; then
-	echo "-> wrong floppy type"
-	final_cleanup
-	exit 1
-    fi
+    log "build_image() <${name}>"
+    [ "${name}" != "" ] || fail $? bad_type
     clear
     set_msgs
-    printf "${MSG}"
-    echo "-> We'll use the sources living in ${SRC}"
-    echo "-> vnode is ${VNDEV}"
-    echo ""
-    echo "-> I hope you have checked the PICOBSD config file..."
-    echo ""
-    echo ""
+    printf "${MSG}---> We'll use the sources living in ${SRC}\n\n"
 
-    init_stage1
+    # read config variables from a global and then a type-specific file
+    # basically STAND_LINKS and MY_DEVS, but can also override other
+    # variables.
+    # 
+    . ${PICO_TREE}/build/config
+    if [ -f ${MY_TREE}/config ] ; then
+	. ${MY_TREE}/config
+    fi
+
+    # location of the object directory
+    PICO_OBJ=${l_objtree}/picobsd/${THETYPE}
+    log "PICO_OBJ is ${PICO_OBJ}"
+
+    # create build directory and subtree
+    mkdir -p ${BUILDDIR}/crunch
+    # remove any old stuff
+    rm -f ${BUILDDIR}/kernel.gz ${BUILDDIR}/${c_fs}
+    # invoke commands to build a kernel
     do_kernel
-    populate_floppy_fs	# things which go into floppy
-    create_mfs
-    populate_mfs		# things which go into mfs
+    # fill a subdirectory with things that go into the floppy
+    # (mostly /etc and similar stuff)
+    populate_floppy_fs
+    # populate it and produce a file with the MFS image
+    populate_mfs_tree		# things which go into mfs
+    # create, mount and fill a filesystem with floppy image
     fill_floppy_image # copies everything into the floppy
 }
 
 build_package() {
+    local z msg
+
+    log "build_package()"
     touch build.status
     echo "##############################################" >>build.status
     echo "## `date` ">>build.status
@@ -194,15 +283,11 @@ build_package() {
 	set_type ${z}
 	echo "---------------------------------------------">>build.status
 	echo "Building TYPE=${z}, SIZE=${MFS_SIZE}" >>build.status
-	build_image
-	if [ "X$?" != "X0" ] ; then
-	    echo "	** FAILED! **">>build.status
-	else
-	    echo "	(ok)">>build.status
-	fi
-	mv ${BUILDDIR}/picobsd.bin ${BUILDDIR}/picobsd.${name}.bin
-	echo "Cleaning ${z}">>build.status
-	clean_tree
+	msg="(ok)"	# error message
+	build_image || msg="** FAILED! **"
+        echo "	${msg}">>build.status
+	# where do i put things ?
+	# clean_tree
     done
     exit 0
 }
@@ -210,46 +295,44 @@ build_package() {
 # Set build parameters interactively
 
 main_dialog() {
+  local ans i l
+
+  log "main_dialog()"
   while [ true ] ; do
     set_msgs
-    dialog --menu "PicoBSD build menu -- (29 aug 2001)" 19 70 12 \
+    rm ${c_reply}
+    dialog --menu "PicoBSD build menu -- (29 sep 2001)" 19 70 12 \
 	N "--> READY, build it <---" \
 	T "${MSG1}" \
 	K "edit Kernel config file" \
 	E "Edit crunch.conf file" \
 	S "MFS Size: ${MFS_SIZE}kB" \
-	I "Init type: ${INIT}" \
-	F "Floppy size: ${FLOPPY_SIZE}kB" \
-	M "MFS bytes per inode: ${MFS_INODES}" \
-	U "UFS bytes per inode: ${FLOPPY_INODES}" \
+	I "Init type: ${init_name}" \
+	F "Floppy size: ${fd_size}kB" \
+	M "MFS bytes per inode: ${mfs_inodes}" \
+	U "UFS bytes per inode: ${fd_inodes}" \
 	$ "Site-info: ${SITE}" \
 	Q "Quit" \
-	2> ${RISU}
-    ans=`cat ${RISU}`
-    rm ${RISU}
+	2> ${c_reply}
+    ans=`cat ${c_reply}`
+    rm ${c_reply}
     case ${ans} in
     T)
 	l=""
-	for i in ${START_DIR} ${START_DIR}/* ${PICO_TREE}/* ; do
+	for i in ${c_startdir} ${c_startdir}/* ${PICO_TREE}/* ; do
 	    if [ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ]; then
 		l="$l `basename $i` `basename $i`"
 	    fi
 	done
 	log $l
-	dialog --menu "Setup the type of configuration" 12 70 5 $l \
-		2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    THETYPE=`cat ${RISU}`
-	    set_type $THETYPE
-	fi
+	(dialog --menu "Setup the type of configuration" 12 70 5 $l \
+		2> ${c_reply} && set_type "`cat ${c_reply}`" ${SITE} ) || true
 	;;
     I)
-	dialog --menu "Choose your init(8) program" \
+	(dialog --menu "Choose your init(8) program" \
 	10 70 2 init "Standard init (requires getty)" \
-	oinit "small init from TinyWare" 2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    INIT=`cat ${RISU}`
-	fi
+	oinit "small init from TinyWare" 2> ${c_reply} \
+		&& init_name=`cat ${c_reply}` ) || true
 	;;
 
     K) ${EDITOR} ${MY_TREE}/PICOBSD ;;
@@ -257,57 +340,43 @@ main_dialog() {
     E) ${EDITOR} ${MY_TREE}/crunch.conf ;;
 
     S)
-	dialog --title "MFS Size setup" --inputbox \
+	( dialog --title "MFS Size setup" --inputbox \
 "MFS size depends on what you need to put on the MFS image. Typically \
 ranges between 820kB (for very small bridge/router images) to \
 as much as 2500kB kB for a densely packed image. \
 Keep in mind that this memory is \
 totally lost to other programs. Usually you want to keep \
-this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    MFS_SIZE=`cat ${RISU}`
-	fi
+this as small as possible. " 10 70 2> ${c_reply} \
+	&& MFS_SIZE=`cat ${c_reply}` ) || true
 	;;
 
     \$)
-	dialog --title "Site info setup" --inputbox \
+	(dialog --title "Site info setup" --inputbox \
 	"Please enter the full path to the directory \
 	containing site-specific setup. \
 	This directory tree must contain files that replace \
 	standard ones in floppy.tree/ and mfs.tree/ . " \
-	10 70 2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    SITE=`cat ${RISU}`
-	fi
+	10 70 2> ${c_reply} && SITE=`cat ${c_reply}` ) || true
 	;;
 
     F)
-	dialog --menu "Set floppy size" 15 70 4 \
-		1440 "1.44MB" 1720 "1.72MB" \
-		2880 "2.88MB" 4096 "4MB" 2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    FLOPPY_SIZE=`cat ${RISU}`
-	fi
+	(dialog --menu "Set floppy size" 15 70 4 \
+	    1440 "1.44MB" 1720 "1.72MB" 2880 "2.88MB" 4096 "4MB" \
+		 2> ${c_reply} && fd_size=`cat ${c_reply}` ) || true
 	;;
 
     M)
-	dialog --title "MFS bytes per inode:" --inputbox \
+	(dialog --title "MFS bytes per inode:" --inputbox \
 	"Enter MFS bytes per inode (typically 4096..65536). \
 	A larger value means fewer inodes but more space on MFS" \
-	10 70 2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    MFS_INODES=`cat ${RISU}`
-	fi
+	10 70 2> ${c_reply} && mfs_inodes=`cat ${c_reply}` ) || true
 	;;
 
     U)
-	dialog --title "Floppy bytes per inode:" --inputbox \
+	(dialog --title "Floppy bytes per inode:" --inputbox \
 	"Enter floppy bytes per inode (typically 3072..65536). \
 	A larger value means fewer inodes but more space on the floppy." \
-	10 70 2> ${RISU} || rm ${RISU}
-	if [ -f ${RISU} ] ; then
-	    FLOPPY_INODES=`cat ${RISU}`
-	fi
+	10 70 2> ${c_reply} && fd_inodes=`cat ${c_reply}` ) || true
 	;;
 
     N) break 2
@@ -326,6 +395,8 @@ this as small as possible. " 10 70 2> ${RISU} || rm ${RISU}
 # Call the build procedure
 # Install image
 do_install() {
+    log "do_install()"
+
     dialog --title "Build ${THETYPE} completed" --inputbox \
 "\nThe build process was completed successfuly.\n\
 `cat .build.reply` \n\n\
@@ -335,13 +406,13 @@ WARNING: the contents of the floppy will be permanently erased!\n\
 \n\
 Your options:\n\
 	* ^C or [Cancel] to abort,\n\
-	* Enter to install \"picobsd.bin\",\n\
-" 20 80 2> ${RISU}
+	* Enter to install ${c_img},\n\
+" 20 80 2> ${c_reply}
     if [ "$?" = "0" ]; then
-	echo "Writing picobsd.bin..."
-	dd if=${BUILDDIR}/picobsd.bin of=/dev/fd0.${FLOPPY_SIZE}
+	echo "Writing ${c_img}..."
+	dd if=${BUILDDIR}/${c_img} of=/dev/fd0.${fd_size}
     else
-	echo "Ok, the image is in picobsd.bin"
+	echo "Ok, the image is in ${c_img}"
     fi
     echo "Done."
 }
@@ -349,45 +420,20 @@ Your options:\n\
 
 #-------------------------------------------------------------------
 
-init_stage1() {
-
-    # read config variables from a global and then a type-specific file
-    # 
-    . ${PICO_TREE}/build/config
-    if [ -f ${MY_TREE}/config ]; then
-	. ${MY_TREE}/config
-    fi
-
-    PICO_OBJ=${OBJ}/picobsd/${THETYPE}
-    log "PICO_OBJ is ${PICO_OBJ}"
-
-    if [ ! -d ${BUILDDIR} ]; then
-	log "Creating builddir"
-	mkdir $BUILDDIR
-	if [ ! -d ${BUILDDIR}/crunch ]; then
-	    log "creating crunch dir"
-	    mkdir ${BUILDDIR}/crunch
-	fi
-    else
-	rm -f ${BUILDDIR}/kernel.gz ${BUILDDIR}/${MFS_NAME}    # cleanup...
-    fi
-}
-
-# invoke the makefile to compile the kernel.
-# Then copy it here and strip as much as possible.
+# invoke the Makefile to compile the kernel.
 do_kernel() {		# OK
-    log "---> Preparing kernel \"$name\" in $MY_TREE"
+    log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
     (cd $MY_TREE; export name SRC CONFIG BUILDDIR # used in this makefile ;
 	make -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
 }
 
-# Populate the variable part of the floppy filesystem. Should be
-# done before the MFS because it might need to be copied there as well.
+# Populate the variable part of the floppy filesystem. Must be done before
+# the MFS because its content might need to be copied there as well.
 #
-# This involves three subtrees, in this order:
+# This involves fetching files from three subtrees, in this order:
 #
-#  1. a standard one from which type-specific files are excluded;
+#  1. a standard one, from which type-specific files are excluded;
 #  2. a type-specific one;
 #  3. a site-specific one.
 #
@@ -396,8 +442,9 @@ do_kernel() {		# OK
 populate_floppy_fs() {		# OK
     local dst excl srcdir
 
+    log "populate_floppy_fs()"
     dst=${BUILDDIR}/floppy.tree
-    log "---> pwd=`pwd` Populating floppy filesystem..."
+    log "pwd=`pwd` Populating floppy filesystem..."
 
     # clean relics from old compilations.
     rm -rf ${dst} || true
@@ -406,60 +453,59 @@ populate_floppy_fs() {		# OK
     excl=${MY_TREE}/floppy.tree.exclude
     if [ -f ${excl} ] ; then
 	excl="--exclude-from ${excl}"
-	log "---> Files excluded from generic tree: `echo;cat ${excl}`"
+	log "Files excluded from generic tree: `echo;cat ${excl}`"
     else
 	excl=""
     fi
     (cd ${PICO_TREE}/floppy.tree ; tar -cf - --exclude CVS ${excl} . ) | \
-		(cd ${dst} ; tar x${TAR_VERBOSE}f - )
-    log "---> Copied from generic floppy-tree `echo; ls -laR ${dst}`"
+		(cd ${dst} ; tar x${o_tarv}f - )
+    log "Copied from generic floppy-tree `echo; ls -laR ${dst}`"
 
     srcdir=${MY_TREE}/floppy.tree
     if [ -d ${srcdir} ] ; then
-	log "---> update with type-specific files:"
+	log "update with type-specific files:"
 	(cd ${srcdir} ; tar -cf - --exclude CVS . ) | \
-	    (cd ${dst} ; tar x${TAR_VERBOSE}f - )
-	log "---> Copied from type floppy-tree `echo; ls -laR ${dst}`"
+	    (cd ${dst} ; tar x${o_tarv}f - )
+	log "Copied from type floppy-tree `echo; ls -laR ${dst}`"
     else
-	log "---> No type-specific floppy-tree"
+	log "No type-specific floppy-tree"
     fi
     if [ -d ${srcdir}.${SITE} ] ; then
-	log "-> update with site-specific (${SITE}) files:"
+	log "Update with site-specific (${SITE}) files:"
 	(cd ${srcdir}.${SITE} ; tar -cf - --exclude CVS . ) | \
-	    (cd ${dst} ; tar x${TAR_VERBOSE}f - )
-	log "---> Copied from site floppy-tree `echo; ls -laR ${dst}`"
+	    (cd ${dst} ; tar x${o_tarv}f - )
+	log "Copied from site floppy-tree `echo; ls -laR ${dst}`"
     else
-	log "---> No site-specific floppy-tree"
+	log "No site-specific floppy-tree"
     fi
     # gzip returns an error if it fails to compress some file
-    (cd $dst
-    gzip -9 etc/*
-    log "---> Compressed files in etc/ `echo; ls -l etc`"
+    (cd $dst ; gzip -9 etc/*
+	    log "Compressed files in etc/ `echo; ls -l etc`"
     ) || true
 }
 
 create_mfs() {		# OK
-    log "---> Preparing MFS filesystem..."
+    log "create_mfs() Preparing MFS filesystem..."
 
     free_vnode
 
     # zero-fill the MFS image
-    init_fs_image ${BUILDDIR}/${MFS_NAME} ${MFS_SIZE}
+    init_fs_image ${BUILDDIR}/${c_fs} ${MFS_SIZE}
 
-    log "---> Labeling MFS image"
+    log "Labeling MFS image"
     # Disklabel "auto" behaves strangely for sizes < 1024K. Basically
     # it fails to install a label on the system. On the other hand,
     # if you provide a specific disk type, the boot code is not
     # installed so you have more space on the disk...
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw ${VNDEV} fd${MFS_SIZE} || fail $? mfs_disklabel
+	disklabel -rw ${l_vndev} fd${MFS_SIZE} || fail $? mfs_disklabel
     else
-	disklabel -rw ${VNDEV} auto || fail $? mfs_disklabel
+	disklabel -rw ${l_vndev} auto || fail $? mfs_disklabel
     fi
-    newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/${VNDEV}c > /dev/null
-    mount /dev/${VNDEV}c ${MFS_MOUNTPOINT} || fail $? no_mount
-    log "`df /dev/${VNDEV}c`"
+    newfs -i ${mfs_inodes} -m 0 -p 0 -o space /dev/${l_vndev}c > /dev/null
+    mount /dev/${l_vndev}c ${c_mnt} || fail $? no_mount
+    log "`df /dev/${l_vndev}c`"
 }
 
 # Populate the memory filesystem with binaries and non-variable
@@ -469,108 +515,157 @@ create_mfs() {		# OK
 # Then copy the specific/generic mfs_tree.
 # Finally, if required, make a copy of the floppy.tree onto /fd
 
-populate_mfs() {
-    log "---> pwd=`pwd`, Populating MFS tree..."
-    # cd ${THETYPE}
+populate_mfs_tree() {
+    local a dst
 
-    log "---> Running mtree ..."
-    if [ -f ${MY_TREE}/mfs.mtree ] ; then
-	a=${MY_TREE}/mfs.mtree
+    log "populate_mfs_tree()"
+    early_mfs_mount=0
+    if [ "${early_mfs_mount}" = "1" ] ; then
+	create_mfs
+        dst=${c_mnt}
     else
-	a=${PICO_TREE}/build/mfs.mtree
+	dst=${BUILDDIR}/mfs.tree
+	# clean relics from old compilations.
+	rm -rf ${dst} || true
+	mkdir ${dst}
     fi
-    mtree -deU -f $a -p ${MFS_MOUNTPOINT} > /dev/null || fail $? mtree
+
+    log "pwd=`pwd`, Populating MFS tree..."
+
+    # use type-specific mfs.mtree, default to generic one.
+    a=${MY_TREE}/mfs.mtree
+    [ -f ${a} ] || a=${PICO_TREE}/build/mfs.mtree
+    log "Running mtree using $a..."
+    mtree -deU -f $a -p ${dst} > /dev/null || fail $? mtree
 
     # XXX create links
     for i in ${STAND_LINKS}; do
-	ln -s /stand ${MFS_MOUNTPOINT}/$i
+	ln -s /stand ${dst}/$i
     done
-    ln -s /dev/null ${MFS_MOUNTPOINT}/var/run/log
-    ln -s /etc/termcap ${MFS_MOUNTPOINT}/usr/share/misc/termcap
+    ln -s /dev/null ${dst}/var/run/log
+    ln -s /etc/termcap ${dst}/usr/share/misc/termcap
 
-    # XXX-fixme in -current, MAKEDEV is from /usr/src/etc/MAKEDEV
-    if [ "${NO_DEVFS}" != "" ] ; then
-	(cd ${MFS_MOUNTPOINT}/dev ; ln -s ${MAKEDEV} ; chmod 555 MAKEDEV ;
-	    ./MAKEDEV ${MY_DEVS}; rm MAKEDEV)
-    fi
 
     (
     cd ${BUILDDIR}/crunch
-    log "---> Making and installing crunch1 from `pwd` src ${SRC}..."
+    log "Making and installing crunch1 from `pwd` src ${SRC}..."
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
 	make -v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
-    log "-- libs are ${LIBS} "
+    log "Libs are ${LIBS} "
     export SRC LIBS CFLAGS # used by crunch.mk
     log "Now make -f crunch.mk"
-    make ${makeopts} -f ${BUILDDIR}/crunch.mk
+    make ${o_makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
-    mv crunch1 ${MFS_MOUNTPOINT}/stand/crunch
-    chmod 555 ${MFS_MOUNTPOINT}/stand/crunch
-    log "---> Making links for binaries..."
+    mv crunch1 ${dst}/stand/crunch
+    chmod 555 ${dst}/stand/crunch
+    log "Making links for binaries..."
     for i in `crunchgen -l $a` ; do
-	ln ${MFS_MOUNTPOINT}/stand/crunch ${MFS_MOUNTPOINT}/stand/${i};
+	ln ${dst}/stand/crunch ${dst}/stand/${i};
     done
     # rm $a # do not remove!
     ) || fail $? crunch
 
-    if [ -f ${MFS_MOUNTPOINT}/stand/sshd ] ; then
-	log "creating host key for sshd"
-	ssh-keygen -f ${MFS_MOUNTPOINT}/etc/ssh_host_key -N "" -C "root@picobsd"
+    if [ -f ${dst}/stand/sshd ] ; then
+	log "Creating host key for sshd"
+	ssh-keygen -f ${dst}/etc/ssh_host_key -N "" -C "root@picobsd"
     fi
 
     if [ -d ${MY_TREE}/mfs_tree ]; then
-	log "---> Copy site-specific MFS tree..."
+	log "Copy site-specific MFS tree..."
 	MFS_TREE=${MY_TREE}/mfs_tree
     else
-	log "---> Copy generic MFS tree..."
+	log "Copy generic MFS tree..."
 	MFS_TREE=${PICO_TREE}/mfs_tree
     fi
     (cd ${MFS_TREE} ; tar -cf - --exclude CVS . ) | \
-	    (cd ${MFS_MOUNTPOINT} ; tar x${TAR_VERBOSE}f - )
+	    (cd ${dst} ; tar x${o_tarv}f - )
 
-    if [ "${INCLUDE_FLOPPY_IN_MFS}" = "yes" ]; then
-	log "---> Copy generic floppy_tree into MFS..."
-	cp -Rp ${BUILDDIR}/floppy.tree/* ${MFS_MOUNTPOINT}/fd
+    if [ "${o_all_in_mfs}" = "yes" ]; then
+	log "Copy generic floppy_tree into MFS..."
+	cp -Rp ${BUILDDIR}/floppy.tree/* ${dst}/fd
     fi
-    (log "---> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root . )
-    df -ik ${MFS_MOUNTPOINT}
-    umount ${MFS_MOUNTPOINT}
-    fsck -p /dev/${VNDEV}c
+
+    [ "`id -u`" = "0" ] || cat <<__EOF
+
+### -------------------------------------------------------------------
+###
+### WARNING: You are not running with root permissions, so the next
+### stages are likely to fail because they call commands such as
+### chown, {vn|md}config, mount/umount which need adequate rights.
+###
+### The results of the compilation so far is in directory
+###  ${BUILDDIR}
+### which has the following content:
+
+`ls -l ${BUILDDIR}`
+
+###
+### -------------------------------------------------------------------
+
+__EOF
+
+    if [ "${o_no_devfs}" != "" ] ; then
+	# create device entries using MAKEDEV
+	(cd ${dst}/dev
+	ln -s ${l_makedev} ; chmod 555 MAKEDEV
+	./MAKEDEV ${MY_DEVS}
+	rm MAKEDEV
+	)
+    fi
+    log "Fixing permissions"
+    (cd ${dst}; chown -R root . )
+
+    if [ "${early_mfs_mount}" != "1" ] ; then
+	create_mfs
+	log "Copy mfs tree into file"
+	(cd ${dst} ; tar cf - . ) | ( cd ${c_mnt} ; tar xf - )
+    fi
+    # now umount and fsck the filesystem.
+    log "Status of mfs image"
+    df -ik ${c_mnt}
+    umount ${c_mnt}
+    fsck -p /dev/${l_vndev}c
     free_vnode
 }
 
 final_cleanup() {
+    log "final_cleanup()"
     free_vnode
-    rm -rf ${MFS_MOUNTPOINT} ${RISU} 2> /dev/null || true
+    rm -rf ${c_mnt} ${c_reply} 2> /dev/null || true
+    rm -f ${c_reply}
 }
 
 # fail errno errcode
 # This function is used to trap errors and print msgs
 #
 fail() {
+    local errno errocode where
+
     errno=$1
     errcode=$2
-    echo "---> fail: Error <$errno> error code <$errcode>"
-    case $errcode in
+    where=$3
+    echo "---> fail: Error <${errno}> error code <${errcode}> in <${where}>"
+    case ${errcode} in
     no_vnconfig)
-	echo "Error while doing vnconfig of ${imgname} on /dev/${VNDEV}..."
-	echo "   Most probably your running kernel doesn't have the ${VN}(4) device."
+	echo "Error in vnconfig on /dev/${l_vndev}..."
+	echo "Either you are not running as root or your running kernel"
+	echo "does not have the ${l_vn}(4) device."
 	;;
     mfs_disklabel)
-	echo "Error while labeling ${MFS_NAME} size ${MFS_SIZE}"
+	echo "Error while labeling ${c_fs} size ${MFS_SIZE}"
 	;;
     no_mount)
-	echo "Error while mounting ${MFS_NAME} (/dev/${VNDEV}c) on ${MFS_MOUNTPOINT}"
+	echo "Error while mounting ${c_fs} (/dev/${l_vndev}c) on ${c_mnt}"
 	;;
     mtree)
-	echo "Error while making hierarchy in ${MFS_MOUNTPOINT}"
+	echo "Error while making hierarchy in ${c_mnt}"
 	;;
     crunch)
 	echo "Error while building ${name}."
 	;;
     floppy_disklabel)
-	echo "Error while doing disklabel on of floppy.img size $FLOPPY_SIZE"
+	echo "Error while doing disklabel on of floppy.img size $fd_size"
 	;;
     missing_kernel)
 	echo "Error: you must build PICOBSD${suffix} kernel first"
@@ -581,9 +676,15 @@ fail() {
     libraries)
 	echo "Error: failed while making libraries"
 	;;
+    bad_type)
+	echo "Error: unknown floppy type ${name}"
+	;;
+    no_space)
+	echo "Error: no space left on device (${where})"
+	;;
     "")
 	echo "User break"
-	errcode="userbreak";
+	errcode="userbreak"
 	;;
     *)
 	echo "unknown error, maybe user break: $errno $errcode"
@@ -600,159 +701,144 @@ fail() {
 #
 
 init_fs_image() { # filename size_in_kbytes
+    local imgname imgsize
+
+    log "init_fs_image() $1 $2"
     imgname=$1 ; imgsize=$2
     dd if=/dev/zero of=${imgname} count=${imgsize} bs=1k 2> /dev/null
-    dd if=${boot1}  of=${imgname} conv=notrunc 2> /dev/null
+    dd if=${c_boot1}  of=${imgname} conv=notrunc 2> /dev/null
 
-    if [ "${VN}" = "vn" ] ; then
-	vnconfig -c -s labels ${VNDEV} ${imgname} || fail $? no_vnconfig
+    if [ "${l_vn}" = "vn" ] ; then
+	vnconfig -c -s labels ${l_vndev} ${imgname} || fail $? no_vnconfig
     else
-	mdconfig -a -t vnode -u ${VNUM} -f ${imgname} || fail $? no_vnconfig
+	mdconfig -a -t vnode -u ${l_vnum} -f ${imgname} || fail $? no_vnconfig
     fi
 }
 
 
 fill_floppy_image() {
-    log "---> Preparing ${FLOPPY_SIZE}kB floppy filesystem..."
+    local blocks sectors dst
+
+    log "fill_floppy_image()"
+    dst=${c_mnt}	# where to create the image
+
+    log "Preparing ${fd_size}kB floppy filesystem..."
 
     # correct block and number of sectors according to size.
-    blocks=${FLOPPY_SIZE}; sectors=18
+    blocks=${fd_size}; sectors=18
     if [ "${blocks}" = "1720" ]; then
 	blocks=1722 ; sectors=21
     elif [ "${blocks}" = "1480" ]; then
 	blocks=1476 ;
     fi
 
-    init_fs_image ${BUILDDIR}/picobsd.bin ${blocks}
+    init_fs_image ${BUILDDIR}/${c_img} ${blocks}
 
-    log "---> Labeling floppy image"
+    log "Labeling floppy image"
     b2=${BUILDDIR}/boot2 # modified boot2
-    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${boot2} > ${b2}
-    disklabel -Brw -b ${boot1} -s ${b2} ${VNDEV} fd${FLOPPY_SIZE} || \
+    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${c_boot2} > ${b2}
+    disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} fd${fd_size} || \
 	fail $?  floppy_disklabel
 
-    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/${VNDEV}c > /dev/null
+    log "Newfs floppy image"
+    newfs -i ${fd_inodes} -m 0 -p 0 -o space /dev/${l_vndev}c > /dev/null
 
-    mount /dev/${VNDEV}c ${MFS_MOUNTPOINT}
+    log "Mounting floppy image"
+    mount /dev/${l_vndev}c ${dst}
 
-    # preload kernel, compress with kgzip and copy to floppy image
     (
     cd ${BUILDDIR}
     cc -o wmk ${PICO_TREE}/../write_mfs_in_kernel.c
-    ./wmk kernel ${MFS_NAME}
+    log "Preload kernel with file ${c_fs}"
+    ./wmk kernel ${c_fs}
     rm wmk
+    log "Compress with kgzip and copy to floppy image"
     kgzip -o kernel.gz kernel
-    cp -p kernel.gz ${MFS_MOUNTPOINT}/kernel
+    cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
 
+    log "now transfer floppy tree if needed"
     # now transfer the floppy tree. If it is already in mfs, dont bother.
-    if [ "${INCLUDE_FLOPPY_IN_MFS}" != "yes" ]; then
-	cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
+    if [ "${o_all_in_mfs}" != "yes" ] ; then
+	cp -Rp floppy.tree/* ${dst} || \
+		fail $? no_space "copying floppy tree"
     fi
     )
-    (log "---> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root *)
+    (log "Fixing permissions"; cd ${dst}; chown -R root *)
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
 
-    df -ik ${MFS_MOUNTPOINT} | colrm 70 > .build.reply
+    df -ik ${dst} | colrm 70 > .build.reply
     free_vnode
-    rm -rf ${MFS_MOUNTPOINT}
-    rm ${BUILDDIR}/kernel.gz ${BUILDDIR}/${MFS_NAME}
+    rm -rf ${dst}
+    rm ${BUILDDIR}/kernel.gz ${BUILDDIR}/${c_fs}
 }
 
-#
-# this code creates variables to point to the correct
-# source tree, and optionally initializes it.
-init_src_tree() {
-    if [ "${src}" = "" ] ; then
-	return
-    fi
-    SRC=${src}
-    log "using src tree in ${SRC}, init ${init_src}"
-    if [ "${init_src}" != "" ] ; then
-	# Optionally creates include directory and libraries.
-	mkdir -p ${SRC}/usr/include	# the include directory...
-	mkdir -p ${SRC}/usr/share/misc	# a few things go here
-	mkdir -p ${SRC}/usr/lib		# libraries
+# This function creates variables which depend on the source tree in use:
+# SRC, l_usrtree, l_objtree LIBS, CFLAGS
+# Optionally creates libraries, includes and the like (for cross compiles,
+# needs to be done once).
 
-	(cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${SRC} \
-		make includes ) || fail $? includes
-	# libraries already have the include path in the Makefile
-	CFLAGS="-nostdinc" ; export CFLAGS
-
-	(cd ${SRC}
-	    # $e is the invocation of make with correct environment
-	    e="MAKEOBJDIRPREFIX=${SRC}/usr/obj-pico/picobsd/libraries \
-		INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${SRC} \
-		make -DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
-	    # need to 'make obj' in a few places. This is very
-	    # version-specific... The following works for 5.0
-	    for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
-		    gnu/usr.bin/perl usr.bin/lex  ; do
-		(cd ${i}; eval $e obj)
-	    done
-	    # now make the static libraries
-	    eval $e -DNOPROFILE -DNOPIC libraries
-	) || fail $? "libraries"
-	log "libraries done"
+set_build_parameters() {
+    log "set_build_parameters() SRC is ${SRC}"
+    if [ "${SRC}" = "/usr/src" ] ; then
+	l_usrtree=${USR:-/usr}
+    else
+	l_usrtree=${USR:-${SRC}/../usr}
     fi
-    # pass the right LIBS and CFLAGS to the Makefile,
+    l_objtree=${l_usrtree}/obj-pico
+    PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
+
+    if [ "${o_init_src}" != "" ] ; then
+	create_includes_and_libraries
+    fi
+    # Create the right LIBS and CFLAGS for further builds.
     # and build the config program
-    LIBS="-L${SRC}/usr/lib"
-    CFLAGS="-nostdinc -I${SRC}/usr/include"
+    LIBS="-L${l_usrtree}/lib"
+    CFLAGS="-nostdinc -I${l_usrtree}/include"
     export LIBS CFLAGS
-    (cd ${SRC}/usr.sbin/config ; CFLAGS="" make )
-    CONFIG=${SRC}/usr.sbin/config/config
-}
-
-# set some default values for variables.
-# needs to be done as the first thing in the script.
-
-default_vars() {
-    verbose=""
-    TAR_VERBOSE=""
-    CONFIG=config
-    src=""		# not set by user
-    init_src=""
-    # select the right memory disk name
-    case `uname -r` in
-	5.*)
-	    VN="md"
-	    MAKEDEV="${SRC}/etc/MAKEDEV"
-	    ;;
-	*)
-	    VN="vn"
-	    MAKEDEV="/dev/MAKEDEV"
-    esac
+    CONFIG=${l_usrtree}/sbin/config
 }
 
 #-------------------------------------------------------------------
-# Main entry of the script
-default_vars
+# Main entry of the script. Initialize variables, parse command line
+# arguments.
+
+set_defaults
 while [ true ]; do
     case $1 in
     --src)	# set the source path instead of /usr/src
-	src=$2
+	SRC=$2
 	shift
-	if [ "$2" = "--init" ] ; then
-	    init_src=$2
-	    shift
-	fi
+	;;
+    --init)
+	o_init_src="YES"
 	;;
 
     --floppy_size)
-	FLOPPY_SIZE=$2
+	fd_size=$2
 	shift
 	;;
+
+    --all_in_mfs)
+	o_all_in_mfs="yes"
+	;;
+
+    --no_all_in_mfs)
+	o_all_in_mfs=""
+	;;
+
     -n)
-	interactive="NO"
+	o_interactive="NO"
 	;;
-    -c*) # clean
-	clean="YES"
-	interactive="NO"
+
+    -clear|-clean|-c) # clean
+	o_clean="YES"
+	o_interactive="NO"
 	;;
-    -v)
-	verbose="YES"
-	TAR_VERBOSE="v"
-	makeopts="-d l" # be verbose
+
+    -v) # need -v -v to wait for user input
+	o_verbose=$((${o_verbose}+1))	# verbose level
+	o_tarv="v"			# tar verbose flag
+	o_makeopts="-d l" # be verbose
 	;;
     *)
 	break ;
@@ -761,22 +847,18 @@ while [ true ]; do
     esac
     shift
 done
-init_src_tree	# possibly a nop. Needs to be done before init_vars
-init_vars	# set other variables depending on cmdline args.
-
-THETYPE=$1
-SITE=$2
-set_type $THETYPE
+set_build_parameters	# things that depend on ${SRC}
+set_type $1 $2		# type and site, respectively
 
 # If $1="package", it creates a neat set of floppies
 
 if [ "$1" = "package" ] ; then
     build_package
 fi
-if [ "$interactive" != "NO" ] ; then
+if [ "${o_interactive}" != "NO" ] ; then
     main_dialog
 fi
-if [ "$clean" = "YES" ] ; then
+if [ "${o_clean}" = "YES" ] ; then
     clean_tree
 else
     build_image
