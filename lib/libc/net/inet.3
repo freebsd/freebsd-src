@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)inet.3	8.1 (Berkeley) 6/4/93
+.\"     From: @(#)inet.3	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
-.Dd June 4, 1993
+.Dd June 17, 1996
 .Dt INET 3
 .Os BSD 4.2
 .Sh NAME
@@ -159,6 +160,18 @@ may be decimal, octal, or hexadecimal, as specified
 in the C language (i.e., a leading 0x or 0X implies
 hexadecimal; otherwise, a leading 0 implies octal;
 otherwise, the number is interpreted as decimal).
+.Pp
+The
+.Fn inet_aton
+and
+.Fn inet_ntoa
+functions are semi-deprecated in favor of the
+.Xr addr2ascii 3
+family.  However, since those functions are not yet widely implemented,
+portable programs cannot rely on their presence and will continue
+to use the
+.Xr inet 3
+functions for some time.
 .Sh DIAGNOSTICS
 The constant
 .Dv INADDR_NONE
@@ -168,6 +181,7 @@ and
 .Fn inet_network
 for malformed requests.
 .Sh SEE ALSO
+.Xr addr2ascii 3 ,
 .Xr gethostbyname 3 ,
 .Xr getnetent 3 ,
 .Xr hosts 5 ,
