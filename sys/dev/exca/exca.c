@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2002 M Warner Losh.  All rights reserved.
+/*-
+ * Copyright (c) 2002-2005 M Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -180,9 +180,12 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 {
 	struct mem_map_index_st *map;
 	struct pccard_mem_handle *mem;
+	uint32_t offset;
 	
 	map = &mem_map_index[win];
 	mem = &sc->mem[win];
+	offset = ((mem->cardaddr >> EXCA_CARDMEM_ADDRX_SHIFT) -
+	  (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT)) & 0x3fff;
 	exca_putb(sc, map->sysmem_start_lsb,
 	    (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
 	exca_putb(sc, map->sysmem_start_msb,
@@ -201,10 +204,8 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	exca_putb(sc, map->sysmem_win,
 	    (mem->addr >> EXCA_MEMREG_WIN_SHIFT) & 0xff);
 
-	exca_putb(sc, map->cardmem_lsb,
-	    (mem->cardaddr >> EXCA_CARDMEM_ADDRX_SHIFT) & 0xff);
-	exca_putb(sc, map->cardmem_msb,
-	    ((mem->cardaddr >> (EXCA_CARDMEM_ADDRX_SHIFT + 8)) &
+	exca_putb(sc, map->cardmem_lsb, offset & 0xff);
+	exca_putb(sc, map->cardmem_msb, (((offset >> 8) & 0xff) &
 	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) |
 	    ((mem->kind == PCCARD_A_MEM_ATTR) ?
 	    EXCA_CARDMEM_ADDRX_MSB_REGACTIVE_ATTR : 0));
