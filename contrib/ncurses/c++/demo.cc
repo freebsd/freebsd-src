@@ -6,7 +6,7 @@
  *   Demo code for NCursesMenu and NCursesForm written by
  *   Juergen Pfeifer <juergen.pfeifer@gmx.net>
  *
- * $Id: demo.cc,v 1.20 2001/01/28 02:26:27 tom Exp $
+ * $Id: demo.cc,v 1.21 2001/07/15 01:15:26 tom Exp $
  */
 
 #include "cursesapp.h"
@@ -19,7 +19,7 @@
 
 extern "C" unsigned int sleep(unsigned int);
 
-#undef index	// needed for NeXT
+#undef index // needed for NeXT
 
 //
 // -------------------------------------------------------------------------
@@ -140,7 +140,7 @@ template<class T> class MyAction : public NCursesUserItem<T>
 {
 public:
   MyAction (const char* p_name,
-	    const T* p_UserData)
+            const T* p_UserData)
     : NCursesUserItem<T>(p_name, (const char*)0, p_UserData)
   {};
 
@@ -170,7 +170,7 @@ class Label : public NCursesFormField
 {
 public:
   Label(const char* title,
-	int row, int col)
+        int row, int col)
     : NCursesFormField(1,(int)::strlen(title),row,col) {
       set_value(title);
       options_off(O_EDIT|O_ACTIVE);
@@ -293,18 +293,18 @@ public:
 
     for (int i=0; i < PADSIZE; i++) {
       for (int j=0; j < PADSIZE; j++) {
-	if (i % GRIDSIZE == 0 && j % GRIDSIZE == 0) {
-	  if (i==0 || j==0)
-	    FP.addch('+');
-	  else
-	    FP.addch((chtype)('A' + (gridcount++ % 26)));
-	}
-	else if (i % GRIDSIZE == 0)
-	  FP.addch('-');
-	else if (j % GRIDSIZE == 0)
-	  FP.addch('|');
-	else
-	  FP.addch(' ');
+        if (i % GRIDSIZE == 0 && j % GRIDSIZE == 0) {
+          if (i==0 || j==0)
+            FP.addch('+');
+          else
+            FP.addch((chtype)('A' + (gridcount++ % 26)));
+        }
+        else if (i % GRIDSIZE == 0)
+          FP.addch('-');
+        else if (j % GRIDSIZE == 0)
+          FP.addch('|');
+        else
+          FP.addch(' ');
       }
     }
 
@@ -324,6 +324,49 @@ public:
     options_off(O_SELECTABLE);
   }
 };
+
+//
+// -------------------------------------------------------------------------
+//
+class ScanAction : public NCursesMenuItem
+{
+public:
+  ScanAction(const char* s) : NCursesMenuItem(s) {
+  }
+
+  bool action() {
+    NCursesPanel *std = new NCursesPanel();
+
+    NCursesPanel *w = new NCursesPanel(std->lines() - 2, std->cols() - 2, 1, 1);
+    w->box();
+    w->refresh();
+
+    NCursesPanel *s = new NCursesPanel(w->lines() - 6, w->cols() - 6, 3, 3);
+    s->scrollok(TRUE);
+    ::echo();
+
+    s->printw("Enter decimal integers.  The running total will be shown\n");
+    int value = -1;
+    int result = 0;
+    while (value != 0) {
+      value = 0;
+      s->scanw("%d", &value);
+      if (value != 0) {
+        s->printw("%d: ", result += value);
+      }
+      s->refresh();
+    }
+    s->printw("\nPress any key to continue...");
+    s->getch();
+
+    delete s;
+    delete w;
+    delete std;
+    ::noecho();
+    return FALSE;
+  }
+};
+
 //
 // -------------------------------------------------------------------------
 //
@@ -346,7 +389,7 @@ public:
     I[2] = new MyAction<UserData> ("Silly", u);
     I[3] = new FormAction("Form");
     I[4] = new PadAction("Pad");
-    I[5] = new PassiveItem("Six");
+    I[5] = new ScanAction("Scan");
     I[6] = new QuitItem();
     I[7] = new NCursesMenuItem(); // Terminating empty item
 

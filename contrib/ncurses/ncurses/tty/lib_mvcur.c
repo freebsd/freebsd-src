@@ -152,7 +152,7 @@
 #include <term.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.78 2001/04/14 22:26:14 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.85 2001/06/03 01:48:29 skimo Exp $")
 
 #define CURRENT_ROW	SP->_cursrow	/* phys cursor row */
 #define CURRENT_COLUMN	SP->_curscol	/* phys cursor column */
@@ -207,8 +207,7 @@ trace_normalized_cost(const char *capname, const char *cap, int affcnt)
 #endif
 
 NCURSES_EXPORT(int)
-_nc_msec_cost
-(const char *const cap, int affcnt)
+_nc_msec_cost(const char *const cap, int affcnt)
 /* compute the cost of a given operation */
 {
     if (cap == 0)
@@ -223,11 +222,11 @@ _nc_msec_cost
 		float number = 0.0;
 
 		for (cp += 2; *cp != '>'; cp++) {
-		    if (isdigit(CharOf(*cp)))
+		    if (isdigit(UChar(*cp)))
 			number = number * 10 + (*cp - '0');
 		    else if (*cp == '*')
 			number *= affcnt;
-		    else if (*cp == '.' && (*++cp != '>') && isdigit(CharOf(*cp)))
+		    else if (*cp == '.' && (*++cp != '>') && isdigit(UChar(*cp)))
 			number += (*cp - '0') / 10.0;
 		}
 
@@ -499,7 +498,9 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 		vcost = SP->_cud_cost;
 	    }
 
-	    if (cursor_down && (n * SP->_cud1_cost < vcost)) {
+	    if (cursor_down
+		&& (*cursor_down != '\n' || SP->_nl)
+		&& (n * SP->_cud1_cost < vcost)) {
 		vcost = repeated_append(_nc_str_copy(target, &save), 0,
 					SP->_cud1_cost, n, cursor_down);
 	    }
@@ -584,7 +585,7 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 		    && n < (int) check.s_size
 		    && vcost == 0
 		    && str[0] == '\0'
-		    && isdigit(TextOf(WANT_CHAR(to_y, from_x))))
+		    && isdigit(CharOf(WANT_CHAR(to_y, from_x))))
 		    ovw = FALSE;
 #endif
 		/*
@@ -599,11 +600,10 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 		    int i;
 
 		    for (i = 0; i < n; i++) {
-			chtype ch = WANT_CHAR(to_y, from_x + i);
-			if ((ch & A_ATTRIBUTES) != CURRENT_ATTR
+			NCURSES_CH_T ch = WANT_CHAR(to_y, from_x + i);
+			if (AttrOf(ch) != CURRENT_ATTR
 #if USE_WIDEC_SUPPORT
-			    || (TextOf(ch) >= 0x80
-				&& SP->_outch == _nc_utf8_outch)
+			    || !Charable(ch)
 #endif
 			    ) {
 			    ovw = FALSE;
@@ -615,7 +615,7 @@ relative_move(string_desc * target, int from_y, int from_x, int to_y, int
 		    int i;
 
 		    for (i = 0; i < n; i++)
-			*check.s_tail++ = WANT_CHAR(to_y, from_x + i);
+			*check.s_tail++ = CharOf(WANT_CHAR(to_y, from_x + i));
 		    *check.s_tail = '\0';
 		    check.s_size -= n;
 		    lhcost += n * SP->_char_padding;
@@ -837,14 +837,17 @@ onscreen_mvcur(int yold, int xold, int ynew, int xnew, bool ovw)
 }
 
 NCURSES_EXPORT(int)
-mvcur
-(int yold, int xold, int ynew, int xnew)
+mvcur(int yold, int xold, int ynew, int xnew)
 /* optimized cursor move from (yold, xold) to (ynew, xnew) */
 {
-    TR(TRACE_MOVE, ("mvcur(%d,%d,%d,%d) called", yold, xold, ynew, xnew));
+    TR(TRACE_CALLS | TRACE_MOVE, (T_CALLED("mvcur(%d,%d,%d,%d)"),
+				  yold, xold, ynew, xnew));
+
+    if (SP == 0)
+	returnCode(ERR);
 
     if (yold == ynew && xold == xnew)
-	return (OK);
+	returnCode(OK);
 
     /*
      * Most work here is rounding for terminal boundaries getting the
@@ -859,26 +862,35 @@ mvcur
     if (xold >= screen_columns) {
 	int l;
 
-	l = (xold + 1) / screen_columns;
-	yold += l;
-	if (yold >= screen_lines)
-	    l -= (yold - screen_lines - 1);
+	if (SP->_nl) {
+	    l = (xold + 1) / screen_columns;
+	    yold += l;
+	    if (yold >= screen_lines)
+		l -= (yold - screen_lines - 1);
 
-	while (l > 0) {
-	    if (newline) {
-		TPUTS_TRACE("newline");
-		tputs(newline, 0, _nc_outch);
-	    } else
-		putchar('\n');
-	    l--;
-	    if (xold > 0) {
-		if (carriage_return) {
-		    TPUTS_TRACE("carriage_return");
-		    tputs(carriage_return, 0, _nc_outch);
+	    while (l > 0) {
+		if (newline) {
+		    TPUTS_TRACE("newline");
+		    tputs(newline, 0, _nc_outch);
 		} else
-		    putchar('\r');
-		xold = 0;
+		    putchar('\n');
+		l--;
+		if (xold > 0) {
+		    if (carriage_return) {
+			TPUTS_TRACE("carriage_return");
+			tputs(carriage_return, 0, _nc_outch);
+		    } else
+			putchar('\r');
+		    xold = 0;
+		}
 	    }
+	} else {
+	    /*
+	     * If caller set nonl(), we cannot really use newlines to position
+	     * to the next row.
+	     */
+	    xold = -1;
+	    yold = -1;
 	}
     }
 
@@ -888,11 +900,12 @@ mvcur
 	ynew = screen_lines - 1;
 
     /* destination location is on screen now */
-    return (onscreen_mvcur(yold, xold, ynew, xnew, TRUE));
+    returnCode(onscreen_mvcur(yold, xold, ynew, xnew, TRUE));
 }
 
 #if defined(TRACE) || defined(NCURSES_TEST)
-NCURSES_EXPORT_VAR(int) _nc_optimize_enable = OPTIMIZE_ALL;
+NCURSES_EXPORT_VAR(int)
+_nc_optimize_enable = OPTIMIZE_ALL;
 #endif
 
 #if defined(MAIN) || defined(NCURSES_TEST)
@@ -912,8 +925,7 @@ _nc_progname = "mvcur";
 
 /* these override lib_tputs.c */
 NCURSES_EXPORT(int)
-tputs
-(const char *string, int affcnt GCC_UNUSED, int (*outc) (int) GCC_UNUSED)
+tputs(const char *string, int affcnt GCC_UNUSED, int (*outc) (int) GCC_UNUSED)
 /* stub tputs() that dumps sequences in a visible form */
 {
     if (profiling)
@@ -938,8 +950,7 @@ _nc_outch(int ch)
 
 NCURSES_EXPORT_VAR(char) PC = 0;	/* used by termcap library */
 NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;	/* used by termcap library */
-NCURSES_EXPORT_VAR(int)
-_nc_nulls_sent = 0;		/* used by 'tack' program */
+NCURSES_EXPORT_VAR(int) _nc_nulls_sent = 0;	/* used by 'tack' program */
 
 NCURSES_EXPORT(int)
 delay_output(int ms GCC_UNUSED)

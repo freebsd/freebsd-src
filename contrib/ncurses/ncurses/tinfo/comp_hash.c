@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #define DEBUG(level, params)	/*nothing */
 #endif
 
-MODULE_ID("$Id: comp_hash.c,v 1.24 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.25 2001/06/02 22:50:42 skimo Exp $")
 
 static int hash_function(const char *);
 
@@ -201,7 +201,7 @@ parse_columns(char *buffer)
     if (*buffer != '#') {
 	while (*buffer != '\0') {
 	    char *s;
-	    for (s = buffer; (*s != '\0') && !isspace(CharOf(*s)); s++)
+	    for (s = buffer; (*s != '\0') && !isspace(UChar(*s)); s++)
 		/*EMPTY */ ;
 	    if (s != buffer) {
 		char mark = *s;
@@ -216,7 +216,7 @@ parse_columns(char *buffer)
 		col++;
 		if (mark == '\0')
 		    break;
-		while (*++s && isspace(CharOf(*s)))
+		while (*++s && isspace(UChar(*s)))
 		    /*EMPTY */ ;
 		buffer = s;
 	    } else

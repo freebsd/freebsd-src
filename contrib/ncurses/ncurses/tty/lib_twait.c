@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,11 +40,13 @@
 **	comments, none of the original code remains - T.Dickey).
 */
 
+#include <curses.priv.h>
+
 #ifdef __BEOS__
+#undef false
+#undef true
 #include <OS.h>
 #endif
-
-#include <curses.priv.h>
 
 #if USE_FUNC_POLL
 # if HAVE_SYS_TIME_H
@@ -59,7 +61,7 @@
 # endif
 #endif
 
-MODULE_ID("$Id: lib_twait.c,v 1.41 2000/12/10 03:04:30 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.44 2002/04/21 21:06:29 tom Exp $")
 
 static long
 _nc_gettime(bool first)
@@ -85,7 +87,7 @@ _nc_gettime(bool first)
     }
     res = (t1 - t0) * 1000;
 #endif
-    T(("%s time: %ld msec", first ? "get" : "elapsed", res));
+    TR(TRACE_IEVENT, ("%s time: %ld msec", first ? "get" : "elapsed", res));
     return res;
 }
 
@@ -103,8 +105,7 @@ _nc_gettime(bool first)
  * descriptors.
  */
 NCURSES_EXPORT(int)
-_nc_timed_wait
-(int mode, int milliseconds, int *timeleft)
+_nc_timed_wait(int mode, int milliseconds, int *timeleft)
 {
     int fd;
     int count;
@@ -120,7 +121,10 @@ _nc_timed_wait
 
     long starttime, returntime;
 
-    T(("start twait: %d milliseconds, mode: %d", milliseconds, mode));
+    if (milliseconds < 0)
+	milliseconds = 0;
+    TR(TRACE_IEVENT, ("start twait: %d milliseconds, mode: %d",
+		      milliseconds, mode));
 
 #if PRECISE_GETTIME
   retry:
@@ -228,8 +232,8 @@ _nc_timed_wait
     if (timeleft)
 	*timeleft = milliseconds;
 
-    T(("end twait: returned %d (%d), remaining time %d msec",
-       result, errno, milliseconds));
+    TR(TRACE_IEVENT, ("end twait: returned %d (%d), remaining time %d msec",
+		      result, errno, milliseconds));
 
     /*
      * Both 'poll()' and 'select()' return the number of file descriptors

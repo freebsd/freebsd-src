@@ -332,7 +332,7 @@ extern NCURSES_EXPORT(Field_Options)	field_opts (const FIELD *);
 
 extern NCURSES_EXPORT(FORM *)	new_form (FIELD **);
 
-extern NCURSES_EXPORT(FIELD **)form_fields (const FORM *);
+extern NCURSES_EXPORT(FIELD **)	form_fields (const FORM *);
 extern NCURSES_EXPORT(FIELD *)	current_field (const FORM *);
 
 extern NCURSES_EXPORT(WINDOW *)	form_win (const FORM *);

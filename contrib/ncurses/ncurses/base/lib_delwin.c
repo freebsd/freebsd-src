@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_delwin.c,v 1.12 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_delwin.c,v 1.13 2001/08/26 00:40:20 tom Exp $")
 
 static bool
 cannot_delete(WINDOW *win)
@@ -49,10 +49,10 @@ cannot_delete(WINDOW *win)
     bool result = TRUE;
 
     for (p = _nc_windows; p != 0; p = p->next) {
-	if (p->win == win) {
+	if (&(p->win) == win) {
 	    result = FALSE;
-	} else if ((p->win->_flags & _SUBWIN) != 0
-		   && p->win->_parent == win) {
+	} else if ((p->win._flags & _SUBWIN) != 0
+		   && p->win._parent == win) {
 	    result = TRUE;
 	    break;
 	}

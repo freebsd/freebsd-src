@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_fieldtype.3x,v 1.8 2000/07/15 22:02:03 tom Exp $
+.\" $Id: form_fieldtype.3x,v 1.9 2001/08/04 20:36:25 William.Setzer Exp $
 .TH form_fieldtype 3X ""
 .SH NAME
 \fBform_fieldtype\fR - define validation-field types
@@ -47,7 +47,7 @@ int set_fieldtype_arg(
     void  (* const free_arg)(void *));
 .br
 int set_fieldtype_choice(
-    FIELDTYPE *fieldtype
+    FIELDTYPE *fieldtype,
     bool (* const next_choice)(FIELD *, const void *),
     bool (* const prev_choice)(FIELD *, const void *));
 .br

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,20 +28,17 @@
 .\"
 .\" Author: Thomas E. Dickey <dickey@clark.net> 1997,1999,2000
 .\"
-.\" $Id: default_colors.3x,v 1.13 2000/07/15 22:06:50 tom Exp $
+.\" $Id: default_colors.3x,v 1.16 2002/02/16 22:39:52 tom Exp $
 .TH default_colors 3X ""
 .SH NAME
-\fBdefault_colors\fR:
 \fBuse_default_colors\fR,
 \fBassume_default_colors\fR \- use terminal's default colors
-..
 .SH SYNOPSIS
 \fB#include <curses.h>\fP
 
 \fBint use_default_colors(void);\fP
 .br
 \fBint assume_default_colors(int fg, int bg);\fP
-..
 .SH DESCRIPTION
 The
 .I use_default_colors()
@@ -100,28 +97,23 @@ or
 .I assume_default_colors()
 ncurses will paint a white foreground (text) with black background
 for color pair 0.
-..
 .SH RETURN VALUE
 These functions return the integer \fBERR\fP upon failure and \fBOK\fP on success.
 They will fail if either the terminal does not support
 the \fIorig_pair\fP or \fIorig_colors\fP capability.
 If the \fIinitialize_pair\fP capability is found, this causes an
 error as well.
-..
 .SH NOTES
 Associated with this extension, the \fBinit_pair\fR(3X) function accepts
 negative arguments to specify default foreground or background
 colors.
-..
 .SH PORTABILITY
 These routines are specific to ncurses.  They were not supported on
 Version 7, BSD or System V implementations.  It is recommended that
 any code depending on them be conditioned using NCURSES_VERSION.
-..
 .SH SEE ALSO
 \fBcurs_color\fR(3X),
 \fBded\fP(1).
-..
 .SH AUTHOR
 Thomas Dickey (from an analysis of the requirements for color xterm
 for XFree86 3.1.2C, February 1996).

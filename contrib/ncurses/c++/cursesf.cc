@@ -35,7 +35,7 @@
 #include "cursesf.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.13 2001/03/24 20:03:51 tom Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.14 2001/07/14 20:54:43 juergen Exp $")
 
 NCursesFormField::~NCursesFormField () {
   if (field)
@@ -267,7 +267,7 @@ NCursesForm::operator()(void) {
   show();
   refresh();
 
-  while (((drvCmnd = virtualize((c=getch()))) != CMD_QUIT)) {
+  while (((drvCmnd = virtualize((c=getKey()))) != CMD_QUIT)) {
     switch((err=driver(drvCmnd))) {
     case E_REQUEST_DENIED:
       On_Request_Denied(c);

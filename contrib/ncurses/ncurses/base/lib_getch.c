@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,15 +40,15 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.54 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.60 2002/03/17 00:46:01 tom Exp $")
 
 #include <fifo_defs.h>
 
 NCURSES_EXPORT_VAR(int)
 ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
 
-     static inline int
-       fifo_peek(void)
+static inline int
+fifo_peek(void)
 {
     int ch = SP->_fifo[peek];
     TR(TRACE_IEVENT, ("peeking at %d", peek));
@@ -62,7 +62,7 @@ fifo_pull(void)
 {
     int ch;
     ch = SP->_fifo[head];
-    TR(TRACE_IEVENT, ("pulling %d from %d", ch, head));
+    TR(TRACE_IEVENT, ("pulling %s from %d", _tracechar(ch), head));
 
     if (peek == head) {
 	h_inc();
@@ -102,7 +102,7 @@ fifo_push(void)
     {
 	unsigned char c2 = 0;
 	n = read(SP->_ifd, &c2, 1);
-	ch = CharOf(c2);
+	ch = c2;
     }
 
 #ifdef HIDE_EINTR
@@ -130,7 +130,7 @@ fifo_push(void)
     if (head == -1)
 	head = peek = tail;
     t_inc();
-    TR(TRACE_IEVENT, ("pushed %#x at %d", ch, tail));
+    TR(TRACE_IEVENT, ("pushed %s at %d", _tracechar(ch), tail));
 #ifdef TRACE
     if (_nc_tracing & TRACE_IEVENT)
 	_nc_fifo_dump();
@@ -141,26 +141,25 @@ fifo_push(void)
 static inline void
 fifo_clear(void)
 {
-    int i;
-    for (i = 0; i < FIFO_SIZE; i++)
-	SP->_fifo[i] = 0;
+    memset(SP->_fifo, 0, sizeof(SP->_fifo));
     head = -1;
     tail = peek = 0;
 }
 
-static int kgetch(WINDOW *);
+static int kgetch(void);
 
 #define wgetch_should_refresh(win) (\
 	(is_wintouched(win) || (win->_flags & _HASMOVED)) \
 	&& !(win->_flags & _ISPAD))
 
 NCURSES_EXPORT(int)
-wgetch(WINDOW *win)
+_nc_wgetch(WINDOW *win, unsigned long *result, int use_meta)
 {
     int ch;
 
     T((T_CALLED("wgetch(%p)"), win));
 
+    *result = 0;
     if (!win)
 	returnCode(ERR);
 
@@ -168,9 +167,8 @@ wgetch(WINDOW *win)
 	if (wgetch_should_refresh(win))
 	    wrefresh(win);
 
-	ch = fifo_pull();
-	T(("wgetch returning (pre-cooked): %#x = %s", ch, _trace_key(ch)));
-	returnCode(ch);
+	*result = fifo_pull();
+	returnCode(OK);
     }
 
     /*
@@ -190,8 +188,12 @@ wgetch(WINDOW *win)
 	for (sp = buf + strlen(buf); sp > buf; sp--)
 	    ungetch(sp[-1]);
 
-	returnCode(fifo_pull());
+	*result = fifo_pull();
+	returnCode(OK);
     }
+
+    if (win->_use_keypad != SP->_keypad_on)
+	_nc_keypad(win->_use_keypad);
 
     if (wgetch_should_refresh(win))
 	wrefresh(win);
@@ -228,12 +230,14 @@ wgetch(WINDOW *win)
 	int runcount = 0;
 
 	do {
-	    ch = kgetch(win);
+	    ch = kgetch();
 	    if (ch == KEY_MOUSE) {
 		++runcount;
 		if (SP->_mouse_inline(SP))
 		    break;
 	    }
+	    if (SP->_maxclick < 0)
+		break;
 	} while
 	    (ch == KEY_MOUSE
 	     && (_nc_timed_wait(3, SP->_maxclick, (int *) 0)
@@ -255,13 +259,11 @@ wgetch(WINDOW *win)
 	    _nc_update_screensize();
 	    /* resizeterm can push KEY_RESIZE */
 	    if (cooked_key_in_fifo()) {
-		ch = fifo_pull();
-		T(("wgetch returning (pre-cooked): %#x = %s", ch, _trace_key(ch)));
-		returnCode(ch);
+		*result = fifo_pull();
+		returnCode(OK);
 	    }
 	}
 #endif
-	T(("wgetch returning ERR"));
 	returnCode(ERR);
     }
 
@@ -300,13 +302,27 @@ wgetch(WINDOW *win)
      * that display only 7-bit characters.  Note that 'ch' may be a
      * function key at this point, so we mustn't strip _those_.
      */
-    if ((ch < KEY_MIN) && (ch & 0x80))
-	if (!SP->_use_meta)
+    if (!use_meta)
+	if ((ch < KEY_MIN) && (ch & 0x80))
 	    ch &= 0x7f;
 
-    T(("wgetch returning : %#x = %s", ch, _trace_key(ch)));
+    T(("wgetch returning : %s", _tracechar(ch)));
 
-    returnCode(ch);
+    *result = ch;
+    returnCode(ch >= KEY_MIN ? KEY_CODE_YES : OK);
+}
+
+NCURSES_EXPORT(int)
+wgetch(WINDOW *win)
+{
+    int code;
+    unsigned long value;
+
+    T((T_CALLED("wgetch(%p)"), win));
+    code = _nc_wgetch(win, &value, SP->_use_meta);
+    if (code != ERR)
+	code = value;
+    returnCode(code);
 }
 
 /*
@@ -319,19 +335,19 @@ wgetch(WINDOW *win)
 **      sequence is received by the time the alarm goes off, pass through
 **      the sequence gotten so far.
 **
-**	This function must be called when there is no cooked keys in queue.
+**	This function must be called when there are no cooked keys in queue.
 **	(that is head==-1 || peek==head)
 **
 */
 
 static int
-kgetch(WINDOW *win GCC_UNUSED)
+kgetch(void)
 {
     struct tries *ptr;
     int ch = 0;
     int timeleft = ESCDELAY;
 
-    TR(TRACE_IEVENT, ("kgetch(%p) called", win));
+    TR(TRACE_IEVENT, ("kgetch() called"));
 
     ptr = SP->_keytry;
 
@@ -350,19 +366,16 @@ kgetch(WINDOW *win GCC_UNUSED)
 	    return ch;
 	}
 
-	TR(TRACE_IEVENT, ("ch: %s", _trace_key((unsigned char) ch)));
+	TR(TRACE_IEVENT, ("ch: %s", _tracechar((unsigned char) ch)));
 	while ((ptr != NULL) && (ptr->ch != (unsigned char) ch))
 	    ptr = ptr->sibling;
-#ifdef TRACE
+
 	if (ptr == NULL) {
 	    TR(TRACE_IEVENT, ("ptr is null"));
-	} else
-	    TR(TRACE_IEVENT, ("ptr=%p, ch=%d, value=%d",
-			      ptr, ptr->ch, ptr->value));
-#endif /* TRACE */
-
-	if (ptr == NULL)
 	    break;
+	}
+	TR(TRACE_IEVENT, ("ptr=%p, ch=%d, value=%d",
+			  ptr, ptr->ch, ptr->value));
 
 	if (ptr->value != 0) {	/* sequence terminated */
 	    TR(TRACE_IEVENT, ("end of sequence"));

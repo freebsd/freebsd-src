@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_slkset.c,v 1.6 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_slkset.c,v 1.7 2001/06/02 22:50:29 skimo Exp $")
 
 NCURSES_EXPORT(int)
 slk_set(int i, const char *astr, int format)
@@ -55,10 +55,10 @@ slk_set(int i, const char *astr, int format)
     if (str == NULL)
 	str = "";
 
-    while (isspace(CharOf(*str)))
+    while (isspace(UChar(*str)))
 	str++;			/* skip over leading spaces  */
     p = str;
-    while (isprint(CharOf(*p)))
+    while (isprint(UChar(*p)))
 	p++;			/* The first non-print stops */
 
     --i;			/* Adjust numbering of labels */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,7 +45,7 @@
 #endif
 #include <transform.h>
 
-MODULE_ID("$Id: tput.c,v 1.26 2001/03/24 21:59:48 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.30 2001/07/22 00:16:33 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 #define PUTCHAR(c)	putchar(c)
@@ -132,7 +132,9 @@ tput(int argc, char *argv[])
     int status;
     FILE *f;
 
-    check_aliases(name = argv[0]);
+    if ((name = argv[0]) == 0)
+	name = "";
+    check_aliases(name);
     if (is_reset || is_init) {
 	if (init_prog != 0) {
 	    system(init_prog);
@@ -153,15 +155,21 @@ tput(int argc, char *argv[])
 	}
 	FLUSH;
 
+#ifdef set_lr_margin
 	if (set_lr_margin != 0) {
 	    PUTS(tparm(set_lr_margin, 0, columns - 1));
-	} else if (set_left_margin_parm != 0
-		   && set_right_margin_parm != 0) {
+	} else
+#endif
+#ifdef set_left_margin_parm
+	    if (set_left_margin_parm != 0
+		&& set_right_margin_parm != 0) {
 	    PUTS(tparm(set_left_margin_parm, 0));
 	    PUTS(tparm(set_right_margin_parm, columns - 1));
-	} else if (clear_margins != 0
-		   && set_left_margin != 0
-		   && set_right_margin != 0) {
+	} else
+#endif
+	    if (clear_margins != 0
+		&& set_left_margin != 0
+		&& set_right_margin != 0) {
 	    PUTS(clear_margins);
 	    if (carriage_return != 0) {
 		PUTS(carriage_return);
@@ -321,7 +329,7 @@ main(int argc, char **argv)
     char buf[BUFSIZ];
     int errors = 0;
 
-    check_aliases(prg_name = _nc_basename(argv[0]));
+    check_aliases(prg_name = _nc_rootname(argv[0]));
 
     term = getenv("TERM");
 
@@ -376,14 +384,18 @@ main(int argc, char **argv)
 
 	/* crack the argument list into a dope vector */
 	for (cp = buf; *cp; cp++) {
-	    if (isspace(CharOf(*cp)))
+	    if (isspace(UChar(*cp))) {
 		*cp = '\0';
-	    else if (cp == buf || cp[-1] == 0)
+	    } else if (cp == buf || cp[-1] == 0) {
 		argvec[argnum++] = cp;
+		if (argnum >= (int) SIZEOF(argvec) - 1)
+		    break;
+	    }
 	}
 	argvec[argnum] = 0;
 
-	if (tput(argnum, argvec) != 0)
+	if (argnum != 0
+	    && tput(argnum, argvec) != 0)
 	    errors++;
     }
 

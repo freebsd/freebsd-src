@@ -33,7 +33,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.13 2000/12/10 02:43:28 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.14 2001/07/08 00:58:34 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 
@@ -84,7 +84,7 @@ _nc_printf_length(const char *fmt, va_list ap)
 	    while (*++fmt != '\0' && len >= 0 && !done) {
 		format[f++] = *fmt;
 
-		if (isdigit(*fmt)) {
+		if (isdigit(UChar(*fmt))) {
 		    int num = *fmt - '0';
 		    if (state == Flags && num != 0)
 			state = Width;
@@ -108,7 +108,7 @@ _nc_printf_length(const char *fmt, va_list ap)
 		    }
 		    sprintf(&format[--f], "%d", ival);
 		    f = strlen(format);
-		} else if (isalpha(*fmt)) {
+		} else if (isalpha(UChar(*fmt))) {
 		    done = TRUE;
 		    switch (*fmt) {
 		    case 'Z':	/* FALLTHRU */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,14 +43,14 @@
 #include <dump_entry.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: toe.c,v 1.24 2000/09/09 19:52:35 tom Exp $")
+MODULE_ID("$Id: toe.c,v 1.26 2001/06/16 11:00:41 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
 const char *_nc_progname;
 
 static int typelist(int eargc, char *eargv[], bool,
-    void (*)(const char *, TERMTYPE *));
+		    void (*)(const char *, TERMTYPE *));
 static void deschook(const char *, TERMTYPE *);
 
 #if NO_LEAKS
@@ -65,13 +65,27 @@ ExitProgram(int code) GCC_NORETURN;
 }
 #endif
 
+static bool
+is_a_file(char *path)
+{
+    struct stat sb;
+    return (stat(path, &sb) == 0
+	    && (sb.st_mode & S_IFMT) == S_IFREG);
+}
+
+static bool
+is_a_directory(char *path)
+{
+    struct stat sb;
+    return (stat(path, &sb) == 0
+	    && (sb.st_mode & S_IFMT) == S_IFDIR);
+}
+
 static char *
 get_directory(char *path)
 {
     if (path != 0) {
-	struct stat sb;
-	if (stat(path, &sb) != 0
-	    || (sb.st_mode & S_IFMT) != S_IFDIR
+	if (!is_a_directory(path)
 	    || access(path, R_OK | X_OK) != 0)
 	    path = 0;
     }
@@ -87,7 +101,7 @@ main(int argc, char *argv[])
     int i, c;
     int code;
 
-    _nc_progname = _nc_basename(argv[0]);
+    _nc_progname = _nc_rootname(argv[0]);
 
     while ((c = getopt(argc, argv, "huv:UV")) != EOF)
 	switch (c) {
@@ -153,12 +167,12 @@ main(int argc, char *argv[])
 
 		for (i = 0; i < rp->nuses; i++)
 		    if (_nc_name_match(qp->tterm.term_names,
-			    rp->uses[i].name, "|")) {
+				       rp->uses[i].name, "|")) {
 			if (matchcount++ == 0)
 			    (void) printf("%s:",
-				_nc_first_name(qp->tterm.term_names));
+					  _nc_first_name(qp->tterm.term_names));
 			(void) printf(" %s",
-			    _nc_first_name(rp->tterm.term_names));
+				      _nc_first_name(rp->tterm.term_names));
 		    }
 	    }
 	    if (matchcount)
@@ -214,8 +228,8 @@ deschook(const char *cn, TERMTYPE * tp)
 
 static int
 typelist(int eargc, char *eargv[],
-    bool verbosity,
-    void (*hook) (const char *, TERMTYPE * tp))
+	 bool verbosity,
+	 void (*hook) (const char *, TERMTYPE * tp))
 /* apply a function to each entry in given terminfo directories */
 {
     int i;
@@ -227,8 +241,8 @@ typelist(int eargc, char *eargv[],
 	if ((termdir = opendir(eargv[i])) == 0) {
 	    (void) fflush(stdout);
 	    (void) fprintf(stderr,
-		"%s: can't open terminfo directory %s\n",
-		_nc_progname, eargv[i]);
+			   "%s: can't open terminfo directory %s\n",
+			   _nc_progname, eargv[i]);
 	    return (EXIT_FAILURE);
 	} else if (verbosity)
 	    (void) printf("#\n#%s:\n#\n", eargv[i]);
@@ -245,7 +259,9 @@ typelist(int eargc, char *eargv[],
 		continue;
 
 	    (void) sprintf(buf, "%s/%s/", eargv[i], name_1);
-	    chdir(buf);
+	    if (chdir(buf) != 0)
+		continue;
+
 	    entrydir = opendir(".");
 	    while ((entry = readdir(entrydir)) != 0) {
 		char name_2[PATH_MAX];
@@ -255,15 +271,15 @@ typelist(int eargc, char *eargv[],
 
 		len = NAMLEN(entry);
 		strncpy(name_2, entry->d_name, len)[len] = '\0';
-		if (isDotname(name_2))
+		if (isDotname(name_2) || !is_a_file(name_2))
 		    continue;
 
 		status = _nc_read_file_entry(name_2, &lterm);
 		if (status <= 0) {
 		    (void) fflush(stdout);
 		    (void) fprintf(stderr,
-			"toe: couldn't open terminfo file %s.\n",
-			name_2);
+				   "toe: couldn't open terminfo file %s.\n",
+				   name_2);
 		    return (EXIT_FAILURE);
 		}
 

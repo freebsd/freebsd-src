@@ -219,12 +219,14 @@ libncurses-routines	= \
 			trace/trace_buf \
 			trace/trace_tries \
 			trace/trace_xnames \
+			trace/varargs \
+			trace/visbuf \
 			tty/hardscroll \
 			tty/hashmap \
 			tty/lib_mvcur \
 			tty/lib_tstp \
-			tty/lib_vidattr \
 			tty/lib_twait \
+			tty/lib_vidattr \
 			tty/tty_update \
 			unctrl
 

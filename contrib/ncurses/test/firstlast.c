@@ -2,88 +2,89 @@
  * This test was written by Alexander V. Lukyanov to demonstrate difference
  * between ncurses 4.1 and SVR4 curses
  *
- * $Id: firstlast.c,v 1.2 1997/10/18 21:34:53 tom Exp $
+ * $Id: firstlast.c,v 1.3 2001/09/15 21:46:34 tom Exp $
  */
 
 #include <test.priv.h>
 
-static void fill(WINDOW *w,const char *str)
+static void
+fill(WINDOW *w, const char *str)
 {
-	const char *s;
-	for(;;) {
-		for(s=str; *s; s++) {
-			if(waddch(w,*s)==ERR)
-			{
-				wmove(w,0,0);
-				return;
-			}
-		}
+    const char *s;
+    for (;;) {
+	for (s = str; *s; s++) {
+	    if (waddch(w, *s) == ERR) {
+		wmove(w, 0, 0);
+		return;
+	    }
 	}
+    }
 }
 
-int main(
+int
+main(
 	int argc GCC_UNUSED,
-	char *argv[] GCC_UNUSED)
+	char *argv[]GCC_UNUSED)
 {
-	WINDOW *large,*small;
-	initscr();
-	noecho();
-	
-	large = newwin(20,60,2,10);
-	small = newwin(10,30,7,25);
-	
-	/* test 1 - addch */
-	fill(large,"LargeWindow");
-	
-	refresh();
-	wrefresh(large);
-	wrefresh(small);
+    WINDOW *large, *small;
+    initscr();
+    noecho();
 
-	mvwaddstr(small,5,5,"   Test <place to change> String   ");
-	wrefresh(small);
-	getch();
-	
-	touchwin(large);
-	wrefresh(large);
-	
-	mvwaddstr(small,5,5,"   Test <***************> String   ");
-	wrefresh(small);
+    large = newwin(20, 60, 2, 10);
+    small = newwin(10, 30, 7, 25);
 
-	/* DIFFERENCE! */
-	getch();
+    /* test 1 - addch */
+    fill(large, "LargeWindow");
 
-	/* test 2: erase */
-	erase();
-	refresh();
-	getch();
-	
-	/* test 3: clrtoeol */
-	werase(small);
-	wrefresh(small);
-	touchwin(large);
-	wrefresh(large);
-	wmove(small,5,0);
-	waddstr(small," clrtoeol>");
-	wclrtoeol(small);
-	wrefresh(small);
+    refresh();
+    wrefresh(large);
+    wrefresh(small);
 
-	/* DIFFERENCE! */;
-	getch();
+    mvwaddstr(small, 5, 5, "   Test <place to change> String   ");
+    wrefresh(small);
+    getch();
 
-	/* test 4: clrtobot */
-	werase(small);
-	wrefresh(small);
-	touchwin(large);
-	wrefresh(large);
-	wmove(small,5,3);
-	waddstr(small," clrtobot>");
-	wclrtobot(small);
-	wrefresh(small);
+    touchwin(large);
+    wrefresh(large);
 
-	/* DIFFERENCE! */
-	getch();
+    mvwaddstr(small, 5, 5, "   Test <***************> String   ");
+    wrefresh(small);
 
-	endwin();
+    /* DIFFERENCE! */
+    getch();
 
-	return EXIT_SUCCESS;
+    /* test 2: erase */
+    erase();
+    refresh();
+    getch();
+
+    /* test 3: clrtoeol */
+    werase(small);
+    wrefresh(small);
+    touchwin(large);
+    wrefresh(large);
+    wmove(small, 5, 0);
+    waddstr(small, " clrtoeol>");
+    wclrtoeol(small);
+    wrefresh(small);
+
+    /* DIFFERENCE! */ ;
+    getch();
+
+    /* test 4: clrtobot */
+    werase(small);
+    wrefresh(small);
+    touchwin(large);
+    wrefresh(large);
+    wmove(small, 5, 3);
+    waddstr(small, " clrtobot>");
+    wclrtobot(small);
+    wrefresh(small);
+
+    /* DIFFERENCE! */
+    getch();
+
+    endwin();
+
+    ExitProgram(EXIT_SUCCESS);
 }

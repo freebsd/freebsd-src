@@ -7,29 +7,18 @@
  * v2.0 featuring strict ANSI/POSIX conformance, November 1993.
  * v2.1 with ncurses mouse support, September 1995
  *
- * $Id: bs.c,v 1.29 2001/04/14 22:36:05 Erik.Sigra Exp $
+ * $Id: bs.c,v 1.35 2002/04/06 23:10:12 tom Exp $
  */
 
-#include <test.priv.h>
-
-#include <signal.h>
 #include <ctype.h>
-#include <string.h>
 #include <assert.h>
 #include <time.h>
+
+#include <test.priv.h>
 
 #ifndef SIGIOT
 #define SIGIOT SIGABRT
 #endif
-
-#ifndef A_UNDERLINE		/* BSD curses */
-#define	beep()	write(1,"\007",1);
-#define	cbreak	crmode
-#define	saveterm savetty
-#define	resetterm resetty
-#define	nocbreak nocrmode
-#define strchr	index
-#endif /* !A_UNDERLINE */
 
 static int getcoord(int);
 
@@ -57,7 +46,7 @@ static int getcoord(int);
 /* display symbols */
 #define SHOWHIT		'*'
 #define SHOWSPLASH	' '
-#define IS_SHIP(c)	(isupper(CharOf(c)) ? TRUE : FALSE)
+#define IS_SHIP(c)	(isupper(UChar(c)) ? TRUE : FALSE)
 
 /* how to position us on player board */
 #define PYBASE	3
@@ -122,8 +111,8 @@ typedef struct {
     int hits;			/* how many times has this ship been hit? */
     char symbol;		/* symbol for game purposes */
     int length;			/* length of ship */
-    char x, y;			/* coordinates of ship start point */
-    unsigned char dir;		/* direction of `bow' */
+    int x, y;			/* coordinates of ship start point */
+    int dir;			/* direction of `bow' */
     bool placed;		/* has it been placed on the board? */
 } ship_t;
 
@@ -160,18 +149,17 @@ static int salvo, blitz, closepack;
 
 #define	PR	(void)addstr
 
-static RETSIGTYPE
-uninitgame(int sig) GCC_NORETURN;
+static RETSIGTYPE uninitgame(int sig) GCC_NORETURN;
 
-     static RETSIGTYPE uninitgame(int sig GCC_UNUSED)
+static RETSIGTYPE uninitgame(int sig GCC_UNUSED)
 /* end the game, either normally or due to signal */
 {
     clear();
     (void) refresh();
-    (void) resetterm();
+    (void) reset_shell_mode();
     (void) echo();
     (void) endwin();
-    exit(EXIT_FAILURE);
+    ExitProgram(sig ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 static void
@@ -217,10 +205,8 @@ intro(void)
 	(void) strcpy(name, dftname);
 
     (void) initscr();
-#ifdef KEY_MIN
     keypad(stdscr, TRUE);
-#endif /* KEY_MIN */
-    (void) saveterm();
+    (void) def_prog_mode();
     (void) nonl();
     (void) cbreak();
     (void) noecho();
@@ -549,65 +535,49 @@ getcoord(int atcpu)
 	switch (c = getch()) {
 	case 'k':
 	case '8':
-#ifdef KEY_MIN
 	case KEY_UP:
-#endif /* KEY_MIN */
 	    ny = cury + BDEPTH - 1;
 	    nx = curx;
 	    break;
 	case 'j':
 	case '2':
-#ifdef KEY_MIN
 	case KEY_DOWN:
-#endif /* KEY_MIN */
 	    ny = cury + 1;
 	    nx = curx;
 	    break;
 	case 'h':
 	case '4':
-#ifdef KEY_MIN
 	case KEY_LEFT:
-#endif /* KEY_MIN */
 	    ny = cury;
 	    nx = curx + BWIDTH - 1;
 	    break;
 	case 'l':
 	case '6':
-#ifdef KEY_MIN
 	case KEY_RIGHT:
-#endif /* KEY_MIN */
 	    ny = cury;
 	    nx = curx + 1;
 	    break;
 	case 'y':
 	case '7':
-#ifdef KEY_MIN
 	case KEY_A1:
-#endif /* KEY_MIN */
 	    ny = cury + BDEPTH - 1;
 	    nx = curx + BWIDTH - 1;
 	    break;
 	case 'b':
 	case '1':
-#ifdef KEY_MIN
 	case KEY_C1:
-#endif /* KEY_MIN */
 	    ny = cury + 1;
 	    nx = curx + BWIDTH - 1;
 	    break;
 	case 'u':
 	case '9':
-#ifdef KEY_MIN
 	case KEY_A3:
-#endif /* KEY_MIN */
 	    ny = cury + BDEPTH - 1;
 	    nx = curx + 1;
 	    break;
 	case 'n':
 	case '3':
-#ifdef KEY_MIN
 	case KEY_C3:
-#endif /* KEY_MIN */
 	    ny = cury + 1;
 	    nx = curx + 1;
 	    break;
@@ -943,7 +913,7 @@ randomfire(int *px, int *py)
 	    --srchstep;
     } else {
 	error("No moves possible?? Help!");
-	exit(EXIT_FAILURE);
+	ExitProgram(EXIT_FAILURE);
 	/*NOTREACHED */
     }
 }
@@ -1159,7 +1129,7 @@ do_options(int c, char *op[])
 		(void) fprintf(stderr, "\t-s : play a salvo game\n");
 		(void) fprintf(stderr, "\t-b : play a blitz game\n");
 		(void) fprintf(stderr, "\t-c : ships may be adjacent\n");
-		exit(EXIT_FAILURE);
+		ExitProgram(EXIT_FAILURE);
 		break;
 	    case '-':
 		switch (op[i][1]) {
@@ -1168,7 +1138,7 @@ do_options(int c, char *op[])
 		    if (salvo == 1) {
 			(void) fprintf(stderr,
 				       "Bad Arg: -b and -s are mutually exclusive\n");
-			exit(EXIT_FAILURE);
+			ExitProgram(EXIT_FAILURE);
 		    }
 		    break;
 		case 's':
@@ -1176,7 +1146,7 @@ do_options(int c, char *op[])
 		    if (blitz == 1) {
 			(void) fprintf(stderr,
 				       "Bad Arg: -s and -b are mutually exclusive\n");
-			exit(EXIT_FAILURE);
+			ExitProgram(EXIT_FAILURE);
 		    }
 		    break;
 		case 'c':
@@ -1186,7 +1156,7 @@ do_options(int c, char *op[])
 		    (void) fprintf(stderr,
 				   "Bad arg: type \"%s ?\" for usage message\n",
 				   op[0]);
-		    exit(EXIT_FAILURE);
+		    ExitProgram(EXIT_FAILURE);
 		}
 	    }
 	}

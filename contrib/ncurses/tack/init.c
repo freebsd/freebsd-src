@@ -22,7 +22,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: init.c,v 1.2 2000/05/13 19:58:48 Daniel.Weaver Exp $")
+MODULE_ID("$Id: init.c,v 1.3 2001/06/16 17:54:19 tom Exp $")
 
 #if NCURSES_VERSION_MAJOR >= 5 || NCURSES_VERSION_PATCH >= 981219
 #define _nc_get_curterm(p) _nc_get_tty_mode(p)
@@ -163,8 +163,12 @@ display_basic(void)
 	} else {
 		report_cap("      (home)", cursor_home);
 	}
+#ifdef user9
 	report_cap("ENQ   (u9)", user9);
+#endif
+#ifdef user8
 	report_cap("ACK   (u8)", user8);
+#endif
 
 	sprintf(temp, "\nTerminal size: %d x %d.  Baud rate: %ld.  Frame size: %d.%d", columns, lines, tty_baud_rate, tty_frame_size >> 1, (tty_frame_size & 1) * 5);
 	putln(temp);

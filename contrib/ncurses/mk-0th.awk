@@ -1,6 +1,6 @@
-# $Id: mk-0th.awk,v 1.9 2001/03/24 19:31:22 tom Exp $
+# $Id: mk-0th.awk,v 1.13 2002/02/23 20:38:11 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998-2001 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -32,7 +32,7 @@
 # Generate list of sources for a library, together with lint/lintlib rules
 #
 # Variables:
-#	name (library name, e.g., "ncurses", "panel", "forms", "menus")
+#	libname (library name, e.g., "ncurses", "panel", "forms", "menus")
 #
 BEGIN	{
 		print  ""
@@ -53,13 +53,21 @@ BEGIN	{
 		{
 			if ( found == 0 )
 			{
+				if ( subsets ~ /widechar/ )
+					widechar = 1;
+				else
+					widechar = 0;
 				printf "C_SRC ="
 				if ( $2 == "lib" )
 					found = 1
 				else
 					found = 2
 			}
-			printf " \\\n\t%s/%s.c", $3, $1
+			if ( libname == "c++" || libname == "c++w" ) {
+				printf " \\\n\t%s/%s.cc", $3, $1
+			} else if ( widechar == 1 || $3 != "$(wide)" ) {
+				printf " \\\n\t%s/%s.c", $3, $1
+			}
 		}
 	}
 END	{
@@ -67,19 +75,19 @@ END	{
 		if ( found == 1 )
 		{
 			print  ""
-			printf "# Producing llib-l%s is time-consuming, so there's no direct-dependency for\n", name
+			printf "# Producing llib-l%s is time-consuming, so there's no direct-dependency for\n", libname
 			print  "# it in the lintlib rule.  We'll only remove in the cleanest setup."
 			print  "clean ::"
-			printf "\trm -f llib-l%s.*\n", name
+			printf "\trm -f llib-l%s.*\n", libname
 			print  ""
 			print  "realclean ::"
-			printf "\trm -f llib-l%s\n", name
+			printf "\trm -f llib-l%s\n", libname
 			print  ""
-			printf "llib-l%s : $(C_SRC)\n", name
+			printf "llib-l%s : $(C_SRC)\n", libname
 			printf "\tcproto -a -l -DLINT $(CPPFLAGS) $(C_SRC) >$@\n"
 			print  ""
 			print  "lintlib :"
-			printf "\t$(srcdir)/../misc/makellib %s $(CPPFLAGS)", name
+			printf "\tsh $(srcdir)/../misc/makellib %s $(CPPFLAGS)", libname
 			print ""
 			print "lint :"
 			print "\t$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(C_SRC) $(LINT_LIBS)"
