@@ -62,6 +62,7 @@ static char *rcsid = "$FreeBSD$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 struct hesiod_p {
 	char	*lhs;			/* normally ".ns" */
@@ -87,11 +88,17 @@ hesiod_init(context)
 {
 	struct hesiod_p	*ctx;
 	const char	*p, *configname;
+	int		 trust;
+
+	trust = geteuid() == getuid() && getegid() == getgid(); 
 
 	ctx = malloc(sizeof(struct hesiod_p));
 	if (ctx) {
 		*context = ctx;
-		configname = getenv("HESIOD_CONFIG");
+		if (trust)
+			configname = getenv("HESIOD_CONFIG");
+		else
+			configname = NULL;
 		if (!configname)
 			configname = _PATH_HESIOD_CONF;
 		if (read_config_file(ctx, configname) >= 0) {
@@ -99,7 +106,10 @@ hesiod_init(context)
 			 * The default rhs can be overridden by an
 			 * environment variable.
 			 */
-			p = getenv("HES_DOMAIN");
+			if (trust)
+				p = getenv("HES_DOMAIN");
+			else
+				p = NULL;
 			if (p) {
 				if (ctx->rhs)
 					free(ctx->rhs);
