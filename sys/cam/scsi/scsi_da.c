@@ -354,6 +354,13 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Minolta Dimage E203
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "MINOLTA", "DiMAGE E203", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * DIVA USB Mp3 Player.
 		 * Doesn't work correctly with 6 byte reads/writes.
 		 */
