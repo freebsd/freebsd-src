@@ -82,17 +82,14 @@ The
 .Fa uc_mcontext
 field is machine-dependent and should be treated as opaque by
 portable applications.
-.Pp
-The following functions are defined to manipulate
-.Vt ucontext_t
-structures:
-.Bd -literal -offset xxx
-int getcontext(ucontext_t *);
-int setcontext(const ucontext_t *);
-void makecontext(ucontext_t *, void (*)(void), int, ...);
-int swapcontext(ucontext_t *, const ucontext_t *);
-.Ed
 .Sh SEE ALSO
-.Xr sigaltstack 2 ,
-.Xr getcontext 3 ,
-.Xr makecontext 3
+.Xr sigaltstack 2
+.Sh BUGS
+The
+.Fn getcontext ,
+.Fn setcontext ,
+.Fn makecontext ,
+and
+.Fn swapcontext
+functions are not yet implemented in this version of
+.Fx .
