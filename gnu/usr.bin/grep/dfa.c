@@ -77,6 +77,16 @@ extern void free();
 #define ISCNTRL(C) (isascii(C) && iscntrl(C))
 #endif
 
+/* ISASCIIDIGIT differs from ISDIGIT, as follows:
+   - Its arg may be any int or unsigned int; it need not be an unsigned char.
+   - It's guaranteed to evaluate its argument exactly once.
+   - It's typically faster.
+   Posix 1003.2-1992 section 2.5.2.1 page 50 lines 1556-1558 says that
+   only '0' through '9' are digits.  Prefer ISASCIIDIGIT to ISDIGIT unless
+   it's important to use the locale's definition of `digit' even when the
+   host does not conform to Posix.  */
+#define ISASCIIDIGIT(c) ((unsigned) (c) - '0' <= 9)
+
 /* If we (don't) have I18N.  */
 /* glibc defines _ */
 #ifndef _
@@ -145,9 +155,7 @@ static char **addlists PARAMS ((char **old, char **new));
 static char **inboth PARAMS ((char **left, char **right));
 
 static ptr_t
-xcalloc(n, s)
-     size_t n;
-     size_t s;
+xcalloc (size_t n, size_t s)
 {
   ptr_t r = calloc(n, s);
 
@@ -157,8 +165,7 @@ xcalloc(n, s)
 }
 
 static ptr_t
-xmalloc(n)
-     size_t n;
+xmalloc (size_t n)
 {
   ptr_t r = malloc(n);
 
@@ -169,9 +176,7 @@ xmalloc(n)
 }
 
 static ptr_t
-xrealloc(p, n)
-     ptr_t p;
-     size_t n;
+xrealloc (ptr_t p, size_t n)
 {
   ptr_t r = realloc(p, n);
 
@@ -197,8 +202,7 @@ xrealloc(p, n)
 #ifdef DEBUG
 
 static void
-prtok(t)
-     token t;
+prtok (token t)
 {
   char *s;
 
@@ -236,33 +240,25 @@ prtok(t)
 /* Stuff pertaining to charclasses. */
 
 static int
-tstbit(b, c)
-     int b;
-     charclass c;
+tstbit (int b, charclass c)
 {
   return c[b / INTBITS] & 1 << b % INTBITS;
 }
 
 static void
-setbit(b, c)
-     int b;
-     charclass c;
+setbit (int b, charclass c)
 {
   c[b / INTBITS] |= 1 << b % INTBITS;
 }
 
 static void
-clrbit(b, c)
-     int b;
-     charclass c;
+clrbit (int b, charclass c)
 {
   c[b / INTBITS] &= ~(1 << b % INTBITS);
 }
 
 static void
-copyset(src, dst)
-     charclass src;
-     charclass dst;
+copyset (charclass src, charclass dst)
 {
   int i;
 
@@ -271,8 +267,7 @@ copyset(src, dst)
 }
 
 static void
-zeroset(s)
-     charclass s;
+zeroset (charclass s)
 {
   int i;
 
@@ -281,8 +276,7 @@ zeroset(s)
 }
 
 static void
-notset(s)
-     charclass s;
+notset (charclass s)
 {
   int i;
 
@@ -291,9 +285,7 @@ notset(s)
 }
 
 static int
-equal(s1, s2)
-     charclass s1;
-     charclass s2;
+equal (charclass s1, charclass s2)
 {
   int i;
 
@@ -308,8 +300,7 @@ static struct dfa *dfa;
 
 /* Find the index of charclass s in dfa->charclasses, or allocate a new charclass. */
 static int
-charclass_index(s)
-     charclass s;
+charclass_index (charclass s)
 {
   int i;
 
@@ -333,10 +324,7 @@ static unsigned char eolbyte;
 
 /* Entry point to set syntax options. */
 void
-dfasyntax(bits, fold, eol)
-     reg_syntax_t bits;
-     int fold;
-     int eol;
+dfasyntax (reg_syntax_t bits, int fold, int eol)
 {
   syntax_bits_set = 1;
   syntax_bits = bits;
@@ -362,10 +350,12 @@ static int minrep, maxrep;	/* Repeat counts for {m,n}. */
 #define FETCH(c, eoferr)   	      \
   {			   	      \
     if (! lexleft)	   	      \
-      if (eoferr != 0)	   	      \
-	dfaerror(eoferr);  	      \
-      else		   	      \
-	return lasttok = END;	      \
+      {				      \
+	if (eoferr != 0)	      \
+	  dfaerror (eoferr);	      \
+	else		   	      \
+	  return lasttok = END;	      \
+      }				      \
     (c) = (unsigned char) *lexptr++;  \
     --lexleft;		   	      \
   }
@@ -388,8 +378,8 @@ FUNC(is_print, ISPRINT)
 FUNC(is_graph, ISGRAPH)
 FUNC(is_cntrl, ISCNTRL)
 
-static int is_blank(c)
-int c;
+static int
+is_blank (int c)
 {
    return (c == ' ' || c == '\t');
 }
@@ -420,8 +410,7 @@ static struct {
 #define IS_WORD_CONSTITUENT(C) (ISALNUM(C) || (C) == '_')
 
 static int
-looking_at(s)
-     const char *s;
+looking_at (char const *s)
 {
   size_t len;
 
@@ -432,12 +421,14 @@ looking_at(s)
 }
 
 static token
-lex()
+lex (void)
 {
   token c, c1, c2;
   int backslash = 0, invert;
   charclass ccl;
   int i;
+  char lo[2];
+  char hi[2];
 
   /* Basic plan: We fetch a character.  If it's a backslash,
      we set the backslash flag and go through the loop again.
@@ -570,10 +561,10 @@ lex()
 	      int lo = -1, hi = -1;
 	      char const *p = lexptr;
 	      char const *lim = p + lexleft;
-	      for (;  p != lim && ISDIGIT (*p);  p++)
+	      for (;  p != lim && ISASCIIDIGIT (*p);  p++)
 		lo = (lo < 0 ? 0 : lo * 10) + *p - '0';
 	      if (p != lim && *p == ',')
-		while (++p != lim && ISDIGIT (*p))
+		while (++p != lim && ISASCIIDIGIT (*p))
 		  hi = (hi < 0 ? 0 : hi * 10) + *p - '0';
 	      else
 		hi = lo;
@@ -588,13 +579,13 @@ lex()
 	     {M,} - minimum count, maximum is infinity
 	     {M,N} - M through N */
 	  FETCH(c, _("unfinished repeat count"));
-	  if (ISDIGIT(c))
+	  if (ISASCIIDIGIT (c))
 	    {
 	      minrep = c - '0';
 	      for (;;)
 		{
 		  FETCH(c, _("unfinished repeat count"));
-		  if (!ISDIGIT(c))
+		  if (! ISASCIIDIGIT (c))
 		    break;
 		  minrep = 10 * minrep + c - '0';
 		}
@@ -604,7 +595,7 @@ lex()
 	  if (c == ',')
 	    {
 	      FETCH (c, _("unfinished repeat count"));
-	      if (! ISDIGIT (c))
+	      if (! ISASCIIDIGIT (c))
 		maxrep = -1;
 	      else
 		{
@@ -612,7 +603,7 @@ lex()
 		  for (;;)
 		    {
 		      FETCH (c, _("unfinished repeat count"));
-		      if (! ISDIGIT (c))
+		      if (! ISASCIIDIGIT (c))
 			break;
 		      maxrep = 10 * maxrep + c - '0';
 		    }
@@ -751,16 +742,26 @@ lex()
 		}
 	      else
 		c2 = c;
-	      while (c <= c2)
+
+	      lo[0] = c;  lo[1] = '\0';
+	      hi[0] = c2; hi[1] = '\0';
+	      for (c = 0; c < NOTCHAR; c++)
 		{
-		  setbit(c, ccl);
-		  if (case_fold)
-		    if (ISUPPER(c))
-		      setbit(tolower(c), ccl);
-		    else if (ISLOWER(c))
-		      setbit(toupper(c), ccl);
-		  ++c;
+		  char ch[2];
+		  ch[0] = c;  ch[1] = '\0';
+		  if (strcoll (lo, ch) <= 0 && strcoll (ch, hi) <= 0)
+		    {
+		      setbit (c, ccl);
+		      if (case_fold)
+			{
+			  if (ISUPPER (c))
+			    setbit (tolower (c), ccl);
+			  else if (ISLOWER (c))
+			    setbit (toupper (c), ccl);
+			}
+		    }
 		}
+
 	    skip:
 	      ;
 	    }
@@ -809,8 +810,7 @@ static int depth;		/* Current depth of a hypothetical stack
 /* Add the given token to the parse tree, maintaining the depth count and
    updating the maximum depth if necessary. */
 static void
-addtok(t)
-     token t;
+addtok (token t)
 {
   REALLOC_IF_NECESSARY(dfa->tokens, token, dfa->talloc, dfa->tindex);
   dfa->tokens[dfa->tindex++] = t;
@@ -869,7 +869,7 @@ addtok(t)
    The parser builds a parse tree in postfix form in an array of tokens. */
 
 static void
-atom()
+atom (void)
 {
   if ((tok >= 0 && tok < NOTCHAR) || tok >= CSET || tok == BACKREF
       || tok == BEGLINE || tok == ENDLINE || tok == BEGWORD
@@ -892,8 +892,7 @@ atom()
 
 /* Return the number of tokens in the given subexpression. */
 static int
-nsubtoks(tindex)
-int tindex;
+nsubtoks (int tindex)
 {
   int ntoks1;
 
@@ -915,8 +914,7 @@ int tindex;
 
 /* Copy the given subexpression to the top of the tree. */
 static void
-copytoks(tindex, ntokens)
-     int tindex, ntokens;
+copytoks (int tindex, int ntokens)
 {
   int i;
 
@@ -925,7 +923,7 @@ copytoks(tindex, ntokens)
 }
 
 static void
-closure()
+closure (void)
 {
   int tindex, ntokens, i;
 
@@ -960,7 +958,7 @@ closure()
 }
 
 static void
-branch()
+branch (void)
 {
   closure();
   while (tok != RPAREN && tok != OR && tok >= 0)
@@ -971,8 +969,7 @@ branch()
 }
 
 static void
-regexp(toplevel)
-     int toplevel;
+regexp (int toplevel)
 {
   branch();
   while (tok == OR)
@@ -990,11 +987,7 @@ regexp(toplevel)
    length of the string, so s can include NUL characters.  D is a pointer to
    the struct dfa to parse into. */
 void
-dfaparse(s, len, d)
-     char *s;
-     size_t len;
-     struct dfa *d;
-
+dfaparse (char *s, size_t len, struct dfa *d)
 {
   dfa = d;
   lexstart = lexptr = s;
@@ -1027,9 +1020,7 @@ dfaparse(s, len, d)
 
 /* Copy one set to another; the destination must be large enough. */
 static void
-copy(src, dst)
-     position_set *src;
-     position_set *dst;
+copy (position_set *src, position_set *dst)
 {
   int i;
 
@@ -1043,9 +1034,7 @@ copy(src, dst)
    the same index then their constraints are logically or'd together.
    S->elems must point to an array large enough to hold the resulting set. */
 static void
-insert(p, s)
-     position p;
-     position_set *s;
+insert (position p, position_set *s)
 {
   int i;
   position t1, t2;
@@ -1070,10 +1059,7 @@ insert(p, s)
 /* Merge two sets of positions into a third.  The result is exactly as if
    the positions of both sets were inserted into an initially empty set. */
 static void
-merge(s1, s2, m)
-     position_set *s1;
-     position_set *s2;
-     position_set *m;
+merge (position_set *s1, position_set *s2, position_set *m)
 {
   int i = 0, j = 0;
 
@@ -1096,9 +1082,7 @@ merge(s1, s2, m)
 
 /* Delete a position from a set. */
 static void
-delete(p, s)
-     position p;
-     position_set *s;
+delete (position p, position_set *s)
 {
   int i;
 
@@ -1115,11 +1099,7 @@ delete(p, s)
    state.  Newline and letter tell whether we got here on a newline or
    letter, respectively. */
 static int
-state_index(d, s, newline, letter)
-     struct dfa *d;
-     position_set *s;
-     int newline;
-     int letter;
+state_index (struct dfa *d, position_set *s, int newline, int letter)
 {
   int hash = 0;
   int constraint;
@@ -1184,12 +1164,8 @@ state_index(d, s, newline, letter)
    that position with the elements of its follow labeled with an appropriate
    constraint.  Repeat exhaustively until no funny positions are left.
    S->elems must be large enough to hold the result. */
-static void epsclosure PARAMS ((position_set *s, struct dfa *d));
-
 static void
-epsclosure(s, d)
-     position_set *s;
-     struct dfa *d;
+epsclosure (position_set *s, struct dfa *d)
 {
   int i, j;
   int *visited;
@@ -1301,9 +1277,7 @@ epsclosure(s, d)
    scheme; the number of elements in each set deeper in the stack can be
    used to determine the address of a particular set's array. */
 void
-dfaanalyze(d, searchflag)
-     struct dfa *d;
-     int searchflag;
+dfaanalyze (struct dfa *d, int searchflag)
 {
   int *nullable;		/* Nullable stack. */
   int *nfirstpos;		/* Element count stack for firstpos sets. */
@@ -1564,10 +1538,7 @@ dfaanalyze(d, searchflag)
    create a new group labeled with the characters of C and insert this
    position in that group. */
 void
-dfastate(s, d, trans)
-     int s;
-     struct dfa *d;
-     int trans[];
+dfastate (int s, struct dfa *d, int trans[])
 {
   position_set grps[NOTCHAR];	/* As many as will ever be needed. */
   charclass labels[NOTCHAR];	/* Labels corresponding to the groups. */
@@ -1809,9 +1780,7 @@ dfastate(s, d, trans)
    TODO: Improve this comment, get rid of the unnecessary redundancy. */
 
 static void
-build_state(s, d)
-     int s;
-     struct dfa *d;
+build_state (int s, struct dfa *d)
 {
   int *trans;			/* The new transition table. */
   int i;
@@ -1887,8 +1856,7 @@ build_state(s, d)
 }
 
 static void
-build_state_zero(d)
-     struct dfa *d;
+build_state_zero (struct dfa *d)
 {
   d->tralloc = 1;
   d->trcount = 0;
@@ -1914,13 +1882,8 @@ build_state_zero(d)
    match needs to be verified by a backtracking matcher.  Otherwise
    we store a 0 in *backref. */
 char *
-dfaexec(d, begin, end, newline, count, backref)
-     struct dfa *d;
-     char *begin;
-     char *end;
-     int newline;
-     int *count;
-     int *backref;
+dfaexec (struct dfa *d, char *begin, char *end,
+	 int newline, int *count, int *backref)
 {
   register int s, s1, tmp;	/* Current state. */
   register unsigned char *p;	/* Current input character. */
@@ -2001,8 +1964,7 @@ dfaexec(d, begin, end, newline, count, backref)
 /* Initialize the components of a dfa that the other routines don't
    initialize for themselves. */
 void
-dfainit(d)
-     struct dfa *d;
+dfainit (struct dfa *d)
 {
   d->calloc = 1;
   MALLOC(d->charclasses, charclass, d->calloc);
@@ -2020,11 +1982,7 @@ dfainit(d)
 
 /* Parse and analyze a single string of the given length. */
 void
-dfacomp(s, len, d, searchflag)
-     char *s;
-     size_t len;
-     struct dfa *d;
-     int searchflag;
+dfacomp (char *s, size_t len, struct dfa *d, int searchflag)
 {
   if (case_fold)	/* dummy folding in service of dfamust() */
     {
@@ -2063,8 +2021,7 @@ dfacomp(s, len, d, searchflag)
 
 /* Free the storage held by the components of a dfa. */
 void
-dfafree(d)
-     struct dfa *d;
+dfafree (struct dfa *d)
 {
   int i;
   struct dfamust *dm, *ndm;
@@ -2176,9 +2133,7 @@ dfafree(d)
    'psi|epsilon' is likelier)? */
 
 static char *
-icatalloc(old, new)
-     char *old;
-     char *new;
+icatalloc (char *old, char *new)
 {
   char *result;
   size_t oldsize, newsize;
@@ -2199,16 +2154,13 @@ icatalloc(old, new)
 }
 
 static char *
-icpyalloc(string)
-     char *string;
+icpyalloc (char *string)
 {
   return icatalloc((char *) NULL, string);
 }
 
 static char *
-istrstr(lookin, lookfor)
-     char *lookin;
-     char *lookfor;
+istrstr (char *lookin, char *lookfor)
 {
   char *cp;
   size_t len;
@@ -2221,16 +2173,14 @@ istrstr(lookin, lookfor)
 }
 
 static void
-ifree(cp)
-     char *cp;
+ifree (char *cp)
 {
   if (cp != NULL)
     free(cp);
 }
 
 static void
-freelist(cpp)
-     char **cpp;
+freelist (char **cpp)
 {
   int i;
 
@@ -2244,10 +2194,7 @@ freelist(cpp)
 }
 
 static char **
-enlist(cpp, new, len)
-     char **cpp;
-     char *new;
-     size_t len;
+enlist (char **cpp, char *new, size_t len)
 {
   int i, j;
 
@@ -2292,9 +2239,7 @@ enlist(cpp, new, len)
    list of their distinct common substrings. Return NULL if something
    seems wild. */
 static char **
-comsubs(left, right)
-     char *left;
-     char *right;
+comsubs (char *left, char *right)
 {
   char **cpp;
   char *lcp;
@@ -2328,9 +2273,7 @@ comsubs(left, right)
 }
 
 static char **
-addlists(old, new)
-char **old;
-char **new;
+addlists (char **old, char **new)
 {
   int i;
 
@@ -2348,9 +2291,7 @@ char **new;
 /* Given two lists of substrings, return a new list giving substrings
    common to both. */
 static char **
-inboth(left, right)
-     char **left;
-     char **right;
+inboth (char **left, char **right)
 {
   char **both;
   char **temp;
@@ -2391,16 +2332,14 @@ typedef struct
 } must;
 
 static void
-resetmust(mp)
-must *mp;
+resetmust (must *mp)
 {
   mp->left[0] = mp->right[0] = mp->is[0] = '\0';
   freelist(mp->in);
 }
 
 static void
-dfamust(dfa)
-struct dfa *dfa;
+dfamust (struct dfa *dfa)
 {
   must *musts;
   must *mp;
