@@ -1235,7 +1235,7 @@ DMenu MenuXF86SelectServer = {
 #if defined(__i386__) && defined(PC98)
       { " PC98",	"Select an X server for a NEC PC98 [Submenu]",
 	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
-#elif __alpha__
+#elif defined(__alpha__)
       { " TGA",		"TGA cards (alpha architecture only)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_TGA },
 #endif
