@@ -286,7 +286,7 @@ readline(FILE *fp, char *buf, int max)
 int
 index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *rdeps, int *volume)
 {
-    char line[10240];
+    char line[10240 + 2048 * 7];
     char junk[2048];
     char volstr[2048];
     char *cp;
@@ -324,7 +324,7 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
 int
 index_read(FILE *fp, PkgNodePtr papa)
 {
-    char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[2048];
+    char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[2048 * 8];
     int volume;
     PkgNodePtr i;
 
@@ -699,7 +699,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     }
 
     if (id && id->deps && strlen(id->deps)) {
-	char t[2048], *cp, *cp2;
+	char t[2048 * 8], *cp, *cp2;
 
 	SAFE_STRCPY(t, id->deps);
 	cp = t;
@@ -740,7 +740,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 static void
 index_recorddeps(Boolean add, PkgNodePtr root, IndexEntryPtr ie)
 {
-   char depends[1024], *space, *todo;
+   char depends[1024 * 16], *space, *todo;
    PkgNodePtr found;
    IndexEntryPtr found_ie;
 
