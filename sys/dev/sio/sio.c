@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.61 1994/12/01 23:48:09 ache Exp $
+ *	$Id: sio.c,v 1.62 1994/12/27 13:07:07 bde Exp $
  */
 
 #include "sio.h"
@@ -901,7 +901,6 @@ sioclose(dev, flag, mode, p)
 	int		mynor;
 	int		s;
 	struct tty	*tp;
-	void endtsleep __P((void *));
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
@@ -909,9 +908,7 @@ sioclose(dev, flag, mode, p)
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	tp = com->tp;
 	s = spltty();
-	timeout(endtsleep, (void *)p, 60 * hz);
 	(*linesw[tp->t_line].l_close)(tp, flag);
-	untimeout(endtsleep, (void *)p);
 	siostop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
