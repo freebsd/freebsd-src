@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: cpuconf.c,v 1.1 1998/06/10 10:52:18 dfr Exp $ */
 /*	$NetBSD: cpuconf.c,v 1.10 1998/03/20 21:48:21 thorpej Exp $	*/
 
 /*
@@ -93,6 +93,12 @@ extern void avalon_a12_init __P((int));
 #define	avalon_a12_init		platform_not_configured
 #endif
 
+#ifdef DEC_ST550
+extern void st550_init __P((int));
+#else
+#define	st550_init		platform_not_configured
+#endif
+
 struct cpuinit cpuinit[] = {
 	cpu_notsupp("???"),			     /*  0: ??? */
 	cpu_notsupp("ST_ADU"),			     /*  1: ST_ADU */
@@ -124,7 +130,7 @@ struct cpuinit cpuinit[] = {
 	cpu_notsupp("ST_DEC_1000A"),		     /* 27: ST_DEC_1000A */
 	cpu_notsupp("ST_DEC_ALPHAVME_224"),	   /* 28: ST_DEC_ALPHAVME_224 */
 	cpu_notsupp("???"),			     /* 29: ??? */
-	cpu_notsupp("???"),			     /* 30: ??? */
+	cpu_init(st550_init,"DEC_ST550"),            /* 30: ST_DEC_550 */
 	cpu_notsupp("???"),			     /* 31: ??? */
 	cpu_notsupp("ST_DEC_EV56_PBP"),		     /* 32: ST_DEC_EV56_PBP */
 	cpu_notsupp("ST_DEC_ALPHAVME_320"),	   /* 33: ST_DEC_ALPHAVME_320 */
@@ -154,7 +160,7 @@ platform_not_supported(int cputype)
 		typestr = cpuinit[cputype].option;
 
 	printf("\n");
-	printf("NetBSD does not yet support system type %d (%s).\n", cputype,
+	printf("FreeBSD does not yet support system type %d (%s).\n", cputype,
 	     typestr);
 	printf("\n");
 	panic("platform not supported");

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.4 1998/07/31 09:17:51 dfr Exp $
+ *	$Id: cia.c,v 1.5 1998/08/07 08:18:44 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -45,16 +45,8 @@ static devclass_t	cia_devclass;
 static device_t		cia0;		/* XXX only one for now */
 static u_int32_t	cia_hae_mem;
 
-extern void eb164_intr_enable(int irq);
-extern void eb164_intr_disable(int irq);
-static void cia_intr(void* frame, u_long vector);
-
 struct cia_softc {
-	vm_offset_t	dmem_base;	/* dense memory */
-	vm_offset_t	smem_base;	/* sparse memory */
-	vm_offset_t	io_base;	/* dense i/o */
-	vm_offset_t	cfg0_base;	/* dense pci0 config */
-	vm_offset_t	cfg1_base;	/* dense pci1 config */
+	int		junk;		/* no softc */
 };
 
 #define CIA_SOFTC(dev)	(struct cia_softc*) device_get_softc(dev)
@@ -415,9 +407,8 @@ cia_swiz_maxdevs(u_int b)
 	type val = ~0;							\
 	int ipl = 0;							\
 	u_int32_t old_cfg = 0;						\
-	struct cia_softc* sc = CIA_SOFTC(cia0);				\
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg0_base, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(CIA_PCI_CONF, off);	\
 	alpha_mb();							\
 	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
@@ -429,9 +420,8 @@ cia_swiz_maxdevs(u_int b)
 #define SWIZ_CFGWRITE(b, s, f, r, data, width, type)			\
 	int ipl = 0;							\
 	u_int32_t old_cfg = 0;						\
-	struct cia_softc* sc = CIA_SOFTC(cia0);				\
 	vm_offset_t off = CIA_SWIZ_CFGOFF(b, s, f, r);			\
-	vm_offset_t kv = SPARSE_##width##_ADDRESS(sc->cfg0_base, off);	\
+	vm_offset_t kv = SPARSE_##width##_ADDRESS(CIA_PCI_CONF, off);	\
 	alpha_mb();							\
 	CIA_TYPE1_SETUP(b,ipl,old_cfg);					\
 	if (!badaddr((caddr_t)kv, sizeof(type))) {			\
@@ -515,6 +505,13 @@ cia_init()
 	else
 		chipset = cia_bwx_chipset;
 	cia_hae_mem = REGVAL(CIA_CSR_HAE_MEM);
+
+#if 0
+	chipset = cia_swiz_chipset; /* XXX */
+#endif
+
+	if (platform.pci_intr_init)
+		platform.pci_intr_init();
 }
 
 static int
@@ -536,22 +533,10 @@ cia_attach(device_t dev)
 	struct cia_softc* sc = CIA_SOFTC(dev);
 
 	cia_init();
-	chipset.bridge = dev;
+	chipset.intrdev = dev;
 
-	if (alpha_amask(ALPHA_AMASK_BWX) == 0) {
-		sc->dmem_base = CIA_EV56_BWMEM;
-		sc->smem_base = CIA_PCI_SMEM1;
-		sc->io_base = CIA_EV56_BWIO;
-		sc->cfg0_base = CIA_EV56_BWCONF0;
-		sc->cfg1_base = CIA_EV56_BWCONF1;
-	} else {
-		sc->dmem_base = CIA_PCI_DENSE;
-		sc->smem_base = CIA_PCI_SMEM1;
-		sc->io_base = CIA_PCI_SIO1;
-		sc->cfg0_base = KV(CIA_PCI_CONF);
-		sc->cfg1_base = NULL;
-	}
-	set_iointr(cia_intr);
+	if (!platform.iointr)	/* XXX */
+		set_iointr(alpha_dispatch_intr);
 
 	bus_generic_attach(dev);
 	return 0;
@@ -561,7 +546,7 @@ static void *
 cia_create_intr(device_t dev, device_t child,
 		int irq, driver_intr_t *intr, void *arg)
 {
-	return alpha_create_intr(irq, intr, arg);
+	return alpha_create_intr(0x900 + (irq << 4), intr, arg);
 }
 
 static int
@@ -571,21 +556,11 @@ cia_connect_intr(device_t dev, void* ih)
 	int s = splhigh();
 	int error = alpha_connect_intr(i);
 	if (!error) {
-		if (i->vector > 0x900)
-			/* PCI interrupt */
-			platform.pci_intr_enable((i->vector - 0x900) >> 4);
-		else if (i->vector > 0x800)
-			/* ISA interrupt chained to PCI interrupt 4 */
-			platform.pci_intr_enable(4);/* XXX */
+		/* Enable PCI interrupt */
+		platform.pci_intr_enable((i->vector - 0x900) >> 4);
 	}
 	splx(s);
 	return error;
-}
-
-static void
-cia_intr(void* frame, u_long vector)
-{
-	alpha_dispatch_intr(vector);
 }
 
 DRIVER_MODULE(cia, root, cia_driver, cia_devclass, 0, 0);

@@ -1,4 +1,4 @@
-/* $Id: dec_eb164.c,v 1.2 1998/07/12 16:07:43 dfr Exp $ */
+/* $Id: dec_eb164.c,v 1.3 1998/07/22 08:18:34 dfr Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*
@@ -42,6 +42,8 @@
 #include <machine/cpuconf.h>
 #include <machine/clock.h>
 
+#include <alpha/pci/ciavar.h>
+
 #include "sio.h"
 #include "sc.h"
 
@@ -52,8 +54,13 @@ static int comcnrate = CONSPEED;
 
 void dec_eb164_init __P((void));
 static void dec_eb164_cons_init __P((void));
+static void eb164_intr_init(void);
 extern void eb164_intr_enable(int irq);
 extern void eb164_intr_disable(int irq);
+
+extern int siocnattach __P((int, int));
+extern int siogdbattach __P((int, int));
+extern int sccnattach __P((void));
 
 void
 dec_eb164_init()
@@ -67,6 +74,7 @@ dec_eb164_init()
 
 	platform.iobus = "cia";
 	platform.cons_init = dec_eb164_cons_init;
+	platform.pci_intr_init = eb164_intr_init;
 	platform.pci_intr_map = NULL;
 	platform.pci_intr_disable = eb164_intr_disable;
 	platform.pci_intr_enable = eb164_intr_enable;
@@ -120,4 +128,13 @@ dec_eb164_cons_init()
 		panic("consinit: unknown console type %d\n",
 		    ctb->ctb_term_type);
 	}
+}
+
+static void
+eb164_intr_init()
+{
+    /*
+     * Enable ISA-PCI cascade interrupt.
+     */
+    eb164_intr_enable(4);
 }
