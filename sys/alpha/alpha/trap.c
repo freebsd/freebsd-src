@@ -89,14 +89,6 @@ static void printtrap __P((const unsigned long, const unsigned long,
 extern char *syscallnames[];
 #endif
 
-void alpha_clear_resched(void);
-
-void
-alpha_clear_resched(void)
-{
-	clear_resched();
-}
-
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
@@ -126,7 +118,6 @@ userret(p, frame, oticks)
 		 * before we switch()'ed, we might not be on the queue
 		 * indicated by our priority.
 		 */
-		clear_resched();
 		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;

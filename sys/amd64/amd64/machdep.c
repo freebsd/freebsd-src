@@ -2056,7 +2056,6 @@ init386(first)
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = (int)IdlePTD;
-	proc0.p_addr->u_pcb.pcb_schednest = 0;
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 	proc0.p_md.md_regs = &proc0_tf;
 }

@@ -183,8 +183,6 @@ cpu_fork(p1, p2, flags)
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
 	 */
 
-	pcb2->pcb_schednest = 0;
-
 	/*
 	 * XXX don't copy the i/o pages.  this should probably be fixed.
 	 */

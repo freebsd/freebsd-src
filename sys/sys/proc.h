@@ -175,8 +175,7 @@ struct	proc {
 	int	p_flag;			/* (c) P_* flags. */
 	int	p_sflag;		/* (j) PS_* flags. */
 	int	p_intr_nesting_level;	/* (k) Interrupt recursion. */
-	char	p_stat;			/* (j) S* process status. */
-	char	p_pad1[3];
+	int	p_stat;			/* (j) S* process status. */
 
 	pid_t	p_pid;			/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
@@ -219,8 +218,8 @@ struct	proc {
 
 	struct	vnode *p_textvp;	/* (b) Vnode of executable. */
 
-	char	p_lock;		/* (c) Process lock (prevent swap) count. */
 	struct	mtx p_mtx;		/* (k) Lock for this struct. */
+	char	p_lock;		/* (c) Process lock (prevent swap) count. */
 	u_char	p_oncpu;		/* (j) Which cpu we are on. */
 	u_char	p_lastcpu;		/* (j) Last cpu we were on. */
 	char	p_rqindex;		/* (j) Run queue index. */
@@ -282,6 +281,8 @@ struct	proc {
 
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
+
+#define	NOCPU	0xff		/* For p_oncpu when we aren't on a CPU. */
 
 /* Status values (p_stat). */
 #define	SIDL	1		/* Process being created by fork. */

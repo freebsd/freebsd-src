@@ -94,7 +94,6 @@ ASSYM(PTESIZE, PTESIZE);
 ASSYM(U_PCB_ONFAULT, offsetof(struct user, u_pcb.pcb_onfault));
 ASSYM(U_PCB_HWPCB_KSP, offsetof(struct user, u_pcb.pcb_hw.apcb_ksp));
 ASSYM(U_PCB_CONTEXT, offsetof(struct user, u_pcb.pcb_context));
-ASSYM(U_PCB_SCHEDNEST, offsetof(struct user, u_pcb.pcb_schednest));
 
 ASSYM(PCB_HW, offsetof(struct pcb, pcb_hw));
 

@@ -71,7 +71,6 @@ struct pcb {
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
-	int	pcb_schednest;
 	int	pcb_gs;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
 	u_long	__pcb_spare[3];	/* adjust to avoid core dump size changes */
