@@ -983,7 +983,7 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 
-	GIANT_REQUIRED;		/* XXX until socket locking done */
+	NET_ASSERT_GIANT();
 
 	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0, td->td_ucred, td);
 	if (error != 0)
