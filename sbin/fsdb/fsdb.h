@@ -30,9 +30,9 @@
  * $FreeBSD$
  */
 
-extern int bread(int fd, char *buf, daddr_t blk, long size);
-extern void bwrite(int fd, char *buf, daddr_t blk, long size);
-extern void rwerror(char *mesg, daddr_t blk);
+extern int bread(int fd, char *buf, ufs_daddr_t blk, long size);
+extern void bwrite(int fd, char *buf, ufs_daddr_t blk, long size);
+extern void rwerror(char *mesg, ufs_daddr_t blk);
 extern int reply(char *question);
 
 extern long dev_bsize;
