@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.1 1998/09/15 07:32:49 gibbs Exp $
+ *      $Id: btreg.h,v 1.2 1998/10/30 02:06:44 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -408,6 +408,7 @@ typedef struct {
 struct bt_isa_port {
 	u_int16_t addr;
 	u_int8_t  probed;
+	u_int8_t  bio;
 };
 
 extern struct bt_isa_port bt_isa_ports[];
@@ -549,7 +550,7 @@ struct bt_hccb {
 		  wide_tag_type		:2;	/* Wide Lun CCB format */
 	u_int8_t  cmd_len;
 	u_int8_t  sense_len;
-	u_int32_t data_len;
+	int32_t	  data_len;			/* residuals can be negative */
 	u_int32_t data_addr;
 	u_int8_t  reserved[2];
 	u_int8_t  btstat;
@@ -599,6 +600,7 @@ struct bt_softc {
 	struct	bt_ccb		*bt_ccb_array;
 	SLIST_HEAD(,bt_ccb)	 free_bt_ccbs;
 	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
+	u_int			 active_ccbs;
 	u_int32_t		 bt_ccb_physbase;
 	bt_mbox_in_t		*in_boxes;
 	bt_mbox_out_t		*out_boxes;
@@ -664,9 +666,13 @@ int			bt_attach(struct bt_softc *bt);
 void			bt_intr(void *arg);
 char *			bt_name(struct bt_softc *bt);
 int			bt_check_probed_iop(u_int ioport);
-u_int			bt_fetch_isa_iop(isa_compat_io_t port);
 void			bt_mark_probed_bio(isa_compat_io_t port);
 void			bt_mark_probed_iop(u_int ioport);
+void			bt_find_probe_range(int ioport,
+					    int *port_index,
+					    int *max_port_index);
+
+int			bt_iop_from_bio(isa_compat_io_t bio_index);
 
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
 int			bt_cmd(struct bt_softc *bt, bt_op_t opcode,
