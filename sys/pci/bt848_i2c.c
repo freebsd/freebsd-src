@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt848_i2c.c,v 1.2 1998/11/07 14:30:48 nsouch Exp $
+ *	$Id: bt848_i2c.c,v 1.3 1999/05/08 21:59:38 dfr Exp $
  *
  */
 
@@ -32,6 +32,12 @@
  *
  * From brooktree848.c <fsmp@freefall.org>
  */
+
+#include "pci.h"
+#include "bktr.h"
+#include "smbus.h"
+
+#if (NBKTR > 0 && NPCI > 0 && NSMBUS > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -61,10 +67,7 @@
 #include "iicbb_if.h"
 #include "smbus_if.h"
 
-#include "pci.h"
-#include "bktr.h"
 
-#if (NBKTR > 0 && NPCI > 0)
 
 #define I2C_DELAY	40
 
