@@ -535,7 +535,7 @@ main(argc, argv)
 		if (login_getcapbool(lc, "requirehome", !rootlogin))
 			refused("Home directory not available", "HOMEDIR", 1);
 #endif
-		if (chdir("/") < 0) {
+		if (chdir("/") < 0) 
 			refused("Cannot find root directory", "ROOTDIR", 1);
 		pwd->pw_dir = "/";
 		if (!quietlog || *pwd->pw_dir)
@@ -567,7 +567,6 @@ main(argc, argv)
 		} else if (pwd->pw_change - tp.tv_sec < warntime && !quietlog)
 		    (void)printf("Warning: your password expires on %s",
 				 ctime(&pwd->pw_change));
-		}
 	}
 
 #ifdef LOGIN_CAP
