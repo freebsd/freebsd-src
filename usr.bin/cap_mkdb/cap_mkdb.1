@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cap_mkdb.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd "June 6, 1993"
 .Dt CAP_MKDB 1
@@ -63,7 +64,7 @@ than they can the original text file(s).
 The ``tc'' capabilities of the records are expanded before the
 record is stored into the database.
 .Pp
-The options as as follows:
+The options as follows:
 .Bl -tag -width XXXXXX -indent
 .It Fl f Ar outfile
 Specify a different database basename.
@@ -83,7 +84,7 @@ that couldn't be expanded.
 .Pp
 The second type is a key which consists of one of the names from the
 first capability of the record with a data field consisting a special
-byte followed by the the first capability of the record.
+byte followed by the first capability of the record.
 The special byte is a 2.
 .Pp
 In normal operation names are looked up in the database, resulting

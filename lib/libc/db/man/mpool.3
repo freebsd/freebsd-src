@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mpool.3	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
 .TH MPOOL 3 "June 4, 1993"
 .UC 7
@@ -115,7 +116,7 @@ If the
 .I pgout
 function is specified, it is called each time a buffer is written into the
 backing file.
-Both functions are are called with the
+Both functions are called with the
 .I pgcookie
 pointer, the page number and a pointer to the page to being read or written.
 .PP

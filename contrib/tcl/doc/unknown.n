@@ -6,6 +6,7 @@
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
 '\" SCCS: @(#) unknown.n 1.7 96/03/25 20:26:05
+'\" $Id$
 '\" 
 .so man.macros
 .TH unknown n "" Tcl "Tcl Built-In Commands"
@@ -52,7 +53,7 @@ If so, it invokes the Tcl \fBexec\fR command
 with \fIcmd\fR and all the \fIargs\fR as arguments.
 If \fIcmd\fR can't be auto-executed, \fBunknown\fR checks to
 see if the command was invoked at top-level and outside of any
-script.  If so, then \fBunknown\fR takes takes two additional steps.
+script.  If so, then \fBunknown\fR takes two additional steps.
 First, it sees if \fIcmd\fR has one of the following three forms:
 \fB!!\fR, \fB!\fIevent\fR, or \fB^\fIold\fB^\fInew\fR?\fB^\fR?.
 If so, then \fBunknown\fR carries out history substitution

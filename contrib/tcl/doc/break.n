@@ -6,6 +6,7 @@
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
 '\" SCCS: @(#) break.n 1.6 96/03/25 20:10:27
+'\" $Id$
 '\" 
 .so man.macros
 .TH break n "" Tcl "Tcl Built-In Commands"
@@ -24,7 +25,7 @@ such as \fBfor\fR or \fBforeach\fR or \fBwhile\fR.
 It returns a TCL_BREAK code, which causes a break exception
 to occur.
 The exception causes the current script to be aborted
-out to the the innermost containing loop command, which then
+out to the innermost containing loop command, which then
 aborts its execution and returns normally.
 Break exceptions are also handled in a few other situations, such
 as the \fBcatch\fR command, Tk event bindings, and the outermost
