@@ -156,7 +156,7 @@ ata_attach(device_t dev)
 
     /* initialize queue and associated lock */
     bzero(&ch->queue_mtx, sizeof(struct mtx));
-    mtx_init(&ch->queue_mtx, "ATA queue lock", MTX_DEF, 0);
+    mtx_init(&ch->queue_mtx, "ATA queue lock", NULL, MTX_DEF);
     TAILQ_INIT(&ch->ata_queue);
 
     /* do not attach devices if we are in early boot */
