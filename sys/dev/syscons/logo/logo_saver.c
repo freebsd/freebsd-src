@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: logo_saver.c,v 1.2 1999/01/01 14:40:49 des Exp $
+ *	$Id: logo_saver.c,v 1.3 1999/01/11 03:18:49 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -41,8 +41,6 @@ static int banksize, scrmode, scrw, scrh;
 static int blanked;
 
 #include "logo.c"
-
-#define set_origin(adp, o) (*vidsw[(adp)->va_index]->set_win_org)(adp, o)
 
 static void
 logo_blit(video_adapter_t *adp, int x, int y)
