@@ -54,6 +54,11 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
+#include "apm.h"
+#if   NAPM > 0
+#include <machine/apm_bios.h>
+#endif	/* NAPM > 0 */
+
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
@@ -95,6 +100,20 @@ static int		invalid_io_memory(unsigned long, int);
 static struct pccard_drv *find_driver(char *);
 static void		remove_device(struct pccard_dev *);
 static void		slot_irq_handler(int);
+static void		power_off_slot(void *);
+
+#if	NAPM > 0
+/*
+ *    For the APM stuff, the apmhook structure is kept
+ *    separate from the slot structure so that the slot
+ *    drivers do not need to know about the hooks (or the
+ *    data structures).
+ */
+static int	slot_suspend(void *arg);
+static int	slot_resume(void *arg);
+static struct	apmhook s_hook[MAXSLOT];	/* APM suspend */
+static struct	apmhook r_hook[MAXSLOT];	/* APM resume */
+#endif	/* NAPM > 0 */
 
 static struct slot	*pccard_slots[MAXSLOT];	/* slot entries */
 static struct slot	*slot_list;
@@ -220,6 +239,12 @@ pccard_remove_controller(struct slot_ctrl *cp)
 				last->next = next;
 			else
 				slot_list = next;
+#if NAPM > 0
+			apm_hook_disestablish(APM_HOOK_SUSPEND,
+				&s_hook[sp->slot]);
+			apm_hook_disestablish(APM_HOOK_RESUME,
+				&r_hook[sp->slot]);
+#endif
 			if (cp->extra && sp->cdata)
 				FREE(sp->cdata, M_DEVBUF);
 			FREE(sp, M_DEVBUF);
@@ -241,6 +266,21 @@ pccard_remove_controller(struct slot_ctrl *cp)
 				cl->next = cp->next;
 				break;
 			}
+}
+
+/*
+ *	Power off the slot
+ *	(doing it immediately makes the removal of some cards unstable)
+ */
+static void
+power_off_slot(void *arg)
+{
+	struct slot *sp = (struct slot *)arg;
+
+	sp->pwr_off_pending = 0;
+
+	/* Power off the slot. */
+	sp->ctrl->disable(sp);
 }
 
 /*
@@ -280,8 +320,9 @@ disable_slot(struct slot *sp)
 			splx(s);
 		}
 	}
-	/* Power off the slot. */
-	sp->ctrl->disable(sp);
+	/* Power off the slot */
+	timeout(power_off_slot, (caddr_t)sp, hz / 4);
+	sp->pwr_off_pending = 1;
 
 	/* De-activate all contexts.  */
 	for (i = 0; i < sp->ctrl->maxmem; i++)
@@ -295,6 +336,40 @@ disable_slot(struct slot *sp)
 			(void)sp->ctrl->mapio(sp, i);
 		}
 }
+
+/*
+ *    APM hooks for suspending and resuming.
+ */
+#if   NAPM > 0
+static int
+slot_suspend(void *arg)
+{
+	struct slot *sp = arg;
+	struct pccard_dev *dp;
+
+	for (dp = sp->devices; dp; dp = dp->next)
+		(void) dp->drv->suspend(dp);
+	if (!sp->suspend_power)
+		sp->ctrl->disable(sp);
+	return (0);
+}
+
+static int
+slot_resume(void *arg)
+{
+	struct slot *sp = arg;
+	struct pccard_dev *dp;
+
+	if (!sp->suspend_power)
+		sp->ctrl->power(sp);
+	if (sp->irq)
+		sp->ctrl->mapirq(sp, sp->irq);
+	for (dp = sp->devices; dp; dp = dp->next)
+	(void) dp->drv->init(dp, 0);
+	return (0);
+}
+#endif	/* NAPM > 0 */
+
 
 /*
  *	pccard_alloc_slot - Called from controller probe
@@ -340,6 +415,24 @@ pccard_alloc_slot(struct slot_ctrl *cp)
 		printf("PC-Card %s (%d mem & %d I/O windows)\n",
 			cp->name, cp->maxmem, cp->maxio);
 	}
+#if NAPM > 0
+	{
+		struct apmhook *ap;
+
+		ap = &s_hook[sp->slot];
+		ap->ah_fun = slot_suspend;
+		ap->ah_arg = (void *)sp;
+		ap->ah_name = cp->name;
+		ap->ah_order = APM_MID_ORDER;
+		apm_hook_establish(APM_HOOK_SUSPEND, ap);
+		ap = &r_hook[sp->slot];
+		ap->ah_fun = slot_resume;
+		ap->ah_arg = (void *)sp;
+		ap->ah_name = cp->name;
+		ap->ah_order = APM_MID_ORDER;
+		apm_hook_establish(APM_HOOK_RESUME, ap);
+	}
+#endif        /* NAPM > 0 */
 	return(sp);
 }
 
@@ -523,19 +616,26 @@ inserted(void *arg)
 	 */
 	sp->pwr.vcc = 50;
 	sp->pwr.vpp = 0;
+	untimeout(power_off_slot, (caddr_t)sp);
+	if (sp->pwr_off_pending)
+		sp->ctrl->disable(sp);
+	sp->pwr_off_pending = 0;
 	sp->ctrl->power(sp);
 	printf("Card inserted, slot %d\n", sp->slot);
 	/*
 	 *	Now start resetting the card.
 	 */
 	sp->ctrl->reset(sp);
+#if   NAPM > 0
+	sp->suspend_power = 0;
+#endif
 }
 
 /*
  *	Insert/Remove beep
  */
 
-static int beepok = 1;
+static int beepok = 0;
 
 static void enable_beep(void *dummy)
 {
@@ -567,8 +667,10 @@ int s;
 			sp->state = empty;
 			splx(s);
 			printf("Card removed, slot %d\n", sp->slot);
-			sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-			beepok = 0;
+			if (beepok) {
+				sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
+				beepok = 0;
+			}
 			timeout(enable_beep, (void *)NULL, hz/5);
 			selwakeup(&sp->selp);
 		}
@@ -576,8 +678,10 @@ int s;
 	case card_inserted:
 		sp->insert_seq = 1;
 		timeout(inserted, (void *)sp, hz/4);
-		sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
-		beepok = 0;
+		if (beepok) {
+			sysbeep(PCCARD_BEEP_PITCH0, PCCARD_BEEP_DURATION0);
+			beepok = 0;
+		}
 		timeout(enable_beep, (void *)NULL, hz/5);
 		break;
 	}
@@ -744,6 +848,9 @@ crdioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 	struct slot *sp = pccard_slots[minor(dev)];
 	struct mem_desc *mp;
 	struct io_desc *ip;
+
+	/* beep is disabled until the 1st call of crdioctl() */
+	enable_beep(NULL);
 
 	if (sp == 0 && cmd != PIOCRWMEM)
 		return(ENXIO);

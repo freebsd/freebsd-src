@@ -125,6 +125,8 @@ struct slot {
 	struct power	pwr;		/* Power values */
 	struct slot_ctrl *ctrl;		/* Per-controller data */
 	void		*cdata;		/* Controller specific data */
+	int		suspend_power;	/* Leave powered on during suspend */
+	int		pwr_off_pending;/* Power status of slot */
 #ifdef DEVFS
 	void		*devfs_token;
 #endif /* DEVFS*/
