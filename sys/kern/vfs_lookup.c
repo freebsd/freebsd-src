@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.7 1995/05/30 08:06:33 rgrimes Exp $
+ * $Id: vfs_lookup.c,v 1.7.4.1 1995/08/25 01:49:10 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -458,23 +458,6 @@ unionlookup:
 	}
 
 	dp = ndp->ni_vp;
-	/*
-	 * Check for symbolic link
-	 */
-	if ((dp->v_type == VLNK) &&
-	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
-	     *ndp->ni_next == '/')) {
-		cnp->cn_flags |= ISSYMLINK;
-		return (0);
-	}
-
-	/*
-	 * Check for bogus trailing slashes.
-	 */
-	if (trailing_slash && dp->v_type != VDIR) {
-		error = ENOTDIR;
-		goto bad2;
-	}
 
 	/*
 	 * Check to see if the vnode has been mounted on;
@@ -492,6 +475,24 @@ unionlookup:
 			goto bad2;
 		vput(dp);
 		ndp->ni_vp = dp = tdp;
+	}
+
+	/*
+	 * Check for symbolic link
+	 */
+	if ((dp->v_type == VLNK) &&
+	    ((cnp->cn_flags & FOLLOW) || trailing_slash ||
+	     *ndp->ni_next == '/')) {
+		cnp->cn_flags |= ISSYMLINK;
+		return (0);
+	}
+
+	/*
+	 * Check for bogus trailing slashes.
+	 */
+	if (trailing_slash && dp->v_type != VDIR) {
+		error = ENOTDIR;
+		goto bad2;
 	}
 
 nextname:
