@@ -12,8 +12,7 @@ ServerKeyBits 768
 LoginGraceTime 120
 KeyRegenerationInterval 3600
 PermitRootLogin no
-# Deprecated: rate-limit sshd connections to 5 connections per 10 seconds
-# ConnectionsPerPeriod 5/10
+# ConnectionsPerPeriod has been deprecated completely
 
 # After 10 unauthenticated connections, refuse 30% of the new ones, and
 # refuse any more than 60 total.
