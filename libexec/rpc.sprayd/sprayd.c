@@ -34,7 +34,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <rpc/rpc.h>
-#include <rpc/pmap_clnt.h>
 #include <rpcsvc/spray.h>
 #include <signal.h>
 #include <stdio.h>
@@ -63,7 +62,7 @@ static int from_inetd = 1;
 void
 cleanup(int sig __unused)
 {
-	(void) pmap_unset(SPRAYPROG, SPRAYVERS);
+	(void) rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
 	exit(0);
 }
 
@@ -77,9 +76,8 @@ int
 main(int argc, char *argv[])
 {
 	SVCXPRT *transp;
-	int sock = 0;
-	int proto = 0;
-	struct sockaddr_in from;
+	int ok;
+	struct sockaddr_storage from;
 	int fromlen;
 
 	/*
@@ -88,14 +86,12 @@ main(int argc, char *argv[])
 	fromlen = sizeof(from);
 	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
 		from_inetd = 0;
-		sock = RPC_ANYSOCK;
-		proto = IPPROTO_UDP;
 	}
 
 	if (!from_inetd) {
 		daemon(0, 0);
 
-		(void) pmap_unset(SPRAYPROG, SPRAYVERS);
+		(void) rpcb_unset(SPRAYPROG, SPRAYVERS, NULL);
 
 		(void) signal(SIGINT, cleanup);
 		(void) signal(SIGTERM, cleanup);
@@ -107,15 +103,21 @@ main(int argc, char *argv[])
 
 	openlog("rpc.sprayd", LOG_CONS|LOG_PID, LOG_DAEMON);
 
-	transp = svcudp_create(sock);
-	if (transp == NULL) {
-		syslog(LOG_ERR, "cannot create udp service");
-		return 1;
-	}
-	if (!svc_register(transp, SPRAYPROG, SPRAYVERS, spray_service, proto)) {
+	if (from_inetd) {
+		transp = svc_tli_create(0, NULL, NULL, 0, 0);
+		if (transp == NULL) {
+			syslog(LOG_ERR, "cannot create udp service.");
+			exit(1);
+		}
+		ok = svc_reg(transp, SPRAYPROG, SPRAYVERS,
+			     spray_service, NULL);
+	} else
+		ok = svc_create(spray_service,
+				SPRAYPROG, SPRAYVERS, "udp");
+	if (!ok) {
 		syslog(LOG_ERR,
 		    "unable to register (SPRAYPROG, SPRAYVERS, %s)",
-		    proto ? "udp" : "(inetd)");
+		    (!from_inetd)?"udp":"(inetd)");
 		return 1;
 	}
 
