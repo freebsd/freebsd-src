@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.11 1997/03/21 04:49:53 jkh Exp $
+ * $Id: main.c,v 1.28.2.12 1997/04/19 06:55:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -127,7 +127,7 @@ main(int argc, char **argv)
 		   "this thing down!  Please report this unfortunate incident\n"
 		   "to jkh@FreeBSD.org.  If you can reproduce the problem, please\n"
 		   "also turn Debug on in the Options menu for the extra information\n"
-		   "it provides in debugging problems like this.  Thanks!");
+		   "it provides in debugging problems like this.  Thanks!", status);
 	systemShutdown(status);
     }
 
