@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.17 1997/02/22 13:01:38 peter Exp $ -->
+<!-- $Id: porting.sgml,v 1.18 1997/02/26 04:49:47 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.67 -->
+<!-- Original revision: 1.69 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -928,12 +928,12 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
 	をとって送ってください. (例えば, 変更前のディレクトリが 
 	`<tt>superedit.bak</tt>' という名前でとってあり, 変更後のもの
 	が `<tt>superedit</tt>' に入っているなら, `<tt>diff -ru
-	superedit.bak superedit</tt>' の結果を送ってください. ) もし変
-	更点が多すぎて, パッチが新しいport全体より大きくなる場合には, 
-	前に述べた手順にしたがって新しいport全体を<ref
-	id="porting:submitting" name="アップロード">してください. いず
-	れの場合にも, <tt>send-pr(1)</tt> を使ってメールを送るのを忘れ
-	ないようにしてください.
+	superedit.bak superedit</tt>' の結果を送ってください. )
+	diff の出力を見て, すべての変更が正しくなされているか確認してください.
+	変更箇所については, <tt>send-pr</tt> に diff の出力結果を入れて私たち
+	に送ってもらうのが一番よいです. commit する際に CVS に明確に記述しな
+        ければならないので, 付け加えたり削除したりしたファイルがあったら,
+	それについて書いておいてください.
 
     <sect2>
       <heading>やっていいことといけないこと</heading>
