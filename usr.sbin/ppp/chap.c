@@ -253,7 +253,7 @@ chap_StartChild(struct chap *chap, char *prog, const char *name)
       }
       for (fd = getdtablesize(); fd > STDERR_FILENO; fd--)
         fcntl(fd, F_SETFD, 1);
-      setuid(geteuid());
+      setuid(ID0realuid());
       command_Expand(nargv, argc, (char const *const *)argv,
                      chap->auth.physical->dl->bundle, 0, pid);
       execvp(nargv[0], nargv);
