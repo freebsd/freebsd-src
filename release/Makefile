@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.48 1997/06/22 17:22:21 jkh Exp $
+#	$Id: Makefile,v 1.246.2.49 1997/06/22 17:59:24 jkh Exp $
 #
 # How to roll a release:
 #
@@ -79,10 +79,11 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-EXTRAS=	cdrom.1
+EXTRAS=
 .if !defined(NOPORTS)
 EXTRAS+= ports.1
 .endif
+EXTRAS+= cdrom.1
 
 .if !defined(NODOC)
 DOCREL= doc.1
