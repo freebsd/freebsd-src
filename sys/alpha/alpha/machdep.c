@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.26 1998/12/04 22:54:42 archie Exp $
+ *	$Id: machdep.c,v 1.27 1998/12/16 16:28:56 bde Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -492,6 +492,21 @@ alpha_unknown_sysname()
 static void
 identifycpu(void)
 {
+	u_int64_t type, major, minor;
+	u_int64_t amask;
+	struct pcs *pcsp;
+	char *cpuname[] = {
+		"unknown",		/* 0 */
+		"EV3",			/* 1 */
+		"EV4 (21064)",		/* 2 */
+		"Simulation",		/* 3 */
+		"LCA Family",		/* 4 */
+		"EV5 (21164)",		/* 5 */
+		"EV45 (21064A)",	/* 6 */
+		"EV56 (21164A)",	/* 7 */
+		"EV6 (21264)",		/* 8 */
+		"PCA56 (21164PC)"	/* 9 */
+	};
 
 	/*
 	 * print out CPU identification information.
@@ -509,6 +524,32 @@ identifycpu(void)
 	printf("variation: 0x%lx, revision 0x%lx\n",
 	    hwrpb->rpb_variation, *(long *)hwrpb->rpb_revision);
 #endif
+ 	pcsp = LOCATE_PCS(hwrpb, hwrpb->rpb_primary_cpu_id);
+	/* cpu type */
+	type = pcsp->pcs_proc_type;
+	major = (type & PCS_PROC_MAJOR) >> PCS_PROC_MAJORSHIFT;
+	minor = (type & PCS_PROC_MINOR) >> PCS_PROC_MINORSHIFT;
+	if (major < sizeof(cpuname)/sizeof(char *))
+		printf("CPU: %s major=%lu minor=%lu",
+			cpuname[major], major, minor);
+	else
+		printf("CPU: major=%lu minor=%lu\n", major, minor);
+	/* amask */
+	if (major >= PCS_PROC_EV56) {
+		amask = 0xffffffff; /* 32 bit for printf */
+		amask = (~alpha_amask(amask)) & amask;
+		printf(" extensions=0x%b\n", (u_int32_t) amask,
+			"\020"
+			"\001BWX"
+			"\002FIX"
+			"\003CIX"
+			"\011MVI"
+			"\012PRECISE"
+		);
+	} else
+		printf("\n");	
+	/* PAL code */
+	printf("OSF PAL rev: 0x%lx\n", pcsp->pcs_palrevisions[PALvar_OSF1]);
 }
 
 extern char kernel_text[], _end[];

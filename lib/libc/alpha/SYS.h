@@ -1,4 +1,4 @@
-/* $Id: SYS.h,v 1.2 1998/06/09 22:43:34 jb Exp $ */
+/* $Id: SYS.h,v 1.3 1998/08/08 02:24:03 jb Exp $ */
 /*	From: NetBSD: SYS.h,v 1.5 1997/05/02 18:15:15 kleink Exp */
 
 /*
@@ -41,7 +41,7 @@
 LLABEL(name,0):							\
 	LDGP(gp);						\
 	beq	a3, LLABEL(name,1);				\
-	jmp	zero, cerror;					\
+	jmp	zero, .cerror;					\
 LLABEL(name,1):
 
 

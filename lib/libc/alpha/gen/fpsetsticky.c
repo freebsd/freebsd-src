@@ -31,13 +31,25 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <ieeefp.h>
+#include <machine/fpu.h>
 
 fp_except
 fpsetsticky(sticky)
 	fp_except sticky;
 {
+	double fpcrval;
+	u_int64_t old,new ;
 
-	/* XXX */
-	abort();
+	GET_FPCR(fpcrval);
+	old = *(u_int64_t *)&fpcrval;
+	new = old & ~ (IEEE_STATUS_MASK << IEEE_STATUS_TO_FPCR_SHIFT);
+	new |= ((sticky << IEEE_STATUS_TO_EXCSUM_SHIFT) & IEEE_STATUS_MASK)
+					<< IEEE_STATUS_TO_FPCR_SHIFT;
+	*(u_int64_t *)&fpcrval = new;
+	SET_FPCR(fpcrval);
+
+	return (((old >> IEEE_STATUS_TO_FPCR_SHIFT) & IEEE_STATUS_MASK)
+					>> IEEE_STATUS_TO_EXCSUM_SHIFT);
 }

@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: cerror.S,v 1.2 1998/06/09 22:56:24 jb Exp $	*/
 /*	From: NetBSD: cerror.S,v 1.4 1996/11/08 00:52:46 cgd Exp 	*/
 
 /*
@@ -34,7 +34,7 @@
 #define	FRAME_RA_OFFSET		0
 #define	FRAME_V0_OFFSET		8
 
-NESTED(cerror, 0, FRAME_SIZE, ra, IM_RA|IM_V0, 0)
+NESTED(.cerror, 0, FRAME_SIZE, ra, IM_RA|IM_V0, 0)
 	br	t0, L1
 L1:	LDGP(t0)
 
@@ -51,4 +51,4 @@ L1:	LDGP(t0)
 	ldq	ra, FRAME_RA_OFFSET(sp)
 	lda	sp, FRAME_SIZE(sp)
 	RET
-END(cerror)
+END(.cerror)

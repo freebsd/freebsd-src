@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.19 1997/04/15 14:05:28 bde Exp $
+#  $Id: Makefile,v 1.20 1998/02/20 07:44:29 jb Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -48,6 +48,7 @@ ARCH_SRCS = s_copysign.S s_copysignf.S
 # XXX Comment from NetBSD/Alpha:
 # XXX LINT SIGFPEs in e_exp.c's strtod().  FP underflow/denorm software
 # handling is broken (doesn't exist!) on the Alpha port.
+CFLAGS += -mtrap-precision=i -mfp-trap-mode=su
 .elif ${MACHINE_ARCH} == "i386"
 ARCH=	i387
 ARCH_PREFIX= ${ARCH}_
