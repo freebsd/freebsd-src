@@ -3,15 +3,12 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_ti
-SRCS	= if_ti.c ti.h bpf.h opt_bdg.h vlan.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= ti.h bpf.h opt_bdg.h vlan.h device_if.h bus_if.h pci_if.h
+SRCS	= if_ti.c ti.h opt_bdg.h vlan.h device_if.h bus_if.h pci_if.h
+CLEANFILES	+= ti.h opt_bdg.h vlan.h device_if.h bus_if.h pci_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
 ti.h:
 	echo "#define NTI 1" > ti.h
-
-bpf.h:
-	echo "#define NBPF 1" > bpf.h
 
 opt_bdg.h:
 	touch opt_bdg.h

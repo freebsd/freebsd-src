@@ -2,7 +2,7 @@
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_sl
-SRCS=   if_sl.c slcompress.c bpf.h opt_inet.h sl.h
+SRCS=   if_sl.c slcompress.c opt_inet.h sl.h
 NOMAN=
 
 NBPF?=	1
@@ -10,10 +10,7 @@ NSL?=		2
 PROTOS?=	-DINET
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+=	bpf.h opt_inet.h sl.h
-
-bpf.h:
-	echo "#define NBPF ${NBPF}" > bpf.h
+CLEANFILES+=	opt_inet.h sl.h
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
