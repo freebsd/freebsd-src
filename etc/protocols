@@ -1,10 +1,10 @@
 #
 # Internet (IP) protocols
 #
-#	$Id: protocols,v 1.7 1997/10/03 01:32:41 itojun Exp $
+#	$Id: protocols,v 1.8 1997/10/23 15:11:21 itojun Exp $
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
-# Updated for FreeBSD based on RFC 1340, Assigned Numbers (July 1992).
+# See also http://www.iana.org/in-notes/iana/assignments/protocol-numbers
 #
 ip	0	IP		# internet protocol, pseudo protocol number
 #hopopt	0	HOPOPT		# hop-by-hop options for ipv6
@@ -29,6 +29,7 @@ ipv6-frag	44	IPV6-FRAG	# fragment header for ipv6
 rsvp	46	RSVP		# Resource ReSerVation Protocol
 esp	50	ESP		# encapsulating security payload
 ah	51	AH		# authentication header
+skip	57	SKIP		# SKIP 
 ipv6-icmp	58	IPV6-ICMP	# ICMP for IPv6
 ipv6-nonxt	59	IPV6-NONXT	# no next header for ipv6
 ipv6-opts	60	IPV6-OPTS	# destination options for ipv6
