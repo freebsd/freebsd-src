@@ -83,6 +83,7 @@ SUBDIR=	${_3dfx} \
 	${_hme} \
 	${_i2c} \
 	${_ibcs2} \
+	${_ichwd} \
 	${_ida} \
 	${_idt} \
 	${_ie} \
@@ -300,6 +301,7 @@ _fe=		fe
 _hfa=		hfa
 _i2c=		i2c
 _ibcs2=		ibcs2
+_ichwd=		ichwd
 _ie=		ie
 _linprocfs=	linprocfs
 _linux=		linux
