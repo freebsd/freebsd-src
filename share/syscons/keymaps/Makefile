@@ -5,9 +5,8 @@ KEYMAPS=danish.cp865.kbd danish.iso.kbd german.cp850.kbd german.iso.kbd \
 MAPSDIR = /usr/share/syscons/keymaps
 NOMAN = noman
 
-all:;
-
-clean:;
+all clean:
+	@echo -n
 
 install:
 	cd ${.CURDIR}; \
