@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.15 1995/12/07 12:46:46 davidg Exp $
+ * $Id: kern_physio.c,v 1.16 1995/12/13 15:12:59 julian Exp $
  */
 
 #include <sys/param.h>
@@ -78,13 +78,13 @@ physio(strategy, bp, dev, rw, minp, uio)
 		while( uio->uio_iov[i].iov_len) {
 
 			bp->b_bcount = uio->uio_iov[i].iov_len;
+			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
+			bp->b_iodone = physwakeup;
+			bp->b_data = uio->uio_iov[i].iov_base;
 			bp->b_bcount = minp( bp);
 			if( minp != minphys)
 				bp->b_bcount = minphys( bp);
 			bp->b_bufsize = bp->b_bcount;
-			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
-			bp->b_iodone = physwakeup;
-			bp->b_data = uio->uio_iov[i].iov_base;
 			/*
 			 * pass in the kva from the physical buffer
 			 * for the temporary kernel mapping.
@@ -164,9 +164,14 @@ doerror:
 u_int
 minphys(struct buf *bp)
 {
+	u_int maxphys = MAXPHYS;
 
-	if( bp->b_bcount > MAXPHYS) {
-		bp->b_bcount = MAXPHYS;
+	if( ((vm_offset_t) bp->b_data) & PAGE_MASK) {
+		maxphys = MAXPHYS - PAGE_SIZE;
+	}
+
+	if( bp->b_bcount > maxphys) {
+		bp->b_bcount = maxphys;
 	}
 	return bp->b_bcount;
 }
