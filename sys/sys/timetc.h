@@ -93,7 +93,7 @@ struct timecounter {
 };
 
 #ifdef _KERNEL
-extern struct timecounter *timecounter;
+extern struct timecounter *volatile timecounter;
 
 void	tc_init __P((struct timecounter *tc));
 void	tc_setclock __P((struct timespec *ts));
