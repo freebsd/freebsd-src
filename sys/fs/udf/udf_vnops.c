@@ -43,6 +43,7 @@
 #include <sys/dirent.h>
 #include <sys/queue.h>
 #include <sys/unistd.h>
+#include <sys/endian.h>
 
 #include <vm/uma.h>
 

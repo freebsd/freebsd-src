@@ -115,7 +115,9 @@ udf_readalblks(struct udf_mnt *udfmp, int lsector, int size, struct buf **bp)
 }
 
 /*
- * Produce a suitable file number from an ICB.
+ * Produce a suitable file number from an ICB.  The passed in ICB is expected
+ * to be in little endian (meaning that it hasn't been swapped for big
+ * endian machines yet).
  * XXX If the fileno resolves to 0, we might be in big trouble.
  * XXX Assumes the ICB is a long_ad.  This struct is compatible with short_ad,
  *     but not ext_ad.
@@ -123,7 +125,7 @@ udf_readalblks(struct udf_mnt *udfmp, int lsector, int size, struct buf **bp)
 static __inline ino_t
 udf_getid(struct long_ad *icb)
 {
-	return (icb->loc.lb_num);
+	return (le32toh(icb->loc.lb_num));
 }
 
 int udf_allocv(struct mount *, struct vnode **, struct thread *);
