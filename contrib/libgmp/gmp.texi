@@ -11,7 +11,7 @@
 @ifinfo
 @format
 START-INFO-DIR-ENTRY
-* gmp: (gmp).                    GNU Multiple Precision Arithmetic Library.
+* gmp: (gmp).			GNU Multiple Precision Arithmetic Library.
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
