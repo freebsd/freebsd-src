@@ -314,7 +314,7 @@ Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
 controllers.
-Adaptec AIC7850 on-board SCSI controllers.
+Adaptec AIC7850/AIC7895 on-board SCSI controllers.
 
 Support for the following controllers is rather weak:
 Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
@@ -330,6 +330,17 @@ and SoundBlaster SCSI cards.
    indicated by some sort of message when the system is first powered up
    or reset, and in such cases you *will* also be able to boot from them.
    Check your system/board documentation for more details.
+
+
+AdvanSys (Advanced Systems) ABP510/542/5150 ISA and ABP5140/5142 ISA PnP
+cards, ABP842/852 VLB cards, and ABP920/930/930U/930UA/950/960/960U/970/970U
+PCI cards.
+
+** Note:  The ADP510/5140/5150 boards were shipped by HP with the 4020i
+   CD-R drive but with NO BIOS, so these models cannot control boot devices
+   though they can be used for any secondary SCSI device.  Also note that the
+   ABP5140/5142 boards were rebadged by SIIG as the "SpeedMaster i540/i542"
+
 
 Buslogic 545S & 545c
 Buslogic 445S/445c VLB SCSI controller
@@ -361,11 +372,6 @@ Future Domain 8xx/950 series SCSI controllers.
 
 WD7000 SCSI controller.
 
-FreeBSD 2.2.5 will be accompanied by a contributed driver for the
-Future Domain 36C20 / Adaptec AHA2920 controller.  This is not fully
-supported (yet), but basically functional.  Look into the /xperimnt
-section of the CD-ROM.
-
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
 DAT and 8mm Exabyte) and CD ROM drives.
@@ -392,10 +398,10 @@ WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
-Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
-Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
-Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
-Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+  Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+  Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+  Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+  Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
