@@ -61,8 +61,8 @@ MODULE_NAME("BATTERY")
 #define	PKG_GETINT(res, tmp, idx, dest, label) do {			\
 	tmp = &res->Package.Elements[idx];				\
 	if (tmp == NULL) {						\
-		device_printf(dev, "%s: PKG_GETINT idx = %d\n.",	\
-		    __func__, idx);					\
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
+		    __func__ ": PKG_GETINT error, idx = %d\n.", idx);	\
 		goto label;						\
 	}								\
 	if (tmp->Type != ACPI_TYPE_INTEGER)				\
@@ -75,8 +75,8 @@ MODULE_NAME("BATTERY")
 	length = size;							\
 	tmp = &res->Package.Elements[idx]; 				\
 	if (tmp == NULL) {						\
-		device_printf(dev, "%s: PKG_GETSTR idx = %d\n.",	\
-		    __func__, idx);					\
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),	\
+		    __func__ ": PKG_GETSTR error, idx = %d\n.", idx);	\
 		goto label;						\
 	}								\
 	bzero(dest, sizeof(dest));					\
@@ -97,11 +97,6 @@ MODULE_NAME("BATTERY")
 		goto label;						\
 	}								\
 	dest[sizeof(dest)-1] = '\0';					\
-} while (0)
-
-#define	CMBAT_DPRINT(dev, x...) do {					\
-	if (acpi_get_verbose(acpi_device_get_parent_softc(dev)))	\
-		device_printf(dev, x);					\
 } while (0)
 
 struct acpi_cmbat_softc {
@@ -209,8 +204,8 @@ retry:
 		}
 		as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bst_buffer);
 		if (as != AE_BUFFER_OVERFLOW) {
-			CMBAT_DPRINT(dev, "CANNOT FOUND _BST - %s\n",
-			    AcpiFormatException(as));
+			ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+			    "couldn't find _BST - %s\n", AcpiFormatException(as));
 			goto end;
 		}
 
@@ -229,19 +224,21 @@ retry:
 			free(sc->bst_buffer.Pointer, M_ACPICMBAT);
 			sc->bst_buffer.Pointer = NULL;
 		}
-		CMBAT_DPRINT(dev, "bst size changed to %d\n", sc->bst_buffer.Length);
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "bst size changed to %d\n", sc->bst_buffer.Length);
 		sc->bst_buffer.Length = 0;
 		goto retry;
 	} else if (as != AE_OK) {
-		CMBAT_DPRINT(dev, "CANNOT FOUND _BST - %s\n",
-		    AcpiFormatException(as));
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "couldn't find _BST - %s\n", AcpiFormatException(as));
 		goto end;
 	}
 
 	res = (ACPI_OBJECT *)sc->bst_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 4)) {
-		CMBAT_DPRINT(dev, "Battery status corrupted\n");
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "battery status corrupted\n");
 		goto end;
 	}
 
@@ -280,8 +277,8 @@ retry:
 		}
 		as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
 		if (as != AE_BUFFER_OVERFLOW) {
-			CMBAT_DPRINT(dev, "CANNOT FOUND _BIF - %s\n",
-			    AcpiFormatException(as));
+			ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+			    "couldn't find _BIF - %s\n", AcpiFormatException(as));
 			goto end;
 		}
 
@@ -300,19 +297,21 @@ retry:
 			free(sc->bif_buffer.Pointer, M_ACPICMBAT);
 			sc->bif_buffer.Pointer = NULL;
 		}
-		CMBAT_DPRINT(dev, "bif size changed to %d\n", sc->bif_buffer.Length);
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "bif size changed to %d\n", sc->bif_buffer.Length);
 		sc->bif_buffer.Length = 0;
 		goto retry;
 	} else if (as != AE_OK) {
-		CMBAT_DPRINT(dev, "CANNOT FOUND _BIF - %s\n",
-		    AcpiFormatException(as));
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "couldn't find _BIF - %s\n", AcpiFormatException(as));
 		goto end;
 	}
 
 	res = (ACPI_OBJECT *)sc->bif_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 13)) {
-		CMBAT_DPRINT(dev, "Battery info corrupted\n");
+		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
+		    "battery info corrupted\n");
 		goto end;
 	}
 

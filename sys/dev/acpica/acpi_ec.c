@@ -463,7 +463,8 @@ EcGpeQueryHandler(void *Context)
 	 * If we failed to get anything from the EC, give up
 	 */
 	if (Status != AE_OK) {
-	    device_printf(sc->ec_dev, "GPE query failed - %s\n", AcpiFormatException(Status));
+	    ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+		"GPE query failed - %s\n", AcpiFormatException(Status));
 	    break;
 	}
 
@@ -477,8 +478,9 @@ EcGpeQueryHandler(void *Context)
 	 * Ignore spurious query requests.
 	 */
 	if (Status != AE_OK && (Data != 0 || Status != AE_NOT_FOUND)) {
-	    device_printf(sc->ec_dev, "evaluation of GPE query method %s failed - %s\n", 
-			  qxx, AcpiFormatException(Status));
+	    ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    	"evaluation of GPE query method %s failed - %s\n", 
+			qxx, AcpiFormatException(Status));
 	}
     }
         /* I know I request Level trigger cleanup */
@@ -599,7 +601,8 @@ EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
 	return_ACPI_STATUS(EcWaitEvent(sc, Event));
 
     if (!EcIsLocked(sc))
-	device_printf(sc->ec_dev, "EcWaitEventIntr called without EC lock!\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWaitEventIntr called without EC lock!\n");
 
     EcStatus = EC_GET_CSR(sc);
 
@@ -633,7 +636,8 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event)
     UINT32	i = 0;
 
     if (!EcIsLocked(sc))
-	device_printf(sc->ec_dev, "EcWaitEvent called without EC lock!\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWaitEvent called without EC lock!\n");
 
     /*
      * Stall 1us:
@@ -686,7 +690,8 @@ EcQuery(struct acpi_ec_softc *sc, UINT8 *Data)
     EcUnlock(sc);
 
     if (Status != AE_OK)
-	device_printf(sc->ec_dev, "timeout waiting for EC to respond to EC_COMMAND_QUERY\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "timeout waiting for EC to respond to EC_COMMAND_QUERY\n");
     return(Status);
 }    
 
@@ -740,9 +745,11 @@ EcTransaction(struct acpi_ec_softc *sc, EC_REQUEST *EcRequest)
     }
 
     if (AcpiClearEvent(sc->ec_gpebit, ACPI_EVENT_GPE) != AE_OK)
-	device_printf(sc->ec_dev, "EcRequest: Unable to clear the EC GPE.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRequest: Unable to clear the EC GPE.\n");
     if (AcpiEnableEvent(sc->ec_gpebit, ACPI_EVENT_GPE, 0) != AE_OK)
-	device_printf(sc->ec_dev, "EcRequest: Unable to re-enable the EC GPE.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRequest: Unable to re-enable the EC GPE.\n");
 
     return(Status);
 }
@@ -754,19 +761,22 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     ACPI_STATUS	Status;
 
     if (!EcIsLocked(sc))
-	device_printf(sc->ec_dev, "EcRead called without EC lock!\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead called without EC lock!\n");
 
     /*EcBurstEnable(EmbeddedController);*/
 
     EC_SET_CSR(sc, EC_COMMAND_READ);
     if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
-	device_printf(sc->ec_dev, "EcRead: Failed waiting for EC to process read command.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead: Failed waiting for EC to process read command.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, Address);
     if ((Status = EcWaitEventIntr(sc, EC_EVENT_OUTPUT_BUFFER_FULL)) != AE_OK) {
-	device_printf(sc->ec_dev, "EcRead: Failed waiting for EC to send data.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead: Failed waiting for EC to send data.\n");
 	return(Status);
     }
 
@@ -783,25 +793,29 @@ EcWrite(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
     ACPI_STATUS	Status;
 
     if (!EcIsLocked(sc))
-	device_printf(sc->ec_dev, "EcWrite called without EC lock!\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWrite called without EC lock!\n");
 
     /*EcBurstEnable(EmbeddedController);*/
 
     EC_SET_CSR(sc, EC_COMMAND_WRITE);
     if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
-	device_printf(sc->ec_dev, "EcWrite: Failed waiting for EC to process write command.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWrite: Failed waiting for EC to process write command.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, Address);
     if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
-	device_printf(sc->ec_dev, "EcRead: Failed waiting for EC to process address.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcRead: Failed waiting for EC to process address.\n");
 	return(Status);
     }
 
     EC_SET_DATA(sc, *Data);
     if ((Status = EcWaitEventIntr(sc, EC_EVENT_INPUT_BUFFER_EMPTY)) != AE_OK) {
-	device_printf(sc->ec_dev, "EcWrite: Failed waiting for EC to process data.\n");
+	ACPI_VPRINT(sc->ec_dev, acpi_device_get_parent_softc(sc->ec_dev),
+	    "EcWrite: Failed waiting for EC to process data.\n");
 	return(Status);
     }
 
