@@ -1543,8 +1543,11 @@ tdsignal(struct thread *td, int sig, sig_t action)
 		    td->td_state == TDS_RUNNING) {
 			signotify(td->td_proc);
 #ifdef SMP
-			if (td->td_state == TDS_RUNNING && td != curthread)
+			if (td->td_state == TDS_RUNNING && td != curthread) {
+				mtx_lock_spin(&sched_lock);
 				forward_signal(td);
+				mtx_unlock_spin(&sched_lock);
+			}
 #endif
 		}
 		goto out;
