@@ -744,9 +744,9 @@ twed_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 
     dp = arg;
     twed_sc = (struct twed_softc *)dp->d_drv1;
-    twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
-    if (!twed_sc || !twe_sc)
+    if (twed_sc == NULL)
 	return(ENXIO);
+    twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
 
     if (length > 0) {
 	if ((error = twe_dump_blocks(twe_sc, twed_sc->twed_drive->td_twe_unit, offset / TWE_BLOCK_SIZE, virtual, length / TWE_BLOCK_SIZE)) != 0)
