@@ -81,6 +81,7 @@ g_dev_print(void)
 {
 	struct g_geom *gp;
 
+	g_waitidle();
 	if (LIST_EMPTY(&g_dev_class.geom))
 		return (0);
 	printf("List of GEOM disk devices:\n  ");
