@@ -31,7 +31,7 @@
  *
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.1.1.1 1994/11/12 05:25:32 lars Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.4 1995/10/31 23:28:29 peter Exp $";
 
 #include <stdio.h>
 #include <time.h>
@@ -542,7 +542,8 @@ void set_tty_parameters()
 
     if (get_term_param (&t) < 0)
         {
-	sysfatal("Can't get terminal parameters");
+	have_tty_parameters = 0;
+	return;
         }
 
     saved_tty_parameters = t;
