@@ -21,13 +21,16 @@
 @syncodeindex tp fn
 
 @ifinfo
+@direntry
+* dc: (dc).                   Arbritrary precision RPN ``Desktop Calculator''.
+@end direntry
 This file documents @sc{dc}, an arbitrary precision calculator.
 
-Published by the Free Software Foundation,
-675 Massachusetts Avenue,
-Cambridge, MA 02139 USA
+Published by the Free Software Foundation, Inc.
+59 Temple Place, Suite 330
+Boston, MA 02111 USA
 
-Copyright (C) 1984, 1994, 1997, 1998 Free Software Foundation, Inc.
+Copyright (C) 1984, 1994, 1997, 1998, 2000 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -64,8 +67,8 @@ Copyright @copyright{} 1994, 1997, 1998 Free Software Foundation, Inc.
 
 @sp 2
 Published by the Free Software Foundation, @*
-675 Massachusetts Avenue, @*
-Cambridge, MA 02139 USA
+59 Temple Place, Suite 330 @*
+Boston, MA 02111 USA
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -518,8 +521,6 @@ that was later popped.
 @node Reporting bugs,  , Miscellaneous, Top
 @chapter Reporting bugs
 
-Email bug reports to @code{bug-gnu-utils@@prep.ai.mit.edu}.
-Be sure to include the word ``dc'' somewhere in the ``Subject:'' field.
-
+Email bug reports to @email{bug-dc@@gnu.org}.
 @contents
 @bye

@@ -1,6 +1,6 @@
-scale = 30
-for (a=0; a<5; a=a+2) {
-  for (b=0; b<100; b=b+10) x=j(a,b)
+scale = 50
+for (a=0; a<=100; a += 20) {
+  for (b=0; b<=300; b += 20) x=j(a,b)
+  x
 }
-x
 quit
