@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.86 1995/07/11 17:20:20 bde Exp $
+ *	$Id: conf.c,v 1.87 1995/07/16 10:45:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -839,6 +839,7 @@ d_select_t	crdselect;
 #define crdread		nxread
 #define crdwrite	nxwrite
 #define	crdioctl	nxioctl
+#define crdselect	nxselect
 
 #endif
 
