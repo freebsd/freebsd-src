@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.31 1998/11/05 14:28:17 dg Exp $
+ * $Id: param.c,v 1.32 1998/12/14 08:34:54 dillon Exp $
  */
 
 #include <stddef.h>
@@ -74,7 +74,9 @@ int	hz = HZ;
 int	tick = 1000000 / HZ;
 int	tickadj = howmany(30000, 60 * HZ);	/* can adjust 30ms in 60s */
 #define	NPROC (20 + 16 * MAXUSERS)
+#ifndef MAXFILES
 #define MAXFILES (NPROC*2)
+#endif
 int	maxproc = NPROC;			/* maximum # of processes */
 int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
 int	maxfiles = MAXFILES;			/* system wide open files limit */
