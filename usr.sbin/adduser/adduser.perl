@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19.2.9 1997/12/29 23:27:29 wosch Exp $
+# $Id: adduser.perl,v 1.19.2.10 1998/07/18 11:08:31 jkh Exp $
 
 
 # read variables
@@ -960,6 +960,7 @@ sub adduser_log {
     return 1 if $logfile eq "no";
 
     local($sec, $min, $hour, $mday, $mon, $year) = localtime;
+    $year += 1900;
     $mon++;
 
     foreach $e ('sec', 'min', 'hour', 'mday', 'mon', 'year') {
