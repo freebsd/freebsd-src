@@ -66,7 +66,6 @@ static int smbfs_version = SMBFS_VERSION;
 #ifdef SMBFS_USEZONE
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 vm_zone_t smbfsmount_zone;
 #endif
