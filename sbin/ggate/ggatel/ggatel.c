@@ -77,7 +77,7 @@ g_gatel_serve(int fd)
 	size_t bsize;
 
 	if (g_gate_verbose == 0) {
-		if (daemon(0, 0) < 0) {
+		if (daemon(0, 0) == -1) {
 			g_gate_destroy(unit, 1);
 			err(EXIT_FAILURE, "Cannot daemonize");
 		}
@@ -161,7 +161,7 @@ g_gatel_create(void)
 	int fd;
 
 	fd = open(path, g_gate_openflags(flags));
-	if (fd < 0)
+	if (fd == -1)
 		err(EXIT_FAILURE, "Cannot open %s", path);
 	ggioc.gctl_version = G_GATE_VERSION;
 	ggioc.gctl_unit = unit;
@@ -186,7 +186,7 @@ g_gatel_attach(void)
 	int fd;
 
 	fd = open(path, g_gate_openflags(flags));
-	if (fd < 0)
+	if (fd == -1)
 		err(EXIT_FAILURE, "Cannot open %s", path);
 	g_gatel_serve(fd);
 }

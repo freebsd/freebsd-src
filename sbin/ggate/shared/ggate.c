@@ -133,10 +133,10 @@ g_gate_mediasize(int fd)
 	off_t mediasize;
 	struct stat sb;
 
-	if (fstat(fd, &sb) < 0)
+	if (fstat(fd, &sb) == -1)
 		g_gate_xlog("fstat(): %s.", strerror(errno));
 	if (S_ISCHR(sb.st_mode)) {
-		if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) < 0) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) == -1) {
 			g_gate_xlog("Can't get media size: %s.",
 			    strerror(errno));
 		}
@@ -154,10 +154,10 @@ g_gate_sectorsize(int fd)
 	size_t secsize;
 	struct stat sb;
 
-	if (fstat(fd, &sb) < 0)
+	if (fstat(fd, &sb) == -1)
 		g_gate_xlog("fstat(): %s.", strerror(errno));
 	if (S_ISCHR(sb.st_mode)) {
-		if (ioctl(fd, DIOCGSECTORSIZE, &secsize) < 0) {
+		if (ioctl(fd, DIOCGSECTORSIZE, &secsize) == -1) {
                         g_gate_xlog("Can't get sector size: %s.",
 			    strerror(errno));
 		}
@@ -174,7 +174,7 @@ g_gate_open_device(void)
 {
 
 	g_gate_devfd = open("/dev/" G_GATE_CTL_NAME, O_RDWR, 0);
-	if (g_gate_devfd < 0)
+	if (g_gate_devfd == -1)
 		err(EXIT_FAILURE, "open(/dev/%s)", G_GATE_CTL_NAME);
 }
 
@@ -189,7 +189,7 @@ void
 g_gate_ioctl(unsigned long req, void *data)
 {
 
-	if (ioctl(g_gate_devfd, req, data) < 0) {
+	if (ioctl(g_gate_devfd, req, data) == -1) {
 		g_gate_xlog("%s: ioctl(/dev/%s): %s.", getprogname(),
 		    G_GATE_CTL_NAME, strerror(errno));
 	}
@@ -221,9 +221,9 @@ void
 g_gate_load_module(void)
 {
 
-	if (modfind("g_gate") < 0) {
+	if (modfind("g_gate") == -1) {
 		/* Not present in kernel, try loading it. */
-		if (kldload("geom_gate") < 0 || modfind("g_gate") < 0) {
+		if (kldload("geom_gate") == -1 || modfind("g_gate") == -1) {
 			if (errno != EEXIST) {
 				errx(EXIT_FAILURE,
 				    "geom_gate module not available!");
