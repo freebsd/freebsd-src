@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.92 1997/12/30 02:45:45 brian Exp $
+.\" $Id: ppp.8,v 1.93 1998/01/04 21:28:49 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -174,7 +174,9 @@ your kernel should include a tunnel device (the GENERIC kernel includes
 one by default).  If it doesn't, or if you require more than one tun
 interface, you'll need to rebuild your kernel with the following line in
 your kernel configuration file:
+.Pp
 .Dl pseudo-device tun N
+.Pp
 where
 .Ar N
 is the maximum number of
@@ -199,8 +201,11 @@ to log information.  A common log file name is
 To make output go to this file, put the following lines in the
 .Pa /etc/syslog.conf
 file:
-.Dl !ppp
-.Dl *.*<TAB>/var/log/ppp.log
+.Bd -literal -offset indent
+!ppp
+*.*<TAB>/var/log/ppp.log
+.Ed
+.Pp
 Make sure you use actual TABs here.  If you use spaces, the line will be
 silently ignored.
 It is possible to have more than one
@@ -208,11 +213,16 @@ It is possible to have more than one
 log file by creating a link to the
 .Nm
 executable:
+.Pp
 .Dl # cd /usr/sbin
 .Dl # ln ppp ppp0
+.Pp
 and using
-.Dl !ppp0
-.Dl *.* /var/log/ppp0.log
+.Bd -literal -offset indent
+!ppp0
+*.* /var/log/ppp0.log
+.Ed
+.Pp
 in
 .Pa /etc/syslog.conf .
 Don't forget to send a
@@ -224,24 +234,25 @@ after altering
 .Sh MANUAL DIALING
 In the following examples, we assume that your machine name is
 .Dv awfulhak .
-If you set your host name and password in
-.Pa /etc/ppp/ppp.secret ,
-you can't do anything except run the help, passwd and quit commands.
-.Bd -literal -offset indent
-ppp on "your host name"> help
- help    : Display this message
- passwd  : Password for security
- quit    : Quit the PPP program
-ppp on awfulhak> pass <password>
-.Ed
-.Pp
-The "on" part of your prompt will change to "ON" if you specify the
-correct password.
+when you invoke
+.Nm
+(see
+.Em PERMISSIONS
+above) with no arguments, you are presented with a prompt:
 .Bd -literal -offset indent
 ppp ON awfulhak>
 .Ed
 .Pp
-You can now specify the device name, speed and parity for your modem,
+The
+.Sq ON
+part of your prompt should always be in upper case.  If it is in lower
+case, it means that you must supply a password using the
+.Dq passwd
+command.  This only ever happens if you connect to a running version of
+.Nm
+and have not authenticated yourself using the correct password.
+.Pp
+You can start by specifying the device name, speed and parity for your modem,
 and whether CTS/RTS signalling should be used (CTS/RTS is used by
 default).  If your hardware does not provide CTS/RTS lines (as
 may happen when you are connected directly to certain PPP-capable
@@ -585,8 +596,10 @@ command is honoured, as is the reconnect tries value.  If your redial
 value is less than the number of phone numbers specified, not all
 the specified numbers will be tried.
 To terminate the program, type
-  PPP ON awfulhak> close
-  ppp ON awfulhak> quit all
+.Bd -literal -offset indent
+PPP ON awfulhak> close
+ppp ON awfulhak> quit all
+.Ed
 .Pp
 A simple
 .Dq quit
@@ -714,6 +727,54 @@ from a line like
 .Dl /AutoPPP/ -     -       /etc/ppp/ppp-pap-dialup
 .El
 .Pp
+.Sh AUTHENTICATING INCOMING CONNECTIONS
+Normally, the receiver of a connection requires that the peer
+authenticates themself.  This may be done using
+.Xr login 1 ,
+but alternatively, you can use PAP or CHAP.  CHAP is the more secure
+of the two, but some clients may not support it.  Once you decide which
+you wish to use, add the command
+.Sq enable chap
+or
+.Sq enable pap
+to the relevent section of
+.Pa ppp.conf .
+.Pp
+You must then configure the
+.Pa /etc/ppp/ppp.secret
+file.  This file contains one line per possible client, each line
+containing up to four fields:
+.Bd -literal -offset indent
+name key [hisaddr [label]]
+.Ed
+.Pp
+The
+.Ar name
+and
+.Ar key
+specify the client as expected.  If the client does not offer a suitable
+response based on any
+.Ar name No / Ar key
+combination in
+.Pa ppp.secret ,
+authentication fails.
+.Pp
+If authentication is successful,
+.Ar hisaddr
+.Pq if specified
+is used when negotiating IP numbers.  See the
+.Dq set ifaddr
+command for details.
+.Pp
+If authentication is successful and
+.Ar label
+is specified, the current system label is changed to match the given
+.Ar label .
+This will change the subsequent parsing of the
+.Pa ppp.linkup
+and
+.Pa ppp.linkdown
+files.
 .Sh PPP OVER TCP (a.k.a Tunneling)
 Instead of running
 .Nm
@@ -922,17 +983,26 @@ closed, though the
 .Nm
 program itself remains running.  Another trigger packet will cause it to
 attempt to reestablish the link.
-.Sh PREDICTOR-1 COMPRESSION
-This version supports CCP and Predictor type 1 compression based on
-the current IETF-draft specs. As a default behaviour,
+.Sh PREDICTOR-1 and DEFLATE COMPRESSION
+This version supports CCP and Predictor type 1 or deflate compression
+based on the current IETF-draft specs. As a default behaviour,
 .Nm
-will attempt to use (or be willing to accept) this capability when the
-peer agrees (or requests it).
-To disable CCP/predictor1 functionality completely, use the
-.Dq disable pred1
+will attempt to use (or be willing to accept) both compression protocols
+when the peer agrees
+.Pq or requests them .
+The deflate protocol is preferred by
+.Nm ppp .
+Refer to the
+.Dq disable
 and
-.Dq deny pred1
-commands.
+.Dq deny
+commands if you wish to disable this functionality.
+.Pp
+It is possible to use a different algorithm in each direction by using
+only one of
+.Dq disable deflate
+and
+.Dq deny deflate .
 .Sh CONTROLLING IP ADDRESS
 .Nm
 uses IPCP to negotiate IP addresses. Each side of the connection
@@ -1001,7 +1071,9 @@ it is often the case that one side is acting as a server which controls
 all IP addresses and the other side should obey the direction from it.
 In order to allow more flexible behaviour, `ifaddr' variable allows the
 user to specify IP address more loosely:
+.Pp
 .Dl set ifaddr 192.244.177.38/24 192.244.177.2/20
+.Pp
 A number followed by a slash (/) represent the number of bits significant in
 the IP address.  The above example signifies that:
 .Bl -bullet -compact
@@ -1584,20 +1656,27 @@ arguments.
 is the next hop gateway to get to the given
 .Ar dest
 machine/network.  It is possible to use the symbolic names
+.Sq MYADDR
+and
+.Sq HISADDR
+as the destination, and either
 .Sq HISADDR
 or
 .Sq INTERFACE
 as the
 .Ar gateway .
-.Sq INTERFACE
-is replaced with the current interface name and
+.Sq MYADDR
+is replaced with the interface address,
 .Sq HISADDR
-is replaced with the current interface address.  If the current interface
+is replaced with the interfaces destination address and
+.Sq INTERFACE
+is replaced with the current interface name.  If the interfaces destination
 address has not yet been assigned
 .Pq via Dq set ifaddr ,
 the current
 .Sq INTERFACE
-is used instead.
+is used instead of
+.Sq HISADDR .
 .Pp
 Refer to the
 .Dq set ifaddr
@@ -2127,6 +2206,14 @@ file should be used instead).  Use
 to restrict the current profile to
 .Fl auto
 mode only.
+.Pp
+Note also that the
+.Ar hisaddr
+argument may be overridden in the
+.Pa ppp.secret
+file once the client has authenticated themself.  Refer to the
+.Em AUTHENTICATING INCOMING CONNECTIONS
+section for details.
 .It set loopback on|off
 When set to
 .Ar on

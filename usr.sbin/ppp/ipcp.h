@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.14 1997/11/22 03:37:35 brian Exp $
+ * $Id: ipcp.h,v 1.15 1997/12/13 02:37:24 brian Exp $
  *
  *	TODO:
  */
@@ -74,7 +74,8 @@ extern void IpcpInit(void);
 extern void IpcpDefAddress(void);
 extern void IpcpUp(void);
 extern void IpcpOpen(void);
-extern int ReportIpcpStatus(struct cmdargs const *);
+extern int  ReportIpcpStatus(struct cmdargs const *);
 extern void IpcpInput(struct mbuf *);
 extern void IpcpAddInOctets(int);
 extern void IpcpAddOutOctets(int);
+extern int  UseHisaddr(const char *, int);
