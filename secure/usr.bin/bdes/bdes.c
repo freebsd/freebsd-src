@@ -528,7 +528,7 @@ ecbenc()
 		WRITE(BUFFER(msgbuf), 8);
 	}
 	/*
-	 * at EOF or last block -- in either ase, the last byte contains
+	 * at EOF or last block -- in either case, the last byte contains
 	 * the character representation of the number of bytes in it
 	 */
 	bn++;
