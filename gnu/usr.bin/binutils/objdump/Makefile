@@ -7,6 +7,7 @@
 PROG=	objdump
 SRCS=	objdump.c prdbg.c
 WARNS?=	2
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"

@@ -10,9 +10,12 @@ SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 	ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
 	ldver.c ldwrite.c lexsup.c mri.c
 
-WARNS?=	1
+WARNS?=	0	# ldemul.h problem (`struct option' declared inside parameter list)
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
+CFLAGS+= -DBINDIR=\"${BINDIR}\" -DTARGET_SYSTEM_ROOT=\"${DESTDIR}\"
+CFLAGS+= -DTOOLBINDIR=\"${DESTDIR}/${BINDIR}/libexec\"
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
 NOSHARED?= yes
 DPADD=	${RELTOP}/libbfd/libbfd.a

@@ -120,7 +120,10 @@ init.c: ${XSRCS}
 .PRECIOUS: init.c
 
 tm.h:
-	ln -sf ${.CURDIR}/fbsd-kgdb-${TARGET_ARCH}.h ${.TARGET}
+	echo '#include "${GDB_CPU}/tm-fbsd.h"'		> ${.TARGET}
+.if exists(${.CURDIR}/fbsd-kgdb-${TARGET_ARCH}.h)
+	echo '#include "fbsd-kgdb-${TARGET_ARCH}.h"'	>> ${.TARGET}
+.endif
 
 .for H in nm-fbsd xm-${GDB_CPU}
 ${H:C/-.*$//}.h:

@@ -278,4 +278,3 @@
 
 /* Define if errno is not declared in system header files. */
 /* #undef NEED_DECLARATION_ERRNO */
-
