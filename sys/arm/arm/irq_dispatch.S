@@ -102,18 +102,13 @@ ASENTRY_NP(irq_entry)
 	.align	0
 
 
-	/*
-	 * XXX Provide intrnames/intrcnt for legacy code, but
-	 * don't actually use them.
-	 */
-
 	.global _C_LABEL(intrnames), _C_LABEL(eintrnames)
 	.global _C_LABEL(intrcnt), _C_LABEL(eintrcnt)
 _C_LABEL(intrnames): 
+	.space NIRQ * (MAXCOMLEN + 1)
 _C_LABEL(eintrnames):
-
-	.global _C_LABEL(intrcnt), _C_LABEL(sintrcnt), _C_LABEL(eintrcnt)
 _C_LABEL(intrcnt):
+	.space NIRQ * 4
 _C_LABEL(eintrcnt):
 
 	.global _C_LABEL(current_intr_depth)
