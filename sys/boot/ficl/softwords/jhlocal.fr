@@ -12,6 +12,8 @@
 \           3 = found }
 \           4 = end of line
 \
+\ revised 2 June 2000 - { | a -- } now works correctly
+\
 \ $FreeBSD$
 
 hide
@@ -24,10 +26,20 @@ hide
 : ?|    ( c-addr u -- c-addr u flag )
     2dup s" |"  compare 0= ;
 
-\ examine name and push true if it's a 2local
-\ (starts with '2'), false otherwise. 
-: ?2loc ( c-addr u -- c-addr n flag )
-    over c@ [char] 2 = if true else false endif ;
+\ examine name - if it's a 2local (starts with "2:"),
+\ nibble the prefix (the "2:") off the name and push true.
+\ Otherwise push false
+\ Problem if the local is named "2:" - we fall off the end...
+: ?2loc ( c-addr u -- c-addr u flag )
+    over dup c@ [char] 2 = 
+	swap 1+  c@ [char] : = and
+    if 
+        2 - swap char+ char+ swap  \ dcs/jws: nibble the '2:'
+        true 
+    else 
+	    false 
+    endif 
+;
 
 : ?delim   ( c-addr u -- state | c-addr u 0 )
     ?|  if  2drop 1 exit endif

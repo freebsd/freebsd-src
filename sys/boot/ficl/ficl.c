@@ -3,7 +3,7 @@
 ** Forth Inspired Command Language - external interface
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 19 July 1997
-** 
+** $Id: ficl.c,v 1.10 2001-04-26 21:41:42-07 jsadler Exp jsadler $
 *******************************************************************/
 /*
 ** This is an ANS Forth interpreter written in C.
@@ -15,10 +15,46 @@
 ** interpreter is re-entrant, so it can be used in multiple instances
 ** in a multitasking system. Unlike Forth, Ficl's outer interpreter
 ** expects a text block as input, and returns to the caller after each
-** text block, so the data pump is somewhere in external code. This
-** is more like TCL than Forth.
+** text block, so the data pump is somewhere in external code in the 
+** style of TCL.
 **
 ** Code is written in ANSI C for portability. 
+*/
+/*
+** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
+** All rights reserved.
+**
+** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** L I C E N S E  and  D I S C L A I M E R
+** 
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+** OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+** HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+** SUCH DAMAGE.
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please send
+** contact me by email at the address above.
+**
+** $Id: ficl.c,v 1.10 2001-04-26 21:41:42-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
@@ -30,15 +66,6 @@
 #endif
 #include <string.h>
 #include "ficl.h"
-
-#ifdef FICL_TRACE
-int ficl_trace = 0;
-#endif
-
-
-/*
-** Local prototypes
-*/
 
 
 /*
@@ -52,12 +79,7 @@ int ficl_trace = 0;
 ** but you can insert one: #define FICL_MULTITHREAD 1
 ** and supply your own version of ficlLockDictionary.
 */
-static FICL_DICT *dp     = NULL;
-static FICL_DICT *envp   = NULL;
-#if FICL_WANT_LOCALS
-static FICL_DICT *localp = NULL;
-#endif
-static FICL_VM   *vmList = NULL;
+static FICL_SYSTEM *pSys = NULL;
 
 static int defaultStack = FICL_DEFAULT_STACK;
 static int defaultDict  = FICL_DEFAULT_DICT;
@@ -76,22 +98,20 @@ static int defaultDict  = FICL_DEFAULT_DICT;
 **************************************************************************/
 void ficlInitSystem(int nDictCells)
 {
-    if (dp)
-        dictDelete(dp);
+    pSys = ficlMalloc(sizeof (FICL_SYSTEM));
+    assert(pSys);
 
-    if (envp)
-        dictDelete(envp);
-
-#if FICL_WANT_LOCALS
-    if (localp)
-        dictDelete(localp);
-#endif
+    memset(pSys, 0, sizeof (FICL_SYSTEM));
 
     if (nDictCells <= 0)
         nDictCells = defaultDict;
 
-    dp     = dictCreateHashed((unsigned)nDictCells, HASHSIZE);
-    envp   = dictCreate(      (unsigned)FICL_DEFAULT_ENV);
+    pSys->dp = dictCreateHashed((unsigned)nDictCells, HASHSIZE);
+    pSys->dp->pForthWords->name = "forth-wordlist";
+
+    pSys->envp = dictCreate((unsigned)FICL_DEFAULT_ENV);
+    pSys->envp->pForthWords->name = "environment";
+
 #if FICL_WANT_LOCALS
     /*
     ** The locals dictionary is only searched while compiling,
@@ -100,11 +120,103 @@ void ficlInitSystem(int nDictCells)
     ** The need to balance search speed with the cost of the empty
     ** operation led me to select a single-threaded list...
     */
-    localp = dictCreate(      (unsigned)FICL_MAX_LOCALS * CELLS_PER_WORD);
+    pSys->localp = dictCreate((unsigned)FICL_MAX_LOCALS * CELLS_PER_WORD);
 #endif
 
-    ficlCompileCore(dp);
+    /*
+    ** Establish the parse order. Note that prefixes precede numbers -
+    ** this allows constructs like "0b101010" which would parse as a
+    ** valid hex value otherwise.
+    */
+    ficlCompilePrefix(pSys);
+    ficlAddPrecompiledParseStep(pSys, "number?", ficlParseNumber);
 
+    /*
+    ** Build the precompiled dictionary and load softwords. We need a temporary
+    ** VM to do this - ficlNewVM links one to the head of the system VM list.
+    ** ficlCompilePlatform (defined in win32.c, for example) adds platform specific words.
+    */
+    ficlCompileCore(pSys);
+#if FICL_WANT_FLOAT
+    ficlCompileFloat(pSys);
+#endif
+
+#if FICL_PLATFORM_EXTEND
+    ficlCompilePlatform(pSys);
+#endif
+
+    /*
+    ** Now we can create a VM to compile the softwords. Note that the VM initialization
+    ** code needs to be able to find "interpret" in the dictionary in order to 
+    ** succeed, so as presently constructed ficlCompileCore has to finish before
+    ** a VM can be created successfully.
+    */
+    ficlNewVM();
+    ficlCompileSoftCore(pSys);
+    ficlFreeVM(pSys->vmList);
+
+
+    return;
+}
+
+
+/**************************************************************************
+                        f i c l A d d P a r s e S t e p
+** Appends a parse step function to the end of the parse list (see 
+** FICL_PARSE_STEP notes in ficl.h for details). Returns 0 if successful,
+** nonzero if there's no more room in the list.
+**************************************************************************/
+int ficlAddParseStep(FICL_SYSTEM *pSys, FICL_WORD *pFW)
+{
+    int i;
+    for (i = 0; i < FICL_MAX_PARSE_STEPS; i++)
+    {
+        if (pSys->parseList[i] == NULL)
+        {
+            pSys->parseList[i] = pFW;
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+
+/*
+** Compile a word into the dictionary that invokes the specified FICL_PARSE_STEP
+** function. It is up to the user (as usual in Forth) to make sure the stack 
+** preconditions are valid (there needs to be a counted string on top of the stack)
+** before using the resulting word.
+*/
+void ficlAddPrecompiledParseStep(FICL_SYSTEM *pSys, char *name, FICL_PARSE_STEP pStep)
+{
+    FICL_DICT *dp = pSys->dp;
+    FICL_WORD *pFW = dictAppendWord(dp, name, parseStepParen, FW_DEFAULT);
+    dictAppendCell(dp, LVALUEtoCELL(pStep));
+    ficlAddParseStep(pSys, pFW);
+}
+
+
+/*
+** This word lists the parse steps in order
+*/
+void ficlListParseSteps(FICL_VM *pVM)
+{
+    int i;
+    FICL_SYSTEM *pSys = pVM->pSys;
+    assert(pSys);
+
+    vmTextOut(pVM, "Parse steps:", 1);
+    vmTextOut(pVM, "lookup", 1);
+
+    for (i = 0; i < FICL_MAX_PARSE_STEPS; i++)
+    {
+        if (pSys->parseList[i] != NULL)
+        {
+            vmTextOut(pVM, pSys->parseList[i]->name, 1);
+        }
+        else break;
+    }
     return;
 }
 
@@ -112,21 +224,15 @@ void ficlInitSystem(int nDictCells)
 /**************************************************************************
                         f i c l N e w V M
 ** Create a new virtual machine and link it into the system list
-** of VMs for later cleanup by ficlTermSystem. If this is the first
-** VM to be created, use it to compile the words in softcore.c
+** of VMs for later cleanup by ficlTermSystem.
 **************************************************************************/
 FICL_VM *ficlNewVM(void)
 {
     FICL_VM *pVM = vmCreate(NULL, defaultStack, defaultStack);
-    pVM->link = vmList;
+    pVM->link = pSys->vmList;
+    pVM->pSys = pSys;
 
-    /*
-    ** Borrow the first vm to build the soft words in softcore.c
-    */
-    if (vmList == NULL)
-        ficlCompileSoftCore(pVM);
-
-    vmList = pVM;
+    pSys->vmList = pVM;
     return pVM;
 }
 
@@ -140,26 +246,26 @@ FICL_VM *ficlNewVM(void)
 **************************************************************************/
 void ficlFreeVM(FICL_VM *pVM)
 {
-	FICL_VM *pList = vmList;
+    FICL_VM *pList = pSys->vmList;
 
-	assert(pVM != 0);
+    assert(pVM != 0);
 
-	if (vmList == pVM)
-	{
-		vmList = vmList->link;
-	}
-	else for (pList; pList != 0; pList = pList->link)
-	{
-		if (pList->link == pVM)
-		{
-			pList->link = pVM->link;
-			break;
-		}
-	}
+    if (pSys->vmList == pVM)
+    {
+        pSys->vmList = pSys->vmList->link;
+    }
+    else for (; pList != NULL; pList = pList->link)
+    {
+        if (pList->link == pVM)
+        {
+            pList->link = pVM->link;
+            break;
+        }
+    }
 
-	if (pList)
-		vmDelete(pVM);
-	return;
+    if (pList)
+        vmDelete(pVM);
+    return;
 }
 
 
@@ -180,14 +286,14 @@ void ficlFreeVM(FICL_VM *pVM)
 **************************************************************************/
 int ficlBuild(char *name, FICL_CODE code, char flags)
 {
-	int err = ficlLockDictionary(TRUE);
-	if (err) return err;
+    int err = ficlLockDictionary(TRUE);
+    if (err) return err;
 
-	assert(dictCellsAvail(dp) > sizeof (FICL_WORD) / sizeof (CELL));
-    dictAppendWord(dp, name, code, flags);
+    assert(dictCellsAvail(pSys->dp) > sizeof (FICL_WORD) / sizeof (CELL));
+    dictAppendWord(pSys->dp, name, code, flags);
 
-	ficlLockDictionary(FALSE);
-	return 0;
+    ficlLockDictionary(FALSE);
+    return 0;
 }
 
 
@@ -216,17 +322,22 @@ int ficlExec(FICL_VM *pVM, char *pText)
 
 int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
 {
-    static FICL_WORD *pInterp = NULL;
+    FICL_WORD **pInterp =  pSys->pInterp;
+    FICL_DICT *dp = pSys->dp;
 
     int        except;
     jmp_buf    vmState;
     jmp_buf   *oldState;
     TIB        saveTib;
 
-    if (!pInterp)
-        pInterp = ficlLookup("interpret");
+    if (!pInterp[0])
+    {
+        pInterp[0] = ficlLookup("interpret");
+        pInterp[1] = ficlLookup("(branch)");
+        pInterp[2] = (FICL_WORD *)(void *)(-2);
+    }
     
-    assert(pInterp);
+    assert(pInterp[0]);
     assert(pVM);
 
     if (size < 0)
@@ -246,12 +357,12 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
     case 0:
         if (pVM->fRestart)
         {
-            pVM->fRestart = 0;
             pVM->runningWord->code(pVM);
+            pVM->fRestart = 0;
         }
         else
         {   /* set VM up to interpret text */
-            vmPushIP(pVM, &pInterp);
+            vmPushIP(pVM, &pInterp[0]);
         }
 
         vmInnerLoop(pVM);
@@ -272,6 +383,7 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
 
     case VM_USEREXIT:
     case VM_INNEREXIT:
+    case VM_BREAK:
         break;
 
     case VM_QUIT:
@@ -279,7 +391,7 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
         {
             dictAbortDefinition(dp);
 #if FICL_WANT_LOCALS
-            dictEmpty(localp, localp->pForthWords->size);
+            dictEmpty(pSys->localp, pSys->localp->pForthWords->size);
 #endif
         }
         vmQuit(pVM);
@@ -293,7 +405,7 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
         {
             dictAbortDefinition(dp);
 #if FICL_WANT_LOCALS
-            dictEmpty(localp, localp->pForthWords->size);
+            dictEmpty(pSys->localp, pSys->localp->pForthWords->size);
 #endif
         }
         dictResetSearchOrder(dp);
@@ -306,53 +418,6 @@ int ficlExecC(FICL_VM *pVM, char *pText, FICL_INT size)
     return (except);
 }
 
-/**************************************************************************
-                        f i c l E x e c F D
-** reads in text from file fd and passes it to ficlExec()
- * returns VM_OUTOFTEXT on success or the ficlExec() error code on
- * failure.
- */ 
-#define nLINEBUF 256
-int ficlExecFD(FICL_VM *pVM, int fd)
-{
-    char    cp[nLINEBUF];
-    int     nLine = 0, rval = VM_OUTOFTEXT;
-    char    ch;
-    CELL    id;
-
-    id = pVM->sourceID;
-    pVM->sourceID.i = fd;
-
-    /* feed each line to ficlExec */
-    while (1) {
-	int status, i;
-
-	i = 0;
-	while ((status = read(fd, &ch, 1)) > 0 && ch != '\n')
-	    cp[i++] = ch;
-        nLine++;
-	if (!i) {
-	    if (status < 1)
-		break;
-	    continue;
-	}
-        rval = ficlExecC(pVM, cp, i);
-	if(rval != VM_QUIT && rval != VM_USEREXIT && rval != VM_OUTOFTEXT)
-        {
-            pVM->sourceID = id;
-            return rval; 
-        }
-    }
-    /*
-    ** Pass an empty line with SOURCE-ID == -1 to flush
-    ** any pending REFILLs (as required by FILE wordset)
-    */
-    pVM->sourceID.i = -1;
-    ficlExec(pVM, "");
-
-    pVM->sourceID = id;
-    return rval;
-}
 
 /**************************************************************************
                         f i c l E x e c X T
@@ -377,6 +442,7 @@ int ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord)
     int        except;
     jmp_buf    vmState;
     jmp_buf   *oldState;
+    FICL_WORD *oldRunningWord;
 
     if (!pQuit)
         pQuit = ficlLookup("exit-inner");
@@ -384,6 +450,11 @@ int ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord)
     assert(pVM);
     assert(pQuit);
     
+    /* 
+    ** Save the runningword so that RESTART behaves correctly
+    ** over nested calls.
+    */
+    oldRunningWord = pVM->runningWord;
     /*
     ** Save and restore VM's jmp_buf to enable nested calls
     */
@@ -404,6 +475,7 @@ int ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord)
         break;
 
     case VM_INNEREXIT:
+    case VM_BREAK:
         break;
 
     case VM_RESTART:
@@ -423,6 +495,7 @@ int ficlExecXT(FICL_VM *pVM, FICL_WORD *pWord)
     }
 
     pVM->pState    = oldState;
+    pVM->runningWord = oldRunningWord;
     return (except);
 }
 
@@ -437,7 +510,7 @@ FICL_WORD *ficlLookup(char *name)
 {
     STRINGINFO si;
     SI_PSZ(si, name);
-    return dictLookup(dp, si);
+    return dictLookup(pSys->dp, si);
 }
 
 
@@ -447,7 +520,7 @@ FICL_WORD *ficlLookup(char *name)
 **************************************************************************/
 FICL_DICT *ficlGetDict(void)
 {
-    return dp;
+    return pSys->dp;
 }
 
 
@@ -457,7 +530,7 @@ FICL_DICT *ficlGetDict(void)
 **************************************************************************/
 FICL_DICT *ficlGetEnv(void)
 {
-    return envp;
+    return pSys->envp;
 }
 
 
@@ -470,6 +543,7 @@ void ficlSetEnv(char *name, FICL_UNS value)
 {
     STRINGINFO si;
     FICL_WORD *pFW;
+    FICL_DICT *envp = pSys->envp;
 
     SI_PSZ(si, name);
     pFW = dictLookup(envp, si);
@@ -491,6 +565,7 @@ void ficlSetEnvD(char *name, FICL_UNS hi, FICL_UNS lo)
 {
     FICL_WORD *pFW;
     STRINGINFO si;
+    FICL_DICT *envp = pSys->envp;
     SI_PSZ(si, name);
     pFW = dictLookup(envp, si);
 
@@ -518,7 +593,7 @@ void ficlSetEnvD(char *name, FICL_UNS hi, FICL_UNS lo)
 #if FICL_WANT_LOCALS
 FICL_DICT *ficlGetLoc(void)
 {
-    return localp;
+    return pSys->localp;
 }
 #endif
 
@@ -547,27 +622,29 @@ int ficlSetStackSize(int nStackCells)
 **************************************************************************/
 void ficlTermSystem(void)
 {
-    if (dp)
-        dictDelete(dp);
-    dp = NULL;
+    if (pSys->dp)
+        dictDelete(pSys->dp);
+    pSys->dp = NULL;
 
-    if (envp)
-        dictDelete(envp);
-    envp = NULL;
+    if (pSys->envp)
+        dictDelete(pSys->envp);
+    pSys->envp = NULL;
 
 #if FICL_WANT_LOCALS
-    if (localp)
-        dictDelete(localp);
-    localp = NULL;
+    if (pSys->localp)
+        dictDelete(pSys->localp);
+    pSys->localp = NULL;
 #endif
 
-    while (vmList != NULL)
+    while (pSys->vmList != NULL)
     {
-        FICL_VM *pVM = vmList;
-        vmList = vmList->link;
+        FICL_VM *pVM = pSys->vmList;
+        pSys->vmList = pSys->vmList->link;
         vmDelete(pVM);
     }
 
+    ficlFree(pSys);
+    pSys = NULL;
     return;
 }
 

@@ -37,7 +37,7 @@
 #include <string.h>
 #include "ficl.h"
 
-/*		FreeBSD's loader interaction words
+/*		FreeBSD's loader interaction words and extras
  *
  * 		setenv      ( value n name n' -- )
  * 		setenv?     ( value n name n' flag -- )
@@ -49,8 +49,10 @@
  * 		pnpdevices  ( -- addr )
  * 		pnphandlers ( -- addr )
  * 		ccall       ( [[...[p10] p9] ... p1] n addr -- result )
+ * 		.#	    ( value -- )
  */
 
+#ifndef TESTMAIN
 void
 ficlSetenv(FICL_VM *pVM)
 {
@@ -276,6 +278,8 @@ ficlPnphandlers(FICL_VM *pVM)
 
 #endif
 
+#endif /* ndef TESTMAIN */
+
 void
 ficlCcall(FICL_VM *pVM)
 {
@@ -303,5 +307,302 @@ ficlCcall(FICL_VM *pVM)
 	stackPushINT(pVM->pStack, result);
 
 	return;
+}
+
+/**************************************************************************
+                        f i c l E x e c F D
+** reads in text from file fd and passes it to ficlExec()
+ * returns VM_OUTOFTEXT on success or the ficlExec() error code on
+ * failure.
+ */ 
+#define nLINEBUF 256
+int ficlExecFD(FICL_VM *pVM, int fd)
+{
+    char    cp[nLINEBUF];
+    int     nLine = 0, rval = VM_OUTOFTEXT;
+    char    ch;
+    CELL    id;
+
+    id = pVM->sourceID;
+    pVM->sourceID.i = fd;
+
+    /* feed each line to ficlExec */
+    while (1) {
+	int status, i;
+
+	i = 0;
+	while ((status = read(fd, &ch, 1)) > 0 && ch != '\n')
+	    cp[i++] = ch;
+        nLine++;
+	if (!i) {
+	    if (status < 1)
+		break;
+	    continue;
+	}
+        rval = ficlExecC(pVM, cp, i);
+	if(rval != VM_QUIT && rval != VM_USEREXIT && rval != VM_OUTOFTEXT)
+        {
+            pVM->sourceID = id;
+            return rval; 
+        }
+    }
+    /*
+    ** Pass an empty line with SOURCE-ID == -1 to flush
+    ** any pending REFILLs (as required by FILE wordset)
+    */
+    pVM->sourceID.i = -1;
+    ficlExec(pVM, "");
+
+    pVM->sourceID = id;
+    return rval;
+}
+
+static void displayCellNoPad(FICL_VM *pVM)
+{
+    CELL c;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
+    c = stackPop(pVM->pStack);
+    ltoa((c).i, pVM->pad, pVM->base);
+    vmTextOut(pVM, pVM->pad, 0);
+    return;
+}
+
+/*          fopen - open a file and return new fd on stack.
+ *
+ * fopen ( count ptr  -- fd )
+ */
+static void pfopen(FICL_VM *pVM)
+{
+    int     fd;
+    char    *p;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 2, 1);
+#endif
+    (void)stackPopINT(pVM->pStack); /* don't need count value */
+    p = stackPopPtr(pVM->pStack);
+    fd = open(p, O_RDONLY);
+    stackPushINT(pVM->pStack, fd);
+    return;
+ }
+ 
+/*          fclose - close a file who's fd is on stack.
+ *
+ * fclose ( fd -- )
+ */
+static void pfclose(FICL_VM *pVM)
+{
+    int fd;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
+    fd = stackPopINT(pVM->pStack); /* get fd */
+    if (fd != -1)
+	close(fd);
+    return;
+}
+
+/*          fread - read file contents
+ *
+ * fread  ( fd buf nbytes  -- nread )
+ */
+static void pfread(FICL_VM *pVM)
+{
+    int     fd, len;
+    char *buf;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 3, 1);
+#endif
+    len = stackPopINT(pVM->pStack); /* get number of bytes to read */
+    buf = stackPopPtr(pVM->pStack); /* get buffer */
+    fd = stackPopINT(pVM->pStack); /* get fd */
+    if (len > 0 && buf && fd != -1)
+	stackPushINT(pVM->pStack, read(fd, buf, len));
+    else
+	stackPushINT(pVM->pStack, -1);
+    return;
+}
+
+/*          fload - interpret file contents
+ *
+ * fload  ( fd -- )
+ */
+static void pfload(FICL_VM *pVM)
+{
+    int     fd;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 0);
+#endif
+    fd = stackPopINT(pVM->pStack); /* get fd */
+    if (fd != -1)
+	ficlExecFD(pVM, fd);
+    return;
+}
+
+/*           key - get a character from stdin
+ *
+ * key ( -- char )
+ */
+static void key(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 0, 1);
+#endif
+    stackPushINT(pVM->pStack, getchar());
+    return;
+}
+
+/*           key? - check for a character from stdin (FACILITY)
+ *
+ * key? ( -- flag )
+ */
+static void keyQuestion(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 0, 1);
+#endif
+#ifdef TESTMAIN
+    /* XXX Since we don't fiddle with termios, let it always succeed... */
+    stackPushINT(pVM->pStack, FICL_TRUE);
+#else
+    /* But here do the right thing. */
+    stackPushINT(pVM->pStack, ischar()? FICL_TRUE : FICL_FALSE);
+#endif
+    return;
+}
+
+/* seconds - gives number of seconds since beginning of time
+ *
+ * beginning of time is defined as:
+ *
+ *	BTX	- number of seconds since midnight
+ *	FreeBSD	- number of seconds since Jan 1 1970
+ *
+ * seconds ( -- u )
+ */
+static void pseconds(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM,0,1);
+#endif
+    stackPushUNS(pVM->pStack, (FICL_UNS) time(NULL));
+    return;
+}
+
+/* ms - wait at least that many milliseconds (FACILITY)
+ *
+ * ms ( u -- )
+ *
+ */
+static void ms(FICL_VM *pVM)
+{
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM,1,0);
+#endif
+#ifdef TESTMAIN
+    usleep(stackPopUNS(pVM->pStack)*1000);
+#else
+    delay(stackPopUNS(pVM->pStack)*1000);
+#endif
+    return;
+}
+
+/*           fkey - get a character from a file
+ *
+ * fkey ( file -- char )
+ */
+static void fkey(FICL_VM *pVM)
+{
+    int i, fd;
+    char ch;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 1);
+#endif
+    fd = stackPopINT(pVM->pStack);
+    i = read(fd, &ch, 1);
+    stackPushINT(pVM->pStack, i > 0 ? ch : -1);
+    return;
+}
+
+/*
+** Retrieves free space remaining on the dictionary
+*/
+
+static void freeHeap(FICL_VM *pVM)
+{
+    stackPushINT(pVM->pStack, dictCellsAvail(ficlGetDict()));
+}
+
+
+/******************* Increase dictionary size on-demand ******************/
+ 
+static void ficlDictThreshold(FICL_VM *pVM)
+{
+    stackPushPtr(pVM->pStack, &dictThreshold);
+}
+ 
+static void ficlDictIncrease(FICL_VM *pVM)
+{
+    stackPushPtr(pVM->pStack, &dictIncrease);
+}
+
+
+/**************************************************************************
+                        f i c l C o m p i l e P l a t f o r m
+** Build FreeBSD platform extensions into the system dictionary
+**************************************************************************/
+void ficlCompilePlatform(FICL_SYSTEM *pSys)
+{
+    FICL_DICT *dp = pSys->dp;
+    assert (dp);
+
+    dictAppendWord(dp, ".#",        displayCellNoPad,    FW_DEFAULT);
+    dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
+    dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
+    dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
+    dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
+    dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
+    dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
+    dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
+    dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
+    dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
+    dictAppendWord(dp, "heap?",     freeHeap,       FW_DEFAULT);
+    dictAppendWord(dp, "dictthreshold", ficlDictThreshold, FW_DEFAULT);
+    dictAppendWord(dp, "dictincrease", ficlDictIncrease, FW_DEFAULT);
+
+#ifndef TESTMAIN
+#ifdef __i386__
+    dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
+    dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
+#endif
+    dictAppendWord(dp, "setenv",    ficlSetenv,	    FW_DEFAULT);
+    dictAppendWord(dp, "setenv?",   ficlSetenvq,    FW_DEFAULT);
+    dictAppendWord(dp, "getenv",    ficlGetenv,	    FW_DEFAULT);
+    dictAppendWord(dp, "unsetenv",  ficlUnsetenv,   FW_DEFAULT);
+    dictAppendWord(dp, "copyin",    ficlCopyin,	    FW_DEFAULT);
+    dictAppendWord(dp, "copyout",   ficlCopyout,    FW_DEFAULT);
+    dictAppendWord(dp, "findfile",  ficlFindfile,   FW_DEFAULT);
+#ifdef HAVE_PNP
+    dictAppendWord(dp, "pnpdevices",ficlPnpdevices, FW_DEFAULT);
+    dictAppendWord(dp, "pnphandlers",ficlPnphandlers, FW_DEFAULT);
+#endif
+    dictAppendWord(dp, "ccall",	    ficlCcall,	    FW_DEFAULT);
+#endif
+
+#if defined(__i386__)
+    ficlSetEnv("arch-i386",         FICL_TRUE);
+    ficlSetEnv("arch-alpha",        FICL_FALSE);
+#elif defined(__alpha__)
+    ficlSetEnv("arch-i386",         FICL_FALSE);
+    ficlSetEnv("arch-alpha",        FICL_TRUE);
+#endif
+
+    return;
 }
 

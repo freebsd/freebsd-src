@@ -3,7 +3,7 @@
 ** Forth Inspired Command Language - dictionary methods
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 19 July 1997
-** 
+** $Id: dict.c,v 1.6 2000-06-17 07:43:44-07 jsadler Exp jsadler $
 *******************************************************************/
 /*
 ** This file implements the dictionary -- FICL's model of 
@@ -15,6 +15,42 @@
 ** control structures.
 **
 ** 29 jun 1998 (sadler) added variable sized hash table support
+*/
+/*
+** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
+** All rights reserved.
+**
+** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** L I C E N S E  and  D I S C L A I M E R
+** 
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+** OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+** HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+** SUCH DAMAGE.
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please send
+** contact me by email at the address above.
+**
+** $Id: dict.c,v 1.8 2001-04-26 21:41:45-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
@@ -270,14 +306,14 @@ int dictCellsUsed(FICL_DICT *pDict)
 ** Checks the dictionary for corruption and throws appropriate
 ** errors
 **************************************************************************/
-void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int n)
+void dictCheck(FICL_DICT *pDict, FICL_VM *pVM, int nCells)
 {
-    if ((n >= 0) && (dictCellsAvail(pDict) * sizeof (CELL) < n))
+    if ((nCells >= 0) && (dictCellsAvail(pDict) < nCells))
     {
         vmThrowErr(pVM, "Error: dictionary full");
     }
 
-    if ((n <= 0) && (dictCellsUsed(pDict) * sizeof (CELL) < -n))
+    if ((nCells <= 0) && (dictCellsUsed(pDict) < -nCells))
     {
         vmThrowErr(pVM, "Error: dictionary underflow");
     }
@@ -363,6 +399,25 @@ FICL_DICT  *dictCreateHashed(unsigned nCells, unsigned nHash)
     pDict->size = nCells;
     dictEmpty(pDict, nHash);
     return pDict;
+}
+
+
+/**************************************************************************
+                        d i c t C r e a t e W o r d l i s t
+** Create and initialize an anonymous wordlist
+**************************************************************************/
+FICL_HASH *dictCreateWordlist(FICL_DICT *dp, int nBuckets)
+{
+    FICL_HASH *pHash;
+    
+    dictAlign(dp);
+    pHash    = (FICL_HASH *)dp->here;
+    dictAllot(dp, sizeof (FICL_HASH) 
+        + (nBuckets-1) * sizeof (FICL_WORD *));
+
+    pHash->size = nBuckets;
+    hashReset(pHash);
+    return pHash;
 }
 
 
@@ -606,7 +661,8 @@ UNS16 hashHashCode(STRINGINFO si)
     if (si.count == 0)
         return 0;
 
-    for (cp = (UNS8 *)si.cp; *cp && si.count; cp++, si.count--)
+    /* changed to run without errors under Purify -- lch */
+    for (cp = (UNS8 *)si.cp; si.count && *cp; cp++, si.count--)
     {
         code = (UNS16)((code << 4) + tolower(*cp));
         shift = (UNS16)(code & 0xf000);
@@ -619,6 +675,8 @@ UNS16 hashHashCode(STRINGINFO si)
 
     return (UNS16)code;
 }
+
+
 
 
 /**************************************************************************
@@ -659,7 +717,7 @@ void hashInsertWord(FICL_HASH *pHash, FICL_WORD *pFW)
 **************************************************************************/
 FICL_WORD *hashLookup(FICL_HASH *pHash, STRINGINFO si, UNS16 hashCode)
 {
-    FICL_COUNT nCmp = (FICL_COUNT)si.count;
+    FICL_UNS nCmp = si.count;
     FICL_WORD *pFW;
     UNS16 hashIdx;
 
@@ -704,6 +762,7 @@ void hashReset(FICL_HASH *pHash)
     }
 
     pHash->link = NULL;
+    pHash->name = NULL;
     return;
 }
 

@@ -3,7 +3,7 @@
 ** Forth Inspired Command Language - virtual machine methods
 ** Author: John Sadler (john_sadler@alum.mit.edu)
 ** Created: 19 July 1997
-** 
+** $Id: vm.c,v 1.8 2001-04-26 21:41:23-07 jsadler Exp jsadler $
 *******************************************************************/
 /*
 ** This file implements the virtual machine of FICL. Each virtual
@@ -11,6 +11,42 @@
 ** owns a pair of stacks for parameters and return addresses, as
 ** well as a pile of state variables and the two dedicated registers
 ** of the interp.
+*/
+/*
+** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
+** All rights reserved.
+**
+** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** L I C E N S E  and  D I S C L A I M E R
+** 
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+** FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+** DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+** OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+** HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+** SUCH DAMAGE.
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please send
+** contact me by email at the address above.
+**
+** $Id: vm.c,v 1.8 2001-04-26 21:41:23-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
@@ -42,7 +78,9 @@ void vmBranchRelative(FICL_VM *pVM, int offset)
 
 /**************************************************************************
                         v m C r e a t e
-** 
+** Creates a virtual machine either from scratch (if pVM is NULL on entry)
+** or by resizing and reinitializing an existing VM to the specified stack
+** sizes.
 **************************************************************************/
 FICL_VM *vmCreate(FICL_VM *pVM, unsigned nPStack, unsigned nRStack)
 {
@@ -61,6 +99,12 @@ FICL_VM *vmCreate(FICL_VM *pVM, unsigned nPStack, unsigned nRStack)
         stackDelete(pVM->rStack);
     pVM->rStack = stackCreate(nRStack);
 
+#if FICL_WANT_FLOAT
+    if (pVM->fStack)
+        stackDelete(pVM->fStack);
+    pVM->fStack = stackCreate(nPStack);
+#endif
+
     pVM->textOut = ficlTextOut;
 
     vmReset(pVM);
@@ -70,7 +114,8 @@ FICL_VM *vmCreate(FICL_VM *pVM, unsigned nPStack, unsigned nRStack)
 
 /**************************************************************************
                         v m D e l e t e
-** 
+** Free all memory allocated to the specified VM and its subordinate 
+** structures.
 **************************************************************************/
 void vmDelete (FICL_VM *pVM)
 {
@@ -78,6 +123,9 @@ void vmDelete (FICL_VM *pVM)
     {
         ficlFree(pVM->pStack);
         ficlFree(pVM->rStack);
+#if FICL_WANT_FLOAT
+        ficlFree(pVM->fStack);
+#endif
         ficlFree(pVM);
     }
 
@@ -200,7 +248,7 @@ STRINGINFO vmGetWord0(FICL_VM *pVM)
 
 /**************************************************************************
                         v m G e t W o r d T o P a d
-** Does vmGetWord0 and copies the result to the pad as a NULL terminated
+** Does vmGetWord and copies the result to the pad as a NULL terminated
 ** string. Returns the length of the string. If the string is too long 
 ** to fit in the pad, it is truncated.
 **************************************************************************/
@@ -208,7 +256,7 @@ int vmGetWordToPad(FICL_VM *pVM)
 {
     STRINGINFO si;
     char *cp = (char *)pVM->pad;
-    si = vmGetWord0(pVM);
+    si = vmGetWord(pVM);
 
     if (SI_COUNT(si) > nPAD)
         SI_SETLEN(si, nPAD);
@@ -231,7 +279,7 @@ int vmGetWordToPad(FICL_VM *pVM)
 **************************************************************************/
 STRINGINFO vmParseString(FICL_VM *pVM, char delim)
 { 
-	return vmParseStringEx(pVM, delim, 1);
+    return vmParseStringEx(pVM, delim, 1);
 }
 
 STRINGINFO vmParseStringEx(FICL_VM *pVM, char delim, char fSkipLeading)
@@ -241,11 +289,11 @@ STRINGINFO vmParseStringEx(FICL_VM *pVM, char delim, char fSkipLeading)
     char *pEnd      = vmGetInBufEnd(pVM);
     char ch;
 
-	if (fSkipLeading)
-	{                       /* skip lead delimiters */
-		while ((pSrc != pEnd) && (*pSrc == delim))
-			pSrc++;
-	}
+    if (fSkipLeading)
+    {                       /* skip lead delimiters */
+        while ((pSrc != pEnd) && (*pSrc == delim))
+            pSrc++;
+    }
 
     SI_SETPTR(si, pSrc);    /* mark start of text */
 
@@ -345,15 +393,10 @@ void vmPopTib(FICL_VM *pVM, TIB *pTib)
 **************************************************************************/
 void vmQuit(FICL_VM *pVM)
 {
-    static FICL_WORD *pInterp = NULL;
-    if (!pInterp)
-        pInterp = ficlLookup("interpret");
-    assert(pInterp);
-
     stackReset(pVM->rStack);
     pVM->fRestart    = 0;
-    pVM->ip          = &pInterp;
-    pVM->runningWord = pInterp;
+    pVM->ip          = NULL;
+    pVM->runningWord = NULL;
     pVM->state       = INTERPRET;
     pVM->tib.cp      = NULL;
     pVM->tib.end     = NULL;
@@ -372,6 +415,9 @@ void vmReset(FICL_VM *pVM)
 {
     vmQuit(pVM);
     stackReset(pVM->pStack);
+#if FICL_WANT_FLOAT
+    stackReset(pVM->fStack);
+#endif
     pVM->base        = 10;
     return;
 }
@@ -400,7 +446,7 @@ void vmSetTextOut(FICL_VM *pVM, OUTFUNC textOut)
 #if FICL_WANT_DEBUGGER
 void vmStep(FICL_VM *pVM)
 {
-	M_VM_STEP(pVM);
+    M_VM_STEP(pVM);
 }
 #endif
 
@@ -629,24 +675,22 @@ char *caseFold(char *cp)
 
 /**************************************************************************
                         s t r i n c m p
-** 
+** (jws) simplified the code a bit in hopes of appeasing Purify
 **************************************************************************/
-int strincmp(char *cp1, char *cp2, FICL_COUNT count)
+int strincmp(char *cp1, char *cp2, FICL_UNS count)
 {
     int i = 0;
-    char c1, c2;
 
-    for (c1 = *cp1, c2 = *cp2;
-        ((i == 0) && count && c1 && c2);
-        c1 = *++cp1, c2 = *++cp2, count--)
+    for (; 0 < count; ++cp1, ++cp2, --count)
     {
-        i = tolower(c1) - tolower(c2);
+        i = tolower(*cp1) - tolower(*cp2);
+        if (i != 0)
+            return i;
+        else if (*cp1 == '\0')
+            return 0;
     }
-
-    return i;
+    return 0;
 }
-
-
 
 /**************************************************************************
                         s k i p S p a c e
