@@ -6,33 +6,22 @@
 .if !defined(__CC_MAKEFILE_INC__)
 __CC_MAKEFILE_INC__= ${MFILE}
 
-GCCDIR=		${.CURDIR}/../../../../contrib/gcc.295
+GCCDIR=	${.CURDIR}/../../../../contrib/gcc
 
-TARGET_ARCH?=	${MACHINE_ARCH}
+.include "Makefile.tgt"
 
 # Machine description.
-MD_FILE=	${GCCDIR}/config/${TARGET_ARCH}/${TARGET_ARCH}.md
-target=		${TARGET_ARCH}-unknown-freebsd
-
-# These architectures are Cygnus's default for enabling Haifa.
-.if ${TARGET_ARCH} == "alpha"
-USE_EGCS_HAIFA=	1
-.endif
-
-version!=	grep version_string ${GCCDIR}/version.c \
-		    | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
+MD_FILE=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md
+target=		${TARGET_ARCH}-undermydesk-freebsd
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
+#CFLAGS+=	-DWANT_COMPILER_INVARIANTS
 
 # If building 64-bit longs for the i386, "_LARGE_LONG" should also be defined
 # to get the proper sizes in limits.h
 .if defined(LONG_TYPE_SIZE)
 CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
-.endif
-
-.if defined(USE_EGCS_HAIFA)
-CFLAGS+=	-DHAIFA
 .endif
 
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}

@@ -2,13 +2,13 @@
 
 .include "${.CURDIR}/../Makefile.inc"
 
-.PATH: ${GCCDIR}/f
+.PATH: ${GCCDIR}/f ${GCCDIR}
 
 PROG=	f771
 SRCS=	bad.c bit.c bld.c com.c data.c equiv.c expr.c global.c implic.c info.c \
-	intrin.c lab.c lex.c malloc.c name.c parse.c proj.c src.c st.c sta.c \
+	intrin.c lab.c lex.c malloc.c name.c parse.c        src.c st.c sta.c \
 	stb.c stc.c std.c ste.c storag.c stp.c str.c sts.c stt.c stu.c stv.c \
-	stw.c symbol.c target.c top.c type.c version.c where.c
+	stw.c symbol.c target.c top.c type.c version.c where.c main.c
 BINDIR=	/usr/libexec
 NOMAN=
 
@@ -18,16 +18,10 @@ DPADD=	${LIBCC_INT}
 LDADD=	${LIBCC_INT}
 
 build-tools: fini
-
-#  The use of ``proj+%BT.o'' is to get around bogus dependacy information
-#  created for build-tools sources.
-fini: fini.o proj+%BT.o
+fini: fini.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
-proj+%BT.o: proj.c
-	${CC} ${CFLAGS} -o ${.TARGET} -c ${.ALLSRC}
-
-CLEANFILES+=	fini fini.o proj+%BT.o
+CLEANFILES+=	fini fini.o
 
 #-----------------------------------------------------------------------
 # str-* gunk

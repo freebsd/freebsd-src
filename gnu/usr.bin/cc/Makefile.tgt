@@ -1,1 +1,16 @@
 # $FreeBSD$
+
+TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if ${TARGET_ARCH} == "alpha"
+GCC_CPU=	alpha
+.elif ${TARGET_ARCH} == "arm"
+GCC_CPU=	arm
+.elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "x86-64"
+GCC_CPU=	i386
+.elif ${TARGET_ARCH} == "powerpc"
+GCC_CPU=	rs6000
+.elif ${TARGET_ARCH} == "sparc64"
+GCC_CPU=	sparc
+TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
+.endif

@@ -1,70 +1,55 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
-
-.if ${MACHINE_ARCH} == "alpha"
-.PATH: ${GCCDIR}/config/alpha
-SRCS=		crtbegin.s crtend.s
-UGLYHACK=	-x assembler
-.else
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
 .PATH: ${GCCDIR}
-SRCS=		crtstuff.c tm.h
-.endif
 
+CCDIR=	${.CURDIR}/../../usr.bin/cc
+.include "${CCDIR}/Makefile.tgt"
+
+SRCS=		crtstuff.c tconfig.h
 OBJS=		crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-I${GCCDIR}/config -I. -DIN_GCC \
-		-finhibit-size-directive -fno-inline-functions \
+CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR
+CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-omit-frame-pointer
-INTERNALLIB=	true
-
+CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I. \
+		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
+MKDEPCMD=	CC=${CC} MKDEP_CPP_OPTS="-M -DCRT_BEGIN" mkdep
+NOLIB=		true
 
-all: ${OBJS} ${SOBJS}
-
-.if ${MACHINE_ARCH} == "alpha"
-crtbegin.o crtbegin.So:	crtbegin.s
-crtend.o crtend.So:	crtend.s
-.for PART in begin end
-CLEANFILES+=	crt${PART}.s
-crt${PART}.s:  crt${PART}.asm
-	ln -sf ${.ALLSRC} ${.TARGET}
-.endfor
-.else
-crtbegin.o crtbegin.So crtend.o crtend.So: ${SRCS}
+.if ${TARGET_ARCH} == "sparc64"
+.PATH: ${GCCDIR}/config/${GCC_CPU}
+TGTOBJS=	crtfastmath.o
+SRCS+=		crtfastmath.c
 .endif
+
+all: ${OBJS} ${SOBJS} ${TGTOBJS}
+
+crtbegin.o crtbegin.So crtend.o crtend.So: ${SRCS}
 
 crtbegin.o:
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN \
-		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 crtbegin.So:
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 crtend.o:
 	${CC} ${CFLAGS} -g0 -DCRT_END \
-		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
 crtend.So:
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
-		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
+		-c -o ${.TARGET} ${.ALLSRC:M*crtstuff*}
 
-CLEANFILES+=	tm.h
-#	KEEP THIS IN SYNC with src/gnu/usr.bin/cc/cc_tools/Makefile !!
-tm.h:
-	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
-.endif
-	echo '#include <freebsd.h>'				>> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
-.endif
+CLEANFILES=	tconfig.h
+tconfig.h: ${CCDIR}/cc_tools/Makefile
+	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 realinstall:
-.for file in ${OBJS} ${SOBJS}
+.for file in ${OBJS} ${SOBJS} ${TGTOBJS}
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.So$/S.o/}
 .endfor

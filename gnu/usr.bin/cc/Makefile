@@ -3,7 +3,7 @@
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.
 
-SUBDIR= cc_fbsd cc_tools cc_int cccp cc1 cc
+SUBDIR= cc_fbsd cc_tools cc_int cc cc1 cpp0 protoize tradcpp0
 
 .if !defined(NO_CPP)
 SUBDIR+= cpp
@@ -11,9 +11,9 @@ SUBDIR+= cpp
 
 .if !defined(NO_CXX)
 SUBDIR+= cc1plus c++ c++filt doc
-#.if !defined(NO_COLLECT2)
-#SUBDIR+= collect2
-#.endif
+.if !defined(NO_COLLECT2)
+SUBDIR+= collect2
+.endif
 .endif
 
 .if !defined(NO_OBJC)

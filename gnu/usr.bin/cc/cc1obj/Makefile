@@ -2,15 +2,13 @@
 
 .include "../Makefile.inc"
 
-.PATH: ${GCCDIR}/objc ${GCCDIR}
+.PATH: ../cc_tools ${GCCDIR}/objc ${GCCDIR}
 
 PROG=	cc1obj
-SRCS=	c-parse.y objc-act.c
-# Ugh, compiled twice...
-SRCS+=	c-decl.c c-lex.c
+SRCS=	objc-parse.c objc-act.c objc-lang.c main.c c-decl.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED=yes
+NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/objc -I.
 
@@ -19,14 +17,18 @@ LDADD+=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
 # objc parser
-
-c-parse.y: c-parse.in
+.ORDER: objc-parse.c
+objc-parse.c: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
 	    -e "/^ifobjc$$/d" \
 	    -e "/^end ifobjc$$/d" \
-	    ${.ALLSRC} > ${.TARGET}
+	    ${GCCDIR}/c-parse.in > objc-parse.y
+	${YACC} -o objc-parse.c.in objc-parse.y
+	sed -e "s/malloc/xmalloc/g" \
+	    -e "s/realloc/xrealloc/g" \
+	    objc-parse.c.in >objc-parse.c
 
-CLEANFILES+=	c-parse.y
+CLEANFILES+=	objc-parse.c           objc-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 
