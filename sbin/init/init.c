@@ -363,7 +363,7 @@ handle(sig_t handler, ...)
 	sa.sa_handler = handler;
 	sigfillset(&mask_everything);
 
-	while ((sig = va_arg(ap, int)) != NULL) {
+	while ((sig = va_arg(ap, int)) != 0) {
 		sa.sa_mask = mask_everything;
 		/* XXX SA_RESTART? */
 		sa.sa_flags = sig == SIGCHLD ? SA_NOCLDSTOP : 0;
@@ -382,7 +382,7 @@ delset(sigset_t *maskp, ...)
 	va_list ap;
 	va_start(ap, maskp);
 
-	while ((sig = va_arg(ap, int)) != NULL)
+	while ((sig = va_arg(ap, int)) != 0)
 		sigdelset(maskp, sig);
 	va_end(ap);
 }
