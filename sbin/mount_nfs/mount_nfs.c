@@ -256,6 +256,7 @@ main(argc, argv)
 	struct nfsd_cargs ncd;
 	int mntflags, altflags, i, nfssvc_flag, num;
 	char *name, *p, *spec;
+	char mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error = 0;
 #ifdef NFSKERB
@@ -470,6 +471,9 @@ main(argc, argv)
 	if (!getnfsargs(spec, nfsargsp))
 		exit(1);
 
+	/* resolve the mountpoint with realpath(3) */
+	(void)checkpath(name, mntpath);
+
 #ifdef __FreeBSD__
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
@@ -481,11 +485,11 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "nfs filesystem is not available");
 
-	if (mount(vfc.vfc_name, name, mntflags, nfsargsp))
-		err(1, "%s", name);
+	if (mount(vfc.vfc_name, mntpath, mntflags, nfsargsp))
+		err(1, "%s", mntpath);
 #else
-	if (mount("nfs", name, mntflags, nfsargsp))
-		err(1, "%s", name);
+	if (mount("nfs", mntpath, mntflags, nfsargsp))
+		err(1, "%s", mntpath);
 #endif
 	if (nfsargsp->flags & (NFSMNT_NQNFS | NFSMNT_KERB)) {
 		if ((opflags & ISBGRND) == 0) {
@@ -502,7 +506,7 @@ main(argc, argv)
 		}
 		openlog("mount_nfs:", LOG_PID, LOG_DAEMON);
 		nfssvc_flag = NFSSVC_MNTD;
-		ncd.ncd_dirp = name;
+		ncd.ncd_dirp = mntpath;
 		while (nfssvc(nfssvc_flag, (caddr_t)&ncd) < 0) {
 			if (errno != ENEEDAUTH) {
 				syslog(LOG_ERR, "nfssvc err %m");
@@ -652,27 +656,52 @@ getnfsargs(spec, nfsargsp)
 #endif
 	struct timeval pertry, try;
 	enum clnt_stat clnt_stat;
-	int so = RPC_ANYSOCK, i, nfsvers, mntvers, orgcnt;
+	int so = RPC_ANYSOCK, i, nfsvers, mntvers, orgcnt, speclen;
 	char *hostp, *delimp;
 #ifdef NFSKERB
 	char *cp;
 #endif
 	u_short tport;
+	size_t len;
 	static struct nfhret nfhret;
 	static char nam[MNAMELEN + 1];
 
-	strncpy(nam, spec, MNAMELEN);
-	nam[MNAMELEN] = '\0';
-	if ((delimp = strchr(spec, '@')) != NULL) {
-		hostp = delimp + 1;
-	} else if ((delimp = strchr(spec, ':')) != NULL) {
+	tport = 0;
+
+	if ((delimp = strchr(spec, ':')) != NULL) {
 		hostp = spec;
 		spec = delimp + 1;
+	} else if ((delimp = strrchr(spec, '@')) != NULL) {
+		warnx("path@server syntax is deprecated, use server:path");
+		hostp = delimp + 1;
 	} else {
-		warnx("no <host>:<dirpath> or <dirpath>@<host> spec");
+		warnx("no <host>:<dirpath> nfs-name");
 		return (0);
 	}
+
 	*delimp = '\0';
+
+	/*
+	 * If there has been a trailing slash at mounttime it seems
+	 * that some mountd implementations fail to remove the mount
+	 * entries from their mountlist while unmounting.
+	 */
+	for (speclen = strlen(spec); 
+		speclen > 1 && spec[speclen - 1] == '/';
+		speclen--)
+		spec[speclen - 1] = '\0';
+	if (strlen(hostp) + strlen(spec) + 1 > MNAMELEN) {
+		warnx("%s:%s: %s", hostp, spec, strerror(ENAMETOOLONG));
+		return (0);
+	}
+	/* Make both '@' and ':' notations equal */
+	if (*hostp != '\0') {
+		len = strlen(hostp);
+		memmove(nam, hostp, len);
+		nam[len] = ':';
+		memmove(nam + len + 1, spec, speclen);
+		nam[len + speclen + 1] = '\0';
+	}
 	/*
 	 * DUMB!! Until the mount protocol works on iso transport, we must
 	 * supply both an iso and an inet address for the host.

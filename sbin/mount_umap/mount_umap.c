@@ -98,7 +98,8 @@ main(argc, argv)
         FILE *fp, *gfp;
         u_long gmapdata[GMAPFILEENTRIES][2], mapdata[MAPFILEENTRIES][2];
 	int ch, count, gnentries, mntflags, nentries;
-	char *gmapfile, *mapfile, *source, *target, buf[20];
+	char *gmapfile, *mapfile, buf[20];
+	char source[MAXPATHLEN], target[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
 
@@ -125,8 +126,9 @@ main(argc, argv)
 	if (argc != 2 || mapfile == NULL || gmapfile == NULL)
 		usage();
 
-	source = argv[0];
-	target = argv[1];
+	/* resolve both target and source with realpath(3) */
+	(void)checkpath(argv[0], source);
+	(void)checkpath(argv[1], target);
 
 	/* Read in uid mapping data. */
 	if ((fp = fopen(mapfile, "r")) == NULL)

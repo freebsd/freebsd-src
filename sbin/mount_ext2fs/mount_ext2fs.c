@@ -76,7 +76,7 @@ main(argc, argv)
 {
 	struct ufs_args args;
 	int ch, mntflags;
-	char *fs_name, *options;
+	char *fs_name, *options, mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
 
@@ -100,6 +100,13 @@ main(argc, argv)
         args.fspec = argv[0];	/* the name of the device file */
 	fs_name = argv[1];	/* the mount point */
 
+	/*
+	 * Resolve the mountpoint with realpath(3) and remove unnecessary
+	 * slashes from the devicename if there are any.
+	 */
+	(void)checkpath(fs_name, mntpath);
+	(void)rmslashes(args.fspec, args.fspec);
+
 #define DEFAULT_ROOTUID	-2
 	args.export.ex_root = DEFAULT_ROOTUID;
 	if (mntflags & MNT_RDONLY)
@@ -118,7 +125,7 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "ext2fs filesystem is not available");
 
-	if (mount(vfc.vfc_name, fs_name, mntflags, &args) < 0)
+	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", args.fspec);
 	exit(0);
 }

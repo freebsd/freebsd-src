@@ -85,7 +85,7 @@ main(int argc, char **argv)
 {
 	struct iso_args args;
 	int ch, mntflags, opts;
-	char *dev, *dir;
+	char *dev, *dir, mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error, verbose;
 
@@ -128,6 +128,13 @@ main(int argc, char **argv)
 	dev = argv[0];
 	dir = argv[1];
 
+	/*
+	 * Resolve the mountpoint with realpath(3) and remove unnecessary
+	 * slashes from the devicename if there are any.
+	 */
+	(void)checkpath(dir, mntpath);
+	(void)rmslashes(dev, dev);
+
 #define DEFAULT_ROOTUID	-2
 	/*
 	 * ISO 9660 filesystems are not writeable.
@@ -168,7 +175,7 @@ main(int argc, char **argv)
 	if (error)
 		errx(1, "cd9660 filesystem is not available");
 
-	if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
+	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
 		err(1, NULL);
 	exit(0);
 }

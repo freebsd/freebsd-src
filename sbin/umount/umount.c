@@ -46,7 +46,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
 
 #include <netdb.h>
@@ -60,44 +59,47 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-typedef enum { MNTON, MNTFROM } mntwhat;
+#define ISDOT(x)	((x)[0] == '.' && (x)[1] == '\0')
+#define ISDOTDOT(x)	((x)[0] == '.' && (x)[1] == '.' && (x)[2] == '\0')
 
-int	fake, fflag, vflag;
-char	*nfshost;
+typedef enum { MNTON, MNTFROM, NOTHING } mntwhat;
+typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
 
-int	 checkvfsname __P((const char *, char **));
-char	*getmntname __P((char *, mntwhat, char **));
-char	**makevfslist __P((char *));
-int	 selected __P((int));
-int	 namematch __P((struct hostent *));
-int	 umountall __P((char **));
-int	 umountfs __P((char *, char **));
-void	 usage __P((void));
-int	 xdr_dir __P((XDR *, char *));
+int	fflag, vflag;
+char   *nfshost;
+
+void	 checkmntlist (char *, char **, char **, char **);
+int	 checkvfsname (const char *, char **);
+char	*getmntname (const char *, const char *,
+	 mntwhat, char **, dowhat);
+char 	*getrealname(char *, char *resolved_path);
+char   **makevfslist (const char *);
+size_t	 mntinfo (struct statfs **);
+int	 namematch (struct hostent *);
+int	 umountall (char **);
+int	 umountfs (char *, char **);
+void	 usage (void);
+int	 xdr_dir (XDR *, char *);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	int all, ch, errs, mnts;
-	char **typelist = NULL;
+	int all, errs, ch, mntsize;
+	char **typelist = NULL, *mntonname, *mntfromname;
+	char *type, *mntfromnamerev, *mntonnamerev;
 	struct statfs *mntbuf;
 
 	/* Start disks transferring immediately. */
 	sync();
 
-	all = 0;
-	while ((ch = getopt(argc, argv, "AaFfh:t:v")) != -1)
+	all = errs = 0;
+	while ((ch = getopt(argc, argv, "Aafh:t:v")) != -1)
 		switch (ch) {
 		case 'A':
 			all = 2;
 			break;
 		case 'a':
 			all = 1;
-			break;
-		case 'F':
-			fake = 1;
 			break;
 		case 'f':
 			fflag = MNT_FORCE;
@@ -108,7 +110,7 @@ main(argc, argv)
 			break;
 		case 't':
 			if (typelist != NULL)
-				errx(1, "only one -t option may be specified");
+				err(1, "only one -t option may be specified");
 			typelist = makevfslist(optarg);
 			break;
 		case 'v':
@@ -130,17 +132,41 @@ main(argc, argv)
 
 	switch (all) {
 	case 2:
-		if ((mnts = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0) {
-			warn("getmntinfo");
-			errs = 1;
+		if ((mntsize = mntinfo(&mntbuf)) <= 0)
 			break;
-		}
-		for (errs = 0, mnts--; mnts > 0; mnts--) {
-			if (checkvfsname(mntbuf[mnts].f_fstypename, typelist))
+		/*
+		 * We unmount the nfs-mounts in the reverse order
+		 * that they were mounted.
+		 */
+		for (errs = 0, mntsize--; mntsize > 0; mntsize--) {
+			if (checkvfsname(mntbuf[mntsize].f_fstypename,
+			    typelist))
 				continue;
-			if (umountfs(mntbuf[mnts].f_mntonname, typelist) != 0)
+			/*
+			 * Check if a mountpoint is laid over by another mount.
+			 * A warning will be printed to stderr if this is
+			 * the case. The laid over mount remains unmounted.
+			 */
+			mntonname = mntbuf[mntsize].f_mntonname;
+			mntfromname = mntbuf[mntsize].f_mntfromname;
+			mntonnamerev = getmntname(getmntname(mntonname,
+			    NULL, MNTFROM, &type, NAME), NULL,
+			    MNTON, &type, NAME);
+
+			mntfromnamerev = getmntname(mntonnamerev,
+			    NULL, MNTFROM, &type, NAME);
+
+			if (strcmp(mntonnamerev, mntonname) == 0 &&
+			    strcmp(mntfromnamerev, mntfromname ) != 0)
+				warnx("cannot umount %s, %s\n        "
+				    "is mounted there, umount it first",
+				    mntonname, mntfromnamerev);
+
+			if (umountfs(mntbuf[mntsize].f_mntonname,
+			    typelist) != 0)
 				errs = 1;
 		}
+		free(mntbuf);
 		break;
 	case 1:
 		if (setfsent() == 0)
@@ -153,19 +179,26 @@ main(argc, argv)
 				errs = 1;
 		break;
 	}
+	(void)getmntname(NULL, NULL, NOTHING, NULL, FREE);
 	exit(errs);
 }
 
 int
-umountall(typelist)
-	char **typelist;
+umountall(char **typelist)
 {
+	struct vfsconf vfc;
 	struct fstab *fs;
 	int rval;
 	char *cp;
-	struct vfsconf vfc;
+	static int firstcall = 1;
 
-	while ((fs = getfsent()) != NULL) {
+	if ((fs = getfsent()) != NULL)
+		firstcall = 0;
+	else if (firstcall)
+		errx(1, "fstab reading failure");
+	else
+		return (0);
+	do {
 		/* Ignore the root. */
 		if (strcmp(fs->fs_file, "/") == 0)
 			continue;
@@ -178,7 +211,7 @@ umountall(typelist)
 		    strcmp(fs->fs_type, FSTAB_RQ))
 			continue;
 		/* If an unknown file system type, complain. */
-		if (getvfsbyname(fs->fs_vfstype, &vfc) < 0) {
+		if (getvfsbyname(fs->fs_vfstype, &vfc) == -1) {
 			warnx("%s: unknown mount type", fs->fs_vfstype);
 			continue;
 		}
@@ -191,92 +224,187 @@ umountall(typelist)
 		 * in some allocated memory, and then call recursively.
 		 */
 		if ((cp = malloc((size_t)strlen(fs->fs_file) + 1)) == NULL)
-			errx(1, "malloc failed");
+			err(1, "malloc failed");
 		(void)strcpy(cp, fs->fs_file);
 		rval = umountall(typelist);
-		return (umountfs(cp, typelist) || rval);
-	}
+		rval = umountfs(cp, typelist) || rval;
+		free(cp);
+		return (rval);
+	} while ((fs = getfsent()) != NULL);
 	return (0);
 }
 
 int
-umountfs(name, typelist)
-	char *name;
-	char **typelist;
+umountfs(char *name, char **typelist)
 {
 	enum clnt_stat clnt_stat;
 	struct hostent *hp;
 	struct sockaddr_in saddr;
-	struct stat sb;
 	struct timeval pertry, try;
 	CLIENT *clp;
-	int so;
-	char *type, *delimp, *hostp, *mntpt, *origname, rname[MAXPATHLEN];
+	size_t len;
+	int so, speclen, do_rpc;
+	char *mntonname, *mntfromname;
+	char *mntfromnamerev;
+	char *nfsdirname, *orignfsdirname;
+	char *resolved, realname[MAXPATHLEN];
+	char *type, *delimp, *hostp, *origname;
 
-	if (realpath(name, rname) == NULL) {
-		/* Continue and let the system call check it... */
-		strcpy(rname, name);
-	}
+	len = 0;
+	mntfromname = mntonname = delimp = hostp = orignfsdirname = NULL;
 
-	origname = name;
-	if (stat(name, &sb) < 0) {
-		mntpt = rname;
-		if ((getmntname(rname, MNTFROM, &type) == NULL) &&
-		    ((mntpt = getmntname(name, MNTON, &type)) == NULL)) {
-			warnx("%s: not currently mounted", name);
-			return (1);
+	/*
+	 * 1. Check if the name exists in the mounttable.
+	 */
+	(void)checkmntlist(name, &mntfromname, &mntonname, &type);
+	/*
+	 * 2. Remove trailing slashes if there are any. After that
+	 * we look up the name in the mounttable again.
+	 */
+	if (mntfromname == NULL && mntonname == NULL) {
+		speclen = strlen(name);
+		for (speclen = strlen(name); 
+		    speclen > 1 && name[speclen - 1] == '/';
+		    speclen--)
+			name[speclen - 1] = '\0';
+		(void)checkmntlist(name, &mntfromname, &mntonname, &type);
+		resolved = name;
+		/* Save off original name in origname */
+		if ((origname = strdup(name)) == NULL)
+			err(1, "strdup");
+		/*
+		 * 3. Check if the deprecated nfs-syntax with an '@'
+		 * has been used and translate it to the ':' syntax.
+		 * Look up the name in the mounttable again.
+		 */
+		if (mntfromname == NULL && mntonname == NULL) {
+			if ((delimp = strrchr(name, '@')) != NULL) {
+				hostp = delimp + 1;
+				if (*hostp != '\0') {
+					/*
+					 * Make both '@' and ':'
+					 * notations equal 
+					 */
+					char *host = strdup(hostp);
+					len = strlen(hostp);
+					if (host == NULL)
+						err(1, "strdup");
+					memmove(name + len + 1, name,
+					    (size_t)(delimp - name));
+					name[len] = ':';
+					memmove(name, host, len);
+					free(host);
+				}
+				for (speclen = strlen(name); 
+				    speclen > 1 && name[speclen - 1] == '/';
+				    speclen--)
+					name[speclen - 1] = '\0';
+				name[len + speclen + 1] = '\0';
+				(void)checkmntlist(name, &mntfromname,
+				    &mntonname, &type);
+				resolved = name;
+			}
+			/*
+			 * 4. Check if a relative mountpoint has been
+			 * specified. This should happen as last check,
+			 * the order is important. To prevent possible
+			 * nfs-hangs, we just call realpath(3) on the
+			 * basedir of mountpoint and add the dirname again.
+			 * Check the name in mounttable one last time.
+			 */
+			if (mntfromname == NULL && mntonname == NULL) {
+				(void)strcpy(name, origname);
+				if ((getrealname(name, realname)) != NULL) {
+					(void)checkmntlist(realname,
+					    &mntfromname, &mntonname, &type);
+					resolved = realname;
+				}
+				/*
+				 * All tests failed, return to main()
+				 */
+				if (mntfromname == NULL && mntonname == NULL) {
+					(void)strcpy(name, origname);
+					warnx("%s: not currently mounted",
+					    origname);
+					free(origname);
+					return (1);
+				}
+			}
 		}
-	} else if (S_ISBLK(sb.st_mode)) {
-		if ((mntpt = getmntname(name, MNTON, &type)) == NULL) {
-			warnx("%s: not currently mounted", name);
-			return (1);
-		}
-	} else if (S_ISDIR(sb.st_mode)) {
-		mntpt = rname;
-		if (getmntname(mntpt, MNTFROM, &type) == NULL) {
-			warnx("%s: not currently mounted", name);
-			return (1);
-		}
-	} else {
-		warnx("%s: not a directory or special device", name);
-		return (1);
-	}
-	name = rname;
+		free(origname);
+	} else
+		resolved = name;
 
 	if (checkvfsname(type, typelist))
 		return (1);
 
 	hp = NULL;
+	nfsdirname = NULL;
 	if (!strcmp(type, "nfs")) {
-		if ((delimp = strchr(name, '@')) != NULL) {
-			hostp = delimp + 1;
+		if ((nfsdirname = strdup(mntfromname)) == NULL)
+			err(1, "strdup");
+		orignfsdirname = nfsdirname;
+		if ((delimp = strchr(nfsdirname, ':')) != NULL) {
 			*delimp = '\0';
-			hp = gethostbyname(hostp);
-			*delimp = '@';
-		} else if ((delimp = strchr(name, ':')) != NULL) {
-			*delimp = '\0';
-			hostp = name;
-			hp = gethostbyname(hostp);
-			name = delimp + 1;
-			*delimp = ':';
+			hostp = nfsdirname;
+			if ((hp = gethostbyname(hostp)) == NULL) {
+				warnx("can't get net id for host");
+			}
+			nfsdirname = delimp + 1;
 		}
 	}
+	/*
+	 * Check if the reverse entrys of the mounttable are really the
+	 * same as the normal ones.
+	 */
+	if ((mntfromnamerev = strdup(getmntname(getmntname(mntfromname,
+	    NULL, MNTON, &type, NAME), NULL, MNTFROM, &type, NAME))) == NULL)
+		err(1, "strdup");
+	/*
+	 * Mark the uppermost mount as unmounted.
+	 */
+	(void)getmntname(mntfromname, mntonname, NOTHING, &type, MARK);
+	/*
+	 * If several equal mounts are in the mounttable, check the order
+	 * and warn the user if necessary.
+	 */
+	if (strcmp(mntfromnamerev, mntfromname ) != 0 &&
+	    strcmp(resolved, mntonname) != 0) {
+		warnx("cannot umount %s, %s\n        "
+		    "is mounted there, umount it first",
+		    mntonname, mntfromnamerev);
 
-	if (!namematch(hp))
-		return (1);
-
-	if (vflag)
-		(void)printf("%s: unmount from %s\n", origname, mntpt);
-	if (fake)
-		return (0);
-
-	if (unmount(mntpt, fflag) < 0) {
-		warn("%s", mntpt);
+		/* call getmntname again to set mntcheck[i] to 0 */
+		(void)getmntname(mntfromname, mntonname,
+		    NOTHING, &type, UNMARK);
 		return (1);
 	}
-
-	if ((hp != NULL) && !(fflag & MNT_FORCE)) {
-		*delimp = '\0';
+	free(mntfromnamerev);
+	/*
+	 * Check if we have to start the rpc-call later.
+	 * If there are still identical nfs-names mounted,
+	 * we skip the rpc-call. Obviously this has to
+	 * happen before unmount(2), but it should happen
+	 * after the previous namecheck.
+	 */
+	if (strcmp(type, "nfs") == 0 && getmntname(mntfromname, NULL, NOTHING,
+	    &type, COUNT) != NULL)
+		do_rpc = 1;
+	else
+		do_rpc = 0;
+	if (!namematch(hp))
+		return (1);
+	if (unmount(mntonname, fflag) != 0 ) {
+		warn("unmount of %s failed", mntonname);
+		return (1);
+	}
+	if (vflag)
+		(void)printf("%s: unmount from %s\n", mntfromname, mntonname);
+	/*
+	 * Report to mountd-server which nfsname
+	 * has been unmounted.
+	 */
+	if (hp != NULL && !(fflag & MNT_FORCE) && do_rpc) {
 		memset(&saddr, 0, sizeof(saddr));
 		saddr.sin_family = AF_INET;
 		saddr.sin_port = 0;
@@ -293,12 +421,13 @@ umountfs(name, typelist)
 		clp->cl_auth = authunix_create_default();
 		try.tv_sec = 20;
 		try.tv_usec = 0;
-		clnt_stat = clnt_call(clp,
-		    RPCMNT_UMOUNT, xdr_dir, name, xdr_void, (caddr_t)0, try);
+		clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir,
+		    nfsdirname, xdr_void, (caddr_t)0, try);
 		if (clnt_stat != RPC_SUCCESS) {
 			clnt_perror(clp, "Bad MNT RPC");
 			return (1);
 		}
+		free(orignfsdirname);
 		auth_destroy(clp->cl_auth);
 		clnt_destroy(clp);
 	}
@@ -306,38 +435,112 @@ umountfs(name, typelist)
 }
 
 char *
-getmntname(name, what, type)
-	char *name;
-	mntwhat what;
-	char **type;
+getmntname(const char *fromname, const char *onname,
+    mntwhat what, char **type, dowhat mark)
 {
 	static struct statfs *mntbuf;
-	static int mntsize;
-	int i;
+	static size_t mntsize = 0;
+	static char *mntcheck = NULL;
+	static char *mntcount = NULL;
+	int i, count;
 
-	if (mntbuf == NULL &&
-	    (mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0) {
-		warn("getmntinfo");
+	if (mntsize <= 0) {
+		if ((mntsize = mntinfo(&mntbuf)) <= 0)
+			return (NULL);
+	}
+	if (mntcheck == NULL) {
+		if ((mntcheck = calloc(mntsize + 1, sizeof(int))) == NULL ||
+		    (mntcount = calloc(mntsize + 1, sizeof(int))) == NULL)
+			err(1, "calloc");
+	}
+	/*
+	 * We want to get the file systems in the reverse order
+	 * that they were mounted. Mounted and unmounted filesystems
+	 * are marked or unmarked in a table called 'mntcheck'.
+	 * Unmount(const char *dir, int flags) does only take the
+	 * mountpoint as argument, not the destination. If we don't pay
+	 * attention to the order, it can happen that a overlaying
+	 * filesystem get's unmounted instead of the one the user
+	 * has choosen.
+	 */
+	switch (mark) {
+	case NAME:
+		/* Return only the specific name */
+		for (i = mntsize - 1; i >= 0; i--) {
+			if (fromname != NULL && what == MNTON &&
+			    !strcmp(mntbuf[i].f_mntfromname, fromname) &&
+			    mntcheck[i] != 1) {
+				if (type)
+					*type = mntbuf[i].f_fstypename;
+				return (mntbuf[i].f_mntonname);
+			}
+			if (fromname != NULL && what == MNTFROM &&
+			    !strcmp(mntbuf[i].f_mntonname, fromname) &&
+			    mntcheck[i] != 1) {
+				if (type)
+					*type = mntbuf[i].f_fstypename;
+				return (mntbuf[i].f_mntfromname);
+			}
+		}
+		return (NULL);
+	case MARK:
+		/* Mark current mount with '1' and return name */
+		for (i = mntsize - 1; i >= 0; i--) {
+			if (mntcheck[i] == 0 &&
+			    (strcmp(mntbuf[i].f_mntonname, onname) == 0) &&
+			    (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)) {
+				mntcheck[i] = 1;
+				return (mntbuf[i].f_mntonname);
+			}
+		}
+		return (NULL);
+	case UNMARK:
+		/* Unmark current mount with '0' and return name */
+		for (i = 0; i < mntsize; i++) {
+			if (mntcheck[i] == 1 &&
+			    (strcmp(mntbuf[i].f_mntonname, onname) == 0) &&
+			    (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)) {
+				mntcheck[i] = 0;
+				return (mntbuf[i].f_mntonname);
+			}
+		}
+		return (NULL);
+	case COUNT:
+		/* Count the equal mntfromnames */
+		count = 0;
+		for (i = mntsize - 1; i >= 0; i--) {
+			if (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)
+				count++;
+		}
+		/* Mark the already unmounted mounts and return
+		 * mntfromname if count <= 1. Else return NULL.
+		 */
+		for (i = mntsize - 1; i >= 0; i--) {
+			if (strcmp(mntbuf[i].f_mntfromname, fromname) == 0) {
+				if (mntcount[i] == 1)
+					count--;
+				else {
+					mntcount[i] = 1;
+					break;
+				}
+			}
+		}
+		if (count <= 1)
+			return (mntbuf[i].f_mntonname);
+		else
+			return (NULL);
+	case FREE:
+		free(mntbuf);
+		free(mntcheck);
+		free(mntcount);
+		return (NULL);
+	default:
 		return (NULL);
 	}
-	for (i = 0; i < mntsize; i++) {
-		if ((what == MNTON) && !strcmp(mntbuf[i].f_mntfromname, name)) {
-			if (type)
-				*type = mntbuf[i].f_fstypename;
-			return (mntbuf[i].f_mntonname);
-		}
-		if ((what == MNTFROM) && !strcmp(mntbuf[i].f_mntonname, name)) {
-			if (type)
-				*type = mntbuf[i].f_fstypename;
-			return (mntbuf[i].f_mntfromname);
-		}
-	}
-	return (NULL);
 }
 
 int
-namematch(hp)
-	struct hostent *hp;
+namematch(struct hostent *hp)
 {
 	char *cp, **np;
 
@@ -364,20 +567,112 @@ namematch(hp)
 	return (0);
 }
 
+void
+checkmntlist(char *name, char **fromname, char **onname, char **type)
+{
+
+	*fromname = getmntname(name, NULL, MNTFROM, type, NAME);
+	if (*fromname == NULL) {
+		*onname = getmntname(name, NULL, MNTON, type, NAME);
+		if (*onname != NULL)
+			*fromname = name;
+	} else
+		*onname = name;
+}
+
+size_t
+mntinfo(struct statfs **mntbuf)
+{
+	static struct statfs *origbuf;
+	size_t bufsize;
+	int mntsize;
+
+	mntsize = getfsstat(NULL, 0, MNT_NOWAIT);
+	if (mntsize <= 0)
+		return (0);
+	bufsize = (mntsize + 1) * sizeof(struct statfs);
+	if ((origbuf = malloc(bufsize)) == NULL)
+		err(1, "malloc");
+	mntsize = getfsstat(origbuf, (long)bufsize, MNT_NOWAIT);
+	*mntbuf = origbuf;
+	return (mntsize);
+}
+
+char *
+getrealname(char *name, char *realname)
+{
+	char *dirname;
+	int havedir;
+	size_t baselen;
+	size_t dirlen;
+	
+	dirname = '\0';
+	havedir = 0;
+	if (*name == '/') {
+		if (ISDOT(name + 1) || ISDOTDOT(name + 1))
+			strcpy(realname, "/");
+		else {
+			if ((dirname = strrchr(name + 1, '/')) == NULL)
+				snprintf(realname, MAXPATHLEN, "%s", name);
+			else
+				havedir = 1;
+		}
+	} else {
+		if (ISDOT(name) || ISDOTDOT(name))
+			(void)realpath(name, realname);
+		else {
+			if ((dirname = strrchr(name, '/')) == NULL) {
+				if ((realpath(name, realname)) == NULL)
+					return (NULL);
+			} else 
+				havedir = 1;
+		}
+	}
+	if (havedir) {
+		*dirname++ = '\0';
+		if (ISDOT(dirname)) {
+			*dirname = '\0';
+			if ((realpath(name, realname)) == NULL)
+				return (NULL);
+		} else if (ISDOTDOT(dirname)) {
+			*--dirname = '/';
+			if ((realpath(name, realname)) == NULL)
+				return (NULL);
+		} else {
+			if ((realpath(name, realname)) == NULL)
+				return (NULL);
+			baselen = strlen(realname);
+			dirlen = strlen(dirname);
+			if (baselen + dirlen + 1 > MAXPATHLEN)
+				return (NULL);
+			if (realname[1] == '\0') {
+				memmove(realname + 1, dirname, dirlen);
+				realname[dirlen + 1] = '\0';
+			} else {
+				realname[baselen] = '/';
+				memmove(realname + baselen + 1,
+				    dirname, dirlen);
+				realname[baselen + dirlen + 1] = '\0';
+			}
+		}
+	}
+	return (realname);
+}
+
 /*
  * xdr routines for mount rpc's
  */
 int
-xdr_dir(xdrsp, dirp)
-	XDR *xdrsp;
-	char *dirp;
+xdr_dir(XDR *xdrsp, char *dirp)
 {
+
 	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
 }
 
 void
 usage()
 {
+
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: umount [-fv] special | node",
 	    "       umount -a | -A [-fv] [-h host] [-t type]");

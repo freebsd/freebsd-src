@@ -193,8 +193,6 @@ void	out_of_mem __P((void));
 void	parsecred __P((char *, struct ucred *));
 int	put_exlist __P((struct dirlist *, XDR *, struct dirlist *, int *));
 int	scan_tree __P((struct dirlist *, u_int32_t));
-void	send_umntall __P((void));
-int	umntall_each __P((caddr_t, struct sockaddr_in *));
 static void usage __P((void));
 int	xdr_dir __P((XDR *, char *));
 int	xdr_explist __P((XDR *, caddr_t));
@@ -313,7 +311,6 @@ main(argc, argv)
 		signal(SIGQUIT, SIG_IGN);
 	}
 	signal(SIGHUP, (void (*) __P((int))) get_exportlist);
-	signal(SIGTERM, (void (*) __P((int))) send_umntall);
 	{ FILE *pidfile = fopen(_PATH_MOUNTDPID, "w");
 	  if (pidfile != NULL) {
 		fprintf(pidfile, "%d\n", getpid());
@@ -413,7 +410,7 @@ mntsrv(rqstp, transp)
 		 * or a regular file if the -r option was specified
 		 * and it exists.
 		 */
-		if (realpath(rpcpath, dirpath) == 0 ||
+		if (realpath(rpcpath, dirpath) == NULL ||
 		    stat(dirpath, &stb) < 0 ||
 		    (!S_ISDIR(stb.st_mode) &&
 		     (dir_only || !S_ISREG(stb.st_mode))) ||
@@ -502,11 +499,16 @@ mntsrv(rqstp, transp)
 			svcerr_weakauth(transp);
 			return;
 		}
-		if (!svc_getargs(transp, xdr_dir, dirpath)) {
+		if (!svc_getargs(transp, xdr_dir, rpcpath)) {
 			syslog(LOG_NOTICE, "undecodable umount request from %s",
 			    inet_ntoa(saddrin));
 			svcerr_decode(transp);
 			return;
+		}
+		if (realpath(rpcpath, dirpath) == NULL) {
+			syslog(LOG_NOTICE, "umount request from %s "
+			    "for non existent path %s",
+			    inet_ntoa(saddrin), dirpath);
 		}
 		if (!svc_sendreply(transp, xdr_void, (caddr_t)NULL))
 			syslog(LOG_ERR, "can't send reply");
@@ -744,6 +746,9 @@ get_exportlist()
 	struct ucred anon;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
 	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
+
+	dirp = NULL;
+	dirplen = 0;
 
 	/*
 	 * First, get rid of the old list
@@ -1342,6 +1347,7 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 	char *cp, *endcp, *cpopt, savedc, savedc2;
 	int allflag, usedarg;
 
+	savedc2 = '\0';
 	cpopt = *cpp;
 	cpopt++;
 	cp = *endcpp;
@@ -1981,8 +1987,12 @@ get_mountlist()
 	FILE *mlfile;
 
 	if ((mlfile = fopen(_PATH_RMOUNTLIST, "r")) == NULL) {
-		syslog(LOG_ERR, "can't open %s", _PATH_RMOUNTLIST);
-		return;
+		if (errno == ENOENT)
+			return;
+		else {
+			syslog(LOG_ERR, "can't open %s", _PATH_RMOUNTLIST);
+			return;
+		}
 	}
 	mlpp = &mlhead;
 	while (fgets(str, STRSIZ, mlfile) != NULL) {
@@ -2072,26 +2082,6 @@ add_mlist(hostp, dirp)
 	}
 	fprintf(mlfile, "%s %s\n", mlp->ml_host, mlp->ml_dirp);
 	fclose(mlfile);
-}
-
-/*
- * This function is called via. SIGTERM when the system is going down.
- * It sends a broadcast RPCMNT_UMNTALL.
- */
-void
-send_umntall()
-{
-	(void) clnt_broadcast(RPCPROG_MNT, RPCMNT_VER1, RPCMNT_UMNTALL,
-		xdr_void, (caddr_t)0, xdr_void, (caddr_t)0, umntall_each);
-	exit(0);
-}
-
-int
-umntall_each(resultsp, raddr)
-	caddr_t resultsp;
-	struct sockaddr_in *raddr;
-{
-	return (1);
 }
 
 /*
