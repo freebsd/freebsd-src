@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.7 1998/07/28 09:34:50 dfr Exp $
+ *	$Id: pmap.c,v 1.8 1998/08/17 08:04:42 dfr Exp $
  */
 
 /*
@@ -244,8 +244,7 @@ int	protection_codes[2][8];
 /*
  * Return non-zero if this pmap is currently active
  */
-#define pmap_isactive(pmap)	(pmap == kernel_pmap || \
-				 ALPHA_PTE_TO_PFN(pmap->pm_lev1[PTLEV1I]) == ALPHA_PTE_TO_PFN(PTlev1pte))
+#define pmap_isactive(pmap)	(pmap->pm_active)
 
 /* 
  * Extract level 1, 2 and 3 page table indices from a va
@@ -328,6 +327,14 @@ static vm_object_t kptobj;
 
 static int nklev3, nklev2;
 vm_offset_t kernel_vm_end;
+
+/*
+ * Data for the ASN allocator
+ */
+static int pmap_maxasn;
+static int pmap_nextasn = 0;
+static u_int pmap_current_asngen = 1;
+static pmap_t pmap_active = 0;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -474,6 +481,13 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	int i;
 
 	/*
+	 * Setup ASNs
+	 */
+	pmap_nextasn = 0;
+	pmap_maxasn = maxasn;
+	pmap_current_asngen = 1;
+
+	/*
 	 * Allocate a level 1 map for the kernel.
 	 */
 	Lev1map = (pt_entry_t*) pmap_steal_memory(PAGE_SIZE);
@@ -495,7 +509,7 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 		unsigned long pfn =
 			pmap_k0seg_to_pfn((vm_offset_t) Lev2map) + i;
 		newpte = ALPHA_PTE_FROM_PFN(pfn);
-		newpte |= PG_V | PG_KRE | PG_KWE | PG_W;
+		newpte |= PG_V | PG_ASM | PG_KRE | PG_KWE | PG_W;
 		Lev1map[K1SEGLEV1I + i] = newpte;
 	}
 
@@ -517,7 +531,12 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 		 */
 	}
 
-	/* Level 1 self mapping */
+	/*
+	 * Level 1 self mapping.
+	 *
+	 * Don't set PG_ASM since the self-mapping is different for each
+	 * address space.
+	 */
 	newpte = pmap_k0seg_to_pte((vm_offset_t) Lev1map);
 	newpte |= PG_V | PG_KRE | PG_KWE;
 	Lev1map[PTLEV1I] = newpte;
@@ -527,7 +546,7 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 		unsigned long pfn =
 			pmap_k0seg_to_pfn((vm_offset_t) Lev3map) + i;
 		newpte = ALPHA_PTE_FROM_PFN(pfn);
-		newpte |= PG_V | PG_KRE | PG_KWE | PG_W;
+		newpte |= PG_V | PG_ASM | PG_KRE | PG_KWE | PG_W;
 		Lev2map[i] = newpte;
 	}
 
@@ -551,6 +570,10 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	kernel_pmap = &kernel_pmap_store;
 	kernel_pmap->pm_lev1 = Lev1map;
 	kernel_pmap->pm_count = 1;
+	kernel_pmap->pm_active = 1;
+	kernel_pmap->pm_asn = 0;
+	kernel_pmap->pm_asngen = pmap_current_asngen;
+	pmap_nextasn = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	nklev3 = NKPT;
 	nklev2 = 1;
@@ -577,7 +600,7 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 
 	/*
 	 * Set up proc0's PCB such that the ptbr points to the right place
-	 * and has the kernel pmap's (really unused) ASN.
+	 * and has the kernel pmap's.
 	 */
 	proc0.p_addr->u_pcb.pcb_hw.apcb_ptbr =
 	    ALPHA_K0SEG_TO_PHYS((vm_offset_t)Lev1map) >> PAGE_SHIFT;
@@ -689,11 +712,7 @@ pmap_init2()
  *	specified memory.
  */
 vm_offset_t
-pmap_map(virt, start, end, prot)
-	vm_offset_t virt;
-	vm_offset_t start;
-	vm_offset_t end;
-	int prot;
+pmap_map(vm_offset_t virt, vm_offset_t start, vm_offset_t end, int prot)
 {
 	while (start < end) {
 		pmap_enter(kernel_pmap, virt, start, prot, FALSE);
@@ -705,15 +724,95 @@ pmap_map(virt, start, end, prot)
 
 
 /***************************************************
+ * Manipulate TLBs for a pmap
+ ***************************************************/
+
+static void
+pmap_invalidate_asn(pmap_t pmap)
+{
+	pmap->pm_asngen = 0;
+}
+
+static void
+pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+{
+	if (pmap_isactive(pmap))
+		ALPHA_TBIS(va);
+	else
+		pmap_invalidate_asn(pmap);
+}
+
+static void
+pmap_invalidate_all(pmap_t pmap)
+{
+	if (pmap_isactive(pmap))
+		ALPHA_TBIA();
+	else
+		pmap_invalidate_asn(pmap);
+}
+
+static void
+pmap_get_asn(pmap_t pmap)
+{
+	if (pmap->pm_asngen != pmap_current_asngen) {
+		if (pmap_nextasn > pmap_maxasn) {
+			/*
+			 * Start a new ASN generation.
+			 *
+			 * Invalidate all per-process mappings and I-cache
+			 */
+			pmap_nextasn = 0;
+			pmap_current_asngen++;
+
+			if (pmap_current_asngen == 0) {
+				/*
+				 * Clear the pm_asngen of all pmaps.
+				 * This is safe since it is only called from
+				 * pmap_activate after it has deactivated
+				 * the old pmap.
+				 */
+				struct proc *p;
+				pmap_t tpmap;
+			       
+#ifdef PMAP_DIAGNOSTIC
+				printf("pmap_get_asn: generation rollover\n");
+#endif
+				pmap_current_asngen = 1;
+				for (p = allproc.lh_first;
+				     p != 0; p = p->p_list.le_next) {
+					if (p->p_vmspace) {
+						tpmap = &p->p_vmspace->vm_pmap;
+						tpmap->pm_asngen = 0;
+					}
+				}
+			}
+
+			/*
+			 * Since we are about to start re-using ASNs, we must
+			 * clear out the TLB and the I-cache since they are tagged
+			 * with the ASN.
+			 */
+			ALPHA_TBIAP();
+			alpha_pal_imb();
+		}
+		pmap->pm_asn = pmap_nextasn++;
+		pmap->pm_asngen = pmap_current_asngen;
+	}
+}
+
+/***************************************************
  * Low level helper routines.....
  ***************************************************/
+
+
 
 /*
  * this routine defines the region(s) of memory that should
  * not be tested for the modified bit.
  */
 static PMAP_INLINE int
-pmap_track_modified( vm_offset_t va) {
+pmap_track_modified(vm_offset_t va)
+{
 	if ((va < clean_sva) || (va >= clean_eva)) 
 		return 1;
 	else
@@ -779,14 +878,14 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	for (i = 0; i < count; i++) {
 		vm_offset_t tva = va + i * PAGE_SIZE;
 		pt_entry_t npte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m[i]))
-			| PG_KRE | PG_KWE | PG_V;
+			| PG_ASM | PG_KRE | PG_KWE | PG_V;
 		pt_entry_t opte;
 		pte = vtopte(tva);
 		opte = *pte;
 		PMAP_DEBUG_VA(va);
 		*pte = npte;
 		if (opte)
-			ALPHA_TBIS(tva);
+			pmap_invalidate_page(kernel_pmap, tva);
 	}
 }
 
@@ -806,7 +905,7 @@ pmap_qremove(va, count)
 		pte = vtopte(va);
 		PMAP_DEBUG_VA(va);
 		*pte = 0;
-		ALPHA_TBIS(va);
+		pmap_invalidate_page(kernel_pmap, va);
 		va += PAGE_SIZE;
 	}
 }
@@ -822,13 +921,13 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	pt_entry_t *pte;
 	pt_entry_t npte, opte;
 
-	npte = pmap_phys_to_pte(pa) | PG_KRE | PG_KWE | PG_V;
+	npte = pmap_phys_to_pte(pa) | PG_ASM | PG_KRE | PG_KWE | PG_V;
 	pte = vtopte(va);
 	opte = *pte;
 	PMAP_DEBUG_VA(va);
 	*pte = npte;
 	if (opte)
-		ALPHA_TBIS(va);
+		pmap_invalidate_page(kernel_pmap, va);
 }
 
 /*
@@ -842,7 +941,7 @@ pmap_kremove(vm_offset_t va)
 	pte = vtopte(va);
 	PMAP_DEBUG_VA(va);
 	*pte = 0;
-	ALPHA_TBIS(va);
+	pmap_invalidate_page(kernel_pmap, va);
 }
 
 static vm_page_t
@@ -906,13 +1005,15 @@ pmap_new_proc(struct proc *p)
 		/*
 		 * Enter the page into the kernel address space.
 		 */
-		*(ptek + i) = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_KRE | PG_KWE | PG_V;
-		if (oldpte)
-			ALPHA_TBIS((vm_offset_t)up + i * PAGE_SIZE);
+		*(ptek + i) = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m))
+			| PG_ASM | PG_KRE | PG_KWE | PG_V;
+		if (oldpte) 
+			pmap_invalidate_page(kernel_pmap,
+					     (vm_offset_t)up + i * PAGE_SIZE);
 
 		PAGE_WAKEUP(m);
-		m->flags &= ~PG_ZERO;
-		m->flags |= PG_MAPPED | PG_WRITEABLE;
+		PAGE_CLEAR_FLAG(m, PG_ZERO);
+		PAGE_SET_FLAG(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 }
@@ -938,11 +1039,12 @@ pmap_dispose_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
 
-		m->flags |= PG_BUSY;
+		PAGE_SET_FLAG(m, PG_BUSY);
 
 		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
-		ALPHA_TBIS((vm_offset_t)p->p_addr + i * PAGE_SIZE);
+		pmap_invalidate_page(kernel_pmap, 
+				     (vm_offset_t)p->p_addr + i * PAGE_SIZE);
 		vm_page_unwire(m);
 		vm_page_free(m);
 	}
@@ -1004,7 +1106,7 @@ pmap_swapin_proc(p)
 
 		vm_page_wire(m);
 		PAGE_WAKEUP(m);
-		m->flags |= PG_MAPPED | PG_WRITEABLE;
+		PAGE_SET_FLAG(m, PG_MAPPED | PG_WRITEABLE);
 	}
 
 	/*
@@ -1060,13 +1162,11 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		}
 
 		--pmap->pm_stats.resident_count;
-		if (ALPHA_PTE_TO_PFN(pmap->pm_lev1[PTLEV1I]) == ALPHA_PTE_TO_PFN(PTlev1pte)) {
-			/*
-			 * Do a invltlb to make the invalidated mapping
-			 * take effect immediately.
-			 */
-			ALPHA_TBIS(pteva);
-		}
+		/*
+		 * Do a invltlb to make the invalidated mapping
+		 * take effect immediately.
+		 */
+		pmap_invalidate_page(pmap, pteva);
 
 		if (pmap->pm_ptphint == m)
 			pmap->pm_ptphint = NULL;
@@ -1078,11 +1178,11 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		if (m->wire_count == 0) {
 
 			if (m->flags & PG_WANTED) {
-				m->flags &= ~PG_WANTED;
+				PAGE_CLEAR_FLAG(m, PG_WANTED);
 				wakeup(m);
 			}
 
-			m->flags |= PG_BUSY;
+			PAGE_SET_FLAG(m, PG_BUSY);
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -1134,6 +1234,9 @@ pmap_pinit0(pmap)
 	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
+	pmap->pm_active = 0;
+	pmap->pm_asn = 0;
+	pmap->pm_asngen = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -1164,7 +1267,7 @@ retry:
 	lev1pg->wire_count = 1;
 	++cnt.v_wire_count;
 
-	lev1pg->flags &= ~(PG_MAPPED | PG_BUSY);	/* not mapped normally */
+	PAGE_CLEAR_FLAG(lev1pg, PG_MAPPED | PG_BUSY);	/* not mapped normally */
 	lev1pg->valid = VM_PAGE_BITS_ALL;
 
 	pmap->pm_lev1 = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(lev1pg));
@@ -1175,13 +1278,16 @@ retry:
 	/* XXX copies current process, does not fill in MPPTDI */
 	bcopy(PTlev1 + K1SEGLEV1I, pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
 
-	/* install self-referential address mapping entry */
+	/* install self-referential address mapping entry (not PG_ASM) */
 	pmap->pm_lev1[PTLEV1I] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(lev1pg))
 		| PG_V | PG_KRE | PG_KWE;
 
 	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
+	pmap->pm_active = 0;
+	pmap->pm_asn = 0;
+	pmap->pm_asngen = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -1214,7 +1320,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	if (vm_page_sleep(p, "pmaprl", NULL))
 		return 0;
 
-	p->flags |= PG_BUSY;
+	PAGE_SET_FLAG(p, PG_BUSY);
 
 	/*
 	 * Remove the page table page from the processes address space.
@@ -1325,8 +1431,8 @@ _pmap_allocpte(pmap, ptepindex)
 		bzero((caddr_t) ALPHA_PHYS_TO_K0SEG(ptepa), PAGE_SIZE);
 
 	m->valid = VM_PAGE_BITS_ALL;
-	m->flags &= ~(PG_ZERO | PG_BUSY);
-	m->flags |= PG_MAPPED;
+	PAGE_CLEAR_FLAG(m, PG_ZERO | PG_BUSY);
+	PAGE_SET_FLAG(m, PG_MAPPED);
 
 	return m;
 }
@@ -1491,7 +1597,8 @@ pmap_growkernel(vm_offset_t addr)
 			pa = VM_PAGE_TO_PHYS(nkpg);
 			pmap_zero_page(pa);
 
-			newlev1 = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_KWE;
+			newlev1 = pmap_phys_to_pte(pa)
+				| PG_V | PG_ASM | PG_KRE | PG_KWE;
 
 			for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 				if (p->p_vmspace) {
@@ -1500,7 +1607,7 @@ pmap_growkernel(vm_offset_t addr)
 				}
 			}
 			*pte = newlev1;
-			ALPHA_TBIA();
+			pmap_invalidate_all(kernel_pmap);
 		}
 
 		/*
@@ -1526,7 +1633,7 @@ pmap_growkernel(vm_offset_t addr)
 		vm_page_wire(nkpg);
 		pa = VM_PAGE_TO_PHYS(nkpg);
 		pmap_zero_page(pa);
-		newlev2 = pmap_phys_to_pte(pa) | PG_V | PG_KRE | PG_KWE;
+		newlev2 = pmap_phys_to_pte(pa) | PG_V | PG_ASM | PG_KRE | PG_KWE;
 		*pte = newlev2;
 
 		kernel_vm_end = (kernel_vm_end + ALPHA_L2SIZE) & ~(ALPHA_L2SIZE - 1);
@@ -1673,7 +1780,7 @@ pmap_remove_entry(pmap_t pmap, pv_table_t* ppv, vm_offset_t va)
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		ppv->pv_list_count--;
 		if (TAILQ_FIRST(&ppv->pv_list) == NULL)
-			ppv->pv_vm_page->flags &= ~(PG_MAPPED | PG_WRITEABLE);
+			PAGE_CLEAR_FLAG(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1756,7 +1863,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 	 * get a local va for mappings for this pmap.
 	 */
 	(void) pmap_remove_pte(pmap, ptq, va);
-	ALPHA_TBIS(va);
+	pmap_invalidate_page(pmap, va);
 
 	return;
 }
@@ -1824,11 +1931,9 @@ pmap_remove_all(vm_offset_t pa)
 	pv_table_t *ppv;
 	pt_entry_t *pte, tpte;
 	int nmodify;
-	int update_needed;
 	int s;
 
 	nmodify = 0;
-	update_needed = 0;
 #if defined(PMAP_DIAGNOSTIC)
 	/*
 	 * XXX this makes pmap_page_protect(NONE) illegal for non-managed
@@ -1856,11 +1961,7 @@ pmap_remove_all(vm_offset_t pa)
 		if (tpte & PG_W)
 			pv->pv_pmap->pm_stats.wired_count--;
 
-		if (!update_needed &&
-			((!curproc || (&curproc->p_vmspace->vm_pmap == pv->pv_pmap)) ||
-			(pv->pv_pmap == kernel_pmap))) {
-			update_needed = 1;
-		}
+		pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 
 		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
@@ -1869,10 +1970,7 @@ pmap_remove_all(vm_offset_t pa)
 		free_pv_entry(pv);
 	}
 
-	ppv->pv_vm_page->flags &= ~(PG_MAPPED | PG_WRITEABLE);
-
-	if (update_needed)
-		ALPHA_TBIA();
+	PAGE_CLEAR_FLAG(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
 	splx(s);
 	return;
@@ -1887,7 +1985,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pt_entry_t* pte;
 	vm_offset_t pdnxt, ptpaddr;
-	int isactive;
 	int newprot;
 
 	if (pmap == NULL)
@@ -1902,7 +1999,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 
 	newprot = pte_prot(pmap, prot);
-	isactive = pmap_isactive(pmap);
 
 	if ((sva & PAGE_MASK) || (eva & PAGE_MASK))
 		panic("pmap_protect: unaligned addresses");
@@ -1939,8 +2035,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 		if (pmap_pte_prot(pte) != newprot) {
 			pmap_pte_set_prot(pte, newprot);
-			if (isactive)
-				ALPHA_TBIS(sva);
+			pmap_invalidate_page(pmap, sva);
 		}
 
 		sva += PAGE_SIZE;
@@ -2087,7 +2182,7 @@ validate:
 		PMAP_DEBUG_VA(va);
 		*pte = newpte;
 		if (origpte)
-			ALPHA_TBIS(va);
+			pmap_invalidate_page(pmap, va);
 	}
 }
 
@@ -2240,11 +2335,11 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				p->flags |= PG_BUSY;
+				PAGE_SET_FLAG(p, PG_BUSY);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
-				p->flags |= PG_MAPPED;
+				PAGE_SET_FLAG(p, PG_MAPPED);
 				PAGE_WAKEUP(p);
 			}
 			objpgs -= 1;
@@ -2260,11 +2355,11 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				p->flags |= PG_BUSY;
+				PAGE_SET_FLAG(p, PG_BUSY);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
-				p->flags |= PG_MAPPED;
+				PAGE_SET_FLAG(p, PG_MAPPED);
 				PAGE_WAKEUP(p);
 			}
 		}
@@ -2357,10 +2452,10 @@ pmap_prefault(pmap, addra, entry)
 			if ((m->queue - m->pc) == PQ_CACHE) {
 				vm_page_deactivate(m);
 			}
-			m->flags |= PG_BUSY;
+			PAGE_SET_FLAG(m, PG_BUSY);
 			mpte = pmap_enter_quick(pmap, addr,
 				VM_PAGE_TO_PHYS(m), mpte);
-			m->flags |= PG_MAPPED;
+			PAGE_SET_FLAG(m, PG_MAPPED);
 			PAGE_WAKEUP(m);
 		}
 	}
@@ -2575,14 +2670,14 @@ pmap_remove_pages(pmap, sva, eva)
 		ppv->pv_list_count--;
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		if (TAILQ_FIRST(&ppv->pv_list) == NULL) {
-			ppv->pv_vm_page->flags &= ~(PG_MAPPED | PG_WRITEABLE);
+			PAGE_CLEAR_FLAG(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 		}
 
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
 	splx(s);
-	ALPHA_TBIA();
+	pmap_invalidate_all(pmap);
 }
 
 /*
@@ -2671,6 +2766,7 @@ pmap_changebit(vm_offset_t pa, int bit, boolean_t setem)
 
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
 
+		changed = 0;
 		if (setem) {
 			*pte |= bit;
 			changed = 1;
@@ -2681,10 +2777,10 @@ pmap_changebit(vm_offset_t pa, int bit, boolean_t setem)
 				*pte = pbits & ~bit;
 			}
 		}
+		if (changed)
+			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 	}
 	splx(s);
-	if (changed)
-		ALPHA_TBIA();
 }
 
 /*
@@ -2879,7 +2975,7 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	ppv = pa_to_pvh(pa);
 	ppv->pv_flags = PV_TABLE_REF;
 	faultoff = PG_FOR | PG_FOE;
-	ppv->pv_vm_page->flags |= PG_REFERENCED;
+	PAGE_SET_FLAG(ppv->pv_vm_page, PG_REFERENCED);
 	if (write) {
 		ppv->pv_flags |= PV_TABLE_MOD;
 		ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
@@ -2887,12 +2983,15 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	}
 	pmap_changebit(pa, faultoff, FALSE);
 	if ((*pte & faultoff) != 0) {
-#if 0
+#if 1
+		/*
+		 * XXX dfr - don't think its possible in our pmap
+		 */
 		/*
 		 * This is apparently normal.  Why? -- cgd
 		 * XXX because was being called on unmanaged pages?
 		 */
-		printf("warning: pmap_changebit didn't.");
+		panic("warning: pmap_changebit didn't.");
 #endif
 		*pte &= ~faultoff;
 		ALPHA_TBIS(v);
@@ -3003,7 +3102,7 @@ pmap_mincore(pmap, addr)
 		 */
 		else if ((m->flags & PG_REFERENCED) || pmap_ts_referenced(pa)) {
 			val |= MINCORE_REFERENCED_OTHER;
-			m->flags |= PG_REFERENCED;
+			PAGE_SET_FLAG(m, PG_REFERENCED);
 		}
 	} 
 	return val;
@@ -3015,20 +3114,35 @@ pmap_activate(struct proc *p)
 	pmap_t pmap;
 
 	pmap = &p->p_vmspace->vm_pmap;
+
+	if (pmap_active && pmap != pmap_active) {
+		pmap_active->pm_active = 0;
+		pmap_active = 0;
+	}
+
 	p->p_addr->u_pcb.pcb_hw.apcb_ptbr =
 		ALPHA_K0SEG_TO_PHYS((vm_offset_t) pmap->pm_lev1) >> PAGE_SHIFT;
+
+	if (pmap->pm_asngen != pmap_current_asngen)
+		pmap_get_asn(pmap);
+
+	pmap_active = pmap;
+	pmap->pm_active = 1;	/* XXX use bitmap for SMP */
+
+	p->p_addr->u_pcb.pcb_hw.apcb_asn = pmap->pm_asn;
 
 	if (p == curproc) {
 		alpha_pal_swpctx((u_long)p->p_md.md_pcbpaddr);
 	}
-
-	/* XXX remove after implementing ASNs */
-	ALPHA_TBIA();
 }
 
 void
 pmap_deactivate(struct proc *p)
 {
+	pmap_t pmap;
+	pmap = &p->p_vmspace->vm_pmap;
+	pmap->pm_active = 0;
+	pmap_active = 0;
 }
 
 vm_offset_t
