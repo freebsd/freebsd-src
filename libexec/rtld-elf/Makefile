@@ -52,6 +52,11 @@ LDADD=		-lc_pic
 dyn_hack.so:
 	${CC} -shared -nostdlib -o dyn_hack.so -x c /dev/null
 
+# Since moving rtld-elf to /libexec, we need to create a symlink.
+# Fixup the existing binary that's there so we can symlink over it.
+beforeinstall:
+	-chflags noschg /usr/libexec/ld-elf.so.1
+
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .include <bsd.prog.mk>
