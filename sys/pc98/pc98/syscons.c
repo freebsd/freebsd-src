@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.33 1998/08/10 16:59:16 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.34 1998/09/28 08:28:40 kato Exp $
  */
 
 #include "sc.h"
@@ -206,6 +206,7 @@ static  char		vgaregs[MODE_PARAM_SIZE];
 static  char		vgaregs2[MODE_PARAM_SIZE];
 static  int		rows_offset = 1;
 static	char 		*cut_buffer;
+static	int		cut_buffer_size;
 static	int		mouse_level = 0;	/* sysmouse protocol level */
 static	mousestatus_t	mouse_status = { 0, 0, 0, 0, 0, 0 };
 static  u_short 	mouse_and_mask[16] = {
@@ -785,7 +786,10 @@ scattach(struct isa_device *dev)
     scp = console[0];
 
     if (crtc_vga) {
-    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
+	cut_buffer_size = scp->xsize * scp->ysize + 1;
+    	cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
+	if (cut_buffer != NULL)
+	    cut_buffer[0] = '\0';
     }
 
     scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
@@ -1163,10 +1167,12 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	 * are affected. Update the cursor in the current console...
 	 */
 	if (!(cur_console->status & UNKNOWN_MODE)) {
+	    s = spltty();
             remove_cursor_image(cur_console);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
 	    draw_cursor_image(cur_console);
+	    splx(s);
 	}
 	return 0;
 
@@ -1395,7 +1401,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		else
 		    psignal(cur_console->mouse_proc, cur_console->mouse_signal);
 	    }
-	    else if (mouse->operation == MOUSE_ACTION) {
+	    else if (mouse->operation == MOUSE_ACTION && cut_buffer != NULL) {
 		/* process button presses */
 		if ((cur_console->mouse_buttons ^ mouse->u.data.buttons) && 
 		    !(cur_console->status & UNKNOWN_MODE)) {
@@ -1431,10 +1437,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	        cur_console->mouse_buttons &= ~mouse->u.event.id;
 	        mouse_status.button &= ~mouse->u.event.id;
 	    }
-	    mouse_status.flags |= 
-		((mouse->u.data.x || mouse->u.data.y || mouse->u.data.z) ? 
-		    MOUSE_POSCHANGED : 0)
-		| (mouse_status.obutton ^ mouse_status.button);
+	    mouse_status.flags |= mouse_status.obutton ^ mouse_status.button;
 
 	    if (cur_console->status & MOUSE_ENABLED)
 	    	cur_console->status |= MOUSE_VISIBLE;
@@ -1465,7 +1468,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		break;
 	    }
 
-	    if (cur_console->status & UNKNOWN_MODE)
+	    if ((cur_console->status & UNKNOWN_MODE) || (cut_buffer == NULL))
 		break;
 
 	    switch (mouse->u.event.id) {
@@ -1780,9 +1783,16 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
     	scp->mouse_pos = scp->mouse_oldpos = 
 	    scp->scr_buf + (scp->mouse_ypos / scp->font_size) * scp->xsize 
 	    + scp->mouse_xpos / 8;
-	free(cut_buffer, M_DEVBUF);
-    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
-	cut_buffer[0] = 0x00;
+	/* allocate a larger cut buffer if necessary */
+	if ((cut_buffer == NULL)
+	    || (cut_buffer_size < scp->xsize * scp->ysize + 1)) {
+	    if (cut_buffer != NULL)
+		free(cut_buffer, M_DEVBUF);
+	    cut_buffer_size = scp->xsize * scp->ysize + 1;
+	    cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
+	    if (cut_buffer != NULL)
+		cut_buffer[0] = '\0';
+	}
 	splx(s);
 
 	usp = scp->history;
@@ -3520,10 +3530,12 @@ scan_esc(scr_stat *scp, u_char c)
 	     * are affected. Update the cursor in the current console...
 	     */
 	    if (!(cur_console->status & UNKNOWN_MODE)) {
+		i = spltty();
 		remove_cursor_image(cur_console);
 		if (crtc_vga && (flags & CHAR_CURSOR))
 	            set_destructive_cursor(cur_console);
 		draw_cursor_image(cur_console);
+		splx(i);
 	    }
 	    break;
 
@@ -5723,7 +5735,7 @@ mouse_cut(scr_stat *scp)
 	    j = i;
 	/* trim trailing blank when crossing lines */
 	if (((p - scp->scr_buf) % scp->xsize) == (scp->xsize - 1)) {
-	    cut_buffer[j++] = '\n';
+	    cut_buffer[j++] = '\r';
 	    i = j;
 	}
     }
@@ -5742,7 +5754,7 @@ mouse_cut(scr_stat *scp)
 	    scp->mouse_cut_start = p;
 	else
 	    scp->mouse_cut_end = p;
-	cut_buffer[j++] = '\n';
+	cut_buffer[j++] = '\r';
 	cut_buffer[j] = '\0';
     }
 
@@ -5767,7 +5779,7 @@ mouse_cut_start(scr_stat *scp)
 	        ((scp->mouse_pos - scp->scr_buf) / scp->xsize) * scp->xsize + i;
 	    scp->mouse_cut_end = scp->scr_buf +
 	        ((scp->mouse_pos - scp->scr_buf) / scp->xsize + 1) * scp->xsize;
-	    cut_buffer[0] = '\n';
+	    cut_buffer[0] = '\r';
 	    cut_buffer[1] = '\0';
 	    scp->status |= MOUSE_CUTTING;
 	} else {
@@ -5850,7 +5862,7 @@ mouse_cut_line(scr_stat *scp)
 	scp->mouse_cut_end = scp->mouse_cut_start + scp->xsize;
 	for (i = 0, p = scp->mouse_cut_start; p < scp->mouse_cut_end; ++p)
 	    cut_buffer[i++] = *p & 0xff;
-	cut_buffer[i++] = '\n';
+	cut_buffer[i++] = '\r';
 	cut_buffer[i] = '\0';
 	scp->status |= MOUSE_CUTTING;
     }
