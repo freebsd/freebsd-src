@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$FreeBSD$
  */
 
 #ifndef lint
@@ -36,7 +38,7 @@
 static char sccsid[] = "@(#)from: nlist.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: nlist.c,v 1.8 1997/09/24 06:44:10 charnier Exp $";
+	"$Id: nlist.c,v 1.9 1998/08/17 08:46:46 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -180,14 +182,16 @@ __aout_knlist(name, db)
 
 #ifdef DO_ELF
 
+static void elf_sym_to_nlist __P((struct nlist *, Elf_Sym *, Elf_Shdr *, int));
+
 int
 __elf_knlist(name, db)
 	char *name;
 	DB *db;
 {
 	register caddr_t strtab;
-	register off_t symstroff, symoff;
-	register u_long symsize;
+	register off_t symstroff = 0, symoff = 0;
+	register u_long symsize = 0;
 	register u_long kernvma, kernoffs;
 	register int i;
 	Elf_Sym *sbuf;
@@ -241,6 +245,8 @@ __elf_knlist(name, db)
 			kernoffs = sh[i].sh_offset;
 		}
 	}
+	if (symsize == 0)
+	    badfmt("stripped");
 
 	strtab = (char *)&filep[symstroff];
 
@@ -253,24 +259,7 @@ __elf_knlist(name, db)
 		sbuf = (Elf_Sym *)&filep[symoff + i * sizeof(*sbuf)];
 		if (!sbuf->st_name)
 			continue;
-
-		nbuf.n_value = sbuf->st_value;
-
-		/*XXX type conversion is pretty rude... */
-		switch (ELF_ST_TYPE(sbuf->st_info)) {
-		case STT_NOTYPE:
-			nbuf.n_type = N_UNDF;
-			break;
-		case STT_FUNC:
-			nbuf.n_type = N_TEXT;
-			break;
-		case STT_OBJECT:
-			nbuf.n_type = N_DATA;
-			break;
-		}
-		if (ELF_ST_BIND(sbuf->st_info) == STB_LOCAL)
-			nbuf.n_type = N_EXT;
-
+		elf_sym_to_nlist(&nbuf, sbuf, sh, eh->e_shnum);
 		key.data = (u_char *)(strtab + sbuf->st_name);
 		key.size = strlen((char *)key.data);
 		if (db->put(db, &key, &data, 0))
@@ -310,6 +299,46 @@ __elf_knlist(name, db)
 	munmap(filep, sst.st_size);
 	(void)close(fd);
 	return(0);
+}
+
+/*
+ * Convert an Elf_Sym into an nlist structure.  This fills in only the
+ * n_value and n_type members.
+ */
+static void
+elf_sym_to_nlist(nl, s, shdr, shnum)
+	struct nlist *nl;
+	Elf_Sym *s;
+	Elf_Shdr *shdr;
+	int shnum;
+{
+	nl->n_value = s->st_value;
+
+	switch (s->st_shndx) {
+	case SHN_UNDEF:
+	case SHN_COMMON:
+		nl->n_type = N_UNDF;
+		break;
+	case SHN_ABS:
+		nl->n_type = ELF_ST_TYPE(s->st_info) == STT_FILE ?
+		    N_FN : N_ABS;
+		break;
+	default:
+		if (s->st_shndx >= shnum)
+			nl->n_type = N_UNDF;
+		else {
+			Elf_Shdr *sh = shdr + s->st_shndx;
+
+			nl->n_type = sh->sh_type == SHT_PROGBITS ?
+			    (sh->sh_flags & SHF_WRITE ? N_DATA : N_TEXT) :
+			    (sh->sh_type == SHT_NOBITS ? N_BSS : N_UNDF);
+		}
+		break;
+	}
+
+	if (ELF_ST_BIND(s->st_info) == STB_GLOBAL ||
+	    ELF_ST_BIND(s->st_info) == STB_WEAK)
+		nl->n_type |= N_EXT;
 }
 #endif /* DO_ELF */
 
