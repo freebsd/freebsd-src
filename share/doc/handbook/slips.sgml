@@ -64,7 +64,7 @@ modems, and perhaps <tt/stty(1)/ for information on setting serial
 port parameters &lsqb;such as <tt/clocal/ for directly-connected
 serial interfaces&rsqb;.
 
-<sect1>Quick Overview
+<sect1><heading>Quick Overview</heading>
 <p>
 
 In its typical configuration, using FreeBSD as a SLIP server works as
@@ -76,7 +76,7 @@ the special user, and if it finds a match, connects the serial line to
 an available SLIP interface and then runs the shell script
 <tt>/etc/sliphome/slip.login</tt> to configure the SLIP interface.
 
-<sect2>An Example of a SLIP Server Login
+<sect2><heading>An Example of a SLIP Server Login</heading>
 <p>
 
 For example, if a SLIP user ID were <tt>Shelmerg</tt>, <tt/Shelmerg/'s
@@ -121,7 +121,7 @@ logging).
 
 OK, enough of the examples -- let's dive into setting up the system.
 
-<sect1>Kernel Configuration
+<sect1><heading>Kernel Configuration</heading>
 <p>
 FreeBSD's default kernels usually come with two SLIP interfaces
 defined (<tt>sl0</tt> and <tt>sl1</tt>); you can use <tt>netstat
@@ -182,7 +182,7 @@ See the document ``Building Berkeley Kernels with Config'' and the
 manual page for <tt>config(8)</tt> to see how to configure and build
 kernels.
 
-<sect1>Sliplogin Configuration
+<sect1><heading>Sliplogin Configuration</heading>
 
 <p>
 
@@ -196,7 +196,7 @@ and (optionally) <tt>slip.logout</tt>, which undoes
 <tt>slip.login</tt>'s effects when the serial connection is
 terminated.
 
-<sect2>slip.hosts Configuration
+<sect2><heading>slip.hosts Configuration</heading>
 
 <p>
 
@@ -268,7 +268,7 @@ Ethernet subnet, and you'll also need to adjust your
 <tt>/etc/sliphome/slip.logout</tt> scripts to use <tt>arp(8)</tt> to
 manage the proxy-ARP entries in the SLIP server's ARP table.
 
-<sect2>slip.login Configuration
+<sect2><heading>slip.login Configuration</heading>
 
 <p>
 The typical <tt>/etc/sliphome/slip.login</tt> file looks like this:
@@ -347,7 +347,7 @@ Note that when you create <tt>/etc/sliphome/slip.login</tt> and
 /etc/sliphome/slip.logout</tt>) must be set, or <tt>sliplogin</tt>
 will be unable to execute it.
 
-<sect2>slip.logout Configuration
+<sect2><heading>slip.logout Configuration</heading>
 
 <p>
 
@@ -400,7 +400,7 @@ It bears repeating: make sure <tt>/etc/sliphome/slip.logout</tt> has
 the execute bit set for after you create it (ie, <tt>chmod 755
 /etc/sliphome/slip.logout</tt>).
 
-<sect1>Routing Considerations
+<sect1><heading>Routing Considerations</heading>
 
 <p>
 If you are not using the ``proxy ARP'' method for routing packets
@@ -411,7 +411,7 @@ your SLIP server, or you will probably need to install and configure
 <tt>gated</tt> on your FreeBSD SLIP server so that it will tell your
 routers via appropriate routing protocols about your SLIP subnet.
 
-<sect2>Static Routes
+<sect2><heading>Static Routes</heading>
 
 <p>
 Adding static routes to your nearest default routers can be
@@ -423,7 +423,7 @@ which static routes to tell other routers about, so some expertise and
 troubleshooting/tweaking may be necessary to get static-route-based
 routing to work.
 
-<sect2>Running gated
+<sect2><heading>Running gated</heading>
 
 <p>
 An alternative to the headaches of static routes is to install
@@ -503,7 +503,7 @@ appropriate for your system.  Please see the manual page for
 <tt>gated</tt> for information on <tt>gated</tt>'s command-line
 parameters.
 
-<sect1>Acknowledgements
+<sect1><heading>Acknowledgements</heading>
 
 <p>
 Thanks to these people for comments and advice regarding this tutorial:

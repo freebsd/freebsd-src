@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: scsi.sgml,v 1.2 1995/06/30 17:37:48 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -87,9 +87,9 @@
         QIC tape unit, a SCSI-1 helical scan tape unit and 2 SCSI-1 disks
         work together quite happily.
 
-    <sect1>Concepts of SCSI
+    <sect1><heading>Concepts of SCSI</heading>
       <p>
-      <sect2>A <it>smart</it> interface
+      <sect2><heading>A <it>smart</it> interface</heading>
         <p>
           As said before, SCSI devices are smart.  The idea is to put the
           knowledge about intimate hardware details onto the SCSI device
@@ -104,7 +104,7 @@
 	  there is no longer a need to change (and qualify!) drivers for 
 	  every odd new device that is introduced.
 
-      <sect2>Do's and don't's on interconnections
+      <sect2><heading>Do's and don't's on interconnections</heading>
         <p>
           For cabling and connectors there is a golden rule: get good
           stuff. With bus speeds going up all the time you will save
@@ -116,7 +116,7 @@
           hunting down a problem with a flaky machine only to discover that
           shortening the SCSI bus with 1 meter solved the problem.  And the
           original bus length was well within the SCSI specification.
-      <sect2>SCSI bus types
+      <sect2><heading>SCSI bus types</heading>
         <p>
           From an electrical point of view, there are two Incompatible bus
           types: single-ended and differential.  This means that there are
@@ -156,7 +156,7 @@
           between the devices. You have to watch your device addressing
           closely when mixing wide and narrow.
 
-        <sect3>Single ended buses
+        <sect3><heading>Single ended buses</heading>
           <p>
             A single-ended SCSI bus uses signals that are either 5 Volts or
             0 Volts (indeed, TTL levels) and are relative to a COMMON
@@ -190,7 +190,7 @@
 	    is a bad idea, you better stick to 50 pins cabling 
 	    in accordance with the SCSI standard.
 
-        <sect3>Differential buses
+        <sect3><heading>Differential buses</heading>
           <p>
             A differential SCSI bus has a maximum length of 25
             meters. Quite a difference from the 3 meters for a single-ended
@@ -216,7 +216,7 @@
 	    AH1740 as a single ended board, whereas the AH1744 was differential.
 	    The software interface to the host is identical for both.
 
-        <sect3>Terminators
+        <sect3><heading>Terminators</heading>
           <p>
             Terminators in SCSI terminology are resistor networks that are
             used to get a correct impedance matching.  Impedance matching
@@ -277,7 +277,7 @@
             for the internal flat cable connectors. This makes
             reconfiguration much easier.
         
-        <sect3>Terminator power
+        <sect3><heading>Terminator power</heading>
           <p>
             The terminators discussed in the previous chapter need power to
             operate properly.  On the SCSI bus, a line is dedicated to this
@@ -317,7 +317,7 @@
             configurable, using some sort of setup tool. Consult you
 	    documentation!
 
-        <sect3>Device addressing
+        <sect3><heading>Device addressing</heading>
           <p>
             Because the SCSI bus is, ehh, a bus there must be a way to
             distinguish or address the different devices connected to it.
@@ -349,7 +349,7 @@
             tapechanger. In this way, the host system can address each of
             the parts of the tape unit as desired.
 
-        <sect3>Bus layout
+        <sect3><heading>Bus layout</heading>
           <p>
             SCSI buses are linear. So, not shaped like Y-junctions, star
             topologies, cobwebbs or whatever else people might want to
@@ -364,9 +364,9 @@
 
             <bf>Stick to the linear bus rule!</bf>
 
-    <sect1>Using SCSI with FreeBSD
+    <sect1><heading>Using SCSI with FreeBSD</heading>
       <p>
-      <sect2>About translations, BIOSes and magic..
+      <sect2><heading>About translations, BIOSes and magic..</heading>
         <p>
           As stated before, you should first make sure that you have a
           electrically sound bus.
@@ -445,7 +445,7 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
           the value reported by the drive when inquiring about the geometry
           now becomes fake.
 
-      <sect2>SCSI subsystem design
+      <sect2><heading>SCSI subsystem design</heading>
         <p>
           FreeBSD uses a sort of layered SCSI subsystem. For each different
           controller card a so called device driver is written. This driver
@@ -465,7 +465,7 @@ Feb  9 19:33:46 yedi /386bsd: sd0: 636MB (1303250 total sec), 1632 cyl, 15 head,
           banging and more high level stuff. Adding support for another
           piece of hardware is a much more managable problem.
         
-      <sect2>Kernel configuration
+      <sect2><heading>Kernel configuration</heading>
         <p>
           Dependent on your hardware, the kernel configuration file must
           contain a line which describes your hostadapter. This includes
@@ -514,7 +514,7 @@ device          cd0     #Only need one of these, the code dynamically grows &lsq
           subsystem. For more detailed info on hostadapter drivers use eg
           <tt>man 4 aha</tt> for info on the Adaptec 154x driver.
 
-      <sect2>Tuning your SCSI kernel setup
+      <sect2><heading>Tuning your SCSI kernel setup</heading>
         <p>
           Experience has shown that some devices are slow to respond to INQUIRY 
 	  commands after a SCSI bus reset. An INQUIRY command is sent by the kernel
@@ -534,7 +534,7 @@ options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
 	  with device recognition. If this helps, tune it back until it just stays
 	  working.
 
-      <sect2>Rogue SCSI devices
+      <sect2><heading>Rogue SCSI devices</heading>
         <p>  
 	  Although the SCSI standard tries to be complete and concise, it is
 	  a complex standard and implementing things correctly is no easy task.
@@ -570,7 +570,7 @@ Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
           to connect your bogus Mumbletech SCSI cdrom you might be the one
 	  that has to define which workaround is needed.
 
-      <sect2>Busmaster host adapters
+      <sect2><heading>Busmaster host adapters</heading>
         <p>
 	  Most, but not all, SCSI host adapters are bus mastering controllers.
 	  This means that they can do I/O on their own without putting load onto
@@ -601,7 +601,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
 	  Check the man pages for the host adapter that you use. Or better
 	  still, use the ultimate documentation (read: driver source).
 
-    <sect1>Tracking down problems
+    <sect1><heading>Tracking down problems</heading>
       <p>
         The following list is an attempt to give a guideline for the most
         common SCSI problems and their solutions. It is by no means
@@ -627,7 +627,7 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
             If possible, configure your hostadapter to use slow bus speeds.
         </itemize>
 
-    <sect1><heading>Further reading<label id="scsi:further-reading"></>
+    <sect1><heading>Further reading<label id="scsi:further-reading"></heading>
       <p>
         If you intend to do some serious SCSI hacking, you might want to
         have the official standard at hand:

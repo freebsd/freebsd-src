@@ -1,9 +1,9 @@
-<!-- $Id: contrib.sgml,v 1.8 1995/08/26 07:54:44 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.9 1995/08/28 21:53:12 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt>FreeBSD contributor list<label id="contrib">
+<chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
 
-  <sect>Derived software contributors
+  <sect><heading>Derived software contributors</heading>
 
     <p>This software was originally derived from William
       F. Jolitz's 386BSD release 0.1, though almost none of the
@@ -21,7 +21,7 @@
       BSD based operating systems on people's computers!  We wish
       the NetBSD group every success in their endevors.
 
-  <sect>Hardware contributors
+  <sect><heading>Hardware contributors</heading>
 
     <p>A special thank-you to Walnut Creek CDROM for providing
       the Pentium P5-90 and 486/DX2-66 EISA/VL systems that are
@@ -42,7 +42,7 @@
       contributing his floppy tape streamer for experimental
       work.
 
-  <sect>The FreeBSD core team<label id="contrib:core">
+  <sect><heading>The FreeBSD core team<label id="contrib:core"></heading>
 
     <p>(in alphabetical order by first name):
 
@@ -64,7 +64,7 @@
 	<item>S&oslash;ren Schmidt &lt;sos@FreeBSD.org&gt;
       </itemize>
 
-  <sect>Who is responsible for what
+  <sect><heading>Who is responsible for what</heading>
 
     <p><descrip>
 	<tag/President/ Jordan K. Hubbard &lt;jkh@FreeBSD.org&gt;
@@ -82,7 +82,7 @@
 	  &lt;rich@FreeBSD.org&gt;
       </descrip>
 
-    <sect>Additional FreeBSD contributors
+    <sect><heading>Additional FreeBSD contributors</heading>
 
       <p>(in alphabetical order by first name):
 
@@ -196,7 +196,7 @@
 	  <item>Yves Fonk &lt;yves@cpcoup5.tn.tudelft.nl&gt;
 	</itemize>
 
-  <sect>386BSD Patch kit patch contributors
+  <sect><heading>386BSD Patch kit patch contributors</heading>
 
     <p>(in alphabetical order by first name):
 

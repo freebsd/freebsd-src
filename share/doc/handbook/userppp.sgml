@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.1 1995/07/29 13:08:02 jfieber Exp $ -->
+<!-- $Id: userppp.sgml,v 1.2 1995/08/19 22:16:06 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -48,7 +48,7 @@
   Thanks to Rob Snow &lt;rsnow@txdirect.net&gt; who proved to be a mine of
   useful information when I was first experimenting with user ppp.
 
-<sect1>Before you start
+<sect1><heading>Before you start</heading>
 
 <p>This document assumes you're in roughly this position:
 
@@ -80,7 +80,7 @@
   In addition, I've assumed that because your connection to the Internet is  
   not full time you are not running a name server (<tt>named(8)</tt>).
 
-<sect1>Building a ppp ready kernel
+<sect1><heading>Building a ppp ready kernel</heading>
 
 <p>As the description states, ``ppp'' uses the kernel ``tun'' device. It is
   necessary to make sure that your kernel has support for this device compiled
@@ -97,7 +97,7 @@ pseudo-device	  tun		1
   should add the line, re-compile and then re-install the kernel. Boot from
   this new kernel.
 
-<sect1>Check the tun device
+<sect1><heading>Check the tun device</heading>
 
 <p>My experiences with ppp have only been with one ``tun'' device (tun0). If
   you have used more (i.e., a number other than `1' in the pseudo-device line
@@ -111,7 +111,7 @@ pseudo-device	  tun		1
 # ./MAKEDEV tun0
 </verb></tscreen>
 
-<sect1>PPP Configuration
+<sect1><heading>PPP Configuration</heading>
 
 <p>The meat of the problem.
 
@@ -134,7 +134,7 @@ pseudo-device	  tun		1
   whether you are using static or dynamic IP addresses.
 
 
-<sect2>Configure the resolver(5)
+<sect2><heading>Configure the resolver(5)</heading>
 
 <p>The resolver is the part of the networking system that turns IP addresses
      into hostnames. It can be configured to look for maps that describe IP to
@@ -165,7 +165,7 @@ bind
 namedflags="NO"
 </verb></tscreen>
 
-<sect2>Create the /etc/hosts(5) file
+<sect2><heading>Create the /etc/hosts(5) file</heading>
 
 <p>This file should contain the IP addresses and names of machines on your
      network. At a bare minimum it should contain entries for the machine
@@ -186,7 +186,7 @@ namedflags="NO"
      <!-- XXX <em>(* What should they do if they are
      allocated an IP address dynamically?)</em> -->
 
-<sect2>Create the /etc/resolv.conf file
+<sect2><heading>Create the /etc/resolv.conf file</heading>
 
 <p>/etc/resolv.conf contains some extra information required when you are
      not running a nameserver. It points the resolver routines at real
@@ -202,7 +202,7 @@ nameserver 158.152.1.65
      Which are Demon Internet's two nameservers. Add as many ``nameserver''
      lines as your ISP provides nameservers.
 
-<sect1>PPP and static IP addresses
+<sect1><heading>PPP and static IP addresses</heading>
 
 <p>Probably the easiest to configure for. You will need to create three files
     in the /etc/ppp directory.
@@ -283,7 +283,7 @@ x.x.x.x:
     may or may not want to do this, depending on how many people have access
     to your ppp system.
 
-<sect1>PPP and Dynamic IP configuration
+<sect1><heading>PPP and Dynamic IP configuration</heading>
 
 <!-- XXX -->
  <p>If you service provider does not assign static IP numbers,
@@ -294,7 +294,7 @@ set ifaddr 0 0
 </verb></tscreen>
    See the <tt>ppp(8)</tt> manual page for more detailed information.
 
-<sect1>Final system configuration
+<sect1><heading>Final system configuration</heading>
 
 <p>You now have PPP configured, but there's a few more things to do before
     it's ready to work. They all involve editing the /etc/sysconfig file.
