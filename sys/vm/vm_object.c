@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.138 1999/01/10 01:58:28 eivind Exp $
+ * $Id: vm_object.c,v 1.138.2.1 1999/01/22 06:00:21 dillon Exp $
  */
 
 /*
@@ -786,16 +786,22 @@ relookup:
 		tobject = object;
 		tpindex = pindex;
 shadowlookup:
+		if (tobject->type != OBJT_DEFAULT &&
+		    tobject->type != OBJT_SWAP
+		) {
+			continue;
+		}
+
+		if ((tobject->flags & OBJ_ONEMAPPING) == 0)
+			continue;
+
 		m = vm_page_lookup(tobject, tpindex);
+
 		if (m == NULL) {
-			if (tobject->type != OBJT_DEFAULT) {
-				continue;
-			}
-				
 			tobject = tobject->backing_object;
-			if ((tobject == NULL) || (tobject->ref_count != 1)) {
+			if (tobject == NULL)
 				continue;
-			}
+
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			goto shadowlookup;
 		}
@@ -805,8 +811,11 @@ shadowlookup:
 		 * we skip it.  Things can break if we mess with pages
 		 * in any of the below states.
 		 */
-		if (m->hold_count || m->wire_count ||
-			m->valid != VM_PAGE_BITS_ALL) {
+		if (
+		    m->hold_count || 
+		    m->wire_count ||
+		    m->valid != VM_PAGE_BITS_ALL
+		) {
 			continue;
 		}
 
