@@ -1,5 +1,6 @@
 /*	$NecBSD: bsfunc.c,v 1.2 1997/10/31 17:43:37 honda Exp $	*/
 /*	$NetBSD$	*/
+/* $FreeBSD$ */
 /*
  * [NetBSD for NEC PC98 series]
  *  Copyright (c) 1994, 1995, 1996 NetBSD/pc98 porting staff.
@@ -90,7 +91,7 @@ bstimeout(arg)
 	struct bsccb *cb;
 	int s;
 
-	s = splbio();
+	s = splcam();
 	bsc->sc_flags &= ~BSSTARTTIMEOUT;
 
 	/* check */
@@ -625,7 +626,7 @@ bs_check_target(ti)
 
 	ti->ti_lun = 0;
 	bsc->sc_retry = 2;
-	s = splbio();
+	s = splcam();
 
 	/* inquiry */
 	bzero(&scsi_cmd, sizeof(scsi_cmd));

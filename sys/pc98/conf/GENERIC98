@@ -110,17 +110,17 @@ controller	adv0
 options	BS_TARG_SAFEMODE
 
 # PC-9801-92
-controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0
+controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 flags 0
 # SC-98
-# controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x10000
+# controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 flags 0x10000
 # HA-55BS2 and later
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x20000
+#controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 flags 0x20000
 # ELECOM type
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x30000
+#controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 flags 0x30000
 # SMIT
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
+#controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000
 # Logitec LHA-20x
-#controller bs0 at isa? port IO_SCSI bio irq 5 drq 3 flags 0x50000
+#controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 flags 0x50000
 
 # PC-9801-100
 controller	aic0	at isa? port 0x1840 cam irq 5 flags 0x10000
