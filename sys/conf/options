@@ -129,6 +129,7 @@ UMAPFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 HPFS		opt_dontuse.h
 UNIONFS		opt_dontuse.h
+UDF		opt_dontuse.h
 
 # Broken - ffs_snapshot() dependency from ufs_lookup() :-(
 FFS		opt_ffs_broken_fixme.h

@@ -49,6 +49,7 @@ SUBDIR=	adjkerntz \
 	mount_nullfs \
 	mount_portalfs \
 	mount_std \
+	mount_udf \
 	mount_umapfs \
 	mount_unionfs \
 	mountd \
