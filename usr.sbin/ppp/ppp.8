@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.4 1995/03/12 12:03:48 amurai Exp $
+.\" $Id: ppp.8,v 1.5 1995/05/21 10:52:05 jkh Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -17,56 +17,55 @@ ppp \- Point to Point Protocol (aka iijppp)
 ]
 .SH DESCRIPTION
 .LP
-This is user process \fIPPP\fR software package.  Normally, \fIPPP\fR
-is implemented as a part of kernel and hard to debug and/or modify its
-behavior. (i.e. pppd) However, in this implementation, \fIPPP\fR is
-implemented as a user process with the help of tunnel device driver.
+This is a user process \fIPPP\fR software package.  Normally, \fIPPP\fR
+is implemented as a part of the kernel (e.g. pppd) and it's thus somewhat
+hard to debug and/or modify its behavior.  However, in this implementation
+\fIPPP\fR is done as a user process with the help of the tunnel device driver.
 .LP
 
 .SH Major Features
 
 .TP
-o Provide interactive user interface.
-Using its command mode, user can
-easily enter commands to establish the connection with the peer, check
-the status of connection, and close the connection.  And now, all
-functions has password protected if describe your hostname/password in
-secret file or exist secret file itself.
+o Provides interactive user interface.
+Using its command mode, the user can
+easily enter commands to establish the connection with the remote end, check
+the status of connection, and close the connection.  All functions can
+also be optionally password protected for security.
 
 .TP
-o Supports both of manual and automatic dialing. 
-Interactive mode has ``term'' command which enables you to talk to your modem
-directory. When your modem is connected to the peer, and it starts to
-speak \fIPPP\fR, \fIPPP\fR software detects it and turns into packet
-mode automatically. Once you have convinced how to connect with the
-peer, you can write chat script to define necessary dialing and login
-procedure for later convenience.
+o Supports both manual and automatic dialing. 
+Interactive mode has a ``term'' command which enables you to talk to your modem
+directly.  When your modem is connected to the remote peer and it starts to
+talk \fIPPP\fR, the \fIPPP\fR software detects it and switches to packet
+mode automatically. Once you have determined the proper sequence for connecting
+with the remote host, you can write a chat script to define the necessary dialing
+and login procedure for later convenience.
 
 .TP
 o Supports on-demand dialup capability.
-By using auto mode, \fIPPP\fR
-program will act as a daemon and wait for the packet send to the peer. 
-Once packet is found, daemon automatically dials and establish the
+By using auto mode, the \fIPPP\fR
+program will act as a daemon and wait for a packet to be sent over the \fIPPP\fR
+link.  When this happens, the daemon automatically dials and establishes the
 connection.
 
 .TP
-o Supports server mode by direct mode. 
-Can act as server which accept incoming \fIPPP\fR connection. 
-                 
+o Supports server-side \fIPPP\fR connections.
+Can act as server which accepts incoming \fIPPP\fR connections. 
+ 
 .TP
-o Supports PAP and CHAP authentification.                                     
+o Supports PAP and CHAP authentication.                                     
 
 .TP
 o Supports Proxy Arp.
-\fIPPP\fR is set up as server, you can also set up doing a proxy arp
+When \fIPPP\fR is set up as server, you can also configure it to do proxy arp
 for your connection.
 
 .TP
 o Supports packet filtering.
-User can define four kinds of filters;
-ifilter for incoming packet, ofilter for outgoing packet, dfilter to
-define dialing trigger packet and afilter to keep alive a connection
-by trigger packet.
+User can define four kinds of filters:
+ifilter for incoming packets, ofilter for outgoing packets, dfilter to
+define dialing trigger packet and afilter to keep a connection alive with
+the trigger packet.
 
 .TP
 o Tunnel driver supports bpf.
@@ -77,53 +76,60 @@ o Supports \fIPPP\fR over TCP capability.
 
 .TP
 o Supports IETF draft Predictor-1 compression.  
-\fIPPP\fR has a not only a VJ-compress but also Predictor-1
-commpression. Normally a modem has a compression (i.e. v42.bis) and
-system should accept a high speed/expand date from modem.  The
-Predictor-1 compression will compress whole packet data by system not
-like a VJ-compress. So it will reduce system overhead by SIO's
-interruption because of reducing data traffic between modem and SIO.
+\fIPPP\fR supports not only VJ-compression but also Predictor-1
+compression. Normally, a modem has built-in compression (e.g. v42.bis)
+and the system may receive higher data rates from it as a result of
+such compression.  While this is generally a good thing in most
+other situations, this higher speed data imposes a penalty on
+the system by increasing the number of serial interrupts the system
+has to process in talking to the modem.  Unlike VJ-compression,
+Predictor-1 compression pre-compresses \fBall\fR data flowing through
+the link and thus reduces traffic to a minimum.
 
 .TP
-o Runs under BSDI-1.1 and FreeBSD-1.1.
+o Runs under BSDI-1.1 and FreeBSD.
 Patch for NeXTSTEP 3.2 is also available on the net.
 
 .SH GETTING STARTED
 .LP
 
-When you run \fIPPP\fR, you might need to check and setup
-configuration. First your kernel should include a tunnel
-device. if not, you should re-config your kernel and re-
-build including follows line.
+When you first run \fIPPP\fR, you may need to deal with some
+initial configuration details.  First, your kernel should
+include a tunnel device (the default in FreeBSD 2.0.5 and later).
+If it doesn't, you'll need to rebuild your kernel with the following
+line in your kernel configuration file:
 
 .TP
 pseudo-device   tun             1
 
 .LP
-Last word indicates a number of tunnel device as equivalent
-for number of \fIPPP\fR connection.
+You should set the numeric field to the maximum number of 
+\fIPPP\fR connections you wish to support.
 
 .LP
-Second, check special(device) file for tunnel device named as
-/dev/tun0.  If not, you can create by type "MAKEDEV tun0"
+Second, check your /dev directory for the tunnel device entry
+/dev/tun0.  If it doesn't exist, you can create it by running
+"MAKEDEV tun0"
 
 .SH MANUAL DIALING
 
 .LP
 % ppp
   User Process PPP written by Toshiharu OHNO.
- -- If you write your hostname and password in ppp.secret, you can't do anything except quit and help command --
+ -- If you set your hostname and password in /etc/ppp/ppp.secret, you can't do
+     anything except run the quit and help commands --
 
 ppp on "your hostname"> help
-  passwd  : Password for manupilation
-  quit    : Quit PPP program    
+  passwd  : Password for security
+  quit    : Quit the PPP program    
   help    : Display this message
 
 ppp on tama> pass <password>
- -- "on" change to "ON" if you type correct password.
+ -- "on" will change to "ON" if you specify the correct password.
 
 ppp ON tama>
- -- You can specify modem and device name using following commands.
+ -- You can specify the device name and speed for your modem using
+     the following commands:
 
 ppp ON tama> set line /dev/cuaa0
 
@@ -148,15 +154,15 @@ ppp ON tama> term
 
 -- PPP started in remote side ---
 
--- When peer start to speak PPP, the program will detect it
--- automatically and back to command mode.
+-- When the peer start to talk PPP, the program will detect it
+-- automatically and return to command mode.
 
 ppp ON tama>
 
 \fBPPP\fR ON TAMA>
 
--- NOW, you are get connected !! Note that prompt has changed to
--- capital letters
+-- NOW, you are connected!  Note that prompt has changed to
+-- capital letters to indicate this.
 
 PPP ON tama> show lcp
 
@@ -165,12 +171,12 @@ PPP ON tama> show lcp
 PPP ON tama> show ipcp
 
 -- You'll see IPCP status --
--- At this point, your machine has host route to the peer.
--- If your want to add default route entry, then enter
+-- At this point, your machine has a host route to the peer.
+-- If you want to add a default route entry, then enter
 
 PPP ON tama> add 0 0 HISADDR
 
--- Here string `HISADDR' represents IP address of connected peer.
+-- Here string `HISADDR' represents the IP address of connected peer.
 
 PPP ON tama>
 
@@ -182,7 +188,7 @@ PPP ON tama> show log
 
 PPP ON tama> close
 
--- Connection is closed, and modem will be hanged.
+-- Connection is closed and modem will be disconnected.
 
 ppp ON tama> quit
 
@@ -192,9 +198,9 @@ ppp ON tama> quit
 .SH AUTOMATIC DIALING
 
 .LP
-To use automatic dialing, you must prepare Dial and Login chat script.
-See example definition found in ppp.conf.sample (Format of ppp.conf is
-pretty simple.)
+To use automatic dialing, you must prepare some Dial and Login chat scripts.
+See the example definitions in /etc/ppp/ppp.conf.sample (the format of ppp.conf is
+pretty simple).
 
 .TP 2
 o
@@ -202,23 +208,22 @@ Each line contains one command, label or comment.
 
 .TP 2
 o 
-Line stating with # is treated as a comment line.
+A line starting with a `#' character is treated as a comment line.
 
 .TP 2
 o
-Label name has to start from first column and should be followed by colon (:).
+A label name has to start in the first column and should be followed by a colon (:).
 
 .TP 2
 o
-Command line must contains space or tab at first column.
+A command line must contain a space or tab in the first column.
 
 .LP
-If ppp.conf is ready, specify destination label name when you invoke
-ppp. Commands associated with destination label is executed when ppp
-command is invoked. Note that commands associated with ``default''
-label is ALWAYS executed.
+Once ppp.conf is ready, specify the destination label name when you invoke
+ppp. Commands associated with the destination label are then executed.
+Note that the commands associated with the ``default'' label are ALWAYS executed.
 
-Once connection is made, you'll find that prompt is changed to
+Once the connection is made, you'll find that prompt has changed to
 
  capital \fIPPP\fR on tama>.
 
@@ -229,18 +234,18 @@ Once connection is made, you'll find that prompt is changed to
    login OK!
    PPP ON tama>
 
-If ppp.linkup file is available, its contents are executed when
-\fIPPP\fR link is connected.  See example which add default route.
-The string HISADDR matches with IP address of connected peer.
+If an /etc/ppp/ppp.linkup file is available, its contents are executed when
+the \fIPPP\fR connection is established.  See the provided example which adds
+a default route.  The string HISADDR represents the IP address of the remote peer.
 
 
-.SH DAIL ON DEMAND
+.SH DIAL ON DEMAND
 
 .LP
- To play with demand dialing, you must use -auto option. Also, you
-must specify destination label with proper setup in ppp.conf. It must
-contain ``ifaddr'' command to define peer's IP address. (refer
-/etc/ppp/ppp.conf.sample)
+ To play with demand dialing, you must use the -auto option.  You
+must also specify the destination label in /etc/ppp/ppp.conf to use.
+It should contain the ``ifaddr'' command to define the remote
+peer's IP address. (refer to /etc/ppp/ppp.conf.sample)
 
 
    % ppp -auto pm2demand
@@ -248,8 +253,9 @@ contain ``ifaddr'' command to define peer's IP address. (refer
    %
 
 .LP
-When -auto is specified, \fIPPP\fR program works as a daemon.  But,
-you are still able to use command features to check its behavior.
+When -auto is specified, \fIPPP\fR program runs as a daemon but
+you can still configure or examine its configuration by using
+the diagnostic port as follows:
 
 
   % telnet localhost 3000
@@ -267,52 +273,53 @@ you are still able to use command features to check its behavior.
       ....
 
 .LP
- Each ppp has associated port number, which is computed as "3000 +
-tunnel_device_number". If 3000 is not good base number, edit defs.h.
-When packet toward to remote network is detected, \fIPPP\fR will take
-dialing action and try to connect with the peer. If dialing is failed,
-program will wait for 30 seconds. Once this hold time expired, It's
-re-dialing with previous trigger packets.
+Each ppp daemon has an associated port number which is computed as "3000 +
+tunnel_device_number". If 3000 is not good base number, edit defs.h in
+the ppp sources (/usr/src/usr.sbin/ppp) and recompile it.
+When an outgoing packet is detected, \fIPPP\fR will perform the
+dialing action (chat script) and try to connect with the peer.  If dialing fails,
+it will wait for 30 seconds and retry.
 
- To terminate program, type
+ To terminate the program, type
 
   PPP ON tama> close
   \fBppp\fR ON tama> quit all
 
 .LP
- Simple ``quit'' command will terminates telnet connection, but
-\fIPPP\fR program itself is not terminated. You must use ``quit all''
-to terminate the program running as daemon.
+A simple ``quit'' command will terminate the telnet connection but
+not the \fIPPP\fR program itself. You must use ``quit all'' to terminate
+the \fRPPP\fR program as well.
 .LP
 
 .SH PACKET FILTERING
 
 .LP
-This implementation supports packet filtering. There are three filters; ifilter, ofilter and dfilter. Here's some basics.
+This implementation supports packet filtering. There are three kinds of filters:
+ifilter, ofilter and dfilter.  Here are the basics:
 .LP
 
 .TP
-o Filter definition has next syntax.
+o A filter definition has the following syntax:
 
    set filter-name rule-no action [src_addr/src_width] [dst_addr/dst_width]
        [proto [src [lt|eq|gt] port ] [dst [lt|eq|gt] port] [estab]
 
    a) filter-name should be ifilter, ofilter or dfiler.
    
-   b) There are two actions permit and deny. If given packet is matched
-      against the rule, action is taken immediately.
+   b) There are two actions: permit and deny. If a given packet is matched
+      against the rule, the associated action is taken immediately.
 
-   c) src_width and dst_width works like a netmask to represent address range.
+   c) src_width and dst_width works like a netmask to represent an address range.
 
    d) proto must be one of icmp, udp or tcp.
 
 .TP
-o Each filter can hold upto 20 rules.
-Rule number starts from 0.  Entire rule set is not effective until rule 0 is defined.
+o Each filter can hold up to 20 rules, starting from rule 0.
+The entire rule set is not effective until rule 0 is defined.
 
 .TP 2
 o
-If no rule is matched with a packet, that packet will be discarded (blocked).
+If no rule is matched to a packet, that packet will be discarded (blocked).
 
 .TP
 o Use ``set filer-name -1'' to flush all rules.
@@ -321,160 +328,161 @@ o Use ``set filer-name -1'' to flush all rules.
  See /etc/ppp/ppp.conf.filter.example
 .LP
 
-.SH RECEIVE INCOMING PPP CONNECTION
+.SH RECEIVING INCOMING PPP CONNECTIONS
 
 .LP
- To receive incoming \fIPPP\fR connection request, follow next steps. 
+ To handle an incoming \fIPPP\fR connection request, follow these steps:
 .LP
 
- a) Make sure modem and /etc/rc.serial is setting up correctly.
-    - Use HardWare Handshake (CTS/RTS) for flow controlling.
-    - Modem should be setup NO echo back (ATE0) and 
-      No results string (ATQ1)
+ a) Make sure the modem and (optionally) /etc/rc.serial is configured correctly.
+    - Use Hardware Handshake (CTS/RTS) for flow control.
+    - Modem should be set to NO echo back (ATE0) and NO results string (ATQ1)
 
- b) Edit /etc/ttys to enable getty on the port where modem is attached.
+ b) Edit /etc/ttys to enable a getty on the port where the modem is attached.
+    For example:
 
 	ttyd1  "/usr/libexec/getty std.38400" dialup on secure
 
-    Don't forget to send HUP signal to init process.
+    Don't forget to send a HUP signal to the init process to start the getty.
 
 	# kill -HUP 1
 
- c) Prepare account for incoming user.
+ c) Prepare an account for the incoming user.
 
     ppp:xxxx:66:66:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
 
- d) Create /usr/local/bin/ppplogin file with next contents.
+ d) Create a /usr/local/bin/ppplogin file with the following contents:
 
 	#!/bin/sh
 	/usr/sbin/ppp -direct
 
-    You can specify label name for further control.
+    You can specify a label name for further control.
 
 .LP
- Direct mode (-direct) lets \fIPPP\fR to work with standard in and
-out.  Again, you can telnet to 3000 to get command mode control.
+ Direct mode (-direct) lets \fIPPP\fR work with stdin and stdout.
+You can also telnet to 3000 to get command mode control, as with
+client-side \fIPPP\fR.
 .LP
 
 .SH SETTING IDLE TIMER
 
 .LP
- To check/set idletimer, use ``show timeout'' and ``set timeout'' command.
+ To check/set idletimer, use the ``show timeout'' and ``set timeout'' commands.
 .LP
 
  Ex. ppp ON tama> set timeout 600
 
 .LP
- Timeout period is measured in secs and default value is 180 or 3 min. To disable idle timer function, use ``set timeout 0''.
+ The timeout period is measured in seconds, the  default value for which is 180 or 3 min.
+ To disable the idle timer function, ``set timeout 0''.
 .LP
 
 .LP
- In -auto mode, idle timeout cause \fIPPP\fR session closed. However,
-\fIPPP\fR program itself is keep running. Another trigger packet cause
-dialing action.
+ In -auto mode, an idle timeout causes the \fIPPP\fR session to be closed, though
+the \fIPPP\fR program itself remains running.  Another trigger packet will cause it
+to attempt to reestablish the link.
 .LP
 
 .SH Predictor-1 compression
 
 .LP
  This version supports CCP and Predictor type 1 compression based on
-current IETF-draft specs. As a default behavior, \fIPPP\fR will
-propose to use (or willing to accept) this capability and use it if
-peer agrees (or requests).
+the current IETF-draft specs. As a default behavior, \fIPPP\fR will
+attempt to use (or be willing to accept) this capability when the
+peer agrees (or requests it).
 .LP
 
 .LP
- To disable CCP/predictor function completely, use ``disable pred''
-and ``deny pred'' command.
+ To disable CCP/predictor functionality completely, use the ``disable pred''
+and ``deny pred'' commands.
 .LP
 
 .SH Controlling IP address
 
 .LP
- \fIPPP\fR uses IPCP to negotiate IP addresses. Each side of node
-informs IP address that willing to use to the peer, and if requested
-IP address is acceptable, \fIPPP\fR returns ACK to
-requester. Otherwise, \fIPPP\fR returns NAK to suggest the peer to use
-different IP address. When both side of nodes agrees to accept the
-received request (and send ACK), IPCP is reached to open state and
-network level connection is established.
+ \fIPPP\fR uses IPCP to negotiate IP addresses. Each side of the connection
+specifies the IP address that it's willing to use, and if the requested
+IP address is acceptable then \fIPPP\fR returns ACK to the requester.
+Otherwise, \fIPPP\fR returns NAK to suggest that the peer use a
+different IP address. When both sides of the connection agree to accept the
+received request (and send ACK), IPCP is set to the open state and
+a network level connection is established.
 
 
 .LP
- To control, this IPCP behavior, this implementation has ``set
-ifaddr'' to define MY and HIS IP address.
+ To control this IPCP behavior, this implementation has the ``set ifaddr'' command
+for defining the local and remote IP address:
 
-ifaddr src_addr dst_addr
+	ifaddr src_addr dst_addr
 
 .LP
-Where, src_addr is the IP address that my side is willing to use, and
-dst_addr is the IP address which his side should use.
+Where, src_addr is the IP address that the local side is willing to use and
+dst_addr is the IP address which the remote side should use.
 .LP
 
 ifaddr 192.244.177.38 192.244.177.2
 
-For example, above specification means
+For example, the above specification means:
 
-o I strongly want to use 192.244.177.38 as my side. I'll disagree when
-peer suggest me to use other addresses.
+o I strongly want to use 192.244.177.38 as my side. I'll disagree if the
+peer suggests that I use another address.
 
-o I strongly insists peer to use 192.244.177.2 as his side address.  I
-don't permit him to use any IP address but 192.244.177.2.  When peer
-request other IP address, I always suggest him to use 192.244.177.2.
+o I strongly insist that peer use 192.244.177.2 as own side address and
+don't permit it to use any IP address but 192.244.177.2.  When peer
+request another IP address, I always suggest that it use 192.244.177.2.
 
-o This is all right, when each side has pre-determined IP address.
-However, it is often the case one side is acting as a server which
-controls IP address and the other side should obey the direction from
-him.  In order to allow more flexible behavior, `ifaddr' command
-allows user to specify IP address more loosely.
+o This is all fine when each side has a pre-determined IP address,
+however it is often the case that one side is acting as a server which
+controls all IP addresses and the other side should obey the direction from
+it.  In order to allow more flexible behavior, `ifaddr' command
+allows the user to specify IP address more loosely:
 
 ifaddr 192.244.177.38/24 192.244.177.2/20
 
- Number followed by slash (/) represents number of bits significant in
-IP address. That is, this example means
+ Number followed by slash (/) represent the number of bits significant in
+teh IP address. That is, the above example signifies that:
 
-o I'd like to use 192.244.177.38 as my side address, if it is
-possible.  But I also accept any IP address between 192.244.177.0 and
-192.244.177.255.
+o I'd like to use 192.244.177.38 as my address if it is possible, but
+I'll also accept any IP address between 192.244.177.0 and 192.244.177.255.
  
-o I'd like to make him to use 192.244.177.2 as his side address.  But
-I also permit him to use any IP address between 192.244.176.0 and
+o I'd like to make him use 192.244.177.2 as his own address, but
+I'll also permit him to use any IP address between 192.244.176.0 and
 192.244.191.255.
 
-o As you may have already noticed, 192.244.177.2 is equivalent to say
+o As you may have already noticed, 192.244.177.2 is equivalent to saying
 192.244.177.2/32.
 
-o As an exception, 0 is equivalent to 0.0.0.0/0. Means, I have no idea
-about IP address and obey what he says.
+o As an exception, 0 is equivalent to 0.0.0.0/0, meaning that I have no preferred
+IP address and will obey the remote peer's selection.
 
 o 192.244.177.2/0 means that I'll accept/permit any IP address but
-I'll try to insist to use 192.244.177.2 at first.
+I'll try to insist that 192.244.177.2 be used first.
 
-.SH Connecting with service provider
+.SH Connecting with your service provider
 
 .LP
-  1) Describe provider's phone number in DialScript. Use ``set dial'' or
-     ``set phone'' command.
+  1) Describe provider's phone number in DialScript: Use the ``set dial'' or
+     ``set phone'' commands.
 
-  2) Describle login procedure in LoginScript. Use ``set login'' command.
+  2) Describe login procedure in LoginScript: Use the ``set login'' command.
 
 .TP
-3) Use ``set ifaddr'' command to define IP address.
+3) Use ``set ifaddr'' command to define the IP address.
 
- o If you know what IP address provider uses, then use it as his address.
+ o If you know what IP address provider uses, then use it as the remote address.
 
- o If provider has assigned particular IP address for you, then use it
-   as my address.
+ o If provider has assigned a particular IP address to you, then use it
+   as your address.
 
- o If provider assigns your address dynamically, use 0 as my address.
+ o If provider assigns your address dynamically, use 0 as your address.
 
- o If you have no info on IP addresses, then try
+ o If you have no idea which IP addresses to use, then try
 
 	set ifaddr 0 0
 
 .TP 2
-4) If provider request you to use PAP/CHAP auth method,
-add next lines into your ppp.conf.
+4) If provider requests that you use PAP/CHAP authentication methods,
+add the next lines to your ppp.conf file:
 
 .TP 3
 .B enable pap (or enable chap)
@@ -487,15 +495,14 @@ add next lines into your ppp.conf.
 .TP 3
 
 .LP
-Please refer /etc/ppp/ppp.conf.iij for some real examples.
+Please refer to /etc/ppp/ppp.conf.iij for some real examples.
 .LP
 
 .SH Logging facility
 
 .LP
- \fI\fIPPP\fR\fR is able to generate following level log info as
-/var/log/ppp.log
-
+ \fI\fIPPP\fR\fR is able to generate the following log info into
+/var/log/ppp.log:
 
 .TP
 .B Phase
@@ -520,15 +527,15 @@ Dump HDLC packet in hex
 Dump async level packet in hex
 
 .LP
-``set debug'' command allows you to set logging output level, and
-multiple levels can be specified.  Default is equivalent to ``set
+``set debug'' command allows you to set logging output level, of which
+multiple levels can be specified.  The default is equivalent to ``set
 debug phase lcp''.
 
-.SH For more details
+.SH MORE DETAILS
 
 .TP 2
-o Please read Japanese doc for complete explanation.
-Well, it is not useful for non-japanese readers, 
+o Please read the Japanese doc for complete explanation.
+It may not be useful for non-japanese readers, 
 but examples in the document may help you to guess.
 
 .TP 2
@@ -537,23 +544,23 @@ Please read example configuration files.
 
 .TP 2
 o
-Use ``help'', ``show ?'' and ``set ?'' command.
+Use ``help'', ``show ?'' and ``set ?'' commands.
 
 .TP 2
-o NetBSD and BSDI-1.0 has been supported in previous release, but no
-longer supported in this release.  Please contact to author if you
+o NetBSD and BSDI-1.0 were supported in previous releases but are no
+longer supported in this release.  Please contact the author if you
 need old driver code.
 
 .SH FILES
 .LP
-\fIPPP\fR may refers three files, ppp.conf, ppp.linkup and ppp.secret.
-These files are placed in /etc/ppp, but user can create his own files
-under HOME directory as .ppp.conf,.ppp.linkup and .ppp.secret.the ppp
-always try to consult to user's personal setup first.
+\fIPPP\fR may refer to three files: ppp.conf, ppp.linkup and ppp.secret.
+These files are placed in /etc/ppp, but the user can create his own files
+under his HOME directory as .ppp.conf,.ppp.linkup and .ppp.secret.
+\fIPPP\fR will always try to consult the user's personal setup first.
 
 .TP
 .B $HOME/ppp/.ppp.[conf|linkup|secret]
-User depend configuration files.
+User dependant configuration files.
 
 .TP
 .B /etc/ppp/ppp.conf
@@ -561,36 +568,27 @@ System default configuration file.
 
 .TP
 .B /etc/ppp/ppp.secret
-A authorization file for each system.
+An authorization file for each system.
 
 .TP
 .B /etc/ppp/ppp.linkup
-A checking file when
+A file to check when
 .I ppp
-establishes network level connection.
+establishes a network level connection.
 
 .TP
 .B /var/log/ppp.log
-Logging and debug information file.
+Logging and debugging information file.
 
 .TP
 .B /var/spool/lock/Lck..* 
 tty port locking file.
 
-.SH BUGS
-If you try to connect to Network Provider, you should consider enough
-both my and his IP address. They may assign both/one of address
-dynamically when ppp is connected. The IP address which you did set up
-is just assumption when you set up ppp as dial-on-demand mode (-auto)
-that is required them before connecting. So just trigger packet in
-dial-on-demand will be lost.
-
 .SH HISTORY
-This programm has deliverd into core since FreeBSD-2.1 by Atsushi
+This program was submitted to the FreeBSD core team for FreeBSD-2.0.5 by Atsushi
 Murai (amurai@spec.co.jp).
 
 .SH AUTHORS
 Toshiharu OHNO (tony-o@iij.ad.jp)
 
-
-
+Jordan Hubbard (jkh@freebsd.org) - significantly edited this document.
