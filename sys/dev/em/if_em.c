@@ -598,8 +598,14 @@ em_start_locked(struct ifnet *ifp)
                 IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
                 
                 if (m_head == NULL) break;
-                        
+
+		/*
+		 * em_encap() can modify our pointer, and or make it NULL on
+		 * failure.  In that event, we can't requeue.
+		 */
 		if (em_encap(adapter, &m_head)) { 
+			if (m_head == NULL)
+				break;
 			ifp->if_flags |= IFF_OACTIVE;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			break;
@@ -1248,15 +1254,24 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		struct ether_header eh;
 
 		m_head = m_pullup(m_head, sizeof(eh));
-		if (m_head == NULL)
+		if (m_head == NULL) {
+			*m_headp = NULL;
+                	bus_dmamap_destroy(adapter->txtag, q.map);
 			return (ENOBUFS);
+		}
 		eh = *mtod(m_head, struct ether_header *);
 		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
-		if (m_head == NULL)
+		if (m_head == NULL) {
+			*m_headp = NULL;
+                	bus_dmamap_destroy(adapter->txtag, q.map);
 			return (ENOBUFS);
+		}
 		m_head = m_pullup(m_head, sizeof(*evl));
-		if (m_head == NULL)
+		if (m_head == NULL) {
+			*m_headp = NULL;
+                	bus_dmamap_destroy(adapter->txtag, q.map);
 			return (ENOBUFS);
+		}
 		evl = mtod(m_head, struct ether_vlan_header *);
 		bcopy(&eh, evl, sizeof(*evl));
 		evl->evl_proto = evl->evl_encap_proto;
