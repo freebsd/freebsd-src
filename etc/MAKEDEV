@@ -45,7 +45,8 @@
 #	matcd*	Matsushita (Panasonic) CD-ROM disks
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
-#	mlxd*   Mylex DAC960 RAID
+#	mlx*	Mylex DAC960 RAID controllers
+#	mlxd*   Mylex DAC960 RAID disk volumes
 #	scd*	Sony CD-ROM disks
 #	vn*	vnode disks
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
@@ -1491,6 +1492,13 @@ i4btrc*)
 	mknod i4btrc$unit c 59 $unit
 	chown root:wheel i4btrc$unit
 	chmod 600 i4btrc$unit
+	;;
+
+mlx*)
+	unit=`expr $i : 'mlx\(.*\)'`
+	mknod mlx$unit c 130 $unit
+	chown root:wheel mlx$unit
+	chmod 600 mlx$unit
 	;;
 
 local)
