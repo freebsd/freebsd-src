@@ -507,7 +507,7 @@ void	cluster_callback(struct buf *);
 int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **);
 int	cluster_wbuild(struct vnode *, long, daddr_t, int);
-void	cluster_write(struct buf *, u_quad_t, int);
+void	cluster_write(struct vnode *, struct buf *, u_quad_t, int);
 void	vfs_bio_set_validclean(struct buf *, int base, int size);
 void	vfs_bio_clrbuf(struct buf *);
 void	vfs_busy_pages(struct buf *, int clear_modify);

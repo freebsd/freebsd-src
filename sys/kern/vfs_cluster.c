@@ -603,18 +603,13 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
  *	4.	end of a cluster - asynchronously write cluster
  */
 void
-cluster_write(bp, filesize, seqcount)
-	struct buf *bp;
-	u_quad_t filesize;
-	int seqcount;
+cluster_write(struct vnode *vp, struct buf *bp, u_quad_t filesize, int seqcount)
 {
-	struct vnode *vp;
 	daddr_t lbn;
 	int maxclen, cursize;
 	int lblocksize;
 	int async;
 
-	vp = bp->b_vp;
 	if (vp->v_type == VREG) {
 		async = vp->v_mount->mnt_flag & MNT_ASYNC;
 		lblocksize = vp->v_mount->mnt_stat.f_iosize;
