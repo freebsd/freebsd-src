@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pad.c,v 1.36 2002/05/18 21:28:44 Kriang.Lerdsuwanakij Exp $")
+MODULE_ID("$Id: lib_pad.c,v 1.37 2002/05/23 23:39:26 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 newpad(int l, int c)
@@ -193,24 +193,21 @@ pnoutrefresh
 	 i++, m++) {
 	register struct ldat *nline = &newscr->_line[m];
 	register struct ldat *oline = &win->_line[i];
-	NCURSES_CH_T ch;
-
-	/*
-	 * Special case for leftmost character of the displayed area.
-	 * Only half of a double-width character may be visible.
-	 */
-	ch = oline->text[pmincol];
-	if_WIDEC(isnac(ch)) {
-	    SetChar(ch, L(' '), AttrOf(oline->text[pmincol - 1]));
-	}
-	if (!CharEq(ch, nline->text[smincol])) {
-	    nline->text[smincol] = ch;
-	    CHANGED_CELL(nline, smincol);
-	}
-
-	for (j = pmincol + 1, n = smincol + 1; j <= pmaxcol; j++, n++) {
-	    if (!CharEq(oline->text[j], nline->text[n])) {
-		nline->text[n] = oline->text[j];
+	for (j = pmincol, n = smincol; j <= pmaxcol; j++, n++) {
+	    NCURSES_CH_T ch = oline->text[j];
+#if USE_WIDEC_SUPPORT
+	    /*
+	     * Special case for leftmost character of the displayed area.
+	     * Only half of a double-width character may be visible.
+	     */
+	    if (j == pmincol
+		&& j > 0
+		&& isnac(ch)) {
+		SetChar(ch, L(' '), AttrOf(oline->text[j - 1]));
+	    }
+#endif
+	    if (!CharEq(ch, nline->text[n])) {
+		nline->text[n] = ch;
 		CHANGED_CELL(nline, n);
 	    }
 	}

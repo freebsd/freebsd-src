@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Revision: 1.267 
+# From configure.in Revision: 1.268 
 
 
 
@@ -251,15 +251,15 @@ cat <<EOF
   --enable-tcap-names     compile with user-definable terminal capabilities
 Development Code:
   --with-develop          enable all development options
-  --enable-colorfgbg      compile with \$COLORFGBG code
   --enable-hard-tabs      compile with hard-tabs code
   --disable-root-environ  limit environment when running as root
   --enable-xmc-glitch     compile with limited support for xmc
 Experimental Code:
   --disable-assumed-color do not assume anything about default-colors
+  --disable-hashmap       compile without hashmap scrolling-optimization
 EOF
 cat <<EOF
-  --disable-hashmap       compile without hashmap scrolling-optimization
+  --enable-colorfgbg      compile with \$COLORFGBG code
   --enable-safe-sprintf   compile with experimental safe-sprintf code
   --disable-scroll-hints  compile without scroll-hints code
   --enable-widec          compile with experimental wide-char/UTF-8 code
@@ -4165,27 +4165,9 @@ fi
 
 echo "$ac_t""$with_develop" 1>&6
 
-###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
-echo $ac_n "checking if you want colorfgbg code""... $ac_c" 1>&6
-echo "configure:4171: checking if you want colorfgbg code" >&5
-
-# Check whether --enable-enable-colorfgbg or --disable-enable-colorfgbg was given.
-if test "${enable_enable_colorfgbg+set}" = set; then
-  enableval="$enable_enable_colorfgbg"
-  with_colorfgbg=$enableval
-else
-  with_colorfgbg=$with_develop
-fi
-
-echo "$ac_t""$with_colorfgbg" 1>&6
-test "$with_colorfgbg" = yes && cat >> confdefs.h <<\EOF
-#define USE_COLORFGBG 1
-EOF
-
-
 ###   use option --enable-hard-tabs to turn on use of hard-tabs optimize
 echo $ac_n "checking if you want hard-tabs code""... $ac_c" 1>&6
-echo "configure:4189: checking if you want hard-tabs code" >&5
+echo "configure:4171: checking if you want hard-tabs code" >&5
 
 # Check whether --enable-hard-tabs or --disable-hard-tabs was given.
 if test "${enable_hard_tabs+set}" = set; then
@@ -4202,7 +4184,7 @@ EOF
 
 
 echo $ac_n "checking if you want to use restrict environment when running as root""... $ac_c" 1>&6
-echo "configure:4206: checking if you want to use restrict environment when running as root" >&5
+echo "configure:4188: checking if you want to use restrict environment when running as root" >&5
 
 # Check whether --enable-root-environ or --disable-root-environ was given.
 if test "${enable_root_environ+set}" = set; then
@@ -4220,7 +4202,7 @@ EOF
 
 ###   use option --enable-xmc-glitch to turn on use of magic-cookie optimize
 echo $ac_n "checking if you want limited support for xmc""... $ac_c" 1>&6
-echo "configure:4224: checking if you want limited support for xmc" >&5
+echo "configure:4206: checking if you want limited support for xmc" >&5
 
 # Check whether --enable-xmc-glitch or --disable-xmc-glitch was given.
 if test "${enable_xmc_glitch+set}" = set; then
@@ -4241,7 +4223,7 @@ EOF
 
 
 echo $ac_n "checking if you do not want to assume colors are white-on-black""... $ac_c" 1>&6
-echo "configure:4245: checking if you do not want to assume colors are white-on-black" >&5
+echo "configure:4227: checking if you do not want to assume colors are white-on-black" >&5
 
 # Check whether --enable-assumed-color or --disable-assumed-color was given.
 if test "${enable_assumed_color+set}" = set; then
@@ -4259,7 +4241,7 @@ EOF
 
 ###   use option --enable-hashmap to turn on use of hashmap scrolling logic
 echo $ac_n "checking if you want hashmap scrolling-optimization code""... $ac_c" 1>&6
-echo "configure:4263: checking if you want hashmap scrolling-optimization code" >&5
+echo "configure:4245: checking if you want hashmap scrolling-optimization code" >&5
 
 # Check whether --enable-hashmap or --disable-hashmap was given.
 if test "${enable_hashmap+set}" = set; then
@@ -4272,6 +4254,24 @@ fi
 echo "$ac_t""$with_hashmap" 1>&6
 test "$with_hashmap" = yes && cat >> confdefs.h <<\EOF
 #define USE_HASHMAP 1
+EOF
+
+
+###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
+echo $ac_n "checking if you want colorfgbg code""... $ac_c" 1>&6
+echo "configure:4263: checking if you want colorfgbg code" >&5
+
+# Check whether --enable-colorfgbg or --disable-colorfgbg was given.
+if test "${enable_colorfgbg+set}" = set; then
+  enableval="$enable_colorfgbg"
+  with_colorfgbg=$enableval
+else
+  with_colorfgbg=no
+fi
+
+echo "$ac_t""$with_colorfgbg" 1>&6
+test "$with_colorfgbg" = yes && cat >> confdefs.h <<\EOF
+#define USE_COLORFGBG 1
 EOF
 
 
