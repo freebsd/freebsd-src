@@ -12,12 +12,9 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR} \
 		${LDAPCFLAGS}
-LDADD=		-L${HDBOBJDIR} -lhdb \
-		-L${KRB5OBJDIR} -lkrb5 \
-		-L${ROKENOBJDIR} -lroken \
-		-L${VERSOBJDIR} -lvers \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
+LDADD=		-lhdb -lkrb5 -lroken ${LIBVERS} \
+		-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
+DPADD=		${LIBHDB} ${LIBKRB5} ${LIBROKEN} ${LIBVERS} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 MAN=		kstash.8
 
