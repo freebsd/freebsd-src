@@ -22,13 +22,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crtbegin.c,v 1.3 1996/04/12 02:24:35 jdp Exp $
+ *      $Id: crtbegin.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
  */
+
+#include <sys/cdefs.h>
 
 typedef void (*fptr)(void);
 
 static fptr ctor_list[1] __attribute__((section(".ctors"))) = { (fptr) -1 };
 static fptr dtor_list[1] __attribute__((section(".dtors"))) = { (fptr) -1 };
+
+static void do_ctors(void) __unused;
+static void do_dtors(void) __unused;
 
 static void
 do_ctors(void)
@@ -50,12 +55,5 @@ do_dtors(void)
 	(**fpp)();
 }
 
-static void
-function_skeleton(void)
-{
-    __asm__(".section .init,\"ax\",@progbits");
-    do_ctors();
-    __asm__(".section .fini,\"ax\",@progbits");
-    do_dtors();
-    __asm__(".text");
-}
+__asm__(".section .init,\"ax\",@progbits; call do_ctors; .previous");
+__asm__(".section .fini,\"ax\",@progbits; call do_dtors; .previous");

@@ -22,10 +22,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: crtend.c,v 1.3 1996/04/12 02:24:36 jdp Exp $
+ *      $Id: crtend.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
  */
+
+#include <sys/cdefs.h>
 
 typedef void (*fptr)(void);
 
-static fptr ctor_end[1] __attribute__((section(".ctors"))) = { 0 };
-static fptr dtor_end[1] __attribute__((section(".dtors"))) = { 0 };
+static fptr ctor_end[1] __attribute__((section(".ctors"))) __unused = { 0 };
+static fptr dtor_end[1] __attribute__((section(".dtors"))) __unused = { 0 };
