@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.17 1995/01/19 12:41:35 dufault Exp $
+ *      $Id: scsi_base.c,v 1.18 1995/01/24 12:04:54 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -923,8 +923,8 @@ scsi_interpret_sense(xs)
  * LSB at the highest.
  */
 void
-lto3b(val, bytes)
-	int	val;
+scsi_uto3b(val, bytes)
+	u_int32	val;
 	u_char	*bytes;
 {
 	*bytes++ = (val & 0xff0000) >> 16;
@@ -933,17 +933,32 @@ lto3b(val, bytes)
 }
 
 /*
- * The reverse of lto3b
+ * The reverse of scsi_uto3b
  */
-int
-_3btol(bytes)
+u_int32
+scsi_3btou(bytes)
 	u_char *bytes;
 {
 	u_int32 rc;
 	rc = (*bytes++ << 16);
 	rc += (*bytes++ << 8);
 	rc += *bytes;
-	return ((int) rc);
+	return rc;
+}
+
+/*
+ * scsi_3btoi: scsi_3btou for twos complement signed integers:
+ */
+int32
+scsi_3btoi(bytes)
+	u_char *bytes;
+{
+	u_int32 rc = scsi_3btou(bytes);
+
+	if (rc & 0x00800000)
+		rc |= 0xff000000;
+
+	return (int32) rc;
 }
 
 /*
