@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.22 1999/12/08 19:54:03 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.31 2000/10/28 00:01:31 guy Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h
@@ -47,7 +47,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
 
 #define PCAP_VERSION_MAJOR 2
 #define PCAP_VERSION_MINOR 4
@@ -71,6 +70,34 @@ typedef struct pcap_dumper pcap_dumper_t;
  * of the flags used in the printout phases of tcpdump.
  * Many fields here are 32 bit ints so compilers won't insert unwanted
  * padding; these files need to be interchangeable across architectures.
+ *
+ * Do not change the layout of this structure, in any way (this includes
+ * changes that only affect the length of fields in this structure).
+ *
+ * Also, do not change the interpretation of any of the members of this
+ * structure, in any way (this includes using values other than
+ * LINKTYPE_ values, as defined in "savefile.c", in the "linktype"
+ * field).
+ *
+ * Instead:
+ *
+ *	introduce a new structure for the new format, if the layout
+ *	of the structure changed;
+ *
+ *	send mail to "tcpdump-workers@tcpdump.org", requesting a new
+ *	magic number for your new capture file format, and, when
+ *	you get the new magic number, put it in "savefile.c";
+ *
+ *	use that magic number for save files with the changed file
+ *	header;
+ *
+ *	make the code in "savefile.c" capable of reading files with
+ *	the old file header as well as files with the new file header
+ *	(using the magic number to determine the header format).
+ *
+ * Then supply the changes to "patches@tcpdump.org", so that future
+ * versions of libpcap and programs that use it (such as tcpdump) will
+ * be able to read your new capture file format.
  */
 struct pcap_file_header {
 	bpf_u_int32 magic;
@@ -79,7 +106,7 @@ struct pcap_file_header {
 	bpf_int32 thiszone;	/* gmt to local correction */
 	bpf_u_int32 sigfigs;	/* accuracy of timestamps */
 	bpf_u_int32 snaplen;	/* max length saved portion of each pkt */
-	bpf_u_int32 linktype;	/* data link type (DLT_*) */
+	bpf_u_int32 linktype;	/* data link type (LINKTYPE_*) */
 };
 
 /*
@@ -108,6 +135,7 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
 char	*pcap_lookupdev(char *);
 int	pcap_lookupnet(char *, bpf_u_int32 *, bpf_u_int32 *, char *);
 pcap_t	*pcap_open_live(char *, int, int, int, char *);
+pcap_t	*pcap_open_dead(int, int);
 pcap_t	*pcap_open_offline(const char *, char *);
 void	pcap_close(pcap_t *);
 int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
@@ -123,8 +151,7 @@ int	pcap_compile(pcap_t *, struct bpf_program *, char *, int,
 	    bpf_u_int32);
 int	pcap_compile_nopcap(int, int, struct bpf_program *,
 	    char *, int, bpf_u_int32);
-/* XXX */
-int	pcap_freecode(pcap_t *, struct bpf_program *);
+void	pcap_freecode(struct bpf_program *);
 int	pcap_datalink(pcap_t *);
 int	pcap_snapshot(pcap_t *);
 int	pcap_is_swapped(pcap_t *);
@@ -141,11 +168,12 @@ void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
 
 /* XXX this guy lives in the bpf tree */
 u_int	bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
+int	bpf_validate(struct bpf_insn *f, int len);
 char	*bpf_image(struct bpf_insn *, int);
+void	bpf_dump(struct bpf_program *, int);
 
 #ifdef __cplusplus
 }
 #endif
-     
 
 #endif

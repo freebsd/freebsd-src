@@ -38,17 +38,30 @@
  *	@(#)bpf.c	7.5 (Berkeley) 7/15/91
  */
 
-#if !(defined(lint) || defined(KERNEL))
+#if !(defined(lint) || defined(KERNEL) || defined(_KERNEL))
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/bpf/net/bpf_filter.c,v 1.33.1.1 1999/10/07 23:46:41 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/bpf/net/bpf_filter.c,v 1.35 2000/10/23 19:32:21 fenner Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
+
+#define	SOLARIS	(defined(sun) && (defined(__SVR4) || defined(__svr4__)))
+#if defined(__hpux) || SOLARIS
+# include <sys/sysmacros.h>
+# include <sys/stream.h>
+# define	mbuf	msgb
+# define	m_next	b_cont
+# define	MLEN(m)	((m)->b_wptr - (m)->b_rptr)
+# define	mtod(m,t)	((t)(m)->b_rptr)
+#else
+# define	MLEN(m)	((m)->m_len)
+#endif
+
 #include <net/bpf.h>
 
-#ifndef KERNEL
+#if !defined(KERNEL) && !defined(_KERNEL)
 #include <stdlib.h>
 #endif
 
@@ -79,17 +92,19 @@ static const char rcsid[] =
 		 (u_int32)*((u_char *)p+3)<<0)
 #endif
 
-#ifdef KERNEL
+#if defined(KERNEL) || defined(_KERNEL)
+# if !defined(__hpux) && !SOLARIS
 #include <sys/mbuf.h>
-#define MINDEX(len, m, k) \
+# endif
+#define MINDEX(len, _m, _k) \
 { \
-	len = m->m_len; \
-	while (k >= len) { \
-		k -= len; \
-		m = m->m_next; \
-		if (m == 0) \
+	len = MLEN(m); \
+	while ((_k) >= len) { \
+		(_k) -= len; \
+		(_m) = (_m)->m_next; \
+		if ((_m) == 0) \
 			return 0; \
-		len = m->m_len; \
+		len = MLEN(m); \
 	} \
 }
 
@@ -109,7 +124,7 @@ m_xword(m, k, err)
 		return EXTRACT_LONG(cp);
 	}
 	m0 = m->m_next;
-	if (m0 == 0 || m0->m_len + len - k < 4)
+	if (m0 == 0 || MLEN(m0) + len - k < 4)
 		goto bad;
 	*err = 0;
 	np = mtod(m0, u_char *);
@@ -159,6 +174,8 @@ m_xhalf(m, k, err)
  * Execute the filter program starting at pc on the packet p
  * wirelen is the length of the original packet
  * buflen is the amount of data present
+ * For the kernel, p is assumed to be a pointer to an mbuf if buflen is 0,
+ * in all other cases, p is a pointer to a buffer and buflen is its size.
  */
 u_int
 bpf_filter(pc, p, wirelen, buflen)
@@ -170,6 +187,17 @@ bpf_filter(pc, p, wirelen, buflen)
 	register u_int32 A, X;
 	register int k;
 	int32 mem[BPF_MEMWORDS];
+#if defined(KERNEL) || defined(_KERNEL)
+	struct mbuf *m, *n;
+	int merr, len;
+
+	if (buflen == 0) {
+		m = (struct mbuf *)p;
+		p = mtod(m, u_char *);
+		buflen = MLEN(m);
+	} else
+		m = NULL;
+#endif
 
 	if (pc == 0)
 		/*
@@ -184,7 +212,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		switch (pc->code) {
 
 		default:
-#ifdef KERNEL
+#if defined(KERNEL) || defined(_KERNEL)
 			return 0;
 #else
 			abort();
@@ -198,12 +226,10 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = pc->k;
 			if (k + sizeof(int32) > buflen) {
-#ifdef KERNEL
-				int merr;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				A = m_xword((struct mbuf *)p, k, &merr);
+				A = m_xword(m, k, &merr);
 				if (merr != 0)
 					return 0;
 				continue;
@@ -217,12 +243,12 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = pc->k;
 			if (k + sizeof(short) > buflen) {
-#ifdef KERNEL
-				int merr;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				A = m_xhalf((struct mbuf *)p, k, &merr);
+				A = m_xhalf(m, k, &merr);
+				if (merr != 0)
+					return 0;
 				continue;
 #else
 				return 0;
@@ -234,15 +260,12 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_B|BPF_ABS:
 			k = pc->k;
 			if (k >= buflen) {
-#ifdef KERNEL
-				register struct mbuf *m;
-				register int len;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				m = (struct mbuf *)p;
-				MINDEX(len, m, k);
-				A = mtod(m, u_char *)[k];
+				n = m;
+				MINDEX(len, n, k);
+				A = mtod(n, u_char *)[k];
 				continue;
 #else
 				return 0;
@@ -262,12 +285,10 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + pc->k;
 			if (k + sizeof(int32) > buflen) {
-#ifdef KERNEL
-				int merr;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				A = m_xword((struct mbuf *)p, k, &merr);
+				A = m_xword(m, k, &merr);
 				if (merr != 0)
 					return 0;
 				continue;
@@ -281,12 +302,10 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_H|BPF_IND:
 			k = X + pc->k;
 			if (k + sizeof(short) > buflen) {
-#ifdef KERNEL
-				int merr;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				A = m_xhalf((struct mbuf *)p, k, &merr);
+				A = m_xhalf(m, k, &merr);
 				if (merr != 0)
 					return 0;
 				continue;
@@ -300,15 +319,12 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_B|BPF_IND:
 			k = X + pc->k;
 			if (k >= buflen) {
-#ifdef KERNEL
-				register struct mbuf *m;
-				register int len;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				m = (struct mbuf *)p;
-				MINDEX(len, m, k);
-				A = mtod(m, u_char *)[k];
+				n = m;
+				MINDEX(len, n, k);
+				A = mtod(n, u_char *)[k];
 				continue;
 #else
 				return 0;
@@ -320,15 +336,12 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LDX|BPF_MSH|BPF_B:
 			k = pc->k;
 			if (k >= buflen) {
-#ifdef KERNEL
-				register struct mbuf *m;
-				register int len;
-
-				if (buflen != 0)
+#if defined(KERNEL) || defined(_KERNEL)
+				if (m == NULL)
 					return 0;
-				m = (struct mbuf *)p;
-				MINDEX(len, m, k);
-				X = (mtod(m, char *)[k] & 0xf) << 2;
+				n = m;
+				MINDEX(len, n, k);
+				X = (mtod(n, char *)[k] & 0xf) << 2;
 				continue;
 #else
 				return 0;
@@ -478,7 +491,7 @@ bpf_filter(pc, p, wirelen, buflen)
 	}
 }
 
-#ifdef KERNEL
+
 /*
  * Return true if the 'fcode' is a valid filter program.
  * The constraints are that each jump be forward and to a valid
@@ -529,4 +542,3 @@ bpf_validate(f, len)
 	}
 	return BPF_CLASS(f[len - 1].code) == BPF_RET;
 }
-#endif
