@@ -38,13 +38,14 @@ __FBSDID("$FreeBSD$");
 
 static __inline wint_t	__fgetwc_nbf(FILE *);
 
+/*
+ * Non-MT-safe version.
+ */
 wint_t
-fgetwc(FILE *fp)
+__fgetwc(FILE *fp)
 {
 	wint_t wc;
 
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
 	if (MB_CUR_MAX == 1) {
 		/*
 		 * Assume we're using a single-byte locale. A safer test
@@ -53,9 +54,24 @@ fgetwc(FILE *fp)
 		wc = (wint_t)__sgetc(fp);
 	} else
 		wc = __fgetwc_nbf(fp);
-	FUNLOCKFILE(fp);
 
 	return (wc);
+}
+
+/*
+ * MT-safe version.
+ */
+wint_t
+fgetwc(FILE *fp)
+{
+	wint_t r;
+
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
+	r = __fgetwc(fp);
+	FUNLOCKFILE(fp);
+
+	return (r);
 }
 
 static __inline wint_t
@@ -85,10 +101,8 @@ __fgetwc_nbf(FILE *fp)
 			break;
 	}
 
-	FUNLOCKFILE(fp);
 	while (n-- != 0)
-		ungetc((unsigned char)buf[n], fp);
-	FLOCKFILE(fp);
+		__ungetc((unsigned char)buf[n], fp);
 	errno = EILSEQ;
 	return (WEOF);
 }

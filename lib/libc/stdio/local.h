@@ -53,6 +53,8 @@ extern fpos_t	_sseek(FILE *, fpos_t, int);
 extern int	_ftello(FILE *, fpos_t *);
 extern int	_fseeko(FILE *, off_t, int, int);
 extern int	__fflush(FILE *fp);
+extern wint_t	__fgetwc(FILE *);
+extern wint_t	__fputwc(wchar_t, FILE *);
 extern int	__sflush(FILE *);
 extern FILE	*__sfp(void);
 extern int	__srefill(FILE *);

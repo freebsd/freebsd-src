@@ -37,15 +37,15 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
+/*
+ * Non-MT-safe version.
+ */
 wint_t
-fputwc(wchar_t wc, FILE *fp)
+__fputwc(wchar_t wc, FILE *fp)
 {
 	char buf[MB_LEN_MAX];
 	mbstate_t mbs;
 	size_t i, len;
-
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
 
 	if (MB_LEN_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
 		/*
@@ -57,19 +57,29 @@ fputwc(wchar_t wc, FILE *fp)
 		len = 1;
 	} else {
 		memset(&mbs, 0, sizeof(mbs));
-		if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
-			FUNLOCKFILE(fp);
+		if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1)
 			return (WEOF);
-		}
 	}
 
 	for (i = 0; i < len; i++)
-		if (__sputc((unsigned char)buf[i], fp) == EOF) {
-			FUNLOCKFILE(fp);
+		if (__sputc((unsigned char)buf[i], fp) == EOF)
 			return (WEOF);
-		}
-
-	FUNLOCKFILE(fp);
 
 	return ((wint_t)wc);
+}
+
+/*
+ * MT-safe version.
+ */
+wint_t
+fputwc(wchar_t wc, FILE *fp)
+{
+	wint_t r;
+
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
+	r = __fputwc(wc, fp);
+	FUNLOCKFILE(fp);
+
+	return (r);
 }
