@@ -4694,7 +4694,8 @@ softdep_update_inodeblock(ip, bp, waitfor)
 		FREE_LOCK(&lk);
 		return;
 	}
-	ibp = getdirtybuf(&inodedep->id_buf, NULL, MNT_WAIT);
+	ibp = inodedep->id_buf;
+	ibp = getdirtybuf(&ibp, NULL, MNT_WAIT);
 	FREE_LOCK(&lk);
 	if (ibp && (error = BUF_WRITE(ibp)) != 0)
 		softdep_error("softdep_update_inodeblock: bwrite", error);
@@ -5015,7 +5016,8 @@ loop:
 			adp = WK_ALLOCDIRECT(wk);
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
-			nbp = getdirtybuf(&adp->ad_buf, NULL, waitfor);
+			nbp = adp->ad_buf;
+			nbp = getdirtybuf(&nbp, NULL, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5031,7 +5033,8 @@ loop:
 			aip = WK_ALLOCINDIR(wk);
 			if (aip->ai_state & DEPCOMPLETE)
 				continue;
-			nbp = getdirtybuf(&aip->ai_buf, NULL, waitfor);
+			nbp = aip->ai_buf;
+			nbp = getdirtybuf(&nbp, NULL, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5049,7 +5052,8 @@ loop:
 			LIST_FOREACH(aip, &WK_INDIRDEP(wk)->ir_deplisthd, ai_next) {
 				if (aip->ai_state & DEPCOMPLETE)
 					continue;
-				nbp = getdirtybuf(&aip->ai_buf, NULL, MNT_WAIT);
+				nbp = aip->ai_buf;
+				nbp = getdirtybuf(&nbp, NULL, MNT_WAIT);
 				if (nbp == NULL)
 					goto restart;
 				FREE_LOCK(&lk);
@@ -5098,7 +5102,8 @@ loop:
 			 * been sync'ed, this dependency can show up. So,
 			 * rather than panic, just flush it.
 			 */
-			nbp = getdirtybuf(&WK_MKDIR(wk)->md_buf, NULL, waitfor);
+			nbp = WK_MKDIR(wk)->md_buf;
+			nbp = getdirtybuf(&nbp, NULL, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5118,8 +5123,8 @@ loop:
 			 * been sync'ed, this dependency can show up. So,
 			 * rather than panic, just flush it.
 			 */
-			nbp = getdirtybuf(&WK_BMSAFEMAP(wk)->sm_buf,
-			    NULL, waitfor);
+			nbp = WK_BMSAFEMAP(wk)->sm_buf;
+			nbp = getdirtybuf(&nbp, NULL, waitfor);
 			if (nbp == NULL)
 				continue;
 			FREE_LOCK(&lk);
@@ -5268,7 +5273,8 @@ flush_deplist(listhead, waitfor, errorp)
 	TAILQ_FOREACH(adp, listhead, ad_next) {
 		if (adp->ad_state & DEPCOMPLETE)
 			continue;
-		bp = getdirtybuf(&adp->ad_buf, NULL, waitfor);
+		bp = adp->ad_buf;
+		bp = getdirtybuf(&bp, NULL, waitfor);
 		if (bp == NULL) {
 			if (waitfor == MNT_NOWAIT)
 				continue;
@@ -5383,7 +5389,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * push them to disk.
 		 */
 		if ((inodedep->id_state & DEPCOMPLETE) == 0) {
-			bp = getdirtybuf(&inodedep->id_buf, NULL, MNT_WAIT);
+			bp = inodedep->id_buf;
+			bp = getdirtybuf(&bp, NULL, MNT_WAIT);
 			FREE_LOCK(&lk);
 			if (bp && (error = BUF_WRITE(bp)) != 0)
 				break;
