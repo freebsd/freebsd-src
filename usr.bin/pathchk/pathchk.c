@@ -157,10 +157,8 @@ check(const char *path)
 			pathmax = PATH_MAX;
 	} else
 		pathmax = _POSIX_PATH_MAX;
-	/* PATH_MAX includes space for the trailing null byte. */
-	pathmax--;
-	if (pathmax != -1 && strlen(path) > (size_t)pathmax) {
-		warnx("%s: path too long (limit %ld)", path, pathmax);
+	if (pathmax != -1 && strlen(path) >= (size_t)pathmax) {
+		warnx("%s: path too long (limit %ld)", path, pathmax - 1);
 		goto bad;
 	}
 
