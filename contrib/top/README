@@ -1,0 +1,178 @@
+                             TOP
+                         Version 3.4
+
+                       William LeFebvre
+		     and a cast of dozens
+
+
+If you do not want to read this entire file, then at least read
+the section at the end entitled "KNOWN PROBLEMS".
+
+If you are having any problems getting top to work, please read the
+file "FAQ" *before* contacting me.  Thank you.
+
+"top" is a program that will give continual reports about the state of
+the system, including a list of the top cpu using processes.  Version 3
+of "top" has three primary design goals: provide an accurate snapshot of
+the system and process state, not be one of the top processes itself, be
+as portable as possible.
+
+Version 3 has many bug fixes from version 2.5, and it has also been
+reorganized in a major way to make it easy to port to other platforms.
+All system dependent code is now contained in one file.
+
+Top now includes a configuration script called "Configure".  It helps
+the installer choose the correct parameters for this particular
+installation.  This script MUST be run before attempting to compile top.
+
+Top requires read access to the memory files "/dev/kmem" and "/dev/mem"
+as well as the system image "/vmunix".  Some installations have these
+files protected from general access.  These sites would have to install
+this program in the same way that programs such as "ps" are installed.
+In addition, on those Unix variants that support the proc filesystem
+(such as SVR4 and Solaris 2), top requires read access to all the files
+in /proc: typically dictating that top be installed setuid to root.
+
+CAVEAT: version 3 of top has internal commands that kill and renice
+processes.  Although I have taken steps to insure that top makes
+appropriate checks with these commands, I cannot guarantee that these
+internal commands are totally secure.  IF YOU INSTALL top as a SETUID
+program, you do so AT YOUR OWN RISK!  I realize that some operating
+systems will require top to run setuid, and I will do everything I can
+to make sure that top is a secure setuid program.
+
+Configure will ask you to input values for certain parameters.  Before
+each parameter, Configure will display a description of what the
+parameter does.  Read the description and choose an appropriate value.
+Sometimes a default will appear in brackets.  Typing just return will
+choose the default.
+
+System support now takes the form of "modules".  Adding support for
+a different architecture requires only adding a module.  Configure
+asks which module to use when it is configuring top.  See the file
+"Porting" for a description of how to write your own module.
+
+To compile and install "top", read the file "INSTALL" and follow the
+directions and advice contained therein.
+
+Once you have created a binary for one particular type of machine, you
+can reconfigure for another type with "./Configure modulename" where
+"modulename" is replaced with the appropriate module name.  All other
+parameter values are kept the same.  Note that in some cases this may
+not be appropriate.
+
+If you make any kind of change to "top" that you feel would be
+beneficial to others who use this program, or if you find and fix a bug,
+please send me the change.
+
+Be sure to read the FAQ enclosed with the distrubution.  It contains
+answers to the most commonly asked questions about the configuration,
+installation, and operation of top.
+
+AVAILABILITY
+
+The latest version of "top" is now being made available via anonymous
+FTP from the host "ftp.groupsys.com" in the directory "/pub/top".
+Additional modules will be made available in the directory
+"/pub/top/m".  The site "eecs.nwu.edu" will continue to house copies
+of the distribution as well.
+
+Here are HTML links for the two best "top" archive sites:
+
+<A HREF="ftp://ftp.groupsys.com/pub/top>Top archive (groupsys.com)</A>
+<A HREF="ftp://eecs.nwu.edu/pub/top>Top archive (eecs.nwu.edu)</A>
+
+New releases will be posted to comp.sources.unix as they become
+available.  Sites which arhive that newsgroup will also contain copies
+of the distribution.
+
+KNOWN PROBLEMS:
+
+Gnu CC
+
+Compiling via Gnu CC continued to be the source of most of the
+questions I receive.  By far the most common mistake made by those
+attempting to compile top with Gnu CC is out of date include files.
+When the operating system is upgraded, the include files that are part
+of the gcc package MUST also be updated.  Gcc maintains its own
+include files.  Even a minor OS upgrade can involve changes to some of
+the kernel's internal data structures, which are defined in include
+files in "sys".  Top is very sensitive to these changes.  If you are
+compiling with gcc and experience any sort of strange problems, please
+make sure the include files you are using are up to date BEFORE
+sending me a bug report.  Look in the gcc source distribution for the
+shell script "fixincludes".
+
+HP/UX 10.10
+
+In their infinite wisdom, the folks at HP have decided that mere mortals
+such as you and I don't need to know what the kernel's proc structure looks
+like.  To that end, they have removed all useful content from the include
+file <sys/proc.h> in version 10.10.  As a result, top will not compile
+under 10.10.  What HP is trying to accomplish with this move is to force
+iconoclasts such as myself to use "pstat" for collecting all process
+information.  I have no immediate solution for this problem, but hope to
+obtain a sufficiently complete definition of "struct proc" at some point in
+the near future.  Stay tuned.
+
+DIGITAL UNIX 4.0 (DECOSF/1 V4.0)
+
+A user has reported that idle processes are not displayed regardless
+of the flags used when invoking top.  We have not had time to track
+this problem down.
+
+DECOSF/1 V3.0
+
+There is a bug either in the module, in utils.c, or in DEC's optimizer that
+is tickled by the decosf1 module when compiled under V3.0 (and perhaps
+earlier versions).  Top compiled using DEC's compiler with optimization
+will consistently produce a segmentation fault (in format_next_process
+while calling sprintf).  To work around this problem, either compile top
+with gcc or turn off optimization (compile without -O).  We think that
+one of the bugs fixed in utils.c fixed this problem as well, but we are
+not certain.
+
+
+System V R 4.2
+
+Load average and memory displays do not work.  The problem has been
+traced down to a potential bug in the "mem" driver.  The author
+of the svr42 module is working on a fix.
+
+
+
+GRATITUDE
+
+My perpetual thanks to all the people who have helped me support top
+on so many platforms.  Without these people, top would not be what it
+is.  Here is a partial list of contributors and other individuals.
+
+	Robert Boucher		<boucher@sofkin.ca>
+	Marc Cohen 		<marc@aai.com>
+	David Cutter		<dpc@grail.com>
+	Casper Dik		<casper@fwi.uva.nl>
+	Charles Hedrick 	<hedrick@geneva.rutgers.edu>
+	Andrew Herbert		<andrew@werple.apana.org.au>
+	Jeff Janvrin		<jeff.janvrin@columbiasc.ncr.com>
+	Torsten Kasch 		<torsten@techfak.uni-bielefeld.de>
+	Petri Kutvonen		<kutvonen@cs.helsinki.fi>
+	William L. Jones 	<jones@chpc>
+	Tim Pugh 		<tpugh@oce.orst.edu>
+	Steve Scherf		<scherf@swdc.stratus.com>
+	Phillip Wu		<pwu01@qantek.com.au>
+
+(My apologies if I missed anyone.)
+
+
+AUTHOR
+
+		William LeFebvre
+		Group sys Consulting
+		wnl@groupsys.com
+
+
+		U.S. Mail address:
+		    William LeFebvre
+		    170 Colton Crest Drive
+		    Alpharetta, GA  30202
+		    (770) 813-3224
