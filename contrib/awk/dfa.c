@@ -77,7 +77,11 @@ extern void free();
 #define ISCNTRL(C) (isascii(C) && iscntrl(C))
 #endif
 
+#ifndef __FreeBSD__
 #include "regex.h"
+#else
+#include <gnuregex.h>
+#endif
 #include "dfa.h"
 
 #ifdef __STDC__
