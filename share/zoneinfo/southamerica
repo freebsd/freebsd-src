@@ -1,4 +1,4 @@
-# @(#)southamerica	7.45
+# @(#)southamerica	7.46
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -583,6 +583,10 @@ Zone America/Rio_Branco	-4:31:12 -	LMT	1914
 # From Paul Eggert (2001-05-04):
 # Go with this article in preference to Shanks's 1969 date for modern DST.
 # Assume this rule has been used since DST was introduced in the islands.
+
+# From Paul Eggert (2002-10-24):
+# <http://www.shoa.cl/shoa/faqhoraoficial.htm> gives many details that
+# disagree with the following table, but we haven't had time to compare them.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Chile	1918	only	-	Sep	 1	0:00	1:00	S
