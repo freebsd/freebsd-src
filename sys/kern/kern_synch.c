@@ -477,12 +477,15 @@ msleep(ident, mtx, priority, wmesg, timo)
 		        "msleep caught: proc %p (pid %d, %s), schedlock %p",
 			p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 		p->p_flag |= P_SINTR;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if ((sig = CURSIG(p))) {
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (p->p_wchan)
 				unsleep(p);
 			p->p_stat = SRUN;
 			goto resume;
 		}
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_wchan == 0) {
 			catch = 0;
 			goto resume;
@@ -507,10 +510,13 @@ resume:
 				ktrcsw(p->p_tracep, 0, 0);
 #endif
 			rval = EWOULDBLOCK;
+			mtx_exit(&sched_lock, MTX_SPIN);
 			goto out;
 		}
 	} else if (timo)
 		untimeout(endtsleep, (void *)p, thandle);
+	mtx_exit(&sched_lock, MTX_SPIN);
+
 	if (catch && (sig != 0 || (sig = CURSIG(p)))) {
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_CSW))
@@ -523,7 +529,6 @@ resume:
 		goto out;
 	}
 out:
-	mtx_exit(&sched_lock, MTX_SPIN);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 0, 0);
@@ -643,12 +648,15 @@ mawait(struct mtx *mtx, int priority, int timo)
 
 		if (catch) {
 			p->p_flag |= P_SINTR;
+			mtx_exit(&sched_lock, MTX_SPIN);
 			if ((sig = CURSIG(p))) {
+				mtx_enter(&sched_lock, MTX_SPIN);
 				if (p->p_wchan)
 					unsleep(p);
 				p->p_stat = SRUN;
 				goto resume;
 			}
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (p->p_wchan == NULL) {
 				catch = 0;
 				goto resume;
@@ -674,6 +682,8 @@ resume:
 			}
 		} else if (timo)
 			untimeout(endtsleep, (void *)p, thandle);
+		mtx_exit(&sched_lock, MTX_SPIN);
+
 		if (catch && (sig != 0 || (sig = CURSIG(p)))) {
 #ifdef KTRACE
 			if (KTRPOINT(p, KTR_CSW))
@@ -700,6 +710,7 @@ resume:
 			p->p_stats->p_ru.ru_nvcsw++;
 			mi_switch();
 		}
+		mtx_exit(&sched_lock, MTX_SPIN);
 		splx(s);
 	}
 
@@ -712,8 +723,6 @@ resume:
 	p->p_asleep.as_priority = 0;
 
 out:
-	mtx_exit(&sched_lock, MTX_SPIN);
-
 	if (mtx != NULL) {
 		mtx_enter(mtx, MTX_DEF);
 		WITNESS_RESTORE(mtx, mtx);
