@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.25 1999/02/08 11:55:30 roger Exp $
+ * $Id: brktree_reg.h,v 1.26 1999/04/29 10:01:28 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -356,8 +356,10 @@ struct CARDTYPE {
 	u_char			msp3400c;	/* Has msp3400c chip? */
 	u_char			eepromAddr;
 	u_char			eepromSize;	/* bytes / EEPROMBLOCKSIZE */
-	u_char			audiomuxs[ 5 ];	/* tuner, ext, int/unused,
-						    mute, present */
+	u_int			audiomuxs[ 5 ];	/* tuner, ext (line-in) */
+						/* int/unused (radio) */
+						/* mute, present */
+	u_int			gpio_mux_bits;	/* GPIO mask for audio mux */
 };
 
 struct format_params {
@@ -377,7 +379,7 @@ struct format_params {
   int vbi_num_lines, vbi_num_samples;
 };
 
-#ifdef __FreeBSD__
+#if ((defined(__FreeBSD__)) && (NSMBUS > 0))
 struct bktr_i2c_softc {
 	device_t iicbus;
 	device_t smbus;
@@ -395,7 +397,7 @@ struct bktr_softc {
     struct intrhand bktr_ih;	/* interrupt vectoring */
 #define pcici_t pci_devaddr_t
 #endif
-#ifdef __FreeBSD__
+#if ((defined(__FreeBSD__)) && (NSMBUS > 0))
     struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
 #endif
     bt848_ptr_t base;		/* Bt848 register physical address */
