@@ -210,8 +210,7 @@ ata_attach(device_t dev)
 	    atapi_attach(&ch->device[SLAVE]);
 #endif
 #ifdef DEV_ATAPICAM
-	if (ch->devices & (ATA_ATAPI_MASTER | ATA_ATAPI_SLAVE))
-	    atapi_cam_attach_bus(ch);
+	atapi_cam_attach_bus(ch);
 #endif
     }
     return 0;
@@ -244,8 +243,7 @@ ata_detach(device_t dev)
 	atapi_detach(&ch->device[SLAVE]);
 #endif
 #ifdef DEV_ATAPICAM
-    if (ch->devices & (ATA_ATAPI_SLAVE|ATA_ATAPI_MASTER))
-	atapi_cam_detach_bus(ch);
+    atapi_cam_detach_bus(ch);
 #endif
     splx(s);
 
@@ -585,8 +583,7 @@ ata_boot_attach(void)
 	    atapi_attach(&ch->device[SLAVE]);
 #endif
 #ifdef DEV_ATAPICAM
-	if (ch->devices & (ATA_ATAPI_MASTER | ATA_ATAPI_SLAVE))
-	    atapi_cam_attach_bus(ch);
+	atapi_cam_attach_bus(ch);
 #endif
     }
 }
@@ -852,10 +849,6 @@ ata_reinit(struct ata_channel *ch)
     ata_printf(ch, -1, "resetting devices ..\n");
     ata_reset(ch);
 
-#ifdef DEV_ATAPICAM
-    if (devices & (ATA_ATAPI_SLAVE|ATA_ATAPI_MASTER))
-	atapi_cam_detach_bus(ch);
-#endif
     if ((misdev = devices & ~ch->devices)) {
 #ifdef DEV_ATADISK
 	if (misdev & ATA_ATA_MASTER && ch->device[MASTER].driver)
@@ -923,8 +916,7 @@ ata_reinit(struct ata_channel *ch)
     }
 #endif
 #ifdef DEV_ATAPICAM
-    if (ch->devices & (ATA_ATAPI_MASTER | ATA_ATAPI_SLAVE))
-	atapi_cam_attach_bus(ch);
+    atapi_cam_reinit_bus(ch);
 #endif
     printf("done\n");
     ATA_UNLOCK_CH(ch);
