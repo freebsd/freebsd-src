@@ -621,6 +621,7 @@ display(const FTSENT *p, FTSENT *list, int options)
 		MAKENINES(maxblock);
 		MAKENINES(maxnlink);
 		MAKENINES(maxsize);
+		free(jinitmax);
 	}
 	bcfile = 0;
 	flags = NULL;
