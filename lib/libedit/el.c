@@ -34,13 +34,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint)
+#if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$"
-#endif /* not lint */
+  "$FreeBSD$";
+#endif /* not lint && not SCCSID */
 
 /*
  * el.c: EditLine interface functions
