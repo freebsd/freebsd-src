@@ -106,7 +106,11 @@ kcmd(sock, ahost, rport, locuser, remuser, cmd, fd2p, ticket, service, realm,
 		return (-1);
 	}
 
-	host_save = malloc(strlen(hp->h_name) + 1);
+	if (!(host_save = malloc(strlen(hp->h_name) + 1))) {
+		perror("malloc");
+		return -1;
+	}
+
 	strcpy(host_save, hp->h_name);
 	*ahost = host_save;
 
@@ -131,9 +135,9 @@ kcmd(sock, ahost, rport, locuser, remuser, cmd, fd2p, ticket, service, realm,
 		fcntl(s, F_SETOWN, pid);
 		sin.sin_family = hp->h_addrtype;
 #if defined(ultrix) || defined(sun)
-		bcopy(hp->h_addr, (caddr_t)&sin.sin_addr, hp->h_length);
+		bcopy(hp->h_addr, (caddr_t)&sin.sin_addr, sizeof sin.sin_addr);
 #else
-		bcopy(hp->h_addr_list[0], (caddr_t)&sin.sin_addr, hp->h_length);
+		bcopy(hp->h_addr_list[0], (caddr_t)&sin.sin_addr, sizeof sin.sin_addr);
 #endif
 		sin.sin_port = rport;
 		if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
@@ -162,7 +166,7 @@ kcmd(sock, ahost, rport, locuser, remuser, cmd, fd2p, ticket, service, realm,
 			perror(NULL);
 			hp->h_addr_list++;
 			bcopy(hp->h_addr_list[0], (caddr_t)&sin.sin_addr,
-			    hp->h_length);
+			    sizeof sin.sin_addr);
 			fprintf(stderr, "Trying %s...\n",
 				inet_ntoa(sin.sin_addr));
 			continue;
