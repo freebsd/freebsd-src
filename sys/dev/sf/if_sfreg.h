@@ -60,11 +60,15 @@
  * are six different variations. Note: the Adaptec manual lists code 0x28
  * for two different NICs: the 62044 and the 69011/TX. This is a typo:
  * the code for the 62044 is really 0x18.
+ *
+ * Note that there also appears to be an 0x19 code for a newer rev
+ * 62044 card.
  */
 #define AD_SUBSYSID_62011_REV0	0x0008	/* single port 10/100baseTX 64-bit */
 #define AD_SUBSYSID_62011_REV1	0x0009	/* single port 10/100baseTX 64-bit */
 #define AD_SUBSYSID_62022	0x0010	/* dual port 10/100baseTX 64-bit */
-#define AD_SUBSYSID_62044	0x0018	/* quad port 10/100baseTX 64-bit */
+#define AD_SUBSYSID_62044_REV0	0x0018	/* quad port 10/100baseTX 64-bit */
+#define AD_SUBSYSID_62044_REV1	0x0019	/* quad port 10/100baseTX 64-bit */
 #define AD_SUBSYSID_62020	0x0020	/* single port 10/100baseFX 64-bit */
 #define AD_SUBSYSID_69011	0x0028	/* single port 10/100baseTX 32-bit */
 
