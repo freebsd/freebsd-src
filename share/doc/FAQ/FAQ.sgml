@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.1 1996/09/28 22:20:13 jfieber Exp $
+<date> $Id: FAQ.sgml,v 1.2 1996/09/29 17:11:59 joerg Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -777,7 +777,7 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
           <bf>NOTE: <tt /sysinstall/ is slightly broken in 2.1.0-RELEASE
           and will not run disklabel properly. See 
-          <ref id="2.1-disklabel-fix" name="below"> for a workaround.</bf>
+          <ref id="2_1-disklabel-fix" name="below"> for a workaround.</bf>
         <p>
           Pressing `q' to quit will transfer you to the disklabel editor. 
           Divide up your FreeBSD slice according to taste and press `w' when
@@ -808,7 +808,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           If that sentence did not make any sense to you, you definitely do not
           need to worry about tuning your filesystem! :-)
         <p>
-          <label id="2.1-disklabel-fix">
+          <label id="2_1-disklabel-fix">
           <bf>Using disklabel(8) manually with 2.1.0-RELEASE</bf>
         <p>
           <em>WARNING: There is no substitute for reading carefully
