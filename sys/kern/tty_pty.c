@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.11.4.1 1995/09/14 07:10:05 davidg Exp $
+ * $Id: tty_pty.c,v 1.11.4.2 1995/09/26 15:38:27 davidg Exp $
  */
 
 /*
@@ -51,6 +51,9 @@
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
+
+void ptyattach __P((int n));
+void ptsstart __P((struct tty *tp));
 
 #if NPTY == 1
 #undef NPTY
@@ -486,7 +489,8 @@ again:
 	if (pti->pt_flags & PF_REMOTE) {
 		if (tp->t_canq.c_cc)
 			goto block;
-		while (uio->uio_resid > 0 && tp->t_canq.c_cc < TTYHOG - 1) {
+		while ((uio->uio_resid > 0 || cc > 0) &&
+		       tp->t_canq.c_cc < TTYHOG - 1) {
 			if (cc == 0) {
 				cc = min(uio->uio_resid, BUFSIZ);
 				cc = min(cc, TTYHOG - 1 - tp->t_canq.c_cc);
@@ -495,19 +499,23 @@ again:
 				if (error)
 					return (error);
 				/* check again for safety */
-				if ((tp->t_state&TS_ISOPEN) == 0)
+				if ((tp->t_state & TS_ISOPEN) == 0) {
+					/* adjust as usual */
+					uio->uio_resid += cc;
 					return (EIO);
+				}
 			}
 			if (cc)
-				(void) b_to_q((char *)cp, cc, &tp->t_canq);
-			cc = 0;
+				cc -= b_to_q((char *)cp, cc, &tp->t_canq);
 		}
+		/* adjust for data copied in but not written */
+		uio->uio_resid += cc;
 		(void) putc(0, &tp->t_canq);
 		ttwakeup(tp);
 		wakeup(TSA_PTS_READ(tp));
 		return (0);
 	}
-	while (uio->uio_resid > 0) {
+	while (uio->uio_resid > 0 || cc > 0) {
 		if (cc == 0) {
 			cc = min(uio->uio_resid, BUFSIZ);
 			cp = locbuf;
@@ -515,8 +523,11 @@ again:
 			if (error)
 				return (error);
 			/* check again for safety */
-			if ((tp->t_state&TS_ISOPEN) == 0)
+			if ((tp->t_state & TS_ISOPEN) == 0) {
+				/* adjust for data copied in but not written */
+				uio->uio_resid += cc;
 				return (EIO);
+			}
 		}
 		while (cc > 0) {
 			if ((tp->t_rawq.c_cc + tp->t_canq.c_cc) >= TTYHOG - 2 &&
@@ -536,8 +547,11 @@ block:
 	 * Come here to wait for slave to open, for space
 	 * in outq, or space in rawq.
 	 */
-	if ((tp->t_state & TS_CONNECTED) == 0)
+	if ((tp->t_state & TS_CONNECTED) == 0) {
+		/* adjust for data copied in but not written */
+		uio->uio_resid += cc;
 		return (EIO);
+	}
 	if (flag & IO_NDELAY) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;

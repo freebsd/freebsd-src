@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.11 1995/07/11 19:39:54 bde Exp $
+ * $Id: tty_subr.c,v 1.10.4.1 1995/09/14 07:10:07 davidg Exp $
  */
 
 /*
@@ -126,6 +126,14 @@ clist_alloc_cblocks(clistp, ccmax, ccreserved)
 	int ccreserved;
 {
 	int dcbr;
+
+	/*
+	 * Allow for wasted space at the head.
+	 */
+	if (ccmax != 0)
+		ccmax += CBSIZE - 1;
+	if (ccreserved != 0)
+		ccreserved += CBSIZE - 1;
 
 	clistp->c_cbmax = roundup(ccmax, CBSIZE) / CBSIZE;
 	dcbr = roundup(ccreserved, CBSIZE) / CBSIZE - clistp->c_cbreserved;
