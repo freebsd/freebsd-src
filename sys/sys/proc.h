@@ -271,13 +271,12 @@ struct thread {
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-	struct thread	*td_standin;	/* (*) Use this for an upcall. */
-	u_int		td_prticks;	/* (*) Profclock hits in sys for user */
-	struct kse_upcall *td_upcall;	/* (*) Upcall structure. */
-	u_int64_t	td_sticks;	/* (j) Statclock hits in system mode. */
-	u_int		td_uuticks;	/* (*) Statclock in user, for UTS. */
-	u_int		td_usticks;	/* (*) Statclock in kernel, for UTS. */
-	int		td_intrval;	/* (*) Return value of TDF_INTERRUPT. */
+	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
+	struct kse_upcall *td_upcall;	/* (k + j) Upcall structure. */
+	u_int64_t	td_sticks;	/* (k) Statclock hits in system mode. */
+	u_int		td_uuticks;	/* (k) Statclock in user, for UTS. */
+	u_int		td_usticks;	/* (k) Statclock in kernel, for UTS. */
+	int		td_intrval;	/* (j) Return value of TDF_INTERRUPT. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	sigset_t	td_siglist;	/* (c) Sigs arrived, not delivered. */
@@ -475,8 +474,8 @@ struct ksegrp {
 	int		kg_numupcalls;	/* (j) Num upcalls. */
 	int		kg_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *kg_completed; /* (c) Completed thread mboxes. */
-	int		kg_nextupcall;	/* (*) Next upcall time. */
-	int		kg_upquantum;	/* (*) Quantum to schedule an upcall. */
+	int		kg_nextupcall;	/* (n) Next upcall time. */
+	int		kg_upquantum;	/* (n) Quantum to schedule an upcall. */
 #define	kg_endzero kg_pri_class
 
 #define	kg_startcopy	kg_endzero
