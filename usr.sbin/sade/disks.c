@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.61 1996/08/01 11:39:47 jkh Exp $
+ * $Id: disks.c,v 1.62 1996/08/03 05:29:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,7 +77,7 @@ print_chunks(Disk *d)
 	d->bios_hd = d->bios_sect = d->bios_cyl = 1;
     }
     else if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
-	dialog_clear();
+	dialog_clear_norefresh();
 	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
 		   "is incorrect or you are unsure as to whether or not it's correct,\n"
@@ -391,7 +391,7 @@ diskPartition(Device *dev, Disk *d)
 		DialogActive = FALSE;
 		slice_wizard(d);
 		variable_set2(DISK_PARTITIONED, "yes");
-		dialog_clear();
+		dialog_clear_norefresh();
 		DialogActive = TRUE;
 		record_chunks(d);
 		restorescr(w);
@@ -422,7 +422,7 @@ diskPartition(Device *dev, Disk *d)
     if (p) {
 	char buf[FILENAME_MAX];
 
-	dialog_clear();
+	dialog_clear_norefresh();
         use_helpline("Press F1 to read more about disk partitioning.");
 	use_helpfile(systemHelpFile("partition", buf));
 	dialog_mesgbox("Disk partitioning warning:", p, -1, -1);

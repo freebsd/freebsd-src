@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.56 1996/08/01 11:39:49 jkh Exp $
+ * $Id: label.c,v 1.57 1996/08/03 05:25:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -321,7 +321,7 @@ get_partition_type(void)
 	"Swap",
 	"A swap partition.",
     };
-    dialog_clear();
+    dialog_clear_norefresh();
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
@@ -480,7 +480,7 @@ diskLabel(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks(devs);
 
-    dialog_clear(); clear();
+    dialog_clear_norefresh(); clear();
     while (labeling) {
 	print_label_chunks();
 	if (first_time) {
@@ -851,7 +851,7 @@ diskLabel(char *str)
 		}
 		variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
-		dialog_clear();
+		dialog_clear_norefresh();
 		restorescr(save);
 		record_label_chunks(devs);
 	    }
