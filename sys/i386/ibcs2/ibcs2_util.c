@@ -34,9 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/malloc.h>
-#include <sys/vnode.h>
+#include <sys/syscallsubr.h>
 
 #include <i386/ibcs2/ibcs2_util.h>
 
@@ -52,130 +50,10 @@ const char      ibcs2_emul_path[] = "/compat/ibcs2";
  * be in exists.
  */
 int
-ibcs2_emul_find(td, sgp, prefix, path, pbuf, cflag)
-	struct thread	 *td;
-	caddr_t		 *sgp;		/* Pointer to stackgap memory */
-	const char	 *prefix;
-	char		 *path;
-	char		**pbuf;
-	int		  cflag;
+ibcs2_emul_find(struct thread *td, char *path, enum uio_seg pathseg,
+    char **pbuf, int cflag)
 {
-	struct nameidata	 nd;
-	struct nameidata	 ndroot;
-	struct vattr		 vat;
-	struct vattr		 vatroot;
-	int			 error;
-	char			*ptr, *buf, *cp;
-	size_t			 sz, len;
 
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	*pbuf = path;
-
-	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
-		continue;
-
-	sz = MAXPATHLEN - (ptr - buf);
-
-	/* 
-	 * If sgp is not given then the path is already in kernel space
-	 */
-	if (sgp == NULL)
-		error = copystr(path, ptr, sz, &len);
-	else
-		error = copyinstr(path, ptr, sz, &len);
-
-	if (error) {
-		free(buf, M_TEMP);
-		return error;
-	}
-
-	if (*ptr != '/') {
-		free(buf, M_TEMP);
-		return EINVAL;
-	}
-
-	/*
-	 * We know that there is a / somewhere in this pathname.
-	 * Search backwards for it, to find the file's parent dir
-	 * to see if it exists in the alternate tree. If it does,
-	 * and we want to create a file (cflag is set). We don't
-	 * need to worry about the root comparison in this case.
-	 */
-
-	if (cflag) {
-		for (cp = &ptr[len] - 1; *cp != '/'; cp--);
-		*cp = '\0';
-
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
-		*cp = '/';
-	}
-	else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
-		/*
-		 * We now compare the vnode of the ibcs2_root to the one
-		 * vnode asked. If they resolve to be the same, then we
-		 * ignore the match so that the real root gets used.
-		 * This avoids the problem of traversing "../.." to find the
-		 * root directory and never finding it, because "/" resolves
-		 * to the emulation root directory. This is expensive :-(
-		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, ibcs2_emul_path,
-		       td);
-
-		if ((error = namei(&ndroot)) != 0) {
-			/* Cannot happen! */
-			free(buf, M_TEMP);
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-			vrele(nd.ni_vp);
-			return error;
-		}
-
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, td->td_ucred, td)) != 0) {
-			goto done;
-		}
-
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, td->td_ucred, td))
-		    != 0) {
-			goto done;
-		}
-
-		if (vat.va_fsid == vatroot.va_fsid &&
-		    vat.va_fileid == vatroot.va_fileid) {
-			error = ENOENT;
-			goto done;
-		}
-
-	}
-	if (sgp == NULL)
-		*pbuf = buf;
-	else {
-		sz = &ptr[len] - buf;
-		if ((*pbuf = stackgap_alloc(sgp, sz + 1)) != NULL)
-			error = copyout(buf, *pbuf, sz);
-		else
-			error = ENAMETOOLONG;
-		free(buf, M_TEMP);
-	}
-
-
-done:
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vrele(nd.ni_vp);
-	if (!cflag) {
-		NDFREE(&ndroot, NDF_ONLY_PNBUF);
-		vrele(ndroot.ni_vp);
-	}
-	return error;
+	return (kern_alternate_path(td, ibcs2_emul_path, path, pathseg, pbuf,
+	    cflag));
 }

@@ -82,7 +82,7 @@ ibcs2_lseek(struct thread *td, register struct ibcs2_lseek_args *uap)
 #include <sys/un.h>     
 
 int
-spx_open(struct thread *td, void *uap)
+spx_open(struct thread *td)
 {
 	struct socket_args sock;
 	struct connect_args conn;
