@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.28 1996/05/16 20:20:57 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.29 1996/05/16 23:18:01 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -578,7 +578,7 @@ tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 	  PCMCIA ethernet cards, also be sure that it is plugged
 	  in <em>before</em> the laptop is powered on!  FreeBSD
 	  does not, unfortunately, currently support hot
-	  insertion of PCMCIA cards.
+	  insertion of PCMCIA cards during installation.
 
 	  You will also need to know your IP address on the
 	  network, the netmask value for your address class,
