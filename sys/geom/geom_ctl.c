@@ -147,7 +147,7 @@ g_ctl_start(struct bio *bp)
 }
 
 /*
- * All the stuff above is really just needed to get to this one.
+ * All the stuff above is really just needed to get to the stuff below
  */
 
 static int
@@ -172,6 +172,37 @@ g_ctl_ioctl_getconf(dev_t dev, u_long cmd, caddr_t data, int fflag, struct threa
 }
 
 static int
+g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+{
+	struct geomconfiggeom *gcp;
+	struct g_createargs ga;
+	int error;
+
+	error = 0;
+	gcp = (struct geomconfiggeom *)data;
+	ga.class = g_idclass(&gcp->class);
+	if (ga.class == NULL)
+		return (EINVAL);
+	if (ga.class->create_geom == NULL)
+		return (EOPNOTSUPP);
+	ga.provider = g_idprovider(&gcp->provider);
+	if (ga.provider == NULL)
+		return (EINVAL);
+	ga.len = gcp->len;
+	if (gcp->len > 64 * 1024)
+		return (EINVAL);
+	else if (gcp->len == 0) {
+		ga.ptr = NULL;
+	} else {
+		ga.ptr = g_malloc(gcp->len, M_WAITOK);
+		copyin(gcp->ptr, ga.ptr, gcp->len);
+	}
+	error = ga.class->create_geom(&ga);
+	gcp->geom = (uintptr_t)ga.geom;
+	return(error);
+}
+
+static int
 g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int error;
@@ -181,6 +212,9 @@ g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	switch(cmd) {
 	case GEOMGETCONF:
 		error = g_ctl_ioctl_getconf(dev, cmd, data, fflag, td);
+		break;
+	case GEOMCONFIGGEOM:
+		error = g_ctl_ioctl_configgeom(dev, cmd, data, fflag, td);
 		break;
 	default:
 		error = ENOTTY;
