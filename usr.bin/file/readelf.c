@@ -1,13 +1,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: readelf.c,v 1.3 1998/01/28 07:36:25 charnier Exp $";
 #endif /* not lint */
 
 #ifdef BUILTIN_ELF
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "readelf.h"
