@@ -12,103 +12,97 @@
 .\"
 .\"     @(#)vidcontrol.1
 .\"
-.TH vidcontrol 1 "May 22, 1994" "" "FreeBSD"
-
-.SH NAME
-vidcontrol - a utility for manipulating the syscons video driver.
-.SH SYNOPSIS
-.na
-.B vidcontrol
-.RB [options]
-.SH DESCRIPTION
+.Dd May 22, 1994
+.Dt VIDCONTROL 1
+.Os
+.Sh NAME
+.Nm vidcontrol
+.Nd a utility for manipulating the syscons video driver.
+.Sh SYNOPSIS
+.Nm
+.Ar options ...
+.Sh DESCRIPTION
 The
-.B vidcontrol
+.Nm vidcontrol
 command is used to set various options for the syscons video driver,
 such as video mode, colors, cursors, scrnmaps, font and screensaver timeout.
-
+.Pp
 A new video mode is selected by specifying its name as an argument to
-.B vidcontrol
-eg. "
-.B vidcontrol VGA_80x25 
-". 
-
-The modes currently supported: VGA_40x25, VGA_80x25, VGA_80x50, EGA_80x25, EGA_80x43.
-On some laptops the modes VGA_80x30 and VGA_80x60 can be used.
-The graphic mode VGA_320x200 can also be chosen.
-
+.Nm vidcontrol .
+For example:
+.Bd -literal
+vidcontrol VGA_80x25
+.Ed
+.Pp
+The modes currently supported:
+.Ar VGA_40x25 ,
+.Ar VGA_80x25 ,
+.Ar VGA_80x50 ,
+.Ar EGA_80x25 ,
+.Ar EGA_80x43 .
+On some laptops the modes
+.Ar VGA_80x30
+and
+.Ar VGA_80x60
+can be used.
+The graphic mode
+.Ar VGA_320x200
+can also be chosen.
+.Pp
 The colors used when displaying text can be changed by specifying the 
-foreground color (eg. "
-.B vidcontrol white
-"), or both a foreground & background
-color (eg. "
-.B vidcontrol yellow blue
-").
-
-To see the supported colors on a given platform use "
-.B vidcontrol show
-".
-
-.SH OPTIONS
-.TP
-The following command line options are supported.
-.TP
-.BI "\-r\ " foreground\ background
+foreground color (e.g. "vidcontrol white"), or both a foreground & background
+color (e.g. "vidcontrol yellow blue").
+.Pp
+To see the supported colors on a given platform use "vidcontrol show".
+.Pp
+The following command line options are supported:
+.Bl -tag -width Fl
+.It Fl r Ar foreground Ar background
 Change reverse mode colors to
-.B foreground 
+.Ar foreground 
 and 
-.B background 
-.
-.TP
-.BI "\-b\ " color 
+.Ar background 
+.It Fl b Ar color
 Set border color to 
-.B color 
-(only supported on VGA hardware):
-.TP
-.BI "\-c\ " normal | blink | destructive
+.Ar color 
+(only supported on VGA hardware).
+.It Fl c Ar normal|blink|destructive
 Change the cursor appearance. The cursor is either an inverting block 
 (normal) that eventually can "blink". Or it can be like the old hardware cursor
 (destructive). The latter is actually a simulation.
-.TP
-.BI "\-d\ "
+.It Fl d
 Print out current screen output map.
-.TP
-.BI "\-l\ " scrmap
+.It Fl l Ar scrmap
 Install screen output map file from
-.I scrmap
-.TP
-.BI "\-L\ " 
+.Ar scrmap
+.It Fl L
 Install default screen output map.
-.TP
-.BI "\-m\ " on|off
+.It Fl m Ar on|off
 Switches the mousepointer on or off. Used together with the moused
 daemon for textmode cut & paste functionality.
-.TP
-.BI "\-f\ " size\ file
+.It Fl f Ar size Ar file
 Load font
-.I file
+.Ar file
 for
-.I size
+.Ar size
 (currently, only 8x8, 8x14 or 8x16).
 The fontfile can be either uuencoded or in raw binary format.
-.TP
-.BI "\-t\ " N|off
+.It Fl t Ar N|off
 Sets the screensaver timeout to
-.I N
+.Ar N
 seconds, or turns it
-.I off
-.TP
-.BI "\-x\ "
+.Ar off .
+.It Fl x
 Use hexadecimal digits for output.
-.PP
-.SH FILES
-/usr/share/syscons/fonts
-/usr/share/syscons/scrnmaps
-.SH BUGS
-Report when found.
-.SH "SEE ALSO"
-.BR kbdcontrol(1) ,
-.BR keyboard (4) ,
-.BR screen (4) ,
-.SH AUTHORS
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/syscons/scrnmaps -compact
+.It Pa /usr/share/syscons/fonts
+.It Pa /usr/share/syscons/scrnmaps
+.El
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr keyboard 4 ,
+.Xr screen 4
+.Sh AUTHORS
 Søren Schmidt (sos@FreeBSD.org)
-
