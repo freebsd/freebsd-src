@@ -112,7 +112,8 @@ static driver_t ppc_driver = {
   
 static char *ppc_models[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
-	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334", 0
+	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334",
+	"SMC FDC37C935", 0
 };
 
 /* list of available modes */
@@ -883,6 +884,91 @@ end_detect:
 }
 
 /*
+ * SMC FDC37C935 configuration
+ * Found on many Alpha machines
+ */
+static int
+ppc_smc37c935_detect(struct ppc_data *ppc, int chipset_mode)
+{
+	int s;
+	int type = -1;
+
+	s = splhigh();
+	outb(SMC935_CFG, 0x55); /* enter config mode */
+	outb(SMC935_CFG, 0x55);
+	splx(s);
+
+	outb(SMC935_IND, SMC935_ID); /* check device id */
+	if (inb(SMC935_DAT) == 0x2)
+		type = SMC_37C935;
+
+	if (type == -1) {
+		outb(SMC935_CFG, 0xaa); /* exit config mode */
+		return (-1);
+	}
+
+	ppc->ppc_model = type;
+
+	outb(SMC935_IND, SMC935_LOGDEV); /* select parallel port, */
+	outb(SMC935_DAT, 3);             /* which is logical device 3 */
+
+	/* set io port base */
+	outb(SMC935_IND, SMC935_PORTHI);
+	outb(SMC935_DAT, (u_char)((ppc->ppc_base & 0xff00) >> 8));
+	outb(SMC935_IND, SMC935_PORTLO);
+	outb(SMC935_DAT, (u_char)(ppc->ppc_base & 0xff));
+
+	if (!chipset_mode)
+		ppc->ppc_avm = PPB_COMPATIBLE; /* default mode */
+	else {
+		ppc->ppc_avm = chipset_mode;
+		outb(SMC935_IND, SMC935_PPMODE);
+		outb(SMC935_DAT, SMC935_CENT); /* start in compatible mode */
+
+		/* SPP + EPP or just plain SPP */
+		if (chipset_mode & (PPB_SPP)) {
+			if (chipset_mode & PPB_EPP) {
+				if (ppc->ppc_epp == EPP_1_9) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_EPP19SPP);
+				}
+				if (ppc->ppc_epp == EPP_1_7) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_EPP17SPP);
+				}
+			} else {
+				outb(SMC935_IND, SMC935_PPMODE);
+				outb(SMC935_DAT, SMC935_SPP);
+			}
+		}
+
+		/* ECP + EPP or just plain ECP */
+		if (chipset_mode & PPB_ECP) {
+			if (chipset_mode & PPB_EPP) {
+				if (ppc->ppc_epp == EPP_1_9) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_ECPEPP19);
+				}
+				if (ppc->ppc_epp == EPP_1_7) {
+					outb(SMC935_IND, SMC935_PPMODE);
+					outb(SMC935_DAT, SMC935_ECPEPP17);
+				}
+			} else {
+				outb(SMC935_IND, SMC935_PPMODE);
+				outb(SMC935_DAT, SMC935_ECP);
+			}
+		}
+	}
+
+	outb(SMC935_CFG, 0xaa); /* exit config mode */
+
+	ppc->ppc_type = PPC_TYPE_SMCLIKE;
+	ppc_smclike_setmode(ppc, chipset_mode);
+
+	return (chipset_mode);
+}
+
+/*
  * Winbond W83877F stuff
  *
  * EFER: extended function enable register
@@ -1162,6 +1248,7 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 		ppc_pc873xx_detect,
 		ppc_smc37c66xgt_detect,
 		ppc_w83877f_detect,
+		ppc_smc37c935_detect,
 		ppc_generic_detect,
 		NULL
 	};
@@ -1692,6 +1779,12 @@ ppc_setmode(device_t dev, int mode)
 	return (ENXIO);
 }
 
+static struct isa_pnp_id lpc_ids[] = {
+	{ 0x0004d041, "Standard parallel printer port" }, /* PNP0400 */
+	{ 0x0104d041, "ECP parallel printer port" }, /* PNP0401 */
+	{ 0 }
+};
+
 static int
 ppc_probe(device_t dev)
 {
@@ -1703,14 +1796,13 @@ ppc_probe(device_t dev)
 	int error;
 	u_long port;
 
-	/* If we are a PNP device, abort.  Otherwise we attach to *everthing* */
-	if (isa_get_logicalid(dev))
-                return ENXIO;
-
 	parent = device_get_parent(dev);
 
-	/* XXX shall be set after detection */
-	device_set_desc(dev, "Parallel port");
+	error = ISA_PNP_PROBE(parent, dev, lpc_ids);
+	if (error == ENXIO)
+		return (ENXIO);
+	else if (error != 0)	/* XXX shall be set after detection */
+		device_set_desc(dev, "Parallel port");
 
 	/*
 	 * Allocate the ppc_data structure.
@@ -1739,7 +1831,8 @@ ppc_probe(device_t dev)
 			device_printf(dev, "parallel port not found.\n");
 			return ENXIO;
 		}
-		bus_set_resource(dev, SYS_RES_IOPORT, 0, port, IO_LPTSIZE);
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, port,
+				 IO_LPTSIZE_EXTENDED);
 	}
 #endif
 #ifdef __alpha__
@@ -1747,19 +1840,37 @@ ppc_probe(device_t dev)
 	 * There isn't a bios list on alpha. Put it in the usual place.
 	 */
 	if (error) {
-		bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x3bc, IO_LPTSIZE);
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x3bc,
+				 IO_LPTSIZE_NORMAL);
 	}
 #endif
 
 	/* IO port is mandatory */
+
+	/* Try "extended" IO port range...*/
 	ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
 					     &ppc->rid_ioport, 0, ~0,
-					     IO_LPTSIZE, RF_ACTIVE);
-	if (ppc->res_ioport == 0) {
-		device_printf(dev, "cannot reserve I/O port range\n");
-		goto error;
+					     IO_LPTSIZE_EXTENDED, RF_ACTIVE);
+
+	if (ppc->res_ioport != 0) {
+		if (bootverbose)
+			device_printf(dev, "using extended I/O port range\n");
+	} else {
+		/* Failed? If so, then try the "normal" IO port range... */
+		 ppc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
+						      &ppc->rid_ioport, 0, ~0,
+						      IO_LPTSIZE_NORMAL,
+						      RF_ACTIVE);
+		if (ppc->res_ioport != 0) {
+			if (bootverbose)
+				device_printf(dev, "using normal I/O port range\n");
+		} else {
+			device_printf(dev, "cannot reserve I/O port range\n");
+			goto error;
+		}
 	}
-	ppc->ppc_base = rman_get_start(ppc->res_ioport);
+
+ 	ppc->ppc_base = rman_get_start(ppc->res_ioport);
 
 	ppc->ppc_flags = device_get_flags(dev);
 
