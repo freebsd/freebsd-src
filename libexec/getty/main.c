@@ -90,7 +90,10 @@ static const char rcsid[] =
 #define PPP_LCP_HI          0xc0  /* LCP protocol - high byte */
 #define PPP_LCP_LOW         0x21  /* LCP protocol - low byte */
 
-struct termios tmode, omode;
+/* original mode; flags've been reset using values from <sys/ttydefaults.h> */
+struct termios omode;
+/* current mode */
+struct termios tmode;
 
 int crmod, digit, lower, upper;
 
@@ -104,6 +107,7 @@ char	ttyn[32];
 
 char	defent[TABBUFSIZ];
 char	tabent[TABBUFSIZ];
+const	char *tname;
 
 char	*env[128];
 
@@ -132,8 +136,9 @@ char partab[] = {
 
 #define	puts	Gputs
 
+static void	defttymode();
 static void	dingdong(int);
-static void	dogettytab(const char *);
+static void	dogettytab(void);
 static int	getname(void);
 static void	interrupt(int);
 static void	oflush(void);
@@ -145,7 +150,6 @@ static void	puts(const char *);
 static void	timeoverrun(int);
 static char	*getline(int);
 static void	setttymode(int);
-static void	setdefttymode(void);
 static int	opentty(const char *, int);
 
 jmp_buf timeout;
@@ -180,7 +184,6 @@ int
 main(int argc, char *argv[])
 {
 	extern	char **environ;
-	const char *tname;
 	int first_sleep = 1, first_time = 1;
 	struct rlimit limit;
 	int rval;
@@ -215,10 +218,9 @@ main(int argc, char *argv[])
 	 * that the file descriptors are already set up for us.
 	 * J. Gettys - MIT Project Athena.
 	 */
-	if (argc <= 2 || strcmp(argv[2], "-") == 0) {
+	if (argc <= 2 || strcmp(argv[2], "-") == 0)
 	    strcpy(ttyn, ttyname(STDIN_FILENO));
-	    dogettytab(tname);
-	} else {
+	else {
 	    strcpy(ttyn, dev);
 	    strncat(ttyn, argv[2], sizeof(ttyn)-sizeof(dev));
 	    if (strcmp(argv[0], "+") != 0) {
@@ -226,13 +228,25 @@ main(int argc, char *argv[])
 		chmod(ttyn, 0600);
 		revoke(ttyn);
 
-		/* Init modem sequence has been specified
+		/*
+		 * Do the first scan through gettytab.
+		 * Terminal mode parameters will be wrong until
+		 * defttymode() called, but they're irrelevant for
+		 * the initial setup of the terminal device.
 		 */
-		if (IC) {
+		dogettytab();
+
+		/*
+		 * Init or answer modem sequence has been specified.
+		 */
+		if (IC || AC) {
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
-			dogettytab(tname);
-			setdefttymode();
+			defttymode();
+			setttymode(1);
+		}
+
+		if (IC) {
 			if (getty_chat(IC, CT, DC) > 0) {
 				syslog(LOG_ERR, "modem init problem on %s", ttyn);
 				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
@@ -244,10 +258,6 @@ main(int argc, char *argv[])
 			int i, rfds;
 			struct timeval to;
 
-			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
-				exit(1);
-			dogettytab(tname);
-        		setdefttymode();
         		rfds = 1 << 0;	/* FD_SET */
         		to.tv_sec = RT;
         		to.tv_usec = 0;
@@ -269,30 +279,11 @@ main(int argc, char *argv[])
 		} else { /* maybe blocking open */
 			if (!opentty(ttyn, O_RDWR | (NC ? O_NONBLOCK : 0 )))
 				exit(1);
-			dogettytab(tname);
 		}
 	    }
 	}
 
-	/* Start with default tty settings */
-	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
-		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
-		exit(1);
-	}
-	/*
-	 * Don't rely on the driver too much, and initialize crucial
-	 * things according to <sys/ttydefaults.h>.  Avoid clobbering
-	 * the c_cc[] settings however, the console drivers might wish
-	 * to leave their idea of the preferred VERASE key value
-	 * there.
-	 */
-	tmode.c_iflag = TTYDEF_IFLAG;
-	tmode.c_oflag = TTYDEF_OFLAG;
-	tmode.c_lflag = TTYDEF_LFLAG;
-	tmode.c_cflag = TTYDEF_CFLAG;
-	tmode.c_cflag |= (NC ? CLOCAL : 0);
-	omode = tmode;
-
+	defttymode();
 	for (;;) {
 
 		/*
@@ -309,12 +300,12 @@ main(int argc, char *argv[])
 		setttymode(0);
 		if (AB) {
 			tname = autobaud();
-			dogettytab(tname);
+			dogettytab();
 			continue;
 		}
 		if (PS) {
 			tname = portselector();
-			dogettytab(tname);
+			dogettytab();
 			continue;
 		}
 		if (CL && *CL)
@@ -428,7 +419,7 @@ main(int argc, char *argv[])
 		signal(SIGINT, SIG_IGN);
 		if (NX && *NX) {
 			tname = NX;
-			dogettytab(tname);
+			dogettytab();
 		}
 	}
 }
@@ -470,18 +461,30 @@ opentty(const char *tty, int flags)
 }
 
 static void
-setdefttymode(void)
+defttymode()
 {
+
+	/* Start with default tty settings. */
 	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
 		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
 		exit(1);
 	}
+	omode = tmode; /* fill c_cc for dogettytab() */
+	dogettytab();
+	/*
+	 * Don't rely on the driver too much, and initialize crucial
+	 * things according to <sys/ttydefaults.h>.  Avoid clobbering
+	 * the c_cc[] settings however, the console drivers might wish
+	 * to leave their idea of the preferred VERASE key value
+	 * there.
+	 */
 	tmode.c_iflag = TTYDEF_IFLAG;
-        tmode.c_oflag = TTYDEF_OFLAG;
-        tmode.c_lflag = TTYDEF_LFLAG;
-        tmode.c_cflag = TTYDEF_CFLAG;
-        omode = tmode;
-	setttymode(1);
+	tmode.c_oflag = TTYDEF_OFLAG;
+	tmode.c_lflag = TTYDEF_LFLAG;
+	tmode.c_cflag = TTYDEF_CFLAG;
+	if (NC)
+		tmode.c_cflag |= CLOCAL;
+	omode = tmode;
 }
 
 static void
@@ -801,11 +804,10 @@ putf(const char *cp)
  * Read a gettytab database entry and perform necessary quirks.
  */
 static void
-dogettytab(const char *tname)
+dogettytab()
 {
-	struct termios backupmode;
 	
-	/* Read the database entry */
+	/* Read the database entry. */
 	gettable(tname, tabent);
 
 	/*
@@ -816,17 +818,6 @@ dogettytab(const char *tname)
 	if (OPset || EPset || APset || NPset)
 		OPset = EPset = APset = NPset = 1;
 
-	/*
-	 * Fill in default values for unset capabilities.  Since the
-	 * defaults are derived from the actual tty mode, save any
-	 * changes to the tmode and fetch it temporarily for
-	 * setdefaults() to use.
-	 */
-	backupmode = tmode;
-	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
-		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
-		exit(1);
-	}
+	/* Fill in default values for unset capabilities. */
 	setdefaults();
-	tmode = backupmode;
 }
