@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.24 1999/06/25 02:53:48 jdp Exp $
+ *      $Id: rtld.c,v 1.25 1999/06/25 04:50:06 jdp Exp $
  */
 
 /*
@@ -289,12 +289,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
     set_program_var("environ", env);
 
+    r_debug_state();		/* say hello to gdb! */
+
     dbg("calling _init functions");
     call_init_functions(obj_main->next);
 
     dbg("transferring control to program entry point = %p", obj_main->entry);
-
-    r_debug_state();		/* say hello to gdb! */
 
     /* Return the exit procedure and the program entry point. */
     *exit_proc = rtld_exit;
