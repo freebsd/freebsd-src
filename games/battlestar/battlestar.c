@@ -60,8 +60,7 @@ char **argv;
 	open_score_file();
 
 	/* revoke privs. */
-	egid = getegid();
-	setegid(getgid());
+	setgid(getgid());
 
 	initialize(argc < 2 || strcmp(argv[1], "-r"));
 start:
