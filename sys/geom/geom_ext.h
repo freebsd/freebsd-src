@@ -38,6 +38,7 @@
 #define _GEOM_GEOM_EXT_H_
 
 #include <sys/ioccom.h>
+#include <geom/geom_ctl.h>
 
 struct geom_ctl_req_arg {
 	u_int				nlen;
