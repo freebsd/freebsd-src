@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.13 1996/09/23 19:26:39 phk Exp $
+ * $Id: malloc.c,v 1.14 1996/09/25 08:30:46 phk Exp $
  *
  */
 
@@ -676,7 +676,7 @@ malloc_pages(size_t size)
 	} 
 
 	p = pf->page;
-	pf->page = (char *)pg->page + size;
+	pf->page = (char *)pf->page + size;
 	pf->size -= size;
 	break;
     }
