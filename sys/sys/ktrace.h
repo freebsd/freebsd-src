@@ -70,7 +70,8 @@ struct ktr_header {
  * is the public interface.
  */
 #define	KTRCHECK(td, type)	((td)->td_proc->p_traceflag & (1 << type))
-#define KTRPOINT(td, type)	(KTRCHECK((td), (type)) && !(td)->td_inktrace)
+#define KTRPOINT(td, type)						\
+	(KTRCHECK((td), (type)) && !((td)->td_pflags & TDP_INKTRACE))
 
 /*
  * ktrace record types

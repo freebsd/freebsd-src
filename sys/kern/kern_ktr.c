@@ -188,9 +188,9 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 		return;
 #if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	td = curthread;
-	if (td->td_inktr)
+	if (td->td_pflags & TDP_INKTR)
 		return;
-	td->td_inktr++;
+	td->td_pflags |= TDP_INKTR;
 #endif
 #ifdef KTR_ALQ
 	if (ktr_alq_enabled &&
@@ -247,7 +247,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 done:
 #endif
 #if defined(KTR_VERBOSE) || defined(KTR_ALQ)
-	td->td_inktr--;
+	td->td_pflags &= ~TDP_INKTR;
 #endif
 }
 

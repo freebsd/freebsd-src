@@ -874,7 +874,7 @@ out:
 		mtx_unlock(&ps->ps_mtx);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_PSIG))
-			ktrpsig(sig, action, td->td_flags & TDF_OLDMASK ?
+			ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
 			    &td->td_oldsigmask : &td->td_sigmask, 0);
 #endif
 		_STOPEVENT(p, S_SIG, sig);
@@ -1089,9 +1089,7 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	 */
 	PROC_LOCK(p);
 	td->td_oldsigmask = td->td_sigmask;
-	mtx_lock_spin(&sched_lock);
-	td->td_flags |= TDF_OLDMASK;
-	mtx_unlock_spin(&sched_lock);
+	td->td_pflags |= TDP_OLDMASK;
 	SIG_CANTMASK(mask);
 	td->td_sigmask = mask;
 	signotify(td);
@@ -1122,9 +1120,7 @@ osigsuspend(td, uap)
 
 	PROC_LOCK(p);
 	td->td_oldsigmask = td->td_sigmask;
-	mtx_lock_spin(&sched_lock);
-	td->td_flags |= TDF_OLDMASK;
-	mtx_unlock_spin(&sched_lock);
+	td->td_pflags |= TDP_OLDMASK;
 	OSIG2SIG(uap->mask, mask);
 	SIG_CANTMASK(mask);
 	SIGSETLO(td->td_sigmask, mask);
@@ -2136,7 +2132,7 @@ postsig(sig)
 	action = ps->ps_sigact[_SIG_IDX(sig)];
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_PSIG))
-		ktrpsig(sig, action, td->td_flags & TDF_OLDMASK ?
+		ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
 		    &td->td_oldsigmask : &td->td_sigmask, 0);
 #endif
 	_STOPEVENT(p, S_SIG, sig);
@@ -2164,11 +2160,9 @@ postsig(sig)
 		 * mask from before the sigsuspend is what we want
 		 * restored after the signal processing is completed.
 		 */
-		if (td->td_flags & TDF_OLDMASK) {
+		if (td->td_pflags & TDP_OLDMASK) {
 			returnmask = td->td_oldsigmask;
-			mtx_lock_spin(&sched_lock);
-			td->td_flags &= ~TDF_OLDMASK;
-			mtx_unlock_spin(&sched_lock);
+			td->td_pflags &= ~TDP_OLDMASK;
 		} else
 			returnmask = td->td_sigmask;
 
