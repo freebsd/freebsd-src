@@ -66,7 +66,6 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
@@ -1458,7 +1457,6 @@ ipfw_chk(struct ip_fw_args *args)
 	int dyn_dir = MATCH_UNKNOWN;
 	ipfw_dyn_rule *q = NULL;
 	struct ip_fw_chain *chain = &layer3_chain;
-	struct m_tag *mtag;
 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return 0;	/* accept */
@@ -1547,7 +1545,6 @@ ipfw_chk(struct ip_fw_args *args)
 
 after_ip_checks:
 	IPFW_LOCK(chain);		/* XXX expensive? can we run lock free? */
-	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
 	if (args->rule) {
 		/*
 		 * Packet has already been tagged. Look for the next rule
@@ -1570,7 +1567,7 @@ after_ip_checks:
 		 * Find the starting rule. It can be either the first
 		 * one, or the one after divert_rule if asked so.
 		 */
-		int skipto = mtag ? divert_cookie(mtag) : 0;
+		int skipto = args->divert_rule;
 
 		f = chain->rules;
 		if (args->eh == NULL && skipto != 0) {
@@ -1586,9 +1583,7 @@ after_ip_checks:
 			}
 		}
 	}
-	/* reset divert rule to avoid confusion later */
-	if (mtag)
-		m_tag_delete(m, mtag);
+	args->divert_rule = 0;	/* reset to avoid confusion later */
 
 	/*
 	 * Now scan the rules, and parse microinstructions for each rule.
@@ -2023,29 +2018,14 @@ check_body:
 				goto done;
 
 			case O_DIVERT:
-			case O_TEE: {
-				struct divert_tag *dt;
-
+			case O_TEE:
 				if (args->eh) /* not on layer 2 */
 					break;
-				mtag = m_tag_get(PACKET_TAG_DIVERT,
-						sizeof(struct divert_tag),
-						M_NOWAIT);
-				if (mtag == NULL) {
-					/* XXX statistic */
-					/* drop packet */
-					IPFW_UNLOCK(chain);
-					return IP_FW_PORT_DENY_FLAG;
-				}
-				dt = (struct divert_tag *)(mtag+1);
-				dt->cookie = f->rulenum;
-				dt->info = (cmd->opcode == O_DIVERT) ?
+				args->divert_rule = f->rulenum;
+				retval = (cmd->opcode == O_DIVERT) ?
 				    cmd->arg1 :
 				    cmd->arg1 | IP_FW_PORT_TEE_FLAG;
-				m_tag_prepend(m, mtag);
-				retval = dt->info;
 				goto done;
-			}
 
 			case O_COUNT:
 			case O_SKIPTO:

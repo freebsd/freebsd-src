@@ -111,12 +111,24 @@ struct dn_heap {
 
 #ifdef _KERNEL
 /*
- * Packets processed by dummynet have an mbuf tag associated with
- * them that carries their dummynet state.  This is used within
- * the dummynet code as well as outside when checking for special
- * processing requirements.
+ * struct dn_pkt identifies a packet in the dummynet queue, but
+ * is also used to tag packets passed back to the various destinations
+ * (ip_input(), ip_output(), bdg_forward()  and so on).
+ * As such the first part of the structure must be a struct m_hdr,
+ * followed by dummynet-specific parameters. The m_hdr must be
+ * initialized with
+ *   mh_type	= MT_TAG;
+ *   mh_flags	= PACKET_TYPE_DUMMYNET;
+ *   mh_next	= <pointer to the actual mbuf>
+ *
+ * mh_nextpkt, mh_data are free for dummynet use (mh_nextpkt is used to
+ * build a linked list of packets in a dummynet queue).
  */
-struct dn_pkt_tag {
+struct dn_pkt {
+    struct m_hdr hdr ;
+#define DN_NEXT(x)	(struct dn_pkt *)(x)->hdr.mh_nextpkt
+#define dn_m	hdr.mh_next	/* packet to be forwarded */
+
     struct ip_fw *rule;		/* matching rule */
     int dn_dir;			/* action when packet comes out. */
 #define DN_TO_IP_OUT	1
@@ -205,7 +217,7 @@ struct dn_flow_queue {
     struct dn_flow_queue *next ;
     struct ipfw_flow_id id ;
 
-    struct mbuf *head, *tail ;	/* queue of packets */
+    struct dn_pkt *head, *tail ;	/* queue of packets */
     u_int len ;
     u_int len_bytes ;
     u_long numbytes ;		/* credit for transmission (dynamic queues) */
@@ -318,7 +330,7 @@ struct dn_pipe {		/* a pipe */
     int bandwidth;		/* really, bytes/tick.	*/
     int	delay ;			/* really, ticks	*/
 
-    struct	mbuf *head, *tail ;	/* packets in delay line */
+    struct	dn_pkt *head, *tail ;	/* packets in delay line */
 
     /* WF2Q+ */
     struct dn_heap scheduler_heap ; /* top extract - key Finish time*/
@@ -352,14 +364,5 @@ extern	ip_dn_ruledel_t *ip_dn_ruledel_ptr;
 extern	ip_dn_io_t *ip_dn_io_ptr;
 #define	DUMMYNET_LOADED	(ip_dn_io_ptr != NULL)
 
-/*
- * Return the IPFW rule associated with the dummynet tag; if any.
- */
-static __inline struct ip_fw *
-ip_dn_find_rule(struct mbuf *m)
-{
-	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
-	return mtag ?  ((struct dn_pkt_tag *)(mtag+1))->rule : NULL;
-}
 #endif
 #endif /* _IP_DUMMYNET_H */
