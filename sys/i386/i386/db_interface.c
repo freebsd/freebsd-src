@@ -59,7 +59,7 @@ static jmp_buf	db_global_jmpbuf;
 static int	db_global_jmpbuf_valid;
 
 #ifdef __GNUC__
-#define	rss() ({u_short ss; __asm __volatile("movl %%ss,%0" : "=r" (ss)); ss;})
+#define	rss() ({u_short ss; __asm __volatile("mov %%ss,%0" : "=r" (ss)); ss;})
 #endif
 
 /*
