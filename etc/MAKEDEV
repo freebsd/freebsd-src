@@ -99,6 +99,7 @@
 #
 # USB devices:
 #	usb*	USB bus control device
+#	ucom*	USB serial devices
 #	ugen*	generic USB device
 #	uhid*	Human Interface Device (HID)
 #	ulpt*	printer
@@ -106,7 +107,6 @@
 #	ums*	mouse
 #	urio*	Diamond Rio 500
 #	uscanner* USB scanners
-#	usio*	USB serial devices
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
@@ -1034,6 +1034,15 @@ usb*)
 	umask 77
 	;;
 
+ucom*)
+	umask 7
+	unit=`expr $i : 'ucom\(.*\)'`
+	minor=$(($unit + 128))
+	minor=`unit2minor $(($unit + 128))`
+	mknod ucom$unit c 138 $minor uucp:dialer
+	umask 77
+	;;
+
 uhid*)
 	umask 7
 	unit=`expr $i : 'uhid\(.*\)'`
@@ -1083,15 +1092,6 @@ urio*)
 	umask 7
 	unit=`expr $i : 'urio\(.*\)'`
 	mknod urio$unit c 143 `unit2minor $unit` root:operator
-	umask 77
-	;;
-
-usio*)
-	umask 7
-	unit=`expr $i : 'usio\(.*\)'`
-	minor=$(($unit + 128))
-	minor=`unit2minor $(($unit + 128))`
-	mknod usio$unit c 138 $minor uucp:dialer
 	umask 77
 	;;
 

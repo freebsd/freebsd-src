@@ -70,6 +70,7 @@ SUBDIR=	accf_data \
 	tl \
 	twe \
 	txp \
+	ucom \
 	ufm \
 	ugen \
 	uhid \
@@ -80,8 +81,11 @@ SUBDIR=	accf_data \
 	umodem \
 	ums \
 	union \
+	uplcom \
 	usb \
 	uscanner \
+	uvisor \
+	uvscom \
 	vinum \
 	vn \
 	vpo \

@@ -1132,6 +1132,9 @@ usb_if.h		optional usb					\
 	clean		"usb_if.h"
 dev/usb/uhci.c		optional uhci
 dev/usb/ohci.c		optional ohci
+dev/usb/ucom.c		optional ucom
+dev/usb/uvisor.c	optional uvisor ucom
+dev/usb/uvscom.c	optional uvscom ucom
 dev/usb/usb.c		optional usb
 dev/usb/usbdi.c		optional usb
 dev/usb/usbdi_util.c	optional usb
@@ -1144,6 +1147,7 @@ dev/usb/ufm.c		optional ufm
 dev/usb/ugen.c		optional ugen
 dev/usb/uhid.c		optional uhid
 dev/usb/ums.c		optional ums
+dev/usb/uplcom.c	optional uplcom ucom
 dev/usb/urio.c		optional urio
 dev/usb/ulpt.c		optional ulpt
 dev/usb/ukbd.c		optional ukbd
