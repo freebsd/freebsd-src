@@ -99,8 +99,10 @@ int	pcic_isa_intr_alloc_mask = PCIC_ISA_INTR_ALLOC_MASK;
  * End of configurable parameters.
  *****************************************************************************/
 
+#define PCICISADEBUG 1
+
 #ifdef PCICISADEBUG
-int	pcicisa_debug = 0 /* XXX */ ;
+int	pcicisa_debug = PCICISADEBUG;
 #define	DPRINTF(arg) if (pcicisa_debug) printf arg;
 #define	DEVPRINTF(arg) if (pcicisa_debug) device_printf arg;
 #else
@@ -316,7 +318,6 @@ pcic_isa_probe(device_t dev)
 	/* If we have the resources we need then we're good to go. */
 	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 0) == 0)
 		return (ENXIO);
-
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
 	if (res == NULL) {
@@ -324,21 +325,22 @@ pcic_isa_probe(device_t dev)
 		 * No IRQ specified, find one.  This can be due to the PnP
 		 * data not specifying any IRQ
 		 */
-		for (i = 0; res == NULL && i < 16; i++) {
+		for (i = 0; i < 16; i++) {
 			if (((1 << i) & PCIC_INTR_IRQ_VALIDMASK) == 0)
 				continue;
 			res = bus_alloc_resource(dev, SYS_RES_IRQ,
 			    &rid, i, i, 1, RF_ACTIVE);
+			if (res != NULL)
+				break;
 		}
 		if (res == NULL)
 			return (ENXIO);
 		mem = rman_get_start(res);
 		bus_release_resource(dev, SYS_RES_IRQ, rid, res);	
-		bus_set_resource(dev, SYS_RES_IRQ, 0, mem, 1);
+		bus_set_resource(dev, SYS_RES_IRQ, 0, i, 1);
 	} else {
 		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 	}
-		
 	/* XXX This might not be needed in future, get it directly from
 	 * XXX parent */
 	rid = 0;
@@ -355,16 +357,16 @@ pcic_isa_probe(device_t dev)
 		    0xa0000, 0xdffff, 1 << 13, RF_ACTIVE);
 		if (res != NULL) {
 			mem = rman_get_start(res);
-			bus_release_resource(dev, SYS_RES_MEMORY, res, rid);
+			bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
 			bus_set_resource(dev, SYS_RES_MEMORY, 0, mem, 1 << 13);
 		}
+	} else {
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
 	}
 	if (res == NULL) {
 		device_printf(dev, "Cannot allocate mem\n");
 		return ENOMEM;
 	}
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
-
 	return (0);
 }
 
@@ -375,7 +377,6 @@ pcic_isa_attach(device_t dev)
 
 	if ((err = pcic_attach(dev)) == 0)
 		pcic_isa_bus_width_probe (dev);
-
 	return err;
 }
 
