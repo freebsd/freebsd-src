@@ -16,12 +16,8 @@ CFLAGS+= -I${.CURDIR}/../perl -DTAINT
 LDADD+= -lm 
 DPADD= ${LIBM}  
 
-.if exists (/usr/lib/libcrypt.a)
 LDADD+= -lcrypt
 DPADD+= ${LIBCRYPT}
-.else 
-SRCS+= crypt.c
-.endif
 
 NOMAN=
 
