@@ -38,12 +38,9 @@
  *   in the source code.  This is because RFC2553 is silent about which error
  *   code must be returned for which situation.
  * - freeaddrinfo(NULL).  RFC2553 is silent about it.  XNET 5.2 says it is
- *   invalid.
- *   current code - SEGV on freeaddrinfo(NULL)
+ *   invalid.  current code - SEGV on freeaddrinfo(NULL)
+ *
  * Note:
- * - We use getipnodebyname() just for thread-safeness.  There's no intent
- *   to let it do PF_UNSPEC (actually we never pass PF_UNSPEC to
- *   getipnodebyname().
  * - The code filters out AFs that are not supported by the kernel,
  *   when globbing NULL hostname (to loopback, or wildcard).  Is it the right
  *   thing to do?  What is the relationship with post-RFC2553 AI_ADDRCONFIG
@@ -52,34 +49,17 @@
  *   (1) what should we do against numeric hostname (2) what should we do
  *   against NULL hostname (3) what is AI_ADDRCONFIG itself.  AF not ready?
  *   non-loopback address configured?  global address configured?
+ *
+ * OS specific notes for netbsd/openbsd/freebsd4/bsdi4:
  * - To avoid search order issue, we have a big amount of code duplicate
  *   from gethnamaddr.c and some other places.  The issues that there's no
  *   lower layer function to lookup "IPv4 or IPv6" record.  Calling
  *   gethostbyname2 from getaddrinfo will end up in wrong search order, as
- *   follows:
- *	- The code makes use of following calls when asked to resolver with
- *	  ai_family  = PF_UNSPEC:
- *		getipnodebyname(host, AF_INET6);
- *		getipnodebyname(host, AF_INET);
- *	  This will result in the following queries if the node is configure to
- *	  prefer /etc/hosts than DNS:
- *		lookup /etc/hosts for IPv6 address
- *		lookup DNS for IPv6 address
- *		lookup /etc/hosts for IPv4 address
- *		lookup DNS for IPv4 address
- *	  which may not meet people's requirement.
- *	  The right thing to happen is to have underlying layer which does
- *	  PF_UNSPEC lookup (lookup both) and return chain of addrinfos.
- *	  This would result in a bit of code duplicate with _dns_ghbyname() and
- *	  friends.
- */
-/*
- * diffs with other KAME platforms:
- * - other KAME platforms already nuked FAITH ($GAI), but as FreeBSD
- *   4.0-RELEASE supplies it, we still have the code here.
- * - AI_ADDRCONFIG support is supplied
- * - some of FreeBSD style (#define tabify and others)
- * - classful IPv4 numeric (127.1) is allowed.
+ *   presented above.
+ *
+ * OS specific notes for freebsd4:
+ * - FreeBSD supported $GAI.  The code does not.
+ * - FreeBSD allowed classful IPv4 numeric (127.1), the code does not.
  */
 
 #include <sys/cdefs.h>
@@ -120,19 +100,21 @@ __FBSDID("$FreeBSD$");
 # define FAITH
 #endif
 
-#define	SUCCESS 0
-#define	ANY 0
-#define	YES 1
-#define	NO  0
+#define SUCCESS 0
+#define ANY 0
+#define YES 1
+#define NO  0
 
 static const char in_addrany[] = { 0, 0, 0, 0 };
+static const char in_loopback[] = { 127, 0, 0, 1 };
+#ifdef INET6
 static const char in6_addrany[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-static const char in_loopback[] = { 127, 0, 0, 1 };
 static const char in6_loopback[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
 };
+#endif
 
 static const struct afd {
 	int a_af;
@@ -166,9 +148,9 @@ struct explore {
 	int e_protocol;
 	const char *e_protostr;
 	int e_wild;
-#define	WILD_AF(ex)		((ex)->e_wild & 0x01)
-#define	WILD_SOCKTYPE(ex)	((ex)->e_wild & 0x02)
-#define	WILD_PROTOCOL(ex)	((ex)->e_wild & 0x04)
+#define WILD_AF(ex)		((ex)->e_wild & 0x01)
+#define WILD_SOCKTYPE(ex)	((ex)->e_wild & 0x02)
+#define WILD_PROTOCOL(ex)	((ex)->e_wild & 0x04)
 };
 
 static const struct explore explore[] = {
@@ -190,9 +172,9 @@ static const struct explore explore[] = {
 };
 
 #ifdef INET6
-#define	PTON_MAX	16
+#define PTON_MAX	16
 #else
-#define	PTON_MAX	4
+#define PTON_MAX	4
 #endif
 
 static const ns_src default_dns_files[] = {
@@ -240,9 +222,9 @@ static int ip6_str2scopeid(char *, struct sockaddr_in6 *);
 
 static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
 	const struct addrinfo *);
-static int _dns_getaddrinfo(void *, void *, va_list);
 static void _sethtent(void);
 static void _endhtent(void);
+static int _dns_getaddrinfo(void *, void *, va_list);
 static struct addrinfo *_gethtent(const char *, const struct addrinfo *);
 static int _files_getaddrinfo(void *, void *, va_list);
 #ifdef YP
@@ -291,7 +273,7 @@ spinlock_t __getaddrinfo_thread_lock = _SPINLOCK_INITIALIZER;
 
 /* XXX macros that make external reference is BAD. */
 
-#define	GET_AI(ai, afd, addr) \
+#define GET_AI(ai, afd, addr) \
 do { \
 	/* external reference: pai, error, and label free */ \
 	(ai) = get_ai(pai, (afd), (addr)); \
@@ -301,7 +283,7 @@ do { \
 	} \
 } while (/*CONSTCOND*/0)
 
-#define	GET_PORT(ai, serv) \
+#define GET_PORT(ai, serv) \
 do { \
 	/* external reference: error and label free */ \
 	error = get_port((ai), (serv), 0); \
@@ -309,7 +291,7 @@ do { \
 		goto free; \
 } while (/*CONSTCOND*/0)
 
-#define	GET_CANONNAME(ai, str) \
+#define GET_CANONNAME(ai, str) \
 do { \
 	/* external reference: pai, error and label free */ \
 	error = get_canonname(pai, (ai), (str)); \
@@ -317,7 +299,7 @@ do { \
 		goto free; \
 } while (/*CONSTCOND*/0)
 
-#define	ERR(err) \
+#define ERR(err) \
 do { \
 	/* external reference: error, and label bad */ \
 	error = (err); \
@@ -325,9 +307,9 @@ do { \
 	/*NOTREACHED*/ \
 } while (/*CONSTCOND*/0)
 
-#define	MATCH_FAMILY(x, y, w) \
+#define MATCH_FAMILY(x, y, w) \
 	((x) == (y) || (/*CONSTCOND*/(w) && ((x) == PF_UNSPEC || (y) == PF_UNSPEC)))
-#define	MATCH(x, y, w) \
+#define MATCH(x, y, w) \
 	((x) == (y) || (/*CONSTCOND*/(w) && ((x) == ANY || (y) == ANY)))
 
 char *
@@ -430,8 +412,8 @@ getaddrinfo(hostname, servname, hints, res)
 					continue;
 				if (ex->e_protocol == ANY)
 					continue;
-				if (pai->ai_socktype == ex->e_socktype
-				 && pai->ai_protocol != ex->e_protocol) {
+				if (pai->ai_socktype == ex->e_socktype &&
+				    pai->ai_protocol != ex->e_protocol) {
 					ERR(EAI_BADHINTS);
 				}
 			}
@@ -440,7 +422,7 @@ getaddrinfo(hostname, servname, hints, res)
 
 	/*
 	 * post-2553: AI_ALL and AI_V4MAPPED are effective only against
-	 * AF_INET6 query.  They needs to be ignored if specified in other
+	 * AF_INET6 query.  They need to be ignored if specified in other
 	 * occassions.
 	 */
 	switch (pai->ai_flags & (AI_ALL | AI_V4MAPPED)) {
@@ -776,7 +758,7 @@ explore_numeric(pai, hostname, servname, res)
 				while (cur && cur->ai_next)
 					cur = cur->ai_next;
 			} else
-				ERR(EAI_FAMILY);	/*xxx*/
+				ERR(EAI_FAMILY);	/* XXX */
 		}
 		break;
 	}
@@ -870,7 +852,7 @@ get_canonname(pai, ai, str)
 		ai->ai_canonname = (char *)malloc(strlen(str) + 1);
 		if (ai->ai_canonname == NULL)
 			return EAI_MEMORY;
-		strcpy(ai->ai_canonname, str);
+		strlcpy(ai->ai_canonname, str, strlen(str) + 1);
 	}
 	return 0;
 }
@@ -997,9 +979,10 @@ get_port(ai, servname, matchonly)
 	if (str_isnumber(servname)) {
 		if (!allownumeric)
 			return EAI_SERVICE;
-		port = htons(atoi(servname));
+		port = atoi(servname);
 		if (port < 0 || port > 65535)
 			return EAI_SERVICE;
+		port = htons(port);
 	} else {
 		switch (ai->ai_socktype) {
 		case SOCK_DGRAM:
@@ -1227,8 +1210,8 @@ getanswer(answer, anslen, qname, qtype, pai)
 	const u_char *cp;
 	int n;
 	const u_char *eom;
-	char *bp;
-	int type, class, buflen, ancount, qdcount;
+	char *bp, *ep;
+	int type, class, ancount, qdcount;
 	int haveanswer, had_error;
 	char tbuf[MAXDNAME];
 	int (*name_ok)(const char *);
@@ -1255,13 +1238,13 @@ getanswer(answer, anslen, qname, qtype, pai)
 	ancount = ntohs(hp->ancount);
 	qdcount = ntohs(hp->qdcount);
 	bp = hostbuf;
-	buflen = sizeof hostbuf;
+	ep = hostbuf + sizeof hostbuf;
 	cp = answer->buf + HFIXEDSZ;
 	if (qdcount != 1) {
 		h_errno = NO_RECOVERY;
 		return (NULL);
 	}
-	n = dn_expand(answer->buf, eom, cp, bp, buflen);
+	n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 	if ((n < 0) || !(*name_ok)(bp)) {
 		h_errno = NO_RECOVERY;
 		return (NULL);
@@ -1279,14 +1262,13 @@ getanswer(answer, anslen, qname, qtype, pai)
 		}
 		canonname = bp;
 		bp += n;
-		buflen -= n;
 		/* The qname can be abbreviated, but h_name is now absolute. */
 		qname = canonname;
 	}
 	haveanswer = 0;
 	had_error = 0;
 	while (ancount-- > 0 && cp < eom && !had_error) {
-		n = dn_expand(answer->buf, eom, cp, bp, buflen);
+		n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
 		if ((n < 0) || !(*name_ok)(bp)) {
 			had_error++;
 			continue;
@@ -1313,14 +1295,13 @@ getanswer(answer, anslen, qname, qtype, pai)
 			cp += n;
 			/* Get canonical name. */
 			n = strlen(tbuf) + 1;	/* for the \0 */
-			if (n > buflen || n >= MAXHOSTNAMELEN) {
+			if (n > ep - bp || n >= MAXHOSTNAMELEN) {
 				had_error++;
 				continue;
 			}
-			strcpy(bp, tbuf);
+			strlcpy(bp, tbuf, ep - bp);
 			canonname = bp;
 			bp += n;
-			buflen -= n;
 			continue;
 		}
 		if (qtype == T_ANY) {
@@ -1374,7 +1355,6 @@ getanswer(answer, anslen, qname, qtype, pai)
 				canonname = bp;
 				nn = strlen(bp) + 1;	/* for the \0 */
 				bp += nn;
-				buflen -= nn;
 			}
 
 			/* don't overwrite pai */
@@ -1461,6 +1441,7 @@ _dns_getaddrinfo(rv, cb_data, ap)
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
 		/* prefer IPv6 */
+		q.name = name;
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
 		q.answer = buf->buf;
@@ -1472,12 +1453,14 @@ _dns_getaddrinfo(rv, cb_data, ap)
 		q2.anslen = sizeof(buf2->buf);
 		break;
 	case AF_INET:
+		q.name = name;
 		q.qclass = C_IN;
 		q.qtype = T_A;
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		break;
 	case AF_INET6:
+		q.name = name;
 		q.qclass = C_IN;
 		q.qtype = T_AAAA;
 		q.answer = buf->buf;
@@ -1551,7 +1534,7 @@ _gethtent(name, pai)
 
 	if (!hostf && !(hostf = fopen(_PATH_HOSTS, "r" )))
 		return (NULL);
- again:
+again:
 	if (!(p = fgets(hostbuf, sizeof hostbuf, hostf)))
 		return (NULL);
 	if (*p == '#')
@@ -1581,9 +1564,13 @@ _gethtent(name, pai)
 	goto again;
 
 found:
-	hints = *pai;
+	/* we should not glob socktype/protocol here */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = pai->ai_family;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_protocol = 0;
 	hints.ai_flags = AI_NUMERICHOST;
-	error = getaddrinfo(addr, NULL, &hints, &res0);
+	error = getaddrinfo(addr, "0", &hints, &res0);
 	if (error)
 		goto again;
 #ifdef FILTER_V4MAPPED
@@ -1597,6 +1584,8 @@ found:
 	for (res = res0; res; res = res->ai_next) {
 		/* cover it up */
 		res->ai_flags = pai->ai_flags;
+		res->ai_socktype = pai->ai_socktype;
+		res->ai_protocol = pai->ai_protocol;
 
 		if (pai->ai_flags & AI_CANONNAME) {
 			if (get_canonname(pai, res, cname) != 0) {
@@ -1879,7 +1868,7 @@ res_queryN(name, target)
 			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
 			if (_res.options & RES_DEBUG)
-				printf(";; rcode = %d, ancount=%d\n", hp->rcode,
+				printf(";; rcode = %u, ancount=%u\n", hp->rcode,
 				    ntohs(hp->ancount));
 #endif
 			continue;
@@ -2100,7 +2089,7 @@ res_querydomainN(name, domain, target)
 			h_errno = NO_RECOVERY;
 			return (-1);
 		}
-		sprintf(nbuf, "%s.%s", name, domain);
+		snprintf(nbuf, sizeof(nbuf), "%s.%s", name, domain);
 	}
 	return (res_queryN(longname, target));
 }
