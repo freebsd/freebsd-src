@@ -8,7 +8,7 @@ INFOFILES+= texi.info-8 texi.info-9 texi.info-10 texi.info-11
 
 install:
 	mkdir -p ${INFODIR} 
-	install -c -g ${BINGRP} -o ${BINOWN} -m 444 ${INFOFILES} ${INFODIR}
+	install ${COPY} -g ${BINGRP} -o ${BINOWN} -m 444 ${INFOFILES} ${INFODIR}
 
 clean cleandir obj:
 	@echo -n
