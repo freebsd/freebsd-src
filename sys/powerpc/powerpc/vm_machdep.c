@@ -119,12 +119,57 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, flags)
-	register struct thread *td1;
-	register struct proc *p2;
-	int flags;
+cpu_fork(struct thread *td1, struct proc *p2, int flags)
 {
-	/* XXX: coming soon... */
+	struct	proc *p1;
+	struct	thread *td2;
+	struct	trapframe *tf;
+	struct	callframe *cf;
+	struct	switchframe *sf;
+	caddr_t	stktop1, stktop2;
+	struct	pcb *pcb2;
+
+	CTR3(KTR_PROC, "cpu_fork: called td1=%08x p2=%08x flags=%x", (u_int)td1, (u_int)p2, flags);
+
+	if ((flags & RFPROC) == 0)
+		return;
+
+	p1 = td1->td_proc;
+	td2 = &p2->p_thread;
+
+	/* Point the pcb to the top of the stack */
+	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	td2->td_pcb = pcb2;
+
+	/* Copy p1's pcb. */
+	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+
+	/*
+	 * Create a new fresh stack for the new process.
+	 * Copy the trap frame for the return to user mode as if from a
+	 * syscall.  This copies most of the user mode register values.
+	 */
+	td2->td_frame = (struct trapframe *)td2->td_pcb - 1;
+	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
+
+	stktop2 = (caddr_t)td2->td_frame;
+
+	cf = (struct callframe *)stktop2;
+	cf->lr = (int)fork_trampoline;
+
+	stktop2 -= 16;
+	cf = (struct callframe *)stktop2;
+	cf->r31 = (register_t)fork_return;
+	cf->r30 = (register_t)td2;
+
+	stktop2 -= roundup(sizeof *sf, 16);
+	sf = (struct switchframe *)stktop2;
+	bzero((void *)sf, sizeof *sf);
+	sf->sp = (int)cf;
+	sf->user_sr = kernel_pmap->pm_sr[USER_SR];
+	
+	pcb2->pcb_sp = (int)stktop2;
+	pcb2->pcb_spl = 0;
 }
 
 /*
@@ -139,14 +184,17 @@ cpu_set_fork_handler(td, func, arg)
 	void (*func) __P((void *));
 	void *arg;
 {
-	/*
-	 * Note that the trap frame follows the args, so the function
-	 * is really called like this:  func(arg, frame);
-	 */
-#if 0 /* XXX */
-	td->p_addr->u_pcb.pcb_context[0] = (u_long) func;
-	td->p_addr->u_pcb.pcb_context[2] = (u_long) arg;
-#endif
+	struct	switchframe *sf;
+	struct	callframe *cf;
+
+	CTR3(KTR_PROC, "cpu_set_fork_handler: called with td=%08x func=%08x arg=%08x",
+	    (u_int)td, (u_int)func, (u_int)arg);
+
+	sf = (struct switchframe *)td->td_pcb->pcb_sp;
+	cf = (struct callframe *)sf->sp;
+
+	cf->r31 = (register_t)func;
+	cf->r30 = (register_t)arg;
 }
 
 /*
