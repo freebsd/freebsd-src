@@ -52,16 +52,11 @@ driver is automatically loaded by the bootloader, and should not normally
 be compiled into the kernel.
 .Sh ENVIRONMENT
 This support is still experimental, and thus there are many debugging
-and tuning options which are managed via the kernel environment
-space, and set in the
+and tuning options which are managed via the kernel environment.
+Tunables can be set at the
 .Xr loader 8
-before booting the kernel.
-Kernel environment variables may also be configured in the
-.Xr loader
-configuration file
-.Pa /boot/loader.conf
-or the device resource hints file
-.Pa /boot/device.hints .
+prompt before booting the kernel or stored in
+.Pa /boot/loader.conf .
 .Pp
 Debugging is separated between layers and levels, where a layer is
 a portion of the ACPI subsystem, and a level is a particular kind
@@ -102,25 +97,25 @@ The supported layers are:
 .It
 .Li ACPI_ALL_COMPONENTS
 .It
-.Li ACPI_BUS
-.It
-.Li ACPI_SYSTEM
-.It
-.Li ACPI_POWER
-.It
-.Li ACPI_EC
-.It
 .Li ACPI_AC_ADAPTER
 .It
 .Li ACPI_BATTERY
 .It
+.Li ACPI_BUS
+.It
 .Li ACPI_BUTTON
+.It
+.Li ACPI_EC
+.It
+.Li ACPI_FAN
+.It
+.Li ACPI_POWER
 .It
 .Li ACPI_PROCESSOR
 .It
 .Li ACPI_THERMAL
 .It
-.Li ACPI_FAN
+.Li ACPI_TIMER
 .It
 .Li ACPI_ALL_DRIVERS
 .El
@@ -231,7 +226,7 @@ driver comprises a set of drivers, which may be selectively disabled
 in case of problems.
 To disable a sub-driver, list it in the kernel
 environment variable
-.Va debug.acpi.disable .
+.Va debug.acpi.disabled .
 Multiple entries can be listed, separated by a space.
 .Pp
 ACPI sub-devices and features that can be disabled:
@@ -324,7 +319,7 @@ utilities and some ACPI knowledge.
 Enables loading of a custom ACPI DSDT.
 .It Va acpi_dsdt_name
 Name of the DSDT table to load, if loading is enabled.
-.It Va debug.acpi.disable
+.It Va debug.acpi.disabled
 Selectively disables portions of ACPI for debugging purposes.
 .It Va hint.acpi.0.disabled
 Disables all of ACPI.

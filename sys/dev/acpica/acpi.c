@@ -85,10 +85,28 @@ static int acpi_off_state = ACPI_STATE_S5;
 struct mtx	acpi_mutex;
 #endif
 
+struct acpi_quirks {
+    char	*OemId;
+    uint32_t	OemRevision;
+    char	*value;
+};
+
+#define ACPI_OEM_REV_ANY	0
+
+static struct acpi_quirks acpi_quirks_table[] = {
+#ifdef notyet
+    /* Bad PCI routing table.  Used on some SuperMicro boards. */
+    { "PTLTD ", 0x06040000, "pci_link" },
+#endif
+
+    { NULL, 0, NULL }
+};
+
 static int	acpi_modevent(struct module *mod, int event, void *junk);
 static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
+static void	acpi_quirks_set(void);
 static device_t	acpi_add_child(device_t bus, int order, const char *name,
 			int unit);
 static int	acpi_print_child(device_t bus, device_t child);
@@ -207,7 +225,7 @@ acpi_Startup(void)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (started)
-	return_VALUE(error);
+	return_VALUE (error);
     started = 1;
 
 #if __FreeBSD_version >= 500000
@@ -226,7 +244,7 @@ acpi_Startup(void)
 #endif
     if (ACPI_FAILURE(error = AcpiInitializeSubsystem())) {
 	printf("ACPI: initialisation failed: %s\n", AcpiFormatException(error));
-	return_VALUE(error);
+	return_VALUE (error);
     }
 #ifdef ACPI_DEBUGGER
     debugpoint = getenv("debug.acpi.debugger");
@@ -241,7 +259,11 @@ acpi_Startup(void)
 	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
 	return_VALUE(error);
     }
-    return_VALUE(AE_OK);
+
+    /* Set up any quirks we have for this XSDT. */
+    acpi_quirks_set();
+
+    return_VALUE (AE_OK);
 }
 
 /*
@@ -553,6 +575,46 @@ acpi_attach(device_t dev)
     return_VALUE (error);
 }
 
+static void
+acpi_quirks_set()
+{
+    XSDT_DESCRIPTOR *xsdt;
+    struct acpi_quirks *quirk;
+    char *env, *tmp;
+    int len;
+
+    /* If the user specifies "noquirks", leave the settings alone. */
+    len = 0;
+    if ((env = getenv("debug.acpi.disabled")) != NULL) {
+	if (strstr("noquirks", env) != NULL)
+	    goto out;
+	len = strlen(env);
+    }
+
+    /*
+     * Search through our quirk table and concatenate the disabled
+     * values with whatever we find.
+     */
+    xsdt = AcpiGbl_XSDT;
+    for (quirk = acpi_quirks_table; quirk->OemId; quirk++) {
+	if (!strncmp(xsdt->OemId, quirk->OemId, strlen(quirk->OemId)) &&
+	    (xsdt->OemRevision == quirk->OemRevision ||
+	    quirk->OemRevision == ACPI_OEM_REV_ANY)) {
+		len += strlen(quirk->value) + 2;
+		if ((tmp = malloc(len, M_TEMP, M_NOWAIT)) == NULL)
+		    goto out;
+		sprintf(tmp, "%s %s", env ? env : "", quirk->value);
+		setenv("debug.acpi.disabled", tmp);
+		free(tmp, M_TEMP);
+		break;
+	}
+    }
+
+out:
+    if (env)
+	freeenv(env);
+}
+
 /*
  * Handle a new device being added
  */
@@ -589,7 +651,6 @@ acpi_print_child(device_t bus, device_t child)
 
     return (retval);
 }
-
 
 /*
  * Handle per-device ivars
@@ -1832,24 +1893,24 @@ acpi_disabled(char *subsys)
     char	*cp, *env;
     int		len;
 
-    if ((env = getenv("debug.acpi.disable")) == NULL)
+    if ((env = getenv("debug.acpi.disabled")) == NULL)
 	return (0);
-    if (!strcmp(env, "all")) {
+    if (strcmp(env, "all") == 0) {
 	freeenv(env);
 	return (1);
     }
 
-    /* scan the disable list checking for a match */
+    /* Scan the disable list, checking for a match. */
     cp = env;
     for (;;) {
-	while ((*cp != 0) && isspace(*cp))
+	while (*cp != '\0' && isspace(*cp))
 	    cp++;
-	if (*cp == 0)
+	if (*cp == '\0')
 	    break;
 	len = 0;
-	while ((cp[len] != 0) && !isspace(cp[len]))
+	while (cp[len] != '\0' && !isspace(cp[len]))
 	    len++;
-	if (!strncmp(cp, subsys, len)) {
+	if (strncmp(cp, subsys, len) == 0) {
 	    freeenv(env);
 	    return (1);
 	}
@@ -2211,16 +2272,16 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_CA_DISASSEMBLER",	ACPI_CA_DISASSEMBLER},
     {"ACPI_ALL_COMPONENTS",	ACPI_ALL_COMPONENTS},
 
-    {"ACPI_BUS",		ACPI_BUS},
-    {"ACPI_SYSTEM",		ACPI_SYSTEM},
-    {"ACPI_POWER",		ACPI_POWER},
-    {"ACPI_EC", 		ACPI_EC},
     {"ACPI_AC_ADAPTER",		ACPI_AC_ADAPTER},
     {"ACPI_BATTERY",		ACPI_BATTERY},
+    {"ACPI_BUS",		ACPI_BUS},
     {"ACPI_BUTTON",		ACPI_BUTTON},
+    {"ACPI_EC", 		ACPI_EC},
+    {"ACPI_FAN",		ACPI_FAN},
+    {"ACPI_POWERRES",		ACPI_POWERRES},
     {"ACPI_PROCESSOR",		ACPI_PROCESSOR},
     {"ACPI_THERMAL",		ACPI_THERMAL},
-    {"ACPI_FAN",		ACPI_FAN},
+    {"ACPI_TIMER",		ACPI_TIMER},
     {"ACPI_ALL_DRIVERS",	ACPI_ALL_DRIVERS},
     {NULL, 0}
 };
