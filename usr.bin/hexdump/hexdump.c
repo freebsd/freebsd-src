@@ -42,11 +42,11 @@ static const char copyright[] =
 static char sccsid[] = "@(#)hexdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: hexdump.c,v 1.1.1.1.8.1 1997/07/11 06:25:51 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
-
+#include <locale.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -64,6 +64,8 @@ main(argc, argv)
 {
 	register FS *tfs;
 	char *p;
+
+	(void)setlocale(LC_CTYPE, "");
 
 	if (!(p = rindex(argv[0], 'o')) || strcmp(p, "od"))
 		newsyntax(argc, &argv);

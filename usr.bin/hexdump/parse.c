@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: parse.c,v 1.1.1.1.8.1 1997/07/11 06:25:59 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@ void
 addfile(name)
 	char *name;
 {
-	register char *p;
+	register unsigned char *p;
 	FILE *fp;
 	int ch;
 	char buf[2048 + 1];
@@ -81,11 +81,10 @@ void
 add(fmt)
 	char *fmt;
 {
-	register char *p;
+	unsigned char *p, *savep;
 	static FS **nextfs;
 	FS *tfs;
 	FU *tfu, **nextfu;
-	char *savep;
 
 	/* start new linked list of format units */
 	tfs = emalloc(sizeof(FS));
@@ -158,7 +157,7 @@ size(fs)
 {
 	register FU *fu;
 	register int bcnt, cursize;
-	register char *fmt;
+	register unsigned char *fmt;
 	int prec;
 
 	/* figure out the data block size needed for each format unit */
@@ -213,8 +212,8 @@ rewrite(fs)
 	enum { NOTOKAY, USEBCNT, USEPREC } sokay;
 	register PR *pr, **nextpr;
 	register FU *fu;
-	register char *p1, *p2;
-	char savech, *fmtp, cs[3];
+	unsigned char *p1, *p2, *fmtp;
+	char savech, cs[3];
 	int nconv, prec;
 
 	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
