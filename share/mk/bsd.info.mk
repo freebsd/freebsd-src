@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.info.mk,v 1.31 1997/02/22 13:56:09 peter Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -14,8 +14,8 @@
 #
 # DISTRIBUTION	Name of distribution. [info]
 #
-# GZIPCMD	Program to compress info files. Output is to
-#		stdout. [gzip -c]
+# ICOMPRESS_CMD	Program to compress info files. Output is to
+#		stdout. [${COMPRESS_CMD}]
 #
 # INFO		???
 #
@@ -32,7 +32,7 @@
 #
 # INFOSECTION	??? [Miscellaneous]
 #
-# INFOTMPL	??? [/usr/share/info/dir-tmpl]
+# INFOTMPL	??? [${INFODIR}/dir-tmpl]
 #
 # INSTALLINFO	??? [install-info]
 #
@@ -74,13 +74,13 @@ MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
 SRCDIR?=	${.CURDIR}
 INFODIRFILE?=   dir
-INFOTMPL?=      /usr/share/info/dir-tmpl
+INFOTMPL?=      ${INFODIR}/dir-tmpl
 INSTALLINFO?=   install-info
 INFOSECTION?=   Miscellaneous
 
 .MAIN: all
 
-.SUFFIXES: .gz .info .texi .texinfo
+.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo
 .texi.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}
 .texinfo.info:
@@ -92,7 +92,7 @@ IFILENS= ${INFO:S/$/.info/g}
 
 .if !defined(NOINFO)
 .if !defined(NOINFOCOMPRESS)
-IFILES=	${INFO:S/$/.info.gz/g}
+IFILES=	${INFO:S/$/.info${ICOMPRESS_EXT}/g}
 all: ${IFILES} _SUBDIR
 .else
 IFILES=	${IFILENS}
@@ -102,11 +102,12 @@ all: ${IFILES} _SUBDIR
 all:
 .endif
 
-GZIPCMD?=	gzip -c
+ICOMPRESS_CMD?=	${COMPRESS_CMD}
+ICOMPRESS_EXT?=	${COMPRESS_EXT}
 
 .for x in ${INFO:S/$/.info/g}
-${x:S/$/.gz/}:	${x}
-	${GZIPCMD} ${.ALLSRC} > ${.TARGET}
+${x:S/$/${ICOMPRESS_EXT}/}:	${x}
+	${ICOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 
 # What to do if there's no dir file there.  This is really gross!!!
