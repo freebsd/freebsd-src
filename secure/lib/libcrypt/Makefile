@@ -2,60 +2,68 @@
 # $FreeBSD$
 #
 
-LCRYPTBASE=     libcrypt
-LDCRYPTBASE=    libdescrypt
+SHLIB_MAJOR=	3
+LIB=		descrypt
 
-.if ${OBJFORMAT} != elf
-LCRYPTSO=       $(LCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
-LDCRYPTSO=      $(LDCRYPTBASE).so.$(SHLIB_MAJOR).$(SHLIB_MINOR)
-.else
-LCRYPTSO=       $(LCRYPTBASE).so.$(SHLIB_MAJOR)
-LDCRYPTSO=      $(LDCRYPTBASE).so.$(SHLIB_MAJOR)
-.endif
+LCRYPTBASE=	libcrypt
+LSCRYPTBASE=	lib${LIB}
 
-.PATH:	${.CURDIR}/../../../lib/libmd
+LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
+LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}
 
-LIB=	descrypt
-SRCS=	crypt.c crypt-md5.c md5c.c
-MAN3=	crypt.3
-CFLAGS+=	-I${.CURDIR}/../../../lib/libmd -Wall
+.PATH:		${.CURDIR}/../../../lib/libmd ${.CURDIR}/../../../lib/libcrypt
+SRCS=		crypt.c crypt-md5.c crypt-shs.c misc.c
+STATICSRCS=	md5c.c sha0c.c sha1c.c
+STATICOBJS=	${STATICSRCS:S/.c/.o/g}
+SRCS+=		crypt-des.c
+MAN3=		crypt.3
+CFLAGS+=	-I${.CURDIR}/../../../lib/libmd
+CFLAGS+=	-I${.CURDIR}/../../../lib/libcrypt
+CFLAGS+=	-DNONEXPORTABLE_CRYPT
+CFLAGS+=	-DLIBC_SCCS -Wall
 PRECIOUSLIB=	yes
 
-.if ${OBJFORMAT} == elf
-SONAME=	${LCRYPTBASE}.so.$(SHLIB_MAJOR)
-.endif
+LDADD+=		-lmd
+DPADD+=		${LIBMD}
 
-test:
-	cd test ; make test ; make clean
-
-.include <bsd.lib.mk>
+# Include this early to pick up the definitions of SHLIB_MAJOR and
+# SHLIB_MINOR which are used in the existence tests.
+.include "${.CURDIR}/../../../lib/Makefile.inc"
 
 # We only install the links if they do not already exist.
 # This may have to be revised
+.if !exists(${DESTDIR}${LIBDIR}/${LCRYPTBASE}.a)
+SYMLINKS+=	${LSCRYPTBASE}.a ${LIBDIR}/${LCRYPTBASE}.a
+.endif
+.if !defined(NOPROFILE) && !exists(${DESTDIR}${LIBDIR}/${LCRYPTBASE}_p.a)
+SYMLINKS+=	${LSCRYPTBASE}_p.a ${LIBDIR}/${LCRYPTBASE}_p.a
+.endif
+.if !defined(NOPIC) && !exists(${DESTDIR}${SHLIBDIR}/${LCRYPTSO})
+SYMLINKS+=	${LSCRYPTSO} ${SHLIBDIR}/${LCRYPTSO}
+.endif
+.if !defined(NOPIC) && ${OBJFORMAT} == elf && \
+    !exists(${DESTDIR}${SHLIBDIR}/${LCRYPTBASE}.so)
+SYMLINKS+=	${LSCRYPTBASE}.so ${SHLIBDIR}/${LCRYPTBASE}.so
+.endif
+
+.include <bsd.lib.mk>
+
 afterinstall:
-.if !defined(NOPIC) && defined(SHLIB_MAJOR)
-	@cd $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTSO) ]; then \
-	rm -f $(LCRYPTSO); \
-	ln -sf $(LDCRYPTSO) $(LCRYPTSO); \
-	fi
+.if !defined(NOPIC)
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	rm -f ${LCRYPTSO}; \
+	ln -sf ${LSCRYPTSO} ${LCRYPTSO};
 .endif
-.if !defined(NOPIC) && defined(SHLIB_MAJOR) && ${OBJFORMAT} == elf
-	@cd $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTBASE).so ]; then \
-	rm -f $(LCRYPTBASE).so; \
-	ln -sf $(LDCRYPTBASE).so libcrypt.so; \
-	fi
+.if !defined(NOPIC) && ${OBJFORMAT} == elf
+	@cd ${DESTDIR}${SHLIBDIR}; \
+	rm -f ${LCRYPTBASE}.so; \
+	ln -sf ${LSCRYPTBASE}.so libcrypt.so
 .endif
-	@cd  $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTBASE).a ]; then \
-	rm -f $(LCRYPTBASE).a; \
-	ln -sf $(LDCRYPTBASE).a libcrypt.a; \
-	fi
+	@cd  ${DESTDIR}${LIBDIR}; \
+	rm -f ${LCRYPTBASE}.a; \
+	ln -sf ${LSCRYPTBASE}.a libcrypt.a
 .if !defined(NOPROFILE)
-	@cd  $(DESTDIR)/$(LIBDIR); \
-	if [ ! -e $(LCRYPTBASE)_p.a ]; then \
-	rm -f $(LCRYPTBASE)_p.a; \
-	ln -sf $(LDCRYPTBASE)_p.a libcrypt_p.a; \
-	fi
+	@cd  ${DESTDIR}${LIBDIR}; \
+	rm -f ${LCRYPTBASE}_p.a; \
+	ln -sf ${LSCRYPTBASE}_p.a libcrypt_p.a
 .endif
