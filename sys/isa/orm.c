@@ -148,9 +148,9 @@ orm_identify(driver_t* driver, device_t parent)
 	if (sc->rnum == 0)
 		device_delete_child(parent, child);
 	else if (sc->rnum == 1)
-		device_set_desc(child, "Option ROM");
+		device_set_desc(child, "ISA Option ROM");
 	else
-		device_set_desc(child, "Option ROMs");
+		device_set_desc(child, "ISA Option ROMs");
 }
 
 static int
