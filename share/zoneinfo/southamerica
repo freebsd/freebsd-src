@@ -1,4 +1,4 @@
-# @(#)southamerica	7.43
+# @(#)southamerica	7.45
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -174,7 +174,7 @@ Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Oct 31
 # Shanks also makes the following claims, which we haven't verified:
 # - Formosa switched to -3:00 on 1991-01-07.
 # - La Rioja and San Juan switched to -4:00 on 1991-03-01
-#   and then to 03:00 on 1991-05-07.
+#   and then to -3:00 on 1991-05-07.
 # - Misiones switched to -3:00 on 1990-12-29.
 # - Chaco switched to -3:00 on 1991-01-04.
 # - San Luis switched to -4:00 on 1990-03-14, then to -3:00 on 1990-10-15,
@@ -292,11 +292,28 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # http://pcdsh01.on.br/Fusbr.htm
 # http://pcdsh01.on.br/Fusbrhv.htm
 
-# From Paul Eggert (2000-10-02):
-# The official decrees referenced below are taken from
+# From Celso Doria via David Madeo (2002-10-09):
+# The reason for the delay this year has to do with elections in Brazil.
+#
+# Unlike in the United States, elections in Brazil are 100% computerized and
+# the results are known almost immediately.  Yesterday, it was the first
+# round of the elections when 115 million Brazilians voted for President,
+# Governor, Senators, Federal Deputies, and State Deputies.  Nobody is
+# counting (or re-counting) votes anymore and we know there will be a second
+# round for the Presidency and also for some Governors.  The 2nd round will
+# take place on October 27th.
+#
+# The reason why the DST will only begin November 3rd is that the thousands
+# of electoral machines used cannot have their time changed, and since the
+# Constitution says the elections must begin at 8:00 AM and end at 5:00 PM,
+# the Government decided to postpone DST, instead of changing the Constitution
+# (maybe, for the next elections, it will be possible to change the clock)...
+
+# From Paul Eggert (2002-10-10):
+# The official decrees referenced below are mostly taken from
 # <a href="http://pcdsh01.on.br/DecHV.html">
 # Decretos sobre o Horario de Verao no Brasil
-# </a> (1999-10-04, in Portuguese).
+# </a> (2001-09-20, in Portuguese).
 # The official site for all decrees, including those not related to time, is
 # <a href="http://www.presidencia.gov.br/CCIVIL/decreto/principal_ano.htm">
 # Presidencia da Republica, Subchefia para Assuntos Juridicos, Decretos
@@ -421,15 +438,18 @@ Rule	Brazil	2000	only	-	Feb	27	 0:00	0	-
 # repeals DST in SE, AL, PB, RN, CE, PI and MA, effective 2000-10-22 00:00.
 # Decree <a href="http://pcdsh01.on.br/figuras/HV3916.gif">3,916</a>
 # (2001-09-13) reestablishes DST in AL, CE, MA, PB, PE, PI, RN, SE.
-#
-# The latest decree listed above says that the following states observe DST:
-# AL, BA, CE, DF, ES, GO, MA, MG, MS, MT,
-# PB, PE, PI, PR, RJ, RN, RS, SC, SE, SP, TO.
-#
-# For dates after mid-2002, the following rules are guesses
-# and are quite possibly wrong, but are more likely than no DST at all.
-Rule	Brazil	2000	max	-	Oct	Sun>=8	 0:00	1:00	S
+Rule	Brazil	2000	2001	-	Oct	Sun>=8	 0:00	1:00	S
 Rule	Brazil	2001	max	-	Feb	Sun>=15	 0:00	0	-
+# Decree 4,399 (2002-10-01) repeals DST in AL, CE, MA, PB, PE, PI, RN, SE.
+# <a href="http://www.presidencia.gov.br/CCIVIL/decreto/2002/D4399.htm"></a>
+Rule	Brazil	2002	only	-	Nov	 3	 0:00	1:00	S
+#
+Rule	Brazil	2003	max	-	Oct	Sun>=8	 0:00	1:00	S
+# The latest decree listed above says that the following states observe DST:
+# BA, DF, ES, GO, MG, MS, MT, PR, RJ, RS, SC, SP, TO.
+#
+# For dates after mid-2003, the above rules with TO="max" are guesses
+# and are quite possibly wrong, but are more likely than no DST at all.
 
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -453,7 +473,8 @@ Zone America/Fortaleza	-2:34:00 -	LMT	1914
 			-3:00	-	BRT	1999 Sep 30
 			-3:00	Brazil	BR%sT	2000 Oct 22
 			-3:00	-	BRT	2001 Sep 13
-			-3:00	Brazil	BR%sT
+			-3:00	Brazil	BR%sT	2002 Oct  1
+			-3:00	-	BRT
 #
 # Pernambuco (PE) (except Atlantic islands)
 Zone America/Recife	-2:19:36 -	LMT	1914
@@ -461,7 +482,8 @@ Zone America/Recife	-2:19:36 -	LMT	1914
 			-3:00	-	BRT	1999 Sep 30
 			-3:00	Brazil	BR%sT	2000 Oct 15
 			-3:00	-	BRT	2001 Sep 13
-			-3:00	Brazil	BR%sT
+			-3:00	Brazil	BR%sT	2002 Oct  1
+			-3:00	-	BRT
 #
 # Tocantins (TO)
 Zone America/Araguaina	-3:12:48 -	LMT	1914
@@ -477,7 +499,8 @@ Zone America/Maceio	-2:22:52 -	LMT	1914
 			-3:00	-	BRT	1999 Sep 30
 			-3:00	Brazil	BR%sT	2000 Oct 22
 			-3:00	-	BRT	2001 Sep 13
-			-3:00	Brazil	BR%sT
+			-3:00	Brazil	BR%sT	2002 Oct  1
+			-3:00	-	BRT
 #
 # Bahia (BA), Goias (GO), Distrito Federal (DF), Minas Gerais (MG),
 # Espirito Santo (ES), Rio de Janeiro (RJ), Sao Paulo (SP), Parana (PR),
