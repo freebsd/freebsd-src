@@ -26,34 +26,34 @@ maxusers	32
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platforms supported
-options		DEC_AXPPCI_33		# UDB, Multia, AXPpci33, Noname
-options		DEC_EB164		# EB164, PC164, PC164LX, PC164SX
-options		DEC_EB64PLUS		# EB64+, Aspen Alpine, etc
-options		DEC_2100_A50		# AlphaStation 200, 250, 255, 400
-options		DEC_KN20AA		# AlphaStation 500, 600
-options		DEC_ST550		# Personal Workstation 433, 500, 600
-options		DEC_ST6600		# xp1000, dp264, ds20, ds10, family
-options		DEC_3000_300		# DEC3000/300* Pelic* family
-options		DEC_3000_500		# DEC3000/[4-9]00 Flamingo/Sandpiper family
+options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, Noname
+options 	DEC_EB164		# EB164, PC164, PC164LX, PC164SX
+options 	DEC_EB64PLUS		# EB64+, Aspen Alpine, etc
+options 	DEC_2100_A50		# AlphaStation 200, 250, 255, 400
+options 	DEC_KN20AA		# AlphaStation 500, 600
+options 	DEC_ST550		# Personal Workstation 433, 500, 600
+options 	DEC_ST6600		# xp1000, dp264, ds20, ds10, family
+options 	DEC_3000_300		# DEC3000/300* Pelic* family
+options 	DEC_3000_500		# DEC3000/[4-9]00 Flamingo/Sandpiper family
 
-options		INET			#InterNETworking
-options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT		#FFS usable as root device [keep this!]
-options		MFS			#Memory Filesystem
-options		MFS_ROOT		#Memory Filesystem as rootfs
-options		NFS			#Network Filesystem
-options		NFS_ROOT		#NFS usable as root device
-options		MSDOSFS			#MSDOS Filesystem
-options		CD9660			#ISO 9660 Filesystem
-options		CD9660_ROOT		#CD-ROM usable as root device
-options		PROCFS			#Process filesystem
-options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
-options		UCONSOLE		#Allow users to grab the console
-options		KTRACE			#ktrace(1) syscall trace support
-options		SYSVSHM			#SYSV-style shared memory
-options		SYSVMSG			#SYSV-style message queues
-options		SYSVSEM			#SYSV-style semaphores
+options 	INET			#InterNETworking
+options 	FFS			#Berkeley Fast Filesystem
+options 	FFS_ROOT		#FFS usable as root device [keep this!]
+options 	MFS			#Memory Filesystem
+options 	MFS_ROOT		#Memory Filesystem as rootfs
+options 	NFS			#Network Filesystem
+options 	NFS_ROOT		#NFS usable as root device
+options 	MSDOSFS			#MSDOS Filesystem
+options 	CD9660			#ISO 9660 Filesystem
+options 	CD9660_ROOT		#CD-ROM usable as root device
+options 	PROCFS			#Process filesystem
+options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
+options 	UCONSOLE		#Allow users to grab the console
+options 	KTRACE			#ktrace(1) syscall trace support
+options 	SYSVSHM			#SYSV-style shared memory
+options 	SYSVMSG			#SYSV-style message queues
+options 	SYSVSEM			#SYSV-style semaphores
 
 # Standard busses
 controller	isa0
