@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.113 1998/08/16 17:14:59 wpaul Exp $
+#	$Id: GENERIC,v 1.114 1998/08/17 16:46:33 bde Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -19,7 +19,7 @@ cpu		"I486_CPU"
 cpu		"I586_CPU"
 cpu		"I686_CPU"
 ident		GENERIC
-maxusers	10
+maxusers	32
 
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
