@@ -78,7 +78,7 @@ void	setup_line(int cflag);	/* configure terminal settings */
 void	slip_discipline();	/* switch to slip line discipline */
 void	configure_network();	/* configure slip interface */
 void	acquire_line();		/* get tty device as controlling terminal */
-static void usage __P((void));
+static void usage(void);
 
 int	fd = -1;
 char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
