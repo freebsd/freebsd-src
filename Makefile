@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.40 1995/02/09 11:09:41 jkh Exp $
+#	$Id: Makefile,v 1.41 1995/02/26 01:27:27 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -199,6 +199,7 @@ includes:
 	cd ${.CURDIR}/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/include &&		${MAKE}	install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&      ${MAKE} beforeinstall
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
