@@ -147,10 +147,15 @@ vinum_daemon(void)
 		wakeup(&vinum_finddaemon);		    /* wake up the caller */
 		break;
 
+	    case daemonrq_closedrive:			    /* close a drive */
+		close_drive(request->info.drive);	    /* do it */
+		break;
+
 	    case daemonrq_init:				    /* initialize a plex */
 		/* XXX */
 	    case daemonrq_revive:			    /* revive a subdisk */
 		/* XXX */
+		/* FALLTHROUGH */
 	    default:
 		log(LOG_WARNING, "Invalid request\n");
 		break;
