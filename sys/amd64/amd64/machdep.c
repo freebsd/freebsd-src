@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.16 1993/11/13 02:25:02 davidg Exp $
+ *	$Id: machdep.c,v 1.17 1993/11/16 09:54:47 davidg Exp $
  */
 
 #include "npx.h"
@@ -813,7 +813,7 @@ unsigned char ldt[5][DESCRIPTOR_SIZE];
 #define	LUCODE_SEL	3
 #define	LUDATA_SEL	4
 /* seperate stack, es,fs,gs sels ? */
-/* #define	LPOSIXCALLS_SEL	5	/* notyet */
+/* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
 
 struct	i386tss	tss, panic_tss;
 

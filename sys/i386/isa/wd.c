@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: wd.c,v 1.11 1993/10/16 13:46:31 rgrimes Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -1235,7 +1235,7 @@ wddump(dev_t dev)			/* dump core after a system crash */
 	if ((dumplo < 0) || ((dumplo + num) > nblocks))
 		return(EINVAL);
 
-	/*wdtab.b_active = 1;		/* mark controller active for if we
+	/*wdtab.b_active = 1;*/		/* mark controller active for if we
 					   panic during the dump */
 	wddoingadump = 1  ;  i = 100000 ;
 	while ((inb(wdc+wd_status) & WDCS_BUSY) && (i-- > 0)) ;
