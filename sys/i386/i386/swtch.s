@@ -327,6 +327,8 @@ ENTRY(savectx)
 	 * have to handle h/w bugs for reloading.  We used to lose the
 	 * parent's npx state for forks by forgetting to reload.
 	 */
+	pushfl
+	cli
 	movl	PCPU(NPXPROC),%eax
 	testl	%eax,%eax
 	je	1f
@@ -347,7 +349,8 @@ ENTRY(savectx)
 	pushl	%eax
 	call	bcopy
 	addl	$12,%esp
+1:
+	popfl
 #endif	/* DEV_NPX */
 
-1:
 	ret
