@@ -103,7 +103,7 @@ complete_rqe(struct buf *bp)
 		"%s:%s read error, block %lld for %ld bytes\n",
 		gravity,
 		sd->name,
-		bp->b_blkno,
+		(long long)bp->b_blkno,
 		bp->b_bcount);
 	} else {					    /* write operation */
 	    if ((rq->error == ENXIO) || (sd->flags & VF_RETRYERRORS) == 0) {
@@ -114,19 +114,19 @@ complete_rqe(struct buf *bp)
 		"%s:%s write error, block %lld for %ld bytes\n",
 		gravity,
 		sd->name,
-		bp->b_blkno,
+		(long long)bp->b_blkno,
 		bp->b_bcount);
 	}
 	log(LOG_ERR,
 	    "%s: user buffer block %lld for %ld bytes\n",
 	    sd->name,
-	    ubp->b_blkno,
+	    (long long)ubp->b_blkno,
 	    ubp->b_bcount);
 	if (rq->error == ENXIO) {			    /* the drive's down too */
 	    log(LOG_ERR,
 		"%s: fatal drive I/O error, block %lld for %ld bytes\n",
 		DRIVE[rqe->driveno].label.name,
-		bp->b_blkno,
+		(long long)bp->b_blkno,
 		bp->b_bcount);
 	    DRIVE[rqe->driveno].lasterror = rq->error;
 	    set_drive_state(rqe->driveno,		    /* take the drive down */
@@ -415,7 +415,7 @@ complete_raid5_write(struct rqelement *rqe)
 			    minor(rqe->b.b_dev),
 			    rqe->sdno,
 			    (u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
-			    rqe->b.b_blkno,
+			    (long long)rqe->b.b_blkno,
 			    rqe->b.b_bcount);
 		    if (debug & DEBUG_LASTREQS)
 			logrq(loginfo_raid5_data, (union rqinfou) rqe, ubp);
@@ -454,7 +454,7 @@ complete_raid5_write(struct rqelement *rqe)
 	    minor(rqe->b.b_dev),
 	    rqe->sdno,
 	    (u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
-	    rqe->b.b_blkno,
+	    (long long)rqe->b.b_blkno,
 	    rqe->b.b_bcount);
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_raid5_parity, (union rqinfou) rqe, ubp);

@@ -208,7 +208,7 @@ revive_block(int sdno)
 		    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		    major(rq->bp->b_dev),
 		    minor(rq->bp->b_dev),
-		    rq->bp->b_blkno,
+		    (long long)rq->bp->b_blkno,
 		    rq->bp->b_bcount);
 #endif
 	    launch_requests(sd->waitlist, 1);		    /* do them now */
@@ -305,7 +305,7 @@ parityops(struct vinum_ioctl_msg *data)
 		reply->error = EIO;
 	    sprintf(reply->msg,
 		"Parity incorrect at offset 0x%llx\n",
-		errorloc);
+		(long long)errorloc);
 	}
 	if (reply->error == EAGAIN) {			    /* still OK, */
 	    plex->checkblock = pstripe + (pbp->b_bcount >> DEV_BSHIFT);	/* moved this much further down */
