@@ -74,7 +74,7 @@ typedef	u_char	bool_t;
 static volatile bool_t ds_debug;
 
 static struct disklabel *clone_label __P((struct disklabel *lp));
-static void dsiodone __P((struct buf *bp));
+static void dsiodone __P((struct bio *bp));
 static char *fixlabel __P((char *sname, struct diskslice *sp,
 			   struct disklabel *lp, int writeflag));
 static void free_ds_label __P((struct diskslices *ssp, int slice));
@@ -270,13 +270,6 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 			 * XXX probably need to copy the data to avoid even
 			 * temporarily corrupting the in-core copy.
 			 */
-#ifdef notyet
-			if (bp->b_vp != NULL) {
-				s = splbio();
-				bp->b_vp->v_numoutput++;
-				splx(s);
-			}
-#endif
 			/* XXX need name here. */
 			msg = fixlabel((char *)NULL, sp,
 				       (struct disklabel *)
@@ -531,26 +524,25 @@ dsioctl(dev, cmd, data, flags, sspp)
 
 static void
 dsiodone(bp)
-	struct buf *bp;
+	struct bio *bp;
 {
 	struct iodone_chain *ic;
 	char *msg;
 
-	ic = bp->b_iodone_chain;
-	bp->b_flags = bp->b_flags & ~B_DONE;
-	bp->b_iodone = ic->ic_prev_iodone;
-	bp->b_iodone_chain = ic->ic_prev_iodone_chain;
-	if (!(bp->b_iocmd == BIO_READ)
-	    || (!(bp->b_ioflags & BIO_ERROR) && bp->b_error == 0)) {
+	ic = bp->bio_done_chain;
+	bp->bio_done = ic->ic_prev_iodone;
+	bp->bio_done_chain = ic->ic_prev_iodone_chain;
+	if (!(bp->bio_cmd == BIO_READ)
+	    || (!(bp->bio_flags & BIO_ERROR) && bp->bio_error == 0)) {
 		msg = fixlabel((char *)NULL, ic->ic_args[1].ia_ptr,
 			       (struct disklabel *)
-			       (bp->b_data + ic->ic_args[0].ia_long),
+			       (bp->bio_data + ic->ic_args[0].ia_long),
 			       FALSE);
 		if (msg != NULL)
 			printf("%s\n", msg);
 	}
 	free(ic, M_DEVBUF);
-	biodone((struct bio *)bp); /* XXX */
+	biodone(bp);
 }
 
 int
