@@ -56,6 +56,7 @@
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/socket.h>
@@ -2888,3 +2889,36 @@ vn_isdisk(vp)
 	return (1);
 }
 
+void
+NDFREE(ndp, flags)
+     struct nameidata *ndp;
+     const uint flags;
+{
+	if (!(flags & NDF_NO_FREE_PNBUF) &&
+	    (ndp->ni_cnd.cn_flags & HASBUF)) {
+		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
+		ndp->ni_cnd.cn_flags &= ~HASBUF;
+	}
+	if (!(flags & NDF_NO_DVP_UNLOCK) &&
+	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
+	    ndp->ni_dvp != ndp->ni_vp)
+		VOP_UNLOCK(ndp->ni_dvp, 0, ndp->ni_cnd.cn_proc);
+	if (!(flags & NDF_NO_DVP_RELE) &&
+	    (ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {
+		vrele(ndp->ni_dvp);
+		ndp->ni_dvp = NULL;
+	}
+	if (!(flags & NDF_NO_VP_UNLOCK) &&
+	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
+		VOP_UNLOCK(ndp->ni_vp, 0, ndp->ni_cnd.cn_proc);
+	if (!(flags & NDF_NO_VP_RELE) &&
+	    ndp->ni_vp) {
+		vrele(ndp->ni_vp);
+		ndp->ni_vp = NULL;
+	}
+	if (!(flags & NDF_NO_STARTDIR_RELE) &&
+	    (ndp->ni_cnd.cn_flags & SAVESTART)) {
+		vrele(ndp->ni_startdir);
+		ndp->ni_startdir = NULL;
+	}
+}
