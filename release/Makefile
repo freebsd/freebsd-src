@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.45 1997/06/21 19:40:04 jkh Exp $
+#	$Id: Makefile,v 1.303 1997/06/22 08:37:49 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -235,9 +235,7 @@ release.1:
 
 # Install the system into the various distributions.
 release.2:
-	for i in ${BIN_DISTS}; do \
-	  cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/$$i; \
-	done
+	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
 .if exists(${.CURDIR}/../eBones) && !defined(NOKERBEROS)
 	cd ${.CURDIR}/../eBones && ( \
