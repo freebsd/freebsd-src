@@ -532,18 +532,16 @@ out1:
 	}
 	/*
 	 * Allocate the space for the list of preallocated snapshot blocks.
-	 * The i_offset field is borrowed to pass the value of snapblklist
-	 * down into the expunge functions.
 	 */
 	snaplistsize = fs->fs_ncg + howmany(fs->fs_cssize, fs->fs_bsize) +
 	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
 	MALLOC(snapblklist, daddr_t *, snaplistsize * sizeof(daddr_t),
 	    M_UFSMNT, M_WAITOK);
-	((daddr_t *)(ip->i_offset)) = &snapblklist[1];
+	ip->i_snapblklist = &snapblklist[1];
 	/*
 	 * Expunge the blocks used by the snapshots from the set of
 	 * blocks marked as used in the snapshot bitmaps. Also, collect
-	 * the list of allocated blocks in i_offset.
+	 * the list of allocated blocks in i_snapblklist.
 	 */
 	if (ip->i_ump->um_fstype == UFS1)
 		error = expunge_ufs1(vp, ip, copy_fs, mapacct_ufs1, BLK_SNAP);
@@ -554,9 +552,9 @@ out1:
 		FREE(snapblklist, M_UFSMNT);
 		goto done;
 	}
-	snaplistsize = ((daddr_t *)(ip->i_offset)) - snapblklist;
+	snaplistsize = ip->i_snapblklist - snapblklist;
 	snapblklist[0] = snaplistsize;
-	ip->i_offset = 0;
+	ip->i_snapblklist = 0;
 	/*
 	 * Write out the list of allocated blocks to the end of the snapshot.
 	 */
@@ -999,7 +997,7 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
 		if (expungetype == BLK_SNAP && blkno != BLK_SNAP)
-			*((daddr_t *)(ip->i_offset))++ = lblkno;
+			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
 		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
@@ -1275,7 +1273,7 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
 		if (expungetype == BLK_SNAP && blkno != BLK_SNAP)
-			*((daddr_t *)(ip->i_offset))++ = lblkno;
+			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
 		ffs_blkfree(fs, vp, blkno, fs->fs_bsize, inum);
