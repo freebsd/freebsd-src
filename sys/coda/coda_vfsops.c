@@ -253,7 +253,9 @@ coda_unmount(vfsp, mntflags, td)
 	ASSERT_VOP_LOCKED(mi->mi_rootvp, "coda_unmount");
 	mi->mi_rootvp->v_vflag &= ~VV_ROOT;
 	error = vflush(mi->mi_vfsp, 0, FORCECLOSE);
+#ifdef CODA_VERBOSE
 	printf("coda_unmount: active = %d, vflush active %d\n", active, error);
+#endif
 	error = 0;
 	/* I'm going to take this out to allow lookups to go through. I'm
 	 * not sure it's important anyway. -- DCS 2/2/94
