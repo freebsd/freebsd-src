@@ -6,7 +6,7 @@ LINKS=	${BINDIR}/ed ${BINDIR}/red
 MLINKS=	ed.1 red.1
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-DISTRIBUTION=des
+DISTRIBUTION=crypto
 CFLAGS+=-DDES
 LDADD+= -L${CIPHEROBJDIR} -lcipher
 DPADD+= ${CIPHEROBJDIR}/libcipher.a
