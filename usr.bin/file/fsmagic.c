@@ -27,28 +27,13 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fsmagic.c,v 1.7 1998/01/28 07:36:23 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#ifndef major
-# if defined(__SVR4) || defined(_SVR4_SOURCE)
-#  include <sys/mkdev.h>
-# endif
-#endif
-#ifndef	major			/* if `major' not defined in types.h, */
-#include <sys/sysmacros.h>	/* try this one. */
-#endif
-#ifndef	major	/* still not defined? give up, manual intervention needed */
-		/* If cc tries to compile this, read and act on it. */
-		/* On most systems cpp will discard it automatically */
-		Congratulations, you have found a portability bug.
-		Please grep /usr/include/sys and edit the above #include
-		to point at the file that defines the "major" macro.
-#endif	/*major*/
 
 #include "file.h"
 
