@@ -489,19 +489,19 @@ make_devices(void)
 	VINUM_DIR "/vol ");
 
     if (mknod(VINUM_SUPERDEV_NAME,
-	    S_IRWXU | S_IFCHR,				    /* user only */
+	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
 	    makedev(CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
     if (mknod(VINUM_WRONGSUPERDEV_NAME,
-	    S_IRWXU | S_IFCHR,				    /* user only */
+	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
 	    makedev(CDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
 
     if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
-	    S_IRWXU | S_IFCHR,				    /* user only */
+	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
 	    makedev(CDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
@@ -544,18 +544,18 @@ make_vol_dev(int volno, int recurse)
 
 	/* Create /dev/vinum/<myvol> */
 	sprintf(filename, VINUM_DIR "/%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, voldev) < 0)
+	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	/* Create /dev/vinum/vol/<myvol> */
 	sprintf(filename, VINUM_DIR "/vol/%s", vol.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, voldev) < 0)
+	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	if (vol.plexes > 0) {
 	    /* Create /dev/vinum/vol/<myvol>.plex/ */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex", vol.name);
-	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXOTH) < 0)
+	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 	}
 	if (recurse)
@@ -581,7 +581,7 @@ make_plex_dev(int plexno, int recurse)
 
 	/* /dev/vinum/plex/<plex> */
 	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, plexdev) < 0)
+	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	if (plex.volno >= 0) {
@@ -590,12 +590,12 @@ make_plex_dev(int plexno, int recurse)
 
 	    /* Create device /dev/vinum/vol/<vol>.plex/<plex> */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s", vol.name, plex.name);
-	    if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, plexdev) < 0)
+	    if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	    /* Create directory /dev/vinum/vol/<vol>.plex/<plex>.sd */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s.sd", vol.name, plex.name);
-	    if (mkdir(filename, S_IRWXU | S_IRGRP | S_IXOTH) < 0)
+	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 	}
 	if (recurse) {
@@ -620,7 +620,7 @@ make_sd_dev(int sdno)
 
 	/* /dev/vinum/sd/<sd> */
 	sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
-	if (mknod(filename, S_IRWXU | S_IRGRP | S_IFCHR, sddev) < 0)
+	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, sddev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
     }
 }
