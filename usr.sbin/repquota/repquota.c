@@ -95,7 +95,7 @@ struct fileusage *addid(u_long, int, char *);
 u_long highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
 
 int	vflag;			/* verbose */
-int	aflag;			/* all file systems */
+int	aflag;			/* all filesystems */
 
 int hasquota __P((struct fstab *, int, char **));
 int oneof __P((char *, char *[], int));
