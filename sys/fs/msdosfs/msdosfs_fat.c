@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.7 1995/05/30 08:07:40 rgrimes Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.8 1995/10/29 15:31:49 phk Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -69,6 +69,7 @@
 #include <msdosfs/denode.h>
 #include <msdosfs/fat.h>
 
+static void fc_lookup __P((struct denode *dep, u_long findcn, u_long *frcnp, u_long *fsrcnp));
 /*
  * Fat cache stats.
  */
@@ -251,7 +252,7 @@ hiteof:;
  * Find the closest entry in the fat cache to the cluster we are looking
  * for.
  */
-void
+static void
 fc_lookup(dep, findcn, frcnp, fsrcnp)
 	struct denode *dep;
 	u_long findcn;
@@ -576,7 +577,7 @@ fatchain(pmp, start, count, fillwith)
  * start - start of chain
  * count - maximum interesting length
  */
-int
+static int
 chainlength(pmp, start, count)
 	struct msdosfsmount *pmp;
 	u_long start;
@@ -622,7 +623,7 @@ chainlength(pmp, start, count)
  * retcluster - put the first allocated cluster's number here.
  * got	      - how many clusters were actually allocated.
  */
-int
+static int
 chainalloc(pmp, start, count, fillwith, retcluster, got)
 	struct msdosfsmount *pmp;
 	u_long start;

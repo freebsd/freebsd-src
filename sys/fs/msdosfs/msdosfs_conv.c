@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.5 1995/05/30 08:07:36 rgrimes Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.6 1995/10/29 15:31:46 phk Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -34,7 +34,7 @@
 /*
  * Total number of days that have passed for each month in a regular year.
  */
-u_short regyear[] = {
+static u_short regyear[] = {
 	31, 59, 90, 120, 151, 181,
 	212, 243, 273, 304, 334, 365
 };
@@ -42,7 +42,7 @@ u_short regyear[] = {
 /*
  * Total number of days that have passed for each month in a leap year.
  */
-u_short leapyear[] = {
+static u_short leapyear[] = {
 	31, 60, 91, 121, 152, 182,
 	213, 244, 274, 305, 335, 366
 };

@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.2 1994/09/27 20:42:59 phk Exp $ */
+/*	$Id: msdosfsmount.h,v 1.3 1995/05/30 08:07:47 rgrimes Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-
@@ -171,15 +171,15 @@ struct msdosfsmount {
 /*
  * Prototypes for MSDOSFS virtual filesystem operations
  */
-int msdosfs_mount __P((struct mount *, char *, caddr_t, struct nameidata *, struct proc *));
-int msdosfs_start __P((struct mount *, int, struct proc *));
-int msdosfs_unmount __P((struct mount *, int, struct proc *));
-int msdosfs_root __P((struct mount *, struct vnode **));
-int msdosfs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
-int msdosfs_statfs __P((struct mount *, struct statfs *, struct proc *));
-int msdosfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
-int msdosfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *, struct vnode **, int *, struct ucred **));
-int msdosfs_vptofh __P((struct vnode *, struct fid *));
+static int msdosfs_mount __P((struct mount *, char *, caddr_t, struct nameidata *, struct proc *));
+static int msdosfs_start __P((struct mount *, int, struct proc *));
+static int msdosfs_unmount __P((struct mount *, int, struct proc *));
+static int msdosfs_root __P((struct mount *, struct vnode **));
+static int msdosfs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
+static int msdosfs_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int msdosfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
+static int msdosfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *, struct vnode **, int *, struct ucred **));
+static int msdosfs_vptofh __P((struct vnode *, struct fid *));
 int msdosfs_init __P(());
 
-int mountmsdosfs __P((struct vnode *devvp, struct mount *mp, struct proc *p));
+static int mountmsdosfs __P((struct vnode *devvp, struct mount *mp, struct proc *p));
