@@ -3011,8 +3011,8 @@ Dawn, n.:
 %
 Day of inquiry.  You will be subpoenaed.
 %
-%DCL-MEM-BAD, bad memory
-VMS-F-PDGERS, pudding between the ears
+%DCL-E-MEMBAD, bad memory
+-SYSTEM-F-VMSPDGERS, pudding between the ears
 %
 Dealing with failure is easy: work hard to improve.  Success is also
 easy to handle: you've solved the wrong problem.  Work hard to
