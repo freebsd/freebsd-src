@@ -570,18 +570,6 @@ route_Change(struct bundle *bundle, struct sticky_route *r,
 }
 
 void
-route_Clean(struct bundle *bundle, struct sticky_route *r)
-{
-  struct in_addr none, del;
-
-  none.s_addr = INADDR_ANY;
-  for (; r; r = r->next) {
-    del.s_addr = r->dst.s_addr & r->mask.s_addr;
-    bundle_SetRoute(bundle, RTM_DELETE, del, none, none, 1, 0);
-  }
-}
-
-void
 route_Add(struct sticky_route **rp, int type, struct in_addr dst,
           struct in_addr mask, struct in_addr gw)
 {

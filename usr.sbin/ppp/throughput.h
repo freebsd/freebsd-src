@@ -38,8 +38,10 @@ struct pppThroughput {
   unsigned long long OctetsIn;
   unsigned long long OctetsOut;
   int SamplePeriod;
-  unsigned long long *SampleOctets;
-  unsigned long long OctetsPerSecond;
+  struct {
+    unsigned long long *SampleOctets;
+    unsigned long long OctetsPerSecond;
+  } in, out;
   unsigned long long BestOctetsPerSecond;
   time_t BestOctetsPerSecondTime;
   int nSample;

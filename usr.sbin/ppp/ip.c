@@ -139,13 +139,13 @@ PortMatch(int op, u_short pport, u_short rport)
 {
   switch (op) {
   case OP_EQ:
-    return (pport == rport);
+    return pport == rport;
   case OP_GT:
-    return (pport > rport);
+    return pport > rport;
   case OP_LT:
-    return (pport < rport);
+    return pport < rport;
   default:
-    return (0);
+    return 0;
   }
 }
 
@@ -158,7 +158,7 @@ PortMatch(int op, u_short pport, u_short rport)
  *  must not attempt to over-write it.
  */
 static int
-FilterCheck(const struct ip *pip, const struct filter *filter)
+FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
 {
   int gotinfo;			/* true if IP payload decoded */
   int cproto;			/* P_* protocol type if (gotinfo) */
@@ -172,20 +172,22 @@ FilterCheck(const struct ip *pip, const struct filter *filter)
   char dbuff[100];
 
   if (fp->f_action == A_NONE)
-    return (0);		/* No rule is given. Permit this packet */
+    return 0;		/* No rule is given. Permit this packet */
 
-  /* Deny any packet fragment that tries to over-write the header.
+  /*
+   * Deny any packet fragment that tries to over-write the header.
    * Since we no longer have the real header available, punt on the
    * largest normal header - 20 bytes for TCP without options, rounded
    * up to the next possible fragment boundary.  Since the smallest
    * `legal' MTU is 576, and the smallest recommended MTU is 296, any
-   * fragmentation within this range is dubious at best */
+   * fragmentation within this range is dubious at best
+   */
   len = ntohs(pip->ip_off) & IP_OFFMASK;	/* fragment offset */ 
   if (len > 0) {		/* Not first fragment within datagram */
     if (len < (24 >> 3))	/* don't allow fragment to over-write header */
-      return (1);
+      return 1;
     /* permit fragments on in and out filter */
-    return (!filter->fragok);
+    return !filter->fragok;
   }
   
   cproto = gotinfo = estab = syn = finrst = didname = 0;
@@ -204,142 +206,142 @@ FilterCheck(const struct ip *pip, const struct filter *filter)
 
     match = 0;
     if (!((pip->ip_src.s_addr ^ fp->f_src.ipaddr.s_addr) &
-	  fp->f_src.mask.s_addr) &&
-	!((pip->ip_dst.s_addr ^ fp->f_dst.ipaddr.s_addr) &
-	  fp->f_dst.mask.s_addr)) {
+          fp->f_src.mask.s_addr) &&
+        !((pip->ip_dst.s_addr ^ fp->f_dst.ipaddr.s_addr) &
+          fp->f_dst.mask.s_addr)) {
       if (fp->f_proto != P_NONE) {
-	if (!gotinfo) {
-	  const char *ptop = (const char *) pip + (pip->ip_hl << 2);
-	  const struct tcphdr *th;
-	  const struct udphdr *uh;
-	  const struct icmp *ih;
-	  int datalen;	/* IP datagram length */
+        if (!gotinfo) {
+          const char *ptop = (const char *) pip + (pip->ip_hl << 2);
+          const struct tcphdr *th;
+          const struct udphdr *uh;
+          const struct icmp *ih;
+          int datalen;	/* IP datagram length */
 
-	  datalen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
-	  switch (pip->ip_p) {
-	  case IPPROTO_ICMP:
-	    cproto = P_ICMP;
-	    if (datalen < 8)	/* ICMP must be at least 8 octets */
-	      return (1);
-	    ih = (const struct icmp *) ptop;
-	    sport = ih->icmp_type;
-	    estab = syn = finrst = -1;
-	    if (log_IsKept(LogDEBUG))
-	      snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
-	    break;
-	  case IPPROTO_IGMP:
-	    cproto = P_IGMP;
-	    if (datalen < 8)	/* IGMP uses 8-octet messages */
-	      return (1);
-	    estab = syn = finrst = -1;
-	    sport = ntohs(0);
-	    break;
+          datalen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+          switch (pip->ip_p) {
+          case IPPROTO_ICMP:
+            cproto = P_ICMP;
+            if (datalen < 8)	/* ICMP must be at least 8 octets */
+              return 1;
+            ih = (const struct icmp *) ptop;
+            sport = ih->icmp_type;
+            estab = syn = finrst = -1;
+            if (log_IsKept(LogDEBUG))
+              snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
+            break;
+          case IPPROTO_IGMP:
+            cproto = P_IGMP;
+            if (datalen < 8)	/* IGMP uses 8-octet messages */
+              return 1;
+            estab = syn = finrst = -1;
+            sport = ntohs(0);
+            break;
 #ifdef IPPROTO_GRE
           case IPPROTO_GRE:
             cproto = P_GRE;
             if (datalen < 2)    /* GRE uses 2-octet+ messages */
-              return (1);
+              return 1;
             estab = syn = finrst = -1;
             sport = ntohs(0);
             break;
 #endif
 #ifdef IPPROTO_OSPFIGP
-	  case IPPROTO_OSPFIGP:
-	    cproto = P_OSPF;
-	    if (datalen < 8)	/* IGMP uses 8-octet messages */
-	      return (1);
-	    estab = syn = finrst = -1;
-	    sport = ntohs(0);
-	    break;
+          case IPPROTO_OSPFIGP:
+            cproto = P_OSPF;
+            if (datalen < 8)	/* IGMP uses 8-octet messages */
+              return 1;
+            estab = syn = finrst = -1;
+            sport = ntohs(0);
+            break;
 #endif
-	  case IPPROTO_UDP:
-	  case IPPROTO_IPIP:
-	    cproto = P_UDP;
-	    if (datalen < 8)	/* UDP header is 8 octets */
-	      return (1);
-	    uh = (const struct udphdr *) ptop;
-	    sport = ntohs(uh->uh_sport);
-	    dport = ntohs(uh->uh_dport);
-	    estab = syn = finrst = -1;
-	    if (log_IsKept(LogDEBUG))
-	      snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
-		       sport, dport);
-	    break;
-	  case IPPROTO_TCP:
-	    cproto = P_TCP;
-	    th = (const struct tcphdr *) ptop;
-	    /* TCP headers are variable length.  The following code
-	     * ensures that the TCP header length isn't de-referenced if
-	     * the datagram is too short
-	     */
-	    if (datalen < 20 || datalen < (th->th_off << 2))
-	      return (1);
-	    sport = ntohs(th->th_sport);
-	    dport = ntohs(th->th_dport);
-	    estab = (th->th_flags & TH_ACK);
-	    syn = (th->th_flags & TH_SYN);
-	    finrst = (th->th_flags & (TH_FIN|TH_RST));
-	    if (log_IsKept(LogDEBUG)) {
-	      if (!estab)
-		snprintf(dbuff, sizeof dbuff,
-			 "flags = %02x, sport = %d, dport = %d",
-			 th->th_flags, sport, dport);
-	      else
-		*dbuff = '\0';
-	    }
-	    break;
-	  default:
-	    return (1);	/* We'll block unknown type of packet */
-	  }
+          case IPPROTO_UDP:
+          case IPPROTO_IPIP:
+            cproto = P_UDP;
+            if (datalen < 8)	/* UDP header is 8 octets */
+              return 1;
+            uh = (const struct udphdr *) ptop;
+            sport = ntohs(uh->uh_sport);
+            dport = ntohs(uh->uh_dport);
+            estab = syn = finrst = -1;
+            if (log_IsKept(LogDEBUG))
+              snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
+                       sport, dport);
+            break;
+          case IPPROTO_TCP:
+            cproto = P_TCP;
+            th = (const struct tcphdr *) ptop;
+            /* TCP headers are variable length.  The following code
+             * ensures that the TCP header length isn't de-referenced if
+             * the datagram is too short
+             */
+            if (datalen < 20 || datalen < (th->th_off << 2))
+              return 1;
+            sport = ntohs(th->th_sport);
+            dport = ntohs(th->th_dport);
+            estab = (th->th_flags & TH_ACK);
+            syn = (th->th_flags & TH_SYN);
+            finrst = (th->th_flags & (TH_FIN|TH_RST));
+            if (log_IsKept(LogDEBUG)) {
+              if (!estab)
+                snprintf(dbuff, sizeof dbuff,
+                         "flags = %02x, sport = %d, dport = %d",
+                         th->th_flags, sport, dport);
+              else
+                *dbuff = '\0';
+            }
+            break;
+          default:
+            return 1;		/* We'll block unknown type of packet */
+          }
 
-	  if (log_IsKept(LogDEBUG)) {
-	    if (estab != -1) {
-	      len = strlen(dbuff);
-	      snprintf(dbuff + len, sizeof dbuff - len,
-		       ", estab = %d, syn = %d, finrst = %d",
-		       estab, syn, finrst);
-	    }
-	    log_Printf(LogDEBUG, " Filter: proto = %s, %s\n",
-		       filter_Proto2Nam(cproto), dbuff);
-	  }
-	  gotinfo = 1;
-	}
-	if (log_IsKept(LogDEBUG)) {
-	  if (fp->f_srcop != OP_NONE) {
-	    snprintf(dbuff, sizeof dbuff, ", src %s %d",
-		     filter_Op2Nam(fp->f_srcop), fp->f_srcport);
-	    len = strlen(dbuff);
-	  } else
-	    len = 0;
-	  if (fp->f_dstop != OP_NONE) {
-	    snprintf(dbuff + len, sizeof dbuff - len,
-		     ", dst %s %d", filter_Op2Nam(fp->f_dstop),
-		     fp->f_dstport);
-	  } else if (!len)
-	    *dbuff = '\0';
+          if (log_IsKept(LogDEBUG)) {
+            if (estab != -1) {
+              len = strlen(dbuff);
+              snprintf(dbuff + len, sizeof dbuff - len,
+                       ", estab = %d, syn = %d, finrst = %d",
+                       estab, syn, finrst);
+            }
+            log_Printf(LogDEBUG, " Filter: proto = %s, %s\n",
+                       filter_Proto2Nam(cproto), dbuff);
+          }
+          gotinfo = 1;
+        }
+        if (log_IsKept(LogDEBUG)) {
+          if (fp->f_srcop != OP_NONE) {
+            snprintf(dbuff, sizeof dbuff, ", src %s %d",
+                     filter_Op2Nam(fp->f_srcop), fp->f_srcport);
+            len = strlen(dbuff);
+          } else
+            len = 0;
+          if (fp->f_dstop != OP_NONE) {
+            snprintf(dbuff + len, sizeof dbuff - len,
+                     ", dst %s %d", filter_Op2Nam(fp->f_dstop),
+                     fp->f_dstport);
+          } else if (!len)
+            *dbuff = '\0';
 
-	  log_Printf(LogDEBUG, "  rule = %d: Address match, "
-		     "check against proto %s%s, action = %s\n",
-		     n, filter_Proto2Nam(fp->f_proto),
-		     dbuff, filter_Action2Nam(fp->f_action));
-	}
+          log_Printf(LogDEBUG, "  rule = %d: Address match, "
+                     "check against proto %s%s, action = %s\n",
+                     n, filter_Proto2Nam(fp->f_proto),
+                     dbuff, filter_Action2Nam(fp->f_action));
+        }
 
-	if (cproto == fp->f_proto) {
-	  if ((fp->f_srcop == OP_NONE ||
-	       PortMatch(fp->f_srcop, sport, fp->f_srcport)) &&
-	      (fp->f_dstop == OP_NONE ||
-	       PortMatch(fp->f_dstop, dport, fp->f_dstport)) &&
-	      (fp->f_estab == 0 || estab) &&
-	      (fp->f_syn == 0 || syn) &&
-	      (fp->f_finrst == 0 || finrst)) {
-	    match = 1;
-	  }
-	}
+        if (cproto == fp->f_proto) {
+          if ((fp->f_srcop == OP_NONE ||
+               PortMatch(fp->f_srcop, sport, fp->f_srcport)) &&
+              (fp->f_dstop == OP_NONE ||
+               PortMatch(fp->f_dstop, dport, fp->f_dstport)) &&
+              (fp->f_estab == 0 || estab) &&
+              (fp->f_syn == 0 || syn) &&
+              (fp->f_finrst == 0 || finrst)) {
+            match = 1;
+          }
+        }
       } else {
-	/* Address is matched and no protocol specified. Make a decision. */
-	log_Printf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
-		   filter_Action2Nam(fp->f_action));
-	match = 1;
+        /* Address is matched and no protocol specified. Make a decision. */
+        log_Printf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
+                   filter_Action2Nam(fp->f_action));
+        match = 1;
       }
     } else
       log_Printf(LogDEBUG, "  rule = %d: Address mismatch\n", n);
@@ -347,15 +349,20 @@ FilterCheck(const struct ip *pip, const struct filter *filter)
     if (match != fp->f_invert) {
       /* Take specified action */
       if (fp->f_action < A_NONE)
-	fp = &filter->rule[n = fp->f_action];
+        fp = &filter->rule[n = fp->f_action];
       else
-	return (fp->f_action != A_PERMIT);
+        if (fp->f_action == A_PERMIT) {
+          if (psecs != NULL)
+            *psecs = fp->timeout;
+          return 0;
+        } else
+          return 1;
     } else {
       n++;
       fp++;
     }
   }
-  return (1);		/* No rule is mached. Deny this packet */
+  return 1;		/* No rule is mached. Deny this packet */
 }
 
 #ifdef notdef
@@ -393,7 +400,7 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
   len -= sizeof header;
 
   while (pktptr < (const u_short *)ptr) {
-    *hptr++ = ntohs(*pktptr);	/* Careful of macro side-effects ! */
+    *hptr++ = ntohs(*pktptr);		/* Careful of macro side-effects ! */
     pktptr++;
   }
 
@@ -430,7 +437,8 @@ ip_LogDNS(const struct udphdr *uh, const char *direction)
  *  For debugging aid.
  */
 int
-PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
+PacketCheck(struct bundle *bundle, unsigned char *cp, int nb,
+            struct filter *filter, const char *prefix, unsigned *psecs)
 {
   static const char *const TcpFlags[] = {
     "FIN", "SYN", "RST", "PSH", "ACK", "URG"
@@ -439,7 +447,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   struct tcphdr *th;
   struct udphdr *uh;
   struct icmp *icmph;
-  char *ptop;
+  unsigned char *ptop;
   int mask, len, n, pri, logit, loglen, result;
   char logbuf[200];
 
@@ -452,7 +460,9 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   uh = NULL;
 
   if (logit && loglen < sizeof logbuf) {
-    if (filter)
+    if (prefix)
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s", prefix);
+    else if (filter)
       snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ", filter->name);
     else
       snprintf(logbuf + loglen, sizeof logbuf - loglen, "  ");
@@ -463,12 +473,14 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   switch (pip->ip_p) {
   case IPPROTO_ICMP:
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - sizeof *icmph;
       icmph = (struct icmp *) ptop;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	     "ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
+               "ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), icmph->icmp_type);
+               "%s:%d (%d/%d)", inet_ntoa(pip->ip_dst), icmph->icmp_type,
+               len, nb);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -484,23 +496,65 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
       pri++;
 
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - sizeof *uh;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	   "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+               "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+               "%s:%d (%d/%d)", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport),
+               len, nb);
       loglen += strlen(logbuf + loglen);
     }
+
+    if (Enabled(bundle, OPT_FILTERDECAP) &&
+        ptop[sizeof *uh] == HDLC_ADDR && ptop[sizeof *uh + 1] == HDLC_UI) {
+      u_short proto;
+      const char *type;
+
+      memcpy(&proto, ptop + sizeof *uh + 2, sizeof proto);
+      type = NULL;
+
+      switch (ntohs(proto)) {
+        case PROTO_IP:
+          snprintf(logbuf + loglen, sizeof logbuf - loglen, " contains ");
+          result = PacketCheck(bundle, ptop + sizeof *uh + 4,
+                               nb - (ptop - cp) - sizeof *uh - 4, filter,
+                               logbuf, psecs);
+          if (result != -2)
+              return result;
+          type = "IP";
+          break;
+
+        case PROTO_VJUNCOMP: type = "compressed VJ";   break;
+        case PROTO_VJCOMP:   type = "uncompressed VJ"; break;
+        case PROTO_MP:       type = "Multi-link"; break;
+        case PROTO_ICOMPD:   type = "Individual link CCP"; break;
+        case PROTO_COMPD:    type = "CCP"; break;
+        case PROTO_IPCP:     type = "IPCP"; break;
+        case PROTO_LCP:      type = "LCP"; break;
+        case PROTO_PAP:      type = "PAP"; break;
+        case PROTO_CBCP:     type = "CBCP"; break;
+        case PROTO_LQR:      type = "LQR"; break;
+        case PROTO_CHAP:     type = "CHAP"; break;
+      }
+      if (type) {
+        snprintf(logbuf + loglen, sizeof logbuf - loglen,
+                 " - %s data", type);
+        loglen += strlen(logbuf + loglen);
+      }
+    }
+
     break;
 
 #ifdef IPPROTO_GRE
   case IPPROTO_GRE:
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
           "GRE: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-              "%s", inet_ntoa(pip->ip_dst));
+              "%s (%d/%d)", inet_ntoa(pip->ip_dst), len, nb);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -509,11 +563,12 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 #ifdef IPPROTO_OSPFIGP
   case IPPROTO_OSPFIGP:
     if (logit && loglen < sizeof logbuf) {
+      len = ntohs(pip->ip_len) - (pip->ip_hl << 2);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	   "OSPF: %s ---> ", inet_ntoa(pip->ip_src));
+               "OSPF: %s ---> ", inet_ntoa(pip->ip_src));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s", inet_ntoa(pip->ip_dst));
+               "%s (%d/%d)", inet_ntoa(pip->ip_dst), len, nb);
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -523,10 +578,11 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     if (logit && loglen < sizeof logbuf) {
       uh = (struct udphdr *) ptop;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	   "IPIP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+               "IPIP: %s:%d ---> ", inet_ntoa(pip->ip_src),
+               ntohs(uh->uh_sport));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+               "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -535,10 +591,11 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     if (logit && loglen < sizeof logbuf) {
       uh = (struct udphdr *) ptop;
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	   "IGMP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+               "IGMP: %s:%d ---> ", inet_ntoa(pip->ip_src),
+               ntohs(uh->uh_sport));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+               "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
       loglen += strlen(logbuf + loglen);
     }
     break;
@@ -556,39 +613,43 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     if (logit && loglen < sizeof logbuf) {
       len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - (th->th_off << 2);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	   "TCP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(th->th_sport));
+           "TCP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(th->th_sport));
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "%s:%d", inet_ntoa(pip->ip_dst), ntohs(th->th_dport));
+               "%s:%d", inet_ntoa(pip->ip_dst), ntohs(th->th_dport));
       loglen += strlen(logbuf + loglen);
       n = 0;
       for (mask = TH_FIN; mask != 0x40; mask <<= 1) {
-	if (th->th_flags & mask) {
-	  snprintf(logbuf + loglen, sizeof logbuf - loglen, " %s", TcpFlags[n]);
-	  loglen += strlen(logbuf + loglen);
-	}
-	n++;
+        if (th->th_flags & mask) {
+          snprintf(logbuf + loglen, sizeof logbuf - loglen, " %s", TcpFlags[n]);
+          loglen += strlen(logbuf + loglen);
+        }
+        n++;
       }
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
-	       "  seq:%lx  ack:%lx (%d/%d)",
-	       (u_long)ntohl(th->th_seq), (u_long)ntohl(th->th_ack), len, nb);
+               "  seq:%lx  ack:%lx (%d/%d)",
+               (u_long)ntohl(th->th_seq), (u_long)ntohl(th->th_ack), len, nb);
       loglen += strlen(logbuf + loglen);
       if ((th->th_flags & TH_SYN) && nb > 40) {
-	u_short *sp;
+        u_short *sp;
 
-	ptop += 20;
-	sp = (u_short *) ptop;
-	if (ntohs(sp[0]) == 0x0204) {
-	  snprintf(logbuf + loglen, sizeof logbuf - loglen,
-		   " MSS = %d", ntohs(sp[1]));
-	  loglen += strlen(logbuf + loglen);
-	}
+        ptop += 20;
+        sp = (u_short *) ptop;
+        if (ntohs(sp[0]) == 0x0204) {
+          snprintf(logbuf + loglen, sizeof logbuf - loglen,
+                   " MSS = %d", ntohs(sp[1]));
+          loglen += strlen(logbuf + loglen);
+        }
       }
     }
     break;
+
+  default:
+    if (prefix)
+      return -2;
   }
 
-  if (filter && FilterCheck(pip, filter)) {
+  if (filter && FilterCheck(pip, filter, psecs)) {
     if (logit)
       log_Printf(LogTCPIP, "%s - BLOCKED\n", logbuf);
 #ifdef notdef
@@ -599,10 +660,23 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   } else {
     /* Check Keep Alive filter */
     if (logit && log_IsKept(LogTCPIP)) {
-      if (filter && FilterCheck(pip, &bundle->filter.alive))
+      unsigned alivesecs;
+
+      alivesecs = 0;
+      if (filter && FilterCheck(pip, &bundle->filter.alive, &alivesecs))
         log_Printf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
-      else
-        log_Printf(LogTCPIP, "%s\n", logbuf);
+      else if (psecs != NULL) {
+        if(*psecs == 0)
+          *psecs = alivesecs;
+        if (*psecs) {
+          if (*psecs != alivesecs)
+            log_Printf(LogTCPIP, "%s - (timeout = %d / ALIVE = %d secs)\n", 
+                       logbuf, *psecs, alivesecs);
+          else
+            log_Printf(LogTCPIP, "%s - (timeout = %d secs)\n", logbuf, *psecs);
+        } else
+          log_Printf(LogTCPIP, "%s\n", logbuf);
+      }
     }
     result = pri;
   }
@@ -620,6 +694,7 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   struct tun_data tun;
   struct ip *pip;
   char *data;
+  unsigned secs, alivesecs;
 
   if (bundle->ncp.ipcp.fsm.state != ST_OPENED) {
     log_Printf(LogWARN, "ip_Input: IPCP not open - packet dropped\n");
@@ -637,17 +712,22 @@ ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
   }
   mbuf_Read(bp, tun.data, nb);
 
-  if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0)
+  secs = 0;
+  if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in, NULL, &secs) < 0)
     return NULL;
 
   pip = (struct ip *)tun.data;
-  if (!FilterCheck(pip, &bundle->filter.alive))
-    bundle_StartIdleTimer(bundle);
+  alivesecs = 0;
+  if (!FilterCheck(pip, &bundle->filter.alive, &alivesecs)) {
+    if (secs == 0)
+      secs = alivesecs;
+    bundle_StartIdleTimer(bundle, secs);
+  }
 
   ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
 
   if (bundle->dev.header) {
-    tun.family = htonl(AF_INET);
+    tun.header.family = htonl(AF_INET);
     nb += sizeof tun - sizeof tun.data;
     data = (char *)&tun;
   } else
@@ -718,6 +798,8 @@ ip_PushPacket(struct link *l, struct bundle *bundle)
   struct mbuf *bp;
   struct ip *pip;
   int m_len;
+  u_int32_t secs = 0;
+  unsigned alivesecs = 0;
 
   if (ipcp->fsm.state != ST_OPENED)
     return 0;
@@ -725,11 +807,16 @@ ip_PushPacket(struct link *l, struct bundle *bundle)
   queue = ipcp->Queue + IPCP_QUEUES(ipcp) - 1;
   do {
     if (queue->top) {
-      bp = m_pullup(m_dequeue(queue));
+      bp = m_dequeue(queue);
+      bp = mbuf_Read(bp, &secs, sizeof secs);
+      bp = m_pullup(bp);
       m_len = m_length(bp);
       pip = (struct ip *)MBUF_CTOP(bp);
-      if (!FilterCheck(pip, &bundle->filter.alive))
-        bundle_StartIdleTimer(bundle);
+      if (!FilterCheck(pip, &bundle->filter.alive, &alivesecs)) {
+        if (secs == 0)
+          secs = alivesecs;
+        bundle_StartIdleTimer(bundle, secs);
+      }
       link_PushPacket(l, bp, bundle, 0, PROTO_IP);
       ipcp_AddOutOctets(ipcp, m_len);
       return 1;

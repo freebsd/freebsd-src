@@ -213,7 +213,8 @@ chat_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
        * portion of that sequence.
        */
 
-      needcr = c->state == CHAT_SEND && *c->argptr != '!';
+      needcr = c->state == CHAT_SEND &&
+               (*c->argptr != '!' || c->argptr[1] == '!');
 
       /* We leave room for a potential HDLC header in the target string */
       ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
@@ -254,8 +255,8 @@ chat_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       else if (c->nargptr == NULL && !strcmp(c->exp+2, "TIMEOUT"))
         gottimeout = 1;
       else {
-        if (c->exp[2] == '!')
-          ExecStr(c->physical, c->exp + 3, c->exp + 2, sizeof c->exp - 2);
+        if (c->exp[2] == '!' && c->exp[3] != '!')
+          ExecStr(c->physical, c->exp + 3, c->exp + 3, sizeof c->exp - 3);
 
         if (c->exp[2] == '\0') {
           /* Empty string, reparse (this may be better as a `goto start') */
@@ -279,7 +280,7 @@ chat_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     }
 
     /* set c->argptr to point in the right place */
-    c->argptr = c->exp + 2;
+    c->argptr = c->exp + (c->exp[2] == '!' ? 3 : 2);
     c->arglen = strlen(c->argptr);
 
     if (c->state == CHAT_EXPECT) {
@@ -732,7 +733,9 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
       open(_PATH_DEVNULL, O_RDWR);	/* Leave it closed if it fails... */
     for (i = getdtablesize(); i > 3; i--)
       fcntl(i, F_SETFD, 1);
+#ifndef NOSUID
     setuid(ID0realuid());
+#endif
     execvp(argv[0], argv);
     fprintf(stderr, "execvp: %s: %s\n", argv[0], strerror(errno));
     _exit(127);

@@ -51,7 +51,9 @@
 #include <sys/uio.h>
 #include <sys/wait.h>
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+#ifdef NOSUID
 #include <sys/linker.h>
+#endif
 #include <sys/module.h>
 #endif
 #include <termios.h>
@@ -95,8 +97,8 @@
 #include "ip.h"
 #include "iface.h"
 
-#define SCATTER_SEGMENTS 6  /* version, datalink, name, physical,
-                               throughput, device                   */
+#define SCATTER_SEGMENTS 7  /* version, datalink, name, physical,
+                               throughput, throughput, device       */
 
 #define SEND_MAXFD 3        /* Max file descriptors passed through
                                the local domain socket              */
@@ -222,7 +224,7 @@ bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL))
       != bundle->phys_type.open && bundle->idle.timer.state == TIMER_STOPPED)
     /* We may need to start our idle timer */
-    bundle_StartIdleTimer(bundle);
+    bundle_StartIdleTimer(bundle, 0);
 }
 
 void
@@ -265,7 +267,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
   } else if (fp->proto == PROTO_IPCP) {
     bundle_CalculateBandwidth(fp->bundle);
     time(&bundle->upat);
-    bundle_StartIdleTimer(bundle);
+    bundle_StartIdleTimer(bundle, 0);
     bundle_Notify(bundle, EX_NORMAL);
     mp_CheckAutoloadTimer(&fp->bundle->ncp.mp);
   }
@@ -519,6 +521,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                       const fd_set *fdset)
 {
   struct datalink *dl;
+  unsigned secs;
 
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
     descriptor_Read(&bundle->ncp.mp.server.desc, bundle, fdset);
@@ -561,7 +564,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
                    bundle->dev.Name, n);
         return;
       }
-      if (ntohl(tun.family) != AF_INET)
+      if (ntohl(tun.header.family) != AF_INET)
         /* XXX: Should be maintaining drop/family counts ! */
         return;
     }
@@ -570,7 +573,7 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         bundle->ncp.ipcp.my_ip.s_addr) {
       /* we've been asked to send something addressed *to* us :( */
       if (Enabled(bundle, OPT_LOOPBACK)) {
-        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
+        pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in, NULL, NULL);
         if (pri >= 0) {
           n += sz - sizeof tun.data;
           write(bundle->dev.fd, data, n);
@@ -591,7 +594,8 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
        * Note, we must be in AUTO mode :-/ otherwise our interface should
        * *not* be UP and we can't receive data
        */
-      if ((pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
+      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial, NULL, NULL);
+      if (pri >= 0)
         bundle_Open(bundle, NULL, PHYS_AUTO, 0);
       else
         /*
@@ -604,9 +608,13 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
         return;
     }
 
-    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
-    if (pri >= 0)
-      ip_Enqueue(&bundle->ncp.ipcp, pri, tun.data, n);
+    secs = 0;
+    pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out, NULL, &secs);
+    if (pri >= 0) {
+      /* Prepend the number of seconds timeout given in the filter */
+      tun.header.timeout = secs;
+      ip_Enqueue(&bundle->ncp.ipcp, pri, (char *)&tun, n + sizeof tun.header);
+    }
   }
 }
 
@@ -1111,28 +1119,31 @@ bundle_ShowLinks(struct cmdargs const *arg)
 {
   struct datalink *dl;
   struct pppThroughput *t;
+  unsigned long long octets;
   int secs;
 
   for (dl = arg->bundle->links; dl; dl = dl->next) {
+    octets = MAX(dl->physical->link.stats.total.in.OctetsPerSecond,
+                 dl->physical->link.stats.total.out.OctetsPerSecond);
+
     prompt_Printf(arg->prompt, "Name: %s [%s, %s]",
                   dl->name, mode2Nam(dl->physical->type), datalink_State(dl));
-    if (dl->physical->link.throughput.rolling && dl->state == DATALINK_OPEN)
+    if (dl->physical->link.stats.total.rolling && dl->state == DATALINK_OPEN)
       prompt_Printf(arg->prompt, " bandwidth %d, %llu bps (%llu bytes/sec)",
                     dl->mp.bandwidth ? dl->mp.bandwidth :
                                        physical_GetSpeed(dl->physical),
-                    dl->physical->link.throughput.OctetsPerSecond * 8,
-                    dl->physical->link.throughput.OctetsPerSecond);
+                    octets * 8, octets);
     prompt_Printf(arg->prompt, "\n");
   }
 
-  t = &arg->bundle->ncp.mp.link.throughput;
+  t = &arg->bundle->ncp.mp.link.stats.total;
+  octets = MAX(t->in.OctetsPerSecond, t->out.OctetsPerSecond);
   secs = t->downtime ? 0 : throughput_uptime(t);
   if (secs > t->SamplePeriod)
     secs = t->SamplePeriod;
   if (secs)
     prompt_Printf(arg->prompt, "Currently averaging %llu bps (%llu bytes/sec)"
-                  " over the last %d secs\n", t->OctetsPerSecond * 8,
-                  t->OctetsPerSecond, secs);
+                  " over the last %d secs\n", octets * 8, octets, secs);
 
   return 0;
 }
@@ -1206,21 +1217,23 @@ bundle_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, " Sticky Routes: %-20.20s",
                 optval(arg->bundle, OPT_SROUTES));
-  prompt_Printf(arg->prompt, " ID check:      %s\n",
+  prompt_Printf(arg->prompt, " Filter Decap:  %s\n",
+                optval(arg->bundle, OPT_FILTERDECAP));
+  prompt_Printf(arg->prompt, " ID check:      %-20.20s",
                 optval(arg->bundle, OPT_IDCHECK));
-  prompt_Printf(arg->prompt, " Keep-Session:  %-20.20s",
+  prompt_Printf(arg->prompt, " Keep-Session:  %s\n",
                 optval(arg->bundle, OPT_KEEPSESSION));
-  prompt_Printf(arg->prompt, " Loopback:      %s\n",
+  prompt_Printf(arg->prompt, " Loopback:      %-20.20s",
                 optval(arg->bundle, OPT_LOOPBACK));
-  prompt_Printf(arg->prompt, " PasswdAuth:    %-20.20s",
+  prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
                 optval(arg->bundle, OPT_PASSWDAUTH));
-  prompt_Printf(arg->prompt, " Proxy:         %s\n",
+  prompt_Printf(arg->prompt, " Proxy:         %-20.20s",
                 optval(arg->bundle, OPT_PROXY));
-  prompt_Printf(arg->prompt, " Proxyall:      %-20.20s",
+  prompt_Printf(arg->prompt, " Proxyall:      %s\n",
                 optval(arg->bundle, OPT_PROXYALL));
-  prompt_Printf(arg->prompt, " Throughput:    %s\n",
+  prompt_Printf(arg->prompt, " Throughput:    %-20.20s",
                 optval(arg->bundle, OPT_THROUGHPUT));
-  prompt_Printf(arg->prompt, " Utmp Logging:  %-20.20s",
+  prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
                 optval(arg->bundle, OPT_UTMP));
   prompt_Printf(arg->prompt, " Iface-Alias:   %s\n",
                 optval(arg->bundle, OPT_IFACEALIAS));
@@ -1243,18 +1256,22 @@ bundle_IdleTimeout(void *v)
  *  close LCP and link.
  */
 void
-bundle_StartIdleTimer(struct bundle *bundle)
+bundle_StartIdleTimer(struct bundle *bundle, unsigned secs)
 {
   timer_Stop(&bundle->idle.timer);
   if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL)) !=
       bundle->phys_type.open && bundle->cfg.idle.timeout) {
-    int secs;
+    time_t now = time(NULL);
 
-    secs = bundle->cfg.idle.timeout;
+    if (secs == 0)
+      secs = bundle->cfg.idle.timeout;
+
+    /* We want at least `secs' */
     if (bundle->cfg.idle.min_timeout > secs && bundle->upat) {
-      int up = time(NULL) - bundle->upat;
+      int up = now - bundle->upat;
 
       if ((long long)bundle->cfg.idle.min_timeout - up > (long long)secs)
+        /* Only increase from the current `remaining' value */
         secs = bundle->cfg.idle.min_timeout - up;
     }
     bundle->idle.timer.func = bundle_IdleTimeout;
@@ -1262,7 +1279,7 @@ bundle_StartIdleTimer(struct bundle *bundle)
     bundle->idle.timer.load = secs * SECTICKS;
     bundle->idle.timer.arg = bundle;
     timer_Start(&bundle->idle.timer);
-    bundle->idle.done = time(NULL) + secs;
+    bundle->idle.done = now + secs;
   }
 }
 
@@ -1273,7 +1290,7 @@ bundle_SetIdleTimer(struct bundle *bundle, int timeout, int min_timeout)
   if (min_timeout >= 0)
     bundle->cfg.idle.min_timeout = min_timeout;
   if (bundle_LinkIsUp(bundle))
-    bundle_StartIdleTimer(bundle);
+    bundle_StartIdleTimer(bundle, 0);
 }
 
 void
@@ -1837,8 +1854,10 @@ bundle_setsid(struct bundle *bundle, int holdsession)
          */
         waitpid(pid, &status, 0);
         /* Tweak our process arguments.... */
-        ID0setproctitle("session owner");
+        SetTitle("session owner");
+#ifndef NOSUID
         setuid(ID0realuid());
+#endif
         /*
          * Hang around for a HUP.  This should happen as soon as the
          * ppp that we passed our ctty descriptor to closes it.

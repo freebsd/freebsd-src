@@ -86,7 +86,7 @@ static const struct fsmcodedesc {
   { FsmRecvEchoReq,   0, 0, "EchoRequest"  },
   { FsmRecvEchoRep,   0, 0, "EchoReply"    },
   { FsmRecvDiscReq,   0, 0, "DiscardReq"   },
-  { FsmRecvIdent,     0, 0, "Ident"        },
+  { FsmRecvIdent,     0, 1, "Ident"        },
   { FsmRecvTimeRemain,0, 0, "TimeRemain"   },
   { FsmRecvResetReq,  0, 0, "ResetReq"     },
   { FsmRecvResetAck,  0, 1, "ResetAck"     }
@@ -208,6 +208,9 @@ fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count,
   log_DumpBp(LogDEBUG, "fsm_Output", bp);
   link_PushPacket(fp->link, bp, fp->bundle, LINK_QUEUES(fp->link) - 1,
                   fp->proto);
+
+  if (code == CODE_CONFIGREJ)
+    lcp_SendIdentification(&fp->link->lcp);
 }
 
 static void
@@ -374,6 +377,7 @@ FsmSendConfigReq(struct fsm *fp)
     if (fp->more.reqs < 0)
       log_Printf(LogPHASE, "%s: Too many %s REQs sent - abandoning "
                  "negotiation\n", fp->link->name, fp->name);
+    lcp_SendIdentification(&fp->link->lcp);
     fsm_Close(fp);
   }
 }
@@ -562,6 +566,7 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
         FsmInitRestartCounter(fp, FSM_TRM_TIMER);
         FsmSendTerminateReq(fp);
         NewState(fp, ST_CLOSING);
+        lcp_SendIdentification(&fp->link->lcp);
       }
     }
     break;
@@ -575,12 +580,14 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   if (dec.rejend != dec.rej && --fp->more.rejs <= 0) {
     log_Printf(LogPHASE, "%s: Too many %s REJs sent - abandoning negotiation\n",
                fp->link->name, fp->name);
+    lcp_SendIdentification(&fp->link->lcp);
     fsm_Close(fp);
   }
 
   if (dec.nakend != dec.nak && --fp->more.naks <= 0) {
     log_Printf(LogPHASE, "%s: Too many %s NAKs sent - abandoning negotiation\n",
                fp->link->name, fp->name);
+    lcp_SendIdentification(&fp->link->lcp);
     fsm_Close(fp);
   }
 }
@@ -615,6 +622,7 @@ FsmRecvConfigAck(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       FsmInitRestartCounter(fp, FSM_TRM_TIMER);
       FsmSendTerminateReq(fp);
       NewState(fp, ST_CLOSING);
+      lcp_SendIdentification(&fp->link->lcp);
     }
     break;
   case ST_OPENED:
@@ -768,6 +776,8 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     m_freem(bp);
     return;
   }
+
+  lcp_SendIdentification(&fp->link->lcp);
 
   /*
    * Check and process easy case
@@ -932,6 +942,22 @@ FsmRecvDiscReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 static void
 FsmRecvIdent(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 {
+  u_int32_t magic;
+  u_short len;
+  u_char *cp;
+
+  len = ntohs(lhp->length) - sizeof *lhp;
+  if (len >= 4) {
+    bp = m_pullup(m_append(bp, "", 1));
+    cp = MBUF_CTOP(bp);
+    ua_ntohl(cp, &magic);
+    if (magic != fp->link->lcp.his_magic)
+      log_Printf(fp->LogLevel, "%s: RecvIdent: magic 0x%08lx is wrong,"
+                 " expecting 0x%08lx\n", fp->link->name, (u_long)magic,
+                 (u_long)fp->link->lcp.his_magic);
+    cp[len] = '\0';
+    lcp_RecvIdentification(&fp->link->lcp, cp + 4);
+  }
   m_freem(bp);
 }
 
@@ -976,13 +1002,11 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   }
   bp = mbuf_Read(bp, &lh, sizeof lh);
 
-  if (ntohs(lh.length) != len) {
-    if (ntohs(lh.length) > len) {
-      log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload "
-                 "- dropped\n", fp->link->name, len, (int)ntohs(lh.length));
-      m_freem(bp);
-      return;
-    }
+  if (ntohs(lh.length) > len) {
+    log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload "
+               "- dropped\n", fp->link->name, len, (int)ntohs(lh.length));
+    m_freem(bp);
+    return;
   }
 
   if (lh.code < fp->min_code || lh.code > fp->max_code ||

@@ -38,6 +38,8 @@
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
+#include "lqr.h"
+#include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "deflate.h"

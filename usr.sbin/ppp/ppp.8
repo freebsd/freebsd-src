@@ -1,8 +1,8 @@
 .\" $FreeBSD$
 .Dd 20 September 1995
 .nr XX \w'\fC00'
-.Os FreeBSD
 .Dt PPP 8
+.Os
 .Sh NAME
 .Nm ppp
 .Nd Point to Point Protocol (a.k.a. user-ppp)
@@ -1541,6 +1541,7 @@ set filter
 .Op estab
 .Op syn
 .Op finrst
+.Op timeout Ar secs
 .Oc
 .Bl -enum
 .It
@@ -1644,6 +1645,15 @@ flags are only allowed when
 is set to
 .Sq tcp ,
 and represent the TH_ACK, TH_SYN and TH_FIN or TH_RST TCP flags respectively.
+.It
+The timeout value adjusts the current idle timeout to at least
+.Ar secs
+seconds.
+If a timeout is given in the alive filter as well as in the in/out
+filter, the in/out value is used.  If no timeout is given, the default
+timeout (set using
+.Ic set timeout
+and defaulting to 180 seconds) is used.
 .El
 .Pp
 .It
@@ -1651,8 +1661,17 @@ Each filter can hold up to 40 rules, starting from rule 0.
 The entire rule set is not effective until rule 0 is defined,
 i.e., the default is to allow everything through.
 .It
-If no rule is matched to a packet, that packet will be discarded
-(blocked).
+If no rule in a defined set of rules matches a packet, that packet will
+be discarded (blocked).
+If there are no rules in a given filter, the packet will be permitted.
+.It
+It's possible to filter based on the payload of UDP frames where those
+frames contain a
+.Em PROTO_IP
+.Em PPP
+frame header.  See the
+.Ar filter-decapsulation
+option below for further details.
 .It
 Use
 .Dq set filter Ar name No -1
@@ -2722,6 +2741,30 @@ This option determines if Van Jacobson header compression will be used.
 The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
 .Bl -tag -width XX
+.It filter-decapsulation
+Default: Disabled.
+When this option is enabled,
+.Nm
+will examine UDP frames to see if they actually contain a
+.Em PPP
+frame as their payload.  If this is the case, all filters will operate
+on the payload rather than the actual packet.
+.Pp
+This is useful if you want to send PPPoUDP traffic over a
+.Em PPP
+link, but want that link to do smart things with the real data rather than
+the UDP wrapper.
+.Pp
+The UDP frame payload must not be compressed in any way, otherwise
+.Nm
+will not be able to interpret it.  It's therefore recommended that
+you
+.Ic disable vj pred1 deflate
+and
+.Ic deny vj pred1 deflate
+in the configuration for the
+.Nm
+invocation with the udp link.
 .It idcheck
 Default: Enabled.
 When
@@ -3022,10 +3065,11 @@ The
 .Sq default
 section is always checked first (even though it is only ever automatically
 loaded at startup).
-Each successive
 .Dq allow users
-command overrides the previous one, so it's possible to allow users access
-to everything except a given label by specifying default users in the
+commands are cumulative in a given section, but users allowed in any given
+section override users allowed in the default section, so it's possible to
+allow users access to everything except a given label by specifying default
+users in the
 .Sq default
 section, and then specifying a new user list for that label.
 .Pp
@@ -3200,6 +3244,13 @@ value.
 See the
 .Dq set authname
 command below.
+.It Li COMPILATIONDATE
+This is replaced with the date on which
+.Nm
+was compiled.
+.It Li DNS0 No " & " Li DNS1
+These are replaced with the primary and secondary nameserver IP numbers.
+If nameservers are negotiated by IPCP, the values of these macros will change.
 .It Li ENDDISC
 This is replaced with the local endpoint discriminator value.
 See the
@@ -3226,14 +3277,14 @@ This is replaced with the IP number assigned to the local interface.
 This is replaced with the value of the peers endpoint discriminator.
 .It Li PROCESSID
 This is replaced with the current process id.
+.It Li VERSION
+This is replaced with the current version number of
+.Nm ppp .
 .It Li USER
 This is replaced with the username that has been authenticated with PAP or
 CHAP.
 Normally, this variable is assigned only in -direct mode.
 This value is available irrespective of whether utmp logging is enabled.
-.It Li DNS0 No " & " Li DNS1
-These are replaced with the primary and secondary nameserver IP numbers.
-If nameservers are negotiated by IPCP, the values of these macros will change.
 .El
 .Pp
 These substitutions are also done by the
@@ -3360,6 +3411,20 @@ Show a list of available commands.
 If
 .Ar command
 is specified, show the usage string for that command.
+.It ident Op Ar text Ns No ...
+Identify the link to the peer using
+.Ar text .
+If
+.Ar text
+is empty, link identification is disabled.
+It is possible to use any of the words described for the
+.Ic bg
+command above.
+Refer to the
+.Ic sendident
+command for details of when
+.Nm
+identifies itself to the peer.
 .It iface Ar command Op args
 This command is used to control the interface used by
 .Nm ppp .
@@ -3653,6 +3718,24 @@ command.
 .El
 .It save
 This option is not (yet) implemented.
+.It sendident
+This command tells
+.Nm
+to identify itself to the peer.  The link must be in LCP state or higher.
+If no identity has been set (via the
+.Ic ident
+command),
+.Ic sendident
+will fail.
+.Pp
+When an identity has been set,
+.Nm
+will automatically identify itself when it sends or receives a configure
+reject, when negotiation fails or when LCP reaches the opened state.
+.Pp
+Received identification packets are logged to the LCP log (see
+.Ic set log
+for details) and are never responded to.
 .It set Ns Xo
 .No Op up
 .Ar var value
@@ -3699,7 +3782,13 @@ and
 .Dq authkey
 values.
 .Pp
-Ignoring the
+If the
+.Dq \&!
+is doubled up
+.Pq to Dq \&!! ,
+it is treated as a single literal
+.Dq \&! ,
+otherwise, ignoring the
 .Dq \&! ,
 .Ar value
 is parsed as a program to execute in the same was as the
@@ -3771,9 +3860,10 @@ percent or less of the total bundle bandwidth for
 .Ar period
 seconds, a
 .Ar demand-dial
-link will be brought down as long as it's not the last active
-.Ar demand-dial
-link.
+link will be brought down as long as it's not the last active link.
+.Pp
+Bundle throughput is measured as the maximum of inbound and outbound
+traffic.
 .Pp
 The default values cause
 .Ar demand-dial
@@ -4105,7 +4195,17 @@ will attempt to create a
 .Em PPP
 over Ethernet connection using the given
 .Ar iface
-interface.
+interface by using
+.Xr netgraph 4 .
+If
+.Xr netgraph 4
+is not available,
+.Nm
+will attempt to loaded it using
+.Xr kldload 2 .
+If this fails, an external program must be used such as the
+.Xr pppoe 8
+program available under OpenBSD.
 The given
 .Ar provider
 is passed as the service name in the PPPoE Discovery Initiation (PADI)
@@ -4206,6 +4306,10 @@ It is also possible to execute external commands from the chat script.
 To do this, the first character of the expect or send string is an
 exclamation mark
 .Pq Dq \&! .
+If a literal exclaimation mark is required, double it up to
+.Dq \&!!
+and it will be treated as a single literal
+.Dq \&! .
 When the command is executed, standard input and standard output are
 directed to the open device (see the
 .Dq set device
@@ -4353,6 +4457,7 @@ as they travel across the link.
 .Op estab
 .Op syn
 .Op finrst
+.Op timeout Ar secs
 .Oc
 .Xc
 .Nm
@@ -4378,7 +4483,7 @@ filter specifies packets that are allowed out of the machine.
 Filtering is done prior to any IP alterations that might be done by the
 NAT engine on outgoing packets and after any IP alterations that might
 be done by the NAT engine on incoming packets.
-By default all filter sets allow all packets to pass.
+By default all empty filter sets allow all packets to pass.
 Rules are processed in order according to
 .Ar rule-no
 (unless skipped by specifying a rule number as the
@@ -4393,8 +4498,12 @@ and
 filters, this means that the packet is dropped.
 In the case of
 .Em alive
-filters it means that the packet will not reset the idle timer and in
-the case of
+filters it means that the packet will not reset the idle timer (even if
+the
+.Ar in Ns No / Ns Ar out
+filter has a
+.Dq timeout
+value) and in the case of
 .Em dial
 filters it means that the packet will not trigger a dial.
 A packet failing to trigger a dial will be dropped rather than queued.
@@ -5265,6 +5374,7 @@ This socket is used to pass links between different instances of
 .Xr login 1 ,
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
+.Xr kldload 2 ,
 .Xr libalias 3 ,
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
@@ -5286,6 +5396,7 @@ This socket is used to pass links between different instances of
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
+.Xr pppoe 8 ,
 .Xr route 8 ,
 .Xr sshd 8 ,
 .Xr syslogd 8 ,

@@ -39,10 +39,10 @@
 #include "fsm.h"
 #include "mbuf.h"
 #include "proto.h"
-#include "lcp.h"
 #include "throughput.h"
 #include "lqr.h"
 #include "hdlc.h"
+#include "lcp.h"
 #include "ccp.h"
 #include "link.h"
 
