@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.3 1994/08/02 07:42:50 davidg Exp $
+ * $Id: tty_conf.c,v 1.4 1994/10/05 21:22:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -88,6 +88,67 @@ struct	linesw linesw[MAXLDISC] =
 };
 
 int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
+
+static struct linesw nodisc = 
+{
+	ttynodisc,
+	ttyerrclose,
+	ttyerrio,
+	ttyerrio,
+	nullioctl,
+	ttyerrinput,
+	ttyerrstart,
+	nullmodem
+};
+
+#define LOADABLE_LDISC 6
+/*
+ * ldisc_register: Register a line discipline.
+ *
+ * discipline: Index for discipline to load, or LDISC_LOAD for us to choose.
+ * linesw_p:   Pointer to linesw_p.
+ *
+ * Returns: Index used or -1 on failure.
+ */
+int
+ldisc_register(discipline, linesw_p)
+	int discipline;
+	struct linesw *linesw_p;
+{
+	int slot = -1;
+
+	if (discipline == LDISC_LOAD) {
+		int i;
+		for (i = LOADABLE_LDISC; i < MAXLDISC; i++)
+			if (bcmp(linesw + i, &nodisc, sizeof(nodisc)) == 0) {
+				slot = i;
+			}
+	}
+	else if (discipline >= 0 && discipline < MAXLDISC) {
+		slot = discipline;
+	}
+
+	if (slot != -1 && linesw_p)
+		linesw[slot] = *linesw_p;
+
+	return slot;
+}
+
+/*
+ * ldisc_deregister: Deregister a line discipline obtained with
+ * ldisc_register.  Can only deregister "loadable" ones now.
+ *
+ * discipline: Index for discipline to unload.
+ */
+void
+ldisc_deregister(discipline)
+	int discipline;
+{
+	if (discipline >= LOADABLE_LDISC && discipline < MAXLDISC) {
+		linesw[discipline] = nodisc;
+	}
+}
+
 
 /*
  * Do nothing specific version of line
