@@ -45,6 +45,7 @@
 #include <setjmp.h>
 #include <stringlist.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #ifndef SMALL
 #include <histedit.h>
