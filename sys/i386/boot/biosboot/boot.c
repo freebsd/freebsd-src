@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.48 1996/04/07 14:28:00 bde Exp $
+ *	$Id: boot.c,v 1.49 1996/05/02 10:43:01 phk Exp $
  */
 
 
@@ -112,14 +112,18 @@ boot(int drive)
 	part = 0;
 #endif
 	if (drive & 0x80) {
-		/*
-		 * Hard drive.  Adjust.  Guess that the FreeBSD unit number
-		 * is the BIOS drive number biased by BOOT_HD_BIAS,
-		 */
+		/* Hard drive.  Adjust. */
 		maj = 0;
 #if BOOT_HD_BIAS > 0
-		if (BOOT_HD_BIAS <= unit)
+		if (unit >= BOOT_HD_BIAS) {
+			/*
+			 * The drive is probably a SCSI drive with a unit
+			 * number BOOT_HD_BIAS less than the BIOS drive
+			 * number.
+			 */
+			maj = 4;
 			unit -= BOOT_HD_BIAS;
+		}
 #endif
 	}
 
