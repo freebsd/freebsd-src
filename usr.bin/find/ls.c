@@ -36,17 +36,18 @@
 static char sccsid[] = "@(#)ls.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
 
-#include <inttypes.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
+#include <inttypes.h>
 #include <langinfo.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -62,10 +63,7 @@ static void printlink(char *);
 static void printtime(time_t);
 
 void
-printlong(name, accpath, sb)
-	char *name;			/* filename to print */
-	char *accpath;			/* current valid path to filename */
-	struct stat *sb;		/* stat buffer */
+printlong(char *name, char *accpath, struct stat *sb)
 {
 	char modep[15];
 
@@ -88,21 +86,20 @@ printlong(name, accpath, sb)
 }
 
 static void
-printtime(ftime)
-	time_t ftime;
+printtime(time_t ftime)
 {
 	char longstring[80];
-	static time_t now;
+	static time_t lnow;
 	const char *format;
 	static int d_first = -1;
 
 	if (d_first < 0)
 		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
-	if (now == 0)
-		now = time(NULL);
+	if (lnow == 0)
+		lnow = time(NULL);
 
 #define	SIXMONTHS	((365 / 2) * 86400)
-	if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
+	if (ftime + SIXMONTHS > lnow && ftime < lnow + SIXMONTHS)
 		/* mmm dd hh:mm || dd mmm hh:mm */
 		format = d_first ? "%e %b %R " : "%b %e %R ";
 	else
@@ -113,8 +110,7 @@ printtime(ftime)
 }
 
 static void
-printlink(name)
-	char *name;
+printlink(char *name)
 {
 	int lnklen;
 	char path[MAXPATHLEN];

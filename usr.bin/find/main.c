@@ -45,6 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -78,9 +79,7 @@ int regexp_flags = REG_BASIC;	/* use the "basic" regexp by default*/
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char **p, **start;
 	int Hflag, Lflag, ch;
@@ -162,7 +161,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 "usage: find [-H | -L | -P] [-EXdsx] [-f file] [file ...] [expression]\n");
