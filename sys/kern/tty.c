@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.12 1994/10/23 06:18:13 davidg Exp $
+ * $Id: tty.c,v 1.13 1994/11/01 22:23:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1594,6 +1594,10 @@ loop:
 					if (ttyoutput(*cp, tp) >= 0) {
 						/* No Clists, wait a bit. */
 						ttstart(tp);
+						if (flag & IO_NDELAY) {
+							error = EWOULDBLOCK;
+							goto out;
+						}
 						error = ttysleep(tp, &lbolt,
 						    TTOPRI | PCATCH, ttybuf, 0);
 						if (error)
@@ -1625,6 +1629,10 @@ loop:
 			if (i > 0) {
 				/* No Clists, wait a bit. */
 				ttstart(tp);
+				if (flag & IO_NDELAY) {
+					error = EWOULDBLOCK;
+					goto out;
+				}
 				error = ttysleep(tp,
 				    &lbolt, TTOPRI | PCATCH, ttybuf, 0);
 				if (error)
@@ -1662,10 +1670,8 @@ ovhiwat:
 		uio->uio_resid += cc;
 		return (uio->uio_resid == cnt ? EWOULDBLOCK : 0);
 	}
-	if (tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) {
-		SET(tp->t_state, TS_ASLEEP);
-		error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
-	}
+	SET(tp->t_state, TS_ASLEEP);
+	error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
 	splx(s);
 	if (error)
 		goto out;
