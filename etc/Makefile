@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.100 1995/01/15 11:21:47 jkh Exp $
+#	$Id: Makefile,v 1.101 1995/01/17 20:00:01 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -149,7 +149,7 @@ descrypt:
 
 distribute:
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${RELEASEDIR}/bin
-	
+
 distribution:
 	(cd ${.CURDIR}; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
@@ -292,7 +292,7 @@ cdins-floppy:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cdinst1.install ${MOUNT}/install
 	ln ${MOUNT}/install ${MOUNT}/etc/rc
-	
+
 cdins.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; \
