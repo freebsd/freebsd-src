@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2cap.c,v 1.6 2002/09/04 21:30:40 max Exp $
+ * $Id: l2cap.c,v 1.4 2003/04/26 23:11:25 max Exp $
  * $FreeBSD$
  */
 
@@ -53,9 +53,6 @@ l2cap_read_node_flags(int s, int argc, char **argv)
 	if (ioctl(s, SIOC_L2CAP_NODE_GET_FLAGS, &r, sizeof(r)) < 0)
 		return (ERROR);
 
-	fprintf(stdout, "BD_ADDR: %x:%x:%x:%x:%x:%x\n",
-		r.src.b[5], r.src.b[4], r.src.b[3],
-		r.src.b[2], r.src.b[1], r.src.b[0]);
 	fprintf(stdout, "Connectionless traffic flags:\n");
 	fprintf(stdout, "\tSDP: %s\n",
 		(r.flags & NG_L2CAP_CLT_SDP_DISABLED)? "disabled" : "enabled");
@@ -77,9 +74,6 @@ l2cap_read_debug_level(int s, int argc, char **argv)
 	if (ioctl(s, SIOC_L2CAP_NODE_GET_DEBUG, &r, sizeof(r)) < 0)
 		return (ERROR);
 
-	fprintf(stdout, "BD_ADDR: %x:%x:%x:%x:%x:%x\n",
-		r.src.b[5], r.src.b[4], r.src.b[3],
-		r.src.b[2], r.src.b[1], r.src.b[0]);
 	fprintf(stdout, "Debug level: %d\n", r.debug);
 
 	return (OK);
@@ -135,17 +129,14 @@ l2cap_read_connection_list(int s, int argc, char **argv)
 		goto out;
 	}
 
-	fprintf(stdout, "BD_ADDR: %x:%x:%x:%x:%x:%x\n",
-		r.src.b[5], r.src.b[4], r.src.b[3],
-		r.src.b[2], r.src.b[1], r.src.b[0]);
 	fprintf(stdout, "L2CAP connections:\n");
 	fprintf(stdout, 
 "Remote BD_ADDR    Handle Flags Pending State\n");
 	for (n = 0; n < r.num_connections; n++) {
 		fprintf(stdout,
 			"%02x:%02x:%02x:%02x:%02x:%02x " \
-			" %5d " \
-			"%2.2s %2.2s " \
+			"%6d " \
+			"%c%c%c%c%c " \
 			"%7d " \
 			"%s\n",
 			r.connections[n].remote.b[5],
@@ -155,8 +146,11 @@ l2cap_read_connection_list(int s, int argc, char **argv)
 			r.connections[n].remote.b[1],
 			r.connections[n].remote.b[0],
 			r.connections[n].con_handle, 
-			((r.connections[n].flags & NG_L2CAP_CON_TX)? "TX" : ""),
-			((r.connections[n].flags & NG_L2CAP_CON_RX)? "RX" : ""),
+			((r.connections[n].flags & NG_L2CAP_CON_OUTGOING)? 'O' : 'I'),
+			((r.connections[n].flags & NG_L2CAP_CON_LP_TIMO)? 'L' : ' '),
+			((r.connections[n].flags & NG_L2CAP_CON_AUTO_DISCON_TIMO)? 'D' : ' '),
+			((r.connections[n].flags & NG_L2CAP_CON_TX)? 'T' : ' '),
+			((r.connections[n].flags & NG_L2CAP_CON_RX)? 'R' : ' '),
 			r.connections[n].pending,
 			con_state2str(r.connections[n].state));
 	}
@@ -198,9 +192,6 @@ l2cap_read_channel_list(int s, int argc, char **argv)
 		goto out;
 	}
 
-	fprintf(stdout, "BD_ADDR: %x:%x:%x:%x:%x:%x\n",
-		r.src.b[5], r.src.b[4], r.src.b[3],
-		r.src.b[2], r.src.b[1], r.src.b[0]);
 	fprintf(stdout, "L2CAP channels:\n");
 	fprintf(stdout, 
 "Remote BD_ADDR     SCID/ DCID   PSM  IMTU/ OMTU State\n");
@@ -223,6 +214,46 @@ out:
 
 	return (error);
 } /* l2cap_read_channel_list */
+
+/* Send read_auto_disconnect_timeout command to the node */
+static int
+l2cap_read_auto_disconnect_timeout(int s, int argc, char **argv)
+{
+	struct ng_btsocket_l2cap_raw_auto_discon_timo	r;
+
+	memset(&r, 0, sizeof(r));
+	if (ioctl(s, SIOC_L2CAP_NODE_GET_AUTO_DISCON_TIMO, &r, sizeof(r)) < 0)
+		return (ERROR);
+
+	if (r.timeout != 0)
+		fprintf(stdout, "Auto disconnect timeout: %d sec\n", r.timeout);
+	else
+		fprintf(stdout, "Auto disconnect disabled\n");
+
+	return (OK);
+} /* l2cap_read_auto_disconnect_timeout */
+
+/* Send write_auto_disconnect_timeout command to the node */
+static int
+l2cap_write_auto_disconnect_timeout(int s, int argc, char **argv)
+{
+	struct ng_btsocket_l2cap_raw_auto_discon_timo	r;
+
+	memset(&r, 0, sizeof(r));
+	switch (argc) {
+	case 1:
+		r.timeout = atoi(argv[0]);
+		break;
+
+	default:
+		return (USAGE);
+	}
+
+	if (ioctl(s, SIOC_L2CAP_NODE_SET_AUTO_DISCON_TIMO, &r, sizeof(r)) < 0)
+		return (ERROR);
+
+	return (OK);
+} /* l2cap_write_auto_disconnect_timeout */
 
 struct l2cap_command	l2cap_commands[] = {
 {
@@ -249,6 +280,16 @@ struct l2cap_command	l2cap_commands[] = {
 "read_channel_list",
 "Read list of the L2CAP channels",
 &l2cap_read_channel_list
+},
+{
+"read_auto_disconnect_timeout",
+"Get L2CAP node auto disconnect timeout (in sec)",
+&l2cap_read_auto_disconnect_timeout
+},
+{
+"write_auto_disconnect_timeout <timeout>",
+"Set L2CAP node auto disconnect timeout (in sec)",
+&l2cap_write_auto_disconnect_timeout
 },
 {
 NULL,

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: send_recv.c,v 1.4 2002/09/04 21:31:30 max Exp $
+ * $Id: send_recv.c,v 1.1 2002/11/24 20:22:38 max Exp $
  * $FreeBSD$
  */
 

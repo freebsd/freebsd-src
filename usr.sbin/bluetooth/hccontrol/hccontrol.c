@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hccontrol.c,v 1.11 2002/09/12 18:19:43 max Exp $
+ * $Id: hccontrol.c,v 1.2 2003/04/27 19:45:24 max Exp $
  * $FreeBSD$
  */
 
@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 	int	 n;
 
 	/* Process command line arguments */
-	while ((n = getopt(argc, argv, "n:v")) != -1) {
+	while ((n = getopt(argc, argv, "n:vh")) != -1) {
 		switch (n) {
 		case 'n':
 			node = optarg;
@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 			verbose = 1;
 			break;
 
-		case '?':
+		case 'h':
 		default:
 			usage();
 		}
@@ -268,7 +268,7 @@ print_hci_command(struct hci_command *category)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: hccontrol -n HCI_node_name cmd [p1] [..]]\n");
+	fprintf(stdout, "Usage: hccontrol -n HCI_node_name [-h] cmd [p1] [..]]\n");
 	exit(255);
 } /* usage */
 

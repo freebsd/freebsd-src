@@ -1,5 +1,6 @@
+%{
 /*
- * l2control.h
+ * lexer.l
  *
  * Copyright (c) 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
@@ -25,25 +26,70 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2control.h,v 1.1 2002/11/24 20:22:41 max Exp $
+ * $Id: lexer.l,v 1.1 2002/11/24 20:22:39 max Exp $
  * $FreeBSD$
  */
 
-#ifndef _L2CONTROL_H_
-#define _L2CONTROL_H_
+#include <string.h>
+#include "parser.h"
+%}
 
-#define	OK			0	/* everything was OK */
-#define	ERROR			1	/* could not execute command */
-#define	FAILED			2	/* error was reported */
-#define	USAGE			3	/* invalid parameters */
+%option yylineno noyywrap nounput
 
-struct l2cap_command {
-	char const		*command;
-	char const		*description;
-	int			(*handler)(int, int, char **);
-};
+delim		[ \t\n]
+ws		{delim}+
+empty		{delim}*
+comment		\#.*
 
-extern struct l2cap_command	 l2cap_commands[];
+hexdigit	[0-9a-fA-F]
+hexbyte		{hexdigit}{hexdigit}
 
-#endif /* _L2CONTROL_H_ */
+device_word	device
+bdaddr_word	bdaddr
+name_word	name
+key_word	key
+nokey_word	nokey
+pin_word	pin
+nopin_word	nopin
+
+bdaddrstring	{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}:{hexbyte}
+hexstring	0x{hexbyte}+
+string		\".+\"
+
+%%
+
+\;		return (';');
+\:		return (':');
+\{		return ('{');
+\}		return ('}');
+
+{ws}		;
+{empty}		;
+{comment}	;
+
+{device_word}	return (T_DEVICE);
+{bdaddr_word}	return (T_BDADDR);
+{name_word}	return (T_NAME);
+{key_word}	return (T_KEY);
+{nokey_word}	return (T_NOKEY);
+{pin_word}	return (T_PIN);
+{nopin_word}	return (T_NOPIN);
+
+{bdaddrstring}	{
+		yylval.string = yytext;
+		return (T_BDADDRSTRING);
+		}
+
+{hexstring}	{
+		yylval.string = &yytext[2];
+		return (T_HEXSTRING);
+		}
+
+{string}	{
+		yytext[strlen(yytext) - 1] = 0;
+		yylval.string = &yytext[1];
+		return (T_STRING);
+		}
+
+%%
 
