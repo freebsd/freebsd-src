@@ -301,7 +301,7 @@ done()
  *     turns \n into \r\n
  */
 wr_fputs(s)
-	register char *s;
+	register unsigned char *s;
 {
 
 #define	PUTC(c)	if (putchar(c) == EOF) goto err;
@@ -309,12 +309,18 @@ wr_fputs(s)
 	for (; *s != '\0'; ++s) {
 		if (*s == '\n') {
 			PUTC('\r');
-			PUTC('\n');
 		} else if (!isprint(*s) && !isspace(*s) && *s != '\007') {
-			PUTC('^');
-			PUTC((*s^0x40)&~0x80);   /* DEL to ?, others to alpha */
-		} else
-			PUTC(*s);
+			if (*s & 0x80) {
+				*s &= ~0x80;
+				PUTC('M');
+				PUTC('-');
+			}
+			if (iscntrl(*s)) {
+				*s ^= 0x40;
+				PUTC('^');
+			}
+		}
+		PUTC(*s);
 	}
 	return;
 
