@@ -101,14 +101,24 @@ main(int argc, char **argv)
     if (DebugFD)
 	dup2(DebugFD, 2);
 
-    /* Initialize driver modules */
-    moduleInitialize();
+    /* Initialize driver modules, if we haven't already done so (ie,
+       the user hit Ctrl-C -> Restart. */
+    if (!pvariable_get("modulesInitialize")) {
+	moduleInitialize();
+	pvariable_set("modulesInitialize=1");
+    }
 
-    /* Initialize PC-card */
-    pccardInitialize();
+    /* Initialize PC-card, if we haven't already done so. */
+    if (!pvariable_get("pccardInitialize")) {
+	pccardInitialize();
+	pvariable_set("pccardInitialize=1");
+    }
 
-    /* Initialize USB */
-    usbInitialize();
+    /* Initialize USB, if we haven't already done so. */
+    if (!pvariable_get("usbInitialize")) {
+	usbInitialize();
+	pvariable_set("usbInitialize=1");
+    }
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
