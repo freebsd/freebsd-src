@@ -70,11 +70,17 @@ do {						\
 		Debug args ;			\
 	}					\
 } while (0)
+#define	DEBUGM(module, args) do {		\
+	if (DEBUG(module)) {			\
+		DebugM args;			\
+	}					\
+    } while (0)
 
 #define	ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
 #define	ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
 
 void Debug(const char *, ...);
+void DebugM(const char *, ...);
 void Error(const char *, ...);
 void Fatal(const char *, ...) __dead2;
 void Punt(const char *, ...) __dead2;
