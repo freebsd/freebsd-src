@@ -66,6 +66,7 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <fs/devfs/devfs.h>
 #include <sys/mount.h>
 #undef _KERNEL
 #include <nfs/nfsproto.h>
@@ -142,6 +143,7 @@ void dommap __P((struct kinfo_proc *kp));
 void vtrans __P((struct vnode *vp, int i, int flag));
 int  ufs_filestat __P((struct vnode *vp, struct filestat *fsp));
 int  nfs_filestat __P((struct vnode *vp, struct filestat *fsp));
+int  devfs_filestat __P((struct vnode *vp, struct filestat *fsp));
 char *getmnton __P((struct mount *m));
 void pipetrans __P((struct pipe *pi, int i, int flag));
 void socktrans __P((struct socket *sock, int i));
@@ -466,6 +468,12 @@ vtrans(vp, i, flag)
 			if (!ufs_filestat(&vn, &fst))
 				badtype = "error";
 			break;
+
+		case VT_DEVFS:
+			if (!devfs_filestat(&vn, &fst))
+				badtype = "error";
+			break;
+
 		case VT_NFS:
 			if (!nfs_filestat(&vn, &fst))
 				badtype = "error";
@@ -566,6 +574,39 @@ ufs_filestat(vp, fsp)
 	fsp->mode = (mode_t)inode.i_mode;
 	fsp->size = (u_long)inode.i_size;
 	fsp->rdev = inode.i_rdev;
+
+	return 1;
+}
+
+int
+devfs_filestat(vp, fsp)
+	struct vnode *vp;
+	struct filestat *fsp;
+{
+	struct devfs_dirent devfs_dirent;
+	struct mount mount;
+	struct vnode vnode;
+
+	if (!KVM_READ(vp->v_data, &devfs_dirent, sizeof (devfs_dirent))) {
+		dprintf(stderr, "can't read devfs_dirent at %p for pid %d\n",
+		    (void *)vp->v_data, Pid);
+		return 0;
+	}
+	if (!KVM_READ(vp->v_mount, &mount, sizeof (mount))) {
+		dprintf(stderr, "can't read mount at %p for pid %d\n",
+		    (void *)vp->v_mount, Pid);
+		return 0;
+	}
+	if (!KVM_READ(devfs_dirent.de_vnode, &vnode, sizeof (vnode))) {
+		dprintf(stderr, "can't read vnode at %p for pid %d\n",
+		    (void *)devfs_dirent.de_vnode, Pid);
+		return 0;
+	}
+	fsp->fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	fsp->fileid = devfs_dirent.de_inode;
+	fsp->mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
+	fsp->size = 0;
+	fsp->rdev = dev2udev((dev_t)vnode.v_rdev);
 
 	return 1;
 }
