@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psopcode - Parser/Interpreter opcode information table
- *              $Revision: 64 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -310,7 +310,7 @@
 #define ARGI_BIT_XOR_OP                 ARGI_LIST3 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF)
 #define ARGI_BREAK_OP                   ARG_NONE
 #define ARGI_BREAK_POINT_OP             ARG_NONE
-#define ARGI_BUFFER_OP                  ARGI_INVALID_OPCODE
+#define ARGI_BUFFER_OP                  ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_BYTE_OP                    ARGI_INVALID_OPCODE
 #define ARGI_BYTELIST_OP                ARGI_INVALID_OPCODE
 #define ARGI_CONCAT_OP                  ARGI_LIST3 (ARGI_COMPUTEDATA,ARGI_COMPUTEDATA,   ARGI_TARGETREF)
@@ -375,7 +375,7 @@
 #define ARGI_NOTIFY_OP                  ARGI_LIST2 (ARGI_DEVICE_REF, ARGI_INTEGER)
 #define ARGI_ONE_OP                     ARG_NONE
 #define ARGI_ONES_OP                    ARG_NONE
-#define ARGI_PACKAGE_OP                 ARGI_INVALID_OPCODE
+#define ARGI_PACKAGE_OP                 ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_POWER_RES_OP               ARGI_INVALID_OPCODE
 #define ARGI_PROCESSOR_OP               ARGI_INVALID_OPCODE
 #define ARGI_QWORD_OP                   ARGI_INVALID_OPCODE
@@ -406,7 +406,7 @@
 #define ARGI_TO_STRING_OP               ARGI_LIST3 (ARGI_BUFFER,     ARGI_INTEGER,       ARGI_FIXED_TARGET)
 #define ARGI_TYPE_OP                    ARGI_LIST1 (ARGI_ANYTYPE)
 #define ARGI_UNLOAD_OP                  ARGI_LIST1 (ARGI_DDBHANDLE)
-#define ARGI_VAR_PACKAGE_OP             ARGI_INVALID_OPCODE
+#define ARGI_VAR_PACKAGE_OP             ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_WAIT_OP                    ARGI_LIST2 (ARGI_EVENT,      ARGI_INTEGER)
 #define ARGI_WHILE_OP                   ARGI_INVALID_OPCODE
 #define ARGI_WORD_OP                    ARGI_INVALID_OPCODE
@@ -513,6 +513,7 @@
     AML_CREATE_DWORD_FIELD_OP
     AML_CREATE_QWORD_FIELD_OP
     AML_REGION_OP
+    AML_BUFFER_OP
 
   Field opcodes
 
@@ -552,8 +553,8 @@ static const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[] =
 /* 06 */ ACPI_OP ("DwordConst",         ARGP_DWORD_OP,             ARGI_DWORD_OP,              ACPI_TYPE_INTEGER,       AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         0),
 /* 07 */ ACPI_OP ("String",             ARGP_STRING_OP,            ARGI_STRING_OP,             ACPI_TYPE_STRING,        AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         0),
 /* 08 */ ACPI_OP ("Scope",              ARGP_SCOPE_OP,             ARGI_SCOPE_OP,              INTERNAL_TYPE_SCOPE,     AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_NO_OBJ,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED),
-/* 09 */ ACPI_OP ("Buffer",             ARGP_BUFFER_OP,            ARGI_BUFFER_OP,             ACPI_TYPE_BUFFER,        AML_CLASS_ARGUMENT,        AML_TYPE_DATA_TERM,       AML_HAS_ARGS),
-/* 0A */ ACPI_OP ("Package",            ARGP_PACKAGE_OP,           ARGI_PACKAGE_OP,            ACPI_TYPE_PACKAGE,       AML_CLASS_ARGUMENT,        AML_TYPE_DATA_TERM,       AML_HAS_ARGS),
+/* 09 */ ACPI_OP ("Buffer",             ARGP_BUFFER_OP,            ARGI_BUFFER_OP,             ACPI_TYPE_BUFFER,        AML_CLASS_CREATE,          AML_TYPE_CREATE_OBJECT,   AML_HAS_ARGS | AML_DEFER),
+/* 0A */ ACPI_OP ("Package",            ARGP_PACKAGE_OP,           ARGI_PACKAGE_OP,            ACPI_TYPE_PACKAGE,       AML_CLASS_CREATE,          AML_TYPE_CREATE_OBJECT,   AML_HAS_ARGS | AML_DEFER),
 /* 0B */ ACPI_OP ("Method",             ARGP_METHOD_OP,            ARGI_METHOD_OP,             ACPI_TYPE_METHOD,        AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_COMPLEX,   AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED | AML_DEFER),
 /* 0C */ ACPI_OP ("Local0",             ARGP_LOCAL0,               ARGI_LOCAL0,                INTERNAL_TYPE_REFERENCE, AML_CLASS_ARGUMENT,        AML_TYPE_LOCAL_VARIABLE,  0),
 /* 0D */ ACPI_OP ("Local1",             ARGP_LOCAL1,               ARGI_LOCAL1,                INTERNAL_TYPE_REFERENCE, AML_CLASS_ARGUMENT,        AML_TYPE_LOCAL_VARIABLE,  0),
@@ -664,7 +665,7 @@ static const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[] =
 /* ACPI 2.0 opcodes */
 
 /* 6E */ ACPI_OP ("QwordConst",         ARGP_QWORD_OP,             ARGI_QWORD_OP,              ACPI_TYPE_INTEGER,       AML_CLASS_ARGUMENT,        AML_TYPE_LITERAL,         0),
-/* 6F */ ACPI_OP ("Package /*Var*/",    ARGP_VAR_PACKAGE_OP,       ARGI_VAR_PACKAGE_OP,        ACPI_TYPE_PACKAGE,       AML_CLASS_ARGUMENT,        AML_TYPE_DATA_TERM,       AML_HAS_ARGS | AML_DEFER),
+/* 6F */ ACPI_OP ("Package /*Var*/",    ARGP_VAR_PACKAGE_OP,       ARGI_VAR_PACKAGE_OP,        ACPI_TYPE_PACKAGE,       AML_CLASS_CREATE,          AML_TYPE_CREATE_OBJECT,   AML_HAS_ARGS | AML_DEFER),
 /* 70 */ ACPI_OP ("ConcatenateResTemplate", ARGP_CONCAT_RES_OP,    ARGI_CONCAT_RES_OP,         ACPI_TYPE_ANY,           AML_CLASS_EXECUTE,         AML_TYPE_EXEC_2A_1T_1R,   AML_FLAGS_EXEC_2A_1T_1R),
 /* 71 */ ACPI_OP ("Mod",                ARGP_MOD_OP,               ARGI_MOD_OP,                ACPI_TYPE_ANY,           AML_CLASS_EXECUTE,         AML_TYPE_EXEC_2A_1T_1R,   AML_FLAGS_EXEC_2A_1T_1R),
 /* 72 */ ACPI_OP ("CreateQWordField",   ARGP_CREATE_QWORD_FIELD_OP,ARGI_CREATE_QWORD_FIELD_OP, ACPI_TYPE_BUFFER_FIELD,  AML_CLASS_CREATE,          AML_TYPE_CREATE_FIELD,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSNODE | AML_DEFER | AML_CREATE),
@@ -678,6 +679,7 @@ static const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[] =
 /* 7A */ ACPI_OP ("Continue",           ARGP_CONTINUE_OP,          ARGI_CONTINUE_OP,           ACPI_TYPE_ANY,           AML_CLASS_CONTROL,         AML_TYPE_CONTROL,         0),
 /* 7B */ ACPI_OP ("LoadTable",          ARGP_LOAD_TABLE_OP,        ARGI_LOAD_TABLE_OP,         ACPI_TYPE_ANY,           AML_CLASS_EXECUTE,         AML_TYPE_EXEC_6A_0T_1R,   AML_FLAGS_EXEC_6A_0T_1R),
 /* 7C */ ACPI_OP ("DataTableRegion",    ARGP_DATA_REGION_OP,       ARGI_DATA_REGION_OP,        ACPI_TYPE_REGION,        AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_SIMPLE,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED),
+/* 7D */ ACPI_OP ("[EvalSubTree]",      ARGP_SCOPE_OP,             ARGI_SCOPE_OP,              INTERNAL_TYPE_SCOPE,     AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_NO_OBJ,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE)
 
 /*! [End] no source code translation !*/
 };
@@ -697,7 +699,7 @@ static const UINT8 AcpiGbl_ShortOpIndex[256] =
 /* 0x18 */    _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x20 */    _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x28 */    _UNK, _UNK, _UNK, _UNK, _UNK, 0x63, _PFX, _PFX,
-/* 0x30 */    0x67, 0x66, 0x68, 0x65, 0x69, 0x64, 0x6A, _UNK,
+/* 0x30 */    0x67, 0x66, 0x68, 0x65, 0x69, 0x64, 0x6A, 0x7D,
 /* 0x38 */    _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x40 */    _UNK, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC,
 /* 0x48 */    _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC,

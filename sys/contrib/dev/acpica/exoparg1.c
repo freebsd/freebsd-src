@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 134 $
+ *              $Revision: 135 $
  *
  *****************************************************************************/
 
@@ -928,10 +928,22 @@ AcpiExOpcode_1A_0T_1R (
                 switch (Operand[0]->Reference.TargetType)
                 {
                 case ACPI_TYPE_BUFFER_FIELD:
+
+                    /* Ensure that the Buffer arguments are evaluated */
+
+                    TempDesc = Operand[0]->Reference.Object;
+#if 0
+                    
+                    Status = AcpiDsGetBufferArguments (TempDesc);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        goto Cleanup;
+                    }
+#endif
+
                     /*
-                     * The target is a buffer, we must create a new object that
-                     * contains one element of the buffer, the element pointed
-                     * to by the index.
+                     * Create a new object that contains one element of the 
+                     * buffer -- the element pointed to by the index.
                      *
                      * NOTE: index into a buffer is NOT a pointer to a
                      * sub-buffer of the main buffer, it is only a pointer to a
@@ -949,7 +961,6 @@ AcpiExOpcode_1A_0T_1R (
                      * indexed location, we don't need to add an additional
                      * reference to the buffer itself.
                      */
-                    TempDesc = Operand[0]->Reference.Object;
                     ReturnDesc->Integer.Value =
                         TempDesc->Buffer.Pointer[Operand[0]->Reference.Offset];
                     break;
@@ -957,10 +968,18 @@ AcpiExOpcode_1A_0T_1R (
 
                 case ACPI_TYPE_PACKAGE:
 
+#if 0
+                    /* Ensure that the Package arguments are evaluated */
+
+                    Status = AcpiDsGetPackageArguments (Operand[0]->Reference.Object);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        goto Cleanup;
+                    }
+#endif
                     /*
-                     * The target is a package, we want to return the referenced
-                     * element of the package.  We must add another reference to
-                     * this object, however.
+                     * Return the referenced element of the package.  We must add 
+                     * another reference to the referenced object, however.
                      */
                     ReturnDesc = *(Operand[0]->Reference.Where);
                     if (!ReturnDesc)

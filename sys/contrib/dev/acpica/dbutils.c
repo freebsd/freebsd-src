@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  ******************************************************************************/
 
@@ -248,7 +248,7 @@ AcpiDbDumpObject (
 
     case ACPI_TYPE_BUFFER:
 
-        AcpiOsPrintf ("[Buffer] = ");
+        AcpiOsPrintf ("[Buffer] Length %.2X = ", ObjDesc->Buffer.Length);
         AcpiUtDumpBuffer ((UINT8 *) ObjDesc->Buffer.Pointer, ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
         break;
 

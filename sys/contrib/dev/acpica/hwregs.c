@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 120 $
+ *              $Revision: 121 $
  *
  ******************************************************************************/
 
@@ -167,9 +167,8 @@ AcpiHwClearAcpiStatus (void)
 
     if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address))
     {
-        AcpiOsWritePort ((ACPI_IO_ADDRESS)
-            ACPI_GET_ADDRESS (AcpiGbl_FADT->XPm1bEvtBlk.Address),
-            ACPI_BITMASK_ALL_FIXED_STATUS, 16);
+        AcpiHwLowLevelWrite (16, ACPI_BITMASK_ALL_FIXED_STATUS,
+                &AcpiGbl_FADT->XPm1bEvtBlk, 0);
     }
 
     /* Clear the GPE Bits */
@@ -178,9 +177,8 @@ AcpiHwClearAcpiStatus (void)
     {
         for (i = 0; i < AcpiGbl_GpeBlockInfo[GpeBlock].RegisterCount; i++)
         {
-            AcpiOsWritePort ((ACPI_IO_ADDRESS)
-                (AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress + i),
-                0xFF, 8);
+            AcpiHwLowLevelWrite (8, 0xFF,
+                AcpiGbl_GpeBlockInfo[GpeBlock].BlockAddress, i);
         }
     }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsdump - table dumping routines for debug
- *              $Revision: 127 $
+ *              $Revision: 129 $
  *
  *****************************************************************************/
 
@@ -146,7 +146,7 @@ AcpiNsPrintPathname (
     UINT32                  NumSegments,
     char                    *Pathname)
 {
-    ACPI_FUNCTION_NAME ("AcpiNsPrintPathname");
+    ACPI_FUNCTION_NAME ("NsPrintPathname");
 
 
     if (!(AcpiDbgLevel & ACPI_LV_NAMES) || !(AcpiDbgLayer & ACPI_NAMESPACE))
@@ -340,7 +340,7 @@ AcpiNsDumpOneObject (
         Type = INTERNAL_TYPE_DEF_ANY;  /* prints as *ERROR* */
     }
 
-    if (!AcpiUtValidAcpiName (ThisNode->Name))
+    if (!AcpiUtValidAcpiName (ThisNode->Name.Integer))
     {
         ACPI_REPORT_WARNING (("Invalid ACPI Name %08X\n", ThisNode->Name));
     }
@@ -371,62 +371,95 @@ AcpiNsDumpOneObject (
         switch (Type)
         {
         case ACPI_TYPE_PROCESSOR:
+            
             AcpiOsPrintf (" ID %d Addr %.4X Len %.4X\n",
                         ObjDesc->Processor.ProcId,
                         ObjDesc->Processor.Address,
                         ObjDesc->Processor.Length);
             break;
 
+
         case ACPI_TYPE_DEVICE:
+            
             AcpiOsPrintf (" Notification object: %p", ObjDesc);
             break;
 
+
         case ACPI_TYPE_METHOD:
+            
             AcpiOsPrintf (" Args %d Len %.4X Aml %p \n",
                         ObjDesc->Method.ParamCount,
                         ObjDesc->Method.AmlLength,
                         ObjDesc->Method.AmlStart);
             break;
 
+
         case ACPI_TYPE_INTEGER:
+            
             AcpiOsPrintf (" = %8.8X%8.8X\n",
                         ACPI_HIDWORD (ObjDesc->Integer.Value),
                         ACPI_LODWORD (ObjDesc->Integer.Value));
             break;
 
+
         case ACPI_TYPE_PACKAGE:
-            AcpiOsPrintf (" Elements %.2X\n",
-                        ObjDesc->Package.Count);
+
+            if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
+            {
+                AcpiOsPrintf (" Elements %.2X\n",
+                            ObjDesc->Package.Count);
+            }
+            else
+            {
+                AcpiOsPrintf (" [Length not yet evaluated]\n");
+            }
             break;
 
+
         case ACPI_TYPE_BUFFER:
-            AcpiOsPrintf (" Len %.2X",
-                        ObjDesc->Buffer.Length);
 
-            /* Dump some of the buffer */
-
-            if (ObjDesc->Buffer.Length > 0)
+            if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
             {
-                AcpiOsPrintf (" =");
-                for (i = 0; (i < ObjDesc->Buffer.Length && i < 12); i++)
+                AcpiOsPrintf (" Len %.2X",
+                            ObjDesc->Buffer.Length);
+
+                /* Dump some of the buffer */
+
+                if (ObjDesc->Buffer.Length > 0)
                 {
-                    AcpiOsPrintf (" %.2X", ObjDesc->Buffer.Pointer[i]);
+                    AcpiOsPrintf (" =");
+                    for (i = 0; (i < ObjDesc->Buffer.Length && i < 12); i++)
+                    {
+                        AcpiOsPrintf (" %.2X", ObjDesc->Buffer.Pointer[i]);
+                    }
+                }
+                AcpiOsPrintf ("\n");
+            }
+            else
+            {
+                AcpiOsPrintf (" [Length not yet evaluated]\n");
+            }
+            break;
+
+
+        case ACPI_TYPE_STRING:
+            
+            AcpiOsPrintf (" Len %.2X", ObjDesc->String.Length);
+
+            if (ObjDesc->String.Length > 0)
+            {
+                AcpiOsPrintf (" = \"%.32s\"", ObjDesc->String.Pointer);
+                if (ObjDesc->String.Length > 32)
+                {
+                    AcpiOsPrintf ("...");
                 }
             }
             AcpiOsPrintf ("\n");
             break;
 
-        case ACPI_TYPE_STRING:
-            AcpiOsPrintf (" Len %.2X", ObjDesc->String.Length);
-
-            if (ObjDesc->String.Length > 0)
-            {
-                 AcpiOsPrintf (" = \"%.32s\"...", ObjDesc->String.Pointer);
-            }
-            AcpiOsPrintf ("\n");
-            break;
 
         case ACPI_TYPE_REGION:
+            
             AcpiOsPrintf (" [%s]", AcpiUtGetRegionName (ObjDesc->Region.SpaceId));
             if (ObjDesc->Region.Flags & AOPOBJ_DATA_VALID)
             {
@@ -437,16 +470,20 @@ AcpiNsDumpOneObject (
             }
             else
             {
-                AcpiOsPrintf (" [Address/Length not evaluated]\n");
+                AcpiOsPrintf (" [Address/Length not yet evaluated]\n");
             }
             break;
 
+
         case INTERNAL_TYPE_REFERENCE:
+            
             AcpiOsPrintf (" [%s]\n",
                     AcpiPsGetOpcodeName (ObjDesc->Reference.Opcode));
             break;
 
+
         case ACPI_TYPE_BUFFER_FIELD:
+            
             if (ObjDesc->BufferField.BufferObj &&
                 ObjDesc->BufferField.BufferObj->Buffer.Node)
             {
@@ -455,24 +492,32 @@ AcpiNsDumpOneObject (
             }
             break;
 
+
         case INTERNAL_TYPE_REGION_FIELD:
+            
             AcpiOsPrintf (" Rgn [%4.4s]",
                     (char *) &ObjDesc->CommonField.RegionObj->Region.Node->Name);
             break;
 
+
         case INTERNAL_TYPE_BANK_FIELD:
+            
             AcpiOsPrintf (" Rgn [%4.4s] Bnk [%4.4s]",
                     (char *) &ObjDesc->CommonField.RegionObj->Region.Node->Name,
                     (char *) &ObjDesc->BankField.BankObj->CommonField.Node->Name);
             break;
 
+
         case INTERNAL_TYPE_INDEX_FIELD:
+            
             AcpiOsPrintf (" Idx [%4.4s] Dat [%4.4s]",
                     (char *) &ObjDesc->IndexField.IndexObj->CommonField.Node->Name,
                     (char *) &ObjDesc->IndexField.DataObj->CommonField.Node->Name);
             break;
 
+
         default:
+            
             AcpiOsPrintf (" Object %p\n", ObjDesc);
             break;
         }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 55 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -276,31 +276,39 @@ AcpiTbRecognizeTable (
      * We only "recognize" a limited number of ACPI tables -- namely, the
      * ones that are used by the subsystem (DSDT, FADT, etc.)
      *
-     * An AE_NOT_FOUND means that the table was not recognized.
+     * An AE_TABLE_NOT_SUPPORTED means that the table was not recognized.
      * This can be any one of many valid ACPI tables, it just isn't one of
      * the tables that is consumed by the core subsystem
      */
     Status = AcpiTbMatchSignature (TableHeader->Signature, TableInfo);
-    if (ACPI_SUCCESS (Status))
+    if (ACPI_FAILURE (Status))
     {
-        /* Return the table type and length via the info struct */
+        return_ACPI_STATUS (Status);
+    }
 
-        TableInfo->Length   = TableHeader->Length;
+    Status = AcpiTbValidateTableHeader (TableHeader);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
-        /*
-         * Validate checksum for _most_ tables,
-         * even the ones whose signature we don't recognize
-         */
-        if (TableInfo->Type != ACPI_TABLE_FACS)
+    /* Return the table type and length via the info struct */
+
+    TableInfo->Length   = TableHeader->Length;
+
+    /*
+     * Validate checksum for _most_ tables,
+     * even the ones whose signature we don't recognize
+     */
+    if (TableInfo->Type != ACPI_TABLE_FACS)
+    {
+        Status = AcpiTbVerifyTableChecksum (TableHeader);
+        if (ACPI_FAILURE (Status) &&
+            (!ACPI_CHECKSUM_ABORT))
         {
-            Status = AcpiTbVerifyTableChecksum (TableHeader);
-            if (ACPI_FAILURE (Status) &&
-                (!ACPI_CHECKSUM_ABORT))
-            {
-                /* Ignore the error if configuration says so */
+            /* Ignore the error if configuration says so */
 
-                Status = AE_OK;
-            }
+            Status = AE_OK;
         }
     }
 
@@ -484,10 +492,6 @@ AcpiTbDeleteAcpiTable (
         return;
     }
 
-    /* Free the table */
-
-    AcpiTbFreeAcpiTablesOfType (&AcpiGbl_AcpiTables[Type]);
-
     /* Clear the appropriate "typed" global table pointer */
 
     switch (Type)
@@ -517,6 +521,10 @@ AcpiTbDeleteAcpiTable (
     default:
         break;
     }
+
+    /* Free the table */
+
+    AcpiTbFreeAcpiTablesOfType (&AcpiGbl_AcpiTables[Type]);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
     return_VOID;
