@@ -536,6 +536,7 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 		gctl_error(req, "Unknown verb parameter");
 }
 
+#if 0
 static int
 gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
@@ -616,6 +617,7 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	g_wither_geom(gp, ENXIO);
 	return (0);
 }
+#endif
 
 #define	VINUM_CLASS_NAME "VINUM"
 
