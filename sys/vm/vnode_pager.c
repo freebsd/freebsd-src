@@ -215,6 +215,7 @@ vnode_pager_haspage(object, pindex, before, after)
 	int poff;
 	int bsize;
 	int pagesperblock, blocksperpage;
+	int vfslocked;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
@@ -248,9 +249,9 @@ vnode_pager_haspage(object, pindex, before, after)
 		reqblock = pindex * blocksperpage;
 	}
 	VM_OBJECT_UNLOCK(object);
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	err = VOP_BMAP(vp, reqblock, NULL, &bn, after, before);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	VM_OBJECT_LOCK(object);
 	if (err)
 		return TRUE;
@@ -397,7 +398,6 @@ vnode_pager_addr(vp, address, run)
 	daddr_t vblock;
 	int voffset;
 
-	GIANT_REQUIRED;
 	if (address < 0)
 		return -1;
 
@@ -440,8 +440,6 @@ vnode_pager_input_smlfs(object, m)
 	int fileaddr;
 	vm_offset_t bsize;
 	int error = 0;
-
-	GIANT_REQUIRED;
 
 	vp = object->handle;
 	if (vp->v_mount == NULL)
@@ -619,14 +617,15 @@ vnode_pager_getpages(object, m, count, reqpage)
 	int rtval;
 	struct vnode *vp;
 	int bytes = count * PAGE_SIZE;
+	int vfslocked;
 
 	vp = object->handle;
 	VM_OBJECT_UNLOCK(object);
-	mtx_lock(&Giant);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	VM_OBJECT_LOCK(object);
 	return rtval;
 }
@@ -653,7 +652,6 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	int count;
 	int error = 0;
 
-	GIANT_REQUIRED;
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
 
@@ -946,7 +944,6 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	struct mount *mp;
 	int bytes = count * PAGE_SIZE;
 
-	GIANT_REQUIRED;
 	/*
 	 * Force synchronous operation if we are extremely low on memory
 	 * to prevent a low-memory deadlock.  VOP operations often need to
@@ -1006,7 +1003,6 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	int error;
 	int ioflags;
 
-	GIANT_REQUIRED;
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
 
