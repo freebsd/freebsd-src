@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: util.c,v 1.28 94/06/12 14:30:31 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/util.c,v 1.3 1995/09/28 15:28:40 wollman Exp $ (LBL)";
 #endif
 
 #include <stdlib.h>
@@ -317,19 +317,10 @@ read_infile(char *fname)
 int
 gmt2local()
 {
-#ifndef SOLARIS
-	struct timeval now;
-	struct timezone tz;
-	long t;
+	time_t now;
+	struct tm *tmp;
 
-	if (gettimeofday(&now, &tz) < 0)
-		error("gettimeofday");
-	t = tz.tz_minuteswest * -60;
-	if (localtime((time_t *)&now.tv_sec)->tm_isdst)
-		t += 3600;
-	return (t);
-#else
-	tzset();
-	return (-altzone);
-#endif
+	time(&now);
+	tmp = localtime(&now);
+	return tmp->tm_gmtoff;
 }

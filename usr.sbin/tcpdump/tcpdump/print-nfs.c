@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-nfs.c,v 1.41 94/06/12 14:35:15 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-nfs.c,v 1.4 1995/08/23 05:18:54 pst Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -568,6 +568,9 @@ parserep(register const struct rpc_msg *rp, register int length)
 
 #define T2CHECK(p, l) if ((u_char *)(p) > ((u_char *)snapend) - l) return(0)
 
+#if defined(BSD) && (BSD >= 199103)
+#define	strerr strerror
+#else
 /*
  * Not all systems have strerror().
  */
@@ -575,15 +578,14 @@ static char *
 strerr(int errno)
 {
 	extern int sys_nerr;
-#ifndef __FreeBSD__
 	/* Conflicts with declaration in <stdio.h> */
 	extern char *sys_errlist[];
-#endif
 
 	if (errno < sys_nerr)
 		return (sys_errlist[errno]);
 	return (0);
 }
+#endif
 
 static const u_int32 *
 parsestatus(const u_int32 *dp)

@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-udp.c,v 1.37 94/06/10 17:01:42 mccanne Exp $ (LBL)";
+    "$Id: print-udp.c,v 1.4 1995/08/29 19:48:11 wollman Exp $";
 #endif
 
 #include <sys/param.h>
@@ -127,11 +127,14 @@ rtp_print(const void *hdr, int len, register const struct udphdr *up)
 
 /* XXX probably should use getservbyname() and cache answers */
 #define TFTP_PORT 69		/*XXX*/
+#define KERBEROS_PORT 80	/*XXX*/
 #define SUNRPC_PORT 111		/*XXX*/
 #define SNMP_PORT 161		/*XXX*/
 #define NTP_PORT 123		/*XXX*/
 #define SNMPTRAP_PORT 162	/*XXX*/
 #define RIP_PORT 520		/*XXX*/
+#define KERBEROS_SEC_PORT 750	/*XXX*/
+#define RSVP_ENCAP_PORT 3455	/*XXX*/
 
 void
 udp_print(register const u_char *bp, int length, register const u_char *bp2)
@@ -247,6 +250,12 @@ udp_print(register const u_char *bp, int length, register const u_char *bp2)
 			snmp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(NTP_PORT))
 			ntp_print((const u_char *)(up + 1), length);
+		else if (ISPORT(KERBEROS_PORT) || ISPORT(KERBEROS_SEC_PORT))
+			krb_print((const void *)(up + 1), length);
+#if 0
+		else if (ISPORT(RSVP_ENCAP_PORT))
+			rsvpUDP_print((const u_char *)(up + 1), length);
+#endif
 		else if (dport == 3456)
 			vat_print((const void *)(up + 1), length, up);
 		/*
