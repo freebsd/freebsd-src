@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.20 1995/02/18 18:04:30 wpaul Exp $
+ *	$Id: autoconf.c,v 1.21 1995/03/16 18:11:24 bde Exp $
  */
 
 /*
@@ -74,6 +74,9 @@ int ffs_mountroot __P((void));
 #ifdef NFS
 int nfs_mountroot __P((void));
 #endif
+#ifdef CD9660
+int cd9660_mountroot __P((void));
+#endif
 
 #include "isa.h"
 #if NISA > 0
@@ -83,6 +86,36 @@ int nfs_mountroot __P((void));
 #include "pci.h"
 #if NPCI > 0
       #include <pci/pcivar.h>
+#endif
+
+#ifdef BOOTCDROM
+/* We need to try out all our potential CDROM drives, so we need a table. */
+static struct {
+	char *name;
+	int major;
+} try_cdrom[] = {
+	{ "cd", 6 },
+	{ "mcd", 7 },
+	{ "scd", 16 },
+	{ "matcd", 17 },
+	{ 0, 0}
+};
+
+int
+find_cdrom_root()
+{
+	int i,j,k;
+
+	for (j = 0 ; j < 2; j++)
+		for (k = 0 ; try_cdrom[k].name ; k++) {
+			rootdev = makedev(try_cdrom[k].major,j*8);
+			printf("trying rootdev=%x (%s%d)\n",
+				rootdev, try_cdrom[k].name,j);
+			i = (*cd9660_mountroot)();
+			if (!i) return i;
+		}
+	return EINVAL;
+}
 #endif
 
 /*
@@ -100,8 +133,15 @@ configure()
 	pci_configure();
 #endif
 
+#ifdef CD9660
+#ifdef BOOTCDROM
+	if (!mountroot) {
+		mountroot = find_cdrom_root;
+	}
+#endif
+#endif
 #ifdef NFS
-	if (nfs_diskless_valid)
+	if (!mountroot && nfs_diskless_valid)
 		mountroot = nfs_mountroot;
 #endif /* NFS */
 #ifdef FFS
