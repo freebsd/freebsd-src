@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.116 1999/01/12 12:39:14 eivind Exp $
+ * $Id: nfs_vnops.c,v 1.117 1999/01/21 08:29:07 dillon Exp $
  */
 
 
@@ -376,7 +376,7 @@ nfs_access(ap)
 		}
 		return (error);
 	} else {
-		if (error = nfsspec_access(ap))
+		if ((error = nfsspec_access(ap)) != 0)
 			return (error);
 
 		/*
@@ -794,7 +794,7 @@ nfs_lookup(ap)
 		struct vattr vattr;
 		int vpid;
 
-		if (error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, p)) {
+		if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, p)) != 0) {
 			*vpp = NULLVP;
 			return (error);
 		}
@@ -1225,7 +1225,7 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 		VOP_ABORTOP(dvp, cnp);
 		return (EOPNOTSUPP);
 	}
-	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) != 0) {
 		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
@@ -1341,7 +1341,7 @@ nfs_create(ap)
 	if (vap->va_type == VSOCK)
 		return (nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap));
 
-	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) != 0) {
 		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
@@ -1819,7 +1819,7 @@ nfs_mkdir(ap)
 	struct vattr vattr;
 	int v3 = NFS_ISV3(dvp);
 
-	if (error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_proc)) != 0) {
 		VOP_ABORTOP(dvp, cnp);
 		return (error);
 	}
