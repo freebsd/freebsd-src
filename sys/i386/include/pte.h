@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pte.h	5.5 (Berkeley) 5/9/91
- *	$Id: pte.h,v 1.4 1994/01/31 06:52:41 davidg Exp $
+ *	$Id: pte.h,v 1.6 1994/05/25 08:56:34 rgrimes Exp $
  */
 
 #ifndef _MACHINE_PTE_H_
@@ -94,7 +94,7 @@ unsigned int
 #define PG_N		0x00000018 /* Non-cacheable */
 #define PG_U		0x00000020 /* page was accessed */
 #define	PG_M		0x00000040 /* page was modified */
-#define PG_W		0x00000200
+#define PG_W		0x00000200 /* "Wired" pseudoflag */
 #define	PG_FRAME	0xfffff000
 
 #define	PG_NOACC	0
