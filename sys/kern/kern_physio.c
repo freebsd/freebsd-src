@@ -36,13 +36,10 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int i;
 	int error;
-	int spl;
 	caddr_t sa;
 	u_int iolen;
 	struct buf *bp;
 
-	/* We cannot trust the device driver to hold Giant for us */
-	mtx_lock(&Giant);
 	/* Keep the process UPAGES from being swapped. XXX: why ? */
 	PHOLD(curproc);
 
@@ -99,12 +96,10 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				}
 
 			DEV_STRATEGY(bp);
-			spl = splbio();
 			if (uio->uio_rw == UIO_READ)
 				bwait(bp, PRIBIO, "physrd");
 			else
 				bwait(bp, PRIBIO, "physwr");
-			splx(spl);
 
 			if (uio->uio_segflg == UIO_USERSPACE)
 				vunmapbuf(bp);
@@ -125,6 +120,5 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 doerror:
 	relpbuf(bp, NULL);
 	PRELE(curproc);
-	mtx_unlock(&Giant);
 	return (error);
 }
