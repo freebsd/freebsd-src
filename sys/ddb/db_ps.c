@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: db_ps.c,v 1.16 1998/07/08 06:43:55 bde Exp $
+ *	$Id: db_ps.c,v 1.17 1999/01/27 19:00:49 dillon Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -93,7 +93,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			pp = p;
 
 		db_printf("%5d %8p %8p %4d %5d %5d %06x  %d",
-		    p->p_pid, (volatile void *)p, (volatile void *)p->p_addr,
+		    p->p_pid, (volatile void *)p, (void *)p->p_addr,
 		    p->p_cred ? p->p_cred->p_ruid : 0, pp->p_pid,
 		    p->p_pgrp ? p->p_pgrp->pg_id : 0, p->p_flag, p->p_stat);
 		if (p->p_wchan) {
