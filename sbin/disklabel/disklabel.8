@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
-.\"	$Id: disklabel.8,v 1.7 1997/06/23 04:02:17 steve Exp $
+.\"	$Id: disklabel.8,v 1.8 1998/06/04 06:49:13 charnier Exp $
 .\"
 .Dd April 19, 1994
 .Dt DISKLABEL 8
@@ -116,7 +116,7 @@ option to install bootstrap code.
 These variants are described later.
 .Pp
 The first form of the command (read) is used to examine the label on the named
-disk drive (e.g. sd0 or /dev/rsd0c).
+disk drive (e.g. da0 or /dev/rda0c).
 It will display all of the parameters associated with the drive
 and its partition layout.
 Unless the
@@ -135,7 +135,7 @@ The second form of the command, with the
 flag, is used to write a standard label on the designated drive.
 The required arguments to
 .Nm
-are the drive to be labeled (e.g. sd0), and
+are the drive to be labeled (e.g. da0), and
 the drive type as described in the
 .Xr disktab 5
 file.
@@ -265,11 +265,11 @@ for the primary (or only) bootstrap, and
 .Pf boot Pa basename
 for the secondary bootstrap;
 for example,
-.Pa /usr/mdec/sdboot
+.Pa /usr/mdec/daboot
 and
-.Pa /usr/mdec/bootsd
+.Pa /usr/mdec/bootda
 if the disk device is
-.Em sd0 .
+.Em da0 .
 .Pp
 The first of the three boot-installation forms is used to install
 bootstrap code without changing the existing label.
@@ -285,48 +285,48 @@ except that they will install bootstrap code in addition to a new label.
 .It Pa /usr/mdec/boot Ns Em xx
 .El
 .Sh EXAMPLES
-.Dl disklabel sd0
+.Dl disklabel da0
 .Pp
-Display the in-core label for sd0 as obtained via
-.Pa /dev/rsd0c .
+Display the in-core label for da0 as obtained via
+.Pa /dev/rda0c .
 .Pp
-.Dl disklabel -w -r /dev/rsd0c sd2212 foo
+.Dl disklabel -w -r /dev/rda0c da2212 foo
 .Pp
-Create a label for sd0 based on information for ``sd2212'' found in
+Create a label for da0 based on information for ``da2212'' found in
 .Pa /etc/disktab .
 Any existing bootstrap code will be clobbered.
 .Pp
-.Dl disklabel -e -r sd0
+.Dl disklabel -e -r da0
 .Pp
-Read the on-disk label for sd0, edit it and reinstall in-core as well
+Read the on-disk label for da0, edit it and reinstall in-core as well
 as on-disk.
 Existing bootstrap code is unaffected.
 .Pp
-.Dl disklabel -r -w sd0 auto
+.Dl disklabel -r -w da0 auto
 .Pp
-Try to auto-detect the required information from sd0, and write a new
+Try to auto-detect the required information from da0, and write a new
 label to the disk.  Use another disklabel -e command to edit the
 partitioning and file system information.
 .Pp
-.Dl disklabel -R sd0 mylabel
+.Dl disklabel -R da0 mylabel
 .Pp
-Restore the on-disk and in-core label for sd0 from information in
+Restore the on-disk and in-core label for da0 from information in
 .Pa mylabel .
 Existing bootstrap code is unaffected.
 .Pp
-.Dl disklabel -B sd0
+.Dl disklabel -B da0
 .Pp
-Install a new bootstrap on sd0.
+Install a new bootstrap on da0.
 The boot code comes from
-.Pa /usr/mdec/sdboot
+.Pa /usr/mdec/daboot
 and possibly
-.Pa /usr/mdec/bootsd .
+.Pa /usr/mdec/bootda .
 On-disk and in-core labels are unchanged.
 .Pp
-.Dl disklabel -w -B /dev/rsd0c -b newboot sd2212
+.Dl disklabel -w -B /dev/rda0c -b newboot da2212
 .Pp
 Install a new label and bootstrap.
-The label is derived from disktab information for ``sd2212'' and
+The label is derived from disktab information for ``da2212'' and
 installed both in-core and on-disk.
 The bootstrap code comes from the file
 .Pa /usr/mdec/newboot .
