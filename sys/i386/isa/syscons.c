@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.116 1995/05/21 18:30:05 sos Exp $
+ *  $Id: syscons.c,v 1.117 1995/05/30 08:03:13 rgrimes Exp $
  */
 
 #include "sc.h"
@@ -1158,12 +1158,8 @@ pccnputc(dev_t dev, int c)
     current_default = &kernel_default;
     if (scp->scr_buf == Crtat)
 	draw_cursor(scp, FALSE);
-    if (c == '\n')
-	ansi_put(scp, "\r\n", 2);
-    else {
-	buf[0] = c;
-	ansi_put(scp, buf, 1);
-    }
+    buf[0] = c;
+    ansi_put(scp, buf, 1);
     kernel_console = scp->term;
     current_default = &user_default;
     scp->term = save;
