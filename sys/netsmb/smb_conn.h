@@ -273,6 +273,7 @@ struct smb_vc {
 #define vc_maxmux	vc_sopt.sv_maxmux
 #define	vc_flags	obj.co_flags
 
+#define SMB_UNICODE_STRINGS(vcp)	((vcp)->vc_hflags2 & SMB_FLAGS2_UNICODE)
 
 /*
  * smb_share structure describes connection to the given SMB share (tree).
