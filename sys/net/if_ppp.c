@@ -316,19 +316,19 @@ pppdealloc(sc)
 #endif /* PPP_COMPRESS */
 #ifdef PPP_FILTER
     if (sc->sc_pass_filt.bf_insns != 0) {
-	FREE(sc->sc_pass_filt.bf_insns, M_DEVBUF);
+	free(sc->sc_pass_filt.bf_insns, M_DEVBUF);
 	sc->sc_pass_filt.bf_insns = 0;
 	sc->sc_pass_filt.bf_len = 0;
     }
     if (sc->sc_active_filt.bf_insns != 0) {
-	FREE(sc->sc_active_filt.bf_insns, M_DEVBUF);
+	free(sc->sc_active_filt.bf_insns, M_DEVBUF);
 	sc->sc_active_filt.bf_insns = 0;
 	sc->sc_active_filt.bf_len = 0;
     }
 #endif /* PPP_FILTER */
 #ifdef VJC
     if (sc->sc_comp != 0) {
-	FREE(sc->sc_comp, M_DEVBUF);
+	free(sc->sc_comp, M_DEVBUF);
 	sc->sc_comp = 0;
     }
 #endif
@@ -536,11 +536,11 @@ pppioctl(sc, cmd, data, flag, td)
 	    }
 	    if ((error = copyin((caddr_t)nbp->bf_insns, (caddr_t)newcode,
 			       newcodelen)) != 0) {
-		FREE(newcode, M_DEVBUF);
+		free(newcode, M_DEVBUF);
 		break;
 	    }
 	    if (!bpf_validate(newcode, nbp->bf_len)) {
-		FREE(newcode, M_DEVBUF);
+		free(newcode, M_DEVBUF);
 		error = EINVAL;
 		break;
 	    }
@@ -553,7 +553,7 @@ pppioctl(sc, cmd, data, flag, td)
 	bp->bf_insns = newcode;
 	splx(s);
 	if (oldcode != 0)
-	    FREE(oldcode, M_DEVBUF);
+	    free(oldcode, M_DEVBUF);
 	break;
 #endif
 
