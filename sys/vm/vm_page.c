@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.110 1998/10/25 17:44:59 phk Exp $
+ *	$Id: vm_page.c,v 1.111 1998/10/28 13:37:02 dg Exp $
  */
 
 /*
@@ -1288,13 +1288,7 @@ vm_page_unwire(m, activate)
 
 
 /*
- *	vm_page_deactivate:
- *
- *	Returns the given page to the inactive list,
- *	indicating that no physical maps have access
- *	to this page.  [Used by the physical mapping system.]
- *
- *	The page queues must be locked.
+ * Move the specified page to the inactive queue.
  */
 void
 vm_page_deactivate(m)
@@ -1303,11 +1297,7 @@ vm_page_deactivate(m)
 	int s;
 
 	/*
-	 * Only move active pages -- ignore locked or already inactive ones.
-	 *
-	 * XXX: sometimes we get pages which aren't wired down or on any queue -
-	 * we need to put them on the inactive queue also, otherwise we lose
-	 * track of them. Paul Mackerras (paulus@cs.anu.edu.au) 9-Jan-93.
+	 * Ignore if already inactive.
 	 */
 	if (m->queue == PQ_INACTIVE)
 		return;
