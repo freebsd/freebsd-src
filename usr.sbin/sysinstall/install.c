@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.115 1996/07/16 17:11:41 jkh Exp $
+ * $Id: install.c,v 1.116 1996/07/31 06:20:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,7 +56,7 @@ static void	create_termcap(void);
 static void	installConfigure(void);
 
 Boolean
-checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
+checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
 {
     Device **devs;
     Boolean status;
@@ -86,8 +86,9 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			if (c2->flags & CHUNK_IS_ROOT) {
 			    if (rootdev) {
-				msgConfirm("WARNING:  You have more than one root device set?!\n"
-					   "Using the first one found.");
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one root device set?!\n"
+					       "Using the first one found.");
 				continue;
 			    }
 			    else {
@@ -98,8 +99,9 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
 			}
 			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/usr")) {
 			    if (usrdev) {
-				msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
-					   "Using the first one found.");
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one /usr filesystem.\n"
+					       "Using the first one found.");
 				continue;
 			    }
 			    else {
@@ -110,8 +112,9 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
 			}
 			else if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/var")) {
 			    if (vardev) {
-				msgConfirm("WARNING:  You have more than one /var filesystem.\n"
-					   "Using the first one found.");
+				if (whinge)
+				    msgConfirm("WARNING:  You have more than one /var filesystem.\n"
+					       "Using the first one found.");
 				continue;
 			    }
 			    else {
@@ -154,23 +157,23 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev)
     *udev = usrdev;
     *vdev = vardev;
 
-    if (!rootdev) {
+    if (!rootdev && whinge) {
 	msgConfirm("No root device found - you must label a partition as /\n"
 		   "in the label editor.");
 	status = FALSE;
     }
-    if (!swapdev) {
+    if (!swapdev && whinge) {
 	msgConfirm("No swap devices found - you must create at least one\n"
 		   "swap partition.");
 	status = FALSE;
     }
-    if (!usrdev) {
+    if (!usrdev && whinge) {
 	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
 		   "cause you trouble if you're not exactly sure what you are doing!");
     }
-    if (!vardev) {
+    if (!vardev && whinge) {
 	msgConfirm("WARNING:  No /var filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to link /var to someplace else), but it may otherwise\n"
@@ -676,7 +679,7 @@ installFilesystems(dialogMenuItem *self)
 
     str = variable_get(SYSTEM_STATE);
 
-    if (!checkLabels(&rootdev, &swapdev, &usrdev, &vardev))
+    if (!checkLabels(TRUE, &rootdev, &swapdev, &usrdev, &vardev))
 	return DITEM_FAILURE;
 
     if (rootdev)
