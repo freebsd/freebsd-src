@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
 static const char rcsid[] =
-	"$Id: trap.c,v 1.15 1998/09/08 13:16:52 cracauer Exp $";
+	"$Id: trap.c,v 1.16 1998/09/10 14:51:06 cracauer Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -364,10 +364,11 @@ onsig(signo)
 	if ((signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0)
 		breakwaitcmd = 1;
 	/* 
-	 * If a trap is set, we need to make sure it is executed even
-	 * when a childs blocks all signals.
+	 * If a trap is set, not ignored and not the null command, we need 
+	 * to make sure traps are executed even when a child blocks signals.
 	 */
 	if (trap[signo] != NULL && 
+	    ! trap[signo][0] == '\0' &&
 	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
 		breakwaitcmd = 1;
 }
