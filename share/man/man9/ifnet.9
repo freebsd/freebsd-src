@@ -986,7 +986,10 @@ or
 is called as appropriate.
 Flags listed in
 .Dv IFF_CANTCHANGE
-are masked off, and the driver
+are masked off, and the field
+.Va if_flags
+in the interface structure is updated.
+Finally, the driver
 .Fn if_ioctl
 routine is called to perform any setup
 requested.
