@@ -51,9 +51,9 @@ options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
 options		KTRACE			#ktrace(1) syscall trace support
-options         SYSVSHM			#SYSV-style shared memory
-options         SYSVMSG			#SYSV-style message queues
-options         SYSVSEM			#SYSV-style semaphores
+options		SYSVSHM			#SYSV-style shared memory
+options		SYSVMSG			#SYSV-style message queues
+options		SYSVSEM			#SYSV-style semaphores
 
 # Standard busses
 controller	isa0
