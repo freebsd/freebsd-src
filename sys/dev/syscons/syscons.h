@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.36 1997/11/21 11:37:07 yokota Exp $
+ *	$Id: syscons.h,v 1.37 1998/02/12 22:05:08 phk Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -73,6 +73,7 @@
 #define DETECT_KBD	0x00008
 #define XT_KEYBD	0x00010
 #define KBD_NORESET	0x00020
+#define QUIET_BELL	0x00040
 
 /* attribute flags */
 #define NORMAL_ATTR             0x00
