@@ -1755,6 +1755,7 @@ END_DEBUG
 		struct ccb_scsiio *csio;
 		struct sbp_ocb *ocb;
 		int s, speed;
+		void *cdb;
 
 		csio = &ccb->csio;
 
@@ -1823,15 +1824,13 @@ END_DEBUG
 		if (csio->ccb_h.flags & CAM_DATA_PHYS)
 			printf("sbp: CAM_DATA_PHYS\n");
 
-		if (csio->ccb_h.flags & CAM_CDB_POINTER) {
-			bcopy(csio->cdb_io.cdb_ptr,
+		if (csio->ccb_h.flags & CAM_CDB_POINTER)
+			cdb = (void *)csio->cdb_io.cdb_ptr;
+		else
+			cdb = (void *)&csio->cdb_io.cdb_bytes;
+		bcopy(cdb,
 			(void *)(uintptr_t)(volatile void *)&ocb->orb[5],
-			(csio->cdb_len + 3) & ~0x3);
-		} else {
-			bcopy(&csio->cdb_io.cdb_bytes,
-			(void *)(uintptr_t)(volatile void *)&ocb->orb[5],
-			(csio->cdb_len + 3) &~0x3);
-		}
+				csio->cdb_len);
 /*
 printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[0]), ntohl(ocb->orb[1]), ntohl(ocb->orb[2]), ntohl(ocb->orb[3]));
 printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntohl(ocb->orb[6]), ntohl(ocb->orb[7]));
