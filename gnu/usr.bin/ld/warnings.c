@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.5 1994/01/12 23:14:07 jkh Exp $
+ * $Id: warnings.c,v 1.6 1994/02/13 20:41:48 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -620,6 +620,15 @@ do_file_warnings (entry, outfile)
 
 	        g = entry->symbols[i].symbol;
 		s = &entry->symbols[i].nzlist.nlist;
+
+		/*
+		 * XXX This is a temporary fence to correct an
+		 * incorrect assumption made in the case of symbols
+		 * which do not have entries in the (global)
+		 * symbol table.
+		 */
+		if(g == NULL)
+			continue;
 
 		if (!(s->n_type & N_EXT))
 			continue;
