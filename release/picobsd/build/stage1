@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage1,v 1.5 1998/10/25 15:15:55 abial Exp $
+#	$Id: stage1,v 1.6 1999/01/14 23:14:46 abial Exp $
 #
 
 set -e
@@ -13,14 +13,14 @@ fi
 
 echo "-> Preparing kernel..."
 cp -p ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel kernel
-if [ "${TYPE}" != "dial" ]
-then
-	echo "-> Preparing kvm database..."
-	mv /var/db/kvm_kernel.db /var/db/old.db
-	kvm_mkdb kernel
-	cp /var/db/kvm_kernel.db kvm_kernel.db
-	mv /var/db/old.db /var/db/kvm_kernel.db
-fi
+#if [ "${TYPE}" != "dial" ]
+#then
+#	echo "-> Preparing kvm database..."
+#	mv /var/db/kvm_kernel.db /var/db/old.db
+#	kvm_mkdb kernel
+#	cp /var/db/kvm_kernel.db kvm_kernel.db
+#	mv /var/db/old.db /var/db/kvm_kernel.db
+#fi
 
 echo "-> Preparing MFS filesystem..."
 umount /dev/vn0 2> /dev/null || true
