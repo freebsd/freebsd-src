@@ -322,6 +322,25 @@ options 	GDB_REMOTE_CHAT
 options 	KTRACE			#kernel tracing
 
 #
+# KTR is a kernel tracing mechanism imported from BSD/OS.  Currently it
+# has no userland interface aside from a few sysctl's.  It is enabled with
+# the KTR option.  The KTR_EXTEND option causes trace events to be generated
+# as a string from snprintf rather than as a string and up to 5 argument
+# pointers.  KTR_ENTRIES defines the number of entries in the circular trace
+# buffer.  KTR_COMPILE defines the mask of events to compile into the kernel
+# as defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
+# initial value of the ktr_mask variable which determines at runtime what
+# events to trace.  KTR_CPUMASK determines which CPU's log events, with
+# bit X corresponding to cpu X.
+#
+options 	KTR
+options 	KTR_EXTEND
+options 	KTR_ENTRIES=1024
+options 	KTR_COMPILE=0x3fffff
+options 	KTR_MASK=0x201208
+options 	KTR_CPUMASK=0x3
+
+#
 # The INVARIANTS option is used in a number of source files to enable
 # extra sanity checking of internal structures.  This support is not
 # enabled by default because of the extra time it would take to check
