@@ -57,8 +57,6 @@ conv_c(pr, p)
 		goto strpr;
 	/* case '\a': */
 	case '\007':
-		if (odmode)		/* od didn't know about \a */
-			break;
 		str = "\\a";
 		goto strpr;
 	case '\b':
@@ -77,8 +75,6 @@ conv_c(pr, p)
 		str = "\\t";
 		goto strpr;
 	case '\v':
-		if (odmode)
-			break;
 		str = "\\v";
 		goto strpr;
 	default:
