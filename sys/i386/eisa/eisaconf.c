@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.14 1996/01/31 18:02:19 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.15 1996/01/31 18:46:36 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -551,7 +551,6 @@ eisa_add_resvaddr(e_dev, head, base, size, flags)
 			}
 		}
 	}
-	e_dev->kdc->kdc_datalen += sizeof(resvaddr_t);
 	return (0);
 }
 
@@ -612,6 +611,7 @@ eisa_reg_resvaddr(e_dev, head, resvaddr, reg_count)
 				eisa_reg_print(e_dev, buf,
 						*reg_count ? &separator : NULL);
 				(*reg_count)++;
+				e_dev->kdc->kdc_datalen += sizeof(resvaddr_t);
 				return (0);
 			}
 		}
