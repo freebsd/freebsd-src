@@ -190,7 +190,7 @@ or
 .Xr wait 2 .
 However, calls that have already committed are not restarted,
 but instead return a partial success (for example, a short read count).
-This semantics could be changed with
+These semantics could be changed with
 .Xr siginterrupt 3 .
 .Pp
 When a process which has installed signal handlers forks,
@@ -204,7 +204,7 @@ ignored signals remain ignored.
 See
 .Xr sigaction 2
 for a list of functions
-that are considered safe for use in signal handler.
+that are considered safe for use in signal handlers.
 .Sh RETURN VALUES
 The previous action is returned on a successful call.
 Otherwise, SIG_ERR is returned and  the global variable
