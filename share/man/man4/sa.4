@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: st.4,v 1.11 1997/03/07 02:49:34 jmg Exp $
+.\"	$Id: sa.4,v 1.14 1999/02/05 08:06:05 mjacob Exp $
 .\"
 .Dd October 15, 1998
 .Dt SA 4
@@ -74,6 +74,11 @@ command, reachable through the
 .Sq Cm offline
 command of
 .Xr mt 1 .
+.El
+.Pp
+It should be noted that tape devices are exclusive open devices, except in
+the case where a control mode device is opened. In the latter case, exclusive
+access is only sought when needed (e.g., to set parameters).
 .Sh SUB-MODES
 Bits 0 and 1 of the minor number are interpreted as
 .Sq sub-modes .
@@ -168,16 +173,19 @@ Rewind on close
 No rewind on close
 .It Pa /dev/erst0
 Eject on close (if capable)
+.It Pa /dev/rsa0.ctl
+Control mode device (to examine state while another program is
+accessing the device, e.g.).
 .Sh BUGS
 This driver lacks many of the hacks required to deal with older devices.
 Many older
 .Tn SCSI-1
 devices may not work properly with this driver yet.
 .Pp
-The device node interface for different tape formats and modes should
-be rethought after considering the strategies employed by other vendors.
+Fine grained density and compression mode support that is bound to specific
+device names needs to be addaed.
 .Pp
-Support for fast indexing and tape status reporting is lacking.
+Support for fast indexing by use of partitions is missing.
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
@@ -197,3 +205,6 @@ device driver written and ported from
 .Tn Mach
 2.5
 by Julian Elischer.
+.sp
+The current owner of record is Matthew Jacob who has suffered too many
+years of breaking tape drivers.
