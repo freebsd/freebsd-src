@@ -1915,9 +1915,12 @@ symlook_default(const char *name, unsigned long hash,
 	}
     }
 
-    /* Search all RTLD_GLOBAL objects. */
-    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
-	symp = symlook_list(name, hash, &list_global, &obj, in_plt, &donelist);
+    /* Search all DAGs whose roots are RTLD_GLOBAL objects. */
+    STAILQ_FOREACH(elm, &list_global, link) {
+       if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+           break;
+       symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt,
+         &donelist);
 	if (symp != NULL &&
 	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
 	    def = symp;
