@@ -34,9 +34,10 @@
  * OF SUCH DAMAGE.
  *
  * Author: Erik Salander <erik@whistle.com>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
    Alias_pptp.c performs special processing for PPTP sessions under TCP.
