@@ -137,9 +137,7 @@ XMAKEENV=	${CROSSENV} \
 XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1
 
 # cross make used for final installation
-IMAKEENV=	${CROSSENV} \
-		DESTDIR=/usr1/release \
-		PATH=${STRICTTMPPATH}
+IMAKEENV=	${CROSSENV}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
