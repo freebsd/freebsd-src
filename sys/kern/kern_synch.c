@@ -332,7 +332,7 @@ tsleep(ident, priority, wmesg, timo)
 	int s, sig, catch = priority & PCATCH;
 
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_CSW))
+	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	s = splhigh();
