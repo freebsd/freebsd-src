@@ -230,7 +230,7 @@ Prototypes may have an extra space after a tab to enable function names
 to line up:
 .Bd -literal
 static char	*function(int _arg, const char *_arg2, struct foo *_arg3,
-			  struct bar *_arg4);
+		    struct bar *_arg4);
 static void	 usage(void);
 
 /*
@@ -461,6 +461,7 @@ function(a1, a2, fl, a4)
 .Ed
 .Pp
 Use ANSI function declarations unless you explicitly need K&R compatibility.
+Long parameter lists are wrapped with a normal four space indent.
 .Pp
 Variable numbers of arguments should look like this.
 .Bd -literal
