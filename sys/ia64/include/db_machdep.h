@@ -41,10 +41,7 @@
 
 #define DB_NO_AOUT
 
-struct ia64_bundle {
-	u_int64_t	slot[3];
-	int		template;
-};
+struct ia64_bundle;
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	long		db_expr_t;	/* expression - signed */
