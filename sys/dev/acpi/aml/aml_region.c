@@ -35,12 +35,14 @@
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 
 #include <dev/acpi/acpireg.h>
+#include <dev/acpi/acpivar.h>
 #include <dev/acpi/aml/aml_common.h>
 #include <dev/acpi/aml/aml_region.h>
 #include <dev/acpi/aml/aml_name.h>
