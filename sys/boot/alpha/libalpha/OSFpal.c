@@ -1,8 +1,6 @@
 /*
- * $FreeBSD$
- * From	$NetBSD: OSFpal.c,v 1.5 1998/06/24 01:33:19 ross Exp $ 
+ * $NetBSD: OSFpal.c,v 1.5 1998/06/24 01:33:19 ross Exp $ 
  */
-
 /*
  * Copyright (c) 1994, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -29,6 +27,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <stand.h>
