@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.8 1998/07/14 05:09:45 bde Exp $
+ *	$Id: kern_module.c,v 1.9 1998/10/03 11:05:45 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -64,7 +64,7 @@ module_init(void* arg)
     at_shutdown(module_shutdown, 0, SHUTDOWN_POST_SYNC);
 }
 
-SYSINIT(module, SI_SUB_KMEM, SI_ORDER_ANY, module_init, 0);
+SYSINIT(module, SI_SUB_KLD, SI_ORDER_ANY, module_init, 0);
 
 static void
 module_shutdown(int arg1, void* arg2)
@@ -81,17 +81,19 @@ module_register_init(void *arg)
     moduledata_t* data = (moduledata_t*) arg;
     int error;
 
-    if (error = module_register(data->name, data->evhand, data->priv))
+    error = module_register(data->name, data->evhand, data->priv, data->_file);
+    if (error)
 	printf("module_register_init: module_register(%s, %lx, %p) returned %d",
 	       data->name, (u_long)(uintfptr_t)data->evhand, data->priv, error);
 }
 
 int
-module_register(const char* name, modeventhand_t handler, void* arg)
+module_register(const char* name, modeventhand_t handler, void* arg, void *file)
 {
     size_t namelen;
     module_t newmod;
     int error;
+    linker_file_t container = file;
 
     namelen = strlen(name) + 1;
     newmod = (module_t) malloc(sizeof(struct module) + namelen,
@@ -107,9 +109,11 @@ module_register(const char* name, modeventhand_t handler, void* arg)
     newmod->arg = arg;
     TAILQ_INSERT_TAIL(&modules, newmod, link);
 
-    if (linker_current_file) {
-	TAILQ_INSERT_TAIL(&linker_current_file->modules, newmod, flink);
-	newmod->file = linker_current_file;
+    if (container == NULL)
+	container = linker_current_file;
+    if (container) {
+	TAILQ_INSERT_TAIL(&container->modules, newmod, flink);
+	newmod->file = container;
     } else
 	newmod->file = 0;
 
