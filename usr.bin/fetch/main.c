@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.19 1996/08/23 06:21:17 jkh Exp $ */
+/* $Id: main.c,v 1.20 1996/08/31 22:03:05 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -319,7 +319,7 @@ ftpget()
 	    return;
 	}
 	else if (restart) {
-	    if (size0 && size0 < size && modtime == t)
+	    if (size0 && size0 < size)
 		seekloc = size0;
 	    else
 		seekloc = size0 = 0;
