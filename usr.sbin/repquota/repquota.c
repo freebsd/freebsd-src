@@ -52,7 +52,6 @@ static const char rcsid[] =
  * Quota report
  */
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <ufs/ufs/quota.h>
 #include <err.h>
 #include <errno.h>
@@ -62,6 +61,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
