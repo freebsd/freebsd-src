@@ -243,7 +243,7 @@ hci_write_link_policy_settings(int s, int argc, char **argv)
 
 struct hci_command	link_policy_commands[] = {
 {
-"role_discovery <conection_handle>",
+"role_discovery <connection_handle>",
 "\nThe Role_Discovery command is used for a Bluetooth device to determine\n" \
 "which role the device is performing for a particular Connection Handle.\n" \
 "The connection handle must be a connection handle for an ACL connection.\n\n" \
