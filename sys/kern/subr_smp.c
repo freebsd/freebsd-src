@@ -147,8 +147,8 @@ forward_roundrobin(void)
 	map = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		td = pc->pc_curthread;
-		id = pc->pc_cpuid;
-		if (id != PCPU_GET(cpuid) && (id & stopped_cpus) == 0 &&
+		id = pc->pc_cpumask;
+		if (id != PCPU_GET(cpumask) && (id & stopped_cpus) == 0 &&
 		    td != pc->pc_idlethread) {
 			td->td_kse->ke_flags |= KEF_NEEDRESCHED;
 			map |= id;
