@@ -8,13 +8,13 @@
 
 .include "Makefile.inc"
 
-.PATH: ${LCRYPTO_SRC}/rc4/asm ${LCRYPTO_SRC}/rc5/asm \
-       ${LCRYPTO_SRC}/des/asm ${LCRYPTO_SRC}/cast/asm \
-       ${LCRYPTO_SRC}/sha/asm ${LCRYPTO_SRC}/bn/asm \
-       ${LCRYPTO_SRC}/bf/asm ${LCRYPTO_SRC}/md5/asm \
-       ${LCRYPTO_SRC}/ripemd/asm
+.PATH: ${LCRYPTO_SRC}/crypto/rc4/asm ${LCRYPTO_SRC}/crypto/rc5/asm \
+       ${LCRYPTO_SRC}/crypto/des/asm ${LCRYPTO_SRC}/crypto/cast/asm \
+       ${LCRYPTO_SRC}/crypto/sha/asm ${LCRYPTO_SRC}/crypto/bn/asm \
+       ${LCRYPTO_SRC}/crypto/bf/asm ${LCRYPTO_SRC}/crypto/md5/asm \
+       ${LCRYPTO_SRC}/crypto/ripemd/asm
 
-PERLPATH=	${LCRYPTO_SRC}/des/asm:${LCRYPTO_SRC}/perlasm
+PERLPATH=	${LCRYPTO_SRC}/crypto/des/asm:${LCRYPTO_SRC}/crypto/perlasm
 
 # blowfish
 SRCS=	bf-686.pl bf-586.pl
