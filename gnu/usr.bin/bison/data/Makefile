@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/09/10 13:23:44 peter Exp $
 
 BISONDIR=${.CURDIR}/../../../../contrib/bison
 
@@ -15,7 +15,9 @@ bison.s1: bison.simple
 		< ${BISONDIR}/bison.simple > bison.s1
 
 install:
-	${INSTALL} -c -o bin -g bin -m 444 bison.s1 ${DATADIR}/bison.simple
-	${INSTALL} -c -o bin -g bin -m 444 ${BISONDIR}/bison.hairy ${DATADIR}
+	${INSTALL} -c -o bin -g bin -m 444 bison.s1 \
+		${DESTDIR}${DATADIR}/bison.simple
+	${INSTALL} -c -o bin -g bin -m 444 ${BISONDIR}/bison.hairy \
+		${DESTDIR}${DATADIR}
 
 .include <bsd.prog.mk>
