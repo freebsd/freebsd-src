@@ -3188,7 +3188,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>The &man.pathchk.1; utility, which checks pathnames for
       validity or portability between POSIX systems, has been
-      added.</para>
+      added. &merged;</para>
 
     <para role="historic">&man.pax.1; has received a number of enhancements, including
       &man.cpio.1; functionality, &man.tar.1; compatibility
@@ -4432,7 +4432,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	using &man.bzip2.1;, rather than &man.gzip.1;.  (Thus, they
 	now have a <filename>.tbz</filename> extension, rather than a
 	<filename>.tgz</filename> extension.)  The package
-	tools have been updated to handle the new format. &merged;</para>
+	tools have been updated to handle the new format.</para>
     </sect3>
   </sect2>
 
