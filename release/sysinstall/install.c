@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.73 1998/11/15 09:07:37 jkh Exp $
+ * $Id: install.c,v 1.134.2.74 1998/11/24 00:20:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -364,6 +364,8 @@ installFixitFloppy(dialogMenuItem *self)
 			 "or unclean filesystem.  Do you want to try again?"))
 		return DITEM_FAILURE;
 	}
+	else
+	    break;
     }
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
