@@ -1220,6 +1220,7 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 				tmp <<= 1;
 			tmp >>= 1;
 			blksz = tmp;
+			blkcnt = CHN_2NDBUFMAXSIZE / blksz;
 
 			RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
 			RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
