@@ -36,37 +36,14 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: v.c,v 1.31 2000/09/03 01:29:26 grog Exp grog $
+ * $Id: v.c,v 1.35 2003/04/26 02:02:49 grog Exp $
  * $FreeBSD$
  */
 
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <grp.h>
-#include <sys/mman.h>
-#include <netdb.h>
-#include <paths.h>
-#include <setjmp.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
 #include "vext.h"
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <readline/history.h>
-#include <readline/readline.h>
-#include <sys/linker.h>
-#include <sys/module.h>
-#include <sys/resource.h>
-#include <sys/sysctl.h>
 
 FILE *cf;						    /* config file handle */
-FILE *history;						    /* history file */
+FILE *History;						    /* history file */
 char *historyfile;					    /* and its name */
 
 char *dateformat;					    /* format in which to store date */
@@ -150,11 +127,11 @@ main(int argc, char *argv[], char *envp[])
 	    errno);
 	exit(1);
     }
-    history = fopen(historyfile, "a+");
-    if (history != NULL) {
+    History = fopen(historyfile, "a+");
+    if (History != NULL) {
 	timestamp();
-	fprintf(history, "*** " VINUMMOD " started ***\n");
-	fflush(history);				    /* before we start the daemon */
+	fprintf(History, "*** " VINUMMOD " started ***\n");
+	fflush(History);				    /* before we start the daemon */
     }
     if (sysctlbyname("vfs.devfs.generation", NULL, NULL, NULL, 0) == 0)
 	no_devfs = 0;
@@ -246,8 +223,8 @@ main(int argc, char *argv[], char *envp[])
 		if (tokens)
 		    parseline(tokens, token);		    /* and do what he says */
 	    }
-	    if (history)
-		fflush(history);
+	    if (History)
+		fflush(History);
 	}
     }
     return 0;						    /* normal completion */
@@ -336,11 +313,11 @@ parseline(int args, char *argv[])
     int j;
     enum keyword command;				    /* command to execute */
 
-    if (history != NULL) {				    /* save the command to history file */
+    if (History != NULL) {				    /* save the command to history file */
 	timestamp();
 	for (i = 0; i < args; i++)			    /* all args */
-	    fprintf(history, "%s ", argv[i]);
-	fputs("\n", history);
+	    fprintf(History, "%s ", argv[i]);
+	fputs("\n", History);
     }
     if ((args == 0)					    /* empty line */
     ||(*argv[0] == '#'))				    /* or a comment, */
@@ -544,9 +521,9 @@ make_devices(void)
 	    perror(VINUMMOD ": Can't write to " _PATH_DEV);
 	return;
     }
-    if (history) {
+    if (History) {
 	timestamp();
-	fprintf(history, "*** Created devices ***\n");
+	fprintf(History, "*** Created devices ***\n");
     }
     if (superdev >= 0)					    /* super device open */
 	close(superdev);
@@ -559,9 +536,8 @@ make_devices(void)
 
     if (mknod(VINUM_SUPERDEV_NAME,
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
-	    makedev(VINUM_CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
+	    makedev(VINUM_CDEV_MAJOR, VINUM_SUPERDEV_VOL)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
-
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
     if (superdev < 0) {
@@ -570,7 +546,7 @@ make_devices(void)
     }
     if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
-	    makedev(VINUM_CDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
+	    makedev(VINUM_CDEV_MAJOR, VINUM_DAEMON_VOL)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
@@ -608,26 +584,29 @@ make_vol_dev(int volno, int recurse)
 
     get_volume_info(&vol, volno);
     if (vol.state != volume_unallocated) {		    /* we could have holes in our lists */
-	voldev = VINUMDEV(volno, 0, 0, VINUM_VOLUME_TYPE);  /* create a device number */
+	voldev = VINUMDEV(volno, VINUM_VOLUME_TYPE);	    /* create a device number */
 
 	/* Create /dev/vinum/<myvol> */
 	sprintf(filename, VINUM_DIR "/%s", vol.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	(void)chown(filename, UID_ROOT, gid_operator);
+	else
+	    chown(filename, UID_ROOT, gid_operator);
 
 	/* Create /dev/vinum/vol/<myvol> */
 	sprintf(filename, VINUM_DIR "/vol/%s", vol.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	(void)chown(filename, UID_ROOT, gid_operator);
+	else
+	    chown(filename, UID_ROOT, gid_operator);
 
 	if (vol.plexes > 0) {
 	    /* Create /dev/vinum/vol/<myvol>.plex/ */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex", vol.name);
 	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	    (void)chown(filename, UID_ROOT, gid_operator);
+	    else
+		chown(filename, UID_ROOT, gid_operator);
 	}
 	if (recurse)
 	    for (plexno = 0; plexno < vol.plexes; plexno++)
@@ -654,23 +633,26 @@ make_plex_dev(int plexno, int recurse)
 	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	(void)chown(filename, UID_ROOT, gid_operator);
+	else
+	    chown(filename, UID_ROOT, gid_operator);
 
 	if (plex.volno >= 0) {
 	    get_volume_info(&vol, plex.volno);
-	    plexdev = VINUMDEV(plex.volno, plexno, 0, VINUM_PLEX_TYPE);
+	    plexdev = VINUMDEV(plex.volno, VINUM_PLEX_TYPE);
 
 	    /* Create device /dev/vinum/vol/<vol>.plex/<plex> */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s", vol.name, plex.name);
 	    if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	    (void)chown(filename, UID_ROOT, gid_operator);
+	    else
+		chown(filename, UID_ROOT, gid_operator);
 
 	    /* Create directory /dev/vinum/vol/<vol>.plex/<plex>.sd */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s.sd", vol.name, plex.name);
 	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	    (void)chown(filename, UID_ROOT, gid_operator);
+	    else
+		chown(filename, UID_ROOT, gid_operator);
 	}
 	if (recurse) {
 	    for (sdno = 0; sdno < plex.subdisks; sdno++) {
@@ -696,7 +678,8 @@ make_sd_dev(int sdno)
 	sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, sddev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
-	(void)chown(filename, UID_ROOT, gid_operator);
+	else
+	    chown(filename, UID_ROOT, gid_operator);
     }
 }
 
@@ -877,7 +860,7 @@ timestamp()
     char datetext[MAXDATETEXT];
     time_t sec;
 
-    if (history != NULL) {
+    if (History != NULL) {
 	if (gettimeofday(&now, NULL) != 0) {
 	    fprintf(stderr, "Can't get time: %s\n", strerror(errno));
 	    return;
@@ -885,7 +868,7 @@ timestamp()
 	sec = now.tv_sec;
 	date = localtime(&sec);
 	strftime(datetext, MAXDATETEXT, dateformat, date),
-	    fprintf(history,
+	    fprintf(History,
 	    "%s.%06ld ",
 	    datetext,
 	    now.tv_usec);
