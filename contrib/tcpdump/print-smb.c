@@ -14,6 +14,8 @@ static const char rcsid[] =
      "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.3.2.1 2000/01/11 06:58:27 fenner Exp $";
 #endif
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -882,7 +884,7 @@ void nbt_udp137_print(const uchar *data, int length)
 	      p += 2;
 	    }
 	  } else {
-	    print_data(p,rdlen);
+	    print_data(p, min(rdlen, length - ((const uchar *)p - data)));
 	    p += rdlen;
 	  }
 	}
