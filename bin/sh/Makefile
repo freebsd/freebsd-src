@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
-#	$Id: Makefile,v 1.19 1997/05/19 00:16:27 steve Exp $
+#	$Id: Makefile,v 1.20 1997/05/19 00:29:29 steve Exp $
 
 PROG=	sh
 SHSRCS=	alias.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -24,7 +24,7 @@ CLEANFILES+= builtins.h mkinit mkinit.o mknodes mknodes.o \
 	nodes.h syntax.h token.h y.tab.h
 CLEANFILES+= ${GENSRCS}
 
-beforedepend: builtins.h nodes.h syntax.h token.h y.tab.h
+beforedepend: builtins.h nodes.h syntax.h token.h
 
 builtins.c builtins.h: mkbuiltins builtins.def
 	cd ${.CURDIR}; sh mkbuiltins ${.OBJDIR}
@@ -45,6 +45,7 @@ token.h: mktokens
 y.tab.h: arith.c
 
 # Rules for object files that rely on generated headers.
+arith_lex.o: y.tab.h
 cd.o: nodes.h
 eval.o: builtins.h nodes.h syntax.h
 exec.o: builtins.h nodes.h syntax.h
