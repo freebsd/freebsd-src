@@ -9,3 +9,5 @@ branches	= CURRENT
 env		= NOLIBC_R=YES, NOFORTH=YES
 platforms	= powerpc
 options		= --verbose, --verbose
+targets		= clean, update, patch, world, generic, lint
+patch		= ppc-gcc.diff
