@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.11 1995/01/16 17:03:28 joerg Exp $
+ * $Id: cd9660_vnops.c,v 1.12 1995/02/13 06:12:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -557,6 +557,9 @@ cd9660_readdir(ap)
 			break;
 		}
 		
+		/* XXX: be more intelligent if we can */
+		idp->current.d_type = DT_UNKNOWN;
+
 		idp->current.d_namlen = isonum_711 (ep->name_len);
 		if (isoflags & 2)
 			isodirino(&idp->current.d_fileno,ep,imp);
