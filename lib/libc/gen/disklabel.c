@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)disklabel.c	8.1 (Berkeley) 6/4/93";
+#if 0
+static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -62,7 +66,7 @@ getdiskbyname(name)
 	char	*cp, *cq;	/* can't be register */
 	char	p, max, psize[3], pbsize[3],
 		pfsize[3], poffset[3], ptype[3];
-	u_long	*dx;
+	u_int32_t *dx;
 
 	if (cgetent(&buf, db_array, (char *) name) < 0)
 		return NULL;
