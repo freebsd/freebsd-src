@@ -63,11 +63,9 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_AtFront (l, d)
-    Lst		l;
-    void *	d;
+Lst_AtFront(Lst l, void *d)
 {
-    register LstNode	front;
+    LstNode	front;
 
     front = Lst_First (l);
     return (Lst_Insert (l, front, d));

@@ -61,16 +61,18 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	None.
  *
+ * Arguments:
+ *	l	The list to close
+ *
  * Side Effects:
  *	The list is closed.
  *
  *-----------------------------------------------------------------------
  */
 void
-Lst_Close (l)
-    Lst	    l;	  	/* The list to close */
+Lst_Close(Lst l)
 {
-    register List 	list = (List) l;
+    List 	list = (List) l;
 
     if (LstValid(l) == TRUE) {
 	list->isOpen = FALSE;

@@ -56,17 +56,19 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	SUCCESS if life is good.
  *
+ * Arguments:
+ *	l	List to which to add the datum
+ *	d	Datum to add
+ *
  * Side Effects:
  *	A new ListNode is created and added to the list.
  *
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_AtEnd (l, d)
-    Lst		l;	/* List to which to add the datum */
-    void *	d;	/* Datum to add */
+Lst_AtEnd(Lst l, void *d)
 {
-    register LstNode	end;
+    LstNode	end;
 
     end = Lst_Last (l);
     return (Lst_Append (l, end, d));

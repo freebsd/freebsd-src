@@ -64,12 +64,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Remove (l, ln)
-    Lst	    	  	l;
-    LstNode	  	ln;
+Lst_Remove(Lst l, LstNode ln)
 {
-    register List 	list = (List) l;
-    register ListNode	lNode = (ListNode) ln;
+    List 	list = (List) l;
+    ListNode	lNode = (ListNode) ln;
 
     if (!LstValid (l) ||
 	!LstNodeValid (ln, l)) {
