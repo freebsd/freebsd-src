@@ -123,6 +123,15 @@ struct wi_softc	{
 	int			wi_tx_data_id;
 	int			wi_tx_mgmt_id;
 	int			wi_gone;
+	int			wi_flags;
+#define WI_FLAGS_ATTACHED		0x01
+#define WI_FLAGS_INITIALIZED		0x02
+#define WI_FLAGS_HAS_WEP		0x04
+#define WI_FLAGS_HAS_IBSS		0x08
+#define WI_FLAGS_HAS_CREATE_IBSS	0x10
+#define WI_FLAGS_HAS_MOR		0x20
+#define WI_FLAGS_HAS_ROAMING		0x30
+#define WI_FLAGS_HAS_DIVERSITY		0x40
 	int			wi_if_flags;
 	u_int16_t		wi_procframe;
 	u_int16_t		wi_ptype;
@@ -159,6 +168,7 @@ struct wi_softc	{
 	struct wihap_info	wi_hostap_info;
 	u_int32_t		wi_icv;
 	int			wi_icv_flag;
+	int			wi_ibss_port;
 	struct callout_handle	wi_stat_ch;
 #if __FreeBSD_version >= 500000
 	struct mtx		wi_mtx;
