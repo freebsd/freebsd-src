@@ -12,8 +12,6 @@ struct skey {
 	char *seed;
 	char *val;
 	long	recstart; /*needed so reread of buffer is efficient*/
-
-
 };
 
 /* Client-side structure for scanning data stream for challenge */
@@ -32,6 +30,11 @@ void rip __P((char *buf));
 int skeychallenge __P((struct skey *mp,char *name, char *challenge));
 int skeylookup __P((struct skey *mp,char *name));
 int skeyverify __P((struct skey *mp,char *response));
-int skeyaccess __P((char *user, char *port, char *host));
+
+/* Simplified application programming interface. */
+#include <pwd.h>
+int skeyaccess __P((char *user, char *port, char *host, char *addr));
+char *skey_getpass __P((char *prompt, struct passwd *pwd, int pwok));
+char *skey_crypt __P((char *pp, char *salt, struct passwd *pwd, int pwok));
 
 #endif /* _SKEY_H_ */

@@ -18,6 +18,7 @@ int     pwok;
     /* Display s/key challenge where appropriate. */
 
     if (pwd == 0 || skeychallenge(&skey, pwd->pw_name, buf) != 0)
-	sprintf(buf, "Password required for %s.", name);
+	sprintf(buf, "%s required for %s.",
+		pwok ? "Password" : "S/Key password", name);
     return (buf);
 }
