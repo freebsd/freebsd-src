@@ -85,8 +85,8 @@ y_entries()
 			(void)ungetc(c, inf);
 			break;
 		case '/':
-			if (GETC(==, '*'))
-				skip_comment();
+			if (GETC(==, '*') || c == '/')
+				skip_comment(c);
 			else
 				(void)ungetc(c, inf);
 			break;
