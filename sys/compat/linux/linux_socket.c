@@ -549,7 +549,15 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	 * default and some apps depend on this. So, set V6ONLY to 0
 	 * for Linux apps if the sysctl value is set to 1.
 	 */
-	if (bsd_args.domain == PF_INET6 && retval_socket >= 0 && ip6_v6only) {
+	if (bsd_args.domain == PF_INET6 && retval_socket >= 0
+#ifndef KLD_MODULE
+	    /*
+	     * XXX: Avoid undefined symbol error with an IPv4 only
+	     * kernel.
+	     */ 
+	    && ip6_v6only
+#endif
+	    ) {
 		caddr_t sg;
 		int *v6only;
 
