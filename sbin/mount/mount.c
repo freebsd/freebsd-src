@@ -706,7 +706,7 @@ usage()
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 "usage: mount [-dfpruvw] [-o options] [-t ufs | external_type] special node",
-"       mount [-adfpruvw] [-o options] [ -F fstab] [-t ufs | external_type]",
+"       mount [-adfpruvw] [ -F fstab] [-o options] [-t ufs | external_type]",
 "       mount [-dfpruvw] special | node");
 	exit(1);
 }
