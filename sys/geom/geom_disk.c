@@ -43,7 +43,6 @@
 #include <sys/sysctl.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
-#include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
@@ -53,6 +52,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <geom/geom.h>
+#include <geom/geom_disk.h>
 #include <geom/geom_int.h>
 
 static struct mtx g_disk_done_mtx;
