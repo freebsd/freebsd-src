@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.54 1999/01/21 08:29:08 dillon Exp $
+ * $Id: mfs_vfsops.c,v 1.55 1999/01/21 09:24:46 dillon Exp $
  */
 
 
@@ -260,7 +260,7 @@ mfs_mount(mp, path, data, ndp, p)
 	 */
 
 	/* copy in user arguments*/
-	if (err = copyin(data, (caddr_t)&args, sizeof (struct mfs_args)))
+	if ((err = copyin(data, (caddr_t)&args, sizeof (struct mfs_args))) != 0)
 		goto error_1;
 
 	/*
@@ -343,7 +343,7 @@ mfs_mount(mp, path, data, ndp, p)
 			&size);				/* real size*/
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
-	if (err = ffs_mountfs(devvp, mp, p, M_MFSNODE)) {
+	if ((err = ffs_mountfs(devvp, mp, p, M_MFSNODE)) != 0) { 
 		mfsp->mfs_active = 0;
 		goto error_2;
 	}
@@ -409,7 +409,7 @@ mfs_start(mp, flags, p)
 
 		s = splbio();
 
-		while (bp = bufq_first(&mfsp->buf_queue)) {
+		while ((bp = bufq_first(&mfsp->buf_queue)) != NULL) {
 			bufq_remove(&mfsp->buf_queue, bp);
 			splx(s);
 			mfs_doio(bp, mfsp);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.40 1998/11/15 15:18:30 bde Exp $
+ * $Id: vfs_init.c,v 1.41 1998/12/07 21:58:30 archie Exp $
  */
 
 
@@ -86,7 +86,7 @@ struct vm_zone *namei_zone;
  */
 
 /* Table of known vnodeop vectors (list of VFS vnode vectors) */
-static struct vnodeopv_desc **vnodeopv_descs;
+static const struct vnodeopv_desc **vnodeopv_descs;
 static int vnodeopv_num;
 
 /* Table of known descs (list of vnode op handlers "vop_access_desc") */
@@ -102,7 +102,7 @@ vfs_opv_recalc(void)
 	vop_t ***opv_desc_vector_p;
 	vop_t **opv_desc_vector;
 	struct vnodeopv_entry_desc *opve_descp;
-	struct vnodeopv_desc *opv;
+	const struct vnodeopv_desc *opv;
 
 	if (vfs_op_descs == NULL)
 		panic("vfs_opv_recalc called with null vfs_op_descs");
@@ -154,18 +154,18 @@ vfs_opv_recalc(void)
 }
 
 void
-vfs_add_vnodeops(void *data)
+vfs_add_vnodeops(const void *data)
 {
-	struct vnodeopv_desc *opv;
-	struct vnodeopv_desc **newopv;
+	const struct vnodeopv_desc *opv;
+	const struct vnodeopv_desc **newopv;
 	struct vnodeop_desc **newop;
 	int *newref;
 	vop_t **opv_desc_vector;
 	struct vnodeop_desc *desc;
 	int i, j;
 
-	opv = (struct vnodeopv_desc *)data;
-	MALLOC(newopv, struct vnodeopv_desc **,
+	opv = (const struct vnodeopv_desc *)data;
+	MALLOC(newopv, const struct vnodeopv_desc **,
 	       (vnodeopv_num + 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
 	if (newopv == NULL)
 		panic("vfs_add_vnodeops: no memory");
@@ -221,10 +221,10 @@ vfs_add_vnodeops(void *data)
 }
 
 void
-vfs_rm_vnodeops(void *data)
+vfs_rm_vnodeops(const void *data)
 {
-	struct vnodeopv_desc *opv;
-	struct vnodeopv_desc **newopv;
+	const struct vnodeopv_desc *opv;
+	const struct vnodeopv_desc **newopv;
 	struct vnodeop_desc **newop;
 	int *newref;
 	vop_t **opv_desc_vector;
@@ -283,7 +283,7 @@ vfs_rm_vnodeops(void *data)
 	}
 	if (i == vnodeopv_num)
 		panic("vfs_remove_vnodeops: opv not found");
-	MALLOC(newopv, struct vnodeopv_desc **,
+	MALLOC(newopv, const struct vnodeopv_desc **,
 	       (vnodeopv_num - 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
 	if (newopv == NULL)
 		panic("vfs_remove_vnodeops: no memory");

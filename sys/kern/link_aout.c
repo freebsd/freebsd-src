@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.17 1998/11/04 15:20:57 peter Exp $
+ *	$Id: link_aout.c,v 1.18 1999/01/25 08:42:24 dfr Exp $
  */
 
 #ifndef __alpha__
@@ -47,11 +47,11 @@ static int		link_aout_load_module(const char*, linker_file_t*);
 static int		link_aout_load_file(const char*, linker_file_t*);
 
 static int		link_aout_lookup_symbol(linker_file_t, const char*,
-						linker_sym_t*);
-static int		link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
+						c_linker_sym_t*);
+static int		link_aout_symbol_values(linker_file_t file, c_linker_sym_t sym,
 						linker_symval_t* symval);
 static int		link_aout_search_symbol(linker_file_t lf, caddr_t value,
-						linker_sym_t* sym, long* diffp);
+						c_linker_sym_t* sym, long* diffp);
 static void		link_aout_unload_file(linker_file_t);
 static void		link_aout_unload_module(linker_file_t);
 
@@ -448,7 +448,7 @@ symbol_hash_value(aout_file_t af, const char* name)
 
 int
 link_aout_lookup_symbol(linker_file_t file, const char* name,
-			linker_sym_t* sym)
+			c_linker_sym_t* sym)
 {
     aout_file_t af = file->priv;
     long hashval;
@@ -520,11 +520,11 @@ restart:
 
 
 static int
-link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
+link_aout_symbol_values(linker_file_t file, c_linker_sym_t sym,
 			linker_symval_t* symval)
 {
     aout_file_t af = file->priv;
-    struct nzlist* np = (struct nzlist*) sym;
+    const struct nzlist* np = (const struct nzlist*) sym;
     char* stringbase;
     long numsym = LD_STABSZ(af->dynamic) / sizeof(struct nzlist);
     struct nzlist *symbase;
@@ -551,7 +551,7 @@ link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
 
 static int
 link_aout_search_symbol(linker_file_t lf, caddr_t value,
-			linker_sym_t* sym, long* diffp)
+			c_linker_sym_t* sym, long* diffp)
 {
 	aout_file_t af = lf->priv;
 	u_long off = (uintptr_t) (void *) value;

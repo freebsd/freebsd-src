@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.55 1999/01/07 16:14:19 bde Exp $
+ * $Id: ufs_readwrite.c,v 1.56 1999/01/21 08:29:09 dillon Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -564,8 +564,8 @@ ffs_getpages(ap)
 	if (firstindex == 0)
 		vp->v_lastr = 0;
 
-	if ((obj->behavior != OBJ_RANDOM) &&
-		((firstindex != 0) && (firstindex <= vp->v_lastr) &&
+	if (((obj->behavior != OBJ_RANDOM) &&
+		(firstindex != 0) && (firstindex <= vp->v_lastr) &&
 		 ((firstindex + pcount) > vp->v_lastr)) ||
 		(obj->behavior == OBJ_SEQUENTIAL)) {
 		struct uio auio;

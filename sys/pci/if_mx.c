@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.8 1999/01/06 17:30:06 wpaul Exp $
+ *	$Id: if_mx.c,v 1.9 1999/01/27 23:45:42 dillon Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.8 1999/01/06 17:30:06 wpaul Exp $";
+	"$Id: if_mx.c,v 1.9 1999/01/27 23:45:42 dillon Exp $";
 #endif
 
 /*
@@ -2390,7 +2390,7 @@ static void mx_stop(sc)
 			sc->mx_cdata.mx_rx_chain[i].mx_mbuf = NULL;
 		}
 	}
-	bzero((char *)&sc->mx_ldata->mx_rx_list,
+	bzero((volatile char *)&sc->mx_ldata->mx_rx_list,
 		sizeof(sc->mx_ldata->mx_rx_list));
 
 	/*
@@ -2403,7 +2403,7 @@ static void mx_stop(sc)
 		}
 	}
 
-	bzero((char *)&sc->mx_ldata->mx_tx_list,
+	bzero((volatile char *)&sc->mx_ldata->mx_tx_list,
 		sizeof(sc->mx_ldata->mx_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);

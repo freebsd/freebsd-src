@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.47 1999/01/27 10:10:02 bde Exp $
+ * $Id: sys_pipe.c,v 1.48 1999/01/27 21:49:57 dillon Exp $
  */
 
 /*
@@ -987,8 +987,8 @@ pipe_poll(fp, events, cred, p)
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (wpipe == NULL || (wpipe->pipe_state & PIPE_EOF) ||
-		    ((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
-		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF)
+		    (((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
+		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||

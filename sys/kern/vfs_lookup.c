@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.31 1999/01/10 01:58:26 eivind Exp $
+ * $Id: vfs_lookup.c,v 1.32 1999/01/27 21:49:58 dillon Exp $
  */
 
 #include "opt_ktrace.h"
@@ -642,7 +642,7 @@ relookup(dvp, vpp, cnp)
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 */
-	if (error = VOP_LOOKUP(dp, vpp, cnp)) {
+	if ((error = VOP_LOOKUP(dp, vpp, cnp)) != 0) {
 		KASSERT(*vpp == NULL, ("leaf should be empty"));
 		if (error != EJUSTRETURN)
 			goto bad;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.20 1998/03/08 09:58:47 julian Exp $
+ * $Id: ffs_balloc.c,v 1.21 1998/09/12 14:46:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,7 @@ ffs_balloc(ap)
 	 * Determine the number of levels of indirection.
 	 */
 	pref = 0;
-	if (error = ufs_getlbns(vp, lbn, indirs, &num))
+	if ((error = ufs_getlbns(vp, lbn, indirs, &num)) != 0)
 		return(error);
 #ifdef DIAGNOSTIC
 	if (num < 1)
@@ -199,8 +199,8 @@ ffs_balloc(ap)
 	allocblk = allociblk;
 	if (nb == 0) {
 		pref = ffs_blkpref(ip, lbn, 0, (ufs_daddr_t *)0);
-	        if (error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
-		    cred, &newb))
+	        if ((error = ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize,
+		    cred, &newb)) != 0)
 			return (error);
 		nb = newb;
 		*allocblk++ = nb;
@@ -216,7 +216,7 @@ ffs_balloc(ap)
 			 * Write synchronously so that indirect blocks
 			 * never point at garbage.
 			 */
-			if (error = bwrite(bp))
+			if ((error = bwrite(bp)) != 0)
 				goto fail;
 		}
 		allocib = &ip->i_ib[indirs[0].in_off];
@@ -244,8 +244,8 @@ ffs_balloc(ap)
 		}
 		if (pref == 0)
 			pref = ffs_blkpref(ip, lbn, 0, (ufs_daddr_t *)0);
-		if (error =
-		    ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize, cred, &newb)) {
+		if ((error =
+		    ffs_alloc(ip, lbn, pref, (int)fs->fs_bsize, cred, &newb)) != 0) {
 			brelse(bp);
 			goto fail;
 		}
@@ -263,7 +263,7 @@ ffs_balloc(ap)
 			 * Write synchronously so that indirect blocks
 			 * never point at garbage.
 			 */
-			if (error = bwrite(nbp)) {
+			if ((error = bwrite(nbp)) != 0) {
 				brelse(bp);
 				goto fail;
 			}
