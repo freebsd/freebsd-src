@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_fil.c,v 2.0.1.5 1997/01/29 13:41:45 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_fil.c,v 2.0.1.7 1997/02/19 12:45:02 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -70,7 +70,7 @@ static	int	iplused = 0;
 #endif /* IPFILTER_LOG */
 static	void	frflush();
 static	int	frrequest();
-static	int	(*fr_savep)();
+static	int	(*fr_savep)() = NULL;
 
 #if _BSDI_VERSION >= 199501
 # include <sys/device.h>
@@ -732,6 +732,9 @@ frdest_t *fdp;
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	dst->sin_family = AF_INET;
 	dst->sin_addr = fdp->fd_ip.s_addr ? fdp->fd_ip : ip->ip_dst;
+#ifdef	__bsdi__
+	dst->sin_len = sizeof(*dst);
+#endif
 #if	(BSD >= 199306) && !defined(__NetBSD__) && !defined(__bsdi__)
 # ifdef	RTF_CLONING
 	rtalloc_ign(ro, RTF_CLONING);
@@ -780,7 +783,6 @@ frdest_t *fdp;
 #if	BSD >= 199306
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
 					  ro->ro_rt);
-
 #else
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst);
 #endif

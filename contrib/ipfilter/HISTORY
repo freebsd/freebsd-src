@@ -5,6 +5,15 @@
 # Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
 # loan of a machine to work on a Solaris 2.x port of this software.
 #
+prevent use of return-rst and return-icmp with rules blocking packets going
+out, preventing panics in certain situations.
+
+loop forms in frag cache table - Yury Pshenychny <yura@rd.zgik.zaporizhzhe.ua>
+
+should use SPLNET/SPLX around expire routines in NAT/frag/state code.
+
+redeclared malloc in 44arp.c - 
+
 3.1.7		8/2/97 - Released
 
 Macros used for ntohs/htons supplied with gcc don't always work very well
