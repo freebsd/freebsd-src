@@ -1,4 +1,5 @@
 /*	$OpenBSD: pfctl_table.c,v 1.59 2004/03/15 15:25:44 dhartmei Exp $ */
+/* add	$OpenBSD: pfctl_table.c,v 1.61 2004/06/12 22:22:44 cedric Exp $ */
 
 /*
  * Copyright (c) 2002 Cedric Berger
@@ -88,7 +89,13 @@ static const char	*istats_text[2][2][2] = {
 
 #define CREATE_TABLE do {						\
 		table.pfrt_flags |= PFR_TFLAG_PERSIST;			\
-		RVTEST(pfr_add_tables(&table, 1, &nadd, flags));	\
+		if ((!(opts & PF_OPT_NOACTION) ||			\
+		    (opts & PF_OPT_DUMMYACTION)) &&			\
+		    (pfr_add_tables(&table, 1, &nadd, flags)) &&	\
+		    (errno != EPERM)) {					\
+			radix_perror();					\
+			goto _error;					\
+		}							\
 		if (nadd) {						\
 			warn_namespace_collision(table.pfrt_name);	\
 			xprintf(opts, "%d table created", nadd);	\
