@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.8 1995/05/01 04:05:26 phk Exp $
+ * $Id: tst01.c,v 1.9 1995/05/03 17:38:00 jkh Exp $
  *
  */
 
@@ -141,8 +141,8 @@ main(int argc, char **argv)
 	sprintf(myprompt,"%s %s> ",argv[0],argv[1]);
 	while(1) {
 		printf("--==##==--\n");
-		Debug_Disk(d);
 		p = CheckRules(d);
+		Debug_Disk(d);
 		if (p) {
 			printf("%s",p);
 			free(p);
