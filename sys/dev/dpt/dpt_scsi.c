@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.14 1998/09/15 22:05:40 gibbs Exp $"
+#ident "$Id: dpt_scsi.c,v 1.15 1998/09/20 07:19:53 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -357,11 +357,10 @@ dptallocccbs(dpt_softc_t *dpt)
 		    htonl(dptccbvtop(dpt, next_ccb)
 			+ offsetof(struct dpt_ccb, sense_data));
 		next_ccb->eata_ccb.cp_busaddr = dpt->dpt_ccb_busend;
-
 		next_ccb->state = DCCB_FREE;
 		next_ccb->tag = dpt->total_dccbs;
 		SLIST_INSERT_HEAD(&dpt->free_dccb_list, next_ccb, links);
-		segs += dpt->sgsize;;
+		segs += dpt->sgsize;
 		physaddr += (dpt->sgsize * sizeof(dpt_sg_t));
 		dpt->dpt_ccb_busend += sizeof(*next_ccb);
 		next_ccb++;
@@ -758,7 +757,7 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 
 		/*
 		 * Explicitly set all flags so that the compiler can
-		 * be smart about setting our bit flags.
+		 * be smart about setting them.
 		 */
 		eccb->SCSI_Reset = 0;
 		eccb->HBA_Init = 0;
@@ -1271,15 +1270,14 @@ dpt_init(struct dpt_softc *dpt)
 	dpt->hostid[1] = conf.scsi_id1;
 	dpt->hostid[2] = conf.scsi_id2;
 
-	if (conf.SG_64K) {
-		dpt->sgsize = SG_SIZE_BIG;
-	} else if ((ntohs(conf.SGsiz) < 1)
-		|| (ntohs(conf.SGsiz) > SG_SIZE)) {
-		/* Just a sanity check */
-		dpt->sgsize = SG_SIZE;
-	} else {
+	if (conf.SG_64K)
+		dpt->sgsize = 8192;
+	else
 		dpt->sgsize = ntohs(conf.SGsiz);
-	}
+
+	/* We can only get 64k buffers, so don't bother to waste space. */
+	if (dpt->sgsize < 17 || dpt->sgsize > 32)
+		dpt->sgsize = 32; 
 
 	if (dpt->sgsize > dpt_max_segs)
 		dpt->sgsize = dpt_max_segs;
@@ -1327,6 +1325,10 @@ dpt_init(struct dpt_softc *dpt)
 			(dpt->max_dccbs * sizeof(struct dpt_ccb))
 			+ sizeof(dpt_sp_t),
 			dptmapmem, &dpt->dpt_ccb_busbase, /*flags*/0);
+
+	/* Clear them out. */
+	bzero(dpt->dpt_dccbs,
+	      (dpt->max_dccbs * sizeof(struct dpt_ccb)) + sizeof(dpt_sp_t));
 
 	dpt->dpt_ccb_busend = dpt->dpt_ccb_busbase;
 
