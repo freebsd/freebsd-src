@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.185 1996/05/01 08:31:21 bde Exp $
+ *	$Id: machdep.c,v 1.186 1996/05/01 08:38:36 bde Exp $
  */
 
 #include "npx.h"
@@ -237,7 +237,7 @@ cpu_startup(dummy)
 	/* avail_end was pre-decremented in init386() to compensate */
 	for (i = 0; i < btoc(sizeof (struct msgbuf)); i++)
 		pmap_enter(pmap_kernel(), (vm_offset_t)msgbufp,
-			   avail_end + i * NBPG,
+			   avail_end + i * PAGE_SIZE,
 			   VM_PROT_ALL, TRUE);
 	msgbufmapped = 1;
 
@@ -384,9 +384,9 @@ again:
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
 	 * we use the more space efficient malloc in place of kmem_alloc.
 	 */
-	mclrefcnt = (char *)malloc(nmbclusters+CLBYTES/MCLBYTES,
+	mclrefcnt = (char *)malloc(nmbclusters+PAGE_SIZE/MCLBYTES,
 				   M_MBUF, M_NOWAIT);
-	bzero(mclrefcnt, nmbclusters+CLBYTES/MCLBYTES);
+	bzero(mclrefcnt, nmbclusters+PAGE_SIZE/MCLBYTES);
 	mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
 			       nmbclusters * MCLBYTES, FALSE);
 	/*
@@ -1350,7 +1350,7 @@ init386(first)
 	 * the signal trampoline out of the user area.  This is safe because
 	 * the code segment cannot be written to directly.
 	 */
-#define VM_END_USER_R_ADDRESS	(VM_END_USER_RW_ADDRESS + UPAGES * NBPG)
+#define VM_END_USER_R_ADDRESS	(VM_END_USER_RW_ADDRESS + UPAGES * PAGE_SIZE)
 	ldt_segs[LUCODE_SEL].ssd_limit = i386_btop(VM_END_USER_R_ADDRESS) - 1;
 	ldt_segs[LUDATA_SEL].ssd_limit = i386_btop(VM_END_USER_RW_ADDRESS) - 1;
 	/* Note. eventually want private ldts per process */
@@ -1443,8 +1443,8 @@ init386(first)
 	}
 #endif
 
-	pagesinbase = biosbasemem * 1024 / NBPG;
-	pagesinext = biosextmem * 1024 / NBPG;
+	pagesinbase = biosbasemem * 1024 / PAGE_SIZE;
+	pagesinext = biosextmem * 1024 / PAGE_SIZE;
 
 	/*
 	 * Special hack for chipsets that still remap the 384k hole when
@@ -1594,7 +1594,7 @@ init386(first)
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	/* make a initial tss so microp can get interrupt stack on syscall! */
-	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*NBPG;
+	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*PAGE_SIZE;
 	proc0.p_addr->u_pcb.pcb_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: wd82371.c,v 1.2 1996/01/30 19:04:09 wollman Exp $
+ *	$Id: wd82371.c,v 1.3 1996/04/07 17:39:17 bde Exp $
  */
 
 #include "pci.h"
@@ -189,11 +189,11 @@ piix_dmasetup(void *xcp, char *vaddr, u_long count, int dir)
 	 * Deal with transfers that don't start on a page
 	 * boundary.
 	 */
-	pgresid = (u_long)vaddr % NBPG;
+	pgresid = (u_long)vaddr % PAGE_SIZE;
 	if (pgresid) {
 		prd[i].prd_base = vtophys(vaddr);
-		if (count >= (NBPG - pgresid))
-			prd[i].prd_count = NBPG - pgresid;
+		if (count >= (PAGE_SIZE - pgresid))
+			prd[i].prd_count = PAGE_SIZE - pgresid;
 		else
 			prd[i].prd_count = count;
 		vaddr += prd[i].prd_count;
@@ -210,7 +210,7 @@ piix_dmasetup(void *xcp, char *vaddr, u_long count, int dir)
 		u_long phys, n;
 
 		phys = vtophys(vaddr);
-		n = (count > NBPG) ? NBPG : count;
+		n = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		/*
 		 * If the current page is physically contiguous with
 		 * whatever we have in the previous PRD, just tack it

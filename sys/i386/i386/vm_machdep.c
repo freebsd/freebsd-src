@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.60 1996/04/25 06:20:06 phk Exp $
+ *	$Id: vm_machdep.c,v 1.61 1996/05/02 10:43:06 phk Exp $
  */
 
 #include "npx.h"
@@ -724,7 +724,7 @@ vmapbuf(bp)
 	}
 
 	addr = bp->b_saveaddr = bp->b_data;
-	off = (int)addr & PGOFSET;
+	off = (int)addr & PAGE_MASK;
 	npf = btoc(round_page(bp->b_bufsize + off));
 	bp->b_data = (caddr_t) (kva + off);
 	while (npf--) {
