@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.147.2.2 1999/04/25 11:41:47 rnordier Exp $
+#	$Id: Makefile,v 1.147.2.3 1999/04/28 07:58:12 obrien Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -79,7 +79,6 @@ SUBDIR=	IPXrouted \
 	sliplogin \
 	slstat \
 	spray \
-	sysctl \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
