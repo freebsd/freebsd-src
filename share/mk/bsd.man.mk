@@ -173,7 +173,7 @@ _maninstall: ${MAN}
 .endif
 .endfor
 .else
-	@set `echo ${.ALLSRC} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
+	@set ${.ALLSRC:C/\.([^.]*)$/.\1 \1/}; \
 	while : ; do \
 		case $$# in \
 			0) break;; \
@@ -204,7 +204,7 @@ _maninstall: ${MAN}
 .endif
 
 .if !defined(NOMLINKS) && defined(MLINKS) && !empty(MLINKS)
-	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
+	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
 	while : ; do \
 		case $$# in \
 			0) break;; \
@@ -219,7 +219,7 @@ _maninstall: ${MAN}
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
 	done
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
+	@set ${MLINKS:C/\.([^.]*)$/.\1 \1/}; \
 	while : ; do \
 		case $$# in \
 			0) break;; \
