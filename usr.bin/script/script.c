@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -47,8 +51,9 @@ static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
@@ -68,10 +73,10 @@ struct	termios tt;
 void	done __P((void)) __dead2;
 void	dooutput __P((void));
 void	doshell __P((void));
-void	err __P((const char *, ...));
 void	fail __P((void));
 void	finish __P((int));
 void	scriptflush __P((int));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -92,8 +97,7 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			(void)fprintf(stderr, "usage: script [-a] [file]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -104,12 +108,12 @@ main(argc, argv)
 		fname = "typescript";
 
 	if ((fscript = fopen(fname, aflg ? "a" : "w")) == NULL)
-		err("%s: %s", fname, strerror(errno));
+		err(1, "%s", fname);
 
 	(void)tcgetattr(STDIN_FILENO, &tt);
 	(void)ioctl(STDIN_FILENO, TIOCGWINSZ, &win);
 	if (openpty(&master, &slave, NULL, &tt, &win) == -1)
-		err("openpty: %s", strerror(errno));
+		err(1, "openpty");
 
 	(void)printf("Script started, output file is %s\n", fname);
 	rtt = tt;
@@ -120,13 +124,13 @@ main(argc, argv)
 	(void)signal(SIGCHLD, finish);
 	child = fork();
 	if (child < 0) {
-		perror("fork");
+		warn("fork");
 		fail();
 	}
 	if (child == 0) {
 		subchild = child = fork();
 		if (child < 0) {
-			perror("fork");
+			warn("fork");
 			fail();
 		}
 		if (child)
@@ -139,6 +143,13 @@ main(argc, argv)
 	while ((cc = read(STDIN_FILENO, ibuf, BUFSIZ)) > 0)
 		(void)write(master, ibuf, cc);
 	done();
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: script [-a] [file]\n");
+	exit(1);
 }
 
 void
@@ -208,7 +219,7 @@ doshell()
 	(void)fclose(fscript);
 	login_tty(slave);
 	execl(shell, "sh", "-i", NULL);
-	perror(shell);
+	warn(shell);
 	fail();
 }
 
@@ -235,33 +246,4 @@ done()
 		(void)printf("Script done, output file is %s\n", fname);
 	}
 	exit(0);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(const char *fmt, ...)
-#else
-err(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "script: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	exit(1);
-	/* NOTREACHED */
 }
