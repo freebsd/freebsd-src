@@ -29,6 +29,8 @@
  *
  */
 
+#include <sys/cdefs.h>
+
 typedef struct report_desc *report_desc_t;
 
 typedef struct hid_data *hid_data_t;
@@ -88,6 +90,8 @@ int hid_report_size __P((report_desc_t d, unsigned int id, enum hid_kind k));
 int hid_locate __P((report_desc_t d, unsigned int usage, enum hid_kind k, hid_item_t *h));
 
 /* Conversion to/from usage names, usage.c: */
+int hid_parse_usage_page __P((const char *name));
+int hid_parse_usage_in_page __P((const char *name));
 const char *hid_usage_page __P((int i));
 const char *hid_usage_in_page __P((unsigned int u));
 void hid_init __P((const char *file));
