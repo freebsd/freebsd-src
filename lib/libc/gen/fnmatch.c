@@ -45,9 +45,10 @@ static char sccsid[] = "@(#)fnmatch.c	8.2 (Berkeley) 4/16/94";
 
 #include <ctype.h>
 #include <fnmatch.h>
-#include <locale.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "collate.h"
 
 #define	EOS	'\0'
 
@@ -186,8 +187,8 @@ rangematch(pattern, test, flags)
 			if (flags & FNM_CASEFOLD)
 				c2 = tolower((unsigned char)c2);
 
-			if (   collate_range_cmp(c, test) <= 0
-			    && collate_range_cmp(test, c2) <= 0
+			if (   __collate_range_cmp(c, test) <= 0
+			    && __collate_range_cmp(test, c2) <= 0
 			   )
 				ok = 1;
 		} else if (c == test)
