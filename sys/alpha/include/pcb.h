@@ -33,7 +33,6 @@
 
 #include <machine/frame.h>
 #include <machine/reg.h>
-#include <machine/globaldata.h>
 #include <machine/alpha_cpu.h>
 
 /*

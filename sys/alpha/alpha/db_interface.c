@@ -571,52 +571,10 @@ db_branch_taken(ins, pc, regs)
 	return (newpc);
 }
 
-DB_SHOW_COMMAND(pcpu, db_show_pcpu)
+void
+db_show_mdpcpu(struct pcpu *pc)
 {
-	struct globaldata *gd;
-#ifdef SMP
-	int id;
 
-	if (have_addr)
-		id = ((addr >> 4) % 16) * 10 + (addr % 16);
-	else
-		id = PCPU_GET(cpuid);
-	gd = globaldata_find(id);
-	if (gd == NULL) {
-		db_printf("CPU %d not found\n", id);
-		return;
-	}
-#else
-	gd = GLOBALP;
-#endif
-	db_printf("cpuid     = %d\n", gd->gd_cpuid);
-	db_printf("ipis      = %lx\n", gd->gd_pending_ipis);
-	db_printf("next ASN  = %d\n", gd->gd_next_asn);
-	db_printf("curthread   = ");
-	if (gd->gd_curthread != NULL)
-		db_printf("%p: pid %d \"%s\"\n", gd->gd_curthread,
-		    gd->gd_curthread->td_proc->p_pid,
-		    gd->gd_curthread->td_proc->p_comm);
-	else
-		db_printf("none\n");
-	db_printf("curpcb    = %p\n", gd->gd_curpcb);
-	db_printf("fpcurthread = ");
-	if (gd->gd_fpcurthread != NULL)
-		db_printf("%p: pid %d \"%s\"\n", gd->gd_fpcurthread,
-		    gd->gd_fpcurthread->td_proc->p_pid,
-		    gd->gd_fpcurthread->td_proc->p_comm);
-	else
-		db_printf("none\n");
-	db_printf("idlethread  = ");
-	if (gd->gd_idlethread != NULL)
-		db_printf("%p: pid %d \"%s\"\n", gd->gd_idlethread,
-		    gd->gd_idlethread->td_proc->p_pid,
-		    gd->gd_idlethread->td_proc->p_comm);
-	else
-		db_printf("none\n");
-		
-#ifdef WITNESS
-	db_printf("spin locks held:\n");
-	witness_list_locks(&gd->gd_spinlocks);
-#endif
+	db_printf("ipis         = 0x%lx\n", pc->pc_pending_ipis);
+	db_printf("next ASN     = %d\n", pc->pc_next_asn);
 }

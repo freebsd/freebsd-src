@@ -41,7 +41,7 @@
  */
 #define	SWITCH_CONTEXT							\
 	/* Make a note of the context we're running on. */		\
-	stq	a0, GD_CURPCB(globalp);					\
+	stq	a0, PC_CURPCB(pcpup);					\
 									\
 	/* Swap in the new context. */					\
 	call_pal PAL_OSF1_swpctx
@@ -103,7 +103,7 @@ LEAF(cpu_throw, 0)
 LEAF(cpu_switch, 1)
 	LDGP(pv)
 	/* do an inline savectx(), to save old context */
-	ldq	a0, GD_CURTHREAD(globalp)
+	ldq	a0, PC_CURTHREAD(pcpup)
 	ldq	a1, TD_PCB(a0)
 	/* NOTE: ksp is stored by the swpctx */
 	stq	s0, PCB_CONTEXT+(0 * 8)(a1)	/* store s0 - s6 */
@@ -188,7 +188,7 @@ Lcs7:
 	 * because we might have re-entered cpu_switch() from idle(),
 	 * in which case curthread would be NULL.
 	 */
-	stq	s2, GD_CURTHREAD(globalp)		/* curthread = p */
+	stq	s2, PC_CURTHREAD(pcpup)		/* curthread = p */
 
 	/*
 	 * Now running on the new u struct.

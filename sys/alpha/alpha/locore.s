@@ -81,7 +81,7 @@
  */
 #define	SWITCH_CONTEXT							\
 	/* Make a note of the context we're running on. */		\
-	stq	a0, GD_CURPCB(globalp);					\
+	stq	a0, PC_CURPCB(pcpup);					\
 									\
 	/* Swap in the new context. */					\
 	call_pal PAL_OSF1_swpctx
@@ -111,10 +111,10 @@
 	call_pal PAL_OSF1_wrvptptr	/* clobbers a0, t0, t8-t11 */
 
 	/*
-	 * Initialise globalp.
+	 * Initialise pcpup.
 	 */
 	call_pal PAL_OSF1_rdval		/* clobbers t0, t8-t11 */
-	mov	v0, globalp
+	mov	v0, pcpup
 
 	/*
 	 * Switch to proc0's PCB.
@@ -148,10 +148,10 @@
 	br	pv, 1f
 1:	LDGP(pv)
 
-	call_pal PAL_rdunique			/* initialise globalp */	
-	mov	v0, globalp
+	call_pal PAL_rdunique			/* initialise pcpup */	
+	mov	v0, pcpup
 
-	ldq	a0, GD_IDLEPCBPHYS(globalp)	/* switch to idle ctx */
+	ldq	a0, PC_IDLEPCBPHYS(pcpup)	/* switch to idle ctx */
 	call_pal PAL_OSF1_swpctx
 
 	/* Load KGP with current GP. */

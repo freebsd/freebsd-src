@@ -46,7 +46,6 @@
 #include <sys/dkstat.h>
 
 #include <machine/atomic.h>
-#include <machine/globaldata.h>
 #include <machine/pmap.h>
 #include <machine/rpb.h>
 #include <machine/clock.h>
@@ -132,9 +131,9 @@ smp_init_secondary(void)
 		/*spin*/ ;
  
 	/*
-	 * Record the globaldata pointer in the per-cpu system value.
+	 * Record the pcpu pointer in the per-cpu system value.
 	 */
-	alpha_pal_wrval((u_int64_t) globalp);
+	alpha_pal_wrval((u_int64_t) pcpup);
 
 	/*
 	 * Point interrupt/exception vectors to our own.
@@ -157,9 +156,10 @@ smp_init_secondary(void)
         /*
          * Set curproc to our per-cpu idleproc so that mutexes have
          * something unique to lock with.
+	 *
+	 * XXX: shouldn't this already be set for us?
          */
         PCPU_SET(curthread, PCPU_GET(idlethread));
-        PCPU_SET(spinlocks, NULL);
 
 	/*
 	 * Set flags in our per-CPU slot in the HWRPB.
@@ -181,7 +181,7 @@ smp_init_secondary(void)
 	 * stack pointer for sanity.
 	 */
 	curthread->td_frame =
-	    (struct trapframe *)globalp->gd_idlepcb.apcb_ksp;
+	    (struct trapframe *)PCPU_PTR(idlepcb)->apcb_ksp;
 
 	mtx_lock_spin(&ap_boot_mtx);
 
@@ -220,7 +220,7 @@ smp_start_secondary(int cpuid)
 	struct pcs *cpu = LOCATE_PCS(hwrpb, cpuid);
 	struct pcs *bootcpu = LOCATE_PCS(hwrpb, boot_cpu_id);
 	struct alpha_pcb *pcb = (struct alpha_pcb *) cpu->pcs_hwpcb;
-	struct globaldata *globaldata;
+	struct pcpu *pcpu;
 	int i;
 	size_t sz;
 
@@ -233,21 +233,21 @@ smp_start_secondary(int cpuid)
 		printf("smp_start_secondary: starting cpu %d\n", cpuid);
 
 	sz = round_page((UAREA_PAGES + KSTACK_PAGES) * PAGE_SIZE);
-	globaldata = malloc(sz, M_TEMP, M_NOWAIT);
-	if (!globaldata) {
+	pcpu = malloc(sz, M_TEMP, M_NOWAIT);
+	if (!pcpu) {
 		printf("smp_start_secondary: can't allocate memory\n");
 		return 0;
 	}
 	
-	globaldata_init(globaldata, cpuid, sz);
+	pcpu_init(pcpu, cpuid, sz);
 
 	/*
 	 * Copy the idle pcb and setup the address to start executing.
-	 * Use the pcb unique value to point the secondary at its globaldata
+	 * Use the pcb unique value to point the secondary at its pcpu
 	 * structure.
 	 */
-	*pcb = globaldata->gd_idlepcb;
-	pcb->apcb_unique = (u_int64_t)globaldata;
+	*pcb = pcpu->pc_idlepcb;
+	pcb->apcb_unique = (u_int64_t)pcpu;
 	hwrpb->rpb_restart = (u_int64_t) smp_init_secondary_glue;
 	hwrpb->rpb_restart_val = (u_int64_t) smp_init_secondary_glue;
 	hwrpb->rpb_checksum = hwrpb_checksum();
@@ -271,10 +271,11 @@ smp_start_secondary(int cpuid)
 	 */
 	if (!smp_send_secondary_command("START\r\n", cpuid)) {
 		printf("smp_start_secondary: can't send START command\n");
-		free(globaldata, M_TEMP);
+		pcpu_destroy(pcpu);
+		free(pcpu, M_TEMP);
 		return 0;
 	}
-	       
+
 	/*
 	 * Wait for the secondary to set the BIP flag in its structure.
 	 */
@@ -285,9 +286,11 @@ smp_start_secondary(int cpuid)
 	}
 	if (!(cpu->pcs_flags & PCS_BIP)) {
 		printf("smp_start_secondary: secondary did not respond\n");
-		free(globaldata, M_TEMP);
+		pcpu_destroy(pcpu);
+		free(pcpu, M_TEMP);
+		return 0;
 	}
-	
+
 	/*
 	 * It worked (I think).
 	 */
@@ -410,7 +413,7 @@ cpu_mp_announce(void)
 void
 ipi_selected(u_int32_t cpus, u_int64_t ipi)
 {
-	struct globaldata *globaldata;
+	struct pcpu *pcpu;
 
 	CTR2(KTR_SMP, "ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
 	alpha_mb();
@@ -418,9 +421,9 @@ ipi_selected(u_int32_t cpus, u_int64_t ipi)
 		int cpuid = ffs(cpus) - 1;
 		cpus &= ~(1 << cpuid);
 
-		globaldata = globaldata_find(cpuid);
-		if (globaldata) {
-			atomic_set_64(&globaldata->gd_pending_ipis, ipi);
+		pcpu = pcpu_find(cpuid);
+		if (pcpu) {
+			atomic_set_64(&pcpu->pc_pending_ipis, ipi);
 			alpha_mb();
 			CTR1(KTR_SMP, "calling alpha_pal_wripir(%d)", cpuid);
 			alpha_pal_wripir(cpuid);

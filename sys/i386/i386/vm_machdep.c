@@ -154,7 +154,7 @@ cpu_fork(td1, p2, flags)
 	if (td1 == curthread)
 		td1->td_pcb->pcb_gs = rgs();
 	savecrit = critical_enter();
-	if (PCPU_GET(npxthread) == td1)
+	if (PCPU_GET(fpcurthread) == td1)
 		npxsave(&td1->td_pcb->pcb_save);
 	critical_exit(savecrit);
 #endif

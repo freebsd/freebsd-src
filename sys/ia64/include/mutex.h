@@ -49,7 +49,7 @@
  */
 #define MTX_ENTER(lck, rPSR, rOLD, rNEW, rLCK)		\
 	mov	rPSR=psr ;				\
-	mov	rNEW=globalp ;				\
+	mov	rNEW=pcpup ;				\
 	addl	rLCK=@ltoff(lck),gp ;;			\
 	ld8	rLCK=[rLCK] ;;				\
 	add	rLCK=MTX_LOCK,rLCK ;;			\

@@ -36,8 +36,8 @@
 	.register %g6,#ignore
 	.register %g7,#ignore
 
-#define	PCPU(member)	%g7 + GD_ ## member
-#define	PCPU_ADDR(member, reg) add %g7, GD_ ## member, reg
+#define	PCPU(member)	%g7 + PC_ ## member
+#define	PCPU_ADDR(member, reg) add %g7, PC_ ## member, reg
 
 #define	DEBUGGER()	ta %xcc, 1
 

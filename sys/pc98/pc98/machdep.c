@@ -104,7 +104,6 @@
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #include <machine/proc.h>
-#include <machine/globals.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -220,7 +219,7 @@ struct kva_md_info kmi;
 
 static struct trapframe proc0_tf;
 #ifndef SMP
-static struct globaldata __globaldata;
+static struct pcpu __pcpu;
 #endif
 
 struct mtx sched_lock;
@@ -275,7 +274,7 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
-	globaldata_register(GLOBALDATA);
+	pcpu_init(GLOBALDATA, 0, sizeof(struct pcpu));
 #ifndef SMP
 	/* For SMP, we delay the cpu_setregs() until after SMP startup. */
 	cpu_setregs();
@@ -1774,15 +1773,15 @@ init386(first)
 		atop(sizeof(struct privatespace) - 1);
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[0];
 	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &SMP_prvspace[0].globaldata.gd_common_tss;
-	SMP_prvspace[0].globaldata.gd_prvspace = &SMP_prvspace[0].globaldata;
+		(int) &SMP_prvspace[0].pcpu.pc_common_tss;
+	SMP_prvspace[0].pcpu.pc_prvspace = &SMP_prvspace[0].pcpu;
 #else
 	gdt_segs[GPRIV_SEL].ssd_limit =
-		atop(sizeof(struct globaldata) - 1);
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &__globaldata;
+		atop(sizeof(struct pcpu) - 1);
+	gdt_segs[GPRIV_SEL].ssd_base = (int) &__pcpu;
 	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &__globaldata.gd_common_tss;
-	__globaldata.gd_prvspace = &__globaldata;
+		(int) &__pcpu.pc_common_tss;
+	__pcpu.pc_prvspace = &__pcpu;
 #endif
 
 	for (x = 0; x < NGDT; x++) {

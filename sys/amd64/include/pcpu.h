@@ -26,54 +26,122 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_GLOBALDATA_H_
-#define _MACHINE_GLOBALDATA_H_
+#ifndef _MACHINE_PCPU_H_
+#define _MACHINE_PCPU_H_
 
 #ifdef _KERNEL
+
+#ifndef	__GNUC__
+#error	gcc is required to use this file
+#endif
 
 #include <machine/segments.h>
 #include <machine/tss.h>
 
-/* XXX */
-#ifdef KTR_PERCPU
-#include <sys/ktr.h>
-#endif
-
 /*
- * This structure maps out the global data that needs to be kept on a
- * per-cpu basis.  genassym uses this to generate offsets for the assembler
- * code, which also provides external symbols so that C can get at them as
- * though they were really globals.
- *
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
  * The reason for doing it via a struct is so that an array of pointers
  * to each CPU's data can be set up for things like "check curproc on all
  * other processors"
  */
-struct globaldata {
-	struct	globaldata *gd_prvspace;	/* Self-reference */
-	struct	thread *gd_curthread;
-	struct	thread *gd_npxthread;
-	struct	pcb *gd_curpcb;
-	struct	thread *gd_idlethread;
-	struct	timeval gd_switchtime;
-	struct	i386tss gd_common_tss;
-	int	gd_switchticks;
-	struct	segment_descriptor gd_common_tssd;
-	struct	segment_descriptor *gd_tss_gdt;
-	int	gd_currentldt;
-	u_int	gd_cpuid;
-	u_int	gd_other_cpus;
-	SLIST_ENTRY(globaldata) gd_allcpu;
-	struct	lock_list_entry *gd_spinlocks;
-#ifdef KTR_PERCPU
-	int	gd_ktr_idx;			/* Index into trace table */
-	char	*gd_ktr_buf;
-	char	gd_ktr_buf_data[KTR_SIZE];
-#endif
-};
+#define	PCPU_MD_FIELDS							\
+	struct	pcpu *pc_prvspace;		/* Self-reference */	\
+	struct	i386tss pc_common_tss;					\
+	struct	segment_descriptor pc_common_tssd;			\
+	struct	segment_descriptor *pc_tss_gdt;				\
+	int	pc_currentldt
+
+/*
+ * Evaluates to the byte offset of the per-cpu variable name.
+ */
+#define	__pcpu_offset(name)						\
+	__offsetof(struct pcpu, name)
+
+/*
+ * Evaluates to the type of the per-cpu variable name.
+ */
+#define	__pcpu_type(name)						\
+	__typeof(((struct pcpu *)0)->name)
+
+/*
+ * Evaluates to the address of the per-cpu variable name.
+ */
+#define	__PCPU_PTR(name) ({						\
+	__pcpu_type(name) *__p;						\
+									\
+	__asm __volatile("movl %%fs:%1,%0; addl %2,%0"			\
+	    : "=r" (__p)						\
+	    : "m" (*(struct pcpu *)(__pcpu_offset(pc_prvspace))),	\
+	      "i" (__pcpu_offset(name)));				\
+									\
+	__p;								\
+})
+
+/*
+ * Evaluates to the value of the per-cpu variable name.
+ */
+#define	__PCPU_GET(name) ({						\
+	__pcpu_type(name) __result;					\
+									\
+	if (sizeof(__result) == 1) {					\
+		u_char __b;						\
+		__asm __volatile("movb %%fs:%1,%0"			\
+		    : "=r" (__b)					\
+		    : "m" (*(u_char *)(__pcpu_offset(name))));		\
+		__result = *(__pcpu_type(name) *)&__b;			\
+	} else if (sizeof(__result) == 2) {				\
+		u_short __w;						\
+		__asm __volatile("movw %%fs:%1,%0"			\
+		    : "=r" (__w)					\
+		    : "m" (*(u_short *)(__pcpu_offset(name))));		\
+		__result = *(__pcpu_type(name) *)&__w;			\
+	} else if (sizeof(__result) == 4) {				\
+		u_int __i;						\
+		__asm __volatile("movl %%fs:%1,%0"			\
+		    : "=r" (__i)					\
+		    : "m" (*(u_int *)(__pcpu_offset(name))));		\
+		__result = *(__pcpu_type(name) *)&__i;			\
+	} else {							\
+		__result = *__PCPU_PTR(name);				\
+	}								\
+									\
+	__result;							\
+})
+
+/*
+ * Sets the value of the per-cpu variable name to value val.
+ */
+#define	__PCPU_SET(name, val) ({					\
+	__pcpu_type(name) __val = (val);				\
+									\
+	if (sizeof(__val) == 1) {					\
+		u_char __b;						\
+		__b = *(u_char *)&__val;				\
+		__asm __volatile("movb %1,%%fs:%0"			\
+		    : "=m" (*(u_char *)(__pcpu_offset(name)))		\
+		    : "r" (__b));					\
+	} else if (sizeof(__val) == 2) {				\
+		u_short __w;						\
+		__w = *(u_short *)&__val;				\
+		__asm __volatile("movw %1,%%fs:%0"			\
+		    : "=m" (*(u_short *)(__pcpu_offset(name)))		\
+		    : "r" (__w));					\
+	} else if (sizeof(__val) == 4) {				\
+		u_int __i;						\
+		__i = *(u_int *)&__val;					\
+		__asm __volatile("movl %1,%%fs:%0"			\
+		    : "=m" (*(u_int *)(__pcpu_offset(name)))		\
+		    : "r" (__i));					\
+	} else {							\
+		*__PCPU_PTR(name) = __val;				\
+	}								\
+})
+
+#define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
+#define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
+#define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
 #endif	/* _KERNEL */
 
-#endif	/* ! _MACHINE_GLOBALDATA_H_ */
+#endif	/* ! _MACHINE_PCPU_H_ */

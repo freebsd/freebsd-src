@@ -123,7 +123,7 @@ ENTRY(cpu_switch)
 
 #ifdef DEV_NPX
 	/* have we used fp, and need a save? */
-	cmpl	%ecx,PCPU(NPXTHREAD)
+	cmpl	%ecx,PCPU(FPCURTHREAD)
 	jne	1f
 	addl	$PCB_SAVEFPU,%edx		/* h/w bugs make saving complicated */
 	pushl	%edx
@@ -337,20 +337,20 @@ ENTRY(savectx)
 
 #ifdef DEV_NPX
 	/*
-	 * If npxthread == NULL, then the npx h/w state is irrelevant and the
+	 * If fpcurthread == NULL, then the npx h/w state is irrelevant and the
 	 * state had better already be in the pcb.  This is true for forks
 	 * but not for dumps (the old book-keeping with FP flags in the pcb
 	 * always lost for dumps because the dump pcb has 0 flags).
 	 *
-	 * If npxthread != NULL, then we have to save the npx h/w state to
-	 * npxthread's pcb and copy it to the requested pcb, or save to the
+	 * If fpcurthread != NULL, then we have to save the npx h/w state to
+	 * fpcurthread's pcb and copy it to the requested pcb, or save to the
 	 * requested pcb and reload.  Copying is easier because we would
 	 * have to handle h/w bugs for reloading.  We used to lose the
 	 * parent's npx state for forks by forgetting to reload.
 	 */
 	pushfl
 	cli
-	movl	PCPU(NPXTHREAD),%eax
+	movl	PCPU(FPCURTHREAD),%eax
 	testl	%eax,%eax
 	je	1f
 

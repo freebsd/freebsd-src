@@ -46,7 +46,6 @@
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/segments.h>
-#include <machine/globals.h>
 
 /*
  * definitions of cpu-dependent requirements

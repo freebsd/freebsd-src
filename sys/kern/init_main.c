@@ -68,7 +68,6 @@
 #include <sys/conf.h>
 
 #include <machine/cpu.h>
-#include <machine/globals.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

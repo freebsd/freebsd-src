@@ -49,7 +49,6 @@
 #include <machine/fp.h>
 #include <machine/frame.h>
 #include <machine/fsr.h>
-#include <machine/globals.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
 #include <machine/pstate.h>
@@ -129,9 +128,9 @@ ASSYM(TT_CTX_SHIFT, TT_CTX_SHIFT);
 
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
-ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
-ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
-ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
+ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(IH_SHIFT, IH_SHIFT);
 ASSYM(IH_FUNC, offsetof(struct intr_handler, ih_func));

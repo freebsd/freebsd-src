@@ -35,8 +35,6 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
-#include <machine/globals.h>
-
 /*
  * Machine-dependent part of the proc structure
  */

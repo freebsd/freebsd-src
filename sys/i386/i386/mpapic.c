@@ -35,7 +35,6 @@
 #include <machine/smptests.h>	/** TEST_TEST1 */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
-#include <machine/globaldata.h>
 #include <machine/segments.h>
 
 #include <i386/isa/intr_machdep.h>	/* Xspuriousint() */
