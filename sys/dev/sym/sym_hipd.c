@@ -58,7 +58,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.0.0-19991205"
+#define SYM_DRIVER_NAME	"sym-1.1.1-20000101"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -592,6 +592,19 @@ static void sym_printl_hex (char *label, u_char *p, int n)
 	printf ("%s", label);
 	sym_printb_hex (p, n);
 	printf (".\n");
+}
+
+/*
+ *  Return a string for SCSI BUS mode.
+ */
+static char *sym_scsi_bus_mode(int mode)
+{
+	switch(mode) {
+	case SMODE_HVD:	return "HVD";
+	case SMODE_SE:	return "SE";
+	case SMODE_LVD: return "LVD";
+	}
+	return "??";
 }
 
 /*
@@ -1172,7 +1185,6 @@ struct sym_ccb {
 				/*  NO_TAG means no tag		*/
 	u_char	target;
 	u_char	lun;
-	ccb_p	link_ccb;	/* Host adapter CCB chain	*/
 	ccb_p	link_ccbh;	/* Host adapter CCB hash chain	*/
 	SYM_QUEHEAD
 		link_ccbq;	/* Link to free/busy CCB queue	*/
@@ -1369,7 +1381,6 @@ struct sym_hcb {
 	 *  CCB lists and queue.
 	 */
 	ccb_p ccbh[CCB_HASH_SIZE];	/* CCB hashed by DSA value	*/
-	ccb_p		ccbc;		/* CCB chain			*/
 	SYM_QUEHEAD	free_ccbq;	/* Queue of available CCBs	*/
 	SYM_QUEHEAD	busy_ccbq;	/* Queue of busy CCBs		*/
 
@@ -1616,7 +1627,7 @@ static int  sym_reset_scsi_bus (hcb_p np, int enab_int);
 static int  sym_wakeup_done (hcb_p np);
 static void sym_flush_busy_queue (hcb_p np, int cam_status);
 static void sym_flush_comp_queue (hcb_p np, int cam_status);
-static void sym_init (hcb_p np, int reset, char *msg);
+static void sym_init (hcb_p np, int reason);
 static int  sym_getsync(hcb_p np, u_char dt, u_char sfac, u_char *divp,
 		        u_char *fakp);
 static void sym_setsync (hcb_p np, ccb_p cp, u_char ofs, u_char per,
@@ -4226,22 +4237,27 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 *  Let user know about the settings.
 	 */
 	i = nvram->type;
-	printf("%s: %s NVRAM, ID %d, Fast-%d, %s%s\n", sym_name(np),
+	printf("%s: %s NVRAM, ID %d, Fast-%d, %s, %s\n", sym_name(np),
 		i  == SYM_SYMBIOS_NVRAM ? "Symbios" :
 		(i == SYM_TEKRAM_NVRAM  ? "Tekram" : "No"),
 		np->myaddr,
-		np->minsync  < 10 ? 80 : (np->minsync < 12 ? 40 :
-		(np->minsync < 25 ? 20 : 10)),
-		(np->rv_scntl0 & 0xa)	? "parity checking" : "NO parity",
-		np->scsi_mode  == SMODE_HVD ? ", HVD" : "");
+		(np->features & FE_ULTRA3) ? 80 : 
+		(np->features & FE_ULTRA2) ? 40 : 
+		(np->features & FE_ULTRA)  ? 20 : 10,
+		sym_scsi_bus_mode(np->scsi_mode),
+		(np->rv_scntl0 & 0xa)	? "parity checking" : "NO parity");
 	/*
 	 *  Tell him more on demand.
 	 */
-	if (sym_verbose)
+	if (sym_verbose) {
 		printf("%s: %s IRQ line driver%s\n",
 			sym_name(np),
 			np->rv_dcntl & IRQM ? "totem pole" : "open drain",
 			np->ram_ba ? ", using on-chip SRAM" : "");
+		if (np->features & FE_NOPM)
+			printf("%s: handling phase mismatch from SCRIPTS.\n", 
+			       sym_name(np));
+	}
 	/*
 	 *  And still more.
 	 */
@@ -4410,13 +4426,16 @@ static void sym_put_start_queue(hcb_p np, ccb_p cp)
  *  Soft reset the chip.
  *
  *  Raising SRST when the chip is running may cause 
- *  problems on dual function chips (see below). 
+ *  problems on dual function chips (see below).
+ *  On the other hand, LVD devices need some delay 
+ *  to settle and report actual BUS mode in STEST4.
  */
 static void sym_chip_reset (hcb_p np)
 {
 	OUTB (nc_istat, SRST);
 	UDELAY (10);
 	OUTB (nc_istat, 0);
+	UDELAY(2000);	/* For BUS MODE to settle */
 }
 
 /*
@@ -4468,7 +4487,6 @@ static int sym_reset_scsi_bus(hcb_p np, int enab_int)
 	int retv = 0;
 
 	sym_soft_reset(np);	/* Soft reset the chip */
-	UDELAY (2000);	/* The 895/6 need time for the bus mode to settle */
 	if (enab_int)
 		OUTW (nc_sien, RST);
 	/*
@@ -4488,11 +4506,12 @@ static int sym_reset_scsi_bus(hcb_p np, int enab_int)
 	 *  We are expecting RESET to be TRUE and other signals to be 
 	 *  FALSE.
 	 */
-	term =	INB(nc_sstat0);				/* rst, sdp0 */
-	term =	((term & 2) << 7) + ((term & 1) << 16);
-	term |= ((INB(nc_sstat2) & 0x01) << 25) |	/* sdp1 */
-		(INW(nc_sbdl) << 9) |			/* d15-0 */
-		INB(nc_sbcl);	/* req, ack, bsy, sel, atn, msg, cd, io */
+	term =	INB(nc_sstat0);
+	term =	((term & 2) << 7) + ((term & 1) << 17);	/* rst sdp0 */
+	term |= ((INB(nc_sstat2) & 0x01) << 26) |	/* sdp1     */
+		((INW(nc_sbdl) & 0xff)   << 9)  |	/* d7-0     */
+		((INW(nc_sbdl) & 0xff00) << 10) |	/* d15-8    */
+		INB(nc_sbcl);	/* req ack bsy sel atn msg cd io    */
 
 	if (!(np->features & FE_WIDE))
 		term &= 0x3ffff;
@@ -4564,8 +4583,13 @@ static void sym_flush_busy_queue (hcb_p np, int cam_status)
 
 /*
  *  Start chip.
+ *
+ *  'reason' means:
+ *     0: initialisation.
+ *     1: SCSI BUS RESET delivered or received.
+ *     2: SCSI BUS MODE changed.
  */
-static void sym_init (hcb_p np, int reset, char *msg)
+static void sym_init (hcb_p np, int reason)
 {
  	int	i;
 	u_long	phys;
@@ -4573,18 +4597,13 @@ static void sym_init (hcb_p np, int reset, char *msg)
  	/*
 	 *  Reset chip if asked, otherwise just clear fifos.
  	 */
-	if (reset)
+	if (reason == 1)
 		sym_soft_reset(np);
 	else {
 		OUTB (nc_stest3, TE|CSF);
 		OUTONB (nc_ctest3, CLF);
 	}
  
-	/*
-	 *  Message.
-	 */
-	if (msg) printf ("%s: restart (%s).\n", sym_name (np), msg);
-
 	/*
 	 *  Clear Start Queue
 	 */
@@ -4689,9 +4708,6 @@ static void sym_init (hcb_p np, int reset, char *msg)
 	 *  set PM jump addresses.
 	 */
 	if (np->features & FE_NOPM) {
-		if (sym_verbose)
-			printf("%s: handling phase mismatch from SCRIPTS.\n", 
-			       sym_name(np));
 		OUTL (nc_pmjad1, SCRIPTH_BA (np, pm_handle));
 		OUTL (nc_pmjad2, SCRIPTH_BA (np, pm_handle));
 	}
@@ -4713,9 +4729,15 @@ static void sym_init (hcb_p np, int reset, char *msg)
 
 	/*
 	 *  For 895/6 enable SBMC interrupt and save current SCSI bus mode.
+	 *  Try to eat the spurious SBMC interrupt that may occur when 
+	 *  we reset the chip but not the SCSI BUS (at initialization).
 	 */
 	if (np->features & (FE_ULTRA2|FE_ULTRA3)) {
 		OUTONW (nc_sien, SBMC);
+		if (reason == 0) {
+			MDELAY(100);
+			INW (nc_sist);
+		}
 		np->scsi_mode = INB (nc_stest4) & SMODE;
 	}
 
@@ -4744,7 +4766,7 @@ static void sym_init (hcb_p np, int reset, char *msg)
 	 *  and start script processor.
 	 */
 	if (np->ram_ba) {
-		if (sym_verbose)
+		if (sym_verbose > 1)
 			printf ("%s: Downloading SCSI SCRIPTS.\n",
 				sym_name(np));
 		if (np->ram_ws == 8192) {
@@ -4769,9 +4791,10 @@ static void sym_init (hcb_p np, int reset, char *msg)
 	OUTL (nc_dsp, phys);
 
 	/*
-	 *  Notify the XPT of the event.
+	 *  Notify the XPT about the RESET condition.
 	 */
-	xpt_async(AC_BUS_RESET, np->path, NULL);
+	if (reason != 0)
+		xpt_async(AC_BUS_RESET, np->path, NULL);
 }
 
 /*
@@ -5039,6 +5062,7 @@ out:
 static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 			 u_char per, u_char wide, u_char div, u_char fak)
 {
+	SYM_QUEHEAD *qp;
 	union	ccb *ccb;
 	tcb_p tp;
 	u_char target = INB (nc_sdid) & 0x0f;
@@ -5138,11 +5162,10 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	}
 
 	/*
-	 *  patch ALL ccbs of this target.
+	 *  patch ALL busy ccbs of this target.
 	 */
-	for (cp = np->ccbc; cp; cp = cp->link_ccb) {
-		if (cp->host_status == HS_IDLE)
-			continue;
+	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
+		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		if (cp->target != target)
 			continue;
 		cp->phys.select.sel_scntl3 = tp->wval;
@@ -5407,7 +5430,9 @@ static void sym_intr1 (hcb_p np)
 	 *  ponding status and restart the SCRIPTS.
 	 */
 	if (sist & RST) {
-		sym_init (np, 1, sym_verbose ? "scsi reset" : NULL);
+		xpt_print_path(np->path);
+		printf("SCSI BUS reset detected.\n");
+		sym_init (np, 1);
 		return;
 	};
 
@@ -5576,17 +5601,18 @@ static void sym_int_sbmc (hcb_p np)
 {
 	u_char scsi_mode = INB (nc_stest4) & SMODE;
 
-	printf("%s: SCSI bus mode change from %x to %x.\n",
-		sym_name(np), np->scsi_mode, scsi_mode);
-
-	np->scsi_mode = scsi_mode;
-
+	/*
+	 *  Notify user.
+	 */
+	xpt_print_path(np->path);
+	printf("SCSI BUS mode change from %s to %s.\n",
+		sym_scsi_bus_mode(np->scsi_mode), sym_scsi_bus_mode(scsi_mode));
 
 	/*
-	 *  Should suspend command processing for 1 second and 
+	 *  Should suspend command processing for a few seconds and 
 	 *  reinitialize all except the chip.
 	 */
-	sym_init (np, 0, sym_verbose ? "scsi mode change" : NULL);
+	sym_init (np, 2);
 }
 
 /*
@@ -7759,7 +7785,7 @@ static	ccb_p sym_get_ccb (hcb_p np, u_char tn, u_char ln, u_char tag_order)
 			 *  Get a tag for this SCSI IO and set up
 			 *  the CCB bus address for reselection, 
 			 *  and count it for this LUN.
-			 *  Toggle reselect patch to tagged.
+			 *  Toggle reselect path to tagged.
 			 */
 			if (lp->busy_itlq < SYM_CONF_MAX_TASK) {
 				tag = lp->cb_tags[lp->ia_tag];
@@ -7952,10 +7978,8 @@ static ccb_p sym_alloc_ccb(hcb_p np)
 	cp->phys.smsg_ext.addr = cpu_to_scr(vtobus(&np->msgin[2]));
 
 	/*
-	 *  Chain into wakeup list and into free ccb queue.
+	 *  Chain into free ccb queue.
 	 */
-	cp->link_ccb	= np->ccbc;
-	np->ccbc	= cp;
 	sym_insque_head(&cp->link_ccbq, &np->free_ccbq);
 
 	return cp;
@@ -8714,13 +8738,18 @@ static void sym_timeout(void *arg)
 static int sym_abort_scsiio(hcb_p np, union ccb *ccb, int timed_out)
 {
 	ccb_p cp;
+	SYM_QUEHEAD *qp;
 
 	/*
 	 *  Look up our CCB control block.
 	 */
-	for (cp=np->ccbc; cp; cp=cp->link_ccb) {
-		if (cp->host_status != HS_IDLE && cp->cam_ccb == ccb)
+	cp = 0;
+	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
+		ccb_p cp2 = sym_que_entry(qp, struct sym_ccb, link_ccbq);
+		if (cp2->cam_ccb == ccb) {
+			cp = cp2;
 			break;
+		}
 	}
 	if (!cp)
 		return -1;
@@ -9167,8 +9196,6 @@ end_scatter:
 
 	/*
 	 *  Activate this job.
-	 *  If we have awaiting commands for that unit, 2 max 
-	 *  at a time is enough to flush the CCB wait queue.
 	 */
 	sym_put_start_queue(np, cp);
 
@@ -9401,11 +9428,11 @@ static void sym_action2(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_BUS:
 	{
 		sym_reset_scsi_bus(np, 0);
-		sym_init (np, 1, NULL);
 		if (sym_verbose) {
 			xpt_print_path(np->path);
-			printf("SCSI bus reset delivered.\n");
+			printf("SCSI BUS reset delivered.\n");
 		}
+		sym_init (np, 1);
 		sym_xpt_done2(np, ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -9569,6 +9596,11 @@ static struct sym_pci_chip sym_pci_dev_table[] = {
  ,
  {PCI_ID_LSI53C1010, 0xff, "1010", 6, 62, 7, 8,
  FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
+ FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_CRC|
+ FE_C10|FE_U3EN}
+ ,
+ {PCI_ID_LSI53C1010_2, 0xff, "1010", 6, 62, 7, 8,
+ FE_WIDE|FE_ULTRA3|FE_QUAD|FE_CACHE_SET|FE_BOF|FE_DFBC|FE_LDSTR|FE_PFEN|
  FE_RAM|FE_RAM8K|FE_64BIT|FE_IO256|FE_NOPM|FE_LEDC|FE_PCI66|FE_CRC|
  FE_C10|FE_U3EN}
  ,
@@ -9638,7 +9670,7 @@ sym_pci_probe(device_t dev)
 	chip = sym_find_pci_chip(dev);
 	if (chip) {
 		device_set_desc(dev, chip->name);
-		return (chip->lp_probe_bit & SYM_SETUP_LP_PROBE_MAP) ? -2000 : 0;
+		return (chip->lp_probe_bit & SYM_SETUP_LP_PROBE_MAP)? -2000 : 0;
 	}
 	return ENXIO;
 }
@@ -10104,14 +10136,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 	}
 
 	/*
-	 *  Reset the chip.
-	 *  We should use sym_soft_reset(), but we donnot want to do 
-	 *  so, since we may not be safe if ABRT interrupt occurs due 
-	 *  to the BIOS or previous O/S having enable this interrupt.
-	 */
-	sym_chip_reset (np);
-
-	/*
 	 *  Now check the cache handling of the pci chipset.
 	 */
 	if (sym_snooptest (np)) {
@@ -10152,6 +10176,7 @@ attach_failed:
  */
 static void sym_pci_free(hcb_p np)
 {
+	SYM_QUEHEAD *qp;
 	ccb_p cp;
 	tcb_p tp;
 	lcb_p lp;
@@ -10198,8 +10223,8 @@ static void sym_pci_free(hcb_p np)
 	if (np->dqueue)
 		sym_mfree(np->dqueue, sizeof(u32)*(MAX_QUEUE*2), "DQUEUE");
 
-	while ((cp = np->ccbc) != NULL) {
-		np->ccbc = cp->link_ccb;
+	while ((qp = sym_remque_head(&np->free_ccbq)) != 0) {
+		cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		sym_mfree(cp, sizeof(*cp), "CCB");
 	}
 
@@ -10317,6 +10342,13 @@ int sym_cam_attach(hcb_p np)
 	xpt_action((union ccb *)&csa);
 	}
 #endif
+	/*
+	 *  Start the chip now, without resetting the BUS, since  
+	 *  it seems that this must stay under control of CAM.
+	 *  With LVD/SE capable chips and BUS in SE mode, we may 
+	 *  get a spurious SMBC interrupt.
+	 */
+	sym_init (np, 0);
 
 	splx(s);
 	return 1;
@@ -10746,7 +10778,7 @@ static int sym_read_S24C16_nvram (hcb_p np, int offset, u_char *data, int len)
 
 	/* write random address LSB */
 	S24C16_write_byte(np, &ack_data,
-		(offset & 0x7f) << 1, &gpreg, &gpcntl);
+		offset & 0xff, &gpreg, &gpcntl);
 	if (ack_data & 0x01)
 		goto out;
 
