@@ -2074,7 +2074,7 @@ ciss_unmap_request(struct ciss_request *cr)
     sc = cr->cr_sc;
 
     /* check that unmapping is necessary */
-    if (cr->cr_flags & CISS_REQ_MAPPED)
+    if ((cr->cr_flags & CISS_REQ_MAPPED) == 0)
 	return;
 
     bus_dmamap_sync(sc->ciss_command_dmat, sc->ciss_command_map,
@@ -2397,7 +2397,6 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      */
     if ((error = ciss_start(cr)) != 0) {
 	xpt_freeze_simq(sc->ciss_cam_sim, 1);
-	csio->ccb_h.status |= CAM_REQUEUE_REQ;
 	if (error == EINPROGRESS) {
 	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
 	    error = 0;
