@@ -59,10 +59,8 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.51 1996/06/30 21:16:18 dyson Exp $
+ * $Id: vm_glue.c,v 1.52 1996/07/02 02:07:56 dyson Exp $
  */
-
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,8 +88,6 @@
 #include <vm/vm_pager.h>
 
 #include <sys/user.h>
-
-#include <machine/stdarg.h>
 
 /*
  * System initialization
@@ -564,36 +560,3 @@ swapout(p)
 	p->p_swtime = 0;
 }
 #endif /* !NO_SWAPPING */
-
-#ifdef DDB
-/*
- * DEBUG stuff
- */
-
-int indent;
-
-#include <machine/stdarg.h>	/* see subr_prf.c */
-
-/*ARGSUSED2*/
-void
-#if __STDC__
-iprintf(const char *fmt,...)
-#else
-iprintf(fmt /* , va_alist */ )
-	char *fmt;
-
- /* va_dcl */
-#endif
-{
-	register int i;
-	va_list ap;
-
-	for (i = indent; i >= 8; i -= 8)
-		printf("\t");
-	while (--i >= 0)
-		printf(" ");
-	va_start(ap, fmt);
-	vprintf(fmt, ap);
-	va_end(ap);
-}
-#endif /* DDB */
