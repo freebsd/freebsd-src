@@ -21,8 +21,10 @@ else
 	dists="$*"
 fi
 
+echo "Extracting sources into ${DESTDIR}/usr/src..."
 for i in $dists; do
-	echo "Extracting source component: $i"
-	cat s${i}.?? | tar --unlink -xpzf - -C /usr/src
+	echo "  Extracting source component: $i"
+	cat s${i}.?? | tar --unlink -xpzf - -C ${DESTDIR}/usr/src
 done
+echo "Done extracting sources."
 exit 0
