@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
-#define WITNESS_COUNT 200
+#define WITNESS_COUNT 1024
 #define WITNESS_CHILDCOUNT (WITNESS_COUNT * 4)
 /*
  * XXX: This is somewhat bogus, as we assume here that at most 1024 threads
@@ -191,7 +191,6 @@ static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 static void	witness_display(void(*)(const char *fmt, ...));
 #endif
 
-MALLOC_DEFINE(M_WITNESS, "witness", "witness structure");
 SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, 0, "Witness Locking");
 
 /*
