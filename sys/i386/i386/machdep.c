@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.104 1995/01/25 21:40:17 bde Exp $
+ *	$Id: machdep.c,v 1.105 1995/01/29 01:18:51 ats Exp $
  */
 
 #include "npx.h"
@@ -443,24 +443,6 @@ identifycpu()
 		break;
 	}
 }
-
-#ifdef PGINPROF
-/*
- * Return the difference (in microseconds)
- * between the  current time and a previous
- * time as represented  by the arguments.
- * If there is a pending clock interrupt
- * which has not been serviced due to high
- * ipl, return error code.
- */
-/*ARGSUSED*/
-vmtime(otime, olbolt, oicr)
-	register int otime, olbolt, oicr;
-{
-
-	return (((time.tv_sec-otime)*60 + lbolt-olbolt)*16667);
-}
-#endif
 
 extern char kstack[];
 
