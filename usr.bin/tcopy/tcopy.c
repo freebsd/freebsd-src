@@ -53,13 +53,12 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#include "pathnames.h"
 
 #define	MAXREC	(64 * 1024)
 #define	NOCOUNT	(-2)
