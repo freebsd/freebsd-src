@@ -1,7 +1,40 @@
 Updating Information for FreeBSD current users
 
 This file is maintained by imp@village.org.  Please send new entries
-to him.  See end of file for further details.
+directly to him.  See end of file for further details.
+
+19990416:
+	new bus changes integrated into -current.  Many problems were
+	initially reported, but most have been fixed.  You'll need a
+	new config and to tweak your kernel config file the way that
+	GENERIC was tweaked.  Keep a copy of your old kernel when
+	upgrading in case your new kernel doesn't work (and report the
+	breakage to current@freebsd.org).
+
+	As of 19990421 the remaining problems/quirks are
+
+	o sio no longer supports pnp nor pccard.  This will be corrected,
+	  but the new pccard code needs to be completed.
+	o Some of the sound drivers broke for some people.  It seems
+	  inconsistant as to who/what/when/where things broke.
+	o Duplicate device entries in your config do not work.  Previously
+	  they were silently ignored.  psm0 seems to be the most common
+	  duplicate choice, although some reports have come in from people
+	  that wired their scsi disk entries.
+	o You must move the keyboard and mouse attachments from the
+	  isa bus to the atkbdc bus.  See GENERIC for details.
+	o Machines with multiple host-pci bridges (Intel 450NX) will not
+	  probe the second pci bus.
+	o Some probe ordering may have changed, so device naming may change
+	  with the new kernel.  If you have multiple devices, please double
+	  check to make sure they didn't move.  This is especially true
+	  for cards on different buses.
+	o The bus attachment for vga0 is always isa0 and never pci0 when
+	  it is in fact a pci card.  It is safe to ignore this.
+	o The format of the boot messages has changed (and is not
+	  guaranteed to be constant for a while) so you may see this
+	  in some shell scripts that diff dmesg from day to day as well
+	  as scripts that parse dmesg output.
 
 19990414:
 	cc -aout sometimes has problems compiling with -g, remove -g
@@ -9,6 +42,12 @@ to him.  See end of file for further details.
 
 	cc -aout has problems with producing some threaded libraries,
 	so make world -DWANT_AOUT is not functional at this time.
+
+	Since make world for a.out isn't functional, you cannot do
+	make aout-to-elf from a pre-egcs a.out system.  To work around
+	this problem, make aout-to-elf using 3.1-stable first (or a
+	pre egcs -current) and then a simple make world will take you
+	the rest of the way with a -current source base.
 
 19990413:
 	Make -j works again for make world.  As always, use it with
@@ -18,9 +57,9 @@ to him.  See end of file for further details.
 
 19990413:
 	Note cc -aout, which had been broken since the conversion to
-	egcs, not supposedly works.  If you have rebuilt things like
+	egcs, now supposedly works.  If you have rebuilt things like
 	XFree86 a.out libraries, you should rebuild them again or
-	things (including netscape) will not work.
+	progams that use them, including netscape, will fail to work.
 
 19990409:
 	NOTE: New c++ compiler cannot be used with c++ binaries from
@@ -208,4 +247,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.28 1999/04/13 06:10:53 imp Exp $
+$Id: UPDATING,v 1.29 1999/04/15 04:36:45 imp Exp $
