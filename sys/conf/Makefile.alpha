@@ -252,7 +252,7 @@ links:
 	echo ${CFILES} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	  sort -u | comm -23 - dontlink | \
 	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
-	sh makelinks && rm -f dontlink
+	sh makelinks; rm -f dontlink
 
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
@@ -310,29 +310,31 @@ MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} obj all
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
+	    env ${MKMODULESENV} ${MAKE} all
 
 modules-depend:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} obj depend
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} obj ; \
+	    env ${MKMODULESENV} ${MAKE} depend
 
 modules-clean:
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} clean
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} clean
 
 modules-cleandepend:
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} cleandepend
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandepend
 
 modules-cleandir:
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} cleandir
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandir
 
 modules-tags:
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} tags
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
 
 modules-install modules-install.debug:
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} install
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
 
 modules-reinstall modules-reinstall.debug:
-	cd $S/modules && env ${MKMODULESENV} ${MAKE} install
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
 
 config.o:
 	${NORMAL_C}
