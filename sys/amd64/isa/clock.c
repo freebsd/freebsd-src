@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
+#ifndef BURN_BRIDGES
 /*
  * Time in timer cycles that it takes for microtime() to disable interrupts
  * and latch the count.  microtime() currently uses "cli; outb ..." so it
@@ -107,6 +108,7 @@ __FBSDID("$FreeBSD$");
  * before the next timer interrupt.
  */
 #define	TIMER0_MAX_FREQ		20000
+#endif
 
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
@@ -128,6 +130,7 @@ static	u_int	hardclock_max_count;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	i8254_ticked;
+#ifndef BURN_BRIDGES
 /*
  * XXX new_function and timer_func should not handle clockframes, but
  * timer_func currently needs to hold hardclock to handle the
@@ -136,9 +139,11 @@ static	int	i8254_ticked;
  */
 static	void	(*new_function)(struct clockframe *frame);
 static	u_int	new_rate;
+static	u_int	timer0_prescaler_count;
+static	u_char	timer0_state;
+#endif
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
-static	u_int	timer0_prescaler_count;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -146,7 +151,6 @@ static	u_int	timer0_prescaler_count;
 #define	ACQUIRED	2
 #define	ACQUIRE_PENDING	3
 
-static	u_char	timer0_state;
 static	u_char	timer2_state;
 static	void	(*timer_func)(struct clockframe *frame) = hardclock;
 
@@ -177,6 +181,7 @@ clkintr(struct clockframe frame)
 		mtx_unlock_spin(&clock_lock);
 	}
 	timer_func(&frame);
+#ifndef BURN_BRIDGES
 	switch (timer0_state) {
 
 	case RELEASED:
@@ -222,8 +227,10 @@ clkintr(struct clockframe frame)
 		}
 		break;
 	}
+#endif
 }
 
+#ifndef BURN_BRIDGES
 /*
  * The acquire and release functions must be called at ipl >= splclock().
  */
@@ -259,6 +266,7 @@ acquire_timer0(int rate, void (*function)(struct clockframe *frame))
 	old_rate = new_rate = rate;
 	return (0);
 }
+#endif
 
 int
 acquire_timer2(int mode)
@@ -280,6 +288,7 @@ acquire_timer2(int mode)
 	return (0);
 }
 
+#ifndef BURN_BRIDGES
 int
 release_timer0()
 {
@@ -299,6 +308,7 @@ release_timer0()
 	}
 	return (0);
 }
+#endif
 
 int
 release_timer2()
@@ -931,8 +941,10 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	freq = timer_freq;
 	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
+#ifndef BURN_BRIDGES
 		if (timer0_state != RELEASED)
 			return (EBUSY);	/* too much trouble to handle */
+#endif
 		set_timer_freq(freq, hz);
 		i8254_timecounter.tc_frequency = freq;
 	}
