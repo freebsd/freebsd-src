@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
+.\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
+.\"     $Id: gethostbyname.3,v 1.8 1997/06/18 06:26:13 charnier Exp $
 .\"
 .Dd May 25, 1995
 .Dt GETHOSTBYNAME 3
@@ -55,8 +56,11 @@
 .Fn gethostbyaddr "const char *addr" "int len" "int type"
 .Ft struct hostent *
 .Fn gethostent void
+.Ft void
 .Fn sethostent "int stayopen"
+.Ft void
 .Fn endhostent void
+.Ft void
 .Fn herror "const char *string"
 .Ft const char *
 .Fn hstrerror "int err"
@@ -292,7 +296,7 @@ functions appeared in
 .Bx 4.2 .
 The
 .Fn gethostbyname2
-functrion first appeared in bind-4.9.4.
+function first appeared in bind-4.9.4.
 .Sh BUGS
 These functions use static data storage;
 if the data is needed for future use, it should be

@@ -44,13 +44,15 @@
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
 .Ft struct protoent *
-.Fn getprotoent 
+.Fn getprotoent void
 .Ft struct protoent *
-.Fn getprotobyname "char *name"
+.Fn getprotobyname "const char *name"
 .Ft struct protoent *
 .Fn getprotobynumber "int proto"
+.Ft void
 .Fn setprotoent "int stayopen"
-.Fn endprotoent 
+.Ft void
+.Fn endprotoent void
 .Sh DESCRIPTION
 The
 .Fn getprotoent ,

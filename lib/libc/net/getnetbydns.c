@@ -60,7 +60,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: getnetbydns.c,v 1.6 1996/07/12 18:54:37 jkh Exp $";
+static char rcsid[] = "$Id: getnetbydns.c,v 1.11 1997/06/27 08:22:01 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,6 @@ static char rcsid[] = "$Id: getnetbydns.c,v 1.6 1996/07/12 18:54:37 jkh Exp $";
 
 #include "res_config.h"
 
-extern void _res_close __P((void));
 extern int h_errno;
 
 #define BYADDR 0
@@ -118,7 +117,7 @@ getnetanswer(answer, anslen, net_i)
 	char aux1[30], aux2[30], ans[30], *in, *st, *pauxt, *bp, **ap,
 		*paux1 = &aux1[0], *paux2 = &aux2[0], flag = 0;
 static	struct netent net_entry;
-static	char *net_aliases[MAXALIASES], netbuf[BUFSIZ+1];
+static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 
 	/*
 	 * find first satisfactory answer
@@ -307,5 +306,5 @@ void
 _endnetdnsent()
 {
 	_res.options &= ~(RES_STAYOPEN | RES_USEVC);
-	_res_close();
+	res_close();
 }

@@ -64,7 +64,7 @@ ns_addr(name)
 	 * form  2-272.AA001234H.01777, i.e. XDE standard.
 	 * Great efforts are made to insure backward compatability.
 	 */
-	if (hostname = strchr(buf, '#'))
+	if ((hostname = strchr(buf, '#')) != NULL)
 		separator = '#';
 	else {
 		hostname = strchr(buf, '.');

@@ -55,7 +55,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 8.7 1996/08/05 08:31:35 vixie Exp $";
+static char orig_rcsid = "From: Id: res_query.c,v 8.10 1997/06/01 20:34:37 vixie Exp";
+static char rcsid[] = "$Id: res_query.c,v 1.14 1997/06/27 08:22:03 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -80,7 +81,7 @@ static char rcsid[] = "$Id: res_query.c,v 8.7 1996/08/05 08:31:35 vixie Exp $";
 #define MAXPACKET	1024
 #endif
 
-char *__hostalias __P((const char *));
+const char *hostalias __P((const char *));
 int h_errno;
 
 /*
@@ -315,9 +316,9 @@ res_querydomain(name, domain, class, type, answer, anslen)
 	u_char *answer;		/* buffer to put answer */
 	int anslen;		/* size of answer */
 {
-	char nbuf[2*MAXDNAME+2];
+	char nbuf[MAXDNAME];
 	const char *longname = nbuf;
-	int n;
+	int n, d;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
@@ -333,20 +334,31 @@ res_querydomain(name, domain, class, type, answer, anslen)
 		 * Check for trailing '.';
 		 * copy without '.' if present.
 		 */
-		n = strlen(name) - 1;
-		if (n != (0 - 1) && name[n] == '.' && n < sizeof(nbuf) - 1) {
-			bcopy(name, nbuf, n);
+		n = strlen(name);
+		if (n >= MAXDNAME) {
+			h_errno = NO_RECOVERY;
+			return (-1);
+		}
+		n--;
+		if (n >= 0 && name[n] == '.') {
+			strncpy(nbuf, name, n);
 			nbuf[n] = '\0';
 		} else
 			longname = name;
-	} else
-		sprintf(nbuf, "%.*s.%.*s", MAXDNAME, name, MAXDNAME, domain);
-
+	} else {
+		n = strlen(name);
+		d = strlen(domain);
+		if (n + d + 1 >= MAXDNAME) {
+			h_errno = NO_RECOVERY;
+			return (-1);
+		}
+		sprintf(nbuf, "%s.%s", name, domain);
+	}
 	return (res_query(longname, class, type, answer, anslen));
 }
 
-char *
-__hostalias(name)
+const char *
+hostalias(name)
 	register const char *name;
 {
 	register char *cp1, *cp2;
@@ -356,6 +368,9 @@ __hostalias(name)
 	static char abuf[MAXDNAME];
 
 	if (_res.options & RES_NOALIASES)
+		return (NULL);
+	/* XXX issetguid() would be better here, but we don't have that. */
+	if (getuid() != geteuid() || getgid() != getegid())
 		return (NULL);
 	file = getenv("HOSTALIASES");
 	if (file == NULL || (fp = fopen(file, "r")) == NULL)

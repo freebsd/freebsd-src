@@ -36,11 +36,12 @@
 .Nm ascii2addr
 .Nd Generic address formatting routines
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Fd #include <arpa/inet.h>
 .Ft "char *"
-.Fn addr2ascii "int af" "const void *addrp" "size_t len" "char *buf"
+.Fn addr2ascii "int af" "const void *addrp" "int len" "char *buf"
 .Ft int
 .Fn ascii2addr "int af" "const char *ascii" "void *result"
 .Sh DESCRIPTION
