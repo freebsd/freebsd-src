@@ -145,7 +145,7 @@
 #define NEG_VJCOMP	53
 
 const char Version[] = "2.23";
-const char VersionDate[] = "$Date: 1999/08/22 01:29:53 $";
+const char VersionDate[] = "$FreeBSD$";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
