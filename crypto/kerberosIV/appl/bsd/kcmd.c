@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: kcmd.c,v 1.20 1998/07/13 13:54:07 assar Exp $");
+RCSID("$Id: kcmd.c,v 1.20.4.1 2000/10/10 12:55:55 assar Exp $");
 
 #define	START_PORT	5120	 /* arbitrary */
 
@@ -185,6 +185,14 @@ kcmd(int *sock,
 		{
 		    fd_set fds;
 		    FD_ZERO(&fds);
+		    if (s >= FD_SETSIZE || s2 >= FD_SETSIZE) {
+			warnx("file descriptor too large");
+			close(s);
+			close(s2);
+			status = -1;
+			goto bad;
+		    }
+
 		    FD_SET(s, &fds);
 		    FD_SET(s2, &fds);
 		    status = select(FD_SETSIZE, &fds, NULL, NULL, NULL);

@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: authenc.c,v 1.8 1998/07/09 23:16:37 assar Exp $");
+RCSID("$Id: authenc.c,v 1.9 1999/09/05 19:14:50 assar Exp $");
 
 #ifdef AUTHENTICATION
 
@@ -63,8 +63,7 @@ net_encrypt(void)
 int
 telnet_spin(void)
 {
-    ttloop();
-    return(0);
+    return ttloop();
 }
 
 char *

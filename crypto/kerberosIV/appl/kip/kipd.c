@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -35,22 +35,11 @@
 
 #include "kip.h"
 
-RCSID("$Id: kipd.c,v 1.16 1999/12/02 16:58:31 joda Exp $");
-
-static int
-fatal (int fd, char *s)
-{
-     u_char err = 1;
-
-     write (fd, &err, sizeof(err));
-     write (fd, s, strlen(s)+1);
-     syslog(LOG_ERR, "%s", s);
-     return err;
-}
+RCSID("$Id: kipd.c,v 1.16.2.3 2000/10/18 20:46:45 assar Exp $");
 
 static int
 recv_conn (int sock, des_cblock *key, des_key_schedule schedule,
-	   struct sockaddr_in *retaddr)
+	   struct sockaddr_in *retaddr, char *user, size_t len)
 {
      int status;
      KTEXT_ST ticket;
@@ -82,12 +71,20 @@ recv_conn (int sock, des_cblock *key, des_key_schedule schedule,
 	  return 1;
      }
      passwd = k_getpwnam ("root");
-     if (passwd == NULL)
-	  return fatal (sock, "Cannot find root");
-     if (kuserok(&auth, "root") != 0)
-	  return fatal (sock, "Permission denied");
+     if (passwd == NULL) {
+	  fatal (sock, "Cannot find root", schedule, &auth.session);
+	  return 1;
+     }
+     if (kuserok(&auth, "root") != 0) {
+	  fatal (sock, "Permission denied", schedule, &auth.session);
+	  return 1;
+     }
      if (write (sock, &ok, sizeof(ok)) != sizeof(ok))
 	  return 1;
+
+     snprintf (user, len, "%s%s%s@%s", auth.pname, 
+	       auth.pinst[0] != '\0' ? "." : "",
+	       auth.pinst, auth.prealm);
 
      memcpy(key, &auth.session, sizeof(des_cblock));
      *retaddr = thataddr;
@@ -97,17 +94,64 @@ recv_conn (int sock, des_cblock *key, des_key_schedule schedule,
 static int
 doit(int sock)
 {
+     char msg[1024];
+     char cmd[MAXPATHLEN];
+     char tun_if_name[64];
+     char user[MAX_K_NAME_SZ];
      struct sockaddr_in thataddr;
      des_key_schedule schedule;
      des_cblock key;
-     int this;
+     int this, ret, ret2;
 
-     if (recv_conn (sock, &key, schedule, &thataddr))
+     isserver = 1;
+
+     if (recv_conn (sock, &key, schedule, &thataddr, user, sizeof(user)))
 	  return 1;
-     this = tunnel_open ();
+     this = tunnel_open (tun_if_name, sizeof(tun_if_name));
      if (this < 0)
-	  fatal (sock, "Cannot open " _PATH_DEV TUNDEV);
-     return copy_packets (this, sock, TUNMTU, &key, schedule);
+	  fatal (sock, "Cannot open " _PATH_DEV TUNDEV, schedule, &key);
+
+     strlcpy(cmd, LIBEXECDIR "/kipd-control", sizeof(cmd));
+
+     ret = kip_exec (cmd, msg, sizeof(msg), "kipd-control",
+		     "up", tun_if_name, inet_ntoa(thataddr.sin_addr), user,
+		     NULL);
+     if (ret) {
+	 fatal (sock, msg, schedule, &key);
+	 return -1;
+     }
+
+     ret = copy_packets (this, sock, TUNMTU, &key, schedule);
+     
+     ret2 = kip_exec (cmd,  msg, sizeof(msg), "kipd-control",
+		      "down", tun_if_name, user, NULL);
+     if (ret2)
+	 syslog(LOG_ERR, "%s", msg);
+     return ret;
+}
+
+static char *port_str		= NULL;
+static int inetd_flag		= 1;
+static int version_flag		= 0;
+static int help_flag		= 0;
+
+struct getargs args[] = {
+    { "inetd",		'i',	arg_negative_flag,	&inetd_flag,
+      "Not started from inetd" },
+    { "port",		'p',	arg_string,	&port_str,	"Use this port",
+      "port" },
+    { "version",	0, 	arg_flag,		&version_flag },
+    { "help",		0, 	arg_flag,		&help_flag }
+};
+
+static void
+usage(int ret)
+{
+    arg_printusage (args,
+		    sizeof(args) / sizeof(args[0]),
+		    NULL,
+		    "");
+    exit (ret);
 }
 
 /*
@@ -117,9 +161,44 @@ doit(int sock)
 int
 main (int argc, char **argv)
 {
-    set_progname (argv[0]);
+    int port;
+    int optind = 0;
 
+    set_progname (argv[0]);
     roken_openlog(__progname, LOG_PID|LOG_CONS, LOG_DAEMON);
+
+    if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
+		&optind))
+	usage (1);
+
+    if (help_flag)
+	usage (0);
+
+    if (version_flag) {
+	print_version (NULL);
+	return 0;
+    }
+
+    if(port_str) {
+	struct servent *s = roken_getservbyname (port_str, "tcp");
+
+	if (s)
+	    port = s->s_port;
+	else {
+	    char *ptr;
+
+	    port = strtol (port_str, &ptr, 10);
+	    if (port == 0 && ptr == port_str)
+		errx (1, "bad port `%s'", port_str);
+	    port = htons(port);
+	}
+    } else {
+	port = k_getportbyname ("kip", "tcp", htons(KIPPORT));
+    }
+
+    if (!inetd_flag)
+	mini_inetd (port);
+
     signal (SIGCHLD, childhandler);
-    return doit(0);
+    return doit(STDIN_FILENO);
 }

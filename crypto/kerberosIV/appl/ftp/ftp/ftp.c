@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID ("$Id: ftp.c,v 1.60 1999/10/28 19:32:17 assar Exp $");
+RCSID ("$Id: ftp.c,v 1.60.2.1 2000/06/23 02:45:40 assar Exp $");
 
 struct sockaddr_storage hisctladdr_ss;
 struct sockaddr *hisctladdr = (struct sockaddr *)&hisctladdr_ss;
@@ -193,8 +193,9 @@ login (char *host)
 	    printf ("Name (%s:%s): ", host, myname);
 	else
 	    printf ("Name (%s): ", host);
-	fgets (tmp, sizeof (tmp) - 1, stdin);
-	tmp[strlen (tmp) - 1] = '\0';
+	*tmp = '\0';
+	if (fgets (tmp, sizeof (tmp) - 1, stdin) != NULL)
+	    tmp[strlen (tmp) - 1] = '\0';
 	if (*tmp == '\0')
 	    user = myname;
 	else
@@ -203,24 +204,26 @@ login (char *host)
     strlcpy(username, user, sizeof(username));
     n = command("USER %s", user);
     if (n == CONTINUE) {
-	if(sec_complete)
-	    pass = myname;
-	else if (pass == NULL) {
+	if (pass == NULL) {
 	    char prompt[128];
 	    if(myname && 
-	       (!strcmp(user, "ftp") || !strcmp(user, "anonymous"))){
+	       (!strcmp(user, "ftp") || !strcmp(user, "anonymous"))) {
 		snprintf(defaultpass, sizeof(defaultpass), 
 			 "%s@%s", myname, mydomain);
 		snprintf(prompt, sizeof(prompt), 
 			 "Password (%s): ", defaultpass);
-	    }else{
+	    } else if (sec_complete) {
+		pass = myname;
+	    } else {
 		*defaultpass = '\0';
 		snprintf(prompt, sizeof(prompt), "Password: ");
 	    }
-	    pass = defaultpass;
-	    des_read_pw_string (tmp, sizeof (tmp), prompt, 0);
-	    if (tmp[0])
-		pass = tmp;
+	    if (pass == NULL) {
+		pass = defaultpass;
+		des_read_pw_string (tmp, sizeof (tmp), prompt, 0);
+		if (tmp[0])
+		    pass = tmp;
+	    }
 	}
 	n = command ("PASS %s", pass);
     }

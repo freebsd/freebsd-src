@@ -197,9 +197,6 @@
 /* Define if you have the getlogin function.  */
 #undef HAVE_GETLOGIN
 
-/* Define if you have the getmsg function.  */
-#undef HAVE_GETMSG
-
 /* Define if you have the getopt function.  */
 #undef HAVE_GETOPT
 
@@ -386,6 +383,9 @@
 /* Define if you have the socket function.  */
 #undef HAVE_SOCKET
 
+/* Define if you have the socklen_t function.  */
+#undef HAVE_SOCKLEN_T
+
 /* Define if you have the strcasecmp function.  */
 #undef HAVE_STRCASECMP
 
@@ -550,6 +550,9 @@
 
 /* Define if you have the <fnmatch.h> header file.  */
 #undef HAVE_FNMATCH_H
+
+/* Define if you have the <gdbm/ndbm.h> header file.  */
+#undef HAVE_GDBM_NDBM_H
 
 /* Define if you have the <grp.h> header file.  */
 #undef HAVE_GRP_H
@@ -1081,6 +1084,9 @@
 
 /* Define this to what the type ssize_t should be. */
 #undef ssize_t
+
+/* Define this to what the type sig_atomic_t should be. */
+#undef sig_atomic_t
 
 /* Define if struct sockaddr has field sa_len. */
 #undef HAVE_STRUCT_SOCKADDR_SA_LEN

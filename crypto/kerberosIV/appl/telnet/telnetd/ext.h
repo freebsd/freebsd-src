@@ -33,7 +33,7 @@
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
  */
 
-/* $Id: ext.h,v 1.17 1998/07/09 23:16:38 assar Exp $ */
+/* $Id: ext.h,v 1.19 1999/09/05 19:15:21 assar Exp $ */
 
 #ifndef __EXT_H__
 #define __EXT_H__
@@ -121,11 +121,9 @@ void init_env (void);
 void start_login (char *host, int autologin, char *name);
 void cleanup (int sig);
 int main (int argc, char **argv);
-void usage (void);
 int getterminaltype (char *name, size_t);
 void _gettermname (void);
 int terminaltypeok (char *s);
-void doit (struct sockaddr_in *who);
 void my_telnet (int f, int p, char*, int, char*);
 void interrupt (void);
 void sendbrk (void);
@@ -134,7 +132,7 @@ void recv_ayt (void);
 void doeof (void);
 void flowstat (void);
 void clientstat (int code, int parm1, int parm2);
-void ttloop (void);
+int ttloop (void);
 int stilloob (int s);
 void ptyflush (void);
 char *nextitem (char *current);

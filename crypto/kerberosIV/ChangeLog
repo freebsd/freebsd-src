@@ -1,6 +1,141 @@
+2000-12-25
+
+	* configure.in (VERSION): bump to 1.0.5
+
+2000-10-19
+
+	* include/Makefile.in (HEADERS): add md4.h, md5.h, sha.h and rc4.h
+	* appl/kip/common.c (WCOREDUMP): add fallback definition
+
+2000-10-18
+
+	* lib/krb/dest_tkt.c (dest_tkt): only return valid error codes
+	back
+
+	* kadmin/admin_server.c: re-structure code to handle DoS attacks
+	better only allow a constant number of children (100 currently)
+	keep track of which children have gotten authentication
+	information and kill the non-authenticated children when there are
+	new connections
+
+2000-10-16
+
+	* server/kerberos.c: handle a fixed number (100) of TCP
+	connections and kill some randomly if all are busy to try to
+	mitigate the effects of DoS attacks
+
+2000-10-08
+
+	* lib/krb/send_to_kdc.c (send_recv): check that fds are not too
+	large to select on
+	* kadmin/admin_server.c (kadm_listen): check that fds are not too
+	large to select on
+	* appl/kip/common.c (*): check that fds are not too large to
+	select on
+	* appl/bsd/rshd.c (doit): check that fds are not too large to
+	select on
+	* appl/bsd/rsh.c (talk): check that fds are not too large to
+	select on
+	* appl/bsd/rlogin.c (reader): check that fds are not too large to
+	select on
+	* appl/bsd/kcmd.c (kcmd): check that fds are not too large to
+	select on
+
+2000-09-25
+
+	* config.guess: update to version 2000-09-05 (aka 1.156) from
+	subversions.gnu.org plus some minor tweaks
+	* config.sub: update to version 2000-09-11 (aka 1.181) from
+	subversions.gnu.org
+
+2000-09-09
+
+	* appl/kip/kipd.c: add back droped slash in kip-control
+
+2000-08-16
+
+	* configure.in (getmsg): re-do so it possibly works on redhat 7.0
+
+2000-08-09
+
+	* kuser/klist.c (display_srvtab): do not call warn with a variable
+	as format string
+
+	* appl/bsd/rshd.c (doit): do not call warnx with a variable as
+	format string
+
+2000-07-30
+
+	* doc/install.texi: say something about siacfg
+	
+2000-06-28
+
+	* lib/krb/dest_tkt.c (dest_tkt): rewrite to lstat and compare
+	numbers
+
+2000-06-10
+
+	* appl/bsd: work-around setuid and capabilities bug fixed in Linux
+	2.2.16
+
+2000-06-08
+
+	* configure.in: do not use streams ptys on HP-UX 11
+
+2000-05-15
+
+	* lib/krb/rw.c (krb_get_nir): add explicit lengths to the
+	parameters.  before this the function `knew'.  change callers.
+
+2000-05-14
+
+	* appl/afsutil/aklog.c: look not only in /usr/vice/etc but also in
+	/usr/arla/etc for configuration files
+
+2000-04-25
+
+	* lib/krb/tf_util.c (tf_create): just remove the over-writing of
+	the old ticket file.
+
+2000-04-09
+
+	* lib/krb/getaddrs.c (k_get_all_addrs): apperently solaris can
+	return EINVAL when the buffer is too small.  cope.
+	* appl/bsd/rshd.c (doit): exec the correct shell
+
+2000-03-26
+
+	* config.guess, config.sub: update to current version from
+	:pserver:anoncvs@subversions.gnu.org:/home/cvs
+
+	* appl/bsd/rlogind.c (rlogind_logout, logwtmp): make sure to
+	always call time and ctime with `time_t's.  there were some types
+	(like in lastlog) that we believed to always be time_t.  this has
+	proven wrong on Solaris 8 in 64-bit mode, where they are stored as
+	32-bit quantities but time_t has gone up to 64 bits
+	* appl/bsd/login.c: dito
+
+2000-03-20
+
+	* configure.in: add solaris2.8
+
+2000-03-15
+
+	* configure.in: on all versions of aix, add `-bnolibpath' to the
+	linker.  otherwise ld will interpret -L as run-time path for where
+	to find shared libraries and looking in ../../foo is a bad idea.
+	bug report from Niklas Edmundsson <nikke@ing.umu.se>
+
+2000-03-09
+
+	*  Release 1.0.1
+
 1999-11-29
 
+	*  Release 1.0
+
 	* lib/krb/krb-protos.h (tf_get_cred_addr): add prototype
+
 	* lib/krb/tf_util.c (tf_get_cred_addr): new function for fetching
 	the NAT addresses stored in the ticket file. From
 	<thn@stacken.kth.se>

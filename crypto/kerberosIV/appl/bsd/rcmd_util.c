@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rcmd_util.c,v 1.19 1999/12/02 16:58:28 joda Exp $");
+RCSID("$Id: rcmd_util.c,v 1.19.2.1 2000/06/23 02:34:48 assar Exp $");
 
 int
 get_login_port(int kerberos, int encryption)
@@ -244,4 +244,20 @@ warning(const char *fmt, ...)
 	vwarnx(fmt, args);
     }
     va_end(args);
+}
+
+/*
+ * setuid but work-around Linux 2.2.15 bug with setuid and capabilities
+ */
+
+void
+paranoid_setuid (uid_t uid)
+{
+    if (setuid (uid) < 0)
+	err (1, "setuid");
+    if (uid != 0 && setuid (0) == 0) {
+	syslog(LOG_ALERT | LOG_AUTH,
+	       "Failed to drop privileges for uid %u", (unsigned)uid);
+	err (1, "setuid");
+    }
 }

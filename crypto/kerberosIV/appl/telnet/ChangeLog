@@ -1,3 +1,57 @@
+2000-03-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (*): make sure to always call time, ctime,
+	and gmtime with `time_t's.  there were some types (like in
+	lastlog) that we believed to always be time_t.  this has proven
+	wrong on Solaris 8 in 64-bit mode, where they are stored as 32-bit
+	quantities but time_t has gone up to 64 bits
+
+1999-09-16  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c: revert 1.54, get_default_username should DTRT
+ 	now
+
+1999-09-05  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/utility.c (ttloop): make it return 1 if interrupted by a
+ 	signal, which must have been what was meant from the beginning
+
+	* telnetd/ext.h (ttloop): update prototype
+
+	* telnetd/authenc.c (telnet_spin): actually return the value from
+ 	ttloop (otherwise it's kind of bogus)
+
+1999-08-05  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (rmut): free utxp
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* telnet/main.c: add -G and config file support.  From Miroslav
+ 	Ruda <ruda@ics.muni.cz>
+
+	* telnetd/sys_term.c (rmut): work around utmpx strangness.  From
+ 	Miroslav Ruda <ruda@ics.muni.cz>
+
+1999-08-02  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c (doit): only free hp if != NULL.  From: Jonas
+ 	Oberg <jonas@coyote.org>
+
+1999-07-29  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c (doit): remove unused variable mapped_sin
+
+1999-07-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/ext.h: update prototypes
+	
+	* telnetd/telnetd.c: make it handle v4 and v6 sockets.  (it
+	doesn't handle being given a v6 socket that's really talking to an
+	v4 adress (mapped) because the rest of the code in telnetd is not
+	able to handle it anyway).  please run two telnetd from your
+	inetd, one for v4 and one for v6.
+
 1999-07-07  Assar Westerlund  <assar@sics.se>
 
 	* telnet/commands.c (tn): extra bogus const-cast

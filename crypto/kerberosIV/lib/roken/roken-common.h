@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.19 1999/12/02 16:58:52 joda Exp $ */
+/* $Id: roken-common.h,v 1.19.2.2 2000/08/16 03:37:26 assar Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
@@ -98,6 +98,10 @@
 
 #ifndef O_ACCMODE
 #define O_ACCMODE	003
+#endif
+
+#ifndef _PATH_DEV
+#define _PATH_DEV "/dev/"
 #endif
 
 #ifndef _PATH_DEVNULL
@@ -252,4 +256,10 @@ socket_set_tos (int sock, int tos);
 void
 socket_set_reuseaddr (int sock, int val);
 
+char **
+vstrcollect(va_list *ap);
+
+char **
+strcollect(char *first, ...);
+ 
 #endif /* __ROKEN_COMMON_H__ */

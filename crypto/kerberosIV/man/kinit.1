@@ -31,23 +31,17 @@ see the
 .I kerberos(1)
 manual page.
 .PP
-If you are logged in to a workstation that is running the
-.I toehold
-service,
-you do not have to use
+If you are using a replaced
+.I login
+that already fetches tickets for you, you do not have to use
 .I kinit.
-The
-.I toehold
-login procedure will log you into
-Kerberos
-automatically.
 You will need to use
 .I kinit
 only in those situations in which
 your original tickets have expired.
 (Tickets expire in about a day.)
-Note as well that
-.I toehold
+Note as well that the modified
+.I login
 will automatically destroy your tickets when you logout from the workstation.
 .PP
 When you use
@@ -77,9 +71,9 @@ specifies your user identification number.
 .PP
 If you have logged in to
 Kerberos
-without the benefit of the workstation
-.I toehold
-system,
+without the benefit of the modified
+.I login
+program,
 make sure you use the
 .I kdestroy
 command to destroy any active tickets before you end your login session.
@@ -126,7 +120,7 @@ restrictions in Kerberos Version 4, this value must be between 5 and
 will acquires a ticket for changepw.kerberos.
 .SH SEE ALSO
 .PP
-kerberos(1), kdestroy(1), klist(1), toehold(1)
+kerberos(1), kdestroy(1), klist(1), login(1)
 .SH BUGS
 The
 .B \-r

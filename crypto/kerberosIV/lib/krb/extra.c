@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: extra.c,v 1.7 1999/12/02 16:58:41 joda Exp $");
+RCSID("$Id: extra.c,v 1.7.2.1 2000/12/07 16:06:09 assar Exp $");
 
 struct value {
     char *variable;

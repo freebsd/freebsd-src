@@ -33,7 +33,7 @@
 
 #include <config.h>
 
-RCSID("$Id: spx.c,v 1.16 1998/07/09 23:16:33 assar Exp $");
+RCSID("$Id: spx.c,v 1.17 1999/09/16 20:41:34 assar Exp $");
 
 #ifdef	SPX
 /*
@@ -514,7 +514,7 @@ spx_status(ap, name, name_sz, level)
 					&acl_file_buffer);
 
 	if (major_status == GSS_S_COMPLETE) {
-	  strcpy_truncate(name, UserNameRequested, name_sz);
+	  strlcpy(name, UserNameRequested, name_sz);
 	  return(AUTH_VALID);
 	} else {
 	   return(AUTH_USER);
@@ -537,11 +537,11 @@ spx_printsub(data, cnt, buf, buflen)
 
 	switch(data[3]) {
 	case SPX_REJECT:		/* Rejected (reason might follow) */
-		strcpy_truncate((char *)buf, " REJECT ", buflen);
+		strlcpy((char *)buf, " REJECT ", buflen);
 		goto common;
 
 	case SPX_ACCEPT:		/* Accepted (name might follow) */
-		strcpy_truncate((char *)buf, " ACCEPT ", buflen);
+		strlcpy((char *)buf, " ACCEPT ", buflen);
 	common:
 		BUMP(buf, buflen);
 		if (cnt <= 4)
@@ -554,7 +554,7 @@ spx_printsub(data, cnt, buf, buflen)
 		break;
 
 	case SPX_AUTH:			/* Authentication data follows */
-		strcpy_truncate((char *)buf, " AUTH", buflen);
+		strlcpy((char *)buf, " AUTH", buflen);
 		goto common2;
 
 	default:

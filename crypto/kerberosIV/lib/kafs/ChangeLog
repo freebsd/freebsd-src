@@ -1,3 +1,13 @@
+2000-03-20  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: make versions later than 5.7 of solaris also use
+	73
+
+2000-03-13  Assar Westerlund  <assar@sics.se>
+
+	* afssysdefs.h: add 230 for MacOS X per information from
+	<warner.c@apple.com>
+
 1999-11-22  Assar Westerlund  <assar@sics.se>
 
 	* afskrb5.c (afslog_uid_int): handle d->realm == NULL
