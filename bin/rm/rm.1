@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
-.\"	$Id: rm.1,v 1.9 1997/04/09 05:04:43 mpp Exp $
+.\"	$Id: rm.1,v 1.10 1997/04/29 10:03:09 dfr Exp $
 .\"
 .Dd December 5, 1994
 .Dt RM 1
@@ -158,12 +158,6 @@ system.
 UFS is a fixed-block file system, LFS is not.
 In addition, only regular files are overwritten, other types of files
 are not.
-.Pp
-No support exists for the
-.Xr undelete 2
-call in the kernel, so the
-.Fl W
-option is not yet implemented.
 .Sh COMPATIBILITY
 The
 .Nm rm
