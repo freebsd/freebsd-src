@@ -171,6 +171,7 @@ struct part_type
 	,{0x93, "Amoeba filesystem"}
 	,{0x94, "Amoeba bad block table"}
 	,{0x9F, "BSD/OS"}
+	,{0xA0, "Suspend to Disk"}
 	,{0xA5, "FreeBSD/NetBSD/386BSD"}
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
