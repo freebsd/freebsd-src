@@ -69,14 +69,13 @@ static fo_stat_t	kqueue_stat;
 static fo_close_t	kqueue_close;
 
 static struct fileops kqueueops = {
-	kqueue_read,
-	kqueue_write,
-	kqueue_ioctl,
-	kqueue_poll,
-	kqueue_kqfilter,
-	kqueue_stat,
-	kqueue_close,
-	0
+	.fo_read = kqueue_read,
+	.fo_write = kqueue_write,
+	.fo_ioctl = kqueue_ioctl,
+	.fo_poll = kqueue_poll,
+	.fo_kqfilter = kqueue_kqfilter,
+	.fo_stat = kqueue_stat,
+	.fo_close = kqueue_close,
 };
 
 static void 	knote_attach(struct knote *kn, struct filedesc *fdp);

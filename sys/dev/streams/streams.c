@@ -90,8 +90,13 @@ static dev_t dt_ptm, dt_arp, dt_icmp, dt_ip, dt_tcp, dt_udp, dt_rawip,
 	dt_unix_dgram, dt_unix_stream, dt_unix_ord_stream;
 
 static struct fileops svr4_netops = {
-	soo_read, soo_write, soo_ioctl, soo_poll, soo_kqfilter,
-	soo_stat, svr4_soo_close
+	.fo_read = soo_read,
+	.fo_write = soo_write,
+	.fo_ioctl = soo_ioctl,
+	.fo_poll = soo_poll,
+	.fo_kqfilter = soo_kqfilter,
+	.fo_stat = soo_stat,
+	.fo_close =  svr4_soo_close
 };
  
 #define CDEV_MAJOR 103
