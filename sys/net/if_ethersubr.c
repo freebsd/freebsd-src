@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.46 1998/03/18 01:40:11 wollman Exp $
+ * $Id: if_ethersubr.c,v 1.47 1998/03/30 09:51:39 phk Exp $
  */
 
 #include "opt_atalk.h"
@@ -501,6 +501,8 @@ ether_input(ifp, eh, m)
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
+		if (ipflow_fastforward(m))
+			return;
 		schednetisr(NETISR_IP);
 		inq = &ipintrq;
 		break;
